@@ -538,6 +538,20 @@ console.log('10 THE FOLD (G1)');
       check(Cl.catCapWhy && (lo.fit.why || []).some(w => /mm higher/.test(w)), 'a wing too low for the rise reddens the fit, and says how much higher it must be',
             (lo.fit.why || []).find(w => /mm higher/.test(w)) || 'no word'); }
     const asp = c => { const u = c.outline.map(q => q[0]), v = c.outline.map(q => q[1]), a = Math.max(...u) - Math.min(...u), b = Math.max(...v) - Math.min(...v); return Math.max(a, b) / Math.min(a, b); };
+    // (P2, the user's sketch: THE FOLDING KNEE, a fold beside the Catalina's - 'knee')
+    { const ks = SH.sceneBuild(bc, { over: { gearRetract: 1, gearFold: 8, gearDoors: 0, gearLegDoor: 0, s1X: 0.85, floorY: -0.25, s1Root: 1 }, garage: bc });
+      const Gk = ks.W.CAGE_GEAR, Rk = Gk.mech, Ck = Rk.units.L, Kk = Ck.knee, CMk = C.GEAR_MECH;
+      check(Gk.swing && Kk && ks.W.CAGE_GEAR_FOLD.FOLD_KEYS.includes('catalina') && ks.W.CAGE_GEAR_FOLD.FOLD_KEYS[8] === 'knee',
+            'the folding knee is a fold of its own (the Catalina\'s kept beside it)');
+      let tilt = 0, pts = [];
+      for (let i = 0; i <= 20; i++) { const g = 1 - i / 20, Q = CMk.gearMechPoints(Rk, g), P = p => CMk.gearUnitPt(Ck, Q.M.L, p, Q.D.L, Q.Lm.L, Q.Am.L);
+        const kn = P(Kk.knee0), ft = P([Kk.knee0[0], Ck.axle[1], Ck.axle[2]]); tilt = Math.max(tilt, Math.abs(kn[0] - ft[0]) + Math.abs(kn[2] - ft[2])); pts.push(P(Ck.axle)); }
+      const up = pts[pts.length - 1][1] - pts[0][1], inw = Math.abs(pts[0][0]) - Math.abs(pts[pts.length - 1][0]);
+      check(tilt < 1e-6 && Math.abs(up - Kk.a) < 0.002 && Math.abs(inw - Kk.a) < 0.002,
+            'the leg stays upright; the wheel translates on a quarter circle - up and in by the arm\'s length', 'a ' + Kk.a.toFixed(3) + ' m: up ' + up.toFixed(3) + ', in ' + inw.toFixed(3));
+      const why = Gk.fit.why || [];
+      check(!why.some(w => /not centred|outside the skin|crosses/.test(w)) && (Gk.cutsSide || []).length === 2 && (Gk.cutsSide || []).every(c => asp(c) < 1.25),
+            'stowed: the wheel centred on the side line in its round recess; the arm, the leg and the piston behind the skin', (Gk.cutsSide || []).length + ' round recesses; ' + (why.filter(w => /floor/.test(w)).join('; ') || 'no other red')); }
     const sides = Gc.cutsSide || [];
     check(sides.length === 2 && sides.every(c => asp(c) < 1.25), 'one ROUND opening in each side - the stowed wheel\'s, which it closes; the leg stays outside, the links pass the wall at their fittings',
           sides.length + ' side wells, length / height ' + sides.map(c => asp(c).toFixed(2)).join(', ')); }

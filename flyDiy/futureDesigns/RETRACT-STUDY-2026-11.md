@@ -2221,3 +2221,54 @@ Now the core has a second slide:
   | w2Dy -0.1 | | | red: needs the wing 167 mm higher |
 
 - **GATE RETRACT section 18:** the w2Dy 0.25 case - head and jack under the cap, the oleo telescoping, nothing crossing.
+
+### 8.28 The folding knee, a fold of its own (6 Nov - the user's sketch, relayed by the hull-types session)
+
+The user, on v4 and the hoist: "I don't think that's the system. Honestly, I don't think it's the system for the
+catalina either, because you have all your mechanism exposed, while in both cases, mechanisms are invisible." And:
+"maybe the retract session can also keep its previous design as options, and we will check the different systems at
+the end". So 'catalina' stays as it is, and 'knee' is appended to FOLD_KEYS (index 8, "folding knee, hidden in the
+side").
+
+**THE SKETCH (front view):**
+- **Extended:** a horizontal ARM runs from a pivot P just inside the hull's wall, out through the side, to a KNEE.
+  From the knee a straight LEG goes vertically down to the axle, with the wheel outboard of it. A PISTON runs from a
+  fitting high inside the hull to the knee.
+- **Retracted:** the piston pulls the knee in and up, and the arm swings up about P to near vertical, just inside the
+  wall. The leg hangs down along it. Only the wheel shows, centred on the hull's line, half in its round recess.
+
+**THE KINEMATICS.** The arm turns about P (a fore-aft axis) and the knee opens by as much, so the leg stays upright. The
+whole unit TRANSLATES with the knee on a quarter circle about P: up by the arm's length a, and in by a.
+- **The core.** A third motion in src/core/62c_gear_mech.js: the ARC (`C.arc` { p, knee, axis, ang }; gearArc is the
+  translation at g, smooth over the travel). gearUnitPt takes it as a 6th argument; gearMechPoints (Am) and
+  gearMechPose apply it to every rigid part.
+- **The layer.** arcT and poseAll follow. The fold has no turn.
+
+**THE GEOMETRY** (`kneeGeom`, per side at the station; the leg is drawn to it, `RT.kneeB`):
+- **The down axle A0** comes from the station's rows: half track s1X, the drop under the keel. The hub (0.4 R + 20 mm)
+  sits outboard of the leg.
+- **The arm a = the inward travel = the rise**, solved by bisection so the stowed wheel's centre lies ON the side line
+  at its height: |A0.x| - a = the section's half width at A0.y + a. The track sets the arm.
+- **The leg b**, three conditions:
+  - long enough that the arm clears the tyre (R + 30 mm);
+  - long enough that P sits INSIDE the hull, 30 mm in from the wall at its height;
+  - short enough that the stowed knee keeps 20 mm under the lowest wing over it.
+- **P** is the down knee less a. **The piston's fitting F** is inboard of P and up, under that wing.
+- **The links.** The arm is drawn as a link P -> knee (rule 'aim'); the piston as a barrel from F and a rod from the
+  knee; lugs at P and F; the knee's pin on the leg.
+- **The recess** is the stowed wheel's rims, round, always a side well. The arm passes the wall inside that circle.
+- **The fit** (`kneeU`):
+  - the stowed wheel centred on the side line, within 30 mm;
+  - the arm, the leg, the head and the piston BEHIND the skin when stowed;
+  - nothing crossing a wing at any position;
+  - the knee's own words if the wing over it is too low, or the track too wide;
+  - the floor test as for the Catalina's.
+
+**ON THE C172 BATTERY CARD** (s1X 0.85, s1Root 1): a 0.478, b 0.47 (the pivot pushed up inside the round bottom), the
+piston's stroke 0.63. The wheel is centred in its recess; arm, leg and piston are hidden. The one red is the card's
+raised cabin floor: the stowed knee is 64 mm into it.
+
+**GATE RETRACT section 18:**
+- the fold exists beside the Catalina's;
+- the leg stays upright and the wheel moves up and in by a;
+- stowed, the wheel is centred in a round recess, with nothing outside the skin.

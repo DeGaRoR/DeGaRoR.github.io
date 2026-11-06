@@ -1718,7 +1718,7 @@ function legOleo(bags, AF, P, st, sgn) {
   // (RETRACT P2, the PBY-5A's mains - `RT.free`, the Canso handbook's Figs 12-13: the oleo stands UPRIGHT outboard of
   // the hull, its head at the side's fitting height, held by the side strut and the V-strut (the gear layer's links),
   // not on a trunnion in the structure - its head goes up and in with it)
-  const trunn = RT && RT.free ? [axleIn[0], Math.max(F.p[1], axleIn[1] + 2.2 * st.R), axleIn[2]]
+  const trunn = RT && RT.free ? [axleIn[0], RT.kneeB ? axleIn[1] + RT.kneeB : Math.max(F.p[1], axleIn[1] + 2.2 * st.R), axleIn[2]]   // (P2: the folding knee's leg, its length solved)
     : RT ? off(F.p, F.n, -RT.in) : off(F.p, F.n, 0.009 + P.oleoDia * 0.42);
   const dir = nrm(sub(axleIn, trunn));
   const L = len(sub(axleIn, trunn));
