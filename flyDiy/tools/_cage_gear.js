@@ -2437,6 +2437,16 @@ PAGE.post = ctx => {
       if (o && u && o.y > u.y) return Math.max(0.03, (o.y - u.y) / 2);
     }
     if (m) return 0.05;
+    // HULL-B67 (the user: "your front wheel rotation point still pokes through a little. Place it higher maybe?"): on a
+    // BOAT HULL the nose's trunnion stands where the V bottom is wide enough to hold it (its half-length 0.08 m) and
+    // 20 mm more - the cabin-floor rule below sat it 5 cm over the keel, its ends out through the V's sides
+    if (+P.hullOn && st.single && AF && AF.surf) {
+      const kz = AF.keelAt(st.z);
+      for (let d = 0.03; d <= 0.35; d += 0.005) { const y = kz + d; let hw = null;
+        for (let a = 0; a < 180; a++) { const p0 = AF.surf(st.z, a * D2R), p1 = AF.surf(st.z, (a + 1) * D2R);
+          if ((p0[1] - y) * (p1[1] - y) <= 0 && p0[1] !== p1[1]) { const t = (y - p0[1]) / (p1[1] - p0[1]), x = Math.abs(p0[0] + (p1[0] - p0[0]) * t); hw = hw == null ? x : Math.max(hw, x); } }
+        if (hw != null && hw >= 0.08) return d + 0.02; }
+    }
     const keel = AF.keelAt(st.z), floor = (P.floorY != null ? +P.floorY : -0.5) * FS;
     return Math.max(0.05, Math.min(0.16, 0.45 * (floor - keel)));
   };
