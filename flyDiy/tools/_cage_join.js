@@ -372,6 +372,8 @@ function cageJoinSpec(P, M, T) {
         ...(mk === 'wing' && Math.round(+P.engNacOver || 0) === 2 ? { pylonAt: 'body' } : {}),
         // HULL-B17: the pylon on the fuselage behind the cabin (engPylonAt 1) - absent on the wing
         ...(mk === 'wingTop' && Math.round(+P.engPylonAt || 0) === 1 ? { pylonAt: 'roof' } : {}),
+        // HULL-B52: the roof pylon's feet that far forward of the engine (m; the frame stands it on the rings there)
+        ...(mk === 'wingTop' && Math.round(+P.engPylonAt || 0) === 1 && +P.engPylonFwd ? { pylonFwd: Math.max(-0.6, Math.min(0.8, +P.engPylonFwd)) } : {}),
         sense: mk === 'wing' && Math.round(P.engRotate || 0)
           ? (((LAY ? wingK(i) % 2 : i) === 0) === (Math.round(P.engRotate) === 1) ? 1 : -1) : 1,
       });

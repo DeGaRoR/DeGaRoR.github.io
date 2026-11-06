@@ -636,11 +636,14 @@ function engineFaces(mesh, FS, P) {
       // (HULL-B18, the user: "you have a large gap now because where you placed it is not that flat ... it should try
       // and follow the fuselage shape"): each foot reads the roof at ITS OWN station - the tail cone falls away aft
       const topAt = z => { try { if (!AF) return null; const zc = Math.min(AF.z1 - 1e-3, Math.max(AF.z0 + 1e-3, z)); const y = AF.surf(zc, Math.PI)[1]; return isFinite(y) ? y : null; } catch (e) { return null; } };
-      const zF = zP + 0.10, zR = zP - 0.45, yR = topAt(zP), yFF = topAt(zF), yFR = topAt(zR);
+      // (HULL-B52: engPylonFwd stands the feet and the body that far FORWARD of the mount, the engine where it was - its
+      // height still over the roof at its own station; the foot's y the roof at the pylon's)
+      const pf = Math.max(-0.6, Math.min(0.8, +P.engPylonFwd || 0));
+      const zF = zP + 0.10 + pf, zR = zP - 0.45 + pf, yR = topAt(zP), yP = pf ? topAt(zP + pf) : yR, yFF = topAt(zF), yFR = topAt(zR);
       if (yR == null) return [];
       return [{ face: { z: zP, yc: yR + hp + by, x: 0, halfW: 0.16, halfH: 0.14, uv: null, waist: 0,
-                        synthetic: 1, yBase: yR, chord: 0.9, onRoof: true, aftRoof: true,
-                        foot: { x: 0.10, y: yR, zF, zR, yF: yFF != null ? yFF : yR, yR: yFR != null ? yFR : yR } },
+                        synthetic: 1, yBase: yR, chord: 0.9, onRoof: true, aftRoof: true, pylonFwd: pf,
+                        foot: { x: 0.10, y: yP != null ? yP : yR, zF, zR, yF: yFF != null ? yFF : yR, yR: yFR != null ? yFR : yR } },
                 aft, kind: 'wingTop' }];
     }
     return [{ face: { z: le.z - 0.30 * ch + bz, yc: le.yTop + hp + by, x: 0,

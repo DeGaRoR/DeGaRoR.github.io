@@ -1732,8 +1732,10 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
           // HULL-B17: ON THE FUSELAGE BEHIND THE CABIN - the pylon stands on the roof of the two rings either side of the
           // engine's station (the nearest and the next one forward), its legs to their top corners, crossed; a blade
           // stands on a narrow root fitting between them on the centreline. No member reaches the wing
-          const iA = iRing(e.x);
-          let iB = Math.max(0, Math.min(F.length - 1, iA + (ST[iA].x > e.x ? -1 : 1)));
+          // (HULL-B52: pylonFwd - the pylon's station that far forward of the engine's, x aft)
+          const xPy = e.x - (+e.pylonFwd || 0);
+          const iA = iRing(xPy);
+          let iB = Math.max(0, Math.min(F.length - 1, iA + (ST[iA].x > xPy ? -1 : 1)));
           if (iB === iA) iB = Math.max(0, iA - 1);
           const rA = F[iA], rB = F[iB];
           if (e.pylonForm === 'blade') {

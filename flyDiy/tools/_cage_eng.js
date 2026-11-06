@@ -62,7 +62,7 @@ const defaults = { engOn: 1, engPreset: 0, engPower: 0,
                    // G2790 ENGINE-CONFIGS: 4 nose + pusher (push-pull, the
                    // Skymaster), 5 nose + a wing pair (the Trimotor), 6 two
                    // wing pairs (inner at engNacAt, outer at engNacAt2)
-                   engMount: 0, engNacAt: 0.35, engNacAt2: 0.62, engPylonH: 0.30, engPylonFair: 0, engPylonForm: 0, engPylonAt: 0, engPylonAft: 0.15, engFinAt: 0.55, engFinFwd: 0, engNacOver: 0, engNacLift: 0,
+                   engMount: 0, engNacAt: 0.35, engNacAt2: 0.62, engPylonH: 0.30, engPylonFair: 0, engPylonForm: 0, engPylonAt: 0, engPylonAft: 0.15, engPylonFwd: 0, engFinAt: 0.55, engFinFwd: 0, engNacOver: 0, engNacLift: 0,
                    // THE BLOCK (2026-09-04, the user: "when mounted on the
                    // wing, we should be able to move the whole block holding
                    // the engine, not just the engine"): fore/aft and up/down
@@ -605,6 +605,11 @@ const ENG_ITEMS = [
   // (HULL-B37: negative = forward of the trailing edge, the nacelle into the wing - the Super Petrel's tower)
   ['engPylonAft', 'behind the trailing edge', -1.5, 1.5, 0.01,
    { when: P => +P.engOn && Math.round(P.engMount) === 2 && Math.round(+P.engPylonAt || 0) === 1, dim: 'm' }],
+  // HULL-B52 (the user, the Super Petrel: "without moving the engine, move its pylon 50 cm back, so it sits well below
+  // the wing it supports, but still on the cowl/nacelle assembly"): the pylon's feet and body FORWARD of the engine's
+  // own mount station (negative aft) - the engine stays where engPylonAft puts it, its height over the roof there
+  ['engPylonFwd', 'pylon forward of the engine', -0.6, 0.8, 0.01,
+   { when: P => +P.engOn && Math.round(P.engMount) === 2 && Math.round(+P.engPylonAt || 0) === 1, dim: 'm' }],
   // HULL-B14: the pylon's FORM - the V legs (to both roots) or one wing-section blade on the centreline (flown so)
   ['engPylonForm', 'pylon form', 0, 1, 1, ['V legs', 'single blade'],
    { when: P => +P.engOn && ([2, 7].includes(Math.round(P.engMount)) || (+P.engNacOver > 0 && +P.engNacLift > 0.02)) }],
@@ -937,7 +942,8 @@ function drawPylonMount(group, f, P, GK, aft, C) {
   const style = Math.max(0, Math.min(3, Math.round(+P.engPylonFair || 0)));
   const ch = f.chord || 1.4, Lp = Math.max(0.30, 0.42 * ch), ox = f.x || 0;
   // the plate stands UNDER the engine: a pusher's block hangs aft of its face, a tractor's forward of it
-  const y0 = f.yc - f.halfH, zc = f.z + (aft ? -1 : 1) * (Lp / 2 - 0.05), zF = zc + Lp / 2, zR = zc - Lp / 2, xt = 0.06;
+  // (HULL-B52: the plate and the body stand f.pylonFwd forward of the mount's own station - the engine stays)
+  const y0 = f.yc - f.halfH, zc = f.z + (aft ? -1 : 1) * (Lp / 2 - 0.05) + (+f.pylonFwd || 0), zF = zc + Lp / 2, zR = zc - Lp / 2, xt = 0.06;
   const ft = f.foot, fx = Math.max(xt, ft.x);
   // the feet stand on the skin: the legs end just inside it, never above it (HULL-B18: a foot on a sloping roof reads its
   // own station's height, ft.yF / ft.yR - the front and the rear pair)
@@ -1016,7 +1022,7 @@ function pylonMeshes(group, fair, jb) {
 // it stands on and what it carries; BLENDED (engPylonFair 3) with the fillets to both, HULL-B16)
 function drawPylonBlade(group, f, P, GK, aft, C) {
   const ch = f.chord || 1.4, Lp = Math.max(0.30, 0.42 * ch), ox = f.x || 0;
-  const y0 = f.yc - f.halfH, zc = f.z + (aft ? -1 : 1) * (Lp / 2 - 0.05);
+  const y0 = f.yc - f.halfH, zc = f.z + (aft ? -1 : 1) * (Lp / 2 - 0.05) + (+f.pylonFwd || 0);
   const ft = f.foot, yF = Math.min(ft.y, ft.yF != null ? ft.yF : ft.y, ft.yR != null ? ft.yR : ft.y) - 0.02;
   const blend = Math.round(+P.engPylonFair || 0) === 3, H = Math.max(0.05, y0 - yF);
   const c = blend ? Lp + 0.06 : 0.5 * (Math.abs(ft.zF - ft.zR) + 0.10 + Lp + 0.06);

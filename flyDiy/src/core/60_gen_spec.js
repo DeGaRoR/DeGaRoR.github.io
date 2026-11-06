@@ -5185,6 +5185,7 @@ function clampSpec(spec) {
   for (const e of S.engines) {
     e.sense = (+e.sense === -1) ? -1 : 1;             // G194: +1 or -1, never else
     if (e.pylonForm !== 'blade') delete e.pylonForm;  // HULL-B14: 'blade' or absent (the V legs)
+    if (e.pylonAt !== 'roof' || !isFinite(+e.pylonFwd) || !+e.pylonFwd) delete e.pylonFwd; else e.pylonFwd = Math.max(-0.6, Math.min(0.8, +e.pylonFwd));   // HULL-B52
     if (e.pylonAt !== 'roof' && e.pylonAt !== 'body') delete e.pylonAt;   // HULL-B17: 'roof' (behind the cabin); HULL-B30: 'body' (a wing pair on the rear fuselage); absent (the wing)
     // G477 (the Chinook): THE THRUST LINE'S TILT, degrees, downthrust
     // positive (the prop axis points down at the front). A high pusher's
@@ -6396,6 +6397,7 @@ function resolveSpec(spec) {
              // V legs to both roots (the frame braces each as it is)
              ...(e.pylonForm === 'blade' && m === 'wingTop' ? { pylonForm: 'blade' } : {}),
              ...(e.pylonAt === 'roof' && m === 'wingTop' ? { pylonAt: 'roof' } : {}),
+             ...(e.pylonAt === 'roof' && m === 'wingTop' && +e.pylonFwd ? { pylonFwd: +e.pylonFwd } : {}),   // (HULL-B52)
              ...(e.pylonAt === 'body' && m === 'wing' ? { pylonAt: 'body' } : {}),   // (HULL-B30: a pair on the rear fuselage)
              pushes: m === 'pusher' ? true : m === 'nose' ? false
                    : e.aim ? e.aim === 'pusher' : m === 'wingTop' };
