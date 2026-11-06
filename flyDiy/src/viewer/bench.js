@@ -661,6 +661,7 @@ function benchStripCosmetic(spec, defaults) {
   const c = JSON.parse(JSON.stringify(spec));
   for (const k of BENCH_COSMETIC) delete c[k];
   delete c.pod;                                        // G3780 CERT-POD: a bolt-on, outside the certificate (66b CERT_BOLT_ONS)
+  delete c.aging;                                      // WEAR-PRICE: the condition, outside the certificate (66b CERT_CONDITION)
   if (c.energy && typeof c.energy === 'object') {
     for (const k of BENCH_LOOK.energy) delete c.energy[k];
     if (Array.isArray(c.energy.vessels))

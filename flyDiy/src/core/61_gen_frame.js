@@ -3272,6 +3272,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     if (SYS.hasBus) spend(GEN_PRICES.lights);
   }
   sec('paint');
+  let clothAll = 0;             // WEAR-PRICE: the cloth's area, read out (parts.cover) for the refresh tasks' prices
   {
     // PAINT HAS MASS (G159). It was `spend()` -- money and nothing else -- and
     // the empty weight was light by it on every aeroplane the garage has ever
@@ -3287,6 +3288,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     let clothA = 0;
     for (const c of coverPan) if (c.cloth) clothA += c.A;
     spend(GEN_PRICES.coverM2 * clothA);
+    clothAll = clothA;
     // ...in proportion to the AREA each node covers (G457): per node it
     // rode on the tail cone and the empennage, whose many small panels put
     // the 172's 7 kg of paint at 3.6 m — 2.3 m behind the wing that carries
@@ -3405,6 +3407,9 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     gauged, gaugeRef, gauge: GG,
     degenerate,                 // B10: [a, b, cls] of every member B() refused at zero length
   };
+  // WEAR-PRICE: THE COVERED AREAS (m2) the paint section billed - painted and of cloth - so the refresh tasks price a
+  // repaint (the paint alone) and a recover (the cloth and its paint) off the airframe actually built (76_ econRestoreCost)
+  parts.cover = { paintA: coverA, clothA: clothAll };
   if (podR) parts.pod = podR;   // G2410: the resolved belly pod (absent with none: the parts keep their bytes)
   // G2678: the flown pod's own nodes and members (the damage hook's data: HANDOVER G2675-G2679)
   if (podM) parts.podFrame = podM;

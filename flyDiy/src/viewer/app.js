@@ -8923,6 +8923,39 @@
       if (f) { playerLoad().fleet[flSlot].foot = parkFoot(f); playerSave(); }
     } catch (e) {}
   }
+  // WEAR-PRICE: the airframe's breakage off the flight's damage record (71_ playerBreakBill / playerBreak) -> the document
+  function flBreak(d, slot, out) {
+    try {
+      const DM = sim && sim.damage ? sim.damage() : null;
+      const bill = playerBreakBill(def, DM);
+      const r = playerBreak(d, slot, bill);
+      if (r.ok && r.doc !== d) {
+        out.broken = { bill, why: r.doc.fleet[slot].damage.why };
+        if (out.career) out.career.lines.unshift({ k: 'broken', ok: false, text: 'Broken and grounded: ' + bill.lines.map(l => l.what).join(', ') + ' - repair it on the WEAR tab' });
+        return r.doc;
+      }
+    } catch (e) { console.warn('flyDiy: the breakage -', e && e.message); }
+    return d;
+  }
+  // the broken airframe on the stand (null: none) and its repair - paid in a career (76_ econRepair through the wallet's
+  // door), free in the sandbox (71_ playerRepairFree); the bench's certificate follows (R5: BENCH_GROUND / REPAIRED)
+  function brokenOf(n) {
+    try { const D = n && playerBroken(playerLoad(), n); return D ? { why: D.why, cost: CAREER_DEV ? Math.round(+D.cost || 0) : 0, lines: D.bill || [] } : null; }
+    catch (e) { return null; }
+  }
+  function storeRepairFree(n) {
+    const r = playerRepairFree(playerLoad(), n);
+    if (r.ok) { player = r.doc; playerSave(); try { if (window.BENCH_REPAIRED) window.BENCH_REPAIRED(); } catch (e) {} }
+    return { ok: r.ok, cost: 0, why: r.why };
+  }
+  function brokenRepair(n) { return CAREER_DEV ? econRepairNow(n) : storeRepairFree(n); }   // (CAREER_DEV: the wallet's door)
+  // a broken airframe never rolls out: the WEAR tab opens on its repair
+  function brokenRollRefused() {
+    const n = slotOnStand(), D = n ? brokenOf(n) : null;
+    if (!D) return false;
+    try { if (window.BENCH_GROUND) window.BENCH_GROUND(D.why); if (window.EDITOR_SET_VIEW) window.EDITOR_SET_VIEW('wear'); } catch (e) {}
+    return true;
+  }
   function playerFlightEnd(how) {
     if (flEnded || !flSlot || curKey !== 'gen' || !ap || typeof playerClock !== 'function') return null;
     flEnded = true;
@@ -8959,6 +8992,12 @@
       // (75_ careerCrashReset); its line leads the career's lines on the arrival card. The sandbox: nothing (gp4 stands)
       const cz = (CAREER_DEV && d.career && wrecked) ? careerCrashReset(d, flSlot, fromAero) : null;
       if (cz && cz.ok) { d = cz.doc; out.reset = cz.where; if (out.career) out.career.lines.unshift(cz.line); }
+      // WEAR-PRICE: the flight's seconds on the airframe's age (econStopWear, the page half)
+      if (CAREER_DEV && d.career && d.career.airframes && d.career.airframes[flSlot]) d = econStopWear(d, flSlot, Math.max(0, ap.t || 0));
+      // WEAR-PRICE (the user: "the plane model, maybe greyed out and listed as broken and grounded, and an option in the
+      // new tab allows paying for repair ... free in sandbox mode"): what the flight broke GROUNDS it (71_ playerBreak;
+      // the career and the sandbox alike; the tutorial records nothing), its line leads the card
+      if (flSlot && d.fleet && d.fleet[flSlot]) d = flBreak(d, flSlot, out);
       // G2290 (PILOTS): the flyer's logbook row and place (they go WITH the aeroplane: where the ledger now has it)
       if (CAREER_DEV && d.career && typeof pilotsOnFlightEnd === 'function') {
         const landed = how === 'stopped' && !!(W && flightCanDepart(W)) && !wrecked;
@@ -9103,6 +9142,8 @@
     move: (n, to) => storeMove(n, to),
     workOn: n => storeMove(n, { kind: 'floor' }),
     flyStart: n => (typeof playerFlyStart === 'function' ? playerFlyStart(playerLoad(), n) : null),
+    // WEAR-PRICE: broken and grounded (the WEAR tab, the rack): what broke and its price (0 in the sandbox), the repair
+    broken: n => brokenOf(n), repair: n => brokenRepair(n),
     fly: n => storeFly(n),
     card: n => storeCard(n),
     canFly: () => !GARAGE_ONLY && inGarage,
@@ -9422,7 +9463,8 @@
     if (r.ok && podPaid > 0 && r.doc.career && r.doc.career.airframes && r.doc.career.airframes[name]) r.doc.career.airframes[name].podPaid = Math.round(podPaid);
     if (!r.ok) { console.warn('flyDiy (career): ' + name + ' was saved but not paid for - ' + r.why); return d; }
     ecNote = 'built ' + name + ': ' + ecFmt(r.cost);
-    return r.doc;
+    // WEAR-PRICE (the user: "when building, you can set the age of the plane"): the age set on the WEAR tab starts its clock
+    try { const G = window.GARAGE_SPEC, sp = G && G.get(); return econAgingStart(r.doc, name, sp && sp.aging ? sp.aging : null); } catch (e) { return r.doc; }
   }
   // the garage's shell / kit / size doors: playerUpgrade on the main hangar -> true (paid, the document moved) | false
   function econShedDoor(change) {
@@ -9440,10 +9482,52 @@
     try { const R = window.GARAGE_SPEC && window.GARAGE_SPEC.resolved ? window.GARAGE_SPEC.resolved() : null;
           wants = R && typeof hangarWants === 'function' ? hangarWants(R) : []; } catch (e) {}
     const r = econRepair(playerLoad(), n, { wants });
-    if (r.ok) { player = r.doc; ecNote = 'repaired ' + n + ' (free)'; playerSave(); }
+    if (r.ok) { player = r.doc; ecNote = 'repaired ' + n + (r.cost ? ': ' + ecFmt(r.cost) : ' (free)'); playerSave(); }
     else { ecNote = r.why; econWalletSync(); }
     return r;
   }
+  // WEAR-PRICE: AT THE FLIGHT'S END (playerFlightEnd) the flight's seconds on the airframe's age (econAgingFlown).
+  // (What it broke is not billed here: it grounds the airframe - flBreak below - and the WEAR tab's repair pays it.)
+  function econStopWear(d, slot, t) { return econAgingFlown(d, slot, t); }
+  // WEAR-PRICE: THE REFRESH TASKS (the WEAR tab's buttons; 76_ econRestoreCost / econRestore at the parts bill). The
+  // airframe on the stand: its price, then (paid) its row, then the aeroplane itself - an OVERHAUL writes the row's age
+  // (the engine's hours from now) into the spec; a REPAINT brings the look back new (the four weathering macros to 0,
+  // through the editor's own finish door, and the outside wear reset). -> { ok, cost, why }
+  function econRestoreOf(kind) {
+    const n = slotOnStand();
+    const A = n && playerLoad().career && playerLoad().career.airframes ? playerLoad().career.airframes[n] : null;
+    if (!A) return { cost: 0, why: 'not an airframe of the career', what: '' };
+    const c = econRestoreCost(kind, def && def.spec, def && def.parts && def.parts.ledger, def && def.parts && def.parts.cover);
+    const w = playerBroken(playerLoad(), n) ? 'broken: repair it first'
+      : c.cost > 0 && !econAfford(playerLoad(), c.cost) ? 'the wallet holds ' + ecFmt(playerLoad().wallet) : '';
+    return { cost: c.cost, what: c.what, why: w || (c.cost > 0 ? '' : c.what) };
+  }
+  function econRestoreNow(kind) {
+    const n = slotOnStand();
+    if (!n) return { ok: false, why: 'no aeroplane on the stand' };
+    const q = econRestoreOf(kind);
+    if (q.why) { ecNote = q.why; econWalletSync(); return { ok: false, why: q.why }; }
+    const r = econRestore(playerLoad(), n, kind, q.cost);
+    if (!r.ok) { ecNote = r.why; econWalletSync(); return r; }
+    player = r.doc; playerSave();
+    ecNote = ({ repaint: 'repainted ', recover: 'recovered ', overhaul: 'overhauled ', rebuild: 'rebuilt ' })[kind] + n + ': ' + ecFmt(r.cost);
+    try {
+      const G = window.GARAGE_SPEC, E = window.CAGE_UI;
+      if (kind !== 'repaint' && G) { const s = econAgingSpec(G.get(), econAgingNow(player, n)); if (s.aging) G.update({ aging: s.aging }); else G.remove('aging'); }
+      if (kind !== 'overhaul' && E && E.finishToSpec && E.finishFromSpec) {
+        const f = E.finishToSpec() || {}; f.weather = { age: 0, flight: 0, bush: 0, rain: 0 }; E.finishFromSpec(f); if (E.build) E.build();
+      }
+    } catch (e) { console.warn('flyDiy (career): the refresh on the aeroplane -', e && e.message); }
+    econWalletSync();
+    return { ok: true, cost: r.cost, why: '' };
+  }
+  // WEAR-PRICE: THE CAREER'S WEAR DOORS (the WEAR tab): an airframe's age now (null: none recorded, or no airframe of the
+  // career), whether it is one (its age is its history - read-only - while a build not yet an airframe is set freely),
+  // the refresh tasks. (The upkeep is authored, and locked in a career: no door.)
+  if (CAREER_DEV && window.FLYDIY_CAREER) Object.assign(window.FLYDIY_CAREER, {
+    agingOf: n => { try { return econAgingNow(playerLoad(), n); } catch (e) { return null; } },                               // (CAREER_DEV)
+    isAirframe: n => { try { const C = playerLoad().career; return !!(C && C.airframes && n && C.airframes[n]); } catch (e) { return false; } },
+    restoreOf: k => econRestoreOf(k), restore: k => econRestoreNow(k) });                                                  // (CAREER_DEV)
   // THE WALLET LINE IN THE GARAGE (career only): the wallet, the last thing paid or refused, Repair when the airframe
   // on the stand is damaged (free: G2705)
   function econWalletSync() {
@@ -13859,6 +13943,7 @@
   function rollOut(after, sync) {      // `after` runs when the aeroplane is on the stand and on screen (S3)
     if (GARAGE_ONLY) return;           // G2100: the phone garage has no world to roll out into
     if (STAND_EMPTY && inGarage) return;   // EMPTY-STAND: nothing on the stand to roll out (the card says what fills it)
+    if (brokenRollRefused()) return;                 // WEAR-PRICE: a broken airframe is grounded until repaired
     if (CAREER_DEV && routesRollRefused()) return;   // G3260 (ROUTES): a plane on a route never rolls out
     if (CAREER_DEV) { careerSignNow(); careerCertWarn(); }   // CERT-GATES: the bench signs; an uncertified job is said
     certKick();                        // G1831: the certificate's thread starts with the roll-out
@@ -19285,6 +19370,7 @@
     importSlot: CAREER_DEV ? (n => careerImportNow(n)) : null,
     // PRICE-CAL: the fleet card's Sell (a career's own airframe: its used-market price, or why not now)
     saleOf: CAREER_DEV ? (n => careerSaleOf(n)) : null,
+    broken: n => brokenOf(n),         // WEAR-PRICE: the rack greys a broken airframe's row
     sell: CAREER_DEV ? (n => careerSellNow(n)) : null,
     money: CAREER_DEV ? (v => ecFmt(v)) : null,
     // G2280 (PROCURE): a slot the garage has just built (the join settled) - a maker's or a used airframe's factory

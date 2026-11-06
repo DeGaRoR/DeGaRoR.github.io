@@ -1152,14 +1152,17 @@ function editorInit(api) {
   // year to +5 %). For now EVERY row here is an expert row (the master age and the two rates of
   // futureDesigns/WEAR-SYSTEM-2026-11.md come in front of them later); expert off, the view says so and offers the switch.
   // spec.aging stays ABSENT until a slider moves (and goes again at 0 / 0): an untouched build's def is the same bits.
-  // It is NOT outside the certificate: no strip list names `aging`, so it hashes with the structure group (66b
-  // certMajorOf) - setting it withdraws a certificate ("the wing or the structure changed"). The rows say so.
-  // CAREER: the physical rows are READ-ONLY (A0's call: until a restore has a price, a free slider would repair an old
-  // aeroplane for nothing); the sandbox moves them freely. The look stays editable everywhere, as it was in FINISH.
+  // WEAR-PRICE (the user 5 Nov): the age is OUTSIDE the certificate (66b CERT_CONDITION: "age withdraws a certificate?"
+  // - "No"). CAREER: a career AIRFRAME's age is its history - the rows are READ-ONLY, the age runs on the career's clock
+  // and the hours flown (76_ econAgingNow, laid on its spec when its slot loads) and the REFRESH tasks below buy the
+  // engine's hours and the look back at the parts price; a BUILD not yet an airframe takes the age the builder sets
+  // ("when building, you can set the age of the plane"), and its first save starts the clock there. The sandbox moves
+  // them freely. The look stays editable everywhere, as it was in FINISH.
   const wearHome = document.createElement('div');   // the physical rows' home between renders (render parks by homeOf)
   let agingEls = null;
   const wearCareer = () => {
-    try { const C = window.FLYDIY_CAREER; return !!(C && typeof C.doc === 'function' && C.doc().career); }
+    try { const C = window.FLYDIY_CAREER, G = window.GARAGE_SPEC;
+          return !!(C && typeof C.isAirframe === 'function' && G && C.isAirframe(G.name())); }
     catch (e) { return false; }
   };
   const agingOfSpec = () => {
@@ -1188,8 +1191,8 @@ function editorInit(api) {
       hr.v.textContent = h > 0 ? String(h) : 'none';
       const G = typeof genAgingOf === 'function' ? genAgingOf(y > 0 || h > 0 ? { aging: { years: y, engineHours: h } } : {}) : { powerK: 1, dragK: 1 };
       const pw = Math.round(1000 * G.powerK) / 10, dr = Math.round(1000 * (G.dragK - 1)) / 10;
-      say.textContent = (wearCareer() ? 'In a career the airframe\'s age is its own: restoring it will have a price. ' : '') +
-        (y > 0 || h > 0 ? 'Flies on ' + pw + ' % of its rated power, with ' + dr + ' % more drag than new. Setting an age is a change to the airframe: it withdraws a certificate.'
+      say.textContent = (wearCareer() ? 'A career airframe\'s age is its history: it grows with the clock and the hours flown, and an overhaul buys the engine\'s hours back. ' : '') +
+        (y > 0 || h > 0 ? 'Flies on ' + pw + ' % of its rated power, with ' + dr + ' % more drag than new. Its condition, not its design: the certificate stands.'
                         : 'As new: no age on the airframe (nothing written to the build).');
     };
     const write = () => {
@@ -1197,7 +1200,8 @@ function editorInit(api) {
       if (!G || wearCareer()) { sync(); return; }
       const y = Math.max(0, Math.round(+yr.i.value || 0)), h = Math.max(0, Math.round(+hr.i.value || 0));
       try {
-        if (y <= 0 && h <= 0) { if (agingOfSpec()) G.remove('aging'); }
+        const A0 = agingOfSpec(), care = A0 && A0.care && A0.care !== 'normal';
+        if (y <= 0 && h <= 0 && !care) { if (A0) G.remove('aging'); }
         else G.update({ aging: { years: y, engineHours: h } });
       } catch (e) { console.error('wear (aging):', e); }
       show();
@@ -1214,6 +1218,103 @@ function editorInit(api) {
     agingEls = { els: [yr.d, hr.d, out], sync };
     for (const el of agingEls.els) { wearHome.appendChild(el); homeOf.set(el, wearHome); }
     return agingEls;
+  }
+  // WEAR-PRICE: THE REFRESH TASKS, up front (no expert switch): a career airframe on the stand gets a button per task,
+  // its parts price on it, greyed with the reason when it cannot be bought (app.js FLYDIY_CAREER.restoreOf / restore)
+  // WEAR-PRICE: BROKEN AND GROUNDED (the user: "the plane model, maybe greyed out and listed as broken and grounded, and
+  // an option in the new tab allows paying for repair. The option is free in sandbox mode"): what the last flight broke,
+  // and its repair - its parts bill in a career, free in the sandbox (app.js FLYDIY_STORE.broken / repair)
+  function wearBroken() {
+    const S = window.FLYDIY_STORE, G = window.GARAGE_SPEC;
+    let D = null; try { D = S && S.broken && G ? S.broken(G.name()) : null; } catch (e) { D = null; }
+    if (!D) return;
+    const fmt = v => Math.round(+v || 0).toLocaleString('en-GB').replace(/,/g, ' ');
+    const n = document.createElement('div');
+    n.className = 'refNote edWearBroken';
+    n.textContent = 'Broken and grounded - ' + String(D.why || '').replace(/^broken: /, '') + '. It cannot fly until it is repaired.';
+    const b = document.createElement('button');
+    b.className = 'pill'; b.dataset.repair = '1';
+    b.textContent = D.cost > 0 ? 'repair - ' + fmt(D.cost) : 'repair (free)';
+    b.title = (D.lines || []).map(l => l.what + ' ' + fmt(l.cost)).join(', ');
+    b.onclick = () => {
+      if (D.cost > 0 && !confirm('Repair: ' + fmt(D.cost) + ' credits?')) return;
+      let r = null; try { r = S.repair(G.name()); } catch (e) { r = { ok: false, why: String(e && e.message || e) }; }
+      if (r && !r.ok && r.why) alert(r.why);
+      render();
+    };
+    n.appendChild(b);
+    rowsEl.appendChild(n);
+  }
+  function wearRefresh() {
+    const C = window.FLYDIY_CAREER;
+    if (!wearCareer() || !C || typeof C.restoreOf !== 'function') return;
+    const n = document.createElement('div');
+    n.className = 'refNote edWearRefresh';
+    n.textContent = 'Refresh, at the parts price: a repaint brings the look back (not the age); new fabric brings the airframe\'s years back to 0; ' +
+      'an overhaul brings the engine back to zero hours; a rebuild does all of it.';
+    const fmt = v => Math.round(+v || 0).toLocaleString('en-GB').replace(/,/g, ' ');
+    for (const [k, label] of [['repaint', 'repaint'], ['recover', 'recover the fabric'], ['overhaul', 'overhaul the engine'], ['rebuild', 'rebuild']]) {
+      const q = C.restoreOf(k) || {};
+      if (k === 'recover' && !(q.cost > 0)) continue;          // a metal aeroplane has no fabric to recover
+      const b = document.createElement('button');
+      b.className = 'pill'; b.dataset.restore = k;
+      b.textContent = label + (q.cost ? ' - ' + fmt(q.cost) : '');
+      b.disabled = !!q.why; b.title = q.why || q.what || '';
+      b.onclick = () => {
+        if (!confirm(label + ': ' + fmt(q.cost) + ' credits?')) return;
+        const r = C.restore(k);
+        if (r && !r.ok && r.why) alert(r.why);
+        if (agingEls) agingEls.sync();
+        render();
+      };
+      n.appendChild(b);
+    }
+    rowsEl.appendChild(n);
+  }
+  // WEAR-PRICE: THE MAINTENANCE (the user: "rate of decay should offer 3 options; perfect maintenance, normal
+  // maintenance, poor maintenance, and that's about it"), UP FRONT (no expert switch). How fast a career's clock and
+  // hours wear the airframe (76_ ECON_WEAR.care: x0.5 / x1 / x2). AUTHORED ("the idea with the rate selector is rather to
+  // author second hand planes and set this myself, then publish and locked in career"): set here outside a career,
+  // carried in spec.aging.care (normal on an ageless build writes nothing), READ-ONLY in a career (a career airframe's
+  // own, its row's).
+  const inCareer = () => { try { const C = window.FLYDIY_CAREER; return !!(C && typeof C.doc === 'function' && C.doc().career); } catch (e) { return false; } };
+  let careEl = null;
+  function careRow() {
+    if (!careEl) {
+      const d = document.createElement('div');
+      d.className = 'r'; d.dataset.care = '1';
+      const k = document.createElement('span'); k.className = 'k'; k.textContent = 'maintenance';
+      k.title = 'how fast its years and its engine hours wear it from now on: perfect half as fast, poor twice as fast (no running cost)';
+      const sel = document.createElement('select'); sel.style.flex = '1';
+      for (const [v, t] of [['perfect', 'perfect maintenance'], ['normal', 'normal maintenance'], ['poor', 'poor maintenance']]) {
+        const o = document.createElement('option'); o.value = v; o.textContent = t; sel.appendChild(o);
+      }
+      sel.onchange = () => {
+        const v = sel.value, C = window.FLYDIY_CAREER, G = window.GARAGE_SPEC;
+        try {
+          if (inCareer()) return;
+          if (G) {
+            const A0 = agingOfSpec();
+            if (A0) G.update({ aging: { care: v } });
+            else if (v !== 'normal') G.update({ aging: { years: 0, engineHours: 0, care: v } });
+            const A1 = agingOfSpec();
+            if (A1 && !(+A1.years > 0) && !(+A1.engineHours > 0) && (!A1.care || A1.care === 'normal')) G.remove('aging');
+          }
+        } catch (e) { console.error('wear (care):', e); }
+      };
+      d.appendChild(k); d.appendChild(sel);
+      careEl = { d, sel };
+      wearHome.appendChild(d); homeOf.set(d, wearHome);
+    }
+    let cur = 'normal';
+    try {
+      const C = window.FLYDIY_CAREER, G = window.GARAGE_SPEC;
+      if (wearCareer()) { const n = C.agingOf(G.name()); cur = (n && n.care) || 'normal'; }
+      else { const A = agingOfSpec(); cur = (A && A.care) || 'normal'; }
+    } catch (e) {}
+    careEl.sel.value = cur;
+    careEl.sel.disabled = inCareer();
+    return careEl.d;
   }
   function renderWear() {
     const body = CU.MATBODY;
@@ -1233,11 +1334,14 @@ function editorInit(api) {
     const shown = partsShown(sel);
     const p0 = PT.partByKey[sel];
     const isRoot = !!(p0 && p0.root);
+    if (isRoot) wearBroken();
+    if (isRoot) emitEls(p0, 'upkeep', [careRow()], 'how fast it wears from now on', false, { secG: 'wear:care' });
+    if (isRoot) wearRefresh();
     if (!ex) {
       const n = document.createElement('div');
       n.className = 'refNote';
       n.textContent = 'The wear\'s own dials are expert rows for now: how worn it looks, how worn it flies, and how much ' +
-        'of it each surface shows. One age and two rates come in front of them later.';
+        'of it each surface shows. The maintenance above is the one rate; one age comes in front of these later.';
       const b = document.createElement('button');
       b.className = 'pill'; b.textContent = 'show the expert rows';
       b.onclick = () => { setExpert(true); render(); };

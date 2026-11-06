@@ -374,6 +374,7 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
 /* WEAR-TAB: the wear view's rows are no part's cage rows - nothing to reset; the expert switch stays, it opens them */
 #edWrap.wea #edResetPart { display:none; }
 #edRows .r.edWearSays > .rn { white-space:normal; line-height:1.35; color:var(--ed-dim); }
+#edRows .refNote.edWearBroken { border-color:var(--ed-warn); color:var(--ed-warn); }
 
 /* ...and the two accordion groups the FINISH view took over are gone from the
    overflow. `materials & extras` is the honest home for a row NOTHING has
@@ -946,6 +947,8 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
 .gfPlace-in { color:var(--ed-acc); border-color:var(--ed-acc); }
 .gfRow.gfAway .gfLoad { opacity:.55; }
 .gfRow.gfAway .gfLoad:hover { opacity:.85; }
+.gfRow.gfBroken .gfLoad { opacity:.45; filter:grayscale(1); }   /* WEAR-PRICE: broken and grounded */
+.gfRow.gfBroken .gfLoad span { color:var(--ed-warn); }
 .gfHome { flex:0 0 auto; width:34px; background:transparent;
   border:1px solid var(--ed-btn-bd); border-radius:8px; color:var(--ed-dim);
   font:400 13px/1 'IBM Plex Sans'; cursor:pointer; }

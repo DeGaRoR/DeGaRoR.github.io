@@ -1058,7 +1058,12 @@ function garageInit(api) {
   const loadSlot = n => {
     const txt = lsGet(SLOT + n);
     if (!txt) return void syncRibbon();
-    try { const g = unwrap(txt); loadSpec(g.spec, n, g.plaque, g.log, g.images); }
+    // WEAR-PRICE: a career airframe stands at its age NOW (its row's clock: the years and the engine hours flown since
+    // it was saved - 76_ econAgingNow); a slot that is no airframe of a career loads as saved
+    try { const g = unwrap(txt); let sp = g.spec;
+          const now = window.FLYDIY_CAREER && window.FLYDIY_CAREER.agingOf ? window.FLYDIY_CAREER.agingOf(n) : null;
+          if (now && typeof econAgingSpec === 'function') sp = econAgingSpec(sp, now);
+          loadSpec(sp, n, g.plaque, g.log, g.images); }
     catch (e) { alert('That saved build could not be read: ' + e.message); return; }
     // G3800: a save from before the cards had pictures gets its side profile the first time it stands (nothing when the
     // stored picture is this build's)
@@ -1151,8 +1156,10 @@ function garageInit(api) {
       let P = null;
       try { P = api.place ? api.place(n) : null; } catch (e) { P = null; }
       const away = !!(P && P.kind !== 'none' && !P.here);
-      row.className = 'gfRow' + (n === slotName ? ' cur' : '') + (away ? ' gfAway' : '');
-      const meta = n === slotName ? 'on the stand' : slotMeta(n);
+      // WEAR-PRICE: BROKEN AND GROUNDED - the row greyed and said so (its repair is on the WEAR tab)
+      let brk = null; try { brk = api.broken ? api.broken(n) : null; } catch (e) { brk = null; }
+      row.className = 'gfRow' + (n === slotName ? ' cur' : '') + (away ? ' gfAway' : '') + (brk ? ' gfBroken' : '');
+      const meta = (n === slotName ? 'on the stand' : slotMeta(n)) + (brk ? ' · broken, grounded' : '');
       const b = rowBtn(label(n), meta);   // (G3612: a career's copy shows its design's name)
       thumbOn(b, 'mine:' + n);
       if (P && P.text) {
