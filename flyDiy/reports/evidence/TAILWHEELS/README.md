@@ -103,6 +103,39 @@ its tip wheels, 0.3°, and rotates late).
 
 Pictures: `twin_invertedV_in_*`, `twin_invertedV_out_*`, `twin_V_in_*`, `twin_V_out_*` (`builds/` the same names).
 
+## The pusher with the A (G3801, the user 4 Nov: "check the pusher with the A")
+
+Through the new-plane chooser's own path (`tools/_newplane_lib.js` judge: the bake, the drawing layers, the join, the
+stance fit): an LSA, twin booms, a flat engine pushing, a low tapered wing, a taildragger - in every tail.
+
+| tail | the disc clear of the tail | panels in the disc's shadow | three-point deck | lift-off (the chooser's hop) | Vv / Vh |
+|---|---|---|---|---|---|
+| conventional | 1.95 m | 30 % | 6.4° | 54.5 s | 0.115 / 0.686 |
+| the A (up & in) | **3.73 m** | 48 % | 6.2° | 40.5 s | 0.031 / 0.489 |
+| up & out | 3.61 m | 0 | 6.3° | 42.3 s | 0.031 / 0.489 |
+| inverted V (down & in) | 3.47 m | 0 | 9.9° | 21.9 s | 0.031 / 0.489 |
+| down & out | 3.23 m | 0 | 10.2° | 21.1 s | 0.031 / 0.489 (roll.clb warns: panels down and out act as anhedral) |
+
+The A is clear of the disc by a wide margin - the tail is 4 m aft of the pusher - and about half of its panel area sits
+in the disc's shadow (in the slipstream). Flown round HOME's circuit by the game's own host and pilot
+(`tools/tw_probe.js --build builds/pusher_A_chooser.json`): lift-off at 59 s, touchdown 2.23 m/s, the roll-out inside
+3°, STOPPED; the inverted V: lift-off 27 s, touchdown 1.52 m/s.
+
+What the check found and fixed:
+- **The design check read a V from the booms' fin volume 2-2.7× short** (the A's Vv 0.011, a fail): its vertical arm
+  was the join's fin station (none here; 1.5-2.1 m against the panels' 4.05). The V's fin is its panels: `lv = lh`
+  (60_gen_spec). A readout - the flown model is unchanged (the signs probe to the digit).
+- **A downward V on the chooser's taildragger sat 1° nose-down and never left the ground** (it ran off the strip on its
+  wheels): the tips hang the V's drop below the booms and no tail leg reaches them. The chooser's stance fit now
+  stands it at 10° with the mains (s1Drop; +0.3 m 2.7°, +0.6 m 6.4°, +0.9 m 9.9°, measured) - long main legs, visible in
+  `pusher_invertedV_chooser_views.png`. A cant toward 20° or a wider gap would raise the tips instead; the fit does not
+  trade the tail's volumes for it.
+- The stance fit also grows a boom V's chord when the drawn V falls short of Vv 0.024 / Vh 0.36 (not needed on these).
+
+Not counted, the chooser's own standing fails: every pusher here reads "prop: through the wing (15 of 288 points)", and
+the twin booms' three-point deck sits at 6.2-6.4° under the 7° floor with the conventional tail as with the upward Vs.
+GATE TAILWHEEL J holds the A and the inverted V to this. Pictures: `pusher_A_chooser_*`, `pusher_invertedV_chooser_*`.
+
 ## The pusher on twin-boom tailwheels
 
 The new-plane chooser's "[VAL] a pusher on a tailwheel" grey (claude/ready/new-plane, not on master): measured on the
@@ -140,6 +173,7 @@ fixture as a taildragger and with the inverted V, all through the game's own loa
 | `twin_invertedV_*` | the inverted V on twin booms (30°, the tips 0.6 m apart), a castor wheel under each tip (re-shot after the control-run fix) |
 | `busher_invertedV_cable_*` | the inverted V's elevator cable before (a metre along the boom) and after (out of the boom over the horn) |
 | `twin_invertedV_in_*`, `twin_invertedV_out_*`, `twin_V_in_*`, `twin_V_out_*` | the V from the booms in its four ways (G3801), 35° |
+| `pusher_A_chooser_*`, `pusher_invertedV_chooser_*` | the chooser's twin-boom pusher with the A and with the inverted V (its long mains) |
 | `traces/pivot_*.png` (`.svg`, `.json`) | the 180° pivot on the inside brake, the CG's path from above, coloured by the tail contact's state: steerable (Cub), lockable unlocked (DC-3), fixed and skid (Tiger Moth-alike) |
 
 `for_config-matrix.patch`, `for_new-plane.patch`: the edits for the two branches not yet on master (see the HANDOVER).

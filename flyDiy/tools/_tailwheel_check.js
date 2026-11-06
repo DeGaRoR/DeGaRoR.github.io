@@ -36,6 +36,13 @@
 //    downward"): down & out stands on its two tip wheels, up & in and up & out on a tailwheel a boom; each turns 180 deg
 //    on the brake and flies HOME's circuit; their controls yaw and pitch the conventional tail's way (F's probe, the
 //    rudder's pitch under 4 %), the clamp keeps only the four ways, an outward V's reach only on an outward one.
+// J. THE PUSHER WITH THE A (G3801, the user 4 Nov: "check the pusher with the A"): the new-plane chooser's own path
+//    (tools/_newplane_lib.js judge: bake, the drawing layers, the join, the stance fit) for a twin-boom pusher
+//    taildragger - the A: its disc clear of the tail by more than 0.5 m in the joined drawing, the design check's Vv
+//    and Vh passing (the vertical arm is the panels' own: lv = lh); the inverted V: the stance fit stands it on its tip
+//    wheels inside the 7-17 deg window (the mains lowered), its Vv passing. The fails the chooser stands on for every
+//    pusher (the disc through the wing or body) and the twin booms' three-point deck under 7 (the conventional tail's
+//    too) are named, not counted.
 // H. THE INVERTED V'S HARDWARE (the user, 4 Nov, a picture: "the hinges did not like that" - the elevator's cable lay a
 //    metre along the boom to a boss up its flank): on every twin-boom fixture made an inverted V by the Empennage tile,
 //    each elevator's link leaves its boom within 0.3 m of the horn, the hinge straps sit on their own panel (inside its
@@ -195,6 +202,35 @@ async function pool(jobs, n) {
     const a1 = cs({ ivDir: 'sideways' }), a2 = cs({ ivDir: 'upIn', ivReach: 0.9 }), a3 = cs({ ivDir: 'downOut', ivReach: 5 });
     ok(!('ivDir' in a1) && a2.ivDir === 'upIn' && !('ivReach' in a2) && a3.ivDir === 'downOut' && a3.ivReach === 2.0,
        `I the clamp: an unknown way drops (${a1.ivDir}), an inward V keeps no reach (${a2.ivReach}), an outward one's 5 m reads ${a3.ivReach}`); }
+
+  console.log('J. THE PUSHER WITH THE A (the chooser\'s path)');
+  { const NL = require(path.join(T, '_newplane_lib.js')); NL.init();
+    const SHj = require(path.join(T, '_scene_headless.js')), THj = SHj.context().THREE;
+    const base = { class: 'lsa', gear: 'tail', engArch: 'pusher', engType: 'flat', wing: 'low', planform: 'taper', booms: 'twin' };
+    const discClear = spec => {
+      const S = SHj.sceneBuild(spec, {}); S.scene.updateMatrixWorld(true);
+      const pr = [], tl = []; S.scene.traverse(o => { if (!o.isMesh) return; let a1 = false, a2 = false;
+        for (let a = o; a; a = a.parent) { const n = a.name || ''; if (/^edProp/.test(n)) a1 = true; if (/^(edStabSkin|edSurf_elev)/.test(n)) a2 = true; }
+        if (a1) pr.push(o); else if (a2) tl.push(o); });
+      const pts = os => { const q = []; for (const o of os) { const pa = o.geometry.getAttribute('position'); for (let i = 0; i < pa.count; i++) q.push(new THj.Vector3(pa.getX(i), pa.getY(i), pa.getZ(i)).applyMatrix4(o.matrixWorld)); } return q; };
+      const P = pts(pr), TP = pts(tl); if (!P.length || !TP.length) return null;
+      const cx = P.reduce((s, p) => s + p.x, 0) / P.length, cy = P.reduce((s, p) => s + p.y, 0) / P.length;
+      const z0 = Math.min(...P.map(p => p.z)), z1 = Math.max(...P.map(p => p.z)), R = Math.max(...P.map(p => Math.hypot(p.x - cx, p.y - cy)));
+      let best = Infinity; for (const p of TP) { const dz = p.z < z0 ? z0 - p.z : p.z > z1 ? p.z - z1 : 0; best = Math.min(best, Math.hypot(dz, Math.max(0, Math.hypot(p.x - cx, p.y - cy) - R))); }
+      return best; };
+    const known = f => /^join: prop: through the (wing|body)/.test(f) || /^stance: three-point deck [0-6]\.\d+ deg \(7-17\)/.test(f);
+    for (const [tail, nm] of [['bvIn', 'the A'], ['iv', 'the inverted V']]) {
+      const r = NL.judge(Object.assign({}, base, { tail }), { keepSpec: true });
+      const d = r.spec ? C.buildGen(JSON.parse(JSON.stringify(r.spec))) : null, dc = d ? C.genDesignCheck(d) : null, rows = dc ? (dc.rows || dc) : [];
+      const lv = rows.find(q => q.id === 'yaw.Vv'), lh = rows.find(q => q.id === 'pitch.Vh');
+      const clr = r.spec ? discClear(r.spec) : null, other = r.fails.filter(f => !known(f));
+      const t = d && d.spec.tail;
+      ok(!other.length && clr > 0.5 && lv && lv.level === 'pass' && lh && lh.level === 'pass' && t && Math.abs(t.lv - t.lh) < 1e-9
+         && (tail !== 'iv' || (r.m.deck >= 7 && r.m.deck <= 17)),
+         `J ${nm} on the chooser's twin-boom pusher taildragger: the disc clears the tail by ${clr == null ? '-' : clr.toFixed(2)} m, Vv ${lv ? lv.value : '-'} Vh ${lh ? lh.value : '-'}, the deck ${r.m.deck} deg` +
+         `${other.length ? ' - ' + other.join(' | ') : ''} (named, not counted: ${r.fails.filter(known).join(' | ') || 'none'})`);
+    }
+  }
 
   console.log('H. THE INVERTED V\'S HARDWARE');
   { const SH = require(path.join(T, '_scene_headless.js')), PH = require(path.join(T, '_pose_headless.js'));
