@@ -131,6 +131,12 @@ const GROUP = ['9b · floats', [
   ['fltBoard', 'deck board across the spreaders', 0, 1, 1, { when: P => +P.gearFloats && Math.round(+P.fltStyle || 0) === 1 }],
   ['fltDetail', 'details (covers, hatch, cleats, straps, bumper)', 0, 1, 1, on],
   ['fltRudder', 'water rudders', 0, 1, 1, on],
+  // RETRACT-STUDY §8.25: THE AMPHIBIAN - Wipline wheels in the floats (the manufacturer's tyres and layout; the gear
+  // position is the gear page's preview row, gearPos)
+  // (2: the EDO style - the user's photographs and close-ups, 5 Nov: the nose leg pivots low on the bow's leading edge,
+  // pushed down by a piston through a triangle, folding forward and up to hug the stem; no EDO data reached - the
+  // geometry is the photographs', the tyres the same hull's Wipline row's)
+  ['fltAmph', 'amphibian (wheels in the floats)', 0, 2, 1, ['none', 'Wipline', 'EDO style'], on],
   ['fltPaddle', 'paddle', 0, 2, 1, ['none', 'on the left float', 'on both floats'], on],
   ['hull', [
     ['fltL',      'length',                        2.5, 14.0, 0.01, onM],
@@ -592,6 +598,144 @@ function hullFitStep(P, stat) {
     (fa.rest ? ', rests ' + fa.rest.trim.toFixed(1) + ' deg' : '') + (fa.notes.length ? ' - ' + fa.notes.join('; ') : '');
   setTimeout(() => { const UI = window.CAGE_UI; if (UI && UI.syncSliders) UI.syncSliders(); if (UI && UI.build) UI.build(); }, 0);
 }
+// ---- THE AMPHIBIAN (RETRACT-STUDY §8.25; the data: HYDRO.WIPLINE_AMPHIB, read off Wipaire's manuals and guides) -----
+// Per float, in the hull's MODEL frame (x aft from the step, y up from the step's keel, z across), mirrored for the
+// port float like every other part:
+//   THE MAIN GEAR - a drag link on trunnions at the STEP BULKHEAD (Wipline 13000/6100 manuals: "drag link from
+//     trunnions on step bulkhead"), low in the float; its axle aft of the step, where every guide's 3-view puts the
+//     wheel (the main axle at AMPHIB_GEOM.mainK of the amphibian length from its front, never ahead of the step);
+//     single or dual wheels as the model's tyres; the shock strut from the drag link up to the slide track's carriage
+//     under the deck. It swings UP into an open wheel well just aft of the step - no doors (no door in any parts list).
+//   THE NOSE GEAR - a composite spring leg ("very similar to a Cessna style") from a trolley at the foot of the nose
+//     box's end track, raked forward and down to a castering pivot block and fork; retracting, the trolley climbs the
+//     end track, turns the corner and is drawn aft (the 3730 manual: rollers "go around the corner"), so the leg swings
+//     from hanging down to lying forward and the wheel ends at the bow tip, half out - "retracts into the float nose
+//     to provide a dock bumper" (Wipaire, the 13000). No doors.
+//   MEASURED off Wipaire's 3-views: the keel 0.8 of the main's radius over the ground at the step (HYDRO.AMPHIB_GEOM.
+//     clearK). ASSUMED (Wipaire publishes none of them; the study lists them as missing): the stowed main tyre flush with its keel; the trunnion at half the
+//     hull's height; the nose trolley's travel (what lands the wheel at the bow tip); the leg's rake (20 deg).
+function amphib(HP, HY, at, mirror, ug, tag, hullMesh, P, rec, out) {
+  const A = HY.amphibOf(HP.preset, HP.L, HP.H); if (!A) return;
+  const G = HY.AMPHIB_GEOM, sec = x => HY.sectionOf(HP, x === 0 ? -1e-9 : x);
+  const Rm = HY.TYRE_OD(A.main) / 2, Wm = HY.TYRE_W(A.main), Rn = HY.TYRE_OD(A.nose) / 2, Wn = HY.TYRE_W(A.nose);
+  const xs = HP.xs, H = HP.H, xb = -xs, dL = (A.dL != null ? A.dL : 6) * 0.0254, La = HP.L + dL;
+  const ykS = sec(0).yk, yg = ykS - (G.clearK || 0.8) * Rm;          // (the ground line: the keel 0.8 R over it - the guides' 3-views)
+  const xn = xb - dL * 0.5, xm = Math.max(xb - dL + G.mainK * La, Rm + 0.05);
+  // THE BLACK CAP (the rubber nose bumper): the stowed nose wheel comes to ITS height, at the tip, and slides through a
+  // slot cut in it as wide as the tyre (the user, 5 Nov: "your little wheel is coming too low, so it should really
+  // come at the level of the black little tip there, and this black little tip should even be cut so that the wheel
+  // can slide through it") - both styles
+  let yCap = sec(xb + 0.02).yd - 0.6 * Rn;
+  if (out && out.bumper && out.bumper.pos && out.bumper.pos.length) {
+    const B = out.bumper, ps = B.pos; let sy = 0, n = 0, y0 = Infinity, y1 = -Infinity;
+    for (let i = 0; i < ps.length; i += 3) { y0 = Math.min(y0, ps[i + 1]); y1 = Math.max(y1, ps[i + 1]); }
+    yCap = (y0 + y1) / 2;
+    const half = Wn / 2 + 0.015, keep = [];
+    for (let t = 0; t < B.idx.length; t += 3) { let cz = 0, cy = 0; for (let q = 0; q < 3; q++) { cz += ps[B.idx[t + q] * 3 + 2] / 3; cy += ps[B.idx[t + q] * 3 + 1] / 3; }
+      if (Math.abs(cz) < half && cy < yCap + Rn * 0.9) continue; keep.push(B.idx[t], B.idx[t + 1], B.idx[t + 2]); }
+    B.idx = keep; }
+  const stowN = [xb + 0.25 * Rn, yCap, 0];                    // (the stowed nose wheel's centre: a quarter of it inside the tip)
+  const g = Math.max(0, Math.min(1, P.gearPos == null ? 1 : +P.gearPos)), s = 1 - g;
+  const sm = (a, b) => { const t = Math.max(0, Math.min(1, (s - a) / (b - a))); return t * t * (3 - 2 * t); };
+  const rot = (p, c, a) => { const ca = Math.cos(a), sa = Math.sin(a), dx = p[0] - c[0], dy = p[1] - c[1]; return [c[0] + dx * ca - dy * sa, c[1] + dx * sa + dy * ca, p[2]]; };
+  const mz = v => [v[0], v[1], mirror ? -v[2] : v[2]], C3 = v => toCage(mz(v), at), D3 = v => dirCage(mz(v));
+  const bags = { tyre: GG.Bag(), hub: GG.Bag(), brake: GG.Bag(), brakefix: GG.Bag(), alloy: GG.Bag(), dark: GG.Bag() }, st = GG.Bag(), al = GG.Bag(), dk = GG.Bag();
+  // THE MAIN: the trunnion, the axle down, the angle that stows the tyre flush with the keel (searched)
+  const T = [-0.02, ykS + 0.5 * H, 0], ax0 = [xm, yg + Rm, 0];
+  // (stowed FLUSH with the keel where the hull is deep enough; else as high as the deck allows - 30 mm under it - the
+  // tyre showing under the keel by the rest, recorded: Wipaire does not say which a Wipline does)
+  let thM = 0, flush = false;
+  const topOk = q => q[1] + Rm <= sec(Math.max(0.01, q[0])).yd - 0.03, botOk = q => q[1] - Rm >= sec(Math.max(0.01, q[0])).yk - 0.002;
+  for (let d = 0; d <= 170; d += 0.5) { const q = rot(ax0, T, d * D2R); if (!topOk(q)) break; thM = d * D2R; if (botOk(q)) { flush = true; break; } }
+  const qUp = rot(ax0, T, thM), fitWhy = [];
+  if (!flush) fitWhy.push('the stowed main tyre (' + A.main + ') shows ' + Math.round((sec(Math.max(0.01, qUp[0])).yk - (qUp[1] - Rm)) * 1000) + ' mm under the keel: the hull is too shallow to take it flush');
+  const am = rot(ax0, T, thM * sm(0.1, 1)), lm = rot([xm, yg + Rm + 0.5 * Rm, 0], T, thM * sm(0.1, 1));
+  const zs = A.mainN === 2 ? [-0.62 * Wm - 0.02, 0.62 * Wm + 0.02] : [0];
+  for (const z of zs) GG.wheel(bags, C3([am[0], am[1], z]), D3([0, 0, 1]), Rm, { P: {}, brake: true });
+  GK.tube(st, C3(T), C3([am[0], am[1], 0]), 0.022, 10);                                       // the drag link
+  GK.tube(al, C3([am[0], am[1], -Math.max(...zs.map(Math.abs)) - 0.03]), C3([am[0], am[1], Math.max(...zs.map(Math.abs)) + 0.03]), 0.016, 10);   // the axle
+  const top = [T[0] + 0.35 * (xm - T[0]), ykS + 0.85 * H, 0];                                  // the carriage under the deck
+  if (Math.round(+P.fltAmph) === 2) {                    // (EDO style: a horizontal shock cylinder along the bottom - the close-ups)
+    const mid = rot([T[0] + 0.55 * (xm - T[0]), T[1] + 0.55 * (ax0[1] - T[1]), 0], T, thM * sm(0.1, 1)), Fh = [T[0] - 0.35 * H, ykS + 0.12 * H, 0];
+    GK.tube(al, C3(Fh), C3([(Fh[0] + mid[0]) / 2, (Fh[1] + mid[1]) / 2, 0]), 0.034, 12); GK.tube(st, C3([(Fh[0] + mid[0]) / 2, (Fh[1] + mid[1]) / 2, 0]), C3(mid), 0.016, 10);
+  } else { GK.tube(al, C3(top), C3(lm), 0.028, 12); GK.tube(dk, C3([top[0] - 0.05, top[1], 0]), C3([top[0] + 0.25, top[1], 0]), 0.02, 8); }   // the shock strut, its slide track
+  // THE EDO STYLE'S NOSE (the user's photographs and his reading of them, 5 Nov - no EDO document reached): the leg's
+  // anchor is at the BOTTOM of the float's front - on the keel where it turns up into the stem (the forefoot), not at
+  // the tip (the tip is the Wipline's trolley) - outside the hull. Gear down the leg hangs from it, nearly upright; a
+  // small piston from a fitting on the float's bottom, aft of the anchor, swings it FORWARD AND UP about the anchor,
+  // so the leg lies along the stem and the wheel ends at the bow tip, in front of the float in its black cap. The
+  // anchor is placed where its distance to that stowed place is the leg's length; no well, so no doors
+  let edoNose = null, wipNose = null;
+  if (Math.round(+P.fltAmph) === 2) {
+    // (the user, 5 Nov: "your rotation point should still follow the bottom of the hull further by, let's say, maybe 20
+    // centimeters ... the landing position of your arm is not almost vertical ... It is between 45 degrees and
+    // horizontal ... Then it goes up using a little piston ... so that the little wheel goes straight at the tip"):
+    // the anchor walks aft along the keel to where a leg raked forward at ~35 deg below level (its length set by the
+    // ground line) reaches the stowed place at the tip exactly - the rake solved from the anchor's height and distance
+    const tip = stowN, RAKE = 35 * D2R;
+    let best = null;
+    for (let x = xb + 0.10; x <= xb + 0.6 * xs; x += 0.005) {
+      const P0 = [x, sec(x).yk - 0.02, 0], drop = P0[1] - (yg + Rn), D = Math.hypot(tip[0] - P0[0], tip[1] - P0[1]);
+      if (drop <= 0.02 || D <= drop) continue;
+      const a = Math.asin(drop / D), e = Math.abs(a - RAKE);
+      if (!best || e < best.e) best = { e, P0, a, D }; }
+    const Pe = best ? best.P0 : [xb + 0.2, sec(xb + 0.2).yk - 0.02, 0], ra = best ? best.a : RAKE, Lg = best ? best.D : 0.3;
+    const an0 = [Pe[0] - Lg * Math.cos(ra), Pe[1] - Lg * Math.sin(ra), 0];
+    // (the swing: forward and up about the anchor till the wheel's centre points at the stowed place)
+    const a0 = Math.atan2(an0[1] - Pe[1], an0[0] - Pe[0]), a1 = Math.atan2(tip[1] - Pe[1], tip[0] - Pe[0]);
+    let thE = a1 - a0; while (thE > 0) thE -= 2 * Math.PI; while (thE <= -2 * Math.PI) thE += 2 * Math.PI;   // (clockwise: down, forward, up)
+    const r = thE * sm(0.05, 0.95), an = rot(an0, Pe, r), blk = rot([an0[0], an0[1] + Rn + 0.04, 0], Pe, r);
+    GG.wheel(bags, C3(an), D3([0, 0, 1]), Rn, { P: {}, brake: false });
+    const u = [blk[0] - Pe[0], blk[1] - Pe[1], 0], l = Math.hypot(u[0], u[1]) || 1, c = [(blk[0] + Pe[0]) / 2, (blk[1] + Pe[1]) / 2, 0];
+    const e1 = D3([u[0] / l, u[1] / l, 0]), e2 = D3([-u[1] / l, u[0] / l, 0]), e3 = D3([0, 0, 1]);
+    GK.boxIn(st, C3(c), [l / 2, 0.016, 0.022], e1, e2, e3);                                         // the oleo leg
+    GK.boxIn(al, C3(c), [l * 0.42, 0.006, 0.05], e1, e2, e3);                                       // its fairing
+    GK.tube(al, C3(blk), C3(an), 0.016, 10);                                                        // the castering fork
+    GK.tube(dk, C3([Pe[0], Pe[1], -0.06]), C3([Pe[0], Pe[1], 0.06]), 0.022, 10);                     // the anchor's pin and lugs
+    // (the little piston: from a fitting on the bottom, aft of the anchor, to the leg a quarter down - the triangle)
+    const Fb = [Pe[0] + 0.45 * l, sec(Pe[0] + 0.45 * l).yk - 0.015, 0], Lq = [Pe[0] + u[0] * 0.28, Pe[1] + u[1] * 0.28, 0];
+    const mid = [(Fb[0] + Lq[0]) / 2, (Fb[1] + Lq[1]) / 2, 0];
+    GK.tube(al, C3(Fb), C3(mid), 0.020, 10); GK.tube(st, C3(mid), C3(Lq), 0.010, 8);                // barrel, rod
+    GK.tube(dk, C3([Fb[0], Fb[1], -0.04]), C3([Fb[0], Fb[1], 0.04]), 0.016, 8);                     // its fitting
+    edoNose = { noseAxle: an0, noseUp: rot(an0, Pe, thE), pivot: Pe, rake: +(ra / D2R).toFixed(1) };
+  } else {
+  // THE NOSE: the trolley at the end track's foot, the leg raked forward to the castering block over the wheel
+    const Pn = [xb + 0.18 * H, sec(xb + 0.18 * H).yk + 0.12 * H, 0], an0 = [xn, yg + Rn, 0], blk0 = [an0[0] + 0.25 * Rn, an0[1] + Rn + 0.04, 0];
+    const leg0 = Math.atan2(blk0[1] - Pn[1], blk0[0] - Pn[0]);                                   // (down and forward)
+    // (forward and up - the short way - till the wheel's centre is at the cap's height; the trolley then draws it aft
+    // into the tip)
+    let thN = 0; for (let d = 0; d <= 170; d += 0.5) { thN = -d * D2R; if (rot(an0, Pn, thN)[1] >= stowN[1]) break; }
+    const rN = thN * sm(0, 0.7), blkR = rot(blk0, Pn, rN), axR = rot(an0, Pn, rN);
+    const tipX = stowN[0], slideFull = Math.max(0, tipX - rot(an0, Pn, thN)[0]), slideN = slideFull * sm(0.5, 1);
+    const sh = v => [v[0] + slideN, v[1], v[2]], Pn2 = sh(Pn), blk = sh(blkR), an = sh(axR);
+    GG.wheel(bags, C3(an), D3([0, 0, 1]), Rn, { P: {}, brake: false });
+    { const u = [blk[0] - Pn2[0], blk[1] - Pn2[1], 0], l = Math.hypot(u[0], u[1]) || 1, c = [(blk[0] + Pn2[0]) / 2, (blk[1] + Pn2[1]) / 2, 0];
+      GK.boxIn(st, C3(c), [l / 2, 0.012, 0.035], D3([u[0] / l, u[1] / l, 0]), D3([-u[1] / l, u[0] / l, 0]), D3([0, 0, 1])); }   // the spring leg
+    GK.tube(al, C3(blk), C3(an), 0.018, 10);                                                       // the castering block and fork
+    GK.tube(dk, C3([Pn2[0] - 0.04, Pn2[1], -0.05]), C3([Pn2[0] - 0.04, Pn2[1], 0.05]), 0.02, 8);  // the trolley
+    wipNose = { noseAxle: an0, noseUp: (q => [q[0] + slideFull, q[1], q[2]])(rot(an0, Pn, thN)) };
+  }
+  for (const [b, m] of [[st, 'steel'], [al, 'alloy'], [dk, 'dark']]) if (b.tris) b.mesh(ug, GG.gearMat(m));
+  for (const k in bags) if (bags[k].tris) bags[k].mesh(ug, GG.gearMat(k));
+  // THE MAIN WHEEL WELL: the main's sweep in plan (the wheels' rims, gear down to up), cut from below into the hull
+  // to a ceiling over the stowed tyre (the knife's closed box) - open at the bottom, no door
+  const KG = window.KNIFE_GEN;
+  if (hullMesh && KG && KG.knifeWellsGeo) {
+    let x0 = Infinity, x1 = -Infinity, top2 = -Infinity;
+    for (let i = 0; i <= 12; i++) { const q = rot(ax0, T, thM * i / 12); x0 = Math.min(x0, q[0] - Rm); x1 = Math.max(x1, q[0] + Rm); top2 = Math.max(top2, q[1] + Rm); }
+    x0 = Math.max(x0, 0.03); const zw = Math.max(...zs.map(Math.abs)) + Wm / 2 + 0.03;
+    const ring = [[x0, -zw], [x1, -zw], [x1, zw], [x0, zw]].map(([x, z]) => C3([x, 0, z]));
+    let outline = ring.map(p => [p[2], -p[0]]);
+    let a2 = 0; for (let i = 0; i < outline.length; i++) { const p = outline[i], q = outline[(i + 1) % outline.length]; a2 += p[0] * q[1] - q[0] * p[1]; }
+    if (a2 < 0) outline.reverse();
+    const ceil = C3([0, top2 + 0.02, 0])[1];
+    const r = KG.knifeWellsGeo(THREE, hullMesh.geometry, [{ units: [tag], mode: 'box', outline, ceil }], null, null);
+    if (r.skin) { hullMesh.geometry.dispose(); hullMesh.geometry = r.skin; }
+    if (r.well) { const wm = new THREE.Mesh(r.well, new THREE.MeshStandardMaterial({ color: 0x55585c, roughness: 0.8, side: THREE.DoubleSide })); wm.name = 'edFloatWell' + tag; ug.add(wm); }
+  }
+  rec.amph = rec.amph || { style: Math.round(+P.fltAmph) === 2 ? 'EDO (photographs)' : 'Wipline', model: A.name, est: A.est, main: A.main, mainN: A.mainN, nose: A.nose, dKg: A.dKg, assumed: ['stowFlush', 'trunnionH', 'noseTravel', 'noseRake'], measured: { keelClearance: +(ykS - yg).toFixed(3) }, fitWhy };
+  rec.amph[tag] = { edoPivot: edoNose ? C3(edoNose.pivot) : null, edoRake: edoNose ? edoNose.rake : null, capY: C3([0, yCap, 0])[1], mainAxle: C3(ax0), mainUp: C3(rot(ax0, T, thM)), trunnion: C3(T), noseAxle: C3((edoNose || wipNose).noseAxle), noseUp: C3((edoNose || wipNose).noseUp), thM: +(thM / D2R).toFixed(1) };
+}
 const prevPost = PAGE.post;
 // HULL-B18: THE TUB'S AFTERBODY, drawn from the hull's own lines (_cage_gen.js cageHullTub: the stations the water
 // reads) - a loft of V sections (gunwale, chine, keel, chine, gunwale, the deck's centre) from the pod's last ring aft
@@ -923,7 +1067,8 @@ PAGE.post = ctx => {
       out = FG.build(HP, { HY, detail: +P.fltDetail ? 1 : 0, rudder: +P.fltRudder ? 1 : 0, paddle, xAft: HP.xAft });
       const add = (part, mat, nm, field) => { const m = partMesh(part, at, mat, mirror, nm, field); if (m) ug.add(m); return m; };
       const skin = hullSkinM();
-      add(out.hull, skin, 'edFloatHull' + tag, !!SM);
+      const hullMesh = add(out.hull, skin, 'edFloatHull' + tag, !!SM);
+      if (+P.fltAmph && HY.amphibOf) try { amphib(HP, HY, at, mirror, ug, tag, hullMesh, P, rec, out); } catch (e) { console.warn('amphibian floats:', e); }
       if (out.protrusions) add(out.protrusions, hullM());
       if (out.bumper) add(out.bumper, rubberM());
       if (out.deck) add(out.deck, deckM());

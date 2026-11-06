@@ -312248,3 +312248,29 @@ THE RULE (the user, 3 Nov): "reuse existing controls from the cage ... switch be
   - FLOWN (hull_matrix --nofit, 550 kg): AIRBORNE 25.1 s at 24.5 m/s, hump 0.213 at 8.9 m/s, swing 2.6, roll 1.4, 0 breaks; sheet SM 12.8 %, CG 23.5 % MAC. Not marginal any more: T0/W 0.26 vs the hump's 0.213.
   - THE COMPARISON (the perf study's method: tools/perf_study.js --build=<file> --vs=petrel; the new REAL.petrel row, approximate figures from the maker / web summaries, null where nothing is published): V75 +1 %, Vmax +2 %, empty +6 %, S -3 %, Vs +11 % (CL 1.80 needed for the brochure's 37 kt), ROC -24 % (the range's low end taken). Write-up reports/PETREL-STUDY-2026-11-06.md; the build builds/candidates/superpetrel_2026-11-06_b54.json.
   - TOWARD A 4th REFERENCE (the perf study's recipe: a REAL row with sources and dims, an ARCHETYPES card, rows in GATE WEIGHT / DRAG, a user-corrected build in _load_build.js VALIDATED): owed - the POH figures (the stall's weight and flaps, the climb's weight, a water run), the flaps question (the card carries the Cessna base's), the lower chord (0.87), then the gates (the user: not yet).
+
+## RETRACT phase 2 - the wing's limits, closed wells, the Skymaster, the slab doors and a polish pass (2026-11-05, cloud)
+
+The study is `futureDesigns/RETRACT-STUDY-2026-11.md`, sections 8.20 to 8.22. The evidence page (the artifact
+"Retractable Gear Evidence") has every option tested, with a sheet each.
+
+- **The wing's limits (8.20).** Fit tests for the strut, the flap and the rear engine's bay.
+- **Closed wells (8.21).** Every well is a closed box built from its cut's outline: walls with a chamfered lip, one
+  flat ceiling. A wing well running into the body keeps its walls out (`inBody`).
+- **The Skymaster (8.21).** The card is born retractable (fold aftBelly, shortened legs).
+- **The slab doors (8.22).** Every door is a slab: smooth front, 1.5 mm chamfer, side wall, dark back face 6 mm in, and
+  seam grime as vertex colours. `quickshot.js` draws vertex colours.
+- **The polish pass (8.22).** Each fix was found in a close-up:
+  - the well's shoulder (`wellBox` with `skinTop`): the walls stay inside a nacelle that narrows to its top;
+  - a fitting's plate stays inside its nacelle (`fittingsDraw` with `roomX`);
+  - a nacelle's doors take only its down-facing faces, oriented from the nacelle's own centre line;
+  - a well door opens out along its own outward normal.
+- **GATE RETRACT section 17.** It measures a door's outer face (the front mesh's `doorOuterN` vertices), against a 4 mm
+  limit, and checks that every door is a slab.
+- **Gates PASS:** RETRACT, KNIFE, SAVE, GEAR, DESIGN, PARTS. The known reds from phase 1 are unchanged and not ours
+  (CLIP, JOINPARITY, ENGCONFIG, HANDLE).
+- **Still rough:**
+  - the Skymaster's wide belly well doors at mid-travel;
+  - the T-tail cowl slot's front, which has no skin to make a door from;
+  - the 3.2 m-track T-tail's wheel, 34 to 51 mm proud of its thin wing (a red fit row, by design);
+  - the DA62 card's engine blocks, which stand ahead of the cowl (the card, not the gear).

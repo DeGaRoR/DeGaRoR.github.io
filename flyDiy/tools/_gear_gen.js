@@ -1711,11 +1711,15 @@ function legOleo(bags, AF, P, st, sgn) {
   // STRUCTURE - `st.ret` { in: metres inward from the skin (the wing's mid-depth, a body frame's), pin: the fold's first
   // axis, fix: the static bags } - the strut runs from there through the well's opening; no pad on the skin
   const RT = st.ret || null;
-  const trunn = RT ? off(F.p, F.n, -RT.in) : off(F.p, F.n, 0.009 + P.oleoDia * 0.42);
   // an oleo had no rake law of its own: the wheel offset IS its rake — the
   // strut is whatever line joins the trunnion to the axle
   const axle = [sgn * half, AF.keelAt(st.z) - drop, st.z + (st.axZ || 0)];
   const axleIn = [axle[0] - sgn * hubIn * hS, axle[1], axle[2]];
+  // (RETRACT P2, the PBY-5A's mains - `RT.free`, the Canso handbook's Figs 12-13: the oleo stands UPRIGHT outboard of
+  // the hull, its head at the side's fitting height, held by the side strut and the V-strut (the gear layer's links),
+  // not on a trunnion in the structure - its head goes up and in with it)
+  const trunn = RT && RT.free ? [axleIn[0], Math.max(F.p[1], axleIn[1] + 2.2 * st.R), axleIn[2]]
+    : RT ? off(F.p, F.n, -RT.in) : off(F.p, F.n, 0.009 + P.oleoDia * 0.42);
   const dir = nrm(sub(axleIn, trunn));
   const L = len(sub(axleIn, trunn));
   const Rc = P.oleoDia * 0.5;
@@ -1735,7 +1739,7 @@ function legOleo(bags, AF, P, st, sgn) {
     // (GR: `RT.fits` - the gear layer draws the trunnion's fitting itself once its well's ceiling is known: lugs, a
     // base plate bolted flat on the structure, gussets; here only its record)
     if (RT.fits) RT.fits.push({ c: trunn.slice(), pax: pax.slice(), w, r: 0.030, t: 0.014, kind: 'trunnion' });
-    else {
+    else if (!RT.free) {
     for (const s of [-1, 1]) {
       lug(RT.fix.alloy, off(trunn, pax, s * w), pax, up, 0.030, 0.014, reach);
       bolt(RT.fix.dark, off(off(trunn, up, reach), pax, s * w), up, 0.006, 0.010);
@@ -1743,7 +1747,8 @@ function legOleo(bags, AF, P, st, sgn) {
     const sideV = nrm(crs(pax, up));
     boxIn(RT.fix.alloy, off(trunn, up, reach + 0.006), [w + 0.022, 0.006, 0.034], pax, up, sideV);
     }
-    revolve(RT.fix.bronze, off(trunn, pax, -w - 0.012), pax, [[0.011, 0], [0.011, 2 * w + 0.024]], 14, true);
+    if (!RT.free) revolve(RT.fix.bronze, off(trunn, pax, -w - 0.012), pax, [[0.011, 0], [0.011, 2 * w + 0.024]], 14, true);
+    else revolve(bags.bronze, off(trunn, pax, -w - 0.012), pax, [[0.011, 0], [0.011, 2 * w + 0.024]], 14, true);   // (its knuckle pin rides it)
     revolve(bags.alloy, off(trunn, pax, -w + 0.009), pax,
             [[Rc * 0.62, 0], [Rc * 0.62, 2 * w - 0.018]], 18, true);      // the yoke's cross-boss, on the pin
   } else {

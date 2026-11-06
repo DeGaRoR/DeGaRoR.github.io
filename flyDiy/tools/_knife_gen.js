@@ -924,6 +924,104 @@ function knifeCarveF(m, cuts, skip) {
   out.knifeStats = (m.knifeStats || []).concat([{ carvedSide: carved }]);
   return out;
 }
+// RETRACT P2 (the user: "Did you build an actual volume after the cut? It should really be a closed section, where we
+// first cut, then extrude the cut and close it so it forms a closed volume"): THE WELL, A CLOSED BOX OF ITS OWN - built
+// from the cut's OUTLINE, never from the skin's faces it cut (a skin with an opening of its own - a cowl's open belly -
+// left the old recessed pane, and so the well, open there; and a pane carried the curved skin's facets up to a flat
+// ceiling). The outline sampled finely, each point dropped onto the ORIGINAL skin from below (`skinY`: its lowest
+// surface over that plan place); the walls from there straight up to ONE flat ceiling (the lowest of the cut's ceiling
+// function over its outline and inside it: a wing's upper skin, a nacelle's top still cap it), their normals level and
+// facing the well's axis; the ceiling the outline at that height, facing the opening. The knife then only cuts the
+// hole (its pane and its walls are dropped) and carves the structure out of the volume. Returns { V, F (triangles, CCW
+// seen from inside the well), N } in the cut's units
+function wellBox(c, skinY, inBody, skinTop) {
+  const ceilF = c.hf ? wellCeilFn(c) : () => c.ceil, o = c.outline;
+  let per = 0; for (let i = 0; i < o.length; i++) { const a = o[i], b = o[(i + 1) % o.length]; per += Math.hypot(b[0] - a[0], b[1] - a[1]); }
+  const step = Math.max(per / 240, 1e-4), ring = [];
+  for (let i = 0; i < o.length; i++) { const a = o[i], b = o[(i + 1) % o.length], n = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / step));
+    for (let k = 0; k < n; k++) { const t = k / n; ring.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]); } }
+  // (u, v) = (z, -x): a plan point's x and z
+  const X = q => -q[1], Z = q => q[0];
+  let ys = ring.map(q => skinY(X(q), Z(q)));
+  if (!ys.some(y => y != null)) return null;
+  // (P2, the user: "a hole, plus a little border that extrudes out with no cap"): THE BOX IS THE SKIN'S THAT CARRIES THE
+  // CUT - a mesh under less than 40 % of the outline (the wing's centre section, grazed at the root) builds none (its
+  // walls, from the nearest hit's height, hung under the wing); and an outline point with no skin under it (aft of a
+  // trailing edge) is walked inward till it finds the skin - the wall closes the well there, not in the air behind it
+  if (ys.filter(y => y != null).length < 0.4 * ys.length) return null;
+  { const r0 = ring.map(q => q.slice()), m = r0.length;
+    for (let i = 0; i < m; i++) if (ys[i] == null) {
+      const a = r0[(i - 1 + m) % m], b = r0[(i + 1) % m], du = b[0] - a[0], dv = b[1] - a[1], l = Math.hypot(du, dv) || 1, iu = -dv / l, iv = du / l;
+      for (let k = 1; k <= 80; k++) { const d = k * 0.005, u = r0[i][0] + iu * d, v = r0[i][1] + iv * d, y = skinY(-v, u);
+        if (y != null) { ring[i] = [u + iu * 0.003, v + iv * 0.003]; ys[i] = skinY(-ring[i][1], ring[i][0]); if (ys[i] == null) ys[i] = y; break; } } } }
+  for (let i = 0; i < ys.length; i++) if (ys[i] == null) {          // (a miss: the nearest answered point's height)
+    for (let d = 1; d < ys.length; d++) { const a = ys[(i + d) % ys.length], b = ys[(i - d + ys.length) % ys.length]; if (a != null || b != null) { ys[i] = a != null ? a : b; break; } } }
+  let cu = 0, cv = 0; for (const q of ring) { cu += q[0] / ring.length; cv += q[1] / ring.length; }
+  let yc = Infinity; for (const q of ring) yc = Math.min(yc, ceilF(X(q), Z(q)));
+  for (let k = 1; k <= 4; k++) for (const q of ring) { const f = k / 5, u = cu + (q[0] - cu) * f, v = cv + (q[1] - cv) * f; yc = Math.min(yc, ceilF(-v, u)); }
+  yc = Math.max(yc, Math.max(...ys) + 1e-3);
+  // (a wing's well where it runs into the body - `inBody`: the body's own box is the one seen there; the wing's ceiling
+  // sits 2 mm under it and its walls stay out, so no two surfaces share a place)
+  if (inBody && ring.some(q => inBody(X(q), Z(q)))) yc -= 0.002;
+  const V = [], N = [], F = [], n = ring.length, nrm = (x, y, z) => { const l = Math.hypot(x, y, z) || 1; return [x / l, y / l, z / l]; };
+  // the walls, with a CHAMFER at the opening's lip (P2: "ensure all corners are beveled"): per point three vertices - on
+  // the skin, BEV in and BEV up (the chamfer's top), and at the ceiling; the chamfer looks out of the well at 45
+  // degrees, the wall level toward the axis
+  const BEV = Math.min(0.003, (yc - Math.max(...ys)) * 0.3), WV = 5;
+  // (P2: THE SHOULDER - where the skin over an outline point is lower than the ceiling (a nacelle narrowing to its top
+  // under the wing: the straight wall stood out of its side), the wall stops 3 mm under that skin and slopes in to a
+  // ceiling point drawn inward until the skin over it clears the ceiling; `skinTop`: the skin's highest over a plan place)
+  const M = 0.003, inner = [];
+  const clearOf = (x, z) => { const lo = skinY(x, z), hi = skinTop ? skinTop(x, z) : null; return lo != null && hi != null && hi - lo > 0.01 ? hi : null; };
+  for (let i = 0; i < n; i++) { const a = ring[(i - 1 + n) % n], b = ring[(i + 1) % n], q = ring[i];
+    // (the edge turned left - (du, dv) -> (-dv, du) - points inside a CCW outline; in 3D x = -v, z = u)
+    const du = b[0] - a[0], dv = b[1] - a[1], ni = nrm(-du, 0, -dv), nc = nrm(ni[0], -1, ni[2]);
+    const x = X(q), z = Z(q), y0 = ys[i] - 0.0005;
+    let s = 0, need = false, top0 = skinTop ? clearOf(x + ni[0] * BEV, z + ni[2] * BEV) : null;
+    if (skinTop) for (let k = 0; k <= 75; k++) { const d = BEV + k * 0.002, t = clearOf(x + ni[0] * d, z + ni[2] * d);
+      if (t == null) { if (!need && k >= 5) break; continue; }
+      if (t >= yc + M) { s = need ? d - BEV : 0; break; }
+      need = true; }
+    if (!need) s = 0;
+    const ysh = s > 0 ? Math.max(y0 + BEV + 0.001, Math.min(yc, (top0 != null ? top0 : y0) - M)) : yc;
+    const xb = x + ni[0] * BEV, zb = z + ni[2] * BEV, h = yc - ysh, ns = s > 0 ? nrm(ni[0] * h, -s, ni[2] * h) : ni;
+    V.push([x, y0, z], [xb, y0 + BEV, zb], [xb, y0 + BEV, zb], [xb, ysh, zb], [xb + ni[0] * s, yc, zb + ni[2] * s]);
+    N.push(nc, nc, ni, s > 0 ? ns : ni, s > 0 ? ns : ni); inner.push([xb + ni[0] * s, zb + ni[2] * s]); }
+  const cu2 = cu, cv2 = cv;
+  // (each quad wound to face the well's axis and the opening - the knife's own test, against the axis point)
+  const faces = (a, b, c) => { const A = V[a], B = V[b], C = V[c], u = [B[0] - A[0], B[1] - A[1], B[2] - A[2]], w = [C[0] - A[0], C[1] - A[1], C[2] - A[2]];
+    const nx = u[1] * w[2] - u[2] * w[1], ny = u[2] * w[0] - u[0] * w[2], nz = u[0] * w[1] - u[1] * w[0];
+    return nx * (-cv2 - A[0]) + nz * (cu2 - A[2]) - ny * 1e-3 > 0; };
+  for (let i = 0; i < n; i++) { const j = (i + 1) % n;
+    const mx = (V[WV * i][0] + V[WV * j][0]) / 2, mz = (V[WV * i][2] + V[WV * j][2]) / 2;
+    if (inBody && inBody(mx, mz)) continue;
+    for (const [lo, hi] of [[0, 1], [2, 3], [3, 4]]) { if (lo === 3 && V[WV * i + 3][1] === yc && V[WV * j + 3][1] === yc) continue;   // (no shoulder)
+      const b0 = WV * i + lo, t0 = WV * i + hi, b1 = WV * j + lo, t1 = WV * j + hi;
+      if (faces(b0, b1, t1)) F.push([b0, b1, t1], [b0, t1, t0]); else F.push([b0, t1, b1], [b0, t0, t1]); } }
+  // the ceiling: the outline at its height, a fan from the axis, facing down (the opening)
+  const c0 = V.length; V.push([-cv, yc, cu]); N.push([0, -1, 0]);
+  for (let i = 0; i < n; i++) { V.push([inner[i][0], yc, inner[i][1]]); N.push([0, -1, 0]); }
+  for (let i = 0; i < n; i++) { const a = c0 + 1 + i, b = c0 + 1 + (i + 1) % n;
+    // (seen from below the fan must turn the way that faces down: check with the first triangle)
+    const A = V[c0], B = V[a], C = V[b], ny = (B[2] - A[2]) * (C[0] - A[0]) - (B[0] - A[0]) * (C[2] - A[2]);   // (the normal's y)
+    F.push(ny < 0 ? [c0, a, b] : [c0, b, a]); }
+  return { V, F, N, yc };
+}
+// the original skin's lowest surface over a plan place (x, z), from its triangles (a bucket grid over the plan); `hi`:
+// its highest
+function skinYOf(tris, cell, hi) {
+  const g = new Map(), key = (i, j) => i * 73856093 ^ j * 19349663;
+  for (const t of tris) { let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+    for (const p of t) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); z0 = Math.min(z0, p[2]); z1 = Math.max(z1, p[2]); }
+    for (let i = Math.floor(x0 / cell); i <= Math.floor(x1 / cell); i++) for (let j = Math.floor(z0 / cell); j <= Math.floor(z1 / cell); j++) {
+      const k = key(i, j); if (!g.has(k)) g.set(k, []); g.get(k).push(t); } }
+  return (x, z) => { const ts = g.get(key(Math.floor(x / cell), Math.floor(z / cell))); if (!ts) return null; let best = null;
+    for (const [A, B, C] of ts) { const d = (B[2] - C[2]) * (A[0] - C[0]) + (C[0] - B[0]) * (A[2] - C[2]); if (Math.abs(d) < 1e-14) continue;
+      const l1 = ((B[2] - C[2]) * (x - C[0]) + (C[0] - B[0]) * (z - C[2])) / d, l2 = ((C[2] - A[2]) * (x - C[0]) + (A[0] - C[0]) * (z - C[2])) / d, l3 = 1 - l1 - l2;
+      if (l1 < -1e-6 || l2 < -1e-6 || l3 < -1e-6) continue;
+      const y = l1 * A[1] + l2 * B[1] + l3 * C[1]; if (best == null || (hi ? y > best : y < best)) best = y; }
+    return best; };
+}
 function knifeWells(sh, cuts, sides) {
   // (one list may hold both: a cut with its own frame is a side well)
   if (sides === undefined && cuts) { sides = cuts.filter(c => c.frame); cuts = cuts.filter(c => !c.frame); }
@@ -937,6 +1035,17 @@ function knifeWells(sh, cuts, sides) {
     m = knifeCut(m, { well: (c.units || []).join('') }, { frame: WELL_FRAME, outline: c.outline, ceil: c.hf ? wellCeilFn(c) : c.ceil,
                                                          mats: WELL_MATS, paneMat: 'wheelWell', wallMat: 'wheelWell' });
   if (cuts.length) m = knifeCarve(m, cuts);
+  // P2: the knife's panes and walls dropped (the hole stays); each cut's own closed box, off the sheet's ORIGINAL skin
+  if (cuts.length) {
+    const tris = []; for (const f of sh.F) if (WELL_MATS.has(f.m) && f.v.length >= 3) for (let i = 1; i + 1 < f.v.length; i++) tris.push([sh.V[f.v[0]], sh.V[f.v[i]], sh.V[f.v[i + 1]]]);
+    const skinY = skinYOf(tris, 0.1), skinTop = skinYOf(tris, 0.1, true);
+    const V = m.V.slice(), N = m.N.slice(), A = m.A ? m.A.slice() : null, aw = A && A.length ? (A.find(a => a) || [0, 0, 0, 0]).length : 4;
+    const F = m.F.filter(f => f.m !== 'wheelWell');
+    for (const c of cuts) { const b = wellBox(c, skinY, null, skinTop); if (!b) continue; const base = V.length;
+      for (let i = 0; i < b.V.length; i++) { V.push(b.V[i]); N.push(b.N[i]); if (A) A.push(new Array(aw).fill(0)); }
+      for (const t of b.F) F.push({ v: t.map(i => i + base), m: 'wheelWell', knife: 1 }); }
+    m = Object.assign({}, m, { V, N, A, F });
+  }
   // GR: THE SIDE WELLS (the Catalina's recesses): the knife looking at the side, the recess inward to the fitted floor
   for (const c of (sides || []))
     m = knifeCut(m, { well: (c.units || []).join('') }, { frame: c.frame, outline: c.outline, ceilP: wellFloorFn(c),
@@ -1034,7 +1143,7 @@ function knifeCarve(m, cuts, skip) {
 // (one section, `skin`; every attribute but the position and the normal packed into the field, lerped like it), cut
 // from below by the cuts (metres), carved (every face: the wing has no structure of its own to keep), and back: the
 // skin's geometry and the well's (walls and ceiling, section wheelWell) apart, so each keeps its own material
-function knifeWellsGeo(THREE, geo, cuts, tops) {
+function knifeWellsGeo(THREE, geo, cuts, tops, inBody) {
   const P = geo.attributes.position, Nm = geo.attributes.normal, nv = P.count;
   const extra = Object.keys(geo.attributes).filter(k => k !== 'position' && k !== 'normal');
   const V = [], N = [], A = [];
@@ -1078,7 +1187,18 @@ function knifeWellsGeo(THREE, geo, cuts, tops) {
     return g;
   };
   const st = m.knifeStats || [];
-  return { skin: build(f => f.m !== 'wheelWell'), well: build(f => f.m === 'wheelWell'), stats: st };
+  // P2: the well, each cut's own closed box off the ORIGINAL skin (the knife's panes and walls are not it)
+  const tris = []; for (let t = 0; t < nt; t++) { const q = ix ? [ix[t * 3], ix[t * 3 + 1], ix[t * 3 + 2]] : [t * 3, t * 3 + 1, t * 3 + 2]; tris.push(q.map(i => V[i])); }
+  const skinY = skinYOf(tris, 0.1), skinTop = skinYOf(tris, 0.1, true), bv = [], bn = [], bi = [];
+  for (const c of cuts) { const b = wellBox(c, skinY, inBody || null, skinTop); if (!b) continue; const base = bv.length / 3;
+    for (let i = 0; i < b.V.length; i++) { bv.push(...b.V[i]); bn.push(...b.N[i]); }
+    for (const t of b.F) bi.push(t[0] + base, t[1] + base, t[2] + base); }
+  let well = null;
+  if (bi.length) { well = new THREE.BufferGeometry();
+    well.setAttribute('position', new THREE.BufferAttribute(new Float32Array(bv), 3));
+    well.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(bn), 3));
+    well.setIndex(bi); }
+  return { skin: build(f => f.m !== 'wheelWell'), well, stats: st };
 }
 
 // GR: A MESH CUT IN THE LAYER'S FRAME (a nacelle's skin sits inside the cowl unit's own frame): its geometry carried
@@ -1093,7 +1213,7 @@ function knifeWellsMesh(THREE, geo, rel, cuts, twin) {
   if (r.well) { if (twin) { r.well.dispose(); r.well = null; } else r.well.applyMatrix4(back); }
   return r;
 }
-const API = { knifeWellsMesh, knifeOutline, knifeNormals, knifeCut, knifeBead, earClip, knifeWells, knifeWellsGeo, knifeCarve, knifeCarveF, wellCeilFn, wellFloorFn };
+const API = { wellBox, skinYOf, knifeWellsMesh, knifeOutline, knifeNormals, knifeCut, knifeBead, earClip, knifeWells, knifeWellsGeo, knifeCarve, knifeCarveF, wellCeilFn, wellFloorFn };
 if (typeof module !== 'undefined') module.exports = API;
 if (typeof window !== 'undefined') window.KNIFE_GEN = API;
 })();

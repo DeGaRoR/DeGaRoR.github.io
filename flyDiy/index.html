@@ -4694,7 +4694,7 @@ html.phone #npWrap .npBtn { flex:1; min-width:0; padding:0 8px; }
     </div>
   </aside>
 </div>
-<script>window.FLYDIY_BUILD='bc00bea99acf';window.FLYDIY_BUILD_DATE='2026-11-06T00:44:03.847Z';</script>
+<script>window.FLYDIY_BUILD='3a6e19ff56d7';window.FLYDIY_BUILD_DATE='2026-11-06T00:48:23.392Z';</script>
 <script>
 // ===========================================================================
 // THE NAMES (G3240 NAMES, 2026-10-22; GAME-PLAN-2026-10-15 §R and §13). The user, 15 Oct: "Everything should have a
@@ -33045,6 +33045,57 @@ const FLOAT_PRESETS = {
                      for: 'de Havilland DHC-6 Twin Otter' },
 };
 const FLOAT_PRESET_NAMES = Object.keys(FLOAT_PRESETS);
+// ---- THE WIPLINE AMPHIBIANS (RETRACT-STUDY §8.25, 2026-11-05) ----------------------------------------------------
+// The user: "amphibious floats ... work that needs to be done according to manufacturer data, not eyeballed". Read
+// off Wipaire's own documents (the service manuals / ICA, the parts manuals and the product guides on wipaire.com
+// and their manualshive copies; the study's §8.25 lists every source by model):
+//   - "The amphibian float is geometrically the same as the seaplane except for the addition of landing gear and
+//     internal structure for the gear" (every service manual) - the hull rows stand; the published amphibian
+//     length is longer by `dL` (in): the nose gear ahead of the bow [inferred - Wipaire gives no datum];
+//   - a QUADRICYCLE: one nose wheel in each bow (a composite spring leg on a trolley in tracks in a nose box, full
+//     castering, retracting into the float's nose "to provide a dock bumper", no doors); one main gear per float,
+//     single or DUAL wheels, on a drag link hinged on the step bulkhead's trunnions, swinging up into an open wheel
+//     well just aft of the step, no doors; over-centre locks; one hydraulic system, a hand pump;
+//   - the tyres (size code as published; OD from it by the aircraft-tyre rule rim + 2 x 0.9 x width, or as given);
+//   - `dKg`: the amphibian system's weight over the seaplane's (the pair, rigging included; Wipaire's installed
+//     weights, the example aircraft named), null where Wipaire publishes no seaplane figure beside it;
+//   - the geometry measured on the product guides' dimensioned 3-views [inferred, +-3 %]: the wheelbase is 0.48-0.52
+//     of the amphibian float's length, the main axle 0.50-0.55 of it from its front, the nose axle at its front.
+// Not published (so not modelled as fact): the main wheel's drop under the keel, the swing angles, the nose trolley's
+// stroke, the stations - the drawing ASSUMES them and says so (`_cage_float.js` amphib).
+const TYRE_OD = code => { const m = String(code).match(/^([\d.]+)\s*x\s*([\d.]+)$/i); if (!m) return null;
+  const a = +m[1], b = +m[2]; return (a > b ? a : b + 2 * 0.9 * a) * 0.0254; };          // ('10x3.50': OD x width)
+const TYRE_W = code => { const m = String(code).match(/^([\d.]+)\s*x\s*([\d.]+)$/i); if (!m) return null;
+  const a = +m[1], b = +m[2]; return (a > b ? b : a) * 0.0254; };
+const WIPLINE_AMPHIB = {
+  'Wipline 2100':  { main: '5.00x5', mainN: 1, nose: '2.50x4',  dL: 4,  dKg: 147 * 0.4536, ex: 'PA-18 (427 vs 280 lb)' },
+  'Wipline 2350':  { main: '5.00x5', mainN: 1, nose: '2.50x4',  dL: 4,  dKg: 163 * 0.4536, ex: 'C-172 (468 vs 305 lb)' },
+  'Wipline 3000':  { main: '6.00x6', mainN: 1, nose: '10x3.50', dL: 7,  dKg: 200 * 0.4536, ex: 'C-185 (632 vs 432 lb)' },
+  'Wipline 3450':  { main: '6.00x6', mainN: 1, nose: '10x3.50', dL: 7,  dKg: 203 * 0.4536, ex: 'C-206 (694 vs 491 lb)' },
+  'Wipline 3730':  { main: '5.00x5', mainN: 1, nose: '10x3.50', dL: null, dKg: null, ex: 'older C-185/206 design; nose tyre stated two ways' },
+  'Wipline 3900':  { main: '5.00x5', mainN: 1, nose: '10x3.50', dL: null, dKg: null, ex: 'as the 3730' },
+  'Wipline 4000':  { main: '5.00x5', mainN: 2, nose: '4.10x4',  dL: null, dKg: null },
+  'Wipline 6000':  { main: '6.00x6', mainN: 2, nose: '5.00x5',  dL: 10, dKg: null, ex: 'as the 6100' },
+  'Wipline 6100':  { main: '6.00x6', mainN: 2, nose: '5.00x5',  dL: 10, dKg: 418 * 0.4536, ex: 'DHC-2 (exchange 885 vs 467 lb)' },
+  'Wipline 7000':  { main: '6.00x6', mainN: 2, nose: '5.00x5',  dL: null, dKg: null, ex: 'Kodiak (amphibian only)' },
+  'Wipline 8750':  { main: '6.00x6', mainN: 2, nose: '5.00x5',  dL: 7,  dKg: 384 * 0.4536, ex: 'C-208B (1678 vs 1294 lb)' },
+  'Wipline 10000': { main: '8.50x10', mainN: 2, nose: '6.00x6', dL: null, dKg: null, ex: 'Fire Boss (amphibian only)' },
+  'Wipline 13000': { main: '8.50x10', mainN: 2, nose: '6.00x6', dL: 14, dKg: 677 * 0.4536, ex: 'DHC-6 (2163 vs 1486 lb)' },
+};
+// clearK (measured 6 Nov, the user: "the float will be really close to the ground ... if you can find any data that
+// gives you a clear reference point"): the keel's height over the ground at the step, gear down, as a share of the
+// main wheel's radius - read off Wipaire's dimensioned 3-views against their own wheelbase dimension: the C-206 on
+// 3450s (6.00x6, wheelbase 11'-7") 7.2 in, the Husky on 2100s (5.00x5, 9'-3") 5.5 in - both 0.8 R; the main axle
+// stands level with the keel
+const AMPHIB_GEOM = { wbK: 0.50, mainK: 0.53, clearK: 0.80 };     // [inferred / measured] off the guides' 3-views (above)
+// a hull row's amphibian gear: its preset's, else the catalogue row nearest its hull HEIGHT (the wheel must stow in
+// it), its length the tie-break (est: true)
+function amphibOf(preset, L, H) {
+  if (preset && WIPLINE_AMPHIB[preset]) return Object.assign({ name: preset, est: false }, WIPLINE_AMPHIB[preset]);
+  let best = null;
+  for (const n in WIPLINE_AMPHIB) { const r = FLOAT_PRESETS[n]; if (!r) continue; const e = Math.abs(r.H - (H || 0.6)) + 0.02 * Math.abs(r.L - (L || 6)); if (!best || e < best.e) best = { e, n }; }
+  return best ? Object.assign({ name: best.n, est: true }, WIPLINE_AMPHIB[best.n]) : null;
+}
 // what the join carries into spec.gear.floats: every number the hull, its
 // details and its rudder are built from (rho and the model's constants stay
 // the model's; `preset` rides as a string beside them)
@@ -33944,7 +33995,7 @@ const API = { DEF, G, NU, makeFloat, sectionOf, makeBody, makeScratch, hydroForc
               stillWater, gerstner, submergedVolumeMC, expDrop, expTow, expLand, nodeSlam, stabilityReport, ENVELOPE,
               savitskyStatic, rotPitch, polyArea, hullTriangles,
               hydroPanels, rigidCtx, tetraCtx, baryOf, hydroBuild, hydroFree, hydroHeel, hydroSolverPass, wetBuild, wetSolverPass, wetReset, wetCut, wetFx, WFX_R, WFX_HEAD, WB_MAT, WB_WING, WB_OPT, WB_RAD, floatParamsFor, FLOAT_DISP, hullParamsFromTable, tableSection, hullTipFit, hullRestTrim, propDiscs, sponsonTable, sponsonVol, tipFloatParams,
-              FLOAT_PRESETS, FLOAT_PRESET_NAMES, FLOAT_METRIC, FLOAT_SPEC_KEYS, WIPLINE_AFT, presetParams, fineParams, scaleParams, secPoly, secAreaTo, keelOf, deckAt,
+              FLOAT_PRESETS, FLOAT_PRESET_NAMES, WIPLINE_AMPHIB, AMPHIB_GEOM, amphibOf, TYRE_OD, TYRE_W, FLOAT_METRIC, FLOAT_SPEC_KEYS, WIPLINE_AFT, presetParams, fineParams, scaleParams, secPoly, secAreaTo, keelOf, deckAt,
               EDO_STYLE, EDO_AFT, EDO_HULL, edoArc, edoArcP, EDO_PRESETS, EDO_PRESET_NAMES, deckYAt, noseRof, floatPrice, FLOAT_PRICE_RATE,
               waterRudder, WR_AREA, WR_DEPTH, WR_TRAVEL, WR_UP_V, HYDRO_EVERY, floatAdvice };
 HYDRO = API;
@@ -66163,7 +66214,7 @@ if (typeof module !== 'undefined' && typeof require === 'function' && typeof __f
 })();
 </script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='519d8735763b';window.FLYDIY_BUILD='bc00bea99acf';window.FLYDIY_AUDIO_SRC={"engine_worklet":"src/viewer/audio/engine_worklet.js?v=26807db6","prop_worklet":"src/viewer/audio/prop_worklet.js?v=48283511","airframe_worklet":"src/viewer/audio/airframe_worklet.js?v=1e68b31b"};window.FLYDIY_MUSIC=[{"id":"fma238392","file":"media/audio/music/holiznacc0_yet_again.ae80f04f.mp3","title":"Yet Again","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/yet-again-lofi-peaceful/","station":"lofi","contexts":["garage","welcome"],"lufs":-16,"durationS":135.9},{"id":"fma275835","file":"media/audio/music/holiznacc0_break_from_reality.6cd41edd.mp3","title":"Break From Reality","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/break-from-reality-lofi-peaceful-mp3/","station":"lofi","contexts":["garage","welcome","cruise"],"lufs":-16,"durationS":207},{"id":"fma275843","file":"media/audio/music/holiznacc0_the_best_of_times.4c1984ae.mp3","title":"The Best Of Times","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/the-best-of-times-lofi-relaxing-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":168},{"id":"fma267057","file":"media/audio/music/holiznacc0_faded_in_the_sunlight.4ce1349b.mp3","title":"Faded in the Sunlight","artist":"HoliznaCC0","album":"Summer Air ( Lo-fi )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/summer-air-lo-fi/faded-in-the-sunlight/","station":"lofi","contexts":["garage","welcome"],"lufs":-17.2,"durationS":178.2},{"id":"fma265836","file":"media/audio/music/holiznacc0_peaceful_drift.55118944.mp3","title":"Peaceful Drift","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/peaceful-drift-lofi-nostalgic-calm/","station":"lofi","contexts":["garage"],"lufs":-17.4,"durationS":128.3},{"id":"fma265847","file":"media/audio/music/holiznacc0_ease_into_night.32448511.mp3","title":"Ease into Night","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ease-into-night-lofi-relax-chill/","station":"lofi","contexts":["garage"],"lufs":-17.9,"durationS":151.8},{"id":"fma268742","file":"media/audio/music/holiznacc0_washed_up.eca2e877.mp3","title":"Washed Up","artist":"HoliznaCC0","album":"OCEAN MEMORY ( Lo-fi Chill )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/ocean-memory-lo-fi-chill/washed-up/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":234.6},{"id":"fma275832","file":"media/audio/music/holiznacc0_down_time.c1f35243.mp3","title":"Down Time","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/down-time-lofi-peaceful-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":130.3},{"id":"fma275836","file":"media/audio/music/holiznacc0_ocean_breeze.1c28251e.mp3","title":"Ocean Breeze","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ocean-breeze-lofi-ukulele-peaceful-mp3/","station":"lofi","contexts":["garage","cruise"],"lufs":-16,"durationS":197.6},{"id":"fma164357","file":"media/audio/music/loyalty_freak_music_traveling_in_your_mind.993d471f.mp3","title":"Traveling in your mind","artist":"Loyalty Freak Music","album":"TO CHILL AND STAY AWAKE","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/TO_CHILL_AND_STAY_AWAKE/Loyalty_Freak_Music_-_TO_CHILL_AND_STAY_AWAKE_-_05_Traveling_in_your_mind/","station":"lofi","contexts":["cruise","welcome","garage"],"lufs":-18.2,"durationS":236.6},{"id":"fma171982","file":"media/audio/music/loyalty_freak_music_beach.b048753f.mp3","title":"Beach","artist":"Loyalty Freak Music","album":"MELODIES WITH A BEAT","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/MELODIES_WITH_A_BEAT/Loyalty_Freak_Music_-_MELODIES_WITH_A_BEAT_-_08_Beach/","station":"lofi","contexts":["garage"],"lufs":-17.3,"durationS":161},{"id":"fma279362","file":"media/audio/music/holiznacc0_kodama.566d47aa.mp3","title":"Kodama","artist":"HoliznaCC0","album":"Nature Spirit","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/nature-spirit/kodama/","station":"jazz","contexts":["garage"],"lufs":-18.7,"durationS":150.7},{"id":"fma278622","file":"media/audio/music/ketsa_as_above_so_below.89e379ac.mp3","title":"As Above So Below","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/as-above-so-below-1/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":233.4},{"id":"fma279012","file":"media/audio/music/ketsa_time_runs_like_the_thames.6ff984d7.mp3","title":"Time Runs Like The Thames","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/vintage-modernity/time-runs-like-the-thames/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":274},{"id":"fmaia_shreveport_stomp","file":"media/audio/music/jelly_roll_morton_shreveport_stomp.e54398f1.mp3","title":"Shreveport Stomp","artist":"Jelly Roll Morton","album":"1924","licence":"Public domain","source":"https://archive.org/details/shreveport-stomp-jelly-roll-morton-1924","station":"jazz","contexts":["garage"],"lufs":-21,"durationS":171},{"id":"fmaia_wolverine_blues","file":"media/audio/music/benson_orchestra_of_chicago_jelly_roll_morton_wolverine_blues.1d938bf6.mp3","title":"Wolverine Blues","artist":"Benson Orchestra of Chicago (Jelly Roll Morton)","album":"1923, Library of Congress National Jukebox","licence":"Public domain","source":"https://archive.org/details/loc-jukebox-67806-wolverine-blues","station":"jazz","contexts":["garage"],"lufs":-17.5,"durationS":184.8},{"id":"fma278664","file":"media/audio/music/tommaso_croce_generic_sloppy_dub.9cc4f5ec.mp3","title":"Generic Sloppy Dub","artist":"Tommaso Croce","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Dilating_Times/backwards/generic-sloppy-dub/","station":"dubambient","contexts":["garage","cruise"],"lufs":-17.4,"durationS":316.7},{"id":"fma278757","file":"media/audio/music/1000_handz_greenery.6b82d1b4.mp3","title":"Greenery","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/greenery/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":209.4},{"id":"fma278845","file":"media/audio/music/guided_levitation_return_to_our_home.763873e2.mp3","title":"Return To Our Home","artist":"Guided Levitation","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/guided-levitation/eternal/return-to-our-home/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":430.2},{"id":"fma279307","file":"media/audio/music/matthew_c_wright_calming_royalty_free_piano_a_season_of_change.1228ba10.mp3","title":"Calming Royalty Free Piano - \"A Season of Change\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/calming-royalty-free-piano-a-season-of-change/","station":"classical","contexts":["garage","welcome"],"lufs":-17.6,"durationS":151},{"id":"fma279308","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_autumn_sunshine.cfc128af.mp3","title":"Gentle Royalty Free Piano - \"Autumn Sunshine\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-autumn-sunshine/","station":"classical","contexts":["garage","welcome"],"lufs":-18.7,"durationS":186.2},{"id":"fma279304","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_rustling.3ea1a7a8.mp3","title":"Gentle Royalty Free Piano - \"Rustling\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-rustling/","station":"classical","contexts":["garage","welcome"],"lufs":-17,"durationS":161.1},{"id":"fmaia_goldberg_14","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_13.e46289fd.mp3","title":"Goldberg Variations, BWV 988: Variatio 13","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":254.5},{"id":"fmaia_goldberg_20","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_19.024a83f6.mp3","title":"Goldberg Variations, BWV 988: Variatio 19","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.2,"durationS":85},{"id":"fmaia_goldberg_25","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_24_canone_a.38d27e77.mp3","title":"Goldberg Variations, BWV 988: Variatio 24, Canone all'Ottava","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.4,"durationS":165.5},{"id":"fmaia_goldberg_27","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_26.cb2b4f50.mp3","title":"Goldberg Variations, BWV 988: Variatio 26","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16,"durationS":122.8},{"id":"fmaia_goldberg_31","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria_da_capo.b65c85c5.mp3","title":"Goldberg Variations, BWV 988: Aria da capo","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":170.1},{"id":"fmaia_goldberg_01","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria.8a525c07.mp3","title":"Goldberg Variations, BWV 988: Aria","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-19.6,"durationS":299.5},{"id":"fma278391","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_i_m_callin_late.73576f4b.mp3","title":"Peaceful Royalty Free Guitar - \"I'm Callin' Late\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-im-callin-late/","station":"roots","contexts":["garage","cruise"],"lufs":-19.2,"durationS":138.8},{"id":"fma279039","file":"media/audio/music/mr_smith_ranchero.03b7fda8.mp3","title":"Ranchero","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/synchromatic/ranchero/","station":"roots","contexts":["garage","cruise"],"lufs":-16.5,"durationS":114.2},{"id":"fma278388","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_a_cloudy_life.5400048e.mp3","title":"Calming Royalty Free Guitar - \"A Cloudy Life\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-a-cloudy-life/","station":"roots","contexts":["garage"],"lufs":-19,"durationS":170.8},{"id":"fma237449","file":"media/audio/music/mr_smith_ships.d2277b62.mp3","title":"Ships","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/ships/","station":"roots","contexts":["garage","cruise"],"lufs":-16.6,"durationS":82.1},{"id":"fma248055","file":"media/audio/music/mr_smith_quidi_vidi.94325e9a.mp3","title":"Quidi Vidi","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/quidi-vidi/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.9},{"id":"fma248226","file":"media/audio/music/mr_smith_in_the_mist.4ca7d4da.mp3","title":"In the Mist","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/in-the-mist/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":54.7},{"id":"fma256748","file":"media/audio/music/maarten_schellekens_whispers_of_the_glen.a0af8efe.mp3","title":"Whispers of the Glen","artist":"Maarten Schellekens","album":null,"licence":"CC0","source":"https://freemusicarchive.org/music/maarten-schellekens/public-domain-1/whispers-of-the-glen/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":161.6},{"id":"fma273704p1","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_1.cc7cdbdd.mp3","title":"Ghostman Blues, part 1","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":161},{"id":"fma273704p3","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_3.0ee810e4.mp3","title":"Ghostman Blues, part 3","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16.1,"durationS":178.9},{"id":"fma271999p2","file":"media/audio/music/daniel_william_lawrence_a_land_of_corn_and_wine_part_2.1a3e2a6e.mp3","title":"A Land of Corn and Wine, part 2","artist":"Daniel William Lawrence","album":"A Land of Corn and Wine","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/a-land-of-corn-and-wine/a-land-of-corn-and-wine-traditional-instrumental-blues-full-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":355.7},{"id":"fma277192","file":"media/audio/music/ketsa_time_falls_like_autumn_leaves.0b326725.mp3","title":"Time falls like Autumn Leaves","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/time-falls-like-autumn-leaves/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":159.7},{"id":"fma279132","file":"media/audio/music/1000_handz_neighbor.194f378e.mp3","title":"Neighbor","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/neighbor/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":129.9},{"id":"fma279302","file":"media/audio/music/1000_handz_busted_tape.8ac88609.mp3","title":"Busted Tape","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/busted-tape/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":66},{"id":"fma277908","file":"media/audio/music/pamela_yuen_beloved.95635664.mp3","title":"Beloved","artist":"Pamela Yuen","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/pamela-yuen/ambient-music-1/beloved-1/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":211.7},{"id":"fma233918","file":"media/audio/music/mr_smith_the_newfie.010088ef.mp3","title":"The Newfie","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/the-newfie/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":87.3},{"id":"fma237242","file":"media/audio/music/mr_smith_da_rock.f15eeafe.mp3","title":"Da Rock","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/da-rock/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":119},{"id":"fma237915","file":"media/audio/music/mr_smith_nfld.ba344a97.mp3","title":"NFLD","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/nfld/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":105.5},{"id":"fma246044","file":"media/audio/music/mr_smith_the_newfie_pt_2.6d0e2be2.mp3","title":"The Newfie Pt 2","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/the-newfie-pt-2/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":85.4},{"id":"fma250186","file":"media/audio/music/mr_smith_sun_glitter.0a050709.mp3","title":"Sun Glitter","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/sun-glitter/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.5},{"id":"fma252236","file":"media/audio/music/mr_smith_birchy_nap.e91e17e6.mp3","title":"Birchy Nap","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/birchy-nap/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":55.2},{"id":"fma278389","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_brown_hair_and_chacos.53071383.mp3","title":"Quiet Royalty Free Guitar - \"Brown Hair and Chacos\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-brown-hair-and-chacos/","station":"roots","contexts":["garage","cruise"],"lufs":-18.5,"durationS":151},{"id":"fma278390","file":"media/audio/music/matthew_c_wright_slow_royalty_free_guitar_how_about_forever.19ea0bdb.mp3","title":"Slow Royalty Free Guitar - \"How About Forever\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/slow-royalty-free-guitar-how-about-forever/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":189.2},{"id":"fma278392","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_just_a_flight_away.b39b38a7.mp3","title":"Relaxing Royalty Free Guitar - \"Just a Flight Away\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-just-a-flight-away/","station":"roots","contexts":["garage","cruise"],"lufs":-17.9,"durationS":124.3},{"id":"fma278394","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_montana.ac8ceebf.mp3","title":"Peaceful Royalty Free Guitar - \"Montana\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-montana/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":156},{"id":"fma278395","file":"media/audio/music/matthew_c_wright_soothing_royalty_free_guitar_old_steel.a75dce3f.mp3","title":"Soothing Royalty Free Guitar - \"Old Steel\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/soothing-royalty-free-guitar-old-steel/","station":"roots","contexts":["garage","cruise"],"lufs":-20.6,"durationS":131.9},{"id":"fma278396","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_so_proud_of_you.dd50ab59.mp3","title":"Relaxing Royalty Free Guitar - \"So Proud of You\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-so-proud-of-you/","station":"roots","contexts":["garage","cruise"],"lufs":-19.5,"durationS":205.4},{"id":"fma278397","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_this_here_house.560c1a4a.mp3","title":"Quiet Royalty Free Guitar - \"This Here House\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-this-here-house/","station":"roots","contexts":["garage","cruise"],"lufs":-22,"durationS":157},{"id":"fma278398","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_time_to_let_go.c14ebc99.mp3","title":"Calming Royalty Free Guitar - \"Time to Let Go\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-time-to-let-go/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":178.8},{"id":"fma278399","file":"media/audio/music/matthew_c_wright_simple_royalty_free_guitar_village_on_the_lake.b92784aa.mp3","title":"Simple Royalty Free Guitar - \"Village on the Lake\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/simple-royalty-free-guitar-village-on-the-lake/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":130.3}];window.FLYDIY_AUDIO_MEDIA={"amb.forest.day":["media/audio/sfx/amb_forest_day_288899.157bf96e.mp3"],"amb.forest.night":["media/audio/sfx/amb_forest_night_333221.3df54da1.mp3"],"amb.wind.light":["media/audio/sfx/amb_wind_light_160469.4d45c6a1.mp3"],"amb.wind.clear":["media/audio/sfx/amb_wind_clear_156414.f23315bb.mp3"],"amb.wind.mountain":["media/audio/sfx/amb_wind_mountain_165526.140f3920.mp3"],"amb.wind.storm":["media/audio/sfx/amb_wind_storm_157280.9fdd2a2c.mp3"],"amb.shore.surf":["media/audio/sfx/amb_shore_surf_155641.27350310.mp3"],"amb.shore.rocks":["media/audio/sfx/amb_shore_rocks_155895.6ee71344.mp3"],"amb.lake.near":["media/audio/sfx/amb_lake_near_135046.22d12339.mp3"],"amb.lake.lap":["media/audio/sfx/amb_lake_lap_428088.0018a69a.mp3"],"amb.stream":["media/audio/sfx/amb_stream_264180.4ff25da2.mp3"],"amb.harbour":["media/audio/sfx/amb_harbour_339440.fc5b7cd1.mp3"],"amb.village":["media/audio/sfx/amb_village_435819.20299c23.mp3"],"amb.airfield":["media/audio/sfx/amb_airfield_319102.6b4237cf.mp3"],"amb.hangar":["media/audio/sfx/amb_hangar_427861.f9afe454.mp3"],"amb.rain.roof":["media/audio/sfx/amb_rain_roof_329578.c0aba715.mp3"],"amb.frogs.night":["media/audio/sfx/amb_frogs_night_135561.9aa1f6e9.mp3"],"amb.loons":["media/audio/sfx/amb_loons_39339.7d136ae5.mp3"],"amb.meadow":["media/audio/sfx/amb_meadow_639459.3facef88.mp3"],"bird.eagle":["media/audio/sfx/bird_eagle_381200.1d11590c.mp3","media/audio/sfx/bird_eagle_392212.13114290.mp3","media/audio/sfx/bird_eagle_nps-golden-eagle.ca760fa8.mp3"],"bird.gull":["media/audio/sfx/bird_gull_166710.bb2f19eb.mp3","media/audio/sfx/bird_gull_263786.51e3ecb8.mp3","media/audio/sfx/bird_gull_73497.919ce49c.mp3"],"bird.crow":["media/audio/sfx/bird_crow_182090.1a94cd39.mp3","media/audio/sfx/bird_crow_361470.92582da1.mp3","media/audio/sfx/bird_crow_75162.543a2c22.mp3","media/audio/sfx/bird_crow_nps-raven.8c13e1ca.mp3"],"bird.owl":["media/audio/sfx/bird_owl_465697.2ee834d0.mp3","media/audio/sfx/bird_owl_479588.817cca9b.mp3","media/audio/sfx/bird_owl_558396.fc398755.mp3"],"dog":["media/audio/sfx/dog_160366.86fe02dc.mp3"],"gnd.gravel":["media/audio/sfx/gnd_gravel_251661.0e48f11b.mp3"],"mech.creak":["media/audio/sfx/mech_creak_119468.101f6d88.mp3","media/audio/sfx/mech_creak_238289.6d8b72b3.mp3"],"mech.door":["media/audio/sfx/mech_door_345066.66dbaf6d.mp3"],"mech.switch":["media/audio/sfx/mech_switch_361371.9ced067b.mp3","media/audio/sfx/mech_switch_423957.6b08a0c1.mp3"],"water.drip":["media/audio/sfx/water_drip_166986.f81c294b.mp3"],"ui.click":["media/audio/sfx/ui_click_528561.bdd8b52e.mp3"],"vehicle.pickup":["media/audio/sfx/vehicle_pickup_450227.be208f91.mp3"],"amb.rain.outside":["media/audio/sfx/amb_rain_outside_523391.da71d15a.mp3"],"amb.birds.open":["media/audio/sfx/amb_birds_open_456766.c24bacac.mp3"],"amb.lake.shore":["media/audio/sfx/amb_lake_shore_352356.21fc75ef.mp3"],"amb.sea.open":["media/audio/sfx/amb_sea_open_460061.6c0c2f0e.mp3"],"bird.loon":["media/audio/sfx/bird_loon_39339.3c306d67.mp3","media/audio/sfx/bird_loon_nps-loon.ebce31d5.mp3","media/audio/sfx/bird_loon_nps-loon.c47baae3.mp3"],"tram.bell":["media/audio/sfx/tram_bell_497561.9e7279e8.mp3"],"tram.hum":["media/audio/sfx/tram_hum_442493.2b3fe7d3.mp3"],"boat.idle":["media/audio/sfx/boat_idle_637743.0d3d93e0.mp3"],"animal.bear":["media/audio/sfx/animal_bear_nps-grizzly-vocal.def683e6.mp3","media/audio/sfx/animal_bear_nps-grizzly-vocal.98163160.mp3","media/audio/sfx/animal_bear_nps-grizzly-roar.02f72aba.mp3"],"animal.elk":["media/audio/sfx/animal_elk_nps-elk-bugle-1.10ba252d.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.d2390a80.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.c7320d85.mp3"],"animal.deer":["media/audio/sfx/animal_deer_351113.97a7d90b.mp3","media/audio/sfx/animal_deer_351113.5b6da753.mp3"],"animal.whale.blow":["media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.58dfd4e5.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.d2504229.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.7663f71d.mp3"],"animal.orca.blow":["media/audio/sfx/animal_orca_blow_nps-porpoise.b8a0c8fc.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.5d0de2ec.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.45872e4e.mp3"],"bird.thrush":["media/audio/sfx/bird_thrush_nps-varied-thrush.603dc854.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dc4d4664.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dba365b7.mp3"],"mill.stamp":["media/audio/sfx/mill_stamp_322871.33f9ef7a.mp3"]};window.FLYDIY_VOICE={"voice":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"voices":{"norman":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"john":{"name":"john","id":"en_US-john-medium","who":"male, US","role":"Chief Walt Brennan (the interview)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/john/medium","dataset":"LibriVox readings by one reader, ~12.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"fine-tuned (600 epochs) from en_US-kristin-medium, itself trained from scratch on public-domain LibriVox","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"kristin":{"name":"kristin","id":"en_US-kristin-medium","who":"female, US","role":"Officer Dana Hale (recorded messages)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/kristin/medium","dataset":"LibriVox readings by one reader, ~11.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (2000 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"libritts":{"name":"libritts","id":"en_US-libritts-high","who":"US, 904 speakers (LibriTTS)","role":"the residents who phone in","quality":"high","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/libritts/high","dataset":"LibriTTS train-clean-360 (Zen et al. 2019; from LibriSpeech, from LibriVox)","datasetLicence":"CC BY 4.0","datasetUrl":"http://www.openslr.org/60/","lineage":"trained from scratch on train-clean-360","credit":"LibriTTS corpus by Heiga Zen et al. (Google), CC BY 4.0, http://www.openslr.org/60/","render":{"lufs":-20,"kbps":48,"takes":"whole"}}},"script":{"file":"media/audio/voice/radio_script.96bc74e6.json","items":352,"seconds":2085.9,"bytes":12743609}}</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='d002d1f48baf';window.FLYDIY_BUILD='3a6e19ff56d7';window.FLYDIY_AUDIO_SRC={"engine_worklet":"src/viewer/audio/engine_worklet.js?v=26807db6","prop_worklet":"src/viewer/audio/prop_worklet.js?v=48283511","airframe_worklet":"src/viewer/audio/airframe_worklet.js?v=1e68b31b"};window.FLYDIY_MUSIC=[{"id":"fma238392","file":"media/audio/music/holiznacc0_yet_again.ae80f04f.mp3","title":"Yet Again","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/yet-again-lofi-peaceful/","station":"lofi","contexts":["garage","welcome"],"lufs":-16,"durationS":135.9},{"id":"fma275835","file":"media/audio/music/holiznacc0_break_from_reality.6cd41edd.mp3","title":"Break From Reality","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/break-from-reality-lofi-peaceful-mp3/","station":"lofi","contexts":["garage","welcome","cruise"],"lufs":-16,"durationS":207},{"id":"fma275843","file":"media/audio/music/holiznacc0_the_best_of_times.4c1984ae.mp3","title":"The Best Of Times","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/the-best-of-times-lofi-relaxing-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":168},{"id":"fma267057","file":"media/audio/music/holiznacc0_faded_in_the_sunlight.4ce1349b.mp3","title":"Faded in the Sunlight","artist":"HoliznaCC0","album":"Summer Air ( Lo-fi )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/summer-air-lo-fi/faded-in-the-sunlight/","station":"lofi","contexts":["garage","welcome"],"lufs":-17.2,"durationS":178.2},{"id":"fma265836","file":"media/audio/music/holiznacc0_peaceful_drift.55118944.mp3","title":"Peaceful Drift","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/peaceful-drift-lofi-nostalgic-calm/","station":"lofi","contexts":["garage"],"lufs":-17.4,"durationS":128.3},{"id":"fma265847","file":"media/audio/music/holiznacc0_ease_into_night.32448511.mp3","title":"Ease into Night","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ease-into-night-lofi-relax-chill/","station":"lofi","contexts":["garage"],"lufs":-17.9,"durationS":151.8},{"id":"fma268742","file":"media/audio/music/holiznacc0_washed_up.eca2e877.mp3","title":"Washed Up","artist":"HoliznaCC0","album":"OCEAN MEMORY ( Lo-fi Chill )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/ocean-memory-lo-fi-chill/washed-up/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":234.6},{"id":"fma275832","file":"media/audio/music/holiznacc0_down_time.c1f35243.mp3","title":"Down Time","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/down-time-lofi-peaceful-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":130.3},{"id":"fma275836","file":"media/audio/music/holiznacc0_ocean_breeze.1c28251e.mp3","title":"Ocean Breeze","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ocean-breeze-lofi-ukulele-peaceful-mp3/","station":"lofi","contexts":["garage","cruise"],"lufs":-16,"durationS":197.6},{"id":"fma164357","file":"media/audio/music/loyalty_freak_music_traveling_in_your_mind.993d471f.mp3","title":"Traveling in your mind","artist":"Loyalty Freak Music","album":"TO CHILL AND STAY AWAKE","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/TO_CHILL_AND_STAY_AWAKE/Loyalty_Freak_Music_-_TO_CHILL_AND_STAY_AWAKE_-_05_Traveling_in_your_mind/","station":"lofi","contexts":["cruise","welcome","garage"],"lufs":-18.2,"durationS":236.6},{"id":"fma171982","file":"media/audio/music/loyalty_freak_music_beach.b048753f.mp3","title":"Beach","artist":"Loyalty Freak Music","album":"MELODIES WITH A BEAT","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/MELODIES_WITH_A_BEAT/Loyalty_Freak_Music_-_MELODIES_WITH_A_BEAT_-_08_Beach/","station":"lofi","contexts":["garage"],"lufs":-17.3,"durationS":161},{"id":"fma279362","file":"media/audio/music/holiznacc0_kodama.566d47aa.mp3","title":"Kodama","artist":"HoliznaCC0","album":"Nature Spirit","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/nature-spirit/kodama/","station":"jazz","contexts":["garage"],"lufs":-18.7,"durationS":150.7},{"id":"fma278622","file":"media/audio/music/ketsa_as_above_so_below.89e379ac.mp3","title":"As Above So Below","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/as-above-so-below-1/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":233.4},{"id":"fma279012","file":"media/audio/music/ketsa_time_runs_like_the_thames.6ff984d7.mp3","title":"Time Runs Like The Thames","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/vintage-modernity/time-runs-like-the-thames/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":274},{"id":"fmaia_shreveport_stomp","file":"media/audio/music/jelly_roll_morton_shreveport_stomp.e54398f1.mp3","title":"Shreveport Stomp","artist":"Jelly Roll Morton","album":"1924","licence":"Public domain","source":"https://archive.org/details/shreveport-stomp-jelly-roll-morton-1924","station":"jazz","contexts":["garage"],"lufs":-21,"durationS":171},{"id":"fmaia_wolverine_blues","file":"media/audio/music/benson_orchestra_of_chicago_jelly_roll_morton_wolverine_blues.1d938bf6.mp3","title":"Wolverine Blues","artist":"Benson Orchestra of Chicago (Jelly Roll Morton)","album":"1923, Library of Congress National Jukebox","licence":"Public domain","source":"https://archive.org/details/loc-jukebox-67806-wolverine-blues","station":"jazz","contexts":["garage"],"lufs":-17.5,"durationS":184.8},{"id":"fma278664","file":"media/audio/music/tommaso_croce_generic_sloppy_dub.9cc4f5ec.mp3","title":"Generic Sloppy Dub","artist":"Tommaso Croce","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Dilating_Times/backwards/generic-sloppy-dub/","station":"dubambient","contexts":["garage","cruise"],"lufs":-17.4,"durationS":316.7},{"id":"fma278757","file":"media/audio/music/1000_handz_greenery.6b82d1b4.mp3","title":"Greenery","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/greenery/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":209.4},{"id":"fma278845","file":"media/audio/music/guided_levitation_return_to_our_home.763873e2.mp3","title":"Return To Our Home","artist":"Guided Levitation","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/guided-levitation/eternal/return-to-our-home/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":430.2},{"id":"fma279307","file":"media/audio/music/matthew_c_wright_calming_royalty_free_piano_a_season_of_change.1228ba10.mp3","title":"Calming Royalty Free Piano - \"A Season of Change\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/calming-royalty-free-piano-a-season-of-change/","station":"classical","contexts":["garage","welcome"],"lufs":-17.6,"durationS":151},{"id":"fma279308","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_autumn_sunshine.cfc128af.mp3","title":"Gentle Royalty Free Piano - \"Autumn Sunshine\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-autumn-sunshine/","station":"classical","contexts":["garage","welcome"],"lufs":-18.7,"durationS":186.2},{"id":"fma279304","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_rustling.3ea1a7a8.mp3","title":"Gentle Royalty Free Piano - \"Rustling\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-rustling/","station":"classical","contexts":["garage","welcome"],"lufs":-17,"durationS":161.1},{"id":"fmaia_goldberg_14","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_13.e46289fd.mp3","title":"Goldberg Variations, BWV 988: Variatio 13","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":254.5},{"id":"fmaia_goldberg_20","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_19.024a83f6.mp3","title":"Goldberg Variations, BWV 988: Variatio 19","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.2,"durationS":85},{"id":"fmaia_goldberg_25","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_24_canone_a.38d27e77.mp3","title":"Goldberg Variations, BWV 988: Variatio 24, Canone all'Ottava","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.4,"durationS":165.5},{"id":"fmaia_goldberg_27","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_26.cb2b4f50.mp3","title":"Goldberg Variations, BWV 988: Variatio 26","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16,"durationS":122.8},{"id":"fmaia_goldberg_31","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria_da_capo.b65c85c5.mp3","title":"Goldberg Variations, BWV 988: Aria da capo","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":170.1},{"id":"fmaia_goldberg_01","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria.8a525c07.mp3","title":"Goldberg Variations, BWV 988: Aria","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-19.6,"durationS":299.5},{"id":"fma278391","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_i_m_callin_late.73576f4b.mp3","title":"Peaceful Royalty Free Guitar - \"I'm Callin' Late\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-im-callin-late/","station":"roots","contexts":["garage","cruise"],"lufs":-19.2,"durationS":138.8},{"id":"fma279039","file":"media/audio/music/mr_smith_ranchero.03b7fda8.mp3","title":"Ranchero","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/synchromatic/ranchero/","station":"roots","contexts":["garage","cruise"],"lufs":-16.5,"durationS":114.2},{"id":"fma278388","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_a_cloudy_life.5400048e.mp3","title":"Calming Royalty Free Guitar - \"A Cloudy Life\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-a-cloudy-life/","station":"roots","contexts":["garage"],"lufs":-19,"durationS":170.8},{"id":"fma237449","file":"media/audio/music/mr_smith_ships.d2277b62.mp3","title":"Ships","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/ships/","station":"roots","contexts":["garage","cruise"],"lufs":-16.6,"durationS":82.1},{"id":"fma248055","file":"media/audio/music/mr_smith_quidi_vidi.94325e9a.mp3","title":"Quidi Vidi","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/quidi-vidi/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.9},{"id":"fma248226","file":"media/audio/music/mr_smith_in_the_mist.4ca7d4da.mp3","title":"In the Mist","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/in-the-mist/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":54.7},{"id":"fma256748","file":"media/audio/music/maarten_schellekens_whispers_of_the_glen.a0af8efe.mp3","title":"Whispers of the Glen","artist":"Maarten Schellekens","album":null,"licence":"CC0","source":"https://freemusicarchive.org/music/maarten-schellekens/public-domain-1/whispers-of-the-glen/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":161.6},{"id":"fma273704p1","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_1.cc7cdbdd.mp3","title":"Ghostman Blues, part 1","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":161},{"id":"fma273704p3","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_3.0ee810e4.mp3","title":"Ghostman Blues, part 3","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16.1,"durationS":178.9},{"id":"fma271999p2","file":"media/audio/music/daniel_william_lawrence_a_land_of_corn_and_wine_part_2.1a3e2a6e.mp3","title":"A Land of Corn and Wine, part 2","artist":"Daniel William Lawrence","album":"A Land of Corn and Wine","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/a-land-of-corn-and-wine/a-land-of-corn-and-wine-traditional-instrumental-blues-full-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":355.7},{"id":"fma277192","file":"media/audio/music/ketsa_time_falls_like_autumn_leaves.0b326725.mp3","title":"Time falls like Autumn Leaves","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/time-falls-like-autumn-leaves/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":159.7},{"id":"fma279132","file":"media/audio/music/1000_handz_neighbor.194f378e.mp3","title":"Neighbor","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/neighbor/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":129.9},{"id":"fma279302","file":"media/audio/music/1000_handz_busted_tape.8ac88609.mp3","title":"Busted Tape","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/busted-tape/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":66},{"id":"fma277908","file":"media/audio/music/pamela_yuen_beloved.95635664.mp3","title":"Beloved","artist":"Pamela Yuen","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/pamela-yuen/ambient-music-1/beloved-1/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":211.7},{"id":"fma233918","file":"media/audio/music/mr_smith_the_newfie.010088ef.mp3","title":"The Newfie","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/the-newfie/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":87.3},{"id":"fma237242","file":"media/audio/music/mr_smith_da_rock.f15eeafe.mp3","title":"Da Rock","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/da-rock/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":119},{"id":"fma237915","file":"media/audio/music/mr_smith_nfld.ba344a97.mp3","title":"NFLD","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/nfld/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":105.5},{"id":"fma246044","file":"media/audio/music/mr_smith_the_newfie_pt_2.6d0e2be2.mp3","title":"The Newfie Pt 2","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/the-newfie-pt-2/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":85.4},{"id":"fma250186","file":"media/audio/music/mr_smith_sun_glitter.0a050709.mp3","title":"Sun Glitter","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/sun-glitter/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.5},{"id":"fma252236","file":"media/audio/music/mr_smith_birchy_nap.e91e17e6.mp3","title":"Birchy Nap","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/birchy-nap/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":55.2},{"id":"fma278389","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_brown_hair_and_chacos.53071383.mp3","title":"Quiet Royalty Free Guitar - \"Brown Hair and Chacos\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-brown-hair-and-chacos/","station":"roots","contexts":["garage","cruise"],"lufs":-18.5,"durationS":151},{"id":"fma278390","file":"media/audio/music/matthew_c_wright_slow_royalty_free_guitar_how_about_forever.19ea0bdb.mp3","title":"Slow Royalty Free Guitar - \"How About Forever\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/slow-royalty-free-guitar-how-about-forever/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":189.2},{"id":"fma278392","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_just_a_flight_away.b39b38a7.mp3","title":"Relaxing Royalty Free Guitar - \"Just a Flight Away\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-just-a-flight-away/","station":"roots","contexts":["garage","cruise"],"lufs":-17.9,"durationS":124.3},{"id":"fma278394","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_montana.ac8ceebf.mp3","title":"Peaceful Royalty Free Guitar - \"Montana\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-montana/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":156},{"id":"fma278395","file":"media/audio/music/matthew_c_wright_soothing_royalty_free_guitar_old_steel.a75dce3f.mp3","title":"Soothing Royalty Free Guitar - \"Old Steel\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/soothing-royalty-free-guitar-old-steel/","station":"roots","contexts":["garage","cruise"],"lufs":-20.6,"durationS":131.9},{"id":"fma278396","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_so_proud_of_you.dd50ab59.mp3","title":"Relaxing Royalty Free Guitar - \"So Proud of You\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-so-proud-of-you/","station":"roots","contexts":["garage","cruise"],"lufs":-19.5,"durationS":205.4},{"id":"fma278397","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_this_here_house.560c1a4a.mp3","title":"Quiet Royalty Free Guitar - \"This Here House\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-this-here-house/","station":"roots","contexts":["garage","cruise"],"lufs":-22,"durationS":157},{"id":"fma278398","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_time_to_let_go.c14ebc99.mp3","title":"Calming Royalty Free Guitar - \"Time to Let Go\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-time-to-let-go/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":178.8},{"id":"fma278399","file":"media/audio/music/matthew_c_wright_simple_royalty_free_guitar_village_on_the_lake.b92784aa.mp3","title":"Simple Royalty Free Guitar - \"Village on the Lake\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/simple-royalty-free-guitar-village-on-the-lake/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":130.3}];window.FLYDIY_AUDIO_MEDIA={"amb.forest.day":["media/audio/sfx/amb_forest_day_288899.157bf96e.mp3"],"amb.forest.night":["media/audio/sfx/amb_forest_night_333221.3df54da1.mp3"],"amb.wind.light":["media/audio/sfx/amb_wind_light_160469.4d45c6a1.mp3"],"amb.wind.clear":["media/audio/sfx/amb_wind_clear_156414.f23315bb.mp3"],"amb.wind.mountain":["media/audio/sfx/amb_wind_mountain_165526.140f3920.mp3"],"amb.wind.storm":["media/audio/sfx/amb_wind_storm_157280.9fdd2a2c.mp3"],"amb.shore.surf":["media/audio/sfx/amb_shore_surf_155641.27350310.mp3"],"amb.shore.rocks":["media/audio/sfx/amb_shore_rocks_155895.6ee71344.mp3"],"amb.lake.near":["media/audio/sfx/amb_lake_near_135046.22d12339.mp3"],"amb.lake.lap":["media/audio/sfx/amb_lake_lap_428088.0018a69a.mp3"],"amb.stream":["media/audio/sfx/amb_stream_264180.4ff25da2.mp3"],"amb.harbour":["media/audio/sfx/amb_harbour_339440.fc5b7cd1.mp3"],"amb.village":["media/audio/sfx/amb_village_435819.20299c23.mp3"],"amb.airfield":["media/audio/sfx/amb_airfield_319102.6b4237cf.mp3"],"amb.hangar":["media/audio/sfx/amb_hangar_427861.f9afe454.mp3"],"amb.rain.roof":["media/audio/sfx/amb_rain_roof_329578.c0aba715.mp3"],"amb.frogs.night":["media/audio/sfx/amb_frogs_night_135561.9aa1f6e9.mp3"],"amb.loons":["media/audio/sfx/amb_loons_39339.7d136ae5.mp3"],"amb.meadow":["media/audio/sfx/amb_meadow_639459.3facef88.mp3"],"bird.eagle":["media/audio/sfx/bird_eagle_381200.1d11590c.mp3","media/audio/sfx/bird_eagle_392212.13114290.mp3","media/audio/sfx/bird_eagle_nps-golden-eagle.ca760fa8.mp3"],"bird.gull":["media/audio/sfx/bird_gull_166710.bb2f19eb.mp3","media/audio/sfx/bird_gull_263786.51e3ecb8.mp3","media/audio/sfx/bird_gull_73497.919ce49c.mp3"],"bird.crow":["media/audio/sfx/bird_crow_182090.1a94cd39.mp3","media/audio/sfx/bird_crow_361470.92582da1.mp3","media/audio/sfx/bird_crow_75162.543a2c22.mp3","media/audio/sfx/bird_crow_nps-raven.8c13e1ca.mp3"],"bird.owl":["media/audio/sfx/bird_owl_465697.2ee834d0.mp3","media/audio/sfx/bird_owl_479588.817cca9b.mp3","media/audio/sfx/bird_owl_558396.fc398755.mp3"],"dog":["media/audio/sfx/dog_160366.86fe02dc.mp3"],"gnd.gravel":["media/audio/sfx/gnd_gravel_251661.0e48f11b.mp3"],"mech.creak":["media/audio/sfx/mech_creak_119468.101f6d88.mp3","media/audio/sfx/mech_creak_238289.6d8b72b3.mp3"],"mech.door":["media/audio/sfx/mech_door_345066.66dbaf6d.mp3"],"mech.switch":["media/audio/sfx/mech_switch_361371.9ced067b.mp3","media/audio/sfx/mech_switch_423957.6b08a0c1.mp3"],"water.drip":["media/audio/sfx/water_drip_166986.f81c294b.mp3"],"ui.click":["media/audio/sfx/ui_click_528561.bdd8b52e.mp3"],"vehicle.pickup":["media/audio/sfx/vehicle_pickup_450227.be208f91.mp3"],"amb.rain.outside":["media/audio/sfx/amb_rain_outside_523391.da71d15a.mp3"],"amb.birds.open":["media/audio/sfx/amb_birds_open_456766.c24bacac.mp3"],"amb.lake.shore":["media/audio/sfx/amb_lake_shore_352356.21fc75ef.mp3"],"amb.sea.open":["media/audio/sfx/amb_sea_open_460061.6c0c2f0e.mp3"],"bird.loon":["media/audio/sfx/bird_loon_39339.3c306d67.mp3","media/audio/sfx/bird_loon_nps-loon.ebce31d5.mp3","media/audio/sfx/bird_loon_nps-loon.c47baae3.mp3"],"tram.bell":["media/audio/sfx/tram_bell_497561.9e7279e8.mp3"],"tram.hum":["media/audio/sfx/tram_hum_442493.2b3fe7d3.mp3"],"boat.idle":["media/audio/sfx/boat_idle_637743.0d3d93e0.mp3"],"animal.bear":["media/audio/sfx/animal_bear_nps-grizzly-vocal.def683e6.mp3","media/audio/sfx/animal_bear_nps-grizzly-vocal.98163160.mp3","media/audio/sfx/animal_bear_nps-grizzly-roar.02f72aba.mp3"],"animal.elk":["media/audio/sfx/animal_elk_nps-elk-bugle-1.10ba252d.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.d2390a80.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.c7320d85.mp3"],"animal.deer":["media/audio/sfx/animal_deer_351113.97a7d90b.mp3","media/audio/sfx/animal_deer_351113.5b6da753.mp3"],"animal.whale.blow":["media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.58dfd4e5.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.d2504229.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.7663f71d.mp3"],"animal.orca.blow":["media/audio/sfx/animal_orca_blow_nps-porpoise.b8a0c8fc.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.5d0de2ec.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.45872e4e.mp3"],"bird.thrush":["media/audio/sfx/bird_thrush_nps-varied-thrush.603dc854.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dc4d4664.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dba365b7.mp3"],"mill.stamp":["media/audio/sfx/mill_stamp_322871.33f9ef7a.mp3"]};window.FLYDIY_VOICE={"voice":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"voices":{"norman":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"john":{"name":"john","id":"en_US-john-medium","who":"male, US","role":"Chief Walt Brennan (the interview)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/john/medium","dataset":"LibriVox readings by one reader, ~12.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"fine-tuned (600 epochs) from en_US-kristin-medium, itself trained from scratch on public-domain LibriVox","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"kristin":{"name":"kristin","id":"en_US-kristin-medium","who":"female, US","role":"Officer Dana Hale (recorded messages)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/kristin/medium","dataset":"LibriVox readings by one reader, ~11.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (2000 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"libritts":{"name":"libritts","id":"en_US-libritts-high","who":"US, 904 speakers (LibriTTS)","role":"the residents who phone in","quality":"high","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/libritts/high","dataset":"LibriTTS train-clean-360 (Zen et al. 2019; from LibriSpeech, from LibriVox)","datasetLicence":"CC BY 4.0","datasetUrl":"http://www.openslr.org/60/","lineage":"trained from scratch on train-clean-360","credit":"LibriTTS corpus by Heiga Zen et al. (Google), CC BY 4.0, http://www.openslr.org/60/","render":{"lufs":-20,"kbps":48,"takes":"whole"}}},"script":{"file":"media/audio/voice/radio_script.96bc74e6.json","items":352,"seconds":2085.9,"bytes":12743609}}</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=d854feec"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=52c3ced6"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3678040d"></script>
@@ -67533,7 +67584,7 @@ const CAGE_PARTS = [
     sections: ['float', 'floatDeck', 'floatBare', 'floatBoard'],
     groups: [
       // G451: the Wipline preset (a starter), the details, and the family's rows; FLOATS-CLASSIC: the style, the board
-      ['catalogue', ['gearFloats', 'fltPreset', 'fltStyle', 'fltDetail', 'fltRudder', 'fltPaddle', 'fltBoard']],
+      ['catalogue', ['gearFloats', 'fltPreset', 'fltStyle', 'fltDetail', 'fltRudder', 'fltPaddle', 'fltBoard', 'fltAmph']],
       ['hull', ['fltL', 'fltStep', 'fltB', 'fltH', 'fltBeta', 'fltBetaBow', 'fltBetaA', 'fltHs', 'fltAft',
                 'fltAftCurve', 'fltFlat', 'fltStem', 'fltRake', 'fltNoseR', 'fltPlan', 'fltStern', 'fltFlare', 'fltMass']],
       ['placement', ['fltZ', 'fltDrop', 'fltInc', 'fltTrack']],
@@ -72226,10 +72277,16 @@ const ARCHETYPES = [
            engFamily: 'flat', engModel: 'lycoming IO-360', engMount: 'nose', engCount: 'pushPull',
            gearLayout: 'trike', suspension: 'oleo', s1Fair: 0,
            finArch: 'straight', empennage: 'conv', scheme: 'trim', base: 0xefe6cf, trim: 0x1b3a5c },
+    // RETRACT P2 (the user, 5 Nov: "you may change the skymaster. It has never been authored"): THE 337's GEAR - the
+    // mains under the pod (0.43 m half track, 0.17 m tyres) at 1.7 m, folding aft and in with the wheel turned flat
+    // (the 210's twist-and-tuck) into one belly well ahead of the rear engine, their legs shortening 30 % on the way;
+    // the nose aft, shortened 30 % (its own well); the cabin floor at -0.25 for the belly's room
     over: { cage: Object.assign({}, PLAN_TAPER, { boomX: 1.25, boomLen: 3.2,
                                                    boomWf: 0.24, boomHf: 0.34,
                                                    boomWa: 0.16, boomHa: 0.22, boomNoseLen: 0.7,
-                                                   stSpan: 1.2, stChord: 1.1, wgDx: -0.5 }),
+                                                   stSpan: 1.2, stChord: 1.1, wgDx: -0.5,
+                                                   gearRetract: 1, gearFold: 3, gearShort: 0.3, gearShortNose: 0.3,
+                                                   s1X: 0.43, s1Z: 1.7, s1R: 0.17, floorY: -0.25 }),
             spec: { finish: { decals: { m1On: 1, m1Pat: 0, m1A: 0x1b3a5c,
                                         m1B: 0xefe6cf, m1D: 0x1b3a5c } } } } },
   { key: 'p38', kind: 'recreation', name: 'P-38-alike', note: 'a puller a boom, ' +
@@ -77744,6 +77801,104 @@ function knifeCarveF(m, cuts, skip) {
   out.knifeStats = (m.knifeStats || []).concat([{ carvedSide: carved }]);
   return out;
 }
+// RETRACT P2 (the user: "Did you build an actual volume after the cut? It should really be a closed section, where we
+// first cut, then extrude the cut and close it so it forms a closed volume"): THE WELL, A CLOSED BOX OF ITS OWN - built
+// from the cut's OUTLINE, never from the skin's faces it cut (a skin with an opening of its own - a cowl's open belly -
+// left the old recessed pane, and so the well, open there; and a pane carried the curved skin's facets up to a flat
+// ceiling). The outline sampled finely, each point dropped onto the ORIGINAL skin from below (`skinY`: its lowest
+// surface over that plan place); the walls from there straight up to ONE flat ceiling (the lowest of the cut's ceiling
+// function over its outline and inside it: a wing's upper skin, a nacelle's top still cap it), their normals level and
+// facing the well's axis; the ceiling the outline at that height, facing the opening. The knife then only cuts the
+// hole (its pane and its walls are dropped) and carves the structure out of the volume. Returns { V, F (triangles, CCW
+// seen from inside the well), N } in the cut's units
+function wellBox(c, skinY, inBody, skinTop) {
+  const ceilF = c.hf ? wellCeilFn(c) : () => c.ceil, o = c.outline;
+  let per = 0; for (let i = 0; i < o.length; i++) { const a = o[i], b = o[(i + 1) % o.length]; per += Math.hypot(b[0] - a[0], b[1] - a[1]); }
+  const step = Math.max(per / 240, 1e-4), ring = [];
+  for (let i = 0; i < o.length; i++) { const a = o[i], b = o[(i + 1) % o.length], n = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / step));
+    for (let k = 0; k < n; k++) { const t = k / n; ring.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]); } }
+  // (u, v) = (z, -x): a plan point's x and z
+  const X = q => -q[1], Z = q => q[0];
+  let ys = ring.map(q => skinY(X(q), Z(q)));
+  if (!ys.some(y => y != null)) return null;
+  // (P2, the user: "a hole, plus a little border that extrudes out with no cap"): THE BOX IS THE SKIN'S THAT CARRIES THE
+  // CUT - a mesh under less than 40 % of the outline (the wing's centre section, grazed at the root) builds none (its
+  // walls, from the nearest hit's height, hung under the wing); and an outline point with no skin under it (aft of a
+  // trailing edge) is walked inward till it finds the skin - the wall closes the well there, not in the air behind it
+  if (ys.filter(y => y != null).length < 0.4 * ys.length) return null;
+  { const r0 = ring.map(q => q.slice()), m = r0.length;
+    for (let i = 0; i < m; i++) if (ys[i] == null) {
+      const a = r0[(i - 1 + m) % m], b = r0[(i + 1) % m], du = b[0] - a[0], dv = b[1] - a[1], l = Math.hypot(du, dv) || 1, iu = -dv / l, iv = du / l;
+      for (let k = 1; k <= 80; k++) { const d = k * 0.005, u = r0[i][0] + iu * d, v = r0[i][1] + iv * d, y = skinY(-v, u);
+        if (y != null) { ring[i] = [u + iu * 0.003, v + iv * 0.003]; ys[i] = skinY(-ring[i][1], ring[i][0]); if (ys[i] == null) ys[i] = y; break; } } } }
+  for (let i = 0; i < ys.length; i++) if (ys[i] == null) {          // (a miss: the nearest answered point's height)
+    for (let d = 1; d < ys.length; d++) { const a = ys[(i + d) % ys.length], b = ys[(i - d + ys.length) % ys.length]; if (a != null || b != null) { ys[i] = a != null ? a : b; break; } } }
+  let cu = 0, cv = 0; for (const q of ring) { cu += q[0] / ring.length; cv += q[1] / ring.length; }
+  let yc = Infinity; for (const q of ring) yc = Math.min(yc, ceilF(X(q), Z(q)));
+  for (let k = 1; k <= 4; k++) for (const q of ring) { const f = k / 5, u = cu + (q[0] - cu) * f, v = cv + (q[1] - cv) * f; yc = Math.min(yc, ceilF(-v, u)); }
+  yc = Math.max(yc, Math.max(...ys) + 1e-3);
+  // (a wing's well where it runs into the body - `inBody`: the body's own box is the one seen there; the wing's ceiling
+  // sits 2 mm under it and its walls stay out, so no two surfaces share a place)
+  if (inBody && ring.some(q => inBody(X(q), Z(q)))) yc -= 0.002;
+  const V = [], N = [], F = [], n = ring.length, nrm = (x, y, z) => { const l = Math.hypot(x, y, z) || 1; return [x / l, y / l, z / l]; };
+  // the walls, with a CHAMFER at the opening's lip (P2: "ensure all corners are beveled"): per point three vertices - on
+  // the skin, BEV in and BEV up (the chamfer's top), and at the ceiling; the chamfer looks out of the well at 45
+  // degrees, the wall level toward the axis
+  const BEV = Math.min(0.003, (yc - Math.max(...ys)) * 0.3), WV = 5;
+  // (P2: THE SHOULDER - where the skin over an outline point is lower than the ceiling (a nacelle narrowing to its top
+  // under the wing: the straight wall stood out of its side), the wall stops 3 mm under that skin and slopes in to a
+  // ceiling point drawn inward until the skin over it clears the ceiling; `skinTop`: the skin's highest over a plan place)
+  const M = 0.003, inner = [];
+  const clearOf = (x, z) => { const lo = skinY(x, z), hi = skinTop ? skinTop(x, z) : null; return lo != null && hi != null && hi - lo > 0.01 ? hi : null; };
+  for (let i = 0; i < n; i++) { const a = ring[(i - 1 + n) % n], b = ring[(i + 1) % n], q = ring[i];
+    // (the edge turned left - (du, dv) -> (-dv, du) - points inside a CCW outline; in 3D x = -v, z = u)
+    const du = b[0] - a[0], dv = b[1] - a[1], ni = nrm(-du, 0, -dv), nc = nrm(ni[0], -1, ni[2]);
+    const x = X(q), z = Z(q), y0 = ys[i] - 0.0005;
+    let s = 0, need = false, top0 = skinTop ? clearOf(x + ni[0] * BEV, z + ni[2] * BEV) : null;
+    if (skinTop) for (let k = 0; k <= 75; k++) { const d = BEV + k * 0.002, t = clearOf(x + ni[0] * d, z + ni[2] * d);
+      if (t == null) { if (!need && k >= 5) break; continue; }
+      if (t >= yc + M) { s = need ? d - BEV : 0; break; }
+      need = true; }
+    if (!need) s = 0;
+    const ysh = s > 0 ? Math.max(y0 + BEV + 0.001, Math.min(yc, (top0 != null ? top0 : y0) - M)) : yc;
+    const xb = x + ni[0] * BEV, zb = z + ni[2] * BEV, h = yc - ysh, ns = s > 0 ? nrm(ni[0] * h, -s, ni[2] * h) : ni;
+    V.push([x, y0, z], [xb, y0 + BEV, zb], [xb, y0 + BEV, zb], [xb, ysh, zb], [xb + ni[0] * s, yc, zb + ni[2] * s]);
+    N.push(nc, nc, ni, s > 0 ? ns : ni, s > 0 ? ns : ni); inner.push([xb + ni[0] * s, zb + ni[2] * s]); }
+  const cu2 = cu, cv2 = cv;
+  // (each quad wound to face the well's axis and the opening - the knife's own test, against the axis point)
+  const faces = (a, b, c) => { const A = V[a], B = V[b], C = V[c], u = [B[0] - A[0], B[1] - A[1], B[2] - A[2]], w = [C[0] - A[0], C[1] - A[1], C[2] - A[2]];
+    const nx = u[1] * w[2] - u[2] * w[1], ny = u[2] * w[0] - u[0] * w[2], nz = u[0] * w[1] - u[1] * w[0];
+    return nx * (-cv2 - A[0]) + nz * (cu2 - A[2]) - ny * 1e-3 > 0; };
+  for (let i = 0; i < n; i++) { const j = (i + 1) % n;
+    const mx = (V[WV * i][0] + V[WV * j][0]) / 2, mz = (V[WV * i][2] + V[WV * j][2]) / 2;
+    if (inBody && inBody(mx, mz)) continue;
+    for (const [lo, hi] of [[0, 1], [2, 3], [3, 4]]) { if (lo === 3 && V[WV * i + 3][1] === yc && V[WV * j + 3][1] === yc) continue;   // (no shoulder)
+      const b0 = WV * i + lo, t0 = WV * i + hi, b1 = WV * j + lo, t1 = WV * j + hi;
+      if (faces(b0, b1, t1)) F.push([b0, b1, t1], [b0, t1, t0]); else F.push([b0, t1, b1], [b0, t0, t1]); } }
+  // the ceiling: the outline at its height, a fan from the axis, facing down (the opening)
+  const c0 = V.length; V.push([-cv, yc, cu]); N.push([0, -1, 0]);
+  for (let i = 0; i < n; i++) { V.push([inner[i][0], yc, inner[i][1]]); N.push([0, -1, 0]); }
+  for (let i = 0; i < n; i++) { const a = c0 + 1 + i, b = c0 + 1 + (i + 1) % n;
+    // (seen from below the fan must turn the way that faces down: check with the first triangle)
+    const A = V[c0], B = V[a], C = V[b], ny = (B[2] - A[2]) * (C[0] - A[0]) - (B[0] - A[0]) * (C[2] - A[2]);   // (the normal's y)
+    F.push(ny < 0 ? [c0, a, b] : [c0, b, a]); }
+  return { V, F, N, yc };
+}
+// the original skin's lowest surface over a plan place (x, z), from its triangles (a bucket grid over the plan); `hi`:
+// its highest
+function skinYOf(tris, cell, hi) {
+  const g = new Map(), key = (i, j) => i * 73856093 ^ j * 19349663;
+  for (const t of tris) { let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+    for (const p of t) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); z0 = Math.min(z0, p[2]); z1 = Math.max(z1, p[2]); }
+    for (let i = Math.floor(x0 / cell); i <= Math.floor(x1 / cell); i++) for (let j = Math.floor(z0 / cell); j <= Math.floor(z1 / cell); j++) {
+      const k = key(i, j); if (!g.has(k)) g.set(k, []); g.get(k).push(t); } }
+  return (x, z) => { const ts = g.get(key(Math.floor(x / cell), Math.floor(z / cell))); if (!ts) return null; let best = null;
+    for (const [A, B, C] of ts) { const d = (B[2] - C[2]) * (A[0] - C[0]) + (C[0] - B[0]) * (A[2] - C[2]); if (Math.abs(d) < 1e-14) continue;
+      const l1 = ((B[2] - C[2]) * (x - C[0]) + (C[0] - B[0]) * (z - C[2])) / d, l2 = ((C[2] - A[2]) * (x - C[0]) + (A[0] - C[0]) * (z - C[2])) / d, l3 = 1 - l1 - l2;
+      if (l1 < -1e-6 || l2 < -1e-6 || l3 < -1e-6) continue;
+      const y = l1 * A[1] + l2 * B[1] + l3 * C[1]; if (best == null || (hi ? y > best : y < best)) best = y; }
+    return best; };
+}
 function knifeWells(sh, cuts, sides) {
   // (one list may hold both: a cut with its own frame is a side well)
   if (sides === undefined && cuts) { sides = cuts.filter(c => c.frame); cuts = cuts.filter(c => !c.frame); }
@@ -77757,6 +77912,17 @@ function knifeWells(sh, cuts, sides) {
     m = knifeCut(m, { well: (c.units || []).join('') }, { frame: WELL_FRAME, outline: c.outline, ceil: c.hf ? wellCeilFn(c) : c.ceil,
                                                          mats: WELL_MATS, paneMat: 'wheelWell', wallMat: 'wheelWell' });
   if (cuts.length) m = knifeCarve(m, cuts);
+  // P2: the knife's panes and walls dropped (the hole stays); each cut's own closed box, off the sheet's ORIGINAL skin
+  if (cuts.length) {
+    const tris = []; for (const f of sh.F) if (WELL_MATS.has(f.m) && f.v.length >= 3) for (let i = 1; i + 1 < f.v.length; i++) tris.push([sh.V[f.v[0]], sh.V[f.v[i]], sh.V[f.v[i + 1]]]);
+    const skinY = skinYOf(tris, 0.1), skinTop = skinYOf(tris, 0.1, true);
+    const V = m.V.slice(), N = m.N.slice(), A = m.A ? m.A.slice() : null, aw = A && A.length ? (A.find(a => a) || [0, 0, 0, 0]).length : 4;
+    const F = m.F.filter(f => f.m !== 'wheelWell');
+    for (const c of cuts) { const b = wellBox(c, skinY, null, skinTop); if (!b) continue; const base = V.length;
+      for (let i = 0; i < b.V.length; i++) { V.push(b.V[i]); N.push(b.N[i]); if (A) A.push(new Array(aw).fill(0)); }
+      for (const t of b.F) F.push({ v: t.map(i => i + base), m: 'wheelWell', knife: 1 }); }
+    m = Object.assign({}, m, { V, N, A, F });
+  }
   // GR: THE SIDE WELLS (the Catalina's recesses): the knife looking at the side, the recess inward to the fitted floor
   for (const c of (sides || []))
     m = knifeCut(m, { well: (c.units || []).join('') }, { frame: c.frame, outline: c.outline, ceilP: wellFloorFn(c),
@@ -77854,7 +78020,7 @@ function knifeCarve(m, cuts, skip) {
 // (one section, `skin`; every attribute but the position and the normal packed into the field, lerped like it), cut
 // from below by the cuts (metres), carved (every face: the wing has no structure of its own to keep), and back: the
 // skin's geometry and the well's (walls and ceiling, section wheelWell) apart, so each keeps its own material
-function knifeWellsGeo(THREE, geo, cuts, tops) {
+function knifeWellsGeo(THREE, geo, cuts, tops, inBody) {
   const P = geo.attributes.position, Nm = geo.attributes.normal, nv = P.count;
   const extra = Object.keys(geo.attributes).filter(k => k !== 'position' && k !== 'normal');
   const V = [], N = [], A = [];
@@ -77898,7 +78064,18 @@ function knifeWellsGeo(THREE, geo, cuts, tops) {
     return g;
   };
   const st = m.knifeStats || [];
-  return { skin: build(f => f.m !== 'wheelWell'), well: build(f => f.m === 'wheelWell'), stats: st };
+  // P2: the well, each cut's own closed box off the ORIGINAL skin (the knife's panes and walls are not it)
+  const tris = []; for (let t = 0; t < nt; t++) { const q = ix ? [ix[t * 3], ix[t * 3 + 1], ix[t * 3 + 2]] : [t * 3, t * 3 + 1, t * 3 + 2]; tris.push(q.map(i => V[i])); }
+  const skinY = skinYOf(tris, 0.1), skinTop = skinYOf(tris, 0.1, true), bv = [], bn = [], bi = [];
+  for (const c of cuts) { const b = wellBox(c, skinY, inBody || null, skinTop); if (!b) continue; const base = bv.length / 3;
+    for (let i = 0; i < b.V.length; i++) { bv.push(...b.V[i]); bn.push(...b.N[i]); }
+    for (const t of b.F) bi.push(t[0] + base, t[1] + base, t[2] + base); }
+  let well = null;
+  if (bi.length) { well = new THREE.BufferGeometry();
+    well.setAttribute('position', new THREE.BufferAttribute(new Float32Array(bv), 3));
+    well.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(bn), 3));
+    well.setIndex(bi); }
+  return { skin: build(f => f.m !== 'wheelWell'), well, stats: st };
 }
 
 // GR: A MESH CUT IN THE LAYER'S FRAME (a nacelle's skin sits inside the cowl unit's own frame): its geometry carried
@@ -77913,7 +78090,7 @@ function knifeWellsMesh(THREE, geo, rel, cuts, twin) {
   if (r.well) { if (twin) { r.well.dispose(); r.well = null; } else r.well.applyMatrix4(back); }
   return r;
 }
-const API = { knifeWellsMesh, knifeOutline, knifeNormals, knifeCut, knifeBead, earClip, knifeWells, knifeWellsGeo, knifeCarve, knifeCarveF, wellCeilFn, wellFloorFn };
+const API = { wellBox, skinYOf, knifeWellsMesh, knifeOutline, knifeNormals, knifeCut, knifeBead, earClip, knifeWells, knifeWellsGeo, knifeCarve, knifeCarveF, wellCeilFn, wellFloorFn };
 if (typeof module !== 'undefined') module.exports = API;
 if (typeof window !== 'undefined') window.KNIFE_GEN = API;
 })();
@@ -102661,11 +102838,15 @@ function legOleo(bags, AF, P, st, sgn) {
   // STRUCTURE - `st.ret` { in: metres inward from the skin (the wing's mid-depth, a body frame's), pin: the fold's first
   // axis, fix: the static bags } - the strut runs from there through the well's opening; no pad on the skin
   const RT = st.ret || null;
-  const trunn = RT ? off(F.p, F.n, -RT.in) : off(F.p, F.n, 0.009 + P.oleoDia * 0.42);
   // an oleo had no rake law of its own: the wheel offset IS its rake — the
   // strut is whatever line joins the trunnion to the axle
   const axle = [sgn * half, AF.keelAt(st.z) - drop, st.z + (st.axZ || 0)];
   const axleIn = [axle[0] - sgn * hubIn * hS, axle[1], axle[2]];
+  // (RETRACT P2, the PBY-5A's mains - `RT.free`, the Canso handbook's Figs 12-13: the oleo stands UPRIGHT outboard of
+  // the hull, its head at the side's fitting height, held by the side strut and the V-strut (the gear layer's links),
+  // not on a trunnion in the structure - its head goes up and in with it)
+  const trunn = RT && RT.free ? [axleIn[0], Math.max(F.p[1], axleIn[1] + 2.2 * st.R), axleIn[2]]
+    : RT ? off(F.p, F.n, -RT.in) : off(F.p, F.n, 0.009 + P.oleoDia * 0.42);
   const dir = nrm(sub(axleIn, trunn));
   const L = len(sub(axleIn, trunn));
   const Rc = P.oleoDia * 0.5;
@@ -102685,7 +102866,7 @@ function legOleo(bags, AF, P, st, sgn) {
     // (GR: `RT.fits` - the gear layer draws the trunnion's fitting itself once its well's ceiling is known: lugs, a
     // base plate bolted flat on the structure, gussets; here only its record)
     if (RT.fits) RT.fits.push({ c: trunn.slice(), pax: pax.slice(), w, r: 0.030, t: 0.014, kind: 'trunnion' });
-    else {
+    else if (!RT.free) {
     for (const s of [-1, 1]) {
       lug(RT.fix.alloy, off(trunn, pax, s * w), pax, up, 0.030, 0.014, reach);
       bolt(RT.fix.dark, off(off(trunn, up, reach), pax, s * w), up, 0.006, 0.010);
@@ -102693,7 +102874,8 @@ function legOleo(bags, AF, P, st, sgn) {
     const sideV = nrm(crs(pax, up));
     boxIn(RT.fix.alloy, off(trunn, up, reach + 0.006), [w + 0.022, 0.006, 0.034], pax, up, sideV);
     }
-    revolve(RT.fix.bronze, off(trunn, pax, -w - 0.012), pax, [[0.011, 0], [0.011, 2 * w + 0.024]], 14, true);
+    if (!RT.free) revolve(RT.fix.bronze, off(trunn, pax, -w - 0.012), pax, [[0.011, 0], [0.011, 2 * w + 0.024]], 14, true);
+    else revolve(bags.bronze, off(trunn, pax, -w - 0.012), pax, [[0.011, 0], [0.011, 2 * w + 0.024]], 14, true);   // (its knuckle pin rides it)
     revolve(bags.alloy, off(trunn, pax, -w + 0.009), pax,
             [[Rc * 0.62, 0], [Rc * 0.62, 2 * w - 0.018]], 18, true);      // the yoke's cross-boss, on the pin
   } else {
@@ -120195,7 +120377,11 @@ const FOLD_PRESETS = {
   // splay, rising along the side, upright), then TUCKS inward about the vertical axis: the wheel moves sideways into a
   // round recess in the side, its outer face near flush, the leg outside. Both angles are solved (the leg level; the
   // wheel's centre 50 mm into the side); the strut runs aft along the side to the leg; the jack is inside the hull
-  catalina:  { turns: [[1, 90], [2, 15]], twist: 0 },
+  // P2 v3 (the PBY-5A's operator's handbook, Figs 12-13 - v2's aft-and-tuck was not it): the leg's head on links, not
+  // a trunnion - it RISES (the whole unit, the shortening's slide carrying it: the V-strut's jack) and SWINGS IN (one
+  // small turn about the fore-aft axis through a far pole, solved per build) - up and in, the wheel upright, into the
+  // well in the hull's side; foldChain solves the rise and the pole
+  catalina:  { turns: [[0, 10]], twist: 0 },
   // GR: INTO THE NACELLE - about the lateral axis, forward or aft whichever way the nacelle runs further from the pin (the
   // DC-3, the Aztec, the Twin Otter forward; the B-25 aft), trimmed to centre the wheel in the nacelle's depth
   nacelle:   { turns: [[1, 90]], twist: 0 },
@@ -120228,6 +120414,8 @@ const fMul = (A, B) => { const o = new Array(9);
   return o; };
 const fApp = (M, v) => [M[0] * v[0] + M[1] * v[1] + M[2] * v[2], M[3] * v[0] + M[4] * v[1] + M[5] * v[2], M[6] * v[0] + M[7] * v[1] + M[8] * v[2]];
 const fNrm = v => { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
+// (P2: the leg's head - the hinge, but for a unit whose fold turns about a pole off the leg (the Catalina's), C.top)
+const topOf = C => C.top || C.hinge;
 // THE POSE at position g (1 down .. 0 up): s = (1 - g) x frac walks the chain - the twist across all of it, the turns one
 // after the other - and the 3 x 3 the unit turns by about its hinge
 function foldPose(C, g) {
@@ -120293,21 +120481,37 @@ function foldChain(u, key, P, SP) {
     const N = nacAtW(h[0], h[2]) || NACS.find(n => n.kind !== 'cowl' && Math.abs(h[0] - n.xc) < 0.6);
     if (N) { const fwd = N.z1 - h[2], aft = h[2] - N.z0; C.turns[0].ang = (fwd > aft ? -1 : 1) * Math.abs(C.turns[0].ang); C.nacelle = fwd > aft ? 'forward' : 'aft'; }
   }
-  // (the Catalina: its two turns SOLVED - the first till the leg lies level, the second till the wheel's centre is 50 mm
-  // into the hull's side)
+  // (the Catalina, P2 v3: THE RISE AND THE POLE SOLVED - the wheel's centre goes from where it stands to its stowed
+  // place: level with the leg's head as drawn (the head's height is the side's fitting height, the stations' rule: a
+  // wheel's radius and the clearance over the turn of the bilge), its centre 40 mm inside the hull's side (the tyre
+  // about half out, as the PBY's); the whole unit rises (the slide, done 60 % of the way up) and turns by the preset's
+  // small angle, its head INWARD, about the pole that lands the wheel there)
   const catF = key !== 'T' && FOLD_KEYS[Math.round(+P.gearFold || 0)] === 'catalina';
-  if (catF && C.turns.length === 2 && C.frac >= 0.999) {
-    const [T1, T2] = C.turns, v0 = [axS[0] - h[0], axS[1] - h[1], axS[2] - h[2]];
-    let b1 = null;
-    for (let d = 45; d <= 135; d += 0.25) { const q = fApp(fRot(T1.axis, d * D2R), v0); const e = Math.abs(q[1]); if (!b1 || e < b1.e) b1 = { e, d }; }
-    T1.ang = b1.d * D2R;
-    let b2 = null;
-    if (SP) for (let d = 0; d <= 40; d += 0.25) {
-      T2.ang = d * D2R;
-      const Mz = foldPose(C, 0), q = fApp(Mz, v0), c = [h[0] + q[0], h[1] + q[1], h[2] + q[2]];
-      const e = Math.abs(SP.bodyIn(c) - 0.05); if (!b2 || e < b2.e) b2 = { e, d }; }
-    T2.ang = (b2 ? b2.d : 15) * D2R;
-    C.solved = [b1.d, b2 ? b2.d : null];
+  if (catF && C.turns.length === 1 && SP) {
+    const T = C.turns[0], sg = Math.sign(ax[0]) || 1, c0 = ax, y1 = h[1];
+    let lo = 0, hi = 3; for (let it = 0; it < 40; it++) { const m2 = (lo + hi) / 2; if (SP.bodyIn([sg * m2, y1, c0[2]]) > 0) lo = m2; else hi = m2; }
+    const c1 = [sg * (lo - 0.04), y1, c0[2]], dir = fNrm([c0[0] - h[0], c0[1] - h[1], c0[2] - h[2]]);
+    const rise = Math.max(0, y1 - c0[1]);
+    C.top = h.slice();
+    C.shorten = { t0: -1e9, d: rise / Math.max(0.2, -dir[1]), k: 0.6, dir, whole: true };
+    // (the turn's sense: the head inward; its angle SOLVED, 6 .. 40 degrees: the least that keeps the stowed leg inside
+    // the side - a PBY's side is upright and its leg too, a hull with tumblehome leans it in along its side)
+    const vUp = [h[0] - c0[0], h[1] - c0[1], 0], tq = fApp(fRot(T.axis, 0.1), vUp);
+    if (sg * tq[0] > sg * vUp[0]) T.axis = T.axis.map(c => -c);
+    const cs0 = [c0[0] - dir[0] * C.shorten.d, c0[1] - dir[1] * C.shorten.d];
+    const poleFor = a => { const th = a * T.axis[2], cs = Math.cos(th), sn = Math.sin(th);
+      const rx = c1[0] - (cs * cs0[0] - sn * cs0[1]), ry = c1[1] - (sn * cs0[0] + cs * cs0[1]), det = 2 * (1 - cs);
+      return [((1 - cs) * rx - sn * ry) / det, (sn * rx + (1 - cs) * ry) / det, c0[2]]; };
+    // (P2 v4, the user 6 Nov: "a single round opening that the wheel comes and closes ... The little leg there will
+    // have almost a single point of travel through the wall": the leg stays OUTSIDE, along the hull's side, the wheel
+    // inboard of it in the round recess - its lean solved (-20 .. 40 deg, the least) to keep the leg 15 mm off the skin)
+    const legPts = []; for (let f = 0; f <= 1.0001; f += 0.05) legPts.push([h[0], h[1] + (c0[1] - h[1]) * f, h[2]]);
+    let bestA = null;
+    for (let deg = -20; deg <= 40; deg += 1) { if (!deg) continue; T.ang = deg * D2R; C.hinge = poleFor(T.ang);
+      let inn = 0; for (const p of poseAll(C, legPts, 0)) inn = Math.max(inn, SP.bodyIn(p) + 0.015);
+      const e = Math.max(0, inn) + 0.0005 * Math.abs(deg); if (!bestA || e < bestA.e) bestA = { e, deg }; }
+    T.ang = bestA.deg * D2R; C.hinge = poleFor(T.ang);
+    C.solved = [+(T.ang / D2R).toFixed(1), +rise.toFixed(3)];
   }
   if (SP && preset && !catF && C.frac >= 0.999 && C.turns.length) {
     const T = C.turns[C.turns.length - 1], a0 = T.ang, sg = a0 < 0 ? -1 : 1;
@@ -120331,10 +120535,21 @@ function foldChain(u, key, P, SP) {
     T.ang = a0 + sg * (best ? best.d : 0) * D2R;
     C.trim = best ? best.d : 0;
   }
+  // P2 (the Skymaster's twist-and-tuck): A MAIN NEVER STOWS ACROSS THE CENTRE LINE - the other main's wheel stows
+  // mirrored there; a preset's last turn backs off, a degree at a time, till the stowed tyre keeps 20 mm off it
+  // (a TUCK's only - a last turn about the vertical axis, the twist-and-tuck's: an inward fold's crossing is a red fit,
+  // the builder's track to widen, never a fold backed off out of the body)
+  if (key !== 'T' && preset && !catF && C.turns.length && C.frac >= 0.999 && Math.abs(C.turns[C.turns.length - 1].axis[1]) > 0.9) {
+    const T = C.turns[C.turns.length - 1], sg = Math.sign(h[0]) || 1, rim = wheelRims(C, 16, [1]);
+    const inner = () => { const M = foldPose(C, 0); let m = Infinity;
+      for (const p0 of rim) { const p = slidePt(C, p0, slideD(C, 0)), q = fApp(M, [p[0] - h[0], p[1] - h[1], p[2] - h[2]]); m = Math.min(m, sg * (h[0] + q[0])); }
+      return m; };
+    for (let i = 0; i < 60 && inner() < 0.02 && Math.abs(T.ang) > D2R; i++) T.ang -= Math.sign(T.ang) * D2R;
+  }
   // the LIFT: how far the wheel's lowest point rises, the gear up (at the fraction), over the ground (the pitch's frame)
   const bottom = (c, a) => c[1] - C.R * Math.sqrt(Math.max(0, 1 - a[1] * a[1]));
-  const Mup = foldPose(C, 0), axUp = fApp(Mup, [axS[0] - h[0], axS[1] - h[1], axS[2] - h[2]]);
-  C.lift = Math.max(0, bottom([h[0] + axUp[0], h[1] + axUp[1], h[2] + axUp[2]], fApp(Mup, C.wAx)) - bottom(ax, C.wAx));
+  const Mup = foldPose(C, 0), axUp = poseAll(C, [ax], 0)[0];          // (P2: about the fold's own pivot, with its slide)
+  C.lift = Math.max(0, bottom(axUp, fApp(Mup, C.wAx)) - bottom(ax, C.wAx));
   return C;
 }
 
@@ -120558,7 +120773,7 @@ function unitPts(C) {
     const ca = Math.cos(k * Math.PI / 6) * r, sa = Math.sin(k * Math.PI / 6) * r;
     W.push([c[0] + a[0] * s + u[0] * ca + v[0] * sa, c[1] + a[1] * s + u[1] * ca + v[1] * sa, c[2] + a[2] * s + u[2] * ca + v[2] * sa]);
   }
-  const h = C.hinge, L = [];
+  const h = topOf(C), L = [];
   for (const f of [0.25, 0.4, 0.55, 0.7, 0.85]) L.push([h[0] + (c[0] - h[0]) * f, h[1] + (c[1] - h[1]) * f, h[2] + (c[2] - h[2]) * f]);
   return { W, L };
 }
@@ -120601,8 +120816,13 @@ function foldFit(P, swing, AF, W, MX) {
   for (const key in units) {
     const C = units[key].C, R = FIT_ROWS[key], st = R.st, word = UNIT_WORD[key];
     const up = posed[key][FIT_G.length - 1], all = up.W.concat(up.L);
+    // (P2 v4: the Catalina's mains stow OUTSIDE by design - the leg along the hull's side, the wheel half in its round
+    // recess, the links' fittings on the skin: its skin test is the recess's - the stowed wheel's centre inside the side)
+    const catU = key !== 'T' && FOLD_KEYS[Math.round(+P.gearFold || 0)] === 'catalina';
+    if (catU && C.frac >= 0.999) { const c = poseAll(C, [C.axle], 0)[0];
+      if (!(bodyIn(c) > 0.015)) fail('skin', key, word + ', up, does not sit in its recess: its centre ' + Math.round(-bodyIn(c) * 1000) + ' mm out of the side', R.fold.concat([st + 'R', st + 'Drop'])); }
     // SKIN (fully up, a whole retraction only)
-    if (C.frac >= 0.999) {
+    if (C.frac >= 0.999 && !catU) {
       // each point outside, classified: through the wing's skin (in its planform: by how much), out of the body (in
       // its width: by how much), or OFF the wing's chord (aft of the trailing edge / ahead of the leading edge)
       let wingMM = 0, bodyMM = 0, aftTE = 0, foreLE = 0, beyond = 0;
@@ -120633,7 +120853,8 @@ function foldFit(P, swing, AF, W, MX) {
              R.fold.concat([st + 'Z', st + 'AxZ', st + 'R', 'wgChord'])); }
     // FLOOR (inside the body, at any position)
     { let worst = 0;
-      posed[key].forEach((ps, gi) => { for (const p of ps.W.concat(ps.L, MX ? wellMechPts(MX, key, FIT_G[gi]) : [])) if (bodyIn(p) > 0 && p[1] > floorY - FIT.floor) worst = Math.max(worst, p[1] - floorY + FIT.floor); });
+      const inT = catU ? 0.02 : 0;                     // (the Catalina's: its fittings on the skin are not in the cabin)
+      posed[key].forEach((ps, gi) => { for (const p of ps.W.concat(ps.L, MX ? wellMechPts(MX, key, FIT_G[gi]) : [])) if (bodyIn(p) > inT && p[1] > floorY - FIT.floor) worst = Math.max(worst, p[1] - floorY + FIT.floor); });
       if (worst > 0) fail('floor', key, word + ' rises ' + Math.round(worst * 1000) + ' mm into the cabin floor',
                           R.fold.concat([st + 'Drop', st + 'R', 'floorY', 'gearRetFrac'])); }
   }
@@ -120693,7 +120914,10 @@ function foldFit(P, swing, AF, W, MX) {
       for (const p of r.pts) { if (bodyIn(p) > 0.04) continue; const cy = AF.cyAt(p[2]), l = Math.hypot(p[0], p[1] - cy) || 1; nx += p[0] / l; n++; }
       return n && Math.abs(nx / n) > 0.6 ? Math.sign(nx) : 0; };
     const rawB = [], rawS = [];
-    for (const r of rawAll) { const sd = AF ? sideOf(r) : 0; if (sd) rawS.push(Object.assign(r, { side: sd })); else rawB.push(r); }
+    // (the Catalina's recesses are side wells by design - v4's stowed wheel sits where the side turns into the bilge,
+    // and the average normal read it as a belly well)
+    for (const r of rawAll) { const sd = catK && r.units.every(k => catK.has(k)) ? Math.sign(r.pts.reduce((a, p) => a + p[0], 0)) || 1 : AF ? sideOf(r) : 0;
+      if (sd) rawS.push(Object.assign(r, { side: sd })); else rawB.push(r); }
     out.cuts = wellMerge(rawB, mode);
     out.cutsSide = wellMergeSide(rawS, mode);
     // GR: THE NACELLES' WELLS - the units' swept points inside a nacelle, cut from below into its skin (the wing's way)
@@ -120819,7 +121043,7 @@ function wheelRims(C, n, radii) {
 // points"): THE LEG AS A TUBE - from its trunnion to its axle (every 5 %), 8 points round it at its radius and its links'
 // room (C.legR), every 10 %, 6 round: the rest slot holds the leg's skin, not its axis
 function legTube(C) {
-  const h = C.hinge, ax = C.axle, d = fNrm([ax[0] - h[0], ax[1] - h[1], ax[2] - h[2]]), r = C.legR || 0.05;
+  const h = topOf(C), ax = C.axle, d = fNrm([ax[0] - h[0], ax[1] - h[1], ax[2] - h[2]]), r = C.legR || 0.05;
   const ref = Math.abs(d[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0];
   const u = fNrm([d[1] * ref[2] - d[2] * ref[1], d[2] * ref[0] - d[0] * ref[2], d[0] * ref[1] - d[1] * ref[0]]);
   const v = [d[1] * u[2] - d[2] * u[1], d[2] * u[0] - d[0] * u[2], d[0] * u[1] - d[1] * u[0]], out = [];
@@ -120836,11 +121060,13 @@ function legTube(C) {
 function wellRaw(units, inFn, MX, wheelOnly, axisOnly) {
   const raw = [];
   for (const key in units) {
-    // (`wheelOnly` keys - the Catalina's mains: their leg and strut stay outside the hull, the recess is the wheel's alone)
+    // (`wheelOnly` keys - the Catalina's mains: the recess is the stowed wheel's alone, round (v4: the leg stays outside
+    // along the side; the links pass the wall at their fittings))
     const U = units[key], inside = [], wo = wheelOnly && wheelOnly.has(key);
     // (the swept points once per unit and kind, shared by the body's, the nacelles' and the wing's sweeps)
     const ck = wo ? '_swW' : axisOnly ? '_swA' : '_sw';
-    if (!U[ck]) { const all = wo ? wheelRims(U.C) : wheelRims(U.C, 24, [1]).concat(U.pts.W.filter((p, i) => i === 0 || ((i - 1) % 24) >= 12), axisOnly ? legTube(Object.assign({}, U.C, { legR: 1e-9 })) : legTube(U.C));
+    if (!U[ck] && wo) U[ck] = [poseAll(U.C, wheelRims(U.C), 0)];        // (v4: the STOWED wheel's rims only - the round opening it closes)
+    if (!U[ck]) { const all = wheelRims(U.C, 24, [1]).concat(U.pts.W.filter((p, i) => i === 0 || ((i - 1) % 24) >= 12), axisOnly ? legTube(Object.assign({}, U.C, { legR: 1e-9 })) : legTube(U.C));
       if (MX && !wo && !U._mech) U._mech = WELL_G.map(g => wellMechPts(MX, key, g));    // (the mechanism's, once per unit)
       // (the wing's axis sweep every other pose: its outline is the wheel's and the axis', coarser in time than the tube's)
       U[ck] = WELL_G.map((g, gi) => axisOnly && gi % 2 ? null : poseAll(U.C, all, g).concat(MX && !wo ? U._mech[gi] : [])).filter(Boolean); }
@@ -121135,7 +121361,7 @@ function mechBuild(P, swing, group, KT, CM, SP) {
     R.units[k] = C;
     // (GR: a shortening unit's wheel, castor and piston ride the piston up the leg - `slide`)
     const sl = C.shorten ? { slide: true } : {};
-    R.parts.push({ name: 'edLeg' + k, rule: 'rigid', unit: k }, Object.assign({ name: 'edWheel' + k, rule: 'rigid', unit: k }, sl));
+    R.parts.push(Object.assign({ name: 'edLeg' + k, rule: 'rigid', unit: k }, C.shorten && C.shorten.whole ? sl : {}), Object.assign({ name: 'edWheel' + k, rule: 'rigid', unit: k }, sl));
     if (k === 'T') R.parts.push(Object.assign({ name: 'edCastorT', rule: 'rigid', unit: 'T' }, sl));
     if (C.shorten && C.low) R.parts.push({ name: 'edMechLow' + k, rule: 'rigid', unit: k, slide: true, o0: C.hinge.slice() });
     // the torque scissor as a knee: its upper arm on the cylinder, its lower on the piston (slid), the knee forward
@@ -121152,7 +121378,7 @@ function mechBuild(P, swing, group, KT, CM, SP) {
         KT.sweep(b.alloy, path, t => KT.secBlade(0.030 - 0.006 * Math.abs(t - 0.5), 0.011), true, Sc.pax);
         for (const p of [p0, q0]) KT.revolve(b.bronze, KT.off(p, Sc.pax, -0.012), Sc.pax, [[0.008, 0], [0.008, 0.024]], 10, true);
       }); }
-    const h = C.hinge, ax = C.axle, Mup = CM.gearFoldPose(C, 0), up = p => CM.gearUnitPt(C, Mup, p);
+    const h = topOf(C), ax = C.axle, Mup = CM.gearFoldPose(C, 0), D0up = CM.gearSlide(C, 0), up = p => CM.gearUnitPt(C, Mup, p, D0up);
     const legPt = f => lerp(h, ax, f);
     // THE BRACE
     // the knee folds UP into the structure, in the leg's own swing plane: toward a point over the trunnion (off the
@@ -121179,15 +121405,25 @@ function mechBuild(P, swing, group, KT, CM, SP) {
     let br = null;
     const catM = k !== 'T' && FOLD_KEYS[Math.round(+P.gearFold || 0)] === 'catalina';
     if (catM && SP) {
-      // THE CATALINA'S STRUT: from a fitting on the hull's side (found on the skin by bisection, 30 mm out) to the leg
-      // (45 % down); its knee folding OUTWARD (the PBY's strut ran to the wing; the jack that works it is inside the
-      // hull - not drawn)
-      // (v2: the strut's fitting AFT along the side at the pin's height - 40 % of the leg's length aft, 60 mm under - so
-      // it is longest gear down (straight, locked) and folds as the leg swings aft and level; its knee goes outward)
-      const L = dist(h, ax), sg = h[0] >= 0 ? 1 : -1, y = h[1] - 0.06, z = h[2] - 0.4 * L;
-      let lo = 0, hi = 3; for (let it = 0; it < 40; it++) { const m2 = (lo + hi) / 2; if (SP.bodyIn([sg * m2, y, z]) > 0) lo = m2; else hi = m2; }
-      const S = [sg * (lo + 0.03), y, z], Lp = legPt(0.45), D = dist(S, Lp);
-      br = { Lp, S, D, bend: [S[0] + sg * D, S[1] - 0.2 * D, S[2]], worst: 0 };
+      // P2 v3 - THE PBY-5A's SIDE STRUT (the Canso handbook, Fig 12-13): from a fitting INSIDE the hull to the leg near
+      // its head, straight and locked gear down, folding its knee DOWN as the leg rises and comes in. Its hull pivot is
+      // searched inside the side (20-300 mm in, from the head's stowed height down to its rest height) for the strut
+      // longest gear down - a link that must stretch is no link - and the most level there
+      const sg = h[0] >= 0 ? 1 : -1, Lp = legPt(0.10), dist2 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+      const path = []; for (let i = 0; i <= 24; i++) { const g = 1 - i / 24; path.push(CM.gearUnitPt(C, CM.gearFoldPose(C, g), Lp, CM.gearSlide(C, g))); }
+      const yTop = Math.max(...path.map(q => q[1]));
+      let bestS = null;
+      for (let yi = 0; yi <= 12; yi++) { const y = Lp[1] + (yTop - Lp[1]) * yi / 12;
+        let lo = 0, hi = 3; for (let it = 0; it < 40; it++) { const m2 = (lo + hi) / 2; if (SP.bodyIn([sg * m2, y, Lp[2]]) > 0) lo = m2; else hi = m2; }
+        for (const dIn of [0.004]) {                                       // (v4: the fitting ON the skin - one point through the wall)
+          const S0 = [sg * (lo - dIn), y, Lp[2]], D0 = dist2(S0, Lp);
+          let mx = 0; for (const q of path) mx = Math.max(mx, dist2(S0, q));
+          const ok = mx <= D0 + 0.002, lev = Math.abs(S0[1] - Lp[1]) / D0;
+          const sc = (ok ? 0 : 10 + (mx - D0)) + lev;
+          if (!bestS || sc < bestS.sc) bestS = { sc, S: S0, D: D0, ok }; } }
+      const S = bestS.S, D = bestS.D;
+      br = { Lp, S, D, bend: [(S[0] + Lp[0]) / 2, Math.min(S[1], Lp[1]) - 2 * D, S[2]], worst: bestS.ok ? 0 : -0.01 };
+      info.catStrut = bestS.ok;
     } else for (const bp of [MECH.bracePt, 0.30, 0.22]) {
       const c = braceAt(bp);
       if (!br || c.worst > br.worst + 0.002) br = c;
@@ -121219,7 +121455,38 @@ function mechBuild(P, swing, group, KT, CM, SP) {
       KT.revolve(b.bronze, KT.off(Lp, pn, -0.026), pn, [[0.007, 0], [0.007, 0.052]], 10, true);
     });
     info[k] = Object.assign({ S, Lp, D }, info.knee != null ? { knee: info.knee } : {}); delete info.knee;
-    // THE ACTUATOR (the Catalina's works its strut from inside the hull: none drawn)
+    // THE ACTUATOR
+    // (P2 v3 - THE PBY-5A's V-STRUT AND ITS JACK, the Canso handbook: "the main actuating cylinder floats between a
+    // bracket near the upper end of the main strut and a bracket on the forward leg of the upper V-strut. By
+    // contracting ... pulling the gear upward and into the well": from a fitting high inside the hull's side to the
+    // leg's head - its barrel from the hull, its rod from the head, the barrel as long as the shortest it closes to; the
+    // fitting raised (0.6 .. 1.6 x the leg's length over the head) till the stroke is a real cylinder's)
+    if (catM && SP) {
+      const sg = h[0] >= 0 ? 1 : -1, Lg = dist(h, ax), dist2 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+      const hp = []; for (let i = 0; i <= 24; i++) { const g = 1 - i / 24; hp.push(CM.gearUnitPt(C, CM.gearFoldPose(C, g), h, CM.gearSlide(C, g))); }
+      let pickU = null;
+      for (let f = 0.6; f <= 1.61; f += 0.1) { const y = h[1] + f * Lg;
+        let lo = 0, hi = 3; for (let it = 0; it < 40; it++) { const m2 = (lo + hi) / 2; if (SP.bodyIn([sg * m2, y, h[2]]) > 0) lo = m2; else hi = m2; }
+        if (lo < 0.6 * Math.abs(h[0])) break;                          // (above the side: the cabin's top, not a fitting's place)
+        const U = [sg * (lo - 0.004), y, h[2]], ds = hp.map(q => dist2(U, q)), Dmax = Math.max(...ds), Dmin = Math.min(...ds);
+        pickU = { U, Dmax, Dmin }; if (Dmax <= 2 * Dmin - 0.08) break; }
+      if (!pickU) { const U = [h[0] - sg * 0.05, h[1] + 0.6 * Lg, h[2]], ds = hp.map(q => dist2(U, q)); pickU = { U, Dmax: Math.max(...ds), Dmin: Math.min(...ds) }; }
+      const { U, Dmax, Dmin } = pickU, Lb = Math.max(0.10, Dmin - 0.03), Lr = Math.min(Dmin - 0.02, Dmax - Lb + 0.04), d0 = nrm(sub3(h, U));
+      const pnV = [0, 0, 1], rc = MECH.rCyl[1];   // (its pins fore-aft: the swing is in the section's plane)
+      R.parts.push({ name: 'edMech' + k + '_cyl', rule: 'aim', from: { fix: U }, to: { unit: k, p: h }, o0: U, d0 },
+                   { name: 'edMech' + k + '_rod', rule: 'aim', from: { unit: k, p: h }, to: { fix: U }, o0: h, d0: d0.map(x => -x) });
+      partGroup('edMech' + k + '_cyl', b => {
+        KT.revolve(b.alloy, U, d0, [[0.010, 0], [rc, 0.018], [rc, Lb - 0.012], [rc * 0.8, Lb]], 18, true);
+        KT.revolve(b.steel, KT.off(U, pnV, -0.010), pnV, [[0.015, 0], [0.015, 0.020]], 12, true);
+      });
+      partGroup('edMech' + k + '_rod', b => {
+        KT.revolve(b.chrome || b.steel, h, d0.map(x => -x), [[MECH.rRod, 0], [MECH.rRod, Lr]], 12, true);
+        KT.revolve(b.steel, KT.off(h, pnV, -0.010), pnV, [[0.013, 0], [0.013, 0.020]], 12, true);
+      });
+      for (const s2 of [-1, 1]) KT.lug(fix.alloy, KT.off(U, pnV, s2 * 0.018), pnV, [sg, 0, 0], 0.020, 0.008, 0.040);
+      KT.revolve(fix.bronze, KT.off(U, pnV, -0.026), pnV, [[0.007, 0], [0.007, 0.052]], 10, true);
+      info[k].jack = { U, stroke: +(Dmax - Dmin).toFixed(3), ok: Dmax <= 2 * Dmin - 0.08 };
+    }
     if (act === 2 || catM) continue;
     // GR R2 (the user: "you have your piston still sticking out at the end"): THE BASE IS PLACED INSIDE - searched along
     // the actuator point's stowed line from the trunnion (2.8 .. 1.5 x its offset) and turned off it in the swing plane
@@ -121275,7 +121542,7 @@ function mechBuild(P, swing, group, KT, CM, SP) {
 // place (the body's, the wing's, the nacelle's - capped under a skin), else 50 mm up. Two lugs from the pin, a block
 // between their roots where the drop is longer than a lug, a base plate flat on the ceiling with four bolts, and a
 // triangular gusset outside each lug from the lug to the plate
-function fittingsDraw(fits, fit, group, KT) {
+function fittingsDraw(fits, fit, group, KT, roomX) {
   if (!fits || !fits.length || !KT) return;
   const al = KT.Bag(), dk = KT.Bag(), up = [0, 1, 0];
   const cutsAll = fit ? [].concat(fit.cuts || [], fit.cutsWing || [], fit.cutsNac || []) : [];
@@ -121295,19 +121562,25 @@ function fittingsDraw(fits, fit, group, KT) {
   for (const F of fits) {
     const c = F.c, pax = KT.nrm(F.pax), side = KT.nrm(KT.crs(pax, up));
     if (!isFinite(side[0])) continue;
-    const yc = ceilAt(c), reach = Math.max(0.025, Math.min(0.40, yc != null ? yc - c[1] : 0.05));
-    const lugR = Math.min(reach, 0.055), at = d => KT.off(c, up, d);
+    const yc = ceilAt(c); let reach = Math.max(0.025, Math.min(0.40, yc != null ? yc - c[1] : 0.05));
+    const lugR = Math.min(reach, 0.055), at = d => KT.off(c, up, d), lug = F.w + F.t / 2;
+    // (P2: inside a nacelle the plate keeps inside its skin - where the nacelle's top narrows to a ridge under the wing,
+    // it lands lower, on the nacelle's own frame, where the skin leaves the lugs their room)
+    const roomAt = d => roomX && Math.abs(pax[0]) > 0.7 ? roomX(c, at(d)[1]) - 0.004 : Infinity;
+    while (reach > lugR + 0.012 && roomAt(reach) < lug + 0.006) reach -= 0.004;
     for (const s of [-1, 1]) KT.lug(al, KT.off(c, pax, s * F.w), pax, up, F.r, F.t, lugR);
     // the block between the lugs' roots and the plate (a long drop)
     if (reach > lugR + 0.004) KT.boxIn(al, at((lugR + reach) / 2), [F.w + F.t / 2, (reach - lugR) / 2, F.r * 0.72], pax, up, side);
     // the base plate, flat on the structure, and its four bolts (their heads under it)
-    const pw = F.w + F.t / 2 + 0.026, pd = F.r + 0.012;
+    // (P2: inside a nacelle, no wider than the room its skin leaves at the plate - the lugs kept, the lip and gussets trimmed)
+    const room = roomAt(reach);
+    const pw = Math.max(lug + 0.004, Math.min(lug + 0.026, room)), pd = F.r + 0.012;
     KT.boxIn(al, at(reach - 0.003), [pw, 0.003, pd], pax, up, side);
     for (const sx of [-1, 1]) for (const sz of [-1, 1])
       KT.bolt(dk, KT.off(KT.off(at(reach - 0.006), pax, sx * (pw - 0.008)), side, sz * (pd - 0.008)), up, 0.004, 0.008);
     // the gussets: outside each lug, from its root on the plate down the lug, and out along the plate
-    const gh = Math.min(reach * 0.75, 0.05), gw = 0.020;
-    for (const s of [-1, 1]) { const x0 = s * (F.w + F.t / 2 + 0.0015);
+    const gh = Math.min(reach * 0.75, 0.05), gw = Math.min(0.020, pw - lug - 0.004);
+    if (gw > 0.006) for (const s of [-1, 1]) { const x0 = s * (F.w + F.t / 2 + 0.0015);
       prism(KT.off(at(reach - 0.006), pax, x0), KT.off(at(reach - 0.006), pax, x0 + s * gw), KT.off(at(reach - 0.006 - gh), pax, x0), side, 0.004); }
   }
   if (al.tris) al.mesh(group, GG.gearMat('alloy'));
@@ -121327,6 +121600,15 @@ function fittingsDraw(fits, fit, group, KT) {
 //   is up; gear down they close too unless the down gear passes through them (then they stand open).
 // Each door is a panel of the skin's own finish over a dark inner face, posed by the core's rule 'door' (gearMechPose).
 const DOOR_ANG = 85 * Math.PI / 180, DOOR_SEQ = 0.15, DOOR_IN = 0.004;
+const DOOR_T = 0.006, DOOR_BEV = 0.0015;      // P2: a door's thickness and its edge's chamfer (out and in)
+const nrm1 = x => x;                          // (a component kept: the side wall's normal is the outward direction)
+// the skin's material with vertex colours, once per material (a door's grime)
+const DOOR_MATS = new Map();
+function doorMat(m) {
+  if (!m || !m.clone) return m;
+  if (!DOOR_MATS.has(m.uuid)) { const c = m.clone(); c.vertexColors = true; c.needsUpdate = true; DOOR_MATS.set(m.uuid, c); if (DOOR_MATS.size > 64) DOOR_MATS.clear(); }
+  return DOOR_MATS.get(m.uuid);
+}
 // a convex polygon (3D points) clipped in plan (u, v) = (z, -x) to the left of a -> b
 function planClip(poly, a, b, off) {
   // (GR R1: `off` metres further in - the seam)
@@ -121356,10 +121638,18 @@ const polyArea = ps => { let a = 0; for (const p of ps) for (let i = 1; i + 1 < 
   const u = [p[i][0] - p[0][0], p[i][1] - p[0][1], p[i][2] - p[0][2]], v = [p[i + 1][0] - p[0][0], p[i + 1][1] - p[0][1], p[i + 1][2] - p[0][2]];
   a += 0.5 * Math.hypot(u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]); } return a; };
 // a skin's faces facing down (Newell) whose plan box meets the outline's, clipped to it
-function doorPatch(faces, outline) {
+function doorPatch(faces, outline, anyWinding, steep) {
   let z0 = Infinity, z1 = -Infinity, x0 = Infinity, x1 = -Infinity;
   for (const p of outline) { z0 = Math.min(z0, p[0]); z1 = Math.max(z1, p[0]); x0 = Math.min(x0, -p[1]); x1 = Math.max(x1, -p[1]); }
   const out = [];
+  // (P2: a shell wound either way - its faces turned AWAY from its own centre line (each 5 cm station's middle, from
+  // its faces near the outline): |ny| alone let the nacelle's top skin at its edge into a door)
+  let cenAt = null;
+  if (anyWinding) { const st = new Map();
+    for (const f of faces) for (const q of f) { if (q[0] < x0 - 0.3 || q[0] > x1 + 0.3 || q[2] < z0 - 0.1 || q[2] > z1 + 0.1) continue;
+      const k = Math.round(q[2] / 0.05), b = st.get(k) || st.set(k, [Infinity, -Infinity, Infinity, -Infinity]).get(k);
+      b[0] = Math.min(b[0], q[0]); b[1] = Math.max(b[1], q[0]); b[2] = Math.min(b[2], q[1]); b[3] = Math.max(b[3], q[1]); }
+    cenAt = z => { const b = st.get(Math.round(z / 0.05)); return b ? [(b[0] + b[1]) / 2, (b[2] + b[3]) / 2] : null; }; }
   for (const f of faces) {
     let fx0 = Infinity, fx1 = -Infinity, fz0 = Infinity, fz1 = -Infinity, nx = 0, ny = 0, nz = 0;
     for (let i = 0; i < f.length; i++) { const a = f[i], b = f[(i + 1) % f.length];
@@ -121367,7 +121657,14 @@ function doorPatch(faces, outline) {
       nx += (a[1] - b[1]) * (a[2] + b[2]); ny += (a[2] - b[2]) * (a[0] + b[0]); nz += (a[0] - b[0]) * (a[1] + b[1]); }
     // (Newell's normal: a door's face looks DOWN - more than 24 degrees off the vertical; a spar's closing face, a
     // trailing edge's lip, is not the door's)
-    if (ny >= -0.4 * Math.hypot(nx, ny, nz) || fx1 < x0 || fx0 > x1 || fz1 < z0 || fz0 > z1) continue;
+    // (a cowl's or a nacelle's shells may be wound either way - the generator's aft lofts march inside out: there the
+    // face need only lie flat enough, and the lowest skin over each place, below, is the door's)
+    // (`steep`: a wing's door - the closing face ahead of its flap is not its; a body's or a nacelle's rounded underside
+    // curves up steeply round its well and is the door's to 84 degrees)
+    if (fx1 < x0 || fx0 > x1 || fz1 < z0 || fz0 > z1) continue;
+    if (cenAt) { let mx = 0, my = 0, mz = 0; for (const q of f) { mx += q[0] / f.length; my += q[1] / f.length; mz += q[2] / f.length; }
+      const ce = cenAt(mz); if (ce && nx * (mx - ce[0]) + ny * (my - ce[1]) < 0) { nx = -nx; ny = -ny; nz = -nz; } }
+    if ((cenAt ? -ny : anyWinding ? Math.abs(ny) : -ny) <= (steep ? 0.4 : 0.1) * Math.hypot(nx, ny, nz)) continue;
     const c = clipConvex(f, outline, DOOR_SEAM);
     if (c) out.push(c);
   }
@@ -121411,7 +121708,7 @@ function doorBuild(P, fit, mech, swing, ctx, group, FS, AF, KT, CM) {
   // until half of the wheel or something like that. And the other cut part that remains has to be a little opening door")
   // - gear down the leg door ends over the axle, a radius clear of the ground; the rest is the well's doors
   const foot = {};
-  for (const k in swing) { const C = swing[k], h = C.hinge, ax = C.axle, ld = fNrm([ax[0] - h[0], ax[1] - h[1], ax[2] - h[2]]);
+  for (const k in swing) { const C = swing[k], h = topOf(C), ax = C.axle, ld = fNrm([ax[0] - h[0], ax[1] - h[1], ax[2] - h[2]]);
     const cut = (ax[0] - h[0]) * ld[0] + (ax[1] - h[1]) * ld[1] + (ax[2] - h[2]) * ld[2] - 0.2 * C.R;
     const near = wheelRims(C, 32, [1, 0.6]).filter(p => (p[0] - h[0]) * ld[0] + (p[1] - h[1]) * ld[1] + (p[2] - h[2]) * ld[2] <= cut);
     // (the leg from a quarter of the way down: its root is in the structure, by the trunnion)
@@ -121421,25 +121718,103 @@ function doorBuild(P, fit, mech, swing, ctx, group, FS, AF, KT, CM) {
     if (up.length >= 3) foot[k] = wellOutline(up.map(p => [p[2], -p[0]]), 'exact', 0.01); }
   // the points the down gear holds through the skin (a well door over them cannot close gear down)
   // (the down gear's lines: the leg from its trunnion to its axle, and each 6-point run of the mechanism's links)
-  const downLines = k => { const C = swing[k], h = C.hinge, ax = C.axle, m = wellMechPts({ R: mech.R, CM }, k, 1), out = [[h, ax]];
+  const downLines = k => { const C = swing[k], h = topOf(C), ax = C.axle, m = wellMechPts({ R: mech.R, CM }, k, 1), out = [[h, ax]];
     for (let i = 0; i + 5 < m.length; i += 6) out.push(m.slice(i, i + 6));
     return out; };
-  const panel = (name, polys, front, xf) => {          // a door's panel: the skin's face, a dark face 4 mm in (flush, then placed)
-    const fb = KT.Bag(), bb = KT.Bag(), X = xf || (v => v);
-    for (const p0 of polys) {
-      const a = p0.map(q => fb.v(X(q))), b = p0.map(q => bb.v(X([q[0], q[1] + DOOR_IN, q[2]])));
-      const p = p0;
-      for (let i = 1; i + 1 < p.length; i++) { fb.tri(a[0], a[i], a[i + 1]); bb.tri(b[0], b[i + 1], b[i]); }
-    }
-    const gp = new THREE.Group(); gp.name = name;
-    fb.mesh(gp, front || GG.gearMat('alloy')); bb.mesh(gp, darkM);
+  // P2 (the user: "the doors, give them some thickness, and proper edge beveling ... seams and light shadow/dirt in the
+  // corners and to highlight the seams"): A DOOR IS A SLAB - the skin's own faces welded into one smooth front (its
+  // normals averaged), a 45-degree chamfer round its edge (DOOR_BEV out and in), a side wall down to the back face
+  // DOOR_T in (the dark inner skin); the front's vertex colours darken gently toward the edge and a little more into
+  // its corners (the seam's shadow, the grime a door collects - no noise: on the skin's irregular triangles it read as
+  // crumpled); the chamfer catches the light a
+  // shade lighter, the side wall stays in the seam's shadow. The skin's material is cloned once with vertex colours
+  const panel = (name, polys, front, xf) => {
+    const X = xf || (v => v), gp = new THREE.Group(); gp.name = name;
+    const key = q => Math.round(q[0] * 2e4) + ',' + Math.round(q[1] * 2e4) + ',' + Math.round(q[2] * 2e4);
+    const W = [], WI = new Map(), F = [];
+    for (const p0 of polys) { if (p0.length < 3) continue;
+      const ids = p0.map(q => { const k = key(q); if (!WI.has(k)) { WI.set(k, W.length); W.push(q.slice()); } return WI.get(k); })
+        .filter((v, i, a) => v !== a[(i + 1) % a.length]);
+      if (ids.length < 3) continue;
+      // (each face turned to look DOWN, out of the aircraft: a door is cut from a down-facing skin)
+      let ny = 0; for (let i = 0; i < ids.length; i++) { const a = W[ids[i]], b = W[ids[(i + 1) % ids.length]]; ny += (a[2] - b[2]) * (a[0] + b[0]); }
+      F.push(ny > 0 ? ids.slice().reverse() : ids); }
+    if (!F.length) return;
+    // the smooth front's normals (Newell per face, averaged at the welded vertices)
+    const VN = W.map(() => [0, 0, 0]);
+    for (const f of F) { let nx = 0, ny = 0, nz = 0;
+      for (let i = 0; i < f.length; i++) { const a = W[f[i]], b = W[f[(i + 1) % f.length]];
+        nx += (a[1] - b[1]) * (a[2] + b[2]); ny += (a[2] - b[2]) * (a[0] + b[0]); nz += (a[0] - b[0]) * (a[1] + b[1]); }
+      for (const v of f) { VN[v][0] += nx; VN[v][1] += ny; VN[v][2] += nz; } }
+    for (const n of VN) { const l = Math.hypot(n[0], n[1], n[2]) || 1; n[0] /= l; n[1] /= l; n[2] /= l; }
+    // (smoothed over their neighbours, three passes: the clipped fragments' own normals are noisy - a door read crumpled)
+    { const nb = W.map(() => new Set()); for (const f of F) for (let i = 0; i < f.length; i++) { nb[f[i]].add(f[(i + 1) % f.length]); nb[f[(i + 1) % f.length]].add(f[i]); }
+      for (let it = 0; it < 3; it++) { const nv = VN.map((n, v) => { const a = n.slice(); for (const u of nb[v]) { a[0] += VN[u][0]; a[1] += VN[u][1]; a[2] += VN[u][2]; }
+          const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; }); for (let v = 0; v < VN.length; v++) VN[v] = nv[v]; } }
+    // the boundary: directed edges used once, followed into loops
+    const ecount = new Map(), dir = [];
+    for (const f of F) for (let i = 0; i < f.length; i++) { const a = f[i], b = f[(i + 1) % f.length], k = a < b ? a + '_' + b : b + '_' + a;
+      ecount.set(k, (ecount.get(k) || 0) + 1); dir.push([a, b, k]); }
+    const next = new Map(); for (const [a, b, k] of dir) if (ecount.get(k) === 1) next.set(a, b);
+    const loops = [], seen = new Set();
+    for (const s0 of next.keys()) { if (seen.has(s0)) continue; const L = []; let v = s0;
+      while (v != null && !seen.has(v)) { seen.add(v); L.push(v); v = next.get(v); }
+      if (L.length >= 3) loops.push(L); }
+    // each boundary vertex's outward direction in the door's plane (its two edges', mitred) and its corner's sharpness
+    const OUT = new Map(), CORN = new Map(), sub3 = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+    const crs = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+    const nrm = a => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
+    for (const L of loops) { const n = L.length, eo = [];
+      for (let i = 0; i < n; i++) { const a = W[L[i]], b = W[L[(i + 1) % n]], d = nrm(sub3(b, a)), nn = VN[L[i]];
+        eo.push(nrm(crs(d, nn))); }
+      // (outward: away from the faces - checked once on the loop against the welded vertices' centroid)
+      let cx = 0, cy = 0, cz = 0; for (const q of W) { cx += q[0]; cy += q[1]; cz += q[2]; } const C = [cx / W.length, cy / W.length, cz / W.length];
+      let sgn = 0; for (let i = 0; i < n; i++) { const a = W[L[i]]; sgn += eo[i][0] * (a[0] - C[0]) + eo[i][1] * (a[1] - C[1]) + eo[i][2] * (a[2] - C[2]); }
+      const fl = sgn < 0 ? -1 : 1;
+      for (let i = 0; i < n; i++) { const e0 = eo[(i - 1 + n) % n].map(x => x * fl), e1 = eo[i].map(x => x * fl);
+        const m = nrm([e0[0] + e1[0], e0[1] + e1[1], e0[2] + e1[2]]), c = Math.max(0.5, m[0] * e1[0] + m[1] * e1[1] + m[2] * e1[2]);
+        OUT.set(L[i], m.map(x => x / c)); CORN.set(L[i], 1 - Math.max(-1, Math.min(1, e0[0] * e1[0] + e0[1] * e1[1] + e0[2] * e1[2]))); } }
+    // the front's grime: darker within ~15 mm of the edge, more at a corner; a faint, large, smooth variation
+    const bnd = [...OUT.keys()].map(v => W[v]);
+    const shade = (q, v) => { let d = Infinity; for (const b of bnd) d = Math.min(d, Math.hypot(q[0] - b[0], q[1] - b[1], q[2] - b[2]));
+      const corner = CORN.has(v) ? Math.min(1, CORN.get(v)) : 0;
+      return Math.max(0.6, Math.min(1, 1 - 0.16 * Math.exp(-d / 0.025) - 0.10 * corner * Math.exp(-d / 0.02))); };
+    const T = DOOR_T, BV = DOOR_BEV;
+    const P = [], NN = [], CC = [], IX = [];
+    const put = (q, n, c) => { const a = X(q), b = X([q[0] + n[0] * 0.01, q[1] + n[1] * 0.01, q[2] + n[2] * 0.01]);
+      P.push(a[0], a[1], a[2]); const m = nrm(sub3(b, a)); NN.push(m[0], m[1], m[2]); CC.push(c, c, c); return P.length / 3 - 1; };
+    // the front (welded, smooth)
+    const fid = W.map((q, v) => put(q, VN[v], shade(q, v)));
+    for (const f of F) for (let i = 1; i + 1 < f.length; i++) IX.push(fid[f[0]], fid[f[i]], fid[f[i + 1]]);
+    // the chamfer and the side wall, round each loop
+    const inw = v => [-VN[v][0], -VN[v][1], -VN[v][2]];                  // (into the aircraft)
+    const at = (v, o, i) => { const q = W[v], d = OUT.get(v), n = inw(v); return [q[0] + d[0] * o + n[0] * i, q[1] + d[1] * o + n[1] * i, q[2] + d[2] * o + n[2] * i]; };
+    for (const L of loops) { const n = L.length;
+      for (let i = 0; i < n; i++) { const a = L[i], b = L[(i + 1) % n];
+        const nc = v => nrm([OUT.get(v)[0] - inw(v)[0], OUT.get(v)[1] - inw(v)[1], OUT.get(v)[2] - inw(v)[2]]);
+        const p0 = put(W[a], nc(a), 0.62), p1 = put(W[b], nc(b), 0.62), r1 = put(at(b, BV, BV), nc(b), 0.62), r0 = put(at(a, BV, BV), nc(a), 0.62);
+        IX.push(p0, r1, p1, p0, r0, r1);
+        const s0 = put(at(a, BV, BV), OUT.get(a).map(nrm1), 0.42), s1 = put(at(b, BV, BV), OUT.get(b).map(nrm1), 0.42), t1 = put(at(b, BV, T), OUT.get(b).map(nrm1), 0.42), t0 = put(at(a, BV, T), OUT.get(a).map(nrm1), 0.42);
+        IX.push(s0, t1, s1, s0, t0, t1); } }
+    // (each triangle wound to look along its own normal: the front out, the chamfer and the wall outward)
+    for (let t = 0; t < IX.length; t += 3) { const A = [P[IX[t] * 3], P[IX[t] * 3 + 1], P[IX[t] * 3 + 2]], B = [P[IX[t + 1] * 3], P[IX[t + 1] * 3 + 1], P[IX[t + 1] * 3 + 2]], Cq = [P[IX[t + 2] * 3], P[IX[t + 2] * 3 + 1], P[IX[t + 2] * 3 + 2]];
+      const fn = crs(sub3(B, A), sub3(Cq, A)), vn = [NN[IX[t] * 3], NN[IX[t] * 3 + 1], NN[IX[t] * 3 + 2]];
+      if (fn[0] * vn[0] + fn[1] * vn[1] + fn[2] * vn[2] < 0) { const k = IX[t + 1]; IX[t + 1] = IX[t + 2]; IX[t + 2] = k; } }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(NN, 3));
+    g.setAttribute('color', new THREE.Float32BufferAttribute(CC, 3)); g.setIndex(IX);
+    const fm = new THREE.Mesh(g, doorMat(front || GG.gearMat('alloy'))); fm.userData.doorOuterN = W.length; gp.add(fm);   // (its first W.length vertices: the outer face)
+    // the back face, DOOR_T in (the boundary on the side wall's foot), dark, looking into the aircraft
+    const bb = KT.Bag(), bid = W.map((q, v) => bb.v(X(OUT.has(v) ? at(v, BV, T) : [q[0] - VN[v][0] * T, q[1] - VN[v][1] * T, q[2] - VN[v][2] * T])));
+    for (const f of F) for (let i = 1; i + 1 < f.length; i++) bb.tri(bid[f[0]], bid[f[i + 1]], bid[f[i]]);
+    bb.mesh(gp, darkM);
     group.add(gp);
   };
   // GR: THE NACELLES' doors - their skin's faces (the cowl units' skin meshes, the layer's frame), their wells, their finish
   const nacF = []; let nacMat = null;
   { const inv = new THREE.Matrix4().copy(ctx.scene.matrixWorld).invert(), M4 = new THREE.Matrix4(), vv = new THREE.Vector3();
     for (const N of NACS) for (const o of N.meshes) {
-      if (o.userData.innerTwin) continue;
+      if (o.userData.innerTwin || o.userData.nacSkin === 'shell') continue;     // (P2: the outer skins' doors, as their wells)
       if (!nacMat) nacMat = o.material;
       M4.multiplyMatrices(inv, o.matrixWorld);
       const g = o.userData.wellGeo0 || o.geometry, pa = g.attributes.position, ix = g.index ? g.index.array : null, n = (ix ? ix.length : pa.count) / 3;
@@ -121450,7 +121825,7 @@ function doorBuild(P, fit, mech, swing, ctx, group, FS, AF, KT, CM) {
     const outline = c.hull.map(p => [p[0], -p[1]]);                  // the gear layer's (z, x) hull -> (z, -x), then CCW
     let a2 = 0; for (let i = 0; i < outline.length; i++) { const p = outline[i], q = outline[(i + 1) % outline.length]; a2 += p[0] * q[1] - q[0] * p[1]; }
     if (a2 < 0) outline.reverse();
-    let rest = doorPatch(faces, outline);
+    let rest = doorPatch(faces, outline, tag === 'N', tag === 'W');
     // GR R4: where a stowed wheel stands proud of this skin, the doors are cut round it (its section, the seam round it)
     for (const pb of ((fit.pierce && fit.pierce.bottom) || [])) if (c.units.includes(pb.unit)) rest = rest.flatMap(p => minusConvex(p, pb.outline, DOOR_SEAM));
     if (!rest.length) return;
@@ -121490,7 +121865,13 @@ function doorBuild(P, fit, mech, swing, ctx, group, FS, AF, KT, CM) {
       let axis = [-e1[1], 0, e1[0]];                                   // (u, v) = (z, -x): the plan direction e1 in 3D
       const cen = [0, 1, 2].map(i => { let s = 0, n = 0; for (const p of hp) for (const q of p) { s += q[i]; n++; } return s / n; });
       const R1 = CM.gearRot(axis, 0.1), d = [cen[0] - hinge[0], cen[1] - hinge[1], cen[2] - hinge[2]];
-      if (hinge[1] + CM.gearApp(R1, d)[1] > cen[1]) axis = axis.map(x => -x);     // + opens it DOWN
+      // + opens it OUT of the skin (P2: along the door's own outward normal - a nacelle's door wraps its round belly, its
+      // centroid nearly under the hinge: 'down' alone swung one in, through the nacelle's top)
+      const on = [0, 0, 0]; for (const p of hp) { let nx = 0, ny = 0, nz = 0;
+        for (let i = 0; i < p.length; i++) { const a = p[i], b = p[(i + 1) % p.length]; nx += (a[1] - b[1]) * (a[2] + b[2]); ny += (a[2] - b[2]) * (a[0] + b[0]); nz += (a[0] - b[0]) * (a[1] + b[1]); }
+        const sg = ny > 0 ? -1 : 1; on[0] += nx * sg; on[1] += ny * sg; on[2] += nz * sg; }
+      const mv1 = CM.gearApp(R1, d).map((x, i) => x - d[i]);
+      if (mv1[0] * on[0] + mv1[1] * on[1] + mv1[2] * on[2] < 0) axis = axis.map(x => -x);
       // gear down: closed unless the down gear passes through it
       const hull = (() => { const pz = []; for (const p of hp) for (const q of p) pz.push([q[2], -q[0]]); return wellOutline(pz, 'exact', 0.005); })();
       let y0 = Infinity, y1 = -Infinity; for (const p of hp) for (const q of p) { y0 = Math.min(y0, q[1]); y1 = Math.max(y1, q[1]); }
@@ -121665,7 +122046,18 @@ PAGE.post = ctx => {
         group.add(m); N.meshes.push(m); pods.push(m);
       } }
   }
-  for (const N of NACS) for (const o of N.meshes) o.userData.nacSkin = o.userData.innerTwin ? 'twin' : 'skin';
+  // (P2, the user: "the shading inside the cuts looks odd ... a closed section, where we first cut, then extrude the cut
+  // and close it": ONE well per cut - its walls and its ceiling from the nacelle's or the cowl's MAIN skin (its largest
+  // mesh) and from a gear pod; every other shell of it - the inner twin, the lips, the ducts, the seams - only has the
+  // hole cut, so no second box stands inside the first and fights it)
+  // (the OUTER skins: those whose box lies inside no other skin mesh's box; an inlet's duct, a lip, a seam lie inside the
+  // cowl's own - an adjoining barrel and tail cone are both outer, each building the well where the cut crosses it)
+  { const bx = new THREE.Box3();
+    for (const N of NACS) { const sk = N.meshes.filter(o => !o.userData.innerTwin).map(o => ({ o, b: bx.setFromObject(o).clone() }));
+      const vol = b => (b.max.x - b.min.x) * (b.max.y - b.min.y) * (b.max.z - b.min.z);
+      const inner = e => sk.some(f => f !== e && vol(f.b) > vol(e.b) && f.b.clone().expandByScalar(0.01).containsBox(e.b));
+      for (const o of N.meshes) { const e = sk.find(x => x.o === o);
+        o.userData.nacSkin = o.userData.innerTwin ? 'twin' : (!e || !inner(e)) ? 'skin' : 'shell'; } } }
 
   // G133: THE NEAREST SURFACE ABOVE THE WHEEL (user's rule). When the
   // WING'S UNDERSIDE at the axle's own span sits lower than the fuselage
@@ -121932,7 +122324,7 @@ PAGE.post = ctx => {
         // depth over the leg's root (a low wing's mains) or 45 % of the way from the keel to the cabin floor (a body
         // leg, 50-160 mm); its lugs and fitting plate are the static structure's
         if (RETR) { const catS = !st.single && FOLD_KEYS[Math.round(+P.gearFold || 0)] === 'catalina';
-                    st.ret = { in: retIn(st, m), pin: retPin(st), fix: bags, flip: catS, fits: catS ? null : retFits };
+                    st.ret = { in: retIn(st, m), pin: retPin(st), fix: bags, free: catS, flip: catS, fits: catS ? null : retFits };
                     st.leg = 2;
                     // GR: a shortening leg - its piston's own bags (they slide), its cylinder shortened for the travel
                     if (shortRow(P, !!st.single) > 0) { st.ret.low = allBags(); st.P = Object.assign({}, st.P, { oleoCyl: cylFOf(st.P.oleoCyl, P, !!st.single) }); }
@@ -122131,7 +122523,17 @@ PAGE.post = ctx => {
     // G2: the fit (the gear layer runs after the wing: CAGE_WING is this build's)
     try { fit = foldFit(P, swing, AF, window.CAGE_WING, mech && CM ? { R: mech.R, CM } : null); } catch (e) { fit = null; console.warn('gear fit:', e); }
     // GR: the fixed pivots' fittings, on the wells' ceilings (the trunnions' records, the brace's and actuator's)
-    try { fittingsDraw(retFits.concat(mech && mech.fits || []), fit, group, KT); } catch (e) { console.warn('gear fittings:', e); }
+    // (P2: in a nacelle the plate keeps inside its skin - the nacelle's outer skin points, the layer's frame; a narrow
+    // nacelle's top is narrower than a trunnion's plate)
+    let nacPts = null;
+    const roomX = (c, y) => {
+      if (!nacPts) { nacPts = []; const inv = new THREE.Matrix4().copy(ctx.scene.matrixWorld).invert(), M4 = new THREE.Matrix4(), vv = new THREE.Vector3();
+        for (const N of NACS) for (const o of N.meshes) { if (o.userData.nacSkin !== 'skin') continue; M4.multiplyMatrices(inv, o.matrixWorld);
+          const pa = (o.userData.wellGeo0 || o.geometry).attributes.position; for (let i = 0; i < pa.count; i++) { vv.fromBufferAttribute(pa, i).applyMatrix4(M4); nacPts.push([vv.x, vv.y, vv.z]); } } }
+      let lo = -Infinity, hi = Infinity, n = 0;
+      for (const q of nacPts) if (Math.abs(q[2] - c[2]) < 0.04 && Math.abs(q[1] - y) < 0.02 && Math.abs(q[0] - c[0]) < 0.6) { n++; if (q[0] < c[0]) lo = Math.max(lo, q[0] - c[0]); else hi = Math.min(hi, q[0] - c[0]); }
+      return n >= 2 && isFinite(lo) && isFinite(hi) ? Math.min(-lo, hi) : Infinity; };
+    try { fittingsDraw(retFits.concat(mech && mech.fits || []), fit, group, KT, NACS.length ? roomX : null); } catch (e) { console.warn('gear fittings:', e); }
     // GM1: THE MOUNT - a trunnion needs structure round its pin: MOUNT_MIN of depth (the lug's eye under the pin, the
     // fitting plate over it); a wing leg's station near the trailing edge, or a thin section, has not got it
     if (fit) for (const mt of retMounts) if (mt.wing && mt.depth < MOUNT_MIN && mt.key !== 'R') {
@@ -122171,7 +122573,7 @@ PAGE.post = ctx => {
         // (the leg's axis and the strut's, segment to segment, at every sweep pose: the leg's radius and the strut's
         // 20 mm off; the wheel: its centre within its radius and 20 mm of the strut)
         for (const k of mainsK) { const C = swing[k]; let gap = Infinity;
-          for (const g of WELL_G) { const [hP, aP] = poseAll(C, [C.hinge, C.axle], g);
+          for (const g of WELL_G) { const [hP, aP] = poseAll(C, [topOf(C), C.axle], g);
             gap = Math.min(gap, segDist(hP, aP, st.pin, st.tip) - (C.legR || 0.05) - 0.02, segDist(aP, aP, st.pin, st.tip) - C.R - 0.02); }
           if (gap < 0) red('strut', k, 'the mains meet a lift strut as they fold (' + Math.round(-gap * 1000) + ' mm into it)', FIT_ROWS[k].fold.concat(['s1X', 's1Z'])); } }
       for (const F of flaps) { const a = F.line[0], b = F.line[1], x0 = Math.min(Math.abs(a[0]), Math.abs(b[0])), x1 = Math.max(Math.abs(a[0]), Math.abs(b[0]));
@@ -122179,7 +122581,7 @@ PAGE.post = ctx => {
         for (const N of NACS) { if (N.kind === 'cowl' || Math.sign(N.xc) !== Math.sign(a[0])) continue;
           if (Math.abs(N.xc) + N.bb.hw > x0 && Math.abs(N.xc) - N.bb.hw < x1 && N.z0 < zh(N.xc) - 0.02)
             red('flap', 'L', 'the engine nacelle\'s tail runs through the flap at ' + Math.abs(N.xc).toFixed(2) + ' m (split the flap round it, or shorten the flap\'s span)', ['wgFlapSpan', 'engNacAt']); }
-        for (const k of mainsK) { const C = swing[k]; if (Math.sign(C.hinge[0]) !== Math.sign(a[0])) continue;
+        for (const k of mainsK) { const C = swing[k]; if (Math.sign(topOf(C)[0]) !== Math.sign(a[0])) continue;
           const up = poseAll(C, unitPts(C).W, 0);
           if (up.some(q => Math.abs(q[0]) > x0 && Math.abs(q[0]) < x1 && q[2] < zh(q[0]) && SPx.wingIn(q) > -0.05))
             red('flap', k, UNIT_WORD[k] + ', folded, lies behind the flap\'s hinge (the flap comes down through it)', FIT_ROWS[k].fold.concat(['s1Z', 'wgFlapSpan'])); } } }
@@ -123292,6 +123694,12 @@ const GROUP = ['9b · floats', [
   ['fltBoard', 'deck board across the spreaders', 0, 1, 1, { when: P => +P.gearFloats && Math.round(+P.fltStyle || 0) === 1 }],
   ['fltDetail', 'details (covers, hatch, cleats, straps, bumper)', 0, 1, 1, on],
   ['fltRudder', 'water rudders', 0, 1, 1, on],
+  // RETRACT-STUDY §8.25: THE AMPHIBIAN - Wipline wheels in the floats (the manufacturer's tyres and layout; the gear
+  // position is the gear page's preview row, gearPos)
+  // (2: the EDO style - the user's photographs and close-ups, 5 Nov: the nose leg pivots low on the bow's leading edge,
+  // pushed down by a piston through a triangle, folding forward and up to hug the stem; no EDO data reached - the
+  // geometry is the photographs', the tyres the same hull's Wipline row's)
+  ['fltAmph', 'amphibian (wheels in the floats)', 0, 2, 1, ['none', 'Wipline', 'EDO style'], on],
   ['fltPaddle', 'paddle', 0, 2, 1, ['none', 'on the left float', 'on both floats'], on],
   ['hull', [
     ['fltL',      'length',                        2.5, 14.0, 0.01, onM],
@@ -123753,6 +124161,144 @@ function hullFitStep(P, stat) {
     (fa.rest ? ', rests ' + fa.rest.trim.toFixed(1) + ' deg' : '') + (fa.notes.length ? ' - ' + fa.notes.join('; ') : '');
   setTimeout(() => { const UI = window.CAGE_UI; if (UI && UI.syncSliders) UI.syncSliders(); if (UI && UI.build) UI.build(); }, 0);
 }
+// ---- THE AMPHIBIAN (RETRACT-STUDY §8.25; the data: HYDRO.WIPLINE_AMPHIB, read off Wipaire's manuals and guides) -----
+// Per float, in the hull's MODEL frame (x aft from the step, y up from the step's keel, z across), mirrored for the
+// port float like every other part:
+//   THE MAIN GEAR - a drag link on trunnions at the STEP BULKHEAD (Wipline 13000/6100 manuals: "drag link from
+//     trunnions on step bulkhead"), low in the float; its axle aft of the step, where every guide's 3-view puts the
+//     wheel (the main axle at AMPHIB_GEOM.mainK of the amphibian length from its front, never ahead of the step);
+//     single or dual wheels as the model's tyres; the shock strut from the drag link up to the slide track's carriage
+//     under the deck. It swings UP into an open wheel well just aft of the step - no doors (no door in any parts list).
+//   THE NOSE GEAR - a composite spring leg ("very similar to a Cessna style") from a trolley at the foot of the nose
+//     box's end track, raked forward and down to a castering pivot block and fork; retracting, the trolley climbs the
+//     end track, turns the corner and is drawn aft (the 3730 manual: rollers "go around the corner"), so the leg swings
+//     from hanging down to lying forward and the wheel ends at the bow tip, half out - "retracts into the float nose
+//     to provide a dock bumper" (Wipaire, the 13000). No doors.
+//   MEASURED off Wipaire's 3-views: the keel 0.8 of the main's radius over the ground at the step (HYDRO.AMPHIB_GEOM.
+//     clearK). ASSUMED (Wipaire publishes none of them; the study lists them as missing): the stowed main tyre flush with its keel; the trunnion at half the
+//     hull's height; the nose trolley's travel (what lands the wheel at the bow tip); the leg's rake (20 deg).
+function amphib(HP, HY, at, mirror, ug, tag, hullMesh, P, rec, out) {
+  const A = HY.amphibOf(HP.preset, HP.L, HP.H); if (!A) return;
+  const G = HY.AMPHIB_GEOM, sec = x => HY.sectionOf(HP, x === 0 ? -1e-9 : x);
+  const Rm = HY.TYRE_OD(A.main) / 2, Wm = HY.TYRE_W(A.main), Rn = HY.TYRE_OD(A.nose) / 2, Wn = HY.TYRE_W(A.nose);
+  const xs = HP.xs, H = HP.H, xb = -xs, dL = (A.dL != null ? A.dL : 6) * 0.0254, La = HP.L + dL;
+  const ykS = sec(0).yk, yg = ykS - (G.clearK || 0.8) * Rm;          // (the ground line: the keel 0.8 R over it - the guides' 3-views)
+  const xn = xb - dL * 0.5, xm = Math.max(xb - dL + G.mainK * La, Rm + 0.05);
+  // THE BLACK CAP (the rubber nose bumper): the stowed nose wheel comes to ITS height, at the tip, and slides through a
+  // slot cut in it as wide as the tyre (the user, 5 Nov: "your little wheel is coming too low, so it should really
+  // come at the level of the black little tip there, and this black little tip should even be cut so that the wheel
+  // can slide through it") - both styles
+  let yCap = sec(xb + 0.02).yd - 0.6 * Rn;
+  if (out && out.bumper && out.bumper.pos && out.bumper.pos.length) {
+    const B = out.bumper, ps = B.pos; let sy = 0, n = 0, y0 = Infinity, y1 = -Infinity;
+    for (let i = 0; i < ps.length; i += 3) { y0 = Math.min(y0, ps[i + 1]); y1 = Math.max(y1, ps[i + 1]); }
+    yCap = (y0 + y1) / 2;
+    const half = Wn / 2 + 0.015, keep = [];
+    for (let t = 0; t < B.idx.length; t += 3) { let cz = 0, cy = 0; for (let q = 0; q < 3; q++) { cz += ps[B.idx[t + q] * 3 + 2] / 3; cy += ps[B.idx[t + q] * 3 + 1] / 3; }
+      if (Math.abs(cz) < half && cy < yCap + Rn * 0.9) continue; keep.push(B.idx[t], B.idx[t + 1], B.idx[t + 2]); }
+    B.idx = keep; }
+  const stowN = [xb + 0.25 * Rn, yCap, 0];                    // (the stowed nose wheel's centre: a quarter of it inside the tip)
+  const g = Math.max(0, Math.min(1, P.gearPos == null ? 1 : +P.gearPos)), s = 1 - g;
+  const sm = (a, b) => { const t = Math.max(0, Math.min(1, (s - a) / (b - a))); return t * t * (3 - 2 * t); };
+  const rot = (p, c, a) => { const ca = Math.cos(a), sa = Math.sin(a), dx = p[0] - c[0], dy = p[1] - c[1]; return [c[0] + dx * ca - dy * sa, c[1] + dx * sa + dy * ca, p[2]]; };
+  const mz = v => [v[0], v[1], mirror ? -v[2] : v[2]], C3 = v => toCage(mz(v), at), D3 = v => dirCage(mz(v));
+  const bags = { tyre: GG.Bag(), hub: GG.Bag(), brake: GG.Bag(), brakefix: GG.Bag(), alloy: GG.Bag(), dark: GG.Bag() }, st = GG.Bag(), al = GG.Bag(), dk = GG.Bag();
+  // THE MAIN: the trunnion, the axle down, the angle that stows the tyre flush with the keel (searched)
+  const T = [-0.02, ykS + 0.5 * H, 0], ax0 = [xm, yg + Rm, 0];
+  // (stowed FLUSH with the keel where the hull is deep enough; else as high as the deck allows - 30 mm under it - the
+  // tyre showing under the keel by the rest, recorded: Wipaire does not say which a Wipline does)
+  let thM = 0, flush = false;
+  const topOk = q => q[1] + Rm <= sec(Math.max(0.01, q[0])).yd - 0.03, botOk = q => q[1] - Rm >= sec(Math.max(0.01, q[0])).yk - 0.002;
+  for (let d = 0; d <= 170; d += 0.5) { const q = rot(ax0, T, d * D2R); if (!topOk(q)) break; thM = d * D2R; if (botOk(q)) { flush = true; break; } }
+  const qUp = rot(ax0, T, thM), fitWhy = [];
+  if (!flush) fitWhy.push('the stowed main tyre (' + A.main + ') shows ' + Math.round((sec(Math.max(0.01, qUp[0])).yk - (qUp[1] - Rm)) * 1000) + ' mm under the keel: the hull is too shallow to take it flush');
+  const am = rot(ax0, T, thM * sm(0.1, 1)), lm = rot([xm, yg + Rm + 0.5 * Rm, 0], T, thM * sm(0.1, 1));
+  const zs = A.mainN === 2 ? [-0.62 * Wm - 0.02, 0.62 * Wm + 0.02] : [0];
+  for (const z of zs) GG.wheel(bags, C3([am[0], am[1], z]), D3([0, 0, 1]), Rm, { P: {}, brake: true });
+  GK.tube(st, C3(T), C3([am[0], am[1], 0]), 0.022, 10);                                       // the drag link
+  GK.tube(al, C3([am[0], am[1], -Math.max(...zs.map(Math.abs)) - 0.03]), C3([am[0], am[1], Math.max(...zs.map(Math.abs)) + 0.03]), 0.016, 10);   // the axle
+  const top = [T[0] + 0.35 * (xm - T[0]), ykS + 0.85 * H, 0];                                  // the carriage under the deck
+  if (Math.round(+P.fltAmph) === 2) {                    // (EDO style: a horizontal shock cylinder along the bottom - the close-ups)
+    const mid = rot([T[0] + 0.55 * (xm - T[0]), T[1] + 0.55 * (ax0[1] - T[1]), 0], T, thM * sm(0.1, 1)), Fh = [T[0] - 0.35 * H, ykS + 0.12 * H, 0];
+    GK.tube(al, C3(Fh), C3([(Fh[0] + mid[0]) / 2, (Fh[1] + mid[1]) / 2, 0]), 0.034, 12); GK.tube(st, C3([(Fh[0] + mid[0]) / 2, (Fh[1] + mid[1]) / 2, 0]), C3(mid), 0.016, 10);
+  } else { GK.tube(al, C3(top), C3(lm), 0.028, 12); GK.tube(dk, C3([top[0] - 0.05, top[1], 0]), C3([top[0] + 0.25, top[1], 0]), 0.02, 8); }   // the shock strut, its slide track
+  // THE EDO STYLE'S NOSE (the user's photographs and his reading of them, 5 Nov - no EDO document reached): the leg's
+  // anchor is at the BOTTOM of the float's front - on the keel where it turns up into the stem (the forefoot), not at
+  // the tip (the tip is the Wipline's trolley) - outside the hull. Gear down the leg hangs from it, nearly upright; a
+  // small piston from a fitting on the float's bottom, aft of the anchor, swings it FORWARD AND UP about the anchor,
+  // so the leg lies along the stem and the wheel ends at the bow tip, in front of the float in its black cap. The
+  // anchor is placed where its distance to that stowed place is the leg's length; no well, so no doors
+  let edoNose = null, wipNose = null;
+  if (Math.round(+P.fltAmph) === 2) {
+    // (the user, 5 Nov: "your rotation point should still follow the bottom of the hull further by, let's say, maybe 20
+    // centimeters ... the landing position of your arm is not almost vertical ... It is between 45 degrees and
+    // horizontal ... Then it goes up using a little piston ... so that the little wheel goes straight at the tip"):
+    // the anchor walks aft along the keel to where a leg raked forward at ~35 deg below level (its length set by the
+    // ground line) reaches the stowed place at the tip exactly - the rake solved from the anchor's height and distance
+    const tip = stowN, RAKE = 35 * D2R;
+    let best = null;
+    for (let x = xb + 0.10; x <= xb + 0.6 * xs; x += 0.005) {
+      const P0 = [x, sec(x).yk - 0.02, 0], drop = P0[1] - (yg + Rn), D = Math.hypot(tip[0] - P0[0], tip[1] - P0[1]);
+      if (drop <= 0.02 || D <= drop) continue;
+      const a = Math.asin(drop / D), e = Math.abs(a - RAKE);
+      if (!best || e < best.e) best = { e, P0, a, D }; }
+    const Pe = best ? best.P0 : [xb + 0.2, sec(xb + 0.2).yk - 0.02, 0], ra = best ? best.a : RAKE, Lg = best ? best.D : 0.3;
+    const an0 = [Pe[0] - Lg * Math.cos(ra), Pe[1] - Lg * Math.sin(ra), 0];
+    // (the swing: forward and up about the anchor till the wheel's centre points at the stowed place)
+    const a0 = Math.atan2(an0[1] - Pe[1], an0[0] - Pe[0]), a1 = Math.atan2(tip[1] - Pe[1], tip[0] - Pe[0]);
+    let thE = a1 - a0; while (thE > 0) thE -= 2 * Math.PI; while (thE <= -2 * Math.PI) thE += 2 * Math.PI;   // (clockwise: down, forward, up)
+    const r = thE * sm(0.05, 0.95), an = rot(an0, Pe, r), blk = rot([an0[0], an0[1] + Rn + 0.04, 0], Pe, r);
+    GG.wheel(bags, C3(an), D3([0, 0, 1]), Rn, { P: {}, brake: false });
+    const u = [blk[0] - Pe[0], blk[1] - Pe[1], 0], l = Math.hypot(u[0], u[1]) || 1, c = [(blk[0] + Pe[0]) / 2, (blk[1] + Pe[1]) / 2, 0];
+    const e1 = D3([u[0] / l, u[1] / l, 0]), e2 = D3([-u[1] / l, u[0] / l, 0]), e3 = D3([0, 0, 1]);
+    GK.boxIn(st, C3(c), [l / 2, 0.016, 0.022], e1, e2, e3);                                         // the oleo leg
+    GK.boxIn(al, C3(c), [l * 0.42, 0.006, 0.05], e1, e2, e3);                                       // its fairing
+    GK.tube(al, C3(blk), C3(an), 0.016, 10);                                                        // the castering fork
+    GK.tube(dk, C3([Pe[0], Pe[1], -0.06]), C3([Pe[0], Pe[1], 0.06]), 0.022, 10);                     // the anchor's pin and lugs
+    // (the little piston: from a fitting on the bottom, aft of the anchor, to the leg a quarter down - the triangle)
+    const Fb = [Pe[0] + 0.45 * l, sec(Pe[0] + 0.45 * l).yk - 0.015, 0], Lq = [Pe[0] + u[0] * 0.28, Pe[1] + u[1] * 0.28, 0];
+    const mid = [(Fb[0] + Lq[0]) / 2, (Fb[1] + Lq[1]) / 2, 0];
+    GK.tube(al, C3(Fb), C3(mid), 0.020, 10); GK.tube(st, C3(mid), C3(Lq), 0.010, 8);                // barrel, rod
+    GK.tube(dk, C3([Fb[0], Fb[1], -0.04]), C3([Fb[0], Fb[1], 0.04]), 0.016, 8);                     // its fitting
+    edoNose = { noseAxle: an0, noseUp: rot(an0, Pe, thE), pivot: Pe, rake: +(ra / D2R).toFixed(1) };
+  } else {
+  // THE NOSE: the trolley at the end track's foot, the leg raked forward to the castering block over the wheel
+    const Pn = [xb + 0.18 * H, sec(xb + 0.18 * H).yk + 0.12 * H, 0], an0 = [xn, yg + Rn, 0], blk0 = [an0[0] + 0.25 * Rn, an0[1] + Rn + 0.04, 0];
+    const leg0 = Math.atan2(blk0[1] - Pn[1], blk0[0] - Pn[0]);                                   // (down and forward)
+    // (forward and up - the short way - till the wheel's centre is at the cap's height; the trolley then draws it aft
+    // into the tip)
+    let thN = 0; for (let d = 0; d <= 170; d += 0.5) { thN = -d * D2R; if (rot(an0, Pn, thN)[1] >= stowN[1]) break; }
+    const rN = thN * sm(0, 0.7), blkR = rot(blk0, Pn, rN), axR = rot(an0, Pn, rN);
+    const tipX = stowN[0], slideFull = Math.max(0, tipX - rot(an0, Pn, thN)[0]), slideN = slideFull * sm(0.5, 1);
+    const sh = v => [v[0] + slideN, v[1], v[2]], Pn2 = sh(Pn), blk = sh(blkR), an = sh(axR);
+    GG.wheel(bags, C3(an), D3([0, 0, 1]), Rn, { P: {}, brake: false });
+    { const u = [blk[0] - Pn2[0], blk[1] - Pn2[1], 0], l = Math.hypot(u[0], u[1]) || 1, c = [(blk[0] + Pn2[0]) / 2, (blk[1] + Pn2[1]) / 2, 0];
+      GK.boxIn(st, C3(c), [l / 2, 0.012, 0.035], D3([u[0] / l, u[1] / l, 0]), D3([-u[1] / l, u[0] / l, 0]), D3([0, 0, 1])); }   // the spring leg
+    GK.tube(al, C3(blk), C3(an), 0.018, 10);                                                       // the castering block and fork
+    GK.tube(dk, C3([Pn2[0] - 0.04, Pn2[1], -0.05]), C3([Pn2[0] - 0.04, Pn2[1], 0.05]), 0.02, 8);  // the trolley
+    wipNose = { noseAxle: an0, noseUp: (q => [q[0] + slideFull, q[1], q[2]])(rot(an0, Pn, thN)) };
+  }
+  for (const [b, m] of [[st, 'steel'], [al, 'alloy'], [dk, 'dark']]) if (b.tris) b.mesh(ug, GG.gearMat(m));
+  for (const k in bags) if (bags[k].tris) bags[k].mesh(ug, GG.gearMat(k));
+  // THE MAIN WHEEL WELL: the main's sweep in plan (the wheels' rims, gear down to up), cut from below into the hull
+  // to a ceiling over the stowed tyre (the knife's closed box) - open at the bottom, no door
+  const KG = window.KNIFE_GEN;
+  if (hullMesh && KG && KG.knifeWellsGeo) {
+    let x0 = Infinity, x1 = -Infinity, top2 = -Infinity;
+    for (let i = 0; i <= 12; i++) { const q = rot(ax0, T, thM * i / 12); x0 = Math.min(x0, q[0] - Rm); x1 = Math.max(x1, q[0] + Rm); top2 = Math.max(top2, q[1] + Rm); }
+    x0 = Math.max(x0, 0.03); const zw = Math.max(...zs.map(Math.abs)) + Wm / 2 + 0.03;
+    const ring = [[x0, -zw], [x1, -zw], [x1, zw], [x0, zw]].map(([x, z]) => C3([x, 0, z]));
+    let outline = ring.map(p => [p[2], -p[0]]);
+    let a2 = 0; for (let i = 0; i < outline.length; i++) { const p = outline[i], q = outline[(i + 1) % outline.length]; a2 += p[0] * q[1] - q[0] * p[1]; }
+    if (a2 < 0) outline.reverse();
+    const ceil = C3([0, top2 + 0.02, 0])[1];
+    const r = KG.knifeWellsGeo(THREE, hullMesh.geometry, [{ units: [tag], mode: 'box', outline, ceil }], null, null);
+    if (r.skin) { hullMesh.geometry.dispose(); hullMesh.geometry = r.skin; }
+    if (r.well) { const wm = new THREE.Mesh(r.well, new THREE.MeshStandardMaterial({ color: 0x55585c, roughness: 0.8, side: THREE.DoubleSide })); wm.name = 'edFloatWell' + tag; ug.add(wm); }
+  }
+  rec.amph = rec.amph || { style: Math.round(+P.fltAmph) === 2 ? 'EDO (photographs)' : 'Wipline', model: A.name, est: A.est, main: A.main, mainN: A.mainN, nose: A.nose, dKg: A.dKg, assumed: ['stowFlush', 'trunnionH', 'noseTravel', 'noseRake'], measured: { keelClearance: +(ykS - yg).toFixed(3) }, fitWhy };
+  rec.amph[tag] = { edoPivot: edoNose ? C3(edoNose.pivot) : null, edoRake: edoNose ? edoNose.rake : null, capY: C3([0, yCap, 0])[1], mainAxle: C3(ax0), mainUp: C3(rot(ax0, T, thM)), trunnion: C3(T), noseAxle: C3((edoNose || wipNose).noseAxle), noseUp: C3((edoNose || wipNose).noseUp), thM: +(thM / D2R).toFixed(1) };
+}
 const prevPost = PAGE.post;
 // HULL-B18: THE TUB'S AFTERBODY, drawn from the hull's own lines (_cage_gen.js cageHullTub: the stations the water
 // reads) - a loft of V sections (gunwale, chine, keel, chine, gunwale, the deck's centre) from the pod's last ring aft
@@ -124084,7 +124630,8 @@ PAGE.post = ctx => {
       out = FG.build(HP, { HY, detail: +P.fltDetail ? 1 : 0, rudder: +P.fltRudder ? 1 : 0, paddle, xAft: HP.xAft });
       const add = (part, mat, nm, field) => { const m = partMesh(part, at, mat, mirror, nm, field); if (m) ug.add(m); return m; };
       const skin = hullSkinM();
-      add(out.hull, skin, 'edFloatHull' + tag, !!SM);
+      const hullMesh = add(out.hull, skin, 'edFloatHull' + tag, !!SM);
+      if (+P.fltAmph && HY.amphibOf) try { amphib(HP, HY, at, mirror, ug, tag, hullMesh, P, rec, out); } catch (e) { console.warn('amphibian floats:', e); }
       if (out.protrusions) add(out.protrusions, hullM());
       if (out.bumper) add(out.bumper, rubberM());
       if (out.deck) add(out.deck, deckM());
@@ -142414,7 +142961,8 @@ function wingWellApply() {
       for (const p of c.outline) { z0 = Math.min(z0, p[0]); z1 = Math.max(z1, p[0]); x0 = Math.min(x0, -p[1]); x1 = Math.max(x1, -p[1]); }
       return !(bb.max.z < z0 || bb.min.z > z1 || bb.max.x < x0 || bb.min.x > x1 || bb.min.y > c.ceil); });
     if (!near) { o.geometry = g0; continue; }
-    const r = KG.knifeWellsGeo(THREE, g0, cuts, tops);
+    const AFg = C && C.AF, inBody = AFg ? (x, z) => z > AFg.z0 && z < AFg.z1 && Math.abs(x) < AFg.halfWAt(z) - 0.005 : null;   // (P2: the body's box is seen there)
+    const r = KG.knifeWellsGeo(THREE, g0, cuts, tops, inBody);
     if (!r.skin) continue;
     o.geometry = r.skin; ud.wellCutGeo = r.skin;
     if (r.well) { const wm = new THREE.Mesh(r.well, matOf('wheelWell')); wm.name = 'edWellWing'; o.add(wm); ud.wellMesh = wm; }
@@ -142443,7 +142991,7 @@ function nacWellApply() {
     ud.wellSig = sig;
     if (!cuts) { o.geometry = ud.wellGeo0; continue; }
     const rel = new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld);
-    const r = KG.knifeWellsMesh(THREE, ud.wellGeo0, rel, cuts, ud.nacSkin === 'twin');
+    const r = KG.knifeWellsMesh(THREE, ud.wellGeo0, rel, cuts, ud.nacSkin !== 'skin');   // (twins and shells: the hole only)
     if (!r.skin) continue;
     o.geometry = r.skin; ud.wellCutGeo = r.skin;
     if (r.well) { const wm = new THREE.Mesh(r.well, matOf('wheelWell')); wm.name = 'edWellNac'; o.add(wm); ud.wellMesh = wm; }

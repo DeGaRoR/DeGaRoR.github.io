@@ -481,12 +481,17 @@ console.log('10 THE FOLD (G1)');
         best = Math.min(best, Math.abs(p[1] - (l1 * A[1] + l2 * B[1] + l3 * Cc[1])));
       }
       return best; };
-    const vertsOf = name => { const out = []; ex.Sx.scene.traverse(o => { if (o.name === name) o.traverse(q => { if (q.isMesh && q.material !== q.parent.children[1]?.material) {} if (q.isMesh) { const pa = q.geometry.attributes.position; for (let i = 0; i < pa.count; i++) out.push([pa.getX(i), pa.getY(i), pa.getZ(i)]); } }); }); return out; };
+    // (P2: a door is a slab - its outer face (the first doorOuterN vertices of its front mesh) lies on the skin, its back
+    // face DOOR_T in; behind the wing's blunt trailing edge 'in' is between the skins, so the outer face is what is measured)
+    const vertsOf = name => { const out = []; ex.Sx.scene.traverse(o => { if (o.name === name) o.traverse(q => { if (q.isMesh && q.userData.doorOuterN) { const pa = q.geometry.attributes.position; for (let i = 0; i < q.userData.doorOuterN; i++) out.push([pa.getX(i), pa.getY(i), pa.getZ(i)]); } }); }); return out; };
     const posed = (name, g) => { const t = C.gearMechPose(R, g)[name]; return vertsOf(name).map(v => [t[0] * v[0] + t[1] * v[1] + t[2] * v[2] + t[3], t[4] * v[0] + t[5] * v[1] + t[6] * v[2] + t[7], t[8] * v[0] + t[9] * v[1] + t[10] * v[2] + t[11]]); };
     let worst = 0;
     const atTE = p => { const te = W.teAt(Math.abs(p[0])); return te && p[2] < te.z + 0.015; };   // (the trailing edge's lip: no area in plan)
     for (const d of D6) for (const p of posed(d.name, 0)) if (!atTE(p)) worst = Math.max(worst, onSkin(p));
-    check(worst < 0.012, 'up, every door lies flush on the skin it was cut from (its outer face; the inner 4 mm in)', Math.round(worst * 1000) + ' mm at the most');
+    check(worst < 0.004, 'up, every door lies flush on the skin it was cut from (its outer face)', Math.round(worst * 1000) + ' mm at the most');
+    { let slab = 0; ex.Sx.scene.traverse(o => { if (D6.some(d => d.name === o.name)) { const m = o.children.filter(q => q.isMesh), f = m.find(q => q.userData.doorOuterN);
+        if (f && m.length >= 2 && f.geometry.attributes.position.count > f.userData.doorOuterN && f.geometry.attributes.color) slab++; } });
+      check(slab === D6.length, 'P2: every door is a slab - its outer face, a chamfered edge and side wall (seam-shaded), a back face', slab + ' of ' + D6.length); }
     const wd = D6.find(d => d.kind === 'well'), cy = (ps) => ps.reduce((s, p) => s + p[1], 0) / ps.length;
     check(wd && cy(posed(wd.name, 0.5)) < cy(posed(wd.name, 0)) - 0.02, 'a well door swings open (down) as the gear travels', wd && (cy(posed(wd.name, 0)) - cy(posed(wd.name, 0.5))).toFixed(3) + ' m lower');
     const b2 = docs({ gearWellCut: 1, gearDoors: 2 }).G.doors || [], b1 = docs({ gearWellCut: 1, gearDoors: 1 }).G.doors || [];
@@ -495,6 +500,67 @@ console.log('10 THE FOLD (G1)');
     const none = docs({ gearDoors: 0, gearLegDoor: 0 }).G.doors || [];
     check(none.length === 0, 'doors off: an open well');
     check(D6.every(d => R.parts.some(p => p.name === d.name && p.o0)), 'every door is a part of the one kinematics (the flight poses it)'); }
+  // ---- 18. THE CATALINA (P2 v3): the PBY-5A's mains as its operator's handbook draws them (Canso handbook, Figs 12-13)
+  console.log('18 THE CATALINA (P2 v3)');
+  { const ac = D.ARCHETYPES.find(x => x.key === 'c172');
+    const bc = LB.gameSpecFull({ v: 0, birth: 1, spec: D.designBake(ac.sel, ac.over) }).spec;
+    const Sc = SH.sceneBuild(bc, { over: { gearRetract: 1, gearFold: 6, gearDoors: 0, gearLegDoor: 0, s1X: 0.6, floorY: -0.25 }, garage: bc });
+    const Gc = Sc.W.CAGE_GEAR, CMc = C.GEAR_MECH, Rc = Gc.mech, Cu = Rc.units.L, Ic = Gc.mechInfo.L, AFc = Gc.AF;
+    const pose = g => { const Q = CMc.gearMechPoints(Rc, g), M = Q.M.L, d = Q.D.L; return { Q, M, P: p => CMc.gearUnitPt(Cu, M, p, d) }; };
+    const top = Cu.top, ax = Cu.axle, legLen = Math.hypot(top[0] - ax[0], top[1] - ax[1]);
+    let inPlane = 0, tiltMax = 0, wheelTilt = 0, stretch = 0;
+    for (let i = 0; i <= 20; i++) { const g = 1 - i / 20, { Q, M, P } = pose(g), t = P(top), a = P(ax);
+      inPlane = Math.max(inPlane, Math.abs(t[2] - top[2]), Math.abs(a[2] - ax[2]));
+      tiltMax = Math.max(tiltMax, Math.acos(Math.max(-1, Math.min(1, (t[1] - a[1]) / Math.hypot(t[0] - a[0], t[1] - a[1], t[2] - a[2])))) * 180 / Math.PI);
+      const w = CMc.gearApp(M, Cu.wAx); wheelTilt = Math.max(wheelTilt, Math.asin(Math.min(1, Math.abs(w[2]))) * 180 / Math.PI);
+      const lp = P(Ic.Lp); stretch = Math.max(stretch, Math.hypot(lp[0] - Ic.S[0], lp[1] - Ic.S[1], lp[2] - Ic.S[2]) - Ic.D); }
+    check(inPlane < 1e-6, 'the motion is in the hull\'s section (about fore-aft axes: no aft swing, no tuck)', (inPlane * 1000).toFixed(3) + ' mm off the plane');
+    check(tiltMax < 25 && wheelTilt < 1e-6, 'the leg stays near upright, the wheel upright in its fore-aft plane', 'leg ' + tiltMax.toFixed(1) + ' deg at the most');
+    check(stretch <= 0.003 && Gc.mechInfo.catStrut, 'the side strut is longest gear down (locked straight) and folds - never stretched', (stretch * 1000).toFixed(1) + ' mm');
+    const cu = pose(0).P(ax);
+    const p1 = pose(0.5).P(ax), r0 = ax;
+    check(cu[1] > ax[1] + 0.5 * legLen && Math.abs(cu[0]) < Math.abs(ax[0]) - 0.05, 'up and in: the wheel rises and comes in against the side',
+          'up ' + (cu[1] - ax[1]).toFixed(2) + ' m, in ' + (Math.abs(ax[0]) - Math.abs(cu[0])).toFixed(2) + ' m');
+    check(p1[1] - r0[1] > (cu[1] - r0[1]) * 0.5, 'it rises first (the jack lifts it, it comes in last - "a tendency to fall into the well")',
+          'half way: ' + Math.round(100 * (p1[1] - r0[1]) / (cu[1] - r0[1])) + ' % of the rise, ' + Math.round(100 * (Math.abs(r0[0]) - Math.abs(p1[0])) / (Math.abs(r0[0]) - Math.abs(cu[0]))) + ' % of the way in');
+    check(Rc.parts.some(q => q.name === 'edMechL_cyl') && Rc.parts.some(q => q.name === 'edMechL_rod') && Rc.parts.some(q => q.name === 'edMechL_brace1'),
+          'the V-strut\'s jack and the side strut are parts of the one kinematics');
+    const asp = c => { const u = c.outline.map(q => q[0]), v = c.outline.map(q => q[1]), a = Math.max(...u) - Math.min(...u), b = Math.max(...v) - Math.min(...v); return Math.max(a, b) / Math.min(a, b); };
+    const sides = Gc.cutsSide || [];
+    check(sides.length === 2 && sides.every(c => asp(c) < 1.25), 'one ROUND opening in each side - the stowed wheel\'s, which it closes; the leg stays outside, the links pass the wall at their fittings',
+          sides.length + ' side wells, length / height ' + sides.map(c => asp(c).toFixed(2)).join(', ')); }
+  // ---- 19. THE AMPHIBIAN FLOATS (§8.25): Wipline wheels in the floats, from Wipaire's manuals and guides ----------
+  console.log('19 THE AMPHIBIAN FLOATS (§8.25)');
+  { const H = C.HYDRO, ac = D.ARCHETYPES.find(x => x.key === 'c172');
+    const bc = LB.gameSpecFull({ v: 0, birth: 1, spec: D.designBake(ac.sel, ac.over) }).spec;
+    check(['Wipline 2100', 'Wipline 2350', 'Wipline 3450', 'Wipline 8750', 'Wipline 13000'].every(n => H.WIPLINE_AMPHIB[n] && H.TYRE_OD(H.WIPLINE_AMPHIB[n].main) > 0.3)
+          && Math.abs(H.TYRE_OD('5.00x5') - 0.356) < 0.005 && Math.abs(H.TYRE_OD('8.50x10') - 0.643) < 0.005,
+          'the catalogue: each model\'s published tyres (5.00x5 14 in, 8.50x10 25.3 in), single or dual mains');
+    const amph = (g, k) => { const Sx = SH.sceneBuild(bc, { over: { gearFloats: 1, fltAmph: k || 1, fltPreset: 2, gearPos: g }, garage: bc }); return Sx.W.CAGE_FLOAT; };
+    const F1 = amph(1), Am = F1 && F1.amph, R0 = Am && Am.L;
+    check(Am && Am.model === 'Wipline 2350' && !Am.est && Am.main === '5.00x5' && Am.nose === '2.50x4', 'the 2350 wears its own gear', Am && Am.model + ' ' + Am.main + ' / ' + Am.nose);
+    const zStep = F1.zStep, zBow = zStep + F1.P.xs;
+    check(R0 && R0.mainAxle[2] < zStep && R0.mainAxle[2] > zStep - 0.6, 'the main wheel just aft of the step (every guide\'s 3-view)', R0 && ((zStep - R0.mainAxle[2]) * 1000).toFixed(0) + ' mm aft');
+    check(R0 && R0.noseAxle[2] > zBow - 0.05 && R0.mainUp[1] > R0.mainAxle[1] + 0.1, 'the nose wheel at the bow, ahead of it gear down; the main swings up',
+          R0 && 'nose ' + ((R0.noseAxle[2] - zBow) * 1000).toFixed(0) + ' mm ahead of the bow; main up ' + ((R0.mainUp[1] - R0.mainAxle[1]) * 1000).toFixed(0) + ' mm');
+    check(R0 && Math.abs(R0.noseUp[2] - zBow) < 0.15 && R0.noseUp[1] > R0.noseAxle[1] + 0.1, 'stowed, the nose wheel is the bow\'s dock bumper ("retracts into the float nose")',
+          R0 && ((R0.noseUp[2] - zBow) * 1000).toFixed(0) + ' mm from the bow tip');
+    { const E = amph(1, 2), Ae = E && E.amph, Re = Ae && Ae.L, zB = E.zStep + E.P.xs;
+      check(Ae && Ae.style.startsWith('EDO') && Re.edoPivot && Re.edoPivot[2] < zB - 0.02 && Re.edoPivot[1] < Re.noseUp[1] - 0.15
+            && Math.abs(Re.noseUp[2] - zB) < 0.25 && Re.noseUp[1] > Re.edoPivot[1] + 0.1,
+            'EDO style: the nose leg anchored at the bottom of the float\'s front (not the tip), the wheel swung up to the bow tip, in front',
+            Re && 'anchor ' + ((zB - Re.edoPivot[2]) * 1000).toFixed(0) + ' mm aft of the tip, ' + ((Re.noseUp[1] - Re.edoPivot[1]) * 1000).toFixed(0) + ' mm under the stowed wheel; wheel ' + ((Re.noseUp[2] - zB) * 1000).toFixed(0) + ' mm from it'); }
+    { const E = amph(1, 2), RE = E.amph.L, RW = Am.L;
+      check(Math.abs(RW.noseUp[1] - RW.capY) < 0.06 && Math.abs(RE.noseUp[1] - RE.capY) < 0.06,
+            'stowed, both noses at the black cap\'s height, through its slot', 'Wipline ' + ((RW.noseUp[1] - RW.capY) * 1000).toFixed(0) + ' mm, EDO ' + ((RE.noseUp[1] - RE.capY) * 1000).toFixed(0) + ' mm off its middle');
+      check(RE.edoRake > 15 && RE.edoRake < 45, 'EDO style: the leg lands raked forward, between 45 degrees and level', RE.edoRake + ' deg'); }
+    check(Am.measured && Math.abs(Am.measured.keelClearance - 0.8 * H.TYRE_OD('5.00x5') / 2) < 0.005,
+          'gear down the keel stands 0.8 of the main wheel\'s radius over the ground at the step (Wipaire\'s C-206 and Husky 3-views)',
+          Am.measured && (Am.measured.keelClearance * 1000).toFixed(0) + ' mm');
+    let well = false;
+    { const Sx = SH.sceneBuild(bc, { over: { gearFloats: 1, fltAmph: 1, fltPreset: 2, gearPos: 0 }, garage: bc }); Sx.scene.traverse(o => { if (o.name === 'edFloatWellL' || o.name === 'edFloatWellR') well = true; }); }
+    check(well && Array.isArray(Am.fitWhy) && Am.assumed.length >= 4, 'an open wheel well cut in each float (no door); what Wipaire does not publish is named as assumed',
+          (Am.fitWhy || []).join('; ') || 'stowed flush'); }
   // the physics of a partial gear: the downwind between the fixed gear's and the full retract's
   const dS = defOf({ time: 6, act: 'hydraulic', frac: 0.6 });
   check(dS.params.retract.frac === 0.6, 'params carry the fraction');

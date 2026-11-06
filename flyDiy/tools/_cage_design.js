@@ -3007,10 +3007,16 @@ const ARCHETYPES = [
            engFamily: 'flat', engModel: 'lycoming IO-360', engMount: 'nose', engCount: 'pushPull',
            gearLayout: 'trike', suspension: 'oleo', s1Fair: 0,
            finArch: 'straight', empennage: 'conv', scheme: 'trim', base: 0xefe6cf, trim: 0x1b3a5c },
+    // RETRACT P2 (the user, 5 Nov: "you may change the skymaster. It has never been authored"): THE 337's GEAR - the
+    // mains under the pod (0.43 m half track, 0.17 m tyres) at 1.7 m, folding aft and in with the wheel turned flat
+    // (the 210's twist-and-tuck) into one belly well ahead of the rear engine, their legs shortening 30 % on the way;
+    // the nose aft, shortened 30 % (its own well); the cabin floor at -0.25 for the belly's room
     over: { cage: Object.assign({}, PLAN_TAPER, { boomX: 1.25, boomLen: 3.2,
                                                    boomWf: 0.24, boomHf: 0.34,
                                                    boomWa: 0.16, boomHa: 0.22, boomNoseLen: 0.7,
-                                                   stSpan: 1.2, stChord: 1.1, wgDx: -0.5 }),
+                                                   stSpan: 1.2, stChord: 1.1, wgDx: -0.5,
+                                                   gearRetract: 1, gearFold: 3, gearShort: 0.3, gearShortNose: 0.3,
+                                                   s1X: 0.43, s1Z: 1.7, s1R: 0.17, floorY: -0.25 }),
             spec: { finish: { decals: { m1On: 1, m1Pat: 0, m1A: 0x1b3a5c,
                                         m1B: 0xefe6cf, m1D: 0x1b3a5c } } } } },
   { key: 'p38', kind: 'recreation', name: 'P-38-alike', note: 'a puller a boom, ' +

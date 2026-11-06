@@ -1759,3 +1759,411 @@ the nose leg (gearShortNose 0.3 / 0.45) brings the well to 0.63 / 0.58 m.
   - The test now says so.
   - Making it a 337 means the card itself: a longer pod with belly wells ahead of the rear firewall, the mains under
     the pod (a narrower track or wider pod), then the aft-and-in twist fold.
+
+### 8.21 CLOSED WELLS, THE SKYMASTER, THE EVIDENCE (5 Nov)
+
+**THE WELL A CLOSED BOX** (the user: "the shading inside the cuts looks odd. Did you build an actual volume after the
+cut? It should really be a closed section, where we first cut, then extrude the cut and close it so it forms a closed
+volume").
+
+- **What it was.** The knife's well was the cut-out skin pushed up to the ceiling, its walls the ring between, a
+  window's recessed pane. Two faults followed.
+  - A skin with an opening of its own (the T-tail cowl's open belly round its exhaust stacks) left the well open there:
+    the engine's fins showed through.
+  - Every SHELL of a cowl or a nacelle that the outline crossed built its own well (its inlet ducts, its lips, its
+    seams): boxes inside boxes, fighting for the same pixels.
+- **What it is now** (`_knife_gen.js wellBox` / `skinYOf`).
+  - Each downward cut's well is built from its OUTLINE: sampled finely and dropped onto the ORIGINAL skin from below.
+  - Walls go straight up to one flat ceiling, their normals level and facing the well's axis.
+  - The ceiling is the outline at that height, facing the opening.
+  - The knife only cuts the hole and carves the structure out of the volume.
+  - The fuselage sheet (`knifeWells`) and the wing's and nacelles' skins (`knifeWellsGeo`) take it.
+  - The Catalina's side recesses keep the knife's own.
+- **One shell per well.** Only a nacelle's or a cowl's OUTER skins (those inside no other skin mesh's box) build a
+  well; the others (and the inner twin) are cut through for the hole only. The doors take the outer skins' faces too,
+  of either winding (a cowl's aft lofts are wound inside out).
+- **Not fixed.** On the T-tail cowl the front of the slot still has no door: there is no skin there.
+
+**THE SKYMASTER** (the user: "you may change the skymaster. It has never been authored"). The card is born retractable,
+the 337's (and the 210's) way:
+- the mains under the pod: 0.43 m half track, s1Z 1.7, 0.17 m tyres;
+- fold 'aftBelly' (aft and in, the wheel turned flat), the legs shortening 30 %, into one belly well ahead of the rear
+  engine;
+- the nose aft, shortened 30 % (its own well);
+- the cabin floor at -0.25.
+- **A preset's main never stows across the centre line.** The last turn backs off a degree at a time till the stowed
+  tyre keeps 20 mm off it, where the other main lies (the two mains met otherwise).
+- **The fit's last flag:** the stowed tyres sit 8 mm inside the pod's skin, where the test wants 15.
+- **Still rough:** the shared belly well's doors (large panels hanging at mid-travel, triangular leg doors). The
+  generic door split does not suit a well this wide.
+- **The pod's length cannot be changed this way.** Neither taperLen nor aeroAftLen move this card's body (it ends at
+  0.73).
+
+**THE EVIDENCE.** One page with every option tested, each with its verdict and its sheet (the artifact "Retractable Gear
+Evidence"; the renders in the scratchpad's ev/ folder, the same frames across each sheet's positions):
+- the belly wells (exact, box with one door, box with two, open);
+- the fittings;
+- the wing wells;
+- a partial fold;
+- the nose forward into the cowl, and its close-up;
+- the Catalina;
+- the nacelles (low wing; high wing shortened; high wing unshortened, red; the separate pod);
+- B-ITES;
+- the Skymaster;
+- the strut test;
+- the closed wells.
+
+### 8.22 Polish: the doors as slabs, and a quality pass (P2)
+
+The user: "give them some thickness, and proper edge beveling. Also do some texture work on them; seams and light
+shadow/dirt in the corners ... Then do a pass of quality ... stay grounded in clear action yielding benefit".
+
+**THE DOOR IS A SLAB** (`_cage_gear.js`, `panel`):
+- **The front.** The skin's own faces, welded into one smooth front. Their normals are averaged, then smoothed over
+  their neighbours in three passes: the clipped fragments' own normals made a door read crumpled.
+- **The edge.** A 45-degree chamfer, DOOR_BEV (1.5 mm) out and in, catching the light a shade lighter. Then a side wall
+  down to the back face, DOOR_T (6 mm) in, which stays in the seam's shadow.
+- **The back face.** The dark inner skin, looking into the aircraft.
+- **The grime.** Vertex colours on the front: darker within about 25 mm of the edge (16 % at most), and a little more
+  into its corners (10 %). There is no noise: on the skin's irregular triangles it read as mottled.
+- **The material.** The skin's material, cloned once with vertex colours. `quickshot.js` now draws vertex colours too
+  (they multiply the material's colour).
+- **The gate measures the outer face.** The front mesh carries `doorOuterN`: its first vertices are the outer face.
+  Behind the wing's blunt trailing edge (86 mm tall on the T-tail) "6 mm in" lies between the skins, and a plan-view
+  test read it as 26 mm off the skin. GATE RETRACT §17 now measures the outer face only: every door is within 4 mm
+  (measured: 0.1 mm). A new check confirms every door is a slab: outer face, chamfer and wall (seam-shaded), back face.
+
+**THE QUALITY PASS** (each one found in a screenshot, each one a single fix):
+- **The well's lip is chamfered** (`wellBox`): the wall's top 3 mm turns out at 45 degrees.
+- **Where a wing well runs into the body** (`inBody`): its walls stay out, and its ceiling sits 2 mm under the body's.
+  No two surfaces share a place.
+- **The well's shoulder** (`wellBox`, `skinTop`). On the DA62 the fitted nacelle narrows to a ridge under the wing, and
+  the straight walls rose out of its sides as dark slivers between the nacelle and the wing. Now, where the skin over an
+  outline point is lower than the flat ceiling, the wall stops 3 mm under it. It then slopes in to a ceiling point
+  drawn inward until the skin over it clears the ceiling. Elsewhere nothing changes: the shoulder is skipped.
+- **A fitting stays inside its nacelle** (`fittingsDraw`, `roomX`). The trunnion's base plate (plus or minus 96 mm)
+  stood out of the same narrow ridge. Inside a nacelle, the plate now lands lower, on the nacelle's own frame, where the
+  skin leaves the lugs their room. It is also no wider than that room: the lip and the gussets are trimmed, and the lugs
+  are kept.
+- **A nacelle's doors are its belly's.** The nacelle's shells are wound either way, so the door test took any face lying
+  flat enough (|ny|). That let the nacelle's top skin at its edge into two doors. Each face is now turned away from the
+  nacelle's own centre line at its station (5 cm stations, from the faces near the outline), and only the faces that
+  look down are kept.
+- **A well door opens out of the skin.** The hinge's sense is now taken from the door's own outward normal, not just
+  "down". A nacelle's door wraps its round belly, with its centroid nearly under the hinge.
+- **The check.** On the DA62 (fold 7, s1X 2.45), no vertex of the gear layer stands outside the nacelle's skin, gear up,
+  half and down (the scratchpad probe `poke.js`).
+
+### 8.23 The wing well's box, the Catalina re-checked, and what the amphibian needs (P2)
+
+**THE WING WELL** (the user: "a hole, plus a little border that extrudes out with no cap, so nothing like extrude in
+and cap"). Cross-sections of the T-tail's wing well (plane x = const: the uncut skin, the cut skin, the well) showed
+two boxes:
+- the right one, from the lower skin up to the ceiling;
+- a second one from the wing's centre-section skin mesh (|x| < 0.65 m), which the outline only grazes at the root.
+  Its points with no skin under them took the nearest hit's height (-0.49 m), so its walls hung 2 to 3 cm under the
+  wing with no cap.
+
+Aft of the trailing edge, too, the outline's points had no skin under them and borrowed a neighbour's height: a wall
+stood in the air behind the wing.
+
+`wellBox` now does two things:
+- **The box is the skin's that carries the cut.** A mesh under less than 40 % of the outline builds none.
+- **A point with no skin under it is walked inward** (5 mm steps, up to 0.4 m), until it finds the skin. The wall
+  closes the well at the trailing edge.
+
+After the fix: one box per well, walls from the skin up, closed at the trailing edge, and the doors flush. This
+variant's wheel still stands 34 to 51 mm proud of its thin wing (the fit's red row).
+
+**THE CATALINA, RE-CHECKED** (the user: "did you fix the cut in the fuselage? And is our animation mechanism correct
+there?"):
+- **The cut is a closed, round pocket.** A hull section through it (z = 0.458 m on the c172 battery card) shows it
+  going 0.19 m in from the side: walls, a floor, the tyre's own outline.
+- **It still reads wrong gear down.** Its floor and walls are flat grey with no lip and no shadow, so it reads as a
+  drum standing out of the hull. It wants the closed wells' finish (a chamfered lip, a darker interior).
+- **The motion is not confirmed, and the sources point elsewhere.** Ours swings the leg aft to level along the hull,
+  then turns it in about the vertical axis. The sources found say the PBY-5A's mains went UP into recesses in the hull
+  sides, under the wing and between the wing struts, hydraulic, the wheel left in view
+  ([History of War](https://www.historyofwar.org/articles/weapons_PBY-5A_catalina.html),
+  [AOPA](https://www.aopa.org/news-and-media/all-news/2014/august/pilot/f_pby)).
+- **No source found gives the pivot or the linkage.** The operator handbook found
+  (pbycatalina.com, the PBY-5A C-FUAW handbook) is outside this session's network. Not to be rebuilt by eye: the
+  pivot and the arc wait for a handbook or erection-and-maintenance drawing.
+
+**THE AMPHIBIAN: WHAT WE HAVE, WHAT IT NEEDS** (the user: "does your session have enough information to accurately
+start on amphibious floats by modifying the Wipaire and EDO floats? That's work that needs to be done according to
+manufacturer data, not eyeballed"). No, not yet.
+
+What we hold:
+- **The Wipline seaplane catalogue** (`32_hydro.js` FLOAT_PRESETS): length, beam, height, displacement and system mass
+  for 15 models. Eight are marked `est: true` (scaled from displacement, not read off a sheet).
+- **The 2350's lines**, from its parts manual.
+- **Three amphibian installed-mass figures** (206/3450, Beaver/6100, PA-18/2100).
+- **The 2100 and 13000 manuals' system descriptions** (quadricycle, a hydraulic pump and a hand pump, the bow carriage
+  on tracks locking over centre).
+
+What we do not hold, per model:
+- **The amphibian float's own dimensions.** The amphib hull is not the seaplane hull: it is deeper and longer at the
+  bow box, with the main well.
+- **The wheels' positions:** the nose and main axle stations from the bow and the step; the main wheel's height under
+  the keel, gear down; the stowed positions (§1.7 marks them [unverified], from photos).
+- **The tyres and wheels:** the sizes, and the castoring nose's trail.
+- **The retraction geometry:** the nose carriage's track and arc; the main's pivot and swing.
+- **The weights:** the amphibian system weight per model, and land vs water gross and CG limits.
+- **EDO: nothing at all.** No row in the catalogue, no amphibian data.
+
+Where it would come from: the Wipaire installation and parts manuals and STC sheets (wipaire.com, and the manual
+mirrors cited in §1.7), and EDO/Aerocet type data and float drawings. The hosts must be reachable from the session.
+
+### 8.24 The PBY-5A's main gear, from the operator's handbook; the amphibious floats, from photographs
+
+**THE SOURCE.** Pacific Flying Boats, *Canso Flight Operations Handbook* (PBY-5A C-FUAW, June 2020):
+- §1.8 and §1.9, pp. 49-51;
+- Figs 12 and 13, the main gear's extension and retraction drawn in front view;
+- p. 22's g, the gear table.
+
+It was read in this session once the environment allowed pbycatalina.com.
+
+**WHAT IT SAYS:**
+- **The layout.** A tricycle, all hydraulic. "The two main gears retract into wheel wells in the side of the hull. The
+  nose gear retracts into a wheel well in the bow of the hull. Doors close over the nose wheel well", and there are
+  none on the mains.
+- **Up and down locks** on all three units.
+- **The main unit's shock strut** is hydraulic-pneumatic, with a watertight wheel and brake.
+- **The tread** is 16 ft 7 in, 5.05 m, tyre centre to tyre centre.
+- **The motion (§1.9 b, Fig 13).** Two cylinders per side:
+  - the small one, near the main strut's upper hinge point, releases the spring-loaded strut latch through a bell
+    crank and a rod;
+  - the main one "floats between a bracket near the upper end of the main strut and a bracket on the forward leg of
+    the upper V-strut". Contracting, it folds the main strut INWARD, "pulling the gear upward and into the well";
+  - a roller on the axle's inboard end meets a spring bumper arm in the well, because "the gear, in approaching its
+    retracted position, has a tendency to fall into the well". A spring latch then holds it up.
+- **The drawing (Figs 12 and 13, front views of the hull's side).**
+  - Down: the oleo stands upright, OUTBOARD of the hull. A near-level strut runs from the hull's side to the leg's top,
+    and the upper V-strut runs up from it.
+  - Up: the leg and its wheel lie against the hull's side, in the well, still upright.
+  - The motion is all in the cross-section plane (about fore-aft axes): up and in. The wheel stays in its fore-aft
+    plane, with no aft swing and no twist.
+- **The nose.** Two cylinders. The unit is pulled up into the bow's well behind doors, hooked by a spring latch.
+
+**OURS IS WRONG.** The 'catalina' fold (§8.15 v2) swings the leg aft to level, then tucks it about the vertical axis.
+The real gear is a FOUR-BAR in the cross-section plane: the leg is the coupler, carried by the folding side strut and
+the V-strut. It rises and moves inward while staying nearly upright.
+
+Our fold chain only rotates rigid units about a fixed trunnion (plus the shortening slide), so the honest rebuild
+needs:
+- a linkage pose in the core's kinematics (`62c_gear_mech.js`): the leg's pose from two rockers;
+- the gear layer drawing the side strut (with its knee latch) and the V-strut;
+- the well in the hull's side where the wheel ends, upright. The present round recess, the tyre's own outline, is
+  that shape already.
+
+**Built (P2 v3, 5 Nov, the same day).** The core's kinematics are unchanged. The motion is expressed in what the core
+already poses:
+- **The rise.** The shortening's slide, made to carry the whole unit (`shorten.whole`, `t0` -1e9): the jack lifts
+  the leg straight up, done 60 % of the way.
+- **The swing in.** ONE turn about the fore-aft axis through a POLE solved per build. That is the point the
+  displacement turns about, so the wheel lands where it is stowed:
+  - level with the leg's head as drawn (the side's fitting height);
+  - its centre 40 mm inside the side, the tyre about half out.
+
+  The angle is solved too (6 to 40 degrees): the least that keeps the stowed leg inside the side. A PBY's side is
+  upright and its leg too; a hull with tumblehome leans it in.
+- **The leg's head is free** (`legOleo` `RT.free`). The oleo stands upright over its axle, outboard of the hull, with no
+  trunnion lugs left in the air. The wheel rides OUTBOARD of its leg, as in the drawing (v2 had it inboard). `C.top`
+  is the head and `C.hinge` the pole; every use that means the leg reads `topOf(C)`.
+- **The side strut.** A knee from a fitting inside the hull to the leg near its head. The fitting is searched so the
+  strut is longest gear down (straight, locked) and never stretches. It folds down.
+- **The V-strut's jack.** Its barrel runs from a fitting high on the hull's side, its rod from the leg's head. The
+  jack contracts.
+- **The recess** takes the wheel and its leg.
+- **GATE RETRACT section 18** (on the c172 battery card):
+  - the motion lies in the section plane (0.000 mm off it);
+  - the leg stays near upright (13.7 degrees at the most), the wheel upright;
+  - the strut never stretches;
+  - up 0.69 m and in 0.19 m;
+  - half way it has done 93 % of the rise and 69 % of the way in;
+  - the jack and the strut are parts of the one kinematics;
+  - a recess on each side.
+- **The fit is RED on that card, and rightly.** The C172's side is upright only between -0.3 and +0.3 m, and its
+  round bilge falls away under the wheel, so the stowed unit is 125 mm out and its head 0.86 m into the cabin. The
+  PBY's flat-sided hull, about 3 m deep, is what makes the arrangement possible. It waits for a real hull (G7).
+
+**THE AMPHIBIOUS FLOATS, FROM THE USER'S PHOTOGRAPHS** (5 Nov). These are observations, to be checked against the
+manufacturers' data:
+- **The mains.** A large wheel, main-gear size, just AFT OF THE STEP, on every set photographed: Wiplines on Cessnas,
+  EDO on a Cessna, and very large floats on a DC-3.
+  - In flight, on the DC-3's floats, there is one main and one nose wheel per float. The second pair seen is the far
+    float's, by parallax.
+  - On the DC-3's floats the main is a big tyre on a horizontal, trailing strut along the float's bottom, with no door
+    (the user's close-ups).
+- **The nose.** A small castoring wheel at the bow. Retracted, it sits at the very front of the float, in the black bow
+  cap, partly in view. Two mechanisms:
+  - **Wipline:** the leg extends from, and stows INSIDE, the bow. Wipaire's 2100 manual (p. 22): "the carriage is drawn
+    along the tracks in the nose box", with an over-centre down lock. The mains also have over-centre locks up and
+    down, the actuator driving the actuating arm "along the slide track".
+  - **EDO** (the American-flag photograph): the pivot is low at the bow's front. The leg is pushed down by a piston
+    through a small triangular linkage. Retracted, it HUGS the outside of the bow, probably with a fairing.
+- **The DC-3's nose well has doors** (the user's close-ups: an upright oleo, torque links, a steering cam "CAM LIMITS
+  TURN", door panels either side). Its mains have none.
+
+The manufacturers' numbers (dimensions, stations, tyres, weights, the mechanisms' geometry) are being gathered from
+the Wipaire manuals and sheets now that the session can reach them. They go into §8.25.
+
+### 8.25 The amphibious floats: Wipaire's data, and the gear drawn on the Wipline hulls
+
+The user: "do more than study, do it". The data comes from Wipaire's own documents, reached once the environment
+allowed wipaire.com and manualshive.com. The research notes, with every figure used, are in the session's scratchpad
+(AMPHIB-DATA.md, not in the repository). The sources by model:
+
+| model | service manual | parts manual / guide |
+|---|---|---|
+| 2100/2350 | `wipaire.com/wp-content/uploads/2016/10/2100-and-2350-SMAN-Rev-V.pdf` (and manualshive 988365) | guides Husky, Scout, C-172 (`.../2018/06/*.pdf`) |
+| 3000/3450 | `.../2016/10/3000-and-3450-SMAN-Rev-P.pdf` | `.../2016/11/3450-PMAN-on-Cessna-206-Rev-V.pdf`; guides C-180..206 |
+| 3730/3900 | manualshive 988366 | — |
+| 4000, 6000/6100, 7000 | `.../2016/10/4000-SMAN-Rev-K.pdf`, `6000-and-6100-Service-Manual-Rev-W.pdf`, `7000-Service-Manual-Rev-U.pdf` | guides Beaver, Kodiak |
+| 8750 | manualshive 988360 (`.../8750-SMAN-Rev-V.pdf`) | guide C-208B |
+| 13000, 10000 | manualshive 988363 / 988362 (`.../13000-Service-Manual-Rev-T-1.pdf`) | `.../2016/11/13000-PMAN-Rev-Y.pdf`; guide Twin Otter |
+
+**What the manufacturer states:**
+- **The hull is unchanged.** "The amphibian float is geometrically the same as the seaplane except for the addition of
+  landing gear and internal structure for the gear."
+- **The layout is a quadricycle.**
+  - The main gear: a drag link on trunnions at the step bulkhead. Single wheels from the 2100 to the 3450, dual from
+    the 4000 up. It swings up into an open wheel well just aft of the step, with NO doors (no door in any parts
+    list).
+  - The nose gear: a composite spring leg ("very similar to a Cessna style") on a trolley in tracks in a nose box,
+    fully castering, self-centring, with no shimmy damper. It "retracts into the float nose to provide a dock
+    bumper", with no doors.
+- **Locks.** Over-centre locks; the main locks up and down, the nose down only.
+- **Hydraulics.** One hydraulic system and a hand pump: about 100 strokes on the 2100, about 400 on the 13000.
+- **Tyres and weights per model.** The tyres (5.00x5 to dual 8.50x10), the nose tyres, and the amphibian system weight
+  over the seaplane's: +147 lb (PA-18) to +677 lb (DHC-6).
+- **Geometry, read off the dimensioned 3-views** [inferred, plus or minus 3 %]: the wheelbase is 0.48 to 0.52 of the
+  amphibian length; the main axle sits at 0.50 to 0.55 of it from the front, the nose axle at the front.
+
+**Not published, so the drawing ASSUMES these and the record says so (`amph.assumed`):**
+- the wheels' drop: their bottoms half the main's radius under the step's keel;
+- whether the stowed main sits flush with the keel or shows below it: flush where the hull is deep enough, else as
+  high as the deck allows, and the record says how far it shows (`amph.fitWhy`);
+- the trunnion's height: half the hull's;
+- the nose trolley's travel: what lands the wheel at the bow tip;
+- the nose leg's rake: 20 degrees.
+
+**EDO: no data.** No reachable host has any. The FAA type certificate data sheets (drs.faa.gov), Kenmore Air / EDO-AIRE
+and archive.org would be needed.
+
+The DC-3 floats in the user's photographs (an upright oleo, torque links, a steering cam, a doored nose well) are not
+Wiplines. Wipaire's 13000 has a castering spring on a trolley and no doors; no DC-3 float document was reached.
+
+**BUILT (the drawing, the data, the gate):**
+- **The data.** `HYDRO.WIPLINE_AMPHIB` (`32_hydro.js`), beside the seaplane catalogue, which is left untouched:
+  - per model, the main and nose tyres, single or dual mains, the extra length, and the weight over the seaplane's
+    (null where Wipaire publishes no pair);
+  - `TYRE_OD` / `TYRE_W` by the aircraft-tyre rule;
+  - `AMPHIB_GEOM` (wheelbase 0.50, main 0.53);
+  - `amphibOf`: a preset's own gear, else the row nearest the hull's HEIGHT (the wheel must stow in it), est: true.
+- **The row `fltAmph`** ("amphibian (Wipline wheels in the floats)") in the floats group. The gear's position is the
+  gear page's preview row (`gearPos`).
+- **The drawing** (`_cage_float.js` amphib), on each float in the hull's model frame, mirrored to port:
+  - the main's drag link from the step bulkhead's trunnion, the wheel (or the pair) on its axle, and the shock strut
+    to the carriage under the deck. It swings up about the trunnion into its well;
+  - the nose's spring leg from the trolley at the end track's foot to the castering block and fork. It swings forward
+    and up (the short way) while the trolley is drawn aft, and the wheel ends at the bow tip, in the black bumper,
+    half out.
+- **The main well.** The knife cuts it from below into the hull: a closed box to a ceiling over the stowed tyre, open at
+  the bottom, no door.
+- **The record** (`CAGE_FLOAT.amph`): the model, est, the tyres, the weight, the assumptions, the fit's words, and per
+  float the axles down and up, the trunnion and the angle.
+- **GATE RETRACT section 19:**
+  - the catalogue's tyres (5.00x5 is 14 in, 8.50x10 is 25.3 in);
+  - the 2350 wears its own gear;
+  - the main wheel just aft of the step;
+  - the nose ahead of the bow gear down, the main swinging up;
+  - the nose wheel stowed as the dock bumper;
+  - the wells cut;
+  - the assumptions named.
+
+**On the C172 battery card's own float (L 6.95 m, 0.45 m step keel to deck) the stowed 5.00x5 shows 86 mm under the
+keel.** The catalogue's 2350 hull is 0.58 m deep. The record says so.
+
+**NOT YET (the amphibian's next steps, in order):**
+1. The physics. The wheels as contacts beside the hulls (`refs.mains` / `refs.tw`, two nose wheels: free-castering with
+   differential brake). The solver's `isTW` takes an array. The float pass and the wheels' plates run together, so a
+   gear-down water landing noses over.
+2. The flight's poses. The float layer's gear as parts of the one kinematics (`gearMechPose`), the gear handle and the
+   transit on a floatplane.
+3. The mass. `dKg` into the join's float system mass, where Wipaire gives it.
+4. The advisory voice ("gear is up for water landing"), and the pilot's rule (raise it on a positive rate).
+5. EDO, when its data can be reached.
+
+**THE EDO STYLE (built the same day; the user: "you now have enough for doing the EDO variation too, I described enough
+and we have the reference closeups").** `fltAmph` is now three options: none, Wipline, EDO style. No EDO document was
+reached: the geometry is the user's photographs, and the tyres are the same hull's Wipline row's. The record says so
+(`amph.style` 'EDO (photographs)').
+- **The nose, corrected** (the user: "you have the lever going the other way. So the anchor point is not at the tip
+  where you drew it. That's the whipline design. It's actually at the bottom ... and then it moves up when it
+  retracts. And it moves up because it has a little piston").
+  - The leg's ANCHOR is at the bottom of the float's front: on the keel where it turns up into the stem (the
+    forefoot), outside the hull.
+  - Gear down, the leg hangs from it nearly upright (8 degrees of rake), with a fairing and a castering fork.
+  - A small piston, from a fitting on the float's bottom aft of the anchor to the leg a quarter down (the triangle),
+    swings the leg FORWARD AND UP about the anchor. It lies along the stem, and the wheel ends at the bow tip, in front
+    of the float in its black cap.
+  - The anchor is placed where its distance to that stowed place equals the leg's length.
+  - There is no well, so no doors. The first EDO cut had its pivot at the tip and doors on a slot: that was the wrong
+    way round, and it is gone.
+- **The main.** A trailing arm just aft of the step, with a HORIZONTAL shock cylinder along the float's bottom from a
+  fitting ahead of the step to the arm (the close-ups), and no door. Its swing and well are the Wipline's.
+
+**The noses at the black cap; the EDO leg raked** (the user, 5 Nov: "your little wheel is coming too low, so it should
+really come at the level of the black little tip there, and this black little tip should even be cut so that the
+wheel can slide through it ... your rotation point should still follow the bottom of the hull further by, let's say,
+maybe 20 centimeters ... the landing position of your arm is ... between 45 degrees and horizontal ... Then it goes up
+using a little piston ... so that the little wheel goes straight at the tip"; and: "are we sure that we are working on
+the EDO model here and not just the we pair model?").
+- **Both styles stow at the cap.** The stowed nose wheel's centre comes to the cap's middle height, a quarter of the
+  wheel inside the tip. A slot as wide as the tyre is cut through the rubber cap (`out.bumper`, its faces in the
+  band dropped), so the wheel slides through it.
+  - **Wipline:** the leg swings forward and up till the wheel is at that height, and the trolley draws it into the tip.
+  - **EDO style:** the leg swings straight up to it.
+  - **Measured on the c172 card:** both within 33 mm of the cap's middle, 31 mm inside the tip.
+- **EDO: the anchor further aft along the bottom, the leg landing raked.**
+  - The anchor walks aft along the keel to where a leg raked forward about 35 degrees below level reaches the stowed
+    place at the tip exactly. Its length is set by the ground line; the rake is solved from the anchor's height and
+    distance.
+  - **Measured:** the anchor 242 mm aft of the tip (it was 33), the landing rake 34.9 degrees.
+  - The piston, from a fitting on the float's bottom aft of the anchor, swings the leg up.
+- **The hull is not EDO.** Only the gear is EDO's. The hull is still the Wipline 2350's, the one hull family the garage
+  has; EDO's lines wait for EDO drawings.
+- **GATE RETRACT section 19 adds two checks:** both noses at the cap's height; the EDO rake between 45 degrees and level.
+
+### 8.26 The Catalina's single round opening; the amphibians' legs measured (6 Nov)
+
+**THE CATALINA, v4** (the user: "you have done an opening on the side, which corresponds to the whole mechanism. But
+that's not what it does ... the whole mechanism is done so that you can have a single round opening that the wheel
+comes and closes ... The little leg there will have almost a single point of travel through the wall it goes
+through"). v3 had stowed the leg INSIDE the hull, and its sweep tore a tall slot.
+
+v4:
+- **The leg stays outside.** It stows along the hull's side. The wheel rides INBOARD of it again (`st.ret.flip`, with
+  `free`). The lean is solved (-20 to 40 degrees, the least) to keep every point of the leg 15 mm off the skin.
+- **The links pass the wall at their fittings.** Both the side strut's and the V-strut jack's sit ON the skin, so each
+  passes the wall at one point and cuts nothing.
+- **The recess is the STOWED wheel's rims alone:** one round opening, which the wheel closes.
+- **It is always cut as a side well.** Where the side turns into the bilge, the average normal had read it as a belly
+  well.
+- **The fit tests the design.**
+  - The Catalina's skin test is its recess's: the stowed wheel's centre at least 15 mm inside the side.
+  - The floor test ignores the fittings on the skin, the points within 20 mm of it.
+- **On the c172 card one red stays, and it is real:** the stowed wheel's inner half reaches 121 mm over the cabin floor
+  the card raises to -0.25 m. A flying boat's hull is deep, with its floor high.
+
+**THE AMPHIBIANS' LEGS, MEASURED** (the user: "check ... whether the length of the leg that we have is sufficient. They
+just seem a little short to me ... if you can find any data that gives you a clear reference point"). Read off
+Wipaire's dimensioned 3-views (the product guides), each scaled by its own wheelbase dimension:
+- **C-206 on 3450s** (6.00x6, wheelbase 11'-7", 1.806 px/in): the keel stands 7.2 in over the ground line at the step.
+- **Husky on 2100s** (5.00x5, wheelbase 9'-3", 0.836 px/in): 5.5 in.
+
+Both are 0.8 of the main wheel's radius, and the main axle stands level with the keel. `HYDRO.AMPHIB_GEOM.clearK` is
+0.8, a measurement now, not an assumption: `amph.measured.keelClearance` is 142 mm on the 2350's 5.00x5. The old
+assumption, 0.5 R (89 mm), was short, as the user saw. GATE RETRACT section 19 checks it.

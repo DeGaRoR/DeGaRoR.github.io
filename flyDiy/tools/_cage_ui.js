@@ -1760,7 +1760,8 @@ function wingWellApply() {
       for (const p of c.outline) { z0 = Math.min(z0, p[0]); z1 = Math.max(z1, p[0]); x0 = Math.min(x0, -p[1]); x1 = Math.max(x1, -p[1]); }
       return !(bb.max.z < z0 || bb.min.z > z1 || bb.max.x < x0 || bb.min.x > x1 || bb.min.y > c.ceil); });
     if (!near) { o.geometry = g0; continue; }
-    const r = KG.knifeWellsGeo(THREE, g0, cuts, tops);
+    const AFg = C && C.AF, inBody = AFg ? (x, z) => z > AFg.z0 && z < AFg.z1 && Math.abs(x) < AFg.halfWAt(z) - 0.005 : null;   // (P2: the body's box is seen there)
+    const r = KG.knifeWellsGeo(THREE, g0, cuts, tops, inBody);
     if (!r.skin) continue;
     o.geometry = r.skin; ud.wellCutGeo = r.skin;
     if (r.well) { const wm = new THREE.Mesh(r.well, matOf('wheelWell')); wm.name = 'edWellWing'; o.add(wm); ud.wellMesh = wm; }
@@ -1789,7 +1790,7 @@ function nacWellApply() {
     ud.wellSig = sig;
     if (!cuts) { o.geometry = ud.wellGeo0; continue; }
     const rel = new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld);
-    const r = KG.knifeWellsMesh(THREE, ud.wellGeo0, rel, cuts, ud.nacSkin === 'twin');
+    const r = KG.knifeWellsMesh(THREE, ud.wellGeo0, rel, cuts, ud.nacSkin !== 'skin');   // (twins and shells: the hole only)
     if (!r.skin) continue;
     o.geometry = r.skin; ud.wellCutGeo = r.skin;
     if (r.well) { const wm = new THREE.Mesh(r.well, matOf('wheelWell')); wm.name = 'edWellNac'; o.add(wm); ud.wellMesh = wm; }
