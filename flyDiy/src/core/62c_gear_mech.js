@@ -54,12 +54,23 @@ function gearSlide(C, g) {
 function gearSlidePt(C, p, d) {
   const S = C && C.shorten;
   if (!d || !S) return p;
-  const h = C.hinge, t = (p[0] - h[0]) * S.dir[0] + (p[1] - h[1]) * S.dir[1] + (p[2] - h[2]) * S.dir[2];
+  const h = C.top || C.hinge, t = (p[0] - h[0]) * S.dir[0] + (p[1] - h[1]) * S.dir[1] + (p[2] - h[2]) * S.dir[2];   // (P2: from the leg's head)
   return t > S.t0 ? [p[0] - S.dir[0] * d, p[1] - S.dir[1] * d, p[2] - S.dir[2] * d] : p;
 }
-// a unit's rest point where the fold (and, given d, the shortening) has taken it
-function gearUnitPt(C, M, p, d) {
-  const h = C.hinge, ps = d ? gearSlidePt(C, p, d) : p, q = gearApp(M, [ps[0] - h[0], ps[1] - h[1], ps[2] - h[2]]);
+// P2 (the Super Petrel's Catalina mains, 6 Nov - the user: "the mechanism needs to be small and the wheel should fit
+// below the wing"): THE HOIST - a unit's `hoist` { dir, d, k }: the WHOLE unit (head, leg, wheel) carried up `dir`
+// (reversed) by gearLift(C, g), smooth, done k of the way up - apart from the shortening, which slides the piston and
+// the wheel up the leg: a jack lifts the head a little, the oleo telescopes the rest
+function gearLift(C, g) {
+  const L = C && C.hoist;
+  if (!L || !(L.d > 0)) return 0;
+  const s = Math.max(0, Math.min(1, 1 - g)) * (C.frac == null ? 1 : C.frac), t = Math.max(0, Math.min(1, s / (L.k || 0.6)));
+  return L.d * t * t * (3 - 2 * t);
+}
+// a unit's rest point where the fold (and, given d, the shortening; given l, the lift) has taken it
+function gearUnitPt(C, M, p, d, l) {
+  const h = C.hinge, p1 = d ? gearSlidePt(C, p, d) : p, Lf = C.hoist;
+  const ps = l && Lf ? [p1[0] - Lf.dir[0] * l, p1[1] - Lf.dir[1] * l, p1[2] - Lf.dir[2] * l] : p1, q = gearApp(M, [ps[0] - h[0], ps[1] - h[1], ps[2] - h[2]]);
   return [h[0] + q[0], h[1] + q[1], h[2] + q[2]];
 }
 // the two-link knee: from s to l, links a (from s) and b (from l), bent toward `bend` (else `prev`, the side it was on)
@@ -98,19 +109,19 @@ function gearAlign(a, b) {
 const gearNrm = v => { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
 // every point of the record at g: the units' folds, then the knees (their ends are units' points or fixed)
 function gearMechPoints(R, g) {
-  const M = {}, D = {};
-  for (const k in R.units || {}) { M[k] = gearFoldPose(R.units[k], g); D[k] = gearSlide(R.units[k], g); }
+  const M = {}, D = {}, Lm = {};
+  for (const k in R.units || {}) { M[k] = gearFoldPose(R.units[k], g); D[k] = gearSlide(R.units[k], g); Lm[k] = gearLift(R.units[k], g); }
   const knees = {};
-  const pt = P => P.fix ? P.fix : P.unit ? (M[P.unit] ? gearUnitPt(R.units[P.unit], M[P.unit], P.p, D[P.unit]) : P.p)
+  const pt = P => P.fix ? P.fix : P.unit ? (M[P.unit] ? gearUnitPt(R.units[P.unit], M[P.unit], P.p, D[P.unit], Lm[P.unit]) : P.p)
     : P.knee ? knees[P.knee] : null;
   for (const id in R.knees || {}) {
     const K = R.knees[id];
     knees[id] = gearKnee(pt(K.s), pt(K.l), K.a, K.b, K.bend ? pt(K.bend) : null, K.k0 || null);
   }
-  return { M, D, knees, pt };
+  return { M, D, Lm, knees, pt };
 }
 function gearMechPose(R, g) {
-  const { M, D, pt } = gearMechPoints(R, g), out = {};
+  const { M, D, Lm, pt } = gearMechPoints(R, g), out = {};
   for (const P of R.parts || []) {
     let A, t;
     if (P.rule === 'door') {
@@ -127,6 +138,9 @@ function gearMechPose(R, g) {
       // (GR: a part riding the piston - `slide` - goes up the leg first: x -> A (x - dir d - h) + h)
       const d = P.slide ? D[P.unit] : 0;
       if (d && C.shorten) { const Ad = gearApp(A, C.shorten.dir); t = [t[0] - Ad[0] * d, t[1] - Ad[1] * d, t[2] - Ad[2] * d]; }
+      // (P2: the lift carries every part of the unit)
+      const l = Lm[P.unit];
+      if (l && C.hoist) { const Al = gearApp(A, C.hoist.dir); t = [t[0] - Al[0] * l, t[1] - Al[1] * l, t[2] - Al[2] * l]; }
     } else {
       const b = pt(P.from), e = pt(P.to);
       if (!b || !e) continue;
@@ -138,4 +152,4 @@ function gearMechPose(R, g) {
   }
   return out;
 }
-const GEAR_MECH = { gearRot, gearMul, gearApp, gearFoldPose, gearUnitPt, gearSlide, gearSlidePt, gearKnee, gearAlign, gearMechPoints, gearMechPose, gearDoorOpen };
+const GEAR_MECH = { gearRot, gearMul, gearApp, gearFoldPose, gearUnitPt, gearSlide, gearSlidePt, gearLift, gearKnee, gearAlign, gearMechPoints, gearMechPose, gearDoorOpen };

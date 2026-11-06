@@ -506,7 +506,7 @@ console.log('10 THE FOLD (G1)');
     const bc = LB.gameSpecFull({ v: 0, birth: 1, spec: D.designBake(ac.sel, ac.over) }).spec;
     const Sc = SH.sceneBuild(bc, { over: { gearRetract: 1, gearFold: 6, gearDoors: 0, gearLegDoor: 0, s1X: 0.6, floorY: -0.25 }, garage: bc });
     const Gc = Sc.W.CAGE_GEAR, CMc = C.GEAR_MECH, Rc = Gc.mech, Cu = Rc.units.L, Ic = Gc.mechInfo.L, AFc = Gc.AF;
-    const pose = g => { const Q = CMc.gearMechPoints(Rc, g), M = Q.M.L, d = Q.D.L; return { Q, M, P: p => CMc.gearUnitPt(Cu, M, p, d) }; };
+    const pose = g => { const Q = CMc.gearMechPoints(Rc, g), M = Q.M.L, d = Q.D.L, lf = Q.Lm.L; return { Q, M, P: p => CMc.gearUnitPt(Cu, M, p, d, lf) }; };
     const top = Cu.top, ax = Cu.axle, legLen = Math.hypot(top[0] - ax[0], top[1] - ax[1]);
     let inPlane = 0, tiltMax = 0, wheelTilt = 0, stretch = 0;
     for (let i = 0; i <= 20; i++) { const g = 1 - i / 20, { Q, M, P } = pose(g), t = P(top), a = P(ax);
@@ -529,12 +529,12 @@ console.log('10 THE FOLD (G1)');
     // wing's skin reddens the fit)
     { const wf = dy => { const S2 = SH.sceneBuild(bc, { over: { gearRetract: 1, gearFold: 6, gearDoors: 0, gearLegDoor: 0, s1X: 0.6, floorY: -0.25, s1Root: 1, w2On: 1, w2Pos: 1, w2Dy: dy }, garage: bc });
         return S2.W.CAGE_GEAR; };
-      const lo = wf(-0.1), hi = wf(0.45), Ch = hi.swing.L, Mh = hi.mech, Cl = lo.swing.L;
-      let topUp = -Infinity; { const Q = C.GEAR_MECH.gearMechPoints(Mh, 0); topUp = C.GEAR_MECH.gearUnitPt(Ch, Q.M.L, Ch.top, Q.D.L)[1]; }
+      const lo = wf(-0.1), hi = wf(0.25), Ch = hi.swing.L, Mh = hi.mech, Cl = lo.swing.L;
+      let topUp = -Infinity; { const Q = C.GEAR_MECH.gearMechPoints(Mh, 0); topUp = C.GEAR_MECH.gearUnitPt(Ch, Q.M.L, Ch.top, Q.D.L, Q.Lm.L)[1]; }
       const jackY = hi.mechInfo.L.jack && hi.mechInfo.L.jack.U[1];
-      check(Ch.catCap != null && topUp <= Ch.catCap + 0.005 && jackY <= Ch.catCap + 0.005 && !(hi.fit.why || []).some(w => /crosses/.test(w)),
-            'a lower wing over the Catalina mains: the stowed leg head and the jack stay under it, nothing crosses it',
-            'head ' + topUp.toFixed(3) + ', jack ' + (jackY != null ? jackY.toFixed(3) : '-') + ' under the cap ' + (Ch.catCap != null ? Ch.catCap.toFixed(3) : '-') + ' m');
+      check(Ch.catCap != null && topUp <= Ch.catCap + 0.005 && jackY <= Ch.catCap + 0.005 && !(hi.fit.why || []).some(w => /crosses|wing over it/.test(w)) && Ch.solved[3] > 0.1,
+            'a lower wing over the Catalina mains: a small mechanism - the head and the jack stay under it, the oleo telescopes the rest, the wheel tucks under it, nothing crosses it',
+            'head ' + topUp.toFixed(3) + ', jack ' + (jackY != null ? jackY.toFixed(3) : '-') + ' under the cap ' + (Ch.catCap != null ? Ch.catCap.toFixed(3) : '-') + ' m; head lifts ' + Ch.solved[2] + ', oleo ' + Ch.solved[3] + ' m');
       check(Cl.catCapWhy && (lo.fit.why || []).some(w => /mm higher/.test(w)), 'a wing too low for the rise reddens the fit, and says how much higher it must be',
             (lo.fit.why || []).find(w => /mm higher/.test(w)) || 'no word'); }
     const asp = c => { const u = c.outline.map(q => q[0]), v = c.outline.map(q => q[1]), a = Math.max(...u) - Math.min(...u), b = Math.max(...v) - Math.min(...v); return Math.max(a, b) / Math.min(a, b); };

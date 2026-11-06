@@ -268,8 +268,14 @@ function slideD(C, g) {
 }
 function slidePt(C, p, d) {
   const S = C && C.shorten; if (!d || !S) return p;
-  const h = C.hinge, t = (p[0] - h[0]) * S.dir[0] + (p[1] - h[1]) * S.dir[1] + (p[2] - h[2]) * S.dir[2];
+  const h = topOf(C), t = (p[0] - h[0]) * S.dir[0] + (p[1] - h[1]) * S.dir[1] + (p[2] - h[2]) * S.dir[2];
   return t > S.t0 ? [p[0] - S.dir[0] * d, p[1] - S.dir[1] * d, p[2] - S.dir[2] * d] : p;
+}
+// the cage's copy of the core's lift (src/core/62c_gear_mech.js gearLift): the whole unit up its leg
+function liftD(C, g) {
+  const L = C && C.hoist; if (!L || !(L.d > 0)) return 0;
+  const s = Math.max(0, Math.min(1, 1 - g)) * (C.frac == null ? 1 : C.frac), t = Math.max(0, Math.min(1, s / (L.k || 0.6)));
+  return L.d * t * t * (3 - 2 * t);
 }
 // THE CHAIN of one unit, its senses probed: u the leg unit (root, axle, the moving end, the wheel's axis), key L / R / T
 function foldChain(u, key, P, SP) {
@@ -313,24 +319,38 @@ function foldChain(u, key, P, SP) {
   const catF = key !== 'T' && FOLD_KEYS[Math.round(+P.gearFold || 0)] === 'catalina';
   if (catF && C.turns.length === 1 && SP) {
     const T = C.turns[0], sg = Math.sign(ax[0]) || 1, c0 = ax;
-    // (P2, the Super Petrel: A WING OVER THE MAINS CAPS THE RISE - the stowed leg's head and its jack stay 30 mm under
-    // the lowest wing's underside over the leg (its head's plan place, 0.4 m outboard, the wheel's length fore and aft);
-    // the stowed wheel then sits lower in the side by what the cap takes; with no room to rise at all the fit says so)
-    const Lup = h[1] - c0[1], wU = wingUnderIn(h[0] - sg * 0.05, h[0] + sg * 0.40, c0[2] - C.R, c0[2] + C.R);
-    C.catCap = wU != null ? wU - 0.03 : null;
-    const y1 = C.catCap != null ? Math.min(h[1], C.catCap - Lup) : h[1];
-    C.catWingRaise = C.catCap != null ? Math.max(0, h[1] + Lup - C.catCap) : 0;      // (what the full rise would need)
-    if (C.catCap != null && y1 < c0[1] + 0.05) C.catCapWhy = 'the wing over it leaves ' + Math.round(Math.max(0, y1 - c0[1]) * 1000) + ' mm to rise - the full rise needs it ' + Math.round(C.catWingRaise * 1000) + ' mm higher (or a shorter leg)';
+    // (P2, the Super Petrel - the user: "the mechanism needs to be small and the wheel should fit below the wing"): A
+    // WING OVER THE MAINS - the lowest wing underside over the leg (its head's plan place to 0.4 m outboard, the wheel's
+    // length fore and aft). The head (and the V-strut jack on it) is LIFTED only as far as 30 mm under it (`C.hoist`, the
+    // whole unit); the OLEO TELESCOPES the rest (`C.shorten`, the piston and the wheel up the leg), so the stowed wheel's
+    // top tucks 20 mm under the wing, half in its round recess. No wing over it: the head lifts the whole way, level
+    // with the stowed wheel (v4). The oleo's travel is its piston's length less 50 mm; short of it, the fit says how much
+    // higher the wing must be
+    const dir = fNrm([c0[0] - h[0], c0[1] - h[1], c0[2] - h[2]]), sDir = u.strut ? fNrm(u.strut) : dir;
+    const wU = wingUnderIn(h[0] - sg * 0.05, h[0] + sg * 0.40, c0[2] - C.R, c0[2] + C.R);
+    C.catCap = wU != null ? wU - 0.03 : null; C.catWingRaise = 0;
+    const trav = u.strutL ? Math.max(0, u.strutL * (1 - (u.cylF || 0.42)) - 0.05) : 0;
+    let y1 = h[1], lw = Math.max(0, h[1] - c0[1]), dT = 0;
+    if (wU != null) {
+      y1 = Math.min(h[1], wU - 0.02 - C.R);
+      lw = Math.max(0, Math.min(y1 - c0[1], C.catCap - h[1]));
+      dT = Math.max(0, (y1 - c0[1]) - lw);
+      if (dT > trav) { C.catWingRaise = dT - trav; dT = trav; y1 = c0[1] + lw + dT; }
+      if (C.catWingRaise > 0.01 || y1 - c0[1] < 0.05)
+        C.catCapWhy = 'the wing over it leaves ' + Math.round(Math.max(0, y1 - c0[1]) * 1000) + ' mm to rise (the head ' + Math.round(lw * 1000) + ', the oleo ' + Math.round(dT * 1000) + ') - tucked under it, the wheel needs the wing ' + Math.round(Math.max(C.catWingRaise, 0.05) * 1000) + ' mm higher (or a shorter leg)';
+    }
     let lo = 0, hi = 3; for (let it = 0; it < 40; it++) { const m2 = (lo + hi) / 2; if (SP.bodyIn([sg * m2, y1, c0[2]]) > 0) lo = m2; else hi = m2; }
-    const c1 = [sg * (lo - 0.04), y1, c0[2]], dir = fNrm([c0[0] - h[0], c0[1] - h[1], c0[2] - h[2]]);
+    const c1 = [sg * (lo - 0.04), y1, c0[2]];
     const rise = Math.max(0, y1 - c0[1]);
     C.top = h.slice();
-    C.shorten = { t0: -1e9, d: rise / Math.max(0.2, -dir[1]), k: 0.6, dir, whole: true };
+    C.hoist = lw > 0 ? { d: lw / Math.max(0.2, -dir[1]), k: 0.6, dir } : null;
+    C.shorten = dT > 0 ? { t0: (u.cylF || 0.42) * (u.strutL || Math.hypot(c0[0] - h[0], c0[1] - h[1])), d: dT / Math.max(0.2, -sDir[1]), k: 0.7, dir: sDir } : null;
+    if (C.shorten) { C.low = !!u.low; C.scissor = u.scissor || null; }
     // (the turn's sense: the head inward; its angle SOLVED, 6 .. 40 degrees: the least that keeps the stowed leg inside
     // the side - a PBY's side is upright and its leg too, a hull with tumblehome leans it in along its side)
     const vUp = [h[0] - c0[0], h[1] - c0[1], 0], tq = fApp(fRot(T.axis, 0.1), vUp);
     if (sg * tq[0] > sg * vUp[0]) T.axis = T.axis.map(c => -c);
-    const cs0 = [c0[0] - dir[0] * C.shorten.d, c0[1] - dir[1] * C.shorten.d];
+    const cs0 = [c0[0] - dir[0] * (C.hoist ? C.hoist.d : 0) - sDir[0] * (C.shorten ? C.shorten.d : 0), c0[1] - dir[1] * (C.hoist ? C.hoist.d : 0) - sDir[1] * (C.shorten ? C.shorten.d : 0)];
     const poleFor = a => { const th = a * T.axis[2], cs = Math.cos(th), sn = Math.sin(th);
       const rx = c1[0] - (cs * cs0[0] - sn * cs0[1]), ry = c1[1] - (sn * cs0[0] + cs * cs0[1]), det = 2 * (1 - cs);
       return [((1 - cs) * rx - sn * ry) / det, (sn * rx + (1 - cs) * ry) / det, c0[2]]; };
@@ -343,7 +363,7 @@ function foldChain(u, key, P, SP) {
       let inn = 0; for (const p of poseAll(C, legPts, 0)) inn = Math.max(inn, SP.bodyIn(p) + 0.015);
       const e = Math.max(0, inn) + 0.0005 * Math.abs(deg); if (!bestA || e < bestA.e) bestA = { e, deg }; }
     T.ang = bestA.deg * D2R; C.hinge = poleFor(T.ang);
-    C.solved = [+(T.ang / D2R).toFixed(1), +rise.toFixed(3)];
+    C.solved = [+(T.ang / D2R).toFixed(1), +rise.toFixed(3), +lw.toFixed(3), +dT.toFixed(3)];
   }
   if (SP && preset && !catF && C.frac >= 0.999 && C.turns.length) {
     const T = C.turns[C.turns.length - 1], a0 = T.ang, sg = a0 < 0 ? -1 : 1;
@@ -609,8 +629,8 @@ function unitPts(C) {
   for (const f of [0.25, 0.4, 0.55, 0.7, 0.85]) L.push([h[0] + (c[0] - h[0]) * f, h[1] + (c[1] - h[1]) * f, h[2] + (c[2] - h[2]) * f]);
   return { W, L };
 }
-const poseAll = (C, pts, g) => { const M = foldPose(C, g), h = C.hinge, d = slideD(C, g);
-  return pts.map(p0 => { const p = d ? slidePt(C, p0, d) : p0, q = fApp(M, [p[0] - h[0], p[1] - h[1], p[2] - h[2]]); return [h[0] + q[0], h[1] + q[1], h[2] + q[2]]; }); };
+const poseAll = (C, pts, g) => { const M = foldPose(C, g), h = C.hinge, d = slideD(C, g), l = liftD(C, g), Lf = C.hoist;
+  return pts.map(p0 => { const p1 = d ? slidePt(C, p0, d) : p0, p = l && Lf ? [p1[0] - Lf.dir[0] * l, p1[1] - Lf.dir[1] * l, p1[2] - Lf.dir[2] * l] : p1, q = fApp(M, [p[0] - h[0], p[1] - h[1], p[2] - h[2]]); return [h[0] + q[0], h[1] + q[1], h[2] + q[2]]; }); };
 // the rows each test hands the builder, per unit (the mains' s1 rows and fold, the nose's s2 rows and fold)
 const FIT_ROWS = {
   L: { fold: ['gearFold', 'gm1Ax', 'gm1Ang', 'gm2Ax', 'gm2Ang', 'gmTwist'], st: 's1' },
@@ -1203,14 +1223,14 @@ function mechBuild(P, swing, group, KT, CM, SP) {
     R.units[k] = C;
     // (GR: a shortening unit's wheel, castor and piston ride the piston up the leg - `slide`)
     const sl = C.shorten ? { slide: true } : {};
-    R.parts.push(Object.assign({ name: 'edLeg' + k, rule: 'rigid', unit: k }, C.shorten && C.shorten.whole ? sl : {}), Object.assign({ name: 'edWheel' + k, rule: 'rigid', unit: k }, sl));
+    R.parts.push({ name: 'edLeg' + k, rule: 'rigid', unit: k }, Object.assign({ name: 'edWheel' + k, rule: 'rigid', unit: k }, sl));
     if (k === 'T') R.parts.push(Object.assign({ name: 'edCastorT', rule: 'rigid', unit: 'T' }, sl));
     if (C.shorten && C.low) R.parts.push({ name: 'edMechLow' + k, rule: 'rigid', unit: k, slide: true, o0: C.hinge.slice() });
     // the torque scissor as a knee: its upper arm on the cylinder, its lower on the piston (slid), the knee forward
     if (C.shorten && C.scissor) { const Sc = C.scissor, kid = 'sc' + k, la = dist(Sc.a0, Sc.knee), lb2 = dist(Sc.knee, Sc.a2);
       const bendP = [Sc.knee[0] + Sc.fwd[0] * 0.05, Sc.knee[1] + Sc.fwd[1] * 0.05, Sc.knee[2] + Sc.fwd[2] * 0.05];
       // (the bend's reference rides the cylinder: its point moved up the leg above the gland)
-      const bRef = (() => { const S = C.shorten, h = C.hinge, t = sub3(bendP, h), tt = t[0] * S.dir[0] + t[1] * S.dir[1] + t[2] * S.dir[2];
+      const bRef = (() => { const S = C.shorten, h = topOf(C), t = sub3(bendP, h), tt = t[0] * S.dir[0] + t[1] * S.dir[1] + t[2] * S.dir[2];
         return tt > S.t0 - 0.01 ? [bendP[0] - S.dir[0] * (tt - S.t0 + 0.02), bendP[1] - S.dir[1] * (tt - S.t0 + 0.02), bendP[2] - S.dir[2] * (tt - S.t0 + 0.02)] : bendP; })();
       R.knees[kid] = { s: { unit: k, p: Sc.a0 }, l: { unit: k, p: Sc.a2 }, a: la, b: lb2, bend: { unit: k, p: bRef } };
       R.parts.push({ name: 'edMech' + k + '_sc1', rule: 'aim', from: { unit: k, p: Sc.a0 }, to: { knee: kid }, o0: Sc.a0, d0: nrm(sub3(Sc.knee, Sc.a0)) },
@@ -1220,7 +1240,7 @@ function mechBuild(P, swing, group, KT, CM, SP) {
         KT.sweep(b.alloy, path, t => KT.secBlade(0.030 - 0.006 * Math.abs(t - 0.5), 0.011), true, Sc.pax);
         for (const p of [p0, q0]) KT.revolve(b.bronze, KT.off(p, Sc.pax, -0.012), Sc.pax, [[0.008, 0], [0.008, 0.024]], 10, true);
       }); }
-    const h = topOf(C), ax = C.axle, Mup = CM.gearFoldPose(C, 0), D0up = CM.gearSlide(C, 0), up = p => CM.gearUnitPt(C, Mup, p, D0up);
+    const h = topOf(C), ax = C.axle, Mup = CM.gearFoldPose(C, 0), D0up = CM.gearSlide(C, 0), L0up = CM.gearLift(C, 0), up = p => CM.gearUnitPt(C, Mup, p, D0up, L0up);
     const legPt = f => lerp(h, ax, f);
     // THE BRACE
     // the knee folds UP into the structure, in the leg's own swing plane: toward a point over the trunnion (off the
@@ -1236,7 +1256,7 @@ function mechBuild(P, swing, group, KT, CM, SP) {
         const B = [h[0] + dv[0] * D, h[1] + dv[1] * D, h[2] + dv[2] * D];
         let worst = Infinity;
         if (SP) for (let i = 0; i <= 6; i++) {
-          const g = i / 10, Mg = CM.gearFoldPose(C, g), l = CM.gearUnitPt(C, Mg, Lp), kn = CM.gearKnee(S, l, D / 2, D / 2, B, null);
+          const g = i / 10, Mg = CM.gearFoldPose(C, g), l = CM.gearUnitPt(C, Mg, Lp, CM.gearSlide(C, g), CM.gearLift(C, g)), kn = CM.gearKnee(S, l, D / 2, D / 2, B, null);
           worst = Math.min(worst, SP.inside(kn));
         }
         if (!best || worst > best.worst + 0.005) best = { worst, B };
@@ -1252,7 +1272,7 @@ function mechBuild(P, swing, group, KT, CM, SP) {
       // searched inside the side (20-300 mm in, from the head's stowed height down to its rest height) for the strut
       // longest gear down - a link that must stretch is no link - and the most level there
       const sg = h[0] >= 0 ? 1 : -1, Lp = legPt(0.10), dist2 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
-      const path = []; for (let i = 0; i <= 24; i++) { const g = 1 - i / 24; path.push(CM.gearUnitPt(C, CM.gearFoldPose(C, g), Lp, CM.gearSlide(C, g))); }
+      const path = []; for (let i = 0; i <= 24; i++) { const g = 1 - i / 24; path.push(CM.gearUnitPt(C, CM.gearFoldPose(C, g), Lp, CM.gearSlide(C, g), CM.gearLift(C, g))); }
       const yTop = Math.min(Math.max(...path.map(q => q[1])), C.catCap != null ? C.catCap : Infinity);
       let bestS = null;
       for (let yi = 0; yi <= 12; yi++) { const y = Lp[1] + (yTop - Lp[1]) * yi / 12;
@@ -1305,7 +1325,7 @@ function mechBuild(P, swing, group, KT, CM, SP) {
     // fitting raised (0.6 .. 1.6 x the leg's length over the head) till the stroke is a real cylinder's)
     if (catM && SP) {
       const sg = h[0] >= 0 ? 1 : -1, Lg = dist(h, ax), dist2 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
-      const hp = []; for (let i = 0; i <= 24; i++) { const g = 1 - i / 24; hp.push(CM.gearUnitPt(C, CM.gearFoldPose(C, g), h, CM.gearSlide(C, g))); }
+      const hp = []; for (let i = 0; i <= 24; i++) { const g = 1 - i / 24; hp.push(CM.gearUnitPt(C, CM.gearFoldPose(C, g), h, CM.gearSlide(C, g), CM.gearLift(C, g))); }
       let pickU = null;
       for (let f = C.catCap != null ? 0.2 : 0.6; f <= 1.61; f += 0.1) { const y = h[1] + f * Lg;
         if (C.catCap != null && y > C.catCap) break;                         // (P2: never over the wing over it)
@@ -1338,7 +1358,7 @@ function mechBuild(P, swing, group, KT, CM, SP) {
     const La = legPt(MECH.actPt), Lu = up(La);
     const swAx = C.turns.length ? C.turns[0].axis : nrm(crs(legUp0, [1, 0, 0]));
     const stroke = A0 => { let lo = Infinity, hi = -Infinity;
-      for (let i = 0; i <= 32; i++) { const d = dist(A0, CM.gearUnitPt(C, CM.gearFoldPose(C, 1 - i / 32), La)); lo = Math.min(lo, d); hi = Math.max(hi, d); }
+      for (let i = 0; i <= 32; i++) { const d = dist(A0, CM.gearUnitPt(C, CM.gearFoldPose(C, 1 - i / 32), La, CM.gearSlide(C, 1 - i / 32), CM.gearLift(C, 1 - i / 32))); lo = Math.min(lo, d); hi = Math.max(hi, d); }
       return { lo, hi, ok: hi <= 2 * lo - 0.06 }; };
     let pick = null;
     for (const kk of [2.8, 2.4, 2.0, 1.7, 1.5]) for (const ph of [0, 15, -15, 30, -30, 45, -45]) {
@@ -2131,7 +2151,9 @@ PAGE.post = ctx => {
                     st.ret = { in: retIn(st, m), pin: retPin(st), fix: bags, free: catS, flip: catS, fits: catS ? null : retFits };
                     st.leg = 2;
                     // GR: a shortening leg - its piston's own bags (they slide), its cylinder shortened for the travel
-                    if (shortRow(P, !!st.single) > 0) { st.ret.low = allBags(); st.P = Object.assign({}, st.P, { oleoCyl: cylFOf(st.P.oleoCyl, P, !!st.single) }); }
+                    // (P2: a Catalina's oleo telescopes to tuck its wheel under a wing: its piston drawn apart, its cylinder 42 %)
+                    if (catS) { st.ret.low = allBags(); st.P = Object.assign({}, st.P, { oleoCyl: Math.min(+st.P.oleoCyl || 0.55, 0.42) }); }
+                    else if (shortRow(P, !!st.single) > 0) { st.ret.low = allBags(); st.P = Object.assign({}, st.P, { oleoCyl: cylFOf(st.P.oleoCyl, P, !!st.single) }); }
                     retMounts.push({ key: st.single ? 'T' : (sgn > 0 ? 'L' : 'R'), wing: !!m, depth: 2 * st.ret.in, z: st.z }); }
         if (st.leg === 0) r = GG.legBeam(lb, AFx, st.P, st, sgn);
         else if (st.leg === 1) r = GG.legLink(lb, AFx, st.P, st, sgn);

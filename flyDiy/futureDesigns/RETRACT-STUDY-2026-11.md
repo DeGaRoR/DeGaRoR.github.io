@@ -2193,3 +2193,31 @@ Now:
   telescope as it rises (`gearShort` does not reach a Catalina), so a long leg needs that much room under the wing. A
   second slide in the core's kinematics (the piston into its cylinder while the unit rises) would let a long leg tuck
   under a low wing. That is the next step if the Petrel needs it.
+
+**THE SMALL MECHANISM: the head hoisted a little, the oleo telescoping the rest** (the user, relayed by the hull-types
+session: "The bottom wing needs to get higher up on the fuselage, the mechanism needs to be small and the wheel should
+fit below the wing. It can go up maybe 10-15 cm"). The cap alone kept the head under the wing only by keeping the
+wheel low: the unit still rose as one piece.
+
+Now the core has a second slide:
+- **THE HOIST** (`src/core/62c_gear_mech.js` gearLift, a unit's `hoist` { dir, d, k }) carries the WHOLE unit up its
+  leg: head, leg, wheel, every rigid part (gearMechPose), every unit point (gearUnitPt's new argument) and every knee.
+  It is apart from the SHORTENING, which slides only the piston and the wheel up the leg. The layer's copies follow
+  (liftD, poseAll), and the shortening now measures its gland from the leg's HEAD (C.top), not the fold's pole.
+- **The Catalina with a wing over it** (the lowest underside over the leg):
+  - the stowed wheel's top tucks 20 mm under the wing;
+  - the head is hoisted only as far as 30 mm under it (the jack stays short and low);
+  - the oleo telescopes the rest, its travel the piston's length less 50 mm. The Catalina's oleo is drawn with its
+    piston apart and its cylinder at 42 %.
+  - Short of travel, the fit reddens: "the wing over it leaves N mm to rise (the head .., the oleo ..) - tucked under
+    it, the wheel needs the wing M mm higher (or a shorter leg)".
+- **With no wing over it**, the head is hoisted the whole way, as v4.
+- **On the c172 battery card with a second wing:**
+
+  | lower wing | head hoisted | oleo telescopes | result |
+  |---|---|---|---|
+  | w2Dy 0.25 (underside about +0.03 m) | 0.398 m | 0.296 m | jack stroke 0.106 m; nothing crosses |
+  | w2Dy 0.45 | 0.598 m | 0.096 m | |
+  | w2Dy -0.1 | | | red: needs the wing 167 mm higher |
+
+- **GATE RETRACT section 18:** the w2Dy 0.25 case - head and jack under the cap, the oleo telescoping, nothing crossing.
