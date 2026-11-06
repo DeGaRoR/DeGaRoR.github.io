@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 06effa456d624820
+// body-sha256: d0af4837565e61f9
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -33587,7 +33587,7 @@ function genStolCageOff(cage) {
 }
 // RETRACT-1 / G1: the gear layer's retraction rows (tools/_cage_gear.js), dropped by genStolCageOff when the gear is fixed
 const GEN_RETRACT_ROWS = ['gearRetract', 'gearRetT', 'gearRetAct', 'gearRetFrac', 'gearFold', 'gearFoldNose', 'gearPos',
-                          'gm1Ax', 'gm1Ang', 'gm2Ax', 'gm2Ang', 'gmTwist', 'gn1Ax', 'gn1Ang', 'gn2Ax', 'gn2Ang', 'gnTwist', 'gearWellCut', 'gearDoors', 'gearLegDoor', 'gearNacFit', 'gearNacPod', 'gearShort', 'gearShortNose'];
+                          'gm1Ax', 'gm1Ang', 'gm2Ax', 'gm2Ang', 'gmTwist', 'gn1Ax', 'gn1Ang', 'gn2Ax', 'gn2Ang', 'gnTwist', 'gearWellCut', 'gearDoors', 'gearLegDoor', 'gearNacFit', 'gearNacPod', 'gearShort', 'gearShortNose', 'gearKneeDoor'];
 function genStolCage(P) {
   if (!P || !GEN_STOL_ROWS.some(k => P[k] != null)) return undefined;
   return genStolOf({ slat: Object.keys(GEN_SLATS)[Math.round(+P.wgSlat || 0)] || 'none',
@@ -43732,6 +43732,8 @@ function genParams(S, fr, strips) {
 //                                                               body, its rod, a brace's link): o0 / d0 its rest base
 //                                                               and axis (at g = 1 the part is where it was drawn)
 //   a point P: { fix: [x, y, z] } (the structure) | { unit, p } (rides the unit, p its rest place) | { knee: id }
+//              | { along: [P, P], r, s, ax } (on a link: r from its first point toward its second, s across it -
+//                along ax x the link: a horn on an arm)
 // THE POSE: name -> [r00, r01, r02, tx, r10, r11, r12, ty, r20, r21, r22, tz] (row-major 3 x 4), the rest at g = 1 the
 // identity.
 // ===========================================================================
@@ -43840,7 +43842,13 @@ function gearMechPoints(R, g) {
   for (const k in R.units || {}) { M[k] = gearFoldPose(R.units[k], g); D[k] = gearSlide(R.units[k], g); Lm[k] = gearLift(R.units[k], g); Am[k] = gearArc(R.units[k], g); }
   const knees = {};
   const pt = P => P.fix ? P.fix : P.unit ? (M[P.unit] ? gearUnitPt(R.units[P.unit], M[P.unit], P.p, D[P.unit], Lm[P.unit], Am[P.unit]) : P.p)
-    : P.knee ? knees[P.knee] : null;
+    : P.knee ? knees[P.knee] : P.along ? alongPt(P) : null;
+  // (P2: a point on a link, r from its first end toward its second, s across - the folding knee's piston works on its
+  // arm's horn)
+  const alongPt = P => { const a = pt(P.along[0]), b = pt(P.along[1]); if (!a || !b) return null;
+    const v = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], l = Math.hypot(v[0], v[1], v[2]) || 1, u = [v[0] / l, v[1] / l, v[2] / l];
+    const s = P.s || 0, x = P.ax || [0, 0, 1], w = [x[1] * u[2] - x[2] * u[1], x[2] * u[0] - x[0] * u[2], x[0] * u[1] - x[1] * u[0]];
+    return [a[0] + u[0] * P.r + w[0] * s, a[1] + u[1] * P.r + w[1] * s, a[2] + u[2] * P.r + w[2] * s]; };
   for (const id in R.knees || {}) {
     const K = R.knees[id];
     knees[id] = gearKnee(pt(K.s), pt(K.l), K.a, K.b, K.bend ? pt(K.bend) : null, K.k0 || null);
