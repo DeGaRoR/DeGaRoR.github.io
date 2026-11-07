@@ -144,20 +144,6 @@ function rowsFor(spec, o) {
   out.cw_lidLen = +lip.toFixed(3);
   out.cw_cowlLen = +Math.max(0.1, Math.min(2, reach - lip)).toFixed(3);
   Object.assign(out, FACE[type](front));
-  // CHEEKS WHERE THE HEADS STAND PROUD (the user's own method, G180: "add a couple of lobes for a boxer and tune them
-  // until the engine fits"; the PA-18's answer): a boxer wider than a body-sized barrel gets two cheeks over its heads,
-  // the overhang + 15 mm, at the heads' station - the barrel stays straight
-  if ((type === 'flat' || type === 'rotax') && mode !== 'own') {
-    const zE = out.cw_cowlLen + out.cw_lidLen;
-    const halfAtHeads = mode === 'blend' ? aW * (1 + (out.cw_taperW - 1) * 0.5) : aW;
-    const over = eW - halfAtHeads;
-    if (over > 0.002) {
-      const zHeads = Math.max(0.05, reach - 0.5 * env.length);
-      Object.assign(out, { cw_lobeN: 2, cw_lobeAz: 0, cw_lobeAmp: +Math.min(0.16, over + 0.015).toFixed(3),
-                           cw_lobeT: +Math.min(0.9, zHeads / zE).toFixed(3), cw_lobeSig: 28,
-                           cw_lobeTSig: +Math.max(0.12, Math.min(0.45, 0.45 * env.length / zE)).toFixed(3) });
-    }
-  }
   // THE THRUST LINE STAYS WHERE IT IS (the engine, its spinner and the flown thrust line follow the cowl's axis:
   // _cowl_gen axisXY = the axis rise + the face rise + the inlet's offset). The barrel is straight on the face's
   // centre; today's offset of the axis goes into the FACE (the spinner sits off-centre in the flat face, as on a
@@ -173,14 +159,40 @@ function rowsFor(spec, o) {
 }
 
 // a straight 'match' needs the front section = the fitted aft section: one fitted build, then copy
-function finish(spec, over) {
-  if (!over || over.fitNose !== 1) return over;
+function finish(spec, over, type) {
+  if (!over) return over;
+  if (over.fitNose !== 1) return fitCheeks(spec, over, type);
   const m = measure(spec, over);
   const P = m.P, o = Object.assign({}, over);
   if (o.cw_sqFrontTop == null) { o.cw_sqFrontTop = +(+P.cw_sqAftTop).toFixed(3); o.cw_sqFrontBot = +(+P.cw_sqAftBot).toFixed(3); }
   // seal what the body gave: the rows stand as the builder's from here (sealed = the size follows, the section is kept)
   for (const k of ['cw_sqAftTop', 'cw_sqAftBot', 'cw_deckH', 'cw_keelH', 'cw_waist']) o[k] = +(+P[k]).toFixed(4);
   o.fitNose = 2;
+  return fitCheeks(spec, o, type);
+}
+
+// CHEEKS WHERE THE HEADS STAND PROUD (the user's own method, G180: "add a couple of lobes for a boxer and tune them
+// until the engine fits"; the PA-18's answer): the drawn engine's vertices outside the drawn barrel (clear.js) give
+// the cheeks' station, spread, height and size; rebuilt until the engine clears (3 passes at most)
+function fitCheeks(spec, o, type) {
+  if (type !== 'flat' && type !== 'rotax') return o;
+  const C = require('./clear.js'), THREE = SH.context().THREE;
+  o = Object.assign({}, o, { cw_lobeN: 0 });
+  for (let pass = 0; pass < 4; pass++) {
+    const m = measure(spec, o), c = C.clearance(m.S, THREE);
+    if (!c || !c.n || c.worst < 0.002) { o._cheeks = c ? c.worst : null; return o; }
+    const CW = m.W.COWL_GEN, zE = CW.zEnd(), P = CW.P;
+    const zs = c.pts.map(p => p[2]).sort((a, b) => a - b), ys = c.pts.map(p => p[1]).sort((a, b) => a - b);
+    const q = (a, t) => a[Math.floor(t * (a.length - 1))];
+    const zMid = 0.5 * (q(zs, 0.05) + q(zs, 0.95)), zSpan = q(zs, 0.95) - q(zs, 0.05), yMid = q(ys, 0.5);
+    // the section's parameter whose point sits at the heads' height on the flank
+    let az = 0, best = Infinity;
+    for (let d = -80; d <= 80; d++) { const p = CW.surfPoint(d * Math.PI / 180, zMid); if (Math.abs(p[1] - yMid) < best) { best = Math.abs(p[1] - yMid); az = d; } }
+    if (!+o.cw_lobeN) Object.assign(o, { cw_lobeN: 2, cw_lobeAz: az, cw_lobeSig: 24, cw_lobeAmp: 0,
+      cw_lobeT: +(zMid / zE).toFixed(3), cw_lobeTSig: +Math.max(0.08, Math.min(0.6, 0.75 * zSpan / zE)).toFixed(3) });
+    o.cw_lobeAmp = +Math.min(0.16, (+o.cw_lobeAmp || 0) + c.worst + 0.012).toFixed(3);
+  }
+  const c = C.clearance(measure(spec, o).S, THREE); o._cheeks = c ? c.worst : null;
   return o;
 }
 
@@ -195,9 +207,10 @@ if (require.main === module) {
   const spec = j.spec || j;
   const r = rowsFor(spec, { opt: arg('opt', 'match'), type: arg('type', 'auto') });
   if (!r.over) { console.error('straight: ' + r.why); process.exit(1); }
-  const over = finish(spec, r.over);
+  const over = finish(spec, r.over, r.why.type);
+  const cheeks = over._cheeks; delete over._cheeks;
   const s2 = JSON.parse(JSON.stringify(spec));
   s2.cage = Object.assign({}, s2.cage, over);
   fs.writeFileSync(OUT, JSON.stringify(j.spec ? Object.assign({}, j, { spec: s2, name: (j.name || '') + ' straight ' + arg('opt', 'match') }) : s2));
-  console.log(JSON.stringify(Object.assign({ out: OUT }, r.why, { face: undefined }, { over })));
+  console.log(JSON.stringify(Object.assign({ out: OUT }, r.why, { face: undefined }, { cheeksWorst: cheeks, over })));
 }
