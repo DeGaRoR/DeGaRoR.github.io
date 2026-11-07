@@ -267,6 +267,13 @@ function genTrim(def) {
     };
     const landPartial = () => {
       if (g.landsPartialFlap != null || !(ldg > 0)) return null;
+      // G2812 (A0, 7 Nov: "the validated Jodel does not take the notch in this ready"): THE JODEL WAITS FOR FLARE-NOPUSH.
+      // On its 0.60 notch the approach steepens (gs 0.084 against 0.055 flapless), the flare arms at 8.5 m, the flap's
+      // drag bleeds it under 1.15 Vs0 at 2.8 m and G970's firm floor pushes the nose 11 -> 2 deg at 0.2 m: 1.44 m/s,
+      // nose-low, two hops (w3 > HOME, 8 kt; flapless 1.09, three-point). That is the flare law's (AFH 9-8: once the
+      // round out has started, no push), not the notch's - until it is fixed the Jodel D112 (card and validated build,
+      // by name: no garage row holds a plane's notch) lands flapless as before. FLARE-NOPUSH removes this line
+      if (/jodel d112/i.test((def.spec && def.spec.meta && def.spec.meta.name) || '')) return null;
       // the notches under the setting that failed, bisected (the trim and the flare grow with the flap: fits is monotone)
       let lo = 0, hi = Math.round(ldg / 0.05), best = null;
       while (hi - lo > 1) { const k = (lo + hi) >> 1, r = notchFits(Math.round(k * 5) / 100); if (r.ok) { lo = k; best = r; } else hi = k; }
