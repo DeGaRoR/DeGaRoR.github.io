@@ -29,13 +29,17 @@ const SEC = { taxi: +opt('taxi', 15), pass: +opt('pass', 15) }, LONG = +opt('lon
 const OUT = path.resolve(opt('out', path.join(__dirname, 'metla_ab_' + Date.now() + '.json')));
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const BASE = 'http://localhost:' + PORT + '/flyDiy/index.html';
-const SIDE = { A: 'town=0', B: 'town=1', T: 'town=1', C: 'town=0' };   // G1435: T = the town on, --toggle run at the taxi's middle (its rows apart)   // G1408: the town is ON by default - A says off explicitly
+const SIDE = { A: 'town=0', B: 'town=1', T: 'town=1', C: 'town=0', P: 'town=1&towntrees=0' };   // TOWN-1: P = the town on, its trees its own (the before)   // G1435: T = the town on, --toggle run at the taxi's middle (its rows apart)   // G1408: the town is ON by default - A says off explicitly
 // G1435: the user's custom near-ultra (flydiy-flightlog-20261003T165355-7u7a header.gfx; tools/perf/shader_guard.js USER_GFX)
 const USER_GFX = { preset: 'custom', pv: 6, fps: 'auto', ground: 'full', scale: 1, cover: 'full', scenery: 'full', drawDist: 'vis', terrain: 1, aa: 'full', density: 200,
   bands: 'mid', shadows: 'full', canopy: 'on', rails: 'on', poles: 'on', glare: 'on', sway: 'on', mist: 'land', clouds: 'full', water: 'full', mirror: 'live', lighting: 'sunset',
   tone: 'cineon', exposure: 1, colour: 'managed', bloom: 'soft', look: 'off', lens: 'off', rays: 'on', ao: 'off', eye: 'on', compositing: 'linear', town: 'nearby' };
 const GFX = opt('gfx', null) === 'user' ? USER_GFX : opt('gfx', null) ? JSON.parse(fs.readFileSync(opt('gfx'), 'utf8')) : null;
 const APPROACH = { sec: +opt('approach', 0), x: +String(opt('approach-at', '-2900,-8400')).split(',')[0], z: +String(opt('approach-at', '-2900,-8400')).split(',')[1], from: +opt('approach-from', 8000) };
+// TOWN-1 (2026-11-07): --shots <dir>: the town's trees in stills - in the approach (the chase view at 3.4, 1.8 and 0.5 km out
+// with --approach-from 4000, --approach 100) and parked over the town's densest tree cell (60 m up, the flight held, the
+// orbit at 80 / 400 / 1500 m), named <side>_<build>_<view>.jpg
+const SHOTS = opt('shots', null);
 const FRAMES = argv.includes('--frames') || !!PROF, TOGGLE = opt('toggle', null) ? fs.readFileSync(opt('toggle'), 'utf8') : null;
 let FD = null; try { FD = require('../frame_dist.js'); } catch (e) {}
 // every recorder row in [t0, t1], columnar
@@ -67,6 +71,9 @@ const CHECK = `JSON.stringify((() => { const P = WORLD && WORLD.premises; const 
   let b = await MB.browser(UDD);
   const R = { date: new Date().toISOString(), order: ORDER, builds: WANT, udd: UDD, fresh, gfx: GFX ? (GFX.preset || 'file') : 'default', rows: [] };
   const log = s => console.log('  ' + s);
+  const shot = async (side, bk, n) => { if (!SHOTS) return; fs.mkdirSync(SHOTS, { recursive: true });
+    const r = await b.cmd('Page.captureScreenshot', { format: 'jpeg', quality: 88 }); const f = path.join(SHOTS, side + '_' + bk + '_' + n + '.jpg');
+    fs.writeFileSync(f, Buffer.from(r.result.data, 'base64')); log('still ' + path.basename(f)); };
   const now = () => b.ev('performance.now()');
   const pull = async () => JSON.parse(await b.ev('JSON.stringify({ fr: __MB.fr.slice(-30000), lt: __MB.lt, sc: __MB.sc || [] })', 20000));
   const trip = async () => {   // the roll-out: press, wait for the trip's done and the screen gone
@@ -127,8 +134,26 @@ const CHECK = `JSON.stringify((() => { const P = WORLD && WORLD.premises; const 
         await FLIGHT_PROBE.place({ at: [x, Math.max(h, 0) + 300, z], zeroV: true, dv: [hx / l * 45, 0, hz / l * 45] }); FLIGHT_PROBE.setManual(true); FLIGHT_PROBE.setManual(false);
         const P = WORLD.premises; return JSON.stringify({ at: [Math.round(x), Math.round(z)], pending: P && P.geoPending ? P.geoPending() : null, dist: P && P.geoDist ? Math.round(P.geoDist(x, z)) : null }); })()`, 20000).catch(e => 'error ' + e.message);
       await sleep(2000);
+      // TOWN-1: the chase view's stills on the way in, timed off the placement (45 m/s), while the scene measures
+      const sh = SHOTS ? [600, 1200, 1800, 2400, 3500].filter(m => m < APPROACH.from).map(m => sleep(Math.max(0, (APPROACH.from - m) / 45 - 2) * 1000).then(() => shot(side, bk, 'in' + m))) : [];
       row.approach = await scene('approach', APPROACH.sec, PROF && 'approach'.includes(PROF)); row.approach.placed = ap;
+      await Promise.all(sh);
       row.approach.geo = JSON.parse(await b.ev("JSON.stringify((() => { const P = WORLD.premises; return P ? { pending: P.geoPending ? P.geoPending() : null, townGeo: P.stats.townGeo || null } : null; })())").catch(() => 'null'));
+    }
+    // TOWN-1: parked over the town's densest tree cell (64 m), the flight held, the orbit around the aeroplane
+    if (SHOTS) {
+      const at = JSON.parse(await b.ev(`(async () => { const W = FLIGHT_PROBE.world(), P = W.premises, O = P && P.overlay, T = O && O.records && O.records.trees;
+        if (!T || !O.frame) return 'null'; const c = new Map();
+        for (const t of T) { if (!t.key || t.key === 'stub|tree') continue; const w = O.frame.toWorld(t.x, t.z), k = Math.floor(w[0] / 64) + ',' + Math.floor(w[1] / 64); c.set(k, (c.get(k) || 0) + 1); }
+        let best = null, n = 0; for (const [k, v] of c) if (v > n) { n = v; best = k; } if (!best) return 'null';
+        const [i, j] = best.split(',').map(Number), x = (i + 0.5) * 64, z = (j + 0.5) * 64, h = W.terrainH ? W.terrainH(x, z) : 0;
+        const p = document.getElementById('bPause'); if (p && /pause/i.test(p.textContent)) p.click();
+        await FLIGHT_PROBE.place({ at: [x, Math.max(h, 0) + 60, z], zeroV: true }); FLIGHT_PROBE.camMode('orbit');
+        return JSON.stringify({ x: Math.round(x), z: Math.round(z), trees: n, of: T.length }); })()`, 20000).catch(e => JSON.stringify('error ' + e.message)));
+      log('parked ' + JSON.stringify(at));
+      if (at && at.x !== undefined) for (const [n, az, el, d] of [['near', 0.8, 0.10, 80], ['mid', 0.8, 0.14, 400], ['far', 0.8, 0.10, 1500], ['far2', 3.9, 0.10, 1500]]) {
+        await b.ev(`(() => { FLIGHT_PROBE.camSet(${az}, ${el}, ${d}); return 1; })()`); await sleep(5000); await shot(side, bk, n); }
+      row.parked = at;
     }
     row.check = JSON.parse(await b.ev(CHECK, 20000).catch(() => 'null'));
     row.exceptions = b.exc.slice(e0);
@@ -148,7 +173,7 @@ const CHECK = `JSON.stringify((() => { const P = WORLD && WORLD.premises; const 
   // the table: per side and build, the medians of its runs
   const med = a => { const s = a.filter(x => x != null).sort((p, q) => p - q); return s.length ? (s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2) : null; };
   console.log('\nside build  | garage  first-flight | TAXI fps uneven p99 worst task | PASS fps uneven p99 worst task (each: the runs\' median; worst = the max)');
-  for (const bk of WANT) for (const side of ['A', 'B']) { const rs = R.rows.filter(r => r.side === side && r.build === bk); if (!rs.length) continue;
+  for (const bk of WANT) for (const side of ['A', 'B', 'P']) { const rs = R.rows.filter(r => r.side === side && r.build === bk); if (!rs.length) continue;
     const g = (k, s) => rs.map(r => r[s] && r[s].st ? r[s].st[k] : null), mx = a => Math.max(...a.filter(x => x != null));
     console.log([side, bk.padEnd(5), med(rs.map(r => r.garage)), med(rs.map(r => r.firstFlight)), '|', med(g('fps', 'taxi')), med(g('uneven', 'taxi')), med(g('p99', 'taxi')), mx(g('worst', 'taxi')), mx(g('taskWorst', 'taxi')),
       '|', med(g('fps', 'pass')), med(g('uneven', 'pass')), med(g('p99', 'pass')), mx(g('worst', 'pass')), mx(g('taskWorst', 'pass'))].join(' ')); }

@@ -314606,3 +314606,16 @@ TIMED GATE (02:56-03:58): taxi chase @HOME and @mn_strip 30 fps, 0 frames over 4
 Parked fleet re-cooked on this build.
 
 No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change.
+TOWN-1 STEP 1 (HW-COVERAGE, 7 Nov): THE TOWN'S TREES JOIN THE FOREST (src/viewer/render_world.js TREE_FILL.town / townInto; render_premises.js buildTrees)
+The user, via A0: "priority on the trees, because that's for me a bug, really ... the way it is managed now seems just ridiculous".
+- **What it was.** Metlakatla's record trees (the forest zones' planting, the placed tree objects) were the town's own draw (G556): a 64 m cell's
+  trees one THREE.LOD on the rungs' 0 / 60 / 132 m bands read from the CELL's centre (a whole cell popping a rung at once, up to 45 m off), no
+  impostor, no fade, and nothing past TREE_GONE (900 m), where the island's trees stand to 9 km on their impostors.
+- **What it is.** In the game the town hands its list to the forest's fill (TREE_FILL.town): each tree is walked into its 1 km fill chunk's BASE part
+  as one more record (townInto, with the chunk's first row), at its own place, yaw, size and sink: the island's rungs, its per-tree partition and
+  fades, the chunk's merged impostor, the 9 km reach. In the walk's record a town tree is sp 0, w = yaw / 6.283 (series 0: md 0, never a snag),
+  can = -size (its own scale; the canopy map is not asked). A changed list restales only the chunks whose list changed (G2931: drawn until the new
+  walk lands); dispose hands back []. The trunks stay the town's (TH 'prem', there before the ring builds): the fill keeps them out of its hits
+  (rec.town / rec.townN). TREE_FILL.townStat() counts chunks, trees and the misses (a key the fill's pool does not hold: not drawn).
+- **The before.** ?towntrees=0: the town's cells, as on master (also the fallback: no fill, or the pack not in). tools/perf/metla_ab.js: side P =
+  the town on with its own trees; --shots <dir>: chase stills on the way in and orbit stills parked over the densest tree cell.
