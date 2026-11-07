@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: f03456ce2fd35670
+// body-sha256: 6ea66663b354677a
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -26330,6 +26330,15 @@ function makePilot(sim, def, world, opts) {
   const GEAR = !!(def.params && def.params.retract) && typeof sim.gear === 'function' && !!sim.gear();
   let gearArm = false, gearForgot = false, gearAppr = 0, gearWait = 0, gearEmSaid = false;   // (the gear starts down: an approach begins once it has been up)
   const gearDice = k => pilotGearDice(Number.isFinite(opts.seed) ? opts.seed | 0 : 1935, k);
+  // SEAPLANES-LAND (A0 7 Nov: "an official plane capsizing on the autopilot's own water landing counts as a real
+  // break"): AN AMPHIBIAN'S "DOWN" IS THE SURFACE'S. On a hull with a retracting tricycle (61_gen_frame's parts.amph) the
+  // wheels the pilot wants down are wanted UP over water: in the air, the destination's surface (an aerodrome record's
+  // water lane: surface 4 / water, stripAllows' own test); on the surface, the one under the aeroplane (the world's
+  // water over its terrain). Every other build - a fixed gear, a land retract - is untouched (AMPHG false)
+  const AMPHG = GEAR && !!(def.parts && def.parts.amph);
+  // (no destination - a glide with nowhere picked: null, and the surface under the aeroplane decides)
+  const gearWetDest = () => { const to = ap.route && ap.route.to; return to ? !!(to.surface === 4 || to.water || to.kind === 'water') : null; };
+  const gearWetUnder = (x, z) => { try { return typeof world.waterH === 'function' && typeof world.terrainH === 'function' && world.waterH(x, z) > world.terrainH(x, z) + 0.2; } catch (e) { return false; } };
   ap.profile = PRF.name;   // G2085: who flies (the page's evidence, the gates): the profile's name, 'expert' for none
   const humRand = () => { HUM.seed = (HUM.seed + 0x6D2B79F5) | 0; let t = HUM.seed; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
   // G2085 (PILOT-PERSONA): THE PERSON'S GAIN (McRuer's crossover model: a human in a loop sets their own gain so the
@@ -28809,6 +28818,11 @@ function makePilot(sim, def, world, opts) {
       else if (ph === 'GLIDE') want = agl < 150 ? 1 : null;
       else if (ph === 'LIFTOFF' || ph === 'PUTDOWN') want = null;   // the handle stays where it is through the lift-off
       else if (!BX.on) want = 1;
+      // SEAPLANES-LAND: the amphibian's wanted state - in the air the destination's surface, on it the one under it
+      // (Pilot's review: a GLIDE under 150 m comes down where it is - the surface under it, not the destination's)
+      const wetTo = AMPHG && onG === 0 && !g.wow && !(ph === 'GLIDE' && agl < 150) ? gearWetDest() : null;
+      const downOK = !AMPHG || !(wetTo !== null ? wetTo : gearWetUnder(cg[0], cg[2]));
+      if (want === 1 && !downOK) want = 0;
       if (want === 0) gearArm = true;
       if (want === 1 && gearArm && !g.wow) { gearArm = false; gearForgot = PRA && PRF.gearForget > 0 && gearDice(gearAppr++) < PRF.gearForget;
         if (gearForgot) say('gear-forgotten', 'the gear was never lowered for this approach'); }
@@ -28817,10 +28831,12 @@ function makePilot(sim, def, world, opts) {
       gearWait = sim.ctl.gear === 1 && !g.locked && !g.emerg ? gearWait + dt : 0;
       if (gearWait > 1.5 * g.time + 2) { sim.gearEmergency(); if (!gearEmSaid) say('gear-emergency', 'the gear did not come down: the emergency extension'); gearEmSaid = true; }
       if (want === 0) gearEmSaid = false;
-      if (ph === 'FINAL' && !gearForgot && !g.locked && agl < 60 && agl > 5 && (ap.gaN || 0) < 2) goAround('the gear is not down and locked');
+      // GUMPS against the WANTED state (SEAPLANES-LAND): down and locked for land, up and stowed for an amphibian's water
+      if (ph === 'FINAL' && !gearForgot && (downOK ? !g.locked : !g.up) && agl < 60 && agl > 5 && (ap.gaN || 0) < 2)
+        goAround(downOK ? 'the gear is not down and locked' : 'the wheels are not up for the water');
       // A BELLY LANDING ENDS: no wheel ever touches to take the flare to the roll-out, so a final or a flare at a
-      // standstill on the ground with the gear not down is the end of it
-      if ((ph === 'FLARE' || ph === 'FINAL') && !g.locked && agl < 4 && V < 3) { say('gear-up-landing', 'on the belly: the gear was not down'); go('STOPPED'); }
+      // standstill on the ground with the gear not down is the end of it (not on an amphibian's water: the hull is its gear)
+      if (downOK && (ph === 'FLARE' || ph === 'FINAL') && !g.locked && agl < 4 && V < 3) { say('gear-up-landing', 'on the belly: the gear was not down'); go('STOPPED'); }
     }
     if (BX.on) boxFly(); else
     switch (ap.phase) {
