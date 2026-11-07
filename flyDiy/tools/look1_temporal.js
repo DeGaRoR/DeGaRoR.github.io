@@ -246,6 +246,17 @@ const PAGE_RIG = `window.LT = (() => {
       for (const k of ['As', 'Noenv', 'Nohemi']) { wr('blue_' + el + '_' + k + '.jpg', b['jpg' + k]); delete b['jpg' + k]; }
       rowsB[el] = b; R.blue = rowsB; log('blue ' + el + ' ' + JSON.stringify(b)); save();
     }
+  } else if (flag('matrix')) {   // bench parity: the AA tier x the leaf sharpen x the impostor's alpha gain, at the canopy (near models) and the stand (impostors): a still + the crawl
+    const COMBOS = JSON.parse(process.env.LT_COMBOS || '[["msaa",0.9,1],["off",0.9,1],["msaa4",0.9,1],["full",0.9,1],["msaa",0.4,1],["msaa",0,1],["msaa",0.9,0.5],["full",0.4,0.5]]');
+    R.matrix = {};
+    for (const vn of (ONLY.length ? ONLY : ['canopy_cu', 'stand'])) { const V = VIEWS.find(v => v.name === vn); const p = await place(V); if (!p) continue; const pose = { x: p.x, y: p.y, z: p.z, yaw: p.yaw, pitch: p.pitch };
+      for (const [aa, sharp, gain] of COMBOS) { const tag = vn + '_' + aa + '_s' + sharp + '_g' + gain;
+        await ev(`(GFX.set('aa', '${aa}'), TREE_LEAF.sharp(${sharp}), TREE_LOD.imp({ gain: ${gain} }), 1)`); await ev(FRAMES(30)); await sleep(1200);
+        const sp = await J(`LT.spread(${JSON.stringify(pose)}, ${JSON.stringify(offs)}, ${pxA})`); wr('mx_' + tag + '.jpg', sp.one); delete sp.one; delete sp.heat;
+        const d = await J(`LT.d2(${JSON.stringify(rows(p, 40, 0.25 * pxA, 0))}, 8)`); delete d.heat; delete d.last;
+        R.matrix[tag] = { spread: sp, pan: { crown: d.crown, low: d.low, all: d.all }, samples: await ev('(FLYDIY_AA.target && FLYDIY_AA.target() ? FLYDIY_AA.target().samples : -1)') };
+        log(tag + ' flicker ' + sp.flicker_all + ' pan crown ' + (d.crown && d.crown.over4) + ' low ' + d.low.over4 + ' samples ' + R.matrix[tag].samples); save(); }
+      await ev(`(GFX.set('aa', 'msaa'), TREE_LEAF.sharp(0.9), TREE_LOD.imp({ gain: 1 }), 1)`); }
   } else if (flag('stills')) {
     const G = { date: '2026-06-22', utc: 4.6 * 3600, rate: 0, cloudCover: 0, cloudType: 'cu' };
     const shots = [['stand_noon', 'stand', CLEAR], ['stand_golden', 'stand', G], ['canopy_noon', 'canopy', CLEAR], ['canopy_golden', 'canopy', G]];
