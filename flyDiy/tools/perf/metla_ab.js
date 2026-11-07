@@ -149,7 +149,7 @@ const CHECK = `JSON.stringify((() => { const P = WORLD && WORLD.premises; const 
         const [i, j] = best.split(',').map(Number), x = (i + 0.5) * 64, z = (j + 0.5) * 64, h = W.terrainH ? W.terrainH(x, z) : 0;
         const p = document.getElementById('bPause'); if (p && /pause/i.test(p.textContent)) p.click();
         await FLIGHT_PROBE.place({ at: [x, Math.max(h, 0) + 60, z], zeroV: true }); FLIGHT_PROBE.camMode('orbit');
-        return JSON.stringify({ x: Math.round(x), z: Math.round(z), trees: n, of: T.length }); })()`, 20000).catch(e => JSON.stringify('error ' + e.message)));
+        return JSON.stringify({ x: Math.round(x), z: Math.round(z), trees: n, of: T.length, fill: window.TREE_FILL && TREE_FILL.townStat ? TREE_FILL.townStat() : null, prem: P.stats ? { trees: P.stats.trees, cells: P.stats.treeCells, fill: P.stats.townFill } : null }); })()`, 20000).catch(e => JSON.stringify('error ' + e.message)));
       log('parked ' + JSON.stringify(at));
       if (at && at.x !== undefined) for (const [n, az, el, d] of [['near', 0.8, 0.10, 80], ['mid', 0.8, 0.14, 400], ['far', 0.8, 0.10, 1500], ['far2', 3.9, 0.10, 1500]]) {
         await b.ev(`(() => { FLIGHT_PROBE.camSet(${az}, ${el}, ${d}); return 1; })()`); await sleep(5000); await shot(side, bk, n); }
