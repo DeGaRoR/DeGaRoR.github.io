@@ -260,6 +260,40 @@ const SKIN_ONLY = { intOn: 0, shoulderOn: 0, doorPanelOn: 0 };
   }
 }
 
+// ---------------------------------------------------------------------------
+// 6 BUBBLE WINDOWS (BUBBLE-WINDOWS, the user 7 Nov): the bulge row blows the
+// pane out into a blister on the same loop - watertight, standing out of the
+// skin by about the row, no reveal wall, and an unset row is the window as it
+// was (the identity above holds every saved build with the row absent)
+// ---------------------------------------------------------------------------
+{
+  const B = 0.05;
+  const flat = Object.assign({}, PAGE_BASE, SKIN_ONLY, { paxWinN: 2 });
+  for (const [nm, over] of [['rounded', {}], ['oval', { paxWinShape: 1 }], ['triangle', { paxWinTopK: 0, paxWinR: 0.03 }]]) {
+    const s0 = sheetOf(Object.assign({}, flat, over)), s1 = sheetOf(Object.assign({}, flat, over, { paxWinBulge: B }));
+    const w = watertight(s1);
+    const blis = (s1.knifeStats || []).map(x => x.blister || 0);
+    const walls = s1.F.filter(f => f.knife && f.m === 'reveal').length;
+    // the dome's height over its loop's mean plane
+    let hMax = 0;
+    for (const l of s1.knifeLoops || []) {
+      const c0 = [0, 0, 0], n0 = [0, 0, 0];
+      l.pts.forEach((p, i) => { for (let k = 0; k < 3; k++) { c0[k] += p[k] / l.pts.length; n0[k] += l.ns[i][k]; } });
+      const nl = Math.hypot(n0[0], n0[1], n0[2]);
+      let r = 0; for (const p of l.pts) r = Math.max(r, Math.hypot(p[0] - c0[0], p[1] - c0[1], p[2] - c0[2]));
+      for (const f of s1.F) if (f.knife && f.m === 'drawnPane') for (const vi of f.v) {
+        const p = s1.V[vi], d = [p[0] - c0[0], p[1] - c0[1], p[2] - c0[2]];
+        if (Math.hypot(d[0], d[1], d[2]) <= r * 1.05) hMax = Math.max(hMax, (d[0] * n0[0] + d[1] * n0[1] + d[2] * n0[2]) / nl);
+      }
+    }
+    check(w.ok && blis.length === 4 && blis.every(n => n > 0) && walls === 0,
+          'BUBBLE ' + nm + ' blister watertight: ' + w.loops + ' loops, pane edges ' + w.paneB + ' = loop points ' + w.loopPts +
+          ', over-shared ' + w.over + ', dome triangles ' + blis.join('/') + ', reveal walls ' + walls);
+    check(hMax > B * 0.8 && hMax < B * 1.6, 'BUBBLE ' + nm + ' stands ' + hMax.toFixed(3) + ' m out of its loop (row ' + B + ', the skin\'s own curve on top)');
+    check(sheetHash(s0).hash === sheetHash(sheetOf(Object.assign({}, flat, over, { paxWinBulge: 0 }))).hash,
+          'BUBBLE ' + nm + ' a row at 0 is the flat window');
+  }
+}
 
 if (fails.length) { console.log('GATE KNIFE: FAIL (' + fails.length + ')'); process.exit(1); }
 console.log('GATE KNIFE: PASS');
