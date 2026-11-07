@@ -572,7 +572,8 @@ function run() {
     sim.out.Veas = 30; sim.out.roll = 0.3; sim.out.hdg = Math.PI / 2; sim.out.rpm = [2200]; sim.out.rpmEng = [2200];
     for (let i = 0; i < 300; i++) CK.frame(1 / 60, sim, { t: 5 + i / 60 });
     check(CK.gyroOk && near(CK.readings.roll, 0.3, 0.01) && near(CK.readings.ias, 30, 0.1), 'cockpit: in flight the gyro erects and the readings follow');
-    check(near(CK.readings.hdg, 90, 0.5), 'cockpit: heading in degrees, the nav way round', CK.readings.hdg);
+    // (AVIONICS-PFD-LAND 7 Nov: the compass's heading, north -z - nav angle 90 deg (+z, south) reads 180, as the PFD and the HUD)
+    check(near(CK.readings.hdg, 180, 0.5), 'cockpit: heading in degrees, the compass way round (nav + 90, the PFD\'s and the strips\')', CK.readings.hdg);
     check(near(CK.readings.volts, 14.1, 0.01), 'cockpit: at cruise the alternator holds 14.1 V');
     // A3: the fuel gauge reads litres over the DESIGN capacity (the spec's 50 L, 35 aboard -> 0.7), not `frac` (0.8 of what was loaded)
     check(CK.energy && CK.energy.kind === 'fuel' && near(CK.energy.capacity, 50) && near(CK.readings.fuelFrac, 0.7, 0.01),
