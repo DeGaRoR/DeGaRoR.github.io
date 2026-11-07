@@ -148,7 +148,7 @@ const WATER = (() => {
     #ifdef W_HULL
     uniform sampler2D uWHull; uniform mat4 uWHullVP; uniform vec4 uWHull4;   // G2831: the hull-only capture (x weight, y walk cap, z lod per roughness, w plane)
     #endif
-    uniform sampler2D uWMirror; uniform mat4 uWMirrorVP; uniform vec4 uWMirror4; uniform vec2 uWRes; uniform vec4 uWSky; uniform vec4 uWNight;   // the planar mirror (G460.11): its capture's view-projection; x: the WEIGHT (G522: 1 under fadeFrom, easing to 0 at maxAgl), y: the slope's walk as a fraction of the view distance, z: the lod per roughness, w: the mirror's plane y (G460.11.9)
+    uniform sampler2D uWMirror; uniform mat4 uWMirrorVP; uniform vec4 uWMirror4; uniform vec2 uWRes; uniform vec4 uWSky; uniform vec4 uWNight; uniform float uWStretch; uniform float uWMirMax; uniform vec4 uWDirN; uniform vec4 uWLampP[12]; uniform vec4 uWLampC[12]; uniform vec4 uWLampK;   // the planar mirror (G460.11): its capture's view-projection; x: the WEIGHT (G522: 1 under fadeFrom, easing to 0 at maxAgl), y: the slope's walk as a fraction of the view distance, z: the lod per roughness, w: the mirror's plane y (G460.11.9)
     vec3 wIblP;   // (G2839, debug view 14: the probe lookup itself, before the mirror's mix)
     float wIblR, wIblR0;   // (G2839, debug views 15 / 17: the lookup's roughness, the material's)
     uniform vec4 uWNear;       // ox, oz, half, on - the near patch's box (the far plane is cut out of it)
@@ -462,6 +462,10 @@ const WATER = (() => {
               vec2 muv = mp.xy / mp.w * 0.5 + 0.5;
               if (muv.x > 0.0 && muv.x < 1.0 && muv.y > 0.0 && muv.y < 1.0) {
                 vec4 mr = textureLod(uWMirror, muv, material.roughness * uWMirror4.z);
+                // NIGHT-SHINE, THE SLOPES THE PIXEL CANNOT SHOW (the user 4 Nov: "they would really need to dance with the water"): under a pixel the ripples are a spread of slopes, and each slope
+                // sees the capture higher or lower by twice its tilt, so a far light fills a long streak (Cox-Munk; Bruneton 2010's filtered ellipse). Seven reads along the capture's vertical from the already rippled point, a Gaussian in slope,
+                // scaled by the unresolved variance: none where the ripples are drawn, whole in the far water, a per-pixel dither so the steps read as glitter and not as ghosts. Deep night only (frame()): 0 by day
+                if (uWStretch > 0.0) { float sS = uWStretch * 6.0 * sqrt(max(wSig, 0.0)); if (sS > 1.0e-4) { float nS = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715)))); mr = vec4(0.0); float wT = 0.0, lS = max(material.roughness * uWMirror4.z, 1.0); for (int iS = -3; iS <= 3; iS++) { float qS = (float(iS) + nS - 0.5) / 3.0, gS = exp(-2.0 * qS * qS); mr += textureLod(uWMirror, muv + vec2(0.0, qS * sS), lS) * gS; wT += gS; } mr /= wT; } }
                 float edge = smoothstep(0.0, 0.06, muv.x) * smoothstep(1.0, 0.94, muv.x) * smoothstep(0.0, 0.06, muv.y) * smoothstep(1.0, 0.94, muv.y);
                 // THE CAPTURE IS PREMULTIPLIED (G460.11.2, the user: "there are strange reflections"): the foliage is
                 // drawn with alphaToCoverage, so on the multisampled capture a half-covered canopy pixel RESOLVES to
@@ -471,6 +475,7 @@ const WATER = (() => {
                 // canopy is made OPAQUE from a sixth of a sample up - a true gap between the trees (alpha 0) still
                 // shows the sky, a thin twig no longer paints the sky over the wood
                 vec3 mcol = mr.rgb / max(mr.a, 0.02);
+                if (uWStretch > 0.0) mcol = min(mcol, vec3(uWMirMax));   // NIGHT-SHINE: a hot point in the capture must not become a white bar when it is stretched
                 float mmask = smoothstep(0.06, 0.35, mr.a);
                 // ONE PLANE, ONE BODY (G2830): the capture is the reflection about ITS plane - a lake 38 m over the sea read
                 // through the sea's capture shows the ground at the lake, the sea under a lake's plane is clipped out of
@@ -484,6 +489,20 @@ const WATER = (() => {
           // so at night it was as black as the ridge. Wave slopes do turn a grazing ray up to the higher, brighter sky - this says so at one
           // uniform's cost, in the reflection, so the Fresnel, the hull's mirror and the lamps' reflections stay over it. 0 by day
           iblRadiance += uWNight.rgb * (uWNight.a + (1.0 - uWNight.a) * smoothstep(0.01, 0.09, length(wNw.xz)));   // a share flat, the rest on the ripples' slopes: a flat lift reads milky
+          // NIGHT-SHINE, THE LAMPS' OWN STREAKS (the user 5 Nov: "there's nothing going down from the lights, and you have other things going down from nowhere"; Cox-Munk's glitter path, Podee 2021's elliptical Gaussian): each
+          // listed lamp, in slope space: the half vector against this pixel's rippled normal, so it DANCES where the ripples are drawn, and the variance the pixel cannot draw (wSig) stretches it far out. The grazing geometry
+          // makes the long narrow streak by itself, straight under its lamp. x: lamps, y: variance floor, z: share of wSig, w: the deep-night ramp (frame()); fed from the premises lamps (render_premises). Over the sheen, under the hull's mirror
+          if (uWLampK.x > 0.5 && uWLampK.w > 0.0) {
+            vec3 lV = normalize(cameraPosition - vWP0);
+            vec2 lN = wNw.xz / max(wNw.y, 0.2);
+            float lS2 = uWLampK.y + uWLampK.z * max(wSig, 0.0);
+            for (int iL = 0; iL < 12; iL++) {
+              if (float(iL) >= uWLampK.x) break;
+              vec3 lH = normalize(normalize(uWLampP[iL].xyz - vWP0) + lV);
+              vec2 lD = lH.xz / max(lH.y, 0.02) - lN;
+              iblRadiance += uWLampC[iL].rgb * uWLampK.w * exp(-dot(lD, lD) / lS2);
+            }
+          }
           #ifdef W_HULL
           // THE AIRCRAFT'S OWN REFLECTION (G2831, prototype b): the hull-only capture, read like the mirror - the slope walks the
           // point from the mirrored eye (G460.11.9), one plane one body, blurred and faded by the roughness; alpha 0 around the hull
@@ -507,6 +526,8 @@ const WATER = (() => {
           #endif
           iblRadiance *= wMeanF; }`)
       .replace('#include <normal_fragment_maps>', '')
+      // NIGHT-SHINE: the direct lights' glint faded on the FAR water at deep night (uWDirN.x, frame()): there the analytic highlight of a small moon fell on ripples a pixel cannot draw, white dashes along a far shore (the hero, 5 Nov); the near glitter path stays
+      .replace('#include <aomap_fragment>', 'reflectedLight.directSpecular *= 1.0 - uWDirN.x * smoothstep(uWDirN.y, uWDirN.z, distance(vWP0, cameraPosition));\n#include <aomap_fragment>')
       // G794 THE REFLECTION IS THE SURFACE'S, NOT THE COLUMN'S (W-LOOK, the user on the harbour from 40 m: "water feels
       // much too transparent ... I can't even clearly see where the water line lies"). The water is ALPHA-BLENDED with
       // the column's opacity as its alpha, so everything it drew - the body's colour AND the sky's / the mirror's
@@ -651,6 +672,8 @@ const WATER = (() => {
       uWDetail: { value: null }, uWInter: { value: null }, uWInterBox: { value: v4() },
       uWMirror: { value: null }, uWMirrorVP: { value: new THREE.Matrix4() }, uWMirror4: { value: v4() }, uWRes: { value: new THREE.Vector2(1920, 1080) },
       uWHull: { value: null }, uWHullVP: { value: new THREE.Matrix4() }, uWHull4: { value: v4() },   // G2831 (prototype b)
+      uWStretch: { value: 0 }, uWMirMax: { value: 1e9 }, uWDirN: { value: new THREE.Vector4(0, 150, 600, 0) },   // NIGHT-SHINE (frame())
+      uWLampP: { value: Array.from({ length: 12 }, () => new THREE.Vector4()) }, uWLampC: { value: Array.from({ length: 12 }, () => new THREE.Vector4()) }, uWLampK: { value: v4(0) },   // NIGHT-SHINE: lamps()
       uWNight: { value: v4(0) },   // NIGHT-BRIGHT: the sheen's radiance (frame())
       uWSky: { value: v4(1) },   // G2839 x: the probe lookup's lobe scale under the mirror's weight (MIR.skyK; 1 = the GGX lobe of the roughness)
       uWNear: { value: v4() }, uWDbg: { value: 0 }, uWLook: { value: v4(S.reflKeep, S.slant, S.lap, S.wet) },
@@ -1645,7 +1668,9 @@ const WATER = (() => {
   }
   // frame(dtWall): the clock (free-running only when setTime did not speak), the reduced phases, the drift
   // NIGHT-BRIGHT: the sheen, an exposed level (x P / the true exposure), in from dusk, none under an exposure of ~3 (the day's to the bit)
-  const NIGHT_SEA = { k: 0.38, col: [0.25, 0.42, 1.0], flat: 0.7 };   // (the user: "a tad too milky": 30 % of it rides the ripples' slopes; bluer)
+  // NIGHT-SHINE: the stretch, the hot points' cap (an exposed level), the far glint's fade, as judged in the hero; these and the lamps' streaks ride a DEEP-night ramp,
+  // log2(exposure) shine[0]..shine[1], later than the sheen's: the dusk's sun keeps its glitter path and its reflection as they were
+  const NIGHT_SEA = { k: 0.38, col: [0.25, 0.42, 1.0], flat: 0.7, stretch: 0.1, cap: 2.2, glintFar: 1, shine: [7, 10.5] };   // (the user: "a tad too milky": 30 % of it rides the ripples' slopes; bluer)
   function frame(dt) {
     if (U && U.uWNight) {
       const Wn = typeof window !== 'undefined' ? window : {}, exN = (Wn.GFX && Wn.GFX.exposureBase && Wn.GFX.exposureBase()) || 1;
@@ -1655,6 +1680,10 @@ const WATER = (() => {
       // NIGHT-RIPPLE: here, every frame, eased with the sheen: in setWind (which runs when the wind CHANGES) it latched through the next day or never came on at a calm dusk. The day's to the bit
       const zD = S.detailK * Math.min(1, 0.12 + IN.wind[0] / 8);
       U.uWDetailK.value.z = Math.max(zD, Math.min(3.1, zD * (1 + 4 * tN)));
+      // NIGHT-SHINE: the stretch, its cap, the far glint's fade and the lamps' streaks on the deep-night ramp tS: by day and at dusk all four are off to the bit
+      const tS = Math.max(0, Math.min(1, (Math.log2(Math.max(1, exN)) - NIGHT_SEA.shine[0]) / (NIGHT_SEA.shine[1] - NIGHT_SEA.shine[0])));
+      const kE = (typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.P ? LIGHT_RIG.P() : 1) / Math.max(0.92, exN);
+      if (U.uWStretch) { U.uWStretch.value = NIGHT_SEA.stretch * tS; U.uWMirMax.value = tS > 0 ? NIGHT_SEA.cap * kE : 1e9; U.uWDirN.value.x = NIGHT_SEA.glintFar * tS; U.uWLampK.value.w = tS; }
     }
     if (!T.set) T.t += (dt || 0); else T.seen++;
     T.set = false;
@@ -1698,7 +1727,15 @@ const WATER = (() => {
   }
   const roughJS = s2 => Math.pow(Math.max(s2, 1e-5), 0.25);
 
-  const API = { nightSea: NIGHT_SEA, NTR, S, PRESETS, BODIES, GLSL: { gerstner: GLSL_GERSTNER, gerstnerN: GLSL_GERSTNER_N, frag: GLSL_FRAG_PARS },
+  // NIGHT-SHINE: lamps(list) - up to 12 lamps whose own streaks the sea draws, [{ p: [x, y, z] world, c: [r, g, b] radiance x P }], null or [] for none
+  function lamps(list) {
+    if (!U || !U.uWLampK) return 0;
+    const n = list ? Math.min(12, list.length) : 0;
+    for (let i = 0; i < n; i++) { const q = list[i]; U.uWLampP.value[i].set(q.p[0], q.p[1], q.p[2], 0); U.uWLampC.value[i].set(q.c[0], q.c[1], q.c[2], 0); }
+    U.uWLampK.value.set(n, 0.0012, 0.05, U.uWLampK.value.w);
+    return n;
+  }
+  const API = { lamps, nightSea: NIGHT_SEA, NTR, S, PRESETS, BODIES, GLSL: { gerstner: GLSL_GERSTNER, gerstnerN: GLSL_GERSTNER_N, frag: GLSL_FRAG_PARS },
     make, material, tag, hook, setTime, time, bodyOptics, WATER_TYPES, setSea, seaChanged, setWind, setSDF, setInteraction, setNear, set, setTier, frame,
     gerstnerJS, gerstnerFromGLSL, sigma2JS, roughJS, bakeTile, makeTile, paintTestV, watch, stats,
     mirrorRender, mirrorOff, mirror: MIR, setCoast, setCalm, calmAt: calmAtCPU, waveK: waveKCPU, obliqueClip, mirrorPlane, waterSeen, seen, hullRender, hullOff, hull: HULL, proto: PROTO, perspBounds,   // (G2830: the plane's rule and THE WATER SEEN, for GATE WATER)
