@@ -3335,7 +3335,8 @@ function makePilot(sim, def, world, opts) {
       else if (ph === 'LIFTOFF' || ph === 'PUTDOWN') want = null;   // the handle stays where it is through the lift-off
       else if (!BX.on) want = 1;
       // SEAPLANES-LAND: the amphibian's wanted state - in the air the destination's surface, on it the one under it
-      const wetTo = AMPHG && onG === 0 && !g.wow ? gearWetDest() : null;
+      // (Pilot's review: a GLIDE under 150 m comes down where it is - the surface under it, not the destination's)
+      const wetTo = AMPHG && onG === 0 && !g.wow && !(ph === 'GLIDE' && agl < 150) ? gearWetDest() : null;
       const downOK = !AMPHG || !(wetTo !== null ? wetTo : gearWetUnder(cg[0], cg[2]));
       if (want === 1 && !downOK) want = 0;
       if (want === 0) gearArm = true;
