@@ -177,7 +177,8 @@ const PROFILE_LIVE = opt('profile-live', null);
 // thread's tasks) from just before the roll-out click for <secs> s, written beside the JSON as <label>.trace.json (open
 // it in chrome://tracing or Perfetto). For the cold freeze that sits off the main thread (the frames stop, no long task)
 const TRACE = opt('trace', null);
-const TRACE_CATS = 'toplevel,disabled-by-default-devtools.timeline,devtools.timeline,v8.execute,blink,cc,viz,gpu,gpu.service,gpu.angle,'
+// --trace-cats narrows a targeted trace; the default still includes GPU/ANGLE.
+const TRACE_CATS = opt('trace-cats', null) || 'toplevel,disabled-by-default-devtools.timeline,devtools.timeline,v8.execute,blink,cc,viz,gpu,gpu.service,gpu.angle,'
   + 'disabled-by-default-gpu.service,disabled-by-default-gpu.angle,disabled-by-default-gpu.decoder,gpu.capture,__metadata';
 // --pre <js | @file> (C4b, G879): a script the page runs before its first own script (after the rig's own pre-lines) - a
 // debugging hook, e.g. tools/perf/progwait_hook.js, which names every GL call that waited on a program link
@@ -231,7 +232,7 @@ const RP_SLOWGL = String.raw`(() => { const L = window.__SLOWGL = [], P = WebGL2
   const who = () => String(new Error().stack).split('\n').slice(3, 9).map(l => l.trim().replace(/^at /, '').replace(/https?:[^ ]*\//, '').slice(0, 48)).join(' < ');
   const desc = (g, pr) => { try { if (!pr) return ''; const sh = g.getAttachedShaders(pr) || [], fs = sh.map(q => g.getShaderSource(q) || ''), u = ((fs[1] || fs[0] || '').match(/uniform\s+\w+\s+\w+\s+u[A-Z]\w+/g) || []).slice(0, 6).map(x => x.split(/\s+/).pop()); return fs.map(x => x.length).join('+') + ' ' + u.join(','); } catch (e) { return '?'; } };
   for (const m of Object.getOwnPropertyNames(P)) { let d; try { d = Object.getOwnPropertyDescriptor(P, m); } catch (e) { continue; } if (!d || typeof d.value !== 'function') continue; const f = d.value;
-    P[m] = function () { if (m === 'useProgram') cur = arguments[0]; const t = performance.now(), r = f.apply(this, arguments), dt = performance.now() - t; if (dt > 100) L.push([Math.round(t), m, Math.round(dt), desc(this, cur), who()]); return r; }; }
+    P[m] = function () { if (m === 'useProgram') cur = arguments[0]; const t = performance.now(), r = f.apply(this, arguments), dt = performance.now() - t; if (dt > 100) L.push([Math.round(t), m, Math.round(dt), desc(this, /^(getProgramInfoLog|getProgramParameter|linkProgram)$/.test(m) ? arguments[0] : cur), who()]); return r; }; }
   let last = 0; const g = t => { if (last && t - last > 300) L.push([Math.round(t), 'GAP', Math.round(t - last), window.CLOUDS ? CLOUDS.stats.slicesBaked : -1]); last = t; requestAnimationFrame(g); }; requestAnimationFrame(g); })();`;
 function preScript() {
   const lines = [];
@@ -335,7 +336,7 @@ const INSTALL = `(() => {
   const prem = () => { const p = W && W.premises; return p && p.stats ? p.stats.queued : -1; };
   P.end = function (workMs, physMs, steps, now) {
     // REVEAL (A0 22 Oct): a frame the loop ran and did NOT draw (holdRender: the trip's links) - its time and its worldUpdate
-    // fold into the next drawn frame's row, as before (the gap the player sees), and that row says how many it holds (col 29)
+    // fold into the next drawn frame's row, as before (the gap the player sees), and that row says how many it holds (col 31)
     if (arguments[5]) { heldN++; return endW(workMs, physMs, steps, now, arguments[4], true); }
     const st = P.state();
     let agl = null, x = null, z = null, apPh = '', V = null, onG = null, hAgl = null, wph = '', man = 0;
@@ -502,6 +503,7 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
   // G3320 (PILOTPAGE): --persona <name> - the shed's #selPersona set and its change fired before the roll-out (as tools/tour_real.js)
   if (opt('persona', null)) console.log('  persona: ' + await ev("(()=>{if(window.FLYDIY_RAIL&&FLYDIY_RAIL.dev)FLYDIY_RAIL.dev(true);const s=document.getElementById('selPersona');if(!s)return 'no #selPersona';s.value=" + JSON.stringify(opt('persona')) + ";s.dispatchEvent(new Event('change',{bubbles:true}));return window.FLYDIY_PERSONA?JSON.stringify(FLYDIY_PERSONA.get().profile):s.value;})()"));
   // ROLL OUT
+  const bootAtRoll = await ev('JSON.stringify(window.BOOT ? {state:BOOT.state,busy:BOOT.busy ? BOOT.busy() : null,current:BOOT.current,step:BOOT.stepI,steps:BOOT.steps.length} : null)');
   const tRoll = Date.now(), clickAt = await ev('performance.now()');
   // G1117: ONE press - the bar's (#bGo), else the first visible 'Roll out' (#edRoll, the editor's, says it too: clicking
   // both started the roll-out and then SKIPPED its shot with the second press - every run before G1117 measured a skipped shot)
@@ -563,6 +565,7 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
   if (CAM) { await ev('FLIGHT_PROBE.camMode(' + JSON.stringify(CAM) + '), 1'); await sleep(500); where.cam = await ev('FLIGHT_PROBE.camModeNow()');
     if (where.cam !== CAM) console.log('  CAM: asked ' + CAM + ', the page shows ' + where.cam + ' (the view is not the one asked for)'); }
   else where.cam = await ev('FLIGHT_PROBE.camModeNow ? FLIGHT_PROBE.camModeNow() : null').catch(() => null);
+  const cameraAt = await ev('performance.now()');
   if (HOVER) { await ev("(() => { const c = document.getElementById('c'), r = c.getBoundingClientRect(); window.dispatchEvent(new PointerEvent('pointermove', { clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 })); return 1; })()"); where.hover = true; }
   // G1165: the rudder steps, alongside the recording (it waits for them before the report)
   let latP = null;
@@ -719,6 +722,8 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
         + (latency.simw ? ' | key -> post ' + h.post + ' -> due ' + h.due + ' -> arrive ' + h.arrive + ' -> picture ' + h.draw + ' = TOTAL ' + h.total + ' ms (p90 ' + h.totalP90 + ')' : ' (+ the pose 0.75 step behind: ~12.5 ms)')
         + ' | drawn pose age ' + a.med + ' ms (p90 ' + a.p90 + ', ' + a.n + ' frames)'
         + ' | starved ' + JSON.stringify(latency.starved) + ' | judderTs ' + JSON.stringify(latency.judderTs)); } }
+  // CODEX1 diagnostic: snapshot frames before the optional census serializes.
+  const R = JSON.parse(await ev('JSON.stringify({ fr: __RP.fr, lt: __RP.lt, tw: __RP.tw, bs: __RP.bs || [], twParts: window.WORLD && WORLD.premises && WORLD.premises.town ? WORLD.premises.town.parts : null })', 60000));
   const evalOut = EVAL ? await ev('(async () => JSON.stringify(await (' + EVAL + '\n)))()', +opt('eval-ms', 60000)).catch(e => 'error: ' + e.message) : null;   // --eval-ms: a longer census (tools/pave_ab.js, G928)
   if (EVAL) console.log('  eval: ' + evalOut);
   const prof = await profDone;
@@ -745,7 +750,7 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
     fs.mkdirSync(path.dirname(OUT), { recursive: true });
     fs.writeFileSync(OUT.replace(/\.json$/, '_live.cpuprofile'), JSON.stringify(prof));
   }
-  const R = JSON.parse(await ev('JSON.stringify({ fr: __RP.fr, lt: __RP.lt, tw: __RP.tw, bs: __RP.bs || [], twParts: window.WORLD && WORLD.premises && WORLD.premises.town ? WORLD.premises.town.parts : null })', 60000));
+
   R.fr.forEach((r, i) => { r.tw = R.tw ? R.tw[i] || null : null; });   // (G3415: the town meter rides its frame through the filters)
   // G680: the world step's slices (app.js buildWorldSliced) - how many, the longest, the step's wall
   const worldSlices = JSON.parse(await ev('JSON.stringify(window.__WORLD_SLICES || null)').catch(() => 'null'));
@@ -822,6 +827,19 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
   const SPANS = bootSpans(R.bs);
   const scr = (t0, t1) => underScreen(SPANS, t0, t1);
   const frScr = fr.filter(r => scr(r[0] - r[1], r[0])), frFree = fr.filter(r => !scr(r[0] - r[1], r[0]));
+  // Keep the stock phase totals, but identify where a long interval occurred.
+  // A garage/shot frame labelled stand, or a held loading span labelled taxi,
+  // is not evidence of a long frame in the requested flight view.
+  const frameGaps = fr.filter(r => r[1] > 1000).map(r => ({
+    at: r[0], ms: r[1], phase: r.ph, uiPhase: r[7], heldTicks: r[31] || 0,
+    startsBeforeReveal: r[0] - r[1] < revealAt, afterRequestedCamera: r[0] - r[1] >= cameraAt,
+    context: scr(r[0] - r[1], r[0]) ? 'loading' : r[7] === 'GARAGE' ? 'garage'
+      : r[0] - r[1] < shotEndAt ? 'rollout' : 'flight'
+  }));
+  const firstFlightFrameAt = (fr.find(r => r[7] !== 'GARAGE' && r[7] !== 'HOLDING' && r[29] > 0
+    && r[0] >= Math.max(shotEndAt, cameraAt)
+    && !scr(r[0] - 0.001, r[0])) || [null])[0];
+  if (frameGaps.length) console.log('  GAPS over 1 s by context: ' + JSON.stringify(frameGaps));
   const over100 = frFree.filter(r => r[1] > 100), over100S = frScr.filter(r => r[1] > 100);
   const ltAll = R.lt.filter(x => settingsT0 == null || x[0] < settingsT0), ltS = ltAll.filter(x => scr(x[0], x[0] + x[1]));
   const lt = ltAll.filter(x => !scr(x[0], x[0] + x[1])).sort((a, b) => b[1] - a[1]);
@@ -878,7 +896,7 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
   })();
   console.log('  long tasks > 200 ms: ' + R.lt.filter(x => x[1] > 200).length + ' · worst 8: ' + lt.slice(0, 8).map(x => x[1] + '@' + (x[0] / 1000).toFixed(0) + 's').join(' '));
   if (exc.length) console.log('  page exceptions: ' + exc.length + ' · ' + exc.slice(0, 3).join(' | '));
-  const result = { date: new Date().toISOString(), label: LABEL, url: URL, cold: COLD, build: BUILD, variant: VARIANT, gfx: GFX, world: WORLDN || 'jolene', cam: (where && where.cam) || CAM || null, camAsked: CAM, hover: HOVER, latency, size: SIZE, gpu, ua, dpr, gfx0: JSON.parse(gfx0 || 'null'), box,
+  const result = { date: new Date().toISOString(), revealAt, shotEndAt, cameraAt, firstFlightFrameAt, frameGaps, bootAtRoll: JSON.parse(bootAtRoll), label: LABEL, url: URL, cold: COLD, build: BUILD, variant: VARIANT, gfx: GFX, world: WORLDN || 'jolene', cam: (where && where.cam) || CAM || null, camAsked: CAM, hover: HOVER, latency, size: SIZE, gpu, ua, dpr, gfx0: JSON.parse(gfx0 || 'null'), box,
     from: FROM, dest: DEST, afloat: AFLOAT, start: where,
     bootSpans: SPANS.map(x => [x[0], isFinite(x[1]) ? x[1] : null]), tGarage, tReveal, premEmptyAt, hwstep, gpuWin, cpuThrottle: CPU_THROTTLE, gpux: GPUX, gpuxAt: GPUX_AT, garage: garageFresh, shot: shotStat, phases, dist: distAll, gates, simw, settings: settingsRuns, trips: tripRuns, town: townLine, townMeter, chromeFlags: CHROME_FLAGS, worldSlices: worldSlices, progSrc, longTasks: R.lt, shots, premStream, eval: evalOut, profile: profTop, bootLog: bootLog ? JSON.parse(bootLog) : null, exceptions: exc.slice(0, 20),
     frames: fr.map(r => [+((r[0] - revealAt) / 1000).toFixed(3)].concat(r.slice(1), [r.ph, +r.spd.toFixed(2)])),

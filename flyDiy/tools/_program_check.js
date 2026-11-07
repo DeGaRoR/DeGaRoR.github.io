@@ -243,5 +243,29 @@ function warmThenFrame(useOld) {
   ok(build.indexOf("'shader_warm.js'") > 0 && build.indexOf("'shader_warm.js'") < build.indexOf("'app.js'"), '4 shader_warm.js ships before app.js');
 }
 
+// ---- 5. rebuilding a route keeps its already-warmed overlay programs -----------------------------
+{
+  const B = boot(), { THREE, renderer: R, ctx } = B;
+  B.load(path.join('src', 'viewer', 'ui_layer.js'));
+  B.load(path.join('src', 'viewer', 'pattern_vis.js'));
+  const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(60, 1, 0.1, 100);
+  scene.add(new THREE.HemisphereLight());
+  const pattern = { nodes: [{ id: 'a', x: 0, z: 0, kind: 'hold', hdg: 0 }, { id: 'b', x: 5, z: 0, kind: 'stand' }],
+    routes: { out: [['a', 'b'], ['a', 'b']], back: [['b', 'a'], ['b', 'a']] }, approaches: [] };
+  const app = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');
+  const start = app.indexOf('  function patternVisFor('), end = app.indexOf('  function applyRoute()', start);
+  Object.assign(ctx, { scene, def: { params: { gen: { span: 10 } } }, world: { terrainH: () => 0 },
+    sitePattern: () => pattern, patternPath: () => ({ pts: [{ x: 0, z: 0, hdg: 0 }, { x: 5, z: 0, hdg: 0 }] }) });
+  const counts = [];
+  if (start >= 0 && end > start) {
+    vm.runInContext('let patVis = null, patVisOld = null, patVisK = -1, patLegsRef = null; const patOnGet = () => ({ graph: true });\n' + app.slice(start, end), ctx);
+    for (let i = 0; i < 4; i++) { ctx.patternVisFor({ id: 'HOME', elev: 0 }, null); R.compile(scene, camera); counts.push(B.links.length); }
+    ok(counts[0] > 0 && counts.every(n => n === counts[0]), '5 pattern overlay rebuilds retain their warmed programs', counts.join(' / '));
+    vm.runInContext('patVis.dispose(); patVis = null; if (patVisOld) { patVisOld.dispose(); patVisOld = null; }', ctx);
+    ctx.patternVisFor({ id: 'HOME', elev: 0 }, null); R.compile(scene, camera);
+    ok(B.links.length > counts[0], '5 control: releasing every pattern holder makes the same programs link again', B.links.length - counts[0]);
+  } else ok(false, '5 patternVisFor function found for the real route-rebuild test');
+}
+
 console.log('GATE PROGRAMS: ' + (fails ? 'FAIL (' + fails + ')' : 'PASS'));
 process.exit(fails ? 1 : 0);
