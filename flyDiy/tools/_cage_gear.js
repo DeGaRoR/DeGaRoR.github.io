@@ -1395,7 +1395,9 @@ const GEAR_RETRACTABLE = P => !!(+P.gearRetract && !+P.gearFloats && +P.s2On && 
 const RETRACT_LAB = () => {
   try {
     if (typeof window.FLYDIY_RETRACT_LAB === 'boolean') return window.FLYDIY_RETRACT_LAB;
-    if (typeof location !== 'undefined' && /[?&]retract=lab\b/.test(location.search || '')) return true;
+    // no page (node: the gates, the tools) - no player to hide it from: the lab's rows are all there
+    if (typeof location === 'undefined') return true;
+    if (/[?&]retract=lab\b/.test(location.search || '')) return true;
     return !!(window.localStorage && window.localStorage.getItem('flydiy.flDev') === '1');
   } catch (e) { return true; }
 };
