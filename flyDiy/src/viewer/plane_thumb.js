@@ -4,8 +4,10 @@
 //   PLANE_THUMB.get(key)        -> an image URL or null (null: the card draws its glyph). Keys: 'mine:<save name>' (the
 //                                  player's builds, drawn by this page), anything else a baked file under media/thumbs/
 //   PLANE_THUMB.saved(name)     the garage saved / loaded <name>: drawn once the page is still, if the stand still shows it
-// LIVE_DRAW OFF (A0 4 Nov, L31c): the first draw froze the page 6.1 s on L31b (perf-week list), so saved() does nothing and
-// 'mine:' keys read null (the player's own planes keep their glyph); the baked pictures stay. true below turns it back on.
+// LIVE_DRAW ON again (A0 7 Nov 21:19, PLANE-RENDERS R1): off since L31c for L31b's 6.1 s first draw - the screen's programs
+// compiled inside it (see warm()). With warm() and the encode in its own task, no frame over 100 ms in 10 boots; the cost
+// named: a fresh profile's first draw ~65 ms, two of 18 fresh boots 160 / 976 ms (an earlier pass, not reproduced). false
+// below turns it off: saved() does nothing, 'mine:' keys read null (the glyph), the baked pictures stay.
 // THE DRAW: the game's own renderer, one orthographic eye from the aeroplane's left (plane_shot.js's profile, ported),
 // every visible mesh outside the aeroplane hidden for that one render (the room, the floor, the props), the scene's
 // background a radial studio gradient, the fog pushed out of reach (never removed: a define), the shadow map as it is (not redrawn). Rendered into a corner of the
@@ -13,7 +15,7 @@
 // the next frame draws over it. Kept in prefs per save name with the build's hash: an edit redraws it.
 'use strict';
 (function () {
-  const LIVE_DRAW = false;
+  const LIVE_DRAW = true;
   const W = 240, H = 120, SS = 2, FILL = 0.9, BG0 = '#2b2724', BG1 = '#0a0908';
   const PREF = 'flydiy.thumb.', BAKED = 'media/thumbs/';
   const cache = new Map();   // key -> url (the session's)
@@ -52,10 +54,18 @@
     if (!P || !P.compileScreen || !root || !S) return Promise.resolve(false);
     try { return Promise.resolve(P.compileScreen(root, S)).then(() => true, () => false); } catch (e) { return Promise.resolve(false); }
   }
-  // with warm() first, the box (7 Nov 21:09-21:15, eight fresh profiles): the Cub's first draw 85-93 ms (render ~63, encode ~23),
-  // two earlier fresh boots 160 and 976 ms unexplained; warm profile 25 ms; then 9-25 ms. api.lastParts splits the last draw
+  // with warm() first, the box (7 Nov 21:09-21:26): the Cub's first draw 85-93 ms with the encode in it (render ~63, encode ~23),
+  // 63-68 ms without it (5 fresh boots; the encode 23-31 ms in the next task); warm profile 19-22 ms; then 4-7 ms. Two
+  // fresh boots of an earlier pass 160 and 976 ms, not seen again in 10. api.lastParts splits the last draw
   // the draw: returns a webp/png data URL, or null when the garage is not showing an aeroplane
-  function draw() {
+  // draw(true): the canvas, the encode left to the caller's next task (encode() below: ~23-37 ms of webp, its own task)
+  function encode(c) {
+    if (!c) return null;
+    let url = c.toDataURL('image/webp', 0.86);
+    if (!/^data:image\/webp/.test(url)) url = c.toDataURL('image/png');
+    return url;
+  }
+  function draw(raw) {
     const THREE = window.THREE, P = window.FLIGHT_PROBE, root = window.CAGE_UI_SCENE;
     if (!THREE || !P || !P.renderer || !root) return null;
     const R = P.renderer(), S = P.hangarScene && P.hangarScene(), cam0 = P.camera && P.camera();
@@ -118,8 +128,7 @@
       const g = out.getContext('2d'); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
       // the drawing buffer's bottom-left corner is the canvas element's bottom rows
       g.drawImage(R.domElement, 0, buf.y - rh, rw, rh, 0, 0, W, H); const t2 = performance.now();
-      url = out.toDataURL('image/webp', 0.86);
-      if (!/^data:image\/webp/.test(url)) url = out.toDataURL('image/png');
+      url = raw ? out : encode(out);
       api.lastParts = { render: +(t1 - t0).toFixed(1), read: +(t2 - t1).toFixed(1), encode: +(performance.now() - t2).toFixed(1) };
     } finally {
       for (const o of hid) o.visible = true;
@@ -166,8 +175,8 @@
         if (standHash() !== q.h) return;            // the stand changed under it: drawn the next time it is saved / loaded
         warm().then(() => whenStill(() => {         // the programs first, in slices; then the draw, the page still again
           if (standHash() !== q.h) return;
-          let url = null; try { url = draw(); } catch (e) { url = null; }
-          if (url) { store(q.name, q.h, url); tell('mine:' + q.name); }
+          let c = null; try { c = draw(true); } catch (e) { c = null; }
+          if (c) idle(() => { let url = null; try { url = encode(c); } catch (e) { url = null; } if (url) { store(q.name, q.h, url); tell('mine:' + q.name); } });
         }));
       });
     },
@@ -189,7 +198,7 @@
     },
     forget(name) { cache.delete('mine:' + name); const L = prefs(); try { L && L.removeItem(PREF + 'mine:' + name); } catch (e) {} },
     baked: null,   // { key: file } from media/thumbs/index.json (the bake), loaded at boot
-    draw, warm, hashOf,
+    draw, warm, encode, hashOf,
   };
   window.PLANE_THUMB = api;
 })();

@@ -23,7 +23,7 @@ const fs = require('fs'), path = require('path'), vm = require('vm');
 const ROOT = path.join(__dirname, '..');
 const rd = rel => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 const SELF = process.argv.includes('--selftest');
-const LIVE_OFF = 'const LIVE_DRAW = false;';
+const LIVE_OFF = 'const LIVE_DRAW = false;', LIVE_ON = 'const LIVE_DRAW = true;';
 async function run(src, files) {
   const fails = []; let checks = 0;
   const ok = (c, m) => { checks++; if (!c) fails.push(m); };
@@ -48,14 +48,18 @@ async function run(src, files) {
   ok(/PLANE_THUMB\.get\('mine:' \+ name\)/.test(card) && card.indexOf('PLANE_THUMB.get') < card.indexOf('PARKED.fleetThumb'), "app.js storeCard: PLANE_THUMB.get('mine:' + name) first");
   ok(/addEventListener\('plane-thumb'/.test(U), "storage_ui.js: redraws on 'plane-thumb'");
   // ---- THE LIVE DRAW OFF: the source as shipped, in its own stub window
-  ok(src.includes(LIVE_OFF), 'plane_thumb.js: ' + LIVE_OFF);
+  // LIVE DRAW ON (A0 7 Nov 21:19: land it; a ~1 s first draw once per fresh profile is a cost, named in HANDOVER, not a break)
+  ok(src.includes(LIVE_ON), 'plane_thumb.js: ' + LIVE_ON);
+  // the webp encode is its own task: saved() draws the canvas, encode() in the next idle
+  ok(/c = draw\(true\)/.test(src) && /if \(c\) idle\(\(\) => \{ let url = null; try \{ url = encode\(c\)/.test(src), 'saved(): draw(true), the encode in an idle task after');
+  // ---- THE OFF SWITCH still works (flipped back in its own stub window)
   {
     const st = new Map(), id = [], w = { localStorage: { getItem: k => st.has(k) ? st.get(k) : null, setItem: (k, v) => st.set(k, String(v)), removeItem: k => st.delete(k) },
       requestIdleCallback: fn => { id.push(fn); return 1; }, dispatchEvent: () => {}, GARAGE_SPEC: { get: () => ({ cage: { a: 1 } }) } };
     w.window = w;
     const c = vm.createContext({ window: w, performance: { now: () => 0 }, setTimeout: fn => { id.push(fn); return 1; }, JSON, Map, Set, Math, Promise, document: {} });
     c.requestIdleCallback = w.requestIdleCallback; c.GARAGE_SPEC = w.GARAGE_SPEC;
-    vm.runInContext(src, c, { filename: 'plane_thumb.js' });
+    vm.runInContext(src.replace(LIVE_ON, LIVE_OFF), c, { filename: 'plane_thumb.js' });
     const T0 = w.PLANE_THUMB;
     if (T0) {
       T0.saved('A');
@@ -130,7 +134,8 @@ async function run(src, files) {
   }
   // --selftest: each break must be caught
   const BREAKS = [
-    ['live draw left on', s => s.replace(LIVE_OFF, 'const LIVE_DRAW = true;'), f => f],
+    ['live draw off', s => s.replace(LIVE_ON, LIVE_OFF), f => f],
+    ['encode in the draw task', s => s.replace('c = draw(true)', 'c = draw()'), f => f],
     ['off: saved() still draws', s => s.replace('if (!LIVE_DRAW || !name) return;', 'if (!name) return;'), f => f],
     ["off: 'mine:' reads the stored picture", s => s.replace('if (!LIVE_DRAW) return null;', ''), f => f],
     ['no save hook', s => s, f => Object.assign({}, f, { garage: f.garage.replace('window.PLANE_THUMB.saved(name)', 'window.PLANE_THUMB.x(name)') })],
