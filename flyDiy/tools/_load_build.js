@@ -51,6 +51,10 @@ const VALIDATED = {
         j.spec.energy.vessels[0] = Object.assign({}, j.spec.energy.vessels[0], { along: -0.104, lv: 0.6, rot: 90, form: 'cyl',
           dims: { L: 0.285, W: 0.2318, H: 0.1875 }, capacity: 8 });
       return j; } },
+  // SEAPLANES-LAND (the user 7 Nov: "The super petrel ... will join our official testing trinity. It's the first one in
+  // carbon, one with a hull, a biplane, a pusher, with retractable wheels"; "The Petrel V4.1 is the final one"): the test
+  // reference set's first carbon build, hull, sesquiplane, pylon pusher and retracting tricycle (an amphibian)
+  petrel: { label: 'Super Petrel', build: 'builds/candidates/superpetrel_V4_1.json' },
 };
 
 // ---- the inputs' fingerprint ----------------------------------------------------------------------------------------
