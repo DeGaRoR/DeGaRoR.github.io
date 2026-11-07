@@ -38,6 +38,9 @@ const READ = `const CK = window.FLYDIY_COCKPIT_I, G = window.FLYDIY_GPS; const u
   const out = { gpsFit: !!(CK && CK.gpsFit), gpsOn: !!(CK && CK.gpsOn), pair: !!(CK && CK.gpsPair), units: G ? G.units() : 0,
     u0: u(0), u1: G && G.units() > 1 ? u(1) : null, sw: CK ? { sw_gps: CK.sw.sw_gps, sw_gps2: CK.sw.sw_gps2 } : null,
     hour: window.DAY_CLOCK && DAY_CLOCK.now ? String(DAY_CLOCK.now().utc || DAY_CLOCK.now().date || "") : null,
+    massModel: window.FLYDIY_MASS_MODEL != null ? +(+window.FLYDIY_MASS_MODEL).toFixed(3) : null,
+    cgModel: window.FLYDIY_CG_MODEL ? window.FLYDIY_CG_MODEL.map(v => +(+v).toFixed(5)) : null,
+    ledger: (() => { try { const L = FLIGHT_PROBE.def().parts.ledger || {}; let e = 0; const o = {}; for (const k in L) { if (!L[k].payload) e += L[k].mass; if (/sys|avion|panel|elec|instr/i.test(k)) o[k] = +L[k].mass.toFixed(3); } o.empty = +e.toFixed(3); return o; } catch (x) { return null; } })(),
     dg: CK && CK.readings ? +(+CK.readings.hdg).toFixed(1) : null,
     pfdHdg: window.FLIGHT_PROBE && FLIGHT_PROBE.sim && FLIGHT_PROBE.sim() ? +((FLIGHT_PROBE.sim().out.hdg * 57.29578 + 450) % 360).toFixed(1) : null,
     agl: window.FLIGHT_PROBE && FLIGHT_PROBE.agl ? +(FLIGHT_PROBE.agl() || 0).toFixed(1) : null };
@@ -110,6 +113,10 @@ const MEASURE = ms => `const G = window.FLYDIY_GPS || { tick: () => false }, t0 
   const pair = KIND === 'flatPair';
   const mfdYaw = +(process.env.MFD_YAW || -18);
   await state('01_stand_panel', null, 4000);
+  // (the head turned either way: which side the MFD - or a passenger-side display - is on, framed)
+  await state('01b_look_plus', look(22, -20), 1200);
+  await state('01c_look_minus', look(-22, -20), 1200);
+  await run(look(0, -20) + ' return 1;');
   if (pair) await state('02_stand_mfd', look(mfdYaw, -20), 1500);
   await run(look(0, -20) + ' return 1;');
   // ---- THE COST on the stand, alternated on / off twice (the power buttons: the units' load off, no paint, no upload)
