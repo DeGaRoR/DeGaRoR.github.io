@@ -78,7 +78,10 @@ const COWL_ROWS = [
     { k: 'lidLen', label: 'length, barrel end → nose ring', lo: 0.02, hi: 1, step: 0.005 },
     { k: 'lidShoulder', label: 'carries the barrel line (bend late)', lo: 0, hi: 0.92, step: 0.01 },
     { k: 'lidRound', label: 'fullness (cone → blunt)', lo: 0, hi: 1, step: 0.01 },
-    { k: 'faceRise', label: 'axis lift, barrel end → nose ring', lo: -0.12, hi: 0.12, step: 0.002 },
+    // PROPER-COWLS: +-0.25 (was 0.12) - a straight cowl puts a Cessna's or a Rotax's thrust line in its face
+    { k: 'faceRise', label: 'axis lift, barrel end → nose ring', lo: -0.25, hi: 0.25, step: 0.002 },
+    // PROPER-COWLS: the lift moves the ring round the spinner only, the lip keeps the barrel's lines (absent = 0)
+    { k: 'faceRing', label: 'lift the ring only (the lip stays on the barrel)', lo: 0, hi: 1, step: 1 },
     // the bowl's curve can reach back INTO the barrel, per line: 0 = the
     // line runs straight to the barrel end, 0.95 = it starts bending almost
     // at the firewall

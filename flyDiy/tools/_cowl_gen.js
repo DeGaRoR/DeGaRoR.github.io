@@ -47,7 +47,7 @@ const P={
   oilOn:1, oilZ:0.42, oilW:0.13, oilL:0.16, oilSq:1,
   deckH:1, deckSweep:0, waist:0, waistSweep:0, keelH:0.95, keelSweep:0.55,
   // lid
-  lidRise:0.06, faceRise:0.018, lidLen:0.125, lidMode:1, lidR:0.17, lidGap:0.009,
+  lidRise:0.06, faceRise:0.018, faceRing:0, lidLen:0.125, lidMode:1, lidR:0.17, lidGap:0.009,
   lidRound:0.53, lidSqTop:0.62, lidSqBot:0.6, lidShoulder:0.45,
   // apertures cut into the surface
   detail:1.0,
@@ -243,9 +243,19 @@ function aftStart(){ if(!P.fwLipOn) return 0; const g=fwGeom(); return g.r+g.sr;
 /* No spine curvature. The barrel is a straight ruled surface from the firewall
    loop to the lid loop; the lid axis then runs straight to the face, which can
    be lifted independently of the barrel-end offset. */
+/* PROPER-COWLS (2026-11-07): `faceRing` 1 - THE FACE'S LIFT MOVES THE RING, NOT THE LIP. The straight cowl keeps its
+   barrel on the firewall's centre and puts the spinner where the thrust line is: the lift then follows how far the
+   bowl has closed toward the ring (0 at the barrel end, 1 at the ring), so the lip's top and bottom lines stay on the
+   barrel's instead of the whole lip rising with the axis. 0 (the default, and every build that never set it) is the
+   linear lift it always was, to the bit. */
 function spineY(z){
   if(z<=0) return 0;
   if(z<=P.cowlLen) return P.lidRise*clamp(z/Math.max(P.cowlLen,1e-4),0,1);
+  if(P.faceRing&&P.faceRise){
+    if(!LID) prepareLid();
+    const a1=P.aftW*P.taperW, lr=lidRadius(), d=Math.max(a1-lr,1e-4);
+    return P.lidRise + P.faceRise*clamp((a1-LID.A.at(Math.min(z,zEnd())))/d,0,1);
+  }
   return P.lidRise + P.faceRise*clamp((z-P.cowlLen)/Math.max(P.lidLen,1e-4),0,1);
 }
 

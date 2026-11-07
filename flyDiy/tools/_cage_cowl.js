@@ -74,7 +74,7 @@ for (const g of ROWS) {
 // is NOT in the defaults table: the file states every row the page knows (G377), so a defaulted row would ride into
 // every saved build and move every key the game hashes it by. A build that never moved it carries no key; the row
 // shows its `absent` value, and the generator is handed that value whenever the key is absent (below).
-const ABSENT_AT = { wAftTop: 1, wAftBot: 1 };
+const ABSENT_AT = { wAftTop: 1, wAftBot: 1, faceRing: 0 };   // PROPER-COWLS: faceRing
 const cowlDef = { cowlOn: 1, fitNose: 2, cowlGap: 0.0 };
 for (const k of SHOWN) if (!(k in ABSENT_AT)) cowlDef['cw_' + k] = CW.P[k];
 PAGE.defaults = Object.assign(cowlDef, PAGE.defaults || {});

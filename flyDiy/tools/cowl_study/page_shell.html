@@ -1,0 +1,154 @@
+<title>Proper Default Cowls</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<style>
+/* Layout: a hangar work-card - a narrow reading column for the argument, the pictures and the table full width below. */
+:root {
+  --paper: #eef0ec; --sheet: #f8f9f6; --ink: #1c2420; --mute: #5d6862; --rule: #cfd5cf;
+  --amber: #b87400; --amber-bg: #f6e7c4; --steel: #285a78; --ok: #2f6b3f;
+  --f-head: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+  --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --paper: #121614; --sheet: #1a201d; --ink: #e2e7e3; --mute: #9aa69f; --rule: #2f3833;
+  --amber: #f0a92a; --amber-bg: #3a2c10; --steel: #8fbcd8; --ok: #7cc68e; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --paper: #121614; --sheet: #1a201d; --ink: #e2e7e3; --mute: #9aa69f; --rule: #2f3833;
+  --amber: #f0a92a; --amber-bg: #3a2c10; --steel: #8fbcd8; --ok: #7cc68e; color-scheme: dark }
+body { background: var(--paper); color: var(--ink); font: 15px/1.55 var(--f-body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 28px 64px; }
+.wrap { max-width: 1240px; margin: 0 auto; display: grid; gap: 40px; }
+.col { max-width: 68ch; }
+h1, h2, h3 { font-family: var(--f-head); text-wrap: balance; margin: 0; letter-spacing: 0.01em; }
+h1 { font-size: clamp(2rem, 5vw, 3rem); font-weight: 700; line-height: 1.05; }
+h2 { font-size: 1.55rem; font-weight: 600; margin-bottom: 10px; }
+h3 { font-size: 1.15rem; font-weight: 600; }
+p { margin: 0 0 12px; }
+a { color: var(--steel); }
+.eyebrow { font: 500 0.78rem/1 var(--f-mono); text-transform: uppercase; letter-spacing: 0.12em; color: var(--amber); margin-bottom: 12px; }
+.lede { font-size: 1.08rem; color: var(--ink); }
+.mono { font-family: var(--f-mono); font-size: 0.86em; }
+code { font-family: var(--f-mono); font-size: 0.86em; background: var(--sheet); border: 1px solid var(--rule); padding: 0 4px; border-radius: 3px; }
+
+/* the decision card: the one boxed thing on the page */
+.decide { background: var(--sheet); border: 1px solid var(--rule); border-left: 4px solid var(--amber); padding: 18px 20px; border-radius: 4px; max-width: 80ch; }
+.decide h2 { margin-bottom: 12px; }
+.options { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin: 6px 0 14px; }
+.options div { min-width: 0; }
+.options b { font-family: var(--f-head); font-size: 1.05rem; display: block; }
+.rec { background: var(--amber-bg); padding: 10px 12px; border-radius: 3px; }
+
+/* the pictures */
+.views { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font: 500 0.82rem var(--f-mono); color: var(--mute); }
+.views button { font: inherit; color: var(--ink); background: var(--sheet); border: 1px solid var(--rule); padding: 5px 10px; border-radius: 3px; cursor: pointer; }
+.views button[aria-pressed="true"] { border-color: var(--amber); color: var(--amber); }
+.views button:focus-visible { outline: 2px solid var(--steel); outline-offset: 2px; }
+.plane { display: grid; gap: 10px; padding-top: 18px; border-top: 1px solid var(--rule); }
+.plane header { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.plane .eng { color: var(--mute); font-size: 0.9rem; }
+.tag { font: 500 0.7rem var(--f-mono); text-transform: uppercase; letter-spacing: 0.1em; padding: 2px 6px; border-radius: 2px; border: 1px solid var(--rule); color: var(--mute); }
+.tag-official { color: var(--ok); border-color: currentColor; }
+.strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 760px) { .strip { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+figure { margin: 0; min-width: 0; }
+figure img { display: block; width: 100%; aspect-ratio: 3 / 4; object-fit: cover; border-radius: 3px; background: #0d0f0e; }
+figcaption { font: 500 0.8rem var(--f-mono); color: var(--mute); padding-top: 4px; }
+.opt-today figcaption { color: var(--ink); }
+.note { color: var(--mute); font-size: 0.9rem; margin: 0; }
+
+/* the table */
+.tablewrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 4px; background: var(--sheet); }
+table { border-collapse: collapse; width: 100%; min-width: 860px; font-size: 0.9rem; }
+th, td { text-align: left; vertical-align: top; padding: 10px 12px; border-bottom: 1px solid var(--rule); }
+thead th { font: 600 0.78rem var(--f-mono); text-transform: uppercase; letter-spacing: 0.08em; color: var(--mute); position: sticky; top: 0; background: var(--sheet); }
+tr.type th { font-family: var(--f-head); font-size: 1.05rem; background: var(--paper); color: var(--ink); }
+tr.type th span { font: 400 0.8rem var(--f-mono); color: var(--mute); margin-left: 8px; }
+td.mount { font-weight: 600; white-space: nowrap; }
+td.real { max-width: 40ch; }
+td.today { width: 230px; }
+td.today img { width: 220px; aspect-ratio: 5 / 3; object-fit: cover; border-radius: 3px; display: block; background: #0d0f0e; }
+td.prop { max-width: 34ch; }
+.refs { font-size: 0.82rem; margin-top: 6px; }
+.none { color: var(--mute); font-size: 0.82rem; font-style: italic; }
+dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0; }
+dt { font: 500 0.85rem var(--f-mono); color: var(--amber); }
+dd { margin: 0; min-width: 0; }
+ul { margin: 0 0 12px; padding-left: 20px; }
+@media (prefers-reduced-motion: no-preference) { figure img { transition: opacity .15s; } }
+</style>
+
+<div class="wrap">
+  <div class="col">
+    <div class="eyebrow">flyDiy · PROPER-COWLS · first deliverable · 7 Nov 2026</div>
+    <h1>Proper default cowls</h1>
+    <p class="lede">Every new aeroplane gets one simple cowl: a <b>straight barrel</b> that holds one section from the firewall to the propeller, a short rounded lip, and a flat face round the spinner with the openings of its engine type. It is the seaplane session's pod (G3915, <code>NACELLE_POD</code>) made the rule for every engine and every mount.</p>
+    <p>What it does not do: it moves no flown number. The engine, the propeller and the thrust line stay exactly where they are (the cowl's axis rise goes into the face instead, so the spinner can sit off-centre as on a Cessna or a Rotax nose). Measured: the joined spec and the shakedown of the Cub, the Jodel, the C172, the busher and the DC-3 are identical with today's cowl and with the straight one.</p>
+  </div>
+
+  <section class="decide" id="decide">
+    <div class="eyebrow">Your call</div>
+    <h2>Should the cowl match the fuselage's nose, blend into it, or stand as its own part?</h2>
+    <div class="options">
+      <div><b>A · Match</b>The barrel is the fuselage's own nose section, held straight to the face. The fuselage just keeps going and ends in a rounded lip.</div>
+      <div><b>B · Blend</b>The barrel starts as the fuselage's section and runs in a straight line to a round front, a little smaller (0.82 of the firewall, never smaller than the engine's height).</div>
+      <div><b>C · Own part</b>A round barrel the engine's size, on the thrust line, whatever the fuselage is. A step at the firewall where the two differ.</div>
+    </div>
+    <p class="rec"><!--REC--></p>
+  </section>
+
+  <section>
+    <div class="col"><h2>The three options on real builds</h2>
+    <p>Lit stills from the game's own renderer (<code>plane_shot.js</code>). <b>Today</b> is the build as saved; A, B and C are the same build with only the cowl's rows changed (<code>tools/cowl_study/straight.js</code>). The official planes would keep their hand-fitted cowls: these pictures show what a newborn of the same shape would get.</p></div>
+    <div class="views" role="group" aria-label="View"><span>View</span><button type="button" id="v34" aria-pressed="true">3/4 front</button><button type="button" id="vside" aria-pressed="false">side (official planes)</button></div>
+    <!--PLANES-->
+  </section>
+
+  <section>
+    <div class="col"><h2>Each engine type on each mount</h2>
+    <p>What a real cowl looks like there, what the new-plane chooser draws today (a generated build per row, <code>tools/cowl_study/gen_matrix.js</code>), and the straight default proposed. The over-the-wing row is drawn on a generated high wing with the mount set by hand: the chooser greys it on master until hull-types' pylon rows land.</p></div>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Mount</th><th>A real cowl</th><th>Ours today</th><th>The straight default</th></tr></thead>
+      <tbody>
+<!--ROWS-->
+      </tbody>
+    </table></div>
+  </section>
+
+  <section class="col">
+    <h2>The straight cowl, as rows</h2>
+    <p>Every value is an existing cowl row, so the builder can move any of it afterwards. Few controls by default:</p>
+    <dl>
+      <dt>section</dt><dd>one section, firewall to face: no top-line sweep, no axis rise, no cheeks, no cut-out (A, B or C decides which section)</dd>
+      <dt>length</dt><dd>the engine's: the face ends at the spinner's base (the flange + the spinner's stand-off)</dd>
+      <dt>lip</dt><dd>a quarter of the front's half-size, 4 to 12 cm, onto a flat face matched to the spinner</dd>
+      <dt>thrust line</dt><dd>unchanged: today's axis offset becomes the face's offset (off the body, the pod is centred on the engine instead)</dd>
+      <dt>openings</dt><dd>by engine type: boxer two inlets · Rotax two + chin mouth · two-stroke chin mouth · in-line two low · V chin scoop · radial open ring · electric two slots · turbine chin lip</dd>
+      <dt>off the body</dt><dd>pylon, tower, wing nacelles: always the pod (round, the engine's size + 6 %, a tail cone)</dd>
+    </dl>
+  </section>
+
+  <section class="col">
+    <h2>What happens after you pick</h2>
+    <ul>
+      <li>The straight cowl becomes the birth's cowl preset for every engine type (<code>_new_plane.js cowlPresetFor</code> → a <code>straight</code> preset per type in <code>_cage_cowl.js</code>), and a <b>Straight</b> preset tile in the editor.</li>
+      <li>Saved builds keep their look: every saved build carries its cowl rows, and a preset only fires on a birth or a tile press. The hand-fitted cowls of the Cub, the Jodel, the C172 and the busher are not touched.</li>
+      <li>One row grows: the face's offset (<code>cw_faceRise</code>) reaches ±0.25 m instead of ±0.12, so a Cessna's or a Rotax's spinner can sit where it does today.</li>
+      <li>Before and after on the official planes and the candidates, then the gates that read these files.</li>
+    </ul>
+  </section>
+</div>
+<script>
+(() => {
+  const b34 = document.getElementById('v34'), bs = document.getElementById('vside');
+  const set = side => {
+    b34.setAttribute('aria-pressed', String(!side)); bs.setAttribute('aria-pressed', String(side));
+    document.querySelectorAll('img[data-alt]').forEach(im => {
+      if (!im.dataset.main) im.dataset.main = im.getAttribute('src');
+      im.src = side ? im.dataset.alt : im.dataset.main;
+    });
+  };
+  b34.addEventListener('click', () => set(false)); bs.addEventListener('click', () => set(true));
+})();
+</script>
