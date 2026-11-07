@@ -41,6 +41,19 @@
     bgTex = new THREE.CanvasTexture(c); if (THREE.SRGBColorSpace) bgTex.colorSpace = THREE.SRGBColorSpace;
     return bgTex;
   }
+  // THE SCREEN VARIANT FIRST (PLANE-RENDERS R1, 7 Nov): the garage draws through the anti-aliasing target, so the stand's
+  // programs are keyed for a render target (no tone mapping, linear out); the thumb draws to the screen (ACES, sRGB out), a
+  // second program for every material of the aeroplane - compiled inside the first draw, 4.2-5.5 s on a fresh profile and
+  // 157 ms warm (the box, 7 Nov 20:56-21:01; the fog was never in it: the garage has none). warm() builds those programs
+  // with the garage's own sliced compile (tasks of ~30 ms, the links polled) before the draw asks for them
+  function warm() {
+    const P = window.FLIGHT_PROBE, root = window.CAGE_UI_SCENE;
+    const S = P && P.hangarScene && P.hangarScene();
+    if (!P || !P.compileScreen || !root || !S) return Promise.resolve(false);
+    try { return Promise.resolve(P.compileScreen(root, S)).then(() => true, () => false); } catch (e) { return Promise.resolve(false); }
+  }
+  // with warm() first, the box (7 Nov 21:09-21:15, eight fresh profiles): the Cub's first draw 85-93 ms (render ~63, encode ~23),
+  // two earlier fresh boots 160 and 976 ms unexplained; warm profile 25 ms; then 9-25 ms. api.lastParts splits the last draw
   // the draw: returns a webp/png data URL, or null when the garage is not showing an aeroplane
   function draw() {
     const THREE = window.THREE, P = window.FLIGHT_PROBE, root = window.CAGE_UI_SCENE;
@@ -100,13 +113,14 @@
       R.setRenderTarget(null);
       // viewport / scissor are in css px (the renderer multiplies by its pixel ratio): the bottom-left corner
       R.setViewport(0, 0, rw / pr, rh / pr); R.setScissor(0, 0, rw / pr, rh / pr); R.setScissorTest(true);
-      R.render(S, cam);
+      R.render(S, cam); const t1 = performance.now();
       const out = document.createElement('canvas'); out.width = W; out.height = H;
       const g = out.getContext('2d'); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
       // the drawing buffer's bottom-left corner is the canvas element's bottom rows
-      g.drawImage(R.domElement, 0, buf.y - rh, rw, rh, 0, 0, W, H);
+      g.drawImage(R.domElement, 0, buf.y - rh, rw, rh, 0, 0, W, H); const t2 = performance.now();
       url = out.toDataURL('image/webp', 0.86);
       if (!/^data:image\/webp/.test(url)) url = out.toDataURL('image/png');
+      api.lastParts = { render: +(t1 - t0).toFixed(1), read: +(t2 - t1).toFixed(1), encode: +(performance.now() - t2).toFixed(1) };
     } finally {
       for (const o of hid) o.visible = true;
       if (fogR && fog.isFog) { fog.near = fogR[0]; fog.far = fogR[1]; } else if (fogR) fog.density = fogR[0];
@@ -150,8 +164,11 @@
       whenStill(() => {
         const q = pending; pending = null; if (!q) return;
         if (standHash() !== q.h) return;            // the stand changed under it: drawn the next time it is saved / loaded
-        let url = null; try { url = draw(); } catch (e) { url = null; }
-        if (url) { store(q.name, q.h, url); tell('mine:' + q.name); }
+        warm().then(() => whenStill(() => {         // the programs first, in slices; then the draw, the page still again
+          if (standHash() !== q.h) return;
+          let url = null; try { url = draw(); } catch (e) { url = null; }
+          if (url) { store(q.name, q.h, url); tell('mine:' + q.name); }
+        }));
       });
     },
     // the card's picture: a URL, or null (the card's glyph)
@@ -172,7 +189,7 @@
     },
     forget(name) { cache.delete('mine:' + name); const L = prefs(); try { L && L.removeItem(PREF + 'mine:' + name); } catch (e) {} },
     baked: null,   // { key: file } from media/thumbs/index.json (the bake), loaded at boot
-    draw, hashOf,
+    draw, warm, hashOf,
   };
   window.PLANE_THUMB = api;
 })();

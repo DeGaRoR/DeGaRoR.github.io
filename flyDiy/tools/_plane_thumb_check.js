@@ -32,6 +32,11 @@ async function run(src, files) {
   ok(!/S\.fog = null/.test(src) && /fog\.near = 1e8; fog\.far = 1e9/.test(src) && /fog\.near = fogR\[0\]; fog\.far = fogR\[1\]/.test(src), 'draw: the fog out of reach and put back, never null');
   // ---- THE WIRING
   const B = files.build, G = files.garage, A = files.app, U = files.storage;
+  // THE SCREEN VARIANT (PLANE-RENDERS R1, 7 Nov): the garage's programs are keyed for the anti-aliasing target, the thumb
+  // draws to the screen - a second program per material, 4.2-5.5 s inside a fresh profile's first draw. The probe compiles
+  // for the screen (null target) through the sliced compile, and saved() warms before it draws
+  ok(/compileScreen: \(sc, lit\) => compileSliced\(sc, null, lit\)/.test(A), 'app.js FLIGHT_PROBE.compileScreen: compileSliced to the screen (a null target)');
+  ok(/warm\(\)\.then\(\(\) => whenStill\(\(\) => \{/.test(src) && /P\.compileScreen\(root, S\)/.test(src), 'plane_thumb.js saved(): warm() (P.compileScreen) before the draw');
   const order = ['garage.js', 'plane_thumb.js', 'storage_ui.js'].map(f => B.indexOf("'" + f + "'"));
   ok(order.every(i => i > 0) && order[0] < order[1] && order[1] < order[2] && order[1] < B.indexOf("'app.js'"), 'build.js: plane_thumb.js between garage.js and storage_ui.js, before app.js');
   const save = G.slice(G.indexOf('const saveAs = name =>'), G.indexOf('const saveAs = name =>') + 6000);
@@ -132,7 +137,9 @@ async function run(src, files) {
     ['no load hook', s => s, f => Object.assign({}, f, { garage: f.garage.replace('window.PLANE_THUMB.saved(n)', 'window.PLANE_THUMB.x(n)') })],
     ['card asks PARKED first', s => s, f => Object.assign({}, f, { app: f.app.replace("try { if (window.PLANE_THUMB) thumb = window.PLANE_THUMB.get('mine:' + name) || null; } catch (e) {}\n", '') })],
     ['no hash check', s => s.replace('if (old && old.h === h && old.url)', 'if (false)'), f => f],
-    ['stand not re-checked', s => s.replace('if (standHash() !== q.h) return;', ''), f => f],
+    ['stand not re-checked', s => s.split('if (standHash() !== q.h) return;').join(''), f => f],
+    ['draw not warmed', s => s.replace('warm().then(() => whenStill(() => {', 'Promise.resolve().then(() => whenStill(() => {'), f => f],
+    ['probe keyed for the AA target', s => s, f => Object.assign({}, f, { app: f.app.replace('compileSliced(sc, null, lit)', 'compileSliced(sc, aa.target(), lit)') })],
     ['forget keeps it', s => s.replace('L && L.removeItem(PREF + \'mine:\' + name)', '0'), f => f],
     ['fog off by null', s => s.replace('S.background = studioBg(THREE); R.shadowMap', 'S.background = studioBg(THREE); S.fog = null; R.shadowMap'), f => f],
     ['index per ask', s => s.replace('if (bakedLoading || typeof fetch', 'if (typeof fetch'), f => f],
