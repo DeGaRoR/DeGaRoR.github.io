@@ -142,7 +142,7 @@ const CHECK = `JSON.stringify((() => { const P = WORLD && WORLD.premises; const 
     }
     // TOWN-1: parked over the town's densest tree cell (64 m), the flight held, the orbit around the aeroplane
     if (SHOTS) {
-      const at = JSON.parse(await b.ev(`(async () => { const W = FLIGHT_PROBE.world(), P = W.premises, O = P && P.overlay, T = O && O.records && O.records.trees;
+      const at = JSON.parse(await b.ev(`(async () => { const W = FLIGHT_PROBE.world(), P = [window.WORLD && WORLD.premises, W.premises].find(p => p && p.overlay && p.overlay.records && p.overlay.frame), O = P && P.overlay, T = O && O.records && O.records.trees;
         if (!T || !O.frame) return 'null'; const c = new Map();
         for (const t of T) { if (!t.key || t.key === 'stub|tree') continue; const w = O.frame.toWorld(t.x, t.z), k = Math.floor(w[0] / 64) + ',' + Math.floor(w[1] / 64); c.set(k, (c.get(k) || 0) + 1); }
         let best = null, n = 0; for (const [k, v] of c) if (v > n) { n = v; best = k; } if (!best) return 'null';
