@@ -99,7 +99,7 @@ function fly(def, o) {
   for (let s = 0; s < 600; s++) sim.step(1 / 60);
   if (o.noEmerg) sim.gearEmergency = () => {};   // the gear-up landing: the pilot's emergency extension disarmed
   const ap = C.makePilot(sim, def, W, o.pilot || undefined);
-  const R = { upAt: null, upT0: null, upT1: null, dw: [], flareLocked: null, minAglUp: Infinity, phases: [] };
+  const R = { upAt: null, upT0: null, upT1: null, dw: [], dwT: [], dwH: [], flareLocked: null, minAglUp: Infinity, phases: [] };
   let air = false, last = '';
   for (let s = 0; s < (o.maxS || 600) * 60; s++) {
     const t = s / 60;
@@ -114,13 +114,17 @@ function fly(def, o) {
       if (R.upT0 != null && R.upT1 == null && g.pos < 0.02) R.upT1 = t;
       if (ap.phase === 'FLARE' && R.flareLocked == null) R.flareLocked = g.locked;
     }
-    if (ap.phase === 'DOWNWIND') R.dw.push(ap.dbg.V);
+    if (ap.phase === 'DOWNWIND') { R.dw.push(ap.dbg.V); R.dwT.push(sim.out && sim.out.thrust || 0); R.dwH.push(sim.cgPos()[1]); }
     if (ap.phase !== last) { R.phases.push(ap.phase); last = ap.phase; }
     if (sim.stats().bad) { R.nan = true; break; }
     if ((ap.phase === 'STOPPED' && t > 5) || (o.until && o.until(sim, ap, t))) break;
   }
   R.dw.sort((a, b) => a - b);
   R.dwV = R.dw.length ? R.dw[R.dw.length >> 1] : NaN;
+  // (SEAPLANES-LAND: the downwind is flown at a HELD speed - the pattern's 1.3 VAppr - so the gear's drag shows in the
+  // thrust it takes to hold it, level: the median thrust and height over the leg)
+  const med = a => { const b = a.slice().sort((x, y) => x - y); return b.length ? b[b.length >> 1] : NaN; };
+  R.dwThr = med(R.dwT); R.dwHm = med(R.dwH);
   R.td = ap.tdInfo || null;
   const D = sim.damage ? sim.damage() : null;
   R.prop = !!(D && D.propStrike); R.crashed = !!(D && D.crashed);
@@ -156,7 +160,15 @@ check(!!A.td && A.td.sink < 2.5 && !A.prop && !A.crashed, 'landed on its wheels'
 console.log('5 THE DRAG');
 const B = fly(dR, { hold: 1, until: (s, ap) => ap.phase === 'BASE' });
 const U = fly(dR, { hold: 0, noEmerg: true, until: (s, ap) => ap.phase === 'BASE' });
-check(U.dwV > B.dwV + 0.5, 'the downwind is faster with the gear up', 'up ' + U.dwV.toFixed(2) + ' / down ' + B.dwV.toFixed(2) + ' m/s');
+// (SEAPLANES-LAND, A0 8 Nov: the downwind is flown at a held speed since the pattern's 1.3 VAppr - up 38.03 / down 38.02 m/s -
+// so the faster-downwind premise is gone; the drag is measured where it shows: the thrust to hold that speed, level.
+// The gear's own drag area (params.retract.cdA) predicts the saving, 1/2 rho V^2 cdA; the measured saving must be it, +-50 %)
+const isaRho = h => 1.225 * Math.pow(1 - 2.25577e-5 * Math.max(0, h), 4.2559);
+const dDrag = (Vv, h) => 0.5 * isaRho(h) * Vv * Vv * dR.params.retract.cdA;
+const dTh = B.dwThr - U.dwThr, dPred = dDrag(0.5 * (B.dwV + U.dwV), 0.5 * (B.dwHm + U.dwHm));
+check(Math.abs(U.dwV - B.dwV) < 0.5 && Math.abs(U.dwHm - B.dwHm) < 10, 'the downwind flown at the same held speed and height, gear up and down', 'up ' + U.dwV.toFixed(2) + ' / down ' + B.dwV.toFixed(2) + ' m/s, ' + U.dwHm.toFixed(0) + ' / ' + B.dwHm.toFixed(0) + ' m');
+check(dTh > 0.5 * dPred && dTh < 1.5 * dPred, 'the gear up takes less thrust to hold it: the gear drag area, 1/2 rho V^2 cdA (+-50 %)',
+      'down ' + B.dwThr.toFixed(0) + ' N, up ' + U.dwThr.toFixed(0) + ' N: ' + dTh.toFixed(0) + ' N saved, ' + dPred.toFixed(0) + ' N predicted');
 
 // ---- 6. the gear-up landing: the forgotten approach (a person with gearForget 0.05, drawn from seed 17) ------------------
 console.log('6 THE GEAR-UP LANDING');
@@ -681,8 +693,10 @@ console.log('10 THE FOLD (G1)');
   const dS = defOf({ time: 6, act: 'hydraulic', frac: 0.6 });
   check(dS.params.retract.frac === 0.6, 'params carry the fraction');
   const Us = fly(dS, { hold: 0, noEmerg: true, until: (s, ap) => ap.phase === 'BASE' });
-  check(Us.dwV > B.dwV + 0.1 && Us.dwV < U.dwV - 0.1, 'a partial gear up: the downwind between down and fully up',
-        B.dwV.toFixed(2) + ' < ' + Us.dwV.toFixed(2) + ' < ' + U.dwV.toFixed(2));
+  // (SEAPLANES-LAND: the held speed - the thrust to hold it, as in 5; each end at least a tenth of the full saving away)
+  const dFull = B.dwThr - U.dwThr;
+  check(Us.dwThr < B.dwThr - 0.1 * dFull && Us.dwThr > U.dwThr + 0.1 * dFull, 'a partial gear up: the thrust to hold the downwind between down and fully up',
+        B.dwThr.toFixed(0) + ' > ' + Us.dwThr.toFixed(0) + ' > ' + U.dwThr.toFixed(0) + ' N');
 }
 
 console.log(bad ? 'GATE RETRACT: FAIL (' + bad + ')' : 'GATE RETRACT: PASS');
