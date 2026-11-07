@@ -9,7 +9,8 @@
 // floats patch; not the stock presets, they may not be the same aeroplane). The player's own builds are drawn in the
 // page (plane_thumb.js), never here. 'list:<n>' (THUMBS-ROUND3): a row of builds/lists/plane_lists.json that no other door
 // reaches, its `over` sections laid as the garage lays them. --keys bakes only the named 'cand:' / 'list:' keys and leaves
-// every other picture and index row as it is (--only rewrites the index with what it baked).
+// every other picture and index row as it is (--only rewrites the index with what it baked). 'arch:<key>' (PLANE-RENDERS R1): a design
+// card's plane as the new-aeroplane card bakes it, for the authored recreations' cards.
 //   node tools/thumb_bake.js [--gpu] [--secs 600] [--only stock|cand|design] [--keys <key,key>] [--keep <dir>] [--dry]
 // One plane_shot boot (a box run: the GPU lock, a slot). Python 3 + Pillow (webp) does the resize. Exit 0 = every
 // candidate and at least one stock design has its picture; a missing Market build is named, the Market's rows keep their glyph.
@@ -47,7 +48,8 @@ for (const k of KEYS || []) {
     const f = path.join(tmp, 'list_' + row.n + '.json');
     fs.writeFileSync(f, JSON.stringify({ what: 'flydiy-build', spec: s }));
     builds.push(f);
-  } else { console.log('thumb_bake: --keys takes cand: and list: keys, not ' + k); process.exit(1); }
+  } else if (/^arch:./.test(k)) builds.push(k);   // PLANE-RENDERS R1: a design card's plane, baked in the page (plane_shot arch:)
+  else { console.log('thumb_bake: --keys takes cand:, list: and arch: keys, not ' + k); process.exit(1); }
 }
 const args = [path.join(__dirname, 'plane_shot.js'), '--views', VIEW, '--out', tmp, '--secs', opt('secs', '600'), '--build', builds.join(',')];
 if (flag('gpu')) args.push('--gpu');
@@ -65,6 +67,10 @@ for (const png of fs.readdirSync(tmp).filter(f => f.endsWith(SUFFIX)).sort()) {
   if (cand) { key = 'cand:' + cand; file = 'cand_' + base.replace(/[^\w.-]+/g, '_') + '.webp'; }
   else if (/^list_\d+$/.test(base)) { key = 'list:' + base.slice(5); file = base + '.webp'; }
   else if (/^design_/.test(base) && designs[base.slice(7)]) { key = 'design:' + base.slice(7); file = base + '.webp'; }
+  else if (/^arch_/.test(base)) {
+    let k = null; try { k = JSON.parse(fs.readFileSync(path.join(tmp, base + '.json'), 'utf8')).arch; } catch (e) {}
+    if (k) { key = 'arch:' + k; file = base + '.webp'; }
+  }
   else if (/^stock_/.test(base)) {
     let nm = null; try { nm = JSON.parse(fs.readFileSync(path.join(tmp, base + '.json'), 'utf8')).stock; } catch (e) {}
     if (nm) { key = 'stock:' + nm; file = base + '.webp'; }

@@ -8,7 +8,7 @@
 // 'mine:' keys read null (the player's own planes keep their glyph); the baked pictures stay. true below turns it back on.
 // THE DRAW: the game's own renderer, one orthographic eye from the aeroplane's left (plane_shot.js's profile, ported),
 // every visible mesh outside the aeroplane hidden for that one render (the room, the floor, the props), the scene's
-// background a radial studio gradient, no fog, the shadow map as it is (not redrawn). Rendered into a corner of the
+// background a radial studio gradient, the fog pushed out of reach (never removed: a define), the shadow map as it is (not redrawn). Rendered into a corner of the
 // page's own drawing buffer (no resize, no render target, no readback stall of its own) and copied out in the same task;
 // the next frame draws over it. Kept in prefs per save name with the build's hash: an edit redraws it.
 'use strict';
@@ -87,10 +87,16 @@
     const hid = [];
     S.traverseVisible(o => { if ((o.isMesh || o.isPoints || o.isLine || o.isSprite) && !mine.has(o)) { o.visible = false; hid.push(o); } });
     const bg = S.background, fog = S.fog, au = R.shadowMap.autoUpdate, rt = R.getRenderTarget();
+    let fogR = null;
     const vp = R.getViewport(new THREE.Vector4()), sc = R.getScissor(new THREE.Vector4()), st = R.getScissorTest();
     let url = null;
     try {
-      S.background = studioBg(THREE); S.fog = null; R.shadowMap.autoUpdate = false;
+      // NO FOG BY ITS RANGE, NOT BY null (PLANE-RENDERS R1, 7 Nov): fog is a program define (USE_FOG), so taking the fog away
+      // recompiled every material in the scene for this one render and again on the next frame - the reading of L31b's
+      // 6.1 s first draw. Out of reach, it is uniforms only
+      if (fog && fog.isFog) { fogR = [fog.near, fog.far]; fog.near = 1e8; fog.far = 1e9; }
+      else if (fog && fog.isFogExp2) { fogR = [fog.density]; fog.density = 0; }
+      S.background = studioBg(THREE); R.shadowMap.autoUpdate = false;
       R.setRenderTarget(null);
       // viewport / scissor are in css px (the renderer multiplies by its pixel ratio): the bottom-left corner
       R.setViewport(0, 0, rw / pr, rh / pr); R.setScissor(0, 0, rw / pr, rh / pr); R.setScissorTest(true);
@@ -103,7 +109,8 @@
       if (!/^data:image\/webp/.test(url)) url = out.toDataURL('image/png');
     } finally {
       for (const o of hid) o.visible = true;
-      S.background = bg; S.fog = fog; R.shadowMap.autoUpdate = au;
+      if (fogR && fog.isFog) { fog.near = fogR[0]; fog.far = fogR[1]; } else if (fogR) fog.density = fogR[0];
+      S.background = bg; R.shadowMap.autoUpdate = au;
       R.setRenderTarget(rt); R.setViewport(vp); R.setScissor(sc); R.setScissorTest(st);
     }
     api.lastMs = +(performance.now() - t0).toFixed(1);
