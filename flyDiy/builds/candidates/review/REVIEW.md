@@ -23,3 +23,8 @@ where they were.
 | Twin_busher_floats_3.json | Twin busher floats 3: FLAGSHIP's stabilised twin (drawn = flown, a drawn back window) (2 Nov) | claude/ready/flagship | REPLACED in the offered pool by Twin_busher_floats_4b (the user's pick 2 Nov ~22:25); kept here, not offered |
 | cub_fittings_hand_2026-10.json | the Cub with its fittings placed by hand (FITTINGS-MANUAL, 2 Nov) | the pool, 4 Nov | INTERNAL (the user 4 Nov): from a test, not merged into the official Cub |
 | sailPlane.json | sailPlane, the user's export | evidence 2026-11-04/candidates-user/ | INTERNAL (the user 4 Nov) |
+| superpetrel_V0.json | Super Petrel V0: no wheels, the last flying-boat-only build (HULL-B54) | claude/hull-types (builds/candidates/) | an earlier version: the user's final is V4.1 (7 Nov), offered as Super Petrel LS |
+| superpetrel_V1.json | Super Petrel V1: folding knee mains (gearFold 8), the nose folding into the bow, two nose doors; its nose is messy (s2Drop -0.04) | claude/hull-types | an earlier version (see V0) |
+| superpetrel_V2.json | Super Petrel V2: rigid-L mains turned flat into the lower wing's round recess (gearFold 9) | claude/hull-types | an earlier version (see V0) |
+| superpetrel_V3.json | Super Petrel V3: V2 with a clean nose, no flaps, spray strakes, no cabin door - "a very nice little plane" (the user) | claude/hull-types | an earlier version (see V0) |
+| superpetrel_V4.json | Super Petrel V4: V3 with the central faired pylon carrying the upper wing, the engine on an 8 cm pylon on the wing | claude/hull-types | an earlier version (see V0): V4.1 slides the engine into the wing |
