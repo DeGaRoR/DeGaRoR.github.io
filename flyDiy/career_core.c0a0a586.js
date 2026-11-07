@@ -2012,7 +2012,7 @@ const MISSION_PREF_KINDS = {
   thrust:     { of: 'spec.engines[].mount',  values: ['tractor', 'pusher'] },
   wing:       { of: 'spec.wing.position',    values: ['high', 'mid', 'low', 'parasol'] },
   tail:       { of: 'spec.tail.type',        values: ['conventional', 'v', 'twinBoom'] },
-  gear:       { of: 'spec.gear.type',        values: ['taildragger', 'tricycle', 'floats'] },
+  gear:       { of: 'spec.gear.type',        values: ['taildragger', 'tricycle', 'floats', 'hull'] },
   canopy:     { of: 'spec.cabin.canopy.style', values: ['screen', 'bubble'] },
   suspension: { of: 'spec.gear.suspension',  values: ['bungee'] },
 };
@@ -5443,7 +5443,7 @@ function procureFpP1(spec, sv, pv) {
   if (c.systems && typeof c.systems === 'object') for (const k of PROCURE_LOOK.systems) delete c.systems[k];
   if (c.cage && typeof c.cage === 'object') for (const k of Object.keys(c.cage)) if (PROCURE_STATE_ROWS.test(k)) delete c.cage[k];
   // G2820: a STOL record at "every device off" (null) is the absent key (bench.js's rule)
-  if (Array.isArray(c.wings)) for (const w of c.wings) if (w && typeof w === 'object' && w.stol == null) delete w.stol;
+  if (Array.isArray(c.wings)) for (const w of c.wings) if (w && typeof w === 'object') { if (w.stol == null) delete w.stol; if (w.tipShape == null) delete w.tipShape; }   // (HULL-B26: the tip's own shape, null = the kind's - as stol)
   if (c.cage && typeof genStolCageOff === 'function') c.cage = genStolCageOff(c.cage);   // G2827: the rows at "off" are absent
   if (sv == null) sv = typeof GEN_SPEC_V !== 'undefined' ? GEN_SPEC_V : 0;
   if (pv == null) pv = typeof PHYSICS_V !== 'undefined' ? PHYSICS_V : 0;
@@ -8338,7 +8338,7 @@ const TECH_TABLE = {
   'eng:io360_mccauley': 2, 'eng:o540_hartzell': 2, 'eng:io550_hartzell3': 2, 'eng:io720_hartzell3': 2, 'eng:ranger440_wood': 2,
   'eng:hirth508_wood': 2, 'eng:argus10c_wood': 2, 'eng:w670_hs2b': 2, 'eng:r755_hs2b': 2, 'eng:m14p_v530': 2,
   'eng:r985_hs2b20': 2, 'eng:r1340_hs12d40': 2, 'eng:r1830_hs23e50': 2, 'eng:merlin66_rotol4': 2,
-  'eng:rotax915_carbon': 3, 'eng:rotax916_carbon': 3,
+  'eng:rotax915_carbon': 3, 'eng:rotax916_carbon': 3, 'eng:rotax912is_warp': 2,
   'eng:emrax268_carbon': 3, 'eng:emrax228_3blade': 3, 'eng:e811_velis': 3, 'eng:sp260d_class': 3, 'eng:eppg_direct_130': 3,
   'eng:fes_folding_100': 3, 'eng:outrunner2212_9x47': 3, 'eng:outrunner3548_12x6': 3, 'eng:outrunner6374_18x10': 3,
   'eng:pt6a114a_hartzell3': 3, 'eng:pt6a34_hartzell4': 3, 'eng:pt6a42_hartzell4': 3, 'eng:pt6a60a_hartzell4': 3,
@@ -8356,7 +8356,7 @@ const TECH_TABLE = {
   'av.nav:none': 1, 'av.nav:vor': 2,
   'av.gps:none': 1, 'av.gps:portable': 3, 'av.gps:panel': 3, 'av.gps:glass': 3, 'av.gps:flat': 3, 'av.gps:flatPair': 3,   // G2815
   // ---- gear
-  'gear:taildragger': 1, 'gear:floats': 1, 'gear:tricycle': 2,
+  'gear:taildragger': 1, 'gear:floats': 1, 'gear:tricycle': 2, 'gear:hull': 2,
   'susp:bungee': 1, 'susp:spring': 1, 'susp:oleo': 1,
   'fair:glass': 1, 'fair:alloy': 2, 'fair:carbon': 3,
   // ---- canopy / glazing
@@ -8370,7 +8370,7 @@ const TECH_TABLE = {
 };
 // the gear types and canopy styles clampSpec accepts (60_gen_spec.js clampSpec: an unknown is rewritten to the first);
 // GATE TECH probes clampSpec with each and with an unknown, so this list cannot drift from it
-const TECH_GEAR_TYPES = ['taildragger', 'tricycle', 'floats'];
+const TECH_GEAR_TYPES = ['taildragger', 'tricycle', 'floats', 'hull'];
 const TECH_CANOPY_STYLES = ['screen', 'bubble'];
 // the powertrain families of the editor's `engPower` row (piston / electric / turbine), read off POWERPLANTS: a family
 // opens with the first of its engines
@@ -8509,7 +8509,7 @@ const TECH_ROWS = {
   fairCons: ['fair:glass', 'fair:carbon', 'fair:alloy'],
   // (ENGINE-CONFIGS-2: 4 push-pull, 5 three, 6 four - several engines, the twin's segment, as techKeysOf reads any
   // spec with more than one engine)
-  engMount: [null, null, null, 'cfg:twin', 'cfg:twin', 'cfg:twin', 'cfg:twin'],
+  engMount: [null, null, null, 'cfg:twin', 'cfg:twin', 'cfg:twin', 'cfg:twin', 'cfg:twin', null],   // (HULL-B22: 8 the fin)   // (HULL-B15: 7 the tandem)
   engPower: ['fam:piston', 'fam:electric', 'fam:turbine'],
 };
 // a row's keys, per option index; ctx: { names (the row's own option names), engines (CAGE_JOIN_ENGINES), propMats
