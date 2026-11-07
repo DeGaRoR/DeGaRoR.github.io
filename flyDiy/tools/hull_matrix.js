@@ -155,7 +155,7 @@ ENGINES.superPetrelV2 = Object.assign({}, ENGINES.superPetrel, {
 // the upper wing (bpCabPylon) and the engine OVER THE WING on its centre section (engPylonAt 0: a short pylon on the
 // wing, the frame hanging it on the wing's root spars) - the single wing-mounted engine the garage has
 ENGINES.superPetrelV4 = Object.assign({}, ENGINES.superPetrelV2, {
-  cage: Object.assign({}, ENGINES.superPetrelV2.cage, { bpCabPylon: 1, engPylonAt: 0, engPylonH: 0.08, engBlockZ: -0.25, engBlockY: 0, engPylonFwd: 0 }),
+  cage: Object.assign({}, ENGINES.superPetrelV2.cage, { bpCabPylon: 1, engPylonAt: 0, engPylonH: 0.08, engBlockZ: -0.25, engBlockY: -0.18, engPylonFwd: 0 }),
   note: 'the Super Petrel LS V4: a central pylon carries the wing, the engine on the wing (HULL-B78)' });
 
 // THE ROLL, whatever the heading: the body's lateral axis (x aft cross y up) out of the horizontal (HULL-B10: the up

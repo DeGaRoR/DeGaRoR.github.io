@@ -945,6 +945,9 @@ function drawPylonMount(group, f, P, GK, aft, C) {
   // (HULL-B52: the plate and the body stand f.pylonFwd forward of the mount's own station - the engine stays)
   const y0 = f.yc - f.halfH, zc = f.z + (aft ? -1 : 1) * (Lp / 2 - 0.05) + (+f.pylonFwd || 0), zF = zc + Lp / 2, zR = zc - Lp / 2, xt = 0.06;
   const ft = f.foot, fx = Math.max(xt, ft.x);
+  // HULL-B79 (the user: "as simple as having an up-down slider for the current setting, and then we just slide it
+  // down"): an engine block slid down INTO the wing (engBlockY) has no pylon - its nacelle on the wing is the mount
+  if (y0 < Math.max(ft.y, ft.yF != null ? ft.yF : -Infinity, ft.yR != null ? ft.yR : -Infinity) + 0.03) return;
   // the feet stand on the skin: the legs end just inside it, never above it (HULL-B18: a foot on a sloping roof reads its
   // own station's height, ft.yF / ft.yR - the front and the rear pair)
   const yF = ft.y - 0.005, yFf = (ft.yF != null ? ft.yF : ft.y) - 0.005, yFr = (ft.yR != null ? ft.yR : ft.y) - 0.005;
@@ -1024,6 +1027,7 @@ function drawPylonBlade(group, f, P, GK, aft, C) {
   const ch = f.chord || 1.4, Lp = Math.max(0.30, 0.42 * ch), ox = f.x || 0;
   const y0 = f.yc - f.halfH, zc = f.z + (aft ? -1 : 1) * (Lp / 2 - 0.05) + (+f.pylonFwd || 0);
   const ft = f.foot, yF = Math.min(ft.y, ft.yF != null ? ft.yF : ft.y, ft.yR != null ? ft.yR : ft.y) - 0.02;
+  if (f.kind !== 'cabPylon' && y0 < Math.max(ft.y, ft.yF != null ? ft.yF : -Infinity, ft.yR != null ? ft.yR : -Infinity) + 0.03) return;   // (HULL-B79: in the wing, no pylon)
   const blend = Math.round(+P.engPylonFair || 0) === 3, H = Math.max(0.05, y0 - yF);
   const c = blend ? Lp + 0.06 : 0.5 * (Math.abs(ft.zF - ft.zR) + 0.10 + Lp + 0.06);
   const C2 = C || { cowl: false, cast: () => null }, fair = GK.Bag(), jb = GK.Bag(), O = [ox, yF + 0.5 * H, zc];
@@ -1591,7 +1595,7 @@ function engPlace(ctx, prev) {
         const top = z => { try { const zc = Math.min(AFp.z1 - 1e-3, Math.max(AFp.z0 + 1e-3, z)); const y = AFp.surf(zc, Math.PI)[1]; return isFinite(y) ? y : null; } catch (e) { return null; } };
         const Lp = Math.max(0.30, 0.55 * ch), zc = le.z - 0.40 * ch, u = W.underAt(0, zc), yb = top(zc);
         if (u && yb != null && u.y > yb + 0.05) {
-          const f = { x: 0, z: zc - (Lp / 2 - 0.05), yc: u.y + 0.01, halfH: 0, chord: Lp / 0.42,
+          const f = { kind: 'cabPylon', x: 0, z: zc - (Lp / 2 - 0.05), yc: u.y + 0.01, halfH: 0, chord: Lp / 0.42,
                       foot: { x: 0.06, y: yb, zF: zc + Lp / 2, zR: zc - Lp / 2, yF: top(zc + Lp / 2), yR: top(zc - Lp / 2) } };
           drawPylonBlade(group, f, Object.assign({}, P, { engPylonFair: 3 }), GK, false,
                          pylonCaster(ctx, FS, [-1.0, 1.0, zc - 1.2, zc + 1.2]));
