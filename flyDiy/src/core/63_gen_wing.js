@@ -136,6 +136,7 @@ const genV3 = {
   add: (a, b) => [a[0]+b[0], a[1]+b[1], a[2]+b[2]],
   mul: (a, s) => [a[0]*s, a[1]*s, a[2]*s],
   cross: (a, b) => [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]],
+  dot: (a, b) => a[0]*b[0] + a[1]*b[1] + a[2]*b[2],
   norm: a => { const L = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0]/L, a[1]/L, a[2]/L]; },
 };
 
@@ -802,7 +803,7 @@ function genWingInto(def, out) {
   const emitLoft = (rows, mesh, vOf, flip, close) =>
     genEmitLoft(rows, mesh, vOf, flip, close, B);
   const capLoft = genCapLoft;
-  const TIP = GEN_TIPS[W.tip] || GEN_TIPS.rounded;
+  const TIP = genTipOf(W);          // (HULL-B26: the kind, with the tip's own length / drop / fullness)
   // ---- 3b. the wing, and its control surfaces as SEPARATE MESHES ----------
   // The fixed skin is lofted over [0..hinge] and each surface over [hinge..1].
   // They are different groups, so a surface is a rigid body with a pivot and an
@@ -912,7 +913,8 @@ function genWingInto(def, out) {
     }
     // THE BOW, stepped in angle (see G4.3): all curvature, no control surface
     if (W.tipR > 1e-6) {
-      const nA = Math.max(2, TIP.arc | 0), thMax = (Math.PI/2) * 0.965;
+      // (HULL-B26: a tip bent deeper than the kind's or made fuller carries more rows, so the bend is a curve)
+      const nA = Math.max(2, TIP.arc | 0) + ((TIP.droop || 0) > 0.15 || (TIP.full || 1) > 1 ? 10 : 0), thMax = (Math.PI/2) * 0.965;
       for (let i = 1; i <= nA; i++) zs2.push(W.tipZ + W.tipR * CORE_MATH.sin(thMax * i / nA));
     }
     // ---- fixed skin: cut at the hinge wherever a surface lives ----
@@ -952,15 +954,34 @@ function genWingInto(def, out) {
         fixRows.push(fixSec(z, hOf(zs2[i+1])));
       }
     }
-    // G2820: THE DROOPED TIP - the bow's rows bend DOWN, by `droop` tip
-    // chords at the very tip, on a square law from where the bow starts
-    // (the straight wing and every surface end inboard of it, untouched)
-    if (TIP.droop > 0 && W.tipR > 1e-6) {
-      const cT = PP.chordAt(W.tipZ);
+    // G2820: THE DROOPED TIP. HULL-B26 (the user, 5 Nov: "take the existing
+    // wingtips, start from that very shape and modify it elegantly"): the bow
+    // BENDS as one piece instead of sliding down - each of its rows rolled
+    // about the path genTipBend lays from the joint (60_gen_spec: no kink at
+    // the joint, the end a straight blade, `droop` tip chords down), its
+    // section thickened by genTipFat about its own mid-line (the tip's
+    // fullness), the node influences untouched (it rides the tip's spar
+    // nodes as it did). The straight wing and every surface end inboard of
+    // the joint are untouched; the buoyant tip the boat floats on is this
+    // same shape (genTipBuoyTable)
+    if ((TIP.droop > 0 || (TIP.full || 1) > 1) && W.tipR > 1e-6) {
+      const f0 = frameAt(W.tipZ), cT = PP.chordAt(W.tipZ);
+      const ch = genV3.norm(genV3.sub(f0.pR, f0.pF));
+      let up = genV3.norm(genV3.cross(ch, [0, 0, 1])); if (up[1] < 0) up = genV3.mul(up, -1);
+      const out = genV3.mul(genV3.norm(genV3.cross(ch, up)), side), O = f0.pF;
+      const BD = genTipBend(W.tipR, (TIP.droop || 0) * cT), sgU = TIP.up ? -1 : 1;   // (HULL-B54: up - th and Y mirrored)
       for (const row of fixRows) {
         if (!(row.z0 > W.tipZ + 1e-6)) continue;
-        const u = Math.min(1, (row.z0 - W.tipZ) / W.tipR), dy = TIP.droop * cT * u * u;
-        for (const pt of row) pt.p = [pt.p[0], pt.p[1] - dy, pt.p[2]];
+        const s0 = row.z0 - W.tipZ, th = sgU * BD.th(s0), cth = CORE_MATH.cos(th), sth = CORE_MATH.sin(th);
+        const fat = genTipFat(TIP.full, s0, W.tipR);
+        const loc = row.map(pt => { const d = genV3.sub(pt.p, O); return [genV3.dot(d, ch), genV3.dot(d, up), genV3.dot(d, out) - s0]; });
+        let vLo = Infinity, vHi = -Infinity; for (const q of loc) { vLo = Math.min(vLo, q[1]); vHi = Math.max(vHi, q[1]); }
+        const vm = 0.5 * (vLo + vHi), Z = BD.Z(s0), Y = sgU * BD.Y(s0);
+        row.forEach((pt, i) => {
+          const [a, v, w] = loc[i], v2 = vm + (v - vm) * fat;
+          // p = O + a ch + (Z + w) out + Y up + v2 (up cos th + out sin th)
+          pt.p = genV3.add(genV3.add(genV3.add(O, genV3.mul(ch, a)), genV3.mul(out, Z + w + v2 * sth)), genV3.mul(up, Y + v2 * cth));
+        });
       }
     }
     if (TIP.fin > 0) {

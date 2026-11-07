@@ -52,6 +52,7 @@ const CAGE_JOIN_ENGINES = {
   'lycoming IO-720': 'io720_hartzell3',
   'rotax 915 iS': 'rotax915_carbon',
   'rotax 916 iS': 'rotax916_carbon',   // FLAGSHIP (2 Nov)
+  'rotax 912 iS': 'rotax912is_warp',   // HULL-B49 (the Super Petrel LS's)
   'Ranger L-440': 'ranger440_wood',
   'Continental W-670': 'w670_hs2b',
   'Jacobs R-755': 'r755_hs2b',
@@ -235,6 +236,13 @@ function cageJoinSpec(P, M, T) {
       // G185: a parasol's cabane height (null on every other position)
       cabaneH: Math.round(P.wgPos) === 3 ? (+P.wgParaH || 0.45) : null,
       tip,
+      // HULL-B26: THE TIP'S OWN SHAPE (60_gen_spec GEN_TIP_SHAPE): its length, how far it drops, its fullness - each 0
+      // (fullness 1) = the kind's own. STATED (A3): the record, or null when all three are the kind's; a P without the
+      // rows (a headless caller) says nothing
+      ...(P.wgTipBow != null || P.wgTipDroop != null || P.wgTipFull != null
+        ? { tipShape: +P.wgTipBow > 0 || +P.wgTipDroop > 0 || +P.wgTipFull > 1
+            ? { bow: +P.wgTipBow > 0 ? +P.wgTipBow : null, droop: +P.wgTipDroop > 0 ? +P.wgTipDroop : null,
+                full: +P.wgTipFull > 1 ? +P.wgTipFull : null } : null } : {}),
       crankAt: P.wgCrankAt > 0 ? P.wgCrankAt : 0,
       crankChord: P.wgCrankAt > 0 ? +P.wgCrankChord : null,
       crankX: P.wgCrankAt > 0 ? (+P.wgCrankX || 0) : null,
@@ -275,6 +283,8 @@ function cageJoinSpec(P, M, T) {
                // biplane switched back to one plane kept its N struts and its
                // wires in the file.
                cabane: (Math.round(P.wgPos) === 3 || +P.w2On) && Math.round(P.bpCabane || 0) ? 'V' : 'N',
+               // HULL-B78: the cabane as one central faired pylon (the frame's narrow truss inside it)
+               ...((Math.round(P.wgPos) === 3 || +P.w2On) && +P.bpCabPylon ? { cabPylon: 1 } : {}),
                ...(+P.w2On ? { interplane: ['N', 'I', 'none'][Math.round(P.bpInter || 0)] || 'N',
                                interplaneAt: +P.bpInterAt || 0.62,
                                wires: ['none', 'both', 'flying'][Math.round(P.bpWires == null ? 1 : P.bpWires)] || 'both' }
@@ -299,13 +309,13 @@ function cageJoinSpec(P, M, T) {
       // (60_gen_spec GEN_ENG_LAYOUTS) — one entry per drawn unit, in the
       // order engineFaces lists them, each entry's own mount
       const mK = Math.round(P.engMount || 0);
-      const LAY = mK === 4 ? 'pushPull' : mK === 5 ? 'tri' : mK === 6 ? 'quad' : null;
+      const LAY = mK === 4 ? 'pushPull' : mK === 5 ? 'tri' : mK === 6 ? 'quad' : mK === 7 ? 'tandem' : null;
       // the mounts of each layout, GEN_ENG_LAYOUTS' own lists (the join runs
       // as a node module in GATE JOIN, where the core's globals are not)
       const LAYM = { pushPull: ['nose', 'pusher'], tri: ['nose', 'wing', 'wing'],
-                     quad: ['wing', 'wing', 'wing', 'wing'] }[LAY];
+                     quad: ['wing', 'wing', 'wing', 'wing'], tandem: ['wingTop', 'wingTop'] }[LAY];
       // (the single mounts' and the pair's list, as GATE TECH reads it; a layout returns before it is used)
-      const mk = ['nose', 'pusher', 'wingTop', 'wing'][Math.round(P.engMount || 0)] || 'nose';
+      const mk = ({ 0: 'nose', 1: 'pusher', 2: 'wingTop', 3: 'wing', 8: 'fin' })[Math.round(P.engMount || 0)] || 'nose';   // (HULL-B22: 8 the fin)
       const type = CAGE_JOIN_ENGINES[(T.PRESET_NAMES || [])[Math.round(P.engPreset)]]
                 || 'a65_sensenich74';
       const EU = Array.isArray(M.engUnits) ? M.engUnits : [];
@@ -314,7 +324,8 @@ function cageJoinSpec(P, M, T) {
       const one = (i, mk) => ({
         type, mount: mk, place: { dx: 0, dy: 0 },
         ...(Math.abs(+P.engTilt || 0) > 0.01 ? { tilt: +P.engTilt } : {}),   // G477: the thrust line's tilt, deg, downthrust +
-        ...(aim && mk !== 'nose' && mk !== 'pusher' ? { aim } : {}),
+        ...(LAY === 'tandem' ? { aim: i === 0 ? 'puller' : 'pusher' }
+            : aim && mk !== 'nose' && mk !== 'pusher' ? { aim } : {}),
         ...(mk !== 'nose' && EU[i] ? { x: EU[i].x, y: EU[i].y, z: Math.abs(EU[i].z) } : {}),
         // G445.1 (the C172 study): THE NOSE ENGINE IS WEIGHED WHERE IT IS
         // DRAWN. The frame placed a nose engine by the prop rule
@@ -357,6 +368,14 @@ function cageJoinSpec(P, M, T) {
         // starboard -1 (down-going blades inboard). A single mount is +1.
         // G2790: a layout's pairs take the row per pair (port first); a
         // push-pull's rear hand is the clamp's (the nose's mirror)
+        // HULL-B14: the pylon's form (engPylonForm 1: one blade on the centreline) - absent at the V legs
+        ...(mk === 'wingTop' && Math.round(+P.engPylonForm || 0) === 1 ? { pylonForm: 'blade' } : {}),
+        // HULL-B30: a wing pair's nacelles on the rear fuselage (engNacOver 2) - the frame hangs them on the body
+        ...(mk === 'wing' && Math.round(+P.engNacOver || 0) === 2 ? { pylonAt: 'body' } : {}),
+        // HULL-B17: the pylon on the fuselage behind the cabin (engPylonAt 1) - absent on the wing
+        ...(mk === 'wingTop' && Math.round(+P.engPylonAt || 0) === 1 ? { pylonAt: 'roof' } : {}),
+        // HULL-B52: the roof pylon's feet that far forward of the engine (m; the frame stands it on the rings there)
+        ...(mk === 'wingTop' && Math.round(+P.engPylonAt || 0) === 1 && +P.engPylonFwd ? { pylonFwd: Math.max(-0.6, Math.min(0.8, +P.engPylonFwd)) } : {}),
         sense: mk === 'wing' && Math.round(P.engRotate || 0)
           ? (((LAY ? wingK(i) % 2 : i) === 0) === (Math.round(P.engRotate) === 1) ? 1 : -1) : 1,
       });
@@ -417,6 +436,8 @@ function cageJoinSpec(P, M, T) {
       if (typeof M.floats.preset === 'string') spec.gear.floats.preset = M.floats.preset;
       if (M.floats.style === 'edo') spec.gear.floats.style = 'edo';   // FLOATS-CLASSIC (a Wipline names none)
     }
+    // HULL-B2: the boat's measured lines ride the gear record as the floats' do
+    if (M.hull) spec.gear.hull = Object.assign({ sta: M.hull.sta, x: M.hull.x, y: M.hull.y, steps: M.hull.steps, tips: M.hull.tips }, M.hull.spon ? { spon: M.hull.spon } : {});
     if (typeof M.twX === 'number' && isFinite(M.twX))
       spec.gear.twX = M.twX;
     if (typeof M.twY === 'number' && isFinite(M.twY))
@@ -444,6 +465,40 @@ function cageJoinSpec(P, M, T) {
       const mode = sv === 2 ? 'lock' : sv === 3 ? 'fixed' : sv === 4 ? 'skid' : null;
       if (mode) spec.gear.twMode = mode; else delete spec.gear.twMode;
       delete spec.gear.twSwivel; }
+    // RETRACT-1 (RETRACT-STUDY §3.1): THE RETRACTABLE GEAR reaches the physics - a low-wing tricycle's in the garage
+    // (the gear layer's GEAR_RETRACTABLE; clampSpec drops it on any type but a tricycle); written only when chosen, so a
+    // fixed build's spec is what it was, to the bit
+    if (+P.gearRetract && M.gearType === 'tricycle' && !+P.gearFloats) {        // (GR: any wing - the Catalina's hull)
+      spec.gear.retract = { time: +P.gearRetT || 6,
+                            act: ['electric', 'hydraulic', 'manual'][Math.round(+P.gearRetAct || 0)] || 'hydraulic' };
+      // G1: the fraction, and the LIFT the gear layer MEASURED (foldChain: the stowed wheel's lowest point over the
+      // down one) - the physics' contact plane follows the drawn wheel, not a rule
+      const fr = +P.gearRetFrac;
+      if (fr > 0 && fr < 1) spec.gear.retract.frac = fr;
+      const SWj = window.CAGE_GEAR && window.CAGE_GEAR.swing;
+      if (SWj) {
+        const lm = [SWj.L, SWj.R].filter(Boolean).map(c => c.lift);
+        const lift = {};
+        if (lm.length) lift.mains = +(lm.reduce((a, b) => a + b, 0) / lm.length).toFixed(4);
+        if (SWj.T) lift.nose = +SWj.T.lift.toFixed(4);
+        if (Object.keys(lift).length) spec.gear.retract.lift = lift;
+      }
+      // G3: THE WELLS, in the spec's own frame - the body's station x (the frame's: gear.x + the axle's z less the
+      // point's, cage +z forward), its band of the section (lv), the span fractions; the litres split between the body
+      // and the wing. The core's bays give them up (60c genBayResolve); the editor's tanks keep out (CAGE_GEAR.wells)
+      const WL = window.CAGE_GEAR && window.CAGE_GEAR.wells, msC = (window.CAGE_GEAR.contacts || []).filter(c => c.st && (c.st.single != null ? !c.st.single : c.st.x > 0.01));
+      if (WL && WL.length && typeof M.gearX === 'number' && msC.length) {
+        const zAx = msC.reduce((s, c) => s + c.p[2], 0) / msC.length, r3 = v => +v.toFixed(3);
+        spec.gear.wells = WL.map(w => ({ unit: w.unit,
+          x: [r3(M.gearX + zAx - w.max[2]), r3(M.gearX + zAx - w.min[2])],
+          ...(w.lv ? { lv: [r3(w.lv[0]), r3(w.lv[1])] } : {}),
+          ...(w.span ? { span: [r3(w.span[0]), r3(w.span[1])] } : {}),
+          bodyL: r3(w.vol * w.fBody * 1000), wingL: r3(w.vol * w.fWing * 1000) }));
+      }
+    }
+    // (...and it is drawn bare: the fairing fields the drag and the mass read follow the drawing - clampSpec says so too)
+    if (spec.gear.retract) { spec.gear.fairing = spec.gear.twFairing = 'none'; spec.gear.legFair = spec.gear.twLegFair = 'none'; }
+    else delete spec.gear.retract;
     // G133: the fairing's remaining physics-bearing fields, PARAMS all by
     // s1Fair's own rule (each drawn shell is generated FROM these rows).
     // Skirt, rake and width stay cage-side only — geometry the drag model
@@ -466,7 +521,8 @@ function cageJoinSpec(P, M, T) {
     // drawn mechanism — a beam leg IS a spring-steel blade and a telescopic
     // leg IS an oleo, whatever the (link-only) shock row happens to hold.
     // Only the swinging link actually has a shock choice to read.
-    const s1leg = Math.round(P.s1Leg);
+    // RETRACT GM1: a retracting leg is drawn as an oleo on a trunnion (the gear layer), and flies as one
+    const s1leg = spec.gear.retract ? 2 : Math.round(P.s1Leg);
     spec.gear.suspension =
       s1leg === 0 ? 'spring' : s1leg === 2 ? 'oleo' :
       ['spring', 'bungee', 'oleo'][Math.round(P.s1_shockKind)] || 'bungee';
@@ -795,6 +851,15 @@ const _vParam = k => ({
 
 const VIEW_STATE = [
   { row: 'explode',         ..._vParam('explodeD'), to: 0 },
+  // RETRACT G1: THE GEAR'S PREVIEW POSITION - a panel row (the retraction group), not a rail control, so `hidden`; the
+  // capture takes the gear DOWN (the flown model swings it from there). Its own getter: an absent row is down, never 0
+  { row: 'gear position',
+    get: () => ((typeof window !== 'undefined' && window.CAGE_UI)
+      ? (window.CAGE_UI.P.gearPos == null ? 1 : +window.CAGE_UI.P.gearPos) : null),
+    set: v => { if (typeof window !== 'undefined' && window.CAGE_UI) window.CAGE_UI.P.gearPos = v; },
+    to: 1,
+    hidden: 'a panel row of the retractable gear (its preview), not a display control in the rail: the flown model ' +
+      'is captured with the gear down and swings it from there' },
   { row: 'section colours', ..._vChk('color'),      to: true },
   // THE THREE THAT REPLACE THE FUSELAGE MESH OUTRIGHT. build() picks one of
   // surfMesh / curvatureMesh / quadWire / meshFrom, so with any of these on
@@ -931,6 +996,7 @@ function cagePartMatch(name, ud, twin) {
   if (name.lastIndexOf('edLeg', 0) === 0 || name.lastIndexOf('edSurf_', 0) === 0 ||
       name.lastIndexOf('edLink_', 0) === 0 || name.lastIndexOf('edCtl_', 0) === 0 ||
       name.lastIndexOf('edGauge_', 0) === 0 ||           // the panel arc
+      name.lastIndexOf('edMech', 0) === 0 ||             // RETRACT GM3: a retracting gear's brace links and actuator
       name === 'edCastorT')
     return { src: name, ctl: true };
   // G179.2: the struts and the engine units (the prop and spinner under a
@@ -1234,7 +1300,12 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     const G2 = window.CAGE_GEAR || {};
     // H1 (G383): a float build declares itself — there are no contacts to
     // measure, and the frame sizes the floats from the gross
-    if (+P.gearFloats) M.gearType = 'floats';
+    // HULL-B1: the fuselage is the boat - no contacts either; its lines are measured below (gear.hull)
+    // HULL-B55 (the Super Petrel, the user: "we need to exploit the retractable gear code"): AN AMPHIBIAN - a hull that
+    // also stands on a retracting tricycle (gearRetract with both stations on) measures its wheels as a tricycle; the
+    // hull's lines ride gear.hull beside them (60_gen_spec keeps the record on any type; 61_gen_frame builds both)
+    if (+P.hullOn && !(+P.gearRetract && +P.s1On && +P.s2On)) M.gearType = 'hull';
+    else if (+P.gearFloats) M.gearType = 'floats';
     else if (G2.contacts && G2.contacts.length) {
       const mains = G2.contacts.filter(c => c.st && !isSingle(c));
       const single = G2.contacts.find(isSingle);
@@ -1431,6 +1502,25 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           if (!fwOk) NOTES.push('floats: no firewall anchor — the step station keeps the rule');
         }
       }
+      // HULL-B2: THE BOAT IS MEASURED - the drawn rings' keel, chine and gunwale (_cage_gen.js cageHullLines) as
+      // the water's station table (cageHullTable: x aft of the step, y up from its keel, metres), placed as the
+      // floats are: the step keel x aft of the firewall, y over the keel datum. The frame hangs the one centreline
+      // hull on the fuselage's own frames (61_gen_frame.js HULL-B3): what the builder drew is what floats.
+      if (+P.hullOn) {
+        try {
+          const C2 = window.CAGE2, FSh = (C2.CAGE_UNIT || 1) * (P.planeScale || 1);
+          const TB = C2.cageHullTable(C2.cageHullLines({ ...P }), FSh);
+          if (TB && fwOk) {
+            M.hull = { sta: TB.sta, x: zFw - TB.zStep * FSh, y: TB.yStep * FSh - yD, steps: TB.steps,
+                       tips: { on: +P.hullTips ? 1 : 0, at: +P.hullTipAt, kg: +P.hullTipKg, y: +P.hullTipY, mode: Math.round(+P.hullTips) === 2 ? 'wing' : Math.round(+P.hullTips) === 3 ? 'outrigger' : null,
+                              ...(Math.round(+P.hullTipPlane || 0) === 1 && +P.w2On ? { plane: 1 } : {}) },   // (HULL-B45)
+                       ...(+P.hullSpon ? { spon: { on: 1, mode: Math.round(+P.hullSpon) === 1 ? 'stub' : Math.round(+P.hullSpon) === 3 ? 'root' : 'float', kg: +P.hullSponKg, y: +P.hullSponY, x: +P.hullSponX, w: +P.hullSponW,
+                                                   c: +P.hullSponC, k: +P.hullSponK, t: +P.hullSponT } } : {}) };
+            const sF = TB.sta.find(s => s.x === 0) || TB.sta[0];
+            window.CAGE_HULL = { zStep: TB.zStep * FSh, keelY: TB.yStep * FSh, chineY: TB.yStep * FSh + sF.yc };
+          } else NOTES.push(TB ? 'hull: no firewall anchor - the hull cannot be placed' : 'hull: no lines to measure');
+        } catch (e) { ERRS.push('the boat hull would not measure: ' + e.message); }
+      } else window.CAGE_HULL = null;
       // PILLAR-ANCHORS P4: THE PICKED STRUT PILLAR's ring station, metres aft of the firewall (the wing layer drew
       // the foot on it; the frame roots the strut on the ring nearest it)
       {
@@ -2077,8 +2167,12 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       // between physical and 3d model", the tail nowhere near the frame's).
       const FLT = window.CAGE_FLOAT;
       const onFloats = !cm.length && FLT && FLT.zStep != null && FLT.keelY != null;
-      const cz = onFloats ? FLT.zStep : cm.reduce((s, c) => s + c.p[2], 0) / cm.length,
-            cy = onFloats ? FLT.keelY : cm.reduce((s, c) => s + c.p[1], 0) / cm.length;
+      // HULL-B3: ON A HULL THE STEP'S CHINES ARE THE MAINS (the frame's refs.mains, 61_gen_frame.js): their mean is
+      // the step's station at the chine's height, which the hull measurement published in the cage frame
+      const HUL = window.CAGE_HULL;
+      const onHull = !cm.length && !onFloats && HUL && HUL.zStep != null && HUL.chineY != null;
+      const cz = onFloats ? FLT.zStep : onHull ? HUL.zStep : cm.reduce((s, c) => s + c.p[2], 0) / cm.length,
+            cy = onFloats ? FLT.keelY : onHull ? HUL.chineY : cm.reduce((s, c) => s + c.p[1], 0) / cm.length;
       // G54.2 THE PITCH CALIBRATION (user: "it's like the plane has
       // rotated... would you get confused with the plane's resting
       // position?" — yes, for three rounds). poseModel maps the visual's
@@ -2168,6 +2262,11 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           kind: 'leg' + (u.kind === 'T' ? 'T' : u.kind),
           stretch: true, axleC: u.moving || u.axle, rootC: u.root || null,
           groups: {} });
+      // RETRACT GM3: THE MECHANISM'S PARTS (a brace's links, an actuator's body and rod) - each its own rigid part,
+      // pivoted on its rest base point; the flight poses it with the core's gearMechPose (the snapshot's gearMech)
+      for (const mp of ((GB.mech && GB.mech.parts) || []))
+        if (mp.name.lastIndexOf('edMech', 0) === 0 && mp.o0)          // (G6: the doors too - rigid on a unit, or hinged)
+          PARTS.others.push({ src: mp.name, kind: 'gearMech', mechName: mp.name, axleC: mp.o0, groups: {} });
       // G59 CONTROL SURFACES. Each named surface becomes its own part
       // with a HINGE derived from its own geometry: the hinge line is
       // the surface's FORWARD edge (x is aft in the model frame, so its
@@ -2898,6 +2997,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           tip: rotP(-m.tip[2], m.tip[1], m.tip[0]),
           ...(m.pinAt ? { pinAt: m.pinAt, tipAt: m.tipAt } : {}) }));
       if (pt.kind === 'eng') out2.unit = pt.unit;
+      if (pt.kind === 'gearMech') out2.name = pt.mechName;          // RETRACT GM3
       if (pt.stretch && pt.rootC)          // G58.7: the fixed airframe end
         out2.root = rotP(-pt.rootC[2], pt.rootC[1], pt.rootC[0]);
       // G267.2: THE TAIL'S ANCHOR — the points whose nodes' mean travel the
@@ -3195,9 +3295,43 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       if (exhaust.length || wheels.length)
         weather = { exhaust, wheels, engines, floor: footwell ? footwell.zFloor : null };
     } catch (e) {}
+    // RETRACT-1 (futureDesigns/RETRACT-STUDY-2026-11.md §3.1): THE GEAR'S SWING, a retractable build's only (absent:
+    // the snapshot is what it was, to the byte) - the gear layer's rule (CAGE_GEAR.swing: per unit the hinge, the axis,
+    // the angle, in the layer's frame) carried to the flown model: the hinge through the capture's map as every pivot,
+    // the axis in the TRUE model frame (x aft, y up, z port) - app.js conjugates the turn by the map (conjRot, G357).
+    // No well is cut: the stowed unit lies inside the skin
+    let gearSwing = null;
+    try {
+      const SW = window.CAGE_GEAR && window.CAGE_GEAR.swing;
+      if (SW) {
+        gearSwing = {};
+        // G1: the whole CHAIN (the gear layer's foldChain) - the leg's axis and the twist, the turns in order, the
+        // fraction - each direction in the true model frame (a vector's swap, no map: conjRot applies the map)
+        const tv = k => [-k[2], k[1], k[0]];
+        for (const key in SW) {
+          const S = SW[key], h = S.hinge;
+          gearSwing[key] = { hinge: rotP(-h[2], h[1], h[0]), leg: tv(S.leg), twist: S.twist,
+                             turns: S.turns.map(T => ({ axis: tv(T.axis), ang: T.ang })), frac: S.frac };
+        }
+      }
+    } catch (e) { gearSwing = null; }
+    // RETRACT GM3 (WYSIWYG): THE ONE KINEMATICS' RECORD as the gear layer posed it (its frame: the cage's metres) and
+    // the capture's map of that frame (rotP, linear: Mp p = rotP(-p.z, p.y, p.x)) - app.js poses every part with the
+    // core's gearMechPose and carries each matrix through Mp (T' = Mp T Mp^-1), the very function the garage ran
+    let gearMech = null;
+    try {
+      const GM = window.CAGE_GEAR && window.CAGE_GEAR.mech;
+      if (GM) {
+        const e = [rotP(0, 0, 1), rotP(0, 1, 0), rotP(-1, 0, 0)];    // the images of the frame's x, y, z
+        gearMech = { R: JSON.parse(JSON.stringify(GM)),
+                     Mp: [e[0][0], e[1][0], e[2][0], e[0][1], e[1][1], e[2][1], e[0][2], e[1][2], e[2][2]] };
+      }
+    } catch (e) { gearMech = null; }
     return { cage: true, groups, mats, off, pitch: beta, parts,
              zRoot: 0, surfaces: null, cageM, people, lights, tailRef, mainsRef, footwell, holes,
              weather,
+             ...(gearSwing ? { gearSwing } : {}),
+             ...(gearMech ? { gearMech } : {}),          // RETRACT GM3
              debris,                     // G1860: the static merge's non-member parts ([tag, bucket, v0, v1])
              layers,                     // G1859: the static vertices' layers and objects ([layer, bucket, v0, v1, object])
              // G357: the capture's map in the model's x-y plane (row-major

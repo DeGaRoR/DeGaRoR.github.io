@@ -422,13 +422,18 @@ function rodSite(row, P, needs, atSL, atLV, bags) {
   const z = Math.max(sp.zTip + 0.06 / FS, Math.min(sp.zRoot - 0.06 / FS, zRaw));
   const under = atLV === 'keel';
   const sgn = under ? -1 : 1;
-  const p = [0, (y0 + sgn * r) * FS, z * FS];
-  const n = [0, sgn, 0];
+  // HULL-B37 (the user: "the fixation rings don't follow your rod rotation"): the tube climbs rodIncl aft of its root,
+  // so the site rides the axis AT ITS STATION (it sat at the root's height, the ring hanging off an inclined rod) and the
+  // collar is square to the tube: fa the axis forward, up square to it
+  const tI = Math.tan(S.rod.incl || 0), yA = y0 + tI * (sp.zRoot - z);
+  const cI = 1 / Math.hypot(1, tI), fa = [0, -tI * cI, cI], up = [0, cI, tI * cI];
+  const p = [0, (yA + sgn * r * up[1]) * FS, (z + sgn * r * up[2]) * FS];
+  const n = [0, sgn * up[1], sgn * up[2]];
   if (bags && bags.metal && K && K.revolve) {
-    const rm = r * FS, ctr = [0, y0 * FS, z * FS];
+    const rm = r * FS, ctr = [0, yA * FS, z * FS];
     // the split collar: a 24 mm wide band, 4 mm proud, and its two clamp
     // lugs standing off the flanks where the bolts go through
-    K.revolve(bags.metal, [ctr[0], ctr[1], ctr[2] - 0.012], [0, 0, 1],
+    K.revolve(bags.metal, [ctr[0], ctr[1] - 0.012 * fa[1], ctr[2] - 0.012 * fa[2]], fa,
       [[rm + 0.0008, 0], [rm + 0.0045, 0.0015], [rm + 0.0045, 0.0225],
        [rm + 0.0008, 0.024], [rm + 0.0008, 0]], 20, false);   // G307: no disc to the axis
     for (const s of [-1, 1])
@@ -700,6 +705,11 @@ PAGE.post = ctx => {
   }
   const pilMoved = [], pilTaken = [];
   AUTO = {}; AUTO_BUILT = true;
+  // RETRACT GM1: the wheel wells' outlines (the gear layer's cuts, cage units: u = z, v = -x) - a site inside one is moved
+  const CUTS = (window.CAGE_GEAR && Array.isArray(window.CAGE_GEAR.cuts) && window.CAGE_GEAR.cuts.length) ? window.CAGE_GEAR.cuts : null;
+  const wellIn = CUTS ? q => CUTS.some(c => q.p[1] < c.ceil && c.outline.every((a, i) => {
+    const b = c.outline[(i + 1) % c.outline.length], l = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+    return ((b[0] - a[0]) * (-q.p[0] - a[1]) - (b[1] - a[1]) * (q.p[2] - a[0])) / l > -0.05 / FS; })) : null;
   for (const row of rows) {
     const fam = FAMILY[row.key];
     if (fam && !Math.round(P[fam] === undefined ? 1 : P[fam])) continue;
@@ -811,12 +821,21 @@ PAGE.post = ctx => {
     } else {
       // `lv` is a RAIL INDEX and is not a length, so it is not scaled; sL is
       // metres and is. See UNITS at the top of this file.
-      sites = SITE.accessSites(mesh, {
-        sL: atSL / K2,
+      const siteAt = sl => SITE.accessSites(mesh, {
+        sL: sl / K2,
         lv: atLV,
         sC: row.at.sC != null ? row.at.sC / K2 : undefined,
         snap: row.snap, side: row.side,
       });
+      sites = siteAt(atSL);
+      // RETRACT GM1: NOTHING IS BOLTED INTO A WHEEL WELL (the transponder aerial stood in the mains' well, the fuel
+      // drain in the nose's): a site inside a well's outline (CAGE_GEAR.cuts, cage units, 50 mm round) and under its
+      // ceiling slides along the body, aft then forward by 50 mm steps up to 1.2 m, to the first station clear of all
+      if (wellIn && row.on === 'body' && sites.some(wellIn))
+        for (let k = 1; k <= 24; k++) {
+          const tryS = [siteAt(atSL - 0.05 * k), siteAt(atSL + 0.05 * k)].find(ss => ss.length && !ss.some(wellIn));
+          if (tryS) { sites = tryS; break; }
+        }
     }
     // G278: A CROWN FITTING LOOKS FOR THE TOP OF THE AEROPLANE (the user:
     // "these things should always look for the top of the airplane, by

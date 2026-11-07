@@ -8,7 +8,9 @@ sc.updateMatrixWorld(true);
 const V = [], C = [], opaque = [], clear = [];
 const v = new THREE.Vector3(), M = new THREE.Matrix4(), IM = new THREE.Matrix4();
 let parts = 0, trisIn = 0;
-const shown = o => { for (let p = o; p; p = p.parent) if (p.visible === false) return false; return true; };
+// (QV_HIDE: a regex on the names up a mesh's parents - a look at the fuselage without the wings, e.g. QV_HIDE=wing|eng|strut)
+const HIDE = window.__probeEnv && window.__probeEnv.QV_HIDE ? new RegExp(window.__probeEnv.QV_HIDE, 'i') : null;   // (_load_build hands it over)
+const shown = o => { for (let p = o; p; p = p.parent) if (p.visible === false || (HIDE && p.name && HIDE.test(p.name))) return false; return true; };
 sc.traverse(o => {
   if (!o.isMesh || !o.geometry || !o.geometry.attributes || !o.geometry.attributes.position || !shown(o)) return;
   const g = o.geometry, pos = g.attributes.position, idx = g.index, vc = g.attributes.color;
@@ -76,4 +78,17 @@ sc.traverse(o => {
   }
 }
 // (plain arrays: the chain's child hands its result back as JSON - the positions in tenths of a millimetre, as integers)
-return { V: V.map(x => Math.round(x * 1e4)), C, I: opaque.concat(clear), nOpaque: opaque.length, parts, trisIn };
+// THE FOCUS (the pylon session): the box of the engine layer's own mounting - meshes named engPylon*, or (an older
+// drawing) the meshes the layer holds outside its units' groups (edEng*) - for quick_view's --closeup
+let focus = null;
+{
+  const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity], bb = new THREE.Box3();
+  const take = o => { if (!o.isMesh || !shown(o)) return; bb.setFromObject(o); if (bb.isEmpty()) return;
+    for (let a = 0; a < 3; a++) { lo[a] = Math.min(lo[a], bb.min.getComponent(a)); hi[a] = Math.max(hi[a], bb.max.getComponent(a)); } };
+  let named = 0;
+  sc.traverse(o => { if (o.isMesh && /^engPylon/.test(o.name || '')) { take(o); named++; } });
+  if (!named) sc.traverse(o => { if (o.name !== 'cageLayer:eng') return;
+    o.traverse(m => { for (let p = m; p && p !== o; p = p.parent) if (/^edEng/.test(p.name || '')) return; take(m); }); });
+  if (isFinite(lo[0])) focus = [lo, hi];
+}
+return { V: V.map(x => Math.round(x * 1e4)), C, I: opaque.concat(clear), nOpaque: opaque.length, parts, trisIn, focus };

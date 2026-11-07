@@ -84,6 +84,7 @@ const STOL_ROW_DEFAULTS = { wgSlat: 0, wgSlatSpan: 1.0, wgVG: 0, wgFence: 0, wgC
 function preStol(spec) {
   const J = JSON.parse(JSON.stringify(spec));
   for (const w of J.wings || []) if (w && w.stol === null) delete w.stol;
+  for (const w of J.wings || []) if (w && w.tipShape === null) delete w.tipShape;   // (HULL-B26: stated null at the kind's own, as stol)
   if (J.cage && Object.keys(STOL_ROW_DEFAULTS).every(r => J.cage[r] === STOL_ROW_DEFAULTS[r])) for (const r in STOL_ROW_DEFAULTS) delete J.cage[r];
   return J;
 }

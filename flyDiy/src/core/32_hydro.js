@@ -364,7 +364,35 @@ function chineHalfStep(P) {
   const tf = Math.tan(P.flare * D2R), tb = Math.tan(P.beta * D2R);
   return (P.B / 2 - P.H * tf) / Math.max(0.2, 1 - tb * tf);
 }
+// HULL-B2 (futureDesigns/HULL-TYPES-2026-11.md §3.5): A HULL FROM A STATION TABLE. The flying boat's hull is the
+// fuselage the cage DREW (_cage_gen.js THE BOAT HULL): the join samples its keel, chine and gunwale ring by ring
+// (cageHullLines) into P.table = { F: [...], A: [...] }, rows { x, yk, b, yc, bd, yd } in this frame (x aft of the
+// step, y up from the step's keel), F the forebody (x <= 0, bow first), A the afterbody (x > 0). Every consumer of a
+// section reads it through here (the loft, the step face, levelVolume, the half-beam table), so a table hull is
+// drawn and flown from one set of numbers; a hull without a table is the Wipline family's formula, untouched.
+function tableSection(P, x) {
+  const T = P.table, rows = x <= 0 ? T.F : T.A, n = rows.length;
+  let i = 0;
+  if (x <= rows[0].x) i = 0; else if (x >= rows[n - 1].x) i = n - 2;
+  else while (i + 2 < n && x > rows[i + 1].x) i++;
+  const a = rows[Math.max(0, i)], c = rows[Math.min(n - 1, i + 1)];
+  const t = c.x - a.x > 1e-9 ? Math.max(0, Math.min(1, (x - a.x) / (c.x - a.x))) : 0;
+  const L = k => a[k] + (c[k] - a[k]) * t;
+  const yk = L('yk'), b = Math.max(1e-4, L('b')), yc = Math.max(yk, L('yc'));
+  const yd = Math.max(yc + 0.01, L('yd')), bd = Math.max(b, L('bd'));
+  const out = { x, yk, b, bd, beta: Math.atan2(yc - yk, b) / D2R, hc: yc - yk, body: x <= 0 ? 'F' : 'A', yc, yd, yt: yd };   // (yt: the deck's top - FLOATS-CLASSIC's secAreaTo reads it; a hull's deck is its gunwale)
+  // HULL-B39: A FLUTED HULL's water ridge (the cage's cageHullFlute: the EDO's physics ridge, the drawn arcs' area held) -
+  // every station of a fluted table carries one (a row without it - the tub's - its straight V's middle), so the bottom
+  // is the keel -> ridge -> chine ladder everywhere (makeFloat)
+  if (P.fluted) {
+    const rg = r => r.zr != null ? [r.yr, r.zr] : [r.yk + 0.5 * (r.yc - r.yk), 0.5 * r.b];
+    const ra = rg(a), rc = rg(c), zr = Math.min(0.98 * b, Math.max(0.02 * b, ra[1] + (rc[1] - ra[1]) * t));
+    out.fluteP = [[Math.min(yc, Math.max(yk, ra[0] + (rc[0] - ra[0]) * t)), zr]];
+  }
+  return out;
+}
 function sectionOf(P, x) {
+  if (P.table) return tableSection(P, x);
   const xs = P.xs, LA = P.L - P.xs, K = keelOf(P);
   const bS = chineHalfStep(P);
   let yk, b, beta, body, bPlan;
@@ -467,7 +495,8 @@ function secPoly(P, s) {
     return { K: [s.yk, 0], B: s.fluteP, C: [s.yc, s.b], E: pts[0], D: pts[1], R: [pts[2]], T: [s.yt, 0], bv: 0, dome: true };
   }
   const bv = Math.min(P.bevel || 0, 0.45 * (s.yd - s.yc), 0.45 * s.bd);
-  return { K: [s.yk, 0], C: [s.yc, s.b], E: [s.yd - bv, s.bd], D: [s.yd, s.bd - bv], bv };
+  // (HULL-B39: a fluted hull's bottom ridge - B, the EDO's ladder without its dome)
+  return Object.assign({ K: [s.yk, 0], C: [s.yc, s.b], E: [s.yd - bv, s.bd], D: [s.yd, s.bd - bv], bv }, s.fluteP ? { B: s.fluteP } : {});
 }
 // the EDO arc's seven points, shoulder (k 0) to crown (k 6), evenly in the ellipse's angle: [y, z]
 function edoArc(s) {
@@ -522,18 +551,21 @@ function makeFloat(over = {}) {
     s.Dm = push([s.x, q.D[0], -q.D[1]]); s.Dp = push([s.x, q.D[0], q.D[1]]);
     // FLOATS-CLASSIC: the dome's 30-75 deg pairs and its crown on the centreline (a flat deck has none): s.Rm / s.Rp
     // run D (15 deg), the four, then T - the ladder every dome panel walks
-    if (q.dome) {
-      // the fluted bottom's ladder a side: K, the first flute's mid, the ridge, the second's mid, C
+    if (q.B) {
+      // the fluted bottom's ladder a side: K, the first flute's mid, the ridge, the second's mid, C (HULL-B39: a fluted
+      // hull's too - its one ridge)
       s.Bm = [s.K]; s.Bp = [s.K];
       for (const q2 of q.B) { s.Bm.push(push([s.x, q2[0], -q2[1]])); s.Bp.push(push([s.x, q2[0], q2[1]])); }
       s.Bm.push(s.Cm); s.Bp.push(s.Cp);
+    }
+    if (q.dome) {
       s.Rm = [s.Dm]; s.Rp = [s.Dp];
       for (const r of q.R) { s.Rm.push(push([s.x, r[0], -r[1]])); s.Rp.push(push([s.x, r[0], r[1]])); }
       s.T = push([s.x, q.T[0], 0]); s.Rm.push(s.T); s.Rp.push(s.T);
     }
     s.ref = [s.x, 0.5 * (s.yk + s.yd), 0];
   }
-  const dome = !!P.crownK;
+  const dome = !!P.crownK, fluted = !!(sta[0] && sta[0].Bm);   // (HULL-B39: the ladder bottom, an EDO's or a fluted hull's)
   // EVERY PANEL IS PLANAR: a lofted quad's keel and chine edges have
   // different slopes, so it is split on its diagonal into two triangles
   // (the clip is then exact, and the pressure's direction with it); the
@@ -552,7 +584,7 @@ function makeFloat(over = {}) {
       // afterbody and every step face came out inward: the closure sum read
       // -2x their area and a level float felt 71 N fore-aft at rest)
       const rs = [-0.02, 0.5 * (s0.yk + s0.yd), 0];
-      if (dome) {
+      if (fluted) {
         // (an EDO's bottom is four facets a side: the step face between the two bottoms is four quads a side)
         for (const [L, sd] of [['Bm', -1], ['Bp', 1]])
           for (let k = 0; k + 1 < s0[L].length; k++) quad('step', s0[L][k], s1[L][k], s1[L][k + 1], s0[L][k + 1], { side: sd, body: 'A', beta: 0, ref: rs });
@@ -578,7 +610,7 @@ function makeFloat(over = {}) {
     }
     const m = { body: s0.body, ref: [0.5 * (s0.x + s1.x), 0.5 * (s0.ref[1] + s1.ref[1]), 0], x0: s0.x, x1: s1.x };
     const bk = s0.body === 'F' ? 'bottomF' : 'bottomA';
-    if (dome) {
+    if (fluted) {
       // the EDO's fluted bottom: four facets a side (two per flute), each its own deadrise (the planing law reads it)
       for (const [L, sd] of [['Bm', -1], ['Bp', 1]])
         for (let k = 0; k + 1 < s0[L].length; k++) {
@@ -603,7 +635,7 @@ function makeFloat(over = {}) {
   { // bow cap and stern transom
     const s = sta[0];
     const rb = [s.x + 0.05, s.ref[1], 0];
-    if (dome) { tri('bow', s.K, s.Bm[1], s.Bp[1], { side: 0, body: 'F', beta: 0, ref: rb });
+    if (fluted) { tri('bow', s.K, s.Bm[1], s.Bp[1], { side: 0, body: 'F', beta: 0, ref: rb });
                 for (let k = 1; k + 1 < s.Bm.length; k++) quad('bow', s.Bm[k], s.Bm[k + 1], s.Bp[k + 1], s.Bp[k], { side: 0, body: 'F', beta: 0, ref: rb }); }
     else tri('bow', s.K, s.Cm, s.Cp, { side: 0, body: 'F', beta: 0, ref: rb });
     quad('bow', s.Cm, s.Cp, s.Ep, s.Em, { side: 0, body: 'F', beta: 0, ref: rb });
@@ -611,7 +643,7 @@ function makeFloat(over = {}) {
     if (dome) { for (let k = 0; k + 2 < s.Rm.length; k++) quad('bow', s.Rm[k], s.Rp[k], s.Rp[k + 1], s.Rm[k + 1], { side: 0, body: 'F', beta: 0, ref: rb });
                 const n = s.Rm.length; tri('bow', s.Rm[n - 2], s.Rp[n - 2], s.T, { side: 0, body: 'F', beta: 0, ref: rb }); }
     const e = sta[sta.length - 1], re = [e.x - 0.05, e.ref[1], 0];
-    if (dome) { tri('stern', e.K, e.Bm[1], e.Bp[1], { side: 0, body: 'A', beta: 0, ref: re });
+    if (fluted) { tri('stern', e.K, e.Bm[1], e.Bp[1], { side: 0, body: 'A', beta: 0, ref: re });
                 for (let k = 1; k + 1 < e.Bm.length; k++) quad('stern', e.Bm[k], e.Bm[k + 1], e.Bp[k + 1], e.Bp[k], { side: 0, body: 'A', beta: 0, ref: re }); }
     else tri('stern', e.K, e.Cm, e.Cp, { side: 0, body: 'A', beta: 0, ref: re });
     quad('stern', e.Cm, e.Cp, e.Ep, e.Em, { side: 0, body: 'A', beta: 0, ref: re });
@@ -676,7 +708,7 @@ function secAreaTo(P, s, hw) {
   const top = Math.min(hw, s.yt);
   if (top <= s.yk) return 0;
   // the starboard half-polygon keel -> C -> E -> D, then the centreline back (FLOATS-CLASSIC: a dome's R and its crown)
-  const pts = q.dome ? [q.K, ...q.B, q.C, q.E, q.D, ...q.R, q.T] : [q.K, q.C, q.E, q.D, [s.yd, 0]];
+  const pts = q.dome ? [q.K, ...q.B, q.C, q.E, q.D, ...q.R, q.T] : [q.K, ...(q.B || []), q.C, q.E, q.D, [s.yd, 0]];
   const cut = [];
   for (let i = 0; i < pts.length; i++) {
     const a = pts[i], b = pts[(i + 1) % pts.length];
@@ -1677,7 +1709,18 @@ function hydroBuild(def, p, v) {
     const ctx = tetraCtx(F, rec.tetra, rec.tetraLocal, p, v, rec.slab || null);
     const out = makeScratch(F);
     let mMin = Infinity; for (const i of rec.tetra) mMin = Math.min(mMin, def.nodes[i].m || 1);
-    return { rec, F, ctx, out, mNode: mMin, side: rec.side, lam: [0, 0, 0, 0] };
+    // HULL-B10: A TIP FLOAT RIDES ON ITS OWN FEW KILOGRAMS (5-11 kg: the strut floats of a boat, 61_gen_frame), on a
+    // strut to a wing station - not on the aeroplane's mass, so the dynamic terms held for the interval meet the same
+    // overshoot G2368 found on a float come off (the matrix: a soft-chine boat's tips struck at 20 m/s in a skip, a node
+    // at 9 km/s in the next frame). The same semi-implicit bound, by its own mass: one interval can at most stop its
+    // motion through the water (at 20 m/s and 360 Hz, ~50 kN on 7 kg - far over a real tip float's load)
+    // ...AND THE BOAT'S HULL: its record rides 15 nodes of ~1.2 kg tied to the fuselage frames (61_gen_frame's rigid
+    // cluster), the water's thousands of newtons met on 23 kg for the held interval - the soft-chine boat's skip
+    // slammed it at 3.7 t and its keel nodes left at 9 km/s. Bounded the same way on the hull's own mass (at 20 m/s
+    // ~160 kN a hull, sixteen times its planing lift: the bound bites only where the interval would overshoot)
+    let free = 0;
+    if (rec.tip || rec.hull || rec.spon) { for (const i of [...rec.K, ...rec.DL, ...rec.DR]) free += def.nodes[i].m || 0; free = free > 0 ? free : 1; }
+    return Object.assign({ rec, F, ctx, out, mNode: mMin, side: rec.side, lam: [0, 0, 0, 0] }, free ? { free } : {});
   });
   // S1 (G451.1): THE HYDRO SUB-RATE. The water's forces are computed every
   // `every` substeps and HELD between (the held node forces in fh, added to
@@ -1859,6 +1902,134 @@ function zeroTerms(out) {
 }
 // the hull's METRIC keys: everything a preset scales with its size (the
 // fractions — flatK, stemK, noseR, planK, bStern, the angles — do not)
+// HULL-B2: a flying boat's hull parameters from its measured table (spec.gear.hull, the join's cageHullLines): the
+// family's model constants, the table's own size (L, xs from its ends; B, H, the deadrises and the step depth read
+// at the step, for the terms that take a scalar: the beam's scale in the planing law, the ventilation's step depth),
+// no shell mass (the hull IS the fuselage: its covering is billed by the frame) and no load
+function hullParamsFromTable(rec, over) {
+  const F = rec.sta.filter(s => s.x <= 0).sort((a, b) => a.x - b.x), A = rec.sta.filter(s => s.x > 0).sort((a, b) => a.x - b.x);
+  if (F.length < 2 || A.length < 2) return null;
+  const s0 = F[F.length - 1], a0 = A[0];
+  const xs = -F[0].x, L = xs + A[A.length - 1].x;
+  const deg = s => Math.atan2(s.yc - s.yk, Math.max(1e-4, s.b)) / D2R;
+  const P = Object.assign({}, DEF, {
+    table: { F, A }, L, xs, B: 2 * s0.bd, H: s0.yd - s0.yk, beta: deg(s0), betaA: deg(a0), betaBow: deg(F[0]),
+    hs: Math.max(0, a0.yk - s0.yk), mFloat: 0, mLoad: 0, cgLoad: [0, 0, 0], loadI: [0, 0, 0], cgFloat: [0, 0, 0],
+    nSta: 32, wrArea: rec.wrArea != null ? rec.wrArea : 0.06, wrDepth: rec.wrDepth != null ? rec.wrDepth : 0.30,
+    hull: true, fluted: rec.sta.some(s => s.zr != null) }, over || {});   // (HULL-B39: a fluted hull's table)
+  delete P._keel;
+  return P;
+}
+// HULL-B5: THE TIP FLOATS' FIT - each float's displacement (frac of the gross: 6 %, the Seabee / Lake class's practice,
+// INFERRED) and its keel's height over the step keel (the hull's LEVEL waterline at the gross + clear: a level boat
+// sits on its hull, a heel of a few degrees puts a float in). What the Hull tile writes into hullTipKg / hullTipY once
+// (_cage_float.js) and the frame falls back to when they are unset - one function, so the rule cannot drift
+function hullTipFit(rec, grossKg, opt) {
+  const HP = hullParamsFromTable(rec);
+  if (!HP) return null;
+  const o = opt || {}, M = Math.max(60, grossKg || 0), frac = o.frac != null ? o.frac : 0.06, clear = o.clear != null ? o.clear : 0.12;
+  const volTo = hw => { let v = 0; const n = 160; for (let i = 0; i < n; i++) { const x = -HP.xs + HP.L * (i + 0.5) / n; v += secAreaTo(HP, sectionOf(HP, x), hw) * HP.L / n; } return v * HP.rho; };
+  let lo = 0, hi = HP.H; for (let it = 0; it < 30; it++) { const m = 0.5 * (lo + hi); if (volTo(m) < M) lo = m; else hi = m; }
+  // HULL-B10: THE MOMENT RULE (with the CG's height and the floats' arm, opt.cgY over the step keel, opt.arm the
+  // float's station off the centreline; the fit passes them, the frame's fallback does not). The flat 6 % held the
+  // classic vee; the SOFT chine's round bottom has less stability of its own and turned turtle drifting at idle (the
+  // matrix: 54 kg floats, the boat over in 4 s at 1.5 m/s). The hull's own metacentric height at the level draft (GM =
+  // KB + BM - KG: BM the waterplane's inertia over the displaced volume, KB the volume's centroid) sets what the float
+  // must hold at HEEL_DESIGN, plus the engines' torque (opt.torqueKgm): float kg >= RULE_K x that moment / arm
+  let kg = frac * M, stab = null;
+  if (o.cgY != null && o.arm > 0.5) {
+    const n = 120, dx = HP.L / n, hb = (s, h) => {
+      // the section's half-breadth at height h (keel -> chine -> the deck's edge), the polygon secAreaTo cuts
+      const q = secPoly(HP, s), pts = [q.K, ...(q.B || []), q.C, q.E, q.D];
+      if (h <= s.yk) return 0;
+      for (let i = 0; i + 1 < pts.length; i++) { const a = pts[i], b = pts[i + 1];
+        if (h <= b[0]) return a[1] + (b[1] - a[1]) * (b[0] - a[0] > 1e-9 ? (h - a[0]) / (b[0] - a[0]) : 1); }
+      return pts[pts.length - 1][1];
+    };
+    let I = 0, V = 0, VB = 0;
+    for (let i = 0; i < n; i++) {
+      const sx = sectionOf(HP, -HP.xs + HP.L * (i + 0.5) / n), b = hb(sx, lo), A = secAreaTo(HP, sx, lo);
+      I += (2 / 3) * b * b * b * dx; V += A * dx;
+      if (A > 0) { let iA = 0; const k = 10; for (let j = 0; j < k; j++) iA += secAreaTo(HP, sx, sx.yk + (lo - sx.yk) * (j + 0.5) / k) * (lo - sx.yk) / k; VB += (lo * A - iA) * dx; }
+    }
+    if (V > 1e-6) {
+      const KB = VB / V, BM = I / V, GM = KB + BM - o.cgY;
+      const need = (M * Math.max(0, -GM) * Math.sin(HEEL_DESIGN * D2R) + (o.torqueKgm || 0)) * RULE_K / o.arm;
+      kg = Math.max(kg, need);
+      stab = { KB: +KB.toFixed(3), BM: +BM.toFixed(3), GM: +GM.toFixed(3), need: +need.toFixed(1) };
+    }
+  }
+  return { kg: +kg.toFixed(1), y: +(lo + clear).toFixed(3), draft: lo, stab };
+}
+const HEEL_DESIGN = 10, RULE_K = 2.0;
+// HULL-B8: THE HULL'S REST - the trim a boat floats at, off its table alone (the static balance: the displaced volume
+// equals the gross and its centre stands under the CG). cg in the table's frame (x aft of the step, y up from the step
+// keel, metres); trim in degrees, + bow up. The waterline is a plane at height w over the step keel and the boat
+// pitched by th: a body point (x, y) is wet when y < (w + x sin th) / cos th. A section's centroid is taken at 0.6 of
+// its wetted depth (a vee's is 2/3, a box's 1/2). What the fit cycle balances the hull with (_cage_float.js, the
+// gate, the matrix): a boat that would rest bow-under is fixed before it is flown, not found capsized
+function hullRestTrim(rec, grossKg, cgX, cgY) {
+  const HP = hullParamsFromTable(rec);
+  if (!HP) return null;
+  const M = Math.max(60, grossKg || 0), n = 120, dx = HP.L / n;
+  const secs = []; for (let i = 0; i < n; i++) { const x = -HP.xs + HP.L * (i + 0.5) / n; secs.push(sectionOf(HP, x)); }
+  const at = (th, w) => {
+    const c = Math.cos(th), sn = Math.sin(th);
+    let v = 0, mx = 0;
+    for (const s of secs) {
+      const hw = (w + s.x * sn) / c, a = secAreaTo(HP, s, hw) * dx;
+      if (a <= 0) continue;
+      const yb = s.yk + 0.6 * (Math.min(hw, s.yd) - s.yk);
+      v += a; mx += a * (s.x * c + yb * sn);
+    }
+    return { m: v * HP.rho, X: v > 0 ? mx / v : 0 };
+  };
+  const draftAt = th => { let lo = -HP.L, hi = HP.L + HP.H; for (let k = 0; k < 40; k++) { const m = 0.5 * (lo + hi); if (at(th, m).m < M) lo = m; else hi = m; } return lo; };
+  const arm = th => { const w = draftAt(th), r = at(th, w); return { w, d: r.X - (cgX * Math.cos(th) + cgY * Math.sin(th)), full: r.m < 0.999 * M }; };
+  let lo = -25 * D2R, hi = 25 * D2R;
+  if (arm(lo).d > 0) return { trim: -25, draft: arm(lo).w, arm: arm(lo).d, sunk: true };
+  if (arm(hi).d < 0) return { trim: 25, draft: arm(hi).w, arm: arm(hi).d, sunk: true };
+  for (let k = 0; k < 30; k++) { const m = 0.5 * (lo + hi); if (arm(m).d > 0) hi = m; else lo = m; }
+  const th = 0.5 * (lo + hi), r = arm(th);
+  // the bow's freeboard: the foremost station's deck over the water (the lowest the bow deck stands)
+  const s0 = sectionOf(HP, -HP.xs + 1e-6), bow = (-s0.x * Math.sin(th) + s0.yd * Math.cos(th)) - r.w;
+  return { trim: +(th / D2R).toFixed(2), draft: +r.w.toFixed(3), bowDeck: +bow.toFixed(3), sunk: r.full };
+}
+// HULL-B21: A SPONSON IS A STUB WING (the user: "they should link to the fuselage directly and they should really look
+// like little wing stubs"): its mean chord c, span k*c out from the hull's side, a flat-bottomed section t thick (of the
+// chord), its tip taper. For the water it is a float record whose STATIONS run along its chord (x aft, 0 at mid-chord)
+// and whose width is its span: at each station the section's depth is the aerofoil's thickness there (the NACA 4-digit
+// half-thickness doubled, flat underneath), its bottom a 3-deg vee, its width the span (b = bd = span / 2). The volume is
+// the drawn stub's (the tapered planform at its mean chord). sponsonVol: its displacement, full, kg
+function sponsonTable(c, k, t) {
+  const span = Math.max(0.2, k * c), b = 0.5 * span, rows = [], N = 10;
+  for (let i = 0; i <= N; i++) {
+    const xc = 0.02 + 0.96 * i / N, x = (xc - 0.5) * c;
+    const yt = 5 * t * (0.2969 * Math.sqrt(xc) - 0.1260 * xc - 0.3516 * xc * xc + 0.2843 * xc ** 3 - 0.1036 * xc ** 4);
+    const yc = b * Math.tan(3 * D2R), yd = Math.max(yc + 0.012, 2 * yt * c);
+    rows.push({ x: Math.abs(x) < 1e-6 ? (i < N / 2 ? -1e-4 : 1e-4) : +x.toFixed(5), yk: 0, b, yc: +yc.toFixed(5), bd: b, yd: +yd.toFixed(5) });
+  }
+  if (!rows.some(r => r.x <= 0) || !rows.some(r => r.x > 0)) return null;
+  return { sta: rows };
+}
+const sponsonVol = (c, k, t) => 1000 * 0.685 * t * c * c * Math.max(0.2, k * c);
+// the propeller discs of a built aeroplane (model frame: the centre of each engine's thrust nodes, the disc's radius)
+// - what the boat's fit asks the rest waterline about (_cage_gen.js cageHullFitAll), the solver's own geometry
+// (30_solver propWater: refs.engine / engineOf, params.prop or the powerplant's)
+function propDiscs(def) {
+  const N = (def && def.refs && def.refs.engine) || [], K = (def.refs && def.refs.engineOf) || N.map(() => 0);
+  const PR = (def.params && def.params.prop) || (typeof POWERPLANTS !== 'undefined' && POWERPLANTS[def.params.powerplant] || {}).prop;
+  if (!N.length || !PR || !(PR.D > 0)) return [];
+  const acc = [];
+  N.forEach((n, j) => { const k = K[j] | 0, p = def.nodes[n].p; acc[k] = acc[k] || [0, 0, 0, 0]; acc[k][0] += p[0]; acc[k][1] += p[1]; acc[k][2] += p[2]; acc[k][3]++; });
+  // (Q: the shaft torque at full power, N m - P / w off the engine's own row, the solver's EN: what the tip floats hold)
+  const EN = (def.params && def.params.engine) || (typeof POWERPLANTS !== 'undefined' && POWERPLANTS[def.params.powerplant] || {}).engine;
+  const Q = EN && EN.powerW > 0 && EN.rpm > 0 ? EN.powerW / (EN.rpm * 2 * Math.PI / 60) * (EN.gear || 1) : 0;
+  return acc.filter(Boolean).map(a => ({ x: a[0] / a[3], y: a[1] / a[3], z: a[2] / a[3], R: PR.D / 2, Q }));
+}
+// ...and the tip float's own hull for a displacement (the family scaled: floatParamsFor's pair displaces 1.8 x what
+// it is sized for, so one float sized for kg / 0.9 displaces kg)
+const tipFloatParams = kg => { const P = floatParamsFor(Math.max(5, kg / 0.9)); delete P._keel; return P; };
 const FLOAT_METRIC = ['L', 'xs', 'B', 'H', 'hs', 'rChine', 'rGun', 'rLip', 'rTransom', 'railW', 'railT',
                       'keelW', 'keelH', 'skW', 'skH', 'wrDepth'];
 function scaleParams(base, k, over) {
@@ -1932,6 +2103,57 @@ const FLOAT_PRESETS = {
                      for: 'de Havilland DHC-6 Twin Otter' },
 };
 const FLOAT_PRESET_NAMES = Object.keys(FLOAT_PRESETS);
+// ---- THE WIPLINE AMPHIBIANS (RETRACT-STUDY §8.25, 2026-11-05) ----------------------------------------------------
+// The user: "amphibious floats ... work that needs to be done according to manufacturer data, not eyeballed". Read
+// off Wipaire's own documents (the service manuals / ICA, the parts manuals and the product guides on wipaire.com
+// and their manualshive copies; the study's §8.25 lists every source by model):
+//   - "The amphibian float is geometrically the same as the seaplane except for the addition of landing gear and
+//     internal structure for the gear" (every service manual) - the hull rows stand; the published amphibian
+//     length is longer by `dL` (in): the nose gear ahead of the bow [inferred - Wipaire gives no datum];
+//   - a QUADRICYCLE: one nose wheel in each bow (a composite spring leg on a trolley in tracks in a nose box, full
+//     castering, retracting into the float's nose "to provide a dock bumper", no doors); one main gear per float,
+//     single or DUAL wheels, on a drag link hinged on the step bulkhead's trunnions, swinging up into an open wheel
+//     well just aft of the step, no doors; over-centre locks; one hydraulic system, a hand pump;
+//   - the tyres (size code as published; OD from it by the aircraft-tyre rule rim + 2 x 0.9 x width, or as given);
+//   - `dKg`: the amphibian system's weight over the seaplane's (the pair, rigging included; Wipaire's installed
+//     weights, the example aircraft named), null where Wipaire publishes no seaplane figure beside it;
+//   - the geometry measured on the product guides' dimensioned 3-views [inferred, +-3 %]: the wheelbase is 0.48-0.52
+//     of the amphibian float's length, the main axle 0.50-0.55 of it from its front, the nose axle at its front.
+// Not published (so not modelled as fact): the main wheel's drop under the keel, the swing angles, the nose trolley's
+// stroke, the stations - the drawing ASSUMES them and says so (`_cage_float.js` amphib).
+const TYRE_OD = code => { const m = String(code).match(/^([\d.]+)\s*x\s*([\d.]+)$/i); if (!m) return null;
+  const a = +m[1], b = +m[2]; return (a > b ? a : b + 2 * 0.9 * a) * 0.0254; };          // ('10x3.50': OD x width)
+const TYRE_W = code => { const m = String(code).match(/^([\d.]+)\s*x\s*([\d.]+)$/i); if (!m) return null;
+  const a = +m[1], b = +m[2]; return (a > b ? b : a) * 0.0254; };
+const WIPLINE_AMPHIB = {
+  'Wipline 2100':  { main: '5.00x5', mainN: 1, nose: '2.50x4',  dL: 4,  dKg: 147 * 0.4536, ex: 'PA-18 (427 vs 280 lb)' },
+  'Wipline 2350':  { main: '5.00x5', mainN: 1, nose: '2.50x4',  dL: 4,  dKg: 163 * 0.4536, ex: 'C-172 (468 vs 305 lb)' },
+  'Wipline 3000':  { main: '6.00x6', mainN: 1, nose: '10x3.50', dL: 7,  dKg: 200 * 0.4536, ex: 'C-185 (632 vs 432 lb)' },
+  'Wipline 3450':  { main: '6.00x6', mainN: 1, nose: '10x3.50', dL: 7,  dKg: 203 * 0.4536, ex: 'C-206 (694 vs 491 lb)' },
+  'Wipline 3730':  { main: '5.00x5', mainN: 1, nose: '10x3.50', dL: null, dKg: null, ex: 'older C-185/206 design; nose tyre stated two ways' },
+  'Wipline 3900':  { main: '5.00x5', mainN: 1, nose: '10x3.50', dL: null, dKg: null, ex: 'as the 3730' },
+  'Wipline 4000':  { main: '5.00x5', mainN: 2, nose: '4.10x4',  dL: null, dKg: null },
+  'Wipline 6000':  { main: '6.00x6', mainN: 2, nose: '5.00x5',  dL: 10, dKg: null, ex: 'as the 6100' },
+  'Wipline 6100':  { main: '6.00x6', mainN: 2, nose: '5.00x5',  dL: 10, dKg: 418 * 0.4536, ex: 'DHC-2 (exchange 885 vs 467 lb)' },
+  'Wipline 7000':  { main: '6.00x6', mainN: 2, nose: '5.00x5',  dL: null, dKg: null, ex: 'Kodiak (amphibian only)' },
+  'Wipline 8750':  { main: '6.00x6', mainN: 2, nose: '5.00x5',  dL: 7,  dKg: 384 * 0.4536, ex: 'C-208B (1678 vs 1294 lb)' },
+  'Wipline 10000': { main: '8.50x10', mainN: 2, nose: '6.00x6', dL: null, dKg: null, ex: 'Fire Boss (amphibian only)' },
+  'Wipline 13000': { main: '8.50x10', mainN: 2, nose: '6.00x6', dL: 14, dKg: 677 * 0.4536, ex: 'DHC-6 (2163 vs 1486 lb)' },
+};
+// clearK (measured 6 Nov, the user: "the float will be really close to the ground ... if you can find any data that
+// gives you a clear reference point"): the keel's height over the ground at the step, gear down, as a share of the
+// main wheel's radius - read off Wipaire's dimensioned 3-views against their own wheelbase dimension: the C-206 on
+// 3450s (6.00x6, wheelbase 11'-7") 7.2 in, the Husky on 2100s (5.00x5, 9'-3") 5.5 in - both 0.8 R; the main axle
+// stands level with the keel
+const AMPHIB_GEOM = { wbK: 0.50, mainK: 0.53, clearK: 0.80 };     // [inferred / measured] off the guides' 3-views (above)
+// a hull row's amphibian gear: its preset's, else the catalogue row nearest its hull HEIGHT (the wheel must stow in
+// it), its length the tie-break (est: true)
+function amphibOf(preset, L, H) {
+  if (preset && WIPLINE_AMPHIB[preset]) return Object.assign({ name: preset, est: false }, WIPLINE_AMPHIB[preset]);
+  let best = null;
+  for (const n in WIPLINE_AMPHIB) { const r = FLOAT_PRESETS[n]; if (!r) continue; const e = Math.abs(r.H - (H || 0.6)) + 0.02 * Math.abs(r.L - (L || 6)); if (!best || e < best.e) best = { e, n }; }
+  return best ? Object.assign({ name: best.n, est: true }, WIPLINE_AMPHIB[best.n]) : null;
+}
 // what the join carries into spec.gear.floats: every number the hull, its
 // details and its rudder are built from (rho and the model's constants stay
 // the model's; `preset` rides as a string beside them)
@@ -2768,7 +2990,7 @@ function wetCompute(WB, fh, dtH) {
   // THE WHEELS: a bluff plate in the wheel's plane, the disc segment across it, the displaced volume
   for (let wI = 0; wI < WB.wheels.length; wI++) {
     const i = WB.wheels[wI], i3 = i * 3, R = WB.R[i];
-    const d = Math.min(2 * R, H[i] - (p[i3 + 1] - R));
+    const d = Math.min(2 * R, H[i] - (p[i3 + 1] - R) - (WB.lift ? WB.lift[i] : 0));   // RETRACT-1: a retracted wheel rides up (30_solver gearStep)
     if (!(d > 0)) continue;
     const wT = WB_TYRE_W * R;
     const th = 2 * Math.acos(Math.max(-1, Math.min(1, 1 - d / R)));
@@ -2830,8 +3052,8 @@ function hydroHeel(HY, p) {
 const API = { DEF, G, NU, makeFloat, sectionOf, makeBody, makeScratch, hydroForces, bodyStep, readState, levelVolume,
               stillWater, gerstner, submergedVolumeMC, expDrop, expTow, expLand, nodeSlam, stabilityReport, ENVELOPE,
               savitskyStatic, rotPitch, polyArea, hullTriangles,
-              hydroPanels, rigidCtx, tetraCtx, baryOf, hydroBuild, hydroFree, hydroHeel, hydroSolverPass, wetBuild, wetSolverPass, wetReset, wetCut, wetFx, WFX_R, WFX_HEAD, WB_MAT, WB_WING, WB_OPT, WB_RAD, floatParamsFor, FLOAT_DISP,
-              FLOAT_PRESETS, FLOAT_PRESET_NAMES, FLOAT_METRIC, FLOAT_SPEC_KEYS, WIPLINE_AFT, presetParams, fineParams, scaleParams, secPoly, secAreaTo, keelOf, deckAt,
+              hydroPanels, rigidCtx, tetraCtx, baryOf, hydroBuild, hydroFree, hydroHeel, hydroSolverPass, wetBuild, wetSolverPass, wetReset, wetCut, wetFx, WFX_R, WFX_HEAD, WB_MAT, WB_WING, WB_OPT, WB_RAD, floatParamsFor, FLOAT_DISP, hullParamsFromTable, tableSection, hullTipFit, hullRestTrim, propDiscs, sponsonTable, sponsonVol, tipFloatParams,
+              FLOAT_PRESETS, FLOAT_PRESET_NAMES, WIPLINE_AMPHIB, AMPHIB_GEOM, amphibOf, TYRE_OD, TYRE_W, FLOAT_METRIC, FLOAT_SPEC_KEYS, WIPLINE_AFT, presetParams, fineParams, scaleParams, secPoly, secAreaTo, keelOf, deckAt,
               EDO_STYLE, EDO_AFT, EDO_HULL, edoArc, edoArcP, EDO_PRESETS, EDO_PRESET_NAMES, deckYAt, noseRof, floatPrice, FLOAT_PRICE_RATE,
               waterRudder, WR_AREA, WR_DEPTH, WR_TRAVEL, WR_UP_V, HYDRO_EVERY, floatAdvice };
 HYDRO = API;

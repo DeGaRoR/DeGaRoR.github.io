@@ -62,7 +62,7 @@ const defaults = { engOn: 1, engPreset: 0, engPower: 0,
                    // G2790 ENGINE-CONFIGS: 4 nose + pusher (push-pull, the
                    // Skymaster), 5 nose + a wing pair (the Trimotor), 6 two
                    // wing pairs (inner at engNacAt, outer at engNacAt2)
-                   engMount: 0, engNacAt: 0.35, engNacAt2: 0.62, engPylonH: 0.30,
+                   engMount: 0, engNacAt: 0.35, engNacAt2: 0.62, engPylonH: 0.30, engPylonFair: 0, engPylonForm: 0, engPylonAt: 0, engPylonAft: 0.15, engPylonFwd: 0, engFinAt: 0.55, engFinFwd: 0, engNacOver: 0, engNacLift: 0,
                    // THE BLOCK (2026-09-04, the user: "when mounted on the
                    // wing, we should be able to move the whole block holding
                    // the engine, not just the engine"): fore/aft and up/down
@@ -558,19 +558,26 @@ const ENG_ITEMS = [
    { when: P => +P.engOn, optLabels: PRESET_LABELS, optOrder: PRESET_ORDER,
      optHide: P => PRESET_NAMES.map(n => n !== CUSTOM_ENGINE &&
                                          presetArch(n) !== archOf(P)) }],
-  ['engMount',  'mount', 0, 6, 1,
+  ['engMount',  'mount', 0, 8, 1,
    ['nose', 'pusher (aft bulkhead)', 'over the wing (high wing)',
     'wing nacelles (twin)', 'nose + pusher (push-pull)',
-    'nose + wing nacelles (three)', 'two pairs of wing nacelles (four)'],
+    'nose + wing nacelles (three)', 'two pairs of wing nacelles (four)',
+    'push-pull on one pylon (tandem)', 'on the fin'],
    { when: P => +P.engOn }],
   ['engAim',    'faces', 0, 2, 1, ['as the mount', 'puller', 'pusher'],
-   { when: P => +P.engOn && [2, 3, 5, 6].includes(Math.round(P.engMount)) }],
+   { when: P => +P.engOn && [2, 3, 5, 6].includes(Math.round(P.engMount)) }],   // (a tandem's aims are its own)
   ['engNacAt',  'nacelle station (semispan)', 0.15, 0.70, 0.01,
    { when: P => +P.engOn && [3, 5, 6].includes(Math.round(P.engMount)) }],
   // G2790: the four's outer pair (kept 0.10 of the semispan outboard of
   // the inner one by engineFaces)
   ['engNacAt2', 'outer nacelle station (semispan)', 0.30, 0.90, 0.01,
    { when: P => +P.engOn && Math.round(P.engMount) === 6 }],
+  // HULL-B8: the wing nacelles OVER the wing - on its top skin, or lifted on a pylon (_cage_cowl.js engineFaces)
+  // (HULL-B30: 'on the rear fuselage' - the Be-103's: each nacelle on a stub pylon from the fuselage's side behind the wing)
+  ['engNacOver', 'nacelles', 0, 2, 1, ['through the wing', 'over the wing (on the skin)', 'on the rear fuselage (stub pylons)'],
+   { when: P => +P.engOn && [3, 5, 6].includes(Math.round(P.engMount)) }],
+  ['engNacLift', 'nacelle pylon height', 0, 1.0, 0.01,
+   { when: P => +P.engOn && [3, 5, 6].includes(Math.round(P.engMount)) && +P.engNacOver > 0, dim: 'm' }],
   ['engRotate',  'rotation (pair)', 0, 2, 1,
    ['same hand', 'counter-rotating, tops inward', 'counter-rotating, tops outward'],
    { when: P => +P.engOn && [3, 5, 6].includes(Math.round(P.engMount)) }],
@@ -582,8 +589,32 @@ const ENG_ITEMS = [
    { when: P => +P.engOn && Math.round(P.engMount) >= 1 && !cowledPusherRow(P), dim: 'm' }],
   ['engBlockY', 'block up / down', -0.6, 0.8, 0.01,
    { when: P => +P.engOn && Math.round(P.engMount) >= 1 && !cowledPusherRow(P), dim: 'm' }],
-  ['engPylonH', 'pylon height', 0.05, 1.0, 0.01,
-   { when: P => +P.engOn && Math.round(P.engMount) === 2, dim: 'm' }],
+  ['engPylonH', 'pylon height', 0.05, 1.5, 0.01,
+   { when: P => +P.engOn && [2, 7].includes(Math.round(P.engMount)), dim: 'm' }],
+  // G3913: the pylon's mount - the bars with their cables, or a fairing over them (slab-sided, or a wing section)
+  // HULL-B22: the fin engine's height on the fin (of its height)
+  // (HULL-B34: to 1 - on the fin's top; below, the nacelle crosses the fin at that height)
+  ['engFinFwd', 'on the fin, engine forward of it', 0, 1.5, 0.01,
+   { when: P => +P.engOn && Math.round(P.engMount) === 8, dim: 'm' }],
+  ['engFinAt', 'on the fin, at (of its height; 1 = on top)', 0.2, 1.0, 0.01,
+   { when: P => +P.engOn && Math.round(P.engMount) === 8 }],
+  // HULL-B17: WHERE the over-the-wing pylon stands - on the wing (its centre section, or the cabin roof between the roots)
+  // or on the fuselage BEHIND THE CABIN (the Icon's), engPylonAft behind the trailing edge
+  ['engPylonAt', 'pylon stands on', 0, 1, 1, ['the wing', 'the fuselage, behind the cabin'],
+   { when: P => +P.engOn && Math.round(P.engMount) === 2 }],
+  // (HULL-B37: negative = forward of the trailing edge, the nacelle into the wing - the Super Petrel's tower)
+  ['engPylonAft', 'behind the trailing edge', -1.5, 1.5, 0.01,
+   { when: P => +P.engOn && Math.round(P.engMount) === 2 && Math.round(+P.engPylonAt || 0) === 1, dim: 'm' }],
+  // HULL-B52 (the user, the Super Petrel: "without moving the engine, move its pylon 50 cm back, so it sits well below
+  // the wing it supports, but still on the cowl/nacelle assembly"): the pylon's feet and body FORWARD of the engine's
+  // own mount station (negative aft) - the engine stays where engPylonAft puts it, its height over the roof there
+  ['engPylonFwd', 'pylon forward of the engine', -0.6, 0.8, 0.01,
+   { when: P => +P.engOn && Math.round(P.engMount) === 2 && Math.round(+P.engPylonAt || 0) === 1, dim: 'm' }],
+  // HULL-B14: the pylon's FORM - the V legs (to both roots) or one wing-section blade on the centreline (flown so)
+  ['engPylonForm', 'pylon form', 0, 1, 1, ['V legs', 'single blade'],
+   { when: P => +P.engOn && ([2, 7].includes(Math.round(P.engMount)) || (+P.engNacOver > 0 && +P.engNacLift > 0.02)) }],
+  ['engPylonFair', 'pylon', 0, 3, 1, ['bars + cables', 'fairing', 'wing-section fairing', 'blended fairing'],
+   { when: P => +P.engOn && ([2, 7].includes(Math.round(P.engMount)) || (+P.engNacOver > 0 && +P.engNacLift > 0.02)) }],
   // G250: the label says what the row is — the THRUST LINE. It moves the
   // engine vertically, so the CG line in the room does not move (the user
   // read "the engine stand barely moves the CG" off exactly this slider);
@@ -640,6 +671,371 @@ const ENG_SEC = {
   // what it does, and `emFirewall` is the airframe's, not the engine's.
   emMount: 'engMount',
 };
+// G3913: THE PYLON'S MOUNT (the user, 4 Nov: "the pylon should definitely have a nice shape. By default, it will be
+// a couple of bars anchored below ... This will be the mount, and this will be able to get a fairing, wing shaped, or
+// not ... You may even draw a few cables between the pillars of the mount, hidden if fairing is selected"). The box it
+// was is gone: a rail frame under the engine's mount plate, two legs a side from its ends down to the wing's top
+// skin at the root's front and rear spar stations (the face's `foot`; the frame braces the pylon's pair to both
+// roots' spars - drawn where it is flown), and
+//   engPylonFair 0  bracing CABLES: an X in each side's plane, an X across the front and the rear legs;
+//                1  a FAIRING over the legs, slab-sided (a rounded box section lofted from the feet to the plate);
+//                2  a WING-SECTION fairing (a symmetric 18 % aerofoil, chord fore / aft), the cables hidden.
+// The fairing tapers from the feet's spread to the plate's width; cage metres, the layer's own frame.
+const PYLON_R = 0.021, PYLON_RAIL = 0.016, PYLON_CABLE = 0.0022;
+// HULL-B16: THE BLENDED FAIRING (engPylonFair 3, the user: "you keep that one because it's great, but another option
+// would be ... an aero-fitted one ... the nuclear power plant chimney shape ... a flat surface at the bottom and a flat
+// surface at the top ... wider at the base"): the fin section held up the height, and a FILLET at each end - a quarter
+// circle added to the half-thickness (and 1.2 x it to the chord) that reaches the wing and the nacelle tangent, flat to
+// them: PYLON_FIL_B at the wing, PYLON_FIL_T at the nacelle (metres; at most a share of the height). The plain
+// fairings (1, 2) and the plain blade stay as they were
+const PYLON_FIL_B = 0.20, PYLON_FIL_T = 0.11;
+const filletAt = (d, R) => d >= R ? 0 : R - Math.sqrt(Math.max(0, R * R - (R - d) * (R - d)));
+// HULL-B38: THE PYLON THAT HUGS (the user, 5 Nov: "Its main section should always remain straight, we never rotate
+// the whole thing. It should sample surface below and on top to build an accurate mesh qui epouse the shape of the
+// fuselage, whatever it is. A joint will be drawn, helping with the possibly tricky fit, masking the seams").
+//   THE BODY is a PRISM: one plan section (an aerofoil, chord fore / aft; the slab's rounded box) on a FIXED axis -
+//   vertical under the plate; a V leg's panel on its leg's line in the cross plane at the plate's station (it leans
+//   out to its feet, never fore / aft) - never swept on a path from the feet to the plate, so moving the engine never
+//   leans it. Each vertex of the section is a COLUMN on that axis, run down to the first surface below it and up to
+//   the first surface above it, each found by a RAY (pylonCaster): the body's drawn skin (cageAirframe's skin faces,
+//   as built - a roof, a canopy's back, a taper's deck), every wing plane's skin (a biplane's lower wing under it,
+//   the upper wing's lower skin over it - where the nacelle crosses the wing) and the nacelle's drawn shell (the cowl
+//   layer's meshes, drawn before this layer). So the base follows whatever it stands on and the top whatever it
+//   carries, column by column; no nacelle (a bare engine on its plate) and the top is the plate, its fairing over it.
+//   THE BLENDED FAIRING (3) keeps its chimney: the HULL-B16 quarter circles at both ends, each row of a flare its own
+//   height off the surface under ITS OWN plan position, so the skirt follows a convex deck instead of diving under it.
+//   THE JOINT at each end: a fillet strip (PYLON_JOINT wide) from the wall a joint's width from the end (along the
+//   body - round a flare's arc), round the corner, onto the surface just outside the foot, its middle a bead - in its
+//   own material, the rubber seal's (emPuck): it masks the seam a sampled fit leaves between columns.
+//   Bars + cables (0) keep their tubes and feet.
+const PYLON_JOINT_B = 0.03, PYLON_JOINT_T = 0.022, PYLON_SINK = 0.006, PYLON_BEAD = 0.009;
+// the section's outline, [u across, w fore (+) / aft], NS points round from the leading edge; `e` the flare (metres)
+const PYLON_NS = 36;
+function pylonOutline(kind, c, th, hw, e) {
+  const pts = [];
+  for (let k = 0; k < PYLON_NS; k++) {
+    const ang = 2 * Math.PI * k / PYLON_NS, ca = Math.cos(ang), sa = Math.sin(ang);
+    if (kind === 'slab') {
+      pts.push([(hw + e) * Math.sign(sa) * Math.pow(Math.abs(sa), 0.6), 0.5 * (c + 1.2 * e) * Math.sign(ca) * Math.pow(Math.abs(ca), 0.35)]);
+    } else {
+      const c2 = c + 1.2 * e, th2 = (th * c + 2 * e) / c2, xc = 0.5 * (1 - ca);
+      const yt = 5 * th2 * (0.2969 * Math.sqrt(xc) - 0.1260 * xc - 0.3516 * xc * xc + 0.2843 * xc ** 3 - 0.1036 * xc ** 4);
+      pts.push([(sa >= 0 ? 1 : -1) * yt * c2, (0.5 - xc) * c2]);
+    }
+  }
+  return pts;
+}
+// THE RAYS: what a pylon stands on (kind 'body', 'wing') and what it carries ('cowl', 'wing'), cage metres (the layer's
+// frame). ONE LOCAL TRIANGLE SOUP, kept to the pylon's neighbourhood `near` [x0, x1, z0, z1]: the body's drawn skin
+// (cageAirframe's skin faces, as built - its cut-part rule), every wing plane's skin (the probe geometries the wing layer
+// publishes, skinGeos) and the nacelle's shells as drawn (the cowl layer's meshes, not their dark inner twins). The rays
+// of one body all run along one axis, so the soup is INDEXED per axis: each triangle in the cells of a PYLON_CELL grid
+// across the axis that its shadow covers - a ray tests the few in its own cell (measured: 0.4-0.8 s a pylon brute
+// force over the meshes, the editor's every slider drag). cast(o, d, kinds, far) -> the nearest hit { t, p } along
+// the unit direction d, or null
+const PYLON_CELL = 0.04;
+function pylonCaster(ctx, FS, near) {
+  const { scene, mesh } = ctx, TA = [], TK = [];       // TA: 9 numbers a triangle; TK: its kind
+  const inNear = (a, b, c) => !(Math.max(a[0], b[0], c[0]) < near[0] || Math.min(a[0], b[0], c[0]) > near[1] ||
+                                Math.max(a[2], b[2], c[2]) < near[2] || Math.min(a[2], b[2], c[2]) > near[3]);
+  const put = (a, b, c, k) => { if (inNear(a, b, c)) { TA.push(a[0], a[1], a[2], b[0], b[1], b[2], c[0], c[1], c[2]); TK.push(k); } };
+  const MATS = window.GEAR_GEN && window.GEAR_GEN.CAGE_MATS;
+  if (mesh && mesh.V && mesh.F && MATS)
+    for (const f of mesh.F) {
+      if (!f || !f.v || f.v.length < 3 || !MATS.has(f.m)) continue;
+      const co = f.cutOff || [0, 0, 0];
+      const q = f.v.map(i => [(mesh.V[i][0] - co[0]) * FS, (mesh.V[i][1] - co[1]) * FS, (mesh.V[i][2] - co[2]) * FS]);
+      for (let t = 1; t + 1 < q.length; t++) put(q[0], q[t], q[t + 1], 'body');
+    }
+  const fromGeo = (g, M, k) => {
+    const pa = g && g.attributes && g.attributes.position; if (!pa) return;
+    const ix = g.index, n = ix ? ix.count : pa.count, v = THREE.Vector3 ? new THREE.Vector3() : null;
+    const P3 = i => { if (!M || !v) return [pa.getX(i), pa.getY(i), pa.getZ(i)]; v.set(pa.getX(i), pa.getY(i), pa.getZ(i)).applyMatrix4(M); return [v.x, v.y, v.z]; };
+    for (let t = 0; t + 2 < n; t += 3) put(P3(ix ? ix.getX(t) : t), P3(ix ? ix.getX(t + 1) : t + 1), P3(ix ? ix.getX(t + 2) : t + 2), k);
+  };
+  const W0 = window.CAGE_WING, planes = W0 ? (W0.planes || [W0]) : [];
+  for (const pl of planes) for (const g of (pl.skinGeos || [])) fromGeo(g, null, 'wing');
+  let cowl = false;
+  if (scene) {
+    scene.updateMatrixWorld(true);
+    for (const top of scene.children) if (top.name === 'cageLayer:cowl')
+      top.traverse(m => { if (m.isMesh && m.geometry && !(m.userData && m.userData.innerTwin)) { cowl = true; fromGeo(m.geometry, m.matrixWorld, 'cowl'); } });
+  }
+  const nT = TK.length, IDX = new Map();
+  const indexFor = d => {                                 // one grid per axis (either way along it)
+    const s = (d[1] < -1e-9 || (Math.abs(d[1]) <= 1e-9 && (d[0] < 0 || (d[0] === 0 && d[2] < 0)))) ? -1 : 1;
+    const a = d.map(x => x * s), key = a.map(x => x.toFixed(5)).join();
+    let I = IDX.get(key);
+    if (I) return I;
+    let e1 = Math.abs(a[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0];
+    const dd = e1[0] * a[0] + e1[1] * a[1] + e1[2] * a[2];
+    e1 = [e1[0] - dd * a[0], e1[1] - dd * a[1], e1[2] - dd * a[2]];
+    const l1 = Math.hypot(...e1); e1 = e1.map(x => x / l1);
+    const e2 = [a[1] * e1[2] - a[2] * e1[1], a[2] * e1[0] - a[0] * e1[2], a[0] * e1[1] - a[1] * e1[0]];
+    const cell = new Map(), pj = (x, y, z) => [Math.floor((x * e1[0] + y * e1[1] + z * e1[2]) / PYLON_CELL), Math.floor((x * e2[0] + y * e2[1] + z * e2[2]) / PYLON_CELL)];
+    for (let i = 0; i < nT; i++) {
+      const o = 9 * i, A = pj(TA[o], TA[o + 1], TA[o + 2]), B = pj(TA[o + 3], TA[o + 4], TA[o + 5]), C = pj(TA[o + 6], TA[o + 7], TA[o + 8]);
+      const i0 = Math.min(A[0], B[0], C[0]), i1 = Math.max(A[0], B[0], C[0]), j0 = Math.min(A[1], B[1], C[1]), j1 = Math.max(A[1], B[1], C[1]);
+      if ((i1 - i0 + 1) * (j1 - j0 + 1) > 4000) continue;  // (a sliver along the axis: no shadow to hit)
+      for (let ii = i0; ii <= i1; ii++) for (let jj = j0; jj <= j1; jj++) { const k = ii + ',' + jj; let L = cell.get(k); if (!L) cell.set(k, L = []); L.push(i); }
+    }
+    I = { pj, cell };
+    IDX.set(key, I);
+    return I;
+  };
+  const rayTri = (o, d, i) => {                          // Moller-Trumbore, both faces
+    const q = 9 * i, a0 = TA[q], a1 = TA[q + 1], a2 = TA[q + 2];
+    const e10 = TA[q + 3] - a0, e11 = TA[q + 4] - a1, e12 = TA[q + 5] - a2, e20 = TA[q + 6] - a0, e21 = TA[q + 7] - a1, e22 = TA[q + 8] - a2;
+    const p0 = d[1] * e22 - d[2] * e21, p1 = d[2] * e20 - d[0] * e22, p2 = d[0] * e21 - d[1] * e20;
+    const det = e10 * p0 + e11 * p1 + e12 * p2;
+    if (Math.abs(det) < 1e-14) return -1;
+    const s0 = o[0] - a0, s1 = o[1] - a1, s2 = o[2] - a2, u = (s0 * p0 + s1 * p1 + s2 * p2) / det;
+    if (u < 0 || u > 1) return -1;
+    const q0 = s1 * e12 - s2 * e11, q1 = s2 * e10 - s0 * e12, q2 = s0 * e11 - s1 * e10;
+    const v = (d[0] * q0 + d[1] * q1 + d[2] * q2) / det;
+    if (v < 0 || u + v > 1) return -1;
+    return (e20 * q0 + e21 * q1 + e22 * q2) / det;
+  };
+  return {
+    cowl,
+    cast(o, d, kinds, far) {
+      const I = indexFor(d), c = I.pj(o[0], o[1], o[2]), L = I.cell.get(c[0] + ',' + c[1]);
+      if (!L) return null;
+      let bt = Infinity;
+      for (const i of L) {
+        if (!kinds.includes(TK[i])) continue;
+        const t = rayTri(o, d, i);
+        if (t > 1e-4 && t <= far && t < bt) bt = t;
+      }
+      return isFinite(bt) ? { t: bt, p: [o[0] + d[0] * bt, o[1] + d[1] * bt, o[2] + d[2] * bt] } : null;
+    },
+  };
+}
+// ONE HUGGING BODY: the outline `out(e)` on the axis `ax` (unit, pointing to the top) through O, its in-plane basis
+// eu (across) and ew (fore). Every vertex is cast for from O's level, down for kinds `dn` and up for kinds `up`, AT ITS
+// OWN PLAN POSITION: a plain prism's two ends sit on what is under and over each column; a flare's rows (the HULL-B16
+// quarter circle, radii fB / fT) stand their own height off the surface under THEIR position, so the skirt follows a
+// convex deck instead of diving under it. `top0` / `bot0` the ends (a distance along ax from O) where a ray finds
+// nothing. Draws the body into `bag`, the two joints into `jbag`; `topJoint` false = no joint at the top (a bare plate)
+function pylonHug(bag, jbag, C, o) {
+  const { O, ax, eu, ew, dn, up, top0, bot0 } = o;
+  let { fB, fT, out } = o;
+  const at = (uw, t) => [O[0] + eu[0] * uw[0] + ew[0] * uw[1] + ax[0] * t, O[1] + eu[1] * uw[0] + ew[1] * uw[1] + ax[1] * t,
+                         O[2] + eu[2] * uw[0] + ew[2] * uw[1] + ax[2] * t];
+  const neg = ax.map(v => -v), FAR = 4;
+  const below = uw => { const h = C.cast(at(uw, 0), neg, dn, FAR); return h ? -h.t : null; };
+  const above = uw => { const h = C.cast(at(uw, 0), ax, up, FAR); return h && h.t < top0 + 0.6 ? h.t : null; };
+  // THE CHORD FITS WHAT IT JOINS: along the section's chord line, the run around its middle with a surface under it
+  // and (a nacelle over it) a surface over it; a chord longer than that run - a wing nacelle's pylon reaching past the
+  // leading edge and the cowl - is shortened to it, 3 cm inside each end, and centred on it (never under 40 % of
+  // itself). The section stays a prism on its axis; its thickness is kept
+  {
+    const base = out(0), wl = Math.max(...base.map(p => p[1])), wt = Math.min(...base.map(p => p[1])), N = 40;
+    const ok = [];
+    for (let i = 0; i <= N; i++) { const uw = [0, wt + (wl - wt) * i / N]; ok.push(below(uw) != null && (!o.topJoint || above(uw) != null)); }
+    if (ok.some(v => !v) && ok.some(v => v)) {
+      let m = N >> 1;
+      if (!ok[m]) { let d = 1; while (!ok[m + d] && !ok[m - d]) d++; m = ok[m + d] ? m + d : m - d; }
+      let a = m, b = m;
+      while (a > 0 && ok[a - 1]) a--;
+      while (b < N && ok[b + 1]) b++;
+      const wa = wt + (wl - wt) * a / N + 0.03, wb = wt + (wl - wt) * b / N - 0.03;
+      const sc = Math.max(0.4, (wb - wa) / (wl - wt)), wm = 0.5 * (wa + wb), wc = 0.5 * (wl + wt), out0 = out;
+      out = e => out0(e).map(p => [p[0], wm + sc * (p[1] - wc)]);
+    }
+  }
+  // a flare's rows: the quarter circle from its foot (j 0: the full flare, on the surface) to the plain wall
+  const arc = (R, n) => R > 0 ? Array.from({ length: n + 1 }, (_, j) => { const th = 0.5 * Math.PI * j / n;
+    return { e: R * (1 - Math.sin(th)), d: R * (1 - Math.cos(th)) }; }) : [{ e: 0, d: 0 }];
+  const aB = arc(fB, 7), aT = arc(fT, 6);
+  // the column ends at the plain wall's foot first: the fallback for a flare's ray that finds nothing
+  const sec0 = out(0), bot = [], topE = [];
+  for (let k = 0; k < PYLON_NS; k++) { const b = below(sec0[k]), t = above(sec0[k]); bot.push(b); topE.push(t); }
+  const okB = bot.filter(t => t != null), lowB = okB.length ? Math.min(...okB) : bot0;
+  for (let k = 0; k < PYLON_NS; k++) { if (bot[k] == null) bot[k] = Math.min(bot0, lowB); if (topE[k] == null) topE[k] = top0; }
+  // A FLARE FITS WHAT IT MEETS: its foot (the full flare's outline) must land on the surface within a slope of one
+  // (its own radius, plus 2 cm) of the wall's end in every column - a nacelle's underside curving up its flanks, a
+  // narrow deck falling away - or it shrinks (x 0.6, three times, then none)
+  const fits = (R, end) => {
+    if (R <= 0) return true;
+    const sec = out(R);
+    for (let k = 0; k < PYLON_NS; k++) {
+      const s2 = end < 0 ? below(sec[k]) : above(sec[k]), e0 = end < 0 ? bot[k] : topE[k];
+      if (s2 == null || Math.abs(s2 - e0) > R + 0.02) return false;
+    }
+    return true;
+  };
+  for (let i = 0; i < 4 && !fits(fB, -1); i++) fB = i < 3 ? 0.6 * fB : 0;
+  for (let i = 0; i < 4 && !fits(fT, 1); i++) fT = i < 3 ? 0.6 * fT : 0;
+  const rows = [], meta = [];
+  const ring = (a, end) => {
+    const sec = out(a.e), row = [], ts = [];
+    for (let k = 0; k < PYLON_NS; k++) {
+      const s = a.e > 0 ? (end < 0 ? below(sec[k]) : above(sec[k])) : null;
+      const base = s != null ? s : (end < 0 ? bot[k] : topE[k]);
+      let t = end < 0 ? base + a.d : base - a.d;
+      if (a.d === 0) t += end < 0 ? -PYLON_SINK : PYLON_SINK;                // the very ends sunk into what they meet
+      ts.push(t); row.push([sec[k], t]);
+    }
+    return { row, ts };
+  };
+  for (const a of aB) rows.push(ring(a, -1));
+  for (let j = aT.length - 1; j >= 0; j--) rows.push(ring(aT[j], 1));
+  // a short column: the top's plain wall never below the bottom's
+  const wB = rows[aB.length - 1], wT = rows[aB.length];
+  for (let k = 0; k < PYLON_NS; k++) if (wT.ts[k] < wB.ts[k]) { wT.ts[k] = wB.ts[k]; wT.row[k][1] = wB.ts[k]; }
+  const ids = rows.map(r => r.row.map(([uw, t]) => bag.v(at(uw, t))));
+  for (let i = 0; i + 1 < ids.length; i++)
+    for (let k = 0; k < PYLON_NS; k++) {
+      const k2 = (k + 1) % PYLON_NS;
+      bag.quad(ids[i][k], ids[i][k2], ids[i + 1][k2], ids[i + 1][k]);
+    }
+  // nothing over the top (a bare engine on its plate): the top is CLOSED, a flat cap on its own vertices
+  if (!o.topJoint) {
+    const ring = rows[rows.length - 1].row.map(([uw, t]) => at(uw, t)), n = ring.length;
+    const c = [0, 1, 2].map(a => ring.reduce((m, p) => m + p[a], 0) / n);
+    const e1 = ring[0].map((v, a) => v - c[a]), e2 = ring[1].map((v, a) => v - c[a]);
+    const up = (e1[1] * e2[2] - e1[2] * e2[1]) * ax[0] + (e1[2] * e2[0] - e1[0] * e2[2]) * ax[1] + (e1[0] * e2[1] - e1[1] * e2[0]) * ax[2];
+    const ic = bag.v(c), iv = ring.map(p => bag.v(p));
+    for (let k = 0; k < n; k++) { const k2 = (k + 1) % n; if (up >= 0) bag.tri(ic, iv[k], iv[k2]); else bag.tri(ic, iv[k2], iv[k]); }
+  }
+  // THE JOINTS: a fillet strip round each end. The wall point a joint's width from the end ALONG the body (up a plain
+  // wall, round a flare's arc), the corner the end itself, the outer edge the surface a joint's width outside it (its
+  // own ray); a quadratic Bezier through them, its middle a bead PYLON_BEAD off what it lies on
+  const strip = (end, R, Rf) => {
+    const sec = out(Rf), NJ = 5, rg = [];
+    const th = Rf > 0 ? Math.min(R / Rf, 0.5 * Math.PI) : 0, eW = Rf > 0 ? Rf * (1 - Math.sin(th)) : 0;
+    const dW = Rf > 0 ? Rf * (1 - Math.cos(th)) : R, secW = out(eW), dir = end < 0 ? 1 : -1;
+    const surf = (uw, k) => { const s = end < 0 ? below(uw) : above(uw); return s != null ? s : (end < 0 ? bot[k] : topE[k]); };
+    for (let k = 0; k < PYLON_NS; k++) {
+      const pa = sec[(k + PYLON_NS - 1) % PYLON_NS], pb = sec[(k + 1) % PYLON_NS];
+      // the outline's outward normal in its plane (the outline runs from the leading edge down the +u side)
+      let nu = -(pb[1] - pa[1]), nw = pb[0] - pa[0];
+      const l = Math.hypot(nu, nw) || 1; nu /= l; nw /= l;
+      const tE = surf(sec[k], k), L = Math.abs(topE[k] - bot[k]), r = Math.min(R, 0.3 * L);
+      const W = at(secW[k], surf(secW[k], k) + dir * Math.min(dW, 0.3 * L)), Cn = at(sec[k], tE);
+      const uwO = [sec[k][0] + nu * r, sec[k][1] + nw * r], hO = end < 0 ? below(uwO) : above(uwO);
+      const Sx = hO != null && Math.abs(hO - tE) < 3 * r + 0.05 ? at(uwO, hO - dir * 0.002) : Cn;
+      const row = [];
+      for (let j = 0; j <= NJ; j++) {
+        const s = j / NJ, m = 1 - s, lift = dir * PYLON_BEAD * 4 * s * m;
+        row.push(jbag.v([m * m * W[0] + 2 * s * m * Cn[0] + s * s * Sx[0] + ax[0] * lift,
+                         m * m * W[1] + 2 * s * m * Cn[1] + s * s * Sx[1] + ax[1] * lift,
+                         m * m * W[2] + 2 * s * m * Cn[2] + s * s * Sx[2] + ax[2] * lift]));
+      }
+      rg.push(row);
+    }
+    for (let k = 0; k < PYLON_NS; k++) {
+      const k2 = (k + 1) % PYLON_NS;
+      for (let j = 0; j < NJ; j++) jbag.quad(rg[k][j], rg[k2][j], rg[k2][j + 1], rg[k][j + 1]);
+    }
+  };
+  strip(-1, PYLON_JOINT_B, fB);
+  if (o.topJoint) strip(1, PYLON_JOINT_T, fT);
+  return { bot, top: topE };
+}
+// G3913 / HULL-B38: THE PYLON - the bars and cables (0), or a faired body that hugs (1 slab, 2 wing section, 3 blended)
+// - the V legs' mount (engPylonForm 0) or ONE blade (1, drawPylonBlade). `C` the caster (pylonCaster), null = the old
+// flat ends at the feet and the plate
+function drawPylonMount(group, f, P, GK, aft, C) {
+  if (Math.round(+P.engPylonForm || 0) === 1) return drawPylonBlade(group, f, P, GK, aft, C);
+  const style = Math.max(0, Math.min(3, Math.round(+P.engPylonFair || 0)));
+  const ch = f.chord || 1.4, Lp = Math.max(0.30, 0.42 * ch), ox = f.x || 0;
+  // the plate stands UNDER the engine: a pusher's block hangs aft of its face, a tractor's forward of it
+  // (HULL-B52: the plate and the body stand f.pylonFwd forward of the mount's own station - the engine stays)
+  const y0 = f.yc - f.halfH, zc = f.z + (aft ? -1 : 1) * (Lp / 2 - 0.05) + (+f.pylonFwd || 0), zF = zc + Lp / 2, zR = zc - Lp / 2, xt = 0.06;
+  const ft = f.foot, fx = Math.max(xt, ft.x);
+  // HULL-B79 (the user: "as simple as having an up-down slider for the current setting, and then we just slide it
+  // down"): an engine block slid down INTO the wing (engBlockY) has no pylon - its nacelle on the wing is the mount
+  if (y0 < Math.max(ft.y, ft.yF != null ? ft.yF : -Infinity, ft.yR != null ? ft.yR : -Infinity) + 0.03) return;
+  // the feet stand on the skin: the legs end just inside it, never above it (HULL-B18: a foot on a sloping roof reads its
+  // own station's height, ft.yF / ft.yR - the front and the rear pair)
+  const yF = ft.y - 0.005, yFf = (ft.yF != null ? ft.yF : ft.y) - 0.005, yFr = (ft.yR != null ? ft.yR : ft.y) - 0.005;
+  const bars = GK.Bag(), cab = GK.Bag();
+  const top = { fL: [ox - xt, y0, zF], fR: [ox + xt, y0, zF], rL: [ox - xt, y0, zR], rR: [ox + xt, y0, zR] };
+  const foot = { fL: [ox - fx, yFf, ft.zF], fR: [ox + fx, yFf, ft.zF], rL: [ox - fx, yFr, ft.zR], rR: [ox + fx, yFr, ft.zR] };
+  // the rail frame under the plate and the four legs: bare, with their cables (0); a FAIRING hides them (1, 2, 3)
+  if (style === 0) {
+    GK.tube(bars, top.fL, top.fR, PYLON_RAIL, 10); GK.tube(bars, top.rL, top.rR, PYLON_RAIL, 10);
+    GK.tube(bars, top.fL, top.rL, PYLON_RAIL, 10); GK.tube(bars, top.fR, top.rR, PYLON_RAIL, 10);
+    for (const k of ['fL', 'fR', 'rL', 'rR']) GK.tube(bars, top[k], foot[k], PYLON_R, 12);
+    const mb = bars.mesh(group, matOf('emMount')); if (mb) mb.name = 'engPylon';
+    // the bracing cables between the pillars: each side's plane, the front and the rear pairs
+    for (const [a, b] of [[top.fL, foot.rL], [top.rL, foot.fL], [top.fR, foot.rR], [top.rR, foot.fR],
+                          [top.fL, foot.fR], [top.fR, foot.fL], [top.rL, foot.rR], [top.rR, foot.rL]])
+      GK.tube(cab, a, b, PYLON_CABLE, 4);
+    const mc = cab.mesh(group, matOf('emMount')); if (mc) mc.name = 'engPylon';
+    return;
+  }
+  // THE FAIRING (HULL-B38): feet narrow enough (a wing with its centre, the roof behind the cabin) and it is ONE body on
+  // the plate's centre, standing VERTICAL: its chord the mean of the feet's spread and the plate's (plus a margin), a
+  // slab (1), a 24 % wing section (2) or a 36 % one with the fillets (3, the chimney); feet out at the roots (a cabin
+  // wing without its centre) and each side's leg pair is faired as ONE 12 % panel from the plate's edge out to the
+  // pair's feet, in the cross plane at the plate's station (the flown legs, fanned fore / aft inside its chord), its
+  // ends hugging the root and the nacelle as the body does
+  const blend = style === 3, single = fx <= 0.16, fair = GK.Bag(), jb = GK.Bag();
+  const kind = style === 1 ? 'slab' : 'foil';
+  const yLo = Math.min(yF, yFf, yFr), cMean = 0.5 * (Math.abs(ft.zF - ft.zR) + Lp) + 0.12;
+  const C2 = C || { cowl: false, cast: () => null };
+  const dn = ['body', 'wing'], up = C2.cowl ? ['wing', 'cowl'] : ['wing'];
+  if (single) {
+    const hw = 0.5 * (xt + fx) + PYLON_R + 0.012, H = Math.max(0.05, y0 - yLo);
+    const O = [ox, yLo + 0.5 * H, zc];
+    pylonHug(fair, jb, C2, { O, ax: [0, 1, 0], eu: [1, 0, 0], ew: [0, 0, 1],
+      out: e => pylonOutline(kind, cMean, blend ? 0.36 : 0.24, hw, e), fB: blend ? Math.min(PYLON_FIL_B, 0.35 * H) : 0,
+      fT: blend ? Math.min(PYLON_FIL_T, 0.25 * H) : 0, dn, up, top0: y0 - O[1], bot0: yLo - O[1], topJoint: C2.cowl });
+  } else for (const sd of [-1, 1]) {
+    const kF = sd < 0 ? 'fL' : 'fR', kR = sd < 0 ? 'rL' : 'rR';
+    // (the panel stands at the plate's station: it leans out to its feet across, never fore / aft)
+    const a = [0.5 * (top[kF][0] + top[kR][0]), y0, zc], b = [0.5 * (foot[kF][0] + foot[kR][0]), 0.5 * (foot[kF][1] + foot[kR][1]), zc];
+    const Ll = Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]), ax = [(a[0] - b[0]) / Ll, (a[1] - b[1]) / Ll, (a[2] - b[2]) / Ll];
+    // the chord along +z (square to the leg, which stays in its cross plane); across, square to both
+    const ew = [0, 0, 1];
+    const eu = [ax[1] * ew[2] - ax[2] * ew[1], ax[2] * ew[0] - ax[0] * ew[2], ax[0] * ew[1] - ax[1] * ew[0]];
+    const O = [0.5 * (a[0] + b[0]), 0.5 * (a[1] + b[1]), 0.5 * (a[2] + b[2])];
+    pylonHug(fair, jb, C2, { O, ax, eu, ew, out: e => pylonOutline(kind, cMean, 0.12, PYLON_R + 0.012, e),
+      fB: blend ? Math.min(PYLON_FIL_B, 0.35 * Ll) : 0, fT: blend ? Math.min(PYLON_FIL_T, 0.25 * Ll) : 0,
+      dn, up, top0: 0.5 * Ll, bot0: -0.5 * Ll - 0.005, topJoint: C2.cowl });
+  }
+  // the plate's underside (a bare engine on its plate, no nacelle over it): a shallow streamlined fairing over the
+  // body's top or between the panels' tops, the rails inside it
+  if (!C2.cowl) {
+    const NS = 24, path = [[ox - xt - 0.01, y0 - 0.005, zc], [ox + xt + 0.01, y0 - 0.005, zc]];
+    GK.sweep(fair, path, () => {
+      const pts = [];
+      for (let k = 0; k < NS; k++) {
+        const ang = 2 * Math.PI * k / NS, ca = Math.cos(ang), sa = Math.sin(ang);
+        pts.push([0.025 * Math.sign(sa) * Math.pow(Math.abs(sa), 0.6), (0.5 * Lp + 0.06) * Math.sign(ca) * Math.pow(Math.abs(ca), 0.35)]);
+      }
+      return pts;
+    }, true, [0, 1, 0]);
+  }
+  pylonMeshes(group, fair, jb);
+}
+// the body in the cowl's section (the nacelle's paint), the joint in the rubber seal's
+function pylonMeshes(group, fair, jb) {
+  const SM = typeof window !== 'undefined' && window.CAGE_SECMAT;
+  const m = fair.mesh(group, (SM && SM('cowl', { surf: 0, fieldM: 1 })) || matOf('emMount'));
+  if (m) m.name = 'engPylon';
+  const j = jb.mesh(group, matOf('emPuck'));
+  if (j) j.name = 'engPylonJoint';
+}
+// HULL-B14: THE SINGLE BLADE - one symmetric wing-section post on the mount's centreline, 12 % thick
+// (HULL-B38: a vertical prism under the plate - its chord the mean of the feet's spread and the plate's - hugging what
+// it stands on and what it carries; BLENDED (engPylonFair 3) with the fillets to both, HULL-B16)
+function drawPylonBlade(group, f, P, GK, aft, C) {
+  const ch = f.chord || 1.4, Lp = Math.max(0.30, 0.42 * ch), ox = f.x || 0;
+  const y0 = f.yc - f.halfH, zc = f.z + (aft ? -1 : 1) * (Lp / 2 - 0.05) + (+f.pylonFwd || 0);
+  const ft = f.foot, yF = Math.min(ft.y, ft.yF != null ? ft.yF : ft.y, ft.yR != null ? ft.yR : ft.y) - 0.02;
+  if (f.kind !== 'cabPylon' && y0 < Math.max(ft.y, ft.yF != null ? ft.yF : -Infinity, ft.yR != null ? ft.yR : -Infinity) + 0.03) return;   // (HULL-B79: in the wing, no pylon)
+  const blend = Math.round(+P.engPylonFair || 0) === 3, H = Math.max(0.05, y0 - yF);
+  const c = blend ? Lp + 0.06 : 0.5 * (Math.abs(ft.zF - ft.zR) + 0.10 + Lp + 0.06);
+  const C2 = C || { cowl: false, cast: () => null }, fair = GK.Bag(), jb = GK.Bag(), O = [ox, yF + 0.5 * H, zc];
+  pylonHug(fair, jb, C2, { O, ax: [0, 1, 0], eu: [1, 0, 0], ew: [0, 0, 1], out: e => pylonOutline('foil', c, 0.12, 0, e),
+    fB: blend ? Math.min(PYLON_FIL_B, 0.35 * H) : 0, fT: blend ? Math.min(PYLON_FIL_T, 0.25 * H) : 0,
+    dn: ['body', 'wing'], up: C2.cowl ? ['wing', 'cowl'] : ['wing'], top0: y0 - O[1], bot0: yF - O[1], topJoint: C2.cowl });
+  pylonMeshes(group, fair, jb);
+}
 const matOf = name => {
   const A = AKM();
   // the livery section first, exactly as the propeller does it: AERO_HARD
@@ -903,9 +1299,15 @@ PAGE.post = ctx => {
   if (EW) EW.place('eng', ctx, engPlace, () => {
     const NF = window.CAGE_NOSE, m = Math.round(+P.engMount || 0);
     // (ENGINE-CONFIGS-2: the three's and the four's nacelles stand on the wing too - mounts 5 and 6)
-    if (!+P.engOn || ![2, 3, 5, 6].includes(m) || !NF || !NF.engineFaces) return null;
+    if (!+P.engOn || ![2, 3, 5, 6, 7].includes(m) || !NF || !NF.engineFaces) return null;
     const FS = (CG2 && CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
-    return JSON.stringify(NF.engineFaces(ctx.mesh, FS, P));
+    const faces = NF.engineFaces(ctx.mesh, FS, P);
+    // (HULL-B38: the pylon's ends read the wing's skins too - its top and underside under each mount, every plane - so
+    // a wing that moved under the same faces places it again)
+    const W = window.CAGE_WING, PL = W ? (W.planes || [W]) : [], q = v => v && isFinite(v.y) ? +v.y.toFixed(4) : null;
+    const under = faces.filter(u => u.face && u.face.foot).map(u => PL.map(pl => [q(pl.overAt && pl.overAt(u.face.x || 0, u.face.z)),
+                                                                                q(pl.underAt && pl.underAt(u.face.x || 0, u.face.z))]));
+    return JSON.stringify([faces, under]);
   });
   else engPlace(ctx, null);
 };
@@ -1088,6 +1490,7 @@ function engPlace(ctx, prev) {
   })();
   const propInfo = P.propOn ? CW.propGeometry() : null;
   const ex = Math.max(0, P.explodeD || 0) * FS;
+  let cabPyDrawn = false;                              // (HULL-B78: the cabane pylon, drawn once)
   units.forEach((u, k) => {
     const f = u.face, sfx = k ? '#' + k : '';
     const ug = new THREE.Group();
@@ -1150,16 +1553,76 @@ function engPlace(ctx, prev) {
       if (pg) pg.position.z += ex * 2.0;
     }
     group.add(ug);
+    // HULL-B22: THE FIN MOUNT - steel tubes from the engine's plate (its four corners) back to the fin's leading edge above
+    // and below the thrust line, and a pair to the fin's mid-chord (the frame braces the engine to the fin's spars and
+    // its section nodes at that height - 61_gen_frame)
+    if (u.kind === 'fin' && f.fin && window.GEAR_KIT) {
+      const GK = window.GEAR_KIT, bag = GK.Bag(), xt = 0.07, hh = 0.11, zP = f.z, yP = f.yc;
+      const zL = f.fin.zLE - 0.02, zM = 0.5 * (f.fin.zLE + f.fin.zTE), yF = f.fin.y;
+      const plate = [[-xt, yP + hh, zP], [xt, yP + hh, zP], [-xt, yP - hh, zP], [xt, yP - hh, zP]];
+      for (const p of plate) {
+        const sg = Math.sign(p[0]);
+        GK.tube(bag, p, [0.25 * sg * xt, yF + (p[1] > yP ? 0.22 : -0.22), zL], PYLON_R, 10);
+        GK.tube(bag, p, [0.25 * sg * xt, yF, zM], 0.8 * PYLON_R, 10);
+      }
+      GK.tube(bag, plate[0], plate[1], PYLON_RAIL, 8); GK.tube(bag, plate[2], plate[3], PYLON_RAIL, 8);
+      GK.tube(bag, plate[0], plate[2], PYLON_RAIL, 8); GK.tube(bag, plate[1], plate[3], PYLON_RAIL, 8);
+      if (!+P.cowlOn) bag.mesh(group, matOf('emMount'));   // (under a nacelle the faired pylon below is the drawn mount: the tubes stand inside it)
+      // (HULL-B34: under a nacelle the engine is IN CONTACT with the fin - the nacelle crosses it, no pylon drawn; the
+      // tubes above stand for the bare engine's mount only)
+    }
     // THE PYLON (the over-the-wing mount): one tapered post from the upper
     // skin to the mount plate, in the mount's own material
-    if (u.kind === 'wingTop' && f.yBase != null) {
-      const h = Math.max(0.02, f.yc - f.halfH - f.yBase + 0.02);
-      const pl = new THREE.Mesh(
-        new THREE.BoxGeometry(0.09, h, Math.max(0.25, 0.42 * (f.chord || 1))),
-        matOf('emMount'));
-      pl.position.set(f.x || 0, f.yBase + h / 2, f.z + 0.05);
-      group.add(pl);
+    if (u.kind === 'wingTop' && f.yBase != null && !u.tandemRear) {   // (HULL-B15: a tandem's one pylon, under its front unit)
+      const GK = window.GEAR_KIT;
+      if (!GK || !f.foot) {
+        const h = Math.max(0.02, f.yc - f.halfH - f.yBase + 0.02);
+        const pl = new THREE.Mesh(new THREE.BoxGeometry(0.09, h, Math.max(0.25, 0.42 * (f.chord || 1))), matOf('emMount'));
+        pl.position.set(f.x || 0, f.yBase + h / 2, f.z + 0.05);
+        group.add(pl);
+      } else drawPylonMount(group, f, P, GK, !!u.aft, pylonCaster(ctx, FS, [(f.x || 0) - 1.0, (f.x || 0) + 1.0, f.z - 1.1, f.z + 1.1]));
     }
+    // HULL-B78: THE CABANE AS A CENTRAL PYLON (bpCabPylon) - the engine pylon's blended blade, standing on the roof's
+    // crown under the first plane's centre section and hugging the wing's underside (drawn once, with the first unit)
+    if (+P.bpCabPylon && (Math.round(+P.wgPos || 0) === 3 || +P.w2On) && !cabPyDrawn) {
+      cabPyDrawn = true;
+      const W = window.CAGE_WING, GK = window.GEAR_KIT, GGn = window.GEAR_GEN || null;
+      const le = W && W.leAt ? W.leAt(0) : null;
+      const chPl = W && W.def && W.def.parts && ((W.def.parts.planes && W.def.parts.planes[0]) || W.def.parts);
+      const ch = chPl && chPl.chordAt ? chPl.chordAt(0) : 1.0;
+      const AFp = GGn && GGn.cageAirframe ? GGn.cageAirframe(ctx.mesh, FS) : null;
+      if (le && GK && W.underAt && AFp) {
+        const top = z => { try { const zc = Math.min(AFp.z1 - 1e-3, Math.max(AFp.z0 + 1e-3, z)); const y = AFp.surf(zc, Math.PI)[1]; return isFinite(y) ? y : null; } catch (e) { return null; } };
+        const Lp = Math.max(0.30, 0.55 * ch), zc = le.z - 0.40 * ch, u = W.underAt(0, zc), yb = top(zc);
+        if (u && yb != null && u.y > yb + 0.05) {
+          const f = { kind: 'cabPylon', x: 0, z: zc - (Lp / 2 - 0.05), yc: u.y + 0.01, halfH: 0, chord: Lp / 0.42,
+                      foot: { x: 0.06, y: yb, zF: zc + Lp / 2, zR: zc - Lp / 2, yF: top(zc + Lp / 2), yR: top(zc - Lp / 2) } };
+          drawPylonBlade(group, f, Object.assign({}, P, { engPylonFair: 3 }), GK, false,
+                         pylonCaster(ctx, FS, [-1.0, 1.0, zc - 1.2, zc + 1.2]));
+        }
+      }
+    }
+    // HULL-B30: A NACELLE ON THE REAR FUSELAGE stands on a STUB PYLON - a short wing-section blade from the fuselage's
+    // side (its root flared into the skin, 18 % thick) to the nacelle's inboard flank (16 %, a small fillet), its chord
+    // the nacelle's mount station over 0.85 m; the frame's stub truss (61_gen_frame pylonAt 'body') inside it
+    if (u.kind === 'nacelle' && f.side && window.GEAR_KIT) {
+      const GK = window.GEAR_KIT, bag = GK.Bag(), sd = Math.sign(f.x || 1);
+      const x0 = sd * (f.side.x - 0.04), x1 = (f.x || 0) - sd * 0.6 * f.halfW, y0 = f.side.y, y1 = f.yc;
+      const C0 = 0.95, C1 = 0.75, NR = 10, NS = 24, path = [], rows = [];
+      for (let i = 0; i <= NR; i++) { const t = i / NR, e0 = Math.max(0, 1 - t / 0.25) ** 2, e1 = Math.max(0, (t - 0.8) / 0.2) ** 2;
+        path.push([x0 + (x1 - x0) * t, y0 + (y1 - y0) * t, f.side.z]); rows.push([C0 + (C1 - C0) * t + 0.25 * e0 + 0.1 * e1, 0.16 + 0.10 * e0 + 0.04 * e1]); }
+      GK.sweep(bag, path, (tt, i) => { const [c, th] = rows[i], pts = [];
+        for (let k = 0; k < NS; k++) { const ang = 2 * Math.PI * k / NS, ca = Math.cos(ang), sa = Math.sin(ang), xc = 0.5 * (1 - ca);
+          const yt = 5 * th * (0.2969 * Math.sqrt(xc) - 0.1260 * xc - 0.3516 * xc * xc + 0.2843 * xc ** 3 - 0.1036 * xc ** 4);
+          pts.push([(0.5 - xc) * c, (sa >= 0 ? 1 : -1) * yt * c]); }
+        return pts; }, true, [0, 0, 1]);
+      const SM = typeof window !== 'undefined' && window.CAGE_SECMAT;
+      bag.mesh(group, (SM && SM('cowl', { surf: 0, fieldM: 1 })) || matOf('emMount'));
+    }
+    // HULL-B8: a wing nacelle lifted over the wing stands on the same mount, drawn about its own station
+    // (HULL-B38: at its own x in the layer's frame - the rays read the wing and the nacelle where they are)
+    if (u.kind === 'nacelle' && f.foot && window.GEAR_KIT)
+      drawPylonMount(group, f, P, window.GEAR_KIT, !!u.aft, pylonCaster(ctx, FS, [(f.x || 0) - 1.0, (f.x || 0) + 1.0, f.z - 1.1, f.z + 1.1]));
     // THE EXHAUST EXIT IN THE SCENE'S OWN FRAME (G70). The mesh measured it in
     // the engine's local frame; the group has just been placed on the thrust
     // line, so one localToWorld puts it in the same metric frame the gear
@@ -1275,7 +1738,7 @@ function engPlace(ctx, prev) {
       if (Math.abs(hy - RA.y(dz)) < R + RA.r) {
         const below = !(hy < (isFinite(u.faceYc) ? u.faceYc : hy) - 1e-3);
         const yAx = below ? hy - R - ROD_CLEAR - RA.r : hy + R + ROD_CLEAR + RA.r;
-        const v = Math.max(-0.9, Math.min(0.9, Math.round(((yAx - RA.t * dz) / FS) / 0.005) * 0.005));
+        const v = Math.max(-1.5, Math.min(0.9, Math.round(((yAx - RA.t * dz) / FS) / 0.005) * 0.005));
         // what the rod's slider range could not give (metres) goes to the REAR ENGINE ALONE, where the firewall
         // rule lets it move (CABIN-CRAFT-2, engineFaces: a COWLED pusher - or a push-pull's rear - stands on the pod's
         // face itself and ignores the block; the cowl does not read engY, so moving a cowled engine would pull it out

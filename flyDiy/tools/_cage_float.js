@@ -131,6 +131,12 @@ const GROUP = ['9b · floats', [
   ['fltBoard', 'deck board across the spreaders', 0, 1, 1, { when: P => +P.gearFloats && Math.round(+P.fltStyle || 0) === 1 }],
   ['fltDetail', 'details (covers, hatch, cleats, straps, bumper)', 0, 1, 1, on],
   ['fltRudder', 'water rudders', 0, 1, 1, on],
+  // RETRACT-STUDY §8.25: THE AMPHIBIAN - Wipline wheels in the floats (the manufacturer's tyres and layout; the gear
+  // position is the gear page's preview row, gearPos)
+  // (2: the EDO style - the user's photographs and close-ups, 5 Nov: the nose leg pivots low on the bow's leading edge,
+  // pushed down by a piston through a triangle, folding forward and up to hug the stem; no EDO data reached - the
+  // geometry is the photographs', the tyres the same hull's Wipline row's)
+  ['fltAmph', 'amphibian (wheels in the floats)', 0, 2, 1, ['none', 'Wipline', 'EDO style'], on],
   ['fltPaddle', 'paddle', 0, 2, 1, ['none', 'on the left float', 'on both floats'], on],
   ['hull', [
     ['fltL',      'length',                        2.5, 14.0, 0.01, onM],
@@ -431,9 +437,528 @@ function streamlined(bag, a, b, t, chordK) {
   return GK.sweep(bag, [a, b], () => sect, true, [0, 0, 1]);
 }
 
+// HULL-B5: THE BOAT'S TIP FLOATS, DRAWN FROM THE ROWS THE FRAME FLIES. The frame (61_gen_frame HULL-B3) hangs two
+// small Wipline-family floats: each one's hull for hullTipKg (HYDRO.tipFloatParams), its keel hullTipY over the step
+// keel, under the spar station nearest hullTipAt of the semispan (the step 0.10 L aft of the spars' mid-chord), on
+// struts from its deck edges to that station's front and rear spar nodes (and a wire each). The drawing reads THE SAME
+// ROWS, the same functions and the DRAWN wing's own spar nodes (the wing layer's def, through its node map - the
+// wing the join measures and the frame flies), and stands the float on the drawn step keel (the hull's own table,
+// cageHullTable): drawn = flown by construction. Rows not fitted yet (kg 0 / y -1): nothing drawn until the Hull
+// tile's fit writes them (hullFitStep below: the frame flies the gross rule meanwhile). Called by the wing layer once
+// it has published (the float layer's own post runs before the wing exists).
+let tipGroup = null;
+window.CAGE_TIPFLOAT_DRAW = ctx => {
+  if (tipGroup) { dispose(tipGroup); tipGroup = null; }
+  window.CAGE_TIPFLOATS = null;
+  const P = ctx && ctx.P, W = window.CAGE_WING, scene = ctx && ctx.scene;
+  if (!P || !+P.hullOn || !+P.hullTips || !W || !W.def || !W.nodeCage || !scene || !CG2 || !CG2.cageHullTable) return;
+  // (HULL-B26: buoyant wing tips are the wing's own tip - the wing layer draws them, bent and filled by its own rows;
+  // there is no float to hang)
+  if (Math.round(+P.hullTips) === 2) return;
+  const kg = +P.hullTipKg, yRel = +P.hullTipY;
+  if (!(kg > 0) || !(yRel > -0.999)) return;
+  const HY = HYc(), FG = window.FLOAT_GEN;
+  // (HULL-B45: under the second plane on request - its own spar stations and semispan, the frame's planes[1])
+  const PL2 = Math.round(+P.hullTipPlane || 0) === 1 && W.def.parts && W.def.parts.planes && W.def.parts.planes[1] && W.def.parts.planes[1].wf
+    ? W.def.parts.planes[1] : null;
+  const wf = PL2 ? PL2.wf : W.def.parts && W.def.parts.wf, nodes = W.def.nodes,
+        semi = PL2 && PL2.semi > 0 ? PL2.semi : W.def.spec && W.def.spec.geom && W.def.spec.geom.semi;
+  if (!HY || !HY.tipFloatParams || !wf || !wf.L || !wf.R || !(semi > 0)) return;
+  const FS = (CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
+  const TB = CG2.cageHullTable(CG2.cageHullLines(P), FS);
+  if (!TB) return;
+  const yK = TB.yStep * FS + yRel;                       // the tip float's keel, cage metres
+  const Pt = HY.tipFloatParams(kg), tAt = +P.hullTipAt || 0.85;
+  tipGroup = new THREE.Group();
+  tipGroup.name = 'cageLayer:float';
+  scene.add(tipGroup);
+  const SM = typeof window !== 'undefined' && window.CAGE_SECMAT;
+  const skinM = (SM && SM('float', { cons: 'alloy', surf: 0, fieldM: 1, tint0: 0xd8d2c2 }))
+    || new THREE.MeshStandardMaterial({ color: 0xd8d2c2, roughness: 0.55, metalness: 0.05 });
+  const deckM = (SM && SM('floatDeck', { surf: 0, fieldM: 1, tint0: 0x2e3135 }))
+    || new THREE.MeshStandardMaterial({ color: 0x2e3135, roughness: 0.95, metalness: 0.0 });
+  const strutM = (SM && SM('gearLeg', { surf: 0, fieldM: 1, tint0: 0x98a2ad })) || GG.gearMat('steel');
+  const out = [];
+  for (const [sd, Wn] of [[-1, wf.L], [1, wf.R]]) {
+    // the spar station nearest tAt of the semispan - the frame's own choice, on the drawn wing's nodes
+    let jj = 1, dB = Infinity;
+    for (let q = 1; q < Wn.F.length; q++) { const e = Math.abs(Math.abs(nodes[Wn.F[q]].p[2]) - tAt * semi); if (e < dB) { dB = e; jj = q; } }
+    const cF = W.nodeCage(nodes[Wn.F[jj]].p), cR = W.nodeCage(nodes[Wn.R[jj]].p);
+    // (HULL-B46: the frame's own rule - the deck held 0.07 m under the spars' line, the float under a low wing; the
+    // nodes' y in the frame's metres, the deck off the same sections)
+    const yDeck = Math.max(...[-0.80 * Pt.xs, 0, 0.80 * (Pt.L - Pt.xs)].map(xs => HY.sectionOf(Pt, xs === 0 ? -1e-9 : xs).yd));
+    const yKs = Math.min(yK, Math.min(cF[1], cR[1]) - 0.07 - yDeck);
+    // the step: 0.10 L aft of the spars' mid-chord (cage z is forward), under their mid-span line
+    const zS = 0.5 * (cF[2] + cR[2]) - 0.10 * Pt.L, xS = 0.5 * (cF[0] + cR[0]);
+    // the float frame (x aft of its step, y up from its keel, z across) -> the cage (the frame's axes: cage x = model z)
+    const toC = v => [xS + v[2], yKs + v[1], zS - v[0]];
+    const ug = new THREE.Group();
+    ug.name = 'edTipFloat' + (sd < 0 ? 'L' : 'R');
+    tipGroup.add(ug);
+    const meshOf = (part, mat, nm) => {
+      if (!part || !part.idx || !part.idx.length) return;
+      const n = part.pos.length / 3, pos = new Float32Array(n * 3);
+      for (let i = 0; i < n; i++) { const c = toC([part.pos[i * 3], part.pos[i * 3 + 1], part.pos[i * 3 + 2]]); pos[i * 3] = c[0]; pos[i * 3 + 1] = c[1]; pos[i * 3 + 2] = c[2]; }
+      // the winding: faces outward whatever the frames' handedness (the closed hull's signed volume)
+      let vol = 0; const I = part.idx;
+      for (let t = 0; t + 2 < I.length; t += 3) {
+        const a = I[t] * 3, b = I[t + 1] * 3, c = I[t + 2] * 3;
+        vol += pos[a] * (pos[b + 1] * pos[c + 2] - pos[b + 2] * pos[c + 1]) - pos[a + 1] * (pos[b] * pos[c + 2] - pos[b + 2] * pos[c])
+             + pos[a + 2] * (pos[b] * pos[c + 1] - pos[b + 1] * pos[c]);
+      }
+      const idx = vol < 0 ? Array.from(I, (v, i) => (i % 3 === 1 ? I[i + 1] : i % 3 === 2 ? I[i - 1] : v)) : I;
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      g.setIndex(n > 65535 ? new THREE.Uint32BufferAttribute(idx, 1) : new THREE.Uint16BufferAttribute(idx, 1));
+      g.computeVertexNormals();
+      const m = new THREE.Mesh(g, mat); if (nm) m.name = nm; m.castShadow = true; m.receiveShadow = true;
+      ug.add(m);
+    };
+    if (FG) {
+      const o = FG.build(Pt, { HY, detail: 0, rudder: 0, paddle: 0, xAft: Pt.xAft });
+      meshOf(o.hull, skinM, ug.name + 'Hull');
+      if (o.deck) meshOf(o.deck, deckM);
+      if (o.protrusions) meshOf(o.protrusions, skinM);
+    }
+    // the rigging, the frame's members (61_gen_frame HULL-B3): the deck edges at the step to the front spar node,
+    // the aft deck edges to the rear one, a wire from each bow deck edge
+    const st3 = [-0.80 * Pt.xs, 0, 0.80 * (Pt.L - Pt.xs)];
+    const deck = st3.map(xs => { const sc = HY.sectionOf(Pt, xs === 0 ? -1e-9 : xs); return [toC([xs, sc.yd, -sc.b]), toC([xs, sc.yd, sc.b])]; });
+    if (Math.round(+P.hullTips) === 3) {
+      // HULL-B28: AN OUTRIGGER HULL'S SUPPORT (the user: "proper supports"): ONE FAIRED BLADE round the frame's four
+      // struts (61_gen_frame: the deck edges at the step to the front spar node, the aft deck edges to the rear) - at
+      // the float its section is the deck's whole width over the struts' fore-aft run, flared flat into the deck; up
+      // the height it narrows to a 12 % section over the spars' chord, flared again into the wing's underside (the
+      // pylon's cooling-tower fillet, both ends). The flown struts stand inside it
+      const yB = 0.5 * (deck[1][0][1] + deck[2][0][1]) - 0.01, xB = 0.5 * (deck[1][0][0] + deck[1][1][0]);
+      const zB0 = Math.max(deck[1][0][2], deck[2][0][2]) + 0.06, zB1 = Math.min(deck[1][0][2], deck[2][0][2]) - 0.06;
+      const yT = 0.5 * (cF[1] + cR[1]) + 0.02, xT = 0.5 * (cF[0] + cR[0]);
+      const zT0 = Math.max(cF[2], cR[2]) + 0.05, zT1 = Math.min(cF[2], cR[2]) - 0.05;
+      const wB = Math.abs(deck[1][1][0] - deck[1][0][0]) + 0.03, H = Math.max(0.05, yT - yB);
+      const bag = GK.Bag(), NR = 18, NS = 28, path = [], rows = [];
+      for (let i = 0; i <= NR; i++) {
+        // (a 14 % blade over the struts' own chord; the deck fillet - to the deck's width - over its lowest fifth, a
+        // small root fillet into the wing over its top tenth: the first cut flared both ends over a quarter of the
+        // height and read as a sail)
+        const u = i / NR, e0 = Math.max(0, 1 - u / 0.20) ** 2, e1 = Math.max(0, (u - 0.90) / 0.10) ** 2;
+        const zc = 0.5 * ((zB0 + zB1) + ((zT0 + zT1) - (zB0 + zB1)) * u);
+        const ch0 = (zB0 - zB1) + ((zT0 - zT1) - (zB0 - zB1)) * u, ch = ch0 + 0.10 * ch0 * e0 + 0.12 * ch0 * e1;
+        const th = 0.14 * ch0 + (0.7 * wB - 0.14 * ch0) * e0 ** 3 + 0.05 * ch0 * e1;
+        path.push([xB, yB + H * u, zc]); rows.push([ch, Math.max(0.03, th)]);   // (vertical: it stands on the float's centreline)
+      }
+      GK.sweep(bag, path, (tt, i) => { const [c, th] = rows[i], pts = [];
+        for (let k = 0; k < NS; k++) { const ang = 2 * Math.PI * k / NS, ca = Math.cos(ang), sa = Math.sin(ang), xc = 0.5 * (1 - ca);
+          const yt = 5 * 0.2 * (0.2969 * Math.sqrt(xc) - 0.1260 * xc - 0.3516 * xc * xc + 0.2843 * xc ** 3 - 0.1036 * xc ** 4) / 0.2;
+          pts.push([(0.5 - xc) * c, (sa >= 0 ? 1 : -1) * 0.5 * th * Math.min(1, yt / 0.6)]); }
+        return pts; }, true, [0, 0, 1]);
+      bag.mesh(ug, skinM);
+    } else {
+      const sg = GK.Bag(), wg = GK.Bag(), t = Math.max(0.012, +P.fltStrutR || 0.018);
+      for (const [a, b] of [[deck[1][0], cF], [deck[1][1], cF], [deck[2][0], cR], [deck[2][1], cR]]) streamlined(sg, a, b, t);
+      for (const [a, b] of [[deck[0][0], cF], [deck[0][1], cR]])
+        GK.sweep(wg, [a, b], () => [[0.003, 0], [0, 0.003], [-0.003, 0], [0, -0.003]], true, [0, 0, 1]);
+      sg.mesh(ug, strutM); wg.mesh(ug, strutM);
+    }
+    out.push({ side: sd, step: [xS, yK, zS], L: Pt.L, kg, spar: [cF, cR] });
+  }
+  window.CAGE_TIPFLOATS = out;
+};
+
+// HULL-B3: THE HULL TILE'S FIT (_cage_design.js gearLayout 'hull', `after: hullFit`): on the builds that follow the
+// pick, the step by the 12-deg rule off the FLOWN CG and the afterbody keel onto a 7-deg run (_cage_gen.js
+// cageHullFit - the same function GATE HULL fits with), written once into the rows - the step moves the CG by grams,
+// so up to three passes, each one only while the rows still move. The CG and the datums are the ones the float step
+// reads (app.js FLYDIY_CG_MODEL, the join's CAGE_DATUM)
+let hullFitPasses = 0, hullTipArmed = false;
+window.CAGE_HULL_FIT_NEXT = () => { hullFitPasses = 3; };
+function hullFitStep(P, stat) {
+  // (a hull whose tip floats were never fitted - a saved boat, a hand-set switch - is fitted once, the tile's way)
+  if (!hullFitPasses && +P.hullOn && +P.hullTips && !(+P.hullTipKg > 0 && +P.hullTipY > -0.999) && !hullTipArmed) { hullTipArmed = true; hullFitPasses = 3; }
+  if (!hullFitPasses) return;
+  if (!+P.hullOn) { hullFitPasses = 0; return; }
+  const DAT = window.CAGE_DATUM, CGM = window.FLYDIY_CG_MODEL;
+  if (!CG2 || !CG2.cageHullFit || !DAT || !DAT.fwOk || !CGM) return;      // the next build, when the CG is in
+  hullFitPasses--;
+  const FS = (CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
+  // HULL-B8: THE WHOLE FIT, the gate's and the matrix's own function (_cage_gen.js cageHullFitAll): the step by the
+  // 12-deg rule and the afterbody keel, the rest balance (the bow lengthened while the boat would rest bow down), the
+  // propellers' clearance over the water (a wing pair's block, a pylon's height), a wing pair counter-rotating, the
+  // tip floats (HYDRO.hullTipFit off the flown mass)
+  const HY = HYc(), M = window.FLYDIY_MASS_MODEL;
+  if (!CG2.cageHullFitAll || !(M > 0)) { hullFitPasses = 0; return; }
+  const W = window.CAGE_WING, semi = W && W.def && W.def.spec && W.def.spec.geom && W.def.spec.geom.semi;
+  // (HULL-B26: the buoyant tips' fit - the flown wing's tip joint and the core's own shaping, genTipFit)
+  const tipO = typeof genTipFit === 'function' ? { joint: window.FLYDIY_TIPJOINT_MODEL || null, fit: genTipFit,
+                                                    drooped: Object.keys(GEN_TIPS).indexOf('drooped') } : null;
+  const fa = CG2.cageHullFitAll(P, { cg: CGM, mass: M, zFw: DAT.zFw, yD: DAT.yD, props: window.FLYDIY_PROPS_MODEL || null }, HY, { semi, tip: tipO });
+  if (!fa) { hullFitPasses = 0; return; }
+  const fit = fa.rows;
+  window.CAGE_HULL_REST = { rest: fa.rest, notes: fa.notes };
+  const moved = Object.keys(fit).some(k => Math.abs((+P[k] || 0) - fit[k]) > 1e-3);
+  if (!moved) { hullFitPasses = 0; return; }
+  Object.assign(P, fit);
+  if (stat) stat.textContent += '  ·  hull: the step 12 deg aft of the CG, the afterbody keel on 7 deg' +
+    (fa.rest ? ', rests ' + fa.rest.trim.toFixed(1) + ' deg' : '') + (fa.notes.length ? ' - ' + fa.notes.join('; ') : '');
+  setTimeout(() => { const UI = window.CAGE_UI; if (UI && UI.syncSliders) UI.syncSliders(); if (UI && UI.build) UI.build(); }, 0);
+}
+// ---- THE AMPHIBIAN (RETRACT-STUDY §8.25; the data: HYDRO.WIPLINE_AMPHIB, read off Wipaire's manuals and guides) -----
+// Per float, in the hull's MODEL frame (x aft from the step, y up from the step's keel, z across), mirrored for the
+// port float like every other part:
+//   THE MAIN GEAR - a drag link on trunnions at the STEP BULKHEAD (Wipline 13000/6100 manuals: "drag link from
+//     trunnions on step bulkhead"), low in the float; its axle aft of the step, where every guide's 3-view puts the
+//     wheel (the main axle at AMPHIB_GEOM.mainK of the amphibian length from its front, never ahead of the step);
+//     single or dual wheels as the model's tyres; the shock strut from the drag link up to the slide track's carriage
+//     under the deck. It swings UP into an open wheel well just aft of the step - no doors (no door in any parts list).
+//   THE NOSE GEAR - a composite spring leg ("very similar to a Cessna style") from a trolley at the foot of the nose
+//     box's end track, raked forward and down to a castering pivot block and fork; retracting, the trolley climbs the
+//     end track, turns the corner and is drawn aft (the 3730 manual: rollers "go around the corner"), so the leg swings
+//     from hanging down to lying forward and the wheel ends at the bow tip, half out - "retracts into the float nose
+//     to provide a dock bumper" (Wipaire, the 13000). No doors.
+//   MEASURED off Wipaire's 3-views: the keel 0.8 of the main's radius over the ground at the step (HYDRO.AMPHIB_GEOM.
+//     clearK). ASSUMED (Wipaire publishes none of them; the study lists them as missing): the stowed main tyre flush with its keel; the trunnion at half the
+//     hull's height; the nose trolley's travel (what lands the wheel at the bow tip); the leg's rake (20 deg).
+function amphib(HP, HY, at, mirror, ug, tag, hullMesh, P, rec, out) {
+  const A = HY.amphibOf(HP.preset, HP.L, HP.H); if (!A) return;
+  const G = HY.AMPHIB_GEOM, sec = x => HY.sectionOf(HP, x === 0 ? -1e-9 : x);
+  const Rm = HY.TYRE_OD(A.main) / 2, Wm = HY.TYRE_W(A.main), Rn = HY.TYRE_OD(A.nose) / 2, Wn = HY.TYRE_W(A.nose);
+  const xs = HP.xs, H = HP.H, xb = -xs, dL = (A.dL != null ? A.dL : 6) * 0.0254, La = HP.L + dL;
+  const ykS = sec(0).yk, yg = ykS - (G.clearK || 0.8) * Rm;          // (the ground line: the keel 0.8 R over it - the guides' 3-views)
+  const xn = xb - dL * 0.5, xm = Math.max(xb - dL + G.mainK * La, Rm + 0.05);
+  // THE BLACK CAP (the rubber nose bumper): the stowed nose wheel comes to ITS height, at the tip, and slides through a
+  // slot cut in it as wide as the tyre (the user, 5 Nov: "your little wheel is coming too low, so it should really
+  // come at the level of the black little tip there, and this black little tip should even be cut so that the wheel
+  // can slide through it") - both styles
+  let yCap = sec(xb + 0.02).yd - 0.6 * Rn;
+  if (out && out.bumper && out.bumper.pos && out.bumper.pos.length) {
+    const B = out.bumper, ps = B.pos; let sy = 0, n = 0, y0 = Infinity, y1 = -Infinity;
+    for (let i = 0; i < ps.length; i += 3) { y0 = Math.min(y0, ps[i + 1]); y1 = Math.max(y1, ps[i + 1]); }
+    yCap = (y0 + y1) / 2;
+    const half = Wn / 2 + 0.015, keep = [];
+    for (let t = 0; t < B.idx.length; t += 3) { let cz = 0, cy = 0; for (let q = 0; q < 3; q++) { cz += ps[B.idx[t + q] * 3 + 2] / 3; cy += ps[B.idx[t + q] * 3 + 1] / 3; }
+      if (Math.abs(cz) < half && cy < yCap + Rn * 0.9) continue; keep.push(B.idx[t], B.idx[t + 1], B.idx[t + 2]); }
+    B.idx = keep; }
+  const stowN = [xb + 0.25 * Rn, yCap, 0];                    // (the stowed nose wheel's centre: a quarter of it inside the tip)
+  const g = Math.max(0, Math.min(1, P.gearPos == null ? 1 : +P.gearPos)), s = 1 - g;
+  const sm = (a, b) => { const t = Math.max(0, Math.min(1, (s - a) / (b - a))); return t * t * (3 - 2 * t); };
+  const rot = (p, c, a) => { const ca = Math.cos(a), sa = Math.sin(a), dx = p[0] - c[0], dy = p[1] - c[1]; return [c[0] + dx * ca - dy * sa, c[1] + dx * sa + dy * ca, p[2]]; };
+  const mz = v => [v[0], v[1], mirror ? -v[2] : v[2]], C3 = v => toCage(mz(v), at), D3 = v => dirCage(mz(v));
+  const bags = { tyre: GG.Bag(), hub: GG.Bag(), brake: GG.Bag(), brakefix: GG.Bag(), alloy: GG.Bag(), dark: GG.Bag() }, st = GG.Bag(), al = GG.Bag(), dk = GG.Bag();
+  // THE MAIN: the trunnion, the axle down, the angle that stows the tyre flush with the keel (searched)
+  const T = [-0.02, ykS + 0.5 * H, 0], ax0 = [xm, yg + Rm, 0];
+  // (stowed FLUSH with the keel where the hull is deep enough; else as high as the deck allows - 30 mm under it - the
+  // tyre showing under the keel by the rest, recorded: Wipaire does not say which a Wipline does)
+  let thM = 0, flush = false;
+  const topOk = q => q[1] + Rm <= sec(Math.max(0.01, q[0])).yd - 0.03, botOk = q => q[1] - Rm >= sec(Math.max(0.01, q[0])).yk - 0.002;
+  for (let d = 0; d <= 170; d += 0.5) { const q = rot(ax0, T, d * D2R); if (!topOk(q)) break; thM = d * D2R; if (botOk(q)) { flush = true; break; } }
+  const qUp = rot(ax0, T, thM), fitWhy = [];
+  if (!flush) fitWhy.push('the stowed main tyre (' + A.main + ') shows ' + Math.round((sec(Math.max(0.01, qUp[0])).yk - (qUp[1] - Rm)) * 1000) + ' mm under the keel: the hull is too shallow to take it flush');
+  const am = rot(ax0, T, thM * sm(0.1, 1)), lm = rot([xm, yg + Rm + 0.5 * Rm, 0], T, thM * sm(0.1, 1));
+  const zs = A.mainN === 2 ? [-0.62 * Wm - 0.02, 0.62 * Wm + 0.02] : [0];
+  for (const z of zs) GG.wheel(bags, C3([am[0], am[1], z]), D3([0, 0, 1]), Rm, { P: {}, brake: true });
+  GK.tube(st, C3(T), C3([am[0], am[1], 0]), 0.022, 10);                                       // the drag link
+  GK.tube(al, C3([am[0], am[1], -Math.max(...zs.map(Math.abs)) - 0.03]), C3([am[0], am[1], Math.max(...zs.map(Math.abs)) + 0.03]), 0.016, 10);   // the axle
+  const top = [T[0] + 0.35 * (xm - T[0]), ykS + 0.85 * H, 0];                                  // the carriage under the deck
+  if (Math.round(+P.fltAmph) === 2) {                    // (EDO style: a horizontal shock cylinder along the bottom - the close-ups)
+    const mid = rot([T[0] + 0.55 * (xm - T[0]), T[1] + 0.55 * (ax0[1] - T[1]), 0], T, thM * sm(0.1, 1)), Fh = [T[0] - 0.35 * H, ykS + 0.12 * H, 0];
+    GK.tube(al, C3(Fh), C3([(Fh[0] + mid[0]) / 2, (Fh[1] + mid[1]) / 2, 0]), 0.034, 12); GK.tube(st, C3([(Fh[0] + mid[0]) / 2, (Fh[1] + mid[1]) / 2, 0]), C3(mid), 0.016, 10);
+  } else { GK.tube(al, C3(top), C3(lm), 0.028, 12); GK.tube(dk, C3([top[0] - 0.05, top[1], 0]), C3([top[0] + 0.25, top[1], 0]), 0.02, 8); }   // the shock strut, its slide track
+  // THE EDO STYLE'S NOSE (the user's photographs and his reading of them, 5 Nov - no EDO document reached): the leg's
+  // anchor is at the BOTTOM of the float's front - on the keel where it turns up into the stem (the forefoot), not at
+  // the tip (the tip is the Wipline's trolley) - outside the hull. Gear down the leg hangs from it, nearly upright; a
+  // small piston from a fitting on the float's bottom, aft of the anchor, swings it FORWARD AND UP about the anchor,
+  // so the leg lies along the stem and the wheel ends at the bow tip, in front of the float in its black cap. The
+  // anchor is placed where its distance to that stowed place is the leg's length; no well, so no doors
+  let edoNose = null, wipNose = null;
+  if (Math.round(+P.fltAmph) === 2) {
+    // (the user, 5 Nov: "your rotation point should still follow the bottom of the hull further by, let's say, maybe 20
+    // centimeters ... the landing position of your arm is not almost vertical ... It is between 45 degrees and
+    // horizontal ... Then it goes up using a little piston ... so that the little wheel goes straight at the tip"):
+    // the anchor walks aft along the keel to where a leg raked forward at ~35 deg below level (its length set by the
+    // ground line) reaches the stowed place at the tip exactly - the rake solved from the anchor's height and distance
+    const tip = stowN, RAKE = 35 * D2R;
+    let best = null;
+    for (let x = xb + 0.10; x <= xb + 0.6 * xs; x += 0.005) {
+      const P0 = [x, sec(x).yk - 0.02, 0], drop = P0[1] - (yg + Rn), D = Math.hypot(tip[0] - P0[0], tip[1] - P0[1]);
+      if (drop <= 0.02 || D <= drop) continue;
+      const a = Math.asin(drop / D), e = Math.abs(a - RAKE);
+      if (!best || e < best.e) best = { e, P0, a, D }; }
+    const Pe = best ? best.P0 : [xb + 0.2, sec(xb + 0.2).yk - 0.02, 0], ra = best ? best.a : RAKE, Lg = best ? best.D : 0.3;
+    const an0 = [Pe[0] - Lg * Math.cos(ra), Pe[1] - Lg * Math.sin(ra), 0];
+    // (the swing: forward and up about the anchor till the wheel's centre points at the stowed place)
+    const a0 = Math.atan2(an0[1] - Pe[1], an0[0] - Pe[0]), a1 = Math.atan2(tip[1] - Pe[1], tip[0] - Pe[0]);
+    let thE = a1 - a0; while (thE > 0) thE -= 2 * Math.PI; while (thE <= -2 * Math.PI) thE += 2 * Math.PI;   // (clockwise: down, forward, up)
+    const r = thE * sm(0.05, 0.95), an = rot(an0, Pe, r), blk = rot([an0[0], an0[1] + Rn + 0.04, 0], Pe, r);
+    GG.wheel(bags, C3(an), D3([0, 0, 1]), Rn, { P: {}, brake: false });
+    const u = [blk[0] - Pe[0], blk[1] - Pe[1], 0], l = Math.hypot(u[0], u[1]) || 1, c = [(blk[0] + Pe[0]) / 2, (blk[1] + Pe[1]) / 2, 0];
+    const e1 = D3([u[0] / l, u[1] / l, 0]), e2 = D3([-u[1] / l, u[0] / l, 0]), e3 = D3([0, 0, 1]);
+    GK.boxIn(st, C3(c), [l / 2, 0.016, 0.022], e1, e2, e3);                                         // the oleo leg
+    GK.boxIn(al, C3(c), [l * 0.42, 0.006, 0.05], e1, e2, e3);                                       // its fairing
+    GK.tube(al, C3(blk), C3(an), 0.016, 10);                                                        // the castering fork
+    GK.tube(dk, C3([Pe[0], Pe[1], -0.06]), C3([Pe[0], Pe[1], 0.06]), 0.022, 10);                     // the anchor's pin and lugs
+    // (the little piston: from a fitting on the bottom, aft of the anchor, to the leg a quarter down - the triangle)
+    const Fb = [Pe[0] + 0.45 * l, sec(Pe[0] + 0.45 * l).yk - 0.015, 0], Lq = [Pe[0] + u[0] * 0.28, Pe[1] + u[1] * 0.28, 0];
+    const mid = [(Fb[0] + Lq[0]) / 2, (Fb[1] + Lq[1]) / 2, 0];
+    GK.tube(al, C3(Fb), C3(mid), 0.020, 10); GK.tube(st, C3(mid), C3(Lq), 0.010, 8);                // barrel, rod
+    GK.tube(dk, C3([Fb[0], Fb[1], -0.04]), C3([Fb[0], Fb[1], 0.04]), 0.016, 8);                     // its fitting
+    edoNose = { noseAxle: an0, noseUp: rot(an0, Pe, thE), pivot: Pe, rake: +(ra / D2R).toFixed(1) };
+  } else {
+  // THE NOSE: the trolley at the end track's foot, the leg raked forward to the castering block over the wheel
+    const Pn = [xb + 0.18 * H, sec(xb + 0.18 * H).yk + 0.12 * H, 0], an0 = [xn, yg + Rn, 0], blk0 = [an0[0] + 0.25 * Rn, an0[1] + Rn + 0.04, 0];
+    const leg0 = Math.atan2(blk0[1] - Pn[1], blk0[0] - Pn[0]);                                   // (down and forward)
+    // (forward and up - the short way - till the wheel's centre is at the cap's height; the trolley then draws it aft
+    // into the tip)
+    let thN = 0; for (let d = 0; d <= 170; d += 0.5) { thN = -d * D2R; if (rot(an0, Pn, thN)[1] >= stowN[1]) break; }
+    const rN = thN * sm(0, 0.7), blkR = rot(blk0, Pn, rN), axR = rot(an0, Pn, rN);
+    const tipX = stowN[0], slideFull = Math.max(0, tipX - rot(an0, Pn, thN)[0]), slideN = slideFull * sm(0.5, 1);
+    const sh = v => [v[0] + slideN, v[1], v[2]], Pn2 = sh(Pn), blk = sh(blkR), an = sh(axR);
+    GG.wheel(bags, C3(an), D3([0, 0, 1]), Rn, { P: {}, brake: false });
+    { const u = [blk[0] - Pn2[0], blk[1] - Pn2[1], 0], l = Math.hypot(u[0], u[1]) || 1, c = [(blk[0] + Pn2[0]) / 2, (blk[1] + Pn2[1]) / 2, 0];
+      GK.boxIn(st, C3(c), [l / 2, 0.012, 0.035], D3([u[0] / l, u[1] / l, 0]), D3([-u[1] / l, u[0] / l, 0]), D3([0, 0, 1])); }   // the spring leg
+    GK.tube(al, C3(blk), C3(an), 0.018, 10);                                                       // the castering block and fork
+    GK.tube(dk, C3([Pn2[0] - 0.04, Pn2[1], -0.05]), C3([Pn2[0] - 0.04, Pn2[1], 0.05]), 0.02, 8);  // the trolley
+    wipNose = { noseAxle: an0, noseUp: (q => [q[0] + slideFull, q[1], q[2]])(rot(an0, Pn, thN)) };
+  }
+  for (const [b, m] of [[st, 'steel'], [al, 'alloy'], [dk, 'dark']]) if (b.tris) b.mesh(ug, GG.gearMat(m));
+  for (const k in bags) if (bags[k].tris) bags[k].mesh(ug, GG.gearMat(k));
+  // THE MAIN WHEEL WELL: the main's sweep in plan (the wheels' rims, gear down to up), cut from below into the hull
+  // to a ceiling over the stowed tyre (the knife's closed box) - open at the bottom, no door
+  const KG = window.KNIFE_GEN;
+  if (hullMesh && KG && KG.knifeWellsGeo) {
+    let x0 = Infinity, x1 = -Infinity, top2 = -Infinity;
+    for (let i = 0; i <= 12; i++) { const q = rot(ax0, T, thM * i / 12); x0 = Math.min(x0, q[0] - Rm); x1 = Math.max(x1, q[0] + Rm); top2 = Math.max(top2, q[1] + Rm); }
+    x0 = Math.max(x0, 0.03); const zw = Math.max(...zs.map(Math.abs)) + Wm / 2 + 0.03;
+    const ring = [[x0, -zw], [x1, -zw], [x1, zw], [x0, zw]].map(([x, z]) => C3([x, 0, z]));
+    let outline = ring.map(p => [p[2], -p[0]]);
+    let a2 = 0; for (let i = 0; i < outline.length; i++) { const p = outline[i], q = outline[(i + 1) % outline.length]; a2 += p[0] * q[1] - q[0] * p[1]; }
+    if (a2 < 0) outline.reverse();
+    const ceil = C3([0, top2 + 0.02, 0])[1];
+    const r = KG.knifeWellsGeo(THREE, hullMesh.geometry, [{ units: [tag], mode: 'box', outline, ceil }], null, null);
+    if (r.skin) { hullMesh.geometry.dispose(); hullMesh.geometry = r.skin; }
+    if (r.well) { const wm = new THREE.Mesh(r.well, new THREE.MeshStandardMaterial({ color: 0x55585c, roughness: 0.8, side: THREE.DoubleSide })); wm.name = 'edFloatWell' + tag; ug.add(wm); }
+  }
+  rec.amph = rec.amph || { style: Math.round(+P.fltAmph) === 2 ? 'EDO (photographs)' : 'Wipline', model: A.name, est: A.est, main: A.main, mainN: A.mainN, nose: A.nose, dKg: A.dKg, assumed: ['stowFlush', 'trunnionH', 'noseTravel', 'noseRake'], measured: { keelClearance: +(ykS - yg).toFixed(3) }, fitWhy };
+  rec.amph[tag] = { edoPivot: edoNose ? C3(edoNose.pivot) : null, edoRake: edoNose ? edoNose.rake : null, capY: C3([0, yCap, 0])[1], mainAxle: C3(ax0), mainUp: C3(rot(ax0, T, thM)), trunnion: C3(T), noseAxle: C3((edoNose || wipNose).noseAxle), noseUp: C3((edoNose || wipNose).noseUp), thM: +(thM / D2R).toFixed(1) };
+}
 const prevPost = PAGE.post;
+// HULL-B18: THE TUB'S AFTERBODY, drawn from the hull's own lines (_cage_gen.js cageHullTub: the stations the water
+// reads) - a loft of V sections (gunwale, chine, keel, chine, gunwale, the deck's centre) from the pod's last ring aft
+// under the boom, its end closed. Drawn = flown by construction
+let tubGroup = null;
+function drawTub(scene, P) {
+  if (tubGroup) { dispose(tubGroup); tubGroup = null; }
+  if (!scene || !+P.hullOn || !(+P.hullTubLen > 0.05) || !CG2 || !CG2.cageHullLines) return;
+  const L = CG2.cageHullLines(P);
+  if (!L || !L.tub) return;
+  const FS = (CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
+  const rings = [L.tub.from].concat(L.tub.ext).map(s => [[-s.bd, s.yd], [-s.b, s.yc], [0, s.yk], [s.b, s.yc], [s.bd, s.yd], [0, s.yd]]
+    .map(([x, y]) => [x * FS, y * FS, s.z * FS]));
+  const pos = [], idx = [], n = 6;
+  for (const r of rings) for (const p of r) pos.push(p[0], p[1], p[2]);
+  for (let k = 0; k + 1 < rings.length; k++)
+    for (let j = 0; j < n; j++) { const a = k * n + j, b = k * n + (j + 1) % n, c = (k + 1) * n + j, d = (k + 1) * n + (j + 1) % n; idx.push(a, c, b, b, c, d); }
+  const e0 = (rings.length - 1) * n;
+  for (let j = 1; j + 1 < n; j++) idx.push(e0, e0 + j + 1, e0 + j);
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setIndex(idx); g.computeVertexNormals();
+  const SM = typeof window !== 'undefined' && window.CAGE_SECMAT;
+  const mat = (SM && SM('float', { cons: 'glass', surf: 0, fieldM: 1, tint0: 0xc9ced3 }))
+    || new THREE.MeshStandardMaterial({ color: 0xc9ced3, roughness: 0.5, metalness: 0.05, side: THREE.DoubleSide });
+  if (mat && 'side' in mat) mat.side = THREE.DoubleSide;
+  tubGroup = new THREE.Group(); tubGroup.name = 'cageLayer:float';
+  const m = new THREE.Mesh(g, mat); m.name = 'edHullTub'; m.castShadow = true; m.receiveShadow = true;
+  tubGroup.add(m); scene.add(tubGroup);
+}
+// HULL-B39: THE SPRAY STRAKES (the user, the Super Petrel: "the front ridge really looks like the one of a boat, it has
+// protrusions in the fore-aft axis"): hullStrakes a side on the forebody's bottom, evenly across the chine half-beam
+// (1/(n+1) apart), from hullStrakeLen of the forebody aft of the bow to the bow. Each is a boat's strake - a flat
+// landing hullStrakeW wide, level with its inboard edge, and a vertical face up to the bottom at its outboard edge (a
+// wedge, as deep as the deadrise makes it), tapered in over its ends. Laid ON THE DRAWN BOTTOM: each station's heights
+// are the drawn skin's under a vertical line (the mesh's own triangles, cage units), so the inboard edge sits flush on
+// a flute or a V alike. Spray hardware: like a float's straps and keelsons, the water does not read it
+let strakeGroup = null;
+function drawStrakes(scene, mesh, P) {
+  if (strakeGroup) { dispose(strakeGroup); strakeGroup = null; }
+  const n = Math.round(+P.hullStrakes || 0);
+  if (!scene || !+P.hullOn || !(n > 0) || !mesh || !mesh.V || !mesh.F || !CG2 || !CG2.cageHullLines) return;
+  const L = CG2.cageHullLines(P);
+  if (!L || !L.sta || L.sta.length < 3) return;
+  const FS = (CG2.CAGE_UNIT || 1) * (P.planeScale || 1), V = mesh.V;
+  const sta = L.sta.slice().sort((a, b) => a.z - b.z);
+  const zS = L.on ? L.zStep : sta[0].z, zB = L.zBow;
+  const len = Math.max(0.2, Math.min(1, +P.hullStrakeLen || 0.8)), w = Math.max(0.01, +P.hullStrakeW || 0.05) / FS;
+  const zA = zB - len * (zB - zS) + 0.03 / FS, zF = zB - 0.06 / FS;
+  if (!(zF > zA + 0.1 / FS)) return;
+  const bAt = z => { let i = 0; while (i + 2 < sta.length && sta[i + 1].z < z) i++;
+    const a = sta[i], c = sta[i + 1], t = c.z - a.z > 1e-9 ? Math.max(0, Math.min(1, (z - a.z) / (c.z - a.z))) : 0; return a.b + (c.b - a.b) * t; };
+  // the drawn bottom's triangles in the run, bucketed by z
+  const NB = 64, bucket = Array.from({ length: NB }, () => []), bz = z => Math.floor((z - zA) / (zF - zA) * NB);
+  for (const f of mesh.F) {
+    const v = f && f.v; if (!v || v.length < 3) continue;
+    for (let t = 1; t + 1 < v.length; t++) {
+      const tri = [V[v[0]], V[v[t]], V[v[t + 1]]];
+      const lo = Math.min(tri[0][2], tri[1][2], tri[2][2]), hi = Math.max(tri[0][2], tri[1][2], tri[2][2]);
+      if (hi < zA || lo > zF) continue;
+      for (let k = Math.max(0, bz(lo)); k <= Math.min(NB - 1, bz(hi)); k++) bucket[k].push(tri);
+    }
+  }
+  // the lowest skin under (x, z): a vertical line through the triangles' plan
+  const yAt = (x, z) => {
+    let best = Infinity;
+    for (const [a, b, c] of bucket[Math.max(0, Math.min(NB - 1, bz(z)))] || []) {
+      const d = (b[0] - a[0]) * (c[2] - a[2]) - (c[0] - a[0]) * (b[2] - a[2]);
+      if (Math.abs(d) < 1e-12) continue;
+      const u = ((x - a[0]) * (c[2] - a[2]) - (c[0] - a[0]) * (z - a[2])) / d, v2 = ((b[0] - a[0]) * (z - a[2]) - (x - a[0]) * (b[2] - a[2])) / d;
+      if (u < -1e-6 || v2 < -1e-6 || u + v2 > 1 + 1e-6) continue;
+      best = Math.min(best, a[1] + u * (b[1] - a[1]) + v2 * (c[1] - a[1]));
+    }
+    return best;
+  };
+  const SM = typeof window !== 'undefined' && window.CAGE_SECMAT;
+  const mat = (SM && SM('fuselage', { surf: 0, fieldM: 1 })) || new THREE.MeshStandardMaterial({ color: 0xc9ced3, roughness: 0.5 });
+  if ('side' in mat) mat.side = THREE.DoubleSide;
+  strakeGroup = new THREE.Group(); strakeGroup.name = 'cageLayer:float';
+  const NS = 40, sink = 0.003 / FS;
+  for (let i = 0; i < n; i++) {
+    const q = (i + 1) / (n + 1);
+    for (const sd of [-1, 1]) {
+      const pos = [], idx = [];
+      let ok = 0;
+      for (let j = 0; j <= NS; j++) {
+        const u = j / NS, z = zA + (zF - zA) * u;
+        const tp = Math.min(1, u / 0.12, (1 - u) / 0.12), ww = w * Math.max(0.05, tp);
+        const x0 = q * bAt(z), x1 = x0 + ww;
+        let y0 = yAt(sd * x0, z), y1 = yAt(sd * x1, z);
+        if (!isFinite(y0) || !isFinite(y1)) { y0 = y1 = NaN; } else ok++;
+        const yl = Math.min(y0, y1);
+        for (const [x, y] of [[x0, y0 + sink], [x1, y1 + sink], [x1, yl]]) pos.push(sd * x * FS, y * FS, z * FS);
+      }
+      if (ok < NS * 0.6) continue;
+      // (a station that missed the skin takes its neighbour's section - the run stays one strip)
+      for (let j = 0; j <= NS; j++) if (!isFinite(pos[j * 9 + 1])) {
+        const k = j > 0 && isFinite(pos[(j - 1) * 9 + 1]) ? j - 1 : j + 1;
+        for (let m = 0; m < 9; m++) if (m % 3 !== 2) pos[j * 9 + m] = pos[k * 9 + m];
+      }
+      for (let j = 0; j < NS; j++) for (let e = 0; e < 3; e++) {
+        const a = j * 3 + e, b = j * 3 + (e + 1) % 3, c = a + 3, d = b + 3;
+        if (sd > 0) idx.push(a, b, c, b, d, c); else idx.push(a, c, b, b, c, d);
+      }
+      const e0 = NS * 3;
+      if (sd > 0) idx.push(0, 2, 1, e0, e0 + 1, e0 + 2); else idx.push(0, 1, 2, e0, e0 + 2, e0 + 1);
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      g.setIndex(idx); g.computeVertexNormals();
+      const m = new THREE.Mesh(g, mat); m.name = 'edHullStrake' + (sd < 0 ? 'L' : 'R') + i; m.castShadow = true; m.receiveShadow = true;
+      strakeGroup.add(m);
+    }
+  }
+  scene.add(strakeGroup);
+}
+// HULL-B19: THE SPONSONS, drawn from the rows the frame flies (hullSponKg / Y / X / W: a float of the family sized for
+// its displacement, HYDRO.tipFloatParams) at the hull's side at their station (the hull's own table, cageHullTable) -
+// no struts: the sponson is part of the hull. Rows not fitted yet: nothing drawn (the frame flies the gross rule)
+let sponGroup = null;
+function drawSponsons(scene, P) {
+  if (sponGroup) { dispose(sponGroup); sponGroup = null; }
+  if (!scene || !+P.hullOn || !+P.hullSpon || !CG2 || !CG2.cageHullTable) return;
+  if (Math.round(+P.hullSpon) === 1) return drawStubs(scene, P);
+  if (Math.round(+P.hullSpon) === 3) return;            // (HULL-B29: planing wing roots - the wing draws itself)
+  const kg = +P.hullSponKg, yRel = +P.hullSponY, HY = HYc(), FG = window.FLOAT_GEN;
+  if (!(kg > 0) || !(yRel > -0.999) || !HY || !HY.tipFloatParams || !FG) return;
+  const FS = (CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
+  const TB = CG2.cageHullTable(CG2.cageHullLines(P), FS);
+  if (!TB) return;
+  const Pt = HY.tipFloatParams(kg), xsS = -(+P.hullSponX || 0.3), w = +P.hullSponW || 0.32;
+  const near = TB.sta.reduce((a, s) => Math.abs(s.x - xsS) < Math.abs(a.x - xsS) ? s : a, TB.sta[0]);
+  const yK = TB.yStep * FS + yRel, zSt = TB.zStep * FS - xsS - 0.10 * Pt.L;   // (the frame's xT, the cage's z forward)
+  const SM = window.CAGE_SECMAT;
+  const skinM = (SM && SM('float', { cons: 'glass', surf: 0, fieldM: 1, tint0: 0xd8d2c2 })) || new THREE.MeshStandardMaterial({ color: 0xd8d2c2, roughness: 0.55 });
+  sponGroup = new THREE.Group(); sponGroup.name = 'cageLayer:float';
+  const o = FG.build(Pt, { HY, detail: 0, rudder: 0, paddle: 0, xAft: Pt.xAft });
+  for (const sd of [-1, 1]) {
+    const xC = sd * (near.bd + w);
+    const toC = v => [xC + v[2], yK + v[1], zSt - v[0]];
+    for (const part of [o.hull, o.deck]) {
+      if (!part || !part.idx || !part.idx.length) continue;
+      const n = part.pos.length / 3, pos = new Float32Array(n * 3);
+      for (let i = 0; i < n; i++) { const c = toC([part.pos[i * 3], part.pos[i * 3 + 1], part.pos[i * 3 + 2]]); pos[i * 3] = c[0]; pos[i * 3 + 1] = c[1]; pos[i * 3 + 2] = c[2]; }
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      g.setIndex(n > 65535 ? new THREE.Uint32BufferAttribute(part.idx, 1) : new THREE.Uint16BufferAttribute(part.idx, 1)); g.computeVertexNormals();
+      const m = new THREE.Mesh(g, skinM); m.name = 'edSponson' + (sd < 0 ? 'L' : 'R'); if (skinM.side !== undefined) skinM.side = THREE.DoubleSide;
+      sponGroup.add(m);
+    }
+  }
+  scene.add(sponGroup);
+}
+// HULL-B21: THE STUB SPONSONS, the stub the water reads (HYDRO.sponsonTable: mean chord hullSponC, span hullSponK x it,
+// thickness hullSponT, flat underneath): a tapered stub wing (tip hullSponTaper of the root, the same mean chord) from
+// the hull's side at its station (hullSponX forward of the step), its underside hullSponY over the step keel, rising
+// hullSponDih deg out to its tip; a flat-bottomed NACA thickness up top, the tip closed
+function drawStubs(scene, P) {
+  const c = +P.hullSponC, yRel = +P.hullSponY;
+  if (!(c > 0) || !(yRel > -0.999)) return;
+  const FS = (CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
+  const TB = CG2.cageHullTable(CG2.cageHullLines(P), FS);
+  if (!TB) return;
+  const k = +P.hullSponK || 0.75, t = +P.hullSponT || 0.22, tp = Math.max(0.2, Math.min(1, +P.hullSponTaper || 0.65));
+  const dih = Math.tan((+P.hullSponDih || 0) * Math.PI / 180), span = k * c, cR = 2 * c / (1 + tp);
+  const xsS = -(+P.hullSponX || 0.3), near = TB.sta.reduce((a, s) => Math.abs(s.x - xsS) < Math.abs(a.x - xsS) ? s : a, TB.sta[0]);
+  const yLow0 = TB.yStep * FS + yRel, zMid = TB.zStep * FS - xsS;
+  const SM = window.CAGE_SECMAT;
+  const mat = (SM && SM('fuselage', { surf: 0, fieldM: 1 })) || (SM && SM('float', { cons: 'glass', surf: 0, fieldM: 1, tint0: 0xc9ced3 }))
+    || new THREE.MeshStandardMaterial({ color: 0xc9ced3, roughness: 0.5 });
+  if ('side' in mat) mat.side = THREE.DoubleSide;
+  sponGroup = new THREE.Group(); sponGroup.name = 'cageLayer:float';
+  // HULL-B27 (the user: "proper sponsons, with love into the model"): THE STUB, MODELLED. The section is the stub's
+  // NACA thickness over a flat planing bottom, the bottom ROUNDED UP INTO THE NOSE over the first 30 % (a leading edge,
+  // not a knife where the flat meets the curve); the planform's leading edge sweeps (the chord closes 70 % from the
+  // front) and the tip closes on the wing's own half-ellipse over the outer quarter (no flat cap); the root FLARES into
+  // the hull's side - the chord and the thickness swell over the inner 14 % and the root section starts inside the hull,
+  // a fillet. 18 cosine-spaced stations x 40 around, one smooth grid. The water reads the stub's table (sponsonTable:
+  // the straight-tapered stub at its mean chord); the tip's rounding and the fillet are within ~5 % of its volume
+  const NC = 20, NSp = 18, U0 = 0.75, UF = 0.14, sec = [];
+  for (let i = 0; i <= NC; i++) sec.push([0.5 * (1 - Math.cos(Math.PI * i / NC)), 1]);          // upper, LE -> TE
+  for (let i = NC - 1; i >= 1; i--) sec.push([0.5 * (1 - Math.cos(Math.PI * i / NC)), 0]);      // lower, TE -> LE
+  const yt = xc => 5 * t * (0.2969 * Math.sqrt(xc) - 0.1260 * xc - 0.3516 * xc * xc + 0.2843 * xc ** 3 - 0.1036 * xc ** 4);
+  const nose = xc => xc < 0.3 ? (1 - xc / 0.3) ** 2 : 0;                                      // the bottom's rise into the LE
+  for (const sd of [-1, 1]) {
+    const pos = [], idx = [], n = sec.length;
+    for (let j = 0; j <= NSp; j++) {
+      const u = 0.5 * (1 - Math.cos(Math.PI * j / NSp));
+      const fil = u < UF ? (1 - u / UF) ** 2 : 0;                                            // the root fillet's swell
+      const tipK = u > U0 ? Math.sqrt(Math.max(0.0064, 1 - ((u - U0) / (1 - U0)) ** 2)) : 1;   // the tip's half-ellipse
+      const cl = cR * (1 - (1 - tp) * u) * tipK * (1 + 0.28 * fil);
+      const zLE = zMid + 0.5 * cR * (1 + 0.28 * fil) - 0.7 * (cR * (1 + 0.28 * fil) - cl);
+      const xL = sd * (near.bd - 0.06 + u * (span + 0.06)), yL = yLow0 + u * span * dih;
+      const th = 1 + 0.9 * fil;
+      for (const [xc, up] of sec) {
+        const T = 2 * yt(xc) * cl * th;
+        pos.push(xL, yL + (up ? T * (1 - 0.18 * nose(xc)) : -0.18 * T * nose(xc)) + (up ? 0 : 0), zLE - xc * cl);
+      }
+    }
+    for (let j = 0; j < NSp; j++) for (let i = 0; i < n; i++) {
+      const a = j * n + i, b = j * n + (i + 1) % n, c2 = (j + 1) * n + i, d = (j + 1) * n + (i + 1) % n;
+      idx.push(a, c2, b, b, c2, d);
+    }
+    // the tip's last section is ~8 % of the chord: closed on its own centre (a point, the grid's normals round it)
+    const e0 = NSp * n, ctr = [0, 0, 0];
+    for (let i = 0; i < n; i++) for (let q = 0; q < 3; q++) ctr[q] += pos[(e0 + i) * 3 + q] / n;
+    const ci = pos.length / 3; pos.push(...ctr);
+    for (let i = 0; i < n; i++) idx.push(e0 + i, ci, e0 + (i + 1) % n);
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setIndex(idx); g.computeVertexNormals();
+    // (the winding: outward whatever the side - the mirror flips it, so the left stub's faces are turned)
+    if (sd < 0) { const I = g.index.array; for (let q = 0; q < I.length; q += 3) { const tq = I[q + 1]; I[q + 1] = I[q + 2]; I[q + 2] = tq; } g.computeVertexNormals(); }
+    const m = new THREE.Mesh(g, mat); m.name = 'edSponson' + (sd < 0 ? 'L' : 'R'); m.castShadow = true; m.receiveShadow = true;
+    sponGroup.add(m);
+  }
+  scene.add(sponGroup);
+}
 PAGE.post = ctx => {
   const { scene, mesh, P, stat } = ctx;
+  hullFitStep(P, stat);
+  try { drawTub(scene, P); } catch (e) {}
+  try { drawSponsons(scene, P); } catch (e) {}
+  try { drawStrakes(scene, mesh, P); } catch (e) {}
   // THE STARTER FIRES BEFORE THE CHAIN, like the engine's: the rows it
   // writes are read by this layer's own build below and by the join after
   if (+P.gearFloats) {
@@ -545,7 +1070,8 @@ PAGE.post = ctx => {
       out = FG.build(HP, { HY, detail: +P.fltDetail ? 1 : 0, rudder: +P.fltRudder ? 1 : 0, paddle, xAft: HP.xAft });
       const add = (part, mat, nm, field) => { const m = partMesh(part, at, mat, mirror, nm, field); if (m) ug.add(m); return m; };
       const skin = hullSkinM();
-      add(out.hull, skin, 'edFloatHull' + tag, !!SM);
+      const hullMesh = add(out.hull, skin, 'edFloatHull' + tag, !!SM);
+      if (+P.fltAmph && HY.amphibOf) try { amphib(HP, HY, at, mirror, ug, tag, hullMesh, P, rec, out); } catch (e) { console.warn('amphibian floats:', e); }
       if (out.protrusions) add(out.protrusions, hullM());
       if (out.bumper) add(out.bumper, rubberM());
       if (out.deck) add(out.deck, deckM());

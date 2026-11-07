@@ -246,6 +246,9 @@ const PRESETS = {
   'rotax 916 iS': { bore: 0.084, stroke: 0.061, rpm: 5800, liquid: 1,
     geared: 1, injected: 1, airStyle: 1, blower: 1, boost: 1.50,
     critAlt: 4600 },
+  // HULL-B49: the 100 hp 912 (the Super Petrel LS's) - the 915's bore and stroke, injected, naturally aspirated
+  'rotax 912 iS': { bore: 0.084, stroke: 0.0611, rpm: 5800, liquid: 1,
+    geared: 1, injected: 1, airStyle: 1 },
   'bare engine': { mount: 0, fwOn: 0, plumb: 0 },
 };
 
@@ -433,7 +436,7 @@ const CUSTOM_ENGINE = 'custom engine';
 // THE SAVED ORDER, ONE KEEPER (NEW-SHAPES-1): the names engPreset indexes - the catalogue as it stood when the custom
 // engine took slot 41, the custom engine, then every preset added since (PRESETS_AFTER_CUSTOM, in the order added).
 // Every list that turns an index into an engine or back reads this, never Object.keys(PRESETS) on its own.
-const PRESETS_AFTER_CUSTOM = ['Clerget 9B', 'Rolls-Royce Merlin 66', 'rotax 916 iS'];
+const PRESETS_AFTER_CUSTOM = ['Clerget 9B', 'Rolls-Royce Merlin 66', 'rotax 916 iS', 'rotax 912 iS'];
 function presetNames() {
   const all = Object.keys(PRESETS).filter(n => n !== 'bare engine');
   return all.filter(n => !PRESETS_AFTER_CUSTOM.includes(n)).concat([CUSTOM_ENGINE],

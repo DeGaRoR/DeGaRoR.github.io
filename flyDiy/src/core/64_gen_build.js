@@ -672,7 +672,7 @@ function genShakedown(def, opts) {
       out.engLayout = S.engLayout;
       out.propBoomClear = tb ? t.boomX - Math.max(0.04, t.boomR || 0.09) - S.propR : null;
       out.propStabClear = (tb && pu && t.hX != null) ? t.hX - pu.x : null;
-    } else if (S.engLayout === 'tri' || S.engLayout === 'quad') out.engLayout = S.engLayout;
+    } else if (S.engLayout === 'tri' || S.engLayout === 'quad' || S.engLayout === 'tandem') out.engLayout = S.engLayout;
     out.nEngines = S.engines.length;
     // The two halves of the split suspension height, as BUILT rather than as
     // asked for: legDrop is the knob, but gear.y can be bound by prop clearance

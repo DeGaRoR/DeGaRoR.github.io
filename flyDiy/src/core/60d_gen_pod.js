@@ -123,7 +123,7 @@ function genPodFloorAt(R, x) {
 // the run under the belly the main gear's fittings take, or null (the mains root clear of a pod `half` wide)
 function genPodGearKeep(S, ST, half) {
   const g = S && S.gear;
-  if (!g || g.type === 'floats' || g.x == null || !isFinite(+g.x) || !ST || ST.length < 2) return null;
+  if (!g || g.type === 'floats' || g.type === 'hull' || g.x == null || !isFinite(+g.x) || !ST || ST.length < 2) return null;
   const gx = +g.x;
   let iF = 0; for (let i = 0; i < ST.length; i++) if (ST[i].x < gx - 0.10) iF = i;
   let iA = Math.min(ST.length - 1, iF + 1); for (let i = 0; i < ST.length; i++) if (ST[i].x > gx + 0.10) { iA = i; break; }

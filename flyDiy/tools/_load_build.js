@@ -86,8 +86,11 @@ function rawOf(x, patch) {
 function gameSpecFull(rawIn) {
   const raw0 = (rawIn && rawIn.spec && typeof rawIn.spec === 'object') ? rawIn.spec : rawIn;
   // a BIRTH envelope (`birth`) rides to the child as a marker the child strips before anything reads the spec
-  const raw = rawIn && rawIn.birth ? Object.assign({ __birth: 1 }, raw0) : raw0;
-  const key = crypto.createHash('sha1').update(chainSig()).update(JSON.stringify(raw)).update(process.env.FLYDIY_JOIN_PROBE || '').update(process.env.FLYDIY_HEADLESS_MS || '').digest('hex');
+  let raw = rawIn && rawIn.birth ? Object.assign({ __birth: 1 }, raw0) : raw0;
+  // HULL-B8: a tile's `after` doors by name (designApply's `afters`: the rod's fit, the hull's), opened once before
+  // the first build as design_flow.js doApply opens them in the game
+  if (rawIn && Array.isArray(rawIn.afters) && rawIn.afters.length) raw = Object.assign({ __afters: rawIn.afters.slice() }, raw);
+  const key = crypto.createHash('sha1').update(chainSig()).update(JSON.stringify(raw)).update(process.env.FLYDIY_JOIN_PROBE || '').update(process.env.FLYDIY_HEADLESS_MS || '').update(process.env.QV_HIDE || '').digest('hex');
   const cf = path.join(CACHE_DIR, key + '.json');
   if (process.env.FLYDIY_JOIN_NOCACHE !== '1') {
     try { const c = JSON.parse(fs.readFileSync(cf, 'utf8')); return Object.assign(c, { key, cached: true }); } catch (e) {}
@@ -125,6 +128,7 @@ if (require.main === module && process.argv.includes('--child')) (async () => {
   const vm = require('vm'), zlib = require('zlib');
   const raw = JSON.parse(fs.readFileSync(0, 'utf8'));
   const BIRTH = !!raw.__birth; delete raw.__birth;
+  const AFTERS = Array.isArray(raw.__afters) ? raw.__afters : []; delete raw.__afters;
   const SH = require(path.join(T, '_scene_headless.js'));
   // the layers the game draws and the harness leaves out by default: the tanks (and the bay and vessel kits they
   // stand on), the crew (whose feet a nose tank meets) and its characters, the instrument panel (its fit is a row)
@@ -178,6 +182,10 @@ if (require.main === module && process.argv.includes('--child')) (async () => {
   // A BIRTH (the design flow's door, src/viewer/design_flow.js): the cowl layer is asked ONCE to fit the engine, as the
   // game asks for a card just born - a radial or a turbine takes its styled cowl. A saved build is never asked.
   if (BIRTH && W.CAGE_COWL_FIT_NEXT) W.CAGE_COWL_FIT_NEXT();
+  for (const a of AFTERS) if (/^CAGE_[A-Z_]+_NEXT$/.test(a) && typeof W[a] === 'function') try { W[a](); } catch (e) {}
+  // HULL-B13: 'engPreset:<catalogue name>' - the Engine model tile's own write, headless: the preset's rows applied to
+  // the editor's P before the first build (_cage_eng.js CAGE_ENG_APPLY_PRESET, the birth flow's door) and its index set
+  let ENG_PENDING = (AFTERS.find(a => /^engPreset:/.test(a)) || '').slice(10) || null;
   if (W.CAGE_ENERGY && W.CAGE_ENERGY.fromSpec) W.CAGE_ENERGY.fromSpec(spec.energy);
   if (W.CAGE_PANEL && W.CAGE_PANEL.fromSpec) W.CAGE_PANEL.fromSpec(spec.systems);
   // THE FLOWN AEROPLANE'S CG, model frame (app.js publishes it as FLYDIY_CG_MODEL whenever it builds the aeroplane,
@@ -189,6 +197,11 @@ if (require.main === module && process.argv.includes('--child')) (async () => {
   // _cage_ui.js build()'s rows written before the sheet: the aft section's copy of the front (mirror), the layers'
   // own coercions (PAGE.coerce), the hinge finish row (-1 = a build from before the row: the finish's own pick)
   const PREBUILD = P => {
+    if (ENG_PENDING && typeof W.CAGE_ENG_APPLY_PRESET === 'function' && W.ENG_PAGE && W.ENG_PAGE.presetNames) {
+      const i = W.ENG_PAGE.presetNames().indexOf(ENG_PENDING);
+      if (i >= 0) { W.CAGE_ENG_APPLY_PRESET(P, ENG_PENDING); P.engPreset = i; }
+      ENG_PENDING = null;
+    }
     if (P.mirror && W.CAGE2.CAGE_AFT_SUB)
       for (const [ak, fk, thr] of W.CAGE2.CAGE_AFT_SUB) if (P[ak] != null && P[ak] < thr && P[fk] != null) P[ak] = P[fk];
     for (const f of (W.CAGE_PAGE.coerce || [])) try { f(P); } catch (e) {}
@@ -255,7 +268,7 @@ if (require.main === module && process.argv.includes('--child')) (async () => {
   // (benchLive + benchD: the join's export and garage.js cageDefaults, what the page's bench fingerprints: GATE BENCH's shipped-certificate row)
   const out = { spec, errors: W.CAGE_JOIN.errors(), notes: W.CAGE_JOIN.notes(), sceneErrors: r.errors, steps, benchLive: W.CAGE_JOIN.export(), benchD: Object.assign(W.CAGE2.cageDefaults(), (W.CAGE_PAGE && W.CAGE_PAGE.defaults) || {}) };
   // (a diagnostic: FLYDIY_JOIN_PROBE=<file> runs that function body in the page context after the last build)
-  if (process.env.FLYDIY_JOIN_PROBE) { W.__scene = r.scene; try { out.probe = vm.runInContext('(function(){' + fs.readFileSync(process.env.FLYDIY_JOIN_PROBE, 'utf8') + '})()', W); } catch (e) { out.probe = 'ERR ' + e.message; } }
+  if (process.env.FLYDIY_JOIN_PROBE) { W.__scene = r.scene; W.__probeEnv = { QV_HIDE: process.env.QV_HIDE || '' }; try { out.probe = vm.runInContext('(function(){' + fs.readFileSync(process.env.FLYDIY_JOIN_PROBE, 'utf8') + '})()', W); } catch (e) { out.probe = 'ERR ' + e.message; } }
   // (exit once the pipe has taken it all: a large probe answer was cut at the pipe's 64 KB by an immediate exit)
   process.stdout.write('\u0001' + JSON.stringify(out), () => process.exit(0));
 })().catch(e => { process.stderr.write(String(e && e.stack || e)); process.exit(1); });

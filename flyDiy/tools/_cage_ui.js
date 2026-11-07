@@ -1675,8 +1675,136 @@ let EYE_SRC = null;                     // this build's inputs for it { s, P, st
 let EYE_VIEW = false, EYE_HOLD = 0;     // the interior view; the capture's hold
 let EYE_PEND = 0;                       // a deferred entry's ticket (an exit before it lands cancels it)
 const EYE_STATS = { builds: 0, buildMs: null, swaps: 0, swapMs: null, last: null };
+// ---- RETRACT G4 (futureDesigns/RETRACT-STUDY-2026-11.md §8.10): THE WELLS, CUT INTO THE DRAWN FUSELAGE -------------
+// The gear layer knows where each stowed unit goes through the skin only after the sheet is built (it stands its legs
+// ON that sheet), so the cut is the DRAWN fuselage's, made after the chain: the knife cuts each well's plan outline
+// (CAGE_GEAR.cuts: exact hull or rounded box, cage units) through the skin from below, exactly, and recesses it into a
+// box - vertical walls up to a flat ceiling, the section `wheelWell`. The measured sheet (MS, the layers' ctx.mesh,
+// the dims, the glazed area) is never cut: the legs, the wing deck and every contract read the whole skin. The level-2
+// mesh and the eye sheet (the cockpit's and the flight capture's) both wear it; a diagnostic view draws the sheet as
+// it is. The cut costs ~100 ms (node) to ~300 ms (a slow page), so a DRAG TICK never cuts: its fuselage stands uncut
+// (a deform tick then finds its own vertices) and the release - the settle build - cuts it. A cut mesh has more vertices
+// than its sheet, so the first tick after a release refuses the deform ('the stand is not this sheet') and builds whole.
+const wellCutsNow = () => { const C = typeof window !== 'undefined' ? window.CAGE_GEAR : null;      // (GR: the side wells with them)
+  const all = C ? (Array.isArray(C.cuts) ? C.cuts : []).concat(Array.isArray(C.cutsSide) ? C.cutsSide : []) : [];
+  return all.length ? all : null; };
+const wellSigOf = cuts => cuts ? cuts.map(c => c.ceil.toFixed(5) + ':' + (c.frame ? 's' + c.side + ':' : '') + (c.hf ? (c.hf.nx || c.hf.nu) + 'x' + (c.hf.nz || c.hf.nv) + ':' + (c.hf.y || c.hf.e).reduce((a, v, i) => a + v * (i % 7 + 1), 0).toFixed(5) + ':' : '') +
+  c.outline.map(p => p[0].toFixed(5) + ',' + p[1].toFixed(5)).join(' ')).join('|') : '';
+const WELL_MEMO = new WeakMap();        // sheet -> { sig, out }
+const WELL_STATS = { cuts: 0, ms: null, swaps: 0, last: null };
+function wellCutOf(sh, cuts) {
+  const KG = typeof window !== 'undefined' ? window.KNIFE_GEN : null;
+  if (!cuts || !sh || !KG || !KG.knifeWells) return sh;
+  const sig = wellSigOf(cuts), hit = WELL_MEMO.get(sh);
+  if (hit && hit.sig === sig) return hit.out;
+  const t0 = performance.now();
+  const m = KG.knifeWells(sh, cuts);
+  m.wellSig = sig;
+  WELL_MEMO.set(sh, { sig, out: m });
+  WELL_STATS.cuts++; WELL_STATS.ms = +(performance.now() - t0).toFixed(1);
+  return m;
+}
+// the drawn fuselage of this build (set where it is made): its sheet and how it was culled; null in a diagnostic view
+let WELL_SRC = null;
+const wellSd = (sh, src) => {
+  const s0 = src.skin ? sh : { ...sh, F: sh.F.filter(f => !src.cull(f.m)) };
+  return src.glaze ? s0 : { ...s0, F: s0.F.filter(f => !GLASSM.has(f.m) && f.m !== 'paneEdge') };
+};
+// after the chain: the standing fuselage cut as the gear layer now says (nothing to do when it already is)
+function wellApply() {
+  if (!meshObj || !WELL_SRC || WELL_SRC.s !== MS) return false;
+  const cuts = wellCutsNow(), sig = wellSigOf(cuts);
+  // the eye sheet may stand (a capture's hold, the cockpit view): it and its level-2 twin both must wear this cut
+  const eyeWas = !!(EYE_OBJ && meshObj === EYE_OBJ), l2 = eyeWas ? L2_OBJ : meshObj;
+  const l2ok = !!l2 && (l2.userData.wellSig || '') === sig, eyeOk = !eyeWas || (meshObj.userData.wellSig || '') === sig;
+  if ((l2ok || !l2) && eyeOk) return false;
+  if (eyeWas) eyeApply(false);
+  if (l2ok || meshObj === EYE_OBJ) { if (eyeWas) eyeApply(true); return true; }
+  const from = meshObj;
+  const ext0 = Object.assign({}, GLASS_EXT);            // meshFrom writes the panes' extents: the stand's stay
+  const o = meshFrom(wellSd(wellCutOf(MS, cuts), WELL_SRC));
+  for (const k in GLASS_EXT) delete GLASS_EXT[k];
+  Object.assign(GLASS_EXT, ext0);
+  o.userData.eye = null; o.userData.wellSig = sig;
+  eyePut(o); EYE_STATS.swaps--;                         // (eyePut's swap count is the eye's)
+  disposeObj(from);
+  WELL_STATS.swaps++; WELL_STATS.last = sig ? cuts.length + ' well(s)' : 'none';
+  if (eyeWas) eyeApply(true);
+  return true;
+}
+// RETRACT G5: THE WING'S SKIN, CUT THE SAME WAY - the wing layer's skin meshes (userData.wingSkin, the layer's metres)
+// re-cut from their own first geometry whenever the gear's wing cuts (CAGE_GEAR.cutsM: the units' wing wells and the
+// body's, merged) change; the walls and the ceiling a child mesh of section wheelWell. The flight binds the cut skin
+// to the spar by its vertices' places, as it binds every wing skin (makeSkinBinding): the flex is kept
+function wingWellApply() {
+  const KG = typeof window !== 'undefined' ? window.KNIFE_GEN : null;
+  if (!KG || !KG.knifeWellsGeo || !scene) return 0;
+  const C = window.CAGE_GEAR, cuts = C && Array.isArray(C.cutsM) && C.cutsM.length ? C.cutsM : null;
+  const tops = C && Array.isArray(C.pierceTopM) && C.pierceTopM.length ? C.pierceTopM : null;     // GR R4: the wheels' holes
+  const sig = wellSigOf(cuts) + '#' + (tops ? tops.map(t => t.outline.map(p => p[0].toFixed(4) + ',' + p[1].toFixed(4)).join(' ')).join('|') : '');
+  const list = [];
+  scene.traverse(o => { if (o.isMesh && o.userData && o.userData.wingSkin) list.push(o); });
+  let n = 0;
+  for (const o of list) {
+    const ud = o.userData;
+    if ((ud.wellSig || '') === sig) continue;
+    if (!ud.wellGeo0) ud.wellGeo0 = o.geometry;
+    if (ud.wellMesh) { o.remove(ud.wellMesh); ud.wellMesh.geometry.dispose(); ud.wellMesh = null; }
+    if (ud.wellCutGeo) { if (o.geometry === ud.wellCutGeo) o.geometry = ud.wellGeo0; ud.wellCutGeo.dispose(); ud.wellCutGeo = null; }
+    ud.wellSig = sig;
+    if (!cuts || o.position.lengthSq() > 1e-12) { o.geometry = ud.wellGeo0; continue; }   // (an exploded view: uncut)
+    const g0 = ud.wellGeo0;
+    if (!g0.boundingBox) g0.computeBoundingBox();
+    const bb = g0.boundingBox;
+    const near = cuts.some(c => { let z0 = Infinity, z1 = -Infinity, x0 = Infinity, x1 = -Infinity;
+      for (const p of c.outline) { z0 = Math.min(z0, p[0]); z1 = Math.max(z1, p[0]); x0 = Math.min(x0, -p[1]); x1 = Math.max(x1, -p[1]); }
+      return !(bb.max.z < z0 || bb.min.z > z1 || bb.max.x < x0 || bb.min.x > x1 || bb.min.y > c.ceil); });
+    if (!near) { o.geometry = g0; continue; }
+    const AFg = C && C.AF, inBody = AFg ? (x, z) => z > AFg.z0 && z < AFg.z1 && Math.abs(x) < AFg.halfWAt(z) - 0.005 : null;   // (P2: the body's box is seen there)
+    // (P2: a mesh takes its own plane's cuts - the second plane's skin the rigid L's recess, the first's the rest)
+    const mine = cuts.filter(c => (c.plane || 0) === (ud.wingPlane || 0));
+    if (!mine.length) { o.geometry = g0; continue; }
+    const r = KG.knifeWellsGeo(THREE, g0, mine, (ud.wingPlane || 0) ? null : tops, inBody);
+    if (!r.skin) continue;
+    o.geometry = r.skin; ud.wellCutGeo = r.skin;
+    if (r.well) { const wm = new THREE.Mesh(r.well, matOf('wheelWell')); wm.name = 'edWellWing'; o.add(wm); ud.wellMesh = wm; }
+    n++;
+  }
+  WELL_STATS.wing = n;
+  return n;
+}
+// GR: THE NACELLES' SKIN, CUT THE SAME WAY - the cowl units' meshes the gear layer tagged (userData.nacSkin: 'skin' or
+// 'twin', the inner twin), each re-cut from its first geometry when CAGE_GEAR.cutsNacM changes; the cut made in the
+// layer's frame (the mesh's matrix relative to the scene) and carried back
+function nacWellApply() {
+  const KG = typeof window !== 'undefined' ? window.KNIFE_GEN : null;
+  if (!KG || !KG.knifeWellsMesh || !scene) return 0;
+  const C = window.CAGE_GEAR, cuts = C && Array.isArray(C.cutsNacM) && C.cutsNacM.length ? C.cutsNacM : null, sig = wellSigOf(cuts);
+  const list = []; scene.traverse(o => { if (o.isMesh && o.userData && o.userData.nacSkin) list.push(o); });
+  scene.updateMatrixWorld(true);
+  const inv = new THREE.Matrix4().copy(scene.matrixWorld).invert();
+  let n = 0;
+  for (const o of list) {
+    const ud = o.userData;
+    if ((ud.wellSig || '') === sig) continue;
+    if (!ud.wellGeo0) ud.wellGeo0 = o.geometry;
+    if (ud.wellMesh) { o.remove(ud.wellMesh); ud.wellMesh.geometry.dispose(); ud.wellMesh = null; }
+    if (ud.wellCutGeo) { if (o.geometry === ud.wellCutGeo) o.geometry = ud.wellGeo0; ud.wellCutGeo.dispose(); ud.wellCutGeo = null; }
+    ud.wellSig = sig;
+    if (!cuts) { o.geometry = ud.wellGeo0; continue; }
+    const rel = new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld);
+    const r = KG.knifeWellsMesh(THREE, ud.wellGeo0, rel, cuts, ud.nacSkin !== 'skin');   // (twins and shells: the hole only)
+    if (!r.skin) continue;
+    o.geometry = r.skin; ud.wellCutGeo = r.skin;
+    if (r.well) { const wm = new THREE.Mesh(r.well, matOf('wheelWell')); wm.name = 'edWellNac'; o.add(wm); ud.wellMesh = wm; }
+    n++;
+  }
+  WELL_STATS.nac = n;
+  return n;
+}
 function eyeObjOf(src) {
-  if (EYE_OBJ && EYE_OBJ.userData.eyeSrc === src) return EYE_OBJ;
+  const wSig = wellSigOf(wellCutsNow());
+  if (EYE_OBJ && EYE_OBJ.userData.eyeSrc === src && (EYE_OBJ.userData.wellSig || '') === wSig) return EYE_OBJ;
   if (EYE_OBJ) { disposeObj(EYE_OBJ); EYE_OBJ = null; }
   const t0 = performance.now();
   let sEye = EYE_CACHE && EYE_CACHE.s === src.s && EYE_CACHE.v === src.v ? EYE_CACHE.out : null;
@@ -1685,14 +1813,14 @@ function eyeObjOf(src) {
     if (G.cageEyeFacia) G.cageEyeFacia(sEye, src.s);   // G3714: the facia back where the instruments stand
     EYE_CACHE = { s: src.s, v: src.v, out: sEye };
   }
-  const sd0 = src.skin ? sEye : { ...sEye, F: sEye.F.filter(f => !src.cull(f.m)) };
-  const sd = src.glaze ? sd0 : { ...sd0, F: sd0.F.filter(f => !GLASSM.has(f.m) && f.m !== 'paneEdge') };
+  const sd = wellSd(wellCutOf(sEye, wellCutsNow()), src);     // RETRACT G4: the eye sheet wears the wells too
   const ext0 = Object.assign({}, GLASS_EXT);            // meshFrom writes the panes' extents: the stand's stay
   const o = meshFrom(sd);
   for (const k in GLASS_EXT) delete GLASS_EXT[k];
   Object.assign(GLASS_EXT, ext0);
   o.userData.eyeSrc = src;
   o.userData.eye = null;
+  o.userData.wellSig = wSig;
   EYE_OBJ = o;
   EYE_STATS.builds++; EYE_STATS.buildMs = performance.now() - t0;
   if (window.CAGE_UI) window.CAGE_UI.eyeMs = EYE_STATS.buildMs;
@@ -2065,6 +2193,7 @@ function* releaseSteps(built, rplan) {
   const stat = { textContent: STAT0 };
   const ctx = { scene, spec, mesh: sFix, P, stat, defer: false };
   try { CH.run(ctx, P, rplan); } catch (e) { console.error('page post hook (release):', e); }
+  try { wellApply(); wingWellApply(); nacWellApply(); } catch (e) { console.error('wells:', e); }     // RETRACT G4/G5 (GR: the nacelles)
   if ($('stat')) $('stat').textContent = STAT0 + CH.layers.map(l => l.statApp || '').join('');
   // the scene's order as a whole build leaves it: everything else as it stands, the fuselage's own objects, then each
   // layer's groups in the chain's order (a layer that ran re-added its groups at the end)
@@ -2214,6 +2343,7 @@ function* buildSteps() {
     // a stat line nobody reads: the layers append to it
     const ctx = { scene, spec, mesh: built.sheet, P, stat: { textContent: '' }, defer: true, preview: true };
     try { CH.run(ctx, P, plan); } catch (e) { console.error('page post hook (preview):', e); }
+    // (RETRACT G4: a drag tick keeps the wells as they stand - the cut is ~100-300 ms; the release cuts them again)
     standParts(built, false);
     drainLate();
     previewDraw();
@@ -2300,6 +2430,9 @@ function* buildSteps() {
     : ($('curv') && $('curv').checked) ? curvatureMesh(sd)
     : ($('wire') && $('wire').checked) ? quadWire(sd) : meshFrom(sd);
   meshObj.userData.eye = null;
+  // RETRACT G4: what the wells' cut is made from (wellApply after the chain); none in a diagnostic view
+  WELL_SRC = diag ? null : { s, cull: skinCull, skin: P.skinOn == null || !!P.skinOn, glaze: P.glazeOn == null || !!+P.glazeOn };
+  meshObj.userData.wellSig = '';
   // THE UNIT (see CAGE_UNIT in _cage_gen.js): metres = cage x CAGE_UNIT
   // x planeScale. The cage scales; crew scenery is already metric and
   // never does. Pages without the param build at the unit exactly.
@@ -2476,6 +2609,7 @@ function* buildSteps() {
     if (CH && CH.run) CH.run(ctx, P, null); else PAGE.post(ctx);
   }
   catch (e) { console.error('page post hook:', e); }
+  if (!DRAG_TICK) try { wellApply(); wingWellApply(); nacWellApply(); } catch (e) { console.error('wells:', e); }   // RETRACT G4/G5: the wells, as the gear says
   standParts(built, true);               // G1443: new parts on a fresh mesh
   // G331: LATE — what a layer wants drawn once every layer has drawn (the
   // crew's floor, cut round the other layers' meshes), in this same task
@@ -3793,8 +3927,20 @@ function applyRowVis() {
     if (vis && g.opts.when) { try { vis = !!g.opts.when(P); } catch (e) {} }
     g.el.style.display = vis ? '' : 'none';
   }
+  // RETRACT G2: ROWS THAT GO RED - a layer may publish window.CAGE_ROW_BAD() -> { rowKey: reason } (the retractable
+  // gear's fit, _cage_gear.js), read once a refresh: a flagged row turns red with the reason as its tooltip, and back
+  // the moment the next build says it fits. Nothing else about the row changes
+  let BAD = null;
+  if (typeof window.CAGE_ROW_BAD === 'function') { try { BAD = window.CAGE_ROW_BAD() || null; } catch (e) { BAD = null; } }
   for (const meta of ROWMETA) {
     const o = meta.opts;
+    { const why = BAD && BAD[meta.k];
+      if (why || meta.badOn) {
+        meta.row.classList.toggle('rowBad', !!why);
+        if (why) { if (!meta.badOn) meta.titleWas = meta.row.title || ''; meta.row.title = why; }
+        else meta.row.title = meta.titleWas || '';
+        meta.badOn = !!why;
+      } }
     if (o && (o.when || o.level)) {
       let vis = !(o.level === 'expert' && !EXPERT.on);
       if (vis && o.when) { try { vis = !!o.when(P); } catch (e) {} }
@@ -5519,7 +5665,7 @@ function buildMatPanel() {
     pillarFront: 'nose frame band', pillarWindow: 'windscreen frame band',
     pillarCabin: 'cabin frame band', pillarPassenger: 'passenger frame band',
     pillarTaper: 'boom frame band', pillarTail: 'tail frame band',
-    drawnPane: 'drawn windows (the panes)', reveal: 'window reveals',
+    drawnPane: 'drawn windows (the panes)', reveal: 'window reveals', wheelWell: 'wheel wells',
     // G2750 (the user: "a dark part around the cockpit ... that can't be accessed using the finish editor"): the three
     // rails' strips by what they are on screen - and the waist one by what a BUBBLE makes of it, the band the canopy
     // re-sizes under its seam (cageCanopy) all round the cockpit; the stock Cub's black waist stripe rides into
@@ -5903,6 +6049,7 @@ window.CAGE_UI = { P, build, buildCg, releaseFlush, repaint, draw, applyPreset, 
   // G3715 (COWL-RES): the eye sheet - the interior view's switch (eyeWatch's; a rig's), the flight capture's hold (_cage_join), the
   // counters (builds, the last build's ms, swaps, the last swap's ms, what stands) and the mesh standing's level
   eyeView, eyeHold, eyeStats: EYE_STATS, eyeStanding: () => !!(EYE_OBJ && meshObj === EYE_OBJ),
+  wellStats: WELL_STATS, wellSig: () => (meshObj && meshObj.userData.wellSig) || '',   // RETRACT G4
   // G2920 (GARAGE-SHEET): a hand on a slider, or its settle build still owed - the performance sheet's thread is asked
   // for the aeroplane the drag ends on, not for each tick (app.js sheetAsk, sheet_link.js held)
   dragging: () => !!(DRAG_ON || DRAG_T || DRAG_LATE || REL_PEND),

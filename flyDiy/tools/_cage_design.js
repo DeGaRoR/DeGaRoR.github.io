@@ -196,6 +196,11 @@ const dorsalToRod = P => !+P.boomStyle ? (+P.finDorsal ? 1 : 0) : (+P.finDorsalT
 // ...and the rod placed clear of a rear disc on the next build (_cage_eng.js CAGE_ROD_FIT_NEXT): the panel's door
 // (design_flow.js doApply runs `after`); designApply and the births never call it
 const rodFit = () => { if (W.CAGE_ROD_FIT_NEXT) W.CAGE_ROD_FIT_NEXT(); };
+rodFit.door = 'CAGE_ROD_FIT_NEXT';
+// HULL-B3: ...and the boat's starting lines off the flown CG on the next builds (_cage_float.js CAGE_HULL_FIT_NEXT:
+// the step by the 12-deg rule, the afterbody keel on a 7-deg run - _cage_gen.js cageHullFit)
+const hullFit = () => { if (W.CAGE_HULL_FIT_NEXT) W.CAGE_HULL_FIT_NEXT(); };
+hullFit.door = 'CAGE_HULL_FIT_NEXT';
 
 // FLAP — the classic trailing-edge cross-sections: none, hinged plain, the
 // slotted gap, the fowler sliding aft. Drawn, because the generator prices a
@@ -401,6 +406,9 @@ function iconSide(o) {
   // a pair of floats: two struts down to a long hull with a step
   if (gr === 'floats') paths.push({ d: 'M14 26 L12 32', w: 1 }, { d: 'M26 26 L28 32', w: 1 },
                                   { d: 'M4 32 L8 30 L24 30 L24 32 L32 33 L32 35 L4 35 Z', w: 1 });
+  // HULL-B1: the body IS the boat - a deep forebody to a step under the cabin, the afterbody rising to the tail
+  if (gr === 'hull') paths.push({ d: 'M6 24 Q10 31 18 31 L30 31 L30 29 L56 23', w: 1.4 },
+                                { d: 'M2 30 L62 30', w: 0.6 });
   if (o.bigTyres) paths.push({ d: 'M18 30 a5 5 0 1 0 0.1 0', w: 1 });
   // THE PROPELLER IS WHERE THE MOUNT PUTS IT (2026-09-04, the user: "the
   // pusher does not push"): `prop: true` stays the nose line; 'pusher' is
@@ -686,6 +694,19 @@ const UTIL_REASON = 'the R-1830 class: no airframe the clamps allow can carry ' 
 const SHAPE_SEED = { taperOn: 1, taperLen: 0.55, taperW: 0.78,
                      boomMidOn: 1, boomMidT: 0.38, boomMidPinch: 0.86 };
 
+// HULL-B7: a hull's section at the step (deadrise, chine roundness, with or without the step's notch in the keel line
+// under it) - drawn, as the section tiles are, from the numbers the option writes
+function iconHull(beta, round, step) {
+  const t = Math.tan(beta * Math.PI / 180), cx = 32, top = 8, w = 20, yC = 26, yK = Math.min(37, yC + w * t);
+  const pts = [[cx - w, top], [cx - w, yC - 6 * round]];
+  if (round > 0) for (let i = 1; i <= 4; i++) { const a = i / 4; pts.push([cx - w + 4 * round * a, yC - 6 * round + 6 * round * a]); }
+  pts.push([cx, yK]);
+  for (let i = pts.length - 2; i >= 0; i--) pts.push([2 * cx - pts[i][0], pts[i][1]]);
+  const paths = [{ d: poly(pts) }];
+  if (step) paths.push({ d: 'M' + P2(cx - 6, yK - 1) + ' L' + P2(cx + 6, yK - 1), w: 1 });
+  return { vb: '0 0 64 40', paths };
+}
+const HULL_OFF = P => +P.hullOn ? null : 'a hull form shapes a boat: pick Undercarriage > Hull first';
 // THE AERODYNAMIC NOSE, AS A SHAPE AND NOT ONLY A SWITCH (2026-09-11, the
 // user's own recipe: "increase the length, increase the cowl count, max the
 // tip collapse, adjust the droop so the tip is in line with the fuselage,
@@ -698,6 +719,22 @@ const SHAPE_SEED = { taperOn: 1, taperLen: 0.55, taperW: 0.78,
 //   noseDroop  0.10 — the tip pulled down onto the fuselage's own line
 //   ease/bulge 0.62 / 1.06 — the lag between z and the dims that makes the
 //              outline convex, and a little fullness at the shoulder
+// G3915: THE POD NACELLE (the user, 4 Nov, sketching it over the render: "why do you go down with your cowl? ...
+// it looks better, no need for your complex shape there"). The over-the-wing engine's cowl, when it is turned on,
+// is a POD round the engine (fitted: its size the engine's, _cage_cowl.js nacelleOfEngine) - so the mount writes
+// the pod's STYLE once: a straight barrel continuing the nacelle's lines (no top-line sweep, no axis rise, the
+// section round and level), closing only at the very end onto the spinner (a short bowl that bends late), no
+// openings at the propeller's end (the air comes in at the nacelle's nose: the inlet rows), no cheeks, no cut-out.
+// Every value stays the cowl's own row, the builder's to move.
+// HULL-B9 (the user, 4 Nov, again over the render: "Adopt the linear design I corrected first, including on the
+// wings" - the sketch: the cowl a straight barrel to the propeller, the tail cone after it): no bowl onto the
+// spinner. The barrel holds its section to the propeller's end and closes in a 5 cm rounded lip onto a flat face
+// round the spinner (lidLen 0.05, the bend at its last 8 %: lidShoulder 0.92, the end control on the barrel's
+// line: lidRound 0.96). The over-the-wing pod and the wing nacelles (Twin, Four) wear the same rows
+const NACELLE_POD = { cw_deckSweep: 0, cw_keelSweep: 0, cw_waistSweep: 0, cw_waist: 0, cw_lidRise: 0, cw_faceRise: 0,
+                      cw_deckH: 1, cw_keelH: 1, cw_lidShoulder: 0.92, cw_lidLen: 0.05, cw_lidRound: 0.96, cw_lidMode: 1,
+                      cw_sqAftTop: 0.55, cw_sqAftBot: 0.55, cw_sqFrontTop: 0.55, cw_sqFrontBot: 0.55,
+                      cw_apMode: 0, cw_scoopOn: 0, cw_lobeN: 0, cw_cutSpan: 0, cw_aftMode: 1 };
 const NOSE_AERO = { noseFinish: 1, noseLen: 0.95, cowlLoops: 4, noseTip: 0.98,
                     noseDroop: 0.10, cowlEase: 0.62, cowlBulge: 1.06 };
 // ...and the same set as IDENTITIES when the predicate is false, so a row
@@ -1376,9 +1413,9 @@ const DESIGN_ROWS = [
   { key: 'wgTip', label: 'Wing tips', kind: 'discriminator',
     group: 'wing', status: 'live', twin: ['wgTip'],
     read: P => Math.round(P.wgTip),
-    // G2820: endplate and drooped APPENDED (the index is the saved value)
+    // G2820: endplate and drooped APPENDED (the index is the saved value); HULL-B54: upturned
     options: () => ['square', 'clipped', 'rounded', 'elliptic', 'hoerner',
-                    'winglet', 'endplate', 'drooped'].map((k, i) => ({
+                    'winglet', 'endplate', 'drooped', 'upturned'].map((k, i) => ({
       value: i, label: ((gTips() || {})[k] || { name: k }).name,
       icon: iconTip(k), writes: { cage: { wgTip: i } },
       ...(stolLock(k) ? { inactive: stolLock(k) } : {}) })) },
@@ -1478,6 +1515,7 @@ const DESIGN_ROWS = [
     // G2790: a layout (4 / 5 / 6) is the Engines row's; no mount tile is lit
     read: P => Math.round(P.engMount) === 1 ? 'pusher'
              : Math.round(P.engMount) === 2 ? 'wingTop'
+             : Math.round(P.engMount) === 8 ? 'fin'
              : Math.round(P.engMount) >= 4 ? null : 'nose',
     options: [
       // 2026-09-04 (the user): "pusher configs should have no cowl by
@@ -1521,6 +1559,15 @@ const DESIGN_ROWS = [
       { value: 'nose', label: 'Nose', icon: ICON.mountNose,
         writes: { cage: { engMount: 0, cowlOn: 1, noseFinish: 0, aeroAftOn: 1,
                           cowlLoops: P => Math.max(2, Math.round(+P.cowlLoops || 0)) } } },
+      // HULL-B22: ON THE FIN (the Seawind's): a tractor at the fin's leading edge on a tube mount into the fin's spars; the
+      // nose and the tail faired; a first cut with no cowl (the bare engine on its mount)
+      { value: 'fin', label: 'On the fin', icon: ICON.mountPusher,
+        note: 'a tractor on the fin\'s leading edge (the Seawind): the thrust line high over the CG',
+        // (HULL-B25, the user: "take the one of the first plane, so the very simple one, the linear one ... the nacelle in
+        // non-pusher mode, so it will be closed"): the straight pod (NACELLE_POD, sealed to the engine), its tail cone
+        // closed - no inlet on a tractor
+        writes: { cage: Object.assign({ engMount: 8, aeroAftOn: 1 }, NOSE_AERO, NACELLE_POD,
+                                      { cowlOn: 1, fitNose: 2, cw_aftMode: 1, cw_tailLen: 0.55, cw_inletOn: 0 }) } },
       { value: 'pusher', label: 'Pusher', icon: ICON.mountPusher, after: rodFit,
         note: 'on the back of the aft bulkhead — the pod ends there (rod boom); no cowl',
         // ENGINE TOP = BOOM BOTTOM (2026-09-11, the user: "For pusher
@@ -1540,15 +1587,16 @@ const DESIGN_ROWS = [
                                       NOSE_AERO) } },
       { value: 'wingTop', label: 'Over the wing', icon: ICON.mountWingTop,
         note: 'one engine on a pylon over the centre section, pushing; high wing; no cowl',
-        writes: { cage: Object.assign({ engMount: 2, wgPos: 0, cowlOn: 0,
-                                        cw_aftMode: 1, cw_tailLen: 1.0,
-                                        aeroAftOn: 1 }, NOSE_AERO) } },
+        // G3914 / G3915: sealed - a cowl turned on here is a NACELLE sized to its engine (_cage_cowl.js nacelleOfEngine), its section the pod's rows
+        writes: { cage: Object.assign({ engMount: 2, wgPos: 0, cowlOn: 0, fitNose: 2,
+                                        cw_aftMode: 1, cw_tailLen: 0.55,
+                                        aeroAftOn: 1 }, NOSE_AERO, NACELLE_POD) } },
     ] },
 
   { key: 'engCount', label: 'Engines', kind: 'discriminator',
     group: 'propulsion', status: 'live', twin: ['engMount'],
     help: 'count and placement are one choice — a twin puts them on the wing',
-    read: P => ({ 3: 2, 4: 'pushPull', 5: 3, 6: 4 })[Math.round(P.engMount)] || 1,
+    read: P => ({ 3: 2, 4: 'pushPull', 5: 3, 6: 4, 7: 'tandem' })[Math.round(P.engMount)] || 1,
     options: [
       // one engine: back to the nose unless a single mount is already chosen
       // ...AND THE COUNT DECIDES THE NOSE TOO, because a pair on the wing
@@ -1566,9 +1614,11 @@ const DESIGN_ROWS = [
           noseAeroWhen(P => Math.round(P.engMount) >= 1)) } },
       { value: 2, label: 'Twin (wings)', icon: iconTopEngines(false, 2),
         note: 'a tractor nacelle a side, at the front spar; both pull',
+        // HULL-B8 (the user, 4 Nov: "you do not need the cowl going down in this configuration. Do the same linear
+        // shape as the pylon mounted one"): the wing nacelles wear the POD - the straight barrel, sealed to the engine
         writes: { cage: Object.assign({ engMount: 3, cw_aftMode: 1,
                                         cw_tailLen: 1.2, aeroAftOn: 1 },
-                                      NOSE_AERO) } },
+                                      NOSE_AERO, NACELLE_POD, { fitNose: 2 }) } },
       // G2790 ENGINE-CONFIGS (the user, 10 Oct: "the configuration nose
       // engine + pusher engine (Cessna Skymaster) ... activate the 3 and 4
       // engines configuration"). THE PUSH-PULL: the nose keeps its engine
@@ -1583,6 +1633,13 @@ const DESIGN_ROWS = [
                           cowlLoops: P => Math.max(2, Math.round(+P.cowlLoops || 0)),
                           boomTwin: 1, taperOn: 1, stMount: 3, stX: 0, stCant: 0, finOn: 1,
                           boomX: P => Math.max(+P.boomX || 1.2, 0.5 * (+P.cw_propD || 1.8) + 0.30) } } },
+      // HULL-B15: THE TANDEM (the user: "some push-pull ... maybe with a single mount for two engines"): two engines
+      // back to back on one over-the-wing pylon, the front pulling, the rear pushing - the Seastar's; centreline thrust
+      // over a high wing, the nose and the tail faired, the pods the straight nacelle
+      { value: 'tandem', label: 'Push-pull (one pylon)', icon: iconTopEngines(false, 0, true),
+        note: 'two engines back to back on one pylon over the wing, one pulling, one pushing (the Seastar)',
+        writes: { cage: Object.assign({ engMount: 7, wgPos: 0, cowlOn: 1, fitNose: 2, cw_aftMode: 1, cw_tailLen: 0.55, aeroAftOn: 1 },
+                                      NOSE_AERO, NACELLE_POD) } },
       // THE THREE: the nose engine and a tractor nacelle a side (the Ford
       // Trimotor / Ju 52) — the nose keeps its cowl, the nacelles wear the
       // same cowl scaled to their faces with a nacelle tail
@@ -1596,7 +1653,7 @@ const DESIGN_ROWS = [
         note: 'two tractor nacelles a side, inner and outer',
         writes: { cage: Object.assign({ engMount: 6, engNacAt: 0.30, engNacAt2: 0.62,
                                         cw_aftMode: 1, cw_tailLen: 1.2, aeroAftOn: 1 },
-                                      NOSE_AERO) } },
+                                      NOSE_AERO, NACELLE_POD, { fitNose: 2 }) } },
     ] },
 
   // 2026-09-04 (the user: "a wing-mounted engine can be configured as pusher
@@ -1781,7 +1838,7 @@ const DESIGN_ROWS = [
     pair: [{ cage: 's2Leg', spec: 'gear.type', via: 'join' }],
     help: 'different aeroplanes on the ground — the placement rule ' +
           'inverts and the rest attitude follows',
-    read: P => +P.gearFloats ? 'floats' : +P.s2Leg === 3 ? 'tail' : 'trike',
+    read: P => +P.hullOn ? 'hull' : +P.gearFloats ? 'floats' : +P.s2Leg === 3 ? 'tail' : 'trike',
     // the spec channel carries the INTENT (`gear.type` is a real spec field
     // with a default); the join then measures the built cage and overwrites
     // it, and the two agreeing is exactly what the starter's cage values are
@@ -1792,7 +1849,7 @@ const DESIGN_ROWS = [
         icon: iconSide({ canopy: 'screen', gear: 'tail' }),
         writes: { cage: { s2On: 1, s2Leg: 3, s2Z: 0.06, s2X: 0, s2R: 0.07,
                           s2Steer: 1, s2Brake: 0, s1Z: 2.00, s1Steer: 0,
-                          s1On: 1, gearFloats: 0 },
+                          s1On: 1, gearFloats: 0, hullOn: 0 },
                   spec: { gear: { type: 'taildragger' } } } },
       // THE STRUT IS THE LONG PART AND THE FORK IS THE SHORT ONE
       // (2026-09-11, alongside the nose-fairing repair). The height from the
@@ -1815,7 +1872,7 @@ const DESIGN_ROWS = [
         writes: { cage: { s2On: 1, s2Leg: 2, s2Z: 2.60, s2X: 0, s2R: 0.14,
                           s2Steer: 1, s2Brake: 0, s1Z: 0.95, s1Steer: 0,
                           s2Drop: 0.37, s2_twLegDrop: 0.09,
-                          s1On: 1, gearFloats: 0 },
+                          s1On: 1, gearFloats: 0, hullOn: 0 },
                   spec: { gear: { type: 'tricycle' } } } },
       // THE FLOATS (H1, G383): both wheel stations off, the flag on; the
       // frame builds two floats sized by the gross (32_hydro's
@@ -1823,19 +1880,62 @@ const DESIGN_ROWS = [
       // garage until H2 draws the float and the join measures it.
       { value: 'floats', label: 'Floats',
         icon: iconSide({ canopy: 'screen', gear: 'floats' }),
-        writes: { cage: { s1On: 0, s2On: 0, gearFloats: 1 },
+        writes: { cage: { s1On: 0, s2On: 0, gearFloats: 1, hullOn: 0 },
                   spec: { gear: { type: 'floats' } } } },
+      // HULL-B1 (the user, 4 Nov: "Yes to Hull as a fourth Undercarriage option"): THE FUSELAGE IS THE BOAT. The
+      // wheel stations off, the floats off, the hull on (_cage_gen.js THE BOAT HULL: the same frames read as keel,
+      // chine and gunwale) with a hard chine - the boat rows stay the builder's (Fuselage > boat hull)
+      { value: 'hull', label: 'Hull', after: hullFit,
+        icon: iconSide({ canopy: 'screen', gear: 'hull' }),
+        note: 'the fuselage is the boat: the frames\' bottoms become a planing V with a step',
+        writes: { cage: { s1On: 0, s2On: 0, gearFloats: 0, hullOn: 1, crKeel: 3, hullTips: 1 },
+                  spec: { gear: { type: 'hull' } } } },
     ] },
 
-  { key: 'retract', label: 'Retraction', kind: 'discriminator',
-    group: 'undercarriage', status: 'declared',
-    read: () => 'fixed',
+  // (after the Undercarriage row: designApply runs the rows in this order, and the Hull option's hard chine must not
+  // overwrite a Soft chine's)
+  // HULL-B7 (HULL-TYPES §3.4, the user 4 Nov: "keep going ... let's test this thing asap"): THE HULL FORM, a starter
+  // over the boat rows (and the two shared ones that make a chine hard or soft) - the families the base already
+  // flies; two steps, the pad, rails, sponsons are capabilities still to build (HULL-TYPES §3.6). Greyed until the
+  // Undercarriage tile's Hull has made the fuselage a boat
+  { key: 'hullForm', label: 'Hull form', kind: 'starter', group: 'structure', status: 'live', once: true,
+    help: 'the boat\'s bottom: deadrise, step, chine - a starting point, every row stays yours (Fuselage > boat hull)',
+    read: P => !+P.hullOn ? null : !+P.hullSteps ? 'stepless' : +P.crKeel < 1 ? 'soft' :
+      +P.hullBeta >= 25 ? 'deep' : +P.hullBeta <= 17 ? 'flat' : 'classic',
     options: [
-      { value: 'fixed', label: 'Fixed', icon: ICON.fixed, def: true },
-      { value: 'retract', label: 'Retractable', icon: ICON.retract,
-        inactive: 'declared (§5.8): a real discriminator — mass, ' +
-          'drag, price, complexity — and none of that model is built; ' +
-          'no spec field exists until it is' },
+      { value: 'classic', label: 'Classic V', icon: iconHull(22, 0, 1), off: HULL_OFF,
+        note: 'single step, 22 deg at the step: the Seabee, the Lake, the Widgeon',
+        writes: { cage: { hullBeta: 22, hullBetaBow: 38, hullBetaA: 18, hullSteps: 1, hullHs: 0.07, crKeel: 3, botRound: 0 } } },
+      { value: 'deep', label: 'Deep V', icon: iconHull(28, 0, 1), off: HULL_OFF,
+        note: 'rough water: 28 deg at the step, a deeper step - the Seastar\'s kind',
+        writes: { cage: { hullBeta: 28, hullBetaBow: 45, hullBetaA: 22, hullSteps: 1, hullHs: 0.085, crKeel: 3, botRound: 0 } } },
+      { value: 'flat', label: 'Shallow V', icon: iconHull(15, 0, 1), off: HULL_OFF,
+        note: 'calm water, early planing: 15 deg - the light-sport boats',
+        writes: { cage: { hullBeta: 15, hullBetaBow: 30, hullBetaA: 13, hullSteps: 1, hullHs: 0.06, crKeel: 3, botRound: 0 } } },
+      { value: 'soft', label: 'Soft chine', icon: iconHull(22, 0.35, 1), off: HULL_OFF,
+        // (HULL-B12, the user: "softpy has an extremely narrow hull, where seats do not fit" - botRound 0.55 rounded the
+        // bottom's corners IN, the chine with them: the waterplane a third narrower, the cabin floor too. The soft
+        // chine is the CREASE softened only - the section keeps the cabin's width)
+        note: 'the V kept, the chine crease softened into the topsides - the full width',
+        writes: { cage: { hullBeta: 22, hullBetaBow: 38, hullBetaA: 18, hullSteps: 1, hullHs: 0.07, crKeel: 0.4, botRound: 0 } } },
+      { value: 'stepless', label: 'Stepless', icon: iconHull(8, 1, 0), off: HULL_OFF,
+        note: 'a round body with no step (the LISA Akoya\'s, on foils): slow to plane, hydrofins still to come',
+        writes: { cage: { hullBeta: 8, hullBetaBow: 20, hullBetaA: 8, hullSteps: 0, crKeel: 0, botRound: 0.25 } } },   // (B12: a light rounding - 1 narrowed it as the soft chine's did)
+    ] },
+
+  // RETRACT-1 (2026-11-03, futureDesigns/RETRACT-STUDY-2026-11.md §3.1): LIVE on a tricycle - the tile stands in the
+  // gear layer's `gearRetract` row and follows its rules (shown on a wheeled tricycle only). Mass (GEN_RULES.retractKg),
+  // drag (the gear's own CdA, off as it comes up), price (GEN_PRICES.retract) and the handle to remember
+  { key: 'retract', label: 'Retraction', kind: 'discriminator',
+    group: 'undercarriage', status: 'live', twin: ['gearRetract'],
+    help: 'the wheels swing up in flight: speed, for mass, price and a handle to remember',
+    read: P => Math.round(+P.gearRetract || 0),
+    options: [
+      { value: 0, label: 'Fixed', icon: ICON.fixed,
+        writes: { cage: { gearRetract: 0 } } },
+      { value: 1, label: 'Retractable', icon: ICON.retract,
+        note: 'gear up after the climb is positive, down before the landing — the horn reminds',
+        writes: { cage: { gearRetract: 1 } } },
     ] },
 
   // THE SUSPENSION IS THE LEG (2026-09-11, the user: "YOU tend to use complex
@@ -2907,10 +3007,16 @@ const ARCHETYPES = [
            engFamily: 'flat', engModel: 'lycoming IO-360', engMount: 'nose', engCount: 'pushPull',
            gearLayout: 'trike', suspension: 'oleo', s1Fair: 0,
            finArch: 'straight', empennage: 'conv', scheme: 'trim', base: 0xefe6cf, trim: 0x1b3a5c },
+    // RETRACT P2 (the user, 5 Nov: "you may change the skymaster. It has never been authored"): THE 337's GEAR - the
+    // mains under the pod (0.43 m half track, 0.17 m tyres) at 1.7 m, folding aft and in with the wheel turned flat
+    // (the 210's twist-and-tuck) into one belly well ahead of the rear engine, their legs shortening 30 % on the way;
+    // the nose aft, shortened 30 % (its own well); the cabin floor at -0.25 for the belly's room
     over: { cage: Object.assign({}, PLAN_TAPER, { boomX: 1.25, boomLen: 3.2,
                                                    boomWf: 0.24, boomHf: 0.34,
                                                    boomWa: 0.16, boomHa: 0.22, boomNoseLen: 0.7,
-                                                   stSpan: 1.2, stChord: 1.1, wgDx: -0.5 }),
+                                                   stSpan: 1.2, stChord: 1.1, wgDx: -0.5,
+                                                   gearRetract: 1, gearFold: 3, gearShort: 0.3, gearShortNose: 0.3,
+                                                   s1X: 0.43, s1Z: 1.7, s1R: 0.17, floorY: -0.25 }),
             spec: { finish: { decals: { m1On: 1, m1Pat: 0, m1A: 0x1b3a5c,
                                         m1B: 0xefe6cf, m1D: 0x1b3a5c } } } } },
   { key: 'p38', kind: 'recreation', name: 'P-38-alike', note: 'a puller a boom, ' +
@@ -3075,7 +3181,7 @@ function designMerge(a, b) {
 // label-vs-starting-values split.
 function designApply(P, sel, opts) {
   const seeds = !opts || opts.seeds !== false;
-  const cage = {}, spec = {}, missing = [];
+  const cage = {}, spec = {}, missing = [], afters = [];
   const work = Object.assign({}, P);
   const order = ['class', 'role'].concat(
     DESIGN_ROWS.map(r => r.key).filter(k => k !== 'class' && k !== 'role'));
@@ -3099,8 +3205,11 @@ function designApply(P, sel, opts) {
       }
       if (wr.spec) designMerge(spec, wr.spec);
     }
+    // HULL-B8: the option's `after` door BY NAME (a headless caller hands it to the page chain: _load_build.js
+    // gameSpecFull's `afters`, as design_flow.js doApply runs it in the game)
+    if (opt.after && opt.after.door && !afters.includes(opt.after.door)) afters.push(opt.after.door);
   }
-  return { cage, spec, missing };
+  return { cage, spec, missing, afters };
 }
 
 // G132: ONE option's seed, resolved against the live P — the panel's
