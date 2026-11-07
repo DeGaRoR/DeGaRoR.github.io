@@ -122,10 +122,11 @@ const station = (i, name) => [name, [
                                      -4, 4, 0.01, sOnM(i)],
   // G3503 (DC3-BUILD): the half track to 3.2 m, the wheel to 0.65 m and the leg drop to
   // 1.6 m (metres, unscaled: a DC-3's 2.82 m half track and 1.14 m tyres under the nacelles)
-  ['s' + i + 'X',     'in / out (half track)',   0, 3.2, 0.01, sOnM(i)],
+  // DC3-EDITABLE: to the big box's 8 m track (4 m), 0.90 m wheel and 1.80 m leg (gear.legDrop's clampBig)
+  ['s' + i + 'X',     'in / out (half track)',   0, 4.0, 0.01, sOnM(i)],
   ['s' + i + 'Leg',   'leg',          0, 3, 1, GP.LEGS, sOn(i)],
-  ['s' + i + 'R',     i === 2 ? 'third wheel radius' : 'main wheel radius', 0.05, 0.65, 0.005, sOnM(i)],
-  ['s' + i + 'Drop',  'up / down (leg drop)',     0.05, 1.60, 0.01, sOnM(i)],
+  ['s' + i + 'R',     i === 2 ? 'third wheel radius' : 'main wheel radius', 0.05, 0.90, 0.005, sOnM(i)],
+  ['s' + i + 'Drop',  'up / down (leg drop)',     0.05, 1.80, 0.01, sOnM(i)],
   // the wheel's fore/aft FROM the fitting — the leg's rake, on every family;
   // hidden on a tailwheel, whose spring length already is that knob
   // NEW-SHAPES-1: the legs' root - no default (an old file keeps the rule it was built by)
