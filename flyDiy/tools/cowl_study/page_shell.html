@@ -20,7 +20,9 @@
 body { background: var(--paper); color: var(--ink); font: 15px/1.55 var(--f-body);
   padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 28px 64px; }
 .wrap { max-width: 1240px; margin: 0 auto; display: grid; gap: 40px; }
+.wrap > * { min-width: 0; }
 .col { max-width: 68ch; }
+h1 + .lede { margin-top: 14px; }
 h1, h2, h3 { font-family: var(--f-head); text-wrap: balance; margin: 0; letter-spacing: 0.01em; }
 h1 { font-size: clamp(2rem, 5vw, 3rem); font-weight: 700; line-height: 1.05; }
 h2 { font-size: 1.55rem; font-weight: 600; margin-bottom: 10px; }
@@ -93,7 +95,7 @@ ul { margin: 0 0 12px; padding-left: 20px; }
     <div class="options">
       <div><b>A · Match</b>The barrel is the fuselage's own nose section, held straight to the face. The fuselage just keeps going and ends in a rounded lip.</div>
       <div><b>B · Blend</b>The barrel starts as the fuselage's section and runs in a straight line to a round front, a little smaller (0.82 of the firewall, never smaller than the engine's height).</div>
-      <div><b>C · Own part</b>A round barrel the engine's size, on the thrust line, whatever the fuselage is. A step at the firewall where the two differ.</div>
+      <div><b>C · Own part</b>A round barrel the engine's size, on the firewall's centre, whatever the fuselage is. A step at the firewall where the two differ.</div>
     </div>
     <p class="rec"><!--REC--></p>
   </section>
@@ -125,6 +127,7 @@ ul { margin: 0 0 12px; padding-left: 20px; }
       <dt>lip</dt><dd>a quarter of the front's half-size, 4 to 12 cm, onto a flat face matched to the spinner</dd>
       <dt>thrust line</dt><dd>unchanged: today's axis offset becomes the face's offset (off the body, the pod is centred on the engine instead)</dd>
       <dt>openings</dt><dd>by engine type: boxer two inlets · Rotax two + chin mouth · two-stroke chin mouth · in-line two low · V chin scoop · radial open ring · electric two slots · turbine chin lip</dd>
+      <dt>cheeks</dt><dd>only where the drawn engine stands outside the barrel (a boxer wider than its firewall): two, fitted to the heads' station, height and size, rebuilt until the engine clears</dd>
       <dt>off the body</dt><dd>pylon, tower, wing nacelles: always the pod (round, the engine's size + 6 %, a tail cone)</dd>
     </dl>
   </section>

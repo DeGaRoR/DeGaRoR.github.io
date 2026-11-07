@@ -68,8 +68,13 @@ const rows = T.ROWS.map(([type, mount, real, refs, stem, straight]) => {
 <td class="prop">${esc(straight)}</td></tr>`;
 }).join('\n');
 
+const REC = '<b>Recommendation: A, Match, on every nose and pusher face.</b> The fuselage carries straight on to a rounded lip, ' +
+  'the spinner sits where the thrust line already is, and cheeks appear only where a boxer\'s heads stand proud of the firewall ' +
+  '(the Cub\'s A-65, the C172), sized to the drawn heads. <b>C, the pod, wherever there is no fuselage</b> (pylon, tower, wing ' +
+  'nacelles), and a one-click choice for a radial on a slim fuselage. <b>B stays a dial</b> (the barrel\'s taper), not a default: ' +
+  'on every boxer its round front is narrower than the engine and needs 10-16 cm cheeks.';
 const html = fs.readFileSync(path.join(__dirname, 'page_shell.html'), 'utf8')
   .replace('<!--PLANES-->', PLANES.map(planeBlock).join('\n'))
-  .replace('<!--ROWS-->', rows);
+  .replace('<!--ROWS-->', rows).replace('<!--REC-->', REC);
 fs.writeFileSync(path.join(OUT, 'index.html'), html);
 console.log('page: ' + path.join(OUT, 'index.html') + ', ' + fs.readdirSync(path.join(OUT, 'img')).length + ' images');
