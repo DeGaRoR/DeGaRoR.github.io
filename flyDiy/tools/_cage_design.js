@@ -1928,6 +1928,8 @@ const DESIGN_ROWS = [
   // drag (the gear's own CdA, off as it comes up), price (GEN_PRICES.retract) and the handle to remember
   { key: 'retract', label: 'Retraction', kind: 'discriminator',
     group: 'undercarriage', status: 'live', twin: ['gearRetract'],
+    // RETRACT-LAB (SEAPLANES-LAND 7 Nov): behind the retract switch, as its row is (_cage_gear.js RETRACT_LAB)
+    when: () => !(typeof window !== 'undefined' && window.CAGE_RETRACT_LAB) || window.CAGE_RETRACT_LAB(),
     help: 'the wheels swing up in flight: speed, for mass, price and a handle to remember',
     read: P => Math.round(+P.gearRetract || 0),
     options: [

@@ -136,7 +136,10 @@ const GROUP = ['9b · floats', [
   // (2: the EDO style - the user's photographs and close-ups, 5 Nov: the nose leg pivots low on the bow's leading edge,
   // pushed down by a piston through a triangle, folding forward and up to hug the stem; no EDO data reached - the
   // geometry is the photographs', the tyres the same hull's Wipline row's)
-  ['fltAmph', 'amphibian (wheels in the floats)', 0, 2, 1, ['none', 'Wipline', 'EDO style'], on],
+  // RETRACT-LAB (SEAPLANES-LAND 7 Nov): the amphibian floats are drawn, not flown yet (no wheel reaches the spec): behind
+  // the retract switch (_cage_gear.js RETRACT_LAB), still shown on a build that already has them so it can switch them off
+  ['fltAmph', 'amphibian (wheels in the floats)', 0, 2, 1, ['none', 'Wipline', 'EDO style'],
+   { when: P => +P.gearFloats && (+P.fltAmph > 0 || !window.CAGE_RETRACT_LAB || window.CAGE_RETRACT_LAB()) }],
   ['fltPaddle', 'paddle', 0, 2, 1, ['none', 'on the left float', 'on both floats'], on],
   ['hull', [
     ['fltL',      'length',                        2.5, 14.0, 0.01, onM],

@@ -62,6 +62,9 @@ function makeContext(opts) {
   g.setTimeout = setTimeout; g.clearTimeout = clearTimeout;
   g.navigator = { userAgent: 'node' };
   g.localStorage = { getItem: () => null, setItem() {}, removeItem() {} };
+  // RETRACT-LAB (SEAPLANES-LAND 7 Nov, _cage_gear.js RETRACT_LAB): the rigs see every retract row, as the developer's
+  // garage does; FLYDIY_RETRACT_LAB=0 asks for the player's garage
+  g.FLYDIY_RETRACT_LAB = process.env.FLYDIY_RETRACT_LAB !== '0';
   g.Image = function () { return el(); };
   const ctx = vm.createContext(g);
   vm.runInContext('var window = globalThis; window.window = window;', ctx);

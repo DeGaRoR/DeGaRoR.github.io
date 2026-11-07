@@ -1386,6 +1386,20 @@ const fitNote = () => { const B = window.CAGE_ROW_BAD ? window.CAGE_ROW_BAD() : 
 // RETRACT-1: the build may retract its gear - the switch on, wheels (not floats), a nose wheel, a low wing
 // (GR: any wing - a low wing's mains root on the wing, any other's on the body: the Catalina's hull)
 const GEAR_RETRACTABLE = P => !!(+P.gearRetract && !+P.gearFloats && +P.s2On && Math.round(+P.s2Leg) !== 3);
+// RETRACT-LAB (SEAPLANES-LAND 7 Nov; the user: the retract wheels are "not great yet ... not final"): THE RETRACT
+// OPTIONS STAND BEHIND ONE SWITCH until a retract quality pass - the developer's toggle (the flight rail's "dev ›",
+// pref flydiy.flDev), ?retract=lab, or window.FLYDIY_RETRACT_LAB (the headless rigs set it: they see every row). Off,
+// the player's garage: a build that does not retract shows no retract row (nor the Retraction tile); a build that does
+// (the Super Petrel) shows the preview, the cycle time and the actuation - never the fold, the wells or the doors it was
+// tuned on. ROWS ONLY: the spec, the save, the flight, the gear key, the lamps and the autopilot never read it.
+const RETRACT_LAB = () => {
+  try {
+    if (typeof window.FLYDIY_RETRACT_LAB === 'boolean') return window.FLYDIY_RETRACT_LAB;
+    if (typeof location !== 'undefined' && /[?&]retract=lab\b/.test(location.search || '')) return true;
+    return !!(window.localStorage && window.localStorage.getItem('flydiy.flDev') === '1');
+  } catch (e) { return true; }
+};
+window.CAGE_RETRACT_LAB = RETRACT_LAB;
 const GROUP = ['9 · undercarriage', [
   ['gearOn',  'undercarriage', 0, 1, 1],
   ['gearSit', 'stand it on the ground', 0, 1, 1,
@@ -1399,7 +1413,7 @@ const GROUP = ['9 · undercarriage', [
   // spec.gear.retract from these; the flown aeroplane swings the units (app.js gearSwingRig) - no well is cut yet,
   // the stowed gear lies inside the skin (step 4 cuts the wells). The one predicate: GEAR_RETRACTABLE
   ['retraction', [
-    ['gearRetract', 'retraction (a tricycle\'s)', 0, 1, 1, ['fixed', 'retractable'], { note: P => +P.gearRetract ? fitNote() : '' }],
+    ['gearRetract', 'retraction (a tricycle\'s)', 0, 1, 1, ['fixed', 'retractable'], { when: () => RETRACT_LAB(), note: P => +P.gearRetract ? fitNote() : '' }],
     ['gearRetT', 'cycle time, s (one way)', 2, 20, 0.5, { when: P => +P.gearRetract }],
     ['gearRetAct', 'actuation', 0, 2, 1, ['electric', 'hydraulic', 'manual (Johnson bar)'], { when: P => +P.gearRetract }],
     // G1 (RETRACT-STUDY §8.1): THE FOLD. A preset per unit, or 'custom': up to two turns, each about a body axis
@@ -1407,38 +1421,38 @@ const GROUP = ['9 · undercarriage', [
     // vertical, aft on lateral), plus the wheel's own twist about its leg (to lie flatter); the mains' rows are the
     // port unit's, the starboard mirrors them. The fraction stops the whole chain part way (the wheel in its inset)
     ['gearPos', 'gear position (preview: 1 down, 0 up)', 0, 1, 0.01, { when: P => +P.gearRetract }],
-    ['gearFold', 'mains fold', 0, FOLD_KEYS.length - 1, 1, FOLD_KEYS.map(k => FOLD_LABELS[k]), { when: P => +P.gearRetract }],
-    ['gm1Ax', 'mains turn 1: axis', 0, 2, 1, FOLD_AX_LABELS, { when: P => +P.gearRetract && foldCustom(P) }],
-    ['gm1Ang', 'mains turn 1: angle °', -180, 180, 1, { when: P => +P.gearRetract && foldCustom(P) }],
-    ['gm2Ax', 'mains turn 2: axis', 0, 2, 1, FOLD_AX_LABELS, { when: P => +P.gearRetract && foldCustom(P) }],
-    ['gm2Ang', 'mains turn 2: angle ° (0: none)', -180, 180, 1, { when: P => +P.gearRetract && foldCustom(P) }],
-    ['gmTwist', 'mains wheel twist ° (about the leg)', -90, 90, 1, { when: P => +P.gearRetract && foldCustom(P) }],
-    ['gearFoldNose', 'nose fold', 0, FOLD_NOSE_KEYS.length - 1, 1, FOLD_NOSE_KEYS.map(k => FOLD_LABELS[k]), { when: P => +P.gearRetract }],
-    ['gn1Ax', 'nose turn 1: axis', 0, 2, 1, FOLD_AX_LABELS, { when: P => +P.gearRetract && foldNoseCustom(P) }],
-    ['gn1Ang', 'nose turn 1: angle °', -180, 180, 1, { when: P => +P.gearRetract && foldNoseCustom(P) }],
-    ['gn2Ax', 'nose turn 2: axis', 0, 2, 1, FOLD_AX_LABELS, { when: P => +P.gearRetract && foldNoseCustom(P) }],
-    ['gn2Ang', 'nose turn 2: angle ° (0: none)', -180, 180, 1, { when: P => +P.gearRetract && foldNoseCustom(P) }],
-    ['gnTwist', 'nose wheel twist ° (about the leg)', -90, 90, 1, { when: P => +P.gearRetract && foldNoseCustom(P) }],
-    ['gearRetFrac', 'retracts (fraction of the fold)', 0.3, 1, 0.05, { when: P => +P.gearRetract }],
+    ['gearFold', 'mains fold', 0, FOLD_KEYS.length - 1, 1, FOLD_KEYS.map(k => FOLD_LABELS[k]), { when: P => RETRACT_LAB() && +P.gearRetract }],
+    ['gm1Ax', 'mains turn 1: axis', 0, 2, 1, FOLD_AX_LABELS, { when: P => RETRACT_LAB() && +P.gearRetract && foldCustom(P) }],
+    ['gm1Ang', 'mains turn 1: angle °', -180, 180, 1, { when: P => RETRACT_LAB() && +P.gearRetract && foldCustom(P) }],
+    ['gm2Ax', 'mains turn 2: axis', 0, 2, 1, FOLD_AX_LABELS, { when: P => RETRACT_LAB() && +P.gearRetract && foldCustom(P) }],
+    ['gm2Ang', 'mains turn 2: angle ° (0: none)', -180, 180, 1, { when: P => RETRACT_LAB() && +P.gearRetract && foldCustom(P) }],
+    ['gmTwist', 'mains wheel twist ° (about the leg)', -90, 90, 1, { when: P => RETRACT_LAB() && +P.gearRetract && foldCustom(P) }],
+    ['gearFoldNose', 'nose fold', 0, FOLD_NOSE_KEYS.length - 1, 1, FOLD_NOSE_KEYS.map(k => FOLD_LABELS[k]), { when: P => RETRACT_LAB() && +P.gearRetract }],
+    ['gn1Ax', 'nose turn 1: axis', 0, 2, 1, FOLD_AX_LABELS, { when: P => RETRACT_LAB() && +P.gearRetract && foldNoseCustom(P) }],
+    ['gn1Ang', 'nose turn 1: angle °', -180, 180, 1, { when: P => RETRACT_LAB() && +P.gearRetract && foldNoseCustom(P) }],
+    ['gn2Ax', 'nose turn 2: axis', 0, 2, 1, FOLD_AX_LABELS, { when: P => RETRACT_LAB() && +P.gearRetract && foldNoseCustom(P) }],
+    ['gn2Ang', 'nose turn 2: angle ° (0: none)', -180, 180, 1, { when: P => RETRACT_LAB() && +P.gearRetract && foldNoseCustom(P) }],
+    ['gnTwist', 'nose wheel twist ° (about the leg)', -90, 90, 1, { when: P => RETRACT_LAB() && +P.gearRetract && foldNoseCustom(P) }],
+    ['gearRetFrac', 'retracts (fraction of the fold)', 0.3, 1, 0.05, { when: P => RETRACT_LAB() && +P.gearRetract }],
     // G4 (RETRACT-STUDY §8.10): THE WELL'S OUTLINE, always cut exactly into the skin - the swept unit's own plan hull,
     // or a rounded box round it (the fallback the user asked to keep: "so we have a fallback in case we struggle")
-    ['gearWellCut', 'well outline', 0, 1, 1, ['exact (the swept unit\'s hull)', 'box (a rounded rectangle)'], { when: P => +P.gearRetract }],
+    ['gearWellCut', 'well outline', 0, 1, 1, ['exact (the swept unit\'s hull)', 'box (a rounded rectangle)'], { when: P => RETRACT_LAB() && +P.gearRetract }],
     // G6 (§8.13): THE DOORS - the exact outline's skin rides on the leg (the leg door) and what is left is the well's
     // door(s); the box's are its door(s) alone: one, or two split along the well (the user: "One, or 2, slitting in
     // the middle")
-    ['gearLegDoor', 'leg door (the skin on the leg)', 0, 1, 1, ['off', 'on'], { when: P => +P.gearRetract && +P.gearWellCut !== 1 }],
+    ['gearLegDoor', 'leg door (the skin on the leg)', 0, 1, 1, ['off', 'on'], { when: P => RETRACT_LAB() && +P.gearRetract && +P.gearWellCut !== 1 }],
     // GR: the shortening (the piston slides into its cylinder as the gear comes up: a long leg stows shorter)
-    ['gearShort', 'mains shorten as they retract (share of the leg)', 0, 0.45, 0.05, { when: P => +P.gearRetract }],
-    ['gearShortNose', 'nose leg shortens as it retracts', 0, 0.45, 0.05, { when: P => +P.gearRetract }],
+    ['gearShort', 'mains shorten as they retract (share of the leg)', 0, 0.45, 0.05, { when: P => RETRACT_LAB() && +P.gearRetract }],
+    ['gearShortNose', 'nose leg shortens as it retracts', 0, 0.45, 0.05, { when: P => RETRACT_LAB() && +P.gearRetract }],
     // GR: THE NACELLE FITTED TO THE GEAR (the cowl layer's nacGearFit: deeper, lower, longer - the engine, the cowl and
     // the nacelle together) - on by default; and the stand-alone gear pod under the nacelle (nacPodBuild), a separate
     // option
-    ['gearNacFit', 'fit the nacelle to the gear (deeper, lower, longer)', 0, 1, 1, ['off', 'on'], { when: P => +P.gearRetract && FOLD_KEYS[Math.round(+P.gearFold || 0)] === 'nacelle' }],
+    ['gearNacFit', 'fit the nacelle to the gear (deeper, lower, longer)', 0, 1, 1, ['off', 'on'], { when: P => RETRACT_LAB() && +P.gearRetract && FOLD_KEYS[Math.round(+P.gearFold || 0)] === 'nacelle' }],
     // P2 (the user, 6 Nov: "a version with full doors"): the folding knee's - an open recess (the wheel half out), or
     // the wheel wholly inside and a door riding the leg that closes the side over it
-    ['gearKneeDoor', 'folding knee: the side recess', 0, 2, 1, ['open (the wheel half out)', 'full door on the leg (the wheel inside)', 'full door on the hull, hinged at the top'], { when: P => +P.gearRetract && FOLD_KEYS[Math.round(+P.gearFold || 0)] === 'knee' }],
-    ['gearNacPod', 'a separate gear pod under the nacelle', 0, 1, 1, ['off', 'on'], { when: P => +P.gearRetract && FOLD_KEYS[Math.round(+P.gearFold || 0)] === 'nacelle' }],
-    ['gearDoors', 'well doors', 0, 2, 1, ['none (open well)', 'one door', 'two doors (split)'], { when: P => +P.gearRetract }],
+    ['gearKneeDoor', 'folding knee: the side recess', 0, 2, 1, ['open (the wheel half out)', 'full door on the leg (the wheel inside)', 'full door on the hull, hinged at the top'], { when: P => RETRACT_LAB() && +P.gearRetract && FOLD_KEYS[Math.round(+P.gearFold || 0)] === 'knee' }],
+    ['gearNacPod', 'a separate gear pod under the nacelle', 0, 1, 1, ['off', 'on'], { when: P => RETRACT_LAB() && +P.gearRetract && FOLD_KEYS[Math.round(+P.gearFold || 0)] === 'nacelle' }],
+    ['gearDoors', 'well doors', 0, 2, 1, ['none (open well)', 'one door', 'two doors (split)'], { when: P => RETRACT_LAB() && +P.gearRetract }],
   // (shown on a low wing on wheels - ONE row from the stock aeroplane brings it, GATE PARTS' reach; the nose wheel the
   // retraction also needs is the join's and the swing's own test, GEAR_RETRACTABLE)
   ], { when: P => +P.gearOn * (1 - (+P.gearFloats || 0)) > 0 }],
