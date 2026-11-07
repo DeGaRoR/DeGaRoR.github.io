@@ -382,9 +382,17 @@ function finish(out, t0) { out.verdicts = verdicts(out); out.t.total = (Date.now
 // THE VERDICTS: our band at the reference's weights against the reference's band
 // ---------------------------------------------------------------------------------------------------------------------
 // our value of `k` at mass m: piecewise-linear over the MIN / TYP / MTOW cases (extrapolated past the ends)
-function interp(pts, m) {
+// (`clamp`, the verdicts' reading: outside the measured loads the band follows the END-TO-END secant (MIN to MTOW,
+// not the nearest segment, whose slope a near-threshold flight can make absurd: the Petrel's water run at 406 kg read
+// -91 m off MIN 463 / TYP 486), no further than 15 % of the mass past the end, never below zero)
+function interp(pts, m, clamp) {
   const p = pts.filter(q => q.v != null && isFinite(q.v)).sort((a, b) => a.m - b.m);
   if (!p.length) return null; if (p.length === 1) return p[0].v;
+  if (clamp && (m < p[0].m || m > p[p.length - 1].m)) {
+    const a = p[0], b = p[p.length - 1], k = (b.v - a.v) / Math.max(1e-9, b.m - a.m);
+    const mm = Math.max(a.m * 0.85, Math.min(b.m * 1.15, m)), e = mm < a.m ? a : b;
+    return Math.max(0, e.v + k * (mm - e.m));
+  }
   let i = 0; while (i < p.length - 2 && m > p[i + 1].m) i++;
   const a = p[i], b = p[i + 1]; return a.v + (b.v - a.v) * (m - a.m) / Math.max(1e-9, b.m - a.m);
 }
@@ -435,11 +443,12 @@ function verdicts(out) {
     const kg = refKg(R, row);
     for (const [who, sel] of (SRC[k] || [])) {
       const s = series(sel); if (!s.some(q => q.v != null)) continue;
-      const a = interp(s, kg[0]), b = interp(s, kg[1]);
+      const a = interp(s, kg[0], true), b = interp(s, kg[1], true);
       if (a == null || b == null) continue;
       const lo = Math.min(a, b), hi = Math.max(a, b);
       const mid = 0.5 * (rv[0] + rv[1]);
-      V.push({ k: rk, src: who, ref: rv, refBand: band, kg, ours: [lo, hi], verdict: cls(lo, hi, band), mAt: solveM(s, mid), series: s, row });
+      const ms = s.filter(q => q.v != null).map(q => q.m), extrap = kg[0] < Math.min(...ms) - 5 || kg[1] > Math.max(...ms) + 5;
+      V.push({ k: rk, src: who, ref: rv, refBand: band, kg, ours: [lo, hi], verdict: cls(lo, hi, band), extrap, mAt: solveM(s, mid), series: s, row });
     }
   }
   // the pilot's share at the sweep load: game - best (a distance: positive = the pilot costs metres; a climb: best - game)
@@ -503,7 +512,7 @@ function md(out) {
     const r = v.ref[0] === v.ref[1] ? f(v.ref[0], d(v.k)) : f(v.ref[0], d(v.k)) + '–' + f(v.ref[1], d(v.k));
     const kg = v.kg ? (v.kg[0] === v.kg[1] ? f(v.kg[0]) : f(v.kg[0]) + '–' + f(v.kg[1])) : '—';
     const o = v.ours[0] === v.ours[1] || Math.abs(v.ours[0] - v.ours[1]) < 1e-9 ? f(v.ours[0], d(v.k)) : f(v.ours[0], d(v.k)) + '–' + f(v.ours[1], d(v.k));
-    L.push('| ' + v.k + ' ' + (UNIT[v.k] || '') + ' | ' + v.src + ' | ' + r + ' (' + f(v.refBand[0], d(v.k)) + '–' + f(v.refBand[1], d(v.k)) + ') | ' + kg + ' | ' + o + ' | **' + v.verdict + '** | ' + whoLoad(out, v.mAt) + ' |');
+    L.push('| ' + v.k + ' ' + (UNIT[v.k] || '') + ' | ' + v.src + ' | ' + r + ' (' + f(v.refBand[0], d(v.k)) + '–' + f(v.refBand[1], d(v.k)) + ') | ' + kg + ' | ' + o + ' | **' + v.verdict + '**' + (v.extrap ? ' (extrap.)' : '') + ' | ' + whoLoad(out, v.mAt) + ' |');
   }
   L.push('');
   return L.join('\n');

@@ -12,6 +12,7 @@ work stay in `../futureDesigns/`. Files moved here on 2026-10-02 kept their name
 
 ## Aircraft studies (with their runs: `.run.txt`, `.asfound.txt`, `.corrected.txt`, `.edits.json`)
 - [C172-STUDY-2026-09-20.md](C172-STUDY-2026-09-20.md) · [CUB-STUDY-2026-09-20.md](CUB-STUDY-2026-09-20.md) · [JODEL-STUDY-2026-09-20.md](JODEL-STUDY-2026-09-20.md) · [CHINOOK-STUDY-2026-09-21.md](CHINOOK-STUDY-2026-09-21.md)
+- [REAL-CHECK-2026-11-07.md](REAL-CHECK-2026-11-07.md): every official plane against its real figures as bands (load sweep, the pilot kept apart), the history of every earlier comparison, `tools/real_check.js`
 - [ACCURACY-SHEET-2026-09-21.html](ACCURACY-SHEET-2026-09-21.html) · [FITMENT-STUDY-2026-09-12.md](FITMENT-STUDY-2026-09-12.md) · [LEAN-PILLAR-STUDY-2026-09-01.md](LEAN-PILLAR-STUDY-2026-09-01.md)
 
 ## Audits and reviews
