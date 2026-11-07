@@ -1400,6 +1400,10 @@ const RETRACT_LAB = () => {
   } catch (e) { return true; }
 };
 window.CAGE_RETRACT_LAB = RETRACT_LAB;
+// (A0 7 Nov: "fixing gearRetract shows on every build is welcome"): the switch is offered where it can act -
+// GEAR_RETRACTABLE's own wheels (a nose wheel, not floats: the group's own when) - and stays while it is on, so a
+// build saved retractable on a tailwheel can still switch it off
+const RETRACT_CAN = P => !!(+P.s2On && Math.round(+P.s2Leg) !== 3);
 const GROUP = ['9 · undercarriage', [
   ['gearOn',  'undercarriage', 0, 1, 1],
   ['gearSit', 'stand it on the ground', 0, 1, 1,
@@ -1413,7 +1417,7 @@ const GROUP = ['9 · undercarriage', [
   // spec.gear.retract from these; the flown aeroplane swings the units (app.js gearSwingRig) - no well is cut yet,
   // the stowed gear lies inside the skin (step 4 cuts the wells). The one predicate: GEAR_RETRACTABLE
   ['retraction', [
-    ['gearRetract', 'retraction (a tricycle\'s)', 0, 1, 1, ['fixed', 'retractable'], { when: () => RETRACT_LAB(), note: P => +P.gearRetract ? fitNote() : '' }],
+    ['gearRetract', 'retraction (a tricycle\'s)', 0, 1, 1, ['fixed', 'retractable'], { when: P => RETRACT_LAB() && (RETRACT_CAN(P) || +P.gearRetract > 0), note: P => +P.gearRetract ? fitNote() : '' }],
     ['gearRetT', 'cycle time, s (one way)', 2, 20, 0.5, { when: P => +P.gearRetract }],
     ['gearRetAct', 'actuation', 0, 2, 1, ['electric', 'hydraulic', 'manual (Johnson bar)'], { when: P => +P.gearRetract }],
     // G1 (RETRACT-STUDY §8.1): THE FOLD. A preset per unit, or 'custom': up to two turns, each about a body axis
