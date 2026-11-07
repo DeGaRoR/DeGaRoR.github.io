@@ -322,7 +322,8 @@ async function sweep() {
   // a page-session helper: scenes and trips on the open page
   const session = (b, label) => {
     const now = () => b.ev('performance.now()');
-    const pull = async () => JSON.parse(await b.ev('JSON.stringify({ fr: __MB.fr.slice(-30000), lt: __MB.lt, sc: __MB.sc || [] })', 20000));
+    // A0 L34a: a page busy linking for over 20 s answered '__timeout' and JSON.parse threw, losing every row after it (the floats' SEA lane). Retry, then give an empty pull.
+    const pull = async () => { for (let i = 0; i < 6; i++) { const raw = await b.ev('JSON.stringify({ fr: __MB.fr.slice(-30000), lt: __MB.lt, sc: __MB.sc || [] })', 20000); if (raw !== '__timeout') return JSON.parse(raw); log('pull: browser reply exceeded 20 s; retrying'); } return { fr: [], lt: [], sc: [] }; };
     const scene = async (build, name, sec, extra) => { const t0 = await now(); await sleep(sec * 1000); const t1 = await now(); const d = await pull(); const st = stat(d.fr, d.lt, t0, t1, d.sc);
       const row = Object.assign({ build, scene: name, sec, t0: Math.round(t0), t1: Math.round(t1) }, st || { frames: 0 }, extra || {}); R.scenes.push(row);
       log(name.padEnd(28) + ' ' + (st ? st.fps + ' fps, uneven ' + (100 * st.uneven).toFixed(0) + ' %, p90 ' + st.p90 + ', p99 ' + st.p99 + ', p99.9 ' + st.p999 + ', worst ' + st.worst + ' ms, >1.5x cap ' + FD.pc(st.over15) + ', >100 ms ' + st.over100 + ', tasks>=200 ' + st.tasks200 : 'no frames')); return row; };
