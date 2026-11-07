@@ -9,9 +9,11 @@ const arg = (k, d) => { const a = argv.find(x => x.startsWith('--' + k + '=')); 
 const OPTS = arg('opts'), TAB = arg('table'), OUT = arg('out');
 const T = require('./table.js');
 fs.mkdirSync(path.join(OUT, 'img'), { recursive: true });
-const jpg = (src, name, w) => {
+const jpg = (src, name, w, crop) => {
   const dst = path.join(OUT, 'img', name + '.jpg');
-  if (!fs.existsSync(dst)) execFileSync('convert', [src, '-resize', (w || 900) + 'x', '-quality', '80', '-strip', dst]);
+  // the hero stills frame the whole aeroplane small in a wide studio: the table's are cut to the aeroplane's middle
+  const cut = crop ? ['-gravity', 'center', '-crop', crop, '+repage'] : [];
+  execFileSync('convert', [src].concat(cut, ['-resize', (w || 900) + 'x', '-quality', '80', '-strip', dst]));
   return 'img/' + name + '.jpg';
 };
 const ls = d => (d && fs.existsSync(d) ? fs.readdirSync(d) : []).filter(f => /\.png$/.test(f)).sort();
@@ -53,7 +55,7 @@ const mountName = { nose: 'Nose', pusher: 'Pusher, aft face', wingTop: 'Over the
 function todayImg(stem) {
   if (!stem) return null;
   let f = tabFiles.find(x => x.startsWith(stem + '_hero'));
-  if (f) return jpg(path.join(TAB, f), 'today_' + stem, 520);
+  if (f) return jpg(path.join(TAB, f), 'today_' + stem, 520, '64%x58%+0+0');
   f = optFiles.find(x => x.startsWith(stem + '_at'));
   return f ? jpg(path.join(OPTS, f), 'today_' + stem, 520) : null;
 }
