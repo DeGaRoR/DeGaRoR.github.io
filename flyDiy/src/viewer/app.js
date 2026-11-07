@@ -8489,8 +8489,24 @@
   // G815 (C1b): THE SCRIPT'S UI HALF - the pattern, the trace, the rail, the watchdogs, the card. Inline it runs
   // inside script(), every step, as it always did; under ?simw=1 the pilot flies in the worker and this runs once
   // a frame on the page, reading the pilot's snapshot (sim_link.js mirrors it into `ap`)
+  // SEAPLANES-LAND (A0 7 Nov): THE GEAR KEY UNDER THE AUTOPILOT. The hand is written only when it flies (INP.write), so
+  // under the AP the key did nothing. A press now flips the gear from where it is (out.gear: the snapshot's, so the
+  // worker's flight and the inline one read the same), written through sim.ctl (the worker's ctl patch under ?simw=1);
+  // the AP keeps it wherever it agrees or has no say (the lift-off, the low climb) and writes its wanted state over it
+  // otherwise (43_pilot GEAR, GUMPS). A fixed build's ctl has no gear and nothing runs.
+  let gearHandSeen = null;
+  function gearKeyUnderAP() {
+    if (manual || !INP || typeof INP.gear !== 'function' || !sim.ctl || !('gear' in sim.ctl)) { gearHandSeen = null; return; }
+    const h = INP.gear();
+    if (gearHandSeen !== null && h !== gearHandSeen) {
+      const pos = sim.out && typeof sim.out.gear === 'number' ? sim.out.gear : 1;
+      sim.ctl.gear = pos > 0.5 ? 0 : 1;
+    }
+    gearHandSeen = h;
+  }
   function scriptView(dt) {
     if (!started) { setRail(null); return; }
+    gearKeyUnderAP();
     if (patVis && ap.frame && ap.frame.k !== patVisK) {
       patVisK = ap.frame.k;
       patVis.setActive(patVisK, ap.gs);
