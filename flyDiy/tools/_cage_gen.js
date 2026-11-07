@@ -3886,7 +3886,7 @@ function cageInterior(m, S) {
     // ---- the fasteners: a line of pan-head screws or dome rivets round each face, bare metal (the alloy liner's section) ----
     if (BH.fast) {
       const bL = D > 0 ? 0 : b, screw = BH.fast === 1;
-      const r = (screw ? 0.0052 : 0.0032) / ps, pr = (screw ? 0.0022 : 0.0016) / ps, gap = (screw ? 0.085 : 0.038) / ps, K = 6;
+      const r = (screw ? 0.0052 : 0.0048) / ps, pr = (screw ? 0.0022 : 0.0024) / ps,   /* NIGHT-PHOTO, the user: "see the rivets a little more": 3.2 -> 4.8 mm */ gap = (screw ? 0.085 : 0.038) / ps, K = 6;
       const head = (x, y, z) => {
         const c = V.push([x, y, z + pr]) - 1, lo = [], hi = [];
         for (let i = 0; i < K; i++) {
@@ -5388,9 +5388,19 @@ function cageInterior(m, S) {
         const barMid = i2 => frameMidD(i2, FE + FD/2 + 0.015);
         // WAIST BAR: between the outline's fwd/aft crossings of the
         // door's OWN waist height
+        // (NIGHT-PHOTO, the user 5 Nov: "that clearly is the L frame running along the waist, you can even see the triangular door structure"): a window whose
+        // sill runs below the door's waist (the 4b's: 0.07) had the bar and the diagonal across its glass. The bar stands 4 cm under the lowest pane in this door's span
+        let yBarD = yWd, bSide = 0; for (const p of pts2) bSide += p[0];
+        for (const w5 of m.outlines) {
+          if (w5.kind !== 'win' || !w5.pts) continue;
+          let z05 = 1e9, z15 = -1e9, y05 = 1e9, x5 = 0;
+          for (const q of w5.pts) { z05 = Math.min(z05, q[2]); z15 = Math.max(z15, q[2]); y05 = Math.min(y05, q[1]); x5 += q[0]; }
+          let z0d = 1e9, z1d = -1e9; for (const q of pts2) { z0d = Math.min(z0d, q[2]); z1d = Math.max(z1d, q[2]); }
+          if (x5 * bSide > 0 && z15 > z0d && z05 < z1d) yBarD = Math.min(yBarD, y05 - 0.04);
+        }
         let bF = -1, bA = -1, dF2 = 1e9, dA2 = 1e9;
         pts2.forEach((p, i) => {
-          const dy = Math.abs(p[1] - yWd);
+          const dy = Math.abs(p[1] - yBarD);
           if (p[2] >= cz3) { if (dy < dF2) { dF2 = dy; bF = i; } }
           else if (dy < dA2) { dA2 = dy; bA = i; }
         });
