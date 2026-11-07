@@ -585,7 +585,7 @@
   // buffer this needs (the G144 resolve pass). The bake cannot sharpen -
   // fwidth at a 128 px tile puts every texel on 0.5 - so it takes the same
   // step as a HARD mask at the collection's own cutoff.
-  const U_SHARP = { value: 0.9 };   // W0c.31: 0.9 by the user's eye
+  const U_SHARP = { value: 0.4 };   // W0c.31: 0.9 by the user's eye; LOOK-1 7 Nov: 0.4, softer and less crawl (canopy flicker 34.8 vs 36.9, crown pan 16.6 vs 19.2)
   const EDGE_GLSL = [
     'if (uBakeAlb > 0.5) {',
     '  diffuseColor.a = diffuseColor.a >= uCut ? 1.0 : 0.0;',
