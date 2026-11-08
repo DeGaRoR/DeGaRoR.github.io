@@ -354,6 +354,19 @@ function planeSection(p) {
     for (const c of o.cases) h += '<tr><td>' + esc(c.id) + '</td><td class="num">' + f(c.mass) + '</td><td class="num">' + f(c.cgMAC) + '</td><td class="num">' + f(c.sm) + '</td><td class="num">' + f(c.Vs) + '</td><td class="num">' + f(c.V75) + '</td><td class="num">' + f(c.Vmax) + '</td><td class="num">' + f(c.roc, 2) + '</td><td class="num">' + f(c.LD, 1) + '</td><td class="num">' + f(c.deAppr, 3) + '</td></tr>';
     h += '</tbody></table></div></details>';
   }
+  if (o.flights && Object.keys(o.flights).length) {
+    h += '<details><summary>The flights (the game\'s pilot and the handbook schedule, at each load)</summary><div class="tablewrap"><table><thead><tr><th>load</th><th>who</th><th class="num">TO roll</th><th class="num">to 50 ft</th><th class="num">climb m/s</th><th class="num">LDG roll</th><th class="num">from 50 ft</th><th>outcome</th></tr></thead><tbody>';
+    for (const id of Object.keys(o.flights)) for (const who of ['game', 'poh']) { const r = o.flights[id][who]; if (!r) continue;
+      const hard = r.hard || (num(r.LDG) && r.LDG < 20);
+      h += '<tr><td>' + esc(id) + '</td><td>' + (who === 'poh' ? 'handbook' : 'game') + '</td><td class="num">' + f(r.TO) + '</td><td class="num">' + f(r.TO50) + '</td><td class="num">' + f(r.climb, 2) + '</td><td class="num">' + f(r.LDG) + '</td><td class="num">' + f(r.LDG50) + '</td><td>' + esc(r.outcome) + (r.goArounds ? ', ' + r.goArounds + ' go-around' + (r.goArounds > 1 ? 's' : '') : '') + (hard ? ' <span class="chip bad"><i>■</i>hard arrival' + (num(r.tdSink) ? ' ' + f(r.tdSink, 1) + ' m/s' : '') + '</span>' : '') + '</td></tr>'; }
+    h += '</tbody></table></div></details>';
+  }
+  if (o.water && Object.keys(o.water).length) {
+    h += '<details><summary>The water runs</summary><div class="tablewrap"><table><thead><tr><th>load</th><th class="num">supplement rig m / s</th><th class="num">no-flap rig m / s</th><th class="num">hump R/W</th><th class="num">game pilot m / s</th></tr></thead><tbody>';
+    for (const id of Object.keys(o.water)) { const w = o.water[id];
+      h += '<tr><td>' + esc(id) + '</td><td class="num">' + f(w.poh.TOW) + ' / ' + f(w.poh.TOWs, 1) + '</td><td class="num">' + f(w.rig.TOW) + ' / ' + f(w.rig.TOWs, 1) + '</td><td class="num">' + f(w.poh.hump, 3) + '</td><td class="num">' + f(w.game.TO) + ' / ' + f(w.game.TOs, 1) + '</td></tr>'; }
+    h += '</tbody></table></div></details>';
+  }
   if (o.pilotShare) { const ps = o.pilotShare;
     h += '<p><b>The pilot\'s share</b> (the game\'s pilot minus the best schedule, at ' + esc(ps.load) + '): take-off roll ' + sgn(ps.TO) + ' m, to 50 ft ' + sgn(ps.TO50) + ' m, climb ' + sgn(ps.climb, 2) + ' m/s, landing roll ' + sgn(ps.LDG) + ' m.</p>'; }
   h += '<p class="muted">Source: <code>' + esc(o._src || '') + '</code>' + (o.wall ? ' · ' + f(o.wall / 60) + ' min to measure' : '') + '</p>';

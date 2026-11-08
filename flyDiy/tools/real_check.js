@@ -267,6 +267,10 @@ function flight(spec, def, lc, o) {
     rec.LDG50 = p50 && stop ? dist(p50, stop) : null;
     rec.Vtd = td ? td[4] * 3.6 : null;
     rec.flapLdgFlown = ap.appr ? ap.appr.flap : null;
+    // the arrival's own record (the pilot's report): a touchdown sink over 3 m/s is a drop, not a landing, and its "roll"
+    // is not a landing roll (the Birdman as found: 6.3 m/s at 39 km/h, 7 m)
+    const RL = ap.report && ap.report.landing;
+    rec.tdSink = RL ? RL.sink : null; rec.hard = !!(RL && RL.sink > 3);
     rec.outcome = rec.outcome || ap.report.outcome || 'clock';
     rec.goArounds = phases.filter(p => p[0] === 'GOAROUND').length;
   } finally { undo(); }
@@ -525,7 +529,7 @@ function md(out) {
     L.push('| load | who | TO roll | Vlof | TO 50 ft | climb m/s @ km/h (thr) | LDG roll | LDG 50 ft | flap flown | outcome |');
     L.push('|---|---|---|---|---|---|---|---|---|---|');
     for (const id of Object.keys(out.flights)) for (const who of ['game', 'poh']) { const r = out.flights[id][who];
-      L.push('| ' + id + ' | ' + who + ' | ' + f(r.TO) + ' | ' + f(r.Vlof) + ' | ' + f(r.TO50) + ' | ' + f(r.climb, 2) + ' @ ' + f(r.Vclimb) + ' (' + f(r.thrClimb, 2) + ') | ' + f(r.LDG) + ' | ' + f(r.LDG50) + ' | ' + f(r.flapLdgFlown, 2) + ' | ' + r.outcome + (r.goArounds ? ', ' + r.goArounds + ' GA' : '') + ' |'); }
+      L.push('| ' + id + ' | ' + who + ' | ' + f(r.TO) + ' | ' + f(r.Vlof) + ' | ' + f(r.TO50) + ' | ' + f(r.climb, 2) + ' @ ' + f(r.Vclimb) + ' (' + f(r.thrClimb, 2) + ') | ' + f(r.LDG) + ' | ' + f(r.LDG50) + ' | ' + f(r.flapLdgFlown, 2) + ' | ' + r.outcome + (r.goArounds ? ', ' + r.goArounds + ' GA' : '') + (r.hard ? ', HARD (sink ' + f(r.tdSink, 1) + ' m/s)' : '') + ' |'); }
     L.push('');
   }
   if (out.sweep) {
@@ -633,4 +637,4 @@ function collect(list, dir, t0) {
   console.log(text);
 }
 if (require.main === module) main();
-module.exports = { runPlane, verdicts, md, svg, interp, solveM, cases, loadFacts, makeCase, REFS, PLANES, HISTORY };
+module.exports = { flight, loadSpec, airframe, runPlane, verdicts, md, svg, interp, solveM, cases, loadFacts, makeCase, REFS, PLANES, HISTORY };

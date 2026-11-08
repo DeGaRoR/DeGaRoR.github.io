@@ -387,6 +387,7 @@ const NOTES = {
   c172x: ['The like-for-like 172: the roll is right, the climb-out after it is not (485 m lift-off to 50 ft against 226).'],
   pa18f: ['Climb 14-21 % short and the water run 50-80 kg "heavy": the propeller item, plus 150 hp against the reference\'s 160.'],
   chinook: ['Airframe only: the game\'s pilot rejects the take-off (GATE ARCHETYPES\' standing red).'],
+  birdman: ['The Chinook as the user first built it (10.6 m span, 1.41 m prop, the engine aft of the pod; corrected 21 Sep into the official Chinook). <b>It flies where the corrected one does not</b> (the game\'s pilot rejects the corrected Chinook\'s take-off). Its arrivals are drops: the pilot\'s own record gives a 6.3 m/s sink at 39 km/h and a 7 m "roll", so its landing rows are a stall in the flare, not a landing roll. Empty 282 kg against 172-209 (+35 %); climb half the sheet\'s.'],
   petrel: ['Measured on claude/hull-types (7 Nov), before the geometry and specs pass: superseded by the land run on claude/seaplanes-merge below.'],
 };
 
