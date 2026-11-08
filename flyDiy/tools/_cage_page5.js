@@ -1013,6 +1013,8 @@ window.CAGE_PAGE = {
         ['paxWinR4',    'radius · fwd bottom', -0.01, 0.45, 0.005,
          { when: P => +P.paxWinN > 0 && +P.paxWinShape !== 1, dim: 'len', link: { sentinel: -1, from: 'paxWinR', test: v => v == null || v < 0 } }],
         ['paxWinDepth', 'reveal depth',    0.0, 0.03, 0.001, { when: P => +P.paxWinN > 0, dim: 'len' }],
+        // BUBBLE-WINDOWS (the user 7 Nov): blown out into a blister this far at its centre (0 = the flat pane, set in)
+        ['paxWinBulge', 'bubble',          0.0, 0.2, 0.005, { when: P => +P.paxWinN > 0, absent: 0, dim: 'len' }],
       ], 'open'],
       ['row 2', [
         ['win2N',     'windows',         0, 4, 1,
@@ -1041,6 +1043,8 @@ window.CAGE_PAGE = {
         ['win2R4',    'radius · fwd bottom', -0.01, 0.45, 0.005,
          { when: P => +P.win2N > 0 && +P.win2Shape !== 1, dim: 'len', link: { sentinel: -1, from: 'win2R', test: v => v == null || v < 0 } }],
         ['win2Depth', 'reveal depth',    0.0, 0.03, 0.001, { when: P => +P.win2N > 0, dim: 'len' }],
+        // BUBBLE-WINDOWS (the user 7 Nov): blown out into a blister this far at its centre (0 = the flat pane, set in)
+        ['win2Bulge',   'bubble',          0.0, 0.2, 0.005, { when: P => +P.win2N > 0, absent: 0, dim: 'len' }],
       ], {}],
       ['row 3', [
         ['win3N',     'windows',         0, 4, 1,
@@ -1069,6 +1073,8 @@ window.CAGE_PAGE = {
         ['win3R4',    'radius · fwd bottom', -0.01, 0.45, 0.005,
          { when: P => +P.win3N > 0 && +P.win3Shape !== 1, dim: 'len', link: { sentinel: -1, from: 'win3R', test: v => v == null || v < 0 } }],
         ['win3Depth', 'reveal depth',    0.0, 0.03, 0.001, { when: P => +P.win3N > 0, dim: 'len' }],
+        // BUBBLE-WINDOWS (the user 7 Nov): blown out into a blister this far at its centre (0 = the flat pane, set in)
+        ['win3Bulge',   'bubble',          0.0, 0.2, 0.005, { when: P => +P.win3N > 0, absent: 0, dim: 'len' }],
       ], {}],
     ]],
     ['5 · passengers', [

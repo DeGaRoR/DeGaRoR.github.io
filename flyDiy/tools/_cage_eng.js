@@ -589,7 +589,7 @@ const ENG_ITEMS = [
   // trailing edge, ahead of the pod's aft face — _cage_cowl engineFaces)
   // (CABIN-CRAFT, the FIREWALL RULE - _cage_cowl.js: a cowled pusher, or a push-pull's aft unit, stands on the pod's
   // face; fore / aft it is the stand (eng_mountGap) and the cowl length, so the block rows go where they move nothing)
-  ['engBlockZ', 'block fore / aft', -1.0, 1.0, 0.01,
+  ['engBlockZ', 'block fore / aft', -1.0, 2.0, 0.01,   // DC3-EDITABLE: the DC-3's block sits at 1.0
    { when: P => +P.engOn && Math.round(P.engMount) >= 1 && !cowledPusherRow(P), dim: 'm' }],
   ['engBlockY', 'block up / down', -0.6, 0.8, 0.01,
    { when: P => +P.engOn && Math.round(P.engMount) >= 1 && !cowledPusherRow(P), dim: 'm' }],

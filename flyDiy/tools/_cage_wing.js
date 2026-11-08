@@ -207,9 +207,10 @@ const WING_ITEMS = [
   // holds them equal) - the 2026-09-04 sailplane opening (0.80 m, 18 m) had
   // reached the clamp and the class seed (15 x 1.00) but not these rows
   // G3503 (DC3-BUILD): to the widened envelope's 30 m and 5 m (a full-size DC-3)
-  ['wgSpan',   'span',           6.5, 30, 0.1, { ...on, dim: 'm', note: spanNote }],
-  ['wgChord',  'root chord',     0.80, 5.00, 0.05, { ...on, dim: 'm' }],
-  ['wgChordTip', 'tip chord',    0.55, 5.00, 0.05, { when: P => +P.wingOn && !+P.wgPlan, dim: 'm', note: tipNote }],
+  // DC3-EDITABLE: to its ~40 m class's 40 m and 6 m (the user, 7 Nov: "allowing us to build wider planes")
+  ['wgSpan',   'span',           6.5, 40, 0.1, { ...on, dim: 'm', note: spanNote }],
+  ['wgChord',  'root chord',     0.80, 6.00, 0.05, { ...on, dim: 'm' }],
+  ['wgChordTip', 'tip chord',    0.55, 6.00, 0.05, { when: P => +P.wingOn && !+P.wgPlan, dim: 'm', note: tipNote }],
   // THE ELLIPTIC PLANFORM (the user, 27 Oct, the Spitfire: "a truly elliptic wing"): the chord follows one
   // ellipse over the whole semispan from the root chord on the centreline, the line at `straight line at` of
   // the chord runs straight (swept by `tip aft`); the tip chord, the crank and the tip type stand down
@@ -230,7 +231,7 @@ const WING_ITEMS = [
   // where the strut lands (the frame's ruling), so this trio IS the
   // C172's wing: constant chord to the strut, taper and offset outboard.
   // G3579 (DC3-2): to the big envelope's 5 m (the DC-3's constant-chord centre section, 4.63 m); a small wing is held at 2.10 as before
-  ['wgCrankChord', 'crank chord', 0.55, 5.00, 0.05,
+  ['wgCrankChord', 'crank chord', 0.55, 6.00, 0.05,
    { when: P => +P.wingOn && +P.wgCrankAt > 0, dim: 'm' }],
   ['wgCrankX', 'crank aft',      -0.8, 1.5, 0.05,
    { when: P => +P.wingOn && +P.wgCrankAt > 0, dim: 'm', note: heldNote('wgCrankX') }],
@@ -279,8 +280,8 @@ const WING_ITEMS = [
    ['as the aeroplane', 'carbon', 'steel tube', 'fabric on wood', 'aluminium', 'aluminium tube', 'glassfibre'],
    on],
   // G3503 (DC3-BUILD): aft to 6 m (negative is aft) - a full-size DC-3's wing stands
-  // ~4 m behind its cockpit ring; the flown envelope's xLE window still holds it
-  ['wgDx',     'fore / aft',       -6.0, 1.8, 0.05, { ...on, note: heldNote('wgDx') }],
+  // ~4 m behind its cockpit ring; the flown envelope's xLE window still holds it (DC3-EDITABLE: to 9 m, the big box's 12 m LE)
+  ['wgDx',     'fore / aft',       -9.0, 1.8, 0.05, { ...on, note: heldNote('wgDx') }],
   ['wgDy',     'up / down',         -1.0, 1.0, 0.02, on],
   ['wgParaH',  'height (cabane)',    0.25, 1.20, 0.01,
    { when: P => +P.wingOn && Math.round(P.wgPos) === 3, dim: 'm' }],

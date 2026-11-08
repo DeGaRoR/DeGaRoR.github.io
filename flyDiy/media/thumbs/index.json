@@ -1,7 +1,7 @@
 {
  "what": "flydiy-thumbs",
  "v": 1,
- "baked": "2026-11-05",
+ "baked": "2026-11-07",
  "view": "profile/0.9/480x240",
  "thumbs": {
   "cand:Twin_busher_floats_4b.json": "cand_Twin_busher_floats_4b.webp",
@@ -34,6 +34,17 @@
   "list:39": "list_39.webp",
   "list:5": "list_5.webp",
   "list:7": "list_7.webp",
-  "cand:pawnee (1).json": "cand_pawnee_1_.webp"
+  "cand:pawnee (1).json": "cand_pawnee_1_.webp",
+  "arch:c172": "arch_c172.webp",
+  "arch:camel": "arch_camel.webp",
+  "arch:chinook": "arch_chinook.webp",
+  "arch:cub": "arch_cub.webp",
+  "arch:jodel": "arch_jodel.webp",
+  "arch:pushPull": "arch_pushPull.webp",
+  "arch:skymaster": "arch_skymaster.webp",
+  "arch:spitfire": "arch_spitfire.webp",
+  "arch:stearman": "arch_stearman.webp",
+  "arch:tigermoth": "arch_tigermoth.webp",
+  "cand:build_v7_ultralight_2026-09-05_floats.json": "cand_build_v7_ultralight_2026-09-05_floats.webp"
  }
 }

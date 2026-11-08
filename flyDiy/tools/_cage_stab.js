@@ -111,11 +111,11 @@ const GROUP = ['8b · tail — stab & elevator', [
     // G271: between twin booms the span is NOT the builder's — the panel
     // runs from fin to fin (its tips on the booms' centre planes) and the
     // one number left is how far it overhangs past them (metres, a side)
-    ['stSpan',     'span (× the drawn)',                0.50, 1.80, 0.01,
+    ['stSpan',     'span (× the drawn)',                0.50, 2.50, 0.01,   // DC3-EDITABLE: a big aeroplane's stab (12 m)
      { when: P => !+P.boomTwin }],
     ['stOver',     'overhang past the booms', 0, 1.0, 0.01,
      { when: P => !!+P.boomTwin, dim: 'len' }],
-    ['stChord',    'chord (× the drawn, about the hinge)', 0.50, 1.60, 0.01],
+    ['stChord',    'chord (× the drawn, about the hinge)', 0.50, 2.20, 0.01],
     ['stChordTip', 'tip chord (of the root)',           0.30, 1.50, 0.01],
     ['stSweep',    'sweep (deg, the hinge rakes)',      -10, 45, 0.5],
     ['stHinge',    'elevator chord (of the root)',      0.08, 0.45, 0.005],

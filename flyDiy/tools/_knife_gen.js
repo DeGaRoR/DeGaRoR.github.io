@@ -715,7 +715,127 @@ function knifeCut(m, win, opt) {
     loops.push({ ring, closed });
   }
   stats.loops = loops.length;
-  for (const { pg, f } of paneRep) {
+  // BUBBLE WINDOWS (BUBBLE-WINDOWS, the user 7 Nov: "bubble windows would be
+  // cool"): win.bulge > 0 blows the pane OUT into a blister instead of setting
+  // it in. The dome stands on the hole's own loop (its rim on the skin, under
+  // the bead), its rings are the outline shrunk towards the outline's centroid
+  // in the tangent plane, each laid on the skin under it (the pane pieces,
+  // which carry the skin's points) and lifted along the skin's normal on an
+  // ellipse: rim on the skin, the full bulge at the centre, never overhanging.
+  // One part, one loop, one host: a window across a door's edge (two hosts)
+  // or with an open loop keeps the flat pane. No reveal wall: there is no
+  // recess.
+  const bulgeOf = () => {
+    const b = Math.max(0, +win.bulge || 0);
+    if (!b || loops.length !== 1 || !loops[0].closed || loops[0].ring.length < 3) return 0;
+    const tag = f => JSON.stringify([f.doorKey, f.cutPart, f.cutOff]);
+    if (!paneRep.every(p => tag(p.f) === tag(paneRep[0].f))) return 0;
+    return Math.min(b, 0.5 * Math.min(bb.u1 - bb.u0, bb.v1 - bb.v0));
+  };
+  const bulge = bulgeOf();
+  const wallDepth = bulge ? 0 : depth;
+  if (bulge) {
+    const ring = loops[0].ring, n0r = ring.length;
+    // the skin under a tangent-plane point: barycentric in the pane pieces' fans
+    const tris = [];
+    for (const { pg } of paneRep)
+      for (let i = 1; i + 1 < pg.length; i++) tris.push([pg[0].rec, pg[i].rec, pg[i + 1].rec]);
+    const skinAt = uv => {
+      let best = null, bw = -1e9;
+      for (const t of tris) {
+        const [a, b, c] = t.map(r => r.uv);
+        const d = (b[1] - c[1]) * (a[0] - c[0]) + (c[0] - b[0]) * (a[1] - c[1]);
+        if (Math.abs(d) < 1e-16) continue;
+        const l1 = ((b[1] - c[1]) * (uv[0] - c[0]) + (c[0] - b[0]) * (uv[1] - c[1])) / d;
+        const l2 = ((c[1] - a[1]) * (uv[0] - c[0]) + (a[0] - c[0]) * (uv[1] - c[1])) / d;
+        const l = [l1, l2, 1 - l1 - l2], mn = Math.min(l[0], l[1], l[2]);
+        if (mn > bw) { bw = mn; best = { t, l }; }
+        if (mn >= 0) break;
+      }
+      const l = best.l.map(x => Math.max(0, x)), s = l[0] + l[1] + l[2] || 1;
+      const mix = k => best.t[0][k] && best.t[1][k] && best.t[2][k]
+        ? [0, 1, 2, 3].slice(0, best.t[0][k].length).map(i =>
+            (best.t[0][k][i] * l[0] + best.t[1][k][i] * l[1] + best.t[2][k][i] * l[2]) / s)
+        : null;
+      return { P: mix('P'), N: nrm3(mix('N')), A: mix('A') };
+    };
+    // the rim by arc length (each ring is sampled at the same fractions of it)
+    const cum = [0];
+    for (let i = 1; i <= n0r; i++) {
+      const p = ring[i - 1].uv, q = ring[i % n0r].uv;
+      cum.push(cum[i - 1] + Math.hypot(q[0] - p[0], q[1] - p[1]));
+    }
+    const Ltot = cum[n0r] || 1;
+    const rimAt = fr => {
+      const L = fr * Ltot;
+      let i = 0;
+      while (i < n0r - 1 && cum[i + 1] < L) i++;
+      const p = ring[i].uv, q = ring[(i + 1) % n0r].uv, seg = cum[i + 1] - cum[i] || 1;
+      const t = (L - cum[i]) / seg;
+      return [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t];
+    };
+    let ca = 0, cu = 0, cv = 0;                    // the outline's centroid
+    for (let i = 0; i < n0r; i++) {
+      const p = ring[i].uv, q = ring[(i + 1) % n0r].uv, x = p[0] * q[1] - q[0] * p[1];
+      ca += x; cu += (p[0] + q[0]) * x; cv += (p[1] + q[1]) * x;
+    }
+    const cuv = Math.abs(ca) > 1e-14 ? [cu / (3 * ca), cv / (3 * ca)] : [0, 0];
+    const baseN = [];                               // per dome vertex, for the winding
+    const dv = (P, Nn, Aa, h) => {
+      const id = V.length;
+      V.push([P[0] + Nn[0] * h, P[1] + Nn[1] * h, P[2] + Nn[2] * h]);
+      N.push([0, 0, 0]); baseN[id] = Nn;
+      if (A) A.push(Aa ? Aa.slice() : [0, 0, 0, 0]);
+      return id;
+    };
+    const K = 6, rings = [];
+    rings.push(ring.map((r, i) => ({ id: dv(r.P, r.N, r.A, 0), t: cum[i] / Ltot })));
+    for (let k = 1; k < K; k++) {
+      const th = k / K * Math.PI / 2, s = Math.cos(th), h = bulge * Math.sin(th);
+      const nk = Math.max(8, Math.ceil(n0r * s / 2)), rk = [];
+      for (let j = 0; j < nk; j++) {
+        const q = rimAt(j / nk), uv = [cuv[0] + (q[0] - cuv[0]) * s, cuv[1] + (q[1] - cuv[1]) * s];
+        const sk = skinAt(uv);
+        rk.push({ id: dv(sk.P, sk.N, sk.A, h), t: j / nk });
+      }
+      rings.push(rk);
+    }
+    const apex = skinAt(cuv), apexId = dv(apex.P, apex.N, apex.A, bulge);
+    const host = paneRep[0].f, faces = [];
+    const tri = (a, b, c) => {
+      let v = [a, b, c];
+      const nf = cross(sub(V[b], V[a]), sub(V[c], V[a]));
+      const nb = [0, 1, 2].map(k => baseN[a][k] + baseN[b][k] + baseN[c][k]);
+      if (nf[0] * nb[0] + nf[1] * nb[1] + nf[2] * nb[2] < 0) v = [a, c, b];
+      faces.push(v);
+    };
+    // zip two rings sampled at increasing fractions of the rim
+    const zip = (ra, rb) => {
+      const na = ra.length, nb = rb.length;
+      let i = 0, j = 0;
+      while (i < na || j < nb) {
+        const ta = i < na ? (i + 1 < na ? ra[i + 1].t : 1) : Infinity;
+        const tb = j < nb ? (j + 1 < nb ? rb[j + 1].t : 1) : Infinity;
+        if (ta <= tb) { tri(ra[i % na].id, ra[(i + 1) % na].id, rb[j % nb].id); i++; }
+        else { tri(ra[i % na].id, rb[(j + 1) % nb].id, rb[j % nb].id); j++; }
+      }
+    };
+    for (let k = 0; k + 1 < rings.length; k++) zip(rings[k], rings[k + 1]);
+    const last = rings[rings.length - 1];
+    for (let j = 0; j < last.length; j++) tri(last[j].id, last[(j + 1) % last.length].id, apexId);
+    // the dome's own normals, area-weighted (it is smooth glass, rim included)
+    for (const v of faces) {
+      const nf = cross(sub(V[v[1]], V[v[0]]), sub(V[v[2]], V[v[0]]));
+      for (const vi of v) { N[vi][0] += nf[0]; N[vi][1] += nf[1]; N[vi][2] += nf[2]; }
+    }
+    for (const v of faces) for (const vi of v) N[vi] = nrm3(N[vi]);
+    for (const v of faces) {
+      const nf = Object.assign({}, host, { v, m: paneMat, knife: 1 });
+      delete nf.door; delete nf.win;
+      F.push(nf);
+    }
+    stats.blister = faces.length;
+  } else for (const { pg, f } of paneRep) {
     // NOT `win`-marked: that tag is the band-window contract (cageCut /
     // cageRims trace quads by it) and a knife pane is n-gons on its own loop
     // ...but the pane KEEPS its part tags (doorKey, cutPart, cutOff): a
@@ -759,11 +879,11 @@ function knifeCut(m, win, opt) {
       top.push(V.length); V.push(r.P.slice()); N.push([0, 0, 0]);
       if (A) A.push(aZ());
       bot.push(V.length);
-      V.push(recess(r));
+      V.push(bulge ? r.P.slice() : recess(r));   // (BUBBLE-WINDOWS: a dome has no reveal wall - the ring stays on the skin)
       N.push([0, 0, 0]);
       if (A) A.push(aZ());
     }
-    if (depth > 0 || CEIL != null || CP) for (let i = 0; i < ring.length; i++) {
+    if (wallDepth > 0 || CEIL != null || CP) for (let i = 0; i < ring.length; i++) {
       const j2 = (i + 1) % ring.length, gone = q => Math.hypot(V[top[q]][0] - V[bot[q]][0], V[top[q]][1] - V[bot[q]][1], V[top[q]][2] - V[bot[q]][2]) < 1e-7;
       if ((CEIL != null || CP) && gone(i) && gone(j2)) continue;
       const j = (i + 1) % ring.length;

@@ -8661,7 +8661,9 @@
                           // camera, then its pose: x y z in world metres, yaw / pitch in radians as devCam reads them)
                           devFree: (x, y, z, yaw, pitch) => { if (cam.mode !== 'free') flCamMode('free'); devCam.pos.set(x, y, z); devCam.yaw = yaw; devCam.pitch = pitch; devCam.last = performance.now(); return cam.mode; },
                           craft: () => craft,                                   // G1460: the drawn aeroplane, for GATE SOFTGPU's hidden-craft frame
-                          renderer: () => renderer, hangarScene: () => hangarScene, camera: () => camera, pan: (x, y, z) => edPan.set(x, y, z), camGet: () => ({ az, el, dist, eye: camera.position.toArray(), target: target.toArray(), fov: camera.fov, exposure: renderer.toneMappingExposure, tone: renderer.toneMapping, envDeferred, envDirty, envAway, envPM: !!envPM, envSource }) };   // G439: the rig reads the eye back
+                          renderer: () => renderer, hangarScene: () => hangarScene, camera: () => camera,
+                          compileScreen: (sc, lit) => compileSliced(sc, null, lit),   // PLANE-RENDERS R1: the thumb's screen variant, sliced
+                          pan: (x, y, z) => edPan.set(x, y, z), camGet: () => ({ az, el, dist, eye: camera.position.toArray(), target: target.toArray(), fov: camera.fov, exposure: renderer.toneMappingExposure, tone: renderer.toneMapping, envDeferred, envDirty, envAway, envPM: !!envPM, envSource }) };   // G439: the rig reads the eye back
   // ---- MANUAL CONTROLS (G200): who is flying, and the ending when it is you
   // The toggle is a KEY (apToggle) and a pill in the `controls` flyout;
   // both land here. Hand → AP re-latches every integrator (ap.reEngage, W14)

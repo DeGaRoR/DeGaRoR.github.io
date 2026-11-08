@@ -97,13 +97,14 @@ const LEG_ROWS = {
   ],
   3: [
     ['twSpringLen', 'spring length', 0.20, 1.00, 0.01],
-    ['twSpringDrop', 'spring drop', 0.05, 0.70, 0.005],
+    // DC3-EDITABLE: a spring tip a little above its fitting (the DC-3's -0.025), a long castor's drop and trail (its 0.42)
+    ['twSpringDrop', 'spring drop', -0.10, 0.70, 0.005],
     ['twSpringW', 'spring width', 0.02, 0.10, 0.002],
     ['twSpringT', 'leaf thick', 0.004, 0.020, 0.001],
     ['twLeaves', 'leaves', 1, 4, 1],
     ['twRake', 'castor rake', 0, 50, 0.5],
-    ['twTrail', 'castor trail', 0.01, 0.14, 0.002],
-    ['twLegDrop', 'swivel drop', 0.03, 0.30, 0.005],
+    ['twTrail', 'castor trail', 0.01, 0.25, 0.002],
+    ['twLegDrop', 'swivel drop', 0.03, 0.60, 0.005],
     ['twSteer', 'steer angle', -40, 40, 1],
     ['twSteerVis', 'springs+chains', 0, 1, 1],
     // G330: the rudder-horn rows are gone — the horn is the RUDDER'S (G326,
