@@ -72,7 +72,8 @@ const HV = require(path.join(ROOT, 'src', 'viewer', 'hangar_view.js'));
   ok(/compileSliced\(hview\.group, aa && aa\.target \? aa\.target\(\) : null, hangarScene\)/.test(app), '3b the view\'s programs are linked before the reveal');
   ok(/if \(inShed\) hviewTick\(\);/.test(app) && /hviewHold = 45;/.test(app) && /hviewCapture\(\[hviewFace\]\)/.test(app), '3c a return\'s recapture is deferred, a face a shed frame');
   ok(/craftInWorldNow\(\(\) => \{\s*craft\.traverse\(o => \{ if \(\(o\.isMesh/.test(app), '3d the capture keeps the craft\'s lights in the world (its meshes hidden)');
-  ok(/outdoorsShow: on => \{/.test(han) && /o\.name !== 'room:polish'/.test(han) && /skyMesh\.visible = !muted\.sky && !viewOut/.test(han), '3e hangar.js outdoorsShow: the outdoors\' span and the sky; the walls\' polish stays');
+  ok(/outdoorsShow: \(on, keepSky\) => \{/.test(han) && /o\.name !== 'room:polish'/.test(han) && /skyMesh\.visible = !muted\.sky && \(!viewOut \|\| skyLive\)/.test(han) && /hangar\.outdoorsShow\(!up, up\)/.test(app),
+    '3e hangar.js outdoorsShow: the outdoors\' span off, the walls\' polish stays; the live sky kept behind the view (HANGAR-VIEW C)');
   ok(/'hangar\.js',\s*\n\s*'hangar_view\.js'/.test(build), '3f the build manifest carries hangar_view.js after hangar.js');
   ok(/exposureNow: \(\) => LE\.ex/.test(rw), '3g the world hands its eased exposure (the capture is lit as the world shows it)');
   ok(/HVIEW_N = \{ laptop: 768, potato: 768, retro: 768/.test(app) && /G\.soft && G\.soft\(\)\) return 0/.test(app), '3h potato / laptop / retro at 768, none on a software renderer');
