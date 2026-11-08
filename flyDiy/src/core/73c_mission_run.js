@@ -210,7 +210,7 @@ function missionHitTest(p, a, b) {
       const u = M2 > 0 ? Math.max(0, Math.min(1, ((cx - a.x) * dx + (cy - ya) * dy + (cz - a.z) * dz) / M2)) : 1, q = msrLerp(a, b, u);
       return Math.hypot(q.x - cx, (msrNum(q.y) ? q.y : cy) - cy, q.z - cz) <= p.r ? q : null;
     }
-    const r = p.dir * Math.PI / 180, nx = Math.sin(r), nz = -Math.cos(r);       // the ring faces its heading
+    const r = p.dir * Math.PI / 180, nx = CORE_MATH.sin(r), nz = -CORE_MATH.cos(r);       // the ring faces its heading
     const sa = (a.x - cx) * nx + (a.z - cz) * nz, sb = (b.x - cx) * nx + (b.z - cz) * nz;
     if (!(sa < 0 && sb >= 0)) return null;                                     // through it, the way it faces
     const u = sa / (sa - sb), q = msrLerp(a, b, u);
@@ -264,7 +264,7 @@ function missionStrikeTest(p, a, b, reach) {
     return out;
   }
   if (k === 'ring' && msrNum(p.dir)) {
-    const [cx, cy, cz] = p.ring.map(Number), r = p.dir * Math.PI / 180, nx = Math.sin(r), nz = -Math.cos(r);
+    const [cx, cy, cz] = p.ring.map(Number), r = p.dir * Math.PI / 180, nx = CORE_MATH.sin(r), nz = -CORE_MATH.cos(r);
     const sa = (a.x - cx) * nx + (a.z - cz) * nz, sb = (b.x - cx) * nx + (b.z - cz) * nz;
     if ((sa < 0) === (sb < 0) || !msrNum(a.y) || !msrNum(b.y)) return out;   // not across its plane (or no height known)
     const u = sa / (sa - sb), q = msrLerp(a, b, u);

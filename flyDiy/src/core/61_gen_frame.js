@@ -2160,7 +2160,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       ? S.controls.elevator.chord : 0.40;
     const sparF = R.tailSparFront == null ? 0.15 : R.tailSparFront;
     const dep = R.tailBoxDepth == null ? 0.08 : R.tailBoxDepth;
-    const G = (t.ivAngle || 33) * Math.PI / 180, cG = Math.cos(G), sG = Math.sin(G);
+    const G = (t.ivAngle || 33) * Math.PI / 180, cG = CORE_MATH.cos(G), sG = CORE_MATH.sin(G);
     // G3801 (the user 4 Nov: "all possible options"): THE FOUR WAYS - up or down, in or out (genIvDir); an outward
     // panel's span is its own reach (genIvReach), an inward one's the booms' less half the gap
     const IVD = genIvDir(t), ud = IVD.up ? 1 : -1, io = IVD.out ? -1 : 1;

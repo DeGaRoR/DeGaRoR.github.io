@@ -2888,7 +2888,7 @@ function missionHitTest(p, a, b) {
       const u = M2 > 0 ? Math.max(0, Math.min(1, ((cx - a.x) * dx + (cy - ya) * dy + (cz - a.z) * dz) / M2)) : 1, q = msrLerp(a, b, u);
       return Math.hypot(q.x - cx, (msrNum(q.y) ? q.y : cy) - cy, q.z - cz) <= p.r ? q : null;
     }
-    const r = p.dir * Math.PI / 180, nx = Math.sin(r), nz = -Math.cos(r);       // the ring faces its heading
+    const r = p.dir * Math.PI / 180, nx = CORE_MATH.sin(r), nz = -CORE_MATH.cos(r);       // the ring faces its heading
     const sa = (a.x - cx) * nx + (a.z - cz) * nz, sb = (b.x - cx) * nx + (b.z - cz) * nz;
     if (!(sa < 0 && sb >= 0)) return null;                                     // through it, the way it faces
     const u = sa / (sa - sb), q = msrLerp(a, b, u);
@@ -2942,7 +2942,7 @@ function missionStrikeTest(p, a, b, reach) {
     return out;
   }
   if (k === 'ring' && msrNum(p.dir)) {
-    const [cx, cy, cz] = p.ring.map(Number), r = p.dir * Math.PI / 180, nx = Math.sin(r), nz = -Math.cos(r);
+    const [cx, cy, cz] = p.ring.map(Number), r = p.dir * Math.PI / 180, nx = CORE_MATH.sin(r), nz = -CORE_MATH.cos(r);
     const sa = (a.x - cx) * nx + (a.z - cz) * nz, sb = (b.x - cx) * nx + (b.z - cz) * nz;
     if ((sa < 0) === (sb < 0) || !msrNum(a.y) || !msrNum(b.y)) return out;   // not across its plane (or no height known)
     const u = sa / (sa - sb), q = msrLerp(a, b, u);
@@ -7873,15 +7873,15 @@ function storyTutorNext(T, how) {
 function storyFinalPose(a, o) {
   o = o || {};
   const d = o.d || 3000, gs = o.gs || 0.06, V = o.V || 22, floor = o.floor || 60, sg = o.way === -1 ? -1 : 1;
-  const ux = sg * Math.cos(a.hdg), uz = sg * Math.sin(a.hdg);
+  const ux = sg * CORE_MATH.cos(a.hdg), uz = sg * CORE_MATH.sin(a.hdg);
   const sp0 = a.spawn || [a.x || 0, a.z || 0], elev = +a.elev || 0;
   const sp = sg > 0 ? sp0 : [2 * (a.x || 0) - sp0[0], 2 * (a.z || 0) - sp0[1]];
   const ax = sp[0] + 60 * ux, az = sp[1] + 60 * uz;            // the aim point, 60 m in from the landing end
   const x = ax - d * ux, z = az - d * uz;
   const g = typeof o.groundH === 'function' ? o.groundH(x, z) : null;
   const y = Math.max(elev + d * gs, (Number.isFinite(g) ? g : elev) + floor);
-  const cg = Math.cos(Math.atan(gs));
-  return { x, y, z, hdg: sg > 0 ? a.hdg : a.hdg + Math.PI, vx: V * cg * ux, vy: -V * Math.sin(Math.atan(gs)), vz: V * cg * uz };
+  const cg = CORE_MATH.cos(Math.atan(gs));
+  return { x, y, z, hdg: sg > 0 ? a.hdg : a.hdg + Math.PI, vx: V * cg * ux, vy: -V * CORE_MATH.sin(Math.atan(gs)), vz: V * cg * uz };
 }
 // THE WAY THE PILOT WILL LAND IT (the 25 Oct 20:15 page run, 8 kt on the day: posed on a.hdg's final, the pilot given back
 // in the air re-plans the arrival (43_pilot G3473) on the SCORED direction - the wind, the slope, the approach - and flew
@@ -7894,7 +7894,7 @@ function storyFinalWay(a, world, t) {
     const M = siteRunwayModel(a, world);
     if (!M || !Array.isArray(M.dir) || M.dir.length < 2) return 1;
     const wv = typeof world.wind === 'function' ? world.wind(a.x, (+a.elev || 0) + 30, a.z, t || 0) : null;
-    const u = [Math.cos(a.hdg), Math.sin(a.hdg)];
+    const u = [CORE_MATH.cos(a.hdg), CORE_MATH.sin(a.hdg)];
     const sc = siteScoreDirections(M, wv ? [wv[0], wv[2]] : [0, 0], { mode: 'land' }, u, typeof a.landHdg === 'number');
     const D = M.dir[sc.k].u;
     return D[0] * u[0] + D[1] * u[1] >= 0 ? 1 : -1;
