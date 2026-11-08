@@ -44,8 +44,9 @@ const P={
   // light aeroplane is actually built to; 16 mm is the head across the flats.
   fastOn:1, fastPitch:0.11, fastD:0.016,
   partOn:1, partY:0.0, partW:0.0022,
-  // PROPER-COWLS: 1 = the split held LEVEL at the firewall's height, its groove a constant width (partW in metres)
-  partLevel:0,
+  // PROPER-COWLS: 1 = the split held LEVEL at the firewall's height, its groove a constant width (partW in metres).
+  // THE DEFAULT, saved builds included (the user, 8 Nov: "yes" to every cowl's split level); 0 = the section's parameter
+  partLevel:1,
   oilOn:1, oilZ:0.42, oilW:0.13, oilL:0.16, oilSq:1,
   deckH:1, deckSweep:0, waist:0, waistF:null, waistSweep:0, keelH:0.95, keelSweep:0.55,
   // lid
