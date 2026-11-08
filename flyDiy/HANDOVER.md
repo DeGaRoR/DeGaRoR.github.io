@@ -312995,3 +312995,34 @@ PROOF (CPU, unlocked, nice'd, one process, in A0's 12:50-13:05 slot; logs in fly
 - V3: run_gates --only=CLIP on the re-pin: PASS (0 new, 6 known).
 THE RE-PIN: tools/fixtures/clip_baseline.json, the four "stock+ifr|<pose>|navAerial/centre [access, on body body]|INTO edFinSkin" lines 5.9 -> 9.2. Nothing else re-based, no allowance widened.
 NOTICED, NOT RED, NOT MINE: under the new rule, the C172 commAerial on pillarPassenger reports 7.8 mm and 109.2 mm "in" its own pillar in --report (0.6 mm out under the old rule). The gate doesn't flag it (it is its own mount, within the sunk allowance), but 109 mm sunk looks like the lowest-point search running down the pillar. It's worth a look by whoever owns FITTINGS-MANUAL.
+
+## DEFORM - GEN envelope (MASTER-GREEN), 8 Nov 2026 (claude/ready/gen-envelope, for L35c)
+
+THE RED (GATE GEN's QC "clampSpec holds the envelope", new in L35a, mine: DC3-EDITABLE, which did not run GEN). The wild
+spec asks a 40 m wing on a 0.2 m chord. It flies a 16 m wing (aspect 20 on the 0.8 m chord floor), but on master it took
+4 000 L of fuel and 1 112 kg net of fuel; the check's bounds are 2 000 L and 900 kg.
+- genBig decided "big" off the span ASKED, and clampSpec reads genBig for the fuel, the vessels and every clampBig row
+  BEFORE clampWing runs. So a wing that flies small took the big aeroplane's caps.
+- G3503 had the same flaw, hidden by its 2 000 L vessel cap; DC3-EDITABLE's 4 000 L vessel cap exposed it.
+- DC3-EDITABLE also raised the big fuel cap to 8 000 L at clampSpec's first line, but left the vessels' total at 4 000 L.
+THE FIX (src/core/60_gen_spec.js):
+- clampWing's size clamp (the chord, the span, G3579's second pass) is lifted, word for word, into genWingSize(w, k).
+  clampWing and genBig both read it.
+- genBig is now big by the span the wing FLIES. A wing asked at 18 m or under never runs the clamp (the old answer
+  exactly, so no small aeroplane can move). A wing with no chord to clamp by keeps the asked answer. The DC-3 stays big.
+- The vessels' total goes to 8 000 L, as the first cap.
+PROOF (branch 4bb26b340 against master 1bcd01d3e, built, both trees):
+- The probe of the check's six terms, master then branch:
+  - fuel 4 000 -> 1 000 L;
+  - mass net of fuel 1 112 -> 704 kg;
+  - span 16 and chord 0.8 on both, rank 297/297 on both;
+  - Vs finite on both (53.3 -> 31.8 m/s, a lighter aeroplane).
+- ENGCONFIG --pin: the 17 digest lines are identical.
+- SEAPLANES' cert_probe on its 13 rows is "0 moved". The rows: the validated Cub, Jodel, metal Cessna, floats Cessna and
+  twin floats; Rufus certified, Twin_busher_floats_4b and the C172; and the 5 contract models.
+GATES on the branch:
+- PASS: WINGROWS, JOIN, DESIGN, FLOATKIT, SPECFIX.
+- GEN (4 shards, --jobs=2, 379 s): "clampSpec holds the envelope" now PASSES in every shard. GEN stays FAIL on
+  "cruise is quiet in wind" (shard 3: bank p2p 11.59 deg, aileron 1.18 deg/s, elevator 1.07 deg/s). That is master's
+  own red: A0's master sweep on 1bcd01d3e printed the same three numbers to the digit. It is the pilot's cruise in gusts,
+  which this change cannot reach (the default aeroplane's wing is under 18 m).
