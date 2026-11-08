@@ -312808,3 +312808,32 @@ No PHYSICS_V or GEN_SPEC_V bump.
 IN (on L35a 1bcd01d3e): avionics-pfd 8eddd0fbd (the PFD's direction gyro fix, cockpit.js), cessna-tail b67182854 (the official 172's tail rows stSpan 1.27 / stHinge 0.35, land + floats), look1-sharpen 475e9a69c (leaf sharpen 0.9 -> 0.4, the user's yes), night-door-2 f34d6d6fb (the 4b door's waist bar under its lowest pane), engine-gap 1a1a478ba (a catalogue engine switched to custom keeps its registry row; DC-3 R-1830 895 kW, gear 1.78).
 BATTERY (full log read, not the tail): 101 PASS / 13 FAIL, the SAME 13 as L35a (GEN TOUR VEHICLE DMGGEAR DMGSKINGPU FRAMECOST ROUNDTRIP MEDIA ASSETS GEO SKINMAT CLIP ENGCONFIG) - no new red; their fixes ride L35c / L35d (MASTER-GREEN). No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change.
 TIMED GATE (light, stale 12 Oct baseline): steady frames p50 33.3 ms on every flown row; p99 33.5 except cub cockpit 116.8 (1 frame over 1 s, one run). Reds are the boot/compile rows (cold shader cache, as L32d/L34a/L35a); 3 rollouts lost to the page '__timeout' after slow boots. Floats take-off p99 33.5 (L35a 83.3).
+
+## DEFORM - DMGHULL (MASTER-GREEN), 8 Nov 2026 (claude/ready/dmghull-green, for L35d)
+
+THE RED: the twin on floats' hump, "each wetted keel's own constant to 1.08 %" (limit 1 %). It is the only failing line
+of 37, and it reads the same on master bddb81b0f and on L34a cad308635.
+FIRST RED (bisected on master's first-parent line, `_dmghull_check.js --only=law`): train L30c's merge of TANK-FIT,
+349bc11f2. The commit before, 04ffb5b6e, passes at 0.57 %.
+- The hull (32_hydro) is untouched. TANK-FIT moved the twin's hump pose by 1 mm: draft 0.2460 -> 0.2450 m, V 7.14 -> 7.05
+  m/s, trim 6.655 -> 6.657 deg.
+- The slip curve is the same smooth creep on both sides: side / (U w) 93.9 at 5 deg, 94.4 at 20, 95.3 at 30, 96.4 at 35,
+  97.8 at 40, 108.5 at 55.
+- The 1 mm put 30 and 35 deg (95.34 and 96.37 kg/m) into one count of wet keel stations (13): 1.08 % inside one group.
+THE READ: a stale premise of the gate, not a hull fault.
+- G3445 took "the same number of wet keel stations" as a fixed wetted keel.
+- But the bench lets the forward speed fall with the slip (U cos b, as G2030 intends), and the step's wake reads it
+  continuously (the S&M profile's C_V = Vflow / sqrt(g b), and the cavity number).
+- So an afterbody station's draft, and m(TE) with it, moves inside a count group. The gate passed before only by where the
+  station boundaries fell.
+THE FIX (tools/_dmghull_check.js only; A0 ruled it asserts more, not less):
+- Each slip angle's side term over U w is held to ITS OWN wetted keel's closed-form m(TE), to 1 % (kept).
+- The closed form: (pi/2) rho kSide T^2 on that angle's drafts, the running maximum per wetted piece, the pieces summed.
+  It is the same closed form the step case already asserts at 2 %.
+- The count groups stay in the line as the reading, with how far m(TE) moves inside them.
+PROOF (branch c4e7b8c66 on master bddb81b0f, built): GATE DMGHULL PASS, 37 of 37 lines.
+- Each case against its own closed form: the twin hump 0.67 %, the twin step 0.11 %, the Cessna on floats hump 0.29 %,
+  the Cessna on floats step 0.34 %.
+- m(TE) moves inside the count groups by up to 1.08 % on the twin's hump, and 0.00 % on the others.
+- No other gate reads the file (run_gates' DMGHULL row only). No core file, no PHYSICS_V or GEN_SPEC_V change, so no plane
+  flies differently.
