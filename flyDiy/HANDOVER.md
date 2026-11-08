@@ -313545,3 +313545,9 @@ No re-pin, and the gate is unchanged.
 ## Gates (node)
 
 NODUMMY PASS  TREEHIT PASS  BENCH PASS
+## STAR-LOVE - the stars smoothed, the water's stars quieter (NIGHT-LOOK, 8 Nov)
+The user, watching the night test: "crazy shimmering of stars both in the sky and the water ... the reflections in the water from the stars should be quite lower ... they really are white pixels, so smoothing, no halo, no decreasing intensity with the viewing angle."
+- CAUSE: the dome drew a 3D grid of cells 1/900 wide, one radiance per lit cell, sampled once at the pixel centre: a sub-pixel cell was hit or missed as the view moved (the shimmer); and the field sat 30x and more over the screen's white at night, so every star was a clipped white pixel. The mirror redraws that sky and the ripples move the read: every reflected star jumped.
+- atmo.js: an equal-angle cube grid (STAR_N 900, STAR_P 0.047), one star per lit cell at a hashed place, a smooth disc (1-x^2)^2 (no halo) of radius max(uStarK.x px footprints, uStarK.y rad), its height 3F/(pi r^2) so its flux is the same at any size (no change with screen or place); 3x3 neighbour cells (9 hashes a sky pixel instead of 1, the named cost); STAR_LVL 0.03 (the brightest just reach white, the disc's edge shows); no Tview extinction (user: "the fading through denser air" goes); the G2600 moon wash kept; uStarK default (1.5 px, 1.5e-4 rad).
+- water.js: the mirror's sky pass draws the stars at MIR.starsK 10 x the sky's level (= 0.3 of the old field) as 2-capture-px discs.
+- PROOF (flydiy-notes/evidence-2026-10-18/2026-11-04/night-photo/star/pairs): clipped star pixels in a 400x200 sky crop 976 -> 16; the lake's water frame-to-frame change in a pan 3.58 -> 1.16; noon's sky identical (only the HUD differs). Gates on the branch: ATMO LIGHT NIGHTVISIBILITY UILAYER WATER CLOUD PROGRAMS PASS; SHADOWSKY/LOOKS/MEDIA/ASSETS = master's reds, same lines. Tuning stills in star/tune1, tune2 (levels 1 .. 0.008, discs 1 .. 2 px).

@@ -661,6 +661,7 @@ var ATMO = (function () {
     uniform sampler2D uSky, uT2;
     uniform vec4 uAtm2;           // Rg, Rt, sunRad, moonRad
     uniform float uR, uScale, uEMoon, uStars, uFrame;   // uFrame: the room's yaw onto the world's frame (the shed is a quarter turn)
+    uniform vec2 uStarK;   // STAR-LOVE: x the star disc's radius in pixels' footprints (the mirror's pass sets its own), y its least radius, radians
     uniform float uGlare, uEyeY, uLutGain;                // the corona's strength (S7); the eye's height for the mist; the tables' gain (A6)
     // THE VEIL (CLOUDS C4): cirrus / cirrostratus - a 2D noise sheet at uVeil.w metres, its coverage
     // uVeil.x (a threshold on the noise like the weather map's), drifted by uVeil.yz, optically thin:
@@ -726,24 +727,58 @@ ${MIST_GLSL}
         // the disc's radiance = albedo/pi x (sun on the moon) - the sun's illuminance at the moon is 1: E_moon on us = albedo/pi x omega
         L += Tm * 0.12 / 3.14159265 * lit * edge * above * 1.0;
       }
-      // the stars: a hashed field on a fine grid, hidden by the sky's own light and the path's transmittance.
-      // IN THE SUN'S UNITS: the whole starry sky is ~2e-9 of the sun's illuminance, so one star texel is
-      // ~1e-5 here - anything brighter blurs into a glow in the reflection probe (measured: a white night)
+      // the stars: a hashed field, hidden by the sky's own light and the path's transmittance.
+      // IN THE SUN'S UNITS: the whole starry sky is ~2e-9 of the sun's illuminance - anything brighter blurs into a glow in the reflection probe (measured: a white night)
+      // STAR-LOVE (the user 8 Nov: "they really are white pixels, so smoothing, no halo, no decreasing intensity with the viewing angle"): the field was a 3D
+      // grid of cells 1/900 wide, each lit cell drawn at one radiance, sampled once at the pixel's centre - a cell smaller than a pixel was hit or missed as the
+      // view moved (the shimmer), and a mask that switched with the cells per pixel changed its brightness across the screen. Now each lit cell of an EQUAL-ANGLE
+      // CUBE grid (STAR_N cells across a face, ~0.1 deg) holds ONE STAR at a hashed place, drawn as a smooth disc (1 - x^2)^2 - compact, no halo - of radius
+      // max(uStarK.y rad, uStarK.x pixels' footprint), its height 3 F / (pi r^2) so its flux F is the same at any size: a star crossing pixels keeps its light,
+      // on any screen and at any place on it. The 3 x 3 cells round the pixel's are read (a disc up to a cell wide); no star in a face's border cells (no seam).
+      // The field's mean light is the old one's (the probe and the water see the same night): F = 1.5e-5 x 0.015 x the cell's solid angle / STAR_P per unit b.
       if (uStars > 0.0 && d.y > -0.02) {
-        vec3 g = floor(d * 900.0);
-        float h = hash13(g), h2 = hash13(g + 17.0);
-        float star = smoothstep(0.985, 1.0, h) * (0.4 + 0.6 * h2);
-        // a star is a cell of the grid: once a cell spans several pixels (a long lens, a large screen) it read as a white square; round there, the game's wide view as it was
-        star *= mix(1.0 - smoothstep(0.08, 0.42, length(fract(d * 900.0) - 0.5)), 1.0, smoothstep(0.35, 0.9, 900.0 * length(fwidth(d))));
-        // G2600: THE MOON WASHES THE FAINT STARS OUT - under a full moon the eye's limiting magnitude falls from ~6.5 to
-        // ~4.5, a fifth of the stars left. The moonlit sky (~1e-8 here) is far under the 3e-6 that hides a star below, so
-        // it is the moon's own light that thins them: the faint (low h2) go first, the full moon leaves the brightest 30 %.
-        // By day the term is already 0 (the sky hides every star): the day is untouched.
+        vec3 aD = abs(d); vec2 fuv; vec3 fax; float fsg;
+        if (aD.x >= aD.y && aD.x >= aD.z) { fuv = d.yz / aD.x; fax = vec3(1.0, 0.0, 0.0); fsg = sign(d.x); }
+        else if (aD.y >= aD.z) { fuv = d.xz / aD.y; fax = vec3(0.0, 1.0, 0.0); fsg = sign(d.y); }
+        else { fuv = d.xy / aD.z; fax = vec3(0.0, 0.0, 1.0); fsg = sign(d.z); }
+        const float STAR_N = 900.0, STAR_P = 0.047;
+        vec2 sq = (atan(fuv) * 1.2732395 * 0.5 + 0.5) * STAR_N;     // equal-angle: atan(uv) x 4 / pi, into cells
+        vec2 sc = floor(sq);
+        float pxA = 0.5 * (length(dFdx(d)) + length(dFdy(d)));      // the pixel's footprint, radians
+        float cellA = 1.5707963 / STAR_N;                            // a cell, radians (at the face's centre; ~0.7 of it at a corner)
+        float sr = min(max(uStarK.y, uStarK.x * pxA), 0.7 * cellA);
+        // STAR_LVL: the field at 0.03 of the old one's light - the old stars were 30 x and more over the screen's white at night (every star a clipped white
+        // pixel, the user's "white pixels"); at 0.03 the brightest just reach white and the disc's soft edge shows (measured 8 Nov, the tune2 stills)
+        const float STAR_LVL = 0.03;
+        float sK = STAR_LVL * 3.0 / (3.14159265 * sr * sr) * 1.5e-5 * 0.015 * (12.5663706 / (6.0 * STAR_N * STAR_N)) / STAR_P;
         float wash = clamp(uEMoon / 2.5e-6, 0.0, 1.0) * smoothstep(-0.02, 0.1, uMoon.y);
-        star *= smoothstep(0.7 * wash, 0.7 * wash + 0.12, h2);
-        vec3 tint = mix(vec3(1.0, 0.9, 0.8), vec3(0.8, 0.9, 1.0), h2);
+        vec3 sAcc = vec3(0.0);
+        vec3 fid = fax * (fsg + 2.0);
+        for (int sj = -1; sj <= 1; sj++) for (int si = -1; si <= 1; si++) {
+          vec2 cc = sc + vec2(float(si), float(sj));
+          if (cc.x < 1.0 || cc.y < 1.0 || cc.x > STAR_N - 2.0 || cc.y > STAR_N - 2.0) continue;
+          vec3 key = vec3(cc, dot(fid, vec3(1.0, 5.0, 25.0)));
+          float h = hash13(key);
+          if (h < 1.0 - STAR_P) continue;
+          float h2 = hash13(key + 17.0);
+          vec2 jt = vec2(hash13(key + 31.0), hash13(key + 57.0));
+          vec2 su = tan(((cc + jt) / STAR_N * 2.0 - 1.0) * 0.78539816);   // the star's place on the face (uv), back from equal-angle
+          vec3 sd = fax.x > 0.5 ? vec3(fsg, su.x, su.y) : (fax.y > 0.5 ? vec3(su.x, fsg, su.y) : vec3(su.x, su.y, fsg));
+          float x2 = dot(d - normalize(sd), d - normalize(sd)) / (sr * sr);
+          if (x2 >= 1.0) continue;
+          float b = smoothstep(1.0 - STAR_P, 1.0, h) * (0.4 + 0.6 * h2);
+          // G2600: THE MOON WASHES THE FAINT STARS OUT - under a full moon the eye's limiting magnitude falls from ~6.5 to
+          // ~4.5, a fifth of the stars left. The moonlit sky (~1e-8 here) is far under the 3e-6 that hides a star below, so
+          // it is the moon's own light that thins them: the faint (low h2) go first, the full moon leaves the brightest 30 %.
+          // By day the term is already 0 (the sky hides every star): the day is untouched.
+          b *= smoothstep(0.7 * wash, 0.7 * wash + 0.12, h2);
+          float w = 1.0 - x2;
+          sAcc += mix(vec3(1.0, 0.9, 0.8), vec3(0.8, 0.9, 1.0), h2) * b * w * w;
+        }
         float lum = dot(L, vec3(0.2126, 0.7152, 0.0722));
-        L += tint * star * uStars * 1.5e-5 * Tview * (1.0 - smoothstep(0.0, 3e-6, lum));
+        // STAR-LOVE (the user 8 Nov: "that's what I meant. The fading through denser air"): no extinction - a star keeps its light at every view angle,
+        // down to the horizon (the sky's own light still hides it by day and in the glow)
+        L += sAcc * sK * uStars * (1.0 - smoothstep(0.0, 3e-6, lum));
       }
       L += veil(d, uSun);                                      // THE VEIL (C4): over the sun and moon discs, under the corona
       // THE CORONA (S7): the eye's own scatter around a disc ten thousand times the sky - a 1/theta^2
@@ -767,7 +802,7 @@ ${MIST_GLSL}
   // ---- the GPU half ---------------------------------------------------------
   const G = { ready: false, enabled: false, texT: null, texMS: null, rtSky: null, rtAP: null, quad: null, cam: null, skyMat: null, apMat: null, atmU: null };
   const U = {                                   // shared uniform objects (one value each, every consumer reads them)
-    sun: null, moon: null, eMoon: { value: 0 }, r: { value: 6360.0 }, scale: { value: 1 }, stars: { value: 1 },
+    sun: null, moon: null, eMoon: { value: 0 }, r: { value: 6360.0 }, scale: { value: 1 }, stars: { value: 1 }, starK: { value: { x: 1.5, y: 1.5e-4 } },
     glare: { value: 1 }, eyeY: { value: 0 },
     lutGain: { value: 1 },   // A6: 2^(the exposure's stops) - the sky-view and AP tables are stored x this so a night sky (1e-6 of the sun) is not a half float's subnormal (the white bands on the night horizon)
     veil: { value: new Float32Array([0, 0, 0, 9000]) }, veilSun: { value: new Float32Array(3) }, veilSky: { value: new Float32Array(3) },   // CLOUDS C4
@@ -1059,7 +1094,7 @@ ${MIST_GLSL}
     if (!G.enabled) return null;
     const m = new THREE.ShaderMaterial(Object.assign({
       uniforms: { uSky: { value: G.rtSky.texture }, uT2: { value: G.texT }, uAtm2: { value: new THREE.Vector4(P.Rg, P.Rt, P.sunRad, P.moonRad) },
-                  uR: U.r, uScale: U.scale, uEMoon: U.eMoon, uStars: U.stars, uSun: U.sun, uMoon: U.moon, uFrame: { value: frameYaw || 0 },
+                  uR: U.r, uScale: U.scale, uEMoon: U.eMoon, uStars: U.stars, uStarK: U.starK, uSun: U.sun, uMoon: U.moon, uFrame: { value: frameYaw || 0 },
                   uGlare: U.glare, uEyeY: U.eyeY, uMist: apUniforms.uMist, uVeil: U.veil, uVeilSun: U.veilSun, uVeilSky: U.veilSky, uLutGain: U.lutGain,
                   // F2: MIST_GLSL samples the mist's field from the atlas, so the dome - which carries
                   // that block verbatim - needs the sampler too (it is the same texture it helps fill)

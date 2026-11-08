@@ -1038,7 +1038,8 @@ const WATER = (() => {
     // ringFar caps the capture's far plane
     ringOffset: false, ringFar: 4000, skyK: 1, skyGain: 0, ringSky: true,
     // (round 2, A0 19 Oct: 'a ring near the shore' - HOME must pay nothing) over land the ring fades by the eye's distance to WATER, gone by ringIn m inland
-    ringIn: 150, waterD: 0 };
+    ringIn: 150, waterD: 0,
+    starsK: 10, starPx: 2.0 };   // STAR-LOVE: the stars in the mirror's sky - x their level in the sky (10 x the dome's STAR_LVL 0.03 = 0.3 of the old field's light: the user's 'quite lower'), their discs' radius in capture pixels
   // G2620 THE PRE-EXPOSURE: a capture holds the radiance of the P it was taken at - a switch re-captures at once
   if (typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.onPre) LIGHT_RIG.onPre(() => { MIR.last = null; });
   const mirrorTmp = {};
@@ -1312,7 +1313,12 @@ const WATER = (() => {
       const skyVis = sky.visible;
       sky.visible = true;
       renderer.autoClear = false;
+      // STAR-LOVE (the user 8 Nov: "the reflections in the water from the stars should be quite lower, and the image should read quieter"): the mirror's sky
+      // draws the stars at MIR.starsK of their light, as discs of MIR.starPx capture pixels (a capture pixel is 2.5 of the screen's; the ripples move the read)
+      const SU = typeof ATMO !== 'undefined' && ATMO.U && ATMO.U.stars && ATMO.U.starK ? ATMO.U : null, st0 = SU ? SU.stars.value : 0, sp0 = SU ? SU.starK.value.x : 0;
+      if (SU) { SU.stars.value = st0 * MIR.starsK; SU.starK.value.x = MIR.starPx; }
       renderer.render(MIR.skyScene, mc);
+      if (SU) { SU.stars.value = st0; SU.starK.value.x = sp0; }
       sky.visible = skyVis;
     }
     // THE CLOUDS ARE IN THE MIRROR (the user: "the lake needs to reflect an accurate sky"): the clouds' own march run
