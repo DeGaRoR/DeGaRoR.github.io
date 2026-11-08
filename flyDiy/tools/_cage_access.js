@@ -1072,7 +1072,10 @@ PAGE.post = ctx => {
         // skin point under its footprint instead, the high side entering the skin; the depth rides the record
         // (`sunk`), and GATE CLIP allows exactly that much for this fitting.
         if (upright) {
-          if (low < -0.0003) { F = frameAt([pm[0] + F.n[0] * low, pm[1] + F.n[1] * low, pm[2] + F.n[2] * low], F.n); sunk = lift - low; }
+          // (UPRIGHT-FOOT: the depth is the whole rise under the base, lift - low, also where nothing lies below the site
+          // point - on the pillar band the blade root's ends stood 4 mm in with the record at 0)
+          if (low < -0.0003) F = frameAt([pm[0] + F.n[0] * low, pm[1] + F.n[1] * low, pm[2] + F.n[2] * low], F.n);
+          if (lift - low > 0.0003) sunk = lift - low;
         } else if (lift > 0.0003) F = Object.assign({}, F, { p: [pm[0] + F.n[0] * (lift + 0.0003), pm[1] + F.n[1] * (lift + 0.0003), pm[2] + F.n[2] * (lift + 0.0003)] });   // (DOOR-HINGES-2: the frame keeps its along)
       }
       // GATE CLIP reads each fitting's own triangles back out of the
