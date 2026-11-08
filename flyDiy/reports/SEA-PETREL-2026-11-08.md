@@ -192,6 +192,23 @@ route. Evidence: `reports/evidence/SEA-PETREL/diag/*.json` (`hist0` / `strike.st
 - Reproduce: `sp_fly.js --order mk_sea,HOME --wind 15@250` (or `--wind xw10`), ~4 min.
 - Browser-needed: yes - a Cedar Harbour take-off in 10-15 kt.
 
+### S5 THE WATER DEPARTURE AFTER A LANDING NEVER GETS OFF: THE TAXI CANNOT LINE UP ON THE WATER - severity: blocks
+- Flown: SEA > mk_sea > SEA, calm (the first leg passes), chained the page's way (_tour_lib flyLeg: the From under the
+  aeroplane, a fresh `departFrom`). The second leg's departure from where it stopped on Cedar Harbour: **1500 s and
+  no take-off** - TAXI 852 s, LINEUP 360 s, STOP 270 s, the phases cycling TAXI > STOP > HOLD > LINEUP > STOP > HOLD >
+  LINEUP > ... > DEPART > TAXI three times; `lineup-timeout: could not line up in 60 s - stopping to replan` x6,
+  `replan: not lined up with a run ahead (771 m, 34.3 m off)` (then 41.7, 50.8 m off), `gave-up: still in STOP at
+  t=871 s`; 1395 deg turned on the water; taxiing at ~4.2 m/s on 0.5 power, pitch 5 deg, the disc 0.20 m over the
+  water. No strike, no capsize, no damage: it simply cannot leave.
+- This is the float Cessna's S3 taxi too (its `taxi-timeout: the route took 958 s`, `replan: ... 201.5 m off`) - the
+  same water departure that never ends; the float Cessna capsized in it, the Petrel only circles. One cause for both:
+  the water departure's line-up from a stop on the lane (likely the line-up's tolerance / the water rudder's turn
+  against the weathercock - UNPROVEN which).
+- The first-leg water starts (the game's spawn on the lane) never taxi - the AP rolls at once - so the grid's water
+  starts did not see this; every water leg after a water landing will.
+- Reproduce: `sp_fly.js --order SEA,mk_sea,SEA --wind 0 --load full` (~70 min here). Browser-needed: yes - land at
+  Cedar Harbour, then pick SEA as the next destination.
+
 ### S3 THE FLOAT CESSNA'S STRIKE (master's TOUR, mk_sea > SEA, t 604.6) IS ANOTHER CAUSE: A CAPSIZE IN A LONG WATER TAXI
 - Flown here the same way (the game's route, the load door's float Cessna 949.5 kg / 25 L, 8 kt from 250, chained
   SEA > mk_sea > SEA): leg 1 OK (touch 35.6 m/s, sink 0.47, run 370 m). Leg 2, the chained departure from where it
@@ -202,8 +219,7 @@ route. Evidence: `reports/evidence/SEA-PETREL/diag/*.json` (`hist0` / `strike.st
   in as it rolls over: `capsized: on its back in TAXI at 3.5 m/s (bank 90 deg)`, the prop strike at 604.6 exactly as
   master's TOUR reports. The waves were +-0.03 m. Not the Petrel's mechanism (no porpoise, no drop): one taxi that
   should not be 600 s long, and a float Cessna that capsizes at 6 m/s / 0.5 power in it.
-- The Petrel has never flown that chained water departure here (its first leg fails at 8 kt): queued (SEA > mk_sea >
-  SEA calm, HOME > mk_sea > HOME 8 kt) - UNPROVEN until they land.
+- The Petrel flown into the same chained departure (calm): it does not capsize, it never leaves (S5).
 - Reproduce (40 min): `sp_fly.js --vkey floats --order SEA,mk_sea,SEA --wind 8@250` (evidence `diag/floats_tour.json`).
 - Browser-needed: yes - the water taxi out of Cedar Harbour after a landing.
 
