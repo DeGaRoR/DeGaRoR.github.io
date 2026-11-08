@@ -2358,7 +2358,13 @@ let ROOFLIGHTS = { n: 0, x: () => 0 };
         color: 0xf2f0e6, map: skyAlb, normalMap: skyNrm, normalScale: new THREE.Vector2(0.8, 0.8),
         roughness: 0.6, metalness: 0.0, transparent: true, opacity: 1 });
     const PM = EXT ? M.skyPanelExt : M.skyPanel;
-    const p = s > 0 ? quad(a, b, c, d, PM) : quad(b, a, d, c, PM);
+    // ...and the exterior's pane FACES UP. It was wound as the room's (down, into the shed), and M.skyPanelExt is
+    // single-sided where M.skyPanel is DoubleSide: from outside only its back face was there, culled, so every world
+    // hangar showed its roof lights as holes onto the dark inside (the blue glass of before was never seen either).
+    // Swapping a<->b and c<->d flips the face and keeps v down the slope (0 at the head), so the grime still runs to
+    // the sill.
+    const faceDown = EXT ? s < 0 : s > 0;
+    const p = faceDown ? quad(a, b, c, d, PM) : quad(b, a, d, c, PM);
     p.castShadow = false;
     put(p);
     // THE KERB: a flat band inside the opening's edge, all four sides. Drawn as
