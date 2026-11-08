@@ -8479,6 +8479,8 @@ function cageSpec(P) {
                     w: +P[pre + 'W'], h: +P[pre + 'H'], r, rr, topK, skew,
                     depth: Math.max(0, +P[pre + 'Depth'] || 0),
                     step: Math.max(0.006, rim * 1.1) };
+        // BUBBLE-WINDOWS: the blister's height, absent unless set (an unset row leaves the window as it was)
+        if (+P[pre + 'Bulge'] > 0) w.bulge = +P[pre + 'Bulge'];
         if (quad) Object.assign(w, cageQuadWindow(P, pre, i));
         S.windows.push(w);
       }
