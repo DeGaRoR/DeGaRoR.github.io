@@ -44,7 +44,7 @@ const CERT_CONDITION = ['aging'];
 // (BENCH_STATE_ROWS and PROCURE_STATE_ROWS, now one).
 // The crew's names: pilotWho / copWho / cabWho / crewOn (master), pilOn after G3700 (the racer; the load migration renames
 // the older row); the tyres' whSlick and the hangar doors' hgDr* are state too (bench.js / 76_procure, L28b).
-const CERT_STATE_ROWS = /^_view|^(explodeD|pilOn|whSlick|crewOn|pilotWho|copWho|cabWho|cabOcc|paxOcc\d+|lightOn|li_reflect|li_beaconRpm|accDetail|li_(?:nav|beacon|taxi|land|flood|instr|pedal|pax)|li_[a-z]+Fit)$|^hgDr[A-Z]/;
+const CERT_STATE_ROWS = /^_view|^(explodeD|pilOn|whSlick|crewOn|pilotWho|copWho|cabWho|cabOcc|paxOcc\d+|lightOn|li_reflect|li_beaconRpm|accDetail|accBeacon|li_(?:nav|beacon|taxi|land|flood|instr|pedal|pax)|li_[a-z]+Fit)$|^hgDr[A-Z]/;
 // rows the JOIN MEASURES off the design (never the player's): a block -> its measured keys
 const CERT_MEASURED = {
   cabin: ['glazedM2', 'glazingMat', 'seatsX', 'occupied', 'pilots', 'pax'],
