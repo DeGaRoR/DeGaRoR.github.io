@@ -293,7 +293,7 @@ Expert, damage on, `?retract=lab` on the page if a lab row is needed (the Petrel
   (model.gearMechRig) { ... }`) between that comment and the link rods' loop, so the sixth skip (linkRigs, still there
   and still `if (brkWhole(r)) continue;`) is past the window. The code is right; the gate's window is short.
 - Reproduce: `node tools/run_gates.js --only=DMGSKINGPU` (5 min). Node-only.
-- Tip 4c60b519: the same window still holds 5 (checked statically); the full gate re-run on the tip is queued.
+- Tip 4c60b519: re-run, the same three FAIL lines (the window's one + master's two).
 
 ### F6 DMGHULL / DMGFABRIC / POD / HANDLE / ENGCONFIG: red on the base AND on master with the identical FAIL lines - pre-existing, not seaplanes'
 - DMGHULL: `FAIL twin on floats hump: the side term is U w x 93.9 kg/m (the small-slip keel's m(TE)), each wetted
