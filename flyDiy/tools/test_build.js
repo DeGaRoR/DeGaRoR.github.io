@@ -589,7 +589,11 @@ function nullPaths(o, pre, out) {
     // are absent while every section is closed, so a build that never opened
     // one keeps every key the game hashes it by: CAGE_OPEN_ROWS, cageToSpec)
     const shutRows = (CAGE2.CAGE_OPEN_ROWS && !CAGE2.cageAnyOpen(P1) ? CAGE2.CAGE_OPEN_ROWS : [])
-      .concat((CAGE2.CAGE_ZERO_ABSENT || []).filter(k => !(+P1[k] > 0)));   // (G3515: the rear pilot at 0, the same rule)
+      .concat((CAGE2.CAGE_ZERO_ABSENT || []).filter(k => !(+P1[k] > 0)))   // (G3515: the rear pilot at 0, the same rule)
+      // (SEAPLANES-LAND: cageToSpec's other stated exceptions - the boat rows while the hull is off, HULL-B1's
+      // CAGE_HULL_ROWS; a row of CAGE_DEFAULT_ABSENT at its default, PILLAR-ANCHORS / HULL-B26..B45)
+      .concat(!(+P1.hullOn > 0) ? (CAGE2.CAGE_HULL_ROWS || []) : [])
+      .concat(Object.keys(CAGE2.CAGE_DEFAULT_ABSENT || {}).filter(k => +P1[k] === CAGE2.CAGE_DEFAULT_ABSENT[k]));
     const thin = Object.keys(slim).length,
           table = Object.keys(P1).filter(k => !(k in CAGE2.CAGE_VIEW_KEYS) &&
                                               typeof P1[k] !== 'function' &&
@@ -613,7 +617,10 @@ function nullPaths(o, pre, out) {
   const baked = CAGE2.cageToSpec(F0) || {};
   // (G3511: but the openings' rows while every section is closed — and the
   // first one opened brings them all into the file)
-  const shut = (CAGE2.CAGE_OPEN_ROWS || []).concat(CAGE2.CAGE_ZERO_ABSENT || []);
+  const shut = (CAGE2.CAGE_OPEN_ROWS || []).concat(CAGE2.CAGE_ZERO_ABSENT || [])
+    // (SEAPLANES-LAND: the default aeroplane is no boat - its hull rows stay out - and a CAGE_DEFAULT_ABSENT row at its default)
+    .concat(!(+F0.hullOn > 0) ? (CAGE2.CAGE_HULL_ROWS || []) : [])
+    .concat(Object.keys(CAGE2.CAGE_DEFAULT_ABSENT || {}).filter(k => +F0[k] === CAGE2.CAGE_DEFAULT_ABSENT[k]));
   const want = Object.keys(F0).filter(k => !(k in CAGE2.CAGE_VIEW_KEYS) &&
                                             typeof F0[k] !== 'function' && !shut.includes(k));
   ok(Object.keys(baked).length === want.length && want.every(k => k in baked),
