@@ -79,8 +79,8 @@ const HV = require(path.join(ROOT, 'src', 'viewer', 'hangar_view.js'));
   ok(/HVIEW_N = \{ laptop: 768, potato: 768, retro: 768/.test(app) && /G\.soft && G\.soft\(\)\) return 0/.test(app), '3h potato / laptop / retro at 768, none on a software renderer');
   ok(/linear: hviewLinear\(\)/.test(app) && /cap\.isXRRenderTarget = !lin;/.test(hv) && /if \(uLin > 0\.5\) \{ c = pow\(c, vec3\(2\.2\)\); c = uK \* c/.test(hv) && /hviewGain\(\);   \/\/ \(the mood moves/.test(app),
     '3i the capture is drawn as the world frame is (the linear split: radiance, decoded in the room under the exposure ratio; else display-space)');
-  ok(/camera\.position\.set\(HVIEW_C\[0\], HVIEW_C\[1\], HVIEW_C\[2\]\)\.applyMatrix4\(node\.matrixWorld\)/.test(app) && /camera\.position\.copy\(keepEye\)/.test(app) && /if \(first && WF\.worldUpdate\)/.test(app),
-    '3j the world is updated and drawn from the capture eye (the main camera there, put back after every face)');
+  ok(/const C0 = hvC\(\); camera\.position\.set\(C0\[0\], C0\[1\], C0\[2\]\)\.applyMatrix4\(node\.matrixWorld\)/.test(app) && /hview\.capture\(\{ scene, node, C: hvC\(\),/.test(app) && /camera\.position\.copy\(keepEye\)/.test(app) && /if \(first && WF\.worldUpdate\)/.test(app),
+    '3j the world is updated and drawn from the capture eye (hvC: the centre, or the doorway with ?hvc=door - the main camera there, put back after every face)');
   ok(/if \(!hviewWant \|\| hviewBooting/.test(app), '3k the shed frames never capture while the boot does (one set, six faces)');
   // HVIEW-BOOT (8 Nov, the hangars-match stills): cap.userData.lin threw on the first face (three's RenderTarget has no userData), so the
   // boot never captured and every door showed the room's stock outdoors. The view keeps its target's mode itself (capLin)
