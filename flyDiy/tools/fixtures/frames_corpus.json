@@ -15931,11 +15931,11 @@
    }
   },
   "arch:Skymaster-alike": {
-   "rings": "6963a5dbfb570bb6b7c4fa3cc0ed16c31e67d8f3",
+   "rings": "e0331e4aa923a9ba46804126b2fd1f5a49bf7f47",
    "mesh": {
     "nV": 138,
     "nF": 136,
-    "hash": "11a4bdf4f55b081e2a2bd292b8cc27844cb4bd77"
+    "hash": "56c2c9ae57cf106ba95c3f649d2daf7f6548ef9a"
    },
    "table": {
     "rings": [
@@ -16194,7 +16194,7 @@
        "floor": [
         0.664338239,
         -0.60200101,
-        3.49653546,
+        3.496511707,
         null,
         null
        ],
