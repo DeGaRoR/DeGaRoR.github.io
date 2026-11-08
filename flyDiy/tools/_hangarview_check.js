@@ -81,6 +81,11 @@ const HV = require(path.join(ROOT, 'src', 'viewer', 'hangar_view.js'));
   ok(/camera\.position\.set\(HVIEW_C\[0\], HVIEW_C\[1\], HVIEW_C\[2\]\)\.applyMatrix4\(node\.matrixWorld\)/.test(app) && /camera\.position\.copy\(keepEye\)/.test(app) && /if \(first && WF\.worldUpdate\)/.test(app),
     '3j the world is updated and drawn from the capture eye (the main camera there, put back after every face)');
   ok(/if \(!hviewWant \|\| hviewBooting/.test(app), '3k the shed frames never capture while the boot does (one set, six faces)');
+  // HVIEW-BOOT (8 Nov, the hangars-match stills): cap.userData.lin threw on the first face (three's RenderTarget has no userData), so the
+  // boot never captured and every door showed the room's stock outdoors. The view keeps its target's mode itself (capLin)
+  const hvCode = hv.replace(/\/\/.*$/gm, '');
+  ok(!('userData' in new THREE.WebGLRenderTarget(4, 4)) && !/\.userData\b/.test(hvCode) && /capLin === lin/.test(hvCode),
+    '3l the capture target\'s mode is kept in the view (capLin), never on a target\'s userData (three r' + THREE.REVISION + ' has none: the boot\'s first face threw)');
   // 4 no readback
   ok(!/readRenderTargetPixels|readPixels|getBufferSubData/.test(hv), '4 NO READBACK in hangar_view.js (the distance reaches the mesh by a vertex fetch)');
 }
