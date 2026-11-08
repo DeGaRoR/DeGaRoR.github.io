@@ -48,8 +48,12 @@ console.log('CAGE');
   walk(path.join(ROOT, 'builds'));
   const Ps = [G.cageDefaults()];
   for (const p of files) { try { const j = JSON.parse(fs.readFileSync(p, 'utf8')); const sp = j.spec || j; if (sp && sp.cage) Ps.push(G.cageFromSpec(sp)); } catch (e) { /* not a build */ } }
-  let diff = 0, n = 0, keyLeak = 0;
+  // (SEAPLANES-LAND, A0 8 Nov: a build whose hull is ON - the Super Petrel's six, hullOn 1 - is not a "hull off" build: it
+  // is held to the opposite promise below, its rows in spec.cage, and flown by GATE ACCEPT / PILLAR / JOINPARITY as
+  // LB.VALIDATED.petrel)
+  let diff = 0, n = 0, keyLeak = 0, hullOnB = 0, hullOnLost = 0;
   for (const P of Ps) {
+    if (+P.hullOn) { hullOnB++; const sc = G.cageToSpec(P); if (!('hullOn' in sc) || !G.CAGE_HULL_ROWS.some(k => k in sc)) hullOnLost++; continue; }
     const P0 = JSON.parse(JSON.stringify(P));
     for (const k of ['hullOn'].concat(G.CAGE_HULL_ROWS)) delete P0[k];
     for (const st of [0, 2, 'crease']) {
@@ -59,8 +63,9 @@ console.log('CAGE');
     const sc = G.cageToSpec(P);
     if (['hullOn'].concat(G.CAGE_HULL_ROWS).some(k => k in sc)) keyLeak++;
   }
-  verdict(diff === 0, `hull off: ${n} cage meshes (${Ps.length} builds x 3 steps) identical to the rows' absence (${diff} differ)`);
+  verdict(diff === 0, `hull off: ${n} cage meshes (${Ps.length - hullOnB} hull-off builds x 3 steps) identical to the rows' absence (${diff} differ)`);
   verdict(keyLeak === 0, `hull off: no hull row reaches spec.cage (${keyLeak} builds leak one)`);
+  verdict(hullOnB > 0 && hullOnLost === 0, `hull on: every hull-on build (${hullOnB}) keeps hullOn and its rows in spec.cage (${hullOnLost} lose them)`);
   // hull on: the reading
   const P = Object.assign(G.cageDefaults(), { hullOn: 1 });
   const H = G.cageHullSpec(P);
