@@ -409,8 +409,18 @@ function rowsFor(spec, o) {
     const ring = (+out.cw_spinR || +P.cw_spinR || 0.1) + 0.03;
     if (-fB > ring + 0.05 || fT > ring + 0.05) {
       out.cw_lidRW = +(fW + 0.025).toFixed(3); out.cw_lidRTop = +(fT + 0.025).toFixed(3); out.cw_lidRBot = +(-fB + 0.02).toFixed(3);
-      out.cw_lidLen = +Math.min(lip, 0.045).toFixed(3); out.cw_cowlLen = +Math.max(0.1, Math.min(2, reach - out.cw_lidLen)).toFixed(3);
+      // THE FACE SLOTS IN FRONT OF THE BLOCK (the user: "offset slightly the nose cone from the engine so that the
+      // cowl can slot in"; the references: the hub stands just proud of the nose bowl, the crankcase nose inside it):
+      // the propeller 3 cm forward of the flange, the engine layer's shaft bridging the gap
+      const SLOT = 0.03;
+      out.cw_noseOff = +(noseOff0 + SLOT).toFixed(3);
+      out.cw_lidLen = +Math.min(lip, 0.045).toFixed(3); out.cw_cowlLen = +Math.max(0.1, Math.min(2, reach + SLOT - out.cw_lidLen)).toFixed(3);
       out.cw_lidShoulder = 0.5; out.cw_lidRound = 0.92;
+      // THE NOSE PIECE IS SHORT AND THE SIDE DOOR RUNS THE BANK (the user: "get this vertical part further forward ...
+      // that's actually a door that opens ... along almost the full length of the engine"): the panel joint 6 cm
+      // behind the face - ahead of the first cylinder - so the parting line (which stops at the joint) runs the bank
+      const zeF = reach + SLOT;
+      out.cw_seamOn = 1; out.cw_seamPos = +Math.min(0.97, (zeF - 0.06 - SLOT) / zeF).toFixed(3);
       out._flatFace = { top: +fT.toFixed(3), bottom: +fB.toFixed(3), w: +fW.toFixed(3) };
     }
   }

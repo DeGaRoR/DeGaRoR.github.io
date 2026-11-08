@@ -1289,7 +1289,14 @@ function buildDetail(group,mats){
         for(const o of [-w,w]){
           let th;
           if(P.partLevel){ const t=partThAtY(partLevelY()+o,z); if(t==null){ ok=false; break; } th=sgn>0?t:Math.PI-t; }
-          else th=sgn>0?(th0+o):(Math.PI-th0-o);
+          // THE GROOVE IS A WIDTH IN METRES IN BOTH MODES (PROPER-COWLS, the user, 8 Nov: "it still shows the issue
+          // with the horizontal cuts ... make sure that you apply the fix everywhere"): +-partW of the section's own
+          // parameter opened to centimetres where a boxy section turns fast in it (the black wedge); now the offset
+          // is partW over the surface's own arc per radian at that station - the line keeps its path, the groove
+          // its width
+          else { const e=1e-3, a=surfPoint(th0-e,z), b=surfPoint(th0+e,z);
+                 const arc=Math.max(1e-3,Math.hypot(b[0]-a[0],b[1]-a[1])/(2*e)), dth=o/arc;
+                 th=sgn>0?(th0+dth):(Math.PI-th0-dth); }
           const p=surfPoint(th,z), n=cowlNormalAt(th,z);
           row.push(new THREE.Vector3(p[0]+n[0]*0.0006,p[1]+n[1]*0.0006,
                                      z+n[2]*0.0006));
