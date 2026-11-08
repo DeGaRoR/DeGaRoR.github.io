@@ -313470,3 +313470,60 @@ HYDRODYN FLOATS ACCEPT MISSIONS MISSIONPROPS STORY ROUTES ENERGY PARTS TANKMOUNT
 NODUMMY FAIL "no reference to the retired figure outside the load migration [tools/box_render.js:42 dummy | tools/newshapes_build.js:121 edDum ...]"  (master 1bcd01d3e has it, same line; files not touched here)
 
 Not run: DMGHULL (red on master, Deform's, 30 min), LAZY (it starts a browser).
+
+## REAL-FIGURES - THE OFFICIAL PLANES AGAINST THEIR REAL FIGURES AS BANDS: tools/real_check.js (A LOAD SWEEP ON OUR SIDE, A CONDITION BAND ON THEIRS, THE PILOT KEPT APART), THE HISTORY OF EVERY EARLIER COMPARISON (2026-11-07, REAL-FIGURES for A0, cloud - node only; branch claude/ready/real-figures; measured on master e0457618 = L33a, rebased onto cad30863 = L34a, whose src/core change is parked_packs.json only)
+
+THE BRIEF (the user, 7 Nov): make the real-figures test official with a dedicated tool; a range on our side (min load, max
+load) because brochure figures do not say their load; results not biased by the pilot; start from the earlier studies
+(Cub, Cessna, Jodel, Petrel), not a blank sheet. No physics or plane change (a PHYSICS_V bump withdraws every certificate).
+
+- TOOLS: tools/real_check.js (the runner) + tools/real_refs.js (REFS: every figure with the conditions it was stated at -
+  weight gross / number / solo / unknown, flaps, surface, source; an unknown condition is a RANGE; PLANES; HISTORY).
+  `node tools/real_check.js <cub|jodel|cessna|cessnaF|pa18f|chinook|c172x|petrel>`, `--quick` (airframe only, 3-20 s),
+  `--all --jobs=4` (the 7 master planes, 62 min), `--build=f.json --ref=<row> [--water]`. perf_study.js is unchanged (the
+  cards' instrument).
+  - LOADS through the game's own door: freightStrapSeatBill / freightStrapBaggage into sim.setFreight, the fuel through
+    the burn's node records (sim.fuel.frac + setNodeMass). MIN (70 kg pilot, 1/4 fuel), TYP (80 kg, 1/2), MTOW (every seat,
+    topped or fuel-trimmed to the TYPE's gross); `--cg` adds MTOW forward / aft (on for B-CESS).
+  - FOUR READINGS: airframe (the probes), POH (the game's pilot, Expert, calm, on the handbook's schedule as ratios to
+    the build's own stall), best (the schedule swept at MTOW: rotate x take-off flap, climb speed, brake law and approach),
+    game (as it ships). game - best = the pilot's share.
+  - LAND RUNS on a flat copy of the world (terrain 0, no trees, the reference's surface, no wind, ISA), so the climb-out's
+    "ground ahead -> Vx" rule stays out. WATER: hydro_trim_table.fly (the supplement + the G3390 rig) and the SEA lane.
+- REPORT: reports/REAL-CHECK-2026-11-07.md. Evidence: reports/evidence/REAL-CHECK-2026-11-07/ (a JSON per plane, the
+  generated sections, real_check.svg, cards_now.md). The consolidated table (§2) lists every plane ever compared, its
+  numbers then and now, and whether it can be re-run. The 12 cards were re-run through perf_study (the analytic TO roll
+  moved on 8 of 12 since 15 Sep - Stearman +36 %, RV -27 % - NOT TRACED; no official plane's roll moved).
+- VERDICTS (inside / near / outside): Cub 10/2/1, Jodel 7/3/3, B-CESS 3/3/11 (O-540 235 hp on a 172: power rows out
+  the good way), 172 corrected (internal) 3/7/7, float B-CESS 1/2/6, PA-18 floats 1/5/4, Chinook 5/2/0 (airframe only),
+  Petrel V4.1 10/0/3 (from a worktree of claude/hull-types).
+- FINDINGS, ranked (none fixed: the user's decisions):
+  1. THE LANDING ROLL IS THE PILOT'S on every plane: the handbook landing (1.3 Vs0, braking from touchdown) gives Cub
+     68-96 m (POH 88), Jodel 84-133 (150), 172 117-138 (168), B-CESS 137-166 (168); the game's pilot 160 / 247 / 231 / 656.
+     43_pilot: a taildragger brakes below VBrakeOn 0.75 Vs, every pilot ramps brakeRampRate 0.12 /s to brakeMax 0.30
+     (brakeMax alone changes nothing: Cub 152 / 153 m at 1.0 / 0.6); one touchdown speed for every load (Cub 66 km/h at
+     433-550 kg).
+  2. CESSNA-TAIL MEASURED: B-CESS needs elevator 0.42 (MIN) / 0.41 (MTOW forward) to trim a 30-deg approach against
+     genTrim's 0.18 budget -> landsFlapless; flown on the POH schedule its roll is 379-581 m forward, 166 m aft. The real
+     172: stab 3.30-3.35 m2 (C172-STUDY 35.7 ft2; a design analysis 36.1 ft2), span 3.40 m, elevator chord 0.44. B-CESS:
+     2.65 m2 (-20 %), span 2.72, elevator chord 0.265 (-40 %; elevator area -52 %), wing 18.4 (+14 %), tail/wing -30 %.
+     The corrected 172 (3.11 m2, 0.44) needs 0.09 and lands on full flap. A build item (two cage rows), not physics.
+  3. The climb-out to 50 ft: 172 corrected 485 m lift-off -> 50 ft against the POH's 226 (best schedule 657 total);
+     the propeller's low-speed efficiency + the pilot's climb-out.
+  4. Climb 10-20 % short on matched engines (PA-18 floats -14 / -21 %, 172 -10 %): the same propeller item.
+  5. The game's pilot climbs under Vy (VClimb 1.38 Vs): B-CESS -1.42 m/s, Petrel -1.84 (its climb on 70-80 % throttle).
+  6. Petrel V4.1 solo sits at a 3-4 % static margin (16 % at MTOW): the seats ahead of the CG on a pusher. Its brochure is
+     a solo sheet (stall / climb / runs met at 410-445 kg); empty 380 vs 320 (+19 %).
+  7. Owed / standing: the Chinook does not take off (ARCHETYPES' standing red); the light Jodel (423 kg) goes around
+     twice and runs out the clock; the Petrel's water run under the game's pilot at MIN / TYP gave no reading in the
+     harness (it departs as baked: 24.8 s) - possibly the harness's fuel door on a hydro sim, not traced.
+- GATE PROPOSAL (§8, not built): GATE REALBAND on the official planes off `--quick` - Vs1 / V75 / Vmax / ROC / analytic
+  TO at the reference's weight in bands, the empty weight +-8 %, and THE APPROACH TRIM WITH THE HANDBOOK FLAP AT MIN AND
+  MTOW-FORWARD UNDER 0.18 (B-CESS fails today, the 172 corrected passes); the flown landing row and the pilot's-share
+  ratchet after the user rules on finding 1.
+- REFERENCES ADDED (sources in real_refs.js): Wipaire PA-18/PA-12 guide (Wipline 2100 amphibian, O-320 160 hp: water run
+  776 ft at 1776 lb, 1174 ft at 2000 lb, ROC 925 / 756 fpm); the 172 on 2350s as a band (335-501 m, 20-35 s; wipaire.com's
+  page was 503 in the session, its 1645 ft / 749 fpm are a search extract); the Petrel's 56-68 km/h, 80 m land / 120 m
+  water (Wikipedia / maker); the D.112's Vmax as 175-200 (its source line says 124 mph, the old row 175).
+- GATES: no core, editor or generated file changed (`git diff origin/master --stat` is tools/real_*.js, the report and
+  its evidence, reports/README.md, .gitignore, this entry); no battery run. `node --check` on both tools.
