@@ -312728,3 +312728,9 @@ IN (on L34a cad308635): claude/ready/bubble-windows 9e7010baa (CABIN-CRAFT), cla
 BATTERY: 115 of 116 PASS. ENGCONFIG red, standing on master: its IDENTITY pins date from 28 Oct. Every one of its 18 load digests (the Cub, the Jodel, the Cessna, the Rufus...) is the same on this train and on a full copy of master, so no validated plane flies differently. No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change.
 TIMED GATE (light, vs the stale 12 Oct baseline): steady frames p50 33.3 ms. Reds are the boot and compile rows (cub chase compile 67 s, flight 151 s): the cold shader cache seen on L32d/L34a, same class as L34a (57 reds vs 80). Two rollouts lost to a page '__timeout' (cub cockpit, metal chase) after slow boots.
 NAMED COST, STILL OPEN: the floats' SEA lane: garage 226 s, take-off p99 50 ms but worst frame 10.4 s, 25 tasks over 1 s, held under the roll-out screen. Same as L34a's (124 s, 77 links); not this train's. NIGHT-LOOK measures the night water cost at 11:45; the SEA lane bisect is owed.
+
+## LOOK-1 - SHADOWSKY RE-PIN (MASTER-GREEN, 8 Nov 2026)
+GATE SHADOWSKY row "4 clouds: a stale depth nearer than the first deck is sky" was red on master 1bcd01d3e: a STALE PIN, not a fault.
+Moved by LOOK-1 2a (bbc115dda, landed L32f): the clouds' march takes the per-frame Halton sub-texel ray `dr` (uMJ, on when uMT.x > 0.5)
+instead of `d`. The stale-depth rule itself is unchanged: thru = tScene < deckEntry(o, d), such a texel is marched to 1e9 and its key is the far plane.
+Re-pin: the regex reads march(o, dr?, thru ? 1e9 : tScene, uDials2.x) - the same assertion, on either ray. SHADOWSKY PASS.
