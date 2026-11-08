@@ -1814,6 +1814,10 @@ function noseAutoWanted(v, bay) {
 // answer, bit for bit. Under node (the gates, the tools, the load chain: navigator.userAgent 'node') and with
 // window.TANK_AUTO_SYNC it runs to the end at once, as before.
 let NOSE_KEY_LAST = null, NOSE_JOB = null;
+// TANK-SPLIT (G2814): the shaping's state for a reader outside the layer - GATE JOINPARITY's page capture
+// (tools/join_parity_page.js) waits for it: its "settled" test (the spec unchanged for 4 s) caught the spec while the
+// tank still read "fitting to the nose" (nothing written back) and froze the saved file's 45 L box as the game's tank
+window.TANK_NOSE_PENDING = () => !!NOSE_JOB;
 const noseSliced = () => !window.TANK_AUTO_SYNC && typeof navigator !== 'undefined' && !!navigator.userAgent && navigator.userAgent !== 'node';
 const noseSchedule = fn => (typeof requestAnimationFrame === 'function' ? requestAnimationFrame(fn) : setTimeout(fn, 16));
 function noseAuto(ctx, inv, bay, v, zFw, cache) {

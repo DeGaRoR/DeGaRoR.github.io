@@ -69,7 +69,9 @@ async function capture(key, slot) {
     for (let i = 0; i < 900; i++) {
       await sleep(2000);
       let s = null;
-      try { s = await ev('(window.BOOT && BOOT.state === "gone" && window.GARAGE_SPEC && !(window.CAGE_CREW_PENDING && CAGE_CREW_PENDING())) ? JSON.stringify(GARAGE_SPEC.get()) : null'); } catch (e) {}
+      // TANK-SPLIT (G2814): ...and no nose tank still being shaped (TANK-FIT's first shaping is sliced over frames on a
+      // page; the spec does not move while it runs, so "unchanged for 4 s" alone caught the pre-fit box)
+      try { s = await ev('(window.BOOT && BOOT.state === "gone" && window.GARAGE_SPEC && !(window.CAGE_CREW_PENDING && CAGE_CREW_PENDING()) && !(window.TANK_NOSE_PENDING && TANK_NOSE_PENDING())) ? JSON.stringify(GARAGE_SPEC.get()) : null'); } catch (e) {}
       if (!s) continue;
       if (s === last) { if (++same >= 2) break; } else { last = s; same = 0; }
     }
