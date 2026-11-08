@@ -17443,6 +17443,8 @@
     flPills(fb, PERSONA_ORDER.map(k => ({ label: personaLabel(k), value: k, title: 'copy the ' + personaLabel(k) + ' into the knobs' })), () => false,
             o => { personaCustom = pilotProfileSpec(o.value); personaChoice = 'custom'; sel.value = 'custom'; personaSave(); flRender(); });
     for (const K of PILOT_PROFILE_KNOBS) {
+      // SEA-OFF: RETRACT-1's gear-forget quirk is a retractable gear's: behind the lab switch (_cage_gear.js RETRACT_LAB)
+      if (K.k === 'gearForget' && typeof window.CAGE_RETRACT_LAB === 'function' && !window.CAGE_RETRACT_LAB()) continue;
       const R = cur();
       if (K.kind === 'range') {
         const toUi = K.toUi || (x => x), k = toUi(1) === 1 ? 1 : toUi(1);
