@@ -1669,8 +1669,10 @@ const WATER = (() => {
   // frame(dtWall): the clock (free-running only when setTime did not speak), the reduced phases, the drift
   // NIGHT-BRIGHT: the sheen, an exposed level (x P / the true exposure), in from dusk, none under an exposure of ~3 (the day's to the bit)
   // NIGHT-SHINE: the stretch, the hot points' cap (an exposed level), the far glint's fade, as judged in the hero; these and the lamps' streaks ride a DEEP-night ramp,
+  // (the stretch SHIPS AT 0, the hero's was .1: on a calm lake seen from above at full night it smeared the stars' reflections into a curtain of bars - the user's call; 0 = no reads, no cap)
+  // OFF SWITCHES, live (WATER.nightSea.<key> = 0 from the console or a rig): lamps 0 = no lamp streaks (the shader skips the loop), glintFar 0 = the far glint as master, stretch 0 = no stretch
   // log2(exposure) shine[0]..shine[1], later than the sheen's: the dusk's sun keeps its glitter path and its reflection as they were
-  const NIGHT_SEA = { k: 0.38, col: [0.25, 0.42, 1.0], flat: 0.7, stretch: 0.1, cap: 2.2, glintFar: 1, shine: [7, 10.5] };   // (the user: "a tad too milky": 30 % of it rides the ripples' slopes; bluer)
+  const NIGHT_SEA = { k: 0.38, col: [0.25, 0.42, 1.0], flat: 0.7, stretch: 0, cap: 2.2, glintFar: 1, lamps: 1, shine: [7, 10.5] };   // (the user: "a tad too milky": 30 % of it rides the ripples' slopes; bluer)
   function frame(dt) {
     if (U && U.uWNight) {
       const Wn = typeof window !== 'undefined' ? window : {}, exN = (Wn.GFX && Wn.GFX.exposureBase && Wn.GFX.exposureBase()) || 1;
@@ -1683,7 +1685,7 @@ const WATER = (() => {
       // NIGHT-SHINE: the stretch, its cap, the far glint's fade and the lamps' streaks on the deep-night ramp tS: by day and at dusk all four are off to the bit
       const tS = Math.max(0, Math.min(1, (Math.log2(Math.max(1, exN)) - NIGHT_SEA.shine[0]) / (NIGHT_SEA.shine[1] - NIGHT_SEA.shine[0])));
       const kE = (typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.P ? LIGHT_RIG.P() : 1) / Math.max(0.92, exN);
-      if (U.uWStretch) { U.uWStretch.value = NIGHT_SEA.stretch * tS; U.uWMirMax.value = tS > 0 ? NIGHT_SEA.cap * kE : 1e9; U.uWDirN.value.x = NIGHT_SEA.glintFar * tS; U.uWLampK.value.w = tS; }
+      if (U.uWStretch) { U.uWStretch.value = NIGHT_SEA.stretch * tS; U.uWMirMax.value = tS > 0 ? NIGHT_SEA.cap * kE : 1e9; U.uWDirN.value.x = NIGHT_SEA.glintFar * tS; U.uWLampK.value.w = NIGHT_SEA.lamps ? tS : 0; }
     }
     if (!T.set) T.t += (dt || 0); else T.seen++;
     T.set = false;
