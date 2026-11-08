@@ -54,7 +54,18 @@ function ruleUnits(np) {
   { const df = fs.readFileSync(path.join(T, '..', 'src', 'viewer', 'design_flow.js'), 'utf8');
     const fn = (df.match(/function maybeAutoOpen\(\) \{[\s\S]*?\n\}/) || [''])[0];
     t(/if \(isRig\(\)\) return;/.test(fn) && /webdriver/.test(df) && /HeadlessChrome/.test(df) && /newplane=1/.test(df),
-      'the first-launch chooser never opens by itself on a rig (webdriver / HeadlessChrome; ?newplane=1 forces it)'); }
+      'the first-launch chooser never opens by itself on a rig (webdriver / HeadlessChrome; ?newplane=1 forces it)');
+    // NEWPLANE-LATE (FLAGSHIP 8 Nov: the chooser opened over a bench test flight - the roll-out's run resolved the garage
+    // boot's promise): when it fires, it opens only after the GARAGE boot and only while nothing was built since. The guard
+    // is lifted from the source and run against the three cases
+    const lm = /const late = \(\) => (\{[\s\S]*?\});\n/.exec(fn);
+    let lateOk = false, lateWhy = 'no late() guard';
+    if (lm && /!late\(\)\) openBirth\(\)/.test(fn)) {
+      const run = (set, wip) => new Function('window', 'return (() => ' + lm[1] + ')();')({ BOOT: set ? { set } : undefined, localStorage: { getItem: k => (k === 'flydiy.wip' ? wip : null) } });
+      const r = [run('garage', null), run('rollout', null), run('garage', '{"x":1}'), run(null, null)];
+      lateOk = r[0] === false && r[1] === true && r[2] === true && r[3] === false; lateWhy = 'garage/rollout/wip/no boot = ' + r.join('/');
+    }
+    t(lateOk, 'the chooser never opens after a roll-out\'s run or once a build was made (NEWPLANE-LATE)', lateWhy); }
   // every archetype reachable: its choice set, read back, holds no greyed option
   // (an AUTHORED card is drawn by hand to a reference and stays a card; one outside the chooser is printed, not failed)
   const unreach = [], authOut = [];
