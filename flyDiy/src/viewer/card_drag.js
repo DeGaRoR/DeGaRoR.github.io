@@ -38,6 +38,8 @@
     ['#arrCard', 'arrival', ''],      // the end of a flight and its crash form; the career's line (body.html, app.js)
     ['#bRun', 'benchRun', ''],        // the bench's run card (bench.js)
     ['#bAward', 'benchAward', ''],    // the bench's award / certificate (bench.js)
+    ['#pfBoard', 'fiche', '.pfHead'], // PLANE-RENDERS R3: the fiche's board, by its header (fiche_board.js)
+    ['#pfNote', 'ficheNote', ''],     // ...and its corner line: the drawing, then the open (its buttons stay buttons)
     ['#stCard', 'story', ''],         // the story's beat card (app.js)
     ['#gEmptyCard', 'emptyStand', ''],   // EMPTY-STAND: the empty stand's card (app.js standEmptyCard; its buttons stay buttons)
     ['#stTim', 'tim', ''],            // Tim's band (app.js; its data-tim buttons stay buttons)

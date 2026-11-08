@@ -45,6 +45,7 @@
 //        [--fallback <dir>[;<dir>]]  _serve.js's fallback roots, in order (a tree over the main checkout's gitignored data)
 //        [--query k=v&k=v]        appended to the page's query (G3800)
 //        [--probe <file.js>]      an expression evaluated in the page after each build settles, printed `PROBE <build> <json>`
+//        [--probe-out] [--probe-secs <s>]  the probe's value to <out>/<build>_probe.json (R3: the fiche bake), its time (120)
 //        [--dry]                  everything up to the browser: the arguments, the files, the browser found - no launch
 //   node flyDiy/tools/plane_shot.js --pair <dirA> <dirB> --out <dir> [--labels A,B]
 //                                 side-by-side composites of the PNGs both directories hold (SwiftShader | RTX)
@@ -481,7 +482,11 @@ async function shoot(o) {
       log(base, 'loaded in', BR.t + ' s,', same + '/' + keys.length, 'cage rows equal, box', JSON.stringify(prev));
       // --probe <file.js>: an expression evaluated in the page once the build has settled, its value printed as one line
       // `PROBE <base> <json>` (G3800: what the page drew where - the scene the still is of, not a headless copy)
-      if (opt('probe')) { try { log('PROBE', base, JSON.stringify(await C.ev(fs.readFileSync(opt('probe'), 'utf8'), 120000))); } catch (e) { log('PROBE', base, 'threw', e.message); } }
+      // (PLANE-RENDERS R3: --probe-out writes the value to <out>/<build>_probe.json instead - a fiche's pictures as base64, the
+      // bake's - and --probe-secs gives a long probe its time, 120 s by default)
+      if (opt('probe')) { try { const pv = await C.ev(fs.readFileSync(opt('probe'), 'utf8'), 1000 * +opt('probe-secs', '120'));
+        if (flag('probe-out')) { const pf = path.join(o.out, base + '_probe.json'); fs.writeFileSync(pf, JSON.stringify(pv)); log('PROBE', base, 'to', pf, Math.round(JSON.stringify(pv).length / 1024) + ' KB'); }
+        else log('PROBE', base, JSON.stringify(pv)); } catch (e) { log('PROBE', base, 'threw', e.message); } }
 
       for (const v of o.views) {
         const tv = Date.now(), name = v.replace(/[:/]/g, '-');

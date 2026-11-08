@@ -306,6 +306,8 @@ function renderAll(body) {
         b.innerHTML = '<b>' + esc(p.name) + '</b><small>' + esc(word + (p.note ? ' — ' + p.note : '')) + '</small>';
         b.title = p.tip || '';
         if (p.thumb) { b.dataset.thumb = p.thumb; npThumb(b); }
+        // PLANE-RENDERS R3: an official plane ships with its fiche - its door in the tile's corner (fiche_board.js; none when not baked)
+        if (key === 'official' && p.thumb && window.FICHE_BOARD) { try { window.FICHE_BOARD.tileDoor(b, p.thumb); } catch (e) {} }
         b.addEventListener('click', () => withSpinner(() => { LOG.generated++; g0.openListed(p); }));
         grid.appendChild(b);
       }

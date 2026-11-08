@@ -1268,6 +1268,8 @@ function benchInit(api) {
     else award(t, r, after);
     // G2742 (STORY-PAGE): the page hears the airworthiness certificate land (app.js: the career's story; nobody else sets it)
     if (!wasPassed && passed() && typeof window.BENCH_CERTIFIED === 'function') { try { window.BENCH_CERTIFIED(); } catch (e) {} }
+    // PLANE-RENDERS R3: ...and the fiche (fiche_board.js): awarded with the certificate, drawn once its card is closed
+    if (!wasPassed && passed() && window.FICHE_BOARD) { try { window.FICHE_BOARD.certified(); } catch (e) {} }
   }
   // THE AIRWORTHINESS CERTIFICATE (A9, the user: "we need like a master
   // sticker"): one bigger roundel, the registration and the day, worn on
