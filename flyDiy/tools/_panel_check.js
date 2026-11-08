@@ -572,7 +572,8 @@ function run() {
     sim.out.Veas = 30; sim.out.roll = 0.3; sim.out.hdg = Math.PI / 2; sim.out.rpm = [2200]; sim.out.rpmEng = [2200];
     for (let i = 0; i < 300; i++) CK.frame(1 / 60, sim, { t: 5 + i / 60 });
     check(CK.gyroOk && near(CK.readings.roll, 0.3, 0.01) && near(CK.readings.ias, 30, 0.1), 'cockpit: in flight the gyro erects and the readings follow');
-    check(near(CK.readings.hdg, 90, 0.5), 'cockpit: heading in degrees, the nav way round', CK.readings.hdg);
+    // (AVIONICS-PFD-LAND 7 Nov: the compass's heading, north -z - nav angle 90 deg (+z, south) reads 180, as the PFD and the HUD)
+    check(near(CK.readings.hdg, 180, 0.5), 'cockpit: heading in degrees, the compass way round (nav + 90, the PFD\'s and the strips\')', CK.readings.hdg);
     check(near(CK.readings.volts, 14.1, 0.01), 'cockpit: at cruise the alternator holds 14.1 V');
     // A3: the fuel gauge reads litres over the DESIGN capacity (the spec's 50 L, 35 aboard -> 0.7), not `frac` (0.8 of what was loaded)
     check(CK.energy && CK.energy.kind === 'fuel' && near(CK.energy.capacity, 50) && near(CK.readings.fuelFrac, 0.7, 0.01),
@@ -582,7 +583,8 @@ function run() {
     const ang = g => { const q = g.obj.quaternion; return 2 * Math.atan2(Math.hypot(q.x, q.y, q.z), q.w) * Math.sign(q.x + q.y + q.z || 1); };
     check(near(ang(gauges[0]) * 180 / Math.PI, 150, 0.5), 'pose: a lin hand turns by its stops (30 m/s -> 150 deg)', ang(gauges[0]) * 180 / Math.PI);
     check(near(ang(gauges[1]) * 180 / Math.PI, 63, 2), 'pose: the fuel hand reads the fraction of the capacity (35 / 50 L)', ang(gauges[1]) * 180 / Math.PI);
-    check(near(ang(gauges[4]) * 180 / Math.PI, 90, 0.5), 'pose: the DG card turns to the heading');
+    // (AVIONICS-PFD-LAND 8 Nov: the card turns to the compass heading - nav 90 deg, +z, is south, 180)
+    check(near(Math.abs(ang(gauges[4]) * 180 / Math.PI), 180, 0.5), 'pose: the DG card turns to the heading - the compass heading, 180 at nav 90', ang(gauges[4]) * 180 / Math.PI);
     // A3: the captured rest comes off - at 2200 rpm the law says 394.7 deg, the group turns 394.7 - 225 = 169.7 on top of the baked 225
     check(near(ang(gauges[8]) * 180 / Math.PI, 169.7, 0.6), 'pose: a hand captured at its rest turns by the law LESS the rest', ang(gauges[8]) * 180 / Math.PI);
     check(near(ang(gauges[3]), -0.3, 0.01), 'pose: the ball rolls against the aeroplane');

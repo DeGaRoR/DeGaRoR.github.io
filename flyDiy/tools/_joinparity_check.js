@@ -204,7 +204,9 @@ const DOORS = {
     'cowl_res_stills', 'cowl_res_probe',
     // (DMG-OCCUPANT G2373-G2377: GATE DMGOCCUPANT's crash-card row boots the page under node (_page_node.js) with the
     // Cub's file as its autosave (flydiy.wip) - the page's own chain; its node rows fly through _treecrash_lib.js defOf)
-    '_dmg_occupant_check'],
+    '_dmg_occupant_check',
+    // (AVIONICS-PFD-LAND 8 Nov: the PFD/MFD stills hand the file to tools/live_driver.js - the real page's own load chain)
+    'avionics_pfd_stills'],
   // through a loader that is itself on the chain: pilot_trace.js specOf (a .json key; pilot_matrix.js flies its cells
   // through it), _treecrash_lib.js defOf
   viaPilotTrace: ['_pilotact_check', '_plan_check', '_rwytrees_check', '_taxiclear_check', 'pilot_matrix',
