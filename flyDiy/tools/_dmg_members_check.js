@@ -170,7 +170,7 @@ const f2 = x => (x == null ? '-' : (+x).toFixed(2)), rg = a => (a ? f2(a[0]) + '
     c.on('close', () => { const l = so.split('\n').reverse().find(x => x.indexOf('RESULT ') === 0); res(l ? JSON.parse(l.slice(7)) : { key: k, err: se.slice(-800) }); });
   });
   const R = {}, q = keys.slice();
-  await Promise.all([0, 1, 2].map(async () => { while (q.length) { const k = q.shift(); R[k] = await run(k); } }));
+  await Promise.all((process.env.GATES_JOBS === '1' ? [0] : [0, 1, 2]).map(async () => { while (q.length) { const k = q.shift(); R[k] = await run(k); } }));
   console.log('(' + ((Date.now() - t0) / 1000).toFixed(0) + ' s, ' + keys.length + ' builds)');
   // the reference tube (§4.1): 0.7 m of 1" x 0.035" 4130, as the solver reads a member of its area
   {
