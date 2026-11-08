@@ -110,7 +110,9 @@
       hint: 'IN · OUT (a lockable tailwheel only)', keys: { key: 'Slash' } },
     // RETRACT-1: the retractable gear's handle (30_solver ctl.gear: 1 down, 0 up) - UP and DOWN, no AUTO: a real gear
     // has no rule, only a pilot (and a squat switch: the handle up on the ground holds the gear down)
-    { id: 'gear', kind: 'step', ctl: 'gear', label: 'landing gear', group: 'flying',
+    // (SEA-OFF, SEAPLANES-LAND 8 Nov: `lab` - the controls panel lists it only while the lab switch is on, as the
+    // retract rows; the key itself stays bound, inert on a fixed build)
+    { id: 'gear', kind: 'step', ctl: 'gear', label: 'landing gear', group: 'flying', lab: true,
       hint: 'UP · DOWN (retractable gear only)', keys: { key: 'Digit9' } },
     { id: 'trimUp', kind: 'step', ctl: null, label: 'trim nose up', group: 'trim',
       hint: 'a hand held on the stick; repeats while held', repeat: 0.15,
