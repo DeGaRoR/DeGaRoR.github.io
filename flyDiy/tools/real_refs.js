@@ -365,6 +365,7 @@ const HISTORY = [
 // ---------------------------------------------------------------------------------------------------------------------
 const NOTES = {
   _global: [
+    '<b>The set</b> (every plane with a clear real parent): the official Cub, Jodel D112, Metal Cessna B-CESS (land and floats), PA-18 on floats and Chinook; the corrected 172 (internal); the candidates DC-3-alike and the three old biplanes (Stearman-, Tiger Moth- and Camel-alikes, the REF_MATCH recreations); the Birdman (the Chinook as the user first built it); the Super Petrel V4.1 (land only, provisional: claude/seaplanes-merge); the Skymaster-alike (an archetype card, a light check). <b>"Our 3 historical ones"</b> are read as the three planes of the original studies, the Cub, the Jodel and the Cessna (CUB / JODEL / C172-STUDY 2026-09-20). If the three meant were the historical recreations, they are the Stearman, Tiger Moth and Camel, and the DC-3, which are all in.',
     'Planes on another engine than their parent (the official B-CESS and its float version fly an O-540 235 hp where the 172 has 160-180 hp) score low on <b>specs</b> and their power rows are out the good way: the gap is the build\'s choice, not the model\'s.',
     '<b>Performance</b> is the aeroplane\'s capability (no pilot, or the same pilot on the handbook\'s schedule). What the shipped pilot adds is shown apart: on the landing roll it is most of the error on every plane (REAL-CHECK-2026-11-07 §5).',
   ],
