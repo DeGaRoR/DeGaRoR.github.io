@@ -49,7 +49,27 @@ on one cloud core)
 5. **Master gives the same, to the hash**: base 15ad5d66, master L35a 1bcd01d3 and master L34a cad308635 all fly leg 1 ->
    `6d3f1c643f66` and leg 2 -> `e50c81e92c5c`, capsized. **Not a seaplanes-merge regression.**
    `node flyDiy/reports/evidence/SEA-AMPHIB/fly.js --root <worktree>/flyDiy ...` (the same driver on each tree).
-6. Being run now: a 10 Hz trace of the capsize window with heading, thr, da, dr and de, for SEAPLANES (section 2).
+6. **THE 10 Hz TRACE** (`reports/evidence/SEA-AMPHIB/runs/cessna_capsize_10hz_t560-612.csv`: t, phase, Vg, vy, CG
+   height, disc gap, pitch, roll, heading, thr, da, dr, de). Re-flown with the last leg capped at 230 s: the same
+   capsize at the same sim time (deterministic).
+   ```bash
+   node flyDiy/reports/evidence/SEA-AMPHIB/fly.js --build bugReports/cessnaFloatsWOrks.json --order SEA,mk_sea,SEA --wind 8 --hz 10 --tmax-last 230 --trace c.csv
+   ```
+   - The leg is 183 s of TAXI on mk_sea (from where leg 1 stopped, towards the take-off); it never reaches HOLD / ROLL.
+   - **The taxi is FAST for floats.** From t 582.8 the throttle steps 0 -> 0.5 (>= 0.45 for 72 % of 582-604); Vg climbs
+     1.6 -> 3.8 -> 5.4 -> **6.0-6.4 m/s** (12 kt), during a slow left-hand turn (heading -38 -> -53 deg). On a float
+     Cessna that is the plow / hump band, not a displacement taxi (an idle taxi on this hull earlier in the leg: 1-2 m/s).
+   - **The roll diverges right wing down, and the controller can do nothing about it.** Two swings: +17 deg at 595.3,
+     back to -2.6, then +7 (600.0), +15.6 (601.0), +23 (602.0), +30.5 (603.0), +52.6 (604.0), +92 (604.6), +139 (605.0),
+     179 (605.3). **The aileron sits at its stop, da -0.25**, from 592.8 and through all of the second swing (41 % of
+     582-604); the rudder stays within +-0.3; the elevator is 0.3.
+   - **The throttle is never cut.** thr is still 0.5 at 60, 90 and 140 deg of bank (604.2-605.0).
+   - Then inverted: the CG 1.3-1.5 m under the surface, the disc -2.6 to -2.9 m (the strike, t 604.6), roll +-163-180.
+   - For SEAPLANES (unproven causes, the numbers above are the evidence): (a) the water taxi's target speed / throttle
+     on floats (6 m/s with the power pulsing to 0.5); (b) the taxi's aileron authority, capped at -0.25 here; (c) no
+     power cut / no turn-out-of-wind on a growing roll past ~15 deg; (d) the 8 kt wind and gusts on the turn - wind 0
+     is in the matrix, which says whether it is the wind's (section 2); (e) `flyLeg` should end a leg on the pilot's
+     `capsized` outcome (the 1800 s timeout costs the gate 25 min of CPU and hides the cause behind 'timeout').
 
 **F2 (bad: the official Petrel strikes its propeller landing on mk_sea, the user's OPEN item, measured):** see 0.4. The
 strike comes from the bounding rollout (pitch 42 deg at 10 m/s), not from the touchdown (sink 0.36) or from rest
