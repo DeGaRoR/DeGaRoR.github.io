@@ -89,6 +89,8 @@ const ONLY_SELFTEST = process.argv.includes('--selftest');
 // SP_BUDGET's measurement runs in a CHILD process (a fresh heap and fresh realms: a process that already ran other pages
 // carries their megamorphic call sites, whose float loads box - not the page's cost). The child flies the Cub only.
 const SPB_CHILD = (process.argv.find(a => a.startsWith('--spbudget-child=')) || '').slice(17);
+// EMITALLOC's too (a fresh heap, and the optimiser on the main thread: --no-concurrent-recompilation)
+const EMA_CHILD = (process.argv.find(a => a.startsWith('--emalloc-child=')) || '').slice(16);
 
 const FC = require(path.join(ROOT, 'tools', 'flight_core.js'));
 const { buildGen, makeSim, POWERPLANTS } = FC;
@@ -3976,7 +3978,7 @@ async function emAllocPage(S, withEm) {
 // background compiler's jobs, queued by the warm walk, have landed; on a loaded box they land late: the 8 Nov cloud sweep
 // read 7.1 B a frame on a master that reads 3-4 here, --concurrent-recompilation-delay=200 4 KB a frame. So the main
 // thread idles EM_SETTLE ms before the windows, and 50 ms before each, for those jobs; the same three windows, the same
-// walk, the same budget)
+// walk, the same budget. Since the child below, the jobs are the main thread's and the pauses only a node without the flag's)
 const EM_SETTLE = 600;
 async function emAllocMeasure(pg) {
   let best = null;
@@ -3993,7 +3995,24 @@ async function emAllocMeasure(pg) {
   }
   return best;
 }
-async function checkEmAlloc(S, report) {
+// (A CHILD with --no-concurrent-recompilation, A0 for the user's MASTER-GREEN, 8 Nov: the optimiser compiles on the main
+// thread when a function is hot, so the twin pages reach the same tiers at the same frames whatever else the box runs - a
+// train beside other sessions reads what a quiet box reads. The child gets the sources that differ from the disk's (a
+// mutation's), runs emAllocRun and prints its failures and its line)
+let EMA_N = 0;
+function checkEmAlloc(S, report) {
+  const os = require('os'), tmp = path.join(os.tmpdir(), 'flydiy_emalloc_' + process.pid + '_' + (EMA_N++) + '.json');
+  const sub = {}; for (const k in S) if (S[k] !== SRC0[k]) sub[k] = S[k];
+  fs.writeFileSync(tmp, JSON.stringify(sub));
+  try {
+    const out = execFileSync(process.execPath, ['--expose-gc', '--max-semi-space-size=64', '--no-concurrent-recompilation', __filename, '--emalloc-child=' + tmp], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 1 << 24 });
+    const r = JSON.parse(out.trim().split('\n').pop());
+    if (report) for (const x of r.rep) report.push(x);
+    return r.F;
+  } catch (e) { return ['the EMITALLOC child failed: ' + String(e && (e.stderr || e.message) || e).split('\n').slice(0, 3).join(' | ')]; }
+  finally { try { fs.unlinkSync(tmp); } catch (e) {} }
+}
+async function emAllocRun(S, report) {
   const F = [];
   const pg = await emAllocPage(S, true), A = await emAllocMeasure(pg);
   const B = await emAllocMeasure(await emAllocPage(S, false));
@@ -5205,6 +5224,13 @@ async function runChecks(S, report) {
 if (SPB_CHILD) {
   const sub = JSON.parse(fs.readFileSync(SPB_CHILD, 'utf8'));
   console.log(JSON.stringify(spBudgetMeasure(Object.assign({}, SRC0, sub), !!sub.__shot)));
+  return;
+}
+if (EMA_CHILD) {
+  const sub = JSON.parse(fs.readFileSync(EMA_CHILD, 'utf8'));
+  const rep = [];
+  emAllocRun(Object.assign({}, SRC0, sub), rep).then(F => console.log(JSON.stringify({ F, rep })),
+    e => console.log(JSON.stringify({ F: ['threw: ' + (e && e.stack ? e.stack.split('\n').slice(0, 3).join(' | ') : e)], rep })));
   return;
 }
 let fails = 0, pristine = null;
