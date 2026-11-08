@@ -15,7 +15,7 @@ Cloud tester, branch `claude/sea-amphib-findings`. **TEST AND REPORT ONLY - no g
     the shakedown, nav and day; damage ON) with per-step prop clearance, roll / pitch, tip clearance, capsize margin and
     a sim hash per leg; `--root` flies another worktree, `--trace` writes a 1 Hz time series.
 
-STATUS: sections 0-4 done (30 runs flown). The regression gates' counts (section 3) are the last to land.
+STATUS: DONE - sections 0-4 (30 flights; FLOATS / HYDRODYN / SEAPLANE on both trees).
 
 ---
 
@@ -249,7 +249,18 @@ Sim hashes (node positions at each leg's end, `fly.js`), the game's day 8 kt:
 are byte-identical on both trees: Twin 4b c7a9956a, PA-18 e26c7353.) The Petrel is not on master (no hull code there),
 so it has no master column.
 
-GATES_PLACEHOLDER
+**The gates, base 15ad5d66 vs master L35a 1bcd01d3** (the gate scripts run directly with `--show`, full output kept in
+`reports/evidence/SEA-AMPHIB/runs/raw_<tree>_<gate>.log`):
+
+| gate | base | master | output identical? |
+|---|---|---|---|
+| FLOATS (`_floats_check.js`) | PASS, 22 PASS lines | PASS, 22 PASS lines | yes, byte for byte (sha1 4c9bae8e9fcc) |
+| HYDRODYN (`_hydro_check.js`) | PASS, 49 | PASS, 49 | yes, except the 2 cost lines (ms/step - CPU load, not a count) - sha1 0520288ec0bb without them |
+| SEAPLANE (`_seaplane_check.js`, full tier) | PASS, 12 | PASS, 12 | yes, byte for byte (sha1 4eafe6c368ee) |
+
+`node tools/run_gates.js --only=FLOATS --no-build` and `--only=HYDRODYN` were also run through the runner on both
+trees: PASS / PASS. The cert keys were not re-run here (the box runs them; A0's CERT IDENTITY on 8 Nov: 0 moved on 13).
+**Second opinion: no regression for the non-amphibious float planes.**
 
 ## 4. What is missing for amphibious floats to really work (a list for SEAPLANES - no code from this tester)
 
