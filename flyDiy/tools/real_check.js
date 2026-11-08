@@ -287,8 +287,42 @@ function waterRig(spec, lc, poh) {
 // ---------------------------------------------------------------------------------------------------------------------
 function loadSpec(P) {
   const LB = require(path.join(T, '_load_build.js'));
+  if (P.card) {
+    // an ARCHETYPE CARD (REAL-FIGURES-2): designBake's birth spec through the load door's birth envelope - the card as
+    // the garage's new-aeroplane chooser hands it over (no file exists for a card)
+    const BJ = require(path.join(T, '_bake_joined.js'));
+    const { D } = BJ.loadPanel();
+    const a = D.ARCHETYPES.find(x => x.key === P.card);
+    if (!a) throw new Error('no archetype card ' + P.card);
+    const r = LB.gameSpecFull({ birth: 1, spec: D.designBake(a.sel, a.over) });
+    return { spec: r.spec, errors: r.errors || [], name: a.name };
+  }
   const r = LB.loadBuild(P.file);
   return { spec: r.spec, errors: r.errors || [], name: r.name };
+}
+// THE SHAPE AND THE SPECS (REAL-FIGURES-2): what a builder measures with a tape and reads off the engine's plate, off the
+// built def (the same extents perf_study's DIMENSIONS table reads: the node cloud settled on its gear, so `length` runs
+// engine flange -> rudder trailing edge, ~0.3 m short of a spinner-to-rudder type figure)
+function measureShape(spec, def) {
+  const sim = C.makeSim(def, null); sim.reset(0);
+  for (let i = 0; i < 150; i++) sim.step(1 / 60);
+  const [xA, yU] = sim.axes();
+  let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+  for (let i = 0; i < sim.n; i++) {
+    const p = [sim.p[i * 3], sim.p[i * 3 + 1], sim.p[i * 3 + 2]];
+    const x = p[0] * xA[0] + p[1] * xA[1] + p[2] * xA[2], y = p[0] * yU[0] + p[1] * yU[1] + p[2] * yU[2];
+    x0 = Math.min(x0, x - sim.r[i]); x1 = Math.max(x1, x + sim.r[i]); y0 = Math.min(y0, y - sim.r[i]); y1 = Math.max(y1, y + sim.r[i]);
+  }
+  const w = (spec.wings && spec.wings[0]) || {}, t = spec.tail || {}, g = spec.gear || {}, G = def.params.gen || {}, e = def.params.engine || {}, P = def.params.prop || {};
+  const L = def.parts.ledger || {}; let empty = 0; for (const k in L) if (!L[k].payload) empty += L[k].mass;
+  const fuelL = ((spec.energy && spec.energy.vessels) || []).reduce((a, v) => a + (v.capacity || 0), 0) || (spec.fuel && spec.fuel.litres) || 0;
+  let sh = null; try { sh = C.genShakedown(def, { slim: true }); } catch (err) {}
+  return {
+    dims: { span: (sh && sh.span) || G.span || null, length: (t.vX != null && t.vChord != null ? t.vX + t.vChord : x1) - x0, height: y1 - y0, S: (sh && sh.Sw) || G.Sw || null,
+            cRoot: w.chord || null, cTip: w.chord ? w.chord * (w.taper == null ? 1 : w.taper) : null, hSpan: t.hSpan || null, Sh: t.Sh || null, Sv: t.Sv || null, track: g.track || null },
+    specs: { engine: e.name || null, hp: e.powerW ? e.powerW / 745.7 : null, nE: def.params.nEngines || 1, propD: P.D || (spec.prop && spec.prop.D) || null,
+             blades: (spec.prop && spec.prop.blades) || null, empty, mtow: def.parts.designGross || null, fuelL, seats: (spec.cabin && spec.cabin.seats) || null },
+  };
 }
 function runPlane(key, P) {
   const tStart = Date.now();
@@ -299,6 +333,8 @@ function runPlane(key, P) {
   const F = loadFacts(def0);
   const CS = cases(def0, F, R, P, P.cgSweep || has('cg'));
   const out = { key, label: P.label, file: P.file, ref: P.ref, refName: R.name, official: !!P.official, engineNote: P.engineNote || null,
+                provisional: !!P.provisional, note: P.note || null, group: P.group || null, card: P.card || null,
+                shape: measureShape(spec, def0),
                 joinErrors: errors, facts: { empty: F.empty, baked: F.mass, fuelKg: F.fuelKg, seats: F.nSeats, occupied: F.occB, baggage: F.baggage,
                 engine: def0.params.engine && def0.params.engine.name, hp: def0.params.engine ? def0.params.engine.powerW / 745.7 : null,
                 S: def0.params.gen && def0.params.gen.Sw, flapsGame: def0.params.flaps ? { to: def0.params.flaps.to, ldg: def0.params.flaps.ldg } : null,
