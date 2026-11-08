@@ -390,7 +390,11 @@ function lobeAt(th,z){
   const t=clamp(z/Math.max(zEnd(),1e-4),0,1);
   const w=Math.exp(-Math.pow((t-P.lobeT)/Math.max(0.03,P.lobeTSig),2));
   if(w<0.008) return 0;
-  const azs=[P.lobeAz*DEG]; if(P.lobeN>=2) azs.push(Math.PI-P.lobeAz*DEG);
+  const azs=[P.lobeAz*DEG];
+  // PROPER-COWLS (2026-11-08): 3 or more - one helmet over each cylinder of a radial, evenly round from lobeAz (the
+  // first cylinder's azimuth, 0 = the flank, 90 = the top). 1 and 2 are the cheeks they always were, to the bit.
+  if(P.lobeN>=3){ const n=Math.round(P.lobeN); for(let k=1;k<n;k++) azs.push(P.lobeAz*DEG+k*TAU/n); }
+  else if(P.lobeN>=2) azs.push(Math.PI-P.lobeAz*DEG);
   let d=0;
   for(const az of azs) d+=P.lobeAmp*w*Math.exp(-Math.pow(angDiff(th,az)/(P.lobeSig*DEG),2));
   return d;

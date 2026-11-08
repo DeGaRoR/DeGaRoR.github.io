@@ -455,6 +455,16 @@ function noseFace(mesh, FS, end) {
 // cowls all sat at 0; the Chinook's block is on a cowl-less pusher, the twin floatplane's gap on nacelles).
 const cowledPusher = P => P && (P.cowlOn == null || +P.cowlOn) &&
   [1, 4].includes(Math.round(+P.engMount || 0));
+// PROPER-COWLS (2026-11-08): A POD'S PLATE IS THE POD'S SIZE. Off the body the engine draws its own mount plate on the
+// synthetic face, at a fixed size (0.16 x 0.14 over the wing, 0.20 x the wing's depth on a nacelle) - and a pod drawn
+// tight round its engine (a cowl on, free - fitNose 0 - closed by the tail cone, aftMode 1) showed that plate's
+// corners and the mount's spread through its sides. Such a pod hands the face its own half-width and half-height; any
+// other cowl, and every cowl-less engine, keeps the fixed plate it always had.
+const podPlate = (P, face) => {
+  if (!P || !(+P.cowlOn) || Math.round(+P.fitNose || 0) !== 0 || Math.round(+P.cw_aftMode || 0) !== 1) return face;
+  const w = +P.cw_aftW, h = +P.cw_aftH;
+  return (w > 0 && h > 0) ? Object.assign(face, { halfW: w, halfH: h }) : face;
+};
 function engineFaces(mesh, FS, P) {
   const mount = Math.round((P && P.engMount) || 0);
   if (mount >= 4 && mount <= 6) {
@@ -495,9 +505,9 @@ function engineFaces(mesh, FS, P) {
     const ch = (chPl && chPl.chordAt) ? chPl.chordAt(0) : 1.4;
     const hp = Math.max(0.05, +P.engPylonH || 0.30);
     const aft = aim === 0 ? true : aim === 2;
-    return [{ face: { z: le.z - 0.30 * ch + bz, yc: le.yTop + hp + by, x: 0,
+    return [{ face: podPlate(P, { z: le.z - 0.30 * ch + bz, yc: le.yTop + hp + by, x: 0,
                       halfW: 0.16, halfH: 0.14, uv: null, waist: 0,
-                      synthetic: 1, yBase: le.yTop, chord: ch },
+                      synthetic: 1, yBase: le.yTop, chord: ch }),
               aft, kind: 'wingTop' }];
   }
   if (mount === 3) {
@@ -509,10 +519,10 @@ function engineFaces(mesh, FS, P) {
     for (const s of [1, -1]) {
       const e = aft && W.teAt ? W.teAt(s * x) : W.leAt(s * x);
       if (!e) continue;
-      out.push({ face: { z: (aft ? e.z - 0.10 : e.z + 0.10) + bz,
+      out.push({ face: podPlate(P, { z: (aft ? e.z - 0.10 : e.z + 0.10) + bz,
                          yc: 0.5 * (e.yTop + e.yBot) + by, x: s * x,
                          halfW: 0.20, halfH: 0.5 * (e.yTop - e.yBot) + 0.10,
-                         uv: null, waist: 0, synthetic: 1 },
+                         uv: null, waist: 0, synthetic: 1 }),
                  aft, kind: 'nacelle' });
     }
     return out;

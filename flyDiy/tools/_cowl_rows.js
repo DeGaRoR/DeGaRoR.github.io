@@ -126,10 +126,11 @@ const COWL_ROWS = [
   ] },
   // ---- Cheeks & cut-out ----
   { id: 'g_lobe', name: 'Cheeks & cut-out', rows: [
-    { k: 'lobeN', label: 'cheeks (bulges over the cylinder heads)', lo: 0, hi: 2, step: 1 },
+    // PROPER-COWLS: 3-14 = a helmet over each cylinder of a radial (lobeAz the first one's azimuth)
+    { k: 'lobeN', label: 'cheeks (bulges over the cylinder heads; 3+ = one per radial cylinder)', lo: 0, hi: 14, step: 1 },
     { k: 'lobeAmp', label: 'cheek height', lo: 0, hi: 0.16, step: 0.002, when: 'P.lobeN>0' },
     { k: 'lobeT', label: 'cheek station (firewall → nose ring)', lo: 0, hi: 1, step: 0.01, when: 'P.lobeN>0' },
-    { k: 'lobeAz', label: 'cheek azimuth (0 = the flanks)', lo: -90, hi: 90, step: 1, when: 'P.lobeN>0' },
+    { k: 'lobeAz', label: 'cheek azimuth (0 = the flanks)', lo: -90, hi: 180, step: 1, when: 'P.lobeN>0' },
     { k: 'lobeSig', label: 'cheek spread round the section', lo: 8, hi: 70, step: 1, when: 'P.lobeN>0' },
     { k: 'lobeTSig', label: 'cheek spread along the cowl', lo: 0.05, hi: 0.6, step: 0.01, when: 'P.lobeN>0' },
     { k: 'cutSpan', label: 'cut-out span (horseshoe)', lo: 0, hi: 200, step: 1 },

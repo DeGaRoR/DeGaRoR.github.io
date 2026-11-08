@@ -114,8 +114,101 @@ function measure(spec, over) {
   const u0 = E && E.units && E.units[0];
   const face = W.CAGE_COWL_NOSE_FACE ? W.CAGE_COWL_NOSE_FACE(S.built.sheet, S.FS, +P.engMount === 1 ? 'tail' : 'nose') : null;
   const CW = W.COWL_GEN, ax = CW && CW.axisXY ? CW.axisXY() : { x: 0, y: 0 };
-  return { S, P, W, ax, env, name: E && E.name, arch: R && R.arch, zFw: E && E.zFw, unit: u0, face,
-           mount: Math.round(+P.engMount || 0), errors: S.errors };
+  const m = { S, P, W, ax, env, name: E && E.name, arch: R && R.arch, zFw: E && E.zFw, unit: u0, face,
+              mount: Math.round(+P.engMount || 0), errors: S.errors, cyl: R && R.cyl };
+  m.verts = drawnEngine(m);
+  m.drawn = drawnReach(m);
+  m.bumps = (aW, zE) => radialBumps(m, aW, zE);
+  return m;
+}
+
+// THE DRAWN ENGINE, in its unit's own frame (x a side, y up from the propeller's line, z forward from the flange):
+// every vertex of the first unit's engine (the spinner, the shaft and the blades aside)
+function drawnEngine(m) {
+  const THREE = SH.context().THREE;
+  let eng = null;
+  m.S.scene.traverse(o => { if (o.name === 'cageLayer:eng') eng = o; });
+  if (!eng || !eng.children.length) return [];
+  eng.updateMatrixWorld(true);
+  const ug = eng.children[0], inv = new THREE.Matrix4().copy(ug.matrixWorld).invert(), v = new THREE.Vector3(), out = [];
+  ug.traverse(o => {
+    if (!o.isMesh || /spin|prop|shaft/i.test(o.name || '')) return;
+    const pa = o.geometry.attributes.position;
+    for (let i = 0; i < pa.count; i++) { v.fromBufferAttribute(pa, i); o.localToWorld(v); v.applyMatrix4(inv); out.push([v.x, v.y, v.z]); }
+  });
+  return out;
+}
+// how far the drawn engine reaches up and to the side between the plate and the flange (the envelope misses the top
+// hardware - 6 cm on an O-320, 13 cm on a Rotax 915); what hangs below (the exhaust stubs) is left to leave the pod
+function drawnReach(m) {
+  const z0 = m.env ? m.env.z0 - 0.01 : -1;               // the engine's own body: its back to the flange
+  let up = 0, w = 0;
+  for (const [x, y, z] of m.verts) {
+    if (z < z0 || z > -0.005) continue;                  // the mount (the plate takes the pod's size) and the flange aside
+    if (y > up) up = y;
+    if (y > -0.05 && Math.abs(x) > w) w = Math.abs(x);
+  }
+  return { up, w };
+}
+// ONE HELMET OVER EACH CYLINDER (the user: "check with the engine where the pistons would be placed, generate the
+// little bumps there and reduce the overall diameter"): the drawn heads are the vertices far out from the crank; their
+// count is the engine's, their phase the drawn one's (the circular mean of n x their azimuth), their station along the
+// cowl theirs; the barrel is cut to 0.84 of the heads' radius and each helmet stands 12 mm over its head
+function radialBumps(m, aW, zE) {
+  const V = m.verts;
+  if (!V.length || !(m.cyl >= 3)) return {};
+  // the heads: the engine's own enclosing radius (the drawn collector ring and the pipes reach past it)
+  const rMax = m.env.radius;
+  const heads = V.filter(([x, y, z]) => { const r = Math.hypot(x, y); return r > 0.82 * rMax && r < 1.03 * rMax && z > m.env.z0 - 0.01; });
+  if (heads.length < 8) return {};
+  const n = Math.min(14, Math.round(m.cyl));
+  let sc = 0, cc = 0, zs = 0;
+  for (const [x, y, z] of heads) { const a = Math.atan2(y, x); sc += Math.sin(n * a); cc += Math.cos(n * a); zs += z; }
+  const phase = Math.atan2(sc, cc) / n * 180 / Math.PI;
+  const zH = zs / heads.length - (m.zFw || 0);               // the heads' station, forward of the plate
+  const zSd = Math.sqrt(heads.reduce((a, h) => a + Math.pow(h[2] - zs / heads.length, 2), 0) / heads.length);
+  return { cw_lobeN: n, cw_lobeAz: +(((phase % 360) + 360) % (360 / n)).toFixed(1),
+           cw_lobeAmp: +Math.min(0.16, Math.max(0, rMax + 0.012 - aW)).toFixed(3),
+           cw_lobeSig: +Math.max(6, Math.min(40, 0.32 * 360 / n)).toFixed(1),
+           cw_lobeT: +Math.max(0.05, Math.min(0.95, zH / zE)).toFixed(3),
+           cw_lobeTSig: +Math.max(0.08, Math.min(0.6, 2.2 * zSd / zE)).toFixed(3) };
+}
+
+// THE FIREWALL'S SECTION, FITTED (the user, 8 Nov: "take the roundness top, the roundness bottom, and then also the
+// creasing of the nose into account"): the fuselage's measured width by height just behind the face, against the cowl
+// section's own law (|x/a|^n + |(y - waist)/h|^n = 1, a half each side of the widest line); the waist and the two
+// roundnesses that fit it best. A flat-sided box fits many waists equally: the tie goes to the plane's waistline (the
+// cage's waistY on a nose) - a round-topped cabin (topRound) is fitted where it really is widest.
+function aftSection(m) {
+  const f = m.face, P = m.P, CW = m.W.COWL_GEN;
+  const GG = m.W.GEAR_GEN, AF = GG && GG.cageAirframe ? GG.cageAirframe(m.S.built.sheet, m.S.FS) : null;
+  const wCage = (m.mount !== 1 && P.waistY != null) ? Math.max(-0.85, Math.min(0.85, (+P.waistY * m.S.FS - f.yc) / f.halfH)) : null;
+  if (!AF) return { waist: wCage || 0, sqTop: 0.55, sqBot: 0.55 };
+  const zs = f.z + (m.mount === 1 ? 0.05 : -0.05), pts = [];
+  for (let k = 0; k < 720; k++) pts.push(AF.surf(zs, -Math.PI + k / 720 * 2 * Math.PI));
+  const prof = [];
+  for (let t = -0.9; t <= 0.901; t += 0.05) {
+    const y = f.yc + t * f.halfH; let w = 0;
+    for (const p of pts) if (Math.abs(p[1] - y) < 0.012) w = Math.max(w, Math.abs(p[0]));
+    if (w > 0) prof.push([t, w / f.halfW]);
+  }
+  const model = (t, wv, nT, nB) => {
+    const up = t >= wv, h = up ? 1 - wv : 1 + wv, r = Math.min(1, Math.abs(t - wv) / Math.max(h, 1e-3)), n = up ? nT : nB;
+    return Math.pow(Math.max(0, 1 - Math.pow(r, n)), 1 / n);
+  };
+  // THE WAISTLINE RULE FIRST: a flat-sided nose keeps the plane's waistline (the user: "matching the height of the
+  // waistline ... allows the cowl to enlarge where it should"); a round-topped cabin (topRound >= 0.5) is widest lower
+  // than its waistY says, and is fitted - as is a pusher's aft face. The roundness above and below is always fitted.
+  const fixW = wCage != null && (+P.topRound || 0) < 0.5 ? wCage : null;
+  let best = null;
+  const W0 = fixW != null ? [fixW] : []; if (fixW == null) for (let wv = -0.8; wv <= 0.801; wv += 0.05) W0.push(wv);
+  for (const wv of W0) for (let sT = 0.35; sT <= 0.951; sT += 0.05) for (let sB = 0.35; sB <= 0.951; sB += 0.05) {   // the user's own fits: 0.35-0.6
+    const nT = CW.sqExp(sT), nB = CW.sqExp(sB);
+    let e = 0; for (const [t, w] of prof) e += Math.pow(model(t, wv, nT, nB) - w, 2);
+    e = e / Math.max(1, prof.length);
+    if (!best || e < best.e) best = { e, waist: wv, sqTop: sT, sqBot: sB };
+  }
+  return { waist: +best.waist.toFixed(3), sqTop: +best.sqTop.toFixed(2), sqBot: +best.sqBot.toFixed(2), err: best.e, cage: wCage };
 }
 
 // ---- the rows ---------------------------------------------------------------------------------------------------
@@ -133,38 +226,65 @@ function rowsFor(spec, o) {
   const eR = CLEAR * env.radius;
   const offBody = [2, 3, 5, 6].includes(m.mount);
   const mode = offBody ? 'pod' : opt;
-  const T = +m.ax.y || 0;                            // the thrust line about the face's centre (it stays where it is)
+  // THE PROPELLER'S LINE about the face's centre: the cowl's axis AND the engine's own offset (engY - the Tiger Moth
+  // carries 0.21 m of it, so its spinner stood over the cowl's ring). The straight cowl folds engY into its axis
+  // (engY 0, the axis the propeller's): the engine and the flown thrust line stay exactly where they were.
+  // o.lower (m, a study option): the engine LOWERED by that much - that one moves the flown thrust line.
+  const engY0 = +P.engY || 0, lower = +o.lower || 0;
+  const T = (+m.ax.y || 0) + engY0 - lower;
+  // the drawn engine about the propeller's line (its envelope, raw: up above the shaft, dn below, w a side)
+  const up = Math.max(0, env.y1), dn = Math.max(0, -env.y0), wE = Math.max(Math.abs(env.x0), Math.abs(env.x1));
+  const D = m.drawn || {};                           // the drawn mesh's own reach where it exceeds the envelope (pods)
   const out = Object.assign({}, SHAPE);
-  let aW, aH, front, frontW = null, frontH = null;
-  // the thrust line sits at the face's centre plus the engine's own offset (engY); the face's centre is yc
+  let aW, aH, front, frontW = null, frontH = null, cE = T;
+  const narrow = type === 'inline' || type === 'twostroke' || m.mount === 1;
   if (mode === 'waist' && m.face) {
-    // THE BODY COWL (the user, 8 Nov): the aft section is the fuselage's at the firewall, its widest line ON THE PLANE'S
-    // WAISTLINE; the front is centred on the thrust line, SHRUNK VERTICALLY (the engine is far less tall than the
-    // nose) and lifted so its widest line carries the waistline on, level; then narrowed a little; cheeks only after.
-    out.fitNose = 1;                                   // the firewall's size and squareness (sealed by finish)
+    // THE BODY COWL (the user, 8 Nov): the firewall's section, its widest line ON THE PLANE'S WAISTLINE; the front
+    // centred on the ENGINE (its own box, so an inverted in-line keeps its spinner high in the face), shrunk
+    // vertically and lifted so the widest line carries on level; narrowed a little (an in-line or a pusher: toward the
+    // engine - the user's busher 0.62); cheeks only after.
+    out.fitNose = 2;                                   // sealed: the firewall's size, the section these rows
     aW = m.face.halfW; aH = m.face.halfH;
-    const wA = fuselageWaist(m);                       // the waist at the firewall, x the face's half-height
-    const W = wA * aH;                                 // ... in metres about the face's centre
-    const hNeed = Math.max(eUp, eDn) + 0.03;           // the engine about the thrust line, with room
-    const hMax = Math.max(hNeed, Math.min(aH - T, aH + T) - 0.01);   // the front inside the firewall's top and bottom
-    const h1 = Math.min(hMax, Math.max(hNeed, FRONT_H * aH));
-    const a1 = Math.min(aW, Math.max(FRONT_W * aW, eW));
-    out.cw_taperW = +(a1 / aW).toFixed(3); out.cw_taperH = +(h1 / aH).toFixed(3);
+    const sec = aftSection(m);                         // the waist and the roundness the fuselage has at the firewall
+    const W = sec.waist * aH;
+    cE = T + 0.5 * (up - dn);                          // the engine's own box centre
+    const hE = 0.5 * CLEAR * (up + dn) + 0.03;
+    const hMax = Math.max(hE, Math.min(aH - cE, aH + cE) - 0.01);
+    const h1 = Math.min(hMax, Math.max(hE, (type === 'inline' ? 0.6 : FRONT_H) * aH));
+    let a1 = narrow ? Math.min(aW, Math.max(CLEAR * wE + 0.03, 0.45 * aW))
+                    : Math.min(aW, Math.max(FRONT_W * aW, CLEAR * wE));
+    let hF = h1;
+    if (type === 'radial') {
+      // A RADIAL ON THE BODY: the front is round, the engine's (0.84 of its heads' radius - the helmets carry the
+      // heads), centred on the propeller; a nose smaller than that bulges to it, to the row's own 1.15 and no further
+      const rF = 0.84 * CLEAR * env.radius;
+      a1 = Math.min(1.15 * aW, rF); hF = Math.min(1.15 * aH, rF); cE = T;
+      out._radialFront = rF;
+      if (rF > 1.15 * Math.min(aW, aH)) out._note = 'the nose is smaller than this radial: the front stops at 1.15 x the firewall';
+    }
+    out.cw_taperW = +(a1 / aW).toFixed(3); out.cw_taperH = +(hF / aH).toFixed(3);
     out.cw_deckH = 1; out.cw_keelH = 1;
-    out._waist = +wA.toFixed(3);
-    out.cw_waistF = +Math.max(-0.85, Math.min(0.85, (W - T) / h1)).toFixed(3);
-    out.cw_lidRise = +T.toFixed(4);                    // the barrel's axis runs to the thrust line: the front centred on it
-    front = Math.min(a1, h1); frontW = a1; frontH = h1;
+    out.cw_waist = +sec.waist.toFixed(3);
+    out.cw_sqAftTop = sec.sqTop; out.cw_sqAftBot = sec.sqBot;
+    // the front keeps the fuselage's roundness; an in-line's is the boxy pod's (the user: "start from" it)
+    const fSq = type === 'inline' ? 0.74 : type === 'radial' ? 0.5 : null;
+    out.cw_sqFrontTop = fSq != null ? fSq : sec.sqTop; out.cw_sqFrontBot = fSq != null ? fSq : sec.sqBot;
+    out.cw_waistF = type === 'radial' ? 0 : +Math.max(-0.85, Math.min(0.85, (W - cE) / hF)).toFixed(3);
+    front = Math.min(a1, hF); frontW = a1; frontH = hF;
+    out._sec = sec;
   } else if (mode === 'pod') {
-    // OFF THE BODY (the user, 8 Nov): straight, sized to the engine, the section the engine's own - a boxer wider than
-    // high, an in-line higher than wide and boxy, a V a rounded oval, a radial / motor round, a turboprop round with
-    // its chin intake grown into the barrel (a deeper, squarer bottom) rather than bolted on
+    // OFF THE BODY (the user, 8 Nov): straight, sized to the DRAWN engine (its top hardware, its sides; exhaust stubs
+    // may leave underneath), the section the engine's own - a boxer wider than high, an in-line higher than wide and
+    // boxy, a V a rounded oval, a radial round with a helmet over each cylinder, a motor round, a turboprop round with
+    // its chin grown into the barrel
     out.fitNose = 0;
     const POD = { flat: [0.60, 0.60], rotax: [0.60, 0.60], twostroke: [0.72, 0.72], inline: [0.74, 0.74],
                   vee: [0.58, 0.58], radial: [0.5, 0.5], electric: [0.5, 0.5], turbine: [0.5, 0.66] }[type] || [0.55, 0.55];
     const round = type === 'radial' || type === 'electric' || type === 'turbine';
-    const hT = Math.max(0.08, eUp + 0.02), hB = Math.max(0.08, eDn + 0.02), wP = Math.max(0.10, eW + 0.02);
-    let h = Math.max(hT, hB);
+    const upD = Math.max(up, D.up || 0), wD = type === 'turbine' ? wE : Math.max(wE, D.w || 0);   // a PT6's stacks pierce the skin
+    let hT = Math.max(0.08, upD + 0.025), hB = Math.max(0.08, dn + 0.02), wP = Math.max(0.10, wD + 0.025);
+    if (type === 'radial') { const r = 0.84 * CLEAR * env.radius; hT = hB = wP = Math.max(r, 0.12); }   // the helmets carry the heads
+    const h = Math.max(hT, hB);
     aW = round ? Math.max(wP, h) : wP; aH = round ? Math.max(wP, h) : h;
     out.cw_aftW = +aW.toFixed(4); out.cw_aftH = +aH.toFixed(4);
     out.cw_deckH = round ? 1 : +Math.max(0.55, hT / aH).toFixed(3);
@@ -183,43 +303,46 @@ function rowsFor(spec, o) {
   } else if (mode === 'blend' && m.face) {
     out.fitNose = 1;
     aW = m.face.halfW; aH = m.face.halfH;
-    // the front: round, the engine's (never wider than the firewall, never narrower than the engine)
-    const r = Math.max(Math.max(eUp, eDn) * 1.1, 0.82 * Math.min(aW, aH));
+    const r = Math.max(Math.max(up, dn) * CLEAR * 1.1, 0.82 * Math.min(aW, aH));
     out.cw_taperW = +Math.min(1, Math.max(0.3, r / aW)).toFixed(3);
     out.cw_taperH = +Math.min(1, Math.max(0.3, r / aH)).toFixed(3);
     out.cw_sqFrontTop = 0.5; out.cw_sqFrontBot = 0.5;
     front = r;
   } else {
-    // own: round, about the thrust line, the engine's size
     out.fitNose = 0;
-    const r = Math.max(0.12, eW, eUp, eDn);
+    const r = Math.max(0.12, CLEAR * wE, CLEAR * up, CLEAR * dn);
     aW = r; aH = r;
     out.cw_aftW = +aW.toFixed(4); out.cw_aftH = +aH.toFixed(4);
     out.cw_taperW = 1; out.cw_taperH = 1;
     out.cw_deckH = 1; out.cw_keelH = 1; out.cw_waist = 0;
-    const sq = 0.5;
-    out.cw_sqAftTop = sq; out.cw_sqAftBot = sq; out.cw_sqFrontTop = sq; out.cw_sqFrontBot = sq;
+    out.cw_sqAftTop = 0.5; out.cw_sqAftBot = 0.5; out.cw_sqFrontTop = 0.5; out.cw_sqFrontBot = 0.5;
     front = Math.min(aW, aH);
-    if (offBody) { out.cw_aftMode = 1; out.cw_tailLen = +Math.max(0.5, 2.2 * aH).toFixed(3); out.cw_tailDrop = 0; }
   }
-  // THE LENGTH: the face ends at the spinner's base (the flange + noseOff), the lip inside that
+  // THE LENGTH. A body cowl's face ends at the spinner's base (the flange + noseOff), the lip inside that. A POD runs
+  // its full section to the spinner's base and closes in front of it (the user: "make the cowl a little longer, put
+  // it further forward so that nothing pokes through, and you may move the prop a little bit"): the propeller moves
+  // forward by the lip, the engine layer's shaft bridges the flange to the spinner.
   const lip = Math.max(LIP_LO, Math.min(LIP_HI, LIP_K * front));
-  const reach = (m.zFw != null ? -m.zFw : env.length * 1.1) + (+P.cw_noseOff || 0);
+  const noseOff0 = +P.cw_noseOff || 0;
+  const reach = (m.zFw != null ? -m.zFw : env.length * 1.1) + noseOff0;
   out.cw_lidLen = +lip.toFixed(3);
-  out.cw_cowlLen = +Math.max(0.1, Math.min(2, reach - lip)).toFixed(3);
+  if (mode === 'pod') { out.cw_cowlLen = +Math.max(0.1, Math.min(2, reach)).toFixed(3); out.cw_noseOff = +(noseOff0 + lip).toFixed(3); }
+  else out.cw_cowlLen = +Math.max(0.1, Math.min(2, reach - lip)).toFixed(3);
   Object.assign(out, FACE[type](front, frontW || front, frontH || front));
-  // THE THRUST LINE STAYS WHERE IT IS (the engine, its spinner and the flown thrust line follow the cowl's axis:
-  // _cowl_gen axisXY = the axis rise + the face rise + the inlet's offset). The barrel is straight on the face's
-  // centre; today's offset of the axis goes into the FACE (the spinner sits off-centre in the flat face, as on a
-  // Cessna or a Rotax nose). No flown number moves.
+  // THE AXIS: body cowls - the barrel runs to the engine's box centre (lidRise), the ring sits on the propeller
+  // (faceRise, the ring only); off the body the plate moves by the propeller's offset (engBlockY) and the pod is
+  // centred on it. engY is folded in: 0.
   out.cw_apOffX = +(+m.ax.x || 0).toFixed(4); out.cw_apOffY = 0;
-  out.cw_faceRise = mode === 'waist' ? 0 : +(+m.ax.y || 0).toFixed(4);
-  // OFF THE BODY the plate is the engine's own (no fuselage to centre on): the pod is centred on the engine instead -
-  // the plate moves by the axis offset (engBlockY, the block's own row) and the face does not rise; the engine stays put
-  if (offBody) { out.engBlockY = +((+P.engBlockY || 0) + (+m.ax.y || 0)).toFixed(4); out.cw_faceRise = 0; }
+  if (offBody) { out.engBlockY = +((+P.engBlockY || 0) + T).toFixed(4); out.cw_lidRise = 0; out.cw_faceRise = 0; }
+  else if (mode === 'waist') { out.cw_lidRise = +cE.toFixed(4); out.cw_faceRise = +(T - cE).toFixed(4); }
+  else { out.cw_lidRise = 0; out.cw_faceRise = +T.toFixed(4); }
+  if (engY0 || lower) out.engY = 0;
+  // A RADIAL'S HELMETS: one over each cylinder, where the drawn engine puts them (radialBumps)
+  if (type === 'radial' && m.bumps) Object.assign(out, m.bumps(out._radialFront || aW, out.cw_cowlLen + lip));
+  const note = out._note; delete out._radialFront; delete out._note;
   for (const k of Object.keys(out)) if (typeof out[k] === 'number') out[k] = +out[k].toFixed(4);
-  // the match keeps the section the fuselage's: the front's squareness follows the aft's (written after a fitted build)
-  return { over: out, why: { type, mode, mount: m.mount, engine: m.name, face: m.face, env: { eW, eUp, eDn, eR }, reach, lip } };
+  return { over: out, why: { type, mode, mount: m.mount, engine: m.name, face: m.face, prop: T, engineCentre: cE, lower,
+           env: { up, dn, wE }, drawn: D, reach, lip, note } };
 }
 
 // a straight 'match' needs the front section = the fitted aft section: one fitted build, then copy
@@ -272,12 +395,12 @@ if (require.main === module) {
   const [IN, OUT] = pos;
   const j = JSON.parse(fs.readFileSync(IN, 'utf8'));
   const spec = j.spec || j;
-  const r = rowsFor(spec, { opt: arg('opt', 'waist'), type: arg('type', 'auto') });
+  const r = rowsFor(spec, { opt: arg('opt', 'waist'), type: arg('type', 'auto'), lower: +arg('lower', 0) });
   if (!r.over) { console.error('straight: ' + r.why); process.exit(1); }
   const over = finish(spec, r.over, r.why.type);
-  const cheeks = over._cheeks; delete over._cheeks;
+  const cheeks = over._cheeks; delete over._cheeks; const sec = over._sec; delete over._sec;
   const s2 = JSON.parse(JSON.stringify(spec));
   s2.cage = Object.assign({}, s2.cage, over);
   fs.writeFileSync(OUT, JSON.stringify(j.spec ? Object.assign({}, j, { spec: s2, name: (j.name || '') + ' straight ' + arg('opt', 'match') }) : s2));
-  console.log(JSON.stringify(Object.assign({ out: OUT }, r.why, { face: undefined }, { cheeksWorst: cheeks, over })));
+  console.log(JSON.stringify(Object.assign({ out: OUT }, r.why, { face: undefined }, { cheeksWorst: cheeks, section: sec, over })));
 }
