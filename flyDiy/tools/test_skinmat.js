@@ -1198,7 +1198,9 @@ if (process.argv.includes('--selftest')) {
         'finish: the waistband row is not named for what a bubble canopy makes of it (the band round the cockpit)');
   {
     const ED = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'editor.js'), 'utf8');
-    check(/const finSec = view === 'finish' && hit && hit\.section \? hit\.section : null;[\s\S]{0,200}select\(finSec \? key :[\s\S]{0,300}e\.dataset\.sec === finSec[\s\S]{0,200}scrollIntoView/.test(ED),
+    // WEAR-TAB (48056ffbe, 5 Nov) widened it to the wear view (its rows moved out of finish with their keys): the same click
+    // lands on the struck section's row in either view - the pin follows it (MASTER-GREEN, 8 Nov)
+    check(/const finSec = \(view === 'finish' \|\| view === 'wear'\) && hit && hit\.section \? hit\.section : null;[\s\S]{0,200}select\(finSec \? key :[\s\S]{0,300}e\.dataset\.sec === finSec[\s\S]{0,200}scrollIntoView/.test(ED),
           'finish: a click on a surface in the FINISH view does not land on its own section\'s row');
   }
 }
