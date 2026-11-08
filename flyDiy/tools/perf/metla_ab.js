@@ -202,7 +202,7 @@ const CHECK = `JSON.stringify((() => { const P = WORLD && WORLD.premises; const 
       if (at && at.cx !== undefined) {
         const hx = (home ? home.x : 0) - at.cx, hz = (home ? home.z : 0) - at.cz, hl = Math.hypot(hx, hz) || 1, ux = hx / hl, uz = hz / hl;
         await b.ev("(() => { const c = FLIGHT_PROBE.craft && FLIGHT_PROBE.craft(); if (c) c.visible = false; document.body.style.visibility = 'hidden'; const cv = document.getElementById('c'); if (cv) cv.style.visibility = 'visible'; return 1; })()");
-        for (const [n, tx, tz, back, up, lift] of [['cell60', at.dx, at.dz, 60, 1.8, 5], ['cell130', at.dx, at.dz, 130, 4, 6], ['cell250', at.dx, at.dz, 250, 10, 6], ['cellover', at.dx, at.dz, 90, 35, 0],
+        for (const [n, tx, tz, back, up, lift] of [['cell60', at.dx, at.dz, 60, 14, 4], ['cell130', at.dx, at.dz, 130, 24, 4], ['cell250', at.dx, at.dz, 250, 32, 6], ['cellover', at.dx, at.dz, 90, 35, 0],
           ['inside', at.cx, at.cz, at.R * 0.45, 22, 6], ['edge', at.cx, at.cz, at.R + 40, 16, 6], ['out400', at.cx, at.cz, at.R + 400, 60, 6], ['out1300', at.cx, at.cz, at.R + 1300, 130, 6]]) {
           const v = await b.ev(`(() => { const W = FLIGHT_PROBE.world(), ex = ${tx} + ${ux} * ${back}, ez = ${tz} + ${uz} * ${back};
             const gy = Math.max(W.terrainH ? W.terrainH(ex, ez) : 0, W.waterH ? W.waterH(ex, ez) : -1e9, 0), ey = gy + ${up}, ty = Math.max(W.terrainH ? W.terrainH(${tx}, ${tz}) : 0, 0) + ${lift};
