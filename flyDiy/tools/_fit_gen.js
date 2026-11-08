@@ -462,6 +462,17 @@ const FORMS = {
   },
 };
 
+// UPRIGHT-FOOT (8 Nov, A0 from GATE CLIP's report): THE BASE AN UPRIGHT FORM STANDS ON, as half-extents
+// [across, fore] in metres - what its root really covers, read off the forms above. The placer sinks an upright
+// aerial or beacon to the lowest skin under THIS (FITTINGS-MANUAL, "sunk rather than floating"); it used the row's
+// largest size, which is the comm blade's 230 mm HEIGHT, so it searched 150 mm fore and aft of a 90 mm root - on the
+// rod build that ran down the cabin's aft step onto the boom and sank the blade 109 mm into the pillar.
+const FIT_BASE = {
+  bladeAerial: S => [(S.t || 0.010) * 0.5, (S.c || 0.09) * 0.5],   // the root section: t across, the chord fore/aft
+  wireAerial: () => [0.014, 0.014],                                 // the mast's foot ring (the row's `foot` is clearance)
+  lightBeacon: S => [(S.d || 0.062) * 0.56, (S.d || 0.062) * 0.56], // the base ring
+};
+
 // which bag names a form may write into — the three the layer creates
 const FIT_BAGS = ['paint', 'metal', 'lens'];
 
@@ -478,7 +489,7 @@ const FIT_BAGS = ['paint', 'metal', 'lens'];
 const FIT_SURFACES = { body: true, wing: true, cowl: true, rod: true, boom: true,   // G278: the twin booms
                        door: true };                                              // G310: the cabin doors
 
-const API = { FORMS, FIT_BAGS, FIT_SURFACES, plateInto, fastenRing, at };
+const API = { FORMS, FIT_BAGS, FIT_BASE, FIT_SURFACES, plateInto, fastenRing, at };
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
 if (typeof window !== 'undefined') window.FIT_GEN = API;
 
