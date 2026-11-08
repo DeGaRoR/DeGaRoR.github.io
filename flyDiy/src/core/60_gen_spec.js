@@ -4494,7 +4494,37 @@ function genEnvBig(span) { return +span > GEN_WING_ENVELOPE.span[1]; }
 function genWingEnv(span) { return genEnvBig(span) ? Object.assign({}, GEN_WING_ENVELOPE, GEN_WING_ENVELOPE.big) : GEN_WING_ENVELOPE; }
 function genBig(S) {
   const w = S && (Array.isArray(S.wings) ? S.wings[0] : S.wing);
-  return !!(w && genEnvBig(w.span));
+  // MASTER-GREEN (8 Nov): on the span the wing FLIES (genWingSize), not the span asked - clampSpec reads genBig for the
+  // fuel, the vessels and the clampBig rows BEFORE clampWing runs, and a 40 m request on a 0.2 m chord (it flies 16 m)
+  // took the big aeroplane's caps (GATE GEN's wild spec: 4 000 L). A wing asked at 18 m or under is never big: the old
+  // answer, no clamp run (and a wing with no chord to clamp by - a partial spec - keeps the asked answer)
+  if (!(w && genEnvBig(w.span))) return false;
+  const sp = genWingSize(w, 0).span;
+  return isFinite(sp) ? genEnvBig(sp) : true;
+}
+// THE WING'S SIZE, clamped (chord and span; the plane's index k: a second plane's own floor) - clampWing's first lines,
+// lifted so genBig reads the same clamp; w is not touched
+function genWingSize(w, k) {
+  // NEW-SHAPES-1: the second plane sized freely below the first plane's floor (GEN_WING_ENVELOPE.second)
+  const envOf = sp => { const E0 = genWingEnv(sp);       // G3503: the big envelope past 18 m asked
+    return k > 0 ? Object.assign({}, E0, { chord: [GEN_WING_ENVELOPE.second.chord, E0.chord[1]],
+      span: [GEN_WING_ENVELOPE.second.span, E0.span[1]], spanPerChord: [GEN_WING_ENVELOPE.second.spanPerChord, E0.spanPerChord[1]] }) : E0; };
+  let E = envOf(w.span);
+  const big = genEnvBig(w.span);
+  let chord = genClamp(w.chord, ...E.chord);
+  let span = genClamp(w.span, Math.max(E.span[0], E.spanPerChord[0] * chord),
+                              Math.min(E.span[1], E.spanPerChord[1] * chord));
+  // G3579: THE ENVELOPE OF THE SPAN THAT FLIES. A wing asking past 18 m on a chord whose aspect holds it under (19.4 m on
+  // 0.89: held at 17.9) took the big envelope here and the small one on the next resolve - its crank chord flew 3.74 m,
+  // then 2.10 (GATE WINGROWS' sweep). Read again off the clamped span and, if that is the other envelope, clamped again by
+  // it: a wing that is small or big from the start takes exactly the path it always did
+  if (genEnvBig(span) !== big) {
+    E = envOf(span);
+    chord = genClamp(w.chord, ...E.chord);
+    span = genClamp(span, Math.max(E.span[0], E.spanPerChord[0] * chord),
+                          Math.min(E.span[1], E.spanPerChord[1] * chord));
+  }
+  return { chord, span, E };
 }
 
 // G185: ONE PLANE'S CLAMP. Lifted out of clampSpec so a biplane's second
@@ -4515,25 +4545,10 @@ function clampWing(w, S, k) {
   // aspect ratio to 20. Every build inside the old 1.15-2.10 / 6.5-14 box is
   // untouched; GATE GEN's wild spec still clamps, and the sail archetype's
   // circuit is the new corner's flight test.
-  // NEW-SHAPES-1: the second plane sized freely below the first plane's floor (GEN_WING_ENVELOPE.second)
-  const envOf = sp => { const E0 = genWingEnv(sp);       // G3503: the big envelope past 18 m asked
-    return k > 0 ? Object.assign({}, E0, { chord: [GEN_WING_ENVELOPE.second.chord, E0.chord[1]],
-      span: [GEN_WING_ENVELOPE.second.span, E0.span[1]], spanPerChord: [GEN_WING_ENVELOPE.second.spanPerChord, E0.spanPerChord[1]] }) : E0; };
-  let E = envOf(w.span);
-  const big = genEnvBig(w.span), chord0 = w.chord;
-  w.chord = genClamp(w.chord, ...E.chord);
-  w.span = genClamp(w.span, Math.max(E.span[0], E.spanPerChord[0] * w.chord),
-                            Math.min(E.span[1], E.spanPerChord[1] * w.chord));
-  // G3579: THE ENVELOPE OF THE SPAN THAT FLIES. A wing asking past 18 m on a chord whose aspect holds it under (19.4 m on
-  // 0.89: held at 17.9) took the big envelope here and the small one on the next resolve - its crank chord flew 3.74 m,
-  // then 2.10 (GATE WINGROWS' sweep). Read again off the clamped span and, if that is the other envelope, clamped again by
-  // it: a wing that is small or big from the start takes exactly the path it always did
-  if (genEnvBig(w.span) !== big) {
-    E = envOf(w.span);
-    w.chord = genClamp(chord0, ...E.chord);
-    w.span = genClamp(w.span, Math.max(E.span[0], E.spanPerChord[0] * w.chord),
-                              Math.min(E.span[1], E.spanPerChord[1] * w.chord));
-  }
+  // the size (chord, span, and the envelope the rest of the plane is clamped by): genWingSize, the clamp genBig reads
+  const Z = genWingSize(w, k);
+  let E = Z.E;
+  w.chord = Z.chord; w.span = Z.span;
   w.taper = genClamp(w.taper, ...E.taper);
   w.dihedral = genClamp(w.dihedral, 0, 6);
   // Quarter-chord sweep, degrees, positive aft. At the speeds this game flies
@@ -5213,7 +5228,7 @@ function clampSpec(spec) {
       if (!v.unmounted) total += v.capacity;
     }
     if (E.kind === 'battery') { E.kWh = total; S.fuel.litres = 0; }
-    else { S.fuel.litres = genClamp(total, 0, genBig(S) ? 4000 : 2000); E.kWh = 0; }
+    else { S.fuel.litres = genClamp(total, 0, genBig(S) ? 8000 : 2000); E.kWh = 0; }   // (DC3-EDITABLE's 8 000 L, as above)
     // `fuel.tank` is the pre-G99 station and is kept as a READING of the first
     // vessel's bay, because GEN_ACCESS decides where the filler cap goes from
     // it and a cap that moved would be a fitting nobody asked to move.
