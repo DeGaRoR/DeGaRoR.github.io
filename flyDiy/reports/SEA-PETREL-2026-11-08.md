@@ -188,6 +188,25 @@ the µs-per-frame accumulators in sp_fly (`legs[].cost`), every run on a 4-core 
   app.js has no `hudGear()` and matches. Every flown check of the gate passed (the only FAIL line in 17).
 - Reproduce: `node tools/run_gates.js --only=ACCEPT` (20 min here). Node-only. The fix is the regex (allow hudGear).
 
+### F4 GATE STOL is red on 15ad5d669 (PASS on master): the load door now writes the 12 hull-types cage rows into every validated build - severity: blocks (a core gate), spec-only
+- What: `FAIL cub (builds/cub_2026-09-20_corrected.json): joined here to master's spec - DIFFERS + the STOL rows at
+  their defaults (...; the bench / parked / certificate-store / procurement keys the same), def =, 4 s =, drawing =,
+  design check + sheet =` - and the same line for jodel, metal, floats, twinFloats (+ `every card builds, flies 4 s and
+  draws to the bit master did: motorglider, etrainer, archaeopteryx, da62 ...`).
+- Measured (a diff of the load door's spec against the gate's baseline, the STOL rows dropped as the gate drops
+  them): exactly 12 keys, all `cage.*`, all new and at their off values - `bpStrutK 1, bpCabDraw 1, bpCabPylon 0,
+  engPylonFair 0, engPylonForm 0, engPylonAt 0, engPylonAft 0.15, engPylonFwd 0, engFinAt 0.55, engFinFwd 0,
+  engNacOver 0, engNacLift 0` (the Cub and the float Cessna checked; the other three read the same line). The
+  physics, the 4 s flight, the drawing, the design check and every key are master's to the bit (the gate says so):
+  the gate's baseline needs these rows dropped the way it drops the STOL rows (the cert identity already does it:
+  GEN_HULL_ROW_OFF).
+- The cards' line is a second, separate cause: the four cards (motorglider, etrainer, archaeopteryx, da62) are exactly
+  the archetypes framed in carbon (`fuselage.material: 'carbon'`; the Cub tubeFabric, the C172 alloy pass), so their
+  def / flight / drawing moved by HULL-B50's carbon recalibration (option d: lin x0.45, k x0.55, c x0.50, no version
+  bump) - meant, but the gate's baseline was not re-recorded for it.
+- Reproduce: `node tools/run_gates.js --only=STOL` (11 min); the diff: `node reports/evidence/SEA-PETREL/stoldiff.js <repo>/flyDiy/tools`.
+- Node-only.
+
 ### F2 GATE JOINPARITY: master 5 FAIL, base 6 FAIL - the extra one is the Petrel row (ENV, as briefed)
 - Base 15ad5d669: `FAIL the page capture holds every validated build (cub, jodel, metal, floats, twinFloats, petrel)`
   (the capture is 2026-11-04, no Petrel row) + the same five FAILs master has.
