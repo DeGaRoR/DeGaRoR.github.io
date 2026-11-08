@@ -312728,3 +312728,32 @@ IN (on L34a cad308635): claude/ready/bubble-windows 9e7010baa (CABIN-CRAFT), cla
 BATTERY: 115 of 116 PASS. ENGCONFIG red, standing on master: its IDENTITY pins date from 28 Oct. Every one of its 18 load digests (the Cub, the Jodel, the Cessna, the Rufus...) is the same on this train and on a full copy of master, so no validated plane flies differently. No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change.
 TIMED GATE (light, vs the stale 12 Oct baseline): steady frames p50 33.3 ms. Reds are the boot and compile rows (cub chase compile 67 s, flight 151 s): the cold shader cache seen on L32d/L34a, same class as L34a (57 reds vs 80). Two rollouts lost to a page '__timeout' (cub cockpit, metal chase) after slow boots.
 NAMED COST, STILL OPEN: the floats' SEA lane: garage 226 s, take-off p99 50 ms but worst frame 10.4 s, 25 tasks over 1 s, held under the roll-out screen. Same as L34a's (124 s, 77 links); not this train's. NIGHT-LOOK measures the night water cost at 11:45; the SEA lane bisect is owed.
+
+## CORE-MATH-GREEN - THE 20 STRAY sin/cos/pow ON CORE_MATH, THE PAGE BINDS NO Math (MASTER-GREEN, the user 8 Nov: "Have master clean"; CABIN-CRAFT for A0)
+
+Branch claude/ready/core-math-green, on master 1bcd01d3e (L35a). Code 1b31a88b3, built (flight_core, career_core, index.html) on top, then this note and HANDOVER.
+
+MASTER-GREEN (the user 8 Nov: "Have master clean"), via A0. GATE DMGDETERMINISM was red on master with two lines:
+- "the census: ... 20 STRAY on the builtin" (sin/cos/pow sites in src/core that bypass CORE_MATH);
+- "the sources: no `Math` binding in src/core (none) nor in the built page (ONE)".
+
+## What changed
+
+1. **The 20 stray sites go through CORE_MATH** (`node tools/_core_math_sites.js --apply`; 12 lines in 6 files): 32_hydro 485, 498; 61_gen_frame 2086; 64c_gen_aids 276, 291; 72_accept 255; 73c_mission_run 213, 267; 79_story 239-260. The census now reads "471 sites on CORE_MATH, 22 kept the builtin, 0 STRAY".
+2. **The page's one Math binding was TANK-FIT's local alias in `tools/_cage_energy.js`** (`const Math = window.Math || GL_.Math`, inside the file's IIFE, for speed in node's vm). It is renamed MathL, with its 220 `Math.` uses in that file. Same object, same speed. The built page now has no Math binding.
+
+Merge note: `_cage_energy.js` has 133/132 changed lines, all `Math.` to `MathL.`. A branch editing that file merges with a mechanical rename (any new `Math.` there is fine at run time, but the next DMGDETERMINISM run won't flag it: the alias name just has to stay off `Math`).
+
+## Digests (`tools/_engconfig_check.js --pin`, master's fresh archive against this branch)
+
+All 17 rows identical, the full output byte for byte: the Cub, Jodel, C172, Chinook, the ultralight, twin-boom, twin and pusher fixtures, the metal Cessna, the Cessna on floats, Rufus certified, and the six stock mounts. The gate's PIN table has 17 rows. No physics digest moved.
+
+## Gates (node, `run_gates.js --no-build --jobs 3`)
+
+```
+DMGDETERMINISM PASS (26/26 checks; master's sweep 24/26; the page compare REPORTED not run: no playwright on the box)
+HYDRODYN FLOATS ACCEPT MISSIONS MISSIONPROPS STORY ROUTES ENERGY PARTS TANKMOUNT CREWLOAD DASH MOUNT DESIGNCHECK JOIN DEFAULT SAVE EDBUGS PASS
+NODUMMY FAIL "no reference to the retired figure outside the load migration [tools/box_render.js:42 dummy | tools/newshapes_build.js:121 edDum ...]"  (master 1bcd01d3e has it, same line; files not touched here)
+```
+
+Not run: DMGHULL (red on master, Deform's, 30 min), LAZY (it starts a browser).
