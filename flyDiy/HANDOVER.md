@@ -314619,3 +314619,15 @@ The user, via A0: "priority on the trees, because that's for me a bug, really ..
   (rec.town / rec.townN). TREE_FILL.townStat() counts chunks, trees and the misses (a key the fill's pool does not hold: not drawn).
 - **The before.** ?towntrees=0: the town's cells, as on master (also the fallback: no fill, or the pack not in). tools/perf/metla_ab.js: side P =
   the town on with its own trees; --shots <dir>: chase stills on the way in and orbit stills parked over the densest tree cell.
+TOWN-1 STEP 1, THE COST (HW-COVERAGE, 8 Nov, metla_ab P,B,B,P, Cub, approach 100 s from 4 km, gamer preset, a real parked cook)
+- **Draw calls on the way in went UP.** The approach's median calls: P (?towntrees=0) 787 and 616, B (the fill) 976 and 905, about +200 to +300.
+  The pass at HOME: P 1412 and 894, B 863 and 843. Frame time shows no clear change either way: approach fps P 27.9, B 29.3 and 26.6; the pass's
+  medians fps B 23.35 / P 22.6, p99 116.7 / 108.35 ms, worst 133 / 150 ms. Run-to-run spread is wider than the two sides' gap.
+- **Species misses: 0.** All 3536 town trees went into 6 fill chunks; the premises' own tree cells went from 316 to 0.
+- **Not the cause yet.** The old far rung (132-900 m) cast no shadow and nothing past 900 m drew; the fill's merged chunk impostor casts and reaches
+  9 km, and a species the chunk did not hold before is a new record (its rung meshes per part, near the eye only). Which one costs the calls is
+  measured by metla_ab's town views (the draw census per scene group, 2a5167a10), not guessed. A cheap cut (fewer rungs or no shadow for the town's
+  records, say) waits for that census.
+- **Rig note.** Both sides flew the approach as the WRECK of the rig's low pass at HOME (master_bench's pass breaks the Cub, "short of Jolene 13/31",
+  on both P and B): the comparison is fair, the stills of 8 Nov 07:05 are not usable. The town views now come from the free camera, the aeroplane and
+  the UI hidden.
