@@ -1,0 +1,94 @@
+{
+ "build": "builds/candidates/superpetrel_V4_1.json",
+ "order": [
+  "SEA",
+  "SEA"
+ ],
+ "wind": 8,
+ "gear": "amphibian",
+ "legs": [
+  {
+   "leg": "SEA>SEA",
+   "ok": true,
+   "faults": [],
+   "outcome": "completed",
+   "t": 519.6,
+   "landedOn": "SEA",
+   "sink": 0.22,
+   "V": 24.6,
+   "run": 251,
+   "toDist": 212.5,
+   "propMin": {
+    "v": 0.16,
+    "t": 5.9,
+    "ph": "ROLL"
+   },
+   "propMinSurf": {
+    "v": 0.16,
+    "t": 5.9,
+    "ph": "ROLL"
+   },
+   "rollS": [
+    -1.5,
+    5.8
+   ],
+   "pitchS": [
+    -2.5,
+    11.9
+   ],
+   "rollA": 22.5,
+   "tipMin": {
+    "v": 0.8,
+    "t": 402.3,
+    "ph": "ROLLOUT"
+   },
+   "capsize": 84.2,
+   "wogWet": 3,
+   "onLand": false,
+   "gear": [
+    0,
+    1
+   ],
+   "damage": {
+    "yields": 0,
+    "breaks": 0,
+    "dented": false,
+    "crashed": false,
+    "gPeak": 1.8,
+    "propAt": null
+   },
+   "verdicts": [],
+   "hash": "5560cca69a22"
+  }
+ ],
+ "refused": [],
+ "mass": 591.8,
+ "retract": true,
+ "wall": 707,
+ "game": {
+  "day": {
+   "cloudCover": 0.25,
+   "cloudSeed": 1,
+   "cloudType": "cuh",
+   "date": "2026-06-22",
+   "groundAlbedo": 0.15,
+   "ozone": 300,
+   "rate": 1,
+   "rh": 0.5,
+   "turbidity": 2.8,
+   "utc": 0,
+   "wind": {
+    "kts": 8,
+    "dirDeg": 250,
+    "gust": 0.15,
+    "refH": 10,
+    "breeze": 1
+   }
+  },
+  "shake": true,
+  "stand": null,
+  "mass": 591.8,
+  "fuel": 72,
+  "damage": true
+ }
+}

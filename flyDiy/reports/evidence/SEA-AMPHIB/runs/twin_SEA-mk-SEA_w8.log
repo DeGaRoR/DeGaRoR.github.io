@@ -1,0 +1,3 @@
+ok   SEA>mk_sea        391.8 s  sink 0.66 run 225 propMin 0.39 (surf 0.39) roll -2.6,1.2 pitch -5.7,11.6 tip 1.57 cap 87.4 gear null hash c93c91a4ffb9
+FAIL mk_sea>SEA         1200 s  sink null run null propMin 0.32 (surf 0.32) roll -8.6,7.8 pitch -8.6,8.9 tip 1.06 cap 81.4 gear null hash 667fa810c584  FAULTS timeout (the leg took over 1200 s)
+DONE Twin_busher_floats_4b.json SEA>mk_sea>SEA wind 8: gear floats, 819.9 kg, 1641 s wall

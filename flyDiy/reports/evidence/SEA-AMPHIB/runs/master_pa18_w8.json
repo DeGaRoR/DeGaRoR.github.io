@@ -1,0 +1,142 @@
+{
+ "build": "builds/pa18_floats_2026-10-23.json",
+ "order": [
+  "SEA",
+  "mk_sea",
+  "SEA"
+ ],
+ "wind": 8,
+ "gear": "floats",
+ "legs": [
+  {
+   "leg": "SEA>mk_sea",
+   "ok": true,
+   "faults": [],
+   "outcome": "completed",
+   "t": 461.3,
+   "landedOn": "mk_sea",
+   "sink": 0.48,
+   "V": 25.7,
+   "run": 194,
+   "toDist": 169.9,
+   "propMin": {
+    "v": 0.28,
+    "t": 460.3,
+    "ph": "ROLLOUT"
+   },
+   "propMinSurf": {
+    "v": 0.28,
+    "t": 460.3,
+    "ph": "ROLLOUT"
+   },
+   "rollS": [
+    -2.2,
+    3.1
+   ],
+   "pitchS": [
+    -4,
+    9.3
+   ],
+   "rollA": 23.1,
+   "tipMin": {
+    "v": 1.58,
+    "t": 6.1,
+    "ph": "ROLL"
+   },
+   "capsize": 86.9,
+   "wogWet": 3,
+   "onLand": false,
+   "gear": null,
+   "damage": {
+    "yields": 0,
+    "breaks": 0,
+    "dented": false,
+    "crashed": false,
+    "gPeak": 1.4,
+    "propAt": null
+   },
+   "verdicts": [],
+   "hash": "f18ea9496828"
+  },
+  {
+   "leg": "mk_sea>SEA",
+   "ok": true,
+   "faults": [],
+   "outcome": "completed",
+   "t": 525.6,
+   "landedOn": "SEA",
+   "sink": 0.69,
+   "V": 25.1,
+   "run": 194,
+   "toDist": 103.7,
+   "propMin": {
+    "v": 0.27,
+    "t": 1.1,
+    "ph": "HOLD"
+   },
+   "propMinSurf": {
+    "v": 0.27,
+    "t": 1.1,
+    "ph": "HOLD"
+   },
+   "rollS": [
+    -1.9,
+    2.9
+   ],
+   "pitchS": [
+    -4.3,
+    7.8
+   ],
+   "rollA": 21.9,
+   "tipMin": {
+    "v": 1.63,
+    "t": 493.6,
+    "ph": "ROLLOUT"
+   },
+   "capsize": 87.1,
+   "wogWet": 3,
+   "onLand": false,
+   "gear": null,
+   "damage": {
+    "yields": 0,
+    "breaks": 0,
+    "dented": false,
+    "crashed": false,
+    "gPeak": 1.4,
+    "propAt": null
+   },
+   "verdicts": [],
+   "hash": "97b61668719f"
+  }
+ ],
+ "refused": [],
+ "mass": 751.6,
+ "retract": false,
+ "wall": 393,
+ "game": {
+  "day": {
+   "cloudCover": 0.25,
+   "cloudSeed": 1,
+   "cloudType": "cuh",
+   "date": "2026-06-22",
+   "groundAlbedo": 0.15,
+   "ozone": 300,
+   "rate": 1,
+   "rh": 0.5,
+   "turbidity": 2.8,
+   "utc": 0,
+   "wind": {
+    "kts": 8,
+    "dirDeg": 250,
+    "gust": 0.15,
+    "refH": 10,
+    "breeze": 1
+   }
+  },
+  "shake": true,
+  "stand": null,
+  "mass": 751.6,
+  "fuel": 136,
+  "damage": true
+ }
+}

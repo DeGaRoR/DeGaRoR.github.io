@@ -93,7 +93,7 @@ for (let i = 1; i < order.length; i++) {
     propMinSurf: isFinite(M.propMinSurf.v) ? Object.assign({}, M.propMinSurf, { v: r2(M.propMinSurf.v) }) : null,
     rollS: M.rollS.map(r1), pitchS: M.pitchS.map(r1), rollA: r1(M.rollA), tipMin: isFinite(M.tipMin.v) ? Object.assign({}, M.tipMin, { v: r2(M.tipMin.v) }) : null,
     capsize: isFinite(M.rollS[1]) ? r1(90 - Math.max(Math.abs(M.rollS[0]), Math.abs(M.rollS[1]))) : null,
-    wogWet: M.wogWet, onLand: M.onLand, gear: isFinite(M.gear[0]) ? M.gear.map(r2) : null, damage: L.damage, verdicts: (L.verdicts || []).filter(v => /vref|capsiz|gear|gumps|prop|reject|abort|divert|go-around|water/i.test(v)).slice(0, 8), hash: h };
+    wogWet: M.wogWet, onLand: M.onLand, gear: isFinite(M.gear[0]) ? M.gear.map(r2) : null, damage: L.damage, verdicts: (L.verdicts || []).slice(0, 16), warnings: L.warnings || [], phases: (L.phases || []).slice(0, 40), hash: h };
   res.legs.push(row);
   console.log((row.ok ? 'ok   ' : 'FAIL ') + row.leg.padEnd(16) + ' ' + String(row.t).padStart(6) + ' s  sink ' + row.sink + ' run ' + row.run + ' propMin ' + (row.propMin && row.propMin.v) + ' (surf ' + (row.propMinSurf && row.propMinSurf.v) + ') roll ' + row.rollS + ' pitch ' + row.pitchS + ' tip ' + (row.tipMin && row.tipMin.v) + ' cap ' + row.capsize + ' gear ' + row.gear + ' hash ' + h + (row.faults.length ? '  FAULTS ' + row.faults.join('; ') : ''));
   if (!L.ok && !L.declined && !L.heldOff) break;
