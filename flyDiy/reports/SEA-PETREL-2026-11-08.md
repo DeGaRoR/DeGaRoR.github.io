@@ -19,13 +19,14 @@ The Petrel is NOT yet "nice and right" on the water. On land it is (every land l
 sheltered SEA lane it mostly is. On the OPEN sea (Cedar Harbour, mk_sea) at the game's default 8 kt it fails every
 way in, out and across - four separate mechanisms, none of them the static prop clearance (0.33-0.43 m at rest):
 
-1. **S1 the landing roll-out porpoises** (every SEA > mk_sea landing at 8-15 kt, 4 of 4: two prop strikes at t 452 /
-   480.9, one 30 deg swing at pitch 30.8, one 0.01 m miss at pitch 25.7; the same harbour reached from HOME lands, 4
-   of 4, pitch 13-18): skips, the bow thrown to 25-43 deg nose-up, the pusher disc into the water. The hull,
+1. **S1 the landing roll-out porpoises** (SEA > mk_sea at 8-15 kt, 5 flights: two prop strikes at t 452 / 480.9,
+   one 30 deg swing at pitch 30.8, one 0.01 m miss at pitch 25.7, one clean (8 kt, the start shifted 91 frames); the
+   same harbour reached from HOME lands, 5 of 5, pitch 13-18): skips, the bow thrown to 25-43 deg nose-up, the pusher disc into the water. The hull,
    not the stick (the elevator goes forward as it pitches up). The take-off's porpoise law has no roll-out twin.
 2. **S2 the water start drops it**: the game's placement puts it on the water in its land stance, wheels at the
    waterline, the hull ~0.5 m up; it falls, pitches to +9-10 deg in the open sea's wave, the disc goes in at
-   t 0.6-1.5 - **3 of 3 starts at mk_sea, 8 kt**. Calm: 0.18 m clear.
+   t 0.6 - at mk_sea, 8 kt, every time: the sea's phase is the sim's clock and a fresh flight's clock starts at 0, so
+   the drop meets the same wave on every start (the three runs here are that one start). Calm: 0.18 m clear.
 3. **S4 the open-sea take-off in 10-15 kt is rejected**: a porpoise at 12-14 m/s (pitch 22-27 deg), no acceleration.
 4. **S5 a water departure after a water landing never lines up** (calm, 1500 s of taxi / line-up loops) - the same
    endless water taxi the float Cessna capsizes in (S3: its t 604.6 strike is THAT, not the Petrel's causes).
@@ -68,29 +69,39 @@ Prop min = the disc's lowest point over the surface (the waved sea on water), by
 
 | leg | wind | load | gear held | verdict | td sink m/s | run / td V | prop min, departure (m, phase) | prop min, arrival (m, phase) | roll min/max on water (deg) | pitch min/max on water | go-arounds |
 |---|---|---|---|---|---|---|---|---|---|---|---|
+| HOME>mk_sea | 8 kt / 250 | full 592 kg | - | PASS | 0.25 | 213 m / 25.5 m/s | 0.72 (ROLL/ground) | 0.14 (ROLLOUT/water) | -4.8 / 2.0 | -4.0 / 13.5 | 0 |
+| mk_sea>HOME (chained, after a landing) | 8 kt / 250 | full 592 kg | - | rig OK, NO LANDING (never airborne) | - | - | 0.07 (TAXI/water) | 0.33 (STOPPED/water) | -10.8 / 12.8 | -4.3 / 13.2 | 0 |
 | HOME>mk_sea | 0 | full 592 kg | - | PASS | 0.40 | 334 m / 24.9 m/s | 0.72 (ROLL/ground) | 0.13 (ROLLOUT/water) | -4.5 / 1.8 | 0.7 / 13.8 | 0 |
 | HOME>mk_sea | 15 kt / 250 | full 592 kg | - | PASS | 0.43 | 132 m / 25.7 m/s | 0.72 (ROLL/ground) | 0.13 (ROLLOUT/water) | -20.6 / 27.1 | -5.6 / 18.0 | 0 |
 | HOME>mk_sea | 8 kt / 250 | full 592 kg | - | PASS | 0.25 | 213 m / 25.5 m/s | 0.72 (ROLL/ground) | 0.14 (ROLLOUT/water) | -4.8 / 2.0 | -4.0 / 13.5 | 0 |
 | HOME>mk_sea | 8 kt / 250 | full 592 kg | down | PASS | 0.18 | 204 m / 25.2 m/s | 0.72 (ROLL/ground) | 0.12 (ROLLOUT/water) | -4.4 / 2.0 | -2.7 / 13.1 | 2 |
+| HOME>mk_sea [start +37 frames] | 8 kt / 250 | full 592 kg | - | PASS | 0.16 | 210 m / 25.3 m/s | 0.72 (ROLL/ground) | 0.11 (ROLLOUT/water) | -4.8 / 1.6 | -3.6 / 14.4 | 0 |
 | HOME>mk_sea | 10 kt / 133 | full 592 kg | - | PASS | 0.55 | 239 m / 24.9 m/s | 0.73 (ROLL/ground) | 0.09 (ROLLOUT/water) | -10.1 / 7.6 | -2.4 / 18.5 | 0 |
 | HOME>w3 | 0 | full 592 kg | - | PASS | 0.68 | 386 m / 26.8 m/s | 0.72 (ROLL/ground) | 0.75 (ROLLOUT/ground) | - | - | 0 |
 | HOME>w3 | 15 kt / 250 | full 592 kg | - | PASS | 0.62 | 327 m / 28.1 m/s | 0.72 (ROLL/ground) | 0.76 (ROLLOUT/ground) | - | - | 0 |
 | HOME>w3 | 8 kt / 250 | full 592 kg | - | PASS | 0.66 | 369 m / 27.8 m/s | 0.72 (ROLL/ground) | 0.76 (ROLLOUT/ground) | - | - | 0 |
 | HOME>w3 | 8 kt / 250 | full 592 kg | up | PASS | 0.66 | 369 m / 27.8 m/s | 0.72 (ROLL/ground) | 0.76 (ROLLOUT/ground) | - | - | 0 |
-| HOME>w3 | 8 kt / 250 | full 592 kg | up (no emergency ext.) | PASS | - | - | 0.72 (ROLL/ground) | - | - | - | 2 |
+| HOME>w3 | 8 kt / 250 | full 592 kg | up (no emergency ext.) | rig OK, NO LANDING (belly) | - | - | 0.72 (ROLL/ground) | - | - | - | 2 |
 | HOME>w3 | 10 kt / 345 | full 592 kg | - | PASS | 0.59 | 352 m / 27.4 m/s | 0.73 (ROLL/ground) | 0.75 (ROLLOUT/ground) | - | - | 0 |
 | SEA>SEA | 0 | full 592 kg | - | PASS | 0.51 | 291 m / 24.6 m/s | 0.17 (ROLL/water) | 0.14 (ROLLOUT/water) | -2.7 / 3.5 | -2.6 / 12.2 | 0 |
 | SEA>SEA | 15 kt / 250 | full 592 kg | - | FAIL ground-loop | 0.60 | 188 m / 24.8 m/s | 0.18 (ROLL/water) | 0.17 (ROLLOUT/water) | -1.4 / 8.4 | -2.7 / 10.4 | 2 |
 | SEA>SEA | 8 kt / 250 | full 592 kg | - | PASS | 0.22 | 251 m / 24.6 m/s | 0.17 (ROLL/water) | 0.15 (ROLLOUT/water) | -1.5 / 5.8 | -2.6 / 11.9 | 0 |
 | SEA>SEA | 8 kt / 250 | full 592 kg | down | PASS | 0.52 | 253 m / 24.8 m/s | 0.17 (ROLL/water) | 0.14 (ROLLOUT/water) | -2.4 / 5.0 | -2.6 / 12.9 | 2 |
+| SEA>SEA [start +37 frames] | 8 kt / 250 | full 592 kg | - | PASS | 0.36 | 264 m / 25.2 m/s | 0.16 (ROLL/water) | 0.14 (ROLLOUT/water) | -1.5 / 5.8 | -2.0 / 12.5 | 0 |
 | SEA>SEA | 10 kt / 44 | full 592 kg | - | PASS | 0.78 | 239 m / 24.2 m/s | 0.18 (ROLL/water) | 0.15 (ROLLOUT/water) | -5.0 / 1.5 | -2.6 / 12.1 | 0 |
+| SEA>mk_sea | 0 | full 592 kg | - | PASS | 0.35 | 341 m / 25.0 m/s | 0.17 (ROLL/water) | 0.13 (ROLLOUT/water) | -4.6 / 1.6 | -2.6 / 13.9 | 0 |
+| mk_sea>SEA (chained, after a landing) | 0 | full 592 kg | - | FAIL timeout | - | - | 0.20 (LINEUP/water) | - | -10.7 / 9.3 | -0.4 / 5.5 | 0 |
 | SEA>mk_sea | 0 | full 592 kg | - | PASS | 0.35 | 341 m / 25.0 m/s | 0.17 (ROLL/water) | 0.13 (ROLLOUT/water) | -4.6 / 1.6 | -2.6 / 13.9 | 0 |
 | SEA>mk_sea | 15 kt / 250 | full 592 kg | - | FAIL prop-strike (water t 480.9 ROLLOUT) | 0.47 | 117 m / 25.7 m/s | 0.18 (ROLL/water) | 0.02 (ROLLOUT/water) | -10.9 / 3.5 | -10.5 / 37.0 | 0 |
 | SEA>mk_sea | 8 kt / 250 | full 592 kg | - | FAIL prop-strike (water t 452 ROLLOUT) | 0.36 | 179 m / 25.6 m/s | 0.17 (ROLL/water) | -0.09 (ROLLOUT/water) | -5.6 / 14.6 | -5.3 / 42.6 | 0 |
+| SEA>mk_sea [start +37 frames] | 8 kt / 250 | full 592 kg | - | FAIL ground-loop | 0.40 | 186 m / 25.9 m/s | 0.16 (ROLL/water) | 0.02 (ROLLOUT/water) | -10.9 / 23.6 | -3.8 / 30.8 | 0 |
+| SEA>mk_sea [start +91 frames] | 8 kt / 250 | full 592 kg | - | PASS | 0.33 | 181 m / 25.8 m/s | 0.18 (ROLL/water) | 0.14 (ROLLOUT/water) | -5.5 / 7.9 | -2.8 / 54.7 | 0 |
 | SEA>mk_sea | 10 kt / 133 | full 592 kg | - | FAIL ground-loop | 0.32 | 227 m / 24.9 m/s | 0.13 (ROLL/water) | 0.01 (ROLLOUT/water) | -13.0 / 16.2 | -2.7 / 25.7 | 0 |
 | mk_sea>HOME | 0 | full 592 kg | - | PASS | 0.79 | 479 m / 26.9 m/s | 0.17 (ROLL/water) | 0.76 (ROLLOUT/ground) | -0.8 / 0.6 | -2.6 / 9.1 | 0 |
 | mk_sea>HOME | 15 kt / 250 | full 592 kg | - | FAIL abort | - | - | 0.07 (ROLL/water) | - | -1.8 / 2.8 | -6.8 / 26.5 | 0 |
 | mk_sea>HOME | 8 kt / 250 | full 592 kg | - | FAIL abort, prop-strike (water t 0.6 ROLL) | - | - | 0.03 (ROLL/water) | - | -1.3 / 2.6 | -10.9 / 9.9 | 0 |
+| mk_sea>HOME [start +37 frames] | 8 kt / 250 | full 592 kg | - | FAIL abort (water t 0.6 ROLL) | - | - | 0.02 (ROLL/water) | - | -2.3 / 2.1 | -10.9 / 10.0 | 0 |
+| mk_sea>HOME [start +91 frames] | 8 kt / 250 | full 592 kg | - | FAIL abort (water t 1.5 ROLL) | - | - | 0.08 (ROLL/water) | - | -1.7 / 1.8 | -9.9 / 8.7 | 0 |
 | mk_sea>HOME | 10 kt / 221 | full 592 kg | - | FAIL abort | - | - | 0.12 (ROLL/water) | - | -4.3 / 7.2 | -3.0 / 25.0 | 0 |
 
 What the grid says (the core grid - 5 legs x 4 winds, full load, + the two gear rows - is complete; repeats,
@@ -200,6 +211,11 @@ route. Evidence: `reports/evidence/SEA-PETREL/diag/*.json` (`hist0` / `strike.st
 - So: the water start's drop (a land placement on the water) + the open sea's wave; on SEA's sheltered water it
   survives with 0.18 m. A lead: place a water start at its floating pose (the gear up and the hull at its draft), or
   settle it before handing it over. SEAPLANES' call.
+- REPEATS DO NOT REPEAT IT: the placement happens when the host is made, so `--pre N` idles AFTER the drop (strikes at
+  0.6 / 0.6 / 1.5 s: the same drop, with and without the AP's early throttle). The waves are `waterH(x, z, t)` on the
+  sim's clock, which starts at 0 on every flight: in node every Cedar Harbour start on this day meets the same sea at
+  the drop. If the page's water start is the same (a fresh sim, t 0), the player strikes the prop on EVERY water start
+  there on the default day - browser-needed, high priority.
 - Reproduce (2 min): `sp_fly.js --order mk_sea,HOME --wind 8@250 --load full --tmax 12 --dump0 12` (strike at 0.6);
   `--wind 0` the same start, no strike.
 - Browser-needed: yes - the page's water start at Cedar Harbour (does the page also place it wheels-down and drop it?).
