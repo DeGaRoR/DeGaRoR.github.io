@@ -554,6 +554,13 @@ var ATMO = (function () {
       vec4 b = texture2D(uApAtlas, vec2((k1 + uu) / ${AP_N}.0, v));
       vec4 r = mix(a, b, f); r.rgb /= max(1.0, uAtmoAP.w);   // the table's gain taken back out
       return r;
+    }
+    // THE HAZE FROM THE WEATHER (LOOK-1 8 Nov): uApK.x times the air along the same ray - T^k, and the in-scatter of
+    // that one medium on the same path (Koschmieder: L = L_inf (1 - T), so L_k = L (1 - T^k) / (1 - T)). k = 1 is
+    // the atlas exactly as baked. Every reader of apSample goes through this, or its haze disagrees with the rest.
+    vec4 apScaled(vec4 ap) {
+      float T = pow(max(ap.a, 1e-6), uApK.x);
+      return vec4(ap.rgb * ((1.0 - T) / max(1.0 - ap.a, 1e-4)), T);
     }`;
   const AP_PARS_FRAG = `
     varying vec3 vAtmoV;
@@ -566,8 +573,8 @@ var ATMO = (function () {
   const AP_APPLY = `
     #ifdef USE_FOG
     if (uAtmoAP.z > 0.5) {
-      vec4 ap = atmoAP(); float apT = pow(max(ap.a, 1e-6), uApK.x); vec3 apL = ap.rgb * ((1.0 - apT) / max(1.0 - ap.a, 1e-4));
-      gl_FragColor.rgb = gl_FragColor.rgb * apT + apL * uAtmoAP.x * gl_FragColor.a;
+      vec4 ap = apScaled(atmoAP());
+      gl_FragColor.rgb = gl_FragColor.rgb * ap.a + ap.rgb * uAtmoAP.x * gl_FragColor.a;
     }
     gl_FragColor.rgb = mistApply(gl_FragColor.rgb, normalize((vec4(vAtmoV, 0.0) * viewMatrix).xyz), length(vAtmoV), cameraPosition.y);
     #endif
@@ -587,6 +594,19 @@ var ATMO = (function () {
   if (typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.onPre) LIGHT_RIG.onPre((P, old) => { const r = P / old; U.scale.value *= r; apScalars[0] = U.scale.value; for (let i = 4; i < 7; i++) mistScalars[i] *= r; });
                                                               //  | eye xyz, march N | field origin xz, 1/size, band ceiling | drift xz, patch scale, patchiness  (F2)]
   const apK_ = new Float32Array([1, 0]);                     // LOOK-1: the aerial perspective's optical-depth scale (x), by reference like apScalars
+  // THE HAZE FROM THE WEATHER (LOOK-1, 8 Nov 2026). The atlas is baked from the day's TURBIDITY on Hillaire's Mie
+  // (mieK above), and at the default T2.8 its sea-level extinction is 0.0246 /km - a Koschmieder visibility of 159 km.
+  // The SAME day states 48 km (07_day.js: visibilityKm = 375 / T^2, less in humid air), so the picture was 3.3x
+  // clearer than its own weather (4.5x at T4, 7.6x at T10), and nothing changed with the humidity at all. Here the
+  // weather's extinction (3.912 / the column visibility: the climate's, a front's murk included, else the day's) over
+  // the atlas's own is the optical-depth scale k, every frame. The mist layer is NOT in it - it is a second medium
+  // (07_day.js), applied after.
+  //   gain   THE DIAL: 1 = the weather's own visibility (k 3.3 on the default day - the user's pick, 8 Nov, against
+  //          the A/B sheets). 1.5 is the hazier summer the user called "OK too" (~5x, ~30 km). ?haze=<gain> in the URL.
+  //   force  a fixed k for a rig (ATMO.apK(k); ATMO.apK('auto') gives it back to the weather). 1 = the old picture.
+  //   k, visKm   what was applied this frame, and from which visibility (read-only)
+  const HAZE = { gain: 1, force: null, k: 1, visKm: null, kMax: 64 };
+  try { const v = new URLSearchParams(location.search).get('haze'); if (v !== null && v !== '' && isFinite(+v)) HAZE.gain = Math.max(0, +v); } catch (e) {}
   const apUniforms = { uApAtlas: { value: null }, uAtmoAP: { value: apScalars }, uMist: { value: mistScalars }, uApK: { value: apK_ } };
   // THE MIST'S DIALS: on/off (the GRAPHICS menu), the density as a multiplier over the day's own
   // (`day.mistRho0`, derived in 07_day.js - saturated air sees 1.2 km), its top (m ASL)
@@ -656,7 +676,22 @@ var ATMO = (function () {
     if (typeof SHADOW_NEAR !== 'undefined' && SHADOW_NEAR.inject) SHADOW_NEAR.inject(sh);   // the craft's near map flag (A6)
   }
   function setAP(on) { apScalars[2] = on ? 1 : 0; }
-  function apK(k) { if (k != null && isFinite(+k)) apK_[0] = Math.max(0, +k); return apK_[0]; }
+  function apK(k) {
+    if (k === 'auto' || k === false) HAZE.force = null;
+    else if (k != null && isFinite(+k)) { HAZE.force = Math.max(0, +k); apK_[0] = HAZE.force; }
+    return apK_[0];
+  }
+  const _medH = { sR: [0, 0, 0], sM: 0, e: [0, 0, 0] };
+  function hazeK(day) {
+    if (HAZE.force != null) { HAZE.visKm = null; return HAZE.force; }
+    if (!day) return 1;
+    const CL = typeof CLIMATE_LINK !== 'undefined' && CLIMATE_LINK.pub ? CLIMATE_LINK.pub.haze : null;
+    const vis = (CL && CL.column && CL.column.visibilityKm > 0) ? CL.column.visibilityKm : day.visibilityKm;
+    HAZE.visKm = vis > 0 ? vis : null;
+    if (!(vis > 0)) return 1;
+    medium(0, _medH);                                          // the atlas's own air at sea level (green, per km)
+    return Math.min(HAZE.kMax, HAZE.gain * (3.912 / vis) / Math.max(1e-6, _medH.e[1]));
+  }
 
   // ---- the dome ------------------------------------------------------------
   // The sky-view sample, the sun and moon discs from the transmittance, the
@@ -870,7 +905,7 @@ ${MIST_GLSL}
     // the clear air, four samples along the segment (its extinction varies only with height)
     let e = 0;
     for (let i = 0; i < 4; i++) { medium(Math.max(0, (y0 + (yT - y0) * (i + 0.5) / 4) / 1000), _med); e += (_med.e[0] + _med.e[1] + _med.e[2]) / 3; }
-    od += (e / 4) * (D / 1000);          // medium() is per km
+    od += (e / 4) * (D / 1000) * apK_[0];   // medium() is per km; x the weather's scale, the shader's own (LOOK-1)
     return Math.exp(-od);
   }
   // the distance at which a thing standing at yT stops being visible from an eye at y0
@@ -966,6 +1001,7 @@ ${MIST_GLSL}
   function update(renderer, day, camAltM, eye, world) {
     if (!G.enabled) return false;
     if (setDay(day) || lastVer < 0) { bakeT(); bakeMS(); uploadTex(G.texT, lutT, TW, TH); uploadTex(G.texMS, lutMS, MW, MH); refreshAtmUniforms(G.atmU); lastVer = day ? day.version : 0; }
+    HAZE.k = apK_[0] = hazeK(day);
     const s = day ? day.sun : [0, 1, 0], m = day ? day.moon : [0, -1, 0];
     U.sun.value.set(s[0], s[1], s[2]); U.moon.value.set(m[0], m[1], m[2]);
     U.eMoon.value = day ? ((typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.moonE) ? LIGHT_RIG.moonE(day.moonPhase) : 2.5e-6 * day.moonPhase) : 0;   // G2600: the phase law (light_rig)
@@ -1212,7 +1248,7 @@ ${MIST_GLSL}
     P, setDay, medium: (h) => medium(h, newMed()), transmittance, T, MS, skyRadiance, skyIrradiance, sunTransmittance, groundIrradiance, makeProbe, probes,
     bakeT, bakeMS, tUV, tFromUV, phaseMie, lut: () => ({ T: lutT, MS: lutMS, TW, TH, MW, MH }),
     init, update, domeMat, U, G, get enabled() { return G.enabled; },
-    install, inject, setAP, apK, bakeField, mistODcpu, seeT, seeRange,
+    install, inject, setAP, apK, HAZE, hazeK, bakeField, mistODcpu, seeT, seeRange,
     // the water's mirror capture renders from an eye BELOW the surface; the splice reads its own
     // `cameraPosition`, but the dome's mist takes `uEyeY`, which is the MAIN eye's. A capture that
     // wants it exact brackets itself with this (the water session's ask, 2026-09-22).
