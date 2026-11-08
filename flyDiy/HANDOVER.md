@@ -313070,3 +313070,33 @@ The study is `futureDesigns/RETRACT-STUDY-2026-11.md`, sections 8.20 to 8.22. Th
 - OPEN (the user's list): the Petrel's prop touches the water at rest and in the rollout on open sea (mk_sea), never
   off the SEA lane; the amphibious floats (fltAmph) are drawn, not flown; no tile makes a hull amphibian; the V4.1
   file carries the base card's meta (cessnaFloatsWOrks, F-PGAR); 43_pilot reads sim.hydro as water for any hull build.
+
+### SEAPLANES-LAND 8 Nov: SEA-OFF - the seaplanes land SWITCHED OFF (L35c), then a testing week
+
+The user (8 Nov, via A0): seaplanes + retract land on master switched off first, proven identical when off; then
+"really thorough testing", no new features (three [CLOUD] testers: SEA-PETREL, SEA-AMPHIB, RETRACT-ROBUST; briefs in
+flydiy-notes/briefs/sea-*-cloud-2026-11-08.md, retract-robust-cloud-2026-11-08.md); SEAPLANES-LAND owns every fix.
+- THE SWITCH is RETRACT-LAB's (_cage_gear.js RETRACT_LAB: the dev toggle flydiy.flDev, ?retract=lab,
+  window.FLYDIY_RETRACT_LAB; ON in node - every gate and rig sees every row). Off, the player's garage shows nothing
+  new: CAGE_LAB_ROWS (hullOn and its 40 rows, the pylon / fin / nacelle-over engine rows, the cabane's pylon + drawn,
+  the tip's own shape, the nacelle's cw_inletOn) at their OFF value are hidden (_cage_ui applyRowVis); the Hull,
+  On-the-fin and tandem tiles hide(), the Hull form tile when(); engMount 7, 8 and the 'rotax 912 iS' preset optHide;
+  the gear handle (Digit9) off the controls panel (input.js `lab`, input_panel.js); the Super Petrel Internal on
+  plane_lists and `lab` in candidates/index.json (garage.js labOk: in neither pool). A build that holds a lab value
+  still shows it. ROWS ONLY: the spec, the save, the flight and the certificate never read the switch.
+- THE PROOF (box, 8 Nov, master L35a vs this branch): tools/_pod_bytes.js on the 6 validated builds - the def, the
+  shakedown sheet, the certificate and 300 flown steps equal to the bit; the cert keys 0 moved; the switch-off row
+  dump (scratchpad rowvis_dump.js: every visible row and option, 44 builds) 0 differ; the gear key inert on every
+  fixed-gear validated build (no ctl.gear, no out.gear; both on the Petrel). GATE POD is red on master too (its base
+  is 28 Oct's; Pilot re-blesses _pod_base.json).
+- Gates written: G116 (BUILD) re-premised - the bracing follows the wing's STIFFNESS (a carbon wing relieves it: no
+  growth, at most 10 % of its mass), master 25.321 -> 24.458 kg, the composite (HULL-B50 (d)) 25.321 -> 24.080;
+  DMGCERTCOST's petrel row (1789 frames, uncut 3049, 35.8-40.7 s under load, ceiling 82 s; re-measure in a quiet
+  slot); JOINPARITY's petrel page row (only builds.petrel added; node = page worst 1.9e-15); PLANELISTS: a lab row
+  stays Internal and off both pools.
+- Merged origin/master L35a 1bcd01d3e: _cage_gear.js (DC3-EDITABLE's ranges + the retract oleo note), _knife_gen.js
+  (BUBBLE-WINDOWS' wallDepth + the retract wells' recess: a dome keeps its ring on the skin).
+- Open (the testers' and Monday's): the Petrel's prop strikes at mk_sea (node), the float Cessna's TOUR timeout at
+  mk_sea (SEA-AMPHIB's first finding), the amphibious floats flown or only drawn, the retract cut rules, the
+  Petrel's composite hull that never cracks behind the cabin (the user's crash photos: it must - Deform's campaign),
+  the browser bar (a water circuit, the same on land, land to sea) in the daily slot 06:00-07:30.
