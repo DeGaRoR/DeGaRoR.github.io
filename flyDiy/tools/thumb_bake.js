@@ -59,6 +59,10 @@ const r = spawnSync(process.execPath, args, { stdio: 'inherit' });
 // what came out: <base>_profile-0.9-480x240.png, base = the candidate's file name, or stock_<slug> for a stock design
 // (plane_shot wrote <tmp>/stock_<slug>.json with { stock: <the name> })
 const index = { what: 'flydiy-thumbs', v: 1, baked: new Date().toISOString().slice(0, 10), view: VIEW, thumbs: KEYS ? JSON.parse(fs.readFileSync(path.join(OUT, 'index.json'), 'utf8')).thumbs : {} };
+// a whole bake redraws stock / cand / design only: the arch: and list: rows (--plus / --keys pictures) it did not draw this
+// time carry over from the index on disk - else the prune below would drop them
+if (!KEYS) { let old = {}; try { old = JSON.parse(fs.readFileSync(path.join(OUT, 'index.json'), 'utf8')).thumbs || {}; } catch (e) {}
+  for (const k in old) if (/^(arch|list):/.test(k) && !(k in index.thumbs)) index.thumbs[k] = old[k]; }
 const jobs = [];
 for (const png of fs.readdirSync(tmp).filter(f => f.endsWith(SUFFIX)).sort()) {
   const base = png.slice(0, -SUFFIX.length);
@@ -85,6 +89,15 @@ fs.writeFileSync(py, 'import sys, json\nfrom PIL import Image\nfor a, b in json.
 fs.writeFileSync(jf, JSON.stringify(jobs));
 const p = jobs.length ? spawnSync('python', ['-I', py, jf], { stdio: 'inherit' }) : { status: 1 };
 if (p.status === 0) fs.writeFileSync(path.join(OUT, 'index.json'), JSON.stringify(index, null, 1) + '\n');
+// THE PRUNE (MASTER-GREEN, 8 Nov): a whole bake (no --keys, no --only) that wrote its index deletes the folder's pictures
+// the index no longer names (a plane gone from the pool) - GATE MEDIA's rule, each baker prunes what it owns
+const pruned = [];
+// (never after a bake that missed a plane still in the pool: its old picture stays until a bake draws it)
+if (p.status === 0 && r.status === 0 && !KEYS && !only && cands.every(c => index.thumbs['cand:' + c])) {
+  const named = new Set(Object.values(index.thumbs));
+  for (const f of fs.readdirSync(OUT)) if (f !== 'index.json' && /\.webp$/.test(f) && !named.has(f)) { fs.unlinkSync(path.join(OUT, f)); pruned.push(f); }
+  if (pruned.length) console.log('thumb_bake: pruned ' + pruned.join(', '));
+}
 const keys = Object.keys(index.thumbs), gotStock = keys.filter(k => k.startsWith('stock:')).length, gotDesign = keys.filter(k => k.startsWith('design:')).length;
 const missing = KEYS ? KEYS.filter(k => !index.thumbs[k]) : want('cand') ? cands.filter(c => !index.thumbs['cand:' + c]) : [], noDesign = designIds.filter(id => !index.thumbs['design:' + id]);
 console.log('thumb_bake: ' + gotStock + ' stock + ' + (keys.length - gotStock - gotDesign) + ' candidate + ' + gotDesign + ' market pictures -> ' + OUT +

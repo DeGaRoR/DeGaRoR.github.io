@@ -312953,3 +312953,9 @@ DEFAULT PASS  EDBUGS PASS  JOIN PASS  SAVE PASS  DESIGN PASS
 SHADOWSKY FAIL  "4 clouds: a stale depth nearer than the first deck is sky ..."  (master 1bcd01d3e has it, same line)
 
 Not run: CLOUD and PROGRAMS (they start Chrome), DMGLOOK (it spawns a child process).
+
+## MEDIA-GREEN - THE PLANE PICTURES' INDEX READ AS A MANIFEST; THE WIRE BUDGET 5.0 -> 5.5 MiB GZ (A0 8 Nov, MASTER-GREEN)
+THE 43 ORPHANS were not a broken prune: every one of them (media/thumbs/*.webp, the THUMBS-ROUND3 and R1 bakes) is named by media/thumbs/index.json, which plane_thumb.js fetches through BAKED + 'index.json' - a path no manifest scan could see. GATE MEDIA now reads media/thumbs/index.json (and media/heroes/index.json, for R2) as the scenery versions are read: the index referenced by plane_thumb.js when it fetches it, each file the index names referenced by the index; the index's shape checked.
+THE PRUNE made true: thumb_bake.js's whole bake (no --keys, no --only) deletes the pictures its index no longer names, and never after a bake that missed a plane still in the pool; the arch: / list: rows a whole bake does not draw carry over from the index on disk first (else the prune would drop them). Tried on a mock bake (a stand-in plane_shot): a removed plane and a stray file pruned, arch:/list: kept, nothing pruned when a pool plane failed.
+THE BUDGET: A0's ruling on the user's "decide": WIRE_BUDGET_MIB 5.0 -> 5.5, the cost named in the gate: 5.18 MiB gz on L35a, a player's first load. No page-size work.
+GATES: MEDIA PASS (4057 references from 107 manifests, 4057 files; 5.18 MiB gz of 5.5; +16.8 KB step), selftest 8 of 8 caught; ASSETBUDGET PASS (reads _media_check.js).
