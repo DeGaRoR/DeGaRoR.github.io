@@ -312728,3 +312728,27 @@ IN (on L34a cad308635): claude/ready/bubble-windows 9e7010baa (CABIN-CRAFT), cla
 BATTERY: 115 of 116 PASS. ENGCONFIG red, standing on master: its IDENTITY pins date from 28 Oct. Every one of its 18 load digests (the Cub, the Jodel, the Cessna, the Rufus...) is the same on this train and on a full copy of master, so no validated plane flies differently. No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change.
 TIMED GATE (light, vs the stale 12 Oct baseline): steady frames p50 33.3 ms. Reds are the boot and compile rows (cub chase compile 67 s, flight 151 s): the cold shader cache seen on L32d/L34a, same class as L34a (57 reds vs 80). Two rollouts lost to a page '__timeout' (cub cockpit, metal chase) after slow boots.
 NAMED COST, STILL OPEN: the floats' SEA lane: garage 226 s, take-off p99 50 ms but worst frame 10.4 s, 25 tasks over 1 s, held under the roll-out screen. Same as L34a's (124 s, 77 links); not this train's. NIGHT-LOOK measures the night water cost at 11:45; the SEA lane bisect is owed.
+
+## DMGSKINGPU-GREEN (2026-11-08, DMG-SKINGPU for A0's MASTER-GREEN): THE DEFERRED GPU TEAR JUDGES EACH TRIANGLE AS THE SAMPLE SAW IT - a real fault, not a stale bound (branch claude/ready/dmgskingpu-green on master 1bcd01d3e)
+
+GATE DMGSKINGPU was red on master 1bcd01d3e (L35a), 55/57: the Cub's trunk-centre and nose-in tear rows - GPU tears 37
+and 205 frames after the CPU's, with the CPU's margin 50 mm and 128 mm past the bound (not float32: the tolerance did not
+apply, rightly). Traced triangle by triangle (the gate's new env diagnostic DMGSKINGPU_TRACE="mesh:tri" +
+DMGSKINGPU_TRACE_OUT, the triangle's state on both paths frame by frame):
+- the nose-in, skin triangle 6575: frame 5 both paths sample; the CPU tears it (128 mm past its bound). On the GPU path the
+  sample's tear lands at frame 6, AFTER that frame's event had marked the triangle gone (dead 1: two pieces) - tearPlaces
+  skips any dead triangle, so the tear was LOST; at frame 7 the next event brought the triangle back (dead 0) and it was drawn
+  until frame 210 where the CPU's path has a hole. The Cub's trunk: gone at 83, back as HELD at 118, torn at 119.
+- the cause: the train-41 deferred tear (a sample asked on the frame the tear is due, landing a frame or two later) saw the
+  triangles as they stood at LANDING, the held bits apart (R.heldAsk, train 41). A triangle an event re-judges between the
+  sample and the landing was judged in its new state.
+- THE FIX (skin_break.js / app.js / the gate alike): while a sample is in flight (R.askState, a Map made at the ask) the event
+  records each triangle it changes with its state AT THE SAMPLE; tearPlaces judges every triangle so - one gone since (dead 1)
+  is judged and torn for good (dead 2) if it stretched past its bound in the sample, as the CPU tore it that frame; one brought
+  back since was not live at the sample and is skipped.
+- On master + the fix: DMGSKINGPU 57/57 - every case's tears the CPU's to the triangle (the Cub's trunk 3969 = 3969, the
+  nose-in 4614 = 4614), each exactly one frame later, 0 earlier, 0 missed (one case: up to 4 frames, 2 earlier - within one
+  sampling period); DMGPAGEW PASS (the page in node under the worker). The gate is not weakened: no bound moved.
+- Which train turned it red: not bisected. The deferred tear is train 41's; what since made events re-judge a triangle
+  between a sample and its landing more often (DMG-LOOKS G3770's member pool in the triangle judgement, the physics since)
+  is a guess, not a measure.
