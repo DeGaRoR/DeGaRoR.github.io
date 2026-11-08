@@ -1,0 +1,209 @@
+{
+ "cub": {
+  "nodes": 97,
+  "members": 404,
+  "substeps": 75,
+  "massKg": 476.4,
+  "engNodes": 2,
+  "floats": 0,
+  "floatKinds": "",
+  "restUsPerFrame": 3328,
+  "restWet": 0,
+  "airUsPerFrame": 7127,
+  "airSane": false,
+  "scene": {
+   "meshes": 133,
+   "instanced": 0,
+   "drawCallsUpper": 159,
+   "triangles": 175900,
+   "materials": 71,
+   "geometries": 130,
+   "errors": 0,
+   "byLayer": {
+    "cageLayer:cowl": {
+     "meshes": 27,
+     "tris": 14206
+    },
+    "cageLayer:eng": {
+     "meshes": 8,
+     "tris": 44260
+    },
+    "cageLayer:wing": {
+     "meshes": 15,
+     "tris": 24524
+    },
+    "cageLayer:gear": {
+     "meshes": 28,
+     "tris": 38984
+    },
+    "cageLayer:fin": {
+     "meshes": 10,
+     "tris": 3828
+    },
+    "cageLayer:stab": {
+     "meshes": 14,
+     "tris": 5992
+    },
+    "cageLayer:access": {
+     "meshes": 2,
+     "tris": 7778
+    },
+    "cageLayer:light": {
+     "meshes": 11,
+     "tris": 3512
+    },
+    "cageLayer:hinge": {
+     "meshes": 18,
+     "tris": 32816
+    }
+   }
+  }
+ },
+ "twinFloats": {
+  "nodes": 123,
+  "members": 500,
+  "substeps": 103,
+  "massKg": 476.6,
+  "engNodes": 2,
+  "floats": 2,
+  "floatKinds": "float,float",
+  "hydroEvery": 17,
+  "hydroHz": 364,
+  "hydroPanels": [
+   388,
+   388
+  ],
+  "hydroPanelsSum": 776,
+  "restUsPerFrame": 9537,
+  "restWet": 5.611579658758647,
+  "airUsPerFrame": 11121,
+  "airSane": false,
+  "scene": {
+   "meshes": 137,
+   "instanced": 0,
+   "drawCallsUpper": 189,
+   "triangles": 177808,
+   "materials": 72,
+   "geometries": 110,
+   "errors": 0,
+   "byLayer": {
+    "cageLayer:cowl": {
+     "meshes": 34,
+     "tris": 29488
+    },
+    "cageLayer:eng": {
+     "meshes": 16,
+     "tris": 55124
+    },
+    "cageLayer:wing": {
+     "meshes": 16,
+     "tris": 27316
+    },
+    "cageLayer:float": {
+     "meshes": 19,
+     "tris": 25760
+    },
+    "cageLayer:fin": {
+     "meshes": 10,
+     "tris": 6068
+    },
+    "cageLayer:stab": {
+     "meshes": 15,
+     "tris": 5876
+    },
+    "cageLayer:access": {
+     "meshes": 3,
+     "tris": 2956
+    },
+    "cageLayer:light": {
+     "meshes": 11,
+     "tris": 3512
+    },
+    "cageLayer:hinge": {
+     "meshes": 13,
+     "tris": 21708
+    }
+   }
+  }
+ },
+ "petrel": {
+  "nodes": 184,
+  "members": 811,
+  "substeps": 200,
+  "massKg": 591.8,
+  "engNodes": 2,
+  "floats": 3,
+  "floatKinds": "hull,tip,tip",
+  "hydroEvery": 33,
+  "hydroHz": 364,
+  "hydroPanels": [
+   608,
+   388,
+   388
+  ],
+  "hydroPanelsSum": 1384,
+  "restUsPerFrame": 35925,
+  "restWet": 5.057483538517736,
+  "airUsPerFrame": 42448,
+  "airSane": false,
+  "scene": {
+   "meshes": 156,
+   "instanced": 0,
+   "drawCallsUpper": 186,
+   "triangles": 153460,
+   "materials": 76,
+   "geometries": 150,
+   "errors": 0,
+   "byLayer": {
+    "cageLayer:float": {
+     "meshes": 8,
+     "tris": 12888
+    },
+    "cageLayer:cowl": {
+     "meshes": 13,
+     "tris": 14102
+    },
+    "cageLayer:eng": {
+     "meshes": 13,
+     "tris": 43454
+    },
+    "cageLayer:wing": {
+     "meshes": 4,
+     "tris": 5242
+    },
+    "cageLayer:wing2": {
+     "meshes": 7,
+     "tris": 8566
+    },
+    "cageLayer:brace": {
+     "meshes": 3,
+     "tris": 6864
+    },
+    "cageLayer:gear": {
+     "meshes": 58,
+     "tris": 32952
+    },
+    "cageLayer:fin": {
+     "meshes": 10,
+     "tris": 4996
+    },
+    "cageLayer:stab": {
+     "meshes": 15,
+     "tris": 5488
+    },
+    "cageLayer:access": {
+     "meshes": 3,
+     "tris": 4496
+    },
+    "cageLayer:light": {
+     "meshes": 11,
+     "tris": 3512
+    },
+    "cageLayer:hinge": {
+     "meshes": 11,
+     "tris": 10900
+    }
+   }
+  }
+ }
+}

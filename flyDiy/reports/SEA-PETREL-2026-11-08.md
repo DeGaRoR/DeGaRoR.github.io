@@ -78,6 +78,53 @@ route. Evidence: `reports/evidence/SEA-PETREL/diag/*.json` (`hist0` / `strike.st
   `--wind 0` the same start, no strike.
 - Browser-needed: yes - the page's water start at Cedar Harbour (does the page also place it wheels-down and drop it?).
 
+### S3 THE FLOAT CESSNA'S STRIKE (master's TOUR, mk_sea > SEA, t 604.6) IS ANOTHER CAUSE: A CAPSIZE IN A LONG WATER TAXI
+- Flown here the same way (the game's route, the load door's float Cessna 949.5 kg / 25 L, 8 kt from 250, chained
+  SEA > mk_sea > SEA): leg 1 OK (touch 35.6 m/s, sink 0.47, run 370 m). Leg 2, the chained departure from where it
+  stopped at mk_sea, is a WATER TAXI that never ends (TAXI 1796 s of 1800; `taxi-timeout: the route took 958 s`,
+  `replan: not lined up with a run ahead (1135 m, 201.5 m off)`, `pivot: a turn of 26 deg that the wheels (Infinity m)
+  cannot steer on the route - turning on the spot`). At t 596-604.6, taxiing at 5.7-6.4 m/s on 0.5 throttle, stick 0.30
+  back, the roll diverges: +9.9 -> -2.6 -> +13 -> +30 (603.0) -> +90.5 deg (604.6), pitch 4 -> 12 deg; the disc goes
+  in as it rolls over: `capsized: on its back in TAXI at 3.5 m/s (bank 90 deg)`, the prop strike at 604.6 exactly as
+  master's TOUR reports. The waves were +-0.03 m. Not the Petrel's mechanism (no porpoise, no drop): one taxi that
+  should not be 600 s long, and a float Cessna that capsizes at 6 m/s / 0.5 power in it.
+- The Petrel has never flown that chained water departure here (its first leg fails at 8 kt): queued (SEA > mk_sea >
+  SEA calm, HOME > mk_sea > HOME 8 kt) - UNPROVEN until they land.
+- Reproduce (40 min): `sp_fly.js --vkey floats --order SEA,mk_sea,SEA --wind 8@250` (evidence `diag/floats_tour.json`).
+- Browser-needed: yes - the water taxi out of Cedar Harbour after a landing.
+
+## Cost (task 4) - counts, and ratios measured on the same cloud machine at the same time (never ms)
+
+| | Cub | twin floatplane (Twin_busher_floats_4b) | float Cessna | **Super Petrel V4.1** | Petrel / Cub | Petrel / twin |
+|---|---|---|---|---|---|---|
+| nodes | 97 | 123 | - | **184** | 1.9 | 1.5 |
+| members | 404 | 500 | - | **811** | 2.0 | 1.6 |
+| solver substeps / frame | 75 | 103 | - | **200** | 2.7 | 1.9 |
+| members x substeps | 30 300 | 51 500 | - | **162 200** | 5.4 | 3.1 |
+| hydro bodies (panels) | - | 2 floats (2 x 388) | - | **hull 608 + 2 tip floats 388** = 1 384 | - | 1.8 |
+| hydro rate | - | every 17 substeps = 364 Hz | - | every 33 substeps = 364 Hz | - | same rate |
+| solver frame, IN THE AIR (flown legs) | 1.0 | 1.5 | 3.1 | **~6 (5.4-8.1)** | ~6 | ~4 |
+| solver frame, ON THE WATER (flown) | - | 2.6 | 4.2-4.9 | **~7.5 (6.1-12.4)** | - | ~3 |
+| solver frame, ON THE GROUND (flown: taxi, roll) | 2.0 | - | - | **~13 (11-16)** | ~7 (ground vs ground) | - |
+| solver frame at rest on its start (cost.js, 600 frames) | 1.0 | 2.9 | - | **10.8** | 10.8 | 3.8 |
+| certificate (DMGCERTCOST): frames stepped | 1 807 | 1 784 | 1 762 | **1 789** (uncut 3 049) | 0.99 | 1.00 |
+| certificate: node time, the same gate run | 1.0 | 2.0 | 3.0 | **4.7** | 4.7 | 2.4 |
+| editor scene (headless, the drawing layers): meshes | 133 | 137 | - | 156 | 1.2 | 1.1 |
+| ... draw calls (upper bound: mesh x material groups) | 159 | 189 | - | 186 | 1.2 | 1.0 |
+| ... triangles | 175.9 k | 177.8 k | - | 153.5 k | 0.87 | 0.86 |
+| ... materials | 71 | 72 | - | 76 | 1.1 | 1.1 |
+
+Ratios are to the Cub's air frame (1.0 = the Cub in the air) unless the column says otherwise; the flown numbers are
+the µs-per-frame accumulators in sp_fly (`legs[].cost`), every run on a 4-core box shared by 4-6 jobs, so +-30 %.
+- THE COST IS THE PHYSICS, NOT THE DRAWING: the Petrel's scene is the Cub's size (fewer triangles; the gear layer is
+  its biggest, 58 meshes). Its solver frame is ~6x the Cub's in the air and ~13x the Cub's AIR frame on the ground
+  (~7x the Cub's ground frame): 200 substeps (the Cub 75) over twice the members, plus a third hydro body.
+- The ground costs the Petrel twice its air frame (the Cub's too): the island raster's ground pass over 184 nodes.
+- On the box this decides whether the worker keeps 60 Hz: **browser-needed** (the worker's step time and the page's
+  frame time with the Petrel vs the Cub, the same session). UNPROVEN that it is too slow - only that it is 6-13x.
+- Reproduce: `node reports/evidence/SEA-PETREL/cost.js --root <repo>` (counts, the rest bench, the scene; its air
+  bench is broken - placed by hand it went NaN; the flown numbers above replace it); the certificate: `node tools/run_gates.js --only=DMGCERTCOST`.
+
 ## Findings
 
 ### F1 GATE PLANELISTS is red on 15ad5d669 (green on 7f6e1df64 and on master) - severity: blocks (a core gate)
