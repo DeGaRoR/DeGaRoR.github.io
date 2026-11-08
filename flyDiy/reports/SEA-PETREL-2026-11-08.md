@@ -11,7 +11,15 @@ and JOINPARITY page row). Between 15ad5d669 and 4c60b519 `src/core` changed only
 envelope (wings over 18 m: the DC-3 class) and the parked packs: nothing the Petrel (9.16 m) flies moved, so the
 flights below stand for both. The gates that changed are re-run on 4c60b519 (marked "tip").
 
-STATUS: IN PROGRESS - sections fill as the runs land. Pushed every 1-2 h.
+STATUS: COMPLETE for this session (8 Nov, ~18:30 UTC). 41 flights (39 Petrel + the Cub and the twin for the cost),
+4 start diagnostics, the float Cessna's tour, 40 gate runs. Tested: 15ad5d669 (flights, most gates), 4c60b519 (the
+re-run gates), master 1bcd01d3.
+
+NOT DONE / UNPROVEN (say so): GATE TOUR not run as a gate (its float tour re-flown with its own library, S3); no
+light-fuel row (the fuel cannot be lowered, see the rig); repeats only at 8 kt (15 kt / crosswind flown once each);
+the amphibious floats (fltAmph) not flown (drawn, not flown - as the HANDOVER says); the crash ("later") not tested;
+why the take-off's porpoise law does not hold the open-sea run (S4) and which part of the line-up fails on the water
+(S5) are not traced; every browser item below is unconfirmed.
 
 ## SUMMARY (for SEAPLANES-LAND)
 
@@ -396,6 +404,8 @@ Expert, damage on, `?retract=lab` on the page if a lab row is needed (the Petrel
    the drawn prop visibly touch?
 10. **The cost**: the worker's step time and the page's frame rate, the Petrel against the Cub, the same session and
    view (node: the Petrel's solver frame ~6x the Cub's in the air, ~7x on the ground). Is it 60 Hz on the box?
+12. **ONE ABOARD at HOME** (the load sheet, one person): does it sit on its tail on the stand (node: +7.4 deg, the
+   nose wheel off) and can the AP taxi it out? (S6) - high priority, with item 2.
 11. **The float Cessna, Cedar Harbour > SEA after landing there** (the chained water taxi): node - a 600 s taxi and a
    capsize at 6 m/s (S3). Same in the page?
 
