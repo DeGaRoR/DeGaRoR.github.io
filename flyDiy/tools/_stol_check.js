@@ -722,7 +722,10 @@ if (!BENCH_ONLY) {
     ok(!gO.landsFlapless && v0 <= gO.VsFlap * 1.01 && mO.Vs0 === v0,
        `the elevator holds the slatted stall in the flare on its own tank: the ladder's Vs0 ${kmh(v0)} km/h, the wing's ${kmh(gO.VsFlap)}, flaps down`);
     console.log(`       on the stock's tank (${JSON.stringify(J.fuel)}) the elevator holds ${kmh(gK.VsFlapAP === undefined ? gK.VsFlap : gK.VsFlapAP)} km/h, the wing's ${kmh(gK.VsFlap)}`);
-    ok(mK.Vref <= 0.92 * mS.Vref, `a slower approach: Vref ${kmh(mK.Vref)} km/h (stock ${kmh(mS.Vref)})`);
+    // G2811 + G2813 (rule b, the check updated for a meant change): THE STOCK NOW LANDS ON ITS NOTCH. Measured against a
+    // flapless stock (74.8 km/h, 0.92 asked); the landing notch flies the stock Cub's approach at 67.2 km/h, the kit's 64.0:
+    // still slower, by 0.952 - asked 0.96
+    ok(mK.Vref <= 0.96 * mS.Vref, `a slower approach: Vref ${kmh(mK.Vref)} km/h (stock ${kmh(mS.Vref)})`);
     const L = dK.parts.ledger;
     ok(L.stol && L.stol.mass > 5, `the kit is billed: ${L.stol && L.stol.mass.toFixed(1)} kg, ${L.stol && Math.round(L.stol.cost)}`);
     const dc = (shK.design && shK.design.rows) || [];
