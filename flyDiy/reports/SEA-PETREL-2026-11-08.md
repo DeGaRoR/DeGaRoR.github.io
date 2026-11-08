@@ -61,7 +61,10 @@ the Cub's size. Whether it holds 60 Hz on the box: browser-needed.
 The game's route, Expert, damage ON. Wind is the game's day (`DAY_CLOCK`, gust 0.15, the sea breeze on) with its wind
 set to the row's: 0 / 8 kt from 250 (the game's default day) / 15 kt from 250 / a 10 kt crosswind square to the
 destination lane. Loads: `full` = the build as saved (two aboard, 72 L - the tank is 72 L, so full and max fuel are
-the same aeroplane, 591.8 kg), `solo` = one aboard, 20 L; `solo72` = one aboard, 72 L. The water starts are the
+the same aeroplane, 591.8 kg), `solo` = one aboard (509.0 kg). The fuel could NOT be lowered: the rig set
+`spec.fuel.litres` 20 and the flight still started with 72 L (the game fills the energy layer's tank - `solo` and
+`solo72` are the same aeroplane, flown identically to the decimal); a light-fuel row would need the tank's capacity
+changed (tour_real_node's `--capacity`), which is no longer the game's aeroplane - not flown. The water starts are the
 game's own placement (no taxi: the AP rolls from the spawn); a land start taxies from the walked stand (the "short
 taxi" of every land leg). The runs are DETERMINISTIC: a repeat is a byte-identical flight, so the repeats are flown
 with the start shifted by `--pre N` idle frames (37, 91: the waves and the gusts in another phase).
