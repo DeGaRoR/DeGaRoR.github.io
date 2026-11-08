@@ -11,7 +11,7 @@
 //   capsize     90 - max |roll| on the surface (deg) - the pilot's own capsize line is |roll| > 90 (43_pilot.js:2174)
 //   gear        out.gear min / max (a retract build only), wheelsOnGround's max while the hull/floats are wet
 //   hash        sha1 of the node positions at the leg's end (a parity rig: two trees, one hash = one flight)
-//   --trace f.csv: every 1 s (60 steps) the leg, t, phase, Vg, vy, CG height, the disc's gap, pitch, roll, on surface, wet
+//   --trace f.csv [--hz 10]: every 1 s (60 steps; --hz 10 every 0.1 s) the leg, t, phase, Vg, vy, CG height, the disc's gap, pitch, roll, on surface, wet
 //   node reports/evidence/SEA-AMPHIB/fly.js [--root <flyDiy dir>] --build <file> --order SEA,mk_sea,SEA --wind 0|8 [--out f.json] [--tmax s]
 'use strict';
 const fs = require('fs'), path = require('path'), crypto = require('crypto');
@@ -19,7 +19,7 @@ const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 && argv[i + 1] != null ? argv[i + 1] : d; };
 // --root <a flyDiy/ dir>: the tree under test (default this one) - the same driver flies another worktree's code
 const R = path.resolve(opt('root', path.join(__dirname, '..', '..', '..'))), T = path.join(R, 'tools');
-const TRACE = opt('trace', null), TRC = [];
+const TRACE = opt('trace', null), TRC = [], HZ = +opt('hz', 1), EVERY = HZ >= 10 ? 2 : 4, TSTEP = Math.round(60 / HZ);   // --hz 10: a 10 Hz trace (measures every 2nd step)
 const PT = require(path.join(T, 'pilot_trace.js')); PT.loadPanel();
 const C = require(path.join(T, 'flight_core.js'));
 const IN = require(path.join(T, 'island_node.js'));
@@ -51,7 +51,7 @@ let M = null, n = 0, tAll = 0;
 const step0 = sim.step;
 sim.step = dt => {
   step0(dt); tAll += dt;
-  if ((n++ % 4) !== 0 || !M) return;
+  if ((n++ % EVERY) !== 0 || !M) return;
   const ax = sim.axes(), xA = ax[0], zR = ax[2], p = sim.p;
   const pitch = Math.asin(Math.max(-1, Math.min(1, -xA[1]))) * 57.2958, roll = Math.asin(Math.max(-1, Math.min(1, -zR[1]))) * 57.2958;
   const HY = sim.hydro, wet = !!(HY && HY.floats && HY.floats.some(f => f.wet > 0.05));
@@ -64,7 +64,7 @@ sim.step = dt => {
     const lx = cx + Rp * (-xA[0]) * ay / dl, ly = cy + Rp * (-1 + ay * ay) / dl, lz = cz + Rp * (-xA[2]) * ay / dl;
     const gap = ly - surfH(lx, lz);
     if (gap < M.propMin.v) M.propMin = { v: gap, t: M.t(), ph: H.ap.phase };
-    if (TRACE && (n % 60) === 1) { const cg = sim.cgPos(), v = sim.cgVel(); TRC.push([M.leg, r2(tAll), H.ap.phase, r1(Math.hypot(v[0], v[2])), r2(v[1]), r2(cg[1] - surfH(cg[0], cg[2])), r2(gap), r1(pitch), r1(roll), onS ? 1 : 0, wet ? 1 : 0]); }
+    if (TRACE && ((n - 1) % TSTEP) === 0) { const cg = sim.cgPos(), v = sim.cgVel(); TRC.push([M.leg, r2(tAll), H.ap.phase, r1(Math.hypot(v[0], v[2])), r2(v[1]), r2(cg[1] - surfH(cg[0], cg[2])), r2(gap), r1(pitch), r1(roll), onS ? 1 : 0, wet ? 1 : 0]); }
     if (onS && gap < M.propMinSurf.v) M.propMinSurf = { v: gap, t: M.t(), ph: H.ap.phase };
   }
   if (onS) {
