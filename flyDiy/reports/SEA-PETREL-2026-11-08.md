@@ -11,8 +11,8 @@ and JOINPARITY page row). Between 15ad5d669 and 4c60b519 `src/core` changed only
 envelope (wings over 18 m: the DC-3 class) and the parked packs: nothing the Petrel (9.16 m) flies moved, so the
 flights below stand for both. The gates that changed are re-run on 4c60b519 (marked "tip").
 
-STATUS: COMPLETE for this session (8 Nov, ~18:30 UTC). 41 flights (39 Petrel + the Cub and the twin for the cost),
-4 start diagnostics, the float Cessna's tour, 40 gate runs. Tested: 15ad5d669 (flights, most gates), 4c60b519 (the
+STATUS: COMPLETE for this session (8 Nov, 17:45 UTC). 39 Petrel flight files (+ the Cub and the twin for the cost),
+4 start diagnostics, the float Cessna's tour, 51 gate runs (+ PLANELISTS by hand on three trees). Tested: 15ad5d669 (flights, most gates), 4c60b519 (the
 re-run gates), master 1bcd01d3.
 
 NOT DONE / UNPROVEN (say so): GATE TOUR not run as a gate (its float tour re-flown with its own library, S3); no
