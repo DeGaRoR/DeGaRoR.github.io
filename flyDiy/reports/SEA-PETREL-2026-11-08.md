@@ -19,8 +19,9 @@ The Petrel is NOT yet "nice and right" on the water. On land it is (every land l
 sheltered SEA lane it mostly is. On the OPEN sea (Cedar Harbour, mk_sea) at the game's default 8 kt it fails every
 way in, out and across - four separate mechanisms, none of them the static prop clearance (0.33-0.43 m at rest):
 
-1. **S1 the landing roll-out porpoises** (8 and 15 kt, 3 of 3 open-sea landings from SEA at 8-15 kt): skips, the bow
-   thrown to 30-43 deg nose-up, the pusher disc into the water (strike at t 452 / 480.9) or a 30 deg swing. The hull,
+1. **S1 the landing roll-out porpoises** (every SEA > mk_sea landing at 8-15 kt, 4 of 4: two prop strikes at t 452 /
+   480.9, one 30 deg swing at pitch 30.8, one 0.01 m miss at pitch 25.7; the same harbour reached from HOME lands, 4
+   of 4, pitch 13-18): skips, the bow thrown to 25-43 deg nose-up, the pusher disc into the water. The hull,
    not the stick (the elevator goes forward as it pitches up). The take-off's porpoise law has no roll-out twin.
 2. **S2 the water start drops it**: the game's placement puts it on the water in its land stance, wheels at the
    waterline, the hull ~0.5 m up; it falls, pitches to +9-10 deg in the open sea's wave, the disc goes in at
