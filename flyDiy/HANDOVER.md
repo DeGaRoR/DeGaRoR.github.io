@@ -313432,3 +313432,15 @@ on claude/ready/seaplanes 4c60b5192. Fixed here (tools only, no physics, no key 
 - OPEN for the testing week: flydiy-notes/seaplanes-testing-week-plan-2026-11-08.md (C1-C8; the user's answers D':
   retract verdict GO + V13, amphibious floats flown, wheel water on hydro builds, the Petrel's geometry frozen and its
   porpoise found in the hydro / pilot; a video Monday 06:45). B1 (TOUR ends a leg on a capsize) rides L35d on its own.
+
+## A0 - train L35c, 8 Nov 2026
+
+IN (on L35b): dmgskingpu-green, bubble-clean, geo-crowd, vehicle-green, assets-green, media-green (MEDIA budget 5.5 MiB, user ruling), heroes (R2), look1-shadowsky, skinmat, master-green-twin (HANDLE + DMGGEAR G2640), clip-navaerial, gen-envelope (genBig on the flown span), seaplanes e5a2fe4cb (SWITCHED OFF, testing week).
+DROPPED: pilot-notch, a real conflict in tools/fixtures/stol_baseline.json.gz (seaplanes re-captured it first). Pilot rebases tonight for L35d.
+BATTERY (full log read): 118 PASS / 10 FAIL (L35b 101 / 13).
+- Now green: VEHICLE, MEDIA, ASSETS, GEO, CLIP, DMGSKINGPU.
+- Still red, same as L35b: GEN (only "cruise is quiet in wind" left, Pilot), TOUR, FRAMECOST, ROUNDTRIP, ENGCONFIG (the same stale digest list as L35a/b; no mover).
+- Still red despite their fix: DMGGEAR (now the float nose-in / dig-in cases; SEAPLANES checking), SKINMAT (a wheelWell role row no build emits; SEAPLANES checking).
+- NEW red, fix-forward for L35d: UISMOKE + UISMOKE-PHONE (assets-green: app.js:2138 MATLIB/require in the node harness), (CABIN-CRAFT, assets-green-2: the harness loads matlib.js). DMGMEMBERS: the 5 old builds pass; the seaplanes ready added the Super Petrel to VALIDATED, and its carbon is Euler-capped against a pre-carbon gate rule (SEAPLANES + Deform decide).
+No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change: PHYSICS_V 7, GEN_SPEC_V 10, GEN_CERT_V 7, as on master.
+TIMED GATE: light, stale 12 Oct baseline; all 7 rollouts ran (L35b lost 2 to timeouts). Steady frames p50 33.3 ms on every flown row and scene. Freezes: ONE 4.9 s frame in cub taxi chase @HOME (one run; L35b 0) and one 1.7 s frame in floats water taxi @SEA (first time measured). Cockpit rows p99 166.8-183.4 in one segment (L35b cub cockpit 116.8). Reds are the boot/compile rows (cold shader cache, as L35a/b). Watch the @HOME freeze on L35d.
