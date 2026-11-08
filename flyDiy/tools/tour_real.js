@@ -62,6 +62,10 @@ const DEADLINE = opt('deadline', null);
 const SKIP_AFTER = opt('skip-after', null) != null ? +opt('skip-after') : null;
 const AFTER_LIFT = opt('after-lift', null) != null ? +opt('after-lift') : null;
 const NO_ROUTE = flag('no-route');
+// SEAPLANES-LAND (8 Nov): --key-at "LEG:PHASE:CODE[,LEG:PHASE:CODE]" presses a key the player's way (CDP
+// Input.dispatchKeyEvent: a trusted keydown + keyup on the page) the first time leg LEG (1 = the first leg, the rig's li) reads PHASE, e.g.
+// "1:PUTDOWN:KeyG" - the gear key under the AP in the flare (the AP has no say there: the hand's position holds)
+const KEY_AT = (opt('key-at', '') || '').split(',').filter(Boolean).map(s => { const [lg, ph, code] = s.split(':'); return { leg: +lg, ph, code, done: false }; });
 const HEADLESS = flag('headless');           // the mock's plumbing check only (never the game: G586's rig clock)
 let URL = opt('url', null);
 const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\..*/, '');
@@ -373,6 +377,14 @@ const STATE = `JSON.stringify((() => {
         await sleep(500); await ev('window.__TR && (window.__TR.nextT = -1), 1');
         try { st = JSON.parse(await ev(STATE, 15000)); } catch (e) {}
         lastT = -Infinity; lastTWall = Date.now(); L.tStart = st.t; L.skip.tAfter = st.t;
+      }
+      for (const K of KEY_AT) if (!K.done && K.leg === li && st.ph === K.ph) {
+        K.done = true; const vk = K.code.length === 4 && K.code.startsWith('Key') ? K.code.charCodeAt(3) : 0, key = vk ? K.code[3].toLowerCase() : K.code;
+        await cmd('Input.dispatchKeyEvent', { type: 'keyDown', code: K.code, key, windowsVirtualKeyCode: vk, nativeVirtualKeyCode: vk });
+        await sleep(120); await cmd('Input.dispatchKeyEvent', { type: 'keyUp', code: K.code, key, windowsVirtualKeyCode: vk, nativeVirtualKeyCode: vk });
+        (L.keys = L.keys || []).push({ t: +st.t.toFixed(2), ph: st.ph, code: K.code, agl: st.agl });
+        log('  KEY ' + K.code + ' pressed at t ' + st.t.toFixed(1) + ' (' + st.ph + ', agl ' + (+st.agl).toFixed(1) + ' m)');
+        await take('key_' + K.code, 200);
       }
       if (AFTER_LIFT != null && L.liftT != null && st.t - L.liftT > AFTER_LIFT) { end = 'after-lift ' + AFTER_LIFT + ' s'; await take('afterlift', 300); break; }
       if (sawLift && st.agl > 15) air = true;
