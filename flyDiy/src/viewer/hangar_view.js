@@ -134,13 +134,13 @@ var HANGAR_VIEW = (() => {
           gl_FragColor = vec4(min(w * sqrt(1.0 + dot(q, q)), f), 0.0, 0.0, 1.0);
         }`,
       depthTest: false, depthWrite: false, toneMapped: false });
-    let cap = null, capCam = null, skyScene = null;
+    let cap = null, capLin = null, capCam = null, skyScene = null;   // capLin: the target's mode, kept here - three's RenderTarget has no userData (r186)
     const atlases = (N, n) => ({
       col: new THREE.WebGLRenderTarget(3 * N, 2 * N, { type: THREE.UnsignedByteType, format: THREE.RGBAFormat, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, depthBuffer: false, stencilBuffer: false, generateMipmaps: false }),
       dist: new THREE.WebGLRenderTarget(3 * n, 2 * n, { type: THREE.HalfFloatType, format: THREE.RGBAFormat, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, depthBuffer: false, stencilBuffer: false, generateMipmaps: false }),
       done: 0, N, n });
     const capTarget = (N, lin) => {
-      if (cap && cap.width === N && cap.userData.lin === lin) return cap;
+      if (cap && cap.width === N && capLin === lin) return cap;
       if (cap) cap.dispose();
       cap = new THREE.WebGLRenderTarget(N, N, { type: THREE.HalfFloatType, format: THREE.RGBAFormat, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter,
         generateMipmaps: false, depthBuffer: true, stencilBuffer: true, samples: S.samples,
@@ -151,7 +151,7 @@ var HANGAR_VIEW = (() => {
       // material.toneMapped, the dome's display values raw) or THE LINEAR SPLIT (G448.3, the presets' 'linear' compositing:
       // radiance, the one tone map in the blit) - the capture holds what the world camera's target holds
       cap.isXRRenderTarget = !lin; cap.texture.colorSpace = lin ? THREE.LinearSRGBColorSpace : THREE.SRGBColorSpace;
-      cap.userData.lin = lin;
+      capLin = lin;   // HVIEW-BOOT (8 Nov): was cap.userData.lin - undefined on a RenderTarget, so the first face threw and no view was ever captured
       return cap;
     };
     const region = (rt, k, size) => { const x = (k % 3) * size, y = Math.floor(k / 3) * size; rt.viewport.set(x, y, size, size); rt.scissor.set(x, y, size, size); rt.scissorTest = true; };
