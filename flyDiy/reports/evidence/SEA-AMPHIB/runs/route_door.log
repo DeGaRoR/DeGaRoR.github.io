@@ -1,0 +1,6 @@
+Twin 4b                  stripGear floats     may use SEA,mk_sea,cb_sea  | refused 12 (e.g. w2: floats land on water only)
+PA-18 floats             stripGear floats     may use SEA,mk_sea,cb_sea  | refused 12 (e.g. w2: floats land on water only)
+Cessna floats            stripGear floats     may use SEA,mk_sea,cb_sea  | refused 12 (e.g. w2: floats land on water only)
+Cessna floats fltAmph 1  stripGear floats     may use SEA,mk_sea,cb_sea  | refused 12 (e.g. w2: floats land on water only)
+Cessna floats fltAmph 2  stripGear floats     may use SEA,mk_sea,cb_sea  | refused 12 (e.g. w2: floats land on water only)
+Super Petrel V4.1        stripGear amphibian  may use w2,HOME,w3,SEA,mk_sea,mn_strip,nv_strip,tw_ski,w5,w6,w7,w4,w8,w1,cb_sea
