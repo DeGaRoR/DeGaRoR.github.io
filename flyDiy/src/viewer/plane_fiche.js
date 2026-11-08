@@ -231,7 +231,17 @@
     const step = (what, i, n) => { try { if (opts.onStep) opts.onStep(what, i, n); } catch (e) {} };
     // a task's length (the work between two yields): the longest is the freeze the player could feel
     let tk = nowMs();
-    const yieldTask = async (what, n) => { tm.tasks.push([what, Math.round(nowMs() - tk)]); await frames(n || 1); tk = nowMs(); };
+    // (8 Nov, R3 on the box: the twin's first cutaway draw was ONE 24.9 s task after its sliced compile - each task also
+    // says how many programs three made inside it, and the first 40 of them by name: a program made in a draw is the
+    // freeze the warm missed, and its name says which material, and why)
+    const progs = () => (R.info && R.info.programs) || [];
+    let seen = new Set(progs());
+    const yieldTask = async (what, n) => {
+      const made = progs().filter(p => !seen.has(p));
+      tm.tasks.push(made.length ? [what, Math.round(nowMs() - tk), made.length] : [what, Math.round(nowMs() - tk)]);
+      if (made.length && !/^before /.test(what)) (tm.madeIn = tm.madeIn || {})[what] = made.slice(0, 40).map(p => p.name + ' #' + String(p.cacheKey || '').length);
+      await frames(n || 1); seen = new Set(progs()); tk = nowMs();
+    };
     const pitch0 = root.rotation.x, bg0 = S.background, au = R.shadowMap.autoUpdate, lc = R.localClippingEnabled, rt0 = R.getRenderTarget();
     const rt = new T.WebGLRenderTarget(HERO_W, HERO_H, { samples: SAMPLES, type: T.UnsignedByteType, depthBuffer: true });
     rt.texture.colorSpace = T.SRGBColorSpace; rt.isXRRenderTarget = true;   // display-space, as the canvas (aa_resolve.js)
@@ -245,7 +255,7 @@
       if (!P.compileScreen) return;
       const t1 = nowMs(); await yieldTask('before ' + what);
       await P.compileScreen(root, S);
-      tm.compileMs += Math.round(nowMs() - t1); tk = nowMs();
+      tm.compileMs += Math.round(nowMs() - t1); seen = new Set(progs()); tk = nowMs();
     };
     try {
       hold(true); held = true;
@@ -305,6 +315,12 @@
         cut = cutOn(T, R, root, S);
         tm.cutSetupMs = Math.round(nowMs() - t1);
         await warm('the cutaway');
+        {   // (the diagnosis's second half: a map still loading at the warm keys its program without it - the draw's key then differs)
+          const MAPS = ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap', 'alphaMap', 'bumpMap'], late = new Set();
+          root.traverseVisible(o => { if (!o.isMesh) return; for (const m of [].concat(o.material || [])) for (const k of MAPS) { const t = m && m[k];
+            if (t && (!t.image || t.version === 0 || (t.image.complete === false))) late.add(m.name || m.type); } });
+          tm.cutLateMaps = late.size; if (late.size) tm.cutLateMapNames = Array.from(late).slice(0, 20);
+        }
         const Fc = frameOf(T, root);
         await shoot('cutaway', heroCam(T, Fc, CUT_W / CUT_H, 50, 28), CUT_W, CUT_H, false, CUT_STUDIO, Fc);
       }
