@@ -1,0 +1,283 @@
+{
+ "src": "builds/cessna172_2026-09-20_corrected.json",
+ "over": {
+  "gearRetract": 1
+ },
+ "layerErrors": [],
+ "P": {
+  "wgPos": 0,
+  "s1On": 1,
+  "s2On": 1,
+  "s2Leg": 2,
+  "s1Leg": 0,
+  "gearFloats": 0,
+  "hullOn": 0,
+  "gearRetract": 1,
+  "gearFold": 0,
+  "gearFoldNose": 0,
+  "gearWellCut": 0,
+  "gearDoors": 2,
+  "gearLegDoor": 1,
+  "gearShort": 0,
+  "gearShortNose": 0,
+  "s1X": 1.27,
+  "s1Z": 1.15,
+  "s1R": 0.185,
+  "s1Drop": 0.33,
+  "s2Z": 2.6,
+  "s2R": 0.14,
+  "s2Drop": 0.37,
+  "wgThick": 14,
+  "engMount": 0
+ },
+ "offered": [
+  "gearRetract",
+  "gearRetT",
+  "gearRetAct",
+  "gearFold",
+  "gearFoldNose",
+  "gearRetFrac",
+  "gearWellCut",
+  "gearLegDoor",
+  "gearShort",
+  "gearShortNose",
+  "gearDoors"
+ ],
+ "retractable": true,
+ "swing": {
+  "R": {
+   "turns": 1,
+   "lift": 0,
+   "frac": 1,
+   "R": 0.185,
+   "legR": 0.049,
+   "nacelle": false,
+   "onWing": false
+  },
+  "L": {
+   "turns": 1,
+   "lift": 0,
+   "frac": 1,
+   "R": 0.185,
+   "legR": 0.049,
+   "nacelle": false,
+   "onWing": false
+  },
+  "T": {
+   "turns": 1,
+   "lift": 0.552,
+   "frac": 1,
+   "R": 0.14,
+   "legR": 0.049,
+   "nacelle": false,
+   "onWing": false
+  }
+ },
+ "fit": {
+  "ok": false,
+  "why": [
+   "the right main, up, is not inside: 2021 mm through the wing's skin, 725 mm out of the body, aft of the wing's trailing edge",
+   "the left main, up, is not inside: 2021 mm through the wing's skin, 725 mm out of the body, aft of the wing's trailing edge",
+   "the nose wheel rises 181 mm into the cabin floor",
+   "the two mains meet as they fold",
+   "the right main's actuator stands 123 mm out of the structure, stowed",
+   "the left main's actuator stands 123 mm out of the structure, stowed"
+  ],
+  "tests": [
+   "skin",
+   "floor",
+   "units",
+   "actuator"
+  ],
+  "rows": [
+   "gearFold",
+   "gm1Ax",
+   "gm1Ang",
+   "gm2Ax",
+   "gm2Ang",
+   "gmTwist",
+   "s1R",
+   "s1Drop",
+   "gearRetFrac",
+   "wgThick",
+   "s1Z",
+   "s1AxZ",
+   "gearFoldNose",
+   "gn1Ax",
+   "gn1Ang",
+   "gn2Ax",
+   "gn2Ang",
+   "gnTwist",
+   "s2Drop",
+   "s2R",
+   "floorY",
+   "s1X",
+   "gearRetAct"
+  ],
+  "ms": 224.6
+ },
+ "cuts": [
+  {
+   "units": [
+    "R",
+    "L"
+   ],
+   "mode": "exact",
+   "pts": 66,
+   "ceil": -0.599,
+   "frame": false
+  },
+  {
+   "units": [
+    "T"
+   ],
+   "mode": "exact",
+   "pts": 39,
+   "ceil": -0.284,
+   "frame": false
+  }
+ ],
+ "cutsSide": [],
+ "cutsWing": [
+  {
+   "units": [
+    "R",
+    "L"
+   ],
+   "mode": "exact",
+   "pts": 66,
+   "ceil": -0.446,
+   "frame": false
+  },
+  {
+   "units": [
+    "T"
+   ],
+   "mode": "exact",
+   "pts": 39,
+   "ceil": -0.212,
+   "frame": false
+  }
+ ],
+ "cutsNac": [],
+ "pierceTop": 0,
+ "wells": [
+  {
+   "unit": "R",
+   "where": null,
+   "size": [
+    0.836,
+    0.807,
+    0.43
+   ]
+  },
+  {
+   "unit": "L",
+   "where": null,
+   "size": [
+    0.836,
+    0.807,
+    0.43
+   ]
+  },
+  {
+   "unit": "T",
+   "where": null,
+   "size": [
+    0.166,
+    0.334,
+    0.653
+   ]
+  }
+ ],
+ "doors": [
+  {
+   "name": "edMechDoorR_legB0",
+   "kind": "leg",
+   "units": "R",
+   "area": 0.061
+  },
+  {
+   "name": "edMechDoorL_legB0",
+   "kind": "leg",
+   "units": "L",
+   "area": 0.045
+  },
+  {
+   "name": "edMechDoorB0_1",
+   "kind": "well",
+   "units": [
+    "R",
+    "L"
+   ],
+   "area": 0.048,
+   "closedDown": true
+  },
+  {
+   "name": "edMechDoorB0_2",
+   "kind": "well",
+   "units": [
+    "R",
+    "L"
+   ],
+   "area": 0.035,
+   "closedDown": true
+  },
+  {
+   "name": "edMechDoorT_legB1",
+   "kind": "leg",
+   "units": "T",
+   "area": 0.046
+  },
+  {
+   "name": "edMechDoorB1_1",
+   "kind": "well",
+   "units": [
+    "T"
+   ],
+   "area": 0.038,
+   "closedDown": false
+  },
+  {
+   "name": "edMechDoorB1_2",
+   "kind": "well",
+   "units": [
+    "T"
+   ],
+   "area": 0.036,
+   "closedDown": true
+  }
+ ],
+ "mech": {
+  "R": {
+   "knee": 0.035,
+   "inside": -0.115,
+   "ok": true
+  },
+  "L": {
+   "knee": 0.035,
+   "inside": -0.115,
+   "ok": true
+  },
+  "T": {
+   "knee": 0.035,
+   "inside": 0.136,
+   "ok": true
+  }
+ },
+ "game": {
+  "type": "tricycle",
+  "retract": {
+   "time": 6,
+   "act": "hydraulic",
+   "lift": {
+    "mains": 0,
+    "nose": 0.5523
+   }
+  },
+  "wells": 3,
+  "fairing": "none",
+  "errors": 0,
+  "cageRetract": 1
+ }
+}

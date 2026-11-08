@@ -1,0 +1,50 @@
+{
+ "src": "builds/candidates/Twin_busher_floats_4b.json",
+ "over": {
+  "gearRetract": 1
+ },
+ "layerErrors": [],
+ "P": {
+  "wgPos": 0,
+  "s1On": 0,
+  "s2On": 0,
+  "s2Leg": 2,
+  "s1Leg": 0,
+  "gearFloats": 1,
+  "hullOn": 0,
+  "gearRetract": 1,
+  "gearFold": 0,
+  "gearFoldNose": 0,
+  "gearWellCut": 0,
+  "gearDoors": 2,
+  "gearLegDoor": 1,
+  "gearShort": 0,
+  "gearShortNose": 0,
+  "s1X": 0.8,
+  "s1Z": 0.95,
+  "s1R": 0.2,
+  "s1Drop": 0.33,
+  "s2Z": 2.6,
+  "s2R": 0.14,
+  "s2Drop": 0.37,
+  "wgThick": 12,
+  "engMount": 1
+ },
+ "offered": [],
+ "retractable": false,
+ "cuts": [],
+ "cutsSide": [],
+ "cutsWing": [],
+ "cutsNac": [],
+ "pierceTop": 0,
+ "wells": [],
+ "doors": [],
+ "game": {
+  "type": "floats",
+  "retract": null,
+  "wells": 0,
+  "fairing": "none",
+  "errors": 0,
+  "cageRetract": 1
+ }
+}

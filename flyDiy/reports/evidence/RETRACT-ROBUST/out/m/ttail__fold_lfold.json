@@ -1,0 +1,459 @@
+{
+ "src": "key:ttail",
+ "over": {
+  "gearRetract": 1,
+  "gearFold": 9
+ },
+ "layerErrors": [],
+ "P": {
+  "wgPos": 2,
+  "s1On": 1,
+  "s2On": 1,
+  "s2Leg": 2,
+  "s1Leg": 0,
+  "gearFloats": 0,
+  "hullOn": 0,
+  "gearRetract": 1,
+  "gearFold": 9,
+  "gearFoldNose": 0,
+  "gearWellCut": 0,
+  "gearDoors": 2,
+  "gearLegDoor": 1,
+  "gearShort": 0,
+  "gearShortNose": 0,
+  "s1X": 0.8,
+  "s1Z": 0.95,
+  "s1R": 0.2,
+  "s1Drop": 0.33,
+  "s2Z": 2.6,
+  "s2R": 0.14,
+  "s2Drop": 0.37,
+  "wgThick": 12,
+  "engMount": 0
+ },
+ "offered": [
+  "gearRetract",
+  "gearRetT",
+  "gearRetAct",
+  "gearFold",
+  "gearFoldNose",
+  "gearRetFrac",
+  "gearWellCut",
+  "gearLegDoor",
+  "gearShort",
+  "gearShortNose",
+  "gearDoors"
+ ],
+ "retractable": true,
+ "swing": {
+  "R": {
+   "turns": 1,
+   "lift": 0.887,
+   "frac": 1,
+   "R": 0.2,
+   "legR": 0.049,
+   "nacelle": false,
+   "onWing": false
+  },
+  "L": {
+   "turns": 1,
+   "lift": 0.887,
+   "frac": 1,
+   "R": 0.2,
+   "legR": 0.049,
+   "nacelle": false,
+   "onWing": false
+  },
+  "T": {
+   "turns": 1,
+   "lift": 0.572,
+   "frac": 1,
+   "R": 0.14,
+   "legR": 0.049,
+   "nacelle": false,
+   "onWing": false
+  }
+ },
+ "fit": {
+  "ok": false,
+  "why": [
+   "the right main's leg, strut or jack crosses the wing (at gear 0.2)",
+   "the right main: the lower wing is 113 mm too low for the leg to clear the tyre (raise it - w2Dy - or narrow the track)",
+   "the right main: the pivot falls below the hull's side (a narrower track, or a lower axle: s1Drop)",
+   "the right main: the stowed corner stands 54 mm into the lower wing at the hull (a shorter arm: narrow the track)",
+   "the right main's flat tyre, up, sits 122 mm off the lower wing's underside",
+   "the right main's flat tyre, up, stands 146 mm through the lower wing's top",
+   "the right main's flat tyre, up, runs 180 mm into the hull's side (a longer leg: a higher lower wing, or a lower axle)",
+   "the right main's arm or leg runs 88 mm into the hull",
+   "the right main crosses the rear spar, up",
+   "the right main rises 119 mm into the cabin floor",
+   "the left main's leg, strut or jack crosses the wing (at gear 0.2)",
+   "the left main: the lower wing is 113 mm too low for the leg to clear the tyre (raise it - w2Dy - or narrow the track)",
+   "the left main: the pivot falls below the hull's side (a narrower track, or a lower axle: s1Drop)",
+   "the left main: the stowed corner stands 54 mm into the lower wing at the hull (a shorter arm: narrow the track)",
+   "the left main's flat tyre, up, sits 122 mm off the lower wing's underside",
+   "the left main's flat tyre, up, stands 146 mm through the lower wing's top",
+   "the left main's flat tyre, up, runs 180 mm into the hull's side (a longer leg: a higher lower wing, or a lower axle)",
+   "the left main's arm or leg runs 88 mm into the hull",
+   "the left main crosses the rear spar, up",
+   "the left main rises 119 mm into the cabin floor",
+   "the nose wheel rises 15 mm into the cabin floor"
+  ],
+  "tests": [
+   "wing",
+   "skin",
+   "spar",
+   "floor"
+  ],
+  "rows": [
+   "gearFold",
+   "gm1Ax",
+   "gm1Ang",
+   "gm2Ax",
+   "gm2Ang",
+   "gmTwist",
+   "s1X",
+   "s1Drop",
+   "w2Dy",
+   "s1R",
+   "s1Z",
+   "s1AxZ",
+   "wgChord",
+   "floorY",
+   "gearRetFrac",
+   "gearFoldNose",
+   "gn1Ax",
+   "gn1Ang",
+   "gn2Ax",
+   "gn2Ang",
+   "gnTwist",
+   "s2Drop",
+   "s2R"
+  ],
+  "ms": 150.6
+ },
+ "cuts": [
+  {
+   "units": [
+    "T"
+   ],
+   "mode": "exact",
+   "pts": 38,
+   "ceil": -0.465,
+   "frame": false
+  }
+ ],
+ "cutsSide": [
+  {
+   "units": [
+    "R"
+   ],
+   "mode": "exact",
+   "pts": 40,
+   "ceil": -0.42,
+   "side": -1,
+   "frame": true
+  },
+  {
+   "units": [
+    "L"
+   ],
+   "mode": "exact",
+   "pts": 40,
+   "ceil": -0.42,
+   "side": 1,
+   "frame": true
+  },
+  {
+   "units": [
+    "L"
+   ],
+   "mode": "exact",
+   "pts": 34,
+   "ceil": -0.024,
+   "side": 1,
+   "frame": true
+  },
+  {
+   "units": [
+    "R"
+   ],
+   "mode": "exact",
+   "pts": 34,
+   "ceil": -0.024,
+   "side": -1,
+   "frame": true
+  }
+ ],
+ "cutsWing": [
+  {
+   "units": [
+    "R"
+   ],
+   "mode": "exact",
+   "pts": 80,
+   "ceil": -0.241,
+   "frame": false
+  },
+  {
+   "units": [
+    "L"
+   ],
+   "mode": "exact",
+   "pts": 80,
+   "ceil": -0.241,
+   "frame": false
+  }
+ ],
+ "cutsNac": [],
+ "pierceTop": 2,
+ "wells": [
+  {
+   "unit": "R",
+   "where": null,
+   "size": [
+    0.46,
+    0.212,
+    0.46
+   ]
+  },
+  {
+   "unit": "L",
+   "where": null,
+   "size": [
+    0.46,
+    0.212,
+    0.46
+   ]
+  },
+  {
+   "unit": "T",
+   "where": null,
+   "size": [
+    0.166,
+    0.339,
+    0.635
+   ]
+  }
+ ],
+ "doors": [
+  {
+   "name": "edMechDoorT_legB0",
+   "kind": "leg",
+   "units": "T",
+   "area": 0.045
+  },
+  {
+   "name": "edMechDoorB0_1",
+   "kind": "well",
+   "units": [
+    "T"
+   ],
+   "area": 0.032,
+   "closedDown": true
+  },
+  {
+   "name": "edMechDoorB0_2",
+   "kind": "well",
+   "units": [
+    "T"
+   ],
+   "area": 0.039,
+   "closedDown": false
+  }
+ ],
+ "mech": {
+  "R": {
+   "knee": null,
+   "inside": null
+  },
+  "L": {
+   "knee": null,
+   "inside": null
+  },
+  "T": {
+   "knee": 0.046,
+   "inside": 0.045,
+   "ok": true
+  }
+ },
+ "room": {
+  "R": {
+   "hinge": [
+    -0.343,
+    -0.805,
+    0.95
+   ],
+   "axle": [
+    -0.8,
+    -1.035,
+    0.95
+   ],
+   "legL": 0.512,
+   "R": 0.2,
+   "wheelW": null,
+   "wingDepthAtWell": 0.098,
+   "wingDepthAtHinge": 0.098,
+   "bodyHalfWAtHinge": 0.656,
+   "stowedBox": {
+    "min": [
+     -0.803,
+     -0.453,
+     0.72
+    ],
+    "max": [
+     -0.343,
+     -0.241,
+     1.18
+    ]
+   },
+   "floorY": -0.371,
+   "chord": 1.589
+  },
+  "L": {
+   "hinge": [
+    0.343,
+    -0.805,
+    0.95
+   ],
+   "axle": [
+    0.8,
+    -1.035,
+    0.95
+   ],
+   "legL": 0.512,
+   "R": 0.2,
+   "wheelW": null,
+   "wingDepthAtWell": 0.098,
+   "wingDepthAtHinge": 0.098,
+   "bodyHalfWAtHinge": 0.656,
+   "stowedBox": {
+    "min": [
+     0.343,
+     -0.453,
+     0.72
+    ],
+    "max": [
+     0.803,
+     -0.241,
+     1.18
+    ]
+   },
+   "floorY": -0.371,
+   "chord": 1.589
+  },
+  "T": {
+   "hinge": [
+    0,
+    -0.519,
+    2.585
+   ],
+   "axle": [
+    0,
+    -1.099,
+    2.552
+   ],
+   "legL": 0.581,
+   "R": 0.14,
+   "wheelW": null,
+   "wingDepthAtWell": 0.049,
+   "wingDepthAtHinge": null,
+   "bodyHalfWAtHinge": 0.572,
+   "stowedBox": {
+    "min": [
+     -0.083,
+     -0.697,
+     1.834
+    ],
+    "max": [
+     0.083,
+     -0.357,
+     2.47
+    ]
+   },
+   "floorY": -0.371,
+   "chord": 1.589
+  }
+ },
+ "cutStruct": [
+  {
+   "kind": "body",
+   "units": [
+    "T"
+   ],
+   "mode": "exact",
+   "z": [
+    1.834,
+    2.633
+   ],
+   "x": [
+    -0.083,
+    0.083
+   ],
+   "len": 0.799,
+   "wid": 0.167,
+   "ceil": -0.346,
+   "chordBand": [
+    -0.29,
+    0.21
+   ],
+   "crossesFrontSpar": true,
+   "crossesRearSpar": false,
+   "straddlesCentre": true,
+   "bodyHalfW": 0.614
+  },
+  {
+   "kind": "wing",
+   "units": [
+    "R"
+   ],
+   "mode": "exact",
+   "z": [
+    0.72,
+    1.18
+   ],
+   "x": [
+    -0.803,
+    -0.342
+   ],
+   "len": 0.46,
+   "wid": 0.46,
+   "ceil": -0.241,
+   "chordBand": [
+    0.62,
+    1.14
+   ],
+   "crossesFrontSpar": false,
+   "crossesRearSpar": true,
+   "straddlesCentre": false,
+   "bodyHalfW": 0.656
+  },
+  {
+   "kind": "wing",
+   "units": [
+    "L"
+   ],
+   "mode": "exact",
+   "z": [
+    0.72,
+    1.18
+   ],
+   "x": [
+    0.342,
+    0.803
+   ],
+   "len": 0.46,
+   "wid": 0.46,
+   "ceil": -0.241,
+   "chordBand": [
+    0.62,
+    1.14
+   ],
+   "crossesFrontSpar": false,
+   "crossesRearSpar": true,
+   "straddlesCentre": false,
+   "bodyHalfW": 0.656
+  }
+ ],
+ "wgPos": 2
+}

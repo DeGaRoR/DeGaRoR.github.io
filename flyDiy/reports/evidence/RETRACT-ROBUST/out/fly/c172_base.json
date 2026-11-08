@@ -1,0 +1,81 @@
+{
+ "src": "builds/cessna172_2026-09-20_corrected.json",
+ "over": {
+  "gearRetract": 1
+ },
+ "retract": {
+  "time": 6,
+  "act": "hydraulic",
+  "lift": {
+   "mains": 0,
+   "nose": 0.5523
+  }
+ },
+ "type": "tricycle",
+ "mass": null,
+ "gear": [],
+ "leg": {
+  "ok": true,
+  "t": 521.1499999998547,
+  "faults": [],
+  "verdicts": [],
+  "landing": {
+   "run": 207,
+   "sink": 1.22,
+   "V": 22.4,
+   "offCentre": 0.7,
+   "pastAim": 15,
+   "k": 1,
+   "three": false,
+   "onStrip": true,
+   "tdIn": 80,
+   "stopLeft": 256
+  },
+  "damage": {
+   "yields": 0,
+   "breaks": 0,
+   "dented": false,
+   "crashed": false,
+   "gPeak": 1.9,
+   "propAt": null
+  }
+ },
+ "gearLog": {
+  "cycles": 1,
+  "minPos": 0,
+  "upAt": 194.21666666926308,
+  "upTook": 5.98,
+  "downTook": 5.98,
+  "endPos": 1
+ },
+ "game": {
+  "day": {
+   "cloudCover": 0.25,
+   "cloudSeed": 1,
+   "cloudType": "cuh",
+   "date": "2026-06-22",
+   "groundAlbedo": 0.15,
+   "ozone": 300,
+   "rate": 1,
+   "rh": 0.5,
+   "turbidity": 2.8,
+   "utc": 0,
+   "wind": {
+    "kts": 8,
+    "dirDeg": 250,
+    "gust": 0.15,
+    "refH": 10,
+    "breeze": 1
+   }
+  },
+  "shake": true,
+  "stand": {
+   "x": -118.1,
+   "z": 677.6
+  },
+  "mass": 1002,
+  "fuel": 191,
+  "damage": true
+ },
+ "wallS": 383
+}

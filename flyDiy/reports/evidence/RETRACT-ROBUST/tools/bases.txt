@@ -1,0 +1,11 @@
+c172|builds/cessna172_2026-09-20_corrected.json
+twin4b|builds/candidates/Twin_busher_floats_4b.json
+dc3|builds/candidates/dc3_2026-10.json
+petrel|builds/candidates/superpetrel_V4_1.json
+ttail|key:ttail
+rv|key:rv
+caravan|key:caravan
+da62|key:da62
+skymaster|key:skymaster
+jodel|builds/jodel_2026-09-20_corrected.json
+twin7|builds/candidates/build_v7_twin_2026-09-04.json

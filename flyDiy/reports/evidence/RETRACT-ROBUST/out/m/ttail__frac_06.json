@@ -1,0 +1,461 @@
+{
+ "src": "key:ttail",
+ "over": {
+  "gearRetract": 1,
+  "gearRetFrac": 0.6
+ },
+ "layerErrors": [],
+ "P": {
+  "wgPos": 2,
+  "s1On": 1,
+  "s2On": 1,
+  "s2Leg": 2,
+  "s1Leg": 0,
+  "gearFloats": 0,
+  "hullOn": 0,
+  "gearRetract": 1,
+  "gearFold": 0,
+  "gearFoldNose": 0,
+  "gearWellCut": 0,
+  "gearDoors": 2,
+  "gearLegDoor": 1,
+  "gearShort": 0,
+  "gearShortNose": 0,
+  "s1X": 0.8,
+  "s1Z": 0.95,
+  "s1R": 0.2,
+  "s1Drop": 0.33,
+  "s2Z": 2.6,
+  "s2R": 0.14,
+  "s2Drop": 0.37,
+  "wgThick": 12,
+  "engMount": 0
+ },
+ "offered": [
+  "gearRetract",
+  "gearRetT",
+  "gearRetAct",
+  "gearFold",
+  "gearFoldNose",
+  "gearRetFrac",
+  "gearWellCut",
+  "gearLegDoor",
+  "gearShort",
+  "gearShortNose",
+  "gearDoors"
+ ],
+ "retractable": true,
+ "swing": {
+  "R": {
+   "turns": 1,
+   "lift": 0.253,
+   "frac": 0.6,
+   "R": 0.2,
+   "legR": 0.049,
+   "nacelle": false,
+   "onWing": false
+  },
+  "L": {
+   "turns": 1,
+   "lift": 0.253,
+   "frac": 0.6,
+   "R": 0.2,
+   "legR": 0.049,
+   "nacelle": false,
+   "onWing": false
+  },
+  "T": {
+   "turns": 1,
+   "lift": 0.265,
+   "frac": 0.6,
+   "R": 0.14,
+   "legR": 0.049,
+   "nacelle": false,
+   "onWing": false
+  }
+ },
+ "fit": {
+  "ok": true,
+  "why": [],
+  "tests": [],
+  "rows": [],
+  "ms": 179.1
+ },
+ "cuts": [
+  {
+   "units": [
+    "T"
+   ],
+   "mode": "exact",
+   "pts": 37,
+   "ceil": -0.558,
+   "frame": false
+  }
+ ],
+ "cutsSide": [
+  {
+   "units": [
+    "R"
+   ],
+   "mode": "exact",
+   "pts": 35,
+   "ceil": -0.191,
+   "side": -1,
+   "frame": true
+  },
+  {
+   "units": [
+    "L"
+   ],
+   "mode": "exact",
+   "pts": 35,
+   "ceil": -0.191,
+   "side": 1,
+   "frame": true
+  }
+ ],
+ "cutsWing": [
+  {
+   "units": [
+    "R"
+   ],
+   "mode": "exact",
+   "pts": 36,
+   "ceil": -0.389,
+   "frame": false
+  },
+  {
+   "units": [
+    "L"
+   ],
+   "mode": "exact",
+   "pts": 36,
+   "ceil": -0.389,
+   "frame": false
+  },
+  {
+   "units": [
+    "T"
+   ],
+   "mode": "exact",
+   "pts": 37,
+   "ceil": -0.415,
+   "frame": false
+  }
+ ],
+ "cutsNac": [],
+ "pierceTop": 0,
+ "wells": [
+  {
+   "unit": "R",
+   "where": null,
+   "size": [
+    0.595,
+    0.573,
+    0.46
+   ]
+  },
+  {
+   "unit": "L",
+   "where": null,
+   "size": [
+    0.595,
+    0.573,
+    0.46
+   ]
+  },
+  {
+   "unit": "T",
+   "where": null,
+   "size": [
+    0.166,
+    0.435,
+    0.565
+   ]
+  }
+ ],
+ "doors": [
+  {
+   "name": "edMechDoorT_legB0",
+   "kind": "leg",
+   "units": "T",
+   "area": 0.021
+  },
+  {
+   "name": "edMechDoorB0_1",
+   "kind": "well",
+   "units": [
+    "T"
+   ],
+   "area": 0.012,
+   "closedDown": true
+  },
+  {
+   "name": "edMechDoorB0_2",
+   "kind": "well",
+   "units": [
+    "T"
+   ],
+   "area": 0.015,
+   "closedDown": false
+  },
+  {
+   "name": "edMechDoorW0_1",
+   "kind": "well",
+   "units": [
+    "R"
+   ],
+   "area": 0.001,
+   "closedDown": true
+  },
+  {
+   "name": "edMechDoorW0_2",
+   "kind": "well",
+   "units": [
+    "R"
+   ],
+   "area": 0.002,
+   "closedDown": false
+  },
+  {
+   "name": "edMechDoorW1_1",
+   "kind": "well",
+   "units": [
+    "L"
+   ],
+   "area": 0.002,
+   "closedDown": true
+  },
+  {
+   "name": "edMechDoorW1_2",
+   "kind": "well",
+   "units": [
+    "L"
+   ],
+   "area": 0.002,
+   "closedDown": false
+  }
+ ],
+ "mech": {
+  "R": {
+   "knee": -0.048,
+   "inside": -0.083,
+   "ok": true
+  },
+  "L": {
+   "knee": -0.048,
+   "inside": -0.083,
+   "ok": true
+  },
+  "T": {
+   "knee": 0.021,
+   "inside": 0.042,
+   "ok": true
+  }
+ },
+ "room": {
+  "R": {
+   "hinge": [
+    -0.697,
+    -0.419,
+    0.952
+   ],
+   "axle": [
+    -0.8,
+    -1.035,
+    0.95
+   ],
+   "legL": 0.624,
+   "R": 0.2,
+   "wheelW": null,
+   "wingDepthAtWell": 0.098,
+   "wingDepthAtHinge": 0.097,
+   "bodyHalfWAtHinge": 0.656,
+   "stowedBox": {
+    "min": [
+     -0.618,
+     -1.074,
+     0.72
+    ],
+    "max": [
+     -0.023,
+     -0.501,
+     1.18
+    ]
+   },
+   "floorY": -0.371,
+   "chord": 1.225
+  },
+  "L": {
+   "hinge": [
+    0.697,
+    -0.419,
+    0.952
+   ],
+   "axle": [
+    0.8,
+    -1.035,
+    0.95
+   ],
+   "legL": 0.624,
+   "R": 0.2,
+   "wheelW": null,
+   "wingDepthAtWell": 0.098,
+   "wingDepthAtHinge": 0.097,
+   "bodyHalfWAtHinge": 0.656,
+   "stowedBox": {
+    "min": [
+     0.023,
+     -1.074,
+     0.72
+    ],
+    "max": [
+     0.618,
+     -0.501,
+     1.18
+    ]
+   },
+   "floorY": -0.371,
+   "chord": 1.225
+  },
+  "T": {
+   "hinge": [
+    0,
+    -0.519,
+    2.585
+   ],
+   "axle": [
+    0,
+    -1.099,
+    2.552
+   ],
+   "legL": 0.581,
+   "R": 0.14,
+   "wheelW": null,
+   "wingDepthAtWell": null,
+   "wingDepthAtHinge": null,
+   "bodyHalfWAtHinge": 0.572,
+   "stowedBox": {
+    "min": [
+     -0.083,
+     -1.003,
+     1.927
+    ],
+    "max": [
+     0.083,
+     -0.568,
+     2.493
+    ]
+   },
+   "floorY": -0.371,
+   "chord": 1.589
+  }
+ },
+ "cutStruct": [
+  {
+   "kind": "body",
+   "units": [
+    "T"
+   ],
+   "mode": "exact",
+   "z": [
+    2.214,
+    2.633
+   ],
+   "x": [
+    -0.073,
+    0.073
+   ],
+   "len": 0.419,
+   "wid": 0.145,
+   "ceil": -0.415,
+   "chordBand": [
+    -0.29,
+    -0.03
+   ],
+   "crossesFrontSpar": false,
+   "crossesRearSpar": false,
+   "straddlesCentre": true,
+   "bodyHalfW": 0.589
+  },
+  {
+   "kind": "wing",
+   "units": [
+    "R"
+   ],
+   "mode": "exact",
+   "z": [
+    0.92,
+    0.982
+   ],
+   "x": [
+    -0.732,
+    -0.142
+   ],
+   "len": 0.062,
+   "wid": 0.59,
+   "ceil": -0.389,
+   "chordBand": [
+    0.75,
+    0.99
+   ],
+   "crossesFrontSpar": false,
+   "crossesRearSpar": false,
+   "straddlesCentre": false,
+   "bodyHalfW": 0.656
+  },
+  {
+   "kind": "wing",
+   "units": [
+    "L"
+   ],
+   "mode": "exact",
+   "z": [
+    0.92,
+    0.982
+   ],
+   "x": [
+    0.142,
+    0.732
+   ],
+   "len": 0.062,
+   "wid": 0.59,
+   "ceil": -0.389,
+   "chordBand": [
+    0.75,
+    0.99
+   ],
+   "crossesFrontSpar": false,
+   "crossesRearSpar": false,
+   "straddlesCentre": false,
+   "bodyHalfW": 0.656
+  },
+  {
+   "kind": "wing",
+   "units": [
+    "T"
+   ],
+   "mode": "exact",
+   "z": [
+    2.214,
+    2.633
+   ],
+   "x": [
+    -0.073,
+    0.073
+   ],
+   "len": 0.419,
+   "wid": 0.145,
+   "ceil": -0.415,
+   "chordBand": [
+    -0.29,
+    -0.03
+   ],
+   "crossesFrontSpar": false,
+   "crossesRearSpar": false,
+   "straddlesCentre": true,
+   "bodyHalfW": 0.589
+  }
+ ],
+ "wgPos": 2
+}

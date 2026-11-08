@@ -1,0 +1,62 @@
+{
+ "src": "builds/candidates/build_v7_twin_2026-09-04.json",
+ "over": {
+  "gearRetract": 1
+ },
+ "layerErrors": [],
+ "P": {
+  "wgPos": 0,
+  "s1On": 1,
+  "s2On": 1,
+  "s2Leg": 3,
+  "s1Leg": 1,
+  "gearFloats": 0,
+  "hullOn": 0,
+  "gearRetract": 1,
+  "gearFold": 0,
+  "gearFoldNose": 0,
+  "gearWellCut": 0,
+  "gearDoors": 2,
+  "gearLegDoor": 1,
+  "gearShort": 0,
+  "gearShortNose": 0,
+  "s1X": 0.8,
+  "s1Z": 2,
+  "s1R": 0.2,
+  "s1Drop": 0.33,
+  "s2Z": 0.06,
+  "s2R": 0.07,
+  "s2Drop": 0.22,
+  "wgThick": 12,
+  "engMount": 3
+ },
+ "offered": [
+  "gearRetract",
+  "gearRetT",
+  "gearRetAct",
+  "gearFold",
+  "gearFoldNose",
+  "gearRetFrac",
+  "gearWellCut",
+  "gearLegDoor",
+  "gearShort",
+  "gearShortNose",
+  "gearDoors"
+ ],
+ "retractable": false,
+ "cuts": [],
+ "cutsSide": [],
+ "cutsWing": [],
+ "cutsNac": [],
+ "pierceTop": 0,
+ "wells": [],
+ "doors": [],
+ "game": {
+  "type": "taildragger",
+  "retract": null,
+  "wells": 0,
+  "fairing": "none",
+  "errors": 0,
+  "cageRetract": 1
+ }
+}

@@ -1,0 +1,482 @@
+{
+ "src": "key:skymaster",
+ "over": {
+  "gearRetract": 1,
+  "gearFold": 9
+ },
+ "layerErrors": [],
+ "P": {
+  "wgPos": 0,
+  "s1On": 1,
+  "s2On": 1,
+  "s2Leg": 2,
+  "s1Leg": 2,
+  "gearFloats": 0,
+  "hullOn": 0,
+  "gearRetract": 1,
+  "gearFold": 9,
+  "gearFoldNose": 0,
+  "gearWellCut": 0,
+  "gearDoors": 2,
+  "gearLegDoor": 1,
+  "gearShort": 0.3,
+  "gearShortNose": 0.3,
+  "s1X": 0.43,
+  "s1Z": 1.7,
+  "s1R": 0.17,
+  "s1Drop": 0.33,
+  "s2Z": 2.6,
+  "s2R": 0.14,
+  "s2Drop": 0.37,
+  "wgThick": 12,
+  "engMount": 4
+ },
+ "offered": [
+  "gearRetract",
+  "gearRetT",
+  "gearRetAct",
+  "gearFold",
+  "gearFoldNose",
+  "gearRetFrac",
+  "gearWellCut",
+  "gearLegDoor",
+  "gearShort",
+  "gearShortNose",
+  "gearDoors"
+ ],
+ "retractable": true,
+ "swing": {
+  "R": {
+   "turns": 1,
+   "lift": 0.55,
+   "frac": 1,
+   "R": 0.17,
+   "legR": 0.049,
+   "nacelle": false,
+   "onWing": false
+  },
+  "L": {
+   "turns": 1,
+   "lift": 0.55,
+   "frac": 1,
+   "R": 0.17,
+   "legR": 0.049,
+   "nacelle": false,
+   "onWing": false
+  },
+  "T": {
+   "turns": 1,
+   "lift": 0.672,
+   "frac": 1,
+   "R": 0.14,
+   "legR": 0.049,
+   "nacelle": false,
+   "onWing": false
+  }
+ },
+ "fit": {
+  "ok": false,
+  "why": [
+   "the right main: the stowed tyre has no wing over it (a wider span, or a narrower track)",
+   "the right main, up, has no lower wing over its tyre",
+   "the right main's flat tyre, up, runs 18 mm into the hull's side (a longer leg: a higher lower wing, or a lower axle)",
+   "the left main: the stowed tyre has no wing over it (a wider span, or a narrower track)",
+   "the left main, up, has no lower wing over its tyre",
+   "the left main's flat tyre, up, runs 18 mm into the hull's side (a longer leg: a higher lower wing, or a lower axle)",
+   "the mains meet a lift strut as they fold (58 mm into it)"
+  ],
+  "tests": [
+   "wing",
+   "skin",
+   "strut"
+  ],
+  "rows": [
+   "gearFold",
+   "gm1Ax",
+   "gm1Ang",
+   "gm2Ax",
+   "gm2Ang",
+   "gmTwist",
+   "s1X",
+   "s1Drop",
+   "s1R",
+   "w2Dy",
+   "s1Z"
+  ],
+  "ms": 195.4
+ },
+ "cuts": [
+  {
+   "units": [
+    "R"
+   ],
+   "mode": "exact",
+   "pts": 37,
+   "ceil": -0.75,
+   "frame": false
+  },
+  {
+   "units": [
+    "L"
+   ],
+   "mode": "exact",
+   "pts": 37,
+   "ceil": -0.75,
+   "frame": false
+  },
+  {
+   "units": [
+    "T"
+   ],
+   "mode": "exact",
+   "pts": 39,
+   "ceil": -0.36,
+   "frame": false
+  }
+ ],
+ "cutsSide": [
+  {
+   "units": [
+    "L"
+   ],
+   "mode": "exact",
+   "pts": 34,
+   "ceil": -0.173,
+   "side": 1,
+   "frame": true
+  },
+  {
+   "units": [
+    "R"
+   ],
+   "mode": "exact",
+   "pts": 34,
+   "ceil": -0.173,
+   "side": -1,
+   "frame": true
+  }
+ ],
+ "cutsWing": [
+  {
+   "units": [
+    "R"
+   ],
+   "mode": "exact",
+   "pts": 72,
+   "ceil": -0.559,
+   "frame": false
+  },
+  {
+   "units": [
+    "L"
+   ],
+   "mode": "exact",
+   "pts": 72,
+   "ceil": -0.559,
+   "frame": false
+  }
+ ],
+ "cutsNac": [],
+ "pierceTop": 0,
+ "wells": [
+  {
+   "unit": "R",
+   "where": null,
+   "size": [
+    0.36,
+    0.191,
+    0.4
+   ]
+  },
+  {
+   "unit": "L",
+   "where": null,
+   "size": [
+    0.36,
+    0.191,
+    0.4
+   ]
+  },
+  {
+   "unit": "T",
+   "where": null,
+   "size": [
+    0.166,
+    0.339,
+    0.5
+   ]
+  }
+ ],
+ "doors": [
+  {
+   "name": "edMechDoorT_legB2",
+   "kind": "leg",
+   "units": "T",
+   "area": 0.036
+  },
+  {
+   "name": "edMechDoorB2_1",
+   "kind": "well",
+   "units": [
+    "T"
+   ],
+   "area": 0.029,
+   "closedDown": true
+  },
+  {
+   "name": "edMechDoorB2_2",
+   "kind": "well",
+   "units": [
+    "T"
+   ],
+   "area": 0.035,
+   "closedDown": false
+  }
+ ],
+ "mech": {
+  "R": {
+   "knee": null,
+   "inside": null
+  },
+  "L": {
+   "knee": null,
+   "inside": null
+  },
+  "T": {
+   "knee": 0.084,
+   "inside": 0.116,
+   "ok": true
+  }
+ },
+ "room": {
+  "R": {
+   "hinge": [
+    -0.25,
+    -0.833,
+    1.7
+   ],
+   "axle": [
+    -0.43,
+    -1.033,
+    1.7
+   ],
+   "legL": 0.269,
+   "R": 0.17,
+   "wheelW": null,
+   "wingDepthAtWell": null,
+   "wingDepthAtHinge": null,
+   "bodyHalfWAtHinge": 0.652,
+   "stowedBox": {
+    "min": [
+     -0.61,
+     -0.749,
+     1.5
+    ],
+    "max": [
+     -0.25,
+     -0.559,
+     1.9
+    ]
+   },
+   "floorY": -0.186,
+   "chord": 1.589
+  },
+  "L": {
+   "hinge": [
+    0.25,
+    -0.833,
+    1.7
+   ],
+   "axle": [
+    0.43,
+    -1.033,
+    1.7
+   ],
+   "legL": 0.269,
+   "R": 0.17,
+   "wheelW": null,
+   "wingDepthAtWell": null,
+   "wingDepthAtHinge": null,
+   "bodyHalfWAtHinge": 0.652,
+   "stowedBox": {
+    "min": [
+     0.25,
+     -0.749,
+     1.5
+    ],
+    "max": [
+     0.61,
+     -0.559,
+     1.9
+    ]
+   },
+   "floorY": -0.186,
+   "chord": 1.589
+  },
+  "T": {
+   "hinge": [
+    0,
+    -0.496,
+    2.558
+   ],
+   "axle": [
+    0,
+    -1.109,
+    2.552
+   ],
+   "legL": 0.613,
+   "R": 0.14,
+   "wheelW": null,
+   "wingDepthAtWell": null,
+   "wingDepthAtHinge": null,
+   "bodyHalfWAtHinge": 0.58,
+   "stowedBox": {
+    "min": [
+     -0.083,
+     -0.607,
+     1.935
+    ],
+    "max": [
+     0.083,
+     -0.268,
+     2.435
+    ]
+   },
+   "floorY": -0.186,
+   "chord": 1.589
+  }
+ },
+ "cutStruct": [
+  {
+   "kind": "body",
+   "units": [
+    "R"
+   ],
+   "mode": "exact",
+   "z": [
+    1.626,
+    1.774
+   ],
+   "x": [
+    -0.324,
+    -0.25
+   ],
+   "len": 0.148,
+   "wid": 0.075,
+   "ceil": -0.559,
+   "chordBand": [
+    -0.07,
+    0.03
+   ],
+   "crossesFrontSpar": false,
+   "crossesRearSpar": false,
+   "straddlesCentre": false,
+   "bodyHalfW": 0.652
+  },
+  {
+   "kind": "body",
+   "units": [
+    "L"
+   ],
+   "mode": "exact",
+   "z": [
+    1.626,
+    1.774
+   ],
+   "x": [
+    0.25,
+    0.324
+   ],
+   "len": 0.148,
+   "wid": 0.075,
+   "ceil": -0.559,
+   "chordBand": [
+    -0.07,
+    0.03
+   ],
+   "crossesFrontSpar": false,
+   "crossesRearSpar": false,
+   "straddlesCentre": false,
+   "bodyHalfW": 0.652
+  },
+  {
+   "kind": "body",
+   "units": [
+    "T"
+   ],
+   "mode": "exact",
+   "z": [
+    1.931,
+    2.636
+   ],
+   "x": [
+    -0.083,
+    0.083
+   ],
+   "len": 0.705,
+   "wid": 0.167,
+   "ceil": -0.268,
+   "chordBand": [
+    -0.61,
+    -0.17
+   ],
+   "crossesFrontSpar": false,
+   "crossesRearSpar": false,
+   "straddlesCentre": true,
+   "bodyHalfW": 0.606
+  },
+  {
+   "kind": "wing",
+   "units": [
+    "R"
+   ],
+   "mode": "exact",
+   "z": [
+    1.5,
+    1.9
+   ],
+   "x": [
+    -0.61,
+    -0.25
+   ],
+   "len": 0.4,
+   "wid": 0.36,
+   "ceil": -0.559,
+   "chordBand": [
+    -0.15,
+    0.1
+   ],
+   "crossesFrontSpar": false,
+   "crossesRearSpar": false,
+   "straddlesCentre": false,
+   "bodyHalfW": 0.652
+  },
+  {
+   "kind": "wing",
+   "units": [
+    "L"
+   ],
+   "mode": "exact",
+   "z": [
+    1.5,
+    1.9
+   ],
+   "x": [
+    0.25,
+    0.61
+   ],
+   "len": 0.4,
+   "wid": 0.36,
+   "ceil": -0.559,
+   "chordBand": [
+    -0.15,
+    0.1
+   ],
+   "crossesFrontSpar": false,
+   "crossesRearSpar": false,
+   "straddlesCentre": false,
+   "bodyHalfW": 0.652
+  }
+ ],
+ "wgPos": 0
+}
