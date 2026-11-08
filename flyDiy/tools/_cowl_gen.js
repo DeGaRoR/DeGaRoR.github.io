@@ -45,7 +45,7 @@ const P={
   fastOn:1, fastPitch:0.11, fastD:0.016,
   partOn:1, partY:0.0, partW:0.0022,
   oilOn:1, oilZ:0.42, oilW:0.13, oilL:0.16, oilSq:1,
-  deckH:1, deckSweep:0, waist:0, waistSweep:0, keelH:0.95, keelSweep:0.55,
+  deckH:1, deckSweep:0, waist:0, waistF:null, waistSweep:0, keelH:0.95, keelSweep:0.55,
   // lid
   lidRise:0.06, faceRise:0.018, faceRing:0, lidLen:0.125, lidMode:1, lidR:0.17, lidGap:0.009,
   lidRound:0.53, lidSqTop:0.62, lidSqBot:0.6, lidShoulder:0.45,
@@ -314,7 +314,18 @@ function prepareLid(){
   const kW=clamp(eWaist(),-0.85*kB,0.85*kT);
   const T=half(kT, P.deckSweep, lr);
   const K=half(kB, P.keelSweep, lr);
-  const W=half(kW, P.waistSweep, 0);
+  // PROPER-COWLS (2026-11-08): `waistF` - THE WIDEST LINE'S HEIGHT AT THE BARREL END, as a fraction of the front's
+  // half-height. A straight cowl's front is centred on the thrust line and shorter than the firewall, so a waist held at
+  // ONE fraction of the height would fall or climb along the barrel; with waistF the widest line runs straight from the
+  // firewall's waist to the front's (the fuselage's waistline carried on). Absent (null) = `waist`, to the bit.
+  const kWf=(P.waistF==null)?kW:clamp(+P.waistF,-0.85*kB,0.85*kT);
+  let W;
+  if(kWf===kW) W=half(kW, P.waistSweep, 0);
+  else {
+    const z0=cl-clamp(P.waistSweep,0,0.95)*cl, Lh=ze-z0;
+    const yA=kW*h0, yF=kWf*h1, v0=lerp(yA,yF,z0/cl), sv=(yF-yA)/cl;
+    W={z0, k:kW, kF:kWf, yA, yF, c:mkCurve([z0, z0+Lh*c1, ze-Lh*0.05, ze], [v0, v0+sv*Lh*c1, (v0)*c2, 0])};
+  }
   LID={pz,A,T,K,W,cl};
 }
 /* Panel seam. Real cowls are several panels, so the face is a separate skin
@@ -353,7 +364,7 @@ function sectionAtZ(z){
   const hLin=lerp(P.aftH,P.aftH*P.taperH,clamp(z/cl,0,1));
   let bT = z<=LID.T.z0 ? LID.T.k*hLin : Math.max(LID.T.c.at(z),0.003);
   let bB = z<=LID.K.z0 ? LID.K.k*hLin : Math.max(LID.K.c.at(z),0.003);
-  const yw = z<=LID.W.z0 ? LID.W.k*hLin : LID.W.c.at(z);
+  const yw = z<=LID.W.z0 ? (LID.W.kF==null ? LID.W.k*hLin : lerp(LID.W.yA,LID.W.yF,clamp(z/cl,0,1))) : LID.W.c.at(z);
   const si=seamInset(z);
   if(si){ a=Math.max(a-si,0.003); bT=Math.max(bT-si,0.003); bB=Math.max(bB-si,0.003); }
   return {a,bT,bB,nT,nB,cy,yw:clamp(yw,-bB*0.9,bT*0.9),b:bT,wT,wB};

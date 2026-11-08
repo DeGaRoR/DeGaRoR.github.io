@@ -20,6 +20,13 @@ function clearance(S, THREE) {
       const a = Math.atan2(p[1] - cy, p[0]), j = ((Math.round(a / (2 * Math.PI) * N) % N) + N) % N;
       r[j] = Math.max(r[j], Math.hypot(p[0], p[1] - cy));
     }
+    // an angular bin no sample landed in reads 0: take the nearer filled neighbours' (the outline is continuous)
+    for (let pass = 0; pass < 3; pass++) for (let j = 0; j < N; j++) if (!r[j]) {
+      let a = 0, b = 0;
+      for (let d = 1; d < 12 && !a; d++) a = r[(j - d + N) % N];
+      for (let d = 1; d < 12 && !b; d++) b = r[(j + d) % N];
+      r[j] = Math.min(a || b, b || a);
+    }
     cache.set(k, r); return r;
   };
   let worst = 0, at = null, n = 0; const pts = [];

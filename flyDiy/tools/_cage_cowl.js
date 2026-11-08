@@ -74,7 +74,7 @@ for (const g of ROWS) {
 // is NOT in the defaults table: the file states every row the page knows (G377), so a defaulted row would ride into
 // every saved build and move every key the game hashes it by. A build that never moved it carries no key; the row
 // shows its `absent` value, and the generator is handed that value whenever the key is absent (below).
-const ABSENT_AT = { wAftTop: 1, wAftBot: 1, faceRing: 0 };   // PROPER-COWLS: faceRing
+const ABSENT_AT = { wAftTop: 1, wAftBot: 1, faceRing: 0, waistF: null };   // PROPER-COWLS: faceRing, waistF (null = follows waist)
 const cowlDef = { cowlOn: 1, fitNose: 2, cowlGap: 0.0 };
 for (const k of SHOWN) if (!(k in ABSENT_AT)) cowlDef['cw_' + k] = CW.P[k];
 PAGE.defaults = Object.assign(cowlDef, PAGE.defaults || {});
@@ -108,7 +108,9 @@ const groupItems = g => g.rows
     const w = r.when ? panelWhen(r.when) : null;
     const o = {};
     if (w) o.when = w;
-    if (r.k in ABSENT_AT) o.absent = ABSENT_AT[r.k];      // CABIN-CRAFT
+    if (r.k in ABSENT_AT && ABSENT_AT[r.k] != null) o.absent = ABSENT_AT[r.k];      // CABIN-CRAFT
+    // PROPER-COWLS: the front's waist FOLLOWS the firewall's (the follow box, ticked while the key is absent)
+    if (r.k === 'waistF') o.follow = () => (LIVE_P && LIVE_P.cw_waist != null ? +LIVE_P.cw_waist : null);
     if (Object.keys(o).length) it.push(o);
     return it;
   });

@@ -36,7 +36,31 @@ const SHAPE = {
 };
 // the lip's radius: a fraction of the front's half-size, within a sensible band (m)
 const LIP_K = 0.25, LIP_LO = 0.04, LIP_HI = 0.12;
-const CLEAR = 1.06;                       // the cowl over the engine's own envelope (COWL_CLEAR's 6 %)
+const CLEAR = 1.06;
+// THE BODY COWL'S FRONT, as fractions of the firewall (the user's fitted cowls: the front's half-height 0.64-0.77 of
+// the firewall's on the Cub, Jodel and ugly bi; its half-width 0.79-0.99): never under the engine's own size
+const FRONT_H = 0.70, FRONT_W = 0.85;
+// THE PLANE'S WAISTLINE AT THE FIREWALL, x the face's half-height. On the nose: the cage's own waist line (waistY, "the
+// widest line, y const" - the fuselage's sides end there and the deck begins; the user's fitted C172 sits on it to
+// 3 mm). On a pod's aft bulkhead the body has narrowed and its waist is not the cabin's: the middle of the band where
+// the section is widest, measured just ahead of the face.
+function fuselageWaist(m) {
+  const f = m.face, P = m.P;
+  if (m.mount !== 1 && P.waistY != null)
+    return Math.max(-0.85, Math.min(0.85, (+P.waistY * m.S.FS - f.yc) / f.halfH));
+  const GG = m.W.GEAR_GEN, AF = GG && GG.cageAirframe ? GG.cageAirframe(m.S.built.sheet, m.S.FS) : null;
+  if (!AF) return 0;
+  const zs = f.z + (m.mount === 1 ? 0.06 : -0.06), pts = [];
+  for (let k = 0; k < 360; k++) pts.push(AF.surf(zs, -Math.PI + k / 360 * 2 * Math.PI));
+  const rows = [];
+  for (let t = -0.95; t <= 0.951; t += 0.05) {
+    const y = f.yc + t * f.halfH; let w = 0;
+    for (const p of pts) if (Math.abs(p[1] - y) < 0.015) w = Math.max(w, Math.abs(p[0]));
+    rows.push([t, w]);
+  }
+  const wMax = Math.max(...rows.map(r => r[1])), band = rows.filter(r => r[1] >= wMax - 0.008).map(r => r[0]);
+  return band.length ? Math.max(-0.85, Math.min(0.85, 0.5 * (band[0] + band[band.length - 1]))) : 0;
+}                       // the cowl over the engine's own envelope (COWL_CLEAR's 6 %)
 
 // ---- THE OPENINGS: the engine type's own, stated at the front's half-size h (min of half-width, half-height) --------
 // apMode 0 none, 1 one opening (offsets move it), 2 a pair, 3 both. lipMode 0 a plain cut, 1 a rolled lip.
@@ -107,11 +131,50 @@ function rowsFor(spec, o) {
   const eUp = CLEAR * Math.max(0, env.y1), eDn = CLEAR * Math.max(0, -env.y0);
   const eR = CLEAR * env.radius;
   const offBody = [2, 3, 5, 6].includes(m.mount);
-  const mode = offBody ? 'own' : opt;
+  const mode = offBody ? 'pod' : opt;
+  const T = +m.ax.y || 0;                            // the thrust line about the face's centre (it stays where it is)
   const out = Object.assign({}, SHAPE);
   let aW, aH, front;
   // the thrust line sits at the face's centre plus the engine's own offset (engY); the face's centre is yc
-  if (mode === 'match' && m.face) {
+  if (mode === 'waist' && m.face) {
+    // THE BODY COWL (the user, 8 Nov): the aft section is the fuselage's at the firewall, its widest line ON THE PLANE'S
+    // WAISTLINE; the front is centred on the thrust line, SHRUNK VERTICALLY (the engine is far less tall than the
+    // nose) and lifted so its widest line carries the waistline on, level; then narrowed a little; cheeks only after.
+    out.fitNose = 1;                                   // the firewall's size and squareness (sealed by finish)
+    aW = m.face.halfW; aH = m.face.halfH;
+    const wA = fuselageWaist(m);                       // the waist at the firewall, x the face's half-height
+    const W = wA * aH;                                 // ... in metres about the face's centre
+    const hNeed = Math.max(eUp, eDn) + 0.03;           // the engine about the thrust line, with room
+    const hMax = Math.max(hNeed, Math.min(aH - T, aH + T) - 0.01);   // the front inside the firewall's top and bottom
+    const h1 = Math.min(hMax, Math.max(hNeed, FRONT_H * aH));
+    const a1 = Math.min(aW, Math.max(FRONT_W * aW, eW));
+    out.cw_taperW = +(a1 / aW).toFixed(3); out.cw_taperH = +(h1 / aH).toFixed(3);
+    out.cw_deckH = 1; out.cw_keelH = 1;
+    out._waist = +wA.toFixed(3);
+    out.cw_waistF = +Math.max(-0.85, Math.min(0.85, (W - T) / h1)).toFixed(3);
+    out.cw_lidRise = +T.toFixed(4);                    // the barrel's axis runs to the thrust line: the front centred on it
+    front = Math.min(a1, h1);
+  } else if (mode === 'pod') {
+    // OFF THE BODY (the user, 8 Nov): straight, sized to the engine, the section the engine's own - a boxer wider than
+    // high, an in-line higher than wide and boxy, a V a rounded oval, a radial / motor round, a turboprop round with
+    // its chin intake grown into the barrel (a deeper, squarer bottom) rather than bolted on
+    out.fitNose = 0;
+    const POD = { flat: [0.60, 0.60], rotax: [0.60, 0.60], twostroke: [0.72, 0.72], inline: [0.74, 0.74],
+                  vee: [0.58, 0.58], radial: [0.5, 0.5], electric: [0.5, 0.5], turbine: [0.5, 0.66] }[type] || [0.55, 0.55];
+    const round = type === 'radial' || type === 'electric' || type === 'turbine';
+    const hT = Math.max(0.08, eUp + 0.02), hB = Math.max(0.08, eDn + 0.02), wP = Math.max(0.10, eW + 0.02);
+    let h = Math.max(hT, hB);
+    aW = round ? Math.max(wP, h) : wP; aH = round ? Math.max(wP, h) : h;
+    out.cw_aftW = +aW.toFixed(4); out.cw_aftH = +aH.toFixed(4);
+    out.cw_deckH = round ? 1 : +Math.max(0.55, hT / aH).toFixed(3);
+    out.cw_keelH = round ? 1 : +Math.max(0.55, hB / aH).toFixed(3);
+    if (type === 'turbine') out.cw_keelH = 1.45;      // the chin: the intake's plenum under the gearbox, in the skin
+    out.cw_waist = 0;
+    out.cw_taperW = 1; out.cw_taperH = 1;
+    out.cw_sqAftTop = POD[0]; out.cw_sqFrontTop = POD[0]; out.cw_sqAftBot = POD[1]; out.cw_sqFrontBot = POD[1];
+    front = Math.min(aW, aH);
+    out.cw_aftMode = 1; out.cw_tailLen = +Math.max(0.5, 2.2 * aH).toFixed(3); out.cw_tailDrop = 0;
+  } else if (mode === 'match' && m.face) {
     out.fitNose = 1;                                   // the section the fuselage's, every build
     aW = m.face.halfW; aH = m.face.halfH;
     out.cw_taperW = 1; out.cw_taperH = 1;
@@ -149,7 +212,7 @@ function rowsFor(spec, o) {
   // centre; today's offset of the axis goes into the FACE (the spinner sits off-centre in the flat face, as on a
   // Cessna or a Rotax nose). No flown number moves.
   out.cw_apOffX = +(+m.ax.x || 0).toFixed(4); out.cw_apOffY = 0;
-  out.cw_faceRise = +(+m.ax.y || 0).toFixed(4);
+  out.cw_faceRise = mode === 'waist' ? 0 : +(+m.ax.y || 0).toFixed(4);
   // OFF THE BODY the plate is the engine's own (no fuselage to centre on): the pod is centred on the engine instead -
   // the plate moves by the axis offset (engBlockY, the block's own row) and the face does not rise; the engine stays put
   if (offBody) { out.engBlockY = +((+P.engBlockY || 0) + (+m.ax.y || 0)).toFixed(4); out.cw_faceRise = 0; }
@@ -167,6 +230,8 @@ function finish(spec, over, type) {
   if (o.cw_sqFrontTop == null) { o.cw_sqFrontTop = +(+P.cw_sqAftTop).toFixed(3); o.cw_sqFrontBot = +(+P.cw_sqAftBot).toFixed(3); }
   // seal what the body gave: the rows stand as the builder's from here (sealed = the size follows, the section is kept)
   for (const k of ['cw_sqAftTop', 'cw_sqAftBot', 'cw_deckH', 'cw_keelH', 'cw_waist']) o[k] = +(+P[k]).toFixed(4);
+  if (o._waist != null) { o.cw_waist = o._waist; o.cw_deckH = 1; o.cw_keelH = 1; }
+  delete o._waist;
   o.fitNose = 2;
   return fitCheeks(spec, o, type);
 }
@@ -176,6 +241,7 @@ function finish(spec, over, type) {
 // the cheeks' station, spread, height and size; rebuilt until the engine clears (3 passes at most)
 function fitCheeks(spec, o, type) {
   if (type !== 'flat' && type !== 'rotax') return o;
+  if (+o.cw_aftMode === 1) return o;                 // a pod is the engine's own size: no cheeks
   const C = require('./clear.js'), THREE = SH.context().THREE;
   o = Object.assign({}, o, { cw_lobeN: 0 });
   for (let pass = 0; pass < 4; pass++) {
@@ -205,7 +271,7 @@ if (require.main === module) {
   const [IN, OUT] = pos;
   const j = JSON.parse(fs.readFileSync(IN, 'utf8'));
   const spec = j.spec || j;
-  const r = rowsFor(spec, { opt: arg('opt', 'match'), type: arg('type', 'auto') });
+  const r = rowsFor(spec, { opt: arg('opt', 'waist'), type: arg('type', 'auto') });
   if (!r.over) { console.error('straight: ' + r.why); process.exit(1); }
   const over = finish(spec, r.over, r.why.type);
   const cheeks = over._cheeks; delete over._cheeks;
