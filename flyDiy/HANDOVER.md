@@ -312966,3 +312966,9 @@ thumb_bake --hero: plane_shot's hero:38/-12/35/0.84/1000x800 --takeoff, written 
 PLANE_THUMB.hero(key): the hero's URL for a baked key, media/heroes/index.json fetched on the first ask (once), 'plane-thumb' 'hero:*' told when it lands; 'mine:' null (the player's builds: R3, at the first certificate then an update button). NOT YET ON ANY LIST: the wider lists are named before wiring (R3).
 SEEN: the Spitfire recreation's WIP nose reads oddly; the stock sailplane is black on the dark studio (hard to see); the DC-3 and the pushers sit smaller in the frame (the fit holds the span). Every plane's flaps at 0.25: no build in the pool carries def.params.flaps.to; a plane without flaps is unchanged by it.
 GATES: PLANETHUMB 35 checks + selftest 15/15 (hero(): once, the URL, 'mine:' null), MEDIA PASS (4094 of 4094, media/heroes/index.json read), NEWPLANE, CANDIDATES, LIGHT, STORY, ASSETBUDGET, PLANEFICHE PASS.
+
+## LOOK-1 - SHADOWSKY RE-PIN (MASTER-GREEN, 8 Nov 2026)
+GATE SHADOWSKY row "4 clouds: a stale depth nearer than the first deck is sky" was red on master 1bcd01d3e: a STALE PIN, not a fault.
+Moved by LOOK-1 2a (bbc115dda, landed L32f): the clouds' march takes the per-frame Halton sub-texel ray `dr` (uMJ, on when uMT.x > 0.5)
+instead of `d`. The stale-depth rule itself is unchanged: thru = tScene < deckEntry(o, d), such a texel is marched to 1e9 and its key is the far plane.
+Re-pin: the regex reads march(o, dr?, thru ? 1e9 : tScene, uDials2.x) - the same assertion, on either ray. SHADOWSKY PASS.
