@@ -313444,3 +313444,34 @@ BATTERY (full log read): 118 PASS / 10 FAIL (L35b 101 / 13).
 - NEW red, fix-forward for L35d: UISMOKE + UISMOKE-PHONE (assets-green: app.js:2138 MATLIB/require in the node harness), (CABIN-CRAFT, assets-green-2: the harness loads matlib.js). DMGMEMBERS: the 5 old builds pass; the seaplanes ready added the Super Petrel to VALIDATED, and its carbon is Euler-capped against a pre-carbon gate rule (SEAPLANES + Deform decide).
 No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change: PHYSICS_V 7, GEN_SPEC_V 10, GEN_CERT_V 7, as on master.
 TIMED GATE: light, stale 12 Oct baseline; all 7 rollouts ran (L35b lost 2 to timeouts). Steady frames p50 33.3 ms on every flown row and scene. Freezes: ONE 4.9 s frame in cub taxi chase @HOME (one run; L35b 0) and one 1.7 s frame in floats water taxi @SEA (first time measured). Cockpit rows p99 166.8-183.4 in one segment (L35b cub cockpit 116.8). Reds are the boot/compile rows (cold shader cache, as L35a/b). Watch the @HOME freeze on L35d.
+
+## COMMS-SECTION - THE AERIALS GET THEIR OWN PART, COMMUNICATIONS, LAID OUT FROM THE RADIOS (8 Nov, AVIONICS-PFD-LAND for the user via A0, for L35d)
+
+The user: "give them their own section right now ... They should probably go to COMMUNICATIONS ... right now just
+cosmetically. But let's prepare for that, for a coherent set." Design: flydiy-notes/COMMS-SECTION-DESIGN-2026-11-08.md
+(defaults 1-4 taken; this is ready 1, the move - ready 2, the GPS puck and the ELT, waits for the user to see it).
+Ready claude/ready/comms-section off master b25872b51 (L35c): fc41d7510 + eb6aeb5e4 source, 439ad22c8 built.
+
+- **The set, `GEN_COMMS`** (src/core/60_gen_spec.js, exported): one row per radio in the panel's order - COM 1 (`com`,
+  commAerial), NAV (`nav`, navAerial), Transponder (`xpdr`, xpdrAerial); COM 2, GPS and ELT declared `later`, with no
+  aerial yet. Each aerial row of GEN_ACCESS names its radio back (`radio: 'com1' | 'nav' | 'xpdr'`; the field is `radio`
+  because `serves` was already the row's description). Nothing flies on it today: it is the table a working radio reads.
+- **The part, Communications (`comms`)** (tools/_cage_parts.js), parent Cabin fit, layer access: a "fitted" switch
+  (`accAerials`, the same key) and one block per radio from COMMS_SET (the placement rows of its aerial; along/around in
+  expert). `when: P => +P.accAerials`, gate `accAerials` - not Fittings' `accOn`: GATE PARTS forbids a part hidden by
+  another part's own switch. Fittings keeps fluids, access, outside instruments and handling; its rows no longer hold the
+  aerials.
+- **The skin beacon is a light:** it moved to Lights with its own switch `accBeacon` (_cage_access.js family + FAMILY).
+  A saved build has no `accBeacon`: the cage's load door (_cage_gen.js, beside the G180 migrations) gives it accAerials'
+  value, so a build saved with the aerials off keeps its beacon off. `accBeacon` rides BENCH_STATE_ROWS,
+  CERT_STATE_ROWS and PROCURE_STATE_ROWS beside accDetail, so no fingerprint moves.
+- **A click** on an aerial selects Communications, on the beacon Lights (editor.js part map, before the `^edAcc_` row).
+- **Unchanged:** every `acc_<row>_*` key, the access layer, the meshes, the placement code, mass and price (0 kg in rows,
+  as before).
+- **Gates** (nice'd, --jobs=1, 22:19-22:22 on 439ad22c8): PANEL (new 5b: GEN_COMMS ties both ways, and each radio alone
+  on a minimal build draws only its own aerial), PARTS, FIT, SAVE, FITMANUAL, CLIP, WEARPRICE, CERTGATES, BENCH - all
+  PASS. STOL not run: it is in L35d's own battery (A0).
+- **The saved builds' aerials, master vs the ready:** the UPRIGHT-FOOT probe (every aerial row's key, side, host, p,
+  sunk on the stock card, the rod, the Cessna 172 and the metal Cessna) - identical to the bit (1238 bytes).
+- **Known limit (A0: fine, named):** the beacon's placement rows hide with the Lights part when `lightOn` is 0, while
+  the skin beacon (accBeacon) stays drawn. Evidence: flydiy-notes/evidence-2026-10-18/2026-11-08/comms/ (run3.log).
