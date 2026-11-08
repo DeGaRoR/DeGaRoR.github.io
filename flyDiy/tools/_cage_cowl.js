@@ -75,7 +75,7 @@ for (const g of ROWS) {
 // every saved build and move every key the game hashes it by. A build that never moved it carries no key; the row
 // shows its `absent` value, and the generator is handed that value whenever the key is absent (below).
 const ABSENT_AT = { wAftTop: 1, wAftBot: 1, faceRing: 0, waistF: null,
-  exitGap: 0, exitSpan: 140, exitLen: 0.45, exitHold: 0, exCut: 0, exCutSpan: 50, exCutLen: 0.12, exCutAz: 270 };   // PROPER-COWLS: the exit   // PROPER-COWLS: faceRing, waistF (null = follows waist)
+  exitGap: 0, exitSpan: 140, exitLen: 0.45, exitHold: 0, keelShoulder: null, keelRound: null, exCut: 0, exCutSpan: 50, exCutLen: 0.12, exCutAz: 270 };   // PROPER-COWLS: the exit   // PROPER-COWLS: faceRing, waistF (null = follows waist)
 const cowlDef = { cowlOn: 1, fitNose: 2, cowlGap: 0.0 };
 for (const k of SHOWN) if (!(k in ABSENT_AT)) cowlDef['cw_' + k] = CW.P[k];
 PAGE.defaults = Object.assign(cowlDef, PAGE.defaults || {});
@@ -112,6 +112,8 @@ const groupItems = g => g.rows
     if (r.k in ABSENT_AT && ABSENT_AT[r.k] != null) o.absent = ABSENT_AT[r.k];      // CABIN-CRAFT
     // PROPER-COWLS: the front's waist FOLLOWS the firewall's (the follow box, ticked while the key is absent)
     if (r.k === 'waistF') o.follow = () => (LIVE_P && LIVE_P.cw_waist != null ? +LIVE_P.cw_waist : null);
+    if (r.k === 'keelShoulder') o.follow = () => (LIVE_P && LIVE_P.cw_lidShoulder != null ? +LIVE_P.cw_lidShoulder : null);
+    if (r.k === 'keelRound') o.follow = () => (LIVE_P && LIVE_P.cw_lidRound != null ? +LIVE_P.cw_lidRound : null);
     if (Object.keys(o).length) it.push(o);
     return it;
   });

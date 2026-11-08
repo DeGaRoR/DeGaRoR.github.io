@@ -67,7 +67,7 @@ const P={
   // "very often there is a cut in the cowl at the bottom aft part, so that the exhaust can go through ... they make
   // the cowl a bit bigger at the bottom, so that there is a gap there"). All off (0) by default: every cowl drawn
   // before them is drawn to the bit.
-  exitGap:0, exitSpan:140, exitLen:0.45, exitHold:0, exCut:0, exCutSpan:50, exCutLen:0.12, exCutAz:270,
+  exitGap:0, exitSpan:140, exitLen:0.45, exitHold:0, keelShoulder:null, keelRound:null, exCut:0, exCutSpan:50, exCutLen:0.12, exCutAz:270,
   // chin scoop
   scoopOn:1, scoopZ:0, scoopW:0.065, scoopH:0.055, scoopLen:0.22, scoopDrop:0.7,
   scoopAp:0.68, scoopSq:0.5, scoopRake:0.18,
@@ -307,18 +307,29 @@ function prepareLid(){
   const pz=[cl, cl+L*c1, ze-L*0.05, ze];
   const A=mkCurve(pz,[a1, a1+sa*L*c1, lr+(a1-lr)*c2, lr]);
   // one recipe, used for the deck and the keel with their own scale and sweep
-  const half=(k,sweep,end)=>{
+  // (q1 / q2: this line's own shoulder and fullness - the keel's may differ from the rest, see keelShoulder)
+  // (level: the line leaves z0 LEVEL - the fuselage's own bottom carried on - rather than on the barrel's taper)
+  const half=(k,sweep,end,q1,q2,level)=>{
+    const a1c=q1!=null?q1:c1, a2c=q2!=null?q2:c2;
     const z0=cl-clamp(sweep,0,0.95)*cl, Lh=ze-z0;
-    const v0=k*lerp(h0,h1,z0/cl), sv=sh*k;
-    return {z0, k, c:mkCurve([z0, z0+Lh*c1, ze-Lh*0.05, ze],
-                             [v0, v0+sv*Lh*c1, end+(v0-end)*c2, end])};
+    const v0=k*lerp(h0,h1,z0/cl), sv=level?0:sh*k;
+    return {z0, k, c:mkCurve([z0, z0+Lh*a1c, ze-Lh*0.05, ze],
+                             [v0, v0+sv*Lh*a1c, end+(v0-end)*a2c, end])};
   };
   const kT=eDeckH(), kB=eKeelH();
   // the waist is the height of the widest line; it must return to the axis by
   // the lid end, otherwise the closing ring would not be circular on the cone
   const kW=clamp(eWaist(),-0.85*kB,0.85*kT);
   const T=half(kT, P.deckSweep, lr);
-  const K=half(kB, P.keelSweep, lr);
+  // PROPER-COWLS V4 (the user, 8 Nov: "the easing is better but it's not enough ... a Cessna nose is very rounded"):
+  // THE KEEL'S OWN BEND. The bowl's shoulder and fullness were one pair for every line, and a cowl whose top must
+  // carry the barrel late (shoulder 0.88) bent its bottom late and sharp too. keelShoulder / keelRound give the bottom
+  // its own, and it leaves the barrel LEVEL (the fuselage's bottom line carried on, not the taper's straight slope):
+  // the shoulder is how long it stays level, the fullness how round it arrives - a quarter-ellipse into the face.
+  // Absent (null) = the bowl's pair, to the bit.
+  const K=half(kB, P.keelSweep, lr,
+               P.keelShoulder==null?null:clamp(+P.keelShoulder,0,0.92), P.keelRound==null?null:clamp(+P.keelRound,0,1),
+               P.keelShoulder!=null);   // its own bend leaves the firewall level and rounds up into the face
   // PROPER-COWLS (2026-11-08): `waistF` - THE WIDEST LINE'S HEIGHT AT THE BARREL END, as a fraction of the front's
   // half-height. A straight cowl's front is centred on the thrust line and shorter than the firewall, so a waist held at
   // ONE fraction of the height would fall or climb along the barrel; with waistF the widest line runs straight from the
@@ -417,7 +428,7 @@ function exitAt(th,z){
   if(P.exitHold>0){
     const cl=Math.max(P.cowlLen,1e-4), z0=cl-clamp(P.keelSweep,0,0.95)*cl, ze=zEnd();
     wz = z<=z0 ? 1 : 1-smooth(clamp((z-z0)/Math.max(ze-z0,1e-4),0,1));
-  } else wz=1-smooth(clamp(z/Math.max(1e-3,P.exitLen*zEnd()),0,1));
+  } else wz=1-clamp(z/Math.max(1e-3,P.exitLen*zEnd()),0,1);   // linear: the bottom TILTS from the firewall
   return -P.exitGap*wv*wz;
 }
 /* THE EXHAUST CUT: a notch in the aft edge, exCutSpan wide round exCutAz (270 = the bottom), exCutLen deep */
