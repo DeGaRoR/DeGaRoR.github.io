@@ -404,7 +404,7 @@ function make(THREE, scene, world, rec0, opts) {
           .then(() => { if (tok === LAMPS.prepTok) { LAMPS.ready = want; LAMPS.prepping = null; } });
       }
     }
-    if (!want || !LAMPS.armed) { for (const l of LAMPS.pool) l.intensity = 0; LAMPS.litNow = stats.litNow = 0; return; }
+    if (!want || !LAMPS.armed) { for (const l of LAMPS.pool) l.intensity = 0; LAMPS.litNow = stats.litNow = 0; if (LAMPS.streaks && typeof WATER !== 'undefined' && WATER.lamps) { WATER.lamps(null); LAMPS.streaks = null; } return; }
     if ((LAMPS.frame++ % 30) === 0 || !LAMPS.near) {
       // the published lamps of the groups still standing, in the world, the nearest first
       const pub = LAMPS.pub = LAMPS.pub.filter(e => e.grp.parent && (!e.chunk || e.grp.parent.parent));   // (G2955: a line's lamp chunk stays parented to its line - the line itself must still stand)
@@ -423,6 +423,16 @@ function make(THREE, scene, world, rec0, opts) {
       l.distance = e.range; l.intensity = e.k * kLamp * on;
     }
     LAMPS.litNow = stats.litNow = near.length;
+    // NIGHT-SHINE: the lamps whose streaks the sea draws (water.js lamps): the 12 nearest within 2.5 km, re-listed with the pool; each at the hero's level
+    // (0.34 of its own k, an exposed level x P like kFix), on with the lamps; water.js fades them in on its deep-night ramp
+    if (typeof WATER !== 'undefined' && WATER.lamps) {
+      if ((LAMPS.frame % 30) === 1 || !LAMPS.streaks) {
+        LAMPS.streaks = LAMPS.pub.filter(e => e.wp && !(e.chunk && !e.grp.visible)).map(e => { const dx = e.wp[0] - eye.x, dz = e.wp[2] - eye.z; return [dx * dx + dz * dz, e]; })
+          .filter(q => q[0] < 2500 * 2500).sort((a, b) => a[0] - b[0]).slice(0, 12).map(q => q[1]);
+      }
+      const kS = LAMPS.muted ? 0 : 0.34 * on * Pp / Math.max(0.92, ex);
+      WATER.lamps(LAMPS.streaks.map(e => ({ p: e.wp, c: [e.col[0] * e.k * kS, e.col[1] * e.k * kS, e.col[2] * e.k * kS] })));   // pre-ok: kS carries P
+    }
   };
   // (G1340: mute darkens the pool and keeps its count - update() disarms it through prep)
   LAMPS.mute = () => { LAMPS.muted = true; for (const l of LAMPS.pool) l.intensity = 0; for (const [u] of LAMPS.glass) u.value = 0; LAMPS.kLit = 0; if (TARR) TARR.lit.value = 0; if (typeof propSetGlowOf === 'function') for (const key of LAMPS.glowKeys) propSetGlowOf(key, 0); };
