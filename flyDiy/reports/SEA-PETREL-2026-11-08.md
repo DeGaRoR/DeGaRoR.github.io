@@ -13,6 +13,31 @@ flights below stand for both. The gates that changed are re-run on 4c60b519 (mar
 
 STATUS: IN PROGRESS - sections fill as the runs land. Pushed every 1-2 h.
 
+## SUMMARY (for SEAPLANES-LAND)
+
+The Petrel is NOT yet "nice and right" on the water. On land it is (every land leg passes, every wind). On the
+sheltered SEA lane it mostly is. On the OPEN sea (Cedar Harbour, mk_sea) at the game's default 8 kt it fails every
+way in, out and across - four separate mechanisms, none of them the static prop clearance (0.33-0.43 m at rest):
+
+1. **S1 the landing roll-out porpoises** (8 and 15 kt, 3 of 3 open-sea landings from SEA at 8-15 kt): skips, the bow
+   thrown to 30-43 deg nose-up, the pusher disc into the water (strike at t 452 / 480.9) or a 30 deg swing. The hull,
+   not the stick (the elevator goes forward as it pitches up). The take-off's porpoise law has no roll-out twin.
+2. **S2 the water start drops it**: the game's placement puts it on the water in its land stance, wheels at the
+   waterline, the hull ~0.5 m up; it falls, pitches to +9-10 deg in the open sea's wave, the disc goes in at
+   t 0.6-1.5 - **3 of 3 starts at mk_sea, 8 kt**. Calm: 0.18 m clear.
+3. **S4 the open-sea take-off in 10-15 kt is rejected**: a porpoise at 12-14 m/s (pitch 22-27 deg), no acceleration.
+4. **S5 a water departure after a water landing never lines up** (calm, 1500 s of taxi / line-up loops) - the same
+   endless water taxi the float Cessna capsizes in (S3: its t 604.6 strike is THAT, not the Petrel's causes).
+
+And, everywhere on the water: the disc comes within **0.12-0.17 m** of the water at the take-off hump and coming off
+the step on every landing that passes - the margin is the hull's trim, not the chop.
+The gear: a gear-down water landing is identical to gear-up (G1: the hull build's wheels have no water: no flip is
+possible); a gear-up runway landing is caught by GUMPS twice, then a belly landing with no damage at all (G2).
+Gates: five new reds on the merge that are gate-side (PLANELISTS - fixed on the tip; ACCEPT and DMGSKINGPU source
+patterns; STOL's baseline; DMGDRIVE's Petrel mount), DMGINTEGRITY's cut (known); the rest red on master too.
+Cost: the Petrel's solver frame is ~6x the Cub's in the air, ~7x on the ground (ratios, this machine); its drawing is
+the Cub's size. Whether it holds 60 Hz on the box: browser-needed.
+
 ## The rig (how every flight here was flown)
 
 - The aeroplane: `builds/candidates/superpetrel_V4_1.json` through the load door (`pilot_trace specOf` ->
