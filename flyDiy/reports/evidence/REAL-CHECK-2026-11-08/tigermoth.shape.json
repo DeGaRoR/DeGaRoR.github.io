@@ -11,10 +11,18 @@
  "group": "biplane",
  "card": null,
  "shape": {
+  "drawn": {
+   "span": 8.98,
+   "length": 7.27,
+   "height": 2.584061192797522,
+   "heightLevel": 2.65,
+   "deckDeg": 8.76963439272136,
+   "points": 50091
+  },
   "dims": {
-   "span": 8.94,
-   "length": 7.1459871512248885,
-   "height": 2.4802727951657513,
+   "span": 8.98,
+   "length": 7.27,
+   "height": 2.584061192797522,
    "S": 23.849718331371967,
    "cRoot": 1.37,
    "cTip": 1.37,
@@ -22,6 +30,11 @@
    "Sh": 2.802558658785147,
    "Sv": 0.9924104934031593,
    "track": 1.38
+  },
+  "nodes": {
+   "span": 8.94,
+   "length": 7.1459871512248885,
+   "height": 2.4802727951657513
   },
   "specs": {
    "engine": "DH Gipsy Major 1",
@@ -143,8 +156,8 @@
  "sweep": null,
  "water": {},
  "t": {
-  "airframe": 7.732,
-  "total": 7.733
+  "airframe": 16.071,
+  "total": 16.073
  },
  "verdicts": [
   {
@@ -315,5 +328,5 @@
    ]
   }
  ],
- "wall": 7.733
+ "wall": 16.074
 }

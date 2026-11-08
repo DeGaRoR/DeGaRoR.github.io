@@ -312828,3 +312828,32 @@ score on several axes (geometry, specs, performance). Test and report only: no p
   Petrel land 65; a --quick shape pass 3-25 s a plane; the report ~3 s.
 - GATES: no core, editor or generated file changed by this branch (the merge of L35a brings master's own); no battery
   run; `node --check` on the three tools.
+
+## REAL-FIGURES-2.1 - THE USER'S CUT (THE CORRECTED 172 IS THE CESSNA; B-CESS, ITS FLOATS, THE BIRDMAN AND THE SKYMASTER OUT), GEOMETRY ON THE DRAWN AEROPLANE, THE CESSNA DOSSIER (2026-11-08, REAL-FIGURES for A0, cloud; branch claude/real-figures-2)
+
+- THE CUT (the user 8 Nov; A0 the same day): PLANES rows `dropped:` for cessna, cessnaF, birdman, skymaster - the report
+  lists them in one line under the heatmap. The corrected 172 (`c172x`) is the Cessna. NEW row c172rf = HYDRO-TRIM's
+  builds/c172r_wipline2350_stcprop_2026-10-20.json (the 172R on catalogue-exact Wipline 2350s): INSIDE Wipaire's water
+  figures (265-430 m / 19.5-30 s against 335-501 m / 20-35 s), climb ~10 % better than Wipaire's 749 fpm - the float base
+  for FLAGSHIP's rebuild. FLAGSHIP's final Cessna + its 2350 version are to be added when they land (A0).
+- "DO WE MEASURE THE SAME THING" (the user, on the Jodel): span / length / height now come off the DRAWN aeroplane
+  (tools/_drawn_dims_probe.js through the load door's FLYDIY_JOIN_PROBE: the editor's scene + the fuselage sheet, crew and
+  prop blades out; span tip to tip, length spinner to rudder, height on the gear at the settled deck angle; cage frame x
+  lateral, y up, z FORWARD). The node cloud read the 172 7.47 m long (drawn 8.21, type 8.28), the DC-3 7.26 m high
+  (drawn 5.33, type 5.16). A drawn figure > 35 % off the structure's falls back to it (the Petrel's branch scene reads
+  12.5 m). THE LOAD DOOR RE-MEASURES THE TAIL off the drawing: the Jodel's fin 0.55 m forward of its file (the game's
+  Jodel is 5.88 m long against the D.112's 6.20; the 20 Sep 6.25 m read the file), the corrected 172's fin 0.48 m forward
+  and its stab span 3.20 m where the file's correction says 3.41 - a rebuild edits the CAGE's tail rows, not spec.tail.
+  The Jodel's remaining geometry gaps are real: wing 13.8 m2 against 12.7 (root chord 1.80 vs ~1.72), length -5 %.
+- METRIC FIXES: custom engines matched by displacement (5.9 L = 361 in3 = an IO-360; the corrected 172 scored 0 on its
+  engine before); the best glide weighs 0 (our probe glides prop-off, a handbook glide has the prop windmilling); length
+  tolerance 3 %, height 8 %; the 172R's empty a range 721-744 kg and its fuel 201-212 L.
+- reports/CESSNA-DOSSIER-2026-11-08.md: the 172R reference sheet (every figure with its source and confidence), the
+  corrected 172 and the float 172R measured (geometry, specs, three loads, the flights, the sweep), nine gaps ranked with
+  the cause and the change (climb-out to 50 ft +48 %, empty -11 %, cruise -11 %, climb -10 %, the tail that does not
+  survive the load, CG 43 % MAC at gross, the handbook landing roll -18 %, the game's +37 %), how to re-measure. The POH
+  PDF host, 172guide.com and wipaire.com's 172 page are outside this session's network: the "spec sheet" / "thin" rows are
+  to be re-read by a session with access.
+- SCORES now (11 planes): Cub 99, Jodel 97, 172R on 2350 95, Chinook 95, Tiger Moth 94, Petrel (land, provisional) 93,
+  Stearman 92, Camel 92, DC-3 91, corrected 172 88 (G 98 / S 94 / P 76), PA-18 floats 83.
+- A0 could not be messaged from this cloud session (the bridge refuses a cloud session without the owner's trust card).

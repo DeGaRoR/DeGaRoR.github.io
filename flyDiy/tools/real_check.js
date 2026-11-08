@@ -311,7 +311,25 @@ function loadSpec(P) {
 // THE SHAPE AND THE SPECS (REAL-FIGURES-2): what a builder measures with a tape and reads off the engine's plate, off the
 // built def (the same extents perf_study's DIMENSIONS table reads: the node cloud settled on its gear, so `length` runs
 // engine flange -> rudder trailing edge, ~0.3 m short of a spinner-to-rudder type figure)
-function measureShape(spec, def) {
+function drawnDims(raw, pitch) {
+  try {
+    const os = require('os'), tmp = path.join(os.tmpdir(), 'real_drawn_' + process.pid + '.json'), fd = fs.openSync(tmp, 'w');
+    const r = require('child_process').spawnSync(process.execPath, ['--max-old-space-size=4096', path.join(T, '_load_build.js'), '--child'],
+      { input: JSON.stringify(raw), stdio: ['pipe', fd, 'pipe'], cwd: ROOT, encoding: 'utf8',
+        env: Object.assign({}, process.env, { FLYDIY_JOIN_PROBE: path.join(T, '_drawn_dims_probe.js') }) });
+    fs.closeSync(fd);
+    const txt = fs.readFileSync(tmp, 'utf8'); try { fs.unlinkSync(tmp); } catch (e) {}
+    const P = JSON.parse(txt.slice(txt.indexOf('\u0001') + 1)).probe;
+    if (!P || !P.P) return null;
+    const n = P.P.length / 3, lo = [1e9, 1e9, 1e9], hi = [-1e9, -1e9, -1e9];
+    for (let i = 0; i < n; i++) for (let a = 0; a < 3; a++) { const x = P.P[3 * i + a] / 100; if (x < lo[a]) lo[a] = x; if (x > hi[a]) hi[a] = x; }
+    // the cage frame: x lateral, y up, z FORWARD (the spinner at +z): nose up by `pitch` lowers the tail (z < 0)
+    const c = Math.cos(pitch), sn = Math.sin(pitch); let y0 = 1e9, y1 = -1e9;
+    for (let i = 0; i < n; i++) { const y = P.P[3 * i + 1] / 100, z = P.P[3 * i + 2] / 100, yy = y * c + z * sn; if (yy < y0) y0 = yy; if (yy > y1) y1 = yy; }
+    return { span: hi[0] - lo[0], length: hi[2] - lo[2], height: y1 - y0, heightLevel: hi[1] - lo[1], deckDeg: pitch * 180 / Math.PI, points: n };
+  } catch (e) { return null; }
+}
+function measureShape(spec, def, rawForDrawn) {
   // HEIGHT on the WORLD vertical, the aeroplane standing on its gear (a type sheet's height: ground to fin top, tail down
   // on a taildragger) - the body-axis extent read a tail-sitter rotated by its deck angle (the DC-3-alike 7.26 m against
   // 5.16; world-vertical 5.22); LENGTH on the body axis
@@ -328,9 +346,21 @@ function measureShape(spec, def) {
   const L = def.parts.ledger || {}; let empty = 0; for (const k in L) if (!L[k].payload) empty += L[k].mass;
   const fuelL = ((spec.energy && spec.energy.vessels) || []).reduce((a, v) => a + (v.capacity || 0), 0) || (spec.fuel && spec.fuel.litres) || 0;
   let sh = null; try { sh = C.genShakedown(def, { slim: true }); } catch (err) {}
+  // THE DRAWN AEROPLANE (REAL-FIGURES-2, the user 8 Nov: "check whether we measure the same thing"): the node cloud is
+  // the structure inside the skin - no spinner, no fin tip, no tyre rubber - and a raw file's stations can be stale (the
+  // Jodel's file puts its fin 0.55 m aft of where the game draws it). The editor's own drawn scene, through the load
+  // door's probe, gives what a tape measures: SPAN tip to tip, LENGTH spinner to rudder, HEIGHT standing on the gear at
+  // the settled deck angle (tail down on a taildragger), the propeller's blades left out. The node figures stay beside it.
+  const drawn = rawForDrawn ? drawnDims(rawForDrawn, Math.asin(Math.max(-1, Math.min(1, -xA[1])))) : null;
+  // a drawn figure more than 35 % off the structure's is something else in the scene (the Petrel's branch drew a 12.5 m
+  // "length" over a 5.6 m hull): the structure's figure is kept and the drawn one flagged
+  const pickD = (k, node) => { if (!drawn || drawn[k] == null || node == null) return node; if (Math.abs(drawn[k] / node - 1) > 0.35) { (drawn.suspect = drawn.suspect || []).push(k); return node; } return drawn[k]; };
   return {
-    dims: { span: (sh && sh.span) || G.span || null, length: (t.vX != null && t.vChord != null ? t.vX + t.vChord : x1) - x0, height: y1 - y0, S: (sh && sh.Sw) || G.Sw || null,
+    drawn,
+    dims: { span: pickD('span', (sh && sh.span) || G.span || null), length: pickD('length', (t.vX != null && t.vChord != null ? t.vX + t.vChord : x1) - x0),
+            height: pickD('height', y1 - y0), S: (sh && sh.Sw) || G.Sw || null,
             cRoot: w.chord || null, cTip: w.chord ? w.chord * (w.taper == null ? 1 : w.taper) : null, hSpan: t.hSpan || null, Sh: t.Sh || null, Sv: t.Sv || null, track: g.track || null },
+    nodes: { span: (sh && sh.span) || G.span || null, length: (t.vX != null && t.vChord != null ? t.vX + t.vChord : x1) - x0, height: y1 - y0 },
     specs: { engine: e.name || null, hp: e.powerW ? e.powerW / 745.7 : null, nE: def.params.nEngines || 1, propD: P.D || (spec.prop && spec.prop.D) || null,
              blades: (spec.prop && spec.prop.blades) || null, empty, mtow: def.parts.designGross || null, fuelL, seats: (spec.cabin && spec.cabin.seats) || null },
   };
@@ -345,7 +375,7 @@ function runPlane(key, P) {
   const CS = cases(def0, F, R, P, P.cgSweep || has('cg'));
   const out = { key, label: P.label, file: P.file, ref: P.ref, refName: R.name, official: !!P.official, engineNote: P.engineNote || null,
                 provisional: !!P.provisional, note: P.note || null, group: P.group || null, card: P.card || null,
-                shape: measureShape(spec, def0),
+                shape: measureShape(spec, def0, P.file ? JSON.parse(fs.readFileSync(path.join(ROOT, P.file), 'utf8')).spec || JSON.parse(fs.readFileSync(path.join(ROOT, P.file), 'utf8')) : null),
                 joinErrors: errors, facts: { empty: F.empty, baked: F.mass, fuelKg: F.fuelKg, seats: F.nSeats, occupied: F.occB, baggage: F.baggage,
                 engine: def0.params.engine && def0.params.engine.name, hp: def0.params.engine ? def0.params.engine.powerW / 745.7 : null,
                 S: def0.params.gen && def0.params.gen.Sw, flapsGame: def0.params.flaps ? { to: def0.params.flaps.to, ldg: def0.params.flaps.ldg } : null,

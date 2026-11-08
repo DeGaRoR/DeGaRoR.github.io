@@ -1,6 +1,6 @@
 {
  "key": "c172x",
- "label": "Cessna 172 (corrected, internal)",
+ "label": "Cessna 172 corrected (internal)",
  "file": "builds/cessna172_2026-09-20_corrected.json",
  "ref": "c172r",
  "refName": "Cessna 172R (IO-360-L2A 160 hp)",
@@ -11,10 +11,18 @@
  "group": null,
  "card": null,
  "shape": {
+  "drawn": {
+   "span": 11.02,
+   "length": 8.21,
+   "height": 2.6482753690396557,
+   "heightLevel": 2.56,
+   "deckDeg": -1.0329096598540652,
+   "points": 50626
+  },
   "dims": {
-   "span": 11,
-   "length": 7.474472287575562,
-   "height": 2.535680946195162,
+   "span": 11.02,
+   "length": 8.21,
+   "height": 2.6482753690396557,
    "S": 16.5345125,
    "cRoot": 1.63,
    "cTip": 1.12,
@@ -22,6 +30,11 @@
    "Sh": 3.11198165656872,
    "Sv": 1.4579166647690527,
    "track": 2.54
+  },
+  "nodes": {
+   "span": 11,
+   "length": 7.474472287575562,
+   "height": 2.535680946195162
   },
   "specs": {
    "engine": "custom Flat (boxer) 4-cyl 5.9 L",
@@ -146,8 +159,8 @@
  "sweep": null,
  "water": {},
  "t": {
-  "airframe": 5.128,
-  "total": 5.133
+  "airframe": 16.716,
+  "total": 16.718
  },
  "verdicts": [
   {
@@ -392,5 +405,5 @@
    ]
   }
  ],
- "wall": 5.133
+ "wall": 16.719
 }

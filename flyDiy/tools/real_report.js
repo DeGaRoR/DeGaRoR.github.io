@@ -38,10 +38,10 @@ const opt = (k, d) => { const a = args.find(x => x.startsWith('--' + k + '=')); 
 const GAP0 = 0.30;
 const W_AXES = { geometry: 0.30, specs: 0.30, performance: 0.40 };
 const W_GEO = { span: 2, S: 2, length: 1.5, cRoot: 1, cTip: 0.5, hSpan: 1, Sh: 1, Sv: 1, track: 0.5, height: 0.5 };
-const TOL_GEO = { span: 0.03, S: 0.03, length: 0.06, cRoot: 0.05, cTip: 0.05, hSpan: 0.05, Sh: 0.05, Sv: 0.05, track: 0.05, height: 0.10 };
+const TOL_GEO = { span: 0.03, S: 0.03, length: 0.03, cRoot: 0.05, cTip: 0.05, hSpan: 0.05, Sh: 0.05, Sv: 0.05, track: 0.05, height: 0.08 };
 const W_SPEC = { engine: 1.5, hp: 2, nE: 1, propD: 1, blades: 0.5, empty: 2, mtow: 1, fuelL: 0.5, seats: 0.5 };
 const TOL_SPEC = { hp: 0.03, propD: 0.05, empty: 0.03, mtow: 0.05, fuelL: 0.10 };
-const W_PERF = { Vs1: 1, V75: 1, Vmax: 1, roc: 1.5, roc2: 1, LD: 0.5, TO: 1, TO50: 0.5, LDG: 0.75, LDG50: 0.5, TOW: 1, TOW2: 0.75, TOWs: 0.5, TOW50: 0.5 };
+const W_PERF = { Vs1: 1, V75: 1, Vmax: 1, roc: 1.5, roc2: 1, LD: 0, TO: 1, TO50: 0.5, LDG: 0.75, LDG50: 0.5, TOW: 1, TOW2: 0.75, TOWs: 0.5, TOW50: 0.5 };
 const BANDS = [[80, 'good', 'close'], [60, 'warn', 'fair'], [0, 'bad', 'far']];
 const LABEL = { span: 'span', S: 'wing area', length: 'length', cRoot: 'root chord', cTip: 'tip chord', hSpan: 'stab span', Sh: 'stab area', Sv: 'fin area',
   track: 'track', height: 'height', engine: 'engine', hp: 'power / engine', nE: 'engines', propD: 'prop diameter', blades: 'blades', empty: 'empty weight',
@@ -88,7 +88,15 @@ function gapOf(ours, ref, tol) {
 }
 const itemScore = g => 100 * Math.max(0, 1 - g / GAP0);
 const signedErr = (ours, ref) => { const [lo, hi] = rng(ref); return ours > hi ? ours / hi - 1 : ours < lo ? ours / lo - 1 : 0; };
-const famOf = s => String(s || '').toUpperCase().replace(/\s+/g, ' ').match(/[A-Z]{1,3}-?\d{2,4}|GIPSY|CLERGET|TWIN WASP|ROTAX \d+/g) || [];
+// the engine's family tokens: a model name (IO-360, R-1830, ROTAX 912...), and its DISPLACEMENT in cubic inches where it
+// can be read - a Lycoming / Continental O-xxx names it, a custom dial set states litres ("custom Flat 4-cyl 5.9 L" is an
+// IO-360: 5.92 L = 361 in3), so the corrected 172's custom IO-360 dials are not scored as a wrong engine
+const famOf = s => {
+  const u = String(s || '').toUpperCase().replace(/\s+/g, ' '), t = u.match(/[A-Z]{1,4}-?\d{2,4}|GIPSY|CLERGET|TWIN WASP|ROTAX \d+/g) || [];
+  for (const x of t.slice()) { const m = x.match(/^(?:TSIO|IO|O|LIO|AEIO)-?(\d{3})$/); if (m) t.push('DISP' + Math.round(+m[1] / 10)); }
+  const L = u.match(/(\d+(?:\.\d+)?) ?L\b/); if (L) t.push('DISP' + Math.round(+L[1] * 61.024 / 10));
+  return t;
+};
 function scorePlane(o) {
   const R = REFS[o.ref] || {}, sh = o.shape || null, out = { geometry: null, specs: null, performance: null, items: { geometry: [], specs: [], performance: [] } };
   const agg = (items, W) => { let s = 0, w = 0; for (const it of items) { if (it.score == null) continue; s += it.score * (W[it.k] || 1); w += W[it.k] || 1; } return w > 0 ? s / w : null; };
@@ -328,7 +336,7 @@ function legendBands() {
     '<span><span class="sw" style="background:var(--s1);border-radius:50%"></span>MIN</span><span><span class="sw" style="background:var(--s2);border-radius:50%"></span>TYP (solo, ½ fuel)</span><span><span class="sw" style="background:var(--s3);border-radius:50%"></span>MTOW</span></div>';
 }
 function planeSection(p) {
-  const o = p.o, R = REFS[o.ref] || {}, sc = p.sc;
+  const o = p.o, R = REFS[o.ref] || {}, sc = p.sc, sh = o.shape || {};
   let h = '<section class="card" id="p-' + esc(p.key) + '"><div class="plane-head"><div><h3>' + esc(p.label) + '</h3><div class="muted">against the ' + esc(R.name || o.ref) + (o.provisional ? ' · <b>provisional</b>' : '') + (p.light ? ' · <b>light check</b>' : '') + '</div></div>' +
     '<div class="scores">' + ['geometry', 'specs', 'performance', 'overall'].map(a => '<span title="' + a + '">' + a[0].toUpperCase() + ' ' + chip(sc[a], a) + '</span>').join('') + '</div></div>';
   if (o.note || o.engineNote) h += '<p class="muted">' + esc([o.note, o.engineNote].filter(Boolean).join(' · ')) + '</p>';
@@ -338,7 +346,7 @@ function planeSection(p) {
   if (sc.items.geometry.length) {
     h += '<div><h4>Geometry</h4><div class="tablewrap"><table><thead><tr><th>dimension</th><th class="num">ours</th><th class="num">real</th><th class="num">off</th><th></th></tr></thead><tbody>';
     for (const it of sc.items.geometry) h += '<tr><td>' + esc(LABEL[it.k]) + ' <span class="muted">' + esc(UNIT[it.k] || '') + '</span></td><td class="num">' + f(it.ours, DEC[it.k] || 0) + '</td><td class="num">' + fr(it.ref, DEC[it.k] || 0) + '</td><td class="num">' + pctS(it.err) + '</td><td>' + chip(it.score) + '</td></tr>';
-    h += '</tbody></table></div>' + (R.lengthNote ? '<p class="muted">The type\'s length runs ' + esc(R.lengthNote) + '; ours runs engine flange to rudder (~0.3 m shorter with a spinner).</p>' : '') + '</div>';
+    h += '</tbody></table></div>' + (sh.drawn ? '<p class="muted">Drawn: span ' + f(sh.drawn.span, 2) + ' m, length ' + f(sh.drawn.length, 2) + ' m, height ' + f(sh.drawn.height, 2) + ' m at ' + f(sh.drawn.deckDeg, 1) + '° deck' + (sh.nodes ? '; the structure inside it: length ' + f(sh.nodes.length, 2) + ', height ' + f(sh.nodes.height, 2) : '') + '.</p>' : '<p class="muted">Measured on the structure (no drawn measurement for this run).</p>') + '</div>';
   }
   if (sc.items.specs.length) {
     h += '<div><h4>Specs</h4><div class="tablewrap"><table><thead><tr><th>item</th><th class="num">ours</th><th class="num">real</th><th class="num">off</th><th></th></tr></thead><tbody>';
@@ -380,9 +388,9 @@ function scoringSection() {
   const w = o => Object.entries(o).map(([k, v]) => esc(LABEL[k] || k) + ' ' + v).join(', ');
   return '<h2 id="scoring">How the scores are computed</h2><div class="card">' +
     '<p><b>An item</b> scores <code>100 × max(0, 1 − gap / ' + GAP0 + ')</code>. The gap is 0 when ours sits inside the reference band (the figure ± its tolerance), otherwise the relative distance to the band\'s nearest edge: 10 % outside scores 67, ' + (GAP0 * 100) + ' % outside scores 0.</p>' +
-    '<p><b>Geometry</b>: the weighted mean over the key dimensions the reference states. Weights: ' + w(W_GEO) + '. Tolerances: span and area 3 %, chords and tail 5 %, length 6 % (ours runs flange to rudder), height 10 % (the pose).</p>' +
+    '<p><b>Geometry</b>: the weighted mean over the key dimensions the reference states. Weights: ' + w(W_GEO) + '. Tolerances: span and area 3 %, chords and tail 5 %, length 3 %, height 8 %. Span, length (spinner to rudder) and height (standing on the gear at its settled deck angle, the blades left out) are measured on the DRAWN aeroplane, the editor\'s own scene through the load door; the wing area is the projected planform the sim flies; chords and tail areas are the built spec\'s.</p>' +
     '<p><b>Specs</b>: the engine family (named right or not), power per engine (3 %), the engine count, the propeller diameter (5 %) and blades, the empty (3 %) and maximum (5 %) weights, fuel (10 %), seats. Weights: ' + w(W_SPEC) + '.</p>' +
-    '<p><b>Performance</b>: real_check\'s verdict bands (our MIN–MTOW band at the reference\'s weights against the reference\'s condition band), one reading per indicator - the airframe\'s (probes, no pilot) where it exists, else the handbook-flown one. That is the aeroplane\'s capability; the shipped pilot\'s extra cost is shown apart as <i>the pilot\'s share</i>. Weights: ' + w(W_PERF) + '.</p>' +
+    '<p><b>Performance</b>: real_check\'s verdict bands (our MIN–MTOW band at the reference\'s weights against the reference\'s condition band), one reading per indicator - the airframe\'s (probes, no pilot) where it exists, else the handbook-flown one. That is the aeroplane\'s capability; the shipped pilot\'s extra cost is shown apart as <i>the pilot\'s share</i>. Weights: ' + w(W_PERF) + '. The best glide is shown but weighs 0: our probe glides with the propeller removed, a handbook glide has it windmilling (worth 10-20 % of L/D), so the two are not like for like.</p>' +
     '<p><b>Overall</b> = ' + Object.entries(W_AXES).map(([k, v]) => v + ' × ' + k).join(' + ') + ', over the axes a plane has (the rest renormalised). Bands: ● ≥ 80 close, ▲ 60–80 fair, ■ under 60 far.</p>' +
     '<p class="muted">A reference marked THIN in tools/real_refs.js (one source, or sources that disagree) carries a wider tolerance or a range: a thin figure can neither condemn nor clear a plane by much.</p></div>';
 }
@@ -397,7 +405,7 @@ function historySection() {
 
 function main() {
   const res = loadResults();
-  const order = Object.keys(PLANES).filter(k => res[k] && !(PLANES[k].supersededBy && res[PLANES[k].supersededBy])).concat(Object.keys(res).filter(k => !PLANES[k]));
+  const order = Object.keys(PLANES).filter(k => res[k] && !PLANES[k].dropped && !(PLANES[k].supersededBy && res[PLANES[k].supersededBy])).concat(Object.keys(res).filter(k => !PLANES[k]));
   const list = order.map(k => { const o = res[k], P = PLANES[k] || {}; return { key: k, o, label: P.label || o.label || k, short: P.short || (P.label || o.label || k).replace(/\s*\(.*\)\s*$/, ''), light: k === 'skymaster' || !!P.light, sc: scorePlane(o) }; });
   const date = opt('date', new Date().toISOString().slice(0, 10));
   const title = opt('title', 'Real Check');
@@ -408,7 +416,8 @@ function main() {
   html += '<header><div class="muted">flyDiy · ' + esc(date) + (sha ? ' · tree ' + esc(sha) : '') + '</div><h1>' + esc(title) + ': the planes against their real parents</h1>' +
     '<p class="lede">' + list.length + ' planes, each measured at three loads (one light pilot, solo with half fuel, the type\'s gross) and compared with its real parent\'s published figures, each read at the conditions it was stated at. Scored on three axes: <b>geometry</b> (do we reproduce the shape), <b>specs</b> (did we pick the right engine, propeller and weights), <b>performance</b> (does it fly like the real one).</p></header>';
   html += '<h2 id="global">The global view</h2>' + conclusion(list) + notesBlock('_global');
-  html += '<h4>Accuracy, every plane on every axis</h4>' + heatmap(list);
+  const dropped = Object.keys(PLANES).filter(k => PLANES[k].dropped && res[k]);
+  html += '<h4>Accuracy, every plane on every axis</h4>' + heatmap(list) + (dropped.length ? '<p class="muted">Taken out of the set: ' + dropped.map(k => esc(PLANES[k].label) + ' (' + esc(PLANES[k].dropped) + ')').join('; ') + '.</p>' : '');
   html += '<h4>The three axes, plane by plane</h4><div class="grid2">' + list.map(p => '<a class="mini" href="#p-' + esc(p.key) + '" style="text-decoration:none;color:inherit"><div class="nm">' + esc(p.short) + '</div>' + radar(p.sc, 120) + '<div>' + chip(p.sc.overall, 'overall') + '</div></a>').join('') + '</div><p class="muted">G geometry · S specs · P performance; the further out, the closer to the real parent.</p>';
   html += '<h4>Overall score, ranked</h4>' + overallBars(sorted);
   html += '<h2 id="stats">The statistics</h2>';

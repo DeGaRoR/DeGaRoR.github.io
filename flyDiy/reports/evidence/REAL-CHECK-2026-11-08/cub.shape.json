@@ -11,10 +11,18 @@
  "group": null,
  "card": null,
  "shape": {
+  "drawn": {
+   "span": 10.7,
+   "length": 6.93,
+   "height": 2.0862231813589327,
+   "heightLevel": 2.69,
+   "deckDeg": 7.226404618231654,
+   "points": 42848
+  },
   "dims": {
    "span": 10.7,
-   "length": 6.760011679595814,
-   "height": 1.8574776164881655,
+   "length": 6.93,
+   "height": 2.0862231813589327,
    "S": 17.569800692218625,
    "cRoot": 1.7,
    "cTip": 1.7,
@@ -22,6 +30,11 @@
    "Sh": 2.478184696004003,
    "Sv": 0.9828581159674606,
    "track": 1.78
+  },
+  "nodes": {
+   "span": 10.7,
+   "length": 6.760011679595814,
+   "height": 1.8574776164881655
   },
   "specs": {
    "engine": "Continental A-65",
@@ -144,8 +157,8 @@
  "sweep": null,
  "water": {},
  "t": {
-  "airframe": 3.172,
-  "total": 3.174
+  "airframe": 14.745,
+  "total": 14.747
  },
  "verdicts": [
   {
@@ -390,5 +403,5 @@
    ]
   }
  ],
- "wall": 3.174
+ "wall": 14.747
 }

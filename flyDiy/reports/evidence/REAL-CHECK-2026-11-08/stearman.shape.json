@@ -11,10 +11,18 @@
  "group": "biplane",
  "card": null,
  "shape": {
+  "drawn": {
+   "span": 9.84,
+   "length": 7.73,
+   "height": 2.5886869492088835,
+   "heightLevel": 2.86,
+   "deckDeg": 8.349171034635592,
+   "points": 53069
+  },
   "dims": {
-   "span": 9.8,
-   "length": 7.704133534390223,
-   "height": 2.4789451892382197,
+   "span": 9.84,
+   "length": 7.73,
+   "height": 2.5886869492088835,
    "S": 27.91574726187971,
    "cRoot": 1.52,
    "cTip": 1.52,
@@ -22,6 +30,11 @@
    "Sh": 3.602565021759188,
    "Sv": 1.0639543595437584,
    "track": 1.74
+  },
+  "nodes": {
+   "span": 9.8,
+   "length": 7.704133534390223,
+   "height": 2.4789451892382197
   },
   "specs": {
    "engine": "Continental W-670-6A",
@@ -141,8 +154,8 @@
  "sweep": null,
  "water": {},
  "t": {
-  "airframe": 6.286,
-  "total": 6.287
+  "airframe": 13.457,
+  "total": 13.459
  },
  "verdicts": [
   {
@@ -313,5 +326,5 @@
    ]
   }
  ],
- "wall": 6.288
+ "wall": 13.46
 }

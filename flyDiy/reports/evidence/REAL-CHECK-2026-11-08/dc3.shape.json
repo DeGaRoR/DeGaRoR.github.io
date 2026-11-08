@@ -11,10 +11,18 @@
  "group": "historical",
  "card": null,
  "shape": {
+  "drawn": {
+   "span": 29,
+   "length": 19.6,
+   "height": 5.331313527224758,
+   "heightLevel": 7.29,
+   "deckDeg": 9.578493295805886,
+   "points": 134361
+  },
   "dims": {
    "span": 29,
-   "length": 17.4243598303566,
-   "height": 5.221166064486209,
+   "length": 19.6,
+   "height": 5.331313527224758,
    "S": 97.1352169914299,
    "cRoot": 4.63,
    "cTip": 1.4,
@@ -22,6 +30,11 @@
    "Sh": 15.04298028784476,
    "Sv": 8.79902876592325,
    "track": 5.64
+  },
+  "nodes": {
+   "span": 29,
+   "length": 17.4243598303566,
+   "height": 5.221166064486209
   },
   "specs": {
    "engine": "P&W R-1830 Twin Wasp",
@@ -171,8 +184,8 @@
  "sweep": null,
  "water": {},
  "t": {
-  "airframe": 8.054,
-  "total": 8.055
+  "airframe": 22.764,
+  "total": 22.765
  },
  "verdicts": [
   {
@@ -306,5 +319,5 @@
    ]
   }
  ],
- "wall": 8.055
+ "wall": 22.766
 }
