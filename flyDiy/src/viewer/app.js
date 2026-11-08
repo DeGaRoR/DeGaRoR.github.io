@@ -1384,7 +1384,7 @@
   const HVIEW_C = [0, 2, 0];          // the capture's eye in the shed's frame: the room's centre, a standing eye
   // HANGAR-VIEW C (8 Nov, question 6): ?hvc=door captures from 2.5 m inside the doorway (the door at the room's -x, -HD), where the
   // eyes that look out stand - the parallax exact there instead of at the centre
-  const hvC = () => { try { if (/[?&]hvc=door/.test(location.search || '') && hangar && hangar.dims && hangar.dims.HD > 3) return [-(hangar.dims.HD - 2.5), 1.7, 0]; } catch (e) {} return HVIEW_C; };
+  const hvC = () => { try { if (/[?&]hvc=door\b/.test(location.search || '') && hangar && hangar.dims && hangar.dims.HD > 3) return [-(hangar.dims.HD - 2.5), 1.7, 0]; } catch (e) {} return HVIEW_C; };
   const HVIEW_NEAR = 3000;            // a flight that ended this near the stand left the world there (m)
   // HVIEW-OFF (8 Nov, the user's verdict on the hangars-matched stills: the captured view is not the look - a generic sky,
   // no clouds, the apron smeared): OFF by default, the room's own outdoors as until L35a, until the redesign (flydiy-notes/

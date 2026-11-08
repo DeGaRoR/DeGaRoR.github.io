@@ -95,6 +95,12 @@ const HV = require(path.join(ROOT, 'src', 'viewer', 'hangar_view.js'));
   const cl = src('src/viewer/clouds.js');
   ok(/CLOUDS\.ready && CLOUDS\.active && !CLOUDS\.baked && CLOUDS\.bakeStep && CLOUDS\.bakeStep\(\)\) skyBakedSun = null;/.test(han) && /if \(!bakeStep\(\)\) return;/.test(cl) && /bakeStep, probe/.test(cl) && /get baked\(\)/.test(cl),
     '3n the room bakes the clouds\' noise itself (the world\'s draw is its only other baker), and re-shoots its probe when done (GARAGE-CLOUDS)');
+  // HVC-DOOR (8 Nov, the 19:40 stills: every capture's eye at the centre with ?hvc=door): a node patch wrote the regex's \b as a
+  // backspace byte, so the test never matched (hangar.js's ?roompolish=0 / ?roomdirt=0 too). No control byte in the view's sources
+  const ctl = f => { const m = /[\x00-\x08\x0b\x0c\x0e-\x1f]/.exec(src(f)); return m ? f + ' byte ' + m[0].charCodeAt(0) + ' at ' + m.index : ''; };
+  const bad = ['src/viewer/app.js', 'src/viewer/hangar.js', 'src/viewer/hangar_view.js', 'src/viewer/clouds.js'].map(ctl).filter(Boolean);
+  ok(!bad.length && /const hvC = \(\) => \{ try \{ if \(\/\[\?&\]hvc=door\\b\/\.test\(location\.search/.test(app),
+    '3o no control byte in the view\'s sources, and ?hvc=door\'s test is a word boundary (HVC-DOOR: a backspace byte never matched)', bad.join('; '));
   // 4 no readback
   ok(!/readRenderTargetPixels|readPixels|getBufferSubData/.test(hv), '4 NO READBACK in hangar_view.js (the distance reaches the mesh by a vertex fetch)');
 }
