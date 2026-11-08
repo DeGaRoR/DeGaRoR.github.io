@@ -207,6 +207,40 @@ route. Evidence: `reports/evidence/SEA-PETREL/diag/*.json` (`hist0` / `strike.st
 - Reproduce (40 min): `sp_fly.js --vkey floats --order SEA,mk_sea,SEA --wind 8@250` (evidence `diag/floats_tour.json`).
 - Browser-needed: yes - the water taxi out of Cedar Harbour after a landing.
 
+## The gates that name the Petrel or seaplanes (task 3): base vs master
+
+One gate per call, `node tools/run_gates.js --only=ID --no-build --verbose --jobs=1` (the tree's build regenerated
+first). "base" = 15ad5d669, "tip" = 4c60b519, "master" = 1bcd01d3. Logs: not committed (big), the lines are quoted.
+
+| gate | why it is in the list | base | tip | master | the first failing line / note |
+|---|---|---|---|---|---|
+| HULL | hull builds | PASS | - | (none: new) | |
+| RETRACT | the retract / amphibian | PASS | - | (none: new) | |
+| HULLWARM | hull | PASS | - | - | |
+| SEAPLANE | seaplanes | PASS | - | - | |
+| FLOATS | floats | PASS | - | - | |
+| WATER | the sea | PASS | - | - | |
+| WATERDAMP | water damage | PASS | - | - | |
+| HYDRODYN | hydro | PASS | - | - | |
+| HYDROTRIM | hydro trim | PASS | - | - | |
+| DMGFLOATTO | float take-off damage | PASS | - | - | |
+| DMGPLOUGH | VALIDATED (Petrel in) | PASS | - | - | |
+| DMGHULL | VALIDATED | FAIL (1) | - | FAIL (1) | the same line on both (F6) |
+| PILLAR | VALIDATED | PASS | - | PASS | |
+| NACLAG / ROLLSND | VALIDATED | PASS / PASS | - | - | |
+| DMGWRECK / DMGSKIN / DMGSETTLE / DMGWALL | VALIDATED | PASS x4 | - | DMGWRECK, DMGSKIN PASS | |
+| PILOT | VALIDATED | PASS | - | - | |
+| PLANELISTS | the Petrel's rows | **FAIL** | PASS | PASS | F1 (fixed on the tip) |
+| ACCEPT | VALIDATED | **FAIL** | **FAIL** | PASS | F3 (the hudGear() regex) |
+| STOL | VALIDATED, the cards | **FAIL** (12) | **FAIL** (12) | PASS | F4 (12 hull rows in the join; the carbon cards; the Upturned tip) |
+| DMGSKINGPU | VALIDATED | **FAIL** (3) | **FAIL** (3) | FAIL (2) | F5 (one new: the gear-fold block in the source window) |
+| JOINPARITY | the Petrel's row | FAIL (6) | FAIL (5) | FAIL (5) | F2 (the Petrel row PASSES on the tip; 5 are master's) |
+| DMGCERTCOST | the Petrel's budget | FAIL | FAIL | FAIL | F7 (the Petrel's row holds on the tip; the rest is ENV) |
+| DMGINTEGRITY | the Petrel's cut | **FAIL** | - | PASS | `Super Petrel: FAIL the fuselage cut across behind ring 3 (10 members): no break-up` - SEAPLANES' (as briefed) |
+| DMGFABRIC / POD / HANDLE / ENGCONFIG | VALIDATED | FAIL | - | FAIL | identical lines (F6), pre-existing |
+| DMGDRIVE | water prop strikes | TIMEOUT (1800 s) | - | - | no verdict: the spawn timeout on this loaded box (every line printed was ok) - re-run on a quiet machine |
+| TOUR (floats shard) | the float Cessna at mk_sea | not run as a gate | | | its float tour re-flown with the gate's own library (S3): t 604.6 reproduced |
+
 ## Cost (task 4) - counts, and ratios measured on the same cloud machine at the same time (never ms)
 
 | | Cub | twin floatplane (Twin_busher_floats_4b) | float Cessna | **Super Petrel V4.1** | Petrel / Cub | Petrel / twin |
