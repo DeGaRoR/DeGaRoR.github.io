@@ -66,11 +66,12 @@ function fuselageWaist(m) {
 // apMode 0 none, 1 one opening (offsets move it), 2 a pair, 3 both. lipMode 0 a plain cut, 1 a rolled lip.
 const FACE = {
   // a boxer: two inlets over the cylinder banks, either side of the spinner (Cessna 172, Jodel, Cherokee)
-  flat:     h => ({ cw_apMode: 2, cw_pairX: 0.56 * h, cw_pairW: 0.22 * h, cw_pairH: 0.15 * h, cw_pairY: 0.12 * h,
+  // (h the front's smaller half-size, a its half-width, v its half-height: the pair sits over the banks, in the width)
+  flat:     (h, a, v) => ({ cw_apMode: 2, cw_pairX: 0.58 * a, cw_pairW: 0.20 * a, cw_pairH: 0.22 * v, cw_pairY: 0.10 * v,
                     cw_pairSq: 0.7, cw_lipMode: 0 }),
   // a Rotax 9xx: the boxer's pair for the heads' air, and the radiator / oil cooler's mouth under the spinner
   // (Ikarus C42, Zenith 750, Tecnam P92, Bristell) - the mouth is the chin scoop at the face
-  rotax:    h => ({ cw_apMode: 2, cw_pairX: 0.56 * h, cw_pairW: 0.18 * h, cw_pairH: 0.13 * h, cw_pairY: 0.10 * h,
+  rotax:    (h, a, v) => ({ cw_apMode: 2, cw_pairX: 0.58 * a, cw_pairW: 0.17 * a, cw_pairH: 0.18 * v, cw_pairY: 0.08 * v,
                     cw_pairSq: 0.7, cw_lipMode: 0, cw_scoopOn: 1, cw_scoopZ: 0.02, cw_scoopDrop: 0.75, cw_scoopSq: 0.7,
                     cw_scoopRake: 0.1, cw_scoopAp: 0.85, cw_scoopW: 0.30 * h, cw_scoopH: 0.12 * h }),
   // a two-stroke (Rotax 503 / 582): the radiator's mouth under the spinner, nothing else
@@ -134,7 +135,7 @@ function rowsFor(spec, o) {
   const mode = offBody ? 'pod' : opt;
   const T = +m.ax.y || 0;                            // the thrust line about the face's centre (it stays where it is)
   const out = Object.assign({}, SHAPE);
-  let aW, aH, front;
+  let aW, aH, front, frontW = null, frontH = null;
   // the thrust line sits at the face's centre plus the engine's own offset (engY); the face's centre is yc
   if (mode === 'waist' && m.face) {
     // THE BODY COWL (the user, 8 Nov): the aft section is the fuselage's at the firewall, its widest line ON THE PLANE'S
@@ -153,7 +154,7 @@ function rowsFor(spec, o) {
     out._waist = +wA.toFixed(3);
     out.cw_waistF = +Math.max(-0.85, Math.min(0.85, (W - T) / h1)).toFixed(3);
     out.cw_lidRise = +T.toFixed(4);                    // the barrel's axis runs to the thrust line: the front centred on it
-    front = Math.min(a1, h1);
+    front = Math.min(a1, h1); frontW = a1; frontH = h1;
   } else if (mode === 'pod') {
     // OFF THE BODY (the user, 8 Nov): straight, sized to the engine, the section the engine's own - a boxer wider than
     // high, an in-line higher than wide and boxy, a V a rounded oval, a radial / motor round, a turboprop round with
@@ -172,7 +173,7 @@ function rowsFor(spec, o) {
     out.cw_waist = 0;
     out.cw_taperW = 1; out.cw_taperH = 1;
     out.cw_sqAftTop = POD[0]; out.cw_sqFrontTop = POD[0]; out.cw_sqAftBot = POD[1]; out.cw_sqFrontBot = POD[1];
-    front = Math.min(aW, aH);
+    front = Math.min(aW, aH); frontW = aW; frontH = aH;
     out.cw_aftMode = 1; out.cw_tailLen = +Math.max(0.5, 2.2 * aH).toFixed(3); out.cw_tailDrop = 0;
   } else if (mode === 'match' && m.face) {
     out.fitNose = 1;                                   // the section the fuselage's, every build
@@ -206,7 +207,7 @@ function rowsFor(spec, o) {
   const reach = (m.zFw != null ? -m.zFw : env.length * 1.1) + (+P.cw_noseOff || 0);
   out.cw_lidLen = +lip.toFixed(3);
   out.cw_cowlLen = +Math.max(0.1, Math.min(2, reach - lip)).toFixed(3);
-  Object.assign(out, FACE[type](front));
+  Object.assign(out, FACE[type](front, frontW || front, frontH || front));
   // THE THRUST LINE STAYS WHERE IT IS (the engine, its spinner and the flown thrust line follow the cowl's axis:
   // _cowl_gen axisXY = the axis rise + the face rise + the inlet's offset). The barrel is straight on the face's
   // centre; today's offset of the axis goes into the FACE (the spinner sits off-centre in the flat face, as on a
