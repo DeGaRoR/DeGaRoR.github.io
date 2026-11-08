@@ -8801,7 +8801,7 @@
                           devFree: (x, y, z, yaw, pitch) => { if (cam.mode !== 'free') flCamMode('free'); devCam.pos.set(x, y, z); devCam.yaw = yaw; devCam.pitch = pitch; devCam.last = performance.now(); return cam.mode; },
                           craft: () => craft,                                   // G1460: the drawn aeroplane, for GATE SOFTGPU's hidden-craft frame
                           renderer: () => renderer, hangarScene: () => hangarScene, camera: () => camera,
-                          compileScreen: (sc, lit) => compileSliced(sc, null, lit),   // PLANE-RENDERS R1: the thumb's screen variant, sliced
+                          compileScreen: (sc, lit) => compileSliced(sc, null, lit, false, null, 2),   // PLANE-RENDERS R1: the thumb's screen variant, sliced
                           pan: (x, y, z) => edPan.set(x, y, z), camGet: () => ({ az, el, dist, eye: camera.position.toArray(), target: target.toArray(), fov: camera.fov, exposure: renderer.toneMappingExposure, tone: renderer.toneMapping, envDeferred, envDirty, envAway, envPM: !!envPM, envSource }) };   // G439: the rig reads the eye back
   // ---- MANUAL CONTROLS (G200): who is flying, and the ending when it is you
   // The toggle is a KEY (apToggle) and a pill in the `controls` flyout;
@@ -21033,7 +21033,11 @@
   // its lights stood where the frame will find them) and put back before it returns: the stand-ins are gathered and
   // each task's compile made INSIDE it, so the dress never outlives a task - no frame, no other step's compile ever
   // meets it, and the step can run beside the others (its links on the driver's threads) instead of holding the draw
-  function compileSliced(sc, target, lit, fogless, dress) {
+  // PLANE-RENDERS R3 (8 Nov, the twin's first fiche on the box: ONE 9.7 s task inside its sliced compile): the group grows on
+  // cached programs (a stand-in whose key three already holds: ~0.1 ms) and then meets a run of NEW ones - the studio's
+  // lights re-key every lit program of the plane - 64 new sources in one task. `gmax` caps the group for a path whose sets
+  // are mostly new (the thumb's and the fiche's screen compile: 2 - a new AEROSKIN source alone is 0.1-0.3 s)
+  function compileSliced(sc, target, lit, fogless, dress, gmax) {
     const D = dress || (f => f());
     if (typeof renderer.compile !== 'function' || typeof renderer.compileAsync !== 'function' || typeof PROG_WARM === 'undefined' || !PROG_WARM.standIn)
       return D(() => fogless && PROG_WARM ? PROG_WARM.fogless(lit || sc, () => compilePass(sc, target, lit)) : compilePass(sc, target, lit));
@@ -21056,7 +21060,7 @@
     // G1085: a dressed compile runs beside the steps (the one loading's early starts) over sets that mix programs the
     // loading already knows (cheap: the group grows) with new ones (a group of 64 new sources is seconds in one task) -
     // it grows to 16 at most
-    const GMAX = dress ? 16 : 64;
+    const GMAX = gmax || (dress ? 16 : 64);
     return new Promise(res => {
       const tick = () => {
         const t0 = performance.now();

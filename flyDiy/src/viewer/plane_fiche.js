@@ -201,8 +201,10 @@
     const data = { name: title || (spec.meta && spec.meta.name) || '', reg: (spec.meta && spec.meta.reg) || '', dims: d,
                    wings: (spec.wings || []).length, gear: (spec.gear && spec.gear.type) || '', fuelL: (spec.fuel && spec.fuel.litres) || null,
                    engine: eng.type || '', nEngines: (spec.engines || []).length, seats: cab.seats || null, specs: null };
-    try {   // the plaque's call (app.js shakeFetch)
-      const s = genShakedown(buildGen(genMigrateSpec(spec)), { corners: false });
+    try {   // the plaque's call (app.js shakeFetch) - the stand's sheet when the garage already holds it (the bench check ran it:
+            // 8 Nov, the twin's own run here was a 2.1-2.4 s task on every draw, the award's and Update's), else run here
+      let s = null; try { s = window.FLYDIY_POD && FLYDIY_POD.shake ? FLYDIY_POD.shake() : null; } catch (e) { s = null; }
+      if (!s) s = genShakedown(buildGen(genMigrateSpec(spec)), { corners: false });
       data.specs = { empty: s.empty, allUp: s.mass, Vs: s.Vs, VCruise: s.VCruise, climb: s.climbRate, TORun: s.TORun, engine: s.engineName, propD: s.propD, propBlades: s.propBlades };
     } catch (e) { data.specsError = String(e && e.message || e).slice(0, 120); }
     return data;
