@@ -5409,7 +5409,7 @@
       if (R.tearAsk != null && R.tearAsk > sim.t) R.tearAsk = null;
       if (R.islT != null && R.islT > sim.t) R.islT = null;
       const sinceT = sim.t - (R.tearT == null ? -1 : R.tearT);
-      if (!onGpu) R.tearAsk = null;
+      if (!onGpu) { R.tearAsk = null; R.askState = null; }
       if (gain === 1) {
         if (onGpu && R.tearAsk != null) {
           const Wd = GP.places(ge, R.tearAsk);
@@ -5417,21 +5417,21 @@
           // tear undone: past BRK_TEAR_WAIT ms the CPU tears on this frame's exact riding. The page in node never passes a fence:
           // its GPU path never tore, and a sheet stood metres long at rest - GATE DMGPAGEW's sheet row)
           if (!Wd && performance.now() - (R.tearAskMs || 0) > BRK_TEAR_WAIT) {
-            R.tearAsk = null; R.heldAsk = undefined; R.tearT = sim.t; R.tearCpu = (R.tearCpu | 0) + 1;
+            R.tearAsk = null; R.heldAsk = undefined; R.askState = null; R.tearT = sim.t; R.tearCpu = (R.tearCpu | 0) + 1;
             const Xt = Object.assign({}, X, { w: new Float64Array(R.nv * 3), n: null, nB: null });
             SB.poseCage(R, K.rest, sim.p, R.baseD, new Float64Array(R.nv * 3), K.NF, K.down, off, Xt);
             if (SB.tear(R, R.baseD, Xt.w)) { brkIdx(R); R.tornNew = true; }
           }
           if (Wd) { R.tearT = Wd.wTag; R.tearAsk = null;
             // (the held bits as they stood at the sample - G2040 x G1818: an event since may have re-judged a triangle)
-            if (SB.tearPlaces(R, Wd.Wp, ge.p0, R.baseD, R.heldAsk !== undefined ? R.heldAsk : R.held)) { brkIdx(R); R.tornNew = true; }
-            R.heldAsk = undefined; }
+            if (SB.tearPlaces(R, Wd.Wp, ge.p0, R.baseD, R.heldAsk !== undefined ? R.heldAsk : R.held, R.askState)) { brkIdx(R); R.tornNew = true; }
+            R.heldAsk = undefined; R.askState = null; }
         } else if (!(brkFast() && sinceT < (onGpu ? tearEveryGpu() : TEAR_EVERY))) {
           // (G3022 v2: no sample for a record with nothing to tear - no watched triangle, or tearPlaces' own no-tear rule - nor
           // for one the motion clock has not moved TEAR_MOVE since its last sample: its tear clock starts again)
           if (onGpu && (!R.watch || !R.watch.length || (R.noTear && !R.tubeTear && !R.sheetTear && !R.shellTear) ||
                         (R.tearMot != null && (BRK.motion || 0) - R.tearMot < TEAR_MOVE))) { R.tearT = sim.t; G3022.skipped++; }
-          else if (onGpu) { R.tearMot = BRK.motion || 0; G3022.sampled++; GP.sample(ge); R.tearAsk = sim.t; R.tearAskMs = performance.now(); R.heldAsk = R.held ? R.held.slice() : null; }
+          else if (onGpu) { R.tearMot = BRK.motion || 0; G3022.sampled++; GP.sample(ge); R.tearAsk = sim.t; R.tearAskMs = performance.now(); R.heldAsk = R.held ? R.held.slice() : null; R.askState = new Map(); }
           else { R.tearT = sim.t; if (SB.tear(R, R.baseD, R.w)) { brkIdx(R); R.tornNew = true; } }
         } }
       // G1864: the confetti the tear leaves (islands under BRK_ISLAND triangles that touch it), at most every 0.25 s

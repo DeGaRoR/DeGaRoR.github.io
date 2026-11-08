@@ -306,8 +306,8 @@ if (argv[0] === '--build') {
         // pass (this frame's positions, at its end); the read lands the next frame and the tear runs on those positions
         const fresh = () => r.wSeq && r.wSeq !== r.wUsed;
         if (R.tearAsk != null) {
-          if (fresh() && r.wTag >= R.tearAsk) { r.wUsed = r.wSeq; R.tearF = r.wTag; R.tearAsk = null; const t0 = process.hrtime.bigint(); SB.tearPlaces(R, r.Wp, 0, R.baseD, R.heldAsk !== undefined ? R.heldAsk : R.held); R.heldAsk = undefined; S.ms.tearPl += ms(t0); S.checks++; }
-        } else if (tearDue(R)) { r.wantW = true; R.tearAsk = s; R.heldAsk = R.held ? R.held.slice() : null; }
+          if (fresh() && r.wTag >= R.tearAsk) { r.wUsed = r.wSeq; R.tearF = r.wTag; R.tearAsk = null; const t0 = process.hrtime.bigint(); SB.tearPlaces(R, r.Wp, 0, R.baseD, R.heldAsk !== undefined ? R.heldAsk : R.held, R.askState); R.heldAsk = undefined; R.askState = null; S.ms.tearPl += ms(t0); S.checks++; }
+        } else if (tearDue(R)) { r.wantW = true; R.tearAsk = s; R.heldAsk = R.held ? R.held.slice() : null; R.askState = new Map(); }
         const ws = SB.worstStretch({ idx0: R.idx0, idx: R.idx, dead: R.dead, nt: R.nt, held: R.held }, R.baseD, R.w);
         if (ws.ex > S.excessG) { S.excessG = ws.ex; const i0 = R.idx0, q = ws.t, cen = [0, 0, 0];
           if (q >= 0) for (let e = 0; e < 3; e++) for (let j = 0; j < 3; j++) cen[j] += R.w[i0[q * 3 + e] * 3 + j] / 3;
@@ -321,6 +321,12 @@ if (argv[0] === '--build') {
         for (let t = 0; t < nt; t++) if (R.dead[t] === 2 && r.G.firstTorn[t] < 0) r.G.firstTorn[t] = s;
         if (!r.G.run) { r.G.run = new Uint16Array(nt); r.G.maxRun = new Uint16Array(nt); }
         S.runG = Math.max(S.runG || 0, overRun(R, r.G.run, r.G.maxRun));
+        // (diagnostic: DMGSKINGPU_TRACE="skin:176" - one triangle's state on both paths, frame by frame)
+        if (process.env.DMGSKINGPU_TRACE) for (const tk of process.env.DMGSKINGPU_TRACE.split(',')) { const [mn, ts] = tk.split(':'); if (mn !== r.m.nm) continue; const tt = +ts;
+          const exOf = (RR, H) => { const i0 = RR.idx0; let ex = -Infinity; const k = H ? SB.HELD : 1 + SB.TEAR; for (let e = 0; e < 3; e++) { const a = i0[tt * 3 + e] * 3, b = i0[tt * 3 + (e + 1) % 3] * 3;
+            const rr = Math.hypot(RR.baseD[a] - RR.baseD[b], RR.baseD[a + 1] - RR.baseD[b + 1], RR.baseD[a + 2] - RR.baseD[b + 2]), l = Math.hypot(RR.w[a] - RR.w[b], RR.w[a + 1] - RR.w[b + 1], RR.w[a + 2] - RR.w[b + 2]); ex = Math.max(ex, l - k * rr - SB.TEAR_ABS); } return +(ex * 1000).toFixed(1); };
+          const RC = r.C.R, RG = R, hC = RC.held ? RC.held[tt] : null, hG = RG.held ? RG.held[tt] : null;
+          (S.trace = S.trace || []).push([s, 'C', RC.dead[tt], hC, RC.tearF, exOf(RC, hC), 'G', RG.dead[tt], hG, RG.tearF, RG.tearAsk, RG.heldAsk ? RG.heldAsk[tt] : '-', exOf(RG, hG), 'ev', RG.vB].join(' ')); }
         // ...the places pass, at the frame's end (skin_gpu.js frame): every place's world position, the shader's places mode
         if (r.wantW && !r.pend) {
           SB.packNodes(NF, sim.p, n, cg, ND);
@@ -357,6 +363,7 @@ if (argv[0] === '--build') {
       S.pruned += r.G.R.pruned || 0;
     }
     const Dm = sim.damage(); S.nb = Dm.broken.length; S.crashed = Dm.crashed; S.reason = Dm.reason;
+    if (S.trace && process.env.DMGSKINGPU_TRACE_OUT) fs.writeFileSync(process.env.DMGSKINGPU_TRACE_OUT + "_" + k + "_" + c.id + ".txt", S.trace.join(String.fromCharCode(10))); delete S.trace;
     RS.S = S; out.cases.push(RS);
   }
   console.log('RESULT ' + JSON.stringify(out));

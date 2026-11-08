@@ -462,6 +462,9 @@
         gone = (own && LK.hide[mm] === 1) || (span && !(cov && bridged(a, b) && bridged(b, c) && bridged(a, c))) ||
                (!(own && LK.part[mm] < 0) && (brk(dom[a], dom[b]) || brk(dom[b], dom[c]) || brk(dom[a], dom[c])));
         if (cov) held[t] = 0;
+        // (a GPU tear sample in flight - R.askState, the page's / the gate's: a triangle this event changes keeps its state
+        // as the sample saw it: the deferred tear judges it so, as the CPU's tear did on the sample's frame)
+        if (R.askState && dead[t] !== (gone ? 1 : 0) && !R.askState.has(t)) R.askState.set(t, dead[t]);
         dead[t] = gone ? 1 : 0;
         if (cov && !gone && (span || vx(a) || vx(b) || vx(c))) held[t] = 1;
       }
@@ -887,7 +890,7 @@
   // its places mode, read back behind a fence - a frame old). Wp: the drawer's places (3 floats each, less a common
   // origin: only differences are read), p0 the record's first place there; base: the record's rest, read at each place's
   // first vertex (the copies are the same place)
-  function tearPlaces(R, Wp, p0, base, heldAt) {
+  function tearPlaces(R, Wp, p0, base, heldAt, askState) {
     if (!R.watch || (R.noTear && !R.tubeTear && !R.sheetTear && !R.shellTear)) return 0;   // (tear()'s own rule: G1859)
     placesOf(R);
     // (G1859.3, DMG-WALL: a drawn tube tears past 1.2 x + 3 mm, sheet metal past 1.4 x + 2 cm, fabric at TEAR / TEAR_ABS - over())
@@ -907,12 +910,18 @@
       const rx = base[va] - base[vb], ry = base[va + 1] - base[vb + 1], rz = base[va + 2] - base[vb + 2], m = HELD * Math.sqrt(rx * rx + ry * ry + rz * rz) + TEAR_ABS;
       return dx * dx + dy * dy + dz * dz <= m * m; };
     let n = 0;
-    for (let j = 0; j < Wt.length; j++) {
-      const t = Wt[j]; if (dead[t]) continue;
-      const a = plOf[i0[t * 3]], b = plOf[i0[t * 3 + 1]], c = plOf[i0[t * 3 + 2]];
+    const judge = t => { const a = plOf[i0[t * 3]], b = plOf[i0[t * 3 + 1]], c = plOf[i0[t * 3 + 2]];
       if (H && H[t] ? !(okH(a, b) && okH(b, c) && okH(a, c)) && ++R.heldTorn
-                    : !(ok(a, b) && ok(b, c) && ok(a, c))) { dead[t] = 2; idx[t * 3] = idx[t * 3 + 1] = idx[t * 3 + 2] = i0[t * 3]; n++; }
+                    : !(ok(a, b) && ok(b, c) && ok(a, c))) { dead[t] = 2; idx[t * 3] = idx[t * 3 + 1] = idx[t * 3 + 2] = i0[t * 3]; n++; } };
+    // (DMGSKINGPU-GREEN: the deferred tear judges every triangle AS THE SAMPLE SAW IT - askState, the state an event changed
+    // since. One an event marked gone since (dead 1) was live at the sample and is judged - torn for good if it stretched
+    // past its bound there, as the CPU tore it that frame; else the next event could bring it back untorn, drawn hundreds of
+    // frames where the CPU's has a hole (master: the Cub's nose-in, 205 frames). One brought back since was not live then)
+    for (let j = 0; j < Wt.length; j++) {
+      const t = Wt[j]; if (dead[t] || (askState && askState.has(t) && askState.get(t) !== 0)) continue;
+      judge(t);
     }
+    if (askState) for (const [t, st] of askState) if (st === 0 && dead[t] === 1) judge(t);
     R.torn += n; R.removed += n;
     return n;
   }
