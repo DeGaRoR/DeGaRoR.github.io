@@ -340,12 +340,19 @@ function prepareLid(){
                              [v0, v0+sv*Lh*a1c, end+(v0-end)*a2c, end])};
   };
   const kT=eDeckH(), kB=eKeelH();
+  // A SHAPED RING'S HEIGHTS ARE THE AXIS'S, NOT THE BARREL'S (PROPER-COWLS, the user, 8 Nov: "the little protrusion at
+  // the bottom fore end ... like a little beard. It needs to be smooth"). The lines are drawn about the local spine,
+  // which climbs by faceRise inside the bowl; a ring reaching 0.52 m under the propeller is 0.36 m under the barrel's
+  // spine, and a keel aimed at 0.52 dipped 2.6 cm before the bowl lifted it. With a shaped ring the three lines aim at
+  // the ring's real height in the barrel end's frame (fr = the spine's climb) and are carried back to the local spine
+  // in the bowl (sectionAtZ): the bottom rises into the face. Round rings: fr = 0, to the bit.
+  const fr=lidShaped()?(+P.faceRise||0):0;
   // the waist is the height of the widest line; it must return to the axis by
   // the lid end, otherwise the closing ring would not be circular on the cone
   const kW=clamp(eWaist(),-0.85*kB,0.85*kT);
   // PROPER-COWLS V5 (the user, 8 Nov: "you are drawing the top side completely straight ... a little taper ... so that
   // you come and kiss better the top of the prop"): the top line's own bend, as the keel's (absent = the bowl's pair)
-  const T=half(kT, P.deckSweep, lidRT(),
+  const T=half(kT, P.deckSweep, lidRT()+fr,
                P.deckShoulder==null?null:clamp(+P.deckShoulder,0,0.92), P.deckRound==null?null:clamp(+P.deckRound,0,1));
   // PROPER-COWLS V4 (the user, 8 Nov: "the easing is better but it's not enough ... a Cessna nose is very rounded"):
   // THE KEEL'S OWN BEND. The bowl's shoulder and fullness were one pair for every line, and a cowl whose top must
@@ -353,7 +360,7 @@ function prepareLid(){
   // its own, and it leaves the barrel LEVEL (the fuselage's bottom line carried on, not the taper's straight slope):
   // the shoulder is how long it stays level, the fullness how round it arrives - a quarter-ellipse into the face.
   // Absent (null) = the bowl's pair, to the bit.
-  const K=half(kB, P.keelSweep, lidRB(),
+  const K=half(kB, P.keelSweep, lidRB()-fr,
                P.keelShoulder==null?null:clamp(+P.keelShoulder,0,0.92), P.keelRound==null?null:clamp(+P.keelRound,0,1),
                P.keelShoulder!=null);   // its own bend leaves the firewall level and rounds up into the face
   // PROPER-COWLS (2026-11-08): `waistF` - THE WIDEST LINE'S HEIGHT AT THE BARREL END, as a fraction of the front's
@@ -362,11 +369,11 @@ function prepareLid(){
   // firewall's waist to the front's (the fuselage's waistline carried on). Absent (null) = `waist`, to the bit.
   const kWf=(P.waistF==null)?kW:clamp(+P.waistF,-0.85*kB,0.85*kT);
   let W;
-  if(kWf===kW) W=half(kW, P.waistSweep, 0);
+  if(kWf===kW) W=half(kW, P.waistSweep, fr);
   else {
     const z0=cl-clamp(P.waistSweep,0,0.95)*cl, Lh=ze-z0;
     const yA=kW*h0, yF=kWf*h1, v0=lerp(yA,yF,z0/cl), sv=(yF-yA)/cl;
-    W={z0, k:kW, kF:kWf, yA, yF, c:mkCurve([z0, z0+Lh*c1, ze-Lh*0.05, ze], [v0, v0+sv*Lh*c1, (v0)*c2, 0])};
+    W={z0, k:kW, kF:kWf, yA, yF, c:mkCurve([z0, z0+Lh*c1, ze-Lh*0.05, ze], [v0, v0+sv*Lh*c1, fr+(v0-fr)*c2, fr])};
   }
   LID={pz,A,T,K,W,cl};
 }
@@ -406,7 +413,8 @@ function sectionAtZ(z){
   const hLin=lerp(P.aftH,P.aftH*P.taperH,clamp(z/cl,0,1));
   let bT = z<=LID.T.z0 ? LID.T.k*hLin : Math.max(LID.T.c.at(z),0.003);
   let bB = z<=LID.K.z0 ? LID.K.k*hLin : Math.max(LID.K.c.at(z),0.003);
-  const yw = z<=LID.W.z0 ? (LID.W.kF==null ? LID.W.k*hLin : lerp(LID.W.yA,LID.W.yF,clamp(z/cl,0,1))) : LID.W.c.at(z);
+  let yw = z<=LID.W.z0 ? (LID.W.kF==null ? LID.W.k*hLin : lerp(LID.W.yA,LID.W.yF,clamp(z/cl,0,1))) : LID.W.c.at(z);
+  if(z>cl&&lidShaped()){ const sh=cy-P.lidRise; bT=Math.max(bT-sh,0.003); bB=Math.max(bB+sh,0.003); if(z>LID.W.z0) yw-=sh; }
   const si=seamInset(z);
   if(si){ a=Math.max(a-si,0.003); bT=Math.max(bT-si,0.003); bB=Math.max(bB-si,0.003); }
   return {a,bT,bB,nT,nB,cy,yw:clamp(yw,-bB*0.9,bT*0.9),b:bT,wT,wB};
