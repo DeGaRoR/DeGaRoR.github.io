@@ -312972,3 +312972,6 @@ GATE SHADOWSKY row "4 clouds: a stale depth nearer than the first deck is sky" w
 Moved by LOOK-1 2a (bbc115dda, landed L32f): the clouds' march takes the per-frame Halton sub-texel ray `dr` (uMJ, on when uMT.x > 0.5)
 instead of `d`. The stale-depth rule itself is unchanged: thru = tScene < deckEntry(o, d), such a texel is marched to 1e9 and its key is the far plane.
 Re-pin: the regex reads march(o, dr?, thru ? 1e9 : tScene, uDials2.x) - the same assertion, on either ray. SHADOWSKY PASS.
+
+## SKINMAT RE-PINNED - THE FINISH CLICK'S CHECK FOLLOWS WEAR-TAB (A0 8 Nov, MASTER-GREEN)
+Red on master since WEAR-TAB 48056ffbe (5 Nov): the editor's click-to-row line became `const finSec = (view === 'finish' || view === 'wear') && ...` (the wear rows moved out of finish with their keys), so a click lands on the struck section's row in either view - the behaviour kept, the pin's literal stale. test_skinmat.js now pins the widened line. SKINMAT PASS; the row lookup broken by hand (`e.dataset.sec === finSec` dropped) -> "FAIL finish: a click on a surface ..." caught, restored.
