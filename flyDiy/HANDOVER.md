@@ -313100,3 +313100,37 @@ flydiy-notes/briefs/sea-*-cloud-2026-11-08.md, retract-robust-cloud-2026-11-08.m
   mk_sea (SEA-AMPHIB's first finding), the amphibious floats flown or only drawn, the retract cut rules, the
   Petrel's composite hull that never cracks behind the cabin (the user's crash photos: it must - Deform's campaign),
   the browser bar (a water circuit, the same on land, land to sea) in the daily slot 06:00-07:30.
+
+### SEAPLANES-LAND 8 Nov eve: the L35c re-push - the testers' gate reds fixed, three player-visible leaks closed, the card bake
+
+The three [CLOUD] testers (SEA-PETREL, SEA-AMPHIB, RETRACT-ROBUST; reports on claude/*-findings) found four L35c items
+on claude/ready/seaplanes 4c60b5192. Fixed here (tools only, no physics, no key moves; PHYSICS_V / GEN_SPEC_V untouched):
+- ACCEPT (SEA-PETREL F3): `_accept_check.js` app.js regex allows RETRACT's `hudGear();` beside hudWind.
+- DMGSKINGPU (F5): `_dmg_skingpu_check.js` the link-rods window ends at the `// G240` comment (the gear-fold block had
+  pushed the 6th brkWhole skip out of a fixed 400-character window).
+- STOL (F4), two causes: (a) the load door writes the 12 hull rows at their off value - `_stol_check.js` drops them
+  (HULL_ROW_OFF, checked against C.genStolCageOff) as it drops its own rows; (b) the user's HULL-B50 (d) carbon / glass
+  recalibration moves motorglider, etrainer, archaeopteryx, da62 - `stol_baseline.json.gz` gains FIX.b50 rows for
+  those cards ONLY (the recorder refuses to write if any card not framed in carbon or glass moved: none did; the gate
+  refuses a b50 row on any other frame). Section 9 runs its three legs in sequence under GATES_JOBS=1.
+- LEAK 1 (RETRACT-ROBUST X3): the Skymaster-alike starter card was born retractable with the switch off (and struck a
+  prop at rest). Its retract rows move from `over.cage` to `labCage`, which designFull applies only when SEA_LAB().
+  The one place a birth recipe reads the switch: off = L35a's fixed-gear Skymaster; node and the dev toggle keep the
+  lab's retract one. Its prop strike in the lab is C7 (this week).
+- LEAK 2 (found by STOL on this run): the Wing tips row showed HULL-B54's 9th tile "Upturned" with the switch off. Now
+  `hide: () => !SEA_LAB()` (design_flow tileGrid honours it; a saved upturned tip still shows); STOL checks it hidden.
+- THE CARD BAKE (every ARCHETYPE through _bake_joined bakeCard + buildGen, switch OFF, vs master L35a 1bcd01d3e;
+  scratchpad cards_off.js): with HEAD's own _cage_design.js vs this one, ONE card differs: the Skymaster, now back to
+  L35a's build (def equal, 1049.713 kg). Switch ON: 0 of 32 differ (labCage = the old over.cage). Against L35a, the
+  differences that remain are the merge's own, already in 4c60b5192 and named here: (1) all 32 carry the 12 hull rows
+  at their off value (inert: the row dump 0 differ); (2) LOOK: floatplane, twinBush, p38, fourEngine wear the pod
+  nacelle (fitNose 2 + NACELLE_POD) = HULL-B9 / G3915, the user's 4 Nov "the wing nacelles (Twin, Four) wear the same
+  rows", masses within 0.1 kg; (3) the HULL-B50 (d) carbon cards (motorglider 284.8 -> 242.9 kg, etrainer,
+  archaeopteryx, da62); (4) G116's bracing (pusherPod and the strut twins, under 0.12 kg). A0 8 Nov: (1)-(4) are intended (the user asked for each) and ship as named; the nacelles get no extra gating.
+- LEAK 3 (A0's call): the pilot menu's 'forgets the gear' knob (RETRACT-1, PILOT_PROFILE_KNOBS gearForget) is skipped
+  in app.js's knob loop while CAGE_RETRACT_LAB() is off; the profile still clamps and carries it (inert on fixed gear).
+- GATES (box, 1 process, nice'd, inside A0's ride): STOL PASS (612 s; the first run, before the Upturned hide, FAILED on exactly that check: 571 s); ACCEPT and DMGSKINGPU static checks (the regex
+  matches the merge's app.js and master's; 6 skips).
+- OPEN for the testing week: flydiy-notes/seaplanes-testing-week-plan-2026-11-08.md (C1-C8; the user's answers D':
+  retract verdict GO + V13, amphibious floats flown, wheel water on hydro builds, the Petrel's geometry frozen and its
+  porpoise found in the hydro / pilot; a video Monday 06:45). B1 (TOUR ends a leg on a capsize) rides L35d on its own.
