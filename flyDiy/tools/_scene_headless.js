@@ -77,6 +77,9 @@ function makeContext(opts) {
     const m = /\(\(\) => \{\s*'use strict';\s*const FLAT = new Map\(\);[\s\S]*?G\.TEX_FLAT = texFlat;\s*\}\)\(\);/.exec(A);
     if (m) vm.runInContext(m[0], ctx, { filename: 'assets.js#TEX_FLAT' });
   }
+  // ASSETS-GREEN (8 Nov): THE MATERIAL LIBRARY (src/viewer/matlib.js) - the page loads it before the editor's files, and
+  // the seat library's plain material (tools/_seat_gen.js, the flat view's) is made there now (GATE ASSETS MATS)
+  vm.runInContext(fs.readFileSync(path.join(T, '..', 'src', 'viewer', 'matlib.js'), 'utf8'), ctx, { filename: 'matlib.js' });
   const { MANIFEST } = require(path.join(T, 'build.js'));
   const skip = new Set([...EXCLUDE, ...((opts && opts.exclude) || [])]);
   const loaded = [], errors = [];

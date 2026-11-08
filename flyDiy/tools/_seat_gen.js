@@ -155,7 +155,7 @@ function matOwn(finish, tint, o) {
   }
   if (!m) {
     const row = (A && A.AERO_FINISH && A.AERO_FINISH[finish]) || {};
-    m = new THREE.MeshStandardMaterial({ color: tint, roughness: row.rough != null ? row.rough : 0.6,
+    m = (typeof MATLIB !== 'undefined' ? MATLIB : require('../src/viewer/matlib.js')).make(THREE, 'std', { color: tint, roughness: row.rough != null ? row.rough : 0.6,
                                          metalness: row.metal != null ? row.metal : 0 });
   }
   MAT_POOL.set(pk, m);

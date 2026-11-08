@@ -2135,7 +2135,7 @@
     const pos = new Float32Array(ids.length * 3);
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     geo.setIndex([0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7]);
-    const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({  // pre-ok: colorWrite false (the next line)
+    const mesh = new THREE.Mesh(geo, (typeof MATLIB !== 'undefined' ? MATLIB : require('./matlib.js')).make(THREE, 'basic', {  // pre-ok: colorWrite false (the next line)
       colorWrite: false, depthWrite: false, side: THREE.DoubleSide }));
     mesh.castShadow = true; mesh.frustumCulled = false;
     craft.add(mesh);
@@ -3540,7 +3540,7 @@
             picks.push({ obj: pg, key: mp[1] === 'throttle' ? 'thr' : mp[1] });
             if (mp[1] !== 'throttle') {
               const pad = new THREE.Mesh(new THREE.SphereGeometry(mp[1] === 'flap' ? 0.05 : 0.035, 8, 6),
-                new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, colorWrite: false }));  // pre-ok: colorWrite false
+                (typeof MATLIB !== 'undefined' ? MATLIB : require('./matlib.js')).make(THREE, 'basic', { transparent: true, opacity: 0, depthWrite: false, colorWrite: false }));  // pre-ok: colorWrite false
               pad.userData.pickPad = 1;
               pad.visible = false;     // C4b (G875): the ray answers it unshown (cockpit.js padSwitches says why)
               if (mp[1] === 'flap') pad.position.set(0, 0.22, 0.14);   // up the lever, where the grip is
@@ -7046,7 +7046,7 @@
       const F = fx.F, n = F.panels.length;
       const g = new THREE.BufferGeometry();
       g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(n * 9), 3));
-      const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: 0xd8d2c2, roughness: 0.55, metalness: 0.05, flatShading: true, side: THREE.DoubleSide }));
+      const m = new THREE.Mesh(g, (typeof MATLIB !== 'undefined' ? MATLIB : require('./matlib.js')).make(THREE, 'std', { color: 0xd8d2c2, roughness: 0.55, metalness: 0.05, flatShading: true, side: THREE.DoubleSide }));
       m.frustumCulled = false; m.castShadow = true; m.receiveShadow = true;
       m.userData.fx = fx;
       craft.add(m); floatMeshes.push(m);
@@ -13164,7 +13164,7 @@
       // G3906b: a GL line is one device pixel - a hairline at a phone's DPR. Each segment a square prism 6 cm across (the
       // posts read at 360 px), one geometry, one material kept for the page (disposing it would re-link its program on the
       // next build - G1027's trap; one link on the first build is the phone's cost)
-      gIndMeshMat = gIndMeshMat || new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide });  // pre-ok: the garage's design aid (P = 1 there)
+      gIndMeshMat = gIndMeshMat || (typeof MATLIB !== 'undefined' ? MATLIB : require('./matlib.js')).make(THREE, 'basic', { vertexColors: true, side: THREE.DoubleSide });  // pre-ok: the garage's design aid (P = 1 there)
       gInd = new THREE.Mesh(prismGeo(V, C, 0.06), gIndMeshMat);
       g.dispose();
     } else gInd = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ vertexColors: true }));

@@ -57,7 +57,7 @@ var HANGAR_VIEW = (() => {
 
     // ---- THE ROOM'S MESHES (the shed frame; app.js adds `group` to the room's group) -----------------------------
     const faceU = () => ({ uF: { value: basis.map(b => b.F) }, uU: { value: basis.map(b => b.U) }, uR: { value: basis.map(b => b.R) } });
-    const viewMat = near => new THREE.ShaderMaterial({
+    const viewMat = near => (typeof MATLIB !== 'undefined' ? MATLIB : require('./matlib.js')).make(THREE, 'shader', {
       uniforms: Object.assign(faceU(), { uCol: { value: null }, uDist: { value: null }, uC: { value: V3() }, uFar: { value: S.far },
         uHalf: { value: 0.5 / S.N }, uHalfD: { value: 0.5 / S.n }, uJump: { value: S.jump }, uLin: { value: 0 }, uK: { value: 1 } }),
       defines: near ? { HV_NEAR: '' } : {},
@@ -119,13 +119,13 @@ var HANGAR_VIEW = (() => {
     const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), null); quad.frustumCulled = false;
     const qScene = new THREE.Scene(); qScene.add(quad);
     const qCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-    const blitMat = new THREE.ShaderMaterial({ uniforms: { uT: { value: null }, uLin: { value: 0 } }, vertexShader: QUAD_VERT,
+    const blitMat = (typeof MATLIB !== 'undefined' ? MATLIB : require('./matlib.js')).make(THREE, 'shader', { uniforms: { uT: { value: null }, uLin: { value: 0 } }, vertexShader: QUAD_VERT,
       fragmentShader: 'uniform sampler2D uT; uniform float uLin; varying vec2 vUv; void main() { vec3 c = max(texture2D(uT, vUv).rgb, vec3(0.0));' +
         ' if (uLin > 0.5) c = pow(c / (vec3(1.0) + c), vec3(1.0 / 2.2)); gl_FragColor = vec4(c, 1.0); }',
       depthTest: false, depthWrite: false, toneMapped: false });
     // the depth buffer to metres along the ray: reversed float ([0, 1], near at 1: w = f n / ((f - n) d + n)) or the
     // logarithmic buffer (d = log2(1 + w) / log2(far + 1)); the face's 90 degrees take w to the distance
-    const distMat = new THREE.ShaderMaterial({ uniforms: { uD: { value: null }, uDZ: { value: new THREE.Vector3(RZ ? 1 : 0, S.near, S.far) } }, vertexShader: QUAD_VERT,
+    const distMat = (typeof MATLIB !== 'undefined' ? MATLIB : require('./matlib.js')).make(THREE, 'shader', { uniforms: { uD: { value: null }, uDZ: { value: new THREE.Vector3(RZ ? 1 : 0, S.near, S.far) } }, vertexShader: QUAD_VERT,
       fragmentShader: `uniform sampler2D uD; uniform vec3 uDZ; varying vec2 vUv;
         void main() {
           float d = texture2D(uD, vUv).r, n = uDZ.y, f = uDZ.z;
