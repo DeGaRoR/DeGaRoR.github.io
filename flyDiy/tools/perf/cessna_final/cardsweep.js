@@ -6,9 +6,11 @@ const fs = require('fs'), path = require('path'), crypto = require('crypto');
 const ROOT = path.resolve(__dirname, '..', '..', '..'), T = path.join(ROOT, 'tools');
 const [coreF, outF] = process.argv.slice(2, 4);
 process.env.FLYDIY_CORE = path.resolve(coreF);
-const L = require(path.join(T, '_treecrash_lib.js')), C = L.core();
+// (the panel FIRST: it sets the window the cage files run in, and a require is cached - loaded after the core's own
+// window, CAGE2 would never reach the panel's)
 const LB = require(path.join(T, '_load_build.js')), BJ = require(path.join(T, '_bake_joined.js'));
 const { D } = BJ.loadPanel();
+const L = require(path.join(T, '_treecrash_lib.js')), C = L.core();
 const out = {};
 for (const a of D.ARCHETYPES) {
   try {
