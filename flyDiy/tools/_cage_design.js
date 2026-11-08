@@ -1422,6 +1422,7 @@ const DESIGN_ROWS = [
                     'winglet', 'endplate', 'drooped', 'upturned'].map((k, i) => ({
       value: i, label: ((gTips() || {})[k] || { name: k }).name,
       icon: iconTip(k), writes: { cage: { wgTip: i } },
+      ...(k === 'upturned' ? { hide: () => !SEA_LAB() } : {}),   // SEA-OFF: HULL-B54's tip behind the lab switch
       ...(stolLock(k) ? { inactive: stolLock(k) } : {}) })) },
 
   // NEW-PLANE: THE WING SHAPE, AS A STARTER (WING_ARCH above) - the finArch idiom on the wing's own rows: once (no
@@ -3021,9 +3022,11 @@ const ARCHETYPES = [
     over: { cage: Object.assign({}, PLAN_TAPER, { boomX: 1.25, boomLen: 3.2,
                                                    boomWf: 0.24, boomHf: 0.34,
                                                    boomWa: 0.16, boomHa: 0.22, boomNoseLen: 0.7,
-                                                   stSpan: 1.2, stChord: 1.1, wgDx: -0.5,
-                                                   gearRetract: 1, gearFold: 3, gearShort: 0.3, gearShortNose: 0.3,
-                                                   s1X: 0.43, s1Z: 1.7, s1R: 0.17, floorY: -0.25 }),
+                                                   stSpan: 1.2, stChord: 1.1, wgDx: -0.5 }),
+            // SEA-OFF (SEAPLANES-LAND 8 Nov, RETRACT-ROBUST X3): the 337's gear is the RETRACT-LAB's - off, the card is
+            // master's to the row (fixed gear, master's mains and floor); on (node, the rigs, ?retract=lab) the gear above
+            labCage: { gearRetract: 1, gearFold: 3, gearShort: 0.3, gearShortNose: 0.3,
+                       s1X: 0.43, s1Z: 1.7, s1R: 0.17, floorY: -0.25 },
             spec: { finish: { decals: { m1On: 1, m1Pat: 0, m1A: 0x1b3a5c,
                                         m1B: 0xefe6cf, m1D: 0x1b3a5c } } } } },
   { key: 'p38', kind: 'recreation', name: 'P-38-alike', note: 'a puller a boom, ' +
@@ -3310,6 +3313,8 @@ function designFull(sel, over) {
       cage[k] = v; work[k] = v;
     }
   }
+  // SEA-OFF: a card's RETRACT-LAB rows (labCage) only with the lab switch on
+  if (over && over.labCage && SEA_LAB()) for (const k in over.labCage) cage[k] = over.labCage[k];
   const full = Object.assign(base, cage);
   if (!stock && 'engPreset' in cage && W.CAGE_ENG_APPLY_PRESET) {
     const nm = designPresetNames()[Math.round(cage.engPreset)];

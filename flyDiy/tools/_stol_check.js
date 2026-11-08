@@ -93,6 +93,9 @@ const CARDS = FIX.cards;
 // the wing layer's defaults for the STOL rows (tools/_cage_wing.js PAGE.defaults)
 const STOL_ROW_DEFAULTS = require(path.join(T, '_stol_fp.js')).STOL_ROW_DEFAULTS;   // (one table: the capture drops the same rows)
 const RHO = C.RHO;
+// SEAPLANES-LAND: the hull-types branch's cage rows at their "off" (src/core/60_gen_spec.js GEN_HULL_ROW_OFF)
+const HULL_ROW_OFF = { bpStrutK: 1, bpCabDraw: 1, bpCabPylon: 0, engPylonFair: 0, engPylonForm: 0, engPylonAt: 0, engPylonAft: 0.15,
+                       engPylonFwd: 0, engFinAt: 0.55, engFinFwd: 0, engNacOver: 0, engNacLift: 0 };
 
 // ---- the instruments ------------------------------------------------------
 // G2821: ONE SOURCE with the capture (tools/_stol_fp.js) - the fixture and the
@@ -132,13 +135,20 @@ if (!BENCH_ONLY) {
 console.log('1. OFF IS THE BITS (' + Object.keys(CARDS).length + ' cards against ' + 'fixtures/stol_baseline.json.gz)');
 {
   const bad = [];
+  // HULL-B50 (the user, 8 Nov: "make this carbon worth it"; option d, no version bump): the carbon and glass frame rows
+  // were recalibrated, so a card FRAMED in carbon or glass builds to its own recorded bits (FIX.b50, recorded on the
+  // seaplanes merge); every other card is master's. Only a carbon / glass frame may hold a b50 row.
+  const B50 = FIX.b50 || {}, matOf = s => s && (s.material || (s.fuselage && s.fuselage.material));
+  const b50Bad = Object.keys(B50).filter(k => !CARDS[k] || ['carbon', 'glass'].indexOf(matOf(CARDS[k].spec)) < 0);
   for (const k of Object.keys(CARDS)) {
     const def = C.buildGen(clone(CARDS[k].spec));
-    const d = fpDef(def), f = fpFly(def), w = fpDraw(def);
-    if (d !== CARDS[k].def || f !== CARDS[k].fly || w !== CARDS[k].draw)
-      bad.push(k + (d !== CARDS[k].def ? ' def' : '') + (f !== CARDS[k].fly ? ' fly' : '') + (w !== CARDS[k].draw ? ' draw' : ''));
+    const d = fpDef(def), f = fpFly(def), w = fpDraw(def), R = B50[k] || CARDS[k];
+    if (d !== R.def || f !== R.fly || w !== R.draw)
+      bad.push(k + (d !== R.def ? ' def' : '') + (f !== R.fly ? ' fly' : '') + (w !== R.draw ? ' draw' : ''));
   }
-  ok(!bad.length, 'every card builds, flies 4 s and draws to the bit master ' + (FIX.master || '') + ' did' + (bad.length ? ': ' + bad.join(', ') : ''));
+  ok(!bad.length && !b50Bad.length, 'every card builds, flies 4 s and draws to the bit master ' + (FIX.master || '') + ' did' +
+     (Object.keys(B50).length ? ' (the carbon / glass frames to HULL-B50\'s: ' + Object.keys(B50).join(' ') + ')' : '') +
+     (bad.length ? ': ' + bad.join(', ') : '') + (b50Bad.length ? '; a b50 row on a card not framed in carbon or glass: ' + b50Bad.join(' ') : ''));
   const vm = require('vm');
   const m = { exports: {} };
   vm.runInNewContext(fs.readFileSync(path.join(T, '..', 'src', 'viewer', 'bench.js'), 'utf8'),
@@ -175,6 +185,12 @@ console.log('1. OFF IS THE BITS (' + Object.keys(CARDS).length + ' cards against
       }
       const atDef = Object.keys(rowsAt).every(r => J2.cage && J2.cage[r] === rowsAt[r]);
       for (const r of Object.keys(rowsAt)) if (J2.cage) delete J2.cage[r];
+      // SEAPLANES-LAND: the hull-types rows the load door writes at their "off" (the core's GEN_HULL_ROW_OFF, proved the
+      // same table below: genStolCageOff drops every one of them) go as the STOL rows go
+      if (k === Object.keys(BUILDS)[0])
+        ok(Object.keys(C.genStolCageOff(Object.assign({}, HULL_ROW_OFF))).length === 0,
+           'the hull-types rows\' "off" here is the core\'s (genStolCageOff drops all ' + Object.keys(HULL_ROW_OFF).length + ')');
+      for (const r of Object.keys(HULL_ROW_OFF)) if (J2.cage && J2.cage[r] === HULL_ROW_OFF[r]) delete J2.cage[r];
       const sameSpec = atDef && JSON.stringify(J2) === JSON.stringify(B.spec);
       // G2827: EVERY key the game hashes a build by is master's - the certificate (against the page's defaults), the
       // parked fleet's bakes (no defaults: parked.js fleetSig), the certificate store's (genCertKey), the procurement's
@@ -272,8 +288,11 @@ console.log('2. THE SPEC');
        && os.every(o => Object.keys(o.writes.cage).length === 1),
        `the ${k} tiles are the row's twin and write it alone, every value (${vals.join(' ')})`);
   }
-  ok(rowOpts('wgTip').length === 8 && rowOpts('wgTip')[6].label === 'Endplate' && rowOpts('wgTip')[7].label === 'Drooped',
-     'the Wing tips row offers Endplate and Drooped, in table order');
+  // HULL-B54 appends the upturned tip (index 8), hidden while the lab switch is off (SEA-OFF)
+  const tipLab = () => { const w = typeof window !== 'undefined' ? window : null, was = w && w.CAGE_RETRACT_LAB;
+    if (w) w.CAGE_RETRACT_LAB = () => false; try { const o = rowOpts('wgTip')[8]; return !!(o && o.hide && o.hide()); } finally { if (w) w.CAGE_RETRACT_LAB = was; } };
+  ok(rowOpts('wgTip').length === 9 && rowOpts('wgTip')[6].label === 'Endplate' && rowOpts('wgTip')[7].label === 'Drooped' && tipLab(),
+     'the Wing tips row offers Endplate and Drooped, in table order (and the lab upturned tip hidden with the switch off)');
 }
 
 console.log('3. THE PHYSICS (the Savannah-alike, as baked)');
@@ -751,7 +770,9 @@ if (!BENCH_ONLY) {
   // the three legs side by side, each into its .out, waited for: node is the launcher (A0 3 Nov: shell '/bin/bash' threw
   // ENOENT under the Windows node - the box has no /bin/bash, the section never ran there)
   const jobs = Object.keys(LEGS).map(k => ({ args: [RUN, FXS, ...LEGS[k]], out: path.join(dir, k + '.out') }));
-  cp.execFileSync(process.execPath, ['-e', "const cp = require('child_process'), fs = require('fs');" +
+  // GATES_JOBS=1 (a shared box, the riders' one-process rule): the three legs one after the other, the same files
+  if (process.env.GATES_JOBS === '1') for (const j of jobs) { const fd = fs.openSync(j.out, 'w'); try { cp.execFileSync(process.execPath, j.args, { stdio: ['ignore', fd, fd] }); } catch (e) {} finally { fs.closeSync(fd); } }
+  else cp.execFileSync(process.execPath, ['-e', "const cp = require('child_process'), fs = require('fs');" +
     'for (const j of ' + JSON.stringify(jobs) + ") { const fd = fs.openSync(j.out, 'w'); cp.spawn(process.execPath, j.args, { stdio: ['ignore', fd, fd] }).on('exit', () => fs.closeSync(fd)); }"],
     { stdio: 'inherit' });
   const R = {};
