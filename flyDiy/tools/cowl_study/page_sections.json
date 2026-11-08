@@ -1,0 +1,49 @@
+[
+  { "id": "tiger", "tag": "Point 1 · Tiger Moth", "title": "The Tiger Moth: the engine's offset, the in-line's own front, the engine 8 cm lower",
+    "html": "<p>Two faults stacked. The Gipsy sits 0.21 m above the cowl's axis through the engine's own <code>engY</code>, which the cowl never read, so today's spinner stands over the cowl's ring and the engine's top pokes out above it. The rule now folds <code>engY</code> into the cowl's axis: the ring is on the propeller, and nothing flown moves. The engine is correct: an inverted in-line (cylinders down), 0.13 m above its shaft and 0.495 m below. So the front is centred on the engine's own box, tall and narrow, with the boxy section of the in-line pod you liked.</p><p><b>The engine 8 cm lower</b> (your call, a flown change), against the REAL-FIGURES reference (<code>real_check.js --quick</code>, DH.82A): every verdict stays as it is (Vmax 168 km/h inside, V75 inside, the climb 2.89 m/s near, the stall inside). The static margin gains a point at the light and gross loads (6 → 7 %, 4 → 5 %), and the build's join error <i>propeller through the body (15 points)</i> is gone. I have not changed the candidate's file: say if you want it.</p>",
+    "strips": [
+      { "title": "Tiger Moth-alike", "note": "today · the rule (engine where it is) · the rule, engine 8 cm lower", "cells": [["body", "tiger_today", "Today"], ["body", "tiger_rule", "The rule"], ["body", "tigerlow_rule", "The rule, engine 8 cm lower"]] }
+    ] },
+  { "id": "crease", "tag": "Point 2 · the waist's crease", "title": "The firewall's section fitted to the cabin: roundness above, roundness below, the waist where the body is widest",
+    "html": "<p>The E-811 card's body is round-topped (<code>topRound</code> 1), so its waistline (<code>waistY</code>) sits only 8 cm under the nose deck, and a cowl full-width up to there turned a tight, square corner. The firewall's section is now fitted to the fuselage's measured outline just behind the face, with the cowl's own law: the waist, the roundness above and the roundness below. A flat-sided nose keeps the plane's waistline (your rule). A round-topped cabin (<code>topRound</code> ≥ 0.5) and a pusher's aft face are fitted where they are really widest. Roundness stays between 0.35 and 0.95, the range of your own cowls. The E-811's waist goes from 0.76 to 0.15 of the half-height.</p>",
+    "strips": [
+      { "title": "twinBoomFail (E-811)", "note": "3/4 front · the second view head-on (the button above)", "cells": [["body", "tboom_today", "Today"], ["body", "tboom_rule", "The rule"]] }
+    ] },
+  { "id": "front", "tag": "Point 3 and point 7 · what poked through", "title": "Pods sized to the drawn engine, full section to the spinner, the propeller a little forward",
+    "html": "<p>The pods were sized to the engine's envelope, and the drawn engine is bigger: the O-320's top hardware by 6 cm, the Rotax 915's by 13 cm (the poking at the top). A pod now takes the drawn engine's top and sides between its back and the flange (exhaust stubs may still leave underneath, as on real nacelles). It holds its full section all the way to the spinner and closes in front of it: the propeller moves forward by the lip (4-12 cm), and the engine layer's shaft bridges the gap. Flown numbers identical.</p>",
+    "strips": [
+      { "title": "Boxer pod (O-320)", "note": "", "cells": [["pods", "flat_today", "Today"], ["pods", "flat_straight", "Straight pod"]] },
+      { "title": "Rotax 915 iS pod", "note": "", "cells": [["pods", "rotax_today", "Today"], ["pods", "rotax_straight", "Straight pod"]] }
+    ] },
+  { "id": "radial", "tag": "Point 4 · radial", "title": "A helmet over each cylinder, where the drawn engine puts them",
+    "html": "<p>The cheeks row now takes 3 to 14: one bump per cylinder of a radial, evenly round from the first one's azimuth (1 and 2 are the cheeks they always were, to the bit). The study tool reads the drawn engine: its heads (the vertices at the engine's own enclosing radius), their count, their phase round the crank and their station along the cowl. The barrel is cut to 0.84 of the heads' radius, and each helmet stands 12 mm over its head. On a nose the radial's front is round, the engine's size, to the row's 1.15 × the firewall and no further (this generated nose is smaller than its W-670: noted).</p>",
+    "strips": [
+      { "title": "Radial pod (W-670)", "note": "7 cylinders, 7 helmets", "cells": [["pods", "radial_today", "Today"], ["pods", "radial_straight", "Straight pod"]] },
+      { "title": "Radial on a nose (a generated W-670 card)", "note": "", "cells": [["body", "radial_today", "Today"], ["body", "radial_rule", "The rule"]] }
+    ] },
+  { "id": "electric", "tag": "Point 5 and point 6 · turboprop, electric", "title": "The motor's pod stays tight; its mount plate follows",
+    "html": "<p>What poked out behind the electric pod was the engine's own mounting plate and the mount's spread (±0.31 m), drawn on the nacelle at a fixed 0.20 m whatever the motor. A cowled pod now hands the nacelle its own size (<code>_cage_cowl.js</code> podPlate), so the plate and the mount shrink to the pod. Every other cowl and every cowl-less engine keeps the plate it had. The turboprop is unchanged (the PT6's exhaust stacks pierce its skin, as on a real one).</p>",
+    "strips": [
+      { "title": "Electric pod (E-811)", "note": "", "cells": [["pods", "electric_today", "Today"], ["pods", "electric_straight", "Straight pod"]] },
+      { "title": "Turboprop pod (PT6A-114A)", "note": "", "cells": [["pods", "turbine_today", "Today"], ["pods", "turbine_straight", "Straight pod"]] }
+    ] },
+  { "id": "pylon", "tag": "Point 8 · the over-the-wing nose", "title": "Where the nose without an aero nose came from",
+    "html": "<p>It was my study plane, not the game: I set the engine mount by hand to over-the-wing on a generated nose-engine card, so its nose kept the empty engine nose. In the game, the Engine mount tile's <b>Over the wing</b> writes the aero nose (<code>_cage_design.js</code> NOSE_AERO: a 0.95 nose of four rings, its tip 0.98, drooped 0.10), and so does the new-plane chooser, which goes through that tile. The plane below is rebuilt with the tile's own values.</p>",
+    "strips": [
+      { "title": "Over the wing (Rotax 915 on the pylon)", "note": "the Over the wing tile's own nose", "cells": [["pods", "pylon_today", "Today"], ["pods", "pylon_straight", "Straight pod"]] }
+    ] },
+  { "id": "pusher", "tag": "Point 9 · the pusher's width", "title": "A pusher narrows toward its engine",
+    "html": "<p>Your busher's front is 0.62 of its aft face's width; the rule now narrows a pusher and an in-line toward the engine too (the engine's half-width + 3 cm, never under 0.45 of the face). The busher's propeller line is also its engine's (<code>engY</code> 0.26, the Pusher tile's \"engine top = boom bottom\" rule), so its front is centred up there.</p>",
+    "strips": [
+      { "title": "Twin busher floats 4b", "note": "3/4 rear · side (the button above)", "cells": [["body", "busher_today", "Today"], ["body", "busher_rule", "The rule"]] }
+    ] },
+  { "id": "rest", "tag": "The others", "title": "The rest, with the fitted section and the engine's box",
+    "html": "<p>The same planes as round 2, redrawn with this round's rule.</p>",
+    "strips": [
+      { "title": "Piper Cub", "note": "official · A-65", "cells": [["body", "cub_today", "Today"], ["body", "cub_rule", "The rule"]] },
+      { "title": "Cessna 172", "note": "official · boxer", "cells": [["body", "c172_today", "Today"], ["body", "c172_rule", "The rule"]] },
+      { "title": "Jodel", "note": "official · A-65", "cells": [["body", "jodel_today", "Today"], ["body", "jodel_rule", "The rule"]] },
+      { "title": "STOL Cub", "note": "candidate · Rotax 915 iS", "cells": [["body", "stol_today", "Today"], ["body", "stol_rule", "The rule"]] },
+      { "title": "ugly bi", "note": "candidate · O-200", "cells": [["body", "ugly_today", "Today"], ["body", "ugly_rule", "The rule"]] }
+    ] }
+]

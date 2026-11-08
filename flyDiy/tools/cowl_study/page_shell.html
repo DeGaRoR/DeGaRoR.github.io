@@ -53,14 +53,17 @@ code { font-family: var(--f-mono); font-size: 0.86em; background: var(--sheet); 
 .tag { font: 500 0.7rem var(--f-mono); text-transform: uppercase; letter-spacing: 0.1em; padding: 2px 6px; border-radius: 2px; border: 1px solid var(--rule); color: var(--mute); }
 .tag-official { color: var(--ok); border-color: currentColor; }
 .strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
-.strip.two { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 820px; }
+.strip.two, .strip.n2 { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 820px; }
+.strip.n3 { grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: 1180px; }
+.strip.n1 { grid-template-columns: minmax(0, 1fr); max-width: 420px; }
+.point { display: grid; gap: 14px; }
 .strip.wide { max-width: 1000px; }
 .podrow { display: grid; gap: 8px; padding-top: 14px; border-top: 1px solid var(--rule); }
 .podrow header { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
 figure.pod img { aspect-ratio: 16 / 10; }
 .decide dl { margin-bottom: 14px; }
 @media (max-width: 760px) { .strip { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 460px) { .strip.two { grid-template-columns: 1fr; } }
+@media (max-width: 460px) { .strip.two, .strip.n2, .strip.n3 { grid-template-columns: 1fr; } }
 figure { margin: 0; min-width: 0; }
 figure img { display: block; width: 100%; aspect-ratio: 3 / 4; object-fit: cover; border-radius: 3px; background: #0d0f0e; }
 figcaption { font: 500 0.8rem var(--f-mono); color: var(--mute); padding-top: 4px; }
@@ -90,43 +93,16 @@ ul { margin: 0 0 12px; padding-left: 20px; }
 
 <div class="wrap">
   <div class="col">
-    <div class="eyebrow">flyDiy · PROPER-COWLS · round 2 · 8 Nov 2026</div>
+    <div class="eyebrow">flyDiy · PROPER-COWLS · round 3 · 8 Nov 2026</div>
     <h1>Proper default cowls</h1>
-    <p class="lede">Two cases, as you put them. <b>A cowl on the body</b> (the nose, the pusher's aft bulkhead) starts on the firewall's own section with its widest line on the plane's waistline. Its front is centred on the propeller, shrunk vertically and lifted, so the waistline carries on level. It is narrowed a little, and cheeks come only after that. <b>A cowl off the body</b> (pylon, tower, wing nacelles) is a straight pod sized to the engine, with the engine's own section.</p>
-    <p>Neither moves a flown number: the engine, its propeller and the thrust line stay where the build has them. The joined spec and the shakedown are identical, today against straight, on the C172, the Jodel, the busher and the turboprop pod.</p>
+    <p class="lede">Round 3 answers your notes on round 2, point by point, each as a before and after.</p>
+    <p><b>On the body</b>, the cowl starts on the firewall's own section, its waist on the plane's waistline (fitted to the cabin's roundness where the cabin is round). Its front is centred on the engine, shrunk and lifted so the waistline carries on, and narrowed (toward the engine on an in-line or a pusher). Cheeks or helmets come last. <b>Off the body</b>, a straight pod is sized to the drawn engine. Nothing flown moves, except the Tiger Moth's engine if you want it 8 cm lower.</p>
+    <div class="views" role="group" aria-label="View"><span>View</span><button type="button" id="v34" aria-pressed="true">3/4</button><button type="button" id="vside" aria-pressed="false">second view</button></div>
   </div>
-
-  <section class="decide" id="rule">
-    <div class="eyebrow">The body rule, in numbers</div>
-    <h2>What sets each line, and what your fitted cowls say</h2>
-    <dl>
-      <dt>firewall</dt><dd>the fuselage's own section (its size and squareness, as before)</dd>
-      <dt>waist, aft</dt><dd>on the plane's waistline: the cage's <code>waistY</code> at a nose; on a pusher's aft face, the middle of the band where the pod is widest. Your fitted C172 sits on <code>waistY</code> to 3 mm.</dd>
-      <dt>front centre</dt><dd>the propeller's axis. Your Jodel and C172 are centred on it to 6-13 mm.</dd>
-      <dt>front height</dt><dd>0.70 of the firewall's, never less than the engine, never past the firewall's top or bottom. Yours run 0.64-0.77, the C172 0.36.</dd>
-      <dt>waist, front</dt><dd>level with the aft waist (new row <code>waistF</code>, the widest line's height at the barrel end)</dd>
-      <dt>front width</dt><dd>0.85 of the firewall's, never less than the engine. Yours run 0.79-0.99, the busher 0.62.</dd>
-      <dt>cheeks</dt><dd>only where the drawn engine still stands outside: 4.5 cm on the Cub's A-65 and 6.1 cm on the C172, none on the others</dd>
-    </dl>
-    <p class="rec"><b>One thing I would like from you:</b> the busher's aft face. You fitted it 0.62 wide, I give it 0.85. Should a pusher's front narrow down to the engine (0.62 there), or keep the 0.85 a nose takes?</p>
-  </section>
-
-  <section>
-    <div class="col"><h2>On the body: today against the rule</h2>
-    <p>Lit stills from the game's renderer (<code>plane_shot.js</code>). <b>Today</b> is the build as saved, with your hand-fitted cowls on the official planes. <b>The body rule</b> is the same build with only the cowl's rows changed (<code>tools/cowl_study/straight.js --opt=waist</code>). Saved builds keep their own cowls; this is what a newborn of the same shape would get.</p></div>
-    <div class="views" role="group" aria-label="View"><span>View</span><button type="button" id="v34" aria-pressed="true">3/4 front</button><button type="button" id="vside" aria-pressed="false">side (official planes)</button></div>
-    <!--BODIES-->
-  </section>
-
-  <section>
-    <div class="col"><h2>Off the body: the pod by engine type</h2>
-    <p>One generated high-wing twin, each engine type fitted to its nacelles, today against the straight pod. Today the wing cowl is the nose cowl at the nacelle plate's size (0.16 m), so the engine stands outside it. The pod is the engine's envelope with 2 cm of room, centred on the propeller, with a tail cone. Exhaust stubs come out of the pod on purpose, as on real nacelles.</p></div>
-    <!--PODS-->
-  </section>
-
+<!--SECTIONS-->
   <section>
     <div class="col"><h2>Each engine type on each mount</h2>
-    <p>What a real cowl looks like there, what the new-plane chooser draws today (a generated build per row), and the default proposed. The chooser greys "over the wing" on master and offers no turbine twin.</p></div>
+    <p>What a real cowl looks like there, what the new-plane chooser draws today (a generated build per row), and the default proposed.</p></div>
     <div class="tablewrap"><table>
       <thead><tr><th>Mount</th><th>A real cowl</th><th>Ours today</th><th>The default proposed</th></tr></thead>
       <tbody>
@@ -138,9 +114,9 @@ ul { margin: 0 0 12px; padding-left: 20px; }
   <section class="col">
     <h2>Next</h2>
     <ul>
-      <li>The rule becomes the birth's cowl for every engine type (<code>_new_plane.js cowlPresetFor</code>), and a <b>Straight</b> preset button in the editor. Every value stays an ordinary cowl row.</li>
-      <li>The pod on master's nacelles and pylon. hull-types' pod rows (the inlet, the nacelle sizing) are on that branch only.</li>
-      <li>Saved builds keep their look: a preset only fires on a birth or a button press.</li>
+      <li>The rule becomes the birth's cowl for every engine type (<code>_new_plane.js cowlPresetFor</code>), and a <b>Straight</b> preset button in the editor. Every value stays an ordinary cowl row; saved builds keep their own cowls.</li>
+      <li>The Tiger Moth's engine 8 cm lower in the candidate's file, if you say so.</li>
+      <li>A real intake mouth in the turboprop's skin (the chin is only a deeper bottom so far).</li>
     </ul>
   </section>
 </div>
