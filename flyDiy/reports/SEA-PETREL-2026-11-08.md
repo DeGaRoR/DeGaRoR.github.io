@@ -92,8 +92,17 @@ What the grid says so far (the rows still flying are added on the next push):
 - Flown: HOME > w3, 8 kt, the handle held UP from FINAL: the AP saw the gear not coming down and pulled the emergency
   extension (`gear-emergency: the gear did not come down: the emergency extension`) - the gear came down regardless of
   the handle; the landing was the normal one to the decimal (sink 0.66, run 369 m). Correct pilot behaviour, and it
-  means the handle alone cannot make a gear-up landing. Re-flown with `sim.gearEmergency` disabled (`--noemerg`, a
-  pilot who never gets it down): RESULT PENDING (next push).
+  means the handle alone cannot make a gear-up landing.
+- Re-flown with `sim.gearEmergency` disabled too (`--noemerg`, a pilot who never gets it down): GUMPS goes round twice
+  (`go-around: the gear is not down and locked (attempt 1)`, `(attempt 2)`, an emergency extension tried before each),
+  the third approach lands as it is: `gear-up-landing: on the belly: the gear was not down`. On the hull's belly at
+  ~27 m/s: **0 yields, 0 breaks, no dent, no prop strike (the pusher disc 0.57-0.62 m over the runway), g peak 2.7**,
+  stopped on the strip at t 1131 s, and the tour rig scores the leg OK (no fault; no landing record - `ap.report.landing`
+  is null on a belly). A composite planing bottom slid 100+ m on asphalt with no damage at all: "bad", UNPROVEN either
+  way here (the hull's scrape / skin wear is SEAPLANES' crash work, "never seen before"); the rig should at least say
+  a belly landing is not a pass.
+- Reproduce: `sp_fly.js --order HOME,w3 --wind 8@250 --gear up --noemerg` (40 min here). Browser-needed: the belly
+  landing's look and sound (scrape, sparks?) on the box.
 
 ## Prop strikes: what they are (task 2) - two different mechanisms, neither is the static clearance
 
@@ -179,7 +188,7 @@ route. Evidence: `reports/evidence/SEA-PETREL/diag/*.json` (`hist0` / `strike.st
 | solver frame, ON THE GROUND (flown: taxi, roll) | 2.0 | - | - | **~13 (11-16)** | ~7 (ground vs ground) | - |
 | solver frame at rest on its start (cost.js, 600 frames) | 1.0 | 2.9 | - | **10.8** | 10.8 | 3.8 |
 | certificate (DMGCERTCOST): frames stepped | 1 807 | 1 784 | 1 762 | **1 789** (uncut 3 049) | 0.99 | 1.00 |
-| certificate: node time, the same gate run | 1.0 | 2.0 | 3.0 | **4.7** | 4.7 | 2.4 |
+| certificate: node time, the same gate run (two runs) | 1.0 | 2.0 / 2.3 | 3.0 / 3.1 | **4.7 / 3.1** | 3.1-4.7 | 1.3-2.4 |
 | editor scene (headless, the drawing layers): meshes | 133 | 137 | - | 156 | 1.2 | 1.1 |
 | ... draw calls (upper bound: mesh x material groups) | 159 | 189 | - | 186 | 1.2 | 1.0 |
 | ... triangles | 175.9 k | 177.8 k | - | 153.5 k | 0.87 | 0.86 |
@@ -246,11 +255,26 @@ the µs-per-frame accumulators in sp_fly (`legs[].cost`), every run on a 4-core 
 - Reproduce: `node tools/run_gates.js --only=DMGSKINGPU` (5 min). Node-only.
 - Tip 4c60b519: the same window still holds 5 (checked statically); the full gate re-run on the tip is queued.
 
-### F6 GATE DMGHULL red on 15ad5d669 - master result pending; DMGFABRIC / POD / HANDLE / ENGCONFIG: identical FAIL lines on master (pre-existing, not seaplanes')
-- DMGHULL (base): `FAIL twin on floats hump: the side term is U w x 93.9 kg/m (the small-slip keel's m(TE)), each
-  wetted keel's own constant to 1.08 % over 17 slip angles ...` (one FAIL). Master's run is queued.
+### F6 DMGHULL / DMGFABRIC / POD / HANDLE / ENGCONFIG: red on the base AND on master with the identical FAIL lines - pre-existing, not seaplanes'
+- DMGHULL: `FAIL twin on floats hump: the side term is U w x 93.9 kg/m (the small-slip keel's m(TE)), each wetted
+  keel's own constant to 1.08 % over 17 slip angles ...` (one FAIL, both trees).
+- DMGFABRIC: `FAIL cub t25: damage OFF - the base's bits (a6929aa46172) ...` (stored bits; both trees).
+- POD: `FAIL cub: pod off, the whole def is the base's bytes (95be854c:143346)` ... (stored bytes; both trees).
+- HANDLE: `FAIL bugReports/Twin_busher_floats_2.json: doorHandle/star is on the hinge edge, not opposite it` (+ port).
+- ENGCONFIG: `1 IDENTITY ... digested against master (2c2a74459)`: 9 builds FAIL with the SAME digests on both trees
+  (the base's digests equal master's: the cert identity holds), and `quad level: never wings-level on the downwind` x3.
 
-### F2 GATE JOINPARITY: master 5 FAIL, base 6 FAIL - the extra one is the Petrel row (ENV, as briefed)
+### F7 GATE DMGCERTCOST on the tip 4c60b519: the Petrel's budget row holds; the rest is the cloud box's load (ENV)
+- `Super Petrel: ok 1789 frames stepped (budget 1789; the uncut 3049)`, `ok 80.0 s in node (ceiling 82 s)` (on this
+  shared 4-core box beside 5 other jobs: 2 s under its ceiling - the box's 40.7 / 35.8 s is the real figure),
+  `ok envelope equal to the bit`. The time FAILs on the Cub / Jodel / metal / floats / twin and `the worker's
+  certificate is node's (... 1.1e-8, < 1e-6: the two V8s' last bits)` FAIL on master as well (ENV: the load; the last
+  line pre-existing).
+
+### F2 GATE JOINPARITY: master 5 FAIL, base 15ad5d669 6 FAIL (+ the Petrel row, ENV as briefed); tip 4c60b519 5 FAIL = master's - the Petrel's row PASSES
+- Tip 4c60b519 (run here): `PASS Super Petrel node = page: n 184/184 nb 811/811 mass 591.781/591.781 kg, worst
+  1.89e-15` and `PASS Super Petrel save -> open`. So the aeroplane every flight here flew (591.8 kg, the load door) is
+  the page's. The five FAILs left are master's own (below).
 - Base 15ad5d669: `FAIL the page capture holds every validated build (cub, jodel, metal, floats, twinFloats, petrel)`
   (the capture is 2026-11-04, no Petrel row) + the same five FAILs master has.
 - Master 1bcd01d3 (pre-existing, not seaplanes'): `FAIL Cub node = page: ... mass 476.448/477.395 kg ... FIRST: node 0
