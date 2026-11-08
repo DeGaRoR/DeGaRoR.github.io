@@ -85,6 +85,12 @@ const REFS = {
       LDG:   { v: 550 * FT, tol: 0.05, kg: 'gross', flaps: 30, surface: 'paved', src: '550 ft, max braking' },
       LDG50: { v: 1295 * FT, tol: 0.05, kg: 'gross', flaps: 30, surface: 'paved', src: '1295 ft' },
     },
+    // THE BALANCE (CESSNA-FINAL 8 Nov; data, not scored): the POH's envelope in inches aft of the firewall (section 2:
+    // forward 35.0 in at 1950 lb or less to 40.0 at 2450 lb, aft 47.3 at all weights - a manualslib copy, via a search
+    // extract) on the TCDS 3A12 MAC (58.8 in from 25.9 in: a forum's citation, THIN) = 24.0-36.4 % MAC at 2450 lb,
+    // 15.5-36.4 % at 1950 lb. (A typical weighed 172R's empty arm, ~39-40 in = ~23 % MAC, is an ESTIMATE, not a row.)
+    cg: { fwdIn: [[1950, 35.0], [2450, 40.0]], aftIn: 47.3, macIn: 58.8, lemacIn: 25.9, atGrossMAC: [24.0, 36.4],
+          src: 'POH section 2 (manualslib copy, search extract) + the TCDS 3A12 MAC via a forum citation (thin)' },
     // THE TAIL (CESSNA-TAIL): what the real 172 carries, for the question "is the official Cessna's stab 20-25 % small"
     tail: { Sh: [3.30, 3.35], hSpan: 3.40, elevFrac: 0.44, Sv: 1.6,
             src: 'C172-STUDY 2026-09-20 type sheet: stab span 11 ft 4 in, horizontal tail 35.7 ft2 with 15.7 ft2 of elevator (0.44); a design analysis (pdfcoffee "Cessna 172 Design") gives 21.56 ft2 stabilizer + 14.53 ft2 elevators = 36.1 ft2 (3.35 m2). Neither is the TCDS: the TCDS (3A12) gives travel, not areas' } },
@@ -92,10 +98,17 @@ const REFS = {
   // brief: ~300-450 m, 20-35 s (Wipaire ~335-365 m for 160-180 hp 172s); Wipaire's 2350 page lists 1645 ft / 50 ft
   // 2463 ft and 749 fpm for "the 172" (configuration unstated). Both kept: the band runs 335-501 m.
   c172f: {
-    name: 'Cessna 172 on Wipline 2350 floats (160-180 hp)', mtow: 1157, empty: 736 + 150, fuelL: 212, S: 16.2, powerHP: 160,
-    src: 'GATE HYDROTRIM brief (Wipaire ~335-365 m, 20-35 s, 160-180 hp); wipaire.com 2350 tag page (search extract): water run 1645 ft, over 50 ft 2463 ft, ROC 749 fpm, configuration unstated; STC gross 1157 kg (G3390)',
+    // (CESSNA-FINAL 8 Nov, FLAGSHIP: the weights re-read off WIPAIRE'S OWN Cessna 172 Skyhawk Product & Modification Guide
+    // (wipaire.com, rev 1/18; flydiy-notes evidence 2026-11-08/flagship/cessna-final/): the 172R / S on Wipline 2350s at
+    // 2,550 lb (1,157 kg) on its stock engine and the McCauley 1A200/WFA8243 (82 x 43 in); the seaplane system 305 lb
+    // (138 kg), its EXCHANGE weight 168 lb (76 kg: the float installation less the land gear) - so the empty weight is
+    // the 172R's 721-744 kg + 76 = 797-820 kg (it was 736 + 150, an estimate). The guide has NO performance table: the
+    // water figures stay the 2350 web page's, configuration unstated)
+    name: 'Cessna 172R/S on Wipline 2350 floats (stock engine, McCauley 82 x 43)', mtow: 1157, empty: 736 + 76, fuelL: 212, S: 16.2, powerHP: 160,
+    src: 'Wipaire Cessna 172 Product & Modification Guide rev 1/18 (172R, S: 2,550 lb / 1,157 kg, stock engine, McCauley 1A200/WFA8243; seaplane system 305 lb / 138 kg, exchange 168 lb / 76 kg; float 19 ft 7 in x 2 ft 5 in x 1 ft 11 in, 2,570 lb displacement a float); water figures: wipaire.com 2350 tag page (search extract): water run 1645 ft, over 50 ft 2463 ft, ROC 749 fpm, configuration unstated; GATE HYDROTRIM brief 20-35 s',
     poh: { vr: 1.00, vy: 1.50, flapTO: 20, flapLDG: 30, brake: 0, note: 'the floatplane supplement: flaps 20, the stick back through the hump, lift-off ~50 KIAS' },
     rows: {
+      empty: { v: [721 + 76, 744 + 76], tol: 0.02, src: 'the 172R standard empty 721-744 kg + Wipaire\'s seaplane exchange weight 76 kg (168 lb; the guide rev 1/18)' },
       Vs1:  { v: 51 * KT, tol: 0.05, kg: 'gross', flaps: 'up', src: 'the landplane 51 KCAS (floats add ~nothing to CLmax)' },
       roc:  { v: [660 * FPM, 749 * FPM], tol: 0.05, kg: 'unknown', src: 'Wipaire 749 fpm; 660 fpm on another Wipaire page' },
       TOW:  { v: [335, 501], tol: 0.05, kg: 'unknown', surface: 'water', src: 'Wipaire ~335-365 m (160-180 hp) to 1645 ft (unstated)' },
@@ -235,8 +248,12 @@ const GEO = {
               specs: { engine: 'Lycoming IO-360-L2A', hp: 160, nE: 1, propD: 1.905, blades: 2, empty: [721, 744], mtow: 1111, fuelL: [201, 212], seats: 4 },
               src: '172R type sheet (perf_study REAL.c172.dims) + §6 of REAL-CHECK-2026-11-07', lengthNote: 'spinner to rudder' },
   c172f:    { dims: { span: 11.0, S: 16.2, cRoot: 1.63, cTip: 1.12, hSpan: 3.40, Sh: [3.30, 3.35] },
-              specs: { engine: 'Lycoming IO-360 / O-360', hp: [160, 180], nE: 1, propD: [1.905, 2.08], blades: 2, empty: [800, 900], mtow: 1157, fuelL: [201, 212], seats: 4 },
-              src: 'the 172R airframe + Wipline 2350 (G3390: STC gross 1157 kg, STC prop 82 in); the empty weight is the 172R\'s 721-744 kg plus a seaplane float exchange of ~80-150 kg (ESTIMATED: Wipaire\'s 2350 172 page was not reachable)' },
+              specs: { engine: 'Lycoming IO-360 / O-360', hp: [160, 180], nE: 1, propD: 2.083, blades: 2, empty: [797, 820], mtow: 1157, fuelL: [201, 212], seats: 4 },
+              // the float itself (Wipaire's guide rev 1/18; data, not scored): the seaplane float 5.97 m long (amphibian 6.07), the
+              // hull 0.58 m high and 0.74 m wide, 1,166 kg displacement a float in fresh water, 1,295 kg maximum flotation (FAR
+              // 23.751, 80 % reserve, two floats), the seaplane system 138 kg, its exchange weight 76 kg
+              floats: { L: 5.97, H: 0.58, B: 0.74, dispKg: 1166, maxFlotKg: 1295, systemKg: 138, exchangeKg: 76 },
+              src: 'the 172R airframe + Wipline 2350, Wipaire\'s Cessna 172 Product & Modification Guide rev 1/18 (CESSNA-FINAL 8 Nov): 172R/S gross 2,550 lb (1,157 kg) on the stock engine and the McCauley 1A200/WFA8243 (82 x 43 in = 2.083 m); empty = the 172R\'s 721-744 kg + the seaplane exchange 168 lb (76 kg); it was ESTIMATED 800-900 kg' },
   pa18f:    { dims: { span: 10.73, S: 16.6, cRoot: 1.60, cTip: 1.60 },
               specs: { engine: 'Lycoming O-320', hp: [150, 160], nE: 1, blades: 2, empty: [500, 530], mtow: 806, fuelL: 136, seats: 2 },
               src: 'PA-18-150 sheet (35 ft 2.5 in, 178.5 ft2, 36 US gal); empty = landplane 930 lb + Wipaire seaplane exchange 182 lb' },
