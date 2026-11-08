@@ -235,7 +235,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   // the haze TRANSMITS the light and adds nothing (mistApply is affine in the colour: T = m(1) - m(0))
   const RWY_GLOW_AP = `
     #ifdef USE_FOG
-    if (uAtmoAP.z > 0.5) gl_FragColor.rgb *= atmoAP().a;
+    if (uAtmoAP.z > 0.5) gl_FragColor.rgb *= apScaled(atmoAP()).a;
     { vec3 rwV = normalize((vec4(vAtmoV, 0.0) * viewMatrix).xyz); float rwL = length(vAtmoV);
       gl_FragColor.rgb *= max(mistApply(vec3(1.0), rwV, rwL, cameraPosition.y) - mistApply(vec3(0.0), rwV, rwL, cameraPosition.y), vec3(0.0)); }
     #endif
