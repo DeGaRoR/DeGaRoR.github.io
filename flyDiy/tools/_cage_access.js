@@ -66,7 +66,7 @@ if (!SITE || !FG || !K) {
 // is either required or it is absent, and the table already decides that.
 const accDef = {
   accOn: 1,
-  accFluids: 1, accAccess: 1, accInstr: 1, accAerials: 1, accHandling: 1,
+  accFluids: 1, accAccess: 1, accInstr: 1, accAerials: 1, accHandling: 1, accBeacon: 1,
   accDetail: 1,
 };
 PAGE.defaults = Object.assign(accDef, PAGE.defaults || {});
@@ -114,7 +114,10 @@ const GROUP = ['9 · fittings', [
     ['accFluids',   'fuel & oil',    0, 1, 1, ['off', 'on']],
     ['accAccess',   'inspection',    0, 1, 1, ['off', 'on']],
     ['accInstr',    'instruments',   0, 1, 1, ['off', 'on']],
-    ['accAerials',  'aerials & lights', 0, 1, 1, ['off', 'on']],
+    // COMMS-SECTION (8 Nov): the aerials are Communications' (the garage's part `comms`), the skin beacon is a light
+    // (Lights) - two switches where one was; a file with no accBeacon takes accAerials' (_cage_gen.js, the load door)
+    ['accAerials',  'aerials', 0, 1, 1, ['off', 'on']],
+    ['accBeacon',   'anti-collision beacon', 0, 1, 1, ['off', 'on']],
     ['accHandling', 'steps & handles',  0, 1, 1, ['off', 'on']],
   ], 'open', { when: P => +P.accOn }],
   ['detail', [
@@ -141,7 +144,7 @@ const FAMILY = {
   baggageDoor: 'accAccess',
   staticPort: 'accInstr', venturi: 'accInstr', oatProbe: 'accInstr',
   commAerial: 'accAerials', navAerial: 'accAerials', xpdrAerial: 'accAerials',
-  beacon: 'accAerials',
+  beacon: 'accBeacon',                                              // COMMS-SECTION: a light, not a radio
   step: 'accHandling', grabHandle: 'accHandling', tieDownTail: 'accHandling',
 };
 
@@ -153,7 +156,7 @@ const FAMILY = {
   const bin = {};
   for (const k of ACC_KEYS) (bin[FAMILY[k] || 'accOn'] || (bin[FAMILY[k] || 'accOn'] = [])).push(k);
   const NAME = { accFluids: 'fuel & oil', accAccess: 'inspection',
-                 accInstr: 'instruments', accAerials: 'aerials & lights',
+                 accInstr: 'instruments', accAerials: 'aerials', accBeacon: 'anti-collision beacon',
                  accHandling: 'steps & handles', accOn: 'unfamilied' };
   const host = GROUP[1][GROUP[1].length - 1][1];
   const hostHand = GROUP[1][GROUP[1].length - 2][1];
