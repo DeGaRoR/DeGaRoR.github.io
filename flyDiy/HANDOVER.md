@@ -313444,3 +313444,11 @@ BATTERY (full log read): 118 PASS / 10 FAIL (L35b 101 / 13).
 - NEW red, fix-forward for L35d: UISMOKE + UISMOKE-PHONE (assets-green: app.js:2138 MATLIB/require in the node harness), (CABIN-CRAFT, assets-green-2: the harness loads matlib.js). DMGMEMBERS: the 5 old builds pass; the seaplanes ready added the Super Petrel to VALIDATED, and its carbon is Euler-capped against a pre-carbon gate rule (SEAPLANES + Deform decide).
 No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change: PHYSICS_V 7, GEN_SPEC_V 10, GEN_CERT_V 7, as on master.
 TIMED GATE: light, stale 12 Oct baseline; all 7 rollouts ran (L35b lost 2 to timeouts). Steady frames p50 33.3 ms on every flown row and scene. Freezes: ONE 4.9 s frame in cub taxi chase @HOME (one run; L35b 0) and one 1.7 s frame in floats water taxi @SEA (first time measured). Cockpit rows p99 166.8-183.4 in one segment (L35b cub cockpit 116.8). Reds are the boot/compile rows (cold shader cache, as L35a/b). Watch the @HOME freeze on L35d.
+
+## ASSETS-GREEN-2 - GATE UISMOKE RUNS THE MATERIAL LIBRARY AHEAD OF APP.JS (CABIN-CRAFT, 8 Nov 2026, fix-forward for L35d)
+
+- **The red**: since assets-green (de8e69361) app.js makes its materials through MATLIB.make. The page loads matlib.js long before app.js; GATE UISMOKE's sandbox did not, and the site's node fallback (require) has no require there: UISMOKE and UISMOKE-PHONE died at app.js:2138 in L35c (the page was fine).
+- **The fix**: tools/test_ui_smoke.js runs src/viewer/matlib.js in the sandbox right before app.js, as _scene_headless.js and _seats_check.js do. Tools only, no built file.
+- **Gates**: UISMOKE PASS, UISMOKE-PHONE PASS on master L35c b25872b51 + the fix (and on L35a + assets-green + the fix).
+- **Not this ref**: DMGMEMBERS (101/103 in L35c) is the Super Petrel, the sixth build the seaplanes ready added to _load_build.js VALIDATED; its carbon is Euler-capped and its fittings read 0.57-1.15, against rules written before any carbon build. A0 routed it to SEAPLANES and Deform.
+- Note: flyDiy/reports/evidence/ASSETS-GREEN/READY-2.md.
