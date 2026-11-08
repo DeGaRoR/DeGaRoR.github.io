@@ -312728,3 +312728,45 @@ IN (on L34a cad308635): claude/ready/bubble-windows 9e7010baa (CABIN-CRAFT), cla
 BATTERY: 115 of 116 PASS. ENGCONFIG red, standing on master: its IDENTITY pins date from 28 Oct. Every one of its 18 load digests (the Cub, the Jodel, the Cessna, the Rufus...) is the same on this train and on a full copy of master, so no validated plane flies differently. No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change.
 TIMED GATE (light, vs the stale 12 Oct baseline): steady frames p50 33.3 ms. Reds are the boot and compile rows (cub chase compile 67 s, flight 151 s): the cold shader cache seen on L32d/L34a, same class as L34a (57 reds vs 80). Two rollouts lost to a page '__timeout' (cub cockpit, metal chase) after slow boots.
 NAMED COST, STILL OPEN: the floats' SEA lane: garage 226 s, take-off p99 50 ms but worst frame 10.4 s, 25 tasks over 1 s, held under the roll-out screen. Same as L34a's (124 s, 77 links); not this train's. NIGHT-LOOK measures the night water cost at 11:45; the SEA lane bisect is owed.
+
+## UPRIGHT-FOOT - AN UPRIGHT AERIAL OR BEACON READS THE SKIN UNDER ITS OWN BASE, NOT UNDER ITS HEIGHT (8 Nov, for L35d)
+
+**The fault.** FITTINGS-MANUAL stands an upright aerial or beacon at the LOWEST skin point under its footprint. The
+footprint grid (`_cage_access.js`, the sagitta) was sized by the row's largest size: for the comm blade that is its
+230 mm HEIGHT, so the search ran 150 mm fore and aft of a 90 mm root. On master bddb81b0f the blade's record was 31.2 mm on
+the stock card, 89.7 mm on the Cessna, and 672.9 mm on the rod build (it ran down the cabin's aft step and the whole
+blade vanished into the passenger pillar; still `before_rod_side.png`).
+
+**The fix.**
+- `FG.FIT_BASE` (`_fit_gen.js`) names each upright form's real base: the blade's root section (t across, the chord fore and
+  aft), the wire mast's 14 mm foot ring (the row's `foot` 0.140 is clearance, not base), and the beacon's base ring 0.56 d.
+- The grid reads the skin under that base.
+- The record is the whole rise under the base (`lift - low`), also when nothing lies below the site point. Without that,
+  the blade's root ends stood 4 mm into the pillar band with a record of 0.
+- Other fittings are unchanged (the old `foot` grid).
+
+**The probe** (`flydiy-notes/.../2026-11-08/upright_foot/probe.js`; the `sunk` record in mm, master -> fix):
+
+| build | commAerial | navAerial | xpdrAerial | beacon |
+|---|---|---|---|---|
+| stock | 31.2 -> 8.2 | - | - | - |
+| rod (boomStyle 1) | 672.9 -> 8.2 | - | - | 0 -> 0 |
+| Cessna 172 | 89.7 -> 25.8 | 5.8 -> 0.7 | 8.6 -> 4.4 | - |
+| Cessna + rod | - | 0 -> 0 | 0 -> 0 | 0 -> 0 |
+
+No fitting stands deeper than on master. GATE CLIP's measured depths:
+- the comm blade's deepest vertex is 4.0 mm on stock, rod, stock+ifr and stock+panel (inside its record);
+- the nav aerial's wire end in the fin (stock+ifr) is 9.2 mm on master and 6.5 mm with the fix (the mast stands on its own
+  foot ring, 1.3 mm higher).
+
+**The gates** on b3108c3f8 (`--no-build --jobs=1`):
+- FIT, DESIGN, PARTS, FRAMES and SAVE PASS.
+- CLIP is red on this ready alone, and only for the nav aerial's 6.5 mm against master's 5.9 pin. Master itself is red
+  there at 9.2 mm. With claude/ready/clip-navaerial's re-pin (9.2, L35c) laid over, CLIP PASS.
+- TECH is red on master as on this ready ([pitch:seaplane], one table option with no segment). Not this change.
+- **NOT run: ARCHETYPES** (A0: left out of this slot).
+
+The pin could ratchet down to 6.5 once both are on master.
+
+**Stills** (`quickshot` side, crops around the comm blade): `before_/after_{stock,rod,cessna}_side.png` in
+`flydiy-notes/evidence-2026-10-18/2026-11-08/upright_foot/`.
