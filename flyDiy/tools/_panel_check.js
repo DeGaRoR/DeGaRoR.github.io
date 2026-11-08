@@ -583,7 +583,8 @@ function run() {
     const ang = g => { const q = g.obj.quaternion; return 2 * Math.atan2(Math.hypot(q.x, q.y, q.z), q.w) * Math.sign(q.x + q.y + q.z || 1); };
     check(near(ang(gauges[0]) * 180 / Math.PI, 150, 0.5), 'pose: a lin hand turns by its stops (30 m/s -> 150 deg)', ang(gauges[0]) * 180 / Math.PI);
     check(near(ang(gauges[1]) * 180 / Math.PI, 63, 2), 'pose: the fuel hand reads the fraction of the capacity (35 / 50 L)', ang(gauges[1]) * 180 / Math.PI);
-    check(near(ang(gauges[4]) * 180 / Math.PI, 90, 0.5), 'pose: the DG card turns to the heading');
+    // (AVIONICS-PFD-LAND 8 Nov: the card turns to the compass heading - nav 90 deg, +z, is south, 180)
+    check(near(Math.abs(ang(gauges[4]) * 180 / Math.PI), 180, 0.5), 'pose: the DG card turns to the heading - the compass heading, 180 at nav 90', ang(gauges[4]) * 180 / Math.PI);
     // A3: the captured rest comes off - at 2200 rpm the law says 394.7 deg, the group turns 394.7 - 225 = 169.7 on top of the baked 225
     check(near(ang(gauges[8]) * 180 / Math.PI, 169.7, 0.6), 'pose: a hand captured at its rest turns by the law LESS the rest', ang(gauges[8]) * 180 / Math.PI);
     check(near(ang(gauges[3]), -0.3, 0.01), 'pose: the ball rolls against the aeroplane');

@@ -26,6 +26,7 @@ const fs = require('fs'), path = require('path');
 const PORT = +(process.argv[2] || 8573), OUT = path.resolve(process.argv[3] || 'avionics_pfd_stills');
 const KIND = process.argv[4] || 'flatPair', SIDE = process.argv[5] && process.argv[5] !== '-' ? process.argv[5] : null;
 const QUICK = process.env.QUICK === '1';   // the roll-out and the on / off cost only (the A/B passes)
+const NIGHT = process.env.NIGHT === '1';   // straight to the air: climb, then dusk and night (no stand looks, no stand cost)
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const post = async (p, body) => { const r = await fetch('http://127.0.0.1:' + PORT + p, { method: 'POST', body }); return r.text(); };
 const run = async body => { const t = await post('/run', body); try { return JSON.parse(t); } catch (e) { return t; } };
@@ -108,11 +109,13 @@ const MEASURE = ms => `const G = window.FLYDIY_GPS || { tick: () => false }, t0 
     await sleep(waitMs == null ? 1500 : waitMs); await frames(10);
     await shot(path.join(OUT, tag + '.png'));
     const r = info.states[tag] = await run(READ);
+    fs.writeFileSync(path.join(OUT, 'pfd_page.json'), JSON.stringify(info, null, 1));   // (kept as it goes: a capped run keeps its reads)
     console.log('  ' + tag.padEnd(16) + ' ' + JSON.stringify({ gpsOn: r.gpsOn, pair: r.pair, u0: r.u0 && [r.u0.page, r.u0.W, r.u0.glow], u1: r.u1 && [r.u1.page, r.u1.W], dg: r.dg, pfdHdg: r.pfdHdg, agl: r.agl }));
   };
   const pair = KIND === 'flatPair';
   const mfdYaw = +(process.env.MFD_YAW || -18);
   await state('01_stand_panel', null, 4000);
+  if (!NIGHT) {
   // (the head turned either way: which side the MFD - or a passenger-side display - is on, framed)
   await state('01b_look_plus', look(22, -20), 1200);
   await state('01c_look_minus', look(-22, -20), 1200);
@@ -132,12 +135,13 @@ const MEASURE = ms => `const G = window.FLYDIY_GPS || { tick: () => false }, t0 
   await sleep(4000);    // (past the boot page again)
   await state('03_svt_off', `FLYDIY_GPS.key('rngDn', 0);`, 1200);
   await run(`FLYDIY_GPS.key('rngDn', 0); return 1;`);
+  }
   // ---- MOVING: the build's own pilot takes off
   await run(`document.getElementById('bGo').click(); return 1;`);
   { const t0 = Date.now(); let up = false;
     while (Date.now() - t0 < 200000 && !up) { await sleep(1000); up = await run(`return (FLIGHT_PROBE.agl() || 0) > 120;`); } info.climbReached = up; }
   await state('04_climb_panel', null, 4000);
-  info.costClimb = await run(MEASURE(8000)); console.log('  cost climb ' + JSON.stringify(info.costClimb));
+  if (!NIGHT) info.costClimb = await run(MEASURE(8000)); if (!NIGHT) console.log('  cost climb ' + JSON.stringify(info.costClimb));
   if (pair) await state('05_climb_mfd', look(mfdYaw, -20), 1500);
   await state('06_dusk_panel', look(0, -20) + ` DAY_CLOCK.preset('dusk');`, 5000);
   await state('07_night_panel', `DAY_CLOCK.preset('night');`, 5000);
