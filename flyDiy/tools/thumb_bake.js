@@ -11,14 +11,20 @@
 // reaches, its `over` sections laid as the garage lays them. --keys bakes only the named 'cand:' / 'list:' keys and leaves
 // every other picture and index row as it is (--only rewrites the index with what it baked). 'arch:<key>' (PLANE-RENDERS R1): a design
 // card's plane as the new-aeroplane card bakes it, for the authored recreations' cards.
-//   node tools/thumb_bake.js [--gpu] [--secs 600] [--only stock|cand|design] [--keys <key,key>] [--keep <dir>] [--dry]
+// --hero (PLANE-RENDERS R2, 8 Nov): THE HERO instead - the wider lists' picture under the studio's good light, plane_shot's
+// hero:38/-12/35 at 1000 x 800 as a take-off (--takeoff: the flown model, flaps at the take-off setting, every lamp, the
+// prop's disc), written 640 x 512 webp into media/heroes/ with media/heroes/index.json { heroes: { key: file } }, the
+// same keys as the thumbs. --plus <key,key> adds cand: / list: / arch: keys to a whole bake (--keys bakes only them).
+//   node tools/thumb_bake.js [--gpu] [--hero] [--secs 600] [--only stock|cand|design] [--keys <key,key>] [--plus <key,key>] [--keep <dir>] [--dry]
 // One plane_shot boot (a box run: the GPU lock, a slot). Python 3 + Pillow (webp) does the resize. Exit 0 = every
 // candidate and at least one stock design has its picture; a missing Market build is named, the Market's rows keep their glyph.
 'use strict';
 const fs = require('fs'), path = require('path'), os = require('os'), vm = require('vm'), { spawnSync } = require('child_process');
 const ROOT = path.join(__dirname, '..');
 const argv = process.argv.slice(2), flag = k => argv.includes('--' + k), opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 ? argv[i + 1] : d; };
-const OUT = path.join(ROOT, 'media', 'thumbs'), VIEW = 'profile/0.9/480x240', SUFFIX = '_profile-0.9-480x240.png';
+const HERO = flag('hero'), FIELD = HERO ? 'heroes' : 'thumbs';
+const OUT = path.join(ROOT, 'media', FIELD), VIEW = HERO ? 'hero:38/-12/35/0.84/1000x800' : 'profile/0.9/480x240', SUFFIX = '_' + VIEW.replace(/[:/]/g, '-') + '.png';
+const SIZE = HERO ? [640, 512] : [240, 120];
 const only = opt('only', '');
 const cands = JSON.parse(fs.readFileSync(path.join(ROOT, 'builds', 'candidates', 'index.json'), 'utf8')).planes.map(p => p.file);
 const KEYS = opt('keys', '') ? opt('keys', '').split(',') : null;
@@ -38,7 +44,8 @@ for (const id of designIds) {
   fs.writeFileSync(f, JSON.stringify({ what: 'flydiy-build', design: id, spec: s }));
   builds.push(f);
 }
-for (const k of KEYS || []) {
+const PLUS = opt('plus', '') ? opt('plus', '').split(',') : [];
+for (const k of (KEYS || []).concat(PLUS)) {
   if (k.startsWith('cand:') && cands.includes(k.slice(5))) builds.push(path.join(ROOT, 'builds', 'candidates', k.slice(5)));
   else if (k.startsWith('list:')) {
     const row = JSON.parse(fs.readFileSync(path.join(ROOT, 'builds', 'lists', 'plane_lists.json'), 'utf8')).planes.find(p => String(p.n) === k.slice(5));
@@ -53,16 +60,18 @@ for (const k of KEYS || []) {
 }
 const args = [path.join(__dirname, 'plane_shot.js'), '--views', VIEW, '--out', tmp, '--secs', opt('secs', '600'), '--build', builds.join(',')];
 if (flag('gpu')) args.push('--gpu');
+if (HERO) args.push('--takeoff');
 console.log('thumb_bake: ' + builds.length + ' entries (' + (KEYS ? 'keys' : only || 'stock + cand + design') + ') -> ' + tmp);
 if (flag('dry')) { console.log('node ' + args.map(a => /[\s,]/.test(a) ? JSON.stringify(a) : a).join(' ')); process.exit(0); }
 const r = spawnSync(process.execPath, args, { stdio: 'inherit' });
 // what came out: <base>_profile-0.9-480x240.png, base = the candidate's file name, or stock_<slug> for a stock design
 // (plane_shot wrote <tmp>/stock_<slug>.json with { stock: <the name> })
-const index = { what: 'flydiy-thumbs', v: 1, baked: new Date().toISOString().slice(0, 10), view: VIEW, thumbs: KEYS ? JSON.parse(fs.readFileSync(path.join(OUT, 'index.json'), 'utf8')).thumbs : {} };
+const IDX = path.join(OUT, 'index.json');
+const index = { what: 'flydiy-' + FIELD, v: 1, baked: new Date().toISOString().slice(0, 10), view: VIEW, [FIELD]: KEYS && fs.existsSync(IDX) ? JSON.parse(fs.readFileSync(IDX, 'utf8'))[FIELD] : {} };
 // a whole bake redraws stock / cand / design only: the arch: and list: rows (--plus / --keys pictures) it did not draw this
 // time carry over from the index on disk - else the prune below would drop them
-if (!KEYS) { let old = {}; try { old = JSON.parse(fs.readFileSync(path.join(OUT, 'index.json'), 'utf8')).thumbs || {}; } catch (e) {}
-  for (const k in old) if (/^(arch|list):/.test(k) && !(k in index.thumbs)) index.thumbs[k] = old[k]; }
+if (!KEYS) { let old = {}; try { old = JSON.parse(fs.readFileSync(path.join(OUT, 'index.json'), 'utf8'))[FIELD] || {}; } catch (e) {}
+  for (const k in old) if (/^(arch|list):/.test(k) && !(k in index[FIELD])) index[FIELD][k] = old[k]; }
 const jobs = [];
 for (const png of fs.readdirSync(tmp).filter(f => f.endsWith(SUFFIX)).sort()) {
   const base = png.slice(0, -SUFFIX.length);
@@ -81,25 +90,25 @@ for (const png of fs.readdirSync(tmp).filter(f => f.endsWith(SUFFIX)).sort()) {
   }
   if (!key) { console.log('thumb_bake: not offered, skipped ' + png); continue; }
   jobs.push([path.join(tmp, png), path.join(OUT, file)]);
-  index.thumbs[key] = file;
+  index[FIELD][key] = file;
 }
 fs.mkdirSync(OUT, { recursive: true });
 const py = path.join(tmp, '_resize.py'), jf = path.join(tmp, '_jobs.json');
-fs.writeFileSync(py, 'import sys, json\nfrom PIL import Image\nfor a, b in json.load(open(sys.argv[1])):\n    Image.open(a).convert("RGB").resize((240, 120), Image.LANCZOS).save(b, "WEBP", quality=86, method=6)\n    print("thumb", b)\n');
+fs.writeFileSync(py, 'import sys, json\nfrom PIL import Image\nfor a, b in json.load(open(sys.argv[1])):\n    Image.open(a).convert("RGB").resize((' + SIZE.join(', ') + '), Image.LANCZOS).save(b, "WEBP", quality=86, method=6)\n    print("' + (HERO ? 'hero' : 'thumb') + '", b)\n');
 fs.writeFileSync(jf, JSON.stringify(jobs));
 const p = jobs.length ? spawnSync('python', ['-I', py, jf], { stdio: 'inherit' }) : { status: 1 };
-if (p.status === 0) fs.writeFileSync(path.join(OUT, 'index.json'), JSON.stringify(index, null, 1) + '\n');
+if (p.status === 0) fs.writeFileSync(IDX, JSON.stringify(index, null, 1) + '\n');
 // THE PRUNE (MASTER-GREEN, 8 Nov): a whole bake (no --keys, no --only) that wrote its index deletes the folder's pictures
 // the index no longer names (a plane gone from the pool) - GATE MEDIA's rule, each baker prunes what it owns
 const pruned = [];
 // (never after a bake that missed a plane still in the pool: its old picture stays until a bake draws it)
-if (p.status === 0 && r.status === 0 && !KEYS && !only && cands.every(c => index.thumbs['cand:' + c])) {
-  const named = new Set(Object.values(index.thumbs));
+if (p.status === 0 && r.status === 0 && !KEYS && !only && cands.every(c => index[FIELD]['cand:' + c])) {
+  const named = new Set(Object.values(index[FIELD]));
   for (const f of fs.readdirSync(OUT)) if (f !== 'index.json' && /\.webp$/.test(f) && !named.has(f)) { fs.unlinkSync(path.join(OUT, f)); pruned.push(f); }
   if (pruned.length) console.log('thumb_bake: pruned ' + pruned.join(', '));
 }
-const keys = Object.keys(index.thumbs), gotStock = keys.filter(k => k.startsWith('stock:')).length, gotDesign = keys.filter(k => k.startsWith('design:')).length;
-const missing = KEYS ? KEYS.filter(k => !index.thumbs[k]) : want('cand') ? cands.filter(c => !index.thumbs['cand:' + c]) : [], noDesign = designIds.filter(id => !index.thumbs['design:' + id]);
+const keys = Object.keys(index[FIELD]), gotStock = keys.filter(k => k.startsWith('stock:')).length, gotDesign = keys.filter(k => k.startsWith('design:')).length;
+const missing = (KEYS || []).concat(PLUS).filter(k => !index[FIELD][k]).concat(want('cand') ? cands.filter(c => !index[FIELD]['cand:' + c]) : []), noDesign = designIds.filter(id => !index[FIELD]['design:' + id]);
 console.log('thumb_bake: ' + gotStock + ' stock + ' + (keys.length - gotStock - gotDesign) + ' candidate + ' + gotDesign + ' market pictures -> ' + OUT +
   (missing.length ? ' | MISSING ' + missing.join(', ') : '') + (noDesign.length ? ' | NO MARKET PICTURE ' + noDesign.join(', ') : '') + ' | plane_shot exit ' + r.status + ', resize exit ' + p.status);
 process.exit(r.status === 0 && p.status === 0 && !missing.length && (!want('stock') || gotStock > 0) ? 0 : 1);
