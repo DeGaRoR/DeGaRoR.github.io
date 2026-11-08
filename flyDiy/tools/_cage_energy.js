@@ -38,9 +38,10 @@
 // TANK-FIT: the file's own binding for Math (and the typed arrays). Under node's vm (every gate, every headless
 // tool) a global name is looked up through the context's interceptor on each use, and the clearance's loops say
 // Math.floor a million times a rebuild: ugly_bi's surface index read 160 ms there and 30 ms out of it. One lookup
-// here; the same objects, so nothing else changes.
+// here; the same objects, so nothing else changes. Named MathL, not Math (MASTER-GREEN, 8 Nov): GATE DMGDETERMINISM
+// holds the built page to no `Math` binding at all (G2355's page-wide shadow was one).
 const GL_ = typeof globalThis !== 'undefined' ? globalThis : window;      // (GATE PARTS loads this under a stub window)
-const Math = window.Math || GL_.Math, Float64Array = window.Float64Array || GL_.Float64Array,
+const MathL = window.Math || GL_.Math, Float64Array = window.Float64Array || GL_.Float64Array,
       Int32Array = window.Int32Array || GL_.Int32Array, Uint16Array = window.Uint16Array || GL_.Uint16Array;
 const PAGE = window.CAGE_PAGE || (window.CAGE_PAGE = {});
 const HAS_DOM = typeof document !== 'undefined';
@@ -180,9 +181,9 @@ function capacityFromDims(dims, form) {
   const inst = G.installedFromDims(vesselKey(), dims, form);
   if (EN.kind === 'battery') {
     const cell = (C.CELLS || {})[EN.cell] || { WhL: 250, packK: 0.7 };
-    return Math.max(0, Math.round((inst / 1.18) * (cell.WhL * cell.packK) / 1000 * 10) / 10);
+    return MathL.max(0, MathL.round((inst / 1.18) * (cell.WhL * cell.packK) / 1000 * 10) / 10);
   }
-  return Math.max(0, Math.round(inst / 1.06));
+  return MathL.max(0, MathL.round(inst / 1.06));
 }
 const medium = () => (EN.kind === 'battery' ? EN.cell : EN.fuel);
 const unit = () => (EN.kind === 'battery' ? 'kWh' : 'L');
@@ -236,7 +237,7 @@ function measureBays(S, ctx) {
         if (zFw != null && VG().sLTable) {
           const T = VG().sLTable(ctx.mesh, FS, s0 - 0.35 / FS, s1 + 0.1 / FS, 18);
           const a = VG().sLOfZ(T, zFw - s0), b2 = VG().sLOfZ(T, zFw - s1);
-          if (a != null && b2 != null) { s0 = Math.min(a, b2); s1 = Math.max(a, b2); }
+          if (a != null && b2 != null) { s0 = MathL.min(a, b2); s1 = MathL.max(a, b2); }
         }
         const prof = BAY().bayProfile(ctx.mesh, s0, s1, 0.035 / FS, 12);
         const lv = r.lv || [0, 1];
@@ -286,9 +287,9 @@ function bodySig(ctx) {
     if (!A[i]) continue;
     const p = V[i]; n++;
     for (let k = 0; k < 3; k++) {
-      const q = Math.round(p[k] * 1e4) | 0;
-      h1 = Math.imul(h1 ^ q, 16777619);
-      h2 = (h2 + Math.imul(q, i + 1)) | 0;
+      const q = MathL.round(p[k] * 1e4) | 0;
+      h1 = MathL.imul(h1 ^ q, 16777619);
+      h2 = (h2 + MathL.imul(q, i + 1)) | 0;
     }
   }
   return n + ':' + (h1 >>> 0).toString(16) + ':' + (h2 >>> 0).toString(16) + ':' + fsOf(ctx);
@@ -326,9 +327,9 @@ function wingSlicer(ctx, inv, plane) {
   const wing = spec && ((plane && spec.wings && spec.wings[plane]) || spec.wing || (spec.wings || [])[0]) || {};
   const yAnchor = plane ? (W.rootY != null ? W.rootY : null)
                 : (W0.anchor && W0.anchor.yAnchor != null) ? W0.anchor.yAnchor : null;
-  const dih = Math.tan(((wing.dihedral || 0) * Math.PI) / 180);
+  const dih = MathL.tan(((wing.dihedral || 0) * MathL.PI) / 180);
   return xAt => {
-    const key = Math.round(xAt * 200);
+    const key = MathL.round(xAt * 200);
     if (cache.has(key)) return cache.get(key);
     const tol = 0.12;
     const ys = [], zs = [];
@@ -338,18 +339,18 @@ function wingSlicer(ctx, inv, plane) {
       for (let i = 0; i < pos.count; i++) {
         V.set(pos.getX(i), pos.getY(i), pos.getZ(i))
           .applyMatrix4(o.matrixWorld).applyMatrix4(inv);
-        if (Math.abs(V.x - xAt) > tol) continue;
+        if (MathL.abs(V.x - xAt) > tol) continue;
         ys.push(V.y); zs.push(V.z);
       }
     }
     let r = null;
     if (ys.length >= 6) {
       // the expected height, and the densest 10 cm bin within 0.6 m of it
-      const yExp = yAnchor != null ? yAnchor + Math.abs(xAt) * dih : null;
+      const yExp = yAnchor != null ? yAnchor + MathL.abs(xAt) * dih : null;
       const bins = new Map();
       for (const y of ys) {
-        if (yExp != null && Math.abs(y - yExp) > 0.6) continue;
-        const b = Math.round(y * 10);
+        if (yExp != null && MathL.abs(y - yExp) > 0.6) continue;
+        const b = MathL.round(y * 10);
         bins.set(b, (bins.get(b) || 0) + 1);
       }
       let best = null, bestN = 0;
@@ -358,7 +359,7 @@ function wingSlicer(ctx, inv, plane) {
         const yc = best / 10;
         let y0 = 1e9, y1 = -1e9, z0 = 1e9, z1 = -1e9, n = 0;
         for (let i = 0; i < ys.length; i++) {
-          if (Math.abs(ys[i] - yc) > 0.30) continue;
+          if (MathL.abs(ys[i] - yc) > 0.30) continue;
           n++;
           if (ys[i] < y0) y0 = ys[i]; if (ys[i] > y1) y1 = ys[i];
           if (zs[i] < z0) z0 = zs[i]; if (zs[i] > z1) z1 = zs[i];
@@ -440,12 +441,12 @@ function cowlSection(ctx, zL) {
 }
 // the litres the cowl's sections hold over the bay (an ellipse in each section's box, the band's share)
 function cowlLitres(ctx, bay, zFw) {
-  const FS = fsOf(ctx), a0 = Math.max(bay.x0, bay.cowl.x0), a1 = Math.min(bay.cowl.x1, Math.max(bay.x1, bay.hx1 || bay.x1));
+  const FS = fsOf(ctx), a0 = MathL.max(bay.x0, bay.cowl.x0), a1 = MathL.min(bay.cowl.x1, MathL.max(bay.x1, bay.hx1 || bay.x1));
   const lvB = bay.lv || [0, 1];
   let L = 0;
   for (let a = a0 + 0.025; a < a1; a += 0.05) {
     const sc = cowlSection(ctx, zFw * FS - a);
-    if (sc) L += Math.PI / 4 * (sc.xHi - sc.xLo) * (sc.yHi - sc.yLo) * (lvB[1] - lvB[0]) * 0.05 * 1000;
+    if (sc) L += MathL.PI / 4 * (sc.xHi - sc.xLo) * (sc.yHi - sc.yLo) * (lvB[1] - lvB[0]) * 0.05 * 1000;
   }
   return L;
 }
@@ -460,8 +461,8 @@ function cowlPlace(ctx, bay, v, dims, zFw) {
   const bandLo = sec.yLo + lvB[0] * H, bandHi = sec.yLo + lvB[1] * H;
   const lv = v.lv != null ? v.lv : 0.5;
   const yc0 = bandLo + lv * (bandHi - bandLo);
-  const yc = Math.max(bandLo + dims.H / 2, Math.min(bandHi - dims.H / 2, yc0)) || 0.5 * (bandLo + bandHi);
-  const rot = (v.rot || 0) * Math.PI / 180;
+  const yc = MathL.max(bandLo + dims.H / 2, MathL.min(bandHi - dims.H / 2, yc0)) || 0.5 * (bandLo + bandHi);
+  const rot = (v.rot || 0) * MathL.PI / 180;
   Object.assign(out, { ok: true, c: [0, yc, zL], e: [dims.W / 2, dims.H / 2, dims.L / 2], rot, along, lv,
     section: { yLo: sec.yLo, yHi: sec.yHi, xLo: sec.xLo, xHi: sec.xHi, band: [bandLo, bandHi] }, outsideHand: 0, inBand: true, fitsSkin: true });
   return out;
@@ -507,15 +508,15 @@ function bayCacheOf(ctx, bay, zFw) {
   if (cw && cw.x1 > c.axisMax + 0.05 && bay.x1 > c.axisMax - 0.05) {
     bay.cowl = { x0: c.axisMax, x1: cw.x1 };
     if (bay.x0 > c.axisMax - 0.01 && !bay._ruleX) bay._ruleX = [bay.x0, bay.x1];
-    bay.x1 = Math.min(bay.x1, cw.x1 - 0.01);
-    if (bay.x0 >= bay.x1 - 0.05) bay.x0 = Math.max(c.axisMax - 0.3, bay.x1 - 0.3);
+    bay.x1 = MathL.min(bay.x1, cw.x1 - 0.01);
+    if (bay.x0 >= bay.x1 - 0.05) bay.x0 = MathL.max(c.axisMax - 0.3, bay.x1 - 0.3);
   } else if (c && c.axisMax != null && c.axisMax < bay.x1) bay.x1 = c.axisMax - 0.01;
   if (c && c.axisMin != null && c.axisMin > bay.x0) bay.x0 = c.axisMin + 0.01;
   // G2799: the HAND's range, wider than the rule's (VESSEL_GEN.handRange):
   // the fore/aft slider and the readout read it, the defaults never do
   const h = G.handRange ? G.handRange(bay, c) : null;
   if (h) { bay.hx0 = h[0]; bay.hx1 = h[1]; }
-  if (bay.cowl) bay.hx1 = Math.max(bay.hx1 != null ? bay.hx1 : bay.x1, bay.cowl.x1 - 0.01);
+  if (bay.cowl) bay.hx1 = MathL.max(bay.hx1 != null ? bay.hx1 : bay.x1, bay.cowl.x1 - 0.01);
   return c;
 }
 function placeAll(ctx, inv) {
@@ -592,7 +593,7 @@ function placeAll(ctx, inv) {
       for (const k of ['L', 'R']) {
         const s = bySide[k]; if (!s) continue;
         const ax = [s.tip[0] - s.pin[0], s.tip[1] - s.pin[1], s.tip[2] - s.pin[2]];
-        const len = Math.hypot(ax[0], ax[1], ax[2]) || 1e-6;
+        const len = MathL.hypot(ax[0], ax[1], ax[2]) || 1e-6;
         const u = ax.map(q => q / len);
         const c = [s.pin[0] + ax[0] * t0, s.pin[1] + ax[1] * t0, s.pin[2] + ax[2] * t0];
         // G2793 (the user's garage review, 18 Oct: "strut-mounted tanks: the
@@ -647,7 +648,7 @@ function placeAll(ctx, inv) {
         return xAt => {
           const r0 = sl(xAt);
           if (r0) return r0;
-          const key = Math.round(xAt * 200);
+          const key = MathL.round(xAt * 200);
           if (cache.has(key)) return cache.get(key);
           let r = null;
           const le = Wk.leAt(xAt), te = Wk.teAt(xAt);
@@ -655,7 +656,7 @@ function placeAll(ctx, inv) {
             let y0 = 1e9, y1 = -1e9;
             for (let i = 0; i <= 10; i++) {
               const p = prof(xAt, te.z + (le.z - te.z) * i / 10);
-              if (p) { y0 = Math.min(y0, p.yBot); y1 = Math.max(y1, p.yTop); }
+              if (p) { y0 = MathL.min(y0, p.yBot); y1 = MathL.max(y1, p.yTop); }
             }
             if (y1 > y0) r = { y0, y1, zLE: le.z, zTE: te.z, n: 0, cast: true };
           }
@@ -674,8 +675,8 @@ function placeAll(ctx, inv) {
       // body" forever; it takes the rule again instead, like a new vessel.
       // (G2799: past the HAND's range, which holds the rule's, so a station
       // the player put out there is theirs)
-      if (v.along != null && (v.along < Math.min(bay.x0, bay.hx0 != null ? bay.hx0 : bay.x0) - dims.L ||
-                              v.along > Math.max(bay.x1, bay.hx1 != null ? bay.hx1 : bay.x1) + dims.L)) {
+      if (v.along != null && (v.along < MathL.min(bay.x0, bay.hx0 != null ? bay.hx0 : bay.x0) - dims.L ||
+                              v.along > MathL.max(bay.x1, bay.hx1 != null ? bay.hx1 : bay.x1) + dims.L)) {
         v.along = null; v.lv = null;
       }
       // TANK-FIT Part 2: THE NOSE TANK FITTED TO THE NOSE (noseAuto): its shape, station and level, every layout
@@ -726,7 +727,7 @@ function placeAll(ctx, inv) {
             const P3 = CREW_PTS.buf;
             crewEach(CREW_PTS, [-half.x - 1e-6, -Infinity, zMid - half.z - 1e-6], [half.x + 1e-6, Infinity, zMid + half.z + 1e-6], i => {
               const x = P3[i * 3], y = P3[i * 3 + 1], z = P3[i * 3 + 2];
-              if (Math.abs(x) <= half.x && Math.abs(z - zMid) <= half.z && y > crewTop) crewTop = y;
+              if (MathL.abs(x) <= half.x && MathL.abs(z - zMid) <= half.z && y > crewTop) crewTop = y;
             });
             const lvB = bay.lv || [0, 1];
             const bandTop = ext.yLo + lvB[1] * (ext.yHi - ext.yLo);
@@ -750,7 +751,7 @@ function placeAll(ctx, inv) {
         // TANK-FIT case A: a bay wholly in a pusher's cowl - the tank stands against the bulkhead it is behind (the
         // body's aft face, the engine's firewall), mid-height: the rule's 'aft bulkhead' there is the engine
         const spot = G.defaultSpot(bay, dims);
-        v.along = Math.round((bay.cowl.x0 + (spot.rot ? dims.W : dims.L) / 2 + 0.03) * 1000) / 1000;
+        v.along = MathL.round((bay.cowl.x0 + (spot.rot ? dims.W : dims.L) / 2 + 0.03) * 1000) / 1000;
         v.lv = 0.5; v.rot = spot.rot;
         wroteBack = true;
       }
@@ -885,7 +886,7 @@ function crewSig(crew, inv) {
     if (!o.isMesh || o.isSkinnedMesh || !o.geometry) return;
     const pos = o.geometry.getAttribute('position'); if (!pos) return;
     let h = 0;
-    for (const i of [0, pos.count >> 1, pos.count - 1]) h = (h * 31 + Math.round(pos.getX(i) * 1e4) * 7 + Math.round(pos.getY(i) * 1e4) * 13 + Math.round(pos.getZ(i) * 1e4)) | 0;
+    for (const i of [0, pos.count >> 1, pos.count - 1]) h = (h * 31 + MathL.round(pos.getX(i) * 1e4) * 7 + MathL.round(pos.getY(i) * 1e4) * 13 + MathL.round(pos.getZ(i) * 1e4)) | 0;
     sg += '|' + o.id + ':' + pos.count + ':' + matSig(o.matrixWorld) + ':' + h;
   });
   return sg;
@@ -916,13 +917,13 @@ function crewGrid(buf, n) {
   }
   if (!(isFinite(lx) && isFinite(hx) && isFinite(ly) && isFinite(hy) && isFinite(lz) && isFinite(hz))) return null;
   const lo = [lx, ly, lz], hi = [hx, hy, hz];
-  const N = [0, 1, 2].map(a => Math.max(1, Math.floor((hi[a] - lo[a]) / CREW_CELL) + 1));
+  const N = [0, 1, 2].map(a => MathL.max(1, MathL.floor((hi[a] - lo[a]) / CREW_CELL) + 1));
   if (N[0] * N[1] * N[2] > 4e6) return null;          // a crew strewn kilometres apart: walk them all
   // (flat loops, TANK-FIT: a closure a point with three-element arrays was 90 ms a crew of 80 000 points)
   const N0 = N[0], N1 = N[1], N2 = N[2], ic = 1 / CREW_CELL;
   const nc = N0 * N1 * N2, start = new Int32Array(nc + 1), cell = new Int32Array(n);
   for (let i = 0, j = 0; i < n; i++, j += 3) {
-    let cx = Math.floor((buf[j] - lx) * ic), cy = Math.floor((buf[j + 1] - ly) * ic), cz = Math.floor((buf[j + 2] - lz) * ic);
+    let cx = MathL.floor((buf[j] - lx) * ic), cy = MathL.floor((buf[j + 1] - ly) * ic), cz = MathL.floor((buf[j + 2] - lz) * ic);
     if (cx > N0 - 1) cx = N0 - 1; if (cy > N1 - 1) cy = N1 - 1; if (cz > N2 - 1) cz = N2 - 1;
     const c = (cx * N1 + cy) * N2 + cz;
     cell[i] = c; start[c + 1]++;
@@ -939,8 +940,8 @@ function crewEach(P, qlo, qhi, fn) {
   if (!G) { for (let i = 0; i < P.n; i++) fn(i); return; }
   const r = [];
   for (let a = 0; a < 3; a++) {
-    const c0 = Math.max(0, Math.floor((qlo[a] - G.lo[a]) / CREW_CELL));
-    const c1 = Math.min(G.N[a] - 1, Math.floor((qhi[a] - G.lo[a]) / CREW_CELL));
+    const c0 = MathL.max(0, MathL.floor((qlo[a] - G.lo[a]) / CREW_CELL));
+    const c1 = MathL.min(G.N[a] - 1, MathL.floor((qhi[a] - G.lo[a]) / CREW_CELL));
     if (!(c0 <= c1)) return;
     r.push(c0, c1);
   }
@@ -960,7 +961,7 @@ function crewHits(scene, inv, results) {
   const q = [0, 0, 0], B3 = CREW_PTS.buf;
   // per body, the cells its box (as pointInBox reads it, margin 0.01) covers
   for (const r of bodies) {
-    const c = r.c, e = r.e, cs = Math.abs(Math.cos(r.rot)), sn = Math.abs(Math.sin(r.rot)), m = 0.01;
+    const c = r.c, e = r.e, cs = MathL.abs(MathL.cos(r.rot)), sn = MathL.abs(MathL.sin(r.rot)), m = 0.01;
     const ex = [cs * (e[0] + m) + sn * (e[2] + m) + 1e-6, e[1] + m + 1e-6, sn * (e[0] + m) + cs * (e[2] + m) + 1e-6];
     crewEach(CREW_PTS, [c[0] - ex[0], c[1] - ex[1], c[2] - ex[2]], [c[0] + ex[0], c[1] + ex[1], c[2] + ex[2]], i => {
       q[0] = B3[i * 3]; q[1] = B3[i * 3 + 1]; q[2] = B3[i * 3 + 2];
@@ -997,15 +998,15 @@ const HIT_SHEET = ['dash', 'dashFace'];
 function inSolid(p, r, sol, d) {
   const VM = window.VESSEL_MESH;
   if (!sol || !sol.shape || !VM || !VM.heightAt) return false;
-  const yaw = r.rot + (sol.yaw || 0), cs = Math.cos(yaw), sn = Math.sin(yaw);
+  const yaw = r.rot + (sol.yaw || 0), cs = MathL.cos(yaw), sn = MathL.sin(yaw);
   const dx = p[0] - r.c[0], dy = p[1] - r.c[1], dz = p[2] - r.c[2];
   // G1150: the shape's own test (the deck's flat floor and curved top are not
   // symmetric in y): inside by d means inside d above AND d below
   if (sol.shape.contains) {
-    const X = Math.abs(dx * cs - dz * sn) + d, Z = Math.abs(dx * sn + dz * cs) + d;
+    const X = MathL.abs(dx * cs - dz * sn) + d, Z = MathL.abs(dx * sn + dz * cs) + d;
     return sol.shape.contains(X, dy + d, Z) && sol.shape.contains(X, dy - d, Z);
   }
-  const x = Math.abs(dx * cs - dz * sn) + d, y = Math.abs(dy) + d, z = Math.abs(dx * sn + dz * cs) + d;
+  const x = MathL.abs(dx * cs - dz * sn) + d, y = MathL.abs(dy) + d, z = MathL.abs(dx * sn + dz * cs) + d;
   if (z > sol.e[2]) return false;
   const sec = sol.shape.atZ(z);
   if (!sec || !(sec.hx > 0) || x > sec.hx) return false;
@@ -1014,7 +1015,7 @@ function inSolid(p, r, sol, d) {
 // the drawn solid's vertices in this layer's frame (the slot meshes' centre
 // and yaw), and their box - optionally only a piece's (`pc`: its ranges)
 function drawnPts(r, sol, slots, pc) {
-  const yaw = r.rot + (sol.yaw || 0), cs = Math.cos(yaw), sn = Math.sin(yaw), c = r.c;
+  const yaw = r.rot + (sol.yaw || 0), cs = MathL.cos(yaw), sn = MathL.sin(yaw), c = r.c;
   const pts = [], bb = [c[0], c[1], c[2], c[0], c[1], c[2]];
   const SI = { hard: 0, seal: 1, mark: 2 };
   for (const slot of slots) {
@@ -1080,7 +1081,7 @@ function sheetSoup(M, FS) {
 // a tank drag is a relayout per tick: the engine and the cowl walked afresh (a sixth of ugly_bi's 84 ms tick) over
 // meshes that had not moved. The key is the sheet object, the layer meshes themselves (each rebuild of a layer makes
 // new ones) with their placement, and the layer frame (inv) by value.
-const matSig = m => { let h = 0; const e = m.elements; for (let i = 0; i < 16; i++) h = (h * 31 + Math.round(e[i] * 1e5)) | 0; return h; };
+const matSig = m => { let h = 0; const e = m.elements; for (let i = 0; i < 16; i++) h = (h * 31 + MathL.round(e[i] * 1e5)) | 0; return h; };
 function surfAll(ctx, scene, inv) {
   const M = ctx && ctx.mesh;
   // the engine's and the cowl's meshes, counted first
@@ -1093,7 +1094,7 @@ function surfAll(ctx, scene, inv) {
         if (!o.isMesh || !o.geometry || o.visible === false) return;
         const pos = o.geometry.getAttribute('position'); if (!pos) return;
         const idx = o.geometry.index, nT = idx ? idx.count / 3 : pos.count / 3;
-        objs.push(o); nL += Math.floor(nT) === nT ? nT : Math.ceil(nT);
+        objs.push(o); nL += MathL.floor(nT) === nT ? nT : MathL.ceil(nT);
         sig += '|' + o.id + ':' + pos.count + ':' + matSig(o.matrixWorld);
       });
     }
@@ -1151,7 +1152,7 @@ function segCrosses(c, q, tris) {
   for (const t of tris) {
     const px = dy * t[8] - dz * t[7], py = dz * t[6] - dx * t[8], pz = dx * t[7] - dy * t[6];
     const det = t[3] * px + t[4] * py + t[5] * pz;
-    if (Math.abs(det) < 1e-12) continue;
+    if (MathL.abs(det) < 1e-12) continue;
     const iv = 1 / det, sx = c[0] - t[0], sy = c[1] - t[1], sz = c[2] - t[2];
     const u = (sx * px + sy * py + sz * pz) * iv; if (u < 0 || u > 1) continue;
     const qx = sy * t[5] - sz * t[4], qy = sz * t[3] - sx * t[5], qz = sx * t[4] - sy * t[3];
@@ -1175,13 +1176,13 @@ function meshNearBodies(o, inv, bodies) {
     const q = [V.x, V.y, V.z];
     for (let a = 0; a < 3; a++) { if (!isFinite(q[a])) return true; if (q[a] < lo[a]) lo[a] = q[a]; if (q[a] > hi[a]) hi[a] = q[a]; }
   }
-  const pad = a => 1e-3 + 1e-6 * (Math.abs(lo[a]) + Math.abs(hi[a]));
+  const pad = a => 1e-3 + 1e-6 * (MathL.abs(lo[a]) + MathL.abs(hi[a]));
   for (const r of bodies) {
-    const c = r.c, e = r.e, cs = Math.abs(Math.cos(r.rot)), sn = Math.abs(Math.sin(r.rot));
+    const c = r.c, e = r.e, cs = MathL.abs(MathL.cos(r.rot)), sn = MathL.abs(MathL.sin(r.rot));
     const ex = [cs * e[0] + sn * e[2], e[1], sn * e[0] + cs * e[2]];
     let hit = true;
     for (let a = 0; a < 3 && hit; a++) {
-      const p = pad(a) + 1e-6 * Math.abs(c[a]) + 1e-6 * ex[a];
+      const p = pad(a) + 1e-6 * MathL.abs(c[a]) + 1e-6 * ex[a];
       if (lo[a] > c[a] + ex[a] + p || hi[a] < c[a] - ex[a] - p) hit = false;
     }
     if (hit) return true;
@@ -1305,7 +1306,7 @@ const TAG_WORDS = { body: 'skin', plywood: 'skin', skin: 'skin', ceilingLoop: 'r
 const tagWord = (ti, p) => {
   const raw = TAG_NAMES[ti] || 'surface', w = TAG_WORDS[raw] || raw;
   // the cage's convention (the strut pods: tip x < 0 is L)
-  const side = p && Math.abs(p[0]) > 0.06 ? (p[0] < 0 ? ', left' : ', right') : '';
+  const side = p && MathL.abs(p[0]) > 0.06 ? (p[0] < 0 ? ', left' : ', right') : '';
   return w + (w !== raw ? ' (' + raw + ')' : '') + side;
 };
 
@@ -1328,17 +1329,17 @@ function obstIndex(S) {
   }
   if (!n || ![0, 1, 2].every(a => isFinite(lo[a]) && isFinite(hi[a]))) { OBST = { S, n: 0 }; return OBST; }
   const cell = GRID_CELL;
-  const N = [0, 1, 2].map(a => Math.max(1, Math.floor((hi[a] - lo[a]) / cell) + 1));
-  const NB = N.map(x => Math.ceil(x / BLK)), nb = NB[0] * NB[1] * NB[2];
+  const N = [0, 1, 2].map(a => MathL.max(1, MathL.floor((hi[a] - lo[a]) / cell) + 1));
+  const NB = N.map(x => MathL.ceil(x / BLK)), nb = NB[0] * NB[1] * NB[2];
   const l0 = lo[0], l1 = lo[1], l2 = lo[2], ib = 1 / (cell * BLK);
   const cl = (v, M) => v < 0 ? 0 : v >= M ? M - 1 : v;
   const bstart = new Int32Array(nb + 1);
   const rg = new Int32Array(n * 6);
   for (let i = 0, o = 0; i < n; i++, o += 15) {
     const k = i * 6;
-    rg[k] = cl(Math.floor((b[o + 9] - l0) * ib), NB[0]); rg[k + 1] = cl(Math.floor((b[o + 12] - l0) * ib), NB[0]);
-    rg[k + 2] = cl(Math.floor((b[o + 10] - l1) * ib), NB[1]); rg[k + 3] = cl(Math.floor((b[o + 13] - l1) * ib), NB[1]);
-    rg[k + 4] = cl(Math.floor((b[o + 11] - l2) * ib), NB[2]); rg[k + 5] = cl(Math.floor((b[o + 14] - l2) * ib), NB[2]);
+    rg[k] = cl(MathL.floor((b[o + 9] - l0) * ib), NB[0]); rg[k + 1] = cl(MathL.floor((b[o + 12] - l0) * ib), NB[0]);
+    rg[k + 2] = cl(MathL.floor((b[o + 10] - l1) * ib), NB[1]); rg[k + 3] = cl(MathL.floor((b[o + 13] - l1) * ib), NB[1]);
+    rg[k + 4] = cl(MathL.floor((b[o + 11] - l2) * ib), NB[2]); rg[k + 5] = cl(MathL.floor((b[o + 14] - l2) * ib), NB[2]);
     for (let x = rg[k]; x <= rg[k + 1]; x++) for (let y = rg[k + 2]; y <= rg[k + 3]; y++)
       for (let z = rg[k + 4]; z <= rg[k + 5]; z++) bstart[(x * NB[1] + y) * NB[2] + z + 1]++;
   }
@@ -1365,9 +1366,9 @@ function obstBlock(O, bx, by, bz) {
   const rng = new Int32Array((k1 - k0) * 6);
   for (let k = k0, j = 0; k < k1; k++, j += 6) {
     const o = O.bidx[k] * 15;
-    rng[j] = cl(Math.floor((b[o + 9] - O.lo[0]) * ic) - x0); rng[j + 1] = cl(Math.floor((b[o + 12] - O.lo[0]) * ic) - x0);
-    rng[j + 2] = cl(Math.floor((b[o + 10] - O.lo[1]) * ic) - y0); rng[j + 3] = cl(Math.floor((b[o + 13] - O.lo[1]) * ic) - y0);
-    rng[j + 4] = cl(Math.floor((b[o + 11] - O.lo[2]) * ic) - z0); rng[j + 5] = cl(Math.floor((b[o + 14] - O.lo[2]) * ic) - z0);
+    rng[j] = cl(MathL.floor((b[o + 9] - O.lo[0]) * ic) - x0); rng[j + 1] = cl(MathL.floor((b[o + 12] - O.lo[0]) * ic) - x0);
+    rng[j + 2] = cl(MathL.floor((b[o + 10] - O.lo[1]) * ic) - y0); rng[j + 3] = cl(MathL.floor((b[o + 13] - O.lo[1]) * ic) - y0);
+    rng[j + 4] = cl(MathL.floor((b[o + 11] - O.lo[2]) * ic) - z0); rng[j + 5] = cl(MathL.floor((b[o + 14] - O.lo[2]) * ic) - z0);
     for (let x = rng[j]; x <= rng[j + 1]; x++) for (let y = rng[j + 2]; y <= rng[j + 3]; y++)
       for (let z = rng[j + 4]; z <= rng[j + 5]; z++) start[(x * BLK + y) * BLK + z + 1]++;
   }
@@ -1396,7 +1397,7 @@ function obstEach(O, qlo, qhi, fn) {
   if (!O.n) return;
   const g = ++O.gen, r = [];
   for (let a = 0; a < 3; a++) {
-    const c0 = Math.max(0, Math.floor((qlo[a] - O.lo[a]) / O.cell)), c1 = Math.min(O.N[a] - 1, Math.floor((qhi[a] - O.lo[a]) / O.cell));
+    const c0 = MathL.max(0, MathL.floor((qlo[a] - O.lo[a]) / O.cell)), c1 = MathL.min(O.N[a] - 1, MathL.floor((qhi[a] - O.lo[a]) / O.cell));
     if (c0 > c1) return;
     r.push(c0, c1);
   }
@@ -1414,7 +1415,7 @@ function obstSeg(O, c, q, only) {
     const o = i * 15;
     const px = d[1] * b[o + 8] - d[2] * b[o + 7], py = d[2] * b[o + 6] - d[0] * b[o + 8], pz = d[0] * b[o + 7] - d[1] * b[o + 6];
     const det = b[o + 3] * px + b[o + 4] * py + b[o + 5] * pz;
-    if (Math.abs(det) < 1e-14) return;
+    if (MathL.abs(det) < 1e-14) return;
     const iv = 1 / det, sx = c[0] - b[o], sy = c[1] - b[o + 1], sz = c[2] - b[o + 2];
     const u = (sx * px + sy * py + sz * pz) * iv; if (u < 0 || u > 1) return;
     const qx = sy * b[o + 5] - sz * b[o + 4], qy = sz * b[o + 3] - sx * b[o + 5], qz = sx * b[o + 4] - sy * b[o + 3];
@@ -1423,11 +1424,11 @@ function obstSeg(O, c, q, only) {
     if (t > 1e-9 && t < 1 && (!best || t < best.t)) best = { t, i };
   };
   // the walk
-  const cell = [0, 1, 2].map(a => Math.floor((c[a] - O.lo[a]) / O.cell));
-  const end = [0, 1, 2].map(a => Math.floor((q[a] - O.lo[a]) / O.cell));
+  const cell = [0, 1, 2].map(a => MathL.floor((c[a] - O.lo[a]) / O.cell));
+  const end = [0, 1, 2].map(a => MathL.floor((q[a] - O.lo[a]) / O.cell));
   const step = [0, 1, 2].map(a => d[a] > 0 ? 1 : d[a] < 0 ? -1 : 0);
   const tMax = [0, 1, 2].map(a => step[a] === 0 ? Infinity : ((O.lo[a] + (cell[a] + (step[a] > 0 ? 1 : 0)) * O.cell) - c[a]) / d[a]);
-  const tDel = [0, 1, 2].map(a => step[a] === 0 ? Infinity : O.cell / Math.abs(d[a]));
+  const tDel = [0, 1, 2].map(a => step[a] === 0 ? Infinity : O.cell / MathL.abs(d[a]));
   for (let guard = 0; guard < 4096; guard++) {
     if (cell[0] >= 0 && cell[0] < O.N[0] && cell[1] >= 0 && cell[1] < O.N[1] && cell[2] >= 0 && cell[2] < O.N[2])
       obstCell(O, cell[0], cell[1], cell[2], g, tri);
@@ -1492,7 +1493,7 @@ function obstNear(O, p, R) {
     const d2 = triD2(b, i, p[0], p[1], p[2]);
     if (d2 < R2) { R2 = d2; best = { d2, i }; }
   });
-  if (best) best.d = Math.sqrt(best.d2);
+  if (best) best.d = MathL.sqrt(best.d2);
   return best;
 }
 // IN THE DRAWN SOLID BY d (d > 0: that deep inside; d < 0: within -d outside, a box-like swell - the crew's margin)
@@ -1500,15 +1501,15 @@ function inSolidBy(p, r, sol, d) {
   if (d >= 0) return inSolid(p, r, sol, d);
   const VM = window.VESSEL_MESH;
   if (!sol || !sol.shape || !VM) return false;
-  const yaw = r.rot + (sol.yaw || 0), cs = Math.cos(yaw), sn = Math.sin(yaw);
+  const yaw = r.rot + (sol.yaw || 0), cs = MathL.cos(yaw), sn = MathL.sin(yaw);
   const dx = p[0] - r.c[0], dy = p[1] - r.c[1], dz = p[2] - r.c[2], m = -d;
-  const X = Math.max(0, Math.abs(dx * cs - dz * sn) - m), Z = Math.max(0, Math.abs(dx * sn + dz * cs) - m);
-  const yy = [dy, dy > 0 ? Math.max(0, dy - m) : Math.min(0, dy + m)];
+  const X = MathL.max(0, MathL.abs(dx * cs - dz * sn) - m), Z = MathL.max(0, MathL.abs(dx * sn + dz * cs) - m);
+  const yy = [dy, dy > 0 ? MathL.max(0, dy - m) : MathL.min(0, dy + m)];
   for (const Y of yy) {
     if (sol.shape.contains) { if (sol.shape.contains(X, Y, Z)) return true; continue; }
     if (Z > sol.e[2]) continue;
     const sec = sol.shape.atZ(Z);
-    if (sec && sec.hx > 0 && X <= sec.hx && Math.abs(Y) <= VM.heightAt(sec, X)) return true;
+    if (sec && sec.hx > 0 && X <= sec.hx && MathL.abs(Y) <= VM.heightAt(sec, X)) return true;
   }
   return false;
 }
@@ -1551,7 +1552,7 @@ function judgeTank(ctx, scene, inv, r) {
     for (const q of D.pts) {
       const d2 = (q[0] - r.c[0]) ** 2 + (q[1] - r.c[1]) ** 2 + (q[2] - r.c[2]) ** 2;
       if (d2 > farD) { farD = d2; far = q; }
-      const k = Math.round(q[0] / 0.004) + ',' + Math.round(q[1] / 0.004) + ',' + Math.round(q[2] / 0.004);
+      const k = MathL.round(q[0] / 0.004) + ',' + MathL.round(q[1] / 0.004) + ',' + MathL.round(q[2] / 0.004);
       if (seen.has(k)) continue;
       seen.add(k);
       // (and a segment from the tank's centre to every one: a pipe crosses a skin between two of its rings with no
@@ -1576,7 +1577,7 @@ function judgeTank(ctx, scene, inv, r) {
   // the solid's own frame: the slot meshes' centre and turn (inSolid's), and its box (the solid lies inside it, so a
   // distance to the box is a LOWER bound of the distance to the solid - a piece of surface farther than CLEAR_GAP
   // from the box is clear, and is not refined)
-  const yw = r.rot + (solAll.yaw || 0), ycs = Math.cos(yw), ysn = Math.sin(yw), c0 = r.c, E3 = solAll.e || r.e;
+  const yw = r.rot + (solAll.yaw || 0), ycs = MathL.cos(yw), ysn = MathL.sin(yw), c0 = r.c, E3 = solAll.e || r.e;
   const loc = (x, y, z, out, k) => { const dx = x - c0[0], dz = z - c0[2]; out[k] = dx * ycs - dz * ysn; out[k + 1] = y - c0[1]; out[k + 2] = dx * ysn + dz * ycs; };
   const Lq = new Float64Array(9), smp = [0, 0, 0], pv = [0, 0, 0], t = new Float64Array(9);
   // the pieces still to look at, flat (nine numbers each): no array a piece (the allocation was most of the cost)
@@ -1603,16 +1604,16 @@ function judgeTank(ctx, scene, inv, r) {
       loc(t[0], t[1], t[2], Lq, 0); loc(t[3], t[4], t[5], Lq, 3); loc(t[6], t[7], t[8], Lq, 6);
       let gap = 0;
       for (let a = 0; a < 3; a++) {
-        const lo = Math.min(Lq[a], Lq[a + 3], Lq[a + 6]), hi = Math.max(Lq[a], Lq[a + 3], Lq[a + 6]);
-        gap = Math.max(gap, lo - E3[a], -E3[a] - hi);
+        const lo = MathL.min(Lq[a], Lq[a + 3], Lq[a + 6]), hi = MathL.max(Lq[a], Lq[a + 3], Lq[a + 6]);
+        gap = MathL.max(gap, lo - E3[a], -E3[a] - hi);
       }
       // A DECK's top falls toward its flanks, under its box's lid: the deck skin over the shoulders is inside the box
       // and outside the tank, and the box's bound refined all of it to 8 mm leaves (the Cub's fitted tank: 100 ms a
       // judgement). Its top at the piece's nearest |x| is the highest the tank reaches there - the bound from above.
       if (deckTop && gap <= CLEAR_GAP) {
-        const xl = Math.min(Lq[0], Lq[3], Lq[6]), xh = Math.max(Lq[0], Lq[3], Lq[6]);
-        const ax = xl <= 0 && xh >= 0 ? 0 : Math.min(Math.abs(xl), Math.abs(xh));
-        if (ax < E3[0]) gap = Math.max(gap, Math.min(Lq[1], Lq[4], Lq[7]) - deckTop(ax));
+        const xl = MathL.min(Lq[0], Lq[3], Lq[6]), xh = MathL.max(Lq[0], Lq[3], Lq[6]);
+        const ax = xl <= 0 && xh >= 0 ? 0 : MathL.min(MathL.abs(xl), MathL.abs(xh));
+        if (ax < E3[0]) gap = MathL.max(gap, MathL.min(Lq[1], Lq[4], Lq[7]) - deckTop(ax));
       }
       if (gap > R) continue;
       if (gap > CLEAR_GAP) { if (gap < coarse) { coarse = gap; coarseTag = tag[i]; coarseAt = [(t[0] + t[3] + t[6]) / 3, (t[1] + t[4] + t[7]) / 3, (t[2] + t[5] + t[8]) / 3]; } continue; }
@@ -1624,7 +1625,7 @@ function judgeTank(ctx, scene, inv, r) {
         if (!triIn || (inSolid(cen, r, solAll, 0.01) && !inSolid(triIn, r, solAll, 0.01))) triIn = cen;
         continue;
       }
-      const e1 = Math.hypot(t[3] - t[0], t[4] - t[1], t[5] - t[2]), e2 = Math.hypot(t[6] - t[0], t[7] - t[1], t[8] - t[2]), e3 = Math.hypot(t[6] - t[3], t[7] - t[4], t[8] - t[5]);
+      const e1 = MathL.hypot(t[3] - t[0], t[4] - t[1], t[5] - t[2]), e2 = MathL.hypot(t[6] - t[0], t[7] - t[1], t[8] - t[2]), e3 = MathL.hypot(t[6] - t[3], t[7] - t[4], t[8] - t[5]);
       // a contact is looked for on the way down (the piece's centre), so a red tank switches to the coarse report
       // after the first one instead of refining the whole crossing at the fine step
       if (!nInside) {
@@ -1632,7 +1633,7 @@ function judgeTank(ctx, scene, inv, r) {
         if (inSolid(smp, r, solAll, 0)) { nInside++; triIn = smp.slice(); redAt = leaves; }
       }
       // once the tank is known red by a contact, the rest is only its report: 3 cm pieces find the deepest well enough
-      if (Math.max(e1, e2, e3) > (nInside ? 0.032 : SAMPLE_STEP) && leaves < BUDGET && (!nInside || leaves - redAt < RED_BUDGET)) {
+      if (MathL.max(e1, e2, e3) > (nInside ? 0.032 : SAMPLE_STEP) && leaves < BUDGET && (!nInside || leaves - redAt < RED_BUDGET)) {
         const ax = (t[0] + t[3]) / 2, ay = (t[1] + t[4]) / 2, az = (t[2] + t[5]) / 2;      // m01
         const bx = (t[3] + t[6]) / 2, by = (t[4] + t[7]) / 2, bz = (t[5] + t[8]) / 2;      // m12
         const cx = (t[0] + t[6]) / 2, cy = (t[1] + t[7]) / 2, cz = (t[2] + t[8]) / 2;      // m02
@@ -1658,7 +1659,7 @@ function judgeTank(ctx, scene, inv, r) {
     if (triIn) {
       // measured only when it could be the deepest yet (inside at the depth already found)
       if (!inside || inSolid(triIn, r, solAll, inside.depth + 0.001)) {
-        const dep = depthIn(triIn, r, solAll, Math.max(r.e[0], r.e[1], r.e[2]));
+        const dep = depthIn(triIn, r, solAll, MathL.max(r.e[0], r.e[1], r.e[2]));
         if (!inside || dep > inside.depth) inside = { depth: dep, tag: tag[i], at: triIn };
       }
     } else if (triAt) { if (triLv === 0) nThin++; near.push({ lv: triLv, at: triAt, tag: tag[i] }); }
@@ -1667,7 +1668,7 @@ function judgeTank(ctx, scene, inv, r) {
   // the nearest, to a millimetre: the candidates at the lowest level found, bisected (the swell's own measure)
   let minD = Infinity, minAt = null, minTag = -1;
   if (near.length) {
-    const lv0 = Math.min(...near.map(q => q.lv));
+    const lv0 = MathL.min(...near.map(q => q.lv));
     for (const q of near.filter(q => q.lv === lv0).slice(0, 12)) {
       let a = lv0 ? LEVELS[lv0 - 1] : 0, z = LEVELS[lv0];
       for (let k = 0; k < 7; k++) { const m = 0.5 * (a + z); if (inSolidBy(q.at, r, solAll, -m)) z = m; else a = m; }
@@ -1693,7 +1694,7 @@ function judgeTank(ctx, scene, inv, r) {
       nCrew++;
       // the deepest, sampled (a foot through a tank is hundreds of points)
       if (nCrew <= 48 || nCrew % 16 === 0) {
-        const dep = depthIn(q, r, solAll, Math.max(r.e[0], r.e[1], r.e[2]));
+        const dep = depthIn(q, r, solAll, MathL.max(r.e[0], r.e[1], r.e[2]));
         if (!crew || dep > crew.depth) crew = { depth: dep, at: q.slice(), who: CREW_PTS.word ? CREW_PTS.word(i) : 'the crew' };
       }
     });
@@ -1701,7 +1702,7 @@ function judgeTank(ctx, scene, inv, r) {
   r.crewHits = nCrew;
   r.layerHits = nThrough + nInside;
   r.jms = { pieces: tj1 - tj0, surf: tj2 - tj1, hard: tj3 - tj2, crew: msNow() - tj3, nIn: nInside, nThin, leaves };
-  const mm = x => Math.max(0, Math.round(x * 1000));
+  const mm = x => MathL.max(0, MathL.round(x * 1000));
   const why = [], marks = [];
   if (through) { why.push(mm(through.depth) + ' mm through the ' + tagWord(through.tag, through.hit) + (nThrough > 1 ? ' (' + nThrough + ' drawn points past it)' : '')); marks.push(through.hit); }
   if (inside) { why.push(mm(inside.depth) + ' mm into the ' + tagWord(inside.tag, inside.at)); marks.push(inside.at); }
@@ -1723,14 +1724,14 @@ function podClear(ctx, scene, inv, pods) {
     const NP = 12, NR = 16;
     for (let k = 0; k <= NP; k++) {
       const u = k / NP, s = 1 - (2 * u - 1) * (2 * u - 1);
-      const rr = Math.max(0.002, 0.5 * pd.D * Math.pow(Math.max(0, s), 0.65)), z = pd.c[2] + (u - 0.5) * pd.L;
+      const rr = MathL.max(0.002, 0.5 * pd.D * MathL.pow(MathL.max(0, s), 0.65)), z = pd.c[2] + (u - 0.5) * pd.L;
       const ax = [pd.c[0], pd.c[1], z];
       for (let j = 0; j < NR; j++) {
-        const a = 2 * Math.PI * j / NR, q = [pd.c[0] + rr * Math.cos(a), pd.c[1] + rr * Math.sin(a), z];
+        const a = 2 * MathL.PI * j / NR, q = [pd.c[0] + rr * MathL.cos(a), pd.c[1] + rr * MathL.sin(a), z];
         const h = obstSeg(O, ax, q);
         if (h) return { why: 'the pod runs into the ' + tagWord(S.tag[h.i], q), at: q };
         const nb = obstNear(O, q, CLEAR_GAP);
-        if (nb) return { why: 'no room for the pod: ' + Math.round(nb.d * 1000) + ' mm to the ' + tagWord(S.tag[nb.i], q), at: q };
+        if (nb) return { why: 'no room for the pod: ' + MathL.round(nb.d * 1000) + ' mm to the ' + tagWord(S.tag[nb.i], q), at: q };
       }
     }
   }
@@ -1740,16 +1741,16 @@ function podClear(ctx, scene, inv, pods) {
 function lightSolid(r, form, profile) {
   const VM = window.VESSEL_MESH;
   if (!VM || !VM.mkShape) return null;
-  const e0 = r.e.map(x => Math.max(0.02, x));
+  const e0 = r.e.map(x => MathL.max(0.02, x));
   const swap = form !== 'deck' && e0[0] > e0[2] * 1.15;
   const e = swap ? [e0[2], e0[1], e0[0]] : e0;
-  const rBox = EN.kind === 'battery' ? Math.max(0.005, Math.min(0.030, 0.10 * Math.min(e[0], e[1], e[2])))
-                                     : Math.max(0.008, Math.min(0.075, 0.34 * Math.min(e[0], e[1], e[2])));
+  const rBox = EN.kind === 'battery' ? MathL.max(0.005, MathL.min(0.030, 0.10 * MathL.min(e[0], e[1], e[2])))
+                                     : MathL.max(0.008, MathL.min(0.075, 0.34 * MathL.min(e[0], e[1], e[2])));
   const fm = form === 'cyl' ? 'cyl' : (form === 'deck' && Array.isArray(profile)) ? 'deck' : 'box';
-  return { light: true, shape: VM.mkShape(fm, e, { r: rBox, dome: 0.30, profile }), e, yaw: swap ? Math.PI / 2 : 0, form: fm };
+  return { light: true, shape: VM.mkShape(fm, e, { r: rBox, dome: 0.30, profile }), e, yaw: swap ? MathL.PI / 2 : 0, form: fm };
 }
 function lightBox(r, sol) {
-  const yaw = r.rot + (sol.yaw || 0), cs = Math.abs(Math.cos(yaw)), sn = Math.abs(Math.sin(yaw)), e = sol.e, c = r.c;
+  const yaw = r.rot + (sol.yaw || 0), cs = MathL.abs(MathL.cos(yaw)), sn = MathL.abs(MathL.sin(yaw)), e = sol.e, c = r.c;
   const ex = cs * e[0] + sn * e[2], ez = sn * e[0] + cs * e[2];
   return [c[0] - ex, c[1] - e[1], c[2] - ez, c[0] + ex, c[1] + e[1], c[2] + ez];
 }
@@ -1832,7 +1833,7 @@ function noseAuto(ctx, inv, bay, v, zFw, cache) {
 function* noseAutoGen(ctx, inv, bay, v, zFw, cache) {
   const FS = fsOf(ctx), M = ctx.mesh;
   if (!M || zFw == null || !cache) return null;
-  const gap = v.gap != null ? Math.max(0.0, Math.min(0.3, +v.gap)) : NOSE_GAP;
+  const gap = v.gap != null ? MathL.max(0.0, MathL.min(0.3, +v.gap)) : NOSE_GAP;
   const S = surfAll(ctx, ctx.scene, inv), O = obstIndex(S);
   if (!CREW_PTS || !crewFresh(ctx.scene, inv)) CREW_PTS = crewPoints(ctx.scene, inv);
   const key = BODY_SIG + '|' + S.sig.length + ':' + S.n + '|' + (CREW_PTS.sig || '').length + ':' + CREW_PTS.n + '|' + gap.toFixed(3) + '|' + (v.room != null ? (+v.room).toFixed(3) : 'r') + '|' + EN.kind + '|' + vesselKey();
@@ -1840,11 +1841,11 @@ function* noseAutoGen(ctx, inv, bay, v, zFw, cache) {
   NOSE_KEY_LAST = key;
   const zOfA = a => zFw * FS - a;
   // the bay's span along the body, and its section in the middle
-  const aLo = Math.min(bay.x0, bay.hx0 != null ? bay.hx0 : bay.x0), aHi = Math.max(bay.x1, bay.hx1 != null ? bay.hx1 : bay.x1);
+  const aLo = MathL.min(bay.x0, bay.hx0 != null ? bay.hx0 : bay.x0), aHi = MathL.max(bay.x1, bay.hx1 != null ? bay.hx1 : bay.x1);
   const extMid = VG().bayExtAt(cache, FS, zFw, 0.5 * (bay.x0 + bay.x1));
   if (!extMid) return null;
   const lvB = bay.lv || [0, 1];
-  const room = v.room != null ? Math.max(0, Math.min(0.3, +v.room)) : NOSE_PANEL_ROOM;
+  const room = v.room != null ? MathL.max(0, MathL.min(0.3, +v.room)) : NOSE_PANEL_ROOM;
   const xh = 0.5 * (extMid.xHi - extMid.xLo), CP = CREW_PTS, P3 = CP.buf, word = i => (CP.word ? CP.word(i) : 'the crew');   // (CP: a sliced job outlives a crew change, which nulls CREW_PTS between its frames)
   // THE PANEL'S BACK: the dash's faces (the sheet's 'dash' / 'dashFace') and the crew layer's panel - its plate and
   // the instruments' cases standing forward of it - the forward-most of them, plus the room to connect them
@@ -1854,7 +1855,7 @@ function* noseAutoGen(ctx, inv, bay, v, zFw, cache) {
     for (const k of f.v) {
       const q = M.V[k], x = q[0] * FS, y = q[1] * FS, z = q[2] * FS;
       if (z > zOfA(aLo) + 0.05 || z < zOfA(aHi) - 0.3) continue;
-      if (Math.abs(x) < 0.25 && y < dashLo) dashLo = y;
+      if (MathL.abs(x) < 0.25 && y < dashLo) dashLo = y;
       if (z > back) back = z;
     }
   }
@@ -1873,12 +1874,12 @@ function* noseAutoGen(ctx, inv, bay, v, zFw, cache) {
   // shield's - or start ahead of the shield's front edge + room, taller and shorter. The back that holds the most wins.
   let faceZ = -Infinity;
   for (const f of M.F) if (f.m === 'dashFace' && f.v) for (const k of f.v) { const z = M.V[k][2] * FS; if (z < zOfA(aLo) && z > zOfA(aHi) - 0.3 && z > faceZ) faceZ = z; }
-  const shieldZ = Math.max(back, caseBack);
-  const back0 = isFinite(faceZ) ? Math.max(faceZ + NOSE_CASE_DEPTH + room, isFinite(caseBack) ? caseBack + room : -Infinity)
+  const shieldZ = MathL.max(back, caseBack);
+  const back0 = isFinite(faceZ) ? MathL.max(faceZ + NOSE_CASE_DEPTH + room, isFinite(caseBack) ? caseBack + room : -Infinity)
                                : (isFinite(shieldZ) ? shieldZ + room : zOfA(bay.x1) + room);
-  const back1 = isFinite(shieldZ) ? Math.max(back0, shieldZ + room) : back0;
+  const back1 = isFinite(shieldZ) ? MathL.max(back0, shieldZ + room) : back0;
   const backs = [];
-  for (let k = 0; k <= 3; k++) { const z = back0 + (back1 - back0) * k / 3; if (!backs.some(q => Math.abs(q - z) < 0.01)) backs.push(z); }
+  for (let k = 0; k <= 3; k++) { const z = back0 + (back1 - back0) * k / 3; if (!backs.some(q => MathL.abs(q - z) < 0.01)) backs.push(z); }
   let front = 0, floor = 0, L0 = 0, zs = null, best = null, fail = null, keel = 0;
   back = back0;
   for (const bk of backs) {
@@ -1896,7 +1897,7 @@ function* noseAutoGen(ctx, inv, bay, v, zFw, cache) {
     let front = Infinity;
     for (const y of yProbe) for (const x of [-0.08, 0, 0.08]) {
       const h = obstSeg(O, [x, y, back], [x, y, back + 1.2]);
-      if (h) front = Math.min(front, back + 1.2 * h.t);
+      if (h) front = MathL.min(front, back + 1.2 * h.t);
     }
     if (!isFinite(front)) front = zOfA(aLo);
     front -= NOSE_CLR;
@@ -1917,16 +1918,16 @@ function* noseAutoGen(ctx, inv, bay, v, zFw, cache) {
     // (the panel's plate itself, if the floor would stand under it, is the back's: nothing to do here)
 
     const L0 = front - back;
-    if (!(L0 > 0.08)) { const r = { why: 'no room between the firewall and the panel (' + Math.round(Math.max(0, L0) * 1000) + ' mm)' }; return { fail: r }; }
+    if (!(L0 > 0.08)) { const r = { why: 'no room between the firewall and the panel (' + MathL.round(MathL.max(0, L0) * 1000) + ' mm)' }; return { fail: r }; }
     // THE WIDTH AND THE CEILINGS over the length: rays up from the floor and out from the centreline
-    const NZ = Math.max(3, Math.ceil(L0 / 0.04) + 1), zs = [];
+    const NZ = MathL.max(3, MathL.ceil(L0 / 0.04) + 1), zs = [];
     for (let k = 0; k < NZ; k++) zs.push(back + 0.005 + (L0 - 0.01) * k / (NZ - 1));
     const widthAt = fl => {
       let hw = Infinity;
       for (const z of zs) for (const yf of [0.01, 0.3, 0.6]) {
-        const y = fl + yf * Math.max(0.02, extMid.yHi - fl - gap);
-        const out = Math.max(0.2, 0.5 * (extMid.xHi - extMid.xLo) + 0.15);
-        for (const sg of [-1, 1]) { const h = obstSeg(O, [0, y, z], [sg * out, y, z]); if (h) hw = Math.min(hw, out * h.t); }
+        const y = fl + yf * MathL.max(0.02, extMid.yHi - fl - gap);
+        const out = MathL.max(0.2, 0.5 * (extMid.xHi - extMid.xLo) + 0.15);
+        for (const sg of [-1, 1]) { const h = obstSeg(O, [0, y, z], [sg * out, y, z]); if (h) hw = MathL.min(hw, out * h.t); }
       }
       return (isFinite(hw) ? hw : 0.5 * (extMid.xHi - extMid.xLo)) - NOSE_CLR;
     };
@@ -1937,11 +1938,11 @@ function* noseAutoGen(ctx, inv, bay, v, zFw, cache) {
       let fl = fl0, hw = widthAt(fl);
       if (!(hw > 0.05)) return null;
       for (let it = 0; it < 2; it++) {
-        const f2 = Math.max(fl0, crewTop(-hw - NOSE_CLR, hw + NOSE_CLR) + CREW_GAP + 0.005);
+        const f2 = MathL.max(fl0, crewTop(-hw - NOSE_CLR, hw + NOSE_CLR) + CREW_GAP + 0.005);
         const w2 = widthAt(f2);
         if (!(w2 > 0.05)) return null;
-        fl = Math.max(f2, crewTop(-w2 - NOSE_CLR, w2 + NOSE_CLR) + CREW_GAP + 0.005);
-        hw = Math.min(w2, widthAt(fl));
+        fl = MathL.max(f2, crewTop(-w2 - NOSE_CLR, w2 + NOSE_CLR) + CREW_GAP + 0.005);
+        hw = MathL.min(w2, widthAt(fl));
       }
       if (!(hw > 0.05)) return null;
       const cl = [];
@@ -1949,15 +1950,15 @@ function* noseAutoGen(ctx, inv, bay, v, zFw, cache) {
         const x = hw * k / (NX - 1) * 0.999;
         let c = Infinity;
         for (const z of zs) for (const sg of k ? [-1, 1] : [1]) {
-          const up = Math.max(0.1, extMid.yHi + 0.15 - fl);
+          const up = MathL.max(0.1, extMid.yHi + 0.15 - fl);
           const h = obstSeg(O, [sg * x, fl + 0.002, z], [sg * x, fl + 0.002 + up, z]);
-          c = Math.min(c, h ? fl + 0.002 + up * h.t : extMid.yHi);
+          c = MathL.min(c, h ? fl + 0.002 + up * h.t : extMid.yHi);
         }
         cl.push(c - gap);
       }
       const H = cl[0] - fl;
       if (!(H > 0.05)) return { floor: fl, halfW: hw, H, vol: 0 };
-      const pr = cl.map(c => Math.max(0, Math.min(1, (c - fl) / H)));
+      const pr = cl.map(c => MathL.max(0, MathL.min(1, (c - fl) / H)));
       const fr = pr.reduce((a, q, i) => a + (i === 0 || i === pr.length - 1 ? 0.5 : 1) * q, 0) / (pr.length - 1);
       return { floor: fl, halfW: hw, H, profile: pr, vol: 2 * hw * H * fr };
     };
@@ -1971,7 +1972,7 @@ function* noseAutoGen(ctx, inv, bay, v, zFw, cache) {
       yield;                                                // (a slice: one floor measured)
       if (sh && sh.vol > 0 && (!best || sh.vol > best.vol * 1.001)) best = sh;
     }
-    if (!best) return { fail: { why: 'no height under the deck above the feet (the floor ' + Math.round((floor - extMid.yLo) * 1000) + ' mm over the keel, the gap ' + Math.round(gap * 1000) + ' mm)' } };
+    if (!best) return { fail: { why: 'no height under the deck above the feet (the floor ' + MathL.round((floor - extMid.yLo) * 1000) + ' mm over the keel, the gap ' + MathL.round(gap * 1000) + ' mm)' } };
     return { best, front, L0, zs, keel };
   }
   floor = best.floor;
@@ -1982,14 +1983,14 @@ function* noseAutoGen(ctx, inv, bay, v, zFw, cache) {
     const zc = 0.5 * (front + back), along = zFw * FS - zc, yc = floor + dims.H / 2;
     const ext = VG().bayExtAt(cache, FS, zFw, along) || extMid;
     const bLo = ext.yLo + lvB[0] * (ext.yHi - ext.yLo), bHi = ext.yLo + lvB[1] * (ext.yHi - ext.yLo);
-    const lv = Math.max(0, Math.min(1, (yc - bLo) / Math.max(1e-6, bHi - bLo)));
+    const lv = MathL.max(0, MathL.min(1, (yc - bLo) / MathL.max(1e-6, bHi - bLo)));
     const cand = { bay: 'nose', capacity: 1, along: +along.toFixed(4), lv: +lv.toFixed(4), rot: 0, form: 'deck',
                    dims: { L: +dims.L.toFixed(3), W: +dims.W.toFixed(3), H: +dims.H.toFixed(3), profile: dims.profile.map(p => +p.toFixed(3)) } };
     const pl = noseJudge(ctx, inv, bay, cand, zFw, cache, yc);
     yield;                                                  // (a slice: one candidate judged)
     last = { cand, pl };
     if (pl && pl.ok) break;
-    if (it % 3 === 2) { const d = Math.min(0.03, dims.L * 0.08); front -= d / 2; back += d / 2; dims.L -= d; }
+    if (it % 3 === 2) { const d = MathL.min(0.03, dims.L * 0.08); front -= d / 2; back += d / 2; dims.L -= d; }
     else dims.H *= 0.93;
     if (dims.L < 0.08 || dims.H < 0.04) break;
   }
@@ -2257,7 +2258,7 @@ function slotMat(slot, bad, i, v) {
   if (!m) vmats.set(id, m = buildMat(fin, bad));
   const col = slot === 'shell' ? (tintOf(v) || FINISH[fin].col) : SLOT_COL[slot];
   m.color.set(col);
-  const h = (slot === 'shell' && FINISH[fin].hue) ? hueOf(v) * Math.PI / 180 : 0;
+  const h = (slot === 'shell' && FINISH[fin].hue) ? hueOf(v) * MathL.PI / 180 : 0;
   m.userData.hue = h;
   if (m.userData.hueU) m.userData.hueU.value = h;
   return m;
@@ -2415,7 +2416,7 @@ function standoffBlocked(ctx, r, sol, yaw) {
   const zs = [], ss = [];
   for (let k = 0; k < r.pts.length; k++) {
     const s = r.samples[k] && r.samples[k][2];
-    if (!isFinite(s) || Math.abs(s) > 1e5) continue;
+    if (!isFinite(s) || MathL.abs(s) > 1e5) continue;
     zs.push(r.pts[k][2] / FS); ss.push(s); mz += r.pts[k][2] / FS; ms += s; n++;
   }
   if (n < 2) return [];
@@ -2424,7 +2425,7 @@ function standoffBlocked(ctx, r, sol, yaw) {
   for (let k = 0; k < n; k++) { num += (zs[k] - mz) * (ss[k] - ms); den += (zs[k] - mz) * (zs[k] - mz); }
   const slope = den > 1e-12 ? num / den : -1;
   const sLOf = z => ms + slope * (z - mz);
-  const cs = Math.cos(yaw), sn = Math.sin(yaw), c = r.c;
+  const cs = MathL.cos(yaw), sn = MathL.sin(yaw), c = r.c;
   const SI = { hard: 0, seal: 1, mark: 2 };
   const want = sol.pieces.filter(pc => STANDOFF.includes(pc.name));
   const ptsOf = {};
@@ -2450,7 +2451,7 @@ function standoffBlocked(ctx, r, sol, yaw) {
   let prof = PIECE_PROF.get(key);
   if (!prof) {
     if (PIECE_PROF.size > 48) PIECE_PROF.clear();
-    try { prof = B.bayProfile(ctx.mesh, lo - pad, hi + pad, PIECE_WALL / FS, Math.max(4, Math.ceil((hi - lo) / (0.04 / FS)) + 2)); }
+    try { prof = B.bayProfile(ctx.mesh, lo - pad, hi + pad, PIECE_WALL / FS, MathL.max(4, MathL.ceil((hi - lo) / (0.04 / FS)) + 2)); }
     catch (e) { prof = null; }
     PIECE_PROF.set(key, prof);
   }
@@ -2538,7 +2539,7 @@ function drawResults(group, ctx, results) {
         const NP = 18, pts = [];
         for (let k = 0; k <= NP; k++) {
           const u = k / NP, s = 1 - (2 * u - 1) * (2 * u - 1);
-          pts.push(new T3.Vector2(Math.max(0.002, 0.5 * pd.D * Math.pow(Math.max(0, s), 0.65)), (u - 0.5) * pd.L));
+          pts.push(new T3.Vector2(MathL.max(0.002, 0.5 * pd.D * MathL.pow(MathL.max(0, s), 0.65)), (u - 0.5) * pd.L));
         }
         const geo = new T3.LatheGeometry(pts, 28);
         const m = new T3.Mesh(geo, wet ? matWet(bad) : slotMat('shell', bad, i, r.v));
@@ -2551,13 +2552,13 @@ function drawResults(group, ctx, results) {
         // strut where it meets it - the hardware's steel, part of the tank (it flies with it)
         if (pd.hang > 0 && pd.onStrut) {
           const hm = slotMat('hard', false, i, r.v);
-          const ch = Math.max(0.01, pd.hang - pd.D / 2 + 0.01), pw = Math.min(0.5 * pd.L, 0.18);
+          const ch = MathL.max(0.01, pd.hang - pd.D / 2 + 0.01), pw = MathL.min(0.5 * pd.L, 0.18);
           const py = new T3.Mesh(new T3.BoxGeometry(0.018, ch, pw), hm);
           py.position.set(pd.c[0], pd.c[1] + pd.D / 2 + ch / 2 - 0.01, pd.c[2]);
           py.name = 'edVessel_' + i + (pd.sign > 0 ? 'R' : 'L') + '_pylon';
           if (bad) py.userData.edUnfit = 1;
           group.add(py);
-          const cl = new T3.Mesh(new T3.CylinderGeometry(0.03, 0.03, Math.min(0.12, pw * 0.8), 14, 1, true), hm);
+          const cl = new T3.Mesh(new T3.CylinderGeometry(0.03, 0.03, MathL.min(0.12, pw * 0.8), 14, 1, true), hm);
           cl.quaternion.setFromUnitVectors(new T3.Vector3(0, 1, 0), new T3.Vector3(pd.u[0], pd.u[1], pd.u[2]));
           cl.position.set(pd.onStrut[0], pd.onStrut[1], pd.onStrut[2]);
           cl.name = 'edVessel_' + i + (pd.sign > 0 ? 'R' : 'L') + '_clamp';
@@ -2581,7 +2582,7 @@ function drawResults(group, ctx, results) {
             slotMesh(group, VM.wingLoft(s.ribs, tileOf(finishOf(r.v))), mat,
                      'edVessel_' + i + (s.sign > 0 ? 'R' : 'L'), [0, 0, 0], 0);
           if (EN.kind !== 'battery' && VIEW.fill > 0.02)
-            slotMesh(group, VM.wingLoft(s.ribs, 0.4, { fill: Math.min(1, VIEW.fill), inset: wet ? 0.0 : 0.008 }),
+            slotMesh(group, VM.wingLoft(s.ribs, 0.4, { fill: MathL.min(1, VIEW.fill), inset: wet ? 0.0 : 0.008 }),
                      wet ? matWet(bad) : fuelMat(),
                      'edFuel_' + i + (s.sign > 0 ? 'R' : 'L'), [0, 0, 0], 0);
           continue;
@@ -2596,8 +2597,8 @@ function drawResults(group, ctx, results) {
           slotMesh(group, VM.wingBox(p8, tileOf(finishOf(r.v))), mat,
                    'edVessel_' + i + (s.sign > 0 ? 'R' : 'L'), [0, 0, 0], 0);
         if (EN.kind !== 'battery' && VIEW.fill > 0.02) {
-          const inset = wet ? 0.0 : 0.008, f = Math.min(1, VIEW.fill);
-          const g0 = y0 + inset, g1 = g0 + Math.max(0.004, (s.d - 2 * inset) * f);
+          const inset = wet ? 0.0 : 0.008, f = MathL.min(1, VIEW.fill);
+          const g0 = y0 + inset, g1 = g0 + MathL.max(0.004, (s.d - 2 * inset) * f);
           const dx = s.x1 > s.x0 ? inset : -inset;
           const q8 = [
             [s.x0 + dx, g0, s.zR0 + inset], [s.x0 + dx, g0, s.zF0 - inset],
@@ -2627,7 +2628,7 @@ function drawResults(group, ctx, results) {
         const zA = sA.z * FS, zB = sB.z * FS;
         const xh = 0.5 * (sel.section.xHi - sel.section.xLo);
         const c = [0, 0.5 * (band[0] + band[1]), 0.5 * (zA + zB)];
-        const e = [xh, 0.5 * (band[1] - band[0]), 0.5 * Math.abs(zA - zB)];
+        const e = [xh, 0.5 * (band[1] - band[0]), 0.5 * MathL.abs(zA - zB)];
         const bag = K.Bag();
         K.boxIn(bag, c, e, [1, 0, 0], [0, 1, 0], [0, 0, 1]);
         const m = bag.mesh(group, ghost());
@@ -2775,7 +2776,7 @@ function lvKeepingHeight(i, along) {
   const lo = ext.yLo + lvB[0] * H, hi = ext.yLo + lvB[1] * H;
   if (!(hi - lo > 1e-6)) return v.lv;
   const lv = (r.c[1] - lo) / (hi - lo);
-  return Math.round(Math.max(lvB[0], Math.min(lvB[1], lv)) * 1000) / 1000;
+  return MathL.round(MathL.max(lvB[0], MathL.min(lvB[1], lv)) * 1000) / 1000;
 }
 // a row's shown value, written without rebuilding the panel (the drag's hand is on another row)
 function syncRow(i, label, value, fmt) {
@@ -2946,7 +2947,7 @@ function readoutCompute(job, core, BAL) {
   const S0 = def.spec;              // the RESOLVED spec: what GARAGE_SPEC.resolved() hands the page
   const out = { shake, fillSh: null, litres: null, chart: null };
   if (S0 && S0.fuel) {
-    const L = S0.fuel.litres * Math.min(1, Math.max(0, job.fill == null ? 1 : job.fill));
+    const L = S0.fuel.litres * MathL.min(1, MathL.max(0, job.fill == null ? 1 : job.fill));
     out.litres = L;
     out.fillSh = core.genShakedown(core.buildGen(core.genSpecAtFuel(S0, L)), { slim: true });
     if (BAL) out.chart = BAL.compute(S0, core,
@@ -3000,7 +3001,7 @@ function balanceApply(r) {
     const F = window.CAGE_FLOAT;
     const prev = (F && F.cgM) || window.FLYDIY_CG_MODEL;
     window.FLYDIY_CG_MODEL = [r.cgMX, r.cgMY];
-    const moved = !prev || Math.hypot(prev[0] - r.cgMX, prev[1] - r.cgMY) > 0.02;
+    const moved = !prev || MathL.hypot(prev[0] - r.cgMX, prev[1] - r.cgMY) > 0.02;
     const UI = window.CAGE_UI, P = UI && UI.P;
     // (a load holds the floats where the file saved them until an edit: no
     // rebuild for the CG then, G3700 - _cage_float.js CAGE_FLOAT_HELD)
@@ -3136,7 +3137,7 @@ function applyReadouts(r) {
       let pct = null;
       if (E && E.fwd && E.aft && E.fwd.cgPct != null && E.fwd.cgX != null) {
         // the envelope's own % MAC scale: two points define it
-        const k = (E.aft.cgPct - E.fwd.cgPct) / Math.max(1e-9, E.aft.cgX - E.fwd.cgX);
+        const k = (E.aft.cgPct - E.fwd.cgPct) / MathL.max(1e-9, E.aft.cgX - E.fwd.cgX);
         pct = E.fwd.cgPct + (sh.cgX - E.fwd.cgX) * k;
       }
       fillEl.textContent = f(r.litres, 0) + ' L aboard \u00b7 ' + f(sh.mass, 0) + ' kg \u00b7 CG ' +
@@ -3172,11 +3173,11 @@ function drawBar(E, cgX) {
   barEl.innerHTML = '';
   if (!E || !E.fwd || !E.aft) { barEl.style.display = 'none'; return; }
   barEl.style.display = 'block';
-  const lo = E.fwd.cgX, hi = E.aft.cgX, span = Math.max(1e-6, hi - lo);
+  const lo = E.fwd.cgX, hi = E.aft.cgX, span = MathL.max(1e-6, hi - lo);
   // the bar runs a little past both corners so a CG outside the envelope
   // still has somewhere to be drawn
   const pad = 0.15 * span, x0 = lo - pad, x1 = hi + pad;
-  const at = x => Math.max(0, Math.min(100, (x - x0) / (x1 - x0) * 100));
+  const at = x => MathL.max(0, MathL.min(100, (x - x0) / (x1 - x0) * 100));
   // G3733: the look is the sheet's (.cgBar > i, .cgBar > i.cg); only WHERE a
   // mark stands is computed here, so only `left` is written inline
   const mark = (x, cls, t) => {
@@ -3547,12 +3548,12 @@ function renderPanel() {
     let capMax;
     if (EN.kind === 'battery') {
       const cell = (C.CELLS || {})[EN.cell] || { WhL: 250, packK: 0.7 };
-      capMax = Math.max(1, Math.floor(room / 1.18 * (cell.WhL * cell.packK) / 1000));
-    } else capMax = Math.max(1, Math.floor(room / 1.06));
+      capMax = MathL.max(1, MathL.floor(room / 1.18 * (cell.WhL * cell.packK) / 1000));
+    } else capMax = MathL.max(1, MathL.floor(room / 1.06));
     if (!(bay && bay.key === 'nose' && noseAutoWanted(v, bay))) range(box, 'capacity', 'what it holds. The top of the slider is what the ' +
       'bay can take; the readout says whether the SHAPE fits. Moving this ' +
       'gives the vessel its catalogue shape again', 1,
-      Math.max(capMax, 1), 1, Math.min(v.capacity, Math.max(capMax, 1)), fmtL,
+      MathL.max(capMax, 1), 1, MathL.min(v.capacity, MathL.max(capMax, 1)), fmtL,
       x => { v.capacity = x; v.dims = null; dragLayout(false, i); },
       x => { v.capacity = x; v.dims = null; relayout(); commitSoon(); });
     // THE GEOMETRY IS THE PLAYER'S, AND THE CAPACITY FOLLOWS IT. Three rows
@@ -3582,8 +3583,8 @@ function renderPanel() {
         x => { freeIt(); const d = cur(); v.dims = { L: d.L, W: d.W, H: d.H }; v.dims[key] = x;
                relayout(); renderPanel(); syncCap(); commitSoon(); });
       const secW = LAST.results[i] && LAST.results[i].section
-        ? Math.max(0.3, LAST.results[i].section.xHi - LAST.results[i].section.xLo) : 1.2;
-      sizeRow('length', 'L', Math.max(0.4, (bay.hx1 != null ? bay.hx1 : bay.x1) - (bay.hx0 != null ? bay.hx0 : bay.x0)), 'along the body');
+        ? MathL.max(0.3, LAST.results[i].section.xHi - LAST.results[i].section.xLo) : 1.2;
+      sizeRow('length', 'L', MathL.max(0.4, (bay.hx1 != null ? bay.hx1 : bay.x1) - (bay.hx0 != null ? bay.hx0 : bay.x0)), 'along the body');
       sizeRow('width', 'W', secW, 'across the body');
       sizeRow('height', 'H', 1.0, 'up');
     }
@@ -3696,8 +3697,8 @@ function renderPanel() {
   // sheet, the corners and the slider above.
   if (inGame() && window.BALANCE) {
     const S0 = (() => { try { return window.GARAGE_SPEC.resolved(); } catch (e) { return null; } })();
-    const seats = Math.max(1, (S0 && S0.seats) | 0);
-    if (VIEW.occupants == null) VIEW.occupants = Math.max(1, Math.min(seats, (S0 && S0.occupants) || 1));
+    const seats = MathL.max(1, (S0 && S0.seats) | 0);
+    if (VIEW.occupants == null) VIEW.occupants = MathL.max(1, MathL.min(seats, (S0 && S0.occupants) || 1));
     if (VIEW.baggage == null) VIEW.baggage = (S0 && S0.cabin && S0.cabin.baggage) || 0;
     const fmtN = x => x.toFixed(0);
     const fmtKg = x => x.toFixed(0) + ' kg';

@@ -482,7 +482,7 @@ function edoArc(s) {
 // holds the six-facet drawn arc's area - (2k + k^2) / 2 sin(span / 3) = 3 sin(span / 6)
 function edoArcP(s) {
   const y0 = s.yt - s.arcC, span = Math.PI / 2 - s.arcPhi;
-  const k = Math.sqrt(1 + 6 * Math.sin(span / 6) / Math.max(1e-9, Math.sin(span / 3))) - 1;
+  const k = Math.sqrt(1 + 6 * CORE_MATH.sin(span / 6) / Math.max(1e-9, CORE_MATH.sin(span / 3))) - 1;
   const out = [[s.yd, s.bd]];
   for (let j = 1; j <= 2; j++) { const ph = s.arcPhi + span * j / 3; out.push([y0 + k * s.arcC * CORE_MATH.sin(ph), k * s.arcA * CORE_MATH.cos(ph)]); }
   out.push([s.yt, 0]);
@@ -495,7 +495,7 @@ function deckYAt(P, s, z) {
   const az = Math.abs(z);
   if (az >= s.bd) return s.yd;
   const ph = Math.acos(Math.min(1, az / Math.max(1e-9, s.arcA)));
-  return s.yt - s.arcC + s.arcC * Math.sin(ph);
+  return s.yt - s.arcC + s.arcC * CORE_MATH.sin(ph);
 }
 
 function makeFloat(over = {}) {
