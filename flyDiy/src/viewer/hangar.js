@@ -3764,6 +3764,11 @@ function applyDay(day, renderer) {
   // the clouds' day (the shed frame is not the world's: the splice stays off, the key takes the layer's transmittance)
   let cloudT = 1;
   if (typeof CLOUDS !== 'undefined' && CLOUDS.ready) { CLOUDS.S.inShed = true; CLOUDS.update(day, null, null); cloudT = CLOUDS.sunT(0, 0, 0); if (cloudMesh) cloudMesh.visible = CLOUDS.active; }
+  // GARAGE-CLOUDS (8 Nov, the cloud bisect: blank on every master back to 22 Oct, drawn on top of everything too, the probe 'baked:
+  // false'): the layer's noise volume is baked a few slices a frame by CLOUDS.draw - the WORLD's pass - so a boot into the garage
+  // never baked it and the room's cloud sphere marched an empty noise (density 0, every texel discarded). The shed bakes it itself,
+  // a slice batch a frame as the world does, and the room's probe is shot again once it is done (the walls see the clouds)
+  if (renderer && typeof CLOUDS !== 'undefined' && CLOUDS.ready && CLOUDS.active && !CLOUDS.baked && CLOUDS.bakeStep && CLOUDS.bakeStep()) skyBakedSun = null;
   // THE LAMPS SET THE NIGHT'S EXPOSURE: the schedule opens 15 stops for a starlit sky, but a shed
   // with 70 cd lamps is lit by its lamps, which were judged at the rows' exposure (~1.0); the cap
   // is that, half a stop over, so a golden hour still opens and the dusk and night hold the lamps' level

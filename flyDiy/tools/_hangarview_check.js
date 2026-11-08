@@ -89,6 +89,11 @@ const HV = require(path.join(ROOT, 'src', 'viewer', 'hangar_view.js'));
   // HVIEW-OFF (8 Nov, the user's verdict): the view is OFF by default until the redesign replaces it; ?hview=1 turns it on
   ok(/const hviewOff = \(\) => \{ try \{ return !\/\[\?&\]hview=1\\b\/\.test\(location\.search \|\| ''\); \} catch \(e\) \{ return true; \} \};/.test(app),
     '3m the view is off by default (the room\'s own outdoors), on only with ?hview=1 (HVIEW-OFF, 8 Nov: until the redesign)');
+  // GARAGE-CLOUDS (8 Nov, the cloud bisect): the noise volume is baked by CLOUDS.draw (the world's pass) only, so a boot into the garage
+  // marched an empty noise - the room's cloud layer blank on every master back to 22 Oct. The shed's day bakes it itself
+  const cl = src('src/viewer/clouds.js');
+  ok(/CLOUDS\.ready && CLOUDS\.active && !CLOUDS\.baked && CLOUDS\.bakeStep && CLOUDS\.bakeStep\(\)\) skyBakedSun = null;/.test(han) && /if \(!bakeStep\(\)\) return;/.test(cl) && /bakeStep, probe/.test(cl) && /get baked\(\)/.test(cl),
+    '3n the room bakes the clouds\' noise itself (the world\'s draw is its only other baker), and re-shoots its probe when done (GARAGE-CLOUDS)');
   // 4 no readback
   ok(!/readRenderTargetPixels|readPixels|getBufferSubData/.test(hv), '4 NO READBACK in hangar_view.js (the distance reaches the mesh by a vertex fetch)');
 }
