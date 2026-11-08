@@ -313508,3 +313508,13 @@ The committed baseline was from 15 Sep: 13 cells, before the ctl-rev column. It 
 
 ### PILOTMATRIX: the 3 bad cells are a TEMPORARY ratchet (Pilot, 8 Nov, after A0)
 The baseline moved in G2813 holds the Stearman's take-off control reversals (stearman:HOME:calm / x2 / x4, 114-130 /min) as bad. That is a real pilot fault, not a new normal. The ratchet only stops it getting worse until it is fixed. It is on Pilot's list this week, after NODE-ACCEPT. Its fix moves those 3 cells forward by hand again.
+
+### PILOT-NOTCH for L35d (Pilot, 8 Nov 22:45): dropped from L35c, rebased on L35c b25872b51
+- L35c dropped it on a real conflict: tools/fixtures/stol_baseline.json.gz, which seaplanes e5a2fe4cb also re-captured and merged first. Rebased on b25872b51: the STOL fixture is master's, then re-captured on top (notch + FLARE-NOPUSH + L35c's seaplanes), with _stol_samebits.js --capture. The HANDOVER append conflict kept both entries.
+- Gates on the rebased tree:
+  - STOL fixture re-captured;
+  - POD PASS (no re-bless needed);
+  - ENGCONFIG IDENTITY: every pin holds (--pin prints the same 17 rows);
+  - JOINPARITY: 1 FAIL, the Jodel row, as named above.
+- PILOTMATRIX's baseline is the one captured on L35b + this branch. L35c's 43_pilot/solver/aero changes are gated on a retractable gear (def.params.retract), an amphibian, or a pair of engines behind the trailing edge. None of the matrix's cells has any of those.
+- G2819 (TANK-SPLIT, node shapes the nose tank sliced, as the page does) was tried and DROPPED. It does not move the Jodel: node stays 471.789 kg, uncached as well. Shaping's timing alone is not the cause. The JOINPARITY Jodel row stays named, Monday. The patch is kept in D:/Dev/pilot_runs/flare_nopush_20261108/.
