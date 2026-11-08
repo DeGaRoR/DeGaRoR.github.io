@@ -24,6 +24,50 @@ STATUS: IN PROGRESS - sections fill as the runs land. Pushed every 1-2 h.
   Sunday night's result exactly: **FAIL SEA > mk_sea, 479 s, prop-strike (water, t 452) in the ROLLOUT**, touchdown
   sink 0.36 m/s at 25.6 m/s, run 179 m (841 s wall).
 
+## The flight grid (task 1)
+
+The game's route, Expert, damage ON. Wind is the game's day (`DAY_CLOCK`, gust 0.15, the sea breeze on) with its wind
+set to the row's: 0 / 8 kt from 250 (the game's default day) / 15 kt from 250 / a 10 kt crosswind square to the
+destination lane. Loads: `full` = the build as saved (two aboard, 72 L - the tank is 72 L, so full and max fuel are
+the same aeroplane, 591.8 kg), `solo` = one aboard, 20 L; `solo72` = one aboard, 72 L. The water starts are the
+game's own placement (no taxi: the AP rolls from the spawn); a land start taxies from the walked stand (the "short
+taxi" of every land leg). The runs are DETERMINISTIC: a repeat is a byte-identical flight, so the repeats are flown
+with the start shifted by `--pre N` idle frames (37, 91: the waves and the gusts in another phase).
+Prop min = the disc's lowest point over the surface (the waved sea on water), by phase. Evidence `runs/*.json`.
+
+| leg | wind | load | gear held | verdict | td sink m/s | run / td V | prop min, departure (m, phase) | prop min, arrival (m, phase) | roll min/max on water (deg) | pitch min/max on water | go-arounds |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| HOME>mk_sea | 0 | full 592 kg | - | PASS | 0.40 | 334 m / 24.9 m/s | 0.72 (ROLL/ground) | 0.13 (ROLLOUT/water) | -4.5 / 1.8 | 0.7 / 13.8 | 0 |
+| HOME>mk_sea | 15 kt / 250 | full 592 kg | - | PASS | 0.43 | 132 m / 25.7 m/s | 0.72 (ROLL/ground) | 0.13 (ROLLOUT/water) | -20.6 / 27.1 | -5.6 / 18.0 | 0 |
+| HOME>mk_sea | 8 kt / 250 | full 592 kg | - | PASS | 0.25 | 213 m / 25.5 m/s | 0.72 (ROLL/ground) | 0.14 (ROLLOUT/water) | -4.8 / 2.0 | -4.0 / 13.5 | 0 |
+| HOME>w3 | 0 | full 592 kg | - | PASS | 0.68 | 386 m / 26.8 m/s | 0.72 (ROLL/ground) | 0.75 (ROLLOUT/ground) | - | - | 0 |
+| HOME>w3 | 15 kt / 250 | full 592 kg | - | PASS | 0.62 | 327 m / 28.1 m/s | 0.72 (ROLL/ground) | 0.76 (ROLLOUT/ground) | - | - | 0 |
+| HOME>w3 | 8 kt / 250 | full 592 kg | - | PASS | 0.66 | 369 m / 27.8 m/s | 0.72 (ROLL/ground) | 0.76 (ROLLOUT/ground) | - | - | 0 |
+| SEA>SEA | 0 | full 592 kg | - | PASS | 0.51 | 291 m / 24.6 m/s | 0.17 (ROLL/water) | 0.14 (ROLLOUT/water) | -2.7 / 3.5 | -2.6 / 12.2 | 0 |
+| SEA>SEA | 8 kt / 250 | full 592 kg | - | PASS | 0.22 | 251 m / 24.6 m/s | 0.17 (ROLL/water) | 0.15 (ROLLOUT/water) | -1.5 / 5.8 | -2.6 / 11.9 | 0 |
+| SEA>mk_sea | 0 | full 592 kg | - | PASS | 0.35 | 341 m / 25.0 m/s | 0.17 (ROLL/water) | 0.13 (ROLLOUT/water) | -4.6 / 1.6 | -2.6 / 13.9 | 0 |
+| SEA>mk_sea | 15 kt / 250 | full 592 kg | - | FAIL prop-strike (water t 480.9 ROLLOUT) | 0.47 | 117 m / 25.7 m/s | 0.18 (ROLL/water) | 0.02 (ROLLOUT/water) | -10.9 / 3.5 | -10.5 / 37.0 | 0 |
+| SEA>mk_sea | 8 kt / 250 | full 592 kg | - | FAIL prop-strike (water t 452 ROLLOUT) | 0.36 | 179 m / 25.6 m/s | 0.17 (ROLL/water) | -0.09 (ROLLOUT/water) | -5.6 / 14.6 | -5.3 / 42.6 | 0 |
+| mk_sea>HOME | 0 | full 592 kg | - | PASS | 0.79 | 479 m / 26.9 m/s | 0.17 (ROLL/water) | 0.76 (ROLLOUT/ground) | -0.8 / 0.6 | -2.6 / 9.1 | 0 |
+| mk_sea>HOME | 15 kt / 250 | full 592 kg | - | FAIL abort | - | - | 0.07 (ROLL/water) | - | -1.8 / 2.8 | -6.8 / 26.5 | 0 |
+| mk_sea>HOME | 8 kt / 250 | full 592 kg | - | FAIL abort, prop-strike (water t 0.6 ROLL) | - | - | 0.03 (ROLL/water) | - | -1.3 / 2.6 | -10.9 / 9.9 | 0 |
+
+
+What the grid says so far (the rows still flying are added on the next push):
+- LAND ONLY (HOME > w3): passes at 0 / 8 / 15 kt, sink 0.62-0.68, the landing run 327-386 m on Ridgeback's 543 m.
+- LAND TO SEA (HOME > mk_sea): passes at 0 / 8 / 15 kt; the gear up for the water; but at 15 kt the roll on the
+  water reaches **+27.1 / -20.6 deg** and the pitch 18 deg (a skip with a wing down - a near miss, "bad").
+- SEA CIRCUIT (SEA > SEA, the sheltered bay): passes at 0 / 8 kt.
+- SEA TO SEA (SEA > mk_sea, landing on the OPEN sea): passes calm, **prop strike in the roll-out at 8 and 15 kt** (S1,
+  the porpoise: pitch 42.6 / 37.0 deg).
+- SEA TO LAND (mk_sea > HOME, the open-sea start): passes calm (sink 0.79, run 479 m at HOME), **prop strike at t 0.6
+  at 8 kt** (S2, the drop), **take-off rejected at 15 kt** (`will not reach Vr: 0.18 m/s^2 needs 1793 m more, 1142 m
+  left`: a porpoise on the run, pitch 26.5 deg at 13.9 m/s, the disc 0.07 m over the hump's water).
+- EVERY water roll-out that passes still brings the disc to **0.13-0.15 m** over the water (pitch 11-12 deg at 5 m/s,
+  coming off the step); every water take-off to **0.17 m** at the hump. The margin is the hull's trim off the step, not
+  the chop: on the open sea at 15 kt it is 0.02-0.07 m.
+- No go-around anywhere so far; no capsize (roll extremes above); no member yielded or broken on any passing leg.
+
 ## Prop strikes: what they are (task 2) - two different mechanisms, neither is the static clearance
 
 Numbers are the disc's lowest point over the water surface it strikes on (`gapW`, the waved sea), node, the game's
