@@ -313657,3 +313657,10 @@ HANGAR PASS, STAND PASS, HANGARVIEW PASS, FADES PASS, COVER PASS; node --check O
 
 - A real corrugated profile for the roof deck (the ribs are a normal map) is the follow-up.
 - Ground cover grows on the world sheds' floors (A0 saw it in B1_side). It is on master too, and it is next on my list.
+## ASSETS-GREEN-2 - GATE UISMOKE RUNS THE MATERIAL LIBRARY AHEAD OF APP.JS (CABIN-CRAFT, 8 Nov 2026, fix-forward for L35d)
+
+- **The red**: since assets-green (de8e69361) app.js makes its materials through MATLIB.make. The page loads matlib.js long before app.js; GATE UISMOKE's sandbox did not, and the site's node fallback (require) has no require there: UISMOKE and UISMOKE-PHONE died at app.js:2138 in L35c (the page was fine).
+- **The fix**: tools/test_ui_smoke.js runs src/viewer/matlib.js in the sandbox right before app.js, as _scene_headless.js and _seats_check.js do. Tools only, no built file.
+- **Gates**: UISMOKE PASS, UISMOKE-PHONE PASS on master L35c b25872b51 + the fix (and on L35a + assets-green + the fix).
+- **Not this ref**: DMGMEMBERS (101/103 in L35c) is the Super Petrel, the sixth build the seaplanes ready added to _load_build.js VALIDATED; its carbon is Euler-capped and its fittings read 0.57-1.15, against rules written before any carbon build. A0 routed it to SEAPLANES and Deform.
+- Note: flyDiy/reports/evidence/ASSETS-GREEN/READY-2.md.
