@@ -312728,3 +312728,19 @@ IN (on L34a cad308635): claude/ready/bubble-windows 9e7010baa (CABIN-CRAFT), cla
 BATTERY: 115 of 116 PASS. ENGCONFIG red, standing on master: its IDENTITY pins date from 28 Oct. Every one of its 18 load digests (the Cub, the Jodel, the Cessna, the Rufus...) is the same on this train and on a full copy of master, so no validated plane flies differently. No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change.
 TIMED GATE (light, vs the stale 12 Oct baseline): steady frames p50 33.3 ms. Reds are the boot and compile rows (cub chase compile 67 s, flight 151 s): the cold shader cache seen on L32d/L34a, same class as L34a (57 reds vs 80). Two rollouts lost to a page '__timeout' (cub cockpit, metal chase) after slow boots.
 NAMED COST, STILL OPEN: the floats' SEA lane: garage 226 s, take-off p99 50 ms but worst frame 10.4 s, 25 tasks over 1 s, held under the roll-out screen. Same as L34a's (124 s, 77 links); not this train's. NIGHT-LOOK measures the night water cost at 11:45; the SEA lane bisect is owed.
+
+## MASTER-GREEN VEHICLE (Game coordinator, 8 Nov 2026): GATE VEHICLE green - one re-pin, one fault
+
+Red since 11 Oct (12 Oct note above: "NEXT ROUND: read wb / track / r / the axle x from the sheet"). Done here:
+- **DEF, a STALE PIN, re-pinned to the sheet.** The gate pinned the authored placeholder (wb 3.01, track 1.41, r 0.35);
+  the car's bake (G2908, car_prep.py, 11 Oct 18:56, A0: "the drawn model wins") wrote the measured 3.0143 / 1.4123 /
+  0.3501. DEF now checks the definition against src/cars/car_conquer.json itself (wb from the axle centres to 1e-9, the
+  sheet's wheelbase field to 0.5 mm, the track and every radius exact); mass, the 56 % front, the 2 s park and the
+  driven / steered wheels as before. The motion that moved it: the bake, which was meant.
+- **AIRBORNE, a REAL FAULT in src/vehicle/vehicle.js place().** It sampled the ground's plane about the body's origin,
+  assuming the axles symmetric about it; the baked sheet's origin is 0.21 m ahead of the axles' midpoint. place()
+  now centres the plane on the axles. The ledge row stood the car with its rears on the edge (the fixed ledge at 0.6 m
+  hung them only for the placeholder's -1.505 rear axle): the car now stands settled on the flat and the ground goes
+  0.2 m ahead of the rear axle, the same assertions (no drive off the ground, the fronts on). HILL's park 0.10 -> 0.08
+  mm with the plane fix. The vehicle is node only (not in the page, not in MANIFEST.core: BITS).
+- GATE VEHICLE: PASS, 14/14.

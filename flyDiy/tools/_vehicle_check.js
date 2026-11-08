@@ -42,7 +42,11 @@ const mk = (world, x = 0, z = 0, h = 0) => { const c = V.makeVehicle(def, world)
   const Wsum = def.wheels.reduce((s, w) => s + w.Wst, 0), front = def.wheels.filter(w => w.steer).reduce((s, w) => s + w.Wst, 0) / Wsum;
   const car = mk(flat), p0 = car.refPoint(); run(car, 2); const p1 = car.refPoint();
   const drift = Math.hypot(p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]);
-  const ok = Math.abs(def.wb - 3.01) < 1e-9 && Math.abs(def.track - 1.41) < 1e-9 && def.wheels.every(w => w.r === 0.35) && def.mass === 1850 &&
+  // (MASTER-GREEN 8 Nov: pinned to the SHEET's own geometry - the gate's 3.01 / 1.41 / 0.35 were the authored sheet's (G2940,
+  // 11 Oct 16:32); the car's bake two hours later (G2908, car_prep.py) re-wrote it as measured on the model: 3.0143 / 1.4123 / 0.3501)
+  const shW = SHEET.wheels, shWb = shW.FL.centre[0] - shW.RL.centre[0];
+  const ok = Math.abs(def.wb - shWb) < 1e-9 && Math.abs(def.wb - SHEET.wheelbase) < 5e-4 && Math.abs(def.track - SHEET.track.front) < 1e-9 &&
+    def.wheels.every(w => w.r === shW[w.id].radius) && def.mass === 1850 &&
     Math.abs(Wsum - def.mass * 9.81) < 1e-6 && Math.abs(front - 0.56) < 0.005 && drift < 1e-3 && car.out.onGround === 4 &&
     def.wheels.filter(w => w.drive).map(w => w.id).join() === 'RL,RR' && def.wheels.filter(w => w.steer).map(w => w.id).join() === 'FL,FR';
   row('DEF', ok, 'wb ' + def.wb + ' m, track ' + def.track + ' m, r ' + def.wheels[0].r + ' m, ' + def.mass + ' kg (' + f(100 * front, 1) + ' % front), rMin ' + f(def.rMin) +
@@ -70,8 +74,12 @@ const mk = (world, x = 0, z = 0, h = 0) => { const c = V.makeVehicle(def, world)
   let air = 0, dvMax = 0, FdMax = 0; const u0 = car.st.v[0];
   run(car, 0.35, () => { if (car.out.onGround === 0) { air++; FdMax = Math.max(FdMax, Math.abs(car.out.Fdrive)); dvMax = Math.max(dvMax, car.st.v[0] - u0); } });
   // the driven axle over a ledge: the rear wheels hang over a 2 m drop for the first instants
-  const ledge = { terrainH: x => x < 0.6 ? -2 : 0 };
-  const c2 = V.makeVehicle(def, ledge); c2.place(2.0, 0, 0); c2.ctl.thr = 1; c2.ctl.brake = 0;
+  // (MASTER-GREEN 8 Nov: the car stands settled on the flat, then the ground goes from under the rear axle (the ledge 0.2 m
+  // ahead of it) - the authored sheet's axles sat symmetric about x = 0 and `place(2.0)` over a fixed ledge at 0.6 m
+  // only hung the rears by that accident; the baked sheet (G2908) moved the origin and the rears stood on the edge)
+  let drop = false; const edge = 2.0 + def.steer.xRef + 0.2;
+  const ledge = { terrainH: x => drop && x < edge ? -2 : 0 };
+  const c2 = V.makeVehicle(def, ledge); c2.place(2.0, 0, 0); run(c2, 0.5); drop = true; c2.ctl.thr = 1; c2.ctl.brake = 0;
   let rearAir = 0, rearFd = 0, frontOn = 0, perWheel = true;
   run(c2, 0.15, () => {
     const W = c2.wheels;
