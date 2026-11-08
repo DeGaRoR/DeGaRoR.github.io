@@ -43,13 +43,13 @@
 // truth; keying the mood set off this field is the later chantier.
 const SHELLS = {
   club: {
-    name: 'Club hangar', frame: 'portal', doors: 'sixLeaf',
+    name: 'Medium hangar', frame: 'portal', doors: 'sixLeaf',   // HANGAR-NAMES (the user, 8 Nov): small / medium / big where a player sees it; the keys stay
     dims: { HW: 15, HD: 12.5, EAVE: 7.0 },
     lims: { HW: [7, 24], HD: [6, 20], EAVE: [4.2, 11] },
     skin: null, sky: 'alps', price: 0, status: 'live',
   },
   works: {
-    name: 'Works', frame: 'portal', doors: 'sixLeaf',
+    name: 'Big hangar', frame: 'portal', doors: 'sixLeaf',
     dims: { HW: 20, HD: 20, EAVE: 9.5 },
     lims: { HW: [10, 24], HD: [10, 26], EAVE: [6.0, 12] },
     // BRICK, AND BIG (user, 2026-09-01: "the works one should rather have the
@@ -73,7 +73,7 @@ const SHELLS = {
     // at a 3.6 m eave. CONFIRMED by the user 2026-08-31 ("yes half-dims
     // is right") — the spec's "7 x 9" prose read as full metres, but a
     // genuinely 7 m wide shed passes no wing this generator builds.
-    name: 'Field shed', frame: 'timber', doors: 'slidingLeaf',
+    name: 'Small hangar', frame: 'timber', doors: 'slidingLeaf',
     dims: { HW: 7, HD: 9, EAVE: 3.6 },
     lims: { HW: [4, 10], HD: [5, 12], EAVE: [3.0, 4.8] },
     skin: {
@@ -508,7 +508,7 @@ const HC_B = z => (z + 20) / 40;          // back wall:  works z -> along
 const HC_F = v => v / 20;                 // floor: works metres -> fraction
 const HANGAR_LAYOUTS = {
   cozy: {
-    name: 'The works, made cozy', shell: 'works',
+    name: 'The big hangar, made cozy', shell: 'works',
     kits: ['park', 'bench', 'wood', 'metal', 'store', 'handling', 'office',
            'comfort', 'curio', 'wip'],
     light: {
@@ -818,7 +818,7 @@ const HANGAR_HEARTH_ROWS = {
   },
 };
 HANGAR_LAYOUTS.hearth = {
-  name: 'The works, a hearth at the stand', shell: 'works',
+  name: 'The big hangar, a hearth at the stand', shell: 'works',
   kits: HANGAR_LAYOUTS.cozy.kits.slice(),
   light: {
     kelvin: 2700, gain: 1.25, envFloor: 0.2,
@@ -850,7 +850,7 @@ const HANGAR_HEARTH_LIGHT_STORE = {
        props: ['rack_steel', 'box_cardboard', 'crate_wood_a', 'jerrycan', 'instrument_panel'] }))),
 };
 HANGAR_LAYOUTS.hearthLight = {
-  name: 'The works, a hearth at the stand (light)', shell: 'works',
+  name: 'The big hangar, a hearth at the stand (light)', shell: 'works',
   kits: HANGAR_LAYOUTS.hearth.kits.slice(),
   light: HANGAR_LAYOUTS.hearth.light,
   rows: Object.assign({}, HANGAR_LAYOUTS.hearth.rows, {
