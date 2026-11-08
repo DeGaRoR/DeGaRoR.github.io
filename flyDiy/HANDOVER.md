@@ -312728,3 +312728,24 @@ IN (on L34a cad308635): claude/ready/bubble-windows 9e7010baa (CABIN-CRAFT), cla
 BATTERY: 115 of 116 PASS. ENGCONFIG red, standing on master: its IDENTITY pins date from 28 Oct. Every one of its 18 load digests (the Cub, the Jodel, the Cessna, the Rufus...) is the same on this train and on a full copy of master, so no validated plane flies differently. No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change.
 TIMED GATE (light, vs the stale 12 Oct baseline): steady frames p50 33.3 ms. Reds are the boot and compile rows (cub chase compile 67 s, flight 151 s): the cold shader cache seen on L32d/L34a, same class as L34a (57 reds vs 80). Two rollouts lost to a page '__timeout' (cub cockpit, metal chase) after slow boots.
 NAMED COST, STILL OPEN: the floats' SEA lane: garage 226 s, take-off p99 50 ms but worst frame 10.4 s, 25 tasks over 1 s, held under the roll-out screen. Same as L34a's (124 s, 77 links); not this train's. NIGHT-LOOK measures the night water cost at 11:45; the SEA lane bisect is owed.
+
+## NODUMMY-GREEN - NO WORD OF THE RETIRED FIGURE IN tools/; newshapes_build READS THE SEATED CHARACTERS AGAIN (MASTER-GREEN; CABIN-CRAFT for A0)
+
+Branch claude/ready/nodummy-green, on master 1bcd01d3e (L35a). Tool files only (nothing built changes), then this note and HANDOVER.
+
+MASTER-GREEN, via A0. GATE NODUMMY (G3700, the user 25 Oct: "no reference in code to the old model") was red on master: 12 hits in six tool files.
+
+## What changed
+
+- **A real stale reference.** `tools/newshapes_build.js` read the retired figure's groups (`edDum1`/`edDum2`) out of `tools/_crew_head_probe.js`. The seated characters are `edCrew1`/`edCrew2` (`_cage_crew.js`), so its "occupants" line had printed nothing since the figure retired. Both files now use edCrew. The probe takes a character's own group (the innermost), and otherwise the outermost panel or seat group as before. Proof: `node tools/newshapes_build.js --only=stearman --no-fly` now prints "occupants: pilot head in an opening, 15 cm over the coaming rail, 4 cm over the crown; second head in an opening, 16 cm over the coaming rail, 5 cm over the crown" (master: "occupants:" with nothing after it).
+- **A dead alternative.** `tools/quickshot.js` skipped `^edDum|^edCrew`; now `^edCrew` (which already covers the crew).
+- **Unrelated words, renamed:** `box_render.js` `dummy` (a stub gradient) to `stubGrad`; `_treehit_check.js` `atD` (matched the old ATD) to `atDist`.
+- **Comments reworded:** `_bench_check.js` ("the pilot rows' rename"), `_crew_head_probe.js` header.
+
+No re-pin, and the gate is unchanged.
+
+## Gates (node)
+
+```
+NODUMMY PASS  TREEHIT PASS  BENCH PASS
+```
