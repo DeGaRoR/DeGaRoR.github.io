@@ -169,6 +169,11 @@ const PLANES = {
   chinook:  { label: 'Chinook (official, out of the battery)', file: 'builds/chinook_2026-09-21_corrected.json', ref: 'chinook', official: true },
   c172x:    { label: 'Cessna 172 (corrected, internal)', file: 'builds/cessna172_2026-09-20_corrected.json', ref: 'c172r',
               note: 'the 20 Sep corrected 172 (IO-360 dials, 16.5 m2): the like-for-like 172R comparison the official B-CESS cannot be' },
+  // CESSNA-FINAL (FLAGSHIP, 8 Nov): the corrected 172 + seven build rows - the lowered aft roof, 212 L at the wing root,
+  // the DRAWN stab to the 172R's 3.40 m / 3.30 m2 (stSpan 1.19 -> 1.264: the join measures the drawing, spec.tail does not
+  // survive a load), 'standard' seats, the 'full' trim (a 172 as delivered), V2-172. No generator change yet (Part 2)
+  c172v2:   { label: 'Cessna 172 V2-172 (land, build rows)', short: 'Cessna 172 V2-172', file: 'builds/cessna172r_2026-11-08.json', ref: 'c172r',
+              note: 'CESSNA-FINAL step 2: the corrected 172 on build rows only; the empty CG still aft (the aluminium generator\'s A1)' },
 };
 
 // ---------------------------------------------------------------------------------------------------------------------
