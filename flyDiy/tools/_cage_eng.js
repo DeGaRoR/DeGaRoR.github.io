@@ -354,6 +354,8 @@ const CUSTOM_ENGINE = EP.CUSTOM_ENGINE || 'custom engine';
 const PRESET_NAMES = EP.presetNames ? EP.presetNames()
   : Object.keys(EP.PRESETS).filter(n => n !== 'bare engine').concat([CUSTOM_ENGINE]);
 const CUSTOM_IDX = PRESET_NAMES.indexOf(CUSTOM_ENGINE);
+// SEA-OFF (SEAPLANES-LAND 8 Nov): the presets the seaplanes merge added, behind the lab switch (engPreset's optHide)
+const SEA_LAB_PRESETS = ['rotax 912 iS'];
 const isCustomEng = P => Math.round(P.engPreset) === CUSTOM_IDX;
 // the type a preset belongs to, from its own table row (null for custom)
 const presetArch = name => {
@@ -556,8 +558,12 @@ const ENG_ITEMS = [
   ['engPreset', 'engine', 0,
    Math.max(1, PRESET_NAMES.length - 1), 1, PRESET_NAMES,
    { when: P => +P.engOn, optLabels: PRESET_LABELS, optOrder: PRESET_ORDER,
-     optHide: P => PRESET_NAMES.map(n => n !== CUSTOM_ENGINE &&
-                                         presetArch(n) !== archOf(P)) }],
+     // (SEA-OFF, SEAPLANES-LAND 8 Nov: the merge's own engine - the Super Petrel's Rotax 912 iS, HULL-B49 - stands behind
+     // the lab switch as its rows do, shown on a build that holds it)
+     optHide: P => { let lab = true; try { lab = !window.CAGE_RETRACT_LAB || !!window.CAGE_RETRACT_LAB(); } catch (e) {}
+       const cur = PRESET_NAMES[Math.round(+P.engPreset || 0)];
+       return PRESET_NAMES.map(n => (n !== CUSTOM_ENGINE && presetArch(n) !== archOf(P)) ||
+                                    (!lab && SEA_LAB_PRESETS.includes(n) && n !== cur)); } }],
   ['engMount',  'mount', 0, 8, 1,
    ['nose', 'pusher (aft bulkhead)', 'over the wing (high wing)',
     'wing nacelles (twin)', 'nose + pusher (push-pull)',

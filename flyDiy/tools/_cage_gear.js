@@ -1417,6 +1417,7 @@ window.CAGE_LAB_ROWS = {
   engNacOver: 0, engNacLift: 0, engFinAt: 0.55, engFinFwd: 0,
   bpCabPylon: 0, bpCabDraw: 1, bpStrutK: 1,
   wgTipBow: 0, wgTipDroop: 0, wgTipFull: 1,
+  cw_inletOn: 0,   // the pusher nacelle's air inlet (HULL-B25; its own rows hang off it)
 };
 // (A0 7 Nov: "fixing gearRetract shows on every build is welcome"): the switch is offered where it can act -
 // GEAR_RETRACTABLE's own wheels (a nose wheel, not floats: the group's own when) - and stays while it is on, so a
