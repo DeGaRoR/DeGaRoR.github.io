@@ -86,6 +86,9 @@ const HV = require(path.join(ROOT, 'src', 'viewer', 'hangar_view.js'));
   const hvCode = hv.replace(/\/\/.*$/gm, '');
   ok(!('userData' in new THREE.WebGLRenderTarget(4, 4)) && !/\.userData\b/.test(hvCode) && /capLin === lin/.test(hvCode),
     '3l the capture target\'s mode is kept in the view (capLin), never on a target\'s userData (three r' + THREE.REVISION + ' has none: the boot\'s first face threw)');
+  // HVIEW-OFF (8 Nov, the user's verdict): the view is OFF by default until the redesign replaces it; ?hview=1 turns it on
+  ok(/const hviewOff = \(\) => \{ try \{ return !\/\[\?&\]hview=1\\b\/\.test\(location\.search \|\| ''\); \} catch \(e\) \{ return true; \} \};/.test(app),
+    '3m the view is off by default (the room\'s own outdoors), on only with ?hview=1 (HVIEW-OFF, 8 Nov: until the redesign)');
   // 4 no readback
   ok(!/readRenderTargetPixels|readPixels|getBufferSubData/.test(hv), '4 NO READBACK in hangar_view.js (the distance reaches the mesh by a vertex fetch)');
 }

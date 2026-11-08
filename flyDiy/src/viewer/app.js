@@ -1358,7 +1358,7 @@
   // until the new one is whole - when the room, the world's sun or its cover moved on (a return from a flight that ended
   // near this shed; a flight ended far away leaves the view it had: the world there is not this shed's). The capture
   // runs with the craft's LIGHTS in the world scene (craftInWorldNow, its meshes hidden): the world's programs are keyed
-  // with them (G1085), so nothing links. No view (the phone garage, no world, ?hview=0, a software renderer): the room's
+  // with them (G1085), so nothing links. No view (the phone garage, no world, no ?hview=1 since 8 Nov, a software renderer): the room's
   // own outdoors, as before.
   let hview = null, hviewKey = null, hviewFor = null, hviewWant = null, hviewFace = 0, hviewHold = 0, hviewFr = 0, hviewLast = null, hviewBooting = false;
   // the room's target is the world's (aa_resolve): the linear split (the presets' 'linear' compositing) or display-space
@@ -1368,7 +1368,10 @@
   const HVIEW_N = { laptop: 768, potato: 768, retro: 768, current: 1024, gamer: 1024, ultra: 1536 };
   const HVIEW_C = [0, 2, 0];          // the capture's eye in the shed's frame: the room's centre, a standing eye
   const HVIEW_NEAR = 3000;            // a flight that ended this near the stand left the world there (m)
-  const hviewOff = () => { try { return /[?&]hview=0\b/.test(location.search || ''); } catch (e) { return false; } };
+  // HVIEW-OFF (8 Nov, the user's verdict on the hangars-matched stills: the captured view is not the look - a generic sky,
+  // no clouds, the apron smeared): OFF by default, the room's own outdoors as until L35a, until the redesign (flydiy-notes/
+  // HANGAR-VIEW-REDESIGN-2026-11-08.md, 'C') replaces it; ?hview=1 turns the capture on (the prototype's stills)
+  const hviewOff = () => { try { return !/[?&]hview=1\b/.test(location.search || ''); } catch (e) { return true; } };
   function hviewSize() {
     const G = window.GFX; if (G && G.soft && G.soft()) return 0;
     let q = null; try { q = /[?&]hviewn=(\d+)/.exec(location.search || ''); } catch (e) {}   // (the proof rig's resolution A/B)
