@@ -312802,3 +312802,9 @@ GATES on the branch (ede12cbd4, rebased on 1bcd01d3e), one per call:
   where the same 17 gates gave master's verdicts.
 - Not run: ARCHETYPES (4 shards, ~1900 s) and UISMOKE (needs Chrome).
 No PHYSICS_V or GEN_SPEC_V bump.
+
+## A0 - train L35b, 8 Nov 2026
+
+IN (on L35a 1bcd01d3e): avionics-pfd 8eddd0fbd (the PFD's direction gyro fix, cockpit.js), cessna-tail b67182854 (the official 172's tail rows stSpan 1.27 / stHinge 0.35, land + floats), look1-sharpen 475e9a69c (leaf sharpen 0.9 -> 0.4, the user's yes), night-door-2 f34d6d6fb (the 4b door's waist bar under its lowest pane), engine-gap 1a1a478ba (a catalogue engine switched to custom keeps its registry row; DC-3 R-1830 895 kW, gear 1.78).
+BATTERY (full log read, not the tail): 101 PASS / 13 FAIL, the SAME 13 as L35a (GEN TOUR VEHICLE DMGGEAR DMGSKINGPU FRAMECOST ROUNDTRIP MEDIA ASSETS GEO SKINMAT CLIP ENGCONFIG) - no new red; their fixes ride L35c / L35d (MASTER-GREEN). No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change.
+TIMED GATE (light, stale 12 Oct baseline): steady frames p50 33.3 ms on every flown row; p99 33.5 except cub cockpit 116.8 (1 frame over 1 s, one run). Reds are the boot/compile rows (cold shader cache, as L32d/L34a/L35a); 3 rollouts lost to the page '__timeout' after slow boots. Floats take-off p99 33.5 (L35a 83.3).
