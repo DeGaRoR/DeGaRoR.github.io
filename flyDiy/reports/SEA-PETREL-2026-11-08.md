@@ -6,6 +6,11 @@ byte-identical to the committed one; index.html / dev.html / sw.js / version.jso
 were rebuilt locally for the gates, not committed). Master for the comparisons: `origin/master` 1bcd01d3 (L35a built).
 Where a result is from 7f6e1df64 (the launch base) it says so.
 
+**The base moved at ~14:00 to 4c60b519** (the L35a merge, SEA-OFF's built files, the Petrel's DMGCERTCOST budget row
+and JOINPARITY page row). Between 15ad5d669 and 4c60b519 `src/core` changed only in 60_gen_spec.js's BIG-aeroplane
+envelope (wings over 18 m: the DC-3 class) and the parked packs: nothing the Petrel (9.16 m) flies moved, so the
+flights below stand for both. The gates that changed are re-run on 4c60b519 (marked "tip").
+
 STATUS: IN PROGRESS - sections fill as the runs land. Pushed every 1-2 h.
 
 ## The rig (how every flight here was flown)
@@ -193,7 +198,7 @@ the µs-per-frame accumulators in sp_fly (`legs[].cost`), every run on a 4-core 
 
 ## Findings
 
-### F1 GATE PLANELISTS is red on 15ad5d669 (green on 7f6e1df64 and on master) - severity: blocks (a core gate)
+### F1 GATE PLANELISTS was red on 15ad5d669 (green on 7f6e1df64 and on master) - FIXED on the tip 4c60b519 (PASS, run here)
 - What: `FAIL the pool offers builds/candidates/superpetrel_V4_1.json, not on the Candidates list` and
   `FAIL garage: an official pool row is off the candidate cards`. SEA-OFF (c1ee10ad) moved the Petrel's list row to
   `internal` and marked its pool row `"lab": true` (index.json, no `official`), and rewrote garage.js's pool filter to
@@ -209,6 +214,8 @@ the µs-per-frame accumulators in sp_fly (`legs[].cost`), every run on a 4-core 
   merge's app.js (already at 7f6e1df64) has `hudEnergy(); hudWind(); hudGear(); if (window.ACCEPT_REC) ...`. Master's
   app.js has no `hudGear()` and matches. Every flown check of the gate passed (the only FAIL line in 17).
 - Reproduce: `node tools/run_gates.js --only=ACCEPT` (20 min here). Node-only. The fix is the regex (allow hudGear).
+- Tip 4c60b519: app.js still has `hudGear();` there and the gate's regex is unchanged (checked statically: no match);
+  the full gate re-run on the tip is queued.
 
 ### F4 GATE STOL is red on 15ad5d669 (PASS on master): the load door now writes the 12 hull-types cage rows into every validated build - severity: blocks (a core gate), spec-only
 - What: `FAIL cub (builds/cub_2026-09-20_corrected.json): joined here to master's spec - DIFFERS + the STOL rows at
@@ -237,6 +244,7 @@ the µs-per-frame accumulators in sp_fly (`legs[].cost`), every run on a 4-core 
   (model.gearMechRig) { ... }`) between that comment and the link rods' loop, so the sixth skip (linkRigs, still there
   and still `if (brkWhole(r)) continue;`) is past the window. The code is right; the gate's window is short.
 - Reproduce: `node tools/run_gates.js --only=DMGSKINGPU` (5 min). Node-only.
+- Tip 4c60b519: the same window still holds 5 (checked statically); the full gate re-run on the tip is queued.
 
 ### F6 GATE DMGHULL red on 15ad5d669 - master result pending; DMGFABRIC / POD / HANDLE / ENGCONFIG: identical FAIL lines on master (pre-existing, not seaplanes')
 - DMGHULL (base): `FAIL twin on floats hump: the side term is U w x 93.9 kg/m (the small-slip keel's m(TE)), each
