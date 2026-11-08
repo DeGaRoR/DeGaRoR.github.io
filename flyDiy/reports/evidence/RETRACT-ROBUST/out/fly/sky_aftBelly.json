@@ -1,0 +1,98 @@
+{
+ "src": "key:skymaster",
+ "over": {
+  "gearRetract": 1,
+  "gearFold": 3
+ },
+ "retract": {
+  "time": 6,
+  "act": "hydraulic",
+  "lift": {
+   "mains": 0.7116,
+   "nose": 0.6716
+  }
+ },
+ "type": "tricycle",
+ "mass": null,
+ "gear": [],
+ "leg": {
+  "ok": false,
+  "t": 1011.1833333327423,
+  "faults": [
+   "crash: the damage ended the flight: a fus member broke",
+   "yield: 1223 member(s) yielded (first: {\"beam\":122,\"cls\":\"fus\",\"t\":1007.0441379614858})",
+   "break: 17 member(s) broke",
+   "prop-strike: the propeller struck (ground, t 0.4)",
+   "dent: the airframe dented",
+   "obstacle: a node inside an obstacle on 8042 steps (max 8 nodes)"
+  ],
+  "verdicts": [
+   "taxi-timeout: the route took 326 s — stopping where it is",
+   "replan: not lined up with a run ahead (1547 m, 228.3 m off) — planning the departure again",
+   "gave-up: still in TAXI at t=670 s — out of patience, not out of sky",
+   "taxi-timeout: the route took 342 s — stopping where it is",
+   "replan: not lined up with a run ahead (1546 m, 229.3 m off) — planning the departure again"
+  ],
+  "landing": null,
+  "damage": {
+   "yields": 1223,
+   "breaks": 17,
+   "dented": true,
+   "crashed": true,
+   "gPeak": 2.9,
+   "propAt": {
+    "what": "ground",
+    "t": 0.4
+   }
+  },
+  "phases": [
+   "TAXI",
+   "STOP",
+   "HOLD",
+   "DEPART",
+   "TAXI",
+   "STOP",
+   "HOLD",
+   "DEPART",
+   "TAXI"
+  ]
+ },
+ "gearLog": {
+  "cycles": 0,
+  "minPos": 1,
+  "upAt": null,
+  "upTook": null,
+  "downTook": null,
+  "endPos": 1
+ },
+ "game": {
+  "day": {
+   "cloudCover": 0.25,
+   "cloudSeed": 1,
+   "cloudType": "cuh",
+   "date": "2026-06-22",
+   "groundAlbedo": 0.15,
+   "ozone": 300,
+   "rate": 1,
+   "rh": 0.5,
+   "turbidity": 2.8,
+   "utc": 0,
+   "wind": {
+    "kts": 8,
+    "dirDeg": 250,
+    "gust": 0.15,
+    "refH": 10,
+    "breeze": 1
+   }
+  },
+  "shake": true,
+  "stand": {
+   "x": -118.1,
+   "z": 677.6
+  },
+  "mass": 1090.4,
+  "fuel": 90,
+  "damage": true
+ },
+ "wallS": 1083
+}

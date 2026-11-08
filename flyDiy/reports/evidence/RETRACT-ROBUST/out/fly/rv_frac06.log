@@ -1,0 +1,110 @@
+{
+ "src": "key:rv",
+ "over": {
+  "gearRetract": 1,
+  "gearRetFrac": 0.6
+ },
+ "retract": {
+  "time": 6,
+  "act": "hydraulic",
+  "frac": 0.6,
+  "lift": {
+   "mains": 0.2258,
+   "nose": 0.2655
+  }
+ },
+ "type": "tricycle",
+ "mass": null,
+ "gear": [],
+ "leg": {
+  "ok": false,
+  "t": 511.53333333319677,
+  "faults": [
+   "ground-loop: the nose 30 deg off the take-off run at 9.1 m/s",
+   "prop-strike: the propeller struck (ground, t 3.8)"
+  ],
+  "verdicts": [
+   "rotate-pull: the nose will not come up at 27.6 m/s on the stop - full back stick",
+   "vx-climb: ground ahead above the aeroplane — climbing at Vx 30.5 m/s until clear",
+   "vref-raised: the elevator cannot hold 28.6 m/s at this power — flying the approach faster",
+   "held-speed-short-field: the elevator holds 30.4 m/s on this final: the stop from it needs 336 m, 387 m of Ridgeback Strip are left past the aim and the float - landing short-field (aim 33 m in, the brakes from the touch)",
+   "slip: high on energy on the short final (+9.5 m at idle) — slipping it down"
+  ],
+  "landing": {
+   "run": 351,
+   "sink": 1.78,
+   "V": 30.5,
+   "offCentre": 0.9,
+   "pastAim": -11,
+   "k": 1,
+   "three": false,
+   "onStrip": true,
+   "tdIn": 22,
+   "stopLeft": 170
+  },
+  "damage": {
+   "yields": 0,
+   "breaks": 0,
+   "dented": false,
+   "crashed": false,
+   "gPeak": 3.5,
+   "propAt": {
+    "what": "ground",
+    "t": 3.8
+   }
+  },
+  "phases": [
+   "TAXI",
+   "STOP",
+   "HOLD",
+   "ROLL",
+   "LIFTOFF",
+   "CLIMB",
+   "ENROUTE",
+   "DOWNWIND",
+   "BASE",
+   "FINAL",
+   "FLARE",
+   "ROLLOUT",
+   "STOPPED"
+  ]
+ },
+ "gearLog": {
+  "cycles": 1,
+  "minPos": 0,
+  "upAt": 173.91666666499196,
+  "upTook": 5.98,
+  "downTook": 5.98,
+  "endPos": 1
+ },
+ "game": {
+  "day": {
+   "cloudCover": 0.25,
+   "cloudSeed": 1,
+   "cloudType": "cuh",
+   "date": "2026-06-22",
+   "groundAlbedo": 0.15,
+   "ozone": 300,
+   "rate": 1,
+   "rh": 0.5,
+   "turbidity": 2.8,
+   "utc": 0,
+   "wind": {
+    "kts": 8,
+    "dirDeg": 250,
+    "gust": 0.15,
+    "refH": 10,
+    "breeze": 1
+   }
+  },
+  "shake": true,
+  "stand": {
+   "x": -118.1,
+   "z": 677.6
+  },
+  "mass": 581.8,
+  "fuel": 32,
+  "damage": true
+ },
+ "wallS": 395
+}

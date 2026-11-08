@@ -6,8 +6,8 @@
   7f6e1df6 at the launch, and A0 asked for the newest tip. It is not on master yet.
 - **Where it ran:** node only (RETRACT-LAB is on in node). Every picture is quickshot's headless drawing. Every flight is
   the game's host flying the load door's spec.
-- **Status:** INTERIM. The flights and gates sections are being filled in. The rules (section 6) are a proposal for the
-  user to agree to; SEAPLANES implements them after that.
+- **Status:** FINAL for this pass (8 Nov). The rules (section 6) are a proposal for the user to agree to; SEAPLANES
+  implements them after that.
 
 ## 0. In one paragraph
 
@@ -26,6 +26,10 @@ cards this produces two things nothing checks:
 The root cause is geometric: the cards' gear is laid out for a fixed gear. The mains sit at 60-90 % of the chord, the
 half track is too narrow for the leg, and the wing is about 100 mm deep where a flat-stowed tyre needs about 190 mm.
 Section 6 proposes the rules: when a cut is valid, the fallback chain, and refuse versus flag, with numbers.
+
+The flights, beside the gear: four of the archetype cards used here fail on the ground with the gear FIXED. The DA62-,
+Caravan- and Skymaster-alikes strike a propeller at rest; the RV-alike breaks its tail on the roll. The Skymaster's
+failure is new in the merge, where it is born retractable. These are §7's X1-X4, for the cards' owner, not the gear's.
 
 ## 1. What is offered (the editor's own rows, the panel's `when`)
 
@@ -205,7 +209,12 @@ node reports/evidence/RETRACT-ROBUST/tools/rr_fly.js <build|key:..> '<rows>'
 | Super Petrel V4.1 (its card, on LAND) | OK | electric 6 s; lift 0.61 / 0.45 | **ok**, 598 s | 1: 5.98 / 5.98 s | sink 0.66, 27.8 m/s, run 369 m, 101 m left | 0 breaks, g 2.4 |
 | T-tail inward (`key:ttail`, `{"gearRetract":1}`) | RED (6) | retract 6 s; lift 0.70 / 0.57; 761.8 kg | **FAIL: timeout 1800 s** - two go-arounds "past the aim at 248 / 243 m", downwind legs of 386 s | 3: 5.98 / 5.98 s | none | 0 breaks |
 | T-tail FIXED (control, `{}`) | - | fixed; 739.6 kg | ok, 569 s, but **off-the-strip**: touched 81 m in, stopped 16 m past the end of 543 m | - | sink 0.34, **29.0 m/s**, run 478 m | 0 breaks, g 3.3 |
-| DA62 inward, Skymaster aftBelly, RV frac 0.6 | | | (running; see the end of this section) | | | |
+| DA62 inward (`key:da62`, `{"gearRetract":1}`) | RED (8) | retract 6 s; 983.6 kg | **CRASH at placement, t 0.8 s** (prop strike t 0.1, 8 breaks, 6225 yields) | 0 | - | crashed |
+| DA62 FIXED (control) | - | fixed; 954.4 kg | **CRASH at placement** (prop strike t 0.1, 9 breaks, 6391 yields) - the card's, not the gear's (X1) | - | - | crashed |
+| RV inward (`key:rv`, `{"gearRetract":1}`) | RED (7) | retract 6 s; lift 0.67 / 0.57; 581.8 kg | FAIL by faults: **ground loop** on the take-off run (30 deg at 9.1 m/s), prop strike t 3.8 - then flew and landed | 1: 5.98 / 5.98 s | sink 1.76, 30.5 m/s, run 352 m, on the strip | 0 breaks, g 3.5 |
+| RV frac 0.6 (`{"gearRetract":1,"gearRetFrac":0.6}`) | "OK" (unmeasured, C7) | frac 0.6; lift 0.23 / 0.27 | the same as RV inward, to within 0.5 s (ground loop, prop strike t 3.8, landed) | 1: 5.98 / 5.98 s | sink 1.78, 30.5 m/s, run 351 m | 0 breaks |
+| RV FIXED (control) | - | fixed; 571 kg | **CRASH on the roll**: prop strike t 3.3, a tail member broke, 13 breaks (X2) | - | - | crashed |
+| Skymaster aftBelly (`key:skymaster`, `{"gearRetract":1,"gearFold":3}`) | RED (1: 7 mm proud) | retract 6 s; 1090.4 kg | **FAIL**: prop strike at t 0.4 at rest, taxi timeouts and replans, a node inside an obstacle, crashed at t 1007 s on the ground | 0 | - | 17 breaks (X3) |
 
 **F1. The flown spec ignores the fit (the join).** BAD. Node; the browser must confirm the drawn gear.
 - What happens: the red C172 flies its leg cleanly. The gear's drag is credited away by (1 - pos) while the drawn mains
@@ -235,6 +244,11 @@ node reports/evidence/RETRACT-ROBUST/tools/rr_fly.js <build|key:..> '<rows>'
 - Both runs say "rotate-pull: the nose will not come up at 26.7-26.9 m/s on the stop".
 - A pilot / card matter as much as a gear one. Re-fly on a long strip before blaming the gear.
 - Reproduce: rows 3 and 4 above.
+
+**F3b. The controls show the cards, not the gear, failing on the ground.** The DA62-alike and the RV-alike crash FIXED
+as well (X1, X2). The RV even does *better* with retract: it ground-loops but flies, where the fixed card breaks its tail.
+The Skymaster-alike strikes its propeller at rest (X3). None of these is the retraction's. They are reported in §7 for
+the owner of the cards.
 
 **F4. The extension works wherever it was tried.** Not a bug, recorded:
 - every cycle measured is 5.98 s for a 6 s setting, up and down, on all four flights;
@@ -416,6 +430,10 @@ needs the browser.
 | F3 | flight | the T-tail retract times out on w3 (the fixed card overruns) | BAD, cause unproven | §4 rows 3-4 | node |
 | O1 | offer | a taildragger cannot retract (the DC-3, the Jodel, the v7 twin); floats cannot either (Twin 4b) | garage gap | `... rr_probe.js builds/candidates/dc3_2026-10.json '{}'` | node |
 | O2 | offer | a saved taildragger with gearRetract 1 shows the 11 retract rows, which do nothing | COSMETIC | `... rr_probe.js builds/candidates/dc3_2026-10.json '{"gearRetract":1}'` | the browser (?retract=lab) |
+| X1 | the card (not retract) | the DA62-alike strikes its propellers at rest, FIXED (t 0.1-0.2 s), on master L35a 1bcd01d3 too, and crashes at the game's placement | BLOCKS (the card) | `node reports/evidence/RETRACT-ROBUST/tools/rr_stance.js key:da62 '{}'` | node |
+| X2 | the card (not retract) | the RV-alike, FIXED, breaks its tail on the take-off roll (prop strike t 3.3); with retract it ground-loops but flies. It is clean at rest, so it is a roll matter | BLOCKS (the card) | `... rr_fly.js key:rv '{}'` | node |
+| X3 | merge regression | the Skymaster-alike on seaplanes-merge is born retractable (cage.gearRetract 1 from designBake, 1090.4 kg) and strikes a propeller at rest (t 0.4 s). At the merge base L34a cad30863 and on master L35a it is fixed, 1054.9 kg, and clean. It cannot taxi in the game (obstacle, timeouts, crash). The row over the card did not switch the retract off (unproven why) | BAD | `... rr_stance.js key:skymaster '{}'` on both trees | node |
+| X4 | the card (not retract) | the Caravan-alike strikes its propeller at rest (t 0), on master L35a too | BAD (the card) | `... rr_stance.js key:caravan '{}'` | node |
 | E1 | ENV | the built page is stale at 15ad5d66 (SEA-OFF without its built commit) | info | `node tools/build.js && git status` | - |
 
 ## 8. What the browser must confirm (node cannot)
