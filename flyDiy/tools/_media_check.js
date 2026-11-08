@@ -530,6 +530,15 @@ const present = walkMedia(MEDIA);
     let J = null; try { J = JSON.parse(fs.readFileSync(path.join(ROOT, rel), 'utf8')); } catch (e) {}
     check(!!(J && J[dir] && typeof J[dir] === 'object'), `${rel} is a plane-picture index ({${dir}: {key: file}})`);
     if (fetched) for (const f of Object.values((J && J[dir]) || {})) { const r = 'media/' + dir + '/' + f; if (!refs.has(r)) refs.set(r, rel); } } }
+// PLANE-RENDERS R3: media/fiches/index.json, the official planes' baked fiches (tools/fiche_bake.js { fiches: { key: { pics: { view:
+// file } } } }), fetched by fiche_board.js the same way; its pictures are named by it
+{ const FB = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'fiche_board.js'), 'utf8'), rel = 'media/fiches/index.json';
+  if (present.includes(rel)) {
+    const fetched = FB.includes("'media/fiches/'") && /fetch\(BAKED \+ 'index\.json'\)/.test(FB);
+    if (fetched && !refs.has(rel)) refs.set(rel, 'src/viewer/fiche_board.js');
+    let J = null; try { J = JSON.parse(fs.readFileSync(path.join(ROOT, rel), 'utf8')); } catch (e) {}
+    check(!!(J && J.fiches && typeof J.fiches === 'object'), `${rel} is a fiche index ({fiches: {key: {pics}}})`);
+    if (fetched) for (const b of Object.values((J && J.fiches) || {})) for (const f of Object.values((b && b.pics) || {})) { const r = 'media/fiches/' + f; if (!refs.has(r)) refs.set(r, rel); } } }
 checkStore(refs, present);
 // MEDIA ACCEPTED BY NAME (a media file the user accepted by its size; the gate holds it to that size - a re-encode that
 // grows it is a new ask, not a silent pass)

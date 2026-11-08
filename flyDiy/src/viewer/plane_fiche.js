@@ -209,28 +209,57 @@
   }
   // ---- the draw ------------------------------------------------------------------------------------------------------
   let busy = null;
+  // THE LIVE PAGE (PLANE-RENDERS R3, 8 Nov - the user: "no cost when not drawing, no freeze at the award"): the fiche is drawn
+  // in the player's own garage, so
+  //   - THE SHED HOLDS ITS FRAME (app.js FLYDIY_UI_HOLD, the new-plane chooser's door): the loop draws nothing while the
+  //     fiche is out, so the studio's lights, the levelled plane and the cut are never seen, and the shed's own programs are
+  //     never re-keyed for the studio's lights (a frame drawn with three more lights = every program of the shed again)
+  //   - THE PROGRAMS FIRST, IN SLICES (FLIGHT_PROBE.compileScreen, R1's door: ~30 ms tasks, then the link's poll): the
+  //     display-space target keys like the canvas, so the studio's programs are compiled with the studio's lights in place
+  //     before the first picture; the cutaway's again after its cut (its clones, its clipping, its three lamps)
+  //   - ONE PICTURE IS SEVERAL TASKS: the draw on black, the draw on white, the matte, the encode (toBlob, off the thread)
+  //   - NO SHOT MODE: it re-insets the canvas (body.shot: a resize, a layout); the overlays it hides are hidden here
+  //     (the canopy's loops, the selection's highlight: the scene's own; the UI layer: blind(cam))
+  //   - opts.onStep(what, i, n) for the waiting line; api.lastTime per task: ms, the longest task, the compile's
+  const hold = on => { try { if (window.FLYDIY_UI_HOLD) window.FLYDIY_UI_HOLD(!!on); } catch (e) {} };
+  const nowMs = () => performance.now();
   async function draw(opts) {
     const T = window.THREE, P = window.FLIGHT_PROBE, root = window.CAGE_UI_SCENE, U = window.CAGE_UI, V = window.CAGE_VIEW;
     if (!T || !P || !root || !root.parent) throw new Error('no aeroplane on the stand');
     const R = P.renderer(), S = P.hangarScene(), cam0 = P.camera(), spec = specNow();
-    const only = opts.only || VIEWS, tm = { views: {} }, t0 = performance.now(), pics = {};
+    const only = opts.only || VIEWS, tm = { views: {}, tasks: [], compileMs: 0 }, t0 = nowMs(), pics = {};
+    const step = (what, i, n) => { try { if (opts.onStep) opts.onStep(what, i, n); } catch (e) {} };
+    // a task's length (the work between two yields): the longest is the freeze the player could feel
+    let tk = nowMs();
+    const yieldTask = async (what, n) => { tm.tasks.push([what, Math.round(nowMs() - tk)]); await frames(n || 1); tk = nowMs(); };
     const pitch0 = root.rotation.x, bg0 = S.background, au = R.shadowMap.autoUpdate, lc = R.localClippingEnabled, rt0 = R.getRenderTarget();
-    const shotOn = !!(window.SHOT_MODE && !window.SHOT_MODE.on);
     const rt = new T.WebGLRenderTarget(HERO_W, HERO_H, { samples: SAMPLES, type: T.UnsignedByteType, depthBuffer: true });
     rt.texture.colorSpace = T.SRGBColorSpace; rt.isXRRenderTarget = true;   // display-space, as the canvas (aa_resolve.js)
     rt.texture.internalFormat = 'RGBA8';   // the shader encodes; sRGB storage would not take the multisampled buffer's resolve (the first run: every picture empty)
     const room = []; S.traverse(o => { if (o.isLight) room.push(o); }); const roomI = room.map(l => l.intensity);   // (uniforms only: no program changes for this)
     const lights = new T.Group(), key = new T.DirectionalLight(0xfff0dc, STUDIO.key), rim = new T.DirectionalLight(0xe6eeff, STUDIO.rim), amb = new T.AmbientLight(0xfff4e6, 0);
-    lights.add(key, key.target, rim, rim.target, amb); S.add(lights);
-    const hid = []; let cut = null, xray0 = null, data = null;
+    lights.add(key, key.target, rim, rim.target, amb);
+    const hid = []; let cut = null, xray0 = null, data = null, held = false;
     const black = new T.Color(0, 0, 0), white = new T.Color(1, 1, 1);
+    const warm = async what => {   // the studio's programs, sliced, before a picture needs them
+      if (!P.compileScreen) return;
+      const t1 = nowMs(); await yieldTask('before ' + what);
+      await P.compileScreen(root, S);
+      tm.compileMs += Math.round(nowMs() - t1); tk = nowMs();
+    };
     try {
-      if (shotOn) { window.SHOT_MODE.enter(); await frames(3); }
-      S.traverse(m => { if (m.visible && /^studio:pool$/.test(m.name || '')) { m.visible = false; hid.push(m); } });
+      hold(true); held = true;
+      await frames(1); tk = nowMs();
+      S.add(lights);
+      S.traverse(m => {
+        if (!m.visible) return;
+        if (/^studio:pool$/.test(m.name || '') || m.name === 'edCanopyLoops' || (m.userData && m.userData.edHi)) { m.visible = false; hid.push(m); }
+      });
       R.shadowMap.autoUpdate = false;
       root.rotation.x = 0;   // the air's attitude
       let F = frameOf(T, root);
       data = numbers(spec, F, opts.title || opts.name);   // what the player calls it, not the file's meta (a Tiger Moth's says "Garage Special")
+      await warm('the pictures');
       const place = (F, low, st) => {
         key.intensity = st.key; rim.intensity = st.rim; amb.intensity = st.amb || 0;
         room.forEach((l, i) => { l.intensity = roomI[i] * st.room; });
@@ -238,24 +267,27 @@
         rim.position.copy(F.c).addScaledVector(F.fwd, -7).addScaledVector(F.left, -2).addScaledVector(F.up, 6); rim.target.position.copy(F.c);
         lights.updateMatrixWorld(true);
       };
+      const nAll = only.length; let iv = 0;
       const shoot = async (name, cam, w, h, low, st, F2) => {
-        const t1 = performance.now();
+        const t1 = nowMs();
+        step(name, iv++, nAll);
         place(F2, low, st);
         cam.layers.mask = cam0.layers.mask; if (typeof UI_LAYER !== 'undefined' && UI_LAYER.blind) UI_LAYER.blind(cam);
         cam.updateMatrixWorld(true); cam.updateProjectionMatrix();
         rt.viewport.set(0, 0, w, h); rt.scissor.set(0, 0, w, h); rt.scissorTest = true;
-        const one = col => { S.background = col; R.setRenderTarget(rt); R.render(S, cam); const b = new Uint8Array(w * h * 4); R.readRenderTargetPixels(rt, 0, 0, w, h, b); return b; };
-        const k = one(black), wt = one(white);
-        R.setRenderTarget(rt0); S.background = bg0;
+        const one = col => { S.background = col; R.setRenderTarget(rt); R.render(S, cam); const b = new Uint8Array(w * h * 4); R.readRenderTargetPixels(rt, 0, 0, w, h, b); R.setRenderTarget(rt0); S.background = bg0; return b; };
+        const k = one(black); await yieldTask(name + ' on black');
+        place(F2, low, st);   // (a frame between: nothing of the shed moved - it is held - but the room's lights are set again)
+        const wt = one(white); await yieldTask(name + ' on white');
         const m = matte(k, wt, w, h);
         if (!m.n) throw new Error('the ' + name + ' picture is empty');
         if (m.n === w * h) throw new Error('the ' + name + ' picture drew nothing (the two draws read back the same)');
         if (m.edge) throw new Error('the ' + name + ' picture touches its frame');
-                const e = await encode(m, w, h);
+        const e = await encode(m, w, h);
+        await yieldTask(name + ' matte + encode');
         pics[name] = e.blob;
-        tm.views[name] = { ms: Math.round(performance.now() - t1), w: e.w, h: e.h, kb: Math.round(e.blob.size / 1024) };
+        tm.views[name] = { ms: Math.round(nowMs() - t1), w: e.w, h: e.h, kb: Math.round(e.blob.size / 1024) };
         if (opts.onView) opts.onView(name);
-        await frames(2);   // the page breathes between pictures
       };
       const s = ORTHO / Math.max(F.len('f'), F.len('l')), ow = a => Math.round(s * a) + PAD * 2;
       data.pxPerM = +s.toFixed(3);
@@ -265,11 +297,14 @@
       if (only.includes('plan')) await shoot('plan', orthoCam(T, F, F.up, F.fwd, ow(F.len('l')), ow(F.len('f')), s), ow(F.len('l')), ow(F.len('f')), false, CUT_STUDIO, F);
       if (only.includes('front')) await shoot('front', orthoCam(T, F, F.fwd, F.up, ow(F.len('l')), ow(F.len('u')), s), ow(F.len('l')), ow(F.len('u')), false, STUDIO, F);
       if (only.includes('cutaway') && U && V) {
-        const t1 = performance.now();
-        xray0 = V.xray || 0; V.xray = 1; U.build(); await stable(T, root);
+        const t1 = nowMs();
+        step('cutaway', iv, nAll);
+        xray0 = V.xray || 0; V.xray = 1; U.build(); tm.buildMs = Math.round(nowMs() - t1);
+        await yieldTask('the see-inside build'); await stable(T, root);
         root.rotation.x = 0; root.updateMatrixWorld(true);
         cut = cutOn(T, R, root, S);
-        tm.cutSetupMs = Math.round(performance.now() - t1);
+        tm.cutSetupMs = Math.round(nowMs() - t1);
+        await warm('the cutaway');
         const Fc = frameOf(T, root);
         await shoot('cutaway', heroCam(T, Fc, CUT_W / CUT_H, 50, 28), CUT_W, CUT_H, false, CUT_STUDIO, Fc);
       }
@@ -277,14 +312,15 @@
       room.forEach((l, i) => { l.intensity = roomI[i]; });
       if (cut) cutOff(cut);
       R.localClippingEnabled = lc;
-      if (xray0 != null) { V.xray = xray0; U.build(); await stable(T, root); }
+      if (xray0 != null) { const t1 = nowMs(); V.xray = xray0; U.build(); tm.buildBackMs = Math.round(nowMs() - t1); await stable(T, root); }
       R.setRenderTarget(rt0); S.background = bg0; R.shadowMap.autoUpdate = au;
       S.remove(lights); key.dispose && key.dispose(); rim.dispose && rim.dispose(); amb.dispose && amb.dispose(); rt.dispose();
       for (const m of hid) m.visible = true;
       root.rotation.x = pitch0; root.updateMatrixWorld(true);
-      if (shotOn) window.SHOT_MODE.exit();
+      if (held) hold(false);
     }
-    tm.ms = Math.round(performance.now() - t0);
+    tm.ms = Math.round(nowMs() - t0);
+    tm.worst = tm.tasks.reduce((a, t) => (t[1] > a[1] ? t : a), ['', 0]);
     api.lastTime = tm;
     return { name: opts.name || (spec.meta && spec.meta.name) || '', at: Date.now(), fp: fpNow(), hash: hashOf(spec), data, pics };
   }
@@ -305,6 +341,7 @@
       return { drawn: await api.generate({ name, title }) };   // the old fiche stays until this one is stored
     },
     get(name) { return tx('readonly', s => s.get(name)).then(r => r || null); },
+    names() { return tx('readonly', s => s.getAllKeys()).then(r => r || []); },   // (R3: the fleet's rows that carry a fiche)
     forget(name) { return tx('readwrite', s => s.delete(name)); },
     stale(rec) {
       if (!rec) return null;
