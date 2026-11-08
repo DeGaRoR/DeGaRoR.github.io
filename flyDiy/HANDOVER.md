@@ -312909,3 +312909,37 @@ The study is `futureDesigns/RETRACT-STUDY-2026-11.md`, sections 8.20 to 8.22. Th
   - SEEN, open: a thin dark sliver behind the central pylon, wing to deck, in quickshot's side view (likely the engine pylon's fillet cast); the engine stands ON the wing (not slung under it as the real Petrel's): a single under-wing / through-wing centre nacelle is the owed mount.
 - HULL-B79 THE CENTRE NACELLE = THE OVER-THE-WING ENGINE SLID DOWN (the user: "as simple as having an up-down slider for the current setting, and then we just slide it down ... either pusher or puller mode, or even both"): the slider is engBlockY ('block up / down', already shown for the over-the-wing mount). _cage_eng drawPylonMount / drawPylonBlade: an engine block slid down into the wing (its plate under the feet + 30 mm) draws NO pylon - the nacelle on the wing is the mount (the cabane pylon, kind 'cabPylon', exempt). V4: engBlockY -0.18 - the hub at 1.460 (V3's 1.456), the nacelle half above, half below the wing; the B78 sliver gone. Sheet SM 15.5 %. FLOWN: water AIRBORNE 26.3 s, roll 1.1 (B78's 4.3), 0 breaks - FLIES; land run 182 m, climb 2.9, landing roll 363 m, completed. MODES: the puller (engAim 1) and the push-pull (engCount 'tandem') both build and draw on the lowered centre nacelle, and both report "prop: through the body" (30-33 points): a 1.6 m disc ahead of the wing at hub 1.46 sweeps through the canopy - a pulling disc wants the hub ~1.6 (on the wing) or a smaller propeller; the pusher clears (its disc over the rod). V4 build refreshed.
 - HULL-B80 V3 / V4 / V4.1 SIDE BY SIDE (the user: "test the last v4.1 and report against v3 and v4"; the pylon-skip rule kept: "the option is clean"): builds/candidates/superpetrel_V4.json = B78 (the engine on its 8 cm pylon ON the wing - the example of a pylon touching both the wing and the nacelle), superpetrel_V4_1.json = B79 (the engine slid into the wing, engBlockY -0.18; the card superPetrelV4). V3 / V4 / V4.1: SM 16.7 / 15.3 / 15.5 %; CdS 0.62 / 0.59 / 0.59; L/D 9.7 / 9.9 / 9.9; ROC calc 3.9 / 4.0 / 4.0; V75 161 / 164 / 164; Vmax 183 / 186 / 186; empty 373 / 380 / 380; water airborne 25.7 / 26.6 / 26.3 s, roll 1.2 / 4.3 / 1.1; land run 180 / 183 / 182 m, flown climb 2.7 / 2.7 / 2.9, landing roll 258 / 368 / 363 m. The V4s' landing roll ~100 m longer: open.
+
+## SEAPLANES-LAND (7-8 Nov 2026): hull-types + retract-study onto master, the Super Petrel LS V4.1 official
+- WHAT LANDED: origin/claude/hull-types (boat hulls, the Super Petrel LS, HULL-B1..B80) + origin/claude/retract-study
+  (its report only), on master L34a cad308635. Report: flydiy-notes/seaplanes-land-2026-11-07.md and
+  seaplanes-land-2026-11-08-slot.md.
+- PETREL OFFICIAL: builds/candidates/superpetrel_V4_1.json is the official Super Petrel (plane_lists row 41, pool
+  official: true); V0-V4 to review/ (rows 42-46). LB.VALIDATED.petrel joins the test planes the way
+  Twin_busher_floats_4b did (ACCEPT, PILLAR, JOINPARITY, the DMG gates through _treecrash_lib BUILDS).
+- RETRACT-LAB: the retract options that are not final sit behind one switch (FLYDIY_RETRACT_LAB / ?retract=lab /
+  flDev). OFF in a player's page: no retract switch on a tricycle or a taildragger, no Retraction tile, no amphibious
+  floats row (a saved build keeps its rows). Node (gates, tools) is lab-on. GATE DESIGN proves the page default.
+  Every control still works by hand; the Petrel's own retract (the hull's wheels) is not behind the flag.
+- AMPH-GEAR: the AP flies an amphibian's wheels by the surface under it (down for land, up for water; a glide under
+  150 m reads the surface under it); GUMPS checks the wanted state. THE GEAR KEY UNDER THE AP acts on EVERY retract
+  build (A0 7 Nov: kept): a press holds where the AP has no say (LIFTOFF, PUTDOWN, a glide over 150 m, the climb before
+  15 m and 1 m/s), elsewhere the AP writes its wanted state back. No press: identical to before.
+- KNOWN LIMIT (the ramp): on the surface the rule is the water under the CG (0.2 m margin) - an amphibian cannot taxi
+  up a ramp out of the water on its wheels; the hull grounds first. GUMPS cap (existing rule): two go-arounds, then
+  the third approach lands as it is.
+- CERT IDENTITY (A0 8 Nov): genStolCageOff drops the 12 hull-types cage rows at GEN_HULL_ROW_OFF (their absent value),
+  the STOL / RETRACT rule. Master vs the merge: 0 moved on 13 certificates (5 validated, Rufus, Twin 4b, C172, 5
+  contract designs).
+- HULL-B50 (option d, A0 8 Nov): HULL-B50 recalibrated the carbon and glass frame rows (GEN_MATERIALS: carbon lin
+  x0.45, k x0.55, c x0.50; glass lin x0.75) with NO version bump - the user's "make carbon worth it", ref the Petrel's
+  332 kg empty. genCertKey folds the row into the key of a design framed in carbon or glass only: those designs
+  re-certify once on load; every other key is byte-identical. No validated, official or shipped-cert plane is framed in
+  carbon or glass. No PHYSICS_V / GEN_SPEC_V bump.
+- GATES: RETRACT re-premised (ec63d92d9: the downwind is a held-speed leg, so the gate measures the thrust to hold it,
+  within 50 % of 1/2 rho V^2 cdA). HULL: a hull-ON build is held to the opposite promise (keeps hullOn + its rows),
+  the hull-off loop skips it. FRAMES: arch:Skymaster-alike re-recorded alone (hull-types b0f00bba0 moves its aft
+  windscreen floor 24 um).
+- OPEN (the user's list): the Petrel's prop touches the water at rest and in the rollout on open sea (mk_sea), never
+  off the SEA lane; the amphibious floats (fltAmph) are drawn, not flown; no tile makes a hull amphibian; the V4.1
+  file carries the base card's meta (cessnaFloatsWOrks, F-PGAR); 43_pilot reads sim.hydro as water for any hull build.
