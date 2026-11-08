@@ -312728,3 +312728,35 @@ IN (on L34a cad308635): claude/ready/bubble-windows 9e7010baa (CABIN-CRAFT), cla
 BATTERY: 115 of 116 PASS. ENGCONFIG red, standing on master: its IDENTITY pins date from 28 Oct. Every one of its 18 load digests (the Cub, the Jodel, the Cessna, the Rufus...) is the same on this train and on a full copy of master, so no validated plane flies differently. No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change.
 TIMED GATE (light, vs the stale 12 Oct baseline): steady frames p50 33.3 ms. Reds are the boot and compile rows (cub chase compile 67 s, flight 151 s): the cold shader cache seen on L32d/L34a, same class as L34a (57 reds vs 80). Two rollouts lost to a page '__timeout' (cub cockpit, metal chase) after slow boots.
 NAMED COST, STILL OPEN: the floats' SEA lane: garage 226 s, take-off p99 50 ms but worst frame 10.4 s, 25 tasks over 1 s, held under the roll-out screen. Same as L34a's (124 s, 77 links); not this train's. NIGHT-LOOK measures the night water cost at 11:45; the SEA lane bisect is owed.
+
+## DEFORM - GEN envelope (MASTER-GREEN), 8 Nov 2026 (claude/ready/gen-envelope, for L35c)
+
+THE RED (GATE GEN's QC "clampSpec holds the envelope", new in L35a, mine: DC3-EDITABLE, which did not run GEN). The wild
+spec asks a 40 m wing on a 0.2 m chord. It flies a 16 m wing (aspect 20 on the 0.8 m chord floor), but on master it took
+4 000 L of fuel and 1 112 kg net of fuel; the check's bounds are 2 000 L and 900 kg.
+- genBig decided "big" off the span ASKED, and clampSpec reads genBig for the fuel, the vessels and every clampBig row
+  BEFORE clampWing runs. So a wing that flies small took the big aeroplane's caps.
+- G3503 had the same flaw, hidden by its 2 000 L vessel cap; DC3-EDITABLE's 4 000 L vessel cap exposed it.
+- DC3-EDITABLE also raised the big fuel cap to 8 000 L at clampSpec's first line, but left the vessels' total at 4 000 L.
+THE FIX (src/core/60_gen_spec.js):
+- clampWing's size clamp (the chord, the span, G3579's second pass) is lifted, word for word, into genWingSize(w, k).
+  clampWing and genBig both read it.
+- genBig is now big by the span the wing FLIES. A wing asked at 18 m or under never runs the clamp (the old answer
+  exactly, so no small aeroplane can move). A wing with no chord to clamp by keeps the asked answer. The DC-3 stays big.
+- The vessels' total goes to 8 000 L, as the first cap.
+PROOF (branch 4bb26b340 against master 1bcd01d3e, built, both trees):
+- The probe of the check's six terms, master then branch:
+  - fuel 4 000 -> 1 000 L;
+  - mass net of fuel 1 112 -> 704 kg;
+  - span 16 and chord 0.8 on both, rank 297/297 on both;
+  - Vs finite on both (53.3 -> 31.8 m/s, a lighter aeroplane).
+- ENGCONFIG --pin: the 17 digest lines are identical.
+- SEAPLANES' cert_probe on its 13 rows is "0 moved". The rows: the validated Cub, Jodel, metal Cessna, floats Cessna and
+  twin floats; Rufus certified, Twin_busher_floats_4b and the C172; and the 5 contract models.
+GATES on the branch:
+- PASS: WINGROWS, JOIN, DESIGN, FLOATKIT, SPECFIX.
+- GEN (4 shards, --jobs=2, 379 s): "clampSpec holds the envelope" now PASSES in every shard. GEN stays FAIL on
+  "cruise is quiet in wind" (shard 3: bank p2p 11.59 deg, aileron 1.18 deg/s, elevator 1.07 deg/s). That is master's
+  own red: A0's master sweep on 1bcd01d3e printed the same three numbers to the digit. It is the pilot's cruise in gusts,
+  which this change cannot reach (the default aeroplane's wing is under 18 m).
+No PHYSICS_V or GEN_SPEC_V bump.
