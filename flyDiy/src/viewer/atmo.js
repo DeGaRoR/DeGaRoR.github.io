@@ -773,7 +773,9 @@ ${MIST_GLSL}
           sAcc += mix(vec3(1.0, 0.9, 0.8), vec3(0.8, 0.9, 1.0), h2) * b * w * w;
         }
         float lum = dot(L, vec3(0.2126, 0.7152, 0.0722));
-        L += sAcc * sK * uStars * Tview * (1.0 - smoothstep(0.0, 3e-6, lum));
+        // STAR-LOVE (the user 8 Nov: "that's what I meant. The fading through denser air"): no extinction - a star keeps its light at every view angle,
+        // down to the horizon (the sky's own light still hides it by day and in the glow)
+        L += sAcc * sK * uStars * (1.0 - smoothstep(0.0, 3e-6, lum));
       }
       L += veil(d, uSun);                                      // THE VEIL (C4): over the sun and moon discs, under the corona
       // THE CORONA (S7): the eye's own scatter around a disc ten thousand times the sky - a 1/theta^2
