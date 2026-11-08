@@ -1,0 +1,82 @@
+{
+ "src": "key:da62",
+ "over": {
+  "gearRetract": 1
+ },
+ "retract": {
+  "time": 6,
+  "act": "hydraulic",
+  "lift": {
+   "mains": 0.6979,
+   "nose": 0.5731
+  }
+ },
+ "type": "tricycle",
+ "mass": null,
+ "gear": [],
+ "leg": {
+  "ok": false,
+  "t": 0.7833333333333341,
+  "faults": [
+   "crash: the damage ended the flight: the airframe crushed (1.6 kJ of plastic work)",
+   "yield: 6225 member(s) yielded (first: {\"beam\":274,\"cls\":\"fus\",\"t\":0.12493734335839371})",
+   "break: 8 member(s) broke",
+   "prop-strike: the propeller struck (ground, t 0.1)",
+   "dent: the airframe dented"
+  ],
+  "verdicts": [],
+  "landing": null,
+  "damage": {
+   "yields": 6225,
+   "breaks": 8,
+   "dented": true,
+   "crashed": true,
+   "gPeak": 1.5,
+   "propAt": {
+    "what": "ground",
+    "t": 0.1
+   }
+  },
+  "phases": [
+   "TAXI"
+  ]
+ },
+ "gearLog": {
+  "cycles": 0,
+  "minPos": 1,
+  "upAt": null,
+  "upTook": null,
+  "downTook": null,
+  "endPos": 1
+ },
+ "game": {
+  "day": {
+   "cloudCover": 0.25,
+   "cloudSeed": 1,
+   "cloudType": "cuh",
+   "date": "2026-06-22",
+   "groundAlbedo": 0.15,
+   "ozone": 300,
+   "rate": 1,
+   "rh": 0.5,
+   "turbidity": 2.8,
+   "utc": 0,
+   "wind": {
+    "kts": 8,
+    "dirDeg": 250,
+    "gust": 0.15,
+    "refH": 10,
+    "breeze": 1
+   }
+  },
+  "shake": true,
+  "stand": {
+   "x": -118.1,
+   "z": 677.6
+  },
+  "mass": 983.6,
+  "fuel": 62,
+  "damage": true
+ },
+ "wallS": 7
+}

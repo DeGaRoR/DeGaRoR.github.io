@@ -1,0 +1,12 @@
+tools/flight_core.js (4262.7 KB), index.html (16355.6 KB), dev.html (121.4 KB), career_core.c0a0a586.js (613.2 KB), route_draw.551be74d.js (32.4 KB) — syntax OK, build b0e913bedc6a (416 named inputs), 1860 ms
+=== DESIGN ===
+RETRACT-LAB: node true, a page false, ?retract=lab true, dev true
+  55 rows, 251 options (0 declared with reasons), 32 archetypes (31 live)
+GATE DESIGN: PASS
+
+──────── summary ────────
+DESIGN    PASS    14.9 s
+total             14.9 s
+wall              14.9 s  (jobs 4)
+
+BATTERY: PASS

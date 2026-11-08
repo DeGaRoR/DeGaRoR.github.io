@@ -1,0 +1,38 @@
+tools/flight_core.js (4262.7 KB), index.html (16355.6 KB), dev.html (121.4 KB), career_core.c0a0a586.js (613.2 KB), route_draw.551be74d.js (32.4 KB) — syntax OK, build b0e913bedc6a (416 named inputs), 1798 ms
+[run_gates] 0/1 jobs done · running RETRACT 30 s
+[run_gates] 0/1 jobs done · running RETRACT 60 s
+[run_gates] 0/1 jobs done · running RETRACT 90 s
+[run_gates] 0/1 jobs done · running RETRACT 120 s
+[run_gates] 0/1 jobs done · running RETRACT 150 s
+[run_gates] 0/1 jobs done · running RETRACT 180 s
+[run_gates] 0/1 jobs done · running RETRACT 210 s
+[run_gates] 0/1 jobs done · running RETRACT 240 s
+[run_gates] 0/1 jobs done · running RETRACT 270 s
+[run_gates] 0/1 jobs done · running RETRACT 300 s
+[run_gates] 0/1 jobs done · running RETRACT 330 s
+[run_gates] 0/1 jobs done · running RETRACT 360 s
+[run_gates] 0/1 jobs done · running RETRACT 390 s
+[run_gates] 0/1 jobs done · running RETRACT 420 s
+[run_gates] 0/1 jobs done · running RETRACT 450 s
+[run_gates] 0/1 jobs done · running RETRACT 480 s
+[run_gates] 0/1 jobs done · running RETRACT 510 s
+[run_gates] 0/1 jobs done · running RETRACT 540 s
+[run_gates] 0/1 jobs done · running RETRACT 571 s
+[run_gates] 0/1 jobs done · running RETRACT 601 s
+[run_gates] 0/1 jobs done · running RETRACT 631 s
+[run_gates] 0/1 jobs done · running RETRACT 661 s
+[run_gates] 0/1 jobs done · running RETRACT 691 s
+[run_gates] 0/1 jobs done · running RETRACT 721 s
+[run_gates] 0/1 jobs done · running RETRACT 751 s
+[run_gates] 0/1 jobs done · running RETRACT 781 s
+=== RETRACT ===
+  ok   params carry the fraction
+  ok   a partial gear up: the thrust to hold the downwind between down and fully up  (964 > 862 > 795 N)
+GATE RETRACT: PASS
+
+──────── summary ────────
+RETRACT   PASS   788.4 s
+total            788.4 s
+wall             788.4 s  (jobs 4)
+
+BATTERY: PASS

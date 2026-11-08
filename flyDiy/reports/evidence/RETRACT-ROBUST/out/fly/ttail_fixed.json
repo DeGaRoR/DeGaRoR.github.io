@@ -1,0 +1,76 @@
+{
+ "src": "key:ttail",
+ "over": {},
+ "retract": null,
+ "type": "tricycle",
+ "mass": null,
+ "gear": [],
+ "leg": {
+  "ok": true,
+  "t": 568.9166666664779,
+  "faults": [],
+  "verdicts": [
+   "rotate-pull: the nose will not come up at 26.9 m/s on the stop - full back stick",
+   "vx-climb: ground ahead above the aeroplane — climbing at Vx 31.8 m/s until clear",
+   "off-the-strip: touched 81 m in, stopped 16 m past the end of 543 m (0 m off the centreline)"
+  ],
+  "landing": {
+   "run": 478,
+   "sink": 0.34,
+   "V": 29,
+   "offCentre": 0.7,
+   "pastAim": 16,
+   "k": 1,
+   "three": false,
+   "onStrip": false,
+   "tdIn": 81,
+   "stopLeft": -16
+  },
+  "damage": {
+   "yields": 0,
+   "breaks": 0,
+   "dented": false,
+   "crashed": false,
+   "gPeak": 3.3,
+   "propAt": null
+  }
+ },
+ "gearLog": {
+  "cycles": 0,
+  "minPos": 1,
+  "upAt": null,
+  "upTook": null,
+  "downTook": null,
+  "endPos": null
+ },
+ "game": {
+  "day": {
+   "cloudCover": 0.25,
+   "cloudSeed": 1,
+   "cloudType": "cuh",
+   "date": "2026-06-22",
+   "groundAlbedo": 0.15,
+   "ozone": 300,
+   "rate": 1,
+   "rh": 0.5,
+   "turbidity": 2.8,
+   "utc": 0,
+   "wind": {
+    "kts": 8,
+    "dirDeg": 250,
+    "gust": 0.15,
+    "refH": 10,
+    "breeze": 1
+   }
+  },
+  "shake": true,
+  "stand": {
+   "x": -118.1,
+   "z": 677.6
+  },
+  "mass": 739.6,
+  "fuel": 56,
+  "damage": true
+ },
+ "wallS": 366
+}

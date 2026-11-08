@@ -1,0 +1,29 @@
+{
+ "src": "builds/cessna172_2026-09-20_corrected.json",
+ "over": {
+  "gearRetract": 1
+ },
+ "lift": {
+  "mains": 0,
+  "nose": 0.5523
+ },
+ "verdicts": [
+  "gear-forgotten"
+ ],
+ "phases": "ROLL>LIFTOFF>CLIMB>CROSSWIND>DOWNWIND>BASE>FINAL>FLARE>ROLLOUT>STOPPED",
+ "gearPos": 0.533333333333332,
+ "td": {
+  "sink": 1.1475661575605274,
+  "z": -0.15790928416801095,
+  "x": -486.2728878075669,
+  "V": 22.6584520032813,
+  "drift": -0.1473837722977662,
+  "three": false,
+  "th": 0.12612634907001283
+ },
+ "prop": true,
+ "crashed": false,
+ "breaks": 0,
+ "yields": 0,
+ "scar": 18257
+}
