@@ -150,19 +150,28 @@ three have been red on every train from 24 Oct to 8 Nov.
 
 ## 2. The sweep (257 gates)
 
-INTERIM (14:25 UTC): the heavy gates (weight 3/4, sharded, Playwright) are still running; the per-red blocks and bisects
-follow when the sweep ends. One run_gates per gate on 1bcd01d3e (`--only=ID --no-build --verbose`), a slot scheduler
-(4 slots; a gate costs its shards / weight, a Playwright gate 4), timeout max(1500 s, 2.5 x the row's wall) capped by
-the row's own timeout. Walls are this 4-CPU box under the bisect lanes' load, not the box's.
+INTERIM (16:34 UTC): 37 gates left, all heavy (the DMG three-builds-at-once rows, TOUR, SOFTGPU); the reds below are complete for what has run.
 
-217 of 257 run: 194 PASS, 23 FAIL, 0 NOVERDICT, 40 pending.
+How the sweep was run:
+- One run_gates per gate on 1bcd01d3e: `--only=ID --no-build --verbose`.
+- A slot scheduler on 4 slots. A gate costs its shards or its weight; a Playwright gate costs 4.
+- The timeout is max(1500 s, 2.5 x the row's wall), capped by the row's own timeout.
+- The verdict is run_gates' own summary row, which covers every shard; no row is NOVERDICT.
+- The walls are this 4-CPU box's, partly under the bisect lanes' load, not the box's.
+
+Kinds:
+- ENV: needs something this box lacks.
+- TIME?: only a time budget on a cloud CPU.
+- red: a red for its owner (section 3).
+
+220 of 257 run: 194 PASS, 24 FAIL, 2 NOVERDICT, 37 pending.
 
 | gate | verdict | wall s | kind |
 |---|---|---|---|
 | PILOTPAGE | FAIL | 625 | ENV (page legs: no Chrome page target here) |
-| ARCHETYPES | (pending) | | |
-| SOFTGPU | (pending) | | |
-| TOUR | (pending) | | |
+| ARCHETYPES | FAIL | 3239 | red |
+| SOFTGPU | NOVERDICT | 526 | (re-run pending: the runner was edited under it, rc 127) |
+| TOUR | NOVERDICT | 3600 | NOVERDICT: the row's own 3600 s timeout under the bisect lanes' load; re-run pending |
 | DESTTO | (pending) | | |
 | DMGWIND | (pending) | | |
 | DMGDRIVE | (pending) | | |
@@ -263,7 +272,7 @@ the row's own timeout. Walls are this 4-CPU box under the bisect lanes' load, no
 | ECON | PASS | 63 |  |
 | HOUSE | PASS | 71 |  |
 | METKIT | PASS | 85 |  |
-| SCENERYED | FAIL | 78 | red |
+| SCENERYED | FAIL | 78 | red (row 15) + TIME? (row 20b) |
 | WETFX | PASS | 56 |  |
 | ENGMESH | PASS | 87 |  |
 | TOWNKIT | PASS | 85 |  |
@@ -296,15 +305,15 @@ the row's own timeout. Walls are this 4-CPU box under the bisect lanes' load, no
 | TREES | PASS | 22 |  |
 | PLOTQUERY | PASS | 15 |  |
 | KNIFE | PASS | 26 |  |
-| LOOKS | FAIL | 22 | red |
+| LOOKS | FAIL | 22 | red (stale pin) |
 | FRAMES | PASS | 29 |  |
 | SHOULDER | PASS | 29 |  |
-| BIOME | FAIL | 17 | TIME? (surface perf<5us) |
+| BIOME | FAIL | 17 | TIME? |
 | TREE | PASS | 15 |  |
 | GRASSSIDES | PASS | 14 |  |
 | LAKEBED | FAIL | 14 | red |
 | STRUT | PASS | 8 |  |
-| SETTLE | FAIL | 8 | TIME? (bake budget) |
+| SETTLE | FAIL | 8 | TIME? |
 | RWYLIGHTS | FAIL | 11 | red |
 | WEATHER | PASS | 9 |  |
 | JOIN | PASS | 9 |  |
@@ -326,7 +335,7 @@ the row's own timeout. Walls are this 4-CPU box under the bisect lanes' load, no
 | CABIN | PASS | 3 |  |
 | RAYINDEX | PASS | 3 |  |
 | HANGAR | PASS | 2 |  |
-| FLIGHTREC | FAIL | 4 | red |
+| FLIGHTREC | FAIL | 4 | red (stale pin) |
 | ANIMALS | PASS | 5 |  |
 | WINGSPLIT | PASS | 3 |  |
 | TARR | PASS | 3 |  |
@@ -389,9 +398,9 @@ the row's own timeout. Walls are this 4-CPU box under the bisect lanes' load, no
 | INTROSCENE | PASS | 1 |  |
 | ENERGYBASE | PASS | 1 |  |
 | COVERIDLE | PASS | 0 |  |
-| FOG | FAIL | 0 | red |
+| FOG | FAIL | 0 | red (stale pin) |
 | CAGEFIT | PASS | 0 |  |
-| CREWLOAD | FAIL | 45 | red |
+| CREWLOAD | FAIL | 45 | TIME? (red on its own landing commit here) |
 | CITYCOOK | PASS | 42 |  |
 | GEOPARITY | PASS | 110 |  |
 | PODEDITOR | PASS | 54 |  |
@@ -417,3 +426,216 @@ the row's own timeout. Walls are this 4-CPU box under the bisect lanes' load, no
 | PLANETHUMB | PASS | 0 |  |
 | PLANEFICHE | PASS | 0 |  |
 
+
+## 3. The reds, one block each
+
+How each one was bisected:
+- With that gate alone, first over the 28 "(built)" trains, newest to oldest.
+- Then over the first-parent commits of the train it turned red in. Where that landed on a merge of master into a branch,
+  master's side was bisected too.
+- The gate itself was the test unless a case is named. Gates that print one row per case were bisected on the failing
+  row ("the cub case alone" and so on).
+- "first red X / last green Y" means two adjacent commits on that line, each run.
+- The earlier trains were checked out in full (media/ included) after a first pass without media/ gave false reds
+  (LAKEBED, LOOKS, AUDIO, RWYLIGHTS); those runs were thrown away.
+
+### Turned red inside the 24 Oct - 8 Nov trains
+
+**DESIGNSIM** (`tools/_designcheck_check.js:239`)
+```
+  FAIL   mosquito_3: predicted spiral root -0.0409 /s, flown 0.0215 /s (bank doubling stable vs 32.2 s)
+```
+- Train **L31c** (L31b af8116aa9 green, c2ac56b39 red). The merge: **`claude/ready/pilot1-circuit`** (a89495fec; 2c1644414
+  green).
+- Read: **unclear**. The design check's predicted spiral still says stable; the flown one now diverges. pilot1-circuit
+  changed what is flown, not the prediction.
+
+**FREIGHT** (`tools/_freight_check.js:142`, printed at `:809`)
+```
+  - cub: FREIGHT_CARDS = its build measured off its mesh (tools/_freight_site.js)
+```
+- Train **L31c**. The merge: **`claude/ready/cub-window`** (28ad15d61; dc7b768d4 green).
+- Read: **stale pin, probable**. cub-window changed the Cub's mesh; the stored FREIGHT_CARDS row was not re-measured.
+
+**ENGTORQUE** (`tools/_engtorque_check.js:145`)
+```
+FAIL SIGN swirl: the Lycoming hand + (hands-off swing, + = left) - -38.9892
+FAIL SIGN swirl: the other hand mirrors it (25 %) - 38.9892 vs 38.9892
+```
+- Train **L31c**. It came in on e589ae7e1, "merge L31b into tailwheels", from **`claude/ready/tailwheels`**' side. On that
+  branch the commit is **3cfc6d101** "TAILWHEELS (G3800): the tail contact's four laws, the skid..." (adb2d2a92 green).
+- Read: **unclear**. Both hands now swing the same way by the same amount. The swirl swing is no longer the effect being
+  measured; the new tail contact dominates the hands-off swing.
+
+**SKINMAT** (`tools/test_skinmat.js:1202`)
+```
+  FAIL finish: a click on a surface in the FINISH view does not land on its own section's row
+```
+- Train **L32c** (L32b f7ee20edf green, 0ebe6e3eb red). The merge: **`origin/a0/wear-tab-eol`** (244c4a7c3).
+- Read: **real fault, probable**: the Wear tab's merge breaks the FINISH view's pick-to-row. Unproven which hunk.
+
+**NAMES** (`tools/_names_check.js:124`)
+```
+  FAIL src/viewer/aeroskin.js:2695: Alaska in "Alaska"
+  FAIL index.html script 168:2696: Alaska in "Alaska"
+```
+- Train **L32b** (L31c green). The merge: **`claude/ready/livery-5`** (982a2d211). The line is LIVERY-5's fb442d878: a
+  livery named "Alaska".
+- Read: **real fault** by the gate's own rule (a real place name), unless the names list is meant to allow it: the
+  livery owner's call.
+
+**SHADOWSKY** (`tools/_shadowsky_check.js:218`)
+```
+  FAIL 4 clouds: a stale depth nearer than the first deck is sky - marched through, its key the far plane (the composite hides behind this frame's scene)
+```
+- Train **L32f** (L32e e99afbfc7 green, 12d3f17e6 red). The commit: **bbc115dda**, "LOOK-1 2a: the clouds' temporal pass:
+  history, reprojection on the cloud's own distance...".
+- Read: **stale pin, probable**: the cloud march was rewritten on purpose and the row reads the old shader. Unproven.
+
+**FLIGHTREC** (`tools/_flightrec_check.js:422`)
+```
+FAIL   app.js: begin after the frame clock says the frame is ours, end before PACE.end, end(false) on the boot's hold
+FAIL   app.js: a held frame (holdRender) reports itself to PACE.end flagged held, and the pace counts nothing of it (REVEAL)
+```
+- Train **L30c** (L30b adb2d2a92 green, e6bcfb368 red). The merge: **`claude/ready/new-plane`** (04ffb5b6e).
+- Read: **stale pin**. The rows regex-match `if (holdRender) { if (FR) FR.end(false, cg); ...`. NEW-PLANE widened that
+  line to `if (holdRender || uiHold || (window.NEW_PLANE && window.NEW_PLANE.isOpen())) { ...`.
+
+**LOOKS** (`tools/_looks_check.js:120`)
+```
+  FAIL 3 the patch's waves fade to the coast (the vertex reads the coast field)
+```
+- Train **L31a** (L30d 05f95aa76 green, adc53b25b red). The merge: **`claude/ready/bay-mirror`** (c8b6fdcd2; it touches
+  water.js).
+- Read: **stale pin**. The row pins the water shader's source in two parts:
+  - the smoothstep, which is still at water.js:269;
+  - the literal `uniform sampler2D uWSdf; uniform vec4 uWGrid; uniform float uWSdfOn;' + GLSL_GERSTNER`, which is gone.
+    The declaration now lives in a longer string, at water.js:144 and :260.
+
+**CLIP** (`tools/_clip_check.js:357`)
+```
+  FAIL stock+ifr/rest: navAerial/centre [access, on body body] 9.2 mm INTO edFinSkin (allow 5.5 mm), 3% of 216 v buried, at (-0.00, 0.71, -1.21)
+```
+- Train **L29h** (L29f d1a754b94 green, e6c668dab red). The merge: **`claude/ready/windows-fittings`** (A0 FINISH-3,
+  83cbf8ad4).
+- Read: **real fault, probable**: the IFR nav aerial sits 9.2 mm into the fin skin.
+
+**TECH** (`tools/_tech_check.js:129`); already named red on master in the HANDOVER (DC3-EDITABLE)
+```
+FAIL every option of every covered table has a segment (113 options, 23 groups)  [pitch:seaplane]
+```
+- Train **L28b** (L28a 20a534e89 green, a5e89abe9 red). The commit: **c5e9f46c9**, "train L28b integration (A0):
+  _cage_float.js...".
+- Read: **unclear**: a covered option, pitch:seaplane, without a segment.
+
+**NODUMMY** (`tools/_nodummy_check.js:87`)
+```
+  FAIL no reference to the retired figure outside the load migration  [tools/_bench_check.js:682 dummy | tools/_crew_head_probe.js:2 dummies | ... | tools/box_render.js:42 dummy | tools/box_render.js:47 dummy]
+```
+- Train **L29h**. The merge: **`claude/ready/avionics-gps`** (8090d6de5). At that merge only tools/box_render.js:39/44 hit.
+- The revert df347ca21 removed box_render.js, but master holds it again, plus later hits in _crew_head_probe.js,
+  _treehit_check.js and _bench_check.js.
+- Read: **unclear, tools only**: no game source is hit, and it has more than one source now.
+
+**SCENERYED** (`tools/_scenery_ed_check.js`): two rows, two stories
+```
+  ! 15 the shipped record is the save entry by entry (held back: sg_k_club:0, sg_k_club:1, ... )
+  ! 20b ...and with Metlakatla put back under 2500 ms (4680 ms, 444 plots; 3.95 s before G3081 on the flight world)
+```
+- Row 15 (`:688`): train **L31c**, the merge **`claude/ready/s39-lights`** (913abfb5d; 5465135e1 green). Bisected on
+  that row alone.
+  - Read: **unclear**. The user's shipped record holds back the sg_k_club entries the save writes.
+- Row 20b (`:870`): **TIME?**. It is red here on every commit since the row came in with EDITOR-PERF a970e8117 (12 Oct;
+  on the master tip's first-parent line from 7abc31170). Here it reads 4.7-5.7 s against 2500 ms.
+
+### Red before 24 Oct (traced back)
+
+**AUDIO** (`tools/audio/_audio_check.js:3995`)
+```
+  FAIL EMITALLOC: 1 failure(s)
+         the emitters allocate in AUDIO.update: 7.1 B a frame over the page without them (420360 vs 349416 B, 0 vs 0 GC; 47 params and 9 calls of theirs allow 39120 B + 16 KB)
+```
+- Train **1B** (PHONE-1b eae624e14 green, 1db22c8a4 red). It came in on 4f959b923, PHONE-1b's merge of master F4. On
+  master's side the merge is train F4's **`claude/gps-pfd`** (382a66977; b34115323 green).
+- Read: **real fault, probable**: an allocation budget, measured with GC exposed, so not a CPU-time budget.
+
+**CREWLOAD** (`tools/_crewload_check.js:84`)
+```
+  FAIL A: it is retried on the clock (0, +2, +6 s from the first fetch)  (builds at [5142] ms, fetches at [2971,8413,12420] ms)
+```
+- **TIME?** It is red here from train 1B on, and also on its own landing commit 69246cd21 (CREW-LOAD-BACKOFF; there the
+  retries are 3.05 and 4.0 s apart against +2 / +4). It is a wall-clock schedule on a loaded 4-CPU box.
+
+**FOG** (`tools/test_fog.js:92-93`)
+```
+  FAIL app.js applies it for the MAIN camera
+  FAIL app.js releases it in the same frame
+```
+- Red on every train in the list. It came in on L21c's merge **`claude/ready/story-intro`** (2ca567bd1, 21 Oct;
+  d943b6cd9 green). It reached the master tip's line through ap-adapt's merge of master L21c (a11d8fbc6).
+- Read: **stale pin**. The rows regex `if (!inGarage && WF && WF.vis) WF.vis.apply(camera);`, and app.js:20323 now reads
+  `if (!inShed && ...)`.
+
+**LAKEBED** (`tools/_lakebed_check.js:112`)
+```
+  FAIL 2 02/20's pond stays the runway's fill (G753: no texel, no quad)  (texels 28)
+  FAIL 3 ...and the physics has water there (the floats ride what is drawn)  (4 without)
+```
+- It is on the master tip's line since 7abc31170 (18 Oct, TORQUE-RETUNE-66's merge of master 8a04876e; a69f31fda green).
+  On master's side it is train t52ab's merge **`claude/t54-audit`** (64e360d19, 13 Oct; f6bda9011 green).
+- Read: **unclear**: the 02/20 pond now has 28 water texels drawn.
+
+**RWYLIGHTS** (`tools/_rwylights_check.js:77`)
+```
+FAIL   jolene w5: the strip keeps its lights (15 of 24, 10 flush) - 15 of 24
+  FAIL   jolene w4: the strip keeps its lights (16 of 22, 10 flush) - 16 of 22
+```
+- It came in on 50cc21452 (TORQUE-STEER's merge of master into pilot-45; 9ded1303f green). On master's side it is
+  **train ship's merge of `claude/scenery-ship-g3010`** (214e8b6cb, 12 Oct; 0b42f6826 green).
+- Read: **unclear**: the shipped scenery takes strip lights off w4 / w5.
+
+**RADIALDIV** (`tools/_radialdiv_check.js:158`)
+```
+FAIL mosquito: HANDS OFF 20 s, the heading moved under 15 deg - -88.1
+  FAIL mosquito_1: HANDS OFF 20 s, the heading moved under 15 deg - -88.2
+  FAIL cub: HANDS OFF 20 s, the heading moved under 15 deg - -175.9
+```
+- Red on every train in the list. Bisected on the cub case alone (`--only=cub`):
+  - first red **a0aeeeee9** (12 Oct), "G2540 TORQUE-BUNDLE-45: ENGINE-TORQUE G2080, its net change over train 38", on the
+    pilot-45 line (the master tip's first-parent line);
+  - last green a9afa4967. The cub read -46.8 deg there; -175.9 on master, which grew later and is unproven where.
+- The mosquito rows were not bisected.
+- Read: **unclear**. The engine's torque turning the aeroplane hands off is G2080's point, and the row's 15 deg predates
+  it. That would make it a stale pin, but 176 deg in 20 s is a lot.
+
+**ARCHETYPES** (`tools/_arch_check.js:144`; shard 1/4)
+```
+  FAIL   Chinook-alike: the circuit completes — rejected-takeoff
+```
+- Red on every train in the list. Bisected on the card alone (`_arch_check.js --only=chinook`): first red **a0aeeeee9**
+  (ENGINE-TORQUE G2080, as RADIALDIV), last green a9afa4967.
+- Read: **unclear**: the Chinook-alike rejects its take-off since the engine torque came in.
+
+**DMGDAMP** (`tools/_dmgdamp_check.js:92`)
+```
+FAIL Cub roll: |L - L0| / L0 over 10 s = 4.23e-3 (<= 1e-3; the old damper: L(10 s) / L0 = 0.0067)
+FAIL Cub pitch: |L - L0| / L0 over 10 s = 1.51e-1 (<= 1e-3; the old damper: L(10 s) / L0 = 0.0067)
+```
+The same, roll / pitch / yaw, on the Jodel and the others.
+- Red on every train in the list. The first red is **a69f31fda** (13 Oct), pilot-45's merge of master 39570350b.
+  - Master's side passes: 39570350b PASS, and every one of master's 12-13 Oct commits tested passes.
+  - The pilot-45 side has no DMGDAMP gate (ABSENT).
+  - Master's gate file dropped into the pilot-45 trees before and after G2080 fails 30 checks on both, because that side
+    still has the old damper. So that is not a clean test.
+- So it is the meeting of master's new damper and pilot-45's line (TORQUE-BUNDLE-45). Which commit: **unproven**.
+- Read: **unclear**. Angular momentum in the vacuum spin drifts 0.3 % (roll / yaw) and 15 % (pitch) in 10 s.
+
+### Not reds
+
+- **TIME?**:
+  - BENCHTIME (`_benchtime_check.js:72`: the bench checks 6.2-9.6 s against 6 / 8 s);
+  - BIOME (`test_biome.js:132`: surface perf < 5 us);
+  - SETTLE (`test_settle.js:122`: the bake budget);
+  - CREWLOAD and SCENERYED 20b (above).
+- **ENV**: PILOTPAGE. Its node twins exit 0. Every page leg fails with "no page target" (`tools/tour_real.js:183`): its
+  Chrome (/usr/bin/chromium, as root, no --no-sandbox) never opens a DevTools page here.
