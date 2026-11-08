@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: b319c13a829b26da
+// body-sha256: e898696100c2af0d
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -36235,6 +36235,10 @@ function genPlanePair(pos0, pos1) {
 // plane's own size floor (a short lower plane - a sesquiplane's - was held to the first plane's 6.5 m and 0.80 m).
 // Only a wing the old numbers clamped moves.
 // The chord to 3.0 m (the Spitfire's elliptic wing, 27 Oct: 2.55 m on the centreline, 11.2 m of span).
+// DC3-EDITABLE (the user, 7 Nov: "supports the wider range, allowing us to build wider planes"): the big box to a
+// ~40 m class - the span to 40 m, the chord and the crank chord to 6 m, the leading edge to 12 m aft (a DC-4's 35.8 m
+// x 5.8 m, a C-130's 40.4 m x 4.9 m); its tail, cabin, tail arm, gear and fuel with it. Past 18 m only, as before:
+// the DC-3 sits inside the old big box, so nothing it flies moves; the small box is unchanged.
 const GEN_WING_ENVELOPE = {
   chord: [0.80, 3.00], span: [6.5, 18.0], spanPerChord: [4.0, 20.0],
   taper: [0.45, 1.0], xLE: [-1.20, 3.00],
@@ -36242,7 +36246,7 @@ const GEN_WING_ENVELOPE = {
   // G3579 (DC3-2, the reference model's fit): a big wing's taper to 0.25 (the DC-3's outer panel, 4.63 -> 1.4 m) and its
   // crank chord to the big chord (its constant-chord centre section, 4.63 m) - past 18 m only: every validated build's
   // wing is inside the small box, which is unchanged
-  big: { chord: [0.80, 5.00], span: [6.5, 30.0], xLE: [-1.20, 9.00], taper: [0.25, 1.0], crankChord: [0.55, 5.00] },
+  big: { chord: [0.80, 6.00], span: [6.5, 40.0], xLE: [-1.20, 12.0], taper: [0.25, 1.0], crankChord: [0.55, 6.00] },
   second: { chord: 0.40, span: 2.0, spanPerChord: 2.0 },
 };
 // is a wing of this span a big aeroplane's? / the envelope it is clamped by / is this spec a big aeroplane?
@@ -36386,7 +36390,8 @@ const GEN_TAIL_ENVELOPE = {
   vHeight: [0.60, 2.20], vChord: [0.40, 1.80],
   // G3503 (DC3-BUILD): A BIG AEROPLANE'S TAIL (genBig: a wing over 18 m) - the
   // DC-3's 8.2 m x 2.25 m stab and its 3 m fin of 2.9 m chord, with headroom
-  big: { hSpan: [1.50, 9.00], hChord: [0.40, 3.00], vHeight: [0.60, 4.00], vChord: [0.40, 3.50] },
+  // (DC3-EDITABLE: the ~40 m class's - a 12 m x 4 m stab, a 5.5 m fin of 4.5 m chord)
+  big: { hSpan: [1.50, 12.0], hChord: [0.40, 4.00], vHeight: [0.60, 5.50], vChord: [0.40, 4.50] },
   // P3: re-cut to what a DRAWN control can be — the Cub reference reads a
   // 35 % rudder, a horn-balanced tailplane reaches 60 % (measured on the
   // stock); the thin-airfoil tau formula holds to 0.70
@@ -36438,9 +36443,10 @@ const GEN_FIELDS = {
   // a DC-3's cabin box (outside the skin, the join's datum: ~2.5 m wide, ~2.6 m deep,
   // 9.1 m long) with headroom; a cabin longer than 2.6 m gets frames along it
   // (61_gen_frame G3504), so the wing and the mains never sit inside one long bay
-  'cabin.halfW':   { def: null, clamp: [0.28, 0.75], clampBig: [0.28, 1.40], seatFloor: 'halfW', rule: 'derive', auto: 'cab.halfW' },
-  'cabin.h':       { def: null, clamp: [0.75, 1.45], clampBig: [0.75, 3.00], seatFloor: 'h', rule: 'derive', auto: 'cab.h' },
-  'cabin.len':     { def: null, clamp: [0.60, 2.60], clampBig: [0.60, 10.0], seatFloor: 'len', rule: 'derive', auto: 'cab.len' },
+  // (DC3-EDITABLE: the ~40 m class's - 3.6 m wide, 3.6 m deep, 14 m long; the tail post to 26 m, the surfaces to 27 m)
+  'cabin.halfW':   { def: null, clamp: [0.28, 0.75], clampBig: [0.28, 1.80], seatFloor: 'halfW', rule: 'derive', auto: 'cab.halfW' },
+  'cabin.h':       { def: null, clamp: [0.75, 1.45], clampBig: [0.75, 3.60], seatFloor: 'h', rule: 'derive', auto: 'cab.h' },
+  'cabin.len':     { def: null, clamp: [0.60, 2.60], clampBig: [0.60, 14.0], seatFloor: 'len', rule: 'derive', auto: 'cab.len' },
   'cabin.canopy.reach':   { def: null, clamp: [0, 1], rule: 'derive', auto: 'cabin.canopy.reach' },
   'cabin.canopy.x1':      { def: null, clamp: [0, 9], rule: 'derive', auto: 'cabin.canopy.x1' },
   'cabin.canopy.wsAngle': { def: null, clamp: [22, 80], rule: 'derive', auto: 'cabin.canopy.wsAngle' },
@@ -36448,18 +36454,19 @@ const GEN_FIELDS = {
   'wings[].xLE':          { def: null, clamp: GEN_WING_ENVELOPE.xLE, clampBig: GEN_WING_ENVELOPE.big.xLE, rule: 'derive', auto: 'wing.xLE' },
   'wings[].dihedralOut':  { def: null, clamp: [0, 20], rule: 'derive', auto: 'wing.dihedralOut' },
   // G3503 (DC3-BUILD): a big aeroplane's tail post to 20 m (the DC-3's ~17.8 m from the windscreen base)
-  'fuselage.tailArm':     { def: null, clamp: [2.00, 6.50], clampBig: [2.00, 20.0], rule: 'derive', auto: 'fuse.tailArm' },
-  'tail.hX':       { def: null, clamp: [2.00, 9.00], clampBig: [2.00, 21.0], rule: 'derive', auto: 'tail.hX' },
-  'tail.vX':       { def: null, clamp: [2.00, 9.00], clampBig: [2.00, 21.0], rule: 'derive', auto: 'tail.vX' },
+  'fuselage.tailArm':     { def: null, clamp: [2.00, 6.50], clampBig: [2.00, 26.0], rule: 'derive', auto: 'fuse.tailArm' },
+  'tail.hX':       { def: null, clamp: [2.00, 9.00], clampBig: [2.00, 27.0], rule: 'derive', auto: 'tail.hX' },
+  'tail.vX':       { def: null, clamp: [2.00, 9.00], clampBig: [2.00, 27.0], rule: 'derive', auto: 'tail.vX' },
   // B9: the AREAS had no clamp at all - a 0 or a negative from a hand spec
   // or the console reached the lattice as a NaN chord. The bounds are a
   // non-degenerate tail, not a taste: the envelope's own spans x chords
   // (4.5 x 1.6 = 7.2 m2 a tailplane, twice 2.2 x 1.8 a pair of boom fins)
   // with headroom for the volume rule on the largest wing.
-  // (G3503: a big aeroplane's to 27 m2 a stab - 9 x 3, its envelope - and 15 / 20 the fins)
-  'tail.Sh':       { def: null, clamp: [0.20, 12.0], clampBig: [0.20, 27.0], rule: 'derive', auto: 'tail.Sh', join: 'measure' },
-  'tail.Sv':       { def: null, clamp: [0.10, 10.0], clampBig: [0.10, 15.0], rule: 'derive', auto: 'tail.Sv', join: 'measure' },
-  'tail.Svt':      { def: null, clamp: [0.20, 14.0], clampBig: [0.20, 20.0], rule: 'derive', auto: 'tail.Svt', join: 'measure' },
+  // (G3503: a big aeroplane's to 27 m2 a stab - 9 x 3, its envelope - and 15 / 20 the fins; DC3-EDITABLE: 48 m2 - 12 x 4 -
+  // and 25 / 30)
+  'tail.Sh':       { def: null, clamp: [0.20, 12.0], clampBig: [0.20, 48.0], rule: 'derive', auto: 'tail.Sh', join: 'measure' },
+  'tail.Sv':       { def: null, clamp: [0.10, 10.0], clampBig: [0.10, 25.0], rule: 'derive', auto: 'tail.Sv', join: 'measure' },
+  'tail.Svt':      { def: null, clamp: [0.20, 14.0], clampBig: [0.20, 30.0], rule: 'derive', auto: 'tail.Svt', join: 'measure' },
   'tail.hSpan':    { def: null, clamp: GEN_TAIL_ENVELOPE.hSpan, clampBig: GEN_TAIL_ENVELOPE.big.hSpan, rule: 'derive', auto: 'tail.hSpan', join: 'measure' },
   'tail.hChord':   { def: null, clamp: GEN_TAIL_ENVELOPE.hChord, clampBig: GEN_TAIL_ENVELOPE.big.hChord, rule: 'derive', auto: 'tail.hChord', join: 'measure' },
   'tail.vHeight':  { def: null, clamp: GEN_TAIL_ENVELOPE.vHeight, clampBig: GEN_TAIL_ENVELOPE.big.vHeight, rule: 'derive', auto: 'tail.vHeight', join: 'measure' },
@@ -36875,8 +36882,8 @@ function clampSpec(spec) {
   // a Caravan carries 1 250 L. Now 2 000 L total, 1 000 L a vessel. Every
   // saved file sits inside the old range, so nothing moves.
   // G3503 (DC3-BUILD): a big aeroplane's (genBig) 4 000 L total, 2 000 L a vessel (the
-  // DC-3's 3 111 L in two centre-section tanks)
-  S.fuel.litres = genClamp(S.fuel.litres, 0, genBig(S) ? 4000 : 2000);
+  // DC-3's 3 111 L in two centre-section tanks; DC3-EDITABLE: 8 000 L, 4 000 L a vessel)
+  S.fuel.litres = genClamp(S.fuel.litres, 0, genBig(S) ? 8000 : 2000);
   if (!S.outfit || typeof S.outfit !== 'object') S.outfit = { seats: 'sling' };
   if (!GEN_SEATS[S.outfit.seats]) S.outfit.seats = 'sling';
   // G2806: a trim the catalogue does not know is the tier's (removed, never written: an unset row adds no key)
@@ -36933,10 +36940,10 @@ function clampSpec(spec) {
       if (!GEN_BAYS[v.bay]) v.bay = 'nose';
       if (v.bay === 'strut' && !strutted) v.unmounted = true; else delete v.unmounted;
       v.capacity = genClamp(v.capacity || 0, 0,
-                            E.kind === 'battery' ? 400 : genBig(S) ? 2000 : 1000);
+                            E.kind === 'battery' ? 400 : genBig(S) ? 4000 : 1000);
       v.along = v.along == null ? null : genClamp(v.along, -1, 12);
       // a fuel state's design capacity (genSpecAtFuel; the shell is sized off it)
-      if (v.designCap != null) v.designCap = genClamp(+v.designCap || 0, 0, E.kind === 'battery' ? 400 : genBig(S) ? 2000 : 1000);
+      if (v.designCap != null) v.designCap = genClamp(+v.designCap || 0, 0, E.kind === 'battery' ? 400 : genBig(S) ? 4000 : 1000);
       v.lv = v.lv == null ? null : genClamp(v.lv, 0, 1);
       v.rot = genClamp(v.rot || 0, -90, 90);
       // ROUND OR SQUARED (2026-09-04). Geometry, and therefore capacity: a
@@ -37281,9 +37288,10 @@ function clampSpec(spec) {
   S.tail.vX = genFieldClamp('tail.vX', S.tail.vX, S);
   // G3503 (DC3-BUILD): a big aeroplane's (genBig) track to 6 m and wheel to 0.65 m (the
   // DC-3's 5.64 m and 1.14 m tyres); its stations below to a 20 m tailwheel and 8 m mains
+  // (DC3-EDITABLE: the ~40 m class's 8 m track on 1.8 m tyres, a tailwheel to 26 m)
   const bigG = genBig(S);
-  S.gear.track = genClampN(S.gear.track, 0.90, bigG ? 6.00 : 3.50);
-  S.gear.wheelR = genClamp(S.gear.wheelR, 0.10, bigG ? 0.65 : 0.40);
+  S.gear.track = genClampN(S.gear.track, 0.90, bigG ? 8.00 : 3.50);
+  S.gear.wheelR = genClamp(S.gear.wheelR, 0.10, bigG ? 0.90 : 0.40);
   S.gear.twR = genClamp(S.gear.twR, 0.05, 0.25);
   // Leg lengths: generous, because a stilt-legged bush aeroplane and a squatting
   // racer are both aeroplanes somebody builds. The floor is rule 5 (a leg this
@@ -37296,7 +37304,7 @@ function clampSpec(spec) {
   // non-degenerate envelope as the leg lengths. twY is an axle height in the
   // lattice's own datum (the cabin keel line since G49); twX is a station,
   // NEGATIVE for a nose wheel ahead of the firewall.
-  S.gear.twX = genClampN(S.gear.twX, -1.50, bigG ? 20.0 : 8.00);
+  S.gear.twX = genClampN(S.gear.twX, -1.50, bigG ? 26.0 : 8.00);
   S.gear.twY = genClampN(S.gear.twY, -1.00, 1.50);
   // The RIDE HEIGHT, measured since G53. G51 blamed its collapse on soft long
   // levers and left it derived — WRONG twice over: the collapse was a rule-10
