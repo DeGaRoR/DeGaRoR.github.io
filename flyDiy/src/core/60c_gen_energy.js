@@ -354,7 +354,12 @@ const GEN_BAYS = {
     // this one and the cabin-side bays' aft bulkheads.
     // `cowlDeck` is the join's measurement of the deck; 0.10 m of it is the
     // firewall's own structure and the engine-mount face.
-    range: S => [-Math.max(0.3, (S.fuse.cowlDeck || 0.6)) + 0.10, 0.0],
+    // CESSNA-FINAL A1 (the user, 8 Nov: "That section is where they put huge tanks, and for the ag plane, that's where
+    // they put the fertilizer"): ON A BUILD WHOSE NOSE SECTION IS BODY (the cage's noseBody: x 0 is the FIREWALL, the
+    // nose ring) the bay is that section - the firewall's 0.10 m of structure and mount face, then aft to the windscreen
+    // base, `fuse.noseSec` metres (the join measures it; absent on every other build, whose range is the one above)
+    range: S => (S.fuse.noseSec > 0.12 ? [0.10, S.fuse.noseSec]
+                                       : [-Math.max(0.3, (S.fuse.cowlDeck || 0.6)) + 0.10, 0.0]),
   },
   cabin: {
     name: 'Cabin', on: 'body',

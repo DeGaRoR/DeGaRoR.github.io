@@ -632,6 +632,7 @@ function cageJoinSpec(P, M, T) {
   // when it is positive)
   if (typeof M.tailTop === 'number' && isFinite(M.tailTop)) fus.tailTop = M.tailTop;
   if (M.cowlDeck > 0) fus.cowlDeck = M.cowlDeck;
+  if (M.noseSec > 0) fus.noseSec = M.noseSec;      // CESSNA-FINAL A1 (noseBody only): the nose section, metres
   if (Object.keys(fus).length) spec.fuselage = fus;
   // G54.3: the tail surfaces, measured off the placed fin/stab layers.
   // clampSpec's envelope bounds every one; anything unmeasured keeps the
@@ -1269,6 +1270,9 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         zOf2 = C2.cageNamedZ(R, FS);
         const fw = C2.cageFirewallZ(zOf2);        // G3050: one home with the wing layer
         if (fw != null) { zFw = fw; fwOk = true; }
+        // CESSNA-FINAL A1: with the nose section body (noseBody) the firewall is the nose ring, and the section's own
+        // length - the firewall to the windscreen base - is what the nose bay holds (60c GEN_BAYS.nose); absent otherwise
+        { const zN = zOf2('noseFw'), zW = zOf2('wsFront'); if (zN != null && zW != null && zN - zW > 0.02) M.noseSec = +(zN - zW).toFixed(4); }
         zPost = zOf2('tailPost');          // a ROD boom has no tail rings
         // G295 (TWIN-BOOM-2 §3): a twin-boom POD has no post either — it ends
         // at the bulkhead in its aero aft — and with no post the profile and

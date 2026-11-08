@@ -3208,6 +3208,11 @@ function designBake(sel, over) {
   // T2.1: the shape seed's taperW is lifted into the boom frame's widths
   // against this very aeroplane, so the birth spec carries frame rows
   const full = C2.cageHasLegacy && C2.cageHasLegacy(full0) ? C2.cageLiftLegacy(full0) : full0;
+  // CESSNA-FINAL A1 (the user, 8 Nov: "it should be the default really. The firewall is really the reference, not the
+  // base of the windshield"): EVERY AEROPLANE BORN FROM NOW ON HAS ITS NOSE SECTION AS BODY - the firewall is the nose
+  // ring. Only here, at the birth: a saved build without the row loads at CAGE_DEFAULT's 0 (G49), to the bit. A card
+  // or a selection that states the row keeps its own
+  if (!(over && over.noseBody != null) && !(sel && sel.noseBody != null)) full.noseBody = 1;
   const out = { cage: C2.cageToSpec(full) };
   // THE BIRTH SPEC STATES WHAT IT CHOSE. spec.cage carries the wing and the
   // engine as PANEL values, and in the app the join measures them back into
