@@ -129,8 +129,9 @@ const GROUP = ['8 · tail — fin (2D)', [
   // tier). Transforms of the drawn sheet about the root line and the hinge;
   // the hinge moves the fiche's guard columns. _fin_gen.js buildFin2 says how.
   ['size', [
-    ['finHeight',   'height (× the drawn)',           0.50, 1.80, 0.01],
-    ['finChord',    'chord (× the drawn, about the hinge)', 0.50, 1.60, 0.01],
+    // DC3-EDITABLE: a big aeroplane's fin (GEN_TAIL_ENVELOPE.big's 5.5 m)
+    ['finHeight',   'height (× the drawn)',           0.50, 2.50, 0.01],
+    ['finChord',    'chord (× the drawn, about the hinge)', 0.50, 2.20, 0.01],
     ['finChordTip', 'tip chord (of the root)',        0.30, 1.50, 0.01],
     ['finSweep',    'sweep (deg, the post rakes)',    -10, 45, 0.5],
     ['finHinge',    'rudder chord (of the root)',     0.08, 0.45, 0.005],

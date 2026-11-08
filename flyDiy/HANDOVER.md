@@ -312676,3 +312676,48 @@ saved() now draws the canvas (draw(true): render + copy) and encodes the webp in
 THE COST, NAMED: over 18 fresh-profile boots with warm(), the first draw went over 100 ms twice (160 and 976 ms, both in one earlier pass with the encode still inside the draw), not seen in the 10 since. Never over 1 s on a warm profile, never twice in one profile. A fresh profile = a first visit or a cleared browser cache.
 LIVE_DRAW true: the player's own planes get their side picture after a save or a load, once the page is still (warm, still, draw, idle, encode, stored in prefs with the build's hash). PLANETHUMB 30 checks + selftest 14/14 (LIVE_ON required, the encode in an idle, the off switch still tested flipped back); NEWPLANE, CANDIDATES, HANGARVIEW, HULLWARM, LIGHT, STORY PASS.
 UNSEEN: a saved build's picture on its card in a page (the draw is proven on the box; saved() -> store -> card only in the stub). Memory: one 240 x 120 webp, 3-4 KB, per saved build in localStorage.
+## DC3-EDITABLE - THE DC-3's ROWS HOLD ITS VALUES; THE BIG AEROPLANE'S BOX TO A ~40 m CLASS (2026-11-07/08, DEFORM; branch claude/dc3-editable fc0c0190c, ready claude/ready/dc3-editable)
+The user, 7 Nov via A0: "the next step is really for me to edit it manually with the sliders, provided the master version
+of the game allows me to load and edit it, and supports the wider range, allowing us to build wider planes."
+- **THE QUESTION** (builds/candidates/dc3_2026-10.json, listed in the rack as "DC-3-alike"): master loads it. 1139
+  editor rows were checked, 998 of them numeric. Three rows sat outside their range, so a touch clamped them and the
+  aeroplane jumped:
+  - the third wheel's spring drop (-0.025 against 0.05-0.70);
+  - its swivel drop (0.42 against 0.03-0.30);
+  - the nacelle's tail cone (3.35 against 0.4-3).
+  42 other rows snap by less than one step on a touch. The paxWinR / win2R / win3R values at -1 are link sentinels, not
+  values. planeScale is relative to sizeRef and re-anchors on load.
+- **THE FIX, rows:**
+  - twSpringDrop lo -0.10, twLegDrop hi 0.60, twTrail hi 0.25, cw_tailLen hi 4, engBlockZ hi 2.0;
+  - for wider planes: wgSpan hi 40, wgChord / wgChordTip / wgCrankChord hi 6.00, wgDx lo -9.0, s<i>X hi 4.0,
+    s<i>R hi 0.90, s<i>Drop hi 1.80, finHeight / finChord hi 2.50 / 2.20, stSpan / stChord hi 2.50 / 2.20 (x the drawn).
+- **THE FIX, the big box** (60_gen_spec; GEN_WING_ENVELOPE.big applies only to a wing over 18 m, so the small box and
+  every certified plane are unchanged):
+  - the wing: span 6.5-40 m, chord and crank chord to 6 m, LE to 12 m;
+  - the tail: a 12 x 4 m stab, a 5.5 m fin;
+  - the cabin: 3.6 x 3.6 x 14 m; tail arm 26, tail stations 27, Sh 48 / Sv 25 / Svt 30;
+  - fuel 8 000 L, each vessel 4 000; track 8 m, wheel 0.90 m, a tailwheel to 26 m.
+  The 18 m switch, where crossing 18 m of span changes the clamps, is by design and is named, not changed.
+- **THE PROOF** (node, through the load door tools/_load_build.js; scratchpad dc3/touch.js):
+  - the DC-3's flown spec on the branch equals master cad308635's bit for bit;
+  - saved and loaded again, nothing moves;
+  - the 40 rows a touch moves all snap inside one step, with no clamp (3 on master);
+  - asked wider (span 38, chord 5.6, half track 3.6, wheel 0.8), it flies span 38, chord 5.6, track 7.2, wheel 0.8.
+  UNSEEN in a page: there is no DC-3 page part, so the node load-door proof stands in for it. UISMOKE needs Chrome and
+  was not run. No gate is named EDITOR; EDBUGS, PARTS, DESIGN and SAVE cover the editor.
+- **ONE FLIGHT CHANGE, the DC-3 only (accepted by A0, an experiment with no certificate):** its drawn fin (vHeight
+  4.30 m) flew clamped to 4.0 m on master, and the load said so. It now flies as drawn.
+- **FOUND, on master too, NOT fixed here (ENGINE-GAP, DEFORM, L35b):** under a catalogue engine the geometry rows
+  (bore, stroke...) are hidden and the registry row flies, so the page cannot touch the R-1830's bore. The reachable
+  jump is the switch to "custom engine" to edit the geometry: the R-1830's own dials then fly the model's facts.
+  Measured headless with one hidden dial moved, which makes the load audit flip the engine to custom: "custom Radial
+  14-cyl", 1040 kW, 711 kg, gear 1, against the registry row's 895 kW, 750 kg, gear 1.78. That is about +16 % power,
+  with the prop at 2700 rpm instead of 1517. The switch itself is measured in ENGINE-GAP's slot. Also named: the prop
+  row reaches 4.2 m against prop.D's clamp of 4.0.
+- **GATES** (fc0c0190c, 8 Nov 03:25, nice'd beside SEAPLANES-LAND):
+  - PASS: SPECFIX, DESIGN, SAVE, PARTS, EDBUGS, WINGROWS, FIN, COWL, JOIN, GEAR, FRAMES, FLOATKIT, BAY, NACLAG.
+  - Red, master's own (re-run on master cad308635, the same lines and the same hashes; only the ms timings differ):
+    TECH (pitch:seaplane: a covered option without a segment) and ENGCONFIG (9 pinned load hashes, the
+    quad / tri / pushpull flights).
+  - The certificates (cub, jodel, metal, floats, twinFloats) are byte-identical to master. No PHYSICS_V or GEN_SPEC_V
+    change.
