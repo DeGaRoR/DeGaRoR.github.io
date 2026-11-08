@@ -75,9 +75,9 @@ const COWL_ROWS = [
   ] },
   // ---- PROPER-COWLS: the way out at the bottom of the aft edge ----
   { id: 'g_exit', name: 'Air and exhaust exit', rows: [
-    { k: 'exitGap', label: 'exit gap (the bottom stands proud of the fuselage)', lo: 0, hi: 0.08, step: 0.002 },
-    { k: 'exitSpan', label: 'exit width round the bottom (deg)', lo: 40, hi: 240, step: 2, when: 'P.exitGap>0' },
-    { k: 'exitLen', label: 'exit fades over (x the cowl length)', lo: 0.1, hi: 0.9, step: 0.01, when: 'P.exitGap>0' },
+    { k: 'exitGap', label: 'bottom lowered under the firewall\'s (m)', lo: 0, hi: 0.08, step: 0.002 },
+    { k: 'exitHold', label: 'held to the bottom\'s bend (else fades over the length)', lo: 0, hi: 1, step: 1, when: 'P.exitGap>0' },
+    { k: 'exitLen', label: 'fades over (x the cowl length)', lo: 0.1, hi: 0.9, step: 0.01, when: 'P.exitGap>0&&!P.exitHold' },
     { k: 'exCut', label: 'exhaust cut in the aft edge', lo: 0, hi: 1, step: 1 },
     { k: 'exCutSpan', label: 'cut width (deg)', lo: 10, hi: 140, step: 1, when: 'P.exCut>0' },
     { k: 'exCutLen', label: 'cut depth from the firewall (m)', lo: 0.02, hi: 0.4, step: 0.005, when: 'P.exCut>0' },

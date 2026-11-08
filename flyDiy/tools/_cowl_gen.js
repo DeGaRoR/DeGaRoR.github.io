@@ -67,7 +67,7 @@ const P={
   // "very often there is a cut in the cowl at the bottom aft part, so that the exhaust can go through ... they make
   // the cowl a bit bigger at the bottom, so that there is a gap there"). All off (0) by default: every cowl drawn
   // before them is drawn to the bit.
-  exitGap:0, exitSpan:140, exitLen:0.45, exCut:0, exCutSpan:50, exCutLen:0.12, exCutAz:270,
+  exitGap:0, exitSpan:140, exitLen:0.45, exitHold:0, exCut:0, exCutSpan:50, exCutLen:0.12, exCutAz:270,
   // chin scoop
   scoopOn:1, scoopZ:0, scoopW:0.065, scoopH:0.055, scoopLen:0.22, scoopDrop:0.7,
   scoopAp:0.68, scoopSq:0.5, scoopRake:0.18,
@@ -404,16 +404,21 @@ function lobeAt(th,z){
   for(const az of azs) d+=P.lobeAmp*w*Math.exp(-Math.pow(angDiff(th,az)/(P.lobeSig*DEG),2));
   return d;
 }
-/* THE EXIT FLARE: the bottom of the aft edge stands out by exitGap over a sector exitSpan wide round the bottom, the
-   offset fading out (smoothly) over the first exitLen of the cowl's length - the cowl a little bigger than the
-   fuselage where the air and the exhaust leave. The firewall fold follows (it is built on surfPoint). */
+/* THE LOWERED BOTTOM (PROPER-COWLS V4, the user, 8 Nov: "the bottom part of the cowl sits lower than the bottom part
+   of the firewall" - no gap along the length, nothing sideways: only the bottom, on the vertical). The bottom half moves
+   DOWN by exitGap at the keel, by nothing at the widest line (the sides stay the cabin's). Along the length:
+   exitHold 0 - the drop fades out over the first exitLen of the cowl; exitHold 1 - it holds along the barrel and the
+   bottom's own bend (keelSweep) rounds it up into the face. Returns the vertical offset (negative = down). */
 function exitAt(th,z){
   if(!(P.exitGap>0)) return 0;
-  const half=Math.max(5,P.exitSpan)*DEG/2, a=Math.abs(angDiff(th,-Math.PI/2));
-  if(a>=half) return 0;
-  const wa=Math.pow(Math.cos(a/half*Math.PI/2),2);
-  const u=clamp(z/Math.max(1e-3,P.exitLen*zEnd()),0,1);
-  return P.exitGap*wa*(1-smooth(u));
+  const sn=Math.sin(th); if(sn>=0) return 0;
+  const wv=smooth(Math.min(1,-sn));                 // 0 at the widest line, 1 at the keel
+  let wz;
+  if(P.exitHold>0){
+    const cl=Math.max(P.cowlLen,1e-4), z0=cl-clamp(P.keelSweep,0,0.95)*cl, ze=zEnd();
+    wz = z<=z0 ? 1 : 1-smooth(clamp((z-z0)/Math.max(ze-z0,1e-4),0,1));
+  } else wz=1-smooth(clamp(z/Math.max(1e-3,P.exitLen*zEnd()),0,1));
+  return -P.exitGap*wv*wz;
 }
 /* THE EXHAUST CUT: a notch in the aft edge, exCutSpan wide round exCutAz (270 = the bottom), exCutLen deep */
 function inExCut(th,z){
@@ -422,9 +427,9 @@ function inExCut(th,z){
 function surfPoint(th,z){
   const s=sectionAtZ(z);
   let [x,y]=sectPt(th,s);
-  const d=lobeAt(th,z)+exitAt(th,z);
+  const d=lobeAt(th,z);
   if(d){const L=Math.hypot(x,y)||1; x+=x/L*d; y+=y/L*d;}
-  return [x, s.cy+y];
+  return [x, s.cy+y+exitAt(th,z)];
 }
 /* implicit: <1 inside the section at that z (lobes ignored — they live on the barrel flanks) */
 function sectF(x,y,z){
