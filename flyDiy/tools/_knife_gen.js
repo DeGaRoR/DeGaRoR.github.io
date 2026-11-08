@@ -760,19 +760,73 @@ function knifeCut(m, win, opt) {
       if (A) A.push(Aa ? Aa.slice() : [0, 0, 0, 0]);
       return id;
     };
-    const K = 6, rings = [];
-    rings.push(ring.map((r, i) => ({ id: dv(r.P, r.N, r.A, 0), t: cum[i] / Ltot })));
+    // CLEAN GEOMETRY (the user 8 Nov: "little squares on their side at the bottom of the windows ... make sure the
+    // geometry is as clean as it can"). The rings stood on the pane pieces (the skin's flat facets, their normals
+    // blended across the sill's crease) and each ring had its own count, so the lift came out in lumps and the
+    // stitch in slivers. Now: the skin under the window is one smooth surface, a quadratic height over the tangent
+    // plane, w(u, v) = a + bu + cv + du^2 + euv + fv^2 along n0, least squares over the pane's own skin points; the
+    // rings stand on it and lift along ITS normal. The rim keeps the loop's exact points (watertight with the skin
+    // and the bead); what the rim sits off the smooth surface fades out inward (s^2). Every inner ring has the same
+    // count, so the rings stitch as a regular polar grid. skinAt still gives the field coordinates (A).
+    // the fit's points: the pane's skin points AND the skin sampled inside the outline (an oval's rim is a conic, so the
+    // rim alone leaves a quadratic free to bulge at the centre - KNIFE BUBBLE caught 9 cm over a 5 cm row)
+    const fitPts = new Map();
+    for (const { pg } of paneRep) for (const e of pg) fitPts.set(e.rec, e.rec);
+    for (const s of [0.75, 0.5, 0.25]) for (let j = 0; j < 16; j++) {
+      const q = rimAt(j / 16), uv = [cuv[0] + (q[0] - cuv[0]) * s, cuv[1] + (q[1] - cuv[1]) * s], sk = skinAt(uv);
+      if (sk.P) fitPts.set('in' + s + ':' + j, { uv, P: sk.P });
+    }
+    { const sk = skinAt(cuv); if (sk.P) fitPts.set('in0', { uv: cuv, P: sk.P }); }
+    const hOf = P => (P[0] - c0[0]) * n0[0] + (P[1] - c0[1]) * n0[1] + (P[2] - c0[2]) * n0[2];
+    const basis = uv => [1, uv[0], uv[1], uv[0] * uv[0], uv[0] * uv[1], uv[1] * uv[1]];
+    const solve = nb => {                          // normal equations, Gauss with partial pivoting
+      const M = Array.from({ length: nb }, () => new Array(nb + 1).fill(0));
+      for (const r of fitPts.values()) {
+        const b = basis(r.uv).slice(0, nb), w = hOf(r.P);
+        for (let i = 0; i < nb; i++) { for (let j = 0; j < nb; j++) M[i][j] += b[i] * b[j]; M[i][nb] += b[i] * w; }
+      }
+      for (let c = 0; c < nb; c++) {
+        let p = c;
+        for (let i = c + 1; i < nb; i++) if (Math.abs(M[i][c]) > Math.abs(M[p][c])) p = i;
+        if (Math.abs(M[p][c]) < 1e-14) return null;
+        [M[c], M[p]] = [M[p], M[c]];
+        for (let i = 0; i < nb; i++) if (i !== c) {
+          const f = M[i][c] / M[c][c];
+          for (let j = c; j <= nb; j++) M[i][j] -= f * M[c][j];
+        }
+      }
+      return M.map((row, i) => row[nb] / row[i]);
+    };
+    const cf = (fitPts.size >= 6 && solve(6)) || (solve(3) || [hOf(ring[0].P), 0, 0]).concat([0, 0, 0]);
+    const smoothAt = uv => {
+      const [u, v] = uv, w = cf[0] + cf[1] * u + cf[2] * v + cf[3] * u * u + cf[4] * u * v + cf[5] * v * v;
+      const wu = cf[1] + 2 * cf[3] * u + cf[4] * v, wv = cf[2] + cf[4] * u + 2 * cf[5] * v;
+      const P = [0, 1, 2].map(k => c0[k] + u * t1[k] + v * t2[k] + w * n0[k]);
+      const Nn = nrm3([0, 1, 2].map(k => n0[k] - wu * t1[k] - wv * t2[k]));
+      return { P, N: Nn };
+    };
+    // the rim's offset off the smooth surface, at a fraction of the rim (linear between the loop's points)
+    const res = ring.map(r => { const q = smoothAt(r.uv).P; return [r.P[0] - q[0], r.P[1] - q[1], r.P[2] - q[2]]; });
+    const resAt = fr => {
+      const L = fr * Ltot;
+      let i = 0;
+      while (i < n0r - 1 && cum[i + 1] < L) i++;
+      const a = res[i], b = res[(i + 1) % n0r], t = (L - cum[i]) / (cum[i + 1] - cum[i] || 1);
+      return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+    };
+    // one spoke per rim point (each ring at the rim's own fractions): the dome is quads, ring to ring, no slivers
+    const K = 6, rings = [], fr = ring.map((r, i) => cum[i] / Ltot);
+    rings.push(ring.map((r, i) => ({ id: dv(r.P, r.N, r.A, 0), t: fr[i] })));
     for (let k = 1; k < K; k++) {
-      const th = k / K * Math.PI / 2, s = Math.cos(th), h = bulge * Math.sin(th);
-      const nk = Math.max(8, Math.ceil(n0r * s / 2)), rk = [];
-      for (let j = 0; j < nk; j++) {
-        const q = rimAt(j / nk), uv = [cuv[0] + (q[0] - cuv[0]) * s, cuv[1] + (q[1] - cuv[1]) * s];
-        const sk = skinAt(uv);
-        rk.push({ id: dv(sk.P, sk.N, sk.A, h), t: j / nk });
+      const th = k / K * Math.PI / 2, s = Math.cos(th), h = bulge * Math.sin(th), rk = [];
+      for (let j = 0; j < n0r; j++) {
+        const q = ring[j].uv, uv = [cuv[0] + (q[0] - cuv[0]) * s, cuv[1] + (q[1] - cuv[1]) * s];
+        const sm = smoothAt(uv), r = res[j], f = s * s;
+        rk.push({ id: dv([sm.P[0] + r[0] * f, sm.P[1] + r[1] * f, sm.P[2] + r[2] * f], sm.N, skinAt(uv).A, h), t: fr[j] });
       }
       rings.push(rk);
     }
-    const apex = skinAt(cuv), apexId = dv(apex.P, apex.N, apex.A, bulge);
+    const apex = smoothAt(cuv), apexId = dv(apex.P, apex.N, skinAt(cuv).A, bulge);
     const host = paneRep[0].f, faces = [];
     const tri = (a, b, c) => {
       let v = [a, b, c];
