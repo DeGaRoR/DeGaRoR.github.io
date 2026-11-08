@@ -158,14 +158,19 @@ const yes = (ok, msg) => { checks++; if (!ok) fails++; console.log('  ' + (ok ? 
 const f2 = x => (x == null ? '-' : (+x).toFixed(2)), rg = a => (a ? f2(a[0]) + '-' + f2(a[1]) : '-');
 (async () => {
   const { spawn } = require('child_process');
-  const keys = Object.keys(L.BUILDS), t0 = Date.now();
+  // NOT YET IN THIS GATE (A0 8 Nov): the Super Petrel (SEAPLANES' carbon pod, VALIDATED since 7 Nov) - its carbon
+  // members meet rules written for tube / alloy / spruce (3. Euler caps only the tube members; 4. a fitting at 1.15),
+  // and Deform rules on carbon buckling and fittings first. Named here, never dropped silently; the five keep every rule
+  const NOT_YET = { petrel: 'carbon: Euler and the fitting rules wait for the carbon class Deform rules on (A0 8 Nov)' };
+  const keys = Object.keys(L.BUILDS).filter(k => !NOT_YET[k]), t0 = Date.now();
+  for (const k of Object.keys(NOT_YET)) if (L.BUILDS[k]) console.log('  (not in this gate yet: ' + L.BUILDS[k].label + ' - ' + NOT_YET[k] + ')');
   const run = k => new Promise(res => {
     const c = spawn(process.execPath, [__filename, '--build', k], { stdio: ['ignore', 'pipe', 'pipe'] });
     let so = '', se = ''; c.stdout.on('data', d => { so += d; }); c.stderr.on('data', d => { se += d; });
     c.on('close', () => { const l = so.split('\n').reverse().find(x => x.indexOf('RESULT ') === 0); res(l ? JSON.parse(l.slice(7)) : { key: k, err: se.slice(-800) }); });
   });
   const R = {}, q = keys.slice();
-  await Promise.all([0, 1, 2].map(async () => { while (q.length) { const k = q.shift(); R[k] = await run(k); } }));
+  await Promise.all((process.env.GATES_JOBS === '1' ? [0] : [0, 1, 2]).map(async () => { while (q.length) { const k = q.shift(); R[k] = await run(k); } }));
   console.log('(' + ((Date.now() - t0) / 1000).toFixed(0) + ' s, ' + keys.length + ' builds)');
   // the reference tube (§4.1): 0.7 m of 1" x 0.035" 4130, as the solver reads a member of its area
   {
