@@ -1,5 +1,93 @@
 [
  {
+  "id": "v4",
+  "tag": "V4 · the nose's bottom",
+  "title": "The bottom eases, stands a little proud, and lets the air and the exhaust out",
+  "html": "<p>Your note on nose engines, in four parts:</p><ul><li><b>The bottom eases.</b> The keel line no longer runs straight from the firewall to the face: it bends from 55 % of the barrel and rounds up into the face, as on the Cessna (your own cowls run 0.30-0.85).</li><li><b>An exit gap.</b> On a piston nose (not the electric, not the turboprop), the bottom of the aft edge stands proud of the fuselage by 6 % of the firewall's half-height (1.5-4 cm: Cub 2.0, C172 2.9). It covers 150° round the bottom and fades out over the first 40 % of the cowl. That's where the cooling air leaves.</li><li><b>An exhaust cut.</b> A notch in the aft edge where the drawn exhaust leaves: its azimuth, 46° wide, to 6 cm past the exit (Cub: at the edge; C172: 23 cm in).</li><li><b>The chin scoop, seated.</b> It stays on the part of the keel that is still the barrel's, and its height comes from the keel itself along its length: its top a third of its height inside the skin at the keel's highest point, so neither end floats or digs in. A boxer gets the carburettor's intake; a Rotax, a two-stroke or a V its radiator scoop; the turboprop its intake.</li></ul><p>All of it is new generator rows (<i>Air and exhaust exit</i>: <code>exitGap</code>, <code>exitSpan</code>, <code>exitLen</code>, <code>exCut</code>, <code>exCutSpan</code>, <code>exCutLen</code>, <code>exCutAz</code>), off and absent by default, so every saved cowl is drawn to the bit. No flown number moves. The streamlined exhaust ramp (a bevel instead of a notch) is the next step.</p>",
+  "strips": [
+   {
+    "title": "Piper Cub",
+    "note": "official · A-65",
+    "cells": [
+     [
+      "body",
+      "cub_today",
+      "Today"
+     ],
+     [
+      "body",
+      "cub_rule",
+      "The rule"
+     ]
+    ]
+   },
+   {
+    "title": "Cessna 172",
+    "note": "official · boxer",
+    "cells": [
+     [
+      "body",
+      "c172_today",
+      "Today"
+     ],
+     [
+      "body",
+      "c172_rule",
+      "The rule"
+     ]
+    ]
+   },
+   {
+    "title": "Jodel",
+    "note": "official · A-65",
+    "cells": [
+     [
+      "body",
+      "jodel_today",
+      "Today"
+     ],
+     [
+      "body",
+      "jodel_rule",
+      "The rule"
+     ]
+    ]
+   },
+   {
+    "title": "STOL Cub",
+    "note": "candidate · Rotax 915 iS",
+    "cells": [
+     [
+      "body",
+      "stol_today",
+      "Today"
+     ],
+     [
+      "body",
+      "stol_rule",
+      "The rule"
+     ]
+    ]
+   },
+   {
+    "title": "ugly bi",
+    "note": "candidate · O-200",
+    "cells": [
+     [
+      "body",
+      "ugly_today",
+      "Today"
+     ],
+     [
+      "body",
+      "ugly_rule",
+      "The rule"
+     ]
+    ]
+   }
+  ]
+ },
+ {
   "id": "tiger",
   "tag": "Point 1 · Tiger Moth",
   "title": "The Tiger Moth: the engine per the references, then the in-line's cowl round it",
@@ -209,94 +297,6 @@
      [
       "body",
       "busher_rule",
-      "The rule"
-     ]
-    ]
-   }
-  ]
- },
- {
-  "id": "rest",
-  "tag": "The others",
-  "title": "The rest, with the fitted section and the engine's box",
-  "html": "<p>The same planes as round 2, redrawn with this round's rule.</p>",
-  "strips": [
-   {
-    "title": "Piper Cub",
-    "note": "official · A-65",
-    "cells": [
-     [
-      "body",
-      "cub_today",
-      "Today"
-     ],
-     [
-      "body",
-      "cub_rule",
-      "The rule"
-     ]
-    ]
-   },
-   {
-    "title": "Cessna 172",
-    "note": "official · boxer",
-    "cells": [
-     [
-      "body",
-      "c172_today",
-      "Today"
-     ],
-     [
-      "body",
-      "c172_rule",
-      "The rule"
-     ]
-    ]
-   },
-   {
-    "title": "Jodel",
-    "note": "official · A-65",
-    "cells": [
-     [
-      "body",
-      "jodel_today",
-      "Today"
-     ],
-     [
-      "body",
-      "jodel_rule",
-      "The rule"
-     ]
-    ]
-   },
-   {
-    "title": "STOL Cub",
-    "note": "candidate · Rotax 915 iS",
-    "cells": [
-     [
-      "body",
-      "stol_today",
-      "Today"
-     ],
-     [
-      "body",
-      "stol_rule",
-      "The rule"
-     ]
-    ]
-   },
-   {
-    "title": "ugly bi",
-    "note": "candidate · O-200",
-    "cells": [
-     [
-      "body",
-      "ugly_today",
-      "Today"
-     ],
-     [
-      "body",
-      "ugly_rule",
       "The rule"
      ]
     ]
