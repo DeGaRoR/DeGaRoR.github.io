@@ -164,6 +164,10 @@ const COWL_ROWS = [
     // a two-row radial: every other helmet on the rear row's station, and the places the engine leaves bare
     { k: 'lobeT2', label: 'helmets: every other one\'s station (a two-row radial)', lo: 0, hi: 1, step: 0.01, when: 'P.lobeN>=3' },
     { k: 'lobeCount', label: 'helmets drawn (0 = one per place)', lo: 0, hi: 14, step: 1, when: 'P.lobeN>=3' },
+    // streamlined: full over the head, a short rise in front, a long taper behind, stopping inside the cowl
+    { k: 'lobeStream', label: 'cheeks streamlined (long taper aft)', lo: 0, hi: 1, step: 1, when: 'P.lobeN>0' },
+    { k: 'lobeNose', label: 'streamlined: where the front ends', lo: 0.3, hi: 1, step: 0.01, when: 'P.lobeN>0&&P.lobeStream>0' },
+    { k: 'lobeTail', label: 'streamlined: where the tail ends', lo: 0, hi: 0.7, step: 0.01, when: 'P.lobeN>0&&P.lobeStream>0' },
     { k: 'cutSpan', label: 'cut-out span (horseshoe)', lo: 0, hi: 200, step: 1 },
     { k: 'cutAz', label: 'cut-out azimuth', lo: 0, hi: 359, step: 1, when: 'P.cutSpan>0' },
   ] },

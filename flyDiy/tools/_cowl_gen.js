@@ -74,6 +74,9 @@ const P={
   // PROPER-COWLS: a radial's helmets as the engine draws them - how many (0 = lobeN) and every other one's station (a
   // two-row radial's rear row; null = lobeT)
   lobeCount:0, lobeT2:null,
+  // PROPER-COWLS: streamlined helmets (lobeStream 1): full over the head, a short rise from lobeNose, a long taper to
+  // lobeTail
+  lobeStream:0, lobeNose:0.94, lobeTail:0.04,
   gillOn:0, gillN:6, gillZ:0.35, gillL:0.22, gillH:0.12, gillSlant:25, gillLip:0.012, gillT:0.004,
   // chin scoop
   scoopOn:1, scoopZ:0, scoopW:0.065, scoopH:0.055, scoopLen:0.22, scoopDrop:0.7,
@@ -414,18 +417,37 @@ function sectPt(th,s){
 function lobeAt(th,z){
   if(P.lobeN<1||P.lobeAmp<=0) return 0;
   const t=clamp(z/Math.max(zEnd(),1e-4),0,1);
-  const gT=tc=>Math.exp(-Math.pow((t-tc)/Math.max(0.03,P.lobeTSig),2));
+  /* STREAMLINED HELMETS (PROPER-COWLS, the user, 8 Nov: "they are elongated in the longitudinal direction ... more
+     aerodynamic ... but they should stop at the end of the cowl"). lobeStream 0: a round bump, a Gaussian along the
+     cowl (lobeTSig its spread) - as always. lobeStream 1: full height over the head (lobeT +- lobeTSig), a short
+     rise from lobeNose in front and a long taper back to lobeTail behind (smoothsteps), nothing outside them - the
+     ring and the firewall edge stay round; and the helmet narrows as it fades (a teardrop seen from above). */
+  const stream=P.lobeStream>0;
+  const sm=u=>{u=clamp(u,0,1); return u*u*(3-2*u);};
+  const prof=tc=>{
+    if(!stream) return Math.exp(-Math.pow((t-tc)/Math.max(0.03,P.lobeTSig),2));
+    const tN=clamp(P.lobeNose,0,1), tA=clamp(P.lobeTail,0,1);
+    if(t>=tN||t<=tA) return 0;
+    const h=Math.max(0.005,P.lobeTSig), p1=Math.min(tN-0.01,tc+h), p0=Math.max(tA+0.01,tc-h);
+    if(t>p1) return sm((tN-t)/Math.max(1e-3,tN-p1));
+    if(t<p0) return sm((t-tA)/Math.max(1e-3,p0-tA));
+    return 1;
+  };
+  const one=(az,w)=>{
+    const s=P.lobeSig*DEG*(stream?0.55+0.45*w:1);
+    return P.lobeAmp*w*Math.exp(-Math.pow(angDiff(th,az)/s,2));
+  };
   // A TWO-ROW RADIAL (PROPER-COWLS, the user: "read the actual engine geometry"): the helmets alternate between the
   // two rows' stations (lobeT, lobeT2) and the last lobeN - lobeCount places are bare (the drawn rows are 5 + 4)
   if(P.lobeN>=3 && (P.lobeT2!=null || P.lobeCount>0)){
     const n=Math.round(P.lobeN), m=P.lobeCount>0?Math.min(n,Math.round(P.lobeCount)):n;
-    const w0=gT(P.lobeT), w1=P.lobeT2!=null?gT(+P.lobeT2):w0;
+    const w0=prof(P.lobeT), w1=P.lobeT2!=null?prof(+P.lobeT2):w0;
     if(w0<0.008&&w1<0.008) return 0;
     let d=0;
-    for(let k=0;k<m;k++) d+=P.lobeAmp*(k%2?w1:w0)*Math.exp(-Math.pow(angDiff(th,P.lobeAz*DEG+k*TAU/n)/(P.lobeSig*DEG),2));
+    for(let k=0;k<m;k++){ const w=k%2?w1:w0; if(w>=0.008) d+=one(P.lobeAz*DEG+k*TAU/n,w); }
     return d;
   }
-  const w=gT(P.lobeT);
+  const w=prof(P.lobeT);
   if(w<0.008) return 0;
   const azs=[P.lobeAz*DEG];
   // PROPER-COWLS (2026-11-08): 3 or more - one helmet over each cylinder of a radial, evenly round from lobeAz (the
@@ -433,7 +455,7 @@ function lobeAt(th,z){
   if(P.lobeN>=3){ const n=Math.round(P.lobeN); for(let k=1;k<n;k++) azs.push(P.lobeAz*DEG+k*TAU/n); }
   else if(P.lobeN>=2) azs.push(Math.PI-P.lobeAz*DEG);
   let d=0;
-  for(const az of azs) d+=P.lobeAmp*w*Math.exp(-Math.pow(angDiff(th,az)/(P.lobeSig*DEG),2));
+  for(const az of azs) d+=one(az,w);
   return d;
 }
 /* THE LOWERED BOTTOM (PROPER-COWLS V4, the user, 8 Nov: "the bottom part of the cowl sits lower than the bottom part
@@ -532,7 +554,9 @@ function prepareMesh(){
     let dt=Math.abs(t2-t1); if(dt>Math.PI)dt=TAU-dt;
     w[i]=0.15*seg+Math.sqrt(dt*seg*R);   // equal sagitta: density ~ sqrt(kappa)
   }
-  AZ=equalise(w,Math.max(28,Math.round(60*d)),M).map(u=>u*TAU);
+  // (a radial's helmets - lobeN 3+ - want three samples across each one's spread, or they draw as facets)
+  const nHelm=(P.lobeN>=3&&P.lobeAmp>0)?Math.ceil(360/Math.max(3,P.lobeSig/3)*Math.min(1,d)):0;
+  AZ=equalise(w,Math.max(28,Math.round(60*d),Math.min(240,nHelm)),M).map(u=>u*TAU);
 
   // --- stations: weighted by turning of the deck meridian ---
   const MZ=480, mp=[];

@@ -37,6 +37,8 @@ const SHAPE = {
 // the lip's radius: a fraction of the front's half-size, within a sensible band (m)
 const LIP_K = 0.25, LIP_LO = 0.04, LIP_HI = 0.12;
 const CLEAR = 1.06;
+// the radial drum on the body: the heads' radius x this (0.84: the helmets carry the heads; --radialR=0.92 a bigger nose)
+let RADIAL_R = 0.84;
 // THE BODY COWL'S FRONT, as fractions of the firewall (the user's fitted cowls: the front's half-height 0.64-0.77 of
 // the firewall's on the Cub, Jodel and ugly bi; its half-width 0.79-0.99): never under the engine's own size
 const FRONT_H = 0.70, FRONT_W = 0.85;
@@ -287,7 +289,7 @@ function rowsFor(spec, o) {
       // fore end"): a round STRAIGHT barrel, its own part - the heads' radius at 0.84 (the helmets carry the heads) or the
       // nose's, whichever is larger - centred on the propeller (the halves' heights about the face's centre set so the
       // circle's centre is the thrust line; the ring on the propeller through faceRing)
-      const rF = Math.max(0.84 * CLEAR * env.radius, Math.max(m.face.halfW, m.face.halfH));
+      const rF = Math.max((RADIAL_R) * CLEAR * env.radius, Math.max(m.face.halfW, m.face.halfH));
       out.fitNose = 0; out.cw_aftW = +rF.toFixed(4); out.cw_aftH = +rF.toFixed(4);
       out.cw_deckH = +(1 + T / rF).toFixed(4); out.cw_keelH = +(1 - T / rF).toFixed(4); out.cw_waist = 0;
       out.cw_taperW = 1; out.cw_taperH = 1; out.cw_sqAftTop = 0.5; out.cw_sqAftBot = 0.5;
@@ -555,7 +557,7 @@ function fitHelmets(spec, o) {
   const heads = cl.map(g => {
     let sx = 0, sy = 0, t0 = 1, t1 = 0;
     for (const p of g) { sx += p.d * Math.cos(p.th * Math.PI / 180); sy += p.d * Math.sin(p.th * Math.PI / 180); t0 = Math.min(t0, p.t); t1 = Math.max(t1, p.t); }
-    return { th: ((Math.atan2(sy, sx) * 180 / Math.PI) + 360) % 360, t: 0.5 * (t0 + t1), pts: g };
+    return { th: ((Math.atan2(sy, sx) * 180 / Math.PI) + 360) % 360, t: 0.5 * (t0 + t1), hs: 0.5 * (t1 - t0), pts: g };
   });
   // the places: the fewest evenly spaced that every head sits on (within 3 degrees)
   let N = 0;
@@ -581,8 +583,34 @@ function fitHelmets(spec, o) {
   const tOf = j => (twoRows && j % 2) ? tO : (twoRows ? tE : mean(heads.map(h => h.t)));
   // each point against its own head's place and row
   const P2 = [];
-  for (const h of heads) for (const p of h.pts) P2.push({ da: dA(p.th, az0 + h.j * pitch), dt: p.t - tOf(h.j), d: p.d });
+  for (const h of heads) for (const p of h.pts) P2.push({ da: dA(p.th, az0 + h.j * pitch), t: p.t, tc: tOf(h.j), dt: p.t - tOf(h.j), d: p.d });
+  // STREAMLINED (the user: "elongated in the longitudinal direction ... but they should stop at the end of the cowl"):
+  // full over the heads' own length, the front fading by the nose bowl's start (or just past the front row), the tail
+  // fading just clear of the firewall edge - the generator's lobeAt profile, mirrored here to size them
+  const STREAM = !(o._helmetRound);
+  const tLid = +CW.P.cowlLen / zE, tFront = Math.max(...heads.map(h => h.t));
+  const hPl = Math.max(0.02, Math.max(...heads.map(h => h.hs)) + 0.015);
+  const tN = Math.min(0.97, Math.max(tLid, tFront + hPl + 0.10)), tA = 0.04;
+  const sm = u => { u = Math.max(0, Math.min(1, u)); return u * u * (3 - 2 * u); };
+  const prof = (t, tc) => {
+    if (t >= tN || t <= tA) return 0;
+    const p1 = Math.min(tN - 0.01, tc + hPl), p0 = Math.max(tA + 0.01, tc - hPl);
+    if (t > p1) return sm((tN - t) / Math.max(1e-3, tN - p1));
+    if (t < p0) return sm((t - tA) / Math.max(1e-3, p0 - tA));
+    return 1;
+  };
   let best = null;
+  if (STREAM) {
+    // (no narrower than 0.28 of the pitch: a helmet, not a ridge)
+    for (let sig = Math.max(4, 0.28 * pitch); sig <= 0.45 * pitch; sig += 0.5) {
+      let A = 0;
+      for (const p of P2) {
+        const w = prof(p.t, p.tc), g = w * Math.exp(-Math.pow(p.da / (sig * (0.55 + 0.45 * w)), 2));
+        A = Math.max(A, (p.d + MARGIN) / Math.max(1e-6, g));
+      }
+      if (A <= 0.16 && (!best || A * sig < best.vol)) best = { A, sig, tau: hPl, vol: A * sig };
+    }
+  } else
   for (let sig = 4; sig <= 0.45 * pitch; sig += 0.5)
     for (let tau = 0.04; tau <= 0.6; tau += 0.01) {
       let A = 0;
@@ -590,12 +618,13 @@ function fitHelmets(spec, o) {
       const vol = A * sig * tau;
       if (A <= 0.16 && (!best || vol < best.vol)) best = { A, sig, tau, vol };
     }
-  if (!best) best = { A: 0.16, sig: 0.45 * pitch, tau: 0.6 };
+  if (!best) best = { A: 0.16, sig: 0.45 * pitch, tau: STREAM ? hPl : 0.6 };
   Object.assign(o, { cw_lobeN: N, cw_lobeAz: +(((az0 % 360) + 360) % 360).toFixed(2),
     cw_lobeAmp: +best.A.toFixed(4), cw_lobeSig: +best.sig.toFixed(1), cw_lobeTSig: +best.tau.toFixed(3),
     cw_lobeT: +Math.max(0.02, Math.min(0.98, twoRows ? tE : tOf(0))).toFixed(3),
     cw_lobeT2: twoRows ? +Math.max(0.02, Math.min(0.98, tO)).toFixed(3) : null,
     cw_lobeCount: contiguous && count < N ? count : 0 });
+  if (STREAM) Object.assign(o, { cw_lobeStream: 1, cw_lobeNose: +tN.toFixed(3), cw_lobeTail: tA });
   if (o.cw_lobeT2 == null) delete o.cw_lobeT2;
   // probe the built helmets; whatever still stands through raises them
   let left = null;
@@ -619,6 +648,7 @@ if (require.main === module) {
   const [IN, OUT] = pos;
   const j = JSON.parse(fs.readFileSync(IN, 'utf8'));
   const spec = j.spec || j;
+  if (arg('radialR')) RADIAL_R = +arg('radialR');
   const r = rowsFor(spec, { opt: arg('opt', 'waist'), type: arg('type', 'auto'), lower: +arg('lower', 0) });
   if (!r.over) { console.error('straight: ' + r.why); process.exit(1); }
   const over = finish(spec, r.over, r.why.type);

@@ -987,7 +987,7 @@ const CAGE_PARTS = [
       ['section at the barrel end', ['cw_sqFrontTop', 'cw_sqFrontBot']],
       ['section at the nose ring', ['cw_lidSqTop', 'cw_lidSqBot']],
       ['cheeks & cut-out', ['cw_lobeN', 'cw_lobeAmp', 'cw_lobeT',
-                            'cw_lobeAz', 'cw_lobeSig', 'cw_lobeTSig', 'cw_lobeT2', 'cw_lobeCount',
+                            'cw_lobeAz', 'cw_lobeSig', 'cw_lobeTSig', 'cw_lobeT2', 'cw_lobeCount', 'cw_lobeStream', 'cw_lobeNose', 'cw_lobeTail',
                             'cw_cutSpan', 'cw_cutAz']],
       ['inlets', ['cw_apMode', 'cw_apW', 'cw_apH', 'cw_apSq',
                   'cw_apOffX', 'cw_apOffY', 'cw_pairX', 'cw_pairW',
