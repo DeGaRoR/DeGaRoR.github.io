@@ -37,8 +37,8 @@ const USER_GFX = { preset: 'custom', pv: 6, fps: 'auto', ground: 'full', scale: 
 const GFX = opt('gfx', null) === 'user' ? USER_GFX : opt('gfx', null) ? JSON.parse(fs.readFileSync(opt('gfx'), 'utf8')) : null;
 const APPROACH = { sec: +opt('approach', 0), x: +String(opt('approach-at', '-2900,-8400')).split(',')[0], z: +String(opt('approach-at', '-2900,-8400')).split(',')[1], from: +opt('approach-from', 8000) };
 // TOWN-1 (2026-11-07): --shots <dir>: the town's trees in stills - in the approach (the chase view at 3.4, 1.8 and 0.5 km out
-// with --approach-from 4000, --approach 100) and parked over the town's densest tree cell (60 m up, the flight held, the
-// orbit at 80 / 400 / 1500 m), named <side>_<build>_<view>.jpg
+// with --approach-from 4000, --approach 100) and, the flight held, the free camera on the town's tree centroid from inside,
+// its edge, 400 m and 1.3 km out (the aeroplane and the UI hidden), named <side>_<build>_<view>.jpg
 const SHOTS = opt('shots', null);
 const FRAMES = argv.includes('--frames') || !!PROF, TOGGLE = opt('toggle', null) ? fs.readFileSync(opt('toggle'), 'utf8') : null;
 let FD = null; try { FD = require('../frame_dist.js'); } catch (e) {}
@@ -140,19 +140,33 @@ const CHECK = `JSON.stringify((() => { const P = WORLD && WORLD.premises; const 
       await Promise.all(sh);
       row.approach.geo = JSON.parse(await b.ev("JSON.stringify((() => { const P = WORLD.premises; return P ? { pending: P.geoPending ? P.geoPending() : null, townGeo: P.stats.townGeo || null } : null; })())").catch(() => 'null'));
     }
-    // TOWN-1: parked over the town's densest tree cell (64 m), the flight held, the orbit around the aeroplane
+    // TOWN-1: the town's trees up close, composed (2026-11-08, A0: "close before/after stills ... at the town edge where the old
+    // 64 m cells popped"): the flight held, the aeroplane and the page's UI hidden, the free camera (FLIGHT_PROBE.devFree) on the
+    // line from the town's tree centroid toward the way in (HOME): inside the town, at its edge, 400 m out and 1.3 km out (past
+    // the old 900 m cull), each looking at the centroid. The orbit of 7 Nov shot the wreck of the rig's pass (both sides).
     if (SHOTS) {
       const at = JSON.parse(await b.ev(`(async () => { const W = FLIGHT_PROBE.world(), P = [window.WORLD && WORLD.premises, W.premises].find(p => p && p.overlay && p.overlay.records && p.overlay.frame), O = P && P.overlay, T = O && O.records && O.records.trees;
-        if (!T || !O.frame) return 'null'; const c = new Map();
-        for (const t of T) { if (!t.key || t.key === 'stub|tree') continue; const w = O.frame.toWorld(t.x, t.z), k = Math.floor(w[0] / 64) + ',' + Math.floor(w[1] / 64); c.set(k, (c.get(k) || 0) + 1); }
-        let best = null, n = 0; for (const [k, v] of c) if (v > n) { n = v; best = k; } if (!best) return 'null';
-        const [i, j] = best.split(',').map(Number), x = (i + 0.5) * 64, z = (j + 0.5) * 64, h = W.terrainH ? W.terrainH(x, z) : 0;
+        if (!T || !O.frame) return 'null'; const pts = [];
+        for (const t of T) { if (!t.key || t.key === 'stub|tree') continue; pts.push(O.frame.toWorld(t.x, t.z)); }
+        if (!pts.length) return 'null';
+        const cx = pts.reduce((s, p) => s + p[0], 0) / pts.length, cz = pts.reduce((s, p) => s + p[1], 0) / pts.length;
+        const ds = pts.map(p => Math.hypot(p[0] - cx, p[1] - cz)).sort((x, y) => x - y), R = ds[Math.floor(ds.length * 0.85)];
         const p = document.getElementById('bPause'); if (p && /pause/i.test(p.textContent)) p.click();
-        await FLIGHT_PROBE.place({ at: [x, Math.max(h, 0) + 60, z], zeroV: true }); FLIGHT_PROBE.camMode('orbit');
-        return JSON.stringify({ x: Math.round(x), z: Math.round(z), trees: n, of: T.length, fill: window.TREE_FILL && TREE_FILL.townStat ? TREE_FILL.townStat() : null, prem: P.stats ? { trees: P.stats.trees, cells: P.stats.treeCells, fill: P.stats.townFill } : null }); })()`, 20000).catch(e => JSON.stringify('error ' + e.message)));
+        return JSON.stringify({ cx: Math.round(cx), cz: Math.round(cz), R: Math.round(R), trees: pts.length, fill: window.TREE_FILL && TREE_FILL.townStat ? TREE_FILL.townStat() : null, prem: P.stats ? { trees: P.stats.trees, cells: P.stats.treeCells, fill: P.stats.townFill } : null }); })()`, 20000).catch(e => JSON.stringify('error ' + e.message)));
       log('parked ' + JSON.stringify(at));
-      if (at && at.x !== undefined) for (const [n, az, el, d] of [['near', 0.8, 0.10, 80], ['mid', 0.8, 0.14, 400], ['far', 0.8, 0.10, 1500], ['far2', 3.9, 0.10, 1500]]) {
-        await b.ev(`(() => { FLIGHT_PROBE.camSet(${az}, ${el}, ${d}); return 1; })()`); await sleep(5000); await shot(side, bk, n); }
+      if (at && at.cx !== undefined) {
+        const hx = (home ? home.x : 0) - at.cx, hz = (home ? home.z : 0) - at.cz, hl = Math.hypot(hx, hz) || 1, ux = hx / hl, uz = hz / hl;
+        await b.ev("(() => { const c = FLIGHT_PROBE.craft && FLIGHT_PROBE.craft(); if (c) c.visible = false; document.body.style.visibility = 'hidden'; const cv = document.getElementById('c'); if (cv) cv.style.visibility = 'visible'; return 1; })()");
+        for (const [n, back, up] of [['inside', at.R * 0.45, 22], ['edge', at.R + 40, 16], ['out400', at.R + 400, 60], ['out1300', at.R + 1300, 130]]) {
+          const v = await b.ev(`(() => { const W = FLIGHT_PROBE.world(), ex = ${at.cx} + ${ux} * ${back}, ez = ${at.cz} + ${uz} * ${back};
+            const gy = Math.max(W.terrainH ? W.terrainH(ex, ez) : 0, W.waterH ? W.waterH(ex, ez) : -1e9, 0), ey = gy + ${up}, ty = Math.max(W.terrainH ? W.terrainH(${at.cx}, ${at.cz}) : 0, 0) + 6;
+            const dx = ${at.cx} - ex, dz = ${at.cz} - ez; FLIGHT_PROBE.devFree(ex, ey, ez, Math.atan2(dx, -dz), Math.atan2(ty - ey, Math.hypot(dx, dz)));
+            return JSON.stringify({ eye: [Math.round(ex), Math.round(ey), Math.round(ez)], agl: ${up}, toCentre: Math.round(Math.hypot(dx, dz)) }); })()`).catch(e => 'error ' + e.message);
+          await b.ev('new Promise(r => { let n = 0; const t = () => (++n < 90 ? requestAnimationFrame(t) : r(1)); requestAnimationFrame(t); })', 30000).catch(() => 0); await sleep(6000);
+          log('view ' + n + ' ' + v); await shot(side, bk, n);
+        }
+        await b.ev("(() => { const c = FLIGHT_PROBE.craft && FLIGHT_PROBE.craft(); if (c) c.visible = true; document.body.style.visibility = ''; FLIGHT_PROBE.camMode('chase'); return 1; })()");
+      }
       row.parked = at;
     }
     row.check = JSON.parse(await b.ev(CHECK, 20000).catch(() => 'null'));
