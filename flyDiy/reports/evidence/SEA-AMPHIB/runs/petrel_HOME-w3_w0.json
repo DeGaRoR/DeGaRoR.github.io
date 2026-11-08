@@ -1,0 +1,79 @@
+{
+ "build": "builds/candidates/superpetrel_V4_1.json",
+ "order": [
+  "HOME",
+  "w3"
+ ],
+ "wind": 0,
+ "gear": "amphibian",
+ "legs": [
+  {
+   "leg": "HOME>w3",
+   "ok": true,
+   "faults": [],
+   "outcome": "completed",
+   "t": 600,
+   "landedOn": "w3",
+   "sink": 0.76,
+   "V": 26.8,
+   "run": 354,
+   "toDist": 167.1,
+   "propMin": {
+    "v": 0.72,
+    "t": 178.4,
+    "ph": "ROLL"
+   },
+   "propMinSurf": {
+    "v": 0.72,
+    "t": 178.4,
+    "ph": "ROLL"
+   },
+   "rollS": [
+    -1.5,
+    0.4
+   ],
+   "pitchS": [
+    -5.2,
+    8.1
+   ],
+   "rollA": 24.3,
+   "tipMin": {
+    "v": 1.47,
+    "t": 577.5,
+    "ph": "ROLLOUT"
+   },
+   "capsize": 88.5,
+   "wogWet": 0,
+   "onLand": true,
+   "gear": [
+    0,
+    1
+   ],
+   "damage": {
+    "yields": 0,
+    "breaks": 0,
+    "dented": false,
+    "crashed": false,
+    "gPeak": 2.5,
+    "propAt": null
+   },
+   "verdicts": [],
+   "hash": "7398aa59899a"
+  }
+ ],
+ "refused": [],
+ "mass": 591.8,
+ "retract": true,
+ "wall": 812,
+ "game": {
+  "day": null,
+  "shake": true,
+  "stand": {
+   "x": -118.1,
+   "z": 677.6
+  },
+  "mass": 591.8,
+  "fuel": 72,
+  "damage": true
+ }
+}

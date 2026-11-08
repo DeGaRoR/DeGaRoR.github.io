@@ -1,0 +1,3 @@
+ok   SEA>mk_sea        491.3 s  sink 0.45 run 246 propMin 0.36 (surf 0.36) roll -1.8,2.6 pitch -3.4,13.4 tip 1.6 cap 87.4 gear null hash 6090cdf099ed
+ok   mk_sea>SEA        971.8 s  sink 0.45 run 244 propMin 0.42 (surf 0.42) roll -2.1,3.6 pitch -1,13.8 tip 1.56 cap 86.4 gear null hash 1bba9a129dc5
+DONE pa18_floats_2026-10-23.json SEA>mk_sea>SEA wind 0: gear floats, 751.6 kg, 449 s wall

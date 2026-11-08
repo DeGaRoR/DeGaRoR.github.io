@@ -1,0 +1,3 @@
+ok   SEA>mk_sea          569 s  sink 0.38 run 329 propMin 0.13 (surf 0.13) roll -1.2,0.7 pitch -2.6,13.2 tip 0.89 cap 88.8 gear 0,1 hash 5e81596afabe
+ok   mk_sea>SEA         1062 s  sink 0.35 run 331 propMin 0.13 (surf 0.13) roll -4,8.8 pitch 0.2,12.9 tip 0.33 cap 81.2 gear 0,0 hash 626c0907097d
+DONE superpetrel_V4_1.json SEA>mk_sea>SEA wind 0: gear amphibian, 591.8 kg, 1625 s wall

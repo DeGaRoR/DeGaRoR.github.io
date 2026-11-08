@@ -1,0 +1,169 @@
+{
+ "build": "bugReports/cessnaFloatsWOrks.json",
+ "order": [
+  "SEA",
+  "mk_sea",
+  "SEA"
+ ],
+ "wind": 0,
+ "gear": "floats",
+ "legs": [
+  {
+   "leg": "SEA>mk_sea",
+   "ok": true,
+   "faults": [],
+   "outcome": "completed",
+   "t": 467.6,
+   "landedOn": "mk_sea",
+   "sink": 0.4,
+   "V": 36.4,
+   "run": 380,
+   "toDist": 347,
+   "propMin": {
+    "v": 0.5,
+    "t": 0.6,
+    "ph": "ROLL"
+   },
+   "propMinSurf": {
+    "v": 0.5,
+    "t": 0.6,
+    "ph": "ROLL"
+   },
+   "rollS": [
+    -2.2,
+    4.9
+   ],
+   "pitchS": [
+    -0.5,
+    7.6
+   ],
+   "rollA": 24,
+   "tipMin": {
+    "v": 1.56,
+    "t": 5.7,
+    "ph": "ROLL"
+   },
+   "capsize": 85.1,
+   "wogWet": 3,
+   "onLand": false,
+   "gear": null,
+   "damage": {
+    "yields": 0,
+    "breaks": 0,
+    "dented": false,
+    "crashed": false,
+    "gPeak": 1.5,
+    "propAt": null
+   },
+   "verdicts": [
+    "vx-climb: ground ahead above the aeroplane — climbing at Vx 29.8 m/s until clear",
+    "terrain-react: the ground ahead stands within 44 m of the plan on ENROUTE - climbing to 375 m (planned 373)",
+    "vref-raised: the elevator cannot hold 31.6 m/s at this power — flying the approach faster"
+   ],
+   "warnings": [],
+   "phases": [
+    "ROLL",
+    "LIFTOFF",
+    "CLIMB",
+    "ENROUTE",
+    "DOWNWIND",
+    "BASE",
+    "FINAL",
+    "FLARE",
+    "ROLLOUT",
+    "STOPPED"
+   ],
+   "hash": "bdeb8eecf0a8"
+  },
+  {
+   "leg": "mk_sea>SEA",
+   "ok": true,
+   "faults": [],
+   "outcome": "gave-up",
+   "t": 827.2,
+   "landedOn": "SEA",
+   "sink": 0.4,
+   "V": 35.9,
+   "run": 373,
+   "toDist": 343.5,
+   "propMin": {
+    "v": 0.59,
+    "t": 0,
+    "ph": "TAXI"
+   },
+   "propMinSurf": {
+    "v": 0.59,
+    "t": 0,
+    "ph": "TAXI"
+   },
+   "rollS": [
+    -3.6,
+    5.5
+   ],
+   "pitchS": [
+    0.9,
+    7.5
+   ],
+   "rollA": 24.3,
+   "tipMin": {
+    "v": 1.47,
+    "t": 13.6,
+    "ph": "TAXI"
+   },
+   "capsize": 84.5,
+   "wogWet": 3,
+   "onLand": false,
+   "gear": null,
+   "damage": {
+    "yields": 0,
+    "breaks": 0,
+    "dented": false,
+    "crashed": false,
+    "gPeak": 1.5,
+    "propAt": null
+   },
+   "verdicts": [
+    "pivot: a turn of 26 deg that the wheels (Infinity m) cannot steer on the route - turning on the spot",
+    "vref-raised: the elevator cannot hold 31.6 m/s at this power — flying the approach faster",
+    "gave-up: still in ROLLOUT at t=811 s — out of patience, not out of sky"
+   ],
+   "warnings": [
+    "gave-up at 810.6 s"
+   ],
+   "phases": [
+    "TAXI",
+    "STOP",
+    "HOLD",
+    "LINEUP",
+    "STOP",
+    "HOLD",
+    "LINEUP",
+    "STOP",
+    "HOLD",
+    "ROLL",
+    "LIFTOFF",
+    "CLIMB",
+    "ENROUTE",
+    "DOWNWIND",
+    "BASE",
+    "FINAL",
+    "FLARE",
+    "ROLLOUT",
+    "STOPPED"
+   ],
+   "hash": "b5dde7209627"
+  }
+ ],
+ "refused": [],
+ "mass": 949.5,
+ "retract": false,
+ "wall": 848,
+ "game": {
+  "day": null,
+  "shake": true,
+  "stand": null,
+  "mass": 949.5,
+  "fuel": 25,
+  "damage": true
+ }
+}

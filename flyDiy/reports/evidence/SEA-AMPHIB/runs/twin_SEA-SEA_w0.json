@@ -1,0 +1,88 @@
+{
+ "build": "builds/candidates/Twin_busher_floats_4b.json",
+ "order": [
+  "SEA",
+  "SEA"
+ ],
+ "wind": 0,
+ "gear": "floats",
+ "legs": [
+  {
+   "leg": "SEA>SEA",
+   "ok": true,
+   "faults": [],
+   "outcome": "completed",
+   "t": 355.3,
+   "landedOn": "SEA",
+   "sink": 0.97,
+   "V": 28.2,
+   "run": 273,
+   "toDist": 287.6,
+   "propMin": {
+    "v": 0.39,
+    "t": 4.4,
+    "ph": "ROLL"
+   },
+   "propMinSurf": {
+    "v": 0.39,
+    "t": 4.4,
+    "ph": "ROLL"
+   },
+   "rollS": [
+    -0.8,
+    0
+   ],
+   "pitchS": [
+    -3.8,
+    15.4
+   ],
+   "rollA": 25,
+   "tipMin": {
+    "v": 1.53,
+    "t": 4.7,
+    "ph": "ROLL"
+   },
+   "capsize": 89.2,
+   "wogWet": 3,
+   "onLand": false,
+   "gear": null,
+   "damage": {
+    "yields": 0,
+    "breaks": 0,
+    "dented": false,
+    "crashed": false,
+    "gPeak": 1.5,
+    "propAt": null
+   },
+   "verdicts": [
+    "vx-climb: ground ahead above the aeroplane — climbing at Vx 30.0 m/s until clear"
+   ],
+   "warnings": [],
+   "phases": [
+    "ROLL",
+    "LIFTOFF",
+    "CLIMB",
+    "CROSSWIND",
+    "DOWNWIND",
+    "BASE",
+    "FINAL",
+    "FLARE",
+    "ROLLOUT",
+    "STOPPED"
+   ],
+   "hash": "dbdd3e42f0c3"
+  }
+ ],
+ "refused": [],
+ "mass": 819.9,
+ "retract": false,
+ "wall": 194,
+ "game": {
+  "day": null,
+  "shake": true,
+  "stand": null,
+  "mass": 819.9,
+  "fuel": 114,
+  "damage": true
+ }
+}

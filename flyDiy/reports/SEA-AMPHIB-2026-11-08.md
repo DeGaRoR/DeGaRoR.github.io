@@ -15,7 +15,7 @@ Cloud tester, branch `claude/sea-amphib-findings`. **TEST AND REPORT ONLY - no g
     the shakedown, nav and day; damage ON) with per-step prop clearance, roll / pitch, tip clearance, capsize margin and
     a sim hash per leg; `--root` flies another worktree, `--trace` writes a 1 Hz time series.
 
-STATUS: in progress. Sections 0 and 1 are done; 2-4 fill in as the flights finish.
+STATUS: sections 0-4 done (30 runs flown). The regression gates' counts (section 3) are the last to land.
 
 ---
 
@@ -67,8 +67,9 @@ on one cloud core)
    - Then inverted: the CG 1.3-1.5 m under the surface, the disc -2.6 to -2.9 m (the strike, t 604.6), roll +-163-180.
    - For SEAPLANES (unproven causes, the numbers above are the evidence): (a) the water taxi's target speed / throttle
      on floats (6 m/s with the power pulsing to 0.5); (b) the taxi's aileron authority, capped at -0.25 here; (c) no
-     power cut / no turn-out-of-wind on a growing roll past ~15 deg; (d) the 8 kt wind and gusts on the turn - wind 0
-     is in the matrix, which says whether it is the wind's (section 2); (e) `flyLeg` should end a leg on the pilot's
+     power cut / no turn-out-of-wind on a growing roll past ~15 deg; (d) the 8 kt wind and gusts on the turn - ANSWERED: in calm air the
+     same aeroplane flies mk_sea > SEA clean (taxi, take-off, landing at SEA, prop >= 0.59 m; section 2), so the wind
+     is the trigger; (e) `flyLeg` should end a leg on the pilot's
      `capsized` outcome (the 1800 s timeout costs the gate 25 min of CPU and hides the cause behind 'timeout').
 
 **F2 (bad: the official Petrel strikes its propeller landing on mk_sea, the user's OPEN item, measured):** see 0.4. The
@@ -120,31 +121,47 @@ water gear DOWN meets no extra drag and no nose-over moment. Measured in 1b belo
 
 ---
 
-## 2. Every float plane through the load door (node; INTERIM - the matrix is still flying)
+## 2. Every float plane through the load door (node)
 
 How: `fly.js` per row (the load door's spec, the game host, damage ON, Expert = the game pilot's default profile;
-wind 8 = the game's day 8 kt from 250 with gusts, wind 0 = calm), legs capped at 1200 s (1800 on the first four runs).
-The table is `node flyDiy/reports/evidence/SEA-AMPHIB/table.js <runs dir>` over `reports/evidence/SEA-AMPHIB/runs/`.
-Columns: prop min = the disc's least height over the water / ground on the leg; roll + = right wing down; tip min = the
-outer 20 % of the span over the surface while on it; capsize margin = 90 - max |roll| on the surface.
-NOTE: the runs named base_* / master_* / l34a_*_cessna and base_petrel used `asin` for the roll, which reads an
-inverted aeroplane as ~+-78 deg (their 77.6 / margin 12.4 on the capsized leg is really +-180 / -90, as capsize10hz
-shows); every later run uses atan2.
+wind 8 = the game's day 8 kt from 250 with gusts, wind 0 = calm). Legs are capped at 1200 s (1800 on the first four
+runs). The table is `node flyDiy/reports/evidence/SEA-AMPHIB/table.js flyDiy/reports/evidence/SEA-AMPHIB/runs`; the
+runs' JSON and logs are in that folder.
+Columns: prop min = the disc's least height over the water / ground on the leg (with the phase); roll + = right wing
+down; tip min = the outer 20 % of the span over the surface while on it; capsize margin = 90 - max |roll| on the
+surface (negative = it went over); gear = out.gear min-max (retract builds only).
+NOTE: the runs named base_*, master_cessna_*, l34a_* and base_petrel used `asin` for the roll, which reads an
+inverted aeroplane as about +-78 deg. Their 77.6 deg / margin 12.4 on the capsized leg is really +-180 / -90, as
+capsize10hz and amph1 show. Every later run uses atan2.
 
-THE LAND LEGS FOR FLOAT PLANES: the route door refuses every land end for the Twin 4b, the PA-18, the Cessna AND the
-amphibious-float Cessna (stripGear 'floats': 'floats land on water only', 12 of 15 ends refused; `runs/route_door.log`,
-`node flyDiy/reports/evidence/SEA-AMPHIB/route_door.js`). So land>land, land>water and water>land are 'refused by the
-game' for all four - right for pure floats, WRONG for the amphibious build, which draws wheels (F-AMPH, section 1). The
-Super Petrel may use all 15 ends.
+**THE LAND LEGS FOR FLOAT PLANES.** The route door refuses every land end (12 of 15) for the Twin 4b, the PA-18, the
+Cessna AND the amphibious-float Cessna: stripGear says 'floats', 'floats land on water only' (`runs/route_door.log`;
+`node flyDiy/reports/evidence/SEA-AMPHIB/route_door.js`). So for all four, land>land, land>water and water>land are
+'refused by the game'. That is right for pure floats and WRONG for the amphibious build, which draws wheels (section 1).
+The Super Petrel may use all 15 ends.
+
+**"3 TIMES".** The sim is deterministic, so a repeat gives the same hash and adds nothing:
+- the Cessna's SEA > mk_sea was flown 5 times on 3 trees (base, base 10 Hz, base amph1, master L35a, master L34a): all
+  `6d3f1c643f66`;
+- the PA-18's legs twice each (base, master): `f18ea9496828` / `97b61668719f`;
+- the Twin's SEA > mk_sea twice: `c93c91a4ffb9`;
+- the capsize recurs at sim t 604.6 under three leg caps (1800 / 1200 / 230 s).
+The variation that does change the answer is the WIND, flown both ways below. A seeded perturbation (start offset,
+gust seed) would be the meaningful "3 times"; no rig option for it exists - unproven how it moves F1-F3.
 
 | run | build | wind | leg | result | sink m/s | run m | prop min m (phase) | roll on surface min / max | pitch on surface min / max | tip min m | capsize margin deg | gear | hash |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| amph1_SEA-mk-SEA_w8 | cessna_floats_amph1 | 8 kt | SEA>mk_sea | PASS | 0.47 | 370 | 0.47 ROLLOUT | -3.1 / 5.8 | -1.3 / 8.3 | 1.5 | 84.2 | - | 6d3f1c643f66 |
+| amph1_SEA-mk-SEA_w8 | cessna_floats_amph1 | 8 kt | mk_sea>SEA | FAIL: capsized: on its back in TAXI at 3.5 m/s (bank 90 deg) | - | - | -2.86 TAXI | -180 / 180 | -2.4 / 12.4 | -5.43 | -90 | - | a337ca603fcf |
 | base_cessna_w8 | cessnaFloatsWOrks | 8 kt | SEA>mk_sea | PASS | 0.47 | 370 | 0.47 ROLLOUT | -3 / 5.8 | -1.3 / 8.3 | 1.5 | 84.2 | - | 6d3f1c643f66 |
 | base_cessna_w8 | cessnaFloatsWOrks | 8 kt | mk_sea>SEA | FAIL: capsized: on its back in TAXI at 3.5 m/s (bank 90 deg) | - | - | -2.86 TAXI | -17.5 / 77.6 | -2.4 / 12.4 | -5.43 | 12.4 | - | e50c81e92c5c |
 | base_petrel_w8 | superpetrel_V4_1 | 8 kt | SEA>mk_sea | FAIL: prop-strike (the propeller struck (water, t 452)) | 0.36 | 179 | -0.09 ROLLOUT | -4.4 / 14.3 | -5.3 / 42.6 | 0.2 | 75.7 | 0-1 | 793d9d539efa |
 | capsize10hz | cessnaFloatsWOrks | 8 kt | SEA>mk_sea | PASS | 0.47 | 370 | 0.47 ROLLOUT | -3.1 / 5.8 | -1.3 / 8.3 | 1.5 | 84.2 | - | 6d3f1c643f66 |
 | capsize10hz | cessnaFloatsWOrks | 8 kt | mk_sea>SEA | FAIL: capsized: on its back in TAXI at 3.5 m/s (bank 90 deg) | - | - | -2.87 TAXI | -180 / 180 | -2.4 / 12.4 | -5.43 | -90 | - | ba11d232d9e7 |
+| cessna_SEA-SEA_w0 | cessnaFloatsWOrks | 0 kt | SEA>SEA | PASS | 0.37 | 383 | 0.5 ROLL | -2.2 / 4.9 | -0.5 / 7.5 | 1.56 | 85.1 | - | 03e595c84cb8 |
 | cessna_SEA-SEA_w8 | cessnaFloatsWOrks | 8 kt | SEA>SEA | PASS | 0.64 | 347 | 0.49 ROLL | -3.1 / 5.8 | -0.5 / 7.6 | 1.5 | 84.2 | - | 3577df631178 |
+| cessna_SEA-mk-SEA_w0 | cessnaFloatsWOrks | 0 kt | SEA>mk_sea | PASS | 0.4 | 380 | 0.5 ROLL | -2.2 / 4.9 | -0.5 / 7.6 | 1.56 | 85.1 | - | bdeb8eecf0a8 |
+| cessna_SEA-mk-SEA_w0 | cessnaFloatsWOrks | 0 kt | mk_sea>SEA | PASS | 0.4 | 373 | 0.59 TAXI | -3.6 / 5.5 | 0.9 / 7.5 | 1.47 | 84.5 | - | b5dde7209627 |
 | l34a_cessna_w8 | cessnaFloatsWOrks | 8 kt | SEA>mk_sea | PASS | 0.47 | 370 | 0.47 ROLLOUT | -3 / 5.8 | -1.3 / 8.3 | 1.5 | 84.2 | - | 6d3f1c643f66 |
 | l34a_cessna_w8 | cessnaFloatsWOrks | 8 kt | mk_sea>SEA | FAIL: capsized: on its back in TAXI at 3.5 m/s (bank 90 deg) | - | - | -2.86 TAXI | -17.5 / 77.6 | -2.4 / 12.4 | -5.43 | 12.4 | - | e50c81e92c5c |
 | master_cessna_w8 | cessnaFloatsWOrks | 8 kt | SEA>mk_sea | PASS | 0.47 | 370 | 0.47 ROLLOUT | -3 / 5.8 | -1.3 / 8.3 | 1.5 | 84.2 | - | 6d3f1c643f66 |
@@ -153,41 +170,86 @@ Super Petrel may use all 15 ends.
 | master_pa18_w8 | pa18_floats_2026-10-23 | 8 kt | mk_sea>SEA | PASS | 0.69 | 194 | 0.27 HOLD | -1.9 / 2.9 | -4.3 / 7.8 | 1.63 | 87.1 | - | 97b61668719f |
 | master_twin_w8 | Twin_busher_floats_4b | 8 kt | SEA>mk_sea | PASS | 0.66 | 225 | 0.39 ROLLOUT | -2.6 / 1.2 | -5.7 / 11.6 | 1.57 | 87.4 | - | c93c91a4ffb9 |
 | master_twin_w8 | Twin_busher_floats_4b | 8 kt | mk_sea>SEA | FAIL: timeout (the leg took over 1200 s) | - | - | 0.32 TAXI | -8.6 / 7.8 | -8.6 / 8.9 | 1.06 | 81.4 | - | 667fa810c584 |
+| pa18_SEA-SEA_w0 | pa18_floats_2026-10-23 | 0 kt | SEA>SEA | PASS | 0.45 | 246 | 0.36 ROLL | -1.8 / 2.6 | -3.4 / 13.4 | 1.6 | 87.4 | - | 13bc2164c09a |
 | pa18_SEA-SEA_w8 | pa18_floats_2026-10-23 | 8 kt | SEA>SEA | PASS | 0.58 | 198 | 0.35 ROLL | -2.2 / 3.1 | -3.4 / 7.9 | 1.58 | 86.9 | - | 9e74a074c16c |
+| pa18_SEA-mk-SEA_w0 | pa18_floats_2026-10-23 | 0 kt | SEA>mk_sea | PASS | 0.45 | 246 | 0.36 ROLL | -1.8 / 2.6 | -3.4 / 13.4 | 1.6 | 87.4 | - | 6090cdf099ed |
+| pa18_SEA-mk-SEA_w0 | pa18_floats_2026-10-23 | 0 kt | mk_sea>SEA | PASS | 0.45 | 244 | 0.42 TAXI | -2.1 / 3.6 | -1 / 13.8 | 1.56 | 86.4 | - | 1bba9a129dc5 |
 | pa18_SEA-mk-SEA_w8 | pa18_floats_2026-10-23 | 8 kt | SEA>mk_sea | PASS | 0.48 | 194 | 0.28 ROLLOUT | -2.2 / 3.1 | -4 / 9.3 | 1.58 | 86.9 | - | f18ea9496828 |
 | pa18_SEA-mk-SEA_w8 | pa18_floats_2026-10-23 | 8 kt | mk_sea>SEA | PASS | 0.69 | 194 | 0.27 HOLD | -1.9 / 2.9 | -4.3 / 7.8 | 1.63 | 87.1 | - | 97b61668719f |
+| petrel_HOME-SEA_w0 | superpetrel_V4_1 | 0 kt | HOME>SEA | PASS | 0.36 | 327 | 0.13 ROLLOUT | -1.5 / 0.4 | -5.2 / 13.2 | 0.92 | 88.5 | 0-1 | c07c9e9fd5e4 |
 | petrel_HOME-SEA_w8 | superpetrel_V4_1 | 8 kt | HOME>SEA | PASS | 0.3 | 256 | 0.15 ROLLOUT | -1.6 / 5.3 | -5.2 / 12.2 | 0.85 | 84.7 | 0-1 | 3d11893f4776 |
+| petrel_HOME-w3_w0 | superpetrel_V4_1 | 0 kt | HOME>w3 | PASS | 0.76 | 354 | 0.72 ROLL | -1.5 / 0.4 | -5.2 / 8.1 | 1.47 | 88.5 | 0-1 | 7398aa59899a |
 | petrel_HOME-w3_w8 | superpetrel_V4_1 | 8 kt | HOME>w3 | PASS | 0.66 | 369 | 0.72 ROLL | -1.6 / 0.4 | -5.2 / 8.1 | 1.48 | 88.4 | 0-1 | adba2eb349ba |
+| petrel_SEA-HOME_w0 | superpetrel_V4_1 | 0 kt | SEA>HOME | PASS | 0.81 | 451 | 0.17 ROLL | -1.2 / 0.7 | -2.6 / 7.8 | 0.89 | 88.8 | 0-1 | 3b521e2f0cc9 |
 | petrel_SEA-HOME_w8 | superpetrel_V4_1 | 8 kt | SEA>HOME | PASS | 0.81 | 479 | 0.16 ROLL | -1.3 / 1.2 | -2.5 / 8 | 0.89 | 88.7 | 0-1 | c600d8719cb0 |
+| petrel_SEA-SEA_w0 | superpetrel_V4_1 | 0 kt | SEA>SEA | PASS | 0.4 | 329 | 0.13 ROLLOUT | -1.2 / 0.7 | -2.6 / 13.2 | 0.89 | 88.8 | 0-1 | 82601559a9b6 |
 | petrel_SEA-SEA_w8 | superpetrel_V4_1 | 8 kt | SEA>SEA | PASS | 0.22 | 251 | 0.16 ROLL | -1.5 / 5.8 | -2.5 / 11.9 | 0.8 | 84.2 | 0-1 | 5560cca69a22 |
+| petrel_SEA-mk-SEA_w0 | superpetrel_V4_1 | 0 kt | SEA>mk_sea | PASS | 0.38 | 329 | 0.13 ROLLOUT | -1.2 / 0.7 | -2.6 / 13.2 | 0.89 | 88.8 | 0-1 | 5e81596afabe |
+| petrel_SEA-mk-SEA_w0 | superpetrel_V4_1 | 0 kt | mk_sea>SEA | PASS | 0.35 | 331 | 0.13 ROLLOUT | -4 / 8.8 | 0.2 / 12.9 | 0.33 | 81.2 | 0-0 | 626c0907097d |
+| twin_SEA-SEA_w0 | Twin_busher_floats_4b | 0 kt | SEA>SEA | PASS | 0.97 | 273 | 0.39 ROLL | -0.8 / 0 | -3.8 / 15.4 | 1.53 | 89.2 | - | dbdd3e42f0c3 |
 | twin_SEA-SEA_w8 | Twin_busher_floats_4b | 8 kt | SEA>SEA | PASS | 1.21 | 220 | 0.4 ROLLOUT | -1.9 / 1.9 | -3.8 / 11.6 | 1.56 | 88.1 | - | e7ccdcedb6c8 |
+| twin_SEA-mk-SEA_w0 | Twin_busher_floats_4b | 0 kt | SEA>mk_sea | PASS | 0.99 | 274 | 0.39 ROLL | -0.8 / 0.3 | -3.8 / 15.4 | 1.53 | 89.2 | - | 71508e7e7108 |
+| twin_SEA-mk-SEA_w0 | Twin_busher_floats_4b | 0 kt | mk_sea>SEA | PASS | 0.97 | 269 | 0.39 ROLL | -2.4 / 2.3 | -2.4 / 15.4 | 1.53 | 87.6 | - | 8e9644185a93 |
 | twin_SEA-mk-SEA_w8 | Twin_busher_floats_4b | 8 kt | SEA>mk_sea | PASS | 0.66 | 225 | 0.39 ROLLOUT | -2.6 / 1.2 | -5.7 / 11.6 | 1.57 | 87.4 | - | c93c91a4ffb9 |
 | twin_SEA-mk-SEA_w8 | Twin_busher_floats_4b | 8 kt | mk_sea>SEA | FAIL: timeout (the leg took over 1200 s) | - | - | 0.32 TAXI | -8.6 / 7.8 | -8.6 / 8.9 | 1.06 | 81.4 | - | 667fa810c584 |
 
-Findings so far:
-- **F3 (bad, node-proven, master the same): the Twin 4b cannot leave mk_sea.** Leg 2 mk_sea > SEA: 456 s of TAXI
-  wandering (the heading swinging 140 -> -90 -> 105 deg), then STOP / HOLD / LINEUP three times - one LINEUP holds
-  heading 133 at 4.5 m/s on thr 0.36-0.45 for 120 s (about 540 m straight) and stops - then 549 s more TAXI. It never
-  reaches ROLL; the pilot's outcome is 'gave-up', the leg times out. No damage, roll within +-8.6 deg. Base and master
-  L35a give the same hash (667fa810c584). `node flyDiy/reports/evidence/SEA-AMPHIB/fly.js --build builds/candidates/Twin_busher_floats_4b.json --order SEA,mk_sea,SEA --wind 8 --trace t.csv`
-  (the lineup verdicts were filtered out of this run's record; re-run to read them: fly.js now keeps every verdict).
-- mk_sea is where three of the four water aeroplanes fail on the 8 kt day: the Cessna capsizes taxiing out (F1), the
-  Twin cannot line up (F3), the Petrel strikes its propeller on the rollout (F2). The PA-18 does SEA > mk_sea > SEA clean.
-- The Super Petrel on the game's day: HOME > w3 (land > land), HOME > SEA (land > water), SEA > HOME (water > land),
-  SEA > SEA all PASS, the wheels down on land and up on water (gear 0-1 on every leg). Its least propeller clearance on
-  the water legs is 0.15-0.16 m (rollout / take-off roll at SEA).
+### Pass / fail by aeroplane and leg (the game's day 8 kt | calm)
 
-## 3. Regression - the non-amphibious float planes, base vs master (node, sim hashes)
+| aeroplane | SEA > mk_sea | mk_sea > SEA | SEA circuit (SEA > SEA) | HOME > w3 | HOME > SEA | SEA > HOME |
+|---|---|---|---|---|---|---|
+| Twin_busher_floats_4b | PASS / PASS | **FAIL (F3, gave-up)** / PASS | PASS / PASS | refused | refused | refused |
+| PA-18 floats | PASS / PASS | PASS / PASS | PASS / PASS | refused | refused | refused |
+| Cessna floats (VALIDATED) | PASS / PASS | **FAIL (F1, capsized)** / PASS | PASS / PASS | refused | refused | refused |
+| Cessna floats + fltAmph 1 | PASS (= the Cessna's hash) / not flown (= the Cessna) | **FAIL (F1, capsized)** / not flown | not flown (= the Cessna) | refused (WRONG) | refused (WRONG) | refused (WRONG) |
+| Super Petrel V4.1 | **FAIL (F2, prop strike)** / PASS | not flown (the leg before failed) / PASS (two lineup-timeouts, F3b) | PASS / PASS | PASS / PASS | PASS / PASS | PASS / PASS |
+
+Findings:
+- **F1, F2 and F3 are all mk_sea on the game's day, and all three go away in calm air.** Calm: the Cessna flies
+  mk_sea > SEA clean (the prop at least 0.59 m), the Twin too (one go-around: 'unstabilised approach at 84 m: sinking
+  3.8 m/s'), and the Petrel lands at mk_sea with no strike (the prop at least 0.13 m, the margin 81 deg). So the
+  8 kt / gusts / sea breeze at mk_sea is the trigger - whether through the sea state there or through the controller
+  is unproven (node cannot separate them without a rig option).
+- **F3 (bad, node-proven, master the same): the Twin 4b cannot leave mk_sea on the game's day.** Leg 2 mk_sea > SEA:
+  - 456 s of TAXI, wandering (the heading swinging 140 -> -90 -> 105 deg);
+  - then STOP / HOLD / LINEUP three times - one LINEUP holds heading 133 at 4.5 m/s on thr 0.36-0.45 for 120 s (about
+    540 m straight) and stops;
+  - then 549 s more TAXI. It never reaches ROLL: the outcome is 'gave-up', the leg times out.
+  No damage, roll within +-8.6 deg. Base and master L35a give the same hash (667fa810c584).
+  ```bash
+  node flyDiy/reports/evidence/SEA-AMPHIB/fly.js --build builds/candidates/Twin_busher_floats_4b.json --order SEA,mk_sea,SEA --wind 8 --trace t.csv
+  ```
+- **F3b (bad): the Petrel in CALM air also fights the line-up at mk_sea:** 'lineup-timeout: could not line up in 60 s'
+  at 92 and 184 s, 'replan: not lined up with a run ahead (143 m, 15.2 m off)', then 'gave-up: still in FINAL at
+  t=871 s' - and it still lands at SEA (1062 s). The departure from mk_sea is the weak point for the water pilot.
+- **F4 (cosmetic): a water pivot is worded as wheels** - 'pivot: a turn of 24 deg that the wheels (Infinity m) cannot
+  steer on the route - turning on the spot' (Twin 4b, calm, mk_sea).
+- **The Super Petrel on land and between surfaces:** HOME > w3, HOME > SEA, SEA > HOME and SEA > SEA all PASS on both
+  days; the wheels go down for land and up for water (gear 0-1 on every mixed leg, 0-0 on calm mk_sea > SEA). Its
+  propeller is the lowest of the five on the water: 0.13-0.17 m at the least, in the rollout / take-off roll (the
+  Cessna 0.47-0.59, the Twin 0.39, the PA-18 0.27-0.42). Landing runs on HOME / w3: 354-479 m (long for an LSA; the
+  HANDOVER's B80 already notes the V4's ~100 m longer roll).
+- **The amphibious-float Cessna flies as the float Cessna, to the hash** (leg 1 `6d3f1c643f66`), and capsizes at the
+  same sim t 604.6 on leg 2. Its leg-2 end hash differs (`a337ca603fcf` vs `e50c81e92c5c`) only because the leg was
+  capped at 1200 s, not 1800: it sits inverted longer in the other run.
+
+## 3. Regression - the non-amphibious float planes, base vs master
+
+Sim hashes (node positions at each leg's end, `fly.js`), the game's day 8 kt:
 
 | aeroplane / leg | base 15ad5d66 | master L35a 1bcd01d3 | master L34a cad308635 |
 |---|---|---|---|
 | float Cessna SEA > mk_sea | 6d3f1c643f66 | 6d3f1c643f66 | 6d3f1c643f66 |
 | float Cessna mk_sea > SEA (capsized) | e50c81e92c5c | e50c81e92c5c | e50c81e92c5c |
 | Twin 4b SEA > mk_sea | c93c91a4ffb9 | c93c91a4ffb9 | - |
-| Twin 4b mk_sea > SEA (gave-up, timeout) | 667fa810c584 | 667fa810c584 | - |
-| PA-18 floats SEA > mk_sea > SEA | pending | pending | - |
+| Twin 4b mk_sea > SEA (gave-up) | 667fa810c584 | 667fa810c584 | - |
+| PA-18 floats SEA > mk_sea | f18ea9496828 | f18ea9496828 | - |
+| PA-18 floats mk_sea > SEA | 97b61668719f | 97b61668719f | - |
 
-(the build files are byte-identical on base and master: Twin 4b c7a9956a, PA-18 e26c7353)
+**No float plane moved between master and the seaplanes merge: 6 of 6 legs give identical hashes.** (The build files
+are byte-identical on both trees: Twin 4b c7a9956a, PA-18 e26c7353.) The Petrel is not on master (no hull code there),
+so it has no master column.
+
+GATES_PLACEHOLDER
 
 ## 4. What is missing for amphibious floats to really work (a list for SEAPLANES - no code from this tester)
 

@@ -1,0 +1,185 @@
+{
+ "build": "builds/candidates/superpetrel_V4_1.json",
+ "order": [
+  "SEA",
+  "mk_sea",
+  "SEA"
+ ],
+ "wind": 0,
+ "gear": "amphibian",
+ "legs": [
+  {
+   "leg": "SEA>mk_sea",
+   "ok": true,
+   "faults": [],
+   "outcome": "completed",
+   "t": 569,
+   "landedOn": "mk_sea",
+   "sink": 0.38,
+   "V": 25.1,
+   "run": 329,
+   "toDist": 269.6,
+   "propMin": {
+    "v": 0.13,
+    "t": 461.3,
+    "ph": "ROLLOUT"
+   },
+   "propMinSurf": {
+    "v": 0.13,
+    "t": 461.3,
+    "ph": "ROLLOUT"
+   },
+   "rollS": [
+    -1.2,
+    0.7
+   ],
+   "pitchS": [
+    -2.6,
+    13.2
+   ],
+   "rollA": 24.1,
+   "tipMin": {
+    "v": 0.89,
+    "t": 5.5,
+    "ph": "ROLL"
+   },
+   "capsize": 88.8,
+   "wogWet": 3,
+   "onLand": false,
+   "gear": [
+    0,
+    1
+   ],
+   "damage": {
+    "yields": 0,
+    "breaks": 0,
+    "dented": false,
+    "crashed": false,
+    "gPeak": 1.7,
+    "propAt": null
+   },
+   "verdicts": [
+    "vx-climb: ground ahead above the aeroplane — climbing at Vx 24.6 m/s until clear"
+   ],
+   "warnings": [],
+   "phases": [
+    "ROLL",
+    "LIFTOFF",
+    "CLIMB",
+    "ENROUTE",
+    "DOWNWIND",
+    "BASE",
+    "FINAL",
+    "FLARE",
+    "ROLLOUT",
+    "STOPPED"
+   ],
+   "hash": "5e81596afabe"
+  },
+  {
+   "leg": "mk_sea>SEA",
+   "ok": true,
+   "faults": [],
+   "outcome": "gave-up",
+   "t": 1062,
+   "landedOn": "SEA",
+   "sink": 0.35,
+   "V": 25.3,
+   "run": 331,
+   "toDist": 269.4,
+   "propMin": {
+    "v": 0.13,
+    "t": 954.6,
+    "ph": "ROLLOUT"
+   },
+   "propMinSurf": {
+    "v": 0.13,
+    "t": 954.6,
+    "ph": "ROLLOUT"
+   },
+   "rollS": [
+    -4,
+    8.8
+   ],
+   "pitchS": [
+    0.2,
+    12.9
+   ],
+   "rollA": 24.2,
+   "tipMin": {
+    "v": 0.33,
+    "t": 219,
+    "ph": "TAXI"
+   },
+   "capsize": 81.2,
+   "wogWet": 2,
+   "onLand": false,
+   "gear": [
+    0,
+    0
+   ],
+   "damage": {
+    "yields": 0,
+    "breaks": 0,
+    "dented": false,
+    "crashed": false,
+    "gPeak": 1.7,
+    "propAt": null
+   },
+   "verdicts": [
+    "lineup-timeout: could not line up in 60 s — stopping to replan",
+    "lineup-timeout: could not line up in 60 s — stopping to replan",
+    "replan: not lined up with a run ahead (143 m, 15.2 m off) — planning the departure again",
+    "gave-up: still in FINAL at t=871 s — out of patience, not out of sky"
+   ],
+   "warnings": [
+    "lineup-timeout at 92.1 s",
+    "lineup-timeout at 184.1 s",
+    "gave-up at 871.5 s"
+   ],
+   "phases": [
+    "STOP",
+    "HOLD",
+    "LINEUP",
+    "STOP",
+    "HOLD",
+    "LINEUP",
+    "STOP",
+    "HOLD",
+    "DEPART",
+    "TAXI",
+    "STOP",
+    "HOLD",
+    "LINEUP",
+    "STOP",
+    "HOLD",
+    "LINEUP",
+    "STOP",
+    "HOLD",
+    "ROLL",
+    "LIFTOFF",
+    "CLIMB",
+    "ENROUTE",
+    "DOWNWIND",
+    "BASE",
+    "FINAL",
+    "FLARE",
+    "ROLLOUT",
+    "STOPPED"
+   ],
+   "hash": "626c0907097d"
+  }
+ ],
+ "refused": [],
+ "mass": 591.8,
+ "retract": true,
+ "wall": 1625,
+ "game": {
+  "day": null,
+  "shake": true,
+  "stand": null,
+  "mass": 591.8,
+  "fuel": 72,
+  "damage": true
+ }
+}

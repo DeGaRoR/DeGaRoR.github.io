@@ -1,0 +1,3 @@
+ok   SEA>mk_sea        424.8 s  sink 0.99 run 274 propMin 0.39 (surf 0.39) roll -0.8,0.3 pitch -3.8,15.4 tip 1.53 cap 89.2 gear null hash 71508e7e7108
+ok   mk_sea>SEA          750 s  sink 0.97 run 269 propMin 0.39 (surf 0.39) roll -2.4,2.3 pitch -2.4,15.4 tip 1.53 cap 87.6 gear null hash 8e9644185a93
+DONE Twin_busher_floats_4b.json SEA>mk_sea>SEA wind 0: gear floats, 819.9 kg, 688 s wall

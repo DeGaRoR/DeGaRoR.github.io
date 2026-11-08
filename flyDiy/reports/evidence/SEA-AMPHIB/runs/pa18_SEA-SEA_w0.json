@@ -1,0 +1,88 @@
+{
+ "build": "builds/pa18_floats_2026-10-23.json",
+ "order": [
+  "SEA",
+  "SEA"
+ ],
+ "wind": 0,
+ "gear": "floats",
+ "legs": [
+  {
+   "leg": "SEA>SEA",
+   "ok": true,
+   "faults": [],
+   "outcome": "completed",
+   "t": 390.8,
+   "landedOn": "SEA",
+   "sink": 0.45,
+   "V": 25.6,
+   "run": 246,
+   "toDist": 223.9,
+   "propMin": {
+    "v": 0.36,
+    "t": 0.6,
+    "ph": "ROLL"
+   },
+   "propMinSurf": {
+    "v": 0.36,
+    "t": 0.6,
+    "ph": "ROLL"
+   },
+   "rollS": [
+    -1.8,
+    2.6
+   ],
+   "pitchS": [
+    -3.4,
+    13.4
+   ],
+   "rollA": 24.3,
+   "tipMin": {
+    "v": 1.6,
+    "t": 6.9,
+    "ph": "ROLL"
+   },
+   "capsize": 87.4,
+   "wogWet": 3,
+   "onLand": false,
+   "gear": null,
+   "damage": {
+    "yields": 0,
+    "breaks": 0,
+    "dented": false,
+    "crashed": false,
+    "gPeak": 1.4,
+    "propAt": null
+   },
+   "verdicts": [
+    "vx-climb: ground ahead above the aeroplane — climbing at Vx 24.6 m/s until clear"
+   ],
+   "warnings": [],
+   "phases": [
+    "ROLL",
+    "LIFTOFF",
+    "CLIMB",
+    "CROSSWIND",
+    "DOWNWIND",
+    "BASE",
+    "FINAL",
+    "FLARE",
+    "ROLLOUT",
+    "STOPPED"
+   ],
+   "hash": "13bc2164c09a"
+  }
+ ],
+ "refused": [],
+ "mass": 751.6,
+ "retract": false,
+ "wall": 108,
+ "game": {
+  "day": null,
+  "shake": true,
+  "stand": null,
+  "mass": 751.6,
+  "fuel": 136,
+  "damage": true
+ }
+}
