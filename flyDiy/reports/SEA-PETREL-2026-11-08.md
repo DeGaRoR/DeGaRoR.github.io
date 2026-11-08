@@ -167,7 +167,8 @@ route. Evidence: `reports/evidence/SEA-PETREL/diag/*.json` (`hist0` / `strike.st
   the aeroplane is left on the open sea.
 - The same take-off from SEA (the sheltered bay) at 15 kt: off at 20.4 m/s, pitch 7.3 deg - fine. Calm at mk_sea: fine.
   So the open sea's waves at 10-15 kt (felt amplitude 0.14-0.16 m at the disc) start a porpoise the take-off's
-  porpoise law (39b `SV.porpoise`, which IS on in ROLL) does not stop. UNPROVEN why the law does not hold it.
+  porpoise law (39b `SV.porpoise`, called in ROLL / LIFTOFF on a hydro build; whether its gains engage for the
+  Petrel's thrust line was not checked) does not stop. UNPROVEN why.
 - Reproduce: `sp_fly.js --order mk_sea,HOME --wind 15@250` (or `--wind xw10`), ~4 min.
 - Browser-needed: yes - a Cedar Harbour take-off in 10-15 kt.
 
