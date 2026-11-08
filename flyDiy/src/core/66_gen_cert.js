@@ -139,6 +139,14 @@ function genDamageOn(def) {
   return (P.damage ?? (typeof FLYDIY_DAMAGE === 'boolean' ? FLYDIY_DAMAGE
           : typeof GEN_DAMAGE_DEFAULT !== 'undefined' && GEN_DAMAGE_DEFAULT)) === true && typeof GEN_CRASH !== 'undefined';
 }
+// SEAPLANES-LAND (A0 8 Nov): HULL-B50 recalibrated the carbon and glass frame rows (GEN_MATERIALS: members, k, c) with no
+// version - a design framed in one of them folds its row into its key and re-certifies once; any other frame's key is
+// byte-identical to before (the rows of the other materials never moved)
+const GEN_CERT_MAT_KEYED = ['carbon', 'glass'];
+function genCertMatTag(spec) {
+  const m = spec && (spec.material || (spec.fuselage && spec.fuselage.material));
+  return GEN_CERT_MAT_KEYED.indexOf(m) >= 0 && typeof GEN_MATERIALS !== 'undefined' ? '|mat:' + m + JSON.stringify(GEN_MATERIALS[m]) : '';
+}
 // ---- the build's key: the spec, else the frame's own numbers -----------------------------------------------------
 function genCertKey(def) {
   let h = 0x811c9dc5;
@@ -146,6 +154,7 @@ function genCertKey(def) {
   mix('cert' + GEN_CERT_V + JSON.stringify(GEN_CERT) + (typeof PHYSICS_V !== 'undefined' ? PHYSICS_V : ''));
   // (G2827: the cage's STOL rows at "off" are the absent rows - the key every build had before the STOL wing)
   if (def.spec) mix(JSON.stringify(def.spec, (k, v) => k === 'cage' && typeof genStolCageOff === 'function' ? genStolCageOff(v) : v));
+  if (def.spec) { const mt = genCertMatTag(def.spec); if (mt) mix(mt); }   // (HULL-B50: a carbon / glass frame's rows)
   else {
     for (const nd of def.nodes) mix(nd.p.join(',') + ':' + nd.m);
     for (const b of def.beams) mix(b.a + ',' + b.b + ',' + b.k + ',' + (b.kTrue || '') + ',' + (b.cls || ''));
