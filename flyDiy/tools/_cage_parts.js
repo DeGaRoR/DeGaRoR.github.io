@@ -1323,8 +1323,8 @@ const CAGE_PARTS = [
   // laid out from them); a radio not fitted draws no aerial and its rows hide (the fittings' own `when`). Cosmetic
   // today - the set is what a working radio reads later. The layer is the fittings' (the aerials are drawn there).
   { key: 'comms', name: 'Communications', parent: 'fit', layer: 'access',
-    when: P => +P.accOn && +P.accAerials, gate: 'accAerials',
-    groups: COMMS_SET.map(r => [r.label + ' aerial', accHand([r.aerial])])
+    when: P => +P.accAerials, gate: 'accAerials',   // (not accOn: Fittings' own switch may not hide another part - GATE PARTS)
+    groups: [['fitted', ['accAerials']]].concat(COMMS_SET.map(r => [r.label + ' aerial', accHand([r.aerial])]))
       .concat([['fine placement', accFine(COMMS_AERIALS), EXPERT]]) },
 
   // THE FURNISHING (G2806, AVIONICS-GPS phase 2; the user, 11 Oct: "cabin furnishing accounted accurately, its own
