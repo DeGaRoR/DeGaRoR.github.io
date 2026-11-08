@@ -84,7 +84,7 @@ const CHECK = `JSON.stringify((() => { const P = WORLD && WORLD.premises; const 
   const trip = async () => {   // the roll-out: press, wait for the trip's done and the screen gone
     const n0 = await b.ev(MB.A.trips), t0 = await now(), w0 = Date.now(); await b.ev(MB.A.rollOut);
     let d = null; const tEnd = Date.now() + 300000;
-    while (Date.now() < tEnd) { d = JSON.parse(await b.ev(MB.A.lastTrip, 30000)); if (d.n > n0 && d.kind === 'rollout' && d.done && d.boot === 'gone') break; d = null; await sleep(150); }
+    while (Date.now() < tEnd) { const raw = await b.ev(MB.A.lastTrip, 30000); if (raw === "__timeout") { log("trip: the page busy over 30 s (a cold load), still waiting"); await sleep(500); continue; } d = JSON.parse(raw); if (d.n > n0 && d.kind === 'rollout' && d.done && d.boot === 'gone') break; d = null; await sleep(150); }
     const t1 = await now(), fr = await pull();
     return { ms: d ? d.ms : null, wall: +((Date.now() - w0) / 1000).toFixed(1), frames: MB.stat(fr.fr, fr.lt, t0, t1, fr.sc) };
   };
@@ -143,7 +143,9 @@ const CHECK = `JSON.stringify((() => { const P = WORLD && WORLD.premises; const 
       const ap = await b.ev(`(async () => { const W = FLIGHT_PROBE.world(), tx = ${APPROACH.x}, tz = ${APPROACH.z}, d = ${APPROACH.from}, hx = (tx - ${home ? home.x : 0}), hz = (tz - ${home ? home.z : 0}), l = Math.hypot(hx, hz) || 1;
         const x = tx - hx / l * d, z = tz - hz / l * d, h = W.terrainH ? W.terrainH(x, z) : 0;
         await FLIGHT_PROBE.place({ at: [x, Math.max(h, 0) + 300, z], zeroV: true, dv: [hx / l * 45, 0, hz / l * 45] }); FLIGHT_PROBE.setManual(true); FLIGHT_PROBE.setManual(false);
-        const P = WORLD.premises; return JSON.stringify({ at: [Math.round(x), Math.round(z)], pending: P && P.geoPending ? P.geoPending() : null, dist: P && P.geoDist ? Math.round(P.geoDist(x, z)) : null }); })()`, 20000).catch(e => 'error ' + e.message);
+        await new Promise(r => setTimeout(r, 600)); const ph0 = FLIGHT_PROBE.ap().phase;   // TOWN-1 8 Nov: the pilot left in TAXI 300 m up flew both sides into the ground
+        if (ph0 === 'TAXI' || ph0 === 'DEPART' || ph0 === 'HOLD') { FLIGHT_PROBE.setManual(true); await new Promise(r => setTimeout(r, 200)); FLIGHT_PROBE.setManual(false); }
+        const P = WORLD.premises, cg = FLIGHT_PROBE.sim().cgPos(); return JSON.stringify({ at: [Math.round(x), Math.round(z)], y: Math.round(cg[1]), h: Math.round(h), ph0, phase: FLIGHT_PROBE.ap().phase, onG: FLIGHT_PROBE.sim().wheelsOnGround(), pending: P && P.geoPending ? P.geoPending() : null, dist: P && P.geoDist ? Math.round(P.geoDist(x, z)) : null }); })()`, 20000).catch(e => 'error ' + e.message);
       await sleep(2000);
       // TOWN-1: the chase view's stills on the way in, timed off the placement (45 m/s), while the scene measures
       const sh = SHOTS ? [600, 1200, 1800, 2400, 3500].filter(m => m < APPROACH.from).map(m => sleep(Math.max(0, (APPROACH.from - m) / 45 - 2) * 1000).then(() => shot(side, bk, 'in' + m))) : [];
