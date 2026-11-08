@@ -139,9 +139,16 @@ if (PAGE) {
   const vy = d => { const v = tag(d, 'VSNL'), b = tag(d, 'S0BL'); return v && b ? v.p[1] - b.p[1] : null; };
   const cRaw = C.buildGen(rawSpec('cub')), cPage = C.buildGen(clone(PAGE.builds.cub.spec));
   const M = d => d.nodes.reduce((s, n) => s + n.m, 0);
-  ok(vy(cPage) != null && vy(cPage) < 0.2 && vy(cRaw) > 0.5 && Math.abs(M(cRaw) - M(cPage)) > 5,
+  // G2814 (TANK-SPLIT, rule b - the finding moved with a meant change): since TANK-FIT (3 Nov, the user's "Yes": the saves'
+  // nose tanks take the auto shape) the game no longer drops the Cub's tank 0.7 m under the file's station - it shapes a
+  // deck to the nose (44 L) where the file holds its 45 L box at the same station. The old path is still not the game's:
+  // the file as written flies the box, the game the deck, and the masses differ (476.19 / 476.45 kg on 8 Nov)
+  const vf = sp => ((sp.energy || {}).vessels || [])[0] || {};
+  const cRawS = rawSpec('cub'), cPageS = PAGE.builds.cub.spec;
+  const shaped = vf(cPageS).form === 'deck' && vf(cRawS).form !== 'deck' && Math.abs(M(cRaw) - M(cPage)) > 0.1;
+  ok(shaped || (vy(cPage) != null && vy(cPage) < 0.2 && vy(cRaw) > 0.5 && Math.abs(M(cRaw) - M(cPage)) > 5),
     'Cub: the nose tank\'s nodes as written ' + vy(cRaw).toFixed(3) + ' m over the firewall\'s foot, in the game ' + vy(cPage).toFixed(3) +
-    '; ' + M(cRaw).toFixed(2) + ' kg as written, ' + M(cPage).toFixed(2) + ' in the game (the tank ' +
+    '; ' + M(cRaw).toFixed(2) + ' kg as written (' + (vf(cRawS).form || 'box') + '), ' + M(cPage).toFixed(2) + ' in the game (' + (vf(cPageS).form || 'box') + ', the tank ' +
     PAGE.builds.cub.spec.energy.vessels.map(v => v.capacity + ' L').join(', ') + ')');
 }
 
