@@ -21,7 +21,7 @@ way in, out and across - four separate mechanisms, none of them the static prop 
 
 1. **S1 the landing roll-out porpoises** (SEA > mk_sea at 8-15 kt, 5 flights: two prop strikes at t 452 / 480.9,
    one 30 deg swing at pitch 30.8, one 0.01 m miss at pitch 25.7, one clean (8 kt, the start shifted 91 frames); the
-   same harbour reached from HOME lands, 5 of 5, pitch 13-18): skips, the bow thrown to 25-43 deg nose-up, the pusher disc into the water. The hull,
+   same harbour reached from HOME lands, 6 of 6, pitch 13-18): skips, the bow thrown to 25-43 deg nose-up, the pusher disc into the water. The hull,
    not the stick (the elevator goes forward as it pitches up). The take-off's porpoise law has no roll-out twin.
 2. **S2 the water start drops it**: the game's placement puts it on the water in its land stance, wheels at the
    waterline, the hull ~0.5 m up; it falls, pitches to +9-10 deg in the open sea's wave, the disc goes in at
