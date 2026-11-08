@@ -312721,3 +312721,10 @@ of the game allows me to load and edit it, and supports the wider range, allowin
     quad / tri / pushpull flights).
   - The certificates (cub, jodel, metal, floats, twinFloats) are byte-identical to master. No PHYSICS_V or GEN_SPEC_V
     change.
+
+## A0 - train L35a, 8 Nov 2026
+
+IN (on L34a cad308635): claude/ready/bubble-windows 9e7010baa (CABIN-CRAFT), claude/ready/night-sea (NIGHT-LOOK: the night water), thumb-all e2237e8c0 (AIRCRAFT-LOOKS R1: warm() + idle encode, LIVE_DRAW on), dc3-editable (Deform: the big box widened to a ~40 m class, past 18 m only), hview-boot 9e04d4750 (Game: the hangar door view boots on three r186). Held out: pilot-notch (to L35c with FLARE-NOPUSH), town-trees (L35c).
+BATTERY: 115 of 116 PASS. ENGCONFIG red, standing on master: its IDENTITY pins date from 28 Oct. Every one of its 18 load digests (the Cub, the Jodel, the Cessna, the Rufus...) is the same on this train and on a full copy of master, so no validated plane flies differently. No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change.
+TIMED GATE (light, vs the stale 12 Oct baseline): steady frames p50 33.3 ms. Reds are the boot and compile rows (cub chase compile 67 s, flight 151 s): the cold shader cache seen on L32d/L34a, same class as L34a (57 reds vs 80). Two rollouts lost to a page '__timeout' (cub cockpit, metal chase) after slow boots.
+NAMED COST, STILL OPEN: the floats' SEA lane: garage 226 s, take-off p99 50 ms but worst frame 10.4 s, 25 tasks over 1 s, held under the roll-out screen. Same as L34a's (124 s, 77 links); not this train's. NIGHT-LOOK measures the night water cost at 11:45; the SEA lane bisect is owed.
