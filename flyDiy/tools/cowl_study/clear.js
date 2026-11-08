@@ -39,8 +39,9 @@ function clearance(S, THREE, opts) {
       // the flanks and the top (the exhaust stubs leaving under the cowl and the mount are not it); `flanks` = the
       // heads' band only, as the cheeks were first fitted
       const dy = v.y - CW.spineY(v.z);
-      if (opts && opts.flanks ? (Math.abs(v.x) < 0.6 * CW.P.aftW || Math.abs(dy) > 0.5 * CW.P.aftH)
-                              : dy < -0.3 * CW.P.aftH) continue;
+      // (`all`: every side - a radial's heads stand out all round)
+      if (!(opts && opts.all) && (opts && opts.flanks ? (Math.abs(v.x) < 0.6 * CW.P.aftW || Math.abs(dy) > 0.5 * CW.P.aftH)
+                                                      : dy < -0.3 * CW.P.aftH)) continue;
       const cy = CW.spineY(v.z), a = Math.atan2(v.y - cy, v.x), j = ((Math.round(a / (2 * Math.PI) * N) % N) + N) % N;
       const d = Math.hypot(v.x, v.y - cy) - ring(v.z)[j];
       if (d > 0) { n++; pts.push([v.x, v.y, v.z, d]); if (d > worst) { worst = d; at = { x: +v.x.toFixed(3), y: +v.y.toFixed(3), z: +v.z.toFixed(3) }; } }

@@ -44,6 +44,8 @@ const P={
   // light aeroplane is actually built to; 16 mm is the head across the flats.
   fastOn:1, fastPitch:0.11, fastD:0.016,
   partOn:1, partY:0.0, partW:0.0022,
+  // PROPER-COWLS: 1 = the split held LEVEL at the firewall's height, its groove a constant width (partW in metres)
+  partLevel:0,
   oilOn:1, oilZ:0.42, oilW:0.13, oilL:0.16, oilSq:1,
   deckH:1, deckSweep:0, waist:0, waistF:null, waistSweep:0, keelH:0.95, keelSweep:0.55,
   // lid
@@ -68,6 +70,11 @@ const P={
   // the cowl a bit bigger at the bottom, so that there is a gap there"). All off (0) by default: every cowl drawn
   // before them is drawn to the bit.
   exitGap:0, exitSpan:140, exitLen:0.45, exitHold:0, keelShoulder:null, keelRound:null, deckShoulder:null, deckRound:null, scoopFollow:0, exRampH:0.04, exCut:0, exCutSpan:50, exCutLen:0.12, exCutAz:270,
+  // PROPER-COWLS: the side gills (the Carbon Cub's): off by default
+  // PROPER-COWLS: a radial's helmets as the engine draws them - how many (0 = lobeN) and every other one's station (a
+  // two-row radial's rear row; null = lobeT)
+  lobeCount:0, lobeT2:null,
+  gillOn:0, gillN:6, gillZ:0.35, gillL:0.22, gillH:0.12, gillSlant:25, gillLip:0.012, gillT:0.004,
   // chin scoop
   scoopOn:1, scoopZ:0, scoopW:0.065, scoopH:0.055, scoopLen:0.22, scoopDrop:0.7,
   scoopAp:0.68, scoopSq:0.5, scoopRake:0.18,
@@ -407,7 +414,18 @@ function sectPt(th,s){
 function lobeAt(th,z){
   if(P.lobeN<1||P.lobeAmp<=0) return 0;
   const t=clamp(z/Math.max(zEnd(),1e-4),0,1);
-  const w=Math.exp(-Math.pow((t-P.lobeT)/Math.max(0.03,P.lobeTSig),2));
+  const gT=tc=>Math.exp(-Math.pow((t-tc)/Math.max(0.03,P.lobeTSig),2));
+  // A TWO-ROW RADIAL (PROPER-COWLS, the user: "read the actual engine geometry"): the helmets alternate between the
+  // two rows' stations (lobeT, lobeT2) and the last lobeN - lobeCount places are bare (the drawn rows are 5 + 4)
+  if(P.lobeN>=3 && (P.lobeT2!=null || P.lobeCount>0)){
+    const n=Math.round(P.lobeN), m=P.lobeCount>0?Math.min(n,Math.round(P.lobeCount)):n;
+    const w0=gT(P.lobeT), w1=P.lobeT2!=null?gT(+P.lobeT2):w0;
+    if(w0<0.008&&w1<0.008) return 0;
+    let d=0;
+    for(let k=0;k<m;k++) d+=P.lobeAmp*(k%2?w1:w0)*Math.exp(-Math.pow(angDiff(th,P.lobeAz*DEG+k*TAU/n)/(P.lobeSig*DEG),2));
+    return d;
+  }
+  const w=gT(P.lobeT);
   if(w<0.008) return 0;
   const azs=[P.lobeAz*DEG];
   // PROPER-COWLS (2026-11-08): 3 or more - one helmet over each cylinder of a radial, evenly round from lobeAz (the
@@ -1008,6 +1026,168 @@ function cowlNormalAt(th,z){
   const out=(p[0]*n[0]+(p[1]-spineY(z))*n[1])>=0?1:-1;   // point it outward
   return [out*n[0]/L,out*n[1]/L,out*n[2]/L];
 }
+
+/* ---- THE SIDE GILLS (PROPER-COWLS, the user, 8 Nov: "little side shark fins ... like the Carbon Cub's ... real 3D,
+   beautiful and detailed ... they shouldn't intersect other cuts or the rivets") --------------------------------------
+   A raised panel on each lower flank, aft, carrying gillN slanted slots, each with a pressed hood over its forward edge
+   that opens aft (the warm air leaves rearward). Everything is laid out in the cowl's own surface coordinates - t round
+   the section (metres of arc), s along the axis (metres) - and mapped onto the skin with surfPoint + cowlNormalAt, so the
+   panel conforms to the barrel, its cheeks and its bends.
+   THE CLEAR BOX COMES FIRST: the panel lives between the aft-edge fastener row and the panel seam (or the barrel's end),
+   under the split line and its camlocs, above the exhaust ramp / cut and the chin scoop, each with a margin; the
+   requested size shrinks to fit, and a box too small for a panel draws nothing (gillsFit() says why).
+   TOPOLOGY: the plate's face is ONE polygon with the slots as holes (earcut), its border a rounded chamfer down to the
+   skin, each slot a wall of the dark interior down to a dark floor 0.8 mm off the skin, each hood a shell with its two
+   end cheeks closed. Nothing is a grid with quads knocked out. */
+/* THE SPLIT LINE, LEVEL (PROPER-COWLS, the user, 8 Nov: "this line easily gets bent, while in reality it would be cut
+   horizontally most of the time, at a fixed width of cut"). partLevel 0: the line is the section's parameter partY
+   all along (it climbs and falls with the waist and the taper) and the groove is +-partW of that parameter - which on
+   a boxy section opens to centimetres near the waist. partLevel 1: the line is the height partY gives at the firewall,
+   held level forward, and the groove is +-partW METRES about it; where the skin no longer reaches that height the
+   line stops. Right flank; the left is pi - th. */
+function partLevelY(){ return surfPoint(P.partY*Math.PI*0.5, aftStart())[1]; }
+function partThAtY(y,z){
+  let lo=-Math.PI/2+1e-3, hi=Math.PI/2-1e-3;
+  const f=t=>surfPoint(t,z)[1]-y;
+  if(f(lo)>0||f(hi)<0) return null;
+  for(let k=0;k<40;k++){ const m=0.5*(lo+hi); if(f(m)>0) hi=m; else lo=m; }
+  return 0.5*(lo+hi);
+}
+function partTh(z){ return P.partLevel ? partThAtY(partLevelY(),z) : P.partY*Math.PI*0.5; }
+
+function gillsFit(){
+  const ze=zEnd(), cl=Math.max(P.cowlLen,1e-4);
+  const r=Math.max(0.004,P.fastD*0.5);
+  // along: clear of the aft fastener row, short of the seam (or the barrel's end)
+  const zA=P.fastOn?Math.max(Math.min(ze*0.06,0.02),aftStart()+r*1.2):aftStart();
+  const zLo=zA+r+0.018;
+  let zHi=cl*0.96;
+  if(P.seamOn) zHi=Math.min(zHi,clamp(P.seamPos,0,1)*ze-Math.max(P.seamWidth,5e-4)-0.015);
+  if(P.oilOn) {} // the oil door is on the top deck: nowhere near a lower flank
+  // round: under the split line (and its camlocs), above the bottom's own features
+  const thLv=P.partOn?partTh(0.5*(zLo+zHi)):null, thSplit=P.partOn?(thLv!=null?thLv:P.partY*Math.PI*0.5):0;
+  const zm=0.5*(zLo+zHi);
+  const arcPer=(th)=>{const e=0.01,a=surfPoint(th-e,zm),b=surfPoint(th+e,zm);return Math.hypot(b[0]-a[0],b[1]-a[1])/(2*e);};
+  const rad=Math.max(0.05,arcPer(-0.6));
+  let thHi=thSplit-(r+0.016)/rad;
+  let thLo=-80*DEG;
+  if(P.exCut>0){ const lo=(P.exCutAz-360)*DEG+P.exCutSpan*DEG/2; thLo=Math.max(thLo, lo+0.02/rad); }   // the right side's view of it
+  if(P.scoopOn) thLo=Math.max(thLo, -Math.PI/2+(P.scoopW+0.02)/rad);
+  const L=Math.min(P.gillL, zHi-zLo), H=Math.min(P.gillH, (thHi-thLo)*rad);
+  if(!(L>=0.06 && H>=0.04)) return {ok:false, why:'no room on the lower flank ('+(Math.max(0,zHi-zLo)*100).toFixed(0)+' x '+(Math.max(0,(thHi-thLo)*rad)*100).toFixed(0)+' cm clear)'};
+  // the centre: the station asked, kept inside; round, low in the clear band (the gills sit under the heads)
+  const zc=clamp(zLo+clamp(P.gillZ,0,1)*(zHi-zLo), zLo+L/2, zHi-L/2);
+  const thc=Math.max(thLo+H/2/rad, Math.min(thHi-H/2/rad, 0.5*(thLo+thHi)));
+  return {ok:true, zc, thc, rad, L, H, zLo, zHi, thLo, thHi};
+}
+function buildGills(group,mats){
+  if(!(P.gillOn>0)) return;
+  const F=gillsFit(); if(!F.ok) return;
+  const d=clamp(P.detail,0.35,2), V2=(x,y)=>new THREE.Vector2(x,y);
+  const L=F.L, H=F.H, hT=Math.max(0.0015,P.gillT), N=Math.max(2,Math.round(P.gillN));
+  // the panel's outline (s along, t round), a rounded rectangle
+  const rc=0.18*Math.min(L,H), NC=Math.max(3,Math.round(5*d));
+  const rrect=(hx,hy,rr)=>{const pts=[];
+    for(const [cx,cy,a0] of [[hx-rr,hy-rr,0],[-hx+rr,hy-rr,Math.PI/2],[-hx+rr,-hy+rr,Math.PI],[hx-rr,-hy+rr,1.5*Math.PI]])
+      for(let k=0;k<=NC;k++){const a=a0+k/NC*Math.PI/2; pts.push(V2(cx+rr*Math.cos(a),cy+rr*Math.sin(a)));}
+    return pts;};
+  const outline=rrect(L/2,H/2,rc);
+  // the slots: N stadiums, slanted - the top leaning AFT (s negative) by gillSlant
+  const al=P.gillSlant*DEG, ax=[-Math.sin(al),Math.cos(al)], px=[Math.cos(al),Math.sin(al)];   // along the slot / across it (forward)
+  const mS=0.16*H, usable=L-2*mS-Math.abs(Math.tan(al))*(H-2*mS);
+  const pitch=Math.max(0.01,usable/N), ws=0.55*pitch, ls=Math.max(0.02,(H-2*mS)/Math.cos(al)*0.92);
+  const slots=[];
+  for(let i=0;i<N;i++){
+    const c=[-usable/2+pitch*(i+0.5),0];
+    const pts=[], NE=Math.max(4,Math.round(6*d)), rr=ws/2, hl=ls/2-rr;
+    for(const sg of [1,-1]) for(let k=0;k<=NE;k++){
+      const a=(sg>0?-Math.PI/2:Math.PI/2)+k/NE*Math.PI;          // a half-circle at each end
+      const aU=sg*hl+rr*Math.cos(a), cU=rr*Math.sin(a);         // along / across in the slot frame
+      pts.push(V2(c[0]+ax[0]*aU+px[0]*cU, c[1]+ax[1]*aU+px[1]*cU));
+    }
+    slots.push({c, pts, hl, rr});
+  }
+  for(const side of [1,-1]){
+    // (s,t,h) -> the scene: t is arc length round the section; the left side mirrors theta, not s
+    // every mapped vertex also records the skin's outward normal under it: each triangle is then wound against it
+    // (the panel faces out, the hood's shell faces out, a wall faces into its slot) whatever side it is on
+    let NRM=[];
+    const map=(sv,tv,h)=>{
+      const th=F.thc+tv/F.rad, thS=side>0?th:Math.PI-th, z=F.zc+sv;
+      const p=surfPoint(thS,z), n=cowlNormalAt(thS,z);
+      NRM.push(n);
+      return [p[0]+n[0]*h, p[1]+n[1]*h, z+n[2]*h];
+    };
+    const meshOf=(pos,idx,mat,flipIn)=>{
+      const nr=NRM; NRM=[];
+      for(let t=0;t<idx.length;t+=3){
+        const a=idx[t],b=idx[t+1],c=idx[t+2];
+        const ux=pos[3*b]-pos[3*a], uy=pos[3*b+1]-pos[3*a+1], uz=pos[3*b+2]-pos[3*a+2];
+        const vx=pos[3*c]-pos[3*a], vy=pos[3*c+1]-pos[3*a+1], vz=pos[3*c+2]-pos[3*a+2];
+        const gx=uy*vz-uz*vy, gy=uz*vx-ux*vz, gz=ux*vy-uy*vx;
+        const na=nr[a]||[0,0,0], nb=nr[b]||na, nc=nr[c]||na;
+        const dot=gx*(na[0]+nb[0]+nc[0])+gy*(na[1]+nb[1]+nc[1])+gz*(na[2]+nb[2]+nc[2]);
+        if((dot<0)!==!!flipIn){ idx[t+1]=c; idx[t+2]=b; }
+      }
+      const g=new THREE.BufferGeometry();
+      g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.setIndex(idx); g.computeVertexNormals();
+      const m=new THREE.Mesh(g,mat); m.name='cowlGills'; group.add(m); return m;};
+    // the face: one polygon, the slots its holes
+    {
+      const holes=slots.map(o=>o.pts.slice().reverse());
+      const tri=THREE.ShapeUtils.triangulateShape(outline, holes);
+      const all=outline.concat(...holes), pos=[], idx=[];
+      for(const v of all){const q=map(v.x,v.y,hT); pos.push(q[0],q[1],q[2]);}
+      for(const t of tri){ if(side>0) idx.push(t[0],t[1],t[2]); else idx.push(t[0],t[2],t[1]); }
+      meshOf(pos,idx,mats.skin);
+    }
+    // the border: a rounded chamfer from the face down into the skin
+    {
+      const grow=(pts,g)=>{ // offset an outline outward by g (it is convex)
+        const n=pts.length; return pts.map((v,i)=>{const a=pts[(i-1+n)%n], b=pts[(i+1)%n];
+          let nx=b.y-a.y, ny=-(b.x-a.x); const l=Math.hypot(nx,ny)||1; nx/=l; ny/=l;
+          if(nx*v.x+ny*v.y<0){nx=-nx;ny=-ny;} return V2(v.x+nx*g,v.y+ny*g);});};
+      const rings=[[outline,hT],[grow(outline,hT*0.55),hT*0.55],[grow(outline,hT*1.25),-0.0005]];
+      const n=outline.length, pos=[], idx=[];
+      for(const [pts,h] of rings) for(const v of pts){const q=map(v.x,v.y,h); pos.push(q[0],q[1],q[2]);}
+      for(let r=0;r<rings.length-1;r++) for(let j=0;j<n;j++){
+        const a=r*n+j, b=r*n+(j+1)%n, c=(r+1)*n+(j+1)%n, e=(r+1)*n+j;
+        if(side>0) idx.push(a,e,c,a,c,b); else idx.push(a,c,e,a,b,c);
+      }
+      meshOf(pos,idx,mats.skin);
+    }
+    // each slot: its wall down to a dark floor just off the skin; its hood over the forward edge, open aft
+    for(const o of slots){
+      const n=o.pts.length, pos=[], idx=[];
+      for(const h of [hT,0.0008]) for(const v of o.pts){const q=map(v.x,v.y,h); pos.push(q[0],q[1],q[2]);}
+      for(let j=0;j<n;j++){const a=j,b=(j+1)%n,c=n+(j+1)%n,e=n+j; idx.push(a,b,c,a,c,e);}
+      const cen=map(o.c[0],o.c[1],0.0008), base=pos.length/3; pos.push(cen[0],cen[1],cen[2]);
+      for(let j=0;j<n;j++) idx.push(base,n+j,n+(j+1)%n);
+      meshOf(pos,idx,innerMat(mats));
+      // the hood: across u from the forward edge (height 0) to its lip (gillLip), 70 % of the slot's width; along the
+      // slot's straight part, with the end cheeks closed down to the face
+      const NA=Math.max(6,Math.round(10*d)), NU=Math.max(5,Math.round(7*d));
+      const hp=[], lipH=Math.max(0.003,P.gillLip), cov=0.6*2*o.rr;
+      for(let i=0;i<=NA;i++){const aU=-o.hl+2*o.hl*i/NA;
+        for(let k=0;k<=NU;k++){const u=k/NU, cU=o.rr-u*cov, hh=hT+lipH*Math.sin(u*Math.PI/2);
+          hp.push([o.c[0]+ax[0]*aU+px[0]*cU, o.c[1]+ax[1]*aU+px[1]*cU, hh]);}}
+      const hpos=[], hidx=[];
+      for(const [a,b,h] of hp){const q=map(a,b,h); hpos.push(q[0],q[1],q[2]);}
+      const W=NU+1;
+      for(let i=0;i<NA;i++) for(let k=0;k<NU;k++){const a=i*W+k,b=a+1,c=a+W+1,e=a+W;
+        if(side>0) hidx.push(a,b,c,a,c,e); else hidx.push(a,c,b,a,e,c);}
+      // the cheeks: each end of the hood closed down to the face (a fan from the forward edge's foot)
+      for(const i of [0,NA]){
+        const foot=hpos.length/3, fp=hp[i*W];
+        for(let k=0;k<=NU;k++){const q=map(hp[i*W+k][0],hp[i*W+k][1],hT); hpos.push(q[0],q[1],q[2]);}
+        for(let k=0;k<NU;k++){const top=i*W+k, top2=top+1, bot=foot+k, bot2=foot+k+1;
+          hidx.push(top,top2,bot2,top,bot2,bot);}
+      }
+      meshOf(hpos,hidx,mats.skin);
+    }
+  }
+}
+
 /* one camloc: a shallow disc standing proud of the skin, with a slot in it.
    The slot is what makes it read as a fastener rather than a rivet, and it is
    two triangles. */
@@ -1064,17 +1244,21 @@ function buildDetail(group,mats){
       for(let i=0;i<=NZ;i++){
         const z=lerp(zL,zP,i/NZ);
         const row=[];
+        let ok=true;
         for(const o of [-w,w]){
-          const th=sgn>0?(th0+o):(Math.PI-th0-o);
+          let th;
+          if(P.partLevel){ const t=partThAtY(partLevelY()+o,z); if(t==null){ ok=false; break; } th=sgn>0?t:Math.PI-t; }
+          else th=sgn>0?(th0+o):(Math.PI-th0-o);
           const p=surfPoint(th,z), n=cowlNormalAt(th,z);
           row.push(new THREE.Vector3(p[0]+n[0]*0.0006,p[1]+n[1]*0.0006,
                                      z+n[2]*0.0006));
         }
+        if(!ok) break;                             // (level: the skin no longer reaches the line's height)
         rings.push(row);
       }
       const pos=[],idx=[];
       for(const r of rings) for(const v of r) pos.push(v.x,v.y,v.z);
-      for(let i=0;i<NZ;i++){
+      for(let i=0;i<rings.length-1;i++){
         const a=i*2,b=i*2+1,c=(i+1)*2+1,e=(i+1)*2;
         idx.push(a,b,c,a,c,e);
       }
@@ -1105,11 +1289,11 @@ function buildDetail(group,mats){
     }
     // and along the split line, both flanks — as far as the line goes
     if(P.partOn){
-      const th0=P.partY*Math.PI*0.5;
       const n=Math.max(2,Math.round(zP/pitch));
       for(const sgn of [1,-1])
         for(let k=1;k<=n;k++){
-          const z=zP*k/(n+1);
+          const z=zP*k/(n+1), th0=partTh(z);
+          if(th0==null) continue;
           camlocInto(pos,idx,sgn>0?th0:Math.PI-th0,z,r,r*0.35);
         }
     }
@@ -1526,6 +1710,6 @@ function cowlSizeToEngine(env, opt) {
   return r;
 }
 
-const COWL_API = { exitAt, inExCut, TAU, P, MATERIALS, PRESETS, lerp, clamp, smooth, sqExp, superPt, angDiff, SEG, zEnd, lidRadius, spineY, bez, mkCurve, eSqAftTop, eSqAftBot, eDeckH, eKeelH, eWaist, prepareLid, seamInset, sectionAtZ, sectPt, lobeAt, surfPoint, sectF, pierceZ, equalise, prepareMesh, apertureList, fitAperture, apG, buildSurface, aftStart, fwGeom, fwLipProfile, sectNormal2, buildFirewallLip, lipProfile, buildLips, buildDetail, cowlNormalAt, loftRings, fan, buildScoop, buildAft, spinProfile, coneBaseZ, axisXY, bladePlaneZ, coneRadiusAtBlade, buildNose, naca, airfoilLoop, propGeometry, cowlFitEngine, cowlApplyEngine, cowlSizeToEngine };
+const COWL_API = { gillsFit, buildGills, exitAt, inExCut, TAU, P, MATERIALS, PRESETS, lerp, clamp, smooth, sqExp, superPt, angDiff, SEG, zEnd, lidRadius, spineY, bez, mkCurve, eSqAftTop, eSqAftBot, eDeckH, eKeelH, eWaist, prepareLid, seamInset, sectionAtZ, sectPt, lobeAt, surfPoint, sectF, pierceZ, equalise, prepareMesh, apertureList, fitAperture, apG, buildSurface, aftStart, fwGeom, fwLipProfile, sectNormal2, buildFirewallLip, lipProfile, buildLips, buildDetail, cowlNormalAt, loftRings, fan, buildScoop, buildAft, spinProfile, coneBaseZ, axisXY, bladePlaneZ, coneRadiusAtBlade, buildNose, naca, airfoilLoop, propGeometry, cowlFitEngine, cowlApplyEngine, cowlSizeToEngine };
 if (typeof module !== 'undefined') module.exports = COWL_API;
 if (typeof window !== 'undefined') window.COWL_GEN = COWL_API;

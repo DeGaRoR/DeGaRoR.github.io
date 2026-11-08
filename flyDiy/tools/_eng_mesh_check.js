@@ -355,8 +355,9 @@ for (const C of CASES) {
       const i = +mm[1]; nIntake++;
       exact(a.a1, M.ports.intake[i], a.name + ' ends ON its port');
       // the runner's source is what the artery DECLARES: the sump plenum,
-      // the radial's rear case, or its bank's twin top carb (G25.1)
-      const src = /^twinCarb/.test(a.from) ? a.from
+      // the radial's rear case, its bank's twin top carb (G25.1), or the
+      // inverted four-stroke in-line's side manifold (PROPER-COWLS)
+      const src = /^(twinCarb|manifold)/.test(a.from) ? a.from
         : M.resolved.arch === 'radial' ? 'acc' : 'sump';
       near(a.a0, findPart(M, src, 0), a.name + ' leaves the ' + src);
       near(a.a1, findPart(M, 'head' + i, 0), a.name + ' reaches the head');

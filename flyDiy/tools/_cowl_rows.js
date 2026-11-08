@@ -73,6 +73,17 @@ const COWL_ROWS = [
     // the tool's key says
     { k: 'lidRise', label: 'axis rise, firewall → barrel end', lo: -0.22, hi: 0.22, step: 0.002 },
   ] },
+  // ---- PROPER-COWLS: the side gills (the Carbon Cub's) ----
+  { id: 'g_gill', name: 'Side gills', rows: [
+    { k: 'gillOn', label: 'side gills (a raised panel of slanted slots, each flank)', lo: 0, hi: 1, step: 1 },
+    { k: 'gillN', label: 'slots', lo: 2, hi: 12, step: 1, when: 'P.gillOn>0' },
+    { k: 'gillZ', label: 'station (in the clear band, aft → forward)', lo: 0, hi: 1, step: 0.01, when: 'P.gillOn>0' },
+    { k: 'gillL', label: 'panel length (m)', lo: 0.06, hi: 0.5, step: 0.005, when: 'P.gillOn>0' },
+    { k: 'gillH', label: 'panel height (m)', lo: 0.04, hi: 0.3, step: 0.005, when: 'P.gillOn>0' },
+    { k: 'gillSlant', label: 'slant (deg, the top leaning aft)', lo: -45, hi: 45, step: 1, when: 'P.gillOn>0' },
+    { k: 'gillLip', label: 'hood height (m)', lo: 0.003, hi: 0.03, step: 0.0005, when: 'P.gillOn>0' },
+    { k: 'gillT', label: 'panel thickness (m)', lo: 0.0015, hi: 0.012, step: 0.0005, when: 'P.gillOn>0' },
+  ] },
   // ---- PROPER-COWLS: the way out at the bottom of the aft edge ----
   { id: 'g_exit', name: 'Air and exhaust exit', rows: [
     { k: 'exitGap', label: 'bottom lowered under the firewall\'s (m)', lo: 0, hi: 0.08, step: 0.002 },
@@ -147,9 +158,12 @@ const COWL_ROWS = [
     { k: 'lobeN', label: 'cheeks (bulges over the cylinder heads; 3+ = one per radial cylinder)', lo: 0, hi: 14, step: 1 },
     { k: 'lobeAmp', label: 'cheek height', lo: 0, hi: 0.16, step: 0.002, when: 'P.lobeN>0' },
     { k: 'lobeT', label: 'cheek station (firewall → nose ring)', lo: 0, hi: 1, step: 0.01, when: 'P.lobeN>0' },
-    { k: 'lobeAz', label: 'cheek azimuth (0 = the flanks)', lo: -90, hi: 180, step: 1, when: 'P.lobeN>0' },
+    { k: 'lobeAz', label: 'cheek azimuth (0 = the flanks)', lo: -90, hi: 360, step: 1, when: 'P.lobeN>0' },
     { k: 'lobeSig', label: 'cheek spread round the section', lo: 8, hi: 70, step: 1, when: 'P.lobeN>0' },
     { k: 'lobeTSig', label: 'cheek spread along the cowl', lo: 0.05, hi: 0.6, step: 0.01, when: 'P.lobeN>0' },
+    // a two-row radial: every other helmet on the rear row's station, and the places the engine leaves bare
+    { k: 'lobeT2', label: 'helmets: every other one\'s station (a two-row radial)', lo: 0, hi: 1, step: 0.01, when: 'P.lobeN>=3' },
+    { k: 'lobeCount', label: 'helmets drawn (0 = one per place)', lo: 0, hi: 14, step: 1, when: 'P.lobeN>=3' },
     { k: 'cutSpan', label: 'cut-out span (horseshoe)', lo: 0, hi: 200, step: 1 },
     { k: 'cutAz', label: 'cut-out azimuth', lo: 0, hi: 359, step: 1, when: 'P.cutSpan>0' },
   ] },
@@ -214,6 +228,8 @@ const COWL_ROWS = [
     { k: 'partOn', label: 'split line (upper / lower cowl)', lo: 0, hi: 1, step: 1 },
     { k: 'partY', label: 'height (widest line → top line)', lo: -0.9, hi: 0.9, step: 0.02, when: 'P.partOn>0' },
     { k: 'partW', label: 'width', lo: 0.001, hi: 0.006, step: 0.0002, when: 'P.partOn>0' },
+    // PROPER-COWLS: held level at the firewall's height, the groove a constant width (partW, metres)
+    { k: 'partLevel', label: 'split line level (a fixed height and width)', lo: 0, hi: 1, step: 1, when: 'P.partOn>0' },
   ] },
   // ---- Fasteners ----
   { id: 'g_fast', name: 'Fasteners', rows: [

@@ -977,6 +977,7 @@ const CAGE_PARTS = [
       ['section at the firewall', ['cw_waist', 'cw_deckH', 'cw_keelH',
                                    'cw_sqAftTop', 'cw_sqAftBot',
                                    'cw_wAftTop', 'cw_wAftBot', 'cw_waistF']],   // CABIN-CRAFT: the width by level; PROPER-COWLS: the front's waist
+      ['side gills', ['cw_gillOn', 'cw_gillN', 'cw_gillZ', 'cw_gillL', 'cw_gillH', 'cw_gillSlant', 'cw_gillLip', 'cw_gillT']],   // PROPER-COWLS
       ['air and exhaust exit', ['cw_exitGap', 'cw_exitHold', 'cw_exitLen', 'cw_exCut', 'cw_exRampH', 'cw_exCutSpan', 'cw_exCutLen', 'cw_exCutAz']],   // PROPER-COWLS
       ['nose bowl', ['cw_lidLen', 'cw_lidShoulder', 'cw_lidRound',
                      'cw_faceRise', 'cw_faceRing', 'cw_deckSweep', 'cw_keelSweep', 'cw_keelShoulder', 'cw_keelRound', 'cw_deckShoulder', 'cw_deckRound',
@@ -986,7 +987,7 @@ const CAGE_PARTS = [
       ['section at the barrel end', ['cw_sqFrontTop', 'cw_sqFrontBot']],
       ['section at the nose ring', ['cw_lidSqTop', 'cw_lidSqBot']],
       ['cheeks & cut-out', ['cw_lobeN', 'cw_lobeAmp', 'cw_lobeT',
-                            'cw_lobeAz', 'cw_lobeSig', 'cw_lobeTSig',
+                            'cw_lobeAz', 'cw_lobeSig', 'cw_lobeTSig', 'cw_lobeT2', 'cw_lobeCount',
                             'cw_cutSpan', 'cw_cutAz']],
       ['inlets', ['cw_apMode', 'cw_apW', 'cw_apH', 'cw_apSq',
                   'cw_apOffX', 'cw_apOffY', 'cw_pairX', 'cw_pairW',
@@ -1000,7 +1001,7 @@ const CAGE_PARTS = [
                       'cw_scoopLipDepth', 'cw_scoopDuct']],
       ['panel joint', ['cw_seamOn', 'cw_seamType', 'cw_seamPos',
                        'cw_seamWidth', 'cw_seamDepth']],
-      ['split line', ['cw_partOn', 'cw_partY', 'cw_partW']],
+      ['split line', ['cw_partOn', 'cw_partY', 'cw_partW', 'cw_partLevel']],
       ['fasteners', ['cw_fastOn', 'cw_fastPitch', 'cw_fastD']],
       ['oil door', ['cw_oilOn', 'cw_oilZ', 'cw_oilW', 'cw_oilL', 'cw_oilSq']],
       // the bench's nacelle termination, back (2026-09-04)
