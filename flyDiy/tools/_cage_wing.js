@@ -80,6 +80,9 @@ PAGE.defaults = Object.assign({
   wgDihedral: 3.0, wgIncidence: 1.5, wgWashout: 1.5,
   wgCamber: 2, wgThick: 12,
   wgTip: Math.max(0, TIP_KEYS.indexOf('rounded')), wgPos: 0,
+  // HULL-B26: the tip's own shape (60_gen_spec GEN_TIP_SHAPE) - its length and drop in tip chords, 0 = the kind's own;
+  // its fullness over the wing's aerofoil, 1 = the aerofoil
+  wgTipBow: 0, wgTipDroop: 0, wgTipFull: 1,
   wgCentre: 0, wgCentreW: 0, wgBrace: 0, wgCrankAt: 0, wgDihedralOut: 6,
   wgStruts: 2,                     // T2.3 (83): lift struts per side (2 = the V pair, 1 = a single front strut)
   wgBeam: 1,                       // T2.3 (48): the carry-through beam drawn in a cut centre section
@@ -181,6 +184,19 @@ const tipNote = (P, plane) => {
   return `flies ${tip.toFixed(2)} m — the tip is held to ` +
          `${E.taper[0]}–${E.taper[1]} × the root chord`;
 };
+// HULL-B26: the tip-shape rows: live on a tip with a bow (not square, winglet, endplate, nor the elliptic planform)
+const tipBowed = P => +P.wingOn && !+P.wgPlan && ((GEN_TIPS[TIP_KEYS[Math.round(+P.wgTip)]] || {}).bow || 0) > 0;
+const tipShapeNote = key => P => {
+  const K = GEN_TIPS[TIP_KEYS[Math.round(+P.wgTip)]] || {}, bow = +P.wgTipBow > 0 ? +P.wgTipBow : K.bow || 0;
+  if (key === 'bow') return +P.wgTipBow > 0 ? '' : 'the tip\'s own: ' + (K.bow || 0).toFixed(2);
+  const d = +P.wgTipDroop > 0 ? +P.wgTipDroop : K.droop || 0, mx = typeof genTipBend === 'function' ? genTipBend(bow, 99).drop : 0.59 * bow;
+  return (+P.wgTipDroop > 0 ? '' : 'the tip\'s own: ' + d.toFixed(2) + '; ') + (d > mx + 1e-3 ? 'held at ' + mx.toFixed(2) + ' - ' : '')
+    + 'a tip ' + bow.toFixed(2) + ' long drops at most ' + mx.toFixed(2);
+};
+// (HULL-B26: the same record the join flies - _cage_join.js cageJoinSpec)
+const tipShapeOf = P => (+P.wgTipBow > 0 || +P.wgTipDroop > 0 || +P.wgTipFull > 1)
+  ? { tipShape: { bow: +P.wgTipBow > 0 ? +P.wgTipBow : null, droop: +P.wgTipDroop > 0 ? +P.wgTipDroop : null,
+                  full: +P.wgTipFull > 1 ? +P.wgTipFull : null } } : {};
 const WING_ITEMS = [
   ['wingOn',   'wings',          0, 1, 1],
   // G185: 'parasol' — on cabane struts above the deck, lift struts to the
@@ -202,6 +218,13 @@ const WING_ITEMS = [
   ['wgPlanAxis', 'straight line at (chord)', 0.10, 0.50, 0.01, { when: P => +P.wingOn && +P.wgPlan === 1 }],
   ['wgTip',    'tips',           0, TIP_KEYS.length - 1, 1,
    TIP_KEYS.map(k => GEN_TIPS[k].name), { when: P => +P.wingOn && !+P.wgPlan }],
+  // HULL-B26 (the user, 5 Nov: "it should be a setting of the wingtip itself, and how far it is allowed to drop, within
+  // reason"): ON ANY TIP WITH A BOW (rounded, clipped, Hoerner, drooped...) - its length, how far its end drops (the tip
+  // bends as one piece; a tip drops at most ~0.59 of its own length, so a deep drop wants a long tip) and how full its
+  // section is (a buoyant tip: the boat's wing-tip floats, Undercarriage > Hull > tip floats 'buoyant tips')
+  ['wgTipBow',   'tip length (tip chords, 0 = its own)', 0, 0.8, 0.01, { when: tipBowed, note: tipShapeNote('bow') }],
+  ['wgTipDroop', 'tip drop (tip chords, 0 = its own)', 0, 0.45, 0.01, { when: tipBowed, note: tipShapeNote('droop') }],
+  ['wgTipFull',  'tip fullness (x the aerofoil)', 1, 2.6, 0.05, { when: tipBowed }],
   ['wgCrankAt', 'crank at',      0, 0.85, 0.05, { when: P => +P.wingOn && !+P.wgPlan, note: heldNote('wgCrankAt') }],
   // G140: the crank SECTION — its own chord and fore/aft seat, the same
   // two numbers the root and tip carry. On a strutted wing the crank is
@@ -347,6 +370,7 @@ const WING_ITEMS = [
 // generated twin was a second row of the same key that moved nothing)
 const W2_DROP = new Set(['wingOn', 'wgPos', 'wgBrace', 'wgStruts', 'wgStrutZ', 'wgStrutX', 'pilSnap', 'wgStrutPil',   // T2.3: the strut count is the fuselage fan's
                          'wgDx', 'wgDy', 'wgParaH',
+                         'wgTipBow', 'wgTipDroop', 'wgTipFull',   // HULL-B26: the tip's own shape is the first plane's (cageJoinPlane2 writes none)
                          // G2820: the STOL devices are the first plane's in the
                          // editor (the spec and the physics take them per plane)
                          'wgSlat', 'wgSlatSpan', 'wgVG', 'wgFence', 'wgCuff', 'wgCuffSpan',
@@ -927,6 +951,7 @@ function wingGSpec(P) {
       position: ['high', 'mid', 'low', 'parasol'][Math.round(P.wgPos)] || 'high',
       cabaneH: Math.round(P.wgPos) === 3 ? (+P.wgParaH || 0.45) : null,
       tip: TIP_KEYS[Math.round(P.wgTip)] || 'rounded',
+      ...tipShapeOf(P),
       crankAt: P.wgCrankAt > 0 ? P.wgCrankAt : 0,
       crankChord: P.wgCrankAt > 0 ? +P.wgCrankChord : null,
       crankX: P.wgCrankAt > 0 ? (+P.wgCrankX || 0) : null,
@@ -1001,6 +1026,8 @@ let radGroup = null;                         // the wing radiators (27 Oct)
 PAGE.post = ctx => {
   wingPost(ctx);
   early.publish(ctx);
+  // HULL-B5: the boat's tip floats hang off THIS wing (the float layer draws them from the flown records)
+  if (window.CAGE_TIPFLOAT_DRAW) { try { window.CAGE_TIPFLOAT_DRAW(ctx); } catch (e) { console.error('tip floats:', e); } }
 };
 let STRUT_PIL = null;                 // PILLAR-ANCHORS P4: this build's picked strut pillar
 const wingPost = ctx => {
@@ -1160,6 +1187,8 @@ const wingPost = ctx => {
     if (!pr) return null;
     const o = WIRE ? new THREE.LineSegments(pr.wire, wireMat(cl === 'x' ? '' : cl))
                    : new THREE.Mesh(pr.geo, mat);
+    // RETRACT G5: the skin's own meshes are the ones a wheel well is cut into (_cage_ui wellApply, after the gear)
+    if (o.isMesh && (cl === 'main' || cl === 'centre' || cl === 'tip' || cl === 'stol')) o.userData.wingSkin = cl;
     if (offset) o.position.set(offset[0], offset[1], offset[2]);
     group.add(o);
     return pr;
@@ -2442,6 +2471,8 @@ const wingPost = ctx => {
       const pr = parts2 && parts2[cl];
       if (!pr) continue;
       const o = new THREE.Mesh(pr.geo, wingMat(cl, 1));
+      // (P2, the Super Petrel's V2: the second plane's skin takes its wheel well too - a cut names its plane, `plane`)
+      o.userData.wingSkin = cl; o.userData.wingPlane = 1;
       group2.add(o); probe2.push(pr.geo); faces += pr.geo.index.count / 3;
     }
     const yes2 = () => () => true;
@@ -2458,11 +2489,13 @@ const wingPost = ctx => {
     }
     scene.add(group2);
     plane1 = Object.assign({ k: 1, def, group: group2, semi: PL1.semi, spar: WN2,
-                             rootY: rootYOf(PL1), zRoot: zRoot2 }, probesOf(probe2));
+                             rootY: rootYOf(PL1), zRoot: zRoot2, skinGeos: probe2 }, probesOf(probe2));
   }
   const plane0 = { k: 0, def, group, semi: def.spec.geom && def.spec.geom.semi,
                    spar: WN, rootY: rootYOf(def.parts.planes && def.parts.planes[0]),
-                   zRoot, underAt, overAt, leAt, teAt, box: wbox, wingRay };
+                   zRoot, underAt, overAt, leAt, teAt, box: wbox, wingRay,
+                   // (HULL-B38: the skin's own geometries, cage metres - the pylon indexes them for its rays)
+                   skinGeos: skinProbe };
   const planes = plane1 ? [plane0, plane1] : [plane0];
   let lowest = 0, upper = 0;
   planes.forEach((pl, i) => { if (pl.rootY < planes[lowest].rootY) lowest = i;

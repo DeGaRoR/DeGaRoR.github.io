@@ -32,6 +32,7 @@ const OFFICIAL = {
   'STOL Cub': 'builds/candidates/stol_cub_showcase.json',
   'PA-18 on floats': 'builds/pa18_floats_2026-10-23.json',
   'Client Cub': 'builds/cub_2026-09-20.json',
+  // (the Super Petrel LS: internal while seaplanes land switched off, the user 8 Nov - Official after the testing round)
 };
 const named = [];
 
@@ -61,7 +62,10 @@ function listRows(lists, index, thumbs, exists, contractFiles) {
   // the pool agrees
   const pool = 'builds/candidates/';
   const inList = new Set(P.filter(p => p.list === 'candidates').map(p => p.file));
-  const cards = I.planes.filter(p => !p.official).map(p => pool + p.file);
+  // SEA-OFF (8 Nov): a `lab` row (the Super Petrel while seaplanes land switched off) is in neither pool unless the lab
+  // switch is on (garage.js labOk) - it stays on the Internal list
+  const cards = I.planes.filter(p => !p.official && !p.lab).map(p => pool + p.file);
+  for (const p of I.planes.filter(p => p.lab)) { const r = P.find(q => q.file === pool + p.file); if (p.official || !r || r.list !== 'internal') bad.push('the lab row ' + p.file + ' must be on the Internal list and not official'); }
   for (const f of cards) if (!inList.has(f)) bad.push('the pool offers ' + f + ', not on the Candidates list');
   for (const f of inList) if (!cards.includes(f)) bad.push('Candidates: ' + f + ' is not on the candidate cards');
   for (const p of I.planes.filter(p => p.official)) if (!off.some(r => r.file === pool + p.file)) bad.push('the pool calls ' + p.file + ' official, the list does not');
@@ -81,7 +85,8 @@ function pageRows(S) {
   const bad = [];
   const need = (src, re, what) => { if (!re.test(S[src])) bad.push(src + ': ' + what); };
   need('garage', /const LISTS_FILE = 'builds\/lists\/plane_lists\.json'/, 'the lists are read from the repo file');
-  need('garage', /!p\.official && typeof p\.file === 'string'/, "an official pool row is off the candidate cards");
+  need('garage', /!p\.official && labOk\(p\) && typeof p\.file === 'string'/, "an official pool row is off the candidate cards (and a lab row, SEA-OFF)");
+  need('garage', /\.filter\(p => p && p\.official && labOk\(p\)\)/, 'a lab row is off the official pool (SEA-OFF)');
   need('garage', /planeLists, openListed, officialPool,/, 'GARAGE_SPEC carries the lists');
   need('np', /poolCards\(g0\.officialPool, 'official', 'official'\)/, "the chooser's official group (the user 4 Nov: \"yes, both on the chooser\")");
   need('garage', /class="dfPill gfAll">all planes</, "the rack's button");

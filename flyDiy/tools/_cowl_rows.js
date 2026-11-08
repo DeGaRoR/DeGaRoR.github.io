@@ -250,6 +250,13 @@ const COWL_ROWS = [
     // Advanced
     { k: 'tailDrop', label: 'tail cone droop', lo: -0.2, hi: 0.2, step: 0.005, when: 'P.aftMode===1' },
     { k: 'pylon', label: 'Pylon + wing stub', lo: 0, hi: 1, step: 1, when: 'P.aftMode===1' },
+    // G3914: the nacelle's air inlet, in the tail cone's tip (on a pusher, the nacelle's nose)
+    { k: 'inletOn', label: 'air inlet (in the tail cone)', lo: 0, hi: 1, step: 1, names: ['none', 'inlet'], when: 'P.aftMode===1' },
+    { k: 'inletW', label: 'inlet width (of the section)', lo: 0.12, hi: 0.85, step: 0.01, when: 'P.aftMode===1&&P.inletOn' },
+    { k: 'inletH', label: 'inlet height (of the section)', lo: 0.12, hi: 0.85, step: 0.01, when: 'P.aftMode===1&&P.inletOn' },
+    { k: 'inletLip', label: 'inlet lip', lo: 0.002, hi: 0.05, step: 0.001, when: 'P.aftMode===1&&P.inletOn' },
+    { k: 'inletDuct', label: 'inlet duct depth', lo: 0.02, hi: 0.6, step: 0.01, when: 'P.aftMode===1&&P.inletOn' },
+    { k: 'inletY', label: 'inlet up / down (of the height)', lo: -0.5, hi: 0.5, step: 0.01, when: 'P.aftMode===1&&P.inletOn' },
   ] },
 ];
 

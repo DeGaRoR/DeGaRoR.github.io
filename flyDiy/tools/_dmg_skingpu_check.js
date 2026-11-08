@@ -448,7 +448,7 @@ const yes = (ok, msg) => { checks++; if (!ok) fails++; console.log('  ' + (ok ? 
     SG.prepare(fake); yes(SG.G.ok === false && !SG.G.prog, 'without WebGL2 the program is never made and the CPU rides (' + SG.G.err + ')'); void before;
     // G1818: the rows a wreck rides whole are not posed by the rig loops - only while breaks are on the page, only a
     // record that overwrites every position and normal (active, rideAll, its rest normals); nothing broken: the base's loops
-    const pm = code(app.slice(app.indexOf('const brkW = '), app.indexOf('// G239: ...AND THE RODS AND CABLES') + 400));
+    const pm = code(app.slice(app.indexOf('const brkW = '), app.indexOf('// G240: AND THE CONTROLS IN THE COCKPIT')));   // to the cockpit's linkage: the link rods' loop whole, whatever sits between (RETRACT's gear fold, SEAPLANES 8 Nov)
     const wOk = /const brkW = !still && !model\.gen && window\.FLYDIY_SKINBREAK !== false && window\.FLYDIY_BRK_RIGSKIP !== false && BRK\.recs\.length > 0 && \(\(\) => \{ const D = dmgNow\(\); return !!\(D && D\.br\.length\); \}\)\(\);/.test(pm)
       && /const brkWhole = brkW \? \(r => \{ const R = r\.brkR; return !!\(R && R\.active && R\.rideAll && R\.nB && R\.nAttr\); \}\) : \(\) => false;/.test(pm);
     const skips = (pm.match(/if \(brkWhole\((r|s)\)\) continue;/g) || []).length;

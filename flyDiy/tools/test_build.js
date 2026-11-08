@@ -589,7 +589,11 @@ function nullPaths(o, pre, out) {
     // are absent while every section is closed, so a build that never opened
     // one keeps every key the game hashes it by: CAGE_OPEN_ROWS, cageToSpec)
     const shutRows = (CAGE2.CAGE_OPEN_ROWS && !CAGE2.cageAnyOpen(P1) ? CAGE2.CAGE_OPEN_ROWS : [])
-      .concat((CAGE2.CAGE_ZERO_ABSENT || []).filter(k => !(+P1[k] > 0)));   // (G3515: the rear pilot at 0, the same rule)
+      .concat((CAGE2.CAGE_ZERO_ABSENT || []).filter(k => !(+P1[k] > 0)))   // (G3515: the rear pilot at 0, the same rule)
+      // (SEAPLANES-LAND: cageToSpec's other stated exceptions - the boat rows while the hull is off, HULL-B1's
+      // CAGE_HULL_ROWS; a row of CAGE_DEFAULT_ABSENT at its default, PILLAR-ANCHORS / HULL-B26..B45)
+      .concat(!(+P1.hullOn > 0) ? (CAGE2.CAGE_HULL_ROWS || []) : [])
+      .concat(Object.keys(CAGE2.CAGE_DEFAULT_ABSENT || {}).filter(k => +P1[k] === CAGE2.CAGE_DEFAULT_ABSENT[k]));
     const thin = Object.keys(slim).length,
           table = Object.keys(P1).filter(k => !(k in CAGE2.CAGE_VIEW_KEYS) &&
                                               typeof P1[k] !== 'function' &&
@@ -613,7 +617,10 @@ function nullPaths(o, pre, out) {
   const baked = CAGE2.cageToSpec(F0) || {};
   // (G3511: but the openings' rows while every section is closed — and the
   // first one opened brings them all into the file)
-  const shut = (CAGE2.CAGE_OPEN_ROWS || []).concat(CAGE2.CAGE_ZERO_ABSENT || []);
+  const shut = (CAGE2.CAGE_OPEN_ROWS || []).concat(CAGE2.CAGE_ZERO_ABSENT || [])
+    // (SEAPLANES-LAND: the default aeroplane is no boat - its hull rows stay out - and a CAGE_DEFAULT_ABSENT row at its default)
+    .concat(!(+F0.hullOn > 0) ? (CAGE2.CAGE_HULL_ROWS || []) : [])
+    .concat(Object.keys(CAGE2.CAGE_DEFAULT_ABSENT || {}).filter(k => +F0[k] === CAGE2.CAGE_DEFAULT_ABSENT[k]));
   const want = Object.keys(F0).filter(k => !(k in CAGE2.CAGE_VIEW_KEYS) &&
                                             typeof F0[k] !== 'function' && !shut.includes(k));
   ok(Object.keys(baked).length === want.length && want.every(k => k in baked),
@@ -837,9 +844,21 @@ function nullPaths(o, pre, out) {
   // "did not move" became "moved by an order less than the wing did", the
   // gear rule's own shape. The engines never move: they are bought.
   const dW = Math.abs(LC.wings.mass - L0.wings.mass);
-  ok(['fuselage', 'tail', 'bracing'].every(s2 =>
+  ok(['fuselage', 'tail'].every(s2 =>
        !L0[s2] === !LC[s2] && (!L0[s2] || Math.abs(LC[s2].mass - L0[s2].mass) < 0.1 * dW)),
-     'G116: the fixed-geometry sections moved by an order less than the wing (the gauge follows the gross)');
+     'G116: the fuselage and the tail moved by an order less than the wing (the gauge follows the gross)');
+  // SEAPLANES-LAND 8 Nov (A0: "write the rule as the physics"): THE BRACING FOLLOWS THE WING'S STIFFNESS, NOT ITS GROSS.
+  // A carbon wing is stiffer than fabric over wood: it carries more of its own bending, the struts and wires less, so
+  // their gauge FALLS - whichever way the wing's mass goes. The default aeroplane, carbon vs fabric (kg):
+  //   master L35a (GEN_MATERIALS.carbon before HULL-B50): wing 66.77 -> 75.81 (+9.04), bracing 25.321 -> 24.458 (-0.863, -3.4 %)
+  //   seaplanes (HULL-B50 option (d), the composite as built): wing 66.77 -> 60.38 (-6.39), bracing 25.321 -> 24.080 (-1.241, -4.9 %)
+  // The old rule (< 0.1 x the wing's move) held on master by 0.095 and broke at 0.194 with the lighter carbon: it measured
+  // the gross, and the bracing never followed the gross (it fell while the wing grew). THE RULE: the bracing does not
+  // grow, and falls by at most 10 % of its own mass (the band: a stiffer wing relieves the struts, it does not remove them)
+  ok(!L0.bracing === !LC.bracing && (!L0.bracing ||
+       (LC.bracing.mass <= L0.bracing.mass + 1e-9 && L0.bracing.mass - LC.bracing.mass <= 0.10 * L0.bracing.mass)),
+     'G116: a stiffer (carbon) wing relieves the bracing - it does not grow and falls by at most 10 % of its mass' +
+     (L0.bracing && LC.bracing ? ' (' + L0.bracing.mass.toFixed(3) + ' -> ' + LC.bracing.mass.toFixed(3) + ' kg)' : ''));
   ok(!L0.engines === !LC.engines && (!L0.engines ||
        (L0.engines.mass === LC.engines.mass && L0.engines.cost === LC.engines.cost)),
      'G116: the engines did not move');

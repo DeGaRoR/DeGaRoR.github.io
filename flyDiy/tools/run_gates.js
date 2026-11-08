@@ -788,6 +788,10 @@ const GATES = [
   // the tyre reading as a circle, and the leg mirroring vertex for vertex.
   // Runs headless on a THREE stub, which is the only reason it never existed.
   { id: 'GEAR', file: '_gear_check.js', tier: 'core' },
+  // RETRACT-1 (futureDesigns/RETRACT-STUDY-2026-11.md §3.1): THE RETRACTABLE GEAR - the spec, the bill, the squat switch,
+  // the expert's circuit (up in the climb, down for the circuit), the drag, the gear-up landing, the power and the
+  // emergency, the forgetful person, the horn; on the metal Cessna fixture, with retract and without
+  { id: 'RETRACT', file: '_retract_check.js', tier: 'core', wall: 600 },
   // THE WOODEN HOUSE (G229), the settlement's own generator: clean geometry
   // (no NaN, no zero-area triangle, every vertex with a UV in metres), no
   // wall standing through its own roof over four roof families x three
@@ -968,6 +972,10 @@ const GATES = [
   // rudder blade and the paddle where they belong, the user's 172 on 2350s
   // settled on the sea (~2 min)
   { id: 'WIPLINE', file: '_wipline_check.js', tier: 'core', wall: 200 },
+  // THE FLYING BOAT (HULL-B1..B3): the hull off invisible on every saved build; the Cessna made a boat through the
+  // game's load chain - one centreline hull from the drawn rings, two strut tip floats; settled, and the pilot takes
+  // it off the SEA lane (~2 min)
+  { id: 'HULL', file: '_hull_check.js', tier: 'core', wall: 150 },
   // FLOATS-CLASSIC (2026-11-03): the EDO-style rounded deck - the Wipline line pinned to master's bits, the EDO
   // catalogue fitted and drawn WYSIWYG, the style through the join (core, ~1 min); the DC-3 on EDO 78-28000s and the
   // PA-18 in the classic style stand, float at gross, taxi and lift off (full, ~6 min)
@@ -1210,6 +1218,9 @@ const GATES = [
   // (centreline: no yaw; the twin fixture the control), the three certify (bench to the ultimate HELD), the join and
   // the design tiles. Flights and certificates in parallel children (~3-4 min at --jobs=4).
   { id: 'ENGCONFIG', file: '_engconfig_check.js', tier: 'core', wall: 240 },
+  // G3912: THE OVER-THE-WING ENGINE IS DRAWN WHERE IT FLIES on every wing centre a cabin wears (the user's Cessna:
+  // a removed centre drew none and filed "not drawn" where no gate looked) - through the game's load chain (~70 s)
+  { id: 'ENGDRAWN', file: '_engdrawn_check.js', tier: 'core', wall: 90 },
   // SND-ENGINE (G1613): the engine part of GATE AUDIO - the worklet run in node under a shim: the
   // firing frequency within 3 % across idle..rated on the five validated engines (48 and 44.1 kHz), no
   // NaN/clip/DC/subnormal, process() allocation-free, seeded, the life driven by the solver, the sound

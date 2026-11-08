@@ -102,7 +102,17 @@ function pedestal(bag, o) {
   return off(o.base, up, h);
 }
 
-const API = { SADDLE, saddle, pedestal };
+// THE TUBE'S OWN AXIS AT A STATION (HULL-B37, the user: "the fixation rings don't follow your rod rotation"): a rod
+// inclined by rodIncl climbs aft, and a saddle revolved about the bare -z axis stood vertical on it, its plate level. The
+// axis off a deck's top / bottom readers (its centre line's slope there, cage units), toward the tail, unit
+function axisOf(deck, z) {
+  if (!deck || !deck.top || !deck.bot) return [0, 0, -1];
+  const e = 0.02, c = zz => 0.5 * (deck.top(zz) + deck.bot(zz));
+  const s = (c(z + e) - c(z - e)) / (2 * e);
+  return Number.isFinite(s) ? nrm([0, -s, -1]) : [0, 0, -1];
+}
+
+const API = { SADDLE, saddle, pedestal, axisOf };
 if (NODE) module.exports = API;
 if (W) W.ROD_FIT = API;
 })();

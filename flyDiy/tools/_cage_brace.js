@@ -30,6 +30,17 @@ PAGE.defaults = Object.assign({
   // the biplane's truss: the interplane strut kind and station, its fore/aft
   // trim, and the wires (flying + landing, flying only, none) with their gauge
   bpInter: 0, bpInterAt: 0.62, bpInterZ: 0, bpWires: 1, bpWireD: 5,
+  // HULL-B42 (the user, the Super Petrel: "the struts for the wings are much too big ... Can we set their size from the
+  // editor? ... twice as slim"; "given the pylon, here we can delete the central struts ... even if we keep it in the
+  // physical model, we should not draw them ... an option"): bpStrutK scales the drawn sections of the cabane and the
+  // interplane struts (1 = as before); bpCabDraw 0 leaves the cabane undrawn - the frame keeps it (61_gen_frame), the
+  // drawing only (a tower or a pylon carries the plane)
+  bpStrutK: 1, bpCabDraw: 1,
+  // HULL-B78 (the user: "replace the central struts by a central pylon ... the same tech as the current pylon, except
+  // that it would stick to the bottom of the wing ... and we do that properly in the physics model as well"): the
+  // cabane as ONE faired pylon on the centreline (the engine pylon's blended blade, roof to the wing's underside) - the
+  // frame roots the wing at the pylon and runs the cabane as a narrow truss inside it (61_gen_frame cabPylon)
+  bpCabPylon: 0,
 }, PAGE.defaults || {});
 
 // ---- panel ----------------------------------------------------------------
@@ -42,6 +53,9 @@ const BRACE_ITEMS = [
     ['bpCabane', 'cabane', 0, 1, 1, ['N struts', 'V struts'], { when: onCab }],
     ['bpStrutZ', 'fore / aft', -0.20, 0.20, 0.01, { when: onCab, dim: 'm' }],
     ['bpStrutX', 'in / out (foot)', -0.25, 0.35, 0.01, { when: onCab, dim: 'm' }],
+    ['bpCabDraw', 'cabane drawn', 0, 1, 1, ['hidden (flown, not drawn)', 'drawn'], { when: P => onCab(P) && !+P.bpCabPylon }],
+    ['bpCabPylon', 'cabane form', 0, 1, 1, ['struts', 'central pylon (faired)'], { when: onCab }],
+    ['bpStrutK', 'strut size (cabane, interplane)', 0.3, 1.5, 0.01, { when: P => onCab(P) || onBip(P) }],
   ], { when: onCab }],
   ['interplane & wires', [
     ['bpInter', 'interplane struts', 0, 2, 1, ['N struts', 'I strut', 'none'], { when: onBip }],
@@ -138,6 +152,7 @@ PAGE.post = ctx => {
   const sxI = Math.max(band2.lo, Math.min(band2.hi, wantI));
   const clampedI = Math.abs(sxI - wantI) > 1e-6;
 
+  const SK = Math.max(0.3, Math.min(1.5, +P.bpStrutK > 0 ? +P.bpStrutK : 1));   // (HULL-B42: the drawn struts' size)
   group = new THREE.Group();
   group.name = 'cageLayer:brace';
   const notes = [];
@@ -194,7 +209,7 @@ PAGE.post = ctx => {
     const members = [];
     const done = new Map();          // one plate per (node): shared by the N's members
     let sN = 0, sLen = 0, onWing = 0;
-    const cw = (FIT.chordK || 3.6) * (FIT.strutR || 0.023);
+    const cw = (FIT.chordK || 3.6) * (FIT.strutR || 0.023) * SK;
     const SECT = (typeof GEN_STRUT_SECT !== 'undefined') ? GEN_STRUT_SECT : null;
     const sect = t => SECT ? SECT.map(q => [(q[0] - 0.40) * cw, q[1] * cw])
                            : (() => { const o = []; for (let i = 0; i < 12; i++) { const a = 2*Math.PI*i/12; o.push([0.5*cw*Math.cos(a), 0.3*cw*Math.sin(a)]); } return o; })();
@@ -262,7 +277,7 @@ PAGE.post = ctx => {
   // (b.b) up to a root spar node (b.a); one ring node may carry the post of
   // one spar and the diagonal of the other, which is exactly strutBuild's
   // shape — one foot, up to two wing ends, front first.
-  {
+  if ((P.bpCabDraw == null || +P.bpCabDraw) && !+P.bpCabPylon) {   // (HULL-B78: a pylon draws no struts)
     const byFoot = new Map();
     for (const b of cab) {
       const spar = (N2[b.a].tag === 'WF' || N2[b.a].tag === 'WR') ? b.a : b.b;
@@ -292,8 +307,11 @@ PAGE.post = ctx => {
       const plC = planeOfNode(spars[0]);
       const rayC = (plC && plC.wingRay) || W.wingRay;
       for (let i = 0; i < ends.length; i += 2) {
+        // (HULL-B42: the members' sections scaled by bpStrutK - the lift strut's table, front / rear / single)
+        const fitK = SK === 1 ? undefined : { frontC: FIT.frontC * SK, frontT: FIT.frontT * SK, rearC: FIT.rearC * SK,
+          rearT: FIT.rearT * SK, oneC: FIT.oneC * SK, oneT: FIT.oneT * SK };
         const r = SG.strutBuild(bags, AF, site, ends.slice(i, i + 2),
-                                { wingRay: rayC });
+                                fitK ? { wingRay: rayC, fit: fitK } : { wingRay: rayC });
         if (!r) continue;
         dSnap = Math.max(dSnap, site.snap.d);
         r.struts.forEach((st, j) => {

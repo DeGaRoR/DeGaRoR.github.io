@@ -266,7 +266,7 @@ PAGE.post = ctx => {
     const half = 0.5 * (P.stThick || 0.05);
     const under = yRef + (P.stY || 0) - half;              // the stab's underside
     if (under < plateTop) yRef += plateTop - under;        // lifted onto the plate
-    rodSeat = { z: zH, yT, yB, plateTop, r: 0.5 * (yT - yB) };
+    rodSeat = { z: zH, yT, yB, plateTop, r: 0.5 * (yT - yB), axis: RF.axisOf ? RF.axisOf(deck, zH) : [0, 0, -1] };   // (HULL-B37: the tube's own axis)
   }
   if ((mount === 3 || IV) && deck)               // the boom's own centre
     yRef = 0.5 * (deck.top(FIN.FIN_DEFAULT.zH1 + dzS) + deck.bot(FIN.FIN_DEFAULT.zH1 + dzS));
@@ -402,7 +402,7 @@ PAGE.post = ctx => {
     // a station only the gear's collar holds still gets the stab's own plate.
     const finPlate = FSn.find(g => g.top && Math.abs(g.z - zUse) < 0.005);
     const rec = finPlate ? { top: finPlate.top }
-      : RF.saddle(bag, { ctr: [0, 0.5 * (rodSeat.yT + rodSeat.yB) * FS, zUse], axis: [0, 0, -1],
+      : RF.saddle(bag, { ctr: [0, 0.5 * (rodSeat.yT + rodSeat.yB) * FS, zUse], axis: rodSeat.axis || [0, 0, -1],
                          r: rodSeat.r * FS, collar: !shared, plate: { top: 1, W: Wp, L: Lp } });
     const under = (yRef + (P.stY || 0) - 0.5 * (P.stThick || 0.05)) * FS;
     const gap = rec && rec.top ? under - rec.top[1] : 0;

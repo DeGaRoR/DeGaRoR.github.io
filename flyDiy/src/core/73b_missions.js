@@ -78,7 +78,7 @@ const MISSION_PREF_KINDS = {
   thrust:     { of: 'spec.engines[].mount',  values: ['tractor', 'pusher'] },
   wing:       { of: 'spec.wing.position',    values: ['high', 'mid', 'low', 'parasol'] },
   tail:       { of: 'spec.tail.type',        values: ['conventional', 'v', 'twinBoom'] },
-  gear:       { of: 'spec.gear.type',        values: ['taildragger', 'tricycle', 'floats'] },
+  gear:       { of: 'spec.gear.type',        values: ['taildragger', 'tricycle', 'floats', 'hull'] },
   canopy:     { of: 'spec.cabin.canopy.style', values: ['screen', 'bubble'] },
   suspension: { of: 'spec.gear.suspension',  values: ['bungee'] },
 };

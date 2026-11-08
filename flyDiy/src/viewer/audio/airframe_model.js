@@ -116,7 +116,8 @@ var AIRFRAME_MODEL = (function () {
   // the state: typed slots only
   const S_ = ['t', 'pm0', 'pm1', 'ptw', 'pwet', 'off0', 'off1', 'offT', 'vsMin', 'nzM', 'pde', 'pda', 'pdr', 'pflap',
               'fmov', 'buzz', 'lastSurf', 'kind', 'elec', 'first', 'pdrag', 'rate', 'grace', 'esev', 'vs0',
-              'pBrk', 'pSet', 'pPc', 'wreck', 'metal', 'mask'];   // G1740: the damage counts last frame, the wreck latch, metal, the impact's mask
+              'pBrk', 'pSet', 'pPc', 'wreck', 'metal', 'mask',
+              'ghT'];   // RETRACT-1: the gear horn's own clock (its 2 Hz on / off)   // G1740: the damage counts last frame, the wreck latch, metal, the impact's mask
   const SI = {}; S_.forEach((k, i) => { SI[k] = i; });
   function airframeState() {
     return { s: new Float64Array(S_.length), last: new Float64Array(AF_RATE.length * 3).fill(-1e9),
@@ -270,8 +271,17 @@ var AIRFRAME_MODEL = (function () {
         sw = s[SI.buzz];
       }
     }
+    // RETRACT-1 (RETRACT-STUDY §1.10): THE GEAR HORN - the retractable gear not down and locked with the throttle back or
+    // the flap past the approach (audio_params gearWarn): the electric horn on the stall warning's own voice, intermittent
+    // (0.3 s on, 0.2 s off), on every build that has the gear whatever its stall warning is (a reed aeroplane still has
+    // the horn); a stall sounding outranks it. Never on a fixed build (gearWarn is 0 there)
+    let swK = kind;
+    if (p[I.gearWarn] > 0 && !(sw > 0.5)) {
+      s[SI.ghT] = (s[SI.ghT] + h) % 0.5;
+      sw = s[SI.ghT] < 0.3 ? 1 : 0; swK = AF_STALL.buzzer;
+    } else s[SI.ghT] = 0;
     tg[T.stall] = sw;
-    tg[T.stallK] = kind;
+    tg[T.stallK] = swK;
     // ---- MECHANISMS ----
     const fl = p[I.flap], dfl = h > 0 ? Math.abs(fl - s[SI.pflap]) / h : 0;
     const mov = !first && dfl > 0.01;

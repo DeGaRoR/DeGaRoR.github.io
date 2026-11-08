@@ -191,7 +191,8 @@ const isPillarMat = mat => mat.roof === mat.glass && mat.roof === mat.belly
 // there — so they take FRACTIONAL coordinates and nothing is ever drawn on
 // them. That is what lets an alloy fuselage carry 0.45 m frames on a cage
 // whose rings are 1.2 m apart, without adding a single vertex.
-const CAGE_LVI_BASE = { keel: 0, floor: 1, waist: 2, band: 3, ceil: 4, roof: 5 };
+const CAGE_LVI_BASE = { keel: 0, floor: 1, waist: 2, band: 3, ceil: 4, roof: 5,
+  ridge: 0.25, fluteO: 0.5, chine: 0.75 };             // (HULL-B39: a fluted hull's bottom levels - guards' fractions)
 const cageLvIndex = S => ({
   ...CAGE_LVI_BASE,
   waistG: 2 - (S.gWaistT || 0),      // lerp(waist -> floor, gWaistT)
@@ -374,9 +375,14 @@ function cageResolve(S) {
   // A LOFTED taper is a real skinned section between two pillars and keeps
   // adding its length, as every section does (user ruling: rod only).
   const TAP = S.taper && S.taper.len > 0 ? S.taper : null;
-  const tpW = TAP && !S.rod
+  // HULL-B23: ON A HULL THE ROD'S TAPER IS A SKINNED, BUOYANT SECTION (the user: "the taper section, which could fit a
+  // rod very nicely ... you would put a buoyant fuselage on top of that thing ... the taper section would become this
+  // buoyant taper section if the flying boat hull and fuselage has been selected"): lofted between its own pillars as
+  // without a rod - the hull's V on its rings, so the water reads it - and the rod leaves from its aft ring
+  const HTAP = !!(TAP && S.rod && !S.rod.twin && S.hullTaper);
+  const tpW = TAP && (!S.rod || HTAP)
     ? (S.pillarW > 0 ? S.pillarW : S.paxPillarW) : 0;
-  const zTaperA = zPaxA - (TAP && !S.rod ? TAP.len : 0);   // fwd end of taper pillar
+  const zTaperA = zPaxA - (TAP && (!S.rod || HTAP) ? TAP.len : 0);   // fwd end of taper pillar
   const zTaperP = zTaperA - tpW;                 // aft ring of taper pillar
   const zPost = zTaperP - S.boom.len;
   const zCap  = zPost - S.tail.len;
@@ -424,6 +430,19 @@ function cageResolve(S) {
   // tightening section carries no skin either (truss only, interior
   // pass). buildCage2 emits the rod as its own closed component.
   const ROD = !MIR && S.rod ? S.rod : null;
+  // HULL-B27: THE BUOYANT TAPER'S TAIL CONE (the user, 5 Nov: "by using the taper section as the base for building
+  // around it ... professional modeling quality, not sketch"): aft of the taper's own pillar the section closes on a
+  // faired cone onto a collar round the rod - the rod grows out of the cone's tip instead of out of a flat disc. Its
+  // length: HT_CONE x the taper end's half-height (the larger of its half-height and half-width); the collar HT_COLLAR x
+  // the rod's radius. The rod leaves the collar (its root 10 mm inside it, as it left the pillar)
+  // (HULL-B36, the user: "it should always be a straight piece of tubing ... keep this clean": the cone is sized off the
+  // taper's END SECTION - the boom frame's own dims, set below once taperD exists - not the cabin's width, which made it
+  // a metre long and left 0.36 m of tube; and its centreline runs STRAIGHT onto the rod's axis)
+  const HT_CONE = 1.6, HT_COLLAR = 1.35;
+  // (HULL-B37, the user: "the rod is really meant at going through, and reach until the aft bulkhead, not stop at the
+  // taper section. Same architecture as with pod and rod planes really": the tube's root is the bulkhead on a hull too -
+  // it runs inside the buoyant taper and leaves through the cone's collar; B23/B27 had rooted it at the cone's tip)
+  let zConeTip = null, zRodRoot = zPaxA;
   // rod rings are regular 14-gons on the rod circle (6 levels + the two
   // centre columns): even spacing = the CC limit is a circle. Control
   // radius compensates the n-gon shrink so the DISPLAYED tube hits
@@ -432,7 +451,7 @@ function cageResolve(S) {
     const rc = ROD.r * 3 / (2 + Math.cos(2 * Math.PI / 14));
     const th = k => k * Math.PI / 7;
     // G267.1: the axis climbs tan(incl) per metre aft of the bulkhead
-    const yA = ROD.y + Math.tan(ROD.incl || 0) * (zPaxA - z);
+    const yA = ROD.y + Math.tan(ROD.incl || 0) * (zRodRoot - z);
     const at = k => ({ x: rc * Math.sin(th(k)),
                        y: yA + rc * Math.cos(th(k)), z });
     const lv = { roof: at(1), ceil: at(2), band: at(3),
@@ -451,6 +470,13 @@ function cageResolve(S) {
   // the BOOM FRAME is the boom-root ring: the tightening's aft pair with a
   // taper, the aft ring of the passenger band (pilPaxA) without (T2.1)
   const taperD = dimF(taperD0, 'boom');
+  if (HTAP) {
+    const htEnd = Math.max(0.5 * (taperD.roofY - taperD.keelY), taperD.Ww, taperD.Wk != null ? taperD.Wk : 0);
+    zConeTip = zTaperP - HT_CONE * htEnd;
+  }
+  // (the cabin's aft pillar's dims - the pax frame's with a taper, the boom frame's without; HULL-B27's taper rings read
+  // them before the pillar itself is added)
+  function pilPaxADh() { return TAP ? dimF(cabD, 'pax') : dimF(aftDA, 'boom'); }
   const tailDF = dimF(tailD, 'tail');
   if (!MIR && !ROD) {
   add(fullRing('tailCap', zCap, tailDF), { mat: CAGE_MAT.plain });
@@ -494,6 +520,105 @@ function cageResolve(S) {
     add(fullRing('pilTaperB', zTaperA, taperD), { mat: CAGE_MAT.taper });
   }
   }
+  // HULL-B23: the buoyant taper on a rod - the same pillar pair, skinned. HULL-B27: LOFTED, NOT RULED - the tail cone
+  // aft of the pillar (above: onto the rod's collar) and, between the cabin's aft pillar and the taper's, the section
+  // carried on eased laws instead of one straight loft: the plan holds the cabin's beam and closes on a convex curve
+  // (1 - t^1.7), the deck drops off the cabin's roof early and arrives FLAT on the taper's pillar ((1 - t)^1.5: tangent
+  // to the pillar band and the cone - no kink, and the propeller over the wing clears it), the keel runs the straight
+  // afterbody line (the planing run's: a straight buttock releases the water cleanly), the gunwale a straight line. Four rings; the
+  // hull's V goes on each (cageHullVee), so the water's table reads the same body (cageHullLines)
+  if (!MIR && ROD && HTAP) {
+    const yAx = z => ROD.y + Math.tan(ROD.incl || 0) * (zRodRoot - z);
+    const e = taperD, Wk1 = e.Wk != null ? e.Wk : e.Ww, yc1 = 0.5 * (e.roofY + e.keelY);
+    const hT = 0.5 * (e.roofY - e.keelY), rCol = HT_COLLAR * ROD.r;
+    // the cone: tip -> taper end (added aft first). Its section shrinks on an ogive (1 - u^1.6, u from the taper end),
+    // its centre on the straight line from the taper end's centre to the rod's axis at the tip, the collar a ring of rCol
+    // HULL-B37 (the user, the Super Petrel's photograph: "now you can move the rod up ... it goes into the fuselage from
+    // the top of the float taper"): A ROD OVER THE TAPER'S DECK - its axis at the taper's end above the section's centre
+    // by more than a half of its half-height - leaves through the deck, and the cone closes on ITS OWN tip under it (the
+    // float's tail, swept up a third of the half-height, a tip of 0.15 x the half-height) instead of on the rod's collar
+    const own = yAx(zTaperP) - yc1 > 0.5 * hT;
+    const yTip = own ? yc1 + 0.35 * hT : null, rTip = own ? 0.15 * hT : rCol;
+    // HULL-B40 (the user: "the aft end shape of the floating taper section also looks inelegant and slapped, can you finish
+    // this clean?"): THE FLOAT'S TAIL FAIRED INTO THE ROD. With the rod over the deck the cone no longer closes on a point
+    // of its own under the tube: its deck runs from the taper's end ONTO THE ROD'S AXIS and its keel sweeps up to just
+    // under the tube, its plan closing on the tube's own width - so the tail ends WRAPPING the rod's lower half, a fillet,
+    // and the tube grows out of the float's deck as the Super Petrel's boom does. The same ogive (g = 1 - u^1.6, 1 at the
+    // taper's end): every level eases from its taper-end height (relative to the rod's axis there) onto the tip's
+    if (own) {
+      const rr = ROD.r, yA0 = yAx(zTaperP), kT = 1.05 * rr, wT = 1.12 * rr;
+      for (const u of [1, 0.86, 0.62, 0.34]) {
+        const z = zTaperP + (zConeTip - zTaperP) * u, g = 1 - Math.pow(u, 1.6), yA = yAx(z);
+        const roof = yA + (e.roofY - yA0) * g, keel = yA - kT + (e.keelY - (yA0 - kT)) * g;
+        // the inner levels keep their share of the section between the keel and the deck
+        const fr = v => keel + (roof - keel) * (v - e.keelY) / Math.max(1e-6, e.roofY - e.keelY);
+        const wd = v => wT + (v - wT) * g;
+        add(fullRing(u === 1 ? 'htConeTip' : 'htCone' + Math.round(u * 100), z, {
+          Ww: wd(e.Ww), Wr: wd(e.Wr), Wk: wd(Wk1), roofY: roof, keelY: keel, ceilY: fr(e.ceilY), floorY: fr(e.floorY),
+          waistY: e.waistY != null ? fr(e.waistY) : undefined }), { mat: CAGE_MAT.taper });
+      }
+    }
+    if (!own) for (const u of [1, 0.86, 0.62, 0.34]) {
+      const z = zTaperP + (zConeTip - zTaperP) * u, g = 1 - Math.pow(u, 1.6);
+      // (the centreline STRAIGHT from the taper end's centre onto the rod's axis at the tip - a line, never an S - or
+      // onto the float tail's own tip)
+      const yc = own ? yc1 + (yTip - yc1) * u : yAx(z) + (yc1 - yAx(zTaperP)) * (1 - u), sc = h => rTip + (h - rTip) * g;
+      add(fullRing(u === 1 ? 'htConeTip' : 'htCone' + Math.round(u * 100), z, {
+        Ww: sc(e.Ww), Wr: sc(e.Wr), Wk: sc(Wk1), roofY: yc + sc(hT), keelY: yc - sc(hT),
+        ceilY: yc + sc(e.ceilY - yc1), floorY: yc + sc(e.floorY - yc1),
+        waistY: e.waistY != null ? yc + sc(e.waistY - yc1) : undefined }), { mat: CAGE_MAT.taper });
+    }
+    // (HULL-B40: the buoyant taper's end is skin, not a rib - no pillar band, no crease: buildCage2's fam)
+    add(fullRing('pilTaperA', zTaperP, taperD), { mat: CAGE_MAT.taper });
+    add(fullRing('pilTaperB', zTaperA, taperD), { mat: CAGE_MAT.taper });
+    // the taper bay's own rings, aft -> fore (t from the cabin's aft pillar, 0, to the taper's, 1)
+    const c = pilPaxADh(), Wk0 = c.Wk != null ? c.Wk : c.Ww;
+    const lp = (a0, a1, f) => a1 + (a0 - a1) * f;
+    // HULL-B37: THE STEP IN THE TAPER (the user's section sketch, 5 Nov: "that would involve moving the step to the taper
+    // section ... with a single slider that places it on the hull or the floating new taper section. It's like the new
+    // taper section, or at least the buoyant part is part of the hull really"). The one slider is hullStepZ (aft of the
+    // cabin frame, as ever); when it lands in the buoyant taper the planing bottom runs on under it: forward of the step
+    // the keel, the floor and the bottom's beam hold the cabin's, aft of it the keel runs straight up to the taper's end
+    // (the afterbody), and a ring stands at the step so the knuckle is exact (buildCage2 adds the step's own pair aft of it)
+    const HS = S.hull && S.hull.steps > 0 && S.hull.hs > 0 ? S.hull : null;
+    // (the cabin frame, pilCabA, stands where the passenger run ends - zPaxEnd, defined below with the run)
+    const zCabF = zPaxB + S.pax.count * S.pax.len + Math.max(0, S.pax.count - 1) * S.paxPillarW;
+    const zS = HS ? zCabF - HS.stepAft : null;
+    const stepIn = zS != null && zS < zPaxA - 0.05 && zS > zTaperA + 0.05;
+    const tS = stepIn ? (zPaxA - zS) / (zPaxA - zTaperA) : null;
+    // HULL-B40: the step's own ring stands 3 cm FORWARD of the step (at the step itself it pushed the step's pair into
+    // the bay aft, the fore ring past the step and onto the afterbody's deadrise: a notch in the chine)
+    const tK = stepIn ? Math.max(0.02, tS - 0.03 / Math.max(1e-6, zPaxA - zTaperA)) : null;
+    const ts = [0.8, 0.6, 0.4, 0.2].filter(t => tK == null || Math.abs(t - tK) > 0.06);
+    if (stepIn) ts.push(tK);
+    ts.sort((p, q) => q - p);
+    const sm = x => { const v = Math.max(0, Math.min(1, x)); return v * v * (3 - 2 * v); };
+    for (const t of ts) {
+      // HULL-B40 (the user: "nice continuous lines ... a continuous profile, no steps" - the deck fell off the cabin's
+      // aft pillar at (1 - t)^1.5, a shoulder behind a rib): the deck LEAVES THE CABIN TANGENT and arrives flat (an early
+      // smoothstep, 1 - sm(t^0.75)); with the step in the taper THE PLAN HOLDS THE CABIN'S BEAM TO THE STEP and closes
+      // convexly after it (the waist narrowed over a chine held wide: the side tumbled in, a bulge behind the door)
+      const z = zPaxA + (zTaperA - zPaxA) * t, fr = 1 - sm(Math.pow(t, 0.75));
+      const fw = !stepIn ? 1 - Math.pow(t, 1.7) : t <= tS + 1e-9 ? 1 : 1 - Math.pow((t - tS) / (1 - tS), 1.7);
+      // the bottom's law: the straight afterbody run from the cabin's aft pillar, or with the step in the taper flat
+      // to the step and straight from it
+      const fk = !stepIn ? 1 - t : t <= tS + 1e-9 ? 1 : 1 - (t - tS) / (1 - tS);
+      const fkw = fw;
+      // HULL-B43 (the user's red line on the side view: "that feels like a much more natural profile for the belly"):
+      // THE ROCKER. With the step under the taper the keel no longer runs flat from the cabin to the step: it rises
+      // hullRocker over the cabin's aft frame by the step, on a curve leaving the cabin TANGENT ((t / tS)^2), the belly's
+      // lowest point under the cabin; aft of the step it runs straight from there to the taper's end
+      const rk = stepIn && S.hull ? S.hull.rocker : 0;
+      const keelT = !rk ? lp(c.keelY, e.keelY, fk)
+        : t <= tS + 1e-9 ? c.keelY + rk * Math.pow(t / tS, 2) : (c.keelY + rk) + (e.keelY - c.keelY - rk) * (t - tS) / (1 - tS);
+      add(fullRing(t === tK ? 'htStep' : 'htTaper' + Math.round(t * 100), z, {
+        Ww: lp(c.Ww, e.Ww, fw), Wr: lp(c.Wr, e.Wr, fw), Wk: lp(Wk0, Wk1, fkw),
+        roofY: lp(c.roofY, e.roofY, fr), ceilY: lp(c.ceilY, e.ceilY, fr), floorY: lp(c.floorY, e.floorY, fk),
+        keelY: keelT,
+        waistY: (c.waistY != null || e.waistY != null) ? lp(c.waistY != null ? c.waistY : S.waistY, e.waistY != null ? e.waistY : S.waistY, fk) : undefined }),
+        { mat: CAGE_MAT.taper });
+    }
+  }
   // THE AERO AFT, CUT 2 (2026-09-04, the user: "reuse the topology of the
   // back of the fuselage rather than reinventing ... it should inherit the
   // fuselage settings"): on a pod that ends at the bulkhead, the FUSELAGE'S
@@ -504,8 +629,8 @@ function cageResolve(S) {
   // and the cap at the tip is the tail cap, domed by its crease.
   // T2.1: the pax pillar's aft ring — the passenger frame with a taper (the
   // pair is a cabin-section prism), the BOOM frame without
-  const pilPaxAD = TAP ? dimF(cabD, 'pax') : dimF(aftDA, 'boom');
-  const AA = ROD && S.config && S.config.aeroAft;
+  const pilPaxAD = pilPaxADh();
+  const AA = ROD && !HTAP && S.config && S.config.aeroAft;   // (HULL-B27: a hull's buoyant taper IS the afterbody - no aero cone)
   if (!MIR && AA) {
     const baseD = pilPaxAD;
     const zTipA = zPaxA - AA.len;
@@ -710,7 +835,7 @@ function cageResolve(S) {
     // cap the cowl and the engine bolt to (capFace, as the cowl nose's);
     // an aerodynamic one in G19's domed point
     return { rings, bays, aero: true, aeroFace: CFG.noseFinish !== 'aero',
-             rodSpan: ROD ? { zRoot: zPaxA, zTip: zCap, ring: rodRing }
+             rodSpan: ROD ? { zRoot: zRodRoot, zTip: zCap, ring: rodRing }
                           : null };
   }
 
@@ -769,8 +894,12 @@ function cageResolve(S) {
     add(slopeRing('wsAft', wa.roofZ, wa.ceil, wa.bandZ, wa.waist, wa.floorY,
                   wa.keel, false, BL * liftT, wa),
         { mat: CAGE_PILLAR('pillarWindow') });
+  // HULL-B43 (the user: "a single sign change on the first order derivative ... a concave shape, not a wavy thing"): on
+  // a hull the windscreen pair's keels are one line - the template's offset (13 mm in the pillar's 4 cm, a kink on the
+  // keel between two flat runs) is kept at 30 %, the slope of its neighbours
+  const wfKeelY = S.hull && wa.keel ? wa.keel.y + 0.3 * (wf.keelY - wa.keel.y) : wf.keelY;
   add(slopeRing('wsFront', wf.roofZ, wf.ceil, wf.bandZ, wf.waist, wf.floorY,
-                { y: wf.keelY }, true, BL, wf), null);
+                { y: wfKeelY }, true, BL, wf), null);
 
   const chain = {
     ceil:  { x: 0, y: S.ws.chain.ceil.y, z: S.ws.chain.ceil.z },
@@ -979,7 +1108,7 @@ function cageResolve(S) {
   // for whatever the bubble becomes.)
 
   return { rings, bays, chain, noseTwin, noseRing, mirrorZ,
-           rodSpan: ROD ? { zRoot: zPaxA, zTip: zCap, ring: rodRing } : null };
+           rodSpan: ROD ? { zRoot: zRodRoot, zTip: zCap, ring: rodRing } : null };
 }
 
 // ---------------------------------------------------------------------------
@@ -987,6 +1116,525 @@ function cageResolve(S) {
 // ---------------------------------------------------------------------------
 const STEP0_DROP = new Set(['tailMid', 'pilPaxA', 'pilCabB', 'wsAft',
                             'pilTaperB']);
+
+// ---------------------------------------------------------------------------
+// THE BOAT HULL (HULL-B1, futureDesigns/HULL-TYPES-2026-11.md §3.2). Not a second body builder: a READING of the
+// rings the frames already built. Per ring, the bottom becomes a V —
+//   the KEEL is the centre column (C.keel) at the ring's lowest point: the flat belly's height, or the botRound
+//     crown's — the number every frame's "bottom height" row already states, in both modes;
+//   the keel CORNERS become the CHINE, lifted to keel + half-width x tan(deadrise) (botRound lifts them up an arc;
+//     this is the same move on a straight line);
+//   the FLOOR stays on the chine->waist wall (the topsides), above the chine; the WAIST is the gunwale.
+// The STEP is a tight RING PAIR (the pillar idiom) inserted in the bay that holds it, the way step 2's guard rings
+// are: the fore ring is the bay's own section, the aft ring and everything aft of it carry the afterbody's keel —
+// the frames' bottom line + the step depth (so the afterbody keel's shape is the passenger / boom / tail frames').
+// Every function here is pure and is what the join measures for the water (HULL-B2): one reading, drawn and flown.
+// ---------------------------------------------------------------------------
+// the boat's lines for the water (HULL-B2): the crease-level cage's rings (the control cage the display subdivides,
+// the keel and chine creased onto it) in cage units; null when the hull is off
+function cageHullLines(P) {
+  if (!(+P.hullOn > 0)) return null;
+  const S = cageSpec(P), m = buildCage2(S, 1);
+  const H = m && m.hull || null;
+  if (!H) return null;
+  // (HULL-B20: the pusher's disc for the tub's clearance - the hub at the pod's aft face centre: its last ring's roof
+  // and its hull keel; the disc's radius the drawn propeller's)
+  let disc = null;
+  if (+P.hullTubLen > 0.05 && Math.round(+P.engMount || 0) === 1) {
+    try {
+      const R = cageResolve(S), rA = R.rings.filter(r => r.lv.roof).reduce((a, r) => (cageKeelZ(r) < cageKeelZ(a) ? r : a));
+      const sA = H.sta.reduce((a, q) => (q.z < a.z ? q : a), H.sta[0]);
+      const FS = (CAGE_UNIT || 1) * (P.planeScale || 1);
+      const yW = rA.lv.waist ? rA.lv.waist.y : 0.5 * (rA.lv.roof.y + sA.yk);   // (the face above the gunwale - _cage_cowl)
+      disc = { hubY: 0.5 * (rA.lv.roof.y + yW) + (+P.engY || 0) / FS, R: 0.5 * (+P.cw_propD || 1.8) / FS };
+    } catch (e) { disc = null; }
+  }
+  return cageHullTub(H, P, disc);
+}
+// HULL-B18: THE TUB'S AFTERBODY (the user: "an Icon puts its boom really low, keeps a large space behind the cabin and
+// sticks the engine in there"; and "would we need to also give a rod its buoyancy?" - yes). A pod that ends at its aft
+// bulkhead (a pusher's face) carries its engine, propeller and tail boom AFT of its buoyancy: the Icon-like pod rested
+// 21 deg bow up, measured. The planing bottom CONTINUES under the boom: hullTubLen metres of V sections past the pod's
+// last ring, the keel rising hullTubRise deg, the section closing to hullTubEnd of the last ring's - flown (the station
+// table, the frame's hull record, the fit) and drawn (_cage_float.js, the same stations). 0: none - bit-identical
+function cageHullTub(H, P, disc) {
+  const len = +P.hullTubLen || 0;
+  if (!(len > 0.05) || !H.sta || H.sta.length < 2) return H;
+  const FS = (CAGE_UNIT || 1) * (P.planeScale || 1);
+  const sA = H.sta.reduce((a, s) => (s.z < a.z ? s : a), H.sta[0]);
+  const tr = Math.tan(Math.max(0, Math.min(25, +P.hullTubRise >= 0 ? +P.hullTubRise : 8)) * Math.PI / 180);
+  // (the user: "your boom section should be much less high, and probably wider so you get the buoyancy"): a SHALLOW,
+  // WIDE planing afterbody - its depth hullTubH of the last ring's keel-to-gunwale (the chine kept), its beam closing
+  // only to hullTubEnd of the last ring's at its end
+  const kE = Math.max(0.05, Math.min(1, +P.hullTubEnd > 0 ? +P.hullTubEnd : 0.6)), kH = Math.max(0.1, Math.min(1, +P.hullTubH > 0 ? +P.hullTubH : 0.3)), N = 6, ext = [];
+  // (and "you still have a section available for higher floats on the length of the cowl": under a pusher's cowl, ahead
+  // of its disc, nothing turns - the afterbody keeps 0.85 of the pod's depth there, then falls to the low section over
+  // 0.3 m behind the cowl's end, so the disc turns over it)
+  const dep0 = Math.max(sA.yc - sA.yk + 0.02, kH * (sA.yd - sA.yk));
+  // (HULL-B20, the user: "you should have a huge prop strike, both with the cowl and your back extension"): the tall part
+  // stays UNDER the cowl (its underside: the hub less the cowl's half-height, free mode) and ENDS falling 0.05 m ahead of
+  // the disc's plane (the cowl's length + the spinner's stand-off); aft of the plane the deck stays DISC_CLEAR under the
+  // disc's lowest tip
+  const pusher = Math.round(+P.engMount || 0) === 1 && disc;
+  const cowlL = Math.max(0, +P.cw_cowlLen || 0.8) / FS, zDisc = pusher ? cowlL + 0.15 / FS : 0;
+  const zFall = 0.25 / FS, zCowl = pusher ? Math.max(0, zDisc - 0.05 / FS - zFall) : 0;
+  const yCowlBot = pusher ? disc.hubY - (Math.round(+P.fitNose || 0) === 0 && +P.cw_aftH > 0 ? +P.cw_aftH / FS : 0.9 * disc.R) - 0.02 / FS : Infinity;
+  const yDiscLow = pusher ? disc.hubY - disc.R - DISC_CLEAR / FS : Infinity;
+  const depC = Math.max(dep0, Math.min(0.85 * (sA.yd - sA.yk), yCowlBot - sA.yk));
+  const NN = N + 4;
+  for (let i = 1; i <= NN; i++) {
+    const u = i / NN, dz = u * len / FS, sc = 1 - (1 - kE) * u, sh = 1 - 0.5 * u, yk = sA.yk + dz * tr;
+    const hc = (sA.yc - sA.yk) * sc;
+    const wC = dz <= zCowl ? 1 : dz >= zCowl + zFall ? 0 : 0.5 * (1 + Math.cos(Math.PI * (dz - zCowl) / zFall));
+    let yd = yk + Math.max(hc + 0.01, wC * depC + (1 - wC) * dep0 * sh);
+    if (pusher && dz >= zDisc - 0.05 / FS) yd = Math.max(yk + hc + 0.005, Math.min(yd, yDiscLow));   // under the disc
+    ext.push({ z: sA.z - dz, yk, b: sA.b * sc, yc: Math.min(yk + hc, yd - 0.004), bd: Math.max(sA.b, sA.bd) * sc, yd, tub: true });
+  }
+  return Object.assign({}, H, { sta: H.sta.concat(ext), tub: { from: sA, ext, disc: pusher ? { yLow: yDiscLow, zDisc } : null } });
+}
+// ...and in the WATER's frame (32_hydro: x aft of the step, y up from the step's keel, metres): the station table
+// spec.gear.hull carries (HULL-B2), with the step's own cage station and keel height for the join's placement.
+// Stepless: the origin is the keel at the step row's station all the same (the float frame needs one)
+function cageHullTable(L, FS) {
+  if (!L || !L.sta || L.sta.length < 4) return null;
+  const sta = L.sta, zs = L.zStep;
+  const fore = sta.find(s => s.side === 'F');
+  let yS;
+  if (fore) yS = fore.yk;
+  else {
+    let i = 0; while (i + 2 < sta.length && sta[i + 1].z < zs) i++;
+    const a = sta[i], c = sta[i + 1], t = c.z - a.z > 1e-9 ? Math.max(0, Math.min(1, (zs - a.z) / (c.z - a.z))) : 0;
+    yS = a.yk + (c.yk - a.yk) * t;
+  }
+  const out = [];
+  for (const s of sta) {
+    // the step pair: the fore ring IS x = 0 (the forebody's last), the aft ring the afterbody's first
+    const x = s.side === 'F' ? 0 : s.side === 'A' ? Math.max(1e-4, (zs - s.z) * FS) : (zs - s.z) * FS;
+    if (!s.side && Math.abs(x) < 1e-4) continue;
+    out.push(Object.assign({ x: +x.toFixed(5), yk: +((s.yk - yS) * FS).toFixed(5), b: +(s.b * FS).toFixed(5),
+               yc: +((s.yc - yS) * FS).toFixed(5), bd: +(s.bd * FS).toFixed(5), yd: +((s.yd - yS) * FS).toFixed(5) },
+               // (HULL-B39: the fluted bottom's water ridge - across, and its height)
+               s.zr != null ? { zr: +(s.zr * FS).toFixed(5), yr: +((s.yr - yS) * FS).toFixed(5) } : {}));
+  }
+  out.sort((a, b) => a.x - b.x);
+  return { sta: out, zStep: zs, yStep: yS, steps: L.on ? (L.zStep2 != null ? 2 : 1) : 0 };
+}
+// THE HULL'S STARTING LINES (HULL-B3), what the Undercarriage tile's Hull option writes ONCE (it is a starter: the
+// warn / undo contract) - the two facts a boat cannot float right without, both the seaplane's rules:
+//   the STEP 12 deg aft of the CG, off the vertical from the CG down to the keel (10-15: the floats' rule,
+//     _cage_float.js; a step 0.6 m aft of a Cessna's CG floated it 11 deg nose-down, measured, GATE HULL);
+//   the AFTERBODY keel rising aftDeg (7: the NACA families 4-9, HULL-TYPES §1.3) from the step: the frames aft of the
+//     step whose bottom height sits under that line are raised onto it (aftKeelY: the boom frame; tailKeelY: the
+//     tail frame) - never lowered. A cabin fuselage's long flat tail cone put the hull's centre of buoyancy a metre
+//     aft of the CG (measured on the Cessna: nose-down, the propeller in the water).
+// cgZ / cgY: the flown aeroplane's CG in the CAGE frame, cage units (the page: CAGE_DATUM + FLYDIY_CG_MODEL / FS).
+// Returns the rows to write (cage units), or null when the cage will not resolve. Pure.
+function cageHullFit(P, cgZ, cgY, opt) {
+  const o = opt || {};
+  const aftDeg = o.aftDeg != null ? o.aftDeg : (+P.hullAftDeg > 0 ? +P.hullAftDeg : 7), rule = o.ruleDeg != null ? o.ruleDeg : 12;
+  const PH = Object.assign({}, P, { hullOn: 1 });
+  const S = cageSpec(PH), R = cageResolve(S), H = cageHullSpec(PH);
+  const rs = R.rings.filter(r => r.lv.keel).slice().sort((a, b) => cageKeelZ(a) - cageKeelZ(b));
+  if (rs.length < 2 || !Number.isFinite(cgZ) || !Number.isFinite(cgY)) return null;
+  const keelAt = z => {
+    // (HULL-B20: the hull's deepening lowers every keel the boat floats on)
+    const lo = r => Math.min(r.lv.keel.y, r.lv.keel.yC != null ? r.lv.keel.yC : r.lv.keel.y) - (H.deep || 0);
+    if (z <= cageKeelZ(rs[0])) return lo(rs[0]);
+    for (let i = 0; i + 1 < rs.length; i++) {
+      const a = rs[i], b = rs[i + 1], za = cageKeelZ(a), zb = cageKeelZ(b);
+      if (z <= zb) return lo(a) + (lo(b) - lo(a)) * (zb - za > 1e-9 ? (z - za) / (zb - za) : 0);
+    }
+    return lo(rs[rs.length - 1]);
+  };
+  const cab = R.rings.find(r => r.name === 'pilCabA') || R.rings.find(r => /^pilCab/.test(r.name));
+  if (!cab) return null;
+  const zCab = cageKeelZ(cab);
+  const zStep = cgZ - Math.tan(rule * Math.PI / 180) * Math.max(0.1, cgY - keelAt(cgZ));
+  const out = { hullStepZ: +(zCab - zStep).toFixed(3) };
+  const yStep = keelAt(zStep), tA = Math.tan(aftDeg * Math.PI / 180);
+  const line = z => yStep + H.hs + (zStep - z) * tA;
+  const raise = (name, key) => {
+    const r = R.rings.find(q => q.name === name);
+    if (!r || cageKeelZ(r) >= zStep - 0.05 || !Number.isFinite(+P[key])) return;
+    const want = line(cageKeelZ(r));
+    // (raised onto the run; with o.exact - a tail-heavy boat's shallower run - also LOWERED onto it)
+    if (want > +P[key] || o.exact) out[key] = +Math.min(want, (r.lv.waist ? r.lv.waist.y : want) - 0.05).toFixed(3);
+  };
+  raise('pilPaxA', 'aftKeelY');
+  raise('tailPost', 'tailKeelY');
+  return out;
+}
+// HULL-B8: THE BOAT'S WHOLE FIT, ONE FUNCTION for the page (_cage_float.js hullFitStep), the gate (_hull_check.js)
+// and the matrix (hull_matrix.js), so the three cannot drift. f: the flown aeroplane in the model frame (x aft, y up):
+// { cg: [x, y], mass, zFw, yD (the join's datums: model x = zFw - cage z * FS, model y = cage y * FS - yD), props:
+// [{ x, y, z, R }] (optional: the discs, HYDRO.propDiscs) }; HY: the hydro API (hullRestTrim, hullTipFit).
+//  1. THE STEP AND THE AFTERBODY (cageHullFit: 12 deg aft of the CG, the afterbody keel on 7 deg);
+//  2. THE BALANCE: the boat must REST bow up enough and its bow deck clear (HYDRO.hullRestTrim off the table: trim >=
+//     REST_TRIM_MIN, the bow deck >= REST_BOW_MIN). Short of it - a nose engine or a twin's pair at the leading edge
+//     puts the CG forward, the step follows it and the cabin's long afterbody floats the tail (the matrix: the Cessna
+//     hull with its own nose engine rested 15 deg bow down and nosed under) - the BOW is lengthened (noseLen, the
+//     shared row: a flying boat's long bow is the real answer, the Lake's and the Che-22's), the least that balances;
+//  3. THE PROPELLERS' CLEARANCE: each disc's lowest point over the rest waterline, the heel to a tip float added for
+//     a wing engine, at least PROP_WATER_CLEAR (FAR 23.925(b): 18 in for a seaplane); short of it a wing pair is
+//     stood on the wing's skin, then lifted on a pylon (engNacOver, engNacLift) and an over-the-wing engine on its pylon (engPylonH). A nose or a pusher disc
+//     has no such row: it is REPORTED (out.notes), the builder's choice;
+//  4. a wing PAIR counter-rotates (engRotate 1, below);
+//  5. THE TIP FLOATS (HYDRO.hullTipFit off the flown mass, on the fitted table).
+// Returns the rows to write (and `rest`, `notes`: what it read - not rows)
+const OUTRIG_FRAC = 0.12, OUTRIG_SINK = 0.10, OUTRIG_AT = 0.55, OUTRIG_K = 1.0;   // (HULL-B28: the outrigger hulls' fit)
+const TO_TRIM = 8, PROP_RUN_CLEAR = 0.55, FIN_AT_MAX = 1.0, FIN_H_MAX = 1.8, ENG_BLOCK_MAX = 0.8, SPON_MARGIN = 1.8, SPON_SINK = 0.05, ROD_Y_MIN_ABS = 1.5, DISC_CLEAR = 0.10, PROP_D_MIN = 1.4, HULL_DEEP_MAX = 0.8, AFT_DEG_MIN = 2, REST_TRIM_MIN = -1.0, REST_TRIM_MAX = 9, REST_BOW_MIN = 0.25, PROP_WATER_CLEAR = 0.457, NOSE_LEN_MAX = 4.0;
+function cageHullFitAll(P, f, HY, opt) {
+  const o = opt || {}, FS = (CAGE_UNIT || 1) * (P.planeScale || 1);
+  if (!f || !f.cg || !(f.mass > 0)) return null;
+  const fitAt = P1 => cageHullFit(P1, (f.zFw - f.cg[0]) / FS, (f.cg[1] + f.yD) / FS);
+  const restOf = P1 => {
+    const TB = cageHullTable(cageHullLines(P1), FS);
+    if (!TB || !HY || !HY.hullRestTrim) return null;
+    const sx = f.zFw - TB.zStep * FS, sy = TB.yStep * FS - f.yD;
+    const r = HY.hullRestTrim({ sta: TB.sta }, f.mass, f.cg[0] - sx, f.cg[1] - sy);
+    return r && Object.assign(r, { sx, sy, TB });
+  };
+  const okRest = r => r && !r.sunk && r.trim >= REST_TRIM_MIN && r.trim < REST_TRIM_MAX && r.bowDeck >= REST_BOW_MIN;
+  let fit = fitAt(P);
+  if (!fit) return null;
+  let r = restOf(Object.assign({}, P, fit));
+  const notes = [];
+  // (a NOSE engine rides the bow: a longer bow carries it forward, the CG with it, and the fit runs away - measured, the
+  // Cessna hull's own nose engine: noseLen 1.8, 2.6, 3.0 over three passes and the step chasing it. Reported instead)
+  const mount = Math.round(+P.engMount || 0), noseEngine = +P.engOn !== 0 && [0, 4, 5].includes(mount);
+  if (r && !okRest(r) && r.trim < REST_TRIM_MAX && noseEngine) notes.push('rests ' + r.trim.toFixed(1) + ' deg, the bow deck ' + r.bowDeck.toFixed(2) + ' m: a nose engine on a hull - the bow cannot be lengthened under it (Over the wing, or a pair on the wing)');
+  // (only a boat resting BOW DOWN is helped by a longer bow; one resting stern down - the CG aft of what the afterbody
+  // carries, a pusher on the pod's aft bulkhead - is reported: its cure is a longer afterbody, not a row yet)
+  const bowDown = r && (r.trim < REST_TRIM_MIN || r.bowDeck < REST_BOW_MIN) && r.trim < REST_TRIM_MAX;
+  // HULL-B12: THE BOW BOTH WAYS. The balance owns the bow once it has moved it (hullNoseBase: the builder's own,
+  // recorded the first time): it then takes the SHORTEST bow from the builder's up that rests the boat - shorter again
+  // when the CG moved aft since (the twin's 3.4 m was set before its nacelles went over the wing), never under the
+  // builder's own. Not chased under a nose engine (above)
+  const base = +P.hullNoseBase > 0 ? +P.hullNoseBase : 0;
+  if (r && (bowDown || base) && !noseEngine && o.balance !== false && !(r.trim >= REST_TRIM_MAX)) {
+    const n0 = base || (+P.noseLen || 0.6);
+    const at = nl => { const P1 = Object.assign({}, P, { noseLen: nl }), f1 = fitAt(P1); return f1 && { fit: Object.assign(f1, { noseLen: +nl.toFixed(3) }), r: restOf(Object.assign({}, P1, f1)) }; };
+    const lo0 = at(n0);
+    let best = null;
+    if (lo0 && okRest(lo0.r)) best = lo0;
+    else {
+      const top = at(NOSE_LEN_MAX);
+      if (top && okRest(top.r)) {
+        let lo = n0, hi = NOSE_LEN_MAX; best = top;
+        for (let k = 0; k < 14; k++) { const m = 0.5 * (lo + hi), t = at(m); if (t && okRest(t.r)) { hi = m; best = t; } else lo = m; }
+      } else if (top) {
+        best = top;
+        notes.push('the bow at its longest still rests ' + (top.r ? top.r.trim.toFixed(1) + ' deg' : '?') + ': the CG is too far forward for this hull');
+      }
+    }
+    if (best && Math.abs(best.fit.noseLen - (+P.noseLen || 0)) > 1e-3) {
+      fit = best.fit; r = best.r;
+      if (!base) fit.hullNoseBase = +n0.toFixed(3);
+    }
+  }
+  // HULL-B12: A TAIL-HEAVY BOAT (resting stern down, REST_TRIM_MAX or more - the CG aft of what the afterbody
+  // carries) takes a SHALLOWER afterbody run: hullAftDeg from the 7-deg rule down to AFT_DEG_MIN, the afterbody and
+  // tail keel rows set onto it (lowered as well as raised) - the deeper afterbody floats the stern. The least change
+  // that rests it; short of it, reported
+  if (r && r.trim >= REST_TRIM_MAX && o.balance !== false) {
+    const d0 = +P.hullAftDeg > 0 ? +P.hullAftDeg : 7;
+    const atD = dg => { const P1 = Object.assign({}, P, fit, { hullAftDeg: dg }), f1 = cageHullFit(P1, (f.zFw - f.cg[0]) / FS, (f.cg[1] + f.yD) / FS, { exact: true });
+      return f1 && { fit: Object.assign({}, fit, f1, { hullAftDeg: +dg.toFixed(2) }), r: restOf(Object.assign({}, P1, f1)) }; };
+    let got = null;
+    for (let dg = d0 - 0.5; dg >= AFT_DEG_MIN - 1e-9; dg -= 0.5) { const t = atD(dg); if (t && t.r && t.r.trim < REST_TRIM_MAX) { got = t; break; } if (t) got = t; }
+    if (got) { fit = got.fit; r = got.r; }
+    if (!r || r.trim >= REST_TRIM_MAX) notes.push('rests ' + (r ? r.trim.toFixed(1) : '?') + ' deg bow UP with the afterbody at its shallowest (' + AFT_DEG_MIN + ' deg): the CG is aft of what this hull carries');
+  }
+  // the propellers over the rest waterline
+  if (r && f.props && f.props.length) {
+    const th = r.trim * Math.PI / 180;
+    const tipZ = (+P.hullTipAt || 0.85) * (o.semi || 5);
+    let need = 0;
+    // (HULL-B22: and at the TAKE-OFF TRIM - the bow up TO_TRIM about the step, where the water meets the hull on the run:
+    // a disc far aft of the step - a fin engine's, a tub pusher's - drops by its arm x the angle; the measured fin boat
+    // put its disc in the water at 5 deg and stopped its engine)
+    const thT = (r.trim + TO_TRIM) * Math.PI / 180;
+    for (const d of f.props) {
+      const x = d.x - r.sx, y = d.y - r.sy;
+      const low = (-x * Math.sin(th) + y * Math.cos(th)) - d.R - r.draft;
+      const lowT = (-x * Math.sin(thT) + y * Math.cos(thT)) - d.R;           // (the step keel at the water on the run)
+      const heel = Math.abs(d.z || 0) > 0.5 && +P.hullTips ? 0.12 * Math.abs(d.z) / Math.max(1, tipZ) : 0;
+      need = Math.max(need, PROP_WATER_CLEAR + heel - low, PROP_RUN_CLEAR - lowT);
+    }
+    if (need > 0.005) {
+      // (a wing nacelle stays ON the wing: first onto its top skin, then up on a pylon - the user, 4 Nov: "if you have
+      // to lift these engines so high up, you need a pylon. Wing mounted should remain anchored and in contact with
+      // the wing structure". Each pass adds what is still short; the next build measures the discs again)
+      if ([3, 5, 6].includes(mount)) {
+        if (!(+P.engNacOver > 0)) { fit.engNacOver = 1; fit.engNacLift = 0; }
+        else fit.engNacLift = +(Math.max(0, +P.engNacLift || 0) + need / FS + 0.01).toFixed(3);
+      }
+      else if (mount === 2 || mount === 7) fit.engPylonH = +(Math.max(0.05, +P.engPylonH || 0.30) + need / FS + 0.01).toFixed(3);
+      else if (mount === 8) {
+        // (HULL-B22: a fin engine climbs the fin to FIN_AT_MAX, then stands off it on its block (engBlockY: the mount's
+        // tubes longer), to ENG_BLOCK_MAX; past both, a smaller propeller)
+        // (HULL-B34, the user: "If you want to move that, change the fin geometry": the engine stays IN CONTACT with the
+        // fin - up it to its top (FIN_AT_MAX 1), then a TALLER FIN (finHeight, to FIN_H_MAX) carries it up; no block)
+        const H = f.finH > 0.3 ? f.finH : 1.4, at0 = +P.engFinAt || 0.55;
+        const at1 = Math.min(FIN_AT_MAX, at0 + need / H + 0.01), gainAt = (at1 - at0) * H;
+        if (at1 > at0 + 1e-3) fit.engFinAt = +at1.toFixed(3);
+        let left = need - gainAt;
+        if (left > 0.005) {
+          const fh0 = +P.finHeight > 0 ? +P.finHeight : 1, atU = Math.max(0.2, at1);
+          const fh1 = Math.min(FIN_H_MAX, fh0 * (1 + (left + 0.01) / (H * atU)));
+          if (fh1 > fh0 + 1e-3) { fit.finHeight = +fh1.toFixed(3); left -= (fh1 / fh0 - 1) * H * atU; }
+        }
+        if (left > 0.005) { const D0 = +P.cw_propD || 0; if (D0 > 0) fit.cw_propD = +Math.max(PROP_D_MIN, D0 - 2 * left - 0.02).toFixed(3);
+          if (!(D0 > 0) || D0 - 2 * left - 0.02 < PROP_D_MIN) notes.push('a fin engine\'s propeller still short of the water on the run'); }
+      }
+      // (HULL-B25, the user: "Just don't touch the cabin ... You kept with the tall cabin while I instructed you not to":
+      // the fit NEVER deepens the hull under the body any more - hullDeep stays the builder's own row; a pusher on the aft
+      // bulkhead short of its clearance is reported, nothing reshaped)
+      else notes.push('a propeller ' + Math.round(need * 1000) + ' mm short of its 18 in over the water at rest');
+    }
+  }
+  // HULL-B20: THE ROD FOLLOWS THE TUB'S AFTERBODY (the user: "the rod should probably be tilted the same way you have
+  // tilted your buoyant structure at the back"): a rod boom over a tub afterbody climbs at the afterbody keel's rise
+  if (+P.hullTubLen > 0.05 && Math.round(+P.boomStyle || 0) === 1 && !+P.boomTwin) {
+    const ri = Math.max(-12, Math.min(12, +P.hullTubRise >= 0 ? +P.hullTubRise : 8));
+    if (Math.abs((+P.rodIncl || 0) - ri) > 1e-3) fit.rodIncl = ri;
+    // ...and RIDES THE AFTERBODY UNDER THE DISC: its axis at the disc's plane just under the disc's lowest tip (the
+    // afterbody's deck stays DISC_CLEAR under it - cageHullTub), climbing at the same rise behind it (cage units)
+    const L = cageHullLines(Object.assign({}, P, fit)), dsc = L && L.tub && L.tub.disc;
+    if (dsc) {
+      const rr = Math.max(0.015, (+P.rodD || 0.12) / 2) / FS, t = Math.tan(ri * Math.PI / 180);
+      const ry = +Math.max(-ROD_Y_MIN_ABS, Math.min(0.9, dsc.yLow + (DISC_CLEAR - 0.03) / FS - rr - t * dsc.zDisc)).toFixed(3);
+      if (Math.abs((+P.rodY || 0) - ry) > 1e-3) fit.rodY = ry;
+    }
+  }
+  // 4. A PAIR ON A HULL TURNS AGAINST ITSELF (engRotate 1, tops inward): a same-hand pair's torque, even at idle, rolled
+  // the Cessna twin hull onto a tip float and on past it (the matrix: 16 deg in 9 s, a disc in the water; counter-rotating,
+  // 2.6 deg, as with the engines off). Only a pair left at the same hand is turned
+  if ([3, 6].includes(mount) && !Math.round(+P.engRotate || 0)) fit.engRotate = 1;
+  if (+P.hullTips && HY && HY.hullTipFit) {
+    const TB = r ? r.TB : cageHullTable(cageHullLines(Object.assign({}, P, fit)), FS);
+    // (HULL-B10: the moment rule - the CG's height over the step keel, the floats' arm, the engines' torque at full
+    // power P / w: the frame's tip floats stand at hullTipAt of the semispan)
+    const sy = r ? r.sy : TB && TB.yStep * FS - f.yD;
+    const pair = [3, 5, 6].includes(mount) && (Math.round(+P.engRotate || 0) || fit.engRotate);
+    const tq = pair ? 0 : (f.props || []).reduce((a, d) => a + (d.Q || 0), 0) / 9.81;
+    const tf = TB && HY.hullTipFit({ sta: TB.sta }, f.mass, sy != null && (o.semi || f.tipArm > 0.5) ? { cgY: f.cg[1] - sy, arm: f.tipArm > 0.5 ? f.tipArm : (+P.hullTipAt || 0.85) * o.semi, torqueKgm: tq } : undefined);
+    if (tf) { fit.hullTipKg = tf.kg; fit.hullTipY = tf.y; }
+    // HULL-B28: OUTRIGGER HULLS (hullTips 3) rest IN the water - their keel OUTRIG_SINK of their depth under the level
+    // waterline, both kissing the water at rest (the trimaran's three-point stance; 30 % deep dragged them into a 49 deg roll on the run) - at least OUTRIG_FRAC of the gross each
+    // (the moment rule on their shorter arm usually asks more), inboard at OUTRIG_AT of the semispan unless set inboard
+    if (tf && Math.round(+P.hullTips) === 3 && HY.tipFloatParams) {
+      // (OUTRIG_K x the rule: at 12 % and the rule's own 95 kg the Cessna boat leaned onto one at 7 m/s, the 915's torque
+      // and its high CG pressing it under to 45 deg - an outrigger is a hull, not a small float)
+      const kg = Math.max(OUTRIG_K * tf.kg, OUTRIG_FRAC * f.mass), Pt = HY.tipFloatParams(kg);
+      fit.hullTipKg = +kg.toFixed(1); fit.hullTipY = +(tf.draft - OUTRIG_SINK * Pt.H).toFixed(3);
+      if (!(+P.hullTipAt <= 0.7)) fit.hullTipAt = OUTRIG_AT;
+    }
+    // HULL-B26: BUOYANT WING TIPS (hullTips 2) - the wing's own tip is shaped to be the float (the user, 5 Nov: "a
+    // setting of the wingtip itself, and how far it is allowed to drop, within reason"): its keel to where a strut
+    // float's would be (the level waterline + its clear), its full volume what the same moment rule asks of a float
+    // (60_gen_spec genTipFit: the shortest tip that reaches, then its drop, then its fullness). A tip with no bow turns
+    // drooped first (the next build has a tip to shape); past the longest, fullest tip the fit says so - a lower wing
+    if (tf && Math.round(+P.hullTips) === 2 && o.tip && sy != null) {
+      const J = o.tip.joint;
+      if (!J || !(J.bow > 0)) { if (o.tip.drooped >= 0) fit.wgTip = o.tip.drooped; }
+      else if (o.tip.fit) {
+        const T = o.tip.fit(J, sy + tf.y, tf.kg);
+        if (T) {
+          fit.wgTipBow = +T.bow.toFixed(2);
+          fit.wgTipDroop = +Math.max(0.01, T.droop).toFixed(3);
+          fit.wgTipFull = +T.full.toFixed(2);
+          if (!T.reach) notes.push('the wing stands too high for its tips to reach the water: the longest tip\'s keel is '
+            + Math.round((T.keel - sy - tf.y) * 1000) + ' mm over where a tip float\'s would be - a lower wing');
+          else if (!T.ok) notes.push('the buoyant tips hold ' + Math.round(T.kg) + ' of the ' + Math.round(tf.kg) + ' kg the moment rule asks');
+        }
+      }
+    }
+  }
+  // HULL-B19: THE SPONSONS' SIZE - the same moment rule on their short arm (the hull's side at their station plus their
+  // outboard offset), their keel half their depth under the rest waterline (a sponson floats in the water at rest)
+  // (HULL-B29: planing wing roots - hullSpon 3 - are the wing's own: nothing to size; the water and the break code judge
+  // a root that stands too high or too low)
+  if (+P.hullSpon && Math.round(+P.hullSpon) !== 3 && HY && HY.hullTipFit && HY.tipFloatParams) {
+    const TB = r ? r.TB : cageHullTable(cageHullLines(Object.assign({}, P, fit)), FS);
+    const sy = r ? r.sy : TB && TB.yStep * FS - f.yD;
+    if (TB && sy != null) {
+      const xs = -(+P.hullSponX || 0.3), near = TB.sta.reduce((a, s) => Math.abs(s.x - xs) < Math.abs(a.x - xs) ? s : a, TB.sta[0]);
+      const arm = near.bd + (+P.hullSponW || 0.32);
+      const pair = [3, 5, 6].includes(mount) && (Math.round(+P.engRotate || 0) || fit.engRotate);
+      const tq = pair ? 0 : (f.props || []).reduce((a, d) => a + (d.Q || 0), 0) / 9.81;
+      const stub = Math.round(+P.hullSpon) === 1 && HY.sponsonVol;
+      if (stub) {
+        // (HULL-B21: the stub's arm is its mid-span, the hull's side + half its span; its chord such that its full volume
+        // is SPON_MARGIN x what the moment rule asks; its flat underside just under the rest waterline, SPON_SINK of its
+        // thickness - the Icon's, which kiss the water at rest; half-sunk, a heel drowned the low one whole)
+        const k = Math.max(0.3, +P.hullSponK || 0.75), t = Math.max(0.08, +P.hullSponT || 0.22);
+        let c = 1.0;
+        for (let it = 0; it < 4; it++) {
+          const tfi = HY.hullTipFit({ sta: TB.sta }, f.mass, { cgY: f.cg[1] - sy, arm: near.bd + 0.5 * k * c, torqueKgm: tq });
+          if (!tfi) break;
+          c = Math.cbrt(SPON_MARGIN * tfi.kg / (1000 * 0.685 * t * k));
+          if (it === 3) { fit.hullSponC = +c.toFixed(3); fit.hullSponY = +(tfi.draft - SPON_SINK * t * c).toFixed(3); }
+        }
+      } else {
+        const tf = HY.hullTipFit({ sta: TB.sta }, f.mass, { cgY: f.cg[1] - sy, arm, torqueKgm: tq });
+        if (tf) { const Pt = HY.tipFloatParams(tf.kg); fit.hullSponKg = tf.kg; fit.hullSponY = +(tf.draft - 0.5 * Pt.H).toFixed(3); }
+      }
+    }
+  }
+  return { rows: fit, rest: r && { trim: r.trim, draft: r.draft, bowDeck: r.bowDeck }, notes };
+}
+function cageHullSpec(P) {
+  const cl = (v, a, b, d) => { v = +v; return Number.isFinite(v) ? Math.max(a, Math.min(b, v)) : d; };
+  return { beta: cl(P.hullBeta, 0, 40, 22), betaBow: cl(P.hullBetaBow, 0, 60, 36), betaA: cl(P.hullBetaA, 0, 40, 18),
+           stepAft: cl(P.hullStepZ, -3, 6, 0.3), hs: cl(P.hullHs, 0, 0.4, 0.07),
+           steps: Math.round(cl(P.hullSteps, 0, 2, 1)),
+           // HULL-B31: THE SECOND STEP (the Dornier Wal's; NACA's "English-type" two-step hull): hullStep2Z aft of the main
+           // step, hullHs2 deep - the rings aft of it rise by both steps
+           stepAft2: cl(P.hullStep2Z, 0.2, 5, 1.2), hs2: cl(P.hullHs2, 0, 0.3, 0.05),
+           // HULL-B20: the hull DEEPER under the body (m -> cage units): the keel and the chine lowered, the floor and the
+           // gunwale kept - the body rides higher over its waterline (the user: 'lowering your fuselage')
+           deep: cl(P.hullDeep, 0, 1.2, 0) / ((CAGE_UNIT || 1) * (P.planeScale || 1)),
+           // HULL-B39: THE FLUTED BOTTOM (the user, the Super Petrel: "this crazy shape I wanted you to do for a while ...
+           // 2 arcs and a central hull ridge slicing the water ... quite similar to the EDO floats"): flute the ridge's drop
+           // under the straight V over the chine half-beam (0 = the plain V, bit-identical), fluteN the concave arcs a side
+           // (1: keel to chine; 2: keel to a ridge at fluteAt of the half-beam, ridge to chine - the EDO's "Batman"),
+           // fluteBow the share of the forebody (from the step) by which it has faded out, fluteAft its share kept aft
+           // (HULL-B46: to 0.45 - the Petrel's deep arch, a tunnel either side of the keel)
+           flute: cl(P.hullFlute, 0, 0.45, 0), fluteN: Math.round(cl(P.hullFluteN, 1, 2, 2)), fluteAt: cl(P.hullFluteAt, 0.3, 0.8, 0.55),
+           fluteBow: cl(P.hullFluteBow, 0.35, 1, 0.85), fluteAft: cl(P.hullFluteAft, 0, 1, 0),
+           // HULL-B43: the belly's ROCKER - the keel's rise at a step under the buoyant taper over the cabin's aft frame
+           // (cage units; 0 = the flat run of B37)
+           rocker: cl(P.hullRocker, 0, 0.5, 0),
+           // HULL-B44: THE SKIRT - the chine's reach beyond the topsides (of the half-beam; 0 = none, bit-identical)
+           skirt: cl(P.hullSkirt, 0, 0.3, 0) };
+}
+const cageKeelZ = r => r.lv.keel ? r.lv.keel.z : r.lv.waist ? r.lv.waist.z : 0;
+// the hull's stations off the resolved rings (cage z, +forward): the step (the cabin frame's fore ring, stepAft
+// metres aft of it), the bow (the foremost keel point) and the tail
+function cageHullFrame(H, R, mirror) {
+  const cab = R.rings.find(r => r.name === 'pilCabA') || R.rings.find(r => /^pilCab/.test(r.name));
+  let zMax = -Infinity, zMin = Infinity;
+  for (const r of R.rings) { const z = cageKeelZ(r); zMax = Math.max(zMax, z); zMin = Math.min(zMin, z); }
+  for (const n of [R.noseTwin, R.noseRing]) if (n && n.lv && n.lv.keel)
+    zMax = Math.max(zMax, n.lv.keel.zC != null ? n.lv.keel.zC : n.lv.keel.z);
+  const zCab = cab ? cageKeelZ(cab) : 0.5 * (zMax + zMin);
+  const zStep = Math.max(zMin + 0.1, Math.min(zMax - 0.1, zCab - H.stepAft));
+  // (a mirrored pod's aft half is the front reflected: no step there; the V alone)
+  const on = !mirror && H.steps > 0 && H.hs > 0;
+  const zStep2 = on && H.steps >= 2 && H.hs2 > 0 && zStep - H.stepAft2 > zMin + 0.1 ? zStep - H.stepAft2 : null;   // (HULL-B31)
+  return { zStep, zBow: zMax, zTail: zMin, on, zStep2 };
+}
+// the deadrise at a station: the step's, warped toward the bow as 32_hydro's sectionOf (t^2.5); the afterbody's aft
+function cageHullBeta(H, HF, z) {
+  if (z < HF.zStep) return H.betaA;
+  const t = Math.min(1, Math.max(0, (z - HF.zStep) / Math.max(1e-6, HF.zBow - HF.zStep)));
+  return H.beta + (H.betaBow - H.beta) * Math.pow(t, 2.5);
+}
+// one ring's bottom as a boat (in place). rise: the step depth on an afterbody ring, 0 forward of the step
+function cageHullVee(H, HF, lv, rise) {
+  const k = lv.keel;
+  if (!k) return;
+  const w = lv.waist, f = lv.floor;
+  const tb = Math.tan(cageHullBeta(H, HF, k.z) * Math.PI / 180);
+  // the V as it stands without the step (crown0, chine0), then the step's rise on the bottom alone
+  if (H.deep > 0 && !lv.__deep) {            // (HULL-B20: once per ring - the keel and its centre column lowered together)
+    k.y -= H.deep; if (k.yC != null) k.yC -= H.deep; lv.__deep = true;
+  }
+  const crown0 = Math.min(k.yC != null ? k.yC : k.y, k.y);
+  const chineOf = (cr, ky) => {
+    let y = Math.max(ky, cr + Math.abs(k.x) * tb);
+    // the chine stays under the gunwale: a small section (the tail cone) keeps a side above its V
+    if (w) y = Math.min(y, cr + 0.7 * Math.max(0, w.y - cr));
+    return y;
+  };
+  const yCh0 = chineOf(crown0, k.y);
+  const crown = crown0 + (rise || 0), yCh = chineOf(crown, k.y + (rise || 0));
+  if (k.zC == null) k.zC = k.z;
+  k.yC = crown;
+  k.y = yCh;
+  if (f && w) {
+    // THE TOPSIDES DO NOT STEP (HULL-B4, the wireframe review): the floor sits on the UN-STEPPED chine->gunwale line,
+    // a quarter of the way up at least, so the step's two rings carry the same floor point and the step face ends
+    // at the chine - only the bottom steps (the first cut raised the floor with the keel: the step climbed the side)
+    const fy = Math.max(f.y, yCh0 + 0.25 * Math.max(0, w.y - yCh0));
+    const t = (w.y - yCh0) > 1e-6 ? Math.min(1, (fy - yCh0) / (w.y - yCh0)) : 0;
+    f.y = Math.min(Math.max(fy, yCh + 0.02 * Math.max(0, w.y - yCh)), w.y);
+    f.x = k.x + (w.x - k.x) * t;
+  }
+  // HULL-B44 (the user, a front photograph of the Super Petrel: "the hull bow is very pronounced, but you also have almost
+  // an overhang on the side ... something like a skirt option"): THE SKIRT. The chine reaches out H.skirt x its half-beam
+  // past where the V put it and the topside strip above it TUCKS IN under the gunwale (the floor level: inboard of the
+  // gunwale by half the reach, down to a third of the way up from the chine) - the chine stands proud as a lip, the side
+  // overhanging the water. Before the flute, so the arch spans the skirt's chine; the water reads that chine (b)
+  // (HULL-B46, the user's section sketch - red the B44 skirt, green the one meant: "You've made an horizontal skirt while it
+  // needed to be vertical"): THE SKIRT IS VERTICAL. The hull is WIDEST AT THE CHINE (the chine reaches H.skirt x its
+  // half-beam past where the V put it), the strip above it STANDS STRAIGHT UP over the chine (the floor level at the
+  // chine's own beam, a quarter of the way up to the gunwale) and the topside leans IN from there to the gunwale - a
+  // flared, tent-like side ending on a short vertical lip, the bottom running in flat from it to the arch and the keel
+  if (H.skirt > 0 && !lv.__skirt) {
+    lv.__skirt = true;
+    const sx = k.x < 0 ? -1 : 1, b0 = Math.abs(k.x);
+    k.x = sx * b0 * (1 + H.skirt);
+    if (f && w) {
+      f.x = (f.x < 0 ? -1 : 1) * Math.abs(k.x);
+      f.y = Math.min(w.y - 0.02 * Math.max(0, w.y - k.y), k.y + 0.25 * Math.max(0, w.y - k.y));
+    }
+  }
+  if (H.flute > 0) cageHullFlute(H, HF, lv);
+}
+// HULL-B39: THE FLUTED BOTTOM on one ring (after its V): the keel corner the V made is the CHINE, and between the keel's
+// centre column and the chine the bottom is one or two CONCAVE ARCS a side - the EDO float's own law (32_hydro sectionOf,
+// FLOATS-CLASSIC.4): the ridge at fluteAt x the half-beam standing flute x the half-beam under the straight V, each arc cut
+// in 0.75 x flute of its chord (a parabola). Drawn as levels under the floor - chine (creased like the chine was), fluteO
+// (the outer arc's control, smooth), ridge (sharp), and the keel's own flank point as the inner arc's control (smooth):
+// a control stands 1.5 x the arc's depth in, so the subdivided limit (A + 4M + B) / 6 between two creased ends meets it.
+// The water's ridge (lv.__fr: its station across and its height, cage units) is the EDO's physics ridge - raised by
+// exactly the area the drawn arcs cut in, so the table's two facets a side hold the drawn section's volume
+function cageHullFluteAt(H, HF, z) {
+  const sm = u => { const t = Math.max(0, Math.min(1, u)); return t * t * (3 - 2 * t); };
+  if (!HF.on || z >= HF.zStep) {
+    const t = (z - HF.zStep) / Math.max(1e-6, HF.zBow - HF.zStep);
+    return H.flute * (1 - sm((t - (H.fluteBow - 0.35)) / 0.35));
+  }
+  return H.flute * H.fluteAft;
+}
+function cageHullFlute(H, HF, lv) {
+  const k = lv.keel;
+  if (!k || lv.chine) return;
+  // (HULL-B41: EVERY ring takes the levels - the bow's nose ring is all but a point, and skipping it left the cowl loops
+  // lerped toward it without a chine: the bow loft's first band had the level on one ring only, a crack the subdivision
+  // pulled into a blade under the forefoot and a 7 cm drop of the keel)
+  const sx = k.x < 0 ? -1 : 1, b = Math.max(1e-4, Math.abs(k.x)), yk = k.yC != null ? k.yC : k.y, yc = k.y, z = k.z;
+  const fl = cageHullFluteAt(H, HF, z), two = H.fluteN >= 2, sag = 0.75 * fl;
+  // (HULL-B46: a single arch's CROWN may stand off the middle - at fluteAt of the chord, the Petrel's high near its
+  // skirt; the two-arc bottom keeps its ridge there and its arcs' crowns in their middles)
+  const q1 = two ? 0.5 : H.fluteAt;
+  const tb = (yc - yk) / b, zr = two ? H.fluteAt * b : q1 * b, yr = yk + zr * tb - (two ? fl * b : 0);
+  // a control point of the arc A -> B ([x, y]): at q of the chord, 1.5 x the depth along its inward (up, in) normal
+  const ctl = (A, B, q = 0.5) => { const dx = B[0] - A[0], dy = B[1] - A[1], L = Math.hypot(dx, dy) || 1, o = 1.5 * sag * L * 4 * q * (1 - q);
+    return [A[0] + q * dx - o * dy / L, A[1] + q * dy + o * dx / L]; };
+  const K = [0, yk], R = [zr, yr], C = [b, yc];
+  lv.chine = { x: k.x, y: yc, z };
+  const mI = two ? ctl(K, R) : ctl(K, C, q1);
+  if (two) {
+    const mO = ctl(R, C);
+    lv.ridge = { x: sx * zr, y: yr, z };
+    lv.fluteO = { x: sx * mO[0], y: mO[1], z };
+  }
+  k.x = sx * Math.max(1e-4, mI[0]); k.y = mI[1];
+  // the water's ridge: the drawn arcs (parabolas of the depth, [y, z] as 32_hydro's) and the area they cut in
+  const on = (y0, z0, y1, z1, f) => { const dz = z1 - z0, dy = y1 - y0, L = Math.hypot(dz, dy) || 1, o = 4 * sag * L * f * (1 - f);
+    return [y0 + f * dy + o * (dz / L), z0 + f * dz - o * (dy / L)]; };
+  const arc = two ? [on(yk, 0, yr, zr, 1 / 3), on(yk, 0, yr, zr, 2 / 3), [yr, zr], on(yr, zr, yc, b, 0.25), on(yr, zr, yc, b, 0.5), on(yr, zr, yc, b, 0.75)]
+    : [1, 2, 3, 4, 5].map(i => { const f = i / 6, g = f <= q1 ? 0.5 * f / q1 : 0.5 + 0.5 * (f - q1) / (1 - q1); const p = on(yk, 0, yc, b, g);
+        return [yk + f * (yc - yk) + (p[0] - (yk + g * (yc - yk))), f * b + (p[1] - g * b)]; });
+  const poly = [[yk, 0], ...arc, [yc, b]];
+  let cut = 0;
+  for (let i = 0; i + 1 < poly.length; i++) cut += poly[i][1] * poly[i + 1][0] - poly[i + 1][1] * poly[i][0];
+  cut -= (0 * yr - zr * yk) + (zr * yc - b * yr);
+  lv.__fr = { zr, yr: yr + Math.max(0, -cut) / b };
+}
 
 // step: 0 zones | 1 pillars+rails | 2 guard loops | 'crease' = step-1
 // geometry + edge crease tags (the canonical economic output)
@@ -1021,9 +1669,40 @@ function buildCage2(S, step) {
   const openRim = [], openFore = [];
   const R = cageResolve(S);
   const MIR = !!(S.config && S.config.mirror);
+  // HULL-B1: the boat hull's stations, and the bow's rings as a boat (they lie forward of any step)
+  const HULL = S.hull || null;
+  const HF = HULL ? cageHullFrame(HULL, R, MIR) : null;
+  const hullDone = new Set();
+  if (HULL) for (const n of [R.noseTwin, R.noseRing])
+    if (n && n.lv && !hullDone.has(n.lv)) { hullDone.add(n.lv); cageHullVee(HULL, HF, n.lv, 0); }
+  // HULL-B2: THE BOAT'S LINES as drawn — every emitted ring's keel (the centre column), chine (the keel corner) and
+  // gunwale (the waist), tail to bow, cage units: the body's rings, then the nose loft as EMITTED (the cowl loops and
+  // the collapsed nose ring of an aerodynamic bow - not the resolved ring before its loft: the water must meet the
+  // bow the builder sees); the join turns them into the water's station table (cageHullLines -> cageHullTable)
+  let hullNose = null;
+  const hullRecord = () => {
+    const sta = [];
+    const put = (lv, side) => {
+      const k = lv && lv.keel, w = lv && lv.waist;
+      if (!k || !w) return;
+      // (HULL-B39: a fluted bottom's chine is its own level; its ridge the water's - cageHullFlute)
+      const ch = lv.chine || k, fr = lv.__fr;
+      sta.push(Object.assign({ z: k.z, yk: k.yC != null ? k.yC : k.y, b: Math.abs(ch.x), yc: ch.y, bd: Math.abs(w.x), yd: w.y, side: side || null },
+        fr ? { zr: fr.zr, yr: fr.yr } : {}));
+    };
+    for (const r of seq) put(r.lv, r.hullSide);
+    for (const n of (hullNose || [])) put(n.lv, null);
+    sta.sort((p, q) => p.z - q.z);
+    return { zStep: HF.zStep, zBow: HF.zBow, on: HF.on, hs: HULL.hs, sta, zStep2: HF.zStep2 };
+  };
+  // (HULL-B39: a fluted hull's bottom levels between the floor and the keel - cageHullFlute)
+  const FLV = HULL && HULL.flute > 0 ? (HULL.fluteN >= 2 ? ['chine', 'fluteO', 'ridge'] : ['chine']) : [];
   const LV = sv === 0 ? ['roof', 'waist', 'keel']
-    : sv === 1 ? ['roof', 'ceil', 'band', 'waist', 'floor', 'keel']
-    : ['roof', 'ceil', 'bandG', 'band', 'waist', 'waistG', 'floor', 'keel'];
+    : sv === 1 ? ['roof', 'ceil', 'band', 'waist', 'floor', ...FLV, 'keel']
+    : ['roof', 'ceil', 'bandG', 'band', 'waist', 'waistG', 'floor', ...FLV, 'keel'];
+  const FLOWS = new Set(['floor', ...FLV, 'keel']);      // the bottom's levels (a hull's ring creases spare them)
+  // (the fluted bottom's rails: the chine takes the keel rail's crease, the ridge is sharp, the arcs' controls smooth)
+  const flutedTags = FLV.length ? [['chine', (S.crease || {}).keel || 0], ['ridge', 3], ['fluteO', 0], ['keel', 0]] : null;
 
   // ---- ring sequence for this step ---------------------------------------
   const STEP0_XTRA = new Set(['aeroWsB', 'noseMid', 'boomMid']);
@@ -1056,15 +1735,49 @@ function buildCage2(S, step) {
     seq.push(kept[k]); stOf.push(stN);
     if (k < kept.length - 1) {
       const b = bays[k];
-      if (b.guards)
-        for (const t of b.guards) {
-          seq.push(lerpRing(kept[k], kept[k + 1], t, kept[k].name + '+g'));
-          stOf.push(stN + t);
+      // HULL-B1: THE STEP's ring pair, in the bay that holds it, among the guards by t (a guard-like insert: the
+      // bay's material, its door and window keys and its station integers are untouched)
+      const ins = [];
+      if (b.guards) for (const t of b.guards) ins.push({ t, mk: () => lerpRing(kept[k], kept[k + 1], t, kept[k].name + '+g') });
+      // (HULL-B31: the second step's pair the same way, its own side tags)
+      if (HF && HF.on && HF.zStep2 != null) {
+        const zA = cageKeelZ(kept[k]), zB = cageKeelZ(kept[k + 1]);
+        if (zA < HF.zStep2 && HF.zStep2 <= zB && zB - zA > 1e-6) {
+          const dt = Math.max(0.02, 0.6 * HULL.hs2) / (zB - zA);
+          const tF = Math.max(0.02 + dt, Math.min(0.98, (HF.zStep2 - zA) / (zB - zA))), tA = tF - dt;
+          ins.push({ t: tA, mk: () => Object.assign(lerpRing(kept[k], kept[k + 1], tA, kept[k].name + '+s2'), { hullSide: 'A2' }) });
+          ins.push({ t: tF, mk: () => Object.assign(lerpRing(kept[k], kept[k + 1], tF, kept[k].name + '+s2'), { hullSide: 'F2' }) });
+          ins.sort((p, q) => p.t - q.t);
         }
-      const subs = 1 + (b.guards ? b.guards.length : 0);
+      }
+      if (HF && HF.on) {
+        const zA = cageKeelZ(kept[k]), zB = cageKeelZ(kept[k + 1]);
+        if (zA < HF.zStep && HF.zStep <= zB && zB - zA > 1e-6) {
+          // HULL-B6 (the user's wireframe review: "give your step a little bit of elongation ... you've squeezed 4
+          // edge loops into a tiny area"): the aft ring stands 0.6 x the step depth aft of the fore one (2 cm at least),
+          // a step face raked over a real length, its loops spaced once subdivided. The water keeps the step a
+          // vertical break at the fore ring (32_hydro's idealisation: the afterbody's first row from x 0+)
+          const dt = Math.max(0.02, 0.6 * HULL.hs) / (zB - zA);
+          const tF = Math.max(0.02 + dt, Math.min(0.98, (HF.zStep - zA) / (zB - zA))), tA = tF - dt;
+          ins.push({ t: tA, mk: () => Object.assign(lerpRing(kept[k], kept[k + 1], tA, kept[k].name + '+s'), { hullSide: 'A' }) });
+          ins.push({ t: tF, mk: () => Object.assign(lerpRing(kept[k], kept[k + 1], tF, kept[k].name + '+s'), { hullSide: 'F' }) });
+          ins.sort((p, q) => p.t - q.t);
+        }
+      }
+      for (const e of ins) { seq.push(e.mk()); stOf.push(stN + e.t); }
+      const subs = 1 + ins.length;
       for (let s = 0; s < subs; s++) { bayOf.push(b.mat); openOf.push(b.open || null); }
       stN++;
     }
+  }
+
+  // HULL-B1: every ring's bottom as a boat — aft of the step (the step's aft ring included) on the afterbody's keel
+  if (HULL) for (const r of seq) {
+    if (!r.lv || hullDone.has(r.lv)) continue;
+    hullDone.add(r.lv);
+    const aft = HF.on && (r.hullSide === 'A' || (r.hullSide !== 'F' && cageKeelZ(r) < HF.zStep));
+    const aft2 = HF.on && HF.zStep2 != null && (r.hullSide === 'A2' || (r.hullSide !== 'F2' && cageKeelZ(r) < HF.zStep2));   // (HULL-B31)
+    cageHullVee(HULL, HF, r.lv, (aft ? HULL.hs : 0) + (aft2 ? HULL.hs2 : 0));
   }
 
   // guard levels on every ring (step 2)
@@ -1262,6 +1975,19 @@ function buildCage2(S, step) {
     }
   };
 
+  // (HULL-B39: a hull's ring loop, its bottom's edges spared - the floor, the fluted levels, the keel and its centre)
+  const tagLoopHull = (o, r, w) => {
+    const lv = LV.filter(k => r.lv[k] != null), pts = [];
+    if (o.C[lv[0]] != null) pts.push([lv[0], o.C[lv[0]]]);
+    for (const k of lv) if (o.P[k] != null) pts.push([k, o.P[k]]);
+    if (o.C[lv[lv.length - 1]] != null) pts.push([lv[lv.length - 1], o.C[lv[lv.length - 1]]]);
+    for (let i = lv.length - 1; i >= 0; i--) if (o.M[lv[i]] != null) pts.push([lv[i], o.M[lv[i]]]);
+    for (let i = 0; i < pts.length; i++) {
+      const A = pts[i], B = pts[(i + 1) % pts.length];
+      if (FLOWS.has(A[0]) || FLOWS.has(B[0])) continue;
+      tagE(A[1], B[1], w);
+    }
+  };
   const mkIds = (r, capRing, sf) => {
     const o = { P: {}, M: {}, C: {} };
     for (const k of LV) {
@@ -1442,8 +2168,12 @@ function buildCage2(S, step) {
       }
     }
     const sh = ordOf(seq[i]).filter(k => seq[i + 1].lv[k] != null);
+    // HULL-B40 (the user: "the rounded section on the aft side of the door. Where does this come from?"): on a hull a
+    // pillar's band ENDS AT THE WAIST - below it the ring creases are spared (the bottom stays soft, tagLoopHull), so a
+    // pillar painted on down the topsides and the bottom was a soft-edged dark shape, a rounded blot behind the door
+    const pilLow = HULL && isPillarMat(mat), lowK = k => k === 'waist' || k === 'waistG' || FLOWS.has(k);
     for (let k = 0; k < sh.length - 1; k++) {
-      const hi = sh[k], lo = sh[k + 1], m = bandMat(mat, hi, lo);
+      const hi = sh[k], lo = sh[k + 1], m = pilLow && lowK(hi) ? bandMat(CAGE_MAT.plain, hi, lo) : bandMat(mat, hi, lo);
       if (cut && cutHere(hi)) continue;
       face(a.P[hi], b.P[hi], b.P[lo], a.P[lo], m);
       face(a.M[lo], b.M[lo], b.M[hi], a.M[hi], m);
@@ -1481,8 +2211,8 @@ function buildCage2(S, step) {
         }
       }
     }
-    face(a.P.keel, b.P.keel, b.C.keel, a.C.keel, mat.belly);
-    face(a.C.keel, b.C.keel, b.M.keel, a.M.keel, mat.belly);
+    face(a.P.keel, b.P.keel, b.C.keel, a.C.keel, pilLow ? CAGE_MAT.plain.belly : mat.belly);
+    face(a.C.keel, b.C.keel, b.M.keel, a.M.keel, pilLow ? CAGE_MAT.plain.belly : mat.belly);
     // longitudinal rails: the sill (waist) and waistband-top lines stay
     // crisp the whole length — this is what the guard levels did. The ceil
     // rail gets a gentle continuous crease too: it anchors the top edge of
@@ -1498,12 +2228,14 @@ function buildCage2(S, step) {
     // round-bottom pod (botRound) fades the crease out: its keel level has
     // moved up the arc and a corner there would be a kink on a curve.
     if (E) for (const [k, w] of [['waist', CW.sill], ['band', CW.band],
-                                 ['ceil', CW.ceil], ['keel', CW.keelW]]) {
+                                 ['ceil', CW.ceil], ...(FLV.length ? flutedTags : [['keel', CW.keelW]])]) {
       if (a.P[k] != null && b.P[k] != null) {
         tagE(a.P[k], b.P[k], w);
         tagE(a.M[k], b.M[k], w);
       }
     }
+    // HULL-B1: THE KEEL LINE — a V must stay a V under Catmull-Clark (the chine is crKeel's, above)
+    if (E && HULL && a.C.keel != null && b.C.keel != null) tagE(a.C.keel, b.C.keel, 3);
   }
   // ring-loop creases: pillar bands, caps and the windshield frame — what
   // the guard RINGS did. The window ring itself stays untagged (the
@@ -1512,6 +2244,8 @@ function buildCage2(S, step) {
     const fam = nm =>
         nm === 'tailCap' ? CW.cap
       : nm === 'tailMid' || nm === 'tailPost' ? CW.pillar
+      // (HULL-B40: on a hull with a buoyant taper the cabin's aft face and the taper's end are skin, not ribs)
+      : S.hullTaper && HULL && (/^pilTaper/.test(nm) || /^pilPax/.test(nm)) ? 0
       : /^pilPax/.test(nm) || /^pilCab/.test(nm)
         || /^pilTaper/.test(nm) ? CW.pillar
       // a frame ring crease would PIN the repositioned canopy (bent
@@ -1524,10 +2258,23 @@ function buildCage2(S, step) {
       : nm === 'noseTip' ? (CW.frontCap != null ? CW.frontCap : 0.3)
       : 0;
     const crestOn = !!(S.config && S.config.crest && S.config.crest.h > 0);
+    // HULL-B1: THE STEP's two edges, across the bottom chine to chine (the step face stays a face)
+    if (HULL) seq.forEach((r, i) => {
+      if (!r.hullSide) return;
+      const o = ids[i];
+      if (o.P.keel != null && o.C.keel != null) { tagE(o.P.keel, o.C.keel, 3); tagE(o.C.keel, o.M.keel, 3); }
+      // (HULL-B39: a fluted bottom's step runs chine -> arcs -> ridge -> keel)
+      const bot = ['chine', 'fluteO', 'ridge', 'keel'].filter(k => o.P[k] != null);
+      for (let j = 0; j + 1 < bot.length; j++) { tagE(o.P[bot[j]], o.P[bot[j + 1]], 3); tagE(o.M[bot[j]], o.M[bot[j + 1]], 3); }
+    });
     seq.forEach((r, i) => {
       const w = fam(r.name);
       if (!w) return;
-      if (crestOn && (/^pilPax/.test(r.name) || /^pilCab/.test(r.name)))
+      // HULL-B39 (the user, the Super Petrel: "the petrel does not have the front step. It has a smooth hull till the step
+      // at the back"): a frame's or a pillar's ring crease ran round the whole loop - across a HULL's bottom it is a
+      // transverse knuckle that reads as a step. On a hull the bottom's edges (the floor down to the keel) stay soft
+      if (HULL) tagLoopHull(ids[i], r, w);
+      else if (crestOn && (/^pilPax/.test(r.name) || /^pilCab/.test(r.name)))
         tagLoopLow(ids[i], r, w);
       else tagLoop(ids[i], r, w);
     });
@@ -1589,6 +2336,7 @@ function buildCage2(S, step) {
     emitRodFree();
     const outA = E ? { V, F, E, A } : { V, F, A };
     if (openRim.length) { outA.openRim = openRim; outA.openFore = openFore; outA.seamKeys = ['openRim', 'openFore']; }
+    if (HULL) outA.hull = hullRecord();        // HULL-B2: the round body's rings ARE its bow
     return outA;
   }
 
@@ -1699,6 +2447,8 @@ function buildCage2(S, step) {
                yC: wsLv.floor.y, zC: wsLv.floor.z },
       keel:  wsLv.keel,
     };
+    for (const k of FLV) if (wsLv[k]) wsLow[k] = wsLv[k];      // (HULL-B39: a fluted hull's bottom runs on into the bow)
+    const NLO = ['waist', 'floor', ...FLV, 'keel'].filter(k => wsLow[k]), NBO = NLO.filter(k => k !== 'waist');
     // G468, TRIED AND WITHDRAWN (playtest item 73, "the polygonality of the
     // nose is very visible from the cockpit"): a ring every 0.14 m of the
     // nose run whatever `front rings` says. It smooths the deck (the row at
@@ -1724,19 +2474,22 @@ function buildCage2(S, step) {
         const e = eAt(cowl.ease), eB = eAt(cowl.easeBot != null ? cowl.easeBot : cowl.ease);
         const bg = 1 + (cowl.bulge - 1) * Math.sin(Math.PI * t);
         const lv = {};
-        for (const k of ['waist', 'floor', 'keel']) {
-          lv[k] = lerpLv(wsLow[k], target[k], k === 'waist' ? e : eB);
+        for (const k of NLO) {
+          const tg = target[k] || (FLV.includes(k) ? target.keel : null);     // (HULL-B41: never a level on one side only)
+          if (!tg) continue;
+          lv[k] = lerpLv(wsLow[k], tg, k === 'waist' ? e : eB);
           // dims follow the eased blend, z stays linear — that lag IS the
           // convexity
-          lv[k].z = wsLow[k].z + (target[k].z - wsLow[k].z) * t;
+          lv[k].z = wsLow[k].z + (tg.z - wsLow[k].z) * t;
           if (lv[k].zC != null) {
             const az = wsLow[k].zC != null ? wsLow[k].zC : wsLow[k].z;
-            const bz = target[k].zC != null ? target[k].zC : target[k].z;
+            const bz = tg.zC != null ? tg.zC : tg.z;
             lv[k].zC = az + (bz - az) * t;
           }
         }
         const wY = lv.waist.y, wYC = lv.waist.yC;
-        for (const k of ['floor', 'keel']) {
+        for (const k of NBO) {
+          if (!lv[k]) continue;
           lv[k].x *= bg;
           lv[k].y = wY + (lv[k].y - wY) * bg;
           if (lv[k].yC != null) lv[k].yC = wYC + (lv[k].yC - wYC) * bg;
@@ -1747,7 +2500,7 @@ function buildCage2(S, step) {
         // settable, user ruling)
         const cwO = S.ringOff && S.ringOff.cowl
           ? (S.ringOff.cowl[i - 1] || 0) : 0;
-        if (cwO) for (const k of ['waist', 'floor', 'keel'])
+        if (cwO) for (const k of NLO)
           if (lv[k]) lv[k].x += cwO;
         noseSeq.push(prepNose({ name: 'cowlLoop' + i, lv }));
       }
@@ -1770,7 +2523,8 @@ function buildCage2(S, step) {
           return t2 * (1 - ez) + (1 - Math.sqrt(Math.max(0, 1 - t2 * t2))) * ez; };
         const e2 = e2At(cowl.ease), e2B = e2At(cowl.easeBot != null ? cowl.easeBot : cowl.ease);
         const lv3 = {};
-        for (const k of ['waist', 'floor', 'keel']) {
+        for (const k of NLO) {
+          if (!R.noseRing.lv[k]) continue;
           lv3[k] = lerpLv(wsLow[k], R.noseRing.lv[k], k === 'waist' ? e2 : e2B);
           lv3[k].z = wsLow[k].z
                    + (R.noseRing.lv[k].z - wsLow[k].z) * t2;
@@ -1804,6 +2558,7 @@ function buildCage2(S, step) {
       noseSeq.push(tw);
     }
     noseSeq.push(prepNose(R.noseRing));
+    hullNose = noseSeq;                        // HULL-B2: the bow as emitted
     // The cowl loops and the nose rings CONTINUE THE ARC, they do not
     // re-read the ruler: noseSeq is an ordered loft forward of the
     // windscreen base, so sL keeps accumulating on the waist rail exactly as
@@ -1842,7 +2597,7 @@ function buildCage2(S, step) {
                      deck: pf ? 'pillarFront' : 'body' });
     }
     const lowOrd = LV.filter(k =>
-      k === 'waist' || k === 'waistG' || k === 'floor' || k === 'keel');
+      k === 'waist' || k === 'waistG' || FLOWS.has(k));
     for (const s of lowSets) {
       face(s.a.P.waist, s.b.P.waist, s.b.C.waist, s.a.C.waist, s.deck);
       face(s.a.C.waist, s.b.C.waist, s.b.M.waist, s.a.M.waist, s.deck);
@@ -1863,8 +2618,13 @@ function buildCage2(S, step) {
           ? CW.sillNose : CW.sill;
         tagE(s.a.P.waist, s.b.P.waist, wS);
         tagE(s.a.M.waist, s.b.M.waist, wS);
-        tagE(s.a.P.keel, s.b.P.keel, CW.keelW);      // G319: the keel rail runs on under the nose
-        tagE(s.a.M.keel, s.b.M.keel, CW.keelW);
+        // G319: the keel rail runs on under the nose (HULL-B39: a fluted hull's chine and ridge - flutedTags)
+        for (const [k, w] of FLV.length ? flutedTags : [['keel', CW.keelW]])
+          if (s.a.P[k] != null && s.b.P[k] != null) { tagE(s.a.P[k], s.b.P[k], w); tagE(s.a.M[k], s.b.M[k], w); }
+        // HULL-B41 (the user: "why do I have a discontinuity there? That should be smooth"): A HULL'S KEEL LINE RUNS ON TO
+        // THE STEM. It was creased along the body (HULL-B1) and ended at the windscreen's front ring - a sharp crease that
+        // dies mid-surface pinches the subdivision there: a blade under the forefoot, the keel dropping 7 cm in a few
+        if (HULL && s.a.C.keel != null && s.b.C.keel != null) tagE(s.a.C.keel, s.b.C.keel, 3);
       }
     }
 
@@ -1891,7 +2651,7 @@ function buildCage2(S, step) {
     // (own family so a round nose can dome while the tail cap stays crisp);
     // an intermediate cowl loop stays smooth
     if (E) noseSeq.forEach((r, i) => {
-      if (r.name === 'noseTwin' && !(S.config && S.config.noseJoint === 0)) tagLoop(nIds[i], r, CW.pillar);
+      if (r.name === 'noseTwin' && !(S.config && S.config.noseJoint === 0)) (HULL ? tagLoopHull : tagLoop)(nIds[i], r, CW.pillar);   // (HULL-B40: a hull's bottom stays soft)
       if (r.name === 'noseRing')
         tagLoop(nIds[i], r, CW.noseCap != null ? CW.noseCap : CW.cap);
     });
@@ -2134,6 +2894,7 @@ function buildCage2(S, step) {
   if (seamSA.length) out.seamSA = seamSA;
   if (openRim.length) { out.openRim = openRim; out.openFore = openFore;    // G3511
                         out.seamKeys = ['openRim', 'openFore']; }
+  if (HULL) out.hull = hullRecord();          // HULL-B2 (see hullRecord)
   // half-only emission (the S2.5 aft-spec recursion): hand the caller
   // what the reflection needs — the aperture cap range, the pilCabB
   // ring ids, and this build's own pillar-plane z
@@ -4789,9 +5550,9 @@ function cageInterior(m, S) {
       for (const s0 of nxt.keys()) {
         if (seen2.has(s0)) continue;
         const cyc = [s0]; seen2.add(s0);
-        for (let v = nxt.get(s0); v !== s0 && cyc.length <= nxt.size;
-             v = nxt.get(v)) { cyc.push(v); seen2.add(v); }
-        cycles.push(cyc);
+        let v = nxt.get(s0);
+        for (; v !== s0 && v !== undefined && cyc.length <= nxt.size; v = nxt.get(v)) { cyc.push(v); seen2.add(v); }
+        if (v === s0) cycles.push(cyc);     // (an open chain - an edge whose next is missing - is no loop: skipped, not thrown on)
       }
       if (cycles.length < 2) continue;
       cycles.sort((a, b) =>
@@ -6157,7 +6918,7 @@ function cageInterior(m, S) {
         ].filter(Boolean);
         for (const n2 of XN) mem(n2, rim(n2, rr + 0.049, zXi), 0.034);
       }
-      if (!S.taper) return;
+      if (!S.taper || S.hullTaper) return;   // (HULL-B23: a hull's taper is skinned - no truss, no collar)
       // ---- the welded collar the truss lands on ----
       const zC2 = zPax0 - S.taper.len;
       sleeve(rr + 0.006, zC2 + 0.045, zC2 - 0.045);
@@ -7560,6 +8321,42 @@ const CAGE_PARAMS = {
   crFrontCap: 0.3, crNoseCap: 2,
   crKeel: 0,        // G319: the keel crease (flat belly between the lower longerons); G362: OFF by default — it squared every saved aeroplane
   botRound: 0,
+  // THE BOAT HULL (HULL-B1, futureDesigns/HULL-TYPES-2026-11.md §3, the user 3 Nov: "switch between boat hull and
+  // normal easily, with most controls shared"). hullOn reads every shared row in its old meaning: a frame's bottom
+  // height stays the section's LOWEST point (the keel, the centre column), the keel corners become the CHINE raised
+  // by their half-width x tan(deadrise), the waist is the gunwale. The boat rows below are the only new ones; all are
+  // ABSENT from spec.cage while hullOn is 0 (CAGE_HULL_ROWS), so a build that never was a boat is the build it was.
+  //   hullBeta / hullBetaBow / hullBetaA  deadrise at the step / warped toward the bow (t^2.5, 32_hydro's law) / aft
+  //   hullStepZ   the step, metres AFT of the cabin frame (the cabin pillar's fore ring)
+  //   hullHs      the step depth: the afterbody keel is the frames' bottom line + hullHs
+  //   hullSteps   0 stepless, 1 the step
+  //   hullTips / hullTipAt / hullTipKg / hullTipY  the strut tip floats (the boat's lateral stability): on, their
+  //               station as a fraction of the semispan, each one's displacement (kg) and its keel's height over the
+  //               step keel (m) - the last two written by the Hull tile's fit (HYDRO.hullTipFit: 6 % of the flown gross,
+  //               0.12 m over the hull's level waterline); 0 / -1 = not fitted yet (the frame's gross rule). ROWS, so
+  //               the drawing (_cage_float.js HULL-B5) and the frame read one placement (HULL-B5)
+  hullOn: 0, hullBeta: 22, hullBetaBow: 36, hullBetaA: 18, hullStepZ: 0.30, hullHs: 0.07, hullSteps: 1,
+  hullStep2Z: 1.2, hullHs2: 0.05,      // HULL-B31: the second step (hullSteps 2): metres aft of the main step, its depth
+  // HULL-B39: the fluted bottom (cageHullSpec): the ridge's drop over the chine half-beam (0 = the plain V), the arcs a
+  // side, the ridge's station across, the share of the forebody it has faded by, its share kept aft of the step
+  hullFlute: 0, hullFluteN: 2, hullFluteAt: 0.55, hullFluteBow: 0.85, hullFluteAft: 0,
+  hullStrakes: 0, hullStrakeW: 0.05, hullStrakeLen: 0.8,   // (HULL-B39: the spray strakes - _cage_float.js)
+  hullRocker: 0,                                             // (HULL-B43: the belly's rise to a step under the taper)
+  hullSkirt: 0,                                              // (HULL-B44: the chine's skirt - its reach past the topsides)
+  hullTips: 1, hullTipAt: 0.85, hullTipKg: 0, hullTipY: -1,
+  hullTipPlane: 0,                     // HULL-B45: the strut floats under the first plane (0) or a biplane's second (1)
+  // HULL-B12: the afterbody keel's run (deg, the fit's 7-deg rule by default; less for a tail-heavy boat's deeper
+  // afterbody) and the bow the builder drew before the balance first lengthened it (0: the fit has not moved the bow)
+  hullAftDeg: 7, hullNoseBase: 0,
+  // HULL-B18: the tub's afterbody under the boom (m; 0 none), its keel's rise (deg) and its end section (of the last ring's)
+  hullTubLen: 0, hullTubRise: 8, hullTubEnd: 0.6, hullTubH: 0.3, hullDeep: 0,
+  // HULL-B19: SPONSONS - a buoyant stub a side on the hull, partly in the water at rest (0 none): its displacement
+  // each (kg; 0 not fitted), its keel over the step keel (m; -1 not fitted), its station forward of the step and its
+  // centre outboard of the hull's side (m) - the fit sizes the first two by the roll-moment rule
+  hullSpon: 0, hullSponKg: 0, hullSponY: -1, hullSponX: 0.3, hullSponW: 0.32,
+  // HULL-B21: hullSpon 1 = STUB-WING sponsons (2 = floats on the hull's sides): the stub's mean chord (m; 0 not fitted),
+  // its span over its chord, its thickness (of the chord), its tip taper, its dihedral (deg)
+  hullSponC: 0, hullSponK: 0.75, hullSponT: 0.22, hullSponTaper: 0.65, hullSponDih: -3,
   noseCrown: 0, noseH: 1, noseDroop: 0, wsBaseLift: 0,
   cowlLoops: 0, cowlEase: 0, cowlBulge: 1.05, noseFinish: 0,
   // THE ROUND BODY (G19's aero nose; G3510 NEW-SHAPES-1, the user: "the
@@ -8205,7 +9002,7 @@ function cageDefaults() {
 // the G46 visual snapshot froze the EXPLODED aeroplane into the mesh that
 // flies. Declared here rather than guessed, and skipped in both directions.
 // (G63.)
-const CAGE_VIEW_KEYS = { explodeD: 1 };
+const CAGE_VIEW_KEYS = { explodeD: 1, gearPos: 1 };   // (RETRACT: the gear preview's position is how you look at it, never saved)
 
 // LAYER PARAMETERS RIDE THROUGH. The cage's own parameters are CAGE_PARAMS,
 // but a bench page also carries its layers' (the crew's seats, controls and
@@ -8372,11 +9169,22 @@ const CAGE_OPEN_ROWS = ['cpOpen', 'paxOpen1', 'paxOpen2', 'paxOpen3', 'paxOpen4'
   'openCut', 'openFore', 'openAft', 'openRim', 'openScreen', 'openScreenH', 'openScreenRake'];
 // G3515: a layer row that is ABSENT at 0 the same way (the rear-pilot seat): a
 // build that never set it keeps every key it had
-const CAGE_ZERO_ABSENT = ['pilotRear'];
+const CAGE_ZERO_ABSENT = ['pilotRear', 'hullOn'];
+// HULL-B1: the boat rows, written only while the hull is on (the CAGE_OPEN_ROWS idiom)
+const CAGE_HULL_ROWS = ['hullBeta', 'hullBetaBow', 'hullBetaA', 'hullStepZ', 'hullHs', 'hullSteps', 'hullStep2Z', 'hullHs2',
+  'hullTips', 'hullTipAt', 'hullTipKg', 'hullTipY', 'hullAftDeg', 'hullNoseBase', 'hullTubLen', 'hullTubRise', 'hullTubEnd', 'hullTubH', 'hullDeep', 'hullSpon', 'hullSponKg', 'hullSponY', 'hullSponX', 'hullSponW', 'hullSponC', 'hullSponK', 'hullSponT', 'hullSponTaper', 'hullSponDih',
+  'hullFlute', 'hullFluteN', 'hullFluteAt', 'hullFluteBow', 'hullFluteAft', 'hullStrakes', 'hullStrakeW', 'hullStrakeLen', 'hullRocker', 'hullSkirt', 'hullTipPlane'];
 // PILLAR-ANCHORS (3 Nov, the user's call through A0: every saved build with doors takes the pillar snap, and a door
 // stop of 75 deg): rows ABSENT AT THEIR DEFAULT - a file that never set one loads it at the default (the snap on,
 // the stop at 75), and a save writes the row only when it differs, so no saved build gains a key the game hashes
-const CAGE_DEFAULT_ABSENT = { pilSnap: 1, doorStop: 75, wgStrutPil: 0 };
+// (HULL-B26: the tip's own shape - length 0 / drop 0 = the kind's own, fullness 1 = the aerofoil)
+const CAGE_DEFAULT_ABSENT = { pilSnap: 1, doorStop: 75, wgStrutPil: 0, wgTipBow: 0, wgTipDroop: 0, wgTipFull: 1,
+  hullFlute: 0, hullFluteN: 2, hullFluteAt: 0.55, hullFluteBow: 0.85, hullFluteAft: 0, hullStrakes: 0, hullStrakeW: 0.05, hullStrakeLen: 0.8, hullRocker: 0, hullSkirt: 0, hullTipPlane: 0 };   // (HULL-B39, B43, B44, B45)
+// RETRACT (G3511's rule): THE RETRACTABLE GEAR'S ROWS ARE ABSENT WHILE THE GEAR IS FIXED - a build that never chose
+// retraction keeps every key it had - and the preview's position (gearPos) is never saved: it is where the editor's
+// slider was, not the aeroplane (the core's genStolCageOff drops the same from every fingerprint, belt and braces)
+const CAGE_RETRACT_ROWS = ['gearRetract', 'gearRetT', 'gearRetAct', 'gearRetFrac', 'gearFold', 'gearFoldNose',
+  'gm1Ax', 'gm1Ang', 'gm2Ax', 'gm2Ang', 'gmTwist', 'gn1Ax', 'gn1Ang', 'gn2Ax', 'gn2Ang', 'gnTwist', 'gearWellCut', 'gearDoors', 'gearLegDoor', 'gearNacFit', 'gearNacPod', 'gearShort', 'gearShortNose', 'gearKneeDoor'];
 const cageAnyOpen = P => !!P && ['cpOpen', 'paxOpen1', 'paxOpen2', 'paxOpen3', 'paxOpen4']
   .some(k => Math.round(+P[k] || 0) > 0);
 // CONFIG-MATRIX (2 Nov, the user: "switching back from pod and rod to lofted skin removes the engine"): THE POD'S
@@ -8401,8 +9209,10 @@ function cageToSpec(P) {
     if (k in CAGE_VIEW_KEYS) continue;
     if (P[k] === undefined) continue;
     if (shut && CAGE_OPEN_ROWS.includes(k)) continue;
+    if (!(+P.hullOn > 0) && CAGE_HULL_ROWS.includes(k)) continue;
     if (CAGE_ZERO_ABSENT.includes(k) && !(+P[k] > 0)) continue;
     if (k in CAGE_DEFAULT_ABSENT && +P[k] === CAGE_DEFAULT_ABSENT[k]) continue;
+    if (k === 'gearPos' || (!(+P.gearRetract) && CAGE_RETRACT_ROWS.includes(k))) continue;   // RETRACT
     out[k] = P[k]; n++;
   }
   return n ? out : null;
@@ -8465,6 +9275,8 @@ function cageSpec(P) {
   S.top = { round: P.topRound, angCeil: P.topAngCeil, angRoof: P.topAngRoof,
             comp: P.topComp, bubble: P.bubble ? 1 : 0,
             botRound: P.botRound };
+  // HULL-B1: the boat hull (absent = the fuselage, every path untouched: not even the key is written)
+  if (+P.hullOn > 0) S.hull = cageHullSpec(P);
   // the drawn windows (G245): absolute stations, both flanks mirrored.
   // The outline's sample step follows the bead: a point every ~bead width
   // is what the sweep's corner logic expects of a curved run
@@ -8650,9 +9462,12 @@ function cageSpec(P) {
   // G189: on a rod the taper's truss lives INSIDE the boom's length (see
   // cageResolve), so it cannot be longer than the boom less a hand of bare
   // tube for the tail to clamp onto
-  if (S.rod && S.taper)
+  // (HULL-B36: not a hull's buoyant taper - lofted between its own pillars, it ADDS its length as every section does)
+  if (S.rod && S.taper && !(+P.hullOn && !S.rod.twin))
     S.taper.len = Math.min(S.taper.len,
                            Math.max(0.08, (P.boomLen || 2.2) - 0.3));
+  // HULL-B23: a boat hull on a single rod lofts its taper (buoyant, skinned) - cageResolve's HTAP
+  S.hullTaper = !!(+P.hullOn && S.rod && !S.rod.twin && S.taper && S.taper.len > 0);
 
   const aLean = { keel: T.aft.keelYA - T.aft.keelYB,
                   floor: T.aft.floorYA - T.aft.floorYB };
@@ -10182,7 +10997,7 @@ if (typeof module !== 'undefined')
                      CAGE_PILOT_ROWS, CAGE_PILOT_OLD, CAGE_PILOT_GONE,
                      cageLiftLegacy, cageHasLegacy, CAGE_LEGACY_KEYS,
                      CAGE_UNIT,
-                     buildCage2, cageResolve, cageNamedZ, cageFirewallZ, cageSpec, cageSubdivide, cageRefitArc, cageSubdivideRegion, cageEyeLevel, cageEyeFacia,
+                     buildCage2, cageHullLines, cageHullTable, cageHullFit, cageHullFitAll, cageHullSpec, CAGE_HULL_ROWS, cageResolve, cageNamedZ, cageFirewallZ, cageSpec, cageSubdivide, cageRefitArc, cageSubdivideRegion, cageEyeLevel, cageEyeFacia,
                      cageRims, cageInterior, cageCut, cageGlassSill,
                      cageCanopy, cageShoulder, cageBodyZones, cageFrameZones, cageZoneAt, CAGE_ZONE_RINGS,
                      cageDefaults, cageFromSpec, cageToSpec, cageSheet, cageDoorEdges, cageAftEngineFace,
@@ -10195,7 +11010,7 @@ if (typeof window !== 'undefined')
                    CAGE_PILOT_ROWS, CAGE_PILOT_OLD, CAGE_PILOT_GONE,
                    cageLiftLegacy, cageHasLegacy, CAGE_LEGACY_KEYS,
                    CAGE_UNIT,
-                   buildCage2, cageResolve, cageNamedZ, cageFirewallZ, cageSpec, cageSubdivide, cageRefitArc, cageSubdivideRegion, cageEyeLevel, cageEyeFacia,
+                   buildCage2, cageHullLines, cageHullTable, cageHullFit, cageHullFitAll, cageHullSpec, CAGE_HULL_ROWS, cageResolve, cageNamedZ, cageFirewallZ, cageSpec, cageSubdivide, cageRefitArc, cageSubdivideRegion, cageEyeLevel, cageEyeFacia,
                    cageRims, cageInterior, cageCut, cageGlassSill,
                    cageCanopy, cageShoulder, cageBodyZones, cageFrameZones, cageZoneAt, CAGE_ZONE_RINGS,
                    cageDefaults, cageFromSpec, cageToSpec, cageSheet, cageDoorEdges, cageAftEngineFace,

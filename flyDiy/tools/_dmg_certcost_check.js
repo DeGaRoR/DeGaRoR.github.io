@@ -47,6 +47,10 @@ const BUDGET = {
   metal:      { frames: 1831, s: 30 },
   floats:     { frames: 1795, s: 42 },
   twinFloats: { frames: 1791, s: 48 },
+  // SEAPLANES-LAND 8 Nov: the Super Petrel (LB.VALIDATED.petrel) - 1789 frames (the uncut certificate 3049), 40.7 s in
+  // node, measured on the box beside other sessions' work (one build, DMGCERTCOST_JOBS=1); the ceiling twice that, as
+  // above. Re-measured in Monday's daily slot (the box quiet)
+  petrel:     { frames: 1789, s: 82 },
 };
 const TARGET_S = 5;
 const f64 = a => Buffer.from(new Float64Array(a).buffer).toString('base64');
@@ -238,6 +242,7 @@ function child(k) {
     const r = res[k], B = BUDGET[k];
     console.log(`${L.BUILDS[k].label}:`);
     if (r.error) { check(false, 'the child failed: ' + r.error); continue; }
+    if (!B) { check(false, `1. no budget for ${k} (BUDGET above): it stepped ${r.frames} frames in ${(r.ms / 1000).toFixed(1)} s (the uncut ${r.refFrames})`); continue; }   // (SEAPLANES-LAND: a VALIDATED build without its row crashed the gate)
     const cs = Object.entries(r.cases).map(([a, b]) => a + ' ' + (b / 1000).toFixed(1)).join(', ');
     check(r.frames <= B.frames, `1. ${r.frames} frames stepped (budget ${B.frames}; the uncut certificate ${r.refFrames})`);
     check(r.ms <= B.s * 1000, `1. ${(r.ms / 1000).toFixed(1)} s in node (ceiling ${B.s} s; the uncut ${(r.refMs / 1000).toFixed(1)} s; the target ~${TARGET_S} s: ` +
