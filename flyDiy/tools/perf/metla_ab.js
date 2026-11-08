@@ -59,10 +59,25 @@ const CEN_OFF = "(() => { const C = window.__CEN; if (!C) return 'null'; C.on = 
 // only, chase and free views): the render state at each check - the camera's frustum terms and the draws per main render
 // over 1.5 s - and a side under 60 draws is BLANK (logged, marked on the row, never a cost)
 const RSTATE = "(async () => { const R = FLIGHT_PROBE.renderer(), cam = FLIGHT_PROBE.camera(); let n = 0, f = 0; const o = R.renderBufferDirect, r0 = R.render;"
-  + " const mine = function () { n++; return o.apply(this, arguments); }, mineR = function (sc, c) { if (c === cam) f++; return r0.apply(this, arguments); };"
+  + " const mine = function () { n++; return o.apply(this, arguments); }, mineR = function (sc, c) { if (c === cam) { f++; window.__RS_SCENE = sc; } return r0.apply(this, arguments); };"
   + " R.renderBufferDirect = mine; R.render = mineR; await new Promise(r => setTimeout(r, 1500)); if (R.renderBufferDirect === mine) R.renderBufferDirect = o; if (R.render === mineR) R.render = r0;"
   + " const fin = m => m.elements.every(Number.isFinite), p = cam.position;"
   + " return JSON.stringify({ draws: f ? +(n / f).toFixed(1) : null, renders: f, cam: { fov: cam.fov, near: cam.near, far: cam.far, aspect: +(+cam.aspect).toFixed(3), layers: cam.layers.mask, proj: fin(cam.projectionMatrix), world: fin(cam.matrixWorld), pos: [p.x, p.y, p.z].map(Math.round) } }); })()";
+// A0 8 Nov: a BLANK side may be a game bug, not the rig - at that moment the camera AND the scene graph: the scene the main
+// camera renders (the world's or another), its top children (visible, layers, size), and the meshes through each of
+// three's gates (visible chain, layers, the bounds' centre in the view, a NaN bound) - the camera's own matrices, no THREE
+const BLANKDUMP = "(() => { const cam = FLIGHT_PROBE.camera(), R = FLIGHT_PROBE.renderer(); let S = FLIGHT_PROBE.craft() && FLIGHT_PROBE.craft().parent; while (S && S.parent) S = S.parent; const M = window.__RS_SCENE || S;"
+  + " const fin = m => m.elements.every(Number.isFinite), v = cam.position.clone(), n = { meshes: 0, visible: 0, layers: 0, noCull: 0, inView: 0, nanBound: 0, noBound: 0 }, inView = {}, nan = [];"
+  + " cam.updateMatrixWorld(); M.traverse(o => { if (!o.isMesh && !o.isPoints && !o.isLine && !o.isSprite) return; n.meshes++; for (let t = o; t; t = t.parent) if (!t.visible) return; n.visible++; if (!o.layers.test(cam.layers)) return; n.layers++;"
+  + " let t = o; while (t.parent && t.parent !== M) t = t.parent; const top = t.name || t.type; if (o.frustumCulled === false) { n.noCull++; return; }"
+  + " const bs = o.boundingSphere || (o.geometry && (o.geometry.boundingSphere || (o.geometry.computeBoundingSphere && (o.geometry.computeBoundingSphere(), o.geometry.boundingSphere)))); if (!bs) { n.noBound++; return; }"
+  + " if (!Number.isFinite(bs.radius) || !Number.isFinite(bs.center.x)) { n.nanBound++; if (nan.length < 8) nan.push(top + '/' + (o.name || o.type)); return; }"
+  + " v.copy(bs.center).applyMatrix4(o.matrixWorld).applyMatrix4(cam.matrixWorldInverse).applyMatrix4(cam.projectionMatrix); if (Math.abs(v.x) <= 1.2 && Math.abs(v.y) <= 1.2 && v.z >= -1 && v.z <= 1) { n.inView++; inView[top] = (inView[top] || 0) + 1; } });"
+  + " const p = cam.position;"
+  + " return JSON.stringify({ scene: { name: M.name || M.type, isWorld: M === S, visible: M.visible, layers: M.layers.mask, kids: M.children.length, override: !!M.overrideMaterial, bg: M.background ? (M.background.isColor ? 'color' : M.background.isTexture ? 'texture' : 'other') : null },"
+  + " cam: { type: cam.type, parent: cam.parent ? (cam.parent.name || cam.parent.type) : null, fov: cam.fov, near: cam.near, far: cam.far, aspect: cam.aspect, zoom: cam.zoom, layers: cam.layers.mask, proj: fin(cam.projectionMatrix), world: fin(cam.matrixWorld), inv: fin(cam.matrixWorldInverse), pos: [p.x, p.y, p.z].map(Math.round), up: [cam.up.x, cam.up.y, cam.up.z] },"
+  + " renderer: { autoClear: R.autoClear, rt: !!R.getRenderTarget(), lost: R.getContext().isContextLost(), shadows: R.shadowMap.enabled }, gates: n, inView, nan,"
+  + " tops: M.children.slice(0, 40).map(o => (o.name || o.type) + (o.visible ? '' : ' HIDDEN') + (o.layers.mask !== 1 ? ' L' + o.layers.mask : '') + ' ' + o.children.length) }); })()";
 const cenTop = c => { if (!c || !c.keys) return String(c); const g = {}; for (const [k, v] of c.keys) { const p = k.split('|'), kk = p[0] + '|' + p[5]; g[kk] = (g[kk] || 0) + v; }
   return c.frames + ' fr, ' + c.perFrame + ' draws/frame: ' + Object.entries(g).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([k, v]) => k + ' ' + v.toFixed(1)).join(', '); };
 // TOWN-1 (2026-11-08, A0: "no wreck"): the rig's taxi + 60 m pass at HOME left the Cub a wreck ("short of Jolene 13/31",
@@ -155,7 +170,7 @@ const CHECK = `JSON.stringify((() => { const P = WORLD && WORLD.premises; const 
     await b.ev(MB.A.cam('chase'));
     const state = async () => JSON.parse(await b.ev("JSON.stringify((() => { const P = FLIGHT_PROBE; let st = null; try { st = P.structural ? P.structural() : null; } catch (e) {}"
       + " return { over: !!(P.over && P.over()), phase: P.ap ? P.ap().phase : null, crash: !!(P.damage && P.damage()), st: st ? JSON.stringify(st).slice(0, 160) : null }; })())").catch(() => 'null'));
-    const intact = async (s, when) => { const x = await state(); if (x) { x.render = JSON.parse(await b.ev(RSTATE, 10000).catch(() => 'null')); if (x.render && x.render.draws != null && x.render.draws < 60) { log('  BLANK RENDER ' + when + ' ' + (s ? s.scene : '') + ': ' + JSON.stringify(x.render)); (row.blank || (row.blank = [])).push(when + (s ? ' ' + s.scene : '')); } } if (s) (s.state || (s.state = {}))[when] = x; log('  aeroplane ' + when + ' ' + (s ? s.scene : '') + ': ' + JSON.stringify(x)); return x; };
+    const intact = async (s, when) => { const x = await state(); if (x) { x.render = JSON.parse(await b.ev(RSTATE, 10000).catch(() => 'null')); if (x.render && x.render.draws != null && x.render.draws < 60) { log('  BLANK RENDER ' + when + ' ' + (s ? s.scene : '') + ': ' + JSON.stringify(x.render)); (row.blank || (row.blank = [])).push(when + (s ? ' ' + s.scene : '')); x.blankDump = JSON.parse(await b.ev(BLANKDUMP, 20000).catch(e => JSON.stringify('error ' + e.message))); log('  BLANK DUMP ' + JSON.stringify(x.blankDump)); } } if (s) (s.state || (s.state = {}))[when] = x; log('  aeroplane ' + when + ' ' + (s ? s.scene : '') + ': ' + JSON.stringify(x)); return x; };
     const passH = () => { const p = MB.A.pass(home, 42), q = p.replace(') + 60, z]', ') + ' + PASS_H + ', z]'); if (PASS_H !== 60 && q === p) throw new Error('--pass-h: master_bench pass changed'); return q; };
     const doTaxi = async () => { const x = await intact(null, 'before'); row.taxi = await scene('taxi', SEC.taxi, PROF && 'taxi'.includes(PROF), side === 'T' || side === 'C'); row.taxi.state = { before: x }; await intact(row.taxi, 'after'); };
     const doPass = async () => { if (APP_FIRST) { await b.ev(passH(), 20000).catch(() => 0); await sleep(12000); }   // (approach-first: HOME is ~9 km off; a first placement streams it, the measured one 12 s on)
