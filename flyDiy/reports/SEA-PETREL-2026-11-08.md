@@ -90,6 +90,13 @@ route. Evidence: `reports/evidence/SEA-PETREL/diag/*.json` (`hist0` / `strike.st
 - Reproduce: `node tools/run_gates.js --only=PLANELISTS` (0.5 s).
 - Node-only (a source / data check). The fix is the gate's (teach it `lab`), or the data's - SEAPLANES' call.
 
+### F3 GATE ACCEPT is red on 15ad5d669: a source pattern, the merge's `hudGear()` - severity: blocks (a core gate), trivial
+- What: `FAIL app.js: the leg ticked and signed beside the HUD (ACCEPT_REC.frame; GAME-MENUS' hudWind may sit between)`.
+  The gate's regex (`_accept_check.js:369`) allows only `hudEnergy(); [hudWind();] if (window.ACCEPT_REC) ...`; the
+  merge's app.js (already at 7f6e1df64) has `hudEnergy(); hudWind(); hudGear(); if (window.ACCEPT_REC) ...`. Master's
+  app.js has no `hudGear()` and matches. Every flown check of the gate passed (the only FAIL line in 17).
+- Reproduce: `node tools/run_gates.js --only=ACCEPT` (20 min here). Node-only. The fix is the regex (allow hudGear).
+
 ### F2 GATE JOINPARITY: master 5 FAIL, base 6 FAIL - the extra one is the Petrel row (ENV, as briefed)
 - Base 15ad5d669: `FAIL the page capture holds every validated build (cub, jodel, metal, floats, twinFloats, petrel)`
   (the capture is 2026-11-04, no Petrel row) + the same five FAILs master has.
