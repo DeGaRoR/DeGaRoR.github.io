@@ -3972,10 +3972,17 @@ async function emAllocPage(S, withEm) {
   for (let f = 0; f < 60 * 120; f++) { pg.edge(f); if (f % 8 === 0) { await null; pg.runTimers(); } }
   return pg;
 }
+// (THE STEADY STATE: the page's code is TurboFan's - its escape analysis removes the frame's temporaries - only once the
+// background compiler's jobs, queued by the warm walk, have landed; on a loaded box they land late: the 8 Nov cloud sweep
+// read 7.1 B a frame on a master that reads 3-4 here, --concurrent-recompilation-delay=200 4 KB a frame. So the main
+// thread idles EM_SETTLE ms before the windows, and 50 ms before each, for those jobs; the same three windows, the same
+// walk, the same budget)
+const EM_SETTLE = 600;
 async function emAllocMeasure(pg) {
   let best = null;
+  await new Promise(r => setTimeout(r, EM_SETTLE));
   for (let w = 0; w < 3; w++) {
-    global.gc(); global.gc(); await new Promise(r => setTimeout(r, 5));
+    global.gc(); global.gc(); await new Promise(r => setTimeout(r, 50));
     let g = 0; const obs = new PerformanceObserver(l => { g += l.getEntries().length; }); obs.observe({ entryTypes: ['gc'] });
     const s0 = pg.C.sched, n0 = pg.R.sources.length, h0 = process.memoryUsage().heapUsed;
     for (let f = 0; f < 10000; f++) pg.edge(f);
