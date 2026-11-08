@@ -29,7 +29,7 @@ const SEC = { taxi: +opt('taxi', 15), pass: +opt('pass', 15) }, LONG = +opt('lon
 const OUT = path.resolve(opt('out', path.join(__dirname, 'metla_ab_' + Date.now() + '.json')));
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const BASE = 'http://localhost:' + PORT + '/flyDiy/index.html';
-const SIDE = { A: 'town=0', B: 'town=1', T: 'town=1', C: 'town=0', P: 'town=1&towntrees=0' };   // TOWN-1: P = the town on, its trees its own (the before)   // G1435: T = the town on, --toggle run at the taxi's middle (its rows apart)   // G1408: the town is ON by default - A says off explicitly
+const SIDE = { A: 'town=0', B: 'town=1', M: 'town=1', T: 'town=1', C: 'town=0', P: 'town=1&towntrees=0' };   // TOWN-1: P = the town on, its trees its own (the before); M = B's flags on a master tree (a run per tree, same --udd)   // G1435: T = the town on, --toggle run at the taxi's middle (its rows apart)   // G1408: the town is ON by default - A says off explicitly
 // G1435: the user's custom near-ultra (flydiy-flightlog-20261003T165355-7u7a header.gfx; tools/perf/shader_guard.js USER_GFX)
 const USER_GFX = { preset: 'custom', pv: 6, fps: 'auto', ground: 'full', scale: 1, cover: 'full', scenery: 'full', drawDist: 'vis', terrain: 1, aa: 'full', density: 200,
   bands: 'mid', shadows: 'full', canopy: 'on', rails: 'on', poles: 'on', glare: 'on', sway: 'on', mist: 'land', clouds: 'full', water: 'full', mirror: 'live', lighting: 'sunset',
@@ -151,16 +151,19 @@ const CHECK = `JSON.stringify((() => { const P = WORLD && WORLD.premises; const 
         if (!pts.length) return 'null';
         const cx = pts.reduce((s, p) => s + p[0], 0) / pts.length, cz = pts.reduce((s, p) => s + p[1], 0) / pts.length;
         const ds = pts.map(p => Math.hypot(p[0] - cx, p[1] - cz)).sort((x, y) => x - y), R = ds[Math.floor(ds.length * 0.85)];
+        const cc = new Map(); for (const q of pts) { const k = Math.floor(q[0] / 64) + ',' + Math.floor(q[1] / 64); cc.set(k, (cc.get(k) || 0) + 1); }
+        let bk = null, bn = 0; for (const [k, v] of cc) if (v > bn) { bn = v; bk = k; } const [bi, bj] = bk.split(',').map(Number);
         const p = document.getElementById('bPause'); if (p && /pause/i.test(p.textContent)) p.click();
-        return JSON.stringify({ cx: Math.round(cx), cz: Math.round(cz), R: Math.round(R), trees: pts.length, fill: window.TREE_FILL && TREE_FILL.townStat ? TREE_FILL.townStat() : null, prem: P.stats ? { trees: P.stats.trees, cells: P.stats.treeCells, fill: P.stats.townFill } : null }); })()`, 20000).catch(e => JSON.stringify('error ' + e.message)));
+        return JSON.stringify({ cx: Math.round(cx), cz: Math.round(cz), R: Math.round(R), dx: Math.round((bi + 0.5) * 64), dz: Math.round((bj + 0.5) * 64), dn: bn, trees: pts.length, fill: window.TREE_FILL && TREE_FILL.townStat ? TREE_FILL.townStat() : null, prem: P.stats ? { trees: P.stats.trees, cells: P.stats.treeCells, fill: P.stats.townFill } : null }); })()`, 20000).catch(e => JSON.stringify('error ' + e.message)));
       log('parked ' + JSON.stringify(at));
       if (at && at.cx !== undefined) {
         const hx = (home ? home.x : 0) - at.cx, hz = (home ? home.z : 0) - at.cz, hl = Math.hypot(hx, hz) || 1, ux = hx / hl, uz = hz / hl;
         await b.ev("(() => { const c = FLIGHT_PROBE.craft && FLIGHT_PROBE.craft(); if (c) c.visible = false; document.body.style.visibility = 'hidden'; const cv = document.getElementById('c'); if (cv) cv.style.visibility = 'visible'; return 1; })()");
-        for (const [n, back, up] of [['inside', at.R * 0.45, 22], ['edge', at.R + 40, 16], ['out400', at.R + 400, 60], ['out1300', at.R + 1300, 130]]) {
-          const v = await b.ev(`(() => { const W = FLIGHT_PROBE.world(), ex = ${at.cx} + ${ux} * ${back}, ez = ${at.cz} + ${uz} * ${back};
-            const gy = Math.max(W.terrainH ? W.terrainH(ex, ez) : 0, W.waterH ? W.waterH(ex, ez) : -1e9, 0), ey = gy + ${up}, ty = Math.max(W.terrainH ? W.terrainH(${at.cx}, ${at.cz}) : 0, 0) + 6;
-            const dx = ${at.cx} - ex, dz = ${at.cz} - ez; FLIGHT_PROBE.devFree(ex, ey, ez, Math.atan2(dx, -dz), Math.atan2(ty - ey, Math.hypot(dx, dz)));
+        for (const [n, tx, tz, back, up, lift] of [['cell60', at.dx, at.dz, 60, 1.8, 5], ['cell130', at.dx, at.dz, 130, 4, 6], ['cell250', at.dx, at.dz, 250, 10, 6], ['cellover', at.dx, at.dz, 90, 35, 0],
+          ['inside', at.cx, at.cz, at.R * 0.45, 22, 6], ['edge', at.cx, at.cz, at.R + 40, 16, 6], ['out400', at.cx, at.cz, at.R + 400, 60, 6], ['out1300', at.cx, at.cz, at.R + 1300, 130, 6]]) {
+          const v = await b.ev(`(() => { const W = FLIGHT_PROBE.world(), ex = ${tx} + ${ux} * ${back}, ez = ${tz} + ${uz} * ${back};
+            const gy = Math.max(W.terrainH ? W.terrainH(ex, ez) : 0, W.waterH ? W.waterH(ex, ez) : -1e9, 0), ey = gy + ${up}, ty = Math.max(W.terrainH ? W.terrainH(${tx}, ${tz}) : 0, 0) + ${lift};
+            const dx = ${tx} - ex, dz = ${tz} - ez; FLIGHT_PROBE.devFree(ex, ey, ez, Math.atan2(dx, -dz), Math.atan2(ty - ey, Math.hypot(dx, dz)));
             return JSON.stringify({ eye: [Math.round(ex), Math.round(ey), Math.round(ez)], agl: ${up}, toCentre: Math.round(Math.hypot(dx, dz)) }); })()`).catch(e => 'error ' + e.message);
           await b.ev('new Promise(r => { let n = 0; const t = () => (++n < 90 ? requestAnimationFrame(t) : r(1)); requestAnimationFrame(t); })', 30000).catch(() => 0); await sleep(6000);
           // the draw census of the view: the meshes drawn (an instanced one with instances), by the scene's top group, and the
