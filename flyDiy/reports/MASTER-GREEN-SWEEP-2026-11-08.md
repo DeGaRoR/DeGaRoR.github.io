@@ -164,7 +164,7 @@ Kinds:
 - TIME?: only a time budget on a cloud CPU.
 - red: a red for its owner (section 3).
 
-261 of 257 run: 223 PASS, 34 FAIL, 0 NOVERDICT, 0 pending.
+257 of 257 run (the last row per gate): 223 PASS, 34 FAIL, 0 NOVERDICT, 0 pending.
 
 | gate | verdict | wall s | kind |
 |---|---|---|---|
