@@ -72,7 +72,8 @@ function loadResults() {
     if (f.endsWith('.shape.json')) { shapes[o.key] = o; continue; }
     by[o.key] = o;                                           // later folders (sorted by date) win
   }
-  for (const k in shapes) { if (by[k]) { if (!by[k].shape) by[k].shape = shapes[k].shape; } else by[k] = shapes[k]; }
+  // (a shape pass is the newer measurement of the shape: it overrides the one a full run carried)
+  for (const k in shapes) { if (by[k]) { if (shapes[k].shape) by[k].shape = shapes[k].shape; } else by[k] = shapes[k]; }
   for (const k in by) { try { by[k].verdicts = RC.verdicts(by[k]); } catch (e) { by[k].verdicts = by[k].verdicts || []; } }
   return by;
 }

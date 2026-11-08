@@ -371,7 +371,8 @@ const NOTES = {
   ],
   _conclusion: [
     'The light, faithfully built aeroplanes reproduce their parents closely on all three axes: the <b>Cub</b>, the <b>Jodel</b> and the corrected <b>172</b> sit within a few percent on stall, cruise, top speed, climb and take-off roll, at the weight their book was written for (the J-3\'s at gross, the D.112\'s light).',
-    'The largest errors are <b>build choices</b> (engine, tail size) and <b>the pilot</b> (the landing roll, the climb speed), not the physics.',
+    'The <b>ref-matched recreations</b> (Stearman, Tiger Moth, Camel) reproduce their parents\' shape to within 0-7 % on every dimension: the REF_MATCH tool works. Their weak side is the <b>mass model</b> on old construction (the Camel +37 % empty, the Tiger Moth +13 %) and a <b>10-25 % climb deficit</b>, with low static margins (1-8 %).',
+    'The largest errors are <b>build choices</b> (engine, tail size) and <b>the pilot</b> (the landing roll on every plane, the climb speed), not the physics.',
     'The model\'s own residuals: climb 10-20 % short on matched engines, the climb-out to 50 ft long on the 172 (the propeller\'s low-speed efficiency), L/D high on the metal 172 (the glide probe has the propeller off).',
   ],
   _next: [
@@ -379,6 +380,8 @@ const NOTES = {
     '<b>B-CESS\'s tail</b> (a build item): stab span 2.72 to 3.40 m, elevator chord 0.265 to 0.44. It then trims its full flap at forward CG (0.41 against the 0.18 budget today).',
     '<b>The propeller\'s climb-speed efficiency</b> (physics, PHYSICS_V): the 10-20 % climb deficit and the long climb-out.',
     '<b>The pilot\'s climb speed</b> from the measured Vy instead of 1.38 Vs.',
+    '<b>The mass model on old construction</b>: a wire-braced wooden scout (the Camel) bills 37 % over its empty weight; read the frame\'s rows against REF_MATCH\'s three biplanes.',
+    '<b>Redo the Petrel</b> on water once claude/seaplanes-merge flies it; and the Birdman\'s arrivals (stalls in the flare).',
     '<b>GATE REALBAND</b> on the official planes: the airframe bands and the approach-trim row (REAL-CHECK-2026-11-07 §8).',
   ],
   cub: ['The J-3\'s sheet reads as a gross-weight sheet: stall, climb and the roll meet ours at 530-570 kg.'],
@@ -387,6 +390,12 @@ const NOTES = {
   c172x: ['The like-for-like 172: the roll is right, the climb-out after it is not (485 m lift-off to 50 ft against 226).'],
   pa18f: ['Climb 14-21 % short and the water run 50-80 kg "heavy": the propeller item, plus 150 hp against the reference\'s 160.'],
   chinook: ['Airframe only: the game\'s pilot rejects the take-off (GATE ARCHETYPES\' standing red).'],
+  stearman: ['Geometry to the centimetre (REF_MATCH): span, area, length, height all within 3 %. Top speed 12 % under the lower figure, climb 15 % short at gross: the drag of the radial and the wires plus the propeller item. Static margin 4-8 %. Landing roll: the pilot\'s (+200 m over the best schedule).'],
+  tigermoth: ['Geometry within 1-7 % (wing area +7 %). Stall, cruise and top speed inside; climb 10-25 % short (thin reference); empty +13 %. Static margin 4-6 %. Landing roll: the pilot\'s (+164 m).'],
+  camel: ['Geometry exact (REF_MATCH). <b>Empty 579 kg against 421 (+37 %)</b>: the frame\'s mass model on a 1917 wire-braced scout (the rotary engine\'s installation, the steel-tube default) - the largest specs gap of the set after the O-540 Cessnas. Top speed 5 % under the one (thin) figure. Static margin 1-3 % (the real Camel was famously close to neutral). Only one performance figure is sourced: its performance score rests on it.'],
+  petrelL: ['The same airframe as the 7 Nov run, now with its shape and specs: flown numbers identical to the hull-types run (TO 192 m, climb 2.42 m/s, landing 457 m at 600 kg). Geometry 96 (length -10 %: ours runs from the pusher\'s flange, aft of the bow). Empty 380 kg against 320 (+19 %; the retract gear and the hull bottom), fuel 72 L against 90. <b>PROVISIONAL</b>: land only until it flies off the water on claude/seaplanes-merge. Solo, a 3-4 % static margin.'],
+  dc3: ['Span to the centimetre, the right engines, propellers and fuel. <b>Empty 6480 kg against 7650-8300 (-15 to -22 %)</b>: the mass model, light on a big all-metal airliner as it was on the Caravan card. Cruise and top speed ~13 % under figures quoted at altitude (THIN: no sea-level figure); the climb inside at gross on the airframe and the handbook schedule, 18 % short under the game\'s pilot (it climbs 2.3 m/s under the best schedule).',
+        '<b>The balance</b>: the CG sits at 50 % MAC with a light load (static margin 15 %) and at 66 % with every seat filled (margin 1 %). At that load the game\'s pilot <b>capsized</b> on the landing; the handbook schedule landed in 598 m. The real DC-3\'s envelope is far forward of that: a mass-and-balance item for the DC-3 build (where the cabin and the baggage bill), worth checking before it is made official.'],
   birdman: ['The Chinook as the user first built it (10.6 m span, 1.41 m prop, the engine aft of the pod; corrected 21 Sep into the official Chinook). <b>It flies where the corrected one does not</b> (the game\'s pilot rejects the corrected Chinook\'s take-off). Its arrivals are drops: the pilot\'s own record gives a 6.3 m/s sink at 39 km/h and a 7 m "roll", so its landing rows are a stall in the flare, not a landing roll. Empty 282 kg against 172-209 (+35 %); climb half the sheet\'s.'],
   petrel: ['Measured on claude/hull-types (7 Nov), before the geometry and specs pass: superseded by the land run on claude/seaplanes-merge below.'],
 };

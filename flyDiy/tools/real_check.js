@@ -308,13 +308,16 @@ function loadSpec(P) {
 // built def (the same extents perf_study's DIMENSIONS table reads: the node cloud settled on its gear, so `length` runs
 // engine flange -> rudder trailing edge, ~0.3 m short of a spinner-to-rudder type figure)
 function measureShape(spec, def) {
+  // HEIGHT on the WORLD vertical, the aeroplane standing on its gear (a type sheet's height: ground to fin top, tail down
+  // on a taildragger) - the body-axis extent read a tail-sitter rotated by its deck angle (the DC-3-alike 7.26 m against
+  // 5.16; world-vertical 5.22); LENGTH on the body axis
   const sim = C.makeSim(def, null); sim.reset(0);
-  for (let i = 0; i < 150; i++) sim.step(1 / 60);
-  const [xA, yU] = sim.axes();
+  for (let i = 0; i < 300; i++) sim.step(1 / 60);
+  const [xA] = sim.axes();
   let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
   for (let i = 0; i < sim.n; i++) {
     const p = [sim.p[i * 3], sim.p[i * 3 + 1], sim.p[i * 3 + 2]];
-    const x = p[0] * xA[0] + p[1] * xA[1] + p[2] * xA[2], y = p[0] * yU[0] + p[1] * yU[1] + p[2] * yU[2];
+    const x = p[0] * xA[0] + p[1] * xA[1] + p[2] * xA[2], y = p[1];
     x0 = Math.min(x0, x - sim.r[i]); x1 = Math.max(x1, x + sim.r[i]); y0 = Math.min(y0, y - sim.r[i]); y1 = Math.max(y1, y + sim.r[i]);
   }
   const w = (spec.wings && spec.wings[0]) || {}, t = spec.tail || {}, g = spec.gear || {}, G = def.params.gen || {}, e = def.params.engine || {}, P = def.params.prop || {};
