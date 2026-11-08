@@ -284,6 +284,38 @@ window.CAGE_ENG_FACTS = (P) => {
   // a blown piston's critical altitude rides to the clamp the same way
   // (the blower model, 2026-09-05)
   if (!elec && !turb && R.critAlt > 0) facts.critAlt = R.critAlt;
+  // ENGINE-GAP (8 Nov, the user's DC-3 via A0: "edit it manually with the sliders"): A CUSTOM ENGINE THAT STARTED
+  // FROM A CATALOGUE ENGINE (P.engFrom, written by the starter at the switch - absent on every file saved before, so
+  // nothing saved moves) flies THAT ENGINE'S REGISTRY ROW, scaled by what the dials changed in the model: power and
+  // mass by R / R0, the rpm likewise, and the gear, the blower and its ceiling stay the row's until their own dials
+  // move. The model alone read the R-1830's own dials as 1 036 kW and a direct drive against the row's 895 kW and
+  // 1.78 - the switch to edit the geometry was a 16 % jump before a single dial was touched.
+  const from = engFromName(P);
+  const fs0 = from ? presetSpecOf(from) : null;
+  let F0 = null;
+  if (fs0) { try { F0 = EG.engResolve(fs0); } catch (e) { F0 = null; } }
+  const row = from ? POWERPLANTS[CAGE_JOIN_ENGINES[from]].engine : null;
+  if (F0 && F0.powerW > 0 && F0.mass > 0 && R.arch === F0.arch
+      && facts.family === familyOf(F0.arch, fs0) && facts.cooling === coolingOf(F0.arch, fs0)) {
+    const eqF = (a, b) => Math.abs(a - b) <= 1e-6 * Math.max(1, Math.abs(b));
+    const kP = R.powerW / F0.powerW, kM = R.mass / F0.mass, kN = R.rpm / F0.rpm;
+    const gearSame = (+spec.geared ? 1 : 0) === (+fs0.geared ? 1 : 0)
+      && (!+spec.geared || eqF(+spec.gearRatio || 0, +fs0.gearRatio || 0));
+    const blowSame = elec || turb || (R.aspiration === F0.aspiration && eqF(R.critAlt || 0, F0.critAlt || 0));
+    facts.powerW = row.powerW * kP;
+    facts.mass = row.mass * kM;
+    facts.rpm = eqF(kN, 1) ? row.rpm : row.rpm * kN;
+    if (gearSame) facts.gear = row.gear || 1;
+    if (blowSame) {
+      facts.aspiration = row.aspiration || facts.aspiration;
+      if (row.critAlt > 0) facts.critAlt = row.critAlt; else delete facts.critAlt;
+    }
+    facts.torque = facts.powerW / (2 * Math.PI * Math.max(1, facts.rpm) / 60);
+    const same = eqF(kP, 1) && eqF(kM, 1) && eqF(kN, 1) && gearSame && blowSame
+      && Math.abs((R.cgZ || 0) - (F0.cgZ || 0)) < 0.005 && (!turb || eqF(R.flatK, F0.flatK));
+    facts.name = same ? row.name : `modified ${row.name}`;
+    return facts;
+  }
   const psName = PRESET_NAMES[Math.max(0, Math.min(PRESET_NAMES.length - 1,
     Math.round(P.engPreset)))];
   const ps = presetSpecOf(psName);
@@ -355,6 +387,16 @@ const PRESET_NAMES = EP.presetNames ? EP.presetNames()
   : Object.keys(EP.PRESETS).filter(n => n !== 'bare engine').concat([CUSTOM_ENGINE]);
 const CUSTOM_IDX = PRESET_NAMES.indexOf(CUSTOM_ENGINE);
 const isCustomEng = P => Math.round(P.engPreset) === CUSTOM_IDX;
+// ENGINE-GAP: the catalogue engine a custom engine started from (P.engFrom, a saved preset index), or null - only on
+// the custom engine, only a catalogue entry with a registry row (never the two fantasy presets)
+const engFromName = P => {
+  if (!isCustomEng(P) || !(+P.engFrom >= 0)) return null;
+  const name = PRESET_NAMES[Math.round(+P.engFrom)];
+  if (!name || name === CUSTOM_ENGINE || !EP.PRESETS[name] || ENG_FANTASY.has(name)) return null;
+  if (typeof CAGE_JOIN_ENGINES === 'undefined' || typeof POWERPLANTS === 'undefined') return null;
+  const key = CAGE_JOIN_ENGINES[name];
+  return key && POWERPLANTS[key] && POWERPLANTS[key].engine ? name : null;
+};
 // the type a preset belongs to, from its own table row (null for custom)
 const presetArch = name => {
   const pre = EP.PRESETS[name];
@@ -887,8 +929,15 @@ PAGE.post = ctx => {
       lastPreset = Math.round(P.engPreset);
       sync();
     }
+    const prevSel = lastPreset;
     const fire = engPresetStarter(P);
     if (fire) {
+      // ENGINE-GAP: the switch to the custom engine remembers the catalogue engine it left (its dials stay, the
+      // starter writes none); a catalogue pick forgets it
+      if (isCustomEng(P)) {
+        const was = prevSel == null ? null : PRESET_NAMES[prevSel];
+        if (was && was !== CUSTOM_ENGINE && EP.PRESETS[was] && !ENG_FANTASY.has(was)) P.engFrom = prevSel;
+      } else delete P.engFrom;
       applyEngPreset(P, fire);
       sync();
     }

@@ -312763,3 +312763,42 @@ the glass left out (a scratch copy): before, the bar and its diagonal cross the 
 UNSEEN: the rivets (interior, in no still); the door in a page at night.
 GATES (512a587a8 on L33a, 8 Nov 06:56): SHOULDER, KNIFE, EDBUGS, PARTS 4/4 PASS. Rebased on L35a 1bcd01d3e (A0): the same diff; master's BUBBLE-WINDOWS
 (9bfd48edd) touched the same file in another part, merge clean; the rebased ref is not re-gated (the train's battery covers it).
+
+## DEFORM - ENGINE-GAP, 8 Nov 2026 (claude/ready/engine-gap, for L35b)
+
+THE GAP (found in DC3-EDITABLE, on master): under a catalogue engine the geometry rows are hidden and the registry row
+flies. To edit the geometry the builder switches to "custom engine", and the preset's dials then fly the MODEL's facts.
+On master that jump hits 40 of the 44 catalogue presets by more than 5 % or a lost reduction gear. The DC-3's R-1830 goes
+from 895 kW / 750 kg / gear 1.78 to 1036 kW / 708 kg / gear 1 (the prop at 2700 rpm instead of 1517).
+
+THE FIX (tools/_cage_eng.js, +49, one file):
+- A NEW CAGE KEY, `engFrom`: the preset's index the builder switched FROM. PAGE.post writes it when the engine row moves
+  from a catalogue engine to "custom engine", and drops it on any other move. It is saved only when set (cageToSpec
+  copies defined keys), so no saved file gains it. The load audit's flip to custom does not write it.
+- CAGE_ENG_FACTS, keyed: when the dials resolve to the same arch, family and cooling as the preset's own dials, the
+  custom engine flies the REGISTRY ROW scaled by what the dials change: power x the model's power ratio, mass x its mass
+  ratio, rpm x its rpm ratio. The gear is the row's while the gearing is unchanged; aspiration and critical altitude are
+  the row's while the blower is unchanged. Named as the row ("P&W R-1830 Twin Wasp"), or "modified <row>" once a dial
+  moves. Unkeyed (every file saved before this, and a scratch custom engine) flies the model, as before.
+- Not keyed: a fantasy preset (flat twin, flat six), or a preset whose registry row is missing.
+
+MEASURED (scratchpad eng_table.js on GATE ENGID's harness, both trees; dc3_switch.js through the load door):
+- On the branch, all 44 presets switched with the key fly their row exactly (0.0 %, gear kept). With the bore 5 % larger,
+  the row scales (+10.3 % power, +7-9 % mass) and the gear holds. The electric and turbine rows have no bore and stay put.
+  On master the key is unread: keyed = the model.
+- DC-3, through the load door:
+  - saved: the registry row;
+  - custom with no key: 1036.1 kW, 708.4 kg, gear 1 (master and branch alike);
+  - keyed: "P&W R-1830 Twin Wasp", 895.0 kW, 750.0 kg, gear 1.78;
+  - keyed with the bore +5 mm: "modified P&W R-1830 Twin Wasp", 960.2 kW, 797.3 kg, gear 1.78.
+- The validated planes, on the branch against master 1bcd01d3e, with FLYDIY_JOIN_NOCACHE=1:
+  - the flown spec through the load door (LB.gameSpecFull) is byte-SAME on 8 builds: the Cub and Jodel corrected, the
+    C172 and the C172 corrected, the metal Cessna, the floats Cessna, Twin_busher_floats_4b and the DC-3;
+  - ENGCONFIG --pin: the 17 digest lines are identical.
+GATES on the branch (ede12cbd4, rebased on 1bcd01d3e), one per call:
+- PASS: ENGID STARTER SAVE DESIGN PARTS JOIN EDBUGS SPECFIX PROCURE FRAMES ROLLANIM SIMWORKER SUBSTEP WEATHER.
+- TECH and ENGCONFIG: FAIL, standing on master. Master's verdicts were run the same day on 1bcd01d3e, and both are red.
+- GPSFACE: no verdict, cut by the slot's hard stop. It PASSED at 10:55 on the pre-rebase branch (23f8a61be on cad308635),
+  where the same 17 gates gave master's verdicts.
+- Not run: ARCHETYPES (4 shards, ~1900 s) and UISMOKE (needs Chrome).
+No PHYSICS_V or GEN_SPEC_V bump.
