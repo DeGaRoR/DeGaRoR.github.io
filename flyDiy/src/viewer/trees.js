@@ -591,7 +591,7 @@
   // crisply as the tree beside the strip - the air never does that (its blur grows with the path: the aerosol and the
   // turbulence MTF, Kopeika's). TREE_SOFT widens that ramp with the view distance: x from (m), y fully by (m), z the
   // leaves' width there (1 = today), w the impostors' (render_world.js reads the same object). Same coverage, wider edge.
-  const U_SOFT = { value: (typeof THREE !== 'undefined' && THREE.Vector4) ? new THREE.Vector4(200, 800, 1, 1) : { x: 200, y: 800, z: 1, w: 1 } };
+  const U_SOFT = { value: (typeof THREE !== 'undefined' && THREE.Vector4) ? new THREE.Vector4(150, 600, 5, 4) : { x: 150, y: 600, z: 5, w: 4 } };   // the user 8 Nov: "strong" (far trees must read, a little big)
   if (typeof window !== 'undefined') window.TREE_SOFT = U_SOFT;
   const EDGE_GLSL = [
     'if (uBakeAlb > 0.5) {',

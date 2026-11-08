@@ -4009,7 +4009,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // the alpha gain rides on the COLLECTION now (`place.impa`, 6 or 6.5 in
     // the tuning); uIGainK is the panel's dial over all of them
     const uIGainK = { value: 1 }, uISolid = { value: 1 };
-    const uSoftT0 = { value: new THREE.Vector4(200, 800, 1, 1) };   // (LOOK-1: only when trees.js is absent - its TREE_SOFT is the dial)
+    const uSoftT0 = { value: new THREE.Vector4(150, 600, 5, 4) };   // (LOOK-1: only when trees.js is absent - its TREE_SOFT is the dial)
     const impaOf = key => { const e = (typeof treeList === 'function') && treeList().find(x => x.key === key);
                             return (e && e.col.place && e.col.place.impa) || 6; };
     // THE IMPOSTOR CASTS ITS OWN SILHOUETTE (W0c.18, the bench's W0a.4). The
