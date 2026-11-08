@@ -539,6 +539,7 @@ var ATMO = (function () {
     #define ATMO_AP_SAMPLER
     uniform sampler2D uApAtlas;
     #endif
+    uniform vec2 uApK;         // x: the aerial perspective's optical-depth scale (1 = the atlas as baked; LOOK-1 8 Nov)
     uniform vec4 uAtmoAP;      // x: the radiance scale (K_SUN x unit), y: dmax (km), z: on/off, w: the tables' gain (A6: the night's stops)
     vec4 apSample(vec3 d, float dist) {
       float el = asin(clamp(d.y, -1.0, 1.0)), az = atan(d.x, -d.z);
@@ -565,7 +566,8 @@ var ATMO = (function () {
   const AP_APPLY = `
     #ifdef USE_FOG
     if (uAtmoAP.z > 0.5) {
-      vec4 ap = atmoAP(); gl_FragColor.rgb = gl_FragColor.rgb * ap.a + ap.rgb * uAtmoAP.x * gl_FragColor.a;
+      vec4 ap = atmoAP(); float apT = pow(max(ap.a, 1e-6), uApK.x); vec3 apL = ap.rgb * ((1.0 - apT) / max(1.0 - ap.a, 1e-4));
+      gl_FragColor.rgb = gl_FragColor.rgb * apT + apL * uAtmoAP.x * gl_FragColor.a;
     }
     gl_FragColor.rgb = mistApply(gl_FragColor.rgb, normalize((vec4(vAtmoV, 0.0) * viewMatrix).xyz), length(vAtmoV), cameraPosition.y);
     #endif
@@ -584,7 +586,8 @@ var ATMO = (function () {
   // would carry the old unit); applyDay then writes the same value from the day
   if (typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.onPre) LIGHT_RIG.onPre((P, old) => { const r = P / old; U.scale.value *= r; apScalars[0] = U.scale.value; for (let i = 4; i < 7; i++) mistScalars[i] *= r; });
                                                               //  | eye xyz, march N | field origin xz, 1/size, band ceiling | drift xz, patch scale, patchiness  (F2)]
-  const apUniforms = { uApAtlas: { value: null }, uAtmoAP: { value: apScalars }, uMist: { value: mistScalars } };
+  const apK_ = new Float32Array([1, 0]);                     // LOOK-1: the aerial perspective's optical-depth scale (x), by reference like apScalars
+  const apUniforms = { uApAtlas: { value: null }, uAtmoAP: { value: apScalars }, uMist: { value: mistScalars }, uApK: { value: apK_ } };
   // THE MIST'S DIALS: on/off (the GRAPHICS menu), the density as a multiplier over the day's own
   // (`day.mistRho0`, derived in 07_day.js - saturated air sees 1.2 km), its top (m ASL)
   // and thickness (m), the forward peak. F8's atmosphere fold writes these.
@@ -612,7 +615,7 @@ var ATMO = (function () {
     SC.fog_fragment = AP_FOG_FRAG;
     SC.tonemapping_fragment = AP_APPLY + '\n' + (SC.tonemapping_fragment || '');
     for (const k of ['basic', 'lambert', 'phong', 'standard', 'physical', 'toon', 'matcap', 'points', 'sprite']) {  // pre-ok: a list of material kinds, not a writer
-      const lib = THREE.ShaderLib[k]; if (lib && lib.uniforms) { lib.uniforms.uAtmoAP = apUniforms.uAtmoAP; lib.uniforms.uMist = apUniforms.uMist; }
+      const lib = THREE.ShaderLib[k]; if (lib && lib.uniforms) { lib.uniforms.uAtmoAP = apUniforms.uAtmoAP; lib.uniforms.uMist = apUniforms.uMist; lib.uniforms.uApK = apUniforms.uApK; }
     }
     // EVERY MATERIAL TAKES THE SAMPLER, a hook of its own or not (G432.2, the user: "check why the
     // houses don't render"): the prototype's onBeforeCompile is an ACCESSOR - a material's own hook is
@@ -648,10 +651,12 @@ var ATMO = (function () {
     sh.uniforms.uApAtlas = apUniforms.uApAtlas;
     if (!sh.uniforms.uAtmoAP) sh.uniforms.uAtmoAP = apUniforms.uAtmoAP;
     if (!sh.uniforms.uMist) sh.uniforms.uMist = apUniforms.uMist;
+    if (!sh.uniforms.uApK) sh.uniforms.uApK = apUniforms.uApK;
     if (typeof CLOUDS !== 'undefined' && CLOUDS.inject) CLOUDS.inject(sh);   // the clouds' shadow sampler rides the same two paths (C2)
     if (typeof SHADOW_NEAR !== 'undefined' && SHADOW_NEAR.inject) SHADOW_NEAR.inject(sh);   // the craft's near map flag (A6)
   }
   function setAP(on) { apScalars[2] = on ? 1 : 0; }
+  function apK(k) { if (k != null && isFinite(+k)) apK_[0] = Math.max(0, +k); return apK_[0]; }
 
   // ---- the dome ------------------------------------------------------------
   // The sky-view sample, the sun and moon discs from the transmittance, the
@@ -1207,7 +1212,7 @@ ${MIST_GLSL}
     P, setDay, medium: (h) => medium(h, newMed()), transmittance, T, MS, skyRadiance, skyIrradiance, sunTransmittance, groundIrradiance, makeProbe, probes,
     bakeT, bakeMS, tUV, tFromUV, phaseMie, lut: () => ({ T: lutT, MS: lutMS, TW, TH, MW, MH }),
     init, update, domeMat, U, G, get enabled() { return G.enabled; },
-    install, inject, setAP, bakeField, mistODcpu, seeT, seeRange,
+    install, inject, setAP, apK, bakeField, mistODcpu, seeT, seeRange,
     // the water's mirror capture renders from an eye BELOW the surface; the splice reads its own
     // `cameraPosition`, but the dome's mist takes `uEyeY`, which is the MAIN eye's. A capture that
     // wants it exact brackets itself with this (the water session's ask, 2026-09-22).
