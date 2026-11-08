@@ -234,7 +234,10 @@ const DOORS = {
     // worker against the main thread on the SAME spec, to the bit - a parity of two threads, not the game's aeroplane
     '_wingrows_check', '_sheetworker_check',
     // (G2818: CERT-GATES's procurement fingerprint and save hook, on the spec - never built)
-    '_certgates_check'],
+    '_certgates_check',
+    // (G2818: PLANE-LISTS lists the files (the chooser's rows, the client's storyClientSpec) - never builds them; QUADWIN's
+    // old-window reference is the Cub's file through the cage generator's own geometry (cageFromSpec), never flown)
+    '_planelists_check', '_quadwin_check'],
   // THE DRAWING, NOT THE FLIGHT (G2799, DASH-REDESIGN's): the file seeds the editor's own layers headless
   // (_scene_headless.js sceneBuild, the load door's seeding) and what is judged is what they draw - the dash, a tank
   // through it, the stills; its physics rows bake the joined card (_bake_joined.js)
@@ -247,7 +250,9 @@ const DOORS = {
     '_designcheck_check', '_geoparity_check', '_naclag_check',
     // (G2818, the census of 8 Nov: DESIGN-AIDS's rows on the joined bake as _designcheck_check's, and the bake's own engine
     // record (W.CAGE_ENG, propOff) the load door does not return; TERRAIN-MATCH's settle of the joined bake, ground_gap's BJ)
-    '_aids_check', 'terrain_match'],
+    '_aids_check', 'terrain_match',
+    // (G2818: GATE TERRAINMATCH runs terrain_match.js above; it names the Cub's file in its header only)
+    '_terrainmatch_check'],
   // THE LEGACY LIST (train 41, the user 8 Oct: 'let's not have different ways to build things, it's unmaintainable'):
   // the tools that predate JOIN-PARITY and read a validated file raw. Named, SHRINK-ONLY (owner Deform): at most these 19,
   // and an entry that no longer reads a validated file raw (moved to tools/_load_build.js, or gone) must be struck off.
