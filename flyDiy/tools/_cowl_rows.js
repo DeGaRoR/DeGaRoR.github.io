@@ -246,7 +246,7 @@ const COWL_ROWS = [
   { id: 'g_aft', name: 'Nacelle', rows: [
     { k: 'aftMode', label: 'termination', lo: 0, hi: 1, step: 1, names: ['blend into the fuselage', 'nacelle tail cone'] },
     { k: 'stubLen', label: 'Fuselage stub length', lo: 0.2, hi: 2, step: 0.02, when: 'P.aftMode===0' },
-    { k: 'tailLen', label: 'tail cone length', lo: 0.4, hi: 3, step: 0.02, when: 'P.aftMode===1' },
+    { k: 'tailLen', label: 'tail cone length', lo: 0.4, hi: 4, step: 0.02, when: 'P.aftMode===1' },   // DC3-EDITABLE: the DC-3's nacelle cone, 3.35
     // Advanced
     { k: 'tailDrop', label: 'tail cone droop', lo: -0.2, hi: 0.2, step: 0.005, when: 'P.aftMode===1' },
     { k: 'pylon', label: 'Pylon + wing stub', lo: 0, hi: 1, step: 1, when: 'P.aftMode===1' },

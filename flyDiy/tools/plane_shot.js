@@ -12,6 +12,7 @@
 //
 //   node flyDiy/tools/plane_shot.js --build <file.json>[,<file2.json>...] --out <dir>
 //                                 (G3800: an entry stock:<name> is the garage's own stock design, e.g. 'stock:piper cub')
+//                                 (PLANE-RENDERS R1: arch:<key> a design card's plane, as the new-aeroplane card bakes it)
 //        [--views q,s,t,f]        the editor's own framing presets: q 3/4 front, s side, t plan, f nose, i interior
 //                                 (with a pilot), part:<key or name> a close-up of one part (the tree's key, e.g. wing,
 //                                 or its name), orbit:<az>/<el>/<dist> (deg, deg, m), close:<az>/<el>/<dist> the same
@@ -400,6 +401,14 @@ async function shoot(o) {
         file = path.join(o.out, 'stock_' + nm.replace(/[^\w.-]+/g, '-') + '.json');
         fs.writeFileSync(file, JSON.stringify({ what: 'flydiy-build', stock: nm, spec: sp }));
       }
+      // PLANE-RENDERS R1: 'arch:<key>' is a design card's plane as the new-aeroplane card bakes it (CAGE_DESIGN.designBake),
+      // the authored recreations' pictures
+      if (/^arch:/.test(file)) {
+        const k = file.slice(5), sp = await J('(() => { const D = window.CAGE_DESIGN, a = D && D.ARCHETYPES && D.ARCHETYPES.find(x => x.key === ' + JSON.stringify(k) + '); return a && D.designBake ? D.designBake(a.sel, a.over) : null; })()');
+        if (!sp || !sp.cage) { log('no design card', JSON.stringify(k)); continue; }
+        file = path.join(o.out, 'arch_' + k.replace(/[^\w.-]+/g, '-') + '.json');
+        fs.writeFileSync(file, JSON.stringify({ what: 'flydiy-build', arch: k, spec: sp }));
+      }
       const tb = Date.now(), base = path.basename(file).replace(/\.json$/i, '');
       // (NEW-PLANE: a fresh profile's first launch opens the new-aeroplane chooser a moment after the boot, and the chooser
       // holds the frames behind it - closed before every build, as the player's cancel would)
@@ -684,7 +693,7 @@ async function pair(dirA, dirB, out, labels, chrome) {
   // the arguments, before anything is launched (--dry stops here)
   if (!builds.length) bail(EXIT.run, '--build <file.json>[,<file2.json>]: which aeroplane(s)');
   for (const b of builds) {
-    if (/^stock:./.test(b)) continue;   // G3800: a stock design, read from the page
+    if (/^(stock|arch):./.test(b)) continue;   // G3800: a stock design, read from the page (R1: or a design card)
     if (!fs.existsSync(b)) bail(EXIT.build, 'no such build file: ' + b);
     let j = null; try { j = JSON.parse(fs.readFileSync(b, 'utf8')); } catch (e) { bail(EXIT.build, b + ' is not JSON: ' + e.message); }
     // the garage's own rule (garage.js unwrap: a spec with a cage), not the export's label - the pool's NEW-SHAPES files

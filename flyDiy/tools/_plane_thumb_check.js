@@ -23,31 +23,43 @@ const fs = require('fs'), path = require('path'), vm = require('vm');
 const ROOT = path.join(__dirname, '..');
 const rd = rel => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 const SELF = process.argv.includes('--selftest');
-const LIVE_OFF = 'const LIVE_DRAW = false;';
+const LIVE_OFF = 'const LIVE_DRAW = false;', LIVE_ON = 'const LIVE_DRAW = true;';
 async function run(src, files) {
   const fails = []; let checks = 0;
   const ok = (c, m) => { checks++; if (!c) fails.push(m); };
+  // THE FOG (PLANE-RENDERS R1): fog is a program define; the draw pushes it out of reach and never sets it null (a null
+  // recompiled every material in the scene, the reading of L31b's 6.1 s first draw)
+  ok(!/S\.fog = null/.test(src) && /fog\.near = 1e8; fog\.far = 1e9/.test(src) && /fog\.near = fogR\[0\]; fog\.far = fogR\[1\]/.test(src), 'draw: the fog out of reach and put back, never null');
   // ---- THE WIRING
   const B = files.build, G = files.garage, A = files.app, U = files.storage;
+  // THE SCREEN VARIANT (PLANE-RENDERS R1, 7 Nov): the garage's programs are keyed for the anti-aliasing target, the thumb
+  // draws to the screen - a second program per material, 4.2-5.5 s inside a fresh profile's first draw. The probe compiles
+  // for the screen (null target) through the sliced compile, and saved() warms before it draws
+  ok(/compileScreen: \(sc, lit\) => compileSliced\(sc, null, lit\)/.test(A), 'app.js FLIGHT_PROBE.compileScreen: compileSliced to the screen (a null target)');
+  ok(/warm\(\)\.then\(\(\) => whenStill\(\(\) => \{/.test(src) && /P\.compileScreen\(root, S\)/.test(src), 'plane_thumb.js saved(): warm() (P.compileScreen) before the draw');
   const order = ['garage.js', 'plane_thumb.js', 'storage_ui.js'].map(f => B.indexOf("'" + f + "'"));
   ok(order.every(i => i > 0) && order[0] < order[1] && order[1] < order[2] && order[1] < B.indexOf("'app.js'"), 'build.js: plane_thumb.js between garage.js and storage_ui.js, before app.js');
   const save = G.slice(G.indexOf('const saveAs = name =>'), G.indexOf('const saveAs = name =>') + 6000);
   ok(/fleetQueue\(name\)[\s\S]{0,400}PLANE_THUMB\.saved\(name\)/.test(save), 'garage.js saveAs: PLANE_THUMB.saved(name) after the parked queue');
-  const load = G.slice(G.indexOf('const loadSlot = n =>'), G.indexOf('const loadSlot = n =>') + 900);
-  ok(/loadSpec\([\s\S]{0,400}PLANE_THUMB\.saved\(n\)/.test(load), 'garage.js loadSlot: PLANE_THUMB.saved(n) after the load');
+  const load = G.slice(G.indexOf('const loadSlot = n =>'), G.indexOf('const loadSlot = n =>') + 1400);
+  ok(/loadSpec\([\s\S]{0,800}PLANE_THUMB\.saved\(n\)/.test(load), 'garage.js loadSlot: PLANE_THUMB.saved(n) after the load');
   ok(/lsDel\(SLOT \+ n\);[\s\S]{0,200}PLANE_THUMB\.forget\(n\)/.test(G), 'garage.js delete: PLANE_THUMB.forget(n)');
   const card = A.slice(A.indexOf('function storeCard(name)'), A.indexOf('function storeCard(name)') + 1200);
   ok(/PLANE_THUMB\.get\('mine:' \+ name\)/.test(card) && card.indexOf('PLANE_THUMB.get') < card.indexOf('PARKED.fleetThumb'), "app.js storeCard: PLANE_THUMB.get('mine:' + name) first");
   ok(/addEventListener\('plane-thumb'/.test(U), "storage_ui.js: redraws on 'plane-thumb'");
   // ---- THE LIVE DRAW OFF: the source as shipped, in its own stub window
-  ok(src.includes(LIVE_OFF), 'plane_thumb.js: ' + LIVE_OFF);
+  // LIVE DRAW ON (A0 7 Nov 21:19: land it; a ~1 s first draw once per fresh profile is a cost, named in HANDOVER, not a break)
+  ok(src.includes(LIVE_ON), 'plane_thumb.js: ' + LIVE_ON);
+  // the webp encode is its own task: saved() draws the canvas, encode() in the next idle
+  ok(/c = draw\(true\)/.test(src) && /if \(c\) idle\(\(\) => \{ let url = null; try \{ url = encode\(c\)/.test(src), 'saved(): draw(true), the encode in an idle task after');
+  // ---- THE OFF SWITCH still works (flipped back in its own stub window)
   {
     const st = new Map(), id = [], w = { localStorage: { getItem: k => st.has(k) ? st.get(k) : null, setItem: (k, v) => st.set(k, String(v)), removeItem: k => st.delete(k) },
       requestIdleCallback: fn => { id.push(fn); return 1; }, dispatchEvent: () => {}, GARAGE_SPEC: { get: () => ({ cage: { a: 1 } }) } };
     w.window = w;
     const c = vm.createContext({ window: w, performance: { now: () => 0 }, setTimeout: fn => { id.push(fn); return 1; }, JSON, Map, Set, Math, Promise, document: {} });
     c.requestIdleCallback = w.requestIdleCallback; c.GARAGE_SPEC = w.GARAGE_SPEC;
-    vm.runInContext(src, c, { filename: 'plane_thumb.js' });
+    vm.runInContext(src.replace(LIVE_ON, LIVE_OFF), c, { filename: 'plane_thumb.js' });
     const T0 = w.PLANE_THUMB;
     if (T0) {
       T0.saved('A');
@@ -122,15 +134,19 @@ async function run(src, files) {
   }
   // --selftest: each break must be caught
   const BREAKS = [
-    ['live draw left on', s => s.replace(LIVE_OFF, 'const LIVE_DRAW = true;'), f => f],
+    ['live draw off', s => s.replace(LIVE_ON, LIVE_OFF), f => f],
+    ['encode in the draw task', s => s.replace('c = draw(true)', 'c = draw()'), f => f],
     ['off: saved() still draws', s => s.replace('if (!LIVE_DRAW || !name) return;', 'if (!name) return;'), f => f],
     ["off: 'mine:' reads the stored picture", s => s.replace('if (!LIVE_DRAW) return null;', ''), f => f],
     ['no save hook', s => s, f => Object.assign({}, f, { garage: f.garage.replace('window.PLANE_THUMB.saved(name)', 'window.PLANE_THUMB.x(name)') })],
     ['no load hook', s => s, f => Object.assign({}, f, { garage: f.garage.replace('window.PLANE_THUMB.saved(n)', 'window.PLANE_THUMB.x(n)') })],
     ['card asks PARKED first', s => s, f => Object.assign({}, f, { app: f.app.replace("try { if (window.PLANE_THUMB) thumb = window.PLANE_THUMB.get('mine:' + name) || null; } catch (e) {}\n", '') })],
     ['no hash check', s => s.replace('if (old && old.h === h && old.url)', 'if (false)'), f => f],
-    ['stand not re-checked', s => s.replace('if (standHash() !== q.h) return;', ''), f => f],
+    ['stand not re-checked', s => s.split('if (standHash() !== q.h) return;').join(''), f => f],
+    ['draw not warmed', s => s.replace('warm().then(() => whenStill(() => {', 'Promise.resolve().then(() => whenStill(() => {'), f => f],
+    ['probe keyed for the AA target', s => s, f => Object.assign({}, f, { app: f.app.replace('compileSliced(sc, null, lit)', 'compileSliced(sc, aa.target(), lit)') })],
     ['forget keeps it', s => s.replace('L && L.removeItem(PREF + \'mine:\' + name)', '0'), f => f],
+    ['fog off by null', s => s.replace('S.background = studioBg(THREE); R.shadowMap', 'S.background = studioBg(THREE); S.fog = null; R.shadowMap'), f => f],
     ['index per ask', s => s.replace('if (bakedLoading || typeof fetch', 'if (typeof fetch'), f => f],
   ];
   let bad = 0;

@@ -73,6 +73,7 @@ function npThumb(b) {
   let u = null; try { u = window.PLANE_THUMB && window.PLANE_THUMB.get(b.dataset.thumb); } catch (e) { u = null; }
   if (!u) return;
   const im = document.createElement('img'); im.src = u; im.alt = ''; im.className = 'npThumb'; b.prepend(im);
+  const ic = b.querySelector('svg'); if (ic && ic.remove) ic.remove();   // a picture replaces a card's icon
 }
 if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') window.addEventListener('plane-thumb', () => {
   try { if (el) el.querySelectorAll('.npTile[data-thumb]').forEach(npThumb); } catch (e) {}
@@ -178,7 +179,8 @@ function renderOffer(body) {
   const grid = document.createElement('div');
   grid.className = 'npGrid npStartGrid';
   const bring = o.bring;
-  for (const r of o.rows || []) grid.appendChild(tile('bring', r.name, (r.where ? r.where + ' - ' : '') + 'bring it here, free and instant', () => bring(r.name)));
+  // PLANE-RENDERS R1: one of yours wears its side profile when the page has drawn one ('mine:' + the fleet's name)
+  for (const r of o.rows || []) { const b = tile('bring', r.name, (r.where ? r.where + ' - ' : '') + 'bring it here, free and instant', () => bring(r.name)); b.dataset.thumb = 'mine:' + r.name; npThumb(b); grid.appendChild(b); }
   if (o.buy) { const buy = o.buy; grid.appendChild(tile('buy', 'Buy one', 'the Market, on the map', () => buy())); }
   if (grid.children.length) {
     body.insertAdjacentHTML('beforeend', '<div class="npSecH">one of yours</div>');
@@ -271,6 +273,7 @@ function renderStart(body) {
         (reason ? '<small class="npWhy">' + esc(reason) + '</small>' : '');
       if (reason) b.disabled = true;
       else b.addEventListener('click', () => generateCard(a));
+      b.dataset.thumb = 'arch:' + a.key; npThumb(b);   // PLANE-RENDERS R1: the recreation's baked side profile, over its icon
       ga.appendChild(b);
     }
     body.appendChild(ga);

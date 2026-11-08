@@ -312601,6 +312601,133 @@ IN (on L33a e0457618d): claude/ready/codex-link-warm 676e1c013 (Codex, 6 Nov): a
 RESULT, 8 rollout runs, worst frame: taxi all at or under 317 ms (L33a: 2 froze, 9.5 and 9.8 s); stand 1 froze 9.75 s, the first run (L33a: 3 froze, 3.3-7.6 s). Codex's own 16-row A/B: late links 3 -> 0 in every row. Bench taxi @HOME worst 50 ms, @mn_strip 66.6 ms.
 NAMED COST, UNEXPLAINED: the floats' garage -> SEA lane load 124 s in the train and 106 s on a repeat (77 links, 45 over 5 s), against 32 s and 3 links on L33a; garage warm loads 141-158 s (L33a 103-126 s). The change touches only the route overlay, so the box's state (other Chrome, cache) is the first suspect; L35a re-measures it, bisect if it repeats.
 BATTERY: FRAMECOST same 5, ROUNDTRIP 2 (worker-only flight: master's own, Codex saw it on master), MEDIA (index 5.17 MiB). No PHYSICS_V or GEN_SPEC_V change.
+## BUBBLE-WINDOWS - A BULGE ROW BLOWS A DRAWN WINDOW OUT INTO A BLISTER (the user 7 Nov: "bubble windows would be cool"; CABIN-CRAFT for A0, 8 Nov, for L35a)
+
+Branch claude/ready/bubble-windows, on master e0457618d (L33a). Code 9bfd48edd, built 77aa530df (build f214d2841a84). On top: this note and HANDOVER.
+
+The user 7 Nov, via A0: "bubble windows would be cool, maybe we slot it in if this is a quick job". A0: waist blisters only; domes wait until the user has seen these.
+
+## What lands
+
+- **Three rows, `paxWinBulge`, `win2Bulge`, `win3Bulge`** (page 5, under each row's reveal depth; "bubble", 0 to 0.2 m, 5 mm steps; shown when the row has windows; absent at 0). In the drawnWin part group.
+- **The blister** (`_knife_gen.js` knifeCut): the window's loop becomes the dome's rim. The reveal wall drops to 0, so the pane starts at the skin and the bead covers the seam. Six rings and an apex, a quarter-sine profile, standing on the skin's own curve. The height is capped at half the window's smaller side. The panes keep the drawnPane material: no new section, draw or program.
+- **Unset row = the window as it was** (`_cage_gen.js` sets `w.bulge` only when the row is > 0).
+- **Gate KNIFE section 6, BUBBLE**: rounded, oval and triangle windows at 0.05 m. Each must be watertight with no reveal wall, the dome's height over the loop between 0.8x and 1.6x the row, and a row at 0 must give the flat sheet's hash.
+
+## Limits
+
+- A pane that crosses a door edge or a cut part keeps its flat pane (the dome needs one closed loop on one part).
+- No overhead domes (A0: after the user sees these).
+- No look in the game or on the graphics card: the stills are SwiftShader (plane_shot's studio light, not daylight) and node quickshot.
+- Side effect: on the twin the aft door handle sits about 5 cm lower with the blister, because fittings keep clear of the pane. It shows in the stills.
+
+## Cost (the numbers A0 asked for)
+
+Drawn-pane triangles, both sides, sheet level 2 (the count does not depend on the height):
+
+| build | flat | blister | added |
+|---|---|---|---|
+| twin 4b | 232 | 612 | +380 (level 3: 584 -> 800, +216) |
+| Cessna 172 | | | +712 |
+| Cub | | | +428 |
+
+Twin 4b at 0.09 m (node identity): mass 819.911 -> 820.224 kg (+0.313 kg of glass; glass is billed by its area). Same 409 meshes; the sheet, ledger, design, procure and fly20 hashes move with the glass.
+
+## Builds without the row stay identical
+
+`tools/newshapes_identity.js` on archives of e0457618d and HEAD: **all 6 lines identical** (cub, jodel, metal, floats, twinFloats, rufus: spec, def, draw, mass, ledger, sheet, design, procure, fly20). The draw probe does not walk the cage skin; the sheet hash covers it.
+
+## Gates (A0's CPU slot, Sun 8 Nov 00:50, `run_gates.js --no-build --jobs 2`)
+
+```
+DEFAULT PASS  DMGGLASS PASS  EDBUGS PASS  KNIFE PASS  QUADWIN PASS  JOIN PASS  SAVE PASS  PARTS PASS  DESIGN PASS
+SKINMAT FAIL  "a click on a surface in the FINISH view does not land on its own section's row"
+CLIP    FAIL  "stock+ifr/rest: navAerial/centre ... 9.2 mm INTO edFinSkin (allow 5.5 mm)" (x4 poses)
+KNIFE   ok  BUBBLE triangle stands 0.066 m out of its loop (row 0.05, the skin's own curve on top)
+KNIFE   ok  BUBBLE triangle a row at 0 is the flat window
+```
+
+Both reds are on master already, word for word: SKINMAT's finish click since 5 Nov (WRAP-UP-2026-11-04 line 185), CLIP's navAerial since L29g (FINISH-4's standing list). Neither touches windows.
+
+## Pictures
+
+`D:/Dev/flydiy-notes/evidence-2026-10-18/2026-11-08/bubble-windows/`:
+- twin4b_waist_flat_vs_bubble.png: the flat pane's broad glare against the blister's point highlight;
+- twin4b_front_flat_vs_bubble_quickshot.png: the domes stand out on both flanks;
+- twin4b_side_flat_vs_bubble_quickshot.png;
+- twin4b_bubble_hero.png and twin4b_bubble_cabin34.png;
+- plus the gate log, the identity diff and the cost lines.
+
+The wing's light differs between the two plane_shot runs (bubble first, flat second) in every pair, far from the window. The cause is not known.
+## NIGHT-SHINE - THE NIGHT SEA OF THE HERO PICTURE, ON THE GAME PATH (NIGHT-INTEGRATE a; the user 7 Nov: "the shine on the sea ... it has really, really changed stuff ... we have seen it only from the perspective of that screenshot, so be careful")
+
+water.js, from the picture branch (claude/night-photo-c) as judged there: (1) THE LAMPS' OWN STREAKS: up to 12 lamps in slope space against the rippled normal, the unresolved variance stretching them (uWLampP/C/K; WATER.lamps(list)); render_premises feeds them from LAMPS.pub, the 12 nearest within 2.5 km, 0.34 of each lamp's k as an exposed level x P, with the lamps' own on and mute; (2) THE REFLECTION'S STRETCH: seven mirror reads along the capture's vertical scaled by sqrt(wSig), the capture's hot points capped first (uWMirMax 2.2, an exposed level) so a stretched lamp is not a white bar - SHIPPED AT 0 (NIGHT_SEA.stretch; the hero's .1): on a calm lake seen from above at full night (viewpoint cabin_full_ardent, 7 Nov) it smeared the stars' reflections into a curtain of vertical bars, so the code is in but off (no reads, no cap) until the user rules; (3) THE FAR DIRECT GLINT faded at night (uWDirN: 150..600 m), the white dashes a small moon's analytic highlight drew along a far shore; the near glitter path stays. ALL FOUR on a DEEP-NIGHT ramp, NIGHT_SEA.shine = log2(exposure) 7..10.5 (about -6.5 to -9 deg of sun on the game's clock), later than the sheen's: by day and through the dusk every one is 0 to the bit and the sun's glitter path and reflection are as before. COST NAMED: at night a 12-lamp loop per water pixel (the stretch's 7 reads only if turned on); MEASURED 8 Nov 01:40-02:05 (A0's TIMED slot, real cook + --check (same) each side, on cad308635 + this branch): FRAMECOST stand/taxi rows all within tolerance, the only reds the 5 boot/garage rows master's own train shows with the same numbers (L33a); water taxi @SEA by day 28.9 fps, p99 50 ms. OWED: the water taxi @SEA at NIGHT read 0.3 fps (8 frames in 20 s, three main-thread tasks of ~11.8 s, p50 83 ms) and master's own night number did not come (its bench ran out of time on a cold shader cache), so that row is NOT attributed. OFF SWITCHES (A0 8 Nov), live from the console or a rig: WATER.nightSea.lamps = 0 (no lamp streaks, the shader skips the loop), WATER.nightSea.glintFar = 0 (the far glint as master), WATER.nightSea.stretch (0 as shipped); NIGHT-LOOK's Sun 11:45 slot measures master's night first, then this branch; the day's train measure stands as L35a's; by day two uniform branches. Checked: the game path's time-lapse (dawn-noon-dusk-night, clear and overcast, chase and cockpit) against master, see the commit's look.
+
+## PLANE-RENDERS R1 - THE THUMB'S FIRST DRAW: THE SCREEN PROGRAMS WARMED IN SLICES; THE TEN RECREATIONS AND THE ULTRALIGHT ON FLOATS BAKED (7 Nov, box 20:55-21:15, A0's slot)
+WHY THE FREEZE: the garage has no fog (fog false in every run), so the fog fix (range out of reach, never null) is inert there. The garage draws through the anti-aliasing target, so the stand's programs are keyed for a render target (no tone mapping, linear out). The thumb draws to the screen (ACES, sRGB out): a second program for every material of the aeroplane, compiled inside the first draw. master: Cub first draw 4.2-5.5 s fresh profile (25 s on the very first boot), 157-160 ms warm, then 9-25 ms; twin 0.27-5.4 s fresh, 31-33 ms warm.
+THE FIX: FLIGHT_PROBE.compileScreen(sc, lit) = compileSliced(sc, null, lit) (the garage's own sliced compile, to the screen); PLANE_THUMB.warm() calls it on the stand, and saved() warms before it draws (the stand re-checked after). warm(): Cub 1.0-2.0 s of slices, worst frame 52-66 ms, none over 100 ms (12 runs); twin 33-134 ms. Then the first draw: Cub 85-93 ms on 6 fresh profiles (render ~63 + webp encode ~23; api.lastParts), but 160 and 976 ms on 2 earlier fresh boots, unexplained; warm profile 25-27 ms; twin 69-91 ms fresh, 12-13 warm. Worst frame in the second after any draw 20-67 ms.
+LIVE_DRAW STAYS OFF: A0's bar (no frame over 100 ms, fresh and warm) holds warm and on 6 of 8 fresh samples, not 8 of 8. Next: the encode out of the draw's task (an idle after: the frame ~65 ms), and the two outliers looked for, then the flip (one line; PLANETHUMB's LIVE_OFF checks follow it).
+BAKE: arch:cub, tigermoth, stearman, camel, jodel, c172, chinook, spitfire (WIP shape), skymaster, pushPull + cand:build_v7_ultralight_2026-09-05_floats.json; 2.0-4.0 KB each, looked at on a sheet. The new-plane offer rows and recreation tiles show them (00c6b03ac).
+GATES: PLANETHUMB 29 checks + selftest 13/13 (the screen-variant checks, 'stand not re-checked' breaks both checks), NEWPLANE 60/60, CANDIDATES, HANGARVIEW, HULLWARM, LIGHT, STORY PASS. FLIGHTREC red on master's app.js too (holdRender/PACE rows), not this. parked_cook --check: manifest STALE (8fdf9defac14 vs 2868c1a263bc), reported, not cooked. Not run: PROGRAM (browser).
+UNSEEN: a live thumb in the page (LIVE_DRAW off). Memory: none measured.
+
+## PLANE-RENDERS R1.2 - THE ENCODE IN ITS OWN TASK; LIVE_DRAW ON (A0 7 Nov 21:19: land it, the cost named)
+saved() now draws the canvas (draw(true): render + copy) and encodes the webp in the next idle (PLANE_THUMB.encode). draw() with no argument still returns the URL (the tools). Box 21:19-21:26, 5 fresh profiles each booted again warm, Cub + twin: Cub first draw 63.5-68.1 ms fresh (encode 23-31 ms after it, its own task), 18.7-21.6 ms warm; twin 33.6-34.6 fresh (encode 37-39), 6.9-7.5 warm; then 4-7 ms. warm(): Cub 1.0-1.1 s of slices, worst frame 54-66 ms. No frame over 100 ms in any of the 10 boots; baseline median 14-19 ms, p99 20-26.
+THE COST, NAMED: over 18 fresh-profile boots with warm(), the first draw went over 100 ms twice (160 and 976 ms, both in one earlier pass with the encode still inside the draw), not seen in the 10 since. Never over 1 s on a warm profile, never twice in one profile. A fresh profile = a first visit or a cleared browser cache.
+LIVE_DRAW true: the player's own planes get their side picture after a save or a load, once the page is still (warm, still, draw, idle, encode, stored in prefs with the build's hash). PLANETHUMB 30 checks + selftest 14/14 (LIVE_ON required, the encode in an idle, the off switch still tested flipped back); NEWPLANE, CANDIDATES, HANGARVIEW, HULLWARM, LIGHT, STORY PASS.
+UNSEEN: a saved build's picture on its card in a page (the draw is proven on the box; saved() -> store -> card only in the stub). Memory: one 240 x 120 webp, 3-4 KB, per saved build in localStorage.
+## DC3-EDITABLE - THE DC-3's ROWS HOLD ITS VALUES; THE BIG AEROPLANE'S BOX TO A ~40 m CLASS (2026-11-07/08, DEFORM; branch claude/dc3-editable fc0c0190c, ready claude/ready/dc3-editable)
+The user, 7 Nov via A0: "the next step is really for me to edit it manually with the sliders, provided the master version
+of the game allows me to load and edit it, and supports the wider range, allowing us to build wider planes."
+- **THE QUESTION** (builds/candidates/dc3_2026-10.json, listed in the rack as "DC-3-alike"): master loads it. 1139
+  editor rows were checked, 998 of them numeric. Three rows sat outside their range, so a touch clamped them and the
+  aeroplane jumped:
+  - the third wheel's spring drop (-0.025 against 0.05-0.70);
+  - its swivel drop (0.42 against 0.03-0.30);
+  - the nacelle's tail cone (3.35 against 0.4-3).
+  42 other rows snap by less than one step on a touch. The paxWinR / win2R / win3R values at -1 are link sentinels, not
+  values. planeScale is relative to sizeRef and re-anchors on load.
+- **THE FIX, rows:**
+  - twSpringDrop lo -0.10, twLegDrop hi 0.60, twTrail hi 0.25, cw_tailLen hi 4, engBlockZ hi 2.0;
+  - for wider planes: wgSpan hi 40, wgChord / wgChordTip / wgCrankChord hi 6.00, wgDx lo -9.0, s<i>X hi 4.0,
+    s<i>R hi 0.90, s<i>Drop hi 1.80, finHeight / finChord hi 2.50 / 2.20, stSpan / stChord hi 2.50 / 2.20 (x the drawn).
+- **THE FIX, the big box** (60_gen_spec; GEN_WING_ENVELOPE.big applies only to a wing over 18 m, so the small box and
+  every certified plane are unchanged):
+  - the wing: span 6.5-40 m, chord and crank chord to 6 m, LE to 12 m;
+  - the tail: a 12 x 4 m stab, a 5.5 m fin;
+  - the cabin: 3.6 x 3.6 x 14 m; tail arm 26, tail stations 27, Sh 48 / Sv 25 / Svt 30;
+  - fuel 8 000 L, each vessel 4 000; track 8 m, wheel 0.90 m, a tailwheel to 26 m.
+  The 18 m switch, where crossing 18 m of span changes the clamps, is by design and is named, not changed.
+- **THE PROOF** (node, through the load door tools/_load_build.js; scratchpad dc3/touch.js):
+  - the DC-3's flown spec on the branch equals master cad308635's bit for bit;
+  - saved and loaded again, nothing moves;
+  - the 40 rows a touch moves all snap inside one step, with no clamp (3 on master);
+  - asked wider (span 38, chord 5.6, half track 3.6, wheel 0.8), it flies span 38, chord 5.6, track 7.2, wheel 0.8.
+  UNSEEN in a page: there is no DC-3 page part, so the node load-door proof stands in for it. UISMOKE needs Chrome and
+  was not run. No gate is named EDITOR; EDBUGS, PARTS, DESIGN and SAVE cover the editor.
+- **ONE FLIGHT CHANGE, the DC-3 only (accepted by A0, an experiment with no certificate):** its drawn fin (vHeight
+  4.30 m) flew clamped to 4.0 m on master, and the load said so. It now flies as drawn.
+- **FOUND, on master too, NOT fixed here (ENGINE-GAP, DEFORM, L35b):** under a catalogue engine the geometry rows
+  (bore, stroke...) are hidden and the registry row flies, so the page cannot touch the R-1830's bore. The reachable
+  jump is the switch to "custom engine" to edit the geometry: the R-1830's own dials then fly the model's facts.
+  Measured headless with one hidden dial moved, which makes the load audit flip the engine to custom: "custom Radial
+  14-cyl", 1040 kW, 711 kg, gear 1, against the registry row's 895 kW, 750 kg, gear 1.78. That is about +16 % power,
+  with the prop at 2700 rpm instead of 1517. The switch itself is measured in ENGINE-GAP's slot. Also named: the prop
+  row reaches 4.2 m against prop.D's clamp of 4.0.
+- **GATES** (fc0c0190c, 8 Nov 03:25, nice'd beside SEAPLANES-LAND):
+  - PASS: SPECFIX, DESIGN, SAVE, PARTS, EDBUGS, WINGROWS, FIN, COWL, JOIN, GEAR, FRAMES, FLOATKIT, BAY, NACLAG.
+  - Red, master's own (re-run on master cad308635, the same lines and the same hashes; only the ms timings differ):
+    TECH (pitch:seaplane: a covered option without a segment) and ENGCONFIG (9 pinned load hashes, the
+    quad / tri / pushpull flights).
+  - The certificates (cub, jodel, metal, floats, twinFloats) are byte-identical to master. No PHYSICS_V or GEN_SPEC_V
+    change.
+
+## A0 - train L35a, 8 Nov 2026
+
+IN (on L34a cad308635): claude/ready/bubble-windows 9e7010baa (CABIN-CRAFT), claude/ready/night-sea (NIGHT-LOOK: the night water), thumb-all e2237e8c0 (AIRCRAFT-LOOKS R1: warm() + idle encode, LIVE_DRAW on), dc3-editable (Deform: the big box widened to a ~40 m class, past 18 m only), hview-boot 9e04d4750 (Game: the hangar door view boots on three r186). Held out: pilot-notch (to L35c with FLARE-NOPUSH), town-trees (L35c).
+BATTERY: 115 of 116 PASS. ENGCONFIG red, standing on master: its IDENTITY pins date from 28 Oct. Every one of its 18 load digests (the Cub, the Jodel, the Cessna, the Rufus...) is the same on this train and on a full copy of master, so no validated plane flies differently. No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change.
+TIMED GATE (light, vs the stale 12 Oct baseline): steady frames p50 33.3 ms. Reds are the boot and compile rows (cub chase compile 67 s, flight 151 s): the cold shader cache seen on L32d/L34a, same class as L34a (57 reds vs 80). Two rollouts lost to a page '__timeout' (cub cockpit, metal chase) after slow boots.
+NAMED COST, STILL OPEN: the floats' SEA lane: garage 226 s, take-off p99 50 ms but worst frame 10.4 s, 25 tasks over 1 s, held under the roll-out screen. Same as L34a's (124 s, 77 links); not this train's. NIGHT-LOOK measures the night water cost at 11:45; the SEA lane bisect is owed.
 
 ## REAL-FIGURES - THE OFFICIAL PLANES AGAINST THEIR REAL FIGURES AS BANDS: tools/real_check.js (A LOAD SWEEP ON OUR SIDE, A CONDITION BAND ON THEIRS, THE PILOT KEPT APART), THE HISTORY OF EVERY EARLIER COMPARISON (2026-11-07, REAL-FIGURES for A0, cloud - node only; branch claude/ready/real-figures; measured on master e0457618 = L33a, rebased onto cad30863 = L34a, whose src/core change is parked_packs.json only)
 
