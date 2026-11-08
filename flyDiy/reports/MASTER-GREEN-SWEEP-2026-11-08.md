@@ -150,4 +150,270 @@ three have been red on every train from 24 Oct to 8 Nov.
 
 ## 2. The sweep (257 gates)
 
-(in progress)
+INTERIM (14:25 UTC): the heavy gates (weight 3/4, sharded, Playwright) are still running; the per-red blocks and bisects
+follow when the sweep ends. One run_gates per gate on 1bcd01d3e (`--only=ID --no-build --verbose`), a slot scheduler
+(4 slots; a gate costs its shards / weight, a Playwright gate 4), timeout max(1500 s, 2.5 x the row's wall) capped by
+the row's own timeout. Walls are this 4-CPU box under the bisect lanes' load, not the box's.
+
+217 of 257 run: 194 PASS, 23 FAIL, 0 NOVERDICT, 40 pending.
+
+| gate | verdict | wall s | kind |
+|---|---|---|---|
+| PILOTPAGE | FAIL | 625 | ENV (page legs: no Chrome page target here) |
+| ARCHETYPES | (pending) | | |
+| SOFTGPU | (pending) | | |
+| TOUR | (pending) | | |
+| DESTTO | (pending) | | |
+| DMGWIND | (pending) | | |
+| DMGDRIVE | (pending) | | |
+| DMGNOSE | (pending) | | |
+| PILOT | (pending) | | |
+| DMGWALL | (pending) | | |
+| DMGSCAR | (pending) | | |
+| ALTIPORT | (pending) | | |
+| FLEX | (pending) | | |
+| DMGCLUSTERS | (pending) | | |
+| TAILWHEEL | (pending) | | |
+| DMGPLOUGH | (pending) | | |
+| DMGLOOK | (pending) | | |
+| PILOTMATRIX | (pending) | | |
+| RADIALDIV | FAIL | 1542 | red |
+| CESSNAVREF | PASS | 448 |  |
+| PROFILE | (pending) | | |
+| DMGCOMPOSITE | (pending) | | |
+| DMGFALL | (pending) | | |
+| DMGFABRIC | (pending) | | |
+| STOL | PASS | 533 |  |
+| SEAPLANE | PASS | 207 |  |
+| STORESPOT | PASS | 619 |  |
+| PLAN | PASS | 372 |  |
+| DMGTYRE | (pending) | | |
+| TAXICLEAR | (pending) | | |
+| PROCURE | PASS | 182 |  |
+| DMGFPS | (pending) | | |
+| DMGGLASS | (pending) | | |
+| DMGSETTLE | (pending) | | |
+| LAZY | (pending) | | |
+| ROUTE | (pending) | | |
+| AUDIOENG | PASS | 211 |  |
+| DMGFLOATTO | (pending) | | |
+| TAKEOFF | PASS | 369 |  |
+| CANDIDATES | PASS | 245 |  |
+| PILLAR | PASS | 150 |  |
+| DMGCERTCOST | (pending) | | |
+| PILOTACT | (pending) | | |
+| HOTHIGH | PASS | 186 |  |
+| FREIGHT | FAIL | 95 | red |
+| LINEUP | PASS | 165 |  |
+| SOAR | PASS | 648 |  |
+| TERRAINMATCH | PASS | 193 |  |
+| DMGSKIN | (pending) | | |
+| DRAG | PASS | 26 |  |
+| MIXLEAD | (pending) | | |
+| DMGDAMP | FAIL | 233 | red |
+| DESIGNSIM | FAIL | 213 | red |
+| HYDROTRIM | PASS | 92 |  |
+| PREMCOOK | PASS | 531 |  |
+| WIPLINE | PASS | 10 |  |
+| LOAD | PASS | 482 |  |
+| TESTFIELD | PASS | 244 |  |
+| ROLLSND | PASS | 88 |  |
+| DMGINTEGRITY | (pending) | | |
+| AUDIO | FAIL | 337 | red |
+| GPSFACE | PASS | 478 |  |
+| INPUT | PASS | 189 |  |
+| BIPLANE | PASS | 139 |  |
+| DMGWRECK | (pending) | | |
+| FLOATS | PASS | 73 |  |
+| MOUNT | PASS | 80 |  |
+| KTX2 | PASS | 124 |  |
+| DMGSCUFF | PASS | 134 |  |
+| GEARFALL | PASS | 114 |  |
+| BENCHTIME | FAIL | 87 | TIME? |
+| DMGMEMBERS | (pending) | | |
+| WEIGHT | PASS | 61 |  |
+| CERTGATES | PASS | 41 |  |
+| POSEBACK | (pending) | | |
+| BENCH | PASS | 128 |  |
+| ENGTORQUE | FAIL | 102 | red |
+| DMGPOD | PASS | 75 |  |
+| SPECFIX | PASS | 159 |  |
+| VILLAGE | PASS | 182 |  |
+| SIMWORKER | PASS | 133 |  |
+| STAGES | PASS | 121 |  |
+| MATLIB | (pending) | | |
+| WATERDAMP | (pending) | | |
+| FLOATSCLASSIC | PASS | 49 |  |
+| HEADING | PASS | 102 |  |
+| AIDS | PASS | 37 |  |
+| MISSIONS | PASS | 16 |  |
+| MAPBAKE | PASS | 57 |  |
+| HONESTY | (pending) | | |
+| CLOUD | PASS | 1118 |  |
+| TANKMOUNT | PASS | 700 |  |
+| GE | PASS | 509 |  |
+| CONTACT | PASS | 470 |  |
+| PREMRASTER | PASS | 323 |  |
+| HYDRODYN | PASS | 238 |  |
+| CABINLAMP | PASS | 169 |  |
+| PREMISES | PASS | 150 |  |
+| HINGE | PASS | 123 |  |
+| DASH | PASS | 99 |  |
+| LODS | PASS | 77 |  |
+| ECON | PASS | 63 |  |
+| HOUSE | PASS | 71 |  |
+| METKIT | PASS | 85 |  |
+| SCENERYED | FAIL | 78 | red |
+| WETFX | PASS | 56 |  |
+| ENGMESH | PASS | 87 |  |
+| TOWNKIT | PASS | 85 |  |
+| ENERGY | PASS | 107 |  |
+| SUBSTEP | PASS | 74 |  |
+| HONEST | PASS | 68 |  |
+| CONTRACTS | PASS | 85 |  |
+| FLOATKIT | PASS | 77 |  |
+| CITYHOST | PASS | 50 |  |
+| COVER | PASS | 42 |  |
+| PAVEMENT | PASS | 44 |  |
+| KITHOST | PASS | 63 |  |
+| CLIP | FAIL | 52 | red |
+| PRICE | PASS | 60 |  |
+| RPM | PASS | 34 |  |
+| STRESS | PASS | 59 |  |
+| CLIMATE | PASS | 49 |  |
+| WORLD | PASS | 42 |  |
+| FITMANUAL | PASS | 30 |  |
+| GAMEPREM | PASS | 24 |  |
+| FIN | PASS | 34 |  |
+| CLOCK | PASS | 28 |  |
+| MASS | PASS | 18 |  |
+| OBSTACLE | PASS | 31 |  |
+| FIT | PASS | 29 |  |
+| PILOTCANFLY | PASS | 24 |  |
+| WORLDRENDER | PASS | 29 |  |
+| SITE | PASS | 23 |  |
+| WATER | PASS | 22 |  |
+| TREES | PASS | 22 |  |
+| PLOTQUERY | PASS | 15 |  |
+| KNIFE | PASS | 26 |  |
+| LOOKS | FAIL | 22 | red |
+| FRAMES | PASS | 29 |  |
+| SHOULDER | PASS | 29 |  |
+| BIOME | FAIL | 17 | TIME? (surface perf<5us) |
+| TREE | PASS | 15 |  |
+| GRASSSIDES | PASS | 14 |  |
+| LAKEBED | FAIL | 14 | red |
+| STRUT | PASS | 8 |  |
+| SETTLE | FAIL | 8 | TIME? (bake budget) |
+| RWYLIGHTS | FAIL | 11 | red |
+| WEATHER | PASS | 9 |  |
+| JOIN | PASS | 9 |  |
+| GROUNDQUERY | PASS | 8 |  |
+| AERO | PASS | 15 |  |
+| HYDRO | PASS | 17 |  |
+| PARTS | PASS | 13 |  |
+| SKIN | PASS | 13 |  |
+| SKINMAT | FAIL | 10 | red |
+| DEFAULT | PASS | 14 |  |
+| ELEC | PASS | 7 |  |
+| FLAPS | PASS | 7 |  |
+| ASSETBUDGET | PASS | 3 |  |
+| POSTFX | PASS | 1 |  |
+| GROUNDLIB | PASS | 6 |  |
+| DAY | PASS | 4 |  |
+| BUILD | PASS | 4 |  |
+| PATCHBOUNDS | PASS | 3 |  |
+| CABIN | PASS | 3 |  |
+| RAYINDEX | PASS | 3 |  |
+| HANGAR | PASS | 2 |  |
+| FLIGHTREC | FAIL | 4 | red |
+| ANIMALS | PASS | 5 |  |
+| WINGSPLIT | PASS | 3 |  |
+| TARR | PASS | 3 |  |
+| STORAGE | PASS | 5 |  |
+| FLIGHTEVIDENCE | PASS | 0 |  |
+| ATMOS | PASS | 5 |  |
+| CHARS | PASS | 3 |  |
+| SURF | PASS | 3 |  |
+| CGBAND | PASS | 5 |  |
+| HYPOT | PASS | 2 |  |
+| FADES | PASS | 3 |  |
+| SAVE | PASS | 3 |  |
+| VIEW | PASS | 0 |  |
+| GROUNDBOX | PASS | 1 |  |
+| PILOTS | PASS | 1 |  |
+| SCENEDETAIL | PASS | 1 |  |
+| EDBUGS | PASS | 6 |  |
+| QUADWIN | PASS | 4 |  |
+| REF | PASS | 2 |  |
+| FLOWNBAKE | PASS | 0 |  |
+| LIFE | PASS | 2 |  |
+| PLAYER | PASS | 1 |  |
+| STOREDRAW | PASS | 2 |  |
+| PACECADENCE | PASS | 2 |  |
+| NAV | PASS | 1 |  |
+| BOOT | PASS | 0 |  |
+| PROPS | PASS | 2 |  |
+| LOADS | PASS | 1 |  |
+| TOTEM | PASS | 0 |  |
+| SCENERY | PASS | 1 |  |
+| CARS | PASS | 1 |  |
+| NAVAID | PASS | 1 |  |
+| SHADOWSKY | FAIL | 1 | red |
+| COWL | PASS | 1 |  |
+| ENGINE | PASS | 3 |  |
+| ENGID | PASS | 1 |  |
+| BEACON | PASS | 0 |  |
+| HANGARVIEW | PASS | 0 |  |
+| GEAR | PASS | 2 |  |
+| PANEL | PASS | 3 |  |
+| PACKINPUTS | PASS | 1 |  |
+| COOKWAIT | PASS | 0 |  |
+| WINDRASTER | PASS | 0 |  |
+| AA | PASS | 0 |  |
+| PATCHFAR | PASS | 1 |  |
+| MISSIONPROPS | PASS | 2 |  |
+| STAND | PASS | 0 |  |
+| SEATS | PASS | 3 |  |
+| STARTER | PASS | 3 |  |
+| NIGHTVISIBILITY | PASS | 1 |  |
+| SCENERYLIGHTS | PASS | 0 |  |
+| ATMO | PASS | 3 |  |
+| BAY | PASS | 0 |  |
+| BLUEPRINT | PASS | 1 |  |
+| INTROSTATE | PASS | 0 |  |
+| BACKGUARD | PASS | 0 |  |
+| NIGHTEXPOSURE | PASS | 0 |  |
+| HULLWARM | PASS | 0 |  |
+| NODUMMY | FAIL | 1 | red |
+| INTROSCENE | PASS | 1 |  |
+| ENERGYBASE | PASS | 1 |  |
+| COVERIDLE | PASS | 0 |  |
+| FOG | FAIL | 0 | red |
+| CAGEFIT | PASS | 0 |  |
+| CREWLOAD | FAIL | 45 | red |
+| CITYCOOK | PASS | 42 |  |
+| GEOPARITY | PASS | 110 |  |
+| PODEDITOR | PASS | 54 |  |
+| STORY | PASS | 11 |  |
+| WINGROWS | PASS | 69 |  |
+| STRIPSURF | PASS | 35 |  |
+| WEATHERPLAN | PASS | 27 |  |
+| NAMES | FAIL | 23 | red |
+| UILAYER | PASS | 4 |  |
+| GENPAIRS | PASS | 4 |  |
+| STRIPGROUND | PASS | 16 |  |
+| WEARPRICE | PASS | 3 |  |
+| WEARTAB | PASS | 7 |  |
+| BUILT | PASS | 5 |  |
+| OBSTFRAME | PASS | 3 |  |
+| UPDATE | PASS | 1 |  |
+| CARDDRAG | PASS | 0 |  |
+| TECH | FAIL | 4 | red |
+| HWCOV | PASS | 0 |  |
+| PWA | PASS | 1 |  |
+| PLANELISTS | PASS | 1 |  |
+| FLOATLETTERS | PASS | 1 |  |
+| PLANETHUMB | PASS | 0 |  |
+| PLANEFICHE | PASS | 0 |  |
+
