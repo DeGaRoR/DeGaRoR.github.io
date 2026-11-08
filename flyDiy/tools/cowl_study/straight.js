@@ -37,8 +37,9 @@ const SHAPE = {
 // the lip's radius: a fraction of the front's half-size, within a sensible band (m)
 const LIP_K = 0.25, LIP_LO = 0.04, LIP_HI = 0.12;
 const CLEAR = 1.06;
-// the radial drum on the body: the heads' radius x this (0.84: the helmets carry the heads; --radialR=0.92 a bigger nose)
-let RADIAL_R = 0.84;
+// the radial drum on the body: the heads' radius x this (the user, 8 Nov: "we could also make the nose a little bigger":
+// 0.92, the helmets 2.8 cm on the Mosquito; 0.84 the first cut, 6.7 cm)
+let RADIAL_R = 0.92;
 // THE BODY COWL'S FRONT, as fractions of the firewall (the user's fitted cowls: the front's half-height 0.64-0.77 of
 // the firewall's on the Cub, Jodel and ugly bi; its half-width 0.79-0.99): never under the engine's own size
 const FRONT_H = 0.70, FRONT_W = 0.85;
@@ -334,6 +335,9 @@ function rowsFor(spec, o) {
         out.cw_exCutLen = +Math.max(0.1, Math.min(0.35, ex.z + 0.1)).toFixed(3);
       }
     }
+    // THE SPLIT LINE LEVEL (the user, 8 Nov: "great job what you've done with the horizontal cut there. We really
+    // needed that"): held at the firewall's height, a constant groove
+    out.cw_partLevel = 1;
     // THE CHIN SCOOP rides the bottom line (scoopFollow): its top a third of its height inside the skin all along
     if (out.cw_scoopOn) out.cw_scoopFollow = 1;
   } else if (mode === 'pod') {
@@ -394,6 +398,22 @@ function rowsFor(spec, o) {
   else out.cw_cowlLen = +Math.max(0.1, Math.min(2, reach - lip)).toFixed(3);
   Object.assign(out, FACE[type](front, frontW || front, frontH || front));
   if (mode === 'waist' && out.cw_scoopOn) out.cw_scoopFollow = 1;
+  // A FLAT FACE WHERE THE BLOCK REACHES THE FLANGE (the user, 8 Nov, the Tiger Moth: "you put the prop straight on the
+  // engine block ... flatten the face ... drop more abruptly and with less rounding"). The drawn engine within 8 cm of
+  // the flange (the spinner and blades aside): when it reaches past the round ring the spinner sets, the ring takes
+  // the block's own outline - its half-width, its reach above and below the propeller - and the bowl turns into it
+  // over a short, blunt edge: the face is flat and as tall as the block.
+  if (mode === 'waist' && type !== 'radial' && m.verts.length) {
+    let fT = 0, fB = 0, fW = 0;
+    for (const [x, y, z] of m.verts) { if (z < -0.08 || z > -0.005) continue; fT = Math.max(fT, y); fB = Math.min(fB, y); fW = Math.max(fW, Math.abs(x)); }
+    const ring = (+out.cw_spinR || +P.cw_spinR || 0.1) + 0.03;
+    if (-fB > ring + 0.05 || fT > ring + 0.05) {
+      out.cw_lidRW = +(fW + 0.025).toFixed(3); out.cw_lidRTop = +(fT + 0.025).toFixed(3); out.cw_lidRBot = +(-fB + 0.02).toFixed(3);
+      out.cw_lidLen = +Math.min(lip, 0.045).toFixed(3); out.cw_cowlLen = +Math.max(0.1, Math.min(2, reach - out.cw_lidLen)).toFixed(3);
+      out.cw_lidShoulder = 0.5; out.cw_lidRound = 0.92;
+      out._flatFace = { top: +fT.toFixed(3), bottom: +fB.toFixed(3), w: +fW.toFixed(3) };
+    }
+  }
   // THE AXIS: body cowls - the barrel runs to the engine's box centre (lidRise), the ring sits on the propeller
   // (faceRise, the ring only); off the body the plate moves by the propeller's offset (engBlockY) and the pod is
   // centred on it. engY is folded in: 0.
@@ -405,10 +425,11 @@ function rowsFor(spec, o) {
   if (engY0 || lower) out.engY = 0;
   // A RADIAL'S HELMETS: one over each cylinder, where the drawn engine puts them (radialBumps)
   if (type === 'radial' && m.bumps) Object.assign(out, m.bumps(out._radialFront || aW, out.cw_cowlLen + lip));
+  const flatFace = out._flatFace; delete out._flatFace;
   const note = out._note; delete out._radialFront; delete out._note; delete out._radialRound;
   for (const k of Object.keys(out)) if (typeof out[k] === 'number') out[k] = +out[k].toFixed(4);
   return { over: out, why: { type, mode, mount: m.mount, engine: m.name, face: m.face, prop: T, engineCentre: cE, lower,
-           env: { up, dn, wE }, drawn: D, reach, lip, note } };
+           env: { up, dn, wE }, drawn: D, reach, lip, note, flatFace } };
 }
 
 // a straight 'match' needs the front section = the fitted aft section: one fitted build, then copy

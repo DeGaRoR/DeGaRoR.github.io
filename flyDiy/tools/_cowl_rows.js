@@ -121,6 +121,10 @@ const COWL_ROWS = [
       when: 'Math.abs(P.waist)>0.005' },
     { k: 'lidMode', label: 'nose ring', lo: 0, hi: 1, step: 1, names: ['its own radius', 'matched to the spinner'] },
     { k: 'lidR', label: 'nose ring radius', lo: 0.005, hi: 0.55, step: 0.002, when: 'P.lidMode===0' },
+    // PROPER-COWLS: the ring's own shape - a flat face as tall as an inverted engine's block (follow = the round ring)
+    { k: 'lidRW', label: 'nose ring half-width', lo: 0.004, hi: 0.8, step: 0.002 },
+    { k: 'lidRTop', label: 'nose ring reach above the propeller', lo: 0.004, hi: 0.8, step: 0.002 },
+    { k: 'lidRBot', label: 'nose ring reach below the propeller', lo: 0.004, hi: 0.8, step: 0.002 },
     { k: 'lidGap', label: 'gap round the spinner', lo: 0, hi: 0.06, step: 0.001, when: 'P.lidMode===1' },
   ] },
   // ---- The section, station by station ----

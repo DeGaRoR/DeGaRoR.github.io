@@ -77,6 +77,8 @@ const P={
   // PROPER-COWLS: streamlined helmets (lobeStream 1): full over the head, a short rise from lobeNose, a long taper to
   // lobeTail
   lobeStream:0, lobeNose:0.94, lobeTail:0.04,
+  // PROPER-COWLS: the nose ring's own half-width / reach up / reach down (null = lidRadius)
+  lidRW:null, lidRTop:null, lidRBot:null,
   gillOn:0, gillN:6, gillZ:0.35, gillL:0.22, gillH:0.12, gillSlant:25, gillLip:0.012, gillT:0.004,
   // chin scoop
   scoopOn:1, scoopZ:0, scoopW:0.065, scoopH:0.055, scoopLen:0.22, scoopDrop:0.7,
@@ -231,6 +233,16 @@ function angDiff(a,b){let d=(a-b)%TAU; if(d>Math.PI)d-=TAU; if(d<-Math.PI)d+=TAU
 const SEG=112;
 const zEnd=()=>P.cowlLen+P.lidLen;
 function lidRadius(){ return P.lidMode===1 ? P.spinR+P.lidGap : P.lidR; }
+/* THE NOSE RING'S OWN SHAPE (PROPER-COWLS, the user, 8 Nov, the Tiger Moth: "you put the prop straight on the engine
+   block ... there's almost no cowl shape that can encompass it without striking through the engine block ... flatten
+   the face ... drop more abruptly and with less rounding"). The ring was a circle of lidRadius about the cone; an
+   inverted in-line hangs half a metre of block under its shaft, right up to the flange, and only a FLAT FACE as tall as
+   the block can close in front of it. lidRW / lidRTop / lidRBot: the ring's half-width, and its reach above and below
+   its centre (the propeller's axis), metres; absent = lidRadius, to the bit. The closing disc follows the ring. */
+const lidShaped=()=>P.lidRW!=null||P.lidRTop!=null||P.lidRBot!=null;
+const lidRW=()=>P.lidRW!=null?Math.max(0.004,+P.lidRW):lidRadius();
+const lidRT=()=>P.lidRTop!=null?Math.max(0.004,+P.lidRTop):lidRadius();
+const lidRB=()=>P.lidRBot!=null?Math.max(0.004,+P.lidRBot):lidRadius();
 /* THE FIREWALL EDGE IS NOT AT z = 0 WHEN IT IS A LIP. The aft plane of the
    cowl is still z = 0 — that is the firewall, and the cowl must not grow into
    the fuselage — so the LIP occupies the last few millimetres of it and the
@@ -268,7 +280,7 @@ function spineY(z){
   if(z<=P.cowlLen) return P.lidRise*clamp(z/Math.max(P.cowlLen,1e-4),0,1);
   if(P.faceRing&&P.faceRise){
     if(!LID) prepareLid();
-    const a1=P.aftW*P.taperW, lr=lidRadius(), d=Math.max(a1-lr,1e-4);
+    const a1=P.aftW*P.taperW, lr=lidRW(), d=Math.max(a1-lr,1e-4);
     return P.lidRise + P.faceRise*clamp((a1-LID.A.at(Math.min(z,zEnd())))/d,0,1);
   }
   return P.lidRise + P.faceRise*clamp((z-P.cowlLen)/Math.max(P.lidLen,1e-4),0,1);
@@ -315,7 +327,8 @@ function prepareLid(){
   const sa=(a1-a0)/cl, sh=(h1-h0)/cl;
   const c1=clamp(P.lidShoulder,0,0.92), c2=clamp(P.lidRound,0,1);
   const pz=[cl, cl+L*c1, ze-L*0.05, ze];
-  const A=mkCurve(pz,[a1, a1+sa*L*c1, lr+(a1-lr)*c2, lr]);
+  const lw=lidRW();
+  const A=mkCurve(pz,[a1, a1+sa*L*c1, lw+(a1-lw)*c2, lw]);
   // one recipe, used for the deck and the keel with their own scale and sweep
   // (q1 / q2: this line's own shoulder and fullness - the keel's may differ from the rest, see keelShoulder)
   // (level: the line leaves z0 LEVEL - the fuselage's own bottom carried on - rather than on the barrel's taper)
@@ -332,7 +345,7 @@ function prepareLid(){
   const kW=clamp(eWaist(),-0.85*kB,0.85*kT);
   // PROPER-COWLS V5 (the user, 8 Nov: "you are drawing the top side completely straight ... a little taper ... so that
   // you come and kiss better the top of the prop"): the top line's own bend, as the keel's (absent = the bowl's pair)
-  const T=half(kT, P.deckSweep, lr,
+  const T=half(kT, P.deckSweep, lidRT(),
                P.deckShoulder==null?null:clamp(+P.deckShoulder,0,0.92), P.deckRound==null?null:clamp(+P.deckRound,0,1));
   // PROPER-COWLS V4 (the user, 8 Nov: "the easing is better but it's not enough ... a Cessna nose is very rounded"):
   // THE KEEL'S OWN BEND. The bowl's shoulder and fullness were one pair for every line, and a cowl whose top must
@@ -340,7 +353,7 @@ function prepareLid(){
   // its own, and it leaves the barrel LEVEL (the fuselage's bottom line carried on, not the taper's straight slope):
   // the shoulder is how long it stays level, the fullness how round it arrives - a quarter-ellipse into the face.
   // Absent (null) = the bowl's pair, to the bit.
-  const K=half(kB, P.keelSweep, lr,
+  const K=half(kB, P.keelSweep, lidRB(),
                P.keelShoulder==null?null:clamp(+P.keelShoulder,0,0.92), P.keelRound==null?null:clamp(+P.keelRound,0,1),
                P.keelShoulder!=null);   // its own bend leaves the firewall level and rounds up into the face
   // PROPER-COWLS (2026-11-08): `waistF` - THE WIDEST LINE'S HEIGHT AT THE BARREL END, as a fraction of the front's
@@ -631,9 +644,13 @@ function buildSurface(group,mats,aps){
   }
   // closing panel at the lid end, in the same plane the rim solver reports
   const cyE=spineY(ze);
+  const sE=lidShaped()?sectionAtZ(ze):null, rMax=sE?Math.max(sE.a,sE.bT,sE.bB):1;
   for(let i=1;i<=NC;i++){
     const f=1-i/NC, r=Math.max(lr*f,0.004);
     const rx=[],ry=[],rz=[];
+    if(sE){ const g=Math.max(f,0.004/rMax);            // the shaped ring, scaled into the face
+      for(let j=0;j<SEG;j++){ const [x,y]=sectPt(AZ[j],sE); rx.push(x*g); ry.push(cyE+y*g); rz.push(ze); } }
+    else
     for(let j=0;j<SEG;j++){const th=AZ[j];
       rx.push(Math.cos(th)*r); ry.push(cyE+Math.sin(th)*r); rz.push(ze);}
     px.push(rx); py.push(ry); pz.push(rz);
