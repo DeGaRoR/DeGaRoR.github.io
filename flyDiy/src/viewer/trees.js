@@ -586,11 +586,18 @@
   // fwidth at a 128 px tile puts every texel on 0.5 - so it takes the same
   // step as a HARD mask at the collection's own cutoff.
   const U_SHARP = { value: 0.4 };   // W0c.31: 0.9 by the user's eye; LOOK-1 7 Nov: 0.4, softer and less crawl (canopy flicker 34.8 vs 36.9, crown pan 16.6 vs 19.2)
+  // FAR EDGES SOFTER (LOOK-1, 8 Nov 2026; the user: "not about removing the detail - blurring them, making them not so
+  // sharp"). The sharpen above sets the silhouette's ramp to ONE pixel at every range, so a stand at 600 m is cut as
+  // crisply as the tree beside the strip - the air never does that (its blur grows with the path: the aerosol and the
+  // turbulence MTF, Kopeika's). TREE_SOFT widens that ramp with the view distance: x from (m), y fully by (m), z the
+  // leaves' width there (1 = today), w the impostors' (render_world.js reads the same object). Same coverage, wider edge.
+  const U_SOFT = { value: (typeof THREE !== 'undefined' && THREE.Vector4) ? new THREE.Vector4(200, 800, 1, 1) : { x: 200, y: 800, z: 1, w: 1 } };
+  if (typeof window !== 'undefined') window.TREE_SOFT = U_SOFT;
   const EDGE_GLSL = [
     'if (uBakeAlb > 0.5) {',
     '  diffuseColor.a = diffuseColor.a >= uCut ? 1.0 : 0.0;',
     '} else if (uSharp > 0.0) {',
-    '  float _aw = max(fwidth(diffuseColor.a), 1e-5);',
+    '  float _aw = max(fwidth(diffuseColor.a), 1e-5) * mix(1.0, uSoft.z, smoothstep(uSoft.x, uSoft.y, length(vViewPosition)));',
     '  diffuseColor.a = clamp((diffuseColor.a - uCut) / _aw * uSharp + 0.5, 0.0, 1.0);',
     '}',
   ].join('\n');
@@ -613,7 +620,7 @@
       sh.uniforms.uBakeAlb = U_BAKEALB;
       sh.uniforms.uHue = mat.userData.uHue; sh.uniforms.uSat = mat.userData.uSat;
       sh.uniforms.uLight = mat.userData.uLight;
-      sh.uniforms.uCut = mat.userData.uCut; sh.uniforms.uSharp = U_SHARP;
+      sh.uniforms.uCut = mat.userData.uCut; sh.uniforms.uSharp = U_SHARP; sh.uniforms.uSoft = U_SOFT;
       sh.uniforms.uFlat = mat.userData.uFlat; sh.uniforms.uFlatMean = mat.userData.uFlatMean;
       sh.uniforms.uWind = U_WIND;
       { let vs = sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvAoV = aoV;');
@@ -634,7 +641,7 @@
       // chunk that reads it, is the material's own choice.
       sh.fragmentShader = '#ifdef SHADOWMAP_TYPE_PCF_SOFT\n#undef SHADOWMAP_TYPE_PCF_SOFT\n#define SHADOWMAP_TYPE_PCF\n#endif\n' +
         'uniform float uLeaf, uWrap, uSSS, uSSSP, uAoBake, uBakeAlb;\n' +
-        'uniform float uHue, uSat, uLight, uCut, uSharp, uFlat, uFlatMean;\nvarying float vAoV;\n' +
+        'uniform float uHue, uSat, uLight, uCut, uSharp, uFlat, uFlatMean;\nuniform vec4 uSoft;\nvarying float vAoV;\n' +
         sh.fragmentShader
           .replace('#include <map_fragment>',
             '#include <map_fragment>\n' + TINT_LIVE + (isLeaf ? '\n' + EDGE_GLSL : ''))
@@ -709,6 +716,10 @@
     flowerHook,   // G2566: a flower material takes the flowers' kind master (cover_ring.js flowerMat)
     retint: mat => { if (mat && mat.userData && mat.userData.uLeaf) retint(mat); },
     sharp: v => { if (v !== undefined) U_SHARP.value = +v; return U_SHARP.value; },
+    // LOOK-1: TREE_LEAF.soft({ from: 200, to: 800, leaf: 3, imp: 2 }) - the far edges' width (1, 1 = today)
+    soft: o => { const v = U_SOFT.value; if (o) { if (o.from !== undefined) v.x = +o.from; if (o.to !== undefined) v.y = +o.to;
+      if (o.leaf !== undefined) v.z = Math.max(1, +o.leaf); if (o.imp !== undefined) v.w = Math.max(1, +o.imp); }
+      return { from: v.x, to: v.y, leaf: v.z, imp: v.w }; },
   };
 
   // Build one subject's rung, ONCE. Later calls hand out the same buffers:
