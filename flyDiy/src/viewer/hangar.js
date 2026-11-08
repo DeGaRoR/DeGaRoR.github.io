@@ -307,6 +307,56 @@ const corrNrm = sheet(512, 64, (g, W, H) => {
   g.putImageData(d, 0, 0);
 }, true);
 
+// THE ROOF LIGHTS' SHEET (ROOF-LIGHTS, the user 8 Nov: "the roof windows in the hangars are really just plain cuts and
+// they look bad ... maybe these wavy transparent plastic with some weathering?"). A hangar rooflight is a corrugated
+// translucent GRP sheet laid in the roof's own profile: milky, yellowed with age, streaked down the fall line, grime
+// gathered at its lower edge. One sheet covers one panel (u across the 3.6 m width, v down the slope from the ridge
+// side, 0, to the eave side, 1 - the canvas's TOP row is v = 1, CanvasTexture flips). Its alpha is the sheet's
+// opacity from outside: dirt is thicker. Its own PRNG: the module's rand() stream fixes every later placement.
+const skyAlb = sheet(256, 256, (g, W, H) => {
+  let s = 0x5eed1e5;
+  const rn = () => { s = (s + 0x6d2b79f5) >>> 0; let t = s; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  const Y = v => (1 - v) * H;                                         // v down the slope -> the canvas row
+  const d = g.createImageData(W, H);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const v = 1 - y / H, o = (y * W + x) * 4;
+    const rib = 0.5 + 0.5 * Math.cos((x / W) * Math.PI * 2 * 58);     // the valleys (58 ribs across 3.6 m)
+    const mott = (rn() - 0.5) * 10;                                    // the glass-fibre mat's mottle
+    const age = 0.75 + 0.25 * v;                                       // yellower toward the eave, where the water lies
+    d.data[o] = 224 + mott - 8 * (1 - rib);
+    d.data[o + 1] = 216 + mott - 10 * (1 - rib) - 6 * age;
+    d.data[o + 2] = 186 + mott - 16 * (1 - rib) - 22 * age;
+    d.data[o + 3] = 222 + 10 * (1 - rib);                              // ~0.87, a little thicker in the valleys' dirt
+  }
+  g.putImageData(d, 0, 0);
+  // the streaks: water down the fall line, from where it gathers to the lower edge, darker as they go
+  for (let i = 0; i < 70; i++) {
+    const x = rn() * W, w = 0.6 + rn() * 2.8, v0 = rn() * 0.7, a = 0.05 + rn() * 0.16;
+    const gr = g.createLinearGradient(0, Y(v0), 0, Y(1));
+    gr.addColorStop(0, 'rgba(92,84,64,0)'); gr.addColorStop(0.35, 'rgba(92,84,64,' + a.toFixed(3) + ')');
+    gr.addColorStop(1, 'rgba(70,66,48,' + Math.min(0.35, a * 1.8).toFixed(3) + ')');
+    g.fillStyle = gr; g.fillRect(x, Y(1), w, Y(v0) - Y(1));
+  }
+  // the grime at the lower edge (silt, a green-brown film) and a lighter band of it under the upper lap
+  const lo = g.createLinearGradient(0, Y(1), 0, Y(0.8));
+  lo.addColorStop(0, 'rgba(66,70,44,0.55)'); lo.addColorStop(1, 'rgba(66,70,44,0)');
+  g.fillStyle = lo; g.fillRect(0, Y(1), W, Y(0.8) - Y(1));
+  const hi = g.createLinearGradient(0, Y(0), 0, Y(0.08));
+  hi.addColorStop(0, 'rgba(80,76,60,0.30)'); hi.addColorStop(1, 'rgba(80,76,60,0)');
+  g.fillStyle = hi; g.fillRect(0, Y(0.08), W, Y(0) - Y(0.08));
+  // blotches: leaves, droppings, a lichen start
+  for (let i = 0; i < 26; i++) {
+    const x = rn() * W, y = rn() * H, r = 2 + rn() * 9, a = 0.06 + rn() * 0.18;
+    const b = g.createRadialGradient(x, y, 0, x, y, r);
+    b.addColorStop(0, 'rgba(60,58,40,' + a.toFixed(3) + ')'); b.addColorStop(1, 'rgba(60,58,40,0)');
+    g.fillStyle = b; g.fillRect(x - r, y - r, 2 * r, 2 * r);
+  }
+});
+// the ribs: the roof sheet's own profile (corrNrm, 16 ribs a metre) at the panel's width - its own transform, the
+// same image
+const skyNrm = corrNrm && corrNrm.clone ? (() => { const t = corrNrm.clone(); if (t.repeat) t.repeat.set(58 / 16, 1); t.needsUpdate = true; return t; })()
+  : corrNrm;                                                          // (58 ribs: the albedo's valleys; GATE HANGAR's stub sheet has no clone)
+
 const woodAlb = sheet(512, 512, (g, W, H) => {
   g.fillStyle = '#8a6b47'; g.fillRect(0, 0, W, H);
   for (let i = 0; i < 220; i++) {
@@ -810,9 +860,13 @@ const M = {
   // milky wash a diffusing rooflight really has over what you can see through
   // it; depthWrite off so the sky sphere sorts behind it rather than being
   // rejected by its own depth.
-  skyPanel: new THREE.MeshStandardMaterial({ color: 0xdfeaf6, emissive: 0xcfe2f7,
-    emissiveIntensity: 1.7, roughness: 0.9, side: THREE.DoubleSide,
-    transparent: true, opacity: 0.30, depthWrite: false }),
+  // ROOF-LIGHTS (the user 8 Nov: "really just plain cuts ... maybe these wavy transparent plastic with some
+  // weathering?"): the glow is the GRP sheet's own (skyAlb drives it, so the streaks, the grime and the valleys show
+  // dark against the light; skyNrm gives it the roof's ribs), warmer than the old blue card, and milkier - the sky
+  // still shows through faintly, as through a dirty translucent sheet (the user's earlier ask, kept).
+  skyPanel: new THREE.MeshStandardMaterial({ color: 0xffffff, map: skyAlb, emissive: 0xf4ecd8, emissiveMap: skyAlb,
+    emissiveIntensity: 2.1, normalMap: skyNrm, normalScale: new THREE.Vector2(0.7, 0.7), roughness: 0.85,
+    side: THREE.DoubleSide, transparent: true, opacity: 0.6, depthWrite: false }),
   daylight: new THREE.MeshBasicMaterial({ color: 0xf2ecdc, side: THREE.FrontSide }),
 };
 // G604 (A1-STAND, playtest 2026-09-26): THE EXTERIOR'S GLASS TRANSMITS NOTHING. `transmission` above is not a
@@ -2296,12 +2350,21 @@ let ROOFLIGHTS = { n: 0, x: () => 0 };
     // emissive card - the right thing seen from the floor of a dim shed, and
     // from above in daylight it reads as a square cut out of the roof. The
     // exterior build glazes them instead.
+    // ROOF-LIGHTS (the user 8 Nov): not glass but the weathered GRP sheet - lighter and greyer than the steel round
+    // it, rough, the roof's ribs in it, nearly opaque (the sheet's alpha ~0.87, thicker where it is dirty), so from
+    // above it reads as a panel in the roof and never as the dark hole the clear blue glass made over the interior.
     if (EXT && !M.skyPanelExt)
       M.skyPanelExt = new THREE.MeshStandardMaterial({
-        color: 0x9fb4c2, roughness: 0.16, metalness: 0.0,
-        transparent: true, opacity: 0.72 });
+        color: 0xf2f0e6, map: skyAlb, normalMap: skyNrm, normalScale: new THREE.Vector2(0.8, 0.8),
+        roughness: 0.6, metalness: 0.0, transparent: true, opacity: 1 });
     const PM = EXT ? M.skyPanelExt : M.skyPanel;
-    const p = s > 0 ? quad(a, b, c, d, PM) : quad(b, a, d, c, PM);
+    // ...and the exterior's pane FACES UP. It was wound as the room's (down, into the shed), and M.skyPanelExt is
+    // single-sided where M.skyPanel is DoubleSide: from outside only its back face was there, culled, so every world
+    // hangar showed its roof lights as holes onto the dark inside (the blue glass of before was never seen either).
+    // Swapping a<->b and c<->d flips the face and keeps v down the slope (0 at the head), so the grime still runs to
+    // the sill.
+    const faceDown = EXT ? s < 0 : s > 0;
+    const p = faceDown ? quad(a, b, c, d, PM) : quad(b, a, d, c, PM);
     p.castShadow = false;
     put(p);
     // THE KERB: a flat band inside the opening's edge, all four sides. Drawn as
