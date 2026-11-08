@@ -78,7 +78,8 @@ const COWL_ROWS = [
     { k: 'exitGap', label: 'bottom lowered under the firewall\'s (m)', lo: 0, hi: 0.08, step: 0.002 },
     { k: 'exitHold', label: 'held to the bottom\'s bend (else tilts back up over the length)', lo: 0, hi: 1, step: 1, when: 'P.exitGap>0' },
     { k: 'exitLen', label: 'tilts back up over (x the cowl length)', lo: 0.1, hi: 0.9, step: 0.01, when: 'P.exitGap>0&&!P.exitHold' },
-    { k: 'exCut', label: 'exhaust cut in the aft edge', lo: 0, hi: 1, step: 1 },
+    { k: 'exCut', label: 'exhaust way out', lo: 0, hi: 2, step: 1, names: ['none', 'a cut in the aft edge', 'a faired ramp'] },
+    { k: 'exRampH', label: 'ramp depth at the aft edge (m)', lo: 0.01, hi: 0.12, step: 0.002, when: 'P.exCut===2' },
     { k: 'exCutSpan', label: 'cut width (deg)', lo: 10, hi: 140, step: 1, when: 'P.exCut>0' },
     { k: 'exCutLen', label: 'cut depth from the firewall (m)', lo: 0.02, hi: 0.4, step: 0.005, when: 'P.exCut>0' },
     { k: 'exCutAz', label: 'cut azimuth (270 = the bottom)', lo: 180, hi: 360, step: 1, when: 'P.exCut>0' },
@@ -100,6 +101,9 @@ const COWL_ROWS = [
     // PROPER-COWLS V4: the bottom's own bend (absent = the bowl's shoulder and fullness)
     { k: 'keelShoulder', label: 'bottom line: carries the barrel (bend late)', lo: 0, hi: 0.92, step: 0.01 },
     { k: 'keelRound', label: 'bottom line: fullness (cone → round)', lo: 0, hi: 1, step: 0.01 },
+    // PROPER-COWLS V5: the top line's own bend (absent = the bowl's pair)
+    { k: 'deckShoulder', label: 'top line: carries the barrel (bend late)', lo: 0, hi: 0.92, step: 0.01 },
+    { k: 'deckRound', label: 'top line: fullness (cone → round)', lo: 0, hi: 1, step: 0.01 },
     // a line at the axis has nothing to bend: the widest line's own sweep
     // means something only once the widest line is off the axis
     { k: 'waistSweep', label: 'widest line bends from (barrel end → firewall)', lo: 0, hi: 0.95, step: 0.01,
@@ -177,6 +181,8 @@ const COWL_ROWS = [
   // ---- Chin scoop ----
   { id: 'g_scoop', name: 'Chin scoop', rows: [
     { k: 'scoopOn', label: 'chin scoop', lo: 0, hi: 1, step: 1 },
+    // PROPER-COWLS V5: the scoop rides the keel (absent 0)
+    { k: 'scoopFollow', label: 'rides the bottom line', lo: 0, hi: 1, step: 1, when: 'P.scoopOn>0' },
     // 2026-09-05 (TURBOPROP §7): where along the cowl the scoop sits —
     // 0 is the lip (every cowl drawn before this row), 1 is the firewall,
     // which is where a PT6 breathes

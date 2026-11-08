@@ -67,7 +67,7 @@ const P={
   // "very often there is a cut in the cowl at the bottom aft part, so that the exhaust can go through ... they make
   // the cowl a bit bigger at the bottom, so that there is a gap there"). All off (0) by default: every cowl drawn
   // before them is drawn to the bit.
-  exitGap:0, exitSpan:140, exitLen:0.45, exitHold:0, keelShoulder:null, keelRound:null, exCut:0, exCutSpan:50, exCutLen:0.12, exCutAz:270,
+  exitGap:0, exitSpan:140, exitLen:0.45, exitHold:0, keelShoulder:null, keelRound:null, deckShoulder:null, deckRound:null, scoopFollow:0, exRampH:0.04, exCut:0, exCutSpan:50, exCutLen:0.12, exCutAz:270,
   // chin scoop
   scoopOn:1, scoopZ:0, scoopW:0.065, scoopH:0.055, scoopLen:0.22, scoopDrop:0.7,
   scoopAp:0.68, scoopSq:0.5, scoopRake:0.18,
@@ -320,7 +320,10 @@ function prepareLid(){
   // the waist is the height of the widest line; it must return to the axis by
   // the lid end, otherwise the closing ring would not be circular on the cone
   const kW=clamp(eWaist(),-0.85*kB,0.85*kT);
-  const T=half(kT, P.deckSweep, lr);
+  // PROPER-COWLS V5 (the user, 8 Nov: "you are drawing the top side completely straight ... a little taper ... so that
+  // you come and kiss better the top of the prop"): the top line's own bend, as the keel's (absent = the bowl's pair)
+  const T=half(kT, P.deckSweep, lr,
+               P.deckShoulder==null?null:clamp(+P.deckShoulder,0,0.92), P.deckRound==null?null:clamp(+P.deckRound,0,1));
   // PROPER-COWLS V4 (the user, 8 Nov: "the easing is better but it's not enough ... a Cessna nose is very rounded"):
   // THE KEEL'S OWN BEND. The bowl's shoulder and fullness were one pair for every line, and a cowl whose top must
   // carry the barrel late (shoulder 0.88) bent its bottom late and sharp too. keelShoulder / keelRound give the bottom
@@ -435,12 +438,22 @@ function exitAt(th,z){
 function inExCut(th,z){
   return P.exCut>0 && z<P.exCutLen && Math.abs(angDiff(th,P.exCutAz*DEG))<P.exCutSpan*DEG/2;
 }
+/* V5: THE EXHAUST RAMP (exCut 2, the user: "a little bevel that is making a little aerodynamic exhaust path"): in place
+   of the notch, the skin over the cut's sector is pressed DOWN into a wedge - exRampH deep at the aft edge, nothing at
+   exCutLen - and the aft edge stays open there (the fold is not drawn over it): the exhaust's own faired way out */
+function rampAt(th,z){
+  if(Math.round(P.exCut)!==2 || !(P.exRampH>0)) return 0;
+  const half=P.exCutSpan*DEG/2, a=Math.abs(angDiff(th,P.exCutAz*DEG));
+  if(a>=half || z>=P.exCutLen) return 0;
+  const wa=Math.pow(Math.cos(a/half*Math.PI/2),2), u=clamp(z/Math.max(1e-3,P.exCutLen),0,1);
+  return -P.exRampH*wa*Math.pow(1-u,1.5);
+}
 function surfPoint(th,z){
   const s=sectionAtZ(z);
   let [x,y]=sectPt(th,s);
   const d=lobeAt(th,z);
   if(d){const L=Math.hypot(x,y)||1; x+=x/L*d; y+=y/L*d;}
-  return [x, s.cy+y+exitAt(th,z)];
+  return [x, s.cy+y+exitAt(th,z)+rampAt(th,z)];
 }
 /* implicit: <1 inside the section at that z (lobes ignored — they live on the barrel flanks) */
 function sectF(x,y,z){
@@ -620,7 +633,7 @@ function buildSurface(group,mats,aps){
   for(let i=0;i<R-1;i++){
     for(let j=0;j<SEG;j++){
       if(cutA>0 && Math.abs(angDiff(AZ[j]+angDiff(AZ[(j+1)%SEG],AZ[j])/2,cutC))<cutA/2) continue;
-      if(P.exCut>0 && inExCut(AZ[j]+angDiff(AZ[(j+1)%SEG],AZ[j])/2, 0.5*(pz[i][j]+pz[i+1][j]))) continue;
+      if(Math.round(P.exCut)===1 && inExCut(AZ[j]+angDiff(AZ[(j+1)%SEG],AZ[j])/2, 0.5*(pz[i][j]+pz[i+1][j]))) continue;
       const j2=(j+1)%SEG;
       let poly=[V(i,j),V(i,j2),V(i+1,j2),V(i+1,j)];
       let gv=[[i,j],[i,j2],[i+1,j2],[i+1,j]];
@@ -903,7 +916,7 @@ function buildScoop(group,mats){
   if(!P.scoopOn) return;
   const d=clamp(P.detail,0.35,2), ze=zEnd(), rings=[], inside=[];
   const NS=Math.max(9,Math.round(14*d)), SS=Math.max(18,Math.round(32*d));
-  const baseY=spineY(ze*0.6)-sectionAtZ(P.cowlLen*0.5).bB*P.scoopDrop;
+  const baseY=spineY(ze*0.6)-sectionAtZ(P.cowlLen*0.5).bB*P.scoopDrop, yC=[];
   // THE STATION (2026-09-05): scoopZ slides the mouth from the lid (0, the
   // line every cowl before it was drawn from — byte-identical there) back to
   // the firewall (1), where a reverse-flow turbine takes its air
@@ -913,7 +926,12 @@ function buildScoop(group,mats){
   for(let i=0;i<NS;i++){
     const t=i/(NS-1), e=smooth(t);
     const a=P.scoopW*lerp(0.5,1,e), b=P.scoopH*lerp(0.30,1,e);
-    const y=baseY-P.scoopH*P.scoopRake*e, z=lerp(z0,z1,t);
+    const z=lerp(z0,z1,t);
+    // V5 scoopFollow: the scoop rides the keel - its top a third of its height inside the skin at every station, so a
+    // keel that rounds up into the face carries it (absent / 0: the straight raked line it always was)
+    let y=baseY-P.scoopH*P.scoopRake*e;
+    if(P.scoopFollow>0){ const sk=sectionAtZ(clamp(z,0,ze)); y=(sk.cy-sk.bB)+b/3-b; }
+    yC.push(y);
     const ring=[],ins=[];
     for(let j=0;j<SS;j++){
       const th=j/SS*TAU,[x,yy]=superPt(th,a,b,n);
@@ -935,7 +953,7 @@ function buildScoop(group,mats){
   /* Mouth lip: same cross-section idea as the aperture lip — a rounded edge of
      real thickness, then a converging throat, then a duct. Offsets are applied
      to the actual mouth ring, so it still works where the scoop was trimmed. */
-  const cyF=baseY-P.scoopH*P.scoopRake, mouth=rings[NS-1];
+  const cyF=P.scoopFollow>0?yC[NS-1]:baseY-P.scoopH*P.scoopRake, mouth=rings[NS-1];
   const off=(d,dz)=>mouth.map(v=>{
     const dx=v.x, dy=v.y-cyF, r=Math.hypot(dx,dy)||1e-6, f=Math.max(0.06,(r-d)/r);
     return new THREE.Vector3(dx*f, cyF+dy*f, v.z+dz);

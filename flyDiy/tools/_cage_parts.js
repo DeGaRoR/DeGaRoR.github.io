@@ -977,9 +977,9 @@ const CAGE_PARTS = [
       ['section at the firewall', ['cw_waist', 'cw_deckH', 'cw_keelH',
                                    'cw_sqAftTop', 'cw_sqAftBot',
                                    'cw_wAftTop', 'cw_wAftBot', 'cw_waistF']],   // CABIN-CRAFT: the width by level; PROPER-COWLS: the front's waist
-      ['air and exhaust exit', ['cw_exitGap', 'cw_exitHold', 'cw_exitSpan', 'cw_exitLen', 'cw_exCut', 'cw_exCutSpan', 'cw_exCutLen', 'cw_exCutAz']],   // PROPER-COWLS
+      ['air and exhaust exit', ['cw_exitGap', 'cw_exitHold', 'cw_exitSpan', 'cw_exitLen', 'cw_exCut', 'cw_exRampH', 'cw_exCutSpan', 'cw_exCutLen', 'cw_exCutAz']],   // PROPER-COWLS
       ['nose bowl', ['cw_lidLen', 'cw_lidShoulder', 'cw_lidRound',
-                     'cw_faceRise', 'cw_faceRing', 'cw_deckSweep', 'cw_keelSweep', 'cw_keelShoulder', 'cw_keelRound',
+                     'cw_faceRise', 'cw_faceRing', 'cw_deckSweep', 'cw_keelSweep', 'cw_keelShoulder', 'cw_keelRound', 'cw_deckShoulder', 'cw_deckRound',
                      'cw_waistSweep', 'cw_lidMode', 'cw_lidR', 'cw_lidGap']],
       ['barrel', ['cw_cowlLen', 'cw_aftW', 'cw_aftH', 'cw_taperW',
                   'cw_taperH', 'cw_lidRise']],
@@ -994,7 +994,7 @@ const CAGE_PARTS = [
       ['inlet lip', ['cw_lipMode', 'cw_lipThick', 'cw_lipDepth',
                      'cw_lipRound', 'cw_lipProtrude', 'cw_lipInset',
                      'cw_ductLen', 'cw_ductFlare']],
-      ['chin scoop', ['cw_scoopOn', 'cw_scoopZ', 'cw_scoopLen', 'cw_scoopW',
+      ['chin scoop', ['cw_scoopOn', 'cw_scoopFollow', 'cw_scoopZ', 'cw_scoopLen', 'cw_scoopW',
                       'cw_scoopH', 'cw_scoopSq', 'cw_scoopDrop',
                       'cw_scoopRake', 'cw_scoopAp', 'cw_scoopLipH',
                       'cw_scoopLipDepth', 'cw_scoopDuct']],

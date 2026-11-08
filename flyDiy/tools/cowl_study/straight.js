@@ -300,24 +300,34 @@ function rowsFor(spec, o) {
     out.cw_waistF = type === 'radial' ? 0 : +Math.max(-0.85, Math.min(0.85, (W - cE) / hF)).toFixed(3);
     front = Math.min(a1, hF); frontW = a1; frontH = hF;
     out._sec = sec;
-    // V4 (the user, 8 Nov): THE BOTTOM EASES - "you make it very linear ... It is more rounded at the bottom ... have a
-    // look at the Cessna": the keel bends from 55 % of the barrel and rounds into the face (the user's own: Cub 0.85,
-    // C172 0.30, busher 0.55)
-    out.cw_keelSweep = 0.55;
-    // THE WAY OUT AT THE BOTTOM: a piston's cooling air and its exhaust leave under the aft edge - the cowl stands a
-    // little proud of the fuselage there (exitGap, about 6 % of the firewall's half-height, 1.5-4 cm, fading over the
-    // first 40 % of the cowl), and the aft edge is notched where the drawn exhaust leaves
-    if (m.mount === 0 && type !== 'electric' && type !== 'turbine') {
-      out.cw_exitGap = +Math.max(0.015, Math.min(0.04, 0.06 * aH)).toFixed(3);
-      out.cw_exitSpan = 150; out.cw_exitLen = 0.4;
+    // V5 (the user, 8 Nov): THE BOTTOM ROUNDS - it leaves the firewall level (the fuselage's bottom carried on) and
+    // rounds up into the face, a quarter-ellipse (round B: the bend from 95 % of the barrel, level for 45 % of it,
+    // arriving 0.9 full - "much better for the Cessna, almost the best shape we ever got")
+    // (a radial's cowl is the round NACA barrel, the approved shape: none of the nose's bends, drop or ramp)
+    if (type !== 'radial') { out.cw_keelSweep = 0.95; out.cw_keelShoulder = 0.45; out.cw_keelRound = 0.9; }
+    // THE TOP DESCENDS A LITTLE - "a little taper ... so that you come and kiss better the top of the prop": the deck
+    // bends from the firewall, gently (carries the barrel for 60 %, arrives 0.7 full)
+    if (type !== 'radial') { out.cw_deckSweep = 0.95; out.cw_deckShoulder = 0.6; out.cw_deckRound = 0.7; }
+    else { out.cw_keelSweep = 0; out.cw_deckSweep = 0; }
+    // THE BOTTOM SITS LOWER THAN THE FIREWALL'S (vertical only: the cooling air's way out), HELD to the bottom's bend
+    // ("hold is better than fade"); sized to the engine - the user's Cub sits 7.9 cm under its firewall (0.24 of the
+    // half-height, an A-65 at 70 hp), the Jodel 8.7, the C172 1.9 (0.04 at 159 hp): 0.24 at 70 hp to 0.04 at 160 and up
+    if (m.mount === 0 && type !== 'electric' && type !== 'turbine' && type !== 'radial') {
+      const hp = +(m.W.CAGE_ENG && m.W.CAGE_ENG.resolved && m.W.CAGE_ENG.resolved.powerHP) || 100;
+      const k = 0.24 + (0.04 - 0.24) * Math.max(0, Math.min(1, (hp - 70) / 90));   // the user's A-65s (70 hp) 0.24, their 159 hp C172 0.04
+      out.cw_exitGap = +Math.max(0.015, Math.min(0.08, k * aH)).toFixed(3);
+      out.cw_exitHold = 1; out.cw_exitSpan = 150; out.cw_exitLen = 0.4;
+      // THE EXHAUST'S FAIRED RAMP where the drawn exhaust leaves (its azimuth, to 10 cm past the exit)
       const ex = m.exhaust;
       if (ex && ex.y < 0) {
         const az = ((Math.atan2(ex.y - 0.5 * T, ex.x) * 180 / Math.PI) + 360) % 360;
-        out.cw_exCut = 1; out.cw_exCutAz = +Math.max(200, Math.min(340, az)).toFixed(0);
-        out.cw_exCutSpan = 46;
-        out.cw_exCutLen = +Math.max(0.06, Math.min(0.3, ex.z + 0.06)).toFixed(3);
+        out.cw_exCut = 2; out.cw_exCutAz = +Math.max(200, Math.min(340, az)).toFixed(0);
+        out.cw_exCutSpan = 46; out.cw_exRampH = +Math.max(0.025, Math.min(0.06, 0.1 * aH)).toFixed(3);
+        out.cw_exCutLen = +Math.max(0.1, Math.min(0.35, ex.z + 0.1)).toFixed(3);
       }
     }
+    // THE CHIN SCOOP rides the bottom line (scoopFollow): its top a third of its height inside the skin all along
+    if (out.cw_scoopOn) out.cw_scoopFollow = 1;
   } else if (mode === 'pod') {
     // OFF THE BODY (the user, 8 Nov): straight, sized to the DRAWN engine (its top hardware, its sides; exhaust stubs
     // may leave underneath), the section the engine's own - a boxer wider than high, an in-line higher than wide and
@@ -375,6 +385,7 @@ function rowsFor(spec, o) {
   if (mode === 'pod') { out.cw_cowlLen = +Math.max(0.1, Math.min(2, reach)).toFixed(3); out.cw_noseOff = +(noseOff0 + lip).toFixed(3); }
   else out.cw_cowlLen = +Math.max(0.1, Math.min(2, reach - lip)).toFixed(3);
   Object.assign(out, FACE[type](front, frontW || front, frontH || front));
+  if (mode === 'waist' && out.cw_scoopOn) out.cw_scoopFollow = 1;
   // THE AXIS: body cowls - the barrel runs to the engine's box centre (lidRise), the ring sits on the propeller
   // (faceRise, the ring only); off the body the plate moves by the propeller's offset (engBlockY) and the pod is
   // centred on it. engY is folded in: 0.
@@ -394,7 +405,7 @@ function rowsFor(spec, o) {
 // a straight 'match' needs the front section = the fitted aft section: one fitted build, then copy
 function finish(spec, over, type) {
   if (!over) return over;
-  if (over.fitNose !== 1) return fitCheeks(spec, placeScoop(spec, over), type);
+  if (over.fitNose !== 1) return fitCheeks(spec, placeScoop(spec, fitBends(spec, over)), type);
   const m = measure(spec, over);
   const P = m.P, o = Object.assign({}, over);
   if (o.cw_sqFrontTop == null) { o.cw_sqFrontTop = +(+P.cw_sqAftTop).toFixed(3); o.cw_sqFrontBot = +(+P.cw_sqAftBot).toFixed(3); }
@@ -403,7 +414,47 @@ function finish(spec, over, type) {
   if (o._waist != null) { o.cw_waist = o._waist; o.cw_deckH = 1; o.cw_keelH = 1; }
   delete o._waist;
   o.fitNose = 2;
-  return fitCheeks(spec, placeScoop(spec, o), type);
+  return fitCheeks(spec, placeScoop(spec, fitBends(spec, o)), type);
+}
+
+// THE BENDS GIVE WAY TO THE ENGINE: a bottom that rounds up early and a top that descends must not run into the drawn
+// engine (an inverted in-line hangs its cylinders low; a Gipsy carries its induction high). Along the cowl, the keel
+// must stay 1.5 cm under the engine's lowest metal inside its own envelope (the exhaust pipes below it may leave) and
+// the deck 1.5 cm over its highest; where they would not, the line is held level longer (its shoulder), then bent
+// from further forward (its sweep).
+function fitBends(spec, o) {
+  if (o.cw_keelShoulder == null && o.cw_deckShoulder == null) return o;
+  o = Object.assign({}, o);
+  for (let pass = 0; pass < 6; pass++) {
+    const m = measure(spec, o), CW = m.W.COWL_GEN, zFw = m.zFw || 0, env = m.env;
+    if (!env) return o;
+    // the engine's own body by station (cowl z = engine z - zFw), inside its envelope
+    const lo = {}, hi = {};
+    for (const [x, y, z] of m.verts) {
+      if (z < env.z0 - 0.01 || z > 0 || y < env.y0 - 0.01 || y > Math.max(env.y1, (m.drawn && m.drawn.upFront) || 0) + 0.01) continue;
+      const k = Math.round((z - zFw) / 0.04);
+      lo[k] = Math.min(lo[k] == null ? 9 : lo[k], y); hi[k] = Math.max(hi[k] == null ? -9 : hi[k], y);
+    }
+    // the engine's frame: y about the propeller's line = the cowl's axis at the face end
+    const yAx = CW.axisXY().y;
+    let keelBad = false, deckBad = false;
+    for (const k in lo) {
+      const z = k * 0.04; if (z < 0.02 || z > CW.zEnd() - 0.02) continue;
+      const sc = CW.sectionAtZ(z);
+      if (sc.cy - sc.bB > yAx + lo[k] - 0.015) keelBad = true;
+      if (sc.cy + sc.bT < yAx + hi[k] + 0.015) deckBad = true;
+    }
+    if (!keelBad && !deckBad) return o;
+    if (keelBad) {
+      if (+o.cw_keelShoulder < 0.85) o.cw_keelShoulder = +Math.min(0.85, +o.cw_keelShoulder + 0.15).toFixed(2);
+      else o.cw_keelSweep = +Math.max(0.3, +o.cw_keelSweep - 0.15).toFixed(2);
+    }
+    if (deckBad) {
+      if (+o.cw_deckShoulder < 0.88) o.cw_deckShoulder = +Math.min(0.88, +o.cw_deckShoulder + 0.14).toFixed(2);
+      else o.cw_deckSweep = +Math.max(0.2, +o.cw_deckSweep - 0.2).toFixed(2);
+    }
+  }
+  return o;
 }
 
 // THE CHIN SCOOP, SEATED (the user, 8 Nov: "better rules for the chin scoop ... something robust that doesn't throw a
