@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 6ea66663b354677a
+// body-sha256: 61ac303da6fec9ea
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -35065,8 +35065,15 @@ function genStolCageOff(cage) {
   // withdraws a certificate, re-keys the certificate cache or moves a procured fingerprint (every caller of this one)
   const fixed = !(+cage.gearRetract);
   for (const k of GEN_RETRACT_ROWS) if (k in cage && (fixed || k === 'gearPos')) { out = out || Object.assign({}, cage); delete out[k]; }
+  // SEAPLANES-LAND (HULL rows): the hull-types branch's new cage rows, at the value every build before them meant, the
+  // same rule - absent IS that value, so they withdraw no certificate, re-key no cache, move no procured fingerprint
+  for (const k in GEN_HULL_ROW_OFF) if (k in cage && cage[k] === GEN_HULL_ROW_OFF[k]) { out = out || Object.assign({}, cage); delete out[k]; }
   return out || cage;
 }
+// SEAPLANES-LAND: the hull-types rows' "off" (tools/_cage_brace.js, _cage_eng.js PAGE.defaults: the value the draw and the
+// join read when the key is absent)
+const GEN_HULL_ROW_OFF = { bpStrutK: 1, bpCabDraw: 1, bpCabPylon: 0, engPylonFair: 0, engPylonForm: 0, engPylonAt: 0, engPylonAft: 0.15,
+                           engPylonFwd: 0, engFinAt: 0.55, engFinFwd: 0, engNacOver: 0, engNacLift: 0 };
 // RETRACT-1 / G1: the gear layer's retraction rows (tools/_cage_gear.js), dropped by genStolCageOff when the gear is fixed
 const GEN_RETRACT_ROWS = ['gearRetract', 'gearRetT', 'gearRetAct', 'gearRetFrac', 'gearFold', 'gearFoldNose', 'gearPos',
                           'gm1Ax', 'gm1Ang', 'gm2Ax', 'gm2Ang', 'gmTwist', 'gn1Ax', 'gn1Ang', 'gn2Ax', 'gn2Ang', 'gnTwist', 'gearWellCut', 'gearDoors', 'gearLegDoor', 'gearNacFit', 'gearNacPod', 'gearShort', 'gearShortNose', 'gearKneeDoor'];
@@ -50538,6 +50545,14 @@ function genDamageOn(def) {
   return (P.damage ?? (typeof FLYDIY_DAMAGE === 'boolean' ? FLYDIY_DAMAGE
           : typeof GEN_DAMAGE_DEFAULT !== 'undefined' && GEN_DAMAGE_DEFAULT)) === true && typeof GEN_CRASH !== 'undefined';
 }
+// SEAPLANES-LAND (A0 8 Nov): HULL-B50 recalibrated the carbon and glass frame rows (GEN_MATERIALS: members, k, c) with no
+// version - a design framed in one of them folds its row into its key and re-certifies once; any other frame's key is
+// byte-identical to before (the rows of the other materials never moved)
+const GEN_CERT_MAT_KEYED = ['carbon', 'glass'];
+function genCertMatTag(spec) {
+  const m = spec && (spec.material || (spec.fuselage && spec.fuselage.material));
+  return GEN_CERT_MAT_KEYED.indexOf(m) >= 0 && typeof GEN_MATERIALS !== 'undefined' ? '|mat:' + m + JSON.stringify(GEN_MATERIALS[m]) : '';
+}
 // ---- the build's key: the spec, else the frame's own numbers -----------------------------------------------------
 function genCertKey(def) {
   let h = 0x811c9dc5;
@@ -50545,6 +50560,7 @@ function genCertKey(def) {
   mix('cert' + GEN_CERT_V + JSON.stringify(GEN_CERT) + (typeof PHYSICS_V !== 'undefined' ? PHYSICS_V : ''));
   // (G2827: the cage's STOL rows at "off" are the absent rows - the key every build had before the STOL wing)
   if (def.spec) mix(JSON.stringify(def.spec, (k, v) => k === 'cage' && typeof genStolCageOff === 'function' ? genStolCageOff(v) : v));
+  if (def.spec) { const mt = genCertMatTag(def.spec); if (mt) mix(mt); }   // (HULL-B50: a carbon / glass frame's rows)
   else {
     for (const nd of def.nodes) mix(nd.p.join(',') + ':' + nd.m);
     for (const b of def.beams) mix(b.a + ',' + b.b + ',' + b.k + ',' + (b.kTrue || '') + ',' + (b.cls || ''));
