@@ -68,6 +68,28 @@ What the grid says so far (the rows still flying are added on the next push):
   the chop: on the open sea at 15 kt it is 0.02-0.07 m.
 - No go-around anywhere so far; no capsize (roll extremes above); no member yielded or broken on any passing leg.
 
+## The gear held the wrong way (task 1's two extra rows)
+
+### G1 GEAR DOWN ON THE WATER: NO FLIP IS POSSIBLE - the hull build's wheels have no water at all - severity: bad (a model gap)
+- Flown: SEA > SEA, 8 kt, the handle held DOWN from FINAL (sp_fly `--gear down`: written after the AP, before every
+  solver step). GUMPS saw it: `go-around: the wheels are not up for the water (attempt 1)`, `(attempt 2)`, then the
+  third approach landed as it was (the existing cap). The landing: sink 0.52 m/s at 24.8 m/s, run 253 m, pitch max 12.9
+  deg, roll -2.4 / +5.0 - **exactly a wheels-up landing; no flip, no nose-over, no drag**.
+- Why (read in the source, not flown): the wheels' water (GEAR-WATER's wet body, `HYDRO.wetBuild`: the tyres' plough
+  plates, "the wheels' plough plates (32_hydro) see the same lift") is built only for a build WITHOUT floats
+  (`30_solver.js:1856 WB_CAN = !HY && ...`). The Petrel has a hull (HY), so its wheels never meet the water: the
+  classic amphibian gear-down water landing (the flip) cannot happen in this sim. Same for the float Cessna /
+  amphibious floats (fltAmph) when they fly.
+- Reproduce: `sp_fly.js --order SEA,SEA --wind 8@250 --gear down` (17 min). Node-only for the model gap; the
+  browser shows the same (one physics).
+
+### G2 GEAR UP ON THE RUNWAY: the AP's emergency extension saves it - and with that blocked: see below
+- Flown: HOME > w3, 8 kt, the handle held UP from FINAL: the AP saw the gear not coming down and pulled the emergency
+  extension (`gear-emergency: the gear did not come down: the emergency extension`) - the gear came down regardless of
+  the handle; the landing was the normal one to the decimal (sink 0.66, run 369 m). Correct pilot behaviour, and it
+  means the handle alone cannot make a gear-up landing. Re-flown with `sim.gearEmergency` disabled (`--noemerg`, a
+  pilot who never gets it down): RESULT PENDING (next push).
+
 ## Prop strikes: what they are (task 2) - two different mechanisms, neither is the static clearance
 
 Numbers are the disc's lowest point over the water surface it strikes on (`gapW`, the waved sea), node, the game's
@@ -206,6 +228,19 @@ the µs-per-frame accumulators in sp_fly (`legs[].cost`), every run on a 4-core 
   bump) - meant, but the gate's baseline was not re-recorded for it.
 - Reproduce: `node tools/run_gates.js --only=STOL` (11 min); the diff: `node reports/evidence/SEA-PETREL/stoldiff.js <repo>/flyDiy/tools`.
 - Node-only.
+
+### F5 GATE DMGSKINGPU: one extra FAIL on 15ad5d669 - a source window, the merge's gear-fold block - severity: blocks (core gate), trivial
+- What: base and master share two FAIL lines (`the tear on the read-back places: ...` x2, pre-existing on master);
+  the base adds `FAIL app.js poseModel: a group the wreck rides whole skips its rig row (5 rows: rigs, struts, legs,
+  surfaces, anchored, links)` (wants 6). The gate counts `if (brkWhole(r|s)) continue;` in app.js from `const brkW = `
+  to `// G239: ...AND THE RODS AND CABLES` + 400 chars. The merge put the RETRACT gear-fold block (`if
+  (model.gearMechRig) { ... }`) between that comment and the link rods' loop, so the sixth skip (linkRigs, still there
+  and still `if (brkWhole(r)) continue;`) is past the window. The code is right; the gate's window is short.
+- Reproduce: `node tools/run_gates.js --only=DMGSKINGPU` (5 min). Node-only.
+
+### F6 GATE DMGHULL red on 15ad5d669 - master result pending; DMGFABRIC / POD / HANDLE / ENGCONFIG: identical FAIL lines on master (pre-existing, not seaplanes')
+- DMGHULL (base): `FAIL twin on floats hump: the side term is U w x 93.9 kg/m (the small-slip keel's m(TE)), each
+  wetted keel's own constant to 1.08 % over 17 slip angles ...` (one FAIL). Master's run is queued.
 
 ### F2 GATE JOINPARITY: master 5 FAIL, base 6 FAIL - the extra one is the Petrel row (ENV, as briefed)
 - Base 15ad5d669: `FAIL the page capture holds every validated build (cub, jodel, metal, floats, twinFloats, petrel)`
