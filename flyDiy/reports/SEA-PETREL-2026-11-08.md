@@ -158,6 +158,19 @@ route. Evidence: `reports/evidence/SEA-PETREL/diag/*.json` (`hist0` / `strike.st
   `--wind 0` the same start, no strike.
 - Browser-needed: yes - the page's water start at Cedar Harbour (does the page also place it wheels-down and drop it?).
 
+### S4 THE OPEN-SEA TAKE-OFF IN 10-15 KT IS REJECTED: A PORPOISE ON THE RUN, THE AEROPLANE CANNOT ACCELERATE - severity: blocks
+- mk_sea > HOME (the Cedar Harbour start), 15 kt from 250: `rejected-takeoff: will not reach Vr: 0.18 m/s^2 needs
+  1793 m more, 1142 m left` at 34 s; 10 kt from 221 (square to HOME's runway): `... 0.23 m/s^2 needs 985 m more,
+  1178 m left` at 31 s. Both get over the hump (6.5-6.7 m/s, the disc 0.07 / 0.12 m over the water at pitch 6-7 deg)
+  and then, at 12.5-13.9 m/s, the hull porpoises off the water (pitch **22 / 26.6 deg**, the hull out of the water
+  for moments - `ROLL/air` rows), the run stops accelerating and the AP rejects it (correctly). No strike, no damage:
+  the aeroplane is left on the open sea.
+- The same take-off from SEA (the sheltered bay) at 15 kt: off at 20.4 m/s, pitch 7.3 deg - fine. Calm at mk_sea: fine.
+  So the open sea's waves at 10-15 kt (felt amplitude 0.14-0.16 m at the disc) start a porpoise the take-off's
+  porpoise law (39b `SV.porpoise`, which IS on in ROLL) does not stop. UNPROVEN why the law does not hold it.
+- Reproduce: `sp_fly.js --order mk_sea,HOME --wind 15@250` (or `--wind xw10`), ~4 min.
+- Browser-needed: yes - a Cedar Harbour take-off in 10-15 kt.
+
 ### S3 THE FLOAT CESSNA'S STRIKE (master's TOUR, mk_sea > SEA, t 604.6) IS ANOTHER CAUSE: A CAPSIZE IN A LONG WATER TAXI
 - Flown here the same way (the game's route, the load door's float Cessna 949.5 kg / 25 L, 8 kt from 250, chained
   SEA > mk_sea > SEA): leg 1 OK (touch 35.6 m/s, sink 0.47, run 370 m). Leg 2, the chained departure from where it
@@ -205,6 +218,33 @@ the µs-per-frame accumulators in sp_fly (`legs[].cost`), every run on a 4-core 
 - Reproduce: `node reports/evidence/SEA-PETREL/cost.js --root <repo>` (counts, the rest bench, the scene; its air
   bench is broken - placed by hand it went NaN; the flown numbers above replace it); the certificate: `node tools/run_gates.js --only=DMGCERTCOST`.
 
+## The browser list (task 5): what the box must fly in its daily slot
+
+Node cannot see these; each names the node row it confirms. The game's default day (8 kt from 250) unless stated.
+Expert, damage on, `?retract=lab` on the page if a lab row is needed (the Petrel's own retract is not behind it).
+
+1. **SEA > Cedar Harbour (mk_sea), 8 kt** - the landing roll-out on the open sea: does the hull skip and throw its bow
+   up (node: six skips, pitch 32.7 then 40.8 deg, the prop in the water at t ~452)? Watch the elevator. (S1)
+2. **Cedar Harbour (mk_sea) > HOME, 8 kt, the water start** - does the page place the Petrel wheels-down above the
+   water and drop it (node: the hull falls ~0.5 m, pitch +9.8 deg, the prop in at t 0.6)? (S2)
+3. **The same start calm** (wind 0) - node: no strike, 0.18 m. And **at 15 kt** - node: take-off rejected (`will not
+   reach Vr`), pitch 26.5 deg on the run.
+4. **HOME > Cedar Harbour, 15 kt** - node passes but rolls +27 / -21 deg on the water: how does it look?
+5. **SEA > SEA circuit, 8 kt** (passes in node) and **15 kt** (two unstabilised go-arounds, then a 30 deg weathervane
+   at 5.7 m/s on the water: `ground-loop`).
+6. **HOME > Ridgeback (w3), 8 kt** - the land leg (node passes: sink 0.66, run 369 m of 543 m) - and the take-off's
+   gear retraction, the landing's gear-down (the gear HUD, the doors).
+7. **A gear-up landing on the runway** (hold the gear key up through the final): node - GUMPS twice, the emergency
+   extension each time; blocked, a belly landing with no damage at all. What does the page do with the key held?
+8. **A gear-down water landing**: node - GUMPS twice, then a landing exactly like wheels-up (the wheels have no
+   water on a hull build: no flip possible). Confirm in the page it is the same (one physics) and how it looks.
+9. **The take-off hump on the water** (any water take-off): the disc 0.17 m over the water at 6-7 m/s - does spray /
+   the drawn prop visibly touch?
+10. **The cost**: the worker's step time and the page's frame rate, the Petrel against the Cub, the same session and
+   view (node: the Petrel's solver frame ~6x the Cub's in the air, ~7x on the ground). Is it 60 Hz on the box?
+11. **The float Cessna, Cedar Harbour > SEA after landing there** (the chained water taxi): node - a 600 s taxi and a
+   capsize at 6 m/s (S3). Same in the page?
+
 ## Findings
 
 ### F1 GATE PLANELISTS was red on 15ad5d669 (green on 7f6e1df64 and on master) - FIXED on the tip 4c60b519 (PASS, run here)
@@ -223,8 +263,7 @@ the µs-per-frame accumulators in sp_fly (`legs[].cost`), every run on a 4-core 
   merge's app.js (already at 7f6e1df64) has `hudEnergy(); hudWind(); hudGear(); if (window.ACCEPT_REC) ...`. Master's
   app.js has no `hudGear()` and matches. Every flown check of the gate passed (the only FAIL line in 17).
 - Reproduce: `node tools/run_gates.js --only=ACCEPT` (20 min here). Node-only. The fix is the regex (allow hudGear).
-- Tip 4c60b519: app.js still has `hudGear();` there and the gate's regex is unchanged (checked statically: no match);
-  the full gate re-run on the tip is queued.
+- Tip 4c60b519: re-run, the same single FAIL (`app.js: the leg ticked and signed beside the HUD`).
 
 ### F4 GATE STOL is red on 15ad5d669 (PASS on master): the load door now writes the 12 hull-types cage rows into every validated build - severity: blocks (a core gate), spec-only
 - What: `FAIL cub (builds/cub_2026-09-20_corrected.json): joined here to master's spec - DIFFERS + the STOL rows at
