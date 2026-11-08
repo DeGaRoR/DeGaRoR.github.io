@@ -1402,6 +1402,21 @@ const RETRACT_LAB = () => {
   } catch (e) { return true; }
 };
 window.CAGE_RETRACT_LAB = RETRACT_LAB;
+// SEA-OFF (SEAPLANES-LAND 8 Nov; the user: seaplanes + retract land on master SWITCHED OFF first, then a thorough
+// testing round): THE SAME SWITCH HIDES THE MERGE'S OTHER NEW ROWS from the player's garage - the boat hull (hullOn:
+// every hull row hangs off it), the pylon / fin / nacelle-over engine rows, the cabane's pylon and drawn rows, the tip's
+// own shape. A row shows while the switch is on (the dev toggle, ?retract=lab, every node rig) or while the build
+// holds it off its OFF value here (a lab build stays editable); hidden at OFF, the build is master's. The values are
+// the rows' own defaults (60_gen_spec GEN_HULL_ROW_OFF, _cage_gen CAGE_DEFAULT_ABSENT). ROWS ONLY, as RETRACT_LAB:
+// _cage_ui applyRowVis reads it; the spec, the save, the flight and the certificate never do. The retract and
+// amphibian rows keep their own rules (gearRetract, fltAmph above and in _cage_float).
+window.CAGE_LAB_ROWS = {
+  hullOn: 0,
+  engPylonAt: 0, engPylonAft: 0.15, engPylonFwd: 0, engPylonForm: 0, engPylonFair: 0,
+  engNacOver: 0, engNacLift: 0, engFinAt: 0.55, engFinFwd: 0,
+  bpCabPylon: 0, bpCabDraw: 1, bpStrutK: 1,
+  wgTipBow: 0, wgTipDroop: 0, wgTipFull: 1,
+};
 // (A0 7 Nov: "fixing gearRetract shows on every build is welcome"): the switch is offered where it can act -
 // GEAR_RETRACTABLE's own wheels (a nose wheel, not floats: the group's own when) - and stays while it is on, so a
 // build saved retractable on a tailwheel can still switch it off

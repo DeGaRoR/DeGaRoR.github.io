@@ -3932,6 +3932,10 @@ function applyRowVis() {
   // the moment the next build says it fits. Nothing else about the row changes
   let BAD = null;
   if (typeof window.CAGE_ROW_BAD === 'function') { try { BAD = window.CAGE_ROW_BAD() || null; } catch (e) { BAD = null; } }
+  // SEA-OFF (_cage_gear.js CAGE_LAB_ROWS): with the lab switch off, a lab row at its OFF value is not shown
+  const LABR = window.CAGE_LAB_ROWS || null;
+  let labOn = true;
+  if (LABR && typeof window.CAGE_RETRACT_LAB === 'function') { try { labOn = !!window.CAGE_RETRACT_LAB(); } catch (e) {} }
   for (const meta of ROWMETA) {
     const o = meta.opts;
     { const why = BAD && BAD[meta.k];
@@ -3941,11 +3945,13 @@ function applyRowVis() {
         else meta.row.title = meta.titleWas || '';
         meta.badOn = !!why;
       } }
-    if (o && (o.when || o.level)) {
+    const labRow = LABR && !labOn && Object.prototype.hasOwnProperty.call(LABR, meta.k);
+    if (labRow && (P[meta.k] == null || +P[meta.k] === LABR[meta.k])) meta.row.style.display = 'none';
+    else if (o && (o.when || o.level)) {
       let vis = !(o.level === 'expert' && !EXPERT.on);
       if (vis && o.when) { try { vis = !!o.when(P); } catch (e) {} }
       meta.row.style.display = vis ? '' : 'none';
-    }
+    } else if (labRow) meta.row.style.display = '';
     if (meta.noteEl && o && o.note) {
       let t = ''; try { t = o.note(P) || ''; } catch (e) {}
       meta.noteEl.textContent = t;

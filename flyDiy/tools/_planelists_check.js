@@ -32,7 +32,7 @@ const OFFICIAL = {
   'STOL Cub': 'builds/candidates/stol_cub_showcase.json',
   'PA-18 on floats': 'builds/pa18_floats_2026-10-23.json',
   'Client Cub': 'builds/cub_2026-09-20.json',
-  'Super Petrel LS': 'builds/candidates/superpetrel_V4_1.json',   // SEAPLANES-LAND (the user 7 Nov: "the Petrel V4.1 is the final one")
+  // (the Super Petrel LS: internal while seaplanes land switched off, the user 8 Nov - Official after the testing round)
 };
 const named = [];
 

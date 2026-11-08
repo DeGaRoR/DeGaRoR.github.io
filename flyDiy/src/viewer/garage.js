@@ -731,10 +731,13 @@ function garageInit(api) {
     const dev = !(window.FLYDIY_MODE === 'career' && !(window.WELCOME && window.WELCOME.mode && window.WELCOME.mode.dev));
     return Object.assign({}, c, { note: dev ? c.note : '', tip: (dev ? c.file + ': ' : '') + 'designed and built, not validated - no certificate' });
   };
+  // SEA-OFF (SEAPLANES-LAND 8 Nov): an index row marked lab (the Super Petrel, while seaplanes land switched off) is in
+  // neither pool unless the lab switch is on (_cage_gear.js RETRACT_LAB: the dev toggle, ?retract=lab)
+  const labOk = p => !p.lab || (typeof window.CAGE_RETRACT_LAB === 'function' && (() => { try { return !!window.CAGE_RETRACT_LAB(); } catch (e) { return false; } })());
   const candidates = () => {
     if (!candP) {
       candP = (typeof fetch === 'function' ? fetch(CAND_DIR + 'index.json').then(r => (r.ok ? r.json() : null)) : Promise.resolve(null))
-        .then(j => (j && Array.isArray(j.planes) ? j.planes.filter(p => p && !p.official && typeof p.file === 'string' && /^[\w .()-]+\.json$/.test(p.file)) : []),   // official: true = on the Official list, not a candidate (All planes opens it)
+        .then(j => (j && Array.isArray(j.planes) ? j.planes.filter(p => p && !p.official && labOk(p) && typeof p.file === 'string' && /^[\w .()-]+\.json$/.test(p.file)) : []),   // official: true = on the Official list, not a candidate (All planes opens it)
               () => []);
       candP.then(l => { if (!l.length) candP = null; });
     }
@@ -742,7 +745,7 @@ function garageInit(api) {
   };
   // the pool's official rows, on the chooser in their own group (the user 4 Nov: "yes, both on the chooser"); the same door as a candidate
   const officialPool = () => (typeof fetch === 'function' ? fetch(CAND_DIR + 'index.json').then(r => (r.ok ? r.json() : null)) : Promise.resolve(null))
-    .then(j => ((j && j.planes) || []).filter(p => p && p.official).map(c => Object.assign(candRow(c), { tip: 'official' })), () => []);
+    .then(j => ((j && j.planes) || []).filter(p => p && p.official && labOk(p)).map(c => Object.assign(candRow(c), { tip: 'official' })), () => []);
   const loadCandidate = c => fetch(CAND_DIR + encodeURIComponent(c.file))
     .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
     .then(t => { const g = unwrap(t); loadSpec(g.spec, ''); })

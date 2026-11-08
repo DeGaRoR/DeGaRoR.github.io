@@ -563,7 +563,11 @@ const ENG_ITEMS = [
     'wing nacelles (twin)', 'nose + pusher (push-pull)',
     'nose + wing nacelles (three)', 'two pairs of wing nacelles (four)',
     'push-pull on one pylon (tandem)', 'on the fin'],
-   { when: P => +P.engOn }],
+   // SEA-OFF (SEAPLANES-LAND 8 Nov): the tandem (7) and the fin (8) stand behind the lab switch (_cage_gear.js
+   // RETRACT_LAB), shown on a build that holds them
+   { when: P => +P.engOn,
+     optHide: P => { let lab = true; try { lab = !window.CAGE_RETRACT_LAB || !!window.CAGE_RETRACT_LAB(); } catch (e) {}
+       return [0, 1, 2, 3, 4, 5, 6, 7, 8].map(i => i >= 7 && !lab && Math.round(+P.engMount || 0) !== i); } }],
   ['engAim',    'faces', 0, 2, 1, ['as the mount', 'puller', 'pusher'],
    { when: P => +P.engOn && [2, 3, 5, 6].includes(Math.round(P.engMount)) }],   // (a tandem's aims are its own)
   ['engNacAt',  'nacelle station (semispan)', 0.15, 0.70, 0.01,

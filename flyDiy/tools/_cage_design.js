@@ -1130,6 +1130,10 @@ function iconCarcass(mode) {
 //   cabin.seating    DERIVED by the join from paxCount + seatLayout (§5.3)
 //   cabin.pilots/pax LOADINGS, not birth settings
 // ---------------------------------------------------------------------------
+// SEA-OFF (SEAPLANES-LAND 8 Nov): the merge's new tiles and options stand behind the lab switch, as its rows do
+// (_cage_gear.js RETRACT_LAB, CAGE_LAB_ROWS): off in the player's page, on in node and with the dev toggle. An option
+// the build already holds still shows (design_flow tileGrid: a saved value is never hidden)
+const SEA_LAB = () => !(typeof window !== 'undefined' && window.CAGE_RETRACT_LAB) || window.CAGE_RETRACT_LAB();
 const DESIGN_GROUPS = ['identity', 'cabin', 'structure', 'wing', 'propulsion',
                        'tail', 'undercarriage', 'livery'];
 
@@ -1561,7 +1565,7 @@ const DESIGN_ROWS = [
                           cowlLoops: P => Math.max(2, Math.round(+P.cowlLoops || 0)) } } },
       // HULL-B22: ON THE FIN (the Seawind's): a tractor at the fin's leading edge on a tube mount into the fin's spars; the
       // nose and the tail faired; a first cut with no cowl (the bare engine on its mount)
-      { value: 'fin', label: 'On the fin', icon: ICON.mountPusher,
+      { value: 'fin', label: 'On the fin', icon: ICON.mountPusher, hide: () => !SEA_LAB(),
         note: 'a tractor on the fin\'s leading edge (the Seawind): the thrust line high over the CG',
         // (HULL-B25, the user: "take the one of the first plane, so the very simple one, the linear one ... the nacelle in
         // non-pusher mode, so it will be closed"): the straight pod (NACELLE_POD, sealed to the engine), its tail cone
@@ -1636,7 +1640,7 @@ const DESIGN_ROWS = [
       // HULL-B15: THE TANDEM (the user: "some push-pull ... maybe with a single mount for two engines"): two engines
       // back to back on one over-the-wing pylon, the front pulling, the rear pushing - the Seastar's; centreline thrust
       // over a high wing, the nose and the tail faired, the pods the straight nacelle
-      { value: 'tandem', label: 'Push-pull (one pylon)', icon: iconTopEngines(false, 0, true),
+      { value: 'tandem', label: 'Push-pull (one pylon)', icon: iconTopEngines(false, 0, true), hide: () => !SEA_LAB(),
         note: 'two engines back to back on one pylon over the wing, one pulling, one pushing (the Seastar)',
         writes: { cage: Object.assign({ engMount: 7, wgPos: 0, cowlOn: 1, fitNose: 2, cw_aftMode: 1, cw_tailLen: 0.55, aeroAftOn: 1 },
                                       NOSE_AERO, NACELLE_POD) } },
@@ -1885,7 +1889,7 @@ const DESIGN_ROWS = [
       // HULL-B1 (the user, 4 Nov: "Yes to Hull as a fourth Undercarriage option"): THE FUSELAGE IS THE BOAT. The
       // wheel stations off, the floats off, the hull on (_cage_gen.js THE BOAT HULL: the same frames read as keel,
       // chine and gunwale) with a hard chine - the boat rows stay the builder's (Fuselage > boat hull)
-      { value: 'hull', label: 'Hull', after: hullFit,
+      { value: 'hull', label: 'Hull', after: hullFit, hide: () => !SEA_LAB(),
         icon: iconSide({ canopy: 'screen', gear: 'hull' }),
         note: 'the fuselage is the boat: the frames\' bottoms become a planing V with a step',
         writes: { cage: { s1On: 0, s2On: 0, gearFloats: 0, hullOn: 1, crKeel: 3, hullTips: 1 },
@@ -1899,6 +1903,7 @@ const DESIGN_ROWS = [
   // flies; two steps, the pad, rails, sponsons are capabilities still to build (HULL-TYPES §3.6). Greyed until the
   // Undercarriage tile's Hull has made the fuselage a boat
   { key: 'hullForm', label: 'Hull form', kind: 'starter', group: 'structure', status: 'live', once: true,
+    when: P => SEA_LAB() || !!+P.hullOn,   // SEA-OFF
     help: 'the boat\'s bottom: deadrise, step, chine - a starting point, every row stays yours (Fuselage > boat hull)',
     read: P => !+P.hullOn ? null : !+P.hullSteps ? 'stepless' : +P.crKeel < 1 ? 'soft' :
       +P.hullBeta >= 25 ? 'deep' : +P.hullBeta <= 17 ? 'flat' : 'classic',
