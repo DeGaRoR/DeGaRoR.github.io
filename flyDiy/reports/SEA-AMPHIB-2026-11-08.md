@@ -188,3 +188,54 @@ Findings so far:
 | PA-18 floats SEA > mk_sea > SEA | pending | pending | - |
 
 (the build files are byte-identical on base and master: Twin 4b c7a9956a, PA-18 e26c7353)
+
+## 4. What is missing for amphibious floats to really work (a list for SEAPLANES - no code from this tester)
+
+Ordered by dependency. Each item names where today's code stops.
+1. **The record.** The join must carry the row: `fltAmph` -> `spec.gear.floats.amphibian` (true / style), the model,
+   the tyres (main / nose codes, mainN), the axle stations (the drawn `rec.amph.L/R` mainAxle / noseAxle, in the
+   floats' own x-aft-of-step / y-over-keel frame like `floats.x / y`) and the system's mass (`dKg`).
+   `tools/_cage_join.js:427-438, 1498-1501`; `src/core/60_gen_spec.js:5518-5551` must keep and clamp the new keys.
+   Then `stripGear` (`25_airfield.js:1013`) already answers 'amphibian' and the route, map, contracts and storage cards
+   all follow (they read stripGear).
+2. **Wheels in the frame.** `61_gen_frame.js` builds wheels only when `gear.type` is not floats (`:2671`) and the
+   amphibian path `AMPH` (`:2663`) is a hull on a tricycle. A float amphibian needs four (or two + two) wheel nodes with
+   contact radii hung from each float's keel at the drawn stations - mains just aft of the step, noses at the bows -
+   tied into the float's own structure, `refs.mains` / `refs.tw` (the nose pair as the steering contact) and
+   `parts.amph` set, so that the solver's land / water switch (`30_solver.js:4210-4232`) and the AP's surface rule
+   (`43_pilot.js:854`) work unchanged.
+3. **The retraction.** `params.retract` for a float amphibian (the hydraulic pump of the Wipline system; the time),
+   `gearStep` lifting each wheel by its MEASURED rise (the drawn fold: main up into the well, nose forward to the bow
+   bumper) - the `RET.lift` mains / nose split exists (`30_solver.js:1574-1580`). The drawing must follow
+   `sim.out.gear` in the game (today `_cage_float.js:644` reads the editor's `gearPos`, default 1 = down, and the
+   `gearPos` row needs `gearRetract`): the page's float wheels need a swing rig like `gearSwingRig` (app.js).
+4. **The water and the lowered wheels (the floats AND the Petrel).** `WB_CAN = !HY` (`30_solver.js:1857`): a float or
+   hull build never builds the tyres' water model, so a wheels-down water landing is free. The tyre plough
+   (`32_hydro.js:2392`, Cd and the disc segment) has to run beside the float / hull pass for the wheel nodes alone,
+   scaled by the retraction (`WB.lift`, already written by gearStep). Without it the GUMPS 'up for water' rule has no
+   consequence to protect against - the classic amphibian accident (wheels down on the water: the nose-over) cannot
+   happen.
+5. **The ground under the floats.** Today a float keel on concrete is a high-friction skid (placed probe: 3.2 m moved in
+   30 s at full throttle, 0.12 m/s, no damage). With wheels the keels stand 0.8 R over the ground (142 mm on the 2350's
+   5.00x5) - the gear-up landing on a runway (keels on concrete) should then be the scrape / damage case.
+6. **The weight and the drag.** +`dKg` into the float mass (the Wipline 2350's 73.9 kg on the Cessna; null for six
+   catalogue rows - those need a rule or a number); the wheels' drag down in the air (the retract's `cdA`); the
+   balance moves (the gear's mass forward).
+7. **The ramp.** The KNOWN LIMIT already in HANDOVER: on the surface the AP reads the water under the CG (0.2 m margin),
+   so an amphibian cannot taxi up a ramp out of the water on its wheels. Floats make it more likely (the wheels are
+   under the keels, the keels touch first on a shallow ramp).
+8. **The pilot and the tests.** AMPH-GEAR / GUMPS for floats (`43_pilot.js:3337-3354` reads `parts.amph`: works once
+   item 2 sets it); a gate that flies an amphibious-float build land > water > land (the Cessna + fltAmph 1 from
+   `reports/evidence/SEA-AMPHIB/mk_amph.js` is a ready fixture); RETRACT-LAB: the row stays lab-only until 1-4 land.
+9. **Data gaps** the drawing already admits (`_cage_float.js` `rec.amph.assumed`): stow flush, trunnion height, nose
+   travel, nose rake; `WIPLINE_AMPHIB` dL / dKg null on six rows; the EDO style's geometry from photographs only.
+
+## Browser-needed (node cannot show these)
+
+- B1. The amphibious-float build in the game: are the Wipline / EDO wheels drawn DOWN through the whole flight and on
+  the water (the editor's gearPos default; no swing rig on floats)? Does Digit9 do anything visible? (section 1)
+- B2. The float Cessna's mk_sea taxi capsize (F1) on the GPU: the same at sim t ~605 on the default day?
+- B3. The Petrel's bounding rollout at mk_sea (F2): the pitch-up to ~40 deg and the strike, on screen.
+- B4. The Twin 4b's mk_sea departure loop (F3): where the LINEUP is trying to go.
+- B5. The page files on 15ad5d66 are not rebuilt from SEA-OFF (index.html / dev.html / sw.js / version.json change on
+  `node tools/build.js`): a page loaded from this commit does not carry SEA-OFF's lab gating until the built commit lands.
