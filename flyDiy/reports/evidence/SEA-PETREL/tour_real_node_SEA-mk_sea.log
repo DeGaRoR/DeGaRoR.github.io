@@ -1,0 +1,9 @@
+tour_real_node: superpetrel_V4_1.json (span 9.16 m), damage ON, 552 obstacles + 0 trunks; SEA > mk_sea
+  the game's flight: {"day":{"cloudCover":0.25,"cloudSeed":1,"cloudType":"cuh","date":"2026-06-22","groundAlbedo":0.15,"ozone":300,"rate":1,"rh":0.5,"turbidity":2.8,"utc":0,"wind":{"kts":8,"dirDeg":250,"gust":0.15,"refH":10,"breeze":1}},"shake":true,"stand":null,"mass":591.8,"fuel":72,"damage":true}
+  FAIL SEA > mk_sea           479 s | dep: turned 0 deg, roll 33.5 m in, lift-off 212.5 m | final 2172.9 m / 134.8 m, clear 17.2 m (ground) | td sink 0.36 m/s, 25.6 m/s, run 179 m, off -0.7 m | fuel 70.1 L | FAULTS prop-strike (the propeller struck (water, t 452)) | phases ROLL>LIFTOFF>CLIMB>ENROUTE>DOWNWIND>BASE>FINAL>FLARE>ROLLOUT>STOPPED
+TOUR NOT DONE - 1 legs, 479 s sim, 841 s wall
+-> /tmp/claude-0/sp/smoke.json
+
+real	14m14.618s
+user	14m12.128s
+sys	0m3.281s
