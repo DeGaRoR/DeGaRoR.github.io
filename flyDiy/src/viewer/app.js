@@ -1382,6 +1382,9 @@
   function hviewGain() { if (hview && hview.linear) { const ex = hview.gain(0); if (ex > 0 && renderer.toneMappingExposure > 0) hview.gain(ex / renderer.toneMappingExposure); } }
   const HVIEW_N = { laptop: 768, potato: 768, retro: 768, current: 1024, gamer: 1024, ultra: 1536 };
   const HVIEW_C = [0, 2, 0];          // the capture's eye in the shed's frame: the room's centre, a standing eye
+  // HANGAR-VIEW C (8 Nov, question 6): ?hvc=door captures from 2.5 m inside the doorway (the door at the room's -x, -HD), where the
+  // eyes that look out stand - the parallax exact there instead of at the centre
+  const hvC = () => { try { if (/[?&]hvc=door/.test(location.search || '') && hangar && hangar.dims && hangar.dims.HD > 3) return [-(hangar.dims.HD - 2.5), 1.7, 0]; } catch (e) {} return HVIEW_C; };
   const HVIEW_NEAR = 3000;            // a flight that ended this near the stand left the world there (m)
   // HVIEW-OFF (8 Nov, the user's verdict on the hangars-matched stills: the captured view is not the look - a generic sky,
   // no clouds, the apron smeared): OFF by default, the room's own outdoors as until L35a, until the redesign (flydiy-notes/
@@ -1440,7 +1443,7 @@
     // anchor, as worldSettle) - the camera put back after every face
     const keepEye = camera.position.clone(), first = !hview.staging;
     node.updateMatrixWorld(true);
-    camera.position.set(HVIEW_C[0], HVIEW_C[1], HVIEW_C[2]).applyMatrix4(node.matrixWorld);
+    const C0 = hvC(); camera.position.set(C0[0], C0[1], C0[2]).applyMatrix4(node.matrixWorld);
     craftInWorldNow(() => {
       craft.traverse(o => { if ((o.isMesh || o.isPoints || o.isLine || o.isSprite) && o.visible) { o.visible = false; meshes.push(o); } });   // its lights stay: the programs' key
       try {
@@ -1451,7 +1454,7 @@
             if (G && G.setExposure && base > 0) G.setExposure(renderer, base); renderer.toneMappingExposure = exRoom; }
         }
         const ex = (WF.exposureNow && WF.exposureNow() > 0 ? WF.exposureNow() : WORLD_EXPOSURE) * k;
-        r = hview.capture({ scene, node, C: HVIEW_C, hide: [node], sky: WF.skyDome,
+        r = hview.capture({ scene, node, C: hvC(), hide: [node], sky: WF.skyDome,
           clouds: (typeof CLOUDS !== 'undefined' && CLOUDS.draw) ? CLOUDS.draw : null, faces, exposure: ex, linear: hviewLinear(),
           skyLive: true, shadowRedraw: true });   // HANGAR-VIEW C: the place without its sky (the room's live sky behind it), no shed shadow
       } finally { for (const o of meshes) o.visible = true; camera.position.copy(keepEye); }
