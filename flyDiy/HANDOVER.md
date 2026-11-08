@@ -313551,3 +313551,45 @@ The user, watching the night test: "crazy shimmering of stars both in the sky an
 - atmo.js: an equal-angle cube grid (STAR_N 900, STAR_P 0.047), one star per lit cell at a hashed place, a smooth disc (1-x^2)^2 (no halo) of radius max(uStarK.x px footprints, uStarK.y rad), its height 3F/(pi r^2) so its flux is the same at any size (no change with screen or place); 3x3 neighbour cells (9 hashes a sky pixel instead of 1, the named cost); STAR_LVL 0.03 (the brightest just reach white, the disc's edge shows); no Tview extinction (user: "the fading through denser air" goes); the G2600 moon wash kept; uStarK default (1.5 px, 1.5e-4 rad).
 - water.js: the mirror's sky pass draws the stars at MIR.starsK 10 x the sky's level (= 0.3 of the old field) as 2-capture-px discs.
 - PROOF (flydiy-notes/evidence-2026-10-18/2026-11-04/night-photo/star/pairs): clipped star pixels in a 400x200 sky crop 976 -> 16; the lake's water frame-to-frame change in a pan 3.58 -> 1.16; noon's sky identical (only the HUD differs). Gates on the branch: ATMO LIGHT NIGHTVISIBILITY UILAYER WATER CLOUD PROGRAMS PASS; SHADOWSKY/LOOKS/MEDIA/ASSETS = master's reds, same lines. Tuning stills in star/tune1, tune2 (levels 1 .. 0.008, discs 1 .. 2 px).
+
+## UPRIGHT-FOOT - AN UPRIGHT AERIAL OR BEACON READS THE SKIN UNDER ITS OWN BASE, NOT UNDER ITS HEIGHT (8 Nov, for L35d)
+
+**The fault.** FITTINGS-MANUAL stands an upright aerial or beacon at the LOWEST skin point under its footprint. The
+footprint grid (`_cage_access.js`, the sagitta) was sized by the row's largest size: for the comm blade that is its
+230 mm HEIGHT, so the search ran 150 mm fore and aft of a 90 mm root. On master bddb81b0f the blade's record was 31.2 mm on
+the stock card, 89.7 mm on the Cessna, and 672.9 mm on the rod build (it ran down the cabin's aft step and the whole
+blade vanished into the passenger pillar; still `before_rod_side.png`).
+
+**The fix.**
+- `FG.FIT_BASE` (`_fit_gen.js`) names each upright form's real base: the blade's root section (t across, the chord fore and
+  aft), the wire mast's 14 mm foot ring (the row's `foot` 0.140 is clearance, not base), and the beacon's base ring 0.56 d.
+- The grid reads the skin under that base.
+- The record is the whole rise under the base (`lift - low`), also when nothing lies below the site point. Without that,
+  the blade's root ends stood 4 mm into the pillar band with a record of 0.
+- Other fittings are unchanged (the old `foot` grid).
+
+**The probe** (`flydiy-notes/.../2026-11-08/upright_foot/probe.js`; the `sunk` record in mm, master -> fix):
+
+| build | commAerial | navAerial | xpdrAerial | beacon |
+|---|---|---|---|---|
+| stock | 31.2 -> 8.2 | - | - | - |
+| rod (boomStyle 1) | 672.9 -> 8.2 | - | - | 0 -> 0 |
+| Cessna 172 | 89.7 -> 25.8 | 5.8 -> 0.7 | 8.6 -> 4.4 | - |
+| Cessna + rod | - | 0 -> 0 | 0 -> 0 | 0 -> 0 |
+
+No fitting stands deeper than on master. GATE CLIP's measured depths:
+- the comm blade's deepest vertex is 4.0 mm on stock, rod, stock+ifr and stock+panel (inside its record);
+- the nav aerial's wire end in the fin (stock+ifr) is 9.2 mm on master and 6.5 mm with the fix (the mast stands on its own
+  foot ring, 1.3 mm higher).
+
+**The gates** on b3108c3f8 (`--no-build --jobs=1`):
+- FIT, DESIGN, PARTS, FRAMES and SAVE PASS.
+- CLIP is red on this ready alone, and only for the nav aerial's 6.5 mm against master's 5.9 pin. Master itself is red
+  there at 9.2 mm. With claude/ready/clip-navaerial's re-pin (9.2, L35c) laid over, CLIP PASS.
+- TECH is red on master as on this ready ([pitch:seaplane], one table option with no segment). Not this change.
+- **NOT run: ARCHETYPES** (A0: left out of this slot).
+
+The pin could ratchet down to 6.5 once both are on master.
+
+**Stills** (`quickshot` side, crops around the comm blade): `before_/after_{stock,rod,cessna}_side.png` in
+`flydiy-notes/evidence-2026-10-18/2026-11-08/upright_foot/`.

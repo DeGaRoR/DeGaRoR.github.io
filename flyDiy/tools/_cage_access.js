@@ -1074,9 +1074,13 @@ PAGE.post = ctx => {
         // ...and 9 x 9 (was 5 x 5): a venturi's legs land at 0.34 of its
         // 0.19 m length, between the coarse grid's samples, and its foot
         // sat at the gate's 1.5 mm on the cowl profile's flank
+        // UPRIGHT-FOOT (8 Nov): an upright aerial or beacon reads the skin under its own BASE (FG.FIT_BASE), not
+        // under its largest size - the comm blade's height took the search 150 mm off a 90 mm root and down a step
+        const B0 = upright && FG.FIT_BASE && FG.FIT_BASE[String(row.form)] ? FG.FIT_BASE[String(row.form)](sz) : null;
+        const su = B0 ? B0[0] / 4 : foot * 0.1625, sv = B0 ? B0[1] / 4 : foot * 0.1625;
         let lift = 0, low = 0;
         for (let i = -4; i <= 4; i++) for (let j = -4; j <= 4; j++) {
-          const q = surf(i * foot * 0.1625, j * foot * 0.1625);
+          const q = surf(i * su, j * sv);
           const d = (q[0] - pm[0]) * F.n[0] + (q[1] - pm[1]) * F.n[1] + (q[2] - pm[2]) * F.n[2];
           if (d > lift) lift = d;
           if (d < low) low = d;
@@ -1087,7 +1091,10 @@ PAGE.post = ctx => {
         // skin point under its footprint instead, the high side entering the skin; the depth rides the record
         // (`sunk`), and GATE CLIP allows exactly that much for this fitting.
         if (upright) {
-          if (low < -0.0003) { F = frameAt([pm[0] + F.n[0] * low, pm[1] + F.n[1] * low, pm[2] + F.n[2] * low], F.n); sunk = lift - low; }
+          // (UPRIGHT-FOOT: the depth is the whole rise under the base, lift - low, also where nothing lies below the site
+          // point - on the pillar band the blade root's ends stood 4 mm in with the record at 0)
+          if (low < -0.0003) F = frameAt([pm[0] + F.n[0] * low, pm[1] + F.n[1] * low, pm[2] + F.n[2] * low], F.n);
+          if (lift - low > 0.0003) sunk = lift - low;
         } else if (lift > 0.0003) F = Object.assign({}, F, { p: [pm[0] + F.n[0] * (lift + 0.0003), pm[1] + F.n[1] * (lift + 0.0003), pm[2] + F.n[2] * (lift + 0.0003)] });   // (DOOR-HINGES-2: the frame keeps its along)
       }
       // GATE CLIP reads each fitting's own triangles back out of the
