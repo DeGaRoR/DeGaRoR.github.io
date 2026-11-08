@@ -278,7 +278,7 @@ const PLANES = {
               engineNote: 'O-540 235 hp against the 160-180 hp the references cover' },
   pa18f:    { label: 'PA-18 on floats (official)', file: 'builds/pa18_floats_2026-10-23.json', ref: 'pa18f', official: true, water: true,
               engineNote: 'O-320 150 hp against Wipaire\'s 160 hp; EDO-style seaplane floats against Wipline amphibians' },
-  petrel:   { label: 'Super Petrel V4.1 (claude/hull-types, 7 Nov)', file: 'builds/candidates/superpetrel_V4_1.json', ref: 'petrel', water: true, land: true,
+  petrel:   { label: 'Super Petrel V4.1 (claude/hull-types, 7 Nov)', file: 'builds/candidates/superpetrel_V4_1.json', ref: 'petrel', water: true, land: true, supersededBy: 'petrelL',
               branch: 'claude/hull-types', note: 'not on master: run from a worktree of claude/hull-types (its core, its rows)' },
   chinook:  { label: 'Chinook (official, out of the battery)', file: 'builds/chinook_2026-09-21_corrected.json', ref: 'chinook', official: true },
   // REAL-FIGURES-2 (2026-11-08): the planes with a clear real parent
@@ -292,7 +292,7 @@ const PLANES = {
               note: 'an engine-configuration archetype, never hand-authored to the type: a light check' },
   petrelL:  { label: 'Super Petrel V4.1, land (claude/seaplanes-merge; PROVISIONAL)', file: 'builds/candidates/superpetrel_V4_1.json', ref: 'petrel', land: true,
               branch: 'claude/seaplanes-merge', provisional: true, note: 'not flyable on water on that branch yet: land figures only, to redo once it flies' },
-  c172x:    { label: 'Cessna 172 (corrected, internal)', file: 'builds/cessna172_2026-09-20_corrected.json', ref: 'c172r',
+  c172x:    { label: 'Cessna 172 corrected (internal)', short: 'Cessna 172 corrected', file: 'builds/cessna172_2026-09-20_corrected.json', ref: 'c172r',
               note: 'the 20 Sep corrected 172 (IO-360 dials, 16.5 m2): the like-for-like 172R comparison the official B-CESS cannot be' },
 };
 
@@ -396,6 +396,7 @@ const NOTES = {
   petrelL: ['The same airframe as the 7 Nov run, now with its shape and specs: flown numbers identical to the hull-types run (TO 192 m, climb 2.42 m/s, landing 457 m at 600 kg). Geometry 96 (length -10 %: ours runs from the pusher\'s flange, aft of the bow). Empty 380 kg against 320 (+19 %; the retract gear and the hull bottom), fuel 72 L against 90. <b>PROVISIONAL</b>: land only until it flies off the water on claude/seaplanes-merge. Solo, a 3-4 % static margin.'],
   dc3: ['Span to the centimetre, the right engines, propellers and fuel. <b>Empty 6480 kg against 7650-8300 (-15 to -22 %)</b>: the mass model, light on a big all-metal airliner as it was on the Caravan card. Cruise and top speed ~13 % under figures quoted at altitude (THIN: no sea-level figure); the climb inside at gross on the airframe and the handbook schedule, 18 % short under the game\'s pilot (it climbs 2.3 m/s under the best schedule).',
         '<b>The balance</b>: the CG sits at 50 % MAC with a light load (static margin 15 %) and at 66 % with every seat filled (margin 1 %). At that load the game\'s pilot <b>capsized</b> on the landing; the handbook schedule landed in 598 m. The real DC-3\'s envelope is far forward of that: a mass-and-balance item for the DC-3 build (where the cabin and the baggage bill), worth checking before it is made official.'],
+  skymaster: ['<b>A light check</b>: the engine-configuration archetype was never authored to the 337, and it shows. It is a push-pull twin at about two thirds of the type\'s scale: wing 14.6 m² against 18.8, empty 870 kg against ~1220, a design gross of 1295 kg against 2100, two 180 hp engines against 210. Loaded to the 337\'s gross it stalls at 137 km/h against 106 and climbs 3.5 m/s against 4.8, and the game\'s pilot drops it on landing at that weight. Read as "how far the card is from a Skymaster", not as a model finding.'],
   birdman: ['The Chinook as the user first built it (10.6 m span, 1.41 m prop, the engine aft of the pod; corrected 21 Sep into the official Chinook). <b>It flies where the corrected one does not</b> (the game\'s pilot rejects the corrected Chinook\'s take-off). Its arrivals are drops: the pilot\'s own record gives a 6.3 m/s sink at 39 km/h and a 7 m "roll", so its landing rows are a stall in the flare, not a landing roll. Empty 282 kg against 172-209 (+35 %); climb half the sheet\'s.'],
   petrel: ['Measured on claude/hull-types (7 Nov), before the geometry and specs pass: superseded by the land run on claude/seaplanes-merge below.'],
 };

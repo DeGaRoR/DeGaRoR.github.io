@@ -33,6 +33,10 @@
 //            --sweep=mtow|typ|min (the load the technique sweep is flown at; default mtow), --cg (forward / aft cases),
 //            --noland / --nowater (an amphibian's halves), --core=<flight_core.js> (another tree's core)
 //   RUNTIME (measured 2026-11-07 on the cloud box, 4 cores, the set in parallel): see the report's own table.
+//   THE REPORT (REAL-FIGURES-2): write each plane's JSON into reports/evidence/REAL-CHECK-<date>/ (a `--quick` run's JSON as
+//   <key>.shape.json re-measures the shape and specs of a plane flown before), then `node tools/real_report.js` writes the
+//   HTML report (the scores on geometry, specs and performance are defined there). An archetype card is a PLANES row with
+//   `card: '<key>'`; a plane on another branch (`branch:`) is flown from a worktree of that branch with these two files copied in.
 //
 // RULES IT KEEPS: the build goes through the load door (_load_build.js: the page's own chain) - a raw file flies a
 // different plane; nothing in the core is changed or patched (every override is a pilot schedule in def.params.ap /

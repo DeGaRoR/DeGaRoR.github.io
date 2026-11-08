@@ -196,6 +196,7 @@ function biasDots(list) {
     const y = 6 + i * rh;
     s += '<text class="lab" x="' + (L - 8) + '" y="' + (y + 16) + '" text-anchor="end">' + esc(LABEL[k]) + '</text><line class="gridl" x1="' + L + '" x2="' + (W - 20) + '" y1="' + (y + 12) + '" y2="' + (y + 12) + '"/>';
     list.forEach((p, j) => {
+      if (p.light) return;
       const it = p.sc.items.performance.find(q => q.k === k); if (!it) return;
       const jit = ((j % 5) - 2) * 3;
       s += '<circle class="dot ' + VCLS[it.verdict] + '" cx="' + X(it.err) + '" cy="' + (y + 12 + jit) + '" r="5"><title>' + esc(p.short + ' ' + LABEL[k] + ': ' + pctS(it.err) + ' outside the band (' + it.verdict + ', ' + it.src + ')') + '</title></circle>';
@@ -205,7 +206,7 @@ function biasDots(list) {
 }
 // the pilot's share: landing roll and climb, game vs best vs reference
 function pilotBars(list) {
-  const rows = list.filter(p => p.o.pilotShare && p.o.sweep);
+  const rows = list.filter(p => p.o.pilotShare && p.o.sweep && (num(p.o.pilotShare.game.LDG) || num(p.o.sweep.best.LDG)) && !p.light);
   if (!rows.length) return '<p class="muted">No technique sweep in these results.</p>';
   const W = 640, rh = 34, L = 150, H = rows.length * rh + 40;
   const vmax = Math.max(...rows.map(p => Math.max(p.o.pilotShare.game.LDG || 0, p.o.sweep.best.LDG || 0, refMid(p, 'LDG') || 0))) * 1.08;
@@ -217,6 +218,7 @@ function pilotBars(list) {
     s += '<text class="lab" x="' + (L - 8) + '" y="' + (y + 16) + '" text-anchor="end">' + esc(p.short) + '</text>';
     if (num(g)) s += '<rect class="bar s2" x="' + L + '" y="' + (y + 3) + '" width="' + Math.max(2, X(g) - L) + '" height="10" rx="2"><title>' + esc(p.short) + ': the game\'s pilot ' + f(g) + ' m</title></rect>';
     if (num(b)) s += '<rect class="bar s1" x="' + L + '" y="' + (y + 15) + '" width="' + Math.max(2, X(b) - L) + '" height="10" rx="2"><title>' + esc(p.short) + ': the best schedule ' + f(b) + ' m</title></rect>';
+    if (!num(g)) { const fl = p.o.flights && p.o.flights[p.o.pilotShare.load]; s += '<text class="tick" x="' + (L + 4) + '" y="' + (y + 12) + '">the game\'s pilot: ' + esc(fl && fl.game ? fl.game.outcome : 'no landing') + '</text>'; }
     if (num(r)) s += '<line class="refmark" x1="' + X(r) + '" x2="' + X(r) + '" y1="' + y + '" y2="' + (y + 28) + '"><title>reference ' + f(r) + ' m</title></line>';
   });
   return s + '</svg>';
@@ -257,9 +259,9 @@ function heatmap(list) {
 // ---- the written conclusion (computed) + the campaign's own findings (real_refs NOTES) -------------------------------
 function conclusion(list) {
   const sc = list.map(p => p.sc), mean = a => { const b = a.filter(num); return b.length ? b.reduce((x, y) => x + y, 0) / b.length : null; };
-  const full = list.filter(p => !p.partial).map(p => p.sc);
+  const full = list.filter(p => !p.partial && !p.light).map(p => p.sc);
   const mG = mean(full.map(s => s.geometry)), mS = mean(full.map(s => s.specs)), mP = mean(full.map(s => s.performance)), mO = mean(full.map(s => s.overall));
-  const ranked = list.filter(p => p.sc.overall != null && !p.partial).slice().sort((a, b) => b.sc.overall - a.sc.overall);
+  const ranked = list.filter(p => p.sc.overall != null && !p.partial && !p.light).slice().sort((a, b) => b.sc.overall - a.sc.overall);
   const bias = {};
   // (the systematic biases leave out the planes on another engine than their parent's: their power rows are the build's
   // choice, which the specs axis already scores)
@@ -267,7 +269,7 @@ function conclusion(list) {
   const biasL = Object.entries(bias).filter(([k, a]) => a.length >= 3).map(([k, a]) => ({ k, n: a.length, m: mean(a), out: a.filter(e => Math.abs(e) > 0.10).length }))
     .sort((a, b) => Math.abs(b.m) - Math.abs(a.m));
   let h = '<div class="tiles">' +
-    '<div class="tile"><div class="big">' + chip(mO) + '</div><div class="lab2">overall, mean of ' + ranked.length + ' complete planes</div></div>' +
+    '<div class="tile"><div class="big">' + chip(mO) + '</div><div class="lab2">overall, mean of ' + ranked.length + ' planes (light checks left out)</div></div>' +
     '<div class="tile"><div class="big">' + chip(mG) + '</div><div class="lab2">geometry</div></div>' +
     '<div class="tile"><div class="big">' + chip(mS) + '</div><div class="lab2">specs</div></div>' +
     '<div class="tile"><div class="big">' + chip(mP) + '</div><div class="lab2">performance</div></div></div>';
@@ -327,7 +329,7 @@ function legendBands() {
 }
 function planeSection(p) {
   const o = p.o, R = REFS[o.ref] || {}, sc = p.sc;
-  let h = '<section class="card" id="p-' + esc(p.key) + '"><div class="plane-head"><div><h3>' + esc(o.label) + '</h3><div class="muted">against the ' + esc(R.name || o.ref) + (o.provisional ? ' · <b>provisional</b>' : '') + (p.light ? ' · <b>light check</b>' : '') + '</div></div>' +
+  let h = '<section class="card" id="p-' + esc(p.key) + '"><div class="plane-head"><div><h3>' + esc(p.label) + '</h3><div class="muted">against the ' + esc(R.name || o.ref) + (o.provisional ? ' · <b>provisional</b>' : '') + (p.light ? ' · <b>light check</b>' : '') + '</div></div>' +
     '<div class="scores">' + ['geometry', 'specs', 'performance', 'overall'].map(a => '<span title="' + a + '">' + a[0].toUpperCase() + ' ' + chip(sc[a], a) + '</span>').join('') + '</div></div>';
   if (o.note || o.engineNote) h += '<p class="muted">' + esc([o.note, o.engineNote].filter(Boolean).join(' · ')) + '</p>';
   h += notesBlock(p.key);
@@ -395,8 +397,8 @@ function historySection() {
 
 function main() {
   const res = loadResults();
-  const order = Object.keys(PLANES).filter(k => res[k]).concat(Object.keys(res).filter(k => !PLANES[k]));
-  const list = order.map(k => { const o = res[k], P = PLANES[k] || {}; return { key: k, o, label: o.label || P.label || k, short: (o.label || P.label || k).replace(/\s*\(.*\)\s*$/, ''), light: k === 'skymaster' || !!P.light, sc: scorePlane(o) }; });
+  const order = Object.keys(PLANES).filter(k => res[k] && !(PLANES[k].supersededBy && res[PLANES[k].supersededBy])).concat(Object.keys(res).filter(k => !PLANES[k]));
+  const list = order.map(k => { const o = res[k], P = PLANES[k] || {}; return { key: k, o, label: P.label || o.label || k, short: P.short || (P.label || o.label || k).replace(/\s*\(.*\)\s*$/, ''), light: k === 'skymaster' || !!P.light, sc: scorePlane(o) }; });
   const date = opt('date', new Date().toISOString().slice(0, 10));
   const title = opt('title', 'Real Check');
   for (const p of list) p.partial = p.sc.geometry == null || p.sc.specs == null || p.sc.performance == null;
@@ -411,7 +413,7 @@ function main() {
   html += '<h4>Overall score, ranked</h4>' + overallBars(sorted);
   html += '<h2 id="stats">The statistics</h2>';
   html += '<h4>Verdicts per plane (every indicator and reading)</h4><div class="legend"><span><span class="sw" style="background:var(--good)"></span>● inside</span><span><span class="sw" style="background:var(--warn)"></span>▲ near</span><span><span class="sw" style="background:var(--bad)"></span>■ outside</span></div>' + verdictStack(list);
-  html += '<h4>Where the set is off: each plane\'s deviation, indicator by indicator</h4><p class="muted">One dot per plane: 0 = inside the reference band, otherwise how far outside its edge. The shaded zone is ±10 %. A column of dots on one side is a model-wide bias, not one plane\'s.</p>' + biasDots(list);
+  html += '<h4>Where the set is off: each plane\'s deviation, indicator by indicator</h4><p class="muted">One dot per plane (light checks left out): 0 = inside the reference band, otherwise how far outside its edge. The shaded zone is ±10 %. A column of dots on one side is a model-wide bias, not one plane\'s.</p>' + biasDots(list);
   html += '<h4>The pilot\'s share: the landing roll</h4><div class="legend"><span><span class="sw" style="background:var(--s2)"></span>the game\'s pilot</span><span><span class="sw" style="background:var(--s1)"></span>the best schedule (same pilot, handbook braking)</span><span><span class="sw" style="border:2px dashed var(--ink)"></span>reference</span></div>' + pilotBars(list);
   html += '<h2 id="next">Conclusions and next steps</h2><div class="card">' + (notesBlock('_conclusion') || '<p class="muted">No written conclusion in real_refs.js NOTES._conclusion.</p>') + '<h4>Next steps</h4>' + (notesBlock('_next') || '<p class="muted">None written.</p>') + '</div>';
   html += '<h2 id="planes">Plane by plane</h2>' + list.map(planeSection).join('');
