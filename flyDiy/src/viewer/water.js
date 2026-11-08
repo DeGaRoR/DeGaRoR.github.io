@@ -1039,7 +1039,7 @@ const WATER = (() => {
     ringOffset: false, ringFar: 4000, skyK: 1, skyGain: 0, ringSky: true,
     // (round 2, A0 19 Oct: 'a ring near the shore' - HOME must pay nothing) over land the ring fades by the eye's distance to WATER, gone by ringIn m inland
     ringIn: 150, waterD: 0,
-    starsK: 0.3, starPx: 2.0 };   // STAR-LOVE: the stars in the mirror's sky - their share of the light, their discs' radius in capture pixels
+    starsK: 10, starPx: 2.0 };   // STAR-LOVE: the stars in the mirror's sky - x their level in the sky (10 x the dome's STAR_LVL 0.03 = 0.3 of the old field's light: the user's 'quite lower'), their discs' radius in capture pixels
   // G2620 THE PRE-EXPOSURE: a capture holds the radiance of the P it was taken at - a switch re-captures at once
   if (typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.onPre) LIGHT_RIG.onPre(() => { MIR.last = null; });
   const mirrorTmp = {};

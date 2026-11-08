@@ -747,7 +747,10 @@ ${MIST_GLSL}
         float pxA = 0.5 * (length(dFdx(d)) + length(dFdy(d)));      // the pixel's footprint, radians
         float cellA = 1.5707963 / STAR_N;                            // a cell, radians (at the face's centre; ~0.7 of it at a corner)
         float sr = min(max(uStarK.y, uStarK.x * pxA), 0.7 * cellA);
-        float sK = 3.0 / (3.14159265 * sr * sr) * 1.5e-5 * 0.015 * (12.5663706 / (6.0 * STAR_N * STAR_N)) / STAR_P;
+        // STAR_LVL: the field at 0.03 of the old one's light - the old stars were 30 x and more over the screen's white at night (every star a clipped white
+        // pixel, the user's "white pixels"); at 0.03 the brightest just reach white and the disc's soft edge shows (measured 8 Nov, the tune2 stills)
+        const float STAR_LVL = 0.03;
+        float sK = STAR_LVL * 3.0 / (3.14159265 * sr * sr) * 1.5e-5 * 0.015 * (12.5663706 / (6.0 * STAR_N * STAR_N)) / STAR_P;
         float wash = clamp(uEMoon / 2.5e-6, 0.0, 1.0) * smoothstep(-0.02, 0.1, uMoon.y);
         vec3 sAcc = vec3(0.0);
         vec3 fid = fax * (fsg + 2.0);
@@ -799,7 +802,7 @@ ${MIST_GLSL}
   // ---- the GPU half ---------------------------------------------------------
   const G = { ready: false, enabled: false, texT: null, texMS: null, rtSky: null, rtAP: null, quad: null, cam: null, skyMat: null, apMat: null, atmU: null };
   const U = {                                   // shared uniform objects (one value each, every consumer reads them)
-    sun: null, moon: null, eMoon: { value: 0 }, r: { value: 6360.0 }, scale: { value: 1 }, stars: { value: 1 }, starK: { value: { x: 1.0, y: 1.5e-4 } },
+    sun: null, moon: null, eMoon: { value: 0 }, r: { value: 6360.0 }, scale: { value: 1 }, stars: { value: 1 }, starK: { value: { x: 1.5, y: 1.5e-4 } },
     glare: { value: 1 }, eyeY: { value: 0 },
     lutGain: { value: 1 },   // A6: 2^(the exposure's stops) - the sky-view and AP tables are stored x this so a night sky (1e-6 of the sun) is not a half float's subnormal (the white bands on the night horizon)
     veil: { value: new Float32Array([0, 0, 0, 9000]) }, veilSun: { value: new Float32Array(3) }, veilSky: { value: new Float32Array(3) },   // CLOUDS C4
