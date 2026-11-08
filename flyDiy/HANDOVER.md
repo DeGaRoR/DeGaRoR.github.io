@@ -312869,3 +312869,6 @@ The committed baseline was from 15 Sep: 13 cells, before the ctl-rev column. It 
 - ENGCONFIG's quad downwind wings-level and the three example cards;
 - gps-bill (G2809's 8 reverted commits);
 - the floats Cessna 2-full full-flap go-around on cessna-tail (FLAGSHIP, 8 Nov).
+
+### PILOTMATRIX: the 3 bad cells are a TEMPORARY ratchet (Pilot, 8 Nov, after A0)
+The baseline moved in G2813 holds the Stearman's take-off control reversals (stearman:HOME:calm / x2 / x4, 114-130 /min) as bad. That is a real pilot fault, not a new normal. The ratchet only stops it getting worse until it is fixed. It is on Pilot's list this week, after NODE-ACCEPT. Its fix moves those 3 cells forward by hand again.
