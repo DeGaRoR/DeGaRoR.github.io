@@ -63,6 +63,11 @@ const P={
   // lobes / cut
   lobeN:2, lobeAmp:0.022, lobeAz:0, lobeSig:34.0, lobeT:0.45, lobeTSig:0.3,
   cutSpan:0, cutAz:270.0,
+  // PROPER-COWLS (2026-11-08): the cooling air's and the exhaust's way out at the bottom of the aft edge (the user:
+  // "very often there is a cut in the cowl at the bottom aft part, so that the exhaust can go through ... they make
+  // the cowl a bit bigger at the bottom, so that there is a gap there"). All off (0) by default: every cowl drawn
+  // before them is drawn to the bit.
+  exitGap:0, exitSpan:140, exitLen:0.45, exCut:0, exCutSpan:50, exCutLen:0.12, exCutAz:270,
   // chin scoop
   scoopOn:1, scoopZ:0, scoopW:0.065, scoopH:0.055, scoopLen:0.22, scoopDrop:0.7,
   scoopAp:0.68, scoopSq:0.5, scoopRake:0.18,
@@ -399,10 +404,25 @@ function lobeAt(th,z){
   for(const az of azs) d+=P.lobeAmp*w*Math.exp(-Math.pow(angDiff(th,az)/(P.lobeSig*DEG),2));
   return d;
 }
+/* THE EXIT FLARE: the bottom of the aft edge stands out by exitGap over a sector exitSpan wide round the bottom, the
+   offset fading out (smoothly) over the first exitLen of the cowl's length - the cowl a little bigger than the
+   fuselage where the air and the exhaust leave. The firewall fold follows (it is built on surfPoint). */
+function exitAt(th,z){
+  if(!(P.exitGap>0)) return 0;
+  const half=Math.max(5,P.exitSpan)*DEG/2, a=Math.abs(angDiff(th,-Math.PI/2));
+  if(a>=half) return 0;
+  const wa=Math.pow(Math.cos(a/half*Math.PI/2),2);
+  const u=clamp(z/Math.max(1e-3,P.exitLen*zEnd()),0,1);
+  return P.exitGap*wa*(1-smooth(u));
+}
+/* THE EXHAUST CUT: a notch in the aft edge, exCutSpan wide round exCutAz (270 = the bottom), exCutLen deep */
+function inExCut(th,z){
+  return P.exCut>0 && z<P.exCutLen && Math.abs(angDiff(th,P.exCutAz*DEG))<P.exCutSpan*DEG/2;
+}
 function surfPoint(th,z){
   const s=sectionAtZ(z);
   let [x,y]=sectPt(th,s);
-  const d=lobeAt(th,z);
+  const d=lobeAt(th,z)+exitAt(th,z);
   if(d){const L=Math.hypot(x,y)||1; x+=x/L*d; y+=y/L*d;}
   return [x, s.cy+y];
 }
@@ -584,6 +604,7 @@ function buildSurface(group,mats,aps){
   for(let i=0;i<R-1;i++){
     for(let j=0;j<SEG;j++){
       if(cutA>0 && Math.abs(angDiff(AZ[j]+angDiff(AZ[(j+1)%SEG],AZ[j])/2,cutC))<cutA/2) continue;
+      if(P.exCut>0 && inExCut(AZ[j]+angDiff(AZ[(j+1)%SEG],AZ[j])/2, 0.5*(pz[i][j]+pz[i+1][j]))) continue;
       const j2=(j+1)%SEG;
       let poly=[V(i,j),V(i,j2),V(i+1,j2),V(i+1,j)];
       let gv=[[i,j],[i,j2],[i+1,j2],[i+1,j]];
@@ -758,6 +779,7 @@ function buildFirewallLip(group,mats){
     cur = i<kS ? OUT : IN;
     for(let j=0;j<S;j++){
       if(cutA>0 && Math.abs(angDiff(AZ[j]+angDiff(AZ[(j+1)%S],AZ[j])/2,cutC))<cutA/2) continue;
+      if(P.exCut>0 && inExCut(AZ[j]+angDiff(AZ[(j+1)%S],AZ[j])/2, 0)) continue;
       const j2=(j+1)%S;
       const A=V[i][j], B=V[i][j2], C=V[i+1][j2], D=V[i+1][j];
       tri(A,B,C); tri(A,C,D);
@@ -1470,6 +1492,6 @@ function cowlSizeToEngine(env, opt) {
   return r;
 }
 
-const COWL_API = { TAU, P, MATERIALS, PRESETS, lerp, clamp, smooth, sqExp, superPt, angDiff, SEG, zEnd, lidRadius, spineY, bez, mkCurve, eSqAftTop, eSqAftBot, eDeckH, eKeelH, eWaist, prepareLid, seamInset, sectionAtZ, sectPt, lobeAt, surfPoint, sectF, pierceZ, equalise, prepareMesh, apertureList, fitAperture, apG, buildSurface, aftStart, fwGeom, fwLipProfile, sectNormal2, buildFirewallLip, lipProfile, buildLips, buildDetail, cowlNormalAt, loftRings, fan, buildScoop, buildAft, spinProfile, coneBaseZ, axisXY, bladePlaneZ, coneRadiusAtBlade, buildNose, naca, airfoilLoop, propGeometry, cowlFitEngine, cowlApplyEngine, cowlSizeToEngine };
+const COWL_API = { exitAt, inExCut, TAU, P, MATERIALS, PRESETS, lerp, clamp, smooth, sqExp, superPt, angDiff, SEG, zEnd, lidRadius, spineY, bez, mkCurve, eSqAftTop, eSqAftBot, eDeckH, eKeelH, eWaist, prepareLid, seamInset, sectionAtZ, sectPt, lobeAt, surfPoint, sectF, pierceZ, equalise, prepareMesh, apertureList, fitAperture, apG, buildSurface, aftStart, fwGeom, fwLipProfile, sectNormal2, buildFirewallLip, lipProfile, buildLips, buildDetail, cowlNormalAt, loftRings, fan, buildScoop, buildAft, spinProfile, coneBaseZ, axisXY, bladePlaneZ, coneRadiusAtBlade, buildNose, naca, airfoilLoop, propGeometry, cowlFitEngine, cowlApplyEngine, cowlSizeToEngine };
 if (typeof module !== 'undefined') module.exports = COWL_API;
 if (typeof window !== 'undefined') window.COWL_GEN = COWL_API;

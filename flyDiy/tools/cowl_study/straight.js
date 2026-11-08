@@ -68,7 +68,10 @@ const FACE = {
   // a boxer: two inlets over the cylinder banks, either side of the spinner (Cessna 172, Jodel, Cherokee)
   // (h the front's smaller half-size, a its half-width, v its half-height: the pair sits over the banks, in the width)
   flat:     (h, a, v) => ({ cw_apMode: 2, cw_pairX: 0.58 * a, cw_pairW: 0.20 * a, cw_pairH: 0.22 * v, cw_pairY: 0.10 * v,
-                    cw_pairSq: 0.7, cw_lipMode: 0 }),
+                    cw_pairSq: 0.7, cw_lipMode: 0,
+                    // the carburettor's intake under the nose (the user's Cub and C172 carry one)
+                    cw_scoopOn: 1, cw_scoopZ: 0.05, cw_scoopSq: 0.55, cw_scoopRake: 0.1, cw_scoopAp: 0.7,
+                    cw_scoopW: 0.16 * a, cw_scoopH: 0.12 * v }),
   // a Rotax 9xx: the boxer's pair for the heads' air, and the radiator / oil cooler's mouth under the spinner
   // (Ikarus C42, Zenith 750, Tecnam P92, Bristell) - the mouth is the chin scoop at the face
   rotax:    (h, a, v) => ({ cw_apMode: 2, cw_pairX: 0.58 * a, cw_pairW: 0.17 * a, cw_pairH: 0.18 * v, cw_pairY: 0.08 * v,
@@ -116,6 +119,9 @@ function measure(spec, over) {
   const CW = W.COWL_GEN, ax = CW && CW.axisXY ? CW.axisXY() : { x: 0, y: 0 };
   const m = { S, P, W, ax, env, name: E && E.name, arch: R && R.arch, zFw: E && E.zFw, unit: u0, face,
               mount: Math.round(+P.engMount || 0), errors: S.errors, cyl: R && R.cyl };
+  // the drawn exhaust's way out, in the face's frame (x, y about its centre, z forward of it)
+  const ex = E && E.exhaustAt;
+  if (ex && face) m.exhaust = { x: ex[0], y: ex[1] - face.yc, z: (+P.engMount === 1 ? -1 : 1) * (ex[2] - face.z) };
   m.verts = drawnEngine(m);
   m.drawn = drawnReach(m);
   m.bumps = (aW, zE) => radialBumps(m, aW, zE);
@@ -294,6 +300,24 @@ function rowsFor(spec, o) {
     out.cw_waistF = type === 'radial' ? 0 : +Math.max(-0.85, Math.min(0.85, (W - cE) / hF)).toFixed(3);
     front = Math.min(a1, hF); frontW = a1; frontH = hF;
     out._sec = sec;
+    // V4 (the user, 8 Nov): THE BOTTOM EASES - "you make it very linear ... It is more rounded at the bottom ... have a
+    // look at the Cessna": the keel bends from 55 % of the barrel and rounds into the face (the user's own: Cub 0.85,
+    // C172 0.30, busher 0.55)
+    out.cw_keelSweep = 0.55;
+    // THE WAY OUT AT THE BOTTOM: a piston's cooling air and its exhaust leave under the aft edge - the cowl stands a
+    // little proud of the fuselage there (exitGap, about 6 % of the firewall's half-height, 1.5-4 cm, fading over the
+    // first 40 % of the cowl), and the aft edge is notched where the drawn exhaust leaves
+    if (m.mount === 0 && type !== 'electric' && type !== 'turbine') {
+      out.cw_exitGap = +Math.max(0.015, Math.min(0.04, 0.06 * aH)).toFixed(3);
+      out.cw_exitSpan = 150; out.cw_exitLen = 0.4;
+      const ex = m.exhaust;
+      if (ex && ex.y < 0) {
+        const az = ((Math.atan2(ex.y - 0.5 * T, ex.x) * 180 / Math.PI) + 360) % 360;
+        out.cw_exCut = 1; out.cw_exCutAz = +Math.max(200, Math.min(340, az)).toFixed(0);
+        out.cw_exCutSpan = 46;
+        out.cw_exCutLen = +Math.max(0.06, Math.min(0.3, ex.z + 0.06)).toFixed(3);
+      }
+    }
   } else if (mode === 'pod') {
     // OFF THE BODY (the user, 8 Nov): straight, sized to the DRAWN engine (its top hardware, its sides; exhaust stubs
     // may leave underneath), the section the engine's own - a boxer wider than high, an in-line higher than wide and
@@ -370,7 +394,7 @@ function rowsFor(spec, o) {
 // a straight 'match' needs the front section = the fitted aft section: one fitted build, then copy
 function finish(spec, over, type) {
   if (!over) return over;
-  if (over.fitNose !== 1) return fitCheeks(spec, over, type);
+  if (over.fitNose !== 1) return fitCheeks(spec, placeScoop(spec, over), type);
   const m = measure(spec, over);
   const P = m.P, o = Object.assign({}, over);
   if (o.cw_sqFrontTop == null) { o.cw_sqFrontTop = +(+P.cw_sqAftTop).toFixed(3); o.cw_sqFrontBot = +(+P.cw_sqAftBot).toFixed(3); }
@@ -379,7 +403,28 @@ function finish(spec, over, type) {
   if (o._waist != null) { o.cw_waist = o._waist; o.cw_deckH = 1; o.cw_keelH = 1; }
   delete o._waist;
   o.fitNose = 2;
-  return fitCheeks(spec, o, type);
+  return fitCheeks(spec, placeScoop(spec, o), type);
+}
+
+// THE CHIN SCOOP, SEATED (the user, 8 Nov: "better rules for the chin scoop ... something robust that doesn't throw a
+// little shit somewhere"): its length held to the part of the cowl where the keel is still the barrel's (not the bowl
+// rounding up into the face), and its height set from the keel ITSELF along that span - the scoop's top a third of
+// its height inside the skin at the keel's highest point under it, so no end of it floats or digs in. The generator
+// places it by `scoopDrop` x the half-height at mid-barrel: that is solved for here, from the built cowl.
+function placeScoop(spec, o) {
+  if (!+o.cw_scoopOn) return o;
+  const m = measure(spec, o), CW = m.W.COWL_GEN, Pc = CW.P;
+  const ze = CW.zEnd(), cl = Pc.cowlLen, L = Pc.lidLen;
+  const len = Math.min(+o.cw_scoopLen || 0.25, 0.5 * cl);
+  const zMouth0 = cl + L * 0.35;
+  const z1 = zMouth0 - (+o.cw_scoopZ || 0) * (zMouth0 - len), z0 = z1 - len;
+  let keelHi = -Infinity;
+  for (let k = 0; k <= 12; k++) { const z = z0 + (z1 - z0) * k / 12, sc = CW.sectionAtZ(z); keelHi = Math.max(keelHi, sc.cy - sc.bB); }
+  const h = +o.cw_scoopH || Pc.scoopH, target = keelHi + h * (1 / 3) - h;   // the scoop's centre: its top 1/3 h inside
+  const bB = CW.sectionAtZ(cl * 0.5).bB, sY = CW.spineY(ze * 0.6);
+  const out = Object.assign({}, o, { cw_scoopLen: +len.toFixed(3) });
+  out.cw_scoopDrop = +Math.max(0.2, Math.min(1.2, (sY - target) / Math.max(bB, 1e-3))).toFixed(3);
+  return out;
 }
 
 // CHEEKS WHERE THE HEADS STAND PROUD (the user's own method, G180: "add a couple of lobes for a boxer and tune them
