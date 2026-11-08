@@ -311,7 +311,13 @@ if (MAIN) (async () => {
         const msg = w.lab + ': the worst cut ' + f3(worst(w.pk).r) + ' (' + worst(w.pk).tag + ' ' + worst(w.pk).kind + ', ' + worst(w.pk).mode + '); the floats\' roots ' + flt + '; damage on: '
           + (w.cl.length ? w.cl.map(c => c.tag + ' ' + c.cut + ' by ' + c.why + ' at ' + f2(c.t) + ' s').join(', ') : 'no cluster parts') + '; groups ' + (w.groups.join(' ') || '-') + (w.crashed ? '; CRASHED (' + w.reason + ')' : '');
         if (!w.severe && k === 'twinFloats') yes(w.finite && w.cl.length === 0 && worst(w.pk).r < 1, msg);
-        else if (w.boom) yes(w.finite && w.cl.length > 0 && w.cl[0].tag === 'ROD' && w.cl[0].cut === 'root', msg + ' - the boom (ROD) parts first, at its root');
+        // MASTER-GREEN 8 Nov (re-pinned): since G2640 (t52c, on master in t57 14 Oct: _cage_join measures the fin where it is
+        // drawn - vX 5.14 -> 4.30 m, 0.84 m nearer the boom root) the root reaches 0.962 of its limit here and HOLDS (it was
+        // 1.003 when this row was written, 7 Oct). The overload still lands where the structure says: the worst cut of the
+        // airframe is the boom's root, in bending, held to a band round the measured 0.962 - under 0.93 or a part = red
+        else if (w.boom) { const wb = worst(w.pk);
+          yes(w.finite && wb.tag === 'ROD' && wb.kind === 'root' && wb.mode === 'bend' && wb.r >= 0.93 && w.cl.length === 0 && wb.r < 1,
+              msg + ' - the overload lands on the boom (ROD) root, in bending, at 0.93-1.00 of its limit (0.962 since G2640 drew the fin where it is), nothing parts'); }
         else { yes(w.finite, msg + ' - finite'); rep(w.lab + ': the float fittings ' + (w.cl.some(c => /^FLT/.test(c.tag)) || w.groups.some(g => /^float/.test(g)) ? 'LET GO' : 'held') + ' (§7.4)'); }
       }
     }

@@ -117,7 +117,13 @@ function holdBuild(id, S) {
     check(n === 0, id + ': ' + p.key + '/' + p.side + ' is on the glass', n + ' of ' + verts.length + ' vertices over a glazed face');
     let tag = p.key + '/' + p.side + ' ' + n + '/' + verts.length;
     if (p.key === 'doorHandle' && !p.onFrame) {
-      const rec = recs.find(r => (r.sgn > 0 ? 'star' : 'port') === p.side) || recs[0];
+      // its OWN door: the door on its side whose chord run (aft..fwd edge) holds the handle, else the nearest one
+      // (MASTER-GREEN 8 Nov: the twin has two doors a side, pax0 and pilot; the first door on the side was taken
+      // for every handle and the pilot door's handle, 9 cm in from its own latch edge, read "on the hinge edge")
+      const FSr = S.FS, gap = r => { const za = (r.aft.A[2] + r.aft.B[2]) * 0.5 * FSr, zf = (r.fwd.A[2] + r.fwd.B[2]) * 0.5 * FSr;
+        const lo = Math.min(za, zf), hi = Math.max(za, zf); return p.p[2] < lo ? lo - p.p[2] : p.p[2] > hi ? p.p[2] - hi : 0; };
+      const mine = recs.filter(r => (r.sgn > 0 ? 'star' : 'port') === p.side);
+      const rec = (mine.length ? mine : recs).slice().sort((a, b) => gap(a) - gap(b))[0];
       if (rec) {
         const FS = S.FS, yTop = Math.max(...verts.map(v => v[1]));
         const ys = [].concat(rec.top.pts, rec.bot.pts).map(q => q[1] * FS), y0 = Math.min(...ys), y1 = Math.max(...ys);
