@@ -243,7 +243,7 @@ var COVER_RING = (() => {
     // string each, and split every live cell's key back into numbers to test its reach
     const cellKey = (cx, cz) => (cx + 32768) * 65536 + (cz + 32768);
     const protos = new Map();           // species key -> [{ key, w, parts:[{geo, mat}], h, kind }]
-    const STAT = { built: 0, lastMs: 0, maxMs: 0, live: 0, queued: 0, instances: 0, agl: 0, mixAt: null, by: {}, scarSkip: 0 };
+    const STAT = { built: 0, lastMs: 0, maxMs: 0, live: 0, queued: 0, instances: 0, agl: 0, mixAt: null, by: {}, scarSkip: 0, floorSkip: 0 };
     let flowerTex = new Map();
     const root = new THREE.Group(); root.name = 'coverRing'; scene.add(root);
 
@@ -746,6 +746,7 @@ var COVER_RING = (() => {
           const place = c.place || {}, l = place.lift === undefined ? 1 : place.lift, k3 = gk * 3, j = 1 + (rJ * 2 - 1) * S.vary;
           col = lifted([G.col[k3], G.col[k3 + 1], G.col[k3 + 2]], l).map(v => v * j);
         }
+        if (ctx.floorAt && ctx.floorAt(x, z)) { STAT.floorSkip++; continue; }   // SHED-FLOOR: not on a standing shed's floor (after the draws)
         let it = items.get(p); if (!it) { it = { p, xs: [], col: [], rand: [] }; items.set(p, it); }
         it.xs.push(x, G.hAt(x, z), z, h / p.h0, rY * 6.2831853, 0, 0); it.col.push(col[0], col[1], col[2]); it.rand.push(rand);
       }
@@ -784,7 +785,7 @@ var COVER_RING = (() => {
       const items = new Map();   // proto -> { pos: [], col: [] | null }
       // the instance record: x y z s yaw tx tz - tx/tz the ground's slope under a rock that `tilt`s to it (0 0 = upright)
       // (G2358: none where a crash scarred the ground - after the draws, so the cell's stream is the same either way)
-      const push = (p, x, y, z, s, yaw, col, tx, tz) => { if (SCR.n && scarCut(p.kind, x, z)) { STAT.scarSkip++; return; } let it = items.get(p); if (!it) { it = { p, xs: [], col: col ? [] : null }; items.set(p, it); } it.xs.push(x, y, z, s, yaw, tx || 0, tz || 0); if (col) it.col.push(col[0], col[1], col[2]); };
+      const push = (p, x, y, z, s, yaw, col, tx, tz) => { if (SCR.n && scarCut(p.kind, x, z)) { STAT.scarSkip++; return; } if (ctx.floorAt && ctx.floorAt(x, z)) { STAT.floorSkip++; return; } let it = items.get(p); if (!it) { it = { p, xs: [], col: col ? [] : null }; items.set(p, it); } it.xs.push(x, y, z, s, yaw, tx || 0, tz || 0); if (col) it.col.push(col[0], col[1], col[2]); };
       // THE LAWN (a plot's, kind 1): the dry tuft short and dense - the height from the plot's rule (0.10-0.15 m),
       // LAWN_D tufts a m2 x the rule's density factor - on the lawn nodes alone, the biome's rows skip them
       if (G.lawn > 0) {
@@ -1277,6 +1278,11 @@ var COVER_RING = (() => {
       lakeMargin: () => (FIELD ? Math.max(0, +S.lakeMargin || 0) : 0.3),   // G2572: render_world okAt reads it (both rings), no copy a call
       field: FIELD,
       replant: () => { for (const k of [...cells.keys()]) dropCell(k); for (const b of [...blocks.values()]) buildBlock(b); growing.length = 0; },
+      // SHED-FLOOR: only the cells a box touches (a shed stood or came down: render_world floorsChanged) - dropped, so the
+      // ring plants them again on its budget, nearest first, with what the land test now says
+      replantBox: (x0, z0, x1, z1) => { const C = S.cell; let n = 0;
+        for (const [k, cell] of [...cells]) { const ax = cell.cx * C, az = cell.cz * C; if (ax <= x1 && ax + C >= x0 && az <= z1 && az + C >= z0) { dropCell(k); n++; } }
+        return n; },
       rockPlan,                                                           // the rock map's read (above)
       // G2358 (DMG-SCAR): a crash's scar (its primitives; null or [] lets it go) - the cull above, once; scarIn(x, z, kind):
       // is an instance of that kind cut there (the gate's read)
