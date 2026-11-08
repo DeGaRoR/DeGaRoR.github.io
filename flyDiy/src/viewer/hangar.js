@@ -354,7 +354,8 @@ const skyAlb = sheet(256, 256, (g, W, H) => {
 });
 // the ribs: the roof sheet's own profile (corrNrm, 16 ribs a metre) at the panel's width - its own transform, the
 // same image
-const skyNrm = corrNrm.clone(); skyNrm.repeat.set(58 / 16, 1); skyNrm.needsUpdate = true;   // (58 ribs: the albedo's valleys)
+const skyNrm = corrNrm && corrNrm.clone ? (() => { const t = corrNrm.clone(); if (t.repeat) t.repeat.set(58 / 16, 1); t.needsUpdate = true; return t; })()
+  : corrNrm;                                                          // (58 ribs: the albedo's valleys; GATE HANGAR's stub sheet has no clone)
 
 const woodAlb = sheet(512, 512, (g, W, H) => {
   g.fillStyle = '#8a6b47'; g.fillRect(0, 0, W, H);
