@@ -40,6 +40,11 @@ const APPROACH = { sec: +opt('approach', 0), x: +String(opt('approach-at', '-290
 // with --approach-from 4000, --approach 100) and, the flight held, the free camera on the town's tree centroid from inside,
 // its edge, 400 m and 1.3 km out (the aeroplane and the UI hidden), named <side>_<build>_<view>.jpg
 const SHOTS = opt('shots', null);
+// TOWN-1 (2026-11-08, A0: "no wreck"): the rig's taxi + 60 m pass at HOME left the Cub a wreck ("short of Jolene 13/31",
+// broke up) before the approach, on both sides. --approach-first: the approach right after the roll-out (the aeroplane as it
+// rolled out), then the pass, no taxi; --pass-h <m>: the pass's height over HOME's ground (master_bench's 60 by default).
+// Every scene logs the aeroplane's state before and after it (intact: no ending latched, the structure's own summary).
+const APP_FIRST = argv.includes('--approach-first'), PASS_H = +opt('pass-h', 60);
 const FRAMES = argv.includes('--frames') || !!PROF, TOGGLE = opt('toggle', null) ? fs.readFileSync(opt('toggle'), 'utf8') : null;
 let FD = null; try { FD = require('../frame_dist.js'); } catch (e) {}
 // every recorder row in [t0, t1], columnar
@@ -123,12 +128,18 @@ const CHECK = `JSON.stringify((() => { const P = WORLD && WORLD.premises; const 
     const row = { side, build: bk, garage: l.sec, rollout: tr.wall, firstFlight: +(l.sec + tr.wall).toFixed(1), rollFrames: tr.frames, links: lk, hwGarage: hwG };
     log('garage ' + l.sec + ' s, roll-out ' + tr.wall + ' s, first flight ' + row.firstFlight + ' s (links ' + lk.n + ', worst ' + lk.worstS + ' s, ' + lk.over5s + ' > 5 s)' + (hwG ? ', houses: built ' + hwG.built + ' hits ' + hwG.hits + ' misses ' + hwG.misses + ' gen ' + hwG.genMs + ' ms' : ''));
     await b.ev(MB.A.cam('chase'));
-    row.taxi = await scene('taxi', SEC.taxi, PROF && 'taxi'.includes(PROF), side === 'T' || side === 'C');
-    const ph = await b.ev(MB.A.pass(home, 42), 20000).catch(e => 'error ' + e.message); await sleep(3000);
-    row.pass = await scene('pass', SEC.pass, PROF && 'pass'.includes(PROF)); row.pass.pilot = ph;
+    const state = async () => JSON.parse(await b.ev("JSON.stringify((() => { const P = FLIGHT_PROBE; let st = null; try { st = P.structural ? P.structural() : null; } catch (e) {}"
+      + " return { over: !!(P.over && P.over()), phase: P.ap ? P.ap().phase : null, crash: !!(P.damage && P.damage()), st: st ? JSON.stringify(st).slice(0, 160) : null }; })())").catch(() => 'null'));
+    const intact = async (s, when) => { const x = await state(); if (s) (s.state || (s.state = {}))[when] = x; log('  aeroplane ' + when + ' ' + (s ? s.scene : '') + ': ' + JSON.stringify(x)); return x; };
+    const passH = () => { const p = MB.A.pass(home, 42), q = p.replace(') + 60, z]', ') + ' + PASS_H + ', z]'); if (PASS_H !== 60 && q === p) throw new Error('--pass-h: master_bench pass changed'); return q; };
+    const doTaxi = async () => { const x = await intact(null, 'before'); row.taxi = await scene('taxi', SEC.taxi, PROF && 'taxi'.includes(PROF), side === 'T' || side === 'C'); row.taxi.state = { before: x }; await intact(row.taxi, 'after'); };
+    const doPass = async () => { if (APP_FIRST) { await b.ev(passH(), 20000).catch(() => 0); await sleep(12000); }   // (approach-first: HOME is ~9 km off; a first placement streams it, the measured one 12 s on)
+      const x = await intact(null, 'before'); const ph = await b.ev(passH(), 20000).catch(e => 'error ' + e.message); await sleep(3000);
+      row.pass = await scene('pass', SEC.pass, PROF && 'pass'.includes(PROF)); row.pass.pilot = ph; row.pass.state = { before: x }; await intact(row.pass, 'after'); };
+    const doApproach = async () => {
     // G2063 (TOWN-GEO): --approach <sec> [--approach-at x,z] [--approach-from m]: the aeroplane put `from` metres (8000) from a
     // point (Metlakatla's middle) at 300 m over it, flying at it - the town's deferred patch and roads build on the way in
-    if (APPROACH.sec > 0) {
+    if (APPROACH.sec > 0) { const x0 = await intact(null, 'before');
       const ap = await b.ev(`(async () => { const W = FLIGHT_PROBE.world(), tx = ${APPROACH.x}, tz = ${APPROACH.z}, d = ${APPROACH.from}, hx = (tx - ${home ? home.x : 0}), hz = (tz - ${home ? home.z : 0}), l = Math.hypot(hx, hz) || 1;
         const x = tx - hx / l * d, z = tz - hz / l * d, h = W.terrainH ? W.terrainH(x, z) : 0;
         await FLIGHT_PROBE.place({ at: [x, Math.max(h, 0) + 300, z], zeroV: true, dv: [hx / l * 45, 0, hz / l * 45] }); FLIGHT_PROBE.setManual(true); FLIGHT_PROBE.setManual(false);
@@ -139,7 +150,10 @@ const CHECK = `JSON.stringify((() => { const P = WORLD && WORLD.premises; const 
       row.approach = await scene('approach', APPROACH.sec, PROF && 'approach'.includes(PROF)); row.approach.placed = ap;
       await Promise.all(sh);
       row.approach.geo = JSON.parse(await b.ev("JSON.stringify((() => { const P = WORLD.premises; return P ? { pending: P.geoPending ? P.geoPending() : null, townGeo: P.stats.townGeo || null } : null; })())").catch(() => 'null'));
+      row.approach.state = Object.assign({ before: x0 }, row.approach.state || {}); await intact(row.approach, 'after');
     }
+    };
+    if (APP_FIRST) { await doApproach(); await doPass(); } else { await doTaxi(); await doPass(); await doApproach(); }
     // TOWN-1: the town's trees up close, composed (2026-11-08, A0: "close before/after stills ... at the town edge where the old
     // 64 m cells popped"): the flight held, the aeroplane and the page's UI hidden, the free camera (FLIGHT_PROBE.devFree) on the
     // line from the town's tree centroid toward the way in (HOME): inside the town, at its edge, 400 m out and 1.3 km out (past
@@ -196,7 +210,7 @@ const CHECK = `JSON.stringify((() => { const P = WORLD && WORLD.premises; const 
   // the table: per side and build, the medians of its runs
   const med = a => { const s = a.filter(x => x != null).sort((p, q) => p - q); return s.length ? (s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2) : null; };
   console.log('\nside build  | garage  first-flight | TAXI fps uneven p99 worst task | PASS fps uneven p99 worst task (each: the runs\' median; worst = the max)');
-  for (const bk of WANT) for (const side of ['A', 'B', 'P']) { const rs = R.rows.filter(r => r.side === side && r.build === bk); if (!rs.length) continue;
+  for (const bk of WANT) for (const side of ['A', 'B', 'M', 'P']) { const rs = R.rows.filter(r => r.side === side && r.build === bk); if (!rs.length) continue;
     const g = (k, s) => rs.map(r => r[s] && r[s].st ? r[s].st[k] : null), mx = a => Math.max(...a.filter(x => x != null));
     console.log([side, bk.padEnd(5), med(rs.map(r => r.garage)), med(rs.map(r => r.firstFlight)), '|', med(g('fps', 'taxi')), med(g('uneven', 'taxi')), med(g('p99', 'taxi')), mx(g('worst', 'taxi')), mx(g('taskWorst', 'taxi')),
       '|', med(g('fps', 'pass')), med(g('uneven', 'pass')), med(g('p99', 'pass')), mx(g('worst', 'pass')), mx(g('taskWorst', 'pass'))].join(' ')); }
