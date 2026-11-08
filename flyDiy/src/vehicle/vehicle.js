@@ -363,10 +363,13 @@ function makeVehicle(def, world, opts) {
   // the springs at their static length (so it settles in a few tenths of a second, not from a drop)
   function place(x, z, hdg) {
     const fx = Math.cos(hdg), fz = Math.sin(hdg);
-    // the ground's plane over the wheelbase and the track
+    // the ground's plane over the wheelbase and the track, centred on the AXLES' midpoint (MASTER-GREEN 8 Nov: the baked
+    // sheet's origin is 0.21 m ahead of it - a plane sampled about the origin put the back sample 0.21 m behind the rear
+    // tyres, and over a ledge they still stand on it tilted the car 29 deg nose-up off its front wheels)
     const L = def.wb / 2 + 0.3, Wd = def.track / 2 + 0.2;
-    const hF = H(x + fx * L, z + fz * L), hB = H(x - fx * L, z - fz * L);
-    const hR = H(x - fz * Wd, z + fx * Wd), hL = H(x + fz * Wd, z - fx * Wd);
+    const xm = (def.steer.xSt + def.steer.xRef) / 2, cx = x + fx * xm, cz = z + fz * xm;
+    const hF = H(cx + fx * L, cz + fz * L), hB = H(cx - fx * L, cz - fz * L);
+    const hR = H(cx - fz * Wd, cz + fx * Wd), hL = H(cx + fz * Wd, cz - fx * Wd);
     const fwd0 = vNorm([fx * 2 * L, hF - hB, fz * 2 * L]);
     const rt0 = vNorm([-fz * 2 * Wd, hR - hL, fx * 2 * Wd]);
     const up = vNorm(vCross(rt0, fwd0));

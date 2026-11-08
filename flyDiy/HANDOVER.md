@@ -312894,3 +312894,19 @@ DMGGLASS (headless Chromium) not run: A0 asked for node only.
 - twin4b_front_bubble_before_after.png: the dome's outline from the front is unchanged.
 
 Both are node quickshot (flat shading, which shows every facet). Not looked at on the graphics card or in the game.
+
+## MASTER-GREEN VEHICLE (Game coordinator, 8 Nov 2026): GATE VEHICLE green - one re-pin, one fault
+
+Red since 11 Oct (12 Oct note above: "NEXT ROUND: read wb / track / r / the axle x from the sheet"). Done here:
+- **DEF, a STALE PIN, re-pinned to the sheet.** The gate pinned the authored placeholder (wb 3.01, track 1.41, r 0.35);
+  the car's bake (G2908, car_prep.py, 11 Oct 18:56, A0: "the drawn model wins") wrote the measured 3.0143 / 1.4123 /
+  0.3501. DEF now checks the definition against src/cars/car_conquer.json itself (wb from the axle centres to 1e-9, the
+  sheet's wheelbase field to 0.5 mm, the track and every radius exact); mass, the 56 % front, the 2 s park and the
+  driven / steered wheels as before. The motion that moved it: the bake, which was meant.
+- **AIRBORNE, a REAL FAULT in src/vehicle/vehicle.js place().** It sampled the ground's plane about the body's origin,
+  assuming the axles symmetric about it; the baked sheet's origin is 0.21 m ahead of the axles' midpoint. place()
+  now centres the plane on the axles. The ledge row stood the car with its rears on the edge (the fixed ledge at 0.6 m
+  hung them only for the placeholder's -1.505 rear axle): the car now stands settled on the flat and the ground goes
+  0.2 m ahead of the rear axle, the same assertions (no drive off the ground, the fronts on). HILL's park 0.10 -> 0.08
+  mm with the plane fix. The vehicle is node only (not in the page, not in MANIFEST.core: BITS).
+- GATE VEHICLE: PASS, 14/14.
