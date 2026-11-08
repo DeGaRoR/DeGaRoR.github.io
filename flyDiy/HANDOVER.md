@@ -312632,10 +312632,13 @@ of the game allows me to load and edit it, and supports the wider range, allowin
   was not run. No gate is named EDITOR; EDBUGS, PARTS, DESIGN and SAVE cover the editor.
 - **ONE FLIGHT CHANGE, the DC-3 only (accepted by A0, an experiment with no certificate):** its drawn fin (vHeight
   4.30 m) flew clamped to 4.0 m on master, and the load said so. It now flies as drawn.
-- **FOUND, on master too, NOT fixed here (ENGINE-GAP, DEFORM, L35b):** the DC-3's R-1830 bore and stroke (0.1397) sit
-  off the 0.001 slider grid. A touch of either row flips the engine to the model's own facts, named "custom Radial
-  14-cyl": 1040 kW, 711 kg, gear 1. The registry row says 895 kW, 750 kg, gear 1.78, so a touch gives +16 % power and
-  the prop at 2700 rpm instead of 1517. Also named: the prop row reaches 4.2 m against prop.D's clamp of 4.0.
+- **FOUND, on master too, NOT fixed here (ENGINE-GAP, DEFORM, L35b):** under a catalogue engine the geometry rows
+  (bore, stroke...) are hidden and the registry row flies, so the page cannot touch the R-1830's bore. The reachable
+  jump is the switch to "custom engine" to edit the geometry: the R-1830's own dials then fly the model's facts.
+  Measured headless with one hidden dial moved, which makes the load audit flip the engine to custom: "custom Radial
+  14-cyl", 1040 kW, 711 kg, gear 1, against the registry row's 895 kW, 750 kg, gear 1.78. That is about +16 % power,
+  with the prop at 2700 rpm instead of 1517. The switch itself is measured in ENGINE-GAP's slot. Also named: the prop
+  row reaches 4.2 m against prop.D's clamp of 4.0.
 - **GATES** (fc0c0190c, 8 Nov 03:25, nice'd beside SEAPLANES-LAND):
   - PASS: SPECFIX, DESIGN, SAVE, PARTS, EDBUGS, WINGROWS, FIN, COWL, JOIN, GEAR, FRAMES, FLOATKIT, BAY, NACLAG.
   - Red, master's own (re-run on master cad308635, the same lines and the same hashes; only the ms timings differ):
