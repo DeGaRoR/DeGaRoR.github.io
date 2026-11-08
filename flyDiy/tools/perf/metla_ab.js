@@ -52,9 +52,17 @@ const CEN_ON = "(() => { const R = FLIGHT_PROBE.renderer(), C = window.__CEN || 
   + " const sh = mat.isMeshDepthMaterial || mat.isMeshDistanceMaterial || mat === obj.customDepthMaterial || mat === obj.customDistanceMaterial, rt = R.getRenderTarget();"
   + " const k = (t === obj ? '-' : (t.name || t.type)) + '|' + (n ? n.name : '') + '|' + fill + '|' + (mat.name || mat.type) + '|' + (geo.index ? geo.index.count : geo.attributes.position ? geo.attributes.position.count : 0) + (obj.isInstancedMesh ? 'i' : '') + '|' + (sh ? 'shadow' : rt ? 'rt' : 'main');"
   + " C.m.set(k, (C.m.get(k) || 0) + 1); } catch (x) {} } return C.orig.apply(this, arguments); }; }"
-  + " const tick = () => { if (!C.on) return; C.f++; requestAnimationFrame(tick); }; requestAnimationFrame(tick); return 1; })()";
+  + " if (!C.rorig) { C.rorig = R.render; R.render = function (sc, cam) { const C = window.__CEN; if (C.on && cam === FLIGHT_PROBE.camera()) C.f++; return C.rorig.apply(this, arguments); }; } C.t = 0; const tick = () => { if (!C.on) return; C.t++; requestAnimationFrame(tick); }; requestAnimationFrame(tick); return 1; })()";
 const CEN_OFF = "(() => { const C = window.__CEN; if (!C) return 'null'; C.on = false; const f = Math.max(1, C.f), a = [...C.m].map(([k, v]) => [k, +(v / f).toFixed(2)]).sort((p, q) => q[1] - p[1]);"
-  + " return JSON.stringify({ frames: C.f, perFrame: +a.reduce((s, x) => s + x[1], 0).toFixed(1), keys: a.slice(0, 600) }); })()";
+  + " return JSON.stringify({ frames: C.f, ticks: C.t, perFrame: +a.reduce((s, x) => s + x[1], 0).toFixed(1), keys: a.slice(0, 600) }); })()";
+// TOWN-1 8 Nov: the B page of the 17:45 run drew ~13 calls a frame with its world loaded and the aeroplane intact (sky
+// only, chase and free views): the render state at each check - the camera's frustum terms and the draws per main render
+// over 1.5 s - and a side under 60 draws is BLANK (logged, marked on the row, never a cost)
+const RSTATE = "(async () => { const R = FLIGHT_PROBE.renderer(), cam = FLIGHT_PROBE.camera(); let n = 0, f = 0; const o = R.renderBufferDirect, r0 = R.render;"
+  + " const mine = function () { n++; return o.apply(this, arguments); }, mineR = function (sc, c) { if (c === cam) f++; return r0.apply(this, arguments); };"
+  + " R.renderBufferDirect = mine; R.render = mineR; await new Promise(r => setTimeout(r, 1500)); if (R.renderBufferDirect === mine) R.renderBufferDirect = o; if (R.render === mineR) R.render = r0;"
+  + " const fin = m => m.elements.every(Number.isFinite), p = cam.position;"
+  + " return JSON.stringify({ draws: f ? +(n / f).toFixed(1) : null, renders: f, cam: { fov: cam.fov, near: cam.near, far: cam.far, aspect: +(+cam.aspect).toFixed(3), layers: cam.layers.mask, proj: fin(cam.projectionMatrix), world: fin(cam.matrixWorld), pos: [p.x, p.y, p.z].map(Math.round) } }); })()";
 const cenTop = c => { if (!c || !c.keys) return String(c); const g = {}; for (const [k, v] of c.keys) { const p = k.split('|'), kk = p[0] + '|' + p[5]; g[kk] = (g[kk] || 0) + v; }
   return c.frames + ' fr, ' + c.perFrame + ' draws/frame: ' + Object.entries(g).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([k, v]) => k + ' ' + v.toFixed(1)).join(', '); };
 // TOWN-1 (2026-11-08, A0: "no wreck"): the rig's taxi + 60 m pass at HOME left the Cub a wreck ("short of Jolene 13/31",
@@ -147,7 +155,7 @@ const CHECK = `JSON.stringify((() => { const P = WORLD && WORLD.premises; const 
     await b.ev(MB.A.cam('chase'));
     const state = async () => JSON.parse(await b.ev("JSON.stringify((() => { const P = FLIGHT_PROBE; let st = null; try { st = P.structural ? P.structural() : null; } catch (e) {}"
       + " return { over: !!(P.over && P.over()), phase: P.ap ? P.ap().phase : null, crash: !!(P.damage && P.damage()), st: st ? JSON.stringify(st).slice(0, 160) : null }; })())").catch(() => 'null'));
-    const intact = async (s, when) => { const x = await state(); if (s) (s.state || (s.state = {}))[when] = x; log('  aeroplane ' + when + ' ' + (s ? s.scene : '') + ': ' + JSON.stringify(x)); return x; };
+    const intact = async (s, when) => { const x = await state(); if (x) { x.render = JSON.parse(await b.ev(RSTATE, 10000).catch(() => 'null')); if (x.render && x.render.draws != null && x.render.draws < 60) { log('  BLANK RENDER ' + when + ' ' + (s ? s.scene : '') + ': ' + JSON.stringify(x.render)); (row.blank || (row.blank = [])).push(when + (s ? ' ' + s.scene : '')); } } if (s) (s.state || (s.state = {}))[when] = x; log('  aeroplane ' + when + ' ' + (s ? s.scene : '') + ': ' + JSON.stringify(x)); return x; };
     const passH = () => { const p = MB.A.pass(home, 42), q = p.replace(') + 60, z]', ') + ' + PASS_H + ', z]'); if (PASS_H !== 60 && q === p) throw new Error('--pass-h: master_bench pass changed'); return q; };
     const doTaxi = async () => { const x = await intact(null, 'before'); row.taxi = await scene('taxi', SEC.taxi, PROF && 'taxi'.includes(PROF), side === 'T' || side === 'C'); row.taxi.state = { before: x }; await intact(row.taxi, 'after'); };
     const doPass = async () => { if (APP_FIRST) { await b.ev(passH(), 20000).catch(() => 0); await sleep(12000); }   // (approach-first: HOME is ~9 km off; a first placement streams it, the measured one 12 s on)
@@ -239,7 +247,7 @@ const CHECK = `JSON.stringify((() => { const P = WORLD && WORLD.premises; const 
   // G1435: per row, the frames' read (each half when toggled): the cap's share, the unevenness at 30 alone, the ladder
   if (FRAMES) { console.log('\nrow | scene half | uneven (all) | uneven@30 | caps | ladder (x16.7 ms) | p99 | even-frame / long-frame work, gpu, calls');
     R.rows.forEach((r, i) => { for (const s of [r.taxi, r.pass, r.approach].filter(Boolean)) for (const [k, h] of Object.entries(s.halves || {})) {
-      const B2 = h.by || {}; console.log([i + ':' + r.side, r.build, s.scene, k, s.st ? s.st.uneven : '-', h.uneven30, JSON.stringify(h.caps), JSON.stringify(h.ladder), h.dist ? h.dist.p99 : '-',
+      const B2 = h.by || {}; console.log([i + ':' + r.side + (r.blank ? ' BLANK' : ''), r.build, s.scene, k, s.st ? s.st.uneven : '-', h.uneven30, JSON.stringify(h.caps), JSON.stringify(h.ladder), h.dist ? h.dist.p99 : '-',
         (B2.even ? B2.even.work + '/' + B2.even.gpu + '/' + B2.even.calls : '-') + ' | ' + (B2.long ? B2.long.n + 'fr ' + B2.long.work + '/' + B2.long.gpu + '/' + B2.long.calls : '-')].join(' ')); } }); }
   console.log('\n  -> ' + OUT);
   process.exit(0);
