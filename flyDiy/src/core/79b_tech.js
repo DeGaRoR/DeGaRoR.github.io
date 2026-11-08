@@ -73,6 +73,7 @@ const TECH_TABLE = {
   'cfg:twin': 2,
   'prop:wood': 1, 'prop:maple': 1, 'prop:walnut': 1, 'prop:alu': 1, 'prop:carbon': 1,
   'pitch:climb': 1, 'pitch:standard': 1, 'pitch:cruise': 1,
+  'pitch:seaplane': 1,   // (G3445 FLOAT-KIT, 22 Oct: the float prop's fine pitch, added after the table - off the shelf as every pitch, and floats are 1)
   // ---- systems / avionics
   'fit:minimal': 1, 'fit:basic': 1, 'fit:custom': 1, 'fit:ifr': 2,
   'elec.battery:none': 1, 'elec.battery:lead': 1, 'elec.battery:lithium': 3,
