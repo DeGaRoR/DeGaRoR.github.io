@@ -1,0 +1,385 @@
+{
+ "what": "flydiy-fiches",
+ "fiches": {
+  "design:cub": {
+   "name": "Piper Cub",
+   "data": {
+    "name": "Piper Cub",
+    "reg": "F-BCUB",
+    "dims": {
+     "span": 10.7,
+     "length": 6.93,
+     "height": 2.69
+    },
+    "wings": 1,
+    "gear": "taildragger",
+    "fuelL": 44,
+    "engine": "a65_sensenich74",
+    "nEngines": 1,
+    "seats": 2,
+    "specs": {
+     "empty": 354.76827650311765,
+     "allUp": 476.44827650311765,
+     "Vs": 15.984574324473728,
+     "VCruise": 31.4,
+     "climb": 2.9686593197894764,
+     "TORun": 157,
+     "engine": "Continental A-65",
+     "propD": 1.91,
+     "propBlades": 2
+    },
+    "pxPerM": 84.132
+   },
+   "pics": {
+    "hero": "design_cub/hero.webp",
+    "above": "design_cub/above.webp",
+    "side": "design_cub/side.webp",
+    "plan": "design_cub/plan.webp",
+    "front": "design_cub/front.webp",
+    "cutaway": "design_cub/cutaway.webp"
+   }
+  },
+  "design:jodel": {
+   "name": "Jodel D112",
+   "data": {
+    "name": "Jodel D112",
+    "reg": "F-PJDL",
+    "dims": {
+     "span": 8.32,
+     "length": 5.88,
+     "height": 2.67
+    },
+    "wings": 1,
+    "gear": "taildragger",
+    "fuelL": 45,
+    "engine": "a65_sensenich74",
+    "nEngines": 1,
+    "seats": 2,
+    "specs": {
+     "empty": 341.78226931171525,
+     "allUp": 464.1822693117153,
+     "Vs": 18.83823970121611,
+     "VCruise": 35.2,
+     "climb": 2.544304779722994,
+     "TORun": 206,
+     "engine": "Continental A-65",
+     "propD": 1.83,
+     "propBlades": 2
+    },
+    "pxPerM": 108.146
+   },
+   "pics": {
+    "hero": "design_jodel/hero.webp",
+    "above": "design_jodel/above.webp",
+    "side": "design_jodel/side.webp",
+    "plan": "design_jodel/plan.webp",
+    "front": "design_jodel/front.webp",
+    "cutaway": "design_jodel/cutaway.webp"
+   }
+  },
+  "list:5": {
+   "name": "Metal Cessna",
+   "data": {
+    "name": "Metal Cessna",
+    "reg": "B-CESS",
+    "dims": {
+     "span": 11.02,
+     "length": 8.27,
+     "height": 2.55
+    },
+    "wings": 1,
+    "gear": "tricycle",
+    "fuelL": 212,
+    "engine": "o540_hartzell",
+    "nEngines": 1,
+    "seats": 4,
+    "specs": {
+     "empty": 709.8404387009701,
+     "allUp": 1062.4804387009701,
+     "Vs": 24.25791678628078,
+     "VCruise": 54,
+     "climb": 5.675427797418751,
+     "TORun": 222,
+     "engine": "Lycoming O-540-B2C5",
+     "propD": 2.06,
+     "propBlades": 2
+    },
+    "pxPerM": 81.654
+   },
+   "pics": {
+    "hero": "list_5/hero.webp",
+    "above": "list_5/above.webp",
+    "side": "list_5/side.webp",
+    "plan": "list_5/plan.webp",
+    "front": "list_5/front.webp",
+    "cutaway": "list_5/cutaway.webp"
+   }
+  },
+  "list:39": {
+   "name": "Metal Cessna on floats",
+   "data": {
+    "name": "Metal Cessna on floats",
+    "reg": "B-CESS",
+    "dims": {
+     "span": 11.02,
+     "length": 8.65,
+     "height": 3.19
+    },
+    "wings": 1,
+    "gear": "floats",
+    "fuelL": 212,
+    "engine": "o540_hartzell",
+    "nEngines": 1,
+    "seats": 4,
+    "specs": {
+     "empty": 841.9129158302791,
+     "allUp": 1194.5529158302804,
+     "Vs": 25.721547994294276,
+     "VCruise": 55.7,
+     "climb": 6.66337394091438,
+     "TORun": 1138,
+     "engine": "Lycoming O-540-B2C5",
+     "propD": 2.083,
+     "propBlades": 2
+    },
+    "pxPerM": 81.654
+   },
+   "pics": {
+    "hero": "list_39/hero.webp",
+    "above": "list_39/above.webp",
+    "side": "list_39/side.webp",
+    "plan": "list_39/plan.webp",
+    "front": "list_39/front.webp",
+    "cutaway": "list_39/cutaway.webp"
+   }
+  },
+  "cand:Twin_busher_floats_4b.json": {
+   "name": "Twin busher floats 4b",
+   "data": {
+    "name": "Twin busher floats 4b",
+    "reg": "F-FORE",
+    "dims": {
+     "span": 10.75,
+     "length": 7.42,
+     "height": 3.42
+    },
+    "wings": 1,
+    "gear": "floats",
+    "fuelL": 114,
+    "engine": "rotax916_carbon",
+    "nEngines": 1,
+    "seats": 4,
+    "specs": {
+     "empty": 577.8306820772748,
+     "allUp": 819.9106820772748,
+     "Vs": 23.12815661218526,
+     "VCruise": 47.4,
+     "climb": 5.553046187293997,
+     "TORun": 1151,
+     "engine": "Rotax 916 iS",
+     "propD": 1.91,
+     "propBlades": 3
+    },
+    "pxPerM": 83.741
+   },
+   "pics": {
+    "hero": "cand_Twin_busher_floats_4b.json/hero.webp",
+    "above": "cand_Twin_busher_floats_4b.json/above.webp",
+    "side": "cand_Twin_busher_floats_4b.json/side.webp",
+    "plan": "cand_Twin_busher_floats_4b.json/plan.webp",
+    "front": "cand_Twin_busher_floats_4b.json/front.webp",
+    "cutaway": "cand_Twin_busher_floats_4b.json/cutaway.webp"
+   }
+  },
+  "list:7": {
+   "name": "Rufus",
+   "data": {
+    "name": "Rufus",
+    "reg": "F-PGAR",
+    "dims": {
+     "span": 9.87,
+     "length": 6.17,
+     "height": 2.55
+    },
+    "wings": 1,
+    "gear": "taildragger",
+    "fuelL": 16,
+    "engine": "rotax912_warp",
+    "nEngines": 1,
+    "seats": 1,
+    "specs": {
+     "empty": 275.1610253936501,
+     "allUp": 366.6810253936503,
+     "Vs": 14.738617596417482,
+     "VCruise": 33.1,
+     "climb": 4.871822799581268,
+     "TORun": 77,
+     "engine": "Rotax 912 UL",
+     "propD": 1.91,
+     "propBlades": 2
+    },
+    "pxPerM": 91.23
+   },
+   "pics": {
+    "hero": "list_7/hero.webp",
+    "above": "list_7/above.webp",
+    "side": "list_7/side.webp",
+    "plan": "list_7/plan.webp",
+    "front": "list_7/front.webp",
+    "cutaway": "list_7/cutaway.webp"
+   }
+  },
+  "stock:chinook": {
+   "name": "Chinook",
+   "data": {
+    "name": "Chinook",
+    "reg": "C-ICHK",
+    "dims": {
+     "span": 9.76,
+     "length": 5.25,
+     "height": 2.95
+    },
+    "wings": 1,
+    "gear": "taildragger",
+    "fuelL": 38,
+    "engine": "rotax582_ivo",
+    "nEngines": 1,
+    "seats": 2,
+    "specs": {
+     "empty": 235.43036000309868,
+     "allUp": 352.7903600030986,
+     "Vs": 16.382367689072005,
+     "VCruise": 36.1,
+     "climb": 5.275795243912129,
+     "TORun": 109,
+     "engine": "Rotax 582 + 2.62 red.",
+     "propD": 1.73,
+     "propBlades": 3
+    },
+    "pxPerM": 92.248
+   },
+   "pics": {
+    "hero": "stock_chinook/hero.webp",
+    "above": "stock_chinook/above.webp",
+    "side": "stock_chinook/side.webp",
+    "plan": "stock_chinook/plan.webp",
+    "front": "stock_chinook/front.webp",
+    "cutaway": "stock_chinook/cutaway.webp"
+   }
+  },
+  "cand:stol_cub_showcase.json": {
+   "name": "STOL Cub",
+   "data": {
+    "name": "STOL Cub",
+    "reg": "F-STOL",
+    "dims": {
+     "span": 10.7,
+     "length": 6.92,
+     "height": 2.88
+    },
+    "wings": 1,
+    "gear": "taildragger",
+    "fuelL": 25,
+    "engine": "rotax915_carbon",
+    "nEngines": 1,
+    "seats": 2,
+    "specs": {
+     "empty": 417.0825745370015,
+     "allUp": 525.0825745370016,
+     "Vs": 13.719814384976605,
+     "VCruise": 31,
+     "climb": 5.0403256024964564,
+     "TORun": 58,
+     "engine": "Rotax 915 iS",
+     "propD": 1.8,
+     "propBlades": 3
+    },
+    "pxPerM": 84.124
+   },
+   "pics": {
+    "hero": "cand_stol_cub_showcase.json/hero.webp",
+    "above": "cand_stol_cub_showcase.json/above.webp",
+    "side": "cand_stol_cub_showcase.json/side.webp",
+    "plan": "cand_stol_cub_showcase.json/plan.webp",
+    "front": "cand_stol_cub_showcase.json/front.webp",
+    "cutaway": "cand_stol_cub_showcase.json/cutaway.webp"
+   }
+  },
+  "list:25": {
+   "name": "PA-18 on floats",
+   "data": {
+    "name": "PA-18 on floats",
+    "reg": "F-AMOR",
+    "dims": {
+     "span": 10.7,
+     "length": 7.72,
+     "height": 3.05
+    },
+    "wings": 1,
+    "gear": "floats",
+    "fuelL": 45,
+    "engine": "o320_mccauley",
+    "nEngines": 1,
+    "seats": 2,
+    "specs": {
+     "empty": 563.6340812627828,
+     "allUp": 751.5540812627837,
+     "Vs": 20.081955825383393,
+     "VCruise": 40,
+     "climb": 4.338016007924088,
+     "TORun": 805,
+     "engine": "Lycoming O-320-E2D",
+     "propD": 1.91,
+     "propBlades": 2
+    },
+    "pxPerM": 84.132
+   },
+   "pics": {
+    "hero": "list_25/hero.webp",
+    "above": "list_25/above.webp",
+    "side": "list_25/side.webp",
+    "plan": "list_25/plan.webp",
+    "front": "list_25/front.webp",
+    "cutaway": "list_25/cutaway.webp"
+   }
+  },
+  "list:26": {
+   "name": "Client Cub",
+   "data": {
+    "name": "Client Cub",
+    "reg": "N1938J",
+    "dims": {
+     "span": 10.73,
+     "length": 6.93,
+     "height": 2.69
+    },
+    "wings": 1,
+    "gear": "taildragger",
+    "fuelL": 21,
+    "engine": "a65_sensenich74",
+    "nEngines": 1,
+    "seats": 2,
+    "specs": {
+     "empty": 344.52985268159557,
+     "allUp": 449.6498526815956,
+     "Vs": 15.605397549699767,
+     "VCruise": 29.8,
+     "climb": 2.611809451421721,
+     "TORun": 164,
+     "engine": "Continental A-65",
+     "propD": 1.91,
+     "propBlades": 2
+    },
+    "pxPerM": 83.898
+   },
+   "pics": {
+    "hero": "list_26/hero.webp",
+    "above": "list_26/above.webp",
+    "side": "list_26/side.webp",
+    "plan": "list_26/plan.webp",
+    "front": "list_26/front.webp",
+    "cutaway": "list_26/cutaway.webp"
+   }
+  }
+ }
+}
