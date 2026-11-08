@@ -230,6 +230,13 @@ route. Evidence: `reports/evidence/SEA-PETREL/diag/*.json` (`hist0` / `strike.st
   same water departure that never ends; the float Cessna capsized in it, the Petrel only circles. One cause for both:
   the water departure's line-up from a stop on the lane (likely the line-up's tolerance / the water rudder's turn
   against the weathercock - UNPROVEN which).
+- 8 kt, chained HOME > mk_sea > HOME (the first leg passes): the same - 1458 s of TAXI / LINEUP / STOP loops
+  (`lineup-timeout` x8, `replan: not lined up with a run ahead (559 m, 28.2 m off)` ...), then `taxi-lost: could not
+  reach a lined-up hold in 3 plans - giving up on the ground` -> STOPPED where it is, never airborne; rolls +12.8 /
+  -10.8 deg and the disc 0.07 m over the water while taxiing at 5 m/s in the 8 kt sea. **2 of 2 chained water
+  departures never leave.**
+- AND THE RIG SCORES THAT LEG OK (F9): `_tour_lib.flyLeg`'s end test is `ph === 'STOPPED' && ap.route.to === b &&
+  L.t > 20` - the AP's give-up STOPPED (still at the From, the route's To unchanged) reads as the arrival.
 - The first-leg water starts (the game's spawn on the lane) never taxi - the AP rolls at once - so the grid's water
   starts did not see this; every water leg after a water landing will.
 - Reproduce: `sp_fly.js --order SEA,mk_sea,SEA --wind 0 --load full` (~70 min here). Browser-needed: yes - land at
@@ -423,6 +430,15 @@ Expert, damage on, `?retract=lab` on the page if a lab row is needed (the Petrel
   gearbox shears on a full-power stoppage; the mount's certificate cases hold; and `the circuit ...: no strike, no
   exceedance - the disc's least clearance 0.17 m` (the same 0.17 m this report measured at the take-off hump).
 - Reproduce: `node tools/_dmg_drive_check.js` (31 min here). Node-only.
+
+### F9 THE TOUR RIG PASSES A LEG THAT NEVER TOOK OFF - severity: bad (a test hole; node-only)
+- `_tour_lib.js flyLeg` ends a leg at `ph === 'STOPPED' && ap.route && ap.route.to === b && L.t > 20` and calls it
+  ok with no fault. After `taxi-lost: ... giving up on the ground` the AP is STOPPED at the From with the route's To
+  still b: the HOME > mk_sea > HOME chain's second leg here reads `ok: true` (1458 s, `landing: null`, `landedOn:
+  null`, never airborne). GATE TOUR and TOUR-REAL use the same flyLeg. A leg should need an airborne phase and a
+  landing on b (`L.landedOn === b`) to be ok. (The belly landing (G2) is the same hole from the other side: ok with
+  `landing: null`.)
+- Reproduce: `sp_fly.js --order HOME,mk_sea,HOME --wind 8@250` (85 min here); evidence `runs/HOME-mk_sea-HOME_*.json`.
 
 ### F2 GATE JOINPARITY: master 5 FAIL, base 15ad5d669 6 FAIL (+ the Petrel row, ENV as briefed); tip 4c60b519 5 FAIL = master's - the Petrel's row PASSES
 - Tip 4c60b519 (run here): `PASS Super Petrel node = page: n 184/184 nb 811/811 mass 591.781/591.781 kg, worst
