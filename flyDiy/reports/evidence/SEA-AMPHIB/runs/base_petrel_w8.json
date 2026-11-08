@@ -1,0 +1,100 @@
+{
+ "build": "builds/candidates/superpetrel_V4_1.json",
+ "order": [
+  "SEA",
+  "mk_sea",
+  "SEA"
+ ],
+ "wind": 8,
+ "gear": "amphibian",
+ "legs": [
+  {
+   "leg": "SEA>mk_sea",
+   "ok": false,
+   "faults": [
+    "prop-strike (the propeller struck (water, t 452))"
+   ],
+   "outcome": "completed",
+   "t": 479.2,
+   "landedOn": "mk_sea",
+   "sink": 0.36,
+   "V": 25.6,
+   "run": 179,
+   "toDist": 212.5,
+   "propMin": {
+    "v": -0.09,
+    "t": 452.1,
+    "ph": "ROLLOUT"
+   },
+   "propMinSurf": {
+    "v": -0.09,
+    "t": 452.1,
+    "ph": "ROLLOUT"
+   },
+   "rollS": [
+    -4.4,
+    14.3
+   ],
+   "pitchS": [
+    -5.3,
+    42.6
+   ],
+   "rollA": 22.3,
+   "tipMin": {
+    "v": 0.2,
+    "t": 451.1,
+    "ph": "ROLLOUT"
+   },
+   "capsize": 75.7,
+   "wogWet": 3,
+   "onLand": false,
+   "gear": [
+    0,
+    1
+   ],
+   "damage": {
+    "yields": 0,
+    "breaks": 0,
+    "dented": false,
+    "crashed": false,
+    "gPeak": 2.3,
+    "propAt": {
+     "what": "water",
+     "t": 452
+    }
+   },
+   "verdicts": [],
+   "hash": "793d9d539efa"
+  }
+ ],
+ "refused": [],
+ "mass": 591.8,
+ "retract": true,
+ "wall": 611,
+ "game": {
+  "day": {
+   "cloudCover": 0.25,
+   "cloudSeed": 1,
+   "cloudType": "cuh",
+   "date": "2026-06-22",
+   "groundAlbedo": 0.15,
+   "ozone": 300,
+   "rate": 1,
+   "rh": 0.5,
+   "turbidity": 2.8,
+   "utc": 0,
+   "wind": {
+    "kts": 8,
+    "dirDeg": 250,
+    "gust": 0.15,
+    "refH": 10,
+    "breeze": 1
+   }
+  },
+  "shake": true,
+  "stand": null,
+  "mass": 591.8,
+  "fuel": 72,
+  "damage": true
+ }
+}

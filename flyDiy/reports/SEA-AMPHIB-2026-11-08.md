@@ -15,7 +15,45 @@ Cloud tester, branch `claude/sea-amphib-findings`. **TEST AND REPORT ONLY - no g
     the shakedown, nav and day; damage ON) with per-step prop clearance, roll / pitch, tip clearance, capsize margin and
     a sim hash per leg; `--root` flies another worktree, `--trace` writes a 1 Hz time series.
 
-STATUS: in progress. Sections 1 done; 2-4 filling as flights finish.
+STATUS: in progress. Sections 0 and 1 are done; 2-4 fill in as the flights finish.
+
+---
+
+## 0. A0's FIRST FINDING - the float Cessna's TOUR red on mk_sea > SEA (node-proven)
+
+**F1 (blocks: the TOUR gate, and a player's float Cessna on mk_sea): it is a CAPSIZE IN THE TAXI out of mk_sea - not
+a landing, not a strike on the touchdown - and master already has it, to the hash.**
+
+```bash
+node flyDiy/reports/evidence/SEA-AMPHIB/fly.js --build bugReports/cessnaFloatsWOrks.json --order SEA,mk_sea,SEA --wind 8 --trace capsize.csv
+```
+(the TOUR gate's own path: `LB.gameSpec` + `_tour_lib` game host, game day 8 kt from 250 with gusts, damage ON; 45 min
+on one cloud core)
+
+1. **The faults, in order** - leg 1 SEA > mk_sea: ok. Leg 2 mk_sea > SEA: the pilot says `capsized: on its back in TAXI
+   at 3.5 m/s (bank 90 deg)`; then `prop-strike (water, t 604.6)` - **t is ABSOLUTE sim time** (`DMG.propAt.t = simT`),
+   about 182 s into leg 2, not leg time; then `timeout` (1800 s). `_tour_lib.js flyLeg` has no end for a capsize: the
+   aeroplane sits inverted in TAXI until the timeout - and the timeout (plus no `vref-raised` on leg 2) is what takes it
+   out of the gate's G3079 known-red filter (`_tour_check.js:231-236`).
+2. **The trace** (sim t 588-605, TAXI at 4-6 m/s on mk_sea, roll + = right wing down): the roll oscillates and GROWS
+   +7.7, -5.6, +0.4, +5.3, +11.8, +16.3, +15.1, +6.3, -1.9, +7.1, +15.4, +22.6, +29.8, +51 deg (about a 6-7 s period),
+   then the CG drops to 1.3 m under the surface, the disc to 2.6 m under, a tip to 5.4 m under, and stays there
+   (inverted on the floats). 0 yields, 0 breaks, gPeak 3.7.
+3. **The touchdown** (leg 1 at mk_sea): 35.6 m/s (`vref-raised: the elevator cannot hold 31.7 m/s at this power`), sink
+   0.47 m/s, run 370 m. Leg 2 never takes off.
+4. **The propeller over the water** - float Cessna: leg 1 at least **0.47 m** (ROLLOUT, mk_sea): the landing does not
+   strike; leg 2 goes negative only at the capsize. **Super Petrel V4.1** SEA > mk_sea (base): touchdown 25.6 m/s, sink
+   0.36, run 179 m; in the ROLLOUT at 16 -> 10 m/s it BOUNDS (vy +1.35 / -2.39 m/s, pitch 30 then 41.9 deg) and the
+   disc is **9 cm into the water at sim t 452** (prop-strike); at rest afterwards 0.23-0.37 m, the pitch bobbing
+   +-2-4 deg (F2).
+5. **Master gives the same, to the hash**: base 15ad5d66, master L35a 1bcd01d3 and master L34a cad308635 all fly leg 1 ->
+   `6d3f1c643f66` and leg 2 -> `e50c81e92c5c`, capsized. **Not a seaplanes-merge regression.**
+   `node flyDiy/reports/evidence/SEA-AMPHIB/fly.js --root <worktree>/flyDiy ...` (the same driver on each tree).
+6. Being run now: a 10 Hz trace of the capsize window with heading, thr, da, dr and de, for SEAPLANES (section 2).
+
+**F2 (bad: the official Petrel strikes its propeller landing on mk_sea, the user's OPEN item, measured):** see 0.4. The
+strike comes from the bounding rollout (pitch 42 deg at 10 m/s), not from the touchdown (sink 0.36) or from rest
+(gap >= 0.23 m on this run).
 
 ---
 

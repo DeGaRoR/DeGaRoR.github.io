@@ -1,0 +1,6 @@
+A. ON THE RUNWAY (HOME), placed
+  float Cessna fltAmph 1: stripGear floats, parts.amph false, retract false | at rest: wheelsOnGround 0, touching {"FLK":4} | 30 s full throttle: moved 3.22 m, V 0.12 m/s, wheelsOnGround 0, damage yields 0 breaks 0 dented false prop false
+  Super Petrel V4.1: stripGear amphibian, parts.amph true, retract true | at rest: wheelsOnGround 3, touching {"AXLEL":1,"AXLER":1,"TW":1} | 30 s full throttle: moved 13.44 m, V 0 m/s, wheelsOnGround 3, damage yields 679 breaks 60 dented true prop true
+B. THE PETREL ON THE WATER (SEA), placed: gear down vs up, full throttle
+  gear DOWN: out.gear at the start 1 | wetBody (the tyres' water model) ever built: false | V 10 s 7.5, 25 s 7.65 m/s | CG 890.54,0.29,-3211.38 | hull wet 2.12,0,0.13
+  gear UP  : out.gear at the start 0 | wetBody (the tyres' water model) ever built: false | V 10 s 7.51, 25 s 7.62 m/s | CG 890.87,0.29,-3210.78 | hull wet 2.14,0,0.16

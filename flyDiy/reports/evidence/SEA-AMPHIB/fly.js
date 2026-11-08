@@ -8,11 +8,11 @@
 //   propMinSurf the same, only while on the surface (wheels / floats / hull touching)
 //   roll/pitch  extremes on the surface (deg; roll + = right wing down, pitch + = nose up) and |roll| max in the air
 //   tipMin      the outer 20 % of the span's nodes' least height over the water / ground while on the surface
-//   capsize     90 - max |roll| on the surface (deg) - the pilot's own capsize line is |roll| > 90 (43_pilot.js:2174)
+//   capsize     90 - max |roll| on the surface (deg; negative = past the line: on its side / back) - the pilot's own capsize line is |roll| > 90 (43_pilot.js:2174)
 //   gear        out.gear min / max (a retract build only), wheelsOnGround's max while the hull/floats are wet
 //   hash        sha1 of the node positions at the leg's end (a parity rig: two trees, one hash = one flight)
 //   --trace f.csv [--hz 10]: every 1 s (60 steps; --hz 10 every 0.1 s) the leg, t, phase, Vg, vy, CG height, the disc's gap, pitch, roll, on surface, wet
-//   node reports/evidence/SEA-AMPHIB/fly.js [--root <flyDiy dir>] --build <file> --order SEA,mk_sea,SEA --wind 0|8 [--out f.json] [--tmax s]
+//   node reports/evidence/SEA-AMPHIB/fly.js [--root <flyDiy dir>] --build <file> --order SEA,mk_sea,SEA --wind 0|8 [--out f.json] [--tmax s] [--tmax-last s: the last leg only]
 'use strict';
 const fs = require('fs'), path = require('path'), crypto = require('crypto');
 const argv = process.argv.slice(2);
@@ -53,7 +53,7 @@ sim.step = dt => {
   step0(dt); tAll += dt;
   if ((n++ % EVERY) !== 0 || !M) return;
   const ax = sim.axes(), xA = ax[0], zR = ax[2], p = sim.p;
-  const pitch = Math.asin(Math.max(-1, Math.min(1, -xA[1]))) * 57.2958, roll = Math.asin(Math.max(-1, Math.min(1, -zR[1]))) * 57.2958;
+  const pitch = Math.asin(Math.max(-1, Math.min(1, -xA[1]))) * 57.2958, roll = Math.atan2(-zR[1], ax[1][1]) * 57.2958;   // (full range: on its back reads +-180, not ~0 as asin did)
   const HY = sim.hydro, wet = !!(HY && HY.floats && HY.floats.some(f => f.wet > 0.05));
   const wog = sim.wheelsOnGround ? sim.wheelsOnGround() : 0;
   const onS = wet || wog > 0;
@@ -64,7 +64,7 @@ sim.step = dt => {
     const lx = cx + Rp * (-xA[0]) * ay / dl, ly = cy + Rp * (-1 + ay * ay) / dl, lz = cz + Rp * (-xA[2]) * ay / dl;
     const gap = ly - surfH(lx, lz);
     if (gap < M.propMin.v) M.propMin = { v: gap, t: M.t(), ph: H.ap.phase };
-    if (TRACE && ((n - 1) % TSTEP) === 0) { const cg = sim.cgPos(), v = sim.cgVel(); TRC.push([M.leg, r2(tAll), H.ap.phase, r1(Math.hypot(v[0], v[2])), r2(v[1]), r2(cg[1] - surfH(cg[0], cg[2])), r2(gap), r1(pitch), r1(roll), onS ? 1 : 0, wet ? 1 : 0]); }
+    if (TRACE && ((n - 1) % TSTEP) === 0) { const cg = sim.cgPos(), v = sim.cgVel(); TRC.push([M.leg, r2(tAll), H.ap.phase, r1(Math.hypot(v[0], v[2])), r2(v[1]), r2(cg[1] - surfH(cg[0], cg[2])), r2(gap), r1(pitch), r1(roll), onS ? 1 : 0, wet ? 1 : 0, r1(Math.atan2(-xA[2], -xA[0]) * 57.2958), r2(sim.ctl.thr), r2(sim.ctl.da), r2(sim.ctl.dr), r2(sim.ctl.de)]); }
     if (onS && gap < M.propMinSurf.v) M.propMinSurf = { v: gap, t: M.t(), ph: H.ap.phase };
   }
   if (onS) {
@@ -84,7 +84,7 @@ for (let i = 1; i < order.length; i++) {
   M = { leg: a.id + '>' + b.id, t: () => r1(tL), propMin: { v: Infinity }, propMinSurf: { v: Infinity }, rollS: [Infinity, -Infinity], pitchS: [Infinity, -Infinity], rollA: 0, tipMin: { v: Infinity }, wogWet: 0, gear: [Infinity, -Infinity], onLand: false };
   const s1 = sim.step; sim.step = dt => { tL += dt; s1(dt); };
   let L;
-  try { L = TR.flyLeg(C, W, sim, def, a, b, Object.assign({ first: i === 1, host: H }, opt('tmax') ? { tMax: +opt('tmax') } : {})); } finally { sim.step = s1; }
+  try { L = TR.flyLeg(C, W, sim, def, a, b, Object.assign({ first: i === 1, host: H }, opt('tmax') ? { tMax: +opt('tmax') } : {}, opt('tmax-last') && i === order.length - 1 ? { tMax: +opt('tmax-last') } : {})); } finally { sim.step = s1; }
   const ld = L.arr && L.arr.landing;
   const h = crypto.createHash('sha1').update(Buffer.from(new Float64Array(sim.p).buffer)).digest('hex').slice(0, 12);
   const row = { leg: a.id + '>' + b.id, ok: L.ok, faults: L.faults.map(f => f.k + (f.note ? ' (' + f.note.slice(0, 90) + ')' : '')), outcome: L.outcome, t: r1(L.t), landedOn: L.landedOn,
@@ -100,6 +100,6 @@ for (let i = 1; i < order.length; i++) {
   from = L.declined || L.heldOff ? A(L.declined || L.heldOff) : b;
 }
 res.wall = Math.round((Date.now() - t0) / 1000); res.game = H.game;
-if (TRACE) fs.writeFileSync(TRACE, '# leg, t (tour s), phase, Vg m/s, vy m/s, CG over surface m, prop disc gap m, pitch, roll, onSurface, wet\n' + TRC.map(r => r.join(',')).join('\n') + '\n');
+if (TRACE) fs.writeFileSync(TRACE, '# leg, t (tour s), phase, Vg m/s, vy m/s, CG over surface m, prop disc gap m, pitch, roll, onSurface, wet, nose heading (deg, atan2(-x_z, -x_x)), thr, da, dr, de\n' + TRC.map(r => r.join(',')).join('\n') + '\n');
 const OUT = opt('out'); if (OUT) fs.writeFileSync(OUT, JSON.stringify(res, null, 1));
 console.log('DONE ' + path.basename(BUILD) + ' ' + order.join('>') + ' wind ' + WIND + ': gear ' + res.gear + ', ' + res.mass + ' kg' + (res.refused.length ? ', ROUTE REFUSES ' + res.refused.join('; ') : '') + ', ' + res.wall + ' s wall');

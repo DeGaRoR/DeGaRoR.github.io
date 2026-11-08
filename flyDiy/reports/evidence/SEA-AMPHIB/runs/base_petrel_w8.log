@@ -1,0 +1,2 @@
+FAIL SEA>mk_sea        479.2 s  sink 0.36 run 179 propMin -0.09 (surf -0.09) roll -4.4,14.3 pitch -5.3,42.6 tip 0.2 cap 75.7 gear 0,1 hash 793d9d539efa  FAULTS prop-strike (the propeller struck (water, t 452))
+DONE superpetrel_V4_1.json SEA>mk_sea>SEA wind 8: gear amphibian, 591.8 kg, 611 s wall
