@@ -312728,3 +312728,17 @@ IN (on L34a cad308635): claude/ready/bubble-windows 9e7010baa (CABIN-CRAFT), cla
 BATTERY: 115 of 116 PASS. ENGCONFIG red, standing on master: its IDENTITY pins date from 28 Oct. Every one of its 18 load digests (the Cub, the Jodel, the Cessna, the Rufus...) is the same on this train and on a full copy of master, so no validated plane flies differently. No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change.
 TIMED GATE (light, vs the stale 12 Oct baseline): steady frames p50 33.3 ms. Reds are the boot and compile rows (cub chase compile 67 s, flight 151 s): the cold shader cache seen on L32d/L34a, same class as L34a (57 reds vs 80). Two rollouts lost to a page '__timeout' (cub cockpit, metal chase) after slow boots.
 NAMED COST, STILL OPEN: the floats' SEA lane: garage 226 s, take-off p99 50 ms but worst frame 10.4 s, 25 tasks over 1 s, held under the roll-out screen. Same as L34a's (124 s, 77 links); not this train's. NIGHT-LOOK measures the night water cost at 11:45; the SEA lane bisect is owed.
+
+## NIGHT-DOOR - THE DOOR'S WAIST BAR UNDER THE WINDOW, THE AFT WALL'S RIVETS (NIGHT-INTEGRATE c, NIGHT-LOOK, 8 Nov 2026)
+WHAT: tools/_cage_gen.js only, inside the cabin (cageInterior), from the night hero picture (claude/night-photo-c 80dd07cb4 + 54febc6e9):
+- the door's waist bar (and its diagonal, which starts at it) stands 4 cm under the lowest window pane in that door's span, on the same side. A window whose
+  sill runs below the door's waist (the 4b's, 0.07) had the bar and the diagonal across its glass (the user 5 Nov: "that clearly is the L frame running
+  along the waist"). A door with no pane below its waist keeps the bar where it was.
+- the aft wall's dome rivets 3.2 -> 4.8 mm (head 1.6 -> 2.4 mm; the user: "see the rivets a little more"); the screws are unchanged.
+STILLS (quickshot, 8 Nov 10:55-11:07, before = L33a e0457618d, after = 512a587a8): every build file, candidate, bug report and 32 archetype keys, side + q:
+160 of 162 pictures identical; the 4b's two differ by 1 px. Nothing outside the cabin moves. Quickshot draws glass opaque, so the change itself was drawn with
+the glass left out (a scratch copy): before, the bar and its diagonal cross the 4b's front door window; after, the window is clear
+(flydiy-notes evidence-2026-10-18/2026-11-04/night-photo/door_stills/big/pair_4b_side.jpg, pair_4b_q.jpg).
+UNSEEN: the rivets (interior, in no still); the door in a page at night.
+GATES (512a587a8 on L33a, 8 Nov 06:56): SHOULDER, KNIFE, EDBUGS, PARTS 4/4 PASS. Rebased on L35a 1bcd01d3e (A0): the same diff; master's BUBBLE-WINDOWS
+(9bfd48edd) touched the same file in another part, merge clean; the rebased ref is not re-gated (the train's battery covers it).
