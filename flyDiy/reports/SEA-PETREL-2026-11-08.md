@@ -45,20 +45,30 @@ Prop min = the disc's lowest point over the surface (the waved sea on water), by
 | HOME>mk_sea | 0 | full 592 kg | - | PASS | 0.40 | 334 m / 24.9 m/s | 0.72 (ROLL/ground) | 0.13 (ROLLOUT/water) | -4.5 / 1.8 | 0.7 / 13.8 | 0 |
 | HOME>mk_sea | 15 kt / 250 | full 592 kg | - | PASS | 0.43 | 132 m / 25.7 m/s | 0.72 (ROLL/ground) | 0.13 (ROLLOUT/water) | -20.6 / 27.1 | -5.6 / 18.0 | 0 |
 | HOME>mk_sea | 8 kt / 250 | full 592 kg | - | PASS | 0.25 | 213 m / 25.5 m/s | 0.72 (ROLL/ground) | 0.14 (ROLLOUT/water) | -4.8 / 2.0 | -4.0 / 13.5 | 0 |
+| HOME>mk_sea | 8 kt / 250 | full 592 kg | down | PASS | 0.18 | 204 m / 25.2 m/s | 0.72 (ROLL/ground) | 0.12 (ROLLOUT/water) | -4.4 / 2.0 | -2.7 / 13.1 | 2 |
+| HOME>mk_sea | 10 kt / 133 | full 592 kg | - | PASS | 0.55 | 239 m / 24.9 m/s | 0.73 (ROLL/ground) | 0.09 (ROLLOUT/water) | -10.1 / 7.6 | -2.4 / 18.5 | 0 |
 | HOME>w3 | 0 | full 592 kg | - | PASS | 0.68 | 386 m / 26.8 m/s | 0.72 (ROLL/ground) | 0.75 (ROLLOUT/ground) | - | - | 0 |
 | HOME>w3 | 15 kt / 250 | full 592 kg | - | PASS | 0.62 | 327 m / 28.1 m/s | 0.72 (ROLL/ground) | 0.76 (ROLLOUT/ground) | - | - | 0 |
 | HOME>w3 | 8 kt / 250 | full 592 kg | - | PASS | 0.66 | 369 m / 27.8 m/s | 0.72 (ROLL/ground) | 0.76 (ROLLOUT/ground) | - | - | 0 |
+| HOME>w3 | 8 kt / 250 | full 592 kg | up | PASS | 0.66 | 369 m / 27.8 m/s | 0.72 (ROLL/ground) | 0.76 (ROLLOUT/ground) | - | - | 0 |
+| HOME>w3 | 8 kt / 250 | full 592 kg | up (no emergency ext.) | PASS | - | - | 0.72 (ROLL/ground) | - | - | - | 2 |
+| HOME>w3 | 10 kt / 345 | full 592 kg | - | PASS | 0.59 | 352 m / 27.4 m/s | 0.73 (ROLL/ground) | 0.75 (ROLLOUT/ground) | - | - | 0 |
 | SEA>SEA | 0 | full 592 kg | - | PASS | 0.51 | 291 m / 24.6 m/s | 0.17 (ROLL/water) | 0.14 (ROLLOUT/water) | -2.7 / 3.5 | -2.6 / 12.2 | 0 |
+| SEA>SEA | 15 kt / 250 | full 592 kg | - | FAIL ground-loop | 0.60 | 188 m / 24.8 m/s | 0.18 (ROLL/water) | 0.17 (ROLLOUT/water) | -1.4 / 8.4 | -2.7 / 10.4 | 2 |
 | SEA>SEA | 8 kt / 250 | full 592 kg | - | PASS | 0.22 | 251 m / 24.6 m/s | 0.17 (ROLL/water) | 0.15 (ROLLOUT/water) | -1.5 / 5.8 | -2.6 / 11.9 | 0 |
+| SEA>SEA | 8 kt / 250 | full 592 kg | down | PASS | 0.52 | 253 m / 24.8 m/s | 0.17 (ROLL/water) | 0.14 (ROLLOUT/water) | -2.4 / 5.0 | -2.6 / 12.9 | 2 |
+| SEA>SEA | 10 kt / 44 | full 592 kg | - | PASS | 0.78 | 239 m / 24.2 m/s | 0.18 (ROLL/water) | 0.15 (ROLLOUT/water) | -5.0 / 1.5 | -2.6 / 12.1 | 0 |
 | SEA>mk_sea | 0 | full 592 kg | - | PASS | 0.35 | 341 m / 25.0 m/s | 0.17 (ROLL/water) | 0.13 (ROLLOUT/water) | -4.6 / 1.6 | -2.6 / 13.9 | 0 |
 | SEA>mk_sea | 15 kt / 250 | full 592 kg | - | FAIL prop-strike (water t 480.9 ROLLOUT) | 0.47 | 117 m / 25.7 m/s | 0.18 (ROLL/water) | 0.02 (ROLLOUT/water) | -10.9 / 3.5 | -10.5 / 37.0 | 0 |
 | SEA>mk_sea | 8 kt / 250 | full 592 kg | - | FAIL prop-strike (water t 452 ROLLOUT) | 0.36 | 179 m / 25.6 m/s | 0.17 (ROLL/water) | -0.09 (ROLLOUT/water) | -5.6 / 14.6 | -5.3 / 42.6 | 0 |
+| SEA>mk_sea | 10 kt / 133 | full 592 kg | - | FAIL ground-loop | 0.32 | 227 m / 24.9 m/s | 0.13 (ROLL/water) | 0.01 (ROLLOUT/water) | -13.0 / 16.2 | -2.7 / 25.7 | 0 |
 | mk_sea>HOME | 0 | full 592 kg | - | PASS | 0.79 | 479 m / 26.9 m/s | 0.17 (ROLL/water) | 0.76 (ROLLOUT/ground) | -0.8 / 0.6 | -2.6 / 9.1 | 0 |
 | mk_sea>HOME | 15 kt / 250 | full 592 kg | - | FAIL abort | - | - | 0.07 (ROLL/water) | - | -1.8 / 2.8 | -6.8 / 26.5 | 0 |
 | mk_sea>HOME | 8 kt / 250 | full 592 kg | - | FAIL abort, prop-strike (water t 0.6 ROLL) | - | - | 0.03 (ROLL/water) | - | -1.3 / 2.6 | -10.9 / 9.9 | 0 |
+| mk_sea>HOME | 10 kt / 221 | full 592 kg | - | FAIL abort | - | - | 0.12 (ROLL/water) | - | -4.3 / 7.2 | -3.0 / 25.0 | 0 |
 
-
-What the grid says so far (the rows still flying are added on the next push):
+What the grid says (the core grid - 5 legs x 4 winds, full load, + the two gear rows - is complete; repeats,
+loads and the chained water departures are still flying and land on the next pushes):
 - LAND ONLY (HOME > w3): passes at 0 / 8 / 15 kt, sink 0.62-0.68, the landing run 327-386 m on Ridgeback's 543 m.
 - LAND TO SEA (HOME > mk_sea): passes at 0 / 8 / 15 kt; the gear up for the water; but at 15 kt the roll on the
   water reaches **+27.1 / -20.6 deg** and the pitch 18 deg (a skip with a wing down - a near miss, "bad").
@@ -71,7 +81,17 @@ What the grid says so far (the rows still flying are added on the next push):
 - EVERY water roll-out that passes still brings the disc to **0.13-0.15 m** over the water (pitch 11-12 deg at 5 m/s,
   coming off the step); every water take-off to **0.17 m** at the hump. The margin is the hull's trim off the step, not
   the chop: on the open sea at 15 kt it is 0.02-0.07 m.
-- No go-around anywhere so far; no capsize (roll extremes above); no member yielded or broken on any passing leg.
+- CROSSWIND 10 kt (square to the destination's lane): land legs pass; HOME > mk_sea passes (roll -10 / +8 on the
+  water, the roll-out disc 0.09 m); SEA > SEA passes; **SEA > mk_sea: `ground-loop: the nose 30.6 deg off the take-off
+  run at 11.1 m/s`** (the wind 133 deg is along SEA's lane - the swing is on the water, the hull weathervaning; then
+  the landing at mk_sea came within 0.01 m of a strike, pitch 25.7, roll +16 / -13); **mk_sea > HOME rejected** (S4).
+- 15 kt SEA > SEA: two go-arounds (`unstabilised approach at 85 m: sinking 3.0 m/s`), `committed-unstable` on the
+  third, then the weathervane on the water (`ground-loop` 30 deg at 5.7 m/s).
+- No capsize anywhere (the worst roll on the water +27.1 / -20.6 deg); no member yielded or broken on any leg; no
+  prop strike on land.
+- Score of the core grid: land-only 4 / 4 pass; land > sea 4 / 4 (one near miss); sea circuit 3 / 4; sea > open sea
+  1 / 4; open sea > land 1 / 4. **The user's bar - a water circuit and a sea landing with no prop strike - is not met
+  on the open sea at the game's default 8 kt.**
 
 ## The gear held the wrong way (task 1's two extra rows)
 
@@ -278,10 +298,13 @@ Expert, damage on, `?retract=lab` on the page if a lab row is needed (the Petrel
   physics, the 4 s flight, the drawing, the design check and every key are master's to the bit (the gate says so):
   the gate's baseline needs these rows dropped the way it drops the STOL rows (the cert identity already does it:
   GEN_HULL_ROW_OFF).
+- A third STOL line from the merge: `FAIL the Wing tips row offers Endplate and Drooped, in table order` - the gate
+  wants 8 wgTip options with Endplate 7th and Drooped 8th; HULL-B77 put the Petrel's `Upturned` tip in the picker.
 - The cards' line is a second, separate cause: the four cards (motorglider, etrainer, archaeopteryx, da62) are exactly
   the archetypes framed in carbon (`fuselage.material: 'carbon'`; the Cub tubeFabric, the C172 alloy pass), so their
   def / flight / drawing moved by HULL-B50's carbon recalibration (option d: lin x0.45, k x0.55, c x0.50, no version
   bump) - meant, but the gate's baseline was not re-recorded for it.
+- Tip 4c60b519: re-run, the same 12 FAIL lines.
 - Reproduce: `node tools/run_gates.js --only=STOL` (11 min); the diff: `node reports/evidence/SEA-PETREL/stoldiff.js <repo>/flyDiy/tools`.
 - Node-only.
 
