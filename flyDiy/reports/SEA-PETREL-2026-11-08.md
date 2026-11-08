@@ -238,7 +238,7 @@ first). "base" = 15ad5d669, "tip" = 4c60b519, "master" = 1bcd01d3. Logs: not com
 | DMGCERTCOST | the Petrel's budget | FAIL | FAIL | FAIL | F7 (the Petrel's row holds on the tip; the rest is ENV) |
 | DMGINTEGRITY | the Petrel's cut | **FAIL** | - | PASS | `Super Petrel: FAIL the fuselage cut across behind ring 3 (10 members): no break-up` - SEAPLANES' (as briefed) |
 | DMGFABRIC / POD / HANDLE / ENGCONFIG | VALIDATED | FAIL | - | FAIL | identical lines (F6), pre-existing |
-| DMGDRIVE | water prop strikes | TIMEOUT (1800 s) | - | - | no verdict: the spawn timeout on this loaded box (every line printed was ok) - re-run on a quiet machine |
+| DMGDRIVE | water prop strikes, VALIDATED | TIMEOUT (1800 s) | **FAIL** (1 of 154, run directly) | - | F8 (the Petrel's mount holds a blade loss) |
 | TOUR (floats shard) | the float Cessna at mk_sea | not run as a gate | | | its float tour re-flown with the gate's own library (S3): t 604.6 reproduced |
 
 ## Cost (task 4) - counts, and ratios measured on the same cloud machine at the same time (never ms)
@@ -367,6 +367,20 @@ Expert, damage on, `?retract=lab` on the page if a lab row is needed (the Petrel
   `ok envelope equal to the bit`. The time FAILs on the Cub / Jodel / metal / floats / twin and `the worker's
   certificate is node's (... 1.1e-8, < 1e-6: the two V8s' last bits)` FAIL on master as well (ENV: the load; the last
   line pre-existing).
+
+### F8 GATE DMGDRIVE: the Petrel's one FAIL - a blade off at full power and its mount holds - severity: bad (a gate expectation, SEAPLANES' call)
+- Run directly on the tip (`node tools/_dmg_drive_check.js`, 1853 s here - longer than the runner's 1800 s spawn
+  timeout, which is why `--only=DMGDRIVE` on the base timed out with no verdict): 153 / 154 checks; the one FAIL is
+  the Super Petrel's: `a trunk grazing the tips (3 cm) at full power (2196 rpm, tip 184 m/s): a blade breaks off and
+  the prop turns on short of it - 11.87 kN of imbalance (m e w^2) - the mount lets go - s later (the engine leaves)` -
+  the mount NEVER lets go (the Cub's lets go at 30.8 kN after 0.07 s, the Jodel's at 26.5 kN after 0.12 s). The
+  Petrel's slimmer carbon three-blade at a lower tip speed makes under half the imbalance and the engine on its wing
+  pylon holds it. The expectation is marked `[GAME - no source]`: whether a 912 iS on a pylon must leave after a
+  blade loss is a design question, not a bug.
+- The rest of the Petrel's block passes: the bow digging in at 90 and 150 km/h strikes the WATER ('stoppage'); the
+  gearbox shears on a full-power stoppage; the mount's certificate cases hold; and `the circuit ...: no strike, no
+  exceedance - the disc's least clearance 0.17 m` (the same 0.17 m this report measured at the take-off hump).
+- Reproduce: `node tools/_dmg_drive_check.js` (31 min here). Node-only.
 
 ### F2 GATE JOINPARITY: master 5 FAIL, base 15ad5d669 6 FAIL (+ the Petrel row, ENV as briefed); tip 4c60b519 5 FAIL = master's - the Petrel's row PASSES
 - Tip 4c60b519 (run here): `PASS Super Petrel node = page: n 184/184 nb 811/811 mass 591.781/591.781 kg, worst
