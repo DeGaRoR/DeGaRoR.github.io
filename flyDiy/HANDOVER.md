@@ -312601,3 +312601,45 @@ IN (on L33a e0457618d): claude/ready/codex-link-warm 676e1c013 (Codex, 6 Nov): a
 RESULT, 8 rollout runs, worst frame: taxi all at or under 317 ms (L33a: 2 froze, 9.5 and 9.8 s); stand 1 froze 9.75 s, the first run (L33a: 3 froze, 3.3-7.6 s). Codex's own 16-row A/B: late links 3 -> 0 in every row. Bench taxi @HOME worst 50 ms, @mn_strip 66.6 ms.
 NAMED COST, UNEXPLAINED: the floats' garage -> SEA lane load 124 s in the train and 106 s on a repeat (77 links, 45 over 5 s), against 32 s and 3 links on L33a; garage warm loads 141-158 s (L33a 103-126 s). The change touches only the route overlay, so the box's state (other Chrome, cache) is the first suspect; L35a re-measures it, bisect if it repeats.
 BATTERY: FRAMECOST same 5, ROUNDTRIP 2 (worker-only flight: master's own, Codex saw it on master), MEDIA (index 5.17 MiB). No PHYSICS_V or GEN_SPEC_V change.
+## DC3-EDITABLE - THE DC-3's ROWS HOLD ITS VALUES; THE BIG AEROPLANE'S BOX TO A ~40 m CLASS (2026-11-07/08, DEFORM; branch claude/dc3-editable fc0c0190c, ready claude/ready/dc3-editable)
+The user, 7 Nov via A0: "the next step is really for me to edit it manually with the sliders, provided the master version
+of the game allows me to load and edit it, and supports the wider range, allowing us to build wider planes."
+- **THE QUESTION** (builds/candidates/dc3_2026-10.json, listed in the rack as "DC-3-alike"): master loads it. 1139
+  editor rows were checked, 998 of them numeric. Three rows sat outside their range, so a touch clamped them and the
+  aeroplane jumped:
+  - the third wheel's spring drop (-0.025 against 0.05-0.70);
+  - its swivel drop (0.42 against 0.03-0.30);
+  - the nacelle's tail cone (3.35 against 0.4-3).
+  42 other rows snap by less than one step on a touch. The paxWinR / win2R / win3R values at -1 are link sentinels, not
+  values. planeScale is relative to sizeRef and re-anchors on load.
+- **THE FIX, rows:**
+  - twSpringDrop lo -0.10, twLegDrop hi 0.60, twTrail hi 0.25, cw_tailLen hi 4, engBlockZ hi 2.0;
+  - for wider planes: wgSpan hi 40, wgChord / wgChordTip / wgCrankChord hi 6.00, wgDx lo -9.0, s<i>X hi 4.0,
+    s<i>R hi 0.90, s<i>Drop hi 1.80, finHeight / finChord hi 2.50 / 2.20, stSpan / stChord hi 2.50 / 2.20 (x the drawn).
+- **THE FIX, the big box** (60_gen_spec; GEN_WING_ENVELOPE.big applies only to a wing over 18 m, so the small box and
+  every certified plane are unchanged):
+  - the wing: span 6.5-40 m, chord and crank chord to 6 m, LE to 12 m;
+  - the tail: a 12 x 4 m stab, a 5.5 m fin;
+  - the cabin: 3.6 x 3.6 x 14 m; tail arm 26, tail stations 27, Sh 48 / Sv 25 / Svt 30;
+  - fuel 8 000 L, each vessel 4 000; track 8 m, wheel 0.90 m, a tailwheel to 26 m.
+  The 18 m switch, where crossing 18 m of span changes the clamps, is by design and is named, not changed.
+- **THE PROOF** (node, through the load door tools/_load_build.js; scratchpad dc3/touch.js):
+  - the DC-3's flown spec on the branch equals master cad308635's bit for bit;
+  - saved and loaded again, nothing moves;
+  - the 40 rows a touch moves all snap inside one step, with no clamp (3 on master);
+  - asked wider (span 38, chord 5.6, half track 3.6, wheel 0.8), it flies span 38, chord 5.6, track 7.2, wheel 0.8.
+  UNSEEN in a page: there is no DC-3 page part, so the node load-door proof stands in for it. UISMOKE needs Chrome and
+  was not run. No gate is named EDITOR; EDBUGS, PARTS, DESIGN and SAVE cover the editor.
+- **ONE FLIGHT CHANGE, the DC-3 only (accepted by A0, an experiment with no certificate):** its drawn fin (vHeight
+  4.30 m) flew clamped to 4.0 m on master, and the load said so. It now flies as drawn.
+- **FOUND, on master too, NOT fixed here (ENGINE-GAP, DEFORM, L35b):** the DC-3's R-1830 bore and stroke (0.1397) sit
+  off the 0.001 slider grid. A touch of either row flips the engine to the model's own facts, named "custom Radial
+  14-cyl": 1040 kW, 711 kg, gear 1. The registry row says 895 kW, 750 kg, gear 1.78, so a touch gives +16 % power and
+  the prop at 2700 rpm instead of 1517. Also named: the prop row reaches 4.2 m against prop.D's clamp of 4.0.
+- **GATES** (fc0c0190c, 8 Nov 03:25, nice'd beside SEAPLANES-LAND):
+  - PASS: SPECFIX, DESIGN, SAVE, PARTS, EDBUGS, WINGROWS, FIN, COWL, JOIN, GEAR, FRAMES, FLOATKIT, BAY, NACLAG.
+  - Red, master's own (re-run on master cad308635, the same lines and the same hashes; only the ms timings differ):
+    TECH (pitch:seaplane: a covered option without a segment) and ENGCONFIG (9 pinned load hashes, the
+    quad / tri / pushpull flights).
+  - The certificates (cub, jodel, metal, floats, twinFloats) are byte-identical to master. No PHYSICS_V or GEN_SPEC_V
+    change.
