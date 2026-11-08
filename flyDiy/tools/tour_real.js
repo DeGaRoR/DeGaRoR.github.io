@@ -379,7 +379,8 @@ const STATE = `JSON.stringify((() => {
         lastT = -Infinity; lastTWall = Date.now(); L.tStart = st.t; L.skip.tAfter = st.t;
       }
       for (const K of KEY_AT) if (!K.done && K.leg === li && st.ph === K.ph) {
-        K.done = true; const vk = K.code.length === 4 && K.code.startsWith('Key') ? K.code.charCodeAt(3) : 0, key = vk ? K.code[3].toLowerCase() : K.code;
+        K.done = true; const m = /^(?:Key([A-Z])|Digit([0-9]))$/.exec(K.code), ch = m ? (m[1] || m[2]) : '';   // KeyF -> 'f' 70, Digit9 (the gear) -> '9' 57
+        const vk = ch ? ch.charCodeAt(0) : 0, key = ch ? ch.toLowerCase() : K.code;
         await cmd('Input.dispatchKeyEvent', { type: 'keyDown', code: K.code, key, windowsVirtualKeyCode: vk, nativeVirtualKeyCode: vk });
         await sleep(120); await cmd('Input.dispatchKeyEvent', { type: 'keyUp', code: K.code, key, windowsVirtualKeyCode: vk, nativeVirtualKeyCode: vk });
         (L.keys = L.keys || []).push({ t: +st.t.toFixed(2), ph: st.ph, code: K.code, agl: st.agl });
