@@ -312808,3 +312808,132 @@ No PHYSICS_V or GEN_SPEC_V bump.
 IN (on L35a 1bcd01d3e): avionics-pfd 8eddd0fbd (the PFD's direction gyro fix, cockpit.js), cessna-tail b67182854 (the official 172's tail rows stSpan 1.27 / stHinge 0.35, land + floats), look1-sharpen 475e9a69c (leaf sharpen 0.9 -> 0.4, the user's yes), night-door-2 f34d6d6fb (the 4b door's waist bar under its lowest pane), engine-gap 1a1a478ba (a catalogue engine switched to custom keeps its registry row; DC-3 R-1830 895 kW, gear 1.78).
 BATTERY (full log read, not the tail): 101 PASS / 13 FAIL, the SAME 13 as L35a (GEN TOUR VEHICLE DMGGEAR DMGSKINGPU FRAMECOST ROUNDTRIP MEDIA ASSETS GEO SKINMAT CLIP ENGCONFIG) - no new red; their fixes ride L35c / L35d (MASTER-GREEN). No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change.
 TIMED GATE (light, stale 12 Oct baseline): steady frames p50 33.3 ms on every flown row; p99 33.5 except cub cockpit 116.8 (1 frame over 1 s, one run). Reds are the boot/compile rows (cold shader cache, as L32d/L34a/L35a); 3 rollouts lost to the page '__timeout' after slow boots. Floats take-off p99 33.5 (L35a 83.3).
+
+## REAL-FIGURES - THE OFFICIAL PLANES AGAINST THEIR REAL FIGURES AS BANDS: tools/real_check.js (A LOAD SWEEP ON OUR SIDE, A CONDITION BAND ON THEIRS, THE PILOT KEPT APART), THE HISTORY OF EVERY EARLIER COMPARISON (2026-11-07, REAL-FIGURES for A0, cloud - node only; branch claude/ready/real-figures; measured on master e0457618 = L33a, rebased onto cad30863 = L34a, whose src/core change is parked_packs.json only)
+
+THE BRIEF (the user, 7 Nov): make the real-figures test official with a dedicated tool; a range on our side (min load, max
+load) because brochure figures do not say their load; results not biased by the pilot; start from the earlier studies
+(Cub, Cessna, Jodel, Petrel), not a blank sheet. No physics or plane change (a PHYSICS_V bump withdraws every certificate).
+
+- TOOLS: tools/real_check.js (the runner) + tools/real_refs.js (REFS: every figure with the conditions it was stated at -
+  weight gross / number / solo / unknown, flaps, surface, source; an unknown condition is a RANGE; PLANES; HISTORY).
+  `node tools/real_check.js <cub|jodel|cessna|cessnaF|pa18f|chinook|c172x|petrel>`, `--quick` (airframe only, 3-20 s),
+  `--all --jobs=4` (the 7 master planes, 62 min), `--build=f.json --ref=<row> [--water]`. perf_study.js is unchanged (the
+  cards' instrument).
+  - LOADS through the game's own door: freightStrapSeatBill / freightStrapBaggage into sim.setFreight, the fuel through
+    the burn's node records (sim.fuel.frac + setNodeMass). MIN (70 kg pilot, 1/4 fuel), TYP (80 kg, 1/2), MTOW (every seat,
+    topped or fuel-trimmed to the TYPE's gross); `--cg` adds MTOW forward / aft (on for B-CESS).
+  - FOUR READINGS: airframe (the probes), POH (the game's pilot, Expert, calm, on the handbook's schedule as ratios to
+    the build's own stall), best (the schedule swept at MTOW: rotate x take-off flap, climb speed, brake law and approach),
+    game (as it ships). game - best = the pilot's share.
+  - LAND RUNS on a flat copy of the world (terrain 0, no trees, the reference's surface, no wind, ISA), so the climb-out's
+    "ground ahead -> Vx" rule stays out. WATER: hydro_trim_table.fly (the supplement + the G3390 rig) and the SEA lane.
+- REPORT: reports/REAL-CHECK-2026-11-07.md. Evidence: reports/evidence/REAL-CHECK-2026-11-07/ (a JSON per plane, the
+  generated sections, real_check.svg, cards_now.md). The consolidated table (§2) lists every plane ever compared, its
+  numbers then and now, and whether it can be re-run. The 12 cards were re-run through perf_study (the analytic TO roll
+  moved on 8 of 12 since 15 Sep - Stearman +36 %, RV -27 % - NOT TRACED; no official plane's roll moved).
+- VERDICTS (inside / near / outside): Cub 10/2/1, Jodel 7/3/3, B-CESS 3/3/11 (O-540 235 hp on a 172: power rows out
+  the good way), 172 corrected (internal) 3/7/7, float B-CESS 1/2/6, PA-18 floats 1/5/4, Chinook 5/2/0 (airframe only),
+  Petrel V4.1 10/0/3 (from a worktree of claude/hull-types).
+- FINDINGS, ranked (none fixed: the user's decisions):
+  1. THE LANDING ROLL IS THE PILOT'S on every plane: the handbook landing (1.3 Vs0, braking from touchdown) gives Cub
+     68-96 m (POH 88), Jodel 84-133 (150), 172 117-138 (168), B-CESS 137-166 (168); the game's pilot 160 / 247 / 231 / 656.
+     43_pilot: a taildragger brakes below VBrakeOn 0.75 Vs, every pilot ramps brakeRampRate 0.12 /s to brakeMax 0.30
+     (brakeMax alone changes nothing: Cub 152 / 153 m at 1.0 / 0.6); one touchdown speed for every load (Cub 66 km/h at
+     433-550 kg).
+  2. CESSNA-TAIL MEASURED: B-CESS needs elevator 0.42 (MIN) / 0.41 (MTOW forward) to trim a 30-deg approach against
+     genTrim's 0.18 budget -> landsFlapless; flown on the POH schedule its roll is 379-581 m forward, 166 m aft. The real
+     172: stab 3.30-3.35 m2 (C172-STUDY 35.7 ft2; a design analysis 36.1 ft2), span 3.40 m, elevator chord 0.44. B-CESS:
+     2.65 m2 (-20 %), span 2.72, elevator chord 0.265 (-40 %; elevator area -52 %), wing 18.4 (+14 %), tail/wing -30 %.
+     The corrected 172 (3.11 m2, 0.44) needs 0.09 and lands on full flap. A build item (two cage rows), not physics.
+  3. The climb-out to 50 ft: 172 corrected 485 m lift-off -> 50 ft against the POH's 226 (best schedule 657 total);
+     the propeller's low-speed efficiency + the pilot's climb-out.
+  4. Climb 10-20 % short on matched engines (PA-18 floats -14 / -21 %, 172 -10 %): the same propeller item.
+  5. The game's pilot climbs under Vy (VClimb 1.38 Vs): B-CESS -1.42 m/s, Petrel -1.84 (its climb on 70-80 % throttle).
+  6. Petrel V4.1 solo sits at a 3-4 % static margin (16 % at MTOW): the seats ahead of the CG on a pusher. Its brochure is
+     a solo sheet (stall / climb / runs met at 410-445 kg); empty 380 vs 320 (+19 %).
+  7. Owed / standing: the Chinook does not take off (ARCHETYPES' standing red); the light Jodel (423 kg) goes around
+     twice and runs out the clock; the Petrel's water run under the game's pilot at MIN / TYP gave no reading in the
+     harness (it departs as baked: 24.8 s) - possibly the harness's fuel door on a hydro sim, not traced.
+- GATE PROPOSAL (§8, not built): GATE REALBAND on the official planes off `--quick` - Vs1 / V75 / Vmax / ROC / analytic
+  TO at the reference's weight in bands, the empty weight +-8 %, and THE APPROACH TRIM WITH THE HANDBOOK FLAP AT MIN AND
+  MTOW-FORWARD UNDER 0.18 (B-CESS fails today, the 172 corrected passes); the flown landing row and the pilot's-share
+  ratchet after the user rules on finding 1.
+- REFERENCES ADDED (sources in real_refs.js): Wipaire PA-18/PA-12 guide (Wipline 2100 amphibian, O-320 160 hp: water run
+  776 ft at 1776 lb, 1174 ft at 2000 lb, ROC 925 / 756 fpm); the 172 on 2350s as a band (335-501 m, 20-35 s; wipaire.com's
+  page was 503 in the session, its 1645 ft / 749 fpm are a search extract); the Petrel's 56-68 km/h, 80 m land / 120 m
+  water (Wikipedia / maker); the D.112's Vmax as 175-200 (its source line says 124 mph, the old row 175).
+- GATES: no core, editor or generated file changed (`git diff origin/master --stat` is tools/real_*.js, the report and
+  its evidence, reports/README.md, .gitignore, this entry); no battery run. `node --check` on both tools.
+
+## REAL-FIGURES-2 - THE HTML REPORT GENERATOR (tools/real_report.js), THREE ACCURACY AXES (GEOMETRY / SPECS / PERFORMANCE), SIX MORE PLANES WITH A REAL PARENT (2026-11-08, REAL-FIGURES for A0, cloud - node only; branch claude/real-figures-2 = 11f70ea39 + master L35a 1bcd01d3e merged, ready as claude/ready/real-figures-2)
+
+THE BRIEF (the user via A0, 8 Nov): a reusable HTML report generator (clear graphics, colour coding for the mismatches,
+statistics as graphics, a conclusion and next steps); the planes with a clear real parent tested (the DC-3, the Petrel
+once flyable, the 3 old biplanes, the Birdman Chinook, "our 3 historical ones", the Skymaster lightly); a global accuracy
+score on several axes (geometry, specs, performance). Test and report only: no plane, physics or pilot change.
+
+- tools/real_report.js: ONE self-contained HTML (inline CSS + SVG, no script or fetch, light + dark, phone width) from
+  real_check's JSON in reports/evidence/REAL-CHECK-*/ (the newest per plane wins; a <key>.shape.json overrides the shape).
+  The global view (score tiles, a computed conclusion, the heatmap planes x axes, a radar per plane, the ranked overall),
+  the statistics (verdicts per plane, every plane's deviation per indicator, the pilot's share on the landing roll), the
+  conclusions and next steps (real_refs NOTES), a section per plane (band chart with MIN / TYP / MTOW markers and the
+  verdict bar, geometry and specs tables, every verdict, the loads, the flights, the water runs), the scoring defined from
+  its own constants, the history. Verdicts and scores are recomputed from real_refs.js each run.
+  SCORES: item = 100 x max(0, 1 - gap / 0.30) (gap 0 inside the band); GEOMETRY / SPECS / PERFORMANCE = weighted means
+  (weights in the file and printed in the report); OVERALL = 0.3 G + 0.3 S + 0.4 P. Performance = the airframe's reading,
+  else the handbook-flown one (the shipped pilot's cost is shown apart). Light checks and partial runs leave the set's mean.
+- tools/real_check.js: measureShape (span, area, length on the body axis, height on the WORLD vertical standing on the
+  gear - the body-axis height read a tail-sitter rotated by its deck angle, the DC-3-alike 7.26 m for 5.16 - chords,
+  tail, track; engine, power, count, prop, blades, empty, design gross, fuel, seats); an archetype card through the load
+  door's birth envelope (`card:`); touchdown sink recorded (a drop over 3 m/s flagged "hard"). tools/real_refs.js: dims /
+  specs for every reference (GEO); new rows dc3 (DC-3A), camel, tigermoth, stearman, skymaster (sources in each row,
+  THIN ones marked); PLANES dc3, stearman, tigermoth, camel, birdman, skymaster (card), petrelL; NOTES.
+- REPORT reports/REAL-CHECK-2026-11-08.html (evidence reports/evidence/REAL-CHECK-2026-11-08/). OVERALL (G / S / P):
+  Cub 99 (97/100/100), Jodel 96, Petrel V4.1 land 95 (provisional), Tiger Moth-alike 94, Camel-alike 92, Stearman-alike
+  92, DC-3-alike 90, Chinook 90, 172 corrected 83, PA-18 floats 83, Birdman 79, B-CESS 65, B-CESS floats 51, Skymaster-
+  alike 43 (light check). Set: overall 85, geometry 91, specs 85, performance 82.
+- "OUR 3 HISTORICAL ONES" read as the Cub, Jodel and Cessna of the original studies (already in); the historical
+  recreations (Stearman, Tiger Moth, Camel, DC-3) are in either way. The report says so.
+- FINDINGS (new): the REF_MATCH biplanes' shapes are within 0-7 % on every dimension; their weak side is the mass model
+  on old construction (the Camel 579 kg empty vs 421, +37 %; Tiger Moth +13 %), a 10-25 % climb deficit and static
+  margins of 1-8 %. The DC-3-alike: span exact, engines / props / fuel right, empty -15 to -22 %, cruise / top ~13 %
+  under altitude-quoted figures (THIN), its CG at 50 % MAC light and 66 % with every seat filled (margin 1 %): the game's
+  pilot CAPSIZED landing at that load - a mass-and-balance item to check before it goes official. The Birdman flies
+  (the corrected Chinook does not) but its arrivals are drops (6.3 m/s sink at 39 km/h). The Petrel V4.1 on
+  claude/seaplanes-merge (that branch's sources built in a worktree; its committed flight_core was stale) flies the same
+  land numbers as on claude/hull-types (TO 192 m, climb 2.42, landing 457 at 600 kg); land only, to redo on water. The
+  landing roll stays the pilot's on the biplanes and the Petrel too (+139 to +275 m over the best schedule).
+- RUNTIME (cloud, 4 cores, 5 processes): Stearman 29 min, Camel 37, Tiger Moth 45, Birdman 20, Skymaster 52, DC-3 84,
+  Petrel land 65; a --quick shape pass 3-25 s a plane; the report ~3 s.
+- GATES: no core, editor or generated file changed by this branch (the merge of L35a brings master's own); no battery
+  run; `node --check` on the three tools.
+
+## REAL-FIGURES-2.1 - THE USER'S CUT (THE CORRECTED 172 IS THE CESSNA; B-CESS, ITS FLOATS, THE BIRDMAN AND THE SKYMASTER OUT), GEOMETRY ON THE DRAWN AEROPLANE, THE CESSNA DOSSIER (2026-11-08, REAL-FIGURES for A0, cloud; branch claude/real-figures-2)
+
+- THE CUT (the user 8 Nov; A0 the same day): PLANES rows `dropped:` for cessna, cessnaF, birdman, skymaster - the report
+  lists them in one line under the heatmap. The corrected 172 (`c172x`) is the Cessna. NEW row c172rf = HYDRO-TRIM's
+  builds/c172r_wipline2350_stcprop_2026-10-20.json (the 172R on catalogue-exact Wipline 2350s): INSIDE Wipaire's water
+  figures (265-430 m / 19.5-30 s against 335-501 m / 20-35 s), climb ~10 % better than Wipaire's 749 fpm - the float base
+  for FLAGSHIP's rebuild. FLAGSHIP's final Cessna + its 2350 version are to be added when they land (A0).
+- "DO WE MEASURE THE SAME THING" (the user, on the Jodel): span / length / height now come off the DRAWN aeroplane
+  (tools/_drawn_dims_probe.js through the load door's FLYDIY_JOIN_PROBE: the editor's scene + the fuselage sheet, crew and
+  prop blades out; span tip to tip, length spinner to rudder, height on the gear at the settled deck angle; cage frame x
+  lateral, y up, z FORWARD). The node cloud read the 172 7.47 m long (drawn 8.21, type 8.28), the DC-3 7.26 m high
+  (drawn 5.33, type 5.16). A drawn figure > 35 % off the structure's falls back to it (the Petrel's branch scene reads
+  12.5 m). THE LOAD DOOR RE-MEASURES THE TAIL off the drawing: the Jodel's fin 0.55 m forward of its file (the game's
+  Jodel is 5.88 m long against the D.112's 6.20; the 20 Sep 6.25 m read the file), the corrected 172's fin 0.48 m forward
+  and its stab span 3.20 m where the file's correction says 3.41 - a rebuild edits the CAGE's tail rows, not spec.tail.
+  The Jodel's remaining geometry gaps are real: wing 13.8 m2 against 12.7 (root chord 1.80 vs ~1.72), length -5 %.
+- METRIC FIXES: custom engines matched by displacement (5.9 L = 361 in3 = an IO-360; the corrected 172 scored 0 on its
+  engine before); the best glide weighs 0 (our probe glides prop-off, a handbook glide has the prop windmilling); length
+  tolerance 3 %, height 8 %; the 172R's empty a range 721-744 kg and its fuel 201-212 L.
+- reports/CESSNA-DOSSIER-2026-11-08.md: the 172R reference sheet (every figure with its source and confidence), the
+  corrected 172 and the float 172R measured (geometry, specs, three loads, the flights, the sweep), nine gaps ranked with
+  the cause and the change (climb-out to 50 ft +48 %, empty -11 %, cruise -11 %, climb -10 %, the tail that does not
+  survive the load, CG 43 % MAC at gross, the handbook landing roll -18 %, the game's +37 %), how to re-measure. The POH
+  PDF host, 172guide.com and wipaire.com's 172 page are outside this session's network: the "spec sheet" / "thin" rows are
+  to be re-read by a session with access.
+- SCORES now (11 planes): Cub 99, Jodel 97, 172R on 2350 95, Chinook 95, Tiger Moth 94, Petrel (land, provisional) 93,
+  Stearman 92, Camel 92, DC-3 91, corrected 172 88 (G 98 / S 94 / P 76), PA-18 floats 83.
+- A0 could not be messaged from this cloud session (the bridge refuses a cloud session without the owner's trust card).
