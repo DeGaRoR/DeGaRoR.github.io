@@ -4,6 +4,12 @@
   SEAPLANES-LAND session.
 - **Base tested:** `origin/claude/seaplanes-merge` at **15ad5d66** (SEA-OFF + tour_real Digit9). The branch had moved from
   7f6e1df6 at the launch, and A0 asked for the newest tip. It is not on master yet.
+- **Re-checked on the newer tip 91bfd15d** (the merge of master L35a, then SEA-OFF's controls panel), after a local
+  `node tools/build.js` (see E2). The headline findings reproduce identically:
+  - the T-tail: red (6), the belly well over chord 0.62-0.91, across the rear spar and the keel, `gear.retract` written;
+  - the C172: red (6), mains lift 0, 2 cuts and 7 doors, `gear.retract` written;
+  - the Skymaster: prop strike at rest, t 0.4 s, 1090.4 kg;
+  - the DA62: prop strike at rest, t 0.12 s.
 - **Where it ran:** node only (RETRACT-LAB is on in node). Every picture is quickshot's headless drawing. Every flight is
   the game's host flying the load door's spec.
 - **Status:** FINAL for this pass (8 Nov). The rules (section 6) are a proposal for the user to agree to; SEAPLANES
@@ -434,6 +440,7 @@ needs the browser.
 | X2 | the card (not retract) | the RV-alike, FIXED, breaks its tail on the take-off roll (prop strike t 3.3); with retract it ground-loops but flies. It is clean at rest, so it is a roll matter | BLOCKS (the card) | `... rr_fly.js key:rv '{}'` | node |
 | X3 | merge regression | the Skymaster-alike on seaplanes-merge is born retractable (cage.gearRetract 1 from designBake, 1090.4 kg) and strikes a propeller at rest (t 0.4 s). At the merge base L34a cad30863 and on master L35a it is fixed, 1054.9 kg, and clean. It cannot taxi in the game (obstacle, timeouts, crash). The row over the card did not switch the retract off (unproven why) | BAD | `... rr_stance.js key:skymaster '{}'` on both trees | node |
 | X4 | the card (not retract) | the Caravan-alike strikes its propeller at rest (t 0), on master L35a too | BAD (the card) | `... rr_stance.js key:caravan '{}'` | node |
+| E2 | ENV | at 91bfd15d the committed `tools/flight_core.js` is STALE against `src/core`: every node tool and gate refuses ("STALE CORE ... run node tools/build.js first"). The L35a merge has no built commit | BLOCKS the node gates on that tip until built | `node -e "require('./tools/flight_core.js')"` | - |
 | E1 | ENV | the built page is stale at 15ad5d66 (SEA-OFF without its built commit) | info | `node tools/build.js && git status` | - |
 
 ## 8. What the browser must confirm (node cannot)
