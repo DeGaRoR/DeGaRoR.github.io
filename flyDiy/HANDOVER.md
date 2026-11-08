@@ -313444,3 +313444,20 @@ BATTERY (full log read): 118 PASS / 10 FAIL (L35b 101 / 13).
 - NEW red, fix-forward for L35d: UISMOKE + UISMOKE-PHONE (assets-green: app.js:2138 MATLIB/require in the node harness), (CABIN-CRAFT, assets-green-2: the harness loads matlib.js). DMGMEMBERS: the 5 old builds pass; the seaplanes ready added the Super Petrel to VALIDATED, and its carbon is Euler-capped against a pre-carbon gate rule (SEAPLANES + Deform decide).
 No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change: PHYSICS_V 7, GEN_SPEC_V 10, GEN_CERT_V 7, as on master.
 TIMED GATE: light, stale 12 Oct baseline; all 7 rollouts ran (L35b lost 2 to timeouts). Steady frames p50 33.3 ms on every flown row and scene. Freezes: ONE 4.9 s frame in cub taxi chase @HOME (one run; L35b 0) and one 1.7 s frame in floats water taxi @SEA (first time measured). Cockpit rows p99 166.8-183.4 in one segment (L35b cub cockpit 116.8). Reds are the boot/compile rows (cold shader cache, as L35a/b). Watch the @HOME freeze on L35d.
+
+## CESSNA PLAQUE - B-CESS RE-BENCHED, LAND AND FLOATS (FLAGSHIP, 8 Nov 2026, on L35c master b25872b51)
+
+The plaque on the official Cessna pair (builds/cessna172_2026-09-20.json and builds/cessna172_floats_2026-11.json, both B-CESS) had been stale since 2026-09-17.
+Both were re-benched in the game itself: ?mode=garage, the build loaded from its slot, the bench's run-all button, then the game's own save. As in the Rufus re-stamp (0e4b27059), each file keeps its own cage.li_flood and finish.decals.regW; neither is in the fingerprint.
+- LAND: FLIES A CIRCUIT, HELD, WORKS HOT AND HIGH, crosswind 21.2 kt. f be13d9c4.
+- FLOATS: FLIES A CIRCUIT, HELD, LIFTS OFF THE WATER, crosswind sticker. f f15f9daf.
+- THE FLOATS' HOT AND HIGH NOW READS "SEA LEVEL ONLY - needs 1259 m". It is advisory and does not gate.
+  - The reason: the floats file never earned the old "WORKS HOT AND HIGH". The file was made on 4 Nov (d68d4f182) as a copy of the land file, plaque included. Its dalt row was the LAND plane's 17 Sep result, already stale ("was"). Tonight is the first time the floats themselves were measured.
+  - Floats are heavier and draggier: the take-off out of the hot mountain strip runs 1259 m, past the bench's 1100 m bound.
+- Not awarded: the test flight, the same as the old plaque, so BENCH_STATE.passed stays false. R3 (PLANE-RENDERS) doesn't need it: the official fiches are baked from the build file and never read the bench.
+- Checked:
+  - re-loaded in the page: nothing stale, the same fingerprints;
+  - through the load door: each file builds its old body bit for bit (node hash + mass: 1065.839 / 1198.088 kg);
+  - the stored spec is the game's re-joined one (the corrected tail's Sh 3.33 m2, span 3.40 m).
+- Seen on the way and sent to Game: in the hidden browser pane, the new-plane chooser opened over the bench test flight and froze the aeroplane at 31 m.
+No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change.
