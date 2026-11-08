@@ -163,7 +163,13 @@ const CHECK = `JSON.stringify((() => { const P = WORLD && WORLD.premises; const 
             const dx = ${at.cx} - ex, dz = ${at.cz} - ez; FLIGHT_PROBE.devFree(ex, ey, ez, Math.atan2(dx, -dz), Math.atan2(ty - ey, Math.hypot(dx, dz)));
             return JSON.stringify({ eye: [Math.round(ex), Math.round(ey), Math.round(ez)], agl: ${up}, toCentre: Math.round(Math.hypot(dx, dz)) }); })()`).catch(e => 'error ' + e.message);
           await b.ev('new Promise(r => { let n = 0; const t = () => (++n < 90 ? requestAnimationFrame(t) : r(1)); requestAnimationFrame(t); })', 30000).catch(() => 0); await sleep(6000);
-          log('view ' + n + ' ' + v); await shot(side, bk, n);
+          // the draw census of the view: the meshes drawn (an instanced one with instances), by the scene's top group, and the
+          // frame's calls (the shadow passes in it) - where the fill's town chunks spend their calls
+          const cen = await b.ev(`(() => { const R = FLIGHT_PROBE.renderer(), sc = FLIGHT_PROBE.craft() && FLIGHT_PROBE.craft().parent; let S = sc; while (S && S.parent) S = S.parent;
+            const g = {}; if (S) S.traverseVisible(o => { if (!o.isMesh || (o.isInstancedMesh && !o.count)) return; let t = o; while (t.parent && t.parent !== S) t = t.parent;
+              const k = t.name || t.type; const e = g[k] || (g[k] = [0, 0]); e[0]++; e[1] += o.isInstancedMesh ? o.count : 1; });
+            return JSON.stringify({ calls: R.info.render.calls, tris: R.info.render.triangles, groups: Object.fromEntries(Object.entries(g).sort((a, b) => b[1][0] - a[1][0]).slice(0, 10)) }); })()`).catch(e => 'error ' + e.message);
+          log('view ' + n + ' ' + v + '  census ' + cen); await shot(side, bk, n);
         }
         await b.ev("(() => { const c = FLIGHT_PROBE.craft && FLIGHT_PROBE.craft(); if (c) c.visible = true; document.body.style.visibility = ''; FLIGHT_PROBE.camMode('chase'); return 1; })()");
       }
