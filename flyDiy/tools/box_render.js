@@ -39,12 +39,12 @@ const COCKPIT = VIEW === 'cockpit';
 // run, not its printing (headless, document.createElement hands out no canvas)
 function fakeCanvas() {
   const cv = { width: 300, height: 150, style: {}, addEventListener() {}, toDataURL: () => '' };
-  const dummy = { addColorStop() {} };
+  const stubGrad = { addColorStop() {} };
   const store = {};
   const g = new Proxy(store, {
     get: (t, k) => k === 'canvas' ? cv : k in t ? t[k] : k === 'measureText' ? (s => ({ width: 7 * String(s).length })) :
       (k === 'getImageData' || k === 'createImageData') ? ((x, y, w, h) => ({ data: new Uint8ClampedArray(4 * (w || 1) * (h || 1)), width: w, height: h })) :
-      () => dummy,
+      () => stubGrad,
     set: (t, k, v) => { t[k] = v; return true; } });
   cv.getContext = () => g;
   return cv;

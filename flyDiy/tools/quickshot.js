@@ -150,7 +150,7 @@ S.scene.traverse(o => {
     return;
   }
   if (!o.isMesh || !o.geometry || !o.geometry.attributes || !o.geometry.attributes.position) return;
-  if (o.visible === false || /^edVessel_|^edFuel_|^edDum|^edCrew/.test(o.name || '')) return;
+  if (o.visible === false || /^edVessel_|^edFuel_|^edCrew/.test(o.name || '')) return;
   let hidden = false; for (let q = o; q; q = q.parent) if (q.visible === false) hidden = true;
   if (hidden) return;
   const m = Array.isArray(o.material) ? o.material[0] : o.material;
