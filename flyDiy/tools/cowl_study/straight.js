@@ -131,8 +131,11 @@ function drawnEngine(m) {
   if (!eng || !eng.children.length) return [];
   eng.updateMatrixWorld(true);
   const ug = eng.children[0], inv = new THREE.Matrix4().copy(ug.matrixWorld).invert(), v = new THREE.Vector3(), out = [];
-  ug.traverse(o => {
-    if (!o.isMesh || /spin|prop|shaft/i.test(o.name || '')) return;
+  // the engine's own mesh only (its group is named edEng); the spinner, the shaft and the blades (which on a set-back
+  // spinner sit behind the flange) are not the engine
+  const walk = (o, f) => { if (/^ed(Spinner|Prop)/.test(o.name || '')) return; f(o); for (const c of o.children) walk(c, f); };
+  walk(ug, o => {
+    if (!o.isMesh) return;
     const pa = o.geometry.attributes.position;
     for (let i = 0; i < pa.count; i++) { v.fromBufferAttribute(pa, i); o.localToWorld(v); v.applyMatrix4(inv); out.push([v.x, v.y, v.z]); }
   });
@@ -142,13 +145,16 @@ function drawnEngine(m) {
 // hardware - 6 cm on an O-320, 13 cm on a Rotax 915); what hangs below (the exhaust stubs) is left to leave the pod
 function drawnReach(m) {
   const z0 = m.env ? m.env.z0 - 0.01 : -1;               // the engine's own body: its back to the flange
-  let up = 0, w = 0;
+  let up = 0, w = 0, upFront = 0, wFront = 0;
+  const zMid = m.env ? 0.5 * m.env.z0 : -0.3;
   for (const [x, y, z] of m.verts) {
     if (z < z0 || z > -0.005) continue;                  // the mount (the plate takes the pod's size) and the flange aside
     if (y > up) up = y;
+    if (z > zMid && y > upFront) upFront = y;            // the front half: what the cowl's front must clear
     if (y > -0.05 && Math.abs(x) > w) w = Math.abs(x);
+    if (z > zMid && y > -0.05 && Math.abs(x) > wFront) wFront = Math.abs(x);
   }
-  return { up, w };
+  return { up, w, upFront, wFront };
 }
 // ONE HELMET OVER EACH CYLINDER (the user: "check with the engine where the pistons would be placed, generate the
 // little bumps there and reduce the overall diameter"): the drawn heads are the vertices far out from the crank; their
@@ -179,7 +185,7 @@ function radialBumps(m, aW, zE) {
 // section's own law (|x/a|^n + |(y - waist)/h|^n = 1, a half each side of the widest line); the waist and the two
 // roundnesses that fit it best. A flat-sided box fits many waists equally: the tie goes to the plane's waistline (the
 // cage's waistY on a nose) - a round-topped cabin (topRound) is fitted where it really is widest.
-function aftSection(m) {
+function aftSection(m, opt) {
   const f = m.face, P = m.P, CW = m.W.COWL_GEN;
   const GG = m.W.GEAR_GEN, AF = GG && GG.cageAirframe ? GG.cageAirframe(m.S.built.sheet, m.S.FS) : null;
   const wCage = (m.mount !== 1 && P.waistY != null) ? Math.max(-0.85, Math.min(0.85, (+P.waistY * m.S.FS - f.yc) / f.halfH)) : null;
@@ -192,23 +198,36 @@ function aftSection(m) {
     for (const p of pts) if (Math.abs(p[1] - y) < 0.012) w = Math.max(w, Math.abs(p[0]));
     if (w > 0) prof.push([t, w / f.halfW]);
   }
-  const model = (t, wv, nT, nB) => {
+  // (wT / wB: the width at the top / bottom line, x the widest - CABIN-CRAFT's rows, the sides a trapezoid)
+  const model = (t, wv, nT, nB, wT, wB) => {
     const up = t >= wv, h = up ? 1 - wv : 1 + wv, r = Math.min(1, Math.abs(t - wv) / Math.max(h, 1e-3)), n = up ? nT : nB;
-    return Math.pow(Math.max(0, 1 - Math.pow(r, n)), 1 / n);
+    const k = 1 + ((up ? wT : wB) - 1) * r;
+    return k * Math.pow(Math.max(0, 1 - Math.pow(r, n)), 1 / n);
   };
   // THE WAISTLINE RULE FIRST: a flat-sided nose keeps the plane's waistline (the user: "matching the height of the
   // waistline ... allows the cowl to enlarge where it should"); a round-topped cabin (topRound >= 0.5) is widest lower
   // than its waistY says, and is fitted - as is a pusher's aft face. The roundness above and below is always fitted.
-  const fixW = wCage != null && (+P.topRound || 0) < 0.5 ? wCage : null;
+  const fixW = !(opt && opt.free) && wCage != null && (+P.topRound || 0) < 0.5 ? wCage : null;
   let best = null;
   const W0 = fixW != null ? [fixW] : []; if (fixW == null) for (let wv = -0.8; wv <= 0.801; wv += 0.05) W0.push(wv);
-  for (const wv of W0) for (let sT = 0.35; sT <= 0.951; sT += 0.05) for (let sB = 0.35; sB <= 0.951; sB += 0.05) {   // the user's own fits: 0.35-0.6
-    const nT = CW.sqExp(sT), nB = CW.sqExp(sB);
-    let e = 0; for (const [t, w] of prof) e += Math.pow(model(t, wv, nT, nB) - w, 2);
-    e = e / Math.max(1, prof.length);
-    if (!best || e < best.e) best = { e, waist: wv, sqTop: sT, sqBot: sB };
+  const WS = opt && opt.width ? [0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1] : [1];
+  // each half fits on its own side of the waist: top (sq, w) and bottom (sq, w) separably, for each waist
+  const half = (wv, up) => {
+    let b = null;
+    for (let sq = 0.35; sq <= 0.951; sq += 0.05) for (const wk of WS) {
+      const n = CW.sqExp(sq); let e = 0;
+      for (const [t, w] of prof) if ((t >= wv) === up) e += Math.pow(model(t, wv, n, n, wk, wk) - w, 2);
+      if (!b || e < b.e) b = { e, sq, w: wk };
+    }
+    return b;
+  };
+  for (const wv of W0) {                             // the user's own fits: roundness 0.35-0.6
+    const T = half(wv, true), B = half(wv, false), e = (T.e + B.e) / Math.max(1, prof.length);
+    if (!best || e < best.e) best = { e, waist: wv, sqTop: T.sq, sqBot: B.sq, wTop: T.w, wBot: B.w };
   }
-  return { waist: +best.waist.toFixed(3), sqTop: +best.sqTop.toFixed(2), sqBot: +best.sqBot.toFixed(2), err: best.e, cage: wCage };
+  // the error as an RMS of the half-width, in millimetres
+  return { waist: +best.waist.toFixed(3), sqTop: +best.sqTop.toFixed(2), sqBot: +best.sqBot.toFixed(2), wTop: best.wTop, wBot: best.wBot,
+           err: best.e, rmsMM: +(Math.sqrt(best.e) * f.halfW * 1000).toFixed(1), cage: wCage };
 }
 
 // ---- the rows ---------------------------------------------------------------------------------------------------
@@ -247,11 +266,14 @@ function rowsFor(spec, o) {
     aW = m.face.halfW; aH = m.face.halfH;
     const sec = aftSection(m);                         // the waist and the roundness the fuselage has at the firewall
     const W = sec.waist * aH;
-    cE = T + 0.5 * (up - dn);                          // the engine's own box centre
-    const hE = 0.5 * CLEAR * (up + dn) + 0.03;
+    // the engine's own box: its envelope, and above the shaft whatever the drawing carries over its front half (an
+    // inverted in-line's induction rides on top - G164); a hump further aft is the blister's (fitCheeks)
+    const upB = Math.max(up, D.upFront || 0);
+    cE = T + 0.5 * (upB - dn);                         // the engine's own box centre
+    const hE = 0.5 * CLEAR * (upB + dn) + 0.03;
     const hMax = Math.max(hE, Math.min(aH - cE, aH + cE) - 0.01);
     const h1 = Math.min(hMax, Math.max(hE, (type === 'inline' ? 0.6 : FRONT_H) * aH));
-    let a1 = narrow ? Math.min(aW, Math.max(CLEAR * wE + 0.03, 0.45 * aW))
+    let a1 = narrow ? Math.min(aW, Math.max(CLEAR * Math.max(wE, D.wFront || 0) + 0.02, 0.45 * aW))
                     : Math.min(aW, Math.max(FRONT_W * aW, CLEAR * wE));
     let hF = h1;
     if (type === 'radial') {
@@ -363,8 +385,11 @@ function finish(spec, over, type) {
 // CHEEKS WHERE THE HEADS STAND PROUD (the user's own method, G180: "add a couple of lobes for a boxer and tune them
 // until the engine fits"; the PA-18's answer): the drawn engine's vertices outside the drawn barrel (clear.js) give
 // the cheeks' station, spread, height and size; rebuilt until the engine clears (3 passes at most)
+// ...AND A BLISTER WHERE ONE PART STANDS PROUD ON ONE SIDE (the Tiger Moth's bonnet has one - the reference model's
+// 'blister'): any engine, the drawn parts outside the barrel on the flanks or the top (the exhaust below may leave);
+// spread both sides -> two cheeks at their height, on one side or on top -> one blister at their azimuth
 function fitCheeks(spec, o, type) {
-  if (type !== 'flat' && type !== 'rotax') return o;
+  if (type === 'radial') return o;                   // the helmets are the radial's
   if (+o.cw_aftMode === 1) return o;                 // a pod is the engine's own size: no cheeks
   const C = require('./clear.js'), THREE = SH.context().THREE;
   o = Object.assign({}, o, { cw_lobeN: 0 });
@@ -372,13 +397,28 @@ function fitCheeks(spec, o, type) {
     const m = measure(spec, o), c = C.clearance(m.S, THREE);
     if (!c || !c.n || c.worst < 0.002) { o._cheeks = c ? c.worst : null; return o; }
     const CW = m.W.COWL_GEN, zE = CW.zEnd(), P = CW.P;
+    // the bump goes where the engine stands out most: the points over half the worst depth
+    c.pts = c.pts.filter(p => p[3] >= 0.5 * c.worst);
     const zs = c.pts.map(p => p[2]).sort((a, b) => a - b), ys = c.pts.map(p => p[1]).sort((a, b) => a - b);
     const q = (a, t) => a[Math.floor(t * (a.length - 1))];
     const zMid = 0.5 * (q(zs, 0.05) + q(zs, 0.95)), zSpan = q(zs, 0.95) - q(zs, 0.05), yMid = q(ys, 0.5);
     // the section's parameter whose point sits at the heads' height on the flank
+    // both sides (cheeks) or one (a blister): the share of the points left and right of the centreline
+    const nL = c.pts.filter(p => p[0] < -0.05).length, nR = c.pts.filter(p => p[0] > 0.05).length;
+    const both = Math.min(nL, nR) > 0.25 * Math.max(nL, nR);
     let az = 0, best = Infinity;
-    for (let d = -80; d <= 80; d++) { const p = CW.surfPoint(d * Math.PI / 180, zMid); if (Math.abs(p[1] - yMid) < best) { best = Math.abs(p[1] - yMid); az = d; } }
-    if (!+o.cw_lobeN) Object.assign(o, { cw_lobeN: 2, cw_lobeAz: az, cw_lobeSig: 24, cw_lobeAmp: 0,
+    if (both) { for (let d = -80; d <= 80; d++) { const p = CW.surfPoint(d * Math.PI / 180, zMid); if (Math.abs(p[1] - yMid) < best) { best = Math.abs(p[1] - yMid); az = d; } } }
+    else {
+      const xs = c.pts.map(p => p[0]).sort((a, b) => a - b), xMid = q(xs, 0.5);
+      az = Math.round(Math.atan2(yMid - CW.spineY(zMid), xMid) * 180 / Math.PI);
+    }
+    // a blister as wide as the hump it covers: the points' angular spread round the axis
+    let sig = 24;
+    if (!both) {
+      const angs = c.pts.map(p => Math.atan2(p[1] - CW.spineY(p[2]), p[0]) * 180 / Math.PI).sort((a, b) => a - b);
+      sig = Math.max(24, Math.min(70, 0.6 * (q(angs, 0.95) - q(angs, 0.05))));
+    }
+    if (!+o.cw_lobeN) Object.assign(o, { cw_lobeN: both ? 2 : 1, cw_lobeAz: az, cw_lobeSig: +sig.toFixed(1), cw_lobeAmp: 0,
       cw_lobeT: +(zMid / zE).toFixed(3), cw_lobeTSig: +Math.max(0.08, Math.min(0.6, 0.75 * zSpan / zE)).toFixed(3) });
     o.cw_lobeAmp = +Math.min(0.16, (+o.cw_lobeAmp || 0) + c.worst + 0.012).toFixed(3);
   }
@@ -386,7 +426,7 @@ function fitCheeks(spec, o, type) {
   return o;
 }
 
-module.exports = { SHAPE, FACE, typeOf, measure, rowsFor, finish };
+module.exports = { SHAPE, FACE, typeOf, measure, rowsFor, finish, aftSection };
 
 if (require.main === module) {
   const argv = process.argv.slice(2);
