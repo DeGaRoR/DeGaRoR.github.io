@@ -312985,3 +312985,13 @@ Red on master since WEAR-TAB 48056ffbe (5 Nov): the editor's click-to-row line b
   - Re-pinned, nothing widened: DMGCLUSTERS - the worst cut of the airframe is the ROD's root, in bending, at 0.93-1.00 of its limit, nothing parts (a part, or under 0.93, is red). DMGGEAR - the airframe holds: no part group off, at most one of a float's own members (today FLD-FLD, a float deck member, tension, 2.63 s on the run-out).
   - DMGCLUSTERS' two other reds on master (the FIN pulled sideways, root by TWIST at 4.27-4.28 s) are not the twin's nose-in and not touched here.
 - Gates on this branch (8 Nov, node, nice): `GATE HANDLE: PASS`, `GATE DMGGEAR: PASS` (72/72), DMGCLUSTERS 95/97 - the twin row ok; its two FIN rows red as on master 1bcd01d3e, the same lines (their owner's).
+
+## MASTER-GREEN CLIP - THE NAV AERIAL'S WIRE END IN THE FIN IS A STALE PIN, RE-PINNED 5.9 -> 9.2 MM (8 Nov, AVIONICS-PFD-LAND)
+RED ON MASTER 1bcd01d3e: GATE CLIP "stock+ifr/rest: navAerial/centre [access, on body] 9.2 mm INTO edFinSkin (allow 5.5 mm)" on all four poses (rest, +full, -full, flex). Red since L29g/L29h (2 Nov e6c668dab already red), before the PFD landed. AVIONICS-PFD (ready/avionics-pfd 8eddd0fbd, L35b) touches only cockpit.js and doesn't change it.
+CAUSE: FITTINGS-MANUAL 3ee59efb4 (27 Oct, rode L29h, in _cage_access.js) stands an UPRIGHT aerial or beacon at the LOWEST skin point under its foot (sunk = lift - low). Before, it was lifted to the highest point plus 0.3 mm. The user: "I'd rather have it sunk than floating". The nav aerial's mast now sits 4.0 mm sunk, and the wireAerial wire (tools/_fit_gen.js, its end at(F, 0, run, H*0.28), 1.2 m aft) drops with it, so its end sits deeper in the fin's leading edge, where it is anchored by design. The 5.9 pin was taken with the old rule.
+PROOF (CPU, unlocked, nice'd, one process, in A0's 12:50-13:05 slot; logs in flydiy-notes/evidence-2026-10-18/2026-11-08/clip/):
+- V1: the old rule put back (not committed), --report: 5.2 mm.
+- V2: the new rule as on master: 9.2 mm. The difference, 4.0 mm, is the mast's sink.
+- V3: run_gates --only=CLIP on the re-pin: PASS (0 new, 6 known).
+THE RE-PIN: tools/fixtures/clip_baseline.json, the four "stock+ifr|<pose>|navAerial/centre [access, on body body]|INTO edFinSkin" lines 5.9 -> 9.2. Nothing else re-based, no allowance widened.
+NOTICED, NOT RED, NOT MINE: under the new rule, the C172 commAerial on pillarPassenger reports 7.8 mm and 109.2 mm "in" its own pillar in --report (0.6 mm out under the old rule). The gate doesn't flag it (it is its own mount, within the sunk allowance), but 109 mm sunk looks like the lowest-point search running down the pillar. It's worth a look by whoever owns FITTINGS-MANUAL.

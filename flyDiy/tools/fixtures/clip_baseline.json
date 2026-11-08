@@ -1,8 +1,8 @@
 {
  "twin|+full|edLegL [gear]|INTO edSurf_flapR": 31,
  "twin|+full|edLegR [gear]|INTO edSurf_flapL": 30.8,
- "stock+ifr|rest|navAerial/centre [access, on body body]|INTO edFinSkin": 5.9,
- "stock+ifr|+full|navAerial/centre [access, on body body]|INTO edFinSkin": 5.9,
- "stock+ifr|-full|navAerial/centre [access, on body body]|INTO edFinSkin": 5.9,
- "stock+ifr|flex|navAerial/centre [access, on body body]|INTO edFinSkin": 5.9
+ "stock+ifr|rest|navAerial/centre [access, on body body]|INTO edFinSkin": 9.2,
+ "stock+ifr|+full|navAerial/centre [access, on body body]|INTO edFinSkin": 9.2,
+ "stock+ifr|-full|navAerial/centre [access, on body body]|INTO edFinSkin": 9.2,
+ "stock+ifr|flex|navAerial/centre [access, on body body]|INTO edFinSkin": 9.2
 }
