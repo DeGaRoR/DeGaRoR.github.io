@@ -2735,7 +2735,8 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // THE BRAKES (GEN_BRAKES): the pair's mass on the mains, its price with the wheels; absent: nothing (as it was)
   const BRK = genBrakeOf(S), mBrk = BRK ? 0.5 * BRK.kg : 0;
   if (BRK) spend(BRK.price);
-  pt(GAL, R.wheelKg(S.gear.wheelR) + mFairMain + mBrk); pt(GAR, R.wheelKg(S.gear.wheelR) + mFairMain + mBrk);
+  const whProf = Math.round(+((S.cage && S.cage.whProfile) || 0));    // (BUSH-WHEELS: the carcass's own law)
+  pt(GAL, R.wheelKg(S.gear.wheelR, whProf) + mFairMain + mBrk); pt(GAR, R.wheelKg(S.gear.wheelR, whProf) + mFairMain + mBrk);
 
   // The third wheel. `refs.tw` is whichever it is — the solver steers that node
   // and the sign of twSteer says which end it lives at.

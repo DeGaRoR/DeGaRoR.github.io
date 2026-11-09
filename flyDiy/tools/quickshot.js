@@ -187,8 +187,18 @@ function view(name) {
     top: { u: p => -p[2], w: p => -p[0], d: p => p[1] },                  // from above, the nose to the left
     front: { u: p => -p[0], w: p => p[1], d: p => p[2] },                // head-on, starboard on the left
     bottom: { u: p => -p[2], w: p => p[0], d: p => -p[1] },              // RETRACT G4: from below, the nose to the left
-    q: {}, qb: {},                                                         // set below
+    q: {}, qb: {}, cam: {},                                                // set below
   }[name];
+  // `cam` (the user 9 Nov: "overlay our rufus on a photo ... account for perspective"): any yaw / pitch, --yaw / --pitch
+  // in degrees (yaw 0 = the side view from starboard, + toward the nose; pitch + from above)
+  if (name === 'cam') {
+    const ya = +opt('yaw', 30) * Math.PI / 180, pa = +opt('pitch', 0) * Math.PI / 180;
+    const cy = Math.cos(ya), sy = Math.sin(ya), cp = Math.cos(pa), sp = Math.sin(pa);
+    V.u = p => -p[2] * cy + p[0] * sy;
+    const dd = p => p[0] * cy + p[2] * sy;
+    V.w = p => p[1] * cp - dd(p) * sp;
+    V.d = p => dd(p) * cp + p[1] * sp;
+  }
   if (name === 'qb') {  // RETRACT G4: a three-quarter from ahead, starboard, BELOW (the wells): yaw 37 deg, pitch -28 deg
     const cy = Math.cos(0.65), sy = Math.sin(0.65), cp = Math.cos(-0.49), sp = Math.sin(-0.49);
     V.u = p => -p[2] * cy + p[0] * sy;

@@ -2450,7 +2450,8 @@ const ARCHETYPES = [
             // THE LIVERY (27 Oct, the user: "a proper livery for each"): an RAF elementary trainer - trainer yellow
             // overall, the type A roundel (blue / white / red) on the fuselage and on all four wing panels, the fin
             // flash (red leading, white, blue), the serial in black on the rear fuselage. No trim line.
-            spec: { fuel: { litres: 87 },                                              // 19 imp gal, the centre-section tank
+            spec: { systems: { fit: 'minimal' },   // MASS-SCALE (the user 9 Nov): no electrics, as built (magnetos, hand-swung)
+                    fuel: { litres: 87 },                                              // 19 imp gal, the centre-section tank
                     paint: { job: 'full', sweep: 0, base: 0xf2c437, trim: 0xf2c437 },
                     finish: { decals: {
                       regL: 4.00, regC: 0.04, regH: 0.24, regCol: 0x20211f, regOutOn: 0,
@@ -2638,7 +2639,8 @@ const ARCHETYPES = [
             // THE LIVERY (27 Oct, the user: "a proper livery for each" - the bands chosen by the user): the PC10 khaki
             // planes and tail, the fuselage aft of the cockpit in yellow and dark grey bands, the cowl and the front panels
             // grey, the rudder's RFC tricolour (blue leading, white, red), the type A roundels on the planes
-            spec: { fuel: { litres: 136 },
+            spec: { systems: { fit: 'minimal' },   // MASS-SCALE (the user 9 Nov): no electrics, as built (magnetos, hand-swung)
+                    fuel: { litres: 136 },
                     paint: { job: 'full', sweep: 0, base: 0x8a8d8f, trim: 0x8a8d8f },
                     finish: { decals: {
                       regL: 3.75, regC: 0.10, regH: 0.16, regCol: 0xf4f2ea, regOutOn: 0,

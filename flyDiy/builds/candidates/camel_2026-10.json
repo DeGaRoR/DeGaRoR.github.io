@@ -1303,7 +1303,7 @@
    "tank": "nose"
   },
   "systems": {
-   "fit": "basic",
+   "fit": "minimal",
    "units": "aviation",
    "items": null,
    "elec": {

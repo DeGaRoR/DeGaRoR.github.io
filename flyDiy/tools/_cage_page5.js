@@ -3144,7 +3144,7 @@ window.CAGE_PAGE = {
         litres: 38,
         tank: "nose" },
       systems: {
-        fit: "basic",
+        fit: "minimal",   // MASS-SCALE (the user 9 Nov): the pull-start 582 - no battery, generator or starter
         units: "aviation",
         items: null,
         elec: {

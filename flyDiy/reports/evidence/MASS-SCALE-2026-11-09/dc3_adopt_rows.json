@@ -1,0 +1,35 @@
+{
+ "what": "DC-3 ADOPTION (the user 9 Nov: 'especially the DC-3, we are very happy'): what builds/candidates/dc3_retract_exact.json is, as rows over the DC-3 fixture (tools/fixtures/dc3_2026-10.json / DC3_FIT) - for the DC-3 sessions to fold in. Needs claude/practical-cerf-7fjpwp's TAIL-RETRACT (a taildragger's mains retract), DRAG-SCALE, MASS-SCALE and BIPLANE-SIZING physics, and PROP-CLASSES for the constant-speed propeller; none is on master yet.",
+ "cowlRows": "reports/evidence/PROPER-COWLS/dc3_radial_cowl_rows.json (the 48 rows, b03bbca49)",
+ "cage": {
+  "gearRetract": 1,
+  "gearFold": 7,
+  "gearRetAct": 1,
+  "gearRetT": 10,
+  "seatType": 2,
+  "engBlockZ": 0.7,
+  "gearNacFit": 0,
+  "gearRetFrac": 0.8,
+  "gearShort": 0.45,
+  "gearDoors": 0,
+  "gearLegDoor": 0,
+  "doorOn": 0,
+  "gearWellCut": 0
+ },
+ "spec": {
+  "prop": {
+   "pitch": "cs"
+  },
+  "outfit": {
+   "seats": "airliner",
+   "trim": "full"
+  }
+ },
+ "measured": {
+  "empty": 7423,
+  "staticMargin": 0.131,
+  "VmaxAt8500ft": 365.4,
+  "rocMETO": 6.6,
+  "overall": 90.2
+ }
+}

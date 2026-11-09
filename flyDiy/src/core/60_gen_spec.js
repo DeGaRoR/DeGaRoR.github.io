@@ -3040,9 +3040,11 @@ const GEN_STOL = {
   // into the ledger's own 'stol' row (61_gen_frame, per plane, onto the wing nodes the device hangs on - the mass
   // flies where it is, and the damage layer takes it with its wing). Kit catalogue and type-data figures as recalled,
   // +-30 %, in the game's credits (dollar-like: the Cub's A-65 bills ~10 000, the whole Cub ~30 000):
-  //   slot   a fixed aluminium slat on its brackets: ~1.2 kg per metre of span, ~280 / m (the Zenith 701 slat pair
+  //   slot   a fixed aluminium slat on its brackets: ~0.8 kg per metre of span (SLAT-KG, was 1.2), ~280 / m (the Zenith 701 slat pair
   //          ~1500 for ~5.5 m)
-  //   auto   the Handley Page slat on tracks and rollers: ~1.8 kg/m, ~420 / m (the tracks are the weight and the money)
+  //   auto   the Handley Page slat on tracks and rollers: ~1.2 kg/m, ~420 / m (the tracks are the weight and the money)
+  //          (SLAT-KG, the user 9 Nov: "recalibrate the slats weight" - 1.8 billed a Ruckus's full-span pair 18.6 kg; a
+  //          SuperSTOL-class aluminium slat on its tracks ~1.1-1.3 kg/m, a fixed slot ~0.8: estimates, +-30 %)
   //   vg     a vortex-generator row: ~80 g per metre of span (the vanes are a few grams each, glued), the kit ~1100
   //          for an aeroplane (Micro AeroDynamics' Cub / Cessna kits ~1000-1400)
   //   cuff   a moulded leading-edge glove: ~0.6 kg/m, ~200 / m
@@ -3051,7 +3053,7 @@ const GEN_STOL = {
   //   grow   the Fowler's longer tracks and carriage: ~1.0 kg per metre of flap span, ~250 / m
   //   plate  an endplate (formed sheet, its doubler): ~1.5 kg, ~350 each
   //   tipD   a drooped glassfibre tip over a plain one: +0.6 kg, ~300 each (Super Cub drooped tips ~600-800 a pair)
-  cost: { slot: { kgM: 1.2, perM: 280 }, auto: { kgM: 1.8, perM: 420 }, vg: { kgM: 0.08, kit: 1100 },
+  cost: { slot: { kgM: 0.8, perM: 280 }, auto: { kgM: 1.2, perM: 420 }, vg: { kgM: 0.08, kit: 1100 },
           cuff: { kgM: 0.6, perM: 200 }, fence: { kg: 0.25, each: 90 }, droop: { kg: 3.0, kit: 900 },
           grow: { kgM: 1.0, perM: 250 }, plate: { kg: 1.5, each: 350 }, tipD: { kg: 0.6, each: 300 } },
 };
@@ -3628,7 +3630,11 @@ const GEN_RULES = {
   // a 26" bush tyre (0.33) 12, a 4" microlight wheel (0.13) 1.2 — the
   // exponent sits between area and volume. The stock Cub (R 0.20 / 0.10)
   // reproduces the 3.5 / 2.0 literals it had.
-  wheelKg:     R => 3.5 * CORE_MATH.pow(Math.max(0.03, R) / 0.20, 2.5),
+  // BUSH-WHEELS (the user 9 Nov: "we need big bush wheels that work"): a low-pressure BALLOON carcass (the cage's whProfile
+  // 1, tundra) is light for its size - a thin carcass on a small hub: an Aero Classic / Airstreak 26" (R 0.33) tyre ~5 kg,
+  // with its tube and a 6" wheel ~8 kg; a 31" bushwheel assembly (R 0.39) ~9-10 kg (makers' listings, as recalled). Its own
+  // law, R^1.6 off the same 3.5 kg anchor: 7.8 / 10.2 kg (the standard carcass's R^2.5 billed 12.2 / 18.6)
+  wheelKg:     (R, prof) => 3.5 * CORE_MATH.pow(Math.max(0.03, R) / 0.20, prof === 1 ? 1.6 : 2.5),
   wheelTwKg:   R => 2.0 * CORE_MATH.pow(Math.max(0.03, R) / 0.10, 1.5),
   // RETRACT-1: THE RETRACTION KIT by the design gross - the actuators, the pack, the locks, the beefier trunnions. The real
   // pairs (RETRACT-STUDY §1.9): a 177 to a 177RG +66 kg (a bigger engine in it), a 172 to a 172RG ~+80 kg (engine and

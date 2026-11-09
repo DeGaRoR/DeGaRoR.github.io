@@ -191,17 +191,25 @@ Object.assign(REFS, {
       LD:    { v: 14.7, tol: 0.08, kg: 'unknown', src: '(L/D)max 14.7 with CD0 0.0249 (Loftin, NASA SP-468, as commonly quoted [0.5 pending: the table was not reachable]); consistent with AR 9.14 and e 0.75; CD0 ~0.025 also derived from 230 mph at 8,500 ft on 2 x 1,050 hp' },
     } },
 
-  // TOP RUDDER RUCKUS (the user 9 Nov): the Solo 103's airframe with the non-Part 103 options. Figures from search extracts
-  // (the pages unreachable from the cloud box): the dealer sheet / Plane & Pilot - span 28.4 ft, length 17.5 ft, 122 ft2,
-  // +4/-2 g, 5 gal base tank (the Solo 103: 254 lb empty, 550 lb gross, stall 24 mph, cruise 50 mph, TO 350 ft); Kitplanes /
-  // Sun 'n Fun - 80 or 100 hp Rotax (503 / 582 / 912, Polini, Hirth), "a 20-knot stall" kept with the smaller engines,
-  // 500 miles at 100+ mph. THIN: no Ruckus weight or speed sheet found
+  // TOP RUDDER RUCKUS, the airframe sheet (B&B Sport Aviation, Top Rudder's dealer, "RUCKUS - Airframe / Performance
+  // Parameters", the user 9 Nov): single place, conventional gear, 254 lb empty, 550 lb gross, 17.5 ft, 28.4 ft, 122 ft2,
+  // +4/-2; Vs 24.1 mph, Vso 22, Vr 28, Vx 27, Vy 30, cruise 50 mph, Vmax 54 mph at 37 hp, climb 650 fpm, L/D 4.6 at 35 mph,
+  // min sink 580 fpm at 27.3 mph, drag polar CD = 0.13 + 0.088 CL^2; take-off 350 ft, landing 300 ft; 5 gal, 2 gal/h;
+  // Vne 100, Va 48 mph. The standard engine the Polini 303 ("stall speeds under 20 mph and a cruise of 50", G. Boney).
+  // No weight or surface is stated for the field lengths: the sheet's own (gross, the strip unknown)
   ruckus: {
-    name: 'Top Rudder Ruckus (Rotax 912)', mtow: null, empty: null, fuelL: 19, S: 11.33, powerHP: 80,
-    src: 'dealer sheet (bbsportaviation) / Plane & Pilot: 28.4 ft, 17.5 ft, 122 ft2, 5 gal; Kitplanes / Sun n Fun: 80-100 hp Rotax, 20-kt stall (light engines), 500 mi at 100+ mph (search extracts, THIN)',
-    poh: { vr: 1.15, vy: 1.30, flapTO: 0, flapLDG: 20, brake: 0.6, note: 'a STOL ultralight-class taildragger: slats, drooping ailerons' },
+    name: 'Top Rudder Ruckus, standard (Polini Thor 303, 37-38 hp)', mtow: 249, empty: 115, fuelL: 19, S: 11.33, powerHP: 37,
+    src: 'B&B Sport Aviation "RUCKUS - Airframe" sheet (pasted by the user 9 Nov): 254 / 550 lb, 17.5 ft, 28.4 ft, 122 ft2, Vs 24.1 mph, Vso 22, cruise 50, Vmax 54 at 37 hp, 650 fpm, L/D 4.6, TO 350 ft, LDG 300 ft, 5 gal',
+    poh: { vr: 28 / 24.1, vy: 30 / 24.1, flapTO: 0, flapLDG: 20, brake: 0.6, note: 'the sheet\'s Vr 28, Vy 30 mph over its 24.1 mph stall; flaperons down for the landing (Vso 22)' },
     rows: {
-      Vs1: { v: [20 * KT, 24 * MPH], tol: 0.10, kg: 'unknown', flaps: 'up', src: '20 kt (Sun n Fun, the light engines) to the Solo 103\'s 24 mph (THIN)' },
+      empty: { v: 115, tol: 0.05, src: '254 lb (the Part 103 airframe)' },
+      Vs1:   { v: 24.1 * MPH, tol: 0.05, kg: 'gross', flaps: 'up', src: 'Vs 24.1 mph' },
+      V75:   { v: 50 * MPH, tol: 0.05, kg: 'unknown', src: 'cruise 50 mph' },
+      Vmax:  { v: 54 * MPH, tol: 0.05, kg: 'gross', src: 'V(Max) 54 mph at 37 hp' },
+      roc:   { v: 650 * FPM, tol: 0.05, kg: 'gross', src: '650 ft/min' },
+      LD:    { v: 4.6, tol: 0.10, kg: 'unknown', src: 'L/D 4.6 at 35 mph (the drag polar CD 0.13 + 0.088 CL^2)' },
+      TO:    { v: 350 * FT, tol: 0.10, kg: 'gross', flaps: 0, surface: 'unknown', src: '350 ft' },
+      LDG:   { v: 300 * FT, tol: 0.10, kg: 'gross', flaps: 0, surface: 'unknown', src: '300 ft' },
     } },
   // SOPWITH CAMEL F.1 (Clerget 9B 130 hp). Weights and dimensions agree across sources; the speed is one database's
   // (185 km/h) and the climb is not found stated as a rate: no climb row.
@@ -290,8 +298,8 @@ const GEO = {
   // 6.37 / 2.10; the fuel the D.112's single tank ahead of the pilot: 60 L the maker's front tank, 65 L usable in the AAIB's
   // G-BEZZ report - the old 45 L was a thin catalogue's)
   ruckus:   { dims: { span: 8.66, length: 5.33, S: 11.33 },
-              specs: { engine: 'Rotax 912', hp: [80, 100], nE: 1, seats: 1 },
-              src: 'the Solo 103 airframe sheet (28.4 ft, 17.5 ft, 122 ft2); Kitplanes 80-100 hp Rotax (search extracts)' },
+              specs: { engine: 'Polini Thor 303', hp: [37, 38], nE: 1, propD: 1.6, blades: 2, empty: 115, mtow: 249, fuelL: 19, seats: 1 },
+              src: 'B&B Sport Aviation RUCKUS airframe sheet; Polini Thor 303 (polinithor.com: 38 hp at 8000 rpm, 1.6 m)' },
   d112:     { dims: { span: 8.20, length: [6.20, 6.37], height: [1.90, 2.10], S: 12.7, cRoot: 1.72, cTip: 1.20, hSpan: 2.74 },
               specs: { engine: 'Continental A-65', hp: 65, nE: 1, propD: 1.83, blades: 2, empty: 320, mtow: 530, fuelL: [60, 65], seats: 2 },
               src: 'D.112 type sheet; height and stab span off the d112 reference payload (perf_study REAL.d112.dims)' },
@@ -364,11 +372,11 @@ const PLANES = {
   chinook:  { supersededBy: 'chinookm', label: 'Chinook (official, out of the battery)', file: 'builds/chinook_2026-09-21_corrected.json', ref: 'chinook', official: true },
   // REAL-FIGURES-2 (2026-11-08): the planes with a clear real parent
   // MASS-SCALE / TAIL-RETRACT (2026-11-09, claude/practical-cerf-7fjpwp): the candidates standing in for their cards
-  ruckus:   { label: 'Top Rudder Ruckus (candidate, from Rufus)', file: 'builds/candidates/ruckus_2026-11-09.json', ref: 'ruckus', group: 'ultralight' },
-  dc3r:     { label: 'DC-3-alike: the radial cowl, mains retracting into the nacelles, airliner-furnished, constant-speed (candidate)', short: 'DC-3', file: 'builds/candidates/dc3_retract_exact.json', ref: 'dc3', group: 'historical' },
-  chinookm: { label: 'Chinook, pull-start (no battery, generator or starter; candidate)', short: 'Chinook', file: 'builds/candidates/chinook_minimal.json', ref: 'chinook', group: 'ultralight' },
-  tigermothm:{ label: 'Tiger Moth-alike, no electrics as built (candidate)', short: 'Tiger Moth', file: 'builds/candidates/tigermoth_minimal.json', ref: 'tigermoth', group: 'biplane' },
-  camelm:   { label: 'Camel-alike, no electrics as built (candidate)', short: 'Camel', file: 'builds/candidates/camel_minimal.json', ref: 'camel', group: 'biplane' },
+  ruckus:   { label: 'Top Rudder Ruckus, standard (candidate, from Rufus)', short: 'Ruckus', file: 'builds/candidates/ruckus_std_2026-11-09.json', ref: 'ruckus', group: 'ultralight' },
+  dc3r:     { label: 'DC-3-alike: the radial cowl, mains retracting into the nacelles, airliner-furnished, constant-speed (candidate)', short: 'DC-3', file: 'builds/candidates/dc3_2026-10.json', ref: 'dc3', group: 'historical' },
+  chinookm: { label: 'Chinook, pull-start (no battery, generator or starter; candidate)', short: 'Chinook', file: 'builds/chinook_2026-09-21_corrected.json', ref: 'chinook', group: 'ultralight' },
+  tigermothm:{ label: 'Tiger Moth-alike, no electrics as built (candidate)', short: 'Tiger Moth', file: 'builds/candidates/tigermoth_2026-10.json', ref: 'tigermoth', group: 'biplane' },
+  camelm:   { label: 'Camel-alike, no electrics as built (candidate)', short: 'Camel', file: 'builds/candidates/camel_2026-10.json', ref: 'camel', group: 'biplane' },
   dc3:      { supersededBy: 'dc3r', label: 'DC-3-alike (candidate)', file: 'builds/candidates/dc3_2026-10.json', ref: 'dc3', group: 'historical' },
   stearman: { label: 'Stearman-alike (candidate)', file: 'builds/candidates/stearman_2026-10.json', ref: 'stearman', group: 'biplane' },
   tigermoth:{ supersededBy: 'tigermothm', label: 'Tiger Moth-alike (candidate)', file: 'builds/candidates/tigermoth_2026-10.json', ref: 'tigermoth', group: 'biplane' },
