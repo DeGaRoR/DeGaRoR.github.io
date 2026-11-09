@@ -77,12 +77,12 @@ const PRESETS = {
   'derelict hangar, restored':  { stage: 3 },
 };
 const BAGS = ['steel', 'steelNew', 'sheetPale', 'sheetDark', 'sheetWhite', 'sheetNew', 'concFloor', 'concWall',
-              'glass', 'water', 'decal', 'stain', 'weed', 'plastic', 'lamp', 'ply'];
+              'glass', 'water', 'decal', 'stain', 'weed', 'plastic', 'lamp', 'fit', 'ply'];
 const EXTRA = ['aoskirt'];
 const FOLD = [null,
   [['steelNew', 'steel'], ['decal', null], ['stain', null], ['plastic', null], ['lamp', null], ['weed', null]],
   [['steelNew', 'steel'], ['sheetWhite', 'sheetPale'], ['concFloor', 'concWall'], ['ply', 'sheetDark'], ['glass', null], ['water', null],
-   ['decal', null], ['stain', null], ['plastic', null], ['lamp', null], ['weed', null]]];
+   ['decal', null], ['stain', null], ['plastic', null], ['lamp', null], ['weed', null], ['fit', null]]];
 const NO_AO = { glass: 1, water: 1, decal: 1, stain: 1, weed: 1, lamp: 1 };   // flat or cut: no voxels of their own in the bake
 
 // ---- the numbers ----------------------------------------------------------------------------------------------------------
@@ -143,7 +143,7 @@ function frame(O, X, Y) {
 const CELL = (c, u, v) => [((c % 4) + clamp(u, 0.004, 0.996)) / 4, 1 - (Math.floor(c / 4) + 1 - clamp(v, 0.004, 0.996)) / 4];
 // weed atlas, 2 x 2: 0 grass, 1 fireweed, 2 alder, 3 dry grass
 const WCELL = (c, u, v) => [((c % 2) + clamp(u, 0.004, 0.996)) / 2, 1 - (Math.floor(c / 2) + 1 - clamp(v, 0.004, 0.996)) / 2];
-const ATLAS = { decal: null, weed: null, barrier: null };
+const ATLAS = { decal: null, weed: null, barrier: null, fit: null };
 function decalCanvas() {
   if (typeof document === 'undefined') return null;
   const S = 256, c = document.createElement('canvas'); c.width = c.height = 4 * S;
@@ -620,6 +620,54 @@ function barrierCanvas() {
   return { diff: cD, rough: cR, nor: cN };
 }
 
+// ---- THE FITTINGS' ATLAS (the restored hangar's working details): one 1024 canvas, painted regions --------------------
+const FREG = {
+  signH: [0, 0, 1024, 192], office: [0, 192, 256, 64], nosmoke: [256, 192, 128, 128], fire: [384, 192, 128, 128],
+  num1: [512, 192, 64, 64], hazard: [576, 192, 192, 64], red: [768, 192, 32, 32], yellow: [800, 192, 32, 32], white: [832, 192, 32, 32],
+  dark: [864, 192, 32, 32], grey: [896, 192, 32, 32], navy: [928, 192, 32, 32], green: [960, 192, 32, 32], wood: [992, 192, 32, 32],
+  acfront: [0, 320, 256, 224], cabinet: [256, 320, 128, 224], meter: [384, 320, 128, 128], keypad: [512, 320, 64, 96],
+  extinguisher: [576, 320, 96, 224], hose: [672, 320, 160, 160], binfront: [832, 320, 128, 192],
+};
+function fitCanvas() {
+  if (typeof document === 'undefined') return null;
+  const c = document.createElement('canvas'); c.width = c.height = 1024;
+  const g = c.getContext('2d'), r = rng(19421109), rr = (a, b) => a + (b - a) * r();
+  const R = (k, col) => { const [x, y, w, h] = FREG[k]; g.fillStyle = col; g.fillRect(x, y, w, h); return [x, y, w, h]; };
+  g.fillStyle = '#7d8286'; g.fillRect(0, 0, 1024, 1024);
+  const grime = (k, a) => { const [x, y, w, h] = FREG[k]; for (let i = 0; i < 60 * w * h / 4096; i++) { g.fillStyle = `rgba(40,36,30,${rr(0.02, a)})`; g.fillRect(x + rr(0, w), y + rr(0, h), rr(1, 3), rr(1, 3)); }
+    const gr = g.createLinearGradient(0, y + h * 0.6, 0, y + h); gr.addColorStop(0, 'rgba(40,36,30,0)'); gr.addColorStop(1, `rgba(40,36,30,${a})`); g.fillStyle = gr; g.fillRect(x, y, w, h); };
+  { // the hangar's name board: white on a deep blue, a border, slight wear
+    const [x, y, w, h] = R('signH', '#1d3557'); g.strokeStyle = '#e8e6df'; g.lineWidth = 6; g.strokeRect(x + 10, y + 10, w - 20, h - 20);
+    g.fillStyle = '#efede6'; g.font = 'bold 118px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('HANGAR 2', x + w / 2, y + h / 2 + 6); grime('signH', 0.12); }
+  { const [x, y, w, h] = R('office', '#2b2f33'); g.fillStyle = '#e9e7e0'; g.font = 'bold 40px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('OFFICE', x + w / 2, y + h / 2 + 2); }
+  { const [x, y, w, h] = R('nosmoke', '#f4f3ee'); g.strokeStyle = '#c8102e'; g.lineWidth = 12; g.beginPath(); g.arc(x + 64, y + 64, 48, 0, 7); g.stroke();
+    g.fillStyle = '#222'; g.fillRect(x + 32, y + 58, 52, 12); g.fillStyle = '#d0a060'; g.fillRect(x + 84, y + 58, 10, 12); g.strokeStyle = '#c8102e'; g.beginPath(); g.moveTo(x + 30, y + 30); g.lineTo(x + 98, y + 98); g.stroke(); }
+  { const [x, y, w, h] = R('fire', '#c8102e'); g.fillStyle = '#fff'; g.fillRect(x + 54, y + 34, 22, 66); g.fillRect(x + 44, y + 24, 30, 12); g.beginPath(); g.moveTo(x + 76, y + 30); g.lineTo(x + 96, y + 22); g.lineTo(x + 96, y + 34); g.fill();
+    g.font = 'bold 16px sans-serif'; g.textAlign = 'center'; g.fillText('FIRE POINT', x + 64, y + 118); }
+  { const [x, y, w, h] = R('num1', '#f4f3ee'); g.fillStyle = '#1d3557'; g.font = 'bold 54px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('1', x + 32, y + 34); }
+  { const [x, y, w, h] = R('hazard', '#e8b812'); g.save(); g.beginPath(); g.rect(x, y, w, h); g.clip(); g.fillStyle = '#1a1a1a'; for (let k = -4; k < 12; k++) { g.beginPath(); g.moveTo(x + k * 32, y + h); g.lineTo(x + k * 32 + 16, y + h); g.lineTo(x + k * 32 + 16 + h, y); g.lineTo(x + k * 32 + h, y); g.fill(); } g.restore(); grime('hazard', 0.25); }
+  R('red', '#b5171f'); R('yellow', '#d9a90f'); R('white', '#e3e2dc'); R('dark', '#2a2c2e'); R('grey', '#8a8f93'); R('navy', '#1d3557'); R('green', '#3c5a3e'); R('wood', '#6b4a2f');
+  { // the heat pump's front: a white case, a round fan grille, louvres, a badge
+    const [x, y, w, h] = R('acfront', '#e6e5df'); g.fillStyle = '#d6d5cf'; g.fillRect(x + 8, y + 8, w - 16, h - 16);
+    const cx = x + 96, cy = y + h / 2; g.fillStyle = '#3a3d40'; g.beginPath(); g.arc(cx, cy, 78, 0, 7); g.fill();
+    g.strokeStyle = '#c9c8c2'; g.lineWidth = 3; for (let k = 1; k < 6; k++) { g.beginPath(); g.arc(cx, cy, k * 15, 0, 7); g.stroke(); }
+    for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4; g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + Math.cos(a) * 78, cy + Math.sin(a) * 78); g.stroke(); }
+    for (let k = 0; k < 9; k++) { g.fillStyle = '#b9b8b2'; g.fillRect(x + 190, y + 30 + k * 18, 52, 6); }
+    g.fillStyle = '#4a6fa5'; g.fillRect(x + 196, y + h - 40, 40, 12); grime('acfront', 0.12); }
+  { const [x, y, w, h] = R('cabinet', '#9aa0a3'); g.strokeStyle = '#6d7275'; g.lineWidth = 3; g.strokeRect(x + 6, y + 6, w - 12, h - 12);
+    for (let k = 0; k < 6; k++) { g.fillStyle = '#7c8285'; g.fillRect(x + 24, y + 150 + k * 10, 80, 4); }
+    g.fillStyle = '#e8b812'; g.beginPath(); g.moveTo(x + 64, y + 40); g.lineTo(x + 94, y + 92); g.lineTo(x + 34, y + 92); g.fill(); g.fillStyle = '#111'; g.font = 'bold 34px sans-serif'; g.textAlign = 'center'; g.fillText('!', x + 64, y + 88);
+    g.fillStyle = '#333'; g.fillRect(x + 108, y + 110, 8, 30); grime('cabinet', 0.18); }
+  { const [x, y, w, h] = R('meter', '#a7aba8'); g.fillStyle = '#1e2a2c'; g.fillRect(x + 30, y + 26, 68, 44); g.fillStyle = '#9fc2b8'; g.fillRect(x + 38, y + 34, 52, 16); g.fillStyle = '#333'; g.fillRect(x + 56, y + 90, 16, 16); grime('meter', 0.18); }
+  { const [x, y, w, h] = R('keypad', '#2c2e30'); g.fillStyle = '#9a9c9e'; for (let i = 0; i < 3; i++) for (let j = 0; j < 4; j++) g.fillRect(x + 10 + i * 16, y + 26 + j * 16, 11, 11); g.fillStyle = '#3fb34f'; g.fillRect(x + 26, y + 10, 10, 6); }
+  { const [x, y, w, h] = R('extinguisher', '#b5171f'); g.fillStyle = '#e8e6df'; g.fillRect(x + 12, y + 12, w - 24, 46); g.fillStyle = '#b5171f'; g.font = 'bold 14px sans-serif'; g.textAlign = 'center'; g.fillText('FIRE', x + w / 2, y + 32); g.fillText('EXT.', x + w / 2, y + 50);
+    g.fillStyle = 'rgba(200,230,235,0.35)'; g.fillRect(x + 14, y + 70, w - 28, h - 90); g.fillStyle = '#8e1016'; g.fillRect(x + 32, y + 90, 32, 110); }
+  { const [x, y, w, h] = R('hose', '#b5171f'); g.fillStyle = 'rgba(210,235,240,0.45)'; g.fillRect(x + 14, y + 14, w - 28, h - 28); g.strokeStyle = '#7a0d12'; g.lineWidth = 10; g.beginPath(); g.arc(x + w / 2, y + h / 2, 44, 0, 7); g.stroke(); g.beginPath(); g.arc(x + w / 2, y + h / 2, 26, 0, 7); g.stroke();
+    g.fillStyle = '#fff'; g.font = 'bold 16px sans-serif'; g.textAlign = 'center'; g.fillText('FIRE HOSE', x + w / 2, y + h - 6); }
+  { const [x, y, w, h] = R('binfront', '#3c5a3e'); g.fillStyle = '#2f4731'; g.fillRect(x, y, w, 26); g.fillStyle = '#e3e2dc'; g.font = 'bold 18px sans-serif'; g.textAlign = 'center'; g.fillText('LITTER', x + w / 2, y + 100); grime('binfront', 0.2); }
+  return c;
+}
+
 // ---- the build ------------------------------------------------------------------------------------------------------------
 function build(P0, lod, F) {
   const P = Object.assign({}, DEF, P0 || {});
@@ -678,7 +726,7 @@ function build(P0, lod, F) {
         for (let z = zA0 + 5; z < zA1; z += 5) jl([-xA, 0, z], [xA, 0, z], 0.05);
         for (let c = 0; c < 26; c++) { let x = (ra() * 2 - 1) * xA, z = zA0 + ra() * (zA1 - zA0), a = ra() * 6.28;
           for (let q = 0; q < 8 + ra() * 10; q++) { a += (ra() - 0.5) * 0.9; const x2 = x + Math.cos(a) * 0.7, z2 = z + Math.sin(a) * 0.7; jl([x, 0, z], [x2, 0, z2], 0.02 + ra() * 0.025); x = x2; z = z2; } }
-        for (let q = 0; q < 9; q++) { const x = (ra() * 2 - 1) * (xA - 3), z = zA0 + 2 + ra() * Math.min(30, zA1 - zA0 - 4), r = 0.5 + ra() * 1.1, c = q < 6 ? 11 : 12;
+        for (let q = 0; q < (rest ? 2 : 9); q++) { const x = (ra() * 2 - 1) * (xA - 3), z = zA0 + 2 + ra() * Math.min(30, zA1 - zA0 - 4), r = 0.5 + ra() * 1.1, c = q < 6 ? 11 : 12;
           face(bags.stain, [[x - r, yl(x, z), z + r], [x + r, yl(x, z), z + r], [x + r, yl(x, z), z - r], [x - r, yl(x, z), z - r]], Yup, p => CELL(c, (p[0] - x + r) / (2 * r), (z + r - p[2]) / (2 * r))); }
       }
       // the step from the apron up to the slab
@@ -1055,7 +1103,7 @@ function build(P0, lod, F) {
       clad(F2, w0, w1, fy + 3.3, yL2 + 0.9, 0.04, reg);
       clad(F2, u0, w0, yL2 + 0.9, yL2 + 3.5, 0.04, reg); clad(F2, w1, u1, yL2 + 0.9, yL2 + 3.5, 0.04, reg);
       clad(F2, u0, u1, yL2 + 3.5, yR(HW) + 0.02, 0.04, regBand);
-      if (L === 0) for (let q = 0; q < 3; q++) {                         // water down the stem from the sill
+      if (L === 0 && !rest) for (let q = 0; q < 3; q++) {                // water down the stem from the sill (restored: washed)
         const uq = w0 + (w1 - w0) * (0.15 + 0.7 * hashN(k, q, 99 + s, seed)), wq = 0.25 + 0.35 * hashN(k, q, 100 + s, seed), Lq = 0.5 + 0.45 * hashN(k, q, 101, seed);
         face(bags.stain, [F2.P(uq, fy + 1.0 - Lq, 0.005), F2.P(uq + wq, fy + 1.0 - Lq, 0.005), F2.P(uq + wq, fy + 1.0, 0.005), F2.P(uq, fy + 1.0, 0.005)], F2.N,
              p => { const q2 = sub(p, F2.P(uq, fy + 1.0, 0)); return CELL(q % 2 ? 7 : 5, dot(q2, F2.X) / wq, -q2[1] / Lq); });
@@ -1484,10 +1532,139 @@ function build(P0, lod, F) {
   // the stains down the concrete under the tower windows and the coping (water runs)
   if (L === 0) {
     const FT = frame([0, 0, HD + zT + 0.153], [1, 0, 0], Yup);
-    for (const s of [-1, 1]) for (let q = 0; q < 7; q++) {
+    for (const s of [-1, 1]) for (let q = 0; q < (rest ? 2 : 7); q++) {
       const u = s * xGs(s) + s * (0.3 + Math.max(0.1, GWs(s) - 0.6) * hashN(q, s, 97, seed)) - 0.15, top = q < 4 ? towerTop - 0.02 : (q < 6 ? yGR - 0.5 : fy + 3.3), Ls = 0.8 + 1.8 * hashN(q, s, 98, seed);
       face(bags.stain, [FT.P(u, top - Ls, 0), FT.P(u + 0.3, top - Ls, 0), FT.P(u + 0.3, top, 0), FT.P(u, top, 0)], FT.N, p => CELL(7, (p[0] - u) / 0.3, (top - p[1]) / Ls));
       st.decals++;
+    }
+  }
+
+  // ===================================================================== A WORKING BUILDING (restored)
+  // (the user 9 Nov: "add detail that screams restored, like pipes and little furnishing on the facade that show that
+  // it's actually working"): the services a used hangar wears - a sign over the door and floodlights on the header with
+  // their conduit to the cabinet and the meter box; the office entrance (a canopy, a bulkhead, the door's number, a plate,
+  // a bench, a bin); the fire point (extinguisher, hose reel, the signs); a yellow gas pipe; heat-pump units on their pad
+  // along the office flank, their pipes up the wall; a stainless flue through the roof over the offices; a camera;
+  // hazard stripes on the jambs; the apron's lead-in line. One painted atlas (the `fit` bag) for every coloured part.
+  if (rest && L < 2) {
+    const fb = bags.fit, T0 = HD + zT + 0.15;                               // the towers' concrete face
+    const fv = (reg, u, v) => { const [x, y, w, h] = FREG[reg]; return [(x + clamp(u, 0.01, 0.99) * w) / 1024, 1 - (y + clamp(v, 0.01, 0.99) * h) / 1024]; };
+    // an oriented box: centre c, X across, Y up, Z = X x Y out of its wall; the front wears `rf`, the rest `rs` (a solid)
+    const obox = (c, X, Y, hx, hy, hz, rf, rs) => {
+      const Zv = nrm(crs(X, Y)), P0 = (a, b, d) => add(add(add(c, mul(X, a * hx)), mul(Y, b * hy)), mul(Zv, d * hz));
+      const F = (pts, n, uvf) => { const ids = pts.map(p => fb.v(p, uvf(p), n)); fb.quad(ids[0], ids[1], ids[2], ids[3]); };
+      const so = () => fv(rs || 'grey', 0.5, 0.5);
+      F([P0(-1, -1, 1), P0(1, -1, 1), P0(1, 1, 1), P0(-1, 1, 1)], Zv, p => { const q = sub(p, c); return fv(rf || rs || 'grey', 0.5 + dot(q, X) / (2 * hx), 1 - (0.5 + dot(q, Y) / (2 * hy))); });
+      F([P0(1, -1, -1), P0(-1, -1, -1), P0(-1, 1, -1), P0(1, 1, -1)], mul(Zv, -1), so);
+      F([P0(1, -1, 1), P0(1, -1, -1), P0(1, 1, -1), P0(1, 1, 1)], X, so);
+      F([P0(-1, -1, -1), P0(-1, -1, 1), P0(-1, 1, 1), P0(-1, 1, -1)], mul(X, -1), so);
+      F([P0(-1, 1, 1), P0(1, 1, 1), P0(1, 1, -1), P0(-1, 1, -1)], Y, so);
+      F([P0(-1, -1, -1), P0(1, -1, -1), P0(1, -1, 1), P0(-1, -1, 1)], mul(Y, -1), so);
+    };
+    // a tube a -> b (radius r) in one colour of the atlas, with elbows left to the joints
+    const tube = (a, b, r, reg, seg) => {
+      const n = seg || 8, ax = nrm(sub(b, a)); let u = Math.abs(ax[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0];
+      const e1 = nrm(crs(ax, u)), e2 = crs(e1, ax), uv = fv(reg, 0.5, 0.5);
+      const ring = p => { const out = []; for (let k = 0; k <= n; k++) { const t = k / n * Math.PI * 2, d = add(mul(e1, Math.cos(t)), mul(e2, Math.sin(t))); out.push(fb.v(add(p, mul(d, r)), uv, d)); } return out; };
+      const A = ring(a), B = ring(b); for (let k = 0; k < n; k++) fb.quad(A[k], A[k + 1], B[k + 1], B[k]);
+    };
+    const pipe = (pts, r, reg) => { for (let i = 0; i + 1 < pts.length; i++) tube(pts[i], pts[i + 1], r, reg); };
+    const lens = (c, X, Y, hx, hy) => { const Zv = nrm(crs(X, Y)), P0 = (a, b) => add(add(add(c, mul(X, a * hx)), mul(Y, b * hy)), mul(Zv, 0.003));
+      const ids = [P0(-1, -1), P0(1, -1), P0(1, 1), P0(-1, 1)].map((p, i) => bags.lamp.v(p, [i % 3 ? 1 : 0, i > 1 ? 1 : 0], Zv)); bags.lamp.quad(ids[0], ids[1], ids[2], ids[3]); };
+    const lamp = (p, nrmv, k, range, col, spot) => lights.push({ x: p[0], y: p[1], z: p[2], nx: nrmv[0], ny: nrmv[1], nz: nrmv[2], col: col || [1.0, 0.86, 0.66], k, range, kind: spot ? 'flood' : 'facade' });   // a flood throws a cone (ny: its aim's drop)
+    const Xp = [1, 0, 0], Yp = [0, 1, 0];
+    // ---- THE SIGN over the door, on brackets off the header band (its centre the door's)
+    {
+      const yc = fy + DH + 1.75, w = 7.6, h = 1.42, z = HD + 0.2;
+      obox([dC, yc, z], Xp, Yp, w / 2, h / 2, 0.03, 'signH', 'navy');
+      if (L === 0) for (const dx of [-2.6, 0, 2.6]) for (const dy of [-0.45, 0.45]) member(bags.steel, [dC + dx, yc + dy, HD + 0.06], [dC + dx, yc + dy, z - 0.03], 'rod', Yp, L);
+    }
+    // ---- THE FLOODLIGHTS on the header, aimed down at the apron, their conduit along the header and down the tower
+    const yF = fy + DH + 0.42, fx = [dC - 10.5, dC, dC + 10.5];
+    for (const x of fx) {
+      const tilt = 0.6, Yt = [0, Math.cos(tilt), Math.sin(tilt)], c = [x, yF, HD + 0.42];
+      obox(c, Xp, Yt, 0.24, 0.17, 0.07, 'dark', 'dark');
+      lens(add(c, mul(nrm(crs(Xp, Yt)), 0.072)), Xp, Yt, 0.2, 0.13);
+      if (L === 0) { member(bags.steel, [x, yF + 0.12, HD + 0.08], [x, yF + 0.04, HD + 0.35], 'rod', Yp, L); }
+      lamp(add(c, [0, -0.1, 0.12]), [0, -0.5, 0.86], 1.2, 30, [1.0, 0.93, 0.82], true);
+    }
+    if (L === 0) {
+      const yc0 = fy + DH + 0.2, zc = HD + 0.12;
+      pipe([[fx[0], yc0, zc], [xGR + 0.4, yc0, zc]], 0.016, 'grey');
+      for (const x of fx) pipe([[x, yc0, zc], [x, yF + 0.12, zc]], 0.016, 'grey');
+      pipe([[xGR + 0.4, yc0, zc], [xGR + 0.4, yc0, T0 + 0.03], [xGR + 0.4, fy + 1.45, T0 + 0.03]], 0.016, 'grey');
+    }
+    if (L === 0) {
+      // ---- THE OFFICE ENTRANCE: the right tower's door (x 15.35 .. 16.55), a canopy, its lamp, its number, its plate
+      const dx0 = xGR + 0.85, dx1 = xGR + 2.05, dxc = (dx0 + dx1) / 2, yC = fy + 2.62;
+      obox([dxc, yC + 0.06, T0 + 0.55], Xp, Yp, 0.95, 0.06, 0.55, null, 'grey');                       // the canopy's deck
+      obox([dxc, yC - 0.02, T0 + 1.09], Xp, Yp, 0.97, 0.12, 0.02, 'office', 'grey');                  // its fascia, the plate on it
+      for (const sx of [-0.9, 0.9]) member(bags.steel, [dxc + sx, yC + 0.55, T0 + 0.02], [dxc + sx, yC + 0.1, T0 + 1.05], 'rod', Xp, L);   // the hangers
+      obox([dxc, fy + 2.4, T0 + 0.025], Xp, Yp, 0.1, 0.1, 0.02, 'num1', 'white');                      // the door's number
+      obox([dx0 - 0.28, fy + 2.15, T0 + 0.06], Xp, Yp, 0.09, 0.12, 0.06, 'dark', 'dark');            // the bulkhead
+      lens([dx0 - 0.28, fy + 2.15, T0 + 0.121], Xp, Yp, 0.07, 0.09);
+      lamp([dx0 - 0.28, fy + 2.15, T0 + 0.25], [0, 0, 1], 0.5, 9);
+      obox([dx1 + 0.22, fy + 1.35, T0 + 0.02], Xp, Yp, 0.05, 0.08, 0.02, 'keypad', 'dark');          // the keypad
+      obox([dx1 + 0.22, fy + 1.15, T0 + 0.11], Xp, Yp, 0.12, 0.3, 0.1, 'extinguisher', 'red');       // the extinguisher in its box
+      obox([dx1 + 0.22, fy + 1.72, T0 + 0.01], Xp, Yp, 0.1, 0.1, 0.006, 'fire', 'red');
+      // the bench and the bin under the window
+      const bz = T0 + 0.55, bx = (xGR + 2.7 + HW - 0.6) / 2;
+      for (const sx of [-0.8, 0.8]) { obox([bx + sx, fy + 0.22, bz], Xp, Yp, 0.03, 0.22, 0.2, null, 'dark'); }
+      for (let q = 0; q < 3; q++) obox([bx, fy + 0.45, bz - 0.15 + q * 0.15], Xp, Yp, 0.95, 0.02, 0.06, 'wood', 'wood');
+      for (let q = 0; q < 2; q++) obox([bx, fy + 0.68 + q * 0.14, bz + 0.24], Xp, [0, 0.97, -0.24], 0.95, 0.05, 0.02, 'wood', 'wood');
+      obox([bx - 1.45, fy + 0.4, bz], Xp, Yp, 0.22, 0.4, 0.22, 'binfront', 'green');
+      // the cabinet and the meter box (the gas meter beside it, its yellow pipe into the wall), under the ground window
+      obox([xGR + 0.4 + 0.1, fy + 0.9, T0 + 0.16], Xp, Yp, 0.32, 0.55, 0.15, 'cabinet', 'grey');
+      obox([HW - 0.55, fy + 0.75, T0 + 0.13], Xp, Yp, 0.25, 0.3, 0.12, 'meter', 'grey');
+      pipe([[HW - 0.55, fy + 0.45, T0 + 0.07], [HW - 0.55, fy + 0.15, T0 + 0.07], [HW - 0.55, fy + 0.15, T0 + 0.25]], 0.024, 'yellow');
+      pipe([[HW - 0.35, fy + 1.05, T0 + 0.07], [HW - 0.35, fy + 1.12, T0 + 0.07], [HW + 0.05, fy + 1.12, T0 + 0.07], [HW + 0.05, fy + 1.12, T0 - 0.2]], 0.02, 'yellow');
+      // the camera on the tower's corner, looking down the apron
+      obox([HW - 0.1, towerTop - 0.45, T0 + 0.28], [0.8, 0, 0.6], [0, 0.94, -0.33], 0.07, 0.06, 0.15, 'dark', 'white');
+      member(bags.steel, [HW - 0.1, towerTop - 0.35, T0 + 0.01], [HW - 0.1, towerTop - 0.4, T0 + 0.2], 'rod', Yp, L);
+      // ---- THE FIRE POINT on the left facade's pier: the hose reel, the no-smoking sign, the fire sign; a lamp over
+      const pc = -(xGL + HW) / 2;
+      obox([pc, fy + 1.25, T0 + 0.11], Xp, Yp, 0.36, 0.36, 0.1, 'hose', 'red');
+      obox([pc, fy + 1.9, T0 + 0.006], Xp, Yp, 0.13, 0.13, 0.005, 'fire', 'red');
+      obox([pc, fy + 2.35, T0 + 0.006], Xp, Yp, 0.16, 0.16, 0.005, 'nosmoke', 'white');
+      obox([pc, fy + 3.0, T0 + 0.06], Xp, Yp, 0.09, 0.12, 0.06, 'dark', 'dark'); lens([pc, fy + 3.0, T0 + 0.121], Xp, Yp, 0.07, 0.09); lamp([pc, fy + 3.0, T0 + 0.25], [0, 0, 1], 0.5, 9);
+      // ---- HAZARD STRIPES up the opening's jambs (the towers' returns), to 1.5 m
+      for (const [x, nx] of [[xGR - 0.151, -1], [-xGL + 0.151, 1]]) {
+        const ids = [[x, fy + 0.02, HD + 0.02], [x, fy + 0.02, T0 - 0.02], [x, fy + 1.5, T0 - 0.02], [x, fy + 1.5, HD + 0.02]].map((p, i) => fb.v(p, fv('hazard', i === 1 || i === 2 ? 0.45 : 0, i > 1 ? 0.99 : 0.01), [nx, 0, 0]));
+        if (nx > 0) fb.quad(ids[0], ids[1], ids[2], ids[3]); else fb.quad(ids[0], ids[3], ids[2], ids[1]);
+      }
+      // ---- THE HEAT PUMPS on their pad along the office flank, the pipes up the wall into the upper floor
+      for (const zc of [HD - 7.5, HD - 9.6]) {
+        K.boxAB(bags.concWall, [HW + 0.1, g(HW, zc) - 0.05, zc - 0.65], [HW + 0.85, fy + 0.03, zc + 0.65]);
+        obox([HW + 0.48, fy + 0.45, zc], [0, 0, -1], Yp, 0.45, 0.4, 0.17, 'acfront', 'white');
+        pipe([[HW + 0.3, fy + 0.6, zc + 0.5], [HW + 0.08, fy + 0.6, zc + 0.5], [HW + 0.08, yL2 + 0.6, zc + 0.5], [HW - 0.1, yL2 + 0.6, zc + 0.5]], 0.03, 'white');
+        pipe([[HW + 0.2, fy + 0.15, zc - 0.3], [HW + 0.2, fy + 0.03, zc - 0.3]], 0.012, 'white');
+      }
+      // ---- THE APRON'S LEAD-IN LINE and the door's threshold stripe (yellow paint), when the build lays its apron
+      if (P.apron) {
+        const yl = (x, z) => g(x, z) + 0.069, line = (x0, z0, x1, z1, w) => { const d = nrm([x1 - x0, 0, z1 - z0]), nn = [-d[2], 0, d[0]];
+          const q = [[x0 - nn[0] * w, z0 - nn[2] * w], [x1 - nn[0] * w, z1 - nn[2] * w], [x1 + nn[0] * w, z1 + nn[2] * w], [x0 + nn[0] * w, z0 + nn[2] * w]].map(([a, b]) => fb.v([a, yl(a, b), b], fv('yellow', 0.5, 0.5), Yp));
+          fb.quad(q[0], q[3], q[2], q[1]); };
+        line(dC, HD + 0.6, dC, HD + Math.min(P.apronL - 1, 24), 0.08);
+        line(-xGL + 0.3, HD + 0.6, xGR - 0.3, HD + 0.6, 0.06);
+      }
+    }
+    // ---- THE FLUE: stainless, through the roof over the offices, a rain cap on it
+    {
+      const xf = HW - 2.6, zf = -2.0, top = yR(xf) + 1.5;
+      K.cyl(bags.steel, [xf, yGR, zf], [0, 1, 0], 0.13, top - yGR, L === 0 ? 12 : 6, true, { smooth: true });
+      if (L === 0) { K.cyl(bags.steel, [xf, yR(xf) - 0.02, zf], [0, 1, 0], 0.22, 0.12, 12, true); K.cyl(bags.steel, [xf, top + 0.12, zf], [0, 1, 0], 0.24, 0.04, 12, true); }
+    }
+    // ---- AT NIGHT the offices are lit: a warm card behind some of the right flank's and the tower's windows
+    if (P.lamps && L === 0) {
+      const F2 = frame([HW, 0, HD], [0, 0, -1], Yp), uOf = z => HD - z;
+      for (let k = 0; k < NB; k++) for (const [ya, yb] of [[fy + 1.1, fy + 3.3], [yL2 + 0.9, yL2 + 3.5]]) {
+        if (hashN(k, Math.round(ya), 131, seed) > 0.55) continue;
+        const u0 = Math.min(uOf(zF(k)), uOf(zF(k + 1))) + 0.6, u1 = Math.max(uOf(zF(k)), uOf(zF(k + 1))) - 0.6;
+        const ids = [F2.P(u0, ya, -0.6), F2.P(u1, ya, -0.6), F2.P(u1, yb, -0.6), F2.P(u0, yb, -0.6)].map((p, i) => bags.lamp.v(p, [i % 3 ? 1 : 0, i > 1 ? 1 : 0], F2.N));
+        bags.lamp.quad(ids[0], ids[1], ids[2], ids[3]);
+      }
+      const ids = [[xGR + 2.6, fy + 1.2, T0 - 0.5], [HW - 0.6, fy + 1.2, T0 - 0.5], [HW - 0.6, fy + 3.3, T0 - 0.5], [xGR + 2.6, fy + 3.3, T0 - 0.5]].map((p, i) => bags.lamp.v(p, [i % 3 ? 1 : 0, i > 1 ? 1 : 0], [0, 0, 1]));
+      bags.lamp.quad(ids[0], ids[1], ids[2], ids[3]);
     }
   }
 
@@ -1624,6 +1801,7 @@ function makeMats() {
   M.stain = sh('stain', 'glass', { color: 0xffffff, roughness: 0.95, metalness: 0, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
   M.weed = sh('weed', 'cut', { color: 0xffffff, roughness: 0.9, metalness: 0, alphaTest: 0.42 });
   M.plastic = sh('plastic', 'std', { color: 0xffffff, roughness: 1, metalness: 0 });
+  M.fit = sh('fit', 'std', { color: 0xffffff, roughness: 0.55, metalness: 0.1 });
   M.lamp = sh('lamp', 'glow', { color: 0xd88a2a, roughness: 0.25, metalness: 0, emissive: 0xff9a26, emissiveIntensity: 0 });
   const HF = HG.makeFinish ? HG.makeFinish() : null;
   M.aoskirt = HF && HF.MAT ? HF.MAT.aoskirt : null;
@@ -1664,7 +1842,7 @@ function applyFinish(P0, F0) {
     calibrate(m, img, target, hue, k === 'concFloor' ? () => wetFrom(M) : null);
     m.metalness = metal; if (m.normalScale) m.normalScale.set(ns, ns);
     if (HG.shadeHouse && !(m.userData && m.userData.houseShaded)) HG.shadeHouse(m, SU);
-    if (HG.cloudWeather && /^(sheet|concWall)/.test(k)) HG.cloudWeather(m, k === 'sheetNew' ? 0.1 : 0.55, 0);
+    if (HG.cloudWeather && /^(sheet|concWall)/.test(k)) HG.cloudWeather(m, k === 'sheetNew' || (P.stage | 0) === 3 ? 0.08 : 0.55, 0);   // (the user: the restored "still very dirty" - a little weathering, no more)
     m.needsUpdate = true;
   }
   if (!ATLAS.decal) { const c = decalCanvas(); if (c) { ATLAS.decal = new THREE.CanvasTexture(c); ATLAS.decal.colorSpace = THREE.SRGBColorSpace; ATLAS.decal.anisotropy = 8; } }
@@ -1673,6 +1851,8 @@ function applyFinish(P0, F0) {
   if (ATLAS.weed) { M.weed.map = ATLAS.weed; M.weed.needsUpdate = true; }
   if (!ATLAS.barrier) { const B = barrierCanvas(); if (B) { const tx = (cv, srgb) => { const t = new THREE.CanvasTexture(cv); if (srgb) t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t; };
     ATLAS.barrier = { diff: tx(B.diff, true), rough: tx(B.rough), nor: tx(B.nor) }; } }
+  if (!ATLAS.fit) { const c = fitCanvas(); if (c) { ATLAS.fit = new THREE.CanvasTexture(c); ATLAS.fit.colorSpace = THREE.SRGBColorSpace; ATLAS.fit.anisotropy = 8; } }
+  if (ATLAS.fit && M.fit) { M.fit.map = ATLAS.fit; M.fit.needsUpdate = true; }
   if (ATLAS.barrier && M.plastic) {
     const m = M.plastic; m.map = ATLAS.barrier.diff; m.roughnessMap = ATLAS.barrier.rough; m.normalMap = ATLAS.barrier.nor; m.normalScale.set(0.7, 0.7); m.color.setHex(0xffffff); m.roughness = 1;
     m.needsUpdate = true;   // (no house finish on it: its sheet carries its own grime and the house's hook re-reads the map)
@@ -1683,7 +1863,8 @@ function applyFinish(P0, F0) {
   if (M.lamp) { M.lamp.emissiveIntensity = P.lamps ? 2.2 : 0; M.lamp.color.setHex(P.lamps ? 0xffb050 : 0xc88a3a); M.lamp.needsUpdate = true; }
   // the dirt ramp off the slab (the house's): the dark tide line on the concrete, rust-brown splash on the sheets
   if (SU) {
-    SU.uDirtTop.value = P.floorY + 0.9; SU.uDirtH.value = 1.1; SU.uDirtK.value = 0.6; SU.uNoiseK.value = 0.2; SU.uAOd.value = 0.4; SU.uSag.value = 0;
+    const R3 = (P.stage | 0) === 3;
+    SU.uDirtTop.value = P.floorY + (R3 ? 0.5 : 0.9); SU.uDirtH.value = R3 ? 0.7 : 1.1; SU.uDirtK.value = R3 ? 0.22 : 0.6; SU.uNoiseK.value = 0.2; SU.uAOd.value = 0.4; SU.uSag.value = 0;
     for (const k in DRESS) { const D2 = M[k] && M[k].userData && M[k].userData.dirt; if (!D2) continue;
       D2.uDirtGain.value = k === 'concFloor' ? 0 : (k === 'concWall' ? 1.5 : (k === 'sheetNew' ? 0.3 : 1.0));   // (a floor is not a wall: no splash line) D2.uDirtOwn.value.setHex(/^conc/.test(k) ? 0x3d382f : 0x5a4232); D2.uWander.value = 0;
       D2.uAgeDesat.value = /^(steel|sheetPale|sheetDark)$/.test(k) ? 0.2 : 0; D2.uAgeDark.value = k === 'steel' ? 0.12 : 0; }
@@ -1698,7 +1879,7 @@ function finishReport() {
 window.DERELICT_GEN = {
   LOD_DETAIL: /^(glass|water|ply)$/,
   DEF, ROWS, PRESETS, STAGES, BAGS, EXTRA, dimsOf, build, applyFinish, makeFinish, finishReport, worksP,
-  atlasCanvas: { decal: decalCanvas, weed: weedCanvas, barrier: barrierCanvas }, BARRIER, barrierMesh, corrugation: { PITCH, CREST, AMP },
+  atlasCanvas: { decal: decalCanvas, weed: weedCanvas, barrier: barrierCanvas, fit: fitCanvas }, BARRIER, barrierMesh, corrugation: { PITCH, CREST, AMP },
   get MAT() { return defaultFinish().MAT; },
   albedoOf, calibrate, DRESS, WET: { dark: WET_DARK, sat: WET_SAT },
 };

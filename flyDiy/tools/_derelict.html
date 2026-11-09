@@ -217,8 +217,12 @@ function buildHangar(o) {
   BUILT.meshes = addBuilt(ROOT, BUILT, o.stage >= 3 ? (FIN.hn && FIN.hn.MAT) : FIN.MAT);
   for (const L of ((BUILT.stats.lit && BUILT.stats.lit.lights) || [])) {   // the lamps are real lights (G253: no light without its glass)
     if (!P.lamps) break;
-    const pl = new THREE.PointLight(new THREE.Color(L.col[0], L.col[1], L.col[2]), L.k * 40, L.range * 1.4, 2);
-    pl.position.set(L.x, L.y, L.z); ROOT.add(pl);
+    const col = new THREE.Color(L.col[0], L.col[1], L.col[2]);
+    if (L.kind === 'flood') {                                               // a floodlight: a cone forward and down, not a ball of light on its own wall
+      const sp = new THREE.SpotLight(col, L.k * 160, L.range * 1.6, 0.75, 0.55, 2);
+      sp.position.set(L.x, L.y, L.z); sp.target.position.set(L.x + L.nx * 12, L.y + (L.ny || -0.5) * 12, L.z + L.nz * 12);
+      ROOT.add(sp, sp.target);
+    } else { const pl = new THREE.PointLight(col, L.k * 40, L.range * 1.4, 2); pl.position.set(L.x + L.nx * 0.15, L.y, L.z + L.nz * 0.15); ROOT.add(pl); }
   }
   WORLD.add(ROOT);
   CUR = key;
@@ -291,6 +295,8 @@ const VIEWS = {
   puddle:   { eye: [1.5, 1.6, -4], at: [0.5, 0.0, 4.5], fov: 55, yaw: 60, mood: 'sun', wet: 0.85 },
   restored: { eye: [5, 1.65, 52], at: [0, 6.2, 0], fov: 52, yaw: 66, mood: 'sun', stage: 3, P: { doorOpen: 0.75 } },
   hall:     { eye: [3.5, 1.65, -14], at: [-1, 5.0, 30], fov: 66, yaw: 60, mood: 'sun', stage: 3, P: { doorOpen: 1 } },
+  office:   { eye: [11.0, 1.7, 29.5], at: [17.4, 1.9, 20.6], fov: 50, yaw: 66, mood: 'sun', stage: 3, P: { doorOpen: 0.6 } },
+  rnight:   { eye: [10, 1.8, 46], at: [1, 4.5, 15], fov: 52, yaw: 66, mood: 'night', stage: 3, P: { lamps: 1, doorOpen: 0.5 } },
 };
 function setView(name, yawOverride) {
   const v = VIEWS[name] || VIEWS.front;
