@@ -54,6 +54,8 @@ const SET = [
   { name: 'step3',         cam: 'step',     stage: 3 },
   { name: 'side0',         cam: 'side',     stage: 0 },
   { name: 'side3',         cam: 'side',     stage: 3 },
+  { name: 'floor3',        cam: 'puddle',   stage: 3 },
+  { name: 'floor0',        cam: 'puddle',   stage: 0 },
   { name: 'back0',         cam: 'back',     stage: 0 },
   { name: 'back3',         cam: 'back',     stage: 3 },
   { name: 'left3',         cam: 'left',     stage: 3 },

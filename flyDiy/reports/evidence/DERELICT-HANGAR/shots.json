@@ -1,6 +1,6 @@
 {
- "w": 1600,
- "h": 900,
+ "w": 960,
+ "h": 540,
  "ss": 2,
  "shots": [
   {
@@ -350,6 +350,30 @@
    "calls": 292,
    "pendingMaps": 0,
    "ms": 88130
+  },
+  {
+   "name": "floor3",
+   "cam": "puddle",
+   "stage": 3,
+   "stageName": "restored",
+   "lod": 0,
+   "tris": 109580,
+   "draws": 14,
+   "calls": 252,
+   "pendingMaps": 0,
+   "ms": 30953
+  },
+  {
+   "name": "floor0",
+   "cam": "puddle",
+   "stage": 0,
+   "stageName": "derelict",
+   "lod": 0,
+   "tris": 134824,
+   "draws": 13,
+   "calls": 288,
+   "pendingMaps": 0,
+   "ms": 34211
   }
  ],
  "errors": []
