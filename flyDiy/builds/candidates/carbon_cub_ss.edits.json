@@ -1,0 +1,97 @@
+{
+ "_what": "REAL-FIGURES-3 (the user 9 Nov): the STOL Cub made a Carbon Cub SS - the real engine built from DIALS, not a row (the CC340: the O-320's chassis, 5.125 x 4.125 in, 340 in3, 2700 rpm, tune 1.09 = 10.7 bar -> 180 hp, build 0.88 -> 120 kg as normally equipped: 240-250 lb dry, 35 lb under a comparable Lycoming), a two-blade 2.03 m carbon prop, only the real STOL features (VGs; no slot, no droop, no drooped tips), the new STOL flap (a plain hinge to 50 deg, the SS's 15/30/50), a Super Cub-sized tail (3.2 m, THIN) with the Cub's elevator chord, 29 in Airstreak tundra tyres (the largest CubCrafters option; ours were 30.7 in), an 8 in tailwheel, 24 US gal in two wing-root tanks, and the SS's panel: one 7 in glass PFD/MFD in the centre with round airspeed, altimeter and VSI, COM and transponder (its round engine monitor, a CGR-30P, has no row: small tacho / oil / fuel gauges stand in)",
+ "enginePreset": "lycoming O-320",
+ "cage": {
+  "engPreset": 41,
+  "wgSlat": 0,
+  "wgSlatSpan": 0,
+  "wgVG": 1,
+  "wgDroop": 0,
+  "wgTip": 2,
+  "wgFlapType": 5,
+  "cw_propD": 2.03,
+  "cw_bladeN": 2,
+  "stSpan": 1.589,
+  "stHinge": 0.2074,
+  "s1R": 0.368,
+  "s2R": 0.1,
+  "eng_stroke": 0.104775,
+  "eng_bmepK": 1.09,
+  "eng_massK": 0.88
+ },
+ "prop": {
+  "D": 2.03,
+  "blades": 2,
+  "material": "carbon",
+  "pitch": "standard"
+ },
+ "energy": {
+  "kind": "fuel",
+  "fuel": "avgas100LL",
+  "cell": "lifepo4",
+  "kWh": 0,
+  "vessel": null,
+  "finish": null,
+  "hue": 0,
+  "tint": null,
+  "vessels": [
+   {
+    "bay": "wingRoot",
+    "capacity": 91,
+    "along": null,
+    "lv": null,
+    "rot": 0,
+    "form": "box",
+    "finish": null,
+    "hue": null,
+    "tint": null,
+    "dims": null
+   }
+  ]
+ },
+ "fuel": {
+  "litres": 91,
+  "tank": "wing"
+ },
+ "meta": {
+  "name": "Carbon Cub SS"
+ },
+ "wings": {
+  "stol": {
+   "vg": 1
+  },
+  "tip": "rounded"
+ },
+ "systems": {
+  "fit": "custom",
+  "units": "aviation",
+  "items": [
+   "asi",
+   "alt",
+   "vsi",
+   "compass",
+   "tacho",
+   "oilP",
+   "oilT",
+   "fuel",
+   "volts"
+  ],
+  "elec": {
+   "battery": "lithium",
+   "alternator": "alt60",
+   "starter": "yes",
+   "vac": "none"
+  },
+  "avionics": {
+   "com": "compact",
+   "xpdr": "modeS",
+   "nav": "none",
+   "gps": "glass"
+  },
+  "side": "centre",
+  "look": {
+   "bezel": "plastic",
+   "sw": "toggle"
+  }
+ }
+}

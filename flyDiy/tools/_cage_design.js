@@ -207,6 +207,7 @@ function iconFlap(key) {
   if (key === 'slotted') p.push({ d: 'M43 17 L60 26 L44 23 Z' });
   if (key === 'fowler') p.push({ d: 'M46 20 L63 28 L47 26 Z' });
   if (key === 'split') p.push({ d: 'M26 24 L40 22 L52 32 Z' });   // the lower skin hinged down
+  if (key === 'stol') p.push({ d: 'M40 15 L52 34 L40 21 Z' });    // the plain hinge, down to 50 deg
   return { vb: '0 0 64 40', paths: p };
 }
 
@@ -1397,7 +1398,7 @@ const DESIGN_ROWS = [
     read: P => Math.round(P.wgFlapType),
     // (the split flap, the Spitfire's, 27 Oct: the physics had it, the tile did not; its value is its own
     // index in GEN_FLAPS, as the row's)
-    options: () => ['none', 'plain', 'slotted', 'fowler', 'split'].map(k => {
+    options: () => ['none', 'plain', 'slotted', 'fowler', 'split', 'stol'].map(k => {
       const i = Math.max(0, Object.keys(gFlaps() || {}).indexOf(k));
       return { value: i, label: ((gFlaps() || {})[k] || { name: k }).name,
                icon: iconFlap(k), writes: { cage: { wgFlapType: i } } }; }) },

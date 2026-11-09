@@ -921,7 +921,7 @@ const CAGE_PARTS = [
                     'eng_stroke', 'eng_rpm', 'eng_stagger']],
       // the blower rows (2026-09-05): what holds the rating, and to where
       ['architecture', ['eng_twoStroke', 'eng_liquid', 'eng_geared',
-                        'eng_blower', 'eng_boost', 'eng_critAlt']],
+                        'eng_blower', 'eng_boost', 'eng_critAlt', 'eng_bmepK', 'eng_massK']],
       ['electric', ['eng_eStyle', 'eng_canD', 'eng_canL', 'eng_volts',
                     'eng_eFins', 'eng_escOn']],
       // the turboprop's own keys (2026-09-05, TURBOPROP §3), so no row is

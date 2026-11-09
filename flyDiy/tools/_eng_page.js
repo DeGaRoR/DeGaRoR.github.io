@@ -63,6 +63,7 @@ const engDefaults = () => Object.assign(
     // §0 now asserts the invariant for every panel row.
     blower: EG.ENG_DEFAULT.blower, boost: EG.ENG_DEFAULT.boost,
     critAlt: EG.ENG_DEFAULT.critAlt, vee: EG.ENG_DEFAULT.vee,
+    bmepK: EG.ENG_DEFAULT.bmepK, massK: EG.ENG_DEFAULT.massK,
     // the electric fiche (G25) rides the same dict
     eStyle: EG.ENG_DEFAULT.eStyle, canD: EG.ENG_DEFAULT.canD,
     canL: EG.ENG_DEFAULT.canL, volts: EG.ENG_DEFAULT.volts,
@@ -343,6 +344,11 @@ const ENG_GROUPS = [
                                        [2, 'supercharger']]],
     ['boost',   'boost (MAP / ambient)', 1.0, 2.5, 0.01, x => x.toFixed(2)],
     ['critAlt', 'critical altitude m', 0, 9000, 50, x => x.toFixed(0)],
+    // THE TUNE (2026-11-09): rated bmep over the layout's own — the CC340's
+    // 180 hp on 340 in3 is 1.09 of a boxer's 9.8 bar
+    ['bmepK',   'tune (bmep / layout)', 0.85, 1.2, 0.01, x => x.toFixed(2)],
+    // and its build: mass over the swept-volume law (the CC340's 0.88)
+    ['massK',   'build (mass / law)', 0.75, 1.25, 0.01, x => x.toFixed(2)],
   ], isPiston],
   ['cylinder dress', [
     ['finN',     'barrel fins', 4, 18, 1],

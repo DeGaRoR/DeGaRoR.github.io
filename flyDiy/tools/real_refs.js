@@ -334,6 +334,8 @@ const PLANES = {
               branch: 'claude/seaplanes-merge', provisional: true, note: 'not flyable on water on that branch yet: land figures only, to redo once it flies' },
   c172rf:   { label: '172R on Wipline 2350 floats, STC prop (G3390, 20 Oct)', short: '172R on Wipline 2350', file: 'builds/c172r_wipline2350_stcprop_2026-10-20.json', ref: 'c172f', water: true,
               note: 'HYDRO-TRIM\'s stock 172R on the catalogue-exact Wipline 2350s with the STC 82 x 43 prop: the floats Cessna that exists today, until FLAGSHIP\'s rebuild lands' },
+  carboncubss: { label: 'Carbon Cub SS (the STOL Cub rebuilt to the type)', short: 'Carbon Cub SS', file: 'builds/candidates/carbon_cub_ss.json', ref: 'carboncub',
+              note: 'REAL-FIGURES-3, the user 9 Nov: the STOL Cub with the CC340 built from the engine dials (the O-320 chassis on the CC340 stroke, 340 in3, 2700 rpm, the new tune 1.09 and build 0.88 dials: 180 hp, 120 kg), a 2-blade carbon 2.03 m, VGs only (no slot, droop or drooped tips), the new STOL flap (plain, to 50 deg), a Super Cub-sized tail, 29 in tundras, 91 L in the wing roots, one 7 in glass PFD/MFD with round ASI / ALT / VSI (builds/candidates/carbon_cub_ss.edits.json)' },
   stolcub:  { label: 'STOL Cub (official)', short: 'STOL Cub', file: 'tools/fixtures/stol_cub_showcase.json', ref: 'carboncub', official: true,
               engineNote: 'a Rotax 915 iS (141 hp turbo) where the Carbon Cub SS has the CC340 180 hp (the Carbon Cub UL\'s 916 iS is the Rotax analogue, unpublished)' },
   c172x:    { supersededBy: 'c172v2', label: 'Cessna 172 corrected (internal)', short: 'Cessna 172 corrected', file: 'builds/cessna172_2026-09-20_corrected.json', ref: 'c172r',
