@@ -1779,6 +1779,19 @@ function build(P0, lod, F) {
   for (const [from, to] of (FOLD[L] || [])) { if (to) bags[to].append(bags[from], {}); bags[from] = Bag(from); }
   const OUT = BAGS.concat(EXTRA);
   const aoInfo = P.ao > 0 ? K.bakeAO(OUT.filter(k => !NO_AO[k] && k !== 'aoskirt').map(k => bags[k]), { strength: P.ao, range: P.aoRange || 0.9, ground: g }) : null;
+  // THE RESTORED SLAB'S PAST, AT THE MACRO SCALE (the user 9 Nov: "now the floor is a little clean ... the blend should show
+  // at that distance, we're aiming for macro detail ... the micro is OK with the current texture"): the slab's own occlusion
+  // term darkened in broad soft patches - a 14 m and a 5.5 m field, the worn lanes and the old oil of the derelict's floor
+  // read through the new finish (to 28 % at the darkest) - on its 2 m vertex grid, after the bake; the scan is untouched
+  if (rest && bags.concFloor && bags.concFloor.verts) {
+    const d = bags.concFloor.data();
+    for (let i = 0, v = 0; i < d.pos.length; i += 3, v++) {
+      const x = d.pos[i], y = d.pos[i + 1], z = d.pos[i + 2];
+      if (Math.abs(y - fy) > 0.05) continue;
+      const m = 0.62 * vnoise(x / 14 + 7.3, z / 14 - 2.1, seed + 31) + 0.38 * vnoise(x / 5.5 - 1.7, z / 5.5 + 4.4, seed + 37);
+      d.ao[v] *= 1 - 0.28 * SM(0.38, 0.82, m);
+    }
+  }
   let tris = 0, verts = 0; const per = {};
   const bb = { x0: Infinity, y0: Infinity, z0: Infinity, x1: -Infinity, y1: -Infinity, z1: -Infinity };
   for (const k of OUT) {
@@ -1836,31 +1849,6 @@ function texOf(lib, key, mapName) {
   t.repeat.set(1 / tile, 1 / tile);
   const ok = () => { t.needsUpdate = true; };
   if (img.complete && img.naturalWidth) ok(); else if (img.addEventListener) img.addEventListener('load', ok);
-  TEXC.set(ck, t);
-  return t;
-}
-// TWO SCANS, ONE MAP (the user 9 Nov: "now the floor is a little clean. I suggest you use the previous texture you used for
-// the ground, and that you mix it with this one, gently, so this new ground gets a little bit of character"): the restored
-// slab's map is its own scan with the derelict's laid over at `k`, drawn into a canvas once both have landed (the same
-// lib, the same tile: the two grids agree); null until the library has both sets
-function blendTexOf(lib, keyA, keyB, k) {
-  const S = libOf(lib), A = S && S[keyA], B = S && S[keyB];
-  if (!A || !B || !A.diff || !B.diff || Array.isArray(A.diff) || Array.isArray(B.diff) || typeof document === 'undefined') return null;
-  const ck = lib + '|' + keyA + '+' + keyB + '|' + k;
-  if (TEXC.has(ck)) return TEXC.get(ck);
-  const cv = document.createElement('canvas'); cv.width = cv.height = 512;
-  const t = new THREE.CanvasTexture(cv);
-  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; t.colorSpace = THREE.SRGBColorSpace;
-  const tile = A.tile || 2; t.repeat.set(1 / tile, 1 / tile);
-  const ready = im => im.complete && im.naturalWidth;
-  const draw = () => {
-    if (!ready(A.diff) || !ready(B.diff)) return;
-    const g = cv.getContext('2d'); g.globalAlpha = 1; g.drawImage(A.diff, 0, 0, 512, 512);
-    g.globalAlpha = k; g.drawImage(B.diff, 0, 0, 512, 512); g.globalAlpha = 1;
-    t.needsUpdate = true;
-  };
-  for (const im of [A.diff, B.diff]) if (!ready(im) && im.addEventListener) im.addEventListener('load', draw);
-  draw();
   TEXC.set(ck, t);
   return t;
 }
@@ -1967,8 +1955,7 @@ function applyFinish(P0, F0) {
   for (const k in DRESS) {
     const m = M[k]; if (!m) continue;
     const [lib, key, target, hue, metal, ns] = ((P.stage | 0) === 3 && DRESS_R[k]) || DRESS[k];
-    // (the restored slab: its brushed scan with the derelict's cracked one laid over at 0.3 - a floor with a past)
-    const d = ((P.stage | 0) === 3 && k === 'concFloor' && blendTexOf(lib, key, DRESS.concFloor[1], 0.3)) || texOf(lib, key, 'diff');
+    const d = texOf(lib, key, 'diff');
     if (d) { m.map = d; m.normalMap = texOf(lib, key, 'nor') || texOf(lib, key, 'nor_gl'); m.roughnessMap = texOf(lib, key, 'rough'); m.roughness = 1; }
     const S0 = libOf(lib), img = S0 && S0[key] ? S0[key].diff : null;
     calibrate(m, img, target, hue, k === 'concFloor' ? () => wetFrom(M) : null);
