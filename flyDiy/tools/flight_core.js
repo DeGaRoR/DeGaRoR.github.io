@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 238a26b1bbae765b
+// body-sha256: a28964887286625e
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -34257,7 +34257,7 @@ function genPropSynth(pr, pitchKey) {
   // More blades is more disc solidity: better static thrust for the same
   // diameter, at a little peak efficiency. 5.5% a blade past two.
   // PROP-CLASSES: x the material's section efficiency (absent = 1: the woods)
-  const eff = MT.eff || 1, solid = 1 + 0.055 * (pr.blades - 2);
+  const eff = (MT.eff || 1) / (PI.effRef || 1), solid = 1 + 0.055 * (pr.blades - 2);
   pr.fm = PI.fm * eff * solid;
   // MOMENTUM THEORY. The ideal static thrust of a disc absorbing P is
   // (2 rho A)^(1/3) P^(2/3); a real propeller reaches a fraction of it.
@@ -34265,9 +34265,13 @@ function genPropSynth(pr, pitchKey) {
   // and the quadratic decay, through the speed at which thrust runs out. One
   // constant on the only velocity scale there is; the pitch trade rides in
   // Tstatic, so a fine prop's thrust runs out earlier without being told to.
-  // (PROP-CLASSES: a constant-speed prop's thrust runs out where its coarse setting's would - v0Class)
-  const T0v = PI.v0Class && GEN_PROP_PITCH[PI.v0Class]
-    ? GEN_PROP_PITCH[PI.v0Class].fm * eff * solid * Math.cbrt(2 * RHO * pr.area) * CORE_MATH.pow(P, 2 / 3) : pr.Tstatic;
+  // PROP-CLASSES: THE MATERIAL SCALES THE WHOLE CURVE. The zero-thrust speed is the PITCH's (its class's static figure,
+  // without the section's efficiency): a better blade pulls more at every speed, T(V) = eff x T_class(V). Fed through
+  // V0 = propV0K P / Tstatic the factor shortened V0 and a better prop pulled LESS above its peak-power speed (the DC-3's
+  // top speed fell 301 -> 294 km/h in the first cut). A constant-speed prop's thrust runs out where its coarse
+  // setting's would (v0Class)
+  const T0v = (PI.v0Class && GEN_PROP_PITCH[PI.v0Class] ? GEN_PROP_PITCH[PI.v0Class].fm : PI.fm) * solid
+    * Math.cbrt(2 * RHO * pr.area) * CORE_MATH.pow(P, 2 / 3);
   pr.V0 = GEN_RULES.propV0K * P / Math.max(1, T0v);
   pr.kV2 = pr.Tstatic / (pr.V0 * pr.V0);
   // the speed this propeller is at its best at: T*V peaks at V0/sqrt(3).
@@ -34343,9 +34347,10 @@ const GEN_PROP_PITCH = {
   climb:    { name: 'Fine (climb)',    fm: 0.530, pd: 0.55 },
   standard: { name: 'Standard',        fm: 0.477, pd: 0.70 },
   cruise:   { name: 'Coarse (cruise)', fm: 0.420, pd: 0.85 },
-  // (PROP-CLASSES: the seaplane class's 0.630 was MEASURED on metal props - Flight Resource's Hartzell and MT - so it is
-  // stated per the aluminium section: 0.630 / 1.08, and a metal float prop is the measured figure exactly)
-  seaplane: { name: 'Seaplane (float prop)', fm: 0.630 / 1.08, pd: 0.524 },
+  // (PROP-CLASSES: the seaplane class's 0.630 was MEASURED on metal props - Flight Resource's Hartzell and MT: `effRef`
+  // says so, and only a section other than metal moves it - a metal float prop is the measured propeller exactly, its
+  // static figure and its reach)
+  seaplane: { name: 'Seaplane (float prop)', fm: 0.630, pd: 0.524, effRef: 1.08 },
   // PROP-CLASSES: THE CONSTANT-SPEED PROPELLER - the governor holds the engine's rpm, so the blades sit fine standing
   // (the standard class's static figure: measured on the DC-3, the climb class's overshoots) and coarse at speed (the zero-thrust speed of the cruise class's own, not the fine
   // one's: v0Class), and the shaft runs at rated rpm (33_drive / genShaftRpm reads `cs`). It costs the hub and governor:
