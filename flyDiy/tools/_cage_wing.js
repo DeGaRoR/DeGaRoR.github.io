@@ -531,11 +531,19 @@ const FILLET_ITEMS = [
   ['wgFilletK', 'fillet size', 0.4, 2.0, 0.05, { when: P => +P.wingOn && +P.wgFillet > 0 }],
   ['wgFilletAft', 'aft extension (root chords, 0 = the style\'s)', 0, 0.8, 0.01, { when: P => +P.wingOn && +P.wgFillet > 0 }],
 ];
+// (the group, as its rows, in the lab until the user's look - _cage_gear.js CAGE_LAB_ROWS: shown with the lab switch on,
+// or on a build that has a fillet)
+const filletGroupOn = P => {
+  if (!+P.wingOn) return false;
+  let lab = true;
+  try { if (typeof window.CAGE_RETRACT_LAB === 'function') lab = !!window.CAGE_RETRACT_LAB(); } catch (e) {}
+  return lab || +P.wgFillet > 0;
+};
 const host6 = (PAGE.groupsOverride || []).find(g => g[0] === '6 · wings');
-if (host6) host6[1].push(...WING_ITEMS, ['wing-root fillet', FILLET_ITEMS, { when: P => +P.wingOn }],
+if (host6) host6[1].push(...WING_ITEMS, ['wing-root fillet', FILLET_ITEMS, { when: filletGroupOn }],
                          ['second wing', W2_ITEMS, { when: P => +P.wingOn }]);
 else (PAGE.groupsOverride || (PAGE.groups = PAGE.groups || []))
-  .push(['6 · wings', WING_ITEMS.concat([['wing-root fillet', FILLET_ITEMS, { when: P => +P.wingOn }],
+  .push(['6 · wings', WING_ITEMS.concat([['wing-root fillet', FILLET_ITEMS, { when: filletGroupOn }],
                                          ['second wing', W2_ITEMS, { when: P => +P.wingOn }]])]);
 
 // ---- materials ------------------------------------------------------------

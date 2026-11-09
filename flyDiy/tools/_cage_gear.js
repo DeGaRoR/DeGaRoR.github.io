@@ -1417,6 +1417,7 @@ window.CAGE_LAB_ROWS = {
   engNacOver: 0, engNacLift: 0, engFinAt: 0.55, engFinFwd: 0,
   bpCabPylon: 0, bpCabDraw: 1, bpStrutK: 1,
   wgTipBow: 0, wgTipDroop: 0, wgTipFull: 1,
+  wgFillet: 0, wgFilletK: 1, wgFilletAft: 0,   // WING-FILLET (9 Nov): the wing-root fillet, in the lab until the user's look
   cw_inletOn: 0,   // the pusher nacelle's air inlet (HULL-B25; its own rows hang off it)
 };
 // (A0 7 Nov: "fixing gearRetract shows on every build is welcome"): the switch is offered where it can act -
