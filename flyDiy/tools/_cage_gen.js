@@ -4807,8 +4807,9 @@ function cageInterior(m, S) {
     const bz = Math.max(-1, Math.min(1, +I.bulkZ || 0));
     const room = Math.max(0, PW * 0.5 - 0.005 - 0.010);
     const SETB = 0.010 + bz * room;
-    const INS = (I.pillars && cons !== 'tube' ? (I.shellT || 0.035) : 0)
-              + 0.008;
+    // LINER-BACK: without pillars the plate's rim met the lining (cloth 6 mm, ply 14 mm) at 8 mm; the lining is now the
+    // skin's back face, so the rim comes to 2.5 mm off the skin (with pillars: inside the posts, as before)
+    const INS = I.pillars && cons !== 'tube' ? (I.shellT || 0.035) + 0.008 : 0.0025;
     let bcx = 0, bcy = 0;
     for (const v of ring) { bcx += V[v][0]; bcy += V[v][1]; }
     bcx /= ring.length; bcy /= ring.length;
@@ -5765,7 +5766,7 @@ function cageInterior(m, S) {
           }
           const mx = [(V[v][0]+V[bp][0])/2, (V[v][1]+V[bp][1])/2,
                       (V[v][2]+V[bp][2])/2];
-          ringO.push(secIn(mx, 0.009));
+          ringO.push(secIn(mx, 0.0025));   // LINER-BACK: just under the skin (the toele is its back face; was 0.009 under an 8 mm toele)
           ringI.push(secIn(mx, DEEP));
         }
         // a FULLY metal ring closes (user: the frames gapped at the
@@ -6307,7 +6308,9 @@ function cageInterior(m, S) {
       // it neither floats off it nor grows through it. Reading the
       // lining's own thickness rather than repeating a constant is
       // what keeps that true when `skinT` moves.
-      const plyT = tSk || t0 * 0.4;
+      // LINER-BACK (9 Nov, the user's yes): the ply is now the skin's own back face, zero thick - the former and the
+      // longeron stop on the skin, a hairline in (LIN_EPS, as the posts), and skinT no longer moves them (was tSk || t0*0.4)
+      const plyT = 0.0015;
       const topCh = [[], []], botCh = [[], []];
       // ROD MODE (G26): no boom skin to slice and the rod IS the
       // structure — the station machinery idles (empty chains no-op
@@ -6355,7 +6358,7 @@ function cageInterior(m, S) {
           const ring0 = pts.map(p => {
             const dx = cx - p[0], dy = cy2 - p[1];
             const l = Math.hypot(dx, dy) || 1;
-            return [p[0] + dx/l*0.009, p[1] + dy/l*0.009, zk];
+            return [p[0] + dx/l*0.0025, p[1] + dy/l*0.0025, zk];   // LINER-BACK (was 0.009: under the 8 mm toele)
           });
           if (k >= 1 && k <= NFr) {
             // SAME LOOK AS THE CABIN PILLAR FRAMES (user): the boom's
@@ -6367,7 +6370,7 @@ function cageInterior(m, S) {
             const ringH = ring0.map(p => {
               const dx = cx - p[0], dy = cy2 - p[1];
               const l = Math.hypot(dx, dy) || 1;
-              const d = Math.min(DEEP2 - 0.009, l * 0.6);
+              const d = Math.min(DEEP2 - 0.0025, l * 0.6);   // (the inner rail stays DEEP2 off the skin)
               return [p[0] + dx/l*d, p[1] + dy/l*d, zk];
             });
             punched(ring0, ringH, true, 'aluminium', 0.006, 0.014);
@@ -6696,7 +6699,7 @@ function cageInterior(m, S) {
                 const t = (bT.zm - A[2]) / dz;
                 const ep = [A[0] + (A[0] - B[0]) * t,
                             A[1] + (A[1] - B[1]) * t, bT.zm];
-                arr.unshift({ p: landSec(ep, 0.009) || ep,
+                arr.unshift({ p: landSec(ep, 0.0025) || ep,   // LINER-BACK (was 0.009)
                               d: arr[0].d });
                 return;
               }
