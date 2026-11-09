@@ -84,6 +84,10 @@ let dry;
   dry = run(takeoff, { T: 60 });
   const at40 = dry.live[40 * 30];
   yes(dry.emitted > 50 && at40 > 0, 'a dry take-off raises a cloud that outlives 30 s (' + dry.emitted + ' puffs emitted, ' + at40 + ' alive at 40 s)');
+  { let tm = 0; for (let i = 0; i < dry.sys.P.n; i++) if (dry.sys.P.age[i] >= 0) tm = Math.max(tm, dry.sys.P.tau[i]);
+    yes(tm > 0.2, 'it HANGS (the user, 9 Nov): still thick at 60 s, optical depth ' + tm.toFixed(2) + ' > 0.2 (a low layer thins as 1/r, not 1/r^2)'); }
+  { let hm = 0; for (let i = 0; i < dry.sys.P.n; i++) if (dry.sys.P.age[i] >= 0) hm = Math.max(hm, dry.sys.P.rv[i]);
+    yes(hm <= DUST.L.rvCap + 1e-6 && hm < 10, 'a low layer: the tallest puff ' + hm.toFixed(1) + ' m half-height'); }
   const damp = run(takeoff, { T: 20, S: 0.3 }), dry20 = run(takeoff, { T: 20 });
   yes(damp.massEnd < 0.3 * dry20.massEnd, 'damp ground (S 0.3) raises under a third of the dry cloud (' + damp.massEnd.toFixed(1) + ' vs ' + dry20.massEnd.toFixed(1) + ' optical m^2 at 20 s)');
   const wet = run(takeoff, { T: 20, S: 0.6 });
@@ -104,6 +108,15 @@ console.log('3. the sources');
   yes(grass.massEnd < sand.massEnd && sand.massEnd < t.massEnd && sand.maxG > t.maxG * 0.9, 'per surface: dirt the dustiest, sand less dust and more grit, dry grass little');
 }
 
+{ const taxiS = t => { const st = { wheels: [], props: [], wing: null }, V = 6, x = V * t;
+    for (const [k, z] of [[0, -0.9], [1, 0.9]]) st.wheels.push({ key: k, x, y: 0, z, vx: V, vy: 0, vz: 0, on: true, R: 0.3 });
+    st.props.push({ x: x + 1.5, y: 1.3, z: 0, ax: Math.cos(0.19), ay: Math.sin(0.19), az: 0, R: 0.92, wash: washOf(V, 0.3) }); return st; };
+  const rollS = t => { const st = { wheels: [], props: [], wing: null }, V = 20, x = V * t;
+    for (const [k, z] of [[0, -0.9], [1, 0.9]]) st.wheels.push({ key: k, x, y: 0, z, vx: V, vy: 0, vz: 0, on: true, R: 0.3 });
+    st.props.push({ x: x + 1.5, y: 1.3, z: 0, ax: 1, ay: 0.02, az: 0, R: 0.92, wash: washOf(V, 1) }); return st; };
+  const tx = run(taxiS, { T: 10 }), rl = run(rollS, { T: 10 });
+  yes(tx.massEnd > 0 && tx.massEnd < 0.2 * rl.massEnd, 'a taxi (6 m/s, 0.3 power) raises little (the user, 9 Nov): ' + tx.massEnd.toFixed(0) + ' vs the 20 m/s roll: ' + rl.massEnd.toFixed(0) + ' over 10 s'); }
+
 console.log('4. the pools');
 {
   for (const tier of ['phone', 'potato', 'retro', 'gamer']) {
@@ -111,6 +124,10 @@ console.log('4. the pools');
     yes(!r.over && r.maxP <= r.sys.P.n && r.maxG <= r.sys.G.n, tier + ': never past the pools (' + r.maxP + '/' + r.sys.P.n + ' puffs, ' + r.maxG + '/' + r.sys.G.n + ' grit)');
   }
   yes(dry.merged > 20 && dry.maxP < 0.75 * dry.sys.P.n, 'old puffs merge: a 60 s take-off peaks at ' + dry.maxP + ' live puffs (' + dry.merged + ' merges)');
+  { let w = 0; for (let i = 0; i < dry.sys.P.n; i++) if (dry.sys.P.age[i] >= 0) w = Math.max(w, dry.sys.P.r[i]);
+    yes(w < dry.sys.tier.mergeMax + 15, 'a trail stays a trail: the widest puff at 60 s is ' + w.toFixed(0) + ' m (no merge past ' + dry.sys.tier.mergeMax + ' m)'); }
+  { const ph = run(takeoff, { T: 40, tier: 'phone' });
+    yes(ph.sys.stats.absorbed > 0 && ph.live[ph.live.length - 1] > 0, 'a full pool tops up the nearest puff, never deletes one (phone: ' + ph.sys.stats.absorbed + ' absorbed, the cloud alive at 40 s)'); }
   yes(DUST.TIER_OF.laptop === 'phone' && DUST.TIER_OF.gamer === 'gamer' && DUST.TIER_OF.ultra === 'gamer', 'the gfx presets map to the tiers (laptop = the phone\'s)');
 }
 
