@@ -1,7 +1,9 @@
 # MASS-BUDGET — the wiring and the liner on the calibrated cards (9 Nov 2026)
 
 ELEC-SYSTEMS (branch `claude/elec-systems`) answering CABIN-CRAFT (LINER-BACK, `claude/liner-back` 29effdb16). The rule
-the user gave, as CABIN-CRAFT relays it: **no plane further from its reference than today.** **APPLIED since** (the user: "go cable runs"): the measured result for every build is in 
+the user gave, as CABIN-CRAFT relays it: **no plane further from its reference than today.**
+
+**APPLIED since** (the user: "go cable runs"): the measured result for every build is in `ELEC-SYSTEMS-READY.md`
 (Cub 356.37 kg, +3.3 %; Jodel 345.15 kg, +7.9 % until JODEL-GEO). The tables below are the proposal as it was costed.
 
 ## The wiring, MEASURED (not added by hand)
