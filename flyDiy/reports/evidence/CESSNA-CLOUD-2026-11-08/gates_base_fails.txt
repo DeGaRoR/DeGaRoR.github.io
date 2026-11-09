@@ -1,0 +1,24 @@
+[run_gates] 0/2 jobs done · running HANDLE 30 s, FREIGHT 30 s
+[run_gates] 0/2 jobs done · running HANDLE 60 s, FREIGHT 60 s
+[run_gates] 0/2 jobs done · running HANDLE 90 s, FREIGHT 90 s
+[run_gates] 1/2 jobs done · running HANDLE 120 s
+[run_gates] 1/2 jobs done · running HANDLE 150 s
+=== HANDLE ===
+FAIL bugReports/Twin_busher_floats_2.json: doorHandle/star is on the hinge edge, not opposite it
+  FAIL bugReports/Twin_busher_floats_2.json: doorHandle/port is on the hinge edge, not opposite it
+GATE HANDLE: FAIL (2)
+(exit code 1)
+=== FREIGHT ===
+- cub: FREIGHT_CARDS = its build measured off its mesh (tools/_freight_site.js)
+2511 checks (cards measured)
+GATE FREIGHT: FAIL (1 of 2511)
+(exit code 1)
+
+──────── summary ────────
+HANDLE    FAIL   177.4 s
+FREIGHT   FAIL    90.4 s
+total            267.8 s
+wall             177.4 s  (jobs 4)
+
+BATTERY: FAIL — never deliver red.
+EXIT 1

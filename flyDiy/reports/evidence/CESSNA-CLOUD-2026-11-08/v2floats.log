@@ -1,0 +1,38 @@
+[cessna172r_floats_2026-11-08] min   954 kg  Vs 87  V75 192  Vmax 207  ROC 5.90 @130  L/D 11.2  TO(grass) 1314  CG 30% SM 28%  de(appr, flap 0.75) 0.062
+[cessna172r_floats_2026-11-08] typ   1003 kg  Vs 89  V75 191  Vmax 206  ROC 5.46 @133  L/D 11.2  TO(grass) 1328  CG 30% SM 28%  de(appr, flap 0.75) 0.059
+[cessna172r_floats_2026-11-08] mtow  1244 kg  Vs 99  V75 185  Vmax 203  ROC 3.70 @134  L/D 11.2  TO(grass) 1400  CG 39% SM 23%  de(appr, flap 0.75) -0.065
+[cessna172r_floats_2026-11-08] min   water  POH 231 m / 17.4 s   rig 337 m / 21.0 s   game: TO 314 m (109 km/h), 50ft 450 m, climb 4.50 m/s @147 thr 0.87, LDG 487 m (50ft 908, flap 0.00, td 123 km/h), stopped [178 s]
+[cessna172r_floats_2026-11-08] typ   water  POH 277 m / 20.4 s   rig 398 m / 24.4 s   game: TO 357 m (109 km/h), 50ft 500 m, climb 4.39 m/s @147 thr 0.89, LDG 485 m (50ft 906, flap 0.00, td 123 km/h), stopped [181 s]
+[cessna172r_floats_2026-11-08] mtow  water  POH — m / — s   rig 1067 m / 66.0 s   game: TO — m (— km/h), 50ft — m, climb — m/s @— thr —, LDG — m (50ft —, flap —, td — km/h), stopped [70 s]
+
+### cessna172r_floats_2026-11-08 — against the Cessna 172R/S on Wipline 2350 floats (stock engine, McCauley 82 x 43)
+
+Build `builds/cessna172r_floats_2026-11-08.json` through the load door; 159 hp custom Flat (boxer) 4-cyl 5.9 L, S 16.5 m², empty 846 kg, as baked 1199 kg, fuel 153 kg, 4 seats. Reference: Wipaire Cessna 172 Product & Modification Guide rev 1/18 (172R, S: 2,550 lb / 1,157 kg, stock engine, McCauley 1A200/WFA8243; seaplane system 305 lb / 138 kg, exchange 168 lb / 76 kg; float 19 ft 7 in x 2 ft 5 in x 1 ft 11 in, 2,570 lb displacement a float); water figures: wipaire.com 2350 tag page (search extract): water run 1645 ft, over 50 ft 2463 ft, ROC 749 fpm, configuration unstated; GATE HYDROTRIM brief 20-35 s.
+
+| load | mass kg | CG % MAC | SM % | Vs | Vs0 | V75 | Vmax | ROC m/s (Vy) | L/D | CdS | TO grass (analytic) | approach trim de (flap) |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| min | 954 | 30 | 28 | 87 | 76 | 192 | 207 | 5.90 (130) | 11.2 | 0.55 | 1314 | 0.062 (0.75) |
+| typ | 1003 | 30 | 28 | 89 | 78 | 191 | 206 | 5.46 (133) | 11.2 | 0.55 | 1328 | 0.059 (0.75) |
+| mtow | 1244 | 39 | 23 | 99 | 86 | 185 | 203 | 3.70 (134) | 11.2 | 0.55 | 1400 | -0.065 (0.75) |
+
+| load | water: POH rig run / time | rig (no flap) | hump R/W | game pilot (SEA lane) run / time / 50 ft / climb |
+|---|---|---|---|---|
+| min | 231 m / 17.4 s | 337 m / 21.0 s | 0.179 | 314 m / 20.0 s / 450 m / 4.50 m/s (stopped) |
+| typ | 277 m / 20.4 s | 398 m / 24.4 s | 0.182 | 357 m / 22.9 s / 500 m / 4.39 m/s (stopped) |
+| mtow | — m / — s | 1067 m / 66.0 s | 0.355 | — m / — s / — m / — m/s (stopped) |
+
+| indicator | reading | reference (band) | at kg | ours at those kg | verdict | ours equals theirs at |
+|---|---|---|---|---|---|---|
+| empty kg | ledger | 797–820 (781–836) | — | 846 | **near** | — |
+| Vs1 km/h | airframe | 94 (90–99) | 1157 | 95 | **inside** | 1137 kg (between solo and gross) |
+| roc m/s | airframe | 3.35–3.80 (3.19–4.00) | 920–1157 | 4.33–6.16 | **near** (extrap.) | 1260 kg (above gross) |
+| TOW m | POH (water rig) | 335–501 (318–526) | 920–1157 | 199–419 | **inside** (extrap.) | 1152 kg (between solo and gross) |
+| TOW m | rig (no flap) | 335–501 (318–526) | 920–1157 | 251–825 | **inside** (extrap.) | 1009 kg (≈ solo, half fuel) |
+| TOW m | game | 335–501 (318–526) | 920–1157 | 284–490 | **inside** (extrap.) | 1071 kg (between solo and gross) |
+| TOWs s | POH (water rig) | 20.0–35.0 (19.0–36.8) | 920–1157 | 15.4–29.5 | **inside** (extrap.) | 1119 kg (between solo and gross) |
+| TOWs s | rig (no flap) | 20.0–35.0 (19.0–36.8) | 920–1157 | 15.7–51.0 | **inside** (extrap.) | 1022 kg (≈ solo, half fuel) |
+| TOWs s | game | 20.0–35.0 (19.0–36.8) | 920–1157 | 18.0–31.8 | **inside** (extrap.) | 1080 kg (between solo and gross) |
+| TOW50 m | game | 751 (676–826) | 920–1157 | 415–654 | **near** (extrap.) | 1247 kg (≈ gross) |
+
+[cessna172r_floats_2026-11-08] done in 666 s
+EXIT 0

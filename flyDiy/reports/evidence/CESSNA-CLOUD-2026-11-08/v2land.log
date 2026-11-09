@@ -1,0 +1,57 @@
+[cessna172r_2026-11-08] min   837 kg  Vs 81  V75 202  Vmax 226  ROC 5.35 @142  L/D 11.2  TO(grass) 196  CG 31% SM 25%  de(appr, flap 0.75) 0.077
+[cessna172r_2026-11-08] typ   885 kg  Vs 83  V75 201  Vmax 225  ROC 4.92 @141  L/D 11.2  TO(grass) 210  CG 31% SM 25%  de(appr, flap 0.75) 0.075
+[cessna172r_2026-11-08] mtow  1127 kg  Vs 94  V75 194  Vmax 221  ROC 3.23 @146  L/D 11.2  TO(grass) 289  CG 41% SM 19%  de(appr, flap 0.75) -0.061
+[cessna172r_2026-11-08] min   flown  game: TO 197 m (102 km/h), 50ft 381 m, climb 4.70 m/s @145 thr 0.94, LDG 260 m (50ft 494, flap 1.00, td 86 km/h), stopped [111 s]
+                              POH:  TO 164 m (94 km/h), 50ft 419 m, climb 4.53 m/s @131 thr 0.92, LDG 126 m (50ft 352, flap 0.75, td 80 km/h), stopped [105 s]
+[cessna172r_2026-11-08] typ   flown  game: TO 211 m (102 km/h), 50ft 448 m, climb 4.39 m/s @142 thr 0.95, LDG 260 m (50ft 496, flap 1.00, td 86 km/h), stopped [111 s]
+                              POH:  TO 182 m (95 km/h), 50ft 507 m, climb 4.22 m/s @130 thr 0.94, LDG 131 m (50ft 358, flap 0.75, td 81 km/h), stopped [104 s]
+[cessna172r_2026-11-08] mtow  flown  game: TO 283 m (102 km/h), 50ft 806 m, climb 3.09 m/s @142 thr 0.99, LDG 238 m (50ft 461, flap 1.00, td 84 km/h), stopped [125 s]
+                              POH:  TO 285 m (103 km/h), 50ft 808 m, climb 3.16 m/s @142 thr 1.00, LDG 139 m (50ft 379, flap 0.75, td 91 km/h), stopped [113 s]
+[cessna172r_2026-11-08] sweep @mtow: best TO 285 m, TO50 780 m, climb 3.19 m/s, LDG 118 m
+
+### cessna172r_2026-11-08 — against the Cessna 172R (IO-360-L2A 160 hp)
+
+Build `builds/cessna172r_2026-11-08.json` through the load door; 159 hp custom Flat (boxer) 4-cyl 5.9 L, S 16.5 m², empty 729 kg, as baked 1082 kg, fuel 153 kg, 4 seats. Reference: Cessna 172R POH (1996+), section 4-5: Vs1 44 KIAS / 51 KCAS flaps up at 2450 lb, Vs0 47 KCAS, Vr 55 KIAS, Vy 79 KIAS, 720 fpm, ground roll 945 ft / 50 ft 1685 ft (flaps 0-10, paved), landing roll 550 ft / 50 ft 1295 ft (flaps 30, max braking, paved); 75 % cruise ~118 KTAS at SL.
+
+| load | mass kg | CG % MAC | SM % | Vs | Vs0 | V75 | Vmax | ROC m/s (Vy) | L/D | CdS | TO grass (analytic) | approach trim de (flap) |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| min | 837 | 31 | 25 | 81 | 71 | 202 | 226 | 5.35 (142) | 11.2 | 0.54 | 196 | 0.077 (0.75) |
+| typ | 885 | 31 | 25 | 83 | 73 | 201 | 225 | 4.92 (141) | 11.2 | 0.54 | 210 | 0.075 (0.75) |
+| mtow | 1127 | 41 | 19 | 94 | 82 | 194 | 221 | 3.23 (146) | 11.2 | 0.54 | 289 | -0.061 (0.75) |
+
+Flown on paved (flat, calm, ISA). game = the pilot as it ships; POH = the same pilot on the handbook schedule.
+
+| load | who | TO roll | Vlof | TO 50 ft | climb m/s @ km/h (thr) | LDG roll | LDG 50 ft | flap flown | outcome |
+|---|---|---|---|---|---|---|---|---|---|
+| min | game | 197 | 102 | 381 | 4.70 @ 145 (0.94) | 260 | 494 | 1.00 | stopped |
+| min | poh | 164 | 94 | 419 | 4.53 @ 131 (0.92) | 126 | 352 | 0.75 | stopped |
+| typ | game | 211 | 102 | 448 | 4.39 @ 142 (0.95) | 260 | 496 | 1.00 | stopped |
+| typ | poh | 182 | 95 | 507 | 4.22 @ 130 (0.94) | 131 | 358 | 0.75 | stopped |
+| mtow | game | 283 | 102 | 806 | 3.09 @ 142 (0.99) | 238 | 461 | 1.00 | stopped |
+| mtow | poh | 285 | 103 | 808 | 3.16 @ 142 (1.00) | 139 | 379 | 0.75 | stopped |
+
+Technique sweep at mtow (1127 kg; 12 flights): best TO roll 285 m (rotate 1.1 Vs, flap 0.25), best TO 50 ft 780 m, best climb 3.19 m/s (1 x the probe's Vy), best landing roll 118 m (brake 1 at 1/s from 1.2 Vs, approach 1.3 Vs0).
+**The pilot's share** (game − best, at mtow): TO roll -2 m, TO 50 ft +26 m, climb +0.10 m/s, landing roll +120 m.
+
+| indicator | reading | reference (band) | at kg | ours at those kg | verdict | ours equals theirs at |
+|---|---|---|---|---|---|---|
+| empty kg | ledger | 721–744 (707–759) | — | 729 | **inside** | — |
+| Vs1 km/h | airframe | 94 (92–97) | 1111 | 93 | **inside** | 1140 kg (≈ gross) |
+| V75 km/h | airframe | 219 (208–229) | 1111 | 194 | **near** | — |
+| Vmax km/h | airframe | 230 (218–241) | 1111 | 221 | **inside** | — |
+| roc m/s | airframe | 3.66 (3.55–3.77) | 1111 | 3.34 | **near** | 1066 kg (between solo and gross) |
+| roc m/s | POH | 3.66 (3.55–3.77) | 1111 | 3.23 | **near** | 1013 kg (between solo and gross) |
+| roc m/s | game | 3.66 (3.55–3.77) | 1111 | 3.18 | **outside** | 1022 kg (between solo and gross) |
+| LD  | airframe | 9.0 (8.1–9.9) | 1111 | 11.2 | **outside** | — |
+| TO m | airframe (grass) | 288 (279–297) | 1111 | 284 | **inside** | 1123 kg (≈ gross) |
+| TO m | POH | 288 (279–297) | 1111 | 279 | **near** | 1133 kg (≈ gross) |
+| TO m | game | 288 (279–297) | 1111 | 278 | **near** | 1145 kg (above gross) |
+| TO50 m | POH | 514 (498–529) | 1111 | 788 | **outside** | 890 kg (≈ solo, half fuel) |
+| TO50 m | game | 514 (498–529) | 1111 | 782 | **outside** | 928 kg (between solo and gross) |
+| LDG m | POH | 168 (159–176) | 1111 | 139 | **outside** | — |
+| LDG m | game | 168 (159–176) | 1111 | 240 | **outside** | — |
+| LDG50 m | POH | 395 (375–414) | 1111 | 378 | **inside** | 1311 kg (above gross) |
+| LDG50 m | game | 395 (375–414) | 1111 | 464 | **outside** | — |
+
+[cessna172r_2026-11-08] done in 1417 s
+EXIT 0

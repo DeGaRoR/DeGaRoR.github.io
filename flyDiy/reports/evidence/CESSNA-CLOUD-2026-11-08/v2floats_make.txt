@@ -1,0 +1,1 @@
+cessna172r_floats_2026-11-08.json: 44 float rows (finVentralZ, finVentralTip, gearFloats, cw_propD + flt*), gear floats, prop 2.083 seaplane

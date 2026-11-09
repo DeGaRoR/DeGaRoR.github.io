@@ -1,0 +1,3 @@
+identical (bit for bit): 73
+moved: 1
+  builds/candidates/pawnee (1).json                              empty 321.5 -> 307.4 (-14.1)  cgX -0.183 -> -0.207  tubeFabric/oleo seats 1 drawn 1

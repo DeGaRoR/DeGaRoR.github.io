@@ -1,0 +1,228 @@
+[run_gates] 0/19 jobs done · running HANDLE 30 s, PILLAR 30 s, FREIGHT 30 s, ENGCONFIG 30 s
+[run_gates] 0/19 jobs done · running HANDLE 60 s, PILLAR 60 s, FREIGHT 60 s, ENGCONFIG 60 s
+[run_gates] 0/19 jobs done · running HANDLE 90 s, PILLAR 90 s, FREIGHT 90 s, ENGCONFIG 90 s
+[run_gates] 0/19 jobs done · running HANDLE 120 s, PILLAR 120 s, FREIGHT 120 s, ENGCONFIG 120 s
+[run_gates] 0/19 jobs done · running HANDLE 150 s, PILLAR 150 s, FREIGHT 150 s, ENGCONFIG 150 s
+[run_gates] 0/19 jobs done · running HANDLE 180 s, PILLAR 180 s, FREIGHT 180 s, ENGCONFIG 180 s
+[run_gates] 0/19 jobs done · running HANDLE 210 s, PILLAR 210 s, FREIGHT 210 s, ENGCONFIG 210 s
+[run_gates] 1/19 jobs done · running HANDLE 240 s, PILLAR 240 s, ENGCONFIG 240 s, HYDROTRIM 4 s
+[run_gates] 1/19 jobs done · running HANDLE 270 s, PILLAR 270 s, ENGCONFIG 270 s, HYDROTRIM 34 s
+[run_gates] 1/19 jobs done · running HANDLE 300 s, PILLAR 300 s, ENGCONFIG 300 s, HYDROTRIM 64 s
+[run_gates] 1/19 jobs done · running HANDLE 330 s, PILLAR 330 s, ENGCONFIG 330 s, HYDROTRIM 94 s
+[run_gates] 2/19 jobs done · running HANDLE 360 s, ENGCONFIG 360 s, HYDROTRIM 124 s, WEIGHT 11 s
+[run_gates] 2/19 jobs done · running HANDLE 390 s, ENGCONFIG 390 s, HYDROTRIM 154 s, WEIGHT 41 s
+[run_gates] 2/19 jobs done · running HANDLE 420 s, ENGCONFIG 420 s, HYDROTRIM 184 s, WEIGHT 71 s
+[run_gates] 2/19 jobs done · running HANDLE 450 s, ENGCONFIG 450 s, HYDROTRIM 214 s, WEIGHT 101 s
+=== WEIGHT ===
+  ok     mw5: every gauge inside GEN_GAUGE's clamp
+  ok     mw5: the design gross carries a load over the empty weight
+GATE WEIGHT: PASS
+[run_gates] 3/19 jobs done · running HANDLE 480 s, ENGCONFIG 480 s, HYDROTRIM 244 s, WINGROWS 24 s
+[run_gates] 3/19 jobs done · running HANDLE 510 s, ENGCONFIG 510 s, HYDROTRIM 274 s, WINGROWS 54 s
+[run_gates] 3/19 jobs done · running HANDLE 541 s, ENGCONFIG 540 s, HYDROTRIM 304 s, WINGROWS 84 s
+=== CABIN ===
+103 checks
+GATE CABIN: PASS
+=== SEATS ===
+5 the cabin seat
+6 the mass reaches the build
+GATE SEATS: PASS
+[run_gates] 8/19 jobs done · running HANDLE 571 s, ENGCONFIG 571 s, FRAMES 15 s, KNIFE 5 s
+[run_gates] 14/19 jobs done · running ENGCONFIG 601 s, FLOATKIT 18 s, ENERGY 8 s, TANKMOUNT 5 s
+[run_gates] 14/19 jobs done · running ENGCONFIG 631 s, FLOATKIT 48 s, ENERGY 38 s, TANKMOUNT 35 s
+[run_gates] 14/19 jobs done · running ENGCONFIG 661 s, FLOATKIT 78 s, ENERGY 68 s, TANKMOUNT 66 s
+=== PLANELISTS ===
+  selftest R1 undone: red (ok)
+  selftest R2 undone: red (ok)
+GATE PLANELISTS: PASS
+=== BUILD ===
+  ok     the clock, the date and the run all ride the save envelope
+
+GATE BUILD: PASS
+=== HANDLE ===
+FAIL bugReports/Twin_busher_floats_2.json: doorHandle/star is on the hinge edge, not opposite it
+  FAIL bugReports/Twin_busher_floats_2.json: doorHandle/port is on the hinge edge, not opposite it
+GATE HANDLE: FAIL (2)
+(exit code 1)
+=== PILLAR ===
+  table  Cessna floats  pilot:P 0 mm at 0 deg (wing), on the closed door: wing  RED  wing 0, anchor 19, wing strut 0, float strut 52
+  table  Cessna floats  pilot:M 0 mm at 0 deg (wing), on the closed door: wing  RED  wing 0, anchor 8, wing strut 0, float strut 52
+GATE PILLAR: PASS
+=== FRAMES ===
+  ok     PROFILE page {"frPaxBulgeH":-0.2,"frPaxLoops":2}: bends 4 run rings only, cage closed
+  ok     PROFILE page: one bay — inert without loops, a former loop with them
+GATE FRAMES: PASS
+=== KNIFE ===
+  ok     BUBBLE triangle stands 0.066 m out of its loop (row 0.05, the skin's own curve on top)
+  ok     BUBBLE triangle a row at 0 is the flat window
+GATE KNIFE: PASS
+=== COWL ===
+  ok   a firewall too small for the engine is REPORTED, not drawn silently  radial cowl: the firewall is too small — 0.64 m across where this engine needs 1.75 m
+  ok   ...and the taper still stops at the row's own limit  1.15
+GATE COWL: PASS
+=== JOIN ===
+  ok     G1283: a station inside the envelope flies as measured, in silence
+  ok     G1283: no core loaded, no claim
+GATE JOIN: PASS
+=== WINGROWS ===
+
+WINGROWS: 29/29 ok
+GATE WINGROWS: PASS
+=== FLOATKIT ===
+
+FLOATKIT: 21/21 ok
+GATE FLOATKIT: PASS
+=== HYDROTRIM ===
+PASS the G3390 rig's own technique gets off too: 37.9 s, 676 m (bound 60 s)
+
+GATE HYDROTRIM: PASS
+=== FREIGHT ===
+- cub: FREIGHT_CARDS = its build measured off its mesh (tools/_freight_site.js)
+2511 checks (cards measured)
+GATE FREIGHT: FAIL (1 of 2511)
+(exit code 1)
+=== ENERGYBASE ===
+14 aeroplanes held against the baseline, 1334 nodes, 208 fittings
+GATE ENERGYBASE: PASS
+[run_gates] 16/19 jobs done · running ENGCONFIG 691 s, ENERGY 98 s, TANKMOUNT 96 s
+=== ENERGY ===
+4 bodies swept, 88 sections measured, 87777 litres of interior
+GATE ENERGY: PASS
+[run_gates] 17/19 jobs done · running ENGCONFIG 721 s, TANKMOUNT 126 s
+[run_gates] 17/19 jobs done · running ENGCONFIG 751 s, TANKMOUNT 156 s
+[run_gates] 17/19 jobs done · running ENGCONFIG 781 s, TANKMOUNT 186 s
+[run_gates] 17/19 jobs done · running ENGCONFIG 811 s, TANKMOUNT 216 s
+[run_gates] 17/19 jobs done · running ENGCONFIG 841 s, TANKMOUNT 246 s
+[run_gates] 18/19 jobs done · running TANKMOUNT 276 s
+[run_gates] 18/19 jobs done · running TANKMOUNT 306 s
+[run_gates] 18/19 jobs done · running TANKMOUNT 336 s
+[run_gates] 18/19 jobs done · running TANKMOUNT 366 s
+[run_gates] 18/19 jobs done · running TANKMOUNT 396 s
+=== TANKMOUNT ===
+  beaver x0.66       vessels 1  mount meshes 0  shell 8/396  hardware 0/1276 past a skin  fit NOT  flown ves 4  worst shell 111.7 mm through edEng
+  beaver x0.45       vessels 1  mount meshes 0  shell 12/396  hardware 18/1276 past a skin [straps 18/776 124.5mm]  fit NOT  flown ves 4  worst straps 124.5 mm through edEng
+GATE TANKMOUNT: PASS
+=== ENGCONFIG ===
+1 IDENTITY - the saved builds and the single mounts, digested against master (2c2a74459)
+  FAIL  builds/cub_2026-09-20_corrected.json                 042d13ba5da78ab6 8064ad76b0127161  (master 155419e4ddd55891 5f81fcf4b4175980)
+  FAIL  builds/jodel_2026-09-20_corrected.json               69507f1f10405b4c 3497672e75dd4e23  (master 33c1b6b22fa8a5d5 b281985b850ee5b7)
+  FAIL  builds/cessna172_2026-09-20_corrected.json           4b96bdef8b315409 b4a926d9ce6d6b33  (master cfff2062f514f276 c3124e0092d05851)
+  FAIL  builds/chinook_2026-09-21_corrected.json             0ce32059d36b92a3 9a62a6a61fcc8556  (master bf6854b8a6066f35 f4dbe53bc257a050)
+  FAIL  tools/fixtures/build_v7_ultralight_2026-09-05.json   f6a9c697f782f45b e7942c80c42fb7f0  (master ae93bc2acf2aa2c7 152e8c2cbb80d7b5)
+  ok    tools/fixtures/build_v8_twin-boom_2026-09-11.json    d3712ab277fcc329 77b62ab7c4146aaa
+  ok    tools/fixtures/build_v7_twin_2026-09-04.json         b272e4d2fa0f485e 221d6c2405b15e1e
+  FAIL  tools/fixtures/build_v8_pusher_2026-09-11.json       790e2dd9045031e6 1e888903ddfb652c  (master 382e0869b7b40fca 1e888903ddfb652c)
+  FAIL  bugReports/cessnaMetal (1).json                      94470c8f8a15303b a46c863c418b9466  (master a7ef3e20bbb60e99 3424501b41d6e08a)
+  FAIL  bugReports/cessnaFloatsWOrks.json                    f96f0f0fb183066c c0cb85e1b844a200  (master ad5b0932430ce736 654023193f98094b)
+  FAIL  tools/fixtures/repro/rufus_2026-10-18_certified.json 4cdd3f968a12bfe3 210d8b580d8fe556  (master de3b3f1e42596986 af31390fe113f650)
+  ok    stock nose                                           643179bc32524858 31cce33943cc578a
+  ok    stock pusher                                         5c93f8d9d359df46 5613f19c025bd3cf
+  ok    stock wingTop                                        517c36a580adee0c 53a5929a6f5191d4
+  ok    stock wing                                           8df433ecc01fd5a2 7f98742af70074a4
+  ok    stock 2 nose (clamped to one)                        643179bc32524858 31cce33943cc578a
+  ok    stock pusher+nose (clamped to one)                   5c93f8d9d359df46 5613f19c025bd3cf
+2 CLAMP - the exact lists keep their engines; every other list clamps as before
+  ok    [nose, pusher] keeps both, one engine type, the rear hand mirrored (o200_eprops/1 o200_eprops/-1)
+  ok    [nose, wing, wing] keeps three, the pair mirrored off its port entry
+  ok    [wing x4] keeps four, the outer pair outboard (z 1.5 1.5 3 3)
+  ok    every other list: one engine, or the classic pair (a lone wing entry doubled)
+  ok    genEngLayoutOf: a layout only for the exact lists (the classic pair is not one)
+3 LATTICE / 4 SHAKEDOWN - each layout built, balanced, on paper
+  ok    skymaster: 124 nodes, 531 beams - finite true, no zero member true, mirrored true
+  ok    skymaster: nEngines 2, engineOf [0,0,1,1] - every engine on its own mount nodes
+  ok    skymaster: the extra engines weigh what they weigh (+207 kg for 1 x 138 kg dry)
+  ok    skymaster: each engine's thrust nodes where its mount is (centreline / a nacelle a side)
+  ok    skymaster: static margin 0.234, flyable circuit true (mass 789 kg, Vs 22.9 m/s)
+  ok    skymaster: the rear disc clears the booms by 0.210 m and turns 3.95 m ahead of the stab
+  ok    skymaster: the props counter-rotate (the rear engine turned round) - torque and P-factor cancel in pairs
+  ok    tri: 101 nodes, 423 beams - finite true, no zero member true, mirrored true
+  ok    tri: nEngines 3, engineOf [0,0,1,2] - every engine on its own mount nodes
+  ok    tri: the extra engines weigh what they weigh (+241 kg for 2 x 80 kg dry)
+  ok    tri: each engine's thrust nodes where its mount is (centreline / a nacelle a side)
+  ok    tri: static margin 0.205, flyable circuit true (mass 700 kg, Vs 21.6 m/s)
+  ok    quad: 100 nodes, 432 beams - finite true, no zero member true, mirrored true
+  ok    quad: nEngines 4, engineOf [0,1,2,3] - every engine on its own mount nodes
+  ok    quad: the extra engines weigh what they weigh (+368 kg for 3 x 80 kg dry)
+  ok    quad: each engine's thrust nodes where its mount is (centreline / a nacelle a side)
+  ok    quad: static margin 0.155, flyable circuit true (mass 827 kg, Vs 23.5 m/s)
+5 FLIGHT - a straight downwind, wings level; every engine, then one cut (10 s)
+  ok    skymaster level, every engine: beta 0.06 deg, roll 0.51 deg, r 0.15 deg/s, -0.7 m in 10 s at 39.4 m/s
+  ok    tri       level, every engine: beta 0.13 deg, roll 0.33 deg, r 0.08 deg/s, -0.7 m in 10 s at 37.2 m/s
+  FAIL  quad level: never wings-level on the downwind
+  ok    CONTROL twin      cut  0: beta 6.04 deg, r 7.24 deg/s, roll 7.5, hdg 2.29 deg, alt -0.6 m, rudder 0.228, thrust [0 732] N - an asymmetric cut is seen
+  ok    skymaster cut  0: beta 0.08 deg, r 0.17 deg/s, roll 0.6, hdg 0.11 deg, alt -5.3 m, rudder 0.004, thrust [0 1121] N - centreline: small yaw
+  ok    skymaster cut  1: beta 0.05 deg, r 0.15 deg/s, roll 0.5, hdg 0.07 deg, alt -4.9 m, rudder 0.003, thrust [1129 0] N - centreline: small yaw
+  ok    REFERENCE single    cut  0: beta 2.61 deg, r 2.52 deg/s, roll 0.7, hdg -0.15 deg, alt -16.9 m, rudder 0.102, thrust [0] N - a single's own power cut (its torque, P-factor and swirl go)
+  ok    tri       cut  0: beta 0.92 deg, r 1.02 deg/s, roll 0.4, hdg -0.30 deg, alt -2.5 m, rudder 0.043, thrust [0 499 499] N - the nose engine: no thrust couple, a yaw under the single's power cut (2.61 deg)
+  ok    tri       cut  1: beta 2.65 deg, r 3.36 deg/s, roll 3.5, hdg -0.66 deg, alt -1.7 m, rudder 0.077, thrust [494 0 494] N - a wing engine: a yaw, under the twin's
+  FAIL  quad cut 0: never wings-level on the downwind - an inner engine out flies
+  FAIL  quad cut 2: never wings-level on the downwind - an outer engine out flies, and yaws more than an inner
+6 CERTIFY - the certificate and the bench to the ultimate (damage on)
+  ok    skymaster certificate: 531 members, 0 without an envelope, flown pull reached true; bench to 5.7 g: HELD, 0 broken (72851 ms)
+  ok    tri       certificate: 423 members, 0 without an envelope, flown pull reached true; bench to 5.7 g: HELD, 0 broken (51738 ms)
+  ok    quad      certificate: 432 members, 0 without an envelope, flown pull reached true; bench to 5.7 g: HELD, 0 broken (53106 ms)
+7 EDITOR - the join and the design tiles
+  ok    join: engMount 0-3 -> the lists they always were (nose | pusher | wingTop | wing,wing)
+  ok    join: engMount 4 / 5 / 6 -> push-pull / three / four (nose,pusher | nose,wing,wing | wing,wing,wing,wing)
+  ok    join: each push-pull entry carries its own drawn station (nose flange -1.1, pusher 2.9 / 0.50)
+  ok    join -> resolved: pushPull, the pusher at its drawn station, the rear hand the nose's mirror
+  ok    join: the four's pairs each tops-inward (1,-1,1,-1)
+  ok    tile Push-pull: engMount 4, twin booms at 1.24 (the disc's radius + 0.30), the nose cowl on
+  ok    tile Three: engMount 5, the nose keeps its cowl, the nacelles a tail
+  ok    tile Four: engMount 6, the outer pair outboard of the inner
+  ok    tile Single: a layout goes back to the nose
+  ok    the Engines row's Three / Four / Push-pull tiles are live
+  ok    the Engines row reads the layout back
+  ok    designBake (the birth intent) carries the push-pull (nose,pusher)
+8 PHYSICS - the propeller's moments, the wakes, the break groups
+  ok    TORQUE skymaster: reaction 473.9 / -473.9 N.m, net 0.0e+0; angular momentum 186.3 / 186.3 (hands 1,-1), net 0.0e+0 - they cancel in pairs
+  ok    TORQUE tri: every engine's reaction 201.3 N.m the same hand - the sum 604.0 N.m, 3 x a single's
+  ok    TORQUE quad: every engine's reaction 201.3 N.m the same hand - the sum 805.4 N.m, 4 x a single's
+  ok    WAKES tri: the tail in the nose's wake (15 strips), the wing in the nose's or its nacelle's
+  ok    WAKES skymaster: the stab in the centreline's series wake (12 strips), the boom fins out of it (4), no wing strip blown by the pusher
+  ok    WAKES quad: no tail wash (between the nacelles), each of the four discs blows its own wing strips
+  ok    WAKES tri in the solver: every disc 24.2 / 24.2 / 24.2 m/s; the nose off 0.0 / 24.7 / 24.7 (the mean disc would say 19.8 on the tail); a wing off 25.6 / 0.0 / 25.6
+  ok    WAKES skymaster in the solver: the series wake 49.0 m/s over one disc's 33.8; the nose off: the pusher's own 36.4
+  ok    DAMAGE skymaster: a mount break group per engine (eng, engAft), 0 engine issues, 8 other (the twin boom's own: 8)
+  ok    DAMAGE tri: a mount break group per engine (eng, engL, engR), 0 engine issues, 0 other (the twin boom's own: 0)
+  ok    DAMAGE quad: a mount break group per engine (engL, engL2, engR, engR2), 0 engine issues, 0 other (the twin boom's own: 0)
+9 FIXTURES - the example builds (tools/fixtures/build_v10_engcfg_*): loaded as the game loads them, design-checked, flown, certified
+  FAIL  pushpull  pushPull, 2 x io360_mccauley, 1035 kg: the game's load is the saved aeroplane false, join errors 0, design PASS (static margin 0.141 as drawn, 0.111 at the worst corner)
+  FAIL  trimotor  tri, 3 x rotax912_warp, 826 kg: the game's load is the saved aeroplane false, join errors 0, design PASS (static margin 0.241 as drawn, 0.162 at the worst corner)
+  FAIL  four      quad, 4 x rotax912_warp, 938 kg: the game's load is the saved aeroplane false, join errors 0, design PASS (static margin 0.221 as drawn, 0.158 at the worst corner)
+  FAIL  the cards: pushpull: DIFFERS from the saved file (run --write after a deliberate change); trimotor: DIFFERS from the saved file (run --write after a deliberate change); four: DIFFERS from the saved file (run --write after a deliberate change)
+  ok    pushpull  cut  1: beta 0.05 deg, r 0.13 deg/s, roll 0.5, hdg 0.00 deg, alt -5.4 m, rudder 0.003, thrust [1237 0] N - flies the circuit, one engine cut
+  ok    pushpull  certificate: 548 members, flown pull reached true; bench to 5.7 g: HELD, 0 broken
+  ok    trimotor  cut  0: beta 0.59 deg, r 0.73 deg/s, roll 0.3, hdg -0.08 deg, alt -3.3 m, rudder 0.029, thrust [0 451 451] N - flies the circuit, one engine cut
+  ok    trimotor  certificate: 408 members, flown pull reached true; bench to 5.7 g: HELD, 0 broken
+  ok    four      cut  2: beta 2.83 deg, r 3.29 deg/s, roll 4.6, hdg -0.24 deg, alt -1.6 m, rudder 0.147, thrust [371 371 0 371] N - flies the circuit, one engine cut
+  ok    four      certificate: 413 members, flown pull reached true; bench to 5.7 g: HELD, 0 broken
+FAILED: builds/cub_2026-09-20_corrected.json                 042d13ba5da78ab6 8064ad76b0127161  (master 155419e4ddd55891 5f81fcf4b4175980); builds/jodel_2026-09-20_corrected.json               69507f1f10405b4c 3497672e75dd4e23  (master 33c1b6b22fa8a5d5 b281985b850ee5b7); builds/cessna172_2026-09-20_corrected.json           4b96bdef8b315409 b4a926d9ce6d6b33  (master cfff2062f514f276 c3124e0092d05851); builds/chinook_2026-09-21_corrected.json             0ce32059d36b92a3 9a62a6a61fcc8556  (master bf6854b8a6066f35 f4dbe53bc257a050); tools/fixtures/build_v7_ultralight_2026-09-05.json   f6a9c697f782f45b e7942c80c42fb7f0  (master ae93bc2acf2aa2c7 152e8c2cbb80d7b5); tools/fixtures/build_v8_pusher_2026-09-11.json       790e2dd9045031e6 1e888903ddfb652c  (master 382e0869b7b40fca 1e888903ddfb652c); bugReports/cessnaMetal (1).json                      94470c8f8a15303b a46c863c418b9466  (master a7ef3e20bbb60e99 3424501b41d6e08a); bugReports/cessnaFloatsWOrks.json                    f96f0f0fb183066c c0cb85e1b844a200  (master ad5b0932430ce736 654023193f98094b); tools/fixtures/repro/rufus_2026-10-18_certified.json 4cdd3f968a12bfe3 210d8b580d8fe556  (master de3b3f1e42596986 af31390fe113f650); quad level: never wings-level on the downwind; quad cut 0: never wings-level on the downwind - an inner engine out flies; quad cut 2: never wings-level on the downwind - an outer engine out flies, and yaws more than an inner; pushpull  pushPull, 2 x io360_mccauley, 1035 kg: the game's load is the saved aeroplane false, join errors 0, design PASS (static margin 0.141 as drawn, 0.111 at the worst corner); trimotor  tri, 3 x rotax912_warp, 826 kg: the game's load is the saved aeroplane false, join errors 0, design PASS (static margin 0.241 as drawn, 0.162 at the worst corner); four      quad, 4 x rotax912_warp, 938 kg: the game's load is the saved aeroplane false, join errors 0, design PASS (static margin 0.221 as drawn, 0.158 at the worst corner); the cards: pushpull: DIFFERS from the saved file (run --write after a deliberate change); trimotor: DIFFERS from the saved file (run --write after a deliberate change); four: DIFFERS from the saved file (run --write after a deliberate change)
+GATE ENGCONFIG: FAIL
+(exit code 1)
+
+──────── summary ────────
+WEIGHT    PASS   107.4 s
+CABIN     PASS     2.8 s
+SEATS     PASS     3.8 s
+PLANELISTS PASS     0.6 s
+BUILD     PASS     5.1 s
+HANDLE    FAIL   572.0 s
+PILLAR    PASS   349.1 s
+FRAMES    PASS    27.2 s
+KNIFE     PASS    29.5 s
+COWL      PASS     1.5 s
+JOIN      PASS    18.0 s
+WINGROWS  PASS    87.1 s
+FLOATKIT  PASS    91.1 s
+HYDROTRIM PASS   329.3 s
+FREIGHT   FAIL   236.2 s
+ENERGYBASE PASS     1.0 s
+ENERGY    PASS   103.3 s
+TANKMOUNT PASS   420.4 s
+ENGCONFIG FAIL   842.7 s
+total           3228.1 s
+wall            1015.5 s  (jobs 4)
+
+BATTERY: FAIL — never deliver red.
+EXIT 1

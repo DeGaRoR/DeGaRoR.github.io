@@ -1,0 +1,986 @@
+{
+ "builds/c172r_wipline2350_landprop_2026-10-20.json": {
+  "empty": 767.456,
+  "mass": 1120.096,
+  "cgX": 0.7333,
+  "n": 138,
+  "nb": 558,
+  "hash": "fb598ec5adb06f2d",
+  "mat": "alloy",
+  "susp": "spring",
+  "seats": 4,
+  "seatsX": 4
+ },
+ "builds/c172r_wipline2350_stcprop_2026-10-20.json": {
+  "empty": 770.032,
+  "mass": 1122.672,
+  "cgX": 0.7295,
+  "n": 138,
+  "nb": 558,
+  "hash": "e250390879b9b1c5",
+  "mat": "alloy",
+  "susp": "spring",
+  "seats": 4,
+  "seatsX": 4
+ },
+ "builds/cessna172_2026-09-20.json": {
+  "empty": 713.199,
+  "mass": 1065.839,
+  "cgX": 0.7533,
+  "n": 111,
+  "nb": 467,
+  "hash": "e6df408a418b87b5",
+  "mat": "alloy",
+  "susp": "spring",
+  "seats": 4,
+  "seatsX": 4
+ },
+ "builds/cessna172_2026-09-20_corrected.json": {
+  "empty": 639.455,
+  "mass": 976.975,
+  "cgX": 0.6833,
+  "n": 111,
+  "nb": 467,
+  "hash": "adbc93b948d67f5f",
+  "mat": "alloy",
+  "susp": "spring",
+  "seats": 4,
+  "seatsX": 4
+ },
+ "builds/cessna172_floats_2026-11.json": {
+  "empty": 845.448,
+  "mass": 1198.088,
+  "cgX": 0.7868,
+  "n": 138,
+  "nb": 558,
+  "hash": "578dbac0f8956d2f",
+  "mat": "alloy",
+  "susp": "spring",
+  "seats": 4,
+  "seatsX": 4
+ },
+ "builds/chinook_2026-09-21.json": {
+  "empty": 282.027,
+  "mass": 384.267,
+  "cgX": 1.6212,
+  "n": 91,
+  "nb": 387,
+  "hash": "9cb6f0556bc99955",
+  "mat": "tubeFabric",
+  "susp": "oleo",
+  "seats": 2,
+  "seatsX": 2
+ },
+ "builds/chinook_2026-09-21_corrected.json": {
+  "empty": 235.43,
+  "mass": 352.79,
+  "cgX": 1.4736,
+  "n": 95,
+  "nb": 406,
+  "hash": "b44c1a95f0bd9659",
+  "mat": "aluTube",
+  "susp": "oleo",
+  "seats": 2,
+  "seatsX": 2
+ },
+ "builds/composite_jodel_2026-10-07.json": {
+  "empty": 394.226,
+  "mass": 522.386,
+  "cgX": 0.4545,
+  "n": 115,
+  "nb": 502,
+  "hash": "90a0ba15bd912a65",
+  "mat": "glass",
+  "susp": "oleo",
+  "seats": 2,
+  "seatsX": 2
+ },
+ "builds/cub_2026-09-20.json": {
+  "empty": 344.53,
+  "mass": 449.65,
+  "cgX": 0.6739,
+  "n": 91,
+  "nb": 380,
+  "hash": "18d1174c6a964191",
+  "mat": "tubeFabric",
+  "susp": "bungee",
+  "seats": 2,
+  "seatsX": 2
+ },
+ "builds/cub_2026-09-20_corrected.json": {
+  "empty": 354.768,
+  "mass": 476.448,
+  "cgX": 0.6823,
+  "n": 97,
+  "nb": 404,
+  "hash": "0453d25b7c784f47",
+  "mat": "tubeFabric",
+  "susp": "bungee",
+  "seats": 2,
+  "seatsX": 2
+ },
+ "builds/jodel_2026-09-20.json": {
+  "empty": 404.209,
+  "mass": 564.769,
+  "cgX": 0.6071,
+  "n": 115,
+  "nb": 502,
+  "hash": "49886f6c70f92000",
+  "mat": "wood",
+  "susp": "oleo",
+  "seats": 4,
+  "seatsX": 4
+ },
+ "builds/jodel_2026-09-20_corrected.json": {
+  "empty": 343.629,
+  "mass": 471.789,
+  "cgX": 0.4078,
+  "n": 115,
+  "nb": 502,
+  "hash": "885861d232eb20e7",
+  "mat": "wood",
+  "susp": "oleo",
+  "seats": 2,
+  "seatsX": 2
+ },
+ "builds/pa18_floats_2026-10-23.json": {
+  "empty": 563.634,
+  "mass": 751.554,
+  "cgX": 0.6607,
+  "n": 122,
+  "nb": 486,
+  "hash": "f56cb4262d9ff613",
+  "mat": "tubeFabric",
+  "susp": "bungee",
+  "seats": 2,
+  "seatsX": 2
+ },
+ "builds/rufus_2026-10-18_certified.json": {
+  "empty": 275.161,
+  "mass": 366.681,
+  "cgX": 0.7348,
+  "n": 95,
+  "nb": 395,
+  "hash": "98871b21080d3f16",
+  "mat": "tubeFabric",
+  "susp": "spring",
+  "seats": 1,
+  "seatsX": 1
+ },
+ "builds/candidates/B-ITES.json": {
+  "empty": 452.718,
+  "mass": 568.558,
+  "cgX": 0.4472,
+  "n": 107,
+  "nb": 470,
+  "hash": "72efd2ea369c1178",
+  "mat": "alloy",
+  "susp": "oleo",
+  "seats": 2,
+  "seatsX": 2
+ },
+ "builds/candidates/Twin_busher_floats_4b.json": {
+  "empty": 577.831,
+  "mass": 819.911,
+  "cgX": 1.7794,
+  "n": 158,
+  "nb": 649,
+  "hash": "4d71a758c5ac74f6",
+  "mat": "alloy",
+  "susp": "spring",
+  "seats": 4,
+  "seatsX": 4
+ },
+ "builds/candidates/birdman.json": {
+  "empty": 282.027,
+  "mass": 384.267,
+  "cgX": 1.6212,
+  "n": 91,
+  "nb": 387,
+  "hash": "9cb6f0556bc99955",
+  "mat": "tubeFabric",
+  "susp": "oleo",
+  "seats": 2,
+  "seatsX": 2
+ },
+ "builds/candidates/build_v7_twin_2026-09-04.json": {
+  "empty": 313.297,
+  "mass": 406.977,
+  "cgX": 0.8153,
+  "n": 96,
+  "nb": 409,
+  "hash": "fa46f9f8a9788b9e",
+  "mat": "tubeFabric",
+  "susp": "bungee",
+  "seats": 1,
+  "seatsX": 1
+ },
+ "builds/candidates/build_v7_ultralight_2026-09-05_floats.json": {
+  "empty": 390.818,
+  "mass": 476.578,
+  "cgX": 0.9662,
+  "n": 123,
+  "nb": 500,
+  "hash": "c000410b59a6ea5b",
+  "mat": "tubeFabric",
+  "susp": "spring",
+  "seats": 1,
+  "seatsX": 1
+ },
+ "builds/candidates/build_v8_pusher_2026-09-11.json": {
+  "empty": 239.607,
+  "mass": 342.567,
+  "cgX": 1.1781,
+  "n": 93,
+  "nb": 396,
+  "hash": "5cafb6ca9b776a9f",
+  "mat": "tubeFabric",
+  "susp": "spring",
+  "seats": 1,
+  "seatsX": 1
+ },
+ "builds/candidates/camel_2026-10.json": {
+  "empty": 578.855,
+  "mass": 696.855,
+  "cgX": 0.4082,
+  "n": 145,
+  "nb": 659,
+  "hash": "80866c7564745688",
+  "mat": "wood",
+  "susp": "bungee",
+  "seats": 1,
+  "seatsX": 1
+ },
+ "builds/candidates/dc3_2026-10.json": {
+  "empty": 6481.562,
+  "mass": 8920.762,
+  "cgX": 4.778,
+  "n": 140,
+  "nb": 627,
+  "hash": "de078d5625b7aaaa",
+  "mat": "alloy",
+  "susp": "oleo",
+  "seats": 29,
+  "seatsX": 29
+ },
+ "builds/candidates/flydiy-build (4).json": {
+  "empty": 309.953,
+  "mass": 404.953,
+  "cgX": 0.9724,
+  "n": 141,
+  "nb": 650,
+  "hash": "fbe03926e430e15c",
+  "mat": "tubeFabric",
+  "susp": "oleo",
+  "seats": 1,
+  "seatsX": 1
+ },
+ "builds/candidates/mosquito.json": {
+  "empty": 551.787,
+  "mass": 731.067,
+  "cgX": 0.3857,
+  "n": 111,
+  "nb": 481,
+  "hash": "da8077adf982b05e",
+  "mat": "carbon",
+  "susp": "oleo",
+  "seats": 1,
+  "seatsX": 1
+ },
+ "builds/candidates/pawnee (1).json": {
+  "empty": 321.478,
+  "mass": 434.438,
+  "cgX": -0.1833,
+  "n": 97,
+  "nb": 404,
+  "hash": "2f25a71dbd04e099",
+  "mat": "tubeFabric",
+  "susp": "oleo",
+  "seats": 1,
+  "seatsX": 1
+ },
+ "builds/candidates/stearman_2026-10.json": {
+  "empty": 902.312,
+  "mass": 1227.592,
+  "cgX": 0.9045,
+  "n": 157,
+  "nb": 711,
+  "hash": "8ae25dc12288773a",
+  "mat": "tubeFabric",
+  "susp": "oleo",
+  "seats": 2,
+  "seatsX": 2
+ },
+ "builds/candidates/stol_cub_showcase.json": {
+  "empty": 417.083,
+  "mass": 525.083,
+  "cgX": 0.7156,
+  "n": 97,
+  "nb": 404,
+  "hash": "f53ea2a2eeb34cfb",
+  "mat": "tubeFabric",
+  "susp": "spring",
+  "seats": 2,
+  "seatsX": 2
+ },
+ "builds/candidates/tigermoth_2026-10.json": {
+  "empty": 569.779,
+  "mass": 812.419,
+  "cgX": 0.7569,
+  "n": 151,
+  "nb": 685,
+  "hash": "4fb6945e70021b80",
+  "mat": "wood",
+  "susp": "bungee",
+  "seats": 2,
+  "seatsX": 2
+ },
+ "builds/candidates/ugly_bi.json": {
+  "empty": 498.316,
+  "mass": 676.876,
+  "cgX": 0.621,
+  "n": 155,
+  "nb": 706,
+  "hash": "bd5f100a5a667689",
+  "mat": "wood",
+  "susp": "bungee",
+  "seats": 2,
+  "seatsX": 2
+ },
+ "builds/candidates/review/Twin_busher_floats_2.json": {
+  "empty": 554.228,
+  "mass": 796.308,
+  "cgX": 1.5627,
+  "n": 172,
+  "nb": 731,
+  "hash": "b4c0c7738728c3a4",
+  "mat": "alloy",
+  "susp": "spring",
+  "seats": 4,
+  "seatsX": 4
+ },
+ "builds/candidates/review/Twin_busher_floats_3.json": {
+  "empty": 570.713,
+  "mass": 812.793,
+  "cgX": 1.7059,
+  "n": 176,
+  "nb": 747,
+  "hash": "1317a03aa9926def",
+  "mat": "alloy",
+  "susp": "spring",
+  "seats": 4,
+  "seatsX": 4
+ },
+ "builds/candidates/review/Twin_busher_floats_3b.json": {
+  "empty": 573.942,
+  "mass": 816.022,
+  "cgX": 1.7082,
+  "n": 176,
+  "nb": 747,
+  "hash": "0e4039afb7450e7e",
+  "mat": "alloy",
+  "susp": "spring",
+  "seats": 4,
+  "seatsX": 4
+ },
+ "builds/candidates/review/Twin_busher_floats_4.json": {
+  "empty": 568.824,
+  "mass": 810.904,
+  "cgX": 1.8242,
+  "n": 176,
+  "nb": 747,
+  "hash": "ab2a26289f73522a",
+  "mat": "alloy",
+  "susp": "spring",
+  "seats": 4,
+  "seatsX": 4
+ },
+ "builds/candidates/review/build_v7_ultralight_2026-09-05.json": {
+  "empty": 332.491,
+  "mass": 426.171,
+  "cgX": 0.9429,
+  "n": 96,
+  "nb": 409,
+  "hash": "c8493c66f5604244",
+  "mat": "tubeFabric",
+  "susp": "spring",
+  "seats": 1,
+  "seatsX": 1
+ },
+ "builds/candidates/review/composite_jodel_2026-10-07.json": {
+  "empty": 394.226,
+  "mass": 522.386,
+  "cgX": 0.4545,
+  "n": 115,
+  "nb": 502,
+  "hash": "90a0ba15bd912a65",
+  "mat": "glass",
+  "susp": "oleo",
+  "seats": 2,
+  "seatsX": 2
+ },
+ "builds/candidates/review/cub_fittings_hand_2026-10.json": {
+  "empty": 355.193,
+  "mass": 476.873,
+  "cgX": 0.6827,
+  "n": 97,
+  "nb": 404,
+  "hash": "b6ffa6c7b3184773",
+  "mat": "tubeFabric",
+  "susp": "bungee",
+  "seats": 2,
+  "seatsX": 2
+ },
+ "builds/candidates/review/cub_quadwin_2026-10.json": {
+  "empty": 354.768,
+  "mass": 476.448,
+  "cgX": 0.6823,
+  "n": 97,
+  "nb": 404,
+  "hash": "0453d25b7c784f47",
+  "mat": "tubeFabric",
+  "susp": "bungee",
+  "seats": 2,
+  "seatsX": 2
+ },
+ "builds/candidates/review/sailPlane.json": {
+  "empty": 303.247,
+  "mass": 425.647,
+  "cgX": 0.3553,
+  "n": 91,
+  "nb": 380,
+  "hash": "ff019e0183fa1644",
+  "mat": "carbon",
+  "susp": "bungee",
+  "seats": 1,
+  "seatsX": 1
+ },
+ "builds/candidates/review/stol_cub_kit.json": {
+  "empty": 375.824,
+  "mass": 497.504,
+  "cgX": 0.6889,
+  "n": 97,
+  "nb": 404,
+  "hash": "9e7e92316c053e56",
+  "mat": "tubeFabric",
+  "susp": "bungee",
+  "seats": 2,
+  "seatsX": 2
+ },
+ "bugReports/Twin_busher_floats_2.json": {
+  "empty": 554.228,
+  "mass": 796.308,
+  "cgX": 1.5627,
+  "n": 172,
+  "nb": 731,
+  "hash": "b4c0c7738728c3a4",
+  "mat": "alloy",
+  "susp": "spring",
+  "seats": 4,
+  "seatsX": 4
+ },
+ "bugReports/birdman.json": {
+  "empty": 282.027,
+  "mass": 384.267,
+  "cgX": 1.6212,
+  "n": 91,
+  "nb": 387,
+  "hash": "9cb6f0556bc99955",
+  "mat": "tubeFabric",
+  "susp": "oleo",
+  "seats": 2,
+  "seatsX": 2
+ },
+ "bugReports/cessna (2).json": {
+  "empty": 607.597,
+  "mass": 827.757,
+  "cgX": 0.6955,
+  "n": 107,
+  "nb": 452,
+  "hash": "8781169004d7cc52",
+  "mat": "alloy",
+  "susp": "spring",
+  "seats": 4,
+  "seatsX": 4
+ },
+ "bugReports/cessnaFloats.json": {
+  "empty": 671.61,
+  "mass": 891.77,
+  "cgX": 0.7597,
+  "n": 134,
+  "nb": 543,
+  "hash": "f39d29c3e5b39c78",
+  "mat": "alloy",
+  "susp": "spring",
+  "seats": 4,
+  "seatsX": 4
+ },
+ "bugReports/cessnaFloatsWOrks.json": {
+  "empty": 731.483,
+  "mass": 949.483,
+  "cgX": 0.6537,
+  "n": 134,
+  "nb": 543,
+  "hash": "a64a88349287b4fb",
+  "mat": "alloy",
+  "susp": "spring",
+  "seats": 4,
+  "seatsX": 4
+ },
+ "bugReports/cessnaMetal (1).json": {
+  "empty": 667.825,
+  "mass": 885.825,
+  "cgX": 0.6456,
+  "n": 107,
+  "nb": 452,
+  "hash": "6825093f9bd01037",
+  "mat": "alloy",
+  "susp": "spring",
+  "seats": 4,
+  "seatsX": 4
+ },
+ "bugReports/flydiy-build (3).json": {
+  "empty": 309.29,
+  "mass": 404.29,
+  "cgX": 1.0445,
+  "n": 133,
+  "nb": 614,
+  "hash": "98b6eff2deccb58f",
+  "mat": "tubeFabric",
+  "susp": "oleo",
+  "seats": 1,
+  "seatsX": 1
+ },
+ "bugReports/flydiy-build (4).json": {
+  "empty": 309.953,
+  "mass": 404.953,
+  "cgX": 0.9724,
+  "n": 141,
+  "nb": 650,
+  "hash": "fbe03926e430e15c",
+  "mat": "tubeFabric",
+  "susp": "oleo",
+  "seats": 1,
+  "seatsX": 1
+ },
+ "tools/fixtures/Twin_busher_floats_2.json": {
+  "empty": 554.228,
+  "mass": 796.308,
+  "cgX": 1.5627,
+  "n": 172,
+  "nb": 731,
+  "hash": "b4c0c7738728c3a4",
+  "mat": "alloy",
+  "susp": "spring",
+  "seats": 4,
+  "seatsX": 4
+ },
+ "tools/fixtures/avionics_parity.json": {
+  "skip": "not a build"
+ },
+ "tools/fixtures/build_flat_pre-v3.json": {
+  "skip": "not a build"
+ },
+ "tools/fixtures/build_v10_birdman_2026-09-18.json": {
+  "empty": 282.027,
+  "mass": 384.267,
+  "cgX": 1.6212,
+  "n": 91,
+  "nb": 387,
+  "hash": "9cb6f0556bc99955",
+  "mat": "tubeFabric",
+  "susp": "oleo",
+  "seats": 2,
+  "seatsX": 2
+ },
+ "tools/fixtures/build_v10_c172_wipline2350_2026-09-20.json": {
+  "empty": 783.07,
+  "mass": 973.23,
+  "cgX": 0.709,
+  "n": 134,
+  "nb": 543,
+  "hash": "3489380db9ea927b",
+  "mat": "alloy",
+  "susp": "spring",
+  "seats": 4,
+  "seatsX": 4
+ },
+ "tools/fixtures/build_v10_cessnaMetal_2026-09-26.json": {
+  "empty": 668.612,
+  "mass": 888.772,
+  "cgX": 0.6431,
+  "n": 107,
+  "nb": 452,
+  "hash": "13c3aded692f0c11",
+  "mat": "alloy",
+  "susp": "spring",
+  "seats": 4,
+  "seatsX": 4
+ },
+ "tools/fixtures/build_v10_engcfg_four_2026-10-22.json": {
+  "empty": 785.909,
+  "mass": 938.309,
+  "cgX": 0.8976,
+  "n": 96,
+  "nb": 413,
+  "hash": "ad4a9ead5d8225d0",
+  "mat": "alloy",
+  "susp": "spring",
+  "seats": 4,
+  "seatsX": 4
+ },
+ "tools/fixtures/build_v10_engcfg_pushpull_2026-10-22.json": {
+  "empty": 882.954,
+  "mass": 1035.354,
+  "cgX": 1.3121,
+  "n": 128,
+  "nb": 548,
+  "hash": "4d420b31b79a111d",
+  "mat": "alloy",
+  "susp": "spring",
+  "seats": 4,
+  "seatsX": 4
+ },
+ "tools/fixtures/build_v10_engcfg_trimotor_2026-10-22.json": {
+  "empty": 673.254,
+  "mass": 825.654,
+  "cgX": 0.8241,
+  "n": 97,
+  "nb": 408,
+  "hash": "37825e8bbc995e78",
+  "mat": "alloy",
+  "susp": "spring",
+  "seats": 4,
+  "seatsX": 4
+ },
+ "tools/fixtures/build_v5_2026-08-30.json": {
+  "empty": 390.25,
+  "mass": 756.25,
+  "cgX": 0.8975,
+  "n": 97,
+  "nb": 404,
+  "hash": "ec71fceebe9c3346",
+  "mat": "wood",
+  "susp": "bungee",
+  "seats": 4,
+  "seatsX": 4
+ },
+ "tools/fixtures/build_v5_swept_2026-09-01.json": {
+  "empty": 410.012,
+  "mass": 536.012,
+  "cgX": 0.8424,
+  "n": 121,
+  "nb": 530,
+  "hash": "443bfc0817c410bd",
+  "mat": "wood",
+  "susp": "bungee",
+  "seats": 4,
+  "seatsX": 4
+ },
+ "tools/fixtures/build_v7_twin_2026-09-04.json": {
+  "empty": 313.297,
+  "mass": 406.977,
+  "cgX": 0.8153,
+  "n": 96,
+  "nb": 409,
+  "hash": "fa46f9f8a9788b9e",
+  "mat": "tubeFabric",
+  "susp": "bungee",
+  "seats": 1,
+  "seatsX": 1
+ },
+ "tools/fixtures/build_v7_ultralight_2026-09-05.json": {
+  "empty": 332.491,
+  "mass": 426.171,
+  "cgX": 0.9429,
+  "n": 96,
+  "nb": 409,
+  "hash": "c8493c66f5604244",
+  "mat": "tubeFabric",
+  "susp": "spring",
+  "seats": 1,
+  "seatsX": 1
+ },
+ "tools/fixtures/build_v8_drawn-tail_2026-09-08.json": {
+  "empty": 389.187,
+  "mass": 511.587,
+  "cgX": 0.7607,
+  "n": 97,
+  "nb": 404,
+  "hash": "138b97d9565aae50",
+  "mat": "wood",
+  "susp": "bungee",
+  "seats": 4,
+  "seatsX": 4
+ },
+ "tools/fixtures/build_v8_pusher_2026-09-11.json": {
+  "empty": 239.607,
+  "mass": 342.567,
+  "cgX": 1.1781,
+  "n": 93,
+  "nb": 396,
+  "hash": "5cafb6ca9b776a9f",
+  "mat": "tubeFabric",
+  "susp": "spring",
+  "seats": 1,
+  "seatsX": 1
+ },
+ "tools/fixtures/build_v8_twin-boom_2026-09-11.json": {
+  "empty": 308.023,
+  "mass": 431.823,
+  "cgX": 0.9868,
+  "n": 135,
+  "nb": 619,
+  "hash": "edc5d3c1dc158807",
+  "mat": "tubeFabric",
+  "susp": "spring",
+  "seats": 1,
+  "seatsX": 1
+ },
+ "tools/fixtures/build_v9_stock_2026-09-15.json": {
+  "empty": 389.187,
+  "mass": 511.587,
+  "cgX": 0.7607,
+  "n": 97,
+  "nb": 404,
+  "hash": "138b97d9565aae50",
+  "mat": "wood",
+  "susp": "bungee",
+  "seats": 4,
+  "seatsX": 4
+ },
+ "tools/fixtures/camel_2026-10.json": {
+  "empty": 578.855,
+  "mass": 696.855,
+  "cgX": 0.4082,
+  "n": 145,
+  "nb": 659,
+  "hash": "80866c7564745688",
+  "mat": "wood",
+  "susp": "bungee",
+  "seats": 1,
+  "seatsX": 1
+ },
+ "tools/fixtures/cessnaMetal_pod_2026-10-22.json": {
+  "empty": 683.59,
+  "mass": 903.75,
+  "cgX": 0.6551,
+  "n": 111,
+  "nb": 474,
+  "hash": "28ff9f570fa0fa87",
+  "mat": "alloy",
+  "susp": "spring",
+  "seats": 4,
+  "seatsX": 4
+ },
+ "tools/fixtures/clip_baseline.json": {
+  "skip": "not a build"
+ },
+ "tools/fixtures/contracts_sample.json": {
+  "skip": "not a build"
+ },
+ "tools/fixtures/cub_fittings_hand_2026-10.json": {
+  "empty": 355.193,
+  "mass": 476.873,
+  "cgX": 0.6827,
+  "n": 97,
+  "nb": 404,
+  "hash": "b6ffa6c7b3184773",
+  "mat": "tubeFabric",
+  "susp": "bungee",
+  "seats": 2,
+  "seatsX": 2
+ },
+ "tools/fixtures/cub_quadwin_2026-10.json": {
+  "empty": 354.768,
+  "mass": 476.448,
+  "cgX": 0.6823,
+  "n": 97,
+  "nb": 404,
+  "hash": "0453d25b7c784f47",
+  "mat": "tubeFabric",
+  "susp": "bungee",
+  "seats": 2,
+  "seatsX": 2
+ },
+ "tools/fixtures/dc3_2026-10.json": {
+  "empty": 6504.676,
+  "mass": 8943.876,
+  "cgX": 4.8037,
+  "n": 140,
+  "nb": 627,
+  "hash": "c6fc5c0abe824aaf",
+  "mat": "alloy",
+  "susp": "oleo",
+  "seats": 29,
+  "seatsX": 29
+ },
+ "tools/fixtures/dc3_study_2026-10-23.json": {
+  "empty": 3208.027,
+  "mass": 4272.027,
+  "cgX": 1.2791,
+  "n": 114,
+  "nb": 511,
+  "hash": "d43e8364da347ce3",
+  "mat": "alloy",
+  "susp": "oleo",
+  "seats": 6,
+  "seatsX": 6
+ },
+ "tools/fixtures/dc3_study_fullsize_2026-10-23.json": {
+  "empty": 3610.514,
+  "mass": 5250.514,
+  "cgX": 1.6801,
+  "n": 120,
+  "nb": 535,
+  "hash": "999c2b41c443e52f",
+  "mat": "alloy",
+  "susp": "oleo",
+  "seats": 8,
+  "seatsX": 8
+ },
+ "tools/fixtures/dmg_certcost_ref.json": {
+  "skip": "not a build"
+ },
+ "tools/fixtures/frames_corpus.json": {
+  "skip": "not a build"
+ },
+ "tools/fixtures/frames_legacy_rings.json": {
+  "skip": "not a build"
+ },
+ "tools/fixtures/island_jolene.json": {
+  "skip": "not a build"
+ },
+ "tools/fixtures/join_parity_page.json": {
+  "skip": "not a build"
+ },
+ "tools/fixtures/knife_corpus.json": {
+  "skip": "not a build"
+ },
+ "tools/fixtures/player_v1_2026-08-31.json": {
+  "skip": "not a build"
+ },
+ "tools/fixtures/player_v2_2026-10-06.json": {
+  "skip": "not a build"
+ },
+ "tools/fixtures/player_v3_2026-10-10.json": {
+  "skip": "not a build"
+ },
+ "tools/fixtures/premises_v1_flat.json": {
+  "skip": "not a build"
+ },
+ "tools/fixtures/premises_v1_game.json": {
+  "skip": "not a build"
+ },
+ "tools/fixtures/premises_v1_official.json": {
+  "skip": "not a build"
+ },
+ "tools/fixtures/premises_v1_showcase.json": {
+  "skip": "not a build"
+ },
+ "tools/fixtures/premises_v1_strip.json": {
+  "skip": "not a build"
+ },
+ "tools/fixtures/premises_v1_village.json": {
+  "skip": "not a build"
+ },
+ "tools/fixtures/scenery_ship_afb19.json": {
+  "skip": "not a build"
+ },
+ "tools/fixtures/scenery_ship_rev26.json": {
+  "skip": "not a build"
+ },
+ "tools/fixtures/scenery_ship_rev27.json": {
+  "skip": "not a build"
+ },
+ "tools/fixtures/scenery_ship_rev28.json": {
+  "skip": "not a build"
+ },
+ "tools/fixtures/scenery_user_jolene_afb19.json": {
+  "skip": "not a build"
+ },
+ "tools/fixtures/scenery_user_jolene_rev23.json": {
+  "skip": "not a build"
+ },
+ "tools/fixtures/scenery_user_jolene_rev26.json": {
+  "skip": "not a build"
+ },
+ "tools/fixtures/scenery_user_jolene_rev27.json": {
+  "skip": "not a build"
+ },
+ "tools/fixtures/scenery_user_jolene_rev28.json": {
+  "skip": "not a build"
+ },
+ "tools/fixtures/scenery_user_r1_rev26.json": {
+  "skip": "not a build"
+ },
+ "tools/fixtures/spitfire_wip_2026-10.json": {
+  "empty": 1429.567,
+  "mass": 1561.967,
+  "cgX": -1.1237,
+  "n": 113,
+  "nb": 490,
+  "hash": "b8236434e546a68c",
+  "mat": "alloy",
+  "susp": "oleo",
+  "seats": 1,
+  "seatsX": 1
+ },
+ "tools/fixtures/stearman_2026-10.json": {
+  "empty": 902.312,
+  "mass": 1227.592,
+  "cgX": 0.9045,
+  "n": 157,
+  "nb": 711,
+  "hash": "8ae25dc12288773a",
+  "mat": "tubeFabric",
+  "susp": "oleo",
+  "seats": 2,
+  "seatsX": 2
+ },
+ "tools/fixtures/stol_cub_kit.json": {
+  "empty": 375.824,
+  "mass": 497.504,
+  "cgX": 0.6889,
+  "n": 97,
+  "nb": 404,
+  "hash": "9e7e92316c053e56",
+  "mat": "tubeFabric",
+  "susp": "bungee",
+  "seats": 2,
+  "seatsX": 2
+ },
+ "tools/fixtures/stol_cub_showcase.json": {
+  "empty": 417.083,
+  "mass": 525.083,
+  "cgX": 0.7156,
+  "n": 97,
+  "nb": 404,
+  "hash": "f53ea2a2eeb34cfb",
+  "mat": "tubeFabric",
+  "susp": "spring",
+  "seats": 2,
+  "seatsX": 2
+ },
+ "tools/fixtures/tail_measure_2026-09-07_boot.json": {
+  "skip": "not a build"
+ },
+ "tools/fixtures/tail_measure_2026-09-07_horn.json": {
+  "skip": "not a build"
+ },
+ "tools/fixtures/tigermoth_2026-10.json": {
+  "empty": 569.779,
+  "mass": 812.419,
+  "cgX": 0.7569,
+  "n": 151,
+  "nb": 685,
+  "hash": "4fb6945e70021b80",
+  "mat": "wood",
+  "susp": "bungee",
+  "seats": 2,
+  "seatsX": 2
+ },
+ "tools/fixtures/treecrash_ensemble_ref.json": {
+  "skip": "not a build"
+ }
+}

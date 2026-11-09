@@ -1,0 +1,27 @@
+=== cessna172r_floats_2026-11-08.json  (fuselage alloy, covering skin)
+          engines          177.5 kg   x -0.37 m
+  PAYLOAD cabin            160.0 kg   x 1.00 m
+  PAYLOAD fuel             152.6 kg   x 1.23 m
+          wings            144.1 kg   x 1.34 m
+          gear             139.9 kg   x 0.99 m
+          fuselage         116.2 kg   x 2.04 m
+          furnish          105.6 kg   x 1.53 m
+          outfit            50.7 kg   x 0.66 m
+  PAYLOAD cargo             40.0 kg   x 1.99 m
+          bracing           34.9 kg   x 1.29 m
+          tail              29.4 kg   x 5.93 m
+          elec              19.1 kg   x -0.31 m
+          vessel            10.2 kg   x 1.23 m
+          panel              8.0 kg   x 0.00 m
+          paint              7.4 kg   x 2.45 m
+          avionics           3.3 kg   x 0.00 m
+  empty 846.2 kg, payload 352.6 kg, all-up 1198.9 (shakedown empty 846.2, mass 1198.9)
+  members (class / material): count, total length, mean section
+    wing / alloy                  136   165.1 m  A 211.9 mm2
+    gear / alloy                  106   134.5 m  A 460.3 mm2
+    fus / alloy                   109   116.1 m  A 183.8 mm2
+    tail / alloy                  180   106.7 m  A 21.5 mm2
+    fus / tubeFabric               23    13.0 m  A 476.2 mm2
+    wire / tubeFabric               4     7.3 m  A 22.5 mm2
+  nodes 138, members 558, all-up 1198.9 kg, CG x 1.141 y 0.604; inertia roll 2678, yaw 4220, pitch 2830 kg m2
+  shakedown: Vs 96.2 km/h, margin 28.2 %, fuel 212 L, crew 2
