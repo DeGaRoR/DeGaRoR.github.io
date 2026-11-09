@@ -25,10 +25,15 @@ const CK = argv.includes('--ck'), HIST = opt('hist', 'ProgramCache').split(',');
 // its programs (renderer.info.programs: the GL program -> three's WebGLProgram), cut to the part that differs
 const CKR = `JSON.stringify((() => { var R = window.FLIGHT_PROBE && FLIGHT_PROBE.renderer ? FLIGHT_PROBE.renderer() : null, L = (R && R.info && R.info.programs) || [], M = new Map();
   for (var i = 0; i < L.length; i++) M.set(L[i].program, L[i]);
+  // who owns a program: the materials of the world and the shed (renderer.properties' programs), the first object met
+  var W = new Map(), root = function (o) { while (o && o.parent) o = o.parent; return o; }, P0 = window.FLIGHT_PROBE || {}, roots = [];
+  try { if (P0.craft && P0.craft()) roots.push(root(P0.craft())); } catch (e) {} try { if (P0.hangarScene && P0.hangarScene()) roots.push(P0.hangarScene()); } catch (e) {}
+  roots.forEach(function (sc) { if (sc) sc.traverse(function (o) { if (!o.material) return; (Array.isArray(o.material) ? o.material : [o.material]).forEach(function (m) { if (!m || !R) return; var pp = R.properties.get(m).programs; if (!pp) return;
+    pp.forEach(function (pg) { if (pg && pg.program && !W.has(pg.program)) W.set(pg.program, { mt: m.type, mn: m.name || '', ob: (o.name || o.type || '').slice(0, 40), lights: !!m.lights, hook: m.onBeforeCompile !== Object.getPrototypeOf(m).onBeforeCompile, def: Object.keys(m.defines || {}).slice(0, 6).join(' '), uni: Object.keys(m.uniforms || {}).slice(0, 8).join(' ') }); }); }); }); });
   var by = new Map(); for (var j = 0; j < __CL.ln.length; j++) { var k = __CL.ln[j][1] + __CL.ln[j][2], a = by.get(k); if (!a) by.set(k, a = []); a.push(j); }
   var cut = function (a, b) { var p = 0; while (p < a.length && p < b.length && a[p] === b[p]) p++; var q = 0; while (q < a.length - p && q < b.length - p && a[a.length - 1 - q] === b[b.length - 1 - q]) q++; return [p, a.slice(Math.max(0, p - 60), a.length - q).slice(0, 400), b.slice(Math.max(0, p - 60), b.length - q).slice(0, 400)]; };
   var out = []; by.forEach(function (ix, k) { if (ix.length < 2) return; var P = ix.map(function (j) { return M.get(__CL.gp[j]) || null; }), f = P.find(function (x) { return x; });
-    out.push({ k: k, n: ix.length, t: ix.map(function (j) { return Math.round(__CL.ln[j][0]); }), live: P.map(function (x) { return !!x; }), name: f ? f.name : null,
+    out.push({ who: ix.map(function (j) { return W.get(__CL.gp[j]) || null; }), k: k, n: ix.length, t: ix.map(function (j) { return Math.round(__CL.ln[j][0]); }), live: P.map(function (x) { return !!x; }), name: f ? f.name : null,
       d: f ? P.filter(function (x) { return x && x !== f; }).map(function (x) { return cut(String(f.cacheKey), String(x.cacheKey)); }) : [] }); });
   return { programs: L.length, renderer: !!R, dups: out }; })())`;
 // the burst: links per second over the load (the most in any 1 s, and the 5 s bins)
@@ -99,7 +104,7 @@ const HASH = `(function(){ if (window.__CL) return; var C = window.__CL = { ln: 
     console.log('L' + li + ' ' + key + ' ' + l.sec + ' s (' + l.state + ') links ' + row.links + ' distinct ' + row.distinct + ' new ' + row.newPrograms
       + ' >1s ' + row.over1s + ' >5s ' + row.over5s + (FLY ? ' | roll-out ' + fly + ' s, flown links ' + row.flownLinks + ' new ' + row.flownNew : '') + ' GPU cache ' + row.cache.gpuCache + ' MB' + (row.exc.length ? ' EXC ' + row.exc[0] : ''));
     if (row.ck) { const d = row.ck.dups, extra = d.reduce((a, e) => a + e.n - 1, 0), g = new Map();
-      for (const e of d) for (const x of e.d) { const sig = (e.name || '?') + ' || ' + x[1].slice(-120) + ' || ' + x[2].slice(-120); g.set(sig, (g.get(sig) || 0) + 1); }
+      for (const e of d) for (const x of e.d) { const w = (e.who || []).find(Boolean), sig = (w ? w.mt + '/' + (w.mn || w.ob) + (w.lights ? ' LIT' : '') + (w.hook ? ' hook' : '') + ' {' + w.uni.slice(0, 50) + '}' : (e.name || '?')) + ' || ' + x[1].slice(-120) + ' || ' + x[2].slice(-120); g.set(sig, (g.get(sig) || 0) + 1); }
       console.log('  dups: ' + d.length + ' sources linked more than once, ' + extra + ' extra links; renderer ' + row.ck.renderer + ', programs live ' + row.ck.programs + '; dead first programs ' + d.filter(e => !e.live[0]).length);
       [...g].sort((a, b) => b[1] - a[1]).slice(0, 30).forEach(([k, n]) => console.log('    ' + String(n).padStart(3) + 'x  ' + k)); }
     console.log('  burst: most links in 1 s ' + row.burst.max1s + '; per 5 s ' + JSON.stringify(row.burst.bins5s));
