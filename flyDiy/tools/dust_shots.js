@@ -44,7 +44,7 @@ const CLS = opt('cls', 'dirt');               // 'none' = the game's own surface
 const SOIL = opt('soil', '0.02');             // 'none' = the game's own weather
 const STILLS = opt('stills', '1') !== '0';
 const AIR_MAX = +opt('airmax', 90000);
-const OUT = opt('out', 'screenshots/dust-shots');
+const OUT = opt('out', 'D:/Dev/flydiy-notes/evidence-2026-10-18/2026-11-09/dust/dust');   // (pictures never go in git: the notes' evidence folder)
 const RUNUP = opt('runup', null);
 const HOUR = opt('hour', 'golden');
 const q = [DUST_ON ? null : 'dust=0', GFX ? 'gfx=' + GFX : null].filter(Boolean).join('&');
