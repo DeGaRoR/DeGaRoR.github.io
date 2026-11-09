@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: f3c30c3dafd75067
+// body-sha256: 68dc988a87d1d051
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -34528,11 +34528,17 @@ const GEN_STOL_ROWS = ['wgSlat', 'wgSlatSpan', 'wgVG', 'wgFence', 'wgCuff', 'wgC
 // parked bakes are keyed by it - a miss drew the fleet live, 139 draws for 2, GATE FRAMECOST), the procurement's -
 // must not see them: the build is the one it was before the STOL wing existed.
 const GEN_STOL_ROW_OFF = { wgSlat: 0, wgSlatSpan: 1.0, wgVG: 0, wgFence: 0, wgCuff: 0, wgCuffSpan: 0.40, wgDroop: 0, wgFowlerGrow: 0 };
-// the cage without its STOL rows at "off" (the same object when it has none: a hash over it is the old bytes)
+// THE NEUTRAL ROWS OF LATER DIALS (REAL-FIGURES-3, 2026-11-09), by the same rule: the engine's tune and build
+// (tools/_eng_gen.js bmepK / massK) at 1 are every engine as it was, and the join writes them into every cage - so at
+// 1 they are absent from every key the STOL rows are absent from, and no certificate is withdrawn by a dial nobody moved
+const GEN_CAGE_ROW_NEUTRAL = { eng_bmepK: 1, eng_massK: 1 };
+// the cage without its STOL rows at "off" and its later dials at neutral (the same object when it has none: a hash
+// over it is the old bytes)
 function genStolCageOff(cage) {
   if (!cage || typeof cage !== 'object') return cage;
   let out = null;
   for (const k of GEN_STOL_ROWS) if (k in cage && cage[k] === GEN_STOL_ROW_OFF[k]) { out = out || Object.assign({}, cage); delete out[k]; }
+  for (const k in GEN_CAGE_ROW_NEUTRAL) if (k in cage && cage[k] === GEN_CAGE_ROW_NEUTRAL[k]) { out = out || Object.assign({}, cage); delete out[k]; }
   return out || cage;
 }
 function genStolCage(P) {
