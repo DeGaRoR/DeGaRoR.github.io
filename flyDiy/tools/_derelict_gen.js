@@ -625,6 +625,7 @@ const FREG = {
   signH: [0, 0, 1024, 192], office: [0, 192, 256, 64], nosmoke: [256, 192, 128, 128], fire: [384, 192, 128, 128],
   num1: [512, 192, 64, 64], hazard: [576, 192, 192, 64], red: [768, 192, 32, 32], yellow: [800, 192, 32, 32], white: [832, 192, 32, 32],
   dark: [864, 192, 32, 32], grey: [896, 192, 32, 32], navy: [928, 192, 32, 32], green: [960, 192, 32, 32], wood: [992, 192, 32, 32],
+  mat: [768, 224, 32, 32], planter: [800, 224, 64, 64], soil: [864, 224, 32, 32],
   acfront: [0, 320, 256, 224], cabinet: [256, 320, 128, 224], meter: [384, 320, 128, 128], keypad: [512, 320, 64, 96],
   extinguisher: [576, 320, 96, 224], hose: [672, 320, 160, 160], binfront: [832, 320, 128, 192],
 };
@@ -638,7 +639,7 @@ function fitCanvas() {
     const gr = g.createLinearGradient(0, y + h * 0.6, 0, y + h); gr.addColorStop(0, 'rgba(40,36,30,0)'); gr.addColorStop(1, `rgba(40,36,30,${a})`); g.fillStyle = gr; g.fillRect(x, y, w, h); };
   { // the hangar's name board: white on a deep blue, a border, slight wear
     const [x, y, w, h] = R('signH', '#1d3557'); g.strokeStyle = '#e8e6df'; g.lineWidth = 6; g.strokeRect(x + 10, y + 10, w - 20, h - 20);
-    g.fillStyle = '#efede6'; g.font = 'bold 118px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('HANGAR 2', x + w / 2, y + h / 2 + 6); grime('signH', 0.12); }
+    g.fillStyle = '#efede6'; g.font = 'bold 118px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('HANGAR 1', x + w / 2, y + h / 2 + 6); grime('signH', 0.12); }   // (the user: this one is Hangar 1, the medium one Hangar 2)
   { const [x, y, w, h] = R('office', '#2b2f33'); g.fillStyle = '#e9e7e0'; g.font = 'bold 40px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('OFFICE', x + w / 2, y + h / 2 + 2); }
   { const [x, y, w, h] = R('nosmoke', '#f4f3ee'); g.strokeStyle = '#c8102e'; g.lineWidth = 12; g.beginPath(); g.arc(x + 64, y + 64, 48, 0, 7); g.stroke();
     g.fillStyle = '#222'; g.fillRect(x + 32, y + 58, 52, 12); g.fillStyle = '#d0a060'; g.fillRect(x + 84, y + 58, 10, 12); g.strokeStyle = '#c8102e'; g.beginPath(); g.moveTo(x + 30, y + 30); g.lineTo(x + 98, y + 98); g.stroke(); }
@@ -646,7 +647,8 @@ function fitCanvas() {
     g.font = 'bold 16px sans-serif'; g.textAlign = 'center'; g.fillText('FIRE POINT', x + 64, y + 118); }
   { const [x, y, w, h] = R('num1', '#f4f3ee'); g.fillStyle = '#1d3557'; g.font = 'bold 54px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('1', x + 32, y + 34); }
   { const [x, y, w, h] = R('hazard', '#e8b812'); g.save(); g.beginPath(); g.rect(x, y, w, h); g.clip(); g.fillStyle = '#1a1a1a'; for (let k = -4; k < 12; k++) { g.beginPath(); g.moveTo(x + k * 32, y + h); g.lineTo(x + k * 32 + 16, y + h); g.lineTo(x + k * 32 + 16 + h, y); g.lineTo(x + k * 32 + h, y); g.fill(); } g.restore(); grime('hazard', 0.25); }
-  R('red', '#b5171f'); R('yellow', '#d9a90f'); R('white', '#e3e2dc'); R('dark', '#2a2c2e'); R('grey', '#8a8f93'); R('navy', '#1d3557'); R('green', '#3c5a3e'); R('wood', '#6b4a2f');
+  R('mat', '#24282b'); { const [x, y, w, h] = R('planter', '#a9a7a0'); for (let i = 0; i < 300; i++) { g.fillStyle = `rgba(60,58,52,${rr(0.05, 0.25)})`; g.fillRect(x + rr(0, w), y + rr(0, h), 2, 2); } } R('soil', '#3b2f24');
+  R('red', '#b5171f'); R('yellow', '#d9a90f'); R('white', '#e3e2dc'); R('dark', '#2a2c2e'); R('grey', '#8a8f93'); R('navy', '#1d3557'); R('green', '#3c5a3e'); R('wood', '#7a5434'); { const [x, y, w, h] = FREG.wood; for (let i = 0; i < 12; i++) { g.fillStyle = `rgba(40,24,12,${rr(0.15, 0.35)})`; g.fillRect(x, y + rr(0, h), w, 1); } }
   { // the heat pump's front: a white case, a round fan grille, louvres, a badge
     const [x, y, w, h] = R('acfront', '#e6e5df'); g.fillStyle = '#d6d5cf'; g.fillRect(x + 8, y + 8, w - 16, h - 16);
     const cx = x + 96, cy = y + h / 2; g.fillStyle = '#3a3d40'; g.beginPath(); g.arc(cx, cy, 78, 0, 7); g.fill();
@@ -1607,17 +1609,51 @@ function build(P0, lod, F) {
       obox([dx1 + 0.22, fy + 1.35, T0 + 0.02], Xp, Yp, 0.05, 0.08, 0.02, 'keypad', 'dark');          // the keypad
       obox([dx1 + 0.22, fy + 1.15, T0 + 0.11], Xp, Yp, 0.12, 0.3, 0.1, 'extinguisher', 'red');       // the extinguisher in its box
       obox([dx1 + 0.22, fy + 1.72, T0 + 0.01], Xp, Yp, 0.1, 0.1, 0.006, 'fire', 'red');
-      // the bench and the bin under the window
-      const bz = T0 + 0.55, bx = (xGR + 2.7 + HW - 0.6) / 2;
-      for (const sx of [-0.8, 0.8]) { obox([bx + sx, fy + 0.22, bz], Xp, Yp, 0.03, 0.22, 0.2, null, 'dark'); }
-      for (let q = 0; q < 3; q++) obox([bx, fy + 0.45, bz - 0.15 + q * 0.15], Xp, Yp, 0.95, 0.02, 0.06, 'wood', 'wood');
-      for (let q = 0; q < 2; q++) obox([bx, fy + 0.68 + q * 0.14, bz + 0.24], Xp, [0, 0.97, -0.24], 0.95, 0.05, 0.02, 'wood', 'wood');
-      obox([bx - 1.45, fy + 0.4, bz], Xp, Yp, 0.22, 0.4, 0.22, 'binfront', 'green');
-      // the cabinet and the meter box (the gas meter beside it, its yellow pipe into the wall), under the ground window
-      obox([xGR + 0.4 + 0.1, fy + 0.9, T0 + 0.16], Xp, Yp, 0.32, 0.55, 0.15, 'cabinet', 'grey');
-      obox([HW - 0.55, fy + 0.75, T0 + 0.13], Xp, Yp, 0.25, 0.3, 0.12, 'meter', 'grey');
-      pipe([[HW - 0.55, fy + 0.45, T0 + 0.07], [HW - 0.55, fy + 0.15, T0 + 0.07], [HW - 0.55, fy + 0.15, T0 + 0.25]], 0.024, 'yellow');
-      pipe([[HW - 0.35, fy + 1.05, T0 + 0.07], [HW - 0.35, fy + 1.12, T0 + 0.07], [HW + 0.05, fy + 1.12, T0 + 0.07], [HW + 0.05, fy + 1.12, T0 - 0.2]], 0.02, 'yellow');
+      // THE OFFICE'S FRONT, ON THE GROUND (the slab stops at the wall: outside, things stand on the ground, not at the floor)
+      const gy = (x, z) => g(x, z) + (P.apron ? 0.06 : 0);
+      // the step up to the door's sill, and a mat on it
+      { const z0 = T0, z1 = T0 + 0.42, y0 = gy(dxc, z1);
+        K.boxAB(bags.concWall, [dx0 - 0.3, y0 - 0.1, z0], [dx1 + 0.3, fy, z1]);
+        obox([dxc, fy + 0.008, (z0 + z1) / 2], Xp, Yp, 0.5, 0.008, 0.16, null, 'mat'); }
+      // the bench under the window, its back to the wall: two cast end frames (a leg fore and aft, an arm), three seat
+      // slats, two back slats leaning back
+      const bench = (cx, cz) => {
+        const y0 = gy(cx, cz), Lh = 0.85, frame = (sx) => {
+          const x = cx + sx;
+          tube([x, y0, cz + 0.2], [x, y0 + 0.44, cz + 0.16], 0.022, 'dark', 6);            // the front leg
+          tube([x, y0, cz - 0.2], [x, y0 + 0.44, cz - 0.17], 0.022, 'dark', 6);            // the back leg
+          tube([x, y0 + 0.44, cz - 0.2], [x, y0 + 0.86, cz - 0.3], 0.022, 'dark', 6);      // the back's upright
+          tube([x, y0 + 0.44, cz + 0.2], [x, y0 + 0.44, cz - 0.2], 0.02, 'dark', 6);       // the seat rail
+          tube([x, y0 + 0.64, cz + 0.17], [x, y0 + 0.64, cz - 0.24], 0.018, 'dark', 6);    // the arm
+          tube([x, y0 + 0.44, cz + 0.17], [x, y0 + 0.64, cz + 0.17], 0.018, 'dark', 6);
+        };
+        frame(-Lh); frame(Lh);
+        for (let q = 0; q < 3; q++) obox([cx, y0 + 0.47, cz + 0.14 - q * 0.13], Xp, Yp, Lh + 0.08, 0.018, 0.055, 'wood', 'wood');
+        const Yb = [0, 0.97, -0.24];
+        for (let q = 0; q < 2; q++) obox([cx, y0 + 0.62 + q * 0.17, cz - 0.24 - q * 0.04], Xp, Yb, Lh + 0.08, 0.05, 0.016, 'wood', 'wood');
+      };
+      const bx = (xGR + 2.7 + HW - 0.6) / 2;
+      bench(bx, T0 + 0.42);
+      // a round bin with its lid, and a planter with its shrub, right of the door
+      { const x = dx1 + 0.75, z = T0 + 0.32, y0 = gy(x, z);
+        tube([x, y0, z], [x, y0 + 0.78, z], 0.23, 'green', 14); tube([x, y0 + 0.78, z], [x, y0 + 0.86, z], 0.25, 'dark', 14);
+        const top = fb.v([x, y0 + 0.86, z], fv('dark', 0.5, 0.5), Yp), ring = [];
+        for (let k = 0; k <= 14; k++) { const a = k / 14 * Math.PI * 2; ring.push(fb.v([x + Math.cos(a) * 0.25, y0 + 0.86, z + Math.sin(a) * 0.25], fv('dark', 0.5, 0.5), Yp)); }
+        for (let k = 0; k < 14; k++) fb.tri(top, ring[k + 1], ring[k]); }
+      for (const x of [dx1 + 1.4]) {                                           // (left of the door the cabinet has the wall)
+        const z = T0 + 0.33, y0 = gy(x, z);
+        obox([x, y0 + 0.24, z], Xp, Yp, 0.24, 0.24, 0.24, 'planter', 'planter');
+        obox([x, y0 + 0.47, z], Xp, Yp, 0.21, 0.01, 0.21, null, 'soil');
+        weed(x, y0 + 0.47, z, 0.75, 2, 0.31); weed(x, y0 + 0.47, z, 0.55, 2, 0.77);
+      }
+      // the cabinet on its plinth, the meter box, the gas pipe from the ground into the wall (the front only)
+      { const x = xGR + 0.5, z = T0 + 0.16, y0 = gy(x, z);
+        K.boxAB(bags.concWall, [x - 0.38, y0 - 0.05, z - 0.2], [x + 0.38, y0 + 0.12, z + 0.2]);
+        obox([x, y0 + 0.12 + 0.55, z], Xp, Yp, 0.32, 0.55, 0.15, 'cabinet', 'grey'); }
+      { const x = HW - 0.55, y0 = gy(x, T0 + 0.1);
+        obox([x, fy + 0.9, T0 + 0.13], Xp, Yp, 0.25, 0.3, 0.12, 'meter', 'grey');
+        pipe([[x, y0 - 0.05, T0 + 0.07], [x, fy + 0.6, T0 + 0.07]], 0.024, 'yellow');
+        pipe([[x + 0.18, fy + 1.2, T0 + 0.07], [x + 0.18, fy + 1.45, T0 + 0.07], [x + 0.18, fy + 1.45, T0 - 0.2]], 0.02, 'yellow'); }
       // the camera on the tower's corner, looking down the apron
       obox([HW - 0.1, towerTop - 0.45, T0 + 0.28], [0.8, 0, 0.6], [0, 0.94, -0.33], 0.07, 0.06, 0.15, 'dark', 'white');
       member(bags.steel, [HW - 0.1, towerTop - 0.35, T0 + 0.01], [HW - 0.1, towerTop - 0.4, T0 + 0.2], 'rod', Yp, L);
@@ -1632,12 +1668,14 @@ function build(P0, lod, F) {
         const ids = [[x, fy + 0.02, HD + 0.02], [x, fy + 0.02, T0 - 0.02], [x, fy + 1.5, T0 - 0.02], [x, fy + 1.5, HD + 0.02]].map((p, i) => fb.v(p, fv('hazard', i === 1 || i === 2 ? 0.45 : 0, i > 1 ? 0.99 : 0.01), [nx, 0, 0]));
         if (nx > 0) fb.quad(ids[0], ids[1], ids[2], ids[3]); else fb.quad(ids[0], ids[3], ids[2], ids[1]);
       }
-      // ---- THE HEAT PUMPS on their pad along the office flank, the pipes up the wall into the upper floor
-      for (const zc of [HD - 7.5, HD - 9.6]) {
-        K.boxAB(bags.concWall, [HW + 0.1, g(HW, zc) - 0.05, zc - 0.65], [HW + 0.85, fy + 0.03, zc + 0.65]);
-        obox([HW + 0.48, fy + 0.45, zc], [0, 0, -1], Yp, 0.45, 0.4, 0.17, 'acfront', 'white');
-        pipe([[HW + 0.3, fy + 0.6, zc + 0.5], [HW + 0.08, fy + 0.6, zc + 0.5], [HW + 0.08, yL2 + 0.6, zc + 0.5], [HW - 0.1, yL2 + 0.6, zc + 0.5]], 0.03, 'white');
-        pipe([[HW + 0.2, fy + 0.15, zc - 0.3], [HW + 0.2, fy + 0.03, zc - 0.3]], 0.012, 'white');
+      // ---- THE HEAT PUMPS on the roof over the offices, on a level steel frame (the user: "refrain from putting anything
+      // on the side ... there might be things just sticking next to this, like another hangar"), their pipes into the roof
+      for (const zc of [HD - 6.5, HD - 9.0]) {
+        const x0 = HW - 3.4, x1 = HW - 1.6, yb = yR(x0) + 0.15, yf = yb + 0.12;           // the frame's deck, level, over the slope
+        for (const x of [x0, x1]) for (const dz of [-0.55, 0.55]) member(bags.steel, [x, yR(x) - 0.01, zc + dz], [x, yf, zc + dz], 'rod', Xp, L);
+        for (const dz of [-0.55, 0.55]) member(bags.steel, [x0 - 0.05, yf, zc + dz], [x1 + 0.05, yf, zc + dz], 'chanS', Yp, L);
+        obox([(x0 + x1) / 2, yf + 0.43, zc], [0, 0, 1], Yp, 0.45, 0.4, 0.17, 'acfront', 'white');   // the fan toward the front
+        pipe([[(x0 + x1) / 2 + 0.3, yf + 0.2, zc - 0.2], [(x0 + x1) / 2 + 0.3, yf - 0.05, zc - 0.2], [x1 + 0.35, yf - 0.05, zc - 0.2], [x1 + 0.35, yR(x1 + 0.35) - 0.05, zc - 0.2]], 0.028, 'white');
       }
       // ---- THE APRON'S LEAD-IN LINE and the door's threshold stripe (yellow paint), when the build lays its apron
       if (P.apron) {
