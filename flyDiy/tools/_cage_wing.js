@@ -1028,6 +1028,9 @@ PAGE.post = ctx => {
   early.publish(ctx);
   // HULL-B5: the boat's tip floats hang off THIS wing (the float layer draws them from the flown records)
   if (window.CAGE_TIPFLOAT_DRAW) { try { window.CAGE_TIPFLOAT_DRAW(ctx); } catch (e) { console.error('tip floats:', e); } }
+  // WING-STRUCTURE: the wing's inside (src/viewer/wing_struct.js), drawn off this build's def - only under the see-inside
+  // view or the cutaway box; otherwise it builds nothing
+  if (window.CAGE_WINGSTRUCT_DRAW) window.CAGE_WINGSTRUCT_DRAW(ctx);
 };
 let STRUT_PIL = null;                 // PILLAR-ANCHORS P4: this build's picked strut pillar
 const wingPost = ctx => {

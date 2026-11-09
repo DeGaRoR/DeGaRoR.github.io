@@ -4973,7 +4973,49 @@
     BRK.posed = false; if (BRK.model && BRK.model.brk) BRK.model.brk.NF = {};   // (G1867.1: the nodes' turns start again)
     if (BRK.model) { BRK.model._pose = null; BRK.model._poseNG = null; }   // re-posed from the rest on the next frame
     brkLookClear();                                       // G3770
+    wsClear(BRK.model);                                   // WING-STRUCTURE
     BRK.recs.length = 0; BRK.model = null;
+  }
+  // WING-STRUCTURE (9 Nov; futureDesigns/WING-STRUCTURE-STUDY-2026-11.md): THE WING'S INSIDE IN A WRECK. Built at the
+  // first break of a WING member (both ends on the frame's spar-station nodes: a spar cap, a rib, a bay's diagonal),
+  // never before - an intact flight builds and draws nothing. One mesh a wing half (wing_struct.js, LOD 1), off the
+  // flown def's own stations, in the snapshot's frame (a node's rest p at Mi0 (p - og) - o: brkCage's B0 / og inverted),
+  // added to the model and handed to brkCage as a rig of its own (the struts' row): it is bound and evented as the
+  // covering is, so it rides its nodes, and the triangles across a broken member go - the drawn spar parts where the
+  // solver's spar parted, under the covering that tore there. The heal takes it away. ?wingstruct=0 /
+  // window.FLYDIY_WINGSTRUCT = false: none (the A/B). Graphics only: it reads the damage state, writes nothing back.
+  try { if (/[?&]wingstruct=0(&|$)/.test(location.search || '')) window.FLYDIY_WINGSTRUCT = false; } catch (e) {}
+  function wsWreck(D, K, o) {
+    if (model.wsRigs !== undefined || window.FLYDIY_WINGSTRUCT === false || !window.WING_STRUCT || !def || !def.parts || !def.parts.wf || !K.Mi0) return;
+    const WN = new Set();
+    for (const Pl of (def.parts.planes || [def.parts])) for (const sd of ['L', 'R']) { const f = Pl && Pl.wf && Pl.wf[sd]; if (f) for (const i of (f.F || []).concat(f.R || [])) WN.add(i); }
+    if (!D.br.some(bi => { const b = def.beams[bi]; return b && WN.has(b.a) && WN.has(b.b); })) return;
+    model.wsRigs = [];
+    try {
+      const Mi = K.Mi0, og = K.og;
+      const map = p => { const x = p[0] - og[0], y = p[1] - og[1], z = p[2] - og[2];
+        return [Mi[0]*x + Mi[1]*y + Mi[2]*z - o[0], Mi[3]*x + Mi[4]*y + Mi[5]*z - o[1], Mi[6]*x + Mi[7]*y + Mi[8]*z - o[2]]; };
+      const G = WING_STRUCT.group(THREE, def, { map, lod: 1, name: 'wingStructWreck' });
+      for (const m of G.children.slice()) {
+        const pa = m.geometry.attributes.position;
+        m.frustumCulled = false;                          // (it rides metres from its rest sphere in a wreck)
+        model.grp.add(m);
+        K.geoOf.set(pa, m.geometry);
+        model.wsRigs.push({ posAttr: pa, base: pa.array.slice(), mesh: m });
+      }
+      model.wsInfo = G.userData.wingStruct;
+    } catch (e) { console.error('wing structure (wreck):', e); }
+  }
+  function wsClear(m) {
+    if (!m || m.wsRigs === undefined) return;
+    const K = m.brk;
+    for (const r of m.wsRigs || []) {
+      if (r.mesh.parent) r.mesh.parent.remove(r.mesh);
+      if (K && K.geoOf) K.geoOf.delete(r.posAttr);
+      if (K && K.allRecs && r.brkR) { const i = K.allRecs.indexOf(r.brkR); if (i >= 0) K.allRecs.splice(i, 1); }
+      r.mesh.geometry.dispose();
+    }
+    m.wsRigs = undefined; m.wsInfo = null;
   }
   // an index array changed: every geometry drawing it re-uploads it (the rig's mesh, and the flown bake's views on the
   // same payload group - their index attributes wrap the same array)
@@ -5054,6 +5096,7 @@
             if (n) { brkHealUpload(model); model._pose = null; model._poseNG = null; K.healLetGo = (K.healLetGo | 0) + n; } } } }
       BRK.recs.length = 0; BRK.posed = false; if (model && model.brk) model.brk.NF = {};
       brkLookClear();                                     // G3770
+      wsClear(model);                                     // WING-STRUCTURE
       return null;
     }
     BRK.model = model;
@@ -5423,6 +5466,8 @@
     // surface, posed in the body frame: in a wreck the surface went with its piece and the link was drawn metres long
     // across the runway. Each rides its pin's node as one rigid body)
     if (inhOn) for (const s2 of model.linkRigs || []) if (s2.pin) groups.push([s2, null, s2.posAttr, s2.base, null, false, 'link']);
+    wsWreck(D, K, o);                                     // WING-STRUCTURE: the wing's inside, at its first broken member
+    for (const s2 of model.wsRigs || []) groups.push([s2, null, s2.posAttr, s2.base, null, false]);
     for (let i = groups.length - 1; i >= 0; i--) if (groups[i][0].wreckGone) groups.splice(i, 1);   // (a part gone loose: DMG-D4b's debris)
     if (K.inhOn != null && K.inhOn !== inhOn) brkInhReset(groups);   // (?wallbind flipped: every record made again)
     K.inhOn = inhOn;

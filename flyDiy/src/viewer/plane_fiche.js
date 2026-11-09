@@ -20,6 +20,10 @@
   // an eye from above: the garage's overhead lights wash a top surface out (5 Nov, measured on the twin and the Tiger Moth: room at 20-50 % brings its colour back, the reflection changes nothing)
   const STUDIO = { key: 1.5, rim: 1.8, room: 1 }, CUT_STUDIO = { key: 1.0, rim: 0.5, amb: 0.3, room: 0.35 };
   const NEAR_OFF = ['wing', 'wing2', 'brace', 'light', 'hinge', 'access'];   // the cutaway's near half also loses these (the user 4 Nov: NEAR WINGS OFF)
+  // WING-STRUCTURE (the user 9 Nov: "the cutaway has a missing wing. Replace it with the wing's proper internal structure"):
+  // the near wing's covering goes as before and its STRUCTURE stands in its place (wing_struct.js, built under the
+  // see-inside view this cutaway draws in) - and the lift struts stay with it: they are the wing's structure too
+  const NEAR_KEEP_STRUCT = ['brace'];
   const VIEWS = ['hero', 'above', 'side', 'plan', 'front', 'cutaway'];
   const frames = n => new Promise(res => { const f = () => (n-- > 0 ? requestAnimationFrame(f) : res()); f(); });
   function hashOf(spec) {
@@ -142,7 +146,7 @@
     for (let i = 0; i < 20; i++) { await frames(3); const bb = box(); if (bb === pb) return; pb = bb; }
   }
   function cutOn(T, R, root, S) {
-    const V = window.CAGE_VIEW, st = { mats: [], clones: [], hid: [], added: [] };
+    const V = window.CAGE_VIEW, st = { mats: [], clones: [], hid: [], added: [], vis: [] };
     root.updateMatrixWorld(true);
     const F = frameOf(T, root), { c, fwd, left, up } = F, cl = c.dot(left);
     const fus = root.children.find(o => o.isMesh);   // the cut's width: this plane's own fuselage
@@ -175,9 +179,12 @@
       L.position.copy(fc).addScaledVector(fwd, t0 * fl).addScaledVector(left, 1.1).addScaledVector(up, 0.25);
       S.add(L); st.added.push(L);
     }
+    if (window.CAGE_WINGSTRUCT) { window.CAGE_WINGSTRUCT.show(true); st.ws = true; }
+    const WSg = wingStructNear(T, root, S, left, cl, st);
     for (const k of NEAR_OFF) {
+      if (WSg && NEAR_KEEP_STRUCT.includes(k)) continue;
       const Lr = root.children.find(o => o.name === 'cageLayer:' + k); if (!Lr) continue;
-      Lr.traverse(o => { if (o.isMesh) swap(o, halve); });
+      Lr.traverse(o => { if (o.isMesh && !(o.userData && o.userData.wingStruct)) swap(o, halve); });
     }
     const En = root.children.find(o => o.name === 'cageLayer:energy');   // a vessel out of the body goes with the near wing
     if (En && fus) {
@@ -188,7 +195,28 @@
     if (G) for (const o of G.children) if (/L$/.test(o.name) && o.visible) { o.visible = false; st.hid.push(o); }
     return st;
   }
+  // the structure's layer (wing_struct.js: `cageLayer:wingStruct`, a sibling of the wing layer in the cage scene) - the
+  // near half shown, the far half hidden (it would stand inside the far wing's opaque covering); null without one
+  function wingStructNear(T, root, S, left, cl, st) {
+    let L = null;
+    const find = o => { if (!L && o.name === 'cageLayer:wingStruct') L = o; };
+    root.traverse(find); if (!L && S) S.traverse(find);
+    if (!L || !L.children.length) return null;
+    const c = new T.Vector3(); let near = 0;
+    L.updateMatrixWorld(true);
+    for (const m of L.children) {
+      if (!m.isMesh) continue;
+      if (!m.geometry.boundingSphere) m.geometry.computeBoundingSphere();
+      c.copy(m.geometry.boundingSphere.center).applyMatrix4(m.matrixWorld);
+      const isNear = c.dot(left) > cl;
+      if (m.visible !== isNear) { st.vis.push([m, m.visible]); m.visible = isNear; }
+      if (isNear) near++;
+    }
+    return near ? L : null;
+  }
   function cutOff(st) {
+    for (const [o, v] of (st.vis || []).reverse()) o.visible = v;
+    if (st.ws && window.CAGE_WINGSTRUCT) window.CAGE_WINGSTRUCT.show(false);
     for (const o of st.hid) o.visible = true;
     for (const L of st.added) { if (L.parent) L.parent.remove(L); if (L.dispose) L.dispose(); }
     for (const [o, m] of st.mats.reverse()) o.material = m;
