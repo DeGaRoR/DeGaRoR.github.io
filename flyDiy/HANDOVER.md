@@ -313921,3 +313921,21 @@ TIMED GATE: light, the same shape as L36a.
 - Steady frames p50 33.3 ms on every flown row; no frame over 1 s in any taxi, take-off or flight segment.
 - The >1 s gaps are all in the garage stand before the reveal (cub chase 5.2 s; the discarded warm_metal 9.0 s + 7.1 s): the cold GPU shader cache, master_bench's MISS, as L35a-L36a.
 - The floats take-off has one 133 ms frame.
+
+## ELEC-SYSTEMS — THE ELECTRICS, AUDITED AND GIVEN CLASSES (2026-11-09)
+
+The user: "Where do we set that? ... Do we even compute the discharge? Do we refuse lamps without electrics? And
+electrical instruments? If we need to manage that, we need to manage that well." The audit, the plan and the sources:
+futureDesigns/ELEC-SYSTEMS-2026-11.md; the hand-over: ELEC-SYSTEMS-READY.md.
+- WHERE: Fit > Instruments (_cage_panel.js), its `electrics` fold - now TILES (`.dfTile`, the design tiles' one look): a
+  class row (Hand-propped / Ultralight / Light / Heavy) and one row per part, the system on one line (Ah, charge A,
+  day / night load, endurance on the battery alone), every refusal said there in red.
+- THE CLASSES ARE STEPS: GEN_ELEC_CLASSES names three catalogue rows each; genElecClassOf(engine) SUGGESTS one (a mark on
+  its tile), nothing applies it. 'light' is the basic tier's own set. RULE: a class row is never put in a tier without
+  the user's ruling - the Cub, the Jodel and the C172 are `fit: basic` / explicit rows and would move (GATE ELEC 7a and
+  its selftest catch it).
+- THE BUS was already real (31_elec.js, cockpit.js): soc, discharge, cut-in, starter draw, breakers, a flat battery
+  refusing the crank. New: the catalogue's `cutIn` / starter `amps` reach it (absent = the old 1100 / 150), and
+  cockpit.js elecAlarms says LOW VOLTS / NOT CHARGING / BATTERY FLAT / a refused start on the flight's #flElec line.
+- genSystemsResolve `warnings[]`: a starter or a generator with no battery, a 12 V starter on a motor - SAID, not
+  re-billed (re-billing would move saved builds' mass: the user's call, open question in the READY note).
