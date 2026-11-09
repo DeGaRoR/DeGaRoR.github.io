@@ -249,7 +249,12 @@ function bandChart(o) {
     const oa = X(pc(v.ours[0])), ob = X(pc(v.ours[1]));
     s += '<rect class="bar ' + VCLS[v.verdict] + '" x="' + (Math.min(oa, ob) - 3) + '" y="' + (y + rh - 11) + '" width="' + Math.max(6, Math.abs(ob - oa) + 6) + '" height="7" rx="3"><title>ours at the reference\'s weights ' + fr(v.ours, d) + ' ' + (UNIT[v.k] || '') + ': ' + v.verdict + (v.extrap ? ' (extrapolated)' : '') + '</title></rect>';
     const ser = (v.series || []);
-    ser.forEach((q, j) => { if (!num(q.v)) return; s += '<circle class="ld s' + (j + 1) + '" cx="' + X(pc(q.v)) + '" cy="' + (y + 8) + '" r="3.5"><title>' + ['MIN', 'TYP', 'MTOW'][j] + ' ' + f(q.m) + ' kg: ' + f(q.v, d) + ' ' + (UNIT[v.k] || '') + '</title></circle>'; });
+    // A REFERENCE STATED AT ONE WEIGHT (the user, 9 Nov: the PA-18's card "looks really noisy"): a load far from that weight
+    // is not comparable to it - a float plane 150 kg lighter runs 40 % shorter on the water, which is weight, not error.
+    // Such a load's dot is drawn faint and says so; the bar (ours AT the reference's weight) is what the verdict reads
+    const one = Array.isArray(v.kg) && num(v.kg[0]) && num(v.kg[1]) && Math.abs(v.kg[1] - v.kg[0]) < 1 ? v.kg[0] : null;
+    ser.forEach((q, j) => { if (!num(q.v)) return; const far = one != null && Math.abs(q.m - one) > 0.05 * one;
+      s += '<circle class="ld s' + (j + 1) + (far ? ' far' : '') + '" cx="' + X(pc(q.v)) + '" cy="' + (y + 8) + '" r="3.5"><title>' + ['MIN', 'TYP', 'MTOW'][j] + ' ' + f(q.m) + ' kg: ' + f(q.v, d) + ' ' + (UNIT[v.k] || '') + (far ? ' - not comparable: the reference is stated at ' + f(one) + ' kg' : '') + '</title></circle>'; });
   });
   return s + '</svg>';
 }
@@ -320,7 +325,7 @@ table.heat td.cell{text-align:center}table.heat td.cell.good{background:var(--go
 svg{display:block;max-width:100%;height:auto}svg text{fill:var(--ink2);font-size:12px}svg .tick{fill:var(--muted);font-size:11px}svg .lab{fill:var(--ink)}svg .val{fill:var(--ink);font-weight:600}svg .inbar{fill:#fff;font-size:11px;font-weight:600}
 svg .ax{fill:var(--muted);font-size:11px;font-weight:600}svg .grid,svg .gridl{stroke:var(--grid);fill:none;stroke-width:1}svg .zero{stroke:var(--ink2);stroke-width:1}svg .okzone{fill:var(--good-bg);opacity:.6}
 svg .bar.good,svg .dot.good{fill:var(--good)}svg .bar.warn,svg .dot.warn{fill:var(--warn)}svg .bar.bad,svg .dot.bad{fill:var(--bad)}svg .bar.na{fill:var(--na)}svg .dot{stroke:var(--surface);stroke-width:2}
-svg .g.good{fill:var(--good)}svg .g.warn{fill:var(--warn)}svg .g.bad{fill:var(--bad)}svg .bar.s1{fill:var(--s1)}svg .bar.s2{fill:var(--s2)}svg .ld.s1{fill:var(--s1)}svg .ld.s2{fill:var(--s2)}svg .ld.s3{fill:var(--s3)}svg .ld{stroke:var(--surface);stroke-width:2}
+svg .g.good{fill:var(--good)}svg .g.warn{fill:var(--warn)}svg .g.bad{fill:var(--bad)}svg .bar.s1{fill:var(--s1)}svg .bar.s2{fill:var(--s2)}svg .ld.s1{fill:var(--s1)}svg .ld.s2{fill:var(--s2)}svg .ld.s3{fill:var(--s3)}svg .ld{stroke:var(--surface);stroke-width:2}svg .ld.far{opacity:.25}
 svg .refband{fill:var(--refbg);stroke:var(--ref);stroke-dasharray:4 3;stroke-width:1}svg .refmark{stroke:var(--ink);stroke-width:2;stroke-dasharray:3 2}
 svg .area{fill-opacity:.25;stroke-width:2}svg .area.good{fill:var(--good);stroke:var(--good)}svg .area.warn{fill:var(--warn);stroke:var(--warn)}svg .area.bad{fill:var(--bad);stroke:var(--bad)}svg .area.na{fill:var(--na);stroke:var(--na)}
 .legend{display:flex;flex-wrap:wrap;gap:14px;font-size:13px;color:var(--ink2);margin:6px 0}.legend span{display:inline-flex;align-items:center;gap:6px}.sw{width:12px;height:12px;border-radius:3px;display:inline-block}
@@ -333,7 +338,7 @@ svg .area{fill-opacity:.25;stroke-width:2}svg .area.good{fill:var(--good);stroke
 function legendBands() {
   return '<div class="legend"><span><span class="sw" style="background:var(--refbg);border:1px dashed var(--ref)"></span>reference band (figure ± its tolerance)</span>' +
     '<span><span class="sw" style="background:var(--good)"></span>● inside</span><span><span class="sw" style="background:var(--warn)"></span>▲ near (≤ 10 % out)</span><span><span class="sw" style="background:var(--bad)"></span>■ outside</span>' +
-    '<span><span class="sw" style="background:var(--s1);border-radius:50%"></span>MIN</span><span><span class="sw" style="background:var(--s2);border-radius:50%"></span>TYP (solo, ½ fuel)</span><span><span class="sw" style="background:var(--s3);border-radius:50%"></span>MTOW</span></div>';
+    '<span><span class="sw" style="background:var(--s1);border-radius:50%"></span>MIN</span><span><span class="sw" style="background:var(--s2);border-radius:50%"></span>TYP (solo, ½ fuel)</span><span><span class="sw" style="background:var(--s3);border-radius:50%"></span>MTOW</span><span><span class="sw" style="background:var(--s2);border-radius:50%;opacity:.25"></span>faint: a load far from the one weight the figure is stated at (not comparable)</span></div>';
 }
 function planeSection(p) {
   const o = p.o, R = REFS[o.ref] || {}, sc = p.sc, sh = o.shape || {};
