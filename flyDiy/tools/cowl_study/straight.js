@@ -550,6 +550,77 @@ function placeScoop(spec, o) {
 function fitCheeks(spec, o, type) {
   if (type === 'radial') return fitHelmets(spec, o);  // the helmets are the radial's
   if (+o.cw_aftMode === 1) return o;                 // a pod is the engine's own size: no cheeks
+  if (!ROUND_CHEEKS) return fitCheeksStream(spec, o);
+  return fitCheeksRound(spec, o);
+}
+// STREAMLINED CHEEKS, READ OFF THE DRAWN HEADS (the user, 9 Nov, on the Carbon Cub SS: "it would need big bulging, sort
+// of the same as you've done with the radial cowl, ogival and where it matters ... our default way ... mostly gets a
+// bump that looks like a mole"). The round cheek was a Gaussian along the cowl, sized by trial on the worst point. Now,
+// as the radial's helmets: every drawn vertex standing through the bare cowl (clear.js, all round, the exhaust aside),
+// folded onto the right side when both flanks stand out (a boxer: two mirrored cheeks; one side or the top: one); the
+// cheek is FULL over the heads' own length, rises over a short front, tapers long aft and narrows as it fades
+// (lobeStream), centred on the heads' azimuth; its spread the one giving the least cheek that stands 12 mm over every
+// point; rebuilt and probed until nothing pokes.
+let ROUND_CHEEKS = false;
+function fitCheeksStream(spec, o) {
+  const C = require('./clear.js'), THREE = SH.context().THREE, MARGIN = 0.012;
+  o = Object.assign({}, o, { cw_lobeN: 0, cw_lobeAmp: 0, cw_lobeStream: 0 });
+  const m = measure(spec, o), CW = m.W.COWL_GEN, zE = CW.zEnd();
+  const c = C.clearance(m.S, THREE, { all: true });
+  if (!c || !c.n || c.worst < 0.002) { o._cheeks = c ? c.worst : null; return o; }
+  const deg = 180 / Math.PI;
+  const raw = c.pts.map(([x, y, z, d]) => ({ x, th: Math.atan2(y - CW.spineY(z), x) * deg, t: z / zE, d }));
+  const nR = raw.filter(p => p.x > 0.02).length, nL = raw.filter(p => p.x < -0.02).length;
+  const both = Math.min(nR, nL) > 0.25 * Math.max(nR, nL);
+  // fold the left onto the right (the generator mirrors cheek 2 at 180 - az)
+  const pts = raw.map(p => (both && p.x < 0) ? Object.assign({}, p, { th: (p.th >= 0 ? 180 - p.th : -180 - p.th) }) : p);
+  const W = pts.reduce((a, p) => a + p.d, 0);
+  let sx = 0, sy = 0; for (const p of pts) { sx += p.d * Math.cos(p.th / deg); sy += p.d * Math.sin(p.th / deg); }
+  const az = Math.atan2(sy, sx) * deg;
+  const dA = (a, b) => ((a - b) % 360 + 540) % 360 - 180;
+  // the heads' own length: the stations of the points over a third of the worst depth
+  const deep = pts.filter(p => p.d >= c.worst / 3), ts = deep.map(p => p.t).sort((a, b) => a - b);
+  const t0 = ts[0], t1 = ts[ts.length - 1];
+  const tN = Math.min(0.995, t1 + 0.10), tA = 0.04;
+  const sm = u => { u = Math.max(0, Math.min(1, u)); return u * u * (3 - 2 * u); };
+  // THE OGIVE: full height only where the heads need it most - the rise from the tail may carry the rear heads on its
+  // way up. p1 (the front of the full part) is the heads' front; p0 (its back) is fitted with the spread: the least
+  // cheek (height x spread x its length, the ramps at half) that still stands 12 mm over every point
+  const p1 = Math.min(tN - 0.01, t1 + 0.01);
+  const prof = (t, p0) => {
+    if (t >= tN || t <= tA) return 0;
+    if (t > p1) return sm((tN - t) / Math.max(1e-3, tN - p1));
+    if (t < p0) return sm((t - tA) / Math.max(1e-3, p0 - tA));
+    return 1;
+  };
+  let best = null;
+  for (let p0 = Math.max(tA + 0.06, Math.min(t0, p1 - 0.02)); p0 <= p1 - 0.01; p0 += 0.02)
+    for (let sig = 10; sig <= 75; sig += 1) {
+      let A = 0;
+      for (const p of pts) {
+        const w = prof(p.t, p0), g = w * Math.exp(-Math.pow(dA(p.th, az) / (sig * (0.55 + 0.45 * w)), 2));
+        A = Math.max(A, (p.d + MARGIN) / Math.max(1e-6, g));
+      }
+      const v = A * sig * ((p1 - p0) + 0.5 * (p0 - tA) + 0.5 * (tN - p1));
+      if (A <= 0.22 && (!best || v < best.v)) best = { A, sig, p0, v };
+    }
+  if (!best) best = { A: 0.22, sig: 75, p0: Math.max(tA + 0.06, t0) };
+  const tc = 0.5 * (best.p0 + p1), h = 0.5 * (p1 - best.p0);
+  Object.assign(o, { cw_lobeN: both ? 2 : 1, cw_lobeAz: +(az >= -90 ? az : az + 360).toFixed(1),
+    cw_lobeAmp: +best.A.toFixed(4), cw_lobeSig: +best.sig.toFixed(1), cw_lobeT: +tc.toFixed(3), cw_lobeTSig: +h.toFixed(3),
+    cw_lobeStream: 1, cw_lobeNose: +tN.toFixed(3), cw_lobeTail: tA });
+  let left = null;
+  for (let pass = 0; pass < 4; pass++) {
+    const k = C.clearance(measure(spec, o).S, THREE, { all: true });
+    left = k ? k.worst : 0;
+    if (!k || k.worst < 0.002) break;
+    o.cw_lobeAmp = +Math.min(0.3, o.cw_lobeAmp + k.worst + 0.004).toFixed(4);
+  }
+  o._cheeks = left;
+  o._cheekFit = { both, az: +az.toFixed(1), t0: +t0.toFixed(3), t1: +t1.toFixed(3), barePoke: c.worst, left };
+  return o;
+}
+function fitCheeksRound(spec, o, type) {
   const C = require('./clear.js'), THREE = SH.context().THREE;
   o = Object.assign({}, o, { cw_lobeN: 0 });
   for (let pass = 0; pass < 4; pass++) {
@@ -703,13 +774,23 @@ if (require.main === module) {
   const j = JSON.parse(fs.readFileSync(IN, 'utf8'));
   const spec = j.spec || j;
   if (arg('radialR')) RADIAL_R = +arg('radialR');
+  if (argv.includes('--roundCheeks')) ROUND_CHEEKS = true;
+  // --cheeksOnly: the build's own cowl kept, only its cheeks refitted (streamlined, off the drawn heads)
+  if (argv.includes('--cheeksOnly')) {
+    const o = fitCheeksStream(spec, {}), fit = o._cheekFit, left = o._cheeks; delete o._cheekFit; delete o._cheeks;
+    for (const k of Object.keys(o)) if (typeof o[k] === 'number') o[k] = +o[k].toFixed(4);
+    const s2 = JSON.parse(JSON.stringify(spec)); s2.cage = Object.assign({}, s2.cage, o);
+    fs.writeFileSync(OUT, JSON.stringify(j.spec ? Object.assign({}, j, { spec: s2 }) : s2));
+    console.log(JSON.stringify({ out: OUT, cheeksOnly: true, cheekFit: fit, left, over: o }));
+    process.exit(0);
+  }
   const r = rowsFor(spec, { opt: arg('opt', 'waist'), type: arg('type', 'auto'), lower: +arg('lower', 0) });
   if (!r.over) { console.error('straight: ' + r.why); process.exit(1); }
   const over = finish(spec, r.over, r.why.type);
   const cheeks = over._cheeks; delete over._cheeks; const sec = over._sec; delete over._sec;
-  const helmets = over._helmets; delete over._helmets;
+  const helmets = over._helmets; delete over._helmets; const cheekFit = over._cheekFit; delete over._cheekFit;
   const s2 = JSON.parse(JSON.stringify(spec));
   s2.cage = Object.assign({}, s2.cage, over);
   fs.writeFileSync(OUT, JSON.stringify(j.spec ? Object.assign({}, j, { spec: s2, name: (j.name || '') + ' straight ' + arg('opt', 'match') }) : s2));
-  console.log(JSON.stringify(Object.assign({ out: OUT }, r.why, { face: undefined }, { cheeksWorst: cheeks, helmets, section: sec, over })));
+  console.log(JSON.stringify(Object.assign({ out: OUT }, r.why, { face: undefined }, { cheeksWorst: cheeks, cheekFit, helmets, section: sec, over })));
 }
