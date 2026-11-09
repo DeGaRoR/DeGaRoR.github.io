@@ -216,7 +216,7 @@ const STRIP_MICRO = (() => {
     function rockIn(i, j, big) {
       const M = big ? 1.2 : 0.3, sk = seed + (big ? 501 : 511);
       const vC = (j + 0.5) * M, edge = ss(0.3, 0.9, Math.abs(vC) / halfW);
-      const p = big ? K.rocks * (0.4 + 0.6 * edge) : Math.min(0.6, 0.1 + 0.9 * K.rocks) * (0.6 + 0.4 * edge);
+      const p = big ? K.rocks * (0.4 + 0.6 * edge) : Math.min(0.35, 0.04 + 0.5 * K.rocks) * (0.6 + 0.4 * edge);
       if (ih(i, j, sk) >= p) return null;
       const a = ih(i, j, sk + 1), b = ih(i, j, sk + 2), e = ih(i, j, sk + 3);
       return [(i + 0.25 + 0.5 * a) * M, (j + 0.25 + 0.5 * b) * M, big ? 0.07 + 0.2 * e * e : 0.015 + 0.05 * e * e];
