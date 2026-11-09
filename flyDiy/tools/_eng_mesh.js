@@ -770,10 +770,15 @@ const EM = (() => {
     const fwPlateAt = zFw => {
       const fwT = Math.max(0.008, 0.06 * cR);
       part('firewall');
+      // THE NACELLE'S OWN FIREWALL (PROPER-COWLS, the user, 9 Nov: "cut this plate exactly at the shape of the
+      // nacelle behind, making it the firewall of the nacelle"): `fwShape`, an outline in the plate's plane (the
+      // engine's x, y; counter-clockwise), replaces the rounded rectangle - the cage hands the pod's own section,
+      // set inside its skin. No metre strip on it (the bench's datum, not a nacelle's).
+      const shaped = Array.isArray(P.fwShape) && P.fwShape.length >= 8;
       prism([0, 0, 0], Z, X, Y,
-            roundRect(P.fwW, P.fwH, 0.08 * Math.min(P.fwW, P.fwH)),
+            shaped ? P.fwShape : roundRect(P.fwW, P.fwH, 0.08 * Math.min(P.fwW, P.fwH)),
             zFw - fwT, zFw, ENGM_MAT.firewall, true, true, 0.45 * fwT);
-      if (P.ruler) {
+      if (P.ruler && !shaped) {
         // THE METRE STRIP (G24.4): 0.1 m ticks, taller at each half metre,
         // on a baseline near the plate's foot. Deliberately metric — the
         // plate is the aircraft-side datum, and this is its scale.

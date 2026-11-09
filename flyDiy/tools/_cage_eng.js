@@ -715,6 +715,21 @@ const propMat = (sec) => {
   propM.color.setHex(M.col); propM.metalness = M.met; propM.roughness = M.rgh;
   return propM;
 };
+// THE NACELLE'S FIREWALL (PROPER-COWLS, the user, 9 Nov): a pod that houses its engine (its face `podSized`) ends at
+// a bulkhead of its own section - the pod's skin at the face (the cowl's z = 0), set 6 mm inside it, in the engine's
+// frame (the flange sits at the face's centre + the cowl's axis + engY: ug.position below). null = the plain plate.
+function podOutline(f, P0) {
+  const CW1 = window.COWL_GEN;
+  if (!f || !f.podSized || !CW1 || !CW1.surfPoint) return null;
+  const ax0 = CW1.axisXY(), dx = ax0.x, dy = ax0.y + (+(P0 || {}).engY || 0);
+  const z0 = Math.max(0.002, CW1.aftStart ? CW1.aftStart() : 0), cy = CW1.spineY(z0), N = 72, out = [];
+  for (let k = 0; k < N; k++) {
+    const p = CW1.surfPoint(k / N * 2 * Math.PI, z0), vx = p[0], vy = p[1] - cy, r = Math.hypot(vx, vy) || 1;
+    const s = Math.max(0, r - 0.006) / r;
+    out.push([vx * s - dx, cy + vy * s - dy]);
+  }
+  return out;
+}
 function meshFrom(m) {
   const pos = new Float32Array(m.V.length * 3);
   m.V.forEach((p, i) => { pos[i*3] = p[0]; pos[i*3+1] = p[1]; pos[i*3+2] = p[2]; });
@@ -978,8 +993,10 @@ function engPlace(ctx, prev) {
   spec.screws = P.eng_screws ? 1 : 0;
   // the genuine firewall is the cage's — off the body (a pylon, a nacelle)
   // the engine draws its own mount plate
-  // (PROPER-COWLS: not inside a pod that houses the engine - _cage_cowl podPlate's `podSized`)
-  spec.fwOn = face.synthetic && !face.podSized ? 1 : 0;
+  // (PROPER-COWLS: inside a pod that houses the engine - _cage_cowl podPlate's `podSized` - the plate is the NACELLE'S
+  // FIREWALL: cut to the pod's own section at the face, inside its skin - podOutline)
+  spec.fwOn = face.synthetic ? 1 : 0;
+  { const o = podOutline(face, P); if (o) spec.fwShape = o; }
   spec.fwW = Math.max(0.2, Math.min(2.2, 2 * face.halfW));
   spec.fwH = Math.max(0.2, Math.min(2.2, 2 * face.halfH));
   let M;
@@ -1106,7 +1123,7 @@ function engPlace(ctx, prev) {
     // its own mount plate, sized to its face
     let MU = M;
     if (!!f.synthetic !== !!face.synthetic || !!f.podSized !== !!face.podSized) {
-      try { MU = EM.engMeshBuild(Object.assign({}, spec, { fwOn: f.synthetic && !f.podSized ? 1 : 0,
+      try { MU = EM.engMeshBuild(Object.assign({}, spec, { fwOn: f.synthetic ? 1 : 0, fwShape: podOutline(f, P) || undefined,
         fwW: Math.max(0.2, Math.min(2.2, 2 * f.halfW)), fwH: Math.max(0.2, Math.min(2.2, 2 * f.halfH)) })); }
       catch (e) { MU = M; }
     }
