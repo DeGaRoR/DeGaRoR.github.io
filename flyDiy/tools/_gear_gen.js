@@ -2007,11 +2007,15 @@ function leverRowsOf(P) {
 // Fixed to the leg (its bags are the leg's: posed with the leg in the flight, whole or broken off).
 function leverBoot(bag, F) {
   const GL = (typeof GEAR_LEVER !== 'undefined') ? GEAR_LEVER : (typeof window !== 'undefined' ? window.GEAR_LEVER : null);
-  const d = nrm(sub(F.piv, F.root));
-  let Ls = len(sub(F.piv, F.root)) + 0.06;
-  const fore = [0, 0, 1], N = nrm(sub(fore, mul(d, dot(fore, d)))), B = crs(d, N);
+  // DIRECTIONAL (the user, 9 Nov: "take the direction of flight into account for a fairing that is directional"): every
+  // section is a HORIZONTAL slice of the boot, a streamline with its nose into the flight (+z, the cage's forward) and its
+  // chord along the airflow, centred on the leg's line at that height - not a section square to the raked leg
+  const dl = nrm(sub(F.piv, F.root)), FW = [0, 0, 1], LT = [1, 0, 0];
+  const Ay = y => add(F.root, mul(dl, (y - F.root[1]) / dl[1]));          // the leg's line at a height
   const pts = [];
-  // what it must hide: the strut's cylinder and boot over the stroke, the bracket's lugs at the upper eye
+  // what it must hide (fixed, or swinging inside it): the leg's own faired tube, the strut's bracket lugs, the strut's
+  // cylinder and gland over the whole stroke. NOT the pivot's tube (it passes through the cut's round holes) nor
+  // anything of the arm (cut round)
   const L = GL ? GL.gearLeverInit({ piv: F.piv, ax: F.ax, w: F.w, axle: F.axle, horn: F.horn, top: F.top }) : null;
   const Lx = len(sub(F.horn, F.top)), cylL = 0.50 * Lx + 0.065, Rc = 0.034;
   for (const f of [0, 0.25, 0.5, 0.75, 1]) {
@@ -2021,62 +2025,71 @@ function leverBoot(bag, F) {
       for (let k = 0; k < 8; k++) { const t = 2 * Math.PI * k / 8;
         pts.push(add(off(F.top, ax, a), add(mul(e1, Rc * Math.cos(t)), mul(e2, Rc * Math.sin(t))))); }
   }
-  for (const s of [-1, 1]) for (const q of [0, 0.05]) pts.push(off(off(F.top, F.ax, s * 0.040), d, -q));
-  // the boot runs at least past the lowest thing it hides (the gland at full extension), so its rounded toe never needs a
-  // cut to let the strut's cylinder out: only what moves THROUGH the boot's wall is cut
-  const aPts = Math.max(...pts.map(p => dot(sub(p, F.root), d))) + 0.012;
-  Ls = Math.max(Ls, aPts + 0.02);
-  // the stations, the raw sizes, then a smooth max along the leg
-  const n = 28, clr = 0.012, c0 = F.chord, t0 = F.chord * 0.46, raw = [];
-  for (let i = 0; i <= n; i++) {
-    const a = Ls * i / n, h = 0.75 * Ls / n;
-    let uMax = 0.35 * c0, uMin = -0.65 * c0, vMax = 0.5 * t0, vMin = -0.5 * t0, any = false;
-    for (const p of pts) {
-      const r = sub(p, F.root), ad = dot(r, d);
-      if (Math.abs(ad - a) > h) continue;
-      const u = dot(r, N), v = dot(r, B); any = true;
-      uMax = Math.max(uMax, u); uMin = Math.min(uMin, u); vMax = Math.max(vMax, v); vMin = Math.min(vMin, v);
-    }
-    const c = any ? Math.max(c0, (uMax - uMin) / 0.65 + 2 * clr) : c0;
-    const t = any ? Math.max(t0, (vMax - vMin) / 0.646 + 2 * clr) : t0;
-    raw.push({ c, t, u0: any ? uMax + clr - 0.20 * c : 0, v0: any ? 0.5 * (vMax + vMin) : 0 });
+  for (const s of [-1, 1]) for (const q of [0, 0.05]) for (const r of [-0.024, 0, 0.024]) pts.push(off(off(off(F.top, F.ax, s * 0.040), dl, -q), FW, r));
+  if (F.leg) {                                    // the leg's tube as drawn (legLever's sweep: its section square to it)
+    const T = nrm(sub(F.leg.b, F.leg.a)), N0 = nrm(sub(FW, mul(T, dot(FW, T)))), B0 = crs(T, N0);
+    for (let i = 0; i <= 20; i++) { const t = i / 20, c = lerp3(F.leg.a, F.leg.b, t);
+      for (const [u, v] of secTear(F.leg.chord * (1 - 0.22 * t), F.leg.thick * (1 - 0.15 * t))) pts.push(add(c, add(mul(N0, u), mul(B0, v)))); }
   }
-  // THE FLARE: a slope-limited envelope over the raw sizes (each station at least every other's size less `k` per metre
-  // between them - a straight, gentle taper from the slim leg into the knuckle, never a neck), then a light smoothing; the
-  // section's centre follows the size it serves (blended by how much bigger than the leg it has grown)
-  const env = (k, slope) => raw.map((_, i) => { let m = -Infinity; for (let j = 0; j <= n; j++) m = Math.max(m, raw[j][k] - slope * Ls * Math.abs(i - j) / n); return m; });
-  const avg = (arr, win) => arr.map((_, i) => { let s = 0, w = 0; for (let j = Math.max(0, i - win); j <= Math.min(n, i + win); j++) { s += arr[j]; w++; } return s / w; });
-  const C = avg(env('c', 0.30), 2), Tt = avg(env('t', 0.20), 2);
-  const wOf = i => Math.max(0, Math.min(1, (C[i] - c0) / Math.max(1e-6, Math.max(...C) - c0)));
-  const iBig = raw.reduce((b, r, i) => (r.c > raw[b].c ? i : b), 0);
-  const U0 = avg(C.map((_, i) => wOf(i) * raw[iBig].u0), 2), V0 = avg(C.map((_, i) => wOf(i) * raw[iBig].v0), 2);
-  // THE OUTBOARD FLANK HUGS WHAT IT HIDES: the tear section is symmetric, and sized for the strut's sweep it bellied out
-  // toward the wheel (0.129 m from the wheel's plane on the Wilga-class host). The flank is eased in (C1, an exponential
-  // knee 20 mm wide) to the outboard-most thing it covers - the strut's cylinder over the stroke, the pivot's tube and its
-  // nut - less the clearance: the slim side faces the wheel
-  const axN = nrm(F.ax), inS = Math.sign(dot(sub(F.piv, F.axle), axN)) || 1, latOf = p => inS * dot(sub(p, F.axle), axN);
-  const floor = Math.min(...pts.map(latOf), latOf(F.piv) - (F.w + 0.022)) - clr, knee = 0.020;
-  const ease = p => { const l = latOf(p); if (l >= floor + knee) return p;
-    return add(p, mul(axN, inS * (floor + knee * Math.exp((l - floor) / knee - 1) - l))); };
-  // THE SURFACE, A FINE GRID: 56 stations down the leg, then a rounded toe (a quarter ellipse in 12 rings, through the
-  // old toe's 0.85 / 0.55 rings at their stations) to a point; 36 points round each section - ~5 000 triangles a boot (the
-  // cut edges are found on the true contour, so the grid only has to carry the curvature)
-  const Dl = Ls / n, Lt = Dl / 0.308, a0 = Math.max(Ls - Dl - 0.527 * Lt, aPts), KS = 36;
-  const at = (A, a) => { const x = Math.max(0, Math.min(n, a / Dl)), i = Math.min(n - 1, Math.floor(x)), t = x - i; return A[i] * (1 - t) + A[i + 1] * t; };
+  // THE SLICES: from just inside the body (the root buried 3 cm) to just under the pivot (the pivot passes through the
+  // cut's round holes, the arm through its slot; the strut's foot below is bare, as on the Wilga). What a slice holds is
+  // every point of its height band, each grown into a ring of the clearance
+  const TAU = F.tau || 0.40, clr = 0.010, n = 24;
+  const yTop = F.root[1] + 0.03, yBot = F.piv[1] - 0.012, Dy = (yTop - yBot) / n;
+  const shp = x => x >= 0 ? Math.sqrt(Math.max(0, 1 - (x / 0.35) * (x / 0.35))) : Math.pow(Math.max(0, 1 - Math.pow(-x / 0.65, 1.85)), 0.62);
+  const sl = [];
+  for (let i = 0; i <= n; i++) {
+    const y = yTop - Dy * i, A = Ay(y), Q = [];
+    for (const p of pts) { if (p[1] < yBot - clr || Math.abs(p[1] - y) > 0.75 * Dy) continue; const r = sub(p, A);
+      const u = dot(r, FW), v = dot(r, LT); for (let k = 0; k < 6; k++) { const t = Math.PI * k / 3; Q.push([u + clr * Math.cos(t), v + clr * Math.sin(t)]); } }
+    if (Q.length) sl.push({ t: i / n, Q });
+  }
+  const fits = (Q, c, u0, v0) => Q.every(([u, v]) => { const x = (u - u0) / c; return x <= 0.35 && x >= -0.65 && Math.abs(v - v0) <= 0.5 * TAU * c * shp(x); });
+  const cOf = (Q, u0, v0) => { let lo = 0.01, hi = 4; if (!fits(Q, hi, u0, v0)) return hi; for (let it = 0; it < 26; it++) { const m = 0.5 * (lo + hi); if (fits(Q, m, u0, v0)) hi = m; else lo = m; } return hi; };
+  // ONE STRAIGHT TAPERED STREAMLINE (the user: "closer to the bone ... less goofy ... like a primitive club"): each slice's
+  // own best station along the flow (a golden search on the chord it needs) and its lateral middle, then STRAIGHT LINES
+  // in height through them (least squares, weighted by the chord), and the chord the smallest straight taper that holds
+  // every slice at those lines (the best pair of slices to pass through)
+  for (const S of sl) {
+    let v1 = Infinity, v2 = -Infinity, u1 = Infinity, u2 = -Infinity;
+    for (const [u, v] of S.Q) { v1 = Math.min(v1, v); v2 = Math.max(v2, v); u1 = Math.min(u1, u); u2 = Math.max(u2, u); }
+    S.v0 = 0.5 * (v1 + v2);
+    let gA = u1 - 0.2, gB = u2 + 0.2; const gr = 0.618;
+    let x1 = gB - gr * (gB - gA), x2 = gA + gr * (gB - gA), f1 = cOf(S.Q, x1, S.v0), f2 = cOf(S.Q, x2, S.v0);
+    for (let it = 0; it < 28; it++) { if (f1 < f2) { gB = x2; x2 = x1; f2 = f1; x1 = gB - gr * (gB - gA); f1 = cOf(S.Q, x1, S.v0); } else { gA = x1; x1 = x2; f1 = f2; x2 = gA + gr * (gB - gA); f2 = cOf(S.Q, x2, S.v0); } }
+    S.u0 = f1 < f2 ? x1 : x2; S.c = Math.min(f1, f2);
+  }
+  const lsq = key => { let sw = 0, st = 0, sy = 0, stt = 0, sty = 0; for (const S of sl) { const w = S.c; sw += w; st += w * S.t; sy += w * S[key]; stt += w * S.t * S.t; sty += w * S.t * S[key]; }
+    const den = sw * stt - st * st; const b1 = Math.abs(den) < 1e-12 ? 0 : (sw * sty - st * sy) / den; return [(sy - b1 * st) / sw, b1]; };
+  const [ua, ub] = lsq('u0'), [va, vb] = lsq('v0');
+  for (const S of sl) S.cL = cOf(S.Q, ua + ub * S.t, va + vb * S.t);
+  let best = null;
+  const tryLine = (c0, c1) => { if (c0 < 0.02 || c1 < 0.02) return; if (!sl.every(S => c0 + (c1 - c0) * S.t >= S.cL - 1e-9)) return; if (!best || c0 + c1 < best[0] + best[1]) best = [c0, c1]; };
+  const cMax = Math.max(...sl.map(S => S.cL)); tryLine(cMax, cMax);
+  for (let i = 0; i < sl.length; i++) for (let j = i + 1; j < sl.length; j++) { const A = sl[i], B = sl[j]; if (B.t - A.t < 1e-6) continue;
+    const k = (B.cL - A.cL) / (B.t - A.t); tryLine(A.cL - k * A.t, A.cL + k * (1 - A.t)); }
+  const lin = (q0, q1) => Array.from({ length: n + 1 }, (_, i) => q0 + (q1 - q0) * i / n);
+  const C = lin(best[0], best[1]), U0 = lin(ua, ua + ub), V0 = lin(va, va + vb);
+  // THE SURFACE, A FINE GRID: 48 slices, then a rounded toe (a quarter ellipse in 12 rings, 0.6 x the last slice's
+  // thickness deep) to a point; 36 points round each - ~4 500 triangles (the cut edges are found on the true contour, so
+  // the grid only has to carry the curvature)
+  const KS = 36, Hd = 0.6 * TAU * C[n];
+  const at = (A, y) => { const x = Math.max(0, Math.min(n, (yTop - y) / Dy)), i = Math.min(n - 1, Math.floor(x)), t = x - i; return A[i] * (1 - t) + A[i + 1] * t; };
   const secK = (chord, thick) => { const zN2 = chord * 0.35, zT2 = chord * 0.65, W = thick * 0.5, out = [];
     for (let k = 0; k < KS; k++) { const q = 2 * Math.PI * k / KS, u = -zT2 + (zN2 + zT2) * (Math.cos(q) + 1) / 2;
       const w = u >= 0 ? W * Math.sqrt(Math.max(0, 1 - (u / zN2) * (u / zN2))) : W * Math.pow(Math.max(0, 1 - Math.pow(-u / zT2, 1.85)), 0.62);
       out.push([u, w * Math.sign(Math.sin(q))]); }
     return out; };
   const sta = [];
-  for (let j = 0; j <= 56; j++) sta.push({ a: a0 * j / 56, s: 1 });
-  for (let j = 1; j <= 12; j++) { const q = (Math.PI / 2) * j / 12; sta.push({ a: a0 + Lt * Math.sin(q), s: Math.cos(q) }); }
+  for (let j = 0; j <= 48; j++) sta.push({ y: yTop - (yTop - yBot) * j / 48, s: 1 });
+  for (let j = 1; j <= 12; j++) { const q = (Math.PI / 2) * j / 12; sta.push({ y: yBot - Hd * Math.sin(q), s: Math.cos(q) }); }
   const J = sta.length, Pg = [], Ctr = [];
-  for (const { a, s } of sta) {
-    const u0 = at(U0, a), v0 = at(V0, a), cA = add(add(F.root, mul(d, a)), add(mul(N, u0), mul(B, v0)));
+  for (const { y, s } of sta) {
+    const u0 = at(U0, y), v0 = at(V0, y), c = at(C, y), cA = add(Ay(y), add(mul(FW, u0), mul(LT, v0)));
     Ctr.push(cA);
-    Pg.push(secK(at(C, a) * s, at(Tt, a) * s).map(([u, v]) => ease(add(cA, add(mul(N, u), mul(B, v))))));
+    Pg.push(secK(c * s, TAU * c * s).map(([u, v]) => add(cA, add(mul(FW, u), mul(LT, v)))));
   }
+  const d = [0, -1, 0];                           // (the toe looks down; the root's cap up)
   // each point's outward normal (from the grid; the toe's point looks down the leg)
   const Ng = Pg.map((row, j) => row.map((p, k) => {
     if (j === J - 1) return d;
@@ -2137,7 +2150,7 @@ function leverBoot(bag, F) {
   // the root closes against the fitting (a fan, never cut: nothing moves up there)
   const c0p = Ctr[0], cR = bag.v(c0p);
   for (let k = 0; k < KS; k++) { const k2 = (k + 1) % KS; triOut(cR, vO(0, k2), vO(0, k), c0p, Pg[0][k2], Pg[0][k], mul(d, -1)); }
-  return { len: Ls, chordMax: Math.max(...C), thickMax: Math.max(...Tt), cut: !!cut, cuts: xc.size };
+  return { chordMax: Math.max(...C), thickMax: TAU * Math.max(...C), cut: !!cut, cuts: xc.size };
 }
 // THE ARTICULATION'S SWEPT SPACE (WILGA-GEAR, the fairing's cuts): every moving part as capsules (a segment and a radius
 // from its drawing's own sizes, a little generous) at 33 poses from full extension to full stroke - the arm turned about
@@ -2145,8 +2158,9 @@ function leverBoot(bag, F) {
 // plus the pivot's boss and nut and the tyre (a disc on the axle). Returns p -> the clearance to the nearest, less `gap`
 function leverClear(GL, F) {
   const L = GL.gearLeverInit({ piv: F.piv, ax: F.ax, w: F.w, axle: F.axle, horn: F.horn, top: F.top }), ax = nrm(F.ax);
-  // per PART, its capsules at every pose (its sweep is their plain union); the parts are blended below
-  const parts = { arm: [], horn: [], lugs: [], boss: [], rod: [], cyl: [], pivot: [] }, discs = [];
+  // per PART, its capsules at every pose (its sweep is their plain union; the strut's rod and cylinder are one part -
+  // coaxial, a smooth blend between them would shave the whole strut's length); the parts are blended below
+  const parts = { arm: [], horn: [], lugs: [], boss: [], strut: [], pivot: [] }, discs = [];
   const app = (T, x) => [T[0] * x[0] + T[1] * x[1] + T[2] * x[2] + T[3], T[4] * x[0] + T[5] * x[1] + T[6] * x[2] + T[7], T[8] * x[0] + T[9] * x[1] + T[10] * x[2] + T[11]];
   for (let i = 0; i <= 32; i++) {
     const q = GL.gearLeverAt(L, F.comp * i / 32), pa = add(F.piv, ax);
@@ -2156,8 +2170,8 @@ function leverClear(GL, F) {
     parts.lugs.push([off(q.horn, ax, -0.042), off(q.horn, ax, 0.042), 0.030]);            // the horn's lugs (r 24 mm) and pin
     parts.boss.push([tf(off(F.axleIn, ax, -0.026)), tf(off(F.axleIn, ax, 0.026)), 0.046]);  // the axle's boss
     const rd = nrm(sub(F.top, q.horn));
-    parts.rod.push([q.horn, off(q.horn, rd, F.rodL), 0.024]);                            // the rod
-    parts.cyl.push([off(F.top, rd, -0.020), off(F.top, rd, -(F.cylL + 0.062)), 0.032]);  // the cylinder and its gland
+    parts.strut.push([q.horn, off(q.horn, rd, F.rodL), 0.024]);                          // the rod
+    parts.strut.push([off(F.top, rd, -0.020), off(F.top, rd, -(F.cylL + 0.062)), 0.032]);  // the cylinder and its gland
     discs.push(tf(F.axle));
   }
   parts.pivot.push([off(F.piv, ax, -F.w - 0.012), off(F.piv, ax, F.w + 0.034), 0.052]); // the pivot: the arm's boss, the tube, the nut
@@ -2236,7 +2250,7 @@ function legLever(bags, AF, P, st, sgn) {
   // the leg's boot fairing: the leg-fairing row, cut round the articulation's swept space
   // (the trailing link wears no wheel fairing - the gear layer zeroes st.fair - so the leg-fairing row is its only one)
   const clear = (st.legFair && GL) ? leverClear(GL, { piv, ax, w, axle, horn, top, comp: g.comp, pOut, axleIn, hBase, rodL, cylL, R: st.R }) : null;
-  const boot = st.legFair ? leverBoot(bags.fair, { root, piv, ax, w, axle, horn, top, comp: g.comp, chord: Math.max(0.10, chord * 1.25), clear }) : null;
+  const boot = st.legFair ? leverBoot(bags.fair, { root, piv, ax, w, axle, horn, top, comp: g.comp, leg: { a: root, b: pivTop, chord, thick }, clear }) : null;
   return { axle, axis: [sgn, 0, 0], root: F.p, travel: [0, 1, 0], tip: axle,
            lever: { piv, ax, w, axle, horn, top, root, axleIn, rows: R0, boot } };
 }
