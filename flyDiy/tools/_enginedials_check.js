@@ -15,7 +15,8 @@
 //     market curve, G134) and the name.
 //   2 EVERY PROPELLER OFFICIAL CONTENT FLIES IS ON THE EDITOR'S ROWS: each official / candidate / validated build's
 //     propeller - its diameter, blade count and material - inside the cowl page's rows (cw_propD, cw_bladeN,
-//     cw_material through _cage_join.js CAGE_JOIN_PROP_MATS).
+//     cw_material through _cage_join.js CAGE_JOIN_PROP_MATS), and (ENGINE-DIALS B) its pitch on the pitch row
+//     (_cage_eng.js CAGE_PROP_PITCH: every GEN_PROP_PITCH class and 'auto'), which the float kit sets by the same writer.
 //   3 A CUSTOM ENGINE INHERITS NOTHING FROM ITS FALLBACK KEY (a custom engine's engines[].type is the join's fallback,
 //     the A-65's): the same custom row on every registry key resolves to the same engine, the same propeller, the same
 //     drive, the same wing station, the same tech keys and the same price - so no A-65 field can ride into it.
@@ -200,7 +201,7 @@ for (const key of keys) {
 // ---- 2. every propeller official content flies is on the editor's rows --------------------------------------------
 console.log('2. EVERY PROPELLER OFFICIAL CONTENT FLIES IS ON THE EDITOR\'S ROWS');
 const cowl = id => (window.COWL_ROWS.find(g => g.rows.some(r => r.k === id)) || { rows: [] }).rows.find(r => r.k === id);
-const rD = cowl('propD'), rN = cowl('bladeN');
+const rD = cowl('propD'), rN = cowl('bladeN'), PITCH = window.CAGE_PROP_PITCH;
 const files = new Set();
 for (const p of JSON.parse(fs.readFileSync(at('builds/lists/plane_lists.json'), 'utf8')).planes)
   if (p.list === 'official' || p.list === 'candidates') files.add(p.file);
@@ -214,7 +215,27 @@ for (const f of [...files].sort()) {
   if (D != null && !(D >= rD.lo && D <= rD.hi)) why.push('D ' + D + ' outside ' + rD.lo + '-' + rD.hi);
   if (!(N >= rN.lo && N <= rN.hi)) why.push('blades ' + N + ' outside ' + rN.lo + '-' + rN.hi);
   if (!JOIN.CAGE_JOIN_PROP_MATS.includes(M)) why.push('material ' + M + ' on no row');
-  ok(!why.length, f + ': ' + (D == null ? 'D (the powerplant\'s)' : D + ' m') + ', ' + N + '-blade ' + M + (why.length ? '  ' + why.join('; ') : ''));
+  const pitch = pr.pitch || 'standard';
+  if (!PITCH.KEYS.includes(pitch)) why.push('pitch ' + pitch + ' on no row');
+  ok(!why.length, f + ': ' + (D == null ? 'D (the powerplant\'s)' : D + ' m') + ', ' + N + '-blade ' + M + ', ' + pitch + ' pitch' + (why.length ? '  ' + why.join('; ') : ''));
+}
+// THE PITCH ROW (ENGINE-DIALS B): every class the physics flies, the float kit's own order, and a move writes the spec
+{
+  const want = Object.keys(C.GEN_PROP_PITCH).concat(['auto']);
+  ok(want.every(k => PITCH.KEYS.includes(k)) && PITCH.KEYS.every(k => want.includes(k)),
+     'the pitch row offers exactly what the physics flies: ' + PITCH.KEYS.join(', ') + ' (GEN_PROP_PITCH + auto)');
+  const kit = /const KIT_PITCHES = (\[[^\]]*\])/.exec(fs.readFileSync(at('tools/_cage_float.js'), 'utf8'));
+  ok(kit && JSON.stringify(eval(kit[1])) === JSON.stringify(PITCH.KEYS), 'the float kit\'s pitch list is the row\'s, in its order');
+  ok(/setPitch\(row\.pitch, P\)/.test(fs.readFileSync(at('tools/_cage_float.js'), 'utf8')), 'the float kit sets the pitch through the row\'s writer');
+  const ups = []; const saveGS = window.GARAGE_SPEC;
+  window.GARAGE_SPEC = { get: () => ({ prop: { pitch: 'standard' } }), update: u => ups.push(u) };
+  const P = { propPitch: 2 }; PITCH.set(P, 'auto');
+  setTimeout(() => {
+    ok(P.propPitch === PITCH.KEYS.indexOf('auto') && ups.length === 1 && ups[0].prop.pitch === 'auto',
+       'the row\'s writer moves the row and writes spec.prop.pitch (GARAGE_SPEC.update, the design tiles\' and the kit\'s call)');
+    window.GARAGE_SPEC = saveGS;
+    finish();
+  }, 5);
 }
 
 // ---- 3. a custom engine inherits nothing from its fallback key ----------------------------------------------------
@@ -241,5 +262,7 @@ for (const key of PROBE) {
      (differ.length ? '  DIFFERS on ' + differ.join(', ') : ''));
 }
 
-console.log('GATE ENGINEDIALS: ' + (fails ? 'FAIL (' + fails + ')' : 'PASS'));
-process.exit(fails ? 1 : 0);
+function finish() {
+  console.log('GATE ENGINEDIALS: ' + (fails ? 'FAIL (' + fails + ')' : 'PASS'));
+  process.exit(fails ? 1 : 0);
+}

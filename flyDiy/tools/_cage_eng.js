@@ -45,6 +45,37 @@ if (!EM || !EP || !CW || !EP.GROUPS) {
 // one - stands on the pod's face whatever the block rows say
 const cowledPusherRow = P => (P.cowlOn == null || +P.cowlOn) && [1, 4].includes(Math.round(+P.engMount || 0));
 
+// ---- ENGINE-DIALS B (9 Nov, A0's brief: "prop pitch has no control of its own: the Chinook flies the 'auto' pitch,
+// which the editor can't set; the seaplane pitch comes only through the Wipline float kit") ----------------------------
+// THE PITCH ROW covers what the physics supports: every GEN_PROP_PITCH class and 'auto' (genPropAuto picks the class
+// for the measured wing). It is a VIEW of spec.prop.pitch, never a cage key (CAGE_VIEW_KEYS): the row reads the spec's
+// pitch at every build, and a builder's move writes the spec through GARAGE_SPEC.update - the same call the design
+// tiles' spec writes and the float kit make - so no saved file gains a key and a load never re-writes a pitch (PAGE.load
+// forgets). The order is the float kit's (_cage_float.js KIT_PITCHES, its saved fltKitPrevPitch index).
+const PROP_PITCHES = ['auto', 'climb', 'standard', 'cruise', 'seaplane'];
+const PROP_PITCH_LABELS = ['automatic (picked for the wing)', 'fine (climb)', 'standard', 'coarse (cruise)',
+                           'seaplane (the float prop)'];
+let pitchSeen = null;                 // the row's value the last build agreed with the spec on (null: not since a load)
+const specPitchNow = () => { try { const S = window.GARAGE_SPEC && window.GARAGE_SPEC.get(); return (S && S.prop && S.prop.pitch) || null; } catch (e) { return null; } };
+// the one writer: the row and the spec together (the builder's move, the float kit)
+function propPitchSet(P, key) {
+  const i = PROP_PITCHES.indexOf(key);
+  if (i < 0) return;
+  P.propPitch = i; pitchSeen = i;
+  setTimeout(() => { try { if (window.GARAGE_SPEC && window.GARAGE_SPEC.update) window.GARAGE_SPEC.update({ prop: { pitch: key } }); } catch (e) {} }, 0);
+}
+// at each build: a row the builder moved writes the spec; otherwise the row follows the spec
+function propPitchSync(P) {
+  const i = Math.round(+P.propPitch);
+  if (pitchSeen !== null && i !== pitchSeen && PROP_PITCHES[i]) { propPitchSet(P, PROP_PITCHES[i]); return false; }
+  const j = PROP_PITCHES.indexOf(specPitchNow());
+  if (j < 0) return false;
+  const moved = Math.round(+P.propPitch) !== j;
+  P.propPitch = j; pitchSeen = j;
+  return moved;
+}
+if (typeof window !== 'undefined') window.CAGE_PROP_PITCH = { KEYS: PROP_PITCHES, LABELS: PROP_PITCH_LABELS, set: propPitchSet };
+
 // ---- the parameter surface ------------------------------------------------
 // bench keys that do NOT become rows here: the per-element polycounts
 // (ruling), and the plate family (the genuine firewall owns it)
@@ -88,6 +119,7 @@ for (const [, rows] of EP.GROUPS)
     else defaults['eng_' + k] = ED[k];
   }
 defaults.spinMat = 0;                 // G244: the cone follows the blades
+defaults.propPitch = PROP_PITCHES.indexOf('standard');   // ENGINE-DIALS B: GEN_DEFAULT's; the spec's at every build
 PAGE.defaults = Object.assign(defaults, PAGE.defaults || {});
 
 // the effective architecture, for the group `show` predicates and the spec
@@ -705,8 +737,10 @@ const ENG_ITEMS = [
     ['spinMat', 'cone material', 0, (CW.MATERIALS || []).length, 1,
      ['as the blades'].concat((CW.MATERIALS || []).map(m => m.name))],
   ]), { when: P => +P.engOn }],
-  ['propeller', grpItems('g_prop'),
-   { when: P => +P.engOn && +P.propOn }],
+  ['propeller', grpItems('g_prop').concat([
+    // ENGINE-DIALS B: THE PITCH, a row of its own (see PROP_PITCHES)
+    ['propPitch', 'pitch', 0, PROP_PITCHES.length - 1, 1, PROP_PITCH_LABELS],
+  ]), { when: P => +P.engOn && +P.propOn }],
 ];
 const host = (PAGE.groupsOverride || []).find(g => g[0] === '2 · engine');
 if (host) host[1].push(...ENG_ITEMS);
@@ -1299,7 +1333,7 @@ function engPresetStarter(P) {
   return PRESET_NAMES[psel] || null;
 }
 const prevLoad = PAGE.load;
-PAGE.load = () => { if (prevLoad) prevLoad(); lastPreset = null; auditPending = true; };
+PAGE.load = () => { if (prevLoad) prevLoad(); lastPreset = null; auditPending = true; pitchSeen = null; };
 if (typeof window !== 'undefined') window.CAGE_ENG_STARTER = engPresetStarter;
 const dispose = o => {
   if (!o) return;
@@ -1368,6 +1402,8 @@ PAGE.post = ctx => {
       sync();
     }
   }
+  // ENGINE-DIALS B: the pitch row and the spec's pitch agree
+  if (propPitchSync(P)) { const UI = window.CAGE_UI; if (UI && UI.syncSliders) UI.syncSliders(); }
   if (prevPost) prevPost(ctx);
   // G2880 (NACELLE-LAG): a unit on the wing (the pylon, the nacelle pair)
   // stands on CAGE_WING, which the wing layer - later in the chain -

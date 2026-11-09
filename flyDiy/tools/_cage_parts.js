@@ -1045,6 +1045,8 @@ const CAGE_PARTS = [
       // G2770 (the user: "For the nose cone, put blades and design point
       // under expert"): the trunk keeps the blade count, the diameter and
       // the material; the blade's shape and the design point are expert
+      // ENGINE-DIALS B: the pitch (a view of spec.prop.pitch, _cage_eng.js PROP_PITCHES) - physics, on the trunk
+      ['pitch', ['propPitch']],
       ['blades', ['cw_bladeN', 'cw_propD', 'cw_material', 'cw_rootChord',
                   'cw_tipChord', 'cw_chordBulge', 'cw_sweep',
                   'cw_thickRoot', 'cw_thickTip', 'cw_camb', 'cw_tipRound',
