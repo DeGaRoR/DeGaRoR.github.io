@@ -313853,3 +313853,43 @@ Evidence: flydiy-notes/evidence-2026-10-18/2026-11-08/comms/ (run7.log, run8.log
 - **Cost**: shrubs 3840 = master, instanced meshes 192 = master: draws and tris unchanged; shrub meshes carry an instance colour (one program variant at most).
 - **Stills** 9 Nov 05:05 (evidence-2026-10-18/2026-11-09/veg-1) vs the roof-lights stills of 8 Nov: works B1_side floor bare (was grass + flowers + the sapling). Gates COVER, FADES, STAND, HANGAR, HANGARVIEW PASS.
 - Note: flyDiy/reports/evidence/VEG-1/READY.md. Open: grass thinner in the bed cores (CPU first); a shed floor slab.
+
+## A0 - train L36a, 9 Nov 2026
+
+IN (on L35d ebc4c9edd):
+- garage-clouds (the hangar room's clouds, the Shed band)
+- comms-section: the Communications part again; the accBeacon rule, where the row is absent while it equals the aerials row
+- comms-gps-elt: the GPS puck and the ELT whip, drawn only when the unit is fitted
+- cessna-plaque: "SEA LEVEL ONLY - needs 1259 m" on the floats
+- strip-micro: natural tyre marks and the bump machinery, off on every strip; plus bbeea8af8, dirt_strip_stills on JOINPARITY's page-door list
+- hangar-bs (master's \b bytes in hangar.js)
+- certcost-petrel: DMGCERTCOST's Petrel ceiling 82 -> 70 s
+- veg-1: no plants inside the shed, varied beds, same cost
+- look1-haze-soft: weather haze plus the far-soft default, no measured cost
+
+OUT: pilot-notch-l36a 8a21c501b, merged then REVERTED (2eb3122c8).
+- GATE TOUR's new line: the user's Cub w3 > tw_ski ground-looped on the Skyline Altiport's landing roll ("the nose 30 deg off the landing roll at 14.4 m/s; off-strip"); 2 of 6 legs.
+- TOUR shard 0 on the train minus 43_pilot.js / 64_gen_build.js flew past 900 s with no failure; on the notch it stopped at 264 s.
+- Pilot never flew TOUR on the notch. Pilot is now flying the leg three ways: notch alone, + FLARE-NOPUSH, + the crosswind flap cap.
+- REVERT TRAP: the ready comes back as FRESH commits on the new master, with TOUR shard 0 green.
+- The revert also takes out 6fd718f5c (the STOL capture's hull rows; Pilot re-sends it as claude/ready/stol-hullrows for L36b) and the G2814/G2818 census commits. JOINPARITY's master lines come back as master's.
+
+A0 FIXES IN THE TRAIN (with the owners' yes):
+- tools/test_build.js: the re-save rows test lists comms-section's stated exception, accBeacon absent while it equals accAerials (_cage_gen.js cageToSpec). GATE BUILD had 8 FAIL lines, each "N-1 of N" and each accBeacon. Every other row is still counted. AVIONICS exports the rule as one table (CAGE_EQUAL_ABSENT) in a later ready and drops this inline line.
+- tools/_framecost_check.js ALLOW: cessna boot/garage:seed/three.updateMatrixWorld, rise 3900 (25365 -> 29207). The reason: the Communications part's re-hung aerials (comms-section) and the roof GPS puck drawn for the FRAMECOST Cessna's panel GPS (comms-gps-elt). It is a one-off garage seed walk with no frame cost; the Cub's +1078 is inside its slack.
+
+BATTERY (full log read): 109 PASS / 9 FAIL.
+- Red as on master (L35d): GEN ("cruise is quiet in wind"), DMGGEAR, ROUNDTRIP (2), ENGCONFIG, FRAMECOST (master's 5 lines, after the ALLOW), TOUR shard 2 (the float Cessna mk_sea > SEA: timeout + prop strike on the water, as L35d).
+- TREECRASH (6 builds, a master standing red): the Cub and Jodel trunk0 work and pieces lines, master's family. Plus a Super Petrel line, "at 5.7 g BROKE UP, worst member 1.05 wing compression". Nothing in L36a touches the Petrel's structure; it is read as master's since dmgmembers-petrel (L35d didn't run TREECRASH). SEAPLANES has it on this week's list. The metal Cessna's rows are green, so cessna-plaque lands.
+- JOINPARITY: 5 FAIL, the same list as master ebc4c9edd (Cub/Jodel node=page masses, the Cub nose tank, the cessnaMetal fixture bytes, the rogue tools list). dirt_strip_stills is off that list.
+- STOL: PASS, both on the train and after the revert.
+
+RE-GATE after the revert (the parked fleet re-cooked, same):
+- STOL PASS; GEN as master (one line); BUILD PASS; FRAMECOST master's 5; JOINPARITY master's 5.
+- TOUR shard 0: PASS. The user's Cub flew all 6 legs, DONE, 30 L left (1425 s), with the same mn_strip > nv_strip divert to w3 as L35d.
+
+No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change: PHYSICS_V 7, GEN_SPEC_V 10, GEN_CERT_V 7, as on master.
+
+TIMED GATE: light, the same shape as L35d. All 7 rollouts ran; steady frames p50 33.3 ms on every flown row.
+- The cold GPU shader cache again: master_bench's MISS (97 links over 5 s; L35d had 89) and compile 40-67 s. This is the rig's Chrome kill at master_bench.js:287, which A0 is fixing this week.
+- The one >1 s frame (3.95 s, c172 cockpit) is under the roll-out screen before the reveal (phase stand, context loading). No taxi, take-off or flight segment has a frame over 1 s.
