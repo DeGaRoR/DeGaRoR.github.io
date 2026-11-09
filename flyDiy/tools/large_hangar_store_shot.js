@@ -116,7 +116,11 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     const fh = path.join(OUT, `${SCENE}_${k}_hall.jpg`);
     fs.writeFileSync(fh, Buffer.from(url.split(',')[1], 'base64'));
     log('  ' + path.basename(fh));
-    const info = await page.evaluate(() => { const h = window.GARAGE_ENV._debug().hangar; return { shell: window.GARAGE_ENV.shell(), door: h.door, group: h.group.position.toArray().map(v => +v.toFixed(2)) }; });
+    const info = await page.evaluate(() => { const h = window.GARAGE_ENV._debug().hangar; const mats = {};
+      h.group.traverse(o => { if (/^room:derelict:/.test(o.name || '') && o.material) { const m = o.material, im = m.map && m.map.image;
+        mats[o.name.slice(14)] = { mat: m.name || '', color: m.color ? m.color.getHexString() : null, map: im ? (im.currentSrc || im.src || (im.width + 'x' + im.height)) : null }; } });
+      return { shell: window.GARAGE_ENV.shell(), door: h.door, derelict: h.derelict, group: h.group.position.toArray().map(v => +v.toFixed(2)), mats }; });
+    log('  room ' + JSON.stringify({ derelict: info.derelict, steel: info.mats.steel, steelNew: info.mats.steelNew, sheetNew: info.mats.sheetNew }));
     report.stands.push({ stand: k, residents: R, room: info, page: path.basename(fp), hall: path.basename(fh) });
   }
   fs.writeFileSync(path.join(OUT, SCENE + '.json'), JSON.stringify(report, null, 1));

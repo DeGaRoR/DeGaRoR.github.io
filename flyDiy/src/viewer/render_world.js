@@ -6500,7 +6500,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       const fy = P.floorY || 0, c = Math.cos(H.ry || 0), sn = Math.sin(H.ry || 0), y0 = H.y !== undefined ? H.y : 0;
       P.ground = (X, Z) => { const hx = -Z, hz = X; return world.terrainH(H.x + hx * c + hz * sn, H.z - hx * sn + hz * c) - y0 + fy; };
       let F = null, built = null;
-      try { F = DG.makeFinish('world'); DG.applyFinish(P, F); built = DG.build(P, 0, F); }
+      // each stage its own materials (MATLIB's scope): a held shed (restored) and a closed one (derelict) side by side - the
+      // career's HANGAR 1 beside HOME.2 - never re-dress each other's shared records
+      try { F = DG.makeFinish('world' + stage); DG.applyFinish(P, F); built = DG.build(P, 0, F); }
       catch (e) { console.warn('the large hangar outside:', e && e.message); return null; }
       if (!built || !built.stats || !built.MAT) return null;
       const group = new THREE.Group(), inner = new THREE.Group();
