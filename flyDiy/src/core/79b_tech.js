@@ -72,7 +72,7 @@ const TECH_TABLE = {
   'eng:pt6a114a_hartzell3': 3, 'eng:pt6a34_hartzell4': 3, 'eng:pt6a42_hartzell4': 3, 'eng:pt6a60a_hartzell4': 3,
   'cfg:twin': 2,
   'prop:wood': 1, 'prop:maple': 1, 'prop:walnut': 1, 'prop:alu': 1, 'prop:carbon': 1,
-  'pitch:climb': 1, 'pitch:standard': 1, 'pitch:cruise': 1,
+  'pitch:climb': 1, 'pitch:standard': 1, 'pitch:cruise': 1, 'pitch:seaplane': 1, 'pitch:cs': 2,
   // ---- systems / avionics
   'fit:minimal': 1, 'fit:basic': 1, 'fit:custom': 1, 'fit:ifr': 2,
   'elec.battery:none': 1, 'elec.battery:lead': 1, 'elec.battery:lithium': 3,

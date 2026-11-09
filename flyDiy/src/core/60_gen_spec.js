@@ -2351,9 +2351,16 @@ const GEN_PROP_MATS = {
   // C172 prop, $8.2-10.8k; a PT6A 3-blade 2.69 m comes to ~27 600), carbon 5 200 -> 2 600 (the ground-adjustable
   // composites a builder buys: Warp Drive, E-Props, IVO, $1.3-4.4k for a 3-blade). A constant-speed hub and its
   // governor are GEN_PRICES.csHub on top. GATE PRICE holds each against its benchmark.
-  wood:   { name: 'Wood',      kg: 2.40, price: 3900 },
-  alu:    { name: 'Aluminium', kg: 4.20, price: 9000 },
-  carbon: { name: 'Carbon',    kg: 1.60, price: 2600 },
+  // PROP-CLASSES (the user, 9 Nov: "classes of propellers for different weights, efficiencies and prices"): `eff`
+  // multiplies the pitch class's static figure (fm) - what the blade's SECTION buys. Wood is the anchor (the A-65 +
+  // Sensenich 74 row the 'standard' class reproduces, FM 0.33): a thick laminated blade. Forged aluminium and a
+  // moulded composite carry thinner sections and truer twist - the measured fixed-pitch metal prop in the seaplane
+  // note below (a Hartzell 2-blade 76 in on an O-360, 672 lbf standing: FM ~0.45) stands well above the wood anchor;
+  // 1.08 (FM x1.12, to ~0.37) is the conservative step the roster bears: at 1.12 the DC-3 and the Carbon Cub SS overshoot,
+// at 1.08 the Stearman's and the float Super Cub's climbs come in (reports/evidence/PROP-STUDY-2026-11-09).
+  wood:   { name: 'Wood',      kg: 2.40, price: 3900, eff: 1.00 },
+  alu:    { name: 'Aluminium', kg: 4.20, price: 9000, eff: 1.08 },
+  carbon: { name: 'Carbon',    kg: 1.60, price: 2600, eff: 1.08 },
   // G125: the scanned woods, priced as the boutique blanks they are. Mass
   // scales the wood anchor by Wood Handbook density (birch ~680: hard maple
   // ~705 -> 2.50, black walnut ~640 -> 2.25) — a walnut prop really is the
@@ -2419,20 +2426,26 @@ function genPropSynth(pr, pitchKey) {
   pr.area = Math.PI * (pr.D / 2) * (pr.D / 2);
   // More blades is more disc solidity: better static thrust for the same
   // diameter, at a little peak efficiency. 5.5% a blade past two.
-  pr.fm = PI.fm * (1 + 0.055 * (pr.blades - 2));
+  // PROP-CLASSES: x the material's section efficiency (absent = 1: the woods)
+  const eff = MT.eff || 1, solid = 1 + 0.055 * (pr.blades - 2);
+  pr.fm = PI.fm * eff * solid;
   // MOMENTUM THEORY. The ideal static thrust of a disc absorbing P is
   // (2 rho A)^(1/3) P^(2/3); a real propeller reaches a fraction of it.
   pr.Tstatic = pr.fm * Math.cbrt(2 * RHO * pr.area) * CORE_MATH.pow(P, 2 / 3);
   // and the quadratic decay, through the speed at which thrust runs out. One
   // constant on the only velocity scale there is; the pitch trade rides in
   // Tstatic, so a fine prop's thrust runs out earlier without being told to.
-  pr.V0 = GEN_RULES.propV0K * P / Math.max(1, pr.Tstatic);
+  // (PROP-CLASSES: a constant-speed prop's thrust runs out where its coarse setting's would - v0Class)
+  const T0v = PI.v0Class && GEN_PROP_PITCH[PI.v0Class]
+    ? GEN_PROP_PITCH[PI.v0Class].fm * eff * solid * Math.cbrt(2 * RHO * pr.area) * CORE_MATH.pow(P, 2 / 3) : pr.Tstatic;
+  pr.V0 = GEN_RULES.propV0K * P / Math.max(1, T0v);
   pr.kV2 = pr.Tstatic / (pr.V0 * pr.V0);
   // the speed this propeller is at its best at: T*V peaks at V0/sqrt(3).
   pr.VPeak = pr.V0 / Math.sqrt(3);
   pr.pitchUsed = GEN_PROP_PITCH[pitchKey] ? pitchKey : 'standard';
   // blade mass, at the very front of the aeroplane
-  pr.mass = pr.blades * MT.kg * CORE_MATH.pow(pr.D / 1.88, 2.5);
+  pr.mass = pr.blades * MT.kg * CORE_MATH.pow(pr.D / 1.88, 2.5) + (PI.kg || 0);
+  pr.cs = !!PI.cs;   // PROP-CLASSES: the governor (genShaftRpm) and the hub's price (61_gen_frame)
   pr.price = Math.round(MT.price * pr.blades / 2 * Math.pow(pr.D / 1.88, 2));
   pr.name = `${pr.blades}-blade ${MT.name.toLowerCase()} ${pr.D.toFixed(2)} m`;
   return pr;
@@ -2500,7 +2513,14 @@ const GEN_PROP_PITCH = {
   climb:    { name: 'Fine (climb)',    fm: 0.530, pd: 0.55 },
   standard: { name: 'Standard',        fm: 0.477, pd: 0.70 },
   cruise:   { name: 'Coarse (cruise)', fm: 0.420, pd: 0.85 },
-  seaplane: { name: 'Seaplane (float prop)', fm: 0.630, pd: 0.524 },
+  // (PROP-CLASSES: the seaplane class's 0.630 was MEASURED on metal props - Flight Resource's Hartzell and MT - so it is
+  // stated per the aluminium section: 0.630 / 1.08, and a metal float prop is the measured figure exactly)
+  seaplane: { name: 'Seaplane (float prop)', fm: 0.630 / 1.08, pd: 0.524 },
+  // PROP-CLASSES: THE CONSTANT-SPEED PROPELLER - the governor holds the engine's rpm, so the blades sit fine standing
+  // (the standard class's static figure: measured on the DC-3, the climb class's overshoots) and coarse at speed (the zero-thrust speed of the cruise class's own, not the fine
+  // one's: v0Class), and the shaft runs at rated rpm (33_drive / genShaftRpm reads `cs`). It costs the hub and governor:
+  // `kg` on the prop, GEN_PRICES.csHub on the bill (61_gen_frame). Never picked by 'auto'.
+  cs:       { name: 'Constant speed', fm: 0.477, pd: 0.70, cs: true, v0Class: 'cruise', kg: 9.0 },
 };
 // G3445 THE CERTIFIED SEAPLANE PROPELLER, per float model: what the float's STC fits with it (Wipaire's Wipline 2350
 // page, the 172R / 172S row: McCauley 1A200/WFA8243, fixed pitch; McCauley's naming = 82 in diameter x 43 in pitch).
@@ -3434,7 +3454,7 @@ const GEN_MIGRATE_CAGE_DEFAULTS = { boomLen: 3.983966, taperLen: 0.6 };
 //      wheel's springs in series with its tyre and its breakout past the pawl's arc, the lockable / fixed / skid kinds,
 //      a twin boom's wheel a boom - so a certificate's ground cases (the taxi, the roll-out, the drops onto the tail)
 //      move; the plaque's probes in the air do not
-const PHYSICS_V = 7;
+const PHYSICS_V = 8;   // PROP-CLASSES (9 Nov): the materials' section efficiency, the constant-speed class
 
 // { fromVersion: spec => spec } — each entry lifts a spec one version. May
 // mutate and return its argument. Runs BEFORE normalisation, on the raw shape

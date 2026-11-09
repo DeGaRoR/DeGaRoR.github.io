@@ -1087,7 +1087,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   }
   spend((PP.price || 0) * S.engines.length);
   // PRICE-CAL: a propeller per engine (a twin billed one), and a constant-speed hub's premium + governor on each
-  spend(((S.prop.price || 0) + (PP.engine && PP.engine.cs ? GEN_PRICES.csHub : 0)) * S.engines.length);
+  spend(((S.prop.price || 0) + ((PP.engine && PP.engine.cs) || S.prop.cs ? GEN_PRICES.csHub : 0)) * S.engines.length);
 
   // which frames straddle a given station, so a component that moves finds new
   // ones to attach to instead of dragging its old ones along

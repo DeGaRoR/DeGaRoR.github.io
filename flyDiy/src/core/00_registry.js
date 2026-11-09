@@ -872,7 +872,7 @@ function genShaftRpm(eng, pr, thr, V, sigma, powerK, running) {
   const gear = e.gear > 0 ? e.gear : 1;
   const nR = (e.rpm > 0 ? e.rpm : 2300) / gear;
   const D = p.D > 0 ? p.D : 1.8;
-  if (e.cs) return running === false ? 0 : nR;
+  if (e.cs || p.cs) return running === false ? 0 : nR;   // (PROP-CLASSES: a constant-speed propeller holds the rpm too)
   const V0 = (p.Tstatic > 0 && p.kV2 > 0) ? Math.sqrt(p.Tstatic / p.kV2) : 60;
   const J1 = V0 / (nR * D);
   const wind = Math.max(0, V) / (D * J1);
