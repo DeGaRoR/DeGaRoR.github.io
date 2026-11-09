@@ -111,3 +111,47 @@ InstancedMesh, but merged in a bag the whole steel frame is already ONE draw, so
    tag), at the foot of the white wall, the tower fronts and a pier or two.
 6. **The apron.** Default: the premises' pavement draws the apron in game (`apron` 0); the build's own cracked apron
    with weeds in its joints is on for the bench and the stills.
+
+## 6. Revisions after the user's review (9 Nov)
+
+- **The ground read black.** Measured, not guessed: on the inside view the floor band read 38/255 and 126 with its map
+  off; the cracked-concrete scan averages 0.11 linear (a third of real concrete) and a hand gain of 1.5 left it at 0.18.
+  Every scanned map is now calibrated (`albedoOf`, `calibrate`): its mean is measured when it lands and the colour set
+  so the mean reaches a real albedo (weathered concrete 0.27, pale cast concrete 0.40, rust 0.12, pale sheet 0.40, white
+  paint 0.58, ...). Floor band after: 57/255, dark pixels 59 % -> 14 %; the bench field 39 -> 58.
+- **The puddle shader was neither accurate nor maintainable** (an opaque near-black sheet; a bench hook forcing a 35 %
+  mirror over the whole lit colour; a second water system). It is now wet concrete under a water surface: the slab's own
+  map, albedo x 0.45 (the porous wet law; pavement.js keeps x 0.62 for a film), saturation x 1.15, roughness 0.04,
+  three's own Fresnel. No special shader in game. The bench's mirror replaces only the environment's radiance in the
+  specular term (after `lights_fragment_maps`), so Fresnel and energy stay three's.
+- **The barriers**: the water-filled HDPE jersey barrier modelled (profile with grooves and the parting line, forklift
+  tunnels, knuckles, filler cap, drain plug) and a painted sheet unrolled along its perimeter (UV chalking, grime,
+  runs, scuffs, tyre marks, algae, embossed legend, a worn unit number; roughness and normal maps), red halfway to its
+  own grey and white units in turn, interlocked lines; amber lamps on the made-safe line, lit only when asked.
+- **Too many panels off ("pixelated")**: losses follow the decay field in patches at far lower rates; replacement
+  sheets come a whole column at a time.
+- **Stage 3 is the derelict made whole** (the user: "build the full restored model out of your derelict model, and drop
+  the existing one"): the same skeleton repainted, every sheet on, the new roof, glazed galleries, six front leaves on
+  three tracks and four at the back, `doorOpen`. `legacy: 1` keeps the old works shell for the A/B.
+- **The galleries are not a pair** (the user: "narrow the one on the left, not the one on the right ... the left is
+  mostly a facade"): seen from the apron the right (+x) keeps its 5.5 m two-storey gallery (offices, workshops, the
+  white X-braced wall of photo 1), the left (-x) is a 1 m facade. The door runs 33.5 m from the facade to the gallery,
+  its centre 2.25 m left of the axis (`doorX`); a DC-3 (28.96 m) clears it by 2.27 m a side.
+
+## 7. Moving the room and the world onto the restored mesh (next)
+
+The user: "use this mesh and appropriate textures to refactor the large hangar inside, so it looks exactly like this
+one, same mesh even", and keep the galleries, refitting the layouts. What it touches (mapped):
+1. **The door contract.** Today every consumer assumes a centred door of `max(6, 2HW - 5)` = 35 m (hangar.js 147,
+   71_player_bases hangarDoor 259, HANGAR_GEN shellOf, space_config, rollanim, GATE GAMEPREM / HOUSE 43 regexes).
+   The works' dims gain `door: 33.5, doorX: -2.25` (the room frame's z; `D0.door` is already honoured everywhere),
+   and the three things that place on the door's line learn the offset: hangarPark (the parking lane), hangarFit's
+   aircraft bay, rollanim's door plane.
+2. **The room (hangar.js, shell 'works')**: the portal shell sections (walls, gables, doors, roof, trusses, purlins,
+   roof lights) give way to DERELICT_GEN stage 3's bags turned into the room frame (room x = -Z, z = X, the slab
+   lowered by floorY), the leaves parked open; the lamps hang from the trusses; the part system's names map onto
+   the generator's bags; the ground and craft shadow bakes, the sky, the moods, the outdoors and the probe stay.
+3. **The layouts** (26_hangar_fit cozy / hearth): the build wall moves to the gallery front (room z = +14.5 on the
+   right) with the gallery's ground floor as the workshop / store / office; the shop wall stays on the facade side.
+4. **The world**: render_world's works exterior (polishedShell 'works hangar') becomes DERELICT_GEN at the plot's
+   stage; GATE HOUSE 43's works row moves to GATE DERELICT.

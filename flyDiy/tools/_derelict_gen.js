@@ -48,7 +48,7 @@ const DEF = {
   HW: 20, HD: 20, EAVE: 9.5, floorY: 0.25, slopeX: 0, slopeZ: 0,   // the works hangar's envelope (HANGAR_GEN PRESETS)
   decay: 0.8,      // how far gone the derelict is: 0 a sound shell with its cladding, 1 a skeleton
   wet: 0.65,       // the slab after rain (stages 0-1; the roofed slab dries): 0 dry .. 1 a sheet of water
-  gallery: 5.5, bay: 5,
+  gallery: 5.5, galleryL: 1.0, bay: 5,   // gallery: the right's depth; galleryL: the left facade's
   graffiti: 1, barriers: 1, weeds: 1, litter: 1, rubble: 1, lamps: 0,   // lamps: the made-safe line's warning lamps lit (the night's)
   apron: 0, apronL: 26, doorOpen: 0,   // doorOpen: the restored hangar's doors, 0 shut .. 1 open (telescoped to the jambs)   // the build's own cracked apron (the premises' pavement draws it in game)
   ao: 0.8, aoRange: 0.9, aoGround: 1,
@@ -62,7 +62,7 @@ const ROWS = [
   ]],
   ['the shell', [
     ['HW', 'half width', 14, 24, 0.5], ['HD', 'half depth', 14, 24, 0.5], ['EAVE', 'eave', 8, 11, 0.1],
-    ['gallery', 'gallery depth', 3.5, 7, 0.25], ['bay', 'frame spacing', 4, 6.5, 0.25], ['floorY', 'slab above datum', 0, 1.2, 0.05],
+    ['gallery', 'gallery depth (right)', 3.5, 7, 0.25], ['galleryL', 'facade depth (left)', 0.6, 7, 0.25], ['bay', 'frame spacing', 4, 6.5, 0.25], ['floorY', 'slab above datum', 0, 1.2, 0.05],
   ]],
   ['the dressing', [
     ['graffiti', 'graffiti', 0, 1, 1], ['barriers', 'barriers', 0, 1, 1], ['weeds', 'weeds', 0, 1, 1],
@@ -90,17 +90,24 @@ function dimsOf(P) {
   const HW = P.HW, HD = P.HD, fy = P.floorY, EAVE = P.EAVE, RIDGE = EAVE + 2.6, tp = 2.6 / HW;
   const yR = x => fy + EAVE + (HW - Math.min(HW, Math.abs(x))) * tp;   // the roof's top (the sheet) over x
   const yTC = x => yR(x) - 0.32;                                        // the truss's top chord, under the purlins
-  const GW = clamp(P.gallery, 3, HW * 0.4), xG = HW - GW;
+  // THE GALLERIES ARE NOT A PAIR (the user 9 Nov: "narrow the one on the left, not the one on the right to get a few meters
+  // clearance for the DC3. The real hangar has offices and workshops on the right, but the left is mostly a facade"):
+  // seen from the apron the right (+x) keeps its two-storey gallery, the left (-x) is a 1 m facade - its window walls
+  // and a narrow concrete tower front, nothing behind them but the hall. The door runs from the facade to the gallery:
+  // 33.5 m, its centre 2.25 m left of the building's axis (doorX); a DC-3 (28.96 m) clears it by 2.27 m a side.
+  const GW = clamp(P.gallery, 3, HW * 0.4), GWL = clamp(P.galleryL === undefined ? 1.0 : P.galleryL, 0.6, HW * 0.4);
+  const xGR = HW - GW, xGL = HW - GWL, xG = xGR;                    // (xG: the right gallery's line, the deep one)
+  const xGs = s => (s > 0 ? xGR : xGL), GWs = s => (s > 0 ? GW : GWL), gal = s => GWs(s) >= 2.5;
   const yL2 = fy + 4.0, yGR = fy + 8.0, yBC = fy + EAVE - 1.0;
   const NB = Math.max(4, Math.round(2 * HD / P.bay)), BAY = 2 * HD / NB;
   const zF = k => -HD + k * BAY;
   const DH = Math.min(6.4, EAVE - 1.4);                                  // the works' door head
-  const BW = Math.min(16, 2 * xG - 4), BH = Math.min(5.2, EAVE - 3);
+  const BW = Math.min(16, 2 * Math.min(xGL, xGR) - 4), BH = Math.min(5.2, EAVE - 3);
   const xC = HW - 0.45;                                                  // the main columns' line, inboard of the stem wall
   const xe = xC - 0.19;                                                  // the truss's ends, at the columns' inner flange
   const slopeLen = Math.hypot(HW, 2.6);
-  return { HW, HD, fy, EAVE, RIDGE, tp, yR, yTC, GW, xG, yL2, yGR, yBC, NB, BAY, zF, DH, BW, BH, xC, xe, slopeLen,
-           DOOR_W: 2 * xG, NP: 16, NPU: Math.max(6, Math.round(slopeLen / 1.55) + 1) };
+  return { HW, HD, fy, EAVE, RIDGE, tp, yR, yTC, GW, GWL, xG, xGR, xGL, xGs, GWs, gal, yL2, yGR, yBC, NB, BAY, zF, DH, BW, BH, xC, xe, slopeLen,
+           DOOR_W: xGL + xGR, doorX: (xGR - xGL) / 2, NP: 16, NPU: Math.max(6, Math.round(slopeLen / 1.55) + 1) };
 }
 
 // ---- randomness keyed to places -------------------------------------------------------------------------------------------
@@ -563,7 +570,7 @@ function barrierCanvas() {
       for (const cx of [sx + 150, sx + 520]) {
         gH.fillStyle = 'rgb(176,176,176)'; gH.font = 'bold 22px sans-serif'; gH.textAlign = 'center';
         gD.fillStyle = `rgba(${chalk[0]},${chalk[1]},${chalk[2]},0.35)`; gD.font = 'bold 22px sans-serif'; gD.textAlign = 'center';
-        for (const [g, txt, yy] of [[gH, 'WATER FILL', tt], [gD, 'WATER FILL', tt]]) { g.save(); g.translate(cx, Yt(yy)); if (side > 0) g.scale(1, -1); g.fillText(txt, 0, 8); g.restore(); }
+        for (const [g, txt, yy] of [[gH, 'WATER FILL', tt], [gD, 'WATER FILL', tt]]) { g.save(); g.translate(cx, Yt(yy)); if (side > 0) g.scale(-1, 1); else g.scale(1, -1); g.fillText(txt, 0, 8); g.restore(); }   // (the unroll runs up the left face and down the right: each face's text drawn so it reads on the barrier - measured on the stills)
         gH.fillRect(cx - 70, Yt(ty) - 1.5, 140, 3); gH.fillStyle = 'rgb(176,176,176)';
         gH.beginPath(); gH.moveTo(cx + 80, Yt(ty) - 9 * side); gH.lineTo(cx + 92, Yt(ty) + 4 * side); gH.lineTo(cx + 68, Yt(ty) + 4 * side); gH.fill();   // the arrow at MAX
         gR.fillStyle = 'rgb(80,80,80)'; gR.fillRect(cx - 70, Yt(ty) - 2, 140, 4);
@@ -576,7 +583,7 @@ function barrierCanvas() {
     gD.save(); gD.font = 'bold 54px sans-serif'; gD.textAlign = 'center';
     for (const cx of [sx + 330, sx + 700]) {
       const num = String(10 + Math.floor(r() * 80)), tt = tOfY(0.66, -1);
-      gD.fillStyle = white ? 'rgba(30,28,26,0.75)' : 'rgba(236,232,224,0.8)'; gD.fillText(num, cx, Yt(tt) + 20);
+      gD.fillStyle = white ? 'rgba(30,28,26,0.75)' : 'rgba(236,232,224,0.8)'; gD.save(); gD.translate(cx, Yt(tt)); gD.scale(1, -1); gD.fillText(num, 0, 20); gD.restore();
     }
     gD.globalCompositeOperation = 'destination-out';
     gD.restore();
@@ -620,7 +627,8 @@ function build(P0, lod, F) {
   if (stage === 3 && P.legacy) return restored(P, lod, F);   // (A/B only: the works shell this stage replaced)
   const L = clamp(lod | 0, 0, 2);
   const D = dimsOf(P);
-  const { HW, HD, fy, yR, yTC, xG, yL2, yGR, yBC, NB, zF, DH, BW, BH, xC, xe } = D;
+  const { HW, HD, fy, yR, yTC, xG, xGR, xGL, xGs, GWs, gal, yL2, yGR, yBC, NB, zF, DH, BW, BH, xC, xe } = D;
+  const dC = D.doorX, dW = D.DOOR_W / 2;                                // the door's centre and half width (the bay's)
   const bags = {};
   for (const k of BAGS.concat(EXTRA)) bags[k] = Bag(k);
   const g = HG.groundFn(P);
@@ -652,7 +660,7 @@ function build(P0, lod, F) {
     const pier = (x, z) => K.boxAB(bags.concWall, [x - 0.34, fy - 0.02, z - 0.34], [x + 0.34, fy + 0.3, z + 0.34], { ny: true });
     for (let k = 0; k <= NB; k++) {
       const z = clamp(zF(k), -HD + 0.35, HD - 0.35);
-      for (const s of [-1, 1]) { pier(s * xC, z); pier(s * xG, z); }
+      for (const s of [-1, 1]) { pier(s * xC, z); if (gal(s)) pier(s * xGs(s), z); }
     }
     if (P.apron) {
       // THE APRON: worn concrete bays (5 m), its joints the stain bag's, weeds in them (below)
@@ -941,7 +949,7 @@ function build(P0, lod, F) {
   }
   for (const s of [-1, 1]) {
     // the front tower: the gallery's front end, x in [xG, HW], its face zT proud
-    const A = s > 0 ? [xG - 0.15, HD + zT] : [-HW - 0.15, HD + zT], B = s > 0 ? [HW + 0.15, HD + zT] : [-xG + 0.15, HD + zT];
+    const A = s > 0 ? [xGR - 0.15, HD + zT] : [-HW - 0.15, HD + zT], B = s > 0 ? [HW + 0.15, HD + zT] : [-xGL + 0.15, HD + zT];
     const Lw = B[0] - A[0];
     const dS = s > 0 ? 1.0 : Lw - 2.2;                                   // the ground-floor door, toward the opening
     const holes = [{ s0: dS, s1: dS + 1.2, y0: fy, y1: fy + 2.3 },
@@ -949,9 +957,10 @@ function build(P0, lod, F) {
                    { s0: 0.8, s1: Lw - 0.8, y0: yL2 + 0.8, y1: yGR - 0.5 }];
     const wins = [{ s0: holes[1].s0, s1: holes[1].s1, y0: holes[1].y0, y1: holes[1].y1, cols: 4, rows: 4 },
                   { s0: holes[2].s0, s1: holes[2].s1, y0: holes[2].y0, y1: holes[2].y1, cols: 8, rows: 5 }];
-    towerFace(A, B, fy, towerTop, holes, wins);
+    if (gal(s)) towerFace(A, B, fy, towerTop, holes, wins);
+    else towerFace(A, B, fy, towerTop, [], []);                              // the facade's front: a plain concrete pier
     // the tower's return beside the opening (the reveal of the big door, solid concrete up to the tower's head)
-    const xR = s * xG;
+    const xR = s * xGs(s);
     K.wall(bags.concWall, { A: s > 0 ? [xR, HD] : [xR, HD + zT + 0.15], B: s > 0 ? [xR, HD + zT + 0.15] : [xR, HD], y0: fy, t: 0.3, topAt: () => towerTop, inner: false, endCap: [false, false], capTop: true, capBot: false, sub: L === 0 ? 1.5 : 0 });
     // the coping on the tower's head
     K.boxAB(bags.concWall, [Math.min(A[0], B[0]) - 0.08, towerTop, HD - 0.5], [Math.max(A[0], B[0]) + 0.08, towerTop + 0.18, HD + zT + 0.23]);
@@ -962,25 +971,26 @@ function build(P0, lod, F) {
   const zH = HD - 0.25;
   {
     const yb = fy + DH + 0.12, yt = yBC, np = 12;
-    member(bags.steel, [-xG, yb, zH], [xG, yb, zH], 'hchord', Z, L, -1);
+    member(bags.steel, [-xGL, yb, zH], [xGR, yb, zH], 'hchord', Z, L, -1);
+    const gx = i => -xGL + (xGL + xGR) * i / np;
     if (L < 2) for (let i = 0; i <= np; i++) {
-      const x = -xG + 2 * xG * i / np;
+      const x = gx(i);
       member(bags.steel, [x, yb + 0.1, zH], [x, yt - 0.08, zH], 'web', Z, L);
-      if (i < np) { const x1 = -xG + 2 * xG * (i + 1) / np; if (i < np / 2) member(bags.steel, [x, yt - 0.08, zH], [x1, yb + 0.1, zH], 'web', Z, L); else member(bags.steel, [x, yb + 0.1, zH], [x1, yt - 0.08, zH], 'web', Z, L); }
+      if (i < np) { const x1 = gx(i + 1); if (i < np / 2) member(bags.steel, [x, yt - 0.08, zH], [x1, yb + 0.1, zH], 'web', Z, L); else member(bags.steel, [x, yb + 0.1, zH], [x1, yt - 0.08, zH], 'web', Z, L); }
     }
     // the gable over the header: posts at the panel points up to the frame's top chord, girts every ~1.6 m
-    if (L < 2) for (let i = 1; i < np; i++) { const x = -xG + 2 * xG * i / np; member(bags.steel, [x, yBC, zH - 0.0], [x, yTC(x) - 0.06, zH], 'chanS', [0, 0, 1], L); }
+    if (L < 2) for (let i = 1; i < np; i++) { const x = gx(i); member(bags.steel, [x, yBC, zH - 0.0], [x, yTC(x) - 0.06, zH], 'chanS', [0, 0, 1], L); }
     for (let y = yBC + 1.0; y < yR(0) - 0.6; y += 1.6) {
       const xs = HW - (y - (fy + D.EAVE)) / D.tp;                       // where this girt meets the rake
       const xm = Math.min(HW - 0.2, xs - 0.2);
       if (xm > 0.5) member(bags.steel, [-xm, y, zH + 0.12], [xm, y, zH + 0.12], 'chanS', [0, 0, 1], L);
     }
     // the door's top track, under the girder, and its floor rail (bent and broken in the derelict)
-    member(bags.steel, [-xG - 0.2, fy + DH - 0.05, HD - 0.05], [xG + 0.2, fy + DH - 0.05, HD - 0.05], 'chanS', [0, 0, 1], L);
+    member(bags.steel, [-xGL - 0.2, fy + DH - 0.05, HD - 0.05], [xGR + 0.2, fy + DH - 0.05, HD - 0.05], 'chanS', [0, 0, 1], L);
     if (L < 2) {
       const segs = 8;
       for (let i = 0; i < segs; i++) {
-        const x0 = -xG + 2 * xG * i / segs + 0.05, x1 = -xG + 2 * xG * (i + 1) / segs - 0.05;
+        const x0 = -xGL + (xGL + xGR) * i / segs + 0.05, x1 = -xGL + (xGL + xGR) * (i + 1) / segs - 0.05;
         if (der && hashN(i, 3, 91, seed) < 0.25 * decay) continue;
         const lift = der && hashN(i, 4, 91, seed) < 0.2 * decay ? 0.12 : 0;
         beam(bags.steel, [x0, fy + 0.012, HD - 0.3], [x1, fy + 0.012 + lift, HD - 0.3], 0.03, 0.012, Yup, 0);
@@ -992,15 +1002,15 @@ function build(P0, lod, F) {
     const top = s => yR(s) + 0.02;
     const reg = {
       bag: pick('sheetPale', 'sheetDark', 0.08),
-      gone: (p, n, ri, nr) => (0.015 + 0.6 * SM(0.62, 0.9, n) + (ri === nr - 1 ? 0.1 : 0) + (Math.abs(p[0]) > xG - 1.5 ? 0.05 : 0)) * decay,
+      gone: (p, n, ri, nr) => (0.015 + 0.6 * SM(0.62, 0.9, n) + (ri === nr - 1 ? 0.1 : 0) + (p[0] > xGR - 1.5 || p[0] < -xGL + 1.5 ? 0.05 : 0)) * decay,
       bend: 1.4, hang: 0.6, streaks: 0.9,
     };
     // in vertical strips so the top follows the rake (each strip clipped to its own roof line)
     const dz = 0.06;
-    cladGable(FR, -xG - 0.1, xG + 0.1, fy + DH - 0.2, u => top(u), dz, reg);
-    for (const s of [-1, 1]) { const xa = s > 0 ? xG + 0.1 : -HW - 0.05, xb = s > 0 ? HW + 0.05 : -xG - 0.1; cladGable(FR, xa, xb, towerTop + 0.05, u => top(u), dz, reg); }
+    cladGable(FR, -xGL - 0.1, xGR + 0.1, fy + DH - 0.2, u => top(u), dz, reg);
+    for (const s of [-1, 1]) { const xa = s > 0 ? xGR + 0.1 : -HW - 0.05, xb = s > 0 ? HW + 0.05 : -xGL - 0.1; cladGable(FR, xa, xb, towerTop + 0.05, u => top(u), dz, reg); }
     // the flashing over the door head (a bent strip along the whole opening)
-    beam(bags.sheetDark, [-xG, fy + DH - 0.22, HD + 0.09], [xG, fy + DH - 0.22, HD + 0.09], 0.004, 0.06, [0, 0, 1], 0);
+    beam(bags.sheetDark, [-xGL, fy + DH - 0.22, HD + 0.09], [xGR, fy + DH - 0.22, HD + 0.09], 0.004, 0.06, [0, 0, 1], 0);
     // the barge flashing up the rake (in pieces, some gone)
     if (L < 2) for (const s of [-1, 1]) for (let i = 0; i < 8; i++) {
       const x0 = s * HW * i / 8, x1 = s * HW * (i + 1) / 8;
@@ -1069,7 +1079,8 @@ function build(P0, lod, F) {
 
   // ===================================================================== THE GALLERIES
   for (const s of [-1, 1]) {
-    const xi = s * xG;
+    if (!gal(s)) continue;                                                  // the left is a facade: no gallery behind it
+    const xi = s * xGs(s);
     // columns, edge beams, joists; the floor and the roof slabs (a bay of the floor fallen in, stage 0-1)
     for (let k = 0; k <= NB; k++) {
       const z = clamp(zF(k), -HD + 0.25, HD - 0.25);
@@ -1108,17 +1119,17 @@ function build(P0, lod, F) {
         continue;
       }
       // the ground storey: the right-hand gallery (x < 0 seen from the door) white sheet with X rods; the left windows and doors
-      if (s < 0) {
+      if (k % 3 !== 1) {
         const regW = { bag: () => bags.sheetWhite, gone: (p, n) => (0.01 + 0.35 * SM(0.7, 0.92, n)) * decay, bend: 0.8, hang: 0.3, len: 2.4, bendIn: false };
         clad(F2, u0, u1, fy + 0.05, yL2 - 0.3, 0.06, regW);
         if (L < 2) {
-          const xr = xi + 0.13, za = zF(k) + 0.25, zb = zF(k + 1) - 0.25;
+          const xr = xi - s * 0.13, za = zF(k) + 0.25, zb = zF(k + 1) - 0.25;
           member(bags.steel, [xr, fy + 0.4, za], [xr, yL2 - 0.4, zb], 'rod', [1, 0, 0], L);
           member(bags.steel, [xr, fy + 0.4, zb], [xr, yL2 - 0.4, za], 'rod', [1, 0, 0], L);
-          member(bags.steel, [xr - 0.02, fy + 2.1, zF(k) + 0.15], [xr - 0.02, fy + 2.1, zF(k + 1) - 0.15], 'chanS', [1, 0, 0], L);
+          member(bags.steel, [xr + s * 0.02, fy + 2.1, zF(k) + 0.15], [xr + s * 0.02, fy + 2.1, zF(k + 1) - 0.15], 'chanS', [1, 0, 0], L);
         }
       } else {
-        const door = k % 3 === 1;
+        const door = true;
         if (door) {
           windowWall(F2, u0 + 0.2, u0 + 1.9, fy + 2.4, yL2 - 0.4, 0, 3, 3);
           windowWall(F2, u0 + 3.2, u1 - 0.2, fy + 1.0, yL2 - 0.4, 0, 5, 5);
@@ -1142,14 +1153,15 @@ function build(P0, lod, F) {
     const FB = frame([0, 0, -HD], [-1, 0, 0], Yup);                     // outside -z; s runs +x -> -x
     for (const s of [-1, 1]) {
       // the back towers: concrete, a door and a window a storey
-      const A = s > 0 ? [HW + 0.15, -HD - 0.15] : [-xG + 0.15, -HD - 0.15], B = s > 0 ? [xG - 0.15, -HD - 0.15] : [-HW - 0.15, -HD - 0.15];
+      const A = s > 0 ? [HW + 0.15, -HD - 0.15] : [-xGL + 0.15, -HD - 0.15], B = s > 0 ? [xGR - 0.15, -HD - 0.15] : [-HW - 0.15, -HD - 0.15];
       const Lw = Math.abs(B[0] - A[0]);
-      towerFace(A, B, fy, yGR + 0.4, [{ s0: 1.6, s1: 2.8, y0: fy, y1: fy + 2.2 }, { s0: 3.3, s1: Lw - 0.6, y0: yL2 + 1.0, y1: yGR - 0.6 }],
+      if (gal(s)) towerFace(A, B, fy, yGR + 0.4, [{ s0: 1.6, s1: 2.8, y0: fy, y1: fy + 2.2 }, { s0: 3.3, s1: Lw - 0.6, y0: yL2 + 1.0, y1: yGR - 0.6 }],
                 [{ s0: 3.3, s1: Lw - 0.6, y0: yL2 + 1.0, y1: yGR - 0.6, cols: 4, rows: 4 }], 0.25);
+      else towerFace(A, B, fy, yGR + 0.4, [], [], 0.25);
     }
     const zb = -HD + 0.12;
     // the wind posts, the opening's head, girts at the sides and over the head
-    for (const x of [-BW / 2, BW / 2, -(xG + BW / 2) / 2, (xG + BW / 2) / 2, 0]) {
+    for (const x of [-BW / 2, BW / 2, -(xGL + BW / 2) / 2, (xGR + BW / 2) / 2, 0]) {
       if (x === 0) { member(bags.steel, [0, fy + BH, zb], [0, yTC(0) - 0.05, zb], 'col', [1, 0, 0], L); continue; }
       member(bags.steel, [x, fy + 0.3, zb], [x, yTC(x) - 0.05, zb], 'col', [1, 0, 0], L);
     }
@@ -1157,20 +1169,20 @@ function build(P0, lod, F) {
     const gys = [fy + 1.2, fy + 3.0, fy + BH];
     for (let y = fy + BH + 1.6; y < yR(0) - 0.5; y += 1.6) gys.push(y);
     if (L < 2) for (const y of gys) {
-      const xs = Math.min(xG, HW - Math.max(0, y - (fy + D.EAVE)) / D.tp - 0.2);
-      if (y <= fy + BH + 0.01) { for (const sx of [-1, 1]) member(bags.steel, [sx * BW / 2, y, zb - 0.1], [sx * xs, y, zb - 0.1], 'chanS', [0, 0, 1], L); }
-      else if (xs > 0.5) member(bags.steel, [-xs, y, zb - 0.1], [xs, y, zb - 0.1], 'chanS', [0, 0, 1], L);
+      const rake = HW - Math.max(0, y - (fy + D.EAVE)) / D.tp - 0.2, xsR = Math.min(xGR, rake), xsL = Math.min(xGL, rake);
+      if (y <= fy + BH + 0.01) { member(bags.steel, [BW / 2, y, zb - 0.1], [xsR, y, zb - 0.1], 'chanS', [0, 0, 1], L); member(bags.steel, [-BW / 2, y, zb - 0.1], [-xsL, y, zb - 0.1], 'chanS', [0, 0, 1], L); }
+      else if (rake > 0.5) member(bags.steel, [-xsL, y, zb - 0.1], [xsR, y, zb - 0.1], 'chanS', [0, 0, 1], L);
     }
     // the cladding: stripped worst here (the weather's side)
     const regB = { bag: pick('sheetDark', 'sheetPale', 0.4), gone: (p, n) => (0.25 + 0.55 * n) * decay, bend: 1.3, hang: 1.4 };
     const top = x => yR(x) + 0.02;
     for (const sx of [-1, 1]) {                                              // beside the opening
-      const ua = sx > 0 ? -xG : BW / 2, ub = sx > 0 ? -BW / 2 : xG;       // FB's s = -x
+      const ua = sx > 0 ? -xGR : BW / 2, ub = sx > 0 ? -BW / 2 : xGL;     // FB's s = -x
       clad(FB, ua, ub, fy + 0.05, fy + BH, 0.08, regB);
     }
-    cladGable(FB, -xG, xG, fy + BH, u => top(-u), 0.08, regB);              // over the head, under the rake
+    cladGable(FB, -xGR, xGL, fy + BH, u => top(-u), 0.08, regB);            // over the head, under the rake
     for (const sx of [-1, 1]) {                                              // over the back towers
-      const ua = sx > 0 ? -HW : xG, ub = sx > 0 ? -xG : HW;
+      const ua = sx > 0 ? -HW : xGL, ub = sx > 0 ? -xGR : HW;
       cladGable(FB, ua, ub, yGR + 0.45, u => top(-u), 0.08, regB);
     }
   }
@@ -1195,13 +1207,13 @@ function build(P0, lod, F) {
       doors.push({ x: cx, z: zf, w, h: y1 - y0 });
     };
     // the front: closed, leaf i covers its sixth; open, the three of a side stack at their jamb
-    const n = 6, W = 2 * xG / n + 0.12, y0 = fy + 0.03, y1 = fy + DH - 0.14;
+    const n = 6, W = 2 * dW / n + 0.12, y0 = fy + 0.03, y1 = fy + DH - 0.14;
     for (let i = 0; i < n; i++) {
       const side = i < n / 2 ? -1 : 1, trk = side < 0 ? i : n - 1 - i;      // 0 outermost
-      const xc = -xG + (2 * xG / n) * (i + 0.5), xo = side * (xG - W / 2 - 0.05);
+      const xc = -xGL + (2 * dW / n) * (i + 0.5), xo = side < 0 ? -xGL + W / 2 + 0.05 : xGR - W / 2 - 0.05;
       leaf(xc + (xo - xc) * open, HD - 0.42 - trk * 0.24, W, y0, y1, 1);
     }
-    for (let k = 0; k < 3 && L < 2; k++) member(bags.steel, [-xG - 0.1, fy + DH - 0.05, HD - 0.42 - k * 0.24], [xG + 0.1, fy + DH - 0.05, HD - 0.42 - k * 0.24], 'chanS', [0, 0, 1], L);
+    for (let k = 0; k < 3 && L < 2; k++) member(bags.steel, [-xGL - 0.1, fy + DH - 0.05, HD - 0.42 - k * 0.24], [xGR + 0.1, fy + DH - 0.05, HD - 0.42 - k * 0.24], 'chanS', [0, 0, 1], L);
     // the back: four leaves, two tracks, parting in the middle
     const bw = BW / 4 + 0.08, by1 = fy + BH - 0.1;
     for (let i = 0; i < 4; i++) {
@@ -1264,7 +1276,7 @@ function build(P0, lod, F) {
     // THE PUDDLES: one low-frequency field for where the slab sank; marching squares at the water's level
     const hF = (x, z) => 0.55 * vnoise(x / 7.5 + 11, z / 7.5 - 4, seed + 3) + 0.3 * vnoise(x / 2.6, z / 2.6, seed + 4) + 0.15 * vnoise(x / 0.9, z / 0.9, seed + 5)
                          + 0.08 * (Math.abs(x) / HW) - (Math.abs(x) < xG - 1 ? 0 : 0.0);
-    const cs = L === 0 ? 0.5 : 1.0, x0 = -xG + 0.4, x1 = xG - 0.4, z0 = -HD + 0.6, z1 = HD - 0.4;
+    const cs = L === 0 ? 0.5 : 1.0, x0 = -xGL + 0.4, x1 = xGR - 0.4, z0 = -HD + 0.6, z1 = HD - 0.4;
     const lvl = 0.12 + 0.42 * wet;
     const contour = (bag, level, y, uvf) => {
       let area = 0;
@@ -1301,7 +1313,7 @@ function build(P0, lod, F) {
       for (let z = -HD + 5; z < HD; z += 5) line([-HW + 0.2, 0, z], [HW - 0.2, 0, z], 0.035, fy + 0.002, 15);
       const rc = rng(seed * 3 + 7);
       for (let c = 0; c < (rest ? 5 : 22); c++) {
-        let x = (rc() * 2 - 1) * (xG - 1), z = (rc() * 2 - 1) * (HD - 1), a = rc() * 6.28;
+        let x = dC + (rc() * 2 - 1) * (dW - 1), z = (rc() * 2 - 1) * (HD - 1), a = rc() * 6.28;
         const n = 6 + Math.floor(rc() * 14);
         for (let q = 0; q < n; q++) {
           a += (rc() - 0.5) * 0.9; const sl = 0.4 + rc() * 0.7, x2 = clamp(x + Math.cos(a) * sl, -HW + 0.3, HW - 0.3), z2 = clamp(z + Math.sin(a) * sl, -HD + 0.3, HD - 0.3);
@@ -1311,7 +1323,7 @@ function build(P0, lod, F) {
         }
       }
       // oil and moss patches
-      for (let q = 0; q < 10; q++) { const x = (rc() * 2 - 1) * (xG - 2), z = (rc() * 2 - 1) * (HD - 2), r = 0.6 + rc() * 1.6, c = q < 5 ? 11 : 12;
+      for (let q = 0; q < 10; q++) { const x = dC + (rc() * 2 - 1) * (dW - 2), z = (rc() * 2 - 1) * (HD - 2), r = 0.6 + rc() * 1.6, c = q < 5 ? 11 : 12;
         face(bags.stain, [[x - r, fy + 0.0028, z + r], [x + r, fy + 0.0028, z + r], [x + r, fy + 0.0028, z - r], [x - r, fy + 0.0028, z - r]], Yup, p => CELL(c, (p[0] - x + r) / (2 * r), (z + r - p[2]) / (2 * r))); st.decals++; }
     }
   }
@@ -1327,20 +1339,20 @@ function build(P0, lod, F) {
     };
     const pile = (cx, cz, R, n) => { for (let q = 0; q < n; q++) { const a = rc() * 6.28, d = Math.sqrt(rc()) * R; chunk(cx + Math.cos(a) * d, cz + Math.sin(a) * d, 0.08 + 0.3 * rc() * (1 - d / R * 0.6)); } };
     if (der) {
-      for (const s of [-1, 1]) {
+      for (const s of [1]) {                                                    // under the gallery's fallen bay
         const k = Math.floor(hashN(s, 1, 95, seed) * (NB - 3)) + 1, zc = (zF(k) + zF(k + 1)) / 2 + 0.8;
         pile(s * (HW - D.GW / 2), zc, 1.8, L === 0 ? 70 : 12);
       }
-      for (let q = 0; q < 5; q++) pile((rc() * 2 - 1) * (xG - 2), (rc() * 2 - 1) * (HD - 3), 0.8, L === 0 ? 14 : 3);
+      for (let q = 0; q < 5; q++) pile(dC + (rc() * 2 - 1) * (dW - 2), (rc() * 2 - 1) * (HD - 3), 0.8, L === 0 ? 14 : 3);
       // sheets fallen on the floor, bent
       if (L === 0) for (let q = 0; q < 14; q++) {
-        const x = (rc() * 2 - 1) * (xG - 1), z = (rc() * 2 - 1) * (HD - 1), a = rc() * 6.28;
+        const x = dC + (rc() * 2 - 1) * (dW - 1), z = (rc() * 2 - 1) * (HD - 1), a = rc() * 6.28;
         const Fx = frame([x, fy + 0.03 + rc() * 0.05, z], [Math.cos(a), 0, Math.sin(a)], [-Math.sin(a), 0, Math.cos(a)]);
         const vk = 0.6 + rc() * 0.8;
         sheet(rc() < 0.6 ? bags.sheetDark : bags.sheetPale, Fx, 0, 0.9, 0, 1.4 + rc() * 1.4, 0, { lod: 0, vk: [vk], rots: [{ piv: Fx.P(0, vk, 0), ax: Fx.X, ang: -(0.2 + rc() * 0.6), when: (u, v) => v > vk }] });
       }
     } else {
-      pile(-xG + 3.5, HD - 6, 2.2, L === 0 ? 120 : 16); pile(xG - 3.5, -HD + 6, 2.0, L === 0 ? 100 : 14);
+      pile(-xGL + 3.5, HD - 6, 2.2, L === 0 ? 120 : 16); pile(xGR - 3.5, -HD + 6, 2.0, L === 0 ? 100 : 14);
     }
   }
   // the litter on the floor and the apron
@@ -1349,7 +1361,7 @@ function build(P0, lod, F) {
     const n = der ? 40 : 8;
     for (let q = 0; q < n; q++) {
       const out = P.apron && rc() < 0.35;
-      const x = (rc() * 2 - 1) * (out ? HW + 4 : xG - 0.5), z = out ? HD + 1 + rc() * (P.apronL - 2) : (rc() * 2 - 1) * (HD - 0.5), r = 0.35 + rc() * 0.4, a = rc() * 6.28;
+      const x = out ? (rc() * 2 - 1) * (HW + 4) : dC + (rc() * 2 - 1) * (dW - 0.5), z = out ? HD + 1 + rc() * (P.apronL - 2) : (rc() * 2 - 1) * (HD - 0.5), r = 0.35 + rc() * 0.4, a = rc() * 6.28;
       const y = out ? g(x, z) + 0.065 : fy + 0.004;
       const ca = Math.cos(a) * r, sa = Math.sin(a) * r;
       face(bags.decal, [[x - ca + sa, y, z - sa - ca], [x + ca + sa, y, z + sa - ca], [x + ca - sa, y, z + sa + ca], [x - ca - sa, y, z - sa + ca]], Yup,
@@ -1368,13 +1380,13 @@ function build(P0, lod, F) {
       st.decals++;
     };
     // the white wall's foot (the right-hand gallery, toward the bay)
-    const FW = frame([-xG, 0, HD], [0, 0, -1], Yup);
-    for (let k = 0; k < NB - 1; k++) if (rc() < 0.8) tag(FW, D.BAY * (k + 1) + 0.3 + rc() * 2.2, fy + 0.25 + rc() * 0.4, 1.4 + rc() * 1.6, 0.06, Math.floor(rc() * 4), true);
+    const FW = frame([xGR, 0, -HD], [0, 0, 1], Yup);                       // the white wall faces the bay (-x)
+    for (let k = 0; k < NB - 1; k++) if (k % 3 !== 1 && rc() < 0.85) tag(FW, D.BAY * k + 0.3 + rc() * 2.2, fy + 0.25 + rc() * 0.4, 1.4 + rc() * 1.6, 0.06, Math.floor(rc() * 4), true);
     // the towers' fronts, low
     const FT = frame([0, 0, HD + zT + 0.152], [1, 0, 0], Yup);
-    for (const s of [-1, 1]) for (let q = 0; q < 2; q++) tag(FT, s * (xG + 1.2 + rc() * 2.5) - 0.8, fy + 0.3 + rc() * 0.5, 1.2 + rc() * 1.2, 0.0, Math.floor(rc() * 4), false);
+    for (const s of [1]) for (let q = 0; q < 2; q++) tag(FT, s * (xGR + 1.2 + rc() * 2.5) - 0.8, fy + 0.3 + rc() * 0.5, 1.2 + rc() * 1.2, 0.0, Math.floor(rc() * 4), false);
     // a column pier or two
-    for (let q = 0; q < 4; q++) { const k = 1 + Math.floor(rc() * (NB - 1)), sx = rc() < 0.5 ? -1 : 1, Fp = frame([sx * xG - 0.35, 0, zF(k) + 0.35], [1, 0, 0], Yup);
+    for (let q = 0; q < 4; q++) { const k = 1 + Math.floor(rc() * (NB - 1)), Fp = frame([xGR - 0.35, 0, zF(k) + 0.35], [1, 0, 0], Yup);
       tag(Fp, 0.02, fy + 0.04, 0.66, 0.0, Math.floor(rc() * 4), false); }
   }
 
@@ -1398,16 +1410,15 @@ function build(P0, lod, F) {
     };
     if (der) {
       // along the white wall's foot: three still locked, one pulled out and turned, one on its side, one faded white
-      run(-xG + 0.75, 3.0, 0, 3, { w0: 0 });
-      put(-xG + 1.6, 9.6, 0.55, { white: false });
-      put(-xG + 1.5, 11.9, 0.35, { white: false, tip: 1 });
-      put(-xG + 0.8, -4.0, 0.06, { white: true, fade: 1 });
+      run(xGR - 0.75, 3.0, 0, 3, { w0: 0 });
+      put(xGR - 1.6, 9.6, -0.55, { white: false });
+      put(xGR - 1.5, 11.9, -0.35, { white: false, tip: 1 });
+      put(xGR - 0.8, -4.0, -0.06, { white: true, fade: 1 });
     } else if (stage === 1) {
       // the line across the front, the access gap in the middle, a lamp on every fourth
       const zl = HD + 1.7, half = BARRIER.L + 0.015;
-      const n = Math.floor((xG - 2.2) / half);
-      run(-xG + 0.6, zl, Math.PI / 2, n, { lampEvery: 4 });
-      run(2.2, zl, Math.PI / 2, n, { lampEvery: 4, w0: 1 });
+      run(-xGL + 0.6, zl, Math.PI / 2, Math.floor((dC - 2.2 + xGL - 0.6) / half), { lampEvery: 4 });
+      run(dC + 2.2, zl, Math.PI / 2, Math.floor((xGR - 0.6 - dC - 2.2) / half), { lampEvery: 4, w0: 1 });
       for (const x of [-6, 6]) {                                            // the boards on their posts
         for (const dx of [-0.55, 0.55]) beam(bags.steelNew, [x + dx, fy, HD + 2.6], [x + dx, fy + 1.9, HD + 2.6], 0.025, 0.025, [1, 0, 0], 0);
         K.boxAB(bags.ply, [x - 0.65, fy + 1.0, HD + 2.63], [x + 0.65, fy + 1.9, HD + 2.66]);
@@ -1415,7 +1426,7 @@ function build(P0, lod, F) {
              p => CELL(14, (p[0] - x + 0.62) / 1.24, 0.2 + (p[1] - fy - 1.0) / 0.9 * 0.6));
       }
     } else if (stage === 2) {
-      run(xG + 1.0, HD - 1.2, Math.PI, 3, { w0: 0 });                         // stood aside along the tower
+      run(xGR + 0.6, HD + 1.4, Math.PI / 2, 3, { w0: 0 });                    // stood aside, in front of the right tower
     }
   }
 
@@ -1454,16 +1465,16 @@ function build(P0, lod, F) {
     // outside: the flanks' feet, the towers' feet, the back
     for (const s of [-1, 1]) along(s * (HW + 0.25), -HD, s * (HW + 0.25), HD, gy, k0, false);
     along(-HW, -HD - 0.4, HW, -HD - 0.4, gy, k0 * 1.2, false);
-    for (const s of [-1, 1]) along(s * xG, HD + zT + 0.4, s * HW, HD + zT + 0.4, gy, k0 * 1.5, false);
+    for (const s of [-1, 1]) along(s * xGs(s), HD + zT + 0.4, s * HW, HD + zT + 0.4, gy, k0 * 1.5, false);
     // the corners at the opening: alder and fireweed up against the towers
-    if (!roofed) for (const s of [-1, 1]) for (let q = 0; q < (der ? 3 : 1); q++) weed(s * (xG + 0.8 + rc() * 3), gy(s * HW, HD + 1), HD + zT + 0.6 + rc() * 0.8, 1.3 + rc() * 1.5, 2, rc());
+    if (!roofed) for (const s of [-1, 1]) for (let q = 0; q < (der ? 3 : 1); q++) weed(s * (xGs(s) + 0.8 + rc() * (gal(s) ? 3 : 1.5)), gy(s * HW, HD + 1), HD + zT + 0.6 + rc() * 0.8, 1.3 + rc() * 1.5, 2, rc());
     if (der) {
       // inside: the gallery walls' feet toward the bay, the back opening spilling in, the gallery roofs (open to the sky)
-      for (const s of [-1, 1]) along(s * (xG - 0.3), -HD + 0.5, s * (xG - 0.3), HD - 1, () => fy, 0.9, true);
+      for (const s of [-1, 1]) along(s * (xGs(s) - 0.3), -HD + 0.5, s * (xGs(s) - 0.3), HD - 1, () => fy, 0.9, true);
       along(-D.BW / 2, -HD + 0.6, D.BW / 2, -HD + 0.6, () => fy, 1.8, false);
-      for (const s of [-1, 1]) along(s * (xG + D.GW * 0.45), -HD + 0.5, s * (xG + D.GW * 0.45), HD - 0.8, () => yGR, 1.4, true);
+      for (const s of [1]) along(s * (xG + D.GW * 0.45), -HD + 0.5, s * (xG + D.GW * 0.45), HD - 0.8, () => yGR, 1.4, true);
       // the side bays' ground storey at the front: bushes in the light of the tower door
-      for (const s of [-1, 1]) for (let q = 0; q < 4; q++) weed(s * (xG + 1 + rc() * (D.GW - 2)), fy, HD - 1 - rc() * 3, 0.6 + rc() * 1.2, rc() < 0.5 ? 2 : 1, rc());
+      for (const s of [1]) for (let q = 0; q < 4; q++) weed(s * (xG + 1 + rc() * (D.GW - 2)), fy, HD - 1 - rc() * 3, 0.6 + rc() * 1.2, rc() < 0.5 ? 2 : 1, rc());
     }
     if (P.apron) {                                                           // the apron's joints
       for (let x = -HW - 6 + 2.5; x < HW + 6; x += 5) along(x, HD + 0.6, x, HD + P.apronL - 0.5, gy, safe ? 0.3 : 0.7, false, true);
@@ -1474,7 +1485,7 @@ function build(P0, lod, F) {
   if (L === 0) {
     const FT = frame([0, 0, HD + zT + 0.153], [1, 0, 0], Yup);
     for (const s of [-1, 1]) for (let q = 0; q < 7; q++) {
-      const u = s * xG + s * (0.6 + (D.GW - 0.8) * hashN(q, s, 97, seed)) - 0.15, top = q < 4 ? towerTop - 0.02 : (q < 6 ? yGR - 0.5 : fy + 3.3), Ls = 0.8 + 1.8 * hashN(q, s, 98, seed);
+      const u = s * xGs(s) + s * (0.3 + Math.max(0.1, GWs(s) - 0.6) * hashN(q, s, 97, seed)) - 0.15, top = q < 4 ? towerTop - 0.02 : (q < 6 ? yGR - 0.5 : fy + 3.3), Ls = 0.8 + 1.8 * hashN(q, s, 98, seed);
       face(bags.stain, [FT.P(u, top - Ls, 0), FT.P(u + 0.3, top - Ls, 0), FT.P(u + 0.3, top, 0), FT.P(u, top, 0)], FT.N, p => CELL(7, (p[0] - u) / 0.3, (top - p[1]) / Ls));
       st.decals++;
     }
@@ -1499,8 +1510,8 @@ function build(P0, lod, F) {
   const stats = Object.assign(st, {
     tris, verts, per, draws, bbox: bb, footprint: 4 * HW * HD, eave: fy + D.EAVE, ridge: fy + D.RIDGE, eaveY: fy + D.EAVE, ridgeY: fy + D.RIDGE, floorY: fy,
     stage, stageName: STAGES[stage], lod: L, shell: 'derelict', dims: { HW, HD, EAVE: D.EAVE }, role: 'hangar', source: 'derelict',
-    door: { x: 0, z: HD, w: D.DOOR_W, h: D.DH, leaves: rest ? 6 : 0, shut: rest && !(P.doorOpen > 0), open: !rest || P.doorOpen > 0, openK: rest ? clamp(P.doorOpen || 0, 0, 1) : 1 }, doors,
-    galleries: { depth: D.GW, floors: [yL2, yGR] }, frames: NB + 1, bay: D.BAY, purlins: NPU * 2, instances,
+    door: { x: dC, z: HD, w: D.DOOR_W, h: D.DH, leaves: rest ? 6 : 0, shut: rest && !(P.doorOpen > 0), open: !rest || P.doorOpen > 0, openK: rest ? clamp(P.doorOpen || 0, 0, 1) : 1 }, doors,
+    galleries: { right: D.GW, left: D.GWL, floors: [yL2, yGR] }, frames: NB + 1, bay: D.BAY, purlins: NPU * 2, instances,
     front: { x: 0, z: HD + 1.5, side: 1, depth: 0 },
     ground: g, groundAO: occ, aoFoot: null, ao: aoInfo, path: [], people: null, yard: null, pier: null,
     lit: { lights, panes: 0, windows: 0 }, smoke: null, sign: null,
@@ -1701,7 +1712,7 @@ window.DERELICT_GEN.CATALOGUE = ['derelict hangar'].map(name => {
     foot: P => rect((P && P.HW) || Pd.HW, (P && P.HD) || Pd.HD), keepOut: 4,
     ground: { need: 'level', level: 'high', falloff: 8, standing: 'slab' },
     size: P => ({ L: 2 * ((P && P.HW) || Pd.HW) + 2, w: 2 * ((P && P.HD) || Pd.HD) + 2 }),
-    hooks: P => [{ name: 'door', kind: 'apron', p: [0, 0, ((P && P.HD) || Pd.HD) + 2], dir: [0, 0, 1] }], hooksOf: () => [],
+    hooks: P => [{ name: 'door', kind: 'apron', p: [dimsOf(Object.assign({}, Pd, P || {})).doorX, 0, ((P && P.HD) || Pd.HD) + 2], dir: [0, 0, 1] }], hooksOf: () => [],   // the door is off the axis (the facade side)
     lod: { dist: [0, 200, 600, 1500] }, slots: { ao: 'stats.groundAO' },
     tags: ['airport', 'hangar', 'derelict', 'story'], role: 'hangar', cat: 'airport m', headless: true, gate: 'DERELICT' };
 });

@@ -9,11 +9,10 @@
    "stage": 0,
    "stageName": "derelict",
    "lod": 0,
-   "tris": 90411,
+   "tris": 87732,
    "draws": 13,
-   "calls": 354,
-   "pendingMaps": 0,
-   "ms": 45484
+   "calls": 348,
+   "pendingMaps": 0
   },
   {
    "name": "ref2_far",
@@ -21,23 +20,10 @@
    "stage": 0,
    "stageName": "derelict",
    "lod": 0,
-   "tris": 101647,
+   "tris": 99232,
    "draws": 13,
    "calls": 348,
-   "pendingMaps": 0,
-   "ms": 28174
-  },
-  {
-   "name": "ref3_inside",
-   "cam": "inside",
-   "stage": 0,
-   "stageName": "derelict",
-   "lod": 0,
-   "tris": 95865,
-   "draws": 13,
-   "calls": 318,
-   "pendingMaps": 0,
-   "ms": 36094
+   "pendingMaps": 0
   },
   {
    "name": "stage0",
@@ -45,23 +31,10 @@
    "stage": 0,
    "stageName": "derelict",
    "lod": 0,
-   "tris": 90411,
+   "tris": 87732,
    "draws": 13,
    "calls": 348,
-   "pendingMaps": 0,
-   "ms": 37077
-  },
-  {
-   "name": "stage1",
-   "cam": "stage",
-   "stage": 1,
-   "stageName": "made safe",
-   "lod": 0,
-   "tris": 82191,
-   "draws": 15,
-   "calls": 368,
-   "pendingMaps": 0,
-   "ms": 36950
+   "pendingMaps": 0
   },
   {
    "name": "stage2",
@@ -69,11 +42,10 @@
    "stage": 2,
    "stageName": "roofed",
    "lod": 0,
-   "tris": 78576,
+   "tris": 76248,
    "draws": 15,
    "calls": 296,
-   "pendingMaps": 0,
-   "ms": 32229
+   "pendingMaps": 0
   },
   {
    "name": "stage3",
@@ -81,11 +53,10 @@
    "stage": 3,
    "stageName": "restored",
    "lod": 0,
-   "tris": 3776,
-   "draws": 19,
-   "calls": 340,
-   "pendingMaps": 0,
-   "ms": 13663
+   "tris": 78198,
+   "draws": 12,
+   "calls": 276,
+   "pendingMaps": 0
   },
   {
    "name": "detail_flank",
@@ -93,11 +64,10 @@
    "stage": 0,
    "stageName": "derelict",
    "lod": 0,
-   "tris": 90411,
+   "tris": 87732,
    "draws": 13,
    "calls": 346,
-   "pendingMaps": 0,
-   "ms": 39333
+   "pendingMaps": 0
   },
   {
    "name": "detail_roof",
@@ -105,23 +75,10 @@
    "stage": 0,
    "stageName": "derelict",
    "lod": 0,
-   "tris": 90411,
+   "tris": 87732,
    "draws": 13,
-   "calls": 224,
-   "pendingMaps": 0,
-   "ms": 17862
-  },
-  {
-   "name": "detail_graffiti",
-   "cam": "graffiti",
-   "stage": 0,
-   "stageName": "derelict",
-   "lod": 0,
-   "tris": 90411,
-   "draws": 13,
-   "calls": 336,
-   "pendingMaps": 0,
-   "ms": 44121
+   "calls": 230,
+   "pendingMaps": 0
   },
   {
    "name": "aerial0",
@@ -129,11 +86,10 @@
    "stage": 0,
    "stageName": "derelict",
    "lod": 0,
-   "tris": 90411,
+   "tris": 87732,
    "draws": 13,
    "calls": 348,
-   "pendingMaps": 0,
-   "ms": 28822
+   "pendingMaps": 0
   },
   {
    "name": "aerial2",
@@ -141,11 +97,10 @@
    "stage": 2,
    "stageName": "roofed",
    "lod": 0,
-   "tris": 78576,
+   "tris": 76248,
    "draws": 15,
    "calls": 296,
-   "pendingMaps": 0,
-   "ms": 26029
+   "pendingMaps": 0
   },
   {
    "name": "lod1",
@@ -153,11 +108,10 @@
    "stage": 0,
    "stageName": "derelict",
    "lod": 1,
-   "tris": 10835,
+   "tris": 9889,
    "draws": 9,
    "calls": 318,
-   "pendingMaps": 0,
-   "ms": 15728
+   "pendingMaps": 0
   },
   {
    "name": "lod2",
@@ -165,11 +119,115 @@
    "stage": 0,
    "stageName": "derelict",
    "lod": 2,
-   "tris": 3548,
+   "tris": 2948,
    "draws": 5,
    "calls": 224,
+   "pendingMaps": 0
+  },
+  {
+   "name": "detail_puddle",
+   "cam": "puddle",
+   "stage": 0,
+   "stageName": "derelict",
+   "lod": 0,
+   "tris": 92449,
+   "draws": 13,
+   "calls": 308,
+   "pendingMaps": 0
+  },
+  {
+   "name": "restored_front",
+   "cam": "restored",
+   "stage": 3,
+   "stageName": "restored",
+   "lod": 0,
+   "tris": 78198,
+   "draws": 12,
+   "calls": 276,
+   "pendingMaps": 0
+  },
+  {
+   "name": "restored_hall",
+   "cam": "hall",
+   "stage": 3,
+   "stageName": "restored",
+   "lod": 0,
+   "tris": 78198,
+   "draws": 12,
+   "calls": 260,
+   "pendingMaps": 0
+  },
+  {
+   "name": "detail_barriers",
+   "cam": "barriers",
+   "stage": 0,
+   "stageName": "derelict",
+   "lod": 0,
+   "tris": 87732,
+   "draws": 13,
+   "calls": 222,
    "pendingMaps": 0,
-   "ms": 10671
+   "ms": 49678
+  },
+  {
+   "name": "detail_line",
+   "cam": "line",
+   "stage": 1,
+   "stageName": "made safe",
+   "lod": 0,
+   "tris": 90420,
+   "draws": 16,
+   "calls": 360,
+   "pendingMaps": 0,
+   "ms": 55881
+  },
+  {
+   "name": "ref3_inside",
+   "cam": "inside",
+   "stage": 0,
+   "stageName": "derelict",
+   "lod": 0,
+   "tris": 94061,
+   "draws": 13,
+   "calls": 318,
+   "pendingMaps": 0,
+   "ms": 58183
+  },
+  {
+   "name": "stage1",
+   "cam": "stage",
+   "stage": 1,
+   "stageName": "made safe",
+   "lod": 0,
+   "tris": 90420,
+   "draws": 16,
+   "calls": 378,
+   "pendingMaps": 0,
+   "ms": 51534
+  },
+  {
+   "name": "detail_graffiti",
+   "cam": "graffiti",
+   "stage": 0,
+   "stageName": "derelict",
+   "lod": 0,
+   "tris": 87732,
+   "draws": 13,
+   "calls": 234,
+   "pendingMaps": 0,
+   "ms": 47991
+  },
+  {
+   "name": "night1",
+   "cam": "night",
+   "stage": 1,
+   "stageName": "made safe",
+   "lod": 0,
+   "tris": 90420,
+   "draws": 16,
+   "calls": 378,
+   "pendingMaps": 0,
+   "ms": 74172
   }
  ],
  "errors": []

@@ -86,7 +86,10 @@ function serve() {
     log.push({ name: s.name, cam: s.cam, stage: st.stage, stageName: st.stageName, lod: s.lod || 0, tris: st.tris, draws: st.draws, calls: r.calls, pendingMaps: r.pendingMaps, ms: Date.now() - t0 });
     console.log(s.name.padEnd(16), r.line.split('\n')[0], ' calls', r.calls, ' pending maps', r.pendingMaps, ' ', ((Date.now() - t0) / 1000).toFixed(1) + ' s');
   }
-  fs.writeFileSync(path.join(OUT, 'shots.json'), JSON.stringify({ w: W, h: H, ss: SS, shots: log, errors: errs }, null, 1));
+  // merged into what is there: a re-shot of a few keeps the others' rows (by name)
+  let prev = []; try { prev = JSON.parse(fs.readFileSync(path.join(OUT, 'shots.json'), 'utf8')).shots || []; } catch (e) {}
+  const merged = prev.filter(p => !log.some(l => l.name === p.name)).concat(log);
+  fs.writeFileSync(path.join(OUT, 'shots.json'), JSON.stringify({ w: W, h: H, ss: SS, shots: merged, errors: errs }, null, 1));
   if (errs.length) console.log('page errors:\n  ' + errs.slice(0, 12).join('\n  '));
   await browser.close(); srv.close();
 })().catch(e => { console.error(e); process.exit(1); });
