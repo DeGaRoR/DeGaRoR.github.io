@@ -675,7 +675,7 @@
           wing: m.wing || 0, tileK: m.tileK, roughK: m.roughK, nrmK: m.nrmK,
           ccK: m.ccK, fieldK: m.fieldK, fieldLK: m.fieldLK, inside: m.inside || 0,
           decals: m.noDec ? 0 : m.noLet ? 0.5 : 1, memF: m.memF || null, metalK: m.metalK || 0,
-          ribM: m.ribM, wearK: m.wearK, wearM: m.wearM, side });
+          ribM: m.ribM, wearK: m.wearK, wearM: m.wearM, side: side, exactSide: side !== THREE.DoubleSide ? 1 : 0 });
         return cache[ck] = onBlock(s);
       }
       if (m.panel && rec.panel && rec.panel[m.panel]) return cache[ck] = rec.panel[m.panel];

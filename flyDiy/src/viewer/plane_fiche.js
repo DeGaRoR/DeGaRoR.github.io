@@ -154,7 +154,10 @@
       const nm = ms.map(mt => { const n = mt ? fn(mt) : null; if (n) { ch = true; return n; } return mt; });
       if (ch) { st.mats.push([o, o.material]); o.material = arr ? nm : nm[0]; }
     };
-    const halve = m => { const n = dup(m); st.clones.push(n); n.clippingPlanes = [p1]; n.clipIntersection = false; n.side = T.DoubleSide; n.needsUpdate = true; return n; };
+    // (LINER-BACK: a lined skin is FrontSide and its liner BackSide on the SAME faces - forced DoubleSide they fight at one
+    // depth; every other material opens DoubleSide as before)
+    const keepSide = m => (m.side === T.FrontSide || m.side === T.BackSide) && m.userData && m.userData.exactSide ? m.side : T.DoubleSide;
+    const halve = m => { const n = dup(m); st.clones.push(n); n.clippingPlanes = [p1]; n.clipIntersection = false; n.side = keepSide(m); n.needsUpdate = true; return n; };
     root.traverseVisible(o => {
       if (!o.isMesh) return;
       swap(o, mt => {
@@ -163,7 +166,7 @@
         n = dup(mt); made.set(mt, n); st.clones.push(n);
         const glass = (mt.transmission || 0) > 0 || /glass|glaz|perspex|plexi|screen/i.test(mt.name || '');
         if (glass) n.opacity = 0.3; else { n.opacity = 1; n.transparent = false; n.depthWrite = true; innerFace(n, mt); }
-        n.clippingPlanes = [p1, p2]; n.clipIntersection = true; n.side = T.DoubleSide; n.needsUpdate = true;
+        n.clippingPlanes = [p1, p2]; n.clipIntersection = true; n.side = keepSide(mt); n.needsUpdate = true;
         return n;
       });
     });
