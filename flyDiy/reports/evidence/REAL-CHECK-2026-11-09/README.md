@@ -1,4 +1,4 @@
-VERDICT: the Carbon Cub SS (the STOL Cub rebuilt to the type: CC340 180 hp from new engine dials, two blades, VGs only, a new 50° STOL flap, the SS panel) is 4 inside / 3 near / 4 outside against the real SS (the STOL Cub 1 / 1 / 9); its landing roll is now inside and its take-off shorter, the two moving together. The V2-172 (land) is 5 inside / 5 near / 7 outside against the 172R POH (8 Nov baseline 2 / 9 / 6): empty weight, analytic take-off roll and the handbook landing from 50 ft move inside; still outside are the climb-out to 50 ft (+53 %), the landing rolls (handbook −17 %, game +43 %), the game's climb (−13 %) and the glide (not like for like). The V2-172 floats (draft) is 9 / 1 / 0 against Wipaire at 920–1157 kg, but at its own gross case it is 1212 kg, over the STC 1157, CG 46 % MAC, lands flapless, and the supplement's technique does not lift it off. The STOL Cub is not a Carbon Cub SS: 1 inside / 1 near / 9 outside; its kit stalls 25 % slower and its 141 hp climbs 30 % less.
+VERDICT: the Carbon Cub SS (the STOL Cub rebuilt to the type: CC340 180 hp from new engine dials, two blades, VGs only, a new 50° STOL flap, the aluminium-spar wing, the SS panel) is 5 inside / 2 near / 4 outside against the real SS (the STOL Cub 1 / 1 / 9), flown with the STOL take-off and the FAA tailwheel short-field stop; a nose-over check now keeps rolls that end on the nose out of the figures. The V2-172 (land) is 5 inside / 5 near / 7 outside against the 172R POH (8 Nov baseline 2 / 9 / 6): empty weight, analytic take-off roll and the handbook landing from 50 ft move inside; still outside are the climb-out to 50 ft (+53 %), the landing rolls (handbook −17 %, game +43 %), the game's climb (−13 %) and the glide (not like for like). The V2-172 floats (draft) is 9 / 1 / 0 against Wipaire at 920–1157 kg, but at its own gross case it is 1212 kg, over the STC 1157, CG 46 % MAC, lands flapless, and the supplement's technique does not lift it off. The STOL Cub is not a Carbon Cub SS: 1 inside / 1 near / 9 outside; its kit stalls 25 % slower and its 141 hp climbs 30 % less.
 
 # REAL-CHECK 2026-11-09: STOL Cub and the final Cessna (REAL-FIGURES for A0)
 
@@ -137,9 +137,16 @@ The fix is to bring the game pilot's brake law to the handbook's. The game-minus
 
 ## 5. The Carbon Cub SS: the STOL Cub rebuilt to the type (`builds/candidates/carbon_cub_ss.json`)
 
-The user, 9 Nov, asked for four things: the right engine (add a dial rather than hard-code one), only the STOL features
-the real aeroplane has, two blades, and the SS's panel. The recipe is in `builds/candidates/carbon_cub_ss.edits.json`,
-replayed through `tools/_rejoin_build.js` from the STOL Cub.
+The user, 9 Nov, asked for:
+- the right engine (add a dial rather than hard-code one);
+- only the STOL features the real aeroplane has;
+- two blades;
+- the SS's panel;
+- the aluminium-spar wing;
+- the STOL techniques.
+
+The recipe is in `builds/candidates/carbon_cub_ss.edits.json`, replayed through `tools/_rejoin_build.js` from the STOL
+Cub.
 
 **What changed:**
 
@@ -149,42 +156,81 @@ replayed through `tools/_rejoin_build.js` from the STOL Cub.
 | prop | 3-blade, 1.80 m | 2-blade carbon, 2.03 m | 2-blade |
 | leading edge | full-span slot, droop, drooped tips | VGs only, rounded tips | VGs |
 | flaps | Fowler (35°) | **STOL flap**: plain hinge to 50° | plain, 15 / 30 / 50° |
+| wing structure | wood + fabric | **aluminium spar + fabric** | aluminium spar + fabric |
 | tail | kit's 3.54 m stab, elevator chord 0.664 (clamped) | Super Cub-sized 3.19 m (THIN), Cub elevator chord 0.415 | |
 | tyres | 30.7 in main | 29 in main, 8 in tailwheel | 6.00 standard, 26–29 in tundra options |
 | fuel | 25 L, nose | 91 L, two wing-root tanks | 2 × 12 US gal, wing roots |
 | panel | basic | one 7 in glass PFD/MFD in the centre; round ASI, ALT and VSI; COM and Mode-S; lithium battery; 60 A alternator | a central screen, round ASI, ALT and VSI, a round engine monitor (CGR-30P) |
 
 **New garage rows:**
-- Engine: two physics dials, both 1 for every catalogue engine, so nothing that ships moves.
+- Engine: two physics dials, both 1 for every catalogue engine.
   - `tune`, `bmepK`, 0.85–1.2: the rated bmep over the layout's own.
   - `build`, `massK`, 0.75–1.25: the mass over the swept-volume law.
+  - At 1 they are left out of every certificate, bench, parked-fleet and procurement key, so no shipped certificate
+    moves.
 - Flap: a new `stol` type, appended last in `GEN_FLAPS` so every saved index holds. Its lift is the slotted row's PA-18
   calibration (the PA-18's own flap is this plain 50° hinge); its drag is 0.090; travel 50°.
+- Wing structure: a new `fabricAlu` row (PA-18 / Carbon Cub).
+  - Alloy members and the fabric row's wing stiffness; cover 0.55 kg/m²; built in the metal shop.
+  - The seventh stop of the wing, fin and stab construction rows.
+  - Chosen on the wing panel by a "Wing structure" row of eight tiles with section icons, which replaces the slider.
 
-**Gaps still open:**
-- No round engine-monitor row: small tacho, oil and fuel gauges stand in for it.
-- No aluminium-spar-under-fabric wing material: the wing is billed as wood and fabric.
+**Still open:** there is no round engine-monitor row; small tacho, oil and fuel gauges stand in for it.
 
-**Against the Carbon Cub SS: 4 inside / 3 near / 4 outside** (the STOL Cub: 1 / 1 / 9).
+### The STOL techniques (the user's, and the FAA handbook's)
+
+**Take-off (the user's technique):** full flap, brakes held and stick fully back while the engine comes up to its full rpm
+(the power is eased if the tail lifts), then release and go. In `real_check` this is `tech.runup`, flown by the carboncub
+handbook schedule and in its sweep.
+- On the SS, the rpm reaches the propeller's static 2484 in 2.5 s and the tail never lifts.
+- Full flap is the gain: the SS's handbook take-off is 30–40 m against 41–52 rolling on the analytic schedule (43–57
+  flown at half flap before).
+- The run-up itself saves under a metre, because the pilot already brings the power in over 2 s from almost a standstill.
+
+**Landing: the tailwheel short-field stop** (FAA-H-8083-3C chapter 14, the user's PDF):
+- "Upon touchdown, the airplane should be firmly held in a three-point attitude. This provides aerodynamic braking by the
+  wings. Immediately upon touchdown and closing the throttle, the brakes should be applied evenly and firmly to minimize
+  the after-landing roll."
+- The flaps come up "only after" the airplane is stopped and clear.
+
+`tech.stopShort` flies it by the gear:
+- **Taildragger:** stick full back; brakes on only while the tail is down (pitch within 3° of the three-point attitude),
+  off the moment it rises; flaps left down.
+- **Tricycle:** the 172 handbook's stop (flaps up, maximum braking). The user, rightly: the 172's technique is a
+  tricycle's.
+
+**Nose-overs, found along the way:**
+- The old handbook brake law (0.8 from Vs) and the sweep's hardest law (1.0 at 1/s from 1.2 Vs) stood the SS on its nose:
+  pitch −37° at 1.5 m/s, then resting at −19°.
+- The sim does not call that a crash, so the earlier run counted those rolls as its handbook landing (72–86 m, "inside")
+  and its best (35 m).
+- A roll-out whose pitch falls more than 10° nose-down is now flagged NOSE-OVER: it is not a landing roll, never a best
+  figure, and the report marks it.
+- The SS is prone to it because its 120 kg engine puts the CG close above the mains.
+- On their old laws the Cub and the Jodel do not nose over. With the handbook stop they would read Cub 90 m (88) and
+  Jodel 80 m (150); not applied to them yet.
+- The game's pilot lands the SS tail-high, not three-point. Its gentle brakes never nose it over (114–140 m).
+
+### Against the Carbon Cub SS: 5 inside / 2 near / 4 outside (the STOL Cub, re-flown with the same schedule: 1 / 1 / 9)
 
 | indicator | ours (MIN–MTOW) | SS (band) | verdict |
 |---|---|---|---|
-| empty | 452 kg | 408 (388–428) | near (+11 %) |
-| stall, flaps up | 55–61 km/h | 65 (62–68) | near (was 47–52) |
+| empty | 428 kg | 408 (388–428) | **inside** (was 452 with a wooden wing) |
+| stall, flaps up | 55–61 km/h | 65 (62–68) | near (the STOL Cub 47–52) |
 | stall, full flap | 51–56 km/h | 27 kt = 50 | (not scored) |
-| cruise 75 % | 166–168 | 177–193 | near |
-| climb: airframe / handbook / game | 7.6–9.4 / 6.5–7.4 / 6.8–8.2 m/s | 7.6–10.7 | **inside** ×3 |
-| TO roll: airframe / handbook / game | 44–54 / 37–50 / 40–60 m | 18 (60 ft) | outside ×3 |
-| landing roll, handbook | 75–96 m | 75 (63–86) | **inside** (was 22–30) |
-| landing roll, game | 120–151 m | | outside (the brake law) |
+| cruise 75 % | 166–167 | 177–193 | near |
+| climb: airframe / handbook / game | 7.6–9.5 / 7.2–9.6 / 6.7–8.2 m/s | 7.6–10.7 | **inside** ×3 |
+| TO roll: airframe / handbook (STOL) / game | 41–52 / 30–40 / 46–57 m | 18 (60 ft) | outside ×3 |
+| landing roll, handbook (tailwheel stop) | 69–80 m | 75 (63–86) | **inside** |
+| landing roll, game | 114–140 m | | outside (the brake law) |
 
 **Why the take-off and the landing now move together.** On the STOL Cub they went opposite ways:
 - The landing roll is limited by braking and set by touchdown speed squared. The always-on slot, droop and drooped tips
-  put its touchdown at 39–43 km/h, so it landed 60–70 % short.
-- The take-off roll is limited by thrust. It had 141 hp and the kit's drag, so it ran long.
+  put its touchdown at 39–43 km/h: its handbook landing is 15–19 m.
+- The take-off roll is limited by thrust. It had 141 hp and the kit's drag, so it ran long (handbook 28–46 m).
 
-With the kit gone the touchdown is 60–70 km/h, and the landing grew to the book's figure. With 180 hp on two blades the
-take-off shortened by about 15 %.
+With the kit gone the SS touches down at 62–65 km/h and its landing is the book's. With 180 hp, two blades and full flap
+its take-off is 30–40 m.
 
 The remaining take-off gap comes from the reference: 60 ft is one source's demonstration figure, and 18 m at 599 kg and
 180 hp needs a headwind.
@@ -192,10 +238,15 @@ The remaining take-off gap comes from the reference: 60 ft is one source's demon
 **Weight:**
 - Engine bay 144 kg: the 120 kg engine, which is the registry's "as normally equipped" basis (about 10 kg over dry),
   plus the prop, mount and cowl.
-- Gear 55 kg on 29 in tyres.
-- Wings 76 kg, billed as wood and fabric.
+- Gear 54 kg on 29 in tyres.
+- Wings 60 kg on the aluminium-spar row (76 on wood).
 
-**Balance:** CG 19 / 20 / 31 % MAC (margin 23 / 23 / 12 %). The full-flap approach needs 0.31–0.33 of up-elevator at
-light loads. The game's pilot still lands on full flap at every load.
+**Balance:** CG 19 / 20 / 31 % MAC (margin 23 / 23 / 12 %).
 
-**Pilot's share at MTOW** (game minus the sweep's best): TO +8 m, TO 50 ft +26 m, climb +0.72 m/s, landing +47 m.
+**Pilot's share at MTOW** (game minus the sweep's best): TO +18 m, TO 50 ft +46 m, climb +1.58 m/s, landing +54 m.
+
+**Gates on this tree:**
+- PASS: BUILD, JOIN, SPECFIX, ENGID, DESIGN, PRICE, PANEL.
+- TECH: red only on the base's `pitch:seaplane` (114 options now, the new one segmented).
+- ENGCONFIG: the base's list, identical.
+- GEN: the base's `clampSpec holds the envelope` / `cruise is quiet in wind`, identical.

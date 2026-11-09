@@ -312887,3 +312887,15 @@ score on several axes (geometry, specs, performance). Test and report only: no p
   GEN_FLAPS + GEN_FLAP_TRAVEL + the Flaps tile. VGs only, two carbon blades 2.03 m, 29 in tyres, 91 L wing roots, a 7 in
   glass PFD/MFD centre + round ASI/ALT/VSI. 4 / 3 / 4 vs the SS (STOL Cub 1 / 1 / 9): landing roll (handbook) 75-96 m vs 75
   now inside, TO 37-60 m vs 60 ft (thin). Gaps: no round engine-monitor row, no aluminium-spar + fabric wing material.
+
+- CARBON CUB SS, second pass (the user, same day): the wing on a new `fabricAlu` surface row (aluminium spar + fabric,
+  the PA-18's; the seventh stop of wgCons / finCons / stCons, TECH_SURF_ROW, a "Wing structure" tile row twin of wgCons)
+  -> empty 428 kg (388-428). real_check: `tech.runup` (the user's STOL take-off: full flap, brakes + stick back to full rpm,
+  power eased if the tail lifts) and `tech.stopShort` by the gear (taildragger = FAA-H-8083-3C ch. 14: three-point, stick
+  full back, brakes firm from touchdown only while the tail is down, flaps down; tricycle = the 172 POH's flaps-up stop),
+  both in the carboncub handbook schedule. NOSE-OVER: a roll-out under -10 deg pitch is flagged, dropped as a landing roll
+  and from the sweep's best (the old handbook law stood the SS on its nose at -19 deg; the earlier "inside 72-86 m" was
+  that). SS 5 / 2 / 4 (STOL Cub re-flown 1 / 1 / 9). Gates: TECH / ENGCONFIG / GEN red exactly as on the base b9ce807bc
+  (checked side by side); the neutral engine dials are kept out of the cert keys (GEN_CAGE_ROW_NEUTRAL). Open: the Cub /
+  Jodel handbook rows on the tailwheel stop (quick check: Cub 90 m vs 88, Jodel 80 vs 150), the game pilot's three-point
+  touchdown and brake law.

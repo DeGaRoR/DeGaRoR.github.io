@@ -630,7 +630,7 @@ function md(out) {
   if (out.sweep) {
     const ps = out.pilotShare || {}, b = out.sweep.bestRun;
     L.push('Technique sweep at ' + out.sweep.load + ' (' + f(out.sweep.mass) + ' kg; ' + out.sweep.runs.length + ' flights): best TO roll ' + f(out.sweep.best.TO) + ' m' + (b.TO ? ' (rotate ' + b.TO.vr + ' Vs, flap ' + f(b.TO.flapTO, 2) + ')' : '') +
-           ', best TO 50 ft ' + f(out.sweep.best.TO50) + ' m, best climb ' + f(out.sweep.best.climb, 2) + ' m/s' + (b.climb && b.climb.vyK ? ' (' + b.climb.vyK + ' x the probe\'s Vy)' : '') + ', best landing roll ' + f(out.sweep.best.LDG) + ' m' + (b.LDG && b.LDG.brake != null ? ' (brake ' + b.LDG.brake + ' at ' + b.LDG.brakeRate + '/s from ' + b.LDG.vBrakeOn + ' Vs, approach ' + b.LDG.vapp + ' Vs0' + (b.LDG.stopShort ? ', the short-field stop' : '') + ')' : '') + (poh.runup ? ' Take-offs flown with the STOL run-up (brakes held to full rpm, stick back).' : '') + '.');
+           ', best TO 50 ft ' + f(out.sweep.best.TO50) + ' m, best climb ' + f(out.sweep.best.climb, 2) + ' m/s' + (b.climb && b.climb.vyK ? ' (' + b.climb.vyK + ' x the probe\'s Vy)' : '') + ', best landing roll ' + f(out.sweep.best.LDG) + ' m' + (b.LDG && b.LDG.brake != null ? ' (brake ' + b.LDG.brake + ' at ' + b.LDG.brakeRate + '/s from ' + b.LDG.vBrakeOn + ' Vs, approach ' + b.LDG.vapp + ' Vs0' + (b.LDG.stopShort ? ', the short-field stop' : '') + ')' : '') + '.' + ((((REFS[out.ref] || {}).poh) || {}).runup ? ' Take-offs flown with the STOL run-up (brakes held to full rpm, stick back).' : ''));
     L.push('**The pilot\'s share** (game − best, at ' + ps.load + '): TO roll ' + sg(ps.TO) + ' m, TO 50 ft ' + sg(ps.TO50) + ' m, climb ' + sg(ps.climb, 2) + ' m/s, landing roll ' + sg(ps.LDG) + ' m.');
     L.push('');
   }
