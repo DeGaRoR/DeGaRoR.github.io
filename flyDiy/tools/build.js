@@ -78,6 +78,7 @@ const MANIFEST = {
     // - pure, no THREE; makeWorld (20_) reads it at call time through the
     // PREMISES_GEN global, so it only has to be in the bundle; after 25_
     // because its runway records take the airfield's shape.
+    '26b_strip_micro.js',   // DIRT-STRIP: a bush strip's micro-height (the premises' `micro` modifier reads it)
     '27_premises.js',
     // THE ISLAND (W2, 2026-09-14): a world source from data - the baked
     // quadtree as the ground, the cover grid as the classifier, the canopy
