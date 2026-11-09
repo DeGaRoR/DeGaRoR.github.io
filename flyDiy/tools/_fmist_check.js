@@ -76,7 +76,7 @@ else {
 
 console.log('4. the law');
 const L = (o, soil) => FMIST.strengths(Object.assign({ rh: 0.95, mistBurn: 0, mistCalm: 1, cloudCoverEff: 0.2, cloudBase: 600 }, o), Object.assign({ rainNow: 0, hoursDry: 2 }, soil || {}));
-yes(L({ rh: 0.6 }).every(v => v === 0), 'dry air (rh 0.6): no pocket of any kind');
+yes(L({ rh: 0.5 }).every(v => v === 0), 'dry air (rh 0.5): no pocket of any kind');
 const b = [0, 0.3, 0.6, 1].map(x => L({ mistBurn: x })[0]);
 yes(b[0] > b[1] && b[1] > b[2] && b[2] > b[3] && b[3] === 0, 'the pool burns off with the lagged sun (' + b.map(v => v.toFixed(2)).join(' > ') + ')');
 yes(L({ mistCalm: 0 })[0] === 0, 'a wind that takes the F2 layer takes the pool');
@@ -84,6 +84,8 @@ const w = [0, 3, 8, 24, 96].map(h => L({}, { hoursDry: h })[1]);
 yes(w.every((v, i) => i === 0 || v < w[i - 1]) && w[4] < 0.01, 'the wisps fade with the hours since rain (' + w.map(v => v.toFixed(3)).join(' > ') + ')');
 yes(L({ mistBurn: 1 }, { hoursDry: 1 })[1] > 0.2, 'the first sun on a wet forest still steams (the burn takes the wisps by half)');
 yes(L({ rh: 0.98, cloudCoverEff: 0.9, cloudBase: 400 })[2] > 0.5 && L({ rh: 0.98, cloudCoverEff: 0.9, cloudBase: 1500 })[2] === 0 && L({ rh: 0.98, cloudCoverEff: 0.1, cloudBase: 400 })[2] === 0, 'the cloud on the slopes needs a low base and a covered sky');
+yes(L({ cloudCoverEff: 0.9 })[0] < 0.4 * L({ cloudCoverEff: 0 })[0], 'an overcast night keeps the ground warm: little radiation fog under it');
+{ const k = L({ rh: 0.6, mistCalm: 0.5 }, { hoursDry: 400 }); yes(k[0] === 0 && k[1] === 0, 'a dry, breezy day long after rain: no pool, no wisps'); }
 
 console.log((fails ? 'FMIST CHECK: FAIL' : 'FMIST CHECK: PASS') + ' (' + (checks - fails) + '/' + checks + ')');
 process.exitCode = fails ? 1 : 0;

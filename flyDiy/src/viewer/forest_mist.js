@@ -33,7 +33,8 @@ var FMIST = (function () {
   // THE DIALS. Strength laws are in strengths(); `force` pins them for a rig ({pool, wisp, oro} 0..1, null = the weather's).
   const S = {
     N: 512, X: 768,                 // the map's side and its first column in the atlas
-    rho: 0.018,                     // per metre at a full pocket's heart (~220 m visibility there; the user 9 Nov: "less dense overall")
+    rhoMax: 0.009, octaves: 3,      // per metre at a full pocket's heart: the HEAVIEST day (/2 of the first tune, ~430 m inside), down 3 octaves (/16) for the last wisps
+    rho: null,                      // a pin over the ladder (the rigs' density sheets), null = the weather's
     swing: 30, covK: 0.8, detailK: 7.7, erode: 0.5, soft: 0.5, stretch: 2.1,   // the contours' swing (m), the share of a full pocket that is mist, the erosion's scale (x the body's) and depth
     period: 160,                    // the noise's cell (m): a wisp a few tree lengths across
     lidM: 25, lidK: 110,            // the pool's lid over the valley floor: 25 m + 110 m x the pool weight
@@ -111,18 +112,30 @@ var FMIST = (function () {
     const rainNow = soil ? soil.rainNow : (day.rain || 0);
     const hoursDry = soil ? soil.hoursDry : (rainNow > 0 ? 0 : 96);
     st.hoursDry = hoursDry;
-    // POOL - radiation / valley fog: a humid, calm, clear night drains cold air into the hollows; the sun burns it off
-    // (the lagged sun, two hours behind: the ground gives the heat back late). An overcast holds it (burn is 0 there).
-    const pool = sm(0.80, 0.97, rh) * (1 - burn) * calm;
-    // WISP - the wet forest steaming: rain just stopped, the crowns evaporate; strongest when the sun first warms
-    // them (so the burn does NOT take it, it takes it half), gone after half a day dry. Wind tears it (calm, softened).
-    const wet = rainNow > 0.05 ? 0.6 : Math.exp(-Math.max(0, hoursDry) / 5);
-    const wisp = sm(0.72, 0.92, rh) * wet * (1 - 0.5 * burn) * (0.4 + 0.6 * calm);
-    // ORO - the cloud base on the slopes: a low, near-saturated deck sitting on the hills (wind does not take this one:
-    // upslope wind MAKES it); needs the cover to be there
+    // THE SCALE: `rh` is the club's 2 m screen humidity, ~0.75-0.79 at dawn even on a mist morning (the plan's days,
+    // measured: still-and-fair 0.78 at 05:00, the morning after the storm 0.76) - the forest floor and the valley bottom
+    // are wetter than the screen. The thresholds sit on the GAME's scale, not on the forest's.
+    // POOL - radiation / valley fog: a humid, calm, CLEAR night drains cold air into the hollows (an overcast keeps the
+    // ground warm: no radiation fog under it); the lagged sun burns it off (the ground gives the heat back late).
+    const pool = sm(0.70, 0.90, rh) * (1 - burn) * calm * (1 - 0.7 * sm(0.4, 0.9, cov));
+    // WISP - the wet forest steaming: rain just stopped, the crowns evaporate; strongest when the first sun warms them
+    // (so the burn takes it only half), a third left 8 h dry, gone after a day. Wind tears it (calm, softened).
+    const wet = rainNow > 0.05 ? 0.6 : Math.exp(-Math.max(0, hoursDry) / 8) * (1 - sm(24, 36, hoursDry));   // and none a day and a half dry
+    const wisp = sm(0.55, 0.80, rh) * wet * (1 - 0.5 * burn) * (0.4 + 0.6 * calm);
+    // ORO - the cloud base on the slopes: the base IS the saturation, so it is keyed on how low the base sits (under
+    // Jolene's ~1 km summits) and how covered the sky is, not on the screen humidity; drier air thins it. The wind does
+    // not take it (upslope wind makes it).
     const base = day.cloudBase != null ? day.cloudBase : 1e4;
-    const oro = sm(0.86, 0.99, rh) * sm(0.35, 0.75, cov) * (1 - sm(700, 1100, base));
-    return [pool, wisp, oro];
+    const oro = sm(0.45, 0.8, cov) * (1 - sm(600, 1000, base)) * (0.5 + 0.5 * sm(0.75, 0.95, rh));
+    // THE PLAN'S OWN FOG (WEATHER-SEASON's crafted days: `fog.hold` with `where`): a day that DECLARES valley fog
+    // ('low': Valley fog, Morning fog on the sound, Valley fog late summer - 0.85-0.9 at dawn, gone by 10-11) fills the
+    // pockets to the plan's hold whatever the humidity law says; a SEA fog day lends the lakes and the shore valleys a
+    // little (the sea itself is the F2 layer's). The authored burn-off is the plan's: the law's own burn is not applied
+    // on top of it.
+    const P = day.plan;
+    const hold = P && P.fogHold > 0 ? P.fogHold : 0;
+    const poolPlan = !hold ? 0 : (P.fogWhere === 'sea' ? 0.35 * hold : hold);
+    return [Math.max(pool, poolPlan), wisp, oro];
   }
   // ---- THE GPU SIDE: into the atlas, and the lanes -----------------------------------------------------------------
   function bake(renderer, world, scene) {
@@ -160,7 +173,7 @@ var FMIST = (function () {
     // the drift wraps on a multiple of the noise's period x 289 (the value noise's hash is not periodic, but the
     // float precision at 1e5 m is 8 mm - the wrap only keeps a week's drift small)
     const wrap = S.period * 4096;
-    L[32] = st.drift[0] % wrap; L[33] = st.drift[1] % wrap; L[34] = S.rho;
+    L[32] = st.drift[0] % wrap; L[33] = st.drift[1] % wrap; L[34] = rhoOf(Math.max(k[0], k[1], k[2]));
     L[35] = (M && (k[0] + k[1] + k[2]) > 0.002) ? 1 : 0;
     L[36] = M ? M.x0 : 0; L[37] = M ? M.z0 : 0; L[38] = M ? M.inv : 0; L[39] = 1 / S.period;
     if (B) { cardMesh && (cardMesh.visible = use.b); if (use.b) cardsUpdate(eye, k, st.wind || [1, 0]); }
@@ -274,9 +287,16 @@ var FMIST = (function () {
     const rx = qx * S.detailK + y * 0.045, rz = qz * S.detailK + 3.3;
     let e = 0.6 * vn(rx, rz) + 0.4 * vn(rx * 2.7 + 1.9, rz * 2.7 - 4.1); e = Math.min(1, Math.max(0, 0.5 + (e - 0.5) * 2.4));
     let dd = Math.min(1, Math.max(0, (body - e * S.erode) / (1 - e * S.erode))); dd = dd * dd * (3 - 2 * dd);
-    return dd * cov * S.rho;
+    return dd * cov * (S.rho != null ? S.rho : (S._rhoCPU || S.rhoMax));
   }
-  const stats = () => ({ on: ON, use: Object.assign({}, use), cards: st.cards || 0, bakeMs: +st.bakeMs.toFixed(1), k: st.k.map(v => +v.toFixed(3)), hoursDry: st.hoursDry, drift: st.drift.map(v => Math.round(v)), map: st.map });
+  // THE INTENSITY IS THE LADDER (the user, 9 Nov, on the /2 /4 /8 /16 sheet: "they all look right to me in different
+  // conditions. The /2 would be really, really heavy morning mist ... the other ones dissipating after rain"): the
+  // density per metre falls an octave per third of the strength, from rhoMax (/2 of the first tune: the heaviest
+  // morning, clear definition and cuts) to rhoMax/8 (the last wisps) - and the cover takes it to nothing below that.
+  // S.rho, when set, pins it (a rig's ladder).
+  const rhoOf = I => S.rho != null ? S.rho : S.rhoMax * Math.pow(2, -S.octaves * (1 - Math.min(1, Math.max(0, I))));
+  const level = I => I >= 0.75 ? 'heavy' : I >= 0.4 ? 'mist' : I >= 0.1 ? 'wisps' : 'none';
+  const stats = () => ({ level: level(Math.max(st.k[0], st.k[1], st.k[2])), rho: +rhoOf(Math.max(st.k[0], st.k[1], st.k[2])).toFixed(5), on: ON, use: Object.assign({}, use), cards: st.cards || 0, bakeMs: +st.bakeMs.toFixed(1), k: st.k.map(v => +v.toFixed(3)), hoursDry: st.hoursDry, drift: st.drift.map(v => Math.round(v)), map: st.map });
   // THE GLSL, shared by the veil (atmo.js MIST_GLSL) and the march (clouds.js): fmDens(p) per metre.
   // uMist[7] = (pool k, wisp k, oro k, cloud base m) | [8] = (drift x, z, rho, on) | [9] = (map x0, z0, 1/size, 1/period)
   // | [10] = (surface taps, eye taps, surface metres, eye metres) | [11] = (the veil's nearest distance: the march's reach under ?fmist=ac, the forward lobe's gain, 0, 0). The value noise is mistVN (MIST_GLSL's own).
@@ -339,6 +359,6 @@ var FMIST = (function () {
       }
       return od;
     }`;
-  return { ON, A, B, C, S, use, densCPU, bakeMap, strengths, bake, update, stats, GLSL };
+  return { ON, A, B, C, S, use, densCPU, rhoOf, level, bakeMap, strengths, bake, update, stats, GLSL };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = FMIST;

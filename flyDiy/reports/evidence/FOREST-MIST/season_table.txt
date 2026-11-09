@@ -1,0 +1,43 @@
+                                5h      7h      9h      11h     14h     18h     21h    
+early  1 cool-northwesterly       .       .       .       .       .       .       .    
+early  2 calm-and-bright        W/8 p     .       .       .       .       .       .    
+early  3 first-cumulus          W/11p     .       .       .       .       .       .    
+early  4 warm-spell             W/7 p     .       .       .       .       .       .    
+early  5 valley-fog             H/2 p   M/3 p   W/9 p     .       .       .       .    
+early  6 thickening-sky         W/11p     .       .       .       .       .       .    
+early  7 grey-and-mild          W/10o   M/6 o   W/8 o   W/11o     .     W/10o   M/6 o  
+early  8 spring-gale            H/2 o   H/2 o   H/2 o   H/2 o   H/2 o   W/9 w   W/10w  
+early  9 spring-showers         W/11w     .       .       .       .       .       .    
+early 10 crisp-dawn             W/10w     .       .       .       .       .       .    
+early 11 breezy-westerly          .       .       .       .       .       .       .    
+early 12 june-cumulus           W/9 p     .       .       .       .       .       .    
+early 13 long-light-evening     W/9 p     .       .       .       .       .       .    
+early 14 midsummer-blue         W/9 p     .       .       .       .       .       .    
+high  1 fair-cumulus            W/10p     .       .       .       .       .       .    
+high  2 clear-high              W/10p     .       .       .       .       .       .    
+high  3 morning-fog             H/2 p   H/3 p   M/5 p     .       .       .       .    
+high  4 warm-hazy               W/9 p     .       .       .       .       .       .    
+high  5 high-cloud              M/6 p     .       .       .       .       .       .    
+high  6 overcast-calm           W/11o   M/6 o   M/7 o   W/8 o   W/10o   W/8 o   M/6 o  
+high  7 the-storm               H/3 o   H/3 o   H/3 o   H/2 o   H/2 o   W/11w   W/10w  
+high  8 showers-sunshine        W/10w     .       .       .       .       .       .    
+high  9 crisp-clear             W/9 w     .       .       .       .       .       .    
+high 10 ridge-day                 .       .       .       .       .       .       .    
+high 11 thermal-day             W/10p     .       .       .       .       .       .    
+high 12 sea-fog                 H/2 p   H/2 p   W/8 p   W/9 p     .       .     W/8 p  
+high 13 golden-evening          W/10p     .       .       .       .       .       .    
+high 14 light-southerly         W/10p     .       .       .       .       .       .    
+late  1 late-summer-high        W/7 p     .       .       .       .       .       .    
+late  2 valley-fog-autumn       H/2 p   H/2 p   M/4 p     .       .       .       .    
+late  3 golden-september        W/8 p     .       .       .       .       .       .    
+late  4 southerly-freshening    W/7 p     .       .       .       .       .       .    
+late  5 first-autumn-storm      H/3 o   H/2 o   H/2 o   H/2 o   H/2 o   W/11w   M/7 w  
+late  6 clearing-showers        W/10w     .       .       .       .       .       .    
+late  7 aurora-night            W/10w   W/13w     .       .       .       .       .    
+late  8 still-and-fair          W/7 p     .       .       .       .       .       .    
+late  9 grey-drizzle            W/10p   M/5 o   M/5 o   M/5 o   M/5 o   M/5 o   M/4 o  
+late 10 southwest-ridge         W/12w     .       .       .       .       .       .    
+late 11 indian-summer           W/11p     .       .       .       .       .       .    
+late 12 equinox-signs           W/8 p   W/12p     .       .       .       .       .    
+late 13 equinox-gale            H/2 o   H/2 o   H/2 o   H/2 o   H/2 o   W/11w   W/8 w  
+late 14 bright-behind-the-gale  W/12w     .       .       .       .       .       .    
