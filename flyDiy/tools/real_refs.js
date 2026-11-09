@@ -341,7 +341,7 @@ const PLANES = {
   chinook:  { supersededBy: 'chinookm', label: 'Chinook (official, out of the battery)', file: 'builds/chinook_2026-09-21_corrected.json', ref: 'chinook', official: true },
   // REAL-FIGURES-2 (2026-11-08): the planes with a clear real parent
   // MASS-SCALE / TAIL-RETRACT (2026-11-09, claude/practical-cerf-7fjpwp): the candidates standing in for their cards
-  dc3r:     { label: 'DC-3-alike: mains retracting into the nacelles, airliner-furnished, constant-speed (candidate)', short: 'DC-3', file: 'builds/candidates/dc3_retract.json', ref: 'dc3', group: 'historical' },
+  dc3r:     { label: 'DC-3-alike: the radial cowl, mains retracting into the nacelles, airliner-furnished, constant-speed (candidate)', short: 'DC-3', file: 'builds/candidates/dc3_retract_exact.json', ref: 'dc3', group: 'historical' },
   chinookm: { label: 'Chinook, pull-start (no battery, generator or starter; candidate)', short: 'Chinook', file: 'builds/candidates/chinook_minimal.json', ref: 'chinook', group: 'ultralight' },
   tigermothm:{ label: 'Tiger Moth-alike, no electrics as built (candidate)', short: 'Tiger Moth', file: 'builds/candidates/tigermoth_minimal.json', ref: 'tigermoth', group: 'biplane' },
   camelm:   { label: 'Camel-alike, no electrics as built (candidate)', short: 'Camel', file: 'builds/candidates/camel_minimal.json', ref: 'camel', group: 'biplane' },
