@@ -641,6 +641,17 @@ function spat(bags, hub, axis, R, o) {
     return Math.max(Wm * Math.pow(Math.max(0, stream(z) / Hm), 0.62),
                     (R * 0.40 + gap) * kw);
   };
+  // WILGA-GEAR (the fairing): O.inW caps the half width on the INBOARD side (O.inDir, a unit vector pointing inboard) -
+  // a spat on a trailing arm swings up beside the leg's boot, and the boot's outboard flank is closer to the wheel than
+  // a spat's usual 0.62 R: the inboard half is the same section scaled in, never inside the tyre's own allowance. Absent,
+  // the shape is the one it always was
+  const inSg = (O.inW > 0 && O.inDir) ? Math.sign(dot(ax, O.inDir)) : 0;
+  let inK = 1;
+  if (inSg) { let wMax = 0; for (let i = 0; i <= NT; i++) wMax = Math.max(wMax, Wat(zN - i / NT * (zN + zT))); inK = Math.min(1, O.inW / Math.max(1e-6, wMax)); }
+  const xOf = (an, Ww, z) => { const x = Ww * Math.sin(an);
+    if (!inSg || inK >= 1 || Math.sign(x) !== inSg) return x;
+    const kw = clamp((R * 1.06 - Math.abs(z)) / (R * 0.28), 0, 1);
+    return inSg * Math.max(Ww * inK, (R * 0.40 + gap) * kw) * Math.abs(Math.sin(an)); };
   const bag = bags.fair;
   const rows = [], edges = [[], []];
   for (let i = 0; i <= NT; i++) {
@@ -653,7 +664,7 @@ function spat(bags, hub, axis, R, o) {
     const row = [];
     for (let j = 0; j <= NA; j++) {
       const an = -aMax + 2 * aMax * j / NA;
-      const y = Hh * Math.cos(an), x = Ww * Math.sin(an);
+      const y = Hh * Math.cos(an), x = xOf(an, Ww, z);
       row.push(bag.v(add(hub, add(mul(fwd, z), add(mul(up, y), mul(ax, x))))));
     }
     rows.push(row);
@@ -667,7 +678,7 @@ function spat(bags, hub, axis, R, o) {
     // at the last open station; the closed run-out is plain shell.
     if (aMax < Math.PI - 1e-3) {
       const pE = an2 => add(hub, add(mul(fwd, z),
-        add(mul(up, Hh * Math.cos(an2)), mul(ax, Ww * Math.sin(an2)))));
+        add(mul(up, Hh * Math.cos(an2)), mul(ax, xOf(an2, Ww, z)))));
       edges[0].push(pE(-aMax));
       edges[1].push(pE(aMax));
     }
@@ -1996,6 +2007,85 @@ function leverRowsOf(P) {
   return Object.assign({}, LR, { arm: v('lvArm', LR.arm), ang: v('lvAng', LR.ang), comp: v('lvComp', LR.comp),
                                  top: v('lvTop', LR.top), dSt: v('lvStat', LR.dSt) });
 }
+// THE TRAILING-LINK LEG'S FAIRING (WILGA-GEAR; the user: "an elegant fairing for that particular type of suspension ... not
+// too complex, something robust that could go on many planes, but something that looks good and that hides a bit of
+// this huge mechanics"). A BOOT down the fixed leg: one streamlined shell from the fitting to just under the pivot, whose
+// sections are SIZED FROM WHAT THEY MUST HIDE - the leg's tube, the strut's bracket and its cylinder with its rubber boot
+// at five points of the stroke (the strut swings about its upper eye as the arm rises) - so it swallows the knuckle on any
+// build without a part moving through it; only the polished rod and the clean forged arm show below it. Each section is
+// the spat's own teardrop (secTear) on its side: the nose forward, the thick point a fifth of the chord behind the
+// enclosed box's front, the tail long; then the sizes are smoothed along the leg so the boot flares rather than steps.
+// Fixed to the leg (its bags are the leg's: posed with the leg in the flight, whole or broken off).
+function leverBoot(bag, F) {
+  const GL = (typeof GEAR_LEVER !== 'undefined') ? GEAR_LEVER : (typeof window !== 'undefined' ? window.GEAR_LEVER : null);
+  const d = nrm(sub(F.piv, F.root)), Ls = len(sub(F.piv, F.root)) + 0.06;
+  const fore = [0, 0, 1], N = nrm(sub(fore, mul(d, dot(fore, d)))), B = crs(d, N);
+  const pts = [];
+  // what it must hide: the strut's cylinder and boot over the stroke, the bracket's lugs at the upper eye
+  const L = GL ? GL.gearLeverInit({ piv: F.piv, ax: F.ax, w: F.w, axle: F.axle, horn: F.horn, top: F.top }) : null;
+  const Lx = len(sub(F.horn, F.top)), cylL = 0.50 * Lx + 0.065, Rc = 0.034;
+  for (const f of [0, 0.25, 0.5, 0.75, 1]) {
+    const h = L ? GL.gearLeverAt(L, f * F.comp).horn : F.horn, ax = nrm(sub(h, F.top));
+    const e1 = nrm(crs(ax, Math.abs(ax[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0])), e2 = crs(ax, e1);
+    for (let a = 0; a <= cylL; a += 0.02)
+      for (let k = 0; k < 8; k++) { const t = 2 * Math.PI * k / 8;
+        pts.push(add(off(F.top, ax, a), add(mul(e1, Rc * Math.cos(t)), mul(e2, Rc * Math.sin(t))))); }
+  }
+  for (const s of [-1, 1]) for (const q of [0, 0.05]) pts.push(off(off(F.top, F.ax, s * 0.040), d, -q));
+  // the stations, the raw sizes, then a smooth max along the leg
+  const n = 28, clr = 0.012, c0 = F.chord, t0 = F.chord * 0.46, raw = [];
+  for (let i = 0; i <= n; i++) {
+    const a = Ls * i / n, h = 0.75 * Ls / n;
+    let uMax = 0.35 * c0, uMin = -0.65 * c0, vMax = 0.5 * t0, vMin = -0.5 * t0, any = false;
+    for (const p of pts) {
+      const r = sub(p, F.root), ad = dot(r, d);
+      if (Math.abs(ad - a) > h) continue;
+      const u = dot(r, N), v = dot(r, B); any = true;
+      uMax = Math.max(uMax, u); uMin = Math.min(uMin, u); vMax = Math.max(vMax, v); vMin = Math.min(vMin, v);
+    }
+    const c = any ? Math.max(c0, (uMax - uMin) / 0.65 + 2 * clr) : c0;
+    const t = any ? Math.max(t0, (vMax - vMin) / 0.646 + 2 * clr) : t0;
+    raw.push({ c, t, u0: any ? uMax + clr - 0.20 * c : 0, v0: any ? 0.5 * (vMax + vMin) : 0 });
+  }
+  // THE FLARE: a slope-limited envelope over the raw sizes (each station at least every other's size less `k` per metre
+  // between them - a straight, gentle taper from the slim leg into the knuckle, never a neck), then a light smoothing; the
+  // section's centre follows the size it serves (blended by how much bigger than the leg it has grown)
+  const env = (k, slope) => raw.map((_, i) => { let m = -Infinity; for (let j = 0; j <= n; j++) m = Math.max(m, raw[j][k] - slope * Ls * Math.abs(i - j) / n); return m; });
+  const avg = (arr, win) => arr.map((_, i) => { let s = 0, w = 0; for (let j = Math.max(0, i - win); j <= Math.min(n, i + win); j++) { s += arr[j]; w++; } return s / w; });
+  const C = avg(env('c', 0.30), 2), Tt = avg(env('t', 0.20), 2);
+  const wOf = i => Math.max(0, Math.min(1, (C[i] - c0) / Math.max(1e-6, Math.max(...C) - c0)));
+  const iBig = raw.reduce((b, r, i) => (r.c > raw[b].c ? i : b), 0);
+  const U0 = avg(C.map((_, i) => wOf(i) * raw[iBig].u0), 2), V0 = avg(C.map((_, i) => wOf(i) * raw[iBig].v0), 2);
+  // the lower end rounds off over its last stations (a rounded toe, not a cut tube)
+  // ...and it reports how far outboard it reaches (`inGap`: the least distance inboard of the wheel's plane, along the
+  // pivot - the arm turns about that axis, so a spat riding the arm keeps that distance through the whole stroke)
+  //
+  // THE OUTBOARD FLANK HUGS WHAT IT HIDES: the tear section is symmetric, and sized for the strut's sweep it bellied out
+  // toward the wheel - 0.129 m from the wheel's plane on the Wilga-class host, inside the 0.155 m of a spat's half width,
+  // and a spat riding the arm rose into it in the last fifth of the stroke. The flank is eased in (C1, an exponential
+  // knee 20 mm wide) to the outboard-most thing it covers - the strut's cylinder over the stroke, the pivot's tube and its
+  // nut - less the clearance
+  const axN = nrm(F.ax), inS = Math.sign(dot(sub(F.piv, F.axle), axN)) || 1, latOf = p => inS * dot(sub(p, F.axle), axN);
+  const floor = Math.min(...pts.map(latOf), latOf(F.piv) - (F.w + 0.022)) - clr, knee = 0.020;
+  const ease = p => { const l = latOf(p); if (l >= floor + knee) return p;
+    return add(p, mul(axN, inS * (floor + knee * Math.exp((l - floor) / knee - 1) - l))); };
+  const rings = [];
+  let inGap = Infinity;
+  for (let i = 0; i <= n; i++) {
+    const a = Ls * i / n, end = i === n ? 0.55 : i === n - 1 ? 0.85 : 1;
+    const S = add(F.root, mul(d, a)), sec = secTear(C[i] * end, Tt[i] * end);
+    rings.push(sec.map(([u, v]) => { const p = ease(add(S, add(mul(N, U0[i] + u), mul(B, V0[i] + v))));
+      inGap = Math.min(inGap, latOf(p)); return bag.v(p); }));
+  }
+  const K = rings[0].length;
+  for (let i = 0; i < n; i++) for (let k = 0; k < K; k++) { const k2 = (k + 1) % K; bag.quad(rings[i][k], rings[i][k2], rings[i + 1][k2], rings[i + 1][k]); }
+  // close both ends (a fan to the ring's centre)
+  for (const [ri, flip] of [[0, false], [n, true]]) {
+    const S = add(F.root, mul(d, Ls * ri / n)), c = bag.v(ease(add(S, add(mul(N, U0[ri]), mul(B, V0[ri])))));
+    for (let k = 0; k < K; k++) { const k2 = (k + 1) % K; if (flip) bag.tri(c, rings[ri][k], rings[ri][k2]); else bag.tri(c, rings[ri][k2], rings[ri][k]); }
+  }
+  return { len: Ls, chordMax: Math.max(...C), thickMax: Math.max(...Tt), inGap, inDir: mul(axN, inS) };
+}
 function legLever(bags, AF, P, st, sgn) {
   const GL = (typeof GEAR_LEVER !== 'undefined') ? GEAR_LEVER : (typeof window !== 'undefined' ? window.GEAR_LEVER : null);
   const R0 = leverRowsOf(P), half = st.x, drop = st.drop;
@@ -2053,8 +2143,10 @@ function legLever(bags, AF, P, st, sgn) {
   const rdir = mul(dir, -1);
   revolve(LB.rod.chrome, horn, rdir, [[0.015, -0.012], [0.018, 0], [0.0225, 0.020], [0.0225, rodL]], 16, true);
   for (const [b, p] of [[bags, top], [LB.arm, horn]]) bolt(b.dark, off(p, ax, -0.034), ax, 0.007, 0.068);
+  // the leg's boot fairing: the leg-fairing row, or the trousers (the spat over the wheel rides the arm - the gear layer)
+  const boot = (st.legFair || st.fair === 2) ? leverBoot(bags.fair, { root, piv, ax, w, axle, horn, top, comp: g.comp, chord: Math.max(0.10, chord * 1.25) }) : null;
   return { axle, axis: [sgn, 0, 0], root: F.p, travel: [0, 1, 0], tip: axle,
-           lever: { piv, ax, w, axle, horn, top, root, axleIn, rows: R0 } };
+           lever: { piv, ax, w, axle, horn, top, root, axleIn, rows: R0, boot } };
 }
 
 function legTailwheel(bags, AF, P, st) {

@@ -2755,7 +2755,22 @@ PAGE.post = ctx => {
         } else {
           GG.wheel(wu.proxy, r.axle, r.axis, st.R,
                    { brake: !!st.brake, inboard: sgn, P: st.P });
-          if (st.fair) GG.spat(lb, r.axle, r.axis, st.R, fOpt);
+          // (WILGA-GEAR: a trailing-link leg's spat rides its arm with the wheel - a spat, never the trousers' leg shroud:
+          // its leg wears the boot, legLever)
+          // ...and it is set LEVEL AT REST, as an installer sets it on the ground: drawn at full extension, it is raked nose-up
+          // by the arm's static angle (the rows' static deflection), so parked it sits level and on a bump it pitches with
+          // the arm, as a spat on a trailing arm does
+          let spO = fOpt;
+          if (lb.lever && r.lever) {
+            const GLs = (typeof GEAR_LEVER !== 'undefined') ? GEAR_LEVER : window.GEAR_LEVER, R0 = r.lever.rows;
+            const Ls = GLs.gearLeverInit({ piv: r.lever.piv, ax: r.lever.ax, w: r.lever.w, axle: r.lever.axle, horn: r.lever.horn, top: r.lever.top });
+            const aSt = GLs.gearLeverAngOf(Ls, 'rise', R0.dSt, (R0.ang - R0.comp) * D2R);
+            spO = Object.assign({}, fOpt, { full: false, rake: (fOpt.rake || 0) - aSt / D2R });
+            // ...and its inboard half stays 10 mm shy of the boot's outboard flank, through the whole stroke
+            const bt = r.lever.boot;
+            if (bt && isFinite(bt.inGap)) Object.assign(spO, { inW: bt.inGap - 0.010, inDir: bt.inDir });
+          }
+          if (st.fair) GG.spat(lb.lever ? lb.lever.arm : lb, r.axle, r.axis, st.R, spO);
         }
       }
       delete st.mount; delete st.ret;
@@ -2824,6 +2839,7 @@ PAGE.post = ctx => {
     for (const k in lu.bags) {
       if (k === 'lever') continue;                       // (WILGA-GEAR: the moving parts' own bags, meshed below)
       const mf = lu.bags[k].mesh(lg, legM(k, lu.bags[k]));
+      if (k === 'fair' && mf) mf.userData.fair = 1;      // (WILGA-GEAR: GATE WILGAGEAR finds the fairings by it)
       if (k === 'fair' && mf && exG > 0) {
         const sx = lu.axle ? Math.sign(lu.axle[0]) : 0;
         if (sx) mf.position.x += sx * exG; else mf.position.z += 0.6 * exG;
@@ -2835,7 +2851,7 @@ PAGE.post = ctx => {
     if (lu.lever && lu.lever.bags) for (const [nm, key] of [['edLvArm', 'arm'], ['edLvCyl', 'cyl'], ['edLvRod', 'rod']]) {
       const gp = new THREE.Group(); gp.name = nm + lu.kind;
       const B = lu.lever.bags[key];
-      for (const k in B) if (B[k].tris) B[k].mesh(gp, legM(k, B[k]));
+      for (const k in B) if (B[k].tris) { const m = B[k].mesh(gp, legM(k, B[k])); if (k === 'fair' && m) m.userData.fair = 1; }
       group.add(gp);
     }
   }

@@ -17,6 +17,7 @@
 //   7. THE DRAWN LEG = THE PHYSICS LEG: through the game's own load chain (_load_build: the garage draws the leg, the join
 //      measures it) the frame's nodes stand on the drawn points; and at every compression of a drop the drawn parts as
 //      the garage poses them (GEAR_LEVER at the strut's stroke) sit on the physics nodes (3 mm)
+//   7b. THE FAIRING: the leg's boot and the spat on the arm never meet through the stroke, and the boot hides the strut
 //   8. NOTHING ELSE MOVED: a build without the leg is bit-identical to one built before it existed (its def keyless)
 // Run: node tools/_wilga_gear_check.js   (one final `GATE WILGAGEAR: PASS|FAIL`)
 'use strict';
@@ -210,6 +211,54 @@ console.log('7. the drawn leg = the physics leg (the game\'s load chain: the gar
   yes(!rOk.s1Drop && !!rBad.s1Drop && !!rBad.s1_lvComp, 'the garage turns the drop red when the tyre meets the body at full stroke (a 0.35 m half track: "' +
       (rBad.s1Drop || '-') + '") and not on the Cub\'s own track');
   yes(n > 10 && err < 0.003, 'through a limit drop (' + n + ' frames, the strut to ' + mm(sTop) + ') the drawn arm and horn sit on the physics nodes to ' + mm(err));
+}
+
+console.log('7b. the fairing (the user: "an elegant fairing ... that hides a bit of this huge mechanics"): the leg\'s boot and the spat on the arm');
+{
+  // each build on the leg with the leg-fairing row and the spat: the parts posed through the stroke as the garage poses them
+  // (GEAR_LEVER + gearNodeFrame, the preview row's rule); a point is inside a closed shell by a ray's parity
+  const SH = require(path.join(T, '_scene_headless.js'));
+  // two builds: the Cub (8 in tyres) and the Wilga-class host of the pictures (500 mm tyres on the metal Cessna, the
+  // reference's geometry) - the host is where a symmetric boot met the spat in the last fifth of the stroke
+  for (const [file, over, who] of [['builds/cub_2026-09-20_corrected.json', { s1Leg: 4, s1Drop: 0.85 }, 'the Cub'],
+    ['builds/cessna172_2026-09-20_corrected.json', { s1Leg: 4, s1Drop: 0.80, s1R: 0.25, s1X: 1.415, s1Z: 1.45, s2Leg: 3, s2Z: 0.10, s2X: 0, s2R: 0.064, s2Steer: 1 }, 'the Wilga-class host']]) {
+  const raw = JSON.parse(fs.readFileSync(path.join(ROOT, file), 'utf8')), s0 = raw.spec || raw;
+  const S = SH.sceneBuild(s0, { over: Object.assign({}, over, { s1Fair: 1, s1LegFair: 1 }), garage: s0 }); S.scene.updateMatrixWorld(true);
+  const shell = (name, keep) => { let Gp = null; S.scene.traverse(o => { if (o.name === name) Gp = o; }); const out = [];
+    if (Gp) Gp.traverse(o => { if (!o.isMesh || !keep(o)) return; const a = o.geometry.attributes.position.array, e = o.matrixWorld.elements, v = [];
+      for (let i = 0; i < a.length; i += 3) v.push([0, 1, 2].map(r => e[r] * a[i] + e[4 + r] * a[i + 1] + e[8 + r] * a[i + 2] + e[12 + r]));
+      const ix = o.geometry.index ? Array.from(o.geometry.index.array) : v.map((_, i) => i), tri = [];
+      for (let i = 0; i < ix.length; i += 3) tri.push([ix[i], ix[i + 1], ix[i + 2]]); out.push({ v, tri }); }); return out; };
+  const inside = (Ms, q) => { const d = [0.3171, 0.8137, 0.4870]; let n = 0;
+    for (const M of Ms) for (const t of M.tri) { const a = M.v[t[0]], e1 = [0, 1, 2].map(k => M.v[t[1]][k] - a[k]), e2 = [0, 1, 2].map(k => M.v[t[2]][k] - a[k]);
+      const p = [d[1] * e2[2] - d[2] * e2[1], d[2] * e2[0] - d[0] * e2[2], d[0] * e2[1] - d[1] * e2[0]], det = e1[0] * p[0] + e1[1] * p[1] + e1[2] * p[2];
+      if (Math.abs(det) < 1e-12) continue; const sv = [0, 1, 2].map(k => q[k] - a[k]), u = (sv[0] * p[0] + sv[1] * p[1] + sv[2] * p[2]) / det; if (u < 0 || u > 1) continue;
+      const qq = [sv[1] * e1[2] - sv[2] * e1[1], sv[2] * e1[0] - sv[0] * e1[2], sv[0] * e1[1] - sv[1] * e1[0]], w = (d[0] * qq[0] + d[1] * qq[1] + d[2] * qq[2]) / det;
+      if (w < 0 || u + w > 1) continue; if ((e2[0] * qq[0] + e2[1] * qq[1] + e2[2] * qq[2]) / det > 0) n++; }
+    return n & 1; };
+  const app = (M, x) => [M[0] * x[0] + M[1] * x[1] + M[2] * x[2] + M[3], M[4] * x[0] + M[5] * x[1] + M[6] * x[2] + M[7], M[8] * x[0] + M[9] * x[1] + M[10] * x[2] + M[11]];
+  const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]], isF = o => !!o.userData.fair;
+  const units = (S.W.CAGE_GEAR && S.W.CAGE_GEAR.lever) || [];
+  let clash = 0, poses = 0, gap = 9, hidRest = 1, hidFull = 1, nB = 0, nS = 0;
+  for (const u of units) {
+    const boot = shell('edLeg' + u.kind, isF), spat = shell('edLvArm' + u.kind, isF), cyl = shell('edLvCyl' + u.kind, () => true);
+    nB += boot.length; nS += spat.length; if (!boot.length || !spat.length) continue;
+    const L = G.gearLeverInit({ piv: u.piv, ax: u.ax, w: u.w, axle: u.axle, horn: u.horn, top: u.top }), sw = (u.rows.ang - u.rows.comp) * D2R;
+    const aSt = G.gearLeverAngOf(L, 'rise', u.rows.dSt, sw), bv = boot.flatMap(M => M.v);
+    for (let i = 0; i <= 10; i++) {
+      const q = G.gearLeverAt(L, sw * i / 10), Ta = G.gearNodeFrame([u.piv, u.axle, add(u.piv, u.ax)], [u.piv, q.axle, add(u.piv, u.ax)]); poses++;
+      for (const M of spat) for (const x of M.v) { const y = app(Ta, x); if (inside(boot, y)) clash++;
+        for (const b of bv) gap = Math.min(gap, Math.hypot(b[0] - y[0], b[1] - y[1], b[2] - y[2])); }
+    }
+    for (const [ang, set] of [[aSt, v => { hidRest = Math.min(hidRest, v); }], [sw, v => { hidFull = Math.min(hidFull, v); }]]) {
+      const q = G.gearLeverAt(L, ang), Tc = G.gearNodeFrame([u.top, u.horn, add(u.top, u.ax)], [u.top, q.horn, add(u.top, u.ax)]);
+      let n = 0, t = 0; for (const M of cyl) for (const x of M.v) { t++; if (inside(boot, app(Tc, x))) n++; } set(t ? n / t : 0);
+    }
+  }
+  yes(units.length === 2 && nB >= 2 && nS >= 2, who + ' with the leg-fairing row and the spat: both legs wear a boot and a spat on the arm');
+  yes(poses === 22 && clash === 0 && gap > 0.008, 'through the whole stroke (11 poses a side) the spat never enters the boot: ' + clash + ' points inside, the closest ' + mm(gap));
+  yes(hidRest === 1 && hidFull === 1, 'the boot hides the strut\'s cylinder at rest and at full stroke (' + (100 * hidRest).toFixed(0) + ' % / ' + (100 * hidFull).toFixed(0) + ' %)');
+  }
 }
 
 console.log('8. nothing else moved');
