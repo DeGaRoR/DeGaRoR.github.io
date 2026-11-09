@@ -3,6 +3,7 @@
  "fiches": {
   "design:cub": {
    "name": "Piper Cub",
+   "file": "piperCub",
    "data": {
     "name": "Piper Cub",
     "reg": "F-BCUB",
@@ -41,6 +42,7 @@
   },
   "design:jodel": {
    "name": "Jodel D112",
+   "file": "jodelD112",
    "data": {
     "name": "Jodel D112",
     "reg": "F-PJDL",
@@ -79,6 +81,7 @@
   },
   "list:5": {
    "name": "Metal Cessna",
+   "file": "cessnaMetal",
    "data": {
     "name": "Metal Cessna",
     "reg": "B-CESS",
@@ -117,6 +120,7 @@
   },
   "list:39": {
    "name": "Metal Cessna on floats",
+   "file": "cessnaMetal floats",
    "data": {
     "name": "Metal Cessna on floats",
     "reg": "B-CESS",
@@ -155,6 +159,7 @@
   },
   "cand:Twin_busher_floats_4b.json": {
    "name": "Twin busher floats 4b",
+   "file": "Twin busher floats 4b",
    "data": {
     "name": "Twin busher floats 4b",
     "reg": "F-FORE",
@@ -193,6 +198,7 @@
   },
   "list:7": {
    "name": "Rufus",
+   "file": "",
    "data": {
     "name": "Rufus",
     "reg": "F-PGAR",
@@ -231,6 +237,7 @@
   },
   "stock:chinook": {
    "name": "Chinook",
+   "file": "birdman",
    "data": {
     "name": "Chinook",
     "reg": "C-ICHK",
@@ -269,6 +276,7 @@
   },
   "cand:stol_cub_showcase.json": {
    "name": "STOL Cub",
+   "file": "STOL Cub",
    "data": {
     "name": "STOL Cub",
     "reg": "F-STOL",
@@ -307,6 +315,7 @@
   },
   "list:25": {
    "name": "PA-18 on floats",
+   "file": "",
    "data": {
     "name": "PA-18 on floats",
     "reg": "F-AMOR",
@@ -345,6 +354,7 @@
   },
   "list:26": {
    "name": "Client Cub",
+   "file": "NewCub",
    "data": {
     "name": "Client Cub",
     "reg": "N1938J",
