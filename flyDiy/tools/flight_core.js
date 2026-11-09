@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 35ff0111d6d3ea20
+// body-sha256: fb0bd7f2249be7a2
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -34305,7 +34305,7 @@ const GEN_AVIONICS = {
   // with the radios, its mass placed aft (61_gen_frame.js). In a spec only when fitted (genSystemsResolve, clampSpec).
   elt: {
     none:   { name: 'no ELT',                 kg: 0,   price: 0,    amps: 0 },
-    fitted: { name: 'ELT, 406 MHz',            kg: 1.0, price: 1100, amps: 0,
+    fitted: { name: 'ELT, 406 MHz',            kg: 1.0, price: 1100, amps: 0, ownBattery: true,
               note: 'ACK E-04 / Artex ELT 345 class with its own battery and whip aerial, in the tailcone' },
   },
 };
