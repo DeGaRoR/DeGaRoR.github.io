@@ -544,6 +544,17 @@ const GEN_SURF_MATERIALS = {
             c: GEN_MATERIALS.tubeFabric.c,
             cover: 0.42, price: 42, cd0: 0.0022, clmaxK: 1.00, shop: 'tube',
             refGross: 550, coverGauged: false },
+  // THE ALUMINIUM SPAR UNDER FABRIC (REAL-FIGURES-3, the user 9 Nov): the PA-18's wing and the Carbon Cub's -
+  // extruded aluminium spars, stamped aluminium ribs, an aluminium leading edge, fabric over all. The members are
+  // the alloy row's (2024 extrusions), the cloth carries no torsion (the fabric row's wing k), and the cover is the
+  // cloth plus the leading edge's sheet and the lighter metal ribs: between the tube row's 0.42 and the wooden
+  // row's 0.80 (whose ribs are spruce and whose D-box is ply). Built in the metal shop
+  fabricAlu: { name: 'aluminium spar + fabric', phys: GEN_MATERIALS.alloy.phys,
+            lin: GEN_MATERIALS.alloy.lin,
+            k: { fus: GEN_MATERIALS.alloy.k.fus, wing: 1.0e6, gear: GEN_MATERIALS.alloy.k.gear },
+            c: { fus: GEN_MATERIALS.alloy.c.fus, wing: 700, gear: GEN_MATERIALS.alloy.c.gear },
+            cover: 0.55, price: 55, cd0: 0.0022, clmaxK: 1.00, shop: 'metal',
+            refGross: 794, coverGauged: false },
   // G466: the ultralight's wing and tail — two 6061 tube spars, formed
   // ribs, drag cables, Dacron sewn on (see GEN_MATERIALS.aluTube)
   aluFabric: { name: '6061 tube + Dacron', phys: GEN_MATERIALS.aluTube.phys,
@@ -4756,9 +4767,9 @@ const GEN_FIELDS = {
                                          v: ['tail.Sh', 'tail.Sv', 'tail.boomX', 'tail.boomLen', 'tail.boomR', 'tail.boomX0',
                                              'tail.boomTaper', 'tail.boomOval', 'tail.boomIncl', 'tail.boomDy', 'tail.stabY'],
                                          twinBoom: ['tail.vAngle', 'tail.Svt'] } } },
-  'wings[].material':  { def: undefined, rule: 'input', join: { states: [null, 'carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass'] } },
-  'tail.finMaterial':  { def: undefined, rule: 'input', join: { states: [null, 'carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass'] } },
-  'tail.stabMaterial': { def: undefined, rule: 'input', join: { states: [null, 'carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass'] } },
+  'wings[].material':  { def: undefined, rule: 'input', join: { states: [null, 'carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass', 'fabricAlu'] } },
+  'tail.finMaterial':  { def: undefined, rule: 'input', join: { states: [null, 'carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass', 'fabricAlu'] } },
+  'tail.stabMaterial': { def: undefined, rule: 'input', join: { states: [null, 'carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass', 'fabricAlu'] } },
   'bracing.cabane':       { def: 'N', rule: 'input', join: { states: ['N', 'V'] } },
   'bracing.interplane':   { def: 'none', rule: 'input', join: { states: ['none', 'N', 'I'] } },
   'bracing.interplaneAt': { def: 0.62, clamp: [0.30, 0.95], rule: 'input', join: { states: [0.62] } },

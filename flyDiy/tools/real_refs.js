@@ -240,7 +240,7 @@ Object.assign(REFS, {
   carboncub: {
     name: 'CubCrafters Carbon Cub SS (CC340 180 hp)', mtow: 599, empty: 408, fuelL: 91, S: 16.6, powerHP: 180,
     src: 'Plane & Pilot "Carbon Cub SS" (1320 lb gross, 900 lb empty, 24 gal, 2100 fpm, stall 31 mph, cruise 105-110 mph); AOPA "Light-sport brute" 2010 (1320 lb, cruise 80 hp per the POH, full power 5 min); Wikipedia CC11-160 (stall 27 kt full flap out of ground effect, 35 kt flaps up; cruise 104 kt); aeropedia (take-off roll 60 ft, landing roll 245 ft - THIN, the same figures are listed for the EX2); AvPay (climb 1500 fpm)',
-    poh: { vr: 1.0, vy: 1.30, flapTO: 25, flapLDG: 45, brake: 0.8, note: 'a STOL take-off on half flap, full flap for the landing' },
+    poh: { vr: 1.0, vy: 1.30, flapTO: 50, flapLDG: 45, brake: 0.8, runup: true, note: 'the STOL take-off (the user, 9 Nov): full flap, the brakes held and the stick full back while the engine comes up to its full rpm (the power eased if the tail lifts), then go; full flap for the landing' },
     rows: {
       empty: { v: 408, tol: 0.05, src: '900 lb (Plane & Pilot)' },
       Vs1:   { v: 35 * KT, tol: 0.05, kg: 'unknown', flaps: 'up', src: '35 kt flaps up (Wikipedia, THIN)' },

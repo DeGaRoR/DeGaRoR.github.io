@@ -2190,7 +2190,7 @@ const WB_CP = 1.0, WB_CF = 0.006, WB_CD_TYRE = 1.0, WB_CD_SIDE = 1.2, WB_TYRE_W 
 const WB_MAT = { tubeFabric: { air: 0.85, tau: 40, breach: 60e3 }, aluTube: { air: 0.85, tau: 40, breach: 60e3 },
                  wood: { air: 0.85, tau: 150, breach: 120e3 }, alloy: { air: 0.9, tau: 300, breach: 200e3 },
                  carbon: { air: 0.9, tau: 900, breach: 250e3 }, glass: { air: 0.9, tau: 900, breach: 200e3 } };   // G2047: glass, the carbon's sandwich, a softer skin
-const WB_WING = { fabric: { air: 0.5, tau: 60 }, steel: { air: 0.5, tau: 60 }, aluFabric: { air: 0.5, tau: 60 },
+const WB_WING = { fabric: { air: 0.5, tau: 60 }, steel: { air: 0.5, tau: 60 }, aluFabric: { air: 0.5, tau: 60 }, fabricAlu: { air: 0.5, tau: 60 },
                   alloy: { air: 0.9, tau: 600 }, carbon: { air: 0.9, tau: 900 }, glass: { air: 0.9, tau: 900 } };
 const WB_DRAIN = 30;            // s: a slice out of the water drains (its flooding decays) on this time
 const WB_BREACH_K = 10;         // a holed slice floods this much faster

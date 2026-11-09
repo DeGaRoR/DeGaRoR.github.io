@@ -238,8 +238,32 @@ function flight(spec, def, lc, o) {
     let x0 = null, off = null, offT = 0, lift = null, p15 = null, a60 = null, a250 = null, vs = [], th = [], downwind = false;
     let p50 = null, td = null, stop = null, maxS = o.mode === 'climb' ? 240 : 900, phases = [];
     const dist = (a, b) => Math.hypot(a[0] - b[0], a[2] - b[2]);
+    // THE STOL RUN-UP (the user, 9 Nov: "get the flaps full down, brake and launch the engine until it reaches max rpm,
+    // careful with the tail that might lift up, and go"): with `tech.runup`, from the first roll frame the brakes are held
+    // and the stick is full back while the throttle comes in over 2 s; when the rpm has stood within 0.5 % for 0.5 s the
+    // brakes let go and the pilot flies its roll from there. If the tail comes up (the pitch more than 2 deg under the rest
+    // attitude) the power comes back until it sits down again. The take-off flap is the schedule's (the sweep flies full)
+    const RU = o.tech && o.tech.runup ? { on: false, done: false, t: 0, thr: 0, rpm: 0, steadyT: 0, th0: null, tailUps: 0 } : null;
     for (let s = 0; s < maxS * 60; s++) {
-      ap.update(1 / 60); sim.step(1 / 60);
+      ap.update(1 / 60);
+      if (RU && !RU.done && (ap.phase === 'ROLL' || ap.phase === 'TAKEOFF')) {
+        RU.on = true; RU.t += 1 / 60;
+        if (RU.th0 == null) RU.th0 = sim.out.pitch;
+        const tailUp = sim.out.pitch < RU.th0 - 2 / 57.3;
+        if (tailUp) { RU.thr = Math.max(0.3, RU.thr - 0.5 / 60); RU.tailUps++; }
+        else RU.thr = Math.min(1, RU.thr + 0.5 / 60);
+        sim.ctl.thr = RU.thr; sim.ctl.brake = 1; sim.ctl.de = 1;
+        const r = +(sim.out.rpm && sim.out.rpm[0]) || 0;
+        RU.steadyT = (RU.thr >= 1 && r > 0 && Math.abs(r - RU.rpm) <= 0.005 * r) ? RU.steadyT + 1 / 60 : 0;
+        RU.rpm = r;
+        if ((RU.steadyT >= 0.5 && RU.thr >= 1) || RU.t > 15) { RU.done = true; RU.rpmHeld = r; RU.held = +RU.t.toFixed(1); }
+      }
+      // THE SHORT-FIELD STOP (`tech.stopShort`): on the ground after the touchdown the flaps come up (the weight onto the
+      // wheels) and the stick goes full back (the tail held down against the brakes' nose-over) - the 172's handbook's
+      // "retract the flaps, hold the control wheel full back, maximum brake pressure without sliding the tires", the common
+      // tailwheel short-field stop; the brakes are the schedule's (brake / brakeRate / vBrakeOn)
+      if (o.tech && o.tech.stopShort && ap.phase === 'ROLLOUT' && onSurface(sim)) { sim.ctl.flap = 0; sim.ctl.de = 1; }
+      sim.step(1 / 60);
       const t = (s + 1) / 60, c = sim.cgPos(), agl = c[1] - gH(c[0], c[2]) - h0, ph = ap.phase, onS = onSurface(sim);
       if (!phases.length || phases[phases.length - 1][0] !== ph) phases.push([ph, +t.toFixed(1)]);
       if (x0 == null && sim.ctl.thr > 0.5 && (ph === 'ROLL' || ph === 'TAKEOFF')) x0 = [c[0], c[1], c[2], t];
@@ -277,6 +301,7 @@ function flight(spec, def, lc, o) {
     rec.tdSink = RL ? RL.sink : null; rec.hard = !!(RL && RL.sink > 3);
     rec.outcome = rec.outcome || ap.report.outcome || 'clock';
     rec.goArounds = phases.filter(p => p[0] === 'GOAROUND').length;
+    if (RU) rec.runup = { held: RU.held || null, rpm: RU.rpmHeld ? Math.round(RU.rpmHeld) : null, tailUps: RU.tailUps };
   } finally { undo(); }
   rec.wall = (Date.now() - t0) / 1000;
   return rec;
@@ -394,7 +419,7 @@ function runPlane(key, P) {
   const land = !P.water || P.land, water = !!P.water;
   const surf = (() => { for (const k of ['TO', 'LDG', 'TO50']) { const r = R.rows[k]; if (r && r.surface && r.surface !== 'unknown') return r.surface; } return 'grass'; })();
   out.surface = surf;
-  const techOf = (a, over) => Object.assign({ vr: poh.vr || 1.1, vy: (poh.vy || 1.35) * a.Vs / 3.6, cruiseK: 1.0, flapTO: a.flapTO, flapLDG: a.flapLdg, brake: poh.brake != null ? poh.brake : 0.6, brakeRate: 0.5, vBrakeOn: 1.0 }, over || {});
+  const techOf = (a, over) => Object.assign({ vr: poh.vr || 1.1, vy: (poh.vy || 1.35) * a.Vs / 3.6, cruiseK: 1.0, flapTO: a.flapTO, flapLDG: a.flapLdg, brake: poh.brake != null ? poh.brake : 0.6, brakeRate: 0.5, vBrakeOn: 1.0, runup: !!poh.runup }, over || {});
   const spd = a => ({ Vs: a.Vs / 3.6, VsTO: a.VsTO / 3.6, Vs0: a.Vs0 / 3.6 });
   const caseOf = id => CS.find(c => c.id === id);
   // 2. the flights at every load: the game's pilot and the POH schedule (a whole circuit each)
@@ -421,9 +446,10 @@ function runPlane(key, P) {
       const r = flight(spec, def, lc, Object.assign({ mode: 'climb', surface: surf, tech: Object.assign({}, base, { vy }) }, spd(a)));
       runs.push({ what: 'climb', vyK, vy: vy * 3.6, r });
     }
-    for (const [brake, brakeRate, vBrakeOn, vapp] of [[1.0, 1.0, 1.2, 1.3], [poh.brake != null ? poh.brake : 0.6, 1.0, 1.2, 1.2], [0.8, 0.5, 1.0, 1.2]]) {
-      const r = flight(spec, def, lc, Object.assign({ mode: 'circuit', surface: surf, tech: Object.assign({}, base, { brake, brakeRate, vBrakeOn, vapp }) }, spd(a)));
-      runs.push({ what: 'landing', brake, brakeRate, vBrakeOn, vapp, r });
+    // (the fourth: the short-field stop - flaps up and the stick full back on the ground, full brakes from 1.2 Vs)
+    for (const [brake, brakeRate, vBrakeOn, vapp, stopShort] of [[1.0, 1.0, 1.2, 1.3], [poh.brake != null ? poh.brake : 0.6, 1.0, 1.2, 1.2], [0.8, 0.5, 1.0, 1.2], [1.0, 1.0, 1.2, 1.3, true]]) {
+      const r = flight(spec, def, lc, Object.assign({ mode: 'circuit', surface: surf, tech: Object.assign({}, base, { brake, brakeRate, vBrakeOn, vapp, stopShort: !!stopShort }) }, spd(a)));
+      runs.push({ what: 'landing', brake, brakeRate, vBrakeOn, vapp, stopShort: !!stopShort, r });
     }
     const ok = x => x != null && isFinite(x);
     const minOf = (k, w) => { let b = null; for (const x of runs) if ((!w || x.what === w) && ok(x.r[k]) && (b == null || x.r[k] < b.v)) b = { v: x.r[k], run: x }; return b; };
@@ -431,7 +457,7 @@ function runPlane(key, P) {
     const allF = [...runs.map(x => x.r), out.flights[lc.id].poh];
     const bestMin = k => { let b = null; for (const r of allF) if (ok(r[k]) && (b == null || r[k] < b)) b = r[k]; return b; };
     const bestMax = k => { let b = null; for (const r of allF) if (ok(r[k]) && (b == null || r[k] > b)) b = r[k]; return b; };
-    out.sweep = { load: lc.id, mass: lc.mass, runs: runs.map(x => Object.assign({ what: x.what, vr: x.vr, flapTO: x.flapTO, vyK: x.vyK, vy: x.vy, brake: x.brake, brakeRate: x.brakeRate, vBrakeOn: x.vBrakeOn, vapp: x.vapp }, x.r)),
+    out.sweep = { load: lc.id, mass: lc.mass, runs: runs.map(x => Object.assign({ what: x.what, vr: x.vr, flapTO: x.flapTO, vyK: x.vyK, vy: x.vy, brake: x.brake, brakeRate: x.brakeRate, vBrakeOn: x.vBrakeOn, vapp: x.vapp, stopShort: x.stopShort || undefined, runup: x.what === 'takeoff' ? !!base.runup : undefined }, x.r)),
                   best: { TO: bestMin('TO'), TO50: bestMin('TO50'), climb: bestMax('climb'), LDG: bestMin('LDG'), LDG50: bestMin('LDG50') },
                   bestRun: { TO: brief(minOf('TO')), TO50: brief(minOf('TO50')), climb: brief(maxOf('climb')), LDG: brief(minOf('LDG')) } };
     log(key, 'sweep @' + lc.id + ': best TO ' + f(out.sweep.best.TO) + ' m, TO50 ' + f(out.sweep.best.TO50) + ' m, climb ' + f(out.sweep.best.climb, 2) + ' m/s, LDG ' + f(out.sweep.best.LDG) + ' m');
@@ -449,7 +475,7 @@ function runPlane(key, P) {
   }
   return finish(out, tStart);
 }
-function brief(b) { if (!b) return null; const x = b.run; return { v: b.v, what: x.what, vr: x.vr, flapTO: x.flapTO, vyK: x.vyK, brake: x.brake, brakeRate: x.brakeRate, vBrakeOn: x.vBrakeOn, vapp: x.vapp }; }
+function brief(b) { if (!b) return null; const x = b.run; return { v: b.v, what: x.what, vr: x.vr, flapTO: x.flapTO, vyK: x.vyK, brake: x.brake, brakeRate: x.brakeRate, vBrakeOn: x.vBrakeOn, vapp: x.vapp, stopShort: x.stopShort || undefined }; }
 function fl(r) { return 'TO ' + f(r.TO) + ' m (' + f(r.Vlof) + ' km/h), 50ft ' + f(r.TO50) + ' m, climb ' + f(r.climb, 2) + ' m/s @' + f(r.Vclimb) + ' thr ' + f(r.thrClimb, 2) +
                         ', LDG ' + f(r.LDG) + ' m (50ft ' + f(r.LDG50) + ', flap ' + f(r.flapLdgFlown, 2) + ', td ' + f(r.Vtd) + ' km/h), ' + r.outcome + (r.goArounds ? ' GA ' + r.goArounds : '') + ' [' + f(r.wall) + ' s]'; }
 function log(key, s) { if (!has('quiet')) console.log('[' + key + '] ' + s); }
@@ -572,7 +598,7 @@ function md(out) {
   if (out.sweep) {
     const ps = out.pilotShare || {}, b = out.sweep.bestRun;
     L.push('Technique sweep at ' + out.sweep.load + ' (' + f(out.sweep.mass) + ' kg; ' + out.sweep.runs.length + ' flights): best TO roll ' + f(out.sweep.best.TO) + ' m' + (b.TO ? ' (rotate ' + b.TO.vr + ' Vs, flap ' + f(b.TO.flapTO, 2) + ')' : '') +
-           ', best TO 50 ft ' + f(out.sweep.best.TO50) + ' m, best climb ' + f(out.sweep.best.climb, 2) + ' m/s' + (b.climb && b.climb.vyK ? ' (' + b.climb.vyK + ' x the probe\'s Vy)' : '') + ', best landing roll ' + f(out.sweep.best.LDG) + ' m' + (b.LDG && b.LDG.brake != null ? ' (brake ' + b.LDG.brake + ' at ' + b.LDG.brakeRate + '/s from ' + b.LDG.vBrakeOn + ' Vs, approach ' + b.LDG.vapp + ' Vs0)' : '') + '.');
+           ', best TO 50 ft ' + f(out.sweep.best.TO50) + ' m, best climb ' + f(out.sweep.best.climb, 2) + ' m/s' + (b.climb && b.climb.vyK ? ' (' + b.climb.vyK + ' x the probe\'s Vy)' : '') + ', best landing roll ' + f(out.sweep.best.LDG) + ' m' + (b.LDG && b.LDG.brake != null ? ' (brake ' + b.LDG.brake + ' at ' + b.LDG.brakeRate + '/s from ' + b.LDG.vBrakeOn + ' Vs, approach ' + b.LDG.vapp + ' Vs0' + (b.LDG.stopShort ? ', flaps up and stick back on the ground' : '') + ')' : '') + (poh.runup ? ' Take-offs flown with the STOL run-up (brakes held to full rpm, stick back).' : '') + '.');
     L.push('**The pilot\'s share** (game − best, at ' + ps.load + '): TO roll ' + sg(ps.TO) + ' m, TO 50 ft ' + sg(ps.TO50) + ' m, climb ' + sg(ps.climb, 2) + ' m/s, landing roll ' + sg(ps.LDG) + ' m.');
     L.push('');
   }
