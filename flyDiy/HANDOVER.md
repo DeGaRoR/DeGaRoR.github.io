@@ -314040,3 +314040,36 @@ BENCH, LIVERYSTICKERS) move together; pages 8-13 are untouched here, page 15 is 
 test now takes a sign (uDecE.z -1), which a text piece "left only / right only" can use as is (AERO_VINYL_RIGHT = -1:
 +x is the left flank, measured). The GPU check: the gamer page's skin compile (the shader text changed) and the uniform
 count on the phone.
+
+### LIVERY-STICKERS, round 2 (9 Nov, the user's answers to the open questions) - SUPERSEDES the entry above on the slot count (13 -> 15, a cap), the floats (they take stickers now), the default place and the READY note's "19"
+THE USER: "maybe we should allow a little less both text and the stickers, because 19 slots seems like a lot ... let's
+try 15"; the phone "we'll test later"; the default spot "in the middle of the fuselage of the plane"; mirror off "is good";
+"I would like stickers to go to floats, and no reason to be skipped"; the parked planes: as they are ("so that we don't
+have to rebake, no problem").
+- AERO_MAXD 13 -> 15 (JS and #define), AND A CAP, NOT A SUM: the four fixed markings (registration, its wing copy, the
+  certification strip, the master) are always kept; the player's pieces share the other eleven. aeroDecalsFor's trim: THE
+  KIT GIVES WAY FIRST (its last layers), THEN THE STICKERS (their last slots); it returns `dropped`, the pieces that found
+  no slot, for a panel to say. Today's worst case (5 kit + 4 stickers + 4 fixed = 13) is kept whole. LIVERY-TEXT planned
+  15 too: the two branches now AGREE on that line - its pieces join the stickers' side of the trim when it lands (A0 /
+  AIRCRAFT-LOOKS decide whether text gives way before or after the stickers; the seam is `vinyl` in aeroDecalsFor).
+  Re-pinned 13 -> 15, the reason beside each: GATE LIVERY's slot count, GATE BENCH's AERO_MAXD.
+- FLOATS TAKE STICKERS: uDecE.x is 1 for letters (the registration's field, still declined on a `noLetters` section) and 2
+  for a sticker's field (taken); the shader thresholds both as a distance field (aSdf = step(0.5, x)) and declines only
+  the letters there (aLet). Shown: the winged prop on both of the Twin busher's floats (side projection, centred on the
+  hull).
+- THE FIRST PLACE: a slot the player switches on (the 'on' tick, or a mark button on an empty slot) whose placement is
+  untouched goes to the middle of THAT build's fuselage - its field box's mid-length (decFitScan, the kit's own fit) - with
+  its top 3 cm under the waist line, in the field frame (_cage_ui.js decVinylFirstPlace). Centred ON the waist it was half
+  on the stock Cub's window glass (which takes no decal), hence under it. Proven through the panel in the page: the stock
+  Cub's slot 3 went to L 2.30 = the measured mid-length. The rows' fallback (no geometry) is L 2.5, C 0.
+- COSTS NOW: index.html +24.8 KB raw / +7.8 KB gz over master e789e77c (5648824 -> 5656856 B gzip -9). The decal arrays
+  75 vec4 (+30 over master's 45); the heaviest skin program 292 vec4 on laptop, 326 on gamer (both stages counted
+  together, the gamer count with 6 of its skin programs compiled at the time; SwiftShader reports 4096 a stage). Every skin program recompiles once (the define and the shader text moved).
+- GATE LIVERYSTICKERS: 152 checks, --selftest 15 probes all red (new: AERO_MAXD at 19, the stickers giving way before the
+  kit, stickers as letters, the first place off the middle, the first place centred on the waist). The budget is proven
+  with 6 / 9 / 12 extra fixed markings (every fixed one kept, the kit then the stickers dropped from the last).
+- GATES (this tree): LIVERYSTICKERS, SKINMAT, MEDIA, BUILD, SAVE, ASSETS, ASSETBUDGET, EDBUGS, DESIGN, BENCH, UISMOKE,
+  FLOWNBAKE, LIVERYREACH PASS; PARKED PASS (215 checks, alone at --max-old-space-size=4096); LIVERY red on master's two strut lines only.
+- PICTURES (reports/evidence/LIVERY-STICKERS, replaced): the round-2 stills - the same compositions plus
+  `cub_<gfx>_first_place.jpg` (a slot ticked on through the panel, at the fuselage's middle) and the lighthouse on the
+  Twin busher's floats (the winged prop, both floats, `twin_<gfx>_*`).

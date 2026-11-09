@@ -15,6 +15,18 @@
     0
    ]
   },
+  "cub_laptop_first_place": {
+   "cam": [
+    -1.6707963267948966,
+    0.05,
+    6.632407569885254
+   ],
+   "aim": [
+    -0.11148054853993128,
+    1.1343155857475886,
+    0
+   ]
+  },
   "cub_laptop_nose_right": {
    "cam": [
     -1.8707963267948966,
@@ -193,9 +205,9 @@
   }
  },
  "frame": {
-  "w": 960,
+  "w": 1920,
   "h": 1080,
-  "bw": 960,
+  "bw": 1920,
   "bh": 1080
  },
  "fits": {
@@ -222,9 +234,15 @@
   "maxFrag": 4096,
   "maxVert": 4096,
   "programs": 64,
-  "worst": 282,
-  "decal": 65,
+  "worst": 292,
+  "decal": 75,
   "worstName": "aeroskin:scuff"
+ },
+ "firstPlace": {
+  "vn3On": 1,
+  "vn3L": 2.3,
+  "vn3C": -0.21,
+  "fieldMid": 2.3
  },
  "panel": {
   "vn1On": 1,
