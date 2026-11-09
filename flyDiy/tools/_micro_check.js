@@ -90,10 +90,10 @@ const W8 = world(withMicro('w7', MICRO8));
     const h = W8.terrainH(p[0], p[1]), m = SM.at(p[0], p[1]), dh = h - H0[i];
     const inBox = Math.abs(p[2]) < A7.len / 2 && Math.abs(p[3]) < A7.wid / 2;
     if (!inBox && dh !== 0) offBox++;
-    if (inBox) { nOn++; worst = Math.max(worst, Math.abs(dh - m)); maxDh = Math.max(maxDh, Math.abs(dh)); }
+    if (inBox) { nOn++; worst = Math.max(worst, Math.abs(dh - m - SM.stoneAt(p[0], p[1]))); maxDh = Math.max(maxDh, Math.abs(dh)); }
   });
   verdict(pub === 1, `the bumpy strip is published (${pub})`);
-  verdict(worst < 0.015 && maxDh > 0.03, `terrainH on w7 = the shipped ground + STRIP_MICRO.at to ${(worst * 1000).toFixed(1)} mm (the raster's lattice; ${nOn} points, bumps to ${(maxDh * 100).toFixed(1)} cm)`);
+  verdict(worst < 0.015 && maxDh > 0.03, `terrainH on w7 = the shipped ground + STRIP_MICRO.at + the stones' bodies to ${(worst * 1000).toFixed(1)} mm (the raster's lattice; ${nOn} points, bumps to ${(maxDh * 100).toFixed(1)} cm)`);
   verdict(offBox === 0, `off the strip's box nothing moved (${offBox} points)`);
   const P8 = W8.premises && W8.premises.overlay, P0b = W0.premises && W0.premises.overlay;
   if (P8 && P0b && P8.terrainAt) {
@@ -113,6 +113,30 @@ const W8 = world(withMicro('w7', MICRO8));
   } else console.log('NOTE the island world declares no groundMaxRect: the ceiling check is skipped');
 }
 
+// ---- 3b. THE STONES' BODIES (the user, 9 Nov 21:55: "on the collision model ... any very simple volume that will collide
+// nicely ... you shouldn't have like 10 centimeters difference") ------------------------------------------------------
+{
+  let S7 = null; for (const L of SM.live.values()) for (const s of L) if (s.id === 'w7') S7 = s;
+  const R7 = SM.rocksOf('w7'), f7 = S7 && S7.f, hw = A7.wid / 2;
+  const bad = R7.filter(r => r[2] < 0.069 || r[2] > 0.271 || Math.abs(r[1]) + r[2] > hw - 0.15 || (f7.ways.length && f7.waysAt(r[0], r[1])[1] > 0.3)).length;
+  verdict(R7.length > 200 && bad === 0, `the stones on w7 at chaos 0.8: ${R7.length}, 14-54 cm across, whole inside the strip, none in a rut (${bad} not)`);
+  // the wheels' ground carries each body EXACTLY (not the raster's 0.25 m lattice); the drawn ground carries none
+  const d = [Math.cos(A7.hdg), Math.sin(A7.hdg)], n = [-d[1], d[0]];
+  let hits = 0, top = 0, worstW = 0, worstD = 0, own = 0, ceil = 0;
+  for (let i = 0; i < 20000; i++) {
+    const u = (rng() - 0.5) * (A7.len - 10), v = (rng() - 0.5) * (A7.wid - 0.4), x = A7.x + d[0] * u + n[0] * v, z = A7.z + d[1] * u + n[1] * v;
+    const st = SM.stoneAt(x, z); if (!(st > 0.02)) continue;
+    hits++; top = Math.max(top, st);
+    const h = W8.terrainH(x, z), g = W0.terrainH(x, z) + SM.at(x, z);
+    worstW = Math.max(worstW, Math.abs(h - g - st)); worstD = Math.max(worstD, Math.abs(h - W8.stoneH(x, z) - g));
+    if (W8.stoneH(x, z) !== st) own++;
+    if (W8.groundMaxRect(x - 0.1, z - 0.1, x + 0.1, z + 0.1) < h) ceil++;
+  }
+  verdict(hits > 30 && worstW < 0.015 && top > 0.1, `the wheels feel them: terrainH = the ground + the stone's body to ${(worstW * 1000).toFixed(1)} mm at ${hits} points on stones (bodies to ${(top * 100).toFixed(1)} cm)`);
+  verdict(worstD < 0.015 && own === 0, `the drawn ground (terrainH - stoneH) carries none of them: ${(worstD * 1000).toFixed(1)} mm (${own} where stoneH is not the field's)`);
+  verdict(ceil === 0, `the ground's ceiling holds over the stones (${ceil} under)`);
+}
+
 // ---- 5. PUDDLES ----------------------------------------------------------------------------------------------------
 {
   const S = { c: [0, 0], hdg: 0, len: 300, wid: 14 };
@@ -130,9 +154,9 @@ const W8 = world(withMicro('w7', MICRO8));
   const SPEC = LB.loadBuild('builds/cub_2026-09-20_corrected.json').spec;
   const hdgOf = sim => { const a = sim.axes()[0]; return Math.atan2(-a[2], -a[0]); };
   const wrap = a => { while (a > Math.PI) a -= 2 * Math.PI; while (a < -Math.PI) a += 2 * Math.PI; return a; };
-  function taxi(chaos) {
+  function taxi(chaos, ground) {
     const def = C.buildGen(JSON.parse(JSON.stringify(SPEC)));
-    const W = { f: null, terrainH(x, z) { return this.f ? this.f.at(x, z) : 0; }, waterH: () => -1e9, surface: () => 6, trees: [], treesNear: (x, z, q) => { q.length = 0; return q; } };
+    const W = { f: null, terrainH(x, z) { return this.f ? this.f.at(x, z) + this.f.stoneAt(x, z) : 0; }, waterH: () => -1e9, surface: () => 6, trees: [], treesNear: (x, z, q) => { q.length = 0; return q; } };
     W.terrainH = W.terrainH.bind(W);
     const sim = C.makeSim(def, W);
     sim.reset(0); if (sim.stance) sim.stance();
@@ -140,7 +164,7 @@ const W8 = world(withMicro('w7', MICRO8));
     for (let f = 0; f < 180; f++) sim.step(1 / 60);
     const h0 = hdgOf(sim), cg0 = sim.cgPos(), ux = Math.cos(h0), uz = Math.sin(h0);
     // the strip ahead: from 5 m behind the CG, 400 m long, 14 m wide, along the heading
-    if (chaos > 0) W.f = C.STRIP_MICRO.field({ c: [cg0[0] + ux * 195, cg0[2] + uz * 195], hdg: h0, len: 400, wid: 14 }, { chaos, seed: 9 }, 0);
+    if (ground) W.f = ground(cg0, ux, uz); else if (chaos > 0) W.f = C.STRIP_MICRO.field({ c: [cg0[0] + ux * 195, cg0[2] + uz * 195], hdg: h0, len: 400, wid: 14 }, { chaos, seed: 9 }, 0);
     let eP = 0, vy = sim.cgVel()[1], a2 = 0, aMax = 0, n = 0, under = 0, roll = 0, air = 0, dist = 0;
     for (let k = 0; k < 60 * 50; k++) {
       const e = wrap(hdgOf(sim) - h0), de = (e - eP) * 60; eP = e;
@@ -164,14 +188,23 @@ const W8 = world(withMicro('w7', MICRO8));
   const R = [0, 0.4, 0.8, 1.0].map(taxi);
   for (const r of R) console.log(`  taxi chaos ${r.chaos}: ${r.dist.toFixed(0)} m, vertical accel rms ${r.rms.toFixed(2)} m/s2 (peak ${r.aMax.toFixed(1)}), airborne ${r.air.toFixed(2)} s, roll ${r.roll.toFixed(1)} deg, under-ground frames ${r.under}, breaks ${r.broke}, yields ${r.yields}`);
   verdict(R.every(r => r.dist > 300 && r.under === 0 && !r.broke && r.roll < 25), `the Cub taxies 300 m+ over every chaos upright, undamaged, never under the ground`);
+  // 6b THE STONES HIT (the user, 9 Nov 21:55): a row of 40 cm stones (R 0.2, 15 cm of body) across the way 40 m ahead, every
+  // 45 cm from 2.5 m left to 2.5 m right - a wheel meets one: upright, undamaged, nothing under the ground, the jolt felt
+  const rowOf = (cg0, ux, uz) => { const c = [cg0[0] + ux * 40, cg0[2] + uz * 40], SH = C.STRIP_MICRO.STONE_H, Rs = 0.2;
+    return { at: () => 0, stoneAt(x, z) { const a = (x - c[0]) * ux + (z - c[1]) * uz, b = -(x - c[0]) * uz + (z - c[1]) * ux;
+      if (Math.abs(a) > Rs) return 0; const k = Math.round(b / 0.45); if (Math.abs(k) > 5) return 0; const q2 = (a * a + (b - k * 0.45) * (b - k * 0.45)) / (Rs * Rs); return q2 < 1 ? SH * Rs * (1 - q2) : 0; } }; };
+  const RS = taxi(0, rowOf);
+  console.log(`  taxi through a row of stones: ${RS.dist.toFixed(0)} m, vertical accel peak ${RS.aMax.toFixed(1)} m/s2 (the flat's ${R[0].aMax.toFixed(1)}), roll ${RS.roll.toFixed(1)} deg, under ${RS.under}, breaks ${RS.broke}, yields ${RS.yields}`);
+  verdict(RS.dist > 300 && RS.under === 0 && !RS.broke && RS.roll < 25 && RS.aMax > R[0].aMax + 1.5, `the Cub through a row of 40 cm stones: upright, undamaged, never under, the jolt felt (${RS.aMax.toFixed(1)} against ${R[0].aMax.toFixed(1)} m/s2 flat)`);
   verdict(R[0].rms < 0.3 && R[1].rms > R[0].rms * 2 && R[2].rms > R[1].rms && R[3].rms > R[2].rms, `the bumps are felt and grow with chaos: rms ${R.map(r => r.rms.toFixed(2)).join(' < ')} m/s2`);
 }
 
 // ---- 7. THE DRAWN RIBBON IS THE WHEELS' GROUND ---------------------------------------------------------------------
 {
   const THREE = require('../vendor/three.min.js'), PAV = require('../src/viewer/pavement.js');
+  const G8 = (x, z) => W8.terrainH(x, z) - W8.stoneH(x, z);   // the drawn ground: the wheels' less the stones' bodies (render_world's heightAt)
   const ribbon = (rmin, rminV) => {
-    const g = PAV.stripGeometry(THREE, { len: A7.len, wid: A7.wid, hdg: A7.hdg, cx: A7.x, cz: A7.z, shoulderW: 3, cls: 'dirt', seed: 1, heightAt: W8.terrainH, lift: 0.07, resU: 6, resV: 3, sinkD0: 0.8, refineMin: rmin, refineMinV: rminV });
+    const g = PAV.stripGeometry(THREE, { len: A7.len, wid: A7.wid, hdg: A7.hdg, cx: A7.x, cz: A7.z, shoulderW: 3, cls: 'dirt', seed: 1, heightAt: G8, lift: 0.07, resU: 6, resV: 3, sinkD0: 0.8, refineMin: rmin, refineMinV: rminV });
     const pos = g.attributes.position.array, pav = g.attributes.aPav.array, nV = g.userData.pav.rows, nU = g.userData.pav.cols;
     const U = [], V = []; for (let i = 0; i < nU; i++) U.push(pav[(i * nV) * 4]); for (let j = 0; j < nV; j++) V.push(pav[j * 4 + 1]);
     const find = (A, x) => { let lo = 0, hi = A.length - 2; while (lo < hi) { const m = (lo + hi + 1) >> 1; if (A[m] <= x) lo = m; else hi = m - 1; } return lo; };
@@ -183,7 +216,7 @@ const W8 = world(withMicro('w7', MICRO8));
       // the builder's split: (a, b, a + 1) and (a + 1, b, b + 1)
       const yi = fu + fv <= 1 ? y(a) + (y(b) - y(a)) * fu + (y(a + 1) - y(a)) * fv : y(b + 1) + (y(a + 1) - y(b + 1)) * (1 - fu) + (y(b) - y(b + 1)) * (1 - fv);
       const xw = (pos[a * 3] + (pos[b * 3] - pos[a * 3]) * fu + (pos[(a + 1) * 3] - pos[a * 3]) * fv), zw = (pos[a * 3 + 2] + (pos[b * 3 + 2] - pos[a * 3 + 2]) * fu + (pos[(a + 1) * 3 + 2] - pos[a * 3 + 2]) * fv);
-      errs.push(Math.abs(yi - W8.terrainH(xw, zw)));
+      errs.push(Math.abs(yi - G8(xw, zw)));
     }
     errs.sort((p, q) => p - q);
     return { verts: nU * nV, p50: errs[errs.length >> 1], p99: errs[Math.floor(errs.length * 0.99)], max: errs[errs.length - 1] };
