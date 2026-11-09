@@ -4,7 +4,7 @@
 //
 // 1. OFF IS IDENTICAL: without ?fmist the mist's GLSL carries no pocket code, the lanes' array is the 28 it was, and
 //    atmo.js / clouds.js put every pocket string behind a ternary that yields '' (the source rule)
-// 2. ON: ?fmist=ac declares 12 lanes, the density and the veil inside MIST_GLSL, 48 floats
+// 2. ON: ?fmist=ac declares 13 lanes, the density and the veil inside MIST_GLSL, 52 floats
 // 3. THE MAP (Jolene, 512^2): deterministic, in range, the open sea nearly free of pool, the valley floors full,
 //    the ridges empty; its bake time printed (named, not bounded: a prototype)
 // 4. THE LAW: zero in dry air; the pool burns off with the lagged sun and dies in wind; the wisps fade with the hours
@@ -39,8 +39,8 @@ global.FMIST = fresh(path.join(SRC, 'forest_mist.js'));
 ATMO = fresh(path.join(SRC, 'atmo.js'));
 const onG = ATMO.GLSL.MIST;
 yes(FMIST.ON && FMIST.A && FMIST.C, '?fmist=ac turns both techniques on');
-yes(/uniform vec4 uMist\[12\];/.test(onG) && /float fmDens\(vec3 p\)/.test(onG) && /fmOD\(vec3\(uMist\[4\]\.x, y0, uMist\[4\]\.z\), d, D\)/.test(onG), 'the density and the veil live inside MIST_GLSL, 12 lanes');
-yes(ATMO.apUniforms.uMist.value.length === 48, 'the lanes array on is 48 floats');
+yes(/uniform vec4 uMist\[13\];/.test(onG) && /float fmDens\(vec3 p\)/.test(onG) && /fmOD\(vec3\(uMist\[4\]\.x, y0, uMist\[4\]\.z\), d, D\)/.test(onG), 'the density and the veil live inside MIST_GLSL, 13 lanes');
+yes(ATMO.apUniforms.uMist.value.length === 52, 'the lanes array on is 52 floats');
 global.location = { search: '?fmist=zz' };
 yes(!fresh(path.join(SRC, 'forest_mist.js')).ON, 'an unknown ?fmist value is off');
 

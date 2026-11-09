@@ -33,7 +33,7 @@ var FMIST = (function () {
   // THE DIALS. Strength laws are in strengths(); `force` pins them for a rig ({pool, wisp, oro} 0..1, null = the weather's).
   const S = {
     N: 512, X: 768,                 // the map's side and its first column in the atlas
-    rhoMax: 0.009, octaves: 3,      // per metre at a full pocket's heart: the HEAVIEST day (/2 of the first tune, ~430 m inside), down 3 octaves (/16) for the last wisps
+    rhoMax: 0.012, octaves: 2,      // per metre in a pocket: the HEAVIEST day (~330 m inside; the user 9 Nov: "not a /2 we need, rather a x2"), down 2 octaves (/4) for the last wisps - no further: below that nothing cuts through the trees
     rho: null,                      // a pin over the ladder (the rigs' density sheets), null = the weather's
     swing: 30, covK: 0.8, detailK: 7.7, erode: 0.5, soft: 0.5, stretch: 2.1,   // the contours' swing (m), the share of a full pocket that is mist, the erosion's scale (x the body's) and depth
     period: 160,                    // the noise's cell (m): a wisp a few tree lengths across
@@ -45,6 +45,7 @@ var FMIST = (function () {
     marchN: 28, marchKm: 3.5,       // the cloud pass's pocket segment (A)
     cards: 420, cardKm: 2.6, cardW: 120, cardH: 34, cardA: 2.4, cardEvery: 20,   // the cards (B): how many, how far, how big, how dense, re-dealt every N frames
     force: null,
+    sunK: 0.5,                      // the beam's share (the layer's own colour already carries the sky)
     fwd: 2.2,                       // the pockets' forward lobe (fmFwd): x3.2 straight at the sun (4 clipped the backlit wisps to white)
     redistribute: 0.6,              // the flat layer gives this share of itself to the pockets while they are live (SS1: they redistribute, they do not add)
   };
@@ -154,7 +155,7 @@ var FMIST = (function () {
   function update(day, eye, world, soil) {
     if (!ON || typeof ATMO === 'undefined' || !ATMO.apUniforms) return;
     const L = ATMO.apUniforms.uMist.value;
-    if (L.length < 48) return;
+    if (L.length < 52) return;
     const k = S.force ? [S.force.pool || 0, S.force.wisp || 0, S.force.oro || 0] : strengths(day, soil);
     st.k = k;
     const tNow = day ? (day.jd != null ? day.jd * 86400 : (day.utc || 0)) : 0;
@@ -178,7 +179,15 @@ var FMIST = (function () {
     L[36] = M ? M.x0 : 0; L[37] = M ? M.z0 : 0; L[38] = M ? M.inv : 0; L[39] = 1 / S.period;
     if (B) { cardMesh && (cardMesh.visible = use.b); if (use.b) cardsUpdate(eye, k, st.wind || [1, 0]); }
     L[40] = C && use.c ? S.surfN : 0; L[41] = C && use.c ? S.eyeN : 0; L[42] = S.surfM; L[43] = S.eyeM;
-    L[44] = A && use.a ? S.marchKm * 1000 : 0; L[45] = S.fwd; L[46] = 0; L[47] = 0;   // the veil starts where the march stops (?fmist=ac)
+    L[44] = A && use.a ? S.marchKm * 1000 : 0; L[45] = S.fwd;
+    // the key's beam at the pockets (sun or moon, through the air to ~150 m), in the dome's units like the layer's colour
+    if (L.length >= 52 && day && ATMO.sunTransmittance) {
+      const key = (typeof SKY_LIGHT !== 'undefined' && SKY_LIGHT.isMoon) ? day.moon : day.sun;
+      const up = key[1] > -0.02 ? 1 : 0, Tk = ATMO.sunTransmittance(0.15, Math.max(0.01, key[1]), st._T || (st._T = [0, 0, 0]));
+      const moonK = (typeof SKY_LIGHT !== 'undefined' && SKY_LIGHT.isMoon && ATMO.U.eMoon) ? ATMO.U.eMoon.value : 1;
+      const sc = ATMO.U.scale.value * up * moonK * S.sunK;
+      L[48] = Tk[0] * sc; L[49] = Tk[1] * sc; L[50] = Tk[2] * sc; L[51] = 0;
+    } L[46] = 0; L[47] = 0;   // the veil starts where the march stops (?fmist=ac)
   }
   // ---- B: THE CARDS ------------------------------------------------------------------------------------------------
   // The candidates are the map's texels that can hold a pocket; every cardEvery frames the nearest are dealt to the
@@ -216,7 +225,7 @@ var FMIST = (function () {
           vec3 wp = c + r * position.x * aCard.w + vec3(0.0, 1.0, 0.0) * position.y * aCard.w * ${(S.cardH / S.cardW).toFixed(3)};
           vW = wp; gl_Position = projectionMatrix * viewMatrix * vec4(wp, 1.0);
         }`,
-      fragmentShader: `uniform vec4 uMist[12]; uniform vec3 uK; uniform float uA, uTime; varying vec2 vUv; varying vec4 vC; varying float vFade; varying vec3 vW;
+      fragmentShader: `uniform vec4 uMist[13]; uniform vec3 uK; uniform float uA, uTime; varying vec2 vUv; varying vec4 vC; varying float vFade; varying vec3 vW;
         float h21(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123); }
         float vn(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
           return mix(mix(h21(i), h21(i + vec2(1.0, 0.0)), f.x), mix(h21(i + vec2(0.0, 1.0)), h21(i + vec2(1.0, 1.0)), f.x), f.y); }
@@ -230,7 +239,7 @@ var FMIST = (function () {
           float a = min(0.85, uA * min(1.0, 2.0 * vC.x) * k * edge * vFade * smoothstep(0.3, 0.7, n) * (1.0 - smoothstep(0.0, 0.5, -q.y) * 0.4));
           if (a < 0.003) discard;
           float c = max(0.0, dot(normalize(vW - cameraPosition), uMist[2].xyz));
-          gl_FragColor = vec4(uMist[1].rgb * (1.0 + uMist[11].y * (0.35 * pow(c, 6.0) + pow(c, 40.0))), a);
+          gl_FragColor = vec4(uMist[1].rgb + uMist[12].rgb * (0.25 + uMist[11].y * (0.35 * pow(c, 6.0) + pow(c, 40.0))), a);
           #include <tonemapping_fragment>
           #include <colorspace_fragment>
         }` });
@@ -287,19 +296,20 @@ var FMIST = (function () {
     const rx = qx * S.detailK + y * 0.045, rz = qz * S.detailK + 3.3;
     let e = 0.6 * vn(rx, rz) + 0.4 * vn(rx * 2.7 + 1.9, rz * 2.7 - 4.1); e = Math.min(1, Math.max(0, 0.5 + (e - 0.5) * 2.4));
     let dd = Math.min(1, Math.max(0, (body - e * S.erode) / (1 - e * S.erode))); dd = dd * dd * (3 - 2 * dd);
-    return dd * cov * (S.rho != null ? S.rho : (S._rhoCPU || S.rhoMax));
+    return dd * smc(0, 0.3, cov) * (S.rho != null ? S.rho : (S._rhoCPU || S.rhoMax));
   }
   // THE INTENSITY IS THE LADDER (the user, 9 Nov, on the /2 /4 /8 /16 sheet: "they all look right to me in different
   // conditions. The /2 would be really, really heavy morning mist ... the other ones dissipating after rain"): the
-  // density per metre falls an octave per third of the strength, from rhoMax (/2 of the first tune: the heaviest
-  // morning, clear definition and cuts) to rhoMax/8 (the last wisps) - and the cover takes it to nothing below that.
+  // density per metre falls an octave per half of the strength, from rhoMax (the heaviest morning: clear definition and
+  // cuts) to rhoMax/4 (the last wisps, still cutting through the trees) - and the cover takes it to nothing below that.
   // S.rho, when set, pins it (a rig's ladder).
   const rhoOf = I => S.rho != null ? S.rho : S.rhoMax * Math.pow(2, -S.octaves * (1 - Math.min(1, Math.max(0, I))));
   const level = I => I >= 0.75 ? 'heavy' : I >= 0.4 ? 'mist' : I >= 0.1 ? 'wisps' : 'none';
   const stats = () => ({ level: level(Math.max(st.k[0], st.k[1], st.k[2])), rho: +rhoOf(Math.max(st.k[0], st.k[1], st.k[2])).toFixed(5), on: ON, use: Object.assign({}, use), cards: st.cards || 0, bakeMs: +st.bakeMs.toFixed(1), k: st.k.map(v => +v.toFixed(3)), hoursDry: st.hoursDry, drift: st.drift.map(v => Math.round(v)), map: st.map });
   // THE GLSL, shared by the veil (atmo.js MIST_GLSL) and the march (clouds.js): fmDens(p) per metre.
   // uMist[7] = (pool k, wisp k, oro k, cloud base m) | [8] = (drift x, z, rho, on) | [9] = (map x0, z0, 1/size, 1/period)
-  // | [10] = (surface taps, eye taps, surface metres, eye metres) | [11] = (the veil's nearest distance: the march's reach under ?fmist=ac, the forward lobe's gain, 0, 0). The value noise is mistVN (MIST_GLSL's own).
+  // | [10] = (surface taps, eye taps, surface metres, eye metres) | [11] = (the veil's nearest distance: the march's reach under ?fmist=ac, the forward lobe's gain, 0, 0)
+  // | [12] = (the key's beam at the pockets rgb, 0). The value noise is mistVN (MIST_GLSL's own).
   const GLSL = (AP_N_W, ATLAS_H, TILE_Y) => `
     vec4 fmMap(vec2 xz) {
       vec2 uv = clamp((xz - uMist[9].xy) * uMist[9].z, 0.0, 1.0);
@@ -341,11 +351,19 @@ var FMIST = (function () {
       e = clamp(0.5 + (e - 0.5) * 2.4, 0.0, 1.0);
       float d = clamp((body - e * ${S.erode.toFixed(2)}) / (1.0 - e * ${S.erode.toFixed(2)}), 0.0, 1.0);
       d *= d * (3.0 - 2.0 * d);                                          // and the remap's edge eased, not cut
-      return d * cov * uMist[8].z;
+      // the cover SHAPES the pocket (the threshold above, the bands' soft edges): it does not scale the density a second
+      // time (the user, 9 Nov, on the faint ridges ladder: "my guess is you're further multiplied by the weather factor,
+      // and then we get down to nothing" - it was: d x cov x rho put a /2 at /6-/10 inside a half-strength pocket)
+      return d * smoothstep(0.0, 0.3, cov) * uMist[8].z;
     }
     // A pocket is droplets (~10 um): Mie's forward peak is narrow and strong - backlit by a low sun the mist glows
     // (the concept art's whole light); side- and front-lit it is the layer's own colour. uMist[11].y = the lobe's gain.
     float fmFwd(vec3 d) { float c = max(0.0, dot(d, uMist[2].xyz)); return 1.0 + uMist[11].y * (0.35 * pow(c, 6.0) + pow(c, 40.0)); }
+    // THE POCKETS' LIGHT: droplets scatter the sun's BEAM (uMist[12].rgb: the key's colour at the mist, x the scale), not the
+    // horizontal irradiance the F2 layer is lit by (x sin(el): 0.1 at dawn, which made a front-lit pocket grey) - a
+    // quarter of it to the side and behind, the forward lobe toward the key - plus the layer's own sky light
+    vec3 fmCol(vec3 d) { float c = max(0.0, dot(d, uMist[2].xyz));
+      return uMist[1].rgb + uMist[12].rgb * (0.25 + uMist[11].y * (0.35 * pow(c, 6.0) + pow(c, 40.0))); }
     // THE VEIL (?fmist=c): the pockets' optical depth along the eye's ray to a surface D metres off - a few taps on
     // the last stretch before the surface (the pocket the trees stand in) and the first after the eye (the pocket the
     // eye is in). What a pocket hanging half-way between the two does to a far ridge is missed: the study's SS3c.
