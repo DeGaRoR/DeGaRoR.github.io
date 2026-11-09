@@ -148,7 +148,26 @@ var COVER_RING = (() => {
   const FIELD_SPECIES = ['grass_reed'];
   // THE ROOT GRADIENT (G2571, trees.js ROOT_FS): one uniform for the reed's material, whichever ring plants it - the field's
   // `root` / `rootH` write it each frame (x strength, y the height share, z the tufts' top in the model's units); 0 = today's
-  const ROOT_U = { value: (typeof THREE !== 'undefined' && THREE.Vector4) ? new THREE.Vector4(0, 0.4, 100, 0) : { x: 0, y: 0.4, z: 100, w: 0, set() {} } };
+  const ROOT_U = { value: (typeof THREE !== 'undefined' && THREE.Vector4) ? new THREE.Vector4(0.6, 0.5, 100, 0) : { x: 0.6, y: 0.5, z: 100, w: 0, set() {} } };
+  // THE ROOT ON EVERY SMALL PLANT (VEG-ROOT, LOOK-1 9 Nov; the user: "apply it to every single grass in the game ... even the
+  // bushes ... even the flowers", NOT the trees - they never take the ring's fade): ONE ROW PER KIND, [strength, the share of
+  // the plant's height it fades out by], a collection's own `place.root` / `place.rootH` wins; one vec4 per species, z its top
+  // in the model's units. The depth is the sheds' (_hangar_gen footDirt: the dark foot 0.5 strong), on the plant's own height.
+  // Rocks and debris: none (a stone is not shaded by its own foot). The reed keeps ROOT_U (the field's dials, live).
+  const ROOT_KIND = { cover: [0.6, 0.5], shrub: [0.45, 0.35], flower: [0.5, 0.4] };
+  const ROOT_SP = new Map();
+  const rootOf = (c, kind, top) => {
+    let u = ROOT_SP.get(c.name);
+    if (!u) { const d = ROOT_KIND[kind], pl = c.place || {};
+      u = { value: new THREE.Vector4(pl.root != null ? +pl.root : d[0], pl.rootH != null ? +pl.rootH : d[1], 1e-3, 0), kind }; ROOT_SP.set(c.name, u); }
+    u.value.z = Math.max(u.value.z, top); return u;
+  };
+  // the rig's and the rail's handle: VEG_ROOT.set('shrub', 0.45, 0.35) (a kind, or 'all'; strength null keeps it); rows() reads them
+  if (typeof window !== 'undefined') window.VEG_ROOT = {
+    rows: () => { const o = {}; for (const [n, u] of ROOT_SP) o[n] = [u.kind, +u.value.x.toFixed(3), +u.value.y.toFixed(3), +u.value.z.toFixed(3)]; return o; },
+    set: (kind, x, y) => { let n = 0; for (const u of ROOT_SP.values()) if (kind === 'all' || u.kind === kind) {
+      if (x != null) u.value.x = Math.max(0, Math.min(1, +x)); if (y != null) u.value.y = Math.max(0.01, +y); n++; } return n; },
+  };
   const FIELD_ON = true;   // the grass field's default (train 43: off; train 44: on - its cost under today's on every view, G2567)
   // (the size fade's ceiling is the field's `sizeMax`: a tuft taller than the reference reaches at most sizeMax x the reach - trees.js FADE_VS uFadeSizeMax)
   const FIELD_TYPES = {
@@ -228,7 +247,7 @@ var COVER_RING = (() => {
           aglPre: 150, preBudgetMs: 2, lead: 4, grow: 0.8, growNear: 60,
           // (G2567, the box 11 Oct 11:03 TIMED, cost3/: 2 tuft shapes + the size fade capped at 1.0 + 70 tufts / m2 - the forest view
           // 2.57 -> 2.23 ms, app10 4.21 -> 2.07, app30 3.85 -> 1.03 on gamer, every view under train 43's; draws +6..+9)
-          root: 0, rootH: 0.4,   // G2571: the root gradient's strength (0 = none) and the share of the tuft's height it fades out by
+          root: 0.6, rootH: 0.5,   // G2571: the root gradient's strength (0 = none) and the share of the tuft's height it fades out by (VEG-ROOT 9 Nov: on, the cover's row)
           lakeMargin: 0.03,      // G2572: how far ABOVE a lake's water the ground must stand for a tuft (m; render_world okAt; the sea keeps 0.3)
           tufts: 70, cards: 3, variants: 2, block: 2, sizeFade: 1, sizeMax: 1, hRef: 0.3, blotch: 0.05, clumpM: 4, clumpAmp: 0.3, hK: 1, sigmaK: 1, tier: 1, trunc: 1,
           colour: 1, match: 1, vary: 0.05, cutH: 0.08, cutSigma: 0.1, cutDens: 1.2, stripH: 0.07, stripDens: 1 }
@@ -291,6 +310,8 @@ var COVER_RING = (() => {
       // DoubleSide card, which three flips to (0,-1,0) on the back face - half of every flower dark
       LEAF.fadeHook(m); if (LEAF.flowerHook) LEAF.flowerHook(m); return m;   // G2566: the flowers' colour (VEGETATION > the flowers' colour)
     };
+    // VEG-ROOT: a flower's cards are built at unit height, the picture's top at 0.95 (flowerCards)
+    const flowerRoot = (m, c) => { m.userData.uRoot = rootOf(c, 'flower', 0.95); return m; };
     function protosOf(c) {
       let P = protos.get(c.name);
       if (P) return P;
@@ -301,7 +322,7 @@ var COVER_RING = (() => {
                                             // built at UNIT height: the instance scale carries `size`, in metres, once -
                                             // as the bench (flowerCards(t.size) and a jitter). Built at size AND scaled by
                                             // it, fireweed stood 1.7 x 1.7 = 2.75 m, bunchberry 0.19 m against 0.43.
-                                            parts: [{ geo: flowerCards(1, place.aspect || 1, hashStr(c.name) + v * 977), mat: flowerMat(url) }] }));
+                                            parts: [{ geo: flowerCards(1, place.aspect || 1, hashStr(c.name) + v * 977), mat: flowerRoot(flowerMat(url), c) }] }));
       } else {
         let subs = treeList('all').filter(e => e.col === c);
         // THE DEBRIS'S VARIETY IS ITS DRAW COUNT (PERF 2026-09-23): every model is a draw in every block and a shadow
@@ -360,7 +381,8 @@ var COVER_RING = (() => {
               // (G1385: trees.js retint now applies it - COVER_BASE, the same numbers - and the grass's own master on top,
               // so a master or a species tint moved later keeps it; asked again here for a material hooked before)
               if (c.kind === 'cover' && mat.userData.uLight && LEAF.retint) LEAF.retint(mat);
-              if (c.kind === 'cover' && FIELD_SPECIES.includes(c.name)) mat.userData.uRoot = ROOT_U;   // G2571: the reed's root gradient (trees.js fadeInject)
+              if (FIELD_SPECIES.includes(c.name)) { if (c.kind === 'cover') mat.userData.uRoot = ROOT_U; }   // G2571: the reed's root gradient (trees.js fadeInject)
+              else if (ROOT_KIND[c.kind]) mat.userData.uRoot = rootOf(c, c.kind, e.sub.bb ? e.sub.bb[4] : (e.sub.h || 1));   // VEG-ROOT: its kind's row, its own top
               if (c.kind === 'cover' && mat.userData.uFlat) { mat.userData.uFlat.value = place.contrast === undefined ? 1 : place.contrast; measureMean(mat);
                 if (mat.map && !(mat.map.image && mat.map.image.width)) { const t0 = mat.map; const poll = () => { if (t0.image && t0.image.width) measureMean(mat); else setTimeout(poll, 500); }; setTimeout(poll, 500); } }
             }
