@@ -1639,9 +1639,12 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
       pudA = smoothstep(0.0, max(fwidth(pw.x) * 1.5, 0.008), shore) * wPav;
       if (pudA > 0.0) {
         float dz = clamp(pw.x / 0.05, 0.0, 1.0);
-        vec3 murk = vec3(0.16, 0.125, 0.085);                                 // muddy water: brown silt, the bed gone within 5 cm
-        col = mix(col, mix(col * 0.55, murk, 0.45 + 0.5 * dz), pudA);
-        rough = mix(rough, 0.06, pudA);
+        // WATER, NOT MUD (the user, 9 Nov 21:40: the puddles "do not look wet ... make them a little bit more reflective"): the
+        // wet strip around already shines, so a puddle reads only by being what water is - dark under (the light goes in, the
+        // silt swallows it: 0.16 read as wet earth) and a near-mirror, the sky's reflection its whole look
+        vec3 murk = vec3(0.065, 0.05, 0.035);                                 // muddy water, deep: brown-black, the bed gone within 5 cm
+        col = mix(col, mix(col * 0.35, murk, 0.55 + 0.45 * dz), pudA);
+        rough = mix(rough, 0.015, pudA);
       }
     }
     // ---- the normal into the world, the roughness, the alpha
@@ -1654,7 +1657,7 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
       vec2 rp = vec2(pvNoise(P / 0.25 + seed * 13.0), pvNoise(P / 0.25 + seed * 13.0 + 7.3)) - 0.5 + 0.5 * (vec2(pvNoise(P / 0.08 + 3.1), pvNoise(P / 0.08 + 9.7)) - 0.5);
       gPavN = normalize(mix(gPavN, normalize(vec3(rp.x * 0.03, 1.0, rp.y * 0.03)), pudA));
     }
-    gPavR = clamp(rough, 0.03, 1.0);
+    gPavR = clamp(rough, mix(0.03, 0.015, pudA), 1.0);   // (11b: the water smoother than any ground)
     // THE SPECULAR ANTI-ALIAS (G1047, the ground's: splat_ground uSFilt.y): the roughness floor grows with the
     // pixel's footprint (sqrt of metres a pixel), so a relief finer than the pixel cannot throw the sun's lobe about
     if (uSpec.z > 0.0) gPavR = max(gPavR, min(1.0, uSpec.z * sqrt(length(fw))));
