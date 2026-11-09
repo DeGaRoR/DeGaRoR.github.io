@@ -1317,6 +1317,8 @@ const EM = (() => {
       // furniture, which is why the CG treats it as aft (resolve's note).
       const escOn = P.escOn === undefined ? 1 : P.escOn;
       let escPhase = [], escDC = [];
+      const fwTh = Math.max(0.008, 0.06 * cR);          // fwPlateAt's own thickness
+      const housedFw = s !== 0 && P.fwOn && Array.isArray(P.fwShape) && P.fwShape.length >= 8;
       if (escOn) {
         if (s === 0) {
           const ec = [0, -1.15 * cR, (zAft + zFw) / 2];
@@ -1334,6 +1336,36 @@ const EM = (() => {
             [i * 0.26 * cR, ec[1] + 0.10 * cR, ec[2] + 0.28 * cR]);
           escDC = [-1, 1].map(i =>
             [i * 0.16 * cR, ec[1], ec[2] - 0.28 * cR]);
+        } else if (housedFw) {
+          // INSIDE THE NACELLE (PROPER-COWLS, the user, 9 Nov: "no sticking stuff"): with the plate the nacelle's
+          // own firewall (fwShape), the inverter beside the motor stood out of a pod as tight as its motor - it goes
+          // BEHIND the plate, centred, sized to the plate's outline, fins aft; the phase cables pass the plate in
+          // grommets
+          const xs = P.fwShape.map(q => q[0]), ys = P.fwShape.map(q => q[1]);
+          const cxF = 0.5 * (Math.min(...xs) + Math.max(...xs)), cyF = 0.5 * (Math.min(...ys) + Math.max(...ys));
+          const ew = Math.min(1.5 * cR, 0.62 * (Math.max(...xs) - Math.min(...xs)));
+          const eh = Math.min(1.1 * cR, 0.50 * (Math.max(...ys) - Math.min(...ys)));
+          const ed = 0.38 * cR, zB = zFw - fwTh;            // the box against the plate's back
+          part('esc');
+          prism([cxF, cyF, 0], Z, X, Y, roundRect(ew, eh, 0.12 * Math.min(ew, eh)),
+                zB - ed, zB + 0.004 * cR, ENGM_MAT.esc, true, true, 0.03 * cR);
+          const nF = Math.max(4, Math.round(nV / 2));
+          part('escFins', 'fins', nF);
+          for (let k = 0; k < nF; k++) {
+            const fx = cxF + ((k + 0.5) / nF - 0.5) * 0.82 * ew;
+            prism([fx, cyF, 0], Z, X, Y,
+                  [[-0.022 * cR, -0.40 * eh], [0.022 * cR, -0.40 * eh],
+                   [0.022 * cR, 0.40 * eh], [-0.022 * cR, 0.40 * eh]],
+                  zB - ed - 0.09 * cR, zB - ed + 0.012 * cR, ENGM_MAT.esc, true, true);
+          }
+          // the phase ports on the box's FRONT face, through the plate (grommets on the plate's engine side)
+          escPhase = [-1, 0, 1].map(i => [cxF + i * 0.30 * Math.min(ew / (1.5 * cR), 1) * cR, cyF + 0.22 * eh, zB]);
+          escDC = [-1, 1].map(i => [cxF + i * 0.20 * Math.min(ew / (1.5 * cR), 1) * cR, cyF - 0.30 * eh, zB - ed]);
+          part('phaseGrommet', 'solid', 3);
+          for (const g of escPhase)
+            lathe([g[0], g[1], zFw], Z, { u: X, w: Y }, [
+              { t: -0.004 * cR, r: 0.07 * cR }, { t: 0.03 * cR, r: 0.06 * cR },
+            ], ENGM_MAT.lead, true, true, S.detail);
         } else {
           const ex = 1.55 * cR, ew = 1.5 * cR, eh = 1.1 * cR, ed = 0.38 * cR;
           part('esc');
@@ -1378,7 +1410,9 @@ const EM = (() => {
           // the pancake/housed cables leave a box on TOP of the can and
           // drop aft-and-right to the plate inverter; they live wholly
           // aft of the can, so no field is needed — by construction
-          if (s !== 0) { mid[0] += 0.55 * cR; mid[1] = Math.max(mid[1], -0.10 * cR); }
+          if (s !== 0 && !housedFw) { mid[0] += 0.55 * cR; mid[1] = Math.max(mid[1], -0.10 * cR); }
+          // (housed: aft from the terminal box, down to the grommet, through the plate onto the box behind it)
+          if (housedFw) { mid[0] = 0.5 * (a0[0] + a1[0]); mid[1] = Math.max(a0[1], a1[1]) + 0.05 * cR; mid[2] = zFw + 0.12 * cR; }
           artery('phase' + i, s === 0 ? 'stator' : 'termBox', 'esc',
             sweep(smooth([a0, mid, a1]),
                   (s === 0 ? 0.035 : 0.055) * cR, ENGM_MAT.phase,
@@ -1390,6 +1424,7 @@ const EM = (() => {
       if (P.plumb && fwPlane && escOn) {
         const dcFw = [-1, 1].map(i =>
           s === 0 ? [i * 0.50 * cR, -1.50 * cR, zFw]
+                  : housedFw ? [escDC[i < 0 ? 0 : 1][0], escDC[0][1] - 0.25 * cR, zFw - fwTh]
                   : [1.55 * cR + i * 0.20 * cR, -0.95 * cR, zFw]);
         ports.dcFw = dcFw;
         part('grommet', 'solid', 2);
@@ -1410,16 +1445,28 @@ const EM = (() => {
       // liquid: hoses boss -> plate edge, bowed clear of the rim; the
       // airframe's radiator is the other side of the plate (rough pass)
       if (P.liquid && fwPlane) {
-        const coolFw = [-1, 1].map(i => [i * 0.78 * cR, 0.60 * cR, zFw]);
+        // (in a nacelle whose firewall is its own section, the hoses keep inside it: the bow and the plate end
+        // no further out than the outline at their azimuth, less the hose and a centimetre - "no sticking stuff")
+        const rIn = a => {
+          if (!housedFw) return Infinity;
+          let best = null, bd = 9;
+          for (const q of P.fwShape) { const d = Math.abs(Math.atan2(Math.sin(Math.atan2(q[1], q[0]) - a), Math.cos(Math.atan2(q[1], q[0]) - a))); if (d < bd) { bd = d; best = q; } }
+          return Math.hypot(best[0], best[1]) - 0.055 * cR - 0.01;
+        };
+        const coolFw = [-1, 1].map(i => {
+          const a = Math.atan2(0.60, i * 0.78), r = Math.min(Math.hypot(0.78, 0.60) * cR, rIn(a));
+          return [Math.cos(a) * r, Math.sin(a) * r, zFw];
+        });
         ports.coolFw = coolFw;
         for (let i = 0; i < 2; i++) {
           const sx2 = i === 0 ? -1 : 1;
           const dir = nrm([sx2 * 0.643, 0.766, 0]);
           const a0 = coolTip[i];
+          const rB = Math.min(1.30 * cR, rIn(Math.atan2(dir[1], dir[0])));
           part('coolant' + i, 'tube');
           artery('coolant' + i, 'coolBoss', 'firewall',
             sweep(smooth([a0,
-              [dir[0] * 1.30 * cR, dir[1] * 1.30 * cR, 0.5 * (a0[2] + zFw)],
+              [dir[0] * rB, dir[1] * rB, 0.5 * (a0[2] + zFw)],
               coolFw[i]]), 0.055 * cR, ENGM_MAT.intake,
               { capA: true, capB: true, sides: S.pipe }));
         }
