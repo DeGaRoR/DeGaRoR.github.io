@@ -1,16 +1,16 @@
 {
  "what": "join-parity-page",
- "at": "2026-11-04T16:45:01.730Z",
+ "at": "2026-11-08T11:50:16.335Z",
  "door": "load (GARAGE_SPEC.set)",
- "chainSig": "f8ee9f73002f14a32cab08d1fae72d2171dacf9f",
+ "chainSig": "cbd55041d588a048631e435783d44fc4577ba737",
  "builds": {
   "cub": {
    "file": "builds/cub_2026-09-20_corrected.json",
    "page": {
     "n": 97,
     "nb": 404,
-    "mass": 477.3945726423762,
-    "build": "8d87987922dc"
+    "mass": 476.44827650311765,
+    "build": "3f54ecacbb59"
    },
    "spec": {
     "cage": {
@@ -1027,6 +1027,7 @@
      "fltStrutR": 0.018,
      "fltWires": 1,
      "fltStrutAng": 55,
+     "fltFrontRing": 0,
      "fltSpread": 1,
      "fltBoard": 0,
      "fltKit": 0,
@@ -1184,7 +1185,7 @@
      "kg": 0
     },
     "fuel": {
-     "litres": 45,
+     "litres": 44,
      "tank": "nose"
     },
     "systems": {
@@ -1518,13 +1519,9 @@
      "decals": {
       "regH": 0.2,
       "regL": 3.66,
-      "regC": -0.18,
+      "regC": 0.012,
       "regCol": 1315860,
-      "regOutOn": 0,
       "regW": 1.1577380952380953,
-      "imgW": 0.15,
-      "imgH": 0.15,
-      "wimL": 0.65,
       "m1Pat": 3,
       "m1A": 1315860,
       "m1B": 16765568,
@@ -1554,15 +1551,31 @@
      "vessels": [
       {
        "bay": "nose",
-       "capacity": 45,
-       "along": null,
-       "lv": 0.9,
+       "capacity": 44,
+       "along": -0.17,
+       "lv": 0.596,
        "rot": 0,
-       "form": "box",
-       "dims": null,
+       "form": "deck",
+       "dims": {
+        "L": 0.275,
+        "W": 0.606,
+        "H": 0.35,
+        "profile": [
+         1,
+         0.987,
+         0.973,
+         0.947,
+         0.913,
+         0.875,
+         0.827,
+         0.699,
+         0.692
+        ]
+       },
        "finish": null,
        "hue": null,
-       "tint": null
+       "tint": null,
+       "fit": "auto"
       }
      ]
     },
@@ -1576,8 +1589,8 @@
    "page": {
     "n": 115,
     "nb": 502,
-    "mass": 464.1822693117153,
-    "build": "8d87987922dc"
+    "mass": 467.9892309227051,
+    "build": "3f54ecacbb59"
    },
    "spec": {
     "cage": {
@@ -2594,6 +2607,7 @@
      "fltStrutR": 0.018,
      "fltWires": 1,
      "fltStrutAng": 55,
+     "fltFrontRing": 0,
      "fltSpread": 1,
      "fltBoard": 0,
      "fltKit": 0,
@@ -2745,7 +2759,7 @@
      "kg": 0
     },
     "fuel": {
-     "litres": 45,
+     "litres": 49,
      "tank": "nose"
     },
     "systems": {
@@ -3091,12 +3105,7 @@
       "regL": 2.5,
       "regC": 0.3,
       "regCol": 8134444,
-      "regOutOn": 0,
       "regW": 1.6207056561638329,
-      "imgW": 0.15,
-      "imgH": 0.15,
-      "wimL": 0.65,
-      "wimH": 2,
       "m1On": 1,
       "m1Pat": 2,
       "m1A": 8134444,
@@ -3123,15 +3132,31 @@
      "vessels": [
       {
        "bay": "nose",
-       "capacity": 45,
-       "along": null,
-       "lv": 0.9,
+       "capacity": 49,
+       "along": -0.2569,
+       "lv": 0.6372,
        "rot": 0,
-       "form": "box",
-       "dims": null,
+       "form": "deck",
+       "dims": {
+        "L": 0.313,
+        "W": 0.825,
+        "H": 0.26,
+        "profile": [
+         1,
+         0.985,
+         0.969,
+         0.94,
+         0.901,
+         0.859,
+         0.702,
+         0.639,
+         0.538
+        ]
+       },
        "finish": null,
        "hue": null,
-       "tint": null
+       "tint": null,
+       "fit": "auto"
       }
      ]
     },

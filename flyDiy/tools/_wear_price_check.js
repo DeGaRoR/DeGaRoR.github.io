@@ -27,7 +27,9 @@ const rd = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
 
 function core(C) {
   const fails = [], ok = (c, what) => { if (!c) fails.push(what); return !!c; };
-  const spOf = f => { const j = JSON.parse(rd(f)); return C.genMigrateSpec(j.spec || j); };
+  // G2818 (MASTER-GREEN, GATE JOINPARITY's census): the build as the game flies it (tools/_load_build.js - this tree's chain
+  // for every core asked; FLYDIY_RAW_BUILDS=1 the file as written)
+  const spOf = f => { if (process.env.FLYDIY_RAW_BUILDS === '1') { const j = JSON.parse(rd(f)); return C.genMigrateSpec(j.spec || j); } return C.genMigrateSpec(require('./_load_build.js').loadBuild(f).spec); };
   // ---- THE CERTIFICATE
   let nb = 0;
   for (const f of fs.readdirSync(path.join(ROOT, 'builds')).filter(f => /\.json$/.test(f) && !/\.edits\.json$/.test(f))) {

@@ -313715,3 +313715,79 @@ again as fresh commits on master ebc4c9edd: 5f104dfa8 + ac2cc9b6b (the move), 77
   sunk on the stock card, the rod, the Cessna 172 and the metal Cessna) - identical to the bit (1235 bytes).
 - **Known limit (A0: fine, named):** the beacon's placement rows hide with the Lights part when `lightOn` is 0, while
   the skin beacon (accBeacon) stays drawn. Evidence: flydiy-notes/evidence-2026-10-18/2026-11-08/comms/ (run6.log; run3.log the first, reverted, ready).
+## PILOT-NOTCH + FLARE-NOPUSH + MASTER-GREEN (Pilot), 8 Nov 2026, for L35c
+
+Branch claude/ready/pilot-notch, on master bddb81b0f (L35b; rebased 17:30, built and re-gated on it). The user (7 Nov, approaches): "do a proper job for the approaches; look at real regulations"; (8 Nov) "have master clean". Source: FAA-H-8083-3C (Airplane Flying Handbook) ch. 9.
+
+### The landing notch (G2811)
+A builder lands on the largest flap notch that fits (the trim budget and the 0.35 flare budget, bisected in 0.05), not full flap or nothing. Cub 0.70 (flare-limited, deF 0.330), Jodel 0.60 (trim-limited), the twin 0.70. G2812's name hold on the Jodel D112 is removed in G2813.
+
+### FLARE-NOPUSH (G2813) - AFH 9-8: "Once the actual process of rounding out is started, the pilot should not push the elevator control forward"
+- The round out never lowers the nose more than flareNoPush (0.035 rad, 2 deg) below the highest attitude it has reached.
+- The flare arms at flareArmK 1.0 x flareAgl. It used to arm at flareK 1.3 x, while flTau is sized on 1 x, so the first tick asked for 1.3 x the arriving sink. The forced landing's glide keeps flareK 1.3.
+- The stick has its whole travel in the flare and the roll-out (deFlare 0.70, as the STOL flare's deStol). On the 0.35 stop the nose fell 4 deg with the stick against it. The planner's static flare budget stays 0.35.
+- Measured (node, with the notch; in brackets the notch with the old flare, master flapless where said):
+  - the Jodel w3>HOME in 8 kt: 1.01 m/s with the crosswind cap (1.44; master flapless 1.09);
+  - the user's Cub HOME>w3 0.94, w2>HOME 0.68, and 0.58 in 8 kt;
+  - the card Cub: student 1.10 (2.19), hamfist 0.82 completed (gave up), calm 0.76 (1.21);
+  - Cessna 4 full 1.35 (1.51), Cessna 2 full 0.41 (0.70), the twin 0.90 (0.98).
+
+### The crosswind flap cap (G2816) - AFH ch. 9: "partial wing flaps" in gusty crosswind, a higher touchdown speed
+- A tailwheel aeroplane on wheels whose crosswind is over xwFlapK 0.10 x VAppr lands on its take-off flap at most.
+- The pilot decides on downwind, base or inbound. On final it applies only while the flap is not yet past the take-off setting, so there is never a retraction on short final. The cap holds for the approach and the next departure clears it.
+- Measured: card Cub HOME x4 roll-out swing 46.4 -> 15.0 deg (master 9.3, also warn); x2 7.1 -> 5.9 (master 2.9).
+
+### NAMED COSTS - GATE PILOTMATRIX's baseline moved forward by hand (tools/pilot_baseline.json)
+The committed baseline was from 15 Sep: 13 cells, before the ctl-rev column. It was re-run on 105109bf9 (L35b + this branch) with pilot_matrix.js --set quick --jobs 1 --out. Result: 18 cells, 11 good, 4 warn, 3 bad, 1745 s.
+- Costs (old -> new):
+  - cub:HOME:x2: roll-out swing 2.9 -> 5.9 deg, still good, warn from 6 (the slower touch on the notch);
+  - cub:HOME:calm:up4: sink 1.04 -> 1.57 m/s, warn (the notch alone 1.34);
+  - cub:HOME:calm:student: sink 0.58 -> 1.10 m/s, still good.
+- Within tolerance: club sink 0.54 -> 0.87; bush 0.70 -> 1.16.
+- Better: calm 1.21 -> 0.76; x2 sink 1.33 -> 0.74; HOME-A3 1.49 -> 0.73; dn4 1.76 -> 0.90 (warn on its final control reversals 13.6, a column the old baseline lacked); hamfist 0.88 -> 0.82. The Stearman: calm 0.95 -> 0.84, x2 1.28 -> 0.92.
+- The Cessna c172 (also the metal fixture sync and master since Sep): calm sink 0.95 -> 1.14, aim 31 -> 37 m; x2 1.05 -> 1.16, aim 20 -> 28 m.
+- New cells:
+  - cub:HOME:x4: warn, swing ~15 deg (46.4 before the crosswind cap; master 9.3);
+  - stearman:HOME:x4: sink 1.03;
+  - cub:HOME-A5:calm: warn, sink 1.06;
+  - cub:HOME:calm:sand: as calm;
+  - c172:HOME:calm:rh: sink 1.14.
+- The 3 bad are the Stearman's take-off control reversals (114-130 /min), as on master. The old baseline had no activity column, so G630 never judged them. Pilot owes them.
+
+### MASTER-GREEN (the user 8 Nov; flydiy-notes/MASTER-GREEN-2026-11-08.md)
+- POD (G2817): tools/_pod_base.json re-blessed (--bless, then --bless-bytes) on this branch. Since 28 Oct (f27d824bc) the trains' meant changes moved every validated build's no-pod def and sheet: the cabins, the seats, CERT-RULE's fitted tanks, and the notch's landing flap. The live rules held throughout. The flown steps are the old base's to the bit; the certificates of the Cub, the Jodel and the twin move.
+- ENGCONFIG IDENTITY (G2817): re-pinned with --pin. Against master, only the Cub's and the Jodel's def (the notch) and the pusher fixture's def differ; every flown digest is master's. Still red, as on master: the four-engine card never goes wings-level on the downwind (x3 rows), and the three example cards DIFFER from their saved files. Pilot, L35d.
+- JOINPARITY:
+  - The metal fixture copy is synced to its validated file (G2815; CERT-RULE f671c17d3 fitted the tank, 25 -> 28 L).
+  - The census (G2818): 9 raw loaders go through tools/_load_build.js (econ_sim, engine_torque_seasweep, hydro_trim_table, hand_controls_probe, dmg_scuff_bench, _missions_check, _price_check, _wear_price_check; FLYDIY_RAW_BUILDS=1 keeps the file). 14 tools are declared at their real doors. A new door, viaTourLib, covers _canfly_check and _apsmooth_check.
+  - TANK-SPLIT (G2814): the page capture waits for the nose tank's sliced shaping (window.TANK_NOSE_PENDING). Re-captured: the Cub page = node to the gram (476.448 kg, deck 44 L). The Jodel page has 49 L (467.989 kg); node has 53 L (471.789). Node shapes before the crew layer's late floor and the panel's switch row; the page shapes after. Node moves to the page in L35d. JOINPARITY: 1 FAIL, the Jodel row, named.
+- STOL (G2813): re-captured on this branch. The slower approach is now asked at 0.96 x the notched stock (67.2 km/h; the kit 64.0). It used to be 0.92 x a flapless stock (74.8).
+- Gates on this branch:
+  - On L35a: STOL, POD, PLAN, LINEUP, TAKEOFF, PRICE, WEARPRICE and MISSIONS PASS.
+  - Re-run on L35b (105109bf9): POD and STOL PASS; JOINPARITY 1 FAIL (the Jodel row, named); ENGCONFIG master's fails only, every IDENTITY pin holds.
+  - ARCHETYPES not run: 1900 s x 4 shards does not fit one process. Monday, with the Chinook-alike red.
+
+### OWED (Pilot, L35d or Monday)
+- the Stearman's take-off control reversals (PILOTMATRIX bad, master's own);
+- the Jodel node tank (JOINPARITY);
+- APSMOOTH (rudder hands 19-52 /min on four level rows; suspect G3913's yaw-rate damper);
+- GEN "cruise is quiet in wind" (bank p2p 11.6; suspect the 45 deg downwind join inside the window);
+- ENGCONFIG's quad downwind wings-level and the three example cards;
+- gps-bill (G2809's 8 reverted commits);
+- the floats Cessna 2-full full-flap go-around on cessna-tail (FLAGSHIP, 8 Nov).
+
+### PILOTMATRIX: the 3 bad cells are a TEMPORARY ratchet (Pilot, 8 Nov, after A0)
+The baseline moved in G2813 holds the Stearman's take-off control reversals (stearman:HOME:calm / x2 / x4, 114-130 /min) as bad. That is a real pilot fault, not a new normal. The ratchet only stops it getting worse until it is fixed. It is on Pilot's list this week, after NODE-ACCEPT. Its fix moves those 3 cells forward by hand again.
+
+### PILOT-NOTCH for L35d (Pilot, 8 Nov 22:45): dropped from L35c, rebased on L35c b25872b51
+- L35c dropped it on a real conflict: tools/fixtures/stol_baseline.json.gz, which seaplanes e5a2fe4cb also re-captured and merged first. Rebased on b25872b51: the STOL fixture is master's, then re-captured on top (notch + FLARE-NOPUSH + L35c's seaplanes), with _stol_samebits.js --capture. The HANDOVER append conflict kept both entries.
+- Gates on the rebased tree:
+  - STOL fixture re-captured;
+  - POD PASS (no re-bless needed);
+  - ENGCONFIG IDENTITY: every pin holds (--pin prints the same 17 rows);
+  - JOINPARITY: 1 FAIL, the Jodel row, as named above.
+- PILOTMATRIX's baseline is the one captured on L35b + this branch. L35c's 43_pilot/solver/aero changes are gated on a retractable gear (def.params.retract), an amphibian, or a pair of engines behind the trailing edge. None of the matrix's cells has any of those.
+- G2819 (TANK-SPLIT, node shapes the nose tank sliced, as the page does) was tried and DROPPED. It does not move the Jodel: node stays 471.789 kg, uncached as well. Shaping's timing alone is not the cause. The JOINPARITY Jodel row stays named, Monday. The patch is kept in D:/Dev/pilot_runs/flare_nopush_20261108/.
+
+### L36a addendum (Pilot, Mon 9 Nov 08:30)
+STOL re-captured on this branch on top of 6fd718f5c (SEAPLANES: _stol_fp.js preStol drops the hull-type rows at their off value, as the gate does). The capture and _stol_check.js --selftest PASS together, which is the proof of 6fd718f5c. POD PASS and JOINPARITY (1 FAIL, the Jodel row, named) stand from the L35c run of 8 Nov: 6fd718f5c touches only the two STOL tools.

@@ -94,8 +94,7 @@ const CARDS = FIX.cards;
 const STOL_ROW_DEFAULTS = require(path.join(T, '_stol_fp.js')).STOL_ROW_DEFAULTS;   // (one table: the capture drops the same rows)
 const RHO = C.RHO;
 // SEAPLANES-LAND: the hull-types branch's cage rows at their "off" (src/core/60_gen_spec.js GEN_HULL_ROW_OFF)
-const HULL_ROW_OFF = { bpStrutK: 1, bpCabDraw: 1, bpCabPylon: 0, engPylonFair: 0, engPylonForm: 0, engPylonAt: 0, engPylonAft: 0.15,
-                       engPylonFwd: 0, engFinAt: 0.55, engFinFwd: 0, engNacOver: 0, engNacLift: 0 };
+const HULL_ROW_OFF = require(path.join(T, '_stol_fp.js')).HULL_ROW_OFF;   // one table, the capture's (_stol_fp.js preStol drops them too)
 
 // ---- the instruments ------------------------------------------------------
 // G2821: ONE SOURCE with the capture (tools/_stol_fp.js) - the fixture and the
@@ -742,7 +741,10 @@ if (!BENCH_ONLY) {
     ok(!gO.landsFlapless && v0 <= gO.VsFlap * 1.01 && mO.Vs0 === v0,
        `the elevator holds the slatted stall in the flare on its own tank: the ladder's Vs0 ${kmh(v0)} km/h, the wing's ${kmh(gO.VsFlap)}, flaps down`);
     console.log(`       on the stock's tank (${JSON.stringify(J.fuel)}) the elevator holds ${kmh(gK.VsFlapAP === undefined ? gK.VsFlap : gK.VsFlapAP)} km/h, the wing's ${kmh(gK.VsFlap)}`);
-    ok(mK.Vref <= 0.92 * mS.Vref, `a slower approach: Vref ${kmh(mK.Vref)} km/h (stock ${kmh(mS.Vref)})`);
+    // G2811 + G2813 (rule b, the check updated for a meant change): THE STOCK NOW LANDS ON ITS NOTCH. Measured against a
+    // flapless stock (74.8 km/h, 0.92 asked); the landing notch flies the stock Cub's approach at 67.2 km/h, the kit's 64.0:
+    // still slower, by 0.952 - asked 0.96
+    ok(mK.Vref <= 0.96 * mS.Vref, `a slower approach: Vref ${kmh(mK.Vref)} km/h (stock ${kmh(mS.Vref)})`);
     const L = dK.parts.ledger;
     ok(L.stol && L.stol.mass > 5, `the kit is billed: ${L.stol && L.stol.mass.toFixed(1)} kg, ${L.stol && Math.round(L.stol.cost)}`);
     const dc = (shK.design && shK.design.rows) || [];

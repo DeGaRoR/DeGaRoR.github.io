@@ -251,7 +251,35 @@ function genTrim(def) {
       if (g.VsFlapAP !== undefined) { delete g.VsFlapAP; delete g.VsHeld; }   // G2826: flapless, the held flap speed goes
       return genTrim(def);               // re-measure the lot at the new config
     };
+    // G2810 (AVIONICS-GPS, the user 26 Oct: "do the partial-flap fix"): NOT FLAPS OR NOTHING. A builder whose full flap
+    // will not trim (G2034) or flare (G970) does not take all of it away - he lands on the notch that fits. G2809's bill
+    // moved the user's Cub's CG 5.9 mm aft and its full-flap trim from -0.1494 to -0.1548, past the 0.1543 budget by
+    // 0.0005, and the rule took the whole flap: Vref 17.5 -> 20.6 m/s, Copperhead and East Point lost. So, first, THE
+    // LARGEST LANDING SETTING, in 0.05 notches, that fits BOTH budgets - each notch measured as genTrim measures: its own
+    // stall (genClMax at that setting, the same instrument as gen.VsFlap), the approach speed scaled to it, the trim on
+    // final and the flare's elevator at 1.10 of its stall. Only when no notch fits does the flapless rule below stand.
+    const notchFits = f => {
+      const cm = genClMax(def, f), VsF = Math.sqrt(2 * cm.W / (RHO * cm.Sw * Math.max(1e-6, cm.CLmax)));
+      const Vf = A.VAppr * VsF / Math.max(1e-6, g.VsFlap), Vtd = 1.10 * VsF;
+      sim.ctl.flap = f;
+      const de = deAt(Vf, genAlphaForLift(sim, Vf, W, aMax)), deF = deAt(Vtd, genAlphaForLift(sim, Vtd, W, aMax));
+      return { f, VsF, ok: Math.abs(de) <= trimBudget(de) && deF <= 0.35 };
+    };
+    const landPartial = () => {
+      if (g.landsPartialFlap != null || !(ldg > 0)) return null;
+      // the notches under the setting that failed, bisected (the trim and the flare grow with the flap: fits is monotone)
+      let lo = 0, hi = Math.round(ldg / 0.05), best = null;
+      while (hi - lo > 1) { const k = (lo + hi) >> 1, r = notchFits(Math.round(k * 5) / 100); if (r.ok) { lo = k; best = r; } else hi = k; }
+      sim.ctl.flap = ldg;
+      if (!best) return null;
+      def.params.flaps.ldg = best.f;
+      const k = best.VsF / Math.max(1e-6, g.VsFlap);
+      A.VAppr *= k; A.VApprShort *= k;
+      g.VsFlap = best.VsF; g.landsPartialFlap = best.f; g.flapLdgFull = ldg;
+      return genTrim(def);               // re-measure the lot at the notch
+    };
     if (Math.abs(g.deAppr) > trimBudget(g.deAppr) && ldg > 0) {
+      { const d2 = landPartial(); if (d2) return d2; }
       sim.ctl.flap = 0;
       const Va0 = A.VAppr * rat;
       const de0 = deAt(Va0, genAlphaForLift(sim, Va0, W, aMax));
@@ -263,7 +291,10 @@ function genTrim(def) {
     // the flare ceiling's own reading below) measured the same way - free
     // air, prop off: the flare begins out of ground effect and at idle.
     // Past the elevator's 0.35 stop the flare cannot be flown, and a builder
-    // lands on the setting that needs less. Measured (2026-09-27, every live
+    // lands on the setting that needs less. (G2813: the pilot's flare stick now
+    // reaches 0.70, deFlare; this static budget stays at 0.35 - the dynamic
+    // round out needs more than the free-air reading: the card Cub's notch read
+    // 0.330 here and held its nose on 0.35 only with the stick on the stop.) Measured (2026-09-27, every live
     // card): the Cub-alike's Fowler flap (dCl0 2.43, dCm0 -0.61) needs 0.491
     // at its touchdown attitude and flapless 0.412 - flapped, the flare sat on
     // the stop from its first second, the nose rose to +0.7 deg, and it
@@ -277,6 +308,7 @@ function genTrim(def) {
       const Vtd = 1.10 * (g.VsFlapAP || g.VsFlap);       // G2826: a STOL wing's held touchdown
       g.deFlare = deAt(Vtd, genAlphaForLift(sim, Vtd, W, aMax));
       if (g.deFlare > 0.35) {
+        { const d2 = landPartial(); if (d2) return d2; }
         sim.ctl.flap = 0;
         const V0 = 1.10 * g.Vs;
         const deF0 = deAt(V0, genAlphaForLift(sim, V0, W, aMax));

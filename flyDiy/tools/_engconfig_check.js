@@ -238,20 +238,25 @@ const kidsDone = PINMODE ? null : runKids();
 // moves where the bill or the partial landing flap reaches the flight (the Cub, the Jodel, the twin floatplane's file,
 // the metal Cessna, the Cessna on floats, Rufus); the C172, the Chinook, the twin-boom, the twin, the pusher and the
 // stock singles fly master's digest. The example layouts (9) rebaked with --write on the same tree.
-say('1 IDENTITY - the saved builds and the single mounts, digested against master (2c2a74459)');
+// MASTER-GREEN (G2817, 8 Nov, the user: "have master clean"): re-pinned on claude/pilot-notch (master 1bcd01d3e, L35a,
+// + the landing notch G2811 and FLARE-NOPUSH G2813-G2816). Since the 28 Oct pins the trains' meant changes moved the def
+// digests of the validated builds and the fixtures (the cabins, the seats, CERT-RULE's fitted tanks, the outfits) - A0
+// checked the 18 load digests identical between L35a and master; on top of master the notch moves the Cub's and the
+// Jodel's def (their landing flap) and gives the pusher fixture back its 28 Oct def; every flown digest is master's.
+say('1 IDENTITY - the saved builds and the single mounts, digested against master (1bcd01d3e + the landing notch)');
 const VAL_FILES = new Set(Object.values(LB.VALIDATED).map(v => v.build).concat(['tools/fixtures/repro/rufus_2026-10-18_certified.json']));
 const PIN = {
-  'builds/cub_2026-09-20_corrected.json': '155419e4ddd55891 5f81fcf4b4175980',
-  'builds/jodel_2026-09-20_corrected.json': '33c1b6b22fa8a5d5 b281985b850ee5b7',
-  'builds/cessna172_2026-09-20_corrected.json': 'cfff2062f514f276 c3124e0092d05851',
-  'builds/chinook_2026-09-21_corrected.json': 'bf6854b8a6066f35 f4dbe53bc257a050',
-  'tools/fixtures/build_v7_ultralight_2026-09-05.json': 'ae93bc2acf2aa2c7 152e8c2cbb80d7b5',
+  'builds/cub_2026-09-20_corrected.json': 'eece122e0b81e79f 8064ad76b0127161',
+  'builds/jodel_2026-09-20_corrected.json': '231d8f26af8c8756 3497672e75dd4e23',
+  'builds/cessna172_2026-09-20_corrected.json': '4b96bdef8b315409 b4a926d9ce6d6b33',
+  'builds/chinook_2026-09-21_corrected.json': '0ce32059d36b92a3 9a62a6a61fcc8556',
+  'tools/fixtures/build_v7_ultralight_2026-09-05.json': 'f6a9c697f782f45b e7942c80c42fb7f0',
   'tools/fixtures/build_v8_twin-boom_2026-09-11.json': 'd3712ab277fcc329 77b62ab7c4146aaa',
   'tools/fixtures/build_v7_twin_2026-09-04.json': 'b272e4d2fa0f485e 221d6c2405b15e1e',
   'tools/fixtures/build_v8_pusher_2026-09-11.json': '382e0869b7b40fca 1e888903ddfb652c',
-  'bugReports/cessnaMetal (1).json': 'a7ef3e20bbb60e99 3424501b41d6e08a',
-  'bugReports/cessnaFloatsWOrks.json': 'ad5b0932430ce736 654023193f98094b',
-  'tools/fixtures/repro/rufus_2026-10-18_certified.json': 'de3b3f1e42596986 af31390fe113f650',
+  'bugReports/cessnaMetal (1).json': '94470c8f8a15303b a46c863c418b9466',
+  'bugReports/cessnaFloatsWOrks.json': 'f96f0f0fb183066c c0cb85e1b844a200',
+  'tools/fixtures/repro/rufus_2026-10-18_certified.json': '4cdd3f968a12bfe3 210d8b580d8fe556',
   'stock nose': '643179bc32524858 31cce33943cc578a',
   'stock pusher': '5c93f8d9d359df46 5613f19c025bd3cf',
   'stock wingTop': '517c36a580adee0c 53a5929a6f5191d4',
