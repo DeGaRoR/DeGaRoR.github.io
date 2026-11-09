@@ -90,3 +90,24 @@ that can run it.
    [keep, marked ESTIMATE]
 5. **The Chinook's starter**: unknown as built (the 582 came with pull or electric start); the engine suggests the
    ultralight set, REAL-FIGURES' card assumes a pull start. [the card's minimal fit]
+
+## The user's rulings (9 Nov, evening)
+- **Cub:** keep the official card (the electrics-free variant stays as evidence only).
+- **Cork fuel sight:** not added.
+- **ELT tech tier:** "do what you think is best" -> `av.elt:none` 1, `av.elt:fitted` 2 (the transponder's tier: certified
+  avionics on its own battery). GATE TECH is green (it was red on master for want of these keys).
+- **Wiring:** 1 % of empty mass "feels right and better than the current rule". Not applied yet - see below.
+
+### The wiring, costed (wire only; the bus parts 0.5-0.7 kg are kept apart)
+| build | today | 1 % of empty | cable runs (bottom-up) |
+|---|---|---|---|
+| Cub | 1.65 | 4.25 (empty 354.8 -> 357.4, **+3.6 % vs 345, out of band**) | 3.10 |
+| Jodel | 1.65 | 4.14 (+8.3 % vs 320, already +7.5 %) | 2.91 |
+| C172 | 2.40 | 7.24 (inside its band) | 3.67 |
+| PA-18 floats | 1.65 | 6.34 | 3.12 |
+| Chinook | 1.35 | 3.00 | 2.85 |
+| Rufus | 1.20 | 3.37 | 2.82 |
+Cable runs = the starter cable sized by its amps and the charging lead by its amps, a run per powered load, the wingtip
+and tail lights over the build's own span and length, x 1.6 for connectors, clamps and sleeving. It is the better
+SHAPE (wire follows where the current goes, not how heavy the structure is: a wooden and a steel-tube airframe of one
+size get the same wire), but it undercounts: 3.7 kg for the 172 against the 5-7 kg REAL-FIGURES calls realistic.
