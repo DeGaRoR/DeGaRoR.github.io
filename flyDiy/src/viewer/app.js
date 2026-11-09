@@ -7556,6 +7556,14 @@
   let dustFx = null;
   const DUST_SURF = ['grass', 'dirt', 'gravel', 'dirt', -1, 'paved', 'gravel', 'sand'];   // the SURFACE enum -> a dust class (rock / forest floor read dirt; water none)
   const DUST_CLS = { dirt: 0, sand: 1, gravel: 2, grass: 3, paved: 4, concrete: 4, asphalt: 4 };
+  // THE SOIL'S WATER, ONCE A FRAME, FOR EVERYONE WHO SHOWS IT (DIRT-STRIP's ask, 9 Nov): SOIL_WET off the day, handed to the
+  // pavement (PAVEMENT.setSoilWet: one shared uniform - the strip's damp tint and its drawn puddles) and to the dust (the same
+  // R: the water drawn is the water splashed in). Runs with the dust off too (?dust=0 is the dust's lever, not the puddles').
+  let soilNow = null;
+  function soilFrame() {
+    soilNow = typeof SOIL_WET !== 'undefined' && world && world.day ? SOIL_WET.at(world.day) : null;
+    if (soilNow && window.PAVEMENT && PAVEMENT.setSoilWet) PAVEMENT.setSoilWet(soilNow.wet);
+  }
   function dustMake() {
     if (dustFx || DUST_Q === 0 || typeof DUST === 'undefined' || !THREE.InstancedBufferGeometry) return dustFx;
     const G = window.GFX && window.GFX.get ? window.GFX.get() : null;
@@ -7621,7 +7629,7 @@
       W.tips[1][0] = c[0] + zr[0] * h; W.tips[1][1] = c[1] + zr[1] * h; W.tips[1][2] = c[2] + zr[2] * h; }
     else W.V = 0;
     if (dt > 0) {
-      F.wetR.R = typeof SOIL_WET !== 'undefined' && world && world.day ? SOIL_WET.at(world.day) : null;
+      F.wetR.R = soilNow;   // the frame's one reading (soilFrame): the same water the pavement draws
       DUST.sources(sys, st, F.env, dt);
       DUST.step(sys, dt, F.env);
     }
@@ -20519,6 +20527,7 @@
     if (floatMeshes.length) { const ph = !inGarage; for (const m of floatMeshes) m.visible = ph; if (ph) syncFloats(); }
     if (sceneSample) FR.sceneDetail.lap(4);
     if (waterFx && !inGarage) syncWaterFx(running ? fdt : 0);   // (G586: the spray on the frame's own time)
+    if (!inGarage) soilFrame();                                    // DIRT-DUST: the soil's water (the pavement's puddles and the dust read it)
     if (dustFx && !inGarage) syncDustFx(running ? fdt : 0);     // DIRT-DUST: the strip's dust, on the same time
     // THE INTERACTION FIELD (H7, G460.8): on while a floatplane is over water (the CG's water level finite),
     // stepped before the render with the CG as its centre; off (the slot cleared) otherwise
