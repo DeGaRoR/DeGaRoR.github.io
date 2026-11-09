@@ -111,3 +111,58 @@ Cable runs = the starter cable sized by its amps and the charging lead by its am
 and tail lights over the build's own span and length, x 1.6 for connectors, clamps and sleeving. It is the better
 SHAPE (wire follows where the current goes, not how heavy the structure is: a wooden and a steel-tube airframe of one
 size get the same wire), but it undercounts: 3.7 kg for the 172 against the 5-7 kg REAL-FIGURES calls realistic.
+
+## The cable-run harness - APPLIED (the user, 9 Nov: "go cable runs")
+`genHarnessKg` (60_gen_spec.js) bills the wire by its runs, lengths to the centimetre from the spec: the starter cable
+sized by the starter (`cableKgM`: 2 AWG for the Sky-Tec class), the charging lead, a run per powered load, the nav lights
+over the span, the tail light down the tail arm, the landing light a third out, x1.6 for connectors, clamps, sleeving;
+plus the bus parts. It replaced 1.2 kg + 0.15 kg per powered item. **PHYSICS_V 7 -> 8.**
+
+**Every `builds/*.json`, master against this branch** (`reports/evidence/ELEC-SYSTEMS/emptyall.js`, tables beside it):
+
+| build | empty before | empty after | delta | harness before -> after | CG empty % MAC | CG loaded % MAC | key before -> after |
+|---|---|---|---|---|---|---|---|
+| c172r_wipline2350_landprop_2026-10-20 | 767.46 | 769.18 | +1.72 | 2.40 -> 3.87 | 38.44 -> 38.36 | 38.37 -> 38.32 | af98c9fe -> b5129149 |
+| c172r_wipline2350_stcprop_2026-10-20 | 770.03 | 771.76 | +1.73 | 2.40 -> 3.87 | 38.07 -> 37.99 | 38.12 -> 38.07 | 92dd236d -> baa171ad |
+| cessna172_2026-09-20 | 713.20 | 715.02 | +1.82 | 2.40 -> 3.94 | 21.72 -> 21.65 | 24.82 -> 24.76 | bd677633 -> 7a3a3398 |
+| cessna172_2026-09-20_corrected | 639.45 | 641.18 | +1.73 | 2.40 -> 3.87 | 33.37 -> 33.29 | 35.06 -> 35.00 | 1e02cbdf -> fcc329b |
+| cessna172_floats_2026-11 | 845.45 | 847.27 | +1.82 | 2.40 -> 3.94 | 25.04 -> 24.97 | 26.81 -> 26.76 | 78476d00 -> 66dacfba |
+| chinook_2026-09-21 | 282.03 | 285.81 | +3.78 | 1.35 -> 4.71 | 75.92 -> 74.44 | 61.04 -> 60.10 | 3208e677 -> c423fe56 |
+| chinook_2026-09-21_corrected | 235.43 | 238.52 | +3.09 | 1.35 -> 4.16 | 54.46 -> 53.08 | 36.77 -> 36.00 | 8e50507f -> 79aa3dd5 |
+| composite_jodel_2026-10-07 | 360.35 | 361.92 | +1.57 | 1.65 -> 2.95 | 28.95 -> 28.88 | 25.32 -> 25.28 | b78ff514 -> eb092bc8 |
+| cub_2026-09-20 | 344.53 | 346.13 | +1.60 | 1.65 -> 3.04 | 23.14 -> 23.01 | 22.89 -> 22.79 | c7409e90 -> d7770ff0 |
+| cub_2026-09-20_corrected | 354.77 | 356.37 (+2.8 -> +3.3 % vs 345) | +1.60 | 1.65 -> 3.04 | 26.25 -> 26.11 | 23.39 -> 23.30 | af84cf8d -> 80ceab1a |
+| jodel_2026-09-20 | 404.21 | 405.67 | +1.46 | 1.65 -> 2.94 | 36.36 -> 36.27 | 37.04 -> 36.97 | 22bc6b3a -> 6fc89625 |
+| jodel_2026-09-20_corrected | 343.63 | 345.15 (+7.4 -> +7.9 % vs 320) | +1.52 | 1.65 -> 2.95 | 28.86 -> 28.78 | 25.12 -> 25.08 | 59b49604 -> e5d16223 |
+| pa18_floats_2026-10-23 | 563.63 | 565.36 | +1.73 | 1.65 -> 3.14 | 18.65 -> 18.58 | 22.11 -> 22.05 | e5f3f8e1 -> 9307881b |
+| rufus_2026-10-18_certified | 275.16 | 276.80 | +1.64 | 1.20 -> 2.63 | 28.36 -> 28.16 | 25.73 -> 25.59 | 7052bcd0 -> b0a435ce |
+
+- The Cub stays at +3.3 % (REAL-FIGURES' option (a), the user's rule over its hold): its missing line (~11-13 kg found
+  missing once its electrics are taken off) is REAL-FIGURES' to find; with LINER-BACK's zero-sum it reads ~355.9 kg.
+- The Jodel's +7.9 % is temporary: its electrics-off systems edit rides in REAL-FIGURES' **JODEL-GEO** ready (combined
+  321.7 kg against 320, static margin 5.6 %, design check PASS). **It must not land alone**: on this branch alone it
+  failed GATE DESIGNCHECK (pitch.sm -0.001), so it was reverted here (340634f3).
+- The Chinook carries the most new wire (+3.1 kg: a pusher, the starter cable runs aft) - moot once REAL-FIGURES'
+  minimal-fit Chinook card lands (no bus, no harness).
+- A real consequence: with +1.6 kg, the student and the roster pilot now **refuse the Cub at mn_strip** (the need ~250.2 m
+  against 250 m).
+- The rule reads low on a 172 (3.9 kg against the 5-7 kg REAL-FIGURES calls real): `GEN_ELEC.harness.runs.install` is the
+  one knob to calibrate when a real harness weight turns up.
+
+### Gates after the cable runs (this branch; failures compared with master)
+| gate | master | branch | |
+|---|---|---|---|
+| ELEC, TECH, PANEL, PRICE, NEWPLANE, ENGID, PARTS, UISMOKE, LIGHT, STARTER, DASH, GPSFACE, ROLLSND, ENGMESH, MASS, WEIGHT, DEFAULT, SAVE, BUILD, DESIGN, CERTGATES, ACCEPT, PLANELISTS | | PASS | |
+| PILOTCANFLY | PASS | PASS | after the fix: the gate read pilotCanFly's rounded need with a strict >; the rule refuses on the unrounded one |
+| GEN | FAIL | FAIL | the same check on both, "cruise is quiet in wind" (bank 11.59 / 11.61 deg against 3) |
+| DESIGNCHECK | FAIL | FAIL | the carbon mosquito's boom stiffness on both (the Jodel row was mine, reverted) |
+| ALTIPORT, APSMOOTH, BENCHTIME, DESIGNSIM, DMGCERTCOST | FAIL | FAIL | the same failures on both |
+| JOINPARITY | 5 FAIL | 6 FAIL | **one new row: the twin floatplane, node = page at 4.2e-9** (its float station's CG handshake against the captured page). The capture (`tools/fixtures/join_parity_page.json`) is already stale on master (its Cub and Jodel rows). A plain +0.1 kg on master's old harness keeps the row exact, so the cable-run rule reads some input that differs between the two paths - not pinned down. The gate's own instruction: re-capture with `tools/join_parity_page.js` when a move is meant - A0's call, with master's drift |
+
+### For A0
+- **PHYSICS_V collision:** claude/practical-cerf-7fjpwp's PROP-CLASSES also bumps 7 -> 8 (2704c5644). Whichever lands
+  second takes 9.
+- **Landing order:** the Jodel's systems edit only with or after JODEL-GEO; LINER-BACK's mass is zero-sum on the Cub
+  (trim 'bare') and takes the Jodel's -1.90 kg.
+- **JOINPARITY:** re-capture the page after this lands (see above).
+- **The full battery** still has to run on a machine that can carry it.
