@@ -1,0 +1,15 @@
+cub_2026-09-20_corrected     rms mm: tied 32.6 free 16.5 +width 11 tied+width 24.8 | w 0.61 sq 0.95 0.65 wT/wB 0.3 0.9 | topR 0 botR 0 crSill 2 crSillNose 0.9 crKeel 0
+jodel_2026-09-20_corrected   rms mm: tied 6 free 4.4 +width 4.2 tied+width 5.3 | w 0.511 sq 0.45 0.65 wT/wB 0.9 1 | topR 0.4 botR 0 crSill 0 crSillNose 0.9 crKeel 0
+cessna172_2026-09-20_corrected rms mm: tied 65 free 36.9 +width 23.3 tied+width 53 | w 0.494 sq 0.7 0.5 wT/wB 0.3 1 | topR 0.17 botR 0.16 crSill 3 crSillNose -1 crKeel 0
+tigermoth_2026-10            rms mm: tied 7.3 free 7.3 +width 4.7 tied+width 4.7 | w 0.05 sq 0.5 0.8 wT/wB 1.1 1.1 | topR 1 botR 0 crSill 0 crSillNose -1 crKeel 0
+ugly_bi                      rms mm: tied 14.3 free 8.9 +width 5.6 tied+width 9.9 | w 0.759 sq 0.95 0.65 wT/wB 0.5 1 | topR 0 botR 0 crSill 0 crSillNose 1 crKeel 0
+tboom_src                    rms mm: tied 4.9 free 4.9 +width 2.2 tied+width 2.2 | w -0.2 sq 0.6 0.75 wT/wB 1.1 0.7 | topR 1 botR 0.32 crSill 0 crSillNose -1 crKeel 0
+camel_2026-10                rms mm: tied 13 free 13 +width 5.2 tied+width 5.2 | w 0 sq 0.6 0.6 wT/wB 0.7 0.9 | topR 1 botR 0 crSill 0 crSillNose -1 crKeel 0
+stearman_2026-10             rms mm: tied 12.8 free 12.8 +width 5.3 tied+width 5.3 | w 0.45 sq 0.7 0.9 wT/wB 0.6 1.1 | topR 1 botR 0 crSill 0 crSillNose -1 crKeel 0
+mosquito                     rms mm: tied 48.4 free 9.2 +width 3 tied+width 39.1 | w 0.768 sq 0.35 0.75 wT/wB 0.3 0.9 | topR 0 botR 0 crSill 2 crSillNose 0 crKeel 0
+pawnee                       rms mm: tied 23.8 free 4.1 +width 1.9 tied+width 21.3 | w 0.85 sq 0.35 0.7 wT/wB 0.3 1 | topR 0 botR 0 crSill 0 crSillNose -1 crKeel 0
+B-ITES                       rms mm: tied 10.3 free 10.3 +width 3 tied+width 3 | w 0 sq 0.6 0.7 wT/wB 1 0.8 | topR 1 botR 0 crSill 0 crSillNose -1 crKeel 0
+flat_nose                    rms mm: tied 26.5 free 26.5 +width 12.3 tied+width 12.3 | w -0.1 sq 0.75 0.75 wT/wB 0.8 0.6 | topR 1 botR 1 crSill 0 crSillNose -1 crKeel 0
+inline_nose                  rms mm: tied 18.1 free 18.1 +width 6.7 tied+width 6.7 | w -0.05 sq 0.65 0.65 wT/wB 0.9 0.8 | topR 1 botR 0 crSill 0 crSillNose -1 crKeel 0
+radial_nose                  rms mm: tied 36.3 free 36.3 +width 15.5 tied+width 15.5 | w -0.05 sq 0.9 0.45 wT/wB 0.6 0.9 | topR 1 botR 0 crSill 0 crSillNose -1 crKeel 0
+rufus_2026-10-18_certified   rms mm: tied 9.7 free 7 +width 2.8 tied+width 7.8 | w 0.84 sq 0.95 0.7 wT/wB 0.4 0.9 | topR 0 botR 0 crSill 0 crSillNose 0.85 crKeel 0
