@@ -33,7 +33,7 @@ var FMIST = (function () {
   // THE DIALS. Strength laws are in strengths(); `force` pins them for a rig ({pool, wisp, oro} 0..1, null = the weather's).
   const S = {
     N: 512, X: 768,                 // the map's side and its first column in the atlas
-    rhoMax: 0.012, octaves: 0, coreK: 1.6,      // per metre in a pocket: the HEAVIEST day (~330 m inside; the user 9 Nov: "not a /2 we need, rather a x2"), down 2 octaves (/4) for the last wisps - no further: below that nothing cuts through the trees
+    rhoMax: 0.012, octaves: 0, coreK: 1.6, flat: false,   // flat: the A/B's other mechanism (with rhoMax 0.006 and octaves 2 it is the user's "/2, the weather on both")      // per metre in a pocket: the HEAVIEST day (~330 m inside; the user 9 Nov: "not a /2 we need, rather a x2"), down 2 octaves (/4) for the last wisps - no further: below that nothing cuts through the trees
     rho: null,                      // a pin over the ladder (the rigs' density sheets), null = the weather's
     swing: 30, covK: 0.8, detailK: 7.7, erode: 0.5, soft: 0.5, stretch: 2.1,   // the contours' swing (m), the share of a full pocket that is mist, the erosion's scale (x the body's) and depth
     period: 160,                    // the noise's cell (m): a wisp a few tree lengths across
@@ -179,7 +179,7 @@ var FMIST = (function () {
     L[36] = M ? M.x0 : 0; L[37] = M ? M.z0 : 0; L[38] = M ? M.inv : 0; L[39] = 1 / S.period;
     if (B) { cardMesh && (cardMesh.visible = use.b); if (use.b) cardsUpdate(eye, k, st.wind || [1, 0]); }
     L[40] = C && use.c ? S.surfN : 0; L[41] = C && use.c ? S.eyeN : 0; L[42] = S.surfM; L[43] = S.eyeM;
-    L[44] = A && use.a ? S.marchKm * 1000 : 0; L[45] = S.fwd;
+    L[44] = A && use.a ? S.marchKm * 1000 : 0; L[45] = S.fwd; L[46] = S.flat ? 1 : 0;
     // the key's beam at the pockets (sun or moon, through the air to ~150 m), in the dome's units like the layer's colour
     if (L.length >= 52 && day && ATMO.sunTransmittance) {
       const key = (typeof SKY_LIGHT !== 'undefined' && SKY_LIGHT.isMoon) ? day.moon : day.sun;
@@ -294,11 +294,11 @@ var FMIST = (function () {
     const cov = Math.min(1, k[0] * gP + k[1] * gW + k[2] * gO); if (cov <= 0.002) return 0;
     const geo = Math.max(k[0] > 0.002 ? gP : 0, k[1] > 0.002 ? gW : 0, k[2] > 0.002 ? gO : 0);
     const thr = 1 - S.covK * cov;
-    let body = Math.min(1, Math.max(0, (n - thr) / Math.max(0.05, 1 - thr))); body = Math.pow(body, S.coreK); if (body <= 0) return 0;
+    let body = S.flat ? smc(thr, thr + S.soft, n) : Math.pow(Math.min(1, Math.max(0, (n - thr) / Math.max(0.05, 1 - thr))), S.coreK); if (body <= 0) return 0;
     const rx = qx * S.detailK + y * 0.045, rz = qz * S.detailK + 3.3;
     let e = 0.6 * vn(rx, rz) + 0.4 * vn(rx * 2.7 + 1.9, rz * 2.7 - 4.1); e = Math.min(1, Math.max(0, 0.5 + (e - 0.5) * 2.4));
     const dd = Math.min(1, Math.max(0, (body - e * S.erode) / (1 - e * S.erode)));
-    return dd * Math.sqrt(geo) * (S.rho != null ? S.rho : S.rhoMax);
+    return dd * (S.flat ? smc(0, 0.3, cov) : Math.sqrt(geo)) * (S.rho != null ? S.rho : S.rhoMax);
   }
   // THE INTENSITY IS THE LADDER (the user, 9 Nov, on the /2 /4 /8 /16 sheet: "they all look right to me in different
   // conditions. The /2 would be really, really heavy morning mist ... the other ones dissipating after rain"): the
@@ -353,8 +353,10 @@ var FMIST = (function () {
       // THE GRADIENT THROUGH THE POCKET (the user: "the density vary through the cloud itself, less dense on the
       // borders"): from the threshold to the noise's top, so a wisp is thin at its edge and only its core is thick
       float thr = 1.0 - ${S.covK.toFixed(2)} * cov;
-      float body = clamp((n - thr) / max(0.05, 1.0 - thr), 0.0, 1.0);
-      body = pow(body, ${S.coreK.toFixed(2)});
+      // uMist[11].z = 1: THE FLAT MECHANISM kept for the A/B (the sheet the user asked to compare: a plain body that
+      // saturates, the weather on both the amount and the density); 0: the gradient
+      float body = uMist[11].z > 0.5 ? smoothstep(thr, thr + ${S.soft.toFixed(2)}, n)
+                                     : pow(clamp((n - thr) / max(0.05, 1.0 - thr), 0.0, 1.0), ${S.coreK.toFixed(2)});
       if (body <= 0.0) return 0.0;
       // THE DETAIL: a ~${Math.round(S.period / S.detailK)} m erosion eats the edges (Schneider's remap: base minus the fine noise), so the
       // outline breaks into wisps and the inside keeps its mass
@@ -362,7 +364,7 @@ var FMIST = (function () {
       float e = 0.6 * mistVN(r) + 0.4 * mistVN(r * 2.7 + vec2(1.9, -4.1));
       e = clamp(0.5 + (e - 0.5) * 2.4, 0.0, 1.0);
       float d = clamp((body - e * ${S.erode.toFixed(2)}) / (1.0 - e * ${S.erode.toFixed(2)}), 0.0, 1.0);
-      return d * sqrt(geo) * uMist[8].z;
+      return d * (uMist[11].z > 0.5 ? smoothstep(0.0, 0.3, cov) : sqrt(geo)) * uMist[8].z;
     }
     // A pocket is droplets (~10 um): Mie's forward peak is narrow and strong - backlit by a low sun the mist glows
     // (the concept art's whole light); side- and front-lit it is the layer's own colour. uMist[11].y = the lobe's gain.
