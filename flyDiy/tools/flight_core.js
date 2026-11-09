@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 7a3b31f352bb12fa
+// body-sha256: 63e2ab36ffa78a70
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -34550,6 +34550,12 @@ const GEN_DRAG = {
 const GEN_GAUGE = {
   e: { fus: 0.30, wing: 0.49, tail: 0.41, gear: 0.75 },
   lo: 0.6, hi: 3.0,
+  // MASS-SCALE (2026-11-09): THE GEAR'S OWN CEILING. The 3.0 cap kept the gear of a Twin Wasp aeroplane at 3x a light
+  // one's while its gross is 10x: the DC-3's gear billed 2.4 % of its gross where a transport's is 4-5 % (Torenbeek,
+  // Synthesis of Subsonic Airplane Design 8.4; Raymer's transport gear law runs on (Nl Wl)^0.888, steeper than the
+  // GA 0.768 used here). The GA law, uncapped to 8, puts the DC-3's at 4.7 %. Only a gear whose raw gauge passes 3
+  // moves (a design gross over 4.3x its row's refGross: no light aeroplane)
+  hiBy: { gear: 8.0 },
   iterations: 20,        // Newton steps on the fixed point; fixed, so a double generate is byte-equal
 };
 
@@ -44633,7 +44639,8 @@ function genDesignGross(S, a, cg) {
     ? Math.min(GEN_RULES.cargoKgMax, 2 * (cb.halfW || 0.5) * (cb.h || 1) * fu.cargoLen * GEN_RULES.cargoKgM3) : 0;
   const Mfix = cg[3] - payload - Ms + seats * GEN_RULES.occupantKg + fuelFull + (S.baggage || 0) + freight;
   const ref = c => a.parts.gaugeRef[c] || (GEN_MATERIALS[S.material] || {}).refGross || 550;
-  const gOf = (c, W) => Math.min(G.hi, Math.max(G.lo, CORE_MATH.pow(W / ref(c), G.e[c])));
+  const hiOf = c => (G.hiBy && G.hiBy[c]) || G.hi;      // MASS-SCALE: a class's own ceiling (the gear's)
+  const gOf = (c, W) => Math.min(hiOf(c), Math.max(G.lo, CORE_MATH.pow(W / ref(c), G.e[c])));
   // the furnishing (GEN_OUTFIT.furnK, Raymer on W0) is billed in pass 2
   // and belongs to the same fixed point
   const O = GEN_OUTFIT, fK = genFurnK(S);            // (G2806: the chosen trim, else the tier's)
@@ -44644,7 +44651,7 @@ function genDesignGross(S, a, cg) {
     for (const c in GD) { if (!(GD[c].m > 0)) continue; const g = gOf(c, W);
       f += GD[c].m * g;
       const raw = CORE_MATH.pow(W / ref(c), G.e[c]);
-      if (raw > G.lo && raw < G.hi) df += GD[c].m * G.e[c] * g / W; }
+      if (raw > G.lo && raw < hiOf(c)) df += GD[c].m * G.e[c] * g / W; }
     W = Math.max(Mfix, W - f / df);
   }
   const gauge = { W0: W }, dm = {}; let mAdd = furnOf(W), xAdd = 0, yAdd = 0, zAdd = 0;
