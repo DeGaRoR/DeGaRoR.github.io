@@ -32,12 +32,19 @@ var GAME_NAMES = {
   fields: {
     HOME:     'Jolene AFB 13/31',
     w2:       'Jolene AFB 02/20',
-    w3:       'Ridgeback Strip',              // (was Tamgas Hill Strip)
+    w3:       'Fishing Village Strip',        // (the user, 9 Nov: was Ridgeback Strip, was Tamgas Hill Strip)
     SEA:      'Greywater Dock',               // (was Annette Dock)
     mk_sea:   'Cedar Harbour Seaplane Base',  // (was Metlakatla Seaplane Base)
     mn_strip: 'Copperhead Mine Street',       // (was Jumbo Mine Street)
     nv_strip: 'East Point Clearing',
     tw_ski:   'Skyline Altiport',
+    // (DIRT-STRIP, the user 9 Nov on the strip map: the unnamed strips named - by where they are)
+    w4:       'Mountainside Strip',           // high in the mountains, 21 % (was strip 9)
+    w5:       'Cannery Runway',               // by the buildings on the south bay (was strip 10)
+    w6:       'Old Community Runway',         // (was strip 11)
+    w7:       'New Community Runway',         // the 1 km one (was strip 12)
+    w8:       'Hiking Strip',                 // in a little valley east of the Cabin Strip (was strip 13)
+    w1:       'Cabin Strip',
     cb_sea:   'Cabin Lake',                   // (CABIN-LAKE 26 Oct: the seaplane lane in front of the Cabin Strip, by the user's piers)
   },
 };

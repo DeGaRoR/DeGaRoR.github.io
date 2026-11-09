@@ -46,7 +46,7 @@
   },
   {
    "id": "w3",
-   "name": "Ridgeback Strip",
+   "name": "Fishing Village Strip",
    "kind": "strip",
    "x": -811.27,
    "z": -2396.97,
@@ -148,7 +148,7 @@
   },
   {
    "id": "w5",
-   "name": "strip 10",
+   "name": "Cannery Runway",
    "kind": "strip",
    "x": 3055.16,
    "z": -2837.38,
@@ -165,7 +165,7 @@
   },
   {
    "id": "w6",
-   "name": "strip 11",
+   "name": "Old Community Runway",
    "kind": "strip",
    "x": -4171.69,
    "z": -22109.99,
@@ -182,7 +182,7 @@
   },
   {
    "id": "w7",
-   "name": "strip 12",
+   "name": "New Community Runway",
    "kind": "strip",
    "x": -3553.58,
    "z": -23721.21,
@@ -199,7 +199,7 @@
   },
   {
    "id": "w4",
-   "name": "strip 9",
+   "name": "Mountainside Strip",
    "kind": "strip",
    "x": -1403.58,
    "z": -17698.62,
@@ -216,7 +216,7 @@
   },
   {
    "id": "w8",
-   "name": "strip 13",
+   "name": "Hiking Strip",
    "kind": "strip",
    "x": 4361.48,
    "z": -16250.7,
