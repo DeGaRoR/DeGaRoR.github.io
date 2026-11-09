@@ -153,7 +153,9 @@ function run(WSsrc, files) {
   ok((files.app.match(/wsWreck\(D, K, o\);/g) || []).length === 1 && files.app.indexOf('wsWreck(D, K, o);') > files.app.indexOf('function brkCage('), 'app.js: only brkCage asks for it');
   ok(/wsClear\(model\);/.test(files.app) && /wsClear\(BRK\.model\);/.test(files.app), 'app.js: the heal takes it away');
   ok(/o\.userData\.edMarker = true/.test(WSsrc) && /userData && o\.userData\.edMarker\) return;/.test(files.join), 'the join skips it (edMarker)');
-  ok(/const want = !!\(T && W && W\.def && W\.nodeCage && scene && \(L\.force \|\| cut\)\);/.test(WSsrc), 'the garage builds it only for the fiche or the cutaway box');
+  ok(/const want = !!\(T && W && W\.def && W\.nodeCage && scene && \(L\.force \|\| cut \|\| xr\)\);/.test(WSsrc), 'the garage builds it only for the fiche, the cutaway box or see-inside');
+  ok(/side: THREE\.DoubleSide, opacity: xa \}\);/.test(files.wing) && /const V = window\.CAGE_VIEW, xa = \(V && V\.xray\)/.test(files.wing), 'see-inside makes the wing\'s covering see-through');
+  ok(/\{ row: 'see inside',\s+\.\.\._vView\('xray'\),\s+to: 0 \}/.test(files.join), 'the capture pins see-inside off (a see-through wing never flies)');
   ok(/if \(window\.CAGE_WINGSTRUCT_DRAW\) window\.CAGE_WINGSTRUCT_DRAW\(ctx\);/.test(files.wing), 'the wing layer hands it its build');
   // the garage's def is the wing rows' alone: the kind is read off the build's own spec (the 172 drew as cloth without it)
   ok(/spec: full, bays \}\);/.test(WSsrc) && /window\.GARAGE_SPEC\.get\(\)/.test(WSsrc), 'the garage reads the kind off the whole build\'s spec');
@@ -190,7 +192,7 @@ const BREAKS = [
   ['the budget doubled away', WSsrc.replace("const BUDGET = { tris: [12000, 7000], draws: 3 };", "const BUDGET = { tris: [120, 70], draws: 3 };")],
   ['stringers off the grammar', WSsrc.replace("const sC = j * strPitch;", "const sC = j * strPitch + 0.03;")],
   ['the join takes it', WSsrc.replace("o.userData.edMarker = true; ", "")],
-  ['built under every build', WSsrc.replace("(L.force || cut));", "true);")],
+  ['built under every build', WSsrc.replace("(L.force || cut || xr));", "true);")],
   ['the cub wing as a D-box', WSsrc.replace("if (row === 'fabric') key = (PP.useStrut || PP.truss) ? 'cub' : 'dbox';", "if (row === 'fabric') key = 'dbox';")],
   ['the garage without the build\'s spec', WSsrc.replace("const L = libOf(lib), S = spec || def.spec,", "const L = libOf(lib), S = def.spec,")],
   ['a spar outside the covering', WSsrc.replace("const P = (f, xc, ym) => map(", "const P = (f, xc, ym) => map(xc > 0.6 ? [1e3, 0, 0] : ")],

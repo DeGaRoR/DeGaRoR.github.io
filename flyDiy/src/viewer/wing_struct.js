@@ -384,7 +384,8 @@
         };
         // the chord pieces a rib is made of at a station: nose | between spars | aft (to the hinge or the edge) | the surface
         const ribAt = (z, special) => {
-          const f = frameAt(z), b = bandAt(z);
+          // (the ROOT rib 15 mm outboard of the covering's root closure: on it, the two faces fought - the wreck's still)
+          const f = frameAt(Math.abs(z - PP.zRoot) < 1e-6 ? z + 0.015 : z), b = bandAt(z);
           const xF0 = sparF - 0.5 * sw, xF1 = sparF + 0.5 * sw, xR0 = sparR - 0.5 * rw, xR1 = sparR + 0.5 * rw;
           const xEnd = b ? b.h - GAP : 0.985;
           const pieces = [[0.004, xF0], [xF1, Math.min(xR0, xEnd)], [xR1, xEnd]].filter(p => p[1] - p[0] > 0.01 && !(p[0] < 0.01 && inBay(z)));
@@ -487,18 +488,18 @@
           }
           if (sd === 'R') pinfo.strut = { z: strutZ, front: fw.strutF, rear: fw.strutR };
         }
-        // ---- THE TIP: the bow's outline (a tube at mid-depth, inside the covering's bow) ----
-        if (W.tipR > 1e-6) {
-          const f = frameAt(zS), n = lod ? 8 : 14, R = 0.85 * W.tipR, pts = [];
+        // ---- THE TIP: the bow's outline - its leading and trailing edges traced on the frame's own chord law past the
+        // straight wing (PP.chordAt: "the planform, tip bow included", 61_gen_frame - the law the covering's bow rows
+        // are lofted on), at mid-depth, closing where the chord does ----
+        if (W.tipR > 1e-6 && zLast > zS + 0.02) {
+          const n = lod ? 6 : 12, le = [], te = [];
           for (let q = 0; q <= n; q++) {
-            const t = Math.PI * q / n, x = 0.08 + 0.80 * (0.5 - 0.5 * Math.cos(t));
-            const ym = 0.5 * (yU(f, x) + yL(f, x)) * (1 - 0.5 * Math.sin(t));
-            pts.push(map(add(add(add(f.pF, mul(f.ch, (x - sparF) * f.chord)), mul(f.up, ym)), mul(f.lat, -side * 0 + 0))));
-            // (the bow runs outboard along the span axis: placed below from the frame's own span direction)
-            const sp = mul([0, 0, side], R * Math.sin(t));
-            pts[pts.length - 1] = map(add(add(add(f.pF, mul(f.ch, (x - sparF) * f.chord)), mul(f.up, ym)), sp));
+            const z = zS + (zLast - zS) * Math.sin(0.5 * Math.PI * q / n) * 0.995, f = frameAt(z);
+            if (!(f.chord > 0.02)) break;
+            for (const [L2, x] of [[le, 0.03], [te, 0.93]]) L2.push(P(f, x, 0.5 * (yU(f, x) + yL(f, x))));
           }
-          for (let q = 0; q + 1 < pts.length; q++) bar(A, pts[q], pts[q + 1], 0.018, 0.018, [0, 1, 0], KD.le || KD.ribC, lod ? 4 : 6);
+          const loop = le.concat(te.reverse());
+          for (let q = 0; q + 1 < loop.length; q++) bar(A, loop[q], loop[q + 1], 0.016, 0.016, [0, 1, 0], KD.le || KD.ribC, lod ? 4 : 6);
         }
         const tris = nTri(A), fins = new Set(Object.keys(A.i).filter(c => A.i[c].length).map(c => finishOf(c, KD)));
         out.halves.push({ plane: k, side: sd, kind: K.key, A, tris, verts: A.n, ribs: ribsDrawn, audit: AU, draws: fins.size,
@@ -597,9 +598,9 @@
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 
   // ---- THE GARAGE'S LAYER (the page only): `cageLayer:wingStruct`, built from the wing layer's own def ----
-  // WHEN: the fiche's cutaway asks (show(true) .. show(false), plane_fiche.js cutOn / cutOff) or the garage's cutaway box
-  // is on; never otherwise - nothing is built, nothing drawn (the see-inside view leaves the wing's covering opaque, so
-  // the structure would stand unseen inside it). The wing layer publishes the def it lofted and the map its nodes take
+  // WHEN: the fiche's cutaway asks (show(true) .. show(false), plane_fiche.js cutOn / cutOff), the garage's cutaway box
+  // is on, or the SEE-INSIDE view (the user 9 Nov: its covering goes see-through with the fuselage's, _cage_wing.js
+  // wingMat); never otherwise - nothing is built, nothing drawn. The wing layer publishes the def it lofted and the map its nodes take
   // to the cage (CAGE_WING.def / nodeCage), so the structure stands on the very spar stations the covering was lofted on.
   // NOT THE AEROPLANE: every mesh is an `edMarker` (the join's snapshot skips it, _cage_join.js) - the flown aeroplane
   // never carries it.
@@ -628,7 +629,8 @@
       const T = window.THREE, W = window.CAGE_WING;
       scene = scene || L.scene;
       const cut = cutBox();
-      const want = !!(T && W && W.def && W.nodeCage && scene && (L.force || cut));
+      const V = window.CAGE_VIEW, xr = !!(V && V.xray);   // the see-inside view: the wing's covering is see-through (_cage_wing.js wingMat)
+      const want = !!(T && W && W.def && W.nodeCage && scene && (L.force || cut || xr));
       const R = rendererOf();
       if (!want) {
         dispose(L.grp); L.grp = null; L.def = null;
@@ -657,7 +659,7 @@
         c.copy(m.geometry.boundingSphere.center).applyMatrix4(m.matrixWorld);
         const gone = !!(pl && pl.distanceToPoint(c) < 0);
         m.userData.wingStruct.cut = gone;
-        m.visible = L.force || gone;
+        m.visible = L.force || xr || gone;
       }
       if (R) { if (L.lc0 == null) L.lc0 = R.localClippingEnabled; R.localClippingEnabled = true; }
       return L.grp;

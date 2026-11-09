@@ -67,7 +67,9 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   // kind of structure is drawn on an aeroplane the game flies; key+light - its lamp fitted (the bay's pocket)
   if (BUILD && BUILD.val) for (const k0 of BUILD.val.split(',')) LIST.push({ key: k0.replace(/[@+]/g, '_'), spec: () => {
     const [k, row] = k0.replace(/\+light$/, '').split('@'), sp = require('./_load_build.js').loadValidated(k).spec;
-    if (row) for (const w of sp.wings || []) w.material = row;
+    if (row) { for (const w of sp.wings || []) w.material = row;   // (the garage reads its own row: wgCons, _cage_wing.js's states)
+      const st = [null, 'carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass'].indexOf(row);
+      if (st > 0) sp.cage = Object.assign({}, sp.cage, { wgCons: st }); }
     if (/\+light$/.test(k0)) sp.cage = Object.assign({}, sp.cage, { lightOn: 1, li_land: 1 });
     return sp; } });
   else if (BUILD) for (const f of BUILD.split(',')) LIST.push({ key: path.basename(f).replace(/\.json$/, ''), spec: () => { const j = JSON.parse(fs.readFileSync(path.resolve(f), 'utf8')); return j.spec || j; } });
@@ -169,7 +171,21 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     console.log('wing_struct_shot: wreck structure ' + JSON.stringify(ws));
     for (const cam of (opt('cams', 'brkq:18:7,q34:20:12').split(','))) {
       const [a, e2, d] = cam.split(':'); const az = isNaN(+a) ? a : +a;
-      await pev('return await pageView(arg);', [az, +e2, +d]);
+      if (a === 'wsq' || a === 'wss') {   // the free eye on the WING's breaks: the median of the broken wing members' live ends
+        await pg.evaluate(([a, el, dist]) => {
+          const P = window.FLIGHT_PROBE, sim = P.sim(), df = P.def(), Dm = sim.damage(), p = sim.p, WN = new Set();
+          for (const Pl of (df.parts.planes || [df.parts])) for (const sd of ['L', 'R']) { const f = Pl.wf && Pl.wf[sd]; if (f) for (const i of (f.F || []).concat(f.R || [])) WN.add(i); }
+          const xs = [], ys = [], zs = [];
+          for (const bi of Dm.broken) { const b = sim.beams[bi]; if (!(WN.has(b.a) && WN.has(b.b))) continue; for (const i of [b.a, b.b]) { xs.push(p[i * 3]); ys.push(p[i * 3 + 1]); zs.push(p[i * 3 + 2]); } }
+          const med = A => { A.sort((x, y) => x - y); return A[A.length >> 1]; };
+          const g = sim.cgPos(), c = xs.length ? [med(xs), med(ys), med(zs)] : g;
+          const [xA] = sim.axes(), h = Math.atan2(-xA[2], -xA[0]) + (a === 'wss' ? Math.PI / 2 : 0.7), e = el * Math.PI / 180;
+          const E = [c[0] + dist * Math.cos(e) * Math.cos(h), c[1] + dist * Math.sin(e), c[2] + dist * Math.cos(e) * Math.sin(h)];
+          const dx = c[0] - E[0], dy = c[1] - E[1], dz = c[2] - E[2];
+          P.devFree(E[0], E[1], E[2], Math.atan2(dx, -dz), Math.atan2(dy, Math.hypot(dx, dz)));
+          return 1; }, [a, +e2, +d]);
+        await sleep(1500);
+      } else await pev('return await pageView(arg);', [az, +e2, +d]);
       await pg.evaluate(() => { const c = document.querySelector('canvas'), keep = new Set(); let e = c; while (e) { keep.add(e); e = e.parentElement; }
         document.querySelectorAll('body *').forEach(x => { if (!keep.has(x) && !x.contains(c)) x.style.visibility = 'hidden'; }); return 1; });
       for (const on of [true, false]) {

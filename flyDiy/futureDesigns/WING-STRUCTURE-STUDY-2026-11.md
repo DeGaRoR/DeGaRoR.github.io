@@ -156,6 +156,46 @@ member broke (part 3.3).
 See HANDOVER "WING-STRUCTURE". `src/viewer/wing_struct.js` (pure plan + make; `window.WING_STRUCT`), GATE WINGSTRUCT
 (`tools/_wingstruct_check.js`), the cloud rig `tools/wing_struct_shot.js`.
 
+### 3.1 Sections (the user, 9 Nov: "not a tad too little in section?")
+
+Measured on the user's own Jodel wing (its OBJ's connected parts): the capstrips and sticks are **~10 x 10 mm**. Real
+spruce capstrips are 1/4-3/8 in (6-10 mm) [S1][S50 - rib practice], drag/compression struts 3/4-1 in tube (19-25 mm)
+[S15][S19], drag wires 1/8-3/16 in (3-5 mm) [S15]. At the fiche's scale (a 9 m aeroplane across ~900 px: ~10 mm a pixel)
+the first cut (11 mm caps, 9 mm diagonals, 4 mm wires) read as hairlines. Now, ~30 % up and still in the believable band:
+
+| Member | Was | Now | Real |
+|---|---|---|---|
+| wood truss rib caps (Jodel) | 11 mm | 14 mm (diagonals 12) | 6-10 mm; the user's model 10 |
+| stamped alloy rib caps (J-3, PA-18) | 14 mm | 18 mm | formed channel ~3/4 in |
+| tube / formed ribs (steel, aluFabric) | 12 mm | 16 mm | 1/2-5/8 in tube |
+| alloy rib flanges (172) | 16 / 18 mm | 20 / 22 mm | 3/4-1 in flange |
+| compression struts | 16 mm | 22 mm | 19-25 mm |
+| drag wires | 4 mm | 6 mm | 3-5 mm (drawn a little proud to read) |
+| stringers (172) | 16 x 12 mm | 20 x 16 mm | Z 3/4 in |
+| gussets | 52 x 34 mm | 64 x 44 mm | ply gussets 2-3 in |
+| spars | unchanged | Cub plank 22 mm, Jodel box 6.5 % chord | 13/16 in; the model's 0.11 m |
+
+### 3.2 Finishes
+
+The structure wears the **fuselage's own finishes**: AEROSKIN's rows in its hardware branch (no surface field:
+object-space triplanar) - `spruce`, `ply`, `bareAlu`, `steelTube`, `composite`, `gelcoat` (aeroskin.js AERO_FINISH; the
+`struct` column of AERO_BY_CONS for every construction), each in this file's own copy (aeroDupe: the pool's material is
+the fuselage's, and the structure writes its own clip plane and fiche variant). Foam has no finish row: the library's
+plain material. The fittings are the kind's metal (steel on wood and tube wings, alloy on metal ones); the drag wires
+stainless (steelTube). One draw a finish: 1 (the 172) to 3 (the Jodel: spruce, ply, steel) a wing half.
+
+### 3.3 Round 2 in the cutaway (the user, 9 Nov)
+
+- the lamp bay's pocket: the D-nose's cover, strip and ribs stop at CAGE_LIGHT_BAY's edges; two side plates and a back
+  wall make the pocket; the near lamps stay (the light layer);
+- the near wing's tanks stay in the open wing (the energy layer's vessels outside the body);
+- the cut side's WING NACELLES are faint ghosts of themselves (the x-ray alpha): the engine, its mount, its propeller
+  stand; the outline stays;
+- POD AND ROD: the taper's cladding (`taperPanel`, the sheets over the rod's tightening truss - structure to the
+  see-inside view, so opaque there) was never cut: the rod running through the taper to the aft bulkhead (HULL-B37) stood
+  hidden. Its near half is cut now, as the covering's. (Researched first: nothing in the tree drew it through.)
+- the near lift struts stay (the brace layer, the wing layer's `edFit_liftstrut`).
+
 ---
 
 ## Sources
