@@ -1257,9 +1257,16 @@ function build(P0, lod, F) {
   if (rest) {
     const open = clamp(P.doorOpen || 0, 0, 1);
     const openB = clamp(P.backOpen || 0, 0, 1);   // (the user 9 Nov: "close the back door in the restored version" - its own dial, shut)
-    const leaf = (cx, zf, w, y0, y1, out) => {
+    // (glazed: THE BACK LEAVES ARE WINDOWS - the user 9 Nov: "let's not shut the back door, but make it sort of a window with
+    // integrated opening, yet closed ... So we have light": a steel sash over a sheet kick panel, shut, the daylight through)
+    const leaf = (cx, zf, w, y0, y1, out, glazed) => {
       const F2 = frame([cx - w / 2 * out, 0, zf], [out, 0, 0], Yup);      // X across the leaf, N toward `out` z
-      sheet(bags.sheetPale, F2, 0, w, y0, y1, 0.035, { lod: L });
+      if (glazed) {
+        const yk = y0 + 1.1;
+        sheet(bags.sheetPale, F2, 0, w, y0, yk, 0.035, { lod: L });
+        if (L === 0) windowWall(F2, 0.06, w - 0.06, yk, y1 - 0.08, -0.01, Math.max(2, Math.round(w / 0.9)), 4);
+        else face(bags.glass, [F2.P(0.06, yk, -0.01), F2.P(w - 0.06, yk, -0.01), F2.P(w - 0.06, y1 - 0.08, -0.01), F2.P(0.06, y1 - 0.08, -0.01)], F2.N, uvFrame(F2.P(0, yk, 0), F2.X, F2.Y));
+      } else sheet(bags.sheetPale, F2, 0, w, y0, y1, 0.035, { lod: L });
       if (L < 2) {
         const P2 = (u, y, d) => F2.P(u, y, d), d0 = -0.04, sec = L === 0 ? 'chanS' : 'chanS';
         for (const y of [y0 + 0.08, y0 + (y1 - y0) / 3, y0 + 2 * (y1 - y0) / 3, y1 - 0.08]) member(bags.steel, P2(0.05, y, d0), P2(w - 0.05, y, d0), sec, F2.N, L);
@@ -1281,7 +1288,7 @@ function build(P0, lod, F) {
     for (let i = 0; i < 4; i++) {
       const side = i < 2 ? -1 : 1, trk = side < 0 ? i : 3 - i;
       const xc = -BW / 2 + (BW / 4) * (i + 0.5), xo = side * (BW / 2 + bw * (0.6 + (1 - trk) * 0.9));
-      leaf(xc + (xo - xc) * openB, -HD + 0.38 + trk * 0.2, bw, fy + 0.03, by1, -1);
+      leaf(xc + (xo - xc) * openB, -HD + 0.38 + trk * 0.2, bw, fy + 0.03, by1, -1, true);
     }
   }
 

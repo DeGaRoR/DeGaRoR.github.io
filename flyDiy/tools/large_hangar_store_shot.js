@@ -72,7 +72,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
       localStorage.setItem('flydiy.career.dev', JSON.stringify(doc)); sessionStorage.setItem('lhSeeded', '1'); } } catch (e) {}
   }, { shelf: SHELF, doc: DOC });
   const t0 = Date.now(), log = s => console.log(((Date.now() - t0) / 1000).toFixed(0).padStart(4) + ' s  ' + s);
-  const URL0 = `http://127.0.0.1:${srv.address().port}/flyDiy/dev.html?career=1&audio=0`;
+  const URL0 = `http://127.0.0.1:${srv.address().port}/flyDiy/dev.html?career=1&audio=0&soft=0`;
   const boot = async () => {
     await page.waitForFunction(() => window.GARAGE_ENV && window.GARAGE_SPEC && window.FLYDIY_PLAYER && window.GARAGE_ENV._debug &&
       window.BOOT && window.BOOT.state === 'gone', null, { timeout: 2400000, polling: 5000 });

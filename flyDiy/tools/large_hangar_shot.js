@@ -11,7 +11,7 @@ const fs = require('fs'), path = require('path'), http = require('http');
 const ROOT = path.join(__dirname, '..'), REPO = path.join(ROOT, '..');
 const argv = process.argv.slice(2), opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 ? argv[i + 1] : d; };
 const OUT = path.resolve(opt('out', path.join(ROOT, 'reports', 'evidence', 'DERELICT-HANGAR', 'room')));
-const W = +opt('w', 1600), H = +opt('h', 900), PAGE = opt('page', 'dev.html'), EXPO = +opt('expo', 1.7);
+const W = +opt('w', 1600), H = +opt('h', 900), PAGE = opt('page', 'dev.html?soft=0'), EXPO = +opt('expo', 1.7);
 const PLANES = { cub: 'flyDiy/builds/cub_2026-09-20_corrected.json', dc3: 'flyDiy/builds/candidates/dc3_2026-10.json' };
 const want = opt('planes', 'cub,dc3').split(',');
 const TYPES = { '.html': 'text/html', '.js': 'application/javascript', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.css': 'text/css', '.woff2': 'font/woff2', '.ktx2': 'image/ktx2', '.wasm': 'application/wasm' };
