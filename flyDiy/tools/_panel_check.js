@@ -201,7 +201,7 @@ function run() {
     check(named.every(k => CM.some(r => r.aerial === k && r.radio === A[k].radio)),
       '...and every aerial row with a radio is in the set', named.join(' '));
     // one radio fitted at a time (a battery under it): exactly its own aerial among the set's
-    const AV1 = { com: 'compact', nav: 'vor', xpdr: 'modeS' };
+    const AV1 = { com: 'compact', nav: 'vor', xpdr: 'modeS', gps: 'panel', elt: 'fitted' };   // (ready 2: the GPS puck, the ELT whip)
     const one = drawn.map(r => {
       const av = { com: 'none', nav: 'none', xpdr: 'none', gps: 'none' }; av[r.avionics] = AV1[r.avionics];
       const L = list({ fit: 'minimal', elec: { battery: 'lead' }, avionics: av });
@@ -209,6 +209,15 @@ function run() {
     });
     check(one.every(o => o.got.length === 1 && o.got[0] === o.r),
       'each radio alone draws its own aerial and no other', JSON.stringify(one));
+    // ready 2 (9 Nov): a portable GPS has its aerial in the unit - no puck; an ELT is in a spec only when fitted
+    const Lp = list({ fit: 'minimal', elec: { battery: 'lead' }, avionics: { com: 'none', nav: 'none', xpdr: 'none', gps: 'portable' } });
+    check(!Lp.includes('gpsAerial'), 'a portable GPS draws no roof puck', Lp.filter(k => /Aerial/.test(k)).join(' ') || '(no aerial)');
+    const Se = withSys({ fit: 'custom', avionics: { elt: 'none' } }), Sf = withSys({ fit: 'custom', avionics: { elt: 'fitted' } });
+    const Rf = C.genSystemsResolve(Sf), R0 = C.genSystemsResolve(withSys({ fit: 'custom' }));
+    check(!('elt' in Se.systems.avionics) && Sf.systems.avionics.elt === 'fitted' && !('elt' in R0.avionics) &&
+          near(Rf.kg - R0.kg, 1.0) && !Rf.loads.some(l => l.key === 'elt'),
+      'the ELT: absent unless fitted (spec and resolve); fitted it bills 1.0 kg and draws no bus load',
+      JSON.stringify({ none: Se.systems.avionics, kg: +(Rf.kg - R0.kg).toFixed(3) }));
   }
 
   // ---- 6. THE PART'S DOOR ---------------------------------------------------
