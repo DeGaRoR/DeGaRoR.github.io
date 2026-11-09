@@ -60,6 +60,11 @@ const bakeProbe = page => page.evaluate(() => {
     const ok = await page.evaluate(async url => { const r = await fetch('/' + url); const j = await r.json(); window.GARAGE_SPEC.set(j.spec || j); return true; }, PLANES[k]);
     log(k + ' loaded ' + ok);
     await sleep(12000);
+    // THE SAME LIGHT FOR EVERY STILL (the user 9 Nov: "you compare widely different outside lighting conditions"): the
+    // garage's mood pinned to its daylight row (the day clock's hour follows it), then the door's view and the probe re-shot
+    { const m = await page.evaluate(() => { const E = window.GARAGE_ENV, ms = (E._debug().hangar && E._debug().hangar.moods) || [];
+        const i = Math.max(0, ms.findIndex(n => /^(day|sun|noon|midday)/i.test(String(n)))); E.setMood(i); return ms[i] || i; });
+      log('  mood: ' + m); await sleep(20000); }
     log('  probe: ' + await bakeProbe(page));
     // the room's probe forced (on a software renderer the boot's deferred bake waits for compileAsync, which never lands:
     // no environment, and every polished metal reads black - the page's own door, setEnvSource, bakes it at once)
