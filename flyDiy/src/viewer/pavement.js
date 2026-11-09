@@ -943,7 +943,8 @@ vec4 pvHazard(int j, float halfW, float len, int sd) {
   float room = halfW - 0.5 - 0.3 - 2.0 * R;
   if (room < 0.0) R = (halfW - 0.8) / 2.0;
   if (R < 0.6) return vec4(0.0);
-  float hu = max(4.0 + R, min(len - 4.0 - R, len * (0.05 + 0.9 * (float(j) + 0.2 + 0.6 * pmH(j, 0, sd + 31)) / uMicro2.y)));
+  float aH = 1.0 + 0.6 * pmH(j, 0, sd + 37);
+  float hu = max(4.0 + aH * R, min(len - 4.0 - aH * R, len * (0.05 + 0.9 * (float(j) + 0.2 + 0.6 * pmH(j, 0, sd + 31)) / uMicro2.y)));
   float hv = (pmH(j, 0, sd + 35) < 0.5 ? -1.0 : 1.0) * (0.3 + R + max(0.0, room) * pmH(j, 0, sd + 36));
   float hh = uMicro2.z * (0.7 + 0.3 * pmH(j, 0, sd + 34)) * (pmH(j, 0, sd + 33) < 0.6 ? 1.0 : -1.0);
   return vec4(hu, hv, R, hh);
@@ -961,12 +962,18 @@ vec4 pvHoles(float u, float v, float halfW, float len, float fill) {
       for (int m = 0; m < 2; m++) {
         if (pmH(i, m, sd + 11) >= uMicro.y) continue;
         float R = 0.5 + 0.6 * pmH(i, m, sd + 12), hu = (float(i) + 0.15 + 0.7 * pmH(i, m, sd + 13)) * 6.0;
-        float lim = halfW - 2.5 - R;
-        if (lim <= 0.0 || hu < 4.0 + R || hu > len - 4.0 - R) continue;
+        // THE SHAPE (26b hole, holeRho): stretched along a turned axis, the outline pushed in by a noise
+        float ea = 1.0 + 1.2 * pmH(i, m, sd + 18), th = (pmH(i, m, sd + 19) - 0.5) * 1.05, cth = cos(th), sth = sin(th);
+        float eV = R * sqrt(ea * ea * sth * sth + cth * cth), eU = R * sqrt(ea * ea * cth * cth + sth * sth);
+        float lim = halfW - 2.5 - eV;
+        if (lim <= 0.0 || hu < 4.0 + eU || hu > len - 4.0 - eU) continue;
         float hv = pmH(i, m, sd + 14) < 0.667 ? (pmH(i, m, sd + 15) < 0.5 ? -1.0 : 1.0) * 1.098 + (pmH(i, m, sd + 16) - 0.5) * 2.0 * sig : (pmH(i, m, sd + 16) - 0.5) * 2.0 * lim;
         hv = clamp(hv, -lim, lim);
         float D = uMicro.z * (0.5 + 0.5 * pmH(i, m, sd + 17));
-        float r = length(vec2(u - hu, v - hv));
+        vec2 dd = vec2(u - hu, v - hv);
+        if (abs(dd.x) > eU + 1.1 || abs(dd.y) > eV + 1.1) continue;
+        vec2 xy = vec2(dd.x * cth + dd.y * sth, -dd.x * sth + dd.y * cth);
+        float r = length(vec2(xy.x / ea, xy.y)) * (1.0 + 0.32 * (0.5 + 0.5 * pmNoise(dd / R * 1.7 + vec2(float(i) * 7.3, float(m) * 3.1), sd + 21)));   // (rho x R)
         if (r < R) { float b = D * 0.5 * (1.0 + cos(3.14159265 * r / R)); bowl = max(bowl, b); d = max(d, b - (1.0 - fill) * D); }
         // the damp ring: the shore's wet soil, a hand's width to a stride past the water's edge (the water's radius off the bowl)
         float rw = R / 3.14159265 * acos(clamp(1.0 - 2.0 * fill, -1.0, 1.0));
@@ -978,7 +985,8 @@ vec4 pvHoles(float u, float v, float halfW, float len, float fill) {
     if (float(j) >= uMicro2.y) break;
     vec4 H = pvHazard(j, halfW, len, sd);
     if (H.z <= 0.0) continue;
-    float r = length(vec2(u - H.x, v - H.y));
+    vec2 dh = vec2(u - H.x, v - H.y);
+    float r = length(vec2(dh.x / (1.0 + 0.6 * pmH(j, 0, sd + 37)), dh.y)) * (1.0 + 0.25 * (0.5 + 0.5 * pmNoise(dh / H.z * 1.4 + vec2(float(j) * 5.7, 11.0), sd + 38)));   // (THE SHAPE)
     if (r < H.z) { float b = H.w * 0.5 * (1.0 + cos(3.14159265 * r / H.z)); hz += b; if (H.w < 0.0) d = max(d, -b - (1.0 - fill) * -H.w); }
     if (H.w < 0.0 && fill > 0.0) { float rw = H.z / 3.14159265 * acos(clamp(1.0 - 2.0 * fill, -1.0, 1.0)); ring = max(ring, 1.0 - smoothstep(rw, rw + 0.15 + 0.3 * H.z * fill, r)); }
   }
@@ -1394,6 +1402,12 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
           bermW = clamp(wy.x / (0.35 * uMicro3.x + 1e-4), 0.0, 1.0) * (1.0 - wy.y) * tM;
         }
         crown = max(crown, 0.9 * bermW * cueK); hollow *= 1.0 - tW;
+        // THE RUTS' WATER (26b rutWater): the vehicles' rut deeper than (1 - 0.35 fill) of its depth, into the puddles' own
+        // water and damp ring (11b draws it - the same muddy water)
+        if (fillM > 0.0 && wy.z > -0.5 && wy.z < 0.25 && wy.y > 0.3) {
+          gMicH.y = max(gMicH.y, tM * max(0.0, max(-wy.x, 0.0) - uMicro3.x * (1.0 - 0.35 * fillM)));
+          gMicH.z = max(gMicH.z, smoothstep(0.3, 0.8, wy.y) * tM);
+        }
         if (crown > 0.02) { Smp g = pvSet(1, uvS); float gk = 0.45 * crown; vec2 w2 = pvHw2(hgt, 1.0 - gk, g.c.a, gk, uHex.x * 2.5); col = col * w2.x + g.c.rgb * w2.y; nT = nT * w2.x + g.n.xyz * w2.y; rough = rough * w2.x + g.n.a * w2.y; hgt = hgt * w2.x + g.c.a * w2.y; }
         if (hollow > 0.02) { Smp g = pvSet(4, uvS); float gk = 0.55 * hollow; vec2 w2 = pvHw2(hgt, 1.0 - gk, g.c.a, gk, uHex.x * 2.5); col = col * w2.x + g.c.rgb * w2.y; nT = nT * w2.x + g.n.xyz * w2.y * 0.7; rough = rough * w2.x + g.n.a * w2.y; hgt = hgt * w2.x + g.c.a * w2.y; }
         float lumM = dot(col, vec3(0.299, 0.587, 0.114));
@@ -1608,12 +1622,17 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
       vec2 pw = gMicH.yz;                                                 // (the relief's pvHoles: the same water, the same ring)
       float ringK = pw.y * wPav * fill;
       col *= 1.0 - 0.3 * ringK; rough = mix(rough, 0.4, ringK);
-      pudA = smoothstep(0.0, max(fwidth(pw.x) * 1.5, 0.0015), pw.x) * wPav;
+      // THE SHORE, SOFT (the user, 9 Nov 17:20: "make sure the border is not too harsh. That should be muddy water"): the
+      // water comes in over its first 8 mm of depth, the line broken by a 6 cm noise, after a band of wet, glossy mud
+      float shore = pw.x + 0.003 * (pvNoise(P / 0.06 + seed * 5.0) - 0.5);
+      float mudK = smoothstep(-0.004, 0.004, shore) * (1.0 - smoothstep(0.004, 0.012, shore)) * wPav;
+      col *= 1.0 - 0.25 * mudK; rough = mix(rough, 0.18, mudK);
+      pudA = smoothstep(0.0, max(fwidth(pw.x) * 1.5, 0.008), shore) * wPav;
       if (pudA > 0.0) {
-        float dz = clamp(pw.x / 0.06, 0.0, 1.0);
-        vec3 murk = vec3(0.13, 0.11, 0.085);                                  // silty water over mud
-        col = mix(col, mix(col * 0.5, murk, 0.3 + 0.55 * dz), pudA);
-        rough = mix(rough, 0.03, pudA);
+        float dz = clamp(pw.x / 0.05, 0.0, 1.0);
+        vec3 murk = vec3(0.16, 0.125, 0.085);                                 // muddy water: brown silt, the bed gone within 5 cm
+        col = mix(col, mix(col * 0.55, murk, 0.45 + 0.5 * dz), pudA);
+        rough = mix(rough, 0.06, pudA);
       }
     }
     // ---- the normal into the world, the roughness, the alpha
