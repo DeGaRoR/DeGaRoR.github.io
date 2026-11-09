@@ -1244,7 +1244,7 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
         // the compacted ground (the expected density), which is also what the far view reads - a track thinner than its
         // pixel's footprint hands over to them (PV_THIN). uRubber2.w: the run-up's prop-blast scour at each end.
         float L = 2.0 * halfL, sd = seed * 37.0;
-        float imp = uSoft.w * detail * PV_THIN(0.16) * (cls > 2.5 && cls < 4.5 ? 1.0 : 0.35);
+        float imp = uSoft.w * detail * PV_THIN(0.16) * (grassy ? 0.0 : (cls > 2.5 && cls < 4.5 ? 1.0 : 0.35));   // (no lugs pressed in turf: DIRT-STRIP 10 Nov)
         // (16 passes at most, as 4 x 4: the loop rule's small constants - no texture read inside, uRoad.x the count)
         for (int ka = 0; ka < 4; ka++) for (int kb = 0; kb < 4; kb++) {
           float fk = float(ka * 4 + kb);
@@ -1313,7 +1313,7 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
         wheel = wb * uSoft.z * (0.75 + 0.25 * pvNoise(uvS / 3.0));
         float streak = pvFbm(vec2(u / 6.0, v / 0.35) + seed * 3.0);
         tread = rubberPre * smoothstep(0.42, 0.7, streak) * uSoft.w * 0.5;
-        float imp = uSoft.w * detail * PV_THIN(0.16) * (cls > 2.5 && cls < 4.5 ? 1.0 : 0.35);
+        float imp = uSoft.w * detail * PV_THIN(0.16) * (grassy ? 0.0 : (cls > 2.5 && cls < 4.5 ? 1.0 : 0.35));   // (no lugs pressed in turf: DIRT-STRIP 10 Nov)
         for (int k = 0; k < 2; k++) {
           float fk = float(k);
           float c = (pvNoise(vec2(u / (uRut2.x * 2.5) + fk * 13.0, seed + fk)) - 0.5) * halfW * 0.5;
@@ -1690,10 +1690,16 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
     // G2570: A GRASS STRIP WEARS THE GROUND (pavement.js grMatch): its lawn gives way to the island's ground under it, the mesh keeping
     // its worn tracks (their own grass-with-soil colour) and a faint mown wash over its width - the strip's luminance, warmed
     // (lighter, yellower, less saturated) at uStain.w alpha. uMacro.w 0: the strip's own lawn, as before
+    // (DIRT-STRIP, the user 10 Nov 00:40 on Skyline Altiport: "green in the ruts, it makes no sense ... that grass field wouldn't
+    // be plowed fully with tyre marks. That would be more like bare, with some rocks, and a little greenery"): the lanes are
+    // TRODDEN, not tilled - broken patches (a 0.9 m and a 3.5 m noise) where the turf is worn to its soil and grit, grey-brown
+    // off the set's own luminance (never the worn-grass set's green), at most ~half over the island's ground
     if (grassy && !road && uMacro.w > 0.0) {
-      float worn = clamp(rut * 1.3 + wheel + tread * 0.6, 0.0, 1.0);
-      vec3 mown = vec3(dot(col, vec3(0.2126, 0.7152, 0.0722))) * vec3(1.12, 1.06, 0.78) * 1.15;
-      col = mix(col, mown, (1.0 - worn) * uMacro.w);
+      float patchy = smoothstep(0.42, 0.72, pvNoise(uvS / 0.9 + 31.0) * 0.6 + pvNoise(uvS / 3.5 + 17.0) * 0.4);
+      float worn = clamp(rut * 1.3 + wheel + tread * 0.6, 0.0, 1.0) * patchy * 0.55;
+      float lum = dot(col, vec3(0.2126, 0.7152, 0.0722));
+      vec3 mown = vec3(lum) * vec3(1.12, 1.06, 0.78) * 1.15, bare = vec3(lum) * vec3(1.06, 0.97, 0.84) * 0.95;
+      col = mix(col, mix(mown, bare, smoothstep(0.0, 0.15, worn)), uMacro.w);
       gPavA = mix(gPavA, max(worn * gPavA, uStain.w * wPav), uMacro.w);
     }
     diffuseColor.rgb = col; diffuseColor.a = gPavA;
