@@ -14610,6 +14610,10 @@
    },
    {
     "id": "w3",
+    "micro": {
+     "chaos": 0.2,
+     "seed": 3
+    },
     "name": "Fishing Village Strip",
     "c": [
      -811.27,
@@ -15514,6 +15518,10 @@
    },
    {
     "id": "w8",
+    "micro": {
+     "chaos": 0.4,
+     "seed": 13
+    },
     "name": "Hiking Strip",
     "len": 391.7,
     "wid": 12,
