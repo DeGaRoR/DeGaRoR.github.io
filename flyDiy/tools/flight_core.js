@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 68dc988a87d1d051
+// body-sha256: 61998a79fbde7ed9
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -8685,7 +8685,7 @@ function hangarWants(S) {
   const add = m => {
     if (m === 'wood') want.add('wood');
     else if (m === 'tubeFabric') want.add('tube');
-    else if (m === 'alloy') want.add('metal');
+    else if (m === 'alloy' || m === 'fabricAlu') want.add('metal');   // (the aluminium spar under fabric: metal ribs)
     else if (m === 'carbon' || m === 'glass') want.add('composite');   // G2047: glass is moulded in the same shop
     else if (m === 'aluTube' || m === 'aluFabric') want.add('tube');   // G466: bolted tube wants the tube shop
     // G213: the surfaces' own tokens — fabric over wood wants the wood shop,
@@ -21421,7 +21421,7 @@ const WB_CP = 1.0, WB_CF = 0.006, WB_CD_TYRE = 1.0, WB_CD_SIDE = 1.2, WB_TYRE_W 
 const WB_MAT = { tubeFabric: { air: 0.85, tau: 40, breach: 60e3 }, aluTube: { air: 0.85, tau: 40, breach: 60e3 },
                  wood: { air: 0.85, tau: 150, breach: 120e3 }, alloy: { air: 0.9, tau: 300, breach: 200e3 },
                  carbon: { air: 0.9, tau: 900, breach: 250e3 }, glass: { air: 0.9, tau: 900, breach: 200e3 } };   // G2047: glass, the carbon's sandwich, a softer skin
-const WB_WING = { fabric: { air: 0.5, tau: 60 }, steel: { air: 0.5, tau: 60 }, aluFabric: { air: 0.5, tau: 60 },
+const WB_WING = { fabric: { air: 0.5, tau: 60 }, steel: { air: 0.5, tau: 60 }, aluFabric: { air: 0.5, tau: 60 }, fabricAlu: { air: 0.5, tau: 60 },
                   alloy: { air: 0.9, tau: 600 }, carbon: { air: 0.9, tau: 900 }, glass: { air: 0.9, tau: 900 } };
 const WB_DRAIN = 30;            // s: a slice out of the water drains (its flooding decays) on this time
 const WB_BREACH_K = 10;         // a holed slice floods this much faster
@@ -32304,6 +32304,17 @@ const GEN_SURF_MATERIALS = {
             c: GEN_MATERIALS.tubeFabric.c,
             cover: 0.42, price: 42, cd0: 0.0022, clmaxK: 1.00, shop: 'tube',
             refGross: 550, coverGauged: false },
+  // THE ALUMINIUM SPAR UNDER FABRIC (REAL-FIGURES-3, the user 9 Nov): the PA-18's wing and the Carbon Cub's -
+  // extruded aluminium spars, stamped aluminium ribs, an aluminium leading edge, fabric over all. The members are
+  // the alloy row's (2024 extrusions), the cloth carries no torsion (the fabric row's wing k), and the cover is the
+  // cloth plus the leading edge's sheet and the lighter metal ribs: between the tube row's 0.42 and the wooden
+  // row's 0.80 (whose ribs are spruce and whose D-box is ply). Built in the metal shop
+  fabricAlu: { name: 'aluminium spar + fabric', phys: GEN_MATERIALS.alloy.phys,
+            lin: GEN_MATERIALS.alloy.lin,
+            k: { fus: GEN_MATERIALS.alloy.k.fus, wing: 1.0e6, gear: GEN_MATERIALS.alloy.k.gear },
+            c: { fus: GEN_MATERIALS.alloy.c.fus, wing: 700, gear: GEN_MATERIALS.alloy.c.gear },
+            cover: 0.55, price: 55, cd0: 0.0022, clmaxK: 1.00, shop: 'metal',
+            refGross: 794, coverGauged: false },
   // G466: the ultralight's wing and tail — two 6061 tube spars, formed
   // ribs, drag cables, Dacron sewn on (see GEN_MATERIALS.aluTube)
   aluFabric: { name: '6061 tube + Dacron', phys: GEN_MATERIALS.aluTube.phys,
@@ -36516,9 +36527,9 @@ const GEN_FIELDS = {
                                          v: ['tail.Sh', 'tail.Sv', 'tail.boomX', 'tail.boomLen', 'tail.boomR', 'tail.boomX0',
                                              'tail.boomTaper', 'tail.boomOval', 'tail.boomIncl', 'tail.boomDy', 'tail.stabY'],
                                          twinBoom: ['tail.vAngle', 'tail.Svt'] } } },
-  'wings[].material':  { def: undefined, rule: 'input', join: { states: [null, 'carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass'] } },
-  'tail.finMaterial':  { def: undefined, rule: 'input', join: { states: [null, 'carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass'] } },
-  'tail.stabMaterial': { def: undefined, rule: 'input', join: { states: [null, 'carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass'] } },
+  'wings[].material':  { def: undefined, rule: 'input', join: { states: [null, 'carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass', 'fabricAlu'] } },
+  'tail.finMaterial':  { def: undefined, rule: 'input', join: { states: [null, 'carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass', 'fabricAlu'] } },
+  'tail.stabMaterial': { def: undefined, rule: 'input', join: { states: [null, 'carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass', 'fabricAlu'] } },
   'bracing.cabane':       { def: 'N', rule: 'input', join: { states: ['N', 'V'] } },
   'bracing.interplane':   { def: 'none', rule: 'input', join: { states: ['none', 'N', 'I'] } },
   'bracing.interplaneAt': { def: 0.62, clamp: [0.30, 0.95], rule: 'input', join: { states: [0.62] } },
@@ -61858,7 +61869,7 @@ const TECH_SEGS = {
 const TECH_TABLE = {
   // ---- materials
   'mat:tubeFabric': 1, 'mat:wood': 1, 'mat:alloy': 2, 'mat:aluTube': 2, 'mat:carbon': 3, 'mat:glass': 3,
-  'surf:fabric': 1, 'surf:steel': 1, 'surf:alloy': 2, 'surf:aluFabric': 2, 'surf:carbon': 3, 'surf:glass': 3,
+  'surf:fabric': 1, 'surf:steel': 1, 'surf:alloy': 2, 'surf:aluFabric': 2, 'surf:carbon': 3, 'surf:glass': 3, 'surf:fabricAlu': 2,
   // ---- engines
   'eng:a65_sensenich74': 1, 'eng:vw2180_wood': 1, 'eng:rotax277_pusher': 1, 'eng:rotax503_wood': 1, 'eng:rotax582_ivo': 1,
   'eng:jabiru2200_std': 1, 'eng:rotax912_warp': 1, 'eng:o200_eprops': 1, 'eng:mikron3_wood': 1, 'eng:gipsymajor1_wood': 1,
@@ -62028,7 +62039,7 @@ function careerTechUnlock(doc, seg) {
 // (_cage_join.js: intCons' order, the surfaces' CONS4 after 'as the aeroplane', glazeMat, the canopy tile, fairCons, the
 // nacelle mount, the powertrain). Two rows read the page's tables, handed in by the editor: `engPreset` (the row's
 // names through CAGE_JOIN_ENGINES) and `cw_material` (CAGE_JOIN_PROP_MATS). GATE TECH holds every list to the join.
-const TECH_SURF_ROW = [null, 'surf:carbon', 'surf:steel', 'surf:fabric', 'surf:alloy', 'surf:aluFabric', 'surf:glass'];
+const TECH_SURF_ROW = [null, 'surf:carbon', 'surf:steel', 'surf:fabric', 'surf:alloy', 'surf:aluFabric', 'surf:glass', 'surf:fabricAlu'];
 const TECH_ROWS = {
   intCons: ['mat:carbon', 'mat:tubeFabric', 'mat:wood', 'mat:alloy', 'mat:aluTube', 'mat:glass'],
   wgCons: TECH_SURF_ROW, w2Cons: TECH_SURF_ROW, finCons: TECH_SURF_ROW, stCons: TECH_SURF_ROW,
