@@ -2144,7 +2144,7 @@ if (!EXT) {
     const HGN = typeof window !== 'undefined' ? window.HANGAR_GEN : null;
     const PRE = { field: 'field shed', club: 'club hangar', works: 'works hangar' }[SHELL];
     let off = !!(opts && opts.polish === false);
-    try { off = off || (typeof location !== 'undefined' && /[?&]roompolish=0/.test(location.search || '')); } catch (e) {}
+    try { off = off || (typeof location !== 'undefined' && /[?&]roompolish=0\b/.test(location.search || '')); } catch (e) {}
     if (HGN && HGN.build && HGN.PRESETS && PRE && !off) {
       try {
         // G3540 v2 (the user 25 Oct: "the hanging wing under construction must never sit in front of it"): the inside sign's
@@ -2482,7 +2482,7 @@ let ROOM_DIRT = 0;
 {
   const HGH = typeof window !== 'undefined' ? window.HOUSE_GEN : null;
   let off = !!(opts && opts.dirt === false);
-  try { off = off || (typeof location !== 'undefined' && /[?&]roomdirt=0/.test(location.search || '')); } catch (e) {}
+  try { off = off || (typeof location !== 'undefined' && /[?&]roomdirt=0\b/.test(location.search || '')); } catch (e) {}
   if (!EXT && !off && HGH && HGH.shadeHouse && HGH.makeShadeU) {
     const SU = HGH.makeShadeU();
     SU.uDirtTop.value = 0.62; SU.uDirtH.value = 1.05; SU.uDirtK.value = FRAME === 'timber' ? 0.55 : 0.5; SU.uAOd.value = 0; SU.uSag.value = 0;

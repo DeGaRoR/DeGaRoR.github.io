@@ -91,6 +91,12 @@ const HV = require(path.join(ROOT, 'src', 'viewer', 'hangar_view.js'));
     '3m the view is off by default (the room\'s own outdoors), on only with ?hview=1 (HVIEW-OFF, 8 Nov: until the redesign)');
   // 4 no readback
   ok(!/readRenderTargetPixels|readPixels|getBufferSubData/.test(hv), '4 NO READBACK in hangar_view.js (the distance reaches the mesh by a vertex fetch)');
+  // HANGAR-BS (8 Nov, found by HVC-DOOR on the prototype): a node patch wrote the regexes' \b as a backspace byte (0x08), so
+  // ?roompolish=0 and ?roomdirt=0 never matched. No control byte in the room's sources; both switches are word boundaries
+  const ctlAt = s => { const m = /[\x00-\x08\x0b\x0c\x0e-\x1f]/.exec(s); return m ? 'byte ' + m[0].charCodeAt(0) + ' at ' + m.index : ''; };
+  const ctlBad = [['app.js', app], ['hangar.js', han], ['hangar_view.js', hv]].map(([f, s]) => ctlAt(s) && f + ' ' + ctlAt(s)).filter(Boolean);
+  ok(!ctlBad.length && /\/\[\?&\]roompolish=0\\b\//.test(han) && /\/\[\?&\]roomdirt=0\\b\//.test(han),
+    '4b no control byte in the room\'s sources, and ?roompolish=0 / ?roomdirt=0 are word boundaries (HANGAR-BS: a backspace byte never matched)', ctlBad.join('; '));
 }
 console.log(fails ? 'GATE HANGARVIEW: FAIL (' + fails + ')' : 'GATE HANGARVIEW: PASS');
 process.exit(fails ? 1 : 0);
