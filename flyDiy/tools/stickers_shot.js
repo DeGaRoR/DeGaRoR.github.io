@@ -70,7 +70,7 @@ const MK = id => ['stol-river', 'grizzly-range', 'orca', 'winged-prop', 'midnigh
       return out; });
     await page.evaluate(() => { for (const x of document.querySelectorAll('.dfClose')) try { x.click(); } catch (e) {} });
     const frames = async n => { const f0 = await page.evaluate(() => window.__f); await page.waitForFunction(f => window.__f >= f, f0 + n, { polling: 200 }); };
-    const mood = +opt('mood', PROBE ? -1 : 0);   // the stills: AFTERNOON (the shed's even daylight: GOLDEN put a flank in shadow)
+    const mood = +opt('mood', -1);   // (the stills set their own, per plane, below)
     if (mood >= 0) { await page.evaluate(i => GARAGE_ENV.setMood(i), mood); await sleep(1500); }
     R.mood = await page.evaluate(() => window.GARAGE_ENV && GARAGE_ENV.mood ? GARAGE_ENV.mood() : null);
 
@@ -200,10 +200,11 @@ const MK = id => ['stol-river', 'grizzly-range', 'orca', 'winged-prop', 'midnigh
         // on that flank with no mirror) - the same place, between the cabin and the registration; the map on the fin both
         // sides; the winged prop on the cowl both sides
         return {
-          // (the Cub's registration fills the rear fuselage from the cabin aft: the flank stickers go on the COWL, nose art)
-          1: { On: 1, Mk: MK('grizzly-range'), Col: ink, Side: 1, H: 0.30, L: +(nose.y0 + 0.62).toFixed(2), C: +(nose.zMid + 0.04).toFixed(2), Tgt: 0, Mode: 1 },
+          // (the Cub's registration fills the rear fuselage from the cabin aft: the flank stickers go on the COWL, nose art, aft of
+          // the cooling inlet and below the exhaust)
+          1: { On: 1, Mk: MK('grizzly-range'), Col: ink, Side: 1, H: 0.27, L: +(nose.y0 + 0.78).toFixed(2), C: +(nose.zMid - 0.09).toFixed(2), Tgt: 0, Mode: 1 },
           2: { On: 1, Mk: MK('alaska'), Col: 0x1f3550, H: +(fin.H * 0.42).toFixed(2), L: +(fin.L + fin.W * 0.04).toFixed(2), C: +(fin.C + fin.H * 0.02).toFixed(2), Tgt: 6, Mode: 1 },
-          4: { On: 1, Mk: MK('bull-moose'), Col: 0x8a1c14, Side: 2, H: 0.30, L: +(nose.y0 + 0.62).toFixed(2), C: +(nose.zMid + 0.04).toFixed(2), Tgt: 0, Mode: 1 },
+          4: { On: 1, Mk: MK('bull-moose'), Col: 0x8a1c14, Side: 2, H: 0.27, L: +(nose.y0 + 0.78).toFixed(2), C: +(nose.zMid - 0.09).toFixed(2), Tgt: 0, Mode: 1 },
         };
       },
       async twin(P) {
@@ -222,9 +223,9 @@ const MK = id => ['stol-river', 'grizzly-range', 'orca', 'winged-prop', 'midnigh
     };
     if (!PROBE && !opt('plan', null)) {
       for (const key of ONLY ? [ONLY] : ['cub', 'twin']) {
-        // THE LIGHT a plane is shot in: the Cub in AFTERNOON (even daylight: under GOLDEN its left flank stood in shadow), the
-        // Twin busher in GOLDEN (the late sun through the door) - unless --mood says otherwise
-        if (opt('mood', null) == null) { await page.evaluate(i => GARAGE_ENV.setMood(i), key === 'twin' ? 1 : 0); await sleep(1500); }
+        // THE LIGHT: GOLDEN, the late sun through the door (the gamer preset's AFTERNOON lights the shed from the skylights
+        // only, with real shadows: too dark to read a sticker); --mood overrides
+        if (opt('mood', null) == null) { await page.evaluate(i => GARAGE_ENV.setMood(i), 1); await sleep(1500); }
         const P = await plane(key), span = Math.max(...P.wing.s);
         R[key].mood = await page.evaluate(() => GARAGE_ENV.mood());
         const st = await COMPOSE[key](P);
@@ -235,16 +236,18 @@ const MK = id => ['stol-river', 'grizzly-range', 'orca', 'winged-prop', 'midnigh
         const B = P.body, Tl = P.tail;
         // a photographer's angles: the three-quarter from the right, low; the three-quarter from the left; the tail
         // (az -pi/2 is the right flank, nose to the right of the picture; az toward 0 swings the eye aft - measured in the probe)
-        await shoot(key + '_' + gfx + '_threequarter_right', [-Math.PI / 2 - 0.62, 0.10, 0.88 * span], B.c);
-        await shoot(key + '_' + gfx + '_tail_right', [-Math.PI / 2 + 0.30, 0.07, 0.50 * span], [Tl.c[0], Tl.c[1] + 0.1 * Tl.s[1], Tl.c[2]]);
+        await shoot(key + '_' + gfx + '_threequarter_right', [-Math.PI / 2 - 0.62, 0.10, 0.82 * span], B.c);
         if (key === 'twin') {
+          await shoot(key + '_' + gfx + '_tail_right', [-Math.PI / 2 + 0.30, 0.07, 0.50 * span], [Tl.c[0], Tl.c[1] + 0.1 * Tl.s[1], Tl.c[2]]);
           await shoot(key + '_' + gfx + '_threequarter_left', [Math.PI / 2 + 0.62, 0.12, 0.95 * span], B.c);
           await shoot(key + '_' + gfx + '_above', [-Math.PI / 2 - 0.5, 0.80, 0.95 * span], P.wing.c);
         }
         if (key === 'cub') {
-          const nw = R.fits.nose.world;
-          await shoot(key + '_' + gfx + '_cowl_right', [-Math.PI / 2 - 0.35, 0.06, 0.36 * span], nw);
-          await shoot(key + '_' + gfx + '_cowl_left', [Math.PI / 2 + 0.45, 0.06, 0.36 * span], nw);
+          // the nose's flanks at mid range, aimed half way from the centre to the cowl (closer, the shed's walls clamp the eye)
+          const nw = R.fits.nose.world, mid = B.c.map((x, i) => (x + nw[i]) / 2);
+          await shoot(key + '_' + gfx + '_nose_right', [-Math.PI / 2 - 0.30, 0.06, 0.52 * span], mid);
+          await shoot(key + '_' + gfx + '_left_side', [Math.PI / 2 + 0.15, 0.06, 0.80 * span], B.c);
+          await shoot(key + '_' + gfx + '_nose_left', [Math.PI / 2 + 0.35, 0.06, 0.52 * span], mid);
         }
       }
       // ONCE THROUGH THE PANEL: sticker 1's 'on' tick off and on again, mark 12 picked by its button, as a player does

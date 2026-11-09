@@ -313921,3 +313921,122 @@ TIMED GATE: light, the same shape as L36a.
 - Steady frames p50 33.3 ms on every flown row; no frame over 1 s in any taxi, take-off or flight segment.
 - The >1 s gaps are all in the garage stand before the reveal (cub chase 5.2 s; the discarded warm_metal 9.0 s + 7.1 s): the cold GPU shader cache, master_bench's MISS, as L35a-L36a.
 - The floats take-off has one 133 ms frame.
+
+## LIVERY-STICKERS - THE TWELVE ALASKA MARKS AS LIVERY STICKERS (2026-11-09, LIVERY-STICKERS for A0, cloud - node + SwiftShader; branch claude/livery-stickers off claude/stickers-src 36bc0c9ef = master e789e77c + the marks)
+THE ASK (A0's brief, 9 Nov: the user approved all twelve v3 marks): cutter-ready art; polish 02 / 08 / 09 / 12 and keep the
+rest exactly; a sticker layer on the livery machinery (a distance field per mark, one colour, placed like a livery layer,
+either side or both, a size, a turn, a mirror for the left side); official planes and saved builds unchanged; the cost
+measured and named; GATE LIVERYSTICKERS; garage stills on the Cub and the Twin busher at gamer and laptop.
+
+1 THE ART (assets-src/stickers/, README.md there):
+- make_v3.js writes the luminance masks to mask/ now; `python3 flatten.py` composites each mask IN PAINT ORDER as geometry
+  (shapely): white adds ink (unioned), black cuts it (holes and the halos' gaps become geometry), clip paths intersect, a
+  stroke is a round-joined buffer in the element's own units, every transform applied; the fill rules are exact (every
+  face of the linework tested by its winding number). Out: svg/NN_id.svg, ONE path a mark (fill-rule evenodd), no stroke,
+  mask, clip or group; and cut.json (the game's source).
+- THE LOOK IS IDENTICAL: `node diff.js mask svg 1200` (Chromium, 1200 px across): the worst mark moved 22 pixels of
+  1.9 M (0.001 %; a pixel "moves" when its coverage changes by over half), ink within 0.12 % - the polygonised circles' AA.
+- flatten.py also prints, per mark, the thinnest ink and the thinnest gap a cutter has to hold (the widest opening /
+  closing that keeps 99.5 % of the area): the worst ink 1.09 units, the worst gap 1.76 (both glassy panorama, 320 units
+  wide): at 30 cm across, 1.0 mm of vinyl and 1.65 mm of gap. The other marks hold more.
+
+2 THE POLISH (before / after: reports/evidence/LIVERY-STICKERS/marks_before_after.jpg, big and at sticker size; the
+  other eight masks are byte-identical to the approved v3):
+- 02 grizzly: the shoulder hump is now the highest thing on the back (it was the ear), the head carried below it, short
+  and deep: a dished face, a blunt square muzzle, a heavy jaw and a ruff (the head shorter and deeper than v3's).
+- 08 true north: headOn(.., { simple: true }) - no fin, struts, prop blades or windscreen; a thicker wing, fatter tyres,
+  drawn 15 % bigger, the peaks lower behind it. Wing, cabin, cowl ring, two tyres.
+- 09 moose: one broad solid blade swept back with four short points (6-7 units deep; there were seven, 12-14 deep), a
+  notch and a brow palm. Reads as a palm at 36 px.
+- 12 alaska: alaska_ne.py - Natural Earth 1:50m admin-1 (public domain; the download line in its header), the Alaska
+  Albers conic (EPSG:3338's parameters, spherical), the southeast archipelago closed into the panhandle (9 km), the fjords
+  taken off (an opening and a closing of 11 km), Douglas-Peucker 4 km; Kodiak (with Afognak), St Lawrence and Nunivak
+  kept; the Aleutian swooshes laid along the real islands' centroids. The frame is 262 x 168 now (the map's own aspect).
+
+3 IN THE GAME (src/viewer/aeroskin.js "THE LIVERY STICKERS"):
+- FOUR SLOTS, `vn<1-4><On Mk Col L C H Rot Tgt Mode Side Mir>` in AERO_DEC_DEF, all off: `finish.decals` stores
+  deviations, so every build saved before - every official plane - carries none and is unchanged (GATE LIVERYSTICKERS 3/4).
+- THE ATLAS: page 15, cut 2 x 2, one cell a slot; each slot draws its mark in its colour into its cell (the ink fitted to
+  the cell, aspect kept, a margin all round for the field's ramp and the mips) and hands the shader the cell's ink box as
+  its rect (uDecB is any rect; aeroSetDecals takes `d.rect` before aeroPageRect). Pages 8-13 stay LIVERY-TEXT's, 14 free.
+- THE FIELD: G212's - alpha 0.5 at the edge, the ink's colour under the whole ramp, `sdf: 1` (so a float, which declines
+  letters, declines stickers too - vinyl is vinyl).
+- PLACED LIKE A LIVERY LAYER: goes on (AERO_DEC_ON, the kit's eight targets), projected as (field / side / plan), station,
+  height on side, turn (+-pi), a size = the INK's height in metres (the width follows the mark's ink box).
+- SIDES: both / the right side only / the left side only = uDecE.z 0 / -1 / +1. The one-side test (the certification
+  strip's, G208.2: position x normal) takes a SIGN now (aSg). +x IS THE LEFT FLANK, MEASURED (stickers_shot.js --probe:
+  a +1 sticker on the stock Cub showed only on the view whose nose points left) - AERO_VINYL_RIGHT = -1.
+- MIRROR ON THE LEFT: noMirror (paint's rule: one physical direction on both flanks). Measured in the same probe: a
+  noMirror decal reads AS DRAWN on +x (the left) - so the cell is drawn flipped when the mirror is on, and "mirror" means
+  exactly the brief's: the right flank reads as drawn, the left wears the mirror image (a bear walks to the nose on both).
+  Off, both flanks read as drawn (the letters' rule).
+- ORDER: the kit, then the stickers (vinyl on paint), then the registration and its wing copy, then the strip and the
+  master. AERO_MAXD 9 -> 13: the worst case (5 + 4 + 2 + 2) kept whole; the kit's trim rule unchanged.
+- THE GEOMETRY IS LAZY: src/viewer/livery_marks.js (tools/livery_marks_prep.js from cut.json: rings at 0.1 unit, deltas,
+  Douglas-Peucker 0.08) is a MANIFEST.lazy file, asked for (window.FLYDIY_LAZY) the first time a sticker is drawn; the
+  names and ink boxes are inline (AERO_VINYL_MARKS), so a placement never waits and an absent file draws an empty cell -
+  aeroVinylReady repaints the cells when it lands. aeroVinylWait(spec) is a promise: flown_bake.js awaits it before it
+  draws, so the flown bake's IndexedDB cache (keyed by the build) never keeps an empty sticker cell.
+- THE PANEL (_cage_ui.js, DECG 'vny', editor.js heads it "stickers"): four <details>, each: on; the mark as twelve buttons
+  with the mark's picture (from the lazy file; the number until it lands); colour (unset follows the trim, double-click the
+  label to follow again, as the registration's ink); size; station; height on side; turn; sides; mirror on the left; goes
+  on; projected as. decKitDefaults folds the vn rows into DEC / DEC_DEF (the editor bundle is ahead of aeroskin).
+- A SEAM FOUND AND FIXED: parked.js usedPages mapped a decal's rect back to a page by its CORNER (Math.round) - a sticker
+  cell rounded to column 4 (off the atlas) and row 2 (page 11), so a parked aeroplane's atlas copy would have missed its
+  stickers. By the rect's centre now (identical for every whole page). GATE LIVERYSTICKERS 5 holds it.
+
+COSTS (measured):
+- index.html: +21.6 KB raw, +6.5 KB gz (5648824 -> 5655472 B gzip -9, build.js on master e789e77c vs this branch) - code
+  only, inside MEDIA's WIRE and STEP budgets (MEDIA PASS).
+  The marks: livery_marks.js 40.8 KB raw / 16.1 KB gz, fetched only by an aeroplane that wears a sticker.
+- ATLAS PAGES: one (15), shared by the four slots. 0-7 untouched, 8-13 LIVERY-TEXT's, 14 free.
+- SHADER SLOTS: AERO_MAXD 9 -> 13 = +4 iterations of the unrolled decal loop in every skin program's text, +20 vec4 of
+  fragment uniforms (5 arrays x 4). Per pixel nothing changes for an aeroplane without stickers: the loop breaks at uDecN.
+  MEASURED on the page (stickers_shot.js, every active uniform of every skin program, both stages together): the heaviest
+  program 282 vec4 on laptop, 327 on gamer, the decal arrays 65 of them (262 / 307 before). SwiftShader reports 4096 a
+  stage; WebGL2 guarantees 224 fragment vectors. Not measured: a phone's real limit - A0's GPU check and the user's phone
+  should see the skin compile (the phone tier compiles the weathering and the grammar out, so its count is lower).
+- COMPILE: every skin program's text changes once (the loop bound and the signed one-side test): one recompile per program
+  on the first load after the deploy, then the browser's cache. SwiftShader cannot time it honestly.
+- A sticker's draw: a fill + a distance transform over its cell - measured in node at 4096 (a 1024 px cell): ~130 ms, when
+  its MARK or flip changes. The field is kept per slot, so a colour change (the well fires on every step of a drag)
+  repaints the colour over it: ~1 ms. Placement sliders redraw nothing (the page's signature is the mark, colour, flip).
+
+GATES (cloud, node; this tree, `run_gates.js --only=... --jobs=2`): LIVERYSTICKERS (NEW, core, ~4 s: 143 checks; --selftest
+11 probes, every one red), SKINMAT, MEDIA, BUILD, SAVE, ASSETS, ASSETBUDGET, EDBUGS, DESIGN, BENCH, UISMOKE, FLOWNBAKE,
+LIVERYREACH PASS; PARKED PASS (run alone at --max-old-space-size=4096, as LIVERY-5 found: the parked cook is stale on any
+branch that moves a source). RED AS ON MASTER (the same lines on a clean origin/master e789e77c worktree): LIVERY 2 lines
+(builds/cub_2026-09-20.json's strut pin: "resolves to its painted pin trim - got castAlu", "its material is that paint"),
+LAZY 1 line (route_draw's first demand). Not run: the full battery (--all) - A0's train runs it.
+RE-PINNED, with the reason written beside each: GATE LIVERY's slot count and GATE BENCH's AERO_MAXD, 9 -> 13 (the four
+sticker slots; the kit's layers and pages and the strip's and master's slots unchanged). Nothing else moved.
+
+PICTURES (reports/evidence/LIVERY-STICKERS/, README there; SwiftShader, gamer and laptop, 1600 x 1080 canvas, GOLDEN):
+the stock Cub - the grizzly on the right cowl (right side only), the bull moose on the left cowl (left side only, the
+trim's red), the Alaska map on the fin (both sides), four views each preset; the Twin busher - the glassy panorama on the
+pod, the orca on both fins (mirrored on the left), the midnight valley on a wing top, four views; the flank probe; the
+marks before / after. The gamer page lost its GPU process to the session's memory limit once per run and recovered.
+
+OPEN QUESTIONS, WITH THE DEFAULTS TAKEN:
+- LIVERY-TEXT is not on origin (no claude/livery-text): built on master with its seams kept - pages 8-13 untouched, the
+  sticker code its own block. MERGING: AERO_MAXD is the one line both change: 15 (text) + 4 (stickers) = 19, the JS
+  constant AND the #define, and GATE LIVERY / BENCH / LIVERYSTICKERS re-pinned to 19 (and their worst cases summed).
+  At 19 the decal arrays are 95 vec4 and the heaviest skin program ~357 (gamer, both stages) - worth A0's GPU check
+  on the phone before both land. The kit's trim rule already makes the kit give way first if a later count is lower.
+- The default place of a slot switched on: the rear fuselage, 3.2 m aft of the firewall, on the waist, 350 mm - on the
+  stock Cub that is ON the registration (its letters fill the rear fuselage); the player moves it. Default kept: no
+  per-build placement. Say if a smarter first place (fitted like the kit's FIT) is wanted.
+- Mirror default OFF (both flanks read as drawn, as a cutter's sheet of two identical stickers would). A mark that faces
+  somewhere (the bear, the moose, the orca) may want it ON by default - say if so.
+- Stickers skip floats (the field page declines letters there: `noLetters`). Say if the floats should take them.
+- A parked aeroplane captured in the first moment of a session, before the 40 KB marks file arrived, holds no sticker
+  until its next capture (parked.js's capture is synchronous; the flown bake waits).
+READY (for A0): claude/ready/livery-stickers = claude/livery-stickers, on claude/stickers-src 36bc0c9ef (= master e789e77c +
+the marks). Source only - no built file is committed (index.html, dev.html, sw.js, version.json, flight_core.js: the
+train's build; flight_core.js does not change, nothing in src/core moved). The parked cook goes stale with any source
+change (tools/parked_cook.js at the train). For AIRCRAFT-LOOKS, through A0: LIVERY-TEXT and this branch share one line,
+AERO_MAXD (JS and #define): 9 + 6 (text) + 4 (stickers) = 19 when both land, and the three gates that pin it (LIVERY,
+BENCH, LIVERYSTICKERS) move together; pages 8-13 are untouched here, page 15 is the stickers', 14 is free; the one-side
+test now takes a sign (uDecE.z -1), which a text piece "left only / right only" can use as is (AERO_VINYL_RIGHT = -1:
++x is the left flank, measured). The GPU check: the gamer page's skin compile (the shader text changed) and the uniform
+count on the phone.
