@@ -58,3 +58,26 @@ Not landed. A0 lands it after the box gates. Source commits and "(built)" commit
   DC-3's underside read black once the back doors were shut.
 - **Gates:** HANGAR, GAMEPREM, DERELICT (116, selftest 5/5), SITE, STORAGE, ASSETS, DEFAULT, ECON, HANGARVIEW, HOUSE,
   PREMISES, TAXICLEAR and WORLDRENDER all PASS. UISMOKE has not been re-run since this update.
+
+## Update (9 Nov, evening): A0's HOME-LAYOUT items
+
+- **The envelope is lifted to the real size.** `SHELLS.works` is the real 44 × 60 m hall (HW 22, HD 30, lims HD to 30),
+  plus the 6 m gallery, so 50 × 60 m overall. `shellLims(key, site)` caps the depth at what a site's flat pad holds
+  (`siteMaxHD`): HOME's main plot sits at z 62 on |z| ≤ 90, so it takes HD 28. The sliders, `setShell` and GATE SITE all
+  read the same cap. HOME.2 at the Y's foot takes the full 60 m. GATE HANGAR pins both values.
+- **The field track's story is this hangar.** HOME.2 carries a `closedTrack: { track: 'field', stages: [0, 2, 3] }`.
+  In a career the unbought building stands derelict at field 0, under repair at field 1 (the roofed stage: the new
+  roof on, the walls still stripped) and restored at field 2. The sandbox keeps it derelict until it is held.
+  - Captions: trk.field.1 "The old wartime hangar, under repair"; trk.field.2 "The old wartime hangar restored and
+    the old tower lit"; ct.field.03.done and ct.field.05.done match.
+  - GATE GAMEPREM checks it: field 0 / 1 / 2 gives stage 0 / 2 / 3.
+  - 76_stages keeps `world: true` for field:1 and field:2 on this branch, because the building does change. If
+    Game's landing sets them to false, these two rows conflict; this branch's reading should win.
+- **The plot drawn from the start.** `playerClosedSheds` already stands HOME.2's shed unheld, derelict, through
+  render_world's derelictShell.
+- **The back and the left are seen.** The restored back has glazed leaves (closed, the daylight through), the HANGAR 1
+  board on the gable for the road, bulkheads and downpipes. The apron spans the whole 50 m front plus 6 m either side,
+  and runs 40 m out.
+- **For the rigs.** Under SwiftShader the room's probe bake waits for `compileAsync`, which never lands there, so there
+  is no environment and polished metal reads black. The rigs force it with `GARAGE_ENV.setEnvSource('room')` and load
+  `?soft=0`, so the door shows the world's view.
