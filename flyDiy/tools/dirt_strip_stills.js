@@ -35,6 +35,9 @@ const FC = +opt('fc', 0), WET2 = opt('wet2', null), DEADLINE = +opt('deadline', 
 const HOUR = opt('hour', 'golden');
 const BUILD = opt('build', 'builds/cub_2026-09-20_corrected.json');
 const REST = +opt('rest', 1.095);   // the Cub's resting CG over terrainH (G1540)
+// DROP m over that: on a rutted strip the ground under the CG is not the ground under each wheel (a 10 cm rut, a berm), and
+// a wheel placed inside a berm springs out and breaks (9 Nov 20:50: a gear leg flew over w5) - drop it, the settle lands it
+const DROP = +opt('drop', 0.15);
 const JS = opt('js', '');
 const SETTLE = +opt('settle', 1500);
 // --micro id:chaos[:puddles] - that strip made bumpy (26b_strip_micro) in THIS browser profile only: the shipped record with
@@ -127,7 +130,9 @@ async function runPage(page) {
     for (const vk of VIEW_KEYS) {
       const V = VIEWS[vk]; if (!V) continue;
       if (DEADLINE && Date.now() - T0 > DEADLINE * 1000) { console.log('  DEADLINE: ' + STRIPS[si] + ' ' + vk + ' and after not shot'); break; }
-      const where = await ev(HOLD(V.at, V.agl || REST));
+      const where = await ev(HOLD(V.at, (V.agl || REST) + DROP));
+      const dmg = await ev('(() => { const s = FLIGHT_PROBE.sim(), D = s && s.damage ? s.damage() : null; return D ? D.breaks + " breaks, " + D.yields + " yields" : "n/a"; })()').catch(() => 'n/a');
+      if (!String(dmg).startsWith('0 breaks') && dmg !== 'n/a') console.log('  DAMAGE after the place on ' + STRIPS[si] + ' ' + vk + ': ' + dmg);
       await ev(`(() => { if (window.DAY_CLOCK && DAY_CLOCK.preset) DAY_CLOCK.preset(${JSON.stringify(HOUR)}); return 1; })()`);
       await ev(`FLIGHT_PROBE.camSet(${V.cam.join(',')})`);
       await ev(FRAMES(!out.length ? 400 : first ? 240 : 120)); first = false;
