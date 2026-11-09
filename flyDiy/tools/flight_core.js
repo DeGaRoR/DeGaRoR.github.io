@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 36a121c44210f037
+// body-sha256: 5892e8495a8392a9
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -45345,6 +45345,14 @@ function genGearCdA(S, semi) {
   const drop = G.legDrop || 0.42;
   const legCd = (G.fairing === 'full' || G.legFair === 'fair') ? 0.30 : 1.0;
   cda += 2 * legCd * drop * 0.05;                 // the main legs
+  // WILGA-GEAR: a trailing link's strut stands in the stream beside its leg (a 60 mm cylinder, eye to eye - the drawn
+  // one, gear.lever, else the reference's 0.50 m); the boot (the leg-fairing row or the trousers) carries it at the
+  // faired leg's Cd. Only a lever leg: the calibration's reference gear has none, and no other build reads a term
+  if (G.suspension === 'lever') {
+    const lv = G.lever, dx = lv && lv.horn && lv.top ? [0, 1, 2].map(k => lv.horn[k] - lv.top[k]) : null;
+    const sL = dx ? Math.sqrt(dx[0] * dx[0] + dx[1] * dx[1] + dx[2] * dx[2]) : 0.50;
+    cda += 2 * legCd * sL * 0.060;                 // the two struts
+  }
   const twDrop = G.twLeg || 0.20;
   cda += (G.twFairing === 'full' || G.twLegFair === 'fair' ? 0.30 : 1.0)
        * twDrop * 0.05;                           // the third leg
