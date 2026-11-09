@@ -314003,3 +314003,15 @@ THE READIES (their own pre-gates):
 - wingsmith-name a8792c14f (Game): the game's name Wingsmith in ONE string (GAME_NAMES.game), placeholder, saves/PWA id unchanged; GATE WINGSMITH new.
 - pilot-notch-2 c47e15aef (Pilot), 15 fresh commits (the revert trap respected): the notch, FLARE-NOPUSH, G2815, the G2816 cap + G2816b (no cap on a short field, xwFlapK 0.15), POD/ENGCONFIG pins, the census, TANK-SPLIT, the PILOTMATRIX baseline, the STOL check + re-capture (rule b: the stock Cub lands on its notch, 67.2 vs 64.0 km/h, so the slower approach is asked at 0.96x Vref), HANDOVER. Proof: the user's Cub HOME > w3 > tw_ski ok (touchdown -0.09 m/s, run 68 m) against L36a's ground loop; x2 ok, x4 15 deg as before. PASS TOUR 0/1/3, PILOTMATRIX, PILOT 0-2, ROUTE 0-2, PROFILE, PLAN, TAKEOFF, LINEUP, POD, CESSNAVREF. Reds as master: TOUR 2 (the float Cessna), ENGCONFIG's quad + cards; the branch clears master's 9 identity FAILs. NODE-ACCEPT: Cub PASS (not in this ready).
 - petrel-draw 656c847cf (SEAPLANES): no physics hull on a cage build (app.js buildFloatMeshes). The Petrel draws whole near and far; the validated float planes are unchanged by construction (floatRigs 12, 0 physics hulls); FLOATS, HYDRODYN, SEAPLANE, FLOATDUP PASS.
+
+## DIRT-STRIP - THE USER'S BUMPS ON w3 AND w8 SWITCHED ON, AND THEIR NAMED COST (10 Nov 2026, claude/ready/strip-chaos-on)
+
+The shipped record (tools/fixtures/island_jolene.json) carries micro on the two strips the Pilot coordinator vetted on 9 Nov
+13:25: w3 (Fishing Village Strip) chaos 0.20 seed 3, w8 (Hiking Strip) chaos 0.40 seed 13. Every other strip stays flat until
+its own re-vet; the mine strip (the Rufus's P1) stays 0.
+**The cost, named (A0 approved, 10 Nov 00:50):** their ribbons are refined to the bumps' scale (26b REFINE_MIN / REFINE_MIN_V).
+GATE TERRAINMATCH's potato HOME-taxi view goes from 1 212 870 to 1 218 494 triangles (+5 624, +0.46 %) on master e789e77cb.
+The gate's base carries it as BUMPS, on both views.
+GATE MICRO section 1 now checks that the shipped record is bumpy on exactly those strips. The sections after it judge w7's
+field against the island with every strip's micro taken out.
+The record changed, so the ready carries its own premises cook (GATE PREMCOOK).

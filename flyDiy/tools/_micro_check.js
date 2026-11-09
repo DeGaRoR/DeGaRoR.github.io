@@ -33,12 +33,23 @@ if (!SM) { console.log('FAIL STRIP_MICRO is not exported'); console.log('GATE MI
 // ---- 1. OFF IS OFF -------------------------------------------------------------------------------------------------
 const IN = require('./island_node.js');
 const FIX = JSON.parse(fs.readFileSync(path.join(T, 'fixtures', 'island_jolene.json'), 'utf8'));
-const withMicro = (id, micro) => { const J = JSON.parse(JSON.stringify(FIX)); const r = J.layers.runways.find(q => q.id === id); r.micro = micro; return J; };
+// THE SHIPPED RECORD IS BUMPY WHERE THE PILOT VETTED IT (DIRT-STRIP chaos-on: w3 0.20, w8 0.40, the user's 9 Nov; every other
+// strip flat, the mine strip above all): checked here, then every strip's micro taken out (FIX0) - the sections below judge
+// the field on w7 against the bare island, as before
 const world = J => IN.islandWorld('jolene', { premises: JSON.stringify(J) });
-const W0 = world(FIX);
+{
+  const VET = { w3: 0.2, w8: 0.4 };
+  const recs = FIX.layers.runways.filter(r => r.micro).map(r => r.id + ':' + r.micro.chaos).sort().join(', ');
+  world(FIX); const pub = [...SM.live.values()].flat().map(s => s.id).sort().join(', ');
+  const want = Object.keys(VET).sort().map(k => k + ':' + VET[k]).join(', ');
+  verdict(recs === want && pub === Object.keys(VET).sort().join(', '), `Jolene as shipped is bumpy on the Pilot-vetted strips only: ${recs || 'none'} in the record (want ${want}), ${pub || 'none'} published; the mine strip and the rest flat`);
+}
+const FIX0 = JSON.parse(JSON.stringify(FIX)); for (const r of FIX0.layers.runways) delete r.micro;
+const withMicro = (id, micro) => { const J = JSON.parse(JSON.stringify(FIX0)); const r = J.layers.runways.find(q => q.id === id); r.micro = micro; return J; };
+const W0 = world(FIX0);
 const A7 = W0.aerodromes.find(a => a.id === 'w7');
 const live0 = SM.live.size;
-verdict(live0 === 0, `Jolene as shipped publishes no micro strip (${live0})`);
+verdict(live0 === 0, `Jolene with every strip's micro taken out publishes none (${live0})`);
 const pts = [];
 { const d = [Math.cos(A7.hdg), Math.sin(A7.hdg)], n = [-d[1], d[0]];
   for (let i = 0; i < 3000; i++) { const u = (rng() - 0.5) * (A7.len + 60), v = (rng() - 0.5) * (A7.wid + 40); pts.push([A7.x + d[0] * u + n[0] * v, A7.z + d[1] * u + n[1] * v, u, v]); } }
