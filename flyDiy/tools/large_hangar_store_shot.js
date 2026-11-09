@@ -18,15 +18,24 @@ const env = f => JSON.parse(fs.readFileSync(path.join(ROOT, 'builds', f), 'utf8'
 // --scene full: as many small aeroplanes as the floor takes round the Jodel on the stand - three Cubs and three Jodels
 // stored, the shed's own `slots` (HANGAR-STORAGE's per-shed hook) raised to 8 inside so the PACKER, not the shell's 4,
 // says how many stand (the rest are reported 'no floor left')
-const SCENE = opt('scene', 'store'), FULL = SCENE === 'full';
+const SCENE = opt('scene', 'store'), FULL = SCENE === 'full' || SCENE === 'roster', ROSTER = SCENE === 'roster';
 const CUB = 'cub_2026-09-20_corrected.json', JOD = 'jodel_2026-09-20_corrected.json';
-const SHELF = FULL
+// --scene roster (the user 9 Nov: "I don't want all cubs and Jodels. Get in the roster"): the Jodel on the stand, the validated
+// aeroplanes the user named stored round it, each at its own measured footprint (playerFootOfDef off its build)
+const ROSTER_FILES = { 'Metal Cessna': 'cessna172_2026-09-20.json', 'Piper Cub': CUB, 'STOL Cub': 'candidates/stol_cub_showcase.json',
+  'Twin busher floats': 'candidates/Twin_busher_floats_4b.json', 'Rufus': 'rufus_2026-10-18_certified.json', 'pusherLight': 'candidates/build_v8_pusher_2026-09-11.json',
+  'B-ITES': 'candidates/B-ITES.json', 'PA-18 on floats': 'pa18_floats_2026-10-23.json', 'Chinook': 'chinook_2026-09-21_corrected.json' };
+const envOf = (n, f) => { const j = env(f); return j.spec ? j : { what: 'flydiy-build', v: j.v || 10, name: n, spec: j }; };
+const SHELF = ROSTER ? Object.fromEntries(Object.entries(ROSTER_FILES).map(([n, f]) => [n, envOf(n, f)]))
+  : FULL
   ? { 'Jolene Cub': env(CUB), 'Spare Cub': env(CUB), 'Club Cub': env(CUB), 'Old Jodel': env(JOD), 'Red Jodel': env(JOD), 'Blue Jodel': env(JOD) }
   : { 'Jolene Cub': env(CUB), 'Spare Cub': env(CUB), 'Club Cub': env(CUB), 'Jodel D9': env(JOD), 'Metal Cessna': env('cessna172_2026-09-20_corrected.json') };
-const SLOTS = FULL ? 8 : null;
+const SLOTS = ROSTER ? 10 : FULL ? 8 : null;
 // the footprints the packer parks them by (as a save measures them: GATE HANGAR's envelopes)
 const FOOT = { cub: { half: 5.4, fwd: 1.8, aft: 6.9, h: 2.1 }, jodel: { half: 4.4, fwd: 1.8, aft: 5.9 }, cessna: { half: 5.5, fwd: 1.6, aft: 6.6, h: 2.7 } };
-const footOf = n => /Cub/.test(n) ? FOOT.cub : /Jodel/.test(n) ? FOOT.jodel : FOOT.cessna;
+// the roster's: measured off each build in node (buildGen -> playerFootOfDef), as the garage's save measures them
+const footMeasured = n => { try { const sp = JSON.parse(JSON.stringify(SHELF[n].spec)); return CORE.playerFootOfDef(CORE.buildGen(CORE.genMigrateSpec(sp))); } catch (e) { return null; } };
+const footOf = n => (ROSTER && footMeasured(n)) || (/Cub/.test(n) ? FOOT.cub : /Jodel/.test(n) ? FOOT.jodel : FOOT.cessna);
 // THE CAREER DOCUMENT, made here (careerNew, as the page makes the dev career) and seeded before the page's first load: the
 // main hangar the large hangar, the shelf the career's own airframes stored inside it in slot order (one boot, not two)
 const CORE = require('./flight_core.js');
