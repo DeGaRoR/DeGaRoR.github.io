@@ -1,0 +1,311 @@
+[
+ {
+  "id": "v5",
+  "tag": "V5 · the nose cowl",
+  "title": "The bottom rounds, sits lower than the firewall, and lets the air and the exhaust out",
+  "html": "<p>Quick flat-shaded renders (<code>quickshot.js</code>), today against V5: side view, and head-on on the button above. On a nose engine:</p><ul><li><b>The bottom rounds out</b> (your round B). It leaves the firewall level, carrying on the fuselage's bottom line, and rounds up into the front face. New generator rows: the bottom line's own bend (<code>keelShoulder</code>, <code>keelRound</code>).</li><li><b>The bottom sits lower than the firewall's</b>, vertically only, held until the bend. It is sized on your saved builds: 0.24 of the nose half-height at 70 hp down to 0.04 at 160 hp. Cub 8.0 cm (yours 7.9), Jodel 8.0 (8.7), C172 2.1 (1.9), ugly bi 6.0, STOL Cub 4.6.</li><li><b>The top descends a little</b> to meet the spinner (<code>deckShoulder</code>, <code>deckRound</code>).</li><li><b>The exhaust's ramp.</b> Where the drawn exhaust leaves, the skin is pressed into a shallow channel, open at the aft edge (<code>exCut</code> 2).</li><li><b>The chin scoop rides the bottom line</b> (<code>scoopFollow</code>): its top a third of its height inside the skin all along, so it can't float or dig in.</li><li><b>The bends make room for the engine.</b> Where the drawn engine needs it, the bottom stays level longer and the top descends less (the Tiger Moth's inverted cylinders).</li></ul><p>All of it is generator rows, absent by default, so every saved cowl is drawn to the bit and no flown number moves. A radial keeps its round NACA barrel. The generated radial nose below is smaller than its W-670, so its heads still show, as they do today: an open item.</p>",
+  "strips": [
+   {
+    "title": "Piper Cub",
+    "note": "official · A-65",
+    "cells": [
+     [
+      "body",
+      "cub_today",
+      "Today"
+     ],
+     [
+      "body",
+      "cub_rule",
+      "V5"
+     ]
+    ]
+   },
+   {
+    "title": "Cessna 172",
+    "note": "official · 159 hp boxer",
+    "cells": [
+     [
+      "body",
+      "c172_today",
+      "Today"
+     ],
+     [
+      "body",
+      "c172_rule",
+      "V5"
+     ]
+    ]
+   },
+   {
+    "title": "Jodel",
+    "note": "official · A-65",
+    "cells": [
+     [
+      "body",
+      "jodel_today",
+      "Today"
+     ],
+     [
+      "body",
+      "jodel_rule",
+      "V5"
+     ]
+    ]
+   },
+   {
+    "title": "ugly bi",
+    "note": "candidate · O-200",
+    "cells": [
+     [
+      "body",
+      "ugly_today",
+      "Today"
+     ],
+     [
+      "body",
+      "ugly_rule",
+      "V5"
+     ]
+    ]
+   },
+   {
+    "title": "STOL Cub",
+    "note": "candidate · Rotax 915 iS",
+    "cells": [
+     [
+      "body",
+      "stol_today",
+      "Today"
+     ],
+     [
+      "body",
+      "stol_rule",
+      "V5"
+     ]
+    ]
+   },
+   {
+    "title": "Tiger Moth-alike",
+    "note": "candidate · Gipsy Major, inverted",
+    "cells": [
+     [
+      "body",
+      "tiger_today",
+      "Today"
+     ],
+     [
+      "body",
+      "tiger_rule",
+      "V5"
+     ]
+    ]
+   },
+   {
+    "title": "twinBoomFail",
+    "note": "candidate · E-811 (electric: no drop, no ramp)",
+    "cells": [
+     [
+      "body",
+      "tboom_today",
+      "Today"
+     ],
+     [
+      "body",
+      "tboom_rule",
+      "V5"
+     ]
+    ]
+   },
+   {
+    "title": "A generated radial nose",
+    "note": "W-670 on a nose smaller than it",
+    "cells": [
+     [
+      "body",
+      "radial_today",
+      "Today"
+     ],
+     [
+      "body",
+      "radial_rule",
+      "V5"
+     ]
+    ]
+   },
+   {
+    "title": "Twin busher floats 4b",
+    "note": "official · Rotax 916 iS, pusher (the body rule from the aft face)",
+    "cells": [
+     [
+      "body",
+      "busher_today",
+      "Today"
+     ],
+     [
+      "body",
+      "busher_rule",
+      "V5"
+     ]
+    ]
+   }
+  ]
+ },
+ {
+  "id": "pods",
+  "tag": "Off the body",
+  "title": "The pods, sized to the drawn engine",
+  "html": "<p>A straight pod round the engine as drawn (its top hardware and sides; exhaust stubs may leave underneath), with the engine's own section: a boxer wide and low, an in-line tall and boxy, a V a deep oval, a radial round with a helmet over each cylinder, a motor round and tight (its mount plate takes the pod's size), a turboprop round with its chin grown into the barrel. Each pod runs full section to the spinner, and the propeller moves forward by the lip. The over-the-wing plane wears the Engine mount tile's own aero nose: the bare nose of round 2 was my study plane, built by hand.</p>",
+  "strips": [
+   {
+    "title": "Boxer (O-320)",
+    "note": "",
+    "cells": [
+     [
+      "pods",
+      "flat_today",
+      "Today"
+     ],
+     [
+      "pods",
+      "flat_straight",
+      "Straight pod"
+     ]
+    ]
+   },
+   {
+    "title": "Rotax 915 iS",
+    "note": "",
+    "cells": [
+     [
+      "pods",
+      "rotax_today",
+      "Today"
+     ],
+     [
+      "pods",
+      "rotax_straight",
+      "Straight pod"
+     ]
+    ]
+   },
+   {
+    "title": "Inverted in-line (Gipsy Major)",
+    "note": "",
+    "cells": [
+     [
+      "pods",
+      "inline_today",
+      "Today"
+     ],
+     [
+      "pods",
+      "inline_straight",
+      "Straight pod"
+     ]
+    ]
+   },
+   {
+    "title": "V (Hirth HM 508)",
+    "note": "",
+    "cells": [
+     [
+      "pods",
+      "vee_today",
+      "Today"
+     ],
+     [
+      "pods",
+      "vee_straight",
+      "Straight pod"
+     ]
+    ]
+   },
+   {
+    "title": "Radial (W-670), 7 helmets",
+    "note": "",
+    "cells": [
+     [
+      "pods",
+      "radial_today",
+      "Today"
+     ],
+     [
+      "pods",
+      "radial_straight",
+      "Straight pod"
+     ]
+    ]
+   },
+   {
+    "title": "Turboprop (PT6A-114A)",
+    "note": "",
+    "cells": [
+     [
+      "pods",
+      "turbine_today",
+      "Today"
+     ],
+     [
+      "pods",
+      "turbine_straight",
+      "Straight pod"
+     ]
+    ]
+   },
+   {
+    "title": "Electric (E-811)",
+    "note": "",
+    "cells": [
+     [
+      "pods",
+      "electric_today",
+      "Today"
+     ],
+     [
+      "pods",
+      "electric_straight",
+      "Straight pod"
+     ]
+    ]
+   },
+   {
+    "title": "Over the wing (Rotax 915 on the pylon)",
+    "note": "",
+    "cells": [
+     [
+      "pods",
+      "pylon_today",
+      "Today"
+     ],
+     [
+      "pods",
+      "pylon_straight",
+      "Straight pod"
+     ]
+    ]
+   }
+  ]
+ },
+ {
+  "id": "tiger",
+  "tag": "The Tiger Moth",
+  "title": "The engine per the reference, then the cowl round it",
+  "html": "<p>The DH.82 reference match puts the propeller's line where the build has it (<code>engY</code> 0.21). The Gipsy is inverted, and drawn 0.705 m tall against the real Gipsy Major's 0.752 m (<a href=\"https://all-aero.com/2024/01/25/de-havilland-gipsy-major-gipsy-iiia-cniar-4gi\" target=\"_blank\" rel=\"noopener\">All-Aero</a>). So it stays. The cowl folds <code>engY</code> into its axis (the ring is now on the spinner) and is built round the engine's own box. One hump does not fit the real bonnet: our engine generator draws an inverted in-line's induction on top (entry G164), up to 0.34 m over the shaft where the type's bonnet runs 0.13-0.27 m. The cowl covers it with a blister near the firewall (the reference model's bonnet has one too). The proper fix is in the engine drawing.</p>",
+  "strips": []
+ },
+ {
+  "id": "crease",
+  "tag": "The crease",
+  "title": "Which of the plane's rows make a nose boxy",
+  "html": "<p>A study on 15 builds (<code>crease_study.js</code>): the firewall's outline fitted with the cowl's own section law. The RMS of the half-width is 5-65 mm with the waist on the plane's waistline, 4-37 mm with the waist free, and 2-23 mm free with the width at the top and bottom lines added (<code>wAftTop</code> / <code>wAftBot</code>). The hard ones are the sill-creased boxes (<code>crSill</code> ≥ 2: Cub, C172, Mosquito-alike): flanks full up to the waistline under a deck narrower than them; the C172's firewall is two-tiered. The rule keeps your waistline on a flat-sided nose, fits it on a round-topped cabin, and fits the roundness above and below. The two width rows would close most of the rest, but the flight model reads them (the cowl's wetted area and mass): they wait for A0's word.</p>",
+  "strips": []
+ },
+ {
+  "id": "next",
+  "tag": "Next",
+  "title": "The cooling path: in, through, out",
+  "html": "<p>Your proposal, as a cowl section of its own: every cowl has an <b>inlet</b> (the face's openings by engine type), <b>auxiliary intakes</b> (the chin scoop: the carburettor, an oil cooler, a radiator), and a <b>heat outlet</b>, one of:</p><ul><li><b>the lowered belly</b>: the Cub's (V5's drop);</li><li><b>the bottom exit with a lip</b>: the C172's. It has no cowl flaps (the 182 does); the air is pushed down through the fins and leaves through the open aft edge of the lower cowl, with the exhaust pipe;</li><li><b>side gills</b>: the Carbon Cub's raised panel of slanted slots on the lower flank, behind the cylinders. Real 3D louvres, with their own thickness, rounded lips and dark throats, on a panel or cut cleanly into the skin, placed only where they clear the rivets, the split line, the seam, the ramp and the scoop;</li><li><b>cowl flaps</b>: the 182's, the radials'.</li></ul>",
+  "strips": []
+ }
+]

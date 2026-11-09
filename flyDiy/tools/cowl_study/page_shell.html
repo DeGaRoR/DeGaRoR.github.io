@@ -1,0 +1,134 @@
+<title>Proper Default Cowls</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<style>
+/* Layout: a hangar work-card - a narrow reading column for the argument, the pictures and the table full width below. */
+:root {
+  --paper: #eef0ec; --sheet: #f8f9f6; --ink: #1c2420; --mute: #5d6862; --rule: #cfd5cf;
+  --amber: #b87400; --amber-bg: #f6e7c4; --steel: #285a78; --ok: #2f6b3f;
+  --f-head: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+  --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --paper: #121614; --sheet: #1a201d; --ink: #e2e7e3; --mute: #9aa69f; --rule: #2f3833;
+  --amber: #f0a92a; --amber-bg: #3a2c10; --steel: #8fbcd8; --ok: #7cc68e; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --paper: #121614; --sheet: #1a201d; --ink: #e2e7e3; --mute: #9aa69f; --rule: #2f3833;
+  --amber: #f0a92a; --amber-bg: #3a2c10; --steel: #8fbcd8; --ok: #7cc68e; color-scheme: dark }
+body { background: var(--paper); color: var(--ink); font: 15px/1.55 var(--f-body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 28px 64px; }
+.wrap { max-width: 1240px; margin: 0 auto; display: grid; gap: 40px; }
+.wrap > * { min-width: 0; }
+.col { max-width: 68ch; }
+h1 + .lede { margin-top: 14px; }
+h1, h2, h3 { font-family: var(--f-head); text-wrap: balance; margin: 0; letter-spacing: 0.01em; }
+h1 { font-size: clamp(2rem, 5vw, 3rem); font-weight: 700; line-height: 1.05; }
+h2 { font-size: 1.55rem; font-weight: 600; margin-bottom: 10px; }
+h3 { font-size: 1.15rem; font-weight: 600; }
+p { margin: 0 0 12px; }
+a { color: var(--steel); }
+.eyebrow { font: 500 0.78rem/1 var(--f-mono); text-transform: uppercase; letter-spacing: 0.12em; color: var(--amber); margin-bottom: 12px; }
+.lede { font-size: 1.08rem; color: var(--ink); }
+.mono { font-family: var(--f-mono); font-size: 0.86em; }
+code { font-family: var(--f-mono); font-size: 0.86em; background: var(--sheet); border: 1px solid var(--rule); padding: 0 4px; border-radius: 3px; }
+
+/* the decision card: the one boxed thing on the page */
+.decide { background: var(--sheet); border: 1px solid var(--rule); border-left: 4px solid var(--amber); padding: 18px 20px; border-radius: 4px; max-width: 80ch; }
+.decide h2 { margin-bottom: 12px; }
+.options { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin: 6px 0 14px; }
+.options div { min-width: 0; }
+.options b { font-family: var(--f-head); font-size: 1.05rem; display: block; }
+.rec { background: var(--amber-bg); padding: 10px 12px; border-radius: 3px; }
+
+/* the pictures */
+.views { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font: 500 0.82rem var(--f-mono); color: var(--mute); }
+.views button { font: inherit; color: var(--ink); background: var(--sheet); border: 1px solid var(--rule); padding: 5px 10px; border-radius: 3px; cursor: pointer; }
+.views button[aria-pressed="true"] { border-color: var(--amber); color: var(--amber); }
+.views button:focus-visible { outline: 2px solid var(--steel); outline-offset: 2px; }
+.plane { display: grid; gap: 10px; padding-top: 18px; border-top: 1px solid var(--rule); }
+.plane header { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.plane .eng { color: var(--mute); font-size: 0.9rem; }
+.tag { font: 500 0.7rem var(--f-mono); text-transform: uppercase; letter-spacing: 0.1em; padding: 2px 6px; border-radius: 2px; border: 1px solid var(--rule); color: var(--mute); }
+.tag-official { color: var(--ok); border-color: currentColor; }
+.strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.strip.two, .strip.n2 { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 820px; }
+.strip.n3 { grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: 1180px; }
+.strip.n1 { grid-template-columns: minmax(0, 1fr); max-width: 420px; }
+.point { display: grid; gap: 14px; }
+.strip.wide { max-width: 1000px; }
+.podrow { display: grid; gap: 8px; padding-top: 14px; border-top: 1px solid var(--rule); }
+.podrow header { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+figure.pod img { aspect-ratio: 16 / 10; }
+.decide dl { margin-bottom: 14px; }
+@media (max-width: 760px) { .strip { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 460px) { .strip.two, .strip.n2, .strip.n3 { grid-template-columns: 1fr; } }
+figure { margin: 0; min-width: 0; }
+figure img { display: block; width: 100%; height: auto; object-fit: contain; border-radius: 3px; background: #0d0f0e; }
+figcaption { font: 500 0.8rem var(--f-mono); color: var(--mute); padding-top: 4px; }
+.opt-today figcaption { color: var(--ink); }
+.note { color: var(--mute); font-size: 0.9rem; margin: 0; }
+
+/* the table */
+.tablewrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 4px; background: var(--sheet); }
+table { border-collapse: collapse; width: 100%; min-width: 860px; font-size: 0.9rem; }
+th, td { text-align: left; vertical-align: top; padding: 10px 12px; border-bottom: 1px solid var(--rule); }
+thead th { font: 600 0.78rem var(--f-mono); text-transform: uppercase; letter-spacing: 0.08em; color: var(--mute); position: sticky; top: 0; background: var(--sheet); }
+tr.type th { font-family: var(--f-head); font-size: 1.05rem; background: var(--paper); color: var(--ink); }
+tr.type th span { font: 400 0.8rem var(--f-mono); color: var(--mute); margin-left: 8px; }
+td.mount { font-weight: 600; white-space: nowrap; }
+td.real { max-width: 40ch; }
+td.today { width: 230px; }
+td.today img { width: 220px; aspect-ratio: 5 / 3; object-fit: cover; border-radius: 3px; display: block; background: #0d0f0e; }
+td.prop { max-width: 34ch; }
+.refs { font-size: 0.82rem; margin-top: 6px; }
+.none { color: var(--mute); font-size: 0.82rem; font-style: italic; }
+dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0; }
+dt { font: 500 0.85rem var(--f-mono); color: var(--amber); }
+dd { margin: 0; min-width: 0; }
+ul { margin: 0 0 12px; padding-left: 20px; }
+@media (prefers-reduced-motion: no-preference) { figure img { transition: opacity .15s; } }
+</style>
+
+<div class="wrap">
+  <div class="col">
+    <div class="eyebrow">flyDiy · PROPER-COWLS · V5 · 8 Nov 2026</div>
+    <h1>Proper default cowls</h1>
+    <p class="lede">V5: the nose cowl reworked on your notes (the bottom, the drop, the exhaust, the scoop), the pods, and the cooling path to come. Quick renders, flat-shaded: the shapes, not the final look.</p>
+    <div class="views" role="group" aria-label="View"><span>View</span><button type="button" id="v34" aria-pressed="true">side</button><button type="button" id="vside" aria-pressed="false">head-on</button></div>
+  </div>
+<!--SECTIONS-->
+  <section>
+    <div class="col"><h2>Each engine type on each mount</h2>
+    <p>What a real cowl looks like there, what the new-plane chooser draws today (a generated build per row), and the default proposed.</p></div>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Mount</th><th>A real cowl</th><th>Ours today</th><th>The default proposed</th></tr></thead>
+      <tbody>
+<!--ROWS-->
+      </tbody>
+    </table></div>
+  </section>
+
+  <section class="col">
+    <h2>Next</h2>
+    <ul>
+      <li>The rule becomes the birth's cowl for every engine type (<code>_new_plane.js cowlPresetFor</code>), and a <b>Straight</b> preset button in the editor. Every value stays an ordinary cowl row; saved builds keep their own cowls.</li>
+      <li>The Tiger Moth's engine 8 cm lower in the candidate's file, if you say so.</li>
+      <li>A real intake mouth in the turboprop's skin (the chin is only a deeper bottom so far).</li>
+    </ul>
+  </section>
+</div>
+<script>
+(() => {
+  const b34 = document.getElementById('v34'), bs = document.getElementById('vside');
+  const set = side => {
+    b34.setAttribute('aria-pressed', String(!side)); bs.setAttribute('aria-pressed', String(side));
+    document.querySelectorAll('img[data-alt]').forEach(im => {
+      if (!im.dataset.main) im.dataset.main = im.getAttribute('src');
+      im.src = side ? im.dataset.alt : im.dataset.main;
+    });
+  };
+  b34.addEventListener('click', () => set(false)); bs.addEventListener('click', () => set(true));
+})();
+</script>

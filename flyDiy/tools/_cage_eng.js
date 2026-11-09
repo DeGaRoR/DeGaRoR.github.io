@@ -736,6 +736,8 @@ function meshFrom(m) {
   for (const [start, count, mi] of groups) g.addGroup(start, count, mi);
   g.computeVertexNormals();
   const mesh = new THREE.Mesh(g, mats.map(matOf));
+  // (PROPER-COWLS: which group is which part, for the cowl's tools - the exhaust may leave the cowl by design)
+  mesh.userData.matNames = mats.slice();
   // THE EXHAUST EXIT, MEASURED (G70). The wear needs a source for the soot
   // streak, and the only honest one is where the pipe actually ends — which
   // moves with the cylinder count, the architecture and every slider on the
@@ -976,7 +978,8 @@ function engPlace(ctx, prev) {
   spec.screws = P.eng_screws ? 1 : 0;
   // the genuine firewall is the cage's — off the body (a pylon, a nacelle)
   // the engine draws its own mount plate
-  spec.fwOn = face.synthetic ? 1 : 0;
+  // (PROPER-COWLS: not inside a pod that houses the engine - _cage_cowl podPlate's `podSized`)
+  spec.fwOn = face.synthetic && !face.podSized ? 1 : 0;
   spec.fwW = Math.max(0.2, Math.min(2.2, 2 * face.halfW));
   spec.fwH = Math.max(0.2, Math.min(2.2, 2 * face.halfH));
   let M;
@@ -1102,8 +1105,8 @@ function engPlace(ctx, prev) {
     // a unit whose face is synthetic when the first unit's is not draws
     // its own mount plate, sized to its face
     let MU = M;
-    if (!!f.synthetic !== !!face.synthetic) {
-      try { MU = EM.engMeshBuild(Object.assign({}, spec, { fwOn: f.synthetic ? 1 : 0,
+    if (!!f.synthetic !== !!face.synthetic || !!f.podSized !== !!face.podSized) {
+      try { MU = EM.engMeshBuild(Object.assign({}, spec, { fwOn: f.synthetic && !f.podSized ? 1 : 0,
         fwW: Math.max(0.2, Math.min(2.2, 2 * f.halfW)), fwH: Math.max(0.2, Math.min(2.2, 2 * f.halfH)) })); }
       catch (e) { MU = M; }
     }

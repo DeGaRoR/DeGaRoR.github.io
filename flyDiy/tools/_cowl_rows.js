@@ -73,23 +73,58 @@ const COWL_ROWS = [
     // the tool's key says
     { k: 'lidRise', label: 'axis rise, firewall → barrel end', lo: -0.22, hi: 0.22, step: 0.002 },
   ] },
+  // ---- PROPER-COWLS: the side gills (the Carbon Cub's) ----
+  { id: 'g_gill', name: 'Side gills', rows: [
+    { k: 'gillOn', label: 'side gills (a raised panel of slanted slots, each flank)', lo: 0, hi: 1, step: 1 },
+    { k: 'gillN', label: 'slots', lo: 2, hi: 12, step: 1, when: 'P.gillOn>0' },
+    { k: 'gillZ', label: 'station (in the clear band, aft → forward)', lo: 0, hi: 1, step: 0.01, when: 'P.gillOn>0' },
+    { k: 'gillL', label: 'panel length (m)', lo: 0.06, hi: 0.5, step: 0.005, when: 'P.gillOn>0' },
+    { k: 'gillH', label: 'panel height (m)', lo: 0.04, hi: 0.3, step: 0.005, when: 'P.gillOn>0' },
+    { k: 'gillSlant', label: 'slant (deg, the top leaning aft)', lo: -45, hi: 45, step: 1, when: 'P.gillOn>0' },
+    { k: 'gillLip', label: 'hood height (m)', lo: 0.003, hi: 0.03, step: 0.0005, when: 'P.gillOn>0' },
+    { k: 'gillT', label: 'panel thickness (m)', lo: 0.0015, hi: 0.012, step: 0.0005, when: 'P.gillOn>0' },
+  ] },
+  // ---- PROPER-COWLS: the way out at the bottom of the aft edge ----
+  { id: 'g_exit', name: 'Air and exhaust exit', rows: [
+    { k: 'exitGap', label: 'bottom lowered under the firewall\'s (m)', lo: 0, hi: 0.08, step: 0.002 },
+    { k: 'exitHold', label: 'held to the bottom\'s bend (else tilts back up over the length)', lo: 0, hi: 1, step: 1, when: 'P.exitGap>0' },
+    { k: 'exitLen', label: 'tilts back up over (x the cowl length)', lo: 0.1, hi: 0.9, step: 0.01, when: 'P.exitGap>0&&!P.exitHold' },
+    { k: 'exCut', label: 'exhaust way out', lo: 0, hi: 2, step: 1, names: ['none', 'a cut in the aft edge', 'a faired ramp'] },
+    { k: 'exRampH', label: 'ramp depth at the aft edge (m)', lo: 0.01, hi: 0.12, step: 0.002, when: 'P.exCut===2' },
+    { k: 'exCutSpan', label: 'cut width (deg)', lo: 10, hi: 140, step: 1, when: 'P.exCut>0' },
+    { k: 'exCutLen', label: 'cut depth from the firewall (m)', lo: 0.02, hi: 0.4, step: 0.005, when: 'P.exCut>0' },
+    { k: 'exCutAz', label: 'cut azimuth (270 = the bottom)', lo: 180, hi: 360, step: 1, when: 'P.exCut>0' },
+  ] },
   // ---- Nose bowl ----
   { id: 'g_bowl', name: 'Nose bowl', rows: [
     { k: 'lidLen', label: 'length, barrel end → nose ring', lo: 0.02, hi: 1, step: 0.005 },
     { k: 'lidShoulder', label: 'carries the barrel line (bend late)', lo: 0, hi: 0.92, step: 0.01 },
     { k: 'lidRound', label: 'fullness (cone → blunt)', lo: 0, hi: 1, step: 0.01 },
-    { k: 'faceRise', label: 'axis lift, barrel end → nose ring', lo: -0.12, hi: 0.12, step: 0.002 },
+    // PROPER-COWLS: +-0.25 (was 0.12) - a straight cowl puts a Cessna's or a Rotax's thrust line in its face
+    { k: 'faceRise', label: 'axis lift, barrel end → nose ring', lo: -0.25, hi: 0.25, step: 0.002 },
+    // PROPER-COWLS: the lift moves the ring round the spinner only, the lip keeps the barrel's lines (absent = 0)
+    { k: 'faceRing', label: 'lift the ring only (the lip stays on the barrel)', lo: 0, hi: 1, step: 1 },
     // the bowl's curve can reach back INTO the barrel, per line: 0 = the
     // line runs straight to the barrel end, 0.95 = it starts bending almost
     // at the firewall
     { k: 'deckSweep', label: 'top line bends from (barrel end → firewall)', lo: 0, hi: 0.95, step: 0.01 },
     { k: 'keelSweep', label: 'bottom line bends from (barrel end → firewall)', lo: 0, hi: 0.95, step: 0.01 },
+    // PROPER-COWLS V4: the bottom's own bend (absent = the bowl's shoulder and fullness)
+    { k: 'keelShoulder', label: 'bottom line: carries the barrel (bend late)', lo: 0, hi: 0.92, step: 0.01 },
+    { k: 'keelRound', label: 'bottom line: fullness (cone → round)', lo: 0, hi: 1, step: 0.01 },
+    // PROPER-COWLS V5: the top line's own bend (absent = the bowl's pair)
+    { k: 'deckShoulder', label: 'top line: carries the barrel (bend late)', lo: 0, hi: 0.92, step: 0.01 },
+    { k: 'deckRound', label: 'top line: fullness (cone → round)', lo: 0, hi: 1, step: 0.01 },
     // a line at the axis has nothing to bend: the widest line's own sweep
     // means something only once the widest line is off the axis
     { k: 'waistSweep', label: 'widest line bends from (barrel end → firewall)', lo: 0, hi: 0.95, step: 0.01,
       when: 'Math.abs(P.waist)>0.005' },
     { k: 'lidMode', label: 'nose ring', lo: 0, hi: 1, step: 1, names: ['its own radius', 'matched to the spinner'] },
     { k: 'lidR', label: 'nose ring radius', lo: 0.005, hi: 0.55, step: 0.002, when: 'P.lidMode===0' },
+    // PROPER-COWLS: the ring's own shape - a flat face as tall as an inverted engine's block (follow = the round ring)
+    { k: 'lidRW', label: 'nose ring half-width', lo: 0.004, hi: 0.8, step: 0.002 },
+    { k: 'lidRTop', label: 'nose ring reach above the propeller', lo: 0.004, hi: 0.8, step: 0.002 },
+    { k: 'lidRBot', label: 'nose ring reach below the propeller', lo: 0.004, hi: 0.8, step: 0.002 },
     { k: 'lidGap', label: 'gap round the spinner', lo: 0, hi: 0.06, step: 0.001, when: 'P.lidMode===1' },
   ] },
   // ---- The section, station by station ----
@@ -102,6 +137,8 @@ const COWL_ROWS = [
     { k: 'waist', label: 'widest line height (bottom → top)', lo: -0.85, hi: 0.85, step: 0.01 },
     // CABIN-CRAFT (2026-11-02): the width at the top line and at the bottom line, × the width at the widest line
     // (`aftW`) - a cabin that tightens at the roof. Absent = 1 (the rounded rectangle); see wAftTop in _cowl_gen.js
+    // PROPER-COWLS: the widest line's height at the barrel end (x the front's half-height); absent = follows `waist`
+    { k: 'waistF', label: 'widest line height at the barrel end', lo: -0.85, hi: 0.85, step: 0.01 },
     { k: 'wAftTop', label: 'width at the top line (× widest)', lo: 0.4, hi: 1.3, step: 0.01 },
     { k: 'wAftBot', label: 'width at the bottom line (× widest)', lo: 0.4, hi: 1.3, step: 0.01 },
     { k: 'sqAftTop', label: 'top half (diamond · round · square)', lo: 0, hi: 1, step: 0.01 },
@@ -121,12 +158,20 @@ const COWL_ROWS = [
   ] },
   // ---- Cheeks & cut-out ----
   { id: 'g_lobe', name: 'Cheeks & cut-out', rows: [
-    { k: 'lobeN', label: 'cheeks (bulges over the cylinder heads)', lo: 0, hi: 2, step: 1 },
+    // PROPER-COWLS: 3-14 = a helmet over each cylinder of a radial (lobeAz the first one's azimuth)
+    { k: 'lobeN', label: 'cheeks (bulges over the cylinder heads; 3+ = one per radial cylinder)', lo: 0, hi: 14, step: 1 },
     { k: 'lobeAmp', label: 'cheek height', lo: 0, hi: 0.16, step: 0.002, when: 'P.lobeN>0' },
     { k: 'lobeT', label: 'cheek station (firewall → nose ring)', lo: 0, hi: 1, step: 0.01, when: 'P.lobeN>0' },
-    { k: 'lobeAz', label: 'cheek azimuth (0 = the flanks)', lo: -90, hi: 90, step: 1, when: 'P.lobeN>0' },
+    { k: 'lobeAz', label: 'cheek azimuth (0 = the flanks)', lo: -90, hi: 360, step: 1, when: 'P.lobeN>0' },
     { k: 'lobeSig', label: 'cheek spread round the section', lo: 8, hi: 70, step: 1, when: 'P.lobeN>0' },
     { k: 'lobeTSig', label: 'cheek spread along the cowl', lo: 0.05, hi: 0.6, step: 0.01, when: 'P.lobeN>0' },
+    // a two-row radial: every other helmet on the rear row's station, and the places the engine leaves bare
+    { k: 'lobeT2', label: 'helmets: every other one\'s station (a two-row radial)', lo: 0, hi: 1, step: 0.01, when: 'P.lobeN>=3' },
+    { k: 'lobeCount', label: 'helmets drawn (0 = one per place)', lo: 0, hi: 14, step: 1, when: 'P.lobeN>=3' },
+    // streamlined: full over the head, a short rise in front, a long taper behind, stopping inside the cowl
+    { k: 'lobeStream', label: 'cheeks streamlined (long taper aft)', lo: 0, hi: 1, step: 1, when: 'P.lobeN>0' },
+    { k: 'lobeNose', label: 'streamlined: where the front ends', lo: 0.3, hi: 1, step: 0.01, when: 'P.lobeN>0&&P.lobeStream>0' },
+    { k: 'lobeTail', label: 'streamlined: where the tail ends', lo: 0, hi: 0.7, step: 0.01, when: 'P.lobeN>0&&P.lobeStream>0' },
     { k: 'cutSpan', label: 'cut-out span (horseshoe)', lo: 0, hi: 200, step: 1 },
     { k: 'cutAz', label: 'cut-out azimuth', lo: 0, hi: 359, step: 1, when: 'P.cutSpan>0' },
   ] },
@@ -158,6 +203,8 @@ const COWL_ROWS = [
   // ---- Chin scoop ----
   { id: 'g_scoop', name: 'Chin scoop', rows: [
     { k: 'scoopOn', label: 'chin scoop', lo: 0, hi: 1, step: 1 },
+    // PROPER-COWLS V5: the scoop rides the keel (absent 0)
+    { k: 'scoopFollow', label: 'rides the bottom line', lo: 0, hi: 1, step: 1, when: 'P.scoopOn>0' },
     // 2026-09-05 (TURBOPROP §7): where along the cowl the scoop sits —
     // 0 is the lip (every cowl drawn before this row), 1 is the firewall,
     // which is where a PT6 breathes
@@ -189,6 +236,8 @@ const COWL_ROWS = [
     { k: 'partOn', label: 'split line (upper / lower cowl)', lo: 0, hi: 1, step: 1 },
     { k: 'partY', label: 'height (widest line → top line)', lo: -0.9, hi: 0.9, step: 0.02, when: 'P.partOn>0' },
     { k: 'partW', label: 'width', lo: 0.001, hi: 0.006, step: 0.0002, when: 'P.partOn>0' },
+    // PROPER-COWLS: held level at the firewall's height, the groove a constant width (partW, metres)
+    { k: 'partLevel', label: 'split line level (a fixed height and width)', lo: 0, hi: 1, step: 1, when: 'P.partOn>0' },
   ] },
   // ---- Fasteners ----
   { id: 'g_fast', name: 'Fasteners', rows: [
