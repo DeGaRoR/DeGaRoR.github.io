@@ -89,8 +89,8 @@ console.log('GATE FOG');
 // ---- 3. the cull is the main camera's alone ---------------------------------------------------
 {
   yes(/apply\(cam\)/.test(rw) && /release\(\)/.test(rw), 'the contract is apply/release, not a standing state');
-  yes(/if \(!inGarage && WF && WF\.vis\) WF\.vis\.apply\(camera\);/.test(app), 'app.js applies it for the MAIN camera');
-  yes(/if \(!inGarage && WF && WF\.vis\) WF\.vis\.release\(\);/.test(app), 'app.js releases it in the same frame');
+  yes(/if \(!inShed && WF && WF\.vis\) WF\.vis\.apply\(camera\);/.test(app), 'app.js applies it for the MAIN camera');
+  yes(/if \(!inShed && WF && WF\.vis\) WF\.vis\.release\(\);/.test(app), 'app.js releases it in the same frame');
   const iA = app.indexOf('WF.vis.apply(camera)'), iM = app.indexOf('WATER.mirrorRender'), iR = app.indexOf('WF.vis.release()');
   yes(iA > 0 && iM > iA && iR > iM, 'it brackets the water\'s mirror capture from OUTSIDE (the water session\'s ruling): apply, then the capture, then the main render, then release');
   yes(/get applied\(\)/.test(rw), 'the state is readable (WF.vis.applied) so another pass can assert it');

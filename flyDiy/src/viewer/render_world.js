@@ -235,7 +235,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   // the haze TRANSMITS the light and adds nothing (mistApply is affine in the colour: T = m(1) - m(0))
   const RWY_GLOW_AP = `
     #ifdef USE_FOG
-    if (uAtmoAP.z > 0.5) gl_FragColor.rgb *= atmoAP().a;
+    if (uAtmoAP.z > 0.5) gl_FragColor.rgb *= apScaled(atmoAP()).a;
     { vec3 rwV = normalize((vec4(vAtmoV, 0.0) * viewMatrix).xyz); float rwL = length(vAtmoV);
       gl_FragColor.rgb *= max(mistApply(vec3(1.0), rwV, rwL, cameraPosition.y) - mistApply(vec3(0.0), rwV, rwL, cameraPosition.y), vec3(0.0)); }
     #endif
@@ -4028,6 +4028,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // the alpha gain rides on the COLLECTION now (`place.impa`, 6 or 6.5 in
     // the tuning); uIGainK is the panel's dial over all of them
     const uIGainK = { value: 1 }, uISolid = { value: 1 };
+    const uSoftT0 = { value: new THREE.Vector4(150, 600, 5, 4) };   // (LOOK-1: only when trees.js is absent - its TREE_SOFT is the dial)
     const impaOf = key => { const e = (typeof treeList === 'function') && treeList().find(x => x.key === key);
                             return (e && e.col.place && e.col.place.impa) || 6; };
     // THE IMPOSTOR CASTS ITS OWN SILHOUETTE (W0c.18, the bench's W0a.4). The
@@ -4168,6 +4169,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         sh.uniforms.uG = { value: IMP_G };
         sh.uniforms.uILit = uILit; sh.uniforms.uTrunkOn = uTrunkOn;
         sh.uniforms.uIGainK = uIGainK; sh.uniforms.uISolid = uISolid;
+        sh.uniforms.uSoftT = (typeof window !== 'undefined' && window.TREE_SOFT) || uSoftT0;
         sh.uniforms.uTile = { value: IMP_TILE };
         // G1975 (DEADWOOD-BRIGHT, the user: "one of the impostor dead tree renders really too bright, almost
         // white"): the wrap, the translucency and uFlat are the SHEET'S now, not the leaves' for every impostor. A
@@ -4287,7 +4289,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           .replace('#include <common>', '#include <common>\n' +
             'uniform float uG, uILit, uLeaf, uWrapK, uSSSK, uSSSP, uNearB, uFadeW, uIGainK, uISolid, uTile;\n' +
             (inst ? 'flat varying vec2 vImpP;\nflat varying vec4 vImpT;\nflat varying vec2 vImpB;\nfloat uIGain, uICut, uHue, uSat, uLight, uLightB, uLayerK;\n' : 'uniform float uIGain, uICut, uHue, uSat, uLight, uBark, uLightB, uLayerK;\n') +
-            'uniform float uTrunkOn;\n' +
+            'uniform float uTrunkOn;\nuniform vec4 uSoftT;\n' +
             'uniform float uFlatK, uFlatMean, uBarkW, uBarkS, uBarkF, uBarkSol, uBarkCut, uBarkL;\nfloat uFlat, uWrap, uSSS, _iSol, _iCut, _iLit;\nuniform highp sampler2DArray uImpC, uImpN;\nvarying vec3 vImpDir;\nvarying float vImpD;\nvarying vec2 vUvI;\nflat varying float vImpL;\n' +
             // (impSRGB is kept for the bench's dials; the sheet itself is decoded by
             // the sampler since r186 - see the map_fragment replacement)
@@ -4328,7 +4330,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             // impostor (the user saw it in the first forest shot)
             'texelColor.rgb = clamp(texelColor.rgb / max(texelColor.a, 1e-4), 0.0, 1.0);',   // premultiplied sheet
             'float aSol = max(max(t0.a, t1.a), t2.a);',
-            'texelColor.a = clamp((mix(texelColor.a, aSol, _iSol) - _iCut) * uIGain * uIGainK + 0.5, 0.0, 1.0);',
+            // LOOK-1 (8 Nov): the far edge wider by TREE_SOFT.w (trees.js) - the gain is the ramp's steepness, so dividing it softens the edge
+            'texelColor.a = clamp((mix(texelColor.a, aSol, _iSol) - _iCut) * uIGain * uIGainK / mix(1.0, uSoftT.w, smoothstep(uSoftT.x, uSoftT.y, vImpD)) + 0.5, 0.0, 1.0);',
             // the incoming half of the last rung's window: keep n >= 1 - t
             '{ float _n = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));',
             '  float _fi = clamp((vImpD - (uNearB - uFadeW * 0.5)) / uFadeW, 0.0, 1.0);',
