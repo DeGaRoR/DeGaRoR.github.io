@@ -2171,7 +2171,7 @@ const GEN_AVIONICS = {
   // with the radios, its mass placed aft (61_gen_frame.js). In a spec only when fitted (genSystemsResolve, clampSpec).
   elt: {
     none:   { name: 'no ELT',                 kg: 0,   price: 0,    amps: 0 },
-    fitted: { name: 'ELT, 406 MHz',            kg: 1.0, price: 1100, amps: 0,
+    fitted: { name: 'ELT, 406 MHz',            kg: 1.0, price: 1100, amps: 0, ownBattery: true,
               note: 'ACK E-04 / Artex ELT 345 class with its own battery and whip aerial, in the tailcone' },
   },
 };

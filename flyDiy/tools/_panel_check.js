@@ -58,7 +58,8 @@ function run() {
   for (const [g, tab] of Object.entries(A)) {
     check(!!tab.none && tab.none.kg === 0 && tab.none.price === 0, 'avionics ' + g + ' has a free `none`');
     for (const [k, r] of Object.entries(tab)) if (k !== 'none')
-      check(r.kg > 0 && r.price > 0 && r.amps > 0, 'avionics ' + g + ':' + k + ' weighs, costs and draws');
+      check(r.kg > 0 && r.price > 0 && (r.amps > 0 || r.ownBattery === true),
+        'avionics ' + g + ':' + k + ' weighs, costs and draws' + (r.ownBattery ? ' (its own battery: no bus load)' : ''));
   }
   for (const [t, row] of Object.entries(T)) {
     if (row.items) for (const k of row.items) check(!!I[k], 'tier ' + t + ' names a real dial', k);
