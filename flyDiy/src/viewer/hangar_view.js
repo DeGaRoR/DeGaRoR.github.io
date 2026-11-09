@@ -180,6 +180,9 @@ var HANGAR_VIEW = (() => {
       if (o.exposure > 0) renderer.toneMappingExposure = o.exposure;
       const hidden = [];
       for (const h of (o.hide || [])) if (h && h.visible) { h.visible = false; hidden.push(h); }
+      // HANGAR-VIEW C (9 Nov 08:32 probe): the world's dome rides the world camera, which is IN the world scene - drawn opaque (alpha 1)
+      // over every sky pixel, so the shells never discarded and hid the room's live clouds. With the live sky it goes too
+      if (o.skyLive && o.sky && o.sky.visible) { o.sky.visible = false; hidden.push(o.sky); }
       const bg = o.scene.background; o.scene.background = null;
       try {
         for (const k of list) {
