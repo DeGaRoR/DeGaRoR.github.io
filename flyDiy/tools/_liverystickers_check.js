@@ -432,7 +432,8 @@ function run(SRC) {
     const box = [[[0.4, 5.2, -0.6, 0.9], [0, 0, 0, 0], [0, 0, 0, 0]]];
     const D1 = Object.assign({}, A.AERO_DEC_DEF, { vn2On: 1 });
     const ok1 = run1(D1, box);
-    check(ok1 === true && D1.vn2L === 2.8 && D1.vn2C === 0, 'a slot switched on goes to the middle of the fuselage (the field box\'s mid-length, the waist)', JSON.stringify({ L: D1.vn2L, C: D1.vn2C }));
+    const wantC = -Math.round((A.AERO_DEC_DEF.vn2H / 2 + 0.03) * 100) / 100;
+    check(ok1 === true && D1.vn2L === 2.8 && D1.vn2C === wantC && wantC < -0.1, 'a slot switched on goes to the middle of the fuselage (the field box\'s mid-length, its top just under the waist)', JSON.stringify({ L: D1.vn2L, C: D1.vn2C }));
     const D2 = Object.assign({}, A.AERO_DEC_DEF, { vn2On: 1, vn2L: 1.1 });
     check(run1(D2, box) === false && D2.vn2L === 1.1, 'a placement the player already moved is left alone');
     const D3 = Object.assign({}, A.AERO_DEC_DEF, { vn2On: 1 });
@@ -457,6 +458,7 @@ if (process.argv.includes('--selftest')) {
     ['the stickers give way before the kit', { skin: s => s.replace('const keepV = Math.min(vinyl.length, room), keepK = Math.min(kit.length, room - keepV);', 'const keepK = Math.min(kit.length, room), keepV = Math.min(vinyl.length, room - keepK);') }],
     ['stickers as letters (floats decline them)', { skin: s => s.replace("rough: -0.06, sdf: 2, metal: 0,", "rough: -0.06, sdf: 1, metal: 0,") }],
     ['the first place off the middle', { ui: s => s.replace("DEC[q + 'L'] = +((f[0] + f[1]) / 2).toFixed(2);", "DEC[q + 'L'] = +f[1].toFixed(2);") }],
+    ['the first place centred on the waist', { ui: s => s.replace("DEC[q + 'C'] = -Math.round(((+DEC[q + 'H'] || 0.35) / 2 + 0.03) * 100) / 100;", "DEC[q + 'C'] = 0;") }],
     ['the editor not folding the rows', { ui: s => s.replace("        if (!(key in DEC_DEF)) DEC_DEF[key] = A.AERO_VINYL_LDEF[k];", "") }],
     ['the lazy entry dropped', { build: s => s.replace("['src/viewer', 'livery_marks.js']", "['src/viewer', 'livery_marks_x.js']") }],
     ['parked.js back on the corner', { parked: s => s.replace("const px = Math.floor((r.x + r.z / 2) * N), py = N - 1 - Math.floor((r.y + r.w / 2) * N);", "const px = Math.round(r.x * N), py = N - 1 - Math.round(r.y * N);") }],

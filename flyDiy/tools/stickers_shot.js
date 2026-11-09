@@ -259,7 +259,7 @@ const MK = id => ['stol-river', 'grizzly-range', 'orca', 'winged-prop', 'midnigh
         }
         if (key === 'cub') {
           // THE FIRST PLACE, through the panel (the user: "in the middle of the fuselage"): slot 3 (empty here) ticked on
-          // as a player does; its station must be the body's field box mid-length and its height the waist (0)
+          // as a player does; its station must be the body's field box mid-length and its top just under the waist
           const fld = await fitOf(0, 0);
           await stick(st);
           R.firstPlace = await page.evaluate(async () => {
@@ -270,7 +270,8 @@ const MK = id => ['stol-river', 'grizzly-range', 'orca', 'winged-prop', 'midnigh
             return { vn3On: d.vn3On, vn3L: d.vn3L, vn3C: d.vn3C, vn3Mode: d.vn3Mode }; });
           R.firstPlace.fieldMid = +fld.L.toFixed(2);
           log('first place', JSON.stringify(R.firstPlace));
-          if (R.firstPlace.vn3On !== 1 || Math.abs((R.firstPlace.vn3L || 0) - fld.L) > 0.011 || (R.firstPlace.vn3C != null && R.firstPlace.vn3C !== 0))
+          // (its top just under the waist: C = -(size / 2 + 3 cm), the size at its default 0.35 m)
+          if (R.firstPlace.vn3On !== 1 || Math.abs((R.firstPlace.vn3L || 0) - fld.L) > 0.011 || R.firstPlace.vn3C !== -0.21)
             fail('a slot switched on did not go to the middle of the fuselage: ' + JSON.stringify(R.firstPlace));
           await shoot(key + '_' + gfx + '_first_place', [-Math.PI / 2 - 0.10, 0.05, 0.62 * span], B.c);
           await stick(st);                       // (the composition back: slot 3 off again)

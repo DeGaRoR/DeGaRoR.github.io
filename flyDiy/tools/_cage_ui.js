@@ -4536,7 +4536,9 @@ function decFitScan(A) {
 }
 // LIVERY-STICKERS: A STICKER'S FIRST PLACE (the user, 9 Nov: "in the middle of the fuselage of the plane"). A slot the
 // player switches on whose placement is still untouched (station, height and projection at their defaults) goes to the
-// middle of THIS build's fuselage - the body's field box, mid-length - on the waist line (C 0), in the field frame. Measured
+// middle of THIS build's fuselage - the body's field box, mid-length - with its top just UNDER the waist line, on the solid
+// flank (on the stock Cub the waist is the window sill: centred on it, the top half fell on the glass, which takes no
+// decal and showed half a sticker), in the field frame. Measured
 // by decFitScan, the kit's own fit; no geometry (a bench, a stub), the defaults stand. The rows it writes are deviations
 // like any the player drags, so a build that never turns a sticker on still carries none.
 function decVinylFirstPlace(q) {
@@ -4548,7 +4550,7 @@ function decVinylFirstPlace(q) {
   const f = b && b[0] && b[0][0];
   if (!f || !(f[1] > f[0])) return false;
   DEC[q + 'L'] = +((f[0] + f[1]) / 2).toFixed(2);
-  DEC[q + 'C'] = 0;
+  DEC[q + 'C'] = -Math.round(((+DEC[q + 'H'] || 0.35) / 2 + 0.03) * 100) / 100;
   for (const k of ['L', 'C']) if (SYNC[q + k]) SYNC[q + k]();
   return true;
 }
