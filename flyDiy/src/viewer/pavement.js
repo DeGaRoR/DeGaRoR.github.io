@@ -907,6 +907,7 @@ const vec3 PV_FLEET0 = vec3(0.89, 0.10, 0.0);
 const vec3 PV_FLEET1 = vec3(0.98, 0.09, 0.0);
 const vec3 PV_FLEET2 = vec3(1.27, 0.085, 1.0);
 const float PV_FLEET_MEAN = 1.098;
+const float PV_MICRO_NRM = 1.5;   // (DIRT-STRIP) a bumpy strip's slope drawn per pixel, x this, on top of the rows' own
 // ONE TYRE'S TRACK across x (from its centre), half-width w: the rut's own law at a tyre's size - a flat-bottomed trough
 // and the ground it pushed up beside it; returns (coverage, slope across) as pvRuts2 does for each of its pair
 vec2 pvTyre(float x, float w) {
@@ -999,6 +1000,13 @@ float pvRelief(float u, float v, float halfW, float len, vec4 holes) {
     r = dT * (r - holes.x);
   }
   return (r + smoothstep(0.0, 0.5, halfW - abs(v)) * holes.w) * eT;
+}
+// two neighbouring octaves of pvRelief's roughness (k0: 32 / 2^k0 m and its half), untapered - the shape's curvature
+// and slope off its four neighbours (the map's THE SHAPE, READ)
+float pvBand(vec2 q, int k0, int sd) {
+  float r = 0.0;
+  for (int b = 0; b < 2; b++) { int k = k0 + b; float lam = 32.0 / exp2(float(k)); r += uMicro2.x * sqrt(lam) * pmNoise(q / lam, sd + 101 + k); }
+  return r;
 }`;
   // THE CHAIN, spliced after map_fragment. Inputs: vPav (u, v, dEdge, shoulderW), vPavK (class, seed, halfW, halfL).
   GLSL.map = `
@@ -1287,10 +1295,53 @@ float pvRelief(float u, float v, float halfW, float len, vec4 holes) {
         gMicH = pvHoles(u, -v, halfW, 2.0 * halfL, fillM);
         float rel = pvRelief(u, -v, halfW, 2.0 * halfL, gMicH);
         float rs = uMicro2.x * 3.4 + 0.3 * (uMicro2.w - 1.0) + 0.02, rn = clamp(rel / rs, -1.5, 1.5), cueK = 1.0 - smoothstep(uDist.x, uDist.y * 0.7, dist);
-        float crown = smoothstep(0.1, 1.2, rn) * cueK, hollow = smoothstep(0.1, 1.2, -rn) * cueK;
-        col *= 1.0 + 0.10 * crown - 0.18 * hollow; rough += 0.03 * crown - 0.06 * hollow;
-        if (hollow > 0.02) { Smp g = pvSet(1, uvS); float gk = 0.5 * hollow; vec2 w2 = pvHw2(hgt, 1.0 - gk, g.c.a, gk, uHex.x * 2.5); col = col * w2.x + g.c.rgb * w2.y; nT = nT * w2.x + g.n.xyz * w2.y; rough = rough * w2.x + g.n.a * w2.y; hgt = hgt * w2.x + g.c.a * w2.y; }
+        // THE SHAPE, READ (the user, 9 Nov 16:40: "I can't see any difference ... lightening the dry zones and the tops, and
+        // darkening the bottoms, the micro valleys ... there is little pairing between topology and texture"). The height
+        // alone (rn) shades the long rolls; the bumps themselves are read by their CURVATURE - the field minus the mean of
+        // its four neighbours, the same octaves the wheels stand on (pvBand = pvRelief's): a convex crown is dry, its fines
+        // blown and rolled off, the stones left (the coarse set, lighter, paler); a concave micro valley is where the fines
+        // and the water collect (the compacted fine set, darker, browner, smoother, darker still when the soil is wet).
+        // Two bands, each fading as the pixel's footprint outgrows it (no sparkle): the 1-2 m bumps (+-0.25 m) up close,
+        // the 4-8 m ones (+-1 m) to short final; the rolls and the hazards past that. The same four neighbours give the
+        // bumps' slope, drawn x uMicroNrm between the rows (PV_MICRO_NRM). The worn lanes' trough (26b ruts, the field's
+        // own law) is read the same way: dark in its concave bottom, light on its convex shoulders.
+        int sdM = int(uMicro.x + 0.5);
+        float LM = 2.0 * halfL, tM = smoothstep(0.0, 4.0, u) * smoothstep(0.0, 4.0, LM - u) * smoothstep(0.5, 2.5, halfW - abs(v));
+        float a1 = max(uMicro2.x, 1e-5), sK = clamp(a1 / 0.009, 0.3, 1.0);           // a little chaos reads a little
+        float kF = (1.0 - smoothstep(0.10, 0.40, fwm)) * cueK * tM, kM = (1.0 - smoothstep(0.6, 2.5, fwm)) * cueK * tM;
+        vec2 qM = vec2(u, -v); float cF = 0.0, cM = 0.0; vec2 gR = vec2(0.0);       // (qM: the field's frame, v = -the ribbon's)
+        if (kF > 0.01) {
+          float c0 = pvBand(qM, 4, sdM), xp = pvBand(qM + vec2(0.25, 0.0), 4, sdM), xm = pvBand(qM - vec2(0.25, 0.0), 4, sdM);
+          float yp = pvBand(qM + vec2(0.0, 0.25), 4, sdM), ym = pvBand(qM - vec2(0.0, 0.25), 4, sdM);
+          cF = (c0 - 0.25 * (xp + xm + yp + ym)) / (0.55 * a1);
+          gR += kF * vec2(xp - xm, -(yp - ym)) / 0.5;                                  // dh/du, dh/dv (the ribbon's v)
+        }
+        if (kM > 0.01) {
+          float c0 = pvBand(qM, 2, sdM), xp = pvBand(qM + vec2(1.0, 0.0), 2, sdM), xm = pvBand(qM - vec2(1.0, 0.0), 2, sdM);
+          float yp = pvBand(qM + vec2(0.0, 1.0), 2, sdM), ym = pvBand(qM - vec2(0.0, 1.0), 2, sdM);
+          cM = (c0 - 0.25 * (xp + xm + yp + ym)) / (0.9 * a1);
+          gR += 0.5 * kM * vec2(xp - xm, -(yp - ym)) / 2.0;
+        }
+        // the lanes' trough: h = -rut x L(v), L the lanes' Gaussian (26b lanes; rut 6 chaos cm, chaos off a1: 26b's ISO law)
         float sigM = 0.35 + 0.05 * halfW, l1 = (abs(v) - PV_FLEET_MEAN) / sigM, l2 = v / (sigM * 0.8);
+        float chM = clamp(log2(max(pow(a1 * 0.428, 2.0) / 0.00707 / 16e-6, 1.0)) / 10.0, 0.0, 1.0), rutM = 0.06 * chM;
+        float e1 = exp(-l1 * l1), e2 = 0.55 * exp(-l2 * l2);
+        float lc = e1 > e2 ? (2.0 - 4.0 * l1 * l1) * e1 / (sigM * sigM) : (2.0 - 4.0 * l2 * l2) * e2 / (sigM * sigM * 0.64);   // -L''
+        float ld = e1 > e2 ? -2.0 * l1 / sigM * e1 * sign(v) : -2.0 * l2 / (sigM * 0.8) * e2;                                   // L'
+        float kR = kM * clamp(rutM / 0.03, 0.0, 1.0);
+        gR.y += kR * -rutM * ld;
+        float cR = -kR * lc * sigM * sigM * 0.6;                                        // concave bottom < 0, convex shoulders > 0
+        float sM = clamp(0.5 * kF * cF + 0.45 * kM * cM + 0.8 * cueK * rn + cR, -1.6, 1.6);
+        float crown = smoothstep(0.05, 1.0, sM) * sK, hollow = smoothstep(0.05, 1.0, -sM) * sK;
+        crown = max(crown, 0.8 * smoothstep(0.03, 0.10, gMicH.w) * cueK);              // a hazard's mound: dry, stony
+        hollow = max(hollow, smoothstep(0.01, 0.05, gMicH.x) * cueK);                  // a pothole, a hazard's hole: mud
+        hollow = max(hollow, smoothstep(0.03, 0.10, -gMicH.w) * cueK);
+        if (crown > 0.02) { Smp g = pvSet(1, uvS); float gk = 0.45 * crown; vec2 w2 = pvHw2(hgt, 1.0 - gk, g.c.a, gk, uHex.x * 2.5); col = col * w2.x + g.c.rgb * w2.y; nT = nT * w2.x + g.n.xyz * w2.y; rough = rough * w2.x + g.n.a * w2.y; hgt = hgt * w2.x + g.c.a * w2.y; }
+        if (hollow > 0.02) { Smp g = pvSet(4, uvS); float gk = 0.55 * hollow; vec2 w2 = pvHw2(hgt, 1.0 - gk, g.c.a, gk, uHex.x * 2.5); col = col * w2.x + g.c.rgb * w2.y; nT = nT * w2.x + g.n.xyz * w2.y * 0.7; rough = rough * w2.x + g.n.a * w2.y; hgt = hgt * w2.x + g.c.a * w2.y; }
+        float lumM = dot(col, vec3(0.299, 0.587, 0.114));
+        col = mix(col, mix(col, vec3(lumM), 0.25) * 1.24 + vec3(0.02, 0.018, 0.015), crown); rough += 0.08 * crown;
+        col = mix(col, col * vec3(0.66, 0.58, 0.48) * (1.0 - 0.18 * clamp(uPavWet, 0.0, 1.0)), hollow); rough -= (0.10 + 0.15 * clamp(uPavWet, 0.0, 1.0)) * hollow;
+        nT.xy -= gR * PV_MICRO_NRM;                                                     // the bumps' slope between the rows (after the blends)
         float worn = max(exp(-l1 * l1), 0.55 * exp(-l2 * l2));
         float wild = clamp(uMicro2.z / 0.26, 0.0, 1.0);                                // a rough strip is a less tended one
         float grassK = (1.0 - clamp(worn * 1.4, 0.0, 1.0)) * (0.25 + 0.75 * (1.0 - smoothstep(0.5, 2.0, dE))) * wild;
