@@ -4,18 +4,6 @@
  "ss": 2,
  "shots": [
   {
-   "name": "ref1_front",
-   "cam": "front",
-   "stage": 0,
-   "stageName": "derelict",
-   "lod": 0,
-   "tris": 87732,
-   "draws": 13,
-   "calls": 348,
-   "pendingMaps": 0,
-   "ms": 61357
-  },
-  {
    "name": "ref2_far",
    "cam": "far",
    "stage": 0,
@@ -40,18 +28,6 @@
    "ms": 48352
   },
   {
-   "name": "stage0",
-   "cam": "stage",
-   "stage": 0,
-   "stageName": "derelict",
-   "lod": 0,
-   "tris": 87732,
-   "draws": 13,
-   "calls": 348,
-   "pendingMaps": 0,
-   "ms": 51467
-  },
-  {
    "name": "stage1",
    "cam": "stage",
    "stage": 1,
@@ -74,18 +50,6 @@
    "calls": 296,
    "pendingMaps": 0,
    "ms": 46446
-  },
-  {
-   "name": "stage3",
-   "cam": "stage",
-   "stage": 3,
-   "stageName": "restored",
-   "lod": 0,
-   "tris": 79440,
-   "draws": 14,
-   "calls": 292,
-   "pendingMaps": 0,
-   "ms": 48553
   },
   {
    "name": "detail_flank",
@@ -122,18 +86,6 @@
    "calls": 234,
    "pendingMaps": 0,
    "ms": 47277
-  },
-  {
-   "name": "aerial0",
-   "cam": "aerial",
-   "stage": 0,
-   "stageName": "derelict",
-   "lod": 0,
-   "tris": 87732,
-   "draws": 13,
-   "calls": 348,
-   "pendingMaps": 0,
-   "ms": 40912
   },
   {
    "name": "aerial2",
@@ -220,42 +172,6 @@
    "ms": 42933
   },
   {
-   "name": "restored_front",
-   "cam": "restored",
-   "stage": 3,
-   "stageName": "restored",
-   "lod": 0,
-   "tris": 79440,
-   "draws": 14,
-   "calls": 292,
-   "pendingMaps": 0,
-   "ms": 50281
-  },
-  {
-   "name": "restored_hall",
-   "cam": "hall",
-   "stage": 3,
-   "stageName": "restored",
-   "lod": 0,
-   "tris": 79440,
-   "draws": 14,
-   "calls": 276,
-   "pendingMaps": 0,
-   "ms": 48951
-  },
-  {
-   "name": "restored_office",
-   "cam": "office",
-   "stage": 3,
-   "stageName": "restored",
-   "lod": 0,
-   "tris": 79440,
-   "draws": 14,
-   "calls": 216,
-   "pendingMaps": 0,
-   "ms": 47911
-  },
-  {
    "name": "restored_night",
    "cam": "rnight",
    "stage": 3,
@@ -266,6 +182,138 @@
    "calls": 292,
    "pendingMaps": 0,
    "ms": 73485
+  },
+  {
+   "name": "ref1_front",
+   "cam": "front",
+   "stage": 0,
+   "stageName": "derelict",
+   "lod": 0,
+   "tris": 124924,
+   "draws": 13,
+   "calls": 348,
+   "pendingMaps": 0,
+   "ms": 106326
+  },
+  {
+   "name": "stage0",
+   "cam": "stage",
+   "stage": 0,
+   "stageName": "derelict",
+   "lod": 0,
+   "tris": 124924,
+   "draws": 13,
+   "calls": 348,
+   "pendingMaps": 0,
+   "ms": 86656
+  },
+  {
+   "name": "stage3",
+   "cam": "stage",
+   "stage": 3,
+   "stageName": "restored",
+   "lod": 0,
+   "tris": 108176,
+   "draws": 14,
+   "calls": 292,
+   "pendingMaps": 0,
+   "ms": 79171
+  },
+  {
+   "name": "aerial0",
+   "cam": "aerial",
+   "stage": 0,
+   "stageName": "derelict",
+   "lod": 0,
+   "tris": 124924,
+   "draws": 13,
+   "calls": 348,
+   "pendingMaps": 0,
+   "ms": 109350
+  },
+  {
+   "name": "restored_front",
+   "cam": "restored",
+   "stage": 3,
+   "stageName": "restored",
+   "lod": 0,
+   "tris": 108176,
+   "draws": 14,
+   "calls": 292,
+   "pendingMaps": 0,
+   "ms": 163158
+  },
+  {
+   "name": "restored_hall",
+   "cam": "hall",
+   "stage": 3,
+   "stageName": "restored",
+   "lod": 0,
+   "tris": 108176,
+   "draws": 14,
+   "calls": 284,
+   "pendingMaps": 0,
+   "ms": 138705
+  },
+  {
+   "name": "restored_office",
+   "cam": "office",
+   "stage": 3,
+   "stageName": "restored",
+   "lod": 0,
+   "tris": 108176,
+   "draws": 14,
+   "calls": 216,
+   "pendingMaps": 0,
+   "ms": 88211
+  },
+  {
+   "name": "step0",
+   "cam": "step",
+   "stage": 0,
+   "stageName": "derelict",
+   "lod": 0,
+   "tris": 124924,
+   "draws": 13,
+   "calls": 348,
+   "pendingMaps": 0,
+   "ms": 77601
+  },
+  {
+   "name": "step3",
+   "cam": "step",
+   "stage": 3,
+   "stageName": "restored",
+   "lod": 0,
+   "tris": 108176,
+   "draws": 14,
+   "calls": 292,
+   "pendingMaps": 0,
+   "ms": 74798
+  },
+  {
+   "name": "side0",
+   "cam": "side",
+   "stage": 0,
+   "stageName": "derelict",
+   "lod": 0,
+   "tris": 124924,
+   "draws": 13,
+   "calls": 342,
+   "pendingMaps": 0,
+   "ms": 62217
+  },
+  {
+   "name": "side3",
+   "cam": "side",
+   "stage": 3,
+   "stageName": "restored",
+   "lod": 0,
+   "tris": 108176,
+   "draws": 14,
+   "calls": 288,
+   "pendingMaps": 0,
+   "ms": 49794
   }
  ],
  "errors": []
