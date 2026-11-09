@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: fb0bd7f2249be7a2
+// body-sha256: 8d07a0a37388ca81
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -33340,7 +33340,9 @@ const GEN_ACCESS = {
     // the whip on the tailcone's crown, over the ELT bolted inside it (GEN_AVIONICS.elt: 1.0 kg, billed aft)
     need: R => (R.avionics && R.avionics.elt) ? 1 : 0,
     on: R => R.rod ? 'rod' : R.booms ? 'boom' : 'body',
-    at: R => R.rod ? { sL: R.rod.from + R.rod.len * 0.80, lv: 'crown' }
+    // (on a rod, at 0.48 between the nav mast (0.35) and the beacon (0.60): at 0.80 it stood 30 mm in the fin - the
+    // CLIP look of 9 Nov)
+    at: R => R.rod ? { sL: R.rod.from + R.rod.len * 0.48, lv: 'crown' }
            : R.booms ? { sL: R.booms.len * 0.80, lv: 'crown' }
                      : { sL: R.cabinAft + (R.tailArm - R.cabinAft) * 0.40, lv: 'crown' },
     // `foot` is what it occupies (its base), not its 0.45 m reach - as the nav aerial's mast
