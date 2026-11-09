@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 63e2ab36ffa78a70
+// body-sha256: e933fbd14f6f7d87
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -16738,7 +16738,8 @@ function makeSim(def, world) {
   const RFRAC = RET ? (RET.frac > 0 && RET.frac < 1 ? RET.frac : 1) : 1, RSEMI = RFRAC < 1;
   if (RET) {
     const isMainN = new Set(def.refs.mains || []);
-    for (const i of [...(def.refs.mains || []), def.refs.tw]) {
+    // (TAIL-RETRACT: a taildragger's tailwheel stays down - only its mains swing)
+    for (const i of [...(def.refs.mains || []), ...(RET.tail ? [] : [def.refs.tw])]) {
       if (!(i >= 0 && i < n)) continue;
       GW[i] = 1;
       const meas = RET.lift ? (isMainN.has(i) ? RET.lift.mains : RET.lift.nose) : null;
@@ -36213,6 +36214,15 @@ const GEN_RULES = {
   // material's cover is the load-bearing skin. The stiffness is the
   // member's own either way.
   boxWebK:     0.30,
+  // BIPLANE-SIZING (2026-11-09, 61_gen_frame buildPlane): a wired plane's spar caps bill their braced moment over a
+  // Cub-like strut monoplane's, ^2/3, held in [0.35, 1]. Its cantilever box on a cloth wing may bill a fraction of its
+  // density (trussBoxK) - MEASURED and left at 1: the box at 0.10 put the Tiger Moth at -10 % and the PT-17 at -25 %
+  // against their books (0.30: -5 / -19), where at 1 with the spar relief they read 520 kg (book 506-535) and 831 (876):
+  // the box's density stands in for what the lattice bills nowhere else on a wired wing - the deep spars' webs, the
+  // compression ribs, the strut and wire fittings. The Camel's surplus (+31 %) is its own (a 1917 fighter's
+  // featherweight build: no construction row for it yet). reports/evidence/MASS-SCALE-2026-11-09/biplane_sweep.txt
+  trussSparK:  [0.35, 1],
+  trussBoxK:   1,
 };
 
 // SECTIONS (G3). The spec is organised the way the aeroplane is, and the way
@@ -38357,7 +38367,8 @@ function clampSpec(spec) {
   // its def and its flight are what they were, to the bit. `time` the cycle (s, one way - an Arrow ~7, the A5 ~7, a
   // Bonanza ~4), `act` what drives it (electric / hydraulic: the bus must be alive; manual: the pilot's arm), `emerg`
   // the emergency extension (crank, free fall, hand pump, gas blow-down - each its time, 30_solver gearEmerg)
-  if (S.gear.retract && typeof S.gear.retract === 'object' && S.gear.type === 'tricycle') {
+  // TAIL-RETRACT (2026-11-09): ...and a taildragger's MAINS (the DC-3's into its nacelles): its tailwheel stays down, fixed
+  if (S.gear.retract && typeof S.gear.retract === 'object' && (S.gear.type === 'tricycle' || S.gear.type === 'taildragger')) {
     const r = S.gear.retract;
     r.time = genClamp(r.time == null ? 6 : +r.time || 6, 2, 20);
     if (!['electric', 'hydraulic', 'manual'].includes(r.act)) r.act = 'hydraulic';
@@ -41286,7 +41297,10 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       const bk = bucketOf(cls, mnt);
       const g1 = bk && GG ? GG[bk] : 1;
       const webK = (opt && opt.web && MM.coverGauged) ? (R.boxWebK == null ? 1 : R.boxWebK) : 1;
-      const h0 = 0.5 * L * row(MM.lin, cls, tSecM) * aftG * webK, h = h0 * g1;
+      // BIPLANE-SIZING (2026-11-09): a member's own MASS factor (opt.massK: a braced spar's relief, a truss plane's box
+      // stand-in) - the mass and the bill only; its stiffness, damping and section are the member's as before
+      const mKm = (opt && opt.massK > 0) ? opt.massK : 1;
+      const h0 = 0.5 * L * row(MM.lin, cls, tSecM) * aftG * webK * mKm, h = h0 * g1;
       if (bk && !GG) { const G = gauged[bk]; G.m += 2 * h0;
         G.x += h0 * (P[a][0] + P[b][0]); G.y += h0 * (P[a][1] + P[b][1]); G.z += h0 * (P[a][2] + P[b][2]);
         if (!gaugeRef[bk]) gaugeRef[bk] = MM.refGross || 550; }
@@ -41870,6 +41884,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     const cH = w.position === 'parasol' ? (w.cabaneH == null ? 0.55 : w.cabaneH) : 0;
     return cab.h * POSk + (cH > 0 ? cH : R.wingStandoff * (POSk >= 0.75 ? 1 : POSk <= 0.25 ? -1 : 0));
   };
+  const sparKs = [];            // BIPLANE-SIZING: each plane's braced-spar mass factor (parts.sparK)
   const buildPlane = (k) => {
   sec('wings');
   curPlane = k;
@@ -41934,6 +41949,31 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // cantilever depth and cantilever cap stiffness; a lighter braced-spar
   // row (spruce I-beam sized for the braced case) is owed.
 
+  // BIPLANE-SIZING (2026-11-09, the user: "go ahead with the biplane wing sizing pass"; the owed braced-spar row above).
+  // THE BRACED SPAR'S MASS. The wing class's linear density was fitted on the Cub's spar: a strut monoplane carrying the
+  // whole lift, its worst moment the overhang's (0.45 of the semispan, w a^2 / 2 = 0.101 w s^2). A wired plane carries its
+  // SHARE of the lift (its area's) and its worst moment is the larger of its own overhang beyond the interplane station
+  // (a^2 / 2) and its bay between the root and that station (b^2 / 8, the wires and the strut its supports). Its spar caps
+  // bill (that moment over the Cub-like monoplane's) ^ 2/3 - a section of similar shape sized to its moment - between
+  // GEN_RULES.trussSparK's floor and 1. The stiffness stays the cantilever lattice's (GATE BIPLANE flies it).
+  // ...AND ITS BOX IS A STAND-IN: the cantilever box below gives the planar two-spar wing the depth its real spar has
+  // inside its own section - the lower caps and the webs are not a second spar - and its lower plan diagonals repeat the
+  // drag bracing the upper plane's diagonals already bill. On a CLOTH wing (a skinned wing's webs are its skin, boxWebK)
+  // the box's members bill GEN_RULES.trussBoxK of their density: the compression ribs' and the fittings' share.
+  const TRK = R.trussSparK || [0.35, 1];
+  let sparK = 1;
+  if (trussHere) {
+    const Sw0 = (S.geom.planes || []).reduce((t, p) => t + (p.Sw || 0), 0);
+    const phi = Sw0 > 0 && G.Sw > 0 ? G.Sw / Sw0 : 0.5;
+    const s0 = G.semi, a = Math.max(0, s0 - zIP), b = Math.max(0, zIP - zRoot);
+    const Mk = phi * Math.max(a * a / 2, b * b / 8), Mref = 0.10125 * s0 * s0;
+    sparK = Math.min(TRK[1], Math.max(TRK[0], CORE_MATH.pow(Mk / Mref, 2 / 3)));
+  }
+  const SPAR = sparK < 1 ? { massK: sparK } : undefined;
+  const boxCloth = trussHere && !(GEN_SURF_MATERIALS && genSurfMaterial(S, 'wing', k).coverGauged);
+  const boxK = R.trussBoxK == null ? 1 : R.trussBoxK;
+  const TBOX = boxCloth && boxK !== 1 ? { massK: boxK } : undefined, TWEB = boxCloth && boxK !== 1 ? { web: true, massK: boxK } : null;
+  sparKs[k] = sparK;
   // is this the UPPER plane of the pair (the box caps go on the far side)
   const upperHere = !S.biplane || S.wings.length < 2
     || (k === 0 ? yOfPlane(S.wings[0]) >= yOfPlane(S.wings[1])
@@ -42107,7 +42147,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     const WR = zs.map(z => N(xRat(z), yF(z) - sparSpacing * Math.tan(incAt(z)), s * z, 'WR'));
     const cF = [rootF, ...WF], cR = [rootR, ...WR];
     for (let i = 0; i < zs.length; i++) {
-      B(cF[i], cF[i + 1], 'wing'); B(cR[i], cR[i + 1], 'wing');
+      B(cF[i], cF[i + 1], 'wing', 0, 0, 0, SPAR); B(cR[i], cR[i + 1], 'wing', 0, 0, 0, SPAR);   // the spars (BIPLANE-SIZING)
       B(cF[i + 1], cR[i + 1], 'wing');                       // rib
       // rule 4 again: the wing plan bay is a quad and gets its diagonals
       B(cF[i], cR[i + 1], 'wing'); B(cR[i], cF[i + 1], 'wing');
@@ -42282,15 +42322,18 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
         cFB.push(mkLower(cF[i], z, xFat(z), sparFront));
         cRB.push(mkLower(cR[i], z, xRat(z), sparRear));
         // station cell: webs down from each cap, lower rib, and its diagonals
-        B(cF[i], cFB[i], 'wing', 0, 0, 0, WEB); B(cR[i], cRB[i], 'wing', 0, 0, 0, WEB);
-        B(cFB[i], cRB[i], 'wing', 0, 0, 0, WEB);
-        B(cF[i], cRB[i], 'wing', 0, 0, 0, WEB); B(cR[i], cFB[i], 'wing', 0, 0, 0, WEB);
+        // (BIPLANE-SIZING: on a wired cloth plane the box is the spar's own depth - TWEB / TBOX bill trussBoxK)
+        const WB_ = TWEB || WEB;
+        B(cF[i], cFB[i], 'wing', 0, 0, 0, WB_); B(cR[i], cRB[i], 'wing', 0, 0, 0, WB_);
+        B(cFB[i], cRB[i], 'wing', 0, 0, 0, WB_);
+        B(cF[i], cRB[i], 'wing', 0, 0, 0, WB_); B(cR[i], cFB[i], 'wing', 0, 0, 0, WB_);
       }
       for (let i = 0; i < zs.length; i++) {
-        B(cFB[i], cFB[i+1], 'wing'); B(cRB[i], cRB[i+1], 'wing');   // lower caps
-        B(cFB[i], cRB[i+1], 'wing', 0, 0, 0, WEB); B(cRB[i], cFB[i+1], 'wing', 0, 0, 0, WEB);   // lower plan
-        B(cF[i], cFB[i+1], 'wing', 0, 0, 0, WEB); B(cFB[i], cF[i+1], 'wing', 0, 0, 0, WEB);     // front web
-        B(cR[i], cRB[i+1], 'wing', 0, 0, 0, WEB); B(cRB[i], cR[i+1], 'wing', 0, 0, 0, WEB);     // rear web
+        const WB_ = TWEB || WEB;
+        B(cFB[i], cFB[i+1], 'wing', 0, 0, 0, TBOX); B(cRB[i], cRB[i+1], 'wing', 0, 0, 0, TBOX);   // lower caps
+        B(cFB[i], cRB[i+1], 'wing', 0, 0, 0, WB_); B(cRB[i], cFB[i+1], 'wing', 0, 0, 0, WB_);   // lower plan
+        B(cF[i], cFB[i+1], 'wing', 0, 0, 0, WB_); B(cFB[i], cF[i+1], 'wing', 0, 0, 0, WB_);     // front web
+        B(cR[i], cRB[i+1], 'wing', 0, 0, 0, WB_); B(cRB[i], cR[i+1], 'wing', 0, 0, 0, WB_);     // rear web
       }
       // and the box has to carry through the fuselage too, or the whole
       // bending moment still arrives at a point (rule 3)
@@ -43570,6 +43613,13 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     B(TW, TPT, 'gear', false, 'inner');
     B(TW, HTL, 'gear', false, 'wire'); B(TW, HTR, 'gear', false, 'wire');
     pt(TW, twKgK * R.wheelTwKg(S.gear.twR) + mFairTw);   // the tailwheel assembly, by size (G3800: a skid half of it)
+  }
+  // TAIL-RETRACT (2026-11-09): A TAILDRAGGER'S RETRACTION KIT, on the mains' axles (their actuators, locks and
+  // trunnions; the tailwheel stays fixed); priced once, as the tricycle's
+  if (!trike && S.gear.retract && GAL != null && GAR != null) {
+    const kit = R.retractKg(gross);
+    pt(GAL, kit / 2); pt(GAR, kit / 2);
+    spend(GEN_PRICES.retract);
   }
   } if (hullGear) {   // (HULL-B55: after the wheels on an amphibian - was `else if`)
     // ---- THE BOAT HULL (HULL-B3, futureDesigns/HULL-TYPES-2026-11.md §3.5). ONE centreline hull record: the drawn
@@ -45529,6 +45579,16 @@ function genGearCdA(S, semi) {
     cda += 2 * 0.10 * (0.55 * semi * 1.12) * 0.06;  // two lift struts
   return cda;
 }
+// TAIL-RETRACT (2026-11-09): the mains' own share of genGearCdA - the two wheels and their legs (what a taildragger's
+// retraction takes up)
+function genGearCdAMains(S) {
+  const G = S.gear;
+  const wCd = (G.fairing === 'full' ? 0.15 : G.fairing === 'spat' ? 0.22 : 0.55)
+            * (G.fairing && G.fairing !== 'none' ? genFairDroplet(G.fairTail) : 1);
+  const R = G.wheelR || 0.20, drop = G.legDrop || 0.42;
+  const legCd = (G.fairing === 'full' || G.legFair === 'fair') ? 0.30 : 1.0;
+  return 2 * wCd * (2 * R * 0.76 * R) + 2 * legCd * drop * 0.05;
+}
 // THE CALIBRATION IS PRESERVED BY A DELTA. genFusCdA's 0.75 was fitted so the
 // Cub's GEOMETRY reproduces its hand-tuned totals — totals that implicitly
 // INCLUDE a bare-wheeled, strut-braced undercarriage. Adding gear drag on top
@@ -46551,7 +46611,9 @@ function genParams(S, fr, strips) {
     // (genGearCdA, inside fusCdA[0] as on every build: every design-time number - the plaque, the AP's speeds - stays the
     // gear-DOWN aeroplane's), which the solver takes back off as the gear comes up (30_solver gearPos)
     ...(S.gear.retract ? { retract: { time: S.gear.retract.time, act: S.gear.retract.act, emerg: S.gear.retract.emerg,
-                                       cdA: cda.drag.gear || 0,
+                                       // (TAIL-RETRACT: a taildragger's mains only - its tailwheel and its lift struts stay out)
+                                       cdA: S.gear.type === 'taildragger' ? genGearCdAMains(S) : (cda.drag.gear || 0),
+                                       ...(S.gear.type === 'taildragger' ? { tail: true } : {}),
                                        // G1: the fraction (1 unless partial) and the measured lift (null: the frame's rule)
                                        frac: S.gear.retract.frac || 1, lift: S.gear.retract.lift || null } } : {}),
     // G1844 (DMG-TYRE): the tyres' cornering stiffness per unit load (/rad, TYRE_CN): the mains by the build's wheel
