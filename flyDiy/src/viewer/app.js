@@ -1624,6 +1624,7 @@
       if (CAREER_DEV) { hangar.group.position.x = -ox; hangar.group.position.z = -oz; }
       // DERELICT-HANGAR: the sandbox's stand on the door's line - the large hangar's door is off the axis (its gallery
       // on the right), so the room moves under the stand by the door's offset and a DC-3 rolls out through the middle
+      // (the career's residents plan carries it in RES.dz: residentsSync0's o0)
       const sz = (!CAREER_DEV && hangar.door && hangar.door.z) ? hangar.door.z : 0;
       if (sz) hangar.group.position.z = -sz;
       if (isFinite(bb.min.x) && bb.max.x > bb.min.x)
@@ -1713,7 +1714,10 @@
         return rects.every((r, i) => r.x0 >= -D.HD - 1e-6 && r.x1 <= D.HD + 1e-6 && r.z0 >= -D.HW - 1e-6 && r.z1 <= D.HW + 1e-6 &&
           !K.some(k => resHit(r, k)) && !O.some(b => resHit(r, b)) && rects.every((s, j) => j === i || !resHit(r, s)));
       };
-      let plan = null, how = '', o = { x: 0, z: 0 }, unplaced = [];
+      // DERELICT-HANGAR: the stand stands on the door's line - the large hangar's door is off the axis (its gallery on
+      // the right), so 'where the stand is' starts there, not at the room's centre (the club: 0, as ever)
+      const o0 = { x: 0, z: (hangar && hangar.door && isFinite(hangar.door.z)) ? hangar.door.z : 0 };
+      let plan = null, how = '', o = o0, unplaced = [];
       // 1. kept, or swapped in place
       const sw = RES.swap; RES.swap = null;
       if (RES.base === base || (sw && RES.plan.some(p => p.name === sw.at))) {
@@ -1724,8 +1728,8 @@
       }
       // 2. round the stand, the room where it stands
       if (!plan) {
-        const P = names.length ? hangarPark(shed, names.map(n => ({ name: n, foot: footOf(n) })), { keep: keepAt({ x: 0, z: 0 }) }) : { placed: [], unplaced: [] };
-        plan = P.placed.map(p => ({ name: p.name, x: p.x, z: p.z })); unplaced = P.unplaced; how = 'round the stand'; o = { x: 0, z: 0 };
+        const P = names.length ? hangarPark(shed, names.map(n => ({ name: n, foot: footOf(n) })), { keep: keepAt(o0) }) : { placed: [], unplaced: [] };
+        plan = P.placed.map(p => ({ name: p.name, x: p.x, z: p.z })); unplaced = P.unplaced; how = 'round the stand'; o = o0;
         // 3. the room moves: the stand packed with them
         if (unplaced.length && sb) {
           // the stand MUST stand (the packer orders by size: two residents in today's club left the stand out - the 8 Oct
