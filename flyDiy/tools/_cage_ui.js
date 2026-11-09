@@ -4191,6 +4191,9 @@ const DEC = (typeof window !== 'undefined' && window.AEROSKIN
   // width still follows the height at the face's own aspect.
   regW: 0.96, regLock: 1,
   regFont: 0,             // an index into AEROSKIN.AERO_DEC_FONTS
+  // LIVERY-TEXT (9 Nov): the registration takes a text piece's controls - a face (null: the old row above), bold,
+  // italic, slant, an outline (null: none) and the side (0 both, 1 left, 2 right); aeroskin AERO_DEC_DEF's own
+  regFace: null, regB: 1, regI: 0, regSl: 0, regLine: null, regSide: 0,
   // LIVERY-5: THE TWO IMAGE CHANNELS ARE GONE (img* / wim*): an old save's rows are dropped on load; their atlas
   // pages carry kit layers 4 and 5
   // G2829: THE REGISTRATION ON THE WING TOP (aeroskin AERO_DEC_DEF's wreg*: the registration's page placed a second
@@ -4252,6 +4255,14 @@ function decKitDefaults() {
       if (!(key in DEC_DEF)) DEC_DEF[key] = A.AERO_KIT_LDEF[k];
       if (!(key in DEC)) DEC[key] = A.AERO_KIT_LDEF[k];
     }
+  // LIVERY-TEXT: the six text pieces' keys (t1On .. t6Metal), folded in the same way for the same reason
+  if (A.AERO_TXT_LDEF && A.AERO_TXT_FIELDS && A.AERO_TXT_N)
+    for (let i = 1; i <= A.AERO_TXT_N; i++)
+      for (const k of A.AERO_TXT_FIELDS) {
+        const key = 't' + i + k;
+        if (!(key in DEC_DEF)) DEC_DEF[key] = A.AERO_TXT_LDEF[k];
+        if (!(key in DEC)) DEC[key] = A.AERO_TXT_LDEF[k];
+      }
   return (decKitIn = true);
 }
 let decPanel = null, decImgAspect = 1;
@@ -4471,6 +4482,10 @@ function applyDecals() {
   // G345.1: the spinner's spiral rides the same block
   if (window.AEROWX && window.AEROWX.aeroWxSetSpiral) window.AEROWX.aeroWxSetSpiral(THREE, DEC);
 }
+// LIVERY-TEXT: a face fetched on first use has arrived (aeroskin aeroTxtArrived): its pages are drawn again and the
+// placement remade there; here the panel's own mirror of it (the locked width) and a frame
+if (typeof window !== 'undefined' && typeof window.addEventListener === 'function')
+  window.addEventListener('aero-face', () => { try { if (decPanel) { applyDecals(); draw(); } } catch (e) {} });
 
 // ---- FIT TO THE SURFACE (G2870, LIVERY-PATTERNS) ---------------------------
 // "Surface-scaled": a fade or a sunburst means edge to edge of a fin or a
@@ -4707,6 +4722,7 @@ const SYNC = {}, GREY = {}, LOCK = {};
 // rows went on showing the boot aeroplane's values - the toggles and the pickers had no SYNC at all, and nothing
 // called the sliders'. A load now calls every SYNC and every hook here (the livery layers' titles)
 const DEC_RELOAD = [];
+const TXT_LOOK = [];   // LIVERY-TEXT: the face rows' notes, told when a text changes (a letter the face lacks)
 // ---- SWITCHING PROJECTION KEEPS THE MARKING WHERE IT IS (G113.4) ---------
 // MEASURED, and it settles this the other way round from how it was planned.
 // The two frames do NOT differ by a constant anybody forgot to plumb: over
@@ -5046,6 +5062,56 @@ function buildDecPanel() {
     SYNC[key] = () => { sel2.value = DEC[key]; };
     return d;
   };
+  // LIVERY-TEXT (9 Nov): A TEXT PIECE'S FACE ROWS, the registration's ('reg', its old four faces first) and each
+  // piece's ('t1'..'t6'): the face and why it is there, bold, italic, slant, outline, sides
+  const TXF = A.AERO_TXT_FACES || [];
+  const txtRows = (q, parent, legacy) => {
+    const fk = q + 'Face', textOf = () => legacy ? decReg() : String(DEC[q + 'Txt'] || '');
+    const faceNow = () => DEC[fk] ? (TXF.find(f => f.key === DEC[fk]) || TXF[0]) : null;
+    const d = row('face', 'only faces the game ships (OFL, from Google Fonts), each picked on its looks - the line under ' +
+                  'it says why. A face is fetched the first time it is asked for (13-29 KB)', parent);
+    const sel = document.createElement('select'); sel.style.flex = '1';
+    if (legacy) (A.AERO_DEC_FONTS || []).forEach((f, i) => {
+      const o = document.createElement('option'); o.value = 'L' + i;
+      o.textContent = 'Plex ' + f.name + (i === 0 ? ' (the registration\'s own)' : ''); sel.appendChild(o); });
+    for (const f of TXF) { const o = document.createElement('option'); o.value = f.key; o.textContent = f.name; sel.appendChild(o); }
+    d.appendChild(sel);
+    const nd = row('', '', parent), nk = nd.querySelector('span.k');
+    nk.style.cssText = 'flex:1;opacity:.72;font-size:11px;white-space:normal;line-height:1.3';
+    const bRow = flag('bold', q + 'B', 'the face\'s own bold - offered only where the face ships one (never a smeared fake)', null, parent);
+    const iRow = flag('italic', q + 'I', 'the face\'s own italic - offered only where the face ships one; the slant below is apart', null, parent);
+    num('slant', q + 'Sl', -0.45, 0.45, 0.01, 'lean the letters, any face - forward (+) or back (-)', null, parent);
+    const grey = (r, on) => { const c = r.querySelector('input'); if (c) c.disabled = !on; r.style.opacity = on ? '' : '.45'; };
+    const look = () => {
+      const F = faceNow();
+      sel.value = F ? F.key : (legacy ? 'L' + Math.max(0, Math.min(3, Math.round(+DEC.regFont || 0))) : (TXF[0] || {}).key);
+      grey(bRow, !!(F && F.b)); grey(iRow, !!(F && F.it));
+      let t = F ? F.why : 'the registration\'s old face (IBM Plex)';
+      const miss = F && F.miss ? Array.from(new Set(Array.from(textOf()).filter(c => F.miss.indexOf(c) >= 0))) : [];
+      if (miss.length) t += ' — ' + miss.join(' ') + ': not in this face, drawn in IBM Plex Sans';
+      nk.textContent = t;
+    };
+    sel.onchange = () => {
+      const v = sel.value;
+      if (/^L\d$/.test(v)) { DEC[fk] = null; DEC.regFont = +v.slice(1); } else DEC[fk] = v;
+      look(); decSavePrefs(); applyDecals(); draw();
+    };
+    SYNC[fk] = look; DEC_RELOAD.push(look); TXT_LOOK.push(look); look();
+    // THE OUTLINE (the user: offered, off by default): a tick and its colour; unticked it is null - none
+    {
+      const r = row('outline', 'a keyline round the letters, in its own colour - off by default', parent);
+      const c = document.createElement('input'); c.type = 'checkbox';
+      const w = document.createElement('input'); w.type = 'color'; w.style.flex = 'none'; w.style.marginLeft = '6px';
+      wellRecent(w);
+      const lk = () => { const v = DEC[q + 'Line']; c.checked = v != null; w.disabled = v == null; w.style.opacity = v == null ? '.35' : '';
+        w.value = '#' + ((v != null ? v : 0xffffff) >>> 0).toString(16).padStart(6, '0'); };
+      c.onchange = () => { DEC[q + 'Line'] = c.checked ? parseInt(w.value.slice(1), 16) : null; lk(); decSavePrefs(); applyDecals(); draw(); };
+      w.oninput = () => { if (DEC[q + 'Line'] == null) return; DEC[q + 'Line'] = parseInt(w.value.slice(1), 16); decSavePrefs(); applyDecals(); draw(); };
+      r.appendChild(c); r.appendChild(w); SYNC[q + 'Line'] = lk; DEC_RELOAD.push(lk); lk();
+    }
+    pick('sides', q + 'Side', ['both, each reading right', 'the left side only', 'the right side only'],
+         'a marking is on both flanks, reading the right way on each - or on one side only', null, parent);
+  };
   // the registration
   {
     const d = row('registration', 'the aeroplane\'s own marking — the spec ' +
@@ -5071,6 +5137,7 @@ function buildDecPanel() {
     // the aeroplane, and doing that per keystroke would tear down and re-derive
     // the whole cage for every letter of a registration.
     i.oninput = () => { DEC.reg = i.value.toUpperCase(); i.value = DEC.reg;
+      for (const f of TXT_LOOK) f();   // (LIVERY-TEXT: the face's note names a letter it lacks)
       decSavePrefs(); applyDecals();
       // G318: the tape on the dash follows every keystroke (a repaint, not a rebuild)
       if (window.CAGE_PANEL && window.CAGE_PANEL.setReg) window.CAGE_PANEL.setReg(DEC.reg);
@@ -5123,9 +5190,9 @@ function buildDecPanel() {
          'the glyph. Unset it follows the aeroplane trim colour — ' +
          'double-click the label to go back to following');
   }
-  pick('face', 'regFont', (A.AERO_DEC_FONTS || []).map(f => f.name),
-       'only the faces the artifact ships: a livery that renders in a ' +
-       'different font on somebody else machine is not a livery');
+  // LIVERY-TEXT (9 Nov, the user: "registration is just a dedicated text field"): the registration's face, bold,
+  // italic, slant, outline and side are a text piece's rows (txtRows) - its old four faces first in the list
+  txtRows('reg', null, true);
   num('station', 'regL', -1.0, 6.0, 0.05, 'metres AFT of the firewall', 'len');
   num('height on side', 'regC', -1.0, 1.2, 0.02,
       'metres around the section from the waist rail, + upward', 'up');
@@ -5160,6 +5227,69 @@ function buildDecPanel() {
   // THE KIT IS FIRST IN THE PAINT ORDER and LAST-BUT-ONE in the panel, which
   // is deliberate: the registration is the row people open this panel for, and
   // the image channels below are the ones almost nobody uses.
+  // ---- LIVERY-TEXT (9 Nov): THE LETTERING - six pieces, a name, a slogan ------------------------------------------
+  // the user's answers: one line, 24 characters, no curve; the livery layer's placement; both sides or one; an outline
+  // offered, off; real bold and italic where the face has them, and a slant. Each piece its own <details>.
+  DECG.cur = 'txt';
+  if (A.AERO_TXT_N && A.AERO_TXT_LDEF) {
+    for (let ti = 1; ti <= A.AERO_TXT_N; ti++) {
+      const q = 't' + ti;
+      const det = document.createElement('details');
+      det.dataset.g = 'lettering/' + ti; det.dataset.dec = 'txt';
+      const sum = document.createElement('summary');
+      det.appendChild(sum); body.appendChild(det);
+      const say = () => {
+        const on = !!DEC[q + 'On'], t = String(DEC[q + 'Txt'] || '').trim();
+        sum.textContent = 'text ' + ti + ' — ' + (on && t ? '“' + t + '”' : t ? 'off' : 'empty');
+        sum.style.opacity = on && t ? '' : '.55';
+      };
+      DEC_RELOAD.push(say);
+      flag('on', q + 'On', 'letter this line onto the aeroplane', say, det);
+      {
+        const d = row('text', 'one line, up to ' + (A.AERO_TXT_MAX || 24) + ' characters - a name, a slogan', det);
+        const i = document.createElement('input');
+        i.type = 'text'; i.maxLength = A.AERO_TXT_MAX || 24; i.style.flex = '1'; i.spellcheck = false;
+        i.value = DEC[q + 'Txt'] || '';
+        // (a repaint per keystroke, as the registration's: no rebuild - the text is a page of the atlas)
+        i.oninput = () => {
+          DEC[q + 'Txt'] = A.aeroTxtClean ? A.aeroTxtClean(i.value) : i.value.slice(0, 24);
+          if (i.value && !DEC[q + 'On']) { DEC[q + 'On'] = 1; if (SYNC[q + 'On']) SYNC[q + 'On'](); }   // typing is asking for it
+          say(); for (const f of TXT_LOOK) f(); decSavePrefs(); applyDecals(); draw();
+        };
+        d.appendChild(i);
+        SYNC[q + 'Txt'] = () => { i.value = DEC[q + 'Txt'] || ''; };
+        DEC_RELOAD.push(SYNC[q + 'Txt']);
+      }
+      txtRows(q, det, false);
+      {   // the ink: null follows the trim, as the registration's (double-click the label to follow again)
+        const d = row('ink', 'the letters. Unset they follow the aeroplane trim colour - double-click the label to go back to following', det);
+        const c = document.createElement('input'); c.type = 'color'; c.style.flex = 'none';
+        wellRecent(c);
+        const cur = () => { if (DEC[q + 'Col'] != null) return DEC[q + 'Col'];
+          try { const S = window.GARAGE_SPEC && window.GARAGE_SPEC.get(); if (S && S.paint) return S.paint.trim; } catch (e) {}
+          return 0x1b3a5c; };
+        const paint = () => { c.value = '#' + (cur() >>> 0).toString(16).padStart(6, '0'); };
+        paint();
+        c.oninput = () => { DEC[q + 'Col'] = parseInt(c.value.slice(1), 16); decSavePrefs(); applyDecals(); draw(); };
+        const k = d.querySelector('span.k');
+        if (k) { k.style.cursor = 'pointer'; k.ondblclick = () => { DEC[q + 'Col'] = null; paint(); decSavePrefs(); applyDecals(); draw(); }; }
+        d.appendChild(c); SYNC[q + 'Col'] = paint; DEC_RELOAD.push(paint);
+      }
+      num('height', q + 'H', 0.05, 1.20, 0.01, 'metres - the letters\' height; the width follows the face', null, det);
+      num('station', q + 'L', -1.0, 6.0, 0.05, 'metres AFT of the firewall', 'len', det);
+      num('height on side', q + 'C', -1.2, 1.2, 0.02, 'metres around the section from the waist rail, + upward', 'up', det);
+      num('turn', q + 'Rot', -0.6, 0.6, 0.01, 'radians', null, det);
+      num('metallic', q + 'Metal', 0, 1, 0.02, 'metal flake in the letters', null, det);
+      pick('goes on', q + 'Tgt',
+           ['the fuselage', 'the flying surfaces', 'both', 'the body & the tail',
+            'the wings', 'the tail', 'the fin', 'the stabiliser'],
+           'the surfaces the line lands on - as a livery layer', null, det);
+      pick('projected as', q + 'Mode', MODE_NAMES, MODE_HELP,
+           (was, now) => decReframe(was, now, { l: q + 'L', c: q + 'C' }), det);
+      say();
+    }
+  }
+
   DECG.cur = 'kit';
   if (A.AERO_KIT && A.AERO_KIT_LAYERS) {
     const KIT = A.AERO_KIT;
