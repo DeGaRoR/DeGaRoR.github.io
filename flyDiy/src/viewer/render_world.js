@@ -841,6 +841,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // F2: the mist's field - where the layer LIES, from this world's valley floors and water.
     // Once per world, here, because this is where the world's own fields are already in hand.
     try { const f = ATMO.bakeField && ATMO.bakeField(renderer, world); if (f) console.log('mist field: ' + f.N + '^2 in ' + f.ms.toFixed(0) + ' ms, band ceiling ' + f.yHi.toFixed(0) + ' m'); } catch (e) { console.warn('mist field: ' + e.message); }
+    // FOREST-MIST (prototype, ?fmist only): where the pockets can sit, baked from the same land, into the same atlas
+    if (typeof FMIST !== 'undefined' && FMIST.ON) { try { FMIST.bake(renderer, world, scene); } catch (e) { console.warn('forest mist: ' + e.message); } }
     if (typeof SKY_LIGHT !== 'undefined' && SKY_LIGHT.calibrate()) ATMO.U.scale.value = SKY_LIGHT.K().K_SUN * Math.PI;
     // G1460 (SOFT-GPU) NO SKY PROBE ON A SOFTWARE RENDERER: on SwiftShader the probe's PMREM poisons every Standard
     // material of the world - the ground, the trees, the sheds and the aeroplane drew BLACK at the stand (the Lambert far
@@ -7881,6 +7883,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // filed). So the weather runs first and the manual gate is where it always
     // meant to be: on the LIGHT.
     if (ATMO_ON) { ATMO.update(renderer, day, camera.position.y, camera.position, world); ATMO.setAP(true); }   // the sky-view and AP atlases follow the sun and the eye every frame; the world's frames take the splice
+    if (ATMO_ON && typeof FMIST !== 'undefined' && FMIST.ON) FMIST.update(day, camera.position, world, typeof SOIL_WET !== 'undefined' ? SOIL_WET.at(day) : null);   // FOREST-MIST (?fmist only)
     // THE CLOUDS every frame (C1/C4): the drift, the eye (the probe's and the in-cloud slab's), the shadow's scalars - not gated on the sun's move below
     if (ATMO_ON && typeof CLOUDS !== 'undefined' && CLOUDS.ready) { CLOUDS.S.inShed = false; CLOUDS.update(day, camera, world); }
     if (rigCur.manual) return;                                                          // the hand-placed sun: the LIGHT stops following the almanac; the weather does not
