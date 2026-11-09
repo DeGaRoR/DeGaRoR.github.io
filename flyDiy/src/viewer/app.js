@@ -7562,7 +7562,7 @@
   let soilNow = null;
   function soilFrame() {
     soilNow = typeof SOIL_WET !== 'undefined' && world && world.day ? SOIL_WET.at(world.day) : null;
-    if (soilNow && window.PAVEMENT && PAVEMENT.setSoilWet) PAVEMENT.setSoilWet(soilNow.wet);
+    if (soilNow && typeof PAVEMENT !== 'undefined' && PAVEMENT.setSoilWet) PAVEMENT.setSoilWet(soilNow.wet);
   }
   function dustMake() {
     if (dustFx || DUST_Q === 0 || typeof DUST === 'undefined' || !THREE.InstancedBufferGeometry) return dustFx;
@@ -7582,7 +7582,7 @@
         return c === -1 || c == null ? -1 : DUST_CLS[c];
       },
       wet: ci => { const R = wetR.R; if (!R) return 0; const k = DUST.CLASSES[ci]; return R.cls[k] != null ? R.cls[k] : R.cls.dirt; },
-      puddle: (x, z) => (window.STRIP_MICRO && STRIP_MICRO.puddleAt && wetR.R ? STRIP_MICRO.puddleAt(x, z, wetR.R.wet) : 0),
+      puddle: (x, z) => (typeof STRIP_MICRO !== 'undefined' && STRIP_MICRO.puddleAt && wetR.R ? STRIP_MICRO.puddleAt(x, z, wetR.R.wet) : 0),
       k: DUST_Q != null && DUST_Q > 0 ? DUST_Q : 1,
     };
     const st = { wheels: [], props: [], wing: { span: 10, W: 5000, V: 0, rho: 1.225, tips: [[0, 0, 0], [0, 0, 0]] } };

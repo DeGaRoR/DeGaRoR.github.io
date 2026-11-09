@@ -29,6 +29,8 @@ console.log('1. the wiring');
   yes(/if \(dustFx && !inGarage\) syncDustFx\(running \? fdt : 0\);/.test(a), 'synced in the frame beside the spray, on the frame\'s own time (paused: drawn, not stepped)');
   yes(/if \(!dustFx\) dustMake\(\);/.test(a) && a.indexOf('if (!dustFx) dustMake();') > a.indexOf('function worldSettle('), 'the batch is made with the world and parked (worldSettle): linked by the roll-out\'s compile, never in flight');
   yes(/DUST_Q === 0/.test(a), '?dust=0 makes none (the A/B\'s lever)');
+  yes(/typeof PAVEMENT !== 'undefined' && PAVEMENT\.setSoilWet/.test(a) && /typeof STRIP_MICRO !== 'undefined' && STRIP_MICRO\.puddleAt/.test(a) && !/window\.(PAVEMENT|STRIP_MICRO|SOIL_WET)\b/.test(a),
+    'the soil reaches the pavement and the puddles by typeof (a top-level const is never on window: window.PAVEMENT would read nothing)');
   yes(/#include <logdepthbuf_vertex>/.test(DUST.GLSL.vert) && /#include <logdepthbuf_fragment>/.test(DUST.GLSL.frag), 'the shader carries the log depth chunks (the renderer\'s logarithmic depth buffer)');
 }
 
