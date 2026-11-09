@@ -572,7 +572,11 @@ const GEN_SURF_MATERIALS = {
             lin: GEN_MATERIALS.aluTube.lin, k: GEN_MATERIALS.aluTube.k,
             c: GEN_MATERIALS.aluTube.c,
             cover: 0.20, price: 30, cd0: 0.0022, clmaxK: 1.00, shop: 'tube',
-            refGross: 476, coverGauged: false },
+            refGross: 476, coverGauged: false,
+            // UL-WING (9 Nov): the lattice's stand-ins (the strut fan's hidden members, the plan's drag diagonals and rib
+            // members) bill 0.25 of the row's density: a tube-and-cable wing's compression tubes and drag wires. [TUNE] on
+            // the Chinook (172-209 kg) and the Ruckus's wing (the user's internals model: two tube spars, formed ribs)
+            standInK: 0.25 },
   // A WING'S SKIN IS NOT A FUSELAGE'S (PERF STUDY chantier 1, 2026-09-15):
   // the fuselage rows' cover carries frames, doors, floors and windows in
   // its 4.5 kg/m2; a wing panel is skin, stringers and ribs — a GA alloy

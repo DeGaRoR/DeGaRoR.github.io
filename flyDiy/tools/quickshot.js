@@ -79,8 +79,16 @@ const DEC = Object.assign({ regL: 2.10, regC: 0.28, regH: 0.30, regW: 0.96 }, (s
 const inReg = f => { if (!sheet.A || f.v.some(i => !sheet.A[i])) return false;
   let sl = 0, sc = 0; for (const i of f.v) { sl += sheet.A[i][0]; sc += sheet.A[i][1]; } sl = sl / f.v.length * FS; sc = sc / f.v.length * FS;
   return Math.abs(sl - DEC.regL) < DEC.regW / 2 && Math.abs(sc - DEC.regC) < DEC.regH / 2; };
+// AN OPEN FRAME (the user 9 Nov: "quick view renders a back pod and ignores the options"): with skinOn 0 the editor
+// (_cage_ui.js ZERO SKIN, skinCull) draws no covering and no lining - what stands is the glass, the joints and the bare
+// structure (INTSTRUCT: the truss tubes, the rod, the taper panels, the bulkheads, the dash). The same here, the
+// structure drawn in the frame's own colour
+const OPEN = P.skinOn != null && !+P.skinOn;
+const OPEN_KEEP = new Set(['bulkhead', 'bulkTrim', 'baggage', 'firewall', 'fireProof', 'fireSeal', 'dash', 'dashFace', 'tube',
+  'woodFrame', 'aluminium', 'boomTube', 'taperPanel', 'joint', 'doorSeal', 'paneEdge', ...GLASS]);
 for (const f of sheet.F) {
-  if (SKIP_SHEET.has(f.m) || f.v.length < 3) continue;
+  if (f.v.length < 3) continue;
+  if (OPEN ? !OPEN_KEEP.has(f.m) : SKIP_SHEET.has(f.m)) continue;
   const col = MARKS.includes('reg') && inReg(f) ? [245, 245, 245] : GLASS.has(f.m) ? (f.m === 'drawnPane' ? [70, 170, 230] : [60, 110, 160])
     : f.m === 'joint' || f.m === 'paneEdge' || f.m === 'doorSeal' || f.m === 'reveal' ? [40, 40, 44]
     : f.m === 'wheelWell' ? [96, 100, 92]
@@ -187,8 +195,28 @@ function view(name) {
     top: { u: p => -p[2], w: p => -p[0], d: p => p[1] },                  // from above, the nose to the left
     front: { u: p => -p[0], w: p => p[1], d: p => p[2] },                // head-on, starboard on the left
     bottom: { u: p => -p[2], w: p => p[0], d: p => -p[1] },              // RETRACT G4: from below, the nose to the left
-    q: {}, qb: {}, cam: {},                                                // set below
+    q: {}, qb: {}, cam: {}, persp: {},                                     // set below
   }[name];
+  // `persp` (the user 9 Nov: "a side view with the camera right below the wingtip ... 2 meters away, zoomed in"): a PINHOLE
+  // camera - --eye x,h,z (x across, + the starboard side the `side` view looks from; h metres above the lowest point of
+  // the aeroplane; z along, + forward) and --look x,h,z (default the aeroplane's middle at the eye's height); the
+  // frame fits the picture as every view's does (the zoom). Triangles behind the eye are not drawn
+  if (name === 'persp') {
+    let yLo = Infinity, zLo = Infinity, zHi = -Infinity;
+    for (const t of tris) for (let k = 0; k < 9; k += 3) { yLo = Math.min(yLo, t[k + 1]); zLo = Math.min(zLo, t[k + 2]); zHi = Math.max(zHi, t[k + 2]); }
+    const ev = (opt('eye', '4.3,1.2,0').split(',').map(Number)), E = [ev[0], yLo + ev[1], ev[2]];
+    const lv = opt('look', null) ? opt('look').split(',').map(Number) : [0, ev[1], 0.5 * (zLo + zHi)], Lk = [lv[0], yLo + lv[1], lv[2]];
+    const nrm = a => { const l = Math.hypot(...a) || 1; return a.map(x => x / l); };
+    const Fw = nrm([Lk[0] - E[0], Lk[1] - E[1], Lk[2] - E[2]]);
+    const Rt = nrm([Fw[1] * 0 - Fw[2] * 1, Fw[2] * 0 - Fw[0] * 0, Fw[0] * 1 - Fw[1] * 0]);   // F x up
+    const Up = [Rt[1] * Fw[2] - Rt[2] * Fw[1], Rt[2] * Fw[0] - Rt[0] * Fw[2], Rt[0] * Fw[1] - Rt[1] * Fw[0]];
+    const rel = p => [p[0] - E[0], p[1] - E[1], p[2] - E[2]], dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+    const zc = p => Math.max(0.05, dot(rel(p), Fw));
+    V.u = p => dot(rel(p), Rt) / zc(p);
+    V.w = p => dot(rel(p), Up) / zc(p);
+    V.d = p => -dot(rel(p), Fw);
+    V.behind = p => dot(rel(p), Fw) < 0.05;
+  }
   // `cam` (the user 9 Nov: "overlay our rufus on a photo ... account for perspective"): any yaw / pitch, --yaw / --pitch
   // in degrees (yaw 0 = the side view from starboard, + toward the nose; pitch + from above)
   if (name === 'cam') {
@@ -216,7 +244,7 @@ function view(name) {
   let u0 = Infinity, u1 = -Infinity, w0 = Infinity, w1 = -Infinity;
   // RETRACT GR: --focus gear frames the picture on the gear layer's parts (and the wing's wells), with a margin
   const FOCUS = opt('focus', null) === 'gear' && tris.some(t => t.gear);
-  for (const t of tris) if (!FOCUS || t.gear) for (let k = 0; k < 9; k += 3) { const p = [t[k], t[k + 1], t[k + 2]]; const u = V.u(p), w = V.w(p); u0 = Math.min(u0, u); u1 = Math.max(u1, u); w0 = Math.min(w0, w); w1 = Math.max(w1, w); }
+  for (const t of tris) if (!FOCUS || t.gear) for (let k = 0; k < 9; k += 3) { const p = [t[k], t[k + 1], t[k + 2]]; if (V.behind && V.behind(p)) continue; const u = V.u(p), w = V.w(p); u0 = Math.min(u0, u); u1 = Math.max(u1, u); w0 = Math.min(w0, w); w1 = Math.max(w1, w); }
   const crop = opt('crop', null);
   if (crop && name === 'side') { const [z0, z1, y0, y1] = crop.split(',').map(Number); u0 = -z1; u1 = -z0; w0 = y0; w1 = y1; }
   if (FOCUS) { const m = 0.18 * Math.max(u1 - u0, w1 - w0); u0 -= m; u1 += m; w0 -= m; w1 += m; }
@@ -233,6 +261,7 @@ function view(name) {
   const vd = [V.d([1, 0, 0]) - V.d([0, 0, 0]), V.d([0, 1, 0]) - V.d([0, 0, 0]), V.d([0, 0, 1]) - V.d([0, 0, 0])];   // toward the camera
   for (const t of tris) {
     const A = [t[0], t[1], t[2]], B = [t[3], t[4], t[5]], C = [t[6], t[7], t[8]];
+    if (V.behind && (V.behind(A) || V.behind(B) || V.behind(C))) continue;
     const ax = (V.u(A) - u0) * sc, ay = (w1 - V.w(A)) * sc, az = V.d(A);
     const bx = (V.u(B) - u0) * sc, by = (w1 - V.w(B)) * sc, bz = V.d(B);
     const cx = (V.u(C) - u0) * sc, cy = (w1 - V.w(C)) * sc, cz = V.d(C);
