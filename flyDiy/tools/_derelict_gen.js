@@ -1697,6 +1697,22 @@ function build(P0, lod, F) {
         obox([(x0 + x1) / 2, yf + 0.43, zc], [0, 0, 1], Yp, 0.45, 0.4, 0.17, 'acfront', 'white');   // the fan toward the front
         pipe([[(x0 + x1) / 2 + 0.3, yf + 0.2, zc - 0.2], [(x0 + x1) / 2 + 0.3, yf - 0.05, zc - 0.2], [x1 + 0.35, yf - 0.05, zc - 0.2], [x1 + 0.35, yGR + 0.05, zc - 0.2]], 0.028, 'white');
       }
+      // ---- THE BACK, SEEN FROM THE ROAD (A0 9 Nov, the user's HOME layout: "the road curves BEHIND it ... design the BACK
+      // and the sides to be seen too"): the HANGAR 1 board on the back gable, a bulkhead over either side of the glazed
+      // leaves, the downpipes at the back corners off the eave gutters
+      {
+        const zb = -HD - 0.2, Xb = [-1, 0, 0];
+        obox([0, fy + BH + 2.0, zb], Xb, Yp, 3.8, 0.71, 0.03, 'signH', 'navy');
+        for (const dx of [-2.6, 0, 2.6]) for (const dy of [-0.45, 0.45]) member(bags.steel, [dx, fy + BH + 2.0 + dy, -HD + 0.02], [dx, fy + BH + 2.0 + dy, zb + 0.03], 'rod', Yp, L);
+        for (const sx of [-1, 1]) {
+          const x = sx * (BW / 2 + 0.7), c = [x, fy + BH + 0.35, zb];
+          obox(c, Xb, Yp, 0.09, 0.12, 0.06, 'dark', 'dark');
+          lens([x, fy + BH + 0.35, zb - 0.061], Xb, Yp, 0.07, 0.09);
+          lamp([x, fy + BH + 0.35, zb - 0.25], [0, 0, -1], 0.5, 9);
+        }
+        for (const x of [-HW - 0.05, HW + 0.05]) pipe([[x, yR(HW) - 0.1, -HD + 0.35], [x, yR(HW) - 0.1, -HD - 0.05], [x, g(x, -HD) + 0.25, -HD - 0.05], [x + (x > 0 ? 0.2 : -0.2), g(x, -HD) + 0.08, -HD - 0.25]], 0.045, 'grey');
+        if (gal(1)) pipe([[xO + 0.05, yGR + 0.25, -HD + 0.35], [xO + 0.05, yGR + 0.25, -HD - 0.05], [xO + 0.05, g(xO, -HD) + 0.25, -HD - 0.05], [xO + 0.25, g(xO, -HD) + 0.08, -HD - 0.25]], 0.045, 'grey');
+      }
       // ---- THE APRON'S LEAD-IN LINE and the door's threshold stripe (yellow paint), when the build lays its apron
       if (P.apron) {
         const yl = (x, z) => g(x, z) + 0.069, line = (x0, z0, x1, z1, w) => { const d = nrm([x1 - x0, 0, z1 - z0]), nn = [-d[2], 0, d[0]];
