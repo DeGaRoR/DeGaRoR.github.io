@@ -85,8 +85,8 @@ const PAVEMENT = (() => {
     rubberK: 0.7, rubberStart: 120, rubberPeak: 420, rubberEnd: 900, rubberTrack: 2.4, rubberSpread: 1.4, rubberStreak: 0.6,
     rutTrack: 0.85, rutW: 0.3, rutDepth: 0.7, rutAmp: 1.0, rutLambda: 80, rutGrass: 0.6, shoulderPaths: 2,
     // A SOFT STRIP'S TYRE MARKS (DIRT-STRIP, 2026-11-09): the passes of the validated fleet (the shader's PV_FLEET), how many
-    // are fresh, the lanes they compacted, the ends' pivot circles + run-up scour. tyrePasses 0 = the old strip (G925's pairs)
-    tyrePasses: 10, tyreFresh: 3, tyreLanes: 0.85, tyreEnds: 0.7,
+    // are fresh, the lanes they compacted, the ends' run-up scour. tyrePasses 0 = the old strip (G925's pairs)
+    tyrePasses: 12, tyreFresh: 3, tyreLanes: 0.85, tyreEnds: 0.7,
     roadLane: 3.5, wheelPolish: 0.5,
     // THE BAND MEETS THE ISLAND (2026-09-23, the user on an aerial of Jolene: "there is a huge
     // difference in light and color between the runway sides and the surrounding terrain ... the
@@ -172,7 +172,7 @@ const PAVEMENT = (() => {
     ['rutTrack', 'half-track (m: 0.85 = a 1.7 m pickup)', 0.35, 1.6, 0.05], ['rutW', 'rut width (m)', 0.1, 0.8, 0.02], ['rutDepth', 'rut relief', 0, 2, 0.05], ['rutAmp', 'rut meander (m)', 0, 3, 0.1], ['rutLambda', 'meander length (m)', 10, 200, 5],
     ['rutGrass', 'grass stripe between', 0, 1, 0.02], ['shoulderPaths', 'shoulder paths (n)', 0, 4, 1],
     ['— tyre marks (soft strips) —'],
-    ['tyrePasses', 'aeroplane passes (n, 0 = the old pairs)', 0, 16, 1], ['tyreFresh', 'fresh passes (n, sharp, tread)', 0, 16, 1], ['tyreLanes', 'worn lanes (compacted)', 0, 1, 0.02], ['tyreEnds', 'turn-around circles + run-up scour', 0, 1, 0.02],
+    ['tyrePasses', 'aeroplane passes (n, 0 = the old pairs)', 0, 16, 1], ['tyreFresh', 'fresh passes (n, sharp, tread)', 0, 16, 1], ['tyreLanes', 'worn lanes (compacted)', 0, 1, 0.02], ['tyreEnds', 'run-up scour at the ends', 0, 1, 0.02],
     ['roadLane', 'lane width (m, paved)', 2.6, 5, 0.1], ['wheelPolish', 'traffic polish in the wheel paths', 0, 1, 0.02],
     ['— soft ground —'],
     ['softMix', 'second ground in patches', 0, 1, 0.02], ['coarseK', 'coarse stony patches', 0, 1, 0.02], ['wheelBand', 'compacted wheel band', 0, 1, 0.02], ['treadK', 'tyre tread in the tracks', 0, 1, 0.02],
@@ -316,11 +316,12 @@ const PAVEMENT = (() => {
   const REFINE = { tol: 0.005, min: 0.75, roadV: false, poly: true };   // (roadV: a road's rows across too - 13 k more over Jolene for one 14 mm crease at HOME's lane: off)
   // refineAxis(A, B, H, inside): A, B the two axes' stations (sorted); H(a, b) the ground at a on A's axis, b on B's;
   // inside(a, b) the point is paved. -> A with stations inserted
-  function refineAxis(A, B, H, inside, tol) {
-    const T = tol > 0 ? tol : REFINE.tol;
+  // (DIRT-STRIP: `min` > 0 - a bush strip's bumps (26b_strip_micro) - the finest spacing, REFINE.min otherwise)
+  function refineAxis(A, B, H, inside, tol, min) {
+    const T = tol > 0 ? tol : REFINE.tol, MIN = min > 0 ? min : REFINE.min;
     const out = [A[0]];
     const span = (a0, a1) => {
-      if (a1 - a0 >= 2 * REFINE.min) {
+      if (a1 - a0 >= 2 * MIN) {
         const m = (a0 + a1) / 2; let e = 0;
         for (let j = 0; j < B.length && e <= T; j++) {
           const b = B[j];
@@ -352,8 +353,9 @@ const PAVEMENT = (() => {
     U.sort((a, b) => a - b);
     if (o.heightAt && o.sinkD0 !== undefined && o.sinkD0 !== null && o.refine !== false) {   // G2115: the rows where the ground curves
       const H = memo2((u, v) => { const w = F.toWorld(u, v); return o.heightAt(w[0], w[1]); }), Hv = (v, u) => H(u, v);
-      U = refineAxis(U, V, H, (u, v) => sdBox(u, v, halfL, halfW, len) >= 0);
-      V = refineAxis(V, U, Hv, (v, u) => sdBox(u, v, halfL, halfW, len) >= 0);
+      // (DIRT-STRIP) a bumpy strip (o.refineMin, render_world: STRIP_MICRO.has) earns rows down to its bumps' scale
+      U = refineAxis(U, V, H, (u, v) => sdBox(u, v, halfL, halfW, len) >= 0, 0, o.refineMin);
+      V = refineAxis(V, U, Hv, (v, u) => sdBox(u, v, halfL, halfW, len) >= 0, 0, o.refineMin);
     }
     const nV = V.length, nU = U.length, n = nU * nV;
     const pos = new Float32Array(n * 3), pav = new Float32Array(n * 4), pk = new Float32Array(n * 4), pt = new Float32Array(n * 3), uv = new Float32Array(n * 2);
@@ -1081,15 +1083,16 @@ vec2 pvTyre(float x, float w) {
         // so the half track is really wrong"). They were two wandering pairs at the PAVED runway's rubber half-track
         // (uRubber2.y = rubberTrack, 2.4 m: wheels 4.8 m apart, each rut 0.85 m wide) under a compacted band a third of the
         // width. Now the strip is worn by the aeroplanes that use it - the validated fleet's own axles (PV_FLEET) - in
-        // uRoad.x PASSES (a strip is no road: its uRoad row is free), each hashed off the seed: a LANDING (touches down in
-        // the first third, a skip or two before it, off the centreline by up to a quarter of the width and drifting back
-        // as it slows, braking before it stops), a TAKE-OFF (from near the end, fading where the weight comes off the
-        // wheels) or a TAXI-BACK (the whole length, off to one side), from either end. Each draws its two mains and its
-        // nose or tail wheel as tyre-wide tracks with the rut's relief (the normal the user likes); the first uRoad.y
-        // passes are FRESH (sharp, the tread pressed in), the rest older (fainter, softer, wider). Summed they wear two
-        // LANES at the fleet's mean track: uRoad.w draws them as the compacted ground (the expected density), which is
-        // also what the far view reads - a track thinner than its pixel's footprint hands over to them (PV_THIN). At each
-        // end (uRubber2.w) the turn-around's pivot circle and the run-up's prop-blast scour behind it.
+        // uRoad.x PASSES (a strip is no road: its uRoad row is free), each hashed off the seed. EVERY TRACK GOES SOMEWHERE
+        // (the user on the first plan view: "the rounds are bad, the dashed lines too, and all tyre marks have to go
+        // somewhere, probably out of the picture frame"): a pass runs the whole strip and on past its ends, or turns off it
+        // and curves out over a side (to a taxiway, a stand, the grass) - no track starts or stops on the strip, no circles,
+        // no skips. Most passes hold near the centreline, some well off it, all wandering a little (a 60 m, a 17 m and a 4 m
+        // noise); each draws its two mains and its nose or tail wheel as tyre-wide tracks with the rut's relief (the normal
+        // the user likes), heavier and lighter along its length; the first uRoad.y are FRESH (sharp, the tread pressed in),
+        // the rest older (fainter, softer, wider). Summed they wear two LANES at the fleet's mean track: uRoad.w draws them as
+        // the compacted ground (the expected density), which is also what the far view reads - a track thinner than its
+        // pixel's footprint hands over to them (PV_THIN). uRubber2.w: the run-up's prop-blast scour at each end.
         float L = 2.0 * halfL, sd = seed * 37.0;
         float imp = uSoft.w * detail * PV_THIN(0.16) * (cls > 2.5 && cls < 4.5 ? 1.0 : 0.35);
         // (16 passes at most, as 4 x 4: the loop rule's small constants - no texture read inside, uRoad.x the count)
@@ -1098,24 +1101,21 @@ vec2 pvTyre(float x, float w) {
           if (fk >= uRoad.x) continue;
           vec4 h = vec4(pvHash(vec2(fk, sd + 1.0)), pvHash(vec2(fk + 0.37, sd + 2.0)), pvHash(vec2(fk + 0.61, sd + 3.0)), pvHash(vec2(fk + 0.13, sd + 4.0)));
           vec4 h2 = vec4(pvHash(vec2(fk + 0.83, sd + 5.0)), pvHash(vec2(fk + 0.29, sd + 6.0)), pvHash(vec2(fk + 0.71, sd + 7.0)), pvHash(vec2(fk + 0.47, sd + 8.0)));
-          float s = h.x < 0.5 ? u : L - u;                                // along, from the end this pass starts at
           vec3 F = h2.z < 0.3 ? PV_FLEET0 : (h2.z < 0.5 ? PV_FLEET1 : PV_FLEET2);   // half taildraggers, half the Cessna
-          float s0, s1, c0, c1, lam, fadeOut, landing = 0.0;
-          if (h.y < 0.55) { landing = 1.0; s0 = L * (0.08 + 0.22 * h.z); s1 = min(L - 3.0, s0 + L * (0.35 + 0.45 * h.w)); c0 = (h2.x - 0.5) * halfW * 0.55; c1 = (h2.y - 0.5) * halfW * 0.12; lam = 12.0 + L * 0.1; fadeOut = 2.5; }
-          else if (h.y < 0.85) { s0 = 4.0 + L * 0.04 * h.z; s1 = L * (0.3 + 0.35 * h.w); c0 = (h2.x - 0.5) * halfW * 0.18; c1 = c0 * 0.4; lam = 30.0; fadeOut = max(20.0, L * 0.12); }
-          else { s0 = 3.0; s1 = L - 3.0; c0 = (h2.x < 0.5 ? -1.0 : 1.0) * halfW * (0.28 + 0.14 * h2.y); c1 = c0; lam = 50.0; fadeOut = 3.0; }
-          float sp = s - s0;
-          if (sp < -16.0 || s > s1 + 0.5) continue;
-          float on = smoothstep(-0.4, 0.4, sp) * (1.0 - smoothstep(s1 - fadeOut, s1, s));
-          // the touchdown's skips: a short mark or two before the wheels stay down
-          on = max(on, landing * 0.55 * (smoothstep(-14.5, -14.0, sp) * (1.0 - smoothstep(-11.5, -11.0, sp)) + smoothstep(-7.0, -6.6, sp) * (1.0 - smoothstep(-5.2, -4.8, sp))));
-          if (on < 0.01) continue;
           float ht = F.x, lim = max(halfW - ht - F.y - 0.5, 0.0);
-          float c = clamp(c1 + (c0 - c1) * exp(-max(sp, 0.0) / lam) + 0.8 * (pvNoise(vec2(s / 37.0 + fk * 7.3, sd + fk)) - 0.5) + 0.12 * (pvNoise(vec2(s / 7.0 + fk * 3.1, sd + fk + 0.5)) - 0.5), -lim, lim);
+          // the line: where the pilot held it (most near the centreline), and its wander
+          float c = (h.x - 0.5) * halfW * (h.y < 0.7 ? 0.35 : 0.8)
+                  + 0.9 * (pvNoise(vec2(u / 61.0 + fk * 7.3, sd + fk)) - 0.5) + 0.35 * (pvNoise(vec2(u / 17.0 + fk * 3.1, sd + fk + 0.5)) - 0.5)
+                  + 0.06 * (pvNoise(vec2(u / 4.0 + fk * 1.7, sd + fk + 0.25)) - 0.5);
+          c = clamp(c, -lim, lim);
+          // a pass that turned off: from ux on it curves out over a side (a 14-26 m radius), off the strip and out of sight
+          if (h.z < 0.3) { float ux = L * (0.25 + 0.6 * h.w), du = (h2.x < 0.5 ? 1.0 : -1.0) * (u - ux);
+            if (du > 0.0) c += (h2.y < 0.5 ? -1.0 : 1.0) * du * du / (2.0 * (14.0 + 12.0 * h2.y)); }
+          if (abs(v - c) > ht + 1.0) continue;
           float fresh = fk < uRoad.y ? 1.0 : 0.0, age = fresh > 0.5 ? 1.0 : 0.18 + 0.32 * h2.w;
-          float brake = landing * smoothstep(s1 - 12.0, s1 - 3.0, s);   // braking before the stop: wider, smeared, no tread
-          float w = F.y * (1.0 + (1.0 - age) * 1.6 + brake * 0.6);   // an old track is wider and softer: rain, the next wheels
-          float k0 = on * age * PV_THIN(2.0 * w), dk = uRut.z * w / 0.42;   // a track's relief in proportion to its width
+          float on = 0.55 + 0.45 * pvNoise(vec2(u / 45.0 + fk * 5.0, sd + fk + 2.0));          // heavier and lighter along it, never gone
+          float w = F.y * (1.0 + (1.0 - age) * 1.6);                                           // an old track is wider and softer
+          float k0 = on * age * PV_THIN(2.0 * w), dk = uRut.z * w / 0.42;                      // a track's relief in proportion to its width
           for (int j = 0; j < 4; j++) {
             if (j == 3) break;
             // the mains (j 0, 1), and the third wheel: a nose wheel as a main on the centre, a tail wheel faint, narrow, swivelling
@@ -1126,8 +1126,8 @@ vec2 pvTyre(float x, float w) {
             if (abs(x) > wj * 2.5) continue;
             vec2 t = pvTyre(x, wj);
             rr.y += t.y * dk * kj * 0.5; rut = max(rut, t.x * kj);
-            // the imprint: a fresh pass's lugs (not where it braked: a skid smears them)
-            if (imp > 0.01 && fresh > 0.5 && brake < 0.5 && third < 0.5 && t.x * on > 0.05) {
+            // the imprint: a fresh pass's lugs
+            if (imp > 0.01 && fresh > 0.5 && third < 0.5 && t.x * on > 0.05) {
               float sj = sd + fk + float(j) * 3.0;
               float t0 = pvTread(u, x, wj, sj), tu = pvTread(u + 0.012, x, wj, sj), tv = pvTread(u, x + 0.012, wj, sj);
               float lugK = imp * t.x * on;
@@ -1136,25 +1136,20 @@ vec2 pvTyre(float x, float w) {
               tread = max(tread, t0 * lugK);
             }
           }
-          tread = max(tread, brake * on * age * (1.0 - smoothstep(0.0, w * 2.0, min(abs(v - c - F.x), abs(v - c + F.x)))) * 0.6);   // the skid's smear
         }
         // THE LANES: the ground the passes compacted - their expected density across (the fleet's mean half-track,
-        // spread by the wander, and the centre wheel's lane), ragged, a little wider where they touch down
+        // spread by the wander, and the centre wheel's lane), ragged
         float sig = 0.35 + 0.05 * halfW, mh = PV_FLEET_MEAN;
         float vv = abs(v) + (pvNoise(vec2(u / 11.0, seed + 4.0)) - 0.5) * 0.4;
         float l1 = (vv - mh) / sig, l2 = v / (sig * 0.8);
         float ln = max(exp(-l1 * l1), 0.55 * exp(-l2 * l2));
         wheel = ln * uSoft.z * uRoad.w * (0.75 + 0.25 * pvNoise(uvS / 3.0)) * (0.85 + 0.3 * pvNoise(uvS / vec2(4.0, 0.7) + 5.0));
-        // THE ENDS: the turn-around (a taildragger pivots on one main wheel: the other draws the track's circle) and the
-        // run-up's scour behind it (the blast blew the loose stuff off the packed ground, in streaks along the strip)
+        // THE RUN-UP'S SCOUR at each end: behind where the aeroplane ran up, facing down the strip, the blast blew the
+        // loose stuff off the packed ground, in streaks along the strip
         if (uRubber2.w > 0.001) for (int e = 0; e < 2; e++) {
           float fe = float(e), se = e == 0 ? u : L - u;
           if (se > 26.0) continue;
-          vec2 hc = vec2(pvHash(vec2(fe, sd + 21.0)), pvHash(vec2(fe, sd + 22.0)));
-          vec2 o = vec2(7.0 + 9.0 * hc.x, (hc.y - 0.5) * max(halfW - 2.0, 0.0) * 0.6);
-          float R = PV_FLEET_MEAN * 2.0 * (0.95 + 0.1 * hc.y);
-          vec2 t = pvTyre(length(vec2(se, v) - o) - R, 0.1);
-          rut = max(rut, t.x * uRubber2.w * 0.7 * PV_THIN(0.2));
+          vec2 o = vec2(7.0 + 9.0 * pvHash(vec2(fe, sd + 21.0)), (pvHash(vec2(fe, sd + 22.0)) - 0.5) * max(halfW - 2.0, 0.0) * 0.3);
           float sq = (v - o.y) / (1.2 + 0.18 * max(o.x - se, 0.0));
           float sc = (1.0 - smoothstep(o.x - 9.0, o.x + 1.0, se)) * smoothstep(-0.5, 2.0, se) * exp(-sq * sq);
           float stk = smoothstep(0.35, 0.75, pvNoise(vec2(se / 2.5, (v - o.y) / 0.22) + fe * 9.0 + sd));
