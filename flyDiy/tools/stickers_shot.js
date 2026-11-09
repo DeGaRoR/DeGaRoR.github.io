@@ -198,8 +198,8 @@ const MK = id => ['stol-river', 'grizzly-range', 'orca', 'winged-prop', 'midnigh
       S.traverse(o => { if (!o.isMesh || !o.visible || !o.geometry || !o.geometry.attributes.position) return;
         const ms = Array.isArray(o.material) ? o.material : [o.material];
         if (!ms.some(m => m && m.userData && m.userData.aeroskin && (m.userData.aeroWing | 0) === 0)) return;
-        // (only a surface whose material TAKES a decal: the float's V-bottom declines one, and a sticker centred on the hull
-        // lost its middle there - measured, its toes showed under the gunwale and its pad did not)
+        // (only a surface whose material TAKES a decal; on the Twin busher's floats that is the whole hull, keel to deck - the
+        // bear paw tried there first read as toes only because its pad is mostly the cut-out landscape, not a decline)
         const takes = ms.some(m => m && m.userData && m.userData.aeroskin && (m.userData.aeroWing | 0) === 0 &&
           !(m.userData.aeroU && m.userData.aeroU.uDecOk && !m.userData.aeroU.uDecOk.value));
         const P = o.geometry.attributes.position, st = Math.max(1, Math.floor(P.count / 4000));
@@ -247,8 +247,8 @@ const MK = id => ['stol-river', 'grizzly-range', 'orca', 'winged-prop', 'midnigh
           2: { On: 1, Mk: MK('orca'), Col: ink, Mir: 1, H: +(fin.H * 0.45).toFixed(2), L: +fin.L.toFixed(2), C: +(fin.C + fin.H * 0.05).toFixed(2), Tgt: 6, Mode: 1 },
           // (the wing without the registration's wing copy; the trim's orange on the white and green: the dark green vanished)
           4: { On: 1, Mk: MK('midnight-valley'), Col: ink, H: 1.0, L: +(wing.L + wing.W * 0.27).toFixed(2), C: +wing.C.toFixed(2), Tgt: 4, Mode: 2 },
-          // THE FLOATS TAKE STICKERS (the user, 9 Nov): the winged prop (a wide mark) on both floats' sides, in the side box on
-          // the forward half, centred in the band of the hull that takes a decal (measured: floatOf's `band`),
+          // THE FLOATS TAKE STICKERS (the user, 9 Nov): the winged prop (a wide, solid mark: the bear paw's cut pad did not read
+          // at that size) on both floats' sides, in the side box on the forward half, centred on the hull (floatOf's `band`),
           // in the trim's orange (dark green vanished into the float's green side); the letters are still declined there
           3: flt ? { On: 1, Mk: MK('winged-prop'), Col: ink, H: +Math.max(0.10, Math.min(0.30, (flt.band[1] - flt.band[0]) * 0.8)).toFixed(2), L: +(flt.y - flt.len * 0.18).toFixed(2), C: +((flt.band[0] + flt.band[1]) / 2).toFixed(2), Tgt: 0, Mode: 1 } : undefined,
         };
