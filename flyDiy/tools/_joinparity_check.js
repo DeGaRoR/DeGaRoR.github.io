@@ -217,7 +217,10 @@ const DOORS = {
     // (G2818 MASTER-GREEN, the census of 8 Nov: the real page with the file as its autosave (flydiy.wip) - soft_still /
     // live_driver for DMG-GLASS's and DMG-SCUFF's stills, TERRAIN-MATCH's headless still; LIVERY-5's fleet Import on the real
     // dev.html; FLOAT-DUP's GARAGE_SPEC.set in Chrome, as cowl_res_probe)
-    'dmg_glass_stills', 'dmg_scuff_evidence', 'terrain_still', 'livery5_shot', '_floatdup_check'],
+    'dmg_glass_stills', 'dmg_scuff_evidence', 'terrain_still', 'livery5_shot', '_floatdup_check',
+    // (DIRT-STRIP 9 Nov: the strip stills hand the Cub's file to the real page as its autosave (flydiy.wip) - the page's
+    // own load chain)
+        'dirt_strip_stills'],
   // through a loader that is itself on the chain: pilot_trace.js specOf (a .json key; pilot_matrix.js flies its cells
   // through it), _treecrash_lib.js defOf
   viaPilotTrace: ['_pilotact_check', '_plan_check', '_rwytrees_check', '_taxiclear_check', 'pilot_matrix',
