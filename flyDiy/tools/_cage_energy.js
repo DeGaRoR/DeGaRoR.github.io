@@ -2288,6 +2288,96 @@ function matWet(bad) {
   wetMat.emissiveIntensity = bad ? 0.45 : 0;
   return wetMat;
 }
+// THE WING TANK, SEEN (WING-STRUCTURE, the user 9 Nov: "the tank on the cessna ... its texture looks wrong, we could
+// give its material, model and texture a little more love"). It was the simple one (buried between the spars, nobody
+// saw it); the fiche's cutaway and the garage's see-inside show it now. Its SHELL, when it is bare alloy (the welded
+// tank's own, FINISH_OF.alu - the default): AEROSKIN's bareAlu in its hardware branch (no surface field: triplanar), the
+// finish the aeroplane's own alloy wears, the tank's tint kept - the vessel set's scanned alu at 0.4 m a repeat read as
+// a dark mottle over a 2 m top. Any other finish, and the red of a tank that does not fit, stay the vessel library's.
+function wingShellMat(bad, i, v) {
+  const A = (typeof window !== 'undefined' && window.AEROSKIN) || null;
+  if (bad || finishOf(v) !== 'alu' || !A || !A.aeroMaterial) return slotMat('shell', bad, i, v);
+  const t = tintOf(v), tint = typeof t === 'string' && /^#?[0-9a-f]{6}$/i.test(t) ? parseInt(t.replace('#', ''), 16) : null;
+  return A.aeroMaterial(THREE, { finish: 'bareAlu', tint: tint != null && tint !== FINISH.alu.col ? tint : null,
+                                 surf: 0, fieldM: 1, side: THREE.DoubleSide, opacity: 1, inside: 0, decals: 0 });
+}
+// ...and ITS HARDWARE, as a welded wing tank has it (a 172's, a PA-18's): the end flanges (the seams the end plates are
+// welded on), the filler neck with its cap at the top outboard end, the sump drain at the lowest inboard corner, the
+// outlet fitting and its line running inboard, the vent line, two hold-down straps over the top. Off its own outline:
+// the bay's sections where the wing was probed (s.ribs: [z, yTop, yBot] rows), its box otherwise. Garage and fiche only:
+// every piece is a marker (edMarker - the join never flies it), in the vessel library's own hardware / seal / cap slots.
+function wingTankDress(group, s, i, bad) {
+  const T3 = THREE, sg = s.x1 >= s.x0 ? 1 : -1, nm = 'edVessel_' + i + (s.sign > 0 ? 'R' : 'L') + '_dress';
+  // the outline at a span station x: [[z, y], ...] round the section (top fore -> aft, bottom aft -> fore)
+  const outline = x => {
+    const R = s.ribs;
+    if (R && R.length >= 2) {
+      let k = 0; while (k < R.length - 2 && (x - R[k + 1].x) * sg > 0) k++;
+      const a = R[k], b = R[k + 1], t = MathL.max(0, MathL.min(1, (x - a.x) / ((b.x - a.x) || 1)));
+      const n = MathL.min(a.pts.length, b.pts.length), top = [], bot = [];
+      for (let j = 0; j < n; j++) { const pa = a.pts[j], pb = b.pts[j];
+        const z = pa[0] + (pb[0] - pa[0]) * t, yT = pa[1] + (pb[1] - pa[1]) * t, yB = pa[2] + (pb[2] - pa[2]) * t;
+        top.push([z, yT]); bot.push([z, yB]); }
+      return top.concat(bot.reverse());
+    }
+    const f = (x - s.x0) / ((s.x1 - s.x0) || 1), zF = s.zF0 + (s.zF1 - s.zF0) * f, zR = s.zR0 + (s.zR1 - s.zR0) * f;
+    const y0 = s.y - s.d / 2, y1 = s.y + s.d / 2;
+    return [[zF, y1], [zR, y1], [zR, y0], [zF, y0]];
+  };
+  const pos = [], idx = [];
+  const tube = (pts, r, n, closed) => {   // a round section swept along points
+    const base = pos.length / 3, ring = pts.length;
+    for (let j = 0; j < ring; j++) {
+      const a = pts[j], b = pts[closed ? (j + 1) % ring : MathL.min(ring - 1, j + 1)], c = pts[closed ? (j - 1 + ring) % ring : MathL.max(0, j - 1)];
+      let tx = b[0] - c[0], ty = b[1] - c[1], tz = b[2] - c[2]; const L = MathL.hypot(tx, ty, tz) || 1; tx /= L; ty /= L; tz /= L;
+      let ux = 0, uy = 1, uz = 0; if (MathL.abs(ty) > 0.9) { ux = 1; uy = 0; }
+      let px = uy * tz - uz * ty, py = uz * tx - ux * tz, pz = ux * ty - uy * tx; const P = MathL.hypot(px, py, pz) || 1; px /= P; py /= P; pz /= P;
+      const qx = ty * pz - tz * py, qy = tz * px - tx * pz, qz = tx * py - ty * px;
+      for (let k = 0; k < n; k++) { const an = 2 * MathL.PI * k / n, cs = MathL.cos(an) * r, sn = MathL.sin(an) * r;
+        pos.push(a[0] + px * cs + qx * sn, a[1] + py * cs + qy * sn, a[2] + pz * cs + qz * sn); }
+    }
+    for (let j = 0; j < (closed ? ring : ring - 1); j++) for (let k = 0; k < n; k++) {
+      const a = base + j * n + k, b = base + ((j + 1) % ring) * n + k, c = base + ((j + 1) % ring) * n + (k + 1) % n, d = base + j * n + (k + 1) % n;
+      idx.push(a, b, c, a, c, d); }
+  };
+  const mesh = (slot, name) => {
+    if (!idx.length) return;
+    const g = new T3.BufferGeometry();
+    g.setAttribute('position', new T3.Float32BufferAttribute(pos.slice(), 3)); g.setIndex(idx.slice()); g.computeVertexNormals();
+    const m = new T3.Mesh(g, slotMat(slot, bad)); m.name = nm + '_' + name; m.userData.edMarker = 1; group.add(m);
+    pos.length = 0; idx.length = 0;
+  };
+  const at = (x, z, y) => [x, y, z];
+  const L = MathL.abs(s.x1 - s.x0), xa = s.x0 + sg * 0.004, xb = s.x1 - sg * 0.004;
+  // the end flanges (a welded lip round each end plate) and two hold-down straps over the top, rubber-lined
+  for (const x of [xa, xb]) tube(outline(x).map(p => at(x, p[0], p[1])), 0.006, 6, true);
+  mesh('hard', 'flange');
+  const out = (x, o) => { const O = outline(x), n = O.length, c = O.reduce((q, p) => [q[0] + p[0] / n, q[1] + p[1] / n], [0, 0]);
+    return O.map(p => { const dz = p[0] - c[0], dy = p[1] - c[1], l = MathL.hypot(dz, dy) || 1; return [p[0] + o * dz / l, p[1] + o * dy / l]; }); };
+  for (const f of [0.3, 0.7]) { const x = s.x0 + (s.x1 - s.x0) * f; tube(out(x, 0.006).map(p => at(x, p[0], p[1])), 0.005, 4, true); }
+  mesh('hard', 'straps');
+  for (const f of [0.3, 0.7]) { const x = s.x0 + (s.x1 - s.x0) * f; tube(out(x, 0.002).map(p => at(x, p[0], p[1])), 0.0035, 4, true); }
+  mesh('seal', 'strapPads');
+  // the filler neck at the top, outboard, mid-chord; its cap; the vent line from the top outboard corner
+  { const x = s.x1 - sg * MathL.min(0.15, 0.2 * L), O = outline(x), topPts = O.slice(0, MathL.max(2, O.length >> 1));
+    const z = 0.5 * (topPts[0][0] + topPts[topPts.length - 1][0]), y = topPts.reduce((m, p) => MathL.max(m, p[1]), -1e9);
+    tube([at(x, z, y - 0.01), at(x, z, y + 0.045)], 0.032, 14, false);
+    mesh('hard', 'neck');
+    tube([at(x, z, y + 0.045), at(x, z, y + 0.06)], 0.038, 14, false);
+    mesh('mark', 'cap');
+    const vz = topPts[topPts.length - 1][0], vy = topPts[topPts.length - 1][1];
+    tube([at(x + sg * 0.06, vz, vy), at(x + sg * 0.06, vz, vy + 0.03), at(x + sg * 0.25, vz, vy + 0.035)], 0.0045, 6, false);
+    mesh('hard', 'vent'); }
+  // the sump drain at the lowest point of the inboard end, the outlet fitting and its line inboard toward the root
+  { const x = s.x0 + sg * 0.06, O = outline(x), bot = O.slice(O.length >> 1);
+    let lo = bot[0]; for (const p of bot) if (p[1] < lo[1]) lo = p;
+    tube([at(x, lo[0], lo[1] + 0.005), at(x, lo[0], lo[1] - 0.028)], 0.009, 10, false);
+    const fr = bot[bot.length - 1];   // the bottom's fore corner
+    tube([at(s.x0 + sg * 0.02, fr[0] - 0.02, fr[1] + 0.02), at(s.x0 - sg * 0.04, fr[0] - 0.02, fr[1] + 0.02)], 0.012, 10, false);
+    mesh('hard', 'fittings');
+    tube([at(s.x0 - sg * 0.04, fr[0] - 0.02, fr[1] + 0.02), at(s.x0 - sg * 0.30, fr[0] - 0.03, fr[1] + 0.01), at(s.x0 - sg * 0.55, fr[0] - 0.03, fr[1] - 0.02)], 0.006, 8, false);
+    mesh('seal', 'line'); }
+}
 // the fuel's own look: avgas is dyed blue, mogas is straw
 let fuelMats = {};
 function fuelMat() {
@@ -2586,8 +2676,9 @@ function drawResults(group, ctx, results) {
         // (VESSEL_GEN.wingRibs off the wing layer's probes): the loft, and
         // the fuel inside it cut flat at the slider's level. The box below
         // is what a wing with no probe still gets.
+        if (!wet && EN.kind !== 'battery') wingTankDress(group, s, i, bad);   // WING-STRUCTURE: its hardware (the cutaway shows it)
         if (s.ribs && s.ribs.length >= 2 && VM.wingLoft) {
-          const mat = wet ? matWet(bad) : slotMat('shell', bad, i, r.v);
+          const mat = wet ? matWet(bad) : wingShellMat(bad, i, r.v);
           if (!wet)
             slotMesh(group, VM.wingLoft(s.ribs, tileOf(finishOf(r.v))), mat,
                      'edVessel_' + i + (s.sign > 0 ? 'R' : 'L'), [0, 0, 0], 0);
@@ -2602,7 +2693,7 @@ function drawResults(group, ctx, results) {
           [s.x0, y0, s.zR0], [s.x0, y0, s.zF0], [s.x0, y1, s.zF0], [s.x0, y1, s.zR0],
           [s.x1, y0, s.zR1], [s.x1, y0, s.zF1], [s.x1, y1, s.zF1], [s.x1, y1, s.zR1],
         ];
-        const mat = wet ? matWet(bad) : slotMat('shell', bad, i, r.v);
+        const mat = wet ? matWet(bad) : wingShellMat(bad, i, r.v);
         if (!wet)
           slotMesh(group, VM.wingBox(p8, tileOf(finishOf(r.v))), mat,
                    'edVessel_' + i + (s.sign > 0 ? 'R' : 'L'), [0, 0, 0], 0);
