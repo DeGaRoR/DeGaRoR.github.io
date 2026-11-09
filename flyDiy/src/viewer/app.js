@@ -5459,13 +5459,18 @@
     brkRecOrder(groups, D, K, o);
     const tm = performance.now(); let tRec = 0, tEv = 0, bud = inhOn ? 0 : BRK_BIND, recLeft = REC_BUDGET;
     BRK.recPending = false;
+    let sdNow = groups.some(g => g[0].brkR && brkSd(g[0]));   // (LINER-BACK: a side bucket already made: the rest come now)
     for (const [own, , pa, base, off, fab] of groups) {
       const geo = K.geoOf.get(pa);
       if (!geo || !geo.index) continue;
       const t0 = performance.now();
       // (G1869: the records made REC_BUDGET vertices a frame - the weld and the nearest node over the whole snapshot at once
       // was a 95 ms frame at the first break; a group without its record yet keeps the cage's own pose a frame or two)
-      if (!own.brkR && brkFast() && recLeft <= 0) { BRK.recPending = true; continue; }
+      // (LINER-BACK, CABIN-CRAFT's audit 5: the lined skins and their back faces are made ALL IN ONE FRAME, or none - a
+      // pair split across frames was two bindings, the back face's nearest-node while its skin inherited. COST: that
+      // frame makes every '|f' / '|b' record past REC_BUDGET - the cabin's lined panels, named in the ready)
+      if (!own.brkR && brkFast() && recLeft <= 0 && !(brkSd(own) && sdNow)) { BRK.recPending = true; continue; }
+      if (!own.brkR && brkSd(own)) sdNow = true;
       if (!own.brkR) {
         recLeft -= pa.count;
         brkDetach(pa, geo, base);                          // G1858.2: the snapshot never ridden
@@ -5600,8 +5605,20 @@
     const mt = model.mats && model.mats[own.name], sec = mt && mt.sec, role = sec ? (AEROSKIN.AERO_ROLE[sec] || '') : '';
     const rg = lay.get(own.name) || [], layer = new Array(nv).fill('');
     for (const r of rg) for (let v = r[2]; v < r[3] && v < nv; v++) { layer[v] = r[0]; obj[v] = r[4]; }
-    for (let v = 0; v < nv; v++) cv[v] = SKIN_BREAK.inhClass(sec, role, layer[v]);
+    for (let v = 0; v < nv; v++) cv[v] = SKIN_BREAK.inhClass(sec, role, layer[v], brkSd(own));
     return layer;
+  }
+  // LINER-BACK (9 Nov): a named bucket's side - 'b' the liner drawn as the skin's own back face, 'f' the skin it lines
+  // (_cage_join.js sd on the payload's material; its key ends '|b' / '|f')
+  function brkSd(own) { if (!own || !own.name) return '';
+    const mt = model.mats && model.mats[own.name]; if (mt && mt.sd) return mt.sd;
+    const m = /\|([bf])$/.exec(own.name); return m ? m[1] : ''; }
+  // LINER-BACK: each back-face record takes the tear rule of the skin record most of its triangles sit on (E.tw)
+  function brkBackTear(L) {
+    for (const E of L) { if (!E.back || !E.tw) continue; const cnt = new Map(), tw = E.tw; let best = -1, bn = 0;
+      for (let t = 0; t < tw.length; t += 2) { const r = tw[t]; if (r < 0) continue; const k = (cnt.get(r) || 0) + 1; cnt.set(r, k); if (k > bn) { bn = k; best = r; } }
+      if (best < 0) continue; const C = L[best].R, R = E.R;
+      R.noTear = !!C.noTear; R.tubeTear = !!C.tubeTear; R.sheetTear = !!C.sheetTear; R.shellTear = !!C.shellTear; R.backOf = L[best].name; }
   }
   function brkInhStep(groups) {
     const K = model.brk, SB = SKIN_BREAK;
@@ -5645,6 +5662,10 @@
         R.noTear = has(SB.INH.tube) || (has(SB.INH.rigid) && !has(SB.INH.cover)) || (has(SB.INH.cover) && !fabric);
         R.tubeTear = has(SB.INH.tube) && !has(SB.INH.cover); R.sheetTear = has(SB.INH.cover) && !fabric;   // (G1859.3: a tube tears at 1.2 x + 3 mm, never drawn longer)
         R.shellTear = R.sheetTear && brkComposite();   // (G2047: a composite covering cracks at 5 % + 1 cm)
+        // (LINER-BACK, CABIN-CRAFT's audit 2: a back face tears by ITS SKIN's rule - the default 15 % + 1 cm tore the
+        // cloth / toele inside a metal or composite skin that held: a hole from inside, the outside whole. No tear of its
+        // own until the binding knows its skin triangles; then the rule of the skin most of them are on, brkBackTear)
+        if (brkSd(own) === 'b') { E.back = true; R.noTear = true; R.tubeTear = R.sheetTear = R.shellTear = false; }
         R.inhRec = true; E.name = own.name || kind || ''; L.push(E);   // (the name: the rigs' tear accounting)
       }
       K.inhL = L; K.inhSt = {}; K.inhGone = -1;
@@ -5652,7 +5673,7 @@
     }
     if (K.inhSt.done) return;
     const r = K.inhIt.next();
-    if (r.done) { for (const E of K.inhL) { E.R.vB = -1; } }       // (every record's event made again on the binding)
+    if (r.done) { for (const E of K.inhL) { E.R.vB = -1; } brkBackTear(K.inhL); }       // (every record's event made again on the binding)
   }
 
   // G1858 (DMG-WALL): THE INSIDE WALL CUT AT THE DAMAGE (skin_break.js cutWall: the user's fallback - the lining poked
@@ -5759,10 +5780,12 @@
     // the old binding's records: the lining's sections (G1858)
     const recs = [];
     for (const [own] of groups) { const R = own.brkR; if (!R) continue;
-      if (R.wallIn == null) { const mt = own.name && model.mats ? model.mats[own.name] : null; R.wallIn = !!(mt && mt.sec && WALL_ROLES.has(AEROSKIN.AERO_ROLE[mt.sec])); }
+      if (R.wallIn == null) { const mt = own.name && model.mats ? model.mats[own.name] : null; R.wallIn = !!(mt && mt.sec && WALL_ROLES.has(AEROSKIN.AERO_ROLE[mt.sec])) && brkSd(own) !== 'b'; }
       if (R.wallIn) recs.push(R); }
     // the inherited binding's: every record with wall places (the lining, the beads, the glazing - G1858.3)
-    const inh = mode === 'inh' || wasMode === 'inh' ? (K.inhL || []).filter(E => E.cv.indexOf(SKIN_BREAK.INH.wall) >= 0) : [];
+    // (LINER-BACK, CABIN-CRAFT's audit 4: a back face is never cut - it lies ON its skin and cannot poke through; cut, the
+    // crushed bay was a hole the cabin saw out of)
+    const inh = mode === 'inh' || wasMode === 'inh' ? (K.inhL || []).filter(E => !E.back && E.cv.indexOf(SKIN_BREAK.INH.wall) >= 0) : [];
     if (mode !== wasMode && wasMode !== 'off') {         // the mode changed (or switched off): the cut triangles back as they were
       const back = (wasMode === 'inh' ? inh.map(E => E.R) : recs);
       for (const R of back) { if (!R.dead || !R.idx0) continue; let n = 0;
