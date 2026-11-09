@@ -313921,3 +313921,137 @@ TIMED GATE: light, the same shape as L36a.
 - Steady frames p50 33.3 ms on every flown row; no frame over 1 s in any taxi, take-off or flight segment.
 - The >1 s gaps are all in the garage stand before the reveal (cub chase 5.2 s; the discarded warm_metal 9.0 s + 7.1 s): the cold GPU shader cache, master_bench's MISS, as L35a-L36a.
 - The floats take-off has one 133 ms frame.
+
+## WING-STRUCTURE - THE CUTAWAY'S MISSING WING DRAWN AS ITS STRUCTURE, OFF THE ROWS THAT FLY IT (9 Nov 2026, cloud, WING-STRUCTURE for the user via A0; branch claude/wing-structure -> claude/ready/wing-structure)
+
+The user, on the fiche ("the fiche is beautiful"): the cutaway takes the wings off, so it has a missing wing - replace it
+with the wing's proper internal structure; the reference is their own Jodel wing hanging in the shed
+(assets/jodel_structure, airframe_jodel_wing). GRAPHICS ONLY: no physics, no behaviour change.
+
+THE RESEARCH: futureDesigns/WING-STRUCTURE-STUDY-2026-11.md - the Jodel (box spar, truss ribs, ply D-box), the J-3 / PA-18
+(two spars, stamped alloy ribs, drag wires and compression struts, alloy LE sheet, a fitting on each spar), the 172
+(channel spars, flanged plate ribs with lightening holes, stringers), the moulded wing; 52 sources, ESTIMATE where none.
+The user's own wing MEASURED off its OBJ: rib pitch 0.38 m (the game's rule 0.40), the spar at 13-19 % chord (the game's
+15 %). CORRECTION TO THE BRIEF: the real Super Petrel's wing is aluminium tube spars + foam ribs + fabric, not carbon; the
+game builds it from the carbon row and the drawing follows the row (an open question below).
+
+WHAT: src/viewer/wing_struct.js (window.WING_STRUCT; pure plan() + make(), node-loadable). Every member stands on a row:
+- the spars at parts.planes[k].sparFront / sparRear, on the spar nodes' frame exactly as 63_gen_wing.js lofts the covering
+  (frameAt / wingSectionAt, line for line): the surface field's integer rails, the lines the covering's normal texture prints;
+- the ribs at the root + the deduped parts.ribZ (61_gen_frame's 0.4 m rule, the mass model's): the field's integer stations;
+- the bays: compression struts at the spar stations, crossed drag / anti-drag wires = the frame's plan diagonals (the members
+  the solver breaks);
+- an alloy wing's stringers at GEN_BUILD_GRAMMAR[row].stringerPitch (the metric stringers aeroskin prints);
+- the controls' hinge spars / false spar / TE at genWingInto's bands; fittings at the root and at wf.strutF / strutR.
+THE KIND is the construction row (genSurfKey) - fabric (cantilever -> dbox, the Jodel; strut-braced -> cub, the J-3), steel,
+aluFabric, fabricAlu (REAL-FIGURES-3's, ready for it), alloy, carbon, glass. No new material row: the fabric row splits on
+the bracing the build already has (a cantilever wooden wing carries torsion in its D-box, a braced one in struts and wires).
+FOUND ON THE WAY: on a TAPERED wing the solver's rear-spar nodes keep a constant spacing (61_gen_frame sparSpacing) while
+the covering prints the rear spar at 65 % of the LOCAL chord (up to 40 cm apart at the 172's tip). The drawing follows the
+print (the brief); the wreck binds by nearness, unaffected. Not touched (physics).
+
+LIGHT: one geometry per wing half, a draw per FINISH (1 on the 172, 3 at most: the Jodel's spruce, ply and steel
+fittings). BUDGET per half: LOD 0 (the cutaways) 12 000 triangles, LOD 1 (a wreck) 7 000, 3 draws (GATE WINGSTRUCT);
+the twin (16 ribs a side) is the worst validated. Built in 7-35 ms a wing set in node. Not indexed for its own sake:
+each triangle its three vertices (flat-sawn members, the finish shades by the vertex normal).
+THE FINISHES ARE THE FUSELAGE'S (the user's round 2: "the Jodel wood feels different", "even on the Cessna your metal
+looks different"): AEROSKIN's spruce / ply / bareAlu / steelTube / composite / gelcoat in its hardware branch (no surface
+field), each this file's own aeroDupe copy (the pool's is the fuselage's own - the structure writes a clip plane and a
+fiche variant on its copy only). Foam (the moulded kinds' web) has no finish row: MATLIB's plain material.
+THE SECTIONS (round 2: "a tad too little in section"): the user's own Jodel's sticks measure ~10 x 10 mm; the first cut
+drew 11 mm caps, 9 mm diagonals, 4 mm wires - hairlines at the fiche's ~10 mm a pixel. ~30 % up within the real band:
+wood caps 14, alloy rib caps 18, compression struts 22, wires 6 mm, gussets 64 x 44 (the study's 3.1 table).
+
+WHERE IT SHOWS:
+- THE FICHE'S CUTAWAY (plane_fiche.js, my seam only: NEAR_OFF's neighbours, cutOn / cutOff and two helpers): the near wing's
+  covering goes as before, its structure stands in its place, the near LIFT STRUTS stay (the brace layer and the wing
+  layer's edFit_liftstrut). The cut's three point lamps sit a metre outside the cut, at the wing root: the structure is lit
+  without point lights under the fiche (a material variant; spruce burnt to cream under them). draw() not touched.
+- THE GARAGE'S CUTAWAY BOX (_cage_ui.js, its 6-line onchange only): in the game's garage the box THREW (`renderer` is null
+  there: "setting clippingPlanes of null") - a dead control. Now: the bench keeps its global plane; the game's garage clips
+  the build's own materials (REF_MOUNT.setBuildClip, app.js) at the symmetry plane, and the cut side's wing shows its
+  structure (a never-negative local plane under clipIntersection, re-asserted onBeforeRender, so the build clip's walk
+  cannot take it). Built only while the box is on.
+- THE WRECK (app.js, Deform's skin-break draw; coordinate via A0): wsWreck() at the FIRST BROKEN WING MEMBER (both ends on
+  spar-station nodes), never before; LOD 1 in the snapshot's frame (Mi0 (p - og) - o), handed to brkCage as a rig of its own
+  (the struts' row) - bound, evented and ridden as the covering is: it parts where the solver's member parted. wsClear at the
+  heal / brkRestore. ?wingstruct=0 / FLYDIY_WINGSTRUCT = false: the A/B. frustumCulled off (it rides off its rest sphere).
+- THE DRIVE TRAINS WITHOUT THEIR FAIRINGS (the user 9 Nov, on the Petrel): every cowl / nacelle shell and pylon FAIRING
+  (engPylon in the cowl's section; the tube pylon bars stay) on the cut side outside the fuselage, or on the centreline
+  over it (the Petrel's pylon nacelle and tower), is a faint ghost (x-ray alpha) - the engine, mount, drive, prop stand;
+  the nose cowl is cut in half as before, the far nacelles keep theirs. The retractable gear's WELL OUTLINES (RETRACT G3
+  edWellGhost: the Petrel's "little boxes") leave the cutaway - they show in the hero / above views too: draw()'s, AIRCRAFT-
+  LOOKS' to hide there.
+- ROUND 2 IN THE CUTAWAY (the user, 9 Nov): the LAMP BAY's pocket (the D-nose's cover, strip and ribs stop at
+  CAGE_LIGHT_BAY's edges; side plates and a back wall; the near lamps kept); the near wing's TANKS kept in the open wing;
+  the cut side's WING NACELLES as faint ghosts (x-ray alpha; the engine, mount and propeller stand); POD AND ROD: the
+  taper's cladding (taperPanel - structure to see-inside, so never cut) hid the rod running through the taper to the aft
+  bulkhead (HULL-B37) - researched, nowhere drawn through - its near half is cut now as the covering's; the TIP BOW traced
+  on the frame's own chord law (the first ellipse overshot the Cub's tip).
+- SEE-INSIDE (the user's round 3: "the transparent setting in the editor also turns on wing transparency"): the wing's
+  covering takes the x-ray alpha with the fuselage's (_cage_wing.js wingMat: secMat's opacity) and the structure stands
+  in both wings. The capture never flies a see-through wing: the join pins `see inside` off (VIEW_STATE).
+- NORMAL FLIGHT: nothing built, nothing drawn. The join's snapshot skips it (edMarker). The see-inside view does not build it
+  (the wing's covering stays opaque there).
+The garage hook: NOT a post-chain registration (_cage_chain.js holds a fixed ORDER; one more kills every drag tick's plan) -
+the wing layer calls window.CAGE_WINGSTRUCT_DRAW at the end of its own turn, as it calls the tip floats.
+THE KIND IN THE GARAGE comes off the whole build's spec (GARAGE_SPEC.get()): the wing layer's def is lofted off the wing rows
+alone, and 'as the aeroplane' then read the generator's default fuselage - the 172 drew as a cloth wing (caught on the
+first cloud render, gated).
+
+GATE WINGSTRUCT (tools/_wingstruct_check.js, core, ~6 s, 212 checks, --selftest 14/14): on the 6 validated builds - the front spar
+within 1 mm of its nodes' chord line and the rear on the printed rail, ribs at every field station, every wire on a member
+of def.beams, stringers at the grammar's pitch, the kinds, the budget at both LODs, inside the covering's box, every row a
+kind, the texture's rules still the ones re-run, the core never names it, built only at a broken wing member / on demand,
+the join skips it, the garage reads the build's spec, the finishes AEROSKIN's copies, the lamp bay's pocket (nothing of
+the nose drawn in it), and the cutaway's round 2 (tanks kept, nacelles ghosted, the taper cut, struts and lamps kept).
+
+THE RIG: tools/wing_struct_shot.js (Playwright + SwiftShader in a cloud box; ~10 min boot): the fiche's own draw in the
+garage STUDIO (the shed's floor fills the matte: plane_fiche.js refuses the picture - master's cutaway does the same in the
+shed, structure or not), the garage presets with the box, and --crash (dmg_wreck_stills.js's own staging and eye, the crash
+run on a 320 x 200 viewport, the stills at full size; with / without the structure on the same frozen frame).
+
+THE PICTURES (reports/evidence/WING-STRUCTURE/, rendered in this cloud box: Playwright + SwiftShader, the game's page) -
+INTERIM: the user asked that the FULL SERIES be shot on the cowl session's update (proper-cowls: no mount plate on a
+nacelle - READY 1, merged into my local render tree; and the plate cut to the nacelle's shape as its firewall - asked of
+the cowl session, not yet pushed). These were shot before the drive-train ghost and the wells' hiding:
+- fiche_cutaway_{jodel_dbox, cub_j3, c172_alloy, twinbusher_cub, petrel_carbon, cub_as_aluFabric, cub_as_steel}.jpg - the
+  fiche's own draw (PLANE_FICHE.generate, store off) in the garage studio; the last two are the Cub with its wing row set
+  to aluFabric / steel (the garage's wgCons), so every kind of structure is on a picture. Framing is master's (yaw 50,
+  el 28): AIRCRAFT-LOOKS' lower, wider framing (A0's message) is theirs and lands with them;
+- garage_seeinside_*.jpg - the garage's SEE INSIDE: the wings see-through, the structure in both;
+- crash_cub_{wss,wsq}_{with,without}_structure.jpg - the user's Cub, page-stepped (?damage=1&simw=0, dmg_wreck_stills.js's
+  staging): a trunk at 30 m/s 3.8 m off the centreline, the outer wing torn off (29 members broken, at rest at t 11.1 s);
+  the same frozen frame with the structure and without it (its meshes hidden). LOD 1: 4.7k triangles a half.
+  (2.5 m off the centreline the wing broke off whole at the root, its covering hardly torn: little to see either way.)
+
+GATES (node, this branch, run_gates.js --no-build --jobs 1; master baseline on the same box, untouched worktree):
+- GREEN: WINGSTRUCT (new), PLANEFICHE, ASSETS, ASSETBUDGET, SKINMAT, PLANETHUMB, BUILD, WINGSPLIT, DMGWRECK, DMGSKINGPU,
+  DMGSCAR, STOL.
+- AS MASTER: JOINPARITY 5 FAIL - line for line master's (Cub/Jodel node=page masses, the Cub nose tank, the cessnaMetal
+  fixture bytes, the rogue tools list); GEN 1 FAIL "cruise is quiet in wind" - master's; its SHAKEDOWN line identical.
+- FRAMECOST 23 FAIL = MASTER WITH A STALE PARKED COOK, LINE FOR LINE: the parked fleet's cook is keyed on the build id
+  (parked_cook.js), any change stales it and the page then captures the parked aeroplanes live (stand 698 -> 1043 main
+  draws, all world, the flown aeroplane's own 74 / 89 draws unchanged). Proved by master + one comment line (a moved
+  build id): the identical 23 lines. The cook refuses a software renderer ("cook on the GPU"): A0's re-cook on the box
+  at train time clears it; master's own 5 boot lines stay.
+- PARKED: node's heap limit on this box, master the same (FATAL ... heap out of memory, both trees).
+- PHYSICS UNCHANGED BY CONSTRUCTION: tools/flight_core.js is byte-identical to master's (no src/core file touched); STOL
+  PASS on its pinned digest; GEN's SHAKEDOWN and JOINPARITY's lines as master's.
+
+OPEN QUESTIONS (defaults in brackets):
+1. The real Super Pétrel wing is aluminium tube spars + foam ribs + fabric; the game builds the Petrel's from the carbon
+   row, and the drawing follows the row (moulded caps on foam webs). Re-row the Petrel to aluFabric? A physics change,
+   not this chantier's. [leave the row; the drawing follows whatever it becomes]
+2. fabricAlu (REAL-FIGURES-3, not on master): its kind is ready (extruded I spars, stamped ribs, LE sheet, wires); it
+   needs its index in this rig's variant table when it lands. [no action until it lands]
+3. The wreck builds at the first broken WING member; a crash that tears the covering with no wing member broken shows
+   no structure. [as is: the covering tears where members break]
+4. The tapered wing's rear-spar nodes vs the printed rear spar (above): the drawing follows the print. [as is]
+5. A wing lamp bay in the WRECK: not drawn (the bay is a garage declaration the flown def does not carry). [as is]
+
+SEAMS TOUCHED OUTSIDE MY ZONE (for A0): app.js (Deform's brkCage: one call + one group row + wsWreck / wsClear beside
+brkRestore and the heal); _cage_wing.js (one call at the end of its post, as the tip floats; the covering's opacity under
+see-inside); _cage_ui.js (the cutaway box's onchange only - it threw in the game's garage); build.js (wing_struct.js in
+MANIFEST.viewer before garage.js); run_gates.js (the WINGSTRUCT row). plane_fiche.js: NEAR_OFF's neighbours, cutOn /
+cutOff and six helpers of mine - draw(), the hold, warm, yieldTask, the timing and the finally block untouched.
