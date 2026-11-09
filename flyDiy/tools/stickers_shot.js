@@ -35,7 +35,9 @@ const MK = id => ['stol-river', 'grizzly-range', 'orca', 'winged-prop', 'midnigh
   let browser = null;
   try {
     await sleep(1500);
-    browser = await PW.chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+    browser = await PW.chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist']
+      // the gamer preset's frames (shadows, MSAA, bloom) take seconds on SwiftShader: the GPU watchdog would lose the context
+      .concat(argv.includes('--nowatchdog') ? ['--disable-gpu-watchdog'] : []) });
     const page = await browser.newPage({ viewport: { width: size[0], height: size[1] } });
     page.setDefaultTimeout(2400 * 1000);
     page.on('pageerror', e => { R.errors.push(String(e.message || e).slice(0, 300)); log('PAGEERR', String(e.message).slice(0, 200)); });
@@ -166,30 +168,51 @@ const MK = id => ['stol-river', 'grizzly-range', 'orca', 'winged-prop', 'midnigh
       Object.assign(f.decals, { m5On: 1, m5Fit: 1, m5Tgt: tgt, m5Mode: mode, m5Alp: 0, m5Pat: 0 });
       CAGE_UI.finishFromSpec(f); CAGE_UI.build();
       await new Promise(r => setTimeout(r, 2000));
-      const d = (CAGE_UI.finishToSpec() || {}).decals || {};
-      return { L: d.m5L, C: d.m5C, W: d.m5W, H: d.m5H }; }, [tgt, mode, f0]);
+      // (the export holds DEVIATIONS: a fitted value that equals the layer's default is absent - read the default then)
+      const d = (CAGE_UI.finishToSpec() || {}).decals || {}, D0 = AEROSKIN.AERO_DEC_DEF;
+      const v = k => (d['m5' + k] != null ? d['m5' + k] : D0['m5' + k]);
+      return { L: v('L'), C: v('C'), W: v('W'), H: v('H') }; }, [tgt, mode, f0]);
+    // THE NOSE in the side box's own frame (craft y aft, z up): the body class's vertices in the first 0.45 m, through the
+    // shared uCraftInv - where a cowl sticker goes (the cowl takes the box projection only)
+    const noseOf = () => page.evaluate(() => {
+      const S = window.CAGE_UI_SCENE, U = AEROSKIN.aeroSharedU(THREE), M = U.uCraftInv.value, v = new THREE.Vector3(), pts = [];
+      S.updateWorldMatrix(true, true);
+      S.traverse(o => { if (!o.isMesh || !o.visible || !o.geometry || !o.geometry.attributes.position) return;
+        const ms = Array.isArray(o.material) ? o.material : [o.material];
+        if (!ms.some(m => m && m.userData && m.userData.aeroskin && (m.userData.aeroWing | 0) === 0)) return;
+        const P = o.geometry.attributes.position, st = Math.max(1, Math.floor(P.count / 4000));
+        for (let i = 0; i < P.count; i += st) { v.fromBufferAttribute(P, i).applyMatrix4(o.matrixWorld).applyMatrix4(M); pts.push([v.x, v.y, v.z]); } });
+      // the fuselage's own nose: vertices near the centreline (|x| < 0.5 m: not a float, not a boom)
+      const c = pts.filter(p => Math.abs(p[0]) < 0.5);
+      const y0 = Math.min(...c.map(p => p[1]));
+      const z = c.filter(p => p[1] < y0 + 0.45).map(p => p[2]).sort((a, b) => a - b);
+      return { y0, zMid: z.length ? (z[0] + z[z.length - 1]) / 2 : 0, zLo: z[0], zHi: z[z.length - 1], n: c.length }; });
     // THE COMPOSITIONS: 3-4 stickers a plane, placed off the measured boxes
     const COMPOSE = {
       async cub(P) {
-        const fin = await fitOf(6, 1), body = await fitOf(0, 1), fld = await fitOf(0, 0);
-        R.fits = { fin, body, fld }; log('fits', JSON.stringify(R.fits));
+        const fin = await fitOf(6, 1), nose = await noseOf();
+        R.fits = { fin, nose }; log('fits', JSON.stringify(R.fits));
         const ink = 0x1a1a1a;
+        // the right flank wears the grizzly (head to the nose as drawn), the left the moose (its art faces left: to the nose
+        // on that flank with no mirror) - the same place, between the cabin and the registration; the map on the fin both
+        // sides; the winged prop on the cowl both sides
         return {
-          1: { On: 1, Mk: MK('grizzly-range'), Col: ink, Mir: 1, H: 0.30, L: +(fld.L + fld.W * 0.30).toFixed(2), C: 0.02, Tgt: 0, Mode: 0 },
+          1: { On: 1, Mk: MK('grizzly-range'), Col: ink, Side: 1, H: 0.36, L: 3.05, C: 0.06, Tgt: 0, Mode: 0 },
           2: { On: 1, Mk: MK('alaska'), Col: 0x1f3550, H: +(fin.H * 0.42).toFixed(2), L: +(fin.L + fin.W * 0.04).toFixed(2), C: +(fin.C + fin.H * 0.02).toFixed(2), Tgt: 6, Mode: 1 },
-          3: { On: 1, Mk: MK('winged-prop'), Col: ink, H: 0.13, L: +(body.L - body.W * 0.5 + 0.55).toFixed(2), C: +(body.C + body.H * 0.08).toFixed(2), Tgt: 0, Mode: 1 },
-          4: { On: 1, Mk: MK('bull-moose'), Col: 0x8a1c14, Side: 2, Mir: 1, H: 0.22, L: +(fld.L + fld.W * 0.08).toFixed(2), C: -0.12, Tgt: 0, Mode: 0 },
+          3: { On: 1, Mk: MK('winged-prop'), Col: ink, H: 0.16, L: +(nose.y0 + 0.30).toFixed(2), C: +nose.zMid.toFixed(2), Tgt: 0, Mode: 1 },
+          4: { On: 1, Mk: MK('bull-moose'), Col: 0x8a1c14, Side: 2, H: 0.36, L: 3.05, C: 0.06, Tgt: 0, Mode: 0 },
         };
       },
       async twin(P) {
-        const fin = await fitOf(6, 1), body = await fitOf(0, 1), fld = await fitOf(0, 0), wing = await fitOf(4, 2);
-        R.fits = { fin, body, fld, wing }; log('fits', JSON.stringify(R.fits));
-        const T = R.twin.meta, ink = T.trim != null ? T.trim : 0x1b3a5c;
+        const fin = await fitOf(6, 1), wing = await fitOf(4, 2), nose = await noseOf();
+        R.fits = { fin, wing, nose }; log('fits', JSON.stringify(R.fits));
+        const T = R.twin.meta, ink = T.trim != null ? T.trim : 0x1b3a5c, green = 0x22432b;
+        // the orca on both fins (mirrored on the left: it leaps forward on both flanks), the panorama on the pod's flanks
+        // (side box, behind the nose), the midnight valley on the right wing's top in dark green
         return {
-          1: { On: 1, Mk: MK('glassy-panorama'), Col: ink, H: 0.24, L: +(fld.L + fld.W * 0.22).toFixed(2), C: 0.0, Tgt: 0, Mode: 0 },
+          1: { On: 1, Mk: MK('glassy-panorama'), Col: green, H: 0.20, L: +(nose.y0 + 1.15).toFixed(2), C: +(nose.zMid - 0.05).toFixed(2), Tgt: 0, Mode: 1 },
           2: { On: 1, Mk: MK('orca'), Col: ink, Mir: 1, H: +(fin.H * 0.45).toFixed(2), L: +fin.L.toFixed(2), C: +(fin.C + fin.H * 0.05).toFixed(2), Tgt: 6, Mode: 1 },
-          3: { On: 1, Mk: MK('lighthouse'), Col: ink, H: 0.30, L: +(body.L - body.W * 0.5 + 0.9).toFixed(2), C: +(body.C + body.H * 0.05).toFixed(2), Tgt: 0, Mode: 1 },
-          4: { On: 1, Mk: MK('midnight-valley'), Col: ink, H: 0.7, L: +(wing.L + wing.W * 0.30).toFixed(2), C: +wing.C.toFixed(2), Tgt: 4, Mode: 2 },
+          4: { On: 1, Mk: MK('midnight-valley'), Col: green, H: 1.0, L: +(wing.L - wing.W * 0.27).toFixed(2), C: +wing.C.toFixed(2), Tgt: 4, Mode: 2 },
         };
       },
     };
@@ -203,11 +226,12 @@ const MK = id => ['stol-river', 'grizzly-range', 'orca', 'winged-prop', 'midnigh
         for (let s = 0; s < 4; s++) if (st[s + 1]) { const c = await cell(s); R[key]['cell' + (s + 1)] = c; if (!c.opaque) fail(key + ' sticker ' + (s + 1) + "'s cell is empty"); }
         const B = P.body, Tl = P.tail;
         // a photographer's angles: the three-quarter from the right, low; the three-quarter from the left; the tail
-        await shoot(key + '_' + gfx + '_threequarter_right', [-Math.PI / 2 + 0.55, 0.10, 0.80 * span], B.c);
-        await shoot(key + '_' + gfx + '_threequarter_left', [Math.PI / 2 - 0.62, 0.14, 0.82 * span], B.c);
-        await shoot(key + '_' + gfx + '_tail_right', [-Math.PI / 2 + 0.25, 0.06, 0.42 * span], [Tl.c[0], Tl.c[1] + 0.1 * Tl.s[1], Tl.c[2]]);
-        if (key === 'twin') await shoot(key + '_' + gfx + '_above', [-Math.PI / 2 + 0.9, 0.75, 0.85 * span], P.wing.c);
-        if (key === 'cub') await shoot(key + '_' + gfx + '_left_close', [Math.PI / 2 - 0.15, 0.04, 0.50 * span], B.c);
+        // (az -pi/2 is the right flank, nose to the right of the picture; az toward 0 swings the eye aft - measured in the probe)
+        await shoot(key + '_' + gfx + '_threequarter_right', [-Math.PI / 2 - 0.62, 0.10, 1.05 * span], B.c);
+        await shoot(key + '_' + gfx + '_threequarter_left', [Math.PI / 2 + 0.62, 0.12, 1.05 * span], B.c);
+        await shoot(key + '_' + gfx + '_tail_right', [-Math.PI / 2 + 0.30, 0.07, 0.50 * span], [Tl.c[0], Tl.c[1] + 0.1 * Tl.s[1], Tl.c[2]]);
+        if (key === 'twin') await shoot(key + '_' + gfx + '_above', [-Math.PI / 2 - 0.5, 0.80, 0.95 * span], P.wing.c);
+        if (key === 'cub') await shoot(key + '_' + gfx + '_left_side', [Math.PI / 2 + 0.12, 0.05, 0.78 * span], B.c);
       }
       // ONCE THROUGH THE PANEL: sticker 1's 'on' tick off and on again, mark 12 picked by its button, as a player does
       R.panel = await page.evaluate(async () => {

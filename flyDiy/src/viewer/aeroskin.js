@@ -3033,7 +3033,7 @@ function aeroVinylPath(g, rings, b, sc, ox, oy, flip, dw) {
   g.closePath();
 }
 // ONE BAKE PER STICKER, not per slider: the cell is redrawn only when its mark, colour or flip changes
-const AERO_VINYL_SIG = {}, AERO_VINYL_LAST = {};
+const AERO_VINYL_SIG = {}, AERO_VINYL_LAST = {}, AERO_VINYL_FIELD = {};
 function aeroVinylDraw(THREE, L) {
   const t = aeroAtlas(THREE), S = AERO_ATLAS_PX;
   const c = aeroVinylCell(L.slot, L.asp, S);
@@ -3056,22 +3056,31 @@ function aeroVinylDraw(THREE, L) {
   g.lineJoin = 'round'; g.lineWidth = 2 * R + 2; g.strokeStyle = hex; g.stroke();
   g.fillStyle = hex; g.fill('evenodd');
   g.restore();
-  // THE FIELD over the ink box and its margin: the coverage on a scratch canvas, a distance transform each way
+  // THE FIELD over the ink box and its margin: the coverage on a scratch canvas, a distance transform each way. KEPT per
+  // slot by its shape (mark, flip, atlas size): the transform is ~130 ms at 4096 (a 1024 px cell), and the colour well
+  // fires on every step of a drag - a colour change repaints the colour and lays the kept field back
   const X0 = c.px, Y0 = c.py, w = Math.ceil(c.dw + 2 * c.M), h = Math.ceil(c.dh + 2 * c.M);
-  const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
-  const m = cv.getContext('2d');
-  m.fillStyle = '#fff';
-  aeroVinylPath(m, rings, b, sc, c.M, c.M, L.flip, c.dw);
-  m.fill('evenodd');
-  const cov = m.getImageData(0, 0, w, h).data;
-  const inside = new Uint8Array(w * h), outside = new Uint8Array(w * h);
-  for (let i = 0; i < w * h; i++) { const on = cov[i * 4 + 3] > 127; inside[i] = on ? 1 : 0; outside[i] = on ? 0 : 1; }
-  const dIn = aeroEDT(outside, w, h), dOut = aeroEDT(inside, w, h);
-  const img = g.getImageData(X0, Y0, w, h), d = img.data;
-  for (let i = 0; i < w * h; i++) {
-    const sd = Math.sqrt(dIn[i]) - Math.sqrt(dOut[i]);
-    d[i * 4 + 3] = Math.round(Math.max(0, Math.min(1, 0.5 + sd / (2 * R))) * 255);
+  const fk = [L.mk, L.flip, S].join('|');
+  let F = AERO_VINYL_FIELD[L.slot];
+  if (!F || F.key !== fk) {
+    const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+    const m = cv.getContext('2d');
+    m.fillStyle = '#fff';
+    aeroVinylPath(m, rings, b, sc, c.M, c.M, L.flip, c.dw);
+    m.fill('evenodd');
+    const cov = m.getImageData(0, 0, w, h).data;
+    const inside = new Uint8Array(w * h), outside = new Uint8Array(w * h);
+    for (let i = 0; i < w * h; i++) { const on = cov[i * 4 + 3] > 127; inside[i] = on ? 1 : 0; outside[i] = on ? 0 : 1; }
+    const dIn = aeroEDT(outside, w, h), dOut = aeroEDT(inside, w, h);
+    const al = new Uint8Array(w * h);
+    for (let i = 0; i < w * h; i++) {
+      const sd = Math.sqrt(dIn[i]) - Math.sqrt(dOut[i]);
+      al[i] = Math.round(Math.max(0, Math.min(1, 0.5 + sd / (2 * R))) * 255);
+    }
+    F = AERO_VINYL_FIELD[L.slot] = { key: fk, al };
   }
+  const img = g.getImageData(X0, Y0, w, h), d = img.data;
+  for (let i = 0; i < w * h; i++) d[i * 4 + 3] = F.al[i];
   g.putImageData(img, X0, Y0);
   t.needsUpdate = true;
   return true;

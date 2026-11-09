@@ -364,6 +364,11 @@ function run(SRC) {
     const fl = R.fills.slice(f0);
     check(fl.length >= 1 && fl[0].rule === 'evenodd' && /^#2a7f3e$/i.test(fl[0].style), 'filled even-odd in the picked colour', JSON.stringify(fl[0]));
     check(B.aeroVinylDraw(THREE, Lr) === false, 'drawn again only when the mark, colour or flip changes');
+    // a colour change repaints the colour over the KEPT field: no scratch canvas, no distance transform (~130 ms at 4096)
+    { const nc = CANVASES.length, f1 = R.fills.length;
+      check(B.aeroVinylDraw(THREE, Object.assign({}, Lr, { col: 0x334455 })) === true && CANVASES.length === nc && /^#334455$/i.test((R.fills[f1] || {}).style),
+        'a colour change repaints over the kept field (no new distance transform)', (CANVASES.length - nc) + ' canvases');
+      B.aeroVinylDraw(THREE, Lr); }
     // the flip mirrors the trace about the box's middle
     const Lf = Object.assign({}, Lr, { flip: 1 });
     const k1 = R.ops.length;
