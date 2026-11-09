@@ -313807,3 +313807,42 @@ Both were re-benched in the game itself: ?mode=garage, the build loaded from its
   - the stored spec is the game's re-joined one (the corrected tail's Sh 3.33 m2, span 3.40 m).
 - Seen on the way and sent to Game: in the hidden browser pane, the new-plane chooser opened over the bench test flight and froze the aeroplane at 31 m.
 No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change.
+
+## COMMS-SECTION ready 2 - THE GPS PUCK, THE ELT AND ITS WHIP, EACH SHOWN ONLY WHEN FITTED (9 Nov, AVIONICS-PFD-LAND for the user via A0, for L36a after comms-section)
+
+The user (9 Nov, via A0): yes to the GPS antenna and the ELT, but "Don't get crazy on the radio for now, just have the
+option to equip them, and the little accessories then show, but that's it, it's non essential feature at this stage."
+So: an equip option, the accessory follows it, nothing more. On claude/ready/comms-section 310ddb76d (the train merges
+that first): f0fd2978c + 1fe83abd8 source, 1f055bb72 built.
+
+- **The ELT** (`GEN_AVIONICS.elt`, none / fitted): 1.0 kg, 1100, ACK E-04 / Artex 345 class, `ownBattery` - no bus
+  load, no breaker, no panel room. A select in Instruments' radios fold (it comes from the table). It is billed with the
+  radios, and its mass is placed in the tailcone (61_gen_frame.js, a frame short of the tailpost); with none fitted that
+  line is byte-for-byte the old one. **In a spec only when fitted:** genSystemsResolve sets avionics.elt only for
+  'fitted', clampSpec drops anything else, the panel's fromSpec reads it the same way and a tier pick leaves it alone.
+- **The GPS aerial** (`gpsAerial`, form `puckAerial`, 90 x 22 mm, on the crown 0.18 m aft of the cabin): only for a
+  panel, glass or 10 in GPS (`genGpsPuck`; a portable has its aerial in the unit).
+- **The ELT aerial** (`eltAerial`, form `whipAerial`, 0.45 m raked aft, `foot` 50 mm): on the tailcone's crown at 0.40
+  of the cabin-to-tailpost run, only with the ELT fitted.
+- **GEN_COMMS:** the gps and elt rows carry these aerials and are no longer `later` (COM 2 still is), so Communications
+  shows their placement blocks; both are in the aerials' family (`accAerials`) and a click selects Communications.
+- **No saved build gains a key (L35d's STOL lesson):** every older access row's `acc_<row>_sL/_lv` is written at 0
+  into every save; the two new rows' are `CAGE_DEFAULT_ABSENT` at 0. None of STOL's six validated builds carries a GPS
+  or an ELT.
+- **Gates** (one nice'd --jobs=1 process, 02:35-03:11, A0's lane): STOL PASS (on f5d084be1 and again on 1f055bb72); GEN
+  76/77 with only master's own "cruise is quiet in wind" (on f5d084be1; 1fe83abd8 adds a table field and two gate rows);
+  PANEL (5b: each of the five radios alone draws only its own aerial, a portable GPS no puck, the ELT absent unless
+  fitted, 1.0 kg, no bus load; the avionics table row takes `ownBattery` for its draw), FIT (its reach spread gained a
+  panel GPS + ELT probe), PARTS, SAVE, FITMANUAL, CLIP, WEARPRICE, CERTGATES, BENCH - PASS. The aerials probe (stock,
+  rod, Cessna 172, metal Cessna) is identical to master ebc4c9edd to the bit: none of them fits a GPS or an ELT.
+- **Not yet seen:** no gate draws a build with a panel GPS or an ELT, so the puck and the whip are placed (PANEL 5b) but
+  have not been looked at or CLIP-checked on a fitted build. A garage still of each, owed.
+Evidence: flydiy-notes/evidence-2026-10-18/2026-11-08/comms/ (run7.log, run8.log).
+- **The CLIP look on fitted builds (9 Nov 03:13, closing the gap named above):** CLIP's own measure, in report mode, on
+  three builds with a panel GPS and an ELT fitted (stock IFR, rod, twin booms; evidence comms/clip_gpselt.js, the gate
+  itself unchanged). It found the rod's whip at 0.80 of the tube 30 mm in the fin, so it moved to 0.48, between the nav
+  mast and the beacon (11bbf84bf, built b66640612). Then the puck and the whip are clean on all three: the puck seated
+  2.4 mm (body) / 0.5 mm proud on the rod's collar, the whip 2.7 mm (body) / 0.5 mm proud on the rod. The only other
+  lines are master's own known ones under new build names (the nav wire 6.5 mm in the fin, the twin's legs in the flaps
+  at full travel). Gates re-run on b66640612: FIT, CLIP, PARTS, PANEL, SAVE, FITMANUAL, STOL PASS; the aerials probe
+  identical to master. The garage still is still owed (a GPU slot).

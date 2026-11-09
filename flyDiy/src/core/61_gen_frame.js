@@ -3477,7 +3477,11 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   }
   sec('avionics');
   spend(SYS.bill.avionics.price);
-  halfOn(F[0].TL, F[0].TR, SYS.bill.avionics.kg);
+  // COMMS-SECTION ready 2: the ELT is billed with the radios but bolted in the tailcone, under its whip (a frame
+  // short of the tailpost); with none fitted this is the line it always was
+  const eltKg = (SYS.rows.find(r => r.key === 'elt:fitted') || {}).kg || 0;
+  halfOn(F[0].TL, F[0].TR, eltKg ? SYS.bill.avionics.kg - eltKg : SYS.bill.avionics.kg);
+  if (eltKg) { const Ft = F[Math.max(1, F.length - 2)]; halfOn(Ft.TL, Ft.TR, eltKg); }
   // ---- THE OUTFIT (G159) ------------------------------------------------
   // Everything a real aeroplane carries between its structure and its payload.
   // Each item hangs off a CHOICE or a MEASUREMENT of this aeroplane, never a

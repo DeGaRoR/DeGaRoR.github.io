@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 8c4fea0605c6a152
+// body-sha256: 8d07a0a37388ca81
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -33316,6 +33316,39 @@ const GEN_ACCESS = {
     snap: 'bay', side: R => R.booms ? 'star' : 'centre',
     form: 'bladeAerial', size: { h: 0.075, c: 0.050, t: 0.008 },
   },
+  // COMMS-SECTION ready 2 (9 Nov; the user: "just have the option to equip them, and the little accessories then show,
+  // but that's it"): the GPS's puck and the ELT's whip, each drawn ONLY when its unit is fitted. Their placement keys
+  // are absent at 0 (_cage_gen.js CAGE_DEFAULT_ABSENT), so no saved build gains a key.
+  gpsAerial: {
+    name: 'GPS aerial',
+    serves: 'the GPS navigator',
+    radio: 'gps',
+    // a puck on the cabin roof's aft edge, ahead of the comm blade: it wants the sky. A portable GPS has its own
+    // aerial in the unit (R.avionics.gps is true only for a panel, glass or 10 in unit)
+    need: R => (R.avionics && R.avionics.gps) ? 1 : 0,
+    on: R => R.rod ? 'rod' : R.booms ? 'boom' : 'body',
+    at: R => R.rod ? { sL: R.rod.from + R.rod.len * 0.08, lv: 'crown' }
+           : R.booms ? { sL: R.booms.len * 0.25, lv: 'crown' }
+                     : { sL: R.cabinAft + 0.18, lv: 'crown' },
+    snap: 'free', side: R => R.booms ? 'port' : 'centre',
+    form: 'puckAerial', size: { d: 0.090, h: 0.022 },
+  },
+  eltAerial: {
+    name: 'ELT aerial',
+    serves: 'the emergency locator transmitter',
+    radio: 'elt',
+    // the whip on the tailcone's crown, over the ELT bolted inside it (GEN_AVIONICS.elt: 1.0 kg, billed aft)
+    need: R => (R.avionics && R.avionics.elt) ? 1 : 0,
+    on: R => R.rod ? 'rod' : R.booms ? 'boom' : 'body',
+    // (on a rod, at 0.48 between the nav mast (0.35) and the beacon (0.60): at 0.80 it stood 30 mm in the fin - the
+    // CLIP look of 9 Nov)
+    at: R => R.rod ? { sL: R.rod.from + R.rod.len * 0.48, lv: 'crown' }
+           : R.booms ? { sL: R.booms.len * 0.80, lv: 'crown' }
+                     : { sL: R.cabinAft + (R.tailArm - R.cabinAft) * 0.40, lv: 'crown' },
+    // `foot` is what it occupies (its base), not its 0.45 m reach - as the nav aerial's mast
+    snap: 'free', side: R => R.booms ? 'star' : 'centre',
+    form: 'whipAerial', size: { h: 0.450, d: 0.006, foot: 0.050 },
+  },
   beacon: {
     name: 'Anti-collision beacon',
     serves: 'being seen',
@@ -33459,7 +33492,8 @@ function genAccessNeeds(S) {
     // aerials' `need`s read these, so a custom fit with a COM grows its blade
     avionics:  (() => { const r = genSystemsResolve(S);
                         return { com: r.avionics.com !== 'none', nav: r.avionics.nav !== 'none',
-                                 xpdr: r.avionics.xpdr !== 'none' }; })(),
+                                 xpdr: r.avionics.xpdr !== 'none', gps: genGpsPuck(r.avionics.gps),
+                                 elt: r.avionics.elt === 'fitted' }; })(),
     // G2808: the fitted dials and the suction, as the core resolves them (the static port, the venturi, the sight)
     items:     genSystemsResolve(S).items,
     vac:       genSystemsResolve(S).vac,
@@ -33535,7 +33569,7 @@ function genAccessNeedsCage(P, extra) {
     avionics:  E.avionics || (() => {
       const T = GEN_SYSTEMS[E.systems] || GEN_SYSTEMS.basic;
       return { com: T.avionics.com !== 'none', nav: T.avionics.nav !== 'none',
-               xpdr: T.avionics.xpdr !== 'none' }; })(),
+               xpdr: T.avionics.xpdr !== 'none', gps: genGpsPuck(T.avionics.gps), elt: false }; })(),
     // G2808: the fitted dials and the suction (the editor hands the resolved ones over; a bench takes the tier's)
     items:     Array.isArray(E.items) ? E.items : genSystemsResolve({ systems: { fit: E.systems || 'basic' } }).items,
     vac:       E.vac !== undefined ? E.vac : genSystemsResolve({ systems: { fit: E.systems || 'basic' } }).vac,
@@ -34212,9 +34246,11 @@ const GEN_COMMS = [
   { radio: 'com2', label: 'COM 2',       avionics: null,   aerial: null, later: true },
   { radio: 'nav',  label: 'NAV',         avionics: 'nav',  aerial: 'navAerial' },
   { radio: 'xpdr', label: 'Transponder', avionics: 'xpdr', aerial: 'xpdrAerial' },
-  { radio: 'gps',  label: 'GPS',         avionics: 'gps',  aerial: null, later: true },
-  { radio: 'elt',  label: 'ELT',         avionics: null,   aerial: null, later: true },
+  { radio: 'gps',  label: 'GPS',         avionics: 'gps',  aerial: 'gpsAerial' },    // (ready 2: a panel, glass or 10 in unit)
+  { radio: 'elt',  label: 'ELT',         avionics: 'elt',  aerial: 'eltAerial' },
 ];
+// the GPS units that carry a roof aerial (a portable has its own in the unit)
+const genGpsPuck = g => g === 'panel' || g === 'glass' || g === 'flat' || g === 'flatPair';
 
 const GEN_AVIONICS = {
   com: {
@@ -34265,6 +34301,14 @@ const GEN_AVIONICS = {
     flatPair: { name: 'twin 10 in displays (PFD + MFD)', kg: 5.8, price: 19000, amps: 8.0,
                 face: { w: 0.271, h: 0.208, sw: 0.211, sh: 0.158, keys: 'below', knob: true, knobs: 'both', keysN: 12, keySlots: [1, 2, 3, 11], n: 2 },
                 note: 'G1000 class, a Skyhawk\'s: the PFD in front of the pilot, the MFD with its engine strip beside it' },
+  },
+  // COMMS-SECTION ready 2 (9 Nov): the emergency locator, an option and nothing more (the user: "non essential feature
+  // at this stage"). Its own battery (no bus, no breaker, no panel room), bolted in the tailcone under its whip; billed
+  // with the radios, its mass placed aft (61_gen_frame.js). In a spec only when fitted (genSystemsResolve, clampSpec).
+  elt: {
+    none:   { name: 'no ELT',                 kg: 0,   price: 0,    amps: 0 },
+    fitted: { name: 'ELT, 406 MHz',            kg: 1.0, price: 1100, amps: 0, ownBattery: true,
+              note: 'ACK E-04 / Artex ELT 345 class with its own battery and whip aerial, in the tailcone' },
   },
 };
 // G2815: where a single big display stands - in front of the pilot or of the passenger beside him
@@ -34320,6 +34364,8 @@ function genSystemsResolve(S, opts) {
     elec[k] = pick(GEN_ELEC[k], sy.elec && sy.elec[k], T.elec[k]);
   for (const k of ['com', 'xpdr', 'nav', 'gps'])
     avionics[k] = pick(GEN_AVIONICS[k], sy.avionics && sy.avionics[k], T.avionics[k]);
+  // COMMS-SECTION ready 2: the ELT is resolved only when fitted (no tier carries one; every other build keeps its keys)
+  if (sy.avionics && sy.avionics.elt === 'fitted') avionics.elt = 'fitted';
   // G2815: a single big display's side (only for it: no other fit carries the key)
   if (avionics.gps === 'flat') avionics.gpsSide = sy.gpsSide === 'copilot' ? 'copilot' : 'pilot';
   // A BATTERY BUILD HAS A CHARGE GAUGE (A3, 2026-09-20): a pack has no cork
@@ -34383,6 +34429,11 @@ function genSystemsResolve(S, opts) {
       rows.push({ key: k + ':' + avionics[k], group: 'avionics', name: r.name, kg: r.kg, price: r.price, amps: r.amps || 0 });
       nPowered++; loads.push({ key: k, amps: r.amps || 0, av: true });
     }
+  }
+  // the ELT: billed with the radios, on its own battery (no load, no breaker, no harness share)
+  if (avionics.elt === 'fitted') {
+    const r = GEN_AVIONICS.elt.fitted;
+    rows.push({ key: 'elt:fitted', group: 'avionics', name: r.name, kg: r.kg, price: r.price, amps: 0, at: 'tailcone' });
   }
   if (hasBus) {
     const H = GEN_ELEC.harness;
@@ -37265,6 +37316,7 @@ function clampSpec(spec) {
     for (const k of ['com', 'xpdr', 'nav', 'gps'])
       if (sy.avionics[k] != null && !GEN_AVIONICS[k][sy.avionics[k]]) sy.avionics[k] = null;
     if (sy.gpsSide != null && !GEN_GPS_SIDES.includes(sy.gpsSide)) delete sy.gpsSide;   // G2815 (written only when picked)
+    if ('elt' in sy.avionics && sy.avionics.elt !== 'fitted') delete sy.avionics.elt;  // ready 2: only when fitted
   }
   const ct = S.controls;
   clampControls(ct);
@@ -43635,7 +43687,11 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   }
   sec('avionics');
   spend(SYS.bill.avionics.price);
-  halfOn(F[0].TL, F[0].TR, SYS.bill.avionics.kg);
+  // COMMS-SECTION ready 2: the ELT is billed with the radios but bolted in the tailcone, under its whip (a frame
+  // short of the tailpost); with none fitted this is the line it always was
+  const eltKg = (SYS.rows.find(r => r.key === 'elt:fitted') || {}).kg || 0;
+  halfOn(F[0].TL, F[0].TR, eltKg ? SYS.bill.avionics.kg - eltKg : SYS.bill.avionics.kg);
+  if (eltKg) { const Ft = F[Math.max(1, F.length - 2)]; halfOn(Ft.TL, Ft.TR, eltKg); }
   // ---- THE OUTFIT (G159) ------------------------------------------------
   // Everything a real aeroplane carries between its structure and its payload.
   // Each item hangs off a CHOICE or a MEASUREMENT of this aeroplane, never a

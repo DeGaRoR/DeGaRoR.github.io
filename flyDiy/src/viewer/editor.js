@@ -3204,7 +3204,7 @@ function editorInit(api) {
     [/^edLamp_|^liRotor_/, 'lights'],
     // COMMS-SECTION (8 Nov): a radio's aerial selects Communications, the skin beacon Lights (GEN_COMMS' aerial rows;
     // the mesh is `edAcc_<host>_<row>`), every other fitting Fittings
-    [/^edAcc_.*_(?:commAerial|navAerial|xpdrAerial)$/, 'comms'],
+    [/^edAcc_.*_(?:commAerial|navAerial|xpdrAerial|gpsAerial|eltAerial)$/, 'comms'],
     [/^edAcc_.*_beacon$/, 'lights'],
     [/^edAcc_/, 'access'],
     [/^edSaddle/, 'tail'],               // G307: the saddles a tube boom's tail is bolted on

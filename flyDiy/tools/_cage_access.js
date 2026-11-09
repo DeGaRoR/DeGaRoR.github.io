@@ -144,6 +144,7 @@ const FAMILY = {
   baggageDoor: 'accAccess',
   staticPort: 'accInstr', venturi: 'accInstr', oatProbe: 'accInstr',
   commAerial: 'accAerials', navAerial: 'accAerials', xpdrAerial: 'accAerials',
+  gpsAerial: 'accAerials', eltAerial: 'accAerials',                 // COMMS-SECTION ready 2
   beacon: 'accBeacon',                                              // COMMS-SECTION: a light, not a radio
   step: 'accHandling', grabHandle: 'accHandling', tieDownTail: 'accHandling',
 };
@@ -603,7 +604,8 @@ PAGE.post = ctx => {
       // `need`s read these); resolved by the core's one reader
       avionics: (typeof genSystemsResolve === 'function')
         ? (r => ({ com: r.avionics.com !== 'none', nav: r.avionics.nav !== 'none',
-                   xpdr: r.avionics.xpdr !== 'none' }))(genSystemsResolve(GS))
+                   xpdr: r.avionics.xpdr !== 'none', gps: ['panel', 'glass', 'flat', 'flatPair'].includes(r.avionics.gps),
+                   elt: r.avionics.elt === 'fitted' }))(genSystemsResolve(GS))
         : undefined,
       // G2808: the fitted dials and the suction (the static port, the venturi, the fuel sight's wire)
       items: (typeof genSystemsResolve === 'function') ? genSystemsResolve(GS).items : undefined,

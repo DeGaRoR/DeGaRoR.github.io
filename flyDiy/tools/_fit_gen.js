@@ -391,6 +391,24 @@ const FORMS = {
        [d * 0.24, hh * 0.66], [0, hh * 0.70]], 18, true);
   },
 
+  // COMMS-SECTION ready 2 (9 Nov): the GPS aerial, a low white puck on its doubler (the panel unit's roof antenna)
+  puckAerial(bags, F, S, ctx) {
+    const d = S.d || 0.090, hh = S.h || 0.022;
+    plateInto(bags.paint, F, d * 1.25, d * 1.05, 0.0016, d * 0.18, ctx && ctx.surf);
+    revolve(bags.paint, F.p, F.n,
+      [[d * 0.50, 0.0016], [d * 0.50, hh * 0.35], [d * 0.44, hh * 0.80], [d * 0.30, hh], [0, hh]], 20, true);
+  },
+
+  // ...and the ELT's whip: a thin rod on a small base, raked aft (its own battery's transmitter under it)
+  whipAerial(bags, F, S) {
+    const H = S.h || 0.45, d = S.d || 0.006;
+    revolve(bags.metal, F.p, F.n,
+      [[0.016, 0.0006], [0.016, 0.006], [0.009, 0.014], [d * 0.9, 0.022]], 12, true);
+    const top = at(F, 0, H * 0.18, H);              // raked aft a little, as the real ones
+    taper(bags.metal, off(F.p, F.n, 0.020), top, d * 0.5, d * 0.32, 6);
+    revolve(bags.metal, top, F.n, [[d * 0.55, -d * 0.4], [d * 0.55, d * 0.4], [0, d * 0.9]], 8, true);
+  },
+
   // ---- HANDLING ----------------------------------------------------------
 
   // the boarding step: a bar on two legs, bolted through a ring frame. It
@@ -471,6 +489,8 @@ const FIT_BASE = {
   bladeAerial: S => [(S.t || 0.010) * 0.5, (S.c || 0.09) * 0.5],   // the root section: t across, the chord fore/aft
   wireAerial: () => [0.014, 0.014],                                 // the mast's foot ring (the row's `foot` is clearance)
   lightBeacon: S => [(S.d || 0.062) * 0.56, (S.d || 0.062) * 0.56], // the base ring
+  puckAerial: S => [(S.d || 0.090) * 0.5, (S.d || 0.090) * 0.5],    // the puck's rim (ready 2)
+  whipAerial: () => [0.016, 0.016],                                  // the whip's base ring
 };
 
 // which bag names a form may write into — the three the layer creates
