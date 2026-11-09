@@ -55,6 +55,25 @@ const STAND = { cub: 'flyDiy/builds/' + CUB, dc3: 'flyDiy/builds/candidates/dc3_
 const want = opt('planes', FULL ? 'jodel' : 'cub,dc3').split(',');
 const TYPES = { '.html': 'text/html', '.js': 'application/javascript', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.css': 'text/css', '.woff2': 'font/woff2', '.ktx2': 'image/ktx2', '.wasm': 'application/wasm' };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+// THE ROOM'S PROBE, BAKED BY THE RIG (a software renderer only): under SwiftShader three's compileAsync never resolves, so
+// the page's boot never releases its probe bake (envDeferred) - no environment, every polished metal black. The rig shoots
+// the page's own probe through its debug door, as bakeHangarEnv does on a graphics card: a cube camera at 3.2 m over the
+// room's centre, the aeroplanes (everything outside the room's group) out of it, the floor at the large hangar's bounce
+// (0.5), PMREM'd into the room scene's environment.
+const bakeProbe = page => page.evaluate(() => {
+  const D = window.GARAGE_ENV._debug(), R = D.renderer, S = D.scene, h = D.hangar;
+  if (!h || !THREE.WebGLCubeRenderTarget || !THREE.PMREMGenerator) return 'no probe';
+  const inRoom = new Set(); h.group.traverse(o => inRoom.add(o));
+  const hid = []; S.traverse(o => { if ((o.isMesh || o.isSkinnedMesh || o.isInstancedMesh) && o.visible && !inRoom.has(o)) { o.visible = false; hid.push(o); } });
+  const gm = (h.groundMats || []).filter(m => m && m.color), g0 = gm.map(m => m.color.clone()); gm.forEach(m => m.color.multiplyScalar(0.5));
+  const rt = new THREE.WebGLCubeRenderTarget(256, { type: THREE.HalfFloatType, generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter });
+  const cam = new THREE.CubeCamera(0.5, 300, rt); const gp = h.group.position; cam.position.set(gp.x, gp.y + 3.2, gp.z); S.add(cam);
+  const env0 = S.environment; S.environment = null;
+  try { cam.update(R, S); } finally { S.remove(cam); hid.forEach(o => { o.visible = true; }); gm.forEach((m, i) => m.color.copy(g0[i])); }
+  const pm = new THREE.PMREMGenerator(R); const out = pm.fromCubemap(rt.texture); S.environment = out.texture; pm.dispose(); rt.dispose();
+  return env0 ? 'replaced' : 'baked';
+});
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });
   const srv = http.createServer((q, r) => { const p = path.join(REPO, decodeURIComponent(q.url.split('?')[0]));
@@ -98,6 +117,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
       await sleep(3000);
     }
     log('  residents ' + JSON.stringify(R && { how: R.how, plan: R.plan.map(p => p.name + (p.filled ? '' : '(unbaked)')), unplaced: R.unplaced }));
+    log('  probe: ' + await bakeProbe(page));
     // the room's probe forced (on a software renderer the boot's deferred bake waits for compileAsync, which never lands:
     // no environment, and every polished metal reads black - the page's own door, setEnvSource, bakes it at once)
     await page.evaluate(() => window.GARAGE_ENV.setEnvSource && window.GARAGE_ENV.setEnvSource('room'));
