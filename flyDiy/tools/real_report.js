@@ -373,7 +373,8 @@ function signals(list) {
     list.forEach((p, j) => { if (p.light) return; const it = p.sc.items.performance.find(q => q.k === k); if (!it || !num(it.signed)) return; vals.push(it.signed);
       const jit = ((j % 5) - 2) * 3;
       s += '<circle class="dot ' + band(it.score)[0] + '" cx="' + X(it.signed) + '" cy="' + (y + 14 + jit) + '" r="5"><title>' + esc(p.short + ' ' + LABEL[k] + ': ' + pctS(it.signed) + ' (z ' + f(it.z, 1) + ', ' + it.src + ')') + '</title></circle>'; });
-    if (vals.length >= 3) { const m = vals.reduce((a, b) => a + b, 0) / vals.length; s += '<line class="meanmark" x1="' + X(m) + '" x2="' + X(m) + '" y1="' + (y + 2) + '" y2="' + (y + rh - 6) + '"><title>mean ' + pctS(m) + ' over ' + vals.length + ' planes</title></line>'; }
+    // (the MEDIAN: a few outliers - the anchor Cub, the float props - must not drag the set's lean)
+    if (vals.length >= 3) { const v = vals.slice().sort((a, b) => a - b), n = v.length, m = n % 2 ? v[(n - 1) / 2] : 0.5 * (v[n / 2 - 1] + v[n / 2]); s += '<line class="meanmark" x1="' + X(m) + '" x2="' + X(m) + '" y1="' + (y + 2) + '" y2="' + (y + rh - 6) + '"><title>median ' + pctS(m) + ' over ' + n + ' planes</title></line>'; }
   });
   return s + '</svg>';
 }
@@ -563,7 +564,7 @@ function main() {
   html += '<h4>The old score and the new</h4><p class="muted">Grey: the score before uncertainty classes and containment (every figure ±5 %, inside-the-band only). Coloured: now.</p>' + oldNew(sorted);
   html += '<h2 id="stats">The statistics</h2>';
   html += '<h4>Verdicts per plane (every indicator and reading)</h4><div class="legend"><span><span class="sw" style="background:var(--good)"></span>● inside</span><span><span class="sw" style="background:var(--warn)"></span>▲ near</span><span><span class="sw" style="background:var(--bad)"></span>■ outside</span></div>' + verdictStack(list);
-  html += '<h4>Physics signals: where the whole set leans</h4><p class="muted">Per indicator, each plane\'s signed error (our range\'s middle against the figure). The shaded zone is that indicator\'s own uncertainty; the black bar is the set\'s mean. Dots spread around zero are planes; dots stacked on one side, past the shading, are the model.</p>' + signals(list.filter(p => !p.o.engineNote));
+  html += '<h4>Physics signals: where the whole set leans</h4><p class="muted">Per indicator, each plane\'s signed error (our range\'s middle against the figure). The shaded zone is that indicator\'s own uncertainty; the black bar is the set\'s median. Dots spread around zero are planes; dots stacked on one side, past the shading, are the model.</p>' + signals(list.filter(p => !p.o.engineNote));
   html += '<details><summary>The old deviation chart</summary><h4>Where the set is off: each plane\'s deviation, indicator by indicator</h4><p class="muted">One dot per plane (light checks left out): 0 = inside the reference band, otherwise how far outside its edge. The shaded zone is ±10 %. A column of dots on one side is a model-wide bias, not one plane\'s.</p>' + biasDots(list) + '</details>';
   html += '<h4>The pilot\'s share: the landing roll</h4><div class="legend"><span><span class="sw" style="background:var(--s2)"></span>the game\'s pilot</span><span><span class="sw" style="background:var(--s1)"></span>the best schedule (same pilot, handbook braking)</span><span><span class="sw" style="border:2px dashed var(--ink)"></span>reference</span></div>' + pilotBars(list);
   html += '<h2 id="next">Conclusions and next steps</h2><div class="card">' + (notesBlock('_conclusion') || '<p class="muted">No written conclusion in real_refs.js NOTES._conclusion.</p>') + '<h4>Next steps</h4>' + (notesBlock('_next') || '<p class="muted">None written.</p>') + '</div>';
