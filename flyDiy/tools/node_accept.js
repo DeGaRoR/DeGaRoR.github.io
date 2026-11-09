@@ -142,8 +142,8 @@ function selftest() {
   console.log('quiet on a clean case');
   for (const key of ['cub', 'jodel', 'metal', 'petrel']) {
     const quiet = Object.assign(() => {}, { keep: true });
-    const v = drive(rest(key), 10, quiet, 'rest');
-    check(v === null, key + ' at rest 10 s: nothing' + (v ? ' - got ' + v.verdict + ' (' + v.what + ')' : ''));
+    const R = rest(key), G = R.sim.gear ? R.sim.gear() : null, v = drive(R, 10, quiet, 'rest');
+    check(v === null, key + ' at rest 10 s: nothing' + (G ? ' (gear pos ' + G.pos.toFixed(2) + ')' : '') + (v ? ' - got ' + v.verdict + ' (' + v.what + ')' : ''));
   }
   {
     const R = rest('cub'), slow = roll(4);
