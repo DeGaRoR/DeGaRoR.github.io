@@ -310,7 +310,9 @@ const GEO = {
   tigermoth:{ dims: { span: 8.94, length: 7.29, height: 2.68, S: 22.2 },
               specs: { engine: 'de Havilland Gipsy Major', hp: 130, nE: 1, blades: 2, empty: 506, mtow: 828, fuelL: 86, seats: 2 },
               src: 'DH.82A (search extracts above); fuel 19 imp gal (THIN)' },
-  stearman: { dims: { span: 9.80, length: [7.39, 7.54], height: [2.79, 2.95], S: [27.6, 27.7] },
+  // (HEIGHT-CONV 9 Nov: the PT-17's 9 ft 2 in is its LEVEL height - the REF_MATCH model, gear down in flying attitude,
+  // measures 2.79 m tall after scaling by the span (refs/stearman.json's height anchor x 0.998); standing tail down it is 2.59)
+  stearman: { dims: { span: 9.80, length: [7.39, 7.54], height: [2.79, 2.95], heightAs: 'level', S: [27.6, 27.7] },
               specs: { engine: 'Continental R-670 / W-670', hp: 220, nE: 1, blades: 2, empty: [876, 878], mtow: [1195, 1232], fuelL: 174, seats: 2 },
               src: 'PT-17 (search extracts above); fuel 46 US gal (THIN)' },
   carboncub:{ dims: { span: 10.36, S: 16.6 },
