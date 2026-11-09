@@ -3001,6 +3001,18 @@ function aeroVinylReady() {
   if (AERO_ATLAS) AERO_ATLAS.needsUpdate = true;
   return true;
 }
+// THE BAKES WAIT FOR IT: a spec that wears a sticker resolves once the geometry is in (at once when it is, or when the
+// spec wears none, or with no lazy loader) - flown_bake.js awaits it before it draws, so a cached bake of the flown
+// aeroplane (keyed by the build's content) never holds an empty sticker cell
+function aeroVinylWait(spec) {
+  const D = aeroDecalMerge(spec);
+  let any = false;
+  for (let i = 1; i <= AERO_VINYL_N; i++) if (D['vn' + i + 'On']) any = true;
+  if (!any || aeroVinylGeo()) return Promise.resolve(true);
+  const W = typeof window !== 'undefined' ? window : null;
+  if (!W || typeof W.FLYDIY_LAZY !== 'function') return Promise.resolve(false);
+  return W.FLYDIY_LAZY('livery_marks').then(() => aeroVinylReady(), () => false);
+}
 // a mark's rings in its own units, decoded (the lazy file's deltas)
 function aeroVinylRings(G, mk) {
   const m = G && G.marks && G.marks[mk];
@@ -5651,6 +5663,7 @@ if (typeof window !== 'undefined')
                       AERO_VINYL_N, AERO_VINYL_PAGE, AERO_VINYL_MARKS, AERO_VINYL_LDEF, AERO_VINYL_FIELDS, AERO_VINYL_SIDES,
                       AERO_VINYL_RIGHT, aeroDecalMerge,
                       aeroVinylLayers, aeroVinylCell, aeroVinylRect, aeroVinylDraw, aeroVinylGeo, aeroVinylReady, aeroVinylRings,
+                      aeroVinylWait,
                       AERO_HARD, AERO_PROP_FIN, AERO_WEAR_K,
                       AERO_SEC, aeroSecResolve, aeroBaseReach, aeroFinishLegacy, aeroPlaneClone, aeroPlaneRepaint, aeroDupe,
                       aeroHardFinish, aeroHardMat, aeroHardOn, aeroSetWear,

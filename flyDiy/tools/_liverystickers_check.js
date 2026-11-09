@@ -21,7 +21,8 @@
 //                 margin grown out), the width = the size x the mark's aspect, the rect = the slot's own cell of page
 //                 15 (four disjoint cells, none outside the page, none on pages 0-14), the order kit < stickers <
 //                 registration, and the worst case (5 kit + 4 stickers + both registrations + strip + master = 13)
-//                 kept whole in AERO_MAXD
+//                 kept whole in AERO_MAXD; parked.js's usedPages reads the cells back as page 15 (a parked aeroplane's
+//                 atlas copy holds the pages its stickers read)
 //   6 THE DRAW    aeroVinylDraw on a recording canvas: the mark's every ring traced inside its slot's ink box and
 //                 touching all four sides of it (fitted, aspect kept), filled even-odd in the picked colour (the trim
 //                 when unset), mirrored by the flip, redrawn only when the mark / colour / flip changes; with no
@@ -45,6 +46,7 @@ const VERBOSE = process.argv.includes('--verbose');
 const SRC0 = {
   ui: rd('tools/_cage_ui.js'), skin: rd('src/viewer/aeroskin.js'), marks: rd('src/viewer/livery_marks.js'),
   build: rd('tools/build.js'), editor: rd('src/viewer/editor.js'), page5: rd('tools/_cage_page5.js'),
+  parked: rd('src/viewer/parked.js'), flown: rd('src/viewer/flown_bake.js'),
 };
 
 // ---- the harness (GATE LIVERY's: one declaration by name, a stubbed DOM, the editor's finish code sliced) -------
@@ -329,6 +331,15 @@ function run(SRC) {
     for (let i = 0; i < U.uDecN.value; i++) if (r.list[i].page === 15) { ez.push(U.uDecE.value[i].z); cw.push(U.uDecC.value[i].w); bs.push(U.uDecB.value[i].toArray().map(v => +v.toFixed(6)).join(',')); }
     check(ez.join() === [0, Rt, -Rt, -Rt].join() && cw.join() === '0,1,0,1', 'aeroSetDecals hands the sides (uDecE.z) and the mirror (uDecC.w)', ez.join() + ' / ' + cw.join());
     check(bs.join(';') === cells.map(c => c.map(v => +v.toFixed(6)).join(',')).join(';'), 'aeroSetDecals hands each sticker its cell\'s rect (uDecB)');
+    // parked.js's usedPages (a parked aeroplane's atlas copy holds the pages its block reads): the sticker cells map to
+    // page 15 and every whole page to itself
+    {
+      const fn = grab(SRC.parked, /^ {2}function usedPages\(/m, 'parked.js usedPages').text;
+      const used = vm.runInNewContext('(' + fn.trim().replace(/^function usedPages/, 'function') + ')');
+      const got = used({ AERO_ATLAS_N: A.AERO_ATLAS_N }, U).join(',');
+      const want = [...new Set(r.list.map(d => d.page))].sort((a, b) => a - b).join(',');
+      check(got === want, 'parked.js reads the block\'s pages back right, the sticker cells as page 15', got + ' vs ' + want);
+    }
     const rf = r.list.filter(d => d.page !== 15).map(d => d.rect).filter(Boolean);
     check(rf.length === 0, 'no other decal carries a rect (pages 0-14 are untouched)');
   }
@@ -379,6 +390,7 @@ function run(SRC) {
   check(/const AERO_MAXD = 13;/.test(SRC.skin) && /#define AERO_MAXD 13\n/.test(SRC.skin), 'both AERO_MAXDs are 13');
   check(/\['src\/viewer', 'livery_marks\.js'\]/.test(SRC.build) && /lazy: \[/.test(SRC.build), 'livery_marks.js is in build.js MANIFEST.lazy');
   check(/FLYDIY_LAZY\('livery_marks'\)/.test(SRC.skin), 'aeroskin asks the lazy loader for it');
+  check(/await A\.aeroVinylWait\(spec\)/.test(SRC.flown), 'the flown bake waits for the marks before it draws (its cache is keyed by the build)');
   if (SRC === SRC0) {
     const idx = rd('index.html');
     check(/"livery_marks":"src\/viewer\/livery_marks\.js/.test(idx), 'index.html\'s loader knows livery_marks');
@@ -402,6 +414,7 @@ if (process.argv.includes('--selftest')) {
     ['AERO_MAXD left at 9', { skin: s => s.replace('const AERO_MAXD = 13;', 'const AERO_MAXD = 9;').replace('#define AERO_MAXD 13', '#define AERO_MAXD 9') }],
     ['the editor not folding the rows', { ui: s => s.replace("        if (!(key in DEC_DEF)) DEC_DEF[key] = A.AERO_VINYL_LDEF[k];", "") }],
     ['the lazy entry dropped', { build: s => s.replace("['src/viewer', 'livery_marks.js']", "['src/viewer', 'livery_marks_x.js']") }],
+    ['parked.js back on the corner', { parked: s => s.replace("const px = Math.floor((r.x + r.z / 2) * N), py = N - 1 - Math.floor((r.y + r.w / 2) * N);", "const px = Math.round(r.x * N), py = N - 1 - Math.round(r.y * N);") }],
     ['the fill rule nonzero', { skin: s => s.replace("g.fillStyle = hex; g.fill('evenodd');", "g.fillStyle = hex; g.fill();") }],
   ];
   let ok = true;
