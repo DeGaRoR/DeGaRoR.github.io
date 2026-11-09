@@ -53,7 +53,9 @@ function capsize(env) {
   const d = { name: 'capsize', warnings: [] };
   d.onFrame = ctx => {
     if (ctx.legName !== leg) { leg = ctx.legName; warned = false; }
-    if (env.noseArmed) return null;   // (Pilot: a flip over the nose is noseOver's)
+    // (Pilot: a flip over the nose is noseOver's; a roll-over - the span axis tilted past 30 deg - stays capsize's even
+    // inside a nose-low window: SEAPLANES 9 Nov)
+    if (env.noseArmed && Math.abs(ctx.sim.axes()[2][1]) <= 0.5) return null;
     const up = ctx.sim.axes()[1][1];
     if (up >= COS30) return null;
     if (!touching(ctx.sim, W, def)) return null;   // (aerobatics in the air are not a capsize)
@@ -121,9 +123,13 @@ function groundLoop(env) {
 }
 
 // noseOver (with Deform): ARMED on the ground at pitch < pitch0 - 12 deg; the window runs to the pitch's minimum or 1.5 s.
-//   noseOver            DMG.noseAt appears in the window (what = its what; the delay from arming printed)
-//   noseOver-undamaged  the window ends with no noseAt AND the nose really got down: pitch < pitch0 - 15 deg or the disc's
-//                       gapMin under 5 cm (fallen in the window) - the user's STOL Cub (9 Nov), red until Deform's fix
+//   noseOver            a nose contact in the window - DMG.noseAt (Deform's), else the prop strike's flag turning true
+//                       (master before NOSE-STRIKE) - and the integrity verdict (DMG.structural) not "intact"; the delay
+//                       from arming printed
+//   noseOver-undamaged  the window ends with the nose really down (a contact, or pitch < pitch0 - 15 deg, or the disc's
+//                       gapMin under 5 cm fallen in the window) and the aeroplane reading NOT damaged: no contact
+//                       recorded, or one recorded and DMG.structural.damaged false - the user's STOL Cub (9 Nov), red
+//                       until Deform's NOSE-STRIKE (a prop strike is damage)
 //   else                a warning only (the Cub braked stick-back from 18 m/s: 12.1 deg below, the disc 22 cm clear)
 // While armed, capsize and propStrike stay quiet (env.noseArmed): a flip over the nose is a noseOver.
 // pitch0: this detector's own, the attitude at the leg's first frame (every leg starts parked or stopped).
@@ -146,13 +152,21 @@ function noseOver(env) {
       arm = ctx.t; pMin = p; gap0 = gapNow(sim); env.noseArmed = true;
     }
     if (p < pMin) pMin = p;
+    // the contact: Deform's noseAt (new this leg), else the prop strike's flag turning true this leg (master before NOSE-STRIKE)
     const nA = D && D.noseAt && D.noseAt !== nose0 ? D.noseAt : null;
-    if (nA) return { verdict: 'noseOver', t: r1(ctx.t), what: 'nosed over: ' + nA.what + ' on the ' + (nA.surf || ctx.surface) + ' (tier ' + nA.tier + '), ' + r1(ctx.t - arm) + ' s after the nose passed 12 deg below parked; pitch ' + deg(pMin) + ' deg (parked ' + deg(p0) + ')' };
+    const pS = !nA && D && D.propStrike && !(ctx.base && ctx.base.D0 && ctx.base.D0.propStrike) ? (D.propAt || { what: 'prop' }) : null;
+    const hit = nA || pS, hitS = hit ? (nA ? nA.what + ' on the ' + (nA.surf || ctx.surface) + ' (tier ' + nA.tier + ')' : 'the propeller struck (' + (pS.what || '?') + ')') : null;
+    // the aeroplane's own integrity verdict (DMG.structural, the card's and the certificate's): a nose-over that reads
+    // "not damaged" is the user's 9 Nov report, whether or not the contact was recorded
+    const intact = D && D.structural ? !D.structural.damaged : null;
+    const say = 'pitch ' + deg(pMin) + ' deg (parked ' + deg(p0) + ')';
+    if (hit && intact !== true) return { verdict: 'noseOver', t: r1(ctx.t), what: 'nosed over: ' + hitS + ', ' + r1(ctx.t - arm) + ' s after the nose passed 12 deg below parked; ' + say };
     const ended = ctx.t - arm >= 1.5 || p > pMin + 0.5 * D2R;
     if (!ended) return null;
-    const g = gapNow(sim), down = pMin < Math.min(p0 - 15 * D2R, DOWN_FLOOR) || (g < 0.05 && g < gap0);
+    const g = gapNow(sim), down = !!hit || pMin < Math.min(p0 - 15 * D2R, DOWN_FLOOR) || (g < 0.05 && g < gap0);
     const gs = Number.isFinite(g) ? Math.round(g * 100) + ' cm' : '?';
-    if (down) return { verdict: 'noseOver-undamaged', t: r1(ctx.t), what: 'the nose went down (pitch ' + deg(pMin) + ' deg, parked ' + deg(p0) + ', disc gap ' + gs + ') with NO nose contact in the damage record' + (nose0 ? ' (noseAt was already set before this leg)' : '') };
+    if (down) return { verdict: 'noseOver-undamaged', t: r1(ctx.t), what: 'the nose went down (' + say + ', disc gap ' + gs + ') and the aeroplane reads NOT damaged: ' +
+      (hit ? hitS + ', but the integrity verdict says intact' : 'no nose contact in the damage record' + (nose0 ? ' (noseAt was already set before this leg)' : '')) };
     d.warnings.push({ t: r1(ctx.t), what: 'nose low ' + deg(p0 - pMin) + ' deg below parked, disc ' + gs + ' clear' });
     arm = null; env.noseArmed = false;
     return null;
@@ -164,7 +178,9 @@ function noseOver(env) {
 function tailStrike(env) {
   const { W, def } = env;
   return { name: 'tailStrike', onFrame: ctx => {
-    if (!ctx.base || ctx.base.gear !== 'tri' || ctx.surface !== 'land') return null;
+    // a tricycle; or an amphibian (hull / float) ON ITS WHEELS - on a runway it is a tricycle, its heel the tail (SEAPLANES)
+    const G = ctx.sim.gear ? ctx.sim.gear() : null, onWheels = !!(G && G.pos > 0.5);
+    if (!ctx.base || ctx.surface !== 'land' || !(ctx.base.gear === 'tri' || ((ctx.base.gear === 'hull' || ctx.base.gear === 'float') && onWheels))) return null;
     const sim = ctx.sim, R = def && def.refs; if (!R || !R.mains || !R.mains.length) return null;
     const skip = new Set([...R.mains, R.tw].filter(i => i >= 0));
     let mx = 0, mz = 0; for (const i of R.mains) { mx += sim.p[i * 3]; mz += sim.p[i * 3 + 2]; } mx /= R.mains.length; mz /= R.mains.length;
@@ -254,7 +270,7 @@ if (require.main === module && process.argv.includes('--selftest')) {
     const n = [Math.cos(p) * Math.cos(ps), Math.sin(p), Math.cos(p) * Math.sin(ps)], up = [-Math.sin(p) * Math.cos(ps), Math.cos(p), -Math.sin(p) * Math.sin(ps)];
     return { n: 4, p: [0, y, 0.5, 0, y, -0.5, 1.5, y, 0, -3, ty, 0],
       axes: () => [[-n[0], -n[1], -n[2]], up, [0, 0, 1]], wheelsOnGround: () => 0, cgPos: () => [0, y, 0], cgVel: () => o.v || [0, 0, 0],
-      ctl: { thr: o.thr == null ? 0 : o.thr }, damage: () => o.D || { propStrike: false, yields: 0 }, gear: () => null };
+      ctl: { thr: o.thr == null ? 0 : o.thr }, damage: () => o.D || { propStrike: false, yields: 0 }, gear: () => (o.gpos == null ? null : { pos: o.gpos }) };
   };
   const cx2 = (sim, t, o) => Object.assign({ sim, ap: { phase: (o && o.phase) || 'ROLLOUT' }, t, legName: (o && o.leg) || 'circuit', surface: (o && o.surface) || 'land',
     base: { pitch0: 0, D0: (o && o.D0) || { propStrike: false, yields: 0 }, gear: (o && o.gear) || 'tail' } }, {});
@@ -280,6 +296,12 @@ if (require.main === module && process.argv.includes('--selftest')) {
     check(v === null && d.warnings.length >= 1, 'down 12.5 deg, the disc 22 cm clear: a warning only (Deform\'s stick-back Cub)'); }
   { const v = pitchRun([noseOver({ W, def: def2 })], -10, () => ({ yields: 0, drive: drv(0.2) }), { y: 30 });
     check(v === null, 'nose down 50 m up: nothing (in the air)'); }
+  { const v = pitchRun([noseOver({ W, def: def2 })], -10, k => ({ yields: 0, drive: drv(0.2), noseAt: k > 80 ? NOSE_AT : undefined, structural: { damaged: false } }));
+    check(v && v.verdict === 'noseOver-undamaged' && /says intact/.test(v.what), 'noseAt recorded but the integrity reads intact: noseOver-undamaged'); }
+  { const v = pitchRun([noseOver({ W, def: def2 })], -10, k => (k > 80 ? { yields: 0, drive: drv(0), propStrike: true, propAt: { what: 'ground' }, structural: { damaged: false } } : { yields: 0, drive: drv(0.2), structural: { damaged: false } }));
+    check(v && v.verdict === 'noseOver-undamaged' && /propeller struck/.test(v.what), 'master before NOSE-STRIKE: the prop struck, the integrity intact: noseOver-undamaged (' + (v && v.what) + ')'); }
+  { const v = pitchRun([noseOver({ W, def: def2 })], -10, k => (k > 80 ? { yields: 0, drive: drv(0), propStrike: true, propAt: { what: 'ground' }, structural: { damaged: true } } : { yields: 0, drive: drv(0.2), structural: { damaged: false } }));
+    check(v && v.verdict === 'noseOver', 'the prop struck and the integrity reads damaged (NOSE-STRIKE): noseOver'); }
   { const d = noseOver({ W, def: def2 }); const v = pitchRun([d], -1.5, () => ({ yields: 0, drive: drv(0.4) }), { from: 13 });
     check(v === null && d.warnings.length === 0, 'parked at 13 deg, the tail-up roll to -1.5 (14.5 below): nothing (the horizon floor)'); }
   { const v = pitchRun([noseOver({ W, def: def2 })], -9, () => ({ yields: 0, drive: drv(0.4) }), { from: 13 });
@@ -300,6 +322,8 @@ if (require.main === module && process.argv.includes('--selftest')) {
   check(!!hold(tailStrike({ W, def: def2 }), { gear: 'tri', tailY: 0.02, phase: 'ROTATE' }, 1), 'a tricycle, the tail node on the ground: tailStrike');
   check(hold(tailStrike({ W, def: def2 }), { gear: 'tri' }, 1) === null, 'a tricycle, the tail clear: nothing');
   check(hold(tailStrike({ W, def: def2 }), { gear: 'tail', tailY: 0.02 }, 1) === null, 'a taildragger: nothing (its tail is meant to be down)');
+  check(!!hold(tailStrike({ W, def: def2 }), { gear: 'hull', gpos: 1, tailY: 0.02 }, 1), 'an amphibian on its wheels on land, the heel down: tailStrike');
+  check(hold(tailStrike({ W, def: def2 }), { gear: 'hull', gpos: 0, tailY: 0.02 }, 1) === null, 'a hull with the gear up (a beaching): nothing');
   console.log('yield');
   check(!!hold(yieldDet(), { D: { yields: 1, firstYield: { beam: 7, cls: 'gear' } } }, 1), 'a member yields: yield');
   check(hold(yieldDet(), { D: { yields: 1 }, D0: { yields: 1 } }, 1) === null, 'yielded before the leg: nothing');
