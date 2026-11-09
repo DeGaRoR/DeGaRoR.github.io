@@ -7308,7 +7308,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           .map(b => ({ b, d: Math.hypot(b.x - a.x, b.z - a.z) - (b.len + a.len) / 2 })).filter(q => q.d < 30).sort((p, q) => p.d - q.d)
           .map(q => ({ cx: q.b.x, cz: q.b.z, hdg: q.b.hdg, halfL: q.b.len / 2, halfW: q.b.wid / 2 }));
         const rank = world.aerodromes.filter(b => b.len && b.kind !== 'meadow' && b.kind !== 'water' && (b.len < a.len || (b.len === a.len && String(b.id) < String(a.id)))).length;
-        const pmat = PAV.make(THREE, { lib, cls: RS.cls, marks, recipe: RS.recipe, band: RS.band, keep: others, geo: pgeo });   // G925: a row of the one material (the table)
+        const pmat = PAV.make(THREE, { lib, cls: RS.cls, marks, recipe: RS.recipe, band: RS.band, keep: others, geo: pgeo,   // G925: a row of the one material (the table)
+          micro: typeof STRIP_MICRO !== 'undefined' && STRIP_MICRO.glslRow ? STRIP_MICRO.glslRow(a.id) : null });   // DIRT-STRIP: a bumpy strip's puddles
         const pm = new THREE.Mesh(pgeo, pmat); pm.renderOrder = 1.99 + Math.min(19, rank) * 0.0005; pm.receiveShadow = true; pm.name = 'pavement:' + a.id; pm.userData.pavMat = true;
         scene.add(keep(pm));
         geo.dispose();
