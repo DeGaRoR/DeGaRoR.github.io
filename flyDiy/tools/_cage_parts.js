@@ -1117,6 +1117,9 @@ const CAGE_PARTS = [
       ['castor', ['s1_twSpringLen', 's1_twSpringDrop', 's1_twSpringW',
                   's1_twSpringT', 's1_twLeaves', 's1_twRake', 's1_twTrail',
                   's1_twLegDrop', 's1_twSteer', 's1_twSteerVis']],
+      // WILGA-GEAR: the trailing-link leg (the Wilga's) and its preview
+      ['trailing link', ['s1_lvArm', 's1_lvAng', 's1_lvComp', 's1_lvTop', 's1_lvReach', 's1_lvStat', 's1_lvLegW', 's1_lvRootAng',
+                         'gearLvPos']],
       // RETRACT-1: the retractable gear (a tricycle's; the mains are what it is mostly about)
       ['retraction', ['gearRetract', 'gearRetT', 'gearRetAct', 'gearPos', 'gearRetFrac', 'gearWellCut', 'gearLegDoor', 'gearDoors', 'gearNacFit', 'gearNacPod', 'gearShort', 'gearShortNose', 'gearKneeDoor']],
       // G1: the fold - the mains' preset or custom turns, the nose's
@@ -1169,6 +1172,8 @@ const CAGE_PARTS = [
       ['castor', ['s2_twSpringLen', 's2_twSpringDrop', 's2_twSpringW',
                   's2_twSpringT', 's2_twLeaves', 's2_twRake', 's2_twTrail',
                   's2_twLegDrop', 's2_twSteer', 's2_twSteerVis']],
+      // WILGA-GEAR: the station's copy of the trailing-link rows (the leg row offers the kind on the mains only)
+      ['trailing link', ['s2_lvArm', 's2_lvAng', 's2_lvComp', 's2_lvTop', 's2_lvReach', 's2_lvStat', 's2_lvLegW', 's2_lvRootAng']],
     ] },
 
   // 2026-09-04 (the user: "the wheel is a child of suspension"): under the mains
