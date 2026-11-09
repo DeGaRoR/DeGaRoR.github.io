@@ -4,5 +4,13 @@
  "stock+ifr|rest|navAerial/centre [access, on body body]|INTO edFinSkin": 9.2,
  "stock+ifr|+full|navAerial/centre [access, on body body]|INTO edFinSkin": 9.2,
  "stock+ifr|-full|navAerial/centre [access, on body body]|INTO edFinSkin": 9.2,
- "stock+ifr|flex|navAerial/centre [access, on body body]|INTO edFinSkin": 9.2
+ "stock+ifr|flex|navAerial/centre [access, on body body]|INTO edFinSkin": 9.2,
+ "c172|rest|hinge elevL fixed metal [hinge]|INTO fuselage": 5.2,
+ "c172|+full|hinge elevL fixed metal [hinge]|INTO fuselage": 5.2,
+ "c172|-full|hinge elevL fixed metal [hinge]|INTO fuselage": 5.2,
+ "c172|flex|hinge elevL fixed metal [hinge]|INTO fuselage": 5.2,
+ "c172|rest|hinge elevR fixed metal [hinge]|INTO edStabSkinR": 1.8,
+ "c172|+full|hinge elevR fixed metal [hinge]|INTO edStabSkinR": 1.8,
+ "c172|-full|hinge elevR fixed metal [hinge]|INTO edStabSkinR": 1.8,
+ "c172|flex|hinge elevR fixed metal [hinge]|INTO edStabSkinR": 1.8
 }
