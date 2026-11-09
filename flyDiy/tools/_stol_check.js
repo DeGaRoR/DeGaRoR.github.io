@@ -94,8 +94,7 @@ const CARDS = FIX.cards;
 const STOL_ROW_DEFAULTS = require(path.join(T, '_stol_fp.js')).STOL_ROW_DEFAULTS;   // (one table: the capture drops the same rows)
 const RHO = C.RHO;
 // SEAPLANES-LAND: the hull-types branch's cage rows at their "off" (src/core/60_gen_spec.js GEN_HULL_ROW_OFF)
-const HULL_ROW_OFF = { bpStrutK: 1, bpCabDraw: 1, bpCabPylon: 0, engPylonFair: 0, engPylonForm: 0, engPylonAt: 0, engPylonAft: 0.15,
-                       engPylonFwd: 0, engFinAt: 0.55, engFinFwd: 0, engNacOver: 0, engNacLift: 0 };
+const HULL_ROW_OFF = require(path.join(T, '_stol_fp.js')).HULL_ROW_OFF;   // one table, the capture's (_stol_fp.js preStol drops them too)
 
 // ---- the instruments ------------------------------------------------------
 // G2821: ONE SOURCE with the capture (tools/_stol_fp.js) - the fixture and the
