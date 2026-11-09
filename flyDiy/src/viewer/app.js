@@ -1236,10 +1236,13 @@
   // (rebake, a mood) only mark envDirty, and markBaked records the sun done()'s one bake will shoot - the loop has not
   // started, so the day has not moved when the first frame compares.
   // HANGAR-VIEW C: the room's sky is the world's at the real shed - its node's yaw and its centre (the clouds' eye)
-  let skyFrameKey = null;
+  let skyFrameKey = null, skyFramePre = null;
   function shedSkyFrame() {
     if (!hangar || !hangar.setSkyFrame || typeof hviewNode !== 'function') return;
-    let node = null, c = null; try { node = hviewNode(); if (node) { node.updateMatrixWorld(true); c = new THREE.Vector3(HVIEW_C[0], HVIEW_C[1], HVIEW_C[2]).applyMatrix4(node.matrixWorld); } } catch (e) { node = null; }   // (the boot's first frames: no world yet)
+    // (GATE ROUNDTRIP, L36d: NOTHING TICKS THE WORLD IN THE SHED - this ran the shed node's updateMatrixWorld every frame, 34
+    //  world objects; the node's own place and turn are read first, and the matrices are updated only when they moved)
+    let node = null, c = null; try { node = hviewNode(); if (node) { const p = node.position, pre = hangarRoom + '|' + Math.round((node.rotation.y || 0) * 1e4) + '|' + Math.round(p.x * 10) + ',' + Math.round(p.y * 10) + ',' + Math.round(p.z * 10) + '|' + (node.parent ? node.parent.id : '');
+      if (pre === skyFramePre) return; skyFramePre = pre; node.updateMatrixWorld(true); c = new THREE.Vector3(HVIEW_C[0], HVIEW_C[1], HVIEW_C[2]).applyMatrix4(node.matrixWorld); } } catch (e) { node = null; }   // (the boot's first frames: no world yet)
     if (!node || !c) return;
     const yaw = node.rotation.y || 0;
     const key = hangarRoom + '|' + Math.round(yaw * 1e4) + '|' + Math.round(c.x) + ',' + Math.round(c.z);
