@@ -313677,3 +313677,11 @@ BATTERY (full log read): 120 PASS / 8 FAIL (L35c 118 / 10).
 RE-GATE after the revert, the parked fleet re-cooked (same): STOL, UISMOKE, UISMOKE-PHONE, DMGMEMBERS, SKINMAT, FIT, CLIP, SAVE, PARTS, TECH, PANEL PASS; GEN back to its one L35c red ("cruise is quiet in wind", Pilot), every build digest master's again.
 No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change: PHYSICS_V 7, GEN_SPEC_V 10, GEN_CERT_V 7, as on master.
 TIMED GATE: light, stale 12 Oct baseline; all 7 rollouts ran. Steady frames p50 33.3 ms on every flown row. L35c's 4.9 s cub taxi freeze @HOME is GONE: no frame over 1 s in any taxi, take-off or flight segment. The one >1 s pair (8.5 s + 4.0 s) is in the cub cockpit's garage stand before the reveal (boot/compile, the cold shader cache, as L35a-c). Reds are the boot and compile rows, as before.
+
+## SHED-FLOOR + VEG-1 - NO GROUND COVER ON A STANDING SHED'S FLOOR; THE BERRY BUSHES GATHER INTO THICKETS (CABIN-CRAFT, 9 Nov 2026)
+
+- **Shed floor**: grass, fireweed, bunchberry and a shrub grew inside the world's works shed (master too: no slab, the cover masks read only surface and water). Every player shed files its footprint (render_world SHED_FLOORS); both cover rings skip a plant inside it after its draws; a shed that stands or comes down replants only its cells (replantBox). Node: inside 269 -> 0, outside identical, restored exactly on removal.
+- **Thickets**: a raspberry bush walks up a 16 m clump field inside its cell (same land tests), so the same 3840 bushes stand in groups; size by thicket with old/young outliers, value +-12 % (shade in the heart). Beds: 4 % tall spikes, strays 5 %.
+- **Cost**: shrubs 3840 = master, instanced meshes 192 = master: draws and tris unchanged; shrub meshes carry an instance colour (one program variant at most).
+- **Stills** 9 Nov 05:05 (evidence-2026-10-18/2026-11-09/veg-1) vs the roof-lights stills of 8 Nov: works B1_side floor bare (was grass + flowers + the sapling). Gates COVER, FADES, STAND, HANGAR, HANGARVIEW PASS.
+- Note: flyDiy/reports/evidence/VEG-1/READY.md. Open: grass thinner in the bed cores (CPU first); a shed floor slab.
