@@ -96,13 +96,33 @@ const STRIP_MICRO = (() => {
     function hole(i, m) {
       if (pHole <= 0 || ih(i, m, seed + 11) >= pHole) return null;
       const R = 0.5 + 0.6 * ih(i, m, seed + 12), u = (i + 0.15 + 0.7 * ih(i, m, seed + 13)) * CELL;
-      const lim = halfW - EDGE_IN[1] - R;
-      if (lim <= 0 || u < END_IN + R || u > len - END_IN - R) return null;
+      // THE SHAPE (the user, 9 Nov 17:15: "give variation to the round puddles. Stretch them in some directions, then mix them
+      // with noise"): stretched 1-2.2 x along an axis within 30 deg of the strip's (the wheels draw them out), its outline
+      // pushed inward by a noise (holeRho); eV / eU its reach across / along
+      const a = 1 + 1.2 * ih(i, m, seed + 18), th = (ih(i, m, seed + 19) - 0.5) * 1.05, cth = Math.cos(th), sth = Math.sin(th);
+      const eV = R * Math.sqrt(a * a * sth * sth + cth * cth), eU = R * Math.sqrt(a * a * cth * cth + sth * sth);
+      const lim = halfW - EDGE_IN[1] - eV;
+      if (lim <= 0 || u < END_IN + eU || u > len - END_IN - eU) return null;
       let v;
       if (ih(i, m, seed + 14) < 0.667) { const side = ih(i, m, seed + 15) < 0.5 ? -1 : 1; v = side * FLEET_MEAN + (ih(i, m, seed + 16) - 0.5) * 2 * sig; }
       else v = (ih(i, m, seed + 16) - 0.5) * 2 * lim;
       v = Math.max(-lim, Math.min(lim, v));
-      return [u, v, R, holeD * (0.5 + 0.5 * ih(i, m, seed + 17))];
+      return [u, v, R, holeD * (0.5 + 0.5 * ih(i, m, seed + 17)), a, cth, sth, eV, eU];
+    }
+    // THE RUTS' WATER (the user, 9 Nov 17:20: "yes ... make sure the border is not too harsh. That should be muddy water"):
+    // a vehicles' rut holds water where it runs deeper than (1 - 0.35 fill) of its depth - the deep stretches first, the
+    // whole rut's floor when soaked; the tapers as the ground's (pavement.js: the same, off pvWays)
+    function rutWater(u, v, fill) {
+      if (!WAYS.length || fill <= 0) return 0;
+      const w = waysAt(u, v); if (w[2] < 0 || WAYS[w[2]][7] !== 0 || w[1] <= 0.3) return 0;
+      const t = ss(0, END_IN, u) * ss(0, END_IN, len - u) * ss(EDGE_IN[0], EDGE_IN[1], halfW - Math.abs(v));
+      return t * Math.max(0, w[3] - WAYS[w[2]][2] * (1 - 0.35 * fill));
+    }
+    // a hole's outline: 1 on it, 0 at its middle - the stretched ellipse, pushed in by up to a third by a noise on its own
+    // offset (pavement.js pvHoles, line for line)
+    function holeRho(du, dv, H, i, m) {
+      const x = du * H[5] + dv * H[6], y = -du * H[6] + dv * H[5];
+      return Math.sqrt(x * x / (H[4] * H[4]) + y * y) / H[2] * (1 + 0.32 * (0.5 + 0.5 * vnoise(du / H[2] * 1.7 + i * 7.3, dv / H[2] * 1.7 + m * 3.1, seed + 21)));
     }
     // the holes' depth below the surface at (u, v), and the water a fill puts in them
     function holesAt(u, v, fill) {
@@ -110,9 +130,11 @@ const STRIP_MICRO = (() => {
       const ic = Math.floor(u / CELL); let d = 0, w = 0;
       for (let i = ic - 1; i <= ic + 1; i++) for (let m = 0; m < 2; m++) {
         const H = hole(i, m); if (!H) continue;
-        const du = u - H[0], dv = v - H[1], r2 = du * du + dv * dv;
-        if (r2 >= H[2] * H[2]) continue;
-        const b = H[3] * 0.5 * (1 + Math.cos(Math.PI * Math.sqrt(r2) / H[2]));
+        const du = u - H[0], dv = v - H[1];
+        if (Math.abs(du) >= H[8] || Math.abs(dv) >= H[7]) continue;
+        const rho = holeRho(du, dv, H, i, m);
+        if (rho >= 1) continue;
+        const b = H[3] * 0.5 * (1 + Math.cos(Math.PI * rho));
         if (b > d) d = b;
         if (fill > 0) w = Math.max(w, b - (1 - fill) * H[3]);
       }
@@ -127,19 +149,22 @@ const STRIP_MICRO = (() => {
       const room = halfW - 0.5 - 0.3 - 2 * R;
       if (room < 0) R = (halfW - 0.8) / 2;
       if (R < 0.6) continue;
-      const u = Math.max(END_IN + R, Math.min(len - END_IN - R, len * (0.05 + 0.9 * (j + 0.2 + 0.6 * ih(j, 0, seed + 31)) / K.hazards)));   // (bumpy all over: the whole strip)
+      const aH = 1 + 0.6 * ih(j, 0, seed + 37);   // (THE SHAPE: drawn out along the strip 1-1.6 x, never wider across)
+      const u = Math.max(END_IN + aH * R, Math.min(len - END_IN - aH * R, len * (0.05 + 0.9 * (j + 0.2 + 0.6 * ih(j, 0, seed + 31)) / K.hazards)));   // (bumpy all over: the whole strip)
       const side = ih(j, 0, seed + 35) < 0.5 ? -1 : 1, v = side * (0.3 + R + Math.max(0, room) * ih(j, 0, seed + 36));
       const h = K.hazardSize / 100 * (0.7 + 0.3 * ih(j, 0, seed + 34)) * (ih(j, 0, seed + 33) < 0.6 ? 1 : -1);
-      HZ.push([u, v, R, h]);
+      HZ.push([u, v, R, h, aH]);
     }
     const hzUp = HZ.reduce((m, H) => Math.max(m, H[3]), 0);
     // the hazards at (u, v): their height (signed), and the water a fill puts in the holes
     function hazardsAt(u, v, fill) {
       let h = 0, w = 0;
-      for (const H of HZ) {
-        const du = u - H[0], dv = v - H[1], r2 = du * du + dv * dv;
-        if (r2 >= H[2] * H[2]) continue;
-        const b = H[3] * 0.5 * (1 + Math.cos(Math.PI * Math.sqrt(r2) / H[2]));
+      for (let j = 0; j < HZ.length; j++) {
+        const H = HZ[j], du = u - H[0], dv = v - H[1];
+        if (Math.abs(du) >= H[2] * H[4] || Math.abs(dv) >= H[2]) continue;
+        const rho = Math.sqrt(du * du / (H[4] * H[4]) + dv * dv) / H[2] * (1 + 0.25 * (0.5 + 0.5 * vnoise(du / H[2] * 1.4 + j * 5.7, dv / H[2] * 1.4 + 11, seed + 38)));
+        if (rho >= 1) continue;
+        const b = H[3] * 0.5 * (1 + Math.cos(Math.PI * rho));
         h += b;
         if (fill > 0 && H[3] < 0) w = Math.max(w, -b - (1 - fill) * -H[3]);
       }
@@ -169,7 +194,7 @@ const STRIP_MICRO = (() => {
       }
     }
     const wayC = (W, u) => W[4] + W[5] * vnoise(u / 60, W[7], seed + 411) + W[6] * vnoise(u / 15, W[7], seed + 421);
-    // the ways at (u, v): [dh (troughs down, berms up), the deepest trough's share 0..1, which way (-1 none)]
+    // the ways at (u, v): [dh (troughs down, berms up), the deepest trough's share 0..1, which way (-1 none), its depth]
     function waysAt(u, v) {
       let dMax = 0, tMax = 0, bm = 0, wi = -1;
       for (let i = 0; i < WAYS.length; i++) {
@@ -183,7 +208,7 @@ const STRIP_MICRO = (() => {
           bm += W[3] * dep * Math.exp(-bq * bq);
         }
       }
-      return [-dMax + bm * (1 - tMax), tMax, wi];
+      return [-dMax + bm * (1 - tMax), tMax, wi, dMax];
     }
     // THE ROCKS (drawn, not felt): a stone in one 1.2 m cell in `rocks`, more toward the edges (the grader's windrow, what
     // the wheels threw), 7-27 cm; pebbles in 0.3 m cells, 1.5-6.5 cm. Each sits in the middle half of its cell, so a point
@@ -252,7 +277,7 @@ const STRIP_MICRO = (() => {
         if (pudOK <= 0 || !(wet > 0)) return 0;
         const q = toUV(x, z), fill = Math.max(0, Math.min(1, (wet - 0.25) / 0.6)) * K.puddles * pudOK;
         if (fill <= 0 || q[0] <= 0 || q[0] >= len || Math.abs(q[1]) >= halfW) return 0;
-        return Math.max(holesAt(q[0], q[1], fill)[1], hazardsAt(q[0], q[1], fill)[1]);
+        return Math.max(holesAt(q[0], q[1], fill)[1], hazardsAt(q[0], q[1], fill)[1], rutWater(q[0], q[1], fill));
       },
       hole, lanes, ways: WAYS, waysAt, rockAt, rockIn, toUV, reliefUV, hazards: HZ, a1: amp[OCT.length - 1],
     };
