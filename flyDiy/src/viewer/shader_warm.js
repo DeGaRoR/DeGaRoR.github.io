@@ -149,6 +149,8 @@ var PROG_WARM = (() => {
   // the lamps' prep and the watchdog's (flight_recorder 'shaderslow') business.
   //   G = PROG_WARM.guard(THREE, renderer, { on: () => bool, scenes: () => [scene] })
   //   G.flush(camera) after the frame's render: the held materials' compiles start; G.stats: held draws, compiles
+  //   opt.pace() (BOOT-PROGRAMS 9 Nov): how many more may start linking now (Infinity: all of them, as before); the rest
+  //   wait in the queue for a later frame's flush, the ground's family first
   function guard(THREE, renderer, opt) {
     const props = renderer.properties, orig = renderer.renderBufferDirect;
     const pend = new Map(), queue = [];
@@ -178,7 +180,9 @@ var PROG_WARM = (() => {
       const prev = renderer.getRenderTarget();
       let n = 0;
       try {
-        while (queue.length) {
+        let room = opt.pace ? opt.pace() : Infinity;
+        if (room !== Infinity && queue.length > 1) queue.sort((a, b) => (a.m.groundFamily ? 0 : 1) - (b.m.groundFamily ? 0 : 1));
+        while (queue.length && room-- > 0) {
           const e = queue.shift(); e.t = now;
           try {
             renderer.setRenderTarget(e.rt);
