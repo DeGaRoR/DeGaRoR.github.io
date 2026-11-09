@@ -314003,3 +314003,23 @@ THE READIES (their own pre-gates):
 - wingsmith-name a8792c14f (Game): the game's name Wingsmith in ONE string (GAME_NAMES.game), placeholder, saves/PWA id unchanged; GATE WINGSMITH new.
 - pilot-notch-2 c47e15aef (Pilot), 15 fresh commits (the revert trap respected): the notch, FLARE-NOPUSH, G2815, the G2816 cap + G2816b (no cap on a short field, xwFlapK 0.15), POD/ENGCONFIG pins, the census, TANK-SPLIT, the PILOTMATRIX baseline, the STOL check + re-capture (rule b: the stock Cub lands on its notch, 67.2 vs 64.0 km/h, so the slower approach is asked at 0.96x Vref), HANDOVER. Proof: the user's Cub HOME > w3 > tw_ski ok (touchdown -0.09 m/s, run 68 m) against L36a's ground loop; x2 ok, x4 15 deg as before. PASS TOUR 0/1/3, PILOTMATRIX, PILOT 0-2, ROUTE 0-2, PROFILE, PLAN, TAKEOFF, LINEUP, POD, CESSNAVREF. Reds as master: TOUR 2 (the float Cessna), ENGCONFIG's quad + cards; the branch clears master's 9 identity FAILs. NODE-ACCEPT: Cub PASS (not in this ready).
 - petrel-draw 656c847cf (SEAPLANES): no physics hull on a cage build (app.js buildFloatMeshes). The Petrel draws whole near and far; the validated float planes are unchanged by construction (floatRigs 12, 0 physics hulls); FLOATS, HYDRODYN, SEAPLANE, FLOATDUP PASS.
+
+## DIRT-STRIP - A NAMED COST: THE BUMPY STRIP'S RIBBON, 5 cm ROWS ACROSS A RUT'S WALL (9 Nov 2026, claude/dirt-strip 11be830d5)
+
+The ruts-first field (26b_strip_micro.js WAYS: vehicle ruts about 10 cm deep at chaos 0.8 with berms, a cart, a path)
+gives the ground steep walls, about 10 cm over 9 cm. GATE MICRO section 7 requires the drawn ribbon to be the wheels'
+ground: p99 under 10 mm, max under 30 mm. With rows 8 cm across (REFINE_MIN_V 0.08) the walls were drawn 2 cm off:
+p99 20.5 mm, max 34 mm on w7 at chaos 0.8 (19:36 gates).
+REFINE_MIN_V is now 0.05. refineAxis halves spans, so this means 4.7 cm rows where the ruts wander. The result there is
+p99 8.4 mm and max 28.7 mm.
+**The cost, named:** w7 (1020 x 9 m) at chaos 0.8 draws 283 k vertices against 196 k (2721 x 104 against 2721 x 72) and
+takes +0.3 s to build (1.2 s against 0.9 s, node). The gate's vertex cap moves from 250 k to 300 k (A0 OK, 9 Nov 19:45).
+It applies only to a strip with chaos on: every strip ships at chaos 0 until the Pilot re-vets the field, so nothing is
+paid today.
+**Tried and rejected:**
+- 0.5 m along (spans 0.75 m): 178 k vertices, but p99 15 mm, because the lumps' 1.8 m octave needs 0.375 m spans.
+- A longer rut wiggle (2.5 m against 0.7 m): it does not move the error.
+- 0.04 and 0.05 across give the same spans.
+**Owed:** a frame-cost bench of the finer rows once a strip's chaos is switched on (the user's default, 9 Nov: keep the
+fine rows and bench their cost).
+Probe: scratchpad ribbon_probe.js <minU> <minV>..., run after a build.
