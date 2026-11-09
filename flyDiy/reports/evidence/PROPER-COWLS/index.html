@@ -1,0 +1,275 @@
+<title>Proper Default Cowls</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<style>
+/* Layout: a hangar work-card - a narrow reading column for the argument, the pictures and the table full width below. */
+:root {
+  --paper: #eef0ec; --sheet: #f8f9f6; --ink: #1c2420; --mute: #5d6862; --rule: #cfd5cf;
+  --amber: #b87400; --amber-bg: #f6e7c4; --steel: #285a78; --ok: #2f6b3f;
+  --f-head: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+  --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --paper: #121614; --sheet: #1a201d; --ink: #e2e7e3; --mute: #9aa69f; --rule: #2f3833;
+  --amber: #f0a92a; --amber-bg: #3a2c10; --steel: #8fbcd8; --ok: #7cc68e; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --paper: #121614; --sheet: #1a201d; --ink: #e2e7e3; --mute: #9aa69f; --rule: #2f3833;
+  --amber: #f0a92a; --amber-bg: #3a2c10; --steel: #8fbcd8; --ok: #7cc68e; color-scheme: dark }
+body { background: var(--paper); color: var(--ink); font: 15px/1.55 var(--f-body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 28px 64px; }
+.wrap { max-width: 1240px; margin: 0 auto; display: grid; gap: 40px; }
+.wrap > * { min-width: 0; }
+.col { max-width: 68ch; }
+h1 + .lede { margin-top: 14px; }
+h1, h2, h3 { font-family: var(--f-head); text-wrap: balance; margin: 0; letter-spacing: 0.01em; }
+h1 { font-size: clamp(2rem, 5vw, 3rem); font-weight: 700; line-height: 1.05; }
+h2 { font-size: 1.55rem; font-weight: 600; margin-bottom: 10px; }
+h3 { font-size: 1.15rem; font-weight: 600; }
+p { margin: 0 0 12px; }
+a { color: var(--steel); }
+.eyebrow { font: 500 0.78rem/1 var(--f-mono); text-transform: uppercase; letter-spacing: 0.12em; color: var(--amber); margin-bottom: 12px; }
+.lede { font-size: 1.08rem; color: var(--ink); }
+.mono { font-family: var(--f-mono); font-size: 0.86em; }
+code { font-family: var(--f-mono); font-size: 0.86em; background: var(--sheet); border: 1px solid var(--rule); padding: 0 4px; border-radius: 3px; }
+
+/* the decision card: the one boxed thing on the page */
+.decide { background: var(--sheet); border: 1px solid var(--rule); border-left: 4px solid var(--amber); padding: 18px 20px; border-radius: 4px; max-width: 80ch; }
+.decide h2 { margin-bottom: 12px; }
+.options { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin: 6px 0 14px; }
+.options div { min-width: 0; }
+.options b { font-family: var(--f-head); font-size: 1.05rem; display: block; }
+.rec { background: var(--amber-bg); padding: 10px 12px; border-radius: 3px; }
+
+/* the pictures */
+.views { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font: 500 0.82rem var(--f-mono); color: var(--mute); }
+.views button { font: inherit; color: var(--ink); background: var(--sheet); border: 1px solid var(--rule); padding: 5px 10px; border-radius: 3px; cursor: pointer; }
+.views button[aria-pressed="true"] { border-color: var(--amber); color: var(--amber); }
+.views button:focus-visible { outline: 2px solid var(--steel); outline-offset: 2px; }
+.plane { display: grid; gap: 10px; padding-top: 18px; border-top: 1px solid var(--rule); }
+.plane header { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.plane .eng { color: var(--mute); font-size: 0.9rem; }
+.tag { font: 500 0.7rem var(--f-mono); text-transform: uppercase; letter-spacing: 0.1em; padding: 2px 6px; border-radius: 2px; border: 1px solid var(--rule); color: var(--mute); }
+.tag-official { color: var(--ok); border-color: currentColor; }
+.strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.strip.two, .strip.n2 { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 820px; }
+.strip.n3 { grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: 1180px; }
+.strip.n1 { grid-template-columns: minmax(0, 1fr); max-width: 420px; }
+.point { display: grid; gap: 14px; }
+.strip.wide { max-width: 1000px; }
+.podrow { display: grid; gap: 8px; padding-top: 14px; border-top: 1px solid var(--rule); }
+.podrow header { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+figure.pod img { aspect-ratio: 16 / 10; }
+.decide dl { margin-bottom: 14px; }
+@media (max-width: 760px) { .strip { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 460px) { .strip.two, .strip.n2, .strip.n3 { grid-template-columns: 1fr; } }
+figure { margin: 0; min-width: 0; }
+figure img { display: block; width: 100%; height: auto; object-fit: contain; border-radius: 3px; background: #0d0f0e; }
+figcaption { font: 500 0.8rem var(--f-mono); color: var(--mute); padding-top: 4px; }
+.opt-today figcaption { color: var(--ink); }
+.note { color: var(--mute); font-size: 0.9rem; margin: 0; }
+
+/* the table */
+.tablewrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 4px; background: var(--sheet); }
+table { border-collapse: collapse; width: 100%; min-width: 860px; font-size: 0.9rem; }
+th, td { text-align: left; vertical-align: top; padding: 10px 12px; border-bottom: 1px solid var(--rule); }
+thead th { font: 600 0.78rem var(--f-mono); text-transform: uppercase; letter-spacing: 0.08em; color: var(--mute); position: sticky; top: 0; background: var(--sheet); }
+tr.type th { font-family: var(--f-head); font-size: 1.05rem; background: var(--paper); color: var(--ink); }
+tr.type th span { font: 400 0.8rem var(--f-mono); color: var(--mute); margin-left: 8px; }
+td.mount { font-weight: 600; white-space: nowrap; }
+td.real { max-width: 40ch; }
+td.today { width: 230px; }
+td.today img { width: 220px; aspect-ratio: 5 / 3; object-fit: cover; border-radius: 3px; display: block; background: #0d0f0e; }
+td.prop { max-width: 34ch; }
+.refs { font-size: 0.82rem; margin-top: 6px; }
+.none { color: var(--mute); font-size: 0.82rem; font-style: italic; }
+dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0; }
+dt { font: 500 0.85rem var(--f-mono); color: var(--amber); }
+dd { margin: 0; min-width: 0; }
+ul { margin: 0 0 12px; padding-left: 20px; }
+@media (prefers-reduced-motion: no-preference) { figure img { transition: opacity .15s; } }
+</style>
+
+<div class="wrap">
+  <div class="col">
+    <div class="eyebrow">flyDiy · PROPER-COWLS · V5 · 8 Nov 2026</div>
+    <h1>Proper default cowls</h1>
+    <p class="lede">V5: the nose cowl reworked on your notes (the bottom, the drop, the exhaust, the scoop), the pods, and the cooling path to come. Quick renders, flat-shaded: the shapes, not the final look.</p>
+    <div class="views" role="group" aria-label="View"><span>View</span><button type="button" id="v34" aria-pressed="true">side</button><button type="button" id="vside" aria-pressed="false">head-on</button></div>
+  </div>
+<section class="point" id="v5"><div class="col"><div class="eyebrow">V5 · the nose cowl</div><h2>The bottom rounds, sits lower than the firewall, and lets the air and the exhaust out</h2><p>Quick flat-shaded renders (<code>quickshot.js</code>), today against V5: side view, and head-on on the button above. On a nose engine:</p><ul><li><b>The bottom rounds out</b> (your round B). It leaves the firewall level, carrying on the fuselage's bottom line, and rounds up into the front face. New generator rows: the bottom line's own bend (<code>keelShoulder</code>, <code>keelRound</code>).</li><li><b>The bottom sits lower than the firewall's</b>, vertically only, held until the bend. It is sized on your saved builds: 0.24 of the nose half-height at 70 hp down to 0.04 at 160 hp. Cub 8.0 cm (yours 7.9), Jodel 8.0 (8.7), C172 2.1 (1.9), ugly bi 6.0, STOL Cub 4.6.</li><li><b>The top descends a little</b> to meet the spinner (<code>deckShoulder</code>, <code>deckRound</code>).</li><li><b>The exhaust's ramp.</b> Where the drawn exhaust leaves, the skin is pressed into a shallow channel, open at the aft edge (<code>exCut</code> 2).</li><li><b>The chin scoop rides the bottom line</b> (<code>scoopFollow</code>): its top a third of its height inside the skin all along, so it can't float or dig in.</li><li><b>The bends make room for the engine.</b> Where the drawn engine needs it, the bottom stays level longer and the top descends less (the Tiger Moth's inverted cylinders).</li></ul><p>All of it is generator rows, absent by default, so every saved cowl is drawn to the bit and no flown number moves. A radial keeps its round NACA barrel. The generated radial nose below is smaller than its W-670, so its heads still show, as they do today: an open item.</p></div>
+<div class="plane"><header><h3>Piper Cub</h3><span class="eng">official · A-65</span></header>
+<div class="strip n2"><figure class="opt"><img src="img/b_cub_today_0.jpg" alt="Today" loading="lazy" data-alt="img/b_cub_today_1.jpg"><figcaption>Today</figcaption></figure>
+<figure class="opt"><img src="img/b_cub_rule_0.jpg" alt="V5" loading="lazy" data-alt="img/b_cub_rule_1.jpg"><figcaption>V5</figcaption></figure></div></div>
+<div class="plane"><header><h3>Cessna 172</h3><span class="eng">official · 159 hp boxer</span></header>
+<div class="strip n2"><figure class="opt"><img src="img/b_c172_today_0.jpg" alt="Today" loading="lazy" data-alt="img/b_c172_today_1.jpg"><figcaption>Today</figcaption></figure>
+<figure class="opt"><img src="img/b_c172_rule_0.jpg" alt="V5" loading="lazy" data-alt="img/b_c172_rule_1.jpg"><figcaption>V5</figcaption></figure></div></div>
+<div class="plane"><header><h3>Jodel</h3><span class="eng">official · A-65</span></header>
+<div class="strip n2"><figure class="opt"><img src="img/b_jodel_today_0.jpg" alt="Today" loading="lazy" data-alt="img/b_jodel_today_1.jpg"><figcaption>Today</figcaption></figure>
+<figure class="opt"><img src="img/b_jodel_rule_0.jpg" alt="V5" loading="lazy" data-alt="img/b_jodel_rule_1.jpg"><figcaption>V5</figcaption></figure></div></div>
+<div class="plane"><header><h3>ugly bi</h3><span class="eng">candidate · O-200</span></header>
+<div class="strip n2"><figure class="opt"><img src="img/b_ugly_today_0.jpg" alt="Today" loading="lazy" data-alt="img/b_ugly_today_1.jpg"><figcaption>Today</figcaption></figure>
+<figure class="opt"><img src="img/b_ugly_rule_0.jpg" alt="V5" loading="lazy" data-alt="img/b_ugly_rule_1.jpg"><figcaption>V5</figcaption></figure></div></div>
+<div class="plane"><header><h3>STOL Cub</h3><span class="eng">candidate · Rotax 915 iS</span></header>
+<div class="strip n2"><figure class="opt"><img src="img/b_stol_today_0.jpg" alt="Today" loading="lazy" data-alt="img/b_stol_today_1.jpg"><figcaption>Today</figcaption></figure>
+<figure class="opt"><img src="img/b_stol_rule_0.jpg" alt="V5" loading="lazy" data-alt="img/b_stol_rule_1.jpg"><figcaption>V5</figcaption></figure></div></div>
+<div class="plane"><header><h3>Tiger Moth-alike</h3><span class="eng">candidate · Gipsy Major, inverted</span></header>
+<div class="strip n2"><figure class="opt"><img src="img/b_tiger_today_0.jpg" alt="Today" loading="lazy" data-alt="img/b_tiger_today_1.jpg"><figcaption>Today</figcaption></figure>
+<figure class="opt"><img src="img/b_tiger_rule_0.jpg" alt="V5" loading="lazy" data-alt="img/b_tiger_rule_1.jpg"><figcaption>V5</figcaption></figure></div></div>
+<div class="plane"><header><h3>twinBoomFail</h3><span class="eng">candidate · E-811 (electric: no drop, no ramp)</span></header>
+<div class="strip n2"><figure class="opt"><img src="img/b_tboom_today_0.jpg" alt="Today" loading="lazy" data-alt="img/b_tboom_today_1.jpg"><figcaption>Today</figcaption></figure>
+<figure class="opt"><img src="img/b_tboom_rule_0.jpg" alt="V5" loading="lazy" data-alt="img/b_tboom_rule_1.jpg"><figcaption>V5</figcaption></figure></div></div>
+<div class="plane"><header><h3>A generated radial nose</h3><span class="eng">W-670 on a nose smaller than it</span></header>
+<div class="strip n2"><figure class="opt"><img src="img/b_radial_today_0.jpg" alt="Today" loading="lazy" data-alt="img/b_radial_today_1.jpg"><figcaption>Today</figcaption></figure>
+<figure class="opt"><img src="img/b_radial_rule_0.jpg" alt="V5" loading="lazy" data-alt="img/b_radial_rule_1.jpg"><figcaption>V5</figcaption></figure></div></div>
+<div class="plane"><header><h3>Twin busher floats 4b</h3><span class="eng">official · Rotax 916 iS, pusher (the body rule from the aft face)</span></header>
+<div class="strip n2"><figure class="opt"><img src="img/b_busher_today_0.jpg" alt="Today" loading="lazy" data-alt="img/b_busher_today_1.jpg"><figcaption>Today</figcaption></figure>
+<figure class="opt"><img src="img/b_busher_rule_0.jpg" alt="V5" loading="lazy" data-alt="img/b_busher_rule_1.jpg"><figcaption>V5</figcaption></figure></div></div></section>
+<section class="point" id="pods"><div class="col"><div class="eyebrow">Off the body</div><h2>The pods, sized to the drawn engine</h2><p>A straight pod round the engine as drawn (its top hardware and sides; exhaust stubs may leave underneath), with the engine's own section: a boxer wide and low, an in-line tall and boxy, a V a deep oval, a radial round with a helmet over each cylinder, a motor round and tight (its mount plate takes the pod's size), a turboprop round with its chin grown into the barrel. Each pod runs full section to the spinner, and the propeller moves forward by the lip. The over-the-wing plane wears the Engine mount tile's own aero nose: the bare nose of round 2 was my study plane, built by hand.</p></div>
+<div class="plane"><header><h3>Boxer (O-320)</h3><span class="eng"></span></header>
+<div class="strip n2"><figure class="opt pod"><img src="img/p_flat_today_0.jpg" alt="Today" loading="lazy"><figcaption>Today</figcaption></figure>
+<figure class="opt pod"><img src="img/p_flat_straight_0.jpg" alt="Straight pod" loading="lazy"><figcaption>Straight pod</figcaption></figure></div></div>
+<div class="plane"><header><h3>Rotax 915 iS</h3><span class="eng"></span></header>
+<div class="strip n2"><figure class="opt pod"><img src="img/p_rotax_today_0.jpg" alt="Today" loading="lazy"><figcaption>Today</figcaption></figure>
+<figure class="opt pod"><img src="img/p_rotax_straight_0.jpg" alt="Straight pod" loading="lazy"><figcaption>Straight pod</figcaption></figure></div></div>
+<div class="plane"><header><h3>Inverted in-line (Gipsy Major)</h3><span class="eng"></span></header>
+<div class="strip n2"><figure class="opt pod"><img src="img/p_inline_today_0.jpg" alt="Today" loading="lazy"><figcaption>Today</figcaption></figure>
+<figure class="opt pod"><img src="img/p_inline_straight_0.jpg" alt="Straight pod" loading="lazy"><figcaption>Straight pod</figcaption></figure></div></div>
+<div class="plane"><header><h3>V (Hirth HM 508)</h3><span class="eng"></span></header>
+<div class="strip n2"><figure class="opt pod"><img src="img/p_vee_today_0.jpg" alt="Today" loading="lazy"><figcaption>Today</figcaption></figure>
+<figure class="opt pod"><img src="img/p_vee_straight_0.jpg" alt="Straight pod" loading="lazy"><figcaption>Straight pod</figcaption></figure></div></div>
+<div class="plane"><header><h3>Radial (W-670), 7 helmets</h3><span class="eng"></span></header>
+<div class="strip n2"><figure class="opt pod"><img src="img/p_radial_today_0.jpg" alt="Today" loading="lazy"><figcaption>Today</figcaption></figure>
+<figure class="opt pod"><img src="img/p_radial_straight_0.jpg" alt="Straight pod" loading="lazy"><figcaption>Straight pod</figcaption></figure></div></div>
+<div class="plane"><header><h3>Turboprop (PT6A-114A)</h3><span class="eng"></span></header>
+<div class="strip n2"><figure class="opt pod"><img src="img/p_turbine_today_0.jpg" alt="Today" loading="lazy"><figcaption>Today</figcaption></figure>
+<figure class="opt pod"><img src="img/p_turbine_straight_0.jpg" alt="Straight pod" loading="lazy"><figcaption>Straight pod</figcaption></figure></div></div>
+<div class="plane"><header><h3>Electric (E-811)</h3><span class="eng"></span></header>
+<div class="strip n2"><figure class="opt pod"><img src="img/p_electric_today_0.jpg" alt="Today" loading="lazy"><figcaption>Today</figcaption></figure>
+<figure class="opt pod"><img src="img/p_electric_straight_0.jpg" alt="Straight pod" loading="lazy"><figcaption>Straight pod</figcaption></figure></div></div>
+<div class="plane"><header><h3>Over the wing (Rotax 915 on the pylon)</h3><span class="eng"></span></header>
+<div class="strip n2"><figure class="opt pod"><img src="img/p_pylon_today_0.jpg" alt="Today" loading="lazy"><figcaption>Today</figcaption></figure>
+<figure class="opt pod"><img src="img/p_pylon_straight_0.jpg" alt="Straight pod" loading="lazy"><figcaption>Straight pod</figcaption></figure></div></div></section>
+<section class="point" id="tiger"><div class="col"><div class="eyebrow">The Tiger Moth</div><h2>The engine per the reference, then the cowl round it</h2><p>The DH.82 reference match puts the propeller's line where the build has it (<code>engY</code> 0.21). The Gipsy is inverted, and drawn 0.705 m tall against the real Gipsy Major's 0.752 m (<a href="https://all-aero.com/2024/01/25/de-havilland-gipsy-major-gipsy-iiia-cniar-4gi" target="_blank" rel="noopener">All-Aero</a>). So it stays. The cowl folds <code>engY</code> into its axis (the ring is now on the spinner) and is built round the engine's own box. One hump does not fit the real bonnet: our engine generator draws an inverted in-line's induction on top (entry G164), up to 0.34 m over the shaft where the type's bonnet runs 0.13-0.27 m. The cowl covers it with a blister near the firewall (the reference model's bonnet has one too). The proper fix is in the engine drawing.</p></div>
+</section>
+<section class="point" id="crease"><div class="col"><div class="eyebrow">The crease</div><h2>Which of the plane's rows make a nose boxy</h2><p>A study on 15 builds (<code>crease_study.js</code>): the firewall's outline fitted with the cowl's own section law. The RMS of the half-width is 5-65 mm with the waist on the plane's waistline, 4-37 mm with the waist free, and 2-23 mm free with the width at the top and bottom lines added (<code>wAftTop</code> / <code>wAftBot</code>). The hard ones are the sill-creased boxes (<code>crSill</code> ≥ 2: Cub, C172, Mosquito-alike): flanks full up to the waistline under a deck narrower than them; the C172's firewall is two-tiered. The rule keeps your waistline on a flat-sided nose, fits it on a round-topped cabin, and fits the roundness above and below. The two width rows would close most of the rest, but the flight model reads them (the cowl's wetted area and mass): they wait for A0's word.</p></div>
+</section>
+<section class="point" id="next"><div class="col"><div class="eyebrow">Next</div><h2>The cooling path: in, through, out</h2><p>Your proposal, as a cowl section of its own: every cowl has an <b>inlet</b> (the face's openings by engine type), <b>auxiliary intakes</b> (the chin scoop: the carburettor, an oil cooler, a radiator), and a <b>heat outlet</b>, one of:</p><ul><li><b>the lowered belly</b>: the Cub's (V5's drop);</li><li><b>the bottom exit with a lip</b>: the C172's. It has no cowl flaps (the 182 does); the air is pushed down through the fins and leaves through the open aft edge of the lower cowl, with the exhaust pipe;</li><li><b>side gills</b>: the Carbon Cub's raised panel of slanted slots on the lower flank, behind the cylinders. Real 3D louvres, with their own thickness, rounded lips and dark throats, on a panel or cut cleanly into the skin, placed only where they clear the rivets, the split line, the seam, the ramp and the scoop;</li><li><b>cowl flaps</b>: the 182's, the radials'.</li></ul></div>
+</section>
+  <section>
+    <div class="col"><h2>Each engine type on each mount</h2>
+    <p>What a real cowl looks like there, what the new-plane chooser draws today (a generated build per row), and the default proposed.</p></div>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Mount</th><th>A real cowl</th><th>Ours today</th><th>The default proposed</th></tr></thead>
+      <tbody>
+<tr class="type"><th colspan="4">Flat four / six <span>A-65, O-200, O-320, IO-360, O-540, IO-550, Jabiru, VW</span></th></tr><tr><td class="mount">Nose</td>
+<td class="real">Matches the fuselage at the firewall, a blunt face, two inlets beside the spinner, the air out at the bottom rear. A slight taper in plan on most; cheeks over the heads where the engine is wider than the nose (PA-18).<div class="refs"><a href="https://en.wikipedia.org/wiki/Cessna_172" target="_blank" rel="noopener">Cessna 172</a> · <a href="https://en.wikipedia.org/wiki/Jodel_D11" target="_blank" rel="noopener">Jodel D11</a> · <a href="https://en.wikipedia.org/wiki/Piper_PA-18_Super_Cub" target="_blank" rel="noopener">Piper PA-18</a></div></td>
+<td class="today"><img src="img/today_g2_flat_nose.jpg" alt="today: Flat four / six, nose" loading="lazy"></td>
+<td class="prop">Body rule: the firewall's section, waist on the waistline; front on the thrust line, shorter, a little narrower; two inlets; cheeks over the heads only if they stand proud.</td></tr>
+<tr><td class="mount">Pusher, aft face</td>
+<td class="real">The fuselage continues aft and closes onto the spinner; the air comes in through NACA ducts or a belly scoop, not at the propeller.<div class="refs"><a href="https://en.wikipedia.org/wiki/Rutan_Long-EZ" target="_blank" rel="noopener">Rutan Long-EZ</a> · <a href="https://en.wikipedia.org/wiki/Cessna_Skymaster" target="_blank" rel="noopener">Cessna 337 (rear)</a></div></td>
+<td class="today"><img src="img/today_rotax_pusher.jpg" alt="today: Flat four / six, pusher" loading="lazy"></td>
+<td class="prop">Body rule from the aft face (its waist the pod's widest band), front on the propeller; no openings at the propeller end.</td></tr>
+<tr><td class="mount">Over the wing</td>
+<td class="real">A pod on a pylon: a rounded nose with the inlet, a straight barrel round the engine, the propeller behind.<div class="refs"><a href="https://en.wikipedia.org/wiki/Lake_LA-4" target="_blank" rel="noopener">Lake LA-4 Buccaneer</a></div></td>
+<td class="today"><span class="none">not offered by the chooser today</span></td>
+<td class="prop">Pod: wider than high, the boxer's size, a tail cone.</td></tr>
+<tr><td class="mount">Wing nacelles</td>
+<td class="real">A nose cowl in front of the wing (two inlets), then the nacelle runs straight back over or under the wing and ends in a cone behind it.<div class="refs"><a href="https://en.wikipedia.org/wiki/Piper_PA-34_Seneca" target="_blank" rel="noopener">Piper PA-34 Seneca</a> · <a href="https://en.wikipedia.org/wiki/Partenavia_P.68" target="_blank" rel="noopener">Partenavia P.68</a> · <a href="https://en.wikipedia.org/wiki/Diamond_DA42_Twin_Star" target="_blank" rel="noopener">Diamond DA42</a></div></td>
+<td class="today"><img src="img/today_g2_flat_twin.jpg" alt="today: Flat four / six, twin" loading="lazy"></td>
+<td class="prop">Pod: wider than high round the heads, two inlets, a tail cone past the trailing edge.</td></tr>
+<tr><td class="mount">Push-pull</td>
+<td class="real">A normal nose cowl in front; the rear engine buried in the fuselage end with a scoop on top.<div class="refs"><a href="https://en.wikipedia.org/wiki/Cessna_Skymaster" target="_blank" rel="noopener">Cessna 337 Skymaster</a></div></td>
+<td class="today"><img src="img/today_flat_pushPull.jpg" alt="today: Flat four / six, pushPull" loading="lazy"></td>
+<td class="prop">The nose rule in front, the pusher rule behind.</td></tr>
+<tr class="type"><th colspan="4">Rotax 912 / 915 / 916 <span>geared boxer, liquid-cooled heads; the propeller shaft sits high</span></th></tr><tr><td class="mount">Nose</td>
+<td class="real">Rounder than a Lycoming cowl, the spinner high on the face (the gearbox), two inlets for the heads and a big chin mouth for the radiator.<div class="refs"><a href="https://en.wikipedia.org/wiki/Comco_Ikarus_C42" target="_blank" rel="noopener">Ikarus C42</a> · <a href="https://en.wikipedia.org/wiki/Zenith_STOL_CH_701" target="_blank" rel="noopener">Zenith STOL CH 701</a> · <a href="https://en.wikipedia.org/wiki/Tecnam_P92" target="_blank" rel="noopener">Tecnam P92</a></div></td>
+<td class="today"><img src="img/today_flat_nose.jpg" alt="today: Rotax 912 / 915 / 916, nose" loading="lazy"></td>
+<td class="prop">Body rule (the front centred on the high propeller shaft), two inlets, a chin mouth.</td></tr>
+<tr><td class="mount">Over the wing</td>
+<td class="real">An engine on a tower or pylon over the cabin: a slim pod, the radiator under it, the propeller behind.<div class="refs"><a href="https://en.wikipedia.org/wiki/Progressive_Aerodyne_SeaRey" target="_blank" rel="noopener">Progressive Aerodyne SeaRey</a> · <a href="https://en.wikipedia.org/wiki/Tecnam_P2006T" target="_blank" rel="noopener">Tecnam P2006T (twin)</a></div></td>
+<td class="today"><img src="img/today_radial_wingTop.jpg" alt="today: Rotax 912 / 915 / 916, wingTop" loading="lazy"></td>
+<td class="prop">Pod: wide and low, centred on the shaft, two inlets + chin mouth, a tail cone.</td></tr>
+<tr class="type"><th colspan="4">Two-stroke in-line <span>Rotax 277, 503, 582</span></th></tr><tr><td class="mount">Nose</td>
+<td class="real">A small hood over a narrow engine; the radiator behind a mouth under the spinner, or out in the air.<div class="refs"><a href="https://en.wikipedia.org/wiki/Denney_Kitfox" target="_blank" rel="noopener">Kitfox</a> · <a href="https://en.wikipedia.org/wiki/Avid_Flyer" target="_blank" rel="noopener">Avid Flyer</a></div></td>
+<td class="today"><img src="img/today_inline_nose.jpg" alt="today: Two-stroke in-line, nose" loading="lazy"></td>
+<td class="prop">Body rule, a chin mouth, no inlets on the face.</td></tr>
+<tr><td class="mount">Pusher, aft face</td>
+<td class="real">Usually no cowl: the engine and its radiator stand in the air behind the pod.<div class="refs"><a href="https://en.wikipedia.org/wiki/Rans_S-12_Airaile" target="_blank" rel="noopener">Rans S-12 Airaile</a> · <a href="https://en.wikipedia.org/wiki/Quicksilver_MX" target="_blank" rel="noopener">Quicksilver MX</a></div></td>
+<td class="today"><img src="img/today_inline_pusher.jpg" alt="today: Two-stroke in-line, pusher" loading="lazy"></td>
+<td class="prop">Off by default (G176: pushers have no cowl), the straight barrel when it is turned on.</td></tr>
+<tr class="type"><th colspan="4">Inverted in-line <span>Gipsy Major, Walter Mikron, Ranger L-440</span></th></tr><tr><td class="mount">Nose</td>
+<td class="real">Tall and narrow with flat sides, the propeller near the top (the cylinders hang below), small inlets or louvres low on the face.<div class="refs"><a href="https://en.wikipedia.org/wiki/de_Havilland_Tiger_Moth" target="_blank" rel="noopener">de Havilland Tiger Moth</a> · <a href="https://en.wikipedia.org/wiki/Fairchild_PT-19" target="_blank" rel="noopener">Fairchild PT-19</a> · <a href="https://en.wikipedia.org/wiki/Zlin_Z-26_Trener" target="_blank" rel="noopener">Zlin Z-26 Trener</a></div></td>
+<td class="today"><img src="img/today_tiger_today.jpg" alt="today: Inverted in-line, nose" loading="lazy"></td>
+<td class="prop">Body rule: the front tall and narrow on the high propeller, a pair of inlets low.</td></tr>
+<tr><td class="mount">Wing nacelles</td>
+<td class="real">Slim nacelles, the engine's own width, flat sides, a cone behind the wing.<div class="refs"><a href="https://en.wikipedia.org/wiki/de_Havilland_Dragon" target="_blank" rel="noopener">de Havilland Dragon</a> · <a href="https://en.wikipedia.org/wiki/de_Havilland_Dragon_Rapide" target="_blank" rel="noopener">de Havilland Dragon Rapide</a> · <a href="https://en.wikipedia.org/wiki/de_Havilland_Heron" target="_blank" rel="noopener">de Havilland Heron (four)</a></div></td>
+<td class="today"><img src="img/today_inline_twin.jpg" alt="today: Inverted in-line, twin" loading="lazy"></td>
+<td class="prop">Pod: taller than wide, boxy corners, a pair of low inlets, a tail cone.</td></tr>
+<tr class="type"><th colspan="4">V engine <span>Hirth HM 508, Argus As 10, Merlin</span></th></tr><tr><td class="mount">Nose</td>
+<td class="real">A long faired nose, closed in front, an ogival spinner; the cooling in the wings or a chin / belly scoop. The air-cooled inverted Vs (Argus) breathe through a low opening.<div class="refs"><a href="https://en.wikipedia.org/wiki/Supermarine_Spitfire" target="_blank" rel="noopener">Supermarine Spitfire</a> · <a href="https://en.wikipedia.org/wiki/Fieseler_Fi_156_Storch" target="_blank" rel="noopener">Fieseler Fi 156 Storch</a></div></td>
+<td class="today"><img src="img/today_g2_vee_nose.jpg" alt="today: V engine, nose" loading="lazy"></td>
+<td class="prop">Body rule, closed face, a chin scoop; the faired preset stays for a Spitfire.</td></tr>
+<tr><td class="mount">Wing nacelles</td>
+<td class="real">Long slim nacelles, the radiators in the wing roots.<div class="refs"><a href="https://en.wikipedia.org/wiki/de_Havilland_Mosquito" target="_blank" rel="noopener">de Havilland Mosquito</a></div></td>
+<td class="today"><img src="img/today_g2_vee_twin.jpg" alt="today: V engine, twin" loading="lazy"></td>
+<td class="prop">Pod: a deep oval with rounded corners, closed face, a tail cone.</td></tr>
+<tr class="type"><th colspan="4">Radial <span>Verner, Rotec, W-670, R-755, R-985, R-1340, R-1830, M-14P</span></th></tr><tr><td class="mount">Nose</td>
+<td class="real">Round, nearly a cylinder, the whole front open round the spinner with a rolled lip (the NACA cowl); cowl flaps at the rear. Early ones: exposed cylinders or a narrow Townend ring.<div class="refs"><a href="https://en.wikipedia.org/wiki/de_Havilland_Canada_DHC-2_Beaver" target="_blank" rel="noopener">DHC-2 Beaver</a> · <a href="https://en.wikipedia.org/wiki/Boeing-Stearman_Model_75" target="_blank" rel="noopener">Boeing-Stearman Model 75</a></div></td>
+<td class="today"><img src="img/today_radial_nose.jpg" alt="today: Radial, nose" loading="lazy"></td>
+<td class="prop">Round barrel the engine's diameter, the open ring with a rolled lip (the approved radial preset, G154).</td></tr>
+<tr><td class="mount">Wing nacelles</td>
+<td class="real">A round cowl in front of the wing, the nacelle behind it tapering to the trailing edge or past it.<div class="refs"><a href="https://en.wikipedia.org/wiki/Douglas_DC-3" target="_blank" rel="noopener">Douglas DC-3</a> · <a href="https://en.wikipedia.org/wiki/Beechcraft_Model_18" target="_blank" rel="noopener">Beechcraft Model 18</a></div></td>
+<td class="today"><img src="img/today_radial_twin.jpg" alt="today: Radial, twin" loading="lazy"></td>
+<td class="prop">Pod: round, the engine's diameter, the open ring, a tail cone.</td></tr>
+<tr><td class="mount">Three (nose + nacelles)</td>
+<td class="real">The nose radial plus one under each wing, often with Townend rings.<div class="refs"><a href="https://en.wikipedia.org/wiki/Ford_Trimotor" target="_blank" rel="noopener">Ford Trimotor</a> · <a href="https://en.wikipedia.org/wiki/Junkers_Ju_52" target="_blank" rel="noopener">Junkers Ju 52</a></div></td>
+<td class="today"><img src="img/today_radial_three.jpg" alt="today: Radial, three" loading="lazy"></td>
+<td class="prop">The nose rule + two pods.</td></tr>
+<tr><td class="mount">Four on the wing</td>
+<td class="real">Four round nacelles on the wing.<div class="refs"><a href="https://en.wikipedia.org/wiki/Douglas_DC-4" target="_blank" rel="noopener">Douglas DC-4</a></div></td>
+<td class="today"><img src="img/today_radial_four.jpg" alt="today: Radial, four" loading="lazy"></td>
+<td class="prop">Four pods.</td></tr>
+<tr class="type"><th colspan="4">Electric <span>E-811, EMRAX, SP260D</span></th></tr><tr><td class="mount">Nose</td>
+<td class="real">A slim closed nose, smooth, small cooling slots; the motor is small and the nose is the fuselage's.<div class="refs"><a href="https://en.wikipedia.org/wiki/Pipistrel_Velis_Electro" target="_blank" rel="noopener">Pipistrel Velis Electro</a></div></td>
+<td class="today"><img src="img/today_electric_nose.jpg" alt="today: Electric, nose" loading="lazy"></td>
+<td class="prop">Body rule, closed face, two slots.</td></tr>
+<tr><td class="mount">Wing nacelles</td>
+<td class="real">Small pods or ducted fans on the fuselage.<div class="refs"><a href="https://en.wikipedia.org/wiki/Airbus_E-Fan" target="_blank" rel="noopener">Airbus E-Fan</a></div></td>
+<td class="today"><img src="img/today_electric_twin.jpg" alt="today: Electric, twin" loading="lazy"></td>
+<td class="prop">Pod: round, the motor's size, closed, a tail cone.</td></tr>
+<tr class="type"><th colspan="4">Turboprop <span>PT6A-34 / -42 / -60A / -114A</span></th></tr><tr><td class="mount">Nose</td>
+<td class="real">A long round nose, closed in front, the intake lip right behind the propeller under the spinner, two exhaust stacks.<div class="refs"><a href="https://en.wikipedia.org/wiki/Cessna_208_Caravan" target="_blank" rel="noopener">Cessna 208 Caravan</a> · <a href="https://en.wikipedia.org/wiki/Kodiak_100" target="_blank" rel="noopener">Kodiak 100</a> · <a href="https://en.wikipedia.org/wiki/Pilatus_PC-6_Porter" target="_blank" rel="noopener">Pilatus PC-6 Porter</a></div></td>
+<td class="today"><img src="img/today_turbine_nose.jpg" alt="today: Turboprop, nose" loading="lazy"></td>
+<td class="prop">Round barrel the can's length, closed face, the chin intake grown into the bottom of the barrel.</td></tr>
+<tr><td class="mount">Wing nacelles</td>
+<td class="real">Long nacelles, a chin intake, the exhaust over the wing; a pusher (Avanti) turns it round.<div class="refs"><a href="https://en.wikipedia.org/wiki/Beechcraft_King_Air" target="_blank" rel="noopener">Beechcraft King Air</a> · <a href="https://en.wikipedia.org/wiki/de_Havilland_Canada_DHC-6_Twin_Otter" target="_blank" rel="noopener">DHC-6 Twin Otter</a> · <a href="https://en.wikipedia.org/wiki/Piaggio_P.180_Avanti" target="_blank" rel="noopener">Piaggio P.180 Avanti</a></div></td>
+<td class="today"><span class="none">not offered by the chooser today</span></td>
+<td class="prop">Pod: round, the can's length, the chin grown into the barrel (the chooser offers no turbine twin yet).</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section class="col">
+    <h2>Next</h2>
+    <ul>
+      <li>The rule becomes the birth's cowl for every engine type (<code>_new_plane.js cowlPresetFor</code>), and a <b>Straight</b> preset button in the editor. Every value stays an ordinary cowl row; saved builds keep their own cowls.</li>
+      <li>The Tiger Moth's engine 8 cm lower in the candidate's file, if you say so.</li>
+      <li>A real intake mouth in the turboprop's skin (the chin is only a deeper bottom so far).</li>
+    </ul>
+  </section>
+</div>
+<script>
+(() => {
+  const b34 = document.getElementById('v34'), bs = document.getElementById('vside');
+  const set = side => {
+    b34.setAttribute('aria-pressed', String(!side)); bs.setAttribute('aria-pressed', String(side));
+    document.querySelectorAll('img[data-alt]').forEach(im => {
+      if (!im.dataset.main) im.dataset.main = im.getAttribute('src');
+      im.src = side ? im.dataset.alt : im.dataset.main;
+    });
+  };
+  b34.addEventListener('click', () => set(false)); bs.addEventListener('click', () => set(true));
+})();
+</script>
