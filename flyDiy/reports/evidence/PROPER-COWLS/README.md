@@ -1,4 +1,4 @@
-**Pusher taper verdict (A0, 9 Nov):** a fresh Busher-style pusher gets taperW **0.679** from today's rule, not 0.62. The rule adds 6% clearance plus 2 cm to the 916's drawn half-width (0.299 m). The proposed pusher rule "half-width + 1 cm" gives 0.624. Nothing is changed and every saved pusher keeps its cw_taperW.
+**Pusher taper verdict (A0, 9 Nov) - SETTLED by the user: "0.68 was fine, [0.62] was a mistake".** A fresh Busher-style pusher gets taperW 0.679 from today's rule (1.06 x the 916's drawn half-width + 2 cm), and that stays. The proposed tighter pusher rule below is withdrawn. Nothing changed, and no saved pusher's cw_taperW moved.
 
 # PROPER-COWLS - evidence
 
@@ -20,7 +20,7 @@ was taken from its saved file. Probe: `node tools/cowl_study/pusher_taper.js pus
 hugs the cylinder heads. The rule's 1.06 x clearance plus 2 cm is the nose cowl's margin. The front of a nose cowl closes
 on the spinner ahead of the engine. A pusher's narrow end is the engine itself, and the user tapers it down to the heads.
 
-**Proposed rule (not applied):** for a pusher, `a1 = max(engine half-width + 0.01, 0.45 x aW)`. This gives Busher 0.624,
+**Proposed rule (withdrawn - the user keeps 0.68):** for a pusher, `a1 = max(engine half-width + 0.01, 0.45 x aW)`. This gives Busher 0.624,
 582 pushers 0.45 (saved 0.47), and E-811 0.459 (saved 0.44). If a head still stands out, `fitCheeks` adds a cheek, as it
 does on noses.
 
