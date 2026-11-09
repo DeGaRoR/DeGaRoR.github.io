@@ -584,7 +584,10 @@ function verdicts(out) {
   const R = REFS[out.ref], V = [];
   const pick = (id, sel) => { const c = out.cases.find(x => x.id === id); return c ? sel(c, id) : null; };
   const series = sel => out.cases.filter(c => ['min', 'typ', 'mtow'].includes(c.id)).map(c => ({ m: c.mass, v: sel(c, c.id) }));
-  const flown = (who, k) => (c, id) => { const F = out.flights[id]; return F && F[who] ? F[who][k] : null; };
+  // (a flight that never left the ground - outcome 'stopped' / 'gave-up' - records no distance: a 0 m take-off is the
+  // harness's, not the aeroplane's, and scored 'outside' it would mark a plane down for a run that did not happen)
+  const flown = (who, k) => (c, id) => { const F = out.flights[id]; const v = F && F[who] ? F[who][k] : null;
+    return (v === 0 && /^(TO|TO50|LDG|LDG50)$/.test(k)) ? null : v; };
   const wat = (who, k) => (c, id) => { const F = out.water[id]; return F && F[who] ? F[who][k] : null; };
   const SRC = {
     Vs1: [['airframe', c => c.Vs]], V75: [['airframe', c => c.V75]], Vmax: [['airframe', c => c.Vmax]], LD: [['airframe', c => c.LD]],

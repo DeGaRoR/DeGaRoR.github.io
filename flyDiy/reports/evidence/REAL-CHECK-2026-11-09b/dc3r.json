@@ -1,0 +1,1005 @@
+{
+ "key": "dc3r",
+ "label": "DC-3-alike: the radial cowl, mains retracting into the nacelles, airliner-furnished, constant-speed (candidate)",
+ "file": "builds/candidates/dc3_retract_exact.json",
+ "ref": "dc3",
+ "refName": "Douglas DC-3A (2 x P&W R-1830-S1C3-G 1200 hp)",
+ "official": false,
+ "engineNote": null,
+ "provisional": false,
+ "note": null,
+ "group": "historical",
+ "card": null,
+ "shape": {
+  "drawn": {
+   "span": 29,
+   "length": 19.6,
+   "height": 5.364809212245534,
+   "heightLevel": 7.29,
+   "deckDeg": 9.724817255371859,
+   "points": 135373
+  },
+  "dims": {
+   "span": 29,
+   "length": 19.6,
+   "height": 5.364809212245534,
+   "S": 97.1352169914299,
+   "cRoot": 4.63,
+   "cTip": 1.4,
+   "hSpan": 7.814963531494141,
+   "Sh": 15.04298028784476,
+   "Sv": 8.79902876592325,
+   "track": 5.64
+  },
+  "nodes": {
+   "span": 29,
+   "length": 17.568162660137272,
+   "height": 5.226457166962574
+  },
+  "specs": {
+   "engine": "P&W R-1830 Twin Wasp",
+   "hp": 1200.214563497385,
+   "nE": 2,
+   "propD": 3.4,
+   "blades": 3,
+   "empty": 7423.1135209349395,
+   "mtow": 11700.399537135205,
+   "fuelL": 3110,
+   "seats": 29
+  }
+ },
+ "joinErrors": [],
+ "facts": {
+  "empty": 7423.1135209349395,
+  "baked": 9862.313520934933,
+  "fuelKg": 2239.2,
+  "seats": 29,
+  "occupied": [
+   true,
+   true,
+   false,
+   false,
+   false,
+   false,
+   false,
+   false,
+   false,
+   false,
+   false,
+   false,
+   false,
+   false,
+   false,
+   false,
+   false,
+   false,
+   false,
+   false,
+   false,
+   false,
+   false,
+   false,
+   false,
+   false,
+   false,
+   false,
+   false
+  ],
+  "baggage": 40,
+  "engine": "P&W R-1830 Twin Wasp",
+  "hp": 1200.214563497385,
+  "S": 97.1352169914299,
+  "flapsGame": {
+   "to": 0.25,
+   "ldg": 1
+  },
+  "landsFlapless": false,
+  "tail": {
+   "Sh": 15.04298028784476,
+   "hSpan": 7.814963531494141,
+   "Sv": 8.79902876592325
+  }
+ },
+ "cases": [
+  {
+   "id": "min",
+   "label": "MIN: 70 kg pilot, 1/4 fuel",
+   "fuel": 0.25,
+   "mass": 8052.913520934936,
+   "W": 78999.08164037173,
+   "Vs": 104.98665815793507,
+   "VsTO": 104.98665815793507,
+   "Vs0": 97.17173930227264,
+   "V75": 324.267494875991,
+   "Vmax": 369.8405016856108,
+   "roc": 10.530030713039665,
+   "Vy": 204.72398340797332,
+   "LD": 13.887244872696506,
+   "Vbg": 152.23065432900583,
+   "VmaxAlt": 2590.8,
+   "climbPowerK": 0.875,
+   "gearUp": true,
+   "CdS": 2.6221281426805714,
+   "TOgrass": 208,
+   "T0": 28390.8163210859,
+   "cgMAC": 54.42107401714738,
+   "sm": 11.124873171389334,
+   "stabTrim": 0.26915730505677693,
+   "deAppr": 0.005923687855965914,
+   "deApprClean": 0.11936813224386507,
+   "flapLdg": 0.6666666666666666,
+   "flapTO": 0
+  },
+  {
+   "id": "typ",
+   "label": "TYP: 80 kg pilot, 1/2 fuel",
+   "fuel": 0.5,
+   "mass": 8622.713520934938,
+   "W": 84588.81964037174,
+   "Vs": 108.63745247379782,
+   "VsTO": 108.63745247379782,
+   "Vs0": 100.55077850336396,
+   "V75": 323.6665792187715,
+   "Vmax": 369.237224446491,
+   "roc": 9.684671320281952,
+   "Vy": 206.41115970021568,
+   "LD": 13.887244872696511,
+   "Vbg": 157.52430608700678,
+   "VmaxAlt": 2590.8,
+   "climbPowerK": 0.875,
+   "gearUp": true,
+   "CdS": 2.623666216243,
+   "TOgrass": 226,
+   "T0": 28390.8163210859,
+   "cgMAC": 53.63351785782137,
+   "sm": 12.003068092838177,
+   "stabTrim": 0.26915730505677693,
+   "deAppr": 0.01936511042165367,
+   "deApprClean": 0.13168392746906582,
+   "flapLdg": 0.6666666666666666,
+   "flapTO": 0
+  },
+  {
+   "id": "mtow",
+   "label": "MTOW 11431 kg: every seat, full fuel, baggage to gross",
+   "fuel": 0.7359264375960464,
+   "mass": 11431,
+   "W": 112138.11,
+   "Vs": 125.08340833201132,
+   "VsTO": 125.08340833201132,
+   "Vs0": 115.77254251862533,
+   "V75": 319.76855435620473,
+   "Vmax": 365.3561941160212,
+   "roc": 6.634712500770348,
+   "Vy": 212.64179416441917,
+   "LD": 13.887244872696508,
+   "Vbg": 181.37094208141636,
+   "VmaxAlt": 2590.8,
+   "climbPowerK": 0.875,
+   "gearUp": true,
+   "CdS": 2.6236660936485245,
+   "TOgrass": 380,
+   "T0": 28390.8163210859,
+   "cgMAC": 63.020867998944716,
+   "sm": 5.435675022279958,
+   "stabTrim": 0.26915730505677693,
+   "deAppr": -0.14939658637504633,
+   "deApprClean": -0.008452717088543168,
+   "flapLdg": 0.6666666666666666,
+   "flapTO": 0
+  }
+ ],
+ "flights": {
+  "min": {
+   "game": {
+    "outcome": "stopped",
+    "TO": 248.19250385806438,
+    "TOs": 14.1,
+    "Vlof": 124.83499061339121,
+    "TO50": 530.8834555631022,
+    "climb": 9.493826719171246,
+    "Vclimb": 183.61895129775962,
+    "thrClimb": 0.9055195653172649,
+    "LDG": 567.799252331431,
+    "LDG50": 814.2344682522752,
+    "Vtd": 118.24758209011522,
+    "flapLdgFlown": 1,
+    "tdSink": 0,
+    "hard": false,
+    "goArounds": 2,
+    "tailRise": 2.6,
+    "pitchMin": 0.9,
+    "noseOver": false,
+    "hdgSwing": 3.7,
+    "groundLoop": false,
+    "wall": 365.924
+   },
+   "poh": {
+    "outcome": "stopped",
+    "TO": 263.5968913781091,
+    "TOs": 13.95,
+    "Vlof": 134.10964487529256,
+    "TO50": 560.452529040967,
+    "climb": 10.89160563304298,
+    "Vclimb": 187.10526104050592,
+    "thrClimb": 0.9160731354053805,
+    "LDG": 292.47611914739184,
+    "LDG50": 566.7362898003738,
+    "Vtd": 111.77175932289214,
+    "flapLdgFlown": 0.6666666666666666,
+    "tdSink": 0.77,
+    "hard": false,
+    "goArounds": 0,
+    "tailRise": 0,
+    "pitchMin": 6.3,
+    "noseOver": false,
+    "hdgSwing": 1.6,
+    "groundLoop": false,
+    "wall": 170.362
+   }
+  },
+  "typ": {
+   "game": {
+    "outcome": "stopped",
+    "TO": 284.7021805129522,
+    "TOs": 15.749999999999998,
+    "Vlof": 128.0106153019399,
+    "TO50": 584.7190607101276,
+    "climb": 8.584460993824653,
+    "Vclimb": 178.42676624612486,
+    "thrClimb": 0.915091894256444,
+    "LDG": 667.574643119108,
+    "LDG50": 891.0953186706762,
+    "Vtd": 122.5639032324406,
+    "flapLdgFlown": 1,
+    "tdSink": 0.88,
+    "hard": false,
+    "goArounds": 2,
+    "tailRise": 3.1,
+    "pitchMin": 1.9,
+    "noseOver": false,
+    "hdgSwing": 2.6,
+    "groundLoop": false,
+    "wall": 385.632
+   },
+   "poh": {
+    "outcome": "stopped",
+    "TO": 316.4959389811821,
+    "TOs": 15.933333333333332,
+    "Vlof": 140.82777851478568,
+    "TO50": 625.2406867797058,
+    "climb": 10.257745850837187,
+    "Vclimb": 183.88331394370047,
+    "thrClimb": 0.9559735397351843,
+    "LDG": 321.47524741502224,
+    "LDG50": 596.9805257286829,
+    "Vtd": 116.38717532140883,
+    "flapLdgFlown": 0.6666666666666666,
+    "tdSink": 0.74,
+    "hard": false,
+    "goArounds": 0,
+    "tailRise": 0,
+    "pitchMin": 6.1,
+    "noseOver": false,
+    "hdgSwing": 2.2,
+    "groundLoop": false,
+    "wall": 164.691
+   }
+  },
+  "mtow": {
+   "game": {
+    "outcome": "capsized",
+    "TO": 457.86033677743774,
+    "TOs": 24.233333333333334,
+    "Vlof": 130.355342016174,
+    "TO50": 904.726638670766,
+    "climb": 5.944103817353963,
+    "Vclimb": 178.76680150524433,
+    "thrClimb": 0.9617095192207403,
+    "LDG": null,
+    "LDG50": null,
+    "Vtd": null,
+    "flapLdgFlown": 1,
+    "tdSink": null,
+    "hard": false,
+    "goArounds": 2,
+    "tailRise": null,
+    "pitchMin": null,
+    "noseOver": false,
+    "hdgSwing": null,
+    "groundLoop": false,
+    "wall": 703.084
+   },
+   "poh": {
+    "outcome": "stopped",
+    "TO": 555.3101650101955,
+    "TOs": 25.45,
+    "Vlof": 152.54731310608878,
+    "TO50": 796.7753492475364,
+    "climb": 7.117652488812695,
+    "Vclimb": 201.1848507334471,
+    "thrClimb": 1,
+    "LDG": 570.9138492735159,
+    "LDG50": 801.366184145717,
+    "Vtd": 139.77849911325922,
+    "flapLdgFlown": 0.6666666666666666,
+    "tdSink": 2.33,
+    "hard": false,
+    "goArounds": 2,
+    "tailRise": 4.3,
+    "pitchMin": 1,
+    "noseOver": false,
+    "hdgSwing": 2.8,
+    "groundLoop": false,
+    "wall": 741.22
+   }
+  }
+ },
+ "sweep": {
+  "load": "mtow",
+  "mass": 11431,
+  "runs": [
+   {
+    "what": "takeoff",
+    "vr": 1,
+    "flapTO": 0,
+    "runup": false,
+    "outcome": "climbed",
+    "TO": 509.39703376511073,
+    "TOs": 24.35,
+    "Vlof": 145.8644964814461,
+    "TO50": 793.225655556392,
+    "climb": 7.130905523292335,
+    "Vclimb": 201.21290365526733,
+    "thrClimb": 1,
+    "LDG": null,
+    "LDG50": null,
+    "Vtd": null,
+    "flapLdgFlown": 0.6666666666666666,
+    "tdSink": null,
+    "hard": false,
+    "goArounds": 0,
+    "tailRise": null,
+    "pitchMin": null,
+    "noseOver": false,
+    "hdgSwing": null,
+    "groundLoop": false,
+    "wall": 71.313
+   },
+   {
+    "what": "takeoff",
+    "vr": 1,
+    "flapTO": 0.25,
+    "runup": false,
+    "outcome": "climbed",
+    "TO": 456.0362965288327,
+    "TOs": 24.183333333333334,
+    "Vlof": 130.07505444085706,
+    "TO50": 947.2691627343605,
+    "climb": 6.800479017244942,
+    "Vclimb": 200.8363994920244,
+    "thrClimb": 1,
+    "LDG": null,
+    "LDG50": null,
+    "Vtd": null,
+    "flapLdgFlown": 0.6666666666666666,
+    "tdSink": null,
+    "hard": false,
+    "goArounds": 0,
+    "tailRise": null,
+    "pitchMin": null,
+    "noseOver": false,
+    "hdgSwing": null,
+    "groundLoop": false,
+    "wall": 76.283
+   },
+   {
+    "what": "takeoff",
+    "vr": 1.1,
+    "flapTO": 0,
+    "runup": false,
+    "outcome": "climbed",
+    "TO": 536.3289158830883,
+    "TOs": 25,
+    "Vlof": 149.85778948638017,
+    "TO50": 792.8256887872365,
+    "climb": 7.126321586952074,
+    "Vclimb": 201.2213181581577,
+    "thrClimb": 1,
+    "LDG": null,
+    "LDG50": null,
+    "Vtd": null,
+    "flapLdgFlown": 0.6666666666666666,
+    "tdSink": null,
+    "hard": false,
+    "goArounds": 0,
+    "tailRise": null,
+    "pitchMin": null,
+    "noseOver": false,
+    "hdgSwing": null,
+    "groundLoop": false,
+    "wall": 70.686
+   },
+   {
+    "what": "takeoff",
+    "vr": 1.1,
+    "flapTO": 0.25,
+    "runup": false,
+    "outcome": "climbed",
+    "TO": 492.43993608384153,
+    "TOs": 25.166666666666668,
+    "Vlof": 135.36860694266332,
+    "TO50": 894.7808181605191,
+    "climb": 6.84448444225601,
+    "Vclimb": 201.46313787960628,
+    "thrClimb": 1,
+    "LDG": null,
+    "LDG50": null,
+    "Vtd": null,
+    "flapLdgFlown": 0.6666666666666666,
+    "tdSink": null,
+    "hard": false,
+    "goArounds": 0,
+    "tailRise": null,
+    "pitchMin": null,
+    "noseOver": false,
+    "hdgSwing": null,
+    "groundLoop": false,
+    "wall": 77.376
+   },
+   {
+    "what": "takeoff",
+    "vr": 1.2,
+    "flapTO": 0,
+    "runup": false,
+    "outcome": "climbed",
+    "TO": 576.7654198275375,
+    "TOs": 25.95,
+    "Vlof": 155.51201436072589,
+    "TO50": 821.0403389549526,
+    "climb": 7.083200721943467,
+    "Vclimb": 200.90869515267266,
+    "thrClimb": 1,
+    "LDG": null,
+    "LDG50": null,
+    "Vtd": null,
+    "flapLdgFlown": 0.6666666666666666,
+    "tdSink": null,
+    "hard": false,
+    "goArounds": 0,
+    "tailRise": null,
+    "pitchMin": null,
+    "noseOver": false,
+    "hdgSwing": null,
+    "groundLoop": false,
+    "wall": 72.117
+   },
+   {
+    "what": "takeoff",
+    "vr": 1.2,
+    "flapTO": 0.25,
+    "runup": false,
+    "outcome": "climbed",
+    "TO": 557.8640836054739,
+    "TOs": 26.85,
+    "Vlof": 144.10998803719076,
+    "TO50": 841.8650859472032,
+    "climb": 8.011221635056112,
+    "Vclimb": 203.49084668007222,
+    "thrClimb": 1,
+    "LDG": null,
+    "LDG50": null,
+    "Vtd": null,
+    "flapLdgFlown": 0.6666666666666666,
+    "tdSink": null,
+    "hard": false,
+    "goArounds": 0,
+    "tailRise": null,
+    "pitchMin": null,
+    "noseOver": false,
+    "hdgSwing": null,
+    "groundLoop": false,
+    "wall": 79.459
+   },
+   {
+    "what": "climb",
+    "vyK": 0.85,
+    "vy": 180.74552503975627,
+    "outcome": "climbed",
+    "TO": 555.3101650101955,
+    "TOs": 25.45,
+    "Vlof": 152.54731310608878,
+    "TO50": 827.5749805242045,
+    "climb": 6.48735037506243,
+    "Vclimb": 183.90220485323832,
+    "thrClimb": 0.9989983306946002,
+    "LDG": null,
+    "LDG50": null,
+    "Vtd": null,
+    "flapLdgFlown": 0.6666666666666666,
+    "tdSink": null,
+    "hard": false,
+    "goArounds": 0,
+    "tailRise": null,
+    "pitchMin": null,
+    "noseOver": false,
+    "hdgSwing": null,
+    "groundLoop": false,
+    "wall": 71.909
+   },
+   {
+    "what": "climb",
+    "vyK": 1,
+    "vy": 212.64179416441917,
+    "outcome": "climbed",
+    "TO": 555.3101650101955,
+    "TOs": 25.45,
+    "Vlof": 152.54731310608878,
+    "TO50": 791.0281805909334,
+    "climb": 8.053168195356477,
+    "Vclimb": 214.7445009177032,
+    "thrClimb": 1,
+    "LDG": null,
+    "LDG50": null,
+    "Vtd": null,
+    "flapLdgFlown": 0.6666666666666666,
+    "tdSink": null,
+    "hard": false,
+    "goArounds": 0,
+    "tailRise": null,
+    "pitchMin": null,
+    "noseOver": false,
+    "hdgSwing": null,
+    "groundLoop": false,
+    "wall": 71.893
+   },
+   {
+    "what": "climb",
+    "vyK": 1.15,
+    "vy": 244.53806328908206,
+    "outcome": "climbed",
+    "TO": 555.3101650101955,
+    "TOs": 25.45,
+    "Vlof": 152.54731310608878,
+    "TO50": 778.7562022172245,
+    "climb": 10.446991244537655,
+    "Vclimb": 245.67667991256445,
+    "thrClimb": 1,
+    "LDG": null,
+    "LDG50": null,
+    "Vtd": null,
+    "flapLdgFlown": 0.6666666666666666,
+    "tdSink": null,
+    "hard": false,
+    "goArounds": 0,
+    "tailRise": null,
+    "pitchMin": null,
+    "noseOver": false,
+    "hdgSwing": null,
+    "groundLoop": false,
+    "wall": 76.31
+   },
+   {
+    "what": "landing",
+    "brake": 1,
+    "brakeRate": 1,
+    "vBrakeOn": 1.2,
+    "vapp": 1.3,
+    "outcome": "stopped",
+    "TO": 555.3101650101955,
+    "TOs": 25.45,
+    "Vlof": 152.54731310608878,
+    "TO50": 796.7753492475364,
+    "climb": 7.117652488812695,
+    "Vclimb": 201.1848507334471,
+    "thrClimb": 1,
+    "LDG": 446.35370525588695,
+    "LDG50": 676.8020576390222,
+    "Vtd": 139.7758829816549,
+    "flapLdgFlown": 0.6666666666666666,
+    "tdSink": 2.32,
+    "hard": false,
+    "goArounds": 2,
+    "tailRise": 4.3,
+    "pitchMin": 1.1,
+    "noseOver": false,
+    "hdgSwing": 2.7,
+    "groundLoop": false,
+    "wall": 700.768
+   },
+   {
+    "what": "landing",
+    "brake": 0.6,
+    "brakeRate": 1,
+    "vBrakeOn": 1.2,
+    "vapp": 1.2,
+    "outcome": "stopped",
+    "TO": 555.3101650101955,
+    "TOs": 25.45,
+    "Vlof": 152.54731310608878,
+    "TO50": 796.7753492475364,
+    "climb": 7.117652488812695,
+    "Vclimb": 201.1848507334471,
+    "thrClimb": 1,
+    "LDG": 546.9032157781785,
+    "LDG50": 778.0556623385244,
+    "Vtd": 139.7634181868812,
+    "flapLdgFlown": 0.6666666666666666,
+    "tdSink": 2.3,
+    "hard": false,
+    "goArounds": 2,
+    "tailRise": 4.3,
+    "pitchMin": 1.1,
+    "noseOver": false,
+    "hdgSwing": 2.7,
+    "groundLoop": false,
+    "wall": 719.559
+   },
+   {
+    "what": "landing",
+    "brake": 0.8,
+    "brakeRate": 0.5,
+    "vBrakeOn": 1,
+    "vapp": 1.2,
+    "outcome": "stopped",
+    "TO": 555.3101650101955,
+    "TOs": 25.45,
+    "Vlof": 152.54731310608878,
+    "TO50": 796.7753492475364,
+    "climb": 7.117652488812695,
+    "Vclimb": 201.1848507334471,
+    "thrClimb": 1,
+    "LDG": 514.662800199863,
+    "LDG50": 745.8176385795065,
+    "Vtd": 139.7731604542877,
+    "flapLdgFlown": 0.6666666666666666,
+    "tdSink": 2.31,
+    "hard": false,
+    "goArounds": 2,
+    "tailRise": 4.3,
+    "pitchMin": 1.1,
+    "noseOver": false,
+    "hdgSwing": 2.8,
+    "groundLoop": false,
+    "wall": 717.463
+   },
+   {
+    "what": "landing",
+    "brake": 1,
+    "brakeRate": 1,
+    "vBrakeOn": 1.2,
+    "vapp": 1.3,
+    "stopShort": {
+     "gear": "tail",
+     "eased": 9
+    },
+    "outcome": "gave-up",
+    "TO": 555.3101650101955,
+    "TOs": 25.45,
+    "Vlof": 152.54731310608878,
+    "TO50": 796.7753492475364,
+    "climb": 7.117652488812695,
+    "Vclimb": 201.1848507334471,
+    "thrClimb": 1,
+    "LDG": null,
+    "LDG50": null,
+    "Vtd": null,
+    "flapLdgFlown": 0.6666666666666666,
+    "tdSink": null,
+    "hard": false,
+    "goArounds": 1,
+    "tailRise": 0,
+    "pitchMin": 5.3,
+    "noseOver": false,
+    "hdgSwing": 0.2,
+    "groundLoop": false,
+    "wall": 859.801
+   }
+  ],
+  "best": {
+   "TO": 456.0362965288327,
+   "TO50": 778.7562022172245,
+   "climb": 10.446991244537655,
+   "LDG": 446.35370525588695,
+   "LDG50": 676.8020576390222
+  },
+  "bestRun": {
+   "TO": {
+    "v": 456.0362965288327,
+    "what": "takeoff",
+    "vr": 1,
+    "flapTO": 0.25
+   },
+   "TO50": {
+    "v": 778.7562022172245,
+    "what": "climb",
+    "vyK": 1.15
+   },
+   "climb": {
+    "v": 10.446991244537655,
+    "what": "climb",
+    "vyK": 1.15
+   },
+   "LDG": {
+    "v": 446.35370525588695,
+    "what": "landing",
+    "brake": 1,
+    "brakeRate": 1,
+    "vBrakeOn": 1.2,
+    "vapp": 1.3
+   }
+  }
+ },
+ "water": {},
+ "t": {
+  "airframe": 29.958,
+  "total": 6254.465
+ },
+ "surface": "grass",
+ "pilotShare": {
+  "load": "mtow",
+  "TO": 1.8240402486050584,
+  "TO50": 125.97043645354142,
+  "climb": 4.502887427183691,
+  "LDG": null,
+  "LDG50": null,
+  "game": {
+   "TO": 457.86033677743774,
+   "TO50": 904.726638670766,
+   "climb": 5.944103817353963,
+   "LDG": null,
+   "LDG50": null
+  },
+  "best": {
+   "TO": 456.0362965288327,
+   "TO50": 778.7562022172245,
+   "climb": 10.446991244537655,
+   "LDG": 446.35370525588695,
+   "LDG50": 676.8020576390222
+  }
+ },
+ "verdicts": [
+  {
+   "k": "empty",
+   "src": "ledger",
+   "ref": [
+    7630,
+    7650
+   ],
+   "refBand": [
+    7401.099999999999,
+    7879.5
+   ],
+   "kg": null,
+   "ours": [
+    7423.1135209349395,
+    7423.1135209349395
+   ],
+   "verdict": "inside",
+   "mAt": null
+  },
+  {
+   "k": "Vs1",
+   "src": "airframe",
+   "ref": [
+    124.084,
+    124.084
+   ],
+   "refBand": [
+    116.63896,
+    131.52904
+   ],
+   "kg": [
+    11431,
+    11431
+   ],
+   "ours": [
+    125.08340833201132,
+    125.08340833201132
+   ],
+   "verdict": "inside",
+   "extrap": false,
+   "mAt": 11250.021320521955,
+   "series": [
+    {
+     "m": 8052.913520934936,
+     "v": 104.98665815793507
+    },
+    {
+     "m": 8622.713520934938,
+     "v": 108.63745247379782
+    },
+    {
+     "m": 11431,
+     "v": 125.08340833201132
+    }
+   ]
+  },
+  {
+   "k": "Vmax",
+   "src": "airframe",
+   "ref": [
+    370.14912000000004,
+    370.14912000000004
+   ],
+   "refBand": [
+    355.3431552,
+    384.95508480000007
+   ],
+   "kg": [
+    11431,
+    11431
+   ],
+   "ours": [
+    365.3561941160212,
+    365.3561941160212
+   ],
+   "verdict": "inside",
+   "extrap": false,
+   "mAt": null,
+   "series": [
+    {
+     "m": 8052.913520934936,
+     "v": 369.8405016856108
+    },
+    {
+     "m": 8622.713520934938,
+     "v": 369.237224446491
+    },
+    {
+     "m": 11431,
+     "v": 365.3561941160212
+    }
+   ]
+  },
+  {
+   "k": "roc",
+   "src": "airframe",
+   "ref": [
+    5.7404,
+    6.1976
+   ],
+   "refBand": [
+    5.45338,
+    6.507480000000001
+   ],
+   "kg": [
+    11431,
+    11431
+   ],
+   "ours": [
+    6.634712500770348,
+    6.634712500770348
+   ],
+   "verdict": "near",
+   "extrap": false,
+   "mAt": 12052.305471517095,
+   "series": [
+    {
+     "m": 8052.913520934936,
+     "v": 10.530030713039665
+    },
+    {
+     "m": 8622.713520934938,
+     "v": 9.684671320281952
+    },
+    {
+     "m": 11431,
+     "v": 6.634712500770348
+    }
+   ]
+  },
+  {
+   "k": "roc",
+   "src": "POH",
+   "ref": [
+    5.7404,
+    6.1976
+   ],
+   "refBand": [
+    5.45338,
+    6.507480000000001
+   ],
+   "kg": [
+    11431,
+    11431
+   ],
+   "ours": [
+    7.117652488812695,
+    7.117652488812695
+   ],
+   "verdict": "near",
+   "extrap": false,
+   "mAt": 12453.447547014664,
+   "series": [
+    {
+     "m": 8052.913520934936,
+     "v": 10.89160563304298
+    },
+    {
+     "m": 8622.713520934938,
+     "v": 10.257745850837187
+    },
+    {
+     "m": 11431,
+     "v": 7.117652488812695
+    }
+   ]
+  },
+  {
+   "k": "roc",
+   "src": "game",
+   "ref": [
+    5.7404,
+    6.1976
+   ],
+   "refBand": [
+    5.45338,
+    6.507480000000001
+   ],
+   "kg": [
+    11431,
+    11431
+   ],
+   "ours": [
+    5.944103817353963,
+    5.944103817353963
+   ],
+   "verdict": "inside",
+   "extrap": false,
+   "mAt": 11400.449598833544,
+   "series": [
+    {
+     "m": 8052.913520934936,
+     "v": 9.493826719171246
+    },
+    {
+     "m": 8622.713520934938,
+     "v": 8.584460993824653
+    },
+    {
+     "m": 11431,
+     "v": 5.944103817353963
+    }
+   ]
+  },
+  {
+   "k": "LD",
+   "src": "airframe",
+   "ref": [
+    14.7,
+    14.7
+   ],
+   "refBand": [
+    13.524,
+    15.876
+   ],
+   "kg": [
+    8279.98,
+    11431
+   ],
+   "ours": [
+    13.887244872696508,
+    13.887244872696508
+   ],
+   "verdict": "inside",
+   "extrap": false,
+   "mAt": null,
+   "series": [
+    {
+     "m": 8052.913520934936,
+     "v": 13.887244872696506
+    },
+    {
+     "m": 8622.713520934938,
+     "v": 13.887244872696511
+    },
+    {
+     "m": 11431,
+     "v": 13.887244872696508
+    }
+   ]
+  }
+ ],
+ "wall": 6254.465
+}

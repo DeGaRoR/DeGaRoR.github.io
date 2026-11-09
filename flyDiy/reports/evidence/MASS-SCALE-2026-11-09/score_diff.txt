@@ -1,0 +1,36 @@
+dc3        -> dc3r        overall  67.5 ->  90.2 | perf  47.0 ->  90.9 | geo  85.9 ->  85.5 | specs  76.4 ->  94.0 | conf  46.5 ->  62.3
+      empty  ledger             [6481.6, 6481.6] outside -> [7423.1, 7423.1] inside
+      Vs1    airframe           - - -> [125.1, 125.1] inside
+      Vmax   airframe           [301.2, 301.2] near -> [365.4, 365.4] inside
+      roc    airframe           [6, 6] inside -> [6.6, 6.6] near
+      roc    POH                [5.5, 5.5] inside -> [7.1, 7.1] near
+      roc    game               [4.7, 4.7] outside -> [5.9, 5.9] inside
+      LD     airframe           - - -> [13.9, 13.9] inside
+tigermoth  -> tigermothm  overall  81.9 ->  85.7 | perf  84.9 ->  86.8 | geo  80.4 ->  80.1 | specs  79.4 ->  89.8 | conf  47.8 ->  67.5
+      empty  ledger             [569.8, 569.8] near -> [519.9, 519.9] inside
+      Vs1    airframe           [59.3, 69.8] inside -> [68.4, 69] inside
+      V75    airframe           [143.9, 152] inside -> [144, 151.7] inside
+      Vmax   airframe           [167.9, 167.9] inside -> [168.1, 168.1] inside
+      roc    airframe           [2.9, 2.9] near -> [2.9, 3.2] inside
+      roc    POH                [2.5, 2.5] outside -> [2.7, 2.9] inside
+      roc    game               [2.7, 2.7] outside -> [2.8, 3.1] inside
+      TO     airframe (grass)   - - -> [153.8, 159.5] outside
+      TO     POH                - - -> [196.9, 203.7] inside
+      TO     game               - - -> [193.3, 199.6] inside
+camel      -> camelm      overall  75.6 ->  75.0 | perf  66.2 ->  67.6 | geo  93.0 ->  93.0 | specs  70.8 ->  66.8 | conf  29.5 ->  29.5
+      empty  ledger             [578.9, 578.9] outside -> [551.4, 551.4] outside
+      Vmax   airframe           [172.1, 172.1] near -> [172.3, 172.3] near
+chinook    -> chinookm    overall  79.7 ->  84.0 | perf  88.7 ->  88.9 | geo  73.6 ->  73.6 | specs  73.7 ->  87.8 | conf  72.1 ->  72.1
+      empty  ledger             [235.4, 235.4] near -> [214.9, 214.9] near
+      Vs1    airframe           [53, 68] inside -> [52.7, 68] inside
+      V75    airframe           [133.7, 139.7] inside -> [133.7, 139.6] inside
+      Vmax   airframe           [150.8, 154.5] inside -> [150.9, 154.5] inside
+      roc    airframe           [3.4, 6.8] inside -> [3.4, 7] inside
+      TO     airframe (grass)   [38.3, 144] inside -> [41.9, 143] inside
+stearman   -> stearman    overall  74.9 ->  84.4 | perf  45.9 ->  69.6 | geo  90.6 ->  90.6 | specs  97.8 ->  97.8 | conf  56.2 ->  56.2
+      empty  ledger             [902.3, 902.3] inside -> [880.3, 880.3] inside
+      V75    airframe           [152.3, 157.6] inside -> [159.1, 163.5] inside
+      Vmax   airframe           [176.5, 176.5] near -> [182.6, 182.6] near
+      roc    airframe           [3.6, 3.6] outside -> [4.3, 4.3] inside
+      roc    POH                [3.6, 3.6] outside -> [4, 4] near
+      roc    game               [3.6, 3.6] outside -> [4.1, 4.1] inside
