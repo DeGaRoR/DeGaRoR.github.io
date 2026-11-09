@@ -313922,20 +313922,25 @@ TIMED GATE: light, the same shape as L36a.
 - The >1 s gaps are all in the garage stand before the reveal (cub chase 5.2 s; the discarded warm_metal 9.0 s + 7.1 s): the cold GPU shader cache, master_bench's MISS, as L35a-L36a.
 - The floats take-off has one 133 ms frame.
 
-## ELEC-SYSTEMS — THE ELECTRICS, AUDITED AND GIVEN CLASSES (2026-11-09)
+## ELEC-SYSTEMS — THE ELECTRICS, AUDITED, TILED, AND SAID (2026-11-09)
 
 The user: "Where do we set that? ... Do we even compute the discharge? Do we refuse lamps without electrics? And
 electrical instruments? If we need to manage that, we need to manage that well." The audit, the plan and the sources:
 futureDesigns/ELEC-SYSTEMS-2026-11.md; the hand-over: ELEC-SYSTEMS-READY.md.
-- WHERE: Fit > Instruments (_cage_panel.js), its `electrics` fold - now TILES (`.dfTile`, the design tiles' one look): a
-  class row (Hand-propped / Ultralight / Light / Heavy) and one row per part, the system on one line (Ah, charge A,
-  day / night load, endurance on the battery alone), every refusal said there in red.
-- THE CLASSES ARE STEPS: GEN_ELEC_CLASSES names three catalogue rows each; genElecClassOf(engine) SUGGESTS one (a mark on
-  its tile), nothing applies it. 'light' is the basic tier's own set. RULE: a class row is never put in a tier without
-  the user's ruling - the Cub, the Jodel and the C172 are `fit: basic` / explicit rows and would move (GATE ELEC 7a and
-  its selftest catch it).
+- WHERE: Fit > Instruments (_cage_panel.js), its `electrics` fold - TILES (`.dfTile`, the design tiles' one look), one
+  row per part (battery, charging, starter, suction), the system on one line (Ah, charge A, day / night load, endurance
+  on the battery alone), the engine's usual set marked "for this engine" on each part's tiles with one button to fit it,
+  every refusal said there in red. NO 'class' choice (the user: classes were a new concept nobody asked for).
+- GEN_ELEC_SETS / GEN_ELEC_AS_BUILT / genElecSetOf(engine, key): a suggestion only. As-built history first (the A-65,
+  Clerget, Gipsy Major, W-670, Mikron: no electrics), else the registry's mass/family. Kept OUT of POWERPLANTS: its rows
+  ride into the build's params, a field there moves every fingerprint. RULE: a per-engine row is never put in a tier
+  without the user's ruling (GATE ELEC 7a and its selftest catch it).
+- A GENERATOR WITH NO BATTERY: a self-exciting machine (`selfExcited`: the DC generators, the Rotax coil and integrated
+  generator) is a bus - live only above cut-in (31_elec.js altSelf); the 60 A alternator, whose field the battery
+  excites (FAA AC 20-40), is not. The dash's MASTER / ALT rockers follow hasBus / altA (_panel_gen.js).
 - THE BUS was already real (31_elec.js, cockpit.js): soc, discharge, cut-in, starter draw, breakers, a flat battery
   refusing the crank. New: the catalogue's `cutIn` / starter `amps` reach it (absent = the old 1100 / 150), and
   cockpit.js elecAlarms says LOW VOLTS / NOT CHARGING / BATTERY FLAT / a refused start on the flight's #flElec line.
-- genSystemsResolve `warnings[]`: a starter or a generator with no battery, a 12 V starter on a motor - SAID, not
-  re-billed (re-billing would move saved builds' mass: the user's call, open question in the READY note).
+- genSystemsResolve `warnings[]`: said, never re-billed (the player's problem, the user's ruling).
+- PARKED: the harness as a fraction of empty mass (REAL-FIGURES: no-go on the Cub / Jodel / 172 until the user rules;
+  the total there stays). 12 V everywhere (the user).

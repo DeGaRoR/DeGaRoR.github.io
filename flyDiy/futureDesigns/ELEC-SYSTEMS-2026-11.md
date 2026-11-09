@@ -67,7 +67,7 @@ electrics? And electrical instruments? If we need to manage that, we need to man
 Hard rule: ADDITIVE. Every existing key, tier and default stays byte-identical; a build with no new key resolves,
 weighs, prices and flies as before (proved on every `builds/*.json` through `tools/_load_build.js`).
 
-### 2.1 The catalogue grows CLASS rows (60_gen_spec.js GEN_ELEC)
+### 2.1 The catalogue grows per-engine rows (60_gen_spec.js GEN_ELEC)
 | row | key | kg | price | figure | for |
 |---|---|---|---|---|---|
 | battery | `lifeSmall` (new) | 1.0 | 260 | 5 Ah | ultralight, 912 iS class LiFePO4 |
@@ -87,16 +87,18 @@ geared engine's low prop rpm), `internal` (the machine is inside the engine: not
 rows' `amps` are now the bus's draw (the 150 the cockpit hard-coded is `yes`'s own value: unchanged).
 The harness row stays one row (open question 3).
 
-### 2.2 Classes as STEPS, the engine SUGGESTS (no hidden formula)
-`GEN_ELEC_CLASSES` = ultralight / light / heavy, each {battery, alternator, starter}. `genElecClassOf(engine)` names
-the suggestion from the registry (electric: none; two-stroke or < 70 kg: ultralight; > 200 kg: heavy; else light). The
-suggestion is SHOWN (a "suggested for <engine>" mark on its tile), never applied: the tiers keep their electrics, so the
-Cub, the Jodel and the C172 do not move. A class tile writes the three rows at once; the per-component tiles stay.
+### 2.2 The engine SUGGESTS its set (no hidden formula, no new concept)
+AS SHIPPED (after the user's 9 Nov answer "I'm not exactly sure what you mean by the classes"): there is no 'class'
+choice. `GEN_ELEC_SETS` (ultralight / light / heavy) only says which three catalogue rows an engine of that kind usually
+carries; `genElecSetOf(engine, key)` picks one - first from `GEN_ELEC_AS_BUILT` (what history says: the A-65, the
+Clerget, the Gipsy Major, the W-670, the Mikron carried no electrics; REAL-FIGURES' ruling that engine mass cannot tell a
+1940 trainer from a 1950 Beaver), else from the registry (electric: none; two-stroke or < 70 kg: ultralight; > 200 kg:
+heavy; else light). Each part's tiles mark "for this engine" and one button fits the three; nothing is applied by itself.
 
 ### 2.3 The column: an ELECTRICS section of tiles (`_cage_panel.js`)
 - A summary line: battery Ah, charge A, the build's steady load (instruments + radios + the night lights), and the
   endurance on the battery alone with the charging off.
-- A class tile row (Hand-propped / Ultralight / Light / Heavy), the engine's suggestion marked.
+- The engine's set said in one line, marked on each part's tiles, and one button to fit it.
 - One tile row per component (battery, charging, starter, suction): `.dfTile` buttons, the editor's one tile look.
 - THE REFUSALS SAID HERE, red, each with its consequence: dials and radios dropped (named), lights with no power,
   a starter with no battery, a generator with no battery (instruments are refused although the bus model could feed
@@ -105,7 +107,8 @@ Cub, the Jodel and the C172 do not move. A class tile writes the three rows at o
 ### 2.4 The resolver says it (`genSystemsResolve`)
 New field `warnings[]` ({key, why}) - nothing dropped, nothing re-billed (that would move saved builds): `starterNoBatt`,
 `altNoBatt`, `starterOnMotor`. `starter` becomes "a starter is fitted" for any non-'none' row; new fields `altCutIn`,
-`starterA`, `altInternal`, `elecClass` (the class the fit matches, or null).
+`starterA`, `altInternal`, `altSelf`, `elecSet` (the set the fit matches, or null). A self-exciting generator (DC generator, PM
+coil) is a bus with no battery (live only above cut-in, warning `genOnly`); an alternator with no battery is not (`altNoBatt`).
 
 ### 2.5 In flight: the alarms (`cockpit.js` + `app.js`)
 `CK.alarms` each frame: LOW VOLTS (bus up, V < 11.9 and not charging), NOT CHARGING (engine running above cut-in,

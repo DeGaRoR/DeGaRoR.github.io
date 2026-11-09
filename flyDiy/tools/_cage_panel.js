@@ -402,8 +402,9 @@ function renderPanel() {
   // ELEC-SYSTEMS (9 Nov; futureDesigns/ELEC-SYSTEMS-2026-11.md; the user: "Where do we set that? ... If we need to manage
   // that, we need to manage that well"). TILES, not drop-downs: the class (a step the engine suggests, never applies),
   // then one row of tiles per component, the system's numbers on one line, and every refusal said here in red.
-  const elec = fold(B, 'electrics' + (R.hasBus ? ' · ' + R.battAh + ' Ah' + (R.altA ? ', ' + R.altA + ' A charging' : ', no charging')
-    : ' · none (hand-propped)'), true);
+  const elec = fold(B, 'electrics' + (!R.hasBus ? (R.altA ? ' · dead (an alternator, no battery)' : ' · none (hand-propped)')
+    : !(R.battAh > 0) ? ' · no battery, ' + R.altA + ' A generator'
+    : ' · ' + R.battAh + ' Ah' + (R.altA ? ', ' + R.altA + ' A charging' : ', no charging')), true);
   renderElecTiles(elec, C, R, RB);
   // G2802 (AVIONICS-GPS phase 2): WHAT IS BOLTED IN, AND WHERE - the electrics rows as the parts the aeroplane
   // carries (genSystemsResolve's parts: the engine bay draws the battery, the generator and the starter from these;
