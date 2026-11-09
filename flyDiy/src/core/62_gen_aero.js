@@ -607,6 +607,22 @@ function genFusSwet(S, ST) {
 // body row reads what the fiche calibrated; the other rows are literature
 // and the clean cards check them (GATE DRAG). The pieces are published as
 // gen.drag for the plaque and the study.
+// DRAG-SCALE (2026-11-09): a cowled radial's cooling constant, a Townend ring's to a NACA cowl's by the cowl's chord
+// over the engine's diameter (GEN_DRAG.kCool; a spec without the cage's cowl length reads as a ring, as before)
+function radialCowlK(K, S) {
+  const len = S.cage && +S.cage.cw_cowlLen, E = S.engBox;
+  if (!(len > 0) || !E || !(E.cylReach > 0) || K.radialNaca == null) return K.radialRing;
+  const t = Math.min(1, Math.max(0, (len / (2 * E.cylReach) - K.ringLD) / (K.nacaLD - K.ringLD)));
+  return K.radialRing + t * (K.radialNaca - K.radialRing);
+}
+// DRAG-SCALE (2026-11-09): the skin-friction factor of a body or a chord of length L against the calibrated length
+// lCal (GEN_DRAG.reynolds): 1 up to lCal, Schlichting's turbulent Cf ratio beyond
+function genReK(L, lCal) {
+  const R = GEN_DRAG.reynolds;
+  if (!R || !(L > lCal)) return 1;
+  const cf = l => 0.455 / Math.pow(Math.log10(R.vRef * l / R.nu), 2.58);
+  return cf(L) / cf(lCal);
+}
 function genFusCdA(S, fr) {
   const ST = fr.parts.ST;
   let frontal = 0, sFwd = 0, sAft = 0;
@@ -629,7 +645,8 @@ function genFusCdA(S, fr) {
   const crown = 0.5 * ((fu.crownTop == null ? 0.72 : fu.crownTop) +
                        Math.min(1, (fu.crownSide == null ? 0.07 : fu.crownSide) / 0.6));
   const boxK = 1 + D.boxK * (1 - crown);
-  const body = wet.swet * (M.cdWet || D.cdWetDefault) * FF * boxK;
+  const reK = genReK(wet.L, D.reynolds.lBody);
+  const body = wet.swet * (M.cdWet || D.cdWetDefault) * FF * boxK * reK;
   // the cooling, by the engine and its cowl
   const EN = (S.engines && S.engines[0]) || {};
   const PP = S.pplant || POWERPLANTS[EN.type] || POWERPLANTS.a65_sensenich74;
@@ -643,7 +660,7 @@ function genFusCdA(S, fr) {
   if (!electric) {
     const k = th.family === 'turbine' ? D.kCool.turbine
             : th.cooling === 'liquid' ? D.kCool.liquid
-            : radial ? (cowlOn ? D.kCool.radialRing : D.kCool.radialBare) : D.kCool.pressureCowl;
+            : radial ? (cowlOn ? radialCowlK(D.kCool, S) : D.kCool.radialBare) : D.kCool.pressureCowl;
     cool = k * th.coolKW;
     // the cylinders the cowl does not cover, at a bare block's Cd on their own frontal
     const E = S.engBox;
@@ -674,7 +691,7 @@ function genFusCdA(S, fr) {
     fusCdA: [body + cool + heads + screen + junct + exh, 0.57 * sFwd, 0.57 * sFwd],
     fusCdAAft: [0, 0.31 * sAft, 0.31 * sAft],
     drag: { swet: wet.swet, L: wet.L, frontal: wet.frontal, vol: wet.vol, f, FF, boxK, cdWet: M.cdWet || D.cdWetDefault,
-            body, cool, heads, screen, junct, exh },
+            body, cool, heads, screen, junct, exh, ...(reK !== 1 ? { reK } : {}) },
   };
   // AN OPEN FRAME (2026-09-04): the truss uncovered, the occupants in the
   // wind. Priced as a DELTA on the covered figure — the gear model's own rule
@@ -1459,6 +1476,12 @@ function genParams(S, fr, strips) {
   // G140: sweepEff — the legacy field verbatim, or the area-weighted |LE
   // sweep| the three-station law derives (resolveSpec sets it either way)
   // G185: ONE POLAR PER PLANE — its own aspect ratio, section, sweep and tip;
+  // DRAG-SCALE (2026-11-09): a surface's profile drag at its own chord's Reynolds number (genReK; the finish's own
+  // matCd0 kept) - 1 on every chord up to GEN_DRAG.reynolds.cSurf, so the light aeroplanes' polars are as before
+  const reP = (P, chord, matCd0) => {
+    const k = genReK(chord, GEN_DRAG.reynolds.cSurf);
+    return k === 1 || !P ? P : Object.assign({}, P, { Cd0: (P.Cd0 - matCd0) * k + matCd0 });
+  };
   // the bracing penalty on Oswald is the fuselage strut's for plane 0 and
   // the interplane strut's for both planes of a biplane. genOswald itself is
   // untouched: it is the plane's SELF term, and the mutual term between the
@@ -1469,16 +1492,17 @@ function genParams(S, fr, strips) {
   const polarWings = S.wings.map((wk, k) => {
     const Gk = (G.planes && G.planes[k]) || G;
     const MW = genSurfMaterial(S, 'wing', k);
-    return genPolar(wk.naca, Gk.AR, (k === 0 && S.wing.strut) || interplane, MW.cd0, MW.clmaxK,
+    return reP(genPolar(wk.naca, Gk.AR, (k === 0 && S.wing.strut) || interplane, MW.cd0, MW.clmaxK,
                     wk.sweepEff != null ? wk.sweepEff : wk.sweep,
-                    (GEN_TIPS[wk.tip] || GEN_TIPS.rounded).e);
+                    (GEN_TIPS[wk.tip] || GEN_TIPS.rounded).e), Gk.cBar, MW.cd0);
   });
   // PRICE-CAL step 2: an old airframe's surfaces (GEN_AGING dragK on each polar's Cd0; absent spec.aging: x1)
   const AGk = genAgingOf(S).dragK, aged = P => (AGk === 1 || !P ? P : Object.assign({}, P, { Cd0: P.Cd0 * AGk }));
   for (let k = 0; k < polarWings.length; k++) polarWings[k] = aged(polarWings[k]);
   const polarWing = polarWings[0];
   const hAR = S.tail.hSpan * S.tail.hSpan / S.tail.Sh;
-  const polarTail = aged(genTailPolar(hAR, genSurfMaterial(S, 'stab').cd0));   // G213
+  const polarTail = aged(reP(genTailPolar(hAR, genSurfMaterial(S, 'stab').cd0), S.tail.Sh / Math.max(1e-6, S.tail.hSpan),
+                             genSurfMaterial(S, 'stab').cd0));   // G213
   // G115 (the review's S4): the FIN flies on its OWN aspect ratio. It flew
   // the stabiliser's for its whole life — hAR 3.7 against a real vAR of 1.9 —
   // which overstated directional stiffness and rudder power by ~25% and made
@@ -1496,7 +1520,8 @@ function genParams(S, fr, strips) {
            : (S.tail.stabH || 0) >= 0.8 ? 't'
            : (S.tail.stabH || 0) >= 0.3 ? 'cruci' : 'conv';
   const vARe = vAR * (EP[tt] == null ? 1 : EP[tt]);
-  const polarFin = aged(genTailPolar(vARe, genSurfMaterial(S, 'fin').cd0));     // G213
+  const polarFin = aged(reP(genTailPolar(vARe, genSurfMaterial(S, 'fin').cd0), S.tail.Sv / Math.max(1e-6, S.tail.vHeight),
+                            genSurfMaterial(S, 'fin').cd0));     // G213
   const mass = fr.cg0[3];
   // G185: the aeroplane's CLmax is its planes' area-weighted one (a monoplane's
   // is exactly its own)

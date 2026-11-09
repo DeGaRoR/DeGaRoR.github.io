@@ -1943,8 +1943,21 @@ const GEN_DRAG = {
   // radial is a wall of cylinders (Hoerner: a nine-cylinder bare radial
   // ~ 0.5 m2 on a 450 hp engine's ~170 kW of heat), a Townend ring or a
   // NACA cowl takes two thirds of it off
+  // A RADIAL'S COWL BY ITS LENGTH (DRAG-SCALE 2026-11-09): a Townend ring is a short band (its chord ~0.3 of the
+  // engine's diameter) and keeps the 0.0009; a NACA cowl encloses the cylinders (chord 0.6 D and more) with baffles and
+  // cowl flaps, and its cooling drag falls to about a baffled flat engine's - a round face's 25 % over the pressure cowl
+  // (NACA TR 592, Theodorsen et al. 1937: the full cowling with baffles; Hoerner ch. 9). Between, by the cowl's chord
+  // over the engine's diameter (the cage's cw_cowlLen over 2 x engBox.cylReach), linear from ringLD to nacaLD.
   kCool: { pressureCowl: 0.0004, liquid: 0.0006, turbine: 0.0002,
-           radialBare: 0.0030, radialRing: 0.0009 },
+           radialBare: 0.0030, radialRing: 0.0009, radialNaca: 0.0005, ringLD: 0.35, nacaLD: 0.60 },
+  // THE REYNOLDS NUMBER ABOVE THE CALIBRATED SIZES (DRAG-SCALE 2026-11-09). Every skin coefficient (the materials'
+  // cdWet, the polars' 0.0055 + 0.018 t) was fitted on light aeroplanes: bodies to 7 m (the garage's default reads
+  // 7.6, hence lBody 8), chords to 1.6 m. A bigger body or chord flies at a higher Reynolds number, where turbulent skin friction is lower (Schlichting's
+  // Cf = 0.455 / (log10 Re)^2.58). Beyond the calibrated length its friction scales by Cf(Re) / Cf(Re at the
+  // calibrated length), at one reference speed (vRef: conservative, a big aeroplane flies faster). Up to lBody and
+  // cSurf the factor is 1: every light aeroplane is as calibrated. The finish's own penalty (matCd0: laps, rivets,
+  // roughness) does not scale: a rough skin is in the fully rough regime.
+  reynolds: { vRef: 60, nu: 1.46e-5, lBody: 8.0, cSurf: 2.0 },
   // the cylinders that stand outside the cowl: a bare finned block's Cd on
   // its own frontal (the nacelle rule's 0.9)
   cdBlock: 0.9,
