@@ -2848,7 +2848,7 @@
               metalK: m.metalK || 0,                  // G215
               ribM: m.ribM, wearK: m.wearK, wearM: m.wearM,
               // LINER-BACK (9 Nov): the group's side (_cage_join.js sd) - a lined skin face its front, the liner its back
-              side: m.sd === 'b' ? THREE.BackSide : m.sd === 'f' ? THREE.FrontSide : THREE.DoubleSide }));      // G2004: scuffMat - the material itself with the damage layer off
+              side: m.sd === 'b' ? THREE.BackSide : m.sd === 'f' ? THREE.FrontSide : THREE.DoubleSide, exactSide: m.sd ? 1 : 0 }));      // G2004: scuffMat - the material itself with the damage layer off
       }
       // ...AND SO ARE THE TANKS AND THE PACKS (2026-09-04, user: "the fuel
       // tank material does not seem to make it in game — red in the editor,

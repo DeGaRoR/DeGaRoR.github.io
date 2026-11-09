@@ -847,7 +847,7 @@ const matOf = (name, sd) => {
         // the field is per-SECTION and pure (see _surf_check): the mesh
         // publishes which groups carry it, and meshFrom passes it in
         surf: matSurf[name] ? 1 : 0,
-        side: SIDE_OF(sd),
+        side: SIDE_OF(sd), exactSide: sd ? 1 : 0,   // (LINER-BACK: FrontSide is 0 - aeroMaterial's || would make it DoubleSide)
       });
     }
     return paintNote(matCache[key], name);
