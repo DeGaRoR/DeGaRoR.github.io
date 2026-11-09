@@ -669,6 +669,12 @@ const GATES = [
   // watertight with each corner where it was put (read off the cut loop), its fore part on the old window's, a concave
   // and a crossed quad refused with their reason, the corners saved exact and absent from every other save (~20 s; --selftest)
   { id: 'QUADWIN', file: '_quadwin_check.js', tier: 'core' },
+  // WING-FILLET (9 Nov 2026): the wing-root fillet (_cage_wing.js wfDraw, futureDesigns/WING-FILLET-STUDY-2026-11.md) -
+  // off draws every build vertex for vertex as before and saves no row; on, its feet land on the drawn skins at their
+  // sink on eight builds (low, round, mid, high, biplane), the parasol and a wing that does not meet its body are refused
+  // with their reason, and the flown snapshot binds it COVER, beside its members, shared between the fuselage and the
+  // wing (it tears along the root); ~4 min
+  { id: 'WINGFILLET', file: '_wingfillet_check.js', tier: 'core', wall: 240 },
   { id: 'FIN', file: '_fin_check.js', tier: 'core' },         // fin + stab vs the sketch
   { id: 'COWL', file: '_cowl_check.js', tier: 'core' },       // the cowl, and the engine inside it
   // G2880 (NACELLE-LAG): a wing-mounted engine stands on THIS build's wing - card A then card B equals card B fresh

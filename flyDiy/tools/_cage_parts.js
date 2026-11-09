@@ -680,6 +680,8 @@ const CAGE_PARTS = [
       ['placement', ['wgDx', 'wgDy', 'wgParaH']],
       // G2820: the STOL wing's leading-edge and spanwise devices
       ['STOL devices', ['wgSlat', 'wgSlatSpan', 'wgVG', 'wgFence', 'wgCuff', 'wgCuffSpan']],
+      // WING-FILLET (9 Nov): the wing-root fillet
+      ['wing-root fillet', ['wgFillet', 'wgFilletK', 'wgFilletAft']],
     ] },
 
   { key: 'struts', name: 'Lift struts', parent: 'wings', layer: 'wing',

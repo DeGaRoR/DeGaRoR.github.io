@@ -83,6 +83,10 @@ PAGE.defaults = Object.assign({
   // HULL-B26: the tip's own shape (60_gen_spec GEN_TIP_SHAPE) - its length and drop in tip chords, 0 = the kind's own;
   // its fullness over the wing's aerofoil, 1 = the aerofoil
   wgTipBow: 0, wgTipDroop: 0, wgTipFull: 1,
+  // WING-FILLET (9 Nov): the wing-root fillet - none (0, every build before it), the trailing-edge blend (1), the full
+  // Karman fillet (2); its size (x the style's radius law) and its extension aft of the trailing edge (root chords, 0 =
+  // the style's own). Drawing only; absent from spec.cage at these values (CAGE_DEFAULT_ABSENT)
+  wgFillet: 0, wgFilletK: 1, wgFilletAft: 0,
   wgCentre: 0, wgCentreW: 0, wgBrace: 0, wgCrankAt: 0, wgDihedralOut: 6,
   wgStruts: 2,                     // T2.3 (83): lift struts per side (2 = the V pair, 1 = a single front strut)
   wgBeam: 1,                       // T2.3 (48): the carry-through beam drawn in a cut centre section
@@ -519,10 +523,20 @@ function wingRowsFlown(P) {
   // would cost 0.7 ms a build)
   return ch;
 });
+// WING-FILLET (9 Nov): THE WING-ROOT FILLET, one set of rows for the aeroplane - every plane whose root meets the body
+// takes it (wfDraw below); the note says what was fitted and what was refused (a parasol: no wing-body contact)
+const FILLET_ITEMS = [
+  ['wgFillet', 'wing-root fillet', 0, 2, 1, ['none', 'trailing-edge blend', 'full fillet (Karman)'],
+   { when: P => +P.wingOn, note: P => wfNote(P) }],
+  ['wgFilletK', 'fillet size', 0.4, 2.0, 0.05, { when: P => +P.wingOn && +P.wgFillet > 0 }],
+  ['wgFilletAft', 'aft extension (root chords, 0 = the style\'s)', 0, 0.8, 0.01, { when: P => +P.wingOn && +P.wgFillet > 0 }],
+];
 const host6 = (PAGE.groupsOverride || []).find(g => g[0] === '6 · wings');
-if (host6) host6[1].push(...WING_ITEMS, ['second wing', W2_ITEMS, { when: P => +P.wingOn }]);
+if (host6) host6[1].push(...WING_ITEMS, ['wing-root fillet', FILLET_ITEMS, { when: P => +P.wingOn }],
+                         ['second wing', W2_ITEMS, { when: P => +P.wingOn }]);
 else (PAGE.groupsOverride || (PAGE.groups = PAGE.groups || []))
-  .push(['6 · wings', WING_ITEMS.concat([['second wing', W2_ITEMS, { when: P => +P.wingOn }]])]);
+  .push(['6 · wings', WING_ITEMS.concat([['wing-root fillet', FILLET_ITEMS, { when: P => +P.wingOn }],
+                                         ['second wing', W2_ITEMS, { when: P => +P.wingOn }]])]);
 
 // ---- materials ------------------------------------------------------------
 // EVERY PART ITS OWN COLOUR (user, G31/G32): the MAIN wing skin wears the
@@ -1018,6 +1032,472 @@ const wingYRootEnv = () => {
   } catch (e) { YR_ENV = null; }
   return YR_ENV;
 };
+
+// ---- WING-FILLET: THE WING-ROOT FILLET (9 Nov 2026, the user: "a body-wing blend piece generator ... It's very clear on
+// the DC-3 ... Fast little planes also have this; it's particularly visible at the back of the wing, where there is an
+// extension towards the body ... Always as an option: things stay as-is without the option"). futureDesigns/
+// WING-FILLET-STUDY-2026-11.md is the why; this is the how.
+//   WHAT IT IS. A separate fairing in this layer's group, named edWingFillet (edWingFillet2 on the second plane), in the
+//   wing skin's livery section on the triplanar map (the root cap's plate material, so it joins that bucket: no new
+//   draw). The wing and the body are NOT touched - with the row off nothing here runs and every build is the build it
+//   was; with it on, the skins it covers stay under it.
+//   THE METHOD is the engine pylon's (HULL-B16 / HULL-B38, _cage_eng.js pylonHug) turned on its side: there a prism
+//   (the blade) flares onto what it stands on in quarter circles whose rows each read the surface under their OWN
+//   position; here the prism is the wing root, the deck is the fuselage's flank, and the flare is cut in the CROSS
+//   PLANE at each chord station: the drawn body's section (the airframe contract every fitting stands on, GEAR_GEN.
+//   cageAirframe) and the drawn wing's two skins (the skin AND the flaps and ailerons as they hang at rest, read by
+//   vertical rays through an indexed soup - wfCaster) meet at a CORNER; each sheet (the upper and the lower) runs from a
+//   foot on the body, an arc length h up (down) the section from the corner, to a foot on the wing, w outboard of it,
+//   tangent to both - a quadratic whose control point is where the two tangents cross (a circle's arc when the corner
+//   is square). The feet sink WF_SINK into what they meet, so the edge is a crease, never two coplanar faces.
+//   THE RADIUS LAW is von Karman's (GALCIT, 1931, the Northrop Alpha -> the DC-1): small at the leading edge, growing
+//   to its largest at the trailing edge (the root's adverse pressure gradient is aft), and the fairing then runs on
+//   past the trailing edge along the body side, its planform closing onto the body (WF_LAW). Past each end of the
+//   chord the wing is VIRTUAL - its chord line carried on, the two sheets meeting at a shared edge - so the extension
+//   and the leading-edge fairing are closed bodies with no hole to see into.
+//   THE ACUTE SIDE takes the big radius: a low wing's upper corner, a high wing's lower one; a mid wing both. A high
+//   wing gets the trailing-edge blend only (the saddle under its root, aft); a PARASOL has no wing-body contact and
+//   gets nothing (said on the row); a biplane's planes are taken one by one (the lower one blends, a parasol upper
+//   does not); a plane whose root does not meet the drawn body at mid-chord is left bare and said so.
+//   CRASHES: the mesh is a static mesh of the wing layer, so the wreck binds it as COVER (skin_break.js inhClass): every
+//   vertex blends its nearest frame members, the body foot the fuselage's and the wing foot the root's; the fillet
+//   parts along the same line the wing does and tears with it (the sheet-metal tear limit), never floats.
+const WF_SINK = 0.003, WF_NJ = 10, WF_OBTUSE = 125, WF_RUN = 4;
+// the radius laws, in root chords against s (0 at the leading edge, 1 at the trailing edge): the BIG one on the acute
+// side, the small one on the other; style 1 the trailing-edge blend (a Sling, a Tecnam: nothing at the leading edge),
+// style 2 the full fillet (a DC-3: the whole root, the leading edge carried forward); `ext` the extension aft of the
+// trailing edge and `ahead` the fairing ahead of the leading edge, root chords
+const wfSmooth = (a, b, s) => { const t = Math.max(0, Math.min(1, (s - a) / (b - a))); return t * t * (3 - 2 * t); };
+const WF_LAW = {
+  1: { big: s => 0.11 * wfSmooth(0.25, 1, s), small: s => 0.03 * wfSmooth(0.55, 1, s), ext: 0.26, ahead: 0 },
+  2: { big: s => 0.03 + 0.10 * Math.pow(Math.max(0, Math.min(1, s)), 1.6),
+       small: s => 0.015 + 0.035 * Math.pow(Math.max(0, Math.min(1, s)), 1.6), ext: 0.32, ahead: 0.05 },
+};
+// which sheet takes which law, by the plane's band; null = no fillet (the reason said on the row)
+const wfSides = pos => pos === 'low' ? { U: 'big', L: 'small', teOnly: false }
+  : pos === 'mid' ? { U: 'big', L: 'big', teOnly: false }
+  : pos === 'high' ? { U: null, L: 'big', teOnly: true, ext: 0.14 } : null;
+// the planes a build's rows fit, by band, and the word for each (the row's note and GATE WINGFILLET read it)
+function wfPlanes(P) {
+  const out = [{ k: 0, pos: W0_POS_KEYS[Math.round(+P.wgPos || 0)] || 'high' }];
+  if (+P.w2On) out.push({ k: 1, pos: W2_POS_KEYS[Math.round(+P.w2Pos || 0)] || 'low' });
+  for (const p of out) p.why = p.pos === 'parasol' ? 'a parasol has no wing-body contact' : '';
+  return out;
+}
+const wfNote = P => {
+  if (!+P.wgFillet) return '';
+  const pl = wfPlanes(P), fit = pl.filter(p => !p.why), last = window.CAGE_WING && window.CAGE_WING.fillet;
+  if (!fit.length) return 'not fitted: ' + pl[0].why + ' (nothing to blend)';
+  const bits = [];
+  if (pl.length > 1) bits.push('fitted to the ' + (fit.length === 2 ? 'both planes' : fit[0].k === 0 ? 'first plane' : 'second plane') +
+    (fit.length < pl.length ? ' (the other is a parasol: no contact)' : ''));
+  if (fit.some(p => p.pos === 'high')) bits.push('a high wing: the trailing-edge blend under its root');
+  if (last && last.planes) for (const r of last.planes) if (r.why && !pl.find(p => p.k === r.k && p.why)) bits.push((pl.length > 1 ? (r.k ? 'second' : 'first') + ' plane: ' : '') + r.why);
+  return bits.join('; ');
+};
+// THE VERTICAL CASTER: every triangle of `geos` (cage metres; `offs` their positions) inside the x window, indexed on
+// an (x, z) grid - a vertical line through (x, z) meets the few in its cell. hits(x, z) -> the heights it meets
+function wfCaster(geos, x0, x1) {
+  const T = [], CELL = 0.04, cell = new Map();
+  for (const [g, off] of geos) {
+    const pa = g && g.attributes && g.attributes.position; if (!pa) continue;
+    const ix = g.index, n = ix ? ix.count : pa.count, o = off || [0, 0, 0];
+    const P3 = i => [pa.getX(i) + o[0], pa.getY(i) + o[1], pa.getZ(i) + o[2]];
+    for (let t = 0; t + 2 < n; t += 3) {
+      const a = P3(ix ? ix.getX(t) : t), b = P3(ix ? ix.getX(t + 1) : t + 1), c = P3(ix ? ix.getX(t + 2) : t + 2);
+      if (Math.max(a[0], b[0], c[0]) < x0 || Math.min(a[0], b[0], c[0]) > x1) continue;
+      const det = (b[0] - a[0]) * (c[2] - a[2]) - (c[0] - a[0]) * (b[2] - a[2]);
+      if (Math.abs(det) < 1e-12) continue;                           // (on edge from above: no height to read)
+      const id = T.length; T.push([a, b, c, det]);
+      const i0 = Math.floor(Math.min(a[0], b[0], c[0]) / CELL), i1 = Math.floor(Math.max(a[0], b[0], c[0]) / CELL);
+      const j0 = Math.floor(Math.min(a[2], b[2], c[2]) / CELL), j1 = Math.floor(Math.max(a[2], b[2], c[2]) / CELL);
+      for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) { const k = i + ',' + j; let L = cell.get(k); if (!L) cell.set(k, L = []); L.push(id); }
+    }
+  }
+  const hits = (x, z) => {
+    const L = cell.get(Math.floor(x / CELL) + ',' + Math.floor(z / CELL)), ys = [];
+    if (!L) return ys;
+    for (const id of L) {
+      const [a, b, c, det] = T[id];
+      const u = ((x - a[0]) * (c[2] - a[2]) - (c[0] - a[0]) * (z - a[2])) / det;
+      const v = ((b[0] - a[0]) * (z - a[2]) - (x - a[0]) * (b[2] - a[2])) / det;
+      if (u < -1e-9 || v < -1e-9 || u + v > 1 + 1e-9) continue;
+      ys.push(a[1] + u * (b[1] - a[1]) + v * (c[1] - a[1]));
+    }
+    return ys;
+  };
+  return { top: (x, z) => { const y = hits(x, z); return y.length ? Math.max(...y) : null; },
+           bot: (x, z) => { const y = hits(x, z); return y.length ? Math.min(...y) : null; }, n: T.length };
+}
+// THE FIT, one plane, its +x side (the -x side is its mirror). o: { AF (cageAirframe), C (wfCaster), x0 (the root
+// station, cage x), style 1|2, K (size), aft (extension, root chords; 0 = the style's), sides (wfSides), flap
+// ({ x, zF, zR }: the inboard flap's span start and chord, or null) }. -> { sheets: [{ name, rows: [[ [x,y,z] x NJ+1 ]
+// | null per station], feet }], zLE, zTE, chord, why }
+function wfFit(o) {
+  const { AF, C, x0, style, K, sides } = o, law = WF_LAW[style] || WF_LAW[2];
+  const xr = x0 + 0.02;
+  // the root chord as DRAWN (skin + flaps), walked at the root
+  let zLE = null, zTE = null;
+  const zA = AF.z1, zB = AF.z0, NZ = 400;
+  for (let i = 0; i <= NZ; i++) {
+    const z = zA - (zA - zB) * i / NZ;
+    if (C.top(xr, z) != null && C.bot(xr, z) != null) { if (zLE == null) zLE = z; zTE = z; }
+  }
+  if (zLE == null || !(zLE - zTE > 0.2)) return { why: 'the wing root was not found at the body side' };
+  const c = zLE - zTE;
+  const ext = (+o.aft > 0 ? +o.aft : sides.ext || law.ext), ahead = sides.teOnly ? 0 : law.ahead;
+  // the stations: ahead of the leading edge, along the chord (clustered at both ends), the extension
+  const SS = [];
+  const NA = ahead > 0 ? 6 : 0, NC = 28, NE = 12;
+  for (let i = 0; i < NA; i++) SS.push(-ahead * (1 - i / NA));
+  // (the chord's end stations stand where their lines are read, 0.4 % in from each edge: a nose's height changes fast)
+  for (let i = 0; i <= NC; i++) SS.push(Math.max(0.004, Math.min(0.996, 0.5 * (1 - Math.cos(Math.PI * i / NC)))));
+  for (let i = 1; i <= NE; i++) SS.push(1 + ext * i / NE);
+  // the wing's two lines across the root at a chord station: sampled, misses filled from their neighbours (a cut centre,
+  // a gap at the flap's cove), the ends carried on linearly
+  const xs = [];
+  const reach = 0.25 * c * K + 0.15;
+  for (let x = Math.max(0.02, x0 - 0.40); x <= x0 + reach; x += 0.02) xs.push(x);
+  const lineOf = (z, f) => {
+    const ys = xs.map(x => f(x, z));
+    const ok = ys.map(y => y != null);
+    if (ok.filter(Boolean).length < 2) return null;
+    for (let i = 0; i < ys.length; i++) if (!ok[i]) {
+      let a = i - 1; while (a >= 0 && !ok[a]) a--;
+      let b = i + 1; while (b < ys.length && !ok[b]) b++;
+      if (a >= 0 && b < ys.length) ys[i] = ys[a] + (ys[b] - ys[a]) * (xs[i] - xs[a]) / (xs[b] - xs[a]);
+    }
+    const firstOk = ok.indexOf(true), lastOk = ok.lastIndexOf(true);
+    const ext2 = (i0, i1, i) => ys[i0] + (ys[i1] - ys[i0]) * (xs[i] - xs[i0]) / (xs[i1] - xs[i0]);
+    let f2 = firstOk + 1; while (f2 < ys.length && !ok[f2]) f2++;
+    let l2 = lastOk - 1; while (l2 >= 0 && !ok[l2]) l2--;
+    for (let i = 0; i < firstOk; i++) ys[i] = ext2(firstOk, f2, i);
+    for (let i = lastOk + 1; i < ys.length; i++) ys[i] = ext2(l2, lastOk, i);
+    return ys;
+  };
+  const at = (ys, x) => {
+    const dx = xs[1] - xs[0], u = (x - xs[0]) / dx, i = Math.max(0, Math.min(xs.length - 2, Math.floor(u))), t = u - i;
+    return ys[i] + (ys[i + 1] - ys[i]) * t;
+  };
+  // the chord-line ends (the virtual wing past the leading and trailing edges): the mid line of the end stations
+  const eps = 0.004 * c;
+  const midOf = z => { const t = lineOf(z, C.top), b = lineOf(z, C.bot); return t && b ? t.map((v, i) => 0.5 * (v + b[i])) : null; };
+  const mLE = midOf(zLE - eps), mTE = midOf(zTE + eps);
+  if (!mLE || !mTE) return { why: 'the wing root was not found at the body side' };
+  const slope = (at(mTE, xr) - at(mLE, xr)) / (zTE - zLE);
+  // past each end the virtual wing is a line across the root at the end's own spanwise slope, through the body point
+  // at the ANGLE the end station's corner had: the extension runs on along the body side as the body changes (a belly
+  // rising aft, a nose narrowing), never off the chord line into the air
+  const kOf = m => (at(m, xr + 0.2) - at(m, xr)) / 0.2, kLE = kOf(mLE), kTE = kOf(mTE);
+  let angLE = null, angTE = null;
+  // the body's section at z: 241 points from the keel (0) round the +x flank to the crown (pi)
+  const NB = 240;
+  const sec = z => { const zc = Math.max(AF.z0 + 1e-3, Math.min(AF.z1 - 1e-3, z)), pts = [];
+    for (let i = 0; i <= NB; i++) { const p = AF.surf(zc, Math.PI * i / NB); pts.push([p[0], p[1]]); } return pts; };
+  // THE CORNER: where the section crosses the wing's line - the upper sheet's walked down from the crown, the lower's
+  // up from the keel; a section entirely under the wing's lower line (a high wing on the deck) touches where the gap is
+  // least, if that is under WF_TOUCH. -> { i (fractional index into the section), p } or null
+  const WF_TOUCH = 0.04;
+  const corner = (pts, ys, up) => {
+    const g = i => pts[i][1] - at(ys, pts[i][0]);
+    if (up) {
+      if (!(g(NB) > 0)) return null;
+      for (let i = NB - 1; i >= 0; i--) if (g(i) <= 0) { const t = g(i + 1) / (g(i + 1) - g(i)); return { i: i + 1 - t, p: lerp2(pts[i + 1], pts[i], t) }; }
+      // the section entirely OVER the wing's upper line (a low wing passing under a belly that rises aft): it touches
+      // where the gap is least, if that is under WF_TOUCH
+      let best = Infinity, bi = -1;
+      for (let i = 0; i <= NB >> 1; i++) if (g(i) < best - 0.005 || (g(i) <= best + 0.005 && pts[i][0] > pts[bi][0])) { best = Math.min(best, g(i)); bi = i; }
+      return best <= WF_TOUCH ? { i: bi, p: pts[bi], touch: true } : null;
+    }
+    if (!(g(0) < 0)) return null;
+    for (let i = 1; i <= NB; i++) if (g(i) >= 0) { const t = -g(i - 1) / (g(i) - g(i - 1)); return { i: i - 1 + t, p: lerp2(pts[i - 1], pts[i], t) }; }
+    let best = Infinity, bi = -1;
+    for (let i = NB >> 1; i <= NB; i++) if (-g(i) < best - 0.005 || (-g(i) <= best + 0.005 && pts[i][0] > pts[bi][0])) { best = Math.min(best, -g(i)); bi = i; }
+    return best <= WF_TOUCH ? { i: bi, p: pts[bi], touch: true } : null;
+  };
+  const lerp2 = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+  // a point of the section at a fractional index, and the walk along it by arc length (toward the crown, dir +1, or
+  // the keel, -1) -> the fractional index reached
+  const ptAt = (pts, fi) => { const k = Math.max(0, Math.min(NB - 1, Math.floor(fi))), t = Math.max(0, Math.min(1, fi - k)); return lerp2(pts[k], pts[k + 1], t); };
+  const walk = (pts, ci, h, dir) => {
+    let fi = ci, left = h, p = ptAt(pts, ci);
+    let k = dir > 0 ? Math.floor(ci) + 1 : Math.ceil(ci) - 1;
+    while (left > 0 && k >= 0 && k <= NB) {
+      const q = pts[k], d = Math.hypot(q[0] - p[0], q[1] - p[1]);
+      if (d >= left) { const t = left / d; fi = fi + (k - fi) * t; return fi; }
+      left -= d; p = q; fi = k; k += dir;
+    }
+    return Math.max(0, Math.min(NB, fi));
+  };
+  // the section's unit direction at a fractional index, pointing along `dir`
+  const dirAt = (pts, fi, dir) => {
+    const a = ptAt(pts, Math.max(0, Math.min(NB, fi - 0.5))), b = ptAt(pts, Math.max(0, Math.min(NB, fi + 0.5)));
+    const L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+    return [dir * (b[0] - a[0]) / L, dir * (b[1] - a[1]) / L];
+  };
+  // the inboard flap's chord at the root: the lower sheet's wing foot stays inboard of it (a flap goes DOWN, through it)
+  const fl = o.flap;
+  // the per-station sizes against s (the ends carried off the chord's last and first stations)
+  const R = (lw, s) => K * c * lw(s);
+  const size = (lw, s) => {
+    if (s < 0) { const u = -s / ahead, r0 = R(lw, 0); return { w: r0 * Math.sqrt(Math.max(0, 1 - u * u)), h: r0 * (1 - u * u) }; }
+    // (the extension shrinks SELF-SIMILAR, both ways at once, its planform closing tangent onto the body: a section
+    // that kept its height while its width went would stand a fin on the body side)
+    if (s > 1) { const u = Math.min(1, (s - 1) / ext), r1 = R(lw, 1), k = Math.pow(1 - u, 1.6); return { w: r1 * k, h: r1 * k }; }
+    return { w: R(lw, s), h: R(lw, s) };
+  };
+  const out = { sheets: [], zLE, zTE, chord: c, slope, stations: SS.length };
+  const lawU = law[sides.U], lawL = law[sides.L];
+  let prevT = null, prevB = null;
+  // the fairing ahead is laid before the chord is walked: its angle is the first chord station's corner's
+  if (ahead > 0) {
+    const z1 = zLE - 0.004 * c, p1 = sec(z1), t1 = lineOf(z1, C.top), b1 = lineOf(z1, C.bot);
+    const c1 = t1 && b1 ? (corner(p1, t1, true) || corner(p1, b1, false)) : null;
+    if (c1) angLE = Math.PI * c1.i / NB;
+  }
+  // PASS 1: every station's section, lines, corners and raw feet - the body foot as a fractional index into the
+  // section, the wing foot as an x. THE FEET STAND OFF THE BODY'S SIDE, not off the raw corner: a wing passing under a
+  // belly that curves away over it crosses the section far inboard and slides along it from one station to the next
+  // (measured on the Jodel: 0.41 -> 0.22 m in three stations); the side (the section's half-width, at most two local
+  // radii outboard of the corner) is where the eye reads the body's edge
+  const ST = [];
+  for (const s of SS) {
+    const z = zLE - s * c, virt = s < 0 || s > 1, pts = sec(z);
+    let yT, yB;
+    if (virt) {
+      const ang = s < 0 ? angLE : angTE;
+      if (ang == null) { ST.push(null); continue; }
+      const B0 = AF.surf(Math.max(AF.z0 + 1e-3, Math.min(AF.z1 - 1e-3, z)), ang), k = s < 0 ? kLE : kTE;
+      yT = yB = xs.map(x => B0[1] + k * (x - B0[0]));
+    } else {
+      const sc = Math.max(0.004, Math.min(0.996, s)), zc = zLE - sc * c;
+      yT = lineOf(zc, C.top) || prevT; yB = lineOf(zc, C.bot) || prevB;
+      if (!yT || !yB) { ST.push(null); continue; }
+      prevT = yT; prevB = yB;
+    }
+    const sE = sides.teOnly ? Math.max(s, 0) : s;
+    const cU = sides.teOnly && s < 0.25 ? null : corner(pts, yT, true), cL = corner(pts, yB, false);
+    const zU = lawU ? size(lawU, sE) : null, zL = lawL ? size(lawL, sE) : null;
+    if (sides.teOnly) for (const q of [zU, zL]) if (q) { const k = wfSmooth(0.35, 0.9, s); q.w *= k; q.h *= k; }
+    // THE CORNER'S ANGLE, between the section leaving it (up for the upper sheet, down for the lower) and the wing's line
+    // leaving it outboard: a fillet fills an ACUTE or square corner - the one that separates; an OBTUSE corner (over
+    // WF_OBTUSE: a low wing's underside meeting a belly curving in under it) gets none - it would lie flat on both
+    const angleAt = (cc, ys, up) => {
+      if (!cc || cc.touch) return 0;
+      const d = dirAt(pts, cc.i, up ? 1 : -1), k = (at(ys, cc.p[0] + 0.02) - at(ys, cc.p[0] - 0.02)) / 0.04;
+      const L = Math.hypot(1, k);
+      return Math.acos(Math.max(-1, Math.min(1, (d[0] + d[1] * k) / L))) * 180 / Math.PI;
+    };
+    const raw = (cc, sz, up, ys) => {
+      if (!cc || !sz || !(sz.w > 0.002 || sz.h > 0.002)) return null;
+      const ang = angleAt(cc, ys, up);
+      if (!virt && ang > WF_OBTUSE) return null;
+      // THE BODY FOOT is the first point of the section, from the corner its own way, standing h off the wing's line
+      // (above it for the upper sheet, below for the lower) - a corner under a belly walks out along the belly to the
+      // body's edge and only then up; THE SIDE POINT is the outermost section point between the corner and the foot - the
+      // body's edge as the eye reads it there, where the wing foot is measured from and the ends are anchored
+      const dir = up ? 1 : -1;
+      let fs = cc.i, side = cc.p[0], bi = null, prev = cc.p, prevH = 0;
+      for (let k = dir > 0 ? Math.ceil(cc.i) : Math.floor(cc.i); k >= 0 && k <= NB; k += dir) {
+        const q = pts[k], hh = up ? q[1] - at(ys, q[0]) : at(ys, q[0]) - q[1];
+        if (q[0] > side + 1e-4) { side = q[0]; fs = k; }
+        if (hh >= sz.h) { const t = (sz.h - prevH) / Math.max(1e-9, hh - prevH); bi = k - dir * (1 - Math.max(0, Math.min(1, t))); break; }
+        prev = q; prevH = Math.max(prevH, hh);
+      }
+      if (bi == null) bi = dir > 0 ? NB : 0;
+      return { cc, h: sz.h, w: sz.w, ang, fs, side, bi, wx: side + sz.w };
+    };
+    const T = { s, z, virt, pts, yT, yB, U: raw(cU, zU, true, yT), L: raw(cL, zL, false, yB) };
+    // the ends' anchor: the CORNER's angle at the last chord station (the first's for the fairing ahead, when its
+    // pre-pass found none) - the extension's virtual line runs on through where the wing met the body, at the wing's
+    // own height there, and rises or falls with the body behind it
+    if (!virt) { const r = T.U || T.L; if (r) { const a = Math.PI * r.cc.i / NB; if (angLE == null) angLE = a; angTE = a; } }
+    ST.push(T);
+  }
+  // (a sheet's run along the chord shorter than WF_RUN stations is an island - a corner flickering about the obtuse
+  // bound - and is dropped)
+  for (const key of ['U', 'L']) {
+    let i = 0;
+    while (i < ST.length) {
+      if (!(ST[i] && ST[i][key] && !ST[i].virt)) { i++; continue; }
+      let j = i; while (j < ST.length && ST[j] && ST[j][key] && !ST[j].virt) j++;
+      const touchesEnd = (i > 0 && ST[i - 1] && ST[i - 1].virt && ST[i - 1][key]) || (j < ST.length && ST[j] && ST[j].virt && ST[j][key]);
+      if (j - i < WF_RUN && !touchesEnd) for (let k = i; k < j; k++) ST[k][key] = null;
+      i = j;
+    }
+  }
+  // (the fairing ahead and the extension close a sheet that IS there: with no sheet at the chord's first (last) station
+  // they would stand alone in the air - a corner a dropped island anchored)
+  {
+    const chordIx = ST.map((t, i) => t && !t.virt ? i : -1).filter(i => i >= 0);
+    const has = i => i >= 0 && ST[i] && (ST[i].U || ST[i].L);
+    const f0 = chordIx.length ? chordIx[0] : -1, f1 = chordIx.length ? chordIx[chordIx.length - 1] : -1;
+    ST.forEach((t, i) => { if (t && t.virt && ((t.s < 0 && !has(f0)) || (t.s > 1 && !has(f1)))) ST[i] = null; });
+  }
+  // PASS 2: the feet smoothed along the stations ([1 2 1] twice, within each sheet's runs): no station's foot stands
+  // proud of its neighbours'
+  for (const key of ['U', 'L']) for (const f of ['bi', 'wx']) for (let pass = 0; pass < 2; pass++) {
+    const v = ST.map(t => t && t[key] ? t[key][f] : null), o2 = v.slice();
+    for (let i = 1; i + 1 < v.length; i++) if (v[i] != null && v[i - 1] != null && v[i + 1] != null) o2[i] = 0.25 * v[i - 1] + 0.5 * v[i] + 0.25 * v[i + 1];
+    ST.forEach((t, i) => { if (t && t[key]) t[key][f] = o2[i]; });
+  }
+  // PASS 3: the rows. Each sheet's section is a CUBIC from its body foot to its wing foot, leaving the body along the
+  // section and arriving along the wing's line (the fairing's two tangencies; the quarter circle's handles, 0.39 of the
+  // chord between the feet, in a square corner). The feet sink into what they meet (the body 2 WF_SINK + 8 % of the
+  // radius - its drawn facets stand off the airframe table by millimetres -, the wing WF_SINK + 5 %):
+  // the sheet crosses each skin at a small angle - a crease the depth buffer cannot interleave - instead of running
+  // tangent within a millimetre of it. A virtual station's two sheets meet on one edge, unsunk
+  const rowsU = [], rowsL = [], feetU = [], feetL = [];
+  for (const T of ST) {
+    if (!T) { rowsU.push(null); rowsL.push(null); feetU.push(null); feetL.push(null); continue; }
+    const { z, virt, pts } = T;
+    const cy = AF.surf(Math.max(AF.z0 + 1e-3, Math.min(AF.z1 - 1e-3, z)), Math.PI / 2)[1];
+    let edgeX = null;
+    if (virt) edgeX = Math.max(T.U ? T.U.wx : -Infinity, T.L ? T.L.wx : -Infinity);
+    const mk = (r, ys, up) => {
+      if (!r) return null;
+      let wx = virt ? edgeX : r.wx;
+      if (!up && !virt && fl && z <= fl.zF + 0.02 && z >= fl.zR - 0.01) wx = Math.min(wx, Math.max(r.cc.p[0], fl.x - 0.012));
+      const Bp = ptAt(pts, r.bi), tb = dirAt(pts, r.bi, up ? -1 : 1);           // back toward the corner
+      const yw = at(ys, wx), dydx = (at(ys, wx + 0.01) - at(ys, wx - 0.01)) / 0.02;
+      let tw = [-1, -dydx]; const lt = Math.hypot(tw[0], tw[1]); tw = [tw[0] / lt, tw[1] / lt];
+      // AHEAD of the leading edge the two sheets meet ROUND - each arriving square to the line, as the wing's own nose
+      // does - where aft of the trailing edge they meet on a sharp edge, as its trailing edge does
+      if (virt && T.s < 0) tw = up ? [0, 1] : [0, -1];
+      // (capped: the body foot at 2.5 cm, the wing foot at 1.5 cm and 40 % of the wing's thickness there - a DC-3's
+      // radius sank the foot 3.3 cm, out through a trailing edge thinner than that)
+      const thk = Math.max(0, at(T.yT, wx) - at(T.yB, wx));
+      const sb = Math.min(0.025, 2 * WF_SINK + 0.08 * r.h), sw = virt ? 0 : Math.min(0.015, 0.4 * thk, WF_SINK + 0.05 * r.w);
+      const inn = [-Bp[0], cy - Bp[1]], li = Math.hypot(inn[0], inn[1]) || 1;
+      const P0 = [Bp[0] + sb * inn[0] / li, Bp[1] + sb * inn[1] / li];
+      const P3 = [wx, yw + (up ? -sw : sw)];
+      const L = 0.39 * Math.hypot(P3[0] - P0[0], P3[1] - P0[1]);
+      const P1 = [P0[0] + L * tb[0], P0[1] + L * tb[1]], P2 = [P3[0] + L * tw[0], P3[1] + L * tw[1]];
+      const row = [];
+      for (let j = 0; j <= WF_NJ; j++) {
+        const t = j / WF_NJ, m = 1 - t;
+        const b0 = m * m * m, b1 = 3 * t * m * m, b2 = 3 * t * t * m, b3 = t * t * t;
+        row.push([b0 * P0[0] + b1 * P1[0] + b2 * P2[0] + b3 * P3[0], b0 * P0[1] + b1 * P1[1] + b2 * P2[1] + b3 * P3[1], z]);
+      }
+      return { row, foot: { body: [Bp[0], Bp[1], z], wing: [wx, yw, z], virt, corner: [r.cc.p[0], r.cc.p[1], z], touch: !!r.cc.touch,
+                            angle: r.ang, side: [r.side - WF_SINK, at(ys, r.side - WF_SINK), z], sinkB: sb, sinkW: sw } };
+    };
+    let u = mk(T.U, T.yT, true), l = mk(T.L, T.yB, false);
+    // A VIRTUAL STATION IS A CLOSED BODY: a sheet with no corner of its own there (the belly's side of a low wing's
+    // extension, the top of a high wing's) is a flat plate on the virtual line, from the other's corner to the edge
+    if (virt && (u || l) && !(u && l)) {
+      // (from the body's SIDE, just inside it - from the corner it would lie along a flat belly the whole way)
+      const f = (u || l).foot, row = [], a = f.side;
+      for (let j = 0; j <= WF_NJ; j++) { const t = j / WF_NJ; row.push([a[0] + t * (f.wing[0] - a[0]), a[1] + t * (f.wing[1] - a[1]), z]); }
+      const pl = { row, foot: Object.assign({}, f, { plate: true }) };
+      if (u) l = pl; else u = pl;
+    }
+    rowsU.push(u ? u.row : null); feetU.push(u ? u.foot : null);
+    rowsL.push(l ? l.row : null); feetL.push(l ? l.foot : null);
+  }
+  out.sheets.push({ name: 'upper', rows: rowsU, feet: feetU }, { name: 'lower', rows: rowsL, feet: feetL });
+  // A ROOT THAT DOES NOT MEET THE BODY: no sheet anywhere - said with the gap measured at mid-chord (the least clearance
+  // between the body's section and the wing's upper or lower line: a wing hung under the keel, a parasol set by hand)
+  if (!feetU.some(Boolean) && !feetL.some(Boolean)) {
+    let g0 = Infinity, g1 = -Infinity;
+    for (const fz of [0.1, 0.3, 0.5, 0.7, 0.9]) {
+      const zm = zLE - fz * c, pm = sec(zm), tm = lineOf(zm, C.top), bm = lineOf(zm, C.bot);
+      let gap = Infinity;
+      if (tm && bm) for (const q of pm) { const a = q[1] - at(tm, q[0]), b = at(bm, q[0]) - q[1]; if (a > 0) gap = Math.min(gap, a); if (b > 0) gap = Math.min(gap, b); }
+      if (isFinite(gap)) { g0 = Math.min(g0, gap); g1 = Math.max(g1, gap); }
+    }
+    out.why = 'its root does not meet the body' + (isFinite(g0) ? ' (the wing stands ' + Math.round(100 * g0) + '-' + Math.round(100 * g1) + ' cm clear of it along the root)' : '');
+  }
+  return out;
+}
+// the sheets -> one indexed geometry, both sides (the -x side the mirror, wound back); null when nothing was fitted
+function wfGeometry(fit) {
+  const pos = [], idx = [];
+  for (const sd of [1, -1]) for (const sh of fit.sheets) {
+    const R = sh.rows, base = [];
+    for (let i = 0; i < R.length; i++) {
+      if (!R[i]) { base.push(-1); continue; }
+      base.push(pos.length / 3);
+      for (const p of R[i]) pos.push(sd * p[0], p[1], p[2]);
+    }
+    // the winding: the upper sheet faces up and out, the lower one down and out (rows run body -> wing, stations fore
+    // -> aft); the mirror flips it
+    const flip = (sh.name === 'upper') === (sd > 0);
+    // THE ENDS OF A RUN: a run that stops while it still has a size (a station with no corner next to one with) is
+    // closed by a fan from its corner across its own row - a flat end, never a hole into the fairing
+    const F = sh.feet || [];
+    for (let i = 0; i < R.length; i++) {
+      if (!R[i] || !F[i]) continue;
+      const first = i === 0 || !R[i - 1], last = i + 1 === R.length || !R[i + 1];
+      if (!first && !last) continue;
+      const row = R[i], span = Math.hypot(row[0][0] - row[WF_NJ][0], row[0][1] - row[WF_NJ][1]);
+      if (span < 0.004) continue;
+      const ci = pos.length / 3, cc = F[i].corner;
+      pos.push(sd * cc[0], cc[1], cc[2]);
+      for (let j = 0; j < WF_NJ; j++) {
+        const a = base[i] + j, b = base[i] + j + 1;
+        // (fore end faces forward, aft end aft; the side and the sheet set the sense, as the strip's)
+        if ((first !== flip)) idx.push(ci, a, b); else idx.push(ci, b, a);
+      }
+    }
+    for (let i = 0; i + 1 < R.length; i++) {
+      if (base[i] < 0 || base[i + 1] < 0) continue;
+      for (let j = 0; j < WF_NJ; j++) {
+        const a = base[i] + j, b = base[i] + j + 1, c2 = base[i + 1] + j + 1, d = base[i + 1] + j;
+        if (flip) idx.push(a, b, c2, a, c2, d); else idx.push(a, c2, b, a, d, c2);
+      }
+    }
+  }
+  if (!idx.length) return null;
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return g;
+}
+// the draw, every plane: called by the layer once its planes are published (CAGE_WING.planes) - P.wgFillet 0 returns
+// before anything is read but the row
+function wfDraw(P, W, AF, ex) {
+  const style = Math.round(+P.wgFillet || 0);
+  if (!style || !W || !AF || ex > 0) return null;
+  const K = Math.max(0.3, Math.min(2.5, +P.wgFilletK || 1)), aft = Math.max(0, Math.min(0.8, +P.wgFilletAft || 0));
+  const rec = { style, planes: [] };
+  for (const pl of wfPlanes(P)) {
+    const PL = W.planes && W.planes[pl.k];
+    const r = { k: pl.k, pos: pl.pos, why: pl.why, mesh: null, fit: null };
+    rec.planes.push(r);
+    if (r.why || !PL) continue;
+    const sides = wfSides(pl.pos);
+    const sfx = pl.k ? '2' : '';
+    // what the rays read: the plane's skin and, as they hang at rest, its flaps and ailerons
+    const geos = (PL.skinGeos || []).map(g => [g, null]);
+    let flap = null;
+    for (const o of PL.group.children) {
+      const nm = o.name || '';
+      if (!o.isMesh || !new RegExp('^edSurf_(flap|ail)[RL]' + sfx + '$').test(nm)) continue;
+      geos.push([o.geometry, [o.position.x, o.position.y, o.position.z]]);
+    }
+    for (const s of (W.surfs || [])) {
+      if (s.kind !== 'flap' || (s.plane === 2) !== !!pl.k) continue;
+      const xi = Math.min(Math.abs(s.line[0][0]), Math.abs(s.line[1][0]));
+      const zH = 0.5 * (s.line[0][2] + s.line[1][2]);
+      if (!flap || xi < flap.x) flap = { x: xi, zF: zH + 0.03, zR: zH - (s.chord || 0.3) - 0.03 };
+    }
+    const x0 = PL.zRoot || 0;
+    const C = wfCaster(geos, Math.max(0, x0 - 0.6), x0 + 2.0);
+    const fit = wfFit({ AF, C, x0, style: sides.teOnly ? 1 : style, K, aft, sides, flap });
+    r.fit = fit;
+    if (fit.why) { r.why = fit.why; continue; }
+    const g = wfGeometry(fit);
+    if (!g) { r.why = 'nothing to blend at this root'; continue; }
+    const mat = (window.CAGE_SECMAT && window.CAGE_SECMAT(pl.k ? 'wingSkin2' : 'wingSkin', { surf: 0, fieldM: 1, struct: 0, side: THREE.DoubleSide })) || wingMat('main', pl.k);
+    const m = new THREE.Mesh(g, mat);
+    m.name = 'edWingFillet' + sfx;
+    PL.group.add(m);
+    r.mesh = m;
+  }
+  return rec;
+}
 
 const prevPost = PAGE.post;
 let boomGroup = null;                        // the twin booms (2026-09-04)
@@ -2547,6 +3027,11 @@ const wingPost = ctx => {
                          span: w.span, chord: w.chord, taper: w.taper,
                          of: k === 0 ? { span: +P.wgSpan, chord: +P.wgChord, tip: +P.wgChordTip }
                                      : { span: +P.w2Span, chord: +P.w2Chord, tip: +P.w2ChordTip } })) };
+  // WING-FILLET: the wing-root fillet (the row off: nothing read, nothing drawn - the block above wfDraw says what it is)
+  if (+P.wgFillet && !WIRE) {
+    try { window.CAGE_WING.fillet = wfDraw(P, window.CAGE_WING, AF, ex); }
+    catch (e) { console.error('wing fillet:', e); if (stat) stat.textContent += '  ·  fillet: ' + e.message; }
+  }
   // THE TWIN BOOMS (2026-09-04, TWIN-BOOM spec §1.3; REBUILT G267 — the
   // user: "their end toward the wing should be profiled, customizable like
   // the nose cone (from ogival to conical). Their other end should offer the
