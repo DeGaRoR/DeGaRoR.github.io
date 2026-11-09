@@ -160,7 +160,9 @@ const RIDGE = D0.RIDGE || (EAVE + 2.6);
 const DOOR_W = (D0.door > 0) ? Math.min(D0.door, 2 * HW - 1) : FRAME === 'steel' ? 0.8 * (2 * HW - 2) - 0.34 : Math.max(6, 2 * HW - 5);
 // DERELICT-HANGAR: the large hangar's clear bay and its door's centre (26_hangar_fit hangarBay: the gallery right, the facade left)
 const BAY = (typeof hangarBay === 'function') ? hangarBay(SHELL, { HW, HD, EAVE }) : null, DOOR_Z = BAY ? BAY.doorZ : 0;
-const DOOR_H = FRAME === 'timber' ? EAVE - 0.5 : Math.min(6.4, EAVE - 1.4);
+// (DERELICT-HANGAR: the steel frame's head clears the game's DC-3 as built - 7.0 m to the fin's top - with 0.5 m: 7.6 m, 1.9 m
+// under the eave for the header)
+const DOOR_H = FRAME === 'timber' ? EAVE - 0.5 : FRAME === 'steel' ? Math.min(7.6, EAVE - 1.9) : Math.min(6.4, EAVE - 1.4);
 // THE BACK DOORS (G64, user: "I think we'd better add some doors over there and
 // have the wing hang in front of it"). A bi-parting pair: two leaves on ONE
 // track, each sliding to its own side, so unlike the six-leaf front they never

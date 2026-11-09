@@ -112,7 +112,7 @@ function dimsOf(P) {
   const yL2 = fy + 4.0, yGR = fy + 4.4, yTW = fy + 8.0, yBC = fy + EAVE - 1.0;   // yGR: the gallery's roof; yTW: the towers' upper floor line
   const NB = Math.max(4, Math.round(2 * HD / P.bay)), BAY = 2 * HD / NB;
   const zF = k => -HD + k * BAY;
-  const DH = Math.min(6.4, EAVE - 1.4);                                  // the door head (a DC-3's fin 5.16 m tail-down: 1.2 m under it)
+  const DH = Math.min(7.6, EAVE - 1.9);                                  // the door head: the game's DC-3 as built stands 7.0 m to the fin's top (the real one 5.16 tail-down) - 0.5 m under it
   const BW = Math.min(16, 2 * Math.min(xGL, xGR) - 4), BH = Math.min(5.2, EAVE - 3);
   const xC = HW - 0.45;                                                  // the main columns' line, inboard of the stem wall
   const xe = xC - 0.19;                                                  // the truss's ends, at the columns' inner flange

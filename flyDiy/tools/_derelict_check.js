@@ -30,7 +30,9 @@ const fs = require('fs'), path = require('path'), vm = require('vm'), crypto = r
 const TOOLS = __dirname;
 const SELF = process.argv.includes('--selftest');
 const BUDGET = [{ tris: 135000, draws: 16 }, { tris: 14500, draws: 10 }, { tris: 5000, draws: 6 }];
-const DC3 = { span: 28.96, fin: 5.16, tip: 1.0, over: 0.5 };
+// (the fin: the game's DC-3 AS BUILT - builds/candidates/dc3_2026-10.json, playerFootOfDef h 7.0 m - not the real 5.16 m tail-down:
+// the door must take the aeroplane the game has)
+const DC3 = { span: 28.96, fin: 7.0, tip: 1.0, over: 0.5 };
 
 function load() {
   const src = fs.readFileSync(path.join(TOOLS, '_house_check.js'), 'utf8');
@@ -56,7 +58,8 @@ function run(break_) {
   ok(2 * D0.HW >= 40 && 2 * D0.HW <= 45 && 2 * D0.HD === 60 && Math.abs(2 * D0.HW + D0.gallery - 50) <= 1 && D0.gallery >= 5 && D0.gallery <= 10 &&
      D0.EAVE === works.EAVE && D0.floorY === works.floorY, `1 DEF's envelope is the real hangar's (hall ${2 * D0.HW} x ${2 * D0.HD} m, gallery ${D0.gallery} m, ${2 * D0.HW + D0.gallery} m overall)`);
   const S = HN.shellOf(works), Dd = DG.dimsOf(DG.DEF);
-  ok(Math.abs(Dd.DH - S.DOOR_H) < 1e-9, `1 the door head is the works' DOOR_H (${Dd.DH} vs ${S.DOOR_H})`);
+  const HEAD = Math.min(7.6, D0.EAVE - 1.9);   // hangar.js's steel DOOR_H
+  ok(Math.abs(Dd.DH - HEAD) < 1e-9, `1 the door head is hangar.js's steel DOOR_H (${Dd.DH} vs ${HEAD})`);
   ok(Math.abs(Dd.RIDGE - S.RIDGE) < 1e-9, `1 the ridge is the works' (${Dd.RIDGE} vs ${S.RIDGE})`);
   const B = {};
   for (let st = 0; st <= 3; st++) for (let lod = 0; lod <= 2; lod++) {
@@ -75,7 +78,7 @@ function run(break_) {
       const g = 3, top = works.floorY + S.RIDGE + 1.5;
       ok(bb.x0 >= -real.HW - g && bb.x1 <= real.xO + g && bb.z0 >= -real.HD - g && bb.z1 <= real.HD + g, `1 stage ${st} lod ${lod}: inside the real footprint + ${g} m (x ${bb.x0.toFixed(2)}..${bb.x1.toFixed(2)}, z ${bb.z0.toFixed(2)}..${bb.z1.toFixed(2)})`);
       ok(bb.y1 <= top, `1 stage ${st} lod ${lod}: under the works' ridge + 1.5 m (${bb.y1.toFixed(2)} <= ${top.toFixed(2)})`);
-      ok(s.stage === st && s.dims.HW === real.HW && s.door.h === S.DOOR_H, `1 stage ${st} lod ${lod}: stats name the stage and the hangar's dims`);
+      ok(s.stage === st && s.dims.HW === real.HW && Math.abs(s.door.h - HEAD) < 1e-9, `1 stage ${st} lod ${lod}: stats name the stage and the hangar's dims`);
     }
   }
   // 1 stage 3: the restored hangar, the derelict's own frame made whole

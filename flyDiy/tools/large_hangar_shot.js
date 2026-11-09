@@ -80,12 +80,13 @@ const bakeProbe = page => page.evaluate(() => {
       ['hall', [18.6, 7.4, -3.5], [-10, 1.4, -1.5]],  // from the back wall, high: the hall, the plane, the door
       ['gallery', [3, 1.8, -17.6], [3, 4.4, 14]],     // across the hall to the gallery: the white wall, the lit offices above
       ['roof', [6, 1.6, -4], [0, 9.5, 6]],           // the trusses over it
+      ['top', [4, 8.0, 0.01], [4, 0, 0]],          // straight down from under the trusses: the aeroplane against the back wall (the user: does the DC-3 fit?)
     ];
     for (const [name, eye, at] of views) {
       const url = await page.evaluate(({ eye, at, W, H, nm, EXPO }) => { const name = nm;
         const D = window.GARAGE_ENV._debug(), R = D.renderer, S = D.scene, h = D.hangar;
         const g = h.group.position, P = p => new THREE.Vector3(p[0] + g.x, p[1] + g.y, p[2] + g.z);
-        const cam = new THREE.PerspectiveCamera(name === 'roof' ? 72 : 58, W / H, 0.1, 2000);
+        const cam = new THREE.PerspectiveCamera(name === 'roof' ? 72 : name === 'top' ? 100 : 58, W / H, 0.1, 2000);
         cam.position.copy(P(eye)); cam.lookAt(P(at)); cam.updateMatrixWorld();
         const ex0 = R.toneMappingExposure; R.toneMappingExposure = ex0 * EXPO;   // (the headless path skips the page's own exposure and grade: lifted for legibility)
         R.setSize(W, H, false); R.render(S, cam); R.toneMappingExposure = ex0;

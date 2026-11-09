@@ -314,9 +314,9 @@ function runCozy(union) {
   // and a DC-3 (span 28.96 m, fin 5.16 m tail-down) passes it with the packer's own clearance
   {
     const works = { shell: 'works', dims: Object.assign({}, CORE.SHELLS.works.dims), kits: CORE.HANGAR_KITS_DEFAULT.slice(), base: 'HOME', tenure: 'own' };
-    const dc3 = { half: 14.48, fwd: 3.2, aft: 16.5, h: 5.16 }, D = CORE.hangarDoor(works);
+    const dc3 = { half: 14.5, fwd: 0.3, aft: 17.6, h: 7.0 }, D = CORE.hangarDoor(works);   // (the game's DC-3 as built: playerFootOfDef)
     const why = CORE.hangarDoorWhy(works, dc3);
-    ok(why === '' && D.w >= 31 && D.h >= 5.66, 'rule 8: a DC-3 passes the large hangar\'s door (' + D.w.toFixed(2) + ' x ' + D.h.toFixed(2) + ' m clear' + (why ? ': ' + why : '') + ')');
+    ok(why === '' && D.w >= 31 && D.h >= 7.5, 'rule 8: a DC-3 passes the large hangar\'s door (' + D.w.toFixed(2) + ' x ' + D.h.toFixed(2) + ' m clear' + (why ? ': ' + why : '') + ')');
     ok(Math.abs(D.z) < 1e-9, 'rule 8: the large hangar\'s door is on the hall\'s axis (the piers alike: ' + D.z + ')');
     // the real envelope (the user's 50 x 60 m: HW 22 + the 6 m gallery, HD 30), lifted for a plot with no pad cap (HOME.2
     // at the Y's foot); HOME's main plot holds what its flat pad does (siteMaxHD: 28)
