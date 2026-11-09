@@ -312,7 +312,10 @@ for (const k in GEO) if (REFS[k]) Object.assign(REFS[k], { dims: GEO[k].dims, sp
 // `official`: on builds/lists/plane_lists.json's official list. `engineNote`: when the build's engine is not the type's.
 // ---------------------------------------------------------------------------------------------------------------------
 const PLANES = {
-  cub:      { label: 'Piper Cub (official)', file: 'builds/cub_2026-09-20_corrected.json', ref: 'cub', official: true },
+  cub:      { supersededBy: 'cub160', label: 'Piper Cub (official)', file: 'builds/cub_2026-09-20_corrected.json', ref: 'cub', official: true },
+  // (the user, 9 Nov: the J-3's chord, 1.60 m; the shipped file is the calibration datum of 105 checks, so the candidate
+  // stands in the report in its place until the user promotes it)
+  cub160:   { label: 'Piper Cub, J-3 chord 1.60 m (candidate; the shipped Cub has 1.70)', short: 'Piper Cub', file: 'builds/candidates/cub_chord160.json', ref: 'cub' },
   jodel:    { label: 'Jodel D112 (official)', file: 'builds/jodel_2026-09-20_corrected.json', ref: 'd112', official: true },
   cessna:   { dropped: 'the user 8 Nov: the corrected 172 is the Cessna; B-CESS is dismissed', label: 'Metal Cessna B-CESS (official)', file: 'builds/cessna172_2026-09-20.json', ref: 'c172r', official: true,
               engineNote: 'the build flies an O-540 235 hp (the type: IO-360 160 hp) on an 18.4 m2 wing (16.2): power-bound rows are not like for like', cgSweep: true },
