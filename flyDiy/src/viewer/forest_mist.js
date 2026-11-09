@@ -33,7 +33,7 @@ var FMIST = (function () {
   // THE DIALS. Strength laws are in strengths(); `force` pins them for a rig ({pool, wisp, oro} 0..1, null = the weather's).
   const S = {
     N: 512, X: 768,                 // the map's side and its first column in the atlas
-    rho: 0.018,                     // per metre inside a full pocket (Koschmieder: ~220 m visibility in it)
+    rho: 0.03,                      // per metre at a full pocket's heart (Koschmieder: ~130 m visibility there)
     period: 160,                    // the noise's cell (m): a wisp a few tree lengths across
     lidM: 25, lidK: 110,            // the pool's lid over the valley floor: 25 m + 110 m x the pool weight
     wispLo: -12, wispHi: 40,        // the wisps' band about the canopy top (m)
@@ -41,7 +41,7 @@ var FMIST = (function () {
     driftK: 1,                      // x the wind
     surfN: 4, eyeN: 2, surfM: 450, eyeM: 350,   // the veil's taps: near the surface, near the eye (C)
     marchN: 28, marchKm: 3.5,       // the cloud pass's pocket segment (A)
-    cards: 420, cardKm: 2.6, cardW: 120, cardH: 34, cardA: 0.55, cardEvery: 20,   // the cards (B): how many, how far, how big, how dense, re-dealt every N frames
+    cards: 420, cardKm: 2.6, cardW: 120, cardH: 34, cardA: 0.8, cardEvery: 20,   // the cards (B): how many, how far, how big, how dense, re-dealt every N frames
     force: null,
   };
   // what runs, live (a rig flips them; the flag says what was BUILT - a technique not in the flag cannot be turned on)
@@ -206,7 +206,8 @@ var FMIST = (function () {
           vec2 p = vUv * vec2(3.0, 1.2) + vec2(vC.z * 17.0 + uTime * 0.01, vC.z * 5.0);
           float n = 0.55 * vn(p) + 0.3 * vn(p * 2.3 + 3.1) + 0.15 * vn(p * 5.1 - 1.7);
           float k = vC.y < 0.5 ? uK.x : uK.y;
-          float a = uA * vC.x * k * edge * vFade * smoothstep(0.35, 0.75, n) * (1.0 - smoothstep(0.0, 0.5, -q.y) * 0.4);
+          n = clamp(0.5 + (n - 0.5) * 2.6, 0.0, 1.0);
+          float a = uA * min(1.0, 1.5 * vC.x) * k * edge * vFade * smoothstep(0.3, 0.7, n) * (1.0 - smoothstep(0.0, 0.5, -q.y) * 0.4);
           if (a < 0.003) discard;
           gl_FragColor = vec4(uMist[1].rgb, a);
           #include <tonemapping_fragment>
@@ -235,6 +236,25 @@ var FMIST = (function () {
     cardMesh.count = n; cardMesh.instanceMatrix.needsUpdate = true; at.needsUpdate = true;
     st.cards = n;
   }
+  // ---- THE CPU MIRROR of fmDens (the GLSL's arithmetic; the calibration and the gate read it, never the page) -----
+  const fr = x => x - Math.floor(x);
+  const h21 = (x, y) => fr(Math.sin(x * 127.1 + y * 311.7) * 43758.5453123);
+  const vn = (x, y) => { const ix = Math.floor(x), iy = Math.floor(y); let fx = x - ix, fy = y - iy; fx = fx * fx * (3 - 2 * fx); fy = fy * fy * (3 - 2 * fy);
+    const a = h21(ix, iy), b = h21(ix + 1, iy), c = h21(ix, iy + 1), d = h21(ix + 1, iy + 1); return (a + (b - a) * fx) * (1 - fy) + (c + (d - c) * fx) * fy; };
+  const smc = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+  function densCPU(m, k, base, drift, x, y, z) {
+    const i = Math.min(m.N - 1, Math.max(0, Math.floor((x - m.x0) * m.inv * m.N))), j = Math.min(m.N - 1, Math.max(0, Math.floor((z - m.z0) * m.inv * m.N)));
+    const o = (j * m.N + i) * 4, top = m.px[o], G = m.px[o + 1], Bw = m.px[o + 2], fl = m.px[o + 3];
+    const hc = y - top, lid = fl + S.lidM + S.lidK * G;
+    const pool = k[0] * G * smc(0, 25, lid - y) * (hc >= -30 ? 1 : 0);
+    const wisp = k[1] * Bw * smc(S.wispLo, 0, hc) * (1 - smc(10, S.wispHi, hc));
+    const yb = y - base, oro = k[2] * smc(S.oroLo, 0, yb) * (1 - smc(60, S.oroHi, yb)) * (1 - smc(40, 160, hc)) * (hc >= -20 ? 1 : 0);
+    const cov = Math.min(1, pool + wisp + oro); if (cov <= 0.002) return 0;
+    const qx = (x + drift[0]) / S.period + y * 0.011, qz = (z + drift[1]) / S.period - y * 0.007;
+    let n = 0.55 * vn(qx, qz) + 0.30 * vn(qx * 2.31 + 5.2, qz * 2.31 + 1.3) + 0.15 * vn(qx * 5.3 - 3.1, qz * 5.3 + 7.7);
+    n = Math.min(1, Math.max(0, 0.5 + (n - 0.5) * 2.6));
+    return smc(1 - cov - 0.15, 1 - cov + 0.3, n) * cov * S.rho;
+  }
   const stats = () => ({ on: ON, use: Object.assign({}, use), cards: st.cards || 0, bakeMs: +st.bakeMs.toFixed(1), k: st.k.map(v => +v.toFixed(3)), hoursDry: st.hoursDry, drift: st.drift.map(v => Math.round(v)), map: st.map });
   // THE GLSL, shared by the veil (atmo.js MIST_GLSL) and the march (clouds.js): fmDens(p) per metre.
   // uMist[7] = (pool k, wisp k, oro k, cloud base m) | [8] = (drift x, z, rho, on) | [9] = (map x0, z0, 1/size, 1/period)
@@ -259,7 +279,10 @@ var FMIST = (function () {
       // vertical shear (the height in the coordinate) so a wisp leans and does not read as a stencil of the ground
       vec2 q = (p.xz + uMist[8].xy) * uMist[9].w + vec2(p.y * 0.011, -p.y * 0.007);
       float n = 0.55 * mistVN(q) + 0.30 * mistVN(q * 2.31 + vec2(5.2, 1.3)) + 0.15 * mistVN(q * 5.3 + vec2(-3.1, 7.7));
-      float d = smoothstep(1.0 - cov, min(1.0, 1.0 - cov + 0.45), n);   // Schneider's coverage remap: more cover, fatter wisps
+      // the octaves' sum sits at 0.5 +- 0.13: stretched to the unit (x2.6) before the remap, or a half-covered pocket
+      // remaps to nothing (the first SwiftShader sheet: od ~0.02 in a full valley - the remap ate the pocket)
+      n = clamp(0.5 + (n - 0.5) * 2.6, 0.0, 1.0);
+      float d = smoothstep(1.0 - cov - 0.15, 1.0 - cov + 0.3, n);   // Schneider's coverage remap: more cover, fatter wisps
       return d * cov * uMist[8].z;
     }
     // THE VEIL (?fmist=c): the pockets' optical depth along the eye's ray to a surface D metres off - a few taps on
@@ -275,6 +298,6 @@ var FMIST = (function () {
       }
       return od;
     }`;
-  return { ON, A, B, C, S, use, bakeMap, strengths, bake, update, stats, GLSL };
+  return { ON, A, B, C, S, use, densCPU, bakeMap, strengths, bake, update, stats, GLSL };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = FMIST;
