@@ -50,6 +50,9 @@ The study, every figure sourced or derived: futureDesigns/WILGA-GEAR-STUDY-2026-
 | DESIGNCHECK | FAIL as master | "200 N sideways at the post: 4.2 mm against the drawn carbon shell's 1.8 mm" - master 7daba875 run here: the same line |
 | DMGGEAR | FAIL (2 lines, the floatplanes) | "the float nose-in at its own V_S0 ... nothing breaks (3 set)" and "the float dig-in at 150 km/h ... the floats' strut fittings fail in overload" - no lever build in it, its builds bit-identical; master 7daba875 run here: the same two lines, the log identical line for line but the timings |
 
+After the fairing and the struts' drag (the last code commits) re-run green: WILGAGEAR, CLIP, GEAR, PARTS, UISMOKE, SAVE,
+JOIN, EDBUGS, CAGEFIT, HONEST, BUILD, STOL, DESIGN, SPECFIX, TAKEOFF (TECH: its av.elt line only, as master).
+
 Not run here: the full battery (`--all`; the cloud box takes ~2 h a heavy gate); the timed gates (no GPU).
 
 ## Costs (node, idle machine, interleaved, parked)
