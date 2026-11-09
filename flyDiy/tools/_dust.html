@@ -111,6 +111,18 @@ input[type=range] { width: 100%; accent-color: var(--acc); margin: 0; }
       <input id="k" type="range" min="0.25" max="3" step="0.05" value="1">
     </div>
     <div class="grp">
+      <div class="row"><label class="lab" for="linger">Linger</label><span class="val" id="lingerv">30 s</span></div>
+      <input id="linger" type="range" min="8" max="120" step="1" value="30">
+    </div>
+    <div class="grp">
+      <div class="row"><label class="lab" for="height">Cloud height</label><span class="val" id="heightv">4.5 m</span></div>
+      <input id="height" type="range" min="1.5" max="9" step="0.25" value="4.5">
+    </div>
+    <div class="grp">
+      <div class="row"><label class="lab" for="aspect">Puff width, x its height</label><span class="val" id="aspectv">x2.0</span></div>
+      <input id="aspect" type="range" min="1" max="5" step="0.1" value="2">
+    </div>
+    <div class="grp">
       <span class="lab">Budget</span>
       <div class="pills" id="tier">
         <button id="t-phone" data-v="phone" aria-pressed="false">Phone</button>
@@ -286,6 +298,10 @@ const WETW = v => v < 0.08 ? 'bone dry' : v < 0.2 ? 'dry' : v < 0.35 ? 'damp' : 
 $('wet').addEventListener('input', e => { S.wet = +e.target.value; $('wetv').textContent = WETW(S.wet) + ' (' + S.wet.toFixed(2) + ')'; });
 $('wind').addEventListener('input', e => { S.wind = +e.target.value; $('windv').textContent = S.wind + ' m/s'; });
 $('k').addEventListener('input', e => { S.k = +e.target.value; $('kv').textContent = 'x' + S.k.toFixed(2); });
+// the cloud's own laws, live (dust.js DUST.L: what the game reads too; the defaults are the game's)
+$('linger').addEventListener('input', e => { DUST.L.linger = +e.target.value; $('lingerv').textContent = DUST.L.linger + ' s'; });
+$('height').addEventListener('input', e => { DUST.L.rvMax = +e.target.value; DUST.L.rvCap = Math.max(9, DUST.L.rvMax); $('heightv').textContent = DUST.L.rvMax.toFixed(2).replace(/0$/, '') + ' m'; });
+$('aspect').addEventListener('input', e => { DUST.L.aspect = +e.target.value; $('aspectv').textContent = 'x' + DUST.L.aspect.toFixed(1); });
 $('wetv').textContent = WETW(S.wet);
 const SAY = { takeoff: 'Take-off: a few seconds at idle, a full-power run-up on the brakes, then the roll and the climb. The prop blast scours the strip; the cloud hangs and drifts.',
   landing: 'Landing: the flare, a three-point touchdown (the puff), the roll-out on the brakes. Less dust than a take-off: the engine is at idle.',
