@@ -190,6 +190,7 @@ const OUTDOOR = [];
 const outdoor = m => { OUTDOOR.push(m); return ground(m); };
 let ROOM_POLISH = null;   // G3534: what the room's polish stood (hangar.polish)
 let POLISH_OUT = null;    // G3534b: its pieces outside the walls, drawn only while the eye stands outside (polishFollow)
+let ROOM_PAD = null;      // HANGAR-VIEW C: the plot's ground pad (under room:polish) - outdoors, so the world's view stands in for it
 
 // THE SEED IS RESETTABLE, and it has to be (G123). The canvas sheets below are
 // MEMOISED across builds, so on the second build their draw callbacks do not
@@ -2130,7 +2131,7 @@ if (!EXT) {
         }
         // G3541/G3542: the plot's ground pad, the world's own (HANGAR_GEN padMesh), lit as the room's outdoors are
         const pm = built.pad && HGN.padMesh ? HGN.padMesh(THREE, built.pad, { fog: false, envMapIntensity: ENV_OUT }) : null;
-        if (pm) { outdoor(pm.material); inner.add(pm); }
+        if (pm) { outdoor(pm.material); inner.add(pm); ROOM_PAD = pm; }
         // G3534b (A0 26 Oct s26-g0h, alone on master: the room's entry 4.90 s, 1.81 s with the polish off, every entry after
         // 0.44 s more): what stands OUTSIDE the walls - the casings, the gutters and pipes, the sign over the door, the skirt -
         // is split off into its own group and drawn only while the eye stands outside (the roll-out); the room's own passes
@@ -4315,6 +4316,9 @@ return {
   outdoorsShow: (on, keepSky) => {
     viewOut = on === false; skyLive = viewOut && !!keepSky;
     for (const o of G.children) if (OUT_SET.has(o) || (o.userData && o.userData.outdoor)) o.visible = !viewOut;
+    // HANGAR-VIEW C (the 9 Nov sheet: a red-brown band past the Shed's door over the world's grass): the plot's pad hangs under
+    // room:polish, which stays, and reaches 14 m out of the door - it is outdoors, the world's view draws the real ground there
+    if (ROOM_PAD) ROOM_PAD.visible = !viewOut;
     if (skyMesh) skyMesh.visible = !muted.sky && (!viewOut || skyLive);
     // HANGAR-VIEW C: the live sky behind the view (renderOrder before its -1001 / -1000 backdrop); the cloud layer in the OPAQUE list
     // between them (three blends a non-transparent material only by a custom blending), its alpha over the sky
