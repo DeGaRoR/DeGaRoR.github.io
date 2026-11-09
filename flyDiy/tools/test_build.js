@@ -593,7 +593,10 @@ function nullPaths(o, pre, out) {
       // (SEAPLANES-LAND: cageToSpec's other stated exceptions - the boat rows while the hull is off, HULL-B1's
       // CAGE_HULL_ROWS; a row of CAGE_DEFAULT_ABSENT at its default, PILLAR-ANCHORS / HULL-B26..B45)
       .concat(!(+P1.hullOn > 0) ? (CAGE2.CAGE_HULL_ROWS || []) : [])
-      .concat(Object.keys(CAGE2.CAGE_DEFAULT_ABSENT || {}).filter(k => +P1[k] === CAGE2.CAGE_DEFAULT_ABSENT[k]));
+      .concat(Object.keys(CAGE2.CAGE_DEFAULT_ABSENT || {}).filter(k => +P1[k] === CAGE2.CAGE_DEFAULT_ABSENT[k]))
+      // (COMMS-SECTION, A0 in L36a: cageToSpec stated exception - the beacon row is absent while it is the aerials own value,
+      // _cage_gen.js cageToSpec; AVIONICS exports the rule as one table in a later ready)
+      .concat(Math.round(+P1.accBeacon) === Math.round(P1.accAerials == null ? 1 : +P1.accAerials) ? ["accBeacon"] : []);
     const thin = Object.keys(slim).length,
           table = Object.keys(P1).filter(k => !(k in CAGE2.CAGE_VIEW_KEYS) &&
                                               typeof P1[k] !== 'function' &&
