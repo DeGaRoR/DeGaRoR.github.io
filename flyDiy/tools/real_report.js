@@ -93,7 +93,7 @@ const signedErr = (ours, ref) => { const [lo, hi] = rng(ref); return ours > hi ?
 // IO-360: 5.92 L = 361 in3), so the corrected 172's custom IO-360 dials are not scored as a wrong engine
 const famOf = s => {
   const u = String(s || '').toUpperCase().replace(/\s+/g, ' '), t = u.match(/[A-Z]{1,4}-?\d{2,4}|GIPSY|CLERGET|TWIN WASP|ROTAX \d+/g) || [];
-  for (const x of t.slice()) { const m = x.match(/^(?:TSIO|IO|O|LIO|AEIO)-?(\d{3})$/); if (m) t.push('DISP' + Math.round(+m[1] / 10)); }
+  for (const x of t.slice()) { const m = x.match(/^(?:TSIO|IO|O|LIO|AEIO|CC)-?(\d{3})$/); if (m) t.push('DISP' + Math.round(+m[1] / 10)); }   // (CC340: CubCrafters' 340 in3)
   const L = u.match(/(\d+(?:\.\d+)?) ?L\b/); if (L) t.push('DISP' + Math.round(+L[1] * 61.024 / 10));
   return t;
 };
