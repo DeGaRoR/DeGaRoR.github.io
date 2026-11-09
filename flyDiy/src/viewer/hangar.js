@@ -2457,7 +2457,8 @@ if (DGR) {
     const F = DGR.makeFinish('room');
     const stage = Number.isFinite(+D0.stage) ? Math.max(0, Math.min(3, Math.round(+D0.stage))) : 3;   // (the story's stage; restored)
     const P = { stage, HW, HD, EAVE, floorY: 0, doorOpen: 1, apron: 0, weeds: stage < 3 ? 1 : 0, barriers: stage < 3 ? 1 : 0, aoGround: 0,
-                room: 1, offices: 1, lamps: 1, gallery: gal.lean, galleryL: gal.left, pierR: gal.right };
+                room: 1, offices: 1, lamps: 1, backOpen: (() => { try { return typeof location !== 'undefined' && /[?&]roomback=1/.test(location.search || '') ? 1 : 0; } catch (e) { return 0; } })(),   // (?roomback=1: the back leaves open - the A/B for the probe's light)
+                gallery: gal.lean, galleryL: gal.left, pierR: gal.right };
     DGR.applyFinish(P, F);
     const b = DGR.build(P, 0, F);
     for (const k of b.BAGS) {
