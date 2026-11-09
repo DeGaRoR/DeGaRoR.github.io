@@ -294,7 +294,16 @@ at 2.3 m/s, and the heading swung 100° with the tyres scrubbing sideways.
 - **The editor:** a "Brakes" tile row (`brkHold`) that also sets the drawn brake.
 - **Not yet given to any build:** the Jodel on drums against its book's 150 m is the first test.
 
-**The cowl.** The CC340's four heads poked through the Rotax-sized cowl (`carbon_cub_ss_cowl_before_quick.png`). Now
-(`carbon_cub_ss_cowl_quick.png`, quickshot: flat colours, no livery):
-- the cheeks are 0.17 m proud (from 0.06), streamlined, centred over the heads, full length;
-- the side gills of the cowl branch, 7 slanted slots on each flank.
+**The cowl.** The CC340's four heads poked through the Rotax-sized cowl (`carbon_cub_ss_cowl_before_quick.png`). A first
+pass with streamlined cheeks and the cowl branch's gills was rejected by the user. Redone from the original cowl with the
+built-in bulges only, placed and sized until no head shows (`carbon_cub_ss_cowl_quick.png`, quickshot: flat colours, no
+livery):
+
+| bulge row | was | now |
+|---|---|---|
+| `lobeAmp` (size) | 0.06 m | 0.28 m |
+| `lobeT` (station) | 0.45 | 0.74 |
+| `lobeTSig` (length) | 0.35 | 0.30 |
+| `lobeSig` (spread) | 53° | 58° |
+
+Nothing else on the cowl changed (the real one's are near-separate tubes fused to the cowl; emulated by the bulging alone).

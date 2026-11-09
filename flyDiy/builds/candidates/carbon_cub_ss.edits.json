@@ -1,5 +1,5 @@
 {
- "_what": "REAL-FIGURES-3 (the user 9 Nov): the STOL Cub made a Carbon Cub SS - the real engine built from DIALS, not a row (the CC340: the O-320's chassis, 5.125 x 4.125 in, 340 in3, 2700 rpm, tune 1.09 = 10.7 bar -> 180 hp, build 0.88 -> 120 kg as normally equipped: 240-250 lb dry, 35 lb under a comparable Lycoming), a two-blade 2.03 m carbon prop, only the real STOL features (VGs; no slot, no droop, no drooped tips), the new STOL flap (a plain hinge to 50 deg, the SS's 15/30/50), a Super Cub-sized tail, the wing on the new aluminium-spar-under-fabric row (wgCons 7), (3.2 m, THIN) with the Cub's elevator chord, 29 in Airstreak tundra tyres (the largest CubCrafters option; ours were 30.7 in), an 8 in tailwheel, 24 US gal in two wing-root tanks, and the SS's panel: one 7 in glass PFD/MFD in the centre with round airspeed, altimeter and VSI, COM and transponder (its round engine monitor, a CGR-30P, has no row: small tacho / oil / fuel gauges stand in) The cowl (the user, 9 Nov, the real one's photo): big streamlined cheeks over the CC340's heads (lobeAmp 0.06 -> 0.17 m, moved forward over the heads and lengthened; the wider engine's heads poked through the Rotax-sized cowl) and the side gills of the proper-cowls branch (7 slanted slots each flank).",
+ "_what": "REAL-FIGURES-3 (the user 9 Nov): the STOL Cub made a Carbon Cub SS - the real engine built from DIALS, not a row (the CC340: the O-320's chassis, 5.125 x 4.125 in, 340 in3, 2700 rpm, tune 1.09 = 10.7 bar -> 180 hp, build 0.88 -> 120 kg as normally equipped: 240-250 lb dry, 35 lb under a comparable Lycoming), a two-blade 2.03 m carbon prop, only the real STOL features (VGs; no slot, no droop, no drooped tips), the new STOL flap (a plain hinge to 50 deg, the SS's 15/30/50), a Super Cub-sized tail, the wing on the new aluminium-spar-under-fabric row (wgCons 7), (3.2 m, THIN) with the Cub's elevator chord, 29 in Airstreak tundra tyres (the largest CubCrafters option; ours were 30.7 in), an 8 in tailwheel, 24 US gal in two wing-root tanks, and the SS's panel: one 7 in glass PFD/MFD in the centre with round airspeed, altimeter and VSI, COM and transponder (its round engine monitor, a CGR-30P, has no row: small tacho / oil / fuel gauges stand in) The cowl (the user: only the built-in bulges, placed and sized to cover the CC340's cylinder heads): lobeAmp 0.06 -> 0.28 m, lobeT 0.45 -> 0.74, lobeTSig 0.35 -> 0.30, lobeSig 53 -> 58; nothing else on the cowl changed.",
  "enginePreset": "lycoming O-320",
  "cage": {
   "engPreset": 41,
@@ -20,21 +20,11 @@
   "eng_massK": 0.88,
   "wgCons": 7,
   "cw_lobeN": 2,
-  "cw_lobeAmp": 0.17,
+  "cw_lobeAmp": 0.28,
   "cw_lobeT": 0.74,
-  "cw_lobeTSig": 0.62,
-  "cw_lobeSig": 62,
-  "cw_lobeStream": 1,
-  "cw_lobeNose": 0.95,
-  "cw_lobeTail": 0.05,
-  "cw_gillOn": 1,
-  "cw_gillN": 7,
-  "cw_gillZ": 0.35,
-  "cw_gillL": 0.2,
-  "cw_gillH": 0.1,
-  "cw_gillSlant": 25,
-  "cw_gillLip": 0.01,
-  "cw_gillT": 0.004
+  "cw_lobeTSig": 0.3,
+  "cw_lobeSig": 58,
+  "cw_lobeAz": 0
  },
  "prop": {
   "D": 2.03,
