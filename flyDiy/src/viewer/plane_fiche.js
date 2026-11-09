@@ -223,19 +223,25 @@
   // cowl ... keep a transparent suggestion of the full model, faint, so ... the global outline remains clear"; and on the
   // Petrel: "we still don't see the driving trains as I had asked, without the fairing"): every cowl / nacelle shell and
   // every pylon FAIRING (the engine layer's `engPylon` in the cowl's AEROSKIN section - its tube bars wear the mount's
-  // and stay) that stands on the cut side outside the fuselage (a wing nacelle) or on the centreline over it (a pylon's
-  // nacelle and its tower) wears a faint see-through copy of its material (the garage's x-ray alpha); the engine, its
+  // and stay) that is not on the far side - a shell that holds a non-nose engine (CAGE_ENG's units), a shell on the cut
+  // side outside the fuselage, a pylon's fairing - wears a faint see-through copy of its material (the garage's x-ray alpha); the engine, its
   // mount, its drive and its propeller stand. The nose cowl (cut in half as the covering is) and the far side's
   // nacelles keep theirs: the outline
   function ghostNacelles(T, root, left, cl, hw, st, fus) {
+    void fus;
     const V = window.CAGE_VIEW, a = Math.min(0.2, (V && V.xrayA) || 0.12), b = new T.Box3(), c = new T.Vector3(), made = new Map();
-    const fb = fus ? new T.Box3().setFromObject(fus) : null;
-    const strip = o => {
+    // the engines that are not the nose's (CAGE_ENG: the units' own places, in the engine layer's frame): a shell that
+    // holds one is its nacelle or its cowl, wherever it stands
+    const E = window.CAGE_ENG, EL = root.children.find(o => o.name === 'cageLayer:eng'), at = [];
+    if (E && E.mount && E.mount !== 'nose' && EL) { EL.updateMatrixWorld(true);
+      for (const u of E.units || []) if (u && u.at) at.push(EL.localToWorld(new T.Vector3(u.at[0], u.at[1], u.at[2]))); }
+    const holds = bb => at.some(p => bb.clone().expandByScalar(0.05).containsPoint(p));
+    const strip = (o, pylon) => {
       if (!o.isMesh || !o.geometry || !o.visible) return;
       b.setFromObject(o); if (b.isEmpty()) return;
       b.getCenter(c);
-      const lat = c.dot(left) - cl, near = lat > hw + 0.05, centre = Math.abs(lat) < hw, over = !!(fb && c.y > fb.max.y + 0.02);
-      if (!(near || (centre && over))) return;
+      const lat = c.dot(left) - cl, near = lat > hw + 0.05, far = lat < -hw - 0.05;
+      if (far || !(near || pylon || holds(b))) return;
       const arr = Array.isArray(o.material), ms = arr ? o.material : [o.material];
       st.mats.push([o, o.material]);
       const nm = ms.map(m => { if (!m) return m; let g = made.get(m); if (g) return g;
@@ -246,7 +252,7 @@
     for (const L of root.children) {
       if (L.name === 'cageLayer:cowl') { L.updateMatrixWorld(true); L.traverse(strip); }
       if (L.name === 'cageLayer:eng') { L.updateMatrixWorld(true);
-        L.traverse(o => { if (o.name === 'engPylon' && o.isMesh && o.material && (o.material.userData || {}).aeroskin) strip(o); }); }
+        L.traverse(o => { if (o.name === 'engPylon' && o.isMesh && o.material && (o.material.userData || {}).aeroskin) strip(o, true); }); }
     }
   }
   // THE LANDING GEAR, BARE (the user 9 Nov: "you don't seem to represent the wheels ... it should be shown without any

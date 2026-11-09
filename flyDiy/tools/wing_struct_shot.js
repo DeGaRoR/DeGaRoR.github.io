@@ -68,7 +68,12 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   if (BUILD && BUILD.val) for (const k0 of BUILD.val.split(',')) LIST.push({ key: k0.replace(/[@+]/g, '_'), spec: () => {
     const [k, row] = k0.replace(/\+(light|plain)$/, '').split('@'), sp = require('./_load_build.js').loadValidated(k).spec;
     // key+plain: the build's decal patterns off for the picture (the Petrel's dark pattern hid its inside - the user 9 Nov)
-    if (/\+plain$/.test(k0) && sp.finish && sp.finish.decals) for (const d of Object.keys(sp.finish.decals)) if (/^m\d+On$/.test(d)) sp.finish.decals[d] = 0;
+    if (/\+plain$/.test(k0)) {
+      if (sp.finish && sp.finish.decals) for (const d of Object.keys(sp.finish.decals)) if (/^m\d+On$/.test(d)) sp.finish.decals[d] = 0;
+      // ...and the exterior in white gelcoat (the root section `body`: the carbon row's raw finish is near black)
+      sp.finish = Object.assign({}, sp.finish); sp.finish.sections = Object.assign({}, sp.finish.sections, { body: { fin: 'gelcoat' } });
+      sp.__plainSkin = 1;   // (every exterior section too, read off the page's AEROSKIN roles below: a hull's skin is not under body)
+    }
     if (row) { for (const w of sp.wings || []) w.material = row;   // (the garage reads its own row: wgCons, _cage_wing.js's states)
       const st = [null, 'carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass'].indexOf(row);
       if (st > 0) sp.cage = Object.assign({}, sp.cage, { wgCons: st }); }
@@ -81,7 +86,9 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   const OUTk = LIST.length > 1 ? OUT + '_' + B.key : OUT;
   const spec = B.spec();
   if (spec) {
-    await pg.evaluate(s => { window.GARAGE_SPEC.set(s); const f = document.getElementById('gFleet'); if (f) f.style.display = 'none'; return 1; }, spec);
+    await pg.evaluate(s => {
+      if (s.__plainSkin) { delete s.__plainSkin; try { for (const k of Object.keys(AERO_ROLE)) if (['skin', 'rail', 'pillar'].includes(AERO_ROLE[k]) && !(s.finish.sections[k] && s.finish.sections[k].fin)) s.finish.sections[k] = { fin: 'gelcoat' }; } catch (e) {} }
+      window.GARAGE_SPEC.set(s); const f = document.getElementById('gFleet'); if (f) f.style.display = 'none'; return 1; }, spec);
     console.log('wing_struct_shot: ' + B.key + ' set ' + el());
   }
   await sleep(first ? +opt('wait', 20000) : +opt('wait2', 15000));
@@ -92,7 +99,9 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     document.querySelectorAll('body *').forEach(el => { if (!keep.has(el) && !el.contains(c)) el.style.visibility = 'hidden'; });
     try { if (window.FLIGHT_PROBE.balanceShow) window.FLIGHT_PROBE.balanceShow(false); } catch (e) {} return 1; });
   fs.mkdirSync(path.dirname(OUT), { recursive: true });
-  const info = await pg.evaluate(() => { const W = window.CAGE_WING; return JSON.stringify({ name: (window.GARAGE_SPEC.get().meta || {}).name, wing: !!W, def: !!(W && W.def) }); });
+  const info = await pg.evaluate(() => { const W = window.CAGE_WING, E = window.CAGE_ENG;
+    return JSON.stringify({ name: (window.GARAGE_SPEC.get().meta || {}).name, wing: !!W, def: !!(W && W.def),
+      eng: E ? { mount: E.mount, fwW: E.spec && E.spec.fwW, units: (E.units || []).map(u => ({ at: u.at && u.at.map(v => +v.toFixed(2)), faceZ: u.faceZ && +u.faceZ.toFixed(2) })) } : null }); });
   console.log('wing_struct_shot: ' + info);
   if (argv.includes('--boxes')) console.log('wing_struct_shot: boxes ' + await pg.evaluate(() => {
     const T = window.THREE, V = window.CAGE_VIEW, x0 = V.xray; V.xray = 1; window.CAGE_UI.build();
