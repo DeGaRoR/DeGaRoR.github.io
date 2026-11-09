@@ -105,6 +105,10 @@ const HV = require(path.join(ROOT, 'src', 'viewer', 'hangar_view.js'));
   // keeps, and reached 14 m out of the door over the world's grass. It goes with the outdoors
   ok(/if \(pm\) \{ outdoor\(pm\.material\); inner\.add\(pm\); ROOM_PAD = pm; \}/.test(han) && /if \(ROOM_PAD\) ROOM_PAD\.visible = !viewOut;/.test(han),
     '3p the plot\'s ground pad goes with the room\'s outdoors while the world\'s view stands in (the Shed\'s brown band past the door)');
+  // the world's sky dome rides the world camera, which is in the world scene: a live-sky capture drew it opaque over every sky
+  // pixel, so the shells never discarded there and hid the room's clouds (the 9 Nov 08:32 probe: clouds with the shells off only)
+  ok(/if \(o\.skyLive && o\.sky && o\.sky\.visible\) \{ o\.sky\.visible = false; hidden\.push\(o\.sky\); \}/.test(hv) && /camera\.add\(sky\)/.test(rw) && /skyLive: true/.test(app) && /sky: WF\.skyDome/.test(app),
+    '3q a live-sky capture hides the world\'s sky dome too: the capture\'s sky stays transparent and the room\'s live clouds show through the door');
   // 4 no readback
   ok(!/readRenderTargetPixels|readPixels|getBufferSubData/.test(hv), '4 NO READBACK in hangar_view.js (the distance reaches the mesh by a vertex fetch)');
   // HANGAR-BS (8 Nov, found by HVC-DOOR on the prototype): a node patch wrote the regexes' \b as a backspace byte (0x08), so
