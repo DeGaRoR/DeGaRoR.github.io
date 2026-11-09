@@ -1059,12 +1059,15 @@ function editorInit(api) {
       // `data-dec` tag every row carries
       const dec = CU.DECBODY;
       if (dec) {
-        const by = { reg: [], kit: [], body: [], wing: [], stk: [], spiral: [], other: [] };
+        const by = { reg: [], kit: [], vny: [], body: [], wing: [], stk: [], spiral: [], other: [] };
         for (const el of Array.from(dec.children))
           (by[(el.dataset && el.dataset.dec) || 'other'] || by.other).push(el);
         emitEls(p0, 'registration', by.reg.concat(by.other),
                 'the legal marking');
         emitEls(p0, 'livery', by.kit, 'the marking kit — three layers');
+        // LIVERY-STICKERS: the twelve Alaska marks, four slots
+        if (by.vny.length)
+          emitEls(p0, 'stickers', by.vny, 'vinyl marks — four slots, one colour each, placed like a livery layer');
         emitEls(p0, 'body image', by.body, 'a picture on the fuselage');
         emitEls(p0, 'wing image', by.wing, 'a picture on the wing');
         // G208.2: the certification stickers' place and fine tuning

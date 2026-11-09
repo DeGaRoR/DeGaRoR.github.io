@@ -574,6 +574,10 @@ const GATES = [
   // back) — B's finish, every section's material and the marking block equal
   // a clean load of B; the pool key covers every dial
   { id: 'LIVERY', file: '_livery_check.js', tier: 'core' },
+  // THE LIVERY STICKERS (LIVERY-STICKERS, 9 Nov): the twelve Alaska marks - the cutter-ready art, the game's copy the
+  // cutter's (raster-compared), every row absent at default, the official builds unchanged and saved back byte for
+  // byte, the placement and the sides, the draw on a recording canvas, the lazy file; --selftest
+  { id: 'LIVERYSTICKERS', file: '_liverystickers_check.js', tier: 'core', wall: 60 },
   // THE WEATHERING (G345): the module's GLSL rules, its tables, its load order
   { id: 'WEATHER', file: '_weather_check.js', tier: 'core' },
   // THE SURFACE FIELD (G66): the coordinate AEROSKIN tiles and structures on
