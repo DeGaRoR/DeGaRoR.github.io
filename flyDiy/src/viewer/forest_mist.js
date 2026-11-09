@@ -33,7 +33,8 @@ var FMIST = (function () {
   // THE DIALS. Strength laws are in strengths(); `force` pins them for a rig ({pool, wisp, oro} 0..1, null = the weather's).
   const S = {
     N: 512, X: 768,                 // the map's side and its first column in the atlas
-    rho: 0.03,                      // per metre at a full pocket's heart (Koschmieder: ~130 m visibility there)
+    rho: 0.018,                     // per metre at a full pocket's heart (~220 m visibility there; the user 9 Nov: "less dense overall")
+    swing: 30, covK: 0.8, detailK: 7.7, erode: 0.6,   // the contours' swing (m), the share of a full pocket that is mist, the erosion's scale (x the body's) and depth
     period: 160,                    // the noise's cell (m): a wisp a few tree lengths across
     lidM: 25, lidK: 110,            // the pool's lid over the valley floor: 25 m + 110 m x the pool weight
     wispLo: -12, wispHi: 40,        // the wisps' band about the canopy top (m)
@@ -256,15 +257,23 @@ var FMIST = (function () {
   function densCPU(m, k, base, drift, x, y, z) {
     const i = Math.min(m.N - 1, Math.max(0, Math.floor((x - m.x0) * m.inv * m.N))), j = Math.min(m.N - 1, Math.max(0, Math.floor((z - m.z0) * m.inv * m.N)));
     const o = (j * m.N + i) * 4, top = m.px[o], G = m.px[o + 1], Bw = m.px[o + 2], fl = m.px[o + 3];
-    const hc = y - top, lid = fl + S.lidM + S.lidK * G;
-    const pool = k[0] * G * smc(0, 25, lid - y) * (hc >= -30 ? 1 : 0);
-    const wisp = k[1] * Bw * smc(S.wispLo, 0, hc) * (1 - smc(10, S.wispHi, hc));
-    const yb = y - base, oro = k[2] * smc(S.oroLo, 0, yb) * (1 - smc(60, S.oroHi, yb)) * (1 - smc(40, 160, hc)) * (hc >= -20 ? 1 : 0);
-    const cov = Math.min(1, pool + wisp + oro); if (cov <= 0.002) return 0;
+    const hc = y - top, lid = fl + S.lidM + S.lidK * G, yb = y - base;
+    const inPool = k[0] * G > 0.002 && y < lid + 30 && hc > -30;
+    const inWisp = k[1] * Bw > 0.002 && hc > S.wispLo - 15 && hc < S.wispHi + 30;
+    const inOro = k[2] > 0.002 && yb > S.oroLo - 30 && yb < S.oroHi + 30 && hc > -20 && hc < 190;
+    if (!(inPool || inWisp || inOro)) return 0;
     const qx = (x + drift[0]) / S.period + y * 0.011, qz = (z + drift[1]) / S.period - y * 0.007;
     let n = 0.55 * vn(qx, qz) + 0.30 * vn(qx * 2.31 + 5.2, qz * 2.31 + 1.3) + 0.15 * vn(qx * 5.3 - 3.1, qz * 5.3 + 7.7);
     n = Math.min(1, Math.max(0, 0.5 + (n - 0.5) * 2.6));
-    return smc(1 - cov - 0.15, 1 - cov + 0.3, n) * cov * S.rho;
+    const sw = (n - 0.5) * S.swing, hcs = hc - sw;
+    const pool = k[0] * G * smc(0, 18, lid + sw - y) * (hc >= -30 ? 1 : 0);
+    const wisp = k[1] * Bw * smc(S.wispLo, 0, hcs) * (1 - smc(8, S.wispHi, hcs));
+    const oro = k[2] * smc(S.oroLo, 0, yb - sw) * (1 - smc(60, S.oroHi, yb - sw)) * (1 - smc(40, 160, hc)) * (hc >= -20 ? 1 : 0);
+    const cov = Math.min(1, pool + wisp + oro); if (cov <= 0.002) return 0;
+    const body = smc(1 - S.covK * cov, 1 - S.covK * cov + 0.3, n); if (body <= 0) return 0;
+    const rx = qx * S.detailK + y * 0.045, rz = qz * S.detailK + 3.3;
+    let e = 0.6 * vn(rx, rz) + 0.4 * vn(rx * 2.7 + 1.9, rz * 2.7 - 4.1); e = Math.min(1, Math.max(0, 0.5 + (e - 0.5) * 2.4));
+    return Math.min(1, Math.max(0, (body - e * S.erode) / (1 - e * S.erode))) * cov * S.rho;
   }
   const stats = () => ({ on: ON, use: Object.assign({}, use), cards: st.cards || 0, bakeMs: +st.bakeMs.toFixed(1), k: st.k.map(v => +v.toFixed(3)), hoursDry: st.hoursDry, drift: st.drift.map(v => Math.round(v)), map: st.map });
   // THE GLSL, shared by the veil (atmo.js MIST_GLSL) and the march (clouds.js): fmDens(p) per metre.
@@ -280,20 +289,36 @@ var FMIST = (function () {
       vec4 m = fmMap(p.xz);
       float hc = p.y - m.x;                                              // over the canopy (negative: in the crowns)
       float lid = m.w + ${S.lidM.toFixed(1)} + ${S.lidK.toFixed(1)} * m.y;   // the pool's flat top: the inversion
-      float pool = uMist[7].x * m.y * smoothstep(0.0, 25.0, lid - p.y) * step(-30.0, hc);
-      float wisp = uMist[7].y * m.z * smoothstep(${S.wispLo.toFixed(1)}, 0.0, hc) * (1.0 - smoothstep(10.0, ${S.wispHi.toFixed(1)}, hc));
       float yb = p.y - uMist[7].w;
-      float oro = uMist[7].z * smoothstep(${S.oroLo.toFixed(1)}, 0.0, yb) * (1.0 - smoothstep(60.0, ${S.oroHi.toFixed(1)}, yb)) * (1.0 - smoothstep(40.0, 160.0, hc)) * step(-20.0, hc);
-      float cov = min(1.0, pool + wisp + oro);
-      if (cov <= 0.002) return 0.0;
-      // the noise rides the wind, the map does not: wisps stream through a pocket and fade at its edges; a slow
-      // vertical shear (the height in the coordinate) so a wisp leans and does not read as a stencil of the ground
+      // the reject before any noise: outside every band (with the contours' 30 m of swing) there is nothing to buy
+      bool inPool = uMist[7].x * m.y > 0.002 && p.y < lid + 30.0 && hc > -30.0;
+      bool inWisp = uMist[7].y * m.z > 0.002 && hc > ${(S.wispLo - 15).toFixed(1)} && hc < ${(S.wispHi + 30).toFixed(1)};
+      bool inOro = uMist[7].z > 0.002 && yb > ${(S.oroLo - 30).toFixed(1)} && yb < ${(S.oroHi + 30).toFixed(1)} && hc > -20.0 && hc < 190.0;
+      if (!(inPool || inWisp || inOro)) return 0.0;
+      // THE BODY: the noise rides the wind, the map does not - wisps stream through a pocket and fade at its edges; a slow
+      // vertical shear so a wisp leans. The octaves' sum sits at 0.5 +- 0.13, so it is stretched to the unit (x2.6).
       vec2 q = (p.xz + uMist[8].xy) * uMist[9].w + vec2(p.y * 0.011, -p.y * 0.007);
       float n = 0.55 * mistVN(q) + 0.30 * mistVN(q * 2.31 + vec2(5.2, 1.3)) + 0.15 * mistVN(q * 5.3 + vec2(-3.1, 7.7));
-      // the octaves' sum sits at 0.5 +- 0.13: stretched to the unit (x2.6) before the remap, or a half-covered pocket
-      // remaps to nothing (the first SwiftShader sheet: od ~0.02 in a full valley - the remap ate the pocket)
       n = clamp(0.5 + (n - 0.5) * 2.6, 0.0, 1.0);
-      float d = smoothstep(1.0 - cov - 0.15, 1.0 - cov + 0.3, n);   // Schneider's coverage remap: more cover, fatter wisps
+      // THE CONTOURS (the user, 9 Nov: "lacks detail in the shape and the contours"): the bands' edges ride the noise, so
+      // a wisp's top is lumpy and the pool's lid heaves instead of lying as a level slab
+      float sw = (n - 0.5) * ${S.swing.toFixed(1)};
+      float hcs = hc - sw;
+      float pool = uMist[7].x * m.y * smoothstep(0.0, 18.0, lid + sw - p.y) * step(-30.0, hc);
+      float wisp = uMist[7].y * m.z * smoothstep(${S.wispLo.toFixed(1)}, 0.0, hcs) * (1.0 - smoothstep(8.0, ${S.wispHi.toFixed(1)}, hcs));
+      float oro = uMist[7].z * smoothstep(${S.oroLo.toFixed(1)}, 0.0, yb - sw) * (1.0 - smoothstep(60.0, ${S.oroHi.toFixed(1)}, yb - sw)) * (1.0 - smoothstep(40.0, 160.0, hc)) * step(-20.0, hc);
+      float cov = min(1.0, pool + wisp + oro);
+      if (cov <= 0.002) return 0.0;
+      // CUT THROUGH (the user: "needs to be further cut through"): less of a pocket is mist - the threshold sits at
+      // 1 - ${S.covK} x cover, so a full pocket is still only its denser half
+      float body = smoothstep(1.0 - ${S.covK.toFixed(2)} * cov, 1.0 - ${S.covK.toFixed(2)} * cov + 0.3, n);
+      if (body <= 0.0) return 0.0;
+      // THE DETAIL: a ~${Math.round(S.period / S.detailK)} m erosion eats the edges (Schneider's remap: base minus the fine noise), so the
+      // outline breaks into wisps and the inside keeps its mass
+      vec2 r = q * ${S.detailK.toFixed(2)} + vec2(p.y * 0.045, 3.3);
+      float e = 0.6 * mistVN(r) + 0.4 * mistVN(r * 2.7 + vec2(1.9, -4.1));
+      e = clamp(0.5 + (e - 0.5) * 2.4, 0.0, 1.0);
+      float d = clamp((body - e * ${S.erode.toFixed(2)}) / (1.0 - e * ${S.erode.toFixed(2)}), 0.0, 1.0);
       return d * cov * uMist[8].z;
     }
     // A pocket is droplets (~10 um): Mie's forward peak is narrow and strong - backlit by a low sun the mist glows
