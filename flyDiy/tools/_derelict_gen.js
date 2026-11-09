@@ -1839,6 +1839,49 @@ function texOf(lib, key, mapName) {
   TEXC.set(ck, t);
   return t;
 }
+// THE RESTORED SLAB'S PAST, AT THE MACRO SCALE (the user 9 Nov: "now the floor is a little clean ... we're aiming for macro
+// detail ... the micro is OK with the current texture"): one map for 16 m of floor - the restored scan tiled 8 x 8 at its own
+// 2 m (the micro as it was), the derelict's cracked scan blended through in soft patches 3-8 m across, a few broad darker
+// stains - so the pattern repeats every 16 m, not every 2 (a canvas, drawn once both scans have landed; null without)
+function macroSlabTexOf(lib, keyA, keyB) {
+  const S = libOf(lib), A = S && S[keyA], B = S && S[keyB];
+  if (!A || !B || !A.diff || !B.diff || Array.isArray(A.diff) || Array.isArray(B.diff) || typeof document === 'undefined') return null;
+  const ck = lib + '|' + keyA + '+' + keyB + '|macro';
+  if (TEXC.has(ck)) return TEXC.get(ck);
+  const N = 2048, n = 8, c = N / n, cv = document.createElement('canvas'); cv.width = cv.height = N;
+  const t = new THREE.CanvasTexture(cv);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; t.colorSpace = THREE.SRGBColorSpace;
+  const tile = (A.tile || 2) * n; t.repeat.set(1 / tile, 1 / tile);
+  const ready = im => im.complete && im.naturalWidth;
+  const draw = () => {
+    if (!ready(A.diff) || !ready(B.diff)) return;
+    const g = cv.getContext('2d');
+    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) g.drawImage(A.diff, i * c, j * c, c, c);
+    // the blobs, wrapped (the canvas tiles): soft radial masks, deterministic
+    let sd = 7; const rnd = () => (sd = (sd * 16807) % 2147483647) / 2147483647;
+    const blobs = []; for (let q = 0; q < 14; q++) blobs.push([rnd() * N, rnd() * N, (0.18 + 0.32 * rnd()) * N / 2, rnd()]);
+    const mk = document.createElement('canvas'); mk.width = mk.height = N; const gm = mk.getContext('2d');
+    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) gm.drawImage(B.diff, i * c, j * c, c, c);
+    gm.globalCompositeOperation = 'destination-in';
+    const ms = document.createElement('canvas'); ms.width = ms.height = N; const gs = ms.getContext('2d');
+    for (const [x, y, r, k] of blobs) for (const ox of [-N, 0, N]) for (const oy of [-N, 0, N]) {
+      const gr = gs.createRadialGradient(x + ox, y + oy, 0, x + ox, y + oy, r);
+      gr.addColorStop(0, 'rgba(0,0,0,' + (0.55 + 0.4 * k).toFixed(2) + ')'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+      gs.fillStyle = gr; gs.fillRect(x + ox - r, y + oy - r, 2 * r, 2 * r);
+    }
+    gm.drawImage(ms, 0, 0);
+    g.globalAlpha = 0.85; g.drawImage(mk, 0, 0); g.globalAlpha = 1;
+    // a few broad, faint darker stains (old oil, the worn lanes)
+    for (let q = 0; q < 6; q++) { const x = rnd() * N, y = rnd() * N, r = (0.25 + 0.3 * rnd()) * N / 2;
+      for (const ox of [-N, 0, N]) for (const oy of [-N, 0, N]) { const gr = g.createRadialGradient(x + ox, y + oy, 0, x + ox, y + oy, r);
+        gr.addColorStop(0, 'rgba(40,32,24,0.22)'); gr.addColorStop(1, 'rgba(40,32,24,0)'); g.fillStyle = gr; g.fillRect(x + ox - r, y + oy - r, 2 * r, 2 * r); } }
+    t.needsUpdate = true;
+  };
+  for (const im of [A.diff, B.diff]) if (!ready(im) && im.addEventListener) im.addEventListener('load', draw);
+  draw();
+  TEXC.set(ck, t);
+  return t;
+}
 // role -> [lib, set, tint, metalness, normalScale]
 // THE ALBEDO IS CALIBRATED, NOT GUESSED (the user 9 Nov: "the ground surface often reads as black in your screenshots, why
 // is that?" - measured: the floor's scan averages 0.11 linear, a third of real concrete, and a hand gain of 1.5 left it
@@ -1939,20 +1982,15 @@ function applyFinish(P0, F0) {
   if ((P.stage | 0) >= 3 && P.legacy) { const H = HN(); if (H && F.hn) H.applyFinish(worksP(P), F.hn); return F; }
   const M = F.MAT; if (!M) return F;
   const SU = F.SHADE_U;
-  // THE RESTORED SLAB'S PAST, AT THE MACRO SCALE (the user 9 Nov: "the floor is a little clean ... we're aiming for macro
-  // detail ... the micro is OK with the current texture"): the slab takes its own copy of the house shader's uniforms with
-  // the repetition breaker turned into a macro field - 11 m (its second octave ~4 m), 0.55 deep on the albedo (0.34 read flat under the lamps' pools) - the worn
-  // lanes and old stains of the derelict's floor through the new finish; the scan itself untouched
-  const SUF = ((P.stage | 0) === 3 && HG.makeShadeU) ? (F.SHADE_UF || (F.SHADE_UF = HG.makeShadeU())) : null;
   for (const k in DRESS) {
     const m = M[k]; if (!m) continue;
     const [lib, key, target, hue, metal, ns] = ((P.stage | 0) === 3 && DRESS_R[k]) || DRESS[k];
-    const d = texOf(lib, key, 'diff');
+    const d = ((P.stage | 0) === 3 && k === 'concFloor' && macroSlabTexOf(lib, key, DRESS.concFloor[1])) || texOf(lib, key, 'diff');
     if (d) { m.map = d; m.normalMap = texOf(lib, key, 'nor') || texOf(lib, key, 'nor_gl'); m.roughnessMap = texOf(lib, key, 'rough'); m.roughness = 1; }
     const S0 = libOf(lib), img = S0 && S0[key] ? S0[key].diff : null;
     calibrate(m, img, target, hue, k === 'concFloor' ? () => wetFrom(M) : null);
     m.metalness = metal; if (m.normalScale) m.normalScale.set(ns, ns);
-    if (HG.shadeHouse && !(m.userData && m.userData.houseShaded)) HG.shadeHouse(m, k === 'concFloor' && SUF ? SUF : SU);
+    if (HG.shadeHouse && !(m.userData && m.userData.houseShaded)) HG.shadeHouse(m, SU);
     if (HG.cloudWeather && /^(sheet|concWall)/.test(k)) HG.cloudWeather(m, k === 'sheetNew' || (P.stage | 0) === 3 ? 0.08 : 0.55, 0);   // (the user: the restored "still very dirty" - a little weathering, no more)
     m.needsUpdate = true;
   }
@@ -1979,12 +2017,6 @@ function applyFinish(P0, F0) {
     for (const k in DRESS) { const D2 = M[k] && M[k].userData && M[k].userData.dirt; if (!D2) continue;
       D2.uDirtGain.value = k === 'concFloor' ? 0 : (k === 'concWall' ? 1.5 : (k === 'sheetNew' ? 0.3 : 1.0));   // (a floor is not a wall: no splash line) D2.uDirtOwn.value.setHex(/^conc/.test(k) ? 0x3d382f : 0x5a4232); D2.uWander.value = 0;
       D2.uAgeDesat.value = /^(steel|sheetPale|sheetDark)$/.test(k) ? 0.2 : 0; D2.uAgeDark.value = k === 'steel' ? 0.12 : 0; }
-  }
-  // the slab's copy follows the shared uniforms but for its macro field (11 m, 0.34)
-  if (SUF && SU) {
-    for (const k of Object.keys(SU)) { const a = SU[k], b = SUF[k]; if (!a || !b) continue;
-      const v = a.value; if (v && typeof v === 'object' && b.value && typeof b.value.copy === 'function') b.value.copy(v); else b.value = v; }
-    SUF.uNoiseS.value = 11; SUF.uNoiseK.value = 0.55;
   }
   return F;
 }
