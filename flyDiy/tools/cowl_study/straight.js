@@ -352,7 +352,7 @@ function rowsFor(spec, o) {
     const round = type === 'radial' || type === 'electric' || type === 'turbine';
     const upD = Math.max(up, D.up || 0), wD = type === 'turbine' ? wE : Math.max(wE, D.w || 0);   // a PT6's stacks pierce the skin
     let hT = Math.max(0.08, upD + 0.025), hB = Math.max(0.08, dn + 0.02), wP = Math.max(0.10, wD + 0.025);
-    if (type === 'radial') { const r = 0.84 * CLEAR * env.radius; hT = hB = wP = Math.max(r, 0.12); }   // the helmets carry the heads
+    if (type === 'radial') { const r = RADIAL_R * CLEAR * env.radius; hT = hB = wP = Math.max(r, 0.12); }   // the helmets carry the heads (the drum as on the body)
     const h = Math.max(hT, hB);
     aW = round ? Math.max(wP, h) : wP; aH = round ? Math.max(wP, h) : h;
     out.cw_aftW = +aW.toFixed(4); out.cw_aftH = +aH.toFixed(4);
@@ -453,8 +453,12 @@ function rowsFor(spec, o) {
   out.cw_apOffX = +(+m.ax.x || 0).toFixed(4); out.cw_apOffY = 0;
   if (offBody) { out.engBlockY = +((+P.engBlockY || 0) + T).toFixed(4); out.cw_lidRise = 0; out.cw_faceRise = 0; }
   else if (mode === 'waist') { out.cw_lidRise = +cE.toFixed(4); out.cw_faceRise = +(T - cE).toFixed(4); }
-  if (out._radialRound) { out.cw_lidRise = 0; out.cw_faceRise = +T.toFixed(4); out.cw_faceRing = 1; }
-  else { out.cw_lidRise = 0; out.cw_faceRise = +T.toFixed(4); }
+  // (body cowls only: a pod is centred on its block, which carries the propeller's offset - engBlockY above; the
+  // override below once put the DC-3's drum 16 cm under its engine)
+  if (!offBody) {
+    if (out._radialRound) { out.cw_lidRise = 0; out.cw_faceRise = +T.toFixed(4); out.cw_faceRing = 1; }
+    else { out.cw_lidRise = 0; out.cw_faceRise = +T.toFixed(4); }
+  }
   if (engY0 || lower) out.engY = 0;
   // A RADIAL'S HELMETS: one over each cylinder, where the drawn engine puts them (radialBumps)
   if (type === 'radial' && m.bumps) Object.assign(out, m.bumps(out._radialFront || aW, out.cw_cowlLen + lip));
@@ -679,11 +683,30 @@ function fitHelmets(spec, o) {
   for (let i = 1; i < pts.length; i++) { if (pts[i].th - pts[i - 1].th > 6) { cl.push(cur); cur = []; } cur.push(pts[i]); }
   cl.push(cur);
   if (cl.length > 1 && pts[0].th + 360 - pts[pts.length - 1].th <= 6) { cl[0] = cl.pop().concat(cl[0]); }
-  const heads = cl.map(g => {
+  let heads = cl.map(g => {
     let sx = 0, sy = 0, t0 = 1, t1 = 0;
     for (const p of g) { sx += p.d * Math.cos(p.th * Math.PI / 180); sy += p.d * Math.sin(p.th * Math.PI / 180); t0 = Math.min(t0, p.t); t1 = Math.max(t1, p.t); }
     return { th: ((Math.atan2(sy, sx) * 180 / Math.PI) + 360) % 360, t: 0.5 * (t0 + t1), hs: 0.5 * (t1 - t0), pts: g };
   });
+  // THE MESH'S OWN LAYOUT where the clusters merge (a two-row 14: the heads 25.7 deg apart, their points one unbroken
+  // ring): _eng_mesh's rule - rows (radialRows, the mesh's default 2), perRow = ceil(n / rows), cylinder i on row
+  // i % rows at (floor(i / rows) + row / 2) x 360 / perRow from the top, clockwise seen from behind (the cowl's
+  // azimuth 90 - a); each head's station is its own nearest points'
+  const R1 = m.W.CAGE_ENG && m.W.CAGE_ENG.resolved;
+  if (R1 && R1.arch === 'radial' && heads.length < 0.8 * (R1.cyl || 0)) {
+    const n = R1.cyl, rows = Math.min(2, Math.max(1, Math.round(R1.P.radialRows != null ? +R1.P.radialRows : 2)));
+    const perRow = Math.ceil(n / rows), half = 180 / (perRow * rows);
+    const lay = [];
+    for (let i = 0; i < n; i++) {
+      const row = i % rows, idx = Math.floor(i / rows), a = (idx + row * 0.5) * 360 / perRow;
+      const th = ((90 - a) % 360 + 360) % 360;
+      const near = pts.filter(p => Math.abs(dA(p.th, th)) <= half);
+      if (!near.length) continue;
+      const ts2 = near.map(p => p.t).sort((x, y) => x - y);
+      lay.push({ th, t: 0.5 * (ts2[0] + ts2[ts2.length - 1]), hs: 0.5 * (ts2[ts2.length - 1] - ts2[0]), pts: near });
+    }
+    if (lay.length >= heads.length) heads = lay;
+  }
   // the places: the fewest evenly spaced that every head sits on (within 3 degrees)
   let N = 0;
   for (let n = heads.length; n <= 2 * heads.length + 2 && !N; n++) {
