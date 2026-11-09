@@ -29,13 +29,13 @@ const CKR = `JSON.stringify((() => { var R = window.FLIGHT_PROBE && FLIGHT_PROBE
   var W = new Map(), root = function (o) { while (o && o.parent) o = o.parent; return o; }, P0 = window.FLIGHT_PROBE || {}, roots = [];
   try { if (P0.craft && P0.craft()) roots.push(root(P0.craft())); } catch (e) {} try { if (P0.hangarScene && P0.hangarScene()) roots.push(P0.hangarScene()); } catch (e) {}
   roots.forEach(function (sc) { if (sc) sc.traverse(function (o) { if (!o.material) return; (Array.isArray(o.material) ? o.material : [o.material]).forEach(function (m) { if (!m || !R) return; var pp = R.properties.get(m).programs; if (!pp) return;
-    pp.forEach(function (pg) { if (pg && pg.program && !W.has(pg.program)) W.set(pg.program, { mt: m.type, mn: m.name || '', ob: (o.name || o.type || '').slice(0, 40), lights: !!m.lights, hook: m.onBeforeCompile !== Object.getPrototypeOf(m).onBeforeCompile, def: Object.keys(m.defines || {}).slice(0, 6).join(' '), uni: Object.keys(m.uniforms || {}).slice(0, 8).join(' ') }); }); }); }); });
+    pp.forEach(function (pg) { if (pg && pg.program && !W.has(pg.program)) W.set(pg.program, { mt: m.type, mn: m.name || '', ob: (o.name || o.type || '').slice(0, 40), lights: !!m.lights, gf: !!m.groundFamily, hook: m.onBeforeCompile !== Object.getPrototypeOf(m).onBeforeCompile, def: Object.keys(m.defines || {}).slice(0, 6).join(' '), uni: Object.keys(m.uniforms || {}).slice(0, 8).join(' ') }); }); }); }); });
   var by = new Map(); for (var j = 0; j < __CL.ln.length; j++) { var k = __CL.ln[j][1] + __CL.ln[j][2], a = by.get(k); if (!a) by.set(k, a = []); a.push(j); }
   var cut = function (a, b) { var p = 0; while (p < a.length && p < b.length && a[p] === b[p]) p++; var q = 0; while (q < a.length - p && q < b.length - p && a[a.length - 1 - q] === b[b.length - 1 - q]) q++; return [p, a.slice(Math.max(0, p - 60), a.length - q).slice(0, 400), b.slice(Math.max(0, p - 60), b.length - q).slice(0, 400)]; };
   var out = []; by.forEach(function (ix, k) { if (ix.length < 2) return; var P = ix.map(function (j) { return M.get(__CL.gp[j]) || null; }), f = P.find(function (x) { return x; });
     out.push({ who: ix.map(function (j) { return W.get(__CL.gp[j]) || null; }), k: k, n: ix.length, t: ix.map(function (j) { return Math.round(__CL.ln[j][0]); }), live: P.map(function (x) { return !!x; }), name: f ? f.name : null,
       d: f ? P.filter(function (x) { return x && x !== f; }).map(function (x) { return cut(String(f.cacheKey), String(x.cacheKey)); }) : [] }); });
-  return { programs: L.length, renderer: !!R, dups: out }; })())`;
+  return { programs: L.length, renderer: !!R, dups: out, own: __CL.gp.map(function (p) { var w = W.get(p); return w ? w.mt + '/' + (w.mn || w.ob) + (w.gf ? ' GROUND' : '') : null; }) }; })())`;
 // the burst: links per second over the load (the most in any 1 s, and the 5 s bins)
 const burst = rows => { const t = rows.map(r => r.t0).sort((a, b) => a - b); let mx = 0; for (let i = 0, j = 0; i < t.length; i++) { while (t[i] - t[j] > 1000) j++; mx = Math.max(mx, i - j + 1); }
   const bins = {}; for (const x of t) { const k = Math.floor(x / 5000) * 5; bins[k] = (bins[k] || 0) + 1; } return { max1s: mx, bins5s: bins }; };
@@ -83,7 +83,7 @@ const HASH = `(function(){ if (window.__CL) return; var C = window.__CL = { ln: 
     const cls = r => seen.has(r.k) ? 'seen@' + seen.get(r.k) : 'NEW';
     const row = { i: li, build: key, sec: l.sec, state: l.state, rollout: fly, flownLinks: flown.length, flownNew: flown.filter(r => !seen.has(r.k)).length, links: rows.length, distinct: new Set(rows.map(r => r.k)).size,
       newPrograms: rows.filter(r => !seen.has(r.k)).length, over1s: rows.filter(r => r.ms > 1000).length, over5s: rows.filter(r => r.ms > 5000).length,
-      slow: slow.map(r => ({ t0: r.t0, ms: r.ms, k: r.k, was: cls(r) })), keys: rows.map(r => r.k + ':' + r.ms + ':' + r.cx), contexts: d.cx, hist: await hists(b), burst: burst(all), ck: CK ? JSON.parse(await b.ev(CKR, 60000)) : null, cache: MB.cacheMB(UDD), exc: b.exc.slice(0, 5) };
+      slow: slow.map(r => ({ t0: r.t0, ms: r.ms, k: r.k, was: cls(r), j: all.indexOf(r) })), keys: rows.map(r => r.k + ':' + r.ms + ':' + r.cx), contexts: d.cx, hist: await hists(b), burst: burst(all), ck: CK ? JSON.parse(await b.ev(CKR, 60000)) : null, cache: MB.cacheMB(UDD), exc: b.exc.slice(0, 5) };
     // the NEW programs of a warm load against the same build's earlier load: pair them by the vertex OR fragment hash kept
     if (DUMP && li > 0) {
       fs.mkdirSync(DUMP, { recursive: true });
@@ -108,7 +108,8 @@ const HASH = `(function(){ if (window.__CL) return; var C = window.__CL = { ln: 
       console.log('  dups: ' + d.length + ' sources linked more than once, ' + extra + ' extra links; renderer ' + row.ck.renderer + ', programs live ' + row.ck.programs + '; dead first programs ' + d.filter(e => !e.live[0]).length);
       [...g].sort((a, b) => b[1] - a[1]).slice(0, 30).forEach(([k, n]) => console.log('    ' + String(n).padStart(3) + 'x  ' + k)); }
     console.log('  burst: most links in 1 s ' + row.burst.max1s + '; per 5 s ' + JSON.stringify(row.burst.bins5s));
-    for (const s of row.slow) console.log('    ' + String(s.t0).padStart(6) + ' ms  link ' + (s.ms / 1000).toFixed(1) + ' s  ' + s.k + '  ' + s.was);
+    if (row.ck && row.ck.own) for (const s of row.slow) s.own = row.ck.own[s.j] || null;
+    for (const s of row.slow) console.log('    ' + String(s.t0).padStart(6) + ' ms  link ' + (s.ms / 1000).toFixed(1) + ' s  ' + s.k + '  ' + s.was + (s.own ? '  ' + s.own : ''));
     if (!ONE) await b.close();
   }
   if (b1) await b1.close();
