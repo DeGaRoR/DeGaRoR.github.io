@@ -880,7 +880,7 @@ var CLOUDS = (function () {
       c.rho = rho; c.base = inL.base; c.top = inL.top;
     }
     // the shadow's scalars: on only when the layer is live and baked (the tile sampler reads white until then)
-    if (U.uEye.value) { if (camera && camera.position) U.uEye.value.copy(camera.position); else if (S.inShed) { const e = S.shedEye; if (e) U.uEye.value.set(e[0], e[1], e[2]); else U.uEye.value.set(0, 0, 0); } }   // the shed stands at the field (HANGAR-VIEW C: at the real shed's place when hangar.js has it)
+    if (U.uEye.value) { if (camera && camera.position) U.uEye.value.copy(camera.position); else if (S.inShed) U.uEye.value.set(0, 0, 0); }   // the shed stands at the field
     // with a deck above the first, the tile's relative shift rides on the sun: re-bake as it moves (a third of a degree)
     const sk = Math.round(sun[1] * 170) * 1000 + Math.round(Math.atan2(sun[2], sun[0]) * 170);
     if (sk !== sunKey) { sunKey = sk; if (L.length > 1) shadowDirty = true; }

@@ -1172,9 +1172,7 @@
       let srt = skyReady ? rt : null;
       // ONE SKY (S5): the outdoors reflect the physical sky, in the shed's frame, re-baked with the room
       if (!srt && typeof ATMO !== 'undefined' && ATMO.enabled && hangar.SHED_FRAME_YAW !== undefined) {
-        const fyNow = hangar.frameYaw ? hangar.frameYaw() : hangar.SHED_FRAME_YAW;   // HANGAR-VIEW C: the room's real yaw
-        if (shedSkyProbe && shedSkyProbe.__fy !== fyNow) { try { shedSkyProbe.dispose && shedSkyProbe.dispose(); } catch (e) {} shedSkyProbe = null; }
-        if (!shedSkyProbe) { shedSkyProbe = ATMO.makeProbe(renderer, { frameYaw: fyNow, capHex: 0x6d7a45, gb: (window.LIGHT_RIG ? window.LIGHT_RIG.groundBounce() : 1) }); if (shedSkyProbe) shedSkyProbe.__fy = fyNow; }
+        if (!shedSkyProbe) shedSkyProbe = ATMO.makeProbe(renderer, { frameYaw: hangar.SHED_FRAME_YAW, capHex: 0x6d7a45, gb: (window.LIGHT_RIG ? window.LIGHT_RIG.groundBounce() : 1) });
         if (shedSkyProbe) { shedSkyProbe.bake(world.day, true); srt = { texture: shedSkyProbe.texture, dispose: () => {} }; }
       }
       if (!srt && sky && sky.image && sky.image.width && THREE.PMREMGenerator) {
@@ -1235,21 +1233,8 @@
   // of garage:firstFrame's 1.4 s task, the cube faces' shadow maps). Under envDeferred this call's bake requests
   // (rebake, a mood) only mark envDirty, and markBaked records the sun done()'s one bake will shoot - the loop has not
   // started, so the day has not moved when the first frame compares.
-  // HANGAR-VIEW C: the room's sky is the world's at the real shed - its node's yaw and its centre (the clouds' eye)
-  let skyFrameKey = null;
-  function shedSkyFrame() {
-    if (!hangar || !hangar.setSkyFrame || typeof hviewNode !== 'function') return;
-    let node = null, c = null; try { node = hviewNode(); if (node) { node.updateMatrixWorld(true); c = new THREE.Vector3(HVIEW_C[0], HVIEW_C[1], HVIEW_C[2]).applyMatrix4(node.matrixWorld); } } catch (e) { node = null; }   // (the boot's first frames: no world yet)
-    if (!node || !c) return;
-    const yaw = node.rotation.y || 0;
-    const key = hangarRoom + '|' + Math.round(yaw * 1e4) + '|' + Math.round(c.x) + ',' + Math.round(c.z);
-    if (key === skyFrameKey) return;
-    skyFrameKey = key;
-    if (hangar.setSkyFrame(yaw, [c.x, c.y, c.z])) { try { bakeHangarEnvSliced(); } catch (e) {} }   // the room's probe sees the turned sky
-  }
   function shedDayTick() {
     if (!hangar || !hangar.applyDay || !world.day) return;
-    shedSkyFrame();
     const r = hangar.applyDay(world.day, renderer);
     if (r && r.rebake) { bakeHangarEnvSliced(); r.markBaked(); }   // G2662: the clock's bake, a slice a frame
     if (r && hangar.moodFor) { const mi = hangar.moodFor(world.day); if (mi !== hangarMood) setMood(mi, { fromClock: true }); }
@@ -1382,9 +1367,6 @@
   function hviewGain() { if (hview && hview.linear) { const ex = hview.gain(0); if (ex > 0 && renderer.toneMappingExposure > 0) hview.gain(ex / renderer.toneMappingExposure); } }
   const HVIEW_N = { laptop: 768, potato: 768, retro: 768, current: 1024, gamer: 1024, ultra: 1536 };
   const HVIEW_C = [0, 2, 0];          // the capture's eye in the shed's frame: the room's centre, a standing eye
-  // HANGAR-VIEW C (8 Nov, question 6): ?hvc=door captures from 2.5 m inside the doorway (the door at the room's -x, -HD), where the
-  // eyes that look out stand - the parallax exact there instead of at the centre
-  const hvC = () => { try { if (/[?&]hvc=door\b/.test(location.search || '') && hangar && hangar.dims && hangar.dims.HD > 3) return [-(hangar.dims.HD - 2.5), 1.7, 0]; } catch (e) {} return HVIEW_C; };
   const HVIEW_NEAR = 3000;            // a flight that ended this near the stand left the world there (m)
   // HVIEW-OFF (8 Nov, the user's verdict on the hangars-matched stills: the captured view is not the look - a generic sky,
   // no clouds, the apron smeared): OFF by default, the room's own outdoors as until L35a, until the redesign (flydiy-notes/
@@ -1423,7 +1405,7 @@
       hview.group.matrixAutoUpdate = false; hview.group.matrix.copy(hangar.group.matrixWorld); hview.group.matrixWorldNeedsUpdate = true;
       hview.on(up); hviewGain();
     }
-    if (hangar.outdoorsShow) hangar.outdoorsShow(!up, up);   // HANGAR-VIEW C: the live sky stays behind the view
+    if (hangar.outdoorsShow) hangar.outdoorsShow(!up);
   }
   // one call: `faces` of the world drawn into the view's staging (all six: the boot's); true when the view is whole
   function hviewCapture(faces) {
@@ -1443,7 +1425,7 @@
     // anchor, as worldSettle) - the camera put back after every face
     const keepEye = camera.position.clone(), first = !hview.staging;
     node.updateMatrixWorld(true);
-    const C0 = hvC(); camera.position.set(C0[0], C0[1], C0[2]).applyMatrix4(node.matrixWorld);
+    camera.position.set(HVIEW_C[0], HVIEW_C[1], HVIEW_C[2]).applyMatrix4(node.matrixWorld);
     craftInWorldNow(() => {
       craft.traverse(o => { if ((o.isMesh || o.isPoints || o.isLine || o.isSprite) && o.visible) { o.visible = false; meshes.push(o); } });   // its lights stay: the programs' key
       try {
@@ -1454,9 +1436,8 @@
             if (G && G.setExposure && base > 0) G.setExposure(renderer, base); renderer.toneMappingExposure = exRoom; }
         }
         const ex = (WF.exposureNow && WF.exposureNow() > 0 ? WF.exposureNow() : WORLD_EXPOSURE) * k;
-        r = hview.capture({ scene, node, C: hvC(), hide: [node], sky: WF.skyDome,
-          clouds: (typeof CLOUDS !== 'undefined' && CLOUDS.draw) ? CLOUDS.draw : null, faces, exposure: ex, linear: hviewLinear(),
-          skyLive: true, shadowRedraw: true });   // HANGAR-VIEW C: the place without its sky (the room's live sky behind it), no shed shadow
+        r = hview.capture({ scene, node, C: HVIEW_C, hide: [node], sky: WF.skyDome,
+          clouds: (typeof CLOUDS !== 'undefined' && CLOUDS.draw) ? CLOUDS.draw : null, faces, exposure: ex, linear: hviewLinear() });
       } finally { for (const o of meshes) o.visible = true; camera.position.copy(keepEye); }
     });
     // whole: on screen, and the room's probe re-shot (it sees the view through the door: the floor and the aeroplane take the
@@ -1514,10 +1495,7 @@
       const e = camera.position.toArray(), t = target.toArray(); return { room: hangarRoom, eye: e, target: t, fov: camera.fov, worldEye: W(e), worldTarget: W(t) }; },
     flyFov: v => { cam.fov = +v; flApplyFov(); return camera.fov; },
     // (the A/B rig) the return's deferred recapture asked for now, as hviewReturn asks it (45 shed frames, then a face a frame)
-    defer: () => { if (!hview || !WF) return false; hviewWant = hviewKeyNow(hviewNode()); hviewFace = 0; hviewHold = 45; return true; },
-    // (HANGAR-VIEW C's rig) the world's own shed hidden / shown: the world at the room's eye is then what the door must show
-    shedShow: v => { const n = hviewNode(); if (!n) return null; n.visible = v !== false; return n.visible; },
-    frame: () => ({ yaw: hangar && hangar.frameYaw ? hangar.frameYaw() : null, key: skyFrameKey }) };
+    defer: () => { if (!hview || !WF) return false; hviewWant = hviewKeyNow(hviewNode()); hviewFace = 0; hviewHold = 45; return true; } };
 
   // A NEW SIZE IS A NEW ROOM. genHangarBuild builds a whole shed from nothing,
   // so changing a dimension means throwing the old one away and asking again —
