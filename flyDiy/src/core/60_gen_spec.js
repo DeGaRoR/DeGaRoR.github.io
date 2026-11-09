@@ -3640,6 +3640,15 @@ const GEN_RULES = {
   // material's cover is the load-bearing skin. The stiffness is the
   // member's own either way.
   boxWebK:     0.30,
+  // BIPLANE-SIZING (2026-11-09, 61_gen_frame buildPlane): a wired plane's spar caps bill their braced moment over a
+  // Cub-like strut monoplane's, ^2/3, held in [0.35, 1]. Its cantilever box on a cloth wing may bill a fraction of its
+  // density (trussBoxK) - MEASURED and left at 1: the box at 0.10 put the Tiger Moth at -10 % and the PT-17 at -25 %
+  // against their books (0.30: -5 / -19), where at 1 with the spar relief they read 520 kg (book 506-535) and 831 (876):
+  // the box's density stands in for what the lattice bills nowhere else on a wired wing - the deep spars' webs, the
+  // compression ribs, the strut and wire fittings. The Camel's surplus (+31 %) is its own (a 1917 fighter's
+  // featherweight build: no construction row for it yet). reports/evidence/MASS-SCALE-2026-11-09/biplane_sweep.txt
+  trussSparK:  [0.35, 1],
+  trussBoxK:   1,
 };
 
 // SECTIONS (G3). The spec is organised the way the aeroplane is, and the way
@@ -5784,7 +5793,8 @@ function clampSpec(spec) {
   // its def and its flight are what they were, to the bit. `time` the cycle (s, one way - an Arrow ~7, the A5 ~7, a
   // Bonanza ~4), `act` what drives it (electric / hydraulic: the bus must be alive; manual: the pilot's arm), `emerg`
   // the emergency extension (crank, free fall, hand pump, gas blow-down - each its time, 30_solver gearEmerg)
-  if (S.gear.retract && typeof S.gear.retract === 'object' && S.gear.type === 'tricycle') {
+  // TAIL-RETRACT (2026-11-09): ...and a taildragger's MAINS (the DC-3's into its nacelles): its tailwheel stays down, fixed
+  if (S.gear.retract && typeof S.gear.retract === 'object' && (S.gear.type === 'tricycle' || S.gear.type === 'taildragger')) {
     const r = S.gear.retract;
     r.time = genClamp(r.time == null ? 6 : +r.time || 6, 2, 20);
     if (!['electric', 'hydraulic', 'manual'].includes(r.act)) r.act = 'hydraulic';

@@ -765,6 +765,16 @@ function genGearCdA(S, semi) {
     cda += 2 * 0.10 * (0.55 * semi * 1.12) * 0.06;  // two lift struts
   return cda;
 }
+// TAIL-RETRACT (2026-11-09): the mains' own share of genGearCdA - the two wheels and their legs (what a taildragger's
+// retraction takes up)
+function genGearCdAMains(S) {
+  const G = S.gear;
+  const wCd = (G.fairing === 'full' ? 0.15 : G.fairing === 'spat' ? 0.22 : 0.55)
+            * (G.fairing && G.fairing !== 'none' ? genFairDroplet(G.fairTail) : 1);
+  const R = G.wheelR || 0.20, drop = G.legDrop || 0.42;
+  const legCd = (G.fairing === 'full' || G.legFair === 'fair') ? 0.30 : 1.0;
+  return 2 * wCd * (2 * R * 0.76 * R) + 2 * legCd * drop * 0.05;
+}
 // THE CALIBRATION IS PRESERVED BY A DELTA. genFusCdA's 0.75 was fitted so the
 // Cub's GEOMETRY reproduces its hand-tuned totals — totals that implicitly
 // INCLUDE a bare-wheeled, strut-braced undercarriage. Adding gear drag on top
@@ -1787,7 +1797,9 @@ function genParams(S, fr, strips) {
     // (genGearCdA, inside fusCdA[0] as on every build: every design-time number - the plaque, the AP's speeds - stays the
     // gear-DOWN aeroplane's), which the solver takes back off as the gear comes up (30_solver gearPos)
     ...(S.gear.retract ? { retract: { time: S.gear.retract.time, act: S.gear.retract.act, emerg: S.gear.retract.emerg,
-                                       cdA: cda.drag.gear || 0,
+                                       // (TAIL-RETRACT: a taildragger's mains only - its tailwheel and its lift struts stay out)
+                                       cdA: S.gear.type === 'taildragger' ? genGearCdAMains(S) : (cda.drag.gear || 0),
+                                       ...(S.gear.type === 'taildragger' ? { tail: true } : {}),
                                        // G1: the fraction (1 unless partial) and the measured lift (null: the frame's rule)
                                        frac: S.gear.retract.frac || 1, lift: S.gear.retract.lift || null } } : {}),
     // G1844 (DMG-TYRE): the tyres' cornering stiffness per unit load (/rad, TYRE_CN): the mains by the build's wheel

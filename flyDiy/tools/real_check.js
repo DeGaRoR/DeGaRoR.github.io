@@ -162,16 +162,42 @@ function airframe(spec, lc, R, P) {
   const Vs = stallOf(sim, def, W, 0);
   const fTO = flapFrac(def, poh.flapTO), fL = flapFrac(def, poh.flapLDG);
   const VsTO = fTO ? stallOf(sim, def, W, fTO) : Vs, Vs0 = fL ? stallOf(sim, def, W, fL) : Vs;
-  const rows = PP.sweepAt(def, sim, W, Vs);
-  const V75 = PP.levelSpeedAt(rows, 0.75), Vmax = PP.levelSpeedAt(rows, 1.0);
+  // THE CRUISE, THE TOP SPEED AND THE CLIMB GEAR-UP (TAIL-RETRACT 2026-11-09): a retracting build's sweep flies a copy
+  // of its def with the gear's own drag taken off as the solver takes it up (30_solver gearStep: cdA x frac), the
+  // stall, the trim and the take-off run stay gear-down
+  const RT = def.params.retract;
+  let simC = sim;
+  if (RT && RT.cdA > 0) {
+    const defUp = Object.assign({}, def, { params: Object.assign({}, def.params, { fusCdA: def.params.fusCdA.slice() }) });
+    defUp.params.fusCdA[0] -= RT.cdA * (RT.frac > 0 && RT.frac < 1 ? RT.frac : 1);
+    simC = C.makeSim(defUp, null); simC.reset(0);
+  }
+  const rows = PP.sweepAt(def, simC, W, Vs);
+  const V75 = PP.levelSpeedAt(rows, 0.75);
+  let Vmax = PP.levelSpeedAt(rows, 1.0), VmaxAlt = null;
+  // THE BOOK'S ALTITUDE (REF-DATA 2026-11-09: the DC-3's top speed is published at 8,500 ft): the Vmax row's `alt` (m)
+  // flies the sweep in the ISA at that height (the probe's air and the engine's lapse, sim.setAtmos)
+  const altV = R.rows && R.rows.Vmax && R.rows.Vmax.alt;
+  if (altV > 0) {
+    simC.setAtmos(C.ATMOS_ISA, altV);
+    const rA = PP.sweepAt(def, simC, W, Vs * Math.sqrt(1 / Math.max(0.3, simC.probeAir().sigma)));
+    const vA = PP.levelSpeedAt(rA, 1.0);
+    simC.setAtmos(null, 0);
+    if (vA) { VmaxAlt = altV; Vmax = vA; }
+  }
+  // THE CLIMB AT THE BOOK'S POWER (poh.climbPowerK: the DC-3's 1,220 fpm is at METO, 1,050 of its 1,200 hp - the
+  // thrust x the power's fraction, a constant-speed propeller's at the same speed)
+  const kC = poh.climbPowerK > 0 ? poh.climbPowerK : 1;
   let roc = 0, Vy = 0, LD = 0, Vbg = 0;
-  for (const r of rows) { if (r.excess > roc) { roc = r.excess; Vy = r.V; } if (r.LD > LD) { LD = r.LD; Vbg = r.V; } }
+  for (const r of rows) { const ex = kC === 1 ? r.excess : (kC * r.T1 - r.drag) * r.V / W;
+    if (ex > roc) { roc = ex; Vy = r.V; } if (r.LD > LD) { LD = r.LD; Vbg = r.V; } }
   const fit = PP.parasiteFit(rows, Vs, sim.probeAir().rho);
   let to = null; try { to = C.genTORunAt(sim, def, W); } catch (e) {}
   const sh = C.genShakedown(def, { slim: true });
   const cgMAC = sh && sh.cBar ? (sh.cgX - sh.xLEmac) / sh.cBar * 100 : null;
   const deAppr = apprTrim(sim, def, W, fL, Vs0), deApprClean = apprTrim(sim, def, W, 0, Vs);
   return { mass: sim.totalM, W, Vs: Vs * 3.6, VsTO: VsTO * 3.6, Vs0: Vs0 * 3.6, V75: V75 && V75 * 3.6, Vmax: Vmax && Vmax * 3.6, roc, Vy: Vy * 3.6, LD, Vbg: Vbg * 3.6,
+           ...(VmaxAlt ? { VmaxAlt } : {}), ...(kC !== 1 ? { climbPowerK: kC } : {}), ...(RT ? { gearUp: true } : {}),
            CdS: fit && fit.CdS, TOgrass: to && to.sRoll, T0: sim.thrustAt(0, 1), cgMAC, sm: sh && sh.staticMargin * 100, stabTrim: sh && sh.stabTrim * 180 / Math.PI,
            deAppr, deApprClean, flapLdg: fL, flapTO: fTO };
 }

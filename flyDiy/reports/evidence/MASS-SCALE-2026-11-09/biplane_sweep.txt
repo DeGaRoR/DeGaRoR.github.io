@@ -1,0 +1,10 @@
+BIPLANE-SIZING sweep (2026-11-09), the three biplane candidates on the minimal (no-electrics) fit; empty kg (vs the book's mid), wings / bracing sections
+(trussSparK [0.35,1] = the braced spar relief; trussBoxK = the cloth box's density on a wired plane)
+
+old (none)          tiger 535 (+3%)  w136 b76 | camel 565 (+34%) w133 b67 | stearman 852 (-3%)  w179 b203
+spar only           tiger 520 (-0%)  w123 b75 | camel 551 (+31%) w120 b66 | stearman 831 (-5%)  w160 b202   <- kept
+box 0.10 only       tiger 481 (-8%)  w133 b28 | camel 516 (+22%) w130 b23 | stearman 676 (-23%) w169 b45
+spar + box 0.10     tiger 467 (-10%) w120 b28 | camel 503 (+19%) w118 b22 | stearman 658 (-25%) w152 b44
+box 0.30 only       tiger 493 (-5%)  w134 b38 | camel 526 (+25%) w130 b32 | stearman 713 (-19%) w171 b78
+
+books: Tiger Moth 506-535 (REF-DATA: 1,115 lb basic to the RAF tare 1,180 lb), Camel 421, PT-17 876-878.

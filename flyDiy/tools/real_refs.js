@@ -171,16 +171,26 @@ Object.assign(REFS, {
   // DOUGLAS DC-3A (2 x P&W R-1830 1200 hp). Figures vary by variant (DC-3 / DC-3A / C-47 / DC-3C): the DC-3A is taken.
   // The top speed is quoted at altitude (230 mph at 8500 ft); a sea-level figure is not published: the band runs from
   // the 215 mph some sheets quote to the altitude figure. No stall or field figures found that state their conditions.
+  // (REF-DATA 2026-11-09: the research session's rows, claude/ref-data-dc3-tigermoth reports/evidence/REF-DATA-DC3-TIGERMOTH;
+  // its proposed V50 and roc1E indicators are not wired)
   dc3: {
-    name: 'Douglas DC-3A (2 x P&W R-1830 1200 hp)', mtow: 11431, empty: 7650, fuelL: 3111, S: 91.7, powerHP: 2400,
-    src: 'aero-web DC-3C / aeropedia / airlines-inform (search extracts): 95 ft span, 64 ft 5-8 in, 16 ft 11 in, 987 ft2, 16 865 lb empty, 25 200 lb gross (DC-3A), max 215-229 mph, cruise 194-207 mph, ~1100 fpm; THIN on the conditions (altitude, weight)',
-    poh: { vr: 1.15, vy: 1.40, flapTO: 0, flapLDG: 30, brake: 0.6, note: 'a heavy taildragger; flaps up for the take-off (C-47 practice), 1/4-1/2 flap is also used' },
+    name: 'Douglas DC-3A (2 x P&W R-1830-S1C3-G 1200 hp)', mtow: 11431, empty: 7650, fuelL: 3111, S: 91.7, powerHP: 2400,
+    src: 'A-669 via CAA NZ TAR 16/21B/17 [0.9]: 25,200 lb max (26,200 / 26,900 lb under notes 12 / 10, 13); Francillon (Wikipedia) [0.5]: 95 ft, 64 ft 5 in, 987 ft2, 16,865 lb empty, 822 US gal, 230 mph at 8,500 ft, 1,130-1,140 fpm; AOPA Pilot 6/1994 [0.6] (extract): empty as tested 16,822 lb, Vs1 67 KIAS, Vs0 62 KIAS, Vmc 77 KIAS, single-engine 200 fpm, 157 kt at 50 % / 10,000 ft; C-47 manual climb table at 25,000 lb [0.6 pending] (extract): 1,220 fpm METO, 1,410 fpm take-off power, 425 fpm one engine',
+    // Vy: 110 kt IAS (fsvintageair, from the Ozark handbook / T.O. 1C-47 [0.3]) and the Flight International test climb at
+    // 110 kt -> 110 / 67 = 1.64 x Vs1 (the current card has 1.40)
+    poh: { vr: 1.15, vy: 1.60, climbPowerK: 1050 / 1200, flapTO: 0, flapLDG: 30, brake: 0.6, note: 'a heavy taildragger; flaps up for the take-off (C-47 practice), 1/4-1/2 flap is also used; climb at 105-110 kt IAS (Vy 110, Vx 95); the climb row at METO, 1,050 of 1,200 hp (climbPowerK)' },
     rows: {
-      empty: { v: [7650, 8300], tol: 0.03, src: '16 865 lb (DC-3A) to 18 300 lb (DC-3C)' },
-      V75:   { v: [194 * MPH, 207 * MPH], tol: 0.05, kg: 'unknown', src: 'cruise 194-207 mph, altitude unstated (THIN)' },
-      Vmax:  { v: [215 * MPH, 230 * MPH], tol: 0.05, kg: 'gross', src: '215 mph (some sheets) to 230 mph at 8500 ft (THIN: no sea-level figure)' },
-      roc:   { v: [1100 * FPM, 1130 * FPM], tol: 0.05, kg: 'gross', src: '~1100-1130 fpm' },
+      // the DC-3A airline empty weight: two sources 20 kg apart. The old 8,300 kg top was the C-47 / DC-3C (heavier by
+      // 220-600 kg: 17,345 lb DC-3C basic empty, AOPA 2005; 18,135 lb C-47B, Francillon)
+      empty: { v: [7630, 7650], tol: 0.03, src: '16,822 lb as tested (AOPA 1994 [0.6], extract) / 16,865 lb DC-3A (Francillon [0.5]); a C-47 / DC-3C is 7,870-8,230 kg' },
+      Vs1:   { v: 67 * KT, tol: 0.06, kg: 'gross', flaps: 'up', src: '67 KIAS clean (AOPA Pilot 6/1994 spec box, manufacturer data [0.6], extract); IAS, weight not printed (AOPA boxes are at max gross); CL 1.68 at 25,200 lb. A C-47 manual "67 mph TAS" (garbled extract [0.3]) is not taken: CL 2.24 clean' },
+      // Vs0 (not an indicator yet): 62 KIAS landing flap (AOPA 1994 [0.6]) - CL 1.96 at 25,200 lb
+      Vmax:  { v: 230 * MPH, tol: 0.04, kg: 'gross', alt: 8500 * FT, src: '230 mph (200 kt) at 8,500 ft (Francillon DC-3A [0.5]); the C-47B: 224 mph at 10,000 ft at 26,000 lb. No sea-level figure is published: the row carries its altitude. (Wikipedia\'s "223 kt" is a slip for 230 mph)' },
+      // the old V75 row (194-207 mph, altitude unstated) has no source that states a power or an altitude: dropped
+      roc:   { v: [1130 * FPM, 1220 * FPM], tol: 0.05, kg: 'gross', src: '1,130-1,140 fpm at 25,200 lb (Francillon [0.5]); 1,220 fpm at METO 1,050 hp, 25,000 lb, ISA SL (C-47 manual climb table [0.6 pending], extract). At take-off power (1,200 hp, 1-minute limit on A-669): 1,410 fpm. Light: ~1,200 fpm at 8,800 kg, 110 kt, 35 in / 2,350 rpm (Flight International [0.6])' },
+      LD:    { v: 14.7, tol: 0.08, kg: 'unknown', src: '(L/D)max 14.7 with CD0 0.0249 (Loftin, NASA SP-468, as commonly quoted [0.5 pending: the table was not reachable]); consistent with AR 9.14 and e 0.75; CD0 ~0.025 also derived from 230 mph at 8,500 ft on 2 x 1,050 hp' },
     } },
+
   // SOPWITH CAMEL F.1 (Clerget 9B 130 hp). Weights and dimensions agree across sources; the speed is one database's
   // (185 km/h) and the climb is not found stated as a rate: no climb row.
   camel: {
@@ -191,19 +201,20 @@ Object.assign(REFS, {
       empty: { v: 421, tol: 0.03, src: '929 lb' },
       Vmax:  { v: [182, 185], tol: 0.05, kg: 'gross', src: '185 km/h (flugzeuginfo; THIN) / 113 mph' },
     } },
-  // DE HAVILLAND DH.82A TIGER MOTH (Gipsy Major I 130 hp). Shuttleworth / aeropedia agree; the climb and the stall are
-  // perf_study REAL.tigermoth's (type data), THIN.
+  // (REF-DATA 2026-11-09: the research session's rows - the AAIB 1/2019 flight trial the anchor)
   tigermoth: {
-    name: 'de Havilland DH.82A Tiger Moth (Gipsy Major 130 hp)', mtow: 828, empty: 506, fuelL: 86, S: 22.2, powerHP: 130,
-    src: 'Shuttleworth Collection / aeropedia / de Havilland Museum (search extracts): 29 ft 4 in span, 23 ft 11 in, 8 ft 9 in, 239 ft2, 1115 lb empty, 1825 lb gross, max 107-109 mph at SL; climb 635-673 fpm and stall 45 mph from type data (perf_study REAL.tigermoth, THIN)',
-    poh: { vr: 1.10, vy: 1.30, flapTO: 0, flapLDG: 0, brake: 0, note: 'no flaps, no brakes (a tailskid)' },
+    name: 'de Havilland DH.82A Tiger Moth (Gipsy Major I 130 hp)', mtow: 828, empty: 506, fuelL: 86, S: 22.2, powerHP: 130,
+    src: 'AAIB Bulletin 1/2019 G-ADXT flight trial [0.9]: at 1,760 / 1,790 lb, take-off run 300 m, climb 650 / 500 fpm at 66 mph (2,100 / 2,050 rpm), stall 40-45 mph idle (test pilot: 45-49 mph IAS), level at 66 mph with 1,700-1,800 rpm at 2,000 ft DA; Pilot\'s Notes (ABAC c.1950, via RAF Jever [0.6], extract; and quoted by the AAIB): 1,825 lb max (1,770 aerobatic), tare 1,180 lb, stall 40 mph engine off, 2,100 rpm max climb / cruise, 160 mph max; Jackson / Bransom [0.5]: 29 ft 4 in, 23 ft 11 in, 8 ft 9 in, 239 ft2, 1,115 lb empty, 109 mph, 673 fpm, 13,600 ft',
+    poh: { vr: 1.10, vy: 1.40, flapTO: 0, flapLDG: 0, brake: 0, note: 'no flaps, no brakes (a tailskid). Climb at 60 mph (club handling notes) to 66 mph (AAIB trials) = 1.33-1.47 x a 45 mph stall' },
     rows: {
-      empty: { v: 506, tol: 0.03, src: '1115 lb' },
-      Vs1:   { v: 45 * MPH, tol: 0.08, kg: 'unknown', flaps: 'up', src: '45 mph (type data, THIN)' },
-      V75:   { v: [90 * MPH, 93 * MPH], tol: 0.05, kg: 'unknown', src: 'cruise 90-93 mph (type data, THIN)' },
-      Vmax:  { v: [107 * MPH, 109 * MPH], tol: 0.05, kg: 'gross', src: '107 mph (Shuttleworth) / 109 mph at SL (aeropedia)' },
-      roc:   { v: [635 * FPM, 673 * FPM], tol: 0.05, kg: 'gross', src: '635-673 fpm (type data, THIN)' },
-    } },
+      empty: { v: [506, 535], tol: 0.03, src: '1,115 lb basic (Jackson / Bransom [0.5]) to the RAF tare 1,180 lb with service equipment (Pilot\'s Notes via RAF Jever [0.6], extract)' },
+      Vs1:   { v: [40 * MPH, 49 * MPH], tol: 0.03, kg: [798, 812], flaps: 'up', src: 'idle stall 40-45 mph, the test pilot "typically 45-49 mph IAS", at 1,760-1,790 lb (AAIB 1/2019 [0.9]); Pilot\'s Notes "engine off 40 mph (35 kt)" on a period ASI ([1.0] as quoted). 40 mph needs CL 1.87 at gross: the CAS stall is in the upper half of the band' },
+      V75:   { v: [80 * MPH, 93 * MPH], tol: 0.05, kg: 'unknown', src: 'cruise 80-81 mph at 1,900-1,950 rpm (AAIB 9/98 G-BALX [0.9 est.]; IAOPA 2006 70 kt [0.6]; VH-BCI operator sheet 1,950 rpm [0.5]) to 90-93 mph at 2,100 rpm, max cruising (Jackson [0.5]); no source states a % power' },
+      Vmax:  { v: [107 * MPH, 109 * MPH], tol: 0.05, kg: 'gross', src: '109 mph (Jackson / Bransom [0.5]; altitude not confirmed) / 107 mph (Shuttleworth; aero-web DH.82C [0.5])' },
+      roc:   { v: [500 * FPM, 673 * FPM], tol: 0.03, kg: [798, 828], src: '650 fpm (G-ACDI, 2,100 rpm) and 500 fpm (G-ANNG, 2,050 rpm) at 1,760 / 1,790 lb, 66 mph (AAIB 1/2019 [0.9]); ~600 fpm at ~gross (IAOPA 2006 [0.6]); 673 fpm (Jackson / Bransom [0.5])' },
+      TO:    { v: [200, 300], tol: 0.10, kg: [798, 812], flaps: 0, surface: 'grass', src: '300 m full power at 1,760-1,790 lb (AAIB 1/2019 Table 1 [0.9]; surface and wind not stated, UK grass fields); 200 m to "light on the wheels" at 40 KIAS, Old Sarum dry grass, calm, 15 C, QNH 1026 (AAIB 1/2019 p.61 [0.9]) - the lower bound' },
+    },
+  },
   // BOEING-STEARMAN PT-17 (Continental R-670-5 220 hp; the build's W-670 is the same engine's civil designation)
   stearman: {
     name: 'Boeing-Stearman PT-17 (Continental R-670 220 hp)', mtow: 1195, empty: 876, fuelL: 174, S: 27.6, powerHP: 220,
@@ -327,12 +338,17 @@ const PLANES = {
               engineNote: 'O-320 150 hp against Wipaire\'s 160 hp; EDO-style seaplane floats against Wipline amphibians' },
   petrel:   { label: 'Super Petrel V4.1 (claude/hull-types, 7 Nov)', file: 'builds/candidates/superpetrel_V4_1.json', ref: 'petrel', water: true, land: true, supersededBy: 'petrelL',
               branch: 'claude/hull-types', note: 'not on master: run from a worktree of claude/hull-types (its core, its rows)' },
-  chinook:  { label: 'Chinook (official, out of the battery)', file: 'builds/chinook_2026-09-21_corrected.json', ref: 'chinook', official: true },
+  chinook:  { supersededBy: 'chinookm', label: 'Chinook (official, out of the battery)', file: 'builds/chinook_2026-09-21_corrected.json', ref: 'chinook', official: true },
   // REAL-FIGURES-2 (2026-11-08): the planes with a clear real parent
-  dc3:      { label: 'DC-3-alike (candidate)', file: 'builds/candidates/dc3_2026-10.json', ref: 'dc3', group: 'historical' },
+  // MASS-SCALE / TAIL-RETRACT (2026-11-09, claude/practical-cerf-7fjpwp): the candidates standing in for their cards
+  dc3r:     { label: 'DC-3-alike: mains retracting into the nacelles, airliner-furnished, constant-speed (candidate)', short: 'DC-3', file: 'builds/candidates/dc3_retract.json', ref: 'dc3', group: 'historical' },
+  chinookm: { label: 'Chinook, pull-start (no battery, generator or starter; candidate)', short: 'Chinook', file: 'builds/candidates/chinook_minimal.json', ref: 'chinook', group: 'ultralight' },
+  tigermothm:{ label: 'Tiger Moth-alike, no electrics as built (candidate)', short: 'Tiger Moth', file: 'builds/candidates/tigermoth_minimal.json', ref: 'tigermoth', group: 'biplane' },
+  camelm:   { label: 'Camel-alike, no electrics as built (candidate)', short: 'Camel', file: 'builds/candidates/camel_minimal.json', ref: 'camel', group: 'biplane' },
+  dc3:      { supersededBy: 'dc3r', label: 'DC-3-alike (candidate)', file: 'builds/candidates/dc3_2026-10.json', ref: 'dc3', group: 'historical' },
   stearman: { label: 'Stearman-alike (candidate)', file: 'builds/candidates/stearman_2026-10.json', ref: 'stearman', group: 'biplane' },
-  tigermoth:{ label: 'Tiger Moth-alike (candidate)', file: 'builds/candidates/tigermoth_2026-10.json', ref: 'tigermoth', group: 'biplane' },
-  camel:    { label: 'Camel-alike (candidate)', file: 'builds/candidates/camel_2026-10.json', ref: 'camel', group: 'biplane' },
+  tigermoth:{ supersededBy: 'tigermothm', label: 'Tiger Moth-alike (candidate)', file: 'builds/candidates/tigermoth_2026-10.json', ref: 'tigermoth', group: 'biplane' },
+  camel:    { supersededBy: 'camelm', label: 'Camel-alike (candidate)', file: 'builds/candidates/camel_2026-10.json', ref: 'camel', group: 'biplane' },
   birdman:  { dropped: 'the user 8 Nov: not needed (it is the Chinook as first built)', label: 'Birdman (candidate: the Chinook as found)', file: 'builds/candidates/birdman.json', ref: 'chinook', group: 'ultralight',
               note: 'the user\'s birdman.json before the 21 Sep corrections (the official Chinook is its corrected file)' },
   skymaster:{ dropped: 'the user 8 Nov: not wanted in the set', label: 'Skymaster-alike (archetype card)', card: 'skymaster', ref: 'skymaster', group: 'archetype',
