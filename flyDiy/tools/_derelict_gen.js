@@ -1941,7 +1941,7 @@ function applyFinish(P0, F0) {
   const SU = F.SHADE_U;
   // THE RESTORED SLAB'S PAST, AT THE MACRO SCALE (the user 9 Nov: "the floor is a little clean ... we're aiming for macro
   // detail ... the micro is OK with the current texture"): the slab takes its own copy of the house shader's uniforms with
-  // the repetition breaker turned into a macro field - 11 m (its second octave ~4 m), 0.34 deep on the albedo - the worn
+  // the repetition breaker turned into a macro field - 11 m (its second octave ~4 m), 0.55 deep on the albedo (0.34 read flat under the lamps' pools) - the worn
   // lanes and old stains of the derelict's floor through the new finish; the scan itself untouched
   const SUF = ((P.stage | 0) === 3 && HG.makeShadeU) ? (F.SHADE_UF || (F.SHADE_UF = HG.makeShadeU())) : null;
   for (const k in DRESS) {
@@ -1984,7 +1984,7 @@ function applyFinish(P0, F0) {
   if (SUF && SU) {
     for (const k of Object.keys(SU)) { const a = SU[k], b = SUF[k]; if (!a || !b) continue;
       const v = a.value; if (v && typeof v === 'object' && b.value && typeof b.value.copy === 'function') b.value.copy(v); else b.value = v; }
-    SUF.uNoiseS.value = 11; SUF.uNoiseK.value = 0.34;
+    SUF.uNoiseS.value = 11; SUF.uNoiseK.value = 0.55;
   }
   return F;
 }
