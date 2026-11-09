@@ -1848,20 +1848,25 @@ function macroSlabTexOf(lib, keyA, keyB) {
   if (!A || !B || !A.diff || !B.diff || Array.isArray(A.diff) || Array.isArray(B.diff) || typeof document === 'undefined') return null;
   const ck = lib + '|' + keyA + '+' + keyB + '|macro';
   if (TEXC.has(ck)) return TEXC.get(ck);
-  const N = 2048, n = 8, c = N / n, cv = document.createElement('canvas'); cv.width = cv.height = N;
+  // (the user 9 Nov: "your tiles are just too small, particularly compared to what you had used for the derelict one ... you
+  // see the repetition": the derelict's cracked scan lies at 4 m, the restored brushed one was at 2 - both at 4 m now, and
+  // every 4 m cell of the 16 m map turned and flipped at random, so the scan's own repeat never lines up)
+  const N = 2048, n = 4, c = N / n, cv = document.createElement('canvas'); cv.width = cv.height = N;
   const t = new THREE.CanvasTexture(cv);
   t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; t.colorSpace = THREE.SRGBColorSpace;
-  const tile = (A.tile || 2) * n; t.repeat.set(1 / tile, 1 / tile);
+  const CELL = 4, tile = CELL * n; t.repeat.set(1 / tile, 1 / tile);
   const ready = im => im.complete && im.naturalWidth;
   const draw = () => {
     if (!ready(A.diff) || !ready(B.diff)) return;
     const g = cv.getContext('2d');
-    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) g.drawImage(A.diff, i * c, j * c, c, c);
-    // the blobs, wrapped (the canvas tiles): soft radial masks, deterministic
     let sd = 7; const rnd = () => (sd = (sd * 16807) % 2147483647) / 2147483647;
+    const cell = (gg, im, i, j) => { gg.save(); gg.translate(i * c + c / 2, j * c + c / 2); gg.rotate(Math.floor(rnd() * 4) * Math.PI / 2);
+      gg.scale(rnd() < 0.5 ? -1 : 1, 1); gg.drawImage(im, -c / 2, -c / 2, c, c); gg.restore(); };
+    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) cell(g, A.diff, i, j);
+    // the blobs, wrapped (the canvas tiles): soft radial masks, deterministic
     const blobs = []; for (let q = 0; q < 16; q++) blobs.push([rnd() * N, rnd() * N, (0.22 + 0.42 * rnd()) * N / 2, rnd()]);
     const mk = document.createElement('canvas'); mk.width = mk.height = N; const gm = mk.getContext('2d');
-    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) gm.drawImage(B.diff, i * c, j * c, c, c);
+    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) cell(gm, B.diff, i, j);
     gm.globalCompositeOperation = 'destination-in';
     const ms = document.createElement('canvas'); ms.width = ms.height = N; const gs = ms.getContext('2d');
     for (const [x, y, r, k] of blobs) for (const ox of [-N, 0, N]) for (const oy of [-N, 0, N]) {
@@ -1989,7 +1994,9 @@ function applyFinish(P0, F0) {
     const m = M[k]; if (!m) continue;
     const [lib, key, target, hue, metal, ns] = ((P.stage | 0) === 3 && DRESS_R[k]) || DRESS[k];
     const d = ((P.stage | 0) === 3 && k === 'concFloor' && macroSlabTexOf(lib, key, DRESS.concFloor[1])) || texOf(lib, key, 'diff');
+    const macro = (P.stage | 0) === 3 && k === 'concFloor' && d && d.isCanvasTexture;
     if (d) { m.map = d; m.normalMap = texOf(lib, key, 'nor') || texOf(lib, key, 'nor_gl'); m.roughnessMap = texOf(lib, key, 'rough'); m.roughness = 1; }
+    if (macro) for (const t2 of [m.normalMap, m.roughnessMap]) if (t2 && t2.repeat) t2.repeat.set(1 / 4, 1 / 4);   // (the slab's relief at the scan's 4 m)
     const S0 = libOf(lib), img = S0 && S0[key] ? S0[key].diff : null;
     calibrate(m, img, target, hue, k === 'concFloor' ? () => wetFrom(M) : null);
     m.metalness = metal; if (m.normalScale) m.normalScale.set(ns, ns);
