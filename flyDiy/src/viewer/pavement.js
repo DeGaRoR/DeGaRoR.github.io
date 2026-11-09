@@ -1055,7 +1055,7 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
   float M = big ? 1.2 : 0.3; int sk = sd + (big ? 501 : 511);
   int i = int(floor(u / M)), j = int(floor(v / M));
   float vC = (float(j) + 0.5) * M, edge = smoothstep(0.3, 0.9, abs(vC) / halfW);
-  float p = big ? uMicro3.w * (0.4 + 0.6 * edge) : min(0.6, 0.1 + 0.9 * uMicro3.w) * (0.6 + 0.4 * edge);
+  float p = big ? uMicro3.w * (0.4 + 0.6 * edge) : min(0.35, 0.04 + 0.5 * uMicro3.w) * (0.6 + 0.4 * edge);
   if (pmH(i, j, sk) >= p) return vec4(9.0, 9.0, 0.0, 0.0);
   float a = pmH(i, j, sk + 1), b = pmH(i, j, sk + 2), e = pmH(i, j, sk + 3);
   float R = big ? 0.07 + 0.2 * e * e : 0.015 + 0.05 * e * e;
@@ -1447,13 +1447,19 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
         if (rkK > 0.01) for (int bI = 0; bI < 2; bI++) {
           vec4 RK = pvRockIn(u, -v, halfW, bI == 0, sdM);
           if (RK.z <= 0.0) continue;
-          float r = length(RK.xy), vis = rkK * smoothstep(0.5, 1.5, RK.z / max(fwm, 1e-4));
+          float vis = rkK * smoothstep(0.5, 1.5, RK.z / max(fwm, 1e-4));
           if (vis < 0.01) continue;
+          // not a disc (9 Nov 20:50 stills: pale coins): turned, flattened up to 1.7:1, a knobbly outline off the noise round it
+          float ca = cos(RK.w * 6.283), sa = sin(RK.w * 6.283);
+          vec2 q = vec2(ca * RK.x + sa * RK.y, -sa * RK.x + ca * RK.y) * vec2(1.0, 1.0 + 0.7 * fract(RK.w * 7.13));
+          float r0 = length(q), r = r0 * (1.0 + 0.32 * (pvNoise(q / max(r0, 1e-3) * 1.4 + RK.w * 53.0) - 0.5));
           if (r < 1.0) {
             float top = sqrt(max(1.0 - r * r, 0.0));
-            vec3 sc = mix(vec3(0.44, 0.42, 0.39), vec3(0.63, 0.59, 0.53), RK.w) * (0.8 + 0.4 * pvNoise(uvS / 0.07 + RK.w * 37.0));
-            col = mix(col, sc * (0.72 + 0.38 * top), vis); rough = mix(rough, 0.55, vis);
-            nT.xy += vec2(RK.x, -RK.y) / max(r, 1e-3) * (0.6 * r / max(top, 0.25)) * vis;
+            // the island's own rock, grey-brown, darker than the dry soil's crowns - and dusted with the soil it lies in, most at its foot
+            vec3 sc = mix(vec3(0.13, 0.12, 0.105), vec3(0.30, 0.27, 0.23), RK.w) * (0.75 + 0.5 * pvNoise(uvS / 0.05 + RK.w * 37.0));
+            sc = mix(sc, col, 0.25 + 0.4 * (1.0 - top));
+            col = mix(col, sc * (0.78 + 0.3 * top), vis); rough = mix(rough, 0.6, vis);
+            nT.xy += vec2(RK.x, -RK.y) / max(length(RK.xy), 1e-3) * (0.6 * r / max(top, 0.25)) * vis;
             gMicDbg = vec3(1.0);
           } else if (r < 1.35) col *= 1.0 - 0.3 * vis * (1.0 - smoothstep(1.0, 1.35, r));   // its foot: the soil it sits in
         }
