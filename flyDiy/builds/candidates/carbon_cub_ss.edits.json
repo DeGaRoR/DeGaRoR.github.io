@@ -1,5 +1,5 @@
 {
- "_what": "REAL-FIGURES-3 (the user 9 Nov): the STOL Cub made a Carbon Cub SS - the real engine built from DIALS, not a row (the CC340: the O-320's chassis, 5.125 x 4.125 in, 340 in3, 2700 rpm, tune 1.09 = 10.7 bar -> 180 hp, build 0.88 -> 120 kg as normally equipped: 240-250 lb dry, 35 lb under a comparable Lycoming), a two-blade 2.03 m carbon prop, only the real STOL features (VGs; no slot, no droop, no drooped tips), the new STOL flap (a plain hinge to 50 deg, the SS's 15/30/50), a Super Cub-sized tail, the wing on the new aluminium-spar-under-fabric row (wgCons 7), (3.2 m, THIN) with the Cub's elevator chord, 29 in Airstreak tundra tyres (the largest CubCrafters option; ours were 30.7 in), an 8 in tailwheel, 24 US gal in two wing-root tanks, and the SS's panel: one 7 in glass PFD/MFD in the centre with round airspeed, altimeter and VSI, COM and transponder (its round engine monitor, a CGR-30P, has no row: small tacho / oil / fuel gauges stand in) The livery (the user: distinctive, modern, not the full yellow): 'graphite and glacier' - a metallic slate-blue fuselage (metal 0.35) with a satin-black belly sweep under a glacier-cyan line, pearl-white wings and tail (metal 0.3), cyan tips and rudder, a raw carbon cowl, polished bare-alloy struts, a chrome spinner, satin-black legs, a cyan registration.",
+ "_what": "REAL-FIGURES-3 (the user 9 Nov): the STOL Cub made a Carbon Cub SS - the real engine built from DIALS, not a row (the CC340: the O-320's chassis, 5.125 x 4.125 in, 340 in3, 2700 rpm, tune 1.09 = 10.7 bar -> 180 hp, build 0.88 -> 120 kg as normally equipped: 240-250 lb dry, 35 lb under a comparable Lycoming), a two-blade 2.03 m carbon prop, only the real STOL features (VGs; no slot, no droop, no drooped tips), the new STOL flap (a plain hinge to 50 deg, the SS's 15/30/50), a Super Cub-sized tail, the wing on the new aluminium-spar-under-fabric row (wgCons 7), (3.2 m, THIN) with the Cub's elevator chord, 29 in Airstreak tundra tyres (the largest CubCrafters option; ours were 30.7 in), an 8 in tailwheel, 24 US gal in two wing-root tanks, and the SS's panel: one 7 in glass PFD/MFD in the centre with round airspeed, altimeter and VSI, COM and transponder (its round engine monitor, a CGR-30P, has no row: small tacho / oil / fuel gauges stand in) The livery (the user: distinctive, modern, not the full yellow): 'graphite and glacier' - a metallic slate-blue fuselage (metal 0.35) with a satin-black belly sweep under a glacier-cyan line, pearl-white wings and tail (metal 0.3), cyan tips and rudder, a raw carbon cowl, polished bare-alloy struts, a chrome spinner, satin-black legs, a cyan registration. The wing to the real SS's size (34 ft 3 in = 10.44 m span, ~16.6 m2: Wikipedia, aeropedia, a dealer's 179 sq ft): span 10.70 -> 10.44 m, chord 1.70 -> 1.65 m (the STOL Cub's wing was 17.6 m2).",
  "enginePreset": "lycoming O-320",
  "cage": {
   "engPreset": 41,
@@ -18,7 +18,10 @@
   "eng_stroke": 0.104775,
   "eng_bmepK": 1.09,
   "eng_massK": 0.88,
-  "wgCons": 7
+  "wgCons": 7,
+  "wgSpan": 10.44,
+  "wgChord": 1.65,
+  "wgChordTip": 1.65
  },
  "prop": {
   "D": 2.03,

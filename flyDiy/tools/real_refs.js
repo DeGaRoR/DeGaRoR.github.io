@@ -246,7 +246,9 @@ Object.assign(REFS, {
       Vs1:   { v: 35 * KT, tol: 0.05, kg: 'unknown', flaps: 'up', src: '35 kt flaps up (Wikipedia, THIN)' },
       V75:   { v: [104 * KT, 110 * MPH], tol: 0.05, kg: 'unknown', src: 'cruise 105-110 mph (Plane & Pilot) / 104 kt (Wikipedia); NOTE the POH cruise is power-limited to 80 hp' },
       roc:   { v: [1500 * FPM, 2100 * FPM], tol: 0.05, kg: 'unknown', src: '2100 fpm (CubCrafters via Plane & Pilot), 1500 fpm (AvPay)' },
-      TO:    { v: 60 * FT, tol: 0.15, kg: 'unknown', flaps: 'unknown', surface: 'unknown', src: '60 ft (aeropedia; THIN - also listed for the EX2)' },
+      // (the user, 9 Nov: "18 m take-off roll is not reasonable. Let's go for 40-50, which seems like decent STOL performance under
+      // reasonable take-off conditions" - aeropedia's 60 ft, single-source and listed for the EX2 too, read as a demonstration)
+      TO:    { v: [40, 50], tol: 0.05, kg: 'unknown', flaps: 'unknown', surface: 'unknown', src: '40-50 m (the user\'s ruling, 9 Nov: a decent STOL roll in reasonable conditions; aeropedia\'s 60 ft read as a demonstration)' },
       LDG:   { v: 245 * FT, tol: 0.15, kg: 'unknown', flaps: 'unknown', surface: 'unknown', src: '245 ft (aeropedia; THIN)' },
     } },
 });
