@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 4480bd43981d1d7c
+// body-sha256: d0e453f9088270c0
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -7622,8 +7622,10 @@ const SHELLS = {
     // deep OUTSIDE the hall's right wall (+z in the room), behind a full-height false front
     name: 'Large hangar', frame: 'steel', doors: 'sixLeaf',
     galleries: { right: 1.0, left: 1.0, lean: 6 },
-    dims: { HW: 22, HD: 30, EAVE: 9.5 },
-    lims: { HW: [12, 26], HD: [12, 32], EAVE: [6.0, 12] },
+    // (HD 28, 56 m: the real 60 m does not fit HOME's flat pad on the main plot - z 62 + 30 past the pad's 90, GATE SITE -
+    // until Game's HOME relayout gives the large hangar its own place; DERELICT_GEN's DEF keeps the real 60 m)
+    dims: { HW: 22, HD: 28, EAVE: 9.5 },
+    lims: { HW: [12, 24], HD: [12, 28], EAVE: [6.0, 12] },
     // BRICK, AND BIG (user, 2026-09-01: "the works one should rather have the
     // brick texture, double size from the original, full roughness and +50%
     // normal"). `tile` is METRES PER TILE, so double the size is 4 m off the
