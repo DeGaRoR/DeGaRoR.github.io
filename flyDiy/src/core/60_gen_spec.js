@@ -2049,28 +2049,28 @@ const GEN_ELEC = {
     // a permanent-magnet generator - and so carries the bus with NO battery once the engine turns above its cut-in
     // (a Rotax's regulator wants a 22 000 uF capacitor in place of the battery). An alternator excites its field from
     // the battery: with none it never comes on line (FAA AC 20-40), so its dials stay refused.
-    gen20: { name: '20 A generator',  kg: 4.0, price: 450, A: 20, selfExcited: true,
+    gen20: { name: '20 A generator',  kg: 4.0, price: 450, A: 20, selfExcited: true, cableKgM: 0.055,
              note: 'the small Continentals\' belt generator; cuts in above idle' },
-    alt60: { name: '60 A alternator', kg: 4.5, price: 1150, A: 60,   // PRICE-CAL: 800 -> 1 150 (Plane-Power, $1 057-1 287)
+    alt60: { name: '60 A alternator', kg: 4.5, price: 1150, A: 60, cableKgM: 0.13,   // PRICE-CAL: 800 -> 1 150 (Plane-Power, $1 057-1 287)
              note: 'Plane-Power class, with its regulator' },
     // ELEC-SYSTEMS: `cutIn` the PROP rpm the row starts charging at (absent = 1100, the bus's own default: a geared Rotax
     // turns its prop ~2.4x slower than its crank, and its coil makes current from idle); `internal` the machine is inside
     // the engine's dry weight (the bill is the regulator; nothing is drawn on the case)
-    coil12: { name: 'lighting coil + regulator, 12 A', kg: 0.8, price: 250, A: 12, cutIn: 500, internal: true, selfExcited: true,
+    coil12: { name: 'lighting coil + regulator, 12 A', kg: 0.8, price: 250, A: 12, cutIn: 500, internal: true, selfExcited: true, cableKgM: 0.055,
               set: 'ultralight', note: 'the two-stroke\'s own lighting coil and a rectifier-regulator (Rotax 503 / 582)' },
-    int18:  { name: 'integrated generator, 18 A', kg: 0.9, price: 350, A: 18, cutIn: 700, internal: true, selfExcited: true,
+    int18:  { name: 'integrated generator, 18 A', kg: 0.9, price: 350, A: 18, cutIn: 700, internal: true, selfExcited: true, cableKgM: 0.055,
               set: 'ultralight', note: 'the Rotax 912\'s 250 W internal generator and its external regulator' },
-    genHeavy: { name: 'heavy generator, 50 A', kg: 15.0, price: 2600, A: 50, selfExcited: true, set: 'heavy',
+    genHeavy: { name: 'heavy generator, 50 A', kg: 15.0, price: 2600, A: 50, selfExcited: true, set: 'heavy', cableKgM: 0.09,
                 note: 'engine-driven, on a radial\'s accessory pad (ESTIMATE: ~15-18 kg for the period units; 12 V here, 24 V on a DC-3)' },
   },
   starter: {
     none: { name: 'hand-propped',      kg: 0,   price: 0,   amps: 0 },
-    yes:  { name: 'electric starter',  kg: 4.0, price: 1100, amps: 150,   // PRICE-CAL: 700 -> 1 100 (Sky-Tec, $1 086-1 120)
+    yes:  { name: 'electric starter',  kg: 4.0, price: 1100, amps: 150, cableKgM: 0.33,   // (2 AWG copper)   // PRICE-CAL: 700 -> 1 100 (Sky-Tec, $1 086-1 120)
             note: 'Sky-Tec class; 150 A while cranking' },
     // ELEC-SYSTEMS: `amps` is the bus's draw while cranking (cockpit.js reads it; `yes`'s 150 is the constant it had)
-    ul:    { name: 'ultralight electric starter', kg: 3.5, price: 650, amps: 80, set: 'ultralight',
+    ul:    { name: 'ultralight electric starter', kg: 3.5, price: 650, amps: 80, cableKgM: 0.13,   // (6 AWG) set: 'ultralight',
              note: 'Rotax 582 / 912 class (3.4-4.5 kg; 0.6 kW)' },
-    heavy: { name: 'heavy direct-cranking starter', kg: 15.0, price: 2800, amps: 300, set: 'heavy',
+    heavy: { name: 'heavy direct-cranking starter', kg: 15.0, price: 2800, amps: 300, cableKgM: 0.55,   // (1/0 AWG) set: 'heavy',
              note: 'a radial\'s starter (DC-3: two Eclipse 12 V with brackets, 67 lb)' },
   },
   vac: {
@@ -2080,8 +2080,20 @@ const GEN_ELEC = {
     pump:    { name: 'engine-driven vacuum pump', kg: 1.2, price: 600, minV: 0,
                note: 'dry pump on the accessory pad; suction whenever the engine turns' },
   },
-  // the harness: master + breakers + the wire, once, plus a little per item
-  harness: { kg: 1.2, kgPerItem: 0.15, price: 1200 },   // PRICE-CAL: 250 -> 1 200 (wire, master, breakers; $500-3 000, est.)
+  // the harness: master + breakers + the wire. ELEC-SYSTEMS (9 Nov, the user: "go cable runs"; MASS-BUDGET.md): the
+  // wire is BILLED BY ITS RUNS, not a lump - it follows where the current goes, not how heavy the structure is:
+  //   the starter cable  battery -> contactor -> starter and its return, sized by the starter row's `cableKgM`
+  //   the charging lead  generator -> bus, by the charging row's `cableKgM`
+  //   a run per powered dial / radio (two 22 AWG conductors, `loadRunM` long)
+  //   the outside lights  every bus aeroplane carries them (GEN_PRICES.lights bills them so): the nav lights out to
+  //                      both tips, the tail light / beacon down the tail arm, the landing light a third out along
+  //                      each wing - two conductors each at their gauge
+  //   x `install` for the connectors, the clamps, the sleeving and the grommets
+  // A 172 reads 3.7 kg of wire against the 5-7 kg REAL-FIGURES calls real: `install` is the one knob to calibrate when a
+  // real harness weight is found. `kg` / `kgPerItem` are the rule this replaced (1.2 kg + 0.15 kg per powered item),
+  // kept for the record. The bus parts (master contactor, bus bar, breakers) are GEN_ELEC_PARTS.bus, billed with it.
+  harness: { kg: 1.2, kgPerItem: 0.15, price: 1200,   // PRICE-CAL: 250 -> 1 200 (wire, master, breakers; $500-3 000, est.)
+             runs: { loadRunM: 2, loadKgM: 0.006, navKgM: 0.012, landKgM: 0.025, minFeedM: 0.6, install: 1.6 } },
 };
 // THE ELECTRICS AS INSTALLED PARTS (G2801, AVIONICS-GPS phase 2; futureDesigns/AVIONICS-STATUS-2026-10.md §1B, §1G).
 // The rows above BILL; this table says what each billed thing IS once it is bolted in: its size, and where it hangs.
@@ -2294,6 +2306,27 @@ const GEN_SYSTEMS_SIDES = ['pilot', 'centre'];
 //                   opts.lights, the light keys the build has FITTED) one per outside light and one for the cabin's
 //   parts[]         {key, kind, name, kg, at, dims | len/dia} - the electrics as installed things (GEN_ELEC_PARTS);
 //                   the bus and the wire split the harness row and add up to it exactly
+// THE HARNESS BY ITS RUNS (ELEC-SYSTEMS, 9 Nov; GEN_ELEC.harness above). Pure on the spec, so the frame, the ledger and
+// the column bill one number: the bus parts (contactor, bar, a breaker per powered load and the field's - the lights'
+// breakers are 30 g each and left out, so the number does not depend on the lights the caller names) plus the wire.
+// Lengths from the spec: the engine's station (the firewall is x = 0; a pusher's engine aft of it), the widest wing's
+// span, the tail arm.
+function genHarnessKg(S, elec, nPowered) {
+  const H = GEN_ELEC.harness.runs, PT = GEN_ELEC_PARTS.bus;
+  const eng = S && S.engines && S.engines[0];
+  const feed = Math.max(H.minFeedM, Math.abs((eng && +eng.x) || 0) + 0.2);
+  let span = 0;
+  for (const w of (S && S.wings) || []) if (w && +w.span > span) span = +w.span;
+  const arm = (S && S.fuselage && +S.fuselage.tailArm) || 0;
+  const st = GEN_ELEC.starter[elec.starter], al = GEN_ELEC.alternator[elec.alternator];
+  let w = 0;
+  if (st && st.cableKgM) w += 2 * feed * st.cableKgM;
+  if (al && al.cableKgM) w += (feed + 0.4) * al.cableKgM;
+  w += nPowered * 2 * H.loadRunM * H.loadKgM;
+  w += 2 * (span / 2) * 2 * H.navKgM + (arm + 0.5) * 2 * H.navKgM + 2 * (span / 6 + 1) * 2 * H.landKgM;
+  const bus = PT.kg + PT.perBreaker * (nPowered + (al && al.A > 0 ? 1 : 0));
+  return +(bus + H.install * w).toFixed(3);
+}
 function genSystemsResolve(S, opts) {
   const sy = (S && S.systems) || {};
   const tier = GEN_SYSTEMS[sy.fit] ? sy.fit : 'basic';
@@ -2380,7 +2413,7 @@ function genSystemsResolve(S, opts) {
   if (hasBus) {
     const H = GEN_ELEC.harness;
     rows.push({ key: 'harness', group: 'elec', name: 'master, breakers and harness',
-                kg: +(H.kg + H.kgPerItem * nPowered).toFixed(3), price: H.price, amps: 0 });
+                kg: genHarnessKg(S, elec, nPowered), price: H.price, amps: 0 });
   }
   // THE BREAKERS (G2801): a load is fed through its own, the radios' through theirs on the avionics bus
   const breakers = [];
@@ -3740,7 +3773,10 @@ const GEN_MIGRATE_CAGE_DEFAULTS = { boomLen: 3.983966, taperLen: 0.6 };
 //      wheel's springs in series with its tyre and its breakout past the pawl's arc, the lockable / fixed / skid kinds,
 //      a twin boom's wheel a boom - so a certificate's ground cases (the taxi, the roll-out, the drops onto the tail)
 //      move; the plaque's probes in the air do not
-const PHYSICS_V = 7;
+//   8  2026-11-09, ELEC-SYSTEMS: the wiring harness is billed by its cable runs (genHarnessKg: the starter cable, the
+//      charging lead, a run per powered load, the outside lights over the span and the tail arm) where it was 1.2 kg +
+//      0.15 kg per item - every aeroplane with a bus weighs a little more (the Cub +1.7 kg empty, MASS-BUDGET.md)
+const PHYSICS_V = 8;
 
 // { fromVersion: spec => spec } — each entry lifts a spec one version. May
 // mutate and return its argument. Runs BEFORE normalisation, on the raw shape

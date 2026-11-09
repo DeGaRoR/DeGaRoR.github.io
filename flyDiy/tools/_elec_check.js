@@ -241,6 +241,24 @@ function run() {
     const h = runDown(b2, 0, 11.8, 30 * 3600) / 3600;
     check(h > 3, 'ul bus: the 9 Ah battery runs the basic panel by day over 3 h', h.toFixed(1) + ' h');
   }
+  // ---- 8. THE HARNESS BY ITS RUNS (ELEC-SYSTEMS, the user 9 Nov: "go cable runs"; MASS-BUDGET.md) -----------------
+  {
+    const H = C.genHarnessKg, base = C.resolveSpec(cl(C.GEN_DEFAULT)).spec;
+    const el = { battery: 'lead', alternator: 'gen20', starter: 'yes', vac: 'venturi' };
+    const at = (mut, e, n) => { const S = cl(base); mut(S); return H(S, e || el, n == null ? 4 : n); };
+    const k0 = at(() => {});
+    check(at(S => { for (const w of S.wings) w.span *= 1.5; }) > k0, 'harness: a wider wing carries more wire (the nav lights\' runs)');
+    check(at(S => { S.fuselage.tailArm *= 1.5; }) > k0, 'harness: a longer tail arm carries more wire (the tail light\'s)');
+    check(at(() => {}, Object.assign({}, el, { starter: 'heavy' })) > k0 && at(() => {}, Object.assign({}, el, { starter: 'ul' })) < k0,
+          'harness: the starter cable is sized by the starter (1/0 > 2 > 6 AWG)');
+    check(at(() => {}, null, 10) > k0, 'harness: each powered load is a run');
+    check(k0 > 1.65 && k0 < 6, 'harness: a Cub-sized stock build carries 1.7-6 kg (connectors and clamps included)', k0.toFixed(2));
+    const noBus = C.genSystemsResolve(Object.assign(cl(base), { systems: { fit: 'minimal' } }));
+    check(!noBus.rows.some(r => r.key === 'harness'), 'harness: no bus, no harness');
+    const R = C.genSystemsResolve(base), hr = R.rows.find(r => r.key === 'harness'), bus = R.parts.find(p => p.key === 'bus'), wire = R.parts.find(p => p.key === 'wire');
+    check(hr && bus && wire && Math.abs(bus.kg + wire.kg - hr.kg) < 1e-9, 'harness: the bus and the wire still add up to the row');
+    check(C.PHYSICS_V >= 8, 'harness: PHYSICS_V says an unchanged spec weighs differently (8)');
+  }
   return fail.length === 0;
 }
 
