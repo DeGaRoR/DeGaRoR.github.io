@@ -85,6 +85,12 @@ const REFS = {
       LDG:   { v: 550 * FT, tol: 0.05, kg: 'gross', flaps: 30, surface: 'paved', src: '550 ft, max braking' },
       LDG50: { v: 1295 * FT, tol: 0.05, kg: 'gross', flaps: 30, surface: 'paved', src: '1295 ft' },
     },
+    // THE BALANCE (CESSNA-FINAL 8 Nov; data, not scored): the POH's envelope in inches aft of the firewall (section 2:
+    // forward 35.0 in at 1950 lb or less to 40.0 at 2450 lb, aft 47.3 at all weights - a manualslib copy, via a search
+    // extract) on the TCDS 3A12 MAC (58.8 in from 25.9 in: a forum's citation, THIN) = 24.0-36.4 % MAC at 2450 lb,
+    // 15.5-36.4 % at 1950 lb. (A typical weighed 172R's empty arm, ~39-40 in = ~23 % MAC, is an ESTIMATE, not a row.)
+    cg: { fwdIn: [[1950, 35.0], [2450, 40.0]], aftIn: 47.3, macIn: 58.8, lemacIn: 25.9, atGrossMAC: [24.0, 36.4],
+          src: 'POH section 2 (manualslib copy, search extract) + the TCDS 3A12 MAC via a forum citation (thin)' },
     // THE TAIL (CESSNA-TAIL): what the real 172 carries, for the question "is the official Cessna's stab 20-25 % small"
     tail: { Sh: [3.30, 3.35], hSpan: 3.40, elevFrac: 0.44, Sv: 1.6,
             src: 'C172-STUDY 2026-09-20 type sheet: stab span 11 ft 4 in, horizontal tail 35.7 ft2 with 15.7 ft2 of elevator (0.44); a design analysis (pdfcoffee "Cessna 172 Design") gives 21.56 ft2 stabilizer + 14.53 ft2 elevators = 36.1 ft2 (3.35 m2). Neither is the TCDS: the TCDS (3A12) gives travel, not areas' } },
@@ -92,10 +98,17 @@ const REFS = {
   // brief: ~300-450 m, 20-35 s (Wipaire ~335-365 m for 160-180 hp 172s); Wipaire's 2350 page lists 1645 ft / 50 ft
   // 2463 ft and 749 fpm for "the 172" (configuration unstated). Both kept: the band runs 335-501 m.
   c172f: {
-    name: 'Cessna 172 on Wipline 2350 floats (160-180 hp)', mtow: 1157, empty: 736 + 150, fuelL: 212, S: 16.2, powerHP: 160,
-    src: 'GATE HYDROTRIM brief (Wipaire ~335-365 m, 20-35 s, 160-180 hp); wipaire.com 2350 tag page (search extract): water run 1645 ft, over 50 ft 2463 ft, ROC 749 fpm, configuration unstated; STC gross 1157 kg (G3390)',
+    // (CESSNA-FINAL 8 Nov, FLAGSHIP: the weights re-read off WIPAIRE'S OWN Cessna 172 Skyhawk Product & Modification Guide
+    // (wipaire.com, rev 1/18; flydiy-notes evidence 2026-11-08/flagship/cessna-final/): the 172R / S on Wipline 2350s at
+    // 2,550 lb (1,157 kg) on its stock engine and the McCauley 1A200/WFA8243 (82 x 43 in); the seaplane system 305 lb
+    // (138 kg), its EXCHANGE weight 168 lb (76 kg: the float installation less the land gear) - so the empty weight is
+    // the 172R's 721-744 kg + 76 = 797-820 kg (it was 736 + 150, an estimate). The guide has NO performance table: the
+    // water figures stay the 2350 web page's, configuration unstated)
+    name: 'Cessna 172R/S on Wipline 2350 floats (stock engine, McCauley 82 x 43)', mtow: 1157, empty: 736 + 76, fuelL: 212, S: 16.2, powerHP: 160,
+    src: 'Wipaire Cessna 172 Product & Modification Guide rev 1/18 (172R, S: 2,550 lb / 1,157 kg, stock engine, McCauley 1A200/WFA8243; seaplane system 305 lb / 138 kg, exchange 168 lb / 76 kg; float 19 ft 7 in x 2 ft 5 in x 1 ft 11 in, 2,570 lb displacement a float); water figures: wipaire.com 2350 tag page (search extract): water run 1645 ft, over 50 ft 2463 ft, ROC 749 fpm, configuration unstated; GATE HYDROTRIM brief 20-35 s',
     poh: { vr: 1.00, vy: 1.50, flapTO: 20, flapLDG: 30, brake: 0, note: 'the floatplane supplement: flaps 20, the stick back through the hump, lift-off ~50 KIAS' },
     rows: {
+      empty: { v: [721 + 76, 744 + 76], tol: 0.02, src: 'the 172R standard empty 721-744 kg + Wipaire\'s seaplane exchange weight 76 kg (168 lb; the guide rev 1/18)' },
       Vs1:  { v: 51 * KT, tol: 0.05, kg: 'gross', flaps: 'up', src: 'the landplane 51 KCAS (floats add ~nothing to CLmax)' },
       roc:  { v: [660 * FPM, 749 * FPM], tol: 0.05, kg: 'unknown', src: 'Wipaire 749 fpm; 660 fpm on another Wipaire page' },
       TOW:  { v: [335, 501], tol: 0.05, kg: 'unknown', surface: 'water', src: 'Wipaire ~335-365 m (160-180 hp) to 1645 ft (unstated)' },
@@ -218,6 +231,26 @@ Object.assign(REFS, {
     } },
 });
 
+// CUBCRAFTERS CC11-160 CARBON CUB SS (REAL-FIGURES-3, 2026-11-09, A0 for the user: "the STOL Cub against a real Carbon
+// Cub"). The closest Carbon Cub with published figures: the light-sport model, 1320 lb gross, the CC340 180 hp (full
+// power 5 min, cruise limited to 80 hp by its POH). The Rotax model (the Carbon Cub UL, 916 iS 160 hp, 600-700 kg) has no
+// published performance; the EX-3 / FX-3 are 2000 lb, 186 hp aeroplanes. Every figure is a brochure / review figure:
+// no weight, surface or flap stated -> weight 'unknown' (a band), THIN where one source.
+Object.assign(REFS, {
+  carboncub: {
+    name: 'CubCrafters Carbon Cub SS (CC340 180 hp)', mtow: 599, empty: 408, fuelL: 91, S: 16.6, powerHP: 180,
+    src: 'Plane & Pilot "Carbon Cub SS" (1320 lb gross, 900 lb empty, 24 gal, 2100 fpm, stall 31 mph, cruise 105-110 mph); AOPA "Light-sport brute" 2010 (1320 lb, cruise 80 hp per the POH, full power 5 min); Wikipedia CC11-160 (stall 27 kt full flap out of ground effect, 35 kt flaps up; cruise 104 kt); aeropedia (take-off roll 60 ft, landing roll 245 ft - THIN, the same figures are listed for the EX2); AvPay (climb 1500 fpm)',
+    poh: { vr: 1.0, vy: 1.30, flapTO: 25, flapLDG: 45, brake: 0.8, note: 'a STOL take-off on half flap, full flap for the landing' },
+    rows: {
+      empty: { v: 408, tol: 0.05, src: '900 lb (Plane & Pilot)' },
+      Vs1:   { v: 35 * KT, tol: 0.05, kg: 'unknown', flaps: 'up', src: '35 kt flaps up (Wikipedia, THIN)' },
+      V75:   { v: [104 * KT, 110 * MPH], tol: 0.05, kg: 'unknown', src: 'cruise 105-110 mph (Plane & Pilot) / 104 kt (Wikipedia); NOTE the POH cruise is power-limited to 80 hp' },
+      roc:   { v: [1500 * FPM, 2100 * FPM], tol: 0.05, kg: 'unknown', src: '2100 fpm (CubCrafters via Plane & Pilot), 1500 fpm (AvPay)' },
+      TO:    { v: 60 * FT, tol: 0.15, kg: 'unknown', flaps: 'unknown', surface: 'unknown', src: '60 ft (aeropedia; THIN - also listed for the EX2)' },
+      LDG:   { v: 245 * FT, tol: 0.15, kg: 'unknown', flaps: 'unknown', surface: 'unknown', src: '245 ft (aeropedia; THIN)' },
+    } },
+});
+
 // ---------------------------------------------------------------------------------------------------------------------
 // GEOMETRY AND SPECS OF THE REAL AEROPLANES (REAL-FIGURES-2): what the report's two other axes compare.
 //   dims:  span, length, height, S (m2), cRoot, cTip, hSpan (stab span), Sh / Sv (tail areas), track (m) - a value or
@@ -235,8 +268,12 @@ const GEO = {
               specs: { engine: 'Lycoming IO-360-L2A', hp: 160, nE: 1, propD: 1.905, blades: 2, empty: [721, 744], mtow: 1111, fuelL: [201, 212], seats: 4 },
               src: '172R type sheet (perf_study REAL.c172.dims) + §6 of REAL-CHECK-2026-11-07', lengthNote: 'spinner to rudder' },
   c172f:    { dims: { span: 11.0, S: 16.2, cRoot: 1.63, cTip: 1.12, hSpan: 3.40, Sh: [3.30, 3.35] },
-              specs: { engine: 'Lycoming IO-360 / O-360', hp: [160, 180], nE: 1, propD: [1.905, 2.08], blades: 2, empty: [800, 900], mtow: 1157, fuelL: [201, 212], seats: 4 },
-              src: 'the 172R airframe + Wipline 2350 (G3390: STC gross 1157 kg, STC prop 82 in); the empty weight is the 172R\'s 721-744 kg plus a seaplane float exchange of ~80-150 kg (ESTIMATED: Wipaire\'s 2350 172 page was not reachable)' },
+              specs: { engine: 'Lycoming IO-360 / O-360', hp: [160, 180], nE: 1, propD: 2.083, blades: 2, empty: [797, 820], mtow: 1157, fuelL: [201, 212], seats: 4 },
+              // the float itself (Wipaire's guide rev 1/18; data, not scored): the seaplane float 5.97 m long (amphibian 6.07), the
+              // hull 0.58 m high and 0.74 m wide, 1,166 kg displacement a float in fresh water, 1,295 kg maximum flotation (FAR
+              // 23.751, 80 % reserve, two floats), the seaplane system 138 kg, its exchange weight 76 kg
+              floats: { L: 5.97, H: 0.58, B: 0.74, dispKg: 1166, maxFlotKg: 1295, systemKg: 138, exchangeKg: 76 },
+              src: 'the 172R airframe + Wipline 2350, Wipaire\'s Cessna 172 Product & Modification Guide rev 1/18 (CESSNA-FINAL 8 Nov): 172R/S gross 2,550 lb (1,157 kg) on the stock engine and the McCauley 1A200/WFA8243 (82 x 43 in = 2.083 m); empty = the 172R\'s 721-744 kg + the seaplane exchange 168 lb (76 kg); it was ESTIMATED 800-900 kg' },
   pa18f:    { dims: { span: 10.73, S: 16.6, cRoot: 1.60, cTip: 1.60 },
               specs: { engine: 'Lycoming O-320', hp: [150, 160], nE: 1, blades: 2, empty: [500, 530], mtow: 806, fuelL: 136, seats: 2 },
               src: 'PA-18-150 sheet (35 ft 2.5 in, 178.5 ft2, 36 US gal); empty = landplane 930 lb + Wipaire seaplane exchange 182 lb' },
@@ -258,6 +295,9 @@ const GEO = {
   stearman: { dims: { span: 9.80, length: [7.39, 7.54], height: [2.79, 2.95], S: [27.6, 27.7] },
               specs: { engine: 'Continental R-670 / W-670', hp: 220, nE: 1, blades: 2, empty: [876, 878], mtow: [1195, 1232], fuelL: 174, seats: 2 },
               src: 'PT-17 (search extracts above); fuel 46 US gal (THIN)' },
+  carboncub:{ dims: { span: 10.36, S: 16.6 },
+              specs: { engine: 'CubCrafters CC340', hp: 180, nE: 1, blades: 2, empty: 408, mtow: 599, fuelL: 91, seats: 2 },
+              src: 'Carbon Cub SS: 34 ft span (Wikipedia CC11-160), wing area as the Cub family (THIN); 1320 lb / 900 lb / 24 gal' },
   skymaster:{ dims: { span: [11.58, 11.63], length: 9.07, height: 2.84, S: [18.7, 18.8] },
               specs: { engine: 'Continental IO-360', hp: 210, nE: 2, blades: 2, empty: [1186, 1264], mtow: [1996, 2132], seats: [4, 6] },
               src: 'Cessna 337 (search extracts above); LIGHT CHECK' },
@@ -294,8 +334,17 @@ const PLANES = {
               branch: 'claude/seaplanes-merge', provisional: true, note: 'not flyable on water on that branch yet: land figures only, to redo once it flies' },
   c172rf:   { label: '172R on Wipline 2350 floats, STC prop (G3390, 20 Oct)', short: '172R on Wipline 2350', file: 'builds/c172r_wipline2350_stcprop_2026-10-20.json', ref: 'c172f', water: true,
               note: 'HYDRO-TRIM\'s stock 172R on the catalogue-exact Wipline 2350s with the STC 82 x 43 prop: the floats Cessna that exists today, until FLAGSHIP\'s rebuild lands' },
-  c172x:    { label: 'Cessna 172 corrected (internal)', short: 'Cessna 172 corrected', file: 'builds/cessna172_2026-09-20_corrected.json', ref: 'c172r',
+  stolcub:  { label: 'STOL Cub (official)', short: 'STOL Cub', file: 'tools/fixtures/stol_cub_showcase.json', ref: 'carboncub', official: true,
+              engineNote: 'a Rotax 915 iS (141 hp turbo) where the Carbon Cub SS has the CC340 180 hp (the Carbon Cub UL\'s 916 iS is the Rotax analogue, unpublished)' },
+  c172x:    { supersededBy: 'c172v2', label: 'Cessna 172 corrected (internal)', short: 'Cessna 172 corrected', file: 'builds/cessna172_2026-09-20_corrected.json', ref: 'c172r',
               note: 'the 20 Sep corrected 172 (IO-360 dials, 16.5 m2): the like-for-like 172R comparison the official B-CESS cannot be' },
+  // CESSNA-FINAL (FLAGSHIP, 8 Nov): the corrected 172 + seven build rows - the lowered aft roof, 212 L at the wing root,
+  // the DRAWN stab to the 172R's 3.40 m / 3.30 m2 (stSpan 1.19 -> 1.264: the join measures the drawing, spec.tail does not
+  // survive a load), 'standard' seats, the 'full' trim (a 172 as delivered), V2-172. No generator change yet (Part 2)
+  c172v2f:  { label: 'Cessna 172 V2-172 on Wipline 2350 floats (draft)', short: 'V2-172 floats', file: 'builds/cessna172r_floats_2026-11-08.json', ref: 'c172f', water: true,
+              note: 'CESSNA-FINAL step 4 (draft): the land V2 + the G3390 float rows, the float system at Wipaire\'s 138 kg; flapless at gross (CG 45 % MAC) until A1' },
+  c172v2:   { label: 'Cessna 172 V2-172 (land, build rows)', short: 'Cessna 172 V2-172', file: 'builds/cessna172r_2026-11-08.json', ref: 'c172r',
+              note: 'CESSNA-FINAL step 2: the corrected 172 on build rows only; the empty CG still aft (the aluminium generator\'s A1)' },
 };
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -390,6 +439,11 @@ const NOTES = {
   jodel: ['<b>The geometry, checked</b> (the user 8 Nov: "I thought I was closer"): the span is right (8.32 m drawn tip to tip, the 17.5-degree outer panels included, against 8.20); the WING is bigger than a D.112\'s: 13.8 m² against 12.7 (+9 %), a 1.80 m root chord against ~1.72 and a square tip of 1.10 where the D.112\'s rounded tip runs ~1.20; and the aeroplane the game draws is <b>5.88 m long against 6.20</b> (-5 %): the load door puts the fin 0.55 m forward of the file\'s station (the 20 Sep study\'s 6.25 m read the file). Height 2.00 m three-point against 2.07 - right. The fin forward also shortens the tail arm (the study\'s small static margin).',
           'The D.112\'s thin book reads as a light-load sheet; the airframe is 5-10 % slow and 7 % heavy. The light Jodel goes around twice and runs out the clock (the approach is not re-planned for the load).'],
   c172x: ['<b>The Cessna of the set</b> (the user 8 Nov). Shape: span 11.02 m, length 8.21 m (8.28), height 2.65 m (2.72), wing 16.5 m² (16.2), the stab 3.11 m² (3.30-3.35) on a 3.20 m span (3.40: the file\'s 3.41 is overwritten by the drawing). Performance: stall exact at gross, cruise -11 %, climb -10 %, the roll -5 to -9 %, the climb-out to 50 ft +48 %, CG at 43 % MAC at gross with four aboard. The full dossier: reports/CESSNA-DOSSIER-2026-11-08.md.'],
+  c172v2: ['<b>The V2-172</b> (CESSNA-FINAL on claude/alloy-frame: the corrected 172 + the build rows + A1, the nose section as body, and A4, every drawn seat weighed; measured 9 Nov on that branch\'s core): <b>5 inside / 5 near / 7 outside</b> against the 172R POH, from 2 / 9 / 6 on 8 Nov. In: the empty weight (729 kg, the 172R 721-744), the analytic take-off roll (284 m / 288), the handbook landing from 50 ft (378 / 395). Still out: the climb-out to 50 ft (788 m / 514, +53 %: the pilot levels in ground effect, no Vx climb-out in the sweep, and the propeller at low speed), the landing roll (handbook 139 / 168, game 240), the game\'s climb (3.18 / 3.66), the glide (not like for like). CG 30.8 % MAC light, 40.7 % at gross (the POH\'s aft limit 36.4 %): forward of 8 Nov by 2.3 points, still aft at gross. Its MTOW case is 1127 kg: the empty 729 + four aboard cannot get to 1111 even on a quarter of the fuel.'],
+  c172v2f: ['<b>The V2-172 on Wipline 2350s</b> (CESSNA-FINAL step 4, DRAFT): <b>9 / 1 / 0</b> against Wipaire at 920-1157 kg (the 172R on 2350s: 8 / 2 / 0 with the same rows): empty 814 kg against 797-820 (Wipaire\'s exchange weight), the water runs inside, the climb ~10 % better than Wipaire\'s figure. BUT at its own MTOW case it is 1212 kg (over the STC 1157), CG 46 % MAC, it lands flapless, the hump R/W reads 0.27 (HYDROTRIM\'s band tops at 0.21) and the floatplane supplement\'s technique does not lift it off (the no-flap rig: 773 m / 44 s; the game\'s pilot: 613 m / 39 s).'],
+  stolcub: ['Measured against the <b>CubCrafters Carbon Cub SS</b> (CC11-160, 1320 lb light-sport, CC340 180 hp): the closest Carbon Cub with published figures (the Rotax Carbon Cub UL publishes none; the EX-3/FX-3 are 2000 lb, 186 hp). Every Carbon Cub figure is a brochure / review figure with no weight or surface stated, two of them single-source (the 60 ft roll and the 245 ft landing).',
+            'Empty 417 kg against 408 (inside). <b>Outside, and why</b>: the clean stall 47-52 km/h against 65 (35 kt flaps up) - the STOL kit\'s full-span slot, VGs, droop and drooped tips are always on, so its CLEAN stall is the SS\'s full-flap one (27 kt = 50 km/h); the cruise 150 km/h against 177-193 - the kit\'s drag (slots, VGs, drooped tips, tundra tyres, the bigger tail) on 141 hp against 180, and the SS\'s figure is at its POH\'s power limit; the climb 5.4-7.0 m/s against 7.6-10.7 - 141 hp against 180 (ours equals the SS\'s low figure at 368 kg, below any load); the take-off roll 30-55 m against 18 (60 ft, THIN: a demonstration figure); the landing roll 22-30 m against 75 (245 ft, THIN, probably a normal landing, ours a full-braking STOL one at 40 km/h).',
+            'At MTOW (the passenger and the baggage aft, CG 36 % MAC, margin 9 %) the full-flap approach needs -0.69 of elevator (nose down) against the 0.154 budget: the drawn elevator chord 0.664 already flies clamped at 0.65 (the join\'s own error).'],
   c172rf: ['The float Cessna that exists today (HYDRO-TRIM G3390): the stock 172R airframe of 20 Oct on Wipaire\'s catalogue-exact 2350s with the STC 82 x 43 propeller. A reference point for FLAGSHIP\'s rebuild, measured against Wipaire\'s figures.'],
   pa18f: ['Climb 14-21 % short and the water run 50-80 kg "heavy": the propeller item, plus 150 hp against the reference\'s 160.'],
   chinook: ['Airframe only: the game\'s pilot rejects the take-off (GATE ARCHETYPES\' standing red). Drawn 2.19 m high against the sheet\'s 1.78 (the engine on the wing\'s centre section).'],

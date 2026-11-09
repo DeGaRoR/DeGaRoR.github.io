@@ -312857,3 +312857,23 @@ score on several axes (geometry, specs, performance). Test and report only: no p
 - SCORES now (11 planes): Cub 99, Jodel 97, 172R on 2350 95, Chinook 95, Tiger Moth 94, Petrel (land, provisional) 93,
   Stearman 92, Camel 92, DC-3 91, corrected 172 88 (G 98 / S 94 / P 76), PA-18 floats 83.
 - A0 could not be messaged from this cloud session (the bridge refuses a cloud session without the owner's trust card).
+
+## REAL-FIGURES-3 - THE STOL CUB AGAINST THE CARBON CUB SS, THE FINAL CESSNA (V2-172, LAND AND FLOATS) BY LOAD RANGE (2026-11-09, REAL-FIGURES for A0, cloud - node only; results branch claude/real-figures-3, README: reports/evidence/REAL-CHECK-2026-11-09/README.md)
+
+- V2-172 land (builds/cessna172r_2026-11-08.json, run on a worktree of claude/alloy-frame dbd37ff77 with its core built
+  from source - A1 + A4 - and its real_refs): 5 inside / 5 near / 7 outside vs the 172R POH (CESSNA-FINAL's 8 Nov run 2 /
+  9 / 6). In now: empty 729 kg (721-744), analytic TO 284 m (288), handbook landing from 50 ft 378 m (395). Out: TO 50 ft
+  788 m (514; no Vx climb-out in the sweep + the propeller), landing roll handbook 139 / game 240 (168), game climb 3.18
+  (3.66), the glide (not like for like). CG 30.8 / 40.7 % MAC (POH aft limit 36.4 at gross). Its MTOW case is 1127 kg.
+- V2-172 floats (builds/cessna172r_floats_2026-11-08.json, DRAFT): 9 / 1 / 0 vs Wipaire at 920-1157 kg (G3390's 172R on
+  2350s: 8 / 2 / 0), but its own gross case is 1212 kg (over the STC 1157), CG 46 % MAC, flapless, hump R/W 0.27, the
+  supplement's technique does not lift it off.
+- STOL Cub (tools/fixtures/stol_cub_showcase.json) vs the CubCrafters Carbon Cub SS (CC11-160, 1320 lb LSA, CC340 180 hp;
+  new REFS row carboncub, sources in it; the Carbon Cub UL publishes nothing, the EX-3/FX-3 are 2000 lb): 1 / 1 / 9. The
+  kit's always-on slot / VGs / droop make its clean stall the SS's full-flap one (47-52 vs 65 km/h); 141 vs 180 hp: climb
+  5.4-7.0 vs 7.6-10.7 m/s, cruise 150 vs 177-193; TO 30-55 vs 18 m and landing 22-30 vs 75 m (both THIN single-source).
+  At MTOW CG 36 % MAC, full-flap approach trim -0.69.
+- real_refs.js takes claude/alloy-frame's version (CESSNA-FINAL's re-read c172r CG envelope and c172f Wipaire guide rows,
+  the c172v2 / c172v2f PLANES rows) + the carboncub / stolcub rows; c172x supersededBy c172v2. Report:
+  reports/REAL-CHECK-2026-11-09.html (13 planes). The user's "average the best and worst landing rolls": not used (two
+  opposite biases; the handbook-schedule reading already measures it) - README section 4.
