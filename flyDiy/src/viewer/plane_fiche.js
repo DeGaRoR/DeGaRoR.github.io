@@ -181,6 +181,8 @@
       L.position.copy(fc).addScaledVector(fwd, t0 * fl).addScaledVector(left, 1.1).addScaledVector(up, 0.25);
       S.add(L); st.added.push(L);
     }
+    cabinLight(T, S, fc, fwd, left, up, fl, st);
+    lightFloor(T, root, st);
     if (window.CAGE_WINGSTRUCT) { window.CAGE_WINGSTRUCT.show(true); window.CAGE_WINGSTRUCT.fiche(true); st.ws = true; }
     const WSg = wingStructNear(T, root, S, left, cl, st);
     for (const k of NEAR_OFF) {
@@ -254,6 +256,30 @@
       if (L.name === 'cageLayer:eng') { L.updateMatrixWorld(true);
         L.traverse(o => { if (o.name === 'engPylon' && o.isMesh && o.material && (o.material.userData || {}).aeroskin) strip(o, true); }); }
     }
+  }
+  // THE CABIN, LIT (the user 9 Nov: "it's very dark in the cabin ... light the cabin quite a bit everywhere, generate max
+  // light"): five warm lamps along the cabin's own centreline, just inside the cut, and a soft sky / ground fill - the
+  // wing's structure takes no point light under the fiche (wing_struct.js fiche), so these cannot burn it
+  const CAB_LAMPS = [[0.38, 2.6], [0.19, 3.2], [0, 3.4], [-0.19, 3.0], [-0.38, 2.4]], CAB_FILL = 0.9;
+  function cabinLight(T, S, fc, fwd, left, up, fl, st) {
+    for (const [t0, pw] of CAB_LAMPS) {
+      const L = new T.PointLight(0xfff4e6, pw, 0, 2);
+      L.position.copy(fc).addScaledVector(fwd, t0 * fl).addScaledVector(left, 0.15).addScaledVector(up, 0.3);
+      S.add(L); st.added.push(L);
+    }
+    const H = new T.HemisphereLight(0xfff8ee, 0x9a8f80, CAB_FILL);
+    S.add(H); st.added.push(H);
+  }
+  // THE CABIN FLOOR, PALER (the user 9 Nov: "lighten the flooring material"): the floor's own section (`cabFloor`,
+  // _cage_crew.js) asked again with a pale default tint - a builder's own pick of the floor's tint wins as ever (the same
+  // material back: nothing changes)
+  function lightFloor(T, root, st) {
+    const SM = window.CAGE_SECMAT; if (!SM) return;
+    let m0 = null, m1 = null;
+    try { m0 = SM('cabFloor', { surf: 0, fieldM: 1, side: T.FrontSide, tint0: 0x9a7b4e });
+          m1 = SM('cabFloor', { surf: 0, fieldM: 1, side: T.FrontSide, tint0: 0xe3d3b2 }); } catch (e) { return; }
+    if (!m0 || !m1 || m0 === m1) return;
+    root.traverse(o => { if (o.isMesh && o.material === m0) { st.mats.push([o, o.material]); o.material = m1; } });
   }
   // THE LANDING GEAR, BARE (the user 9 Nov: "you don't seem to represent the wheels ... it should be shown without any
   // fairings, so without the wheel fairing and without the fairing for the leg, if any"): the near side's units stay

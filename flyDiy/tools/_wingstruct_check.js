@@ -183,6 +183,7 @@ function run(WSsrc, files) {
   ok(/window\.CAGE_WINGSTRUCT\.show\(true\); window\.CAGE_WINGSTRUCT\.fiche\(true\)/.test(F) && /CAGE_WINGSTRUCT\.show\(false\)/.test(F), 'the fiche shows it for the cutaway and takes it away');
   ok(/NEAR_KEEP_STRUCT = \['brace', 'light'\]/.test(F) && /keptStrut\(o, Lr\)/.test(F), 'the near struts and lamps stay with the structure');
   ok(/if \(En && fus && !WSg\)/.test(F), 'the near wing\'s tanks stay with the structure');
+  ok(/cabinLight\(T, S, fc, fwd, left, up, fl, st\);/.test(F) && /new T\.HemisphereLight\(/.test(F) && /lightFloor\(T, root, st\);/.test(F), 'the cabin lit and its floor paler in the cutaway');
   ok(/ghostNacelles\(T, root, left, cl, hw, st, fus\);/.test(F) && /o\.name === 'engPylon'/.test(F) && /hideWells\(root, st\);/.test(F) && /g\.transparent = true; g\.opacity = a; g\.depthWrite = false/.test(F), 'the cut side\'s wing nacelles are ghosts');
   ok(/cutTaper\(T, root, p1, p2, st\);/.test(F) && /nm\[i\] !== 'taperPanel'/.test(F), 'the pod-and-rod\'s taper cladding is cut');
   return { fails, checks, stats };
@@ -224,6 +225,7 @@ for (const [nm, a2] of APP_BREAKS) {
 const FICHE_BREAKS = [['the tanks halved again', files.fiche.replace('if (En && fus && !WSg)', 'if (En && fus)')],
   ['the nacelle left solid', files.fiche.replace('    ghostNacelles(T, root, left, cl, hw, st, fus);\n', '')],
   ['the wells drawn', files.fiche.replace('    hideWells(root, st);\n', '')],
+  ['the cabin left dark', files.fiche.replace('    cabinLight(T, S, fc, fwd, left, up, fl, st);\n', '')],
   ['the taper left whole', files.fiche.replace('    cutTaper(T, root, p1, p2, st);\n', '')]];
 for (const [nm, f2] of FICHE_BREAKS) {
   if (f2 === files.fiche) { console.log('  selftest ' + nm + ': the break did not apply'); bad++; continue; }
