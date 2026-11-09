@@ -34,7 +34,7 @@ const JS = opt('js', '');
 const SETTLE = +opt('settle', 1500);
 // --micro id:chaos[:puddles] - that strip made bumpy (26b_strip_micro) in THIS browser profile only: the shipped record with
 // `micro` on the strip, seeded as the working copy the boot reads (world_boot's rig door, flydiy.premises.bootWip)
-const MICRO = opt('micro', null);
+const MICRO = opt('micro', null), WETV = opt('wet', null);
 const MICRO_REC = MICRO ? (() => { const [id, ch, pu] = MICRO.split(':'); const J = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'island_jolene.json'), 'utf8'));
   const r = J.layers.runways.find(q => q.id === id); if (!r) throw new Error('no strip ' + id); r.micro = { chaos: +ch, seed: 2 }; if (pu) r.micro.puddles = +pu; return JSON.stringify(J); })() : null;   // ms the sim runs after the place (the tail settles), then paused again
 const strip = id => { const W = require(path.join(__dirname, 'island_node.js')).islandWorld('jolene', { premises: fs.readFileSync(path.join(__dirname, 'fixtures', 'island_jolene.json'), 'utf8') }); return W.aerodromes.find(a => a.id === id); };
@@ -52,6 +52,8 @@ const VIEWS = {
   close:   { at: P(40, 2.2), cam: [BEHIND + 1.0, 0.30, 8] },
   back:    { at: P(A.len - 25, -2.5), cam: [AHEAD - 0.08, 0.07, 14] },
   low:     { at: P(30, 3.2), cam: [BEHIND + 0.04, 0.022, 24] },   // grazing, down the strip: a bumpy strip's relief
+  approach: { at: P(-110, 0), agl: 24, cam: [BEHIND, 0.10, 9] },  // short final: the pilot's eye on the strip ahead (the Cub held in the air)
+  eye:     { at: P(12, 0.6), cam: [BEHIND, 0.06, 4.5] },          // taxiing, just behind and above the cockpit
 };
 const VIEW_KEYS = opt('views', Object.keys(VIEWS).join(',')).split(',');
 const SIZE = opt('size', '1600x900').split('x').map(Number);
@@ -104,13 +106,14 @@ async function runPage(page) {
     const KEEP = "(()=>{const l=[...document.querySelectorAll('button,a,div')].filter(b=>/keep the current build/i.test(b.textContent||'')&&b.children.length===0&&b.offsetParent);l.forEach(x=>x.click());return l.length;})()";
     for (let i = 0; i < 20; i++) { const n = await ev(KEEP); await sleep(500); if (!n && i > 4) break; }
     await sleep(3000);
+    if (WETV !== null) console.log('  wet: ' + await ev(`(()=>{ if (window.PAVEMENT && PAVEMENT.setSoilWet) { PAVEMENT.setSoilWet(${+WETV}); return PAVEMENT.WET.value; } return 'no PAVEMENT.setSoilWet'; })()`));
     if (JS) console.log('  js: ' + await ev('(()=>{' + JS + '})()').catch(e => 'ERR ' + e.message));
     // the UI out of the picture: the world and the aeroplane alone
     await ev("(()=>{['ui','devPanel','hud','rail'].forEach(i=>{const e=document.getElementById(i);if(e)e.style.visibility='hidden';});document.querySelectorAll('.card,.panel,#phase,#hud,.toast,button').forEach(e=>e.style.visibility='hidden');return 1;})()").catch(() => 0);
     const tag = path.basename(page, '.html');
     for (const vk of VIEW_KEYS) {
       const V = VIEWS[vk]; if (!V) continue;
-      const where = await ev(HOLD(V.at, REST));
+      const where = await ev(HOLD(V.at, V.agl || REST));
       await ev(`(() => { if (window.DAY_CLOCK && DAY_CLOCK.preset) DAY_CLOCK.preset(${JSON.stringify(HOUR)}); return 1; })()`);
       await ev(`FLIGHT_PROBE.camSet(${V.cam.join(',')})`);
       await ev(FRAMES(out.length ? 120 : 400));
