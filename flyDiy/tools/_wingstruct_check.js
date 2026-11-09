@@ -128,6 +128,17 @@ function run(WSsrc, files) {
       }
     }
   }
+  // THE LAMP BAY: the nose's cover and ribs stop at its edges, a pocket stands in it
+  { const d = DEFS.cub, semi = d.spec.geom.semi, b = { z0: semi * 0.24 - 0.17, z1: semi * 0.24 + 0.17, chord: 0.13, depth: 0.06 };
+    const a = WS.plan(d, { lib, sides: ['R'] }), c = WS.plan(d, { lib, sides: ['R'], bays: [b] });
+    const ip = c.info.planes[0];
+    ok(ip.lamps && ip.lamps.length === 1 && Math.abs(ip.lamps[0].z0 - b.z0) < 1e-9, 'the lamp bay recorded');
+    // no vertex of the nose cover inside the bay (the sheet's points sit at the upper contour, ahead of the spar)
+    const A = c.halves[0].A, PP = d.parts.planes[0], N = d.nodes, fw = PP.wf.R, x0 = N[fw.F[0]].p[0];
+    let inside = 0;
+    for (let i = 0; i < A.p.length; i += 3) { const z = Math.abs(A.p[i + 2]); if (z > b.z0 + 0.02 && z < b.z1 - 0.02 && A.p[i] < x0 - 0.12) inside++; }
+    ok(inside === 0, 'nothing of the nose drawn in the lamp bay (' + inside + ' vertices)');
+    ok(c.halves[0].tris !== a.halves[0].tris, 'the bay changes the drawing'); }
   // every construction row has a kind (and fabricAlu, REAL-FIGURES-3's, before it lands)
   for (const r of Object.keys(C('GEN_SURF_MATERIALS')).concat(['fabricAlu'])) ok(r === 'fabric' || !!WS.KINDS[r], 'the row ' + r + ' has a kind');
   ok(!!(WS.KINDS.dbox && WS.KINDS.cub), 'the wooden row\'s two kinds');
@@ -145,14 +156,24 @@ function run(WSsrc, files) {
   ok(/const want = !!\(T && W && W\.def && W\.nodeCage && scene && \(L\.force \|\| cut\)\);/.test(WSsrc), 'the garage builds it only for the fiche or the cutaway box');
   ok(/if \(window\.CAGE_WINGSTRUCT_DRAW\) window\.CAGE_WINGSTRUCT_DRAW\(ctx\);/.test(files.wing), 'the wing layer hands it its build');
   // the garage's def is the wing rows' alone: the kind is read off the build's own spec (the 172 drew as cloth without it)
-  ok(/spec: full \}\);/.test(WSsrc) && /window\.GARAGE_SPEC\.get\(\)/.test(WSsrc), 'the garage reads the kind off the whole build\'s spec');
+  ok(/spec: full, bays \}\);/.test(WSsrc) && /window\.GARAGE_SPEC\.get\(\)/.test(WSsrc), 'the garage reads the kind off the whole build\'s spec');
   { const d = DEFS.metal, spec0 = JSON.parse(JSON.stringify(d.spec)); spec0.material = 'tubeFabric';
     for (const w of spec0.wings) w.material = null;
     ok(WS.kindOf({ spec: spec0, parts: d.parts }, 0, lib, d.spec).key === 'alloy', 'a wing-rows def with the whole build\'s spec: the 172 is alloy'); }
   ok(/MATLIB/.test(WSsrc) && !/new [A-Za-z.]*Material\(/.test(WSsrc), 'its materials are the library\'s');
+  // THE FUSELAGE'S FINISHES (the user 9 Nov): AEROSKIN's rows, this file's own copies (never the pooled one the fuselage wears)
+  ok(/aeroDupe\(G2\.aeroMaterial\(T, \{ finish: fin, surf: 0, fieldM: 1/.test(WSsrc), 'the finishes are AEROSKIN\'s, copied');
+  ok(/spruce: 'spruce', ply: 'ply', alu: 'bareAlu'/.test(WSsrc) && /steel: 'steelTube'/.test(WSsrc) && /carbon: 'composite', glass: 'gelcoat'/.test(WSsrc), 'each class on its fuselage finish');
+  // THE FICHE'S CUTAWAY (plane_fiche.js, this chantier's seam)
+  const F = files.fiche;
+  ok(/window\.CAGE_WINGSTRUCT\.show\(true\); window\.CAGE_WINGSTRUCT\.fiche\(true\)/.test(F) && /CAGE_WINGSTRUCT\.show\(false\)/.test(F), 'the fiche shows it for the cutaway and takes it away');
+  ok(/NEAR_KEEP_STRUCT = \['brace', 'light'\]/.test(F) && /keptStrut\(o, Lr\)/.test(F), 'the near struts and lamps stay with the structure');
+  ok(/if \(En && fus && !WSg\)/.test(F), 'the near wing\'s tanks stay with the structure');
+  ok(/ghostNacelles\(T, root, left, cl, hw, st\);/.test(F) && /g\.transparent = true; g\.opacity = a; g\.depthWrite = false/.test(F), 'the cut side\'s wing nacelles are ghosts');
+  ok(/cutTaper\(T, root, p1, p2, st\);/.test(F) && /nm\[i\] !== 'taperPanel'/.test(F), 'the pod-and-rod\'s taper cladding is cut');
   return { fails, checks, stats };
 }
-const files = { wing: rd('tools/_cage_wing.js'), skin: rd('src/viewer/aeroskin.js'), build: rd('tools/build.js'), app: rd('src/viewer/app.js'), join: rd('tools/_cage_join.js') };
+const files = { fiche: rd('src/viewer/plane_fiche.js'), wing: rd('tools/_cage_wing.js'), skin: rd('src/viewer/aeroskin.js'), build: rd('tools/build.js'), app: rd('src/viewer/app.js'), join: rd('tools/_cage_join.js') };
 const WSsrc = rd('src/viewer/wing_struct.js');
 const base = run(WSsrc, files);
 for (const s of base.stats || []) console.log('  ' + s);
@@ -166,7 +187,7 @@ const BREAKS = [
   ['the front spar 2 % of chord aft', WSsrc.replace("spar(sparF, KD.spar, sw, KD.sparC, KD.webC);", "spar(sparF + 0.02, KD.spar, sw, KD.sparC, KD.webC);").replace("['F', sparF, sw], ['R', sparR, rw]]) AU.spars", "['F', sparF + 0.02, sw], ['R', sparR, rw]]) AU.spars")],
   ['the ribs at their own 0.3 m', WSsrc.replace("const ribZ = uniq([PP.zRoot, ...(PP.ribZ || [])])", "const ribZ = uniq([PP.zRoot, ...Array.from({ length: 40 }, (_, i) => PP.zRoot + 0.3 * (i + 1))])")],
   ['a wire across the wrong bay', WSsrc.replace("wire(f, xa, g, xb, 0.006);", "wire(f, xa, frameAt(bayZ[Math.min(bayZ.length - 1, i + 2)]), xb, 0.006);")],
-  ['the budget doubled away', WSsrc.replace("const BUDGET = { tris: [12000, 7000], draws: 2 };", "const BUDGET = { tris: [120, 70], draws: 2 };")],
+  ['the budget doubled away', WSsrc.replace("const BUDGET = { tris: [12000, 7000], draws: 3 };", "const BUDGET = { tris: [120, 70], draws: 3 };")],
   ['stringers off the grammar', WSsrc.replace("const sC = j * strPitch;", "const sC = j * strPitch + 0.03;")],
   ['the join takes it', WSsrc.replace("o.userData.edMarker = true; ", "")],
   ['built under every build', WSsrc.replace("(L.force || cut));", "true);")],
@@ -186,7 +207,15 @@ for (const [nm, a2] of APP_BREAKS) {
   const r = run(WSsrc, Object.assign({}, files, { app: a2 }));
   if (!r.fails.length) { console.log('  selftest ' + nm + ': NOT caught'); bad++; }
 }
-const n = BREAKS.length + APP_BREAKS.length;
+const FICHE_BREAKS = [['the tanks halved again', files.fiche.replace('if (En && fus && !WSg)', 'if (En && fus)')],
+  ['the nacelle left solid', files.fiche.replace('    ghostNacelles(T, root, left, cl, hw, st);\n', '')],
+  ['the taper left whole', files.fiche.replace('    cutTaper(T, root, p1, p2, st);\n', '')]];
+for (const [nm, f2] of FICHE_BREAKS) {
+  if (f2 === files.fiche) { console.log('  selftest ' + nm + ': the break did not apply'); bad++; continue; }
+  const r = run(WSsrc, Object.assign({}, files, { fiche: f2 }));
+  if (!r.fails.length) { console.log('  selftest ' + nm + ': NOT caught'); bad++; }
+}
+const n = BREAKS.length + APP_BREAKS.length + FICHE_BREAKS.length;
 console.log('  selftest: ' + (n - bad) + ' of ' + n + ' caught');
 for (const m of base.fails) console.log('  FAIL ' + m);
 console.log('  ' + base.checks + ' checks');

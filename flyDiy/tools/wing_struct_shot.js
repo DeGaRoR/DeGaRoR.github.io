@@ -37,7 +37,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 (async () => {
   const port = 8450 + (process.pid % 300);
   const srv = opt('url', null) ? null : await serve(port);
-  const URL = opt('url', 'http://localhost:' + port + '/flyDiy/dev.html');
+  const URL = opt('url', 'http://localhost:' + port + '/flyDiy/dev.html' + (argv.includes('--crash') ? '?damage=1&simw=0' : ''));
   const b = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
   const pg = await b.newPage({ viewport: { width: W, height: H } });
   const LOG = argv.includes('--log');
@@ -63,7 +63,13 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   console.log('wing_struct_shot: boot ' + await pg.evaluate(() => window.BOOT.state) + ' ' + el());
   await sleep(4000);
   const LIST = [];
-  if (BUILD && BUILD.val) for (const k of BUILD.val.split(',')) LIST.push({ key: k, spec: () => require('./_load_build.js').loadValidated(k).spec });
+  // a VARIANT: key@row - the validated build with its wings' construction row set (cub@aluFabric, cub@steel), so every
+  // kind of structure is drawn on an aeroplane the game flies; key+light - its lamp fitted (the bay's pocket)
+  if (BUILD && BUILD.val) for (const k0 of BUILD.val.split(',')) LIST.push({ key: k0.replace(/[@+]/g, '_'), spec: () => {
+    const [k, row] = k0.replace(/\+light$/, '').split('@'), sp = require('./_load_build.js').loadValidated(k).spec;
+    if (row) for (const w of sp.wings || []) w.material = row;
+    if (/\+light$/.test(k0)) sp.cage = Object.assign({}, sp.cage, { lightOn: 1, li_land: 1 });
+    return sp; } });
   else if (BUILD) for (const f of BUILD.split(',')) LIST.push({ key: path.basename(f).replace(/\.json$/, ''), spec: () => { const j = JSON.parse(fs.readFileSync(path.resolve(f), 'utf8')); return j.spec || j; } });
   if (!LIST.length) LIST.push({ key: 'stand', spec: () => null });
   let first = true;
@@ -142,7 +148,12 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     const off = +opt('off', 2.5);
     // software GL draws the world at seconds a frame: the crash runs on a postage stamp, the stills at full size
     await pg.setViewportSize({ width: 320, height: 200 }); await sleep(3000);
-    const r = await pev('return await pageStage(arg);', { kind: 'trunk', D: 40, agl: 4, V: 30, off, steps: 1500 });
+    // (the page-stepped mode, ?simw=0 - the stills rig's: staged, then stepped two steps a frame in the page; the worker
+    // mode never advanced in a headless cloud page)
+    const CO = { kind: 'trunk', D: 40, agl: 4, V: 30, off, steps: +opt('steps', 1200) };
+    await pev('return await pageStage(arg);', Object.assign({}, CO, { placeOnly: true }));
+    const r = await pev('return await pageStage(arg);', Object.assign({}, CO, { run: true }));
+    console.log('wing_struct_shot: crash run ' + JSON.stringify(r && { err: r.err, broken: r.broken, crashed: r.crashed, simT: r.simT, frames: r.frames }).slice(0, 300));
     // ...and on until the wreck has broken and stands (or 6 min)
     for (let i = 0; i < 120; i++) {
       const st = await pg.evaluate(() => { const P = window.FLIGHT_PROBE, D = P.damage && P.damage(); const W = window.FLYDIY_WRECK_STATS ? window.FLYDIY_WRECK_STATS() : null;

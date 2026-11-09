@@ -23,7 +23,9 @@
   // WING-STRUCTURE (the user 9 Nov: "the cutaway has a missing wing. Replace it with the wing's proper internal structure"):
   // the near wing's covering goes as before and its STRUCTURE stands in its place (wing_struct.js, built under the
   // see-inside view this cutaway draws in) - and the lift struts stay with it: they are the wing's structure too
-  const NEAR_KEEP_STRUCT = ['brace'];
+  const NEAR_KEEP_STRUCT = ['brace', 'light'];   // (the lamps sit in the structure's bays: the user 9 Nov)
+  // ...and the wing layer's own lift struts (_cage_wing.js `edFit_liftstrut`: the struts and their fittings)
+  const keptStrut = (o, top) => { for (let a = o; a && a !== top; a = a.parent) if (a.name === 'edFit_liftstrut') return true; return false; };
   const VIEWS = ['hero', 'above', 'side', 'plan', 'front', 'cutaway'];
   const frames = n => new Promise(res => { const f = () => (n-- > 0 ? requestAnimationFrame(f) : res()); f(); });
   function hashOf(spec) {
@@ -184,15 +186,17 @@
     for (const k of NEAR_OFF) {
       if (WSg && NEAR_KEEP_STRUCT.includes(k)) continue;
       const Lr = root.children.find(o => o.name === 'cageLayer:' + k); if (!Lr) continue;
-      Lr.traverse(o => { if (o.isMesh && !(o.userData && o.userData.wingStruct)) swap(o, halve); });
+      Lr.traverse(o => { if (o.isMesh && !(o.userData && o.userData.wingStruct) && !(WSg && keptStrut(o, Lr))) swap(o, halve); });
     }
     const En = root.children.find(o => o.name === 'cageLayer:energy');   // a vessel out of the body goes with the near wing
-    if (En && fus) {
+    if (En && fus && !WSg) {   // (WING-STRUCTURE: with the near wing drawn as its structure, its tanks stay in it - the user 9 Nov)
       const fbb = new T.Box3().setFromObject(fus).expandByScalar(0.05), mb = new T.Box3();
       En.traverse(o => { if (!o.isMesh || !o.geometry) return; mb.setFromObject(o); if (!mb.isEmpty() && !fbb.containsBox(mb)) swap(o, halve); });
     }
     const G = root.children.find(o => o.name === 'cageLayer:gear');
     if (G) for (const o of G.children) if (/L$/.test(o.name) && o.visible) { o.visible = false; st.hid.push(o); }
+    ghostNacelles(T, root, left, cl, hw, st);
+    cutTaper(T, root, p1, p2, st);
     return st;
   }
   // the structure's layer (wing_struct.js: `cageLayer:wingStruct`, a sibling of the wing layer in the cage scene) - the
@@ -213,6 +217,45 @@
       if (isNear) near++;
     }
     return near ? L : null;
+  }
+  // THE CUT SIDE'S WING NACELLES (the user 9 Nov: "the one on the cutaway side should be displayed without its cowl ...
+  // keep a transparent suggestion of the full model, faint, so ... the global outline remains clear"): every shell of the
+  // cowl layer standing outside the fuselage on the near side wears a faint see-through copy of its material (the
+  // garage's x-ray alpha, CAGE_VIEW.xrayA); the engine, its mount and its propeller stay as they are
+  function ghostNacelles(T, root, left, cl, hw, st) {
+    const Cw = root.children.find(o => o.name === 'cageLayer:cowl'); if (!Cw) return;
+    const V = window.CAGE_VIEW, a = Math.min(0.2, (V && V.xrayA) || 0.12), b = new T.Box3(), c = new T.Vector3(), made = new Map();
+    Cw.updateMatrixWorld(true);
+    Cw.traverse(o => {
+      if (!o.isMesh || !o.geometry || !o.visible) return;
+      b.setFromObject(o); if (b.isEmpty()) return;
+      if (b.getCenter(c).dot(left) - cl < hw + 0.05) return;   // the nose's cowl, a body-mounted one: not a wing nacelle
+      const arr = Array.isArray(o.material), ms = arr ? o.material : [o.material];
+      st.mats.push([o, o.material]);
+      const nm = ms.map(m => { if (!m) return m; let g = made.get(m); if (g) return g;
+        g = dup(m); g.transparent = true; g.opacity = a; g.depthWrite = false; g.side = T.DoubleSide; g.needsUpdate = true;
+        made.set(m, g); st.clones.push(g); return g; });
+      o.material = arr ? nm : nm[0];
+    });
+  }
+  // THE POD-AND-ROD'S TAPER CLADDING (the user 9 Nov: "the rods in the pod and rod designs are not showing through"):
+  // the sheets over the rod's tightening truss (`taperPanel`, G26/G187) are STRUCTURE to the see-inside view
+  // (_cage_ui.js INTSTRUCT: they stay opaque), so the cut never opened them and the rod running through the taper to
+  // the aft bulkhead (HULL-B37) stood hidden behind them. Cut as the covering is: the near half of the fuselage's slab
+  function cutTaper(T, root, p1, p2, st) {
+    root.traverse(o => {
+      const nm = o.isMesh && o.userData && o.userData.matNames;
+      if (!nm || !nm.includes('taperPanel')) return;
+      const arr = Array.isArray(o.material), ms = arr ? o.material : [o.material];
+      let ch = false;
+      const out = ms.map((m, i) => {
+        if (nm[i] !== 'taperPanel' || !m) return m;
+        ch = true; const n = dup(m); st.clones.push(n);
+        n.clippingPlanes = [p1, p2]; n.clipIntersection = true; n.side = T.DoubleSide; n.needsUpdate = true;
+        return n;
+      });
+      if (ch) { st.mats.push([o, o.material]); o.material = arr ? out : out[0]; }
+    });
   }
   function cutOff(st) {
     for (const [o, v] of (st.vis || []).reverse()) o.visible = v;

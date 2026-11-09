@@ -34,7 +34,7 @@
 // page. The core's functions (genAfEval, genSurfKey, GEN_FLAPS, GEN_BUILD_GRAMMAR) are read off `lib` or the page.
 (function () {
   'use strict';
-  const BUDGET = { tris: [12000, 7000], draws: 2 };   // per wing half: LOD 0 (the cutaways), LOD 1 (a wreck) - the twin's 16 ribs a side, 10.1k / 6.5k, the worst validated
+  const BUDGET = { tris: [12000, 7000], draws: 3 };   // per wing half: LOD 0 (the cutaways), LOD 1 (a wreck) - the twin's 16 ribs a side, 10.1k / 6.5k, the worst validated
   const INSET = 0.004;          // m: a member's outer face inside the covering (the skin draws at zero thickness)
   const GAP = 0.010;            // chord fraction: a rib's fixed part stops this far ahead of a hinge line
   // the finishes, LINEAR (jodel_prep.py's spruce: the user's own wing)
@@ -56,23 +56,23 @@
   //         ply (the D-box, lapped onto the spar), sheet (the alloy leading edge), null
   const KINDS = {
     dbox:      { name: 'wood box spar, truss ribs, ply D-box (Jodel)', spar: 'box', sparW: 0.065, sparC: 'spruce', webC: 'ply',
-                 rear: 'plank', rearW: 0.016, rearC: 'spruce', rib: 'truss', ribC: 'spruce', cap: 0.011, gusset: 'ply',
+                 rear: 'plank', rearW: 0.016, rearC: 'spruce', rib: 'truss', ribC: 'spruce', cap: 0.014, gusset: 'ply',
                  nose: 'ply', noseRibs: true, wires: false, le: 'spruce', te: 'spruce', rootC: 'ply' },
     cub:       { name: 'two spruce spars, alloy ribs, drag wires (J-3)', spar: 'plank', sparW: 0.013, sparC: 'spruce',
-                 rear: 'plank', rearW: 0.014, rearC: 'spruce', rib: 'stamped', ribC: 'alu', cap: 0.014,
+                 rear: 'plank', rearW: 0.014, rearC: 'spruce', rib: 'stamped', ribC: 'alu', cap: 0.018,
                  nose: 'sheet', noseC: 'alu', noseRibs: true, wires: true, le: 'alu', te: 'alu', rootC: 'alu' },
     steel:     { name: '4130 tube spars and ribs, drag wires', spar: 'tube', sparW: 0.030, sparC: 'steel', rear: 'tube',
-                 rearW: 0.026, rearC: 'steel', rib: 'tube', ribC: 'steel', cap: 0.012, nose: null, wires: true,
+                 rearW: 0.026, rearC: 'steel', rib: 'tube', ribC: 'steel', cap: 0.016, nose: null, wires: true,
                  le: 'steel', te: 'steel', rootC: 'steel' },
     aluFabric: { name: '6061 tube spars, formed ribs, drag cables', spar: 'tube', sparW: 0.032, sparC: 'alu', rear: 'tube',
-                 rearW: 0.028, rearC: 'alu', rib: 'formed', ribC: 'alu', cap: 0.012, nose: null, wires: true,
+                 rearW: 0.028, rearC: 'alu', rib: 'formed', ribC: 'alu', cap: 0.016, nose: null, wires: true,
                  le: 'alu', te: 'alu', rootC: 'alu' },
     fabricAlu: { name: 'extruded alloy spars, stamped ribs, drag wires (PA-18)', spar: 'ibeam', sparW: 0.024, sparC: 'alu',
-                 webC: 'alu', rear: 'ibeam', rearW: 0.020, rearC: 'alu', rib: 'stamped', ribC: 'alu', cap: 0.014,
+                 webC: 'alu', rear: 'ibeam', rearW: 0.020, rearC: 'alu', rib: 'stamped', ribC: 'alu', cap: 0.018,
                  nose: 'sheet', noseC: 'alu', noseRibs: true, wires: true, le: 'alu', te: 'alu', rootC: 'alu' },
     alloy:     { name: 'stressed skin: channel spars, flanged plate ribs, stringers (172)', spar: 'channel', sparW: 0.022,
                  sparC: 'alu', webC: 'alu', rear: 'channel', rearW: 0.018, rearC: 'alu', rib: 'plate', ribC: 'alu',
-                 cap: 0.016, nose: null, stringers: true, wires: false, le: null, te: 'alu', rootC: 'alu' },
+                 cap: 0.020, nose: null, stringers: true, wires: false, le: null, te: 'alu', rootC: 'alu' },
     carbon:    { name: 'moulded: carbon spar caps on a foam-cored web, rear web, few ribs', spar: 'ibeam', sparW: 0.030,
                  sparC: 'carbon', webC: 'foam', rear: 'web', rearW: 0.010, rearC: 'foam', rib: 'sparse', ribC: 'foam',
                  cap: 0.012, nose: null, wires: false, le: null, te: 'carbon', rootC: 'foam' },
@@ -110,14 +110,17 @@
   }
 
   // ---- the geometry accumulator: positions, colours, two index lists (0 the kind's finish, 1 the metal) ----
-  function acc() { return { p: [], c: [], i: [[], []], n: 0 }; }
-  function vtx(A, p, col) { A.p.push(p[0], p[1], p[2]); A.c.push(col[0], col[1], col[2]); return A.n++; }
-  const matOf = cn => (METAL.has(cn) ? 1 : 0);
-  function tri(A, m, a, b, c) { A.i[m].push(a, b, c); }
-  function quad(A, m, a, b, c, d) { A.i[m].push(a, b, c, a, c, d); }
+  // (the index lists are per FINISH CLASS - COL's keys - and make() folds the classes that wear one finish into one draw)
+  function acc() { return { p: [], i: {}, n: 0 }; }
+  function vtx(A, p) { A.p.push(p[0], p[1], p[2]); return A.n++; }
+  const matOf = cn => cn;
+  const lst = (A, m) => A.i[m] || (A.i[m] = []);
+  function tri(A, m, a, b, c) { lst(A, m).push(a, b, c); }
+  function quad(A, m, a, b, c, d) { lst(A, m).push(a, b, c, a, c, d); }
+  const nTri = A => Object.values(A.i).reduce((a, l) => a + l.length, 0) / 3;
   // rings swept: each ring the same count of points, closed (a tube, a box) or open (a sheet's row)
   function sweep(A, rings, cn, closed) {
-    const col = COL[cn], m = matOf(cn), K = rings[0].length, ids = rings.map(r => r.map(p => vtx(A, p, col)));
+    const col = COL[cn], m = matOf(cn), K = rings[0].length, ids = rings.map(r => r.map(p => vtx(A, p)));
     for (let j = 0; j + 1 < ids.length; j++)
       for (let q = 0; q < (closed ? K : K - 1); q++) {
         const q2 = (q + 1) % K;
@@ -139,7 +142,7 @@
   }
   // a flat disc (a gusset), in the plane of u and v
   function disc(A, c, u, v, ru, rv, cn, n) {
-    const col = COL[cn], m = matOf(cn), o = vtx(A, c, col), ids = [];
+    const col = COL[cn], m = matOf(cn), o = vtx(A, c), ids = [];
     for (let q = 0; q < n; q++) { const t = 2 * Math.PI * q / n; ids.push(vtx(A, add(add(c, mul(u, ru * Math.cos(t))), mul(v, rv * Math.sin(t))), col)); }
     for (let q = 0; q < n; q++) tri(A, m, o, ids[q], ids[(q + 1) % n]);
   }
@@ -247,7 +250,25 @@
         // hinge sits aft of it gets a false spar at its hinge line instead (below)
         spar(sparR, KD.rear, rw, KD.rearC, KD.webC);
         // ---- THE LEADING AND TRAILING EDGES ----
-        if (KD.le) boxSpan(FR, 0.004, 0.022, f => 0.6 * yU(f, 0.013), f => 0.6 * yL(f, 0.013), KD.le);
+        // THE LAMP BAYS (the user, 9 Nov: "indent for the wing-mounted lights in the structure"): the D-nose cut where
+        // _cage_wing.js cuts the covering (CAGE_LIGHT_BAY: the bay's span and chord, opts.bays) - the nose's cover, its
+        // strip and its ribs stop at the bay's edges, two side plates and a back wall make the pocket the lamp sits in
+        const bays = k === 0 ? (opts.bays || []).filter(b => b && b.z1 > b.z0) : [];
+        const inBay = z => bays.some(b => z > b.z0 - 1e-6 && z < b.z1 + 1e-6);
+        // the frames of a run of span with the bays taken out: [[frames...], ...]
+        const noseRuns = () => {
+          const cut = uniq([...zSpan, ...bays.flatMap(b => [b.z0, b.z1]).filter(z => z > PP.zRoot && z < zS)]);
+          const out2 = []; let cur = [];
+          for (let q = 0; q < cut.length; q++) {
+            const z = cut[q], zm = q + 1 < cut.length ? 0.5 * (z + cut[q + 1]) : z;
+            cur.push(frameAt(z));
+            if (q + 1 < cut.length && inBay(zm)) { if (cur.length > 1) out2.push(cur); cur = []; }
+          }
+          if (cur.length > 1) out2.push(cur);
+          return out2;
+        };
+        const NR = noseRuns();
+        if (KD.le) for (const fr of NR) boxSpan(fr, 0.004, 0.022, f => 0.6 * yU(f, 0.013), f => 0.6 * yL(f, 0.013), KD.le);
         // the trailing edge strip, outside the bands; each band's own hinge spar (the wing's false spar ahead of the
         // hinge, the surface's spar aft of it) and its trailing edge
         const runs = [];   // [z0, z1, which] pieces of span between band edges
@@ -276,7 +297,7 @@
           const xe = sparF - 0.5 * sw, n = lod ? 5 : 9;   // (to the spar's face: the spar's own top reads behind it)
           const cn = KD.nose === 'ply' ? 'ply' : KD.noseC;
           const row = f => { const r = []; for (let q = 0; q <= n; q++) { const x = xe * (1 - Math.cos(0.5 * Math.PI * q / n)); const a = E.up(Math.max(0.0, x)); r.push(P(f, a[0], a[1] * f.chord - 0.5 * INSET)); } return r; };
-          sweep(A, FR.map(row), cn, false);
+          for (const fr of NR) sweep(A, fr.map(row), cn, false);
         }
         // ---- THE RIBS ----
         const capPts = (f, x0, x1, upper, n) => {   // a cap's points along the contour, cosine-spaced
@@ -331,7 +352,7 @@
             }
           }
           if (flange) for (const upper of [true, false]) {   // the flange turned across the rib: one strip on the contour
-            const pts = capPts(f, x0, x1, upper, lod ? 4 : 8), lw = mul(f.lat, 0.018);
+            const pts = capPts(f, x0, x1, upper, lod ? 4 : 8), lw = mul(f.lat, 0.022);
             sweep(A, pts.map(q => { const c = P(f, q.x, q.y); return [c, add(c, lw)]; }), cn, false);
           }
         };
@@ -344,17 +365,17 @@
           const pM = Math.max(0.09, 1.2 * (top(f, x0, x1) - bot(f, x0, x1)));
           const nd = Math.max(1, Math.round((x1 - x0) * f.chord / pM));
           const T = x => yU(f, x) - w, B = x => yL(f, x) + w;
-          for (const x of [x0 + 0.004, x1 - 0.004]) if (T(x) - B(x) > 0.02) member(f, x, B(x), x, T(x), 0.8 * w, cn, n);
+          for (const x of [x0 + 0.004, x1 - 0.004]) if (T(x) - B(x) > 0.02) member(f, x, B(x), x, T(x), 0.85 * w, cn, n);
           const js = [];
           for (let q = 0; q < nd; q++) {
             const xa = x0 + (x1 - x0) * q / nd, xb = x0 + (x1 - x0) * (q + 1) / nd, upA = q % 2 === 0;
             const ya = upA ? T(xa) : B(xa), yb = upA ? B(xb) : T(xb);
-            if (Math.abs(ya - yb) > 0.015) member(f, xa, ya, xb, yb, 0.8 * w, cn, n);
+            if (Math.abs(ya - yb) > 0.015) member(f, xa, ya, xb, yb, 0.85 * w, cn, n);
             js.push([xb, yb]);
           }
           if (gus && !lod) for (const [x, y] of js.slice(0, -1)) {
             const c = add(P(f, x, y), mul(f.lat, 0.5 * w + 0.0012));
-            disc(A, c, f.ch, f.up, 0.026, 0.017, gus, 8);
+            disc(A, c, f.ch, f.up, 0.032, 0.022, gus, 8);
           }
         };
         const formed = (f, x0, x1, cn, w) => {   // the ultralight's bent outline, an upright at each spar
@@ -366,7 +387,7 @@
           const f = frameAt(z), b = bandAt(z);
           const xF0 = sparF - 0.5 * sw, xF1 = sparF + 0.5 * sw, xR0 = sparR - 0.5 * rw, xR1 = sparR + 0.5 * rw;
           const xEnd = b ? b.h - GAP : 0.985;
-          const pieces = [[0.004, xF0], [xF1, Math.min(xR0, xEnd)], [xR1, xEnd]].filter(p => p[1] - p[0] > 0.01);
+          const pieces = [[0.004, xF0], [xF1, Math.min(xR0, xEnd)], [xR1, xEnd]].filter(p => p[1] - p[0] > 0.01 && !(p[0] < 0.01 && inBay(z)));
           if (b) pieces.push([b.h + GAP, 0.985]);
           const cn = special ? KD.rootC : KD.ribC;
           for (const [x0, x1] of pieces) {
@@ -380,6 +401,15 @@
           }
           if (KD.rib === 'formed' && !special && b) { /* the surface's piece drawn by formed's outline */ }
         };
+        // the lamp bays' pockets
+        for (const b of bays) {
+          const pc = KD.rootC || KD.ribC;
+          const fa = frameAt(b.z0), fb = frameAt(b.z1);
+          const xb = f => Math.min(sparF - 0.5 * sw - 0.006, Math.max(b.chord || 0.13, (b.depth || 0.06) / f.chord));
+          for (const f of [fa, fb]) plate(f, 0.004, xb(f), pc, false, false, false);
+          boxSpan([fa, fb], xb(fa), xb(fa) + 0.004 / fa.chord, f => yU(f, xb(f)) - 0.002, f => yL(f, xb(f)) + 0.002, pc);
+          if (sd === 'R') pinfo.lamps = (pinfo.lamps || []).concat([{ z0: b.z0, z1: b.z1 }]);
+        }
         // the special ribs: the root, the strut's station, the crank, the ends of the controls, the tip
         const strutZ = fw.strutF != null ? Math.abs(N[fw.strutF].p[2]) : null;
         const specials = uniq([PP.zRoot, zS, ...(strutZ != null && strutZ < zS ? [strutZ] : []), ...(PP.zCrank > 0 ? [PP.zCrank] : [])]);
@@ -396,6 +426,7 @@
         // nose ribs: between two main ribs, ahead of the front spar (the J-3's, the Jodel's false nose ribs)
         if (KD.noseRibs && !lod) for (let i = 0; i + 1 < ribZ.length; i++) {
           const z = 0.5 * (ribZ[i] + ribZ[i + 1]), f = frameAt(z);
+          if (inBay(z)) continue;
           if (KD.rib === 'stamped') truss(f, 0.004, sparF - 0.5 * sw, KD.ribC, KD.cap, false, null);
           else { cap(f, 0.004, sparF - 0.5 * sw, true, KD.cap, KD.cap, KD.ribC, lod ? 4 : 7); cap(f, 0.004, sparF - 0.5 * sw, false, KD.cap, KD.cap, KD.ribC, lod ? 4 : 7); }
         }
@@ -406,12 +437,12 @@
           const midY = (f, x) => 0.5 * (yU(f, x) + yL(f, x));
           for (let i = 0; i < bayZ.length; i++) {
             const f = frameAt(bayZ[i]);
-            if (i > 0) { member(f, xa, midY(f, xa), xb, midY(f, xb), 0.016, KD.rib === 'tube' ? 'steel' : 'alu', lod ? 4 : 6);
+            if (i > 0) { member(f, xa, midY(f, xa), xb, midY(f, xb), 0.022, KD.rib === 'tube' ? 'steel' : 'alu', lod ? 4 : 6);
               if (AU) AU.struts.push({ i, z: bayZ[i] }); }
             if (i + 1 < bayZ.length) {
               const g = frameAt(bayZ[i + 1]);
               const wire = (f1, x1, f2, x2, dy) => { const a = P(f1, x1, midY(f1, x1) + dy), b3 = P(f2, x2, midY(f2, x2) + dy);
-                bar(A, a, b3, 0.004, 0.004, f1.up, 'wire', 0); if (AU) AU.wires.push({ i, a, b: b3, from: x1 < x2 ? 'F' : 'R' }); };
+                bar(A, a, b3, 0.006, 0.006, f1.up, 'wire', 0); if (AU) AU.wires.push({ i, a, b: b3, from: x1 < x2 ? 'F' : 'R' }); };
               wire(f, xa, g, xb, 0.006); wire(f, xb, g, xa, -0.006);
               pinfo.bays.push([bayZ[i], bayZ[i + 1]]);
             }
@@ -430,7 +461,7 @@
             for (const upper of [true, false]) {
               const s = upper ? -1 : 1;
               sweep(A, fr.map(f => { const x = sC / f.chord, y = upper ? yU(f, x) : yL(f, x);
-                return [P(f, x - 0.008 / f.chord, y), P(f, x + 0.008 / f.chord, y), P(f, x + 0.008 / f.chord, y + s * 0.012)]; }), 'alu', false);
+                return [P(f, x - 0.010 / f.chord, y), P(f, x + 0.010 / f.chord, y), P(f, x + 0.010 / f.chord, y + s * 0.016)]; }), 'alu', false);
             }
             if (sd === 'R') pinfo.stringers.push(sC);
           }
@@ -467,38 +498,85 @@
             const sp = mul([0, 0, side], R * Math.sin(t));
             pts[pts.length - 1] = map(add(add(add(f.pF, mul(f.ch, (x - sparF) * f.chord)), mul(f.up, ym)), sp));
           }
-          for (let q = 0; q + 1 < pts.length; q++) bar(A, pts[q], pts[q + 1], 0.014, 0.014, [0, 1, 0], KD.le || KD.ribC, lod ? 4 : 6);
+          for (let q = 0; q + 1 < pts.length; q++) bar(A, pts[q], pts[q + 1], 0.018, 0.018, [0, 1, 0], KD.le || KD.ribC, lod ? 4 : 6);
         }
-        const tris = (A.i[0].length + A.i[1].length) / 3;
-        out.halves.push({ plane: k, side: sd, kind: K.key, A, tris, verts: A.n, ribs: ribsDrawn, audit: AU,
-                          draws: (A.i[0].length ? 1 : 0) + (A.i[1].length ? 1 : 0) });
+        const tris = nTri(A), fins = new Set(Object.keys(A.i).filter(c => A.i[c].length).map(c => finishOf(c, KD)));
+        out.halves.push({ plane: k, side: sd, kind: K.key, A, tris, verts: A.n, ribs: ribsDrawn, audit: AU, draws: fins.size,
+                          fins: [...fins], KD });
         pinfo.halves.push({ side: sd, tris, verts: A.n });
       }
     }
     return out;
   }
 
-  // ---- THE MESHES: a half's arrays into one BufferGeometry, its two materials from the library ----
-  const MATS = { 0: { roughness: 0.78, metalness: 0.03 }, 1: { roughness: 0.45, metalness: 0.6 } };   // (0.85 metal took the warm room for its colour: alloy read gold)
-  function material(T, m) {
-    const p = Object.assign({ vertexColors: true, flatShading: true, side: T.DoubleSide }, MATS[m]);
-    const ML = (typeof window !== 'undefined' && window.MATLIB) || G.MATLIB;
-    return ML.shared(T, 'std', p, 'wingStruct');
+  // ---- THE FINISHES: the fuselage's own (the user, 9 Nov: "ensure you are using similar materials ... as the other parts
+  // of the fuselage" - the Jodel's spruce read unlike its fuselage's, the 172's alloy unlike its frames'). AEROSKIN's
+  // finish rows (aeroskin.js AERO_FINISH: spruce, ply, bareAlu, steelTube, composite, gelcoat - AERO_BY_CONS's `struct`
+  // for every construction) in its hardware branch (no surface field: object-space triplanar, aeroHardMat's recipe), each
+  // finish ONE material of this file's own (aeroDupe of the pooled one: the pool's is the fuselage's, and this file
+  // writes a clip plane and a fiche variant on its own). The fittings are the kind's metal: steel on a wood or tube wing,
+  // alloy on a metal one; the wires stainless (steelTube). Foam has no finish row: the library's plain material.
+  const FIN = { spruce: 'spruce', ply: 'ply', alu: 'bareAlu', primer: 'bareAlu', steel: 'steelTube', wire: 'steelTube',
+                carbon: 'composite', glass: 'gelcoat', foam: null };
+  const metalOf = KD => (/alu/.test(KD.sparC + KD.ribC) || KD.spar === 'channel') ? 'bareAlu' : 'steelTube';
+  const finishOf = (cn, KD) => cn === 'fit' ? metalOf(KD) : (cn in FIN ? FIN[cn] : 'spruce') || ('plain:' + cn);
+  const OWN = new Map();          // finish (+ variant) -> this file's material
+  function material(T, fin, variant) {
+    const key = fin + '|' + (variant || '');
+    let m = OWN.get(key);
+    if (m) return m;
+    const G2 = typeof window !== 'undefined' ? window : G;
+    const aero = typeof G2.aeroMaterial === 'function' && typeof G2.aeroDupe === 'function' && !/^plain:/.test(fin) &&
+                 (typeof G2.aeroHardOn !== 'function' || G2.aeroHardOn());
+    if (aero) {
+      m = G2.aeroDupe(G2.aeroMaterial(T, { finish: fin, surf: 0, fieldM: 1, side: T.DoubleSide, opacity: 1, inside: 0, decals: 0 }));
+    } else {
+      const c = COL[fin === 'bareAlu' ? 'alu' : fin === 'steelTube' ? 'steel' : fin === 'composite' ? 'carbon' : fin === 'gelcoat' ? 'glass' : fin.replace(/^plain:/, '')] || COL.spruce;
+      const ML = G2.MATLIB;
+      m = ML.shared(T, 'std', { color: new T.Color(c[0], c[1], c[2]), side: T.DoubleSide,
+        roughness: /bareAlu|steelTube/.test(fin) ? 0.45 : 0.78, metalness: /bareAlu|steelTube/.test(fin) ? 0.6 : 0.03 }, 'wingStruct:' + fin);
+    }
+    m.userData = Object.assign({}, m.userData, { wingStruct: fin, cageUni: 1 });
+    if (variant === 'noPoint') {   // the fiche: no point light (see fiche() below)
+      const hook = m.onBeforeCompile, k0 = m.customProgramCacheKey ? m.customProgramCacheKey() : '';
+      const m2 = m.clone ? (typeof G2.aeroDupe === 'function' && aero ? G2.aeroDupe(m) : m.clone()) : m;
+      m2.onBeforeCompile = function (sh, r) {
+        if (hook) hook.call(this, sh, r);
+        const pat = '#if ( NUM_POINT_LIGHTS > 0 ) && defined( RE_Direct )';
+        if (sh.fragmentShader.indexOf('#include <lights_fragment_begin>') >= 0)
+          sh.fragmentShader = sh.fragmentShader.replace('#include <lights_fragment_begin>', T.ShaderChunk.lights_fragment_begin.replace(pat, '#if 0'));
+        else sh.fragmentShader = sh.fragmentShader.replace(pat, '#if 0');
+      };
+      m2.customProgramCacheKey = () => k0 + '|wingStructNoPoint';
+      m2.userData = Object.assign({}, m.userData, { wsNoPoint: 1 });
+      m = m2;
+    }
+    OWN.set(key, m);
+    return m;
   }
-  function make(T, half) {
-    const A = half.A, g = new T.BufferGeometry();
-    g.setAttribute('position', new T.Float32BufferAttribute(A.p, 3));
-    g.setAttribute('color', new T.Float32BufferAttribute(A.c, 3));
-    const I = A.i[0].concat(A.i[1]);
-    g.setIndex(A.n > 65535 ? new T.Uint32BufferAttribute(I, 1) : new T.Uint16BufferAttribute(I, 1));
-    const mats = [];
-    if (A.i[0].length) { g.addGroup(0, A.i[0].length, mats.length); mats.push(material(T, 0)); }
-    if (A.i[1].length) { g.addGroup(A.i[0].length, A.i[1].length, mats.length); mats.push(material(T, 1)); }
+  // ---- THE MESHES: a half's arrays into one BufferGeometry, a group (a draw) a finish; NOT INDEXED - each triangle its
+  // own three vertices, so its normal is its face's (a member is flat sawn, flat formed: the finish's shading reads
+  // the vertex normal, and a shared corner would round every box)
+  function make(T, half, variant) {
+    const A = half.A, KD = half.KD, byFin = new Map();
+    for (const cn of Object.keys(A.i)) { const L = A.i[cn]; if (!L.length) continue;
+      const f = finishOf(cn, KD); (byFin.get(f) || byFin.set(f, []).get(f)).push(L); }
+    let n = 0; for (const Ls of byFin.values()) for (const L of Ls) n += L.length;
+    const pos = new Float32Array(n * 3), g = new T.BufferGeometry(), mats = [];
+    let o = 0;
+    for (const [f, Ls] of byFin) {
+      const s0 = o;
+      for (const L of Ls) for (const v of L) { pos[o * 3] = A.p[v * 3]; pos[o * 3 + 1] = A.p[v * 3 + 1]; pos[o * 3 + 2] = A.p[v * 3 + 2]; o++; }
+      g.addGroup(s0, o - s0, mats.length); mats.push(material(T, f, variant));
+    }
+    g.setAttribute('position', new T.BufferAttribute(pos, 3));
+    // an index all the same (0..n-1): the wreck's records edit an index to drop a triangle (skin_break.js)
+    g.setIndex(new T.BufferAttribute(n > 65535 ? Uint32Array.from({ length: n }, (_, i) => i) : Uint16Array.from({ length: n }, (_, i) => i), 1));
     g.computeVertexNormals(); g.computeBoundingSphere();
     const m = new T.Mesh(g, mats.length === 1 ? mats[0] : mats);
     m.name = 'wingStruct:' + half.plane + half.side;
     m.castShadow = false; m.receiveShadow = true;
-    m.userData.wingStruct = { plane: half.plane, side: half.side, kind: half.kind, tris: half.tris };
+    m.userData.wingStruct = { plane: half.plane, side: half.side, kind: half.kind, tris: half.tris, fins: [...byFin.keys()] };
     return m;
   }
   // a whole wing set as a group (every plane, both sides by default)
@@ -560,7 +638,11 @@
       if (!L.grp || L.def !== W.def || L.grp.parent !== scene) {
         dispose(L.grp);
         let full = null; try { full = window.GARAGE_SPEC && window.GARAGE_SPEC.get ? window.GARAGE_SPEC.get() : null; } catch (e) {}
-        L.grp = group(T, W.def, { map: W.nodeCage, lod: 0, name: 'cageLayer:wingStruct', spec: full });
+        // the lamp bay where the wing layer cut one: a lamp FITTED (CAGE_UI.P.lightOn, _cage_wing.js bayOn), at the light
+        // layer's declaration (CAGE_LIGHT_BAY: the span fraction, the half width, the chord, the depth)
+        const B = window.CAGE_LIGHT_BAY, UP = window.CAGE_UI && window.CAGE_UI.P, semi = W.def.spec.geom && W.def.spec.geom.semi;
+        const bays = (B && UP && +UP.lightOn && semi) ? [{ z0: semi * B.frac - B.half, z1: semi * B.frac + B.half, chord: B.chord, depth: B.depth }] : [];
+        L.grp = group(T, W.def, { map: W.nodeCage, lod: 0, name: 'cageLayer:wingStruct', spec: full, bays });
         if (!IMMUNE) IMMUNE = [new T.Plane(new T.Vector3(0, 1, 0), 1e6)];
         L.grp.traverse(o => { if (o.isMesh) { o.userData.edMarker = true; o.userData.wingStruct.layer = true; o.onBeforeRender = immune; } });
         L.def = W.def;
@@ -606,24 +688,11 @@
       // where this wing's root stands: drawn by them it burns out (spruce read cream). Under the fiche it is lit by the
       // studio's key, rim and room only - a material variant whose shader takes no point light
       fiche: safe(on => {
-        const T = window.THREE, ML = window.MATLIB; if (!L.grp || !T || !ML) return null;
+        const T = window.THREE; if (!L.grp || !T) return null;
         L.grp.traverse(o => {
-          if (!o.isMesh) return;
-          const arr = Array.isArray(o.material), ms = arr ? o.material : [o.material];
-          const nm = ms.map(m => {
-            if (!on) return m.userData.wsLit || m;
-            if (m.userData.wsLit) return m;
-            const v = ML.shared(T, 'std', { vertexColors: true, flatShading: true, side: T.DoubleSide, roughness: m.roughness, metalness: m.metalness }, 'wingStructFiche');
-            if (!v.userData.wsNoPoint) {
-              v.userData.wsNoPoint = true; v.userData.cageUni = 1;
-              const chunk = T.ShaderChunk.lights_fragment_begin.replace('#if ( NUM_POINT_LIGHTS > 0 ) && defined( RE_Direct )', '#if 0');
-              v.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace('#include <lights_fragment_begin>', chunk); };
-              v.customProgramCacheKey = () => 'wingStructNoPoint';
-            }
-            v.userData.wsLit = m;
-            return v;
-          });
-          o.material = arr ? nm : nm[0];
+          if (!o.isMesh || !o.userData.wingStruct) return;
+          const fins = o.userData.wingStruct.fins || [], ms = fins.map(f => material(T, f, on ? 'noPoint' : null));
+          o.material = ms.length === 1 ? ms[0] : ms;
         });
         return L.grp;
       }),
