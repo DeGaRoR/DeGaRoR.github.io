@@ -248,10 +248,11 @@ const consOfSpec = s => (s.cage && s.cage.intCons != null ? s.cage.intCons : 2);
 // the master)
 function A_ok(SRC) {
   const A = skinOf(SRC);
-  // RE-PINNED 9 -> 13 (LIVERY-STICKERS, 9 Nov): the four livery stickers' slots (5 kit + 4 stickers + 2 registrations +
-  // strip + master); the kit's layers and pages unchanged
-  return A.AERO_KIT_LAYERS === 5 && (A.AERO_KIT_PAGES || []).join(',') === '3,4,5,1,2' && A.AERO_MAXD === 13 &&
-         /#define AERO_MAXD 13\n/.test(SRC.skin) && typeof A.aeroDecalImage === 'undefined';
+  // RE-PINNED 9 -> 15 (LIVERY-STICKERS, 9 Nov; the user's cap: "19 slots seems like a lot ... let's try 15"): a shared
+  // budget - the four fixed markings always, the kit and the stickers (and LIVERY-TEXT's pieces) in the other eleven, the
+  // kit giving way first; the kit's layers and pages unchanged
+  return A.AERO_KIT_LAYERS === 5 && (A.AERO_KIT_PAGES || []).join(',') === '3,4,5,1,2' && A.AERO_MAXD === 15 &&
+         /#define AERO_MAXD 15\n/.test(SRC.skin) && typeof A.aeroDecalImage === 'undefined';
 }
 function run(SRC) {
   const fail = [];
@@ -340,7 +341,7 @@ function run(SRC) {
       m3On: 1,                                         // (the cheat line: pattern 0, the default)
       m4On: 1, m4Pat: kitIx('flag'), m4P: 16, m4Q: 2, m4Tgt: 6, m4W: 0.6, m4H: 0.5,
       m5On: 1, m5Pat: kitIx('pattern'), m5P: 1, m5Q: 1, m5Tgt: 4, m5Mode: 2 } } });
-    check(A_ok(SRC), 'the kit has five layers, on pages 3 4 5 1 2, and thirteen decal slots (LIVERY-STICKERS: + the four stickers)');
+    check(A_ok(SRC), 'the kit has five layers, on pages 3 4 5 1 2, and fifteen decal slots (LIVERY-STICKERS: the user\'s cap, a shared budget)');
     for (const [tag, S1, S2] of [['A then Q (five layers)', SPEC_A, SPEC_Q], ['Q then A', SPEC_Q, SPEC_A]]) {
       const store = browser();
       const p1 = page(SRC, store, 1, consOfSpec(S1)); p1.seed(S1); state(p1, S1);

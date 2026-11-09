@@ -4534,6 +4534,24 @@ function decFitScan(A) {
   if (box[1][0][0] < 0 && box[1][0][1] > 0) box[1][0][0] = 0;
   return box;
 }
+// LIVERY-STICKERS: A STICKER'S FIRST PLACE (the user, 9 Nov: "in the middle of the fuselage of the plane"). A slot the
+// player switches on whose placement is still untouched (station, height and projection at their defaults) goes to the
+// middle of THIS build's fuselage - the body's field box, mid-length - on the waist line (C 0), in the field frame. Measured
+// by decFitScan, the kit's own fit; no geometry (a bench, a stub), the defaults stand. The rows it writes are deviations
+// like any the player drags, so a build that never turns a sticker on still carries none.
+function decVinylFirstPlace(q) {
+  const A = AK();
+  if (!A || !DEC[q + 'On']) return false;
+  if (DEC[q + 'L'] !== DEC_DEF[q + 'L'] || DEC[q + 'C'] !== DEC_DEF[q + 'C'] || (+DEC[q + 'Mode'] || 0) !== 0) return false;
+  let b = null;
+  try { b = decFitScan(A); } catch (e) { b = null; }
+  const f = b && b[0] && b[0][0];
+  if (!f || !(f[1] > f[0])) return false;
+  DEC[q + 'L'] = +((f[0] + f[1]) / 2).toFixed(2);
+  DEC[q + 'C'] = 0;
+  for (const k of ['L', 'C']) if (SYNC[q + k]) SYNC[q + k]();
+  return true;
+}
 function decFitApply(A) {
   if (!A.AERO_KIT_LAYERS) return;
   let any = false;
@@ -5374,8 +5392,8 @@ function buildDecPanel() {
       };
       const redo = () => { for (const f of refresh) f(); say(); };
       DEC_RELOAD.push(redo);
-      flag('on', q + 'On', 'put this sticker on the aeroplane',
-           () => { if (DEC[q + 'On']) det.open = true; redo(); }, det);
+      flag('on', q + 'On', 'put this sticker on the aeroplane - switched on, it goes to the middle of the fuselage',
+           () => { if (DEC[q + 'On']) { det.open = true; decVinylFirstPlace(q); } redo(); }, det);
       // the mark: twelve buttons, the picked one outlined
       {
         const d = row('mark', 'the twelve Alaska marks: one colour, cut from vinyl', det);
@@ -5388,7 +5406,7 @@ function buildDecPanel() {
           bt.style.cssText = 'padding:2px;min-width:0;height:36px;display:flex;align-items:center;justify-content:center;' +
             'background:transparent;color:inherit;border:1px solid rgba(127,127,127,.35);border-radius:3px;cursor:pointer';
           bt.textContent = String(k + 1);
-          bt.onclick = () => { DEC[q + 'Mk'] = k; if (!DEC[q + 'On']) { DEC[q + 'On'] = 1; if (SYNC[q + 'On']) SYNC[q + 'On'](); }
+          bt.onclick = () => { DEC[q + 'Mk'] = k; if (!DEC[q + 'On']) { DEC[q + 'On'] = 1; if (SYNC[q + 'On']) SYNC[q + 'On'](); decVinylFirstPlace(q); }
             redo(); decSavePrefs(); applyDecals(); draw(); };
           grid.appendChild(bt); btns.push(bt); thumbs.push({ el: bt, mk: k });
         });

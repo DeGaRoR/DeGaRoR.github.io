@@ -1597,11 +1597,14 @@ function aeroDetailTex(THREE, key) {
 // marking needs a one-sided mask, which the field cannot supply.
 // NINE, and the number is not a guess (LIVERY-5, 4 Nov): five kit layers, the
 // registration, the registration on the wing, the certification strip and the
-// master. THIRTEEN since LIVERY-STICKERS (9 Nov): the four livery stickers' slots. The image channels are gone (the user: "everything procedural and
+// master. FIFTEEN since LIVERY-STICKERS (9 Nov), AND A CAP, NOT A SUM (the user: "19 slots seems like a lot ... let's
+// try 15"): the four fixed markings (the registration, its wing copy, the strip, the master) are always kept and the
+// player's pieces - the kit's layers, the stickers (and LIVERY-TEXT's pieces when they land) - share the other eleven;
+// aeroDecalsFor's trim decides what gives way. LIVERY-TEXT planned the same 15, so the two branches agree on this line. The image channels are gone (the user: "everything procedural and
 // nothing rasterized"); their two pages carry kit layers 4 and 5. Every one of these is an unrolled iteration of a
 // texture fetch in the fragment shader, so the array is sized to what the
 // panel can actually turn on and not to a round number.
-const AERO_MAXD = 13;            // G208: +1, the certification stickers' strip; A9: +1, the master; LIVERY-5: 5 kit layers; LIVERY-STICKERS: +4, the livery stickers
+const AERO_MAXD = 15;            // G208: +1, the certification stickers' strip; A9: +1, the master; LIVERY-5: 5 kit layers; LIVERY-STICKERS: 15, the user's cap (9 Nov) - a shared budget, see aeroDecalsFor
 const AERO_ATLAS_N = 4;              // 4x4 pages
 // 1024 -> 4096 (G207, the user: "the current decals are too low resolution,
 // the pixels are clearly visible"). A page was 256 px, stretched over a
@@ -2868,7 +2871,8 @@ function aeroKitDraw(THREE, L) {
 // The user approved twelve vinyl marks (assets-src/stickers: bold logo marks, one colour, no text) and wants them on
 // the aeroplanes. A sticker is THE SAME KIND OF PIECE AS THE REGISTRATION and a kit layer, through the same door:
 //   - a crisp mask per mark as a DISTANCE FIELD (the registration's G212 field: alpha 0.5 at the edge, the shader's
-//     threshold one screen pixel wide at any zoom; `sdf: 1`), the ink's own colour under the whole ramp;
+//     threshold one screen pixel wide at any zoom; `sdf: 2`, the field that is not lettering: floats take it), the ink's
+//     own colour under the whole ramp;
 //   - ONE colour the player picks (null follows the paint's trim, like the registration's ink);
 //   - placed like a livery layer: goes on, projected as, station, height on side, turn (the kit's own rows and the
 //     same AERO_DEC_ON / AERO_DEC_MODES), a size (the ink's height in metres; the width follows the mark), and
@@ -2901,11 +2905,13 @@ const AERO_VINYL_MARKS = [
   { id: 'glassy-panorama', name: 'Glassy panorama', b: [2, 14, 318, 148.8] },
   { id: 'alaska', name: 'Alaska', b: [9, 6, 256, 161.9] },
 ];
-// A SLOT'S ROWS (`vn<i><field>` in AERO_DEC_DEF; 'stk' is the certification strip's prefix). Off by default; the
-// default place is the rear fuselage aft of the registration, in the field frame (the registration's own), 350 mm.
+// A SLOT'S ROWS (`vn<i><field>` in AERO_DEC_DEF; 'stk' is the certification strip's prefix). Off by default. THE FIRST
+// PLACE (the user, 9 Nov: "in the middle of the fuselage"): the editor puts a slot it switches on at the middle of the
+// build's own fuselage (its field box's mid-length) on the waist line, in the field frame, 350 mm; these numbers are only
+// the fallback when there is no geometry to measure.
 const AERO_VINYL_LDEF = {
   On: 0, Mk: 0, Col: null,
-  L: 3.2, C: 0.05, H: 0.35, Rot: 0,
+  L: 2.5, C: 0, H: 0.35, Rot: 0,      // the editor places a slot switched on at ITS fuselage's middle (decVinylFirstPlace)
   Tgt: 0, Mode: 0,
   Side: 0,        // 0 both flanks, 1 the right flank only, 2 the left flank only
   Mir: 0,         // 1: the left flank wears the mirror image
@@ -2951,7 +2957,9 @@ function aeroVinylLayers(D, trim) {
         sL: +D[q + 'L'] || 0, sC: +D[q + 'C'] || 0,
         w: h * asp, h,                                     // the INK's size; aeroVinylRect grows it by the cell's margin
         rot: +D[q + 'Rot'] || 0,
-        rough: -0.06, sdf: 1, metal: 0,                    // vinyl: the registration's ink
+        // vinyl: the registration's ink. sdf 2 = a distance field that is NOT lettering - a float (aeroDecOk 0.5, `noLetters`)
+        // declines the registration but takes a sticker (the user, 9 Nov: "I would like stickers to go to floats")
+        rough: -0.06, sdf: 2, metal: 0,
         noMirror: mir,
         one: side === 0 ? 0 : (side === 1 ? AERO_VINYL_RIGHT : -AERO_VINYL_RIGHT),
         on: onOf(D[q + 'Tgt']), mode: modeOf(D[q + 'Mode']),
@@ -3119,13 +3127,14 @@ function aeroDecalsFor(THREE, D, opts) {
   // layer is paint, and a registration painted under its own cheat line is a
   // registration you cannot read.
   // LIVERY-5: THE KIT IS WHAT GIVES WAY. aeroSetDecals keeps the first AERO_MAXD of the list, so the kit is trimmed
-  // HERE to what the slots leave after the registration, its wing copy and the stickers: an overflow drops the
-  // LAST kit layer, never a registration or a certificate (13 slots hold the worst case today: 5 + 4 + 2 + 2)
+  // HERE to what the slots leave after the registration, its wing copy and the certification stickers: an overflow drops
+  // the LAST kit layer, never a registration or a certificate (and then the last livery sticker - the budget, below)
   const kit = [], list = [];
   for (const L of aeroKitLayers(D)) { aeroKitDraw(THREE, L); kit.push(L.place); }
-  // LIVERY-STICKERS: THE STICKERS, over the kit (vinyl on paint) and under the registration; their four slots are in
-  // AERO_MAXD, so the worst case still fits whole (5 kit + 4 stickers + 2 registrations + strip + master = 13)
-  for (const L of aeroVinylLayers(D, trim)) { aeroVinylDraw(THREE, L); list.push(aeroVinylRect(L)); }
+  // LIVERY-STICKERS: THE STICKERS, over the kit (vinyl on paint) and under the registration (5 kit + 4 stickers + 2
+  // registrations + strip + master = 13 today, inside the 15; the trim below holds when LIVERY-TEXT's pieces join)
+  const vinyl = [];
+  for (const L of aeroVinylLayers(D, trim)) { aeroVinylDraw(THREE, L); vinyl.push(aeroVinylRect(L)); }
   list.push({ page: 0, sL: D.regL, sC: D.regC, w: pw, h: ph,
                   rot: D.regRot, rough: -0.06, sdf: 1, metal: +D.regMetal || 0,
                   on: onOf(D.regTarget), mode: modeOf(D.regMode) });
@@ -3143,7 +3152,13 @@ function aeroDecalsFor(THREE, D, opts) {
             ? window.AERO_EXTRA_DECALS(THREE, D) : null;
     if (X) for (const p of X) list.push(p);
   } catch (e) {}
-  return { list: kit.slice(0, Math.max(0, AERO_MAXD - list.length)).concat(list), aspect };
+  // THE BUDGET (LIVERY-STICKERS, the user's cap of 15): the fixed markings first (never dropped), then the player's pieces
+  // in what is left - THE KIT GIVES WAY FIRST (its last layers), THEN THE STICKERS (their last slots). `dropped` says how
+  // many pieces found no slot, so a panel can say it. LIVERY-TEXT's pieces join `vinyl`'s side of this when they land.
+  const room = Math.max(0, AERO_MAXD - list.length);
+  const keepV = Math.min(vinyl.length, room), keepK = Math.min(kit.length, room - keepV);
+  return { list: kit.slice(0, keepK).concat(vinyl.slice(0, keepV), list), aspect,
+           dropped: (kit.length - keepK) + (vinyl.length - keepV) };
 }
 
 // THE GLAZING A SPEC ASKS FOR (G216). `finish.glass` holds DEVIATIONS from
@@ -3207,7 +3222,7 @@ function aeroSetDecals(THREE, list) {
     const on = d.on || { body: 1 };
     U.uDecD.value[i].set(AERO_DEC_MODE[d.mode] || 0,
       on.body ? 1 : 0, on.wing ? 1 : 0, on.tail ? 1 : 0);
-    U.uDecE.value[i].set(d.sdf ? 1 : 0,
+    U.uDecE.value[i].set(d.sdf === 2 ? 2 : d.sdf ? 1 : 0,   // LIVERY-STICKERS: 2 a field that is not letters (a sticker)
       Math.max(0, Math.min(1, +d.metal || 0)),
       d.one < 0 ? -1 : d.one ? 1 : 0,   // LIVERY-STICKERS: -1 the other flank
       (on.stab != null ? on.stab : on.tail) ? 1 : 0);   // y: metallic (G215)  z: one side only  w: the stabiliser (class 3)
@@ -3372,7 +3387,7 @@ function aeroFastTex(THREE, gk, G) {
 }
 
 const AERO_PARS_FS = `
-#define AERO_MAXD 13
+#define AERO_MAXD 15
 uniform sampler2D tDetail;
 uniform sampler2D tFast;
 uniform vec4 uG0;   // x framePitch  y stringerPitch  z panelAlong  w panelAround
@@ -4092,8 +4107,10 @@ const AERO_ALBEDO_FS = `
     float aSg = (aOne < 0.0) ? -1.0 : 1.0;
     float aSide = step(-0.02, aSg * aeroA.x) * step(0.0, aSg * vCraftNrm.x);
     // (uDecE.x marks the letters: the one sdf page. uDecOk 0.5, a float: paint yes, letters no)
+    // LIVERY-STICKERS: uDecE.x 1 = letters (a distance field a float declines), 2 = a sticker's field (a float takes it)
+    float aLet = step(0.5, uDecE[di].x) * step(uDecE[di].x, 1.5);
     float w = ib.x * ib.y * uDecC[di].z * onMe
-            * (1.0 - uDecE[di].x * step(uDecOk, 0.75))
+            * (1.0 - aLet * step(uDecOk, 0.75))
             * mix(1.0, aSide, step(0.5, abs(aOne)));
     // INSET against mip bleed: at low mip a page averages into its
     // neighbours, and a gutter costs a page of atlas where an inset costs
@@ -4115,7 +4132,7 @@ const AERO_ALBEDO_FS = `
     // the threshold falls — at any zoom, one screen pixel wide (fwidth), and
     // the texels behind it can be as coarse as they like. MIXED, not
     // branched: the loop is uniform and fwidth wants every lane.
-    float aSdf = uDecE[di].x;
+    float aSdf = step(0.5, uDecE[di].x);   // 1 or 2: a distance field
     float aSw = max(fwidth(tx.a) * 0.75, 0.003);
     float aCov = mix(tx.a, smoothstep(0.5 - aSw, 0.5 + aSw, tx.a), aSdf);
     float a = aCov * w;

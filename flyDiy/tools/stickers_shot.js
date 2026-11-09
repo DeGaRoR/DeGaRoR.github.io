@@ -190,6 +190,18 @@ const MK = id => ['stol-river', 'grizzly-range', 'orca', 'winged-prop', 'midnigh
       const zMid = z.length ? (z[0] + z[z.length - 1]) / 2 : 0;
       const wp = new THREE.Vector3(0, y0 + 0.6, zMid).applyMatrix4(M.clone().invert());
       return { y0, zMid, zLo: z[0], zHi: z[z.length - 1], n: c.length, world: wp.toArray() }; });
+    // A FLOAT's side in the side box's frame: the body class's vertices out of the centreline (|x| > 0.6 m) and below the
+    // pod's own bottom - its length's middle and its height's middle (LIVERY-STICKERS: floats take stickers)
+    const floatOf = zTop => page.evaluate(zTop => {
+      const S = window.CAGE_UI_SCENE, M = AEROSKIN.aeroSharedU(THREE).uCraftInv.value, v = new THREE.Vector3(), b = [1e9, -1e9, 1e9, -1e9];
+      S.updateWorldMatrix(true, true);
+      S.traverse(o => { if (!o.isMesh || !o.visible || !o.geometry || !o.geometry.attributes.position) return;
+        const ms = Array.isArray(o.material) ? o.material : [o.material];
+        if (!ms.some(m => m && m.userData && m.userData.aeroskin && (m.userData.aeroWing | 0) === 0)) return;
+        const P = o.geometry.attributes.position, st = Math.max(1, Math.floor(P.count / 4000));
+        for (let i = 0; i < P.count; i += st) { v.fromBufferAttribute(P, i).applyMatrix4(o.matrixWorld).applyMatrix4(M);
+          if (Math.abs(v.x) > 0.6 && v.z < zTop) { b[0] = Math.min(b[0], v.y); b[1] = Math.max(b[1], v.y); b[2] = Math.min(b[2], v.z); b[3] = Math.max(b[3], v.z); } } });
+      return b[1] > b[0] ? { y: (b[0] + b[1]) / 2, len: b[1] - b[0], z: (b[2] + b[3]) / 2, ht: b[3] - b[2] } : null; }, zTop);
     // THE COMPOSITIONS: 3-4 stickers a plane, placed off the measured boxes
     const COMPOSE = {
       async cub(P) {
@@ -208,8 +220,8 @@ const MK = id => ['stol-river', 'grizzly-range', 'orca', 'winged-prop', 'midnigh
         };
       },
       async twin(P) {
-        const fin = await fitOf(6, 1), wing = await fitOf(4, 2), nose = await noseOf();
-        R.fits = { fin, wing, nose }; log('fits', JSON.stringify(R.fits));
+        const fin = await fitOf(6, 1), wing = await fitOf(4, 2), nose = await noseOf(), flt = await floatOf(nose.zLo - 0.3);
+        R.fits = { fin, wing, nose, flt }; log('fits', JSON.stringify(R.fits));
         const T = R.twin.meta, ink = T.trim != null ? T.trim : 0x1b3a5c, green = 0x22432b;
         // the orca on both fins (mirrored on the left: it leaps forward on both flanks), the panorama on the pod's flanks
         // (side box, behind the nose), the midnight valley on a wing's top in the trim
@@ -218,6 +230,9 @@ const MK = id => ['stol-river', 'grizzly-range', 'orca', 'winged-prop', 'midnigh
           2: { On: 1, Mk: MK('orca'), Col: ink, Mir: 1, H: +(fin.H * 0.45).toFixed(2), L: +fin.L.toFixed(2), C: +(fin.C + fin.H * 0.05).toFixed(2), Tgt: 6, Mode: 1 },
           // (the wing without the registration's wing copy; the trim's orange on the white and green: the dark green vanished)
           4: { On: 1, Mk: MK('midnight-valley'), Col: ink, H: 1.0, L: +(wing.L + wing.W * 0.27).toFixed(2), C: +wing.C.toFixed(2), Tgt: 4, Mode: 2 },
+          // THE FLOATS TAKE STICKERS (the user, 9 Nov): the lighthouse on both floats' sides, in the side box at the float's
+          // middle (the letters are still declined there - the registration does not land on a float)
+          3: flt ? { On: 1, Mk: MK('lighthouse'), Col: green, H: +Math.min(0.42, flt.ht * 0.75).toFixed(2), L: +(flt.y + flt.len * 0.12).toFixed(2), C: +flt.z.toFixed(2), Tgt: 0, Mode: 1 } : undefined,
         };
       },
     };
@@ -243,6 +258,22 @@ const MK = id => ['stol-river', 'grizzly-range', 'orca', 'winged-prop', 'midnigh
           await shoot(key + '_' + gfx + '_above', [-Math.PI / 2 - 0.5, 0.80, 0.95 * span], P.wing.c);
         }
         if (key === 'cub') {
+          // THE FIRST PLACE, through the panel (the user: "in the middle of the fuselage"): slot 3 (empty here) ticked on
+          // as a player does; its station must be the body's field box mid-length and its height the waist (0)
+          const fld = await fitOf(0, 0);
+          await stick(st);
+          R.firstPlace = await page.evaluate(async () => {
+            const det = document.querySelector('[data-g="sticker/3"]'); if (!det) return { err: 'no sticker block 3' };
+            const c = det.querySelector('input[type=checkbox]'); if (!c) return { err: 'no on tick' };
+            c.click(); await new Promise(r => setTimeout(r, 2500));
+            const d = (CAGE_UI.finishToSpec() || {}).decals || {};
+            return { vn3On: d.vn3On, vn3L: d.vn3L, vn3C: d.vn3C, vn3Mode: d.vn3Mode }; });
+          R.firstPlace.fieldMid = +fld.L.toFixed(2);
+          log('first place', JSON.stringify(R.firstPlace));
+          if (R.firstPlace.vn3On !== 1 || Math.abs((R.firstPlace.vn3L || 0) - fld.L) > 0.011 || (R.firstPlace.vn3C != null && R.firstPlace.vn3C !== 0))
+            fail('a slot switched on did not go to the middle of the fuselage: ' + JSON.stringify(R.firstPlace));
+          await shoot(key + '_' + gfx + '_first_place', [-Math.PI / 2 - 0.10, 0.05, 0.62 * span], B.c);
+          await stick(st);                       // (the composition back: slot 3 off again)
           // the nose's flanks at mid range, aimed half way from the centre to the cowl (closer, the shed's walls clamp the eye)
           const nw = R.fits.nose.world, mid = B.c.map((x, i) => (x + nw[i]) / 2);
           await shoot(key + '_' + gfx + '_nose_right', [-Math.PI / 2 - 0.30, 0.06, 0.52 * span], mid);

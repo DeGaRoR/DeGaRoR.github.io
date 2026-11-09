@@ -21,7 +21,8 @@
 //                 margin grown out), the width = the size x the mark's aspect, the rect = the slot's own cell of page
 //                 15 (four disjoint cells, none outside the page, none on pages 0-14), the order kit < stickers <
 //                 registration, and the worst case (5 kit + 4 stickers + both registrations + strip + master = 13)
-//                 kept whole in AERO_MAXD; parked.js's usedPages reads the cells back as page 15 (a parked aeroplane's
+//                 kept whole inside AERO_MAXD = 15 (the user's cap: a shared budget - the fixed markings always, the kit
+//                 then the stickers give way from the last, `dropped` counted); uDecE.x 2 for a sticker (a float takes it); parked.js's usedPages reads the cells back as page 15 (a parked aeroplane's
 //                 atlas copy holds the pages its stickers read)
 //   6 THE DRAW    aeroVinylDraw on a recording canvas: the mark's every ring traced inside its slot's ink box and
 //                 touching all four sides of it (fitted, aspect kept), filled even-odd in the picked colour (the trim
@@ -29,7 +30,8 @@
 //                 geometry the cell is cleared and the lazy file is asked for, once
 //   7 SOURCE      the shader's one-side test takes the sign (-1 the other flank) and both AERO_MAXDs are 13;
 //                 livery_marks.js is a lazy file (build.js MANIFEST.lazy, in FLYDIY_LAZY_SRC, its rings not inlined in
-//                 index.html); the panel builds AERO_VINYL_N sticker blocks (data-dec 'vny') and editor.js heads them
+//                 index.html); the panel builds AERO_VINYL_N sticker blocks (data-dec 'vny') and editor.js heads them; a slot
+//                 switched on goes to the middle of the fuselage (the editor's decVinylFirstPlace, run on a measured box)
 // Run: node tools/_liverystickers_check.js [--verbose] [--selftest]      (one final `GATE LIVERYSTICKERS: ...`)
 'use strict';
 const fs = require('fs');
@@ -323,7 +325,7 @@ function run(SRC) {
     const r = A.aeroDecalsFor(THREE, worst, { reg: 'N1938J', trim: 0x111111 });
     W0.AERO_EXTRA_DECALS = null;
     const pages = r.list.map(d => d.page);
-    check(r.list.length === 13 && A.AERO_MAXD === 13, 'the worst case (5 kit + 4 stickers + 2 registrations + strip + master) is 13 slots, kept whole', pages.join(','));
+    check(r.list.length === 13 && r.dropped === 0 && A.AERO_MAXD === 15, 'the worst case today (5 kit + 4 stickers + 2 registrations + strip + master = 13) is kept whole inside the cap of 15', pages.join(','));
     const firstSt = pages.indexOf(15), lastSt = pages.lastIndexOf(15), lastKit = Math.max(...[3, 4, 5, 1, 2].map(p => pages.lastIndexOf(p))), reg = pages.indexOf(0);
     check(lastKit < firstSt && lastSt < reg, 'the paint order: the kit, then the stickers, then the registration', pages.join(','));
     A.aeroSetDecals(THREE, r.list);
@@ -339,6 +341,23 @@ function run(SRC) {
       const got = used({ AERO_ATLAS_N: A.AERO_ATLAS_N }, U).join(',');
       const want = [...new Set(r.list.map(d => d.page))].sort((a, b) => a - b).join(',');
       check(got === want, 'parked.js reads the block\'s pages back right, the sticker cells as page 15', got + ' vs ' + want);
+    }
+    // stickers are a distance field that is NOT lettering (uDecE.x 2: a float takes them); the registration's is (1)
+    { const ex = r.list.map((d, i) => d.page === 15 ? U.uDecE.value[i].x : null).filter(v => v != null);
+      const er = r.list.map((d, i) => d.page === 0 ? U.uDecE.value[i].x : null).filter(v => v != null);
+      check(ex.length === 4 && ex.every(v => v === 2) && er.length === 2 && er.every(v => v === 1), 'uDecE.x: 2 for a sticker (floats take it), 1 for the registration (floats decline it)', ex.join() + ' / ' + er.join()); }
+    // THE BUDGET (the user's cap of 15): more fixed markings than today forces the trim - the fixed ones are all kept, the
+    // kit gives way first (its last layers), then the stickers (their last slots); `dropped` counts what found no slot
+    for (const [nx, want] of [[6, { kit: [3, 4, 5], st: 4, drop: 2 }], [9, { kit: [], st: 4, drop: 5 }], [12, { kit: [], st: 1, drop: 8 }]]) {
+      W0.AERO_EXTRA_DECALS = () => Array.from({ length: nx }, (_, i) => ({ page: 6, sL: i, sC: 0, w: 0.1, h: 0.1 }));
+      const t = A.aeroDecalsFor(THREE, worst, { reg: 'N1938J', trim: 0x111111 });
+      W0.AERO_EXTRA_DECALS = null;
+      const pg = t.list.map(d => d.page);
+      const kitP = pg.filter(p => [1, 2, 3, 4, 5].includes(p)), stN = pg.filter(p => p === 15).length, fixN = pg.filter(p => p === 0 || p === 6).length;
+      const firstSt = t.list.find(d => d.page === 15);
+      check(t.list.length <= A.AERO_MAXD && fixN === 2 + nx && kitP.join() === want.kit.join() && stN === want.st && t.dropped === want.drop &&
+            (!firstSt || JSON.stringify(firstSt.rect) === JSON.stringify(cells[0])),
+        'the budget with ' + nx + ' more fixed markings: every fixed one kept, the kit then the stickers give way from the last', pg.join(',') + ' dropped ' + t.dropped);
     }
     const rf = r.list.filter(d => d.page !== 15).map(d => d.rect).filter(Boolean);
     check(rf.length === 0, 'no other decal carries a rect (pages 0-14 are untouched)');
@@ -392,7 +411,9 @@ function run(SRC) {
   check(/float aSg = \(aOne < 0\.0\) \? -1\.0 : 1\.0;/.test(SRC.skin) && /step\(-0\.02, aSg \* aeroA\.x\) \* step\(0\.0, aSg \* vCraftNrm\.x\)/.test(SRC.skin) &&
         /mix\(1\.0, aSide, step\(0\.5, abs\(aOne\)\)\)/.test(SRC.skin), 'the shader\'s one-side test takes the sign');
   check(/d\.one < 0 \? -1 : d\.one \? 1 : 0/.test(SRC.skin), 'aeroSetDecals hands the sign');
-  check(/const AERO_MAXD = 13;/.test(SRC.skin) && /#define AERO_MAXD 13\n/.test(SRC.skin), 'both AERO_MAXDs are 13');
+  check(/const AERO_MAXD = 15;/.test(SRC.skin) && /#define AERO_MAXD 15\n/.test(SRC.skin), 'both AERO_MAXDs are 15 (the user\'s cap)');
+  check(/float aLet = step\(0\.5, uDecE\[di\]\.x\) \* step\(uDecE\[di\]\.x, 1\.5\);/.test(SRC.skin) && /\(1\.0 - aLet \* step\(uDecOk, 0\.75\)\)/.test(SRC.skin) &&
+        /float aSdf = step\(0\.5, uDecE\[di\]\.x\);/.test(SRC.skin), 'the shader: a float declines letters (uDecE.x 1) and takes a sticker (2); both thresholded as a field');
   check(/\['src\/viewer', 'livery_marks\.js'\]/.test(SRC.build) && /lazy: \[/.test(SRC.build), 'livery_marks.js is in build.js MANIFEST.lazy');
   check(/FLYDIY_LAZY\('livery_marks'\)/.test(SRC.skin), 'aeroskin asks the lazy loader for it');
   check(/await A\.aeroVinylWait\(spec\)/.test(SRC.flown), 'the flown bake waits for the marks before it draws (its cache is keyed by the build)');
@@ -403,6 +424,22 @@ function run(SRC) {
   }
   check(/DECG\.cur = 'vny';/.test(SRC.ui) && /for \(let li = 1; li <= A\.AERO_VINYL_N; li\+\+\)/.test(SRC.ui) && /det\.dataset\.dec = 'vny';/.test(SRC.ui),
     'the panel builds AERO_VINYL_N sticker blocks (data-dec vny)');
+  // THE FIRST PLACE (the user: "in the middle of the fuselage"): the editor's own decVinylFirstPlace, run on a measured box
+  {
+    const fn = grab(SRC.ui, /^function decVinylFirstPlace\(/m, '_cage_ui.js decVinylFirstPlace').text;
+    const run1 = (D, box) => { const W = { Math, Number, DEC: D, DEC_DEF: Object.assign({}, A.AERO_DEC_DEF), SYNC: {}, AK: () => A, decFitScan: () => box, out: null };
+      vm.createContext(W); vm.runInContext(fn + '\nout = decVinylFirstPlace("vn2");', W); return W.out; };
+    const box = [[[0.4, 5.2, -0.6, 0.9], [0, 0, 0, 0], [0, 0, 0, 0]]];
+    const D1 = Object.assign({}, A.AERO_DEC_DEF, { vn2On: 1 });
+    const ok1 = run1(D1, box);
+    check(ok1 === true && D1.vn2L === 2.8 && D1.vn2C === 0, 'a slot switched on goes to the middle of the fuselage (the field box\'s mid-length, the waist)', JSON.stringify({ L: D1.vn2L, C: D1.vn2C }));
+    const D2 = Object.assign({}, A.AERO_DEC_DEF, { vn2On: 1, vn2L: 1.1 });
+    check(run1(D2, box) === false && D2.vn2L === 1.1, 'a placement the player already moved is left alone');
+    const D3 = Object.assign({}, A.AERO_DEC_DEF, { vn2On: 1 });
+    check(run1(D3, null) === false && D3.vn2L === A.AERO_DEC_DEF.vn2L, 'no geometry: the defaults stand');
+    check(/decVinylFirstPlace\(q\); \} redo\(\); \}, det\);/.test(SRC.ui) && /SYNC\[q \+ 'On'\]\(\); decVinylFirstPlace\(q\); \}/.test(SRC.ui),
+      'the on tick and a mark button that switches a slot on both place it');
+  }
   check(/by\.vny/.test(SRC.editor) && /emitEls\(p0, 'stickers', by\.vny/.test(SRC.editor), 'the finish view heads them "stickers"');
   return { fails, n, notes };
 }
@@ -415,8 +452,11 @@ if (process.argv.includes('--selftest')) {
     ['the left side mapped to the right', { skin: s => s.replace("one: side === 0 ? 0 : (side === 1 ? AERO_VINYL_RIGHT : -AERO_VINYL_RIGHT),", "one: side === 0 ? 0 : AERO_VINYL_RIGHT,") }],
     ['a mark\'s ink box moved', { skin: s => s.replace("{ id: 'orca', name: 'Orca', b: [4, 58.1, 236, 224] }", "{ id: 'orca', name: 'Orca', b: [4, 50, 236, 224] }") }],
     ['the margin not grown out', { skin: s => s.replace("L.place.w = L.place.w * c.grow[0]; L.place.h = L.place.h * c.grow[1];", "") }],
-    ['the stickers under the kit', { skin: s => s.replace("for (const L of aeroVinylLayers(D, trim)) { aeroVinylDraw(THREE, L); list.push(aeroVinylRect(L)); }", "for (const L of aeroVinylLayers(D, trim)) { aeroVinylDraw(THREE, L); kit.unshift(aeroVinylRect(L)); }") }],
-    ['AERO_MAXD left at 9', { skin: s => s.replace('const AERO_MAXD = 13;', 'const AERO_MAXD = 9;').replace('#define AERO_MAXD 13', '#define AERO_MAXD 9') }],
+    ['the stickers under the kit', { skin: s => s.replace("return { list: kit.slice(0, keepK).concat(vinyl.slice(0, keepV), list), aspect,", "return { list: vinyl.slice(0, keepV).concat(kit.slice(0, keepK), list), aspect,") }],
+    ['AERO_MAXD at 19 (the sum, not the cap)', { skin: s => s.replace('const AERO_MAXD = 15;', 'const AERO_MAXD = 19;').replace('#define AERO_MAXD 15', '#define AERO_MAXD 19') }],
+    ['the stickers give way before the kit', { skin: s => s.replace('const keepV = Math.min(vinyl.length, room), keepK = Math.min(kit.length, room - keepV);', 'const keepK = Math.min(kit.length, room), keepV = Math.min(vinyl.length, room - keepK);') }],
+    ['stickers as letters (floats decline them)', { skin: s => s.replace("rough: -0.06, sdf: 2, metal: 0,", "rough: -0.06, sdf: 1, metal: 0,") }],
+    ['the first place off the middle', { ui: s => s.replace("DEC[q + 'L'] = +((f[0] + f[1]) / 2).toFixed(2);", "DEC[q + 'L'] = +f[1].toFixed(2);") }],
     ['the editor not folding the rows', { ui: s => s.replace("        if (!(key in DEC_DEF)) DEC_DEF[key] = A.AERO_VINYL_LDEF[k];", "") }],
     ['the lazy entry dropped', { build: s => s.replace("['src/viewer', 'livery_marks.js']", "['src/viewer', 'livery_marks_x.js']") }],
     ['parked.js back on the corner', { parked: s => s.replace("const px = Math.floor((r.x + r.z / 2) * N), py = N - 1 - Math.floor((r.y + r.w / 2) * N);", "const px = Math.round(r.x * N), py = N - 1 - Math.round(r.y * N);") }],
