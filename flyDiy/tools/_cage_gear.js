@@ -1372,8 +1372,10 @@ function wellHitsTank(w, r) {
 // THE RED ROWS (_cage_ui.js applyRowVis reads this after every build): row key -> the reason, or null when it fits
 window.CAGE_ROW_BAD = () => {
   const G = window.CAGE_GEAR, fit = G && G.fit;
-  if (!fit) return null;
-  const rows = Object.assign({}, fit.rows);
+  // WILGA-GEAR: a trailing-link leg whose tyre enters the body at full stroke turns its drop and its full-stroke rows red
+  const lvBad = G && G.leverBad;
+  if (!fit) return lvBad && Object.keys(lvBad).length ? Object.assign({}, lvBad) : null;
+  const rows = Object.assign({}, fit.rows, lvBad || {});
   for (const h of fitTanks(fit)) {
     const why = UNIT_WORD[h.unit] + ' meets a tank (' + ((h.tank.bay && (h.tank.bay.name || h.tank.bay.key)) || h.tank.on) + ')';
     for (const k of FIT_ROWS[h.unit].fold.concat([FIT_ROWS[h.unit].st + 'Z', 'gearRetFrac'])) if (!rows[k]) rows[k] = why;
@@ -2730,6 +2732,7 @@ PAGE.post = ctx => {
         else r = GG.legOleo(lb, AFx, st.P, st, sgn);
         rOleo = r; retLow = st.ret ? st.ret.low || null : null; retSc = st.ret ? st.ret.scissor || null : null;
         if (retLow && wu.proxy) wu.proxy.brakefix = retLow.brakefix;      // (the caliper rides the piston with its wheel)
+        if (lb.lever && wu.proxy) wu.proxy.brakefix = lb.lever.arm.brakefix;   // (WILGA-GEAR: and the trailing arm's)
         // G133: spats ride their UNITS now, not the static shared bags —
         // a nose spat sits on its fork, a main spat on its own leg, so
         // the flown aeroplane carries them with the moving parts
@@ -3068,8 +3071,28 @@ PAGE.post = ctx => {
       o.matrix.decompose(o.position, o.quaternion, o.scale);
     });
   }
+  // WILGA-GEAR: DOES THE TYRE CLEAR THE BODY AT FULL STROKE (the arm at its full-stroke angle, the tyre's inner face and its
+  // upper half sampled, each point against the body's section at its station - clearBody's radial test): if not, the drop
+  // and the full-stroke angle go red (CAGE_ROW_BAD) - a side view's overlap is not a hit, the wheel is outboard of the body
+  let leverBad = null;
+  if (leverOut.length && GLv && AF && typeof AF.surf === 'function' && typeof AF.cyAt === 'function') for (const u of leverOut) {
+    const L = GLv.gearLeverInit({ piv: u.piv, ax: u.ax, w: u.w, axle: u.axle, horn: u.horn, top: u.top });
+    const q = GLv.gearLeverAt(L, (u.rows.ang - u.rows.comp) * Math.PI / 180), st = contacts.find(c => Math.sign(c.p[0]) === Math.sign(u.axle[0]));
+    const R = st ? st.R : 0.2, sg = Math.sign(u.axle[0]) || 1;
+    let hit = false;
+    for (let k = 0; k <= 12 && !hit; k++) {
+      const a = Math.PI * k / 12, p = [q.axle[0] - sg * 0.45 * R, q.axle[1] + R * Math.sin(a), q.axle[2] + R * Math.cos(a)];
+      const cy = AF.cyAt(p[2]), dx = p[0], dy = p[1] - cy, rp = Math.hypot(dx, dy);
+      if (rp < 1e-6) { hit = true; break; }
+      const sf = AF.surf(p[2], Math.atan2(dx, -dy));
+      if (sf && isFinite(sf[0]) && rp < Math.hypot(sf[0], sf[1] - cy) + 0.02) hit = true;
+    }
+    if (hit) { const why = 'at full stroke the tyre meets the body (a longer leg, or less swing)';
+      leverBad = Object.assign(leverBad || {}, { s1Drop: why, s1_lvComp: why }); }
+  }
   window.CAGE_GEAR = { AF, contacts, pitch, gy, saddles: saddlesOut,
     ...(leverOut.length ? { lever: leverOut } : {}),                // WILGA-GEAR: the trailing-link legs as drawn
+    ...(leverBad ? { leverBad } : {}),
     ...(swing ? { swing } : {}),
     ...(fit ? { fit } : {}),            // G2: does the fold fit (foldFit; the rows it turns red: CAGE_ROW_BAD)
     ...(mech ? { mech: mech.R, mechInfo: mech.info } : {}),   // GM2/GM3: the mechanism's record (gearMechPose) and its numbers
