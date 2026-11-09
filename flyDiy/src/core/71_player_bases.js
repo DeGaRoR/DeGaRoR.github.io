@@ -146,7 +146,11 @@ const BASE_OFFERS = {
     plots: {
       HOME: { shells: ['club', 'works', 'field'], kits: null, pf: 1, starter: true,
               dims: { field: { HW: 9, HD: 10, EAVE: 4.0 } } },
-      'HOME.2': { shells: ['works', 'club', 'field'], kits: ['park'], pf: 1,
+      // DERELICT-HANGAR (the user 9 Nov: "in the story at some point you can buy that one ... it's actually restoring it,
+      // from the state of the actual ... World War II hangar, which is currently derelict"): until it is held, HOME.2
+      // stands the large hangar DERELICT (closedStage 0: DERELICT_GEN's stage, the world's derelictShell); held, it is the
+      // player's - restored unless the story names its stage (dims.stage)
+      'HOME.2': { shells: ['works', 'club', 'field'], kits: ['park'], pf: 1, closedShed: true, closedStage: 0,
                   dims: { field: { HW: 9, HD: 10, EAVE: 4.0 } } },
     },
   },
@@ -251,6 +255,8 @@ function hangarDims(shed) {
   // G3540: a shed's own sign ({ key, w, inside }: HANGAR_GEN signDials - over the door, and on the back wall inside)
   if (d.sign && typeof d.sign.key === 'string' && d.sign.key) out.sign = Object.assign({}, d.sign);
   if (d.ground && typeof d.ground.set === 'string' && d.ground.set) out.ground = Object.assign({}, d.ground);   // G3541/G3542
+  // DERELICT-HANGAR: the large hangar's restoration stage (0 derelict .. 3 restored; the story's to set - absent, restored)
+  if (Number.isFinite(d.stage)) out.stage = Math.max(0, Math.min(3, Math.round(d.stage)));
   return out;
 }
 // THE DOOR, hangar.js's own two lines (GATE GAMEPREM source-scans them so the
@@ -1335,7 +1341,9 @@ function playerClosedSheds(doc) {
     for (const id of Object.keys(O.plots)) {
       const P = O.plots[id], shell = P.shells && P.shells[0];
       if (!P.closedShed || S[id] || !shell || typeof SHELLS === 'undefined' || !SHELLS[shell]) continue;
-      out.push({ id, base: aero, shell, dims: hangarDims({ shell, dims: Object.assign({}, SHELLS[shell].dims, (P.dims && P.dims[shell]) || {}) }), closed: true });
+      const dims = hangarDims({ shell, dims: Object.assign({}, SHELLS[shell].dims, (P.dims && P.dims[shell]) || {}) });
+      if (Number.isFinite(P.closedStage)) dims.stage = P.closedStage;   // (DERELICT-HANGAR: the plot's building as it stands unbought)
+      out.push({ id, base: aero, shell, dims, closed: true });
     }
   }
   return out;

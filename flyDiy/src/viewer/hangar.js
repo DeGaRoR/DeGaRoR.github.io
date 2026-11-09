@@ -2452,8 +2452,9 @@ let DGR_STATS = null;
 if (DGR) {
   try {
     const gal = (typeof SHELLS !== 'undefined' && SHELLS.works && SHELLS.works.galleries) || { right: 5.5, left: 1.0 };
-    const F = DGR.makeFinish();
-    const P = { stage: 3, HW, HD, EAVE, floorY: 0, doorOpen: 1, apron: 0, weeds: 0, barriers: 0, aoGround: 0,
+    const F = DGR.makeFinish('room');
+    const stage = Number.isFinite(+D0.stage) ? Math.max(0, Math.min(3, Math.round(+D0.stage))) : 3;   // (the story's stage; restored)
+    const P = { stage, HW, HD, EAVE, floorY: 0, doorOpen: 1, apron: 0, weeds: stage < 3 ? 1 : 0, barriers: stage < 3 ? 1 : 0, aoGround: 0,
                 room: 1, offices: 1, lamps: 1, gallery: gal.right, galleryL: gal.left };
     DGR.applyFinish(P, F);
     const b = DGR.build(P, 0, F);
@@ -3445,6 +3446,24 @@ for (const [x, z, y, hk] of LAMP_AT) {
   lamps.push(L);
   G.add(g);
 }
+// DERELICT-HANGAR: THE LARGE HALL'S FILL (the user 9 Nov: "it's gonna look dark with the five lamps, so I'd rather that you
+// add some"). Six more high-bay fittings over the clear bay - two rows of three either side of the door's line, under the
+// trusses - lit as the five are (the mood's lamp level, the filament's colour, the lamps' switch), but WITHOUT shadow maps:
+// a spot map is a fragment texture unit (G62.10: 5 maps + 1 + 7 samplers = 13 of 16) and the moving aeroplane already has
+// the five over it. Kept apart from `lamps` (lampsAt / setLampsAt are the five's).
+const fill = [];
+if (DGR) for (const fx of [-12.5, 0.5, 12.5]) for (const fz of [-8.5, 8.5]) {
+  const x = fx * HD / 20, z = DOOR_Z + fz, y = Math.min(EAVE - 2.2, 7.3), hook = 1.30;
+  const g = new THREE.Group(); g.position.set(x, y, z);
+  claim(prop('lamp_pendant', x, z, rr(-3, 3), y + hook), 'lamps');
+  const rodH = roofY(z) - (y + hook);
+  g.add(cyl(0.012, 0.012, rodH, M.steelDark, 0, hook + rodH / 2, 0, 6));
+  const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.055, 10, 8), M.bulb); bulb.position.y = 0.12; bulb.castShadow = false; g.add(bulb);
+  const L = new THREE.SpotLight(LAMP.rgb.getHex(), 90, 26, LAMP.angle, 0.5, 2);
+  L.castShadow = false; L.target.position.set(x, 0, z); G.add(L.target);
+  L.position.y = 0.12; L.userData.hk = Math.max(0.1, Math.min(1.6, (y / (7.0 * 0.74)) * (y / (7.0 * 0.74))));
+  g.add(L); fill.push(L); G.add(g);
+}
 // G2315 THE LOW PENDANTS (the cozy works): a shade on its rod and a lit bulb over a table or a bench - no light of their
 // own (the five fittings above light the rooms; a sixth shadow map is past the texture-unit budget the cross was cut
 // to), on the lamps' switch, so they burn and go out with the rig
@@ -3732,6 +3751,7 @@ function applyMutes(m) {
   if (muted.stove && STOVE.light) STOVE.light.intensity = 0;
   if (muted.lamps) {
     for (const L of lamps) L.intensity = 0;
+    for (const L of fill) L.intensity = 0;      // (the large hall's fill)
     if (WORK.light) WORK.light.intensity = 0;   // G3354
     M.bulb.emissiveIntensity = 0;
   }
@@ -3879,7 +3899,7 @@ const setMood = i => {
   // noon and the aeroplane blown white (the user's 003140, "even after
   // reloading the page"). Inverse-square on the hang height, the club's own
   // eave the identity, so every row's number still means what it measured.
-  for (const L of lamps) {
+  for (const L of lamps.concat(fill)) {          // (the large hall's fill burns with the five)
     L.intensity = m.lamp * LAMP.gain * (L.userData.hk || LAMP_HK);
     L.angle = LAMP.angle;
     L.color.copy(LAMP.rgb);
@@ -4301,7 +4321,7 @@ return {
   // S2): the editor paints the report, the gate asserts nothing is dropped
   // silently
   kits: KITS.slice(), fitReport: FIT,
-  lights: { key: key, lamps: lamps },
+  lights: { key: key, lamps: lamps, fill: fill },
   lampRig: lampRig, setLampRig: setLampRig, lampRigDefault: lampRigDefault,
   texBudget: texBudget,        // dev: what the room costs in fragment samplers
   census: census,              // dev: meshes and triangles, which ARE draw calls here

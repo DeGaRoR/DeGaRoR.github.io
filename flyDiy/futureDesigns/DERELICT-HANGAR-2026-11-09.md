@@ -155,3 +155,19 @@ one, same mesh even", and keep the galleries, refitting the layouts. What it tou
    right) with the gallery's ground floor as the workshop / store / office; the shop wall stays on the facade side.
 4. **The world**: render_world's works exterior (polishedShell 'works hangar') becomes DERELICT_GEN at the plot's
    stage; GATE HOUSE 43's works row moves to GATE DERELICT.
+
+## 8. As built: the room and the world (9 Nov, after the user's reviews)
+
+- **HANGAR 1 / HANGAR 2.** The large hangar is HANGAR 1 (its board over the office door); the club's medium hangar
+  carries a HANGAR 2 board on its right pier. The story: the player starts in HANGAR 2 and restores HANGAR 1.
+- **The room** (hangar.js shell 'works', name 'Large hangar', frame 'steel'): DERELICT_GEN stage 3 turned into the
+  room frame, doors open at the front, **the back leaves shut** (`backOpen: 0`, the default); the right gallery's offices
+  lit (pendant panels under the window heads, a few desks), the left a facade. The five shadowed lamps of the old
+  works room keep their cost; **six unshadowed fill pendants** (`lights.fill`) over the bay carry the light the user
+  asked for (the shadow maps are texture units: 13 of 16 in use, so the fill casts none). No stove.
+- **The layouts**: placed as if the galleries were not there, rows that would stand in the gallery pulled to its
+  front ('in the gallery' when its floor is taken); the aircraft slot centred on the door's line (`hangarBay`).
+- **The world**: render_world's works exterior is DERELICT_GEN at the plot's `stage` (default 3, `makeFinish('world')`,
+  `coarseCast` for the coarse rung). HOME.2 is a `closedShed` at `closedStage: 0`: it stands derelict until held, then
+  restored. The stand (`standFor`) and the parking lane follow the door's line (`doorZ`). The visual check of the world
+  is for a GPU session; the headless gates (WORLDRENDER, GAMEPREM, TAXICLEAR, PREMISES) cover its contracts.

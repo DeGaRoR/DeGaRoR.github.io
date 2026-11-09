@@ -50,7 +50,7 @@ const DEF = {
   wet: 0.65,       // the slab after rain (stages 0-1; the roofed slab dries): 0 dry .. 1 a sheet of water
   gallery: 5.5, galleryL: 1.0, bay: 5,   // gallery: the right's depth; galleryL: the left facade's
   graffiti: 1, barriers: 1, weeds: 1, litter: 1, rubble: 1, lamps: 0,   // lamps: the made-safe line's warning lamps lit (the night's)
-  apron: 0, apronL: 26, doorOpen: 0,   // doorOpen: the restored hangar's doors, 0 shut .. 1 open (telescoped to the jambs)   // the build's own cracked apron (the premises' pavement draws it in game)
+  apron: 0, apronL: 26, doorOpen: 0, backOpen: 0,   // the restored hangar's doors, 0 shut .. 1 open (telescoped to the jambs): the front's, the back's   // the build's own cracked apron (the premises' pavement draws it in game)
   ao: 0.8, aoRange: 0.9, aoGround: 1,
 };
 const ROWS = [
@@ -1246,6 +1246,7 @@ function build(P0, lod, F) {
   const doors = [];
   if (rest) {
     const open = clamp(P.doorOpen || 0, 0, 1);
+    const openB = clamp(P.backOpen || 0, 0, 1);   // (the user 9 Nov: "close the back door in the restored version" - its own dial, shut)
     const leaf = (cx, zf, w, y0, y1, out) => {
       const F2 = frame([cx - w / 2 * out, 0, zf], [out, 0, 0], Yup);      // X across the leaf, N toward `out` z
       sheet(bags.sheetPale, F2, 0, w, y0, y1, 0.035, { lod: L });
@@ -1270,7 +1271,7 @@ function build(P0, lod, F) {
     for (let i = 0; i < 4; i++) {
       const side = i < 2 ? -1 : 1, trk = side < 0 ? i : 3 - i;
       const xc = -BW / 2 + (BW / 4) * (i + 0.5), xo = side * (BW / 2 + bw * (0.6 + (1 - trk) * 0.9));
-      leaf(xc + (xo - xc) * open, -HD + 0.38 + trk * 0.2, bw, fy + 0.03, by1, -1);
+      leaf(xc + (xo - xc) * openB, -HD + 0.38 + trk * 0.2, bw, fy + 0.03, by1, -1);
     }
   }
 
@@ -1855,9 +1856,11 @@ function calibrate(m, img, target, hue, then) {
 }
 let MATS = null;
 function matsOrNull() { return MATS; }
-function makeMats() {
+// a finish's materials are its own (`tag`: the room's, the world's): the house shader's uniforms (the dirt line lifted by
+// where the building stands) live on the finish, and a material shared by two finishes would take the first's alone
+function makeMats(tag) {
   if (typeof MATLIB === 'undefined' || typeof THREE === 'undefined' || !THREE.MeshStandardMaterial) return null;
-  const sh = (k, shape, p) => MATLIB.shared(THREE, shape, p, 'derelict:' + k);
+  const sh = (k, shape, p) => MATLIB.shared(THREE, shape, p, 'derelict:' + (tag ? tag + ':' : '') + k);
   const side2 = THREE.DoubleSide;
   const M = {};
   for (const k of ['steel', 'steelNew', 'concFloor', 'concWall', 'ply']) M[k] = sh(k, 'std', { color: 0xa09080, roughness: 0.9, metalness: 0 });
@@ -1891,7 +1894,7 @@ function wetFrom(M) {
   w.color.setRGB((l + (c.r - l) * WET_SAT) * WET_DARK, (l + (c.g - l) * WET_SAT) * WET_DARK, (l + (c.b - l) * WET_SAT) * WET_DARK);
   w.needsUpdate = true;
 }
-function makeFinish() { const M = makeMats(); return { MAT: M, SHADE_U: HG.makeShadeU(), hn: HN() && HN().makeFinish ? HN().makeFinish() : null }; }
+function makeFinish(tag) { const M = makeMats(tag); return { MAT: M, SHADE_U: HG.makeShadeU(), hn: HN() && HN().makeFinish ? HN().makeFinish() : null }; }
 let DEFAULT_FINISH = null;
 function defaultFinish() { if (!DEFAULT_FINISH) { DEFAULT_FINISH = makeFinish(); MATS = DEFAULT_FINISH.MAT; } return DEFAULT_FINISH; }
 function applyFinish(P0, F0) {

@@ -712,8 +712,11 @@ function run(mut) {
       // offer's shed, shut, outside the two held; the sandbox stands nothing more (the r0 row above runs with CAREER_DEV off)
       ctx.CAREER_DEV = true;
       const PM = S.mn_strip && S.mn_strip.plots ? S.mn_strip.plots.find(q => q.id === 'mn_strip') : null;
+      // (DERELICT-HANGAR: HOME.2 is flagged too - the large hangar standing derelict until it is held; the mine's rows below
+      // read the mine's own sheds, HOME.2's are checked after them)
+      const notH2 = L => L.filter(q => q.id !== 'HOME.2');
       const c0 = run3(sb), cM = c0.list.find(q => q.id === 'mn_strip');
-      ok(!!PM && c0.list.length === 1 && !!cM && cM.closed === true && cM.x === PM.x && cM.z === PM.z && cM.dims.shell === 'field' && cM.dress === null && c0.built.length === 1,
+      ok(!!PM && notH2(c0.list).length === 1 && !!cM && cM.closed === true && cM.x === PM.x && cM.z === PM.z && cM.dims.shell === 'field' && cM.dress === null && c0.built.length === c0.list.length,
          'CLOSED-SHED: in a career the mine plot, not held, stands its offered shed shut at its plot (the only flagged plot)', J(c0.list));
       const c3 = run3(h3);
       ok(c3.built.length === 3 && c3.list.filter(q => !q.closed).length === 2 && c3.list.some(q => q.id === 'mn_strip' && q.closed),
@@ -721,16 +724,23 @@ function run(mut) {
       const hM = R.playerAcquire(sb, 'mn_strip', 'mn_strip', 'field', 'own');
       const cB = hM.ok ? run3(hM.doc) : null, bM = cB && cB.list.find(q => q.id === 'mn_strip');
       const key = q => q && J([q.x, q.z, q.ry, q.y, q.dims, q.dress || null]);
-      ok(hM.ok && !!bM && !bM.closed && cB.list.length === 1 && key(bM) === key(cM),
+      ok(hM.ok && !!bM && !bM.closed && notH2(cB.list).length === 1 && key(bM) === key(cM),
          'CLOSED-SHED: bought, the mine shed is the same shed (same place, shell, dims and no dress: the setPlayerSheds key unchanged, nothing rebuilt)', J([key(cM), key(bM)]));
       ctx.CAREER_DEV = false;
     }
     {
-      const cs = R.playerClosedSheds(sb), cs1 = cs[0];
+      const csAll = R.playerClosedSheds(sb), cs = csAll.filter(x => x.id !== 'HOME.2'), cs1 = cs[0];
       const hM = R.playerAcquire(sb, 'mn_strip', 'mn_strip', 'field', 'own');
       ok(cs.length === 1 && cs1.id === 'mn_strip' && cs1.base === 'mn_strip' && cs1.shell === 'field' && cs1.closed === true && hM.ok && eq(cs1.dims, R.hangarDims(hM.doc.sheds.mn_strip)),
          'CLOSED-SHED: playerClosedSheds lists the flagged plot not held, at the shell and dims playerAcquire gives', J(cs));
-      ok(hM.ok && R.playerClosedSheds(hM.doc).length === 0 && R.playerWorldSheds(hM.doc).some(x => x.id === 'mn_strip'), 'CLOSED-SHED: once held it leaves the closed list and stands as a held hangar');
+      ok(hM.ok && !R.playerClosedSheds(hM.doc).some(x => x.id === 'mn_strip') && R.playerWorldSheds(hM.doc).some(x => x.id === 'mn_strip'), 'CLOSED-SHED: once held it leaves the closed list and stands as a held hangar');
+      // DERELICT-HANGAR: HOME.2, not held, stands the large hangar derelict (stage 0); held, it leaves the closed list and its
+      // dims name no stage (the restored hangar, unless the story names one)
+      const h2 = csAll.find(x => x.id === 'HOME.2');
+      ok(!!h2 && h2.shell === 'works' && h2.closed === true && h2.dims.stage === 0 && h2.dims.HW === 20, 'CLOSED-SHED: HOME.2 unheld stands the large hangar derelict (stage 0)', J(h2));
+      const hH = R.playerAcquire(sb, 'HOME', 'HOME.2', 'works', 'own');
+      ok(!hH.ok || (!R.playerClosedSheds(hH.doc).some(x => x.id === 'HOME.2') && R.hangarDims(hH.doc.sheds['HOME.2']).stage === undefined),
+         'CLOSED-SHED: HOME.2 held leaves the closed list, restored (no stage)', J(hH.ok && hH.doc.sheds['HOME.2']));
       ok(!R.playerClosedSheds(h3).some(x => x.id === 'w3' || x.id === 'SEA' || x.id === 'mk_sea' || x.id === 'tw_ski'), 'CLOSED-SHED: an unflagged plot stands nothing (only the mine is flagged)');
     }
     ok(/function standShed\(dims\) \{[\s\S]{0,400}shedNode = shedNodeAt\(SITE\.hangar, dims\);/.test(R.__rw), 'S3 identity: HOME\'s shed is standShed\'s own build, undressed (no third argument)');

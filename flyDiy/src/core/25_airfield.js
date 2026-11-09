@@ -559,16 +559,18 @@ function siteHangarBox(H) {
 function standFor(site, dims, groundAt) {
   if (!site || !site.stand) return site ? site.stand : null;
   const h = site.hangar, st = site.stand;
-  if (!h || !dims || !(dims.HD > h.HD)) return st;
+  const lz = (dims && Number.isFinite(+dims.doorZ)) ? +dims.doorZ : 0;   // DERELICT-HANGAR: the door off the axis (the large hangar)
+  if (!h || !dims || (!(dims.HD > h.HD) && !lz)) return st;
   const dx = -CORE_MATH.cos(h.ry), dz = CORE_MATH.sin(h.ry);
-  let d = dims.HD - h.HD;
+  let d = Math.max(0, dims.HD - h.HD);
   if (site.apron) {   // stay 2 m inside the apron's far edge along the walk
     const ap = site.apron, EDGE = 2;
     const lim = dx < -1e-6 ? (st.x - (ap.x0 + EDGE)) / -dx : dx > 1e-6 ? ((ap.x1 - EDGE) - st.x) / dx : Infinity;
     const limz = dz < -1e-6 ? (st.z - (ap.z0 + EDGE)) / -dz : dz > 1e-6 ? ((ap.z1 - EDGE) - st.z) / dz : Infinity;
     d = Math.max(0, Math.min(d, lim, limz));
   }
-  const x = +(st.x + dx * d).toFixed(3), z = +(st.z + dz * d).toFixed(3);
+  // the door's line: the shed's local z (its width) is (sin ry, cos ry) in the world
+  const x = +(st.x + dx * d + CORE_MATH.sin(h.ry) * lz).toFixed(3), z = +(st.z + dz * d + CORE_MATH.cos(h.ry) * lz).toFixed(3);
   const g = typeof groundAt === 'function' ? +groundAt(x, z) : NaN;
   const elev = Number.isFinite(g) ? +g.toFixed(2) : st.elev;
   return elev !== undefined ? { x, z, hdg: st.hdg, walked: +d.toFixed(3), elev } : { x, z, hdg: st.hdg, walked: +d.toFixed(3) };
