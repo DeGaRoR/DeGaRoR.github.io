@@ -34,7 +34,7 @@ var FMIST = (function () {
   const S = {
     N: 512, X: 768,                 // the map's side and its first column in the atlas
     rho: 0.018,                     // per metre at a full pocket's heart (~220 m visibility there; the user 9 Nov: "less dense overall")
-    swing: 30, covK: 0.8, detailK: 7.7, erode: 0.6,   // the contours' swing (m), the share of a full pocket that is mist, the erosion's scale (x the body's) and depth
+    swing: 30, covK: 0.8, detailK: 7.7, erode: 0.5, soft: 0.5, stretch: 2.1,   // the contours' swing (m), the share of a full pocket that is mist, the erosion's scale (x the body's) and depth
     period: 160,                    // the noise's cell (m): a wisp a few tree lengths across
     lidM: 25, lidK: 110,            // the pool's lid over the valley floor: 25 m + 110 m x the pool weight
     wispLo: -12, wispHi: 40,        // the wisps' band about the canopy top (m)
@@ -42,9 +42,9 @@ var FMIST = (function () {
     driftK: 1,                      // x the wind
     surfN: 4, eyeN: 2, surfM: 450, eyeM: 350,   // the veil's taps: near the surface, near the eye (C)
     marchN: 28, marchKm: 3.5,       // the cloud pass's pocket segment (A)
-    cards: 420, cardKm: 2.6, cardW: 120, cardH: 34, cardA: 1.0, cardEvery: 20,   // the cards (B): how many, how far, how big, how dense, re-dealt every N frames
+    cards: 420, cardKm: 2.6, cardW: 120, cardH: 34, cardA: 2.4, cardEvery: 20,   // the cards (B): how many, how far, how big, how dense, re-dealt every N frames
     force: null,
-    fwd: 4,                         // the pockets' forward lobe (fmFwd): x5 straight at the sun
+    fwd: 2.2,                       // the pockets' forward lobe (fmFwd): x3.2 straight at the sun (4 clipped the backlit wisps to white)
     redistribute: 0.6,              // the flat layer gives this share of itself to the pockets while they are live (SS1: they redistribute, they do not add)
   };
   // what runs, live (a rig flips them; the flag says what was BUILT - a technique not in the flag cannot be turned on)
@@ -214,7 +214,7 @@ var FMIST = (function () {
           float n = 0.55 * vn(p) + 0.3 * vn(p * 2.3 + 3.1) + 0.15 * vn(p * 5.1 - 1.7);
           float k = vC.y < 0.5 ? uK.x : uK.y;
           n = clamp(0.5 + (n - 0.5) * 2.6, 0.0, 1.0);
-          float a = uA * min(1.0, 1.5 * vC.x) * k * edge * vFade * smoothstep(0.3, 0.7, n) * (1.0 - smoothstep(0.0, 0.5, -q.y) * 0.4);
+          float a = min(0.85, uA * min(1.0, 2.0 * vC.x) * k * edge * vFade * smoothstep(0.3, 0.7, n) * (1.0 - smoothstep(0.0, 0.5, -q.y) * 0.4));
           if (a < 0.003) discard;
           float c = max(0.0, dot(normalize(vW - cameraPosition), uMist[2].xyz));
           gl_FragColor = vec4(uMist[1].rgb * (1.0 + uMist[11].y * (0.35 * pow(c, 6.0) + pow(c, 40.0))), a);
@@ -264,16 +264,17 @@ var FMIST = (function () {
     if (!(inPool || inWisp || inOro)) return 0;
     const qx = (x + drift[0]) / S.period + y * 0.011, qz = (z + drift[1]) / S.period - y * 0.007;
     let n = 0.55 * vn(qx, qz) + 0.30 * vn(qx * 2.31 + 5.2, qz * 2.31 + 1.3) + 0.15 * vn(qx * 5.3 - 3.1, qz * 5.3 + 7.7);
-    n = Math.min(1, Math.max(0, 0.5 + (n - 0.5) * 2.6));
+    n = Math.min(1, Math.max(0, 0.5 + (n - 0.5) * S.stretch));
     const sw = (n - 0.5) * S.swing, hcs = hc - sw;
     const pool = k[0] * G * smc(0, 18, lid + sw - y) * (hc >= -30 ? 1 : 0);
     const wisp = k[1] * Bw * smc(S.wispLo, 0, hcs) * (1 - smc(8, S.wispHi, hcs));
     const oro = k[2] * smc(S.oroLo, 0, yb - sw) * (1 - smc(60, S.oroHi, yb - sw)) * (1 - smc(40, 160, hc)) * (hc >= -20 ? 1 : 0);
     const cov = Math.min(1, pool + wisp + oro); if (cov <= 0.002) return 0;
-    const body = smc(1 - S.covK * cov, 1 - S.covK * cov + 0.3, n); if (body <= 0) return 0;
+    const body = smc(1 - S.covK * cov, 1 - S.covK * cov + S.soft, n); if (body <= 0) return 0;
     const rx = qx * S.detailK + y * 0.045, rz = qz * S.detailK + 3.3;
     let e = 0.6 * vn(rx, rz) + 0.4 * vn(rx * 2.7 + 1.9, rz * 2.7 - 4.1); e = Math.min(1, Math.max(0, 0.5 + (e - 0.5) * 2.4));
-    return Math.min(1, Math.max(0, (body - e * S.erode) / (1 - e * S.erode))) * cov * S.rho;
+    let dd = Math.min(1, Math.max(0, (body - e * S.erode) / (1 - e * S.erode))); dd = dd * dd * (3 - 2 * dd);
+    return dd * cov * S.rho;
   }
   const stats = () => ({ on: ON, use: Object.assign({}, use), cards: st.cards || 0, bakeMs: +st.bakeMs.toFixed(1), k: st.k.map(v => +v.toFixed(3)), hoursDry: st.hoursDry, drift: st.drift.map(v => Math.round(v)), map: st.map });
   // THE GLSL, shared by the veil (atmo.js MIST_GLSL) and the march (clouds.js): fmDens(p) per metre.
@@ -299,7 +300,7 @@ var FMIST = (function () {
       // vertical shear so a wisp leans. The octaves' sum sits at 0.5 +- 0.13, so it is stretched to the unit (x2.6).
       vec2 q = (p.xz + uMist[8].xy) * uMist[9].w + vec2(p.y * 0.011, -p.y * 0.007);
       float n = 0.55 * mistVN(q) + 0.30 * mistVN(q * 2.31 + vec2(5.2, 1.3)) + 0.15 * mistVN(q * 5.3 + vec2(-3.1, 7.7));
-      n = clamp(0.5 + (n - 0.5) * 2.6, 0.0, 1.0);
+      n = clamp(0.5 + (n - 0.5) * ${S.stretch.toFixed(2)}, 0.0, 1.0);
       // THE CONTOURS (the user, 9 Nov: "lacks detail in the shape and the contours"): the bands' edges ride the noise, so
       // a wisp's top is lumpy and the pool's lid heaves instead of lying as a level slab
       float sw = (n - 0.5) * ${S.swing.toFixed(1)};
@@ -311,7 +312,7 @@ var FMIST = (function () {
       if (cov <= 0.002) return 0.0;
       // CUT THROUGH (the user: "needs to be further cut through"): less of a pocket is mist - the threshold sits at
       // 1 - ${S.covK} x cover, so a full pocket is still only its denser half
-      float body = smoothstep(1.0 - ${S.covK.toFixed(2)} * cov, 1.0 - ${S.covK.toFixed(2)} * cov + 0.3, n);
+      float body = smoothstep(1.0 - ${S.covK.toFixed(2)} * cov, 1.0 - ${S.covK.toFixed(2)} * cov + ${S.soft.toFixed(2)}, n);   // a wide ramp: a wisp thins toward its edge (the first sheet's were paper cut-outs)
       if (body <= 0.0) return 0.0;
       // THE DETAIL: a ~${Math.round(S.period / S.detailK)} m erosion eats the edges (Schneider's remap: base minus the fine noise), so the
       // outline breaks into wisps and the inside keeps its mass
@@ -319,6 +320,7 @@ var FMIST = (function () {
       float e = 0.6 * mistVN(r) + 0.4 * mistVN(r * 2.7 + vec2(1.9, -4.1));
       e = clamp(0.5 + (e - 0.5) * 2.4, 0.0, 1.0);
       float d = clamp((body - e * ${S.erode.toFixed(2)}) / (1.0 - e * ${S.erode.toFixed(2)}), 0.0, 1.0);
+      d *= d * (3.0 - 2.0 * d);                                          // and the remap's edge eased, not cut
       return d * cov * uMist[8].z;
     }
     // A pocket is droplets (~10 um): Mie's forward peak is narrow and strong - backlit by a low sun the mist glows
