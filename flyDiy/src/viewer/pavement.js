@@ -355,7 +355,7 @@ const PAVEMENT = (() => {
       const H = memo2((u, v) => { const w = F.toWorld(u, v); return o.heightAt(w[0], w[1]); }), Hv = (v, u) => H(u, v);
       // (DIRT-STRIP) a bumpy strip (o.refineMin, render_world: STRIP_MICRO.has) earns rows down to its bumps' scale
       U = refineAxis(U, V, H, (u, v) => sdBox(u, v, halfL, halfW, len) >= 0, 0, o.refineMin);
-      V = refineAxis(V, U, Hv, (v, u) => sdBox(u, v, halfL, halfW, len) >= 0, 0, o.refineMin);
+      V = refineAxis(V, U, Hv, (v, u) => sdBox(u, v, halfL, halfW, len) >= 0, 0, o.refineMinV || o.refineMin);   // (DIRT-STRIP: finer across - a rut's wall)
     }
     const nV = V.length, nU = U.length, n = nU * nV;
     const pos = new Float32Array(n * 3), pav = new Float32Array(n * 4), pk = new Float32Array(n * 4), pt = new Float32Array(n * 3), uv = new Float32Array(n * 2);
@@ -708,7 +708,7 @@ varying vec4 vPav; varying vec4 vPavK; varying vec3 vPavW; varying vec3 vPavT; v
 precision highp sampler2DArray;
 uniform highp sampler2DArray uPavA, uPavN;
 uniform float uPavOn, uPavDbg, uPavWet;
-uniform vec4 uMicro, uMicro2;
+uniform vec4 uMicro, uMicro2, uMicro3;
 uniform vec4 uLayer, uLayer2, uTile, uTile2, uHex, uMacro, uLane, uLane2, uCrack, uPatch, uMoss, uStain, uWet, uMark, uPaint0, uPaint1, uRubber, uRubber2, uRut, uRut2, uRoad, uEdge, uEdge2, uDist, uSpec, uClass, uSoft, uSoft2;
 uniform vec4 uGrade[8], uTint[8];
 uniform vec4 uMean;
@@ -716,7 +716,7 @@ uniform int uMarkN, uSegN;
 uniform vec4 uMarkR[${NMARK}], uMarkK[${NMARK}], uSeg[${NSEG}], uSegK[${NSEG}];
 uniform vec4 uSide, uRoadEnd; uniform int uKeepN; uniform vec4 uKeepA[${NKEEP}], uKeepB[${NKEEP}];
 varying vec4 vPav; varying vec4 vPavK; varying vec3 vPavW; varying vec3 vPavT; varying vec3 vPavNg; varying float vPavSh;
-vec4 gMicH; float gPavR; vec3 gPavN; float gPavA; vec3 gPavDbg; float gPlain; float gRot; float gHexSoft;
+vec4 gMicH; vec3 gMicDbg; float gPavR; vec3 gPavN; float gPavA; vec3 gPavDbg; float gPlain; float gRot; float gHexSoft;
 struct Smp { vec4 c; vec4 n; };
 float pvHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 vec2 pvHash2(vec2 p) { return fract(sin(vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)))) * 43758.5453); }
@@ -997,6 +997,7 @@ float pvRelief(float u, float v, float halfW, float len, vec4 holes) {
     }
     float swA = uMicro2.w - 1.0;                                          // the swell (26b): 25 m and 12 m rolls
     if (swA > 0.0) r += swA * (0.7 * pmNoise(vec2(u, v) / 25.0, sd + 201) + 0.3 * pmNoise(vec2(u, v) / 12.0, sd + 202));
+    if (uMicro3.y > 0.0) r += uMicro3.y * (0.65 * pmNoise(vec2(u, v) / 3.5, sd + 301) + 0.35 * pmNoise(vec2(u, v) / 1.8, sd + 302));   // the lumps (26b lumpsAt)
     r = dT * (r - holes.x);
   }
   return (r + smoothstep(0.0, 0.5, halfW - abs(v)) * holes.w) * eT;
@@ -1006,7 +1007,52 @@ float pvRelief(float u, float v, float halfW, float len, vec4 holes) {
 float pvBand(vec2 q, int k0, int sd) {
   float r = 0.0;
   for (int b = 0; b < 2; b++) { int k = k0 + b; float lam = 32.0 / exp2(float(k)); r += uMicro2.x * sqrt(lam) * pmNoise(q / lam, sd + 101 + k); }
+  if (uMicro3.y > 0.0) r += k0 == 4 ? uMicro3.y * 0.35 * pmNoise(q / 1.8, sd + 302) : uMicro3.y * 0.65 * pmNoise(q / 3.5, sd + 301);   // the lumps
   return r;
+}
+// THE WAYS (26b WAYS / waysAt, line for line; uMicro3 x the ruts m, z cart + 2 path): (dh m - the troughs down, the berms
+// up; the deepest trough's share 0..1; its way: 0 the vehicles, 1 a cart's wheel, 1.5 its horse, 2 the path, -1 none; the
+// point's place across that trough / its half-width). (u, v) the field's frame
+vec4 pvWays(float u, float v, float halfW, int sd) {
+  float rutsD = uMicro3.x;
+  if (rutsD <= 0.0) return vec4(0.0, 0.0, -1.0, 9.0);
+  float room = max(0.0, halfW - 2.5 - 0.9 - 0.4);
+  float vc = (pmH(0, 0, sd + 401) - 0.5) * 2.0 * room * 0.35;
+  int fl = int(uMicro3.z + 0.5);
+  float cc = vc + (pmH(1, 1, sd + 401) - 0.5) * 0.4;
+  float side = pmH(2, 1, sd + 401) < 0.5 ? -1.0 : 1.0, pv = max(0.0, halfW - 2.5 - 0.3 - 0.8 * pmH(2, 2, sd + 401));
+  float dMax = 0.0, tMax = 0.0, bm = 0.0, kind = -1.0, xq = 9.0;
+  for (int i = 0; i < 4; i++) {
+    vec4 W = vec4(0.0); float c0 = 0.0, a1 = 0.0, a2 = 0.0; int key = 0;
+    if (i == 0) { W = vec4(0.78 + 0.10 * pmH(0, 1, sd + 401), 0.15, rutsD, 0.35); c0 = vc; a1 = 0.30; a2 = 0.08; key = 0; }
+    else if (i == 1) { if ((fl & 1) == 0) continue; W = vec4(0.68, 0.10, 0.35 * rutsD, 0.25); c0 = cc; a1 = 0.25; a2 = 0.06; key = 1; }
+    else if (i == 2) { if ((fl & 1) == 0) continue; W = vec4(0.0, 0.18, 0.22 * rutsD, 0.0); c0 = cc; a1 = 0.25; a2 = 0.06; key = 1; }
+    else { if ((fl & 2) == 0) continue; W = vec4(0.0, 0.17, 0.35 * rutsD, 0.2); c0 = side * pv; a1 = 0.30; a2 = 0.10; key = 2; }
+    float c = c0 + a1 * pmNoise(vec2(u / 60.0, float(key)), sd + 411) + a2 * pmNoise(vec2(u / 15.0, float(key)), sd + 421);
+    float dep = W.z * (0.75 + 0.25 * pmNoise(vec2(u / 9.0, float(key + 3)), sd + 431));
+    for (int s = -1; s <= 1; s += 2) {
+      if (W.x <= 0.0 && s < 0) continue;
+      float x = v - c - float(s) * W.x + 0.03 * pmNoise(vec2(u / 0.7, float(key * 2 + s)), sd + 441), q = x / W.y, t = exp(-q * q * q * q);
+      float bq = (abs(x) - 1.7 * W.y - 0.06) / (0.6 * W.y + 0.05);
+      if (dep * t > dMax) { dMax = dep * t; kind = float(key) + (i == 2 ? 0.5 : 0.0); xq = q; }
+      tMax = max(tMax, t);
+      bm += W.w * dep * exp(-bq * bq);
+    }
+  }
+  return vec4(-dMax + bm * (1.0 - tMax), tMax, kind, xq);
+}
+// THE ROCKS (26b rockIn, line for line; uMicro3.w the stones' chance): a stone in the point's own cell - (its offset from
+// the stone / R, the field's frame; R m (0: none); the stone's hash)
+vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
+  float M = big ? 1.2 : 0.3; int sk = sd + (big ? 501 : 511);
+  int i = int(floor(u / M)), j = int(floor(v / M));
+  float vC = (float(j) + 0.5) * M, edge = smoothstep(0.3, 0.9, abs(vC) / halfW);
+  float p = big ? uMicro3.w * (0.4 + 0.6 * edge) : min(0.6, 0.1 + 0.9 * uMicro3.w) * (0.6 + 0.4 * edge);
+  if (pmH(i, j, sk) >= p) return vec4(9.0, 9.0, 0.0, 0.0);
+  float a = pmH(i, j, sk + 1), b = pmH(i, j, sk + 2), e = pmH(i, j, sk + 3);
+  float R = big ? 0.07 + 0.2 * e * e : 0.015 + 0.05 * e * e;
+  vec2 C = vec2((float(i) + 0.25 + 0.5 * a) * M, (float(j) + 0.25 + 0.5 * b) * M);
+  return vec4((vec2(u, v) - C) / R, R, pmH(i, j, sk + 4));
 }`;
   // THE CHAIN, spliced after map_fragment. Inputs: vPav (u, v, dEdge, shoulderW), vPavK (class, seed, halfW, halfL).
   GLSL.map = `
@@ -1020,6 +1066,7 @@ float pvBand(vec2 q, int k0, int sd) {
     float cls = floor(vPavK.x + 0.5), seed = floor(vPavK.y * 37.0 + 0.5) / 37.0, halfW = vPavK.z, halfL = vPavK.w;
     vec2 P = vec2(u, v);
     gMicH = vec4(0.0);                                                  // (DIRT-STRIP) a flat strip has no holes
+    gMicDbg = vec3(0.0);
     vec2 uvS = P + vec2(seed * 37.0, seed * 91.0);
     vec2 pdx = dFdx(P), pdy = dFdy(P);                              // one pair of derivatives for both footprints (G1047)
     vec2 fw = abs(pdx) + abs(pdy) + 1e-5;                              // = fwidth(P)
@@ -1294,7 +1341,7 @@ float pvBand(vec2 q, int k0, int sd) {
         float fillM = uMicro.w > 0.0 ? clamp((uPavWet - 0.25) / 0.6, 0.0, 1.0) * uMicro.w : 0.0;
         gMicH = pvHoles(u, -v, halfW, 2.0 * halfL, fillM);
         float rel = pvRelief(u, -v, halfW, 2.0 * halfL, gMicH);
-        float rs = uMicro2.x * 3.4 + 0.3 * (uMicro2.w - 1.0) + 0.02, rn = clamp(rel / rs, -1.5, 1.5), cueK = 1.0 - smoothstep(uDist.x, uDist.y * 0.7, dist);
+        float rs = uMicro2.x * 3.4 + 0.3 * (uMicro2.w - 1.0) + 0.4 * uMicro3.y + 0.02, rn = clamp(rel / rs, -1.5, 1.5), cueK = 1.0 - smoothstep(uDist.x, uDist.y * 0.7, dist);
         // THE SHAPE, READ (the user, 9 Nov 16:40: "I can't see any difference ... lightening the dry zones and the tops, and
         // darkening the bottoms, the micro valleys ... there is little pairing between topology and texture"). The height
         // alone (rn) shades the long rolls; the bumps themselves are read by their CURVATURE - the field minus the mean of
@@ -1313,18 +1360,18 @@ float pvBand(vec2 q, int k0, int sd) {
         if (kF > 0.01) {
           float c0 = pvBand(qM, 4, sdM), xp = pvBand(qM + vec2(0.25, 0.0), 4, sdM), xm = pvBand(qM - vec2(0.25, 0.0), 4, sdM);
           float yp = pvBand(qM + vec2(0.0, 0.25), 4, sdM), ym = pvBand(qM - vec2(0.0, 0.25), 4, sdM);
-          cF = (c0 - 0.25 * (xp + xm + yp + ym)) / (0.55 * a1);
+          cF = (c0 - 0.25 * (xp + xm + yp + ym)) / (0.55 * a1 + 0.03 * uMicro3.y);
           gR += kF * vec2(xp - xm, -(yp - ym)) / 0.5;                                  // dh/du, dh/dv (the ribbon's v)
         }
         if (kM > 0.01) {
           float c0 = pvBand(qM, 2, sdM), xp = pvBand(qM + vec2(1.0, 0.0), 2, sdM), xm = pvBand(qM - vec2(1.0, 0.0), 2, sdM);
           float yp = pvBand(qM + vec2(0.0, 1.0), 2, sdM), ym = pvBand(qM - vec2(0.0, 1.0), 2, sdM);
-          cM = (c0 - 0.25 * (xp + xm + yp + ym)) / (0.9 * a1);
+          cM = (c0 - 0.25 * (xp + xm + yp + ym)) / (0.9 * a1 + 0.17 * uMicro3.y);
           gR += 0.5 * kM * vec2(xp - xm, -(yp - ym)) / 2.0;
         }
-        // the lanes' trough: h = -rut x L(v), L the lanes' Gaussian (26b lanes; rut 6 chaos cm, chaos off a1: 26b's ISO law)
+        // the aeroplanes' lanes: h = -rut x L(v), L the lanes' Gaussian (26b lanes; rut 4 chaos cm, chaos off a1: 26b's ISO law)
         float sigM = 0.35 + 0.05 * halfW, l1 = (abs(v) - PV_FLEET_MEAN) / sigM, l2 = v / (sigM * 0.8);
-        float chM = clamp(log2(max(pow(a1 * 0.428, 2.0) / 0.00707 / 16e-6, 1.0)) / 10.0, 0.0, 1.0), rutM = 0.06 * chM;
+        float chM = clamp(log2(max(pow(a1 * 0.428, 2.0) / 0.00707 / 16e-6, 1.0)) / 10.0, 0.0, 1.0), rutM = 0.04 * chM;
         float e1 = exp(-l1 * l1), e2 = 0.55 * exp(-l2 * l2);
         float lc = e1 > e2 ? (2.0 - 4.0 * l1 * l1) * e1 / (sigM * sigM) : (2.0 - 4.0 * l2 * l2) * e2 / (sigM * sigM * 0.64);   // -L''
         float ld = e1 > e2 ? -2.0 * l1 / sigM * e1 * sign(v) : -2.0 * l2 / (sigM * 0.8) * e2;                                   // L'
@@ -1336,12 +1383,66 @@ float pvBand(vec2 q, int k0, int sd) {
         crown = max(crown, 0.8 * smoothstep(0.03, 0.10, gMicH.w) * cueK);              // a hazard's mound: dry, stony
         hollow = max(hollow, smoothstep(0.01, 0.05, gMicH.x) * cueK);                  // a pothole, a hazard's hole: mud
         hollow = max(hollow, smoothstep(0.03, 0.10, -gMicH.w) * cueK);
+        // THE WAYS, READ (RUTS FIRST - the user, 9 Nov 17:00: "the main relief should come from the ruts themselves ... used by
+        // the planes, but also by other vehicles, pedestrians, animals, carriages ... too clean"): pvWays = 26b waysAt. Its
+        // berms are loose and dry (the crown's look); its troughs are their own look below; the slope across them per pixel
+        // (two more reads, 2 cm apart, only near a way)
+        vec4 wy = pvWays(u, -v, halfW, sdM); float tW = wy.y * tM, bermW = 0.0, gW = 0.0;
+        if (uMicro3.x > 0.0 && (wy.y > 0.002 || wy.x > 0.0005)) {
+          float wp = pvWays(u, -v + 0.02, halfW, sdM).x, wm = pvWays(u, -v - 0.02, halfW, sdM).x;
+          gW = (wp - wm) / 0.04 * tM;                                                     // dh / dv, the field's v
+          bermW = clamp(wy.x / (0.35 * uMicro3.x + 1e-4), 0.0, 1.0) * (1.0 - wy.y) * tM;
+        }
+        crown = max(crown, 0.9 * bermW * cueK); hollow *= 1.0 - tW;
         if (crown > 0.02) { Smp g = pvSet(1, uvS); float gk = 0.45 * crown; vec2 w2 = pvHw2(hgt, 1.0 - gk, g.c.a, gk, uHex.x * 2.5); col = col * w2.x + g.c.rgb * w2.y; nT = nT * w2.x + g.n.xyz * w2.y; rough = rough * w2.x + g.n.a * w2.y; hgt = hgt * w2.x + g.c.a * w2.y; }
         if (hollow > 0.02) { Smp g = pvSet(4, uvS); float gk = 0.55 * hollow; vec2 w2 = pvHw2(hgt, 1.0 - gk, g.c.a, gk, uHex.x * 2.5); col = col * w2.x + g.c.rgb * w2.y; nT = nT * w2.x + g.n.xyz * w2.y * 0.7; rough = rough * w2.x + g.n.a * w2.y; hgt = hgt * w2.x + g.c.a * w2.y; }
         float lumM = dot(col, vec3(0.299, 0.587, 0.114));
         col = mix(col, mix(col, vec3(lumM), 0.25) * 1.24 + vec3(0.02, 0.018, 0.015), crown); rough += 0.08 * crown;
         col = mix(col, col * vec3(0.66, 0.58, 0.48) * (1.0 - 0.18 * clamp(uPavWet, 0.0, 1.0)), hollow); rough -= (0.10 + 0.15 * clamp(uPavWet, 0.0, 1.0)) * hollow;
         nT.xy -= gR * PV_MICRO_NRM;                                                     // the bumps' slope between the rows (after the blends)
+        nT.y += gW;                                                                     // the ways' walls (the ribbon's v = -the field's)
+        gMicDbg = mix(mix(vec3(0.5), vec3(0.95, 0.72, 0.2), crown), vec3(0.2, 0.35, 0.95), hollow);
+        // the troughs: packed fines, darker, smoother (wet: darker, glossy); a cart's grooves sharp and dark, the path pale
+        // trodden; and the marks in them up close - a vehicle's tread on the rut's floor, the horse's hooves between the
+        // cart's grooves, the walkers' and the animals' prints along the path
+        if (tW > 0.01) {
+          float wetW = clamp(uPavWet, 0.0, 1.0);
+          bool cartW = wy.z > 0.75 && wy.z < 1.25, horse = wy.z > 1.25 && wy.z < 1.75, pathW = wy.z > 1.75;
+          Smp tf = pvSet(4, uvS); float tk = tW * (cartW ? 0.4 : 0.75);
+          vec2 w2 = pvHw2(hgt, 1.0 - tk, tf.c.a, tk, uHex.x); col = col * w2.x + tf.c.rgb * w2.y; nT = nT * w2.x + tf.n.xyz * w2.y * 0.5; rough = rough * w2.x + (tf.n.a - 0.08) * w2.y; hgt = hgt * w2.x + tf.c.a * w2.y;
+          col *= 1.0 - tW * (cartW ? 0.42 : (pathW ? 0.12 : 0.26)) * (1.0 + 0.5 * wetW);
+          rough -= tW * (0.06 + 0.3 * wetW);
+          float pk = (1.0 - smoothstep(0.006, 0.025, fwm)) * cueK * tW;
+          if (pk > 0.01) {
+            if (wy.z < 0.25) { float tr = pvTread(u, wy.w * 0.15, 0.15, float(sdM) + 3.0) * pk; col *= 1.0 - 0.18 * tr; rough += 0.05 * tr; }
+            else if (horse || pathW) {
+              float per = horse ? 0.38 : 0.33, cu = floor(u / per), fu = fract(u / per), hs = pmH(int(cu), horse ? 7 : 8, sdM + 451);
+              vec2 sz = horse ? vec2(0.065, 0.055) : (hs < 0.55 ? vec2(0.13, 0.05) : vec2(0.04, 0.035));   // a hoof; a boot; a paw
+              vec2 hp = vec2((fu - 0.5) * per, wy.w * (horse ? 0.18 : 0.17) - (mod(cu, 2.0) - 0.5) * (horse ? 0.14 : 0.18) - (hs - 0.5) * 0.06);
+              float pr = length(hp / sz), mk = (1.0 - smoothstep(0.7, 1.0, pr)) * step(horse ? 0.15 : 0.3, hs) * pk;
+              col *= 1.0 - 0.32 * mk; rough += 0.04 * mk; nT.xy += vec2(hp.x, -hp.y) / sz * mk * 0.25;
+            }
+          }
+          if (tW > 0.4) gMicDbg = wy.z < 0.25 ? vec3(0.85, 0.15, 0.15) : (cartW ? vec3(0.8, 0.15, 0.8) : (horse ? vec3(0.55, 0.3, 0.1) : vec3(0.15, 0.75, 0.25)));
+        }
+        // THE ROCKS (26b rockIn; the user, 9 Nov 17:05: "don't forget the little and medium rocks in there, they will also change
+        // the looks. Not for the grass strip"): a stone, 7-27 cm, in a 1.2 m cell or a pebble, 1.5-6.5 cm, in a 0.3 m one, more
+        // toward the edges, none in a trough; drawn per pixel - a dome's light, its own grey, the soil darkened round its foot -
+        // and gone once smaller than the pixel. Drawn only: the rocks the wheels hit are their own work
+        float rkK = uMicro3.w > 0.0 ? (1.0 - clamp(wy.y * 1.5, 0.0, 1.0)) * cueK * smoothstep(0.3, 0.6, halfW - abs(v)) : 0.0;
+        if (rkK > 0.01) for (int bI = 0; bI < 2; bI++) {
+          vec4 RK = pvRockIn(u, -v, halfW, bI == 0, sdM);
+          if (RK.z <= 0.0) continue;
+          float r = length(RK.xy), vis = rkK * smoothstep(0.5, 1.5, RK.z / max(fwm, 1e-4));
+          if (vis < 0.01) continue;
+          if (r < 1.0) {
+            float top = sqrt(max(1.0 - r * r, 0.0));
+            vec3 sc = mix(vec3(0.44, 0.42, 0.39), vec3(0.63, 0.59, 0.53), RK.w) * (0.8 + 0.4 * pvNoise(uvS / 0.07 + RK.w * 37.0));
+            col = mix(col, sc * (0.72 + 0.38 * top), vis); rough = mix(rough, 0.55, vis);
+            nT.xy += vec2(RK.x, -RK.y) / max(r, 1e-3) * (0.6 * r / max(top, 0.25)) * vis;
+            gMicDbg = vec3(1.0);
+          } else if (r < 1.35) col *= 1.0 - 0.3 * vis * (1.0 - smoothstep(1.0, 1.35, r));   // its foot: the soil it sits in
+        }
         float worn = max(exp(-l1 * l1), 0.55 * exp(-l2 * l2));
         float wild = clamp(uMicro2.z / 0.26, 0.0, 1.0);                                // a rough strip is a less tended one
         float grassK = (1.0 - clamp(worn * 1.4, 0.0, 1.0)) * (0.25 + 0.75 * (1.0 - smoothstep(0.5, 2.0, dE))) * wild;
@@ -1567,7 +1668,8 @@ float pvBand(vec2 q, int k0, int sd) {
     diffuseColor.rgb = col; diffuseColor.a = gPavA;
     gPavDbg = uPavDbg < 1.5 ? gPavN * 0.5 + 0.5 : uPavDbg < 2.5 ? vec3(gPavR) : uPavDbg < 3.5 ? vec3(wetK, 0.0, 0.0) : uPavDbg < 4.5 ? mk
       : uPavDbg < 5.5 ? vec3(wp, wb, wg) : uPavDbg < 6.5 ? vec3(clamp(dE / 10.0, 0.0, 1.0), clamp(-dE / shW, 0.0, 1.0), gPavA) : uPavDbg < 7.5 ? vec3(fract(laneTone * 4.0), joint, spall)
-      : uPavDbg < 8.5 ? vec3(crack, dmg, pch) : uPavDbg < 9.5 ? vec3(rut, grassStripe, moss) : uPavDbg < 10.5 ? vec3(rubber, paint, damp) : uPavDbg < 11.5 ? vec3(wheel, tread, coarse + mixW * 0.5) : col;
+      : uPavDbg < 8.5 ? vec3(crack, dmg, pch) : uPavDbg < 9.5 ? vec3(rut, grassStripe, moss) : uPavDbg < 10.5 ? vec3(rubber, paint, damp) : uPavDbg < 11.5 ? vec3(wheel, tread, coarse + mixW * 0.5)
+      : uPavDbg < 12.5 ? (dot(gMicDbg, vec3(1.0)) > 0.0 ? gMicDbg : col * 0.35) : col;   // (12: DIRT-STRIP's false colour - crowns orange, hollows blue, the ways' troughs red / magenta / brown / green, the stones white)
   }`;
   GLSL.rough = `  float roughnessFactor = gPavR;`;
   GLSL.normal = `
@@ -1596,7 +1698,7 @@ float pvBand(vec2 q, int k0, int sd) {
   // become globals, pvLoad() fills them from the row at the top of the chain, the array reads become texel reads), so
   // `?pave=old` draws exactly the pre-G925 program and the two cannot drift apart silently (GATE PAVEMENT 12).
   const PV_VEC = ['uLayer', 'uLayer2', 'uTile', 'uTile2', 'uHex', 'uMacro', 'uLane', 'uLane2', 'uCrack', 'uPatch', 'uMoss', 'uStain', 'uWet', 'uMark',
-    'uPaint0', 'uPaint1', 'uRubber', 'uRubber2', 'uRut', 'uRut2', 'uRoad', 'uEdge', 'uEdge2', 'uDist', 'uSpec', 'uClass', 'uSoft', 'uSoft2', 'uMean', 'uSide', 'uRoadEnd', 'uMicro', 'uMicro2'];   // (uMicro: DIRT-STRIP's puddles, a row's last)
+    'uPaint0', 'uPaint1', 'uRubber', 'uRubber2', 'uRut', 'uRut2', 'uRoad', 'uEdge', 'uEdge2', 'uDist', 'uSpec', 'uClass', 'uSoft', 'uSoft2', 'uMean', 'uSide', 'uRoadEnd', 'uMicro', 'uMicro2', 'uMicro3'];   // (uMicro: DIRT-STRIP's puddles, a row's last)
   const PV = { K: PV_VEC.length, N: PV_VEC.length + 1, G: PV_VEC.length + 2 };
   PV.T = PV.G + 8; PV.KA = PV.T + 8; PV.KB = PV.KA + NKEEP; PV.S = PV.KB + NKEEP; PV.SK = PV.S + NSEG; PV.MR = PV.SK + NSEG; PV.MK = PV.MR + NMARK; PV.W = PV.MK + NMARK;
   // ?pave=old: every pavement its own material and mesh, as shipped before G925 (the A/B); default: the table
@@ -1618,7 +1720,7 @@ float pvBand(vec2 q, int k0, int sd) {
     c = rep(c, '\nuniform vec4 ' + PV_VEC.slice(0, 28).join(', ') + ';', '');
     c = rep(c, '\nuniform vec4 uGrade[8], uTint[8];', '');
     c = rep(c, '\nuniform vec4 uMean;', '');
-    c = rep(c, '\nuniform vec4 uMicro, uMicro2;', '');   // (DIRT-STRIP) a row's texel like the rest
+    c = rep(c, '\nuniform vec4 uMicro, uMicro2, uMicro3;', '');   // (DIRT-STRIP) a row's texel like the rest
     c = rep(c, '\nuniform int uMarkN, uSegN;', '\nint uMarkN, uSegN;');
     c = rep(c, `\nuniform vec4 uMarkR[${NMARK}], uMarkK[${NMARK}], uSeg[${NSEG}], uSegK[${NSEG}];`,
       '\nuniform highp sampler2D uPavT;\nint gPavRow; float gSegHW;\n#define PVT(i) texelFetch(uPavT, ivec2(i, gPavRow), 0)\n' + PV_VEC.map((n, i) => '#define ' + n + ' PVT(' + i + ')').join('\n'));
@@ -1813,7 +1915,8 @@ float pvBand(vec2 q, int k0, int sd) {
     U.uSoft.value.set(r.softMix * sk[0], r.coarseK * sk[1], r.wheelBand * sk[2], r.treadK * sk[3]);
     U.uSoft2.value.set(r.paintRelief, r.mow, r.edgeSoft, r.grassRough);
     { const q = m.userData.pavMicro; if (U.uMicro) U.uMicro.value.set(q ? q[0] : 0, q ? q[1] : 0, q ? q[2] : 0, q ? q[3] : 0);   // DIRT-STRIP: 0 = a flat strip
-      if (U.uMicro2) U.uMicro2.value.set(q ? q[4] : 0, q ? q[5] : 0, q ? q[6] : 0, q ? q[7] : 0); }
+      if (U.uMicro2) U.uMicro2.value.set(q ? q[4] : 0, q ? q[5] : 0, q ? q[6] : 0, q ? q[7] : 0);
+      if (U.uMicro3) U.uMicro3.value.set(q && q.length > 8 ? q[8] : 0, q && q.length > 9 ? q[9] : 0, q && q.length > 10 ? q[10] : 0, q && q.length > 11 ? q[11] : 0); }
     U.uSide.value.set(d.side && (r.sideFade === undefined ? 1 : r.sideFade) > 0.5 ? 1 : 0, lk.sideW, lk.sideA, d.road ? 1 : 0);   // .w: the surface hands over inside a strip's box (roads, aprons); .yz the surface type's side (G1392)
     if (m.isPavPart) pack(m);
   }
@@ -2069,7 +2172,7 @@ float pvBand(vec2 q, int k0, int sd) {
     for (let i = 0; i < NMARK; i++) { const r = marks.rects[i]; mR.push(new THREE.Vector4(r ? r[0] : 0, r ? r[1] : 0, r ? r[2] : 0, r ? r[3] : 0)); mK.push(new THREE.Vector4(r ? r[4] : 0, r ? r[5] : 0, r ? r[6] : 0, r ? r[7] : 0)); }
     const sg = [], sk = [];
     for (let i = 0; i < NSEG; i++) { const s = marks.segs[i]; sg.push(new THREE.Vector4(s ? s[0] : 0, s ? s[1] : 0, s ? s[2] : 0, s ? s[3] : 0)); sk.push(new THREE.Vector4(s ? s[4] : 0, s ? s[5] : 0, 0, 0)); }
-    m.uniforms = { uPavA: { value: lib.texA }, uPavN: { value: lib.texN }, uPavOn: { value: (lib.ready || lib.readyOld) ? 1 : 0 }, uPavDbg: DBG, uPavWet: WET, uMicro: v4(), uMicro2: v4(),
+    m.uniforms = { uPavA: { value: lib.texA }, uPavN: { value: lib.texN }, uPavOn: { value: (lib.ready || lib.readyOld) ? 1 : 0 }, uPavDbg: DBG, uPavWet: WET, uMicro: v4(), uMicro2: v4(), uMicro3: v4(),
       uLayer: v4(), uLayer2: v4(), uTile: v4(), uTile2: v4(), uClass: v4(), uHex: v4(), uMacro: v4(), uLane: v4(), uLane2: v4(), uCrack: v4(), uPatch: v4(),
       uMoss: v4(), uStain: v4(), uWet: v4(), uMark: v4(), uPaint0: { value: new THREE.Vector4(0.62, 0.60, 0.55, 1) }, uPaint1: { value: new THREE.Vector4(0.70, 0.54, 0.14, 1) },
       uRubber: v4(), uRubber2: v4(), uRut: v4(), uRut2: v4(), uRoad: v4(), uEdge: v4(), uEdge2: v4(), uDist: v4(), uSpec: v4(), uSoft: v4(), uSoft2: v4(),
@@ -2078,7 +2181,7 @@ float pvBand(vec2 q, int k0, int sd) {
       uMarkR: { value: mR }, uMarkK: { value: mK }, uSeg: { value: sg }, uSegK: { value: sk },
       uSide: v4(), uRoadEnd: { value: new THREE.Vector4(+o.fadeA || 0, +o.fadeB || 0, 0, 0) }, uKeepN: { value: 0 }, uKeepA: { value: Array.from({ length: NKEEP }, () => new THREE.Vector4()) }, uKeepB: { value: Array.from({ length: NKEEP }, () => new THREE.Vector4()) } };
     // side: the band fades to the ground (G660) - a strip's and a paved polygon's by default, a road's only when the caller says (a taxiway, G980)
-    m.userData.pav = { cls, road: !!o.road || !!o.poly, poly: !!o.poly, wid: (o.marks && o.marks.wid) || 0, side: o.side !== undefined ? !!o.side : !o.road }; m.userData.pavLib = lib; m.userData.pavRecipe = o.recipe || null; m.userData.pavMicro = Array.isArray(o.micro) ? o.micro.slice(0, 8) : null;   // (DIRT-STRIP) STRIP_MICRO.glslRow: a bumpy strip's puddles   // a resolved recipe of its own (the game), or the module's (the bench)
+    m.userData.pav = { cls, road: !!o.road || !!o.poly, poly: !!o.poly, wid: (o.marks && o.marks.wid) || 0, side: o.side !== undefined ? !!o.side : !o.road }; m.userData.pavLib = lib; m.userData.pavRecipe = o.recipe || null; m.userData.pavMicro = Array.isArray(o.micro) ? o.micro.slice(0, 12) : null;   // (DIRT-STRIP) STRIP_MICRO.glslRow: a bumpy strip's puddles   // a resolved recipe of its own (the game), or the module's (the bench)
     if (o.band !== undefined && o.band !== null) m.userData.pavBand = +o.band;
     if (table) {
       // THE ROW: cls, seed, halfW, halfL off the geometry's aPavK (constant over a part), the row id on every vertex

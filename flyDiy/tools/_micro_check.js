@@ -67,7 +67,7 @@ const H0 = pts.map(p => W0.terrainH(p[0], p[1]));
   verdict(out === 0, `0 outside the strip's box (${out} of the outside points not 0)`);
   verdict(edge === 0, `on the last half metre inside an edge only the crown (0 at the edge itself): ${edge} points carry bumps`);
   verdict(over === 0, `never over its ceiling ${f8.bound.toFixed(3)} m (${over} over, ${nIn} inside)`);
-  const sd = c => { const f = SM.field(S, { chaos: c, crown: 0, rut: 0, holes: 0, hazards: 0, swell: 0, seed: 1 }, 0); let a = 0, a2 = 0, k = 0;
+  const sd = c => { const f = SM.field(S, { chaos: c, crown: 0, rut: 0, holes: 0, hazards: 0, swell: 0, lumps: 0, ruts: 0, seed: 1 }, 0); let a = 0, a2 = 0, k = 0;
     for (let i = 0; i < 20000; i++) { const h = f.atUV(10 + rng() * 380, (rng() - 0.5) * 8); a += h; a2 += h * h; k++; } return Math.sqrt(a2 / k - (a / k) ** 2); };
   const s4 = sd(0.4), s8 = sd(0.8);
   verdict(s4 > 0.005 && s4 < 0.02 && s8 > 0.025 && s8 < 0.07, `ISO 8608 roughness: chaos 0.4 sd ${(s4 * 100).toFixed(2)} cm (class C 0.5-2), 0.8 sd ${(s8 * 100).toFixed(2)} cm (class E 2.5-7)`);
@@ -170,8 +170,8 @@ const W8 = world(withMicro('w7', MICRO8));
 // ---- 7. THE DRAWN RIBBON IS THE WHEELS' GROUND ---------------------------------------------------------------------
 {
   const THREE = require('../vendor/three.min.js'), PAV = require('../src/viewer/pavement.js');
-  const ribbon = rmin => {
-    const g = PAV.stripGeometry(THREE, { len: A7.len, wid: A7.wid, hdg: A7.hdg, cx: A7.x, cz: A7.z, shoulderW: 3, cls: 'dirt', seed: 1, heightAt: W8.terrainH, lift: 0.07, resU: 6, resV: 3, sinkD0: 0.8, refineMin: rmin });
+  const ribbon = (rmin, rminV) => {
+    const g = PAV.stripGeometry(THREE, { len: A7.len, wid: A7.wid, hdg: A7.hdg, cx: A7.x, cz: A7.z, shoulderW: 3, cls: 'dirt', seed: 1, heightAt: W8.terrainH, lift: 0.07, resU: 6, resV: 3, sinkD0: 0.8, refineMin: rmin, refineMinV: rminV });
     const pos = g.attributes.position.array, pav = g.attributes.aPav.array, nV = g.userData.pav.rows, nU = g.userData.pav.cols;
     const U = [], V = []; for (let i = 0; i < nU; i++) U.push(pav[(i * nV) * 4]); for (let j = 0; j < nV; j++) V.push(pav[j * 4 + 1]);
     const find = (A, x) => { let lo = 0, hi = A.length - 2; while (lo < hi) { const m = (lo + hi + 1) >> 1; if (A[m] <= x) lo = m; else hi = m - 1; } return lo; };
@@ -188,7 +188,7 @@ const W8 = world(withMicro('w7', MICRO8));
     errs.sort((p, q) => p - q);
     return { verts: nU * nV, p50: errs[errs.length >> 1], p99: errs[Math.floor(errs.length * 0.99)], max: errs[errs.length - 1] };
   };
-  const r0 = ribbon(0), r1 = ribbon(C.STRIP_MICRO.REFINE_MIN);
+  const r0 = ribbon(0), r1 = ribbon(C.STRIP_MICRO.REFINE_MIN, C.STRIP_MICRO.REFINE_MIN_V);
   console.log(`  the ribbon over w7 at chaos 0.8 (1020 x 9 m): rows as before ${r0.verts} vertices, drawn - wheels p50 ${(r0.p50 * 1000).toFixed(1)} p99 ${(r0.p99 * 1000).toFixed(1)} max ${(r0.max * 1000).toFixed(1)} mm; refined to ${C.STRIP_MICRO.REFINE_MIN} m ${r1.verts} vertices, p50 ${(r1.p50 * 1000).toFixed(1)} p99 ${(r1.p99 * 1000).toFixed(1)} max ${(r1.max * 1000).toFixed(1)} mm`);
   verdict(r1.p99 < 0.01 && r1.max < 0.03 && r1.verts < 250000, `the drawn ribbon is the wheels' ground: p99 ${(r1.p99 * 1000).toFixed(1)} mm (< 10), max ${(r1.max * 1000).toFixed(1)} mm (< 30), ${r1.verts} vertices (< 250 k)`);
 }
@@ -225,12 +225,23 @@ const W8 = world(withMicro('w7', MICRO8));
     'float D = uMicro.z * (0.5 + 0.5 * pmH(i, m, sd + 17));', 'float R = 1.5 + 1.5 * pmH(j, 0, sd + 32);', 'r += swA * (0.7 * pmNoise(vec2(u, v) / 25.0, sd + 201) + 0.3 * pmNoise(vec2(u, v) / 12.0, sd + 202));', 'float room = halfW - 0.5 - 0.3 - 2.0 * R;',
     'len * (0.05 + 0.9 * (float(j) + 0.2 + 0.6 * pmH(j, 0, sd + 31)) / uMicro2.y)', '(pmH(j, 0, sd + 35) < 0.5 ? -1.0 : 1.0) * (0.3 + R + max(0.0, room) * pmH(j, 0, sd + 36))',
     'uMicro2.z * (0.7 + 0.3 * pmH(j, 0, sd + 34)) * (pmH(j, 0, sd + 33) < 0.6 ? 1.0 : -1.0)', 'r += uMicro2.x * sqrt(lam) * pmNoise(vec2(u, v) / lam, sd + 101 + k);',
-    'gMicH = pvHoles(u, -v, halfW, 2.0 * halfL, fillM);'];
+    'gMicH = pvHoles(u, -v, halfW, 2.0 * halfL, fillM);',
+    // (RUTS FIRST, 9 Nov) the ways, the lumps and the stones
+    'float vc = (pmH(0, 0, sd + 401) - 0.5) * 2.0 * room * 0.35;', 'W = vec4(0.78 + 0.10 * pmH(0, 1, sd + 401), 0.15, rutsD, 0.35);', 'W = vec4(0.68, 0.10, 0.35 * rutsD, 0.25);', 'W = vec4(0.0, 0.18, 0.22 * rutsD, 0.0);', 'W = vec4(0.0, 0.17, 0.35 * rutsD, 0.2);',
+    'float c = c0 + a1 * pmNoise(vec2(u / 60.0, float(key)), sd + 411) + a2 * pmNoise(vec2(u / 15.0, float(key)), sd + 421);', 'float dep = W.z * (0.75 + 0.25 * pmNoise(vec2(u / 9.0, float(key + 3)), sd + 431));',
+    'float x = v - c - float(s) * W.x + 0.03 * pmNoise(vec2(u / 0.7, float(key * 2 + s)), sd + 441), q = x / W.y, t = exp(-q * q * q * q);', 'float bq = (abs(x) - 1.7 * W.y - 0.06) / (0.6 * W.y + 0.05);',
+    'r += uMicro3.y * (0.65 * pmNoise(vec2(u, v) / 3.5, sd + 301) + 0.35 * pmNoise(vec2(u, v) / 1.8, sd + 302));',
+    'float p = big ? uMicro3.w * (0.4 + 0.6 * edge) : min(0.6, 0.1 + 0.9 * uMicro3.w) * (0.6 + 0.4 * edge);', 'float R = big ? 0.07 + 0.2 * e * e : 0.015 + 0.05 * e * e;', 'vec2 C = vec2((float(i) + 0.25 + 0.5 * a) * M, (float(j) + 0.25 + 0.5 * b) * M);'];
   const miss = need.filter(l => G.indexOf(l) < 0);
   const src = fs.readFileSync(path.join(T, '..', 'src', 'core', '26b_strip_micro.js'), 'utf8');
   const jsNeed = ['ih(i, m, seed + 11) >= pHole', 'const R = 0.5 + 0.6 * ih(i, m, seed + 12), u = (i + 0.15 + 0.7 * ih(i, m, seed + 13)) * CELL;', 'ih(i, m, seed + 14) < 0.667',
     'holeD * (0.5 + 0.5 * ih(i, m, seed + 17))', 'let R = 1.5 + 1.5 * ih(j, 0, seed + 32);', 'r += swA * (0.7 * vnoise(u / 25, v / 25, seed + 201) + 0.3 * vnoise(u / 12, v / 12, seed + 202));', 'const room = halfW - 0.5 - 0.3 - 2 * R;', 'len * (0.05 + 0.9 * (j + 0.2 + 0.6 * ih(j, 0, seed + 31)) / K.hazards)',
-    'side * (0.3 + R + Math.max(0, room) * ih(j, 0, seed + 36))', 'K.hazardSize / 100 * (0.7 + 0.3 * ih(j, 0, seed + 34)) * (ih(j, 0, seed + 33) < 0.6 ? 1 : -1)', 'amp[k] * vnoise(u / OCT[k], v / OCT[k], seed + 101 + k)'];
+    'side * (0.3 + R + Math.max(0, room) * ih(j, 0, seed + 36))', 'K.hazardSize / 100 * (0.7 + 0.3 * ih(j, 0, seed + 34)) * (ih(j, 0, seed + 33) < 0.6 ? 1 : -1)', 'amp[k] * vnoise(u / OCT[k], v / OCT[k], seed + 101 + k)',
+    'const vc = (ih(0, 0, seed + 401) - 0.5) * 2 * room * 0.35;', 'WAYS.push([0.78 + 0.10 * ih(0, 1, seed + 401), 0.15, rutsD, BERM, vc, 0.30, 0.08, 0]);', 'WAYS.push([0.68, 0.10, 0.35 * rutsD, 0.25, cc, 0.25, 0.06, 1]);', 'WAYS.push([0, 0.18, 0.22 * rutsD, 0, cc, 0.25, 0.06, 1]);', 'WAYS.push([0, 0.17, 0.35 * rutsD, 0.2, side * pv, 0.30, 0.10, 2]);',
+    'const wayC = (W, u) => W[4] + W[5] * vnoise(u / 60, W[7], seed + 411) + W[6] * vnoise(u / 15, W[7], seed + 421);', 'const dep = W[2] * (0.75 + 0.25 * vnoise(u / 9, W[7] + 3, seed + 431));',
+    'const x = v - c - s * W[0] + 0.03 * vnoise(u / 0.7, W[7] * 2 + s, seed + 441), q = x / W[1], t = Math.exp(-q * q * q * q);', 'const bq = (Math.abs(x) - 1.7 * W[1] - 0.06) / (0.6 * W[1] + 0.05);',
+    'lA * (0.65 * vnoise(u / 3.5, v / 3.5, seed + 301) + 0.35 * vnoise(u / 1.8, v / 1.8, seed + 302))',
+    'const p = big ? K.rocks * (0.4 + 0.6 * edge) : Math.min(0.6, 0.1 + 0.9 * K.rocks) * (0.6 + 0.4 * edge);', 'return [(i + 0.25 + 0.5 * a) * M, (j + 0.25 + 0.5 * b) * M, big ? 0.07 + 0.2 * e * e : 0.015 + 0.05 * e * e];'];
   const jmiss = jsNeed.filter(l => src.indexOf(l) < 0);
   verdict(!miss.length && !jmiss.length, `the shader's holes, hazards and relief are the field's, line for line (${need.length} GLSL lines, ${jsNeed.length} JS lines${miss.length ? '; GLSL MISSING ' + miss[0] : ''}${jmiss.length ? '; JS MISSING ' + jmiss[0] : ''}), on the field's v (the ribbon's flipped)`);
   // the ribbon's v is the field's flipped: a world point's pavement (u, v) against the field's toUV
