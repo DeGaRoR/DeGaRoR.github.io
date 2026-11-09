@@ -2700,31 +2700,25 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       const KL = { kMul: LR.kMul, cMul: LR.cMul };
       for (const q of [PI, PO, U]) { B(q, fw, 'gear', false, undefined, undefined, KL); B(q, af, 'gear', false, undefined, undefined, KL); B(q, tp0, 'gear', false, 'inner', undefined, KL); }
       B(PI, PO, 'gear', false, undefined, undefined, KL); B(U, PI, 'gear', false, undefined, undefined, KL); B(U, PO, 'gear', false, undefined, undefined, KL);
-      // THE ARM IS A SOLID, NOT A PLANE (rule 10 again): the horn H stands 12 deg off the arm's line, 8 cm off the plane
-      // of the axle and the pivot's two ends - three anchors it can REFLECT through. Measured: the spawn's settle snapped
-      // it to its mirror and the strut read half its stroke for a 70 deg swing of the arm. K is the arm's boss across
-      // the pivot (LR.boss up the perpendicular of the arm's line, at the pivot's mid-plane): with it the arm is a
-      // tetrahedron (axle, PI, PO, K) and H is held by four members, one of them 0.4 m off any plane it could fold through
-      const ap = P[ax], v = [ap[0] - c[0], ap[1] - c[1]], vl = Math.hypot(v[0], v[1]) || 1;
-      const K = N(c[0] - LR.boss * v[1] / vl, c[1] + LR.boss * v[0] / vl, c[2], 'AXLEK' + nm);
-      if ((P[K][1] - c[1]) < 0) { P[K][0] = c[0] + LR.boss * v[1] / vl; P[K][1] = c[1] - LR.boss * v[0] / vl; nodes[K].p = P[K].slice(); }
+      // THE ARM: the axle and the horn on the pivot's two ends. The horn stands 12 deg off the arm's line, 8 cm off the
+      // plane of the axle and the pivot's ends - three anchors it can REFLECT through (rule 10): measured, the spawn's
+      // settle snapped it to its mirror and the strut read half its stroke for a 70 deg swing. The arm's rigid cluster
+      // (below) holds it - a proper rotation has no mirror - so the members are the arm's mass and its damage joints
       B(ax, PI, 'gear', false, undefined, undefined, KL); B(ax, PO, 'gear', false, undefined, undefined, KL);
-      B(K, PI, 'gear', false, undefined, undefined, KL); B(K, PO, 'gear', false, undefined, undefined, KL); B(K, ax, 'gear', false, undefined, undefined, KL);
       B(H, PI, 'gear', false, undefined, undefined, KL); B(H, PO, 'gear', false, undefined, undefined, KL); B(H, ax, 'gear', false, undefined, undefined, KL);
-      B(H, K, 'gear', false, undefined, undefined, KL);
       // the leg's own hardware where it hangs (GEN_RULES.lever: the arm and its bearings, the strut, the fittings)
-      pt(ax, 0.4 * LR.kgArm); pt(PI, 0.12 * LR.kgArm); pt(PO, 0.12 * LR.kgArm); pt(K, 0.16 * LR.kgArm); pt(H, 0.2 * LR.kgArm + 0.5 * LR.kgStrut);
+      pt(ax, 0.5 * LR.kgArm); pt(PI, 0.15 * LR.kgArm); pt(PO, 0.15 * LR.kgArm); pt(H, 0.2 * LR.kgArm + 0.5 * LR.kgStrut);
       pt(U, 0.5 * LR.kgStrut + LR.kgLeg);
       // THE ARM IS FORGED, NOT A TRUSS: on a 0.12 m bearing base its members let the axle bend 16 mm away under the static
       // load and ~0.1 m in a limit drop (GATE WILGAGEAR 5 / 7 measured it). A rigid cluster (G294's shape matching - a
-      // projection, no frequency, no substep cost) holds the axle, the pivot's ends, the boss and the horn in their
-      // shape; the members inside still run (the mass, the drawing, the damage layer's joints)
-      clusters.push({ cls: 'lever', tag: 'LEV' + nm, nodes: [ax, PI, PO, K, H] });
+      // projection, no frequency, no substep cost) holds the axle, the pivot's ends and the horn in their shape (and the
+      // horn off its mirror); the members inside still run (the mass, the damage layer's joints)
+      clusters.push({ cls: 'lever', tag: 'LEV' + nm, nodes: [ax, PI, PO, H] });
       // ...and the leg's FOOT is a forging too (the knuckle that carries the pivot's cylinder and the strut's bracket): the
       // strut's upper eye held to the pivot's axis, so the stroke is the arm's angle's (the kinematics') under a drop's
       // 40 kN as at rest
       clusters.push({ cls: 'lever', tag: 'LEG' + nm, nodes: [PI, PO, U] });
-      LEVREC.sides.push({ side: nm, axle: ax, pi: PI, po: PO, h: H, u: U, k: K });
+      LEVREC.sides.push({ side: nm, axle: ax, pi: PI, po: PO, h: H, u: U });
     }
   } else
   B(GAL, GAR, 'gear');

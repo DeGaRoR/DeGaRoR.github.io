@@ -3023,7 +3023,7 @@ const GEN_HULL_ROW_OFF = { bpStrutK: 1, bpCabDraw: 1, bpCabPylon: 0, engPylonFai
 // WILGA-GEAR: the trailing-link leg's rows per station (tools/_gear_page.js LEG_ROWS[4]) at the value a build without them
 // draws (_cage_gen CAGE_DEFAULT_ABSENT holds the same)
 const GEN_LEVER_ROW_OFF = (() => { const d = { lvArm: 0.4, lvAng: 62, lvComp: 12, lvTop: 0.18, lvReach: 0.45, lvStat: 0.07, lvLegW: 0.09, lvRootAng: 80 }, o = {};
-  for (const i of [1, 2]) for (const k in d) o['s' + i + '_' + k] = d[k];
+  for (const k in d) { o[k] = d[k]; for (const i of [1, 2]) o['s' + i + '_' + k] = d[k]; }   // (the flat base copy too)
   return o; })();
 // RETRACT-1 / G1: the gear layer's retraction rows (tools/_cage_gear.js), dropped by genStolCageOff when the gear is fixed
 const GEN_RETRACT_ROWS = ['gearRetract', 'gearRetT', 'gearRetAct', 'gearRetFrac', 'gearFold', 'gearFoldNose', 'gearPos',
@@ -3576,13 +3576,11 @@ const GEN_RULES = {
   //             rb, zl, ff, vf, stopK: gearOleoDesign's rules (§4)
   //   kgArm / kgStrut / kgLeg  the forged arm with its pivot and bearings, the strut, the upper leg's fittings (DERIVED:
   //             the study's §6, inside the 4-6 % of gross a fixed gear weighs)
-  //   boss      the arm's boss across the pivot (m, up the perpendicular of the arm's line): the frame's node that makes
-  //             the arm a solid (61: the horn cannot fold through it)
   //   kMul / cMul  the leg's and the arm's members at kMul x the gear class's k and cMul x its damper: steel
   //             structure, not a spring (the strut is the spring and its orifice the damper)
   lever: { arm: 0.400, ang: 62, comp: 12, hornK: 0.959, hornDeg: 12.3, qPiv: 0.268, qHorn: 0.173, w: 0.06, top: 0.18,
            legDir: [0.640, 0.577, -0.514], dSt: 0.070, dPiston: 0.045, rp: 3.0, n: 1.3, p2k: 2.2, nFull: 3.0, cd: 0.5,
-           nLim: 2.67, rb: 4, zl: 0.15, ff: 0.05, vf: 0.005, stopK: 3, kgArm: 4.5, kgStrut: 3.2, kgLeg: 2.5, kMul: 20, cMul: 0.1, boss: 0.12 },
+           nLim: 2.67, rb: 4, zl: 0.15, ff: 0.05, vf: 0.005, stopK: 3, kgArm: 4.5, kgStrut: 3.2, kgLeg: 2.5, kMul: 20, cMul: 0.1 },
   // THE BOX'S WEBS ON A SKINNED WING (chantier 1, see 61_gen_frame's
   // bracing section): the fraction of the cap's linear density a web, rib
   // post or shear diagonal of the torsion-box lattice bills when the
