@@ -84,9 +84,8 @@ const BENCH = [
 ];
 // the tank row reads the energy module's own resolver (genVesselResolve's signature varies by arc: measured off a Cub)
 function cubTankPrice() {
-  // G2818 (MASTER-GREEN, GATE JOINPARITY's census): the Cub as the game flies it (tools/_load_build.js; FLYDIY_RAW_BUILDS=1 as written)
   const j = JSON.parse(fs.readFileSync(path.join(ROOT, 'builds/cub_2026-09-20_corrected.json'), 'utf8'));
-  const spec = C.genMigrateSpec(process.env.FLYDIY_RAW_BUILDS === '1' ? (j.spec || j) : require('./_load_build.js').loadBuild('builds/cub_2026-09-20_corrected.json').spec);
+  const spec = C.genMigrateSpec(j.spec || j);
   return Math.round(C.genShakedown(C.buildGen(spec), spec).ledger.vessel.cost);
 }
 
@@ -176,7 +175,7 @@ function run(doctor) {
        && C.econDeliveredValue({}) === null, 'a delivered airframe: its new price, its used value when it has years, nothing when its ledger is unknown');
     // STEP 2: AGE COSTS PERFORMANCE - and nothing else; absent, nothing moves
     {
-      const j = JSON.parse(fs.readFileSync(path.join(ROOT, 'builds/cub_2026-09-20_corrected.json'), 'utf8')), sp0 = C.genMigrateSpec(process.env.FLYDIY_RAW_BUILDS === '1' ? (j.spec || j) : require('./_load_build.js').loadBuild('builds/cub_2026-09-20_corrected.json').spec);   // (G2818: the load door)
+      const j = JSON.parse(fs.readFileSync(path.join(ROOT, 'builds/cub_2026-09-20_corrected.json'), 'utf8')), sp0 = C.genMigrateSpec(j.spec || j);
       const sp1 = JSON.parse(JSON.stringify(sp0)); sp1.aging = { years: 40, engineHours: 2000 };
       const a = C.genShakedown(C.buildGen(sp0), sp0), b = C.genShakedown(C.buildGen(sp1), sp1);
       const G = C.genAgingOf(sp1);

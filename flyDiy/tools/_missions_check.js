@@ -435,8 +435,7 @@ function runtimeRows(M, mut) {
   const fresh = () => { let d = N.careerNew({ seed: 'rt' }); d.career.providers.clients.rep = 3; d = N.careerNormalise(d); N.careerRefresh(d); return d; };
   const stopAt = (aero, o) => N.careerStopRecord(Object.assign({ how: 'stopped', aero, occupants: 1, cargoKg: 0, row: { from: 'HOME', to: aero, t: 300 }, hour: 12 }, o || {}));
   const cubJ = JSON.parse(fs.readFileSync(path.join(ROOT, 'builds', 'cub_2026-09-20_corrected.json'), 'utf8'));
-  // G2818 (MASTER-GREEN, GATE JOINPARITY's census): acceptEvidence measures the Cub as the game flies it (tools/_load_build.js)
-  const cubSpec = N.genMigrateSpec(process.env.FLYDIY_RAW_BUILDS === '1' ? (cubJ.spec || cubJ) : require('./_load_build.js').loadBuild('builds/cub_2026-09-20_corrected.json').spec);
+  const cubSpec = N.genMigrateSpec(cubJ.spec || cubJ);
 
   // ---- P2: THE PREFERENCES -----------------------------------------------------------------------------------------
   ok(N.missionPrefOf(cubSpec, 'engines') === 1 && N.missionPrefOf(cubSpec, 'thrust') === 'tractor' && N.missionPrefOf(cubSpec, 'gear') === 'taildragger'

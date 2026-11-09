@@ -150,10 +150,9 @@ const PILOT_PHASES = {
   ROUTE: ['ROUTE', 'ENROUTE'], LOITER: ['HOLDING', 'ENROUTE'],   // G2120 ROUTE-DRAW: the drawn route, its hold at the end
 };
 // G2520 ALTIPORT-ARRIVAL: THE FLARE NEVER ARMS MORE THAN THIS OVER THE AIM'S GROUND (m; FINAL's sanity guard, nor ever
-// under the strip). The arming height is (A.flareArmK 1.0; 1.3 before G2813, and still A.flareK 1.3 on a forced landing's
-// glide) x A.flareAgl x the person's flareK + an altiport's grade x V:
+// under the strip). The arming height is (A.flareK 1.3) x A.flareAgl x the person's flareK + an altiport's grade x V:
 // the validated aeroplanes' flareAgl (genAP: 3.2 s of the approach's sink) - the Cub 3.94, the Jodel 4.74, the twin
-// on floats 4.86, the metal Cessna 7.56, the Cessna on floats 8.27 m - arm at 3.9 / 4.7 / 4.9 / 7.6 / 8.3 m (expert),
+// on floats 4.86, the metal Cessna 7.56, the Cessna on floats 8.27 m - arm at 5.1 / 6.2 / 6.3 / 9.8 / 10.8 m (expert),
 // 18.0 m at the most (the floats with the custom person's top flareK 1.3 and Skyline Altiport's 10 % at 1.3 VAppr);
 // genAP's own ceiling (flareAgl 12 m) x 1.3 x 1.3 is 20.3 m. 25 m clears all of it; a flare armed higher is a
 // misreading of the height (a ridge before the threshold), not a flare
@@ -451,7 +450,7 @@ function makePilot(sim, def, world, opts) {
     trimCalm: true, groundP1D: true, xwBank: true, water: true, porpoise: true,
     // G396.2 / G970: on the step the stick comes all the way back, through LIFTOFF
     deTop: (onG) => (sim.hydro && (onG > 0 || ap.phase === 'LIFTOFF')) ? (A.deWater ?? 0.70) : (rotPull && ap.phase === 'ROLL') ? (A.deRotateFull ?? 0.70)
-      : (ap.phase === 'FLARE' || ap.phase === 'ROLLOUT') ? (ap.stolFld ? (A.deStol ?? 0.70) : (A.deFlare ?? 0.70)) : 0.35 } });   // STOL-PILOT + G2813: the stick's full travel
+      : (ap.stolFld && (ap.phase === 'FLARE' || ap.phase === 'ROLLOUT')) ? (A.deStol ?? 0.70) : 0.35 } });   // STOL-PILOT: the stick's full travel
   const taxiFF = (() => {
     const PP = POWERPLANTS[def.params.powerplant];
     const PR = def.params.prop || PP.prop;
@@ -808,7 +807,7 @@ function makePilot(sim, def, world, opts) {
   // slope, the flare's own integrator / cap / timescale, a three-point flag
   let finalLevel = null;
   let flThr0 = 0, flWI = 0, flDI = 0;   // G3079 (FLOATS-FIX, PERSONA-2 G2462's): the water flare's power - the approach throttle at the flare's start, its integrator; flDI: G2385, its drift integrator
-  let flThPk = 0, flI = 0, flCap = 0, flTau = 3.2, flVsF = 0, tdThree = false, altG = 0, flH0 = 1;   // altG: GTRAM, the altiport's grade at the aim; flH0: STOL-PILOT, the flare's entry height
+  let flI = 0, flCap = 0, flTau = 3.2, flVsF = 0, tdThree = false, altG = 0, flH0 = 1;   // altG: GTRAM, the altiport's grade at the aim; flH0: STOL-PILOT, the flare's entry height
   // G381.1: the power assist on the approach (see apply)
   let pAsst = 0, flLeft = Infinity;
   // G1936: the forward slip on a short final (FINAL, below) - its amount 0..1, its side, said once
@@ -1025,7 +1024,7 @@ function makePilot(sim, def, world, opts) {
   // next final (heldSeed); the landing that speed makes judged once a final (heldJudged: 'normal' -> 'short' -> refused)
   let heldSeed = false, heldJudged = null, heldTail = null;
   // G975: the landing flap the ELEVATOR can hold (FINAL, below) - a cap that only comes down, kept for the flight
-  let fLandCap = 1, fCapT = 0, deF = 0, xwFlap = false;   // xwFlap: G2816, this approach's crosswind flap cap
+  let fLandCap = 1, fCapT = 0, deF = 0;
   let abortV0 = null, abortS0 = null, committedTO = false;
   ap.reEngage = (o) => {
     pendReEng = true; reEngAir = true;
@@ -3121,21 +3120,7 @@ function makePilot(sim, def, world, opts) {
       c.flap = clamp(c.flap + clamp(tgt - c.flap, -rr, rr), 0, 1);
     };
     let flapTgt = 0;
-    // G2816 (FLARE-NOPUSH's crosswind): A TAILWHEEL AEROPLANE IN A CROSSWIND LANDS ON ITS TAKE-OFF FLAP AT MOST (FAA-H-8083-3C
-    // ch. 9: "To maintain control during an approach in turbulent air with gusty crosswind, the pilot should use partial wing
-    // flaps ... touchdown at a higher airspeed to ensure more positive control"; the degree of flap varies with the wind).
-    // The landing notch (G2811) brought the card Cub down at 1.08 Vs on 0.60 of flap, and in 4 m/s across HOME its roll-out
-    // weathervaned 46 deg (master, flapless: 9.3; the notch with the old flare 20): capped here 15 deg, and in 2 m/s 5.9
-    // (2.9 / 7.1). Decided on the pattern (downwind, base, the inbound leg) and on a final only while the flap is not yet
-    // past the take-off setting - never a retraction on short final (the same chapter: "Retracting the flaps ... creates an
-    // unnecessary risk"); held for the approach, cleared by the next departure. Over xwFlapK (0.10) x VAppr across the
-    // runway's frame; not a tricycle (no weathervane on the roll), not on the water (a float's own landing)
-    if (FS && !trike && !sim.hydro) {
-      if (ap.phase === 'ROLL' || ap.phase === 'LIFTOFF' || ap.phase === 'CLIMB') xwFlap = false;
-      else if (!xwFlap && F && (ap.phase === 'DOWNWIND' || ap.phase === 'BASE' || ap.phase === 'INBOUND' || (ap.phase === 'FINAL' && c.flap <= (FS.to ?? 0) + 0.01))
-               && Math.abs(SV.crossWind(F)) > (A.xwFlapK ?? 0.10) * (A.VAppr || 18)) xwFlap = true;
-    }
-    const fTO = FS ? (FS.to ?? 0) : 0, fLDG = FS ? Math.min(FS.ldg ?? 1, fLandCap, xwFlap ? (FS.to ?? 0) : 1) : 0;
+    const fTO = FS ? (FS.to ?? 0) : 0, fLDG = FS ? Math.min(FS.ldg ?? 1, fLandCap) : 0;
     // STOL-PILOT: A STOL DEPARTURE TAKES HALF THE LANDING FLAP (flapStolK 0.5) when that is more than the sheet's take-off
     // setting (the PA-18 Information Manual: "half or full flap can be applied to reduce takeoff run ... the best angle of
     // climb is attained with full flap"). Measured on the showcase Cub off HOME: the sheet's 0.25 lifted off in 47 m and met
@@ -3388,7 +3373,7 @@ function makePilot(sim, def, world, opts) {
           cond('airspeed', V, vbg, Math.abs(V - vbg) < 2, 'm/s')]);
         if (aglG < (A.flareK ?? 1.3) * A.flareAgl) {
           go('FLARE'); thFlare0 = th; SEL.deadThr = false; altG = 0;
-          flTau = clamp(A.flareAgl / Math.max(0.5, -vcg[1]), 2.0, 4.5); flThPk = th;
+          flTau = clamp(A.flareAgl / Math.max(0.5, -vcg[1]), 2.0, 4.5);
           flCap = trike ? A.thMax
                 : Math.min(A.thMax, (thRest != null ? thRest : A.liftoffTh) + (A.flareOverRest ?? 0.035));
           flCap = Math.max(flCap, thFlare0 + 0.03);
@@ -4833,7 +4818,7 @@ function makePilot(sim, def, world, opts) {
         // round-out begins a second of the rising ground earlier - the path turns from down to up
         altG = altiGrade();
         const hFl = altG > 0 ? cg[1] - (aimAlt() + altG * (sAl - ap.xAim)) : aglG;
-        let flareArm = hFl < (A.flareArmK ?? 1.0) * A.flareAgl * (PRA ? PRF.flareK : 1) + altG * V;   // G2813: armed at the height the round out's law is sized for
+        let flareArm = hFl < (A.flareK ?? 1.3) * A.flareAgl * (PRA ? PRF.flareK : 1) + altG * V;
         // G2520 ALTIPORT-ARRIVAL: THE FLARE-ARMING SANITY GUARD. The flare is the last metres over the strip: it never
         // arms with the wheels UNDER the strip (its lowest ground from the threshold to the aim) nor more than
         // FLARE_ARM_MAX over the aim's ground - whatever height the arming law reads (the altiport's slope line runs on
@@ -4869,7 +4854,7 @@ function makePilot(sim, def, world, opts) {
           // G381: the hold-off's timescale (continuous with the sink it
           // arrives with), its cap (the three-point attitude on a
           // taildragger, thMax on a tricycle), its integrator and filter
-          flTau = clamp(A.flareAgl / Math.max(0.5, -vcg[1]), 2.0, 4.5); flThPk = th;
+          flTau = clamp(A.flareAgl / Math.max(0.5, -vcg[1]), 2.0, 4.5);
           flCap = trike ? A.thMax
                 : Math.min(A.thMax, (thRest != null ? thRest : A.liftoffTh) + (A.flareOverRest ?? 0.035));
           flCap = Math.max(flCap, thFlare0 + 0.03);
@@ -4963,22 +4948,9 @@ function makePilot(sim, def, world, opts) {
           const vsC = -Math.max(sinkF, Math.max(0, hFl) / flTau) + altG * Math.hypot(vcg[0], vcg[2]);
           const ev = vsC - flVsF;
           // the elevator has no more to give: stop winding the demand up
-          const deSat = SV.aDe > (ap.stolFld ? (A.deStol ?? 0.70) : (A.deFlare ?? 0.70)) - 0.05;   // STOL-PILOT + G2813: the stick's whole travel is the flare's
+          const deSat = SV.aDe > (ap.stolFld ? (A.deStol ?? 0.70) - 0.05 : 0.30);   // STOL-PILOT: the stick's whole travel is the flare's
           flI = clamp(flI + (deSat ? -0.15 : (A.flareI ?? 0.30) * ev) * dt, 0, Math.max(0, flCap - thFlare0));
           let thC = clamp(thFlare0 + (A.flareP ?? 0.20) * ev + flI, thFlare0 - 0.02, flCap);
-          // G2813 (FLARE-NOPUSH; FAA-H-8083-3C ch. 9, p. 9-8: "Once the actual process of rounding out is started, the pilot should
-          // not push the elevator control forward. If too much back-elevator pressure was exerted, this pressure is either slightly
-          // relaxed or held constant"): THE ROUND OUT NEVER LOWERS THE NOSE MORE THAN flareNoPush (0.035 rad, 2 deg) UNDER THE
-          // HIGHEST ATTITUDE IT HAS REACHED. The hold-off's law above asks for a sink (vsC) and, once the attitude has checked the
-          // descent, a float or G970's firm-arrival floor (1.0 m/s under 1.15 Vs0) asked the nose DOWN again: the Jodel on its
-          // landing notch pitched 11 -> 2 deg in its last 0.2 m and touched at 1.44 m/s after two hops; the card Cub's student
-          // flew the final at -7.4 deg, pushed to -8.5, ballooned, pushed again from 1.1 m with the stick on its 0.35 stop and met
-          // the ground nose-low at 2.19 m/s; its ham-fisted pilot gave up. Relaxed, never pushed: with the arm at the height the
-          // law is sized for (flareArmK 1.0 - it armed at 1.3 x flareAgl while flTau is sized on 1 x, so its first tick asked
-          // 1.3 x the sink it arrived with) and the stick's whole travel (deFlare 0.70, the STOL flare's deStol - the 0.35 stop
-          // left the nose falling 4 deg with the stick on it): the Jodel 1.32 m/s, the Cub student 1.10, hamfist 0.82 (completed)
-          flThPk = Math.max(flThPk, th);
-          thC = Math.min(flCap, Math.max(thC, flThPk - (A.flareNoPush ?? 0.035)));
           // STOL-PILOT: ...and on a STOL flare the attitude is brought to the three-point one (flCap) as the height goes - at
           // half the entry height (flareStolK) - the power (below) holding the sink: the pitch flies the speed down to
           // the touch, the throttle the path (the hold-off's own pitch law alone left the showcase Cub at +2 deg, 1.10 Vs0)

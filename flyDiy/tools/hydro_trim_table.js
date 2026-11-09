@@ -28,9 +28,7 @@ const C = require(path.resolve(opt('core', path.join(T, 'flight_core.js'))));
 const MAXS = +opt('max', 90), ONLY = opt('only', '').split(',').filter(Boolean);
 const STC_GROSS = 1157;
 const mass = def => def.nodes.reduce((a, n) => a + n.m, 0);
-// G2818 (MASTER-GREEN, GATE JOINPARITY's census): every build as the game flies it - tools/_load_build.js, the page's load chain
-// (FLYDIY_RAW_BUILDS=1: the file as written, as before; --core: the chain is this tree's, the flight the core named)
-const readSpec = rel => { if (process.env.FLYDIY_RAW_BUILDS === '1') { const j = JSON.parse(fs.readFileSync(path.join(FLY, rel), 'utf8')); return j.spec || j; } return require('./_load_build.js').loadBuild(rel).spec; };
+const readSpec = rel => { const j = JSON.parse(fs.readFileSync(path.join(FLY, rel), 'utf8')); return j.spec || j; };
 const build = S => C.buildGen(C.genMigrateSpec(JSON.parse(JSON.stringify(S))));
 // the G3390 loading: two pilots, full fuel, baggage up to the STC gross
 function gross(S0) {
@@ -46,7 +44,7 @@ const CASES = {
   c172r_land: { label: '172R + 2350, land prop, 1157 kg', def: () => gross(readSpec('builds/c172r_wipline2350_landprop_2026-10-20.json')) },
   floats: { label: 'Cessna floats (cessnaFloatsWOrks)', def: () => build(readSpec('bugReports/cessnaFloatsWOrks.json')) },
   wipline: { label: 'Wipline fixture (172 on 2350s, v10)', def: () => build(readSpec('tools/fixtures/build_v10_c172_wipline2350_2026-09-20.json')) },
-  twin: { label: 'twin on floats (GATE FLOATS)', def: () => { if (!(process.env.FLYDIY_RAW_BUILDS === '1')) return build(require('./_load_build.js').loadValidated('twinFloats').spec); const S = readSpec('tools/fixtures/build_v7_ultralight_2026-09-05.json'); S.gear.type = 'floats'; S.cage = Object.assign({}, S.cage, { gearFloats: 1 }); return build(S); } },
+  twin: { label: 'twin on floats (GATE FLOATS)', def: () => { const S = readSpec('tools/fixtures/build_v7_ultralight_2026-09-05.json'); S.gear.type = 'floats'; S.cage = Object.assign({}, S.cage, { gearFloats: 1 }); return build(S); } },
 };
 // G3446 (HYDRO-TRIM, after train L25b): THE PILOT'S FEET AND HANDS. G2080 (ENGINE-TORQUE) made the propeller's torque,
 // P-factor and swirl real: with the rudder and the ailerons left alone the 172R swung 45 deg off its heading in 12 s and
