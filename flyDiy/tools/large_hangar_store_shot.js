@@ -74,6 +74,66 @@ const bakeProbe = page => page.evaluate(() => {
   const pm = new THREE.PMREMGenerator(R); const out = pm.fromCubemap(rt.texture); S.environment = out.texture; pm.dispose(); rt.dispose();
   return env0 ? 'replaced' : 'baked';
 });
+// --gallery (the user 9 Nov: "render it on my widescreen ... 5000 something times 1440 ... compose it so that it really
+// works, mainly for the 16:9 format ... a few light conditions ... move the camera around, move the FOV, change the time of
+// the day, change the focus, do some top downs, do some bottom up, maybe do one from across the window"): one loaded
+// scene, many stills - the hero (16:9, 2560 x 1440) in every mood, the ultrawide (5120 x 1440) framed from inside the hall
+// 2 m off every wall, a top-down under the trusses, a bottom-up under a wing, one in through a flank window, a telephoto
+// from the apron, and a focus pull (depth of field by accumulation: the eye jittered over a lens disc, every sample aimed at
+// the focal point, averaged in python after) - written to <OUT>/gallery/
+const GALLERY = argv.includes('--gallery');
+async function gallery(page, R, log) {
+  const GD = path.join(OUT, 'gallery'); fs.mkdirSync(GD, { recursive: true });
+  const shot = (o) => page.evaluate(o => {
+    const D = window.GARAGE_ENV._debug(), Rr = D.renderer, S = D.scene, h = D.hangar;
+    const g = h.group.position, P = p => new THREE.Vector3(p[0] + g.x, p[1] + g.y, p[2] + g.z);
+    const asp = o.W / o.H, vfov = o.hfov ? 2 * Math.atan(Math.tan(o.hfov * Math.PI / 360) / asp) * 180 / Math.PI : o.fov;
+    const cam = new THREE.PerspectiveCamera(vfov, asp, 0.05, 3000);
+    cam.position.copy(P(o.eye)); cam.lookAt(P(o.at)); cam.updateMatrixWorld();
+    const ex0 = Rr.toneMappingExposure, sz = Rr.getSize(new THREE.Vector2()), pr = Rr.getPixelRatio();
+    Rr.setPixelRatio(1); Rr.toneMappingExposure = ex0 * o.expo; Rr.setSize(o.W, o.H, false); Rr.render(S, cam);
+    const u = Rr.domElement.toDataURL(o.png ? 'image/png' : 'image/jpeg', 0.92);
+    Rr.toneMappingExposure = ex0; Rr.setSize(sz.x, sz.y, false); Rr.setPixelRatio(pr);
+    return u;
+  }, o);
+  const save = (u, f) => { fs.writeFileSync(path.join(GD, f), Buffer.from(u.split(',')[1], 'base64')); return f; };
+  const info = await page.evaluate(() => { const h = window.GARAGE_ENV._debug().hangar; return { dims: h.dims, moods: h.moods || [], door: h.door }; });
+  const HW = info.dims.HW, HD = info.dims.HD, EAVE = info.dims.EAVE;
+  const plan = (R && R.plan) || [];
+  const res = plan[0] || { x: 8, z: -8 };
+  // the views, in the room's frame (the door at -x, x the depth, z across: the gallery side +z)
+  const V = {
+    hero:   { W: 2560, H: 1440, eye: [HD - 5, 7.6, -HW + 5], at: [-5, 0.6, 3], fov: 52 },
+    wide:   { W: 5120, H: 1440, eye: [HD - 3, 6.2, 0], at: [-HD, 2.4, 0], hfov: 96 },
+    top:    { W: 2560, H: 1440, eye: [2, EAVE - 1.7, 0], at: [2.01, 0, 0], fov: 92 },
+    under:  { W: 2560, H: 1440, eye: [res.x + 1.2, 0.35, res.z + 2.4], at: [res.x - 0.5, 3.2, res.z - 1.5], fov: 70 },
+    window: { W: 2560, H: 1440, eye: [3, 2.2, -HW - 4], at: [1, 1.4, 6], fov: 46 },
+    tele:   { W: 2560, H: 1440, eye: [-HD - 26, 1.7, 1.5], at: [0, 2.2, 0], fov: 22 },
+  };
+  const out = [];
+  const setMood = i => page.evaluate(i => { window.GARAGE_ENV.setMood(i); return (window.GARAGE_ENV._debug().hangar.moods || [])[i]; }, i);
+  const moods = info.moods.length ? info.moods.map((n, i) => [i, n]) : [[0, 'day']];
+  for (const [i, name] of moods) {
+    await setMood(i); await sleep(15000); log('  gallery mood ' + name + ': probe ' + await bakeProbe(page));
+    const f = save(await shot(Object.assign({ expo: EXPO }, V.hero)), 'hero_' + name + '.jpg'); out.push(f); log('    ' + f);
+    if (i === 0 || /golden|dusk|even/i.test(name)) { const w = save(await shot(Object.assign({ expo: EXPO }, V.wide)), 'wide_' + name + '.jpg'); out.push(w); log('    ' + w); }
+  }
+  await setMood(0); await sleep(15000); await bakeProbe(page);
+  for (const k of ['top', 'under', 'window', 'tele']) { const f = save(await shot(Object.assign({ expo: EXPO }, V[k])), k + '.jpg'); out.push(f); log('    ' + f); }
+  // THE FOCUS PULL: the eye over a lens disc (aperture 0.16 m, 16 samples on a golden-angle spiral), every sample aimed at
+  // the Jodel on the stand (the focal plane through it): the planes behind and the trusses fall soft
+  const eye = [-7.5, 1.5, -6.5], at = [0, 1.3, 0], ap = 0.16, N = 16;
+  const fwd = [at[0] - eye[0], at[1] - eye[1], at[2] - eye[2]], L = Math.hypot(...fwd), f0 = fwd.map(v => v / L);
+  const rt = [f0[2], 0, -f0[0]], rl = Math.hypot(...rt), r0 = rt.map(v => v / rl), u0 = [f0[1] * r0[2] - f0[2] * r0[1], f0[2] * r0[0] - f0[0] * r0[2], f0[0] * r0[1] - f0[1] * r0[0]];
+  const dofs = [];
+  for (let n = 0; n < N; n++) {
+    const rr = ap * Math.sqrt((n + 0.5) / N), th = n * 2.39996;
+    const e = [0, 1, 2].map(k => eye[k] + r0[k] * rr * Math.cos(th) + u0[k] * rr * Math.sin(th));
+    dofs.push(save(await shot({ W: 2560, H: 1440, eye: e, at, fov: 34, expo: EXPO, png: true }), 'dof_' + String(n).padStart(2, '0') + '.png'));
+  }
+  log('    dof: ' + N + ' samples');
+  return { views: V, shots: out, dof: { eye, at, aperture: ap, samples: dofs } };
+}
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });
   const srv = http.createServer((q, r) => { const p = path.join(REPO, decodeURIComponent(q.url.split('?')[0]));
@@ -120,7 +180,7 @@ const bakeProbe = page => page.evaluate(() => {
     // THE SAME LIGHT FOR EVERY STILL (the user 9 Nov: "you compare widely different outside lighting conditions"): the
     // garage's mood pinned to its daylight row (the day clock's hour follows it), then the door's view and the probe re-shot
     { const m = await page.evaluate(() => { const E = window.GARAGE_ENV, ms = (E._debug().hangar && E._debug().hangar.moods) || [];
-        const i = Math.max(0, ms.findIndex(n => /^(day|sun|noon|midday)/i.test(String(n)))); E.setMood(i); return ms[i] || i; });
+        const i = Math.max(0, ms.findIndex(n => /^(afternoon|day|noon|midday)$/i.test(String(n)))); E.setMood(i); return ms[i] || i; });
       log('  mood: ' + m); await sleep(20000); }
     log('  probe: ' + await bakeProbe(page));
     // the room's probe forced (on a software renderer the boot's deferred bake waits for compileAsync, which never lands:
@@ -159,6 +219,7 @@ const bakeProbe = page => page.evaluate(() => {
       return { shell: window.GARAGE_ENV.shell(), door: h.door, derelict: h.derelict, group: h.group.position.toArray().map(v => +v.toFixed(2)), mats }; });
     log('  room ' + JSON.stringify({ derelict: info.derelict, steel: info.mats.steel, steelNew: info.mats.steelNew, sheetNew: info.mats.sheetNew }));
     report.stands.push({ stand: k, residents: R, room: info, page: path.basename(fp), hall: path.basename(fh) });
+    if (GALLERY) report.gallery = await gallery(page, R, log);
   }
   fs.writeFileSync(path.join(OUT, SCENE + '.json'), JSON.stringify(report, null, 1));
   if (errs.length) console.log('page errors:\n  ' + errs.slice(0, 10).join('\n  '));

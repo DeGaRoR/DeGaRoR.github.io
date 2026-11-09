@@ -63,7 +63,7 @@ const bakeProbe = page => page.evaluate(() => {
     // THE SAME LIGHT FOR EVERY STILL (the user 9 Nov: "you compare widely different outside lighting conditions"): the
     // garage's mood pinned to its daylight row (the day clock's hour follows it), then the door's view and the probe re-shot
     { const m = await page.evaluate(() => { const E = window.GARAGE_ENV, ms = (E._debug().hangar && E._debug().hangar.moods) || [];
-        const i = Math.max(0, ms.findIndex(n => /^(day|sun|noon|midday)/i.test(String(n)))); E.setMood(i); return ms[i] || i; });
+        const i = Math.max(0, ms.findIndex(n => /^(afternoon|day|noon|midday)$/i.test(String(n)))); E.setMood(i); return ms[i] || i; });
       log('  mood: ' + m); await sleep(20000); }
     log('  probe: ' + await bakeProbe(page));
     // the room's probe forced (on a software renderer the boot's deferred bake waits for compileAsync, which never lands:
