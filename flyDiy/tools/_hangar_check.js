@@ -323,6 +323,12 @@ function runCozy(union) {
     const Lw = CORE.shellLims('works'), Lh = CORE.shellLims('works', 'HOME'), Wd = CORE.SHELLS.works.dims;
     ok(Wd.HW === 22 && Wd.HD === 30 && Lw.HD[1] >= 30 && Lh.HD[1] === CORE.siteMaxHD('HOME') && Lh.HD[1] < 30,
        'rule 8: the large hangar\'s envelope is the real 44 x 60 hall (HOME\'s main plot caps it at HD ' + Lh.HD[1] + ')');
+    // ...and never so short that the DC-3 meets the back wall (the user 9 Nov: "it pokes through the back"): every site's
+    // cap, a site with a hangar moved anywhere on or off the pad, leaves the tail (17.6 m aft of the stand) 2 m clear
+    const st = CORE.siteOf('HOME'), z0 = st.hangar.z, shallow = [];
+    for (const z of [0, 30, 62, 70, 75, 80, 85, 89, 95, 120]) { st.hangar.z = z; const c = CORE.shellLims('works', 'HOME').HD[1]; if (c < dc3.aft + 2) shallow.push(z + ': ' + c); }
+    st.hangar.z = z0;
+    ok(!shallow.length, 'rule 8: no site caps the large hangar short of the DC-3 (' + (shallow.join(', ') || 'none') + ')');
   }
   // the career's main hangar, and the sandbox's
   const d = CORE.careerNew({ id: 'g2315', seed: 'g2315' }), H = d.sheds.HOME;
