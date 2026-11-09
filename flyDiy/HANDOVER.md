@@ -313846,3 +313846,10 @@ Evidence: flydiy-notes/evidence-2026-10-18/2026-11-08/comms/ (run7.log, run8.log
   lines are master's own known ones under new build names (the nav wire 6.5 mm in the fin, the twin's legs in the flaps
   at full travel). Gates re-run on b66640612: FIT, CLIP, PARTS, PANEL, SAVE, FITMANUAL, STOL PASS; the aerials probe
   identical to master. The garage still is still owed (a GPU slot).
+## SHED-FLOOR + VEG-1 - NO GROUND COVER ON A STANDING SHED'S FLOOR; THE BERRY BUSHES GATHER INTO THICKETS (CABIN-CRAFT, 9 Nov 2026)
+
+- **Shed floor**: grass, fireweed, bunchberry and a shrub grew inside the world's works shed (master too: no slab, the cover masks read only surface and water). Every player shed files its footprint (render_world SHED_FLOORS); both cover rings skip a plant inside it after its draws; a shed that stands or comes down replants only its cells (replantBox). Node: inside 269 -> 0, outside identical, restored exactly on removal.
+- **Thickets**: a raspberry bush walks up a 16 m clump field inside its cell (same land tests), so the same 3840 bushes stand in groups; size by thicket with old/young outliers, value +-12 % (shade in the heart). Beds: 4 % tall spikes, strays 5 %.
+- **Cost**: shrubs 3840 = master, instanced meshes 192 = master: draws and tris unchanged; shrub meshes carry an instance colour (one program variant at most).
+- **Stills** 9 Nov 05:05 (evidence-2026-10-18/2026-11-09/veg-1) vs the roof-lights stills of 8 Nov: works B1_side floor bare (was grass + flowers + the sapling). Gates COVER, FADES, STAND, HANGAR, HANGARVIEW PASS.
+- Note: flyDiy/reports/evidence/VEG-1/READY.md. Open: grass thinner in the bed cores (CPU first); a shed floor slab.

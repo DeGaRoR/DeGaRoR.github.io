@@ -307,6 +307,25 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   let fillUpdate = () => {};          // W13 woodland fill streamer (set in the tree block)
   const lakeQuads = [];   // the drawn lake surfaces (box + y): waterDrawY reads them
   let seaPlaneY = 0;      // the drawn sea plane's y: 0, the level the floats ride, on every tier (G1563, REVIEW B25)
+  // SHED-FLOOR (A0 8 Nov, at the works' door: "tall grass growing on the shed's floor"): the player's sheds stand on the
+  // terrain with no slab inside (the exterior is a shell; its pad is the apron and the ring round the walls), and the cover's
+  // land test (okAt: the surface, the water) never knew a building stood there - grass, fireweed, bunchberry and a shrub
+  // grew inside. Every standing shed (HOME's, the side and closed ones - shedNodeAt) files its footprint here, the walls'
+  // box + 0.3 m in the shed's own frame; both rings ask floorAt(x, z) per plant AFTER its draws (cover_ring: the cell's
+  // stream stays the same either way, as the scar cut), and a shed that stands or comes down replants only the cells it
+  // touches (replantBox).
+  const SHED_FLOORS = [];
+  const floorAt = (x, z) => {
+    for (const f of SHED_FLOORS) {
+      if (x < f.x0 || x > f.x1 || z < f.z0 || z > f.z1) continue;
+      const dx = x - f.x, dz = z - f.z;   // into the shed's frame (node.rotation.y = ry: lx = dx c - dz s, lz = dx s + dz c)
+      if (Math.abs(dx * f.c - dz * f.s) <= f.A && Math.abs(dx * f.s + dz * f.c) <= f.B) return true;
+    }
+    return false;
+  };
+  function floorsChanged(f) {
+    for (const r of [coverRing, grassField]) if (r && r.replantBox) r.replantBox(f.x0, f.z0, f.x1, f.z1);
+  }
   let coverRing = null, grassField = null, fillPoolAt = null, standCards = null;   // grassField: the grass's own ring (G2563)   // standCards: the far forest as stand cards (stand_cards.js)   // fillPoolAt: the puddle test the walker shares with the ring (set with it)               // G454.13 the cover ring (set in the tree block once the payload is in)
   let fillApi = null;                 // S3: the ring's prewarm / ringReady / ringStat (set in the fill block)
   let treeSettleOf = null;            // S3: () => the payload's settle promise (set in the tree block)
@@ -5847,7 +5866,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             const sl = Math.hypot(world.terrainH(x + d, z) - world.terrainH(x - d, z), world.terrainH(x, z + d) - world.terrainH(x, z - d)) / (2 * d);
             return SPA.meanAt(x, z, code, Math.atan(sl) * 180 / Math.PI); };
           coverRing = COVER_RING.make(THREE, { scene, world, camera, treeBuild, treeList, LEAF: TREE_LEAF, BIO,
-            GF: GF0, biomeAt, codeAt, okAt, poolAt, coverAt, owned: name => !!(grassField && grassField.get().on && grassField.species().includes(name)) });
+            GF: GF0, biomeAt, codeAt, okAt, poolAt, coverAt, floorAt, owned: name => !!(grassField && grassField.get().on && grassField.species().includes(name)) });
           // the field's land test: the cover's, and - under the 'sides' law with `hard` (27_premises GRASS_SIDES, the user's call) - a
           // point the physics calls gravel / paved where nothing hard is drawn (kill under 1: a shoulder polygon, a strip box's margin)
           const PGN = (typeof PREMISES_GEN !== 'undefined') ? PREMISES_GEN : null;
@@ -5857,7 +5876,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             const s = world.surface(x, z); if (s !== world.SURFACE.GRAVEL && s !== world.SURFACE.PAVED && s !== world.SURFACE.SAND) return false;
             const c = world.coverAt ? world.coverAt(x, z) : null; return !(c && c.kill >= 1); };
           grassField = COVER_RING.make(THREE, { scene, world, camera, treeBuild, treeList, LEAF: TREE_LEAF, BIO, layer: 'grass',
-            GF: GF0, biomeAt, codeAt, okAt: okField, poolAt, coverAt, groundMeanAt });
+            GF: GF0, biomeAt, codeAt, okAt: okField, poolAt, coverAt, floorAt, groundMeanAt });
           fillPoolAt = poolAt;
           // THE STAND CARDS (2026-09-22): the far forest beyond the ring, one card per 32 m of treed ground
           if (typeof STAND_CARDS !== 'undefined' && !/[?&]stands=0/.test(location.search))
@@ -6583,6 +6602,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // (G2310: shared by HOME's shed and the side hangars' - the same teardown)
     function dropShed(node) {
       scene.remove(node);
+      const fl = node.userData && node.userData.floor;   // SHED-FLOOR: its footprint goes with it, and the cover grows back
+      if (fl) { const i = SHED_FLOORS.indexOf(fl); if (i >= 0) SHED_FLOORS.splice(i, 1); floorsChanged(fl); }
       const mats = new Set();
       node.traverse(o => {
         if (o.geometry) o.geometry.dispose();
@@ -6719,6 +6740,12 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       node.position.set(H.x, H.y !== undefined ? H.y : 0, H.z);
       node.rotation.y = H.ry;
       scene.add(node);
+      // SHED-FLOOR: its footprint (the walls' box, HD along its x, HW along its z, + 0.3 m) - no cover grows inside
+      { const fD = shed.dims || D0, fA = (+fD.HD || 0) + 0.3, fB = (+fD.HW || 0) + 0.3, fr = Math.hypot(fA, fB);
+        if (fA > 0.3 && fB > 0.3) {
+          const fl = { x: H.x, z: H.z, c: Math.cos(H.ry || 0), s: Math.sin(H.ry || 0), A: fA, B: fB, x0: H.x - fr, x1: H.x + fr, z0: H.z - fr, z1: H.z + fr };
+          node.userData.floor = fl; SHED_FLOORS.push(fl); floorsChanged(fl);
+        } }
       return node;
     }
     standShed(shedDims);
