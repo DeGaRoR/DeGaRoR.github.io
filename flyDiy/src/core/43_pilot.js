@@ -3128,12 +3128,18 @@ function makePilot(sim, def, world, opts) {
     // weathervaned 46 deg (master, flapless: 9.3; the notch with the old flare 20): capped here 15 deg, and in 2 m/s 5.9
     // (2.9 / 7.1). Decided on the pattern (downwind, base, the inbound leg) and on a final only while the flap is not yet
     // past the take-off setting - never a retraction on short final (the same chapter: "Retracting the flaps ... creates an
-    // unnecessary risk"); held for the approach, cleared by the next departure. Over xwFlapK (0.10) x VAppr across the
-    // runway's frame; not a tricycle (no weathervane on the roll), not on the water (a float's own landing)
+    // unnecessary risk"); held for the approach, cleared by the next departure. Over xwFlapK x VAppr across the runway's
+    // frame; not a tricycle (no weathervane on the roll), not on the water (a float's own landing).
+    // G2816b (TOUR, 9 Nov - the user's Cub w3 > tw_ski, the game's 8 kt day: on take-off flap it came in high, slipped, landed
+    // 1.87 m/s 140 m into the 380 m altiport and ground-looped): NEVER ON A SHORT-FIELD APPROACH (ap.shortFld) - the short
+    // field's landing is full flap at the lowest safe speed (FAA-H-8083-3C ch. 9, short-field approaches and landings), the
+    // field's length governs and the approach was planned on that flap; and only over a REAL crosswind, xwFlapK 0.15 x VAppr
+    // (~2.7 m/s on the Cub; 0.10 before, 1.8 m/s, a breath of wind): the chapter's partial flap is for "gusty crosswind" -
+    // the card Cub's 2 m/s across HOME rolled out fine on its notch (7.1 deg), its 4 m/s needed the cap (46 -> 15 deg)
     if (FS && !trike && !sim.hydro) {
       if (ap.phase === 'ROLL' || ap.phase === 'LIFTOFF' || ap.phase === 'CLIMB') xwFlap = false;
-      else if (!xwFlap && F && (ap.phase === 'DOWNWIND' || ap.phase === 'BASE' || ap.phase === 'INBOUND' || (ap.phase === 'FINAL' && c.flap <= (FS.to ?? 0) + 0.01))
-               && Math.abs(SV.crossWind(F)) > (A.xwFlapK ?? 0.10) * (A.VAppr || 18)) xwFlap = true;
+      else if (!xwFlap && F && !ap.shortFld && (ap.phase === 'DOWNWIND' || ap.phase === 'BASE' || ap.phase === 'INBOUND' || (ap.phase === 'FINAL' && c.flap <= (FS.to ?? 0) + 0.01))
+               && Math.abs(SV.crossWind(F)) > (A.xwFlapK ?? 0.15) * (A.VAppr || 18)) xwFlap = true;
     }
     const fTO = FS ? (FS.to ?? 0) : 0, fLDG = FS ? Math.min(FS.ldg ?? 1, fLandCap, xwFlap ? (FS.to ?? 0) : 1) : 0;
     // STOL-PILOT: A STOL DEPARTURE TAKES HALF THE LANDING FLAP (flapStolK 0.5) when that is more than the sheet's take-off
