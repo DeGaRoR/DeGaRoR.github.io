@@ -764,7 +764,10 @@ if (typeof window !== 'undefined') window.CAGE_AERO_ON = aeroOn;
 // G1301: noted for the repaint (a page slice without the note answers the same material)
 let PAINT_KIND = 'c';
 const paintNote = (m, name) => typeof paintRec === 'function' ? paintRec(m, PAINT_KIND, name, null) : m;
-const matOf = name => {
+// LINER-BACK (9 Nov): sd is the group's side - 'f' a skin face a liner lines (its front only), 'b' the liner on it (its
+// back only), none the two-sided default every other face keeps (_cage_gen.js linerBack)
+const SIDE_OF = sd => sd === 'f' ? THREE.FrontSide : sd === 'b' ? THREE.BackSide : THREE.DoubleSide;
+const matOf = (name, sd) => {
   const a = alphaOf(name);
   if (aeroOn()) {
     const A = AK();
@@ -795,7 +798,7 @@ const matOf = name => {
                 (A.AERO_GLASS.has(name)
                   ? ':G' + [GLASS.opacity, GLASS.scratch, GLASS.wipe,
                             GLASS.grime, GLASS.refl, GLASS.rainbow, P.glazeMat || 0].join(',')
-                  : '');
+                  : '') + (sd ? ':S' + sd : '');
     if (matCache[key]) return paintNote(matCache[key], name);
     if (A.AERO_GLASS.has(name)) {
       // the VIEW alpha still wins when it is asking for less: `glass a` is a
@@ -844,13 +847,13 @@ const matOf = name => {
         // the field is per-SECTION and pure (see _surf_check): the mesh
         // publishes which groups carry it, and meshFrom passes it in
         surf: matSurf[name] ? 1 : 0,
-        side: THREE.DoubleSide,
+        side: SIDE_OF(sd),
       });
     }
     return paintNote(matCache[key], name);
   }
   const neutral = !$('color').checked;
-  const key = (neutral ? 'n:' : 'c:') + name + ':' + a;
+  const key = (neutral ? 'n:' : 'c:') + name + ':' + a + (sd ? ':S' + sd : '');
   if (!matCache[key]) {
     matCache[key] = new THREE.MeshLambertMaterial({
       color: colOf(name),
@@ -858,7 +861,7 @@ const matOf = name => {
       // side of a curved pane rendered through the near one — its limb
       // read as a phantom circle on the bubble (user report). Interiors
       // + cutaway keep backfaces on everything else.
-      side: GLASSM.has(name) ? THREE.FrontSide : THREE.DoubleSide,
+      side: GLASSM.has(name) ? THREE.FrontSide : SIDE_OF(sd),
       transparent: a < 1,
       opacity: a,
       depthWrite: a >= 1,          // translucent surfaces never occlude
@@ -1014,7 +1017,8 @@ function repaint() {
   let ok = true, mm1 = null, clash = '';
   PAINT_REC = false;
   try {
-    if (ownSlots) mm1 = names.map(matOf);
+    const sides0 = meshObj.userData.matSides || [];          // LINER-BACK: each slot keeps its side
+    if (ownSlots) mm1 = names.map((nm, k) => matOf(nm, sides0[k]));
     for (const [m, q] of PAINT_REQ) {
       let nu = null;
       for (const [kind, name, g] of q.values()) {
@@ -1134,19 +1138,24 @@ function meshFrom(m) {
   // smooth normals the game viewer computes
   const pos = new Float32Array(m.V.length * 3);
   m.V.forEach((v, i) => { pos[i*3] = v[0]; pos[i*3+1] = v[1]; pos[i*3+2] = v[2]; });
-  const byMat = new Map();
+  // LINER-BACK: one group per section AND side - a section whose faces are all lined is still one group (one draw);
+  // only a section that mixes lined and unlined faces splits (matOf's sd, _cage_gen.js linerBack)
+  const byMat = new Map(), sdOf = new Map();
   m.F.forEach(f => {
-    if (!byMat.has(f.m)) byMat.set(f.m, []);
-    const t = byMat.get(f.m);
+    const sd = f.back ? 'b' : f.backed ? 'f' : '';
+    const bk = sd ? f.m + '' + sd : f.m;
+    if (!byMat.has(bk)) { byMat.set(bk, []); sdOf.set(bk, sd); }
+    const t = byMat.get(bk);
     // a FAN: quads as before; the knife's triangles and n-gons (G245) are
     // convex pieces of one flat-ish face, so the fan is exact for them
     for (let i = 1; i + 1 < f.v.length; i++) t.push(f.v[0], f.v[i], f.v[i + 1]);
   });
-  const idx = [], mats = [], groups = [];
-  for (const [name, tris] of byMat) {
+  const idx = [], mats = [], sides = [], groups = [];
+  for (const [bk, tris] of byMat) {
     groups.push([idx.length, tris.length, mats.length]);
     for (const i of tris) idx.push(i);
-    mats.push(name);
+    mats.push(sdOf.get(bk) ? bk.slice(0, bk.indexOf('')) : bk);
+    sides.push(sdOf.get(bk));
   }
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
@@ -1223,10 +1232,11 @@ function meshFrom(m) {
   }
   PAINT_KIND = 'm';                      // G1301: the cage mesh's slots, by section (repaint)
   let mats0;
-  try { mats0 = mats.map(matOf); } finally { PAINT_KIND = 'c'; }
+  try { mats0 = mats.map((nm, gi) => matOf(nm, sides[gi])); } finally { PAINT_KIND = 'c'; }
   const mesh = new THREE.Mesh(g, mats0);
   mesh.userData.surfMats = surfMats;
   mesh.userData.matNames = mats;
+  mesh.userData.matSides = sides;                  // LINER-BACK: the group's side ('f' / 'b' / '')
   // THE GLASS COMPANION (G206): every pane is two draws — the multiply pass
   // rides the same faces as a child mesh one renderOrder earlier. Inert when
   // the panes are not AEROSKIN glass (the flat view), tagged so the join and
@@ -1833,9 +1843,11 @@ function eyePut(to) {
   const par = from.parent;
   const t0 = performance.now();
   const names = from.userData.matNames || [], mm = Array.isArray(from.material) ? from.material : [from.material];
-  const bySec = new Map(names.map((nm, i) => [nm, mm[i]]));
+  // (LINER-BACK: a slot is its section AND its side - a section may have a lined and an unlined group)
+  const sdF = from.userData.matSides || [], sdT = to.userData.matSides || [];
+  const bySec = new Map(names.map((nm, i) => [nm + '|' + (sdF[i] || ''), mm[i]]));
   PAINT_KIND = 'm';
-  try { to.material = (to.userData.matNames || []).map(nm => bySec.get(nm) || matOf(nm)); } finally { PAINT_KIND = 'c'; }
+  try { to.material = (to.userData.matNames || []).map((nm, i) => bySec.get(nm + '|' + (sdT[i] || '')) || matOf(nm, sdT[i])); } finally { PAINT_KIND = 'c'; }
   for (const c of to.children.slice()) if (c.userData && c.userData.aeroCompanion) to.remove(c);
   meshGlass(to);
   for (const k of ['bodyZones', 'frameZones']) to.userData[k] = from.userData[k];

@@ -107,7 +107,10 @@
   // their live shader, see mergeModel's keep). And no longer 'never a bucket that also rides a control, a gauge or a
   // link' (C4a): nothing writes those meshes' materials (the cockpit lights its lamps and its needles, both live), the
   // fold makes their part a bone, and the pick reads the part through the fold.
-  const bakes = m => !!(m && m.fin && m.fin !== 'glass' && !m.spin && !(m.opacity < 1) && m.sec !== 'dashFace');
+  // LINER-BACK (9 Nov): a liner drawn as the skin's back face (sd 'b') never bakes - the fold is one two-sided material,
+  // and on it the liner would sit on the skin's own face and fight it. It stays live on its back-side material (one
+  // draw); the lined skin bakes as before (the fold's back face is the cabin's dark, the bake's own rule).
+  const bakes = m => !!(m && m.fin && m.fin !== 'glass' && !m.spin && !(m.opacity < 1) && m.sec !== 'dashFace' && m.sd !== 'b');
   const setOf = m => (m.inside ? 'in' : 'ext');
   const SETS = ['ext', 'in'];
   // name -> 'ext' | 'in'
