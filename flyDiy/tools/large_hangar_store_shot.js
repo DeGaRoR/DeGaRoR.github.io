@@ -94,6 +94,15 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     const fp = path.join(OUT, `${SCENE}_${k}_page.jpg`);
     await page.screenshot({ path: fp, type: 'jpeg', quality: 86, timeout: 180000 });
     log('  ' + path.basename(fp));
+    // the hand's own zoom: the wheel over the room (the orbit's distance), then the whole page again - the room wide,
+    // the stored aeroplanes round the stand, the garage's panels and sliders where they always are
+    const cv = await page.evaluate(() => { const c = window.GARAGE_ENV._debug().renderer.domElement.getBoundingClientRect(); return { x: c.left + c.width / 2, y: c.top + c.height * 0.55 }; });
+    await page.mouse.move(cv.x, cv.y);
+    for (let i = 0; i < 6; i++) { await page.mouse.wheel(0, 400); await sleep(400); }
+    await sleep(5000);
+    const fw = path.join(OUT, `${SCENE}_${k}_page_wide.jpg`);
+    await page.screenshot({ path: fw, type: 'jpeg', quality: 86, timeout: 180000 });
+    log('  ' + path.basename(fw));
     const url = await page.evaluate(({ W, H, EXPO, k }) => {
       const D = window.GARAGE_ENV._debug(), Rr = D.renderer, S = D.scene, h = D.hangar;
       const g = h.group.position, P = p => new THREE.Vector3(p[0] + g.x, p[1] + g.y, p[2] + g.z);
