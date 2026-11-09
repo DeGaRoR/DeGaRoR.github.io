@@ -1622,9 +1622,13 @@
       residentsSync(bb);
       const ox = (CAREER_DEV && RES && RES.dx) || 0, oz = (CAREER_DEV && RES && RES.dz) || 0;
       if (CAREER_DEV) { hangar.group.position.x = -ox; hangar.group.position.z = -oz; }
+      // DERELICT-HANGAR: the sandbox's stand on the door's line - the large hangar's door is off the axis (its gallery
+      // on the right), so the room moves under the stand by the door's offset and a DC-3 rolls out through the middle
+      const sz = (!CAREER_DEV && hangar.door && hangar.door.z) ? hangar.door.z : 0;
+      if (sz) hangar.group.position.z = -sz;
       if (isFinite(bb.min.x) && bb.max.x > bb.min.x)
         hangar.placeMobile({ x0: bb.min.x + ox, x1: bb.max.x + ox,
-                             z0: bb.min.z + oz, z1: bb.max.z + oz });
+                             z0: bb.min.z + oz + sz, z1: bb.max.z + oz + sz });
       // G1714: where the radio stands now - the garage's music leans toward it (boombox.js -> music.js)
       if (window.BOOMBOX && hangar.mobileProp) window.BOOMBOX.placed(hangar.mobileProp('boombox'));
       // the kit moved, so its print on the floor moves with it

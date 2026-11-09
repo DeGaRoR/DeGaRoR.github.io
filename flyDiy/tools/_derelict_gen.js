@@ -699,12 +699,13 @@ function build(P0, lod, F) {
     for (const sx of [-1, 1]) for (const sz of [-1, 1]) gLo = Math.min(gLo, g(sx * HW, sz * HD));
     const cs = L === 0 ? 2 : (L === 1 ? 5 : 40), nx = Math.max(1, Math.round(2 * HW / cs)), nz = Math.max(1, Math.round(2 * HD / cs));
     const b = bags.concFloor;
-    for (let i = 0; i < nx; i++) for (let j = 0; j < nz; j++) {
+    // (P.room: the garage room stands its own floor - hangar.js's slab, its scan and its shadow bake - so none here)
+    if (!P.room) for (let i = 0; i < nx; i++) for (let j = 0; j < nz; j++) {
       const x0 = -HW + 2 * HW * i / nx, x1 = -HW + 2 * HW * (i + 1) / nx, z0 = -HD + 2 * HD * j / nz, z1 = -HD + 2 * HD * (j + 1) / nz;
       face(b, [[x0, fy, z1], [x1, fy, z1], [x1, fy, z0], [x0, fy, z0]], Yup, uvFrame([0, fy, 0], [1, 0, 0], [0, 0, -1]));
     }
     // the slab's edge, down into the ground (the foundation the works shell stands on, G405.1's ring)
-    for (const [A, B] of [[[-HW, HD], [HW, HD]], [[HW, HD], [HW, -HD]], [[HW, -HD], [-HW, -HD]], [[-HW, -HD], [-HW, HD]]])
+    if (!P.room) for (const [A, B] of [[[-HW, HD], [HW, HD]], [[HW, HD], [HW, -HD]], [[HW, -HD], [-HW, -HD]], [[-HW, -HD], [-HW, HD]]])
       K.wall(bags.concWall, { A, B, y0: gLo - 0.35, t: 0.3, topAt: () => fy, ext: [0.15, 0.15], inner: false, endCap: [false, false], capBot: false, capTop: true, sub: L === 0 ? 4 : 0 });
     // the column piers (a concrete pedestal 0.3 m proud of the slab under every column)
     const pier = (x, z) => K.boxAB(bags.concWall, [x - 0.34, fy - 0.02, z - 0.34], [x + 0.34, fy + 0.3, z + 0.34], { ny: true });
@@ -1354,7 +1355,7 @@ function build(P0, lod, F) {
       st.puddleArea = contour(bags.water, lvl, fy + 0.006);
       contour(bags.stain, lvl + 0.07, fy + 0.003, () => CELL(13, 0.5, 0.5));       // the wet margin, darker slab round each
     } else if (roofed && !rest) contour(bags.stain, 0.2, fy + 0.003, () => CELL(13, 0.5, 0.5));   // the damp patches where it stood
-    if (L === 0) {
+    if (L === 0 && !P.room) {
       // the joints (5 m bays, sawn) and the cracks (random walks across the slab, worse where it sank)
       const line = (a, b, w, y, cell) => { const d2 = nrm(sub(b, a)), nn = [-d2[2], 0, d2[0]];
         face(bags.stain, [add(a, mul(nn, -w)), add(b, mul(nn, -w)), add(b, mul(nn, w)), add(a, mul(nn, w))].map(p => [p[0], y, p[2]]), Yup,
@@ -1686,6 +1687,32 @@ function build(P0, lod, F) {
         line(-xGL + 0.3, HD + 0.6, xGR - 0.3, HD + 0.6, 0.06);
       }
     }
+    // ---- THE OFFICES LIT (P.offices: the garage room's - the user 9 Nov: "the lighting in the galleries will be most
+    // important. Light some of the offices"): ceiling panels under both of the gallery's floors, glowing (the lamp bag:
+    // no lamp, no shadow map), most bays on, a few dark; and a little furniture where the windows show it - a desk, its
+    // chair, a cabinet, a plan chest - light on triangles, the rooms read lived in
+    if (P.offices && L === 0) {
+      const xm = (xGR + HW) / 2, gw = HW - xGR;
+      for (let k = 0; k < NB; k++) for (const [yc, lvl] of [[yL2 - 0.17, 0], [yGR - 0.155, 1]]) {
+        if (hashN(k, lvl, 141, seed) < 0.22) continue;                       // a dark office or two
+        const zc = (zF(k) + zF(k + 1)) / 2;
+        for (const dz of [-1.3, 1.3]) {
+          const q = [[xm - 0.32, yc, zc + dz - 0.6], [xm + 0.32, yc, zc + dz - 0.6], [xm + 0.32, yc, zc + dz + 0.6], [xm - 0.32, yc, zc + dz + 0.6]];
+          const ids = q.map((p, i) => bags.lamp.v(p, [i % 3 ? 1 : 0, i > 1 ? 1 : 0], [0, -1, 0])); bags.lamp.quad(ids[0], ids[3], ids[2], ids[1]);
+          obox([xm, yc + 0.01, zc + dz], Xp, Yp, 0.36, 0.008, 0.64, null, 'white');   // the fitting's frame
+        }
+        if (hashN(k, lvl, 142, seed) < 0.55) {                              // the furniture
+          const y0 = lvl ? yL2 : fy, z0 = zc - 1.1;
+          obox([xGR + gw * 0.42, y0 + 0.74, z0], Xp, Yp, 0.75, 0.02, 0.38, 'wood', 'wood');        // the desk's top
+          for (const [ax, az] of [[-0.7, -0.33], [0.7, -0.33], [-0.7, 0.33], [0.7, 0.33]]) obox([xGR + gw * 0.42 + ax, y0 + 0.36, z0 + az], Xp, Yp, 0.025, 0.36, 0.025, null, 'dark');
+          obox([xGR + gw * 0.42, y0 + 0.45, z0 - 0.75], Xp, Yp, 0.24, 0.04, 0.24, null, 'dark');   // the chair's seat
+          obox([xGR + gw * 0.42, y0 + 0.75, z0 - 0.97], Xp, Yp, 0.22, 0.28, 0.03, null, 'dark');   // its back
+          obox([xGR + gw * 0.42, y0 + 0.22, z0 - 0.75], Xp, Yp, 0.03, 0.22, 0.03, null, 'dark');   // its post
+          obox([HW - 0.55, y0 + 0.66, zc + 1.6], Xp, Yp, 0.24, 0.66, 0.3, 'cabinet', 'grey');     // a cabinet by the wall
+          if (!lvl) obox([xGR + gw * 0.42, y0 + 0.45, zc + 1.3], Xp, Yp, 0.6, 0.45, 0.42, null, 'grey');   // a plan chest
+        }
+      }
+    }
     // ---- THE FLUE: stainless, through the roof over the offices, a rain cap on it
     {
       const xf = HW - 2.6, zf = -2.0, top = yR(xf) + 1.5;
@@ -1898,7 +1925,7 @@ function applyFinish(P0, F0) {
   // the glass: milky and broken in the derelict, clear and new restored
   if (M.glass) { const r = (P.stage | 0) === 3; M.glass.color.setHex(r ? 0x8fa3a8 : 0xaeb9b6); M.glass.opacity = r ? 0.32 : 0.4; M.glass.roughness = r ? 0.06 : 0.3; M.glass.needsUpdate = true; }
   // the lamps (the buoys' rule: off unless asked - P.lamps, the night's): an amber lens, its glow an exposed level
-  if (M.lamp) { M.lamp.emissiveIntensity = P.lamps ? 2.2 : 0; M.lamp.color.setHex(P.lamps ? 0xffb050 : 0xc88a3a); M.lamp.needsUpdate = true; }
+  if (M.lamp) { const r3 = (P.stage | 0) === 3; M.lamp.emissiveIntensity = P.lamps ? (r3 ? 1.6 : 2.2) : 0; M.lamp.emissive.setHex(r3 ? 0xfff0d8 : 0xff9a26); M.lamp.color.setHex(P.lamps ? (r3 ? 0xfff6e8 : 0xffb050) : 0xc88a3a); M.lamp.needsUpdate = true; }
   // the dirt ramp off the slab (the house's): the dark tide line on the concrete, rust-brown splash on the sheets
   if (SU) {
     const R3 = (P.stage | 0) === 3;

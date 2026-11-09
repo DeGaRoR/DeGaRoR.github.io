@@ -98,7 +98,7 @@ function runA() {
   // HANGAR-NAMES (the user, 8 Nov: "I agree on the default renaming small, medium, big"): a player sees Small / Medium / Big
   // hangar; the code keys (field / club / works) stay - the saves and the gates read them
   ok(CORE.SHELLS.field && CORE.SHELLS.field.name === 'Small hangar' && CORE.SHELLS.club && CORE.SHELLS.club.name === 'Medium hangar' &&
-     CORE.SHELLS.works && CORE.SHELLS.works.name === 'Big hangar', 'the shells are not named Small / Medium / Big hangar (HANGAR-NAMES)');
+     CORE.SHELLS.works && CORE.SHELLS.works.name === 'Large hangar', 'the shells are not named Small / Medium / Large hangar (HANGAR-NAMES; DERELICT-HANGAR: the large one)');
 
   // ---- rule 5: no dead verbs ----------------------------------------------
   const grantable = new Set(['park', 'heavy', 'composite', 'engine']);
@@ -242,7 +242,11 @@ function runCozy(union) {
     ok(r.layout === key, T + 'stands in the works (layout ' + r.layout + ')');
     ok(r.placed.length + r.recipes.length + r.unplaced.length === total,
        T + (r.placed.length + r.recipes.length + r.unplaced.length) + ' outcomes for ' + total + ' rows');
-    ok(r.unplaced.length === 0, T + 'places EVERYTHING (' + r.unplaced.map(u => u.kit + '/' + u.key + ':' + u.reason).join(', ') + ')');
+    // DERELICT-HANGAR: the large hangar's right-hand rooms are its gallery now - what the layout stood there and the floor
+    // at the gallery's front cannot take is reported 'in the gallery' (the user: "don't put much in the offices"); at most
+    // a handful, and nothing refused for any other reason
+    const galleryLeft = r.unplaced.filter(u => u.reason === 'in the gallery');
+    ok(r.unplaced.length === galleryLeft.length && galleryLeft.length <= 8, T + 'places EVERYTHING but a few left to the gallery (' + r.unplaced.map(u => u.kit + '/' + u.key + ':' + u.reason).join(', ') + ')');
     // the floor, re-derived: everything standing ON the floor (no `y`: not a rider, a wall mount, the rug) as its box
     const boxes = [];
     for (const p of r.placed) {
@@ -715,7 +719,7 @@ const BREAKS = [
   ['the club hangs the cozy lamps',
    { srcH: s => s.replace('const LAYIT = (LAYOUT && LAYOUT.light) || null;', 'const LAYIT = (typeof hangarLayout === "function" && hangarLayout("cozy", "works") || {}).light || null;') }],
   ['a wall drawn with a negative box',
-   { srcH: s => s.replace('const DOOR_W = (D0.door > 0) ? Math.min(D0.door, 2 * HW - 1) : Math.max(6, 2 * HW - 5)',
+   { srcH: s => s.replace('const DOOR_W = (D0.door > 0) ? Math.min(D0.door, 2 * HW - 1) : FRAME === \'steel\' ? 2 * HW - 6.5 : Math.max(6, 2 * HW - 5)',
                           'const DOOR_W = (2 * HW - 55)') }],
 ];
 let bad = 0;

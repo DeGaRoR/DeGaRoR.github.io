@@ -206,6 +206,7 @@ const ROLLANIM = (() => {
       x0: gp.x + (h.doorAxis || -1) * HD,          // the door plane
       x1: gp.x - (h.doorAxis || -1) * HD,          // the back wall
       zc: gp.z, HW, EAVE, floorY: gp.y + (h.floorY || 0),
+      dz: door.z || 0,                             // DERELICT-HANGAR: the door's centre across the room (the large hangar's is off the axis)
       doorW: door.w > 0 ? door.w : Math.max(6, 2 * HW - 5),
       doorH: door.h > 0 ? door.h : Math.min(6.4, EAVE - 1.4),
       axis: h.doorAxis || -1,
@@ -598,7 +599,7 @@ const ROLLANIM = (() => {
     const u = (x - room.x0) * -ax;                      // metres INTO the shed from the door plane
     if (y < room.floorY + 0.3) return false;
     if (u < -m) return true;                            // outside, in front of the door
-    if (u <= m) return zr < room.doorW / 2 - m && y < room.floorY + room.doorH - S.head;   // in the opening
+    if (u <= m) return Math.abs(z - room.zc - (room.dz || 0)) < room.doorW / 2 - m && y < room.floorY + room.doorH - S.head;   // in the opening
     return u < Math.abs(room.x1 - room.x0) - m && zr < room.HW - m && y < room.floorY + room.EAVE - 0.5;
   }
   // a point inside a wall's solid (the door wall round its opening, the flanks, the back, the roof)
@@ -606,7 +607,7 @@ const ROLLANIM = (() => {
     const ax = room.axis, u = (x - room.x0) * -ax, zr = Math.abs(z - room.zc), yy = y - room.floorY;
     const len = Math.abs(room.x1 - room.x0);
     if (u < -0.3 || u > len + 0.3 || zr > room.HW + 0.3 || yy < 0) return false;
-    if (Math.abs(u) < 0.3) return zr > room.doorW / 2 || yy > room.doorH;
+    if (Math.abs(u) < 0.3) return Math.abs(z - room.zc - (room.dz || 0)) > room.doorW / 2 || yy > room.doorH;
     if (Math.abs(zr - room.HW) < 0.3 || Math.abs(u - len) < 0.3) return yy < room.EAVE + 0.5;
     return yy > room.EAVE && yy < room.EAVE + 2.5;
   }
@@ -642,8 +643,8 @@ const ROLLANIM = (() => {
     if (p.y < room.floorY + 0.35) p.y = room.floorY + 0.35;
     if (u < -m) return;
     if (u <= m) {
-      const zl = room.doorW / 2 - m - 0.01;
-      p.z = room.zc + clamp(p.z - room.zc, -zl, zl);
+      const zl = room.doorW / 2 - m - 0.01, zd = room.zc + (room.dz || 0);
+      p.z = zd + clamp(p.z - zd, -zl, zl);
       p.y = Math.min(p.y, room.floorY + room.doorH - S.head - 0.01);
       return;
     }

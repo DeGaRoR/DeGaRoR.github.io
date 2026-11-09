@@ -49,7 +49,12 @@ const SHELLS = {
     skin: null, sky: 'alps', price: 0, status: 'live',
   },
   works: {
-    name: 'Big hangar', frame: 'portal', doors: 'sixLeaf',
+    // DERELICT-HANGAR (the user 9 Nov: "we just have one, so now we call it the large one"): the large hangar is the
+    // restored WWII hangar (tools/_derelict_gen.js, stage 3) - a steel frame of its own: seen from the apron a two-storey
+    // gallery down the right (+z in the room) 5.5 m deep, a 1 m facade on the left; the door runs between them, 2HW - 6.5
+    // wide (33.5 m), its centre 2.25 m to the facade's side (hangarBay)
+    name: 'Large hangar', frame: 'steel', doors: 'sixLeaf',
+    galleries: { right: 5.5, left: 1.0 },
     dims: { HW: 20, HD: 20, EAVE: 9.5 },
     lims: { HW: [10, 24], HD: [10, 26], EAVE: [6.0, 12] },
     // BRICK, AND BIG (user, 2026-09-01: "the works one should rather have the
@@ -910,6 +915,15 @@ function hangarFootprint(key, reg) {
   return p ? [p.dim[0] / 2, p.dim[2] / 2] : [0.4, 0.4];
 }
 
+// THE CLEAR BAY of a shell with galleries (the large hangar), in the room's frame (z across, +z the right-hand gallery):
+// the walls' faces either side (the left facade's stem, the gallery's front), the door's width and its centre - from the
+// dims, so a resized hall stays one: null for a shell without galleries (the bay is the whole floor, the door centred)
+function hangarBay(shell, dims) {
+  const sh = SHELLS[shell], g = sh && sh.galleries;
+  if (!g) return null;
+  const HW = (dims && dims.HW) || sh.dims.HW;
+  return { z0: -(HW - 0.24), z1: HW - g.right - 0.2, doorW: 2 * HW - g.right - g.left, doorZ: (g.left - g.right) / 2 };
+}
 function hangarFit(dims, kitKeys, opts) {
   const HW = (dims && dims.HW) || 15, HD = (dims && dims.HD) || 12.5;
   const EAVE = (dims && dims.EAVE) || 7.0;
@@ -932,12 +946,19 @@ function hangarFit(dims, kitKeys, opts) {
   // the metalshop). A left-out row is REPORTED, never silent - the invariant below holds
   const omit = new Set((opts && Array.isArray(opts.omit)) ? opts.omit : []);
   const lanes = { shop: [], build: [], back: [] };  // packed intervals per wall
+  const floorRects = [];                             // (DERELICT-HANGAR: the gallery shell's floor, for the rows drawn out of it)
 
+  // DERELICT-HANGAR: in a shell with galleries the rows stand in the CLEAR BAY - the shop wall is the gallery's front,
+  // the floor and the back wall map across the bay, the aeroplane's slot is the door's line (hangarBay)
+  const BAY = hangarBay((opts && opts.shell) || 'club', { HW, HD, EAVE });
+  // the rows keep the places they were authored at (the user 9 Nov: "position everything by ignoring the galleries"); what
+  // would stand in the gallery is drawn out to its front (fit below), the shop wall IS the gallery's front
+  const zIn = z => z;
   const resolve = s => {
-    if (s.at === 'shop') return { x: -HD + s.along * 2 * HD, z: HW - s.out };
+    if (s.at === 'shop') return { x: -HD + s.along * 2 * HD, z: (BAY ? BAY.z1 : HW) - s.out };
     if (s.at === 'build') return { x: -HD + s.along * 2 * HD, z: -HW + s.out };
-    if (s.at === 'back') return { x: HD - s.out, z: -HW + s.along * 2 * HW };
-    return { x: s.fx * HD, z: s.fz * HW };          // floor
+    if (s.at === 'back') return { x: HD - s.out, z: zIn(-HW + s.along * 2 * HW) };
+    return { x: s.fx * HD, z: zIn(s.fz * HW) };     // floor
   };
   // oriented half-extents: a quarter turn swaps them; anything between is
   // taken at the nearer quarter, which over-covers slightly and that is the
@@ -951,6 +972,8 @@ function hangarFit(dims, kitKeys, opts) {
     const foot = orient(isRecipe ? row.foot : hangarFootprint(row.prop, reg),
                         row.dry);
     const p = resolve(row);
+    const moved = !!(BAY && row.at !== 'shop' && p.z + foot[1] > BAY.z1);
+    if (moved) p.z = BAY.z1 - foot[1] - 0.05;                     // out of the gallery, to its front
     const out = { kit, at: row.at, x: p.x, z: p.z, ry: row.dry || 0,
                   y: row.y || 0 };
     if (isRecipe) { out.recipe = row.recipe; out.n = row.n; out.free = !!row.free; out.foot = row.foot; }
@@ -961,7 +984,7 @@ function hangarFit(dims, kitKeys, opts) {
     // 1. bounds — even a `free` row: free waives the keepouts and the
     // packing (the hung wing is ALLOWED across the doorway), never the
     // walls. A nine-metre wing does not hang on an eight-metre wall.
-    if (Math.abs(p.x) + foot[0] > HD || Math.abs(p.z) + foot[1] > HW) {
+    if (Math.abs(p.x) + foot[0] > HD || (BAY ? (p.z - foot[1] < -HW || p.z + foot[1] > BAY.z1 + 0.05) : Math.abs(p.z) + foot[1] > HW)) {
       unplaced.push({ kit, key: label, at: row.at,
                       reason: 'outside the shell' });
       return;
@@ -976,7 +999,7 @@ function hangarFit(dims, kitKeys, opts) {
         return;
       }
       // 3. the aeroplane's slot
-      if (Math.abs(p.z) - foot[1] < 2.2 &&
+      if (Math.abs(p.z - (BAY ? BAY.doorZ : 0)) - foot[1] < 2.2 &&
           p.x - foot[0] < HD - 2.0 && p.x + foot[0] > -HD + 2.0) {
         unplaced.push({ kit, key: label, at: row.at,
                         reason: 'blocks the aircraft bay' });
@@ -1008,6 +1031,16 @@ function hangarFit(dims, kitKeys, opts) {
       unplaced.push({ kit, key: label, at: row.at,
                       reason: 'needs ' + row.on });
       return;
+    }
+    // DERELICT-HANGAR: a row drawn out of the gallery stands only where the floor at its front is free - the rest of the
+    // rooms it was part of (the lounge's corner, a plan table) IS the gallery now: reported, never piled on another
+    if (BAY && !(row.y > 0) && !row.on) {
+      const rc = { x0: p.x - foot[0], x1: p.x + foot[0], z0: p.z - foot[1], z1: p.z + foot[1], moved };
+      if (floorRects.some(o => (moved || o.moved) && rc.x0 < o.x1 - 1e-6 && rc.x1 > o.x0 + 1e-6 && rc.z0 < o.z1 - 1e-6 && rc.z1 > o.z0 + 1e-6)) {
+        unplaced.push({ kit, key: label, at: row.at, reason: 'in the gallery' });
+        return;
+      }
+      floorRects.push(rc);
     }
     if (row.light) out.light = row.light;
     if (isRecipe) { recipes.push(out); (row.props || []).forEach(k => placedKeys.add(k)); }
