@@ -190,7 +190,7 @@ const W8 = world(withMicro('w7', MICRO8));
   };
   const r0 = ribbon(0), r1 = ribbon(C.STRIP_MICRO.REFINE_MIN, C.STRIP_MICRO.REFINE_MIN_V);
   console.log(`  the ribbon over w7 at chaos 0.8 (1020 x 9 m): rows as before ${r0.verts} vertices, drawn - wheels p50 ${(r0.p50 * 1000).toFixed(1)} p99 ${(r0.p99 * 1000).toFixed(1)} max ${(r0.max * 1000).toFixed(1)} mm; refined to ${C.STRIP_MICRO.REFINE_MIN} m ${r1.verts} vertices, p50 ${(r1.p50 * 1000).toFixed(1)} p99 ${(r1.p99 * 1000).toFixed(1)} max ${(r1.max * 1000).toFixed(1)} mm`);
-  verdict(r1.p99 < 0.01 && r1.max < 0.03 && r1.verts < 250000, `the drawn ribbon is the wheels' ground: p99 ${(r1.p99 * 1000).toFixed(1)} mm (< 10), max ${(r1.max * 1000).toFixed(1)} mm (< 30), ${r1.verts} vertices (< 250 k)`);
+  verdict(r1.p99 < 0.01 && r1.max < 0.03 && r1.verts < 300000, `the drawn ribbon is the wheels' ground: p99 ${(r1.p99 * 1000).toFixed(1)} mm (< 10), max ${(r1.max * 1000).toFixed(1)} mm (< 30), ${r1.verts} vertices (< 300 k: the rut walls' 5 cm rows, DIRT-STRIP 9 Nov)`);
 }
 
 // ---- 8. THE HAZARDS: avoidable, never across --------------------------------------------------------------------------
