@@ -191,6 +191,18 @@ Object.assign(REFS, {
       LD:    { v: 14.7, tol: 0.08, kg: 'unknown', src: '(L/D)max 14.7 with CD0 0.0249 (Loftin, NASA SP-468, as commonly quoted [0.5 pending: the table was not reachable]); consistent with AR 9.14 and e 0.75; CD0 ~0.025 also derived from 230 mph at 8,500 ft on 2 x 1,050 hp' },
     } },
 
+  // TOP RUDDER RUCKUS (the user 9 Nov): the Solo 103's airframe with the non-Part 103 options. Figures from search extracts
+  // (the pages unreachable from the cloud box): the dealer sheet / Plane & Pilot - span 28.4 ft, length 17.5 ft, 122 ft2,
+  // +4/-2 g, 5 gal base tank (the Solo 103: 254 lb empty, 550 lb gross, stall 24 mph, cruise 50 mph, TO 350 ft); Kitplanes /
+  // Sun 'n Fun - 80 or 100 hp Rotax (503 / 582 / 912, Polini, Hirth), "a 20-knot stall" kept with the smaller engines,
+  // 500 miles at 100+ mph. THIN: no Ruckus weight or speed sheet found
+  ruckus: {
+    name: 'Top Rudder Ruckus (Rotax 912)', mtow: null, empty: null, fuelL: 19, S: 11.33, powerHP: 80,
+    src: 'dealer sheet (bbsportaviation) / Plane & Pilot: 28.4 ft, 17.5 ft, 122 ft2, 5 gal; Kitplanes / Sun n Fun: 80-100 hp Rotax, 20-kt stall (light engines), 500 mi at 100+ mph (search extracts, THIN)',
+    poh: { vr: 1.15, vy: 1.30, flapTO: 0, flapLDG: 20, brake: 0.6, note: 'a STOL ultralight-class taildragger: slats, drooping ailerons' },
+    rows: {
+      Vs1: { v: [20 * KT, 24 * MPH], tol: 0.10, kg: 'unknown', flaps: 'up', src: '20 kt (Sun n Fun, the light engines) to the Solo 103\'s 24 mph (THIN)' },
+    } },
   // SOPWITH CAMEL F.1 (Clerget 9B 130 hp). Weights and dimensions agree across sources; the speed is one database's
   // (185 km/h) and the climb is not found stated as a rate: no climb row.
   camel: {
@@ -277,6 +289,9 @@ const GEO = {
   // (JODEL-GEO 9 Nov: the length and height as two sources give them - sprinkle.com's registry sheets 6.20 / 1.90, aeropedia
   // 6.37 / 2.10; the fuel the D.112's single tank ahead of the pilot: 60 L the maker's front tank, 65 L usable in the AAIB's
   // G-BEZZ report - the old 45 L was a thin catalogue's)
+  ruckus:   { dims: { span: 8.66, length: 5.33, S: 11.33 },
+              specs: { engine: 'Rotax 912', hp: [80, 100], nE: 1, seats: 1 },
+              src: 'the Solo 103 airframe sheet (28.4 ft, 17.5 ft, 122 ft2); Kitplanes 80-100 hp Rotax (search extracts)' },
   d112:     { dims: { span: 8.20, length: [6.20, 6.37], height: [1.90, 2.10], S: 12.7, cRoot: 1.72, cTip: 1.20, hSpan: 2.74 },
               specs: { engine: 'Continental A-65', hp: 65, nE: 1, propD: 1.83, blades: 2, empty: 320, mtow: 530, fuelL: [60, 65], seats: 2 },
               src: 'D.112 type sheet; height and stab span off the d112 reference payload (perf_study REAL.d112.dims)' },
@@ -349,6 +364,7 @@ const PLANES = {
   chinook:  { supersededBy: 'chinookm', label: 'Chinook (official, out of the battery)', file: 'builds/chinook_2026-09-21_corrected.json', ref: 'chinook', official: true },
   // REAL-FIGURES-2 (2026-11-08): the planes with a clear real parent
   // MASS-SCALE / TAIL-RETRACT (2026-11-09, claude/practical-cerf-7fjpwp): the candidates standing in for their cards
+  ruckus:   { label: 'Top Rudder Ruckus (candidate, from Rufus)', file: 'builds/candidates/ruckus_2026-11-09.json', ref: 'ruckus', group: 'ultralight' },
   dc3r:     { label: 'DC-3-alike: the radial cowl, mains retracting into the nacelles, airliner-furnished, constant-speed (candidate)', short: 'DC-3', file: 'builds/candidates/dc3_retract_exact.json', ref: 'dc3', group: 'historical' },
   chinookm: { label: 'Chinook, pull-start (no battery, generator or starter; candidate)', short: 'Chinook', file: 'builds/candidates/chinook_minimal.json', ref: 'chinook', group: 'ultralight' },
   tigermothm:{ label: 'Tiger Moth-alike, no electrics as built (candidate)', short: 'Tiger Moth', file: 'builds/candidates/tigermoth_minimal.json', ref: 'tigermoth', group: 'biplane' },
