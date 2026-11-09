@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 6ece6772d51849e6
+// body-sha256: 88c87d53d4706812
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -35507,12 +35507,18 @@ function genStolCageOff(cage) {
   // SEAPLANES-LAND (HULL rows): the hull-types branch's new cage rows, at the value every build before them meant, the
   // same rule - absent IS that value, so they withdraw no certificate, re-key no cache, move no procured fingerprint
   for (const k in GEN_HULL_ROW_OFF) if (k in cage && cage[k] === GEN_HULL_ROW_OFF[k]) { out = out || Object.assign({}, cage); delete out[k]; }
+  // WING-FILLET (9 Nov): the wing-root fillet's rows, the same rule - the editor states them at their off values on every
+  // build it has seen, and the parked fleet's bakes are keyed by this fingerprint (a miss drew the stand's fleet live:
+  // GATE FRAMECOST, the Cub's stand 914 -> 1043 draws)
+  for (const k in GEN_FILLET_ROW_OFF) if (k in cage && cage[k] === GEN_FILLET_ROW_OFF[k]) { out = out || Object.assign({}, cage); delete out[k]; }
   return out || cage;
 }
 // SEAPLANES-LAND: the hull-types rows' "off" (tools/_cage_brace.js, _cage_eng.js PAGE.defaults: the value the draw and the
 // join read when the key is absent)
 const GEN_HULL_ROW_OFF = { bpStrutK: 1, bpCabDraw: 1, bpCabPylon: 0, engPylonFair: 0, engPylonForm: 0, engPylonAt: 0, engPylonAft: 0.15,
                            engPylonFwd: 0, engFinAt: 0.55, engFinFwd: 0, engNacOver: 0, engNacLift: 0 };
+// WING-FILLET (9 Nov): the wing-root fillet's rows' "off" (tools/_cage_wing.js PAGE.defaults; _cage_gen CAGE_DEFAULT_ABSENT)
+const GEN_FILLET_ROW_OFF = { wgFillet: 0, wgFilletK: 1, wgFilletAft: 0 };
 // RETRACT-1 / G1: the gear layer's retraction rows (tools/_cage_gear.js), dropped by genStolCageOff when the gear is fixed
 const GEN_RETRACT_ROWS = ['gearRetract', 'gearRetT', 'gearRetAct', 'gearRetFrac', 'gearFold', 'gearFoldNose', 'gearPos',
                           'gm1Ax', 'gm1Ang', 'gm2Ax', 'gm2Ang', 'gmTwist', 'gn1Ax', 'gn1Ang', 'gn2Ax', 'gn2Ang', 'gnTwist', 'gearWellCut', 'gearDoors', 'gearLegDoor', 'gearNacFit', 'gearNacPod', 'gearShort', 'gearShortNose', 'gearKneeDoor'];
