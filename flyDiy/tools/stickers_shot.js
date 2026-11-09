@@ -201,7 +201,7 @@ const MK = id => ['stol-river', 'grizzly-range', 'orca', 'winged-prop', 'midnigh
         const P = o.geometry.attributes.position, st = Math.max(1, Math.floor(P.count / 4000));
         for (let i = 0; i < P.count; i += st) { v.fromBufferAttribute(P, i).applyMatrix4(o.matrixWorld).applyMatrix4(M);
           if (Math.abs(v.x) > 0.6 && v.z < zTop) { b[0] = Math.min(b[0], v.y); b[1] = Math.max(b[1], v.y); b[2] = Math.min(b[2], v.z); b[3] = Math.max(b[3], v.z); } } });
-      return b[1] > b[0] ? { y: (b[0] + b[1]) / 2, len: b[1] - b[0], z: (b[2] + b[3]) / 2, ht: b[3] - b[2] } : null; }, zTop);
+      return b[1] > b[0] ? { y: (b[0] + b[1]) / 2, len: b[1] - b[0], z: (b[2] + b[3]) / 2, ht: b[3] - b[2], zLo: b[2] } : null; }, zTop);
     // THE COMPOSITIONS: 3-4 stickers a plane, placed off the measured boxes
     const COMPOSE = {
       async cub(P) {
@@ -230,9 +230,10 @@ const MK = id => ['stol-river', 'grizzly-range', 'orca', 'winged-prop', 'midnigh
           2: { On: 1, Mk: MK('orca'), Col: ink, Mir: 1, H: +(fin.H * 0.45).toFixed(2), L: +fin.L.toFixed(2), C: +(fin.C + fin.H * 0.05).toFixed(2), Tgt: 6, Mode: 1 },
           // (the wing without the registration's wing copy; the trim's orange on the white and green: the dark green vanished)
           4: { On: 1, Mk: MK('midnight-valley'), Col: ink, H: 1.0, L: +(wing.L + wing.W * 0.27).toFixed(2), C: +wing.C.toFixed(2), Tgt: 4, Mode: 2 },
-          // THE FLOATS TAKE STICKERS (the user, 9 Nov): the lighthouse on both floats' sides, in the side box at the float's
-          // middle, in the trim's orange (dark green vanished into the float's green side), the letters still declined there
-          3: flt ? { On: 1, Mk: MK('lighthouse'), Col: ink, H: +Math.min(0.42, flt.ht * 0.75).toFixed(2), L: +(flt.y + flt.len * 0.12).toFixed(2), C: +flt.z.toFixed(2), Tgt: 0, Mode: 1 } : undefined,
+          // THE FLOATS TAKE STICKERS (the user, 9 Nov): the bear paw on both floats' sides, in the side box on the forward half
+          // of the hull, centred 0.2 m above its keel (the measured box runs up the struts: its middle was above the hull),
+          // in the trim's orange (dark green vanished into the float's green side); the letters are still declined there
+          3: flt ? { On: 1, Mk: MK('bear-paw'), Col: ink, H: 0.28, L: +(flt.y - flt.len * 0.18).toFixed(2), C: +(flt.zLo + 0.20).toFixed(2), Tgt: 0, Mode: 1 } : undefined,
         };
       },
     };
