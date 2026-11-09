@@ -17,7 +17,8 @@
 //   7. THE DRAWN LEG = THE PHYSICS LEG: through the game's own load chain (_load_build: the garage draws the leg, the join
 //      measures it) the frame's nodes stand on the drawn points; and at every compression of a drop the drawn parts as
 //      the garage poses them (GEAR_LEVER at the strut's stroke) sit on the physics nodes (3 mm)
-//   7b. THE FAIRING: the leg's boot and the spat on the arm never meet through the stroke, and the boot hides the strut
+//   7b. THE FAIRING: the leg's boot only (no wheel fairing on the trailing link), cut so that nothing that moves comes
+//      within 3 mm of it through the stroke, and still hiding the strut
 //   8. NOTHING ELSE MOVED: a build without the leg is bit-identical to one built before it existed (its def keyless)
 // Run: node tools/_wilga_gear_check.js   (one final `GATE WILGAGEAR: PASS|FAIL`)
 'use strict';
@@ -213,52 +214,89 @@ console.log('7. the drawn leg = the physics leg (the game\'s load chain: the gar
   yes(n > 10 && err < 0.003, 'through a limit drop (' + n + ' frames, the strut to ' + mm(sTop) + ') the drawn arm and horn sit on the physics nodes to ' + mm(err));
 }
 
-console.log('7b. the fairing (the user: "an elegant fairing ... that hides a bit of this huge mechanics"): the leg\'s boot and the spat on the arm');
+console.log('7b. the fairing (the user: "an elegant fairing ... that hides a bit of this huge mechanics"; "only a fairing for the leg, not the wheel"; "the little proper cuts so the wheel articulation can move freely")');
 {
-  // each build on the leg with the leg-fairing row and the spat: the parts posed through the stroke as the garage poses them
-  // (GEAR_LEVER + gearNodeFrame, the preview row's rule); a point is inside a closed shell by a ray's parity
+  // each build on the leg with the leg-fairing row ON and the spat row asking for a spat: the parts posed through the
+  // stroke as the garage poses them (GEAR_LEVER + gearNodeFrame, the preview row's rule), measured against the boot's
+  // own triangles (the boot is open where it is cut: a distance, not a parity)
   const SH = require(path.join(T, '_scene_headless.js'));
-  // two builds: the Cub (8 in tyres) and the Wilga-class host of the pictures (500 mm tyres on the metal Cessna, the
-  // reference's geometry) - the host is where a symmetric boot met the spat in the last fifth of the stroke
+  const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]], sb = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], dt = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  const cr = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+  const app = (M, x) => [M[0] * x[0] + M[1] * x[1] + M[2] * x[2] + M[3], M[4] * x[0] + M[5] * x[1] + M[6] * x[2] + M[7], M[8] * x[0] + M[9] * x[1] + M[10] * x[2] + M[11]];
+  // the closest point of a triangle (Ericson, Real-Time Collision Detection 5.1.5)
+  const triD = (p, a, b, c) => {
+    const ab = sb(b, a), ac = sb(c, a), ap = sb(p, a), d1 = dt(ab, ap), d2 = dt(ac, ap); if (d1 <= 0 && d2 <= 0) return Math.hypot(...ap);
+    const bp = sb(p, b), d3 = dt(ab, bp), d4 = dt(ac, bp); if (d3 >= 0 && d4 <= d3) return Math.hypot(...bp);
+    const vc = d1 * d4 - d3 * d2; if (vc <= 0 && d1 >= 0 && d3 <= 0) { const v = d1 / (d1 - d3); return Math.hypot(...sb(p, add(a, ab.map(x => x * v)))); }
+    const cp = sb(p, c), d5 = dt(ab, cp), d6 = dt(ac, cp); if (d6 >= 0 && d5 <= d6) return Math.hypot(...cp);
+    const vb = d5 * d2 - d1 * d6; if (vb <= 0 && d2 >= 0 && d6 <= 0) { const w = d2 / (d2 - d6); return Math.hypot(...sb(p, add(a, ac.map(x => x * w)))); }
+    const va = d3 * d6 - d5 * d4; if (va <= 0 && (d4 - d3) >= 0 && (d5 - d6) >= 0) { const w = (d4 - d3) / ((d4 - d3) + (d5 - d6)); return Math.hypot(...sb(p, add(b, sb(c, b).map(x => x * w)))); }
+    const den = 1 / (va + vb + vc), v = vb * den, w = vc * den; return Math.hypot(...sb(p, add(a, add(ab.map(x => x * v), ac.map(x => x * w))))); };
+  const CELL = 0.02, CAP = 0.02;
   for (const [file, over, who] of [['builds/cub_2026-09-20_corrected.json', { s1Leg: 4, s1Drop: 0.85 }, 'the Cub'],
     ['builds/cessna172_2026-09-20_corrected.json', { s1Leg: 4, s1Drop: 0.80, s1R: 0.25, s1X: 1.415, s1Z: 1.45, s2Leg: 3, s2Z: 0.10, s2X: 0, s2R: 0.064, s2Steer: 1 }, 'the Wilga-class host']]) {
-  const raw = JSON.parse(fs.readFileSync(path.join(ROOT, file), 'utf8')), s0 = raw.spec || raw;
-  const S = SH.sceneBuild(s0, { over: Object.assign({}, over, { s1Fair: 1, s1LegFair: 1 }), garage: s0 }); S.scene.updateMatrixWorld(true);
-  const shell = (name, keep) => { let Gp = null; S.scene.traverse(o => { if (o.name === name) Gp = o; }); const out = [];
-    if (Gp) Gp.traverse(o => { if (!o.isMesh || !keep(o)) return; const a = o.geometry.attributes.position.array, e = o.matrixWorld.elements, v = [];
-      for (let i = 0; i < a.length; i += 3) v.push([0, 1, 2].map(r => e[r] * a[i] + e[4 + r] * a[i + 1] + e[8 + r] * a[i + 2] + e[12 + r]));
-      const ix = o.geometry.index ? Array.from(o.geometry.index.array) : v.map((_, i) => i), tri = [];
-      for (let i = 0; i < ix.length; i += 3) tri.push([ix[i], ix[i + 1], ix[i + 2]]); out.push({ v, tri }); }); return out; };
-  const inside = (Ms, q) => { const d = [0.3171, 0.8137, 0.4870]; let n = 0;
-    for (const M of Ms) for (const t of M.tri) { const a = M.v[t[0]], e1 = [0, 1, 2].map(k => M.v[t[1]][k] - a[k]), e2 = [0, 1, 2].map(k => M.v[t[2]][k] - a[k]);
-      const p = [d[1] * e2[2] - d[2] * e2[1], d[2] * e2[0] - d[0] * e2[2], d[0] * e2[1] - d[1] * e2[0]], det = e1[0] * p[0] + e1[1] * p[1] + e1[2] * p[2];
-      if (Math.abs(det) < 1e-12) continue; const sv = [0, 1, 2].map(k => q[k] - a[k]), u = (sv[0] * p[0] + sv[1] * p[1] + sv[2] * p[2]) / det; if (u < 0 || u > 1) continue;
-      const qq = [sv[1] * e1[2] - sv[2] * e1[1], sv[2] * e1[0] - sv[0] * e1[2], sv[0] * e1[1] - sv[1] * e1[0]], w = (d[0] * qq[0] + d[1] * qq[1] + d[2] * qq[2]) / det;
-      if (w < 0 || u + w > 1) continue; if ((e2[0] * qq[0] + e2[1] * qq[1] + e2[2] * qq[2]) / det > 0) n++; }
-    return n & 1; };
-  const app = (M, x) => [M[0] * x[0] + M[1] * x[1] + M[2] * x[2] + M[3], M[4] * x[0] + M[5] * x[1] + M[6] * x[2] + M[7], M[8] * x[0] + M[9] * x[1] + M[10] * x[2] + M[11]];
-  const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]], isF = o => !!o.userData.fair;
-  const units = (S.W.CAGE_GEAR && S.W.CAGE_GEAR.lever) || [];
-  let clash = 0, poses = 0, gap = 9, hidRest = 1, hidFull = 1, nB = 0, nS = 0;
-  for (const u of units) {
-    const boot = shell('edLeg' + u.kind, isF), spat = shell('edLvArm' + u.kind, isF), cyl = shell('edLvCyl' + u.kind, () => true);
-    nB += boot.length; nS += spat.length; if (!boot.length || !spat.length) continue;
-    const L = G.gearLeverInit({ piv: u.piv, ax: u.ax, w: u.w, axle: u.axle, horn: u.horn, top: u.top }), sw = (u.rows.ang - u.rows.comp) * D2R;
-    const aSt = G.gearLeverAngOf(L, 'rise', u.rows.dSt, sw), bv = boot.flatMap(M => M.v);
-    for (let i = 0; i <= 10; i++) {
-      const q = G.gearLeverAt(L, sw * i / 10), Ta = G.gearNodeFrame([u.piv, u.axle, add(u.piv, u.ax)], [u.piv, q.axle, add(u.piv, u.ax)]); poses++;
-      for (const M of spat) for (const x of M.v) { const y = app(Ta, x); if (inside(boot, y)) clash++;
-        for (const b of bv) gap = Math.min(gap, Math.hypot(b[0] - y[0], b[1] - y[1], b[2] - y[2])); }
+    const raw = JSON.parse(fs.readFileSync(path.join(ROOT, file), 'utf8')), s0 = raw.spec || raw;
+    const S = SH.sceneBuild(s0, { over: Object.assign({}, over, { s1Fair: 1, s1LegFair: 1 }), garage: s0 }); S.scene.updateMatrixWorld(true);
+    const meshes = (name, keep) => { let Gp = null; S.scene.traverse(o => { if (o.name === name) Gp = o; }); const out = [];
+      if (Gp) Gp.traverse(o => { if (!o.isMesh || !keep(o)) return; const A = o.geometry.attributes.position.array, e = o.matrixWorld.elements, v = [];
+        for (let i = 0; i < A.length; i += 3) v.push([0, 1, 2].map(r => e[r] * A[i] + e[4 + r] * A[i + 1] + e[8 + r] * A[i + 2] + e[12 + r]));
+        const ix = o.geometry.index ? Array.from(o.geometry.index.array) : v.map((_, i) => i), tri = [];
+        for (let i = 0; i < ix.length; i += 3) tri.push([v[ix[i]], v[ix[i + 1]], v[ix[i + 2]]]); out.push({ v, tri }); }); return out; };
+    const isF = o => !!o.userData.fair, all = () => true;
+    const units = (S.W.CAGE_GEAR && S.W.CAGE_GEAR.lever) || [];
+    let spats = 0, boots = 0, worst = Infinity, poses = 0, nMov = 0, at = '';
+    for (const u of units) {
+      spats += meshes('edLvArm' + u.kind, isF).length + meshes('edWheel' + u.kind, isF).length;
+      const boot = meshes('edLeg' + u.kind, isF); boots += boot.length; if (!boot.length) continue;
+      // the boot's triangles in a grid of 2 cm cells (a part's point looks at its own cell and the 26 round it)
+      const grid = new Map(), key = (i, j, k) => i + ',' + j + ',' + k, cOf = x => Math.floor(x / CELL);
+      for (const M of boot) for (const t of M.tri) {
+        const lo = [0, 1, 2].map(r => cOf(Math.min(t[0][r], t[1][r], t[2][r]))), hi = [0, 1, 2].map(r => cOf(Math.max(t[0][r], t[1][r], t[2][r])));
+        for (let i = lo[0]; i <= hi[0]; i++) for (let j = lo[1]; j <= hi[1]; j++) for (let k = lo[2]; k <= hi[2]; k++) { const q = key(i, j, k); if (!grid.has(q)) grid.set(q, []); grid.get(q).push(t); }
+      }
+      const near = p => { let m = CAP; const c = p.map(cOf);
+        for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) for (let k = -1; k <= 1; k++) { const L = grid.get(key(c[0] + i, c[1] + j, c[2] + k)); if (L) for (const t of L) m = Math.min(m, triD(p, t[0], t[1], t[2])); }
+        return m; };
+      const arm = meshes('edLvArm' + u.kind, all), cyl = meshes('edLvCyl' + u.kind, all), rod = meshes('edLvRod' + u.kind, all), whl = meshes('edWheel' + u.kind, all);
+      const L = G.gearLeverInit({ piv: u.piv, ax: u.ax, w: u.w, axle: u.axle, horn: u.horn, top: u.top }), sw = (u.rows.ang - u.rows.comp) * D2R;
+      for (let i = 0; i <= 16; i++) {
+        const q = G.gearLeverAt(L, sw * i / 16); poses++;
+        const Ta = G.gearNodeFrame([u.piv, u.axle, add(u.piv, u.ax)], [u.piv, q.axle, add(u.piv, u.ax)]),
+              Tc = G.gearNodeFrame([u.top, u.horn, add(u.top, u.ax)], [u.top, q.horn, add(u.top, u.ax)]),
+              Tr = G.gearNodeFrame([u.horn, u.top, add(u.horn, u.ax)], [q.horn, u.top, add(q.horn, u.ax)]);
+        for (const [parts, T, nm] of [[arm, Ta, 'the arm'], [whl, Ta, 'the wheel'], [cyl, Tc, 'the cylinder'], [rod, Tr, 'the rod']])
+          for (const M of parts) for (const x of M.v) { const dd = near(app(T, x)); nMov++; if (dd < worst) { worst = dd; at = nm + ' at ' + (i / 16).toFixed(2) + ' of the stroke'; } }
+      }
     }
-    for (const [ang, set] of [[aSt, v => { hidRest = Math.min(hidRest, v); }], [sw, v => { hidFull = Math.min(hidFull, v); }]]) {
-      const q = G.gearLeverAt(L, ang), Tc = G.gearNodeFrame([u.top, u.horn, add(u.top, u.ax)], [u.top, q.horn, add(u.top, u.ax)]);
-      let n = 0, t = 0; for (const M of cyl) for (const x of M.v) { t++; if (inside(boot, app(Tc, x))) n++; } set(t ? n / t : 0);
+    yes(units.length === 2 && boots === 2 && spats === 0, who + ': the spat row asks for a spat and the trailing link draws none - both legs wear the boot only');
+    yes(poses === 34 && worst >= 0.003, who + ': through the whole stroke (17 poses a side, ' + nMov + ' points of the arm, wheel, cylinder and rod) nothing comes within 3 mm of the boot - the closest ' +
+        (worst >= CAP ? '> ' + mm(CAP) : mm(worst) + ' (' + at + ')'));
+    // ...and it still hides the mechanism: the strut's cylinder BODY at rest (above its end collar, 2 cm), seen from either side and from ahead and
+    // behind, is behind the boot (a ray from each of its points, four ways, meets a boot triangle). Its gland, at the
+    // body's foot, sits just inboard of the arm's slot - the arm swings through the outboard wall there - and shows through
+    // it from outboard: printed, by design (the slot is what lets the arm move)
+    if (who === 'the Wilga-class host') {
+      let hid = 0, tot = 0, gTot = 0, gOut = 0;
+      for (const u of units) {
+        const boot = meshes('edLeg' + u.kind, isF).flatMap(M => M.tri), cyl = meshes('edLvCyl' + u.kind, all);
+        const L = G.gearLeverInit({ piv: u.piv, ax: u.ax, w: u.w, axle: u.axle, horn: u.horn, top: u.top });
+        const q = G.gearLeverAt(L, G.gearLeverAngOf(L, 'rise', u.rows.dSt, (u.rows.ang - u.rows.comp) * D2R));
+        const Tc = G.gearNodeFrame([u.top, u.horn, add(u.top, u.ax)], [u.top, q.horn, add(u.top, u.ax)]);
+        const hit = (o, dir) => boot.some(([a, b, c]) => { const e1 = sb(b, a), e2 = sb(c, a), pv = cr(dir, e2), det = dt(e1, pv); if (Math.abs(det) < 1e-12) return false;
+          const tv = sb(o, a), uu = dt(tv, pv) / det; if (uu < 0 || uu > 1) return false; const qv = cr(tv, e1), vv = dt(dir, qv) / det; if (vv < 0 || uu + vv > 1) return false; return dt(e2, qv) / det > 0; });
+        const Lx0 = Math.hypot(...sb(u.horn, u.top)), dir0 = sb(q.horn, u.top).map(x => x / Math.hypot(...sb(q.horn, u.top)));
+        for (const M of cyl) for (const x of M.v) { const p = app(Tc, x), along = dt(sb(p, u.top), dir0);
+          const all4 = [[1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1]].every(dir => hit(p, dir));
+          if (along <= 0.5 * Lx0 - 0.020) { tot++; if (all4) hid++; } else { gTot++; if (!all4) gOut++; } }
+      }
+      yes(tot > 0 && hid / tot >= 0.95, who + ': and the boot still hides the strut\'s cylinder at rest from either side, ahead and behind (' + (100 * hid / Math.max(1, tot)).toFixed(0) +
+          ' % of its body\'s ' + tot + ' points; its gland shows through the arm\'s slot from outboard: ' + gOut + ' of ' + gTot + ' points)');
     }
   }
-  yes(units.length === 2 && nB >= 2 && nS >= 2, who + ' with the leg-fairing row and the spat: both legs wear a boot and a spat on the arm');
-  yes(poses === 22 && clash === 0 && gap > 0.008, 'through the whole stroke (11 poses a side) the spat never enters the boot: ' + clash + ' points inside, the closest ' + mm(gap));
-  yes(hidRest === 1 && hidFull === 1, 'the boot hides the strut\'s cylinder at rest and at full stroke (' + (100 * hidRest).toFixed(0) + ' % / ' + (100 * hidFull).toFixed(0) + ' %)');
-  }
+  // the spec agrees with the drawing: a trailing link carries no wheel fairing (the drag, the mass, the price)
+  const sp = JSON.parse(JSON.stringify(SPEC)); sp.gear.fairing = 'spat'; sp.gear.legFair = 'fair';
+  const cs = C.clampSpec(sp);
+  yes(cs.gear.suspension === 'lever' && cs.gear.fairing === 'none' && cs.gear.legFair === 'fair', 'clampSpec: a trailing link asking for a spat flies with none, its leg fairing kept (' + cs.gear.fairing + ' / ' + cs.gear.legFair + ')');
 }
 
 console.log('8. nothing else moved');

@@ -641,17 +641,6 @@ function spat(bags, hub, axis, R, o) {
     return Math.max(Wm * Math.pow(Math.max(0, stream(z) / Hm), 0.62),
                     (R * 0.40 + gap) * kw);
   };
-  // WILGA-GEAR (the fairing): O.inW caps the half width on the INBOARD side (O.inDir, a unit vector pointing inboard) -
-  // a spat on a trailing arm swings up beside the leg's boot, and the boot's outboard flank is closer to the wheel than
-  // a spat's usual 0.62 R: the inboard half is the same section scaled in, never inside the tyre's own allowance. Absent,
-  // the shape is the one it always was
-  const inSg = (O.inW > 0 && O.inDir) ? Math.sign(dot(ax, O.inDir)) : 0;
-  let inK = 1;
-  if (inSg) { let wMax = 0; for (let i = 0; i <= NT; i++) wMax = Math.max(wMax, Wat(zN - i / NT * (zN + zT))); inK = Math.min(1, O.inW / Math.max(1e-6, wMax)); }
-  const xOf = (an, Ww, z) => { const x = Ww * Math.sin(an);
-    if (!inSg || inK >= 1 || Math.sign(x) !== inSg) return x;
-    const kw = clamp((R * 1.06 - Math.abs(z)) / (R * 0.28), 0, 1);
-    return inSg * Math.max(Ww * inK, (R * 0.40 + gap) * kw) * Math.abs(Math.sin(an)); };
   const bag = bags.fair;
   const rows = [], edges = [[], []];
   for (let i = 0; i <= NT; i++) {
@@ -664,7 +653,7 @@ function spat(bags, hub, axis, R, o) {
     const row = [];
     for (let j = 0; j <= NA; j++) {
       const an = -aMax + 2 * aMax * j / NA;
-      const y = Hh * Math.cos(an), x = xOf(an, Ww, z);
+      const y = Hh * Math.cos(an), x = Ww * Math.sin(an);
       row.push(bag.v(add(hub, add(mul(fwd, z), add(mul(up, y), mul(ax, x))))));
     }
     rows.push(row);
@@ -678,7 +667,7 @@ function spat(bags, hub, axis, R, o) {
     // at the last open station; the closed run-out is plain shell.
     if (aMax < Math.PI - 1e-3) {
       const pE = an2 => add(hub, add(mul(fwd, z),
-        add(mul(up, Hh * Math.cos(an2)), mul(ax, xOf(an2, Ww, z)))));
+        add(mul(up, Hh * Math.cos(an2)), mul(ax, Ww * Math.sin(an2)))));
       edges[0].push(pE(-aMax));
       edges[1].push(pE(aMax));
     }
@@ -2018,7 +2007,8 @@ function leverRowsOf(P) {
 // Fixed to the leg (its bags are the leg's: posed with the leg in the flight, whole or broken off).
 function leverBoot(bag, F) {
   const GL = (typeof GEAR_LEVER !== 'undefined') ? GEAR_LEVER : (typeof window !== 'undefined' ? window.GEAR_LEVER : null);
-  const d = nrm(sub(F.piv, F.root)), Ls = len(sub(F.piv, F.root)) + 0.06;
+  const d = nrm(sub(F.piv, F.root));
+  let Ls = len(sub(F.piv, F.root)) + 0.06;
   const fore = [0, 0, 1], N = nrm(sub(fore, mul(d, dot(fore, d)))), B = crs(d, N);
   const pts = [];
   // what it must hide: the strut's cylinder and boot over the stroke, the bracket's lugs at the upper eye
@@ -2032,6 +2022,10 @@ function leverBoot(bag, F) {
         pts.push(add(off(F.top, ax, a), add(mul(e1, Rc * Math.cos(t)), mul(e2, Rc * Math.sin(t))))); }
   }
   for (const s of [-1, 1]) for (const q of [0, 0.05]) pts.push(off(off(F.top, F.ax, s * 0.040), d, -q));
+  // the boot runs at least past the lowest thing it hides (the gland at full extension), so its rounded toe never needs a
+  // cut to let the strut's cylinder out: only what moves THROUGH the boot's wall is cut
+  const aPts = Math.max(...pts.map(p => dot(sub(p, F.root), d))) + 0.012;
+  Ls = Math.max(Ls, aPts + 0.02);
   // the stations, the raw sizes, then a smooth max along the leg
   const n = 28, clr = 0.012, c0 = F.chord, t0 = F.chord * 0.46, raw = [];
   for (let i = 0; i <= n; i++) {
@@ -2056,35 +2050,131 @@ function leverBoot(bag, F) {
   const wOf = i => Math.max(0, Math.min(1, (C[i] - c0) / Math.max(1e-6, Math.max(...C) - c0)));
   const iBig = raw.reduce((b, r, i) => (r.c > raw[b].c ? i : b), 0);
   const U0 = avg(C.map((_, i) => wOf(i) * raw[iBig].u0), 2), V0 = avg(C.map((_, i) => wOf(i) * raw[iBig].v0), 2);
-  // the lower end rounds off over its last stations (a rounded toe, not a cut tube)
-  // ...and it reports how far outboard it reaches (`inGap`: the least distance inboard of the wheel's plane, along the
-  // pivot - the arm turns about that axis, so a spat riding the arm keeps that distance through the whole stroke)
-  //
   // THE OUTBOARD FLANK HUGS WHAT IT HIDES: the tear section is symmetric, and sized for the strut's sweep it bellied out
-  // toward the wheel - 0.129 m from the wheel's plane on the Wilga-class host, inside the 0.155 m of a spat's half width,
-  // and a spat riding the arm rose into it in the last fifth of the stroke. The flank is eased in (C1, an exponential
+  // toward the wheel (0.129 m from the wheel's plane on the Wilga-class host). The flank is eased in (C1, an exponential
   // knee 20 mm wide) to the outboard-most thing it covers - the strut's cylinder over the stroke, the pivot's tube and its
-  // nut - less the clearance
+  // nut - less the clearance: the slim side faces the wheel
   const axN = nrm(F.ax), inS = Math.sign(dot(sub(F.piv, F.axle), axN)) || 1, latOf = p => inS * dot(sub(p, F.axle), axN);
   const floor = Math.min(...pts.map(latOf), latOf(F.piv) - (F.w + 0.022)) - clr, knee = 0.020;
   const ease = p => { const l = latOf(p); if (l >= floor + knee) return p;
     return add(p, mul(axN, inS * (floor + knee * Math.exp((l - floor) / knee - 1) - l))); };
-  const rings = [];
-  let inGap = Infinity;
-  for (let i = 0; i <= n; i++) {
-    const a = Ls * i / n, end = i === n ? 0.55 : i === n - 1 ? 0.85 : 1;
-    const S = add(F.root, mul(d, a)), sec = secTear(C[i] * end, Tt[i] * end);
-    rings.push(sec.map(([u, v]) => { const p = ease(add(S, add(mul(N, U0[i] + u), mul(B, V0[i] + v))));
-      inGap = Math.min(inGap, latOf(p)); return bag.v(p); }));
+  // THE SURFACE, A FINE GRID: 56 stations down the leg, then a rounded toe (a quarter ellipse in 12 rings, through the
+  // old toe's 0.85 / 0.55 rings at their stations) to a point; 36 points round each section - ~5 000 triangles a boot (the
+  // cut edges are found on the true contour, so the grid only has to carry the curvature)
+  const Dl = Ls / n, Lt = Dl / 0.308, a0 = Math.max(Ls - Dl - 0.527 * Lt, aPts), KS = 36;
+  const at = (A, a) => { const x = Math.max(0, Math.min(n, a / Dl)), i = Math.min(n - 1, Math.floor(x)), t = x - i; return A[i] * (1 - t) + A[i + 1] * t; };
+  const secK = (chord, thick) => { const zN2 = chord * 0.35, zT2 = chord * 0.65, W = thick * 0.5, out = [];
+    for (let k = 0; k < KS; k++) { const q = 2 * Math.PI * k / KS, u = -zT2 + (zN2 + zT2) * (Math.cos(q) + 1) / 2;
+      const w = u >= 0 ? W * Math.sqrt(Math.max(0, 1 - (u / zN2) * (u / zN2))) : W * Math.pow(Math.max(0, 1 - Math.pow(-u / zT2, 1.85)), 0.62);
+      out.push([u, w * Math.sign(Math.sin(q))]); }
+    return out; };
+  const sta = [];
+  for (let j = 0; j <= 56; j++) sta.push({ a: a0 * j / 56, s: 1 });
+  for (let j = 1; j <= 12; j++) { const q = (Math.PI / 2) * j / 12; sta.push({ a: a0 + Lt * Math.sin(q), s: Math.cos(q) }); }
+  const J = sta.length, Pg = [], Ctr = [];
+  for (const { a, s } of sta) {
+    const u0 = at(U0, a), v0 = at(V0, a), cA = add(add(F.root, mul(d, a)), add(mul(N, u0), mul(B, v0)));
+    Ctr.push(cA);
+    Pg.push(secK(at(C, a) * s, at(Tt, a) * s).map(([u, v]) => ease(add(cA, add(mul(N, u), mul(B, v))))));
   }
-  const K = rings[0].length;
-  for (let i = 0; i < n; i++) for (let k = 0; k < K; k++) { const k2 = (k + 1) % K; bag.quad(rings[i][k], rings[i][k2], rings[i + 1][k2], rings[i + 1][k]); }
-  // close both ends (a fan to the ring's centre)
-  for (const [ri, flip] of [[0, false], [n, true]]) {
-    const S = add(F.root, mul(d, Ls * ri / n)), c = bag.v(ease(add(S, add(mul(N, U0[ri]), mul(B, V0[ri])))));
-    for (let k = 0; k < K; k++) { const k2 = (k + 1) % K; if (flip) bag.tri(c, rings[ri][k], rings[ri][k2]); else bag.tri(c, rings[ri][k2], rings[ri][k]); }
+  // each point's outward normal (from the grid; the toe's point looks down the leg)
+  const Ng = Pg.map((row, j) => row.map((p, k) => {
+    if (j === J - 1) return d;
+    const tk = sub(row[(k + 1) % KS], row[(k + KS - 1) % KS]), tj = sub(Pg[Math.min(J - 1, j + 1)][k], Pg[Math.max(0, j - 1)][k]);
+    let nn = crs(tk, tj); const l = len(nn); if (l < 1e-12) return nrm(sub(p, Ctr[j])); nn = mul(nn, 1 / l);
+    return dot(nn, sub(p, Ctr[j])) < 0 ? mul(nn, -1) : nn; }));
+  // THE CUTS (the user, 9 Nov: "do the little proper cuts so the wheel articulation can move freely without hitting the
+  // fairing"): F.clear(p) is the clearance to everything that moves - the arm, its horn and bosses, the strut's rod and
+  // cylinder, the pivot, the tyre - swept over the whole stroke (legLever's leverClear), less a margin. The shell keeps
+  // only where it is >= 0; each cut edge is found ON that contour (bisection along the grid's edge), so the opening is
+  // the swept shape's own outline, and a 2.5 mm lip turns in round each opening (its own vertices: the skin's shading
+  // stays smooth to the edge). The fairing's material is two-sided (the livery's sections), so an opening shows the
+  // shell's inside - an inner skin 2.5 mm under the outer z-fought through it, measured
+  const TH = 0.0025, clear = F.clear || null;
+  const Dg = Pg.map(row => row.map(p => (clear ? clear(p) : 1)));
+  const cut = clear && Dg.some(row => row.some(v => v < 0));
+  const Qg = Pg.map((row, j) => row.map((p, k) => sub(p, mul(Ng[j][k], TH))));
+  const io = new Map(), xc = new Map();
+  const vO = (j, k) => { const key = j * KS + k; if (!io.has(key)) io.set(key, bag.v(Pg[j][k])); return io.get(key); };
+  const xing = (A, Bq) => {               // the cut on the edge A-B (one side kept, the other not): outer and inner points
+    const kA = A[0] * KS + A[1], kB = Bq[0] * KS + Bq[1], key = kA < kB ? kA + ':' + kB : kB + ':' + kA;
+    if (xc.has(key)) return xc.get(key);
+    const pA = Pg[A[0]][A[1]], pB = Pg[Bq[0]][Bq[1]], dA = Dg[A[0]][A[1]];
+    let lo = 0, hi = 1;                    // t from A to B; the sign at A is dA's
+    for (let it = 0; it < 12; it++) { const m = 0.5 * (lo + hi), v = clear(lerp3(pA, pB, m)); if ((v >= 0) === (dA >= 0)) lo = m; else hi = m; }
+    const t = 0.5 * (lo + hi), r = { o: bag.v(lerp3(pA, pB, t)), q: lerp3(Qg[A[0]][A[1]], Qg[Bq[0]][Bq[1]], t), p: lerp3(pA, pB, t) };
+    xc.set(key, r); return r;
+  };
+  const P3 = g => Pg[g[0]][g[1]];
+  const triOut = (a, b, c, pa, pb, pc, nOut) => { const nn = crs(sub(pb, pa), sub(pc, pa)); if (dot(nn, nOut) >= 0) bag.tri(a, b, c); else bag.tri(a, c, b); };
+  const face = tri => {                   // one grid triangle, clipped to the kept side
+    const dv = tri.map(g => Dg[g[0]][g[1]]), nOut = nrm(add(add(Ng[tri[0][0]][tri[0][1]], Ng[tri[1][0]][tri[1][1]]), Ng[tri[2][0]][tri[2][1]]));
+    if (!cut || dv.every(v => v >= 0)) {
+      const o = tri.map(g => vO(g[0], g[1])), p = tri.map(P3);
+      triOut(o[0], o[1], o[2], p[0], p[1], p[2], nOut);
+      return;
+    }
+    if (dv.every(v => v < 0)) return;
+    const poly = [], xs = [];
+    for (let e = 0; e < 3; e++) {
+      const A = tri[e], Bq = tri[(e + 1) % 3], dA = dv[e], dB = dv[(e + 1) % 3];
+      if (dA >= 0) poly.push({ o: vO(A[0], A[1]), p: P3(A) });
+      if ((dA >= 0) !== (dB >= 0)) { const x = xing(A, Bq); poly.push(x); xs.push(x); }
+    }
+    for (let m = 1; m + 1 < poly.length; m++)
+      triOut(poly[0].o, poly[m].o, poly[m + 1].o, poly[0].p, poly[m].p, poly[m + 1].p, nOut);
+    if (xs.length === 2) {                // the lip: from the skin 2.5 mm in, facing into the opening
+      const [x1, x2] = xs, cen = mul(poly.reduce((acc, q) => add(acc, q.p), [0, 0, 0]), 1 / poly.length);
+      const mid = lerp3(x1.p, x2.p, 0.5), nq = crs(sub(x2.p, x1.p), mul(nOut, -1));
+      const a1 = bag.v(x1.p), a2 = bag.v(x2.p), b1 = bag.v(x1.q), b2 = bag.v(x2.q);
+      if (dot(nq, sub(mid, cen)) >= 0) bag.quad(a1, a2, b2, b1); else bag.quad(a2, a1, b1, b2);
+    }
+  };
+  for (let j = 0; j + 1 < J; j++) for (let k = 0; k < KS; k++) {
+    const k2 = (k + 1) % KS;
+    face([[j, k], [j, k2], [j + 1, k2]]); face([[j, k], [j + 1, k2], [j + 1, k]]);
   }
-  return { len: Ls, chordMax: Math.max(...C), thickMax: Math.max(...Tt), inGap, inDir: mul(axN, inS) };
+  // the root closes against the fitting (a fan, never cut: nothing moves up there)
+  const c0p = Ctr[0], cR = bag.v(c0p);
+  for (let k = 0; k < KS; k++) { const k2 = (k + 1) % KS; triOut(cR, vO(0, k2), vO(0, k), c0p, Pg[0][k2], Pg[0][k], mul(d, -1)); }
+  return { len: Ls, chordMax: Math.max(...C), thickMax: Math.max(...Tt), cut: !!cut, cuts: xc.size };
+}
+// THE ARTICULATION'S SWEPT SPACE (WILGA-GEAR, the fairing's cuts): every moving part as capsules (a segment and a radius
+// from its drawing's own sizes, a little generous) at 33 poses from full extension to full stroke - the arm turned about
+// the pivot by the kinematics (GEAR_LEVER, the preview row's and the flight's rule), the strut's halves about their eyes -
+// plus the pivot's boss and nut and the tyre (a disc on the axle). Returns p -> the clearance to the nearest, less `gap`
+function leverClear(GL, F) {
+  const L = GL.gearLeverInit({ piv: F.piv, ax: F.ax, w: F.w, axle: F.axle, horn: F.horn, top: F.top }), ax = nrm(F.ax);
+  // per PART, its capsules at every pose (its sweep is their plain union); the parts are blended below
+  const parts = { arm: [], horn: [], lugs: [], boss: [], rod: [], cyl: [], pivot: [] }, discs = [];
+  const app = (T, x) => [T[0] * x[0] + T[1] * x[1] + T[2] * x[2] + T[3], T[4] * x[0] + T[5] * x[1] + T[6] * x[2] + T[7], T[8] * x[0] + T[9] * x[1] + T[10] * x[2] + T[11]];
+  for (let i = 0; i <= 32; i++) {
+    const q = GL.gearLeverAt(L, F.comp * i / 32), pa = add(F.piv, ax);
+    const T = GL.gearNodeFrame([F.piv, F.axle, pa], [F.piv, q.axle, pa]), tf = x => app(T, x);
+    parts.arm.push([tf(F.pOut), tf(F.axleIn), 0.036]);                                   // the arm
+    parts.horn.push([tf(F.hBase), q.horn, 0.024]);                                       // its horn
+    parts.lugs.push([off(q.horn, ax, -0.042), off(q.horn, ax, 0.042), 0.030]);            // the horn's lugs (r 24 mm) and pin
+    parts.boss.push([tf(off(F.axleIn, ax, -0.026)), tf(off(F.axleIn, ax, 0.026)), 0.046]);  // the axle's boss
+    const rd = nrm(sub(F.top, q.horn));
+    parts.rod.push([q.horn, off(q.horn, rd, F.rodL), 0.024]);                            // the rod
+    parts.cyl.push([off(F.top, rd, -0.020), off(F.top, rd, -(F.cylL + 0.062)), 0.032]);  // the cylinder and its gland
+    discs.push(tf(F.axle));
+  }
+  parts.pivot.push([off(F.piv, ax, -F.w - 0.012), off(F.piv, ax, F.w + 0.034), 0.052]); // the pivot: the arm's boss, the tube, the nut
+  const segD = (p, a, b) => { const ab = sub(b, a), t = Math.max(0, Math.min(1, dot(sub(p, a), ab) / Math.max(1e-12, dot(ab, ab)))); return len(sub(p, add(a, mul(ab, t)))); };
+  // the parts are blended by a SMOOTH minimum (the polynomial one, 50 mm): where two parts' sweeps meet, the cut's outline
+  // is one rounded line, never tighter than their plain union. (Folded over every pose's capsule it would not be: each
+  // near-equal term shaves up to K/4 more - measured, it ate the boot's flank round the strut's cylinder)
+  const Rw = F.R + 0.010, Hw = 0.50 * F.R + 0.010, gap = F.gap || 0.008, K = 0.050, list = Object.values(parts);
+  const smin = (a, b) => { const h = Math.max(K - Math.abs(a - b), 0) / K; return Math.min(a, b) - h * h * K * 0.25; };
+  return p => {
+    let m = Infinity;
+    for (const caps of list) { let pm = Infinity; for (const [a, b, r] of caps) { const v = segD(p, a, b) - r; if (v < pm) pm = v; } m = smin(m, pm); }
+    let wm = Infinity;
+    for (const c of discs) { const v = sub(p, c), ya = dot(v, ax), rr = len(sub(v, mul(ax, ya))), dx = rr - Rw, dy = Math.abs(ya) - Hw;
+      wm = Math.min(wm, Math.min(Math.max(dx, dy), 0) + Math.hypot(Math.max(dx, 0), Math.max(dy, 0))); }
+    return smin(m, wm) - gap;
+  };
 }
 function legLever(bags, AF, P, st, sgn) {
   const GL = (typeof GEAR_LEVER !== 'undefined') ? GEAR_LEVER : (typeof window !== 'undefined' ? window.GEAR_LEVER : null);
@@ -2143,8 +2233,10 @@ function legLever(bags, AF, P, st, sgn) {
   const rdir = mul(dir, -1);
   revolve(LB.rod.chrome, horn, rdir, [[0.015, -0.012], [0.018, 0], [0.0225, 0.020], [0.0225, rodL]], 16, true);
   for (const [b, p] of [[bags, top], [LB.arm, horn]]) bolt(b.dark, off(p, ax, -0.034), ax, 0.007, 0.068);
-  // the leg's boot fairing: the leg-fairing row, or the trousers (the spat over the wheel rides the arm - the gear layer)
-  const boot = (st.legFair || st.fair === 2) ? leverBoot(bags.fair, { root, piv, ax, w, axle, horn, top, comp: g.comp, chord: Math.max(0.10, chord * 1.25) }) : null;
+  // the leg's boot fairing: the leg-fairing row, cut round the articulation's swept space
+  // (the trailing link wears no wheel fairing - the gear layer zeroes st.fair - so the leg-fairing row is its only one)
+  const clear = (st.legFair && GL) ? leverClear(GL, { piv, ax, w, axle, horn, top, comp: g.comp, pOut, axleIn, hBase, rodL, cylL, R: st.R }) : null;
+  const boot = st.legFair ? leverBoot(bags.fair, { root, piv, ax, w, axle, horn, top, comp: g.comp, chord: Math.max(0.10, chord * 1.25), clear }) : null;
   return { axle, axis: [sgn, 0, 0], root: F.p, travel: [0, 1, 0], tip: axle,
            lever: { piv, ax, w, axle, horn, top, root, axleIn, rows: R0, boot } };
 }

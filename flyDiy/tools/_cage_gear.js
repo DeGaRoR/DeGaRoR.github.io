@@ -119,7 +119,9 @@ const sOnM = i => ({ when: P => +P['s' + i + 'On'], dim: 'm' });
 // RETRACT-1 (the user, 3 Nov: "wheels with fairings - a strange choice for retractable wheels"): a retracting gear
 // wears no spat, no trouser and no leg shroud - its doors will be its fairing (step 4) - so the fairing rows step aside
 const noRet = P => !GEAR_RETRACTABLE(P);
-const fairOn = i => ({ when: P => +P['s' + i + 'On'] && noRet(P)
+// WILGA-GEAR: and so do the WHEEL's on the trailing link (the mains' leg 4: the leg-fairing row is its fairing)
+const noLever = (P, i) => !(i === 1 && Math.round(+P['s' + i + 'Leg'] || 0) === 4);
+const fairOn = i => ({ when: P => +P['s' + i + 'On'] && noRet(P) && noLever(P, i)
                              && Math.round(P['s' + i + 'Fair'] || 0) > 0 });
 // any fairing anywhere — the build-material row prices the whole set
 const fairAny = P =>
@@ -157,7 +159,7 @@ const station = (i, name) => [name, [
   // G133: the castor exclusion is GONE — legTailwheel draws its own shell
   // now, so the switch that was two lies (G121.2) is two truths everywhere
   ['s' + i + 'Fair',  'fairing',      0, 2, 1, ['none', 'spat', 'trousers'],
-   { when: P => +P['s' + i + 'On'] && noRet(P) }],
+   { when: P => +P['s' + i + 'On'] && noRet(P) && noLever(P, i) }],
   // ...and the shape is an instrument (G133): skirt around the mode's own
   // base, tail run-out to a droplet, rake for a taildragger's flying
   // attitude, width for a fat tyre. Rows exist only where a shell does.
@@ -171,7 +173,7 @@ const station = (i, name) => [name, [
   // (its spring shroud is the trouser state's own).
   ['s' + i + 'LegFair', 'leg fairing', 0, 1, 1, ['bare', 'streamlined'],
    { when: P => +P['s' + i + 'On'] && noRet(P)
-             && Math.round(P['s' + i + 'Fair'] || 0) < 2
+             && (Math.round(P['s' + i + 'Fair'] || 0) < 2 || !noLever(P, i))
              && !(i === 2 && Math.round(P.s2Leg) === 3) }],
   ...legRows(i),
 ]];
@@ -2370,6 +2372,9 @@ PAGE.post = ctx => {
   const stations = GP.gearStations(P);
   // RETRACT-1: a retracting gear is drawn bare (no spat, no trouser, no leg shroud: noRet above)
   if (GEAR_RETRACTABLE(P)) for (const st of stations) { st.fair = 0; st.legFair = 0; }
+  // WILGA-GEAR (the user, 9 Nov: "allow only a fairing for the leg, not the wheel on this suspension type"): the trailing
+  // link's wheel swings on its arm under the boot - it wears no spat and no trousers (the leg-fairing row is its fairing)
+  for (const st of stations) if (st.leg === 4 && !st.single) st.fair = 0;
   // G3800 (TAILWHEELS, the user 3 Nov: "one wheel per boom, same settings for the twin planes"): on TWIN BOOMS the
   // tailwheel is a pair, one under each boom's tail end (CAGE_BOOMS, the wing layer's; tail-relative to the boom's own
   // end as it is to the pod's on a single body), the same row for both
@@ -2755,22 +2760,7 @@ PAGE.post = ctx => {
         } else {
           GG.wheel(wu.proxy, r.axle, r.axis, st.R,
                    { brake: !!st.brake, inboard: sgn, P: st.P });
-          // (WILGA-GEAR: a trailing-link leg's spat rides its arm with the wheel - a spat, never the trousers' leg shroud:
-          // its leg wears the boot, legLever)
-          // ...and it is set LEVEL AT REST, as an installer sets it on the ground: drawn at full extension, it is raked nose-up
-          // by the arm's static angle (the rows' static deflection), so parked it sits level and on a bump it pitches with
-          // the arm, as a spat on a trailing arm does
-          let spO = fOpt;
-          if (lb.lever && r.lever) {
-            const GLs = (typeof GEAR_LEVER !== 'undefined') ? GEAR_LEVER : window.GEAR_LEVER, R0 = r.lever.rows;
-            const Ls = GLs.gearLeverInit({ piv: r.lever.piv, ax: r.lever.ax, w: r.lever.w, axle: r.lever.axle, horn: r.lever.horn, top: r.lever.top });
-            const aSt = GLs.gearLeverAngOf(Ls, 'rise', R0.dSt, (R0.ang - R0.comp) * D2R);
-            spO = Object.assign({}, fOpt, { full: false, rake: (fOpt.rake || 0) - aSt / D2R });
-            // ...and its inboard half stays 10 mm shy of the boot's outboard flank, through the whole stroke
-            const bt = r.lever.boot;
-            if (bt && isFinite(bt.inGap)) Object.assign(spO, { inW: bt.inGap - 0.010, inDir: bt.inDir });
-          }
-          if (st.fair) GG.spat(lb.lever ? lb.lever.arm : lb, r.axle, r.axis, st.R, spO);
+          if (st.fair) GG.spat(lb, r.axle, r.axis, st.R, fOpt);
         }
       }
       delete st.mount; delete st.ret;
