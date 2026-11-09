@@ -313746,3 +313746,11 @@ that first): f0fd2978c + 1fe83abd8 source, 1f055bb72 built.
 - **Not yet seen:** no gate draws a build with a panel GPS or an ELT, so the puck and the whip are placed (PANEL 5b) but
   have not been looked at or CLIP-checked on a fitted build. A garage still of each, owed.
 Evidence: flydiy-notes/evidence-2026-10-18/2026-11-08/comms/ (run7.log, run8.log).
+- **The CLIP look on fitted builds (9 Nov 03:13, closing the gap named above):** CLIP's own measure, in report mode, on
+  three builds with a panel GPS and an ELT fitted (stock IFR, rod, twin booms; evidence comms/clip_gpselt.js, the gate
+  itself unchanged). It found the rod's whip at 0.80 of the tube 30 mm in the fin, so it moved to 0.48, between the nav
+  mast and the beacon (11bbf84bf, built b66640612). Then the puck and the whip are clean on all three: the puck seated
+  2.4 mm (body) / 0.5 mm proud on the rod's collar, the whip 2.7 mm (body) / 0.5 mm proud on the rod. The only other
+  lines are master's own known ones under new build names (the nav wire 6.5 mm in the fin, the twin's legs in the flaps
+  at full travel). Gates re-run on b66640612: FIT, CLIP, PARTS, PANEL, SAVE, FITMANUAL, STOL PASS; the aerials probe
+  identical to master. The garage still is still owed (a GPU slot).
