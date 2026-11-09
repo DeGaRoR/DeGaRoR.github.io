@@ -70,10 +70,14 @@ const HASH = `(function(){ if (window.__CL) return; var C = window.__CL = { ln: 
     const l = await b.load(BASE + (qs ? '?' + qs : ''), MB.preScript(B.build, null, B.patch) + '\n' + HASH);
     await sleep(3000);   // the garage's own links settle
     const tG = await b.ev('performance.now()');
-    let fly = null;
-    if (FLY) { const n0 = await b.ev(MB.A.trips), w0 = Date.now(); await b.ev(MB.A.rollOut);
+    let fly = null, frm = null;
+    if (FLY) { const n0 = await b.ev(MB.A.trips), w0 = Date.now(), tR = await b.ev('performance.now()'); await b.ev(MB.A.rollOut);
       for (const tEnd = Date.now() + 300000; Date.now() < tEnd; await sleep(200)) { const d = JSON.parse(await b.ev(MB.A.lastTrip, 30000)); if (d.n > n0 && d.kind === 'rollout' && d.done && d.boot === 'gone') break; }
-      fly = +((Date.now() - w0) / 1000).toFixed(1); await sleep(2500); await b.ev(MB.A.run).catch(() => 0); await b.ev(MB.A.cam('chase')).catch(() => 0); await sleep(15000); }
+      fly = +((Date.now() - w0) / 1000).toFixed(1); const tD = await b.ev('performance.now()'); await sleep(2500); await b.ev(MB.A.run).catch(() => 0); await b.ev(MB.A.cam('chase')).catch(() => 0); await sleep(15000);
+      // (BOOT-PROGRAMS A/B) the frames: the roll-out's (press -> done) and the first flight's 17.5 s, over 100 ms and the worst
+      const fr = JSON.parse(await b.ev('JSON.stringify((window.__MB && __MB.fr || []).map(e => [e[0], e[1]]))', 30000).catch(() => '[]') || '[]');
+      const part = (a, z) => { const d = fr.filter(e => e[0] > a && e[0] <= z && e[1] > 0).map(e => e[1]).sort((x, y) => x - y); return { n: d.length, over100: d.filter(x => x > 100).length, over250: d.filter(x => x > 250).length, p99: d.length ? d[Math.min(d.length - 1, Math.floor(d.length * 0.99))] : null, worst: d.length ? d[d.length - 1] : null }; };
+      frm = { rollout: part(tR, tD), flight: part(tD, tD + 1e9) }; }
     // master_bench's ln rows [t0, ms] and ours [t0, hv, hf] were pushed in the same call: zip by order
     const d = JSON.parse(await b.ev('JSON.stringify({ t: (__MB.ln || []).map(e => [Math.round(e[0]), Math.round(e[1])]), h: __CL.ln.map(e => [e[1], e[2], e[3]]), cx: __CL.cx })', 30000));
     const all = d.t.map((t, i) => ({ t0: t[0], ms: t[1], k: d.h[i] ? d.h[i][0] + d.h[i][1] : '?', vs: d.h[i] && d.h[i][0], fs: d.h[i] && d.h[i][1] }));
@@ -81,7 +85,7 @@ const HASH = `(function(){ if (window.__CL) return; var C = window.__CL = { ln: 
     const rows = all.filter(r => r.t0 <= tG), flown = all.filter(r => r.t0 > tG);
     const slow = rows.filter(r => r.ms > SLOW);
     const cls = r => seen.has(r.k) ? 'seen@' + seen.get(r.k) : 'NEW';
-    const row = { i: li, build: key, sec: l.sec, state: l.state, rollout: fly, flownLinks: flown.length, flownNew: flown.filter(r => !seen.has(r.k)).length, links: rows.length, distinct: new Set(rows.map(r => r.k)).size,
+    const row = { i: li, build: key, sec: l.sec, state: l.state, rollout: fly, frames: frm, flownLinks: flown.length, flownNew: flown.filter(r => !seen.has(r.k)).length, links: rows.length, distinct: new Set(rows.map(r => r.k)).size,
       newPrograms: rows.filter(r => !seen.has(r.k)).length, over1s: rows.filter(r => r.ms > 1000).length, over5s: rows.filter(r => r.ms > 5000).length,
       slow: slow.map(r => ({ t0: r.t0, ms: r.ms, k: r.k, was: cls(r), j: all.indexOf(r) })), keys: rows.map(r => r.k + ':' + r.ms + ':' + r.cx), contexts: d.cx, hist: await hists(b), burst: burst(all), ck: CK ? JSON.parse(await b.ev(CKR, 60000)) : null, cache: MB.cacheMB(UDD), exc: b.exc.slice(0, 5) };
     // the NEW programs of a warm load against the same build's earlier load: pair them by the vertex OR fragment hash kept
@@ -102,7 +106,7 @@ const HASH = `(function(){ if (window.__CL) return; var C = window.__CL = { ln: 
     for (const r of all) if (!seen.has(r.k)) seen.set(r.k, li);
     R.loads.push(row);
     console.log('L' + li + ' ' + key + ' ' + l.sec + ' s (' + l.state + ') links ' + row.links + ' distinct ' + row.distinct + ' new ' + row.newPrograms
-      + ' >1s ' + row.over1s + ' >5s ' + row.over5s + (FLY ? ' | roll-out ' + fly + ' s, flown links ' + row.flownLinks + ' new ' + row.flownNew : '') + ' GPU cache ' + row.cache.gpuCache + ' MB' + (row.exc.length ? ' EXC ' + row.exc[0] : ''));
+      + ' >1s ' + row.over1s + ' >5s ' + row.over5s + (FLY ? ' | roll-out ' + fly + ' s, flown links ' + row.flownLinks + ' new ' + row.flownNew + (frm ? ' | frames roll-out ' + JSON.stringify(frm.rollout) + ' flight ' + JSON.stringify(frm.flight) : '') : '') + ' GPU cache ' + row.cache.gpuCache + ' MB' + (row.exc.length ? ' EXC ' + row.exc[0] : ''));
     if (row.ck) { const d = row.ck.dups, extra = d.reduce((a, e) => a + e.n - 1, 0), g = new Map();
       for (const e of d) for (const x of e.d) { const w = (e.who || []).find(Boolean), sig = (w ? w.mt + '/' + (w.mn || w.ob) + (w.lights ? ' LIT' : '') + (w.hook ? ' hook' : '') + ' {' + w.uni.slice(0, 50) + '}' : (e.name || '?')) + ' || ' + x[1].slice(-120) + ' || ' + x[2].slice(-120); g.set(sig, (g.get(sig) || 0) + 1); }
       console.log('  dups: ' + d.length + ' sources linked more than once, ' + extra + ' extra links; renderer ' + row.ck.renderer + ', programs live ' + row.ck.programs + '; dead first programs ' + d.filter(e => !e.live[0]).length);
