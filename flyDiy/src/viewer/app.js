@@ -1794,7 +1794,11 @@
       const f = RES.frame;
       if (f && azT === f.az && elT === f.el && distT === f.dist) { const F = garageFraming(); azT = F.az; elT = F.el; distT = F.dist; RES.frame = { az: F.az, el: F.el, dist: F.dist }; }
     }
-    for (const g of RES.holders.values()) if (!g.userData.filled) window.PARKED.residentFill(g);
+    for (const g of RES.holders.values()) if (!g.userData.filled) {
+      const p = window.PARKED.residentFill(g);
+      if (p && p.then) p.then(ok => { if (ok) residentsPrint(); });   // (landed later: its print baked then)
+    }
+    residentsPrint();
     residentsShow();
     RES.ms = performance.now() - t0;
   }
@@ -1832,6 +1836,19 @@
   }
   // shown: the hand's choice while it holds (until the next view), else the view's default - on in the room view
   // (the garage's own framing, 3/4 front, refit), off in the close views (side, plan, nose, interior)
+  // THE RESIDENTS' PRINT ON THE FLOOR (the user 9 Nov: "planes do not seem to cast a shadow onto that ground"): the floor's
+  // contact shadow is the room's baked print of what stands on its shadow layer (hangar.js bakeGroundShadow, layer 3 - the
+  // fit-out's); a resident joins that layer once its airframe has landed, and the print is baked again when the set of
+  // landed residents changes (never on a slider's drag: the same set costs a string compare)
+  function residentsPrint() {
+    if (!RES || !RES.group || !hangar || !hangar.bakeGroundShadow) return;
+    const on = [];
+    for (const [k, g] of RES.holders) if (g.userData.filled) { on.push(k + '@' + g.position.x.toFixed(2) + ',' + g.position.z.toFixed(2) + ',' + g.rotation.y.toFixed(3)); g.traverse(o => { if (o.isMesh) o.layers.enable(3); }); }
+    const sig = on.sort().join('|') + '|' + RES.group.visible;
+    if (sig === RES.printSig) return;
+    RES.printSig = sig;
+    try { hangar.bakeGroundShadow(renderer, hangarScene); } catch (e) {}
+  }
   const residentsOnNow = () => (RES.user !== null ? RES.user : RES.view === 'room');
   function residentsShow() { if (RES && RES.group) RES.group.visible = residentsOnNow(); }
   function residentsView(k) {
