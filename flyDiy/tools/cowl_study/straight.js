@@ -143,10 +143,11 @@ function drawnEngine(m) {
   // the engine's own mesh only (its group is named edEng); the spinner, the shaft and the blades (which on a set-back
   // spinner sit behind the flange) are not the engine
   const walk = (o, f) => { if (/^ed(Spinner|Prop)/.test(o.name || '')) return; f(o); for (const c of o.children) walk(c, f); };
+  const { keptVerts } = require('./clear.js');
   walk(ug, o => {
     if (!o.isMesh) return;
-    const pa = o.geometry.attributes.position;
-    for (let i = 0; i < pa.count; i++) { v.fromBufferAttribute(pa, i); o.localToWorld(v); v.applyMatrix4(inv); out.push([v.x, v.y, v.z]); }
+    const pa = o.geometry.attributes.position, keep = keptVerts(o);   // (the exhaust may leave the cowl)
+    for (let i = 0; i < pa.count; i++) { if (keep && !keep[i]) continue; v.fromBufferAttribute(pa, i); o.localToWorld(v); v.applyMatrix4(inv); out.push([v.x, v.y, v.z]); }
   });
   return out;
 }
@@ -304,7 +305,7 @@ function rowsFor(spec, o) {
     out.cw_sqAftTop = sec.sqTop; out.cw_sqAftBot = sec.sqBot;
     }
     // the front keeps the fuselage's roundness; an in-line's is the boxy pod's (the user: "start from" it)
-    const fSq = type === 'inline' ? 0.74 : type === 'radial' ? 0.5 : null;
+    const fSq = (type === 'inline' || type === 'vee') ? 0.74 : type === 'radial' ? 0.5 : null;   // (a V's banks are corners too)
     out.cw_sqFrontTop = fSq != null ? fSq : sec.sqTop; out.cw_sqFrontBot = fSq != null ? fSq : sec.sqBot;
     out.cw_waistF = type === 'radial' ? 0 : +Math.max(-0.85, Math.min(0.85, (W - cE) / hF)).toFixed(3);
     front = Math.min(a1, hF); frontW = a1; frontH = hF;
@@ -395,7 +396,7 @@ function rowsFor(spec, o) {
   const reach = (m.zFw != null ? -m.zFw : env.length * 1.1) + noseOff0;
   out.cw_lidLen = +lip.toFixed(3);
   if (mode === 'pod') { out.cw_cowlLen = +Math.max(0.1, Math.min(2, reach)).toFixed(3); out.cw_noseOff = +(noseOff0 + lip).toFixed(3); }
-  else out.cw_cowlLen = +Math.max(0.1, Math.min(2, reach - lip)).toFixed(3);
+  else out.cw_cowlLen = +Math.max(0.1, Math.min(3.5, reach - lip)).toFixed(3);   // (to 3.5 m: a Merlin's nose is 2.3)
   Object.assign(out, FACE[type](front, frontW || front, frontH || front));
   if (mode === 'waist' && out.cw_scoopOn) out.cw_scoopFollow = 1;
   // A FLAT FACE WHERE THE BLOCK REACHES THE FLANGE (the user, 8 Nov, the Tiger Moth: "you put the prop straight on the
@@ -407,6 +408,28 @@ function rowsFor(spec, o) {
     let fT = 0, fB = 0, fW = 0;
     for (const [x, y, z] of m.verts) { if (z < -0.08 || z > -0.005) continue; fT = Math.max(fT, y); fB = Math.min(fB, y); fW = Math.max(fW, Math.abs(x)); }
     const ring = (+out.cw_spinR || +P.cw_spinR || 0.1) + 0.03;
+    // A TAPERED NOSE WHERE THE BLOCK STANDS ABOVE OR BESIDE THE SHAFT (the user, 9 Nov: "use your method systematically
+    // ... give the Spitfire a proper cowl"): a geared V's banks drawn right at the flange (the generator draws no
+    // reduction-gear nose ahead of a V) - a real Merlin's cowl tapers to the spinner over the gear nose. The propeller
+    // keeps its station; the block moves aft into its bay by the taper's length (the stand-off, while the bay has
+    // room) and the bowl runs that length from the block to the spinner. Only where the bay has the room: otherwise,
+    // and for a block hanging below its shaft (an inverted in-line: the Tiger's flat face), the flat face below.
+    const R0 = m.W.CAGE_ENG && m.W.CAGE_ENG.resolved, cR = R0 && R0.place && R0.place.caseR;
+    const gap0 = R0 && R0.P && R0.P.mountGap != null ? +R0.P.mountGap : 0.85;
+    // (a tapered nose closes on a spinner in proportion to the block - a Merlin's is ~0.6 m across: 0.7 of the
+    // block's half-width, 2.6 radii long - the cowl tool's own spinner rows, display only)
+    const spinT = Math.max(+P.cw_spinR || 0.1, 0.7 * fW);
+    const stand = Math.max(fT, fW) - (spinT + 0.03);
+    const Ltap = Math.max(0.15, Math.min(0.6, 1.1 * stand));
+    if (stand > 0.05 && fT >= -fB && cR && (gap0 - 0.4) * cR >= Ltap) {
+      out.cw_spinR = +spinT.toFixed(3); out.cw_spinLen = +Math.max(+P.cw_spinLen || 0.25, 2.6 * spinT).toFixed(3);
+      out.eng_mountGap = +(gap0 - Ltap / cR).toFixed(3);
+      out.cw_noseOff = +(noseOff0 + Ltap).toFixed(3);
+      out.cw_lidMode = 1; out.cw_lidLen = +(Ltap + 0.04).toFixed(3);
+      out.cw_cowlLen = +Math.max(0.1, Math.min(3.5, reach - out.cw_lidLen)).toFixed(3);
+      out.cw_lidShoulder = 0.15; out.cw_lidRound = 0.7;
+      out._flatFace = { taper: +Ltap.toFixed(3), top: +fT.toFixed(3), w: +fW.toFixed(3), mountGap: out.eng_mountGap };
+    } else
     if (-fB > ring + 0.05 || fT > ring + 0.05) {
       out.cw_lidRW = +(fW + 0.025).toFixed(3); out.cw_lidRTop = +(fT + 0.025).toFixed(3); out.cw_lidRBot = +(-fB + 0.02).toFixed(3);
       // THE FACE SLOTS IN FRONT OF THE BLOCK (the user: "offset slightly the nose cone from the engine so that the

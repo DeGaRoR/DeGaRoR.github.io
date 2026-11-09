@@ -472,7 +472,11 @@ const cowledPusher = P => P && (P.cowlOn == null || +P.cowlOn) &&
 const podPlate = (P, face) => {
   if (!P || !(+P.cowlOn) || Math.round(+P.fitNose || 0) !== 0 || Math.round(+P.cw_aftMode || 0) !== 1) return face;
   const w = +P.cw_aftW, h = +P.cw_aftH;
-  return (w > 0 && h > 0) ? Object.assign(face, { halfW: w, halfH: h }) : face;
+  // ...AND NO PLATE AT ALL (the user, 9 Nov: "there seem to be a flat plate between the cowl and the nacelle, it should
+  // not be there, at all"): the pod is the engine's housing; a rectangle the pod's half-sizes stood out of its rounded,
+  // uneven section at the corners and the top. `podSized` tells the engine layer to draw no plate (the mount's spread
+  // still reads the size, inside the pod).
+  return (w > 0 && h > 0) ? Object.assign(face, { halfW: w, halfH: h, podSized: true }) : face;
 };
 function engineFaces(mesh, FS, P) {
   const mount = Math.round((P && P.engMount) || 0);

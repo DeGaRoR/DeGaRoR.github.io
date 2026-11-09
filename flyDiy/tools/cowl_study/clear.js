@@ -2,6 +2,18 @@
 // (spinner and blades aside) against the cowl's own surface on the same ray from the axis, in the cowl's frame.
 //   const C = require('./clear.js'); C.clearance(sceneBuildResult) -> { n, worst, at: {z, y, x}, over: [..] }
 'use strict';
+// THE EXHAUST MAY LEAVE THE COWL (ejector stubs, stacks, the tailpipe): the vertices only exhaust faces use are not
+// the engine the cowl must hold. null = keep every vertex (a mesh with no part names)
+function keptVerts(o) {
+  const names = o.userData && o.userData.matNames, g = o.geometry;
+  if (!names || !g.index || !g.groups || !g.groups.length) return null;
+  const keep = new Uint8Array(g.attributes.position.count), ix = g.index.array;
+  for (const gr of g.groups) {
+    if (names[gr.materialIndex] === 'emExhaust') continue;
+    for (let k = gr.start; k < gr.start + gr.count; k++) keep[ix[k]] = 1;
+  }
+  return keep;
+}
 function clearance(S, THREE, opts) {
   const W = S.W, CW = W.COWL_GEN;
   let eng = null, cowl = null;
@@ -32,8 +44,9 @@ function clearance(S, THREE, opts) {
   let worst = 0, at = null, n = 0; const pts = [];
   eng.traverse(o => {
     if (!o.isMesh || /spin|prop|shaft/i.test(o.name)) return;
-    const pa = o.geometry.attributes.position;
+    const pa = o.geometry.attributes.position, keep = keptVerts(o);
     for (let i = 0; i < pa.count; i += 2) {
+      if (keep && !keep[i]) continue;
       v.fromBufferAttribute(pa, i); o.localToWorld(v); v.applyMatrix4(inv);
       if (v.z < 0.01 || v.z > ze - 0.01) continue;
       // the flanks and the top (the exhaust stubs leaving under the cowl and the mount are not it); `flanks` = the
@@ -49,4 +62,4 @@ function clearance(S, THREE, opts) {
   });
   return { n, worst: +worst.toFixed(4), at, pts };
 }
-module.exports = { clearance };
+module.exports = { clearance, keptVerts };
