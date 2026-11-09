@@ -90,10 +90,12 @@ const M = [];
   m += P(poly([[X + R - 2, Y - 8], [X + R + 24, Y], [X + R - 2, Y + 8]])) + P(poly([[X - R + 2, Y - 8], [X - R - 24, Y], [X - R + 2, Y + 8]]));
   m += sliver([[X, 14], [X, 40], [X, Y - R - 2]], 3, H, 'start');                    // the needle's split
   const id = cx.clip(`M${X - Ri},${Y} a${Ri},${Ri} 0 1,0 ${2 * Ri},0 a${Ri},${Ri} 0 1,0 ${-2 * Ri},0Z`);
-  let s = peak(cx, [X - 26, Y + 22], [X - 100, Y + 80], [X + 50, Y + 80], { f: 0.32, n: 4, t: 3.8, amp: 4.2 }) + peak(cx, [X + 34, Y + 34], [X - 10, Y + 80], [X + 100, Y + 80], { f: 0.34, n: 3, t: 3.6, amp: 4 });
+  let s = peak(cx, [X - 30, Y + 30], [X - 100, Y + 80], [X + 44, Y + 80], { f: 0.32, n: 4, t: 3.8, amp: 4.2 }) + peak(cx, [X + 36, Y + 40], [X - 6, Y + 80], [X + 100, Y + 80], { f: 0.34, n: 3, t: 3.6, amp: 4 });
   s += P(`M0,${Y + 58} H240 V${Y + 90} H0 Z`);
-  const pl = G(`translate(${X},${Y - 6})`, headOn(56));
-  s += halo(G(`translate(${X},${Y - 6})`, headOn(56)), 6.4) + pl;
+  // LIVERY-STICKERS: the plane simplified (headOn's o.simple) and drawn 15% bigger, the peaks lower behind it
+  const plTf = `translate(${X},${Y - 4}) scale(1.15)`;
+  const pl = G(plTf, headOn(56, { simple: true, lw: 4.6 }));
+  s += halo(G(plTf, headOn(56, { simple: true, lw: 4.6 })), 6.4 / 1.15) + pl;
   m += CLIP(id, s);
   M.push({ id: 'true-north', name: 'True north', theme: 'flying, mountains', w: 240, h: 260, defs: cx.defs.join(''), mask: m,
     idea: 'A compass ring with a long north needle; inside, a snow peak and a high-wing bush plane coming straight at you on its big tyres.' });

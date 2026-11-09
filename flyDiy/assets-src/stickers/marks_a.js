@@ -19,26 +19,33 @@ const M = [];
 }
 
 // 2 GRIZZLY RANGE: the bear's head in profile; its neck and hump run on into the peaks and curl down into a wave
+// LIVERY-STICKERS (9 Nov, the user: "the head is too long and light, and the mass doesn't read as a bear"): a grizzly's
+// own hump over the shoulders is now the highest thing on the back, the head carried below it, short and deep - a dished
+// face, a blunt muzzle, a heavy jaw and a ruff under it; the peaks stay on the back and the mass still curls into a wave
 {
   const cx = ctx('m2'); let m = '';
-  const body = 'M8,172 C26,164 38,146 44,124 L62,86 L76,104 L98,58 L116,86 L128,76 C136,68 145,63 152,62.6 ' +
-    'C151,50 160,43 168,47 C174,50 174.6,59 169.6,63.6 C177,63 183,66 188,71 C192,75 195,77 200,78 ' +
-    'C207,79 213,81 217,84 C222,86 223,93 219,95.4 C214,97.6 209,98 205,99 C201,105 194,109 186,110 ' +
-    'C180,111 175,116 172.6,124 C167,136 165,150 168,164 C150,177 110,186 70,186 C46,186 22,182 8,172 Z';
+  const body = 'M8,172 C26,164 38,146 44,124 L62,90 L76,106 L96,66 L110,88 ' +
+    'C116,72 126,56 140,50 C150,46 160,48 166,56 C169,60 171,64 172,68 ' +                    // the hump, then down to the nape
+    'C172,60 178,54 185,56 C191,58 192,66 188,70 ' +                                          // the ear
+    'C195,70 200,73 204,77 C207,80 210,81 214,81 ' +                                          // the brow, the dish of the face
+    'C219,81 223,82 226,84 C229,86 230,90 229,94 C228,97 226,98 223,98 ' +                   // the muzzle, the blunt nose
+    'C219,98 216,99 213,100 C214,105 212,110 206,114 C200,117 194,119 188,120 ' +            // the mouth, the heavy jaw
+    'C183,121 179,124 177,128 C176,130 175,132 174,134 ' +                                    // the ruff under the jaw
+    'C170,144 168,154 168,164 C150,177 110,186 70,186 C46,186 22,182 8,172 Z';
   m += P(body);
-  m += peak(cx, [62, 86], [40, 132], [86, 132], { f: 0.32, n: 3, t: 3.6, amp: 4 });
-  m += peak(cx, [98, 58], [70, 118], [126, 118], { f: 0.3, n: 4, t: 4.2, amp: 5 });
-  // the shoulder and the ruff, cut as swooshes that run down into the water lines
-  m += swooshC([132, 80], [146, 96], [150, 126], [146, 156], 5, 0.5, H);
-  m += swooshC([172, 70], [176, 82], [176, 96], [174, 110], 4.4, 0.5, H);
+  m += peak(cx, [62, 90], [40, 134], [86, 134], { f: 0.32, n: 3, t: 3.6, amp: 4 });
+  m += peak(cx, [96, 66], [68, 122], [124, 122], { f: 0.3, n: 4, t: 4.2, amp: 5 });
+  // the shoulder under the hump and the ruff, cut as swooshes that run down into the water lines
+  m += swooshC([136, 64], [152, 84], [156, 122], [148, 156], 5.4, 0.5, H);
+  m += swooshC([184, 76], [186, 92], [184, 108], [178, 120], 4.4, 0.5, H);
   m += swoosh([22, 172], [140, 168], 6, 5, 0.5, H);
   m += swoosh([46, 154], [138, 150], 5, 4.4, 0.5, H);
   m += swooshC([30, 160], [20, 134], [48, 120], [64, 138], 4.4, 0.5, H);       // the curl of the wave
-  m += `<ellipse cx="188.6" cy="76.6" rx="3.4" ry="2.8" fill="${H}"/>`;
-  m += swoosh([217, 96.6], [202, 100.6], -1, 3.2, 0.5, H);                 // mouth
-  m += swoosh([160, 54], [168, 61], -2.4, 3.4, 0.5, H);                         // ear
+  m += `<ellipse cx="203" cy="83" rx="3.2" ry="2.6" fill="${H}"/>`;
+  m += swoosh([222, 100.6], [209, 104.4], -1, 2.8, 0.5, H);                     // mouth
+  m += swoosh([180, 62], [185.4, 66], -1.6, 2.6, 0.5, H);                       // ear
   M.push({ id: 'grizzly-range', name: 'Grizzly range', theme: 'bear, mountains', w: 240, h: 196, defs: cx.defs.join(''), mask: m,
-    idea: 'A grizzly head in profile, dished face and small round ear; its hump runs on into two snow peaks and the whole mass curls away like a wave.' });
+    idea: 'A grizzly head in profile, dished face and small round ear under the big shoulder hump; the hump runs on into two snow peaks and the whole mass curls away like a wave.' });
 }
 
 // 3 ORCA: leaping clear of a curling wave

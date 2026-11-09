@@ -1,16 +1,16 @@
 // flyDiy livery stickers, third pass (9 Nov 2026): twelve logo marks in the swoosh style, one colour, no text.
-// node make_v3.js -> svg/NN_id.svg, stickers_v3.html (review page), check/one_NN.html + check/all.html (big renders)
+// node make_v3.js -> mask/NN_id.svg (the luminance masks; python3 flatten.py makes svg/, the cutter-ready paths), stickers_v3.html (review page), check/one_NN.html + check/all.html (big renders)
 const fs = require('fs'), path = require('path');
 const OUT = __dirname;
 const D = [].concat(require('./marks_a.js'), require('./marks_b.js'), require('./marks_c.js'));
-fs.mkdirSync(path.join(OUT, 'svg'), { recursive: true });
+fs.mkdirSync(path.join(OUT, 'mask'), { recursive: true });
 fs.mkdirSync(path.join(OUT, 'check'), { recursive: true });
-for (const f of fs.readdirSync(path.join(OUT, 'svg'))) fs.unlinkSync(path.join(OUT, 'svg', f));
+for (const f of fs.readdirSync(path.join(OUT, 'mask'))) fs.unlinkSync(path.join(OUT, 'mask', f));
 D.forEach((d, k) => {
   d.n = String(k + 1).padStart(2, '0');
   const fix = s => s.replace(/ID_/g, 's_');
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${d.w} ${d.h}" width="${d.w * 3}" height="${d.h * 3}"><title>flyDiy sticker ${d.n}: ${d.name}</title><defs>${fix(d.defs)}<mask id="ink" maskUnits="userSpaceOnUse" x="0" y="0" width="${d.w}" height="${d.h}">${fix(d.mask)}</mask></defs><rect width="${d.w}" height="${d.h}" fill="#1c2742" mask="url(#ink)"/></svg>\n`;
-  fs.writeFileSync(path.join(OUT, 'svg', `${d.n}_${d.id}.svg`), svg);
+  fs.writeFileSync(path.join(OUT, 'mask', `${d.n}_${d.id}.svg`), svg);
 });
 let uid = 0;
 const svgEl = (d, cls, reuse) => {

@@ -11,8 +11,11 @@ const M = [];
     'C158,134 156,137 155,141 L154,158 C153.6,162 149,162 148.6,158 L147,142 C144,150 142,164 144,178 C120,190 70,196 40,196 C26,196 14,194 6,190 Z';
   m += P(body);
   m += P('M158,93 C152,88 147,84 142,80 C150,80 157,84 164,90 Z');                      // the ear, laid back
-  m += P('M162,92 C160,86 157,82 152,79 C140,77 120,76 106,72 C100,70 96,66 94,60 L102,61 L98,50 L108,57 L108,44 L117,53 L120,39 L127,50 L133,36 L139,48 L147,35 L150,48 L158,40 L160,52 ' +
-    'C164,56 166,60 168,64 L176,54 L178,62 L188,58 L182,70 C177,76 171,82 168,88 C166,90 165,91 164,92 Z');  // the palm, tines raked back, brow palm forward
+  // LIVERY-STICKERS (9 Nov, the user: "the antlers read as a crown when small. Make broad palms"): one broad solid blade
+  // swept back, its rim with four short points (6-7 deep; there were seven, 12-14 deep), a notch, and a smaller brow palm forward
+  m += P('M162,92 C158,84 150,80 140,78 C126,76 112,72 102,66 C94,61 89,55 90,49 C94,46 98,44 101,40 L109,45 ' +
+    'L117,36 L125,42 L134,35 L142,42 L150,37 C153,40 157,41 159,42 C160,47 160,53 160,58 C163,58 166,60 168,62 ' +
+    'L174,54 L178,59 L185,55 L184,62 L190,62 C186,70 178,78 172,84 C168,88 166,90 164,92 Z');  // the palm, the brow palm
   m += peak(cx, [72, 112], [50, 160], [92, 144], { f: 0.32, n: 3, t: 3.6, amp: 4 });
   m += peak(cx, [104, 96], [80, 146], [126, 130], { f: 0.3, n: 3, t: 4, amp: 4.6 });
   m += `<ellipse cx="177" cy="105" rx="3.2" ry="2.6" fill="${H}"/>`;
@@ -69,28 +72,24 @@ const M = [];
 }
 
 // 12 ALASKA: the map silhouette, the Aleutians trailing off as swooshes, a climbing plane and its trail cut through it
+// LIVERY-STICKERS (9 Nov): THE OUTLINE IS NATURAL EARTH'S (1:50m, public domain), on the Alaska Albers conic, simplified for
+// a sticker by alaska_ne.py (the panhandle's islands closed into it, the fjords taken off) - it was drawn from memory
 {
   let m = '';
-  const k = 10.6, X = lon => r2((lon + 180) * 0.47 * k + 4), Y = lat => r2((72 - lat) * k + 4);
-  const coast = [[-156.8, 71.4], [-154.5, 70.9], [-152, 70.8], [-150, 70.45], [-148.3, 70.3], [-145.5, 70.1], [-143, 70.1], [-141, 69.65], [-141, 60.3],
-    [-139.2, 60.35], [-138.6, 59.8], [-137.4, 59.2], [-135.5, 59.8], [-134.6, 59.4], [-133.6, 58.5], [-132.6, 57.6], [-131.6, 56.8], [-130.0, 56.0], [-130.0, 55.3],
-    [-131.0, 54.75], [-132.6, 54.7], [-133.6, 55.3], [-134.6, 56.0], [-135.3, 56.8], [-136, 57.3], [-136.6, 58.2], [-138, 58.8], [-139.7, 59.55], [-141.4, 59.9],
-    [-143.5, 60.05], [-145.5, 60.4], [-146.6, 60.6], [-147.7, 60.85], [-148.6, 60.4], [-149.6, 59.8], [-150.6, 59.4], [-151.8, 59.2], [-151.6, 59.7], [-151.3, 60.5],
-    [-150.4, 61.0], [-149.9, 61.3], [-150.9, 61.2], [-152.0, 60.6], [-152.8, 60.0], [-153.6, 59.4], [-154.3, 58.8], [-155.4, 58.0], [-156.6, 57.2], [-158.0, 56.5],
-    [-159.4, 55.8], [-161.0, 55.3], [-162.6, 54.9], [-164.0, 54.6], [-163.0, 55.2], [-161.8, 55.8], [-160.2, 56.3], [-158.8, 57.0], [-157.6, 57.6], [-157.0, 58.4],
-    [-158.0, 58.7], [-159.4, 58.8], [-161.5, 58.6], [-162.0, 59.4], [-162.6, 59.9], [-163.6, 60.0], [-164.8, 60.6], [-165.2, 61.2], [-165.6, 61.8], [-165.2, 62.4],
-    [-164.6, 63.0], [-163.4, 63.1], [-161.6, 63.4], [-160.8, 63.8], [-161.3, 64.4], [-162.6, 64.5], [-164.0, 64.5], [-165.4, 64.5], [-166.4, 64.7], [-167.2, 65.2],
-    [-168.1, 65.6], [-167.0, 66.0], [-166.0, 66.3], [-164.3, 66.6], [-162.0, 66.1], [-161.2, 66.5], [-162.0, 67.0], [-163.6, 67.6], [-164.8, 68.0], [-166.8, 68.35],
-    [-166.2, 68.9], [-164.6, 69.0], [-163.2, 69.6], [-162.0, 70.3], [-160.0, 70.7], [-158.4, 70.95]];
-  m += P(poly(coast.map(([lo, la]) => [X(lo), Y(la)])));
-  m += `<ellipse cx="${X(-153.4)}" cy="${Y(57.4)}" rx="10" ry="5.4" transform="rotate(-38 ${X(-153.4)} ${Y(57.4)})" fill="${I}"/>`;   // Kodiak
-  for (const [a, b, w] of [[[-165.0, 54.4], [-167.0, 53.6], 5], [[-167.6, 53.4], [-169.6, 52.8], 4.6], [[-170.4, 52.6], [-172.4, 52.2], 4.2], [[-173.2, 52.1], [-175.4, 51.9], 3.8], [[-176.2, 51.8], [-178.4, 51.7], 3.4]])
-    m += swoosh([X(a[0]), Y(a[1])], [X(b[0]), Y(b[1])], -1, w, 0.5);
-  // the plane, climbing out, and its trail: holes
-  const tf = `translate(${X(-151.5)},${Y(66.2)}) rotate(-9) scale(0.5) translate(-70,-14)`;
+  const A = require('./alaska_ne.json'), pl = A.places;
+  m += P(poly(A.body));
+  for (const isl of A.islands) m += P(poly(isl));
+  // the chain: tapering swooshes laid along the real islands, east to west
+  const ch = A.chain;
+  // (five swooshes between six stations interpolated along the centroids' polyline, the gaps a fifth of each step)
+  const along = t => { const L = []; let T = 0; for (let i = 1; i < ch.length; i++) { const d = Math.hypot(ch[i][0] - ch[i - 1][0], ch[i][1] - ch[i - 1][1]); L.push(d); T += d; }
+    let s = t * T; for (let i = 1; i < ch.length; i++) { if (s <= L[i - 1]) { const u = s / L[i - 1]; return [ch[i - 1][0] + (ch[i][0] - ch[i - 1][0]) * u, ch[i - 1][1] + (ch[i][1] - ch[i - 1][1]) * u]; } s -= L[i - 1]; } return ch[ch.length - 1]; };
+  [5, 4.6, 4.2, 3.8, 3.4].forEach((w, i) => { m += swoosh(along(i / 5 + 0.02), along((i + 1) / 5 - 0.04), -1, w, 0.5); });
+  // the plane, climbing out over the interior, and its trail up from the Alaska Range: holes
+  const tf = `translate(${r2(pl.fairbanks[0] - 18)},${r2(pl.fairbanks[1] - 14)}) rotate(-12) scale(0.4) translate(-70,-14)`;
   m += G(tf, cubMark({ F: H, detail: false, lw: 6, tyre: 12 }));
-  m += swooshC([X(-155.4), Y(61.8)], [X(-157.4), Y(63.4)], [X(-158.8), Y(65)], [X(-158.8), Y(66.2)], 6.4, 0.5, H);
-  M.push({ id: 'alaska', name: 'Alaska', theme: 'flying, the map', w: 262, h: 228, defs: '', mask: m,
+  m += swooshC([pl.mcgrath[0] - 4, pl.mcgrath[1] + 16], [pl.mcgrath[0] - 16, pl.mcgrath[1] + 2], [pl.mcgrath[0] - 16, pl.fairbanks[1] + 6], [pl.fairbanks[0] - 43, pl.fairbanks[1] - 4], 5.6, 0.5, H);
+  M.push({ id: 'alaska', name: 'Alaska', theme: 'flying, the map', w: A.w, h: A.h, defs: '', mask: m,
     idea: 'The map of Alaska, the Aleutians trailing off as swooshes; a bush plane and its climbing trail are cut through it.' });
 }
 module.exports = M;

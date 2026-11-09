@@ -76,18 +76,24 @@ function headOn(sw = 70, o = {}) {
   const F = o.F ?? I, Hc = F === I ? H : I, lw = o.lw ?? 4;
   let s = '';
   // wing with a touch of dihedral, sitting on top of the cabin
-  s += P(`M${-sw},${-20} L${-6},${-25.4} L6,${-25.4} L${sw},${-20} L${sw},${-14.6} L6,${-20.2} L-6,${-20.2} L${-sw},${-14.6} Z`, F);
+  if (o.simple) s += P(`M${-sw},${-21} L${-6},${-26.6} L6,${-26.6} L${sw},${-21} L${sw},${-13} L6,${-18.6} L-6,${-18.6} L${-sw},${-13} Z`, F);   // thicker
+  else s += P(`M${-sw},${-20} L${-6},${-25.4} L6,${-25.4} L${sw},${-20} L${sw},${-14.6} L6,${-20.2} L-6,${-20.2} L${-sw},${-14.6} Z`, F);
   // fin tip above the wing, tailplane behind the cowl
-  s += P('M-2.6,-25 L-1.6,-37 L1.6,-37 L2.6,-25 Z', F);
+  // LIVERY-STICKERS (9 Nov, the user: "the head-on plane is crowded; simplify it"): o.simple drops the fin, the struts
+  // and the propeller blades: a thicker wing, a solid cabin (no windscreen), the cowl, two fatter tyres on their legs
+  if (!o.simple) s += P('M-2.6,-25 L-1.6,-37 L1.6,-37 L2.6,-25 Z', F);
   // cabin and windscreen
-  s += P('M-11,-21 L11,-21 L13,-4 L-13,-4 Z', F) + P('M-7.4,-17.6 L7.4,-17.6 L8.6,-8.6 L-8.6,-8.6 Z', Hc);
+  s += P('M-11,-21 L11,-21 L13,-4 L-13,-4 Z', F) + (o.simple ? ''   // no windscreen: the cabin is one solid with the wing and the cowl
+    : P('M-7.4,-17.6 L7.4,-17.6 L8.6,-8.6 L-8.6,-8.6 Z', Hc));
   // lift struts (V from the lower fuselage to the wing)
-  s += L.bar(-9, 8, -sw * 0.52, -17.6, lw, F) + L.bar(9, 8, sw * 0.52, -17.6, lw, F);
+  if (!o.simple) s += L.bar(-9, 8, -sw * 0.52, -17.6, lw, F) + L.bar(9, 8, sw * 0.52, -17.6, lw, F);
   // gear: legs splayed out to two fat tyres
   s += L.bar(-6, 10, -24, 26, lw, F) + L.bar(6, 10, 24, 26, lw, F);
-  s += `<ellipse cx="-25" cy="27" rx="6.4" ry="10.4" fill="${F}"/><ellipse cx="25" cy="27" rx="6.4" ry="10.4" fill="${F}"/>`;
+  { const rx = o.simple ? 7.6 : 6.4, ry = o.simple ? 11.4 : 10.4;
+    s += `<ellipse cx="-25" cy="27" rx="${rx}" ry="${ry}" fill="${F}"/><ellipse cx="25" cy="27" rx="${rx}" ry="${ry}" fill="${F}"/>`; }
   // cowl with the engine opening, and the propeller
   s += C(0, 2, 13, F) + C(0, 2, 7.6, Hc) + C(0, 2, 3.4, F);
+  if (o.simple) return s;
   s += P('M-3,0.6 C-14,-4 -26,-7 -34,-6.6 C-36,-5.6 -35.6,-3.6 -33,-3 C-24,-1.6 -12,1.6 -2.6,4 Z', F);
   s += P('M3,3.4 C14,7.6 26,10.6 34,10.6 C36,9.6 35.6,7.6 33,7 C24,5.6 12,2.4 2.6,0 Z', F);
   return s;
