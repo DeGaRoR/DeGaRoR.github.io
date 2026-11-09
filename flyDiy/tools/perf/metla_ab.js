@@ -28,6 +28,8 @@ const ORDER = opt('order', 'A,B,B,A').split(','), WANT = opt('builds', 'cub,meta
 const SEC = { taxi: +opt('taxi', 15), pass: +opt('pass', 15) }, LONG = +opt('long', 80), PROF = opt('cpuprof', null);
 const OUT = path.resolve(opt('out', path.join(__dirname, 'metla_ab_' + Date.now() + '.json')));
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+// a probe read that may time out on a cold page (b.ev resolves "__timeout"): null, never a throw (Mon 9 Nov: leg 4 died on it)
+const jp = s => { if (s === "__timeout") return null; try { return JSON.parse(s); } catch (e) { return null; } };
 const BASE = 'http://localhost:' + PORT + '/flyDiy/index.html';
 const SIDE = { A: 'town=0', B: 'town=1', M: 'town=1', T: 'town=1', C: 'town=0', P: 'town=1&towntrees=0' };   // TOWN-1: P = the town on, its trees its own (the before); M = B's flags on a master tree (a run per tree, same --udd)   // G1435: T = the town on, --toggle run at the taxi's middle (its rows apart)   // G1408: the town is ON by default - A says off explicitly
 // G1435: the user's custom near-ultra (flydiy-flightlog-20261003T165355-7u7a header.gfx; tools/perf/shader_guard.js USER_GFX)
@@ -168,9 +170,9 @@ const CHECK = `JSON.stringify((() => { const P = WORLD && WORLD.premises; const 
     const row = { side, build: bk, garage: l.sec, rollout: tr.wall, firstFlight: +(l.sec + tr.wall).toFixed(1), rollFrames: tr.frames, links: lk, hwGarage: hwG };
     log('garage ' + l.sec + ' s, roll-out ' + tr.wall + ' s, first flight ' + row.firstFlight + ' s (links ' + lk.n + ', worst ' + lk.worstS + ' s, ' + lk.over5s + ' > 5 s)' + (hwG ? ', houses: built ' + hwG.built + ' hits ' + hwG.hits + ' misses ' + hwG.misses + ' gen ' + hwG.genMs + ' ms' : ''));
     await b.ev(MB.A.cam('chase'));
-    const state = async () => JSON.parse(await b.ev("JSON.stringify((() => { const P = FLIGHT_PROBE; let st = null; try { st = P.structural ? P.structural() : null; } catch (e) {}"
+    const state = async () => jp(await b.ev("JSON.stringify((() => { const P = FLIGHT_PROBE; let st = null; try { st = P.structural ? P.structural() : null; } catch (e) {}"
       + " return { over: !!(P.over && P.over()), phase: P.ap ? P.ap().phase : null, crash: !!(P.damage && P.damage()), st: st ? JSON.stringify(st).slice(0, 160) : null }; })())").catch(() => 'null'));
-    const intact = async (s, when) => { const x = await state(); if (x) { x.render = JSON.parse(await b.ev(RSTATE, 10000).catch(() => 'null')); if (x.render && x.render.draws != null && x.render.draws < 60) { log('  BLANK RENDER ' + when + ' ' + (s ? s.scene : '') + ': ' + JSON.stringify(x.render)); (row.blank || (row.blank = [])).push(when + (s ? ' ' + s.scene : '')); x.blankDump = JSON.parse(await b.ev(BLANKDUMP, 20000).catch(e => JSON.stringify('error ' + e.message))); log('  BLANK DUMP ' + JSON.stringify(x.blankDump)); } } if (s) (s.state || (s.state = {}))[when] = x; log('  aeroplane ' + when + ' ' + (s ? s.scene : '') + ': ' + JSON.stringify(x)); return x; };
+    const intact = async (s, when) => { const x = await state(); if (x) { x.render = jp(await b.ev(RSTATE, 10000).catch(() => 'null')); if (x.render && x.render.draws != null && x.render.draws < 60) { log('  BLANK RENDER ' + when + ' ' + (s ? s.scene : '') + ': ' + JSON.stringify(x.render)); (row.blank || (row.blank = [])).push(when + (s ? ' ' + s.scene : '')); x.blankDump = jp(await b.ev(BLANKDUMP, 20000).catch(e => JSON.stringify('error ' + e.message))); log('  BLANK DUMP ' + JSON.stringify(x.blankDump)); } } if (s) (s.state || (s.state = {}))[when] = x; log('  aeroplane ' + when + ' ' + (s ? s.scene : '') + ': ' + JSON.stringify(x)); return x; };
     const passH = () => { const p = MB.A.pass(home, 42), q = p.replace(') + 60, z]', ') + ' + PASS_H + ', z]'); if (PASS_H !== 60 && q === p) throw new Error('--pass-h: master_bench pass changed'); return q; };
     const doTaxi = async () => { const x = await intact(null, 'before'); row.taxi = await scene('taxi', SEC.taxi, PROF && 'taxi'.includes(PROF), side === 'T' || side === 'C'); row.taxi.state = { before: x }; await intact(row.taxi, 'after'); };
     const doPass = async () => { if (APP_FIRST) { await b.ev(passH(), 20000).catch(() => 0); await sleep(12000); }   // (approach-first: HOME is ~9 km off; a first placement streams it, the measured one 12 s on)
@@ -224,7 +226,7 @@ const CHECK = `JSON.stringify((() => { const P = WORLD && WORLD.premises; const 
             const dx = ${tx} - ex, dz = ${tz} - ez; FLIGHT_PROBE.devFree(ex, ey, ez, Math.atan2(dx, -dz), Math.atan2(ty - ey, Math.hypot(dx, dz)));
             return JSON.stringify({ eye: [Math.round(ex), Math.round(ey), Math.round(ez)], agl: ${up}, toCentre: Math.round(Math.hypot(dx, dz)) }); })()`).catch(e => 'error ' + e.message);
           await b.ev('new Promise(r => { let n = 0; const t = () => (++n < 90 ? requestAnimationFrame(t) : r(1)); requestAnimationFrame(t); })', 30000).catch(() => 0);
-          if (CENSUS) await b.ev(CEN_ON).catch(() => 0); await sleep(6000); const vc = CENSUS ? JSON.parse(await b.ev(CEN_OFF, 20000).catch(() => 'null')) : null; if (vc) { (row.views || (row.views = {}))[n] = vc; log('view ' + n + ' draws ' + cenTop(vc)); }
+          if (CENSUS) await b.ev(CEN_ON).catch(() => 0); await sleep(6000); const vc = CENSUS ? jp(await b.ev(CEN_OFF, 20000).catch(() => 'null')) : null; if (vc) { (row.views || (row.views = {}))[n] = vc; log('view ' + n + ' draws ' + cenTop(vc)); }
           // the draw census of the view: the meshes drawn (an instanced one with instances), by the scene's top group, and the
           // frame's calls (the shadow passes in it) - where the fill's town chunks spend their calls
           const cen = await b.ev(`(() => { const R = FLIGHT_PROBE.renderer(), sc = FLIGHT_PROBE.craft() && FLIGHT_PROBE.craft().parent; let S = sc; while (S && S.parent) S = S.parent;
