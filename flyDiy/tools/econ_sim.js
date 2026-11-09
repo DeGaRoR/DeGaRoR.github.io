@@ -108,11 +108,13 @@ function measureDesigns() {
       continue;
     }
     const file = path.join(ROOT, S.build);
-    const key = id + '|' + coreHash + '|' + crypto.createHash('sha1').update(fs.readFileSync(file)).digest('hex').slice(0, 12);
+    const key = id + '|' + coreHash + '|' + require('./_load_build.js').chainSig().slice(0, 12) + '|' + crypto.createHash('sha1').update(fs.readFileSync(file)).digest('hex').slice(0, 12);
     let row = cache[key];
     if (!row) {
+      // G2818 (MASTER-GREEN, GATE JOINPARITY's census): the build as the game flies it - tools/_load_build.js, the page's load
+      // chain (FLYDIY_RAW_BUILDS=1: the file as written, as before)
       const j = JSON.parse(fs.readFileSync(file, 'utf8'));
-      const spec = C.genMigrateSpec(j.spec || j);
+      const spec = process.env.FLYDIY_RAW_BUILDS === '1' ? C.genMigrateSpec(j.spec || j) : C.genMigrateSpec(require('./_load_build.js').loadBuild(file).spec);
       const s = C.genShakedown(C.buildGen(spec), spec);
       const D = C.careerDesignOfShake(s, spec, S.label);
       row = Object.assign({}, D, { wants: C.hangarWants(spec) });

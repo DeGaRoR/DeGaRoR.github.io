@@ -313929,3 +313929,33 @@ TIMED GATE: light, the same shape as L36a.
 - **Identity**: 13 saved planes IDENTICAL in spec, def, ledger, price, sheet, design, certKey, procureFp, mass, nodes, beams, draw, fly20; the Tiger Moth design differs by design.
 - **Gates** (17:56-19:54, on claude/proper-cowls 63b3657a2, same code): COWL, ENGMESH, ENGDRAWN, CLIP, WINGROWS, PLANELISTS, UISMOKE, PARTS, PODEDITOR, HULL, FRAMES, DESIGN, KNIFE, CANDIDATES, STOL, RETRACT PASS; ENGCONFIG, GEN, JOINPARITY, POD FAIL as master's own (same lines as L36b; POD = stale base pins by inference (identity equal; L36d battery checks POD, any other line takes this ready out)); ARCHETYPES partial (3600 s cap; its Chinook-alike FAIL is master's own), full run Tuesday morning.
 - Note: flyDiy/reports/evidence/PROPER-COWLS/READY.md. Next: READY 2 (the one cowl rule).
+
+## PILOT-NOTCH-2 (Pilot, 9 Nov, for L36d): the landing notch, FLARE-NOPUSH and the crosswind cap, back as fresh commits on L36b
+
+L36a reverted pilot-notch (2eb3122c8). claude/ready/pilot-notch-2 brings it back as fresh commits (cherry-pick -x) on
+L36b master e789e77cb: G2811 the landing notch, G2812, G2813 FLARE-NOPUSH, G2815, G2816 the crosswind flap cap, G2817 the
+POD/ENGCONFIG pins, G2818 the census (1/2 + 2/2), G2814 TANK-SPLIT (1/2 + 2/2), the PILOTMATRIX baseline, and:
+
+- G2816b (new): the crosswind flap cap is never applied on a short-field approach (ap.shortFld), and only over a real
+  crosswind (xwFlapK 0.10 -> 0.15 x VAppr, ~2.7 m/s on the Cub). Why: the user's Cub w3 > tw_ski on the game's 8 kt day
+  came in on take-off flap, high, slipped, touched down at 1.87 m/s 140 m into the 380 m altiport and ground-looped
+  (a88e5a682). FAA-H-8083-3C ch. 9: a short field lands on full flap at the lowest safe speed; partial flap is for a
+  gusty crosswind.
+- G2813 (rule b, the check moved with the meant change): GATE STOL's "a slower approach" is asked at 0.96 x the stock
+  Vref, not 0.92 - the stock Cub now lands on its notch (67.2 km/h against the kit's 64.0). STOL's fixture re-captured
+  on this branch (32 cards + 6 builds). GATE PILOT shard 2 reads the stock Cub's lap from that fixture: the stock landing
+  roll is 95 m now (165 m on the old capture); the STOL Cub's 30 m stays under 0.6 x 95 = 57 m; lift-off unchanged.
+
+Gated on the branch (a git-archive copy, one nice'd node process, 9 Nov 17:56-21:08):
+- the user's Cub HOME > w3 > tw_ski: ok both legs (tw_ski: touchdown -0.09 m/s, run 68 m, 0.9 m off the centreline).
+- pilot_matrix cub:HOME:x2 ok (swing 5.9 deg), cub:HOME:x4 ~ (swing 15 deg, as with the cap before).
+- PASS: TOUR shards 0, 1, 3; PILOTMATRIX; STOL --selftest (after the re-capture); PILOT 0-2; ROUTE 0-2; PROFILE; PLAN;
+  TAKEOFF; LINEUP; POD; CESSNAVREF 0-1.
+- Red, and red on L36b master too (its train log): TOUR shard 2, the float Cessna mk_sea > SEA (the 1800 s leg timeout
+  and a prop strike on the water, t 620.5 here, 604.6 on master); ENGCONFIG's quad never wings-level on the downwind and
+  the pushpull / trimotor / four cards that differ from their saved files. This branch clears ENGCONFIG's identity rows
+  (master's 9 FAILs there).
+- NODE-ACCEPT (claude/accept-detect-pilot 9bb8107e6, not in this ready): first run, SELFTEST PASS, the Cub PASS
+  (taxi W0, circuits W0 / W8 / W15) in 616 s; the Jodel not run (time).
+
+No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change.
