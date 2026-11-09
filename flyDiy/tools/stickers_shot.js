@@ -198,19 +198,27 @@ const MK = id => ['stol-river', 'grizzly-range', 'orca', 'winged-prop', 'midnigh
       S.traverse(o => { if (!o.isMesh || !o.visible || !o.geometry || !o.geometry.attributes.position) return;
         const ms = Array.isArray(o.material) ? o.material : [o.material];
         if (!ms.some(m => m && m.userData && m.userData.aeroskin && (m.userData.aeroWing | 0) === 0)) return;
+        // (only a surface whose material TAKES a decal: the float's V-bottom declines one, and a sticker centred on the hull
+        // lost its middle there - measured, its toes showed under the gunwale and its pad did not)
+        const takes = ms.some(m => m && m.userData && m.userData.aeroskin && (m.userData.aeroWing | 0) === 0 &&
+          !(m.userData.aeroU && m.userData.aeroU.uDecOk && !m.userData.aeroU.uDecOk.value));
         const P = o.geometry.attributes.position, st = Math.max(1, Math.floor(P.count / 4000));
         for (let i = 0; i < P.count; i += st) { v.fromBufferAttribute(P, i).applyMatrix4(o.matrixWorld).applyMatrix4(M);
-          if (Math.abs(v.x) > 0.6 && v.z < zTop) { pts.push([v.x, v.y, v.z]); b[0] = Math.min(b[0], v.y); b[1] = Math.max(b[1], v.y); } } });
+          if (Math.abs(v.x) > 0.6 && v.z < zTop) { pts.push([v.x, v.y, v.z, takes ? 1 : 0]); b[0] = Math.min(b[0], v.y); b[1] = Math.max(b[1], v.y); } } });
       if (!(b[1] > b[0])) return null;
       // THE KEEL ON THE MIDDLE HALF of the length only: the water rudders hang below the sterns (the whole box's bottom put
       // the sticker's lower half under the hull), and the struts rise from the middle (so no top is taken at all)
       const y0 = b[0] + 0.25 * (b[1] - b[0]), y1 = b[0] + 0.75 * (b[1] - b[0]);
       const mid = pts.filter(p => p[1] > y0 && p[1] < y1);
       const keel = Math.min(...mid.map(p => p[2])), xf = mid.reduce((s, p) => s + Math.abs(p[0]), 0) / Math.max(1, mid.length);
+      // the band that takes a decal, on the middle half, below the struts' roots (the hull's own top: the deck's height)
+      const tk = mid.filter(p => p[3]);
+      const deck = tk.length ? Math.max(...tk.filter(p => p[2] < keel + 0.6).map(p => p[2])) : keel + 0.4;
+      const band = tk.length ? [Math.min(...tk.map(p => p[2])), deck] : [keel, keel + 0.4];
       const y = (b[0] + b[1]) / 2, len = b[1] - b[0];
       // the RIGHT float's side (x < 0: +x is the left flank), forward half, 0.2 m above the keel, in the world: a close-up aims there
       const wp = new THREE.Vector3(-xf, y - 0.18 * len, keel + 0.2).applyMatrix4(M.clone().invert());
-      return { y, len, keel, xf, world: wp.toArray() }; }, zTop);
+      return { y, len, keel, xf, band, nTake: tk.length, nMid: mid.length, world: wp.toArray() }; }, zTop);
     // THE COMPOSITIONS: 3-4 stickers a plane, placed off the measured boxes
     const COMPOSE = {
       async cub(P) {
@@ -239,10 +247,10 @@ const MK = id => ['stol-river', 'grizzly-range', 'orca', 'winged-prop', 'midnigh
           2: { On: 1, Mk: MK('orca'), Col: ink, Mir: 1, H: +(fin.H * 0.45).toFixed(2), L: +fin.L.toFixed(2), C: +(fin.C + fin.H * 0.05).toFixed(2), Tgt: 6, Mode: 1 },
           // (the wing without the registration's wing copy; the trim's orange on the white and green: the dark green vanished)
           4: { On: 1, Mk: MK('midnight-valley'), Col: ink, H: 1.0, L: +(wing.L + wing.W * 0.27).toFixed(2), C: +wing.C.toFixed(2), Tgt: 4, Mode: 2 },
-          // THE FLOATS TAKE STICKERS (the user, 9 Nov): the bear paw on both floats' sides, in the side box on the forward half
-          // of the hull, centred 0.2 m above its keel (measured on the middle half: the rudders hang below the sterns),
+          // THE FLOATS TAKE STICKERS (the user, 9 Nov): the winged prop (a wide mark) on both floats' sides, in the side box on
+          // the forward half, centred in the band of the hull that takes a decal (measured: floatOf's `band`),
           // in the trim's orange (dark green vanished into the float's green side); the letters are still declined there
-          3: flt ? { On: 1, Mk: MK('bear-paw'), Col: ink, H: 0.26, L: +(flt.y - flt.len * 0.18).toFixed(2), C: +(flt.keel + 0.20).toFixed(2), Tgt: 0, Mode: 1 } : undefined,
+          3: flt ? { On: 1, Mk: MK('winged-prop'), Col: ink, H: +Math.max(0.10, Math.min(0.30, (flt.band[1] - flt.band[0]) * 0.8)).toFixed(2), L: +(flt.y - flt.len * 0.18).toFixed(2), C: +((flt.band[0] + flt.band[1]) / 2).toFixed(2), Tgt: 0, Mode: 1 } : undefined,
         };
       },
     };
@@ -266,7 +274,6 @@ const MK = id => ['stol-river', 'grizzly-range', 'orca', 'winged-prop', 'midnigh
           await shoot(key + '_' + gfx + '_tail_right', [-Math.PI / 2 + 0.30, 0.07, 0.50 * span], [Tl.c[0], Tl.c[1] + 0.1 * Tl.s[1], Tl.c[2]]);
           await shoot(key + '_' + gfx + '_threequarter_left', [Math.PI / 2 + 0.62, 0.12, 0.95 * span], B.c);
           await shoot(key + '_' + gfx + '_above', [-Math.PI / 2 - 0.5, 0.80, 0.95 * span], P.wing.c);
-          if (R.fits.flt) await shoot(key + '_' + gfx + '_float_right', [-Math.PI / 2 - 0.30, 0.06, 0.30 * span], R.fits.flt.world);
         }
         if (key === 'cub') {
           // THE FIRST PLACE, through the panel (the user: "in the middle of the fuselage"): slot 3 (empty here) ticked on
