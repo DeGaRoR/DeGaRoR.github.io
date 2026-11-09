@@ -99,6 +99,8 @@ function flyLeg(C, W, sim, def, a, b, opt) {
   // t, legName, surface: 'land' | 'water' (the water's surface over the ground under the CG), base } - base frozen here.
   // Without o.detectors nothing here runs: the tour flies as before, to the bit
   const DET = o.detectors && o.detectors.length ? o.detectors : null;
+  // (base.gear from def.parts first, NOT spec.gear.type alone: an amphibian is a 'tricycle' with a hull or floats - the Super
+  // Petrel's spec reads tricycle + gear.hull, 25_airfield's 'amphibian' - and its detectors want 'hull' / 'float')
   const detBase = DET ? { pitch0: sim.out && Number.isFinite(sim.out.pitch) ? sim.out.pitch : 0, D0, gear: (def.parts && def.parts.hull) ? 'hull' : (def.parts && def.parts.floats) ? 'float'
     : (def.spec && def.spec.gear && def.spec.gear.type === 'taildragger') ? 'tail' : 'tri' } : null;
   const legName = o.legName || (a.id + '>' + b.id);
