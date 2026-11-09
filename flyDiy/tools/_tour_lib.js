@@ -94,6 +94,14 @@ function flyLeg(C, W, sim, def, a, b, opt) {
   let gLoop = 0, offStrip = 0, obstSteps = 0, obstMax = 0, airborne = false, nan = false;
   let landB = null, FL = null;   // the strip really landed on, and its frame (G1970)
   const dt = 1 / 60, tMax = o.tMax || 1800;
+  // NODE-ACCEPT (o.detectors, tools/_accept_detect.js; the design: flydiy-notes/NODE-ACCEPT-DESIGN-2026-11-09.md 3.3): each
+  // detector's onFrame(ctx) every step, THE FIRST VERDICT ENDS THE LEG (L.verdict, and a fault of its name). ctx = { sim, ap,
+  // t, legName, surface: 'land' | 'water' (the water's surface over the ground under the CG), base } - base frozen here.
+  // Without o.detectors nothing here runs: the tour flies as before, to the bit
+  const DET = o.detectors && o.detectors.length ? o.detectors : null;
+  const detBase = DET ? { pitch0: sim.out && Number.isFinite(sim.out.pitch) ? sim.out.pitch : 0, D0, gear: (def.parts && def.parts.hull) ? 'hull' : (def.parts && def.parts.floats) ? 'float'
+    : (def.spec && def.spec.gear && def.spec.gear.type === 'taildragger') ? 'tail' : 'tri' } : null;
+  const legName = o.legName || (a.id + '>' + b.id);
   let k = 0, lastPhase = null;
   for (; k < tMax / dt; k++) {
     if (H) { H.step(); ap = H.ap; } else { ap.update(dt); sim.step(dt); }
@@ -110,6 +118,12 @@ function flyLeg(C, W, sim, def, a, b, opt) {
     }
     const cg = sim.cgPos();
     if (!isFinite(cg[0]) || !isFinite(cg[1])) { nan = true; fault('nan', 'the solver went NaN'); break; }
+    if (DET) {
+      const wH = typeof W.waterH === 'function' ? W.waterH(cg[0], cg[2]) : -Infinity;
+      const ctx = { sim, ap, t: L.t, legName, surface: Number.isFinite(wH) && wH > W.terrainH(cg[0], cg[2]) ? 'water' : 'land', base: detBase };
+      let hit = null, by = null; for (const d of DET) { hit = d.onFrame(ctx); if (hit) { by = d.name; break; } }
+      if (hit) { L.verdict = Object.assign({ by, phase: ph }, hit); fault(hit.verdict, hit.what); break; }
+    }
     if (sim.out && sim.out.obst > 0) { obstSteps++; obstMax = Math.max(obstMax, sim.out.obst); }
     const xA = sim.axes()[0], nl = Math.hypot(xA[0], xA[2]) || 1e-9, nose = Math.atan2(-xA[2] / nl, -xA[0] / nl);
     const v = sim.cgVel ? sim.cgVel() : null, Vg = v ? Math.hypot(v[0], v[2]) : 0;
@@ -199,6 +213,7 @@ function flyLeg(C, W, sim, def, a, b, opt) {
   L.fuel = sim.fuel ? { litres: r1(sim.fuel.litres), burnt: r1(fuel0 - sim.fuel.litres) } : null;
   L.damage = D ? { yields: D.yields, breaks: D.breaks, dented: !!D.dented, crashed: !!D.crashed, gPeak: r1(D.gPeak || 0), propAt: D.propAt && !(D0 && D0.propStrike) ? { what: D.propAt.what, t: r1(D.propAt.t) } : null } : null;
   L.groundLoop = gLoop; L.offStrip = offStrip; L.nan = nan;
+  if (DET) { L.verdict = L.verdict || null; L.detWarnings = [].concat(...DET.map(d => (d.warnings || []).map(w => d.name + ': ' + w.what + ' at ' + w.t + ' s'))); }
   L.ok = !!stopAt && !L.faults.length;
   // G2530 (PILOT-44-REDS): A STRIP REFUSED, SAID. The pilot judged the To too short for the landing this aeroplane can make
   // ('strip-too-short', CESSNA-VREF's judgeHeld - the metal Cessna at Skyline Altiport on the game's day) and diverted: the
