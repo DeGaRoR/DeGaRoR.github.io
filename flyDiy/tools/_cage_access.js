@@ -715,7 +715,8 @@ PAGE.post = ctx => {
     return ((b[0] - a[0]) * (-q.p[0] - a[1]) - (b[1] - a[1]) * (q.p[2] - a[0])) / l > -0.05 / FS; })) : null;
   for (const row of rows) {
     const fam = FAMILY[row.key];
-    if (fam && !Math.round(P[fam] === undefined ? 1 : P[fam])) continue;
+    const famV = P[fam] === undefined && fam === 'accBeacon' ? P.accAerials : P[fam];   // (COMMS-SECTION: absent = the aerials')
+    if (fam && !Math.round(famV === undefined ? 1 : famV)) continue;
     // a surface with no placer is REPORTED, never dropped in silence — an
     // aeroplane quietly missing its wing filler cap is the acceptance test
     // failing quietly, and quietly is how this gap survived two chantiers

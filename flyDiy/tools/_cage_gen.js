@@ -9217,6 +9217,10 @@ function cageToSpec(P) {
     if (!(+P.hullOn > 0) && CAGE_HULL_ROWS.includes(k)) continue;
     if (CAGE_ZERO_ABSENT.includes(k) && !(+P[k] > 0)) continue;
     if (k in CAGE_DEFAULT_ABSENT && +P[k] === CAGE_DEFAULT_ABSENT[k]) continue;
+    // (COMMS-SECTION, 9 Nov - L35d's STOL: the load door's accBeacon moved every saved file and its keys) the beacon's
+    // switch is written only where it parts from the aerials': absent reads as accAerials (cageFromSpec), so a build
+    // whose two switches agree saves - and joins, and hashes - to master's bits
+    if (k === 'accBeacon' && Math.round(+P[k]) === Math.round(P.accAerials == null ? 1 : +P.accAerials)) continue;
     if (k === 'gearPos' || (!(+P.gearRetract) && CAGE_RETRACT_ROWS.includes(k))) continue;   // RETRACT
     out[k] = P[k]; n++;
   }
