@@ -313518,3 +313518,6 @@ The baseline moved in G2813 holds the Stearman's take-off control reversals (ste
   - JOINPARITY: 1 FAIL, the Jodel row, as named above.
 - PILOTMATRIX's baseline is the one captured on L35b + this branch. L35c's 43_pilot/solver/aero changes are gated on a retractable gear (def.params.retract), an amphibian, or a pair of engines behind the trailing edge. None of the matrix's cells has any of those.
 - G2819 (TANK-SPLIT, node shapes the nose tank sliced, as the page does) was tried and DROPPED. It does not move the Jodel: node stays 471.789 kg, uncached as well. Shaping's timing alone is not the cause. The JOINPARITY Jodel row stays named, Monday. The patch is kept in D:/Dev/pilot_runs/flare_nopush_20261108/.
+
+### L36a addendum (Pilot, Mon 9 Nov 08:30)
+STOL re-captured on this branch on top of 6fd718f5c (SEAPLANES: _stol_fp.js preStol drops the hull-type rows at their off value, as the gate does). The capture and _stol_check.js --selftest PASS together, which is the proof of 6fd718f5c. POD PASS and JOINPARITY (1 FAIL, the Jodel row, named) stand from the L35c run of 8 Nov: 6fd718f5c touches only the two STOL tools.
