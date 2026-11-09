@@ -314078,6 +314078,13 @@ default tint - a builder's own floor tint wins); THE 172 IS THE OFFICIAL B-CESS 
 re-benched 8 Nov: its 212 L wing-root tanks show in the open wing) - the validated "metal" test file carries a nose tank only.
 fiche_cutaway_{c172_alloy, cub_j3, petrel_carbon}.jpg re-shot so (the Petrel in the rig's white).
 
+ROUND 5 (the user, 9 Nov late: "the wing-mounted tanks ... be clever and try to cut through the spars"): THE TANK BAYS -
+the energy layer's wing tank (a box between the front and rear spar lines, _vessel_gen.js wingPlace; its mesh is drawn,
+VM.wingBox) now has its bay in the structure: the ribs' piece between the spars and the bay's drag bracing are not drawn
+through it, a solid rib closes each end, the spars stand as its walls (CAGE_ENERGY.results()' sides x0..x1). GATE
+WINGSTRUCT holds it (nothing between the spars inside the tank's span, the closing ribs, a break restoring the ribs caught).
+The B-CESS's 212 L tank re-shot so (fiche_cutaway_c172_alloy.jpg).
+
 SEAMS TOUCHED OUTSIDE MY ZONE (for A0): app.js (Deform's brkCage: one call + one group row + wsWreck / wsClear beside
 brkRestore and the heal); _cage_wing.js (one call at the end of its post, as the tip floats; the covering's opacity under
 see-inside); _cage_ui.js (the cutaway box's onchange only - it threw in the game's garage); build.js (wing_struct.js in
