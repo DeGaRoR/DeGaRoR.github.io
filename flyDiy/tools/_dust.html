@@ -103,7 +103,7 @@ input[type=range] { width: 100%; accent-color: var(--acc); margin: 0; }
       <input id="wet" type="range" min="0" max="1" step="0.01" value="0.02">
     </div>
     <div class="grp">
-      <div class="row"><label class="lab" for="wind">Wind, from the left</label><span class="val" id="windv">3 m/s</span></div>
+      <div class="row"><label class="lab" for="wind">Wind, from behind you</label><span class="val" id="windv">3 m/s</span></div>
       <input id="wind" type="range" min="0" max="10" step="0.5" value="3">
     </div>
     <div class="grp">
@@ -206,7 +206,7 @@ const REST_PITCH = 0.19;
 let tierName = 'gamer', sys = DUST.makeSystem(tierName), dust = DUST.make(THREE, sys); scene.add(dust.mesh);
 function setTier(t) { tierName = t; scene.remove(dust.mesh); dust.dispose(); sys = DUST.makeSystem(t); dust = DUST.make(THREE, sys); scene.add(dust.mesh); }
 const S = { scen: 'takeoff', cam: 'side', sun: 'back', cls: 0, wet: 0.02, wind: 3, k: 1 };
-const env = { groundH: () => 0, wind: () => [0, S.wind, S.wind], cls: () => S.cls, wet: () => S.wet, puddle: () => 0, get k() { return S.k; } };
+const env = { groundH: () => 0, wind: () => [S.wind * 0.35, -S.wind * 0.94, S.wind], cls: () => S.cls, wet: () => S.wet, puddle: () => 0, get k() { return S.k; } };
 
 // ---- the scenarios: the aeroplane's pose, speed and power as functions of the scenario's clock --------------------
 // returns { x, z, yaw, h (main wheels' height), pitch, V, vy, thr (0..1), brake, on }

@@ -60,15 +60,23 @@
   // phone = the laptop preset's (the S20 loads it), potato beside it; the cover numbers are the frame's fill budget for
   // the dust, from the research's mobile overdraw figures (design doc section 4) - to be measured, the doc names it
   const TIERS = {
-    phone:  { puffs: 64,  grit: 160, cover: 1.5, life: 50,  merge: 1.0 },
-    potato: { puffs: 80,  grit: 240, cover: 2.0, life: 60,  merge: 1.0 },
-    retro:  { puffs: 128, grit: 400, cover: 3.5, life: 90,  merge: 0.9 },
-    gamer:  { puffs: 192, grit: 700, cover: 6.0, life: 120, merge: 0.8 },
+    // mergeMax (m): no merge makes a puff wider than this - a take-off's trail stays a trail (a chain of puffs), not a
+    // few discs 180 m across; the phone's smaller pool takes wider ones
+    phone:  { puffs: 64,  grit: 160, cover: 1.5, life: 75,  merge: 1.0, mergeMax: 30 },
+    potato: { puffs: 80,  grit: 240, cover: 2.0, life: 80,  merge: 1.0, mergeMax: 28 },
+    retro:  { puffs: 128, grit: 400, cover: 3.5, life: 90,  merge: 0.9, mergeMax: 24 },
+    gamer:  { puffs: 192, grit: 700, cover: 6.0, life: 120, merge: 0.8, mergeMax: 20 },
   };
   const TIER_OF = { laptop: 'phone', potato: 'potato', retro: 'retro', current: 'retro', gamer: 'gamer', ultra: 'gamer' };
   // ---- THE LAWS (named constants; the design doc's section 3 carries their sources) -----------------------------------
   const L = {
     kAir: 0.28, kAirWind: 0.08,      // m^2/s: the near-surface eddy diffusivity, + per m/s of the 10 m wind (a puff r = 2 sigma ~5 m at 10 s, ~14 m at 60 s: Taylor 1921 with sigma_v ~0.5 m/s near the ground)
+    // FLAT, NOT ROUND (the user, 9 Nov: "clouds should persist longer ... they instantly disappear"): a dust cloud is a
+    // low layer - it spreads sideways with the surface wind's eddies and hardly grows upward (the near-ground eddies are
+    // small, the air above is stable at dawn and dusk): the puff is an ellipsoid, its height rv growing by kz and capped at
+    // rvMax (+ rvWind a m/s of wind, the mixing's depth), its width r by kAir. Its optical depth seen from the side is
+    // m / (pi r rv), so a cloud that spreads only sideways thins as 1/r, not 1/r^2 - it HANGS, as the footage does
+    kz: 0.05, kzWind: 0.02, rvMax: 4.5, rvWind: 0.5, rvCap: 9,
     jetTau: 2.0,                     // s: a source's own turbulence decays over this
     coarse: 0.35, tauCoarse: 6.0, tauFine: 240,   // the mass's two shares: 35 % settles in ~6 s, the rest over minutes (the bench, 9 Nov: 55 % / 4 s read as gone)
     domeK: 0.32,                     // the puff's centre settles at ground + domeK r (a dome: the lower part under the ground, faded)
@@ -76,18 +84,21 @@
     gritDrag: 0.15, mudDrag: 0.05,
     z0: 0.03,                        // m: the strip's roughness length for the log wind
     // the wheels
-    wheelK: 0.6,                     // optical m^2 per second per (m/s)^1.5 at fines 1, dry - tuned in the bench (doc section 5)
+    wheelK: 0.15, wheelV0: 2.0,      // optical m^2 a second per (m/s over V0)^2 at fines 1, dry (AP-42: per metre ~linear in speed, so ~V^2 a second;
+                                     // the user, 9 Nov: "taxi should emit less dirt" - 6 m/s is a twelfth of the 20 m/s roll's)
     brakeK: 1.0,                     // + this x brake x the rolling rate
-    spacing: 1.4, topUpAge: 0.5,     // a source tops its current puff up until it moved this far or it is this old
+    spacing: 1.4, spacingV: 0.12, topUpAge: 0.5,   // a source tops its current puff up until it moved max(spacing, spacingV x its speed) or it is this old
     gritRate: 9,                     // grit a second per m/s at loose 1, dry (gravel and sand's rooster tail)
     // touchdown
     tdMin: 0.25, tdK: 3.0,           // m/s of sink to count; optical m^2 per (m/s sink x m/s ground speed)
     // the prop
     jetHalf: 8 * Math.PI / 180, propK: 2.4,   // (the bench, 9 Nov: x6 - a run-up's cloud ~8-10 m, as the footage)
+    jetUt: 1.5,                      // the wall jet's threshold over the class's: the jet's centreline speed overstates the wind at the grains
+                                     // (u* ~0.06 u); at taxi power (~9 m/s at the ground) next to nothing, a run-up (~22) a cloud
     // vortices
     vortK: 1.0,
     // fade
-    tauMin: 0.006,
+    tauMin: 0.003,
   };
   const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
   const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
@@ -104,42 +115,51 @@
       // puffs: position, velocity, birth radius, mass at birth (optical m^2), age, jet turbulence, class, seed, gen
       P: { p: new Float32Array(NP * 3), v: new Float32Array(NP * 3), r0: new Float32Array(NP), m0: new Float32Array(NP),
            age: new Float32Array(NP).fill(-1), kj: new Float32Array(NP), cls: new Uint8Array(NP), seed: new Float32Array(NP),
-           gen: new Uint32Array(NP), gy: new Float32Array(NP), r: new Float32Array(NP), tau: new Float32Array(NP), n: NP, live: 0 },
+           gen: new Uint32Array(NP), gy: new Float32Array(NP), r: new Float32Array(NP), tau: new Float32Array(NP), rv0: new Float32Array(NP), rv: new Float32Array(NP),
+           into: new Int32Array(NP).fill(-1), intoGen: new Uint32Array(NP), mt: new Float32Array(NP), mI: new Float32Array(NP), aI: new Float32Array(NP), vI: new Float32Array(NP), n: NP, live: 0 },
       // grit + mud: position, velocity, size, age, life, kind (0 grit, 2 mud), class
       G: { p: new Float32Array(NG * 3), v: new Float32Array(NG * 3), s: new Float32Array(NG), age: new Float32Array(NG).fill(9), life: new Float32Array(NG).fill(1),
            kind: new Uint8Array(NG), cls: new Uint8Array(NG), seed: new Float32Array(NG), next: 0, n: NG, live: 0 },
       src: new Map(),      // a source's current puff: key -> { i, gen }
       genN: 1,
-      wasOn: [], stats: { emitted: 0, merged: 0, replaced: 0 },
+      wasOn: [], stats: { emitted: 0, merged: 0, absorbed: 0 }, kAir: L.kAir, kz: L.kz, rvTop: L.rvMax,
     };
     return sys;
   }
-  // a free puff slot: a dead one, else the faintest (its optical depth at the centre) - replaced
+  // a free puff slot (a dead one), or -1: the pool is full
   function puffSlot(sys) {
     const P = sys.P;
-    let best = -1, bt = Infinity;
-    for (let i = 0; i < P.n; i++) {
-      if (P.age[i] < 0) return i;
-      if (P.tau[i] < bt) { bt = P.tau[i]; best = i; }
-    }
-    sys.stats.replaced++;
+    for (let i = 0; i < P.n; i++) if (P.age[i] < 0) return i;
+    return -1;
+  }
+  // A FULL POOL TOPS UP, IT NEVER DELETES (the user, 9 Nov: "some [plumes] are coming and vanishing ... especially for the
+  // heavy phases"): the new mass goes into the nearest live puff (widened by the newcomer's area) - no puff is taken away
+  function absorb(sys, x, y, z, r0, m) {
+    const P = sys.P;
+    let best = -1, bd = Infinity;
+    for (let i = 0; i < P.n; i++) { if (P.age[i] < 0 || P.into[i] >= 0) continue; const dx = P.p[i * 3] - x, dz = P.p[i * 3 + 2] - z, d = dx * dx + dz * dz; if (d < bd) { bd = d; best = i; } }
+    if (best < 0) return -1;
+    P.m0[best] += m / decay(P.age[best]); P.r0[best] = Math.sqrt(P.r0[best] * P.r0[best] + 0.5 * r0 * r0);
+    sys.stats.absorbed++;
     return best;
   }
   // emitPuff(sys, x, y, z, vx, vy, vz, r0, m, kj, cls) -> slot
   function emitPuff(sys, x, y, z, vx, vy, vz, r0, m, kj, cls) {
     const P = sys.P, i = puffSlot(sys);
+    if (i < 0) return absorb(sys, x, y, z, r0, m);
     P.p[i * 3] = x; P.p[i * 3 + 1] = y; P.p[i * 3 + 2] = z; P.v[i * 3] = vx; P.v[i * 3 + 1] = vy; P.v[i * 3 + 2] = vz;
     P.r0[i] = r0; P.m0[i] = m; P.age[i] = 0; P.kj[i] = kj; P.cls[i] = cls; P.seed[i] = rnd(); P.gen[i] = sys.genN++;
-    P.r[i] = r0; P.tau[i] = m / (Math.PI * r0 * r0); P.gy[i] = y;
+    P.r[i] = r0; P.rv0[i] = r0; P.rv[i] = r0; P.tau[i] = m / (Math.PI * r0 * r0); P.gy[i] = y; P.into[i] = -1;
     sys.stats.emitted++;
     return i;
   }
   // a source's puff, topped up while it is young and near, else a new one (the source's handle follows it)
   function sourcePuff(sys, key, x, y, z, vx, vy, vz, r0, dm, kj, cls) {
     const P = sys.P, h = sys.src.get(key);
-    if (h && P.gen[h.i] === h.gen && P.age[h.i] >= 0 && P.age[h.i] < L.topUpAge && P.cls[h.i] === cls) {
+    if (h && P.gen[h.i] === h.gen && P.age[h.i] >= 0 && P.age[h.i] < L.topUpAge && P.cls[h.i] === cls && P.into[h.i] < 0) {
       const i = h.i, dx = P.p[i * 3] - x, dz = P.p[i * 3 + 2] - z;
-      if (dx * dx + dz * dz < L.spacing * L.spacing) {
+      const sp = Math.max(L.spacing, L.spacingV * Math.hypot(vx, vz) / 0.3);   // (vx, vz: the puff's launch, 0.3 of the source's speed)
+      if (dx * dx + dz * dz < sp * sp) {
         // mass in at the source's point: the centre moves toward it by the mass share, the velocity mixes
         const m = curMass(P, i), w = dm / Math.max(1e-6, m + dm);
         P.p[i * 3] += (x - P.p[i * 3]) * w; P.p[i * 3 + 2] += (z - P.p[i * 3 + 2]) * w; P.p[i * 3 + 1] += (y - P.p[i * 3 + 1]) * w;
@@ -149,6 +169,7 @@
       }
     }
     const i = emitPuff(sys, x, y, z, vx, vy, vz, r0, dm, kj, cls);
+    if (i < 0) return i;
     if (h) { h.i = i; h.gen = P.gen[i]; } else sys.src.set(key, { i, gen: P.gen[i] });
     return i;
   }
@@ -175,15 +196,20 @@
     sys.t += dt;
     const P = sys.P, T = sys.tier, gH = env.groundH;
     const w10 = env.wind ? env.wind() : null, spd10 = w10 ? (w10[2] != null ? w10[2] : Math.hypot(w10[0], w10[1])) : 0;
-    const kAir = L.kAir + L.kAirWind * spd10;
+    const kAir = sys.kAir = L.kAir + L.kAirWind * spd10, kz = sys.kz = L.kz + L.kzWind * spd10;
+    const rvTop = sys.rvTop = Math.min(L.rvCap, L.rvMax + L.rvWind * spd10);
     let live = 0;
     for (let i = 0; i < P.n; i++) {
       if (P.age[i] < 0) continue;
       const a = P.age[i] += dt;
-      const r2 = P.r0[i] * P.r0[i] + 8 * (kAir * a + P.kj[i] * L.jetTau * (1 - Math.exp(-a / L.jetTau)));
+      if (P.into[i] >= 0) handOver(sys, i, dt);
+      if (P.age[i] < 0) continue;
+      const jt = P.kj[i] * L.jetTau * (1 - Math.exp(-a / L.jetTau));
+      const r2 = P.r0[i] * P.r0[i] + 8 * (kAir * a + jt);
       const r = P.r[i] = Math.sqrt(r2);
-      const tau = P.tau[i] = curMass(P, i) / (Math.PI * r2) * lifeFade(a, T.life);
-      if (tau < L.tauMin && a > 1) { P.age[i] = -1; continue; }
+      const rv = P.rv[i] = Math.min(r, rvTop, Math.sqrt(P.rv0[i] * P.rv0[i] + 8 * (kz * a + 0.35 * jt)));
+      const tau = P.tau[i] = curMass(P, i) / (Math.PI * r * rv) * lifeFade(a, T.life);
+      if (tau < L.tauMin && a > 1) { if (P.into[i] >= 0) { P.into[i] = -1; sys.stats.merged++; } P.age[i] = -1; continue; }
       live++;
       const x = P.p[i * 3], z = P.p[i * 3 + 2];
       const g = gH ? gH(x, z) : 0;
@@ -193,8 +219,8 @@
       const dr = Math.min(1, L.puffDrag * dt);
       P.v[i * 3] += (WV[0] - P.v[i * 3]) * dr;
       P.v[i * 3 + 2] += (WV[1] - P.v[i * 3 + 2]) * dr;
-      // the vertical: its own momentum dies, and the centre settles toward the dome's (ground + domeK r)
-      const yT = g + L.domeK * r;
+      // the vertical: its own momentum dies, and the centre settles toward the dome's (ground + domeK rv)
+      const yT = g + L.domeK * rv;
       P.v[i * 3 + 1] += (-(P.p[i * 3 + 1] - yT) * 0.4 - P.v[i * 3 + 1]) * dr;
       P.p[i * 3] += P.v[i * 3] * dt; P.p[i * 3 + 1] += P.v[i * 3 + 1] * dt; P.p[i * 3 + 2] += P.v[i * 3 + 2] * dt;
       if (P.p[i * 3 + 1] < g) P.p[i * 3 + 1] = g;
@@ -219,29 +245,39 @@
   const lifeFade = (a, life) => 1 - smooth(0.8 * life, life, a);
   // MERGE: puffs past 1.5 s, hashed on a grid sized by their radius band; a puff whose cell holds an older one it overlaps
   // by more than `merge` of their radii's sum joins it - the mass summed, the area summed (r^2 = r1^2 + r2^2 keeps the
-  // optical depth of the pair's mean), the centre and the velocity mass-weighted
+  // optical depth of the pair's mean), the height the taller's. NOT AT ONCE (the user, 9 Nov: the puffs "coming and
+  // vanishing"): a HAND-OVER over MERGE_T - the joining puff gives its mass and its area to the other a little each frame,
+  // drifting toward it, fading as it empties; the other grows as it fills. Nothing pops.
+  const MERGE_T = 1.5;
+  function handOver(sys, i, dt) {
+    const P = sys.P, j = P.into[i];
+    if (P.age[j] < 0 || P.gen[j] !== P.intoGen[i] || P.into[j] >= 0) { P.into[i] = -1; return; }   // the other is gone or busy: carry on alone
+    const df = Math.min(dt / MERGE_T, 1 - P.mt[i]);
+    P.mt[i] += df;
+    const dm = df * P.mI[i];
+    P.m0[i] = Math.max(0, P.m0[i] - dm / decay(P.age[i]));
+    P.m0[j] += dm / decay(P.age[j]);
+    P.r0[j] = Math.sqrt(P.r0[j] * P.r0[j] + df * P.aI[i]);
+    const rvj = P.rv[j]; if (P.vI[i] > rvj) P.rv0[j] = Math.sqrt(P.rv0[j] * P.rv0[j] + df * (P.vI[i] * P.vI[i] - rvj * rvj));
+    const k = Math.min(1, dt * 0.8);
+    for (let c = 0; c < 3; c += 2) P.p[i * 3 + c] += (P.p[j * 3 + c] - P.p[i * 3 + c]) * k;
+    if (P.mt[i] >= 0.999) { P.age[i] = -1; P.into[i] = -1; sys.stats.merged++; }
+  }
   function mergeOld(sys) {
     const P = sys.P, k = sys.tier.merge;
     MERGE.clear();
     for (let i = 0; i < P.n; i++) {
       const a = P.age[i];
-      if (a < 1.5) continue;
+      if (a < 1.5 || P.into[i] >= 0) continue;
       const r = P.r[i], band = r < 3 ? 0 : r < 8 ? 1 : 2, cs = band === 0 ? 3 : band === 1 ? 8 : 20;
       const key = band * 1e8 + Math.floor(P.p[i * 3] / cs) * 1e4 + Math.floor(P.p[i * 3 + 2] / cs);
       const j = MERGE.get(key);
       if (j == null) { MERGE.set(key, i); continue; }
       const dx = P.p[i * 3] - P.p[j * 3], dz = P.p[i * 3 + 2] - P.p[j * 3 + 2], d = Math.hypot(dx, dz);
-      if (d > k * 0.5 * (r + P.r[j])) continue;
-      // i into j
-      const mi = curMass(P, i), mj = curMass(P, j), m = mi + mj, wi = mi / Math.max(1e-6, m);
-      for (let c = 0; c < 3; c++) { P.p[j * 3 + c] += (P.p[i * 3 + c] - P.p[j * 3 + c]) * wi; P.v[j * 3 + c] += (P.v[i * 3 + c] - P.v[j * 3 + c]) * wi; }
-      // the merged puff restarts its clock from the elder's, its birth radius and mass re-derived so that r and m are now's
-      const rN2 = P.r[i] * P.r[i] + P.r[j] * P.r[j];
-      const aj = P.age[j], grow = 8 * ((L.kAir) * aj + P.kj[j] * L.jetTau * (1 - Math.exp(-aj / L.jetTau)));
-      P.r0[j] = Math.sqrt(Math.max(0.04, rN2 - grow));
-      P.m0[j] = m / decay(aj);
-      P.r[j] = Math.sqrt(rN2);
-      P.age[i] = -1; sys.stats.merged++;
+      if (d > k * 0.5 * (r + P.r[j]) || r * r + P.r[j] * P.r[j] > sys.tier.mergeMax * sys.tier.mergeMax || P.into[j] >= 0) continue;
+      // i hands over to j (the elder or the first in the cell): its mass, its area, its height, over MERGE_T
+      P.into[i] = j; P.intoGen[i] = P.gen[j]; P.mt[i] = 0; P.mI[i] = curMass(P, i); P.aI[i] = P.r[i] * P.r[i]; P.vI[i] = P.rv[i];
+      MERGE.delete(key);
     }
   }
 
@@ -286,7 +322,7 @@
       }
       if (V < 0.8) continue;
       // ROLLING: the dust behind the tyre, up off the tread - a puff topped up along the track
-      const rate = (L.wheelK * Math.pow(V, 1.5) * (1 + L.brakeK * (w.brake || 0)) * C.fines * dry * K) * (pud > 0.01 ? 0 : 1);
+      const vv = Math.max(0, V - L.wheelV0), rate = (L.wheelK * vv * vv * (1 + L.brakeK * (w.brake || 0)) * C.fines * dry * K) * (pud > 0.01 ? 0 : 1);
       if (rate > 1e-4) {
         const ux = w.vx / V, uz = w.vz / V;
         sourcePuff(sys, key, w.x - ux * (w.R || 0.2), g + (w.R || 0.2) * 0.8, w.z - uz * (w.R || 0.2), w.vx * 0.3 + (rnd() - 0.5) * 0.6, 0.5 + 0.5 * rnd() + 0.03 * V,
@@ -334,7 +370,7 @@
     const hx = pr.x + ax * sHit, hz = pr.z + az * sHit;
     const ci = env.cls ? env.cls(hx, hz) : 0;
     if (ci < 0) return;
-    const C = CLS[CLASSES[ci]], S = env.wet ? env.wet(ci) : 0, ut = C.ut * utK(S);
+    const C = CLS[CLASSES[ci]], S = env.wet ? env.wet(ci) : 0, ut = C.ut * L.jetUt * utK(S);
     if (u <= ut || (env.puddle && env.puddle(hx, hz) > 0.01)) return;
     const flux = u * (u * u - ut * ut) / (ut * ut * ut);      // dimensionless, 0 at the threshold
     const rate = L.propK * flux * C.fines * dryK(S) * K;
@@ -378,16 +414,20 @@
     #include <common>
     #include <logdepthbuf_pars_vertex>
     attribute vec3 iPos; attribute vec3 iVel; attribute vec4 iA;   // iA: age01, size (m), seed, kind (1 puff, 0 grit, 2 mud)
-    attribute vec4 iB;                                              // iB: optical depth at the centre, ground y, class, -
+    attribute vec4 iB;                                              // iB: optical depth at the centre, ground y, class, a puff's half-height
     uniform float uStretch, uMinNdc, uNear;
     uniform vec3 uCol[5]; uniform vec3 uMud;
-    varying vec2 vUv; varying vec4 vA; varying vec3 vCol; varying float vTau, vGd, vK;
+    varying vec2 vUv; varying vec4 vA; varying vec3 vCol; varying float vTau, vGd, vK, vSv;
     void main() {
       vUv = uv; vA = iA;
       vec4 vp = modelViewMatrix * vec4(iPos, 1.0);
       float s = iA.y, kind = iA.w, dist = -vp.z;
-      // SOFT NEAR THE EYE: a puff the camera is in (or the budget's near fade) - faded, then its quad collapsed (no fragments)
-      float nf = kind > 0.5 && kind < 1.5 ? smoothstep(max(uNear, s * 0.5), max(uNear, s * 0.5) + s * 0.9 + 1.0, dist) : 1.0;
+      bool puff = kind > 0.5 && kind < 1.5;
+      float sv = puff ? iB.w : s;                                   // the puff's half-height (an ellipsoid: wide and low)
+      vSv = sv;
+      // SOFT NEAR THE EYE: a puff the camera is INSIDE (or the budget's near fade) - faded, then its quad collapsed (no fragments)
+      float nlo = max(uNear, 0.35 * s);
+      float nf = puff ? smoothstep(nlo, nlo + 0.6 * s + 1.0, dist) : 1.0;
       vTau = iB.x * nf;
       if (vTau < 0.002 || dist < 0.05) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); return; }
       vec3 vv = (modelViewMatrix * vec4(iVel, 0.0)).xyz;
@@ -397,9 +437,16 @@
       float ndc = s * projectionMatrix[1][1] / max(0.05, dist);
       vK = 1.0;
       if (kind < 0.5 || kind > 1.5) { if (ndc < uMinNdc && ndc > 0.0) { vK = max(0.1, (ndc / uMinNdc) * (ndc / uMinNdc)); s *= uMinNdc / ndc; } }
-      float len = s + (kind > 0.5 && kind < 1.5 ? 0.0 : min(0.5, sp * uStretch));
+      float len = s + (puff ? 0.0 : min(0.5, sp * uStretch)), hy = s;
+      if (puff) {
+        // the ellipsoid's outline: its height along the world's up as the eye sees it, its width across (seen from above: round)
+        vec2 up = (viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xy;
+        float ku = length(up);
+        ay = ku > 0.01 ? up / ku : vec2(0.0, 1.0); ax = vec2(ay.y, -ay.x);
+        hy = mix(s, sv, clamp(ku, 0.0, 1.0));
+      }
       vec2 c = uv - 0.5;
-      vec2 off = ax * c.x * len * 2.0 + ay * c.y * s * 2.0;
+      vec2 off = ax * c.x * len * 2.0 + ay * c.y * hy * 2.0;
       vp.xy += off;
       // SOFT ON THE GROUND: this corner's height over the ground (the view offset turned back to the world: the view
       // matrix's rotation transposed); linear over the quad, so the fragment's is exact for a flat ground under the puff
@@ -414,7 +461,7 @@
     precision highp float;
     #include <common>
     #include <logdepthbuf_pars_fragment>
-    varying vec2 vUv; varying vec4 vA; varying vec3 vCol; varying float vTau, vGd, vK;
+    varying vec2 vUv; varying vec4 vA; varying vec3 vCol; varying float vTau, vGd, vK, vSv;
     uniform sampler2D uNoise;
     uniform vec3 uSunV, uSunCol, uSkyCol, uGndCol; uniform float uOpacity, uG;
     void main() {
@@ -434,7 +481,7 @@
         float dens = th * smoothstep(0.18, 0.8, n * (0.45 + 0.55 * th) + 0.3 * th);
         float tau = vTau * dens * 2.0;
         a = 1.0 - exp(-tau);
-        a *= smoothstep(-0.05 * s, 0.3 * s + 0.15, vGd);          // soft on the ground
+        a *= smoothstep(-0.05 * vSv, 0.3 * vSv + 0.15, vGd);      // soft on the ground
         a *= smoothstep(0.0, 0.04, age);                           // born over a moment
         // lit as dust: the sphere's normal bent by the billow's
         vec3 N = normalize(vec3(q + (n1.gb * 2.0 - 1.0) * 0.7, th * 0.9 + 0.1));
@@ -545,7 +592,7 @@
           if (j >= P.n) continue;
           const d = keyD[order[k]];
           if (d <= 0.1) continue;
-          const r = P.r[j], dd = Math.max(d, r), c = Math.PI * r * r * p00 * p11 / (dd * dd) / 4 * Math.min(1, P.tau[j] * 3 + 0.2);   // (an eye inside a puff: at most its screen)
+          const r = P.r[j], dd = Math.max(d, r), c = Math.PI * r * P.rv[j] * p00 * p11 / (dd * dd) / 4 * Math.min(1, P.tau[j] * 3 + 0.2);   // (an eye inside a puff: at most its screen)
           if (cov + c > covMax && !nearT) nearT = d + r;
           cov += c;
         }
@@ -560,7 +607,7 @@
             pos[w * 3] = P.p[j * 3]; pos[w * 3 + 1] = P.p[j * 3 + 1]; pos[w * 3 + 2] = P.p[j * 3 + 2];
             vel[w * 3] = P.v[j * 3]; vel[w * 3 + 1] = P.v[j * 3 + 1]; vel[w * 3 + 2] = P.v[j * 3 + 2];
             A[w * 4] = Math.min(1, P.age[j] / Math.max(1, sys.tier.life)); A[w * 4 + 1] = P.r[j]; A[w * 4 + 2] = P.seed[j]; A[w * 4 + 3] = 1;
-            B[w * 4] = P.tau[j]; B[w * 4 + 1] = P.gy[j]; B[w * 4 + 2] = P.cls[j]; B[w * 4 + 3] = 0;
+            B[w * 4] = P.tau[j]; B[w * 4 + 1] = P.gy[j]; B[w * 4 + 2] = P.cls[j]; B[w * 4 + 3] = P.rv[j];
             // (the age the shader reads for its fade-in is the puff's seconds / life: a puff is born over its first moment)
             A[w * 4] = P.age[j] < 0.5 ? P.age[j] * 0.08 : Math.min(1, 0.04 + P.age[j] / Math.max(1, sys.tier.life));
           } else {
