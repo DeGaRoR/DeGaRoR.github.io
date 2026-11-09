@@ -70,6 +70,7 @@ Object.assign(gearDef, {
   gm1Ax: 0, gm1Ang: 90, gm2Ax: 1, gm2Ang: 0, gmTwist: 0,
   gn1Ax: 1, gn1Ang: 90, gn2Ax: 0, gn2Ang: 0, gnTwist: 0,
   shockKind: 1, linkSwing: -42,
+  gearLvPos: 0,            // WILGA-GEAR: the trailing-link leg's preview (0 extended .. 1 full stroke; a view, never saved)
   cgZ: 1.17, cgY: 0.05, propR: 0.875, propZ: 2.96,
 });
 // the page's own defaults still win — this only fills what it did not say
@@ -135,7 +136,7 @@ const station = (i, name) => [name, [
   // DC3-EDITABLE: to the big box's 8 m track (4 m), 0.90 m wheel and 1.80 m leg (gear.legDrop's clampBig)
   ['s' + i + 'X',     'in / out (half track)',   0, 4.0, 0.01, sOnM(i)],
   // RETRACT GM1: a retracting gear's legs are oleos on trunnions, whatever this row holds (it is kept for the gear down)
-  ['s' + i + 'Leg',   'leg',          0, 3, 1, GP.LEGS, Object.assign({}, sOn(i), {
+  ['s' + i + 'Leg',   'leg',          0, i === 1 ? 4 : 3, 1, GP.LEGS, Object.assign({}, sOn(i), {   // (WILGA-GEAR: 4 the mains')
     note: P => GEAR_RETRACTABLE(P) && Math.round(+P['s' + i + 'Leg']) !== 2 ? 'retractable: drawn and flown as an oleo on a trunnion' : '' })],
   ['s' + i + 'R',     i === 2 ? 'third wheel radius' : 'main wheel radius', 0.05, 0.90, 0.005, sOnM(i)],
   ['s' + i + 'Drop',  'up / down (leg drop)',     0.05, 1.80, 0.01, sOnM(i)],
@@ -1444,6 +1445,8 @@ const GROUP = ['9 · undercarriage', [
     // vertical, aft on lateral), plus the wheel's own twist about its leg (to lie flatter); the mains' rows are the
     // port unit's, the starboard mirrors them. The fraction stops the whole chain part way (the wheel in its inset)
     ['gearPos', 'gear position (preview: 1 down, 0 up)', 0, 1, 0.01, { when: P => +P.gearRetract }],
+    // WILGA-GEAR: the trailing-link leg's compression, previewed (0 extended, as in flight .. 1 full stroke)
+    ['gearLvPos', 'trailing-link preview (0 extended .. 1 full stroke)', 0, 1, 0.01, { when: P => Math.round(+P.s1Leg) === 4 && +P.s1On }],
     ['gearFold', 'mains fold', 0, FOLD_KEYS.length - 1, 1, FOLD_KEYS.map(k => FOLD_LABELS[k]), { when: P => RETRACT_LAB() && +P.gearRetract }],
     ['gm1Ax', 'mains turn 1: axis', 0, 2, 1, FOLD_AX_LABELS, { when: P => RETRACT_LAB() && +P.gearRetract && foldCustom(P) }],
     ['gm1Ang', 'mains turn 1: angle °', -180, 180, 1, { when: P => RETRACT_LAB() && +P.gearRetract && foldCustom(P) }],
@@ -2722,6 +2725,8 @@ PAGE.post = ctx => {
                     retMounts.push({ key: st.single ? 'T' : (sgn > 0 ? 'L' : 'R'), wing: !!m, depth: 2 * st.ret.in, z: st.z }); }
         if (st.leg === 0) r = GG.legBeam(lb, AFx, st.P, st, sgn);
         else if (st.leg === 1) r = GG.legLink(lb, AFx, st.P, st, sgn);
+        // WILGA-GEAR: the trailing-link leg - its arm and the strut's two halves in their own bags (each posed apart)
+        else if (st.leg === 4 && !st.single && GG.legLever) { lb.lever = { arm: allBags(), cyl: allBags(), rod: allBags() }; r = GG.legLever(lb, AFx, st.P, st, sgn); }
         else r = GG.legOleo(lb, AFx, st.P, st, sgn);
         rOleo = r; retLow = st.ret ? st.ret.low || null : null; retSc = st.ret ? st.ret.scissor || null : null;
         if (retLow && wu.proxy) wu.proxy.brakefix = retLow.brakefix;      // (the caliper rides the piston with its wheel)
@@ -2766,7 +2771,8 @@ PAGE.post = ctx => {
                       legR: (+(st.P && st.P.oleoDia) || 0.06) / 2 + 0.02,   // GR: the leg's radius and its links' room (the wells)
                       // GR: the strut as drawn (the shortening's axis and length), the piston's bags and the scissor
                       strut: rOleo && rOleo.strutDir || null, strutL: rOleo && rOleo.strutL || 0, cylF: rOleo && rOleo.cylF || 0.55,
-                      low: retLow, scissor: retSc });
+                      low: retLow, scissor: retSc,
+                      lever: r.lever ? Object.assign({}, r.lever, { bags: lb.lever }) : null });   // WILGA-GEAR
       contacts.push({ st, sgn, p: r.axle, R: st.R });
     }
   }
@@ -2813,6 +2819,7 @@ PAGE.post = ctx => {
     const lg = new THREE.Group();
     lg.name = 'edLeg' + lu.kind;
     for (const k in lu.bags) {
+      if (k === 'lever') continue;                       // (WILGA-GEAR: the moving parts' own bags, meshed below)
       const mf = lu.bags[k].mesh(lg, legM(k, lu.bags[k]));
       if (k === 'fair' && mf && exG > 0) {
         const sx = lu.axle ? Math.sign(lu.axle[0]) : 0;
@@ -2820,7 +2827,18 @@ PAGE.post = ctx => {
       }
     }
     group.add(lg);
+    // WILGA-GEAR: THE TRAILING-LINK LEG'S MOVING PARTS, each its own named group (the arm with its horn and axle stub,
+    // the strut's cylinder, its rod) - the preview row below and the flight (app.js, from the physics nodes) pose them
+    if (lu.lever && lu.lever.bags) for (const [nm, key] of [['edLvArm', 'arm'], ['edLvCyl', 'cyl'], ['edLvRod', 'rod']]) {
+      const gp = new THREE.Group(); gp.name = nm + lu.kind;
+      const B = lu.lever.bags[key];
+      for (const k in B) if (B[k].tris) B[k].mesh(gp, legM(k, B[k]));
+      group.add(gp);
+    }
   }
+  // WILGA-GEAR: the legs' records (the drawing's frame, metres) - the join writes spec.gear.lever from them
+  const leverOut = legUnits.filter(u => u.lever).map(u => ({ kind: u.kind, piv: u.lever.piv, ax: u.lever.ax, w: u.lever.w,
+    axle: u.lever.axle, horn: u.lever.horn, top: u.lever.top, root: u.lever.root, rows: u.lever.rows }));
   if (castorUnitOut) {
     const cgp = new THREE.Group();
     cgp.name = 'edCastorT';
@@ -3029,7 +3047,29 @@ PAGE.post = ctx => {
       });
     }
   }
+  // WILGA-GEAR: THE PREVIEW ROW (gearLvPos 0 extended .. 1 full stroke - the editor's slider, never saved): the arm, the
+  // strut's halves and the wheel posed by the core's GEAR_LEVER (62c), the very arithmetic the flight poses them by
+  const lvPos = Math.max(0, Math.min(1, +P.gearLvPos || 0)), GLv = (typeof GEAR_LEVER !== 'undefined') ? GEAR_LEVER : window.GEAR_LEVER;
+  if (lvPos > 0 && leverOut.length && GLv) for (const u of leverOut) {
+    const L = GLv.gearLeverInit({ piv: u.piv, ax: u.ax, w: u.w, axle: u.axle, horn: u.horn, top: u.top });
+    const comp = (u.rows.ang - u.rows.comp) * Math.PI / 180, q = GLv.gearLeverAt(L, lvPos * comp);
+    const pa = [u.piv[0] + u.ax[0], u.piv[1] + u.ax[1], u.piv[2] + u.ax[2]];
+    const T = { edLvArm: GLv.gearNodeFrame([u.piv, u.axle, pa], [u.piv, q.axle, pa]),
+                edLvCyl: GLv.gearNodeFrame([u.top, u.horn, [u.top[0] + u.ax[0], u.top[1] + u.ax[1], u.top[2] + u.ax[2]]],
+                                           [u.top, q.horn, [u.top[0] + u.ax[0], u.top[1] + u.ax[1], u.top[2] + u.ax[2]]]),
+                edLvRod: GLv.gearNodeFrame([u.horn, u.top, [u.horn[0] + u.ax[0], u.horn[1] + u.ax[1], u.horn[2] + u.ax[2]]],
+                                           [q.horn, u.top, [q.horn[0] + u.ax[0], q.horn[1] + u.ax[1], q.horn[2] + u.ax[2]]]) };
+    T.edWheel = T.edLvArm;
+    group.traverse(o => {
+      if (!o.name || o.name.slice(-1) !== u.kind) return;
+      const t = T[o.name.slice(0, -1)];
+      if (!t) return;
+      o.matrix.set(t[0], t[1], t[2], t[3], t[4], t[5], t[6], t[7], t[8], t[9], t[10], t[11], 0, 0, 0, 1);
+      o.matrix.decompose(o.position, o.quaternion, o.scale);
+    });
+  }
   window.CAGE_GEAR = { AF, contacts, pitch, gy, saddles: saddlesOut,
+    ...(leverOut.length ? { lever: leverOut } : {}),                // WILGA-GEAR: the trailing-link legs as drawn
     ...(swing ? { swing } : {}),
     ...(fit ? { fit } : {}),            // G2: does the fold fit (foldFit; the rows it turns red: CAGE_ROW_BAD)
     ...(mech ? { mech: mech.R, mechInfo: mech.info } : {}),   // GM2/GM3: the mechanism's record (gearMechPose) and its numbers

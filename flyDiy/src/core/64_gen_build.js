@@ -541,7 +541,7 @@ function genShakedown(def, opts) {
   // axle moves along the leg rather than under it — measured, 5 mm of vertical
   // change for 52 mm of actual compression, and the rest of any node-difference
   // is the body pitching.
-  const susTravel = springStrain * legL;
+  let susTravel = springStrain * legL;
   // THE FOLD, and it has to be geometric. A snap-through rotates the gear rather
   // than stretching it — the folded case sat at 1.3% leg strain, which is rule 10
   // exactly ("no strain gate can see a mechanism"). So: how far has the axle moved
@@ -552,6 +552,18 @@ function genShakedown(def, opts) {
     const d0 = [0, 1, 2].map(k => def.nodes[iLegAx].p[k] - def.nodes[iLegTop].p[k]);
     const d1 = [0, 1, 2].map(k => st.p[iLegAx*3+k] - st.p[iLegTop*3+k]);
     susShift = Math.hypot(d1[0]-d0[0], d1[1]-d0[1], d1[2]-d0[2]) / Math.max(1e-6, legL);
+  }
+  // WILGA-GEAR: a trailing-link leg's spring is its strut - the travel is the strut's own stroke, and a FOLD is the arm
+  // leaving its length (the axle off its arc about the pivot), as a fraction of the arm
+  if (def.parts && def.parts.lever && st.oleo) {
+    const ol = st.oleo(), Lv = def.parts.lever.sides;
+    susTravel = ol.reduce((a, q) => Math.max(a, q.s), 0);
+    for (const q of Lv) {
+      const d = k => [0, 1, 2].map(c => k(q.axle, c) - 0.5 * (k(q.pi, c) + k(q.po, c)));
+      const d0 = d((i, c) => def.nodes[i].p[c]), d1 = d((i, c) => st.p[i * 3 + c]);
+      const a0 = Math.hypot(d0[0], d0[1], d0[2]);
+      susShift = Math.max(susShift, Math.abs(Math.hypot(d1[0], d1[1], d1[2]) - a0) / Math.max(1e-6, a0));
+    }
   }
   const cgS = st.cgPos(), axX = st.p[iAx*3], axY = aglOf(iAx);
   const noseOver = Math.atan2(cgS[0] - axX, Math.max(0.05, cgS[1] - axY)) * 180 / Math.PI;

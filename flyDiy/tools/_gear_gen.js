@@ -1978,6 +1978,85 @@ function steerRun(bags, e, h) {
 // ---- THE TAILWHEEL ASSEMBLY ----------------------------------------------
 // leaf-spring bending beam + castor unit + steering. Modelled as its own
 // thing because it IS its own thing (user, 2026-08-19).
+// (e) TRAILING-LINK LEG, THE PZL-104 WILGA'S KIND (WILGA-GEAR, futureDesigns/WILGA-GEAR-STUDY-2026-11.md): a fixed,
+// faired upper leg from a fitting on the body down and forward to a lateral pivot; a trailing arm on the pivot carries
+// the axle; a separate oleo strut runs from a bracket up the leg to a horn on the arm (AAIB 7/2009 G-EPZL's
+// description; the IPMS walkaround's photographs). Its points are the core's (62c gearLeverRef: the rows, the leg's
+// drawn direction) - the frame stands its nodes on the same points, so what is drawn here is what flies. Drawn at
+// FULL EXTENSION (the strut's length as built); the arm, the strut's two halves and the wheel are posed by the gear
+// layer (the preview row) and the flight (app.js) from GEAR_LEVER. `bags.lever` (the gear layer's) holds the moving
+// parts' own bags { arm, cyl, rod }; a bench without it draws them with the leg.
+// Rows (P): lvArm, lvAng, lvComp, lvTop, lvReach (the axle ahead of the fitting), lvStat (the charge), lvLegW (the leg's
+// fairing chord), lvRootAng (the fitting round the body from the keel).
+function leverRowsOf(P) {
+  const LR = (typeof GEN_RULES !== 'undefined' && GEN_RULES.lever) || {
+    arm: 0.400, ang: 62, comp: 12, hornK: 0.959, hornDeg: 12.3, qPiv: 0.268, qHorn: 0.173, w: 0.06, top: 0.18,
+    legDir: [0.640, 0.577, -0.514], dSt: 0.070 };
+  const v = (k, d) => (P[k] != null && isFinite(+P[k]) ? +P[k] : d);
+  return Object.assign({}, LR, { arm: v('lvArm', LR.arm), ang: v('lvAng', LR.ang), comp: v('lvComp', LR.comp),
+                                 top: v('lvTop', LR.top), dSt: v('lvStat', LR.dSt) });
+}
+function legLever(bags, AF, P, st, sgn) {
+  const GL = (typeof GEAR_LEVER !== 'undefined') ? GEAR_LEVER : (typeof window !== 'undefined' ? window.GEAR_LEVER : null);
+  const R0 = leverRowsOf(P), half = st.x, drop = st.drop;
+  const reach = P.lvReach != null ? +P.lvReach : 0.45, rootAng = (P.lvRootAng != null ? +P.lvRootAng : 80) * D2R;
+  // frame <-> cage (the core's frame: x aft, y up, q outboard; the cage: x lateral, y up, z forward)
+  const toCage = (o, v) => [o[0] + sgn * v[2], o[1] + v[1], o[2] - v[0]];
+  const toFrame = d => [-d[2], d[1], sgn * d[0]];
+  const axle = [sgn * half, AF.keelAt(st.z) - drop, st.z + reach + (st.axZ || 0)];
+  // the pivot first (the rows alone), then the leg's direction from it to its fitting on the body, then the strut's
+  // upper eye up that leg (the frame rebuilds the same from the join's measured points)
+  const g0 = GL ? GL.gearLeverRef(R0) : null;
+  const piv = toCage(axle, g0 ? g0.piv : [-0.188, 0.353, -0.268]);
+  const F = fitOn(AF, st, st.z, sgn * rootAng, 0);
+  const root = off(F.p, F.n, 0.012);
+  const legDir = toFrame(nrm(sub(root, piv)));
+  const g = GL ? GL.gearLeverRef(R0, legDir) : g0;
+  const horn = toCage(axle, g.horn), top = toCage(axle, g.top), w = g.w;
+  const ax = [sgn, 0, 0];                                   // the pivot's axis, outboard
+  const hubIn = st.R * 0.40 + 0.020, axleIn = [axle[0] - sgn * hubIn, axle[1], axle[2]];
+  const LB = bags.lever || { arm: bags, cyl: bags, rod: bags };
+  // ---- THE FIXED LEG: its fitting, the faired strut (the Wilga's red tube with its white trailing fairing - one
+  // streamlined section here), the rear brace, the pivot's lateral cylinder and the strut's bracket
+  padOn(bags, AF, st, st.z, sgn * rootAng, 0.17, 0.13, { thick: 0.009 }, 0);
+  const pivTop = off(piv, nrm(sub(root, piv)), 0.040);
+  const chord = +P.lvLegW || 0.090, thick = chord * 0.46;
+  sweep(bags.steel, resample([root, pivTop], 12), t => secTear(chord * (1 - 0.22 * t), thick * (1 - 0.15 * t)), true, [0, 0, 1]);
+  // the rear brace: from the leg's upper third back to the body a third of a metre aft of the fitting (drawn; the frame's
+  // leg carries the same aft anchor in its members)
+  const bA = lerp3(root, piv, 0.36), Fb = fitOn(AF, st, st.z - 0.34, sgn * rootAng, 0);
+  tube(bags.steel, bA, off(Fb.p, Fb.n, 0.010), 0.011, 10);
+  padOn(bags, AF, st, st.z - 0.34, sgn * rootAng, 0.08, 0.06, { thick: 0.006 }, 0);
+  revolve(bags.steel, off(piv, ax, -w - 0.010), ax, [[0.036, 0], [0.040, 0.008], [0.040, 2 * w + 0.012], [0.036, 2 * w + 0.020]], 18, true);
+  revolve(bags.dark, off(piv, ax, w + 0.010), ax, [[0.022, 0], [0.022, 0.012]], 12, true);   // the spindle's retaining nut
+  const legU = nrm(sub(root, piv));
+  lug(bags.alloy, off(top, ax, -0.022), ax, mul(legU, -1), 0.024, 0.010, 0.045);
+  lug(bags.alloy, off(top, ax, 0.022), ax, mul(legU, -1), 0.024, 0.010, 0.045);
+  // ---- THE ARM (rides the pivot): a box-section forging from the pivot's outboard boss to the axle's boss inside the
+  // wheel, the horn's lugs on it, the axle stub through the hub
+  const pOut = off(piv, ax, w * 0.4);
+  sweep(LB.arm.steel, resample([pOut, axleIn], 10), t => secBlade(0.062 - 0.012 * t, 0.034), true, [0, 1, 0]);
+  revolve(LB.arm.steel, off(axleIn, ax, -0.024), ax, [[0.040, 0], [0.044, 0.010], [0.044, 0.040], [0.040, 0.048]], 18, true);
+  revolve(LB.arm.steel, off(piv, ax, -w + 0.004), ax, [[0.046, 0], [0.050, 0.008], [0.050, 2 * w - 0.016], [0.046, 2 * w - 0.008]], 18, true);
+  const hBase = lerp3(pOut, axleIn, 0.88);
+  sweep(LB.arm.steel, resample([hBase, horn], 4), () => secBlade(0.040, 0.026), true, ax);
+  lug(LB.arm.alloy, off(horn, ax, -0.020), ax, nrm(sub(hBase, horn)), 0.020, 0.009, 0.030);
+  lug(LB.arm.alloy, off(horn, ax, 0.020), ax, nrm(sub(hBase, horn)), 0.020, 0.009, 0.030);
+  axleStub(LB.arm, axleIn, ax, hubIn);
+  // ---- THE STRUT, in two halves that slide on each other: the cylinder hangs from the bracket's pin (U) and aims at
+  // the horn; the polished rod rises from the horn's pin (H) into it under the rubber boot (the photographs: the boot
+  // at the gland, the chrome down to the arm). At full stroke the rod still clears the cylinder's head
+  const Lx = len(sub(horn, top)), dir = nrm(sub(horn, top)), Rc = 0.030, cylL = 0.50 * Lx, rodL = Lx - cylL + 0.035;
+  revolve(LB.cyl.alloy, top, dir, [[0.016, -0.014], [0.020, 0], [Rc, 0.030], [Rc, cylL - 0.012], [Rc * 0.86, cylL]], 20, true);
+  revolve(LB.cyl.dark, off(top, dir, cylL - 0.004), dir,
+          [[Rc * 0.70, 0], [Rc * 0.92, 0.010], [Rc * 0.74, 0.020], [Rc * 0.92, 0.030], [Rc * 0.74, 0.040], [Rc * 0.92, 0.050], [Rc * 0.70, 0.060]], 18, true);
+  const rdir = mul(dir, -1);
+  revolve(LB.rod.chrome, horn, rdir, [[0.015, -0.012], [0.018, 0], [0.0225, 0.020], [0.0225, rodL]], 16, true);
+  for (const [b, p] of [[bags, top], [LB.arm, horn]]) bolt(b.dark, off(p, ax, -0.034), ax, 0.007, 0.068);
+  return { axle, axis: [sgn, 0, 0], root: F.p, travel: [0, 1, 0], tip: axle,
+           lever: { piv, ax, w, axle, horn, top, root, axleIn, rows: R0 } };
+}
+
 function legTailwheel(bags, AF, P, st) {
   // the station owns the wheel radius, as it does for every other leg —
   // a second `twR` alongside it was two names for one thing
@@ -2132,5 +2211,5 @@ window.GEAR_GEN = { MAT, TYRE, tyreTorus, TYRE_LOOK, tyreLook, tyreLugs, gearMat
                     padOn, exactAirframe, padArc, PAD_ARC,
                     wheel, spat, fitFrame, memberFrame, pivotOn, padFlat,
                     fitPad, legBeam, legLink, legOleo, castorUnit, steerRun,
-                    legTailwheel, legTipWheel, Bag };
+                    legTailwheel, legTipWheel, legLever, leverRowsOf, Bag };
 })();

@@ -3018,6 +3018,7 @@
     const gearTags = [];                      // RETRACT-1: [obj, unit 'L' | 'R' | 'T'] - the parts a retraction swings
     const gearMechTags = [];                  // RETRACT GM3: [obj, part name] - a brace's links, an actuator's body and rod
     const anchorRigs = [];                    // G267.2: the tail assembly, rigid on its anchor
+    const leverRigs = [];                     // WILGA-GEAR: the trailing-link legs' rigid parts, each on three nodes
     let castorRig = null;
     let gearSwingRig = null;                  // RETRACT-1: the swing groups (null: a fixed build, nothing moves)
     let gearMechRig = null;                   // RETRACT GM3: the one kinematics (null: an older snapshot - the swing alone)
@@ -3617,6 +3618,22 @@
                             tip: M0.tip });
           });
         }
+        else if (pt.kind === 'lever' && pt.lever && curDef.parts && curDef.parts.lever) {
+          // WILGA-GEAR: A TRAILING-LINK LEG'S PART, carried by three of its physics nodes - the fixed leg by the pivot's
+          // ends and the strut's upper eye, the arm by the pivot's ends and the axle, the strut's cylinder by its eyes and
+          // the pivot, its rod by its eyes and the axle. Its side: the leg whose axle node stands nearest the part's
+          // drawn axle (by place, never by tag - G58.3). Posed in poseModel by the affine map the three nodes' rest and
+          // live places define (exact on them: the drawn part IS the physics part, whole or broken off)
+          if (pg.position && pg.position.set) pg.position.set(pt.pivot[0], pt.pivot[1], pt.pivot[2]);
+          grp.add(pg);
+          let sd = null, bd = Infinity;
+          for (const q of curDef.parts.lever.sides) {
+            const r = nodeRest(q.axle), d = Math.hypot(r[0] - pt.lever.axle[0], r[1] - pt.lever.axle[1], r[2] - pt.lever.axle[2]);
+            if (d < bd) { bd = d; sd = q; }
+          }
+          const tri = { leg: [sd.pi, sd.po, sd.u], arm: [sd.pi, sd.po, sd.axle], cyl: [sd.u, sd.h, sd.pi], rod: [sd.h, sd.u, sd.axle] }[pt.lever.role];
+          if (tri) leverRigs.push({ obj: pg, pivot: pt.pivot, idx: tri, rest: tri.map(i => nodeRest(i)) });
+        }
         else if (pt.kind === 'gearMech') {
           // RETRACT GM3: a brace link, an actuator's body or rod - rigid, at its rest base point; the rig below poses it
           if (pg.position && pg.position.set) pg.position.set(pt.pivot[0], pt.pivot[1], pt.pivot[2]);
@@ -4069,6 +4086,7 @@
                         anchorRigs: anchorRigs.length ? anchorRigs : null, // G267.2
                         floatRigs: floatRigs.length ? floatRigs : null,   // H2 (G389)
                         stretchRigs: stretchRigs.length ? stretchRigs : null,
+                        leverRigs: leverRigs.length ? leverRigs : null,              // WILGA-GEAR
                         surfParts: surfParts.length ? surfParts : null,
                         linkRigs: linkRigs.length ? linkRigs : null,   // G239
                         ctlMoves: ctlMoves.length ? ctlMoves : null,   // G240
@@ -4155,6 +4173,23 @@
   // most a rolling wheel is credited with (m/s at the rim: a placement's jump is no roll)
   const WHEEL_SPIN_TAU = 3, WHEEL_SPIN_BRAKE = 8, WHEEL_OM_MAX = 90;
   const mR = new THREE.Matrix4();
+  // WILGA-GEAR: a three-point basis as columns [e1 e2 e3] (row-major 3 x 3 stored column-wise: e1 at 0..2), e3 the
+  // normal scaled to e1's length; and the 3 x 3 inverse of such a column set (row-major result)
+  function leverBasis(a, b, c) {
+    const e1 = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], e2 = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
+    const n = [e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]];
+    const nl = Math.hypot(n[0], n[1], n[2]), l1 = Math.hypot(e1[0], e1[1], e1[2]);
+    if (!(nl > 1e-12)) return null;
+    return [e1[0], e1[1], e1[2], e2[0], e2[1], e2[2], n[0] * l1 / nl, n[1] * l1 / nl, n[2] * l1 / nl];
+  }
+  function leverInv(C) {
+    // M (row-major) has columns e1, e2, e3: M[i][j] = C[j * 3 + i]
+    const m = [C[0], C[3], C[6], C[1], C[4], C[7], C[2], C[5], C[8]];
+    const det = m[0] * (m[4] * m[8] - m[5] * m[7]) - m[1] * (m[3] * m[8] - m[5] * m[6]) + m[2] * (m[3] * m[7] - m[4] * m[6]);
+    return [(m[4] * m[8] - m[5] * m[7]) / det, (m[2] * m[7] - m[1] * m[8]) / det, (m[1] * m[5] - m[2] * m[4]) / det,
+            (m[5] * m[6] - m[3] * m[8]) / det, (m[0] * m[8] - m[2] * m[6]) / det, (m[2] * m[3] - m[0] * m[5]) / det,
+            (m[3] * m[7] - m[4] * m[6]) / det, (m[1] * m[6] - m[0] * m[7]) / det, (m[0] * m[4] - m[1] * m[3]) / det];
+  }
   function poseRigid(o) {
     if (!model || !model.K4 || !o || !o.matrix || !o.matrix.multiplyMatrices || !o.quaternion) return;
     o.matrixAutoUpdate = false;
@@ -4644,6 +4679,22 @@
         p2[i * 3 + 2] = b[i * 3 + 2] + W[i] * ddz;
       }
       s.posAttr.needsUpdate = true;
+    }
+    // WILGA-GEAR: THE TRAILING-LINK LEGS - each part by the affine map that takes its three nodes' rest places onto their
+    // live ones (the third axis their normal, so a rigid motion maps rigidly), its geometry stored about its pivot
+    if (model.leverRigs) for (const r of model.leverRigs) {
+      if (!r.obj.matrix || !r.obj.matrix.set) continue;              // smoke stub
+      const p0 = r.rest[0], q0 = nodeLocal(r.idx[0]), q1 = nodeLocal(r.idx[1]), q2 = nodeLocal(r.idx[2]);
+      const E = leverBasis(p0, r.rest[1], r.rest[2]), F = leverBasis(q0, q1, q2);
+      if (!E || !F) continue;
+      // A = F E^-1 (3 x 3, columns the basis vectors), then x' = A (x - p0) + q0 with x = pivot + g
+      const Ei = leverInv(E), A = new Array(9);
+      for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) A[i * 3 + j] = F[i] * Ei[j] + F[3 + i] * Ei[3 + j] + F[6 + i] * Ei[6 + j];
+      const pv = r.pivot, d = [pv[0] - p0[0], pv[1] - p0[1], pv[2] - p0[2]];
+      const t = [0, 1, 2].map(i => A[i * 3] * d[0] + A[i * 3 + 1] * d[1] + A[i * 3 + 2] * d[2] + q0[i]);
+      r.obj.matrixAutoUpdate = false;
+      r.obj.matrix.set(A[0], A[1], A[2], t[0], A[3], A[4], A[5], t[1], A[6], A[7], A[8], t[2], 0, 0, 0, 1);
+      r.obj.matrixWorldNeedsUpdate = true;
     }
     // G59: the CONTROL SURFACES deflect about their own hinges, driven by
     // the same linkage the generated skin uses (so they lag identically).

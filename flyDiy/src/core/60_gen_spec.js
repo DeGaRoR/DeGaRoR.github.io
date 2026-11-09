@@ -2379,6 +2379,12 @@ const GEN_SUSPENSION = {
   bungee: { name: 'Bungee cord',  k: 1.00, c: 1.00, price: 250 },
   spring: { name: 'Spring steel', k: 2.20, c: 1.20, price: 2200 },   // PRICE-CAL: 900 -> 2 200 (Grove-class legs, $2.0-2.5k)
   oleo:   { name: 'Oleo strut',   k: 3.50, c: 2.60, price: 2600 },
+  // WILGA-GEAR (futureDesigns/WILGA-GEAR-STUDY-2026-11.md): THE TRAILING-LINK LEG WITH ITS OLEO-PNEUMATIC STRUT (the
+  // PZL-104 Wilga's kind). Its spring and its damper are NOT these multipliers: the strut is its own law (62c GEAR_LEVER,
+  // 30_solver's oleo pass) and the leg's members are its bracing - k / c here are the bracing's, the oleo row's (a fixed
+  // steel leg and a forged arm are as stiff as an oleo's barrel). Price: two struts at the oleo row's set price plus the
+  // forged arms, pivots and bearings - DERIVED (the study's §6), a Wilga main leg's own price is not published
+  lever:  { name: 'Trailing-link oleo (Wilga type)', k: 3.50, c: 2.60, price: 5400 },
 };
 
 // FAIRING LAYUP (G133). Mass and price factors on the fairing set — the
@@ -3004,12 +3010,21 @@ function genStolCageOff(cage) {
   // SEAPLANES-LAND (HULL rows): the hull-types branch's new cage rows, at the value every build before them meant, the
   // same rule - absent IS that value, so they withdraw no certificate, re-key no cache, move no procured fingerprint
   for (const k in GEN_HULL_ROW_OFF) if (k in cage && cage[k] === GEN_HULL_ROW_OFF[k]) { out = out || Object.assign({}, cage); delete out[k]; }
+  // WILGA-GEAR: the trailing-link leg's rows at their defaults (absent IS the default) and its preview (state, never the
+  // aeroplane) - no certificate withdrawn, no cache re-keyed, no procured fingerprint moved
+  for (const k in GEN_LEVER_ROW_OFF) if (k in cage && cage[k] === GEN_LEVER_ROW_OFF[k]) { out = out || Object.assign({}, cage); delete out[k]; }
+  if ('gearLvPos' in cage) { out = out || Object.assign({}, cage); delete out.gearLvPos; }
   return out || cage;
 }
 // SEAPLANES-LAND: the hull-types rows' "off" (tools/_cage_brace.js, _cage_eng.js PAGE.defaults: the value the draw and the
 // join read when the key is absent)
 const GEN_HULL_ROW_OFF = { bpStrutK: 1, bpCabDraw: 1, bpCabPylon: 0, engPylonFair: 0, engPylonForm: 0, engPylonAt: 0, engPylonAft: 0.15,
                            engPylonFwd: 0, engFinAt: 0.55, engFinFwd: 0, engNacOver: 0, engNacLift: 0 };
+// WILGA-GEAR: the trailing-link leg's rows per station (tools/_gear_page.js LEG_ROWS[4]) at the value a build without them
+// draws (_cage_gen CAGE_DEFAULT_ABSENT holds the same)
+const GEN_LEVER_ROW_OFF = (() => { const d = { lvArm: 0.4, lvAng: 62, lvComp: 12, lvTop: 0.18, lvReach: 0.45, lvStat: 0.07, lvLegW: 0.09, lvRootAng: 80 }, o = {};
+  for (const i of [1, 2]) for (const k in d) o['s' + i + '_' + k] = d[k];
+  return o; })();
 // RETRACT-1 / G1: the gear layer's retraction rows (tools/_cage_gear.js), dropped by genStolCageOff when the gear is fixed
 const GEN_RETRACT_ROWS = ['gearRetract', 'gearRetT', 'gearRetAct', 'gearRetFrac', 'gearFold', 'gearFoldNose', 'gearPos',
                           'gm1Ax', 'gm1Ang', 'gm2Ax', 'gm2Ang', 'gmTwist', 'gn1Ax', 'gn1Ang', 'gn2Ax', 'gn2Ang', 'gnTwist', 'gearWellCut', 'gearDoors', 'gearLegDoor', 'gearNacFit', 'gearNacPod', 'gearShort', 'gearShortNose', 'gearKneeDoor'];
@@ -3543,6 +3558,31 @@ const GEN_RULES = {
   // pairs (RETRACT-STUDY §1.9): a 177 to a 177RG +66 kg (a bigger engine in it), a 172 to a 172RG ~+80 kg (engine and
   // prop in it), the gear itself 2.5-5 % of the gross; 3.5 % of the gross, 12 kg at the least. [TUNE] on a reference retract
   retractKg:   gross => Math.max(12, 0.035 * (gross || 0)),
+  // WILGA-GEAR: THE TRAILING-LINK LEG (GEAR_LEVER, 62c). The reference geometry is the PZL-104 Wilga 80's, measured off the
+  // Aerofly FS4 Wilga 80 (K. Kaniewski; 3D R. Pearsons: its pivot, axle and strut eyes - the study's §2, [A1]) and held
+  // against the EASA TCDS (prop 2650 mm), the published track and wheelbase and the 500 x 200 tyre; the strut's charge
+  // and its orifice are DERIVED by the study's §4 rules (the maintenance manual's figures are not public). Frame axes
+  // (x aft, y up, q outboard), metres and degrees, the axle at the origin and the strut at FULL EXTENSION:
+  //   arm       pivot to axle (0.400, measured)                 ang   the arm below horizontal at full extension (62)
+  //   comp      the arm below horizontal at full stroke (12)     hornK / hornDeg  the strut's lower eye on the arm:
+  //             0.959 of the arm from the pivot, 12.3 deg above the arm's line (measured)
+  //   qPiv / qHorn  the pivot's centre and the horn inboard of the axle (0.268 / 0.173, measured: the arm runs inside the
+  //             wheel)            w   the pivot bearing's half-width (0.06)
+  //   top       the strut's upper eye up the leg from the pivot (0.18, DERIVED: the measured eye toggles the strut 50 mm
+  //             in; this keeps the measured horn and a working 115 mm stroke)
+  //   legDir    the leg's direction up from the pivot (aft, up, inboard) when nothing drew it (DERIVED from the photos)
+  //   dSt       the static deflection at the design gross, the CHARGE (0.070 m of wheel travel: DERIVED, §4.2)
+  //   dPiston   the strut's piston (0.045, from the photographs against the 200 mm tyre); rp, n, p2k, nFull, cd, nLim,
+  //             rb, zl, ff, vf, stopK: gearOleoDesign's rules (§4)
+  //   kgArm / kgStrut / kgLeg  the forged arm with its pivot and bearings, the strut, the upper leg's fittings (DERIVED:
+  //             the study's §6, inside the 4-6 % of gross a fixed gear weighs)
+  //   boss      the arm's boss across the pivot (m, up the perpendicular of the arm's line): the frame's node that makes
+  //             the arm a solid (61: the horn cannot fold through it)
+  //   kMul / cMul  the leg's and the arm's members at kMul x the gear class's k and cMul x its damper: steel
+  //             structure, not a spring (the strut is the spring and its orifice the damper)
+  lever: { arm: 0.400, ang: 62, comp: 12, hornK: 0.959, hornDeg: 12.3, qPiv: 0.268, qHorn: 0.173, w: 0.06, top: 0.18,
+           legDir: [0.640, 0.577, -0.514], dSt: 0.070, dPiston: 0.045, rp: 3.0, n: 1.3, p2k: 2.2, nFull: 3.0, cd: 0.5,
+           nLim: 2.67, rb: 4, zl: 0.15, ff: 0.05, vf: 0.005, stopK: 3, kgArm: 4.5, kgStrut: 3.2, kgLeg: 2.5, kMul: 20, cMul: 0.1, boss: 0.12 },
   // THE BOX'S WEBS ON A SKINNED WING (chantier 1, see 61_gen_frame's
   // bracing section): the fraction of the cap's linear density a web, rib
   // post or shear diagonal of the torsion-box lattice bills when the
@@ -5726,6 +5766,27 @@ function clampSpec(spec) {
     S.gear.fairing = S.gear.twFairing = 'none'; S.gear.legFair = S.gear.twLegFair = 'none';
   } else { delete S.gear.retract; delete S.gear.wells; }
   if (!GEN_SUSPENSION[S.gear.suspension]) S.gear.suspension = 'bungee';
+  // WILGA-GEAR: THE TRAILING-LINK LEG'S DRAWN GEOMETRY (the join's measurement of the drawn leg, frame axes relative to
+  // the axle at full extension - GEN_RULES.lever says which) rides only a lever suspension on wheels; absent, the frame
+  // builds the reference leg (GEN_RULES.lever). A build that never chose it carries no key (to the bit)
+  if (S.gear.suspension === 'lever' && (S.gear.type === 'taildragger' || S.gear.type === 'tricycle') && !S.gear.retract) {
+    const v = S.gear.lever;
+    if (v && typeof v === 'object') {
+      const pt = (a, lo, hi) => Array.isArray(a) && a.length === 3 && a.every(c => isFinite(+c)) ? a.map(c => genClamp(+c, lo, hi)) : null;
+      const o = {};
+      for (const k of ['piv', 'horn', 'top']) { const q = pt(v[k], -2, 2); if (q) o[k] = q; }
+      if (!(o.piv && o.horn && o.top)) delete S.gear.lever;
+      else {
+        o.w = genClamp(+v.w || GEN_RULES.lever.w, 0.02, 0.2);
+        o.comp = genClamp(isFinite(+v.comp) ? +v.comp : (GEN_RULES.lever.ang - GEN_RULES.lever.comp) * Math.PI / 180, 0.1, 1.5);
+        if (v.dSt != null) o.dSt = genClamp(+v.dSt || GEN_RULES.lever.dSt, 0.02, 0.4);
+        S.gear.lever = o;
+      }
+    } else delete S.gear.lever;
+  } else {
+    delete S.gear.lever;
+    if (S.gear.suspension === 'lever') S.gear.suspension = 'oleo';   // (a retracting gear or floats: no trailing link)
+  }
   // WHEEL FAIRINGS, off by default. `spat` is the shell over the wheel alone;
   // `full` carries it up the leg as well. The drag model this comment once
   // said "may arrive" arrived at G115 (genGearCdA prices these fields), the
