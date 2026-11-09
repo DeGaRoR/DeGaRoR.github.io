@@ -235,7 +235,7 @@ root cap plate's material, so it joins the wing's bucket.
 
 **Physics: none** (§8). Mass: none. The flown spec is untouched; `wgFillet` is a drawing row.
 
-## 7. The tests (pictures in `reports/evidence/wing-fillet-2026-11-09/`)
+## 7. The tests (pictures in `reports/evidence/WING-FILLET/`: `<plane>_<style>_<view>.png`, style 0 = off, q from above, qb from below)
 
 The test set is GATE WINGFILLET's: Jodel (low, boxy), DC-3 (low, round, `tools/fixtures/dc3_2026-10.json`), RV (low
 archetype), motorglider (mid, round), Cub (high), Tiger Moth (biplane), Pietenpol (parasol), Spitfire WIP (low, its
