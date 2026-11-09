@@ -314085,6 +314085,18 @@ through it, a solid rib closes each end, the spars stand as its walls (CAGE_ENER
 WINGSTRUCT holds it (nothing between the spars inside the tank's span, the closing ribs, a break restoring the ribs caught).
 The B-CESS's 212 L tank re-shot so (fiche_cutaway_c172_alloy.jpg).
 
+ROUND 6 (the user, 9 Nov late: "the tank on the cessna ... its texture looks wrong, we could give its material, model and
+texture a little more love. And try another plane with wing mounted tanks"): _cage_energy.js's WING TANK - its shell, when
+bare alloy (the welded tank's default), in AEROSKIN's bareAlu (the aeroplane's own alloy; the tank's tint kept) instead of
+the vessel set's scanned alu at 0.4 m a repeat (a dark mottle over a 2 m top); any other finish and the red of a tank that
+does not fit unchanged. Its HARDWARE drawn (wingTankDress): end flanges, filler neck and cap, sump drain, outlet and line
+inboard, vent, two hold-down straps on rubber - off its own outline (the bay's probed sections, else its box), in the vessel
+library's hard / seal / mark slots, every piece an edMarker (never flown). Shot on the B-CESS and the PA-18 on floats
+(builds/pa18_floats_2026-10-23.json: a fabric wing, 136 L root tanks): fiche_cutaway_pa18floats_wingtanks.jpg,
+garage_seeinside_{c172_alloy, pa18floats_wingtanks}.jpg. Gates: ENERGY, TANKMOUNT, ASSETS green; ENERGYBASE red as on master
+(its 'carbon' plane's cg0, the same four lines on the untouched master worktree).
+SEAM ADDED: _cage_energy.js (the wing branch: wingShellMat + wingTankDress) - the energy layer's owners to know.
+
 SEAMS TOUCHED OUTSIDE MY ZONE (for A0): app.js (Deform's brkCage: one call + one group row + wsWreck / wsClear beside
 brkRestore and the heal); _cage_wing.js (one call at the end of its post, as the tip floats; the covering's opacity under
 see-inside); _cage_ui.js (the cutaway box's onchange only - it threw in the game's garage); build.js (wing_struct.js in
