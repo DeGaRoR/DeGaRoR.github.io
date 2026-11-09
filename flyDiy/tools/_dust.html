@@ -252,7 +252,7 @@ function pose(t) {
 const tgt = new THREE.Vector3();
 function placeCam(P) {
   const ax = pivot.position.x, az = pivot.position.z, ay = pivot.position.y;
-  if (S.cam === 'side') { const cx = Math.max(-40, Math.min(420, ax * 0.35 + 90)); camera.position.set(cx, 1.7, 48); tgt.set(ax, ay + 1.5, az); camera.fov = 42; }
+  if (S.cam === 'side') { const cx = Math.max(-40, Math.min(420, ax * 0.35 + 90)); camera.position.set(cx, 1.7, 48); tgt.set(Math.min(ax, cx + 60), Math.min(ay + 1.5, 6), az); camera.fov = 42; }   // (the strip kept in frame: the cloud stays on the ground)
   else if (S.cam === 'end') { camera.position.set(-70, 2.2, -12); tgt.set(ax, ay + 2, az); camera.fov = 30; }
   else { const yaw = -pivot.rotation.y; camera.position.set(ax - Math.cos(yaw) * 22, ay + 5, az + Math.sin(yaw) * 22 + 6); tgt.set(ax, ay + 1.5, az); camera.fov = 50; }
   camera.updateProjectionMatrix(); camera.lookAt(tgt);
