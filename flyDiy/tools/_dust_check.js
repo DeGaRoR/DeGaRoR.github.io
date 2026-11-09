@@ -60,7 +60,7 @@ function run(scen, opt) {
   opt = opt || {};
   const sys = DUST.makeSystem(opt.tier || 'gamer');
   const env = { groundH: () => 0, wind: () => [opt.wind || 2, 0, opt.wind || 2], cls: () => (opt.cls != null ? opt.cls : 0), wet: () => opt.S || 0, puddle: () => opt.puddle || 0, k: 1 };
-  const dt = 1 / 30, N = Math.round((opt.T || 60) * 30), live = [], ms = [];
+  const dt = 1 / 30, N = Math.round((opt.T || 60) * 30), live = [], ms = [], tauAt = [];
   let mass = 0, maxP = 0, maxG = 0, over = false, mud = 0;
   for (let f = 0; f < N; f++) {
     const t = f * dt, st = scen(t), m0 = sys.stats.emitted;
@@ -72,10 +72,11 @@ function run(scen, opt) {
     if (lp > sys.P.n) over = true;
     for (let q = 0; q < sys.G.n; q++) if (sys.G.age[q] < sys.G.life[q] && sys.G.kind[q] === 2) mud++;
     live.push(sys.P.live);
+    if (f % 30 === 0) { let tm = 0; for (let i = 0; i < sys.P.n; i++) if (sys.P.age[i] >= 0) tm = Math.max(tm, sys.P.tau[i]); tauAt.push(tm); }
   }
   let m = 0; for (let i = 0; i < sys.P.n; i++) if (sys.P.age[i] >= 0) m += sys.P.tau[i] * Math.PI * sys.P.r[i] * sys.P.r[i];
   ms.sort((a, b) => a - b);
-  return { sys, live, maxP, maxG, over, mud, massEnd: m, emitted: sys.stats.emitted, merged: sys.stats.merged, ms50: ms[ms.length >> 1], ms99: ms[Math.floor(ms.length * 0.99)] };
+  return { sys, live, tauAt, maxP, maxG, over, mud, massEnd: m, emitted: sys.stats.emitted, merged: sys.stats.merged, ms50: ms[ms.length >> 1], ms99: ms[Math.floor(ms.length * 0.99)] };
 }
 
 console.log('2. the weather');
@@ -84,8 +85,13 @@ let dry;
   dry = run(takeoff, { T: 60 });
   const at40 = dry.live[40 * 30];
   yes(dry.emitted > 50 && at40 > 0, 'a dry take-off raises a cloud that outlives 30 s (' + dry.emitted + ' puffs emitted, ' + at40 + ' alive at 40 s)');
-  { let tm = 0; for (let i = 0; i < dry.sys.P.n; i++) if (dry.sys.P.age[i] >= 0) tm = Math.max(tm, dry.sys.P.tau[i]);
-    yes(tm > 0.2, 'it HANGS (the user, 9 Nov): still thick at 60 s, optical depth ' + tm.toFixed(2) + ' > 0.2 (a low layer thins as 1/r, not 1/r^2)'); }
+  // it hangs, then it goes (the user, 9 Nov: "persist longer" - then, at 240 s of linger, "the fading is now too long")
+  { const tau40 = dry.tauAt[40], tau60 = dry.tauAt[59];
+    yes(tau40 > 0.05, 'it HANGS: visible 25 s after the lift-off, optical depth ' + tau40.toFixed(2) + ' at 40 s > 0.05 (a low layer thins as 1/r)');
+    const late = run(takeoff, { T: 15 + 2.5 * DUST.L.linger + 5 });
+    yes(late.live[late.live.length - 1] === 0 && tau60 < tau40, 'then it GOES: thinning (' + tau60.toFixed(2) + ' at 60 s), nothing left 2.5 x linger (' + DUST.L.linger + ' s) after the roll'); }
+  { let hm = 0, wm = 0; for (let i = 0; i < dry.sys.P.n; i++) if (dry.sys.P.age[i] >= 0) { hm = Math.max(hm, dry.sys.P.rv[i]); wm = Math.max(wm, dry.sys.P.r[i] / dry.sys.P.rv[i]); }
+    yes(wm <= DUST.L.aspect + 1e-3, 'never stretched: the widest puff ' + wm.toFixed(2) + 'x its height (aspect ' + DUST.L.aspect + ')'); }
   { let hm = 0; for (let i = 0; i < dry.sys.P.n; i++) if (dry.sys.P.age[i] >= 0) hm = Math.max(hm, dry.sys.P.rv[i]);
     yes(hm <= DUST.L.rvCap + 1e-6 && hm < 10, 'a low layer: the tallest puff ' + hm.toFixed(1) + ' m half-height'); }
   const damp = run(takeoff, { T: 20, S: 0.3 }), dry20 = run(takeoff, { T: 20 });

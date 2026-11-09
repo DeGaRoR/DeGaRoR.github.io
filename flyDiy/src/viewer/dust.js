@@ -76,27 +76,30 @@
     // small, the air above is stable at dawn and dusk): the puff is an ellipsoid, its height rv growing by kz and capped at
     // rvMax (+ rvWind a m/s of wind, the mixing's depth), its width r by kAir. Its optical depth seen from the side is
     // m / (pi r rv), so a cloud that spreads only sideways thins as 1/r, not 1/r^2 - it HANGS, as the footage does
-    kz: 0.05, kzWind: 0.02, rvMax: 4.5, rvWind: 0.5, rvCap: 9,
+    kz: 0.05, kzWind: 0.02, rvMax: 4.5, rvWind: 0.5, rvCap: 9,   // (rvMax: the bench's height slider)
     jetTau: 2.0,                     // s: a source's own turbulence decays over this
-    coarse: 0.35, tauCoarse: 6.0, tauFine: 240,   // the mass's two shares: 35 % settles in ~6 s, the rest over minutes (the bench, 9 Nov: 55 % / 4 s read as gone)
+    coarse: 0.35, tauCoarse: 6.0,    // the mass's coarse share: 35 % settles in ~6 s (the bench, 9 Nov: 55 % / 4 s read as gone)
+    linger: 30,                      // s: the fine share's e-fold - how long a cloud hangs (the user, 9 Nov: 240 s "too long"; the bench's slider);
+                                     // no puff outlives 2.5 x linger (nor the tier's life)
+    aspect: 2.0,                     // a puff at most this many times wider than tall (the user, 9 Nov: 5:1 "stretched ... looks odd"; the bench's slider)
     domeK: 0.32,                     // the puff's centre settles at ground + domeK r (a dome: the lower part under the ground, faded)
     puffDrag: 0.55,                  // /s: a puff relaxes to the air's velocity
     gritDrag: 0.15, mudDrag: 0.05,
     z0: 0.03,                        // m: the strip's roughness length for the log wind
     // the wheels
-    wheelK: 0.15, wheelV0: 2.0,      // optical m^2 a second per (m/s over V0)^2 at fines 1, dry (AP-42: per metre ~linear in speed, so ~V^2 a second;
+    wheelK: 0.075, wheelV0: 2.0,     // optical m^2 a second per (m/s over V0)^2 at fines 1, dry (AP-42: per metre ~linear in speed, so ~V^2 a second;
                                      // the user, 9 Nov: "taxi should emit less dirt" - 6 m/s is a twelfth of the 20 m/s roll's)
     brakeK: 1.0,                     // + this x brake x the rolling rate
     spacing: 1.4, spacingV: 0.12, topUpAge: 0.5,   // a source tops its current puff up until it moved max(spacing, spacingV x its speed) or it is this old
     gritRate: 9,                     // grit a second per m/s at loose 1, dry (gravel and sand's rooster tail)
     // touchdown
-    tdMin: 0.25, tdK: 3.0,           // m/s of sink to count; optical m^2 per (m/s sink x m/s ground speed)
+    tdMin: 0.25, tdK: 0.6,           // m/s of sink to count; optical m^2 per (m/s sink x m/s ground speed) (the user, 9 Nov: the first touch "a tad too much": 3 -> 0.6)
     // the prop
-    jetHalf: 8 * Math.PI / 180, propK: 2.4,   // (the bench, 9 Nov: x6 - a run-up's cloud ~8-10 m, as the footage)
+    jetHalf: 8 * Math.PI / 180, propK: 1.2,   // (the bench, 9 Nov: x6, then the user's "better at 50 %": x3 the first cut)
     jetUt: 1.5,                      // the wall jet's threshold over the class's: the jet's centreline speed overstates the wind at the grains
                                      // (u* ~0.06 u); at taxi power (~9 m/s at the ground) next to nothing, a run-up (~22) a cloud
     // vortices
-    vortK: 1.0,
+    vortK: 0.5,
     // fade
     tauMin: 0.003,
   };
@@ -173,7 +176,7 @@
     if (h) { h.i = i; h.gen = P.gen[i]; } else sys.src.set(key, { i, gen: P.gen[i] });
     return i;
   }
-  const decay = t => L.coarse * Math.exp(-t / L.tauCoarse) + (1 - L.coarse) * Math.exp(-t / L.tauFine);
+  const decay = t => L.coarse * Math.exp(-t / L.tauCoarse) + (1 - L.coarse) * Math.exp(-t / L.linger);
   const curMass = (P, i) => P.m0[i] * decay(P.age[i]);
   function emitGrit(sys, kind, x, y, z, vx, vy, vz, s, cls) {
     const G = sys.G, q = G.next; G.next = (G.next + 1) % G.n;
@@ -205,10 +208,10 @@
       if (P.into[i] >= 0) handOver(sys, i, dt);
       if (P.age[i] < 0) continue;
       const jt = P.kj[i] * L.jetTau * (1 - Math.exp(-a / L.jetTau));
-      const r2 = P.r0[i] * P.r0[i] + 8 * (kAir * a + jt);
-      const r = P.r[i] = Math.sqrt(r2);
-      const rv = P.rv[i] = Math.min(r, rvTop, Math.sqrt(P.rv0[i] * P.rv0[i] + 8 * (kz * a + 0.35 * jt)));
-      const tau = P.tau[i] = curMass(P, i) / (Math.PI * r * rv) * lifeFade(a, T.life);
+      const rR = Math.sqrt(P.r0[i] * P.r0[i] + 8 * (kAir * a + jt));
+      const rv = P.rv[i] = Math.min(rR, rvTop, Math.sqrt(P.rv0[i] * P.rv0[i] + 8 * (kz * a + 0.35 * jt)));
+      const r = P.r[i] = Math.min(rR, L.aspect * rv);
+      const tau = P.tau[i] = curMass(P, i) / (Math.PI * r * rv) * lifeFade(a, Math.min(T.life, 2.5 * L.linger));
       if (tau < L.tauMin && a > 1) { if (P.into[i] >= 0) { P.into[i] = -1; sys.stats.merged++; } P.age[i] = -1; continue; }
       live++;
       const x = P.p[i * 3], z = P.p[i * 3 + 2];
@@ -274,7 +277,8 @@
       const j = MERGE.get(key);
       if (j == null) { MERGE.set(key, i); continue; }
       const dx = P.p[i * 3] - P.p[j * 3], dz = P.p[i * 3 + 2] - P.p[j * 3 + 2], d = Math.hypot(dx, dz);
-      if (d > k * 0.5 * (r + P.r[j]) || r * r + P.r[j] * P.r[j] > sys.tier.mergeMax * sys.tier.mergeMax || P.into[j] >= 0) continue;
+      const cap = Math.min(sys.tier.mergeMax, L.aspect * Math.max(P.rv[i], P.rv[j], sys.rvTop * 0.8));   // (a merge never makes a puff wider than the aspect lets it be: no shrink, no pop)
+      if (d > k * 0.5 * (r + P.r[j]) || r * r + P.r[j] * P.r[j] > cap * cap || P.into[j] >= 0) continue;
       // i hands over to j (the elder or the first in the cell): its mass, its area, its height, over MERGE_T
       P.into[i] = j; P.intoGen[i] = P.gen[j]; P.mt[i] = 0; P.mI[i] = curMass(P, i); P.aI[i] = P.r[i] * P.r[i]; P.vI[i] = P.rv[i];
       MERGE.delete(key);
@@ -313,9 +317,9 @@
         if (m > 0.002) for (let j = 0; j < 4; j++) {
           const a = rnd() * 6.2832, out = (0.6 + 0.8 * rnd()) * Math.min(3, vs);
           emitPuff(sys, w.x + Math.cos(a) * 0.3, g + 0.2, w.z + Math.sin(a) * 0.3, w.vx * 0.35 + Math.cos(a) * out, 0.4 + 0.5 * vs, w.vz * 0.35 + Math.sin(a) * out,
-            0.35 + 0.1 * vs, m / 4, 0.6 + 0.4 * vs, ci);
+            0.35 + 0.1 * vs, m / 4, 0.3 + 0.2 * vs, ci);
         }
-        const ng = Math.round(Math.min(40, 8 * vs * (C.loose * dry + mud)));
+        const ng = Math.round(Math.min(24, 4 * vs * (C.loose * dry + mud)));
         for (let j = 0; j < ng; j++) { const a = rnd() * 6.2832, sp = (0.5 + 1.5 * rnd()) * Math.min(2.5, vs);
           emitGrit(sys, dry < 0.5 ? 2 : 0, w.x, g + 0.05, w.z, w.vx * 0.4 + Math.cos(a) * sp, 0.8 + 1.6 * rnd() * Math.min(2, vs), w.vz * 0.4 + Math.sin(a) * sp, 0.012 + 0.02 * rnd(), ci); }
         if (pud > 0.01) splash(sys, w, pud, Math.max(vs, 1), V, ci);
