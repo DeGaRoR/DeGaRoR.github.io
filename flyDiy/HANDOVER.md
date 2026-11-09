@@ -313921,3 +313921,11 @@ TIMED GATE: light, the same shape as L36a.
 - Steady frames p50 33.3 ms on every flown row; no frame over 1 s in any taxi, take-off or flight segment.
 - The >1 s gaps are all in the garage stand before the reveal (cub chase 5.2 s; the discarded warm_metal 9.0 s + 7.1 s): the cold GPU shader cache, master_bench's MISS, as L35a-L36a.
 - The floats take-off has one 133 ms frame.
+
+## WINGSMITH (9 Nov, Game coordinator for A0; claude/ready/wingsmith-name): THE GAME IS CALLED WINGSMITH
+- The user, 9 Nov ~17:30: "Wingsmith is the name of the game instead of flyDiy, the cub remains the cub"; "I don't have a logo or typography yet, so it's a placeholder for now".
+- ONE string: GAME_NAMES.game in src/core/01_names.js. Read by the page title and the loading brand (tools/build.js fills the __GAME_NAME__ mark of shell.html / body.html), the welcome card and device gate, the Back box, the build import, the clean download, the self-test, and the AIRWORTHY and bench stickers' rings. A logo or typeface later swaps in at those reads.
+- manifest.webmanifest: name and short_name Wingsmith; id, start_url and scope "./" unchanged, so the installed app and its data stay (Android may show its one-time "name changed" prompt - A0: acceptable).
+- NOT renamed: the repo, the flyDiy/ folder, URLs, file names, code identifiers, storage keys (flydiy.player, flydiy.build.*), the flydiy-build file tag, the caches, console lines, the flydiy:* events.
+- GATE WINGSMITH (new): the name from one string, no player-facing "flyDiy" left in those places, the built pages, the manifest's id, the save keys (selftest 6/6). GATE PWA W1 RE-PINNED: the manifest names are GAME_NAMES.game, no longer the literal flyDiy.
+- FOLLOW-UP (A0 routes it to AIRCRAFT-LOOKS' render pipeline): the AIRWORTHY sticker now reads WINGSMITH - CERTIFIED, so the heroes and thumbnails of certified aircraft want a re-render; the train re-cooks the parked planes. The fiche's signature reads the same key (AIRCRAFT-LOOKS).
