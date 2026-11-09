@@ -7,6 +7,8 @@
 // source that differs per load: the cause this rig looks for). --dump <dir> writes the differing sources (load a / load b)
 // for a diff.
 // Usage: node tools/perf/cessna_links.js --port 8650 [--udd D:/cl1] [--builds metal,metal,metal | cub@town=0,cub@town=1] [--slow 1000] [--dump <dir>] [--fallback D:/Dev/DeGaRoR.github.io]
+//        [--ck] [--hist ProgramCache,Shader]   (BOOT-PROGRAMS 9 Nov: --ck names each source linked twice in one load by
+//        the three cacheKeys of its programs, cut to where they differ; --hist the CDP histogram queries)
 //        [--out <file.json>]     (GPU lock first; --udd a SHORT fresh path; no --help: an unknown flag runs it)
 'use strict';
 const fs = require('fs'), path = require('path'), os = require('os');
@@ -17,17 +19,34 @@ const PORT = +opt('port', 0), SLOW = +opt('slow', 1000), DUMP = opt('dump', null
 const UDD = path.resolve(opt('udd', path.join(os.tmpdir(), 'cl' + Date.now().toString(36).slice(-5))));
 const LOADS = opt('builds', 'metal,metal,metal').split(',');
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+const CK = argv.includes('--ck'), HIST = opt('hist', 'ProgramCache').split(',');
+// BOOT-PROGRAMS (A0 9 Nov; BOOT-PROGRAMS-2026-11-03: ~90 links a nav of a source the same load already linked, same context,
+// the first program still live = three keyed one source twice): per source linked more than once in a load, the cacheKeys of
+// its programs (renderer.info.programs: the GL program -> three's WebGLProgram), cut to the part that differs
+const CKR = `JSON.stringify((() => { var R = window.FLIGHT_PROBE && FLIGHT_PROBE.renderer ? FLIGHT_PROBE.renderer() : null, L = (R && R.info && R.info.programs) || [], M = new Map();
+  for (var i = 0; i < L.length; i++) M.set(L[i].program, L[i]);
+  var by = new Map(); for (var j = 0; j < __CL.ln.length; j++) { var k = __CL.ln[j][1] + __CL.ln[j][2], a = by.get(k); if (!a) by.set(k, a = []); a.push(j); }
+  var cut = function (a, b) { var p = 0; while (p < a.length && p < b.length && a[p] === b[p]) p++; var q = 0; while (q < a.length - p && q < b.length - p && a[a.length - 1 - q] === b[b.length - 1 - q]) q++; return [p, a.slice(Math.max(0, p - 60), a.length - q).slice(0, 400), b.slice(Math.max(0, p - 60), b.length - q).slice(0, 400)]; };
+  var out = []; by.forEach(function (ix, k) { if (ix.length < 2) return; var P = ix.map(function (j) { return M.get(__CL.gp[j]) || null; }), f = P.find(function (x) { return x; });
+    out.push({ k: k, n: ix.length, t: ix.map(function (j) { return Math.round(__CL.ln[j][0]); }), live: P.map(function (x) { return !!x; }), name: f ? f.name : null,
+      d: f ? P.filter(function (x) { return x && x !== f; }).map(function (x) { return cut(String(f.cacheKey), String(x.cacheKey)); }) : [] }); });
+  return { programs: L.length, renderer: !!R, dups: out }; })())`;
+// the burst: links per second over the load (the most in any 1 s, and the 5 s bins)
+const burst = rows => { const t = rows.map(r => r.t0).sort((a, b) => a - b); let mx = 0; for (let i = 0, j = 0; i < t.length; i++) { while (t[i] - t[j] > 1000) j++; mx = Math.max(mx, i - j + 1); }
+  const bins = {}; for (const x of t) { const k = Math.floor(x / 5000) * 5; bins[k] = (bins[k] || 0) + 1; } return { max1s: mx, bins5s: bins }; };
+const hists = async b => { const o = []; for (const q of HIST) { const x = await b.cmd('Browser.getHistograms', { query: q }).catch(e => ({ err: String(e) }));
+  for (const h of ((x.result && x.result.histograms) || [])) if (!o.find(e => e.name === h.name)) o.push({ name: h.name, count: h.count, sum: h.sum, buckets: (h.buckets || []).map(k => [k.low, k.high, k.count]) }); } return o; };
 if (!PORT) { console.error('cessna_links: --port is required'); process.exit(2); }
 
 // the source recorder, after master_bench's (its linkProgram wrapper times; this one hashes)
-const HASH = `(function(){ if (window.__CL) return; var C = window.__CL = { ln: [], src: {}, cx: [] }, CX = new WeakMap();
+const HASH = `(function(){ if (window.__CL) return; var C = window.__CL = { ln: [], src: {}, cx: [], gp: [] }, CX = new WeakMap();
   var h = function (s) { var a = 0x811c9dc5 >>> 0; for (var i = 0; i < s.length; i++) { a ^= s.charCodeAt(i); a = Math.imul(a, 16777619) >>> 0; } return ('0000000' + a.toString(16)).slice(-8); };
   var SH = new WeakMap(), PR = new WeakMap(), P = WebGL2RenderingContext.prototype, cs = P.createShader, ss = P.shaderSource, at = P.attachShader, lp = P.linkProgram;
   P.createShader = function (t) { var s = cs.call(this, t); if (s) SH.set(s, { t: t, src: '' }); return s; };
   P.shaderSource = function (s, src) { var r = SH.get(s); if (r) r.src = src; return ss.call(this, s, src); };
   P.attachShader = function (p, s) { var a = PR.get(p); if (!a) PR.set(p, a = []); a.push(s); return at.call(this, p, s); };
   P.linkProgram = function (p) { var vs = '', fs = ''; (PR.get(p) || []).forEach(function (s) { var r = SH.get(s); if (r) { if (r.t === 0x8B31) vs = r.src; else fs = r.src; } });
-    var hv = h(vs), hf = h(fs); C.src[hv] = vs; C.src[hf] = fs; var cx = CX.get(this); if (cx == null) { CX.set(this, cx = C.cx.length); var a = this.getContextAttributes() || {}; C.cx.push({ aa: a.antialias, alpha: a.alpha, depth: a.depth, stencil: a.stencil, pdb: a.preserveDrawingBuffer, pp: a.powerPreference, w: this.drawingBufferWidth, h: this.drawingBufferHeight, ext: (this.getSupportedExtensions() || []).length, t: Math.round(performance.now()) }); } C.ln.push([performance.now(), hv, hf, cx]); return lp.apply(this, arguments); };
+    var hv = h(vs), hf = h(fs); C.src[hv] = vs; C.src[hf] = fs; var cx = CX.get(this); if (cx == null) { CX.set(this, cx = C.cx.length); var a = this.getContextAttributes() || {}; C.cx.push({ aa: a.antialias, alpha: a.alpha, depth: a.depth, stencil: a.stencil, pdb: a.preserveDrawingBuffer, pp: a.powerPreference, w: this.drawingBufferWidth, h: this.drawingBufferHeight, ext: (this.getSupportedExtensions() || []).length, t: Math.round(performance.now()) }); } C.ln.push([performance.now(), hv, hf, cx]); C.gp.push(p); return lp.apply(this, arguments); };
 })();`;
 
 (async () => {
@@ -59,7 +78,7 @@ const HASH = `(function(){ if (window.__CL) return; var C = window.__CL = { ln: 
     const cls = r => seen.has(r.k) ? 'seen@' + seen.get(r.k) : 'NEW';
     const row = { i: li, build: key, sec: l.sec, state: l.state, rollout: fly, flownLinks: flown.length, flownNew: flown.filter(r => !seen.has(r.k)).length, links: rows.length, distinct: new Set(rows.map(r => r.k)).size,
       newPrograms: rows.filter(r => !seen.has(r.k)).length, over1s: rows.filter(r => r.ms > 1000).length, over5s: rows.filter(r => r.ms > 5000).length,
-      slow: slow.map(r => ({ t0: r.t0, ms: r.ms, k: r.k, was: cls(r) })), keys: rows.map(r => r.k + ':' + r.ms + ':' + r.cx), contexts: d.cx, hist: await b.cmd('Browser.getHistograms', { query: 'ProgramCache' }).then(x => (x.result && x.result.histograms || []).map(h => [h.name, h.count, h.sum])).catch(e => String(e)), cache: MB.cacheMB(UDD), exc: b.exc.slice(0, 5) };
+      slow: slow.map(r => ({ t0: r.t0, ms: r.ms, k: r.k, was: cls(r) })), keys: rows.map(r => r.k + ':' + r.ms + ':' + r.cx), contexts: d.cx, hist: await hists(b), burst: burst(all), ck: CK ? JSON.parse(await b.ev(CKR, 60000)) : null, cache: MB.cacheMB(UDD), exc: b.exc.slice(0, 5) };
     // the NEW programs of a warm load against the same build's earlier load: pair them by the vertex OR fragment hash kept
     if (DUMP && li > 0) {
       fs.mkdirSync(DUMP, { recursive: true });
@@ -79,6 +98,11 @@ const HASH = `(function(){ if (window.__CL) return; var C = window.__CL = { ln: 
     R.loads.push(row);
     console.log('L' + li + ' ' + key + ' ' + l.sec + ' s (' + l.state + ') links ' + row.links + ' distinct ' + row.distinct + ' new ' + row.newPrograms
       + ' >1s ' + row.over1s + ' >5s ' + row.over5s + (FLY ? ' | roll-out ' + fly + ' s, flown links ' + row.flownLinks + ' new ' + row.flownNew : '') + ' GPU cache ' + row.cache.gpuCache + ' MB' + (row.exc.length ? ' EXC ' + row.exc[0] : ''));
+    if (row.ck) { const d = row.ck.dups, extra = d.reduce((a, e) => a + e.n - 1, 0), g = new Map();
+      for (const e of d) for (const x of e.d) { const sig = (e.name || '?') + ' || ' + x[1].slice(-120) + ' || ' + x[2].slice(-120); g.set(sig, (g.get(sig) || 0) + 1); }
+      console.log('  dups: ' + d.length + ' sources linked more than once, ' + extra + ' extra links; renderer ' + row.ck.renderer + ', programs live ' + row.ck.programs + '; dead first programs ' + d.filter(e => !e.live[0]).length);
+      [...g].sort((a, b) => b[1] - a[1]).slice(0, 30).forEach(([k, n]) => console.log('    ' + String(n).padStart(3) + 'x  ' + k)); }
+    console.log('  burst: most links in 1 s ' + row.burst.max1s + '; per 5 s ' + JSON.stringify(row.burst.bins5s));
     for (const s of row.slow) console.log('    ' + String(s.t0).padStart(6) + ' ms  link ' + (s.ms / 1000).toFixed(1) + ' s  ' + s.k + '  ' + s.was);
     if (!ONE) await b.close();
   }
