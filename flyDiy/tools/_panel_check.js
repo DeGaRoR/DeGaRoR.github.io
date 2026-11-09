@@ -191,26 +191,6 @@ function run() {
   check(!list({ fit: 'minimal', avionics: { xpdr: 'modeS' } }).includes('xpdrAerial'),
     '...but not without a battery (the transponder is dropped)');
 
-  // ---- 5b. THE COMMUNICATIONS SET (COMMS-SECTION, 8 Nov): GEN_COMMS ties each radio to its aerial both ways --------
-  {
-    const CM = C.GEN_COMMS || [], A = C.GEN_ACCESS || {};
-    const drawn = CM.filter(r => r.aerial && !r.later);
-    check(drawn.length >= 3 && drawn.every(r => A[r.aerial] && A[r.aerial].radio === r.radio),
-      'GEN_COMMS: every drawn radio names an aerial row that names it back', drawn.map(r => r.radio + ':' + r.aerial).join(' '));
-    const named = Object.keys(A).filter(k => A[k].radio);
-    check(named.every(k => CM.some(r => r.aerial === k && r.radio === A[k].radio)),
-      '...and every aerial row with a radio is in the set', named.join(' '));
-    // one radio fitted at a time (a battery under it): exactly its own aerial among the set's
-    const AV1 = { com: 'compact', nav: 'vor', xpdr: 'modeS' };
-    const one = drawn.map(r => {
-      const av = { com: 'none', nav: 'none', xpdr: 'none', gps: 'none' }; av[r.avionics] = AV1[r.avionics];
-      const L = list({ fit: 'minimal', elec: { battery: 'lead' }, avionics: av });
-      return { r: r.radio, got: drawn.filter(q => L.includes(q.aerial)).map(q => q.radio) };
-    });
-    check(one.every(o => o.got.length === 1 && o.got[0] === o.r),
-      'each radio alone draws its own aerial and no other', JSON.stringify(one));
-  }
-
   // ---- 6. THE PART'S DOOR ---------------------------------------------------
   {
     const fs = require('fs');

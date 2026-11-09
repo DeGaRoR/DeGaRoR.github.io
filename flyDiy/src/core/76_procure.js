@@ -64,7 +64,7 @@ const PROCURE_COSMETIC = ['paint', 'finish', 'meta'];          // bench.js BENCH
 const PROCURE_READOUTS = ['fuel'];
 const PROCURE_LOOK = { energy: ['finish', 'hue', 'tint'], vessel: ['finish', 'hue', 'tint'], systems: ['look'] };
 // G3852: whSlick (a tundra's lugs or smooth) is drawing only, as bench.js counts it
-const PROCURE_STATE_ROWS = /^_view|^(explodeD|pilOn|cabOcc|paxOcc\d+|lightOn|li_reflect|li_beaconRpm|accDetail|accBeacon|whSlick)$|^hgDr[A-Z]/;
+const PROCURE_STATE_ROWS = /^_view|^(explodeD|pilOn|cabOcc|paxOcc\d+|lightOn|li_reflect|li_beaconRpm|accDetail|whSlick)$|^hgDr[A-Z]/;
 const prClone = o => JSON.parse(JSON.stringify(o));
 const prNo = (doc, why) => ({ ok: false, doc, why });
 const prR100 = n => Math.round((+n || 0) / 100) * 100;

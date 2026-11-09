@@ -9090,11 +9090,6 @@ function cageFromSpec(spec) {
   }
   delete P.dum2On;
   delete P.seatPitch;                            // the bays are the pitch now
-  // (COMMS-SECTION, 8 Nov) THE BEACON'S OWN SWITCH: the skin beacon was in the aerials' family (`accAerials`, "aerials &
-  // lights"); it is a light now (Lights) with `accBeacon`. A file from before carries no accBeacon: it takes the
-  // aerials' switch it was saved under, so a build saved with them off keeps its beacon off (and one at the default, both on)
-  if (c && typeof c === 'object' && !Array.isArray(c) && c.accBeacon == null && c.accAerials != null)
-    P.accBeacon = Math.round(+c.accAerials) ? 1 : 0;
   // (4) THE FRAMES (T2.1): a file from before the frame chantier carries the
   // ring editor's offsets, the lean and the taper width — lifted here into
   // the frames' absolute rows, and the retired keys dropped, so a save
