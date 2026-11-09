@@ -78,6 +78,9 @@ that can run it.
 ## Open questions (defaults in brackets)
 1. **The Cub without electrics** lands at -3.3 % against 345 kg, outside the band. Take it anyway, add the J-3's cork
    fuel sight (0.05 kg), or keep the card? [keep the card; the variant waits in the evidence folder]
+   REAL-FIGURES' reading (9 Nov): a finding, not a defect - the Cub's calibration absorbed ~17 kg of electrics a J-3
+   never carried, so something else in the model J-3 (structure, outfit or furnishing) is under-billed by ~11 kg. It
+   puts that to the user with the variant.
 2. **The wiring as a fraction of empty mass** (SAWE: wiring 1-2 % of empty; 1 % gives the Cub 4.1 kg, the Jodel 4.0,
    the 172 7.1 against 1.65 / 1.65 / 2.40 today). REAL-FIGURES: no-go on the three calibrated builds (the Jodel already
    reads +7.5 %), go for new builds. [parked: harness unchanged everywhere; the rule needs the empty mass inside the
