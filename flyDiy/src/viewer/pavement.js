@@ -707,7 +707,8 @@ varying vec4 vPav; varying vec4 vPavK; varying vec3 vPavW; varying vec3 vPavT; v
   GLSL.common = `
 precision highp sampler2DArray;
 uniform highp sampler2DArray uPavA, uPavN;
-uniform float uPavOn, uPavDbg;
+uniform float uPavOn, uPavDbg, uPavWet;
+uniform vec4 uMicro, uMicro2;
 uniform vec4 uLayer, uLayer2, uTile, uTile2, uHex, uMacro, uLane, uLane2, uCrack, uPatch, uMoss, uStain, uWet, uMark, uPaint0, uPaint1, uRubber, uRubber2, uRut, uRut2, uRoad, uEdge, uEdge2, uDist, uSpec, uClass, uSoft, uSoft2;
 uniform vec4 uGrade[8], uTint[8];
 uniform vec4 uMean;
@@ -715,7 +716,7 @@ uniform int uMarkN, uSegN;
 uniform vec4 uMarkR[${NMARK}], uMarkK[${NMARK}], uSeg[${NSEG}], uSegK[${NSEG}];
 uniform vec4 uSide, uRoadEnd; uniform int uKeepN; uniform vec4 uKeepA[${NKEEP}], uKeepB[${NKEEP}];
 varying vec4 vPav; varying vec4 vPavK; varying vec3 vPavW; varying vec3 vPavT; varying vec3 vPavNg; varying float vPavSh;
-float gPavR; vec3 gPavN; float gPavA; vec3 gPavDbg; float gPlain; float gRot; float gHexSoft;
+vec4 gMicH; float gPavR; vec3 gPavN; float gPavA; vec3 gPavDbg; float gPlain; float gRot; float gHexSoft;
 struct Smp { vec4 c; vec4 n; };
 float pvHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 vec2 pvHash2(vec2 p) { return fract(sin(vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)))) * 43758.5453); }
@@ -913,6 +914,89 @@ vec2 pvTyre(float x, float w) {
   float g = exp(-pow(q * q, 1.6));
   float rq = (abs(q) - 1.5) / 0.45, ridge = exp(-rq * rq) * 0.35;   // (a square, not pow(): pow of a negative base is undefined)
   return vec2(g, g * 3.2 * q * q * q / w * sign(q) - ridge * 2.0 * (abs(q) - 1.5) / (0.45 * w) * sign(q) * 0.3);
+}
+// THE PUDDLES' POTHOLES (DIRT-STRIP, 2026-11-09): 26b_strip_micro.js hole() and puddleAt, line for line - the same integer
+// hash (uint arithmetic wraps as Math.imul does, the top 24 bits / 2^24 are exact in float32), the same cells (6 m along,
+// two candidates a cell), the same placement (two in three in a wheel lane), the same cosine bowl and flat water.
+// uMicro: x the field's seed, y the hole probability (float32, as the field's), z the hole depth (m), w puddles x the
+// grade's own (0 on a strip steeper than 3 %). (u, v) the FIELD's frame: v = -the ribbon's (pavement N = -the field's n).
+// -> (water depth m, the damp ring 0..1)
+float pmH(int x, int y, int s) {
+  uint h = (uint(x) * 0x27d4eb2du) ^ (uint(y) * 0x165667b1u) ^ (uint(s) * 0x2f6b4c13u);
+  h = (h ^ (h >> 15u)) * 0x2c1b3c6du;
+  h = (h ^ (h >> 12u)) * 0x297a2d39u;
+  h = h ^ (h >> 15u);
+  return float(h >> 8u) / 16777216.0;
+}
+// a value noise in [-1, 1] on the hash (26b vnoise)
+float pmNoise(vec2 p, int s) {
+  vec2 i = floor(p), f = p - i; f = f * f * (3.0 - 2.0 * f);
+  int ix = int(i.x), iy = int(i.y);
+  float a = pmH(ix, iy, s), b = pmH(ix + 1, iy, s), c = pmH(ix, iy + 1, s), d = pmH(ix + 1, iy + 1, s);
+  return 2.0 * ((a + (b - a) * f.x) + ((c + (d - c) * f.x) - (a + (b - a) * f.x)) * f.y) - 1.0;
+}
+// a hazard j (26b HZ): (u, v, R, h signed), R 0 when it does not fit. uMicro2: x the 1 m octave's amplitude, y the
+// hazards, z their size (m), w 1 on a bumpy strip
+vec4 pvHazard(int j, float halfW, float len, int sd) {
+  float R = 1.2 + 1.0 * pmH(j, 0, sd + 32);
+  float room = halfW - 0.5 - 0.3 - 2.0 * R;
+  if (room < 0.0) R = (halfW - 0.8) / 2.0;
+  if (R < 0.6) return vec4(0.0);
+  float hu = max(4.0 + R, min(len - 4.0 - R, len * (0.15 + 0.7 * (float(j) + 0.2 + 0.6 * pmH(j, 0, sd + 31)) / uMicro2.y)));
+  float hv = (pmH(j, 0, sd + 35) < 0.5 ? -1.0 : 1.0) * (0.3 + R + max(0.0, room) * pmH(j, 0, sd + 36));
+  float hh = uMicro2.z * (0.7 + 0.3 * pmH(j, 0, sd + 34)) * (pmH(j, 0, sd + 33) < 0.6 ? 1.0 : -1.0);
+  return vec4(hu, hv, R, hh);
+}
+// the holes and the hazards at (u, v), the field's frame: (the holes' deepest bowl m, the water m, the damp ring 0..1,
+// the hazards' height m signed)
+vec4 pvHoles(float u, float v, float halfW, float len, float fill) {
+  int sd = int(uMicro.x + 0.5);
+  float sig = 0.35 + 0.05 * halfW, bowl = 0.0, d = 0.0, ring = 0.0, hz = 0.0;
+  if (uMicro.y > 0.0) {
+    int ic = int(floor(u / 6.0));
+    for (int a = 0; a < 4; a++) {
+      if (a == 3) break;
+      int i = ic - 1 + a;
+      for (int m = 0; m < 2; m++) {
+        if (pmH(i, m, sd + 11) >= uMicro.y) continue;
+        float R = 0.5 + 0.6 * pmH(i, m, sd + 12), hu = (float(i) + 0.15 + 0.7 * pmH(i, m, sd + 13)) * 6.0;
+        float lim = halfW - 2.5 - R;
+        if (lim <= 0.0 || hu < 4.0 + R || hu > len - 4.0 - R) continue;
+        float hv = pmH(i, m, sd + 14) < 0.667 ? (pmH(i, m, sd + 15) < 0.5 ? -1.0 : 1.0) * 1.098 + (pmH(i, m, sd + 16) - 0.5) * 2.0 * sig : (pmH(i, m, sd + 16) - 0.5) * 2.0 * lim;
+        hv = clamp(hv, -lim, lim);
+        float D = uMicro.z * (0.5 + 0.5 * pmH(i, m, sd + 17));
+        float r = length(vec2(u - hu, v - hv));
+        if (r < R) { float b = D * 0.5 * (1.0 + cos(3.14159265 * r / R)); bowl = max(bowl, b); d = max(d, b - (1.0 - fill) * D); }
+        // the damp ring: the shore's wet soil, a hand's width to a stride past the water's edge (the water's radius off the bowl)
+        float rw = R / 3.14159265 * acos(clamp(1.0 - 2.0 * fill, -1.0, 1.0));
+        if (fill > 0.0) ring = max(ring, 1.0 - smoothstep(rw, rw + 0.12 + 0.3 * R * fill, r));
+      }
+    }
+  }
+  for (int j = 0; j < 4; j++) {
+    if (float(j) >= uMicro2.y) break;
+    vec4 H = pvHazard(j, halfW, len, sd);
+    if (H.z <= 0.0) continue;
+    float r = length(vec2(u - H.x, v - H.y));
+    if (r < H.z) { float b = H.w * 0.5 * (1.0 + cos(3.14159265 * r / H.z)); hz += b; if (H.w < 0.0) d = max(d, -b - (1.0 - fill) * -H.w); }
+    if (H.w < 0.0 && fill > 0.0) { float rw = H.z / 3.14159265 * acos(clamp(1.0 - 2.0 * fill, -1.0, 1.0)); ring = max(ring, 1.0 - smoothstep(rw, rw + 0.15 + 0.3 * H.z * fill, r)); }
+  }
+  return vec4(bowl, d, ring, hz);
+}
+// THE RELIEF the eye reads (26b reliefUV): the roughness's octaves, minus the holes, plus the hazards, with their tapers
+float pvRelief(float u, float v, float halfW, float len, vec4 holes) {
+  if (u <= 0.0 || u >= len || abs(v) >= halfW) return 0.0;
+  int sd = int(uMicro.x + 0.5);
+  float eT = smoothstep(0.0, 4.0, u) * smoothstep(0.0, 4.0, len - u), dT = smoothstep(0.5, 2.5, halfW - abs(v)), r = 0.0;
+  if (dT > 0.0) {
+    for (int a = 0; a < 2; a++) for (int b = 0; b < 4; b++) {
+      if (b == 3) break;
+      int k = a * 3 + b; float lam = 32.0 / exp2(float(k));
+      r += uMicro2.x * sqrt(lam) * pmNoise(vec2(u, v) / lam, sd + 101 + k);
+    }
+    r = dT * (r - holes.x);
+  }
+  return (r + smoothstep(0.0, 0.5, halfW - abs(v)) * holes.w) * eT;
 }`;
   // THE CHAIN, spliced after map_fragment. Inputs: vPav (u, v, dEdge, shoulderW), vPavK (class, seed, halfW, halfL).
   GLSL.map = `
@@ -925,6 +1009,7 @@ vec2 pvTyre(float x, float w) {
     // moved - the runway's flicker. pavSeed is k / 37 (render_world, render_premises), so the snap is exact.
     float cls = floor(vPavK.x + 0.5), seed = floor(vPavK.y * 37.0 + 0.5) / 37.0, halfW = vPavK.z, halfL = vPavK.w;
     vec2 P = vec2(u, v);
+    gMicH = vec4(0.0);                                                  // (DIRT-STRIP) a flat strip has no holes
     vec2 uvS = P + vec2(seed * 37.0, seed * 91.0);
     vec2 pdx = dFdx(P), pdy = dFdy(P);                              // one pair of derivatives for both footprints (G1047)
     vec2 fw = abs(pdx) + abs(pdy) + 1e-5;                              // = fwidth(P)
@@ -1189,6 +1274,28 @@ vec2 pvTyre(float x, float w) {
       // the rut's relief: the trough's slope, in proportion to its width (a 30 cm rut is not a ditch)
       nT.y += -rr.y * uRut.y * 0.9 * nrmK;
       col *= 1.0 - rut * 0.06;
+      // THE RELIEF, READ (DIRT-STRIP; the user, 9 Nov via A0: "the new bumpy dirt strips should also have some influence
+      // on the texture and normal that allows to read that thing ... the main thing is that we have to be able to read the
+      // relief"). The bumps are geometry, lit by their own normals (the ribbon's 0.25 m rows); on top, what a real strip's
+      // relief does to its surface, read from the SAME field (pvRelief = 26b reliefUV): the crowns dry and lighter, the
+      // hollows damp and darker with the loose gravel collected in them, grass on the untrafficked middle ridge, at the
+      // edges and on the hazards' mounds - so a bump reads by its colour from the approach, before its shading does
+      if (uMicro2.w > 0.5 && !grassy) {
+        float fillM = uMicro.w > 0.0 ? clamp((uPavWet - 0.25) / 0.6, 0.0, 1.0) * uMicro.w : 0.0;
+        gMicH = pvHoles(u, -v, halfW, 2.0 * halfL, fillM);
+        float rel = pvRelief(u, -v, halfW, 2.0 * halfL, gMicH);
+        float rs = uMicro2.x * 3.4 + 0.02, rn = clamp(rel / rs, -1.5, 1.5), cueK = 1.0 - smoothstep(uDist.x, uDist.y * 0.7, dist);
+        float crown = smoothstep(0.1, 1.2, rn) * cueK, hollow = smoothstep(0.1, 1.2, -rn) * cueK;
+        col *= 1.0 + 0.10 * crown - 0.18 * hollow; rough += 0.03 * crown - 0.06 * hollow;
+        if (hollow > 0.02) { Smp g = pvSet(1, uvS); float gk = 0.5 * hollow; vec2 w2 = pvHw2(hgt, 1.0 - gk, g.c.a, gk, uHex.x * 2.5); col = col * w2.x + g.c.rgb * w2.y; nT = nT * w2.x + g.n.xyz * w2.y; rough = rough * w2.x + g.n.a * w2.y; hgt = hgt * w2.x + g.c.a * w2.y; }
+        float sigM = 0.35 + 0.05 * halfW, l1 = (abs(v) - PV_FLEET_MEAN) / sigM, l2 = v / (sigM * 0.8);
+        float worn = max(exp(-l1 * l1), 0.55 * exp(-l2 * l2));
+        float wild = clamp(uMicro2.z / 0.26, 0.0, 1.0);                                // a rough strip is a less tended one
+        float grassK = (1.0 - clamp(worn * 1.4, 0.0, 1.0)) * (0.25 + 0.75 * (1.0 - smoothstep(0.5, 2.0, dE))) * wild;
+        grassK = max(grassK, smoothstep(0.03, 0.10, gMicH.w));                           // a hazard's mound: nobody drives it
+        grassK *= smoothstep(0.35, 0.65, pvNoise(uvS / 1.4 + 23.0) * 0.6 + pvNoise(uvS / 5.0 + 3.0) * 0.4 + 0.15 * crown) * cueK;
+        if (grassK > 0.02) { Smp g = pvSet(3, uvS); vec2 w2 = pvHw2(hgt, 1.0 - grassK, g.c.a, grassK, uHex.x); col = col * w2.x + g.c.rgb * w2.y; nT = nT * w2.x + g.n.xyz * w2.y; rough = rough * w2.x + g.n.a * w2.y; hgt = hgt * w2.x + g.c.a * w2.y; }
+      }
       // a grass strip is mown: stripes across, 3.5 m, a few per cent - the cut, not a colour
       if (grassy) { float mw = uSoft2.y * 0.05 * (mod(floor((v + halfW) / 3.5), 2.0) * 2.0 - 1.0) * smoothstep(0.0, 1.0, dE); col *= 1.0 + mw; }
     }
@@ -1332,10 +1439,39 @@ vec2 pvTyre(float x, float w) {
     float wetK = wet;
     col *= 1.0 - 0.38 * wetK; rough = mix(rough, 0.12, wet);
     if (!paved) rough = max(rough, uSoft2.w);                          // loose ground does not shine
+    // ---- 11b THE PUDDLES (DIRT-STRIP, 2026-11-09; the user: "puddles, yes, if they look good. Ensure you use robust and
+    // great looking techniques"). The puddles of 23 Sep were a shape painted on a slope ("they just look bad") - there was
+    // no low spot for water to lie in. Now there is: a bumpy strip's potholes are real bowls in the ground the wheels and
+    // this mesh stand on (26b_strip_micro.js), and the water in them is THAT field's water (pvPuddle = puddleAt, line for
+    // line), filled by the soil's wetness (uPavWet: DIRT-DUST's SOIL_WET, shared by every pavement). What makes it read:
+    // a LEVEL surface (the normal is the world's up, not the bowl's - the sky reflects flat, below), the bed darkened under
+    // silty water and darker with depth, near-mirror roughness (the env map's sky and the sun's glint), a shoreline
+    // anti-aliased by the depth's own footprint (no stair-step at any distance), and a damp ring of dark, smoother soil
+    // round it. Soft strips only (gravel, dirt, sand); grass with the grass step.
+    float pudA = 0.0;
+    if (!road && !paved && !grassy && uMicro2.w > 0.5 && uMicro.w > 0.0 && uPavWet > 0.25) {
+      float fill = clamp((uPavWet - 0.25) / 0.6, 0.0, 1.0) * uMicro.w;
+      vec2 pw = gMicH.yz;                                                 // (the relief's pvHoles: the same water, the same ring)
+      float ringK = pw.y * wPav * fill;
+      col *= 1.0 - 0.3 * ringK; rough = mix(rough, 0.4, ringK);
+      pudA = smoothstep(0.0, max(fwidth(pw.x) * 1.5, 0.0015), pw.x) * wPav;
+      if (pudA > 0.0) {
+        float dz = clamp(pw.x / 0.06, 0.0, 1.0);
+        vec3 murk = vec3(0.13, 0.11, 0.085);                                  // silty water over mud
+        col = mix(col, mix(col * 0.5, murk, 0.3 + 0.55 * dz), pudA);
+        rough = mix(rough, 0.03, pudA);
+      }
+    }
     // ---- the normal into the world, the roughness, the alpha
     vec3 T = normalize(vPavT), Ng = normalize(vPavNg), Bv = normalize(cross(Ng, T));
     vec3 nTn = normalize(vec3(nT.xy * nrmK, max(nT.z, 0.2)));
     gPavN = normalize(T * nTn.x + Bv * nTn.y + Ng * nTn.z);
+    // (11b) the water is LEVEL: its normal the world's up, a breath of ripple (a 25 cm and an 8 cm noise, 1-2 %) so the sky
+    // it mirrors is not glass
+    if (pudA > 0.0) {
+      vec2 rp = vec2(pvNoise(P / 0.25 + seed * 13.0), pvNoise(P / 0.25 + seed * 13.0 + 7.3)) - 0.5 + 0.5 * (vec2(pvNoise(P / 0.08 + 3.1), pvNoise(P / 0.08 + 9.7)) - 0.5);
+      gPavN = normalize(mix(gPavN, normalize(vec3(rp.x * 0.03, 1.0, rp.y * 0.03)), pudA));
+    }
     gPavR = clamp(rough, 0.03, 1.0);
     // THE SPECULAR ANTI-ALIAS (G1047, the ground's: splat_ground uSFilt.y): the roughness floor grows with the
     // pixel's footprint (sqrt of metres a pixel), so a relief finer than the pixel cannot throw the sun's lobe about
@@ -1407,7 +1543,7 @@ vec2 pvTyre(float x, float w) {
   // become globals, pvLoad() fills them from the row at the top of the chain, the array reads become texel reads), so
   // `?pave=old` draws exactly the pre-G925 program and the two cannot drift apart silently (GATE PAVEMENT 12).
   const PV_VEC = ['uLayer', 'uLayer2', 'uTile', 'uTile2', 'uHex', 'uMacro', 'uLane', 'uLane2', 'uCrack', 'uPatch', 'uMoss', 'uStain', 'uWet', 'uMark',
-    'uPaint0', 'uPaint1', 'uRubber', 'uRubber2', 'uRut', 'uRut2', 'uRoad', 'uEdge', 'uEdge2', 'uDist', 'uSpec', 'uClass', 'uSoft', 'uSoft2', 'uMean', 'uSide', 'uRoadEnd'];
+    'uPaint0', 'uPaint1', 'uRubber', 'uRubber2', 'uRut', 'uRut2', 'uRoad', 'uEdge', 'uEdge2', 'uDist', 'uSpec', 'uClass', 'uSoft', 'uSoft2', 'uMean', 'uSide', 'uRoadEnd', 'uMicro', 'uMicro2'];   // (uMicro: DIRT-STRIP's puddles, a row's last)
   const PV = { K: PV_VEC.length, N: PV_VEC.length + 1, G: PV_VEC.length + 2 };
   PV.T = PV.G + 8; PV.KA = PV.T + 8; PV.KB = PV.KA + NKEEP; PV.S = PV.KB + NKEEP; PV.SK = PV.S + NSEG; PV.MR = PV.SK + NSEG; PV.MK = PV.MR + NMARK; PV.W = PV.MK + NMARK;
   // ?pave=old: every pavement its own material and mesh, as shipped before G925 (the A/B); default: the table
@@ -1429,6 +1565,7 @@ vec2 pvTyre(float x, float w) {
     c = rep(c, '\nuniform vec4 ' + PV_VEC.slice(0, 28).join(', ') + ';', '');
     c = rep(c, '\nuniform vec4 uGrade[8], uTint[8];', '');
     c = rep(c, '\nuniform vec4 uMean;', '');
+    c = rep(c, '\nuniform vec4 uMicro, uMicro2;', '');   // (DIRT-STRIP) a row's texel like the rest
     c = rep(c, '\nuniform int uMarkN, uSegN;', '\nint uMarkN, uSegN;');
     c = rep(c, `\nuniform vec4 uMarkR[${NMARK}], uMarkK[${NMARK}], uSeg[${NSEG}], uSegK[${NSEG}];`,
       '\nuniform highp sampler2D uPavT;\nint gPavRow; float gSegHW;\n#define PVT(i) texelFetch(uPavT, ivec2(i, gPavRow), 0)\n' + PV_VEC.map((n, i) => '#define ' + n + ' PVT(' + i + ')').join('\n'));
@@ -1622,6 +1759,8 @@ vec2 pvTyre(float x, float w) {
     const sk = cls.soft || [1, 1, 1, 1];                                       // the class's own share of each soft layer
     U.uSoft.value.set(r.softMix * sk[0], r.coarseK * sk[1], r.wheelBand * sk[2], r.treadK * sk[3]);
     U.uSoft2.value.set(r.paintRelief, r.mow, r.edgeSoft, r.grassRough);
+    { const q = m.userData.pavMicro; if (U.uMicro) U.uMicro.value.set(q ? q[0] : 0, q ? q[1] : 0, q ? q[2] : 0, q ? q[3] : 0);   // DIRT-STRIP: 0 = a flat strip
+      if (U.uMicro2) U.uMicro2.value.set(q ? q[4] : 0, q ? q[5] : 0, q ? q[6] : 0, q ? q[7] : 0); }
     U.uSide.value.set(d.side && (r.sideFade === undefined ? 1 : r.sideFade) > 0.5 ? 1 : 0, lk.sideW, lk.sideA, d.road ? 1 : 0);   // .w: the surface hands over inside a strip's box (roads, aprons); .yz the surface type's side (G1392)
     if (m.isPavPart) pack(m);
   }
@@ -1681,7 +1820,7 @@ vec2 pvTyre(float x, float w) {
     const L = SHARED;
     const m = pavMat(THREE);
     m.name = 'pavement';
-    m.uniforms = { uPavA: { value: L ? L.texA : null }, uPavN: { value: L ? L.texN : null }, uPavOn: { value: L && (L.ready || L.readyOld) ? 1 : 0 }, uPavDbg: DBG, uPavT: { value: TAB.tex } };
+    m.uniforms = { uPavA: { value: L ? L.texA : null }, uPavN: { value: L ? L.texN : null }, uPavOn: { value: L && (L.ready || L.readyOld) ? 1 : 0 }, uPavDbg: DBG, uPavWet: WET, uPavT: { value: TAB.tex } };
     m.userData.pavTable = true;
     m.onBeforeCompile = sh => { sh._pavU = m.uniforms; hookT(sh); if (PT.frag) sh.fragmentShader = PT.frag(sh.fragmentShader); };
     m.customProgramCacheKey = () => 'pavement:T' + hookT.toString().length + PT.key;
@@ -1702,6 +1841,10 @@ vec2 pvTyre(float x, float w) {
       .replace('#include <dithering_fragment>', '#include <dithering_fragment>' + GLSL.debug);
   };
   const DBG = { value: 0 };   // one debug switch for every pavement
+  // THE SOIL'S WETNESS (DIRT-STRIP): one value every pavement reads (the puddles' fill) - setSoilWet(w), DIRT-DUST's SOIL_WET
+  // .wet each frame (the same value its spray passes to STRIP_MICRO.puddleAt: the water drawn is the water splashed in); 0 = dry
+  const WET = { value: 0 };
+  function setSoilWet(w) { WET.value = Number.isFinite(+w) ? Math.max(0, Math.min(1, +w)) : 0; }
   // ---- THE EYES TEST (B11-EYES, G1045): the user's four material swaps, one at a time, the user LOOKING ----------
   // ?pavetest=t1|t2|t2b|t3|t3u|t4 at load, or PAVTEST('t3') live (PAVTEST('t0') = as shipped). ONLY the material of
   // every pavement mesh changes (strips, taxiways, roads, aprons): geometry, position and renderOrder are untouched,
@@ -1873,7 +2016,7 @@ vec2 pvTyre(float x, float w) {
     for (let i = 0; i < NMARK; i++) { const r = marks.rects[i]; mR.push(new THREE.Vector4(r ? r[0] : 0, r ? r[1] : 0, r ? r[2] : 0, r ? r[3] : 0)); mK.push(new THREE.Vector4(r ? r[4] : 0, r ? r[5] : 0, r ? r[6] : 0, r ? r[7] : 0)); }
     const sg = [], sk = [];
     for (let i = 0; i < NSEG; i++) { const s = marks.segs[i]; sg.push(new THREE.Vector4(s ? s[0] : 0, s ? s[1] : 0, s ? s[2] : 0, s ? s[3] : 0)); sk.push(new THREE.Vector4(s ? s[4] : 0, s ? s[5] : 0, 0, 0)); }
-    m.uniforms = { uPavA: { value: lib.texA }, uPavN: { value: lib.texN }, uPavOn: { value: (lib.ready || lib.readyOld) ? 1 : 0 }, uPavDbg: DBG,
+    m.uniforms = { uPavA: { value: lib.texA }, uPavN: { value: lib.texN }, uPavOn: { value: (lib.ready || lib.readyOld) ? 1 : 0 }, uPavDbg: DBG, uPavWet: WET, uMicro: v4(), uMicro2: v4(),
       uLayer: v4(), uLayer2: v4(), uTile: v4(), uTile2: v4(), uClass: v4(), uHex: v4(), uMacro: v4(), uLane: v4(), uLane2: v4(), uCrack: v4(), uPatch: v4(),
       uMoss: v4(), uStain: v4(), uWet: v4(), uMark: v4(), uPaint0: { value: new THREE.Vector4(0.62, 0.60, 0.55, 1) }, uPaint1: { value: new THREE.Vector4(0.70, 0.54, 0.14, 1) },
       uRubber: v4(), uRubber2: v4(), uRut: v4(), uRut2: v4(), uRoad: v4(), uEdge: v4(), uEdge2: v4(), uDist: v4(), uSpec: v4(), uSoft: v4(), uSoft2: v4(),
@@ -1882,7 +2025,7 @@ vec2 pvTyre(float x, float w) {
       uMarkR: { value: mR }, uMarkK: { value: mK }, uSeg: { value: sg }, uSegK: { value: sk },
       uSide: v4(), uRoadEnd: { value: new THREE.Vector4(+o.fadeA || 0, +o.fadeB || 0, 0, 0) }, uKeepN: { value: 0 }, uKeepA: { value: Array.from({ length: NKEEP }, () => new THREE.Vector4()) }, uKeepB: { value: Array.from({ length: NKEEP }, () => new THREE.Vector4()) } };
     // side: the band fades to the ground (G660) - a strip's and a paved polygon's by default, a road's only when the caller says (a taxiway, G980)
-    m.userData.pav = { cls, road: !!o.road || !!o.poly, poly: !!o.poly, wid: (o.marks && o.marks.wid) || 0, side: o.side !== undefined ? !!o.side : !o.road }; m.userData.pavLib = lib; m.userData.pavRecipe = o.recipe || null;   // a resolved recipe of its own (the game), or the module's (the bench)
+    m.userData.pav = { cls, road: !!o.road || !!o.poly, poly: !!o.poly, wid: (o.marks && o.marks.wid) || 0, side: o.side !== undefined ? !!o.side : !o.road }; m.userData.pavLib = lib; m.userData.pavRecipe = o.recipe || null; m.userData.pavMicro = Array.isArray(o.micro) ? o.micro.slice(0, 8) : null;   // (DIRT-STRIP) STRIP_MICRO.glslRow: a bumpy strip's puddles   // a resolved recipe of its own (the game), or the module's (the bench)
     if (o.band !== undefined && o.band !== null) m.userData.pavBand = +o.band;
     if (table) {
       // THE ROW: cls, seed, halfW, halfL off the geometry's aPavK (constant over a part), the row id on every vertex
@@ -2131,7 +2274,7 @@ vec2 pvTyre(float x, float w) {
     // G925-G928: the table, the one material, the merge, the A/B
     // G1390-G1393: the runway look (per surface type), its live overlay, the alpha's CPU twin
     LOOK_GROUPS, LOOK_KEYS, LOOK_WEAR, groupOf, lookOf, look, tintRGB, alphaTwin, twinNoise: { hash: tHash, noise: tNoise, fbm: tFbm },
-    PV, PV_VEC, MODE, TAB, BATCH, tableGLSL, hookT, tableMat, isTable, pack, merge, mergeSteps, onRebuild, ab, census, get table() { return MODE.table; } };
+    setSoilWet, WET, PV, PV_VEC, MODE, TAB, BATCH, tableGLSL, hookT, tableMat, isTable, pack, merge, mergeSteps, onRebuild, ab, census, get table() { return MODE.table; } };
   return api;
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = PAVEMENT;
