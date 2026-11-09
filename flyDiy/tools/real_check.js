@@ -439,11 +439,31 @@ function measureShape(spec, def, rawForDrawn) {
   // door's probe, gives what a tape measures: SPAN tip to tip, LENGTH spinner to rudder, HEIGHT standing on the gear at
   // the settled deck angle (tail down on a taildragger), the propeller's blades left out. The node figures stay beside it.
   const drawn = rawForDrawn ? drawnDims(rawForDrawn, Math.asin(Math.max(-1, Math.min(1, -xA[1])))) : null;
+  // THE HEIGHT'S CONVENTIONS (the user 9 Nov: "measure different heights and see whether one of them falls on the
+  // reference"). A type sheet's "height" is one of: standing on the gear (a taildragger tail DOWN: the three-point
+  // figure), the fuselage LEVEL (the flying attitude: a taildragger's tail up - the DC-3 5.2 m against 7.3 m), with a
+  // propeller blade standing vertical, or on the hull / gear UP (an amphibian's drawing). Each, on the settled node
+  // cloud, as an offset from the standing figure, added to the drawn one:
+  //   ground  standing, tail down, blades out (the scored figure unless the row says otherwise: `heightAs`)
+  //   level   the drawn scene with the fuselage level (the body frame), gear down
+  //   prop    standing, a blade vertical (the hub + D/2 where it tops the structure)
+  //   gearUp  standing attitude, measured from the lowest point that is not a wheel or a gear member (the keel / hull)
+  const heights = (() => {
+    const nodeH = y1 - y0; if (!(nodeH > 0)) return null;
+    const base = drawn && drawn.height ? drawn.height : nodeH, gearN = new Set([...(def.refs.mains || []), def.refs.tw].filter(i => i >= 0));
+    for (const b of def.beams || []) if (b.cls === 'gear') { gearN.add(b.a); gearN.add(b.b); }
+    let yLow = 1e9; for (let i = 0; i < sim.n; i++) if (!gearN.has(i)) yLow = Math.min(yLow, sim.p[i * 3 + 1] - sim.r[i]);
+    let yProp = -1e9; const D = (def.params.prop && def.params.prop.D) || 0;
+    for (const i of [].concat(def.refs.engine || [])) if (i >= 0 && i < sim.n) yProp = Math.max(yProp, sim.p[i * 3 + 1] + D / 2);
+    return { ground: base, level: drawn && drawn.heightLevel || null,
+             prop: yProp > y1 ? base + (yProp - y1) : base,
+             gearUp: yLow < 1e8 && yLow > y0 ? base - (yLow - y0) : base };
+  })();
   // a drawn figure more than 35 % off the structure's is something else in the scene (the Petrel's branch drew a 12.5 m
   // "length" over a 5.6 m hull): the structure's figure is kept and the drawn one flagged
   const pickD = (k, node) => { if (!drawn || drawn[k] == null || node == null) return node; if (Math.abs(drawn[k] / node - 1) > 0.35) { (drawn.suspect = drawn.suspect || []).push(k); return node; } return drawn[k]; };
   return {
-    drawn,
+    drawn, heights,
     dims: { span: pickD('span', (sh && sh.span) || G.span || null), length: pickD('length', (t.vX != null && t.vChord != null ? t.vX + t.vChord : x1) - x0),
             height: pickD('height', y1 - y0), S: (sh && sh.Sw) || G.Sw || null,
             cRoot: w.chord || null, cTip: w.chord ? w.chord * (w.taper == null ? 1 : w.taper) : null, hSpan: t.hSpan || null, Sh: t.Sh || null, Sv: t.Sv || null, track: g.track || null },

@@ -274,8 +274,11 @@ const GEO = {
   cub:      { dims: { span: 10.74, length: 6.83, height: 2.03, S: 16.6, cRoot: 1.60, cTip: 1.60, hSpan: 2.90, track: 1.83 },
               specs: { engine: 'Continental A-65', hp: 65, nE: 1, propD: 1.83, blades: 2, empty: 345, mtow: 550, fuelL: 45, seats: 2 },
               src: 'J-3 type sheet (perf_study REAL.cub.dims)' },
-  d112:     { dims: { span: 8.20, length: 6.20, height: 2.07, S: 12.7, cRoot: 1.72, cTip: 1.20, hSpan: 2.74 },
-              specs: { engine: 'Continental A-65', hp: 65, nE: 1, propD: 1.83, blades: 2, empty: 320, mtow: 530, fuelL: 45, seats: 2 },
+  // (JODEL-GEO 9 Nov: the length and height as two sources give them - sprinkle.com's registry sheets 6.20 / 1.90, aeropedia
+  // 6.37 / 2.10; the fuel the D.112's single tank ahead of the pilot: 60 L the maker's front tank, 65 L usable in the AAIB's
+  // G-BEZZ report - the old 45 L was a thin catalogue's)
+  d112:     { dims: { span: 8.20, length: [6.20, 6.37], height: [1.90, 2.10], S: 12.7, cRoot: 1.72, cTip: 1.20, hSpan: 2.74 },
+              specs: { engine: 'Continental A-65', hp: 65, nE: 1, propD: 1.83, blades: 2, empty: 320, mtow: 530, fuelL: [60, 65], seats: 2 },
               src: 'D.112 type sheet; height and stab span off the d112 reference payload (perf_study REAL.d112.dims)' },
   c172r:    { dims: { span: 11.0, length: 8.28, height: 2.72, S: 16.2, cRoot: 1.63, cTip: 1.12, hSpan: 3.40, Sh: [3.30, 3.35], Sv: 1.6, track: 2.53 },
               specs: { engine: 'Lycoming IO-360-L2A', hp: 160, nE: 1, propD: 1.905, blades: 2, empty: [721, 744], mtow: 1111, fuelL: [201, 212], seats: 4 },
@@ -290,7 +293,9 @@ const GEO = {
   pa18f:    { dims: { span: 10.73, S: 16.6, cRoot: 1.60, cTip: 1.60 },
               specs: { engine: 'Lycoming O-320', hp: [150, 160], nE: 1, blades: 2, empty: [500, 530], mtow: 806, fuelL: 136, seats: 2 },
               src: 'PA-18-150 sheet (35 ft 2.5 in, 178.5 ft2, 36 US gal); empty = landplane 930 lb + Wipaire seaplane exchange 182 lb' },
-  petrel:   { dims: { span: 8.9, length: 6.25, height: [2.2, 2.33], S: 15.0 },
+  // (HEIGHT-CONV 9 Nov: the Petrel's 2.2-2.33 m is read gear-UP - on the hull. Measured: standing on its wheels 2.74, level
+  // 2.88, a blade up 2.78, on the hull 2.33 - the one convention that lands on the maker's figure, as an amphibian's drawing has it)
+  petrel:   { dims: { span: 8.9, length: 6.25, height: [2.2, 2.33], heightAs: 'gearUp', S: 15.0 },
               specs: { engine: 'Rotax 912 iS', hp: 100, nE: 1, blades: 3, empty: 320, mtow: 600, fuelL: 90, seats: 2 },
               src: 'maker / Wikipedia (perf_study REAL.petrel.dims)' },
   chinook:  { dims: { span: 9.75, length: 5.38, height: 1.78, S: 14.35, cRoot: 1.47, cTip: 1.47 },
@@ -327,7 +332,8 @@ const PLANES = {
   // (the user, 9 Nov: the J-3's chord, 1.60 m; the shipped file is the calibration datum of 105 checks, so the candidate
   // stands in the report in its place until the user promotes it)
   cub160:   { label: 'Piper Cub, J-3 chord 1.60 m (candidate; the shipped Cub has 1.70)', short: 'Piper Cub', file: 'builds/candidates/cub_chord160.json', ref: 'cub' },
-  jodel:    { label: 'Jodel D112 (official)', file: 'builds/jodel_2026-09-20_corrected.json', ref: 'd112', official: true },
+  jodelg:   { label: 'Jodel D112: the D.112 wing, length and 60 L tank (candidate)', short: 'Jodel D112', file: 'builds/candidates/jodel_geo.json', ref: 'd112' },
+  jodel:    { supersededBy: 'jodelg', label: 'Jodel D112 (official)', file: 'builds/jodel_2026-09-20_corrected.json', ref: 'd112', official: true },
   cessna:   { dropped: 'the user 8 Nov: the corrected 172 is the Cessna; B-CESS is dismissed', label: 'Metal Cessna B-CESS (official)', file: 'builds/cessna172_2026-09-20.json', ref: 'c172r', official: true,
               engineNote: 'the build flies an O-540 235 hp (the type: IO-360 160 hp) on an 18.4 m2 wing (16.2): power-bound rows are not like for like', cgSweep: true },
   cessnaF:  { dropped: 'the user 8 Nov: dismissed; a Cessna on Wipline 2350 floats is to be rebuilt from the corrected 172', label: 'Metal Cessna on floats (official)', file: 'builds/cessna172_floats_2026-11.json', ref: 'c172f', official: true, water: true,
@@ -490,6 +496,7 @@ const NOTES = {
   tigermothm: ['<b>The Tiger Moth with no electrics</b>, as built (hand-swung, magnetos only), on the braced-spar sizing (BIPLANE-SIZING: a wired plane\'s spars bill their braced moment). Empty 520 kg against 506-535 (the REF-DATA range: 1,115 lb basic to the RAF tare). The references are the AAIB 1/2019 flight trial\'s.'],
   camelm: ['<b>The Camel with no electrics</b> (magnetos only), on the braced-spar sizing: empty 551 kg against 421 - still +31 %. The surplus is the airframe (wings 120, bracing 66, gear 48 kg): a 1917 fighter\'s featherweight build, for which the garage has no construction row yet.'],
   chinookm: ['<b>The Chinook on a pull start</b> (no battery, generator or starter): empty 215 kg against 172-209. The flights do not complete on this branch (the shipped Chinook\'s neither): no flown rows.'],
+  jodelg: ['<b>The Jodel with the D.112\'s geometry</b> (the user 9 Nov, JODEL-GEO): span 8.20 m tip to tip, 12.76 m² (12.7), chords 1.72 / 1.70 at the crank / 1.20 at the rounded tip, 6.21 m long (the boom 0.36 m longer), and the D.112\'s single tank ahead of the pilot behind the firewall, 62 L (the maker\'s 60 L front tank, the AAIB\'s G-BEZZ 65 L usable; the nose 8 cm longer to hold it). Geometry 66 -> 100; the static margin 5.5 -> 6.8 %, the design check passes. Still heavy at 343 kg (320): the electrics the D.112 never carried - ELEC-SYSTEMS takes them off (321.6 kg, margin 5.5 % with this geometry).'],
 };
 
 module.exports = { REFS, PLANES, HISTORY, NOTES, KT, MPH, FPM, FT, LB };

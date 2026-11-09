@@ -102,7 +102,11 @@ function scorePlaneV1(o) {
   const agg = (items, W) => { let s = 0, w = 0; for (const it of items) { if (it.score == null) continue; s += it.score * (W[it.k] || 1); w += W[it.k] || 1; } return w > 0 ? s / w : null; };
   if (sh && R.dims) {
     for (const k of Object.keys(W_GEO)) {
-      const ref = R.dims[k], ours = sh.dims[k];
+      // THE HEIGHT'S CONVENTION (the user 9 Nov): a reference that states how its height is taken (`heightAs`: 'ground'
+      // standing tail down, 'level' the fuselage level, 'prop' a blade vertical, 'gearUp' on the hull) is read against
+      // that measurement (real_check measureShape's `heights`); otherwise the standing figure, as before
+      const hAs = k === 'height' && R.dims.heightAs, ref = R.dims[k],
+            ours = hAs && sh.heights && num(sh.heights[hAs]) ? sh.heights[hAs] : sh.dims[k];
       if (ref == null || !num(ours)) continue;
       const g = gapOf(ours, ref, TOL_GEO[k]);
       out.items.geometry.push({ k, ours, ref, err: signedErr(ours, ref), gap: g, score: itemScore(g) });
