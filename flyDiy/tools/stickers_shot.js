@@ -231,8 +231,8 @@ const MK = id => ['stol-river', 'grizzly-range', 'orca', 'winged-prop', 'midnigh
           // (the wing without the registration's wing copy; the trim's orange on the white and green: the dark green vanished)
           4: { On: 1, Mk: MK('midnight-valley'), Col: ink, H: 1.0, L: +(wing.L + wing.W * 0.27).toFixed(2), C: +wing.C.toFixed(2), Tgt: 4, Mode: 2 },
           // THE FLOATS TAKE STICKERS (the user, 9 Nov): the lighthouse on both floats' sides, in the side box at the float's
-          // middle (the letters are still declined there - the registration does not land on a float)
-          3: flt ? { On: 1, Mk: MK('lighthouse'), Col: green, H: +Math.min(0.42, flt.ht * 0.75).toFixed(2), L: +(flt.y + flt.len * 0.12).toFixed(2), C: +flt.z.toFixed(2), Tgt: 0, Mode: 1 } : undefined,
+          // middle, in the trim's orange (dark green vanished into the float's green side), the letters still declined there
+          3: flt ? { On: 1, Mk: MK('lighthouse'), Col: ink, H: +Math.min(0.42, flt.ht * 0.75).toFixed(2), L: +(flt.y + flt.len * 0.12).toFixed(2), C: +flt.z.toFixed(2), Tgt: 0, Mode: 1 } : undefined,
         };
       },
     };
