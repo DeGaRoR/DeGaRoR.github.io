@@ -178,16 +178,20 @@ async function runup(ev, cmd, shot, rec) {
     if (RUNUP) { await runup(ev, cmd, shot, rec); ws.close(); return; }
     // THE TAKE-OFF, sampled: the frame record from 5 s before the roll to 25 s after the lift-off
     const t0 = Date.now(); let last = null, liftT = 0, rollT = 0, sMid = false, shots = new Set();
+    // THE EYES FROM THE RUN'S OWN DIRECTION (9 Nov: fixed world azimuths put the eye in the trees of a narrow strip): hd = the
+    // ground track's azimuth in the orbit camera's frame (x = cos az, z = sin az); behind = hd + PI, ahead = hd
+    const HD = "(async()=>{const s=FLIGHT_PROBE.sim(),a=s.cgPos().slice();await new Promise(r=>setTimeout(r,400));const b=s.cgPos();return Math.atan2(b[2]-a[2],b[0]-a[0])})()";
+    let hd = null;
     await ev('(window.__dustS.on=true,window.__dustS.t.length=0,1)');
     rec.trace = [];
     while (Date.now() - t0 < AIR_MAX) {
       const s = await ev("(()=>{const ap=FLIGHT_PROBE.ap(),sim=FLIGHT_PROBE.sim();return {ph:ap.phase,ias:sim&&sim.out?(sim.out.ias!=null?sim.out.ias:sim.out.V):null}})()");
       if (s.ph !== last) { rec.trace.push([((Date.now() - t0) / 1000).toFixed(1), s.ph, s.ias]); last = s.ph; say(ARM + ' ' + s.ph + ' ias=' + s.ias); }
-      if (s.ph === 'ROLL' && !rollT) { rollT = Date.now(); if (!shots.has('roll')) { shots.add('roll'); await ev('FLIGHT_PROBE.camSet(0.9,0.12,16),1'); await sleep(1500); await shot('roll'); } }
-      if (rollT && !liftT && !sMid && s.ias > 12) { sMid = true; await ev('FLIGHT_PROBE.camSet(' + (Math.PI / 2) + ',0.08,26),1'); await sleep(600); await shot('run'); }
-      if (s.ph === 'LIFTOFF' && !liftT) { liftT = Date.now(); await ev('FLIGHT_PROBE.camSet(1.2,0.1,24),1'); await shot('liftoff'); }
-      if (liftT && Date.now() - liftT > 8000 && !shots.has('back8')) { shots.add('back8'); await ev('FLIGHT_PROBE.camSet(' + (Math.PI - 0.25) + ',0.12,45),1'); await sleep(800); await shot('back8'); }
-      if (liftT && Date.now() - liftT > 20000 && !shots.has('back20')) { shots.add('back20'); await ev('FLIGHT_PROBE.camSet(' + (Math.PI - 0.15) + ',0.1,90),1'); await sleep(800); await shot('back20'); }
+      if (s.ph === 'ROLL' && !rollT) { rollT = Date.now(); await sleep(1200); hd = await ev(HD); rec.hd = hd; if (!shots.has('roll')) { shots.add('roll'); await ev('FLIGHT_PROBE.camSet(' + (hd + Math.PI + 0.35) + ',0.22,22),1'); await sleep(1200); await shot('roll'); } }
+      if (rollT && !liftT && !sMid && s.ias > 12) { sMid = true; await ev('FLIGHT_PROBE.camSet(' + ((hd != null ? hd : 0) + Math.PI / 2) + ',0.40,28),1'); await sleep(600); await shot('run'); }
+      if (s.ph === 'LIFTOFF' && !liftT) { liftT = Date.now(); await ev('FLIGHT_PROBE.camSet(' + ((hd != null ? hd : 0) + Math.PI + 0.25) + ',0.25,30),1'); await shot('liftoff'); }
+      if (liftT && Date.now() - liftT > 8000 && !shots.has('back8')) { shots.add('back8'); await ev('FLIGHT_PROBE.camSet(' + ((hd != null ? hd : 0) + 0.2) + ',0.30,60),1'); await sleep(800); await shot('back8'); }
+      if (liftT && Date.now() - liftT > 20000 && !shots.has('back20')) { shots.add('back20'); await ev('FLIGHT_PROBE.camSet(' + ((hd != null ? hd : 0) + 0.15) + ',0.35,120),1'); await sleep(800); await shot('back20'); }
       if (liftT && Date.now() - liftT > 25000) break;
       await sleep(100);
     }
