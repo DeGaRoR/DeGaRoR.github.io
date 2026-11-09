@@ -3100,6 +3100,54 @@ if (typeof hangarFit === 'function' && PROPS_OK) {
                  ' (' + u.reason + ')');
 }
 
+// ---- THE FLOOR UNDER WHAT STANDS ON IT (PROP-FOOT, LOOK-1 9 Nov 2026) ------
+// The user: "the car in the different garages, under its tarp, does not cast shadows on the ground, while the ground should
+// be almost black below it. It does not even have to be a dynamic shadow, it can simply be a projected shape" - and every
+// heavy prop on the floor floated the same way (the carts, the benches, the crates, the drums, the racks). One static shape
+// per prop, the houses' own ground AO (tools/_house_gen.js buildGroundAO, G302): full under the thing's footprint, the
+// (1 - t)^2 tail out to `soft` past its edge, near-black (the skirt's 0x0a0906), its alpha per vertex. ALL the room's props in
+// ONE merged mesh, one draw, one material (MATLIB basic, vertex alpha: no texture, no hook), depthWrite off, lifted 12 mm and
+// polygon-offset so it never fights the floor. The car is the darkest (0.92: a car's belly is a hand off the floor, under a
+// tarp to the ground); a prop's own row in FOOT_K wins over the default. Riders (on a cart, a bench) and props under
+// 0.25 m tall cast none; a recipe standing on the floor (the benches, the racks, the stove) by its own footprint.
+const FOOT_K = { car_covered: [0.92, 0.45] };   // [darkness under it, the tail past its edge in m]
+const FOOT_MESH = (() => {
+  if (!PROPS_OK || typeof PROP_REG === 'undefined') return null;
+  const occ = [];
+  const add = (x, z, ry, hx, hz, k, soft) => { if (hx > 0.05 && hz > 0.05) occ.push({ x, z, ry: ry || 0, hx, hz, k, soft }); };
+  for (const p of FIT.placed) {
+    const R = PROP_REG.props[p.prop]; if (!R || (p.y || 0) > 0.05 || !(R.dim[1] >= 0.25)) continue;
+    const f = FOOT_K[p.prop] || [0.55, 0.18 + 0.12 * Math.min(R.dim[1], 1.5)];
+    add(p.x, p.z, p.ry, R.dim[0] / 2, R.dim[2] / 2, f[0], f[1]);
+  }
+  for (const r of FIT.recipes) if (!r.on && r.foot && !/hang/i.test(r.recipe || '')) add(r.x, r.z, r.ry, r.foot[0], r.foot[1], 0.5, 0.3);
+  if (!occ.length) return null;
+  const pos = [], col = [], idx = [], UP = 0.012;
+  for (const o of occ) {
+    const c = Math.cos(o.ry), sn = Math.sin(o.ry), N = Math.max(16, Math.min(40, Math.round((o.hx + o.hz) * 6)));
+    const at = (ang, r, a) => { const lx = Math.cos(ang) * r, lz = Math.sin(ang) * r;
+      pos.push(o.x + lx * c + lz * sn, UP, o.z - lx * sn + lz * c); col.push(1, 1, 1, a); };
+    const b = pos.length / 3; at(0, 0, o.k);
+    for (let i = 0; i < N; i++) { const ang = 2 * Math.PI * i / N, ca = Math.cos(ang), sa = Math.sin(ang);
+      const e = 1 / Math.max(Math.abs(ca) / o.hx, Math.abs(sa) / o.hz);   // the footprint's edge at this angle
+      at(ang, e, o.k); at(ang, e + o.soft * 0.4, o.k * 0.36); at(ang, e + o.soft, 0); }
+    for (let i = 0; i < N; i++) { const j = (i + 1) % N, A = b + 1 + 3 * i, B = b + 1 + 3 * j;
+      idx.push(b, B, A);
+      for (let r = 0; r < 2; r++) idx.push(A + r, B + r, B + r + 1, A + r, B + r + 1, A + r + 1); }
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 4));
+  geo.setIndex(idx);
+  const ML = typeof MATLIB !== 'undefined' ? MATLIB : require('./matlib.js');
+  const mat = ML.make(THREE, 'basic', { color: 0x0a0906, vertexColors: true, transparent: true, depthWrite: false, side: THREE.DoubleSide,
+                                        polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+  const m = new THREE.Mesh(geo, mat);
+  m.name = 'room:propFoot'; m.renderOrder = 5; m.castShadow = false; m.receiveShadow = false; m.userData.footProps = occ.length;
+  G.add(m);
+  return m;
+})();
+
 // NO PENDANTS OVER THE BENCHES. Four of them used to hang here at eaves
 // height with nothing above them — a lamp needs a rod to hang from, and the
 // six that have one are placed with the shop lamps further down.
