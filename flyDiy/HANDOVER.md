@@ -313677,3 +313677,41 @@ BATTERY (full log read): 120 PASS / 8 FAIL (L35c 118 / 10).
 RE-GATE after the revert, the parked fleet re-cooked (same): STOL, UISMOKE, UISMOKE-PHONE, DMGMEMBERS, SKINMAT, FIT, CLIP, SAVE, PARTS, TECH, PANEL PASS; GEN back to its one L35c red ("cruise is quiet in wind", Pilot), every build digest master's again.
 No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change: PHYSICS_V 7, GEN_SPEC_V 10, GEN_CERT_V 7, as on master.
 TIMED GATE: light, stale 12 Oct baseline; all 7 rollouts ran. Steady frames p50 33.3 ms on every flown row. L35c's 4.9 s cub taxi freeze @HOME is GONE: no frame over 1 s in any taxi, take-off or flight segment. The one >1 s pair (8.5 s + 4.0 s) is in the cub cockpit's garage stand before the reveal (boot/compile, the cold shader cache, as L35a-c). Reds are the boot and compile rows, as before.
+
+## COMMS-SECTION - THE AERIALS GET THEIR OWN PART, COMMUNICATIONS, LAID OUT FROM THE RADIOS (8-9 Nov, AVIONICS-PFD-LAND for the user via A0; out of L35d, for L36a)
+
+The user: "give them their own section right now ... They should probably go to COMMUNICATIONS ... right now just
+cosmetically. But let's prepare for that, for a coherent set." Design: flydiy-notes/COMMS-SECTION-DESIGN-2026-11-08.md
+(the user, 9 Nov: yes to all five; this is ready 1, the move - ready 2, small: an ELT option, the GPS puck and the ELT
+whip shown only when fitted). It was in L35d as 096ce99e6 and taken back out (6d1b2e108, GATE STOL, below); this is it
+again as fresh commits on master ebc4c9edd: 5f104dfa8 + ac2cc9b6b (the move), 7788e581c (the fix), fcb7f5b10 built.
+
+- **The set, `GEN_COMMS`** (src/core/60_gen_spec.js, exported): one row per radio in the panel's order - COM 1 (`com`,
+  commAerial), NAV (`nav`, navAerial), Transponder (`xpdr`, xpdrAerial); COM 2, GPS and ELT declared `later`, with no
+  aerial yet. Each aerial row of GEN_ACCESS names its radio back (`radio: 'com1' | 'nav' | 'xpdr'`; the field is `radio`
+  because `serves` was already the row's description). Nothing flies on it today: it is the table a working radio reads.
+- **The part, Communications (`comms`)** (tools/_cage_parts.js), parent Cabin fit, layer access: a "fitted" switch
+  (`accAerials`, the same key) and one block per radio from COMMS_SET (the placement rows of its aerial; along/around in
+  expert). `when: P => +P.accAerials`, gate `accAerials` - not Fittings' `accOn`: GATE PARTS forbids a part hidden by
+  another part's own switch. Fittings keeps fluids, access, outside instruments and handling; its rows no longer hold the
+  aerials.
+- **The skin beacon is a light:** it moved to Lights with its own switch `accBeacon` (_cage_access.js family + FAMILY).
+  **In a file, an absent `accBeacon` is the aerials' switch** (`accAerials`): the cage's load door fills it into P from
+  accAerials (_cage_gen.js, beside the G180 migrations), the family check reads absent the same, and **cageToSpec writes
+  it only where it parts from accAerials**. So a build whose two switches agree - every build saved before - saves,
+  joins and hashes to master's bits. It also rides BENCH_STATE_ROWS, CERT_STATE_ROWS and PROCURE_STATE_ROWS.
+  - **Why (L35d, 9 Nov):** 096ce99e6 wrote `accBeacon` into every loaded file; the join carried it into spec.cage, so
+    GATE STOL saw the six validated builds' joined spec DIFFER and their bench / parked / certificate-store /
+    procurement keys MOVED (certificates withdrawn, the parked fleet re-cooked). **A new cage key must never land in a
+    loaded file at its default** - STOL's sameSpec is the test.
+- **A click** on an aerial selects Communications, on the beacon Lights (editor.js part map, before the `^edAcc_` row).
+- **Unchanged:** every `acc_<row>_*` key, the access layer, the meshes, the placement code, mass and price (0 kg in rows,
+  as before).
+- **Gates** (nice'd, --jobs=1, 9 Nov 01:54-02:22 on fcb7f5b10): STOL PASS; GEN 76/77 with only master's own "cruise is
+  quiet in wind" (red on ebc4c9edd itself, Pilot's; no build digest moved); PANEL (new 5b: GEN_COMMS ties both ways, and
+  each radio alone on a minimal build draws only its own aerial), PARTS, FIT, SAVE, FITMANUAL, CLIP, WEARPRICE,
+  CERTGATES, BENCH - all PASS.
+- **The saved builds' aerials, master ebc4c9edd vs the ready:** the UPRIGHT-FOOT probe (every aerial row's key, side, host, p,
+  sunk on the stock card, the rod, the Cessna 172 and the metal Cessna) - identical to the bit (1235 bytes).
+- **Known limit (A0: fine, named):** the beacon's placement rows hide with the Lights part when `lightOn` is 0, while
+  the skin beacon (accBeacon) stays drawn. Evidence: flydiy-notes/evidence-2026-10-18/2026-11-08/comms/ (run6.log; run3.log the first, reverted, ready).
