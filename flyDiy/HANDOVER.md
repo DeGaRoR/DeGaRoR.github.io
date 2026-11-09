@@ -313664,3 +313664,16 @@ HANGAR PASS, STAND PASS, HANGARVIEW PASS, FADES PASS, COVER PASS; node --check O
 - **Gates**: UISMOKE PASS, UISMOKE-PHONE PASS on master L35c b25872b51 + the fix (and on L35a + assets-green + the fix).
 - **Not this ref**: DMGMEMBERS (101/103 in L35c) is the Super Petrel, the sixth build the seaplanes ready added to _load_build.js VALIDATED; its carbon is Euler-capped and its fittings read 0.57-1.15, against rules written before any carbon build. A0 routed it to SEAPLANES and Deform.
 - Note: flyDiy/reports/evidence/ASSETS-GREEN/READY-2.md.
+
+## A0 - train L35d, 9 Nov 2026
+
+IN (on L35c b25872b51): core-math-green, real-figures, nodummy-green, hview-off (the hangar door view off by default), tech-seaplane, emitalloc-child, hangar-names, star-love (the user: star reflections OK, stretch 0), upright-foot (sunk aerials), dmghull-green, roof-lights (the user: OK as built), skinmat-wheelwell, assets-green-2, dmgmembers-petrel, newplane-late (the chooser no longer opens over a flight).
+OUT: comms-section 096ce99e6, merged then REVERTED (6d1b2e108). Its load door wrote cage.accBeacon into every file, so the six validated builds' bench / parked / certificate-store / procurement keys moved (GATE STOL), while def, 4 s, drawing and design check stayed =. Fix d53cafddd (accBeacon written only where it differs from accAerials) re-gates after this train and rides L36a.
+DROPPED: garage-clouds, a real conflict in tools/_hangarview_check.js; Game rebases it.
+BATTERY (full log read): 120 PASS / 8 FAIL (L35c 118 / 10).
+- Now green: UISMOKE, UISMOKE-PHONE, DMGMEMBERS, SKINMAT.
+- Still red, as on L35c: GEN, TOUR, DMGGEAR (the Petrel float nose-in; Deform rules Monday against FAR 23.529 / 23.527), FRAMECOST, ROUNDTRIP, ENGCONFIG (the same stale digest list).
+- New red, both explained: STOL (comms-section, reverted) and BUILT (the train state before the "(built)" commit; push.sh checks BUILT_STRICT after it).
+RE-GATE after the revert, the parked fleet re-cooked (same): STOL, UISMOKE, UISMOKE-PHONE, DMGMEMBERS, SKINMAT, FIT, CLIP, SAVE, PARTS, TECH, PANEL PASS; GEN back to its one L35c red ("cruise is quiet in wind", Pilot), every build digest master's again.
+No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change: PHYSICS_V 7, GEN_SPEC_V 10, GEN_CERT_V 7, as on master.
+TIMED GATE: light, stale 12 Oct baseline; all 7 rollouts ran. Steady frames p50 33.3 ms on every flown row. L35c's 4.9 s cub taxi freeze @HOME is GONE: no frame over 1 s in any taxi, take-off or flight segment. The one >1 s pair (8.5 s + 4.0 s) is in the cub cockpit's garage stand before the reveal (boot/compile, the cold shader cache, as L35a-c). Reds are the boot and compile rows, as before.
