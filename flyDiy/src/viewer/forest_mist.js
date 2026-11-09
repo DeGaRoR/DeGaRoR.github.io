@@ -230,7 +230,11 @@ var FMIST = (function () {
     cardMat.uniforms.uK.value.set(k[0], k[1], k[2]);
     cardMat.uniforms.uTime.value = (st.t || 0);
     const wl = Math.hypot(wind[0], wind[1]) || 1; cardMat.uniforms.uWind.value.set(wind[0] / wl, wind[1] / wl);
-    if ((cardFrame++ % S.cardEvery) !== 0) return;
+    // re-dealt every cardEvery frames, AND at once when the strengths move or the deck is empty (the first sheet's cards
+    // were switched on 5 frames before the still and the next deal was 13 frames away: an empty deck photographed)
+    const kk = k.map(v => v.toFixed(2)).join(',');
+    if ((cardFrame++ % S.cardEvery) !== 0 && kk === st.cardK && cardMesh.count > 0) return;
+    st.cardK = kk;
     const R2 = (S.cardKm * 1000) ** 2, pick = [];
     for (const c of cand) { const d2 = (c.x - eye.x) ** 2 + (c.z - eye.z) ** 2; if (d2 < R2 && (c.kind === 0 ? k[0] : k[1]) > 0.01) pick.push([d2, c]); }
     pick.sort((a, b) => a[0] - b[0]);
