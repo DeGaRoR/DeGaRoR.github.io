@@ -214,6 +214,11 @@ before every battery so stale hand-edits get overwritten, loudly.
   bench `tools/_derelict.html` (the alps sky, the field, a forest, the club next door, a true mirror in the puddles),
   its stills `tools/derelict_shot.js` (headless SwiftShader -> reports/evidence/DERELICT-HANGAR/), GATE DERELICT
   `tools/_derelict_check.js`. Design note futureDesigns/DERELICT-HANGAR-2026-11-09.md (structure, stages, budget).
+  THE LARGE HANGAR'S ROOM IS THIS MESH: hangar.js shell 'works' (frame 'steel') stands DERELICT_GEN stage 3's bags in
+  place of the portal shell (?roomderelict=0 the old room); 26_hangar_fit SHELLS.works 'Large hangar', galleries
+  { right 5.5, left 1.0 }, hangarBay (the clear bay, the 33.5 m door centred at room z -2.25), the cozy layout by
+  default; hangarPark / rollanim / the sandbox's stand on the door's line. Its pictures: `tools/large_hangar_shot.js`
+  (the game's own page, the Cub and the DC-3; exposure lifted, the headless path has no grade).
 - `vendor/` — three.js r186 (W0.5a, 2026-09-13), BUILT by `tools/vendor_three.js`
   from `package.json`'s pin (`npm install && node tools/vendor_three.js`): an
   esbuild IIFE with a global `THREE`, a CommonJS export for the node gates,
