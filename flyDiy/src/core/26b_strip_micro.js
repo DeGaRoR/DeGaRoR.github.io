@@ -20,6 +20,9 @@
 //   rough   value noise in octaves of 32 .. 1 m whose spectrum follows ISO 8608 (road roughness: displacement PSD
 //           Gd(n) = Gd(n0) (n / n0)^-2, n0 = 0.1 cycle/m); `chaos` picks Gd(n0) = 16e-6 x 4^(5 chaos) m^3 -
 //           chaos 0.2 class B, 0.4 C (sd ~1 cm), 0.6 D, 0.8 E (sd ~4.5 cm, a rough bush strip), 1 F (sd ~9 cm)
+//   lumps   (DEEPER) value noise at 3.5 and 1.8 m, `lumps` cm at the crest (15 chaos): the bumps you see and feel
+//   ways    (RUTS FIRST) the vehicles' double track, a cart's grooves + its horse, a walkers' path - troughs `ruts` deep with
+//           their berms (see THE WAYS)
 //   holes   sparse smooth bowls (radius 0.5-1.1 m, `holeDepth` cm), `holes` per 100 m of strip, two in three in a lane
 //   the tapers: 0 over the last 2 m inside each edge (the side fade, the ground patch's sink are untouched) and the
 //   first / last 4 m of the strip (the grade's own ground beyond)
@@ -30,16 +33,22 @@
 // THE HASH is an integer one (Math.imul), exact in JS and in GLSL's uint arithmetic, so the shader's holes are these.
 'use strict';
 const STRIP_MICRO = (() => {
-  const KNOBS = ['chaos', 'crown', 'rut', 'holes', 'holeDepth', 'puddles', 'hazards', 'hazardSize', 'swell', 'seed'];
+  const KNOBS = ['chaos', 'crown', 'rut', 'holes', 'holeDepth', 'puddles', 'hazards', 'hazardSize', 'swell', 'lumps', 'ruts', 'cart', 'path', 'rocks', 'seed'];
   // what chaos derives when a knob is left out (crown in %, rut and holeDepth in cm, holes per 100 m)
   // (hazards: the user, 9 Nov via A0 - "a couple of really random things that are better to be avoided, but that are avoidable
   // too, like big bumps": 0 under chaos 0.15, 1 to 0.5, 2 to 0.8, 3 above; hazardSize in cm)
-  const derive = c => ({ crown: 1.5 + 1.0 * c, rut: 6 * c, holes: c < 0.25 ? 0 : 14 * (c - 0.25), holeDepth: 4 + 12 * c, puddles: 0,
+  // (DEEPER, the user 9 Nov 16:55 "yes, deeper bumps", 17:00 "the main relief should come from the ruts themselves" and "these
+  // strips are used by the planes, but also by other vehicles, pedestrians, animals, carriages ... too clean": THE WAYS -
+  // `ruts` cm, 12 chaos, the vehicles' double track and what follows it - and the LUMPS, 3.5 m and 1.8 m bumps, 8 chaos cm;
+  // `rut` is now the aeroplanes' own wide, shallow lanes, 4 chaos cm; cart / path -1 = the seed decides; `rocks` the
+  // chance of a stone in a 1.2 m cell, drawn only - the rocks you hit are their own work)
+  const derive = c => ({ crown: 1.5 + 1.0 * c, rut: 4 * c, lumps: 8 * c, ruts: 12 * c, cart: -1, path: -1, rocks: Math.min(0.55, 0.1 + 0.6 * c), holes: c < 0.25 ? 0 : 14 * (c - 0.25), holeDepth: 4 + 12 * c, puddles: 0,
     hazards: c < 0.15 ? 0 : c < 0.5 ? 1 : c < 0.8 ? 2 : 3, hazardSize: 20 + 20 * c,
     // THE SWELL (the user, 9 Nov ~05:00, on chaos 0.8's +-10 cm: "completely invisible ... plus or minus 10 centimeters really
     // not gonna make the difference"): long rolls of 25 and 12 m on top of ISO's short roughness, `swell` cm at its crest - 30 c
     swell: 30 * c });
   const FLEET_MEAN = 1.098;                 // pavement.js PV_FLEET_MEAN: the lanes' half-track
+  const BERM = 0.35;                         // a way's berm, x its depth
   const EDGE_IN = [0.5, 2.5], END_IN = 4, CELL = 6, OCT = [32, 16, 8, 4, 2, 1], N0 = 0.1, NOISE_SD = 0.428;   // NOISE_SD: vnoise's own, measured (2e5 points)
   const ss = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
   // the integer hash: three ints -> [0, 1) on 24 bits (exact in float32 too)
@@ -63,7 +72,8 @@ const STRIP_MICRO = (() => {
     const c = Math.max(0, Math.min(1, +(m && m.chaos) || 0)), D = derive(c), o = { chaos: c };
     const pick = (k, lo, hi) => { const v = m && m[k] !== undefined && m[k] !== null && isFinite(+m[k]) ? +m[k] : D[k]; return Math.max(lo, Math.min(hi, v)); };
     o.crown = pick('crown', 0, 5); o.rut = pick('rut', 0, 20); o.holes = pick('holes', 0, 30); o.holeDepth = pick('holeDepth', 0, 25); o.puddles = pick('puddles', 0, 1);
-    o.hazards = Math.round(pick('hazards', 0, 4)); o.hazardSize = pick('hazardSize', 0, 50); o.swell = pick('swell', 0, 60);
+    o.hazards = Math.round(pick('hazards', 0, 4)); o.hazardSize = pick('hazardSize', 0, 50); o.swell = pick('swell', 0, 60); o.lumps = pick('lumps', 0, 30);
+    o.ruts = pick('ruts', 0, 25); o.cart = Math.round(pick('cart', -1, 1)); o.path = Math.round(pick('path', -1, 1)); o.rocks = pick('rocks', 0, 0.9);
     o.seed = m && isFinite(+m.seed) ? (+m.seed | 0) : 0;
     o.gd = 16e-6 * Math.pow(4, 5 * c);   // Gd(n0), m^3
     return o;
@@ -79,7 +89,7 @@ const STRIP_MICRO = (() => {
     // ISO 8608 per octave: the band [lambda / sqrt2, lambda sqrt2] holds Gd n0^2 lambda (sqrt2 - 1/sqrt2) of variance
     const amp = OCT.map(l => Math.sqrt(K.gd * N0 * N0 * l * 0.7071) / NOISE_SD);
     const crownS = K.crown / 100, rutD = K.rut / 100, holeD = K.holeDepth / 100;
-    const sig = 0.35 + 0.05 * halfW, swA = K.swell / 100;
+    const sig = 0.35 + 0.05 * halfW, swA = K.swell / 100, lA = K.lumps / 100;
     const pHole = Math.fround(Math.min(0.95, K.holes * CELL / 100 / 2));   // two candidates a cell
     const pudOK = K.puddles > 0 ? 1 - ss(0.015, 0.03, Math.abs(grade || 0)) : 0;
     // a cell's hole m (0, 1): null or [u, v, R, depth]
@@ -136,13 +146,71 @@ const STRIP_MICRO = (() => {
       return [h, w];
     }
     function lanes(v) { const a = (Math.abs(v) - FLEET_MEAN) / sig, b = v / (sig * 0.8); return Math.max(Math.exp(-a * a), 0.55 * Math.exp(-b * b)); }
+    // THE WAYS (RUTS FIRST). A strip is a track everybody uses. The VEHICLES' double track is always there: a half-track
+    // 0.78-0.88 m (a pickup, a quad, the fuel bowser), tyres worn into flat-bottomed ruts `ruts` deep and 0.30 m across, the
+    // ground they pushed out banked beside them (BERM x the depth); a CART some strips keep (cart -1: two in five) runs in
+    // them too, on narrow wheels at 0.68 m - thin, sharp grooves - with its horse's trodden lane between; a PATH (path -1:
+    // three in five) is the walkers' and the animals' single file, near a side. Each wanders along the strip (a 60 m and a
+    // 15 m noise). Where two troughs cross the deeper wins (a wheel cannot dig twice); the berms lie only off the troughs.
+    // [half-track (0 = one file), trough half-width, depth m, berm, c0, wander 60 m, wander 15 m, noise key]
+    const rutsD = K.ruts / 100, WAYS = [];
+    if (rutsD > 0) {
+      const room = Math.max(0, halfW - EDGE_IN[1] - 0.9 - 0.4);
+      const vc = (ih(0, 0, seed + 401) - 0.5) * 2 * room * 0.35;
+      WAYS.push([0.78 + 0.10 * ih(0, 1, seed + 401), 0.15, rutsD, BERM, vc, 0.30, 0.08, 0]);
+      if (K.cart === 1 || (K.cart === -1 && ih(1, 0, seed + 401) < 0.4)) {
+        const cc = vc + (ih(1, 1, seed + 401) - 0.5) * 0.4;
+        WAYS.push([0.68, 0.10, 0.35 * rutsD, 0.25, cc, 0.25, 0.06, 1]);
+        WAYS.push([0, 0.18, 0.22 * rutsD, 0, cc, 0.25, 0.06, 1]);           // the horse: the cart's own line, between its wheels
+      }
+      if (K.path === 1 || (K.path === -1 && ih(2, 0, seed + 401) < 0.6)) {
+        const side = ih(2, 1, seed + 401) < 0.5 ? -1 : 1, pv = Math.max(0, halfW - EDGE_IN[1] - 0.3 - 0.8 * ih(2, 2, seed + 401));
+        WAYS.push([0, 0.17, 0.35 * rutsD, 0.2, side * pv, 0.30, 0.10, 2]);
+      }
+    }
+    const wayC = (W, u) => W[4] + W[5] * vnoise(u / 60, W[7], seed + 411) + W[6] * vnoise(u / 15, W[7], seed + 421);
+    // the ways at (u, v): [dh (troughs down, berms up), the deepest trough's share 0..1, which way (-1 none)]
+    function waysAt(u, v) {
+      let dMax = 0, tMax = 0, bm = 0, wi = -1;
+      for (let i = 0; i < WAYS.length; i++) {
+        const W = WAYS[i], c = wayC(W, u);
+        // deeper and shallower along it (a 9 m noise: where it held water, where it was graded), its edge ragged (0.7 m)
+        const dep = W[2] * (0.75 + 0.25 * vnoise(u / 9, W[7] + 3, seed + 431));
+        for (let s = W[0] > 0 ? -1 : 1; s <= 1; s += 2) {
+          const x = v - c - s * W[0] + 0.03 * vnoise(u / 0.7, W[7] * 2 + s, seed + 441), q = x / W[1], t = Math.exp(-q * q * q * q);
+          const bq = (Math.abs(x) - 1.7 * W[1] - 0.06) / (0.6 * W[1] + 0.05);
+          if (dep * t > dMax) { dMax = dep * t; wi = i; } tMax = Math.max(tMax, t);
+          bm += W[3] * dep * Math.exp(-bq * bq);
+        }
+      }
+      return [-dMax + bm * (1 - tMax), tMax, wi];
+    }
+    // THE ROCKS (drawn, not felt): a stone in one 1.2 m cell in `rocks`, more toward the edges (the grader's windrow, what
+    // the wheels threw), 7-27 cm; pebbles in 0.3 m cells, 1.5-6.5 cm. Each sits in the middle half of its cell, so a point
+    // asks its own cell only. -> [u, v, R] or null (pavement.js pvRock, line for line)
+    function rockIn(i, j, big) {
+      const M = big ? 1.2 : 0.3, sk = seed + (big ? 501 : 511);
+      const vC = (j + 0.5) * M, edge = ss(0.3, 0.9, Math.abs(vC) / halfW);
+      const p = big ? K.rocks * (0.4 + 0.6 * edge) : Math.min(0.6, 0.1 + 0.9 * K.rocks) * (0.6 + 0.4 * edge);
+      if (ih(i, j, sk) >= p) return null;
+      const a = ih(i, j, sk + 1), b = ih(i, j, sk + 2), e = ih(i, j, sk + 3);
+      return [(i + 0.25 + 0.5 * a) * M, (j + 0.25 + 0.5 * b) * M, big ? 0.07 + 0.2 * e * e : 0.015 + 0.05 * e * e];
+    }
+    function rockAt(u, v) {
+      let best = 0;
+      for (const big of [true, false]) { const M = big ? 1.2 : 0.3, R = rockIn(Math.floor(u / M), Math.floor(v / M), big);
+        if (R) { const r = Math.hypot(u - R[0], v - R[1]) / R[2]; if (r < 1) best = Math.max(best, R[2] * 0.6 * Math.sqrt(1 - r * r)); } }
+      return best;
+    }
+    // THE LUMPS (DEEPER): two octaves of value noise at 3.5 and 1.8 m, `lumps` at their crest
+    const lumpsAt = (u, v) => lA * (0.65 * vnoise(u / 3.5, v / 3.5, seed + 301) + 0.35 * vnoise(u / 1.8, v / 1.8, seed + 302));
     // THE RELIEF (what the eye reads: pavement.js pvRelief, the same terms): the roughness, the holes and the hazards with
     // their tapers - not the crown and not the lanes (the lanes are the tyre marks' own look) - 0 outside the box
     function reliefUV(u, v) {
       if (u <= 0 || u >= len || v <= -halfW || v >= halfW) return 0;
       const eT = ss(0, END_IN, u) * ss(0, END_IN, len - u), dT = ss(EDGE_IN[0], EDGE_IN[1], halfW - Math.abs(v));
       let r = 0;
-      if (dT > 0) { if (K.gd > 0) for (let k = 0; k < OCT.length; k++) r += amp[k] * vnoise(u / OCT[k], v / OCT[k], seed + 101 + k); if (swA > 0) r += swA * (0.7 * vnoise(u / 25, v / 25, seed + 201) + 0.3 * vnoise(u / 12, v / 12, seed + 202)); r = dT * (r - holesAt(u, v, 0)[0]); }
+      if (dT > 0) { if (K.gd > 0) for (let k = 0; k < OCT.length; k++) r += amp[k] * vnoise(u / OCT[k], v / OCT[k], seed + 101 + k); if (swA > 0) r += swA * (0.7 * vnoise(u / 25, v / 25, seed + 201) + 0.3 * vnoise(u / 12, v / 12, seed + 202)); if (lA > 0) r += lumpsAt(u, v); r = dT * (r - holesAt(u, v, 0)[0]); }
       if (HZ.length) r += ss(0, 0.5, halfW - Math.abs(v)) * hazardsAt(u, v, 0)[0];
       return r * eT;
     }
@@ -157,14 +225,15 @@ const STRIP_MICRO = (() => {
         let r = 0;
         if (K.gd > 0) for (let k = 0; k < OCT.length; k++) r += amp[k] * vnoise(u / OCT[k], v / OCT[k], seed + 101 + k);
         if (swA > 0) r += swA * (0.7 * vnoise(u / 25, v / 25, seed + 201) + 0.3 * vnoise(u / 12, v / 12, seed + 202));
+        if (lA > 0) r += lumpsAt(u, v);
         const rut = rutD > 0 ? rutD * lanes(v) * (0.7 + 0.3 * vnoise(u / 23, 0.5, seed + 7)) : 0;
-        h += dT * (r - rut - holesAt(u, v, 0)[0]);
+        h += dT * (r - rut + waysAt(u, v)[0] - holesAt(u, v, 0)[0]);
       }
       if (HZ.length) h += ss(0, 0.5, halfW - Math.abs(v)) * hazardsAt(u, v, 0)[0];
       return h * eT;
     }
     // the ceiling: the crown's top + every octave's amplitude (the ruts and the holes only go down)
-    const bound = crownS * halfW / 2 + amp.reduce((s, a) => s + a, 0) + swA + hzUp + 1e-6;   // (+ the swell's crest, + the highest hazard bump)
+    const bound = crownS * halfW / 2 + amp.reduce((s, a) => s + a, 0) + swA + hzUp + lA + WAYS.reduce((m, W) => m + 2 * W[3] * W[2], 0) + 1e-6;   // (+ the swell's crest, + the highest hazard bump, + the lumps, + every berm)
     // the box in the caller's frame (for the modifier's bbox and its tiles)
     const corners = [[0, -halfW], [len, -halfW], [len, halfW], [0, halfW]].map(([u, v]) => [x0 + cs * u - sn * v, z0 + sn * u + cs * v]);
     const bbox = { x0: Math.min(...corners.map(q => q[0])), z0: Math.min(...corners.map(q => q[1])), x1: Math.max(...corners.map(q => q[0])), z1: Math.max(...corners.map(q => q[1])) };
@@ -185,7 +254,7 @@ const STRIP_MICRO = (() => {
         if (fill <= 0 || q[0] <= 0 || q[0] >= len || Math.abs(q[1]) >= halfW) return 0;
         return Math.max(holesAt(q[0], q[1], fill)[1], hazardsAt(q[0], q[1], fill)[1]);
       },
-      hole, lanes, toUV, reliefUV, hazards: HZ, a1: amp[OCT.length - 1],
+      hole, lanes, ways: WAYS, waysAt, rockAt, rockIn, toUV, reliefUV, hazards: HZ, a1: amp[OCT.length - 1],
     };
   }
   // THE LIVE LIST (what a world composed): compose publishes its micro strips (in the WORLD frame: { toLocal, f }) by
@@ -196,10 +265,13 @@ const STRIP_MICRO = (() => {
   function puddleAt(x, z, wet) { if (!(wet > 0)) return 0; for (const L of live.values()) for (const s of L) { const q = s.toLocal(x, z); const b = s.f.bbox; if (q[0] >= b.x0 && q[0] <= b.x1 && q[1] >= b.z0 && q[1] <= b.z1) { const w = s.f.puddleAt(q[0], q[1], wet); if (w > 0) return w; } } return 0; }
   // has(id): a published strip of that id is bumpy (render_world refines its ribbon to REFINE_MIN: pavement.js refineAxis)
   function has(id) { for (const L of live.values()) for (const s of L) if (s.id === id) return true; return false; }
-  const REFINE_MIN = 0.25;
+  // the drawn ribbon's finest rows (pavement.js refineAxis): 0.3 m along (the lumps' 1.8 m), 8 cm across (a rut's wall)
+  const REFINE_MIN = 0.3, REFINE_MIN_V = 0.08;
   // glslRow(id): the pavement shader's uMicro, uMicro2 for a published strip - [seed, hole probability (float32), hole depth m,
   // puddles x the grade's own, the 1 m octave's amplitude (the others x sqrt of their wavelength), hazards, hazard size m,
-  // 1 + the swell m] - pavement.js pvPuddle / pvRelief read exactly these; null when the strip is flat
-  function glslRow(id) { for (const L of live.values()) for (const s of L) if (s.id === id) { const f = s.f; return [f.seed, f.pHole, f.K.holeDepth / 100, f.K.puddles * f.pudOK, f.a1, f.K.hazards, f.K.hazardSize / 100, 1 + f.K.swell / 100]; } return null; }
-  return { KNOBS, on, resolve, derive, field, ih, vnoise, publish, at, puddleAt, has, glslRow, live, CELL, OCT, EDGE_IN, END_IN, REFINE_MIN };
+  // 1 + the swell m] and uMicro3 [the ways' ruts m, the lumps m, cart + 2 path (the ways the field built), rocks] - pavement.js
+  // pvPuddle / pvRelief / pvWays / pvRockIn read exactly these; null when the strip is flat
+  function glslRow(id) { for (const L of live.values()) for (const s of L) if (s.id === id) { const f = s.f; return [f.seed, f.pHole, f.K.holeDepth / 100, f.K.puddles * f.pudOK, f.a1, f.K.hazards, f.K.hazardSize / 100, 1 + f.K.swell / 100,
+    f.K.ruts / 100, f.K.lumps / 100, (f.ways.some(W => W[7] === 1) ? 1 : 0) + (f.ways.some(W => W[7] === 2) ? 2 : 0), f.K.rocks]; } return null; }
+  return { KNOBS, on, resolve, derive, field, ih, vnoise, publish, at, puddleAt, has, glslRow, live, CELL, OCT, EDGE_IN, END_IN, REFINE_MIN, REFINE_MIN_V, BERM };
 })();
