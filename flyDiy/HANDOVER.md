@@ -313893,3 +313893,31 @@ No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change: PHYSICS_V 7, GEN_SPEC_V 10, GEN_C
 TIMED GATE: light, the same shape as L35d. All 7 rollouts ran; steady frames p50 33.3 ms on every flown row.
 - The cold GPU shader cache again: master_bench's MISS (97 links over 5 s; L35d had 89) and compile 40-67 s. This is the rig's Chrome kill at master_bench.js:287, which A0 is fixing this week.
 - The one >1 s frame (3.95 s, c172 cockpit) is under the roll-out screen before the reveal (phase stand, context loading). No taxi, take-off or flight segment has a frame over 1 s.
+
+## A0 - train L36b, 9 Nov 2026
+
+IN (on L36a 7daba875d):
+- strip-micro-2 502c6841a: the bush strips' relief cues, avoidable hazards, puddles and swell. Chaos is still OFF on every strip, so nothing moves in the world yet.
+- dirt-dust: weather-driven dust from the tyres and the prop, on SOIL_WET. Cost A/B on the cooked tree, one run per arm, dust on/off:
+  - gamer taxi, frame median 16.6 / 18.0 ms, p99 35.7 / 36.8;
+  - gamer take-off, median 18.4 / 18.0, p99 35.9 / 35.8;
+  - laptop, median 11.4 / 11.1, p99 16.8 / 15.4;
+  - the dust's own CPU median 0.1 ms, max 1.5;
+  - +1 program link at roll-out, inside FRAMECOST's tolerance.
+- The dust's ASSETS fix (DUSTFIX): the material is made through matlib.js (AS4a), the same material.
+- stol-hullrows 52a725af4: the STOL capture drops the hull-type rows at their off value, as the gate does. Tools only; master's fixture stands. STOL PASS here.
+
+NOT IN: strip-names. Its NAMES gate was red: the island record still carried the old names. It re-gates Tue 00:35 together with strip-chaos-on (w3 0.20, w8 0.40, Pilot-vetted) for Tuesday's first train.
+
+BATTERY (full log read): 128 PASS / 10 FAIL lines.
+- As on master (L36a): GEN ("cruise is quiet in wind"), TOUR shard 2 (the float Cessna mk_sea > SEA), DMGGEAR, FRAMECOST (master's 5 lines), ROUNDTRIP (2), ENGCONFIG.
+- ALTIPORT (3 lines, run in a train for the first time this week): the AP starts its final below the field's circuit height on HOME > tw_skib (the user's Cub and the metal Cessna), plus the doctored-arrival calibration line. DIRT-DUST saw the same on ebc4c9edd without these readies, and Pilot's tw_ski runs logged the same climb-hold on every tree today. It's master's, and on Pilot's list for Tuesday with the w5 / w1 / nv_strip approaches (Pilot's chaos vet: the C172 crashes at w5 after a go-around; Cub and Jodel w5 diverts; the Cub's nv_strip timeout and w1 divert failure).
+- ASSETS: new, from dirt-dust (`new THREE.ShaderMaterial` in dust.js). Fixed by DUSTFIX in this train; ASSETS + DUST re-run green before the push.
+
+No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change: PHYSICS_V 7, GEN_SPEC_V 10, GEN_CERT_V 7.
+
+TIMED GATE: light, the same shape as L36a.
+- 6 of 7 rollouts ran. rp_cub_cockpit_1 died in the rig ("__timeout" is not valid JSON at rollout_perf.js:461) after a 153.6 s garage. That's a rig fault: the CDP evaluate timed out on a slow cold page. Logged for A0's master_bench / rollout fix this week.
+- Steady frames p50 33.3 ms on every flown row; no frame over 1 s in any taxi, take-off or flight segment.
+- The >1 s gaps are all in the garage stand before the reveal (cub chase 5.2 s; the discarded warm_metal 9.0 s + 7.1 s): the cold GPU shader cache, master_bench's MISS, as L35a-L36a.
+- The floats take-off has one 133 ms frame.
