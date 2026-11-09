@@ -147,7 +147,9 @@ const BASE_OFFERS = {
       HOME: { shells: ['club', 'works', 'field'], kits: null, pf: 1, starter: true,
               dims: { field: { HW: 9, HD: 10, EAVE: 4.0 } } },
       'HOME.2': { shells: ['works', 'club', 'field'], kits: ['park'], pf: 1,
-                  dims: { field: { HW: 9, HD: 10, EAVE: 4.0 } } },
+                  // HOME-LAYOUT (the user, 9 Nov): the big derelict hangar is 50 x 60 at the plot's centre (DERELICT-HANGAR builds it); until
+                  // its shell lands, the works at the largest size its envelope offers (48 x 52, GATE GAMEPREM / SITE), the same centre
+                  dims: { field: { HW: 9, HD: 10, EAVE: 4.0 }, works: { HW: 24, HD: 26, EAVE: 9.5 } } },
     },
   },
   w3: {

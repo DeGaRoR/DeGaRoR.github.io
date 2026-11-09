@@ -32,7 +32,13 @@
   "mk_sea",
   "mk_mp_air",
   "mk_mf_air",
-  "af_wk_fence"
+  "af_wk_fence",
+  "af_wk_pallets",
+  "af_wk_cinder",
+  "af_wk_tin1",
+  "af_wk_tin2",
+  "af_wk_bags",
+  "af_wk_junk"
  ],
  "remove": [
   "r_airport",
@@ -76,19 +82,19 @@
  "fieldPatches": {
   "HOME": {
    "hangar": {
-    "x": -138.12,
-    "z": 700.58,
+    "x": -172.09,
+    "z": 640.58,
     "hdg": -0.8552
    },
    "stand": {
-    "x": -118.11,
-    "z": 677.57,
+    "x": -152.07,
+    "z": 617.56,
     "hdg": null
    },
    "taxiOut": [
     [
-     -128,
-     645
+     -149.29,
+     591.49
     ],
     [
      -142.55,
@@ -105,8 +111,12 @@
    ],
    "taxiOut1": [
     [
-     -100,
-     672
+     -122.38,
+     621.51
+    ],
+    [
+     -79.4,
+     648.27
     ],
     [
      -40,
@@ -124,25 +134,66 @@
    "plots": [
     {
      "id": "HOME.2",
-     "x": -118,
-     "z": 780,
-     "hdg": -1.9635
+     "x": -134.51,
+     "z": 696.43,
+     "hdg": -0.8552,
+     "stand": {
+      "x": -100.39,
+      "z": 657.18,
+      "hdg": null
+     },
+     "taxiOut": [
+      [
+       -68.24,
+       665.92
+      ],
+      [
+       -40,
+       676
+      ],
+      [
+       1.61,
+       682.64
+      ],
+      [
+       175.8,
+       635.49
+      ]
+     ],
+     "taxiOut1": [
+      [
+       -115.82,
+       613.96
+      ],
+      [
+       -142.55,
+       563.38
+      ],
+      [
+       -143.88,
+       389.2
+      ],
+      [
+       -128.23,
+       371.19
+      ]
+     ]
     }
    ]
   },
   "o3": {
-   "x": -170,
-   "z": 621,
+   "x": -14.2,
+   "z": 708.93,
    "yaw": -1.637
   },
   "af_park1": {
-   "x": -166,
-   "z": 593,
+   "x": -5.14,
+   "z": 716.8,
    "yaw": -1.637
   },
   "af_park2": {
-   "x": -170,
-   "z": 607,
+   "x": -71.94,
+   "z": 714.38,
    "yaw": -1.637
   },
   "w3": {
@@ -186,11 +237,157 @@
    "name": "Jolene VOR/DME (ANN 117.1)"
   },
   "s_club": {
-   "fences": []
+   "fences": [],
+   "at": {
+    "x": -177.6,
+    "z": 607.29,
+    "yaw": 3.141592653589793
+   },
+   "yard": {
+    "x0": -16,
+    "x1": 16,
+    "z0": -14,
+    "z1": 14
+   },
+   "items": [
+    {
+     "id": "clubhouse",
+     "key": "house/flying club",
+     "x": 0,
+     "z": 0,
+     "yaw": 2.426007660272118,
+     "P": {
+      "plotGround": false
+     },
+     "onRoad": false,
+     "bottomOnRoad": false,
+     "stage": {
+      "track": "clients",
+      "show": [
+       1,
+       null
+      ]
+     }
+    },
+    {
+     "id": "fuel",
+     "key": "big/fuel shed",
+     "x": 6.11,
+     "z": 11.27,
+     "yaw": 3.9968,
+     "P": {
+      "plotGround": false
+     },
+     "onRoad": false,
+     "bottomOnRoad": false
+    },
+    {
+     "id": "tools",
+     "key": "shed/tool shed",
+     "x": 11.35,
+     "z": 5.23,
+     "yaw": 2.426007660272118,
+     "P": {
+      "plotGround": false
+     },
+     "onRoad": false,
+     "bottomOnRoad": false
+    }
+   ]
+  },
+  "af_s_fire": {
+   "at": {
+    "x": -203.67,
+    "z": 615.77,
+    "yaw": -1.5708
+   }
+  },
+  "o1": {
+   "x": -85.75,
+   "z": 719.6,
+   "yaw": -1.5708
+  },
+  "o2": {
+   "x": -75.19,
+   "z": 728.79,
+   "yaw": 0.5585053606381855
+  },
+  "af_club_table": {
+   "x": -163.76,
+   "z": 615.04,
+   "yaw": 0.35
+  },
+  "af_club_chair1": {
+   "x": -170.01,
+   "z": 612.28,
+   "yaw": 2.1
+  },
+  "af_club_chair2": {
+   "x": -171.83,
+   "z": 611.94,
+   "yaw": -1.2
+  },
+  "af_club_man1": {
+   "x": -165.82,
+   "z": 614.97,
+   "yaw": 2.371
+  },
+  "af_club_man2": {
+   "x": -174.23,
+   "z": 612.54,
+   "yaw": -2.4
+  },
+  "af_club_planter": {
+   "x": -169.37,
+   "z": 614.23,
+   "yaw": 0.9424777960769379
+  },
+  "af_club_stool": {
+   "x": -173.03,
+   "z": 613.34,
+   "yaw": 0.5
+  },
+  "af_frt_truck": {
+   "x": -202.6,
+   "z": 660.43,
+   "yaw": -1.631
+  },
+  "af_fire_truck": {
+   "x": -193.01,
+   "z": 609.42,
+   "yaw": 0.7330382858376184
+  },
+  "x_club": {
+   "poly": [
+    [
+     -38.83,
+     769.27
+    ],
+    [
+     -133.85,
+     741.39
+    ],
+    [
+     -179.13,
+     702.03
+    ],
+    [
+     -227.57,
+     617.52
+    ],
+    [
+     -155.73,
+     534.88
+    ],
+    [
+     26.91,
+     693.65
+    ]
+   ]
   }
  },
- "fieldPatchesWhy": "(t53, 13 Oct: taxiOut1 ends where r_taxi_e's own line meets 13/31's centreline - (175.8, 635.49) - its 16 m dogleg onto the strip was a 1.9 m corner under the 6 m TAXICLEAR 3 holds) SCENERY-ED-1 G2890 (A0 13 Oct ~01:20 'GO'): HOME's main hangar beside the user's long club hangar, its stand, and the two taxi-outs rerouted over rev 28's y_pad and r_taxi_ne / r_taxi_e (r_airport / r_strip are gone); applied after the ship - a re-ship must apply it again; the user's import with the same patch: D:/Dev/flydiy-notes/inbox/jolene_rev28d_home_hangar.json. plots HOME.2 unchanged (pending the user); + plots (ED-1, A0's (a), 13 Oct ~02:15): HOME.2 keeps its shed position and heading and loses its own stand + taxiOut - two of its points ((-130,705), (-138,690)) lay inside the new main hangar; runwaySite serves it the field's new stand / route. The user's import: D:/Dev/flydiy-notes/inbox/jolene_rev28e_home_hangar.json (supersedes rev28d); + the three parked aeroplanes o3 / af_park1 / af_park2 moved onto the pad (t_pad's flatten), keys kept (SCENERY-ED-1, 13 Oct ~15:00: the user's rev 28 note 'the aircraft collection must be redone'; rev 28's y_pad no longer reached them - GATE PARKED 7) - in a row, noses to the eastbound route G3240 NAMES (22 Oct, GAME-PLAN §13, the user: 'Everything should have a fictional name'): w3, SEA, mn_strip, s_strip, mn_s_mine, nv_grounds take their fictional names (src/core/01_names.js; the record renamed without a rev bump) - the save keeps the user's old ones. + mn_y_stand (LOT-CLEAR, the user 22 Oct at the old mine: 'a surface for the starting zone ... the starting zone itself has no pavement'): the mine strip's stand drawn gravel like its lane (band 2) - shipped as the v1 material mn_y_stand_d beside the save's surface; applied after the ship - a re-ship must apply it again + s_vor_ann (JOLENE-FOLD, 25 Oct): the AFB (19) save carries the VOR site with its old name - names' fictional one kept. Every fieldPatch is applied after the ship (the save predates names and lot-clear) - a re-ship must apply them again | AFB-NO-FENCES (the user, 26 Oct via A0: 'can we also just get rid of the fences on the apron? No fences for anything on the WWII site please.'): s_club ships with no fences (its 4 rail runs, the save's) | DC-3 PARKING (the user 28 Oct via A0; DC3-2's 43bce3a68): o3 / af_park1 / af_park2 to the pad's west pocket by the fire bay, off the DC-3's swept wings",
- "exceptWhy": "sg_k_club:0..22, :frame, :clear - the club kit's STAGE EXPANSION (the editor's stage view expands a kit into its pieces and the save kept them: an editor bug, not the user's scenery); mk_sea, mk_mp_air, mk_mf_air - the town's seaplane base, which the save keeps (TOWN_OFF.keep) and the gate's town cut drops: shipped as they stand (names' fictional names) | AFB-NO-FENCES (the user 26 Oct): af_wk_fence (fence_old, the save's prop by the works) is held back - no fences on the WWII site",
+ "fieldPatchesWhy": "(t53, 13 Oct: taxiOut1 ends where r_taxi_e's own line meets 13/31's centreline - (175.8, 635.49) - its 16 m dogleg onto the strip was a 1.9 m corner under the 6 m TAXICLEAR 3 holds) SCENERY-ED-1 G2890 (A0 13 Oct ~01:20 'GO'): HOME's main hangar beside the user's long club hangar, its stand, and the two taxi-outs rerouted over rev 28's y_pad and r_taxi_ne / r_taxi_e (r_airport / r_strip are gone); applied after the ship - a re-ship must apply it again; the user's import with the same patch: D:/Dev/flydiy-notes/inbox/jolene_rev28d_home_hangar.json. plots HOME.2 unchanged (pending the user); + plots (ED-1, A0's (a), 13 Oct ~02:15): HOME.2 keeps its shed position and heading and loses its own stand + taxiOut - two of its points ((-130,705), (-138,690)) lay inside the new main hangar; runwaySite serves it the field's new stand / route. The user's import: D:/Dev/flydiy-notes/inbox/jolene_rev28e_home_hangar.json (supersedes rev28d); + the three parked aeroplanes o3 / af_park1 / af_park2 moved onto the pad (t_pad's flatten), keys kept (SCENERY-ED-1, 13 Oct ~15:00: the user's rev 28 note 'the aircraft collection must be redone'; rev 28's y_pad no longer reached them - GATE PARKED 7) - in a row, noses to the eastbound route G3240 NAMES (22 Oct, GAME-PLAN §13, the user: 'Everything should have a fictional name'): w3, SEA, mn_strip, s_strip, mn_s_mine, nv_grounds take their fictional names (src/core/01_names.js; the record renamed without a rev bump) - the save keeps the user's old ones. + mn_y_stand (LOT-CLEAR, the user 22 Oct at the old mine: 'a surface for the starting zone ... the starting zone itself has no pavement'): the mine strip's stand drawn gravel like its lane (band 2) - shipped as the v1 material mn_y_stand_d beside the save's surface; applied after the ship - a re-ship must apply it again + s_vor_ann (JOLENE-FOLD, 25 Oct): the AFB (19) save carries the VOR site with its old name - names' fictional one kept. Every fieldPatch is applied after the ship (the save predates names and lot-clear) - a re-ship must apply them again | AFB-NO-FENCES (the user, 26 Oct via A0: 'can we also just get rid of the fences on the apron? No fences for anything on the WWII site please.'): s_club ships with no fences (its 4 rail runs, the save's) | DC-3 PARKING (the user 28 Oct via A0; DC3-2's 43bce3a68): o3 / af_park1 / af_park2 to the pad's west pocket by the fire bay, off the DC-3's swept wings | HOME-LAYOUT (the user, 9 Nov ~20:10 via A0, validating the plan they drew on the satellite view: \"yes the plan looks good, let's go for it\" - \"it won't move again\"): the big derelict hangar (plot HOME.2, 50 x 60) at the centre, at the foot of the taxiways' Y, with its own stand and way out up the Y; the medium (HOME's club hangar, the start) 25 m to its left with its stand and both ways out; the clubhouse (s_club) at the medium's far-left front corner, turned 90 deg, the club's sheds beside it and its terrace (af_club_*) on the apron side - the long club hangar (s_club hangar_long) gone (\"the medium-long hangar ... has no reason to exist\"); the fire point (af_s_fire, af_fire_truck) 15 m further left; the loose parked aircraft (o1, o2, o3, af_park1, af_park2) to the two open parking spots; the freight truck behind the medium; the club's exclusion (x_club) widened to the new footprints. The back road (r39) untouched. Applied after the ship: a re-ship must apply it again",
+ "exceptWhy": "sg_k_club:0..22, :frame, :clear - the club kit's STAGE EXPANSION (the editor's stage view expands a kit into its pieces and the save kept them: an editor bug, not the user's scenery); mk_sea, mk_mp_air, mk_mf_air - the town's seaplane base, which the save keeps (TOWN_OFF.keep) and the gate's town cut drops: shipped as they stand (names' fictional names) | AFB-NO-FENCES (the user 26 Oct): af_wk_fence (fence_old, the save's prop by the works) is held back - no fences on the WWII site | af_wk_* (HOME-LAYOUT, 9 Nov): the long club hangar's building site junk, removed with its construction kit (sg_k_hangar, ship-only) - the save still carries the six props",
  "itemPatches": {
   "mn_s_mine": {
    "airtaxi": {
