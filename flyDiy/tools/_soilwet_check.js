@@ -70,7 +70,10 @@ console.log('3. the season');
         const r = W.at(dayAt(date, 17)); if (r.cls.dirt >= 0.75 && r.mud > 0.5) mudOk++;
         // the next day: sand drier than dirt by noon, turf the wettest; the next morning damper than its afternoon
         const n = W.at(dayAt(dateOf(j + 1), 12)); sandN++; if (n.cls.sand < n.cls.dirt && n.cls.grass >= n.cls.dirt) sandFirst++;
-        const m = W.at(dayAt(dateOf(j + 1), 7)).cls.dirt, a = W.at(dayAt(dateOf(j + 1), 18)).cls.dirt; mornN++; if (m > a) morn++;
+        // the first day after it with no rain at all: its evening, then the next dawn - damper by the morning (the subsoil
+        // re-wets the top overnight, as a soaked strip is damp again at dawn)
+        let k = i + 1; while (k < 13 && B.days[k] && B.days[k].rain) k++;
+        if (k < 13) { const e = W.at(dayAt(dateOf(j1 + k), 20)).cls.dirt, m = W.at(dayAt(dateOf(j1 + k + 1), 5)).cls.dirt; mornN++; if (m > e) morn++; }
       }
       // a day with no rain in the 72 h before its 15:00
       const r15 = W.at(dayAt(date, 15));
@@ -80,7 +83,7 @@ console.log('3. the season');
   yes(storms >= 3 && mudOk === storms, 'every storm day (rain >= 0.9) is mud by 17:00 (' + mudOk + ' of ' + storms + ')');
   yes(dryDays >= 10 && dustOk === dryDays, 'three dry days make dust: dirt under 0.06 at 15:00 (' + dustOk + ' of ' + dryDays + ' such days)');
   yes(sandN && sandFirst === sandN, 'the day after a storm, sand is the driest and turf the wettest at noon (' + sandFirst + ' of ' + sandN + ')');
-  yes(mornN && morn === mornN, 'the morning after a storm is damper than its evening (the subsoil re-wets the top overnight) (' + morn + ' of ' + mornN + ')');
+  yes(mornN >= 2 && morn === mornN, 'the first dry day after a storm: the next dawn is damper than its evening (the subsoil re-wets the top overnight) (' + morn + ' of ' + mornN + ')');
 }
 
 console.log('4. smooth');
