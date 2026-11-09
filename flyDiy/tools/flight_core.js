@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 4c507ff03f2302ca
+// body-sha256: b0bff369ea244e61
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -8432,6 +8432,10 @@ HANGAR_LAYOUTS.hearthLight = {
 // else none (a layout is one shell's arrangement - the kits' own rows stand
 // in any other)
 function hangarLayout(key, shell) {
+  // DERELICT-HANGAR (the user 9 Nov: "take the scenery from the works garage that we had and just put it in there ... the
+  // maximum of them really, in the new big hangar"): the large hangar stands the works' own scenery by default - the cozy
+  // layout - whatever room it is; a named layout (the career's hearth) still wins
+  if (!key && (shell || 'club') === 'works') key = 'cozy';
   const L = key && HANGAR_LAYOUTS[key];
   return L && (!L.shell || L.shell === (shell || 'club')) ? L : null;
 }
