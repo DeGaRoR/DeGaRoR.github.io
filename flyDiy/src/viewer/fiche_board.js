@@ -22,6 +22,15 @@
 //               door (new_plane.js -> tileDoor). A baked fiche has no Update: it is the game's.
 //   COST        nothing until a certificate or a click: no timer runs without a pending award (a 1 s look while one is
 //               pending) or an open board (the strip's 3 s cycle).
+//   THE USER'S RULES (9 Nov, on the Cub's fiche):
+//               - THE TITLE is the plane's own display name, never a file key: a plane loaded from an official file carries
+//                 that file's internal name as its save's ("piperCub"); the baked index names each official file
+//                 (fiche_bake.js: `file`), and titleOf() gives the list's name for it ("Piper Cub")
+//               - THE CUTAWAY sits under the hero's right wing (cutPlace: below the hero's measured wing line,
+//                 plane_fiche.js data.heroWingY), on the board and in the shared picture
+//               - THE SIGNATURE is the game's name (GAME_NAMES.game, 01_names.js - one place) + " · certified airworthy"
+//               - A FRAME: a thin, quiet line with rounded corners round the whole sheet, in its own palette, on the board
+//                 and in the shared picture
 // GATE PLANEFICHE checks the wiring (tools/_plane_fiche_check.js).
 'use strict';
 (function () {
@@ -48,9 +57,11 @@
 #pfBoard .pfHead .pfStale { color:var(--ed-warn,#e0a040); font-size:11px; }
 #pfBoard .pfHead .pfSp { flex:1; }
 #pfBoard .pfSheet { position:relative; overflow:auto; margin:10px; border-radius:6px; background:#f3ede0; color:#2b2924; padding:14px 16px 16px; }
+#pfBoard .pfFrame { position:relative; border:1px solid #d8cdb8; border-radius:10px; padding:10px 12px 8px; }
+#pfBoard .pfSig { text-align:right; font:400 10px/1 'IBM Plex Sans', sans-serif; color:#9a9283; margin-top:6px; }
 #pfBoard .pfTop { position:relative; min-height:220px; }
 #pfBoard .pfHero { display:block; width:76%; height:auto; }
-#pfBoard .pfCut { position:absolute; right:0; top:0; width:34%; height:auto; }
+#pfBoard .pfCut { position:absolute; right:0; top:28%; width:34%; height:auto; }
 #pfBoard .pfLow { display:flex; gap:16px; align-items:flex-end; margin-top:10px; }
 #pfBoard .pfStrip { position:relative; flex:1; min-height:120px; display:flex; align-items:center; justify-content:center; }
 #pfBoard .pfStrip figure { position:relative; margin:0 26px 22px 0; }
@@ -82,6 +93,23 @@
   let pending = false, looking = null, drawing = false;
   // a career's slot carries its tag (app.js slotLabel's rule): the board says the design's name
   const label = n => { try { return typeof CAREER_SLOT_TAG !== 'undefined' && typeof n === 'string' ? n.replace(CAREER_SLOT_TAG, '') : n; } catch (e) { return n; } };
+  // the game's name, from its one place (01_names.js), for the signature
+  const SIG_TAIL = ' · certified airworthy';
+  const sig = () => { let g = ''; try { g = typeof GAME_NAMES !== 'undefined' && GAME_NAMES.game ? String(GAME_NAMES.game) : ''; } catch (e) { g = ''; } return g ? g + SIG_TAIL : SIG_TAIL.slice(3); };
+  // the title: an official file's internal name is never shown - the list's name for it (the baked index's `file`)
+  function titleOf(n, B) {
+    const k = label(n) || '';
+    for (const key in B || {}) { const b = B[key]; if (b && b.file && b.file === k) return b.name || k; }
+    return k;
+  }
+  // THE CUTAWAY UNDER THE HERO'S WING (pure: the gate's): the hero drawn heroH tall, its wing line wingY (0..1 of its
+  // height; null on an old fiche: WING_Y0), the cutaway cutH tall -> its top, from the hero picture's top: GAP below the wing line
+  const WING_Y0 = 0.28, GAP = 0.04;
+  function cutPlace(wingY, heroH, cutH) {
+    const wy = wingY != null && isFinite(wingY) ? Math.max(0, Math.min(1, +wingY)) : WING_Y0;
+    const under = (wy + GAP) * heroH;
+    return { top: Math.round(under), wingPx: Math.round(wy * heroH), foot: Math.round(under + cutH) };
+  }
   const standName = () => { try { return W.GARAGE_SPEC && W.GARAGE_SPEC.name ? W.GARAGE_SPEC.name() || '' : ''; } catch (e) { return ''; } };
   const certNow = () => { try { const s = W.BENCH_STATE ? W.BENCH_STATE() : null; return !!(s && s.passed); } catch (e) { return false; } };
   // the stand is the garage's, the plane on it, nothing over it, the certificate's card closed
@@ -110,7 +138,7 @@
   async function drawFor(name, why) {
     const P = F(); if (!P || drawing) return null;
     drawing = true;
-    const title = label(name);
+    const title = titleOf(name, await baked().catch(() => ({})));
     note('Drawing the fiche of ' + title + ' …');
     let out = null;
     try {
@@ -143,9 +171,9 @@
   function forget(name) { has.delete(name); try { if (F()) F().forget(name); } catch (e) {} }
   // the official planes' fiches, baked (the list's keys: design:cub, list:5, cand:<file>, stock:<name>)
   const BAKED = 'media/fiches/';
-  let bakedP = null;
+  let bakedP = null, bakedIdx = {};
   const baked = () => bakedP || (bakedP = (typeof fetch === 'function' ? fetch(BAKED + 'index.json').then(r => (r.ok ? r.json() : null)) : Promise.resolve(null))
-    .then(j => (j && j.fiches) || {}, () => ({})));
+    .then(j => (bakedIdx = (j && j.fiches) || {}), () => ({})));
   const bakedRec = (key, B) => { const b = B[key]; if (!b) return null; const pics = {}; for (const v in b.pics || {}) pics[v] = BAKED + b.pics[v]; return { name: key, baked: true, data: b.data || { name: b.name }, pics }; };
   // the All planes screen's tile: a small door in its corner (a span: a button cannot hold a button); a click opens the board, not the plane
   function tileDoor(tile, key) {
@@ -203,17 +231,23 @@
       freeUrls(); if (cycle) { clearInterval(cycle); cycle = null; }
       body.innerHTML = '';
       if (!r) { const m = $('div', 'pfMsg'); m.textContent = 'No fiche yet: it is drawn when this aeroplane takes its airworthiness certificate.'; body.appendChild(m); return; }
-      const d = r.data || {}, st = P.stale && standName() === name ? P.stale(r) : null;
-      board.querySelector('.pfHead b').textContent = d.name || label(name);
+      const d = r.data || {}, st = P.stale && standName() === name ? P.stale(r) : null, nmS = titleOf(d.name || name, bakedIdx);
+      board.querySelector('.pfHead b').textContent = nmS;
       board.querySelector('.pfReg').textContent = d.reg || '';
       board.querySelector('.pfStale').textContent = st && st.cert ? 'changed since its certificate' : st && st.paint ? 'repainted since' : '';
       const upd = board.querySelector('.pfUpd'), can = !r.baked && standName() === name && certNow() && !drawing;
       upd.disabled = !can; upd.title = can ? 'Draw the fiche again (a few seconds)' : r.baked ? 'An official aeroplane\'s fiche comes with the game' : standName() !== name ? 'Put this aeroplane on the stand to update its fiche' : 'Its certificate first: the fiche is the certified aeroplane\'s';
       upd.onclick = () => { if (!upd.disabled) drawFor(name, 'update'); };
       board.querySelector('.pfShare').onclick = () => share(r);
-      const sh = $('div', 'pfSheet'), top = $('div', 'pfTop'), low = $('div', 'pfLow');
+      const sh = $('div', 'pfSheet'), fr = $('div', 'pfFrame'), top = $('div', 'pfTop'), low = $('div', 'pfLow');
       const hero = $('img', 'pfHero'); hero.alt = ''; hero.src = urlOf(r.pics.hero); top.appendChild(hero);
-      if (r.pics.cutaway) { const c = $('img', 'pfCut'); c.alt = ''; c.src = urlOf(r.pics.cutaway); top.appendChild(c); }
+      if (r.pics.cutaway) {
+        const c = $('img', 'pfCut'); c.alt = ''; c.src = urlOf(r.pics.cutaway); top.appendChild(c);
+        const fit = () => { if (!hero.naturalWidth || !c.naturalWidth) return;
+          const p = cutPlace(d.heroWingY, hero.offsetHeight, c.offsetHeight);
+          c.style.top = p.top + 'px'; top.style.minHeight = Math.max(hero.offsetHeight, p.foot) + 'px'; };
+        hero.onload = c.onload = fit; fit();
+      }
       const strip = $('div', 'pfStrip'), views = STRIP.filter(v => r.pics[v[0]]);
       let iv = 0;
       const one = () => {
@@ -224,16 +258,17 @@
         fig.appendChild(im); strip.innerHTML = ''; strip.appendChild(fig);
       };
       one(); if (views.length > 1) cycle = setInterval(() => { if (!board || board.hidden) return; one(); }, 3000);
-      const side = $('div'), nm = $('div', 'pfName'); nm.textContent = d.name || label(name); side.appendChild(nm);
+      const side = $('div'), nm = $('div', 'pfName'); nm.textContent = nmS; side.appendChild(nm);
       const dl = $('dl', 'pfSpecs'); for (const [k, v] of specRows(d)) { const dt = $('dt'), dd = $('dd'); dt.textContent = k; dd.textContent = v; dl.appendChild(dt); dl.appendChild(dd); }
       side.appendChild(dl);
       low.appendChild(strip); low.appendChild(side);
-      sh.appendChild(top); sh.appendChild(low); body.appendChild(sh);
+      const sg = $('div', 'pfSig'); sg.textContent = sig();
+      fr.appendChild(top); fr.appendChild(low); fr.appendChild(sg); sh.appendChild(fr); body.appendChild(sh);
     };
     board.hidden = false;
-    if (rec) paint(rec);
+    if (rec) baked().then(() => paint(rec), () => paint(rec));
     else if (/^(design|list|cand|stock|arch):/.test(name)) baked().then(B => paint(bakedRec(name, B)), () => paint(null));
-    else P.get(name).then(paint, () => paint(null));
+    else baked().catch(() => ({})).then(() => P.get(name)).then(paint, () => paint(null));
   }
   function close() { if (board) board.hidden = true; if (cycle) { clearInterval(cycle); cycle = null; } freeUrls(); }
   // ---- the share: one composed picture ---------------------------------------------------------------------------------
@@ -242,24 +277,34 @@
     const Wd = 2400, Ht = 1600, c = document.createElement('canvas'); c.width = Wd; c.height = Ht;
     const g = c.getContext('2d'), d = r.data || {};
     g.fillStyle = '#f3ede0'; g.fillRect(0, 0, Wd, Ht);
-    const fit = (im, x, y, w, h) => { const s = Math.min(w / im.width, h / im.height); const dw = im.width * s, dh = im.height * s; g.drawImage(im, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh); };
+    const fit = (im, x, y, w, h, top) => { const s = Math.min(w / im.width, h / im.height); const dw = im.width * s, dh = im.height * s;
+      const r0 = { x: x + (w - dw) / 2, y: top ? y : y + (h - dh) / 2, w: dw, h: dh }; g.drawImage(im, r0.x, r0.y, dw, dh); return r0; };
     const P = r.pics;
-    if (P.hero) fit(await bitmap(P.hero), 60, 60, 1500, 1000);
-    if (P.cutaway) fit(await bitmap(P.cutaway), 1560, 60, 780, 620);
+    let hr = null;
+    if (P.hero) hr = fit(await bitmap(P.hero), 60, 60, 1500, 1000);
+    if (P.cutaway) {   // under the hero's wing line (cutPlace), its box as wide as before
+      const im = await bitmap(P.cutaway), s = Math.min(780 / im.width, 620 / im.height), ch = im.height * s;
+      const pl = hr ? cutPlace(d.heroWingY, hr.h, ch) : { top: 0 };
+      fit(im, 1560, Math.min(1110 - ch, (hr ? hr.y : 60) + pl.top), 780, ch, true);
+    }
     const strip = ['side', 'front', 'plan'].filter(v => P[v]);
     for (let i = 0; i < strip.length; i++) fit(await bitmap(P[strip[i]]), 1000 + i * 460, 1130, 420, 400);
-    g.fillStyle = '#2b2924'; g.font = '600 64px "IBM Plex Sans", sans-serif'; g.fillText(d.name || '', 70, 1180);
+    g.fillStyle = '#2b2924'; g.font = '600 64px "IBM Plex Sans", sans-serif'; g.fillText(titleOf(d.name || r.name || '', bakedIdx), 70, 1180);
     g.fillStyle = '#6d675b'; g.font = '500 34px "IBM Plex Sans", sans-serif'; if (d.reg) g.fillText(d.reg, 70, 1232);
     g.font = '400 30px "IBM Plex Sans", sans-serif';
     const rows = specRows(d).filter(x => x[1] !== '—');
     rows.forEach(([k, v], i) => { const col = i % 2, rw = Math.floor(i / 2); g.fillStyle = '#6d675b'; g.fillText(k, 70 + col * 450, 1300 + rw * 44); g.fillStyle = '#2b2924'; g.fillText(v, 270 + col * 450, 1300 + rw * 44); });
-    g.fillStyle = '#9a9283'; g.font = '400 24px "IBM Plex Sans", sans-serif'; g.fillText('flyDiy · certified airworthy', 2060, 1560);
+    g.fillStyle = '#9a9283'; g.font = '400 24px "IBM Plex Sans", sans-serif'; g.textAlign = 'right'; g.fillText(sig(), Wd - 70, 1556); g.textAlign = 'left';
+    // the frame: a thin quiet line, rounded, round the whole sheet (the board's .pfFrame, at this size)
+    g.strokeStyle = '#d8cdb8'; g.lineWidth = 3; g.beginPath();
+    if (g.roundRect) g.roundRect(24, 24, Wd - 48, Ht - 48, 28); else g.rect(24, 24, Wd - 48, Ht - 48);
+    g.stroke();
     return new Promise(res => c.toBlob(res, 'image/png'));
   }
   async function share(r) {
     let blob = null; try { blob = await compose(r); } catch (e) { note('The picture could not be made: ' + String(e && e.message || e).slice(0, 80)); return; }
     if (!blob) return;
-    const fname = String((r.data && r.data.name) || r.name || 'aeroplane').replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '_') + '_fiche.png';
+    const fname = String(titleOf((r.data && r.data.name) || r.name || 'aeroplane', bakedIdx)).replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '_') + '_fiche.png';
     const file = typeof File === 'function' ? new File([blob], fname, { type: 'image/png' }) : null;
     try {
       if (file && navigator.canShare && navigator.canShare({ files: [file] }) && navigator.share) { await navigator.share({ files: [file], title: (r.data && r.data.name) || 'aeroplane' }); return; }
@@ -267,5 +312,5 @@
     const a = document.createElement('a'), u = URL.createObjectURL(blob); a.href = u; a.download = fname; document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(u), 4000);
   }
-  W.FICHE_BOARD = { certified, saved, show, close, rowButton, tileDoor, forget, compose, drawFor, get pending() { return pending; }, get drawing() { return drawing; } };
+  W.FICHE_BOARD = { certified, saved, show, close, rowButton, tileDoor, forget, compose, drawFor, titleOf, cutPlace, sig, get pending() { return pending; }, get drawing() { return drawing; } };
 })();

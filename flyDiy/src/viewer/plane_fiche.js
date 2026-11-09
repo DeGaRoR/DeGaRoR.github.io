@@ -21,6 +21,12 @@
   const STUDIO = { key: 1.5, rim: 1.8, room: 1 }, CUT_STUDIO = { key: 1.0, rim: 0.5, amb: 0.3, room: 0.35 };
   const NEAR_OFF = ['wing', 'wing2', 'brace', 'light', 'hinge', 'access'];   // the cutaway's near half also loses these (the user 4 Nov: NEAR WINGS OFF)
   const VIEWS = ['hero', 'above', 'side', 'plan', 'front', 'cutaway'];
+  // THE CUTAWAY'S EYE (the user 9 Nov, on the Cub's fiche: "lower the camera angle so it reads wider"; it sits under the hero's
+  // right wing on the board - fiche_board.js cutPlace): 50 degrees round from the nose, 15 above (was 28)
+  const CUT_YAW = 50, CUT_EL = 15;
+  // THE HERO'S WING LINE (the same ruling): the lowest row of the hero's silhouette in its right-hand band (the far wing's tip
+  // on a three-quarter from below), 0 at the top of the cropped picture, 1 at its foot - the board drops the cutaway below it
+  const WING_BAND = 0.12;
   const frames = n => new Promise(res => { const f = () => (n-- > 0 ? requestAnimationFrame(f) : res()); f(); });
   function hashOf(spec) {
     let s; try { s = JSON.stringify(spec); } catch (e) { return ''; }
@@ -64,6 +70,13 @@
       }
     }
     return { d, n, x0, y0, x1, y1, edge: !!n && (x0 === 0 || y0 === 0 || x1 === w - 1 || y1 === h - 1) };
+  }
+  // the hero's wing line: in the right-hand WING_BAND of the cropped silhouette, the lowest row holding aeroplane, over the crop's height
+  function wingLine(m, w) {
+    const cw = m.x1 - m.x0 + 1, ch = m.y1 - m.y0 + 1, xa = m.x1 - Math.max(1, Math.round(cw * WING_BAND)) + 1;
+    let yl = -1;
+    for (let y = m.y1; y >= m.y0 && yl < 0; y--) for (let x = xa; x <= m.x1; x++) if (m.d[(y * w + x) * 4 + 3] > 24) { yl = y; break; }
+    return yl < 0 ? null : +((yl - m.y0 + 1) / ch).toFixed(3);
   }
   function encode(m, w, h) {
     const c = document.createElement('canvas'); c.width = m.x1 - m.x0 + 1; c.height = m.y1 - m.y0 + 1;
@@ -136,6 +149,28 @@
     };
     c.customProgramCacheKey = () => k0 + '|ficheInner';
   }
+  // THE HERO'S PROPELLER TURNS (the user 9 Nov: "we said spinning propeller for the hero shot"): the game's own disc
+  // (prop_disc.js, measured off these blades) on each of the stand's propellers (_cage_eng.js: edProp<sfx>, the blades turn
+  // about its z), at full weight, the blades hidden, for the hero only; put back before the next view
+  function heroDiscs(T, root) {
+    const PD = window.PROP_DISC, out = []; if (!PD || !PD.make) return out;
+    root.updateMatrixWorld(true);
+    root.traverse(pg => {
+      if (!/^edProp/.test(pg.name || '') || !pg.visible) return;
+      const tmp = [], real = [], rel = new T.Matrix4(), inv = new T.Matrix4().copy(pg.matrixWorld).invert();
+      pg.traverse(m => { if (!m.isMesh || !m.geometry || m.userData.propDisc) return;   // the blades, in the part's own frame (a blade's group is turned about z)
+        real.push(m); rel.multiplyMatrices(inv, m.matrixWorld);
+        const t = new T.Mesh(m.geometry, m.material); rel.decompose(t.position, t.quaternion, t.scale); t.visible = false; pg.add(t); tmp.push(t); });
+      let dc = null; try { dc = PD.make(T, pg, tmp, [0, 0, 1]); } catch (e) { dc = null; }
+      for (const t of tmp) pg.remove(t);
+      if (!dc) return;
+      dc.update(2400, 0, 1, 0);
+      const was = real.map(m => m.visible); for (const m of real) m.visible = false;
+      out.push({ dc, real, was });
+    });
+    return out;
+  }
+  function discsOff(ds) { for (const d of ds.splice(0)) { try { d.dc.dispose(); } catch (e) {} d.real.forEach((m, i) => { m.visible = d.was[i]; }); } }
   async function stable(T, root) {
     const box = () => { const b = new T.Box3().setFromObject(root); return [b.min.x, b.min.y, b.min.z, b.max.x, b.max.y, b.max.z].join(); };
     let pb = null;
@@ -251,7 +286,7 @@
     const room = []; S.traverse(o => { if (o.isLight) room.push(o); }); const roomI = room.map(l => l.intensity);   // (uniforms only: no program changes for this)
     const lights = new T.Group(), key = new T.DirectionalLight(0xfff0dc, STUDIO.key), rim = new T.DirectionalLight(0xe6eeff, STUDIO.rim), amb = new T.AmbientLight(0xfff4e6, 0);
     lights.add(key, key.target, rim, rim.target, amb);
-    const hid = []; let cut = null, xray0 = null, data = null, held = false;
+    const hid = [], discs = []; let cut = null, xray0 = null, data = null, held = false;
     const black = new T.Color(0, 0, 0), white = new T.Color(1, 1, 1);
     const warm = async what => {   // the studio's programs, sliced, before a picture needs them
       if (!P.compileScreen) return;
@@ -271,6 +306,8 @@
       root.rotation.x = 0;   // the air's attitude
       let F = frameOf(T, root);
       data = numbers(spec, F, opts.title || opts.name);   // what the player calls it, not the file's meta (a Tiger Moth's says "Garage Special")
+      if (only.includes('hero')) discs.push(...heroDiscs(T, root));   // (before the warm: the disc's program with the studio's)
+      data.heroProp = discs.length ? 'disc' : 'blades';
       await warm('the pictures');
       const place = (F, low, st) => {
         key.intensity = st.key; rim.intensity = st.rim; amb.intensity = st.amb || 0;
@@ -295,6 +332,7 @@
         if (!m.n) throw new Error('the ' + name + ' picture is empty');
         if (m.n === w * h) throw new Error('the ' + name + ' picture drew nothing (the two draws read back the same)');
         if (m.edge) throw new Error('the ' + name + ' picture touches its frame');
+        if (name === 'hero') data.heroWingY = wingLine(m, w);
         const e = await encode(m, w, h);
         await yieldTask(name + ' matte + encode');
         pics[name] = e.blob;
@@ -304,6 +342,7 @@
       const s = ORTHO / Math.max(F.len('f'), F.len('l')), ow = a => Math.round(s * a) + PAD * 2;
       data.pxPerM = +s.toFixed(3);
       if (only.includes('hero')) await shoot('hero', heroCam(T, F, HERO_W / HERO_H, 38, -28), HERO_W, HERO_H, true, STUDIO, F);
+      discsOff(discs);   // the other views: the blades, still
       if (only.includes('above')) await shoot('above', heroCam(T, F, HERO_W / HERO_H, 38, 28), HERO_W, HERO_H, false, CUT_STUDIO, F);   // its eye is above: a top surface takes key + rim (the below view's lights wash it out)
       if (only.includes('side')) await shoot('side', orthoCam(T, F, F.left, F.up, ow(F.len('f')), ow(F.len('u')), s), ow(F.len('f')), ow(F.len('u')), false, STUDIO, F);
       if (only.includes('plan')) await shoot('plan', orthoCam(T, F, F.up, F.fwd, ow(F.len('l')), ow(F.len('f')), s), ow(F.len('l')), ow(F.len('f')), false, CUT_STUDIO, F);
@@ -324,10 +363,11 @@
           tm.cutLateMaps = late.size; if (late.size) tm.cutLateMapNames = Array.from(late).slice(0, 20);
         }
         const Fc = frameOf(T, root);
-        await shoot('cutaway', heroCam(T, Fc, CUT_W / CUT_H, 50, 28), CUT_W, CUT_H, false, CUT_STUDIO, Fc);
+        await shoot('cutaway', heroCam(T, Fc, CUT_W / CUT_H, CUT_YAW, CUT_EL), CUT_W, CUT_H, false, CUT_STUDIO, Fc);
       }
     } finally {
       room.forEach((l, i) => { l.intensity = roomI[i]; });
+      discsOff(discs);
       if (cut) cutOff(cut);
       R.localClippingEnabled = lc;
       if (xray0 != null) { const t1 = nowMs(); V.xray = xray0; U.build(); tm.buildBackMs = Math.round(nowMs() - t1); await stable(T, root); }
@@ -343,7 +383,7 @@
     return { name: opts.name || (spec.meta && spec.meta.name) || '', at: Date.now(), fp: fpNow(), hash: hashOf(spec), data, pics };
   }
   const api = {
-    VIEWS, lastTime: null, _matte: matte, _hashOf: hashOf,
+    VIEWS, CUT_YAW, CUT_EL, lastTime: null, _matte: matte, _hashOf: hashOf, _wingLine: wingLine,
     // one at a time: a second ask waits for the first
     generate(opts) {
       const o = opts || {};

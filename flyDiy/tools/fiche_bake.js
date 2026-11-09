@@ -52,10 +52,15 @@ for (const r of rows) {
   fs.mkdirSync(path.join(OUT, dir), { recursive: true });
   for (const [view, b] of Object.entries(v.files)) { const f = dir + '/' + view + '.webp', buf = Buffer.from(b, 'base64'); fs.writeFileSync(path.join(OUT, f), buf); pics[view] = f; kb += buf.length / 1024; }
   const data = Object.assign({}, v.data, { name: r.name });
-  index.fiches[r.thumb] = { name: r.name, data, pics };
+  // `file`: the build file's own internal name - a plane loaded from it carries that as its save's name, and the board shows
+  // the list's name for it, never the key (fiche_board.js titleOf; the user 9 Nov: "piperCub" on a fiche)
+  let file = ''; try { file = JSON.parse(fs.readFileSync(path.join(FLY, r.file), 'utf8')).name || ''; } catch (e) {}
+  index.fiches[r.thumb] = { name: r.name, file, data, pics };
   done++;
   console.log('fiche_bake:', r.thumb, r.name, v.ms + ' ms', Object.keys(pics).join(','), 'worst task ' + JSON.stringify(v.time && v.time.worst));
 }
+{ const n = {}; for (const e of Object.values(index.fiches)) if (e.file) n[e.file] = (n[e.file] || 0) + 1;   // a name two files share ("build") names neither
+  for (const e of Object.values(index.fiches)) if (e.file && n[e.file] > 1) e.file = ''; }
 fs.mkdirSync(OUT, { recursive: true });
 fs.writeFileSync(path.join(OUT, 'index.json'), JSON.stringify(index, null, 1) + '\n');
 console.log('fiche_bake: ' + done + ' of ' + rows.length + ' baked, ' + Math.round(kb) + ' KB' + (missed.length ? '; missed: ' + missed.join(', ') : '') + (p.status ? '; plane_shot exit ' + p.status : ''));

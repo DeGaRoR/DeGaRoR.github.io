@@ -18,6 +18,13 @@
 //   THE DOORS      garage.js: saved() at a save, forget() at both deletes, rowButton() on the fleet's rows; card_drag.js
 //                  registers #pfBoard (by its header) and #pfNote; build.js loads fiche_board.js after plane_fiche.js; the
 //                  share goes through navigator.share with files, else a saved file
+// THE USER'S RULES (9 Nov, on the Cub's fiche - flyDiy/HANDOVER.md, "FICHE RULES"):
+//   THE SPINNING PROP  the hero's propeller is the game's disc (prop_disc.js) at full weight, the blades hidden; the hero only
+//   THE TITLE          the plane's own display name, never a file key ("piperCub" -> "Piper Cub" through the baked index's `file`)
+//   THE CUTAWAY        its eye pinned (50 round, 15 up: lower than the old 28, it reads wider); placed under the hero's measured
+//                      wing line on the board and in the shared picture
+//   THE SIGNATURE      the game's name from its one place (GAME_NAMES.game) + " · certified airworthy"
+//   THE FRAME          a thin quiet rounded line round the whole sheet, on the board and in the shared picture
 //   node tools/_plane_fiche_check.js [--selftest]  -> "GATE PLANEFICHE: PASS|FAIL"
 'use strict';
 const fs = require('fs'), path = require('path'), vm = require('vm');
@@ -32,13 +39,14 @@ function load(src, W) {
 }
 async function run(S) {
   const { F, B } = S;
+  const FB = S.FB, BE = S.BE, G = S.G, CD = S.CD;
   const fails = []; let checks = 0;
   const ok = (c, m) => { checks++; if (!c) fails.push(m); };
   ok(/const VIEWS = \['hero', 'above', 'side', 'plan', 'front', 'cutaway'\]/.test(F), 'the six views');
   ok(/shoot\('hero', heroCam\(T, F, HERO_W \/ HERO_H, 38, -28\)/.test(F), 'the hero: yaw 38, from below');
   ok(/shoot\('above', heroCam\(T, F, HERO_W \/ HERO_H, 38, 28\)/.test(F), 'the inverse hero: the same yaw, from above');
   ok(/38, 28\), HERO_W, HERO_H, false, CUT_STUDIO, F\)/.test(F), 'the inverse hero: its own lights, not the below view\'s');
-  ok(/room\.forEach\(\(l, i\) => \{ l\.intensity = roomI\[i\] \* st\.room; \}\)/.test(F) && /room: 0\.35/.test(F) && /room\.forEach\(\(l, i\) => \{ l\.intensity = roomI\[i\]; \}\);\n\s*if \(cut\) cutOff/.test(F), 'a view from above dims the room, and the room is put back');
+  ok(/room\.forEach\(\(l, i\) => \{ l\.intensity = roomI\[i\] \* st\.room; \}\)/.test(F) && /room: 0\.35/.test(F) && /room\.forEach\(\(l, i\) => \{ l\.intensity = roomI\[i\]; \}\);\n\s*discsOff\(discs\);\n\s*if \(cut\) cutOff/.test(F), 'a view from above dims the room, and the room is put back');
   ok(/m\.n === w \* h\) throw/.test(F) && /m\.edge\) throw/.test(F), 'a picture that drew nothing or touches its frame stops the fiche');
   ok(/numbers\(spec, F, opts\.title \|\| opts\.name\)/.test(F) && /name: title \|\| \(spec\.meta/.test(F), 'the name is the save\'s or the list\'s, before the file\'s');
   ok(F.indexOf("only.includes('above')") < F.indexOf("V.xray = 1"), 'the inverse hero is drawn before the cut: whole, wings on');
@@ -55,8 +63,21 @@ async function run(S) {
   ok(/const k = one\(black\); await yieldTask\(/.test(F) && /const wt = one\(white\); await yieldTask\(/.test(F), 'a picture is several tasks');
   ok(!/SHOT_MODE/.test(F), 'no shot mode (it re-insets the canvas)');
   ok(/names\(\) \{ return tx\('readonly', s => s\.getAllKeys\(\)\)/.test(F), 'the store lists its names');
+  // ---- THE USER'S RULES (9 Nov)
+  {
+    const iD = F.indexOf("discs.push(...heroDiscs(T, root))"), iW = F.indexOf("await warm('the pictures')"), iH = F.indexOf("shoot('hero'"), iO = F.indexOf('discsOff(discs);   // the other views'), iA = F.indexOf("shoot('above'");
+    ok(iD > 0 && iD < iW && iW < iH && iH < iO && iO < iA && /if \(only\.includes\('hero'\)\) discs\.push/.test(F), 'RULE the spinning prop: the discs made before the warm, for the hero only, taken off before the next view');
+    ok(/PD\.make\(T, pg, tmp, \[0, 0, 1\]\)/.test(F) && /dc\.update\(2400, 0, 1, 0\)/.test(F) && /for \(const m of real\) m\.visible = false;/.test(F), 'RULE the spinning prop: the game\'s disc at full weight, the blades hidden');
+    ok(/room\.forEach\(\(l, i\) => \{ l\.intensity = roomI\[i\]; \}\);\n\s*discsOff\(discs\);/.test(F), 'RULE the spinning prop: put back in the finally');
+    ok(/const CUT_YAW = 50, CUT_EL = 15;/.test(F) && /shoot\('cutaway', heroCam\(T, Fc, CUT_W \/ CUT_H, CUT_YAW, CUT_EL\)/.test(F), 'RULE the cutaway\'s eye: 50 round, 15 up');
+    ok(/if \(name === 'hero'\) data\.heroWingY = wingLine\(m, w\);/.test(F), 'RULE the cutaway: the hero\'s wing line measured on its picture');
+    ok(/const title = titleOf\(name, await baked\(\)/.test(FB) && /nmS = titleOf\(d\.name \|\| name, bakedIdx\)/.test(FB) && /g\.fillText\(titleOf\(d\.name/.test(FB), 'RULE the title: the draw, the board and the share all through titleOf');
+    ok(!/flyDiy ·/.test(FB) && /g\.fillText\(sig\(\)/.test(FB) && /sg\.textContent = sig\(\)/.test(FB) && /GAME_NAMES\.game/.test(FB), 'RULE the signature: the game\'s name from its one place, on the board and the share');
+    ok(/^\s*game:\s*'[^']+',/m.test(S.N), 'RULE the signature: 01_names.js holds the game\'s name');
+    ok(/\.pfFrame \{[^}]*border:1px solid #[0-9a-f]{6};[^}]*border-radius:\d+px/.test(FB) && /fr\.appendChild\(top\)/.test(FB) && /g\.roundRect\(24, 24, Wd - 48, Ht - 48, 28\)/.test(FB) && /g\.stroke\(\);/.test(FB), 'RULE the frame: a thin rounded line, on the board and the share');
+    ok(/hr \? cutPlace\(d\.heroWingY, hr\.h, ch\)/.test(FB) && /const p = cutPlace\(d\.heroWingY, hero\.offsetHeight, c\.offsetHeight\)/.test(FB), 'RULE the cutaway: placed by cutPlace on the board and the share');
+  }
   // ---- R3: the doors
-  const FB = S.FB, BE = S.BE, G = S.G, CD = S.CD;
   ok(/window\.BENCH_CERTIFIED\(\); \} catch \(e\) \{\} \}\n[^\n]*\n\s*if \(!wasPassed && passed\(\) && window\.FICHE_BOARD\) \{ try \{ window\.FICHE_BOARD\.certified\(\); \} catch \(e\) \{\} \}/.test(BE), 'bench.js awards the fiche beside BENCH_CERTIFIED');
   ok(!/BENCH_CERTIFIED\s*=/.test(FB), 'the story\'s slot is not taken');
   ok(/PLANE_THUMB\.saved\(name\); \} catch \(e\) \{\}\n[^\n]*\n\s*try \{ if \(window\.FICHE_BOARD\) window\.FICHE_BOARD\.saved\(name\)/.test(G), 'garage.js: a save tells the fiche (an unsaved plane\'s waits for its name)');
@@ -99,6 +120,24 @@ async function run(S) {
       ok(gens === 2, 'the award: drawn when it is back on the stand');
     }
   }
+  // THE USER'S RULES, run: the board's helpers (the real baked index), the wing line on a known silhouette
+  {
+    const Wr = {}, ctx = { window: Wr, document: {}, console, setTimeout() {}, clearTimeout() {}, setInterval() {}, clearInterval() {}, Promise, URL: {}, GAME_NAMES: { game: 'Wingsmith' } };
+    try { vm.runInNewContext(FB, ctx); } catch (e) {}
+    const A = Wr.FICHE_BOARD, IDX = (S.IDX && S.IDX.fiches) || {};
+    if (!A || !A.titleOf) fails.push('RULE the board\'s helpers are not there'); else {
+      checks++;
+      ok(A.titleOf('piperCub', IDX) === 'Piper Cub', 'RULE the title: the official Cub loaded from its file is "Piper Cub", not "piperCub" (' + A.titleOf('piperCub', IDX) + ')');
+      ok(A.titleOf('Cubby', IDX) === 'Cubby' && A.titleOf('build', IDX) === 'build', 'RULE the title: a player\'s own name stays; a name two files share maps to neither');
+      const L = (S.LISTS && S.LISTS.planes) || [], off = L.filter(p => p.list === 'official' && p.thumb && IDX[p.thumb]);
+      ok(off.length >= 5 && off.every(p => typeof IDX[p.thumb].file === 'string'), 'RULE the title: every baked official fiche names its file (' + off.length + ')');
+      ok(A.sig() === 'Wingsmith · certified airworthy', 'RULE the signature: "' + A.sig() + '"');
+      // the cutaway under the wing: the hero 300 tall, its wing line at 0.31, a cutaway 160 tall
+      const p = A.cutPlace(0.31, 300, 160), p0 = A.cutPlace(null, 300, 160);
+      ok(p.top > p.wingPx && p.top >= 93 + 6 && p.foot === p.top + 160, 'RULE the cutaway: its box starts below the hero\'s wing line (' + JSON.stringify(p) + ')');
+      ok(p0.top > 0.25 * 300, 'RULE the cutaway: an old fiche (no wing line) still sits low');
+    }
+  }
   // the pure parts, in a stub page
   const W = { BENCH_STATE: () => ({ passed: false }), BENCH_FP: () => 'fpA', GARAGE_SPEC: { get: () => ({ a: 1 }) } };
   let api = null;
@@ -114,11 +153,20 @@ async function run(S) {
   const s = api.stale({ fp: 'fpOld', hash: api._hashOf({ a: 1 }) });
   ok(s.cert === true && s.paint === false, 'a lapsed certificate marks the fiche, it does not remove it');
   ok(api.stale({ fp: 'fpA', hash: 'other' }).paint === true, 'a repaint marks the fiche');
+  {   // the wing line: 20 x 10, a wing tip in the right-hand band at rows 1-2, the fuselage low on the left (rows 6-8)
+    const w = 20, h = 10, d = new Uint8ClampedArray(w * h * 4);
+    const px = (x, y) => { d[(y * w + x) * 4 + 3] = 255; };
+    for (let x = 17; x < 20; x++) { px(x, 1); px(x, 2); }
+    for (let x = 0; x < 12; x++) for (let y = 6; y < 9; y++) px(x, y);
+    const wl = api._wingLine({ d, x0: 0, y0: 1, x1: 19, y1: 8 }, w);
+    ok(wl === +((2 - 1 + 1) / 8).toFixed(3), 'RULE the cutaway: the wing line is the right band\'s lowest row (' + wl + ')');
+  }
   return { fails, checks };
 }
 (async () => {
   const S = { F: rd('src/viewer/plane_fiche.js'), B: rd('tools/build.js'), FB: rd('src/viewer/fiche_board.js'), BE: rd('src/viewer/bench.js'),
-              G: rd('src/viewer/garage.js'), CD: rd('src/viewer/card_drag.js') };
+              G: rd('src/viewer/garage.js'), CD: rd('src/viewer/card_drag.js'), N: rd('src/core/01_names.js'),
+              IDX: JSON.parse(rd('media/fiches/index.json')), LISTS: JSON.parse(rd('builds/lists/plane_lists.json')) };
   const F = S.F, FB = S.FB;
   const base = await run(S);
   if (!SELF) {
@@ -151,6 +199,18 @@ async function run(S) {
     ['R3: a save draws', 'FB', FB.replace('function saved() { if (pending && !looking)', 'function saved() { pending = true; if (!looking)')],
     ['R3: drawn out of the garage', 'FB', FB.replace('if (H && (!H.inGarage || H.craftAway', 'if (H && (H.craftAway')],
     ['R3: the bench\'s call gone', 'BE', S.BE.replace('window.FICHE_BOARD.certified();', '0;')],
+    ['RULE: the hero\'s blades still', 'F', F.replace("if (only.includes('hero')) discs.push(...heroDiscs(T, root));", '')],
+    ['RULE: the disc left on for every view', 'F', F.replace('discsOff(discs);   // the other views', '//')],
+    ['RULE: the cutaway from the old height', 'F', F.replace('CUT_YAW = 50, CUT_EL = 15', 'CUT_YAW = 50, CUT_EL = 28')],
+    ['RULE: no wing line', 'F', F.replace("if (name === 'hero') data.heroWingY = wingLine(m, w);", '')],
+    ['RULE: the wing line from the left band', 'F', F.replace('xa = m.x1 - Math.max(1, Math.round(cw * WING_BAND)) + 1', 'xa = m.x0')],
+    ['RULE: the file key as the title', 'FB', FB.replace('const title = titleOf(name, await baked().catch(() => ({})));', 'const title = label(name);')],
+    ['RULE: titleOf a no-op', 'FB', FB.replace('if (b && b.file && b.file === k) return b.name || k;', '')],
+    ['RULE: the old signature', 'FB', FB.replace("g.fillText(sig(), Wd - 70, 1556)", "g.fillText('flyDiy · certified airworthy', 2060, 1560)")],
+    ['RULE: no game name in the table', 'N', S.N.replace(/^\s*game:.*\n/m, '')],
+    ['RULE: no frame on the share', 'FB', FB.replace('if (g.roundRect) g.roundRect(24, 24, Wd - 48, Ht - 48, 28); else g.rect(24, 24, Wd - 48, Ht - 48);', '')],
+    ['RULE: the cutaway at the top', 'FB', FB.replace('const under = (wy + GAP) * heroH;', 'const under = 0;')],
+    ['RULE: the shared index without files', 'IDX', JSON.parse(JSON.stringify(S.IDX, (k, v) => (k === 'file' ? undefined : v)))],
   ]);
   let bad = 0;
   for (const [nm, k, f2] of BREAKS) { if (f2 === S[k]) { console.log('  selftest ' + nm + ': the break did not apply'); bad++; continue; } const r = await run(Object.assign({}, S, { [k]: f2 })); if (!r.fails.length) { console.log('  selftest ' + nm + ': NOT caught'); bad++; } }
@@ -158,4 +218,4 @@ async function run(S) {
   console.log('GATE PLANEFICHE: ' + (bad || base.fails.length ? 'FAIL' : 'PASS'));
   for (const m of base.fails) console.log('  FAIL ' + m);
   process.exit(bad || base.fails.length ? 1 : 0);
-})();
+})().catch(e => { console.log('  FAIL the check itself threw: ' + (e && e.message)); console.log('GATE PLANEFICHE: FAIL (the check threw)'); process.exit(1); });
