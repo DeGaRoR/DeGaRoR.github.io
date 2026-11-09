@@ -64,6 +64,10 @@ const engDefaults = () => Object.assign(
     blower: EG.ENG_DEFAULT.blower, boost: EG.ENG_DEFAULT.boost,
     critAlt: EG.ENG_DEFAULT.critAlt, vee: EG.ENG_DEFAULT.vee,
     bmepK: EG.ENG_DEFAULT.bmepK, massK: EG.ENG_DEFAULT.massK,
+    // ENGINE-DIALS (2026-11-09): the reduction's ratio (1 = what a geared
+    // custom engine flew before the row: the crank's speed at the prop), the
+    // maximum rpm (0 = the rated) and the constant-speed propeller (off)
+    gearRatio: 1, rpmMax: 0, cs: 0,
     // the electric fiche (G25) rides the same dict
     eStyle: EG.ENG_DEFAULT.eStyle, canD: EG.ENG_DEFAULT.canD,
     canL: EG.ENG_DEFAULT.canL, volts: EG.ENG_DEFAULT.volts,
@@ -276,6 +280,10 @@ const ENG_GROUPS = [
     ['gearK',   'gearbox dia / can',       0.9, 1.5, 0.01],
     ['flatK',   'flat rating (core / rated)', 1.0, 1.6, 0.01],
     ['tRpm',    'prop rpm',                1500, 2700, 10],
+    // ENGINE-DIALS: the same tune and build as the piston's (_eng_gen.js
+    // ENG_DIAL_RANGE): the core's specific power, the mass over the law
+    ['bmepK',   'tune (power / law)', 0.5, 2.0, 0.001, x => x.toFixed(3)],
+    ['massK',   'build (mass / law)', 0.4, 2.2, 0.001, x => x.toFixed(3)],
     ['stackStyle', 'exhaust', 'drop', [[1, 'paired stacks (PT6)'],
                                        [0, 'none (bare)']]],
   ], isTurbine],
@@ -293,6 +301,11 @@ const ENG_GROUPS = [
     ['plumb',   'DC pair',       'check'],
     ['liquid',  'liquid cooled', 'check'],
     ['geared',  'reduction drive', 'check'],
+    ['gearRatio', 'reduction ratio (motor / prop)', 1.0, 3.5, 0.001, x => x.toFixed(3)],
+    // ENGINE-DIALS: the tune is the shear stress over the style's, the build
+    // the motor's mass over the torque law
+    ['bmepK',   'tune (torque / law)', 0.5, 2.0, 0.001, x => x.toFixed(3)],
+    ['massK',   'build (mass / law)', 0.4, 2.2, 0.001, x => x.toFixed(3)],
   ], isElec],
   ['polycount', [
     ['quality',    'density',      0.3, 2, 0.02],
@@ -336,13 +349,26 @@ const ENG_GROUPS = [
     ['vee',     'V angle deg', 45, 120, 1, x => x.toFixed(0)],
     ['bore',    'bore mm',   0.05, 0.16, 0.001, mm],
     ['stroke',  'stroke mm', 0.04, 0.16, 0.001, mm],   // (to 0.16: the Merlin's 152.4)
-    ['rpm',     'rpm',       1800, 6500, 50],
+    // (ENGINE-DIALS: 1000-7500, was 1800-6500 - the Clerget's 1 250 and the
+    // Rotax 503's 6 800 are registry rows)
+    ['rpm',     'rpm',       1000, 7500, 50],
     ['stagger', 'stagger',   0, 0.5, 0.01],
   ], isPiston],
   ['architecture', [
     ['twoStroke', 'two-stroke',    'check'],
     ['liquid',    'liquid cooled', 'check'],
     ['geared',    'gearbox',       'check'],
+    // ENGINE-DIALS: the gearbox's ratio (crank over prop: the 912's 2.27, the
+    // 582's 2.62, the Twin Wasp's 16:9) - absent 1, what a geared custom
+    // engine flew before the row; read only with the gearbox on (the row
+    // stands beside it: a `when` on the gearbox made it a switch GATE PARTS'
+    // reach probe cannot turn on from the stock aeroplane)
+    ['gearRatio', 'reduction ratio (crank / prop)', 1.0, 3.5, 0.001, x => x.toFixed(3)],
+    // the drivetrain's maximum (33_drive overspeed bands): 0 = the rated rpm;
+    // the 582's 6 800 over its 6 500 rated
+    ['rpmMax',  'max rpm, 5 min (0 = rated)', 0, 9000, 50, x => x > 0 ? x.toFixed(0) : 'rated'],
+    // a governed propeller (the panel arc's cs: the shaft held at rated)
+    ['cs',      'constant-speed propeller', 'check'],
     // THE BLOWER (2026-09-05): what holds the rating up to `critAlt`
     ['blower',  'induction',  'drop', [[0, 'naturally aspirated'],
                                        [1, 'turbocharger'],
@@ -351,9 +377,11 @@ const ENG_GROUPS = [
     ['critAlt', 'critical altitude m', 0, 9000, 50, x => x.toFixed(0)],
     // THE TUNE (2026-11-09): rated bmep over the layout's own — the CC340's
     // 180 hp on 340 in3 is 1.09 of a boxer's 9.8 bar
-    ['bmepK',   'tune (bmep / layout)', 0.85, 1.2, 0.01, x => x.toFixed(2)],
+    // (ENGINE-DIALS: widened to _eng_gen.js ENG_DIAL_RANGE, the registry's
+    // own extremes; the step to 0.001 so a row's point is on the dial)
+    ['bmepK',   'tune (bmep / layout)', 0.5, 2.0, 0.001, x => x.toFixed(3)],
     // and its build: mass over the swept-volume law (the CC340's 0.88)
-    ['massK',   'build (mass / law)', 0.75, 1.25, 0.01, x => x.toFixed(2)],
+    ['massK',   'build (mass / law)', 0.4, 2.2, 0.001, x => x.toFixed(3)],
   ], isPiston],
   ['cylinder dress', [
     ['finN',     'barrel fins', 4, 18, 1],

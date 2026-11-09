@@ -265,14 +265,27 @@ window.CAGE_ENG_FACTS = (P) => {
   const facts = {
     mass: R.mass, powerW: R.powerW, rpm: R.rpm,
     // the panel arc: the reduction ratio the tacho law needs (prop = rpm/gear)
-    gear: R.gearRatio > 1 ? +R.gearRatio.toFixed(3)
-        : (spec.geared ? (+spec.gearRatio || 1) : 1),
+    // ENGINE-DIALS: a TURBINE's rpm is already the propeller's (tRpm, the
+    // registry's convention: Np at 100 %, cs), so its gear is 1 - the
+    // resolve's n2 / tRpm here put a custom PT6's propeller at ~120 rpm
+    gear: turb ? 1 : (spec.geared ? (+spec.gearRatio || 1) : 1),
     torque: R.torque != null ? R.torque
       : R.powerW / (2 * Math.PI * Math.max(1, R.rpm) / 60),
     aspiration: elec ? 'electric' : turb ? 'turbine' : (R.aspiration || 'na'),
     family: familyOf(R.arch, spec),
     cooling: coolingOf(R.arch, spec),
   };
+  // ENGINE-DIALS (2026-11-09, A0's brief: "custom engines still inherit A-65
+  // data"): WHAT THE DRIVE, THE DRAG AND THE GOVERNOR READ, off the engine's
+  // own dials and family, never off the registry key the join falls back to
+  // (a custom engine's engines[].type is the A-65's): the cylinders
+  // (33_drive's FAR 23.361 factor), the radial layout (62_gen_aero's cooling
+  // drag), a governed propeller (a turbine always; a piston by its row) and
+  // the drivetrain's maximum rpm (a piston's row; absent = the rated)
+  if (!elec && !turb && R.cyl > 0) facts.cyl = R.cyl;
+  if (R.arch === 'radial') facts.layout = 'radial';
+  if (turb || (!elec && +spec.cs)) facts.cs = true;
+  if (!elec && !turb && +spec.rpmMax > 0) facts.rpmMax = +spec.rpmMax;
   // a turbine's own two numbers ride to the clamp (TURBOPROP §1/§8): the
   // flat-rating margin 05_atmos reads, and the bare length the engine box
   // reads
@@ -306,6 +319,11 @@ window.CAGE_ENG_FACTS = (P) => {
     facts.mass = row.mass * kM;
     facts.rpm = eqF(kN, 1) ? row.rpm : row.rpm * kN;
     if (gearSame) facts.gear = row.gear || 1;
+    // (ENGINE-DIALS: the row's governed propeller and the drive table's maximum ride with it while their own rows are
+    // untouched - the custom engine's cs / rpmMax rows, set, are already in facts)
+    if (row.cs) facts.cs = true;
+    const dRow = typeof GEN_DRIVE !== 'undefined' && GEN_DRIVE.eng ? GEN_DRIVE.eng[CAGE_JOIN_ENGINES[from]] : null;
+    if (!(+spec.rpmMax > 0) && dRow && dRow.rpmMax > 0) facts.rpmMax = dRow.rpmMax;
     if (blowSame) {
       facts.aspiration = row.aspiration || facts.aspiration;
       if (row.critAlt > 0) facts.critAlt = row.critAlt; else delete facts.critAlt;

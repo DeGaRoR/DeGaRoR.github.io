@@ -727,6 +727,9 @@ const GATES = [
   // (untouched preset = the certified row; deviated = modified/custom)
   { id: 'ENGINE', file: '_engcustom_check.js', tier: 'core' },
   { id: 'ENGID', file: '_engid_check.js', tier: 'core' },
+  // ENGINE-DIALS (9 Nov): every registry engine a point on the custom engine's dials, to the bit; every official
+  // propeller on the cowl page's rows; a custom engine inherits nothing from its fallback key
+  { id: 'ENGINEDIALS', file: '_enginedials_check.js', tier: 'core', wall: 3 },
   // 2026-09-03: an "applies once" starter fires on a ROW change, never on a
   // LOAD — the engine preset and the cowl-for-architecture, and the three
   // doors that replace P
