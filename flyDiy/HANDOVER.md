@@ -313688,3 +313688,27 @@ BATTERY (full log read): 120 PASS / 8 FAIL (L35c 118 / 10).
 RE-GATE after the revert, the parked fleet re-cooked (same): STOL, UISMOKE, UISMOKE-PHONE, DMGMEMBERS, SKINMAT, FIT, CLIP, SAVE, PARTS, TECH, PANEL PASS; GEN back to its one L35c red ("cruise is quiet in wind", Pilot), every build digest master's again.
 No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change: PHYSICS_V 7, GEN_SPEC_V 10, GEN_CERT_V 7, as on master.
 TIMED GATE: light, stale 12 Oct baseline; all 7 rollouts ran. Steady frames p50 33.3 ms on every flown row. L35c's 4.9 s cub taxi freeze @HOME is GONE: no frame over 1 s in any taxi, take-off or flight segment. The one >1 s pair (8.5 s + 4.0 s) is in the cub cockpit's garage stand before the reveal (boot/compile, the cold shader cache, as L35a-c). Reds are the boot and compile rows, as before.
+## DERELICT-HANGAR — A0's list from the user's review (9 Nov 2026, branch claude/derelict-hangar)
+
+The user on the renders: "a pretty nice piece of scenery and storytelling". Four changes, relayed by A0, in this order:
+1. **The DC-3 through the door (a bug, first).** The six front leaves stack INSIDE the 33.5 m opening when open (three
+   tracks a side, ~5.6 m each): the CLEAR opening is ~22 m, yet hangarDoor / hangarPark / rollanim treat 33.5 m as clear,
+   so the DC-3 (span 28.96 m, length 19.7 m, 5.16 m tail-down) "passes" a door it cannot. Fix: a clear opening of at
+   least ~31-32 m and >= 6 m at the fin's line - pocketed leaves (stacked outside the opening, behind the towers / in the
+   facade), or a wider hangar, or a tail notch (WWII practice) - and `door.w` = the CLEAR width everywhere. A gate: the
+   DC-3's span and fin clear the door with margin along its taxi line in (GATE DERELICT + GATE HANGAR's door rows).
+2. **Ambient occlusion baked on a second UV set.** The tiled base materials stay on UV0; a unique, non-overlapping uv1
+   across the whole model carries a baked AO texture multiplied over them (three.js aoMap on uv1). Baked in the pipeline
+   (a ray-cast AO bake in node), a sane texture size for the media budget, the derelict and the restored states their own
+   bakes where their geometry differs.
+3. **Real dimensions.** Research the Annette Island / Metlakatla WWII hangar (Army airfield 1940-42, later USCG Air
+   Station Annette; the hangar to the Coast Guard 1 Apr 1956): archives, Coast Guard aviation history, HABS/HAER, Alaska
+   heritage records, aerial imagery; the user's own Google Maps measurements come through A0. Match the real proportions
+   where they allow the DC-3 (a little larger is OK with the user).
+4. **The HOME layout** (Game owns the placement on the island; this branch the building): two hangars at HOME in the
+   end - this one in the middle, the main place, very visible, space to its right and left; the medium hangar where the
+   player starts with the little clubhouse next to it; the vacant medium-long plot goes. The large hangar stands alone
+   as the centrepiece: its apron and approach designed for a DC-3 taxiing in.
+Pictures for the user after each step. Also open from the user's own thread: stored aeroplanes in the large hangar in
+steps (HANGAR-STORAGE's slots + the packer already check sizes; the career's residents now stand on the door's line) -
+tools/large_hangar_store_shot.js, evidence reports/evidence/DERELICT-HANGAR/store/.
