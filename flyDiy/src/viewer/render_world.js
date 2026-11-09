@@ -551,7 +551,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       rows.push([w[0], w[1], rr(0, 6.3), size, Math.floor(rnd() * parts.length)]);
     }
     // (DIRT-STRIP) a bumpy strip's own stones on it, [x, z, size] (STRIP_MICRO.rocksOf: toward its edges, none in a rut)
-    if (o.extra) for (const e of o.extra) rows.push([e[0], e[1], rr(0, 6.3), e[2], Math.floor(rnd() * parts.length)]);
+    if (o.extra) for (const e of o.extra) { if (pavedNear && pavedNear(e[0], e[1], e[2] + 0.5, o.id)) continue; rows.push([e[0], e[1], rr(0, 6.3), e[2], Math.floor(rnd() * parts.length)]); }   // (G1003: not on a crossing pavement)
     const mtx = new THREE.Matrix4(), q = new THREE.Quaternion(), p = new THREE.Vector3(), sv = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
     // IN CELLS, CULLED, AND GONE UNDER A PIXEL (PERF 2026-09-23). The strip's stones were one
     // InstancedMesh a part a strip with frustumCulled off - every stone of every strip in the main
