@@ -203,6 +203,12 @@ console.log('7. the drawn leg = the physics leg (the game\'s load chain: the gar
     err = Math.max(err, Math.hypot(...[0, 1, 2].map(c => app(M, P(sd.axle))[c] - k.axle[c])), Math.hypot(...[0, 1, 2].map(c => app(M, P(sd.h))[c] - k.horn[c]))); n++;
     sTop = Math.max(sTop, s);
   });
+  // the garage says when the drawn leg cannot work: a tyre that enters the body at full stroke turns the drop red
+  const SH = require(path.join(T, '_scene_headless.js'));
+  const red = o => { const S = SH.sceneBuild(s0, { over: Object.assign({ s1Leg: 4 }, o), garage: s0 }); return S.W.CAGE_ROW_BAD() || {}; };
+  const rOk = red({ s1Drop: 0.85 }), rBad = red({ s1Drop: 0.46, s1X: 0.35 });
+  yes(!rOk.s1Drop && !!rBad.s1Drop && !!rBad.s1_lvComp, 'the garage turns the drop red when the tyre meets the body at full stroke (a 0.35 m half track: "' +
+      (rBad.s1Drop || '-') + '") and not on the Cub\'s own track');
   yes(n > 10 && err < 0.003, 'through a limit drop (' + n + ' frames, the strut to ' + mm(sTop) + ') the drawn arm and horn sit on the physics nodes to ' + mm(err));
 }
 
