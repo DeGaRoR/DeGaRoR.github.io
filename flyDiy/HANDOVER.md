@@ -313959,3 +313959,9 @@ Gated on the branch (a git-archive copy, one nice'd node process, 9 Nov 17:56-21
   (taxi W0, circuits W0 / W8 / W15) in 616 s; the Jodel not run (time).
 
 No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change.
+
+## HANGAR-VIEW C (9 Nov, Game coordinator for A0; claude/ready/hangar-view-c): THE DOOR'S VIEW WITH THE ROOM'S LIVE SKY
+- The user, 9 Nov 17:05 via A0 ("yes to all defaults"): the clouds through the door look OK, ships with the hangar view. The view stays OFF by default (HVIEW-OFF, ?hview=1).
+- From the prototype claude/proto/hangar-view-c: the room's sky is the world's at the real shed (the node's yaw turns the dome, the clouds, the key and the probe; the clouds' eye is the shed); the capture leaves its sky transparent and the room's live sky and clouds draw behind it; ?hvc=door captures from the doorway at eye height (and its regex's  is a real word boundary, HVC-DOOR).
+- Two fixes from the 9 Nov stills: the Shed's red-brown band past the door was the plot's ground pad (it goes with the room's outdoors while the view stands in, GATE HANGARVIEW 3p); no clouds through the door - the world's sky dome rides the world camera, which is in the world scene, and was drawn opaque into the capture (it is hidden with the live sky, 3q). GPU-confirmed 9 Nov 08:35 (the Shed) and 08:41 (the club), evidence-2026-10-18/2026-11-09/hangar-cloud-look.
+- The works' location A is NOT in this ready (claude/ready/works-location-a, its own train).

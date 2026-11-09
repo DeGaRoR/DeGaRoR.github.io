@@ -190,6 +190,7 @@ const OUTDOOR = [];
 const outdoor = m => { OUTDOOR.push(m); return ground(m); };
 let ROOM_POLISH = null;   // G3534: what the room's polish stood (hangar.polish)
 let POLISH_OUT = null;    // G3534b: its pieces outside the walls, drawn only while the eye stands outside (polishFollow)
+let ROOM_PAD = null;      // HANGAR-VIEW C: the plot's ground pad (under room:polish) - outdoors, so the world's view stands in for it
 
 // THE SEED IS RESETTABLE, and it has to be (G123). The canvas sheets below are
 // MEMOISED across builds, so on the second build their draw callbacks do not
@@ -2184,7 +2185,7 @@ if (!EXT) {
         }
         // G3541/G3542: the plot's ground pad, the world's own (HANGAR_GEN padMesh), lit as the room's outdoors are
         const pm = built.pad && HGN.padMesh ? HGN.padMesh(THREE, built.pad, { fog: false, envMapIntensity: ENV_OUT }) : null;
-        if (pm) { outdoor(pm.material); inner.add(pm); }
+        if (pm) { outdoor(pm.material); inner.add(pm); ROOM_PAD = pm; }
         // G3534b (A0 26 Oct s26-g0h, alone on master: the room's entry 4.90 s, 1.81 s with the polish off, every entry after
         // 0.44 s more): what stands OUTSIDE the walls - the casings, the gutters and pipes, the sign over the door, the skirt -
         // is split off into its own group and drawn only while the eye stands outside (the roll-out); the room's own passes
@@ -3747,23 +3748,37 @@ function setLights(pick) {
 const SHED_FRAME_YAW = -Math.PI / 2;
 const LAMP_EX_CAP = 1.4;
 let skyPhys = false, skyBakedSun = null, cloudMesh = null;
+// HANGAR-VIEW C (the 8 Nov redesign): THE ROOM'S SKY IS THE WORLD'S AT THE HANGAR. The frame was one fixed quarter turn for every
+// room (SHED_FRAME_YAW) and the clouds were marched from the world's origin, so the sun and the clouds through the door lined up
+// with no real shed. app.js hands the room's node here (setSkyFrame): its yaw turns the dome, the cloud layer, the key and the
+// probe; its place is the clouds' eye. Until it does, the old frame.
+let frameYaw = SHED_FRAME_YAW, shedEye = null, skyLive = false;
 let keyHeld = null; const KEY_STEP_COS = Math.cos(0.05 * Math.PI / 180);   // G2070: the key's held pose (applyDay)
 const dayDirShed = [0, 1, 0];                       // the key's direction in the shed's frame (the flare reads it)
-function toShed(g) { return [g[2], g[1], -g[0]]; }          // a world direction in the shed's frame
+// a world direction in the shed's frame (the inverse of the node's rotation.y; at the old -pi/2: [z, y, -x])
+function toShed(g) { const c = Math.cos(frameYaw), sn = Math.sin(frameYaw); return [g[0] * c - g[2] * sn, g[1], g[0] * sn + g[2] * c]; }
+function setSkyFrame(yaw, eye) {
+  if (!isFinite(+yaw)) return false;
+  const moved = Math.abs(+yaw - frameYaw) > 1e-6 || JSON.stringify(eye || null) !== JSON.stringify(shedEye);
+  frameYaw = +yaw; shedEye = eye ? [+eye[0], +eye[1], +eye[2]] : null;
+  for (const m of [skyPhys && skyMesh ? skyMesh.material : null, cloudMesh ? cloudMesh.material : null]) if (m && m.uniforms && m.uniforms.uFrame) m.uniforms.uFrame.value = frameYaw;
+  if (moved) keyHeld = null;   // the key re-aims at once
+  return moved;
+}
 function applyDay(day, renderer) {
   if (typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.setPre) LIGHT_RIG.setPre(1);   // G2620: the shed has no pre-exposure (its lamps cap the exposure); the world sets its own on the way out
   if (!day || typeof ATMO === 'undefined' || !ATMO.enabled || typeof SKY_LIGHT === 'undefined') return null;
   if (!skyPhys && skyMesh) {
-    const m = ATMO.domeMat({ depthTest: true, depthWrite: true }, SHED_FRAME_YAW);
+    const m = ATMO.domeMat({ depthTest: true, depthWrite: true }, frameYaw);
     if (m) { skyMesh.material = m; skyMesh.scale.x = 1; skyMesh.rotation.y = 0; skyPhys = true; }
     // CLOUDS C3: the layer over the shed's backdrop - one sky - marched from the field (the eye at the origin)
     // A6 (2026-09-20): depth-tested, or it painted over the walls and the aeroplane (the playtest's garage clouds)
-    if (typeof CLOUDS !== 'undefined' && CLOUDS.domeMesh && skyMesh.parent) { const c = CLOUDS.domeMesh(SHED_FRAME_YAW, 598, 24, { depthTest: true }); if (c) { c.renderOrder = 1; skyMesh.parent.add(c); cloudMesh = c; } }
+    if (typeof CLOUDS !== 'undefined' && CLOUDS.domeMesh && skyMesh.parent) { const c = CLOUDS.domeMesh(frameYaw, 598, 24, { depthTest: true }); if (c) { c.renderOrder = 1; skyMesh.parent.add(c); cloudMesh = c; } }
   }
   if (renderer) ATMO.update(renderer, day, 0);           // the sky-view LUT at the field's own height
   // the clouds' day (the shed frame is not the world's: the splice stays off, the key takes the layer's transmittance)
   let cloudT = 1;
-  if (typeof CLOUDS !== 'undefined' && CLOUDS.ready) { CLOUDS.S.inShed = true; CLOUDS.update(day, null, null); cloudT = CLOUDS.sunT(0, 0, 0); if (cloudMesh) cloudMesh.visible = CLOUDS.active; }
+  if (typeof CLOUDS !== 'undefined' && CLOUDS.ready) { CLOUDS.S.inShed = true; CLOUDS.S.shedEye = shedEye; CLOUDS.update(day, null, null); cloudT = shedEye ? CLOUDS.sunT(shedEye[0], shedEye[1], shedEye[2]) : CLOUDS.sunT(0, 0, 0); if (cloudMesh) cloudMesh.visible = CLOUDS.active; }
   // GARAGE-CLOUDS (8 Nov, the cloud bisect: blank on every master back to 22 Oct, drawn on top of everything too, the probe 'baked:
   // false'): the layer's noise volume is baked a few slices a frame by CLOUDS.draw - the WORLD's pass - so a boot into the garage
   // never baked it and the room's cloud sphere marched an empty noise (density 0, every texel discarded). The shed bakes it itself,
@@ -4309,6 +4324,7 @@ return {
 
   onSkyReady: fn => { skyOnReady = fn; },
   applyDay, moodFor, SHED_FRAME_YAW,             // ONE SKY (S5)
+  setSkyFrame, frameYaw: () => frameYaw,          // HANGAR-VIEW C: the room's sky at the real shed's yaw and place
   dayDir: () => dayDirShed,
   get skyPhys() { return skyPhys; },
   moods: MOODS.map(m => m.name || m.n), setMood: setMood,
@@ -4360,10 +4376,20 @@ return {
   // G3630 (HANGAR-VIEW): THE ROOM'S OWN OUTDOORS OFF while the world's view out of the door stands in (hangar_view.js):
   // the sky sphere and the outdoors' span (the field, the strip, the slab, the kerbs, the tufts, the furniture); the
   // polish on the room's own walls (HANGARS-LOOK's 'room:polish') stays. on: true puts them back
-  outdoorsShow: on => {
-    viewOut = on === false;
+  outdoorsShow: (on, keepSky) => {
+    viewOut = on === false; skyLive = viewOut && !!keepSky;
     for (const o of G.children) if (OUT_SET.has(o) || (o.userData && o.userData.outdoor)) o.visible = !viewOut;
-    if (skyMesh) skyMesh.visible = !muted.sky && !viewOut;
+    // HANGAR-VIEW C (the 9 Nov sheet: a red-brown band past the Shed's door over the world's grass): the plot's pad hangs under
+    // room:polish, which stays, and reaches 14 m out of the door - it is outdoors, the world's view draws the real ground there
+    if (ROOM_PAD) ROOM_PAD.visible = !viewOut;
+    if (skyMesh) skyMesh.visible = !muted.sky && (!viewOut || skyLive);
+    // HANGAR-VIEW C: the live sky behind the view (renderOrder before its -1001 / -1000 backdrop); the cloud layer in the OPAQUE list
+    // between them (three blends a non-transparent material only by a custom blending), its alpha over the sky
+    if (skyMesh) skyMesh.renderOrder = skyLive ? -1003 : 0;
+    if (cloudMesh) { const m = cloudMesh.material; cloudMesh.renderOrder = skyLive ? -1002 : 1;
+      if (skyLive) { m.transparent = false; m.blending = THREE.CustomBlending; m.blendSrc = THREE.SrcAlphaFactor; m.blendDst = THREE.OneMinusSrcAlphaFactor; m.blendSrcAlpha = THREE.OneFactor; m.blendDstAlpha = THREE.OneMinusSrcAlphaFactor; }
+      else { m.transparent = true; m.blending = THREE.NormalBlending; }
+      m.needsUpdate = true; }
     return !viewOut;
   },
 };
