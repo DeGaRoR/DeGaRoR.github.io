@@ -2073,6 +2073,21 @@ const DESIGN_ROWS = [
       { value: 4, label: 'Skid', icon: iconSteer(4),
         note: 'a sprung skid on a steel shoe: it drags, and that is the brake', writes: { cage: { s2Steer: 4 } } },
     ] },
+  // THE BRAKES (GEN_BRAKES, the user 9 Nov: "if you want better brakes, then it's gonna add weight to your plane"): the
+  // brakes' hold row's twin - and the drawn brake follows (drums drawn as drums, discs as discs)
+  { key: 'brakesT', label: 'Brakes', kind: 'discriminator',
+    group: 'undercarriage', status: 'live', slot: true, twin: ['brkHold'],
+    help: 'how hard the brakes can hold: stronger brakes stop shorter, weigh more and cost more',
+    read: P => Math.round(P.brkHold || 0),
+    options: () => [['as it was', 'locks the wheels on any surface (the old law, no mass)', 0],
+                    ['Heel drums', 'about 0.2 g on a 550 kg aeroplane: the J-3, the D.112', 1],
+                    ['Single-caliper discs', 'Cleveland class: about the grass grip of a 600 kg aeroplane', 0],
+                    ['Double-caliper discs', 'Beringer / Grove class: the bush builds', 0]]
+      .map(([label, note, drum], i) => {
+        const B = typeof GEN_BRAKES !== 'undefined' ? GEN_BRAKES : (W.GEN_BRAKES || null), k = [null, 'drum', 'disc', 'double'][i];
+        const R = B && k ? B[k] : null;
+        return { value: i, label, note: R ? note + ' - ' + R.kg + ' kg, ' + R.perWheelN + ' N a wheel' : note,
+                 writes: { cage: i ? { brkHold: i, whBrake: drum } : { brkHold: 0 } } }; }) },
   { key: 'carcassT', label: 'Tyre carcass', kind: 'discriminator',
     group: 'undercarriage', status: 'live', slot: true, twin: ['whProfile'],
     read: P => Math.round(P.whProfile || 0),

@@ -438,7 +438,7 @@ function makePilot(sim, def, world, opts) {
     trimCalm: true, groundP1D: true, xwBank: true, water: true, porpoise: true,
     // G396.2 / G970: on the step the stick comes all the way back, through LIFTOFF
     deTop: (onG) => (sim.hydro && (onG > 0 || ap.phase === 'LIFTOFF')) ? (A.deWater ?? 0.70) : (rotPull && ap.phase === 'ROLL') ? (A.deRotateFull ?? 0.70)
-      : ((ap.stolFld && (ap.phase === 'FLARE' || ap.phase === 'ROLLOUT')) || (ap.phase === 'ROLLOUT' && feelOn())) ? (A.deStol ?? 0.70) : 0.35 } });   // STOL-PILOT: the stick's full travel
+      : (((ap.stolFld || ap.feelFld) && (ap.phase === 'FLARE' || ap.phase === 'ROLLOUT')) || (ap.phase === 'ROLLOUT' && feelOn())) ? (A.deStol ?? 0.70) : 0.35 } });   // STOL-PILOT: the stick's full travel
   const taxiFF = (() => {
     const PP = POWERPLANTS[def.params.powerplant];
     const PR = def.params.prop || PP.prop;
@@ -457,13 +457,16 @@ function makePilot(sim, def, world, opts) {
   let gSurf = null, gGrade = 0;                  // the surface row and the gradient under the aeroplane, per update
   const aStopOf = () => {
     const row = gSurf || (typeof GROUND_SURF === 'object' && GROUND_SURF[0]) || [CRR, MU_BRAKE, 0.8];
-    return A.aStop || 9.81 * ((row[0] ?? CRR) + (A.brakeMax || 0.3) * (row[1] ?? MU_BRAKE)) * 0.8 + 9.81 * gGrade;
+    return A.aStop || 9.81 * ((row[0] ?? CRR) + (A.brakeMax || 0.3) * brkMu(row[1] ?? MU_BRAKE)) * 0.8 + 9.81 * gGrade;
   };
   const stopDist = v => v * v / (2 * Math.max(0.5, aStopOf())) + v * 1.0;
   // G1936: THE SHORT FIELD'S STOP - the brakes to the short-field limit (ROLLOUT, below). MEASURED, not the friction
   // law: the user's Cub three-point from 19 m/s ran 152 m at the 0.3 brake and 128 m at full brake (0.84 x) - the
   // wing still carries the weight at that speed and the tyres have little to brake on; the friction law said 0.5 x
   const brakeShort = A.brakeShort ?? 1.0;
+  // THE BRAKES' HOLD in the stop the pilot plans (GEN_BRAKES): the surface's brake friction or what the brakes hold on the
+  // mains' share of the weight (0.9), the lesser; a build without brakes chosen plans as it always did
+  const brkMu = mu => def.params.brakeN ? Math.min(mu, 2 * def.params.brakeN / (0.9 * Math.max(1, sim.totalM) * 9.81)) : mu;
   const stopDistShort = v => (A.stopShortK ?? 0.84) * stopDist(v);
   // THE RESERVE IS THE FIELD'S (G531): the style's 120/80/50 m past the Vr
   // point is a long runway's margin, and no strip under ~230 m could pass it
@@ -1248,7 +1251,7 @@ function makePilot(sim, def, world, opts) {
   // planArrival writes on `ap` put back and anything it said taken back (it plans, it does not fly). The caller poses d m
   // before `aim` along u, d * gs over aimY
   // (the straight-in is taken from 300 m before the IAF: d >= dIaf + 300; slot A's 8/8 flew d = 3000)
-  const PLAN_KEYS = ['frame', 'dirX', 'altRef', 'refAlt', 'appr', 'xAim', 'shortFld', 'stolFld', 'VAppr', 'stripShortSaid', 'gs', 'siteDir', 'patGround', 'protocolSaid', 'plan'];
+  const PLAN_KEYS = ['frame', 'dirX', 'altRef', 'refAlt', 'appr', 'xAim', 'shortFld', 'stolFld', 'feelFld', 'VAppr', 'stripShortSaid', 'gs', 'siteDir', 'patGround', 'protocolSaid', 'plan'];
   ap.finalFrom = (a, x, z) => {
     const L = ap.landWayFrom(a, x, z);
     if (!L) return null;
@@ -1388,10 +1391,17 @@ function makePilot(sim, def, world, opts) {
       let technique = (short || stolL) ? 'short' : soft ? 'soft' : 'normal';
       if (PRA && PRF.field && !water) technique = PRF.field;   // G1943: a profile's own field technique
       const shortT = technique === 'short';
-      // THE FEEL STOP's arrival (the user: "your approach in a three-point touchdown ... as slow as you can, obviously full flaps
-      // down"): a taildragger flying the feel law on the short technique lands as the STOL wing does - the threshold aim, the
-      // three-point touchdown on the stick's whole travel - whatever its devices
-      const stolT = shortT && (stolL || ((A.tailStop === 'feel' || A.tailArrive === 'three') && !trike && !water));   // (tailArrive: the arrival alone, for the A/B)
+      const stolT = shortT && stolL;
+      // THE FEEL ARRIVAL (the user: "your approach in a three-point touchdown ... as slow as you can, obviously full flaps
+      // down. You flare, you touch"): a taildragger flying the feel law on the short technique, its wing no STOL wing, flies
+      // the HOLD-OFF (idle, the sink held while the speed bleeds) with the stick's whole travel, so the nose comes up to the
+      // three-point attitude as the wing slows instead of stopping on the 0.35 top (the old short arrival: tail-high at
+      // 1.3 Vs0). NOT the STOL flare's attitude ramp at idle (measured: the Cub floated 880 m from 50 ft, the SS went round
+      // twice and ran out of time), and NOT its power: traced 9 Nov, the Carbon Cub SS at 614 kg flared from 4.6 m on power,
+      // bled to 14.5 m/s, the throttle came to 0.56 to hold the sink and its torque rolled the slow wing 26 deg left against
+      // the ailerons' stop - a 2.3 m/s touch at 26 deg of bank and a 100 deg ground loop the old record read as a 20 m stop.
+      // A.tailArrive 'three' = this arrival alone (the A/B)
+      const feelT = shortT && !stolL && !water && !trike && (A.tailStop === 'feel' || A.tailArrive === 'three');
       const Vbase = shortT && VApprShort() ? VApprShort() : (sheetVAppr() ?? A.VAppr);
       // G1936 (PILOT-ONE, the user: "aim for touching down at the beginning of the strip"): the short aim is 10 m
       // in (6 % of a longer short strip) - the hold-off's float carries the wheels on from there; 30 m in left the
@@ -1413,6 +1423,7 @@ function makePilot(sim, def, world, opts) {
       ap.report.appr = ap.appr;
       ap.xAim = aim; ap.shortFld = technique === 'short'; ap.VAppr = Vbase + 0.5 * gust;
       if (stolT || ap.stolFld) ap.stolFld = stolT;
+      ap.feelFld = feelT;
       if (runNeed != null && to.len < 1.15 * runNeed && !ap.stripShortSaid) { ap.stripShortSaid = true; say('strip-short', to.len + ' m of strip for a ' + Math.round(runNeed) + ' m landing run — landing short-field, no margin'); }
     }
     let hC = ap.hCruise;
@@ -2794,7 +2805,7 @@ function makePilot(sim, def, world, opts) {
       const sEnd = (to.x - F.ox) * F.ux + (to.z - F.oz) * F.uz + to.len / 2, sThr0 = sEnd - to.len;
       const stopOn = (a, grade, v) => {
         const row = (typeof GROUND_SURF === 'object' && GROUND_SURF[a.surface]) || [CRR, MU_BRAKE, 0.8];
-        const aS = A.aStop || 9.81 * ((row[0] ?? CRR) + (A.brakeMax || 0.3) * (row[1] ?? MU_BRAKE)) * 0.8 + 9.81 * grade;
+        const aS = A.aStop || 9.81 * ((row[0] ?? CRR) + (A.brakeMax || 0.3) * brkMu(row[1] ?? MU_BRAKE)) * 0.8 + 9.81 * grade;
         return v * v / (2 * Math.max(0.5, aS)) + v * 1.0;
       };
       const pT = wp(F, sThr0, 0), pE = wp(F, sEnd, 0);
@@ -4892,13 +4903,18 @@ function makePilot(sim, def, world, opts) {
           const vsC = -Math.max(sinkF, Math.max(0, hFl) / flTau) + altG * Math.hypot(vcg[0], vcg[2]);
           const ev = vsC - flVsF;
           // the elevator has no more to give: stop winding the demand up
-          const deSat = SV.aDe > (ap.stolFld ? (A.deStol ?? 0.70) - 0.05 : 0.30);   // STOL-PILOT: the stick's whole travel is the flare's
+          const deSat = SV.aDe > ((ap.stolFld || ap.feelFld) ? (A.deStol ?? 0.70) - 0.05 : 0.30);   // STOL-PILOT: the stick's whole travel is the flare's
           flI = clamp(flI + (deSat ? -0.15 : (A.flareI ?? 0.30) * ev) * dt, 0, Math.max(0, flCap - thFlare0));
           let thC = clamp(thFlare0 + (A.flareP ?? 0.20) * ev + flI, thFlare0 - 0.02, flCap);
           // STOL-PILOT: ...and on a STOL flare the attitude is brought to the three-point one (flCap) as the height goes - at
           // half the entry height (flareStolK) - the power (below) holding the sink: the pitch flies the speed down to
           // the touch, the throttle the path (the hold-off's own pitch law alone left the showcase Cub at +2 deg, 1.10 Vs0)
-          if (ap.stolFld) thC = Math.max(thC, thFlare0 + (flCap - thFlare0) * clamp((1 - Math.max(0, aglG) / flH0) / (A.flareStolK ?? 0.5), 0, 1));
+          if (ap.stolFld || ap.feelFld) thC = Math.max(thC, thFlare0 + (flCap - thFlare0) * clamp((1 - Math.max(0, aglG) / flH0) / (A.flareStolK ?? 0.5), 0, 1));
+          // THE FEEL ARRIVAL'S REFLEX (traced 9 Nov: the Carbon Cub SS at 614 kg, aft CG, held the three-point ramp past its stall -
+          // 14.3 m/s, the left wing dropping to 28 deg against the ailerons' stop, a 3 m/s touch and a 180 deg ground loop): a wing
+          // going in the flare is the stall, and the pilot gives the back pressure up - the attitude asked for 1 deg under the one
+          // flown while the bank is past feelBankStall (3 deg), until the wing flies again
+          if (ap.feelFld && !ap.stolFld && Math.abs(sim.out.roll || 0) > (A.feelBankStall ?? 0.052)) thC = Math.min(thC, th - 0.017);
           // the pull: a firmer inner loop and the rotation's integrator authority
           SV.pitchK = A.flarePK ?? 2.0; SV.pitchDK = A.flareDK ?? 1.0;
           SV.IthMaxT = A.rotateIMax ?? 0.30; SV.IthGain = A.flareIth ?? 0.4;
@@ -4914,7 +4930,7 @@ function makePilot(sim, def, world, opts) {
           // arrival a gust can drop a wing out of. Measured at 1,4 m/s, gust 0.6: the full-stall flare met a -8.6 deg wing drop
           // in the last metre at 0.97 Vs0, a main first at 1.8 m/s, a 16 cm hop; the hold-off's: one touch at 12.3 m/s (1.02
           // Vs0), -1.1 deg, 1.34 m/s, 29 m. Calm (and under 0.75 m/s of spread): as before
-          if (ap.stolFld && !(ap.appr && ap.appr.gust > (A.stolGustMax ?? 0.75))) { SV.IthMaxT = A.deStol ?? 0.70; SV.IthGain = A.flareStolIth ?? 1.5; }
+          if ((ap.stolFld || ap.feelFld) && !(ap.appr && ap.appr.gust > (A.stolGustMax ?? 0.75))) { SV.IthMaxT = A.deStol ?? 0.70; SV.IthGain = A.flareStolIth ?? 1.5; }
           if (altG > 0) engage(decrab ? 'DECRAB' : 'LOC', 'PITCH', 'SPD', { pitch: thC, bank: 0.10, ias: 0.95 * ap.VAppr });   // GTRAM: the round-out onto the slope is flown on power
           else if (sim.hydro) {
             // G3079 (FLOATS-FIX; PERSONA-2 G2462's law, alone): ON THE WATER THE FLARE IS FLOWN ON POWER (FAA-H-8083-23, the
@@ -4926,7 +4942,7 @@ function makePilot(sim, def, world, opts) {
             flWI = clamp(flWI + (A.flareWaterI ?? 0.10) * eS * dt, -flThr0, 0.4);
             engage(decrab ? 'DECRAB' : 'LOC', 'PITCH', 'SET', { pitch: thC, bank: 0.10, thr: clamp(flThr0 + (A.flareWaterP ?? 0.25) * eS + flWI, 0, Math.min(1, flThr0 + 0.4)) });
           }
-          else if (ap.stolFld) {
+          else if (ap.stolFld || ap.feelFld) {
             // STOL-PILOT: A STOL FLARE IS FLOWN ON POWER (the bush pilot's "dragged in" arrival; FAA-H-8083-3: the power
             // holds the sink while the attitude comes up, closed at the touch). Measured on the showcase Cub: on the idle
             // flare G970's slow-arrival cushion (apAssist, 0.40 under 1.15 Vs0) held 13.7 m/s = 1.13 Vs0 to the wheels; with
@@ -4935,7 +4951,11 @@ function makePilot(sim, def, world, opts) {
             // stick's whole travel (deStol) brings the three-point attitude and the wing bleeds to its touchdown speed
             const eS = vsC - flVsF;
             flWI = clamp(flWI + (A.flareStolI ?? 0.10) * eS * dt, -flThr0, 0.4);
-            engage(decrab ? 'DECRAB' : 'LOC', 'PITCH', 'SET', { pitch: thC, bank: 0.10, thr: clamp(flThr0 + (A.flareStolP ?? 0.25) * eS + flWI, 0, Math.min(1, flThr0 + 0.4)) });
+            // THE FEEL ARRIVAL's power is capped at the approach's + feelThrUp (0.1): traced 9 Nov, the STOL flare's +0.4 brought
+            // the Carbon Cub SS's throttle from 0 to 0.56 at 14.5 m/s and the torque rolled the slow wing 26 deg against the
+            // ailerons' stop - the ground loop the old record read as a 20 m stop
+            const thrUp = (ap.feelFld && !ap.stolFld) ? (A.feelThrUp ?? 0.1) : 0.4;
+            engage(decrab ? 'DECRAB' : 'LOC', 'PITCH', 'SET', { pitch: thC, bank: 0.10, thr: clamp(flThr0 + (A.flareStolP ?? 0.25) * eS + flWI, 0, Math.min(1, flThr0 + thrUp)) });
           }
           else engage(decrab ? 'DECRAB' : 'LOC', 'PITCH', 'IDLE', { pitch: thC, bank: 0.10, idle: A.flareThr ?? 0 });
         }

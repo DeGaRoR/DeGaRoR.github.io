@@ -454,6 +454,10 @@ function cageJoinSpec(P, M, T) {
     spec.gear.twFairTail = +P.s2FairTail || 1;
     spec.gear.fairMat = ['glass', 'carbon', 'alloy'][Math.round(P.fairCons || 0)]
                         || 'glass';
+    // THE BRAKES' HOLD (GEN_BRAKES, the user 9 Nov): the key only when chosen - absent flies as it always did (G3800's
+    // twMode rule), so no saved build moves and no certificate is withdrawn
+    { const bk = [null, 'drum', 'disc', 'double'][Math.round(+P.brkHold || 0)];
+      if (bk) spec.gear.brakes = bk; else delete spec.gear.brakes; }
     // G132: THE DRAWN LEG IS THE SUSPENSION. GEN_SUSPENSION (spring rate,
     // damping, price) read spec.gear.suspension while the mains' shock rows
     // drew coil-over/bungee/oleo from s1_shockKind with nothing between

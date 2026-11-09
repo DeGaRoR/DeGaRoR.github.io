@@ -245,7 +245,7 @@ function flight(spec, def, lc, o) {
     // brakes let go and the pilot flies its roll from there. If the tail comes up (the pitch more than 2 deg under the rest
     // attitude) the power comes back until it sits down again. The take-off flap is the schedule's (the sweep flies full)
     const tailD = !(spec.gear && spec.gear.type && spec.gear.type !== 'taildragger');
-    const SS = { b: 0, eased: 0, thTD: null, thMin: 1e9 };
+    const SS = { b: 0, eased: 0, thTD: null, thMin: 1e9, hTD: null, hSwing: 0 };
     const RU = o.tech && o.tech.runup ? { on: false, done: false, t: 0, thr: 0, rpm: 0, steadyT: 0, th0: null, tailUps: 0 } : null;
     for (let s = 0; s < maxS * 60; s++) {
       ap.update(1 / 60);
@@ -269,7 +269,14 @@ function flight(spec, def, lc, o) {
       //     more than 1.5 deg under the touchdown attitude) and back on as it sits down; the flaps stay where they are
       //   a TRICYCLE (the 172's handbook): the flaps up (the weight onto the wheels), the wheel full back, maximum brake
       //     pressure without sliding the tyres
+      if (process.env.RC_FLARE && (ap.phase === 'FLARE' || ap.phase === 'FINAL' || (ap.phase === 'ROLLOUT' && SS.thTD == null)) && s % 6 === 0) {
+        const cg = sim.cgPos(), vv = sim.cgVel ? sim.cgVel() : [0, 0, 0];
+        console.error('ARR', ap.phase, 'VAppr', (+ap.VAppr).toFixed(1), 'tech', ap.appr && ap.appr.technique, 'feel', !!ap.feelFld, ((s + 1) / 60).toFixed(2), 'h', cg[1].toFixed(2), 'vs', (vv[1] || 0).toFixed(2), 'V', sim.out.V.toFixed(1), 'beta', (sim.out.beta * 57.3).toFixed(1), 'roll', (sim.out.roll * 57.3).toFixed(1), 'pitch', (sim.out.pitch * 57.3).toFixed(1), 'thr', (+sim.ctl.thr).toFixed(2), 'dr', (+sim.ctl.dr).toFixed(2), 'da', (+sim.ctl.da).toFixed(2), 'de', (+sim.ctl.de).toFixed(2), 'onG', sim.wheelsOnGround());
+      }
+      if (ap.phase === 'ROLLOUT' && onSurface(sim)) { if (SS.hTD == null) SS.hTD = sim.out.hdg; else { let dh = sim.out.hdg - SS.hTD; dh = Math.atan2(Math.sin(dh), Math.cos(dh)); SS.hSwing = Math.max(SS.hSwing, Math.abs(dh)); } }
       if (ap.phase === 'ROLLOUT' && onSurface(sim)) { if (SS.thTD == null) SS.thTD = sim.out.pitch; SS.thMin = Math.min(SS.thMin, sim.out.pitch);
+        if (process.env.RC_NODES && (s % 10 === 0)) { const low = []; for (let i = 0; i < sim.n; i++) { const y = sim.p[i * 3 + 1] - (sim.r[i] || 0); if (y < 0.08) low.push((def.nodes[i] && def.nodes[i].tag || i) + ':' + y.toFixed(3)); }
+          console.error('NODES', ((s + 1) / 60).toFixed(2), 'V', sim.out.V.toFixed(1), 'Vg', (+sim.out.Vg).toFixed(1), 'pitch', (sim.out.pitch * 57.3).toFixed(1), 'brake', (+sim.ctl.brake).toFixed(2), 'brakeD', (+sim.ctl.brakeD).toFixed(2), 'dr', (+sim.ctl.dr).toFixed(2), 'hdg', (sim.out.hdg * 57.3).toFixed(1), 'beta', (sim.out.beta * 57.3).toFixed(1), 'twAng', JSON.stringify(sim.out.twAng), 'tw', JSON.stringify(sim.out.twState), 'thr', (+sim.ctl.thr).toFixed(2), 'flap', (+sim.ctl.flap).toFixed(2)); }
         if (process.env.RC_TRACE && (s % 15 === 0)) console.error('ROLLOUT', ((s + 1) / 60).toFixed(2), 'V', sim.out.V.toFixed(1), 'pitch', (sim.out.pitch * 57.3).toFixed(1), 'brake', (+sim.ctl.brake).toFixed(2), 'de', (+sim.ctl.de).toFixed(2)); }
       if (o.tech && o.tech.stopShort && ap.phase === 'ROLLOUT' && onSurface(sim)) {
         sim.ctl.de = 1;
@@ -331,7 +338,11 @@ function flight(spec, def, lc, o) {
     // than 10 deg nose-down. Such a roll is never a best figure
     rec.pitchMin = SS.thTD != null ? +(SS.thMin * 57.3).toFixed(1) : null;
     rec.noseOver = SS.thTD != null && SS.thMin < -10 / 57.3;
-    if (rec.noseOver) { rec.LDGnoseOver = rec.LDG; rec.LDG = null; rec.LDG50 = null; }   // a roll that ends on the nose is not a landing roll
+    // A GROUND LOOP (found 9 Nov: the SS's "20 m" was a 100 deg swing, the tyres scrubbing sideways): the heading moved more
+    // than 30 deg on the roll-out. Not a landing roll either
+    rec.hdgSwing = SS.hTD != null ? +(SS.hSwing * 57.3).toFixed(1) : null;
+    rec.groundLoop = SS.hTD != null && SS.hSwing > 30 / 57.3;
+    if (rec.noseOver || rec.groundLoop) { rec.LDGnoseOver = rec.LDG; rec.LDG = null; rec.LDG50 = null; }   // a roll that ends on the nose or sideways is not a landing roll
     if (o.tech && o.tech.stopShort) rec.stopShort = { gear: tailD ? 'tail' : 'tricycle', eased: SS.eased };
     if (RU) rec.runup = { held: RU.held || null, rpm: RU.rpmHeld ? Math.round(RU.rpmHeld) : null, tailUps: RU.tailUps };
   } finally { undo(); }
@@ -485,7 +496,7 @@ function runPlane(key, P) {
       runs.push({ what: 'landing', brake, brakeRate, vBrakeOn, vapp, stopShort: !!stopShort, r });
     }
     const ok = x => x != null && isFinite(x);
-    const minOf = (k, w) => { let b = null; for (const x of runs) if ((!w || x.what === w) && ok(x.r[k]) && !x.r.noseOver && (b == null || x.r[k] < b.v)) b = { v: x.r[k], run: x }; return b; };
+    const minOf = (k, w) => { let b = null; for (const x of runs) if ((!w || x.what === w) && ok(x.r[k]) && !x.r.noseOver && !x.r.groundLoop && (b == null || x.r[k] < b.v)) b = { v: x.r[k], run: x }; return b; };
     const maxOf = (k, w) => { let b = null; for (const x of runs) if ((!w || x.what === w) && ok(x.r[k]) && (b == null || x.r[k] > b.v)) b = { v: x.r[k], run: x }; return b; };
     const allF = [...runs.map(x => x.r), out.flights[lc.id].poh];
     const bestMin = k => { let b = null; for (const r of allF) if (ok(r[k]) && (b == null || r[k] < b)) b = r[k]; return b; };
@@ -510,7 +521,7 @@ function runPlane(key, P) {
 }
 function brief(b) { if (!b) return null; const x = b.run; return { v: b.v, what: x.what, vr: x.vr, flapTO: x.flapTO, vyK: x.vyK, brake: x.brake, brakeRate: x.brakeRate, vBrakeOn: x.vBrakeOn, vapp: x.vapp, stopShort: x.stopShort || undefined }; }
 function fl(r) { return 'TO ' + f(r.TO) + ' m (' + f(r.Vlof) + ' km/h), 50ft ' + f(r.TO50) + ' m, climb ' + f(r.climb, 2) + ' m/s @' + f(r.Vclimb) + ' thr ' + f(r.thrClimb, 2) +
-                        ', LDG ' + f(r.LDG) + ' m (50ft ' + f(r.LDG50) + ', flap ' + f(r.flapLdgFlown, 2) + ', td ' + f(r.Vtd) + ' km/h), ' + r.outcome + (r.noseOver ? ' NOSE-OVER (pitch ' + f(r.pitchMin) + ' deg after ' + f(r.LDGnoseOver) + ' m)' : '') + (r.goArounds ? ' GA ' + r.goArounds : '') + ' [' + f(r.wall) + ' s]'; }
+                        ', LDG ' + f(r.LDG) + ' m (50ft ' + f(r.LDG50) + ', flap ' + f(r.flapLdgFlown, 2) + ', td ' + f(r.Vtd) + ' km/h), ' + r.outcome + (r.noseOver ? ' NOSE-OVER (pitch ' + f(r.pitchMin) + ' deg after ' + f(r.LDGnoseOver) + ' m)' : '') + (r.groundLoop ? ' GROUND LOOP (' + f(r.hdgSwing) + ' deg)' : '') + (r.goArounds ? ' GA ' + r.goArounds : '') + ' [' + f(r.wall) + ' s]'; }
 function log(key, s) { if (!has('quiet')) console.log('[' + key + '] ' + s); }
 function finish(out, t0) { out.verdicts = verdicts(out); out.t.total = (Date.now() - t0) / 1000; return out; }
 
@@ -625,7 +636,7 @@ function md(out) {
     L.push('| load | who | TO roll | Vlof | TO 50 ft | climb m/s @ km/h (thr) | LDG roll | LDG 50 ft | flap flown | outcome |');
     L.push('|---|---|---|---|---|---|---|---|---|---|');
     for (const id of Object.keys(out.flights)) for (const who of ['game', 'poh']) { const r = out.flights[id][who];
-      L.push('| ' + id + ' | ' + who + ' | ' + f(r.TO) + ' | ' + f(r.Vlof) + ' | ' + f(r.TO50) + ' | ' + f(r.climb, 2) + ' @ ' + f(r.Vclimb) + ' (' + f(r.thrClimb, 2) + ') | ' + f(r.LDG) + ' | ' + f(r.LDG50) + ' | ' + f(r.flapLdgFlown, 2) + ' | ' + r.outcome + (r.goArounds ? ', ' + r.goArounds + ' GA' : '') + (r.hard ? ', HARD (sink ' + f(r.tdSink, 1) + ' m/s)' : '') + (r.noseOver ? ', NOSE-OVER (' + f(r.pitchMin) + ' deg after ' + f(r.LDGnoseOver) + ' m)' : '') + ' |'); }
+      L.push('| ' + id + ' | ' + who + ' | ' + f(r.TO) + ' | ' + f(r.Vlof) + ' | ' + f(r.TO50) + ' | ' + f(r.climb, 2) + ' @ ' + f(r.Vclimb) + ' (' + f(r.thrClimb, 2) + ') | ' + f(r.LDG) + ' | ' + f(r.LDG50) + ' | ' + f(r.flapLdgFlown, 2) + ' | ' + r.outcome + (r.goArounds ? ', ' + r.goArounds + ' GA' : '') + (r.hard ? ', HARD (sink ' + f(r.tdSink, 1) + ' m/s)' : '') + (r.noseOver ? ', NOSE-OVER (' + f(r.pitchMin) + ' deg after ' + f(r.LDGnoseOver) + ' m)' : '') + (r.groundLoop ? ', GROUND LOOP (' + f(r.hdgSwing) + ' deg)' : '') + ' |'); }
     L.push('');
   }
   if (out.sweep) {

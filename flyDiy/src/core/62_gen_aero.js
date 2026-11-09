@@ -1750,6 +1750,8 @@ function genParams(S, fr, strips) {
     // the solver turns the rolling direction by -twSteer*dr, so a NOSEwheel
     // wants the opposite sign from a tailwheel (C172 fiche, sign verified there)
     twSteer: S.gear.type === 'tricycle' ? -0.35 : 0.5,
+    // THE BRAKES' HOLD (GEN_BRAKES): the most a main's brake holds, N - the key only when the build has brakes chosen
+    ...(genBrakeOf(S) ? { brakeN: genBrakeOf(S).perWheelN } : {}),
     // G3800 (TAILWHEELS): a taildragger's tail contact, 30_solver twLine's law: 2 lockable, 3 fixed, 4 skid - the key
     // only when chosen (absent: 1, the steerable Scott-type wheel, every taildragger's default)
     ...(S.gear.type !== 'tricycle' && S.gear.twMode ? { twMode: { lock: 2, fixed: 3, skid: 4 }[S.gear.twMode] } : {}),

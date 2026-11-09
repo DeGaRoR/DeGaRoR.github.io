@@ -1153,13 +1153,13 @@ const CAGE_PARTS = [
   { key: 'wheels', name: 'Wheels & tyres', parent: 'mains', layer: 'gear',
     when: P => (+P.gearOn) * (1 - (+P.gearFloats || 0)) > 0, unless: ['gearFloats'],
     sections: ['spat'],
-    place: { type: ['whProfile', 'whSlick', 'whRim', 'whCap', 'whBrake', 'fairCons'],
+    place: { type: ['whProfile', 'whSlick', 'whRim', 'whCap', 'whBrake', 'brkHold', 'fairCons'],
              count: ['whRibs', 'whBolts'], at: 'every station' },
     groups: [
       // the radii, one per station — the wheel's own size, filed with the wheel
       ['size', ['s1R', 's2R']],
       ['carcass', ['whProfile', 'whSlick', 'whBulge', 'whRibs']],
-      ['rim', ['whRim', 'whBolts', 'whCap', 'whValve', 'whBrake']],
+      ['rim', ['whRim', 'whBolts', 'whCap', 'whValve', 'whBrake', 'brkHold']],
       ['fairing build', ['fairCons']],
     ] },
 
