@@ -1782,14 +1782,14 @@ function build(P0, lod, F) {
   // THE RESTORED SLAB'S PAST, AT THE MACRO SCALE (the user 9 Nov: "now the floor is a little clean ... the blend should show
   // at that distance, we're aiming for macro detail ... the micro is OK with the current texture"): the slab's own occlusion
   // term darkened in broad soft patches - a 14 m and a 5.5 m field, the worn lanes and the old oil of the derelict's floor
-  // read through the new finish (to 28 % at the darkest) - on its 2 m vertex grid, after the bake; the scan is untouched
+  // read through the new finish (the term to 0.4 at the darkest: ~20 % of the direct light, the house shader's uAOd 0.35) - on its 2 m vertex grid, after the bake; the scan is untouched
   if (rest && bags.concFloor && bags.concFloor.verts) {
     const d = bags.concFloor.data();
     for (let i = 0, v = 0; i < d.pos.length; i += 3, v++) {
       const x = d.pos[i], y = d.pos[i + 1], z = d.pos[i + 2];
       if (Math.abs(y - fy) > 0.05) continue;
       const m = 0.62 * vnoise(x / 14 + 7.3, z / 14 - 2.1, seed + 31) + 0.38 * vnoise(x / 5.5 - 1.7, z / 5.5 + 4.4, seed + 37);
-      d.ao[v] *= 1 - 0.28 * SM(0.38, 0.82, m);
+      d.ao[v] *= 1 - 0.6 * SM(0.38, 0.82, m);   // (the house shader puts 0.35 of it on the direct light: ~20 % darker there, the indirect more)
     }
   }
   let tris = 0, verts = 0; const per = {};
