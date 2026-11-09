@@ -89,3 +89,14 @@ Answered from claude/real-figures-3; the measurements are on claude/practical-ce
 - Net −0.49 kg: 354.2 kg, +2.7 %, equal or closer.
 - The Cub keeps its electrics for now. Their removal (honest: −3.3 %) waits for the missing ~11–13 kg to be found in the
   J-3's other lines. It is an open item for REAL-FIGURES.
+
+## UPDATE (9 Nov, later): the user ruled "go cable runs" to ELEC-SYSTEMS directly
+
+That ruling stands over the hold above.
+- The harness is now billed by its cable runs on every build with a bus: claude/elec-systems 61482235 + e7654ba4,
+  PHYSICS_V 7 → 8.
+- The Cub's wire is +1.61 kg: 354.8 → 356.4 kg (+3.3 %).
+- With LINER-BACK's zero-sum (trim 'bare' −1.44, liner +0.95) it lands at ≈ 355.9 kg, **+3.2 %**. The Cub sits there until
+  the J-3's missing line is found (REAL-FIGURES' open item).
+- PHYSICS_V collision: PROP-CLASSES (claude/practical-cerf-7fjpwp 2704c5644, not landed) also bumps 7 → 8. Whichever lands
+  second takes 9.
