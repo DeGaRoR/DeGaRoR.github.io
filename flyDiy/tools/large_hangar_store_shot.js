@@ -58,6 +58,9 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     const P = window.FLYDIY_PLAYER, d = P.doc();
     d.sheds.HOME = Object.assign({}, d.sheds.HOME, { shell: 'works', dims: Object.assign({}, SHELLS.works.dims) });
     if (slots) d.sheds.HOME.slots = { inside: slots };
+    // a career's fleet is its OWN airframes (74_career.js careerOwnSlots): the shelf recorded as built by the player
+    d.career.airframes = d.career.airframes || {};
+    for (const n of names) d.career.airframes[n] = Object.assign({}, d.career.airframes[n] || {}, { paid: 0, how: 'scratch', at: 0 });
     names.forEach((n, i) => { d.fleet[n] = Object.assign({}, d.fleet[n] || {}, { hangar: 'HOME', aero: 'HOME', kind: 'inside', slot: i }); });
     const r = P.set(d);
     return { shell: r.sheds.HOME.shell, fleet: Object.keys(r.fleet).map(n => n + ':' + r.fleet[n].kind + (r.fleet[n].hangar ? '@' + r.fleet[n].hangar : '')) };
