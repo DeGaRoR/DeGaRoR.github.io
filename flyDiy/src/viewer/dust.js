@@ -70,22 +70,22 @@
   const L = {
     kAir: 0.28, kAirWind: 0.08,      // m^2/s: the near-surface eddy diffusivity, + per m/s of the 10 m wind (a puff r = 2 sigma ~5 m at 10 s, ~14 m at 60 s: Taylor 1921 with sigma_v ~0.5 m/s near the ground)
     jetTau: 2.0,                     // s: a source's own turbulence decays over this
-    coarse: 0.55, tauCoarse: 4.0, tauFine: 240,   // the mass's two shares: 55 % settles in ~4 s, the rest over minutes
+    coarse: 0.35, tauCoarse: 6.0, tauFine: 240,   // the mass's two shares: 35 % settles in ~6 s, the rest over minutes (the bench, 9 Nov: 55 % / 4 s read as gone)
     domeK: 0.32,                     // the puff's centre settles at ground + domeK r (a dome: the lower part under the ground, faded)
     puffDrag: 0.55,                  // /s: a puff relaxes to the air's velocity
     gritDrag: 0.15, mudDrag: 0.05,
     z0: 0.03,                        // m: the strip's roughness length for the log wind
     // the wheels
-    wheelK: 0.10,                    // optical m^2 per second per (m/s)^1.5 at fines 1, dry - tuned in the bench (doc section 5)
+    wheelK: 0.6,                     // optical m^2 per second per (m/s)^1.5 at fines 1, dry - tuned in the bench (doc section 5)
     brakeK: 1.0,                     // + this x brake x the rolling rate
     spacing: 1.4, topUpAge: 0.5,     // a source tops its current puff up until it moved this far or it is this old
     gritRate: 9,                     // grit a second per m/s at loose 1, dry (gravel and sand's rooster tail)
     // touchdown
-    tdMin: 0.25, tdK: 0.8,           // m/s of sink to count; optical m^2 per (m/s sink x m/s ground speed)
+    tdMin: 0.25, tdK: 3.0,           // m/s of sink to count; optical m^2 per (m/s sink x m/s ground speed)
     // the prop
-    jetHalf: 8 * Math.PI / 180, propK: 0.4,
+    jetHalf: 8 * Math.PI / 180, propK: 2.4,   // (the bench, 9 Nov: x6 - a run-up's cloud ~8-10 m, as the footage)
     // vortices
-    vortK: 0.2,
+    vortK: 1.0,
     // fade
     tauMin: 0.006,
   };
@@ -439,16 +439,19 @@
         // lit as dust: the sphere's normal bent by the billow's
         vec3 N = normalize(vec3(q + (n1.gb * 2.0 - 1.0) * 0.7, th * 0.9 + 0.1));
         float ndl = dot(N, uSunV);
-        // self-shadow: the dark side of a thick puff loses the sun (the depth the light crosses), a thin one is lit through
-        float thick = clamp(vTau * 0.8, 0.0, 0.9);
-        float sh = mix(1.0, smoothstep(-0.6, 0.8, ndl), thick);
+        // self-shadow: the dark side of a thick puff loses some sun (the depth the light crosses), a thin one is lit through;
+        // dust is a bright scatterer (albedo ~0.95), so the light that crosses it forward still reaches the eye - the backlit
+        // glow is the forward lobe below, only softened by the thickness (the bench, 9 Nov: a full shadow made backlit dust dark)
+        float thick = clamp(vTau * 0.5, 0.0, 0.6);
+        float sh = mix(1.0, smoothstep(-0.8, 0.6, ndl), thick);
         // Henyey-Greenstein toward the eye (V = +z in view): forward scatter when the sun is behind the dust; multiple
         // scattering in a thick puff flattens the lobe
         float cs = -uSunV.z, g = uG;
         float hg = (1.0 - g * g) / pow(1.0 + g * g - 2.0 * g * cs, 1.5);
         float ph = min(4.0, mix(hg, 1.0, clamp(vTau * 0.35, 0.0, 0.8)));
         float sky = 0.75 + 0.25 * N.y;
-        col = vCol * (uSunCol * ph * sh * (0.55 + 0.45 * max(0.0, ndl * 0.5 + 0.5)) + uSkyCol * sky + uGndCol * 0.35 * (1.0 - N.y * 0.5)) / 3.14159265;
+        float fwd = max(0.0, ph - 1.0);                            // the forward excess: through the puff, not off its lit side
+        col = vCol * (uSunCol * (sh * (0.55 + 0.45 * max(0.0, ndl * 0.5 + 0.5)) + fwd * (1.0 - 0.4 * thick)) + uSkyCol * sky + uGndCol * 0.35 * (1.0 - N.y * 0.5)) / 3.14159265;
       } else {
         // GRIT / MUD: a small dark clump
         float disc = smoothstep(1.0, 0.3, d2);
