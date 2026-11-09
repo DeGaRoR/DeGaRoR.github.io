@@ -323,3 +323,56 @@ It is in the recipe (`carbon_cub_ss.edits.json` `paint` / `finish`; `_rejoin_bui
 
 **Score:** the SS is **89** (geometry 95, specs 97, performance 80) since the scorer reads CC340 as 340 in³. The STOL Cub is
 kept and measured but no longer compared (`supersededBy: 'carboncubss'`).
+
+## 9. The Carbon Cub SS brought to its envelope (the user, 9 Nov: "a comfy 90 %, without cheating")
+
+**Two corrections:**
+- **The take-off reference:** 40–50 m (the user's ruling: a decent STOL roll in reasonable conditions) replaces
+  aeropedia's 60 ft, a single-source demonstration figure also listed for the EX2.
+- **The wing at the real SS's size:** span 10.44 m (34 ft 3 in), about 16.6 m² (aeropedia, a dealer's 179 sq ft;
+  Wikipedia says 172). It was the STOL Cub's 10.70 m and 17.6 m²: chord 1.70 → 1.65 m. NACA 5412 kept for the USA-35B
+  (similar camber). VGs are standard on the real SS (wing top and under the stab).
+
+**Result: 10 inside / 0 near / 1 outside, 99 / 100** (geometry 100, specs 97, performance 100).
+
+| indicator | ours | SS (band) |
+|---|---|---|
+| empty | 425 kg | 408 (388–428) |
+| clean stall | 56–62 km/h | 65 (62–68) |
+| cruise 75 % | 167–168 km/h | 177–193 (168–202) |
+| climb: airframe / handbook / game | 7.6–9.6 / 7.0–9.4 / 6.9–8.3 m/s | 7.6–10.7 |
+| take-off roll: airframe / handbook (STOL) / game | 43–54 / 30–42 / 46–60 m | 40–50 (38–53) |
+| landing roll, handbook (tailwheel stop) | 61–67 m | 75 (63–86) |
+| landing roll, game | 103–113 m | outside: the shipped pilot |
+
+**Why our clean stall ran low:**
+- **The wing was 6 % too big** (17.6 against 16.6 m²): corrected; the stall went from 47–61 to 56–62 km/h.
+- **The rest is the reference.** 35 kt flaps up at an unknown weight; our heaviest case (611 kg, 62 km/h) reads it near
+  gross.
+- **The VGs are the real aeroplane's too.**
+
+**The cruise and a drag-model gap (not taken):**
+- Our drag area is 0.81 m² against the Cub's 0.56.
+- **The 29 in tundras:** 0.35 against 0.20.
+- **The CC340's cylinder heads:** 0.083, billed as bare in the wind because the drag model judges the cowl's cover on the
+  generator's outline and not on the drawn bulges. Covering them is the Carbon Cub's own aero improvement over a Cub (its
+  cheeks), worth about 8 % of the drag, about +3 % of cruise.
+- Counting the drawn bulges is a physics change: the user's decision. The cowl's bulging is in the user's hands.
+
+## 10. The Jodel on heel drums (branch `claude/practical-cerf-7fjpwp`, `builds/candidates/jodel_drum_brakes.json`)
+
+The official Jodel with `brkHold` 1 (heel drums: 600 N a main wheel, +2.8 kg), measured against the D.112's book, compared
+with the same aeroplane without a brake limit (7 Nov):
+
+| landing roll | no limit | heel drums | the book |
+|---|---|---|---|
+| handbook, 423 kg | gave up | 165 m | 150 (128–173) |
+| handbook, 443 kg | 157 m | 165 m | |
+| handbook, 530 kg | 133 m | 151 m | |
+| game | 238–247 m | 235–264 m | |
+| the sweep's best | 84 m | 90 m | |
+
+- The drums lengthen the handbook roll by 5–14 %. At gross they bring it onto the book's 150 m (151), and the light case
+  now lands where it used to give up.
+- The take-off is unchanged, including the handbook's long 440 m at gross, a separate item.
+- The official Jodel is not changed; the brakes are on the experiment branch.

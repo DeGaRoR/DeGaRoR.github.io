@@ -312899,3 +312899,9 @@ score on several axes (geometry, specs, performance). Test and report only: no p
   (checked side by side); the neutral engine dials are kept out of the cert keys (GEN_CAGE_ROW_NEUTRAL). Open: the Cub /
   Jodel handbook rows on the tailwheel stop (quick check: Cub 90 m vs 88, Jodel 80 vs 150), the game pilot's three-point
   touchdown and brake law.
+
+- CARBON CUB SS to its envelope (9 Nov, the user): the take-off reference 40-50 m (the user's ruling, replacing the single-
+  source 60 ft), the wing at the real size (10.44 m, 16.6 m2; was 17.6) -> 10 / 0 / 1, 99 / 100. Not taken: the drawn cowl
+  bulges do not count in the drag model's cover (the heads billed as bare, 0.083 m2) - a physics decision. The Jodel on
+  heel drums (practical-cerf): handbook landing 165 / 165 / 151 m against the book's 150 (no limit: gave up / 157 / 133).
+  README sections 9-10.
