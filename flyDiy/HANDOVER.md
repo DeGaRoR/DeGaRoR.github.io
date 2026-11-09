@@ -314072,6 +314072,12 @@ ROUND 3 (the user, 9 Nov late, on the samples):
   per-section dials on those sections (a tint on the frames) are not followed yet - open question 6. MATLIB's plain
   material for the foam only (no finish row).
 
+ROUND 4 (the user, 9 Nov late): THE CABIN LIT for the cutaway (five warm lamps on the cabin's centreline just inside the
+cut, a sky / ground fill; the structure takes no point light) and ITS FLOOR PALER (the cabFloor section asked with a pale
+default tint - a builder's own floor tint wins); THE 172 IS THE OFFICIAL B-CESS now (builds/cessna172_2026-09-20.json,
+re-benched 8 Nov: its 212 L wing-root tanks show in the open wing) - the validated "metal" test file carries a nose tank only.
+fiche_cutaway_{c172_alloy, cub_j3, petrel_carbon}.jpg re-shot so (the Petrel in the rig's white).
+
 SEAMS TOUCHED OUTSIDE MY ZONE (for A0): app.js (Deform's brkCage: one call + one group row + wsWreck / wsClear beside
 brkRestore and the heal); _cage_wing.js (one call at the end of its post, as the tip floats; the covering's opacity under
 see-inside); _cage_ui.js (the cutaway box's onchange only - it threw in the game's garage); build.js (wing_struct.js in
