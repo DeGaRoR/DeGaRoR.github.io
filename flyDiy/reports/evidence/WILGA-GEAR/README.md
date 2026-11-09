@@ -9,8 +9,8 @@ The study: futureDesigns/WILGA-GEAR-STUDY-2026-11.md. The gate: tools/_wilga_gea
 | garage_leg_rest_vs_full.png | the two side by side | |
 | rough_strip_landing.png | the host landing at 1.5 m/s and 0.8 Vs onto 5 cm bumps every 3 m: five moments at their simulated height and pitch over the field's profile, the legs posed at the physics strokes; both struts' traces | rough.js (the flight, node) -> roughshots.js (quickshot side views at each stroke) -> compose.py |
 | host_side.png / host_front.png | the Wilga-class host: the user's metal Cessna airframe as a taildragger on the leg, 2.83 m track, 500 mm tyres | quickshot |
-| fairing_boot_and_spat.png | the fairing (leg-fairing row + spat): at rest (left) and full stroke (right), side and inboard-rear | quick_view, the host with s1Fair 1, s1LegFair 1 |
-| fairing_boot_only.png | the leg-fairing row alone (the Wilga's own way: the leg faired, the wheel bare), at rest and full stroke | quick_view, s1Fair 0, s1LegFair 1 |
+| fairing_at_rest_and_full_stroke.png | the leg fairing (the boot; no wheel fairing on this leg) at rest and at full stroke | quick_view, the host with s1LegFair 1 |
+| fairing_cuts_close.png | its cuts close: the pivot's round holes and the arm's slot, at rest (left) and full stroke (right), front- and aft-outboard | quick_view |
 | cub_preview_0_half_full.png | the garage preview row (gearLvPos) at 0 / 0.5 / 1 on the Cub | quickshot |
 
 The host's garage rows (quickshot --over / quick_view --cage):

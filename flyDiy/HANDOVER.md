@@ -313924,11 +313924,15 @@ static deflection at the loaded mass (the row; 70 mm), the orifice for the 23.47
 - garage: leg kind 4 'trailing-link (Wilga type)' (mains only), 8 rows (absent at default), legLever drawing, the preview
   row gearLvPos (a view key), CAGE_GEAR.lever; the join writes suspension 'lever' + gear.lever (the drawn points); the
   design tile's option. app.js: the leg, the arm and the strut's two halves each posed from three physics nodes.
-- THE FAIRING (the user, mid-session: "an elegant fairing ... robust ... that hides a bit of this huge mechanics"):
-  _gear_gen leverBoot (the leg-fairing row / the trousers): a boot sized from what it hides (the strut sampled over the
-  stroke, the bracket, the pivot), a slope-limited envelope, the outboard flank eased in to its contents (C1 knee); the
-  spat on the arm (_cage_gear), raked level at static, its inboard half narrowed only if a boot comes within 10 mm.
-  62_gen_aero: a lever leg's two struts in the drag (60 mm cylinders at the leg's Cd: 1.0 bare, 0.30 booted).
+- THE FAIRING (the user, mid-session: "an elegant fairing ... robust ... that hides a bit of this huge mechanics"; then
+  "only a fairing for the leg, not the wheel" and "the little proper cuts so the wheel articulation can move freely"):
+  _gear_gen leverBoot (the leg-fairing row only): a boot sized from what it hides (the strut sampled over the stroke, the
+  bracket, the pivot), a slope-limited envelope, the outboard flank eased in to its contents (C1 knee), a rounded toe
+  past the gland; CUT by leverClear - the swept space of the arm, horn, lugs, axle boss, rod, cylinder, pivot and tyre at
+  33 poses (plain union per part, a 50 mm smooth minimum between parts, less 8 mm), the edges bisected onto the contour,
+  a 2.5 mm lip. No wheel fairing on the trailing link: _cage_gear zeroes st.fair and hides the fairing rows on leg 4,
+  the join and clampSpec write gear.fairing 'none'. 62_gen_aero: a lever leg's two struts in the drag (Cd 1.0 bare,
+  0.30 booted).
 
 **Pitfalls met (each measured, each fixed):**
 - The fixed leg as gear-class members is a 1.2e5 N/m spring and folds under its own strut: kMul 20.
@@ -313942,13 +313946,19 @@ static deflection at the loaded mass (the row; 70 mm), the orifice for the 23.47
   stop is a constraint after the step, not a spring.
 - An implicit damper limited by the eyes' reduced mass cannot be a stop: it stops the eyes, not the aeroplane behind them.
 - The strut's eyes of the 3D model toggle after 51 mm: the upper eye moved up the leg (DERIVED, study §4.1).
-- The boot's symmetric tear section, sized for the strut's sweep, bellied out to 0.129 m from the wheel's plane - inside
-  the spat's 0.155 m half width - and the spat on the arm rose into it in the last fifth of the stroke (36 points inside,
-  only on the 500 mm tyres; the Cub's 8 in did not show it). The flank now hugs its contents (0.168 m); the arm turns
-  about a lateral axis, so a lateral gap holds at every compression. GATE WILGAGEAR §7b checks both builds.
+- The boot's symmetric tear section bellied out toward the wheel (0.129 m from its plane); the flank now hugs its
+  contents (0.168 m).
+- The fairing material (the livery's 'spat' section) is TWO-SIDED: an inner skin 2.5 mm under a cut shell z-fought
+  through the outer one. One skin and a lip.
+- A smooth minimum folded over every pose's capsule erodes: each near-equal term shaves up to K/4 more (it ate the boot
+  round the cylinder). Plain min per part across the poses, smooth min only between parts.
+- quick_view's probe snaps any mesh over 6 000 triangles (DENSE) to a 64-cell grid: a 7 600-triangle boot came out
+  crumpled in the pictures, not in the game. The boot is ~5 000.
+- With holes in it, "inside the boot" is no test (parity); GATE WILGAGEAR 7b measures each moving vertex's distance to
+  the boot's triangles (a 2 cm cell grid) at 17 poses.
 
 **Gates** (cloud, node; full logs read; the table: reports/evidence/WILGA-GEAR/READY.md). GATE WILGAGEAR (new, core, ~2 min)
-PASS 30/30. PASS: GEAR, GEARFALL, TAILWHEEL, CLIP, BUILD, SAVE, PARTS, TAKEOFF, UISMOKE, STOL, DESIGN, JOIN, SUBSTEP,
+PASS 33/33. PASS: GEAR, GEARFALL, TAILWHEEL, CLIP, BUILD, SAVE, PARTS, TAKEOFF, UISMOKE, STOL, DESIGN, JOIN, SUBSTEP,
 SPECFIX, FIT, KNIFE, CAGEFIT, EDBUGS, PILOT; HITBOX and RETRACT PASS run alone (under four jobs each missed a time budget:
 260 vs 138 ms, 372 ms). Red as on master 7daba875 (each line checked there or in L36a's entry): JOINPARITY's five, TECH's
 av.elt line, DESIGNCHECK's carbon post, GEN's "cruise is quiet in wind". DMGGEAR: the two float lines, identical to master 7daba875's log
