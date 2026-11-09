@@ -193,7 +193,7 @@ const CHECK = `JSON.stringify((() => { const P = WORLD && WORLD.premises; const 
       const sh = SHOTS ? [600, 1200, 1800, 2400, 3500].filter(m => m < APPROACH.from).map(m => sleep(Math.max(0, (APPROACH.from - m) / 45 - 2) * 1000).then(() => shot(side, bk, 'in' + m))) : [];
       if (CENSUS) await b.ev(CEN_ON).catch(() => 0);
       row.approach = await scene('approach', APPROACH.sec, PROF && 'approach'.includes(PROF)); row.approach.placed = ap;
-      if (CENSUS) { row.approach.census = JSON.parse(await b.ev(CEN_OFF, 20000).catch(() => 'null')); log('approach census ' + cenTop(row.approach.census)); }
+      if (CENSUS) { row.approach.census = jp(await b.ev(CEN_OFF, 20000).catch(() => 'null')); log('approach census ' + cenTop(row.approach.census)); }
       await Promise.all(sh);
       row.approach.geo = JSON.parse(await b.ev("JSON.stringify((() => { const P = WORLD.premises; return P ? { pending: P.geoPending ? P.geoPending() : null, townGeo: P.stats.townGeo || null } : null; })())").catch(() => 'null'));
       row.approach.state = Object.assign({ before: x0 }, row.approach.state || {}); await intact(row.approach, 'after');
