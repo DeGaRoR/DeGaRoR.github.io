@@ -232,7 +232,7 @@ const W8 = world(withMicro('w7', MICRO8));
     'float c = c0 + a1 * pmNoise(vec2(u / 60.0, float(key)), sd + 411) + a2 * pmNoise(vec2(u / 15.0, float(key)), sd + 421);', 'float dep = W.z * (0.75 + 0.25 * pmNoise(vec2(u / 9.0, float(key + 3)), sd + 431));',
     'float x = v - c - float(s) * W.x + 0.03 * pmNoise(vec2(u / 0.7, float(key * 2 + s)), sd + 441), q = x / W.y, t = exp(-q * q * q * q);', 'float bq = (abs(x) - 1.7 * W.y - 0.06) / (0.6 * W.y + 0.05);',
     'r += uMicro3.y * (0.65 * pmNoise(vec2(u, v) / 3.5, sd + 301) + 0.35 * pmNoise(vec2(u, v) / 1.8, sd + 302));',
-    'float p = big ? uMicro3.w * (0.4 + 0.6 * edge) : min(0.35, 0.04 + 0.5 * uMicro3.w) * (0.6 + 0.4 * edge);', 'float R = big ? 0.07 + 0.2 * e * e : 0.015 + 0.05 * e * e;', 'vec2 C = vec2((float(i) + 0.25 + 0.5 * a) * M, (float(j) + 0.25 + 0.5 * b) * M);'];
+    'float p = big ? uMicro3.w * edge * edge : min(0.35, 0.04 + 0.5 * uMicro3.w) * (0.6 + 0.4 * edge);', 'float R = big ? 0.07 + 0.2 * e * e : 0.008 + 0.017 * e * e;', 'vec2 C = vec2((float(i) + 0.25 + 0.5 * a) * M, (float(j) + 0.25 + 0.5 * b) * M);'];
   const miss = need.filter(l => G.indexOf(l) < 0);
   const src = fs.readFileSync(path.join(T, '..', 'src', 'core', '26b_strip_micro.js'), 'utf8');
   const jsNeed = ['ih(i, m, seed + 11) >= pHole', 'const R = 0.5 + 0.6 * ih(i, m, seed + 12), u = (i + 0.15 + 0.7 * ih(i, m, seed + 13)) * CELL;', 'ih(i, m, seed + 14) < 0.667',
@@ -243,7 +243,7 @@ const W8 = world(withMicro('w7', MICRO8));
     'const wayC = (W, u) => W[4] + W[5] * vnoise(u / 60, W[7], seed + 411) + W[6] * vnoise(u / 15, W[7], seed + 421);', 'const dep = W[2] * (0.75 + 0.25 * vnoise(u / 9, W[7] + 3, seed + 431));',
     'const x = v - c - s * W[0] + 0.03 * vnoise(u / 0.7, W[7] * 2 + s, seed + 441), q = x / W[1], t = Math.exp(-q * q * q * q);', 'const bq = (Math.abs(x) - 1.7 * W[1] - 0.06) / (0.6 * W[1] + 0.05);',
     'lA * (0.65 * vnoise(u / 3.5, v / 3.5, seed + 301) + 0.35 * vnoise(u / 1.8, v / 1.8, seed + 302))',
-    'const p = big ? K.rocks * (0.4 + 0.6 * edge) : Math.min(0.35, 0.04 + 0.5 * K.rocks) * (0.6 + 0.4 * edge);', 'return [(i + 0.25 + 0.5 * a) * M, (j + 0.25 + 0.5 * b) * M, big ? 0.07 + 0.2 * e * e : 0.015 + 0.05 * e * e];'];
+    'const p = big ? K.rocks * edge * edge : Math.min(0.35, 0.04 + 0.5 * K.rocks) * (0.6 + 0.4 * edge);', 'return [(i + 0.25 + 0.5 * a) * M, (j + 0.25 + 0.5 * b) * M, big ? 0.07 + 0.2 * e * e : 0.008 + 0.017 * e * e];'];
   const jmiss = jsNeed.filter(l => src.indexOf(l) < 0);
   verdict(!miss.length && !jmiss.length, `the shader's holes, hazards and relief are the field's, line for line (${need.length} GLSL lines, ${jsNeed.length} JS lines${miss.length ? '; GLSL MISSING ' + miss[0] : ''}${jmiss.length ? '; JS MISSING ' + jmiss[0] : ''}), on the field's v (the ribbon's flipped)`);
   // the ribbon's v is the field's flipped: a world point's pavement (u, v) against the field's toUV

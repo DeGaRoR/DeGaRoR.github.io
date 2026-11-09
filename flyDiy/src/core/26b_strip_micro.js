@@ -210,16 +210,31 @@ const STRIP_MICRO = (() => {
       }
       return [-dMax + bm * (1 - tMax), tMax, wi, dMax];
     }
-    // THE ROCKS (drawn, not felt): a stone in one 1.2 m cell in `rocks`, more toward the edges (the grader's windrow, what
-    // the wheels threw), 7-27 cm; pebbles in 0.3 m cells, 1.5-6.5 cm. Each sits in the middle half of its cell, so a point
+    // THE ROCKS (not felt): a stone in one 1.2 m cell in `rocks`, toward the edges (the grader's windrow, what the wheels
+    // threw), 7-27 cm - the rock pack's meshes, a third buried (render_world standRocks, from bigRocks); pebbles in 0.3 m cells,
+    // 1.6-5 cm across, drawn by the pavement (the user, 9 Nov 21:15: "nothing above ... 5 max ... the bigger rocks need to be
+    // the mesh ones"). Each sits in the middle half of its cell, so a point
     // asks its own cell only. -> [u, v, R] or null (pavement.js pvRock, line for line)
     function rockIn(i, j, big) {
       const M = big ? 1.2 : 0.3, sk = seed + (big ? 501 : 511);
       const vC = (j + 0.5) * M, edge = ss(0.3, 0.9, Math.abs(vC) / halfW);
-      const p = big ? K.rocks * (0.4 + 0.6 * edge) : Math.min(0.35, 0.04 + 0.5 * K.rocks) * (0.6 + 0.4 * edge);
+      const p = big ? K.rocks * edge * edge : Math.min(0.35, 0.04 + 0.5 * K.rocks) * (0.6 + 0.4 * edge);
       if (ih(i, j, sk) >= p) return null;
       const a = ih(i, j, sk + 1), b = ih(i, j, sk + 2), e = ih(i, j, sk + 3);
-      return [(i + 0.25 + 0.5 * a) * M, (j + 0.25 + 0.5 * b) * M, big ? 0.07 + 0.2 * e * e : 0.015 + 0.05 * e * e];
+      return [(i + 0.25 + 0.5 * a) * M, (j + 0.25 + 0.5 * b) * M, big ? 0.07 + 0.2 * e * e : 0.008 + 0.017 * e * e];
+    }
+    // the stones for the meshes: every 1.2 m cell's, whole inside the strip clear of its ends, none in a way's trough
+    // -> [[u, v, R], ...] in the field's frame
+    function bigRocks() {
+      const out = [];
+      if (!(K.rocks > 0)) return out;
+      for (let i = 0; i * 1.2 < len; i++) for (let j = Math.floor(-halfW / 1.2); j * 1.2 < halfW; j++) {
+        const R = rockIn(i, j, true);
+        if (!R || Math.abs(R[1]) + R[2] > halfW - 0.15 || R[0] < END_IN || R[0] > len - END_IN) continue;
+        if (WAYS.length && waysAt(R[0], R[1])[1] > 0.3) continue;
+        out.push(R);
+      }
+      return out;
     }
     function rockAt(u, v) {
       let best = 0;
@@ -279,7 +294,7 @@ const STRIP_MICRO = (() => {
         if (fill <= 0 || q[0] <= 0 || q[0] >= len || Math.abs(q[1]) >= halfW) return 0;
         return Math.max(holesAt(q[0], q[1], fill)[1], hazardsAt(q[0], q[1], fill)[1], rutWater(q[0], q[1], fill));
       },
-      hole, lanes, ways: WAYS, waysAt, rockAt, rockIn, toUV, reliefUV, hazards: HZ, a1: amp[OCT.length - 1],
+      hole, lanes, ways: WAYS, waysAt, rockAt, rockIn, bigRocks, toUV, reliefUV, hazards: HZ, a1: amp[OCT.length - 1],
     };
   }
   // THE LIVE LIST (what a world composed): compose publishes its micro strips (in the WORLD frame: { toLocal, f }) by
@@ -290,6 +305,8 @@ const STRIP_MICRO = (() => {
   function puddleAt(x, z, wet) { if (!(wet > 0)) return 0; for (const L of live.values()) for (const s of L) { const q = s.toLocal(x, z); const b = s.f.bbox; if (q[0] >= b.x0 && q[0] <= b.x1 && q[1] >= b.z0 && q[1] <= b.z1) { const w = s.f.puddleAt(q[0], q[1], wet); if (w > 0) return w; } } return 0; }
   // has(id): a published strip of that id is bumpy (render_world refines its ribbon to REFINE_MIN: pavement.js refineAxis)
   function has(id) { for (const L of live.values()) for (const s of L) if (s.id === id) return true; return false; }
+  // rocksOf(id): a published strip's mesh stones, [u, v, R] in its field's frame (the ribbon's v is the field's flipped)
+  function rocksOf(id) { for (const L of live.values()) for (const s of L) if (s.id === id) return s.f.bigRocks ? s.f.bigRocks() : []; return []; }
   // the drawn ribbon's finest rows (pavement.js refineAxis): 0.3 m along (the lumps' 1.8 m), 5 cm across (a rut's wall: 8 cm drew the
   // walls 2 cm off the wheels' ground, p99 20 mm on w7 at chaos 0.8; 5 cm halves the spans to 4.7 cm there, p99 8 mm, 283 k vertices
   // on that 1020 m strip against 196 k, +0.3 s to build it - the cost named, a strip with chaos only)
@@ -300,5 +317,5 @@ const STRIP_MICRO = (() => {
   // pvPuddle / pvRelief / pvWays / pvRockIn read exactly these; null when the strip is flat
   function glslRow(id) { for (const L of live.values()) for (const s of L) if (s.id === id) { const f = s.f; return [f.seed, f.pHole, f.K.holeDepth / 100, f.K.puddles * f.pudOK, f.a1, f.K.hazards, f.K.hazardSize / 100, 1 + f.K.swell / 100,
     f.K.ruts / 100, f.K.lumps / 100, (f.ways.some(W => W[7] === 1) ? 1 : 0) + (f.ways.some(W => W[7] === 2) ? 2 : 0), f.K.rocks]; } return null; }
-  return { KNOBS, on, resolve, derive, field, ih, vnoise, publish, at, puddleAt, has, glslRow, live, CELL, OCT, EDGE_IN, END_IN, REFINE_MIN, REFINE_MIN_V, BERM };
+  return { KNOBS, on, resolve, derive, field, ih, vnoise, publish, at, puddleAt, has, rocksOf, glslRow, live, CELL, OCT, EDGE_IN, END_IN, REFINE_MIN, REFINE_MIN_V, BERM };
 })();
