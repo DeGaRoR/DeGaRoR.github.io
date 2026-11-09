@@ -27,6 +27,11 @@
 //   (DAY_CLOCK.preset), hand flying on, the parking brake (P) and full throttle (Home) as the keys a player presses: 14 s
 //   of run-up shot backlit (the eye on the sun's far side) and from the side, then idle (End) and the cloud left hanging
 //   at +10 s. --cls none --soil none there: the strip's own class, the weather's own soil (or --soil 0.02 for a dry day).
+//   (9 Nov slot: the place did NOT move the aeroplane - it stayed on HOME's apron, the worker's pose kept; use --from.)
+//   --from <aerodrome id> [--dest <id>|CIRCUIT]: THE TAKE-OFF FROM ANOTHER FIELD, the game's own way (rollout_perf's
+//   --from): the route pref { v: 2, base: 'HOME', to, spawn } is written before the page's first script, so the roll-out
+//   starts on that field's stand and the pilot taxis out and takes off there - on a loose strip, its own surface
+//   (pair with --cls none). The take-off arm's timing and stills, unchanged.
 // What A0 sends back: the PNGs and <out>_<arm>.json for each arm (dust on / off, gamer / laptop).
 'use strict';
 const { spawn } = require('child_process');
@@ -47,10 +52,11 @@ const AIR_MAX = +opt('airmax', 90000);
 const OUT = opt('out', 'D:/Dev/flydiy-notes/evidence-2026-10-18/2026-11-09/dust/dust');   // (pictures never go in git: the notes' evidence folder)
 const RUNUP = opt('runup', null);
 const HOUR = opt('hour', 'golden');
+const FROM = opt('from', null), DEST = opt('dest', 'CIRCUIT');   // (--from: the take-off at another field, the route pref's spawn)
 const q = [DUST_ON ? null : 'dust=0', GFX ? 'gfx=' + GFX : null].filter(Boolean).join('&');
 const URL0 = opt('url', 'http://localhost:8450/flyDiy/dev.html');
 const URL = q ? URL0 + (URL0.includes('?') ? '&' : '?') + q : URL0;
-const ARM = (DUST_ON ? 'dust' : 'nodust') + '_' + (GFX || 'default') + (RUNUP ? '_runup_' + RUNUP : '');
+const ARM = (DUST_ON ? 'dust' : 'nodust') + '_' + (GFX || 'default') + (RUNUP ? '_runup_' + RUNUP : '') + (FROM ? '_from_' + FROM : '');
 const PORT = 9400 + (process.pid % 500);
 const CHROME = [opt('chrome', null), 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
   'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe', '/usr/bin/google-chrome',
@@ -139,7 +145,7 @@ async function runup(ev, cmd, shot, rec) {
       const f = OUT + '_' + ARM + '_' + v + '.png'; fs.writeFileSync(f, Buffer.from(s.result.data, 'base64')); say('wrote ' + f); };
     await cmd('Page.enable'); await cmd('Runtime.enable');
     await cmd('Emulation.setDeviceMetricsOverride', { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
-    await cmd('Page.addScriptToEvaluateOnNewDocument', { source: 'try{localStorage.clear();}catch(e){}' });
+    await cmd('Page.addScriptToEvaluateOnNewDocument', { source: 'try{localStorage.clear();' + (FROM ? 'localStorage.setItem("flydiy.route",' + JSON.stringify(JSON.stringify({ v: 2, base: 'HOME', to: DEST, spawn: FROM !== 'HOME' ? FROM : undefined })) + ');' : '') + '}catch(e){}' });
     await cmd('Page.navigate', { url: URL });
     const ready = '(window.BOOT && BOOT.state === "gone" && window.GARAGE_SPEC && window.FLIGHT_PROBE && !(window.CAGE_CREW_PENDING && CAGE_CREW_PENDING()))';
     let up = false;
