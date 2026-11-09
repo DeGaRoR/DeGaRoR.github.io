@@ -1779,19 +1779,6 @@ function build(P0, lod, F) {
   for (const [from, to] of (FOLD[L] || [])) { if (to) bags[to].append(bags[from], {}); bags[from] = Bag(from); }
   const OUT = BAGS.concat(EXTRA);
   const aoInfo = P.ao > 0 ? K.bakeAO(OUT.filter(k => !NO_AO[k] && k !== 'aoskirt').map(k => bags[k]), { strength: P.ao, range: P.aoRange || 0.9, ground: g }) : null;
-  // THE RESTORED SLAB'S PAST, AT THE MACRO SCALE (the user 9 Nov: "now the floor is a little clean ... the blend should show
-  // at that distance, we're aiming for macro detail ... the micro is OK with the current texture"): the slab's own occlusion
-  // term darkened in broad soft patches - a 14 m and a 5.5 m field, the worn lanes and the old oil of the derelict's floor
-  // read through the new finish (the term to 0.4 at the darkest: ~20 % of the direct light, the house shader's uAOd 0.35) - on its 2 m vertex grid, after the bake; the scan is untouched
-  if (rest && bags.concFloor && bags.concFloor.verts) {
-    const d = bags.concFloor.data();
-    for (let i = 0, v = 0; i < d.pos.length; i += 3, v++) {
-      const x = d.pos[i], y = d.pos[i + 1], z = d.pos[i + 2];
-      if (Math.abs(y - fy) > 0.05) continue;
-      const m = 0.62 * vnoise(x / 14 + 7.3, z / 14 - 2.1, seed + 31) + 0.38 * vnoise(x / 5.5 - 1.7, z / 5.5 + 4.4, seed + 37);
-      d.ao[v] *= 1 - 0.6 * SM(0.38, 0.82, m);   // (the house shader puts 0.35 of it on the direct light: ~20 % darker there, the indirect more)
-    }
-  }
   let tris = 0, verts = 0; const per = {};
   const bb = { x0: Infinity, y0: Infinity, z0: Infinity, x1: -Infinity, y1: -Infinity, z1: -Infinity };
   for (const k of OUT) {
@@ -1952,6 +1939,11 @@ function applyFinish(P0, F0) {
   if ((P.stage | 0) >= 3 && P.legacy) { const H = HN(); if (H && F.hn) H.applyFinish(worksP(P), F.hn); return F; }
   const M = F.MAT; if (!M) return F;
   const SU = F.SHADE_U;
+  // THE RESTORED SLAB'S PAST, AT THE MACRO SCALE (the user 9 Nov: "the floor is a little clean ... we're aiming for macro
+  // detail ... the micro is OK with the current texture"): the slab takes its own copy of the house shader's uniforms with
+  // the repetition breaker turned into a macro field - 11 m (its second octave ~4 m), 0.34 deep on the albedo - the worn
+  // lanes and old stains of the derelict's floor through the new finish; the scan itself untouched
+  const SUF = ((P.stage | 0) === 3 && HG.makeShadeU) ? (F.SHADE_UF || (F.SHADE_UF = HG.makeShadeU())) : null;
   for (const k in DRESS) {
     const m = M[k]; if (!m) continue;
     const [lib, key, target, hue, metal, ns] = ((P.stage | 0) === 3 && DRESS_R[k]) || DRESS[k];
@@ -1960,7 +1952,7 @@ function applyFinish(P0, F0) {
     const S0 = libOf(lib), img = S0 && S0[key] ? S0[key].diff : null;
     calibrate(m, img, target, hue, k === 'concFloor' ? () => wetFrom(M) : null);
     m.metalness = metal; if (m.normalScale) m.normalScale.set(ns, ns);
-    if (HG.shadeHouse && !(m.userData && m.userData.houseShaded)) HG.shadeHouse(m, SU);
+    if (HG.shadeHouse && !(m.userData && m.userData.houseShaded)) HG.shadeHouse(m, k === 'concFloor' && SUF ? SUF : SU);
     if (HG.cloudWeather && /^(sheet|concWall)/.test(k)) HG.cloudWeather(m, k === 'sheetNew' || (P.stage | 0) === 3 ? 0.08 : 0.55, 0);   // (the user: the restored "still very dirty" - a little weathering, no more)
     m.needsUpdate = true;
   }
@@ -1987,6 +1979,12 @@ function applyFinish(P0, F0) {
     for (const k in DRESS) { const D2 = M[k] && M[k].userData && M[k].userData.dirt; if (!D2) continue;
       D2.uDirtGain.value = k === 'concFloor' ? 0 : (k === 'concWall' ? 1.5 : (k === 'sheetNew' ? 0.3 : 1.0));   // (a floor is not a wall: no splash line) D2.uDirtOwn.value.setHex(/^conc/.test(k) ? 0x3d382f : 0x5a4232); D2.uWander.value = 0;
       D2.uAgeDesat.value = /^(steel|sheetPale|sheetDark)$/.test(k) ? 0.2 : 0; D2.uAgeDark.value = k === 'steel' ? 0.12 : 0; }
+  }
+  // the slab's copy follows the shared uniforms but for its macro field (11 m, 0.34)
+  if (SUF && SU) {
+    for (const k of Object.keys(SU)) { const a = SU[k], b = SUF[k]; if (!a || !b) continue;
+      const v = a.value; if (v && typeof v === 'object' && b.value && typeof b.value.copy === 'function') b.value.copy(v); else b.value = v; }
+    SUF.uNoiseS.value = 11; SUF.uNoiseK.value = 0.34;
   }
   return F;
 }
