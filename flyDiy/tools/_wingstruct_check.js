@@ -151,6 +151,18 @@ function run(WSsrc, files) {
     for (let i = 0; i < A.p.length; i += 3) { const z = Math.abs(A.p[i + 2]); if (z > n.z0 && z < n.z1 && A.p[i] < x0 - 0.45) fwd++; }
     ok(fwd > 0, 'the mount reaches the nacelle\'s firewall (' + fwd + ' vertices ahead of the leading edge)');
     ok(c.halves[0].tris > a.halves[0].tris, 'the nacelle bay draws its mount'); }
+  // THE WING TANKS: the structure makes room - no rib piece between the spars and no drag bracing inside the tank's span,
+  // a closing rib at each end, the spars kept (its walls)
+  { const d = DEFS.cub, t = { side: 'R', z0: 0.8, z1: 2.0 }, PP = d.parts.planes[0], N = d.nodes, fw = PP.wf.R;
+    const c = WS.plan(d, { lib, sides: ['R'], tanks: [t], audit: true }), h = c.halves[0];
+    ok(c.info.planes[0].tanks && c.info.planes[0].tanks.length === 1, 'the tank recorded');
+    ok([t.z0, t.z1].every(z => h.ribs.some(r => Math.abs(r - z) < 1e-9)), 'a closing rib at each end of the tank');
+    // between the spars, inside the span (its ends 3 cm in), nothing but the spars themselves
+    const xF = N[fw.F[0]].p[0], xR = N[fw.R[0]].p[0], A = h.A; let inside = 0;
+    for (let i = 0; i < A.p.length; i += 3) { const z = Math.abs(A.p[i + 2]), x = A.p[i];
+      if (z > t.z0 + 0.03 && z < t.z1 - 0.03 && x > xF + 0.06 && x < xR - 0.06) inside++; }
+    ok(inside === 0, 'nothing drawn through the tank (' + inside + ' vertices between the spars)');
+    ok(h.audit.spars.F.length === WS.plan(d, { lib, sides: ['R'], audit: true }).halves[0].audit.spars.F.length, 'the spars run through as the tank\'s walls'); }
   // every construction row has a kind (and fabricAlu, REAL-FIGURES-3's, before it lands)
   for (const r of Object.keys(C('GEN_SURF_MATERIALS')).concat(['fabricAlu'])) ok(r === 'fabric' || !!WS.KINDS[r], 'the row ' + r + ' has a kind');
   ok(!!(WS.KINDS.dbox && WS.KINDS.cub), 'the wooden row\'s two kinds');
@@ -170,7 +182,7 @@ function run(WSsrc, files) {
   ok(/\{ row: 'see inside',\s+\.\.\._vView\('xray'\),\s+to: 0 \}/.test(files.join), 'the capture pins see-inside off (a see-through wing never flies)');
   ok(/if \(window\.CAGE_WINGSTRUCT_DRAW\) window\.CAGE_WINGSTRUCT_DRAW\(ctx\);/.test(files.wing), 'the wing layer hands it its build');
   // the garage's def is the wing rows' alone: the kind is read off the build's own spec (the 172 drew as cloth without it)
-  ok(/spec: full, bays, nacelles \}\);/.test(WSsrc) && /window\.GARAGE_SPEC\.get\(\)/.test(WSsrc), 'the garage reads the kind off the whole build\'s spec');
+  ok(/spec: full, bays, nacelles, tanks \}\);/.test(WSsrc) && /window\.GARAGE_SPEC\.get\(\)/.test(WSsrc), 'the garage reads the kind off the whole build\'s spec');
   { const d = DEFS.metal, spec0 = JSON.parse(JSON.stringify(d.spec)); spec0.material = 'tubeFabric';
     for (const w of spec0.wings) w.material = null;
     ok(WS.kindOf({ spec: spec0, parts: d.parts }, 0, lib, d.spec).key === 'alloy', 'a wing-rows def with the whole build\'s spec: the 172 is alloy'); }
@@ -225,6 +237,7 @@ for (const [nm, a2] of APP_BREAKS) {
 const FICHE_BREAKS = [['the tanks halved again', files.fiche.replace('if (En && fus && !WSg)', 'if (En && fus)')],
   ['the nacelle left solid', files.fiche.replace('    ghostNacelles(T, root, left, cl, hw, st, fus);\n', '')],
   ['the wells drawn', files.fiche.replace('    hideWells(root, st);\n', '')],
+  ['ribs through the tank', WSsrc.replace("            && !(Math.abs(p[0] - xF1) < 1e-9 && inTank(z)));", ");")],
   ['the cabin left dark', files.fiche.replace('    cabinLight(T, S, fc, fwd, left, up, fl, st);\n', '')],
   ['the taper left whole', files.fiche.replace('    cutTaper(T, root, p1, p2, st);\n', '')]];
 for (const [nm, f2] of FICHE_BREAKS) {

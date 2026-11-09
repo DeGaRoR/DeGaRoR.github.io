@@ -258,6 +258,12 @@
         // top }] - an engine THROUGH the wing cuts the D-nose over its width (a pocket with no back wall: the nacelle
         // runs in), an engine on TOP stands on the spars (no cut); both take a compression rib each side and their mount
         const nacs = k === 0 ? (opts.nacelles || []).filter(n => n && n.side === sd && n.z1 > n.z0) : [];
+        // ...and THE WING TANKS (the user 9 Nov: "the wing-mounted tanks ... we should be clever and try to cut through
+        // the spars"): opts.tanks [{ side, z0, z1 }] - the energy layer's box between the front and rear spar lines
+        // (_vessel_gen.js wingPlace). The tank FILLS that bay: the ribs' piece between the spars and the bay's drag
+        // bracing are not drawn through it, a solid rib closes each end, the spars stand as its walls
+        const tanks = k === 0 ? (opts.tanks || []).filter(t => t && t.side === sd && t.z1 > t.z0) : [];
+        const inTank = (z, e) => tanks.some(t => z > t.z0 + (e || 0.02) && z < t.z1 - (e || 0.02));
         const bays = (k === 0 ? (opts.bays || []).filter(b => b && b.z1 > b.z0) : []).concat(nacs.filter(n => !n.top).map(n => Object.assign({ nac: 1 }, n)));
         const inBay = z => bays.some(b => z > b.z0 - 1e-6 && z < b.z1 + 1e-6);
         // the frames of a run of span with the bays taken out: [[frames...], ...]
@@ -393,7 +399,8 @@
           const f = frameAt(Math.abs(z - PP.zRoot) < 1e-6 ? z + 0.015 : z), b = bandAt(z);
           const xF0 = sparF - 0.5 * sw, xF1 = sparF + 0.5 * sw, xR0 = sparR - 0.5 * rw, xR1 = sparR + 0.5 * rw;
           const xEnd = b ? b.h - GAP : 0.985;
-          const pieces = [[0.004, xF0], [xF1, Math.min(xR0, xEnd)], [xR1, xEnd]].filter(p => p[1] - p[0] > 0.01 && !(p[0] < 0.01 && inBay(z)));
+          const pieces = [[0.004, xF0], [xF1, Math.min(xR0, xEnd)], [xR1, xEnd]].filter(p => p[1] - p[0] > 0.01 && !(p[0] < 0.01 && inBay(z))
+            && !(Math.abs(p[0] - xF1) < 1e-9 && inTank(z)));
           if (b) pieces.push([b.h + GAP, 0.985]);
           const cn = special ? KD.rootC : KD.ribC;
           for (const [x0, x1] of pieces) {
@@ -429,6 +436,11 @@
           for (const z of ribZ) { ribAt(z, nearSpecial(z) && (z === PP.zRoot || KD.rib !== 'plate')); ribsDrawn.push(z); }
           // a station that is special but carries no rib of the 0.4 m rule (the strut's, off the pitch): its own
           for (const s of specials) if (!ribZ.some(z => Math.abs(z - s) < 0.05)) { ribAt(s, true); ribsDrawn.push(s); }
+        }
+        // the wing tanks' closing ribs
+        for (const t of tanks) {
+          for (const z of [t.z0, t.z1]) if (z > PP.zRoot + 0.03 && z < zS - 0.03) { ribAt(z, true); ribsDrawn.push(z); }
+          pinfo.tanks = (pinfo.tanks || []).concat([{ side: sd, z0: t.z0, z1: t.z1 }]);
         }
         // the wing engines' nacelle bays
         for (const n of nacs) {
@@ -470,9 +482,9 @@
           const midY = (f, x) => 0.5 * (yU(f, x) + yL(f, x));
           for (let i = 0; i < bayZ.length; i++) {
             const f = frameAt(bayZ[i]);
-            if (i > 0) { member(f, xa, midY(f, xa), xb, midY(f, xb), 0.022, KD.rib === 'tube' ? 'steel' : 'alu', lod ? 4 : 6);
+            if (i > 0 && !inTank(bayZ[i])) { member(f, xa, midY(f, xa), xb, midY(f, xb), 0.022, KD.rib === 'tube' ? 'steel' : 'alu', lod ? 4 : 6);
               if (AU) AU.struts.push({ i, z: bayZ[i] }); }
-            if (i + 1 < bayZ.length) {
+            if (i + 1 < bayZ.length && !tanks.some(t => bayZ[i] < t.z1 - 0.02 && bayZ[i + 1] > t.z0 + 0.02)) {
               const g = frameAt(bayZ[i + 1]);
               const wire = (f1, x1, f2, x2, dy) => { const a = P(f1, x1, midY(f1, x1) + dy), b3 = P(f2, x2, midY(f2, x2) + dy);
                 bar(A, a, b3, 0.006, 0.006, f1.up, 'wire', 0); if (AU) AU.wires.push({ i, a, b: b3, from: x1 < x2 ? 'F' : 'R' }); };
@@ -688,7 +700,12 @@
             nacelles.push({ side: u.at[0] > 0 ? 'R' : 'L', z0: z - half, z1: z + half, xFace, top: E.mount === 'wingTop' });
           }
         }
-        L.grp = group(T, W.def, { map: W.nodeCage, lod: 0, name: 'cageLayer:wingStruct', spec: full, bays, nacelles });
+        // the wing tanks the energy layer placed (its results: each side's span x0..x1, cage x = the body's span axis)
+        const tanks = [], EN = window.CAGE_ENERGY;
+        try { for (const r of (EN && EN.results ? EN.results() : []) || []) if (r && r.on === 'wing' && Array.isArray(r.sides))
+          for (const sdR of r.sides) if (sdR && Number.isFinite(sdR.x0) && Number.isFinite(sdR.x1))
+            tanks.push({ side: (sdR.sign || Math.sign(sdR.x0)) > 0 ? 'R' : 'L', z0: Math.min(Math.abs(sdR.x0), Math.abs(sdR.x1)), z1: Math.max(Math.abs(sdR.x0), Math.abs(sdR.x1)) }); } catch (e) {}
+        L.grp = group(T, W.def, { map: W.nodeCage, lod: 0, name: 'cageLayer:wingStruct', spec: full, bays, nacelles, tanks });
         if (!IMMUNE) IMMUNE = [new T.Plane(new T.Vector3(0, 1, 0), 1e6)];
         L.grp.traverse(o => { if (o.isMesh) { o.userData.edMarker = true; o.userData.wingStruct.layer = true; o.onBeforeRender = immune; } });
         L.def = W.def;
