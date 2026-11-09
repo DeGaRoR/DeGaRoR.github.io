@@ -193,15 +193,24 @@ const MK = id => ['stol-river', 'grizzly-range', 'orca', 'winged-prop', 'midnigh
     // A FLOAT's side in the side box's frame: the body class's vertices out of the centreline (|x| > 0.6 m) and below the
     // pod's own bottom - its length's middle and its height's middle (LIVERY-STICKERS: floats take stickers)
     const floatOf = zTop => page.evaluate(zTop => {
-      const S = window.CAGE_UI_SCENE, M = AEROSKIN.aeroSharedU(THREE).uCraftInv.value, v = new THREE.Vector3(), b = [1e9, -1e9, 1e9, -1e9];
+      const S = window.CAGE_UI_SCENE, M = AEROSKIN.aeroSharedU(THREE).uCraftInv.value, v = new THREE.Vector3(), b = [1e9, -1e9, 1e9, -1e9], pts = [];
       S.updateWorldMatrix(true, true);
       S.traverse(o => { if (!o.isMesh || !o.visible || !o.geometry || !o.geometry.attributes.position) return;
         const ms = Array.isArray(o.material) ? o.material : [o.material];
         if (!ms.some(m => m && m.userData && m.userData.aeroskin && (m.userData.aeroWing | 0) === 0)) return;
         const P = o.geometry.attributes.position, st = Math.max(1, Math.floor(P.count / 4000));
         for (let i = 0; i < P.count; i += st) { v.fromBufferAttribute(P, i).applyMatrix4(o.matrixWorld).applyMatrix4(M);
-          if (Math.abs(v.x) > 0.6 && v.z < zTop) { b[0] = Math.min(b[0], v.y); b[1] = Math.max(b[1], v.y); b[2] = Math.min(b[2], v.z); b[3] = Math.max(b[3], v.z); } } });
-      return b[1] > b[0] ? { y: (b[0] + b[1]) / 2, len: b[1] - b[0], z: (b[2] + b[3]) / 2, ht: b[3] - b[2], zLo: b[2] } : null; }, zTop);
+          if (Math.abs(v.x) > 0.6 && v.z < zTop) { pts.push([v.x, v.y, v.z]); b[0] = Math.min(b[0], v.y); b[1] = Math.max(b[1], v.y); } } });
+      if (!(b[1] > b[0])) return null;
+      // THE KEEL ON THE MIDDLE HALF of the length only: the water rudders hang below the sterns (the whole box's bottom put
+      // the sticker's lower half under the hull), and the struts rise from the middle (so no top is taken at all)
+      const y0 = b[0] + 0.25 * (b[1] - b[0]), y1 = b[0] + 0.75 * (b[1] - b[0]);
+      const mid = pts.filter(p => p[1] > y0 && p[1] < y1);
+      const keel = Math.min(...mid.map(p => p[2])), xf = mid.reduce((s, p) => s + Math.abs(p[0]), 0) / Math.max(1, mid.length);
+      const y = (b[0] + b[1]) / 2, len = b[1] - b[0];
+      // the RIGHT float's side (x < 0: +x is the left flank), forward half, 0.2 m above the keel, in the world: a close-up aims there
+      const wp = new THREE.Vector3(-xf, y - 0.18 * len, keel + 0.2).applyMatrix4(M.clone().invert());
+      return { y, len, keel, xf, world: wp.toArray() }; }, zTop);
     // THE COMPOSITIONS: 3-4 stickers a plane, placed off the measured boxes
     const COMPOSE = {
       async cub(P) {
@@ -231,9 +240,9 @@ const MK = id => ['stol-river', 'grizzly-range', 'orca', 'winged-prop', 'midnigh
           // (the wing without the registration's wing copy; the trim's orange on the white and green: the dark green vanished)
           4: { On: 1, Mk: MK('midnight-valley'), Col: ink, H: 1.0, L: +(wing.L + wing.W * 0.27).toFixed(2), C: +wing.C.toFixed(2), Tgt: 4, Mode: 2 },
           // THE FLOATS TAKE STICKERS (the user, 9 Nov): the bear paw on both floats' sides, in the side box on the forward half
-          // of the hull, centred 0.2 m above its keel (the measured box runs up the struts: its middle was above the hull),
+          // of the hull, centred 0.2 m above its keel (measured on the middle half: the rudders hang below the sterns),
           // in the trim's orange (dark green vanished into the float's green side); the letters are still declined there
-          3: flt ? { On: 1, Mk: MK('bear-paw'), Col: ink, H: 0.28, L: +(flt.y - flt.len * 0.18).toFixed(2), C: +(flt.zLo + 0.20).toFixed(2), Tgt: 0, Mode: 1 } : undefined,
+          3: flt ? { On: 1, Mk: MK('bear-paw'), Col: ink, H: 0.26, L: +(flt.y - flt.len * 0.18).toFixed(2), C: +(flt.keel + 0.20).toFixed(2), Tgt: 0, Mode: 1 } : undefined,
         };
       },
     };
@@ -257,6 +266,7 @@ const MK = id => ['stol-river', 'grizzly-range', 'orca', 'winged-prop', 'midnigh
           await shoot(key + '_' + gfx + '_tail_right', [-Math.PI / 2 + 0.30, 0.07, 0.50 * span], [Tl.c[0], Tl.c[1] + 0.1 * Tl.s[1], Tl.c[2]]);
           await shoot(key + '_' + gfx + '_threequarter_left', [Math.PI / 2 + 0.62, 0.12, 0.95 * span], B.c);
           await shoot(key + '_' + gfx + '_above', [-Math.PI / 2 - 0.5, 0.80, 0.95 * span], P.wing.c);
+          if (R.fits.flt) await shoot(key + '_' + gfx + '_float_right', [-Math.PI / 2 - 0.30, 0.06, 0.30 * span], R.fits.flt.world);
         }
         if (key === 'cub') {
           // THE FIRST PLACE, through the panel (the user: "in the middle of the fuselage"): slot 3 (empty here) ticked on
