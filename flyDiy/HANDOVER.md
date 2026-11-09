@@ -313715,3 +313715,34 @@ again as fresh commits on master ebc4c9edd: 5f104dfa8 + ac2cc9b6b (the move), 77
   sunk on the stock card, the rod, the Cessna 172 and the metal Cessna) - identical to the bit (1235 bytes).
 - **Known limit (A0: fine, named):** the beacon's placement rows hide with the Lights part when `lightOn` is 0, while
   the skin beacon (accBeacon) stays drawn. Evidence: flydiy-notes/evidence-2026-10-18/2026-11-08/comms/ (run6.log; run3.log the first, reverted, ready).
+
+## COMMS-SECTION ready 2 - THE GPS PUCK, THE ELT AND ITS WHIP, EACH SHOWN ONLY WHEN FITTED (9 Nov, AVIONICS-PFD-LAND for the user via A0, for L36a after comms-section)
+
+The user (9 Nov, via A0): yes to the GPS antenna and the ELT, but "Don't get crazy on the radio for now, just have the
+option to equip them, and the little accessories then show, but that's it, it's non essential feature at this stage."
+So: an equip option, the accessory follows it, nothing more. On claude/ready/comms-section 310ddb76d (the train merges
+that first): f0fd2978c + 1fe83abd8 source, 1f055bb72 built.
+
+- **The ELT** (`GEN_AVIONICS.elt`, none / fitted): 1.0 kg, 1100, ACK E-04 / Artex 345 class, `ownBattery` - no bus
+  load, no breaker, no panel room. A select in Instruments' radios fold (it comes from the table). It is billed with the
+  radios, and its mass is placed in the tailcone (61_gen_frame.js, a frame short of the tailpost); with none fitted that
+  line is byte-for-byte the old one. **In a spec only when fitted:** genSystemsResolve sets avionics.elt only for
+  'fitted', clampSpec drops anything else, the panel's fromSpec reads it the same way and a tier pick leaves it alone.
+- **The GPS aerial** (`gpsAerial`, form `puckAerial`, 90 x 22 mm, on the crown 0.18 m aft of the cabin): only for a
+  panel, glass or 10 in GPS (`genGpsPuck`; a portable has its aerial in the unit).
+- **The ELT aerial** (`eltAerial`, form `whipAerial`, 0.45 m raked aft, `foot` 50 mm): on the tailcone's crown at 0.40
+  of the cabin-to-tailpost run, only with the ELT fitted.
+- **GEN_COMMS:** the gps and elt rows carry these aerials and are no longer `later` (COM 2 still is), so Communications
+  shows their placement blocks; both are in the aerials' family (`accAerials`) and a click selects Communications.
+- **No saved build gains a key (L35d's STOL lesson):** every older access row's `acc_<row>_sL/_lv` is written at 0
+  into every save; the two new rows' are `CAGE_DEFAULT_ABSENT` at 0. None of STOL's six validated builds carries a GPS
+  or an ELT.
+- **Gates** (one nice'd --jobs=1 process, 02:35-03:11, A0's lane): STOL PASS (on f5d084be1 and again on 1f055bb72); GEN
+  76/77 with only master's own "cruise is quiet in wind" (on f5d084be1; 1fe83abd8 adds a table field and two gate rows);
+  PANEL (5b: each of the five radios alone draws only its own aerial, a portable GPS no puck, the ELT absent unless
+  fitted, 1.0 kg, no bus load; the avionics table row takes `ownBattery` for its draw), FIT (its reach spread gained a
+  panel GPS + ELT probe), PARTS, SAVE, FITMANUAL, CLIP, WEARPRICE, CERTGATES, BENCH - PASS. The aerials probe (stock,
+  rod, Cessna 172, metal Cessna) is identical to master ebc4c9edd to the bit: none of them fits a GPS or an ELT.
+- **Not yet seen:** no gate draws a build with a panel GPS or an ELT, so the puck and the whip are placed (PANEL 5b) but
+  have not been looked at or CLIP-checked on a fitted build. A garage still of each, owed.
+Evidence: flydiy-notes/evidence-2026-10-18/2026-11-08/comms/ (run7.log, run8.log).
