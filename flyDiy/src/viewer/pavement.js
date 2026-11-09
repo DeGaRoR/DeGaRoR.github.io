@@ -936,13 +936,13 @@ float pmNoise(vec2 p, int s) {
   return 2.0 * ((a + (b - a) * f.x) + ((c + (d - c) * f.x) - (a + (b - a) * f.x)) * f.y) - 1.0;
 }
 // a hazard j (26b HZ): (u, v, R, h signed), R 0 when it does not fit. uMicro2: x the 1 m octave's amplitude, y the
-// hazards, z their size (m), w 1 on a bumpy strip
+// hazards, z their size (m), w 1 + the swell (m) on a bumpy strip (0 on a flat one)
 vec4 pvHazard(int j, float halfW, float len, int sd) {
-  float R = 1.2 + 1.0 * pmH(j, 0, sd + 32);
+  float R = 1.5 + 1.5 * pmH(j, 0, sd + 32);
   float room = halfW - 0.5 - 0.3 - 2.0 * R;
   if (room < 0.0) R = (halfW - 0.8) / 2.0;
   if (R < 0.6) return vec4(0.0);
-  float hu = max(4.0 + R, min(len - 4.0 - R, len * (0.15 + 0.7 * (float(j) + 0.2 + 0.6 * pmH(j, 0, sd + 31)) / uMicro2.y)));
+  float hu = max(4.0 + R, min(len - 4.0 - R, len * (0.05 + 0.9 * (float(j) + 0.2 + 0.6 * pmH(j, 0, sd + 31)) / uMicro2.y)));
   float hv = (pmH(j, 0, sd + 35) < 0.5 ? -1.0 : 1.0) * (0.3 + R + max(0.0, room) * pmH(j, 0, sd + 36));
   float hh = uMicro2.z * (0.7 + 0.3 * pmH(j, 0, sd + 34)) * (pmH(j, 0, sd + 33) < 0.6 ? 1.0 : -1.0);
   return vec4(hu, hv, R, hh);
@@ -994,6 +994,8 @@ float pvRelief(float u, float v, float halfW, float len, vec4 holes) {
       int k = a * 3 + b; float lam = 32.0 / exp2(float(k));
       r += uMicro2.x * sqrt(lam) * pmNoise(vec2(u, v) / lam, sd + 101 + k);
     }
+    float swA = uMicro2.w - 1.0;                                          // the swell (26b): 25 m and 12 m rolls
+    if (swA > 0.0) r += swA * (0.7 * pmNoise(vec2(u, v) / 25.0, sd + 201) + 0.3 * pmNoise(vec2(u, v) / 12.0, sd + 202));
     r = dT * (r - holes.x);
   }
   return (r + smoothstep(0.0, 0.5, halfW - abs(v)) * holes.w) * eT;
@@ -1284,7 +1286,7 @@ float pvRelief(float u, float v, float halfW, float len, vec4 holes) {
         float fillM = uMicro.w > 0.0 ? clamp((uPavWet - 0.25) / 0.6, 0.0, 1.0) * uMicro.w : 0.0;
         gMicH = pvHoles(u, -v, halfW, 2.0 * halfL, fillM);
         float rel = pvRelief(u, -v, halfW, 2.0 * halfL, gMicH);
-        float rs = uMicro2.x * 3.4 + 0.02, rn = clamp(rel / rs, -1.5, 1.5), cueK = 1.0 - smoothstep(uDist.x, uDist.y * 0.7, dist);
+        float rs = uMicro2.x * 3.4 + 0.3 * (uMicro2.w - 1.0) + 0.02, rn = clamp(rel / rs, -1.5, 1.5), cueK = 1.0 - smoothstep(uDist.x, uDist.y * 0.7, dist);
         float crown = smoothstep(0.1, 1.2, rn) * cueK, hollow = smoothstep(0.1, 1.2, -rn) * cueK;
         col *= 1.0 + 0.10 * crown - 0.18 * hollow; rough += 0.03 * crown - 0.06 * hollow;
         if (hollow > 0.02) { Smp g = pvSet(1, uvS); float gk = 0.5 * hollow; vec2 w2 = pvHw2(hgt, 1.0 - gk, g.c.a, gk, uHex.x * 2.5); col = col * w2.x + g.c.rgb * w2.y; nT = nT * w2.x + g.n.xyz * w2.y; rough = rough * w2.x + g.n.a * w2.y; hgt = hgt * w2.x + g.c.a * w2.y; }
