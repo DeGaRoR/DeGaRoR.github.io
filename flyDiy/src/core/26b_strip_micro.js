@@ -30,12 +30,15 @@
 // THE HASH is an integer one (Math.imul), exact in JS and in GLSL's uint arithmetic, so the shader's holes are these.
 'use strict';
 const STRIP_MICRO = (() => {
-  const KNOBS = ['chaos', 'crown', 'rut', 'holes', 'holeDepth', 'puddles', 'hazards', 'hazardSize', 'seed'];
+  const KNOBS = ['chaos', 'crown', 'rut', 'holes', 'holeDepth', 'puddles', 'hazards', 'hazardSize', 'swell', 'seed'];
   // what chaos derives when a knob is left out (crown in %, rut and holeDepth in cm, holes per 100 m)
   // (hazards: the user, 9 Nov via A0 - "a couple of really random things that are better to be avoided, but that are avoidable
   // too, like big bumps": 0 under chaos 0.15, 1 to 0.5, 2 to 0.8, 3 above; hazardSize in cm)
   const derive = c => ({ crown: 1.5 + 1.0 * c, rut: 6 * c, holes: c < 0.25 ? 0 : 14 * (c - 0.25), holeDepth: 4 + 12 * c, puddles: 0,
-    hazards: c < 0.15 ? 0 : c < 0.5 ? 1 : c < 0.8 ? 2 : 3, hazardSize: 12 + 14 * c });
+    hazards: c < 0.15 ? 0 : c < 0.5 ? 1 : c < 0.8 ? 2 : 3, hazardSize: 20 + 20 * c,
+    // THE SWELL (the user, 9 Nov ~05:00, on chaos 0.8's +-10 cm: "completely invisible ... plus or minus 10 centimeters really
+    // not gonna make the difference"): long rolls of 25 and 12 m on top of ISO's short roughness, `swell` cm at its crest - 30 c
+    swell: 30 * c });
   const FLEET_MEAN = 1.098;                 // pavement.js PV_FLEET_MEAN: the lanes' half-track
   const EDGE_IN = [0.5, 2.5], END_IN = 4, CELL = 6, OCT = [32, 16, 8, 4, 2, 1], N0 = 0.1, NOISE_SD = 0.428;   // NOISE_SD: vnoise's own, measured (2e5 points)
   const ss = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
@@ -60,7 +63,7 @@ const STRIP_MICRO = (() => {
     const c = Math.max(0, Math.min(1, +(m && m.chaos) || 0)), D = derive(c), o = { chaos: c };
     const pick = (k, lo, hi) => { const v = m && m[k] !== undefined && m[k] !== null && isFinite(+m[k]) ? +m[k] : D[k]; return Math.max(lo, Math.min(hi, v)); };
     o.crown = pick('crown', 0, 5); o.rut = pick('rut', 0, 20); o.holes = pick('holes', 0, 30); o.holeDepth = pick('holeDepth', 0, 25); o.puddles = pick('puddles', 0, 1);
-    o.hazards = Math.round(pick('hazards', 0, 4)); o.hazardSize = pick('hazardSize', 0, 40);
+    o.hazards = Math.round(pick('hazards', 0, 4)); o.hazardSize = pick('hazardSize', 0, 50); o.swell = pick('swell', 0, 60);
     o.seed = m && isFinite(+m.seed) ? (+m.seed | 0) : 0;
     o.gd = 16e-6 * Math.pow(4, 5 * c);   // Gd(n0), m^3
     return o;
@@ -76,7 +79,7 @@ const STRIP_MICRO = (() => {
     // ISO 8608 per octave: the band [lambda / sqrt2, lambda sqrt2] holds Gd n0^2 lambda (sqrt2 - 1/sqrt2) of variance
     const amp = OCT.map(l => Math.sqrt(K.gd * N0 * N0 * l * 0.7071) / NOISE_SD);
     const crownS = K.crown / 100, rutD = K.rut / 100, holeD = K.holeDepth / 100;
-    const sig = 0.35 + 0.05 * halfW;
+    const sig = 0.35 + 0.05 * halfW, swA = K.swell / 100;
     const pHole = Math.fround(Math.min(0.95, K.holes * CELL / 100 / 2));   // two candidates a cell
     const pudOK = K.puddles > 0 ? 1 - ss(0.015, 0.03, Math.abs(grade || 0)) : 0;
     // a cell's hole m (0, 1): null or [u, v, R, depth]
@@ -110,11 +113,11 @@ const STRIP_MICRO = (() => {
     // centreline - the other half always a clean line - and clear of the last 0.5 m inside the edge. [u, v, R, h signed]
     const HZ = [];
     for (let j = 0; j < K.hazards; j++) {
-      let R = 1.2 + 1.0 * ih(j, 0, seed + 32);
+      let R = 1.5 + 1.5 * ih(j, 0, seed + 32);
       const room = halfW - 0.5 - 0.3 - 2 * R;
       if (room < 0) R = (halfW - 0.8) / 2;
       if (R < 0.6) continue;
-      const u = Math.max(END_IN + R, Math.min(len - END_IN - R, len * (0.15 + 0.7 * (j + 0.2 + 0.6 * ih(j, 0, seed + 31)) / K.hazards)));
+      const u = Math.max(END_IN + R, Math.min(len - END_IN - R, len * (0.05 + 0.9 * (j + 0.2 + 0.6 * ih(j, 0, seed + 31)) / K.hazards)));   // (bumpy all over: the whole strip)
       const side = ih(j, 0, seed + 35) < 0.5 ? -1 : 1, v = side * (0.3 + R + Math.max(0, room) * ih(j, 0, seed + 36));
       const h = K.hazardSize / 100 * (0.7 + 0.3 * ih(j, 0, seed + 34)) * (ih(j, 0, seed + 33) < 0.6 ? 1 : -1);
       HZ.push([u, v, R, h]);
@@ -139,7 +142,7 @@ const STRIP_MICRO = (() => {
       if (u <= 0 || u >= len || v <= -halfW || v >= halfW) return 0;
       const eT = ss(0, END_IN, u) * ss(0, END_IN, len - u), dT = ss(EDGE_IN[0], EDGE_IN[1], halfW - Math.abs(v));
       let r = 0;
-      if (dT > 0) { if (K.gd > 0) for (let k = 0; k < OCT.length; k++) r += amp[k] * vnoise(u / OCT[k], v / OCT[k], seed + 101 + k); r = dT * (r - holesAt(u, v, 0)[0]); }
+      if (dT > 0) { if (K.gd > 0) for (let k = 0; k < OCT.length; k++) r += amp[k] * vnoise(u / OCT[k], v / OCT[k], seed + 101 + k); if (swA > 0) r += swA * (0.7 * vnoise(u / 25, v / 25, seed + 201) + 0.3 * vnoise(u / 12, v / 12, seed + 202)); r = dT * (r - holesAt(u, v, 0)[0]); }
       if (HZ.length) r += ss(0, 0.5, halfW - Math.abs(v)) * hazardsAt(u, v, 0)[0];
       return r * eT;
     }
@@ -153,6 +156,7 @@ const STRIP_MICRO = (() => {
       if (dT > 0) {
         let r = 0;
         if (K.gd > 0) for (let k = 0; k < OCT.length; k++) r += amp[k] * vnoise(u / OCT[k], v / OCT[k], seed + 101 + k);
+        if (swA > 0) r += swA * (0.7 * vnoise(u / 25, v / 25, seed + 201) + 0.3 * vnoise(u / 12, v / 12, seed + 202));
         const rut = rutD > 0 ? rutD * lanes(v) * (0.7 + 0.3 * vnoise(u / 23, 0.5, seed + 7)) : 0;
         h += dT * (r - rut - holesAt(u, v, 0)[0]);
       }
@@ -160,7 +164,7 @@ const STRIP_MICRO = (() => {
       return h * eT;
     }
     // the ceiling: the crown's top + every octave's amplitude (the ruts and the holes only go down)
-    const bound = crownS * halfW / 2 + amp.reduce((s, a) => s + a, 0) + hzUp + 1e-6;   // (+ the highest hazard bump)
+    const bound = crownS * halfW / 2 + amp.reduce((s, a) => s + a, 0) + swA + hzUp + 1e-6;   // (+ the swell's crest, + the highest hazard bump)
     // the box in the caller's frame (for the modifier's bbox and its tiles)
     const corners = [[0, -halfW], [len, -halfW], [len, halfW], [0, halfW]].map(([u, v]) => [x0 + cs * u - sn * v, z0 + sn * u + cs * v]);
     const bbox = { x0: Math.min(...corners.map(q => q[0])), z0: Math.min(...corners.map(q => q[1])), x1: Math.max(...corners.map(q => q[0])), z1: Math.max(...corners.map(q => q[1])) };
@@ -195,7 +199,7 @@ const STRIP_MICRO = (() => {
   const REFINE_MIN = 0.25;
   // glslRow(id): the pavement shader's uMicro, uMicro2 for a published strip - [seed, hole probability (float32), hole depth m,
   // puddles x the grade's own, the 1 m octave's amplitude (the others x sqrt of their wavelength), hazards, hazard size m,
-  // 1] - pavement.js pvPuddle / pvRelief read exactly these; null when the strip is flat
-  function glslRow(id) { for (const L of live.values()) for (const s of L) if (s.id === id) { const f = s.f; return [f.seed, f.pHole, f.K.holeDepth / 100, f.K.puddles * f.pudOK, f.a1, f.K.hazards, f.K.hazardSize / 100, 1]; } return null; }
+  // 1 + the swell m] - pavement.js pvPuddle / pvRelief read exactly these; null when the strip is flat
+  function glslRow(id) { for (const L of live.values()) for (const s of L) if (s.id === id) { const f = s.f; return [f.seed, f.pHole, f.K.holeDepth / 100, f.K.puddles * f.pudOK, f.a1, f.K.hazards, f.K.hazardSize / 100, 1 + f.K.swell / 100]; } return null; }
   return { KNOBS, on, resolve, derive, field, ih, vnoise, publish, at, puddleAt, has, glslRow, live, CELL, OCT, EDGE_IN, END_IN, REFINE_MIN };
 })();

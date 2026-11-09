@@ -67,7 +67,7 @@ const H0 = pts.map(p => W0.terrainH(p[0], p[1]));
   verdict(out === 0, `0 outside the strip's box (${out} of the outside points not 0)`);
   verdict(edge === 0, `on the last half metre inside an edge only the crown (0 at the edge itself): ${edge} points carry bumps`);
   verdict(over === 0, `never over its ceiling ${f8.bound.toFixed(3)} m (${over} over, ${nIn} inside)`);
-  const sd = c => { const f = SM.field(S, { chaos: c, crown: 0, rut: 0, holes: 0, seed: 1 }, 0); let a = 0, a2 = 0, k = 0;
+  const sd = c => { const f = SM.field(S, { chaos: c, crown: 0, rut: 0, holes: 0, hazards: 0, swell: 0, seed: 1 }, 0); let a = 0, a2 = 0, k = 0;
     for (let i = 0; i < 20000; i++) { const h = f.atUV(10 + rng() * 380, (rng() - 0.5) * 8); a += h; a2 += h * h; k++; } return Math.sqrt(a2 / k - (a / k) ** 2); };
   const s4 = sd(0.4), s8 = sd(0.8);
   verdict(s4 > 0.005 && s4 < 0.02 && s8 > 0.025 && s8 < 0.07, `ISO 8608 roughness: chaos 0.4 sd ${(s4 * 100).toFixed(2)} cm (class C 0.5-2), 0.8 sd ${(s8 * 100).toFixed(2)} cm (class E 2.5-7)`);
@@ -222,14 +222,14 @@ const W8 = world(withMicro('w7', MICRO8));
   const need = ['0x27d4eb2du', '0x165667b1u', '0x2f6b4c13u', '0x2c1b3c6du', '0x297a2d39u', 'float(h >> 8u) / 16777216.0',
     'pmH(i, m, sd + 11) >= uMicro.y', 'float R = 0.5 + 0.6 * pmH(i, m, sd + 12), hu = (float(i) + 0.15 + 0.7 * pmH(i, m, sd + 13)) * 6.0;',
     'float lim = halfW - 2.5 - R;', 'pmH(i, m, sd + 14) < 0.667 ? (pmH(i, m, sd + 15) < 0.5 ? -1.0 : 1.0) * 1.098 + (pmH(i, m, sd + 16) - 0.5) * 2.0 * sig : (pmH(i, m, sd + 16) - 0.5) * 2.0 * lim;',
-    'float D = uMicro.z * (0.5 + 0.5 * pmH(i, m, sd + 17));', 'float R = 1.2 + 1.0 * pmH(j, 0, sd + 32);', 'float room = halfW - 0.5 - 0.3 - 2.0 * R;',
-    '(float(j) + 0.2 + 0.6 * pmH(j, 0, sd + 31)) / uMicro2.y', '(pmH(j, 0, sd + 35) < 0.5 ? -1.0 : 1.0) * (0.3 + R + max(0.0, room) * pmH(j, 0, sd + 36))',
+    'float D = uMicro.z * (0.5 + 0.5 * pmH(i, m, sd + 17));', 'float R = 1.5 + 1.5 * pmH(j, 0, sd + 32);', 'r += swA * (0.7 * pmNoise(vec2(u, v) / 25.0, sd + 201) + 0.3 * pmNoise(vec2(u, v) / 12.0, sd + 202));', 'float room = halfW - 0.5 - 0.3 - 2.0 * R;',
+    'len * (0.05 + 0.9 * (float(j) + 0.2 + 0.6 * pmH(j, 0, sd + 31)) / uMicro2.y)', '(pmH(j, 0, sd + 35) < 0.5 ? -1.0 : 1.0) * (0.3 + R + max(0.0, room) * pmH(j, 0, sd + 36))',
     'uMicro2.z * (0.7 + 0.3 * pmH(j, 0, sd + 34)) * (pmH(j, 0, sd + 33) < 0.6 ? 1.0 : -1.0)', 'r += uMicro2.x * sqrt(lam) * pmNoise(vec2(u, v) / lam, sd + 101 + k);',
     'gMicH = pvHoles(u, -v, halfW, 2.0 * halfL, fillM);'];
   const miss = need.filter(l => G.indexOf(l) < 0);
   const src = fs.readFileSync(path.join(T, '..', 'src', 'core', '26b_strip_micro.js'), 'utf8');
   const jsNeed = ['ih(i, m, seed + 11) >= pHole', 'const R = 0.5 + 0.6 * ih(i, m, seed + 12), u = (i + 0.15 + 0.7 * ih(i, m, seed + 13)) * CELL;', 'ih(i, m, seed + 14) < 0.667',
-    'holeD * (0.5 + 0.5 * ih(i, m, seed + 17))', 'let R = 1.2 + 1.0 * ih(j, 0, seed + 32);', 'const room = halfW - 0.5 - 0.3 - 2 * R;', '(j + 0.2 + 0.6 * ih(j, 0, seed + 31)) / K.hazards',
+    'holeD * (0.5 + 0.5 * ih(i, m, seed + 17))', 'let R = 1.5 + 1.5 * ih(j, 0, seed + 32);', 'r += swA * (0.7 * vnoise(u / 25, v / 25, seed + 201) + 0.3 * vnoise(u / 12, v / 12, seed + 202));', 'const room = halfW - 0.5 - 0.3 - 2 * R;', 'len * (0.05 + 0.9 * (j + 0.2 + 0.6 * ih(j, 0, seed + 31)) / K.hazards)',
     'side * (0.3 + R + Math.max(0, room) * ih(j, 0, seed + 36))', 'K.hazardSize / 100 * (0.7 + 0.3 * ih(j, 0, seed + 34)) * (ih(j, 0, seed + 33) < 0.6 ? 1 : -1)', 'amp[k] * vnoise(u / OCT[k], v / OCT[k], seed + 101 + k)'];
   const jmiss = jsNeed.filter(l => src.indexOf(l) < 0);
   verdict(!miss.length && !jmiss.length, `the shader's holes, hazards and relief are the field's, line for line (${need.length} GLSL lines, ${jsNeed.length} JS lines${miss.length ? '; GLSL MISSING ' + miss[0] : ''}${jmiss.length ? '; JS MISSING ' + jmiss[0] : ''}), on the field's v (the ribbon's flipped)`);
