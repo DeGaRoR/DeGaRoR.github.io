@@ -8358,7 +8358,7 @@ const TECH_TABLE = {
   'av.gps:none': 1, 'av.gps:portable': 3, 'av.gps:panel': 3, 'av.gps:glass': 3, 'av.gps:flat': 3, 'av.gps:flatPair': 3,   // G2815
   // ---- gear
   'gear:taildragger': 1, 'gear:floats': 1, 'gear:tricycle': 2, 'gear:hull': 2,
-  'susp:bungee': 1, 'susp:spring': 1, 'susp:oleo': 1,
+  'susp:bungee': 1, 'susp:spring': 1, 'susp:oleo': 1, 'susp:lever': 2,   // (WILGA-GEAR: the trailing-link oleo leg, the tricycle's stage)
   'fair:glass': 1, 'fair:alloy': 2, 'fair:carbon': 3,
   // ---- canopy / glazing
   'glaze:acrylic': 1, 'glaze:glass': 1, 'glaze:polycarbonate': 2,
@@ -8512,6 +8512,9 @@ const TECH_ROWS = {
   // spec with more than one engine)
   engMount: [null, null, null, 'cfg:twin', 'cfg:twin', 'cfg:twin', 'cfg:twin', 'cfg:twin', null],   // (HULL-B22: 8 the fin)   // (HULL-B15: 7 the tandem)
   engPower: ['fam:piston', 'fam:electric', 'fam:turbine'],
+  // WILGA-GEAR: the mains' leg row - only the trailing-link option is gated (the other four keep their reading by the
+  // spec's suspension, unchanged)
+  s1Leg: [null, null, null, null, 'susp:lever'],
 };
 // a row's keys, per option index; ctx: { names (the row's own option names), engines (CAGE_JOIN_ENGINES), propMats
 // (CAGE_JOIN_PROP_MATS) } -> [key | null] or null (a row the mask does not read)
@@ -8528,6 +8531,7 @@ function techKeysOfPatch(p) {
   const out = [];
   if (!p || typeof p !== 'object') return out;
   if (p.gear && TECH_GEAR_TYPES.includes(p.gear.type)) out.push('gear:' + p.gear.type);
+  if (p.gear && p.gear.suspension === 'lever') out.push('susp:lever');                // WILGA-GEAR (the design tile's option)
   if (p.systems && p.systems.fit) out.push('fit:' + p.systems.fit);
   if (Array.isArray(p.engines)) { for (const e of p.engines) if (e && e.type) out.push('eng:' + e.type); if (p.engines.length > 1) out.push('cfg:twin'); }
   if (p.fuselage && p.fuselage.material) out.push('mat:' + p.fuselage.material);
