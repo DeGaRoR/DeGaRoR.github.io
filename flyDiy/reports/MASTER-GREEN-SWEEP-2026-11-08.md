@@ -150,7 +150,7 @@ three have been red on every train from 24 Oct to 8 Nov.
 
 ## 2. The sweep (257 gates)
 
-THE TABLE IS COMPLETE (23:05 UTC): all 257 gates have a verdict. Four had no verdict the first time, under load or memory pressure, and were re-run alone: DMGWIND, DMGDRIVE, TOUR and SOFTGPU. The last row per gate counts. Bisects still running: TOUR (the float Cessna's shard), ALTIPORT and DMGCLUSTERS to a merge; DMGTYRE and LAZY before 24 Oct.
+FINAL (09 Nov 02:02 UTC). All 257 gates have a verdict. Four had none the first time (load or memory pressure) and were re-run alone: DMGWIND and DMGDRIVE (PASS), TOUR (FAIL) and SOFTGPU (PASS). The last row per gate counts. Every red is bisected; section 3 starts with them grouped by where they came in.
 
 How the sweep was run:
 - One run_gates per gate on 1bcd01d3e: `--only=ID --no-build --verbose`.
@@ -429,6 +429,43 @@ Kinds:
 
 ## 3. The reds, one block each
 
+### By where they came in
+
+The 34 FAILs of the 257 are 28 reds for owners, 5 that are only TIME? on this box, and 1 ENV. DMGCERT, TREECRASH and
+DMGINST (section 1) are not among the 257 but are listed here by origin too. In the table below:
+- each row is one merge or commit; "(A0 train)" names the train it came in with;
+- "stale pin" marks the ones whose read is a stale pin (proven or probable);
+- every red is in its own block after this table.
+
+| where it came in | reds |
+|---|---|
+| 12 Oct, a0aeeeee9 TORQUE-BUNDLE-45: ENGINE-TORQUE G2080 (pilot-45 line) | RADIALDIV (cub), ARCHETYPES (Chinook-alike) |
+| 12 Oct, train ship: `claude/scenery-ship-g3010` (in via 50cc21452) | RWYLIGHTS |
+| 13 Oct, train t52c: `claude/design-trust-g2640` (G2640; on the master tip's line from 7abc31170, 18 Oct) | DMGCERT (step 1), DMGINST (stale pin), TREECRASH jodel (stale pin) |
+| 13 Oct, train t52ab: `claude/t54-audit` (in via 7abc31170) | LAKEBED, LAZY |
+| 13 Oct, a69f31fda pilot-45 x master 39570350b: both sides green, the merge red | DMGDAMP, DMGFABRIC (stale pin), DMGTYRE, DMGCLUSTERS |
+| 21 Oct, L21c: `claude/ready/story-intro` | FOG (stale pin) |
+| 24 Oct, L24c: `claude/ready/town-road-sides` | TOUR (float Cessna, a known red plus a timeout) |
+| L28a: `claude/ready/hydro-trim` | DMGCERT (step 2: BROKE UP with no BROKE AT) |
+| L28b: c5e9f46c9 `_cage_float.js` integration | TECH (already named in the HANDOVER) |
+| F4: `claude/gps-pfd` (in via PHONE-1b, train 1B) | AUDIO (EMITALLOC) |
+| L29h: `windows-fittings` / `avionics-gps` | CLIP / NODUMMY |
+| PHONE-1b: its merge of PHONE-1a | DESTTO ltd:floats |
+| L30c: `new-plane` / `tank-fit` | TREECRASH cub (stale pin), FLIGHTREC (stale pin) / DMGLOOK pose |
+| L30d: `claude/a0/cert-m2` | DESTTO career:cub@w3 |
+| L31a: `bay-mirror` | LOOKS (stale pin) |
+| L31b: `gear-falls` | FLEX |
+| L31c: `pilot1-circuit` / `cub-window` / `tailwheels` / `s39-lights` | DESIGNSIM, ALTIPORT / FREIGHT (stale pin) / ENGTORQUE / SCENERYED row 15 |
+| L32b: `livery-5` | NAMES |
+| L32c: `wear-tab-eol` | SKINMAT |
+| L32f: bbc115dda LOOK-1 2a | SHADOWSKY (stale pin) |
+
+Not reds:
+- **TIME?**: BENCHTIME, BIOME, SETTLE, CREWLOAD, DMGCERTCOST (plus one unclear row), and the TIME? rows inside DMGLOOK
+  (the plan) and SCENERYED (20b).
+- **ENV**: PILOTPAGE.
+
+
 How each one was bisected:
 - With that gate alone, first over the 28 "(built)" trains, newest to oldest.
 - Then over the first-parent commits of the train it turned red in. Where that landed on a merge of master into a branch,
@@ -593,7 +630,63 @@ FAIL cub trunk-0 (...) c. the plan: ... worst plan 4.28 ms over 15 events (measu
 - Read: **unclear**: a wreck's bent member's drawn centreline is off its rest length, after the honest tank fit moved
   the Cub's mass.
 
+**ALTIPORT** (`tools/_altiport_check.js:129`; 4 shards)
+```
+  FAIL 2 the user's Cub HOME > tw_skib: the final begun at the field's circuit height (>= 941 m, over the strip's 709 m)  (FINAL at 782 m MSL, 2876.6 m out (73.2 m over the strip's highest ground; the circuit 305 m))
+  FAIL 3 the doctored arrival (tw_ski's record 250 m low, the go-arounds spent), the Cub: ... the guard caught it (calibration)  (FINAL at 749.8 m MSL (the strip 680..709 m); no flare-guard ...
+  FAIL 4 the metal Cessna HOME > tw_skib: the final begun at the field's circuit height (>= 941 m, over the strip's 709 m)  (FINAL at 805.7 m MSL, 3396.4 m out)
+```
+- Train **L31c**. The merge: **`claude/ready/pilot1-circuit`** (a89495fec; 2c1644414 green). It is the same merge as
+  DESIGNSIM.
+- Read: **unclear**. The new circuits begin the final into the altiport 160-190 m under the field's circuit height.
+  Either the Pilot's circuit is wrong there, or the row should follow it: the Pilot's call.
+
 ### Red before 24 Oct (traced back)
+
+**DMGCLUSTERS** (`tools/_dmg_clusters_check.js:202`)
+```
+  FAIL  the FIN pulled sideways (n g on the fin, ramped): FIN root by twist at 4.28 s (2.94 kN.m bending, -13.74 torque; limits 6.45 / 23.81 / 13.74), 16 members broken (fin:attach, 0 others), the part rigid to 0.0 mm and 1.18 m off; ...
+  FAIL  SEVERE for the twin: 90 km/h, 5 m/s, 20 deg nose-in (2.6 x its FAR 23.527 load): the worst cut 0.962 (ROD root, bend); ...
+```
+- Red on every train in the list. The first red is **a69f31fda** (13 Oct), pilot-45's merge of master 39570350b.
+- Both sides pass, and the gate exists on both: pilot-45's f8c0989f1 PASS, master's 39570350b PASS. The red is the
+  meeting of the two lines.
+- Read: **unclear**. The fin now comes off by twist (its torque at its limit) where the row expects it pulled off whole.
+
+**DMGTYRE** (`tools/_dmgtyre_check.js:170`)
+```
+FAIL Jodel taxi turn, rudder 0.2: R 31.5 m at 2.93 m/s against the old law's 40.5 m (x0.779, 0.80-1.10; the kinematic bicycle 41.3 m)
+FAIL metal Cessna taxi turn, rudder 0.2: R 15.9 m at 3.03 m/s against the old law's 23.9 m (x0.664, 0.80-1.10; the kinematic bicycle 25.8 m)
+```
+- Red on every train in the list. The first red is **a69f31fda** (13 Oct), as DMGDAMP: master's 39570350b PASS, and
+  pilot-45's side has no DMGTYRE gate.
+- Read: **unclear**. The taxi turns are tighter than the band. TORQUE-BUNDLE-45 (the ground steer, the torque) is on
+  the pilot-45 side; unproven which commit.
+
+**LAZY** (`tools/_lazy_check.js:298`; headless Chromium)
+```
+  FAIL default: the door's first demand (ROUTE_DRAW.ready) fetched route_draw.551be74d.js once and ran it
+```
+- Red on every train in the list. It is on the master tip's line since 7abc31170 (18 Oct; a69f31fda green). On master's
+  side it is **train t52ab's merge of `claude/t54-audit`** (64e360d19, 13 Oct; f6bda9011 green), the same merge as
+  LAKEBED.
+- Read: **unclear**. It may depend on the page; this box's Chromium runs it. Unproven on the box.
+
+**TOUR** (`tools/_tour_check.js`; shard 2/4; the first pass NOVERDICT at the row's 3600 s under load, the re-run alone
+red in 3109 s)
+```
+  FAIL 5 the float Cessna mk_sea > SEA: stopped at its To with no fault  (timeout: the leg took over 1800 s; prop-strike: the propeller struck (water, t 604.6))
+  FAIL 5 the float Cessna mk_sea > SEA: landed on its To (the landing judged on null)
+  FAIL 5 the float Cessna: the tour is complete, back at SEA  (2 of 2 legs)
+```
+- Bisected on shard 2 alone.
+  - Red on 24 Oct (2b381015d); green on 22 Oct (L22b 5f3f2c797), on 88636acc9 and on e8d3f0970.
+  - The first red is train **L24c**'s merge of **`claude/ready/town-road-sides`** (babdbaa11); e8d3f0970
+    (rufus-plaque) is green.
+- `_tour_check.js:227-235` keeps the return leg's prop strike as a **KNOWN** red (G3079: JOIN-PARITY's load-door float
+  Cessna; owner Deform / JOIN-PARITY), only while its faults are exactly prop-strike / yield / dent. Here the leg also
+  timed out (over 1800 s), so the KNOWN filter does not hold it.
+- Read: **unclear**: the known red plus a timeout. JOIN-PARITY is being re-captured today; that may move it.
 
 **DMGFABRIC** (`tools/_dmg_fabric_check.js:194`)
 ```
