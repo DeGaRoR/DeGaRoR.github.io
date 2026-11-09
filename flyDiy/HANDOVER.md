@@ -313926,9 +313926,10 @@ static deflection at the loaded mass (the row; 70 mm), the orifice for the 23.47
   design tile's option. app.js: the leg, the arm and the strut's two halves each posed from three physics nodes.
 - THE FAIRING (the user, mid-session: "an elegant fairing ... robust ... that hides a bit of this huge mechanics"; then
   "only a fairing for the leg, not the wheel" and "the little proper cuts so the wheel articulation can move freely"):
-  _gear_gen leverBoot (the leg-fairing row only): a boot sized from what it hides (the strut sampled over the stroke, the
-  bracket, the pivot), a slope-limited envelope, the outboard flank eased in to its contents (C1 knee), a rounded toe
-  past the gland; CUT by leverClear - the swept space of the arm, horn, lugs, axle boss, rod, cylinder, pivot and tyre at
+  _gear_gen leverBoot (the leg-fairing row only; then "closer to the bone ... directional"): ONE STRAIGHT TAPERED
+  STREAMLINE in horizontal, flow-aligned slices (thickness 40 % of chord) - each slice's smallest streamline round the
+  leg's tube, the bracket and the strut over the stroke, then straight lines in height for the station, the centre and
+  the chord - ending under the pivot with a rounded toe; CUT by leverClear - the swept space of the arm, horn, lugs, axle boss, rod, cylinder, pivot and tyre at
   33 poses (plain union per part, a 50 mm smooth minimum between parts, less 8 mm), the edges bisected onto the contour,
   a 2.5 mm lip. No wheel fairing on the trailing link: _cage_gear zeroes st.fair and hides the fairing rows on leg 4,
   the join and clampSpec write gear.fairing 'none'. 62_gen_aero: a lever leg's two struts in the drag (Cd 1.0 bare,
@@ -313954,6 +313955,8 @@ static deflection at the loaded mass (the row; 70 mm), the orifice for the 23.47
   round the cylinder). Plain min per part across the poses, smooth min only between parts.
 - quick_view's probe snaps any mesh over 6 000 triangles (DENSE) to a 64-cell grid: a 7 600-triangle boot came out
   crumpled in the pictures, not in the game. The boot is ~5 000.
+- A boot fitted slice by slice follows the strut's gland aft and down (a "sock") and is lumpy: straight lines in height
+  through the slices' own fits read as one fairing.
 - With holes in it, "inside the boot" is no test (parity); GATE WILGAGEAR 7b measures each moving vertex's distance to
   the boot's triangles (a 2 cm cell grid) at 17 poses.
 

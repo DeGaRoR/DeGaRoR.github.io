@@ -259,7 +259,7 @@ trailing arc; a broken leg drops; the drawn leg = the physics leg through the ga
 leg, s1Drop 0.85: the frame's nodes on the drawn points to 1e-16 m, the drawn arm and horn on the physics nodes through
 a limit drop to 0.4 mm; the garage reddens a leg whose tyre meets the body at full stroke); the fairing (7.5: on the
 Cub and on the host, the leg wears the boot and no wheel fairing; nothing that moves comes within 3 mm of the cut boot
-through the stroke - 6.0 / 11.7 mm at the closest; the cylinder's body hidden; clampSpec agreeing); nothing else moved. Nine sections, 33 checks, ~2 min.
+through the stroke - 20 / 6.7 mm at the closest; the cylinder's body hidden; clampSpec agreeing); nothing else moved. Nine sections, 33 checks, ~2 min.
 
 ### 7.5 The fairing (the user: "an elegant fairing ... something robust that could go on many planes, but something that looks good and that hides a bit of this huge mechanics"; then "allow only a fairing for the leg, not the wheel on this suspension type" and "do the little proper cuts so the wheel articulation can move freely without hitting the fairing")
 
@@ -268,31 +268,36 @@ trailing link the game's **leg-fairing row** (`s1LegFair`) dresses the leg in a 
 **the wheel takes no fairing** - the spat / trousers row and its shape rows step aside on this leg, the gear layer draws
 none, and the join and clampSpec write `gear.fairing 'none'` (the drag, the mass and the price follow the drawing).
 
-- **The boot is sized from what it hides**, not drawn to a fixed shape, so it fits any leg the rows draw: the strut's
-  cylinder and gland sampled at five points of the stroke, the bracket's lugs and the pivot's tube; tear-drop stations
-  from the fitting down, each sized to the samples it meets plus 12 mm, then a **slope-limited envelope** (no station
-  smaller than any other less 0.30 m of chord / 0.20 m of thickness per metre between them) and a light smoothing: a
-  straight, gentle taper from the slim leg into the knuckle, never a neck. It runs at least past the lowest thing it
-  hides (the gland at full extension) and ends in a rounded toe (a quarter ellipse to a point).
-- **Its outboard flank hugs what it hides**: eased in (C1, a 20 mm exponential knee) to the strut's cylinder, the pivot's
-  tube and nut, less the clearance - the slim side faces the wheel.
+- **The boot is sized from what it hides**, not drawn to a fixed shape, so it fits any leg the rows draw: the leg's own
+  faired tube, the strut's bracket lugs, and the strut's cylinder and gland sampled at five points of the stroke - not
+  the pivot (it passes through the cuts' round holes) nor anything of the arm (cut round).
+- **Directional** (the user: "take the direction of flight into account"): every section is a HORIZONTAL slice, a
+  streamline (the spat's tear, thickness 40 % of chord) with its nose into the flight and its chord along the airflow,
+  centred on the leg's line at that height - not a section square to the raked leg.
+- **Close to the bone** (the user: "slimmer at the bottom ... less like a primitive club"): ONE STRAIGHT TAPERED
+  STREAMLINE. Each slice (24, from 3 cm inside the body to just under the pivot) finds its smallest streamline holding
+  its height band's points grown by 10 mm (the chord by bisection, its station along the flow by a golden search); then
+  the station along the flow and the lateral centre become straight lines in height (least squares, weighted by chord)
+  and the chord the smallest straight taper holding every slice at those lines. A rounded toe (0.6 x the bottom
+  thickness deep) closes it under the pivot; the strut's foot below is bare, as on the Wilga. Earlier versions (a box
+  fitted in a fat tear square to the leg, then per-slice fits) read as a club and then as a sock.
 - **THE CUTS** (`leverClear`): the space everything that moves sweeps through the whole stroke - the arm, its horn and
   the horn's lugs and pin, the axle's boss, the strut's rod and cylinder, the pivot (boss, tube, nut) and the tyre - as
   capsules from each part's drawn sizes at 33 poses of the kinematics (GEAR_LEVER, the flight's and the preview's own
-  rule), the poses of one part joined plainly and the parts blended by a smooth minimum (50 mm), less 8 mm. The boot
-  (56 + 12 stations x 36, ~5 000 triangles) keeps only where that clearance is positive; every cut edge is placed on the
+  rule), the poses of one part joined plainly (the strut's rod and cylinder one part) and the parts blended by a smooth
+  minimum (50 mm), less 8 mm. The boot (48 + 12 slices x 36, ~4 500 triangles) keeps only where that clearance is positive; every cut edge is placed on the
   zero contour by bisection along the grid's edge, so the opening is the swept shape's own outline, and a 2.5 mm lip
   turns in round it. Two openings result: **round holes where the pivot passes through the flanks**, and **a slot in
   the outboard toe for the arm** (with the horn's and rod's paths blended in).
 - What shows, by design: the arm and the rod below the boot; through the arm's slot from outboard, the strut's gland.
   The cylinder's body is hidden from either side, ahead and behind (GATE WILGAGEAR 7b).
 - Measured (GATE WILGAGEAR 7b, the drawn meshes posed at 17 points of the stroke against the boot's triangles): nothing
-  that moves comes within 6.0 mm of the boot on the Cub, 11.7 mm on the host; without the cuts the arm runs through
-  it (0.0 mm - the check fails).
+  that moves comes within 20 mm of the boot on the Cub, 6.7 mm on the host; without the cuts the arm runs through it
+  (0.0 mm - the check fails).
 - Found on the way: the material is two-sided, so an inner skin 2.5 mm under the outer z-fought through it (dropped); a
   smooth minimum folded over all 200 capsules eroded the boot round the cylinder (each near-equal term shaves up to K/4
   more - now per part); quick_view snaps any mesh over 6 000 triangles to a coarse grid, which crumpled a 7 600-triangle
-  boot in the pictures (the boot is now ~5 000).
+  boot in the pictures (the boot is now ~4 500).
 
 ---
 
@@ -317,7 +322,7 @@ m^2, the trailing link bare **0.199**, booted **0.111** (the oleo row faired 0.0
 faired builds alike at -0.08). The fairing's mass and price are the leg-fairing row's (+5 kg on the host); the trailing
 link never carries a wheel fairing.
 
-**The fairing's drawing**: one boot a leg, ~5 000 triangles with its cuts, built once with the garage's drawing (the cut
+**The fairing's drawing**: one boot a leg, ~4 500 triangles with its cuts, built once with the garage's drawing (the cut
 field: 33 poses x 7 parts of capsules, evaluated at ~2 500 grid points and on each cut edge) - nothing a frame.
 
 ## 9. Open questions (each with its default)
