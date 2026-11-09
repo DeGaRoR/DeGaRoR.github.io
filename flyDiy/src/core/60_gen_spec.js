@@ -2034,6 +2034,14 @@ const GEN_ELEC = {
                note: 'Odyssey PC680 class' },
     lithium: { name: 'lithium 12 V, 13 Ah',   kg: 2.3, price: 520, Ah: 13,
                note: 'EarthX ETX900 class' },
+    // ELEC-SYSTEMS (9 Nov, futureDesigns/ELEC-SYSTEMS-2026-11.md): the CLASS rows, additive - no tier names them, so a
+    // build that never picked one resolves exactly as before. `cls` is the class the row belongs to (GEN_ELEC_CLASSES).
+    lifeSmall: { name: 'small lithium 12 V, 5 Ah', kg: 1.0, price: 260, Ah: 5, cls: 'ultralight',
+                 note: 'LiFePO4 4A2P class, 0.91 kg - what a Rotax 912 iS is wired for' },
+    leadSmall: { name: 'small sealed lead 12 V, 9 Ah', kg: 3.2, price: 90, Ah: 9, cls: 'ultralight',
+                 note: 'a powersport AGM (YTX9 class) - the two-stroke ultralights\' usual' },
+    leadHeavy: { name: 'heavy lead-acid 12 V, 35 Ah', kg: 12.5, price: 420, Ah: 35, cls: 'heavy',
+                 note: 'Gill G-35 class for a radial\'s cranking (ESTIMATE: mass and price not sourced)' },
   },
   alternator: {
     none:  { name: 'no alternator',   kg: 0,   price: 0,   A: 0 },
@@ -2041,11 +2049,25 @@ const GEN_ELEC = {
              note: 'the small Continentals\' belt generator; cuts in above idle' },
     alt60: { name: '60 A alternator', kg: 4.5, price: 1150, A: 60,   // PRICE-CAL: 800 -> 1 150 (Plane-Power, $1 057-1 287)
              note: 'Plane-Power class, with its regulator' },
+    // ELEC-SYSTEMS: `cutIn` the PROP rpm the row starts charging at (absent = 1100, the bus's own default: a geared Rotax
+    // turns its prop ~2.4x slower than its crank, and its coil makes current from idle); `internal` the machine is inside
+    // the engine's dry weight (the bill is the regulator; nothing is drawn on the case)
+    coil12: { name: 'lighting coil + regulator, 12 A', kg: 0.8, price: 250, A: 12, cutIn: 500, internal: true,
+              cls: 'ultralight', note: 'the two-stroke\'s own lighting coil and a rectifier-regulator (Rotax 503 / 582)' },
+    int18:  { name: 'integrated generator, 18 A', kg: 0.9, price: 350, A: 18, cutIn: 700, internal: true,
+              cls: 'ultralight', note: 'the Rotax 912\'s 250 W internal generator and its external regulator' },
+    genHeavy: { name: 'heavy generator, 50 A', kg: 15.0, price: 2600, A: 50, cls: 'heavy',
+                note: 'engine-driven, on a radial\'s accessory pad (ESTIMATE: ~15-18 kg for the period units)' },
   },
   starter: {
     none: { name: 'hand-propped',      kg: 0,   price: 0,   amps: 0 },
     yes:  { name: 'electric starter',  kg: 4.0, price: 1100, amps: 150,   // PRICE-CAL: 700 -> 1 100 (Sky-Tec, $1 086-1 120)
             note: 'Sky-Tec class; 150 A while cranking' },
+    // ELEC-SYSTEMS: `amps` is the bus's draw while cranking (cockpit.js reads it; `yes`'s 150 is the constant it had)
+    ul:    { name: 'ultralight electric starter', kg: 3.5, price: 650, amps: 80, cls: 'ultralight',
+             note: 'Rotax 582 / 912 class (3.4-4.5 kg; 0.6 kW)' },
+    heavy: { name: 'heavy direct-cranking starter', kg: 15.0, price: 2800, amps: 300, cls: 'heavy',
+             note: 'a radial\'s starter (DC-3: two Eclipse 12 V with brackets, 67 lb)' },
   },
   vac: {
     none:    { name: 'no suction',            kg: 0,   price: 0,   minV: 0 },
@@ -2069,12 +2091,18 @@ const GEN_ELEC_PARTS = {
   battery: {
     lead:    { dims: [0.178, 0.079, 0.168], note: 'Odyssey PC680: 178 x 79 x 168 mm' },
     lithium: { dims: [0.150, 0.086, 0.132], note: 'EarthX ETX900: 150 x 86 x 132 mm' },
+    lifeSmall: { dims: [0.113, 0.070, 0.105], note: 'a 4-cell LiFePO4 brick' },
+    leadSmall: { dims: [0.150, 0.087, 0.105], note: 'YTX9 class: 150 x 87 x 105 mm' },
+    leadHeavy: { dims: [0.260, 0.170, 0.220], note: 'a heavy cranking battery' },
   },
   alternator: {
     gen20: { len: 0.21, dia: 0.11, note: 'a belt generator on the case top' },
     alt60: { len: 0.16, dia: 0.13, note: 'Plane-Power class, gear-driven on the accessory pad' },
+    genHeavy: { len: 0.30, dia: 0.16, note: 'a radial\'s engine-driven generator' },
   },
-  starter: { yes: { len: 0.19, dia: 0.09, note: 'Sky-Tec class, on the ring gear' } },
+  starter: { yes: { len: 0.19, dia: 0.09, note: 'Sky-Tec class, on the ring gear' },
+             ul: { len: 0.15, dia: 0.08, note: 'a Rotax-class starter' },
+             heavy: { len: 0.30, dia: 0.17, note: 'a radial\'s direct-cranking starter' } },
   // the bus: the master contactor and the bus bar (`kg`), plus a breaker each (`perBreaker`) - the share of the
   // harness row that is not wire. The wire is the rest of the row, so the two always add up to it exactly.
   bus: { kg: 0.45, perBreaker: 0.03 },
@@ -2083,6 +2111,35 @@ const GEN_ELEC_PARTS = {
   breakerSizes: [1, 2, 3, 5, 7.5, 10, 15, 20, 25, 30, 35],
   breakerMargin: 1.4, fieldA: 5,
 };
+// THE ELECTRICS CLASSES (ELEC-SYSTEMS, 9 Nov; futureDesigns/ELEC-SYSTEMS-2026-11.md). STEPS, not a formula: each class
+// is three catalogue rows a tile writes at once. 'light' is the basic tier's own set (the Cub's, the Jodel's), so the
+// tiers and every saved build stay where they were. The engine only SUGGESTS one (genElecClassOf); nothing applies it.
+//   ultralight  a Rotax 503 / 582 / 912: a small battery, the engine's own coil or generator, a 3.5 kg starter (~6 kg)
+//   light       a Continental / Lycoming flat four or six: PC680, 20 A generator, Sky-Tec (~15 kg, as every build had)
+//   heavy       a radial: a cranking battery, an engine-driven generator, a direct-cranking starter (~43 kg)
+// (the vacuum source is not a class's: it follows the gyros, not the engine)
+const GEN_ELEC_CLASSES = {
+  ultralight: { name: 'Ultralight', battery: 'leadSmall', alternator: 'coil12', starter: 'ul',
+                note: 'two-stroke or Rotax 912 class: a small battery, the engine\'s own coil, a light starter' },
+  light:      { name: 'Light', battery: 'lead', alternator: 'gen20', starter: 'yes',
+                note: 'flat four or six (Continental, Lycoming): what the basic fit carries' },
+  heavy:      { name: 'Heavy', battery: 'leadHeavy', alternator: 'genHeavy', starter: 'heavy',
+                note: 'a radial or a big piston: cranking battery, engine-driven generator, heavy starter' },
+};
+// the class the engine suggests: none for a motor or a turbine (a pack or its own starter-generator), ultralight for a
+// two-stroke or anything under 70 kg dry (a Rotax 912 is 57-61 kg), heavy over 200 kg (the radials), light between.
+// A Rotax 912's own coil is the 18 A integrated generator, a two-stroke's the 12 A lighting coil: `alternator` says which.
+function genElecClassOf(engine) {
+  const E = engine || {};
+  if (E.family === 'electric') return { cls: null, why: 'an electric motor: the pack starts it, no 12 V starter' };
+  if (E.family === 'turbine') return { cls: 'heavy', why: 'a turbine: a heavy starter-generator' };
+  const kg = +E.mass || 0;
+  if (E.family === 'two' || (kg > 0 && kg < 70))
+    return { cls: 'ultralight', alternator: E.family === 'two' ? 'coil12' : 'int18',
+             why: (E.name || 'the engine') + ', ' + Math.round(kg) + ' kg: an ultralight\'s electrics' };
+  if (kg > 200) return { cls: 'heavy', why: (E.name || 'the engine') + ', ' + Math.round(kg) + ' kg: a heavy engine\'s electrics' };
+  return { cls: 'light', why: (E.name || 'the engine') + ', ' + Math.round(kg) + ' kg: a light aeroplane\'s electrics' };
+}
 // THE LAMPS' DRAWS (A at 12 V) - cockpit.js's LIGHT_AMPS moved into the core (E6): the bus, the breaker sizes and
 // GATE ELEC read one table. The beacon draws half its rating on average (the lamp is pulsed).
 const GEN_LIGHT_AMPS = { taxi: 5, beacon: 3, land: 8, nav: 2.5, flood: 0.5, instr: 0.6, pedal: 0.3, pax: 0.5 };
@@ -2340,6 +2397,7 @@ function genSystemsResolve(S, opts) {
     const cleanPart = g => { const o = {}; for (const q of ['dims', 'len', 'dia']) if (g[q] != null) o[q] = g[q]; return o; };
     put('battery', 'firewallLow');
     put('alternator', 'engine');
+    { const a = parts.find(q => q.key === 'alternator'); if (a && GEN_ELEC.alternator[elec.alternator].internal) a.internal = true; }
     put('starter', 'engine');
     put('vac', 'engine');
     const hr = rows.find(r => r.key === 'harness');
@@ -2349,6 +2407,24 @@ function genSystemsResolve(S, opts) {
                    kg: busKg, at: 'panel', breakers: breakers.length });
       parts.push({ key: 'wire', kind: 'wire', name: 'the wire', kg: hr.kg - busKg, at: 'panel' });
     }
+  }
+  // THE REFUSALS THAT ARE NOT DROPS (ELEC-SYSTEMS, 9 Nov): what the fit carries and bills but can never work. Said, not
+  // removed - removing them would move the mass of every saved build that carries them. The column paints them red.
+  const warnings = [];
+  const motor = !!(S && S.energy && S.energy.kind === 'battery');
+  if (elec.starter !== 'none' && motor)
+    warnings.push({ key: 'starterOnMotor', why: 'an electric motor is started by its pack: the 12 V starter is dead weight' });
+  else if (elec.starter !== 'none' && !hasBus)
+    warnings.push({ key: 'starterNoBatt', why: 'a starter with no battery cannot crank: the prop is swung by hand' });
+  if (elec.alternator !== 'none' && !hasBus)
+    warnings.push({ key: 'altNoBatt', why: 'a generator with no battery: nothing electric is fitted to it (dials and radios need a battery)' });
+  // the class the three rows make together (a tile lights on it), or null for a mix
+  let elecClass = null;
+  if (elec.battery === 'none' && elec.alternator === 'none' && elec.starter === 'none') elecClass = 'none';
+  else for (const c of Object.keys(GEN_ELEC_CLASSES)) {
+    const C = GEN_ELEC_CLASSES[c];
+    if (elec.battery === C.battery && elec.starter === C.starter &&
+        (elec.alternator === C.alternator || (c === 'ultralight' && elec.alternator === 'int18'))) { elecClass = c; break; }
   }
   const sum = g => rows.filter(r => r.group === g)
     .reduce((a, r) => ({ kg: a.kg + r.kg, price: a.price + r.price }), { kg: 0, price: 0 });
@@ -2361,7 +2437,12 @@ function genSystemsResolve(S, opts) {
     kg: panel.kg + el.kg + av.kg, price: panel.price + el.price + av.price,
     loads, breakers, parts, hasBus, battAh: GEN_ELEC.battery[elec.battery].Ah,
     altA: GEN_ELEC.alternator[elec.alternator].A,
-    starter: elec.starter === 'yes', vac: elec.vac,
+    starter: elec.starter !== 'none', vac: elec.vac,
+    // ELEC-SYSTEMS: the bus's catalogue numbers (absent on a row = the bus's old constants, 1100 rpm and 150 A)
+    altCutIn: GEN_ELEC.alternator[elec.alternator].cutIn || 1100,
+    starterA: GEN_ELEC.starter[elec.starter].amps || 150,
+    altInternal: !!GEN_ELEC.alternator[elec.alternator].internal,
+    warnings, elecClass,
     // A3: what the `fuel` slot measures on this build - 'fuel' (litres, a
     // sender per tank, on the bus) or 'battery' (the pack's state of charge,
     // fed by the pack). The dash paints it and the cockpit reads it by this.

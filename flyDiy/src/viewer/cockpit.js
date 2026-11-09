@@ -125,7 +125,8 @@ function make(THREE) {
     for (const k of LIGHT_KEYS) loads.push({ key: 'sw_' + k, amps: 0, cb: hasCb(LIGHT_BREAKER[k]) ? LIGHT_BREAKER[k] : null });
     CK.bus = (typeof makeBus === 'function')
       ? makeBus({ battAh: fit ? fit.battAh : 0, altA: fit ? fit.altA : 0, loads, breakers,
-                  altCutIn: 1100, starterA: 150 })
+                  altCutIn: fit && fit.altCutIn > 0 ? fit.altCutIn : 1100,     // ELEC-SYSTEMS: the catalogue's (the old
+                  starterA: fit && fit.starterA > 0 ? fit.starterA : 150 })   // rows' own values are these constants)
       : null;
     if (CK.bus) { CK.bus.master = !!CK.sw.sw_master; CK.bus.alt = !!CK.sw.sw_alt; }
     // THE BREAKERS (G2801): `cb_<key>` 0 = in, 1 = pulled (out) - the dash's push-pull law; all in at bind
@@ -137,6 +138,8 @@ function make(THREE) {
     { const lg = fit && fit.loads ? fit.loads.find(l => l.key === 'gps') : null; CK.gpsAmps = lg ? lg.amps : 0; }
     // the solver asks the bus before it cranks
     if (sim) sim.starterOk = () => !CK.bus || (fit && !fit.starter ? false : CK.bus.starterOk);
+    // ELEC-SYSTEMS: the alarms start quiet; a refused start is said (CK.startWhy, held CK.startWhyT seconds)
+    CK.alarms = []; CK.startWhy = ''; CK.startWhyT = 0;
     for (const k of Object.keys(REST)) { raw[k] = REST[k]; CK.readings[k] = REST[k]; }
     raw.hdg = 0; CK.readings.hdg = 0;
     CK.rawKeys = Object.keys(raw);
@@ -306,6 +309,7 @@ function make(THREE) {
       for (let i = 0; i < cbK.length; i++) if (bus.cb[cbK[i]] === false) CK.sw[cbS[i]] = 1;
     }
     const busOk = bus ? bus.ok : true;
+    CK.elecAlarms(dt, E, o);
     // G2801: the GPS is alive on the avionics bus, behind its breaker (G2814: and its own power buttons - the load
     // off the bus with every display switched off; each display's own button is gps_face.js's to read)
     if (bus && CK.gpsFit) {
@@ -409,6 +413,34 @@ function make(THREE) {
     const W = typeof window !== 'undefined' ? window : {};
     const ex = (W.GFX && W.GFX.exposureBase && W.GFX.exposureBase() != null) ? W.GFX.exposureBase() : 0.92;
     return Math.pow(0.92 / Math.max(0.92, ex), p);
+  };
+  // THE ELECTRICS' ALARMS (ELEC-SYSTEMS, 9 Nov; the user: "Do we even compute the discharge?"). The bus always did; this
+  // says it. Each frame: LOW VOLTS (the bus up, under 11.9 V and nothing charging - the battery is going down), NOT
+  // CHARGING (the engine turning above the generator's cut-in, the switch on, the generator not carrying the bus: its
+  // breaker is out), BATTERY FLAT (a battery fitted, the master on, the bus dead), and a refused start for 5 s. A build
+  // with no electrics says nothing (no bus to fail). Pure reads of the bus: it changes no number the bus computes.
+  CK.elecAlarms = (dt, E, o) => {
+    const out = [], bus = CK.bus, fit = CK.fit;
+    if (CK.startWhyT > 0) { CK.startWhyT = Math.max(0, CK.startWhyT - (dt || 0)); if (CK.startWhy) out.push({ key: 'start', text: CK.startWhy }); }
+    if (bus && fit && bus.master && (fit.battAh > 0 || fit.altA > 0)) {
+      const rpm = E && E.running ? ((o && o.rpm && o.rpm[0]) || 0) : 0;
+      if (fit.battAh > 0 && !bus.ok) out.push({ key: 'flat', text: 'BATTERY FLAT - the bus is dead' });
+      else if (fit.battAh > 0 && !bus.altOn && bus.V < 11.9 && !(E && E.crank > 0))   // (a crank's dip is not a low battery)
+        out.push({ key: 'lowV', text: 'LOW VOLTS ' + bus.V.toFixed(1) + ' V - the battery is discharging' });
+      if (fit.altA > 0 && bus.alt && rpm >= (bus.cutIn || 1100) && !bus.altOn) out.push({ key: 'alt', text: 'NOT CHARGING - the generator is off line' });
+    }
+    CK.alarms = out;
+    return out;
+  };
+  // why a start did nothing: called by setKey on START (the solver refuses silently; the pilot hears why)
+  CK.startRefused = () => {
+    const fit = CK.fit, bus = CK.bus, sim = CK.sim;
+    const E = sim && sim.eng && sim.eng[0];
+    if (!E || E.running || E.crank > 0) return '';
+    if (fit && !fit.starter) return 'NO STARTER - swing the prop by hand';
+    if (bus && !bus.master) return 'MASTER OFF - the starter has no power';
+    if (bus && !bus.starterOk) return 'BATTERY FLAT - the starter will not turn';
+    return '';
   };
   // G2801: is a load alive - the bus up, the master, its breaker and its bus (true with no bus: the shed's bench)
   CK.pw = key => (CK.bus ? CK.bus.powered(key) : true);
@@ -735,7 +767,10 @@ function make(THREE) {
     for (let e = 0; e < n; e++) {
       if (pos === 'off') sim.setEngine(e, { key: 'off' });
       else if (pack) sim.setEngine(e, { key: 'both', swing: true });
-      else if (pos === 'start') sim.setEngine(e, { key: 'both', start: true });
+      else if (pos === 'start') {
+        sim.setEngine(e, { key: 'both', start: true });
+        if (e === 0) { const why = CK.startRefused(); if (why) { CK.startWhy = why; CK.startWhyT = 5; } }
+      }
       else sim.setEngine(e, { key: pos });
     }
   };

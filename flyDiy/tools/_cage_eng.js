@@ -529,8 +529,10 @@ function bayElec() {
   try { R = CP.resolve(); } catch (e) { return null; }
   if (!R || !R.elec) return null;
   const part = k => (R.parts || []).find(q => q.key === k) || null;
-  return { battOn: R.elec.battery !== 'none' ? 1 : 0, genOn: R.elec.alternator !== 'none' ? 1 : 0,
-           starter: R.elec.starter === 'yes' ? 1 : 0, batt: part('battery'), gen: part('alternator') };
+  // (ELEC-SYSTEMS: an `internal` generator - a two-stroke's coil, a 912's stator - is inside the engine: no can on the
+  // case; any fitted starter row is a starter)
+  return { battOn: R.elec.battery !== 'none' ? 1 : 0, genOn: R.elec.alternator !== 'none' && !R.altInternal ? 1 : 0,
+           starter: R.elec.starter !== 'none' ? 1 : 0, batt: part('battery'), gen: part('alternator') };
 }
 // bench groups -> cage subgroups, every row, same labels + ranges
 const engRow = r => {

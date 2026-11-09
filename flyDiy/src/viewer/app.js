@@ -296,6 +296,21 @@
   const CK = (window.FLYDIY_COCKPIT && window.FLYDIY_COCKPIT.make)
     ? window.FLYDIY_COCKPIT.make(THREE) : null;
   window.FLYDIY_COCKPIT_I = CK;
+  // THE ELECTRICS' LINE (ELEC-SYSTEMS, 9 Nov): the cockpit's alarms (cockpit.js elecAlarms - low volts, not charging,
+  // battery flat, a refused start) in one small plate over the flight; written only when the words change, and gone
+  // half a second after the last frame that said them (a flight ended, the garage up)
+  const elecLine = (() => {
+    let el = null, last = '', tm = 0;
+    const hide = () => { if (el) el.hidden = true; last = ''; };
+    return list => {
+      const txt = list && list.length ? list.map(a => a.text).join('  ·  ') : '';
+      if (!txt) { if (last) hide(); return; }
+      if (!el) { el = document.createElement('div'); el.id = 'flElec'; el.hidden = true; document.body.appendChild(el); }
+      if (txt !== last) { el.textContent = txt; last = txt; }
+      el.hidden = false;
+      clearTimeout(tm); tm = setTimeout(hide, 500);
+    };
+  })();
   // G2480 (HAND-CONTROLS): THE PARKING BRAKE UNDER THE HAND. cockpit.js wrote ctl.brake = 1 once a frame, after the
   // steps - and the hand's write before EVERY step put its own brake back, so a parked aeroplane flown by hand rolled
   // (inline and in the worker alike). The hand's write reads the knob now, as a floor on both mains
@@ -20371,6 +20386,7 @@
       if (window.WATER && WATER.setTime) WATER.setTime(sw && sw.drawnT != null ? sw.drawnT : sim.t);
       if (CK) CK.frame(simDt, sim, ap, { day: world.day, byHand: manual });   // the panel arc: the readings, the bus, the lamps; the day's clock and the pilot's lights (SKY)
       if (CK && CK.gpsFit && window.FLYDIY_GPS) window.FLYDIY_GPS.tick(simDt, CK);   // G2803: the GPS screen (numbers every frame, a repaint at 4 Hz)
+      if (CK) elecLine(CK.alarms);                                       // ELEC-SYSTEMS: the bus's alarms, said
       // (G820: under the worker, its snapshot's flag too - read every frame)
       // G1801: ...or a node past the solver's velocity guard (150 m/s off the CG: a sim fault caught before NaN; the flag is
       // the solver's own, read every frame - the worker's is in its snapshot's F_DIVERGED)
