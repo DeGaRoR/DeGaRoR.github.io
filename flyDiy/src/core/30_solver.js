@@ -3849,6 +3849,29 @@ function makeSim(def, world) {
       if (F > Q.fMax) Q.fMax = F;
     }
   }
+  // WILGA-GEAR: THE BOTTOM STOP, AS A CONSTRAINT (after the step's integration, as the clusters' projection is): a strut
+  // past its stroke S has its eyes put back to S along their line, mass-weighted (the pair's centre unmoved), and their
+  // closing speed taken out (inelastic, momentum kept) - the load then goes into the steel leg and arm, as on the real
+  // gear. A spring stop the integrator could carry let a reserve-energy drop push the strut 47 mm past S and the arm
+  // over its toggle (the arm flipped, the aeroplane on its pivots)
+  function oleoStop() {
+    for (let k = 0; k < OLEO.length; k++) {
+      const Q = OLEO[k], a3 = Q.a * 3, b3 = Q.b * 3;
+      let dx = p[b3] - p[a3], dy = p[b3 + 1] - p[a3 + 1], dz = p[b3 + 2] - p[a3 + 2];
+      const L = hyp3(dx, dy, dz) || 1e-9, ex = (Q.O.Lx - Q.O.S) - L;
+      if (!(ex > 0)) continue;
+      dx /= L; dy /= L; dz /= L;
+      const ma = m[Q.a], mb = m[Q.b], wa = mb / (ma + mb), wb = ma / (ma + mb);
+      p[a3] -= dx * ex * wa; p[a3 + 1] -= dy * ex * wa; p[a3 + 2] -= dz * ex * wa;
+      p[b3] += dx * ex * wb; p[b3 + 1] += dy * ex * wb; p[b3 + 2] += dz * ex * wb;
+      const vc = (v[b3] - v[a3]) * dx + (v[b3 + 1] - v[a3 + 1]) * dy + (v[b3 + 2] - v[a3 + 2]) * dz;
+      if (vc < 0) {
+        v[a3] += dx * vc * wa; v[a3 + 1] += dy * vc * wa; v[a3 + 2] += dz * vc * wa;
+        v[b3] -= dx * vc * wb; v[b3 + 1] -= dy * vc * wb; v[b3 + 2] -= dz * vc * wb;
+      }
+      Q.bottomed = (Q.bottomed || 0) + 1;
+    }
+  }
   function substep(dt) {
     for (let i = 0; i < n; i++) { f[i*3]=0; f[i*3+1]=G*m[i]; f[i*3+2]=0; }
     aeroPass(false);
@@ -4061,6 +4084,7 @@ function makeSim(def, world) {
     // G348: a fresh reset's clusters take their rest from THIS pose (placed)
     if (clusterFresh) { for (const C of clusters) clusterRest(C); clusterFresh = false; }
     integrate(dt);
+    if (OLEO !== null) oleoStop();                   // WILGA-GEAR: a bottomed strut stops on steel
     // G294 / G350: the tube holds its shape, and its twist; G1470: a cluster a member broke inside lets go, one a
     // member took a set inside holds its NEW shape (its rest re-taken here, after the substep that bent it)
     for (const C of clusters) { if (C.off) continue; shapeMatch(C, dt); twistHold(C, dt); }
@@ -4404,8 +4428,8 @@ function makeSim(def, world) {
                                               time: RET.time, act: RET.act, emergKind: RET.emerg }),
            // WILGA-GEAR: the trailing-link legs' struts - null on every other build; per side { s (m, + compressed), sd
            // (m/s), F (N), S (the stroke), sMax / fMax since the last oleoPeak(true) }
-           oleo: () => (OLEO === null ? null : OLEO.map(Q => ({ s: Q.s, sd: Q.sd, F: Q.F, S: Q.O.S, sMax: Q.sMax, fMax: Q.fMax }))),
-           oleoPeak: clear => { if (OLEO !== null && clear) for (const Q of OLEO) { Q.sMax = Q.s; Q.fMax = Q.F; } },
+           oleo: () => (OLEO === null ? null : OLEO.map(Q => ({ s: Q.s, sd: Q.sd, F: Q.F, S: Q.O.S, sMax: Q.sMax, fMax: Q.fMax, bottomed: Q.bottomed || 0 }))),
+           oleoPeak: clear => { if (OLEO !== null && clear) for (const Q of OLEO) { Q.sMax = Q.s; Q.fMax = Q.F; Q.bottomed = 0; } },
            gearPower: on => { if (GR !== null) GR.power = !!on; },
            gearEmergency: () => { if (GR !== null) { GR.emerg = true; ctl.gear = 1; } } };
   return sim;

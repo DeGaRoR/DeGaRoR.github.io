@@ -2715,6 +2715,15 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       // the leg's own hardware where it hangs (GEN_RULES.lever: the arm and its bearings, the strut, the fittings)
       pt(ax, 0.4 * LR.kgArm); pt(PI, 0.12 * LR.kgArm); pt(PO, 0.12 * LR.kgArm); pt(K, 0.16 * LR.kgArm); pt(H, 0.2 * LR.kgArm + 0.5 * LR.kgStrut);
       pt(U, 0.5 * LR.kgStrut + LR.kgLeg);
+      // THE ARM IS FORGED, NOT A TRUSS: on a 0.12 m bearing base its members let the axle bend 16 mm away under the static
+      // load and ~0.1 m in a limit drop (GATE WILGAGEAR 5 / 7 measured it). A rigid cluster (G294's shape matching - a
+      // projection, no frequency, no substep cost) holds the axle, the pivot's ends, the boss and the horn in their
+      // shape; the members inside still run (the mass, the drawing, the damage layer's joints)
+      clusters.push({ cls: 'lever', tag: 'LEV' + nm, nodes: [ax, PI, PO, K, H] });
+      // ...and the leg's FOOT is a forging too (the knuckle that carries the pivot's cylinder and the strut's bracket): the
+      // strut's upper eye held to the pivot's axis, so the stroke is the arm's angle's (the kinematics') under a drop's
+      // 40 kN as at rest
+      clusters.push({ cls: 'lever', tag: 'LEG' + nm, nodes: [PI, PO, U] });
       LEVREC.sides.push({ side: nm, axle: ax, pi: PI, po: PO, h: H, u: U, k: K });
     }
   } else

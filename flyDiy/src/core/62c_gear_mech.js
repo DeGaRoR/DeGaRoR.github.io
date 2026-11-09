@@ -255,6 +255,8 @@ function gearOleoSpring(O, s) {
 // orifice at a 3 m/s drop asks a c far past the explicit bound); a step that resolves the motion reads the plain law
 // THE SEALS AND BEARINGS' FRICTION (ff, N): Coulomb, regularised under O.vf (m/s) - folded into the same semi-implicit
 // damper (ff / (|sd| + vf) as a coefficient), so a parked aeroplane's strut stops instead of rocking on its gas
+// (the bottom stop past S is steel: the solver holds it as a constraint after each step - 30_solver oleoStop - and the
+// spring here, kS, only cushions the first millimetres)
 function gearOleoF(O, s, sd, dt, mR) {
   const c = (sd > 0 ? O.kc : O.kr) * Math.abs(sd) + O.cl + (O.ff > 0 ? O.ff / (Math.abs(sd) + O.vf) : 0);
   return gearOleoSpring(O, s) + c * sd / (1 + c * dt / mR);
