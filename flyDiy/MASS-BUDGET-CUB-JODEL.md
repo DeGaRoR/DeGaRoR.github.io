@@ -68,3 +68,24 @@ installation) is in my references. A weighing report or the Piper parts-weight l
 Answered from claude/real-figures-3; the measurements are on claude/practical-cerf-7fjpwp
 (`reports/evidence/MASS-SCALE-2026-11-09`) and on ELEC-SYSTEMS' branch
 (`reports/evidence/ELEC-SYSTEMS/cub_noelec_2026-11-09.json`).
+
+## RULED (the user, 9 Nov late: "go with your best judgment", so the defaults above stand)
+
+**Jodel D112: electrics off, trim 'light', the liner taken.**
+- Hand-propped C90: `systems.elec` battery / alternator / starter = none, fit stays as it is.
+- `outfit.trim: 'light'` (GEN_TRIM 0.25, "a Champ or a Jodel").
+- LINER-BACK's −1.90 kg.
+- No wiring: no bus.
+- Expected ≈ 322 kg against 320 (+1 %, from +8 %).
+- Who does what: ELEC-SYSTEMS the electrics, LINER-BACK the trim and the liner, on the official
+  `builds/jodel_2026-09-20_corrected.json`. Each reports empty mass, CG % MAC and genCertKey before/after in its READY note.
+- The refused electrical items (the 12 V fuel gauge, the voltmeter, the COM) leave with the battery, as ELEC-SYSTEMS
+  measured on the Cub. If the Jodel's panel loses its fuel gauge, add `fuelSight` (the D112's tank sight, 0.05 kg).
+
+**Cub (J-3C-65): its total stays where it is (354.7 kg, +2.8 %) until a J-3 group weight statement is found.**
+- The liner and the wiring land on the Cub only as a zero-sum split:
+  - `outfit.trim: 'bare'` (−1.44 kg: the J-3 has no lining) pays for the liner's +0.95;
+  - no wiring change (the J-3 has no bus to wire: the harness proposal does not apply to it).
+- Net −0.49 kg: 354.2 kg, +2.7 %, equal or closer.
+- The Cub keeps its electrics for now. Their removal (honest: −3.3 %) waits for the missing ~11–13 kg to be found in the
+  J-3's other lines. It is an open item for REAL-FIGURES.
