@@ -7595,7 +7595,10 @@
     for (let k = 0; k < ids.length; k++) {
       const i = ids[k], x = P[i * 3], y = P[i * 3 + 1], z = P[i * 3 + 2];
       const pv = F.prev.get(i);
-      const vx = pv && dt > 0 ? (x - pv[0]) / dt : 0, vy = pv && dt > 0 ? (y - pv[1]) / dt : 0, vz = pv && dt > 0 ? (z - pv[2]) / dt : 0;
+      let vx = pv && dt > 0 ? (x - pv[0]) / dt : 0, vy = pv && dt > 0 ? (y - pv[1]) / dt : 0, vz = pv && dt > 0 ? (z - pv[2]) / dt : 0;
+      // A TELEPORT IS NOT A SKID: a reset, a placement, a new aeroplane moves the node metres in a frame - that motion is
+      // no speed (no wheel goes 120 m/s on a strip), and the frame after it starts from the new place
+      if (vx * vx + vy * vy + vz * vz > 120 * 120) vx = vy = vz = 0;
       if (pv) { pv[0] = x; pv[1] = y; pv[2] = z; } else F.prev.set(i, [x, y, z]);
       const on = !airborneAll && (k < (refs.mains || []).length ? !!(WC.mains && WC.mains[k]) : !!WC.tw);
       let R = 0.2; if (model && model.wheelParts) for (const w of model.wheelParts) if (w.idx === i && w.R > 0) { R = w.R; break; }
