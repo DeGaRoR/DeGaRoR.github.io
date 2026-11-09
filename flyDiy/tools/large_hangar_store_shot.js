@@ -82,9 +82,15 @@ const bakeProbe = page => page.evaluate(() => {
 // from the apron, and a focus pull (depth of field by accumulation: the eye jittered over a lens disc, every sample aimed at
 // the focal point, averaged in python after) - written to <OUT>/gallery/
 const GALLERY = argv.includes('--gallery');
+// PREVIEWS HERE, THE KEY SHOTS ON A GPU (the user 9 Nov: "rather do some low-res pictures here that allow me to have a look
+// at the framing ... and then we'll give to a local GPU session the key shots"): the gallery renders at a quarter of the
+// shot list's sizes (960 x 540; the ultrawide 1280 x 360) unless --full; --gpu launches Chromium on the machine's GPU
+// (a local session: no SwiftShader, no forced probe needed)
+const FULL_RES = argv.includes('--full'), GPU = argv.includes('--gpu');
+const RES_K = FULL_RES ? 1 : 0.25;
 async function gallery(page, R, log) {
   const GD = path.join(OUT, 'gallery'); fs.mkdirSync(GD, { recursive: true });
-  const shot = (o) => page.evaluate(o => {
+  const shot = (o0) => page.evaluate(o => {
     const D = window.GARAGE_ENV._debug(), Rr = D.renderer, S = D.scene, h = D.hangar;
     const g = h.group.position, P = p => new THREE.Vector3(p[0] + g.x, p[1] + g.y, p[2] + g.z);
     const asp = o.W / o.H, vfov = o.hfov ? 2 * Math.atan(Math.tan(o.hfov * Math.PI / 360) / asp) * 180 / Math.PI : o.fov;
@@ -95,7 +101,7 @@ async function gallery(page, R, log) {
     const u = Rr.domElement.toDataURL(o.png ? 'image/png' : 'image/jpeg', 0.92);
     Rr.toneMappingExposure = ex0; Rr.setSize(sz.x, sz.y, false); Rr.setPixelRatio(pr);
     return u;
-  }, o);
+  }, Object.assign({}, o0, { W: Math.round(o0.W * RES_K), H: Math.round(o0.H * RES_K) }));
   const save = (u, f) => { fs.writeFileSync(path.join(GD, f), Buffer.from(u.split(',')[1], 'base64')); return f; };
   const info = await page.evaluate(() => { const h = window.GARAGE_ENV._debug().hangar; return { dims: h.dims, moods: h.moods || [], door: h.door }; });
   const HW = info.dims.HW, HD = info.dims.HD, EAVE = info.dims.EAVE;
@@ -103,21 +109,23 @@ async function gallery(page, R, log) {
   const res = plan[0] || { x: 8, z: -8 };
   // the views, in the room's frame (the door at -x, x the depth, z across: the gallery side +z)
   const V = {
-    hero:   { W: 1920, H: 1080, eye: [HD - 5, 7.6, -HW + 5], at: [-5, 0.6, 3], fov: 52 },
-    top:    { W: 1920, H: 1080, eye: [2, EAVE - 1.7, 0], at: [2.01, 0, 0], fov: 92 },
-    under:  { W: 1920, H: 1080, eye: [res.x + 1.2, 0.35, res.z + 2.4], at: [res.x - 0.5, 3.2, res.z - 1.5], fov: 70 },
-    window: { W: 1920, H: 1080, eye: [3, 2.2, -HW - 4], at: [1, 1.4, 6], fov: 46 },
-    tele:   { W: 1920, H: 1080, eye: [-HD - 26, 1.7, 1.5], at: [0, 2.2, 0], fov: 22 },
+    hero:   { W: 3840, H: 2160, eye: [HD - 5, 7.6, -HW + 5], at: [-5, 0.6, 3], fov: 52 },
+    wide:   { W: 5120, H: 1440, eye: [HD - 3, 6.2, 0], at: [-HD, 2.4, 0], hfov: 96 },
+    top:    { W: 3840, H: 2160, eye: [2, EAVE - 1.7, 0], at: [2.01, 0, 0], fov: 92 },
+    under:  { W: 3840, H: 2160, eye: [res.x + 1.2, 0.35, res.z + 2.4], at: [res.x - 0.5, 3.2, res.z - 1.5], fov: 70 },
+    window: { W: 3840, H: 2160, eye: [3, 2.2, -HW - 4], at: [1, 1.4, 6], fov: 46 },
+    tele:   { W: 3840, H: 2160, eye: [-HD - 26, 1.7, 1.5], at: [0, 2.2, 0], fov: 22 },
   };
   const out = [];
   const setMood = i => page.evaluate(i => { window.GARAGE_ENV.setMood(i); return (window.GARAGE_ENV._debug().hangar.moods || [])[i]; }, i);
   // (a software renderer: three moods, not every row - the user: "stay reasonable")
   const moods = info.moods.length ? info.moods.map((n, i) => [i, n]).filter(([i, n]) => /^(AFTERNOON|GOLDEN|NIGHT)$/i.test(n)) : [[0, 'day']];
   for (const [i, name] of moods) {
-    await setMood(i); await sleep(15000); log('  gallery mood ' + name + ': probe ' + await bakeProbe(page));
+    await setMood(i); await sleep(15000); log('  gallery mood ' + name + (GPU ? '' : ': probe ' + await bakeProbe(page)));
     const f = save(await shot(Object.assign({ expo: EXPO }, V.hero)), 'hero_' + name + '.jpg'); out.push(f); log('    ' + f);
+    if (i === 0) { const w = save(await shot(Object.assign({ expo: EXPO }, V.wide)), 'wide_' + name + '.jpg'); out.push(w); log('    ' + w); }
   }
-  await setMood(0); await sleep(15000); await bakeProbe(page);
+  await setMood(0); await sleep(15000); if (!GPU) await bakeProbe(page);
   for (const k of ['top', 'under', 'window', 'tele']) { const f = save(await shot(Object.assign({ expo: EXPO }, V[k])), k + '.jpg'); out.push(f); log('    ' + f); }
   // THE FOCUS PULL: the eye over a lens disc (aperture 0.16 m, 16 samples on a golden-angle spiral), every sample aimed at
   // the Jodel on the stand (the focal plane through it): the planes behind and the trusses fall soft
@@ -128,7 +136,7 @@ async function gallery(page, R, log) {
   for (let n = 0; n < N; n++) {
     const rr = ap * Math.sqrt((n + 0.5) / N), th = n * 2.39996;
     const e = [0, 1, 2].map(k => eye[k] + r0[k] * rr * Math.cos(th) + u0[k] * rr * Math.sin(th));
-    dofs.push(save(await shot({ W: 1920, H: 1080, eye: e, at, fov: 34, expo: EXPO, png: true }), 'dof_' + String(n).padStart(2, '0') + '.png'));
+    dofs.push(save(await shot({ W: 3840, H: 2160, eye: e, at, fov: 34, expo: EXPO, png: true }), 'dof_' + String(n).padStart(2, '0') + '.png'));
   }
   log('    dof: ' + N + ' samples');
   return { views: V, shots: out, dof: { eye, at, aperture: ap, samples: dofs } };
@@ -140,7 +148,9 @@ async function gallery(page, R, log) {
     r.writeHead(200, { 'Content-Type': TYPES[path.extname(p)] || 'application/octet-stream' }); fs.createReadStream(p).pipe(r); });
   await new Promise(r => srv.listen(0, '127.0.0.1', r));
   const { chromium } = require('playwright');
-  const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+  // --gpu: a local session's graphics card (a visible window; the page bakes its own probe), else SwiftShader
+  const browser = await chromium.launch(GPU ? { headless: false, args: ['--ignore-gpu-blocklist', '--enable-gpu-rasterization'] }
+    : { args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
   const ctx = await browser.newContext({ viewport: { width: W, height: H } });
   const page = await ctx.newPage();
   const errs = []; page.on('pageerror', e => errs.push(e.message));
@@ -181,7 +191,7 @@ async function gallery(page, R, log) {
     { const m = await page.evaluate(() => { const E = window.GARAGE_ENV, ms = (E._debug().hangar && E._debug().hangar.moods) || [];
         const i = Math.max(0, ms.findIndex(n => /^(afternoon|day|noon|midday)$/i.test(String(n)))); E.setMood(i); return ms[i] || i; });
       log('  mood: ' + m); await sleep(20000); }
-    log('  probe: ' + await bakeProbe(page));
+    if (!GPU) log('  probe: ' + await bakeProbe(page));
     // the room's probe forced (on a software renderer the boot's deferred bake waits for compileAsync, which never lands:
     // no environment, and every polished metal reads black - the page's own door, setEnvSource, bakes it at once)
     await page.evaluate(() => window.GARAGE_ENV.setEnvSource && window.GARAGE_ENV.setEnvSource('room'));

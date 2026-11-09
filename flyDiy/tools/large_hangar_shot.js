@@ -13,7 +13,7 @@ const argv = process.argv.slice(2), opt = (k, d) => { const i = argv.indexOf('--
 const OUT = path.resolve(opt('out', path.join(ROOT, 'reports', 'evidence', 'DERELICT-HANGAR', 'room')));
 const W = +opt('w', 1600), H = +opt('h', 900), PAGE = opt('page', 'dev.html?soft=0'), EXPO = +opt('expo', 1.7);
 const PLANES = { cub: 'flyDiy/builds/cub_2026-09-20_corrected.json', dc3: 'flyDiy/builds/candidates/dc3_2026-10.json' };
-const want = opt('planes', 'cub,dc3').split(',');
+const want = opt('planes', 'cub,dc3').split(','), GPU = argv.includes('--gpu');
 const TYPES = { '.html': 'text/html', '.js': 'application/javascript', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.css': 'text/css', '.woff2': 'font/woff2', '.ktx2': 'image/ktx2', '.wasm': 'application/wasm' };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
@@ -42,7 +42,9 @@ const bakeProbe = page => page.evaluate(() => {
     r.writeHead(200, { 'Content-Type': TYPES[path.extname(p)] || 'application/octet-stream' }); fs.createReadStream(p).pipe(r); });
   await new Promise(r => srv.listen(0, '127.0.0.1', r));
   const { chromium } = require('playwright');
-  const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+  // --gpu: a local session's graphics card (a visible window; the page bakes its own probe), else SwiftShader
+  const browser = await chromium.launch(GPU ? { headless: false, args: ['--ignore-gpu-blocklist', '--enable-gpu-rasterization'] }
+    : { args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
   const page = await browser.newPage({ viewport: { width: W, height: H } });
   const errs = []; page.on('pageerror', e => errs.push(e.message));
   await page.addInitScript(() => { window.FLYDIY_CLOCKSLICE = false; });   // the room's probe baked at once (not sliced over frames: headless frames are slow)
@@ -65,7 +67,7 @@ const bakeProbe = page => page.evaluate(() => {
     { const m = await page.evaluate(() => { const E = window.GARAGE_ENV, ms = (E._debug().hangar && E._debug().hangar.moods) || [];
         const i = Math.max(0, ms.findIndex(n => /^(afternoon|day|noon|midday)$/i.test(String(n)))); E.setMood(i); return ms[i] || i; });
       log('  mood: ' + m); await sleep(20000); }
-    log('  probe: ' + await bakeProbe(page));
+    if (!GPU) log('  probe: ' + await bakeProbe(page));
     // the room's probe forced (on a software renderer the boot's deferred bake waits for compileAsync, which never lands:
     // no environment, and every polished metal reads black - the page's own door, setEnvSource, bakes it at once)
     await page.evaluate(() => window.GARAGE_ENV.setEnvSource && window.GARAGE_ENV.setEnvSource('room'));
