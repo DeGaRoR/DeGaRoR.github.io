@@ -5,7 +5,9 @@
 // What it holds (futureDesigns/DERELICT-HANGAR-2026-11-09.md):
 //   1 THE ENVELOPE IS THE WORKS': DEF's HW / HD / EAVE are HANGAR_GEN 'works hangar''s, the door head is its DOOR_H,
 //     every stage's geometry stands inside the works' footprint and under its ridge (a hanging sheet or a gutter may
-//     lean out a little: 3 m round, 1.5 m over), and stage 3 IS the works build (same tris, same bags).
+//     lean out a little: 3 m round, 1.5 m over). Stage 3 (restored) is this generator's own - the user 9 Nov: "build the
+//     full restored model out of your derelict model, and drop the existing one" - inside the same envelope, every sheet
+//     on, every pane glazed, six door leaves; `legacy: 1` still builds the works shell it replaced (the A/B).
 //   2 EVERY STAGE x LOD BUILDS, finite, with a positive count in every bag the stage names, and inside THE BUDGET
 //     (lod 0 <= 95k tris / 16 draws, lod 1 <= 12k / 10, lod 2 <= 4.5k / 6; the apron off, as in game).
 //   3 DETERMINISM: two builds of the same dials are the same bytes (a hash over every bag).
@@ -58,7 +60,7 @@ function run(break_) {
     let fin = true;
     for (const k of b.BAGS) { const d = b.bags[k] && b.bags[k].data(); if (!d) continue; for (const v of d.pos) if (!isFinite(v)) { fin = false; break; } }
     ok(fin, `2 stage ${st} lod ${lod}: every vertex finite`);
-    if (st < 3) {
+    {
       const bud = BUDGET[lod], tris = break_ === 'budget' && st === 0 && lod === 1 ? s.tris * 2 : s.tris;
       ok(tris <= bud.tris, `2 stage ${st} lod ${lod}: ${tris} tris <= ${bud.tris}`);
       ok(s.draws <= bud.draws, `2 stage ${st} lod ${lod}: ${s.draws} draws <= ${bud.draws}`);
@@ -68,10 +70,16 @@ function run(break_) {
       ok(s.stage === st && s.dims.HW === works.HW && s.door.h === S.DOOR_H, `1 stage ${st} lod ${lod}: stats name the stage and the works' dims`);
     }
   }
-  // 1 stage 3 IS the works build
+  // 1 stage 3: the restored hangar, the derelict's own frame made whole
+  const s3 = B['3/0'].stats;
+  ok(s3.sheetsGone === 0 && s3.sheetsBent === 0 && s3.sheetsHung === 0 && s3.sheets > 0, `1 stage 3: every sheet on (${s3.sheets - s3.sheetsGone}/${s3.sheets}, bent ${s3.sheetsBent}, hung ${s3.sheetsHung})`);
+  ok(s3.shards === 0 && s3.panes > 0 && s3.per.glass > 0 && !(s3.puddleArea > 0) && !(s3.per.water > 0), '1 stage 3: every pane glazed, no shards, no puddles');
+  ok(s3.door.leaves === 6 && s3.doors.length === 10 && s3.door.shut, `1 stage 3: six front leaves and four back, shut by default (${s3.doors.length} leaves)`);
+  const op = DG.build({ stage: 3, doorOpen: 1 }, 0);
+  ok(hashOf(op, ['sheetPale']) !== hashOf(B['3/0'], ['sheetPale']) && hashOf(op, ['concWall', 'sheetNew']) === hashOf(B['3/0'], ['concWall', 'sheetNew']) && op.stats.door.open, '1 stage 3: doorOpen moves the leaves and nothing else of the building');
   for (let lod = 0; lod <= 2; lod++) {
-    const a = B['3/' + lod], w = HN.build(works, lod);
-    ok(a.stats.tris === w.stats.tris && hashOf(a, a.BAGS) === hashOf(w, w.BAGS), `1 stage 3 lod ${lod} is HANGAR_GEN 'works hangar' (${a.stats.tris} vs ${w.stats.tris} tris)`);
+    const a = DG.build({ stage: 3, legacy: 1 }, lod), w = HN.build(works, lod);
+    ok(a.stats.tris === w.stats.tris && hashOf(a, a.BAGS) === hashOf(w, w.BAGS), `1 stage 3 legacy lod ${lod} is still HANGAR_GEN 'works hangar' (the A/B)`);
   }
   // 2 the bags each stage names
   const s0 = B['0/0'].stats, s1 = B['1/0'].stats, s2 = B['2/0'].stats;

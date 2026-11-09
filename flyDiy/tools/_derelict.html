@@ -289,6 +289,8 @@ const VIEWS = {
   line:     { eye: [-4.5, 1.4, 27.5], at: [-9, 0.55, 21.7], fov: 50, yaw: 66, mood: 'sun', stage: 1 },
   night:    { eye: [9, 1.7, 34], at: [0, 2.5, 18], fov: 55, yaw: 66, mood: 'night', stage: 1, P: { lamps: 1 } },
   puddle:   { eye: [1.5, 1.6, -4], at: [0.5, 0.0, 4.5], fov: 55, yaw: 60, mood: 'sun', wet: 0.85 },
+  restored: { eye: [5, 1.65, 52], at: [0, 6.2, 0], fov: 52, yaw: 66, mood: 'sun', stage: 3, P: { doorOpen: 0.75 } },
+  hall:     { eye: [3.5, 1.65, -14], at: [-1, 5.0, 30], fov: 66, yaw: 60, mood: 'sun', stage: 3, P: { doorOpen: 1 } },
 };
 function setView(name, yawOverride) {
   const v = VIEWS[name] || VIEWS.front;
@@ -339,7 +341,8 @@ async function shoot(o0) {
   applyMood(o.mood || v.mood, o.yaw !== undefined ? o.yaw : v.yaw);
   buildHangar(o);
   setView(o.cam, o.yaw);
-  const left = await waitMaps(o.timeout || 90000);
+  let left = await waitMaps(o.timeout || 90000);
+  render(); await new Promise(r => setTimeout(r, 500)); left = await waitMaps(o.timeout || 90000);   // a settle frame: what lands a frame late (the first shot of a run) lands before the kept one
   renderer.info.reset(); renderer.info.autoReset = false;
   render(); render();
   const calls = renderer.info.render.calls; renderer.info.autoReset = true;

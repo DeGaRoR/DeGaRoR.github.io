@@ -46,6 +46,8 @@ const SET = [
   { name: 'detail_line',   cam: 'line',     stage: 1 },
   { name: 'night1',        cam: 'night',    stage: 1 },
   { name: 'detail_puddle', cam: 'puddle',   stage: 0 },
+  { name: 'restored_front', cam: 'restored', stage: 3 },
+  { name: 'restored_hall', cam: 'hall', stage: 3 },
 ].filter(s => !ONLY || ONLY.includes(s.name) || ONLY.includes(s.cam));
 const TYPES = { '.html': 'text/html', '.js': 'application/javascript', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.ktx2': 'image/ktx2', '.bin': 'application/octet-stream' };
 function serve() {

@@ -50,7 +50,7 @@ const DEF = {
   wet: 0.65,       // the slab after rain (stages 0-1; the roofed slab dries): 0 dry .. 1 a sheet of water
   gallery: 5.5, bay: 5,
   graffiti: 1, barriers: 1, weeds: 1, litter: 1, rubble: 1, lamps: 0,   // lamps: the made-safe line's warning lamps lit (the night's)
-  apron: 0, apronL: 26,   // the build's own cracked apron (the premises' pavement draws it in game)
+  apron: 0, apronL: 26, doorOpen: 0,   // doorOpen: the restored hangar's doors, 0 shut .. 1 open (telescoped to the jambs)   // the build's own cracked apron (the premises' pavement draws it in game)
   ao: 0.8, aoRange: 0.9, aoGround: 1,
 };
 const ROWS = [
@@ -617,14 +617,14 @@ function barrierCanvas() {
 function build(P0, lod, F) {
   const P = Object.assign({}, DEF, P0 || {});
   const stage = clamp(Math.round(P.stage || 0), 0, 3);
-  if (stage === 3) return restored(P, lod, F);
+  if (stage === 3 && P.legacy) return restored(P, lod, F);   // (A/B only: the works shell this stage replaced)
   const L = clamp(lod | 0, 0, 2);
   const D = dimsOf(P);
   const { HW, HD, fy, yR, yTC, xG, yL2, yGR, yBC, NB, zF, DH, BW, BH, xC, xe } = D;
   const bags = {};
   for (const k of BAGS.concat(EXTRA)) bags[k] = Bag(k);
   const g = HG.groundFn(P);
-  const seed = P.seed | 0, decay = clamp(P.decay, 0, 1);
+  const seed = P.seed | 0, rest = stage === 3, decay = rest ? 0 : clamp(P.decay, 0, 1);   // the restored hangar: nothing gone, nothing bent
   const der = stage === 0, safe = stage >= 1, roofed = stage >= 2;
   const wet = roofed ? 0 : clamp(P.wet, 0, 1);
   const st = { members: 0, sheets: 0, sheetsGone: 0, sheetsBent: 0, sheetsHung: 0, panes: 0, panesMilky: 0, shards: 0,
@@ -685,7 +685,7 @@ function build(P0, lod, F) {
   // which frames are hurt (stage 0), and how; replaced in grey primer from stage 1
   const dmgOf = k => {
     const out = { skip: new Set(), bend: new Map() };
-    if (k === 0 || k === NB) return out;
+    if (k === 0 || k === NB || rest) return out;
     const rr = hashN(k, 7, 0, seed);
     if (rr < 0.35 + 0.3 * decay) {
       const n = 1 + Math.floor(hashN(k, 8, 0, seed) * (1 + 3 * decay));
@@ -811,7 +811,7 @@ function build(P0, lod, F) {
     return { k: 'ok', a };
   };
   const streak = (F, u0, w, vTop, d, len, cell, prob, r) => {
-    if (L > 0 || r > prob) return;
+    if (L > 0 || r > prob * (rest ? 0.12 : 1)) return;   // restored: new sheet, a streak here and there
     const sw = 0.12 + 0.3 * hashN(Math.round(u0 * 40), Math.round(vTop * 40), 5, seed), uc = u0 + (w - sw) * hashN(Math.round(u0 * 40), 3, 6, seed);
     sheet(bags.stain, F, uc, sw, vTop - len, vTop, d + 0.004, { lod: 0, uvf: (u, v) => CELL(cell, (u - uc) / sw, (vTop - v) / len) });
     st.decals++;
@@ -913,10 +913,10 @@ function build(P0, lod, F) {
       const pc = P2((a0 + a1) / 2, (b0 + b1) / 2);
       const r = hp(pc, 61, seed), r2 = hp(pc, 62, seed);
       st.panes++;
-      const keep = rg.keep !== undefined ? rg.keep : 0.05 + 0.3 * (1 - decay);
+      const keep = rest ? 1 : (rg.keep !== undefined ? rg.keep : 0.05 + 0.3 * (1 - decay));   // restored: every pane glazed
       if (r < keep) {                                                     // a milky pane left whole (or cracked)
         face(bags.glass, [P2(a0, b0, -0.01), P2(a1, b0, -0.01), P2(a1, b1, -0.01), P2(a0, b1, -0.01)], F2.N, uvFrame(P2(a0, b0), F2.X, F2.Y));
-        st.panesMilky++; continue;
+        if (!rest) st.panesMilky++; continue;
       }
       if (!der) continue;                                                 // made safe: the shards are out
       if (r < keep + 0.32) {                                              // shards left in the putty: a corner, or a jagged band
@@ -1033,7 +1033,7 @@ function build(P0, lod, F) {
       const u0 = Math.min(uOf(zF(k)), uOf(zF(k + 1))), u1 = Math.max(uOf(zF(k)), uOf(zF(k + 1)));
       void ua;
       const w0 = u0 + 0.55, w1 = u1 - 0.55;
-      const boarded = roofed;                                          // stage 2: the ground floor boarded
+      const boarded = roofed && !rest;                                 // stage 2: the ground floor boarded
       if (boarded) {
         sheet(bags.ply, F2, w0, w1 - w0, fy + 1.1, fy + 3.3, 0.04, { lod: 1 });
         if (L === 0) for (let q = 1; q < 4; q++) beam(bags.ply, F2.P(w0, fy + 1.1 + 0.55 * q, 0.06), F2.P(w1, fy + 1.1 + 0.55 * q, 0.06), 0.004, 0.003, F2.N, 0);
@@ -1175,6 +1175,42 @@ function build(P0, lod, F) {
     }
   }
 
+  // ===================================================================== THE DOORS (restored)
+  // THE BIG DOOR: six leaves across the 29 m between the towers on three tracks under the header (two leaves a track, the
+  // outer pair outermost), each a frame of channels - stiles, rails, a brace - skinned outside in the wall's corrugated
+  // sheet; `P.doorOpen` (0 shut .. 1 open) runs them telescoped to the jambs, three a side. THE BACK DOORS: four leaves
+  // over the 16 m opening on two tracks, open behind the wall either side. In the house frame; the room flips it.
+  const doors = [];
+  if (rest) {
+    const open = clamp(P.doorOpen || 0, 0, 1);
+    const leaf = (cx, zf, w, y0, y1, out) => {
+      const F2 = frame([cx - w / 2 * out, 0, zf], [out, 0, 0], Yup);      // X across the leaf, N toward `out` z
+      sheet(bags.sheetPale, F2, 0, w, y0, y1, 0.035, { lod: L });
+      if (L < 2) {
+        const P2 = (u, y, d) => F2.P(u, y, d), d0 = -0.04, sec = L === 0 ? 'chanS' : 'chanS';
+        for (const y of [y0 + 0.08, y0 + (y1 - y0) / 3, y0 + 2 * (y1 - y0) / 3, y1 - 0.08]) member(bags.steel, P2(0.05, y, d0), P2(w - 0.05, y, d0), sec, F2.N, L);
+        for (const u of [0.06, w - 0.06]) member(bags.steel, P2(u, y0, d0), P2(u, y1, d0), sec, F2.N, L);
+        if (L === 0) member(bags.steel, P2(0.15, y0 + 0.15, d0 - 0.02), P2(w - 0.15, y0 + (y1 - y0) / 3 - 0.1, d0 - 0.02), 'web', F2.N, L);
+      }
+      doors.push({ x: cx, z: zf, w, h: y1 - y0 });
+    };
+    // the front: closed, leaf i covers its sixth; open, the three of a side stack at their jamb
+    const n = 6, W = 2 * xG / n + 0.12, y0 = fy + 0.03, y1 = fy + DH - 0.14;
+    for (let i = 0; i < n; i++) {
+      const side = i < n / 2 ? -1 : 1, trk = side < 0 ? i : n - 1 - i;      // 0 outermost
+      const xc = -xG + (2 * xG / n) * (i + 0.5), xo = side * (xG - W / 2 - 0.05);
+      leaf(xc + (xo - xc) * open, HD - 0.42 - trk * 0.24, W, y0, y1, 1);
+    }
+    for (let k = 0; k < 3 && L < 2; k++) member(bags.steel, [-xG - 0.1, fy + DH - 0.05, HD - 0.42 - k * 0.24], [xG + 0.1, fy + DH - 0.05, HD - 0.42 - k * 0.24], 'chanS', [0, 0, 1], L);
+    // the back: four leaves, two tracks, parting in the middle
+    const bw = BW / 4 + 0.08, by1 = fy + BH - 0.1;
+    for (let i = 0; i < 4; i++) {
+      const side = i < 2 ? -1 : 1, trk = side < 0 ? i : 3 - i;
+      const xc = -BW / 2 + (BW / 4) * (i + 0.5), xo = side * (BW / 2 + bw * (0.6 + (1 - trk) * 0.9));
+      leaf(xc + (xo - xc) * open, -HD + 0.38 + trk * 0.2, bw, fy + 0.03, by1, -1);
+    }
+  }
+
   // ===================================================================== THE ROOF
   if (!roofed) {
     // what is left of the cladding: dark sheets along the eaves (sagging off the last purlin), strays, milky roof lights
@@ -1255,7 +1291,7 @@ function build(P0, lod, F) {
     if (wet > 0.01) {
       st.puddleArea = contour(bags.water, lvl, fy + 0.006);
       contour(bags.stain, lvl + 0.07, fy + 0.003, () => CELL(13, 0.5, 0.5));       // the wet margin, darker slab round each
-    } else if (roofed) contour(bags.stain, 0.2, fy + 0.003, () => CELL(13, 0.5, 0.5));   // the damp patches where it stood
+    } else if (roofed && !rest) contour(bags.stain, 0.2, fy + 0.003, () => CELL(13, 0.5, 0.5));   // the damp patches where it stood
     if (L === 0) {
       // the joints (5 m bays, sawn) and the cracks (random walks across the slab, worse where it sank)
       const line = (a, b, w, y, cell) => { const d2 = nrm(sub(b, a)), nn = [-d2[2], 0, d2[0]];
@@ -1264,7 +1300,7 @@ function build(P0, lod, F) {
       for (let x = -HW + 5; x < HW; x += 5) line([x, 0, -HD + 0.2], [x, 0, HD - 0.2], 0.035, fy + 0.002, 15);
       for (let z = -HD + 5; z < HD; z += 5) line([-HW + 0.2, 0, z], [HW - 0.2, 0, z], 0.035, fy + 0.002, 15);
       const rc = rng(seed * 3 + 7);
-      for (let c = 0; c < 22; c++) {
+      for (let c = 0; c < (rest ? 5 : 22); c++) {
         let x = (rc() * 2 - 1) * (xG - 1), z = (rc() * 2 - 1) * (HD - 1), a = rc() * 6.28;
         const n = 6 + Math.floor(rc() * 14);
         for (let q = 0; q < n; q++) {
@@ -1323,7 +1359,7 @@ function build(P0, lod, F) {
   }
 
   // ===================================================================== GRAFFITI
-  if (P.graffiti && L === 0) {
+  if (P.graffiti && L === 0 && !rest) {
     const rc = rng(seed * 13 + 5);
     const tag = (Fw, u, y, w, d, cell, follow) => {
       const h = w * (0.45 + rc() * 0.25);
@@ -1378,7 +1414,7 @@ function build(P0, lod, F) {
         face(bags.decal, [[x - 0.62, fy + 1.0, HD + 2.67], [x + 0.62, fy + 1.0, HD + 2.67], [x + 0.62, fy + 1.9, HD + 2.67], [x - 0.62, fy + 1.9, HD + 2.67]], [0, 0, 1],
              p => CELL(14, (p[0] - x + 0.62) / 1.24, 0.2 + (p[1] - fy - 1.0) / 0.9 * 0.6));
       }
-    } else {
+    } else if (stage === 2) {
       run(xG + 1.0, HD - 1.2, Math.PI, 3, { w0: 0 });                         // stood aside along the tower
     }
   }
@@ -1463,7 +1499,7 @@ function build(P0, lod, F) {
   const stats = Object.assign(st, {
     tris, verts, per, draws, bbox: bb, footprint: 4 * HW * HD, eave: fy + D.EAVE, ridge: fy + D.RIDGE, eaveY: fy + D.EAVE, ridgeY: fy + D.RIDGE, floorY: fy,
     stage, stageName: STAGES[stage], lod: L, shell: 'derelict', dims: { HW, HD, EAVE: D.EAVE }, role: 'hangar', source: 'derelict',
-    door: { x: 0, z: HD, w: D.DOOR_W, h: D.DH, leaves: 0, shut: false, open: true },
+    door: { x: 0, z: HD, w: D.DOOR_W, h: D.DH, leaves: rest ? 6 : 0, shut: rest && !(P.doorOpen > 0), open: !rest || P.doorOpen > 0, openK: rest ? clamp(P.doorOpen || 0, 0, 1) : 1 }, doors,
     galleries: { depth: D.GW, floors: [yL2, yGR] }, frames: NB + 1, bay: D.BAY, purlins: NPU * 2, instances,
     front: { x: 0, z: HD + 1.5, side: 1, depth: 0 },
     ground: g, groundAO: occ, aoFoot: null, ao: aoInfo, path: [], people: null, yard: null, pier: null,
@@ -1531,6 +1567,16 @@ const DRESS = {
   concWall:   ['hangar', 'concrete008', 0.40, [1.02, 1.0, 0.96], 0, 1.0],
   ply:        ['house', 'greywood', 0.28, [1.06, 1.0, 0.9], 0, 0.8],
 };
+// THE RESTORED HANGAR'S DRESS (stage 3): the same bags, new finishes - the steel painted a mid grey, every sheet new
+// (a pale grey-green painted profile, the WWII depot colour gone to its post-war repaint), the inner walls white, a
+// clean brushed slab; the glass clear (applyFinish)
+const DRESS_R = {
+  steel:      ['house', 'galv', 0.22, [0.96, 1.0, 1.04], 0.35, 0.3],
+  sheetPale:  ['house', 'galv', 0.42, [0.93, 1.0, 0.95], 0.5, 0.35],
+  sheetDark:  ['house', 'galv', 0.42, [0.93, 1.0, 0.95], 0.5, 0.35],
+  sheetWhite: ['house', 'galv', 0.62, [1.0, 1.0, 0.99], 0.15, 0.3],
+  concFloor:  ['site', 'brushed', 0.3, [0.97, 1.0, 1.05], 0, 0.8],
+};
 // the mean linear luminance of an image (32 x 32, sRGB decoded per pixel), once per image
 const ALB = new WeakMap();
 const s2l = c => (c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
@@ -1595,12 +1641,12 @@ function defaultFinish() { if (!DEFAULT_FINISH) { DEFAULT_FINISH = makeFinish();
 function applyFinish(P0, F0) {
   const P = Object.assign({}, DEF, P0 || {});
   const F = F0 || defaultFinish();
-  if ((P.stage | 0) >= 3) { const H = HN(); if (H && F.hn) H.applyFinish(worksP(P), F.hn); return F; }
+  if ((P.stage | 0) >= 3 && P.legacy) { const H = HN(); if (H && F.hn) H.applyFinish(worksP(P), F.hn); return F; }
   const M = F.MAT; if (!M) return F;
   const SU = F.SHADE_U;
   for (const k in DRESS) {
     const m = M[k]; if (!m) continue;
-    const [lib, key, target, hue, metal, ns] = DRESS[k];
+    const [lib, key, target, hue, metal, ns] = ((P.stage | 0) === 3 && DRESS_R[k]) || DRESS[k];
     const d = texOf(lib, key, 'diff');
     if (d) { m.map = d; m.normalMap = texOf(lib, key, 'nor') || texOf(lib, key, 'nor_gl'); m.roughnessMap = texOf(lib, key, 'rough'); m.roughness = 1; }
     const S0 = libOf(lib), img = S0 && S0[key] ? S0[key].diff : null;
@@ -1620,6 +1666,8 @@ function applyFinish(P0, F0) {
     const m = M.plastic; m.map = ATLAS.barrier.diff; m.roughnessMap = ATLAS.barrier.rough; m.normalMap = ATLAS.barrier.nor; m.normalScale.set(0.7, 0.7); m.color.setHex(0xffffff); m.roughness = 1;
     m.needsUpdate = true;   // (no house finish on it: its sheet carries its own grime and the house's hook re-reads the map)
   }
+  // the glass: milky and broken in the derelict, clear and new restored
+  if (M.glass) { const r = (P.stage | 0) === 3; M.glass.color.setHex(r ? 0x8fa3a8 : 0xaeb9b6); M.glass.opacity = r ? 0.32 : 0.4; M.glass.roughness = r ? 0.06 : 0.3; M.glass.needsUpdate = true; }
   // the lamps (the buoys' rule: off unless asked - P.lamps, the night's): an amber lens, its glow an exposed level
   if (M.lamp) { M.lamp.emissiveIntensity = P.lamps ? 2.2 : 0; M.lamp.color.setHex(P.lamps ? 0xffb050 : 0xc88a3a); M.lamp.needsUpdate = true; }
   // the dirt ramp off the slab (the house's): the dark tide line on the concrete, rust-brown splash on the sheets
