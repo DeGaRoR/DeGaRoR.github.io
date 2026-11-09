@@ -244,6 +244,10 @@ another layer's solid. `fixtures/clip_baseline.json` makes it a ratchet: red
 only for a NEW or deeper finding; `--rebase` after a chantier clears some;
 `--report` lists every fitting's worst depth. See
 futureDesigns/FITMENT-STUDY-2026-09-12.md.
+GATE WILGAGEAR (WILGA-GEAR, core, ~2 min) is the trailing-link leg's: the geometry as researched, the static deflection
+at gross, a 23.725-style limit drop without bottoming and the reserve drop's recovery, no pogo, the trailing arc, a
+broken leg that drops, the drawn leg = the physics leg through the load chain, the fairing (boot and spat never meet
+through the stroke; the strut hidden), nothing else moved. futureDesigns/WILGA-GEAR-STUDY-2026-11.md.
 GATE GEN (after STRESS) audits a GENERATED airframe rather than a fixed one:
 symmetry (nodes, beams AND masses — an asymmetric mass flies a wing low),
 orphans/duplicates, a full RIGIDITY test (rank 3n-6, which is the real form of
@@ -313893,3 +313897,74 @@ No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change: PHYSICS_V 7, GEN_SPEC_V 10, GEN_C
 TIMED GATE: light, the same shape as L35d. All 7 rollouts ran; steady frames p50 33.3 ms on every flown row.
 - The cold GPU shader cache again: master_bench's MISS (97 links over 5 s; L35d had 89) and compile 40-67 s. This is the rig's Chrome kill at master_bench.js:287, which A0 is fixing this week.
 - The one >1 s frame (3.95 s, c172 cockpit) is under the roll-out screen before the reveal (phase stand, context loading). No taxi, take-off or flight segment has a frame over 1 s.
+
+## WILGA-GEAR - THE TRAILING-LINK OLEO LEG, THE PZL-104 WILGA'S KIND: A FIFTH MAIN-LEG FAMILY, RESEARCHED, FLOWN, DRAWN AS FLOWN, BREAKABLE, PRICED AND GATED (9 Nov 2026, WILGA-GEAR for A0, a CLOUD session: node + quickshot / quick_view; branch claude/loving-pasteur-aly3v9, pushed as claude/wilga-gear and claude/ready/wilga-gear)
+
+The user: "modeling the Wilga type suspension, very close to original, full integrated in the game"; "ensure you get full
+references, measurements, plans, maybe even 3d models, do that clean". The study, every number with its source or its
+derivation: **futureDesigns/WILGA-GEAR-STUDY-2026-11.md**.
+
+**The research.** Read in full: the AAIB's G-EPZL bulletin (the gear in the investigators' words; its failure mode), the
+EASA TCDS (Wilga 80: FAR 23 to Amdt 23-20, MTOW 1300 kg, prop 2650 mm, STOMIL 500 x 200 / 255 x 110), the NZ CAA TAR, an
+IPMS walkaround (32 photographs), and the Aerofly FS4 Wilga 80's flight model (its 3D geometry as text: the pivot, the axle,
+the strut's eyes - held to the TCDS and the published track / wheelbase / tyres inside 2 %; read for measurement only,
+nothing of it in the repo). The repo's Draco payload was rendered and set aside (the turbine conversion's gear). The
+strut's stroke, charge and orifice are in the Polish maintenance manual nobody publishes: DERIVED (§4) and open (§9).
+
+**The leg** (reference GEN_RULES.lever): arm 0.400 m, 62 -> 12 deg below level, 0.270 m of wheel travel on 0.115 m of
+strut, the motion ratio 0.69 -> 0.29 (toggle 41.5 deg past full stroke), a two-stage nitrogen-oil strut charged for the
+static deflection at the loaded mass (the row; 70 mm), the orifice for the 23.473(d) sink, the rebound 4 x, seal friction.
+
+**Built** (one path, extended):
+- core 62c GEAR_LEVER (kinematics + strut law + the strut's design + a part's pose from three points); 60 GEN_SUSPENSION.lever,
+  GEN_RULES.lever, `gear.lever` clamp, GEN_LEVER_ROW_OFF; 61 the leg truss (steel members at 20 x the class's k, its
+  dampers at 0.1), the arm (axle, pivot ends, horn) and the leg's foot (pivot ends, strut eye) as rigid clusters, no axle bar, parts.lever; 30 the oleo pass + the steel
+  stop as a constraint (oleoStop), sim.oleo(); 62 the strut at its stiffest in genSubsteps; 64 the stance's travel =
+  the strut's stroke; 79b susp:lever at stage 2.
+- garage: leg kind 4 'trailing-link (Wilga type)' (mains only), 8 rows (absent at default), legLever drawing, the preview
+  row gearLvPos (a view key), CAGE_GEAR.lever; the join writes suspension 'lever' + gear.lever (the drawn points); the
+  design tile's option. app.js: the leg, the arm and the strut's two halves each posed from three physics nodes.
+- THE FAIRING (the user, mid-session: "an elegant fairing ... robust ... that hides a bit of this huge mechanics"):
+  _gear_gen leverBoot (the leg-fairing row / the trousers): a boot sized from what it hides (the strut sampled over the
+  stroke, the bracket, the pivot), a slope-limited envelope, the outboard flank eased in to its contents (C1 knee); the
+  spat on the arm (_cage_gear), raked level at static, its inboard half narrowed only if a boot comes within 10 mm.
+  62_gen_aero: a lever leg's two struts in the drag (60 mm cylinders at the leg's Cd: 1.0 bare, 0.30 booted).
+
+**Pitfalls met (each measured, each fixed):**
+- The fixed leg as gear-class members is a 1.2e5 N/m spring and folds under its own strut: kMul 20.
+- ...and then the dampers of those members on 2-5 kg nodes asked 200 substeps: cMul 0.1 (the mount rig's rule). 77 on the Cub.
+- The strut's horn 8 cm off the plane of the axle and the pivot's ends SNAPPED THROUGH (rule 10): a boss node first, then
+  the arm as a rigid cluster (the truss arm also bent 16 mm static, 0.1 m in a drop) - and the boss retired (a proper
+  rotation has no mirror).
+- The gear page keeps a FLAT base copy of every leg row beside the stations' (lvArm beside s1_lvArm): both must be absent
+  at default, or every validated build's joined spec gains keys (GATE STOL caught it; def and flight were identical).
+- A bottom stop as a spring let the 1.2 x reserve drop push the arm past its toggle (the aeroplane on its pivots): the
+  stop is a constraint after the step, not a spring.
+- An implicit damper limited by the eyes' reduced mass cannot be a stop: it stops the eyes, not the aeroplane behind them.
+- The strut's eyes of the 3D model toggle after 51 mm: the upper eye moved up the leg (DERIVED, study §4.1).
+- The boot's symmetric tear section, sized for the strut's sweep, bellied out to 0.129 m from the wheel's plane - inside
+  the spat's 0.155 m half width - and the spat on the arm rose into it in the last fifth of the stroke (36 points inside,
+  only on the 500 mm tyres; the Cub's 8 in did not show it). The flank now hugs its contents (0.168 m); the arm turns
+  about a lateral axis, so a lateral gap holds at every compression. GATE WILGAGEAR §7b checks both builds.
+
+**Gates** (cloud, node; full logs read; the table: reports/evidence/WILGA-GEAR/READY.md). GATE WILGAGEAR (new, core, ~2 min)
+PASS 30/30. PASS: GEAR, GEARFALL, TAILWHEEL, CLIP, BUILD, SAVE, PARTS, TAKEOFF, UISMOKE, STOL, DESIGN, JOIN, SUBSTEP,
+SPECFIX, FIT, KNIFE, CAGEFIT, EDBUGS, PILOT; HITBOX and RETRACT PASS run alone (under four jobs each missed a time budget:
+260 vs 138 ms, 372 ms). Red as on master 7daba875 (each line checked there or in L36a's entry): JOINPARITY's five, TECH's
+av.elt line, DESIGNCHECK's carbon post, GEN's "cruise is quiet in wind". DMGGEAR: the two float lines, identical to master 7daba875's log
+line for line. TOUR shard 0 PASS.
+**Re-pin (written reason, GATE TECH):** TILE_EXPECT.suspension [] -> ['lever'] - the new option is gated at stage 2 by
+design (the tricycle's stage); the three older springings stay free.
+
+**Costs**: the Cub on the leg 75 -> 77 substeps; its frame 2.4 -> 2.7-2.9 ms in node (+13-17 %: ~4 % the clusters, the
+rest the 8 nodes / 33 members); a build without the leg: one compare a substep. All 30 builds in builds/ and
+builds/candidates/ bit-identical to master (def + 2 s of flight).
+
+**No version bump**: PHYSICS_V 7, GEN_SPEC_V 10, GEN_CERT_V 7 (no answer of an unchanged spec moved; no migration; the
+certificate reads the oleo row's travel for a lever leg's members, nothing for an existing build).
+
+**Pictures**: reports/evidence/WILGA-GEAR/ (quickshot / quick_view, no in-game render), the fairing's two included.
+
+**Open** (the study's §9, each with its default): the manual's stroke / charge / orifice; the extended and full-stroke
+angles; the strut's upper eye; G-EPZL's arm-off-the-spindle break as its own group (DMG); the strut's skew load on the
+spindle; the boot's own drag and mass; a lever tailwheel; a Wilga card.

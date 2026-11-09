@@ -250,14 +250,43 @@ for an existing build (GEN_CERT_V; the certificate reads the oleo row's travel f
 - **Economy**: the price and the mass above, on the gear's ledger section.
 - **Gating**: `susp:lever` at tech stage 2 (the tricycle's); the garage's leg row gates the option.
 
-### 7.4 GATE WILGAGEAR (tools/_wilga_gear_check.js, core, ~90 s)
+### 7.4 GATE WILGAGEAR (tools/_wilga_gear_check.js, core, ~2 min)
 
 On a **Wilga-class host**: the user's metal Cessna 172 airframe (high wing, four seats, 1.0 t loaded) flown as a
-taildragger on the leg, the Wilga's 2.83 m track and 500 mm tyres. Eight sections, 27 checks: the geometry as
+taildragger on the leg, the Wilga's 2.83 m track and 500 mm tyres. The checks: the geometry as
 researched; the static deflection; the 23.725-style limit drop (no bottoming) and the reserve drop; no pogo; the
 trailing arc; a broken leg drops; the drawn leg = the physics leg through the game's own load chain (the Cub on the
 leg, s1Drop 0.85: the frame's nodes on the drawn points to 1e-16 m, the drawn arm and horn on the physics nodes through
-a limit drop to 0.4 mm; the garage reddens a leg whose tyre meets the body at full stroke); nothing else moved.
+a limit drop to 0.4 mm; the garage reddens a leg whose tyre meets the body at full stroke); the fairing (7.5: on the
+Cub and on the host, the spat never enters the boot through the stroke - 26.5 / 19.5 mm at the closest - and the boot
+hides the strut's cylinder at rest and at full stroke); nothing else moved. Nine sections, 30 checks, ~2 min.
+
+### 7.5 The fairing (the user: "an elegant fairing ... something robust that could go on many planes, but something that looks good and that hides a bit of this huge mechanics")
+
+The Wilga's own leg is faired (a white trailing fairing on the red tube [P]); its strut and arm are bare. The game's
+leg-fairing row (`s1LegFair`, or the trousers `s1Fair 2`) now dresses the trailing link in a **boot**
+(`tools/_gear_gen.js leverBoot`), and the spat row (`s1Fair 1`) puts the spat **on the arm**:
+
+- **The boot is sized from what it hides**, not drawn to a fixed shape, so it fits any leg the rows draw: the strut's
+  cylinder and gland sampled at five points of the stroke, the bracket's lugs and the pivot's tube; 28 tear-drop stations
+  from the fitting to just past the pivot, each sized to the samples it meets plus 12 mm clearance. Then a
+  **slope-limited envelope** (no station smaller than any other less 0.30 m of chord / 0.20 m of thickness per metre
+  between them) and a light smoothing: a straight, gentle taper from the slim leg into the knuckle, never a neck. The
+  section's centre follows the size it serves, and the toe rounds off over its last two stations.
+- **Its outboard flank hugs what it hides.** A symmetric tear section sized for the strut's sweep bellied out to 0.129 m
+  from the wheel's plane on the host, inside a spat's 0.155 m half width, and the spat riding the arm rose into it in
+  the last fifth of the stroke (36 points inside at full stroke, measured). The flank is eased in (C1, an exponential knee
+  20 mm wide) to the outboard-most thing it covers less the clearance: 0.168 m on the host. The arm turns about the
+  pivot's lateral axis, so a lateral gap holds at every compression, not only at the poses tested.
+- **The spat rides the arm**, raked so it sits level at the static deflection (an installer sets it level on the
+  ground) and pitches with the arm over a bump. As a safety net it narrows its inboard half if a boot still comes closer
+  than 10 mm (never inside the tyre's own allowance); on both gated builds it keeps its standard shape and the hub,
+  brake disc and caliper stay inside it.
+- **Physics**: the rows' existing fields (`gear.legFair`, `gear.fairing`) price it, weigh it and set its drag, as on any
+  leg; the trailing link adds its strut to the drag (§8).
+- Not hidden, by design: the strut's chrome rod and the arm between the boot's toe and the wheel (on a real leg the
+  rod leaves the fairing); at full extension, with the wheel hanging, the last 3 cm of the gland's rubber boot shows
+  under the toe.
 
 ---
 
@@ -275,6 +304,13 @@ varies, the ratios are the figure):
 Where it goes: the 8 nodes and 25 members of the two legs over the tripod and the axle bar they replace, 2-3 more
 substeps (the leg's steel members on light nodes), the four rigid clusters (~4 % on the Cub), the oleo pass (two
 struts: negligible).
+
+**Drag** (62_gen_aero genGearCdA, a lever leg only): the two struts as 60 mm cylinders eye to eye (the drawn length,
+0.50 m on the reference) at the leg's Cd - 1.0 bare, 0.30 under the boot. The host's gear CdA: the oleo row bare 0.139
+m^2, the trailing link bare **0.199**, booted **0.111** (the oleo row faired 0.093; the calibration's delta clamps the two
+faired builds alike at -0.08). The fairing's mass and price are the leg-fairing row's (+5 kg on the host).
+
+**The fairing's drawing**: one boot a leg (28 stations, ~520 vertices) - no cost a frame worth naming.
 
 ## 9. Open questions (each with its default)
 
@@ -295,7 +331,9 @@ struts: negligible).
    spring); a lever tailwheel on the same GEAR_LEVER is a natural follow-up.
 7. **Tyre pressure**. Default: the game's tyre law by the wheel's radius (the 500 x 200's 0.20 MPa rated [S] is not a
    game input).
-8. **A Wilga card** in the garage (an archetype matched to a reference model, tools/REF_MATCH.md). Default: none in this
+8. **The boot's own drag and mass** (its chord grows to ~0.2 m at the knuckle). Default: the leg-fairing row's figures
+   and the struts' term at the faired Cd (§8); a boot-sized wetted area is a refinement for the drag owner.
+9. **A Wilga card** in the garage (an archetype matched to a reference model, tools/REF_MATCH.md). Default: none in this
    chantier ("touch only what the gear needs"); the gate's host stands in.
 
 ---
@@ -303,5 +341,5 @@ struts: negligible).
 ## 10. Pictures
 
 `reports/evidence/WILGA-GEAR/` (rendered in the cloud with tools/quickshot.js and tools/quick_view.js; no in-game
-renderer): the leg at rest and compressed in the garage, the Wilga-class host, and the rough-strip landing's
-compression sequence drawn from the physics. See the HANDOVER entry for the list.
+renderer): the leg at rest and compressed in the garage, the Wilga-class host, the rough-strip landing's
+compression sequence drawn from the physics, and the fairing (the boot and the spat, at rest and at full stroke). See the HANDOVER entry for the list.

@@ -14,6 +14,12 @@ to a horn on the arm. Offered in the garage (the mains' leg row, eight rows of i
 saved and loaded (absent at default), flown (its own strut law), drawn as flown (every part posed from three physics
 nodes), broken by the crash model (the leg drops), priced and weighed, gated at tech stage 2.
 
+**Its fairing** (the user, after the first pictures: "an elegant fairing ... something robust that could go on many planes,
+but something that looks good and that hides a bit of this huge mechanics"): the leg-fairing row dresses the leg in a
+boot sized from what it hides (the strut over its whole stroke, its bracket, the pivot) with a slope-limited taper and
+an outboard flank that hugs its contents; the spat row puts the spat on the arm, level at rest. They never meet through
+the stroke (gated), and the boot takes the struts' drag from Cd 1.0 to 0.30. Study §7.5.
+
 The study, every figure sourced or derived: futureDesigns/WILGA-GEAR-STUDY-2026-11.md.
 
 ## The study's key figures
@@ -33,7 +39,7 @@ The study, every figure sourced or derived: futureDesigns/WILGA-GEAR-STUDY-2026-
 
 | gate | verdict | note |
 |---|---|---|
-| **WILGAGEAR** (new, core, ~2 min) | **PASS 27/27** | geometry as researched; static 72 mm (the study's 70); limit drop 110 / 115 mm, no bottoming; reserve drop bottoms on the steel stop and recovers; no pogo; trailing arc to 1.4 mm; a broken leg drops (tip 2.32 -> 0.00 m, "the landing gear broke"); drawn = physics through the load chain to 0.4 mm; the garage's red row; nothing else moved |
+| **WILGAGEAR** (new, core, ~2 min) | **PASS 30/30** | geometry as researched; static 72 mm (the study's 70); limit drop 110 / 115 mm, no bottoming; reserve drop bottoms on the steel stop and recovers; no pogo; trailing arc to 1.4 mm; a broken leg drops (tip 2.32 -> 0.00 m, "the landing gear broke"); drawn = physics through the load chain to 0.4 mm; the garage's red row; the fairing (on the Cub and the host the spat never enters the boot through the stroke - 26.5 / 19.5 mm at the closest; the boot hides the strut's cylinder at rest and at full stroke; with the flank's easing off the host's line FAILs, 36 points inside); nothing else moved |
 | GEAR, GEARFALL, TAILWHEEL, CLIP, BUILD, SAVE, PARTS, TAKEOFF, STOL, PILOT | PASS | PARTS after the part tree's new group (it caught the rows); STOL after the flat rows went absent (it caught them) |
 | UISMOKE, DESIGN, JOIN, SUBSTEP, SPECFIX, FIT, KNIFE, CAGEFIT, EDBUGS | PASS | the layers touched |
 | HITBOX, RETRACT | PASS alone | under four jobs each missed a time budget (260 vs 138 ms; 372 ms) |
@@ -42,7 +48,7 @@ The study, every figure sourced or derived: futureDesigns/WILGA-GEAR-STUDY-2026-
 | JOINPARITY | FAIL as master | the five lines of L36a (Cub / Jodel masses, the nose tank, the cessnaMetal fixture bytes, the tools list) |
 | TECH | FAIL as master | av.elt has no segment (master 7daba875 the same line). **Re-pin**: TILE_EXPECT.suspension [] -> ['lever'] (the option gated at stage 2 by design; reason in the gate) |
 | DESIGNCHECK | FAIL as master | "200 N sideways at the post: 4.2 mm against the drawn carbon shell's 1.8 mm" - master 7daba875 run here: the same line |
-| DMGGEAR | FAIL (2 lines, the floatplanes) | "the float nose-in at its own V_S0 ... nothing breaks (3 set)" and "the float dig-in at 150 km/h ... the floats' strut fittings fail in overload" - no lever build in it, its builds bit-identical; master 7daba875 run for the comparison: pending |
+| DMGGEAR | FAIL (2 lines, the floatplanes) | "the float nose-in at its own V_S0 ... nothing breaks (3 set)" and "the float dig-in at 150 km/h ... the floats' strut fittings fail in overload" - no lever build in it, its builds bit-identical; master 7daba875 run here: the same two lines, the log identical line for line but the timings |
 
 Not run here: the full battery (`--all`; the cloud box takes ~2 h a heavy gate); the timed gates (no GPU).
 
@@ -53,6 +59,9 @@ Not run here: the full battery (`--all`; the cloud box takes ~2 h a heavy gate);
 | the Cub | 97 nodes / 404 members / 75 substeps | 105 / 429 / 77 | **+9-11 %** a frame |
 | the Wilga-class host | 111 / 467 / 142 (oleo row) | 119 / 492 / 145 | **+7-15 %** (its wing sets its step) |
 | a build without the leg | | | one compare a substep; all 30 builds bit-identical |
+
+The fairing: one boot a leg (~520 vertices), nothing a frame. Drag (a lever leg only): the two struts at the leg's Cd - the
+host's gear CdA 0.139 m^2 on the oleo row, 0.199 on the bare trailing link, 0.111 booted.
 
 The leg's 8 nodes and 25 members over the tripod and axle bar they replace, 2-3 substeps, four rigid clusters (~4 %), the
 oleo pass (negligible).
@@ -67,10 +76,13 @@ master (the def and 2 s of node positions).
 - garage_leg_at_rest.png, garage_leg_full_stroke.png, garage_leg_rest_vs_full.png - quick_view close-ups, the same camera
 - rough_strip_landing.png - the landing on a rough strip, five moments from the physics and both struts' traces
 - host_side.png, host_front.png, cub_preview_0_half_full.png - quickshot
+- fairing_boot_and_spat.png - the boot and the spat at rest and at full stroke, side and inboard-rear (quick_view)
+- fairing_boot_only.png - the leg-fairing row alone, the wheel bare, at rest and at full stroke (quick_view)
 
 ## Open questions (each with its default)
 
 The study's §9: the manual's stroke / charge / orifice (default: derived); the arm's extended and full-stroke angles
 (62 / 12); the strut's upper eye (0.18 m up the leg); G-EPZL's arm-off-the-spindle break as its own group (default: the
-whole leg); the strut's skew load on the spindle (not reported); a lever tailwheel (the game's tailwheel); a Wilga card
+whole leg); the strut's skew load on the spindle (not reported); the boot's own drag and mass (default: the
+leg-fairing row's, the struts at the faired Cd); a lever tailwheel (the game's tailwheel); a Wilga card
 (none; the gate's host stands in).
