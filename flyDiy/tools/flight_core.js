@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: e898696100c2af0d
+// body-sha256: f3c30c3dafd75067
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -33293,6 +33293,14 @@ const GEN_FLAPS = {
   // flap a transport lands on steeply. Last in the table so every saved row's
   // index (the editor's wgFlapType) is the one it was. Drawn as a plain hinge.
   split:   { name: 'Split flap',   dCl: 0.90, cd: 0.110, rate: 0.20 },
+  // THE STOL FLAP (REAL-FIGURES-3, the Carbon Cub SS, 2026-11-09): a big PLAIN
+  // hinge that runs to 50 deg - the Carbon Cub SS's (15/30/50, Plane & Pilot;
+  // a 2012 SS's listing), and the PA-18's own. The slotted row above was
+  // tunnel-calibrated against the PA-18's POH Vs ratio, and the PA-18's flap is
+  // this one, so the lift is that calibration's; the drag is a plain flap's
+  // past 40 deg, between the slotted row's and the split's. Last in the table
+  // so every saved wgFlapType keeps its index.
+  stol:    { name: 'STOL flap (50 deg)', dCl: 1.60, cd: 0.090, rate: 0.16 },
 };
 
 // ===========================================================================
@@ -33329,7 +33337,7 @@ const GEN_TRAVEL = {                       // degrees, each way
 // the flap's own travel is the type's, where the type has an opinion: a
 // Fowler runs out further than it turns down, and a split flap goes further
 // than either. Absent = the table's own number.
-const GEN_FLAP_TRAVEL = { fowler: 35, slotted: 40, plain: 40, split: 45 };   // (G3506: the DC-3's 45 deg)
+const GEN_FLAP_TRAVEL = { fowler: 35, slotted: 40, plain: 40, split: 45, stol: 50 };   // (G3506: the DC-3's 45 deg)
 
 // travel in RADIANS for one surface key, which is what every caller wants
 function genTravel(which, flapType) {
