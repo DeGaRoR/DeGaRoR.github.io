@@ -318,6 +318,11 @@ function runCozy(union) {
     const why = CORE.hangarDoorWhy(works, dc3);
     ok(why === '' && D.w >= 31 && D.h >= 5.66, 'rule 8: a DC-3 passes the large hangar\'s door (' + D.w.toFixed(2) + ' x ' + D.h.toFixed(2) + ' m clear' + (why ? ': ' + why : '') + ')');
     ok(Math.abs(D.z) < 1e-9, 'rule 8: the large hangar\'s door is on the hall\'s axis (the piers alike: ' + D.z + ')');
+    // the real envelope (the user's 50 x 60 m: HW 22 + the 6 m gallery, HD 30), lifted for a plot with no pad cap (HOME.2
+    // at the Y's foot); HOME's main plot holds what its flat pad does (siteMaxHD: 28)
+    const Lw = CORE.shellLims('works'), Lh = CORE.shellLims('works', 'HOME'), Wd = CORE.SHELLS.works.dims;
+    ok(Wd.HW === 22 && Wd.HD === 30 && Lw.HD[1] >= 30 && Lh.HD[1] === CORE.siteMaxHD('HOME') && Lh.HD[1] < 30,
+       'rule 8: the large hangar\'s envelope is the real 44 x 60 hall (HOME\'s main plot caps it at HD ' + Lh.HD[1] + ')');
   }
   // the career's main hangar, and the sandbox's
   const d = CORE.careerNew({ id: 'g2315', seed: 'g2315' }), H = d.sheds.HOME;

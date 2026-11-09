@@ -930,8 +930,9 @@
   // shell's own default is", which is what a fresh profile gets. The envelope
   // the sliders may drag over is the SHELL's (26_hangar_fit.js) — a timber
   // field shed's eave floor is below a steel shed's.
+  // (DERELICT-HANGAR: HOME's main plot caps the depth at its flat pad - siteMaxHD; another plot the shell's own)
   const dimLims = () => (typeof shellLims === 'function')
-    ? shellLims(shedHome().shell)
+    ? shellLims(shedHome().shell, hangarRoom === 'HOME' ? 'HOME' : null)
     : { HW: [7, 24], HD: [6, 20], EAVE: [4.2, 11] };
   let envRT = null, envPM = null;
   // whether the aeroplane contributes to the room's own reflection probe. Off
@@ -1938,6 +1939,7 @@
       if (shed.shell === k) return k;
       shed.shell = k;
       shed.dims = Object.assign({}, SHELLS[k].dims);
+      { const L = dimLims(); if (shed.dims.HD > L.HD[1]) shed.dims.HD = L.HD[1]; }   // (the site's pad: the large hangar at HOME's main plot)
       playerSave();
       disposeHangar();
       if (inGarage) applyEnv(); else getHangar();

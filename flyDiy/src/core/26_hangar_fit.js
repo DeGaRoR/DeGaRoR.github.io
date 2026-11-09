@@ -56,10 +56,10 @@ const SHELLS = {
     // deep OUTSIDE the hall's right wall (+z in the room), behind a full-height false front
     name: 'Large hangar', frame: 'steel', doors: 'sixLeaf',
     galleries: { right: 1.0, left: 1.0, lean: 6 },
-    // (HD 28, 56 m: the real 60 m does not fit HOME's flat pad on the main plot - z 62 + 30 past the pad's 90, GATE SITE -
-    // until Game's HOME relayout gives the large hangar its own place; DERELICT_GEN's DEF keeps the real 60 m)
-    dims: { HW: 22, HD: 28, EAVE: 9.5 },
-    lims: { HW: [12, 24], HD: [12, 28], EAVE: [6.0, 12] },
+    // (the real 50 x 60 m: HW 22 + the 6 m gallery, HD 30. A SITE's flat pad may cap the depth - shellLims(key, site):
+    // HOME's main plot, z 62 on a pad of |z| <= 90, takes 56 m; HOME.2 at the Y's foot, the real 60)
+    dims: { HW: 22, HD: 30, EAVE: 9.5 },
+    lims: { HW: [12, 24], HD: [12, 30], EAVE: [6.0, 12] },
     // BRICK, AND BIG (user, 2026-09-01: "the works one should rather have the
     // brick texture, double size from the original, full roughness and +50%
     // normal"). `tile` is METRES PER TILE, so double the size is 4 m off the
@@ -96,8 +96,13 @@ const SHELLS = {
     sky: 'alps', price: 6000, status: 'live',
   },
 };
-function shellLims(key) {
-  return (SHELLS[key] || SHELLS.club).lims;
+// shellLims(key, site?): the shell's slider envelope - capped, for a site, by what its flat pad holds (siteMaxHD: HOME's
+// main plot at z 62 on a pad of |z| <= 90 takes HD 28; a site with no pad cap leaves the shell's own)
+function shellLims(key, site) {
+  const L = (SHELLS[key] || SHELLS.club).lims;
+  const cap = site && typeof siteMaxHD === 'function' ? siteMaxHD(site) : Infinity;
+  if (!(cap < L.HD[1])) return L;
+  return Object.assign({}, L, { HD: [L.HD[0], Math.max(L.HD[0], cap)] });
 }
 
 // ---- THE CAPABILITIES -----------------------------------------------------
