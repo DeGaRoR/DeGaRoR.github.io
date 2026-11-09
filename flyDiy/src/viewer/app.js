@@ -11463,9 +11463,8 @@
     if (!C2 || !P || typeof C2.cageResolve !== 'function') return null;
     const FS = (C2.CAGE_UNIT || 1) * (P.planeScale || 1);
     const R = C2.cageResolve(C2.cageSpec(Object.assign({}, P)));
-    const zOf = n => { const q = R.rings.find(x => x.name === n); const l = q && q.lv && (q.lv.waist || q.lv.keel); return l && isFinite(l.z) ? l.z * FS : null; };
-    const z = ['wsFront', 'wsAft', 'aeroWsA', 'ring'].map(zOf).find(v => v != null);
-    return z;
+    // (CESSNA-FINAL A1: through the cage's one home - the nose ring first when the nose section is body)
+    return typeof C2.cageFirewallZ === 'function' && typeof C2.cageNamedZ === 'function' ? C2.cageFirewallZ(C2.cageNamedZ(R, FS)) : null;
   }
   function frFrame() {
     if (!inGarage || !showCage || !edSit.visible) return null;

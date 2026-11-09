@@ -248,8 +248,8 @@ function freightMeasure(specIn, opts) {
   const M = r.built.sheet, FS = r.FS, C2 = r.W.CAGE2;
   // the join's firewall ring (G49): the x datum every station of the game spec is measured from
   const R = C2.cageResolve(C2.cageSpec(Object.assign({}, r.P)));
-  const zOf = n => { const q = R.rings.find(x => x.name === n); const l = q && q.lv && (q.lv.waist || q.lv.keel); return l && isFinite(l.z) ? l.z * FS : null; };
-  const zFw = ['wsFront', 'wsAft', 'aeroWsA', 'ring'].map(zOf).find(z => z != null);
+  // (CESSNA-FINAL A1: through the cage's one home - the nose ring first when the nose section is body)
+  const zFw = C2.cageFirewallZ(C2.cageNamedZ(R, FS));
   const st0 = x => { const s = stationAt(M, FS, x); return s ? Math.max(0.15, s.halfAt(s.floor + 0.30)) : 0.30; };
   const seats = measureSeats(S, st0);
   const hold = measureHold(M, FS, S, def, seats);
