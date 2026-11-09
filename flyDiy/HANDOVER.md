@@ -208,6 +208,12 @@ before every battery so stale hand-edits get overwritten, loudly.
   docs/MODEL-IMPORT-PROC.md. Since G184 this is the RIGGED-import record
   (nothing flies an import); `tools/ref_prep.py` + `ref_table.py` is the live
   reference-plane baker.
+- `tools/_derelict_gen.js` (DERELICT_GEN, DERELICT-HANGAR 9 Nov 2026) — the works hangar as the derelict Annette Island
+  WWII hangar and the story's stages back to it (`stage` 0 derelict, 1 made safe, 2 roofed, 3 = HANGAR_GEN 'works
+  hangar'); the works' envelope exactly; HANGAR_GEN's interface (DEF/ROWS/PRESETS/build/applyFinish/CATALOGUE). Its
+  bench `tools/_derelict.html` (the alps sky, the field, a forest, the club next door, a true mirror in the puddles),
+  its stills `tools/derelict_shot.js` (headless SwiftShader -> reports/evidence/DERELICT-HANGAR/), GATE DERELICT
+  `tools/_derelict_check.js`. Design note futureDesigns/DERELICT-HANGAR-2026-11-09.md (structure, stages, budget).
 - `vendor/` — three.js r186 (W0.5a, 2026-09-13), BUILT by `tools/vendor_three.js`
   from `package.json`'s pin (`npm install && node tools/vendor_three.js`): an
   esbuild IIFE with a global `THREE`, a CommonJS export for the node gates,
