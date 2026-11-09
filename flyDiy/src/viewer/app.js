@@ -20908,7 +20908,7 @@
   // G1340 THE DRAW GUARD (shader_warm.js PROG_WARM.guard): in the world, a draw of a material with no program yet is held
   // a frame or a few while its program links on the driver's threads, never compiled and waited for inside the frame
   drawGuard = (typeof PROG_WARM !== 'undefined' && PROG_WARM.guard && typeof renderer.compileAsync === 'function' && !(typeof location !== 'undefined' && /[?&]guard=0(&|$)/.test(location.search)))
-    ? PROG_WARM.guard(THREE, renderer, { on: () => !inGarage && !holdRender && !!WF && !!(aa && aa.target && aa.target()), scenes: () => [scene] }) : null;
+    ? PROG_WARM.guard(THREE, renderer, { on: () => !inGarage && !holdRender && !!WF && !!(aa && aa.target && aa.target()), scenes: () => [scene], pace: () => PACE_N ? PACE_N - linkingNow() : Infinity }) : null;
   // (the guard holds only behind the AA target: the scene pass draws there and a held frame is not resolved - aa.hold -
   // so the canvas keeps the last whole frame; with no target the scene draws onto the canvas and nothing is held)
   if (drawGuard && aa && aa.hold) aa.hold(() => drawGuard.heldNow > 0);
@@ -21033,6 +21033,20 @@
   // its lights stood where the frame will find them) and put back before it returns: the stand-ins are gathered and
   // each task's compile made INSIDE it, so the dress never outlives a task - no frame, no other step's compile ever
   // meets it, and the step can run beside the others (its links on the driver's threads) instead of holding the draw
+  // BOOT-PROGRAMS (A0 9 Nov, HWCOV; the user yes 17:05): THE LINKS PACED. A cold first visit sent its ~600 programs to the
+  // driver as fast as the slices could key them: 85 links in one second, 288 in 15 s, the ground's heavy programs (link
+  // waits of 33, 17, 15, 14 s) queued among ~30 others (evidence 2026-11-09/hwcov/boot_programs: 353 D3D compiles, 90 s).
+  // ?pace=N: at most N programs linking (three's isReady: KHR_parallel_shader_compile's COMPLETION_STATUS, no wait) when a
+  // slice keys more, and the ground's family (the island's splats, the premises' patches: groundFamily) keyed first.
+  // 0 = as before (the default until the cold A/B). (var and declarations: the guard and early callers read these before
+  // this line has run - no TDZ; an unset PACE_N paces nothing)
+  var PACE_N = (() => { const m = typeof location !== 'undefined' && /[?&]pace=(\d+)/.exec(location.search || ''); return m ? +m[1] : 0; })();
+  function linkingNow() {
+    const L = renderer.info && renderer.info.programs; if (!L) return 0;
+    let n = 0; for (const p of L) if (p && p.isReady && !p.isReady()) n++;
+    return n;
+  }
+  function heavyFirst(m) { return (m && m.groundFamily) ? 0 : 1; }
   function compileSliced(sc, target, lit, fogless, dress) {
     const D = dress || (f => f());
     if (typeof renderer.compile !== 'function' || typeof renderer.compileAsync !== 'function' || typeof PROG_WARM === 'undefined' || !PROG_WARM.standIn)
@@ -21051,6 +21065,7 @@
         seen.add(k); reps.push([o, m]); mats.add(m);
       }
     }));
+    if (PACE_N) reps.sort((a, b) => heavyFirst(a[1]) - heavyFirst(b[1]));   // (stable: the scene's order within each)
     const litScene = lit || sc;
     let i = 0, G = 1;                     // a NEW AEROSKIN program's source alone is ~0.1-0.3 s: start at one, grow on the cheap ones
     // G1085: a dressed compile runs beside the steps (the one loading's early starts) over sets that mix programs the
@@ -21066,7 +21081,8 @@
             if (fogless) litScene.fog = null;
             renderer.setRenderTarget(target, 0);
             while (i < reps.length && performance.now() - t0 < 30) {
-              const grp = new THREE.Group(), n = Math.min(G, reps.length - i), t1 = performance.now();
+              const room = PACE_N ? PACE_N - linkingNow() : Infinity; if (room <= 0) break;   // BOOT-PROGRAMS: the driver full
+              const grp = new THREE.Group(), n = Math.min(G, reps.length - i, room), t1 = performance.now();
               for (let k = 0; k < n; k++) { const [o, m] = reps[i + k]; grp.add(PROG_WARM.standIn(o, m)); }
               i += n;
               try { renderer.compile(grp, camera, litScene); } catch (e) { console.warn('compile slice:', e && e.message); }
@@ -21076,7 +21092,7 @@
             }
           } finally { renderer.setRenderTarget(prev); if (fogless) litScene.fog = fog; }
         });
-        if (i < reps.length) { setTimeout(tick, 0); return; }
+        if (i < reps.length) { setTimeout(tick, PACE_N && linkingNow() >= PACE_N ? 25 : 0); return; }
         // the link: compileAsync's own poll - over EVERY program of the material (G992: compileAsync reads only its
         // currentProgram, the last one keyed; a material met as two object kinds, or lit and fogless, has one program
         // per key, and the ones still linking made the settings screen's first frame wait 1.1 s in getProgramInfoLog)
