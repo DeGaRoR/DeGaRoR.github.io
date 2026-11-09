@@ -691,6 +691,10 @@ try {
   vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'route_lazy.js'), 'utf8'), sandbox, { filename: 'route_lazy.js' });
   vm.runInContext(bootBlock, sandbox, { filename: 'boot.js' });      // the loading screen's brain
   vm.runInContext(worldBootBlock, sandbox, { filename: 'world_boot.js' });   // G999: FLYDIY_WORLD_COMPOSE (app.js runs it)
+  // ASSETS-GREEN fix-forward (8 Nov): THE MATERIAL LIBRARY (matlib.js) - the page loads it ahead of app.js (build.js's
+  // scripts, after assets.js), and app.js's material sites ask MATLIB.make now (GATE ASSETS); without it the first
+  // site's fallback reached for a require this sandbox has not got
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'matlib.js'), 'utf8'), sandbox, { filename: 'matlib.js' });
   vm.runInContext(appBlock, sandbox, { filename: 'app.js' });        // UI (runs setAircraft)
   if (!handlers['bSkin']) throw new Error('bSkin not wired');
   // drive the loop: HOLDING frames, then press Fly and run 2 s of circuit

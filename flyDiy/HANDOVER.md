@@ -312728,6 +312728,748 @@ IN (on L34a cad308635): claude/ready/bubble-windows 9e7010baa (CABIN-CRAFT), cla
 BATTERY: 115 of 116 PASS. ENGCONFIG red, standing on master: its IDENTITY pins date from 28 Oct. Every one of its 18 load digests (the Cub, the Jodel, the Cessna, the Rufus...) is the same on this train and on a full copy of master, so no validated plane flies differently. No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change.
 TIMED GATE (light, vs the stale 12 Oct baseline): steady frames p50 33.3 ms. Reds are the boot and compile rows (cub chase compile 67 s, flight 151 s): the cold shader cache seen on L32d/L34a, same class as L34a (57 reds vs 80). Two rollouts lost to a page '__timeout' (cub cockpit, metal chase) after slow boots.
 NAMED COST, STILL OPEN: the floats' SEA lane: garage 226 s, take-off p99 50 ms but worst frame 10.4 s, 25 tasks over 1 s, held under the roll-out screen. Same as L34a's (124 s, 77 links); not this train's. NIGHT-LOOK measures the night water cost at 11:45; the SEA lane bisect is owed.
+## AVIONICS-PFD-LAND - THE PFD WAS ALREADY ON MASTER; THE DG AND THE COMPASS CARD READ THE COMPASS (2026-11-08, for A0's L35b; local, GPU box; branch claude/ready/avionics-pfd off origin/master e0457618d = L33a)
+
+THE PORT: none needed. G2813-G2815 (the PFD with synthetic vision, tapes, heading arc and touch; the 10 in displays, one either side or PFD + MFD; certified speed bands, finer SVT, GPS power buttons) landed in FINISH-4 on 3 Nov as claude/gps-pfd 64f6ca966, the same two commits as claude/avionics-gps-pfd. That branch is superseded. GPS-STALL's gps-gates fixes are untouched.
+THE FIX (cockpit.js): the DG and the compass card read the nav angle raw (0 = +x), 90 deg off the strips, the PFD's heading arc, the HUD and the flight recorder (nav + 90, north -z). raw.hdg = (navDeg + 90) % 360. GATE PANEL: the reading row is 180 at nav 90, and so is the DG card's pose. On the page, DG vs PFD heading: master 3.4 / 93.5 and 7.4 / 99.1; this branch 77.6 / 77.6, 301.8 / 301.6 and 273 / 271 in the climb. On the stand, just after the roll-out, the vacuum DG still lags (18 / 29.5).
+MASS (metal Cessna, GPS none -> twin 10 in, through _load_build and the page's FLYDIY_MASS_MODEL): empty +7.08 kg (667.83 -> 674.91), all-up 885.83 -> 892.91. Of that: avionics +5.80 (the two displays), elec +0.15 (wire), the airframe sized for the heavier aeroplane +1.13 (wings .43, fuselage .23, furnish .21, gear .11, bracing .10, tail .06). CG x 0.6456 -> 0.6424 (3.2 mm forward), y 0.6669 -> 0.6701 (3.2 mm up). PHYSICS_V untouched; flight_core.js is byte-identical to master's.
+THE PAGE (index.html, RTX box, slot 05:30-06:27; median / p99 frame ms over 8 s, the power buttons on and off twice). Branch, metal Cessna pair on the stand: ON 20.1 / 40.5, OFF 20.1 / 41.4, ON 22.6 / 93.8, OFF 19.8 / 43.3; climbing 20.8 / 41.8. Paint 0.8 ms median (max 1.3), tick 0.7-0.8 ms. C172, one display on the passenger side: ON 28.3 / 43.3 and 24.9 / 98, OFF 23.3 / 42.5 and 23.8 / 47. Master's A/B (none, pair, none, pair) had two single freezes of 8.9 and 11.3 s at a power toggle in its pair runs, none in the branch's. Two frames over 1 s also showed with nothing fitted. This reads as the known stand/taxi freeze (LOOK-1 LINKS, PERF-PASS), not the displays: no paint or tick near them.
+ROLL-OUT (#bGo to the cockpit, ms): master none 589 and 19533, master pair 29967 and 39240; branch pair 27348, branch C172 one display 28305, then 49958 and 14698 in slot 2. The branch's cook is stale (no re-cook, no perf gate here), so the parked aeroplanes are captured live. That and the noise of 0.6-50 s say nothing about the displays: no stall to name, and none shown absent. FRAMECOST's rows in L35b are the judge.
+GATES on 148438967 (+ 76a42976a for PANEL and JOINPARITY): GPSFACE 443/0, CERTGATES, CREWLOAD, JOIN, ELEC, LIGHT, FLOWNBAKE, SIMWORKER, UISMOKE, UISMOKE-PHONE, LAZY, BENCH, PANEL PASS. JOINPARITY 5 FAIL = master's: the Cub/Jodel tank split (TANK-SPLIT, next week), the Cub nose tank row, the metal fixture byte row, the 23 raw loaders. avionics_pfd_stills.js is on the page door, not among the raw loaders. ASSETS FAIL = master's (L33a's same 8 material files). PILOT, PILOTMATRIX: flight_core.js is byte-identical, so L33a's pass carries. Not run here: FRAMECOST, CLOUD and the rest (A0: they ride L35b).
+STILLS, D:/Dev/flydiy-notes/evidence-2026-10-18/2026-11-08/avionics/: B1_pair (metal Cessna, PFD + MFD) has 00a_garage_rows (the Instruments column: GPS 'twin 10 in displays (PFD + M...', PFD and MFD on the dash), 01 stand, 01b and 01c the head turned, 02 the MFD, 03 SVT off, 04_climb_panel (the PFD in the climb: SVT terrain, speed and altitude tapes, heading arc, the HSI under it), 05_climb_mfd (both: the PFD with the route's course needle, the MFD's terrain map, engine strip, GS/DTK/DIS/ETE). B2_flat_copilot (C172, one display before the passenger) has 03_svt_off (the six-pack in front of the pilot, the display on the right). OWED: dusk and night. Two NIGHT=1 runs used up their 420 s cap before the climb; the rig now saves its reads as it goes. Next time: NIGHT on the stand, or a longer cap.
+TOOLS: tools/avionics_pfd_stills.js <port> <out> [flatPair|flat|glass|none] [pilot|copilot|-]. QUICK=1 is roll-out + on/off cost only; NIGHT=1 goes straight to the air for dusk and night. It drives the real page through tools/live_driver.js.
+
+## CESSNA-TAIL - THE OFFICIAL 172's TAILPLANE TO THE REAL ONE; THE FLAP COMES BACK AT LIGHT LOADS (the user 7 Nov via A0: "if you are sure that we are going towards more realism on the plane, I do agree ... it's a big reference for us")
+
+Card rows only, both official Cessna files (builds/cessna172_2026-09-20.json B-CESS, builds/cessna172_floats_2026-11.json): stSpan 1 -> 1.27, stHinge 0.225 -> 0.35. As flown through the load door: tailplane 2.65 -> 3.33 m2, span 2.70 -> 3.40 m, elevator 0.265 -> 0.39 of the tail chord (about 1.30 m2). The real 172: span 11 ft 4 in = 3.45 m, tailplane 21.56 sq ft + elevators 14.53 sq ft = 3.35 m2, the elevator 1.35 m2 (Jane's All the World's Aircraft 1977-78, via J. McIver, "Cessna Skyhawk II / 100 Performance Assessment", 2003; Wolfram SystemModeler's Aircraft.Physical.FixedWing.Cessna172 has the same areas). No TCDS gives the areas. stHinge 0.40 (1.46 m2) was tried first: land 4 up full fuel went around twice (unstabilised, sinking 3.8 m/s at 73 m) and never landed; 0.35 lands it first time.
+WHY: the official Cessna landed flapless at three of four land loads and two of four float loads: genTrim's trim budget (G2034, 0.18) at the forward CG. The tail was about 20 % small with a third less elevator than the real one.
+STATIC on master (no G2811 notch; solo res / 2 crew full / 3 res / 4 full): LAND flap 0/0/0/full -> full at all four, flare 0.379/0.360/0.329/0.234, VAppr 26.9/30.0/29.3/32.2; FLOATS 0/0/full/full -> full/full/full/FLAPLESS (4 full: trim 0.095 past the budget, VAppr 40.1). Drawn static margin land 18.1 -> 21.8 %, floats 16.5 -> 20.4 %.
+FLIGHTS (node, THE PILOT, the load door, a HOME / SEA circuit; 8 Nov): land solo res full flap 21.4 m/s sink 0.83; 2 full 23.4 sink 1.15; 4 full 24.0 sink 1.16; all stopped, first approach. Floats solo res full flap 24.1 sink 0.90; 4 full flapless 34.8 sink 0.52, stopped. The old tail at solo res: land flapless 29.4 m/s, floats flapless 30.0. 3 res not flown. Evidence: flydiy-notes/evidence-2026-10-18/2026-11-08/flagship/cessna-tail/.
+THE FLARE RULE (G970) IS NOT CHANGED. Land solo res (0.379) and 2 full (0.360) pass 0.35 with full flap: the flapless flare is larger, so `deF0 < g.deFlare` keeps the flap - inside the elevator's travel, only past the margin.
+COSTS (named): the approach is about 5 m/s slower at the light loads (2 crew full land VAppr 35.3 -> 30.0; the flap is back). Floats 2 crew full now uses full flap and needs one go-around (unstabilised, sinking about 3.9 m/s at 82 m; the old tail landed it flapless first time): the approach glide path, a Pilot item, sent to FLARE-NOPUSH. Floats 4 full stays flapless (34.8 m/s).
+GATES: 15 node gates that read the Cessna files pass; JOINPARITY, POD and ENGCONFIG are red on master cad308635 too (re-run on master's files, 8 Nov): their FAILs are Cub / Jodel / metal / corrected / Rufus / quads / the pod base, and the official Cessna and Cessna floats rows pass.
+CERT: the rows move certMajor's tail group. The Cessna's plaque was already stale (since 2026-09-17) and it is not a shipped cert (GATE BENCH SHIPPED_CERTS: Rufus only); no PHYSICS_V or GEN_SPEC_V change. The plaque is re-stamped after L35b lands (A0's GPU slot), so the fiche (R3) is built from a plaque that matches what flies.
+
+## NIGHT-DOOR - THE DOOR'S WAIST BAR UNDER THE WINDOW, THE AFT WALL'S RIVETS (NIGHT-INTEGRATE c, NIGHT-LOOK, 8 Nov 2026)
+WHAT: tools/_cage_gen.js only, inside the cabin (cageInterior), from the night hero picture (claude/night-photo-c 80dd07cb4 + 54febc6e9):
+- the door's waist bar (and its diagonal, which starts at it) stands 4 cm under the lowest window pane in that door's span, on the same side. A window whose
+  sill runs below the door's waist (the 4b's, 0.07) had the bar and the diagonal across its glass (the user 5 Nov: "that clearly is the L frame running
+  along the waist"). A door with no pane below its waist keeps the bar where it was.
+- the aft wall's dome rivets 3.2 -> 4.8 mm (head 1.6 -> 2.4 mm; the user: "see the rivets a little more"); the screws are unchanged.
+STILLS (quickshot, 8 Nov 10:55-11:07, before = L33a e0457618d, after = 512a587a8): every build file, candidate, bug report and 32 archetype keys, side + q:
+160 of 162 pictures identical; the 4b's two differ by 1 px. Nothing outside the cabin moves. Quickshot draws glass opaque, so the change itself was drawn with
+the glass left out (a scratch copy): before, the bar and its diagonal cross the 4b's front door window; after, the window is clear
+(flydiy-notes evidence-2026-10-18/2026-11-04/night-photo/door_stills/big/pair_4b_side.jpg, pair_4b_q.jpg).
+UNSEEN: the rivets (interior, in no still); the door in a page at night.
+GATES (512a587a8 on L33a, 8 Nov 06:56): SHOULDER, KNIFE, EDBUGS, PARTS 4/4 PASS. Rebased on L35a 1bcd01d3e (A0): the same diff; master's BUBBLE-WINDOWS
+(9bfd48edd) touched the same file in another part, merge clean; the rebased ref is not re-gated (the train's battery covers it).
+
+## DEFORM - ENGINE-GAP, 8 Nov 2026 (claude/ready/engine-gap, for L35b)
+
+THE GAP (found in DC3-EDITABLE, on master): under a catalogue engine the geometry rows are hidden and the registry row
+flies. To edit the geometry the builder switches to "custom engine", and the preset's dials then fly the MODEL's facts.
+On master that jump hits 40 of the 44 catalogue presets by more than 5 % or a lost reduction gear. The DC-3's R-1830 goes
+from 895 kW / 750 kg / gear 1.78 to 1036 kW / 708 kg / gear 1 (the prop at 2700 rpm instead of 1517).
+
+THE FIX (tools/_cage_eng.js, +49, one file):
+- A NEW CAGE KEY, `engFrom`: the preset's index the builder switched FROM. PAGE.post writes it when the engine row moves
+  from a catalogue engine to "custom engine", and drops it on any other move. It is saved only when set (cageToSpec
+  copies defined keys), so no saved file gains it. The load audit's flip to custom does not write it.
+- CAGE_ENG_FACTS, keyed: when the dials resolve to the same arch, family and cooling as the preset's own dials, the
+  custom engine flies the REGISTRY ROW scaled by what the dials change: power x the model's power ratio, mass x its mass
+  ratio, rpm x its rpm ratio. The gear is the row's while the gearing is unchanged; aspiration and critical altitude are
+  the row's while the blower is unchanged. Named as the row ("P&W R-1830 Twin Wasp"), or "modified <row>" once a dial
+  moves. Unkeyed (every file saved before this, and a scratch custom engine) flies the model, as before.
+- Not keyed: a fantasy preset (flat twin, flat six), or a preset whose registry row is missing.
+
+MEASURED (scratchpad eng_table.js on GATE ENGID's harness, both trees; dc3_switch.js through the load door):
+- On the branch, all 44 presets switched with the key fly their row exactly (0.0 %, gear kept). With the bore 5 % larger,
+  the row scales (+10.3 % power, +7-9 % mass) and the gear holds. The electric and turbine rows have no bore and stay put.
+  On master the key is unread: keyed = the model.
+- DC-3, through the load door:
+  - saved: the registry row;
+  - custom with no key: 1036.1 kW, 708.4 kg, gear 1 (master and branch alike);
+  - keyed: "P&W R-1830 Twin Wasp", 895.0 kW, 750.0 kg, gear 1.78;
+  - keyed with the bore +5 mm: "modified P&W R-1830 Twin Wasp", 960.2 kW, 797.3 kg, gear 1.78.
+- The validated planes, on the branch against master 1bcd01d3e, with FLYDIY_JOIN_NOCACHE=1:
+  - the flown spec through the load door (LB.gameSpecFull) is byte-SAME on 8 builds: the Cub and Jodel corrected, the
+    C172 and the C172 corrected, the metal Cessna, the floats Cessna, Twin_busher_floats_4b and the DC-3;
+  - ENGCONFIG --pin: the 17 digest lines are identical.
+GATES on the branch (ede12cbd4, rebased on 1bcd01d3e), one per call:
+- PASS: ENGID STARTER SAVE DESIGN PARTS JOIN EDBUGS SPECFIX PROCURE FRAMES ROLLANIM SIMWORKER SUBSTEP WEATHER.
+- TECH and ENGCONFIG: FAIL, standing on master. Master's verdicts were run the same day on 1bcd01d3e, and both are red.
+- GPSFACE: no verdict, cut by the slot's hard stop. It PASSED at 10:55 on the pre-rebase branch (23f8a61be on cad308635),
+  where the same 17 gates gave master's verdicts.
+- Not run: ARCHETYPES (4 shards, ~1900 s) and UISMOKE (needs Chrome).
+No PHYSICS_V or GEN_SPEC_V bump.
+
+## A0 - train L35b, 8 Nov 2026
+
+IN (on L35a 1bcd01d3e): avionics-pfd 8eddd0fbd (the PFD's direction gyro fix, cockpit.js), cessna-tail b67182854 (the official 172's tail rows stSpan 1.27 / stHinge 0.35, land + floats), look1-sharpen 475e9a69c (leaf sharpen 0.9 -> 0.4, the user's yes), night-door-2 f34d6d6fb (the 4b door's waist bar under its lowest pane), engine-gap 1a1a478ba (a catalogue engine switched to custom keeps its registry row; DC-3 R-1830 895 kW, gear 1.78).
+BATTERY (full log read, not the tail): 101 PASS / 13 FAIL, the SAME 13 as L35a (GEN TOUR VEHICLE DMGGEAR DMGSKINGPU FRAMECOST ROUNDTRIP MEDIA ASSETS GEO SKINMAT CLIP ENGCONFIG) - no new red; their fixes ride L35c / L35d (MASTER-GREEN). No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change.
+TIMED GATE (light, stale 12 Oct baseline): steady frames p50 33.3 ms on every flown row; p99 33.5 except cub cockpit 116.8 (1 frame over 1 s, one run). Reds are the boot/compile rows (cold shader cache, as L32d/L34a/L35a); 3 rollouts lost to the page '__timeout' after slow boots. Floats take-off p99 33.5 (L35a 83.3).
+
+## DMGSKINGPU-GREEN (2026-11-08, DMG-SKINGPU for A0's MASTER-GREEN): THE DEFERRED GPU TEAR JUDGES EACH TRIANGLE AS THE SAMPLE SAW IT - a real fault, not a stale bound (branch claude/ready/dmgskingpu-green on master 1bcd01d3e)
+
+GATE DMGSKINGPU was red on master 1bcd01d3e (L35a), 55/57: the Cub's trunk-centre and nose-in tear rows - GPU tears 37
+and 205 frames after the CPU's, with the CPU's margin 50 mm and 128 mm past the bound (not float32: the tolerance did not
+apply, rightly). Traced triangle by triangle (the gate's new env diagnostic DMGSKINGPU_TRACE="mesh:tri" +
+DMGSKINGPU_TRACE_OUT, the triangle's state on both paths frame by frame):
+- the nose-in, skin triangle 6575: frame 5 both paths sample; the CPU tears it (128 mm past its bound). On the GPU path the
+  sample's tear lands at frame 6, AFTER that frame's event had marked the triangle gone (dead 1: two pieces) - tearPlaces
+  skips any dead triangle, so the tear was LOST; at frame 7 the next event brought the triangle back (dead 0) and it was drawn
+  until frame 210 where the CPU's path has a hole. The Cub's trunk: gone at 83, back as HELD at 118, torn at 119.
+- the cause: the train-41 deferred tear (a sample asked on the frame the tear is due, landing a frame or two later) saw the
+  triangles as they stood at LANDING, the held bits apart (R.heldAsk, train 41). A triangle an event re-judges between the
+  sample and the landing was judged in its new state.
+- THE FIX (skin_break.js / app.js / the gate alike): while a sample is in flight (R.askState, a Map made at the ask) the event
+  records each triangle it changes with its state AT THE SAMPLE; tearPlaces judges every triangle so - one gone since (dead 1)
+  is judged and torn for good (dead 2) if it stretched past its bound in the sample, as the CPU tore it that frame; one brought
+  back since was not live at the sample and is skipped.
+- On master + the fix: DMGSKINGPU 57/57 - every case's tears the CPU's to the triangle (the Cub's trunk 3969 = 3969, the
+  nose-in 4614 = 4614), each exactly one frame later, 0 earlier, 0 missed (one case: up to 4 frames, 2 earlier - within one
+  sampling period); DMGPAGEW PASS (the page in node under the worker). The gate is not weakened: no bound moved.
+- Which train turned it red: not bisected. The deferred tear is train 41's; what since made events re-judge a triangle
+  between a sample and its landing more often (DMG-LOOKS G3770's member pool in the triangle judgement, the physics since)
+  is a guess, not a measure.
+
+## BUBBLE-CLEAN - THE BLISTER ON ONE SMOOTH SURFACE, ONE SPOKE PER RIM POINT (the user 8 Nov: "little squares on their side at the bottom of the windows"; CABIN-CRAFT for A0, for L35c)
+
+Branch claude/ready/bubble-clean, on master 1bcd01d3e (L35a). Code 7f5df53f1 (`tools/_knife_gen.js` only), then its built commit, then this note and HANDOVER.
+
+The user 8 Nov, via A0, on the L35a side view: "in your side view there are some little squares on their side at the bottom of the windows... make sure that the geometry is as clean as it can."
+
+## What was wrong
+
+Two things made the blister lumpy:
+- **The base was the faceted skin.** Each ring stood on the pane pieces (the skin's flat facets) and lifted along normals blended linearly across the sill's crease, so the lift came out in lumps.
+- **The rings had different counts** (the rim's points, then about half of them), so the stitch between rings made irregular slivers. In flat shading these were the tilted squares along the window's foot.
+
+## The fix (`knifeCut`, the blister block)
+
+- **One smooth surface under the window:** a quadratic height over the tangent plane, least squares over the pane's skin points plus the skin sampled inside the outline. An oval's rim is itself a conic, so the rim alone leaves the quadratic free to bulge; KNIFE caught 9 cm over a 5 cm row before the inside samples went in. The rings stand on this surface and lift along its own normal.
+- **The rim keeps the loop's exact points**, so it stays watertight with the skin and the bead. How far the rim sits off the smooth surface fades out inward (cos^2).
+- **One spoke per rim point:** every ring is sampled at the rim's own fractions, so the dome is quads from ring to ring, with no slivers.
+- The field coordinates (A) still come from the skin, as before.
+
+## Cost
+
+| | before (L35a) | now |
+|---|---|---|
+| twin 4b blister tris per window | 306 | 770 |
+| twin 4b pane tris, both sides | 612 | 1540 (+1308 over the flat pane) |
+| Cessna 172 | +712 | +2268 |
+| Cub | +428 | +1356 |
+
+Still one section and no new draw or program.
+
+## Heights (KNIFE's measure: highest pane point over the loop's mean plane, row 0.05 m)
+
+| shape | skin's own curve | blister |
+|---|---|---|
+| rounded | 0.021 | 0.068 |
+| oval | 0.015 | 0.063 |
+| triangle | 0.017 | 0.066 |
+
+Each blister is the row plus the skin's own curve. The twin's probe is back to 0.0585, its value at L35a.
+
+## Builds without the row stay identical
+
+`tools/newshapes_identity.js` on archives of 1bcd01d3e and HEAD: **all 6 lines identical** (cub, jodel, metal, floats, twinFloats, rufus: spec, def, draw, mass, ledger, sheet, design, procure, fly20). Only the blister block changed.
+
+## Gates (node, `run_gates.js --no-build --jobs 2`)
+
+```
+DEFAULT PASS  EDBUGS PASS  KNIFE PASS  QUADWIN PASS  JOIN PASS  SAVE PASS  PARTS PASS  DESIGN PASS
+SKINMAT FAIL  "a click on a surface in the FINISH view does not land on its own section's row"   (master 1bcd01d3e has it)
+CLIP    FAIL  "stock+ifr: navAerial/centre ... 9.2 mm INTO edFinSkin"                           (master 1bcd01d3e has it)
+KNIFE   ok  BUBBLE rounded / oval / triangle watertight, 0.068 / 0.063 / 0.066 m at row 0.05, a row at 0 is the flat window
+```
+DMGGLASS (headless Chromium) not run: A0 asked for node only.
+
+## Pictures
+
+`D:/Dev/flydiy-notes/evidence-2026-10-18/2026-11-08/bubble-windows/`:
+- twin4b_side_bubble_before_after.png: the user's view, before and after;
+- twin4b_front_bubble_before_after.png: the dome's outline from the front is unchanged.
+
+Both are node quickshot (flat shading, which shows every facet). Not looked at on the graphics card or in the game.
+
+## MASTER-GREEN VEHICLE (Game coordinator, 8 Nov 2026): GATE VEHICLE green - one re-pin, one fault
+
+Red since 11 Oct (12 Oct note above: "NEXT ROUND: read wb / track / r / the axle x from the sheet"). Done here:
+- **DEF, a STALE PIN, re-pinned to the sheet.** The gate pinned the authored placeholder (wb 3.01, track 1.41, r 0.35);
+  the car's bake (G2908, car_prep.py, 11 Oct 18:56, A0: "the drawn model wins") wrote the measured 3.0143 / 1.4123 /
+  0.3501. DEF now checks the definition against src/cars/car_conquer.json itself (wb from the axle centres to 1e-9, the
+  sheet's wheelbase field to 0.5 mm, the track and every radius exact); mass, the 56 % front, the 2 s park and the
+  driven / steered wheels as before. The motion that moved it: the bake, which was meant.
+- **AIRBORNE, a REAL FAULT in src/vehicle/vehicle.js place().** It sampled the ground's plane about the body's origin,
+  assuming the axles symmetric about it; the baked sheet's origin is 0.21 m ahead of the axles' midpoint. place()
+  now centres the plane on the axles. The ledge row stood the car with its rears on the edge (the fixed ledge at 0.6 m
+  hung them only for the placeholder's -1.505 rear axle): the car now stands settled on the flat and the ground goes
+  0.2 m ahead of the rear axle, the same assertions (no drive off the ground, the fronts on). HILL's park 0.10 -> 0.08
+  mm with the plane fix. The vehicle is node only (not in the page, not in MANIFEST.core: BITS).
+- GATE VEHICLE: PASS, 14/14.
+
+## ASSETS-GREEN - THE 14 MATERIAL SITES OVER GATE ASSETS MADE BY MATLIB (MASTER-GREEN, the user 8 Nov: "Have master clean"; CABIN-CRAFT for A0)
+
+Branch claude/ready/assets-green, on master 1bcd01d3e (L35a). Code de8e69361 + 5b3efcf89, built 7acd63878, then this note and HANDOVER.
+
+MASTER-GREEN (the user 8 Nov: "Have master clean"), via A0: GATE ASSETS was red on master. Fourteen `new THREE.*Material` sites were over their files' allowance; materials are to be made in src/viewer/matlib.js.
+
+## What changed
+
+Each extra site is now `MATLIB.make(THREE, shape, params)`. `make` is `new THREE[cls](Object.assign({}, base, params))`, and the shapes used (std, basic, shader) have an empty base, so it is the same constructor with the same params. One line changed per site.
+
+| file | sites / allowed | moved | shape |
+|---|---|---|---|
+| render_premises.js | 24/23 | 446 ground | std |
+| app.js | 16/12 | 2138, 3543, 7049, 13167 | basic, basic, std, basic |
+| clouds.js | 8/7 | 425 sky | shader |
+| hangar_view.js | 3/0 | 60, 122, 128 | shader |
+| cockpit.js | 2/1 | 155 gauge pads | basic |
+| studio.js | 2/0 | 51 env, 86 pool | basic |
+| dmg_members.js | 1/0 | 419 fallback | std |
+| tools/_seat_gen.js | 1/0 | 158 the flat view's seat | std |
+
+- Files that had no MATLIB use take the guard viewer code already uses: `(typeof MATLIB !== 'undefined' ? MATLIB : require('./matlib.js'))`.
+- `tools/_scene_headless.js` runs matlib.js in node's headless editor context, as the page has it before the editor. GATE SEATS puts it in scope the same way. No editor file other than `_seat_gen.js` mentions MATLIB, so nothing else in the headless chain changes.
+- No allowance was raised. ASSETS stays exact at 172/172 (no "can tighten").
+
+## Nothing looks different
+
+- **plane_shot hero (SwiftShader, the phone studio: studio.js builds the env the metals reflect)**, master against HEAD: pixel-identical except one region round the red dummy's arm. Master against master differs in exactly that region (the pose moves between runs).
+- **Node quickshot of the twin (side and 3/4)**, master against HEAD: pixel-identical. (In node the seats take AEROSKIN's path, so this proves the editor draws the same, not that a moved material is drawn.)
+- **`tools/newshapes_identity.js`** on archives of 1bcd01d3e and HEAD: all 6 lines identical (cub, jodel, metal, floats, twinFloats, rufus: spec, def, draw, mass, ledger, sheet, design, procure, fly20).
+
+Pictures: `D:/Dev/flydiy-notes/evidence-2026-10-18/2026-11-08/assets-green/` (twin4b_hero_master_vs_assets.png, the two diff masks, gates.log).
+
+## Gates (node, `run_gates.js --no-build --jobs 2`, A0's CPU slot for the stills)
+
+ASSETS PASS (MATS 172 sites in 34 files, allowed 172 in 34)
+SEATS PASS (after 5b3efcf89; red before it: "sling L0 builds [require is not defined]")
+MATLIB PASS  LIGHT PASS  HANGARVIEW PASS  PANEL PASS  GPSFACE PASS  FLOWNBAKE PASS
+DEFAULT PASS  EDBUGS PASS  JOIN PASS  SAVE PASS  DESIGN PASS
+SHADOWSKY FAIL  "4 clouds: a stale depth nearer than the first deck is sky ..."  (master 1bcd01d3e has it, same line)
+
+Not run: CLOUD and PROGRAMS (they start Chrome), DMGLOOK (it spawns a child process).
+
+## MEDIA-GREEN - THE PLANE PICTURES' INDEX READ AS A MANIFEST; THE WIRE BUDGET 5.0 -> 5.5 MiB GZ (A0 8 Nov, MASTER-GREEN)
+THE 43 ORPHANS were not a broken prune: every one of them (media/thumbs/*.webp, the THUMBS-ROUND3 and R1 bakes) is named by media/thumbs/index.json, which plane_thumb.js fetches through BAKED + 'index.json' - a path no manifest scan could see. GATE MEDIA now reads media/thumbs/index.json (and media/heroes/index.json, for R2) as the scenery versions are read: the index referenced by plane_thumb.js when it fetches it, each file the index names referenced by the index; the index's shape checked.
+THE PRUNE made true: thumb_bake.js's whole bake (no --keys, no --only) deletes the pictures its index no longer names, and never after a bake that missed a plane still in the pool; the arch: / list: rows a whole bake does not draw carry over from the index on disk first (else the prune would drop them). Tried on a mock bake (a stand-in plane_shot): a removed plane and a stray file pruned, arch:/list: kept, nothing pruned when a pool plane failed.
+THE BUDGET: A0's ruling on the user's "decide": WIRE_BUDGET_MIB 5.0 -> 5.5, the cost named in the gate: 5.18 MiB gz on L35a, a player's first load. No page-size work.
+GATES: MEDIA PASS (4057 references from 107 manifests, 4057 files; 5.18 MiB gz of 5.5; +16.8 KB step), selftest 8 of 8 caught; ASSETBUDGET PASS (reads _media_check.js).
+
+## PLANE-RENDERS R2 - THE HEROES BAKED: THE TAKE-OFF THREE-QUARTER FOR EVERY OFFERED PLANE (8 Nov, box 11:05-11:10, A0's slot after GAMECO's 10 min)
+plane_shot --takeoff ported by hand from claude/portraits 34aa1d212 (the hero draws the FLOWN model through FLYDIY_CRAFT_IN_SHED: flaps to def.params.flaps.to else 0.25, every cockpit lamp on, the prop's disc at 2400 rpm, all put back after; no door -> the cage's hero, said). Its first GPU run: the official Cub and the twin, then the bake - 36 of 36 drawn as take-offs, no fallback, no FAIL.
+thumb_bake --hero: plane_shot's hero:38/-12/35/0.84/1000x800 --takeoff, written 640 x 512 webp into media/heroes/ with media/heroes/index.json { heroes: { key: file } }, the thumbs' keys; --plus adds keys to a whole bake (the ten arch: recreations here). The prune (MEDIA-GREEN) covers it. 36 heroes: 6 stock, 15 pool, 5 Market, 10 recreations; 520 KB, 9-19 KB each; looked at on one sheet.
+PLANE_THUMB.hero(key): the hero's URL for a baked key, media/heroes/index.json fetched on the first ask (once), 'plane-thumb' 'hero:*' told when it lands; 'mine:' null (the player's builds: R3, at the first certificate then an update button). NOT YET ON ANY LIST: the wider lists are named before wiring (R3).
+SEEN: the Spitfire recreation's WIP nose reads oddly; the stock sailplane is black on the dark studio (hard to see); the DC-3 and the pushers sit smaller in the frame (the fit holds the span). Every plane's flaps at 0.25: no build in the pool carries def.params.flaps.to; a plane without flaps is unchanged by it.
+GATES: PLANETHUMB 35 checks + selftest 15/15 (hero(): once, the URL, 'mine:' null), MEDIA PASS (4094 of 4094, media/heroes/index.json read), NEWPLANE, CANDIDATES, LIGHT, STORY, ASSETBUDGET, PLANEFICHE PASS.
+
+## LOOK-1 - SHADOWSKY RE-PIN (MASTER-GREEN, 8 Nov 2026)
+GATE SHADOWSKY row "4 clouds: a stale depth nearer than the first deck is sky" was red on master 1bcd01d3e: a STALE PIN, not a fault.
+Moved by LOOK-1 2a (bbc115dda, landed L32f): the clouds' march takes the per-frame Halton sub-texel ray `dr` (uMJ, on when uMT.x > 0.5)
+instead of `d`. The stale-depth rule itself is unchanged: thru = tScene < deckEntry(o, d), such a texel is marched to 1e9 and its key is the far plane.
+Re-pin: the regex reads march(o, dr?, thru ? 1e9 : tScene, uDials2.x) - the same assertion, on either ray. SHADOWSKY PASS.
+
+## SKINMAT RE-PINNED - THE FINISH CLICK'S CHECK FOLLOWS WEAR-TAB (A0 8 Nov, MASTER-GREEN)
+Red on master since WEAR-TAB 48056ffbe (5 Nov): the editor's click-to-row line became `const finSec = (view === 'finish' || view === 'wear') && ...` (the wear rows moved out of finish with their keys), so a click lands on the struck section's row in either view - the behaviour kept, the pin's literal stale. test_skinmat.js now pins the widened line. SKINMAT PASS; the row lookup broken by hand (`e.dataset.sec === finSec` dropped) -> "FAIL finish: a click on a surface ..." caught, restored.
+
+## MASTER-GREEN (FLAGSHIP, 8 Nov): THE TWIN'S TWO REDS - HANDLE WAS THE GATE'S DOOR MATCH, DMGGEAR / DMGCLUSTERS' SEVERE NOSE-IN A STALE PIN SINCE t57
+
+- **HANDLE (a gate fault, fixed).** bugReports/Twin_busher_floats_2.json has TWO doors a side (pax0 z 0.87-1.53 m, pilot 1.62-2.56 m). The OPPOSITE / BELOW THE SILL / HAND HEIGHT checks took the first door on the handle's side for every handle, so the pilot door's handle - 9 cm in from its own latch edge (hgDoorEdge 0, hinges forward), where it belongs - was measured against the pax door and read "on the hinge edge". Each handle is now held to the door on its side whose run holds it (else the nearest). The placement was right; no check dropped or loosened. 72 builds and cards, 126 handles; selftest 4/4.
+- **DMGGEAR + DMGCLUSTERS, the twin's SEVERE 90 km/h / 5 m/s / 20 deg nose-in (a stale pin, re-pinned).** The rows (train 41, 7 Oct) asserted the boom root breaks first (DMGGEAR: the root bay S2B?-S3B?; DMGCLUSTERS: the ROD parts at its root). They were written on a measured 1.003 of the ROD root's limit - 0.3 % over.
+  - Red since t57 (14 Oct). Bisected with whole tools+src trees, each built: t56 e21d9c7fc S2BL-S3BL at 0.11 s, 18 broken; t57's merge of t55-held, t55's merge of claude/t52-full, then t52c's merge of claude/design-trust-g2640 (32d5c364b) turn it; inside that merge the one file is tools/_cage_join.js (taken back alone, the root bay breaks again).
+  - The change (G2640, meant): the join measures the twin's fin where it is drawn - vX 5.14 -> 4.30 m (0.84 m nearer the boom root), vSweep 9.0 -> 18.1 deg, vHeight 1.80 -> 1.67 m, stabH 0 -> 0.17; mass 486.3 -> 487.2 kg. With the fin's mass nearer the root the 5 g stop bends it less: the ROD root reaches **0.962** and holds (CG peak 5.61 -> 4.97 g). The case is still 2.6 x the twin's FAR 23.527 water load; the aeroplane drawn as drawn survives it at a 4 % margin. That is right: the flown fin is the drawn fin (WYSIWYG), and the old break was a 0.3 % knife edge.
+  - Re-pinned, nothing widened: DMGCLUSTERS - the worst cut of the airframe is the ROD's root, in bending, at 0.93-1.00 of its limit, nothing parts (a part, or under 0.93, is red). DMGGEAR - the airframe holds: no part group off, at most one of a float's own members (today FLD-FLD, a float deck member, tension, 2.63 s on the run-out).
+  - DMGCLUSTERS' two other reds on master (the FIN pulled sideways, root by TWIST at 4.27-4.28 s) are not the twin's nose-in and not touched here.
+- Gates on this branch (8 Nov, node, nice): `GATE HANDLE: PASS`, `GATE DMGGEAR: PASS` (72/72), DMGCLUSTERS 95/97 - the twin row ok; its two FIN rows red as on master 1bcd01d3e, the same lines (their owner's).
+
+## MASTER-GREEN CLIP - THE NAV AERIAL'S WIRE END IN THE FIN IS A STALE PIN, RE-PINNED 5.9 -> 9.2 MM (8 Nov, AVIONICS-PFD-LAND)
+RED ON MASTER 1bcd01d3e: GATE CLIP "stock+ifr/rest: navAerial/centre [access, on body] 9.2 mm INTO edFinSkin (allow 5.5 mm)" on all four poses (rest, +full, -full, flex). Red since L29g/L29h (2 Nov e6c668dab already red), before the PFD landed. AVIONICS-PFD (ready/avionics-pfd 8eddd0fbd, L35b) touches only cockpit.js and doesn't change it.
+CAUSE: FITTINGS-MANUAL 3ee59efb4 (27 Oct, rode L29h, in _cage_access.js) stands an UPRIGHT aerial or beacon at the LOWEST skin point under its foot (sunk = lift - low). Before, it was lifted to the highest point plus 0.3 mm. The user: "I'd rather have it sunk than floating". The nav aerial's mast now sits 4.0 mm sunk, and the wireAerial wire (tools/_fit_gen.js, its end at(F, 0, run, H*0.28), 1.2 m aft) drops with it, so its end sits deeper in the fin's leading edge, where it is anchored by design. The 5.9 pin was taken with the old rule.
+PROOF (CPU, unlocked, nice'd, one process, in A0's 12:50-13:05 slot; logs in flydiy-notes/evidence-2026-10-18/2026-11-08/clip/):
+- V1: the old rule put back (not committed), --report: 5.2 mm.
+- V2: the new rule as on master: 9.2 mm. The difference, 4.0 mm, is the mast's sink.
+- V3: run_gates --only=CLIP on the re-pin: PASS (0 new, 6 known).
+THE RE-PIN: tools/fixtures/clip_baseline.json, the four "stock+ifr|<pose>|navAerial/centre [access, on body body]|INTO edFinSkin" lines 5.9 -> 9.2. Nothing else re-based, no allowance widened.
+NOTICED, NOT RED, NOT MINE: under the new rule, the C172 commAerial on pillarPassenger reports 7.8 mm and 109.2 mm "in" its own pillar in --report (0.6 mm out under the old rule). The gate doesn't flag it (it is its own mount, within the sunk allowance), but 109 mm sunk looks like the lowest-point search running down the pillar. It's worth a look by whoever owns FITTINGS-MANUAL.
+
+## DEFORM - GEN envelope (MASTER-GREEN), 8 Nov 2026 (claude/ready/gen-envelope, for L35c)
+
+THE RED (GATE GEN's QC "clampSpec holds the envelope", new in L35a, mine: DC3-EDITABLE, which did not run GEN). The wild
+spec asks a 40 m wing on a 0.2 m chord. It flies a 16 m wing (aspect 20 on the 0.8 m chord floor), but on master it took
+4 000 L of fuel and 1 112 kg net of fuel; the check's bounds are 2 000 L and 900 kg.
+- genBig decided "big" off the span ASKED, and clampSpec reads genBig for the fuel, the vessels and every clampBig row
+  BEFORE clampWing runs. So a wing that flies small took the big aeroplane's caps.
+- G3503 had the same flaw, hidden by its 2 000 L vessel cap; DC3-EDITABLE's 4 000 L vessel cap exposed it.
+- DC3-EDITABLE also raised the big fuel cap to 8 000 L at clampSpec's first line, but left the vessels' total at 4 000 L.
+THE FIX (src/core/60_gen_spec.js):
+- clampWing's size clamp (the chord, the span, G3579's second pass) is lifted, word for word, into genWingSize(w, k).
+  clampWing and genBig both read it.
+- genBig is now big by the span the wing FLIES. A wing asked at 18 m or under never runs the clamp (the old answer
+  exactly, so no small aeroplane can move). A wing with no chord to clamp by keeps the asked answer. The DC-3 stays big.
+- The vessels' total goes to 8 000 L, as the first cap.
+PROOF (branch 4bb26b340 against master 1bcd01d3e, built, both trees):
+- The probe of the check's six terms, master then branch:
+  - fuel 4 000 -> 1 000 L;
+  - mass net of fuel 1 112 -> 704 kg;
+  - span 16 and chord 0.8 on both, rank 297/297 on both;
+  - Vs finite on both (53.3 -> 31.8 m/s, a lighter aeroplane).
+- ENGCONFIG --pin: the 17 digest lines are identical.
+- SEAPLANES' cert_probe on its 13 rows is "0 moved". The rows: the validated Cub, Jodel, metal Cessna, floats Cessna and
+  twin floats; Rufus certified, Twin_busher_floats_4b and the C172; and the 5 contract models.
+GATES on the branch:
+- PASS: WINGROWS, JOIN, DESIGN, FLOATKIT, SPECFIX.
+- GEN (4 shards, --jobs=2, 379 s): "clampSpec holds the envelope" now PASSES in every shard. GEN stays FAIL on
+  "cruise is quiet in wind" (shard 3: bank p2p 11.59 deg, aileron 1.18 deg/s, elevator 1.07 deg/s). That is master's
+  own red: A0's master sweep on 1bcd01d3e printed the same three numbers to the digit. It is the pilot's cruise in gusts,
+  which this change cannot reach (the default aeroplane's wing is under 18 m).
+## G3911 - HULL-B1..B3: THE FLYING BOAT, BASE - THE FUSELAGE IS THE HULL, READ FROM THE SAME FRAMES; THE DRAWN RINGS ARE THE FLOWN HULL; STRUT TIP FLOATS; GATE HULL (2026-11-04, cloud, the user via A0: "Yes to Hull as a fourth Undercarriage option; start the base"; study futureDesigns/HULL-TYPES-2026-11.md §3 + §6; branch claude/hull-types)
+THE RULE (the user, 3 Nov): "reuse existing controls from the cage ... switch between boat hull and normal easily, with most controls shared". So the hull is a READING of the rings the frames already build, not a second body builder.
+- CAGE (tools/_cage_gen.js THE BOAT HULL, applied in buildCage2 only when S.hull exists): per ring, the keel CENTRE COLUMN (C.keel, the belly's middle vertex) is the KEEL at the ring's lowest point - the number every frame's "bottom height" states in both modes; the keel CORNERS become the CHINE, lifted to keel + half-width x tan(deadrise) (botRound's move on a straight line); the floor stays on the chine->waist wall; the waist is the gunwale. Deadrise at the step / warped to the bow (32_hydro's t^2.5) / aft. THE STEP is a tight ring pair inserted like step 2's guard rings (the bay's material, door and window keys untouched; named <ring>+s, flagged hullSide F/A); the afterbody keel is the frames' bottom line + hullHs all the way aft. Creases: the keel line (C.keel) and both step rings' bottom edges at 3; the chine is crKeel's (the tile writes 3).
+- ROWS (CAGE_PARAMS; all ABSENT from spec.cage while hullOn is 0 - CAGE_HULL_ROWS, hullOn in CAGE_ZERO_ABSENT): hullOn, hullBeta / hullBetaBow / hullBetaA, hullSteps (0 stepless / 1), hullStepZ (m aft of the cabin frame's fore ring - the cage stays pure), hullHs, hullTips / hullTipAt / hullTipVol. Panel: 1 - global > boat hull; parts: Fuselage > boat hull. hullOn 0 is BIT-IDENTICAL: 36 saved builds x 3 steps + cageToSpec (GATE HULL CAGE, FRAMES' corpus).
+- THE TILE: gearLayout (a starter) gets 'Hull' (writes s1On 0, s2On 0, gearFloats 0, hullOn 1, crKeel 3, hullTips 1; spec gear.type 'hull'); the other three write hullOn 0. Its `after` (hullFit -> _cage_float.js CAGE_HULL_FIT_NEXT) runs _cage_gen.js cageHullFit off the FLOWN CG (CAGE_DATUM + FLYDIY_CG_MODEL), up to three passes while the rows move: the step 12 deg aft of the CG (the floats' rule), the boom / tail frames' bottom heights raised onto a 7-deg afterbody run (never lowered).
+- THE WATER (B2): the join (HULL-B2) measures cageHullLines (the emitted rings: the body's, then the nose loft AS EMITTED - the cowl loops and the collapsed nose ring; the first cut used the resolved ring and the water met a 0.4 m2 blunt bow the builder never drew) into cageHullTable (x aft of the step, y up from its keel, metres) -> spec.gear.hull { sta: [{x, yk, b, yc, bd, yd}], x, y (the step keel aft of the firewall / over the keel datum, the floats' datums), steps, tips }; clampSpec bounds it (absent otherwise: no build gains a key). 32_hydro sectionOf reads P.table when present (tableSection) - the loft, the step face, levelVolume, the half-beam table all go through it; hullParamsFromTable builds the hull's P. The Wiplines keep the formula, untouched (GATE WIPLINE, FLOATS, HYDRODYN green).
+- THE FRAME (B3, 61_gen_frame.js): gear.type 'hull' with a record -> ONE centreline hull record (side 0, hull: true) on a rigid 5-station node body (keel + both gunwales) TIED into the nearest fuselage frames (and the nose mount / tail post), the floats' slab distribution; its planing bottom billed at 3.0 kg/m2 (INFERRED); the gunwales at the step are refs.mains (the join's pose reads their mean against CAGE_HULL's step at the gunwale). A 'hull' with no record flies on floats the gross sizes (never wheels). STRUT TIP FLOATS: two small Wipline-family records (side +-1, tip: true) at hullTipAt of the semispan, struts to that station's spar nodes, keel 0.12 m over the hull's level waterline at the gross, each displacing hullTipVol (6 %) of the gross. THE HULL ALONE CAPSIZED in 4 s (a high wing, the engine on a pylon): the study's "next step" is in the base. They are FLOWN, NOT YET DRAWN in the garage (the open item).
+- ELSEWHERE: stripGear reads 'hull' as water-only (25_airfield); TECH gear:hull segment 2, TECH_GEAR_TYPES and the missions' gear values carry 'hull'; genPodGearKeep skips it.
+- GATE HULL (tools/_hull_check.js, core, ~95 s): the hull off invisible; the hull's reading (ring pair, step depth, deadrise, keel <= chine <= gunwale, the keel the lowest point in both modes); the user's Cessna-on-floats build made a boat as a builder would (Engine mount 'Over the wing', the nose a bow, the Hull tile + its fit) THROUGH THE GAME'S LOAD CHAIN (_load_build.js gameSpec); the measured table is the flown hull to 1e-12; closed; settled; THE PILOT takes it off the SEA lane. Measured: 896 kg, the hull 3.6 x the gross to the gunwale, the step 12.0 deg aft of the CG; at rest -4.5 deg on the datum (its forebody 2.3 m to a 4.6 m afterbody: the CB at level trim 0.27 m aft of the CG - the design's, the bound is the bow's deck clear: 0.22 m), 2.4 deg on a tip float; hump R/W 0.26 at 8.4 m/s, airborne at 26.0 s, 27.6 m/s, heading within 5.4 deg.
+- TECH stays red on master's own `pitch:seaplane` (no segment row; red at 05f95aa7 before this chantier).
+- OPEN: the tip floats drawn (the float layer, under the wing); a rest-trim / CB-vs-CG readout; the moment rule for the tip floats; a hull archetype card; two steps, rails, pad, sponsons, wing roots, drooped tips (HULL-TYPES §3.6).
+
+## G3912 - THE OVER-THE-WING ENGINE ON A CABIN ROOF: DRAWN WHERE IT FLIES ON A REMOVED WING CENTRE; GATE ENGDRAWN (2026-11-04, cloud, the user: "Draw the 'Over the wing' engine on high-wing cabins"; branch claude/hull-types)
+- THE FINDING (quick_view, then a page probe): the user's Cessna with the Engine mount tile's 'Over the wing' FLEW a pylon engine and DREW none - no pylon, engine or propeller - on master too. Its wing centre is REMOVED (wgCentre 7: the roots bolt to the cabin roof's sides; 11 saved builds wear it): _cage_cowl.js engineFaces asked CAGE_WING.leAt(0) for the leading edge ON THE CENTRELINE, the skin probe found no wing there, the face list came back empty and the engine layer filed "1 of 1 not drawn - no wing to sit on" into the join's errors (CAGE_ENG_LOST) - flown at the rule's station, drawn nowhere, and no gate read that error.
+- THE FIX (_cage_cowl.js engineFaces, mount 2): no answer on the centreline -> the nearest station either side where the wing answers (0.05 m steps, to 1.5 m): its leading edge and top; the pylon stands on the ROOF between the roots (its foot at the roots' lower skin, face.onRoof) - the frame already hung it there (61_gen_frame braces the pylon to both roots' spars and down to the roof ring). A wing with a centre is unchanged (leAt(0) answers first).
+- PROPELLER: on the default 0.30 m pylon the Cessna's 2.06 m propeller sweeps the cabin top (G477's check: 43 body points, the blade drawn red - an honest verdict, the builder's to fix); engPylonH 1.0 clears it (0 hits). GATE HULL's boat wears 1.0 now and asserts the join files no error.
+- GATE ENGDRAWN (tools/_engdrawn_check.js, core, ~70 s cold, the load chain's cache after): the Cessna 'Over the wing' on every wing centre the saved builds use (solid 0, glass 2, cutout 3, removed 7) through gameSpecFull - no "not drawn" error, and spec.engines[0] carries the join's measured x / y (flown where drawn). NEGATIVE-VERIFIED: master's _cage_cowl.js reads "removed: 1 of 1 not drawn" and the gate is red (2 FAIL).
+- No saved build wears engMount 2 (none moves). NACLAG, COWL, ENGID, DESIGN green.
+- HULL-B4 (same session, the user's wireframe review: "I want to make sure your topology is clean"): the wireframes (control cage + subdivided x2, quads as quads, creases red) showed the step CLIMBING THE SIDE - cageHullVee raised the floor level with the keel aft of the step, so the topsides jogged by the step depth. The floor now sits on the UN-STEPPED chine->gunwale line: the step's two rings carry the same floor point, only the keel and the chine step, and above the chine the ring pair is two identical sections - a dense, smooth loop like a pillar pair (all quads; the only pole is the aerodynamic nose's own tip). GATE HULL re-flown with the drawn pylon engine (engPylonH 1.0): the join clean, at rest -2.6 deg, the bow's deck 0.32 m clear, hump R/W 0.26 at 7.3 m/s, airborne at 26.2 s, heading within 3.2 deg.
+- JOINPARITY (8 FAIL) and ENGCONFIG (9 builds + 3 cards) are red on master 05f95aa7 identically - their page captures / recorded hashes predate L30d's seats; same hashes on this branch.
+- HULL-B5 (same session): THE TIP FLOATS DRAWN WHERE THEY FLY. Their placement became ROWS both sides read - hullTipKg (each float's displacement) and hullTipY (its keel over the step keel; hullTipVol retired) - written once by the Hull tile's fit (_cage_float.js hullFitStep, also armed by a hull whose tips were never fitted) off the flown mass with HYDRO.hullTipFit (6 % of the gross, 0.12 m over the hull's level waterline: the frame's old rule, now one function; HYDRO.tipFloatParams the hull for a displacement). The frame reads the rows (unset: the same rule off its gross). The float layer draws them (CAGE_TIPFLOAT_DRAW, called by the wing layer after it publishes): FLOAT_GEN's hull for hullTipKg, under the DRAWN wing's spar station nearest hullTipAt (the wing layer's def through its node map), the keel hullTipY over the drawn step keel (cageHullTable), the struts and wires the frame's own. GATE HULL probes the page (tools/_hull_tip_probe.js through FLYDIY_JOIN_PROBE) and holds drawn = flown: 0.0000 m station, 0 length difference. The Cessna boat: 54.1 kg floats, 2.02 m long, keel 0.54 m over the step keel.
+- OPEN: the engine layer's pylon is a plain box - on the 1.0 m pylon a propeller-clearing boat needs, it reads as a slab (a streamlined fairing is the engine layer's).
+
+## G3913 - THE OVER-THE-WING PYLON, SHAPED: A BAR MOUNT WITH ITS CABLES, A FAIRING (SLAB OR WING SECTION); HULL-B6: THE STEP ELONGATED (2026-11-04, cloud, the user's review of the quick_view and wireframe renders; branch claude/hull-types)
+- The user: "the pylon should definitely have a nice shape. By default, it will be a couple of bars anchored below ... This will be the mount, and this will be able to get a fairing, wing shaped, or not. Then the engine, which will be able to get a cowl, and a freestanding nacelle. Certainly not a squeezed cube ... a few cables between the pillars of the mount, hidden if fairing is selected".
+- THE MOUNT (_cage_eng.js drawPylonMount, replacing the box): a rail frame under the engine's plate (UNDER the engine: a pusher's block hangs aft of its face - the box stood on the face and the plate ran forward of the engine), four legs from its corners down to the wing's top skin at the root's front and rear spar stations (the face's new `foot`, _cage_cowl.js engineFaces: a quarter and two thirds of the root chord, either side - on a removed centre the roots 0.5 m off the centreline, on a wing with its centre 0.12 m: the frame braces the pylon's pair to both roots' spars, drawn where flown).
+- engPylonFair (row, Engine > thrust line & mounting; 0 default): 0 the bars with their bracing CABLES (an X in each side's plane, an X across the front and the rear pairs); 1 a FAIRING, slab-sided; 2 a WING-SECTION fairing (symmetric aerofoil, 10-24 %). Faired, each side's leg pair is ONE streamlined panel from the plate to the root (the faired cabane's idiom) and a shallow fairing closes the plate's underside; the bars and cables hidden. Feet narrow enough (a wing with its centre, <= 0.16 m) and the two panels merge into ONE pylon fairing on the centreline.
+- THE ENGINE: cowlOn on the over-the-wing mount already draws a freestanding NACELLE (the cowl layer's pod) - with the wing-section fairing, the Lake / Seabee look (quick_view renders).
+- HULL-B6 (the user: "give your step a little bit of elongation, because now you've squeezed 4 edge loops into a tiny area"): the step's aft ring stands max(0.02, 0.6 x hullHs) aft of the fore one (was 6 mm) - the step face raked over a real length, its loops spaced once subdivided. The water keeps the step a vertical break at the fore ring (the afterbody's first row from x 0+): drawn and flown faces apart by at most that rake (~3 cm on the Cessna boat).
+- OPEN: the pylon fairing's drag is not priced apart from the bare mount (the aero's pylon term reads the height, not the fairing).
+- Gates (G3913 + HULL-B6): HULL, ENGDRAWN, COWL, ENGID, DESIGN, PARTS, NACLAG, FRAMES, STARTER, UISMOKE green; CLIP red on stock+ifr's navAerial 9.2 mm into the fin - the same 4 red on master 05f95aa7.
+
+## G3914 - THE NACELLE FITS ITS ENGINE; THE PUSHER NACELLE'S AIR INLET (2026-11-04, cloud, the user: "Your nacelle is much too big, no reason to have it this tall and wide ... A nacelle on a pusher should be allowed an air inlet. Could you allow for the option, and a set of controls for the inlet?"; branch claude/hull-types)
+- THE SIZE (_cage_cowl.js nacelleOfEngine, cowlPlace): off the body (a pylon or a wing nacelle: a synthetic face, the engine's own 0.16 m plate) there is no firewall to fit - a FITTED nacelle took the plate's size (a third of the engine) and a FREE one the nose cowl's rows it was saved with (the Cessna's firewall: 1.14 x 0.99 m round a flat four 0.31 m tall). In the fitted / sealed modes a nacelle now takes the ENGINE's envelope (ENG_GEN.engResolve env: half-span + 0.04, half-height about the crank + 0.10 for the case-top hardware, the length + 0.06) and holds the barrel's width to the propeller's end (taper >= 0.96: a pusher's cylinders sit there). The 'Over the wing' tile writes fitNose 1. The Cessna boat's nacelle: 1.06 x 0.64 m. Measured: the cowl's size feeds the join only as the weather's visual record (no physics); no saved build both cowls a synthetic face and fits it (the twin fixtures: uncowled / free) - none moves.
+- THE INLET (_cowl_gen.js buildAft, aftMode 1): on a pusher the tail cone IS the nacelle's nose, into the air. inletOn cuts the cone where its section has shrunk to the opening's larger axis, rolls a lip in to an opening inletW x inletH of the nacelle's section (centre inletY of its height up), and runs a dark duct inletDuct deep back into the nacelle to a closed face; inletLip the lip's roll. Rows in the cowl's Nacelle group (_cowl_rows.js), ABSENT at their defaults (ABSENT_AT: no saved build gains a key), off by default.
+- OPEN: some case-top hardware of the flat four still shows near the cowl's lid at the propeller end (the cowl tool's lid cut, the nose cowl's oil door) - a nacelle without a lid is the next row; the inlet's air does not reach the engine model (cooling is not simulated).
+- Gates (G3914): COWL, DESIGN, PARTS (the inlet rows claimed under Cowl > nacelle inlet), STARTER, ENGDRAWN, NACLAG, ENGID, FRAMES, UISMOKE green; TECH red only on master's own pitch:seaplane.
+
+## G3915 - THE POD NACELLE (2026-11-04, cloud, the user sketching over the render: "why do you go down with your cowl? Look at what I've drawn as a cowl + nacelle, it looks better, no need for your complex shape there"; branch claude/hull-types)
+- The pusher nacelle wore the NOSE cowl's styling with its size: the top line swept down from the firewall (deckSweep 0.95), the axis rose 0.22 over the barrel, a lid, inlets and cheeks at the propeller's end. The 'Over the wing' tile now writes the POD once (_cage_design.js NACELLE_POD): a straight barrel continuing the nacelle's lines (no sweeps, no axis rise, deck / keel 1, waist 0, the section round 0.55 all round), a short bowl that bends late onto the spinner (lidShoulder 0.72, lidLen 0.16, the ring matched to the spinner), no openings at the propeller's end (apMode 0, no scoop, cheeks or cut-out: the air comes in at the nacelle's nose, G3914's inlet), the tail cone on - and fitNose 2 (sealed: the size the engine's, nacelleOfEngine; the section these rows - fitted would take the face's section over them). Every value stays the cowl's own row. DESIGN, DESIGNCHECK, STARTER, COWL, PARTS, ENGDRAWN green.
+
+## HULL-B7..B10 - HULL FORMS, THE HULL x ENGINE MATRIX, THE BOAT'S WHOLE FIT (2026-11-04, cloud, the user: "keep going ... test this thing asap", "and get the engine various configurations", "test the other hull types"; branch claude/hull-types)
+- THE FORMS (B7): the Hull form starter tile (_cage_design.js hullForm, after Undercarriage): classic 22/38/18, deep 28/45/22, flat 15/30/13, soft chine (crKeel 0.4, botRound 0.55), stepless (8/20/8, no step, round). Greyed until Undercarriage > Hull.
+- THE MATRIX (tools/hull_matrix.js): every form x engine layout on the Cessna boat - fitted (the cycle below), settled 10 s at idle, then flown off the SEA lane by THE pilot; capsizes (the lateral axis), drowned discs and solver divergence (a node over 300 m/s) are read. `--one=form:eng --save=b.json` writes the fitted build for quick_view.
+- THE WHOLE FIT, ONE FUNCTION (B8, _cage_gen.js cageHullFitAll, the page's hullFitStep, GATE HULL and the matrix): the step 12 deg aft of the CG and the 7-deg afterbody; THE REST BALANCE (HYDRO.hullRestTrim off the table: a boat resting bow down gets a longer bow - noseLen, up to 4 m - not chased under a nose engine, reported); THE PROPELLERS 18 in over the rest waterline (HYDRO.propDiscs; a wing pair ON the wing's skin then lifted on a pylon, an over-the-wing engine's pylon taller); a wing pair counter-rotating (engRotate 1: a same-hand pair's idle torque rolled the twin over in 9 s); the tip floats.
+- WING NACELLES OVER THE WING (B8, the user: "if you have to lift these engines so high up, you need a pylon. Wing mounted should remain anchored and in contact with the wing structure"): engNacOver (on the top skin), engNacLift (on the over-the-wing mount's own pylon: bars + cables or fairing, engPylonFair). THE POD NACELLE (B9, the user's sketch): a straight barrel to the propeller, a 5 cm lip round a flat face (NACELLE_POD lidLen 0.05 / lidShoulder 0.92 / lidRound 0.96), worn by Over the wing, Twin and Four.
+- THE TIP FLOATS' MOMENT RULE (B10, HYDRO.hullTipFit with cgY / arm / torque): the hull's own GM at the level draft sets what a float holds at 10 deg plus the engines' torque, x2; 6 % stays the floor. The soft chine's BM 0.15 m (the vee's 0.51) had turned turtle on 54 kg floats.
+- THE LIGHT RECORDS BOUNDED (B10, hydroBuild): a hull or tip-float record takes G2368's bound on its own mass (the hull's 15 nodes are 23 kg tied to the fuselage: a skip's 3.7 t slam put a keel node at 9 km/s).
+- designApply returns the options' `after` doors by name; _load_build gameSpecFull opens `afters` (the rod's fit runs headless).
+- THE VERDICT (matrix, B10): see the HULL-B10 matrix table in the session's report. Classic / deep / flat fly with the pylon (pusher and tractor), the twin and the four. The pod pusher (stern sinks, 25 deg) and the nose tractor (15 deg bow down, the disc 1.7 m short) are NOT boat layouts: the fit says so. Soft chine and stepless PORPOISE on the heavier builds (a skip at 19-20 m/s, nose-in; the pilot's damper off changes nothing: the hull's, the step is the cure).
+- OPEN: a pitchpoled wreck still diverges ~3 s after (post-crash: hydrostatic / wet body on the upended hull - not the dynamic terms); the fit only LENGTHENS the bow (a twin's 3.4 m was set before its nacelles moved aft); no afterbody row for a tail-heavy boat; the pilot's step technique untuned on hulls; the families (two steps, pad bow, pod on a boom, sponsons, trimaran) not built.
+
+## HULL STATUS (2026-11-04 late, after the master merge L31c; branch claude/hull-types, not for ready - A0 merges)
+- MERGE: origin/master c2ac56b3 merged (61_gen_frame: G3800's skid + the hull branch; run_gates: HULL + FLOATSCLASSIC). One break found and fixed (HULL-B11): FLOATS-CLASSIC's secAreaTo reads a section's deck top `yt`; the hull table's sections now carry it (without it the hull displaced nothing, the fit ran away). HULL, FLOATS, FLOATSCLASSIC, HYDRO, DESIGN, PARTS, STARTER, ENGDRAWN green; TECH red only on master's pitch:seaplane.
+- B12: the bow fit moves BOTH ways (hullNoseBase, the builder's own bow recorded the first time the balance moves it; the shortest bow from it that rests the boat - the twin 3.40 -> 2.40 m, flies 15.5 s); the AFTERBODY RUN row hullAftDeg (7 deg rule; a boat resting stern down takes a shallower run, the keel rows lowered onto it, to 2 deg; short of it reported - the pod pusher stays a non-boat). Soft chine is the crease only (botRound 0.55 had narrowed the cabin under the seats); stepless botRound 0.25.
+- WHAT A PLAYER CAN BUILD TODAY: any cage fuselage -> Undercarriage > Hull (a MODE of the fuselage on its own rows) -> Hull form (classic / deep / shallow V / soft chine / stepless) -> an engine: Over the wing (pusher or tractor, pod nacelle on a bar/cable or faired pylon), Twin or Four on the wing (straight pod nacelles, on the skin or lifted on pylons by the fit). The fit (cageHullFitAll, one function for the page, GATE HULL and tools/hull_matrix.js) places the step, balances the rest (bow length), raises the propellers to 18 in over the water, counter-rotates a pair, sizes the strut tip floats by the roll-moment rule.
+- MATRIX VERDICT (tools/hull_matrix.js, after B10): 15 of 20 fly. Classic / deep / shallow V x pylon pusher / pylon tractor / twin / four: all 12 fly (13.6-28.5 s). Soft chine flies with the pylon pusher only; stepless with the two single pylons; the others PORPOISE (a skip at 19-20 m/s, nose-in - the hull's, not the pilot's damper). Nose tractor and the cabin-bulkhead pusher fail on every hull (15 deg bow down / 25 deg stern down) and the fit says so.
+- LEFT OF S1-S3: S1 pylon engines DONE (over-the-wing single, nacelle pairs on pylons); FIN ENGINE (Seawind) not started. S2 wing floats DONE (strut tip floats, moment rule); SPONSONS, drooped tips, wing roots, foils, outriggers not started. S3 engine list cap 6: not touched by this branch (the layouts stop at four on the wing).
+- STILL NAMED: a pitchpoled wreck diverges ~3 s after (post-crash, the upended hull's static / wet-body terms - not the dynamic terms B10 bounded); soft chine / stepless porpoise (a pad bow or the pilot's step technique on hulls); the nacelle is the flat-six's own width (1.06 m + clearance) and is centred on the crank (0.89 m tall) - a four-cylinder or an offset nacelle is the user's call.
+
+## HULL-B11..B26 - ENGINES ON A BOAT, STUB SPONSONS, THE TUB, THE FIN ENGINE, BUOYANT WING TIPS (2026-11-04..05, cloud, branch claude/hull-types)
+- ENGINES: mount 2 over-the-wing pylon (engPylonAt 1 = standing on the roof behind the cabin, its feet on the roof shape; engPylonForm blade / V legs; engPylonFair 0 bars+cables, 1 fairing, 2 wing section, 3 blended - one fin section flaring flat into the wing and the nacelle); mount 7 TANDEM push-pull on one pylon (GEN_ENG_LAYOUTS.tandem); mount 8 FIN (a tractor on tubes into the fin's spars, engFinAt / engBlockY; the first plane's straight pod cowl, closed tail - NACELLE_POD, cw_inletOn 0). Wing pairs and fours in NACELLE_POD on the skin or on pylons (engNacOver / engNacLift), sized engines (912 / 582 / 915).
+- FIT (cageHullFitAll): propeller clearance at rest (18 in) AND at the take-off trim (8 deg about the step); per mount: nacelle lift, pylon height, fin height then block then a smaller disc. HULL-B25: the fit NEVER deepens the hull or touches the cabin (the user: "Just don't touch the cabin") - a pusher short of clearance is reported.
+- WATER STABILITY: strut tip floats (moment rule); SPONSONS hullSpon 1 = a stub wing (HYDRO.sponsonTable: a flat-bottomed aerofoil stub on the hull side, kissing the water, flown and drawn from one table), 2 = the float-style side sponson; the ROD BOAT's buoyant afterbody = the taper section (S.hullTaper, lofted on hull + rod).
+- HULL-B26 BUOYANT WING TIPS (the user, 5 Nov: "take the existing wingtips, start from that very shape and modify it elegantly ... a setting of the wingtip itself, and how far it is allowed to drop, within reason"): three rows on ANY tip with a bow - wgTipBow (length, tip chords), wgTipDroop (drop, tip chords), wgTipFull (fullness x the aerofoil); 0 / 1 = the kind's own. Spec wings[].tipShape (absent = the kind; no hash moves). ONE shape (60_gen_spec genTipBend / genTipFat): the bow BENDS as one piece (theta = PHI smoothstep(s/L), PHI <= 85 deg: a tip drops at most ~0.59 of its own length; caps bow 0.80, drop 0.45), its section filled about its mid-line - the loft (63_gen_wing, the old square-law shear replaced) and the WATER (genTipBuoyTable: the drawn solid rasterised into a station table, area under chine and deck held per station) read it. hullTips 2 = 'buoyant wing tips': the frame hangs the tip's own record tied into the joint and tip spar nodes (no struts, no float, the old faired float deleted); the fit (genTipFit) picks the shortest tip that reaches the strut float's keel height, then its drop and fullness, and reports a wing too high.
+- FLOWN (tools/hull_matrix.js): twin 2x912 19.7 s; four 4x582 14.5 s; tandem 25.3 s; blade pylon 25.7 s; fin engine 29.3 s; rod boat (taper buoyant, stub sponsons) 39.2 s; SEAWIND (fin engine, cantilever mid wing, buoyant tips 0.60 long / 0.31 drop) 38.9 s. The Cessna's HIGH wing cannot reach the water with a tip within reason (447 mm short): it keeps strut floats - the fit says so.
+- STILL NAMED: hump drag ~30 % high (R/W 0.21-0.25 on every hull); the bent tip is display + water only - the strips fly it as the flat planform (as the winglet); a pitchpoled wreck diverges ~3 s later (post-crash).
+- HULL-B27 THE POD AND THE SPONSONS, MODELLED (the user, 5 Nov: "professional modeling quality, not sketch ... using the taper section as the base"): a hull's buoyant taper on a rod (HTAP) is LOFTED, not ruled - four rings between the cabin's aft pillar and the taper's on eased laws (plan 1 - t^1.7 convex, deck (1 - t)^1.5 dropping early and arriving flat, keel and gunwale straight - the afterbody's run), then a TAIL CONE aft of the taper's pillar (four rings, an ogive 1 - u^1.6, its centre walking down onto the rod's axis, 1.6 x the end's half-height long) closing on a collar of 1.35 x the rod's radius; the rod grows from the collar (rodSpan.zRoot = the cone's tip). The aero aft cone stands down on a hull taper. The hull's V and the water's table read the same rings. Stub sponsons drawn as modelled stubs (_cage_float.js drawStubs): the bottom rounded up into the nose, the LE swept, the tip on a half-ellipse, a root fillet into the hull's side, 18 x 40 smooth grid. Rod boat flies, 37.3 s (was 39.2).
+- HULL-B28 OUTRIGGER HULLS (hullTips 3; spec gear.hull.tips.mode 'outrigger' - the Adventurer 333's pontoons, the Seagull's and MVP's side hulls): the strut float's record, sized and seated as a side hull by the fit (at least 12 % of the gross each, the moment rule if it asks more; its keel 10 % of its depth under the level waterline - both kissing the water at rest; at 0.55 of the semispan unless set inboard of 0.7). Its frame is a RIGID PYLON - every station's deck edges to both spar nodes (the strut float's V pair and two tension wires let a side hull swing). Drawn on ONE faired blade round those members (_cage_float.js: 14 % section over the struts' chord, flared into the float's deck and the wing). Twin (2 x 912) on outriggers flies: 21.2 s, roll 0.6 deg on the run. The single 915 high on a blended blade pylon (engPylonH 1.2) leans 40+ deg at the hump on ANY float (strut tips 23 deg) - that build is marginal (high CG + torque), recorded for the Adventurer layout. hull_matrix HM_TRACE=1 prints the run every half second.
+- HULL-B29 PLANING WING ROOTS (hullSpon 3; spec gear.hull.spon.mode 'root' - the Be-103's, the Equator's "float wings"): the low wing's own inner panel is the sponson - its record the root's stub (HYDRO.sponsonTable: the wing's root chord and thickness, hullSponK root chords of span, flat beneath) on the panel's own frame (genTipJoint at the root + half the span), keel on the wing's underside (the aerofoil's lower ordinate at 35 %), tied into that bay's spar nodes; nothing drawn (the wing is the float), nothing sized by the fit. The Equator layout (fin engine, cantilever low wing, roots 0.9 chords) flies: 30.6 s, roll 1.7 deg; the roots carry ~30 % of the weight at low speed and unload as it climbs on the step - hump R/W 0.154 (the lowest of every hull). A twin on a low wing needs its nacelles 1.9 m up for the water: the Be-103's own answer is the rear-fuselage pylons (next).
+- HULL-B30 A WING PAIR ON THE REAR FUSELAGE (engNacOver 2; engines[].pylonAt 'body' - the Be-103's): each nacelle beside the body behind the wing (engPylonAft past the trailing edge), its hub a blade's radius + 0.10 off the side, at the crown + engNacLift; drawn on a STUB PYLON (a wing-section blade from the side's skin to the nacelle's flank, root and tip filleted); the frame hangs each on a stub truss to the two fuselage rings either side (no wing member), and its wake washes NO wing (62_gen_aero: a pulling wing pair behind the trailing edge). The spec keeps pylonAt 'body' on a wing entry (it was deleted: the frame had hung them on the wing). Built and drawn; the Be-103 layout (planing roots, 2 x 915) does NOT take off at Cessna size: the discs need 1.25 m over the low aft deck for the water, the thrust line stands ~1.9 m over the CG and the bow digs in at 3 m/s (hump R/W 0.28 with 912s, 0.36 with 915s - more thrust, deeper). The real one is 10.9 m with a deeper hull; the cabin is the builder's. Gates: ENGCONFIG's reds (the validated builds' hashes vs master, the quad's downwind, the cards) are the same on the previous commit.
+- HULL-B31 TWO STEPS (hullSteps 2, hullStep2Z / hullHs2 - the Dornier Wal's, NACA's "English-type" hull): a second ring pair hullStep2Z aft of the main step (its face raked as the first's), the rings aft of it rising by both steps (cageHullVee); the water's table reads the drawn second break (cageHullTable steps 2; spec gear.hull.steps 0..2). The pylon pusher on two steps flies 25.5 s (one step: 25.2). THE SUPER PETREL (hull_matrix 'petrel': the biplane tile, a parasol plane 0 with the pusher on its pylon, a mid second plane, stub sponsons) is built with no join error and does NOT take off at Cessna size: the hump comes at 3 m/s with the bow 2.3 deg down at rest (the high pusher thrust line), with a 912 or a 915; a 1.5 m propeller drops the 915 to 1.66 kN (exactly the stuck drag); planeScale 0.85 does not shrink the mass. The pilot's water-run throttle cap (GP.cap, 0.88 until tail-up speed) also holds these boats short of full power at the hump - noted, not changed (PILOT's).
+- HULL-B32 (TRIED, REVERTED): the static thrust's couple in the fit's rest balance (momentum-theory thrust x its height over the CG read as the CG moved forward; the bow lengthened until the boat rests at -3 deg or better under it). The Be-103 took a 3.5 m bow and the Super Petrel 2.4 m; neither left the water (Be-103's hump R/W 0.42 at 4 m/s, worse; Petrel 0.20). The plow under a high thrust line is DYNAMIC (the bow pressed in as the hull starts to move), not a rest balance a longer bow cures. Left for a later look: the pilot's water-run power cap (GP.cap 0.88 to tail-up), elevator authority at 3-5 m/s, a deeper forebody (the builder's), the real aeroplanes' size.
+- HULL-B33 THE FIN ENGINE'S FAIRED PYLON (the user: "proper supports, with love into the model"): under a nacelle (cowlOn) the fin mount is drawn as ONE fin-section blade lofted on horizontal sections from the fin's top (its front half, sunk in the skin) up into the nacelle's underside (forward of the flange - a tractor's engine), 13 % thick, flared into both (_cage_eng.js); the mount's tubes are the flown structure inside it and are drawn only without a nacelle. Drawing only. Gates: CLIP's 4 reds are master's nav aerial; COWL, ENGMESH, PARTS, ENGDRAWN green.
+- HULL-B34 THE FIN NACELLE CROSSES THE FIN (the user: "extend the nacelle, and have it cross the fin, which should be sized to accept that. If you put them in contact, you don't even need dedicated support ... If you want to move that, change the fin geometry"): engFinAt to 1 (on the fin's top: the nacelle's belly on its tip), below it the nacelle's axis crosses the fin at that height; engFinFwd (new row) pushes the engine forward of the leading edge, the nacelle lengthened; the cowl's tail cone always runs from the engine's face to 0.25 past the fin's trailing edge (_cage_cowl.js tailLen on a fin face). No block, no pylon (B33's faired pylon removed; the tubes only for a bare engine) - the frame ties the engine into the fin's own section (HULL-B22). The fit: up the fin to its top, then a TALLER FIN (finHeight to 1.8), then a smaller disc - engBlockY is no lever any more. Seawind: engFinAt 1, finHeight 1.057, flies 38.6 s.
+## RETRACT-1 - THE RETRACTABLE GEAR, STEP 1: A TRICYCLE'S THREE WHEELS SWING UP IN FLIGHT (2026-11-03, RETRACT-STUDY for the user via A0, cloud; claude/retract-study + claude/affectionate-edison-fx8582 off master e6bcfb36 = L30c, built)
+- The study and the rulings: `futureDesigns/RETRACT-STUDY-2026-11.md` (§1 the real thing, §2 our code, §3 the steps, §4 the table,
+  §6.1 the user's answers - step 1 first, the low-wing tourer's inward fold; no upkeep cost; hired pilots may forget, rarely;
+  no phone shortcut for doors; every aeroplane on the ground stands on its wheels - §7 as built).
+- Spec `gear.retract` { time 2-20 s, act electric|hydraulic|manual, emerg crank|freefall|pump|blow }: a TRICYCLE's only (clampSpec
+  drops it elsewhere), the key only when chosen (G3575's rule) - a fixed build's spec, def, ctl and flight are master's to the bit.
+  The `retract` design tile is LIVE (twin of the gear layer's `gearRetract`; rows gearRetract / gearRetT / gearRetAct on the mains
+  part, shown on a low wing); the join writes the spec for a LOW-WING TRICYCLE only (`GEAR_RETRACTABLE`; a high wing's body-
+  rooted legs swung aft stood the wheels on edge - the RG's twist-and-tuck is step 3). GEN_RULES.retractKg (3.5 % of the gross, >= 12 kg, on the axles) and GEN_PRICES.retract 4200.
+- Solver (OPTION A - the axle node never moves): ctl.gear (1 down) and the position at 1/time (gearPower: the page's bus is NOT
+  wired yet; gearEmergency: crank 25 s / free fall 4 / pump 20 / gas 2); the squat switch; the CONTACT PLANE rises with the wheel
+  (rC - (1 - pos) GH, GH the lift to the wheel's members' highest anchor + r) and a wheel ROLLS only down and locked - a gear-up
+  landing is the belly landing the ground pass already had (scrape, scar, prop strike); params.retract.cdA (gen.drag.gear) comes
+  off fusCdA by (1 - pos) + 15 % at mid-transit; 32_hydro's wheel plates ride WB.lift; out.gear / gearMov / gearWow / gearEmerg
+  for the physics worker's snapshot.
+- Pilot: up in CLIMB / GOAROUND over 15 m at +1 m/s, up en route; down for the circuit, an inbound within 4 km, a glide under
+  150 m; the emergency extension after 1.5 cycles + 2 s; GUMPS on final under 60 m (around, twice at most); a belly landing at a
+  standstill goes STOPPED ('gear-up-landing'). PILOT_PROFILES gearForget: club 0.01, student 0.02, ham-fist 0.01, bush 0.005,
+  the expert none (a knob, 0-0.05); `pilotGearDice(seed, k)` the deterministic die ('gear-forgotten').
+- Viewer: input 'gear' (Digit9, UP <-> DOWN) through the worker's hand packet; three lamps on the PFD (cell `gear`, shown only
+  when out.gear exists); the horn on the stall voice (audio_params gearWarn, airframe_model: 0.3 s on / 0.2 off); the swing -
+  the join's `gearSwing` (only on a retract build) and app.js `gearSwingRig`: each unit's leg, wheel and castor under one group
+  turned 90 deg about the leg's root (inward on a wing-rooted main, aft otherwise; conjRot), hidden once stowed. No well, no door.
+  The rule is the gear layer's (`CAGE_GEAR.swing`); `tools/quickshot.js --gear 0..1` draws it without the game (the stills:
+  `reports/evidence/RETRACT-1/`, the T-tail tourer at 1 / 0.5 / 0).
+- GATE RETRACT (`tools/_retract_check.js`, core, ~10 min on 4 cores): PASS. JOINPARITY and TECH are red on master e6bcfb36 as
+  well (checked on a clean worktree: the same 8 / 1 rows) - not this chantier's.
+- Open (said in the study §7): the cockpit lever and lamps (a `gear` law), the bus -> gearPower, the tech table, the T-tail
+  tourer card as a retract (ARCHETYPES flies the birth spec pre-join: it needs a GEN_DEFAULT field), wells and doors (step 4),
+  the other motions (step 3), the amphibian (step 2).
+- RETRACT-1b (the user, the night): a retracting gear wears NO fairing (spat / trouser / leg shroud: the rows step aside,
+  the drawing goes bare, the join and clampSpec set the fields 'none' - the doors will be its fairing). The wide overview -
+  one gear UNIT model for retracts, partial retraction, wells, doors and the amphibian; the motion chain (up to three turns + the
+  wheel's twist + a fraction); red sliders, no diagnosis; the order G1-G7; the PIPER ARROW as the reference to fit - is the
+  study's §8.
+- RETRACT G1 (2026-11-04): THE FOLD - a chain per unit (the wheel's twist about its leg, then up to two turns about body
+  axes through the hinge, each sense probed; the starboard mirrored), presets (inward, outward, aft-flat, aft-and-in,
+  two axes; the nose aft / forward) or custom rows, a retraction FRACTION (a partial gear rolls on its tyres up, keeps
+  1 - frac of its drag, stays drawn); the editor's preview row gearPos (quickshot --gear; the capture holds it down,
+  VIEW_STATE 'gear position'); the join writes gear.retract.lift (measured) and frac; app.js replays the chain;
+  genStolCageOff drops the retraction rows of a fixed gear (and the preview always) from every fingerprint. GATE RETRACT
+  §10. The study's §8.7.
+- RETRACT G2 (2026-11-04): DOES IT FIT - the gear layer's foldFit (after the wing; ~20-50 ms): the units' tyre and leg points
+  at six positions; SKIN (up, whole retraction: inside the body or the wing, 15 mm in, said as through the wing's skin /
+  out of the body / off the chord), SPAR (one bay), FLOOR (under floorY), UNITS (30 mm apart); TANKS read at the rows'
+  refresh (fitTanks). window.CAGE_ROW_BAD() -> { row: reason }; _cage_ui.js applyRowVis turns a flagged row red
+  (.rowBad) with the reason as its tooltip, back when it fits; the retraction row's note says the first. GATE RETRACT
+  §11. The study's §8.8.
+- RETRACT G3 (2026-11-04): THE RESERVATION - CAGE_GEAR.wells (per unit the box round its stowed points + 30 mm: its body /
+  wing share, lv band, span), drawn as edges (amber fits / red not; quickshot draws them); spec gear.wells (the join, the
+  frame's body x); 60c genBayWellL - a body bay / the first plane's wing bay gives up the wells' litres (no wells: to the
+  bit); _cage_energy judgeAll - a tank meeting a well is red ('the retracted gear's well'). CLIP's sweep waits for the cuts.
+  GATE RETRACT §12. The study's §8.9.
+- RETRACT G4 (2026-11-04): THE WELLS CUT - CAGE_GEAR.cuts (the swept unit's points inside the body: plan hull (exact) or
+  rounded box (row gearWellCut, the fallback), 30 mm clear, flat ceiling; meeting wells merged); _knife_gen knifeCut from
+  below (frame/outline/ceil: a box recess), knifeWells (section wheelWell) + knifeCarve (frames/liners out of the well);
+  _cage_ui wellApply cuts the DRAWN fuselage and the eye sheet after the chain (never MS; drag ticks keep the last cut);
+  quickshot cuts them (bottom/qb, --nowells, --noedges). GATE RETRACT §13. The study's §8.10.
+- RETRACT G5-GR, PHASE 1 CLOSED (2026-11-05; the study's §8.12-§8.19). The wing's wells (G5); the doors (G6: leg door
+  to half the wheel, well doors that close gear down unless a down line crosses them); the GR robustness work:
+  - the Catalina (two solved turns, an external pivot, a round side recess);
+  - nacelle mains, with the engine's own nacelle fitted to the gear (`_cage_cowl.js nacGearFit`, row gearNacFit:
+    deeper downward, lowered under a high wing, the tail cone longer; the stand-alone pod only as gearNacPod);
+  - a nose cowl cut by the forward-folding nose wheel;
+  - clean wells (finer sweep, the leg as a tube, rounded outlines, flat ceilings);
+  - fittings bolted flat to the ceilings with gussets (`fittingsDraw`);
+  - leg shortening (gearShort / gearShortNose: core gearSlide, `slide` parts, the scissor as a knee);
+  - quickshot smooth shading (`--flat` for the old facets).
+  Gates (5 Nov): RETRACT, SAVE, UISMOKE, KNIFE, COWL, NACLAG, ENGMESH, JOIN, GEAR, PARTS and DESIGN PASS. These were
+  red on master or at this branch's base too:
+  - CLIP (the stock+ifr nav aerial in the fin);
+  - JOINPARITY (8 at the base, identical);
+  - ENGCONFIG (the push-pull, trimotor and four cards);
+  - HANDLE (Twin_busher_floats_2).
+  Open for phase 2: the Skymaster (mains into the back pod: door shards at mid travel, the rear engine shows); the
+  cabin-floor test running under the instrument panel; the long nose well behind the brace and actuator anchors; the
+  gear held to the wing's size (flaps, a lift strut).
+- MERGE: claude/retract-study into claude/hull-types (22deb683, for the Super Petrel's retractable gear): 19 hunks, master's tailwheels (G3800: twMode, the lock, twin-boom tail wheels) kept beside the gear handle, retract record, wells, kit mass, gear nacelles and rows; exports united. Green on the merge: INPUT, TAILWHEEL, FIT, KNIFE, COWL, JOIN, SPECFIX, STARTER, GEAR, PARTS, DESIGN, FLOATS, HULL, SEAPLANE, ENGDRAWN. RETRACT red on two downwind checks (gear up 38.03 / down 38.02 m/s: the pilot now flies a set airspeed?) - being checked on the retract branch alone.
+- HULL-B36 THE SUPER PETREL, FIRST DIMENSIONED PASS (futureDesigns/SUPER-PETREL-2026-11.md - the study; the user: "render the outlines and ensure that your global dimensions match the blueprints"): tools/outline.js (NEW, a tool) renders the build's side / top / front silhouettes ORTHOGRAPHICALLY on a 0.5 m grid, the extents measured, a target's outlines over it in red (tools/ref_match/refs/super_petrel/target.json: the user's side drawing and three-view EYEBALLED - z from the bow, y from the keel; the image files are not in the repo yet). hull_matrix 'superPetrel' (the card's rows; --nofit=1 flies / draws the card's own rows, no fit). Matched: length 6.36 (6.25), upper span 8.8 (8.9), the upper wing's height and station, the lower wing's height, span and dihedral, the stagger (w2Stagger + = the lower aft). NOT YET: the forebody - the cockpit / bow section's keel stands ~0.3 m over the cabin pillar's (the nose and pilot rings' depth; noseH is not it); the fin and tailplane ~0.5 m forward (the rod runs on past the fin's trailing edge); the boom does not climb (rodIncl 12 reads ~flat); the tower; the floats under the lower wing; the gear.
+- HULL-B37 THE SUPER PETREL ON THE CESSNA CABIN, POD AND ROD (the user, 5 Nov - a run of corrections; hull_matrix 'superPetrel' rendered against the target with tools/outline.js at every step):
+  - THE CABIN: the Cessna's architecture with no passenger bay, at the FIRST card's section (keelY / roofY / waistY / halfW / roofHalfW / floorY - "your new cabin is far too tall, get it back to the previous settings, and don't touch cabin height"); the bogus frame rows (frPostBotY - absolute heights, not offsets) stay out.
+  - THE STEP IN THE BUOYANT TAPER (_cage_gen cageResolve, the HTAP rings; the user's section sketch: rod / taper / cabin, "moving the step to the taper section ... a single slider that places it on the hull or the floating new taper section"): hullStepZ (the one slider, aft of the cabin frame; page5 range to 4.5) may land in the taper - the planing bottom then runs on flat under it (keel, floor, the bottom's beam held to the cabin's) and the afterbody keel runs straight from the step to the taper's end; an htStep ring stands at the step, buildCage2 adds the step's own pair aft of it.
+  - THE ROD TO THE BULKHEAD ("the rod is really meant at going through, and reach until the aft bulkhead ... Same architecture as with pod and rod planes"): zRodRoot is zPaxA on a hull too (B23/B27 rooted it at the cone's tip) - rodY is the tube's height AT THE BULKHEAD again.
+  - THE ROD OVER THE TAPER'S DECK ("it goes into the fuselage from the top of the float taper", the photograph): when the rod's axis at the taper's end stands over the section's centre by more than half its half-height, the cone closes on ITS OWN upswept tip under the rod (the float's tail) and the rod leaves through the deck; below that, the cone closes on the rod's collar as before.
+  - THE FIXATION RINGS FOLLOW THE ROD ("the fixation rings don't follow your rod rotation"): the split collars were revolved about bare -z at the ROOT's height - _cage_access rodSite now rides the axis at its station, square to it; _rod_fit axisOf(deck, z) (the deck's centre-line slope) orients the fin's and the stab's saddles (and the stab's pedestal); the tailwheel saddle (_cage_gear) takes rodSpan.tI.
+  - THE ENGINE FORWARD ("the engine should reach the wing and intersect it. Place it further fore and high"; "the pylon should touch the canopy"): engPylonAft NEGATIVE (_cage_cowl, engPylonAt 1) stands the mount forward of the trailing edge, to -1.5 (row range -1.5..1.5; 0 and up unchanged).
+  - the card: rodIncl 6, rodY -0.20, boomLen 2.6, the fin in the blueprint's box; wgParaH 0.6 (the upper wing 1.4-1.6 m over the keel), wgTipBow 0.45 / wgTipDroop 0.30 (the turned-down ends); the lower wing w2Dy -0.1, w2Dihedral 7, w2Stagger -0.05; engPylonH 0.55, engPylonAft -1.1 (the nacelle through the upper wing, the pylon at the canopy's back); hullStepZ 0.75.
+  - OPEN: THE PYLON's fit (the user: "give a dedicated session to the pylon ... its main section should always remain straight, we never rotate the whole thing. It should sample surface below and on top to build an accurate mesh that hugs the fuselage, whatever it is. A joint will be drawn ... masking the seams" - a task suggested for its own session); the parasol's cabane struts (the real upper wing stands on the tower); the forefoot bow and the strakes; the floats under the lower wing; the retractable tricycle on the hull; flying it.
+- HULL-B38 THE PYLON THAT HUGS (the user, 5 Nov: "you really need to give a dedicated session to the pylon, because right now, it really fits badly. Its main section should always remain straight, we never rotate the whole thing. It should sample surface below and on top to build an accurate mesh qui epouse the shape of the fuselage, whatever it is. A joint will be drawn, helping with the possibly tricky fit, masking the seams"; branch claude/busy-pascal-k5bvp3 off claude/hull-types). Drawing only - _cage_eng.js drawPylonMount / drawPylonBlade, the over-the-wing mount (engMount 2, engPylonAt 0 and 1) and the lifted wing nacelles (engNacOver 1 + engNacLift); the frame (61_gen_frame) and the join are untouched.
+  - THE BODY IS A PRISM: one plan section (an aerofoil chord fore / aft, or the slab's rounded box) on a FIXED axis - vertical under the mount plate, at the plate's station. It is no longer swept on a path from the feet to the plate (the lean the user saw on the Super Petrel, whose feet are not under its plate). Moving the engine moves the prism, never tilts it. The chord is the mean of the feet's spread and the plate's length, +0.12 (the plain blade the mean of its old root and tip chords, the blended blade the plate's + 0.06 as before), thickness 24 % (wing section), 36 % (blended - the chimney; the old one read ~60 % at the plate), 12 % (blade, V panels). The V legs with their feet out at the roots (a cabin wing without its centre - the Cessna boat's 'pylon' / 'pylonTractor') keep their two panels, each now in the cross plane at the plate's station (it leans out to its feet, never fore / aft).
+  - EVERY COLUMN CASTS FOR ITS ENDS (pylonCaster + pylonHug): each vertex of the section is a column on the axis, run down to the first surface below it and up to the first surface above it. The rays see ONE LOCAL TRIANGLE SOUP: the body's drawn skin (cageAirframe's skin faces as built, the cut-part rule - a roof, a canopy's back, a taper's deck), every wing plane's skin (_cage_wing.js now publishes each plane's skin probe geometries as `skinGeos` - a biplane's lower wing under it, the upper wing's lower skin over it where the nacelle crosses the wing) and the nacelle's drawn shells (the cowl layer's meshes, which draw before this layer; not their dark inner twins). The soup is indexed per ray axis on a 4 cm grid across it: 0.4-0.8 s a pylon brute force over the meshes became ~0.05-0.1 s (+0.03-0.07 to collect), measured headless on the Super Petrel and the Cessna boat.
+  - THE BLENDED FAIRING'S FLARES (HULL-B16's quarter circles, 0.20 at the base, 0.11 at the top) are built ROW BY ROW off the surface under each row's own plan position, so the skirt follows a convex deck instead of diving under it (the first cut built them off each column's foot: the deck showed through the skirt). A FLARE FITS WHAT IT MEETS: if its foot lands more than a slope of one (its radius + 2 cm) from the wall's end anywhere - a nacelle's flank curving up, a narrow deck falling away - it shrinks (x0.6, three times, then none).
+  - THE CHORD FITS WHAT IT JOINS: along the chord line, the run with a surface under it and (under a nacelle) one over it; a longer chord is shortened to it, 3 cm inside, and centred on it (never under 40 %). It was the lifted wing nacelle's case: its 0.94 m chord reached 0.3 m past the wing's leading edge and the cowl, and the old blended fairing hung THROUGH the wing.
+  - THE JOINT at each end (engPylonJoint, matOf('emPuck') - the rubber seal's material): a fillet strip from the wall a joint's width from the end (0.03 at the base, 0.022 at the top, measured along the body - round a flare's arc), round the corner, onto the surface a joint's width outside the foot (its own ray), its middle a 9 mm bead off the surface. The ends themselves are sunk 6 mm into what they meet. No nacelle (a bare engine on its plate): the top is the plate, CLOSED by a flat cap, and the plate's old underside fairing stays; with a nacelle that fairing is gone (the body meets the nacelle).
+  - BARS + CABLES (engPylonFair 0) keep their tubes, feet and cables (drawn at the face's own x now, not in a sub-group - same place).
+  - THE SECOND PLACEMENT (G2880, CAGE_WING_EARLY): the engine's signature now carries the wing's top and underside under each mount, every plane, so a wing that moved under the same faces places the pylon again over the wing this build publishes.
+  - TOOLS: quick_view --closeup=<png> (six views round the probe's FOCUS box - meshes named engPylon*, else the engine layer's meshes outside its units; --closeK, --closeViews) and window.__qv.focus. The pylon meshes are named engPylon / engPylonJoint.
+  - RENDERED (quick_view, before / after on the same camera): hull_matrix superPetrel (the chimney vertical on the taper deck, its skirt following the canopy's back, its top on the nacelle under the upper wing), icon (the blade's foot climbing the cabin's aft slope instead of cutting into it), outrigP, pylonBlade, pylon and pylonTractor (V panels on the roots, top on the nacelle), twin with the fit's lift (blended: on the wing behind its leading edge, under the pod); bars (rodBoat, tandem) unchanged; no cowl (slab V panels, the Super Petrel's chimney capped). outline.js on the Super Petrel: 6.42 x 8.65 x 2.52 m, unchanged.
+  - GATES: --only=ENGMESH,ENGCONFIG,COWL,JOIN,CLIP,PARTS,DESIGN,HULL: ENGMESH, COWL, JOIN, PARTS, DESIGN, HULL PASS. CLIP FAIL and ENGCONFIG FAIL are the branch base's own, line for line (run on a clean worktree of claude/hull-types 8a17bda3): CLIP the 4 new stock+ifr navAerial reds (9.2 mm into the fin skin; 2 known on the twin); ENGCONFIG the same 16 (the nine validated builds' hashes vs master, identical hashes; the quad's three downwind; pushpull / trimotor / four's load and the cards).
+  - OPEN: the joint is one dark rubber colour - a builder's section for it (a painted fillet fairing) would be a row; the V panels' chord spans the flown legs' fore / aft fan only roughly (a 3 cm shortfall at the front foot on the Cessna's wing); the frame's blade root ('roof') is still the two rings either side, not the drawn prism's own footprint.
+- HULL-B39 THE FLUTED HULL BOTTOM, THE STRAKES, NO FALSE FRONT STEP (the user, the Super Petrel: "the petrel does not have the front step. It has a smooth hull till the step at the back ... this crazy shape I wanted you to do for a while ... 2 arcs and a central hull ridge slicing the water. The front ridge really looks like the one of a boat, it has protrusions in the fore-aft axis ... similar to the EDO floats"):
+  - THE FALSE FRONT STEP was a crease: the frame (wsAft / wsFront) and pillar rings creased their whole loop, and across a hull's bottom that is a transverse knuckle. On a hull the ring-loop creases now spare the bottom (tagLoopHull: the floor, the fluted levels, the keel and its centre) - the only step is the real one, placed by hullStepZ (one step, anywhere on the hull or under the buoyant taper - the user's preferred option).
+  - THE FLUTED BOTTOM (_cage_gen cageHullFlute, rows hullFlute / hullFluteN / hullFluteAt / hullFluteBow / hullFluteAft; 0 = the plain V, bit-identical): the EDO's law (32_hydro sectionOf, FLOATS-CLASSIC.4) on the cage hull - between the keel's centre column and the chine one concave arc (N 1) or two and a sharp ridge (N 2, the "Batman"; the ridge at fluteAt of the half-beam, flute x the half-beam under the straight V, each arc 0.75 x flute of its chord deep). New ring levels between the floor and the keel - chine (the chine's crease), fluteO (smooth), ridge (sharp) - and the keel's flank point becomes the inner arc's control; controls stand 1.5 x the depth in (the CC limit (A + 4M + B) / 6). Full from the step to hullFluteBow - 0.35 of the forebody, gone by hullFluteBow; aft of the step hullFluteAft of it. The nose loft carries the levels (wsLow, the cowl loops, the aero twin), the step's edges run across the whole fluted bottom, CAGE_LVI_BASE gives the levels guard fractions.
+  - THE WATER READS IT: the hull record's chine is the chine level, each station carries the EDO's physics ridge (lv.__fr: across, and raised by exactly the area the drawn arcs cut in); cageHullTable passes zr / yr; tableSection returns fluteP on a fluted table (a row without one - the tub's - its V's middle); secPoly gives B to any section with fluteP; makeFloat's keel -> ridge -> chine ladder runs for a fluted hull (it was the EDO dome's only - EDO unchanged); secAreaTo and hullTipFit's half-breadth walk the ridge.
+  - THE SPRAY STRAKES (_cage_float.js drawStrakes, rows hullStrakes / hullStrakeW / hullStrakeLen): n a side, evenly across the chine half-beam, a flat landing level with its inboard edge and a vertical face up to the bottom (a boat's strake), tapered at both ends, laid on the DRAWN bottom (vertical lines dropped on the cage mesh's own triangles). Spray hardware: the water does not read it, as a float's straps.
+  - the Super Petrel card: hullFlute 0.10, two flutes, ridge at 0.55, fading by 0.9 of the forebody; two strakes a side, 45 mm, over 0.85 of the forebody.
+  - The official POH (figure 5-1, page 5-2) is on superpetrelusa.com - this session's network could not reach it (an environment allowing it was created for a later session); the shape is set from the user's photographs.
+- HULL-B40 THE SUPER PETREL'S FUSELAGE, CLEANED (the user, on the B39 renders: "the petrel has a single arch ... rework the fuselage so you have nice continuous lines around the waist ... no steps ... the door and the window, fully confused ... the ribs ... wildly different sections ... the aft end of the floating taper ... inelegant and slapped ... the rounded section on the aft side of the door"):
+  - the card: hullFluteN 1 (one arch a side - two stays an option); bandH 0.12 (the waistband was 4 cm: the window's sill sat on the sill rail and the door's front edge zig-zagged where the slanted A-pillar met both - the cabin's height untouched); noseJointOn 0 (a hull's bow has no engine firewall band); rodY -0.10 / rodIncl 5 (the rod at the taper's deck, as the photograph).
+  - THE STEP'S NOTCH: the taper's step ring stood AT the step, which pushed the step's own pair into the bay aft and the fore ring onto the afterbody's deadrise - a notch in the chine under the aft pillar. It stands 3 cm forward now (htStep).
+  - THE TAPER FLOWS FROM THE CABIN: the deck leaves the cabin's roof TANGENT and arrives flat (1 - smoothstep(t^0.75); it fell at (1 - t)^1.5, a shoulder behind a rib); with the step in the taper the plan holds the cabin's beam to the step and closes convexly after it (the waist narrowed over a chine held wide - the bulge behind the door). Every HTAP build's deck law changed with it (the rod boat's too: re-fly it).
+  - NO RIBS ON A HULL'S TAPER: the cabin's aft face (pilPax) and the taper's end (pilTaper) are not creased on a hull with a buoyant taper, and the taper's end band is skin (no pillar material). A pillar's paint on a hull ENDS AT THE WAIST (below it the ring creases are spared, so a painted pillar was a soft dark blot - the "rounded section"). The nose joint ring's crease spares the bottom too.
+  - THE FLOAT'S TAIL FAIRED INTO THE ROD (the rod over the deck): the cone's deck eases from the taper's end onto the rod's axis, its keel up to just under the tube, its plan onto the tube's width - the tail ends wrapping the rod's lower half, the tube growing out of the deck.
+  - quick_view: QV_HIDE (environment, a regex on mesh / layer names) - _load_build hands it to the probe (W.__probeEnv) and keys its cache on it; QV_HIDE='wing|strut|cabane' shows the fuselage clear.
+  - OPEN: the subdivision is level 2 everywhere (the garage's and the game's); the bow is still the Cessna's dome (the Petrel's is a stem); the water: still capsizes at rest (the CG aft of the buoyancy, no floats under the lower wing yet).
+- HULL-B41 THE BLADE UNDER THE FOREFOOT, AND THE DIMENSIONS (the user: "why do I have a discontinuity there? That should be smooth ... the double flutter hull was doing that better"; "please check dimensions against references, it looks quite small"):
+  - THE KEEL CREASE DIED AT THE WINDSCREEN: the hull's keel line (C.keel, weight 3, HULL-B1) was tagged along the body's bays only, never along the bow loft's bands - a sharp crease that ends mid-surface pinches the subdivision: a blade hanging under the forefoot and the drawn keel dropping 75 mm in a few cm at the windscreen's front ring (the control cage itself smooth: -0.563 / -0.550 / -0.542). The bow loft now carries it on to the stem; the drawn keel runs through in 5 mm steps.
+  - every ring takes the fluted levels now (the bow's nose ring, all but a point, was skipped - the cowl loops then had no chine toward it); a loop whose target lacks a level lerps toward its keel.
+  - THE DIMENSIONS against the spec and the drawing: length 6.24 (6.25), upper span 8.91 (8.9), lower span 6.97 (7.0), hull 3.97 x 1.20 m (the drawing's ~3.98 x 1.2), keel to cabin roof 0.98 m (the drawing ~1.0), height over the keel 2.24 (2.1-2.2). Fixed: wgSpan 9.16 (the turned-down tips take 0.26 m of projected span), stZ -0.35 (the tailplane's trailing edge stood 0.2 m aft of the rudder's and set the length).
+- HULL-B42 THE PETREL'S CABIN, SEATS AND STRUTS (the user: +30 cm of cabin by the top, then "the cabin is much too high now. Its real top point reaches about in the middle of both wings ... huge recline ... keep the canopy short"; "don't switch to a full canopy"; "change the arcs of the bubble, so it remains bubbly"; "the struts for the wings are much too big and beige. Can we set their size from the editor? ... twice as slim"; "delete the central struts ... keep it in the physical model ... not draw them ... an option"):
+  - the cabin: roofY back at 0.68 (its top ~1.0 m over the keel, midway between the planes - the user's reading of the real one; the +0.40 try put it at 1.28 m); closed (the bubble canopy was tried and dropped: windshield and side windows); topRound 0.6 (a rounded top section); the seats: side by side, the reclined tub (seatType 11), back 45 deg, squab 12 deg, set low (seatH 0.02).
+  - _cage_brace.js: bpStrutK (the drawn cabane and interplane sections, x; 1 = as before) and bpCabDraw (0: the cabane flown, not drawn - a tower or a pylon carries the plane); the card: 0.5 and 0.
+  - the propeller vs the wing's trailing edge: the join's "prop through the wing" check reads the disc against the wing - the raised-roof try needed the engine 0.16 m aft; back at the B41 placement it is clear.
+- HULL-B43 THE BELLY'S PROFILE: ONE SLOPE CHANGE (the user's red line on the side view: "a much more natural profile for the belly"; "don't make it too rounded, but ... a single sign change on the first order derivative ... a concave shape, not a wavy thing"; "same for the waistline, make it monotonous and relatively straight"):
+  - hullRocker (cageHullSpec rocker, cage units; 0 = the flat run of B37): with the step under the buoyant taper the keel rises hullRocker over the cabin's aft frame by the step, on (t / tS)^2 - leaving the cabin tangent - then straight from there to the taper's end. The card: 0.10.
+  - the keel's line on the card: the door post frame lowest (frPostBotY -0.625), the cabin frames at the base keel (a cabin ring that belongs to two frames takes both deviations - grading them one by one made a wave), the windscreen frame on the curve through the door post and the bow loops (frWinBotY -0.586). On a hull the windscreen pair's keel offset (the template's 13 mm in the pillar's 4 cm) is kept at 30 % (wfKeelY). Slopes now: bow down to the door post, flat under the seats, rising to the step - one sign change.
+  - the waistline: wsBaseLift 0 on the card (the windscreen's sill lift was a 1 cm bump) - the gunwale rises out of the bow, runs level through the cabin and the taper, and lifts only into the rod's fairing.
+- HULL-B44 THE SKIRT (the user, the front photograph: "the hull bow is very pronounced, but you also have almost an overhang on the side ... maybe as an option ... something like a skirt option"): hullSkirt (of the half-beam, 0 = none, bit-identical) in cageHullVee, before the flute: the chine reaches out that share past where the V put it and the topside strip above it tucks in (the floor level inboard of the gunwale by half the reach, a third of the way up from the chine) - the chine stands proud, a lip overhanging the water; the arch spans the skirt's chine, and the water reads that chine (b). The card: 0.12.
+- HULL-B45 STRUT FLOATS UNDER THE SECOND PLANE (the Super Petrel's own stabilisers - small floats under the LOWER wing at its interplane struts): hullTipPlane (0 the first plane, 1 a biplane's second) -> spec.gear.hull.tips.plane 1 (60_gen_spec keeps it, _cage_join writes it with w2On); 61_gen_frame hangs the strut floats from planes[1]'s spar stations at tips.at of ITS semispan; _cage_float.js draws them off the wing layer's parts.planes[1] (its wf and semi). The fit sizes them as ever (the matrix reads the flown floats' arm). The card: hullTips 1, hullTipPlane 1, hullTipAt 0.78, hullTipKg 40.3, hullTipY 0.416 (the fit's).
+- HULL-B46 THE PETREL AFLOAT LEVEL, THE VERTICAL SKIRT, THE DEEP ARCH, FLOATS UNDER THE LOW WING (the user: "your floats are on top of the low wing. They should sit right below"; the section sketches - red the B44 skirt, green and blue the one meant: a vertical wall down to the skirt's edge, a deep arch rising inward from it, the sharp keel between - "there is some sort of an overhang"):
+  - THE PITCH, MEASURED (a probe: the flown nodes' mass by tag, the table's level-trim centre of buoyancy): the CG stood 0.54 m aft of what the hull carried (the forebody's volume, a shallow rising afterbody): 25 deg bow up at rest. The card now: the taper's end deeper and wider (aftKeelY -0.52, frBoom widths 0.30 / 0.45 / 0.40), no rocker (hullRocker 0 - the row stays), the step 0.25 further aft (hullStepZ 1.0), the buoyant taper 0.4 longer and the bare rod 0.4 shorter (the tail where it was): the centre of buoyancy within 3 cm of the CG, the fit's rest 2.2 deg at 0.32 m draft.
+  - THE FLOATS UNDER A LOW WING: a strut float's deck is held TIPF_UNDER (0.07 m: the wing's half-depth and a gap) under its station's spar line, in the frame and the drawing alike (the waterline rule put it above a low wing); it may then be wetted at rest, as the Petrel's are.
+  - THE SKIRT IS VERTICAL (B44's was a horizontal lip): the hull widest at the chine, the floor level standing straight over it a quarter of the way to the gunwale, the topside leaning in from there. The card: hullSkirt 0.04.
+  - THE DEEP ARCH: hullFlute to 0.45 (the Petrel 0.34 - a tunnel either side of the keel, under the skirt's edge); a single arch's crown stands at hullFluteAt of the chord (its row now shown for one arch too; the subdivision softens the skew); the card 0.65.
+  - the bubble canopy on the card (canopy 3), its rows at their defaults - tuning owed.
+- HULL-B47 THE PETREL'S BOTTOM, MEASURED OFF THE FRONT PHOTOGRAPH (the user: "my drawings were there as a global direction ... yours is a too aggressive V ... measure from that"): head-on, the side walls come down near-vertical to the skirt's pointed tips at the outer lower corners; the bottom is a WIDE V with concave flanks, the keel only ~0.2 of the half-beam under the skirt tips (~11 deg overall); the chine sweeps up from the skirt tips to the stem. The card: hullBeta 12 / hullBetaBow 22 / hullBetaA 10 (were 22 / 36 / 18, the defaults), hullFlute 0.16, hullFluteAt 0.55; the sections cut from the drawn hull: keel 0.13-0.17 m under the skirt tips (0.2-0.27 B). No strakes on the card (the photograph shows none; the option stays).
+  - the B46 build ON THE WATER (hull_matrix --nofit): settles - trim -2 deg, roll 0.6, the propeller dry, 0 breaks - the first time the Petrel floats; the take-off stops at the hump (4.4 m/s, swing 3, roll 1.7). Re-flown on this bottom next.
+- HULL-B48 THE PETREL ON THE WATER: WHY IT DOES NOT TAKE OFF YET, AND TWO BUGS (hull_matrix --nofit; probes: the flown mass by tag vs the table's level-trim buoyancy; the take-off run's thrust and hydro drag per float each second):
+  - BUG (B46): a comment pasted mid-line in cageHullSpec commented out fluteN and fluteAt - since B46 the single arch's crown station and the water's ridge were NaN (JSON wrote them null). Fixed. And 60_gen_spec's hull row normaliser kept six keys only - the fluted ridge (zr / yr) never reached the water since B39: it rides along now. The water reads the drawn arch (18 of 23 stations).
+  - THE FLOATS UNDER THE LOW WING: the B46 rule (deck 0.07 m under the spars) puts them 4-8 cm in the water at rest - the lower wing is only ~0.5 m over the keel at their station, the waterline ~0.3: no float of the family fits between. Their drag on the run: 0.002 of the weight each - negligible. hullTipKg 25 on the card (40 was the fit's 6 % rule).
+  - THE STEP: at hullStepZ 1.0 it stood 39 deg aft of the CG (the run's stepDeg); 0.52 puts it at the classic ~12 deg. The rest: the CG 0.14 m aft of the level-trim buoyancy, a few degrees bow up.
+  - THE HUMP: the hull's own (the floats are nothing): drag/W 0.22 at 5.3 m/s, 9 deg trim; the run plateaus where it meets the thrust. The Seawind card, which flies: T/W 0.26, hump 0.21 at 7.7 m/s. The Petrel: T/W 0.16 at 660 kg on the catalog's 912 UL (59.6 kW, Warp 1.73 m, 1376 N static) - 0.22 with the 915 iS (a diagnostic only, 699 kg), still stuck. The real one: 600 kg, a 912 iS of 100 hp (~0.27). OPEN: a 912 iS row in the catalogue (00_registry, the join's engine table, the preset list, PROCURE / ENGID) and the build's weight (the Cessna-derived structure at 660 kg).
+- HULL-B49 THE 912 iS, A COMPOSITE PETREL, JUDGED LOADED (the user: "you may add the 912IS ... (the newer XP has the 140 hp - keep that engine for it) ... I think it's an aluminium build, like the Cessna ... that thing should be composite ... are you testing it with two people in it? ... two people and probably 80% fuel"):
+  - THE ENGINE ROW rotax912is_warp (00_registry: 73.5 kW / 100 hp, 63.6 kg, i 2.43; the 912 UL's Warp Drive 1.73 m through genPropSynth at the new power: Tstatic 1583, kV2 0.193 - the same call gives the UL row's 1376 / 0.193 exactly); GEN_ENG_CG 0.23 (the UL's - GATE ENGID re-measures it), 33_drive cyl 4, 79b_tech tier 2, the audio config, _eng_check's list, the preset 'rotax 912 iS' (_eng_page, APPENDED to PRESETS_AFTER_CUSTOM so saved indexes hold) and the join's map. Gates not run (the user: not yet) - ENGID / PROCURE / ENGCONFIG owed.
+  - hull_matrix cards may carry `energy` and `cabin` (the load they are judged at). The Petrel: two aboard (160 kg), one 72 L tank behind the cabin (80 % of its 90 L: 51.8 kg), no baggage; intCons 0 (composite - carbon/epoxy foam, the real one's), the wings 'as the aeroplane'; no bracing wires (the photograph: struts only). The ledger: empty 425 kg (the real one: 320) - wings 103, engine 71, fuselage 62, hull gear and floats 48, bracing 39, outfit 28, electrics 19; payload 212; gross 637 (max 600).
+  - ON THE WATER: the aft tank moved the CG onto the step - hullStepZ 0.74 puts it ~0.14 m aft of the CG again. THE RUN: thrust/W 0.193 (the 912 iS installed, 76 % of its static as the UL's was), the hull's hump wall 0.191-0.193 at 5.0 m/s, 8 deg trim - it stops ON the hump. Needs ~5-10 % more thrust over weight: the empty mass (100 kg over the real one: the wings' 103 kg for 15 m2, the hull gear's 48, the flown-only cabane in the bracing) is the lever.
+- HULL-B50 THE COMPOSITE RECALIBRATION - THE SUPER PETREL FLIES (the user: "I've been a little surprised by how little we could save using composite materials ... are we realistic there? ... run some numbers"; then "go ahead with the recalibration ... we have only three planes we benchmark against [the Cub, the Cessna, the Jodel], and no carbon ... let's make this carbon worth it"; "make the center section full"):
+  - THE NUMBERS (the Petrel rebuilt per material, the flown ledger): carbon fuselage 62 vs alloy 85 kg (plausible) but carbon WINGS 103 vs alloy 108 (-4 %) and vs aluTube's 71; glass heavier than alloy everywhere (wings 137). Zeroing rows: the wing's cover (skin) is 3 kg of its 103 - the MEMBERS (lin) are 59 kg of the wings, 36 of the struts (billed at the airframe material's wing rate), 24 of the hull gear. Carbon's lin was 70-80 % of alloy's.
+  - THE FIX (GEN_MATERIALS): carbon lin x0.45 (0.17 / 0.20 / 0.38 - ~35 % of alloy's: UD spar caps, no fasteners), solved on the Petrel: 332 kg empty at x0.45 (the real one 320). Glass lin x0.75 (0.38 / 0.43 / 0.83). Carbon k x0.55 and c x0.50 with it (the damping ratio held): the lattice's springs are absolute, its masses lin's - the lighter nodes on the old k rang the solver to NaN at t 0 (measured: k/m up to x1.33 holds, x1.56 diverges - the row sat near the explicit step's limit). The canon fleet (Cub, Cessna, Jodel) is none of these rows.
+  - the Petrel's card: wgCentre 0 (the Cessna's glazed centre section was carried over - now a full wing), engPylonAft -0.65 (the disc behind a FULL centre section's trailing edge: -0.95 / -0.8 put the propeller through it; the real Petrel's upper wing has a trailing-edge cutout there - 'aft half cut' is the garage's option if the engine must stand forward again).
+  - FLOWN (hull_matrix --nofit, two aboard and 72 L, no baggage): empty 337 kg, gross 549; settles trim 0.3 deg, roll 0.1, the propeller dry; AIRBORNE at 40.1 s at 24.5 m/s, hump 0.215 at 6.3 m/s, swing 3.6, roll 5, 0 breaks. Verdict FLIES. (Long against the real one's ~15 s - the lift-off speed is the pilot's rotation, not the stall.)
+  - OPEN: gates (the user: not yet) - GEN / ARCHETYPES and anything composite moves its mass and stiffness; ENGID / PROCURE for the 912 iS row; the bubble canopy's tuning.
+- HULL-B51 THE PETREL'S ENGINE AFT, THE STABILITY SHEET, A REAL PROPELLER (the user: "the real petrel doesn't have a cut ... his engine is even further aft ... what is the optimal engine position ... stability and CG and margins ... moved back another 50 centimeters"; then "keep the engine at the same height relative to the top wing, and adjust the pylon size instead"):
+  - THE SHEET (genShakedown, loaded: two aboard, 72 L; cBar 0.924 m, NP ~37-38 % MAC): the engine alone aft (engPylonAft -0.65 / -0.40 / -0.15 / +0.10) gives static margin 11.2 / 6.4 / 1.8 / -2.8 % (+0.10 also puts the disc through the body). The engine 0.5 m aft wants the wings 0.1 m aft with it (wgDx -0.9) and the step behind the CG again (hullStepZ 0.90).
+  - THE PYLON HEIGHT: engPylonH is over the hull, and the deck falls aft - at -0.25 the B50 pylon sank the hub 0.16 m. The card holds the hub where B50 had it (y 1.406, 0.118 m under the upper root): engPylonH 0.742 at -0.15 (0.714 at -0.25).
+  - WHY A SMALL MOVE GROUNDED IT: the hump sits on a knife edge - drag/W 0.22 against the 1.25 m disc's thrust; the wings 0.1 m aft alone (both strut floats then running wet) or the engine at -0.25 on its old pylon stopped at 5.6 m/s. The card's cw_propD was 1.25 (a fit for the old forward engine through the centre section); the 912 iS turns ~1.6-1.7 m. 1.7 grazes the body (3 points) at this height; 1.6 clears.
+  - FLOWN (hull_matrix --nofit): -0.25 / 1.6: SM 7.7 %, airborne 31.6 s; -0.15 / 1.6 (THE CARD): SM 5.7 %, CG 30.8 % MAC, step 0.08 m aft of the CG, settles trim 1.3 deg, AIRBORNE 32.8 s at 24.2 m/s, hump 0.222 at 9.6 m/s, swing 0.8, roll 0.8, 0 breaks - FLIES, cleaner than B50 (40 s, swing 3.6). 1.7 m discs (join errors) were not kept.
+  - OPEN: gates (the user: not yet); the wing area 14.5 m2 vs the real 15.0 (w2Chord 0.87 would match) - a more aft NP would buy the margin back; the bubble canopy's tuning.
+- HULL-B52 THE PETREL'S TOWER UNDER THE WING - engPylonFwd (the user, on the B51 side view: "move the engine 30 cm back towards the wing. Without moving the engine, move its pylon 50 cm back, so it sits well below the wing it supports, but still on the cowl/nacelle assembly of the engine ... you may put the engine 5 cm higher, not much more"):
+  - THE ROW (a garage gap, built): engPylonFwd (m, -0.6..0.8, default 0 = bit-identical; shown with engPylonAt 1) - the roof pylon's feet and body that far FORWARD of the engine's own mount station; the engine stays where engPylonAft puts it, its height still over the roof at its own station. Chain: _cage_eng.js (default, row, drawPylonMount / drawPylonBlade zc), _cage_parts.js (the mounting group), _cage_cowl.js (the feet zF / zR and foot y at the pylon's station, face.pylonFwd), _cage_join.js (engines[].pylonFwd), 60_gen_spec.js (kept on a 'roof' pylon, clamped), 61_gen_frame.js (the roof pylon's two rings read at x - pylonFwd).
+  - THE CARD: engPylonAft -0.45 (0.3 m forward of B51), engPylonFwd 0.5, engPylonH 0.703 (the hub y 1.456: 5 cm over B51's 1.406 - the deck rises forward, 0.742 put it at 1.495).
+  - THE SHEET (loaded): static margin 11.6 %, CG 24.9 % MAC, NP 36.5 %, the step 0.134 m aft of the CG, no join errors (the 1.6 m disc clear).
+  - FLOWN (hull_matrix --nofit, two aboard and 72 L): settles trim 0.8 deg; AIRBORNE 30.5 s at 24.1 m/s, hump 0.216 at 9.7 m/s, swing 2.6, roll 1.5, 0 breaks - FLIES.
+  - OPEN: gates (the user: not yet) - the row moves nothing on any other build (absent = 0); the wing area (w2Chord 0.87); the bubble canopy.
+- HULL-B53 THE PETREL'S ENGINE AND TOWER TRIMMED (the user: "engine fore 5 cm, pylon aft 15 cm"): engPylonAft -0.50 (the engine 0.05 forward), engPylonFwd 0.30 (the pylon's own station 0.15 aft of B52's: 0.5 - 0.05 - 0.15), engPylonH 0.687 (the deck rises forward: 0.703 put the hub 1.6 cm up; the hub held at 1.456). Sheet (loaded): SM 12.6 %, CG 23.9 % MAC, step 0.143 m aft of the CG, no join errors. FLOWN (--nofit): trim 0.7 deg, AIRBORNE 30.2 s at 24.1 m/s, hump 0.214 at 9.5 m/s, swing 2.7, roll 1.5, 0 breaks - FLIES. Gates still owed (the user: not yet).
+- HULL-B54 THE UPTURNED TIP, THE CARBON THREE-BLADE, THE PETREL AGAINST THE REAL ONE (the user: "the wingtips are going up, not down ... this very one, but inverted would be quite perfect"; "flipping the tip is really a new type of wingtip, the current one should not be changed"; "it has 3 blades, carbon, and slimmer"; "the stabs are already well placed"; "is the take off still marginal? ... compared with the real one ... there have been comparisons against real aircraft figures in the past, maybe get their methodology"):
+  - GEN_TIPS.upturned (APPENDED, index 8: a saved tip is an index into Object.keys(GEN_TIPS)): the drooped tip's bend mirrored - 63_gen_wing reads TIP.up (th and Y negated about the same genTipBend path); its length / rise / fullness the same three rows. The drooped kind untouched. The design picker's list (_cage_design.js wgTip) has it. A buoyant tip (hullTips 2, genTipBuoyTable bends down) skips an upturned one (61_gen_frame): it floats nothing.
+  - The card: wgTip / w2Tip 8; cw_bladeN 3, cw_material 3 (carbon), cw_rootChord 0.12, cw_tipChord 0.07 (the 0.165 / 0.105 of the base were wide; only D, blades and material reach the thrust model).
+  - FLOWN (hull_matrix --nofit, 550 kg): AIRBORNE 25.1 s at 24.5 m/s, hump 0.213 at 8.9 m/s, swing 2.6, roll 1.4, 0 breaks; sheet SM 12.8 %, CG 23.5 % MAC. Not marginal any more: T0/W 0.26 vs the hump's 0.213.
+  - THE COMPARISON (the perf study's method: tools/perf_study.js --build=<file> --vs=petrel; the new REAL.petrel row, approximate figures from the maker / web summaries, null where nothing is published): V75 +1 %, Vmax +2 %, empty +6 %, S -3 %, Vs +11 % (CL 1.80 needed for the brochure's 37 kt), ROC -24 % (the range's low end taken). Write-up reports/PETREL-STUDY-2026-11-06.md; the build builds/candidates/superpetrel_2026-11-06_b54.json.
+  - TOWARD A 4th REFERENCE (the perf study's recipe: a REAL row with sources and dims, an ARCHETYPES card, rows in GATE WEIGHT / DRAG, a user-corrected build in _load_build.js VALIDATED): owed - the POH figures (the stall's weight and flaps, the climb's weight, a water run), the flaps question (the card carries the Cessna base's), the lower chord (0.87), then the gates (the user: not yet).
+
+## RETRACT phase 2 - the wing's limits, closed wells, the Skymaster, the slab doors and a polish pass (2026-11-05, cloud)
+
+The study is `futureDesigns/RETRACT-STUDY-2026-11.md`, sections 8.20 to 8.22. The evidence page (the artifact
+"Retractable Gear Evidence") has every option tested, with a sheet each.
+
+- **The wing's limits (8.20).** Fit tests for the strut, the flap and the rear engine's bay.
+- **Closed wells (8.21).** Every well is a closed box built from its cut's outline: walls with a chamfered lip, one
+  flat ceiling. A wing well running into the body keeps its walls out (`inBody`).
+- **The Skymaster (8.21).** The card is born retractable (fold aftBelly, shortened legs).
+- **The slab doors (8.22).** Every door is a slab: smooth front, 1.5 mm chamfer, side wall, dark back face 6 mm in, and
+  seam grime as vertex colours. `quickshot.js` draws vertex colours.
+- **The polish pass (8.22).** Each fix was found in a close-up:
+  - the well's shoulder (`wellBox` with `skinTop`): the walls stay inside a nacelle that narrows to its top;
+  - a fitting's plate stays inside its nacelle (`fittingsDraw` with `roomX`);
+  - a nacelle's doors take only its down-facing faces, oriented from the nacelle's own centre line;
+  - a well door opens out along its own outward normal.
+- **GATE RETRACT section 17.** It measures a door's outer face (the front mesh's `doorOuterN` vertices), against a 4 mm
+  limit, and checks that every door is a slab.
+- **Gates PASS:** RETRACT, KNIFE, SAVE, GEAR, DESIGN, PARTS. The known reds from phase 1 are unchanged and not ours
+  (CLIP, JOINPARITY, ENGCONFIG, HANDLE).
+- **Still rough:**
+  - the Skymaster's wide belly well doors at mid-travel;
+  - the T-tail cowl slot's front, which has no skin to make a door from;
+  - the 3.2 m-track T-tail's wheel, 34 to 51 mm proud of its thin wing (a red fit row, by design);
+  - the DA62 card's engine blocks, which stand ahead of the cowl (the card, not the gear).
+- HULL-B55 THE AMPHIBIAN - A BOAT HULL ON A RETRACTING TRICYCLE, THE SUPER PETREL'S GEAR (the user: "we need to exploit the retractable gear code ... a catalina style retractable wheel. The front one is classic, with a rectangle well and 2 doors at the front, and catalina-like at the back, below the wings ... communicate with the retractable wheel session"; then "front wheel fold toward the fore end, goes in the nose, a bit like the EDO floats"). The RETRACT session answered (rows, traps: the join's tricycle-only retract spec, the Catalina's pivot rule, no check against a lower wing):
+  - MERGED claude/retract-study a2025578 (2b15d007: the Catalina's round recess, closed wells, amphibious floats; conflicts: HANDOVER both kept, 32_hydro exports the union, _cage_float both blocks, _cage_parts the union).
+  - THE AMPHIBIAN: _cage_join measures a hull with gearRetract && s1On && s2On as a TRICYCLE (gear.hull rides beside it - 60_gen_spec keeps the record on any type, the retract spec is the tricycle's); 61_gen_frame `AMPH` (a tricycle carrying the hull's lines): the wheels AND the hull (the chain wheels / hull / floats became wheels; hull; floats-if-no-wheels), the mains / nose refs the wheels', parts.amph; 30_solver wheelsOnGround / wheelContacts count the hull while it is wet, the wheels on land (a pure boat unchanged: classic:pylon flown before / after, identical); 25_airfield stripGear 'amphibian' (land and water).
+  - foldFit's FLOOR test on a HULL build holds only between the aft bulkhead (pilPaxA's floor z) and the windscreen's front ring (wsFront): behind it the buoyant hull, ahead the bow - no floor (zCabA / zCabF). quickshot --fit prints CAGE_ROW_BAD.
+  - THE CARD: s1On / s2On 1, gearRetract 1 (electric, 6 s), the mains Catalina (gearFold 6, s1Root 1, s1Z 0.80, s1X 0.85, s1R 0.19, s1Drop 0.25), the nose FORWARD into the nose (custom: gearFoldNose 2, gn1Ax 1, gn1Ang -140; s2Z 2.7, s2R 0.12, s2Drop 0.15), a box well, two doors. foldFit green.
+  - FLOWN (hull_matrix --nofit): gross 590 kg (the gear's mass), AIRBORNE 26.4 s at 25.1 m/s, hump 0.184, 0 breaks - FLIES.
+  - OPEN: stowed, the Catalina's leg head and jack stand ~0.4-0.5 m over the chine - through the lower wing's root (no check against plane 2): asked of the RETRACT session (a cap on the rise under the lower wing's root, a wing-crossing test); the lower wing raised a few cm then. The land roll on the wheels not yet flown. Gates (the user: not yet).
+- HULL-B56 THE PETREL'S LOWER WING UP 12.5 cm (the user: "the bottom wing needs to get higher up on the fuselage, the mechanism needs to be small and the wheel should fit below the wing. It can go up maybe 10-15 cm"): w2Dy -0.1 -> 0.025 (its interplane struts and the floats under it move with it: the floats' keel 9 cm higher at rest, still wetted at a heel). Sheet: SM 16.5 %, CG 21 % MAC (the gear's mass forward, B55). FLOWN (--nofit, 590 kg): settles trim 0.6, roll 0.5; AIRBORNE 26.5 s at 25.1 m/s, hump 0.185, 0 breaks - FLIES. OPEN: the SMALL mechanism (the Catalina chain raises the whole unit by its leg's length, the head ending ~0.5 m over the chine, through the wing) - specified to the RETRACT session (the head and the jack under the lowest wing's root underside, the stowed wheel just under the wing, a wing-crossing fit test); merge when it lands.
+- HULL-B57 THE PETREL ON THE FOLDING KNEE (the user's sketch: an L of arm and leg on a knee, a piston pulling the knee in and up, everything stowed behind the skin, only the wheel seen; built by the RETRACT session as gearFold 8 'knee', the Catalina kept as an option). MERGED claude/retract-study 17444cb2 (only the built files conflicted: rebuilt). The card: gearFold 8, s1X 1.02, s1R 0.19, s1Drop 0.01 (the down axle at the keel), gearKneeDoor 0 (the open keyhole) FOR NOW: the user asked for 2 (the hull door hinged at the top, level under the lower wing while the gear travels), but on this hull the knee's solve with a full door puts P at x -0.076 (the centreline) and a = s1X - P (1.0 / 0.93), the wheel "424 mm into its door" - a failed solve, reported to the RETRACT session; door 0 solves P (0.51, -0.22), a 0.416, y1 -0.025. A red in both: "leg, strut or jack crosses the second plane (at gear 1)" - the front view shows the gear down well clear of the lower wing: reported as a probable false red. quickshot --fit prints the distinct reds and the knee's kneeGeo. Not flown or gated after this (the user: credits short).
+- HULL-B58 THE KNEE CLOSE TO THE HULL, THE HULL DOOR (the user: "your track size is too big, and your arm will be too long. The real one has the extended wheel real close to fuselage, little length of leg elements"; earlier "with the opening doors just below the wing"): s1X 1.02 -> 0.82 (track 1.64 m), gearKneeDoor 2. The full-door solve now converges: P (0.392, -0.221), a 0.332, b 0.22, y1 -0.109 (the stowed wheel's top ~+0.08 under the lower wing's ~+0.10). The one red left: "leg, strut or jack crosses the second plane (at gear 1)" - the gear down stands clear of the wing in the front view: a probable false red, for the RETRACT session (not messaged: the user is short of credits). Seen: the stowed side view at gear 0 shows the wheel in its open recess - the door's shut state to check. Not flown or gated after this.
+- HULL-B59 SMALLER MAINS (the user: "the wheels are much too big. Make smaller ones, smaller mechanism"): s1R 0.19 -> 0.14, s1X 0.82 -> 0.76 (track 1.52 m); the knee solves a 0.263, b 0.17. Reds left (door 2): the wheel stows 18 mm into its door (a wider track sends the swung door into the lower wing: 0.80 gives 8 mm and the door 127 mm into the wing, 0.84 the door 178 mm), and the 'crosses the second plane' check now at gear 0.4. For the RETRACT session: a full door on a small wheel under a low wing root. Not flown or gated.
+- HULL-B60 SMALLER STILL, THE EXACT KEYHOLE (the user: "wheels can be even smaller, but you should avoid cutting into the bottom of the frame at all costs. And the cut should be exact, a round + a small cut for the leg if need be, not just a square"): s1R 0.12, s1X 0.72, gearKneeDoor 1 (the keyhole's doors: the leg's and a small one at the foot). The knee: a 0.242, b 0.15, y1 -0.199 - the stowed wheel's bottom -0.319, 11 mm over the chine (-0.33). Door 0 drops it to -0.44, into the bottom: not used. Reds left: 'stands 18 mm into its door' (the solver's, independent of the track) and 'crosses the second plane (at gear 0.2)'. SEEN, for the RETRACT session: at gear 0 quickshot's side view shows a ROUNDED SQUARE recess reaching the chine, the wheel in it uncovered - not the round + slot keyhole the user asks for, nor a closed door. The ribs: quickshot draws no frame lines; quick_view (qvshot2) does - the overall picture is taken there. Not flown or gated.
+- HULL-B61 NO CUT IN THE HULL'S BOTTOM (the user, on B60's picture: "the cuts in the bottom of the hull are unacceptable, and the cut for the wheel is still square ... put the main pivot anchor 2 cm over the bottom of the hull, inside. Do the smallest mechanism you can with the current wheel size ... put the wheels right after the bottom shoulder, definitely not through"). THE CONFLICT, measured: the knee's wheel travels a quarter circle - its rise equals its inward travel (a). A wheel right after the shoulder stows ~10 cm higher than it stands: through the bottom. The bottom stays whole only with a >= ~0.28. THE CARD: s1X 0.90, s1R 0.12, s1Drop 0.01, gearKneeDoor 0 (the keyhole): P (0.547, -0.286) - inside, ~4 cm over the chine, the arm out through the skirt's vertical wall; a 0.285, b 0.155; stowed y1 -0.156 (the wheel -0.28 .. -0.04: over the chine, under the wing); down, the wheel's inner face ~21 cm outboard of the shoulder. Seen from below: no cut in the bottom (two small marks at the arm's slots near the chine). Reds: 'shows 4 mm outside the skin, stowed', 'crosses the second plane (at gear 0.4)'. THE SIDE OPENING still draws a ROUNDED SQUARE, not the round + slot keyhole: the RETRACT session's side cut (_knife_gen knifeWells / kneeSlots). Not flown or gated.
+- HULL-B62 WHEELS MOVED, THE ROUND CUT (the user: "back wheels 20 cm aft, 5 cm up. front wheels 10 cm fore. And try to get the exact round cut"): s1Z 0.80 -> 0.60, s1Drop 0.01 -> -0.04, s2Z 2.7 -> 2.8. THE SQUARE WAS THE CARD'S: gearWellCut 1 ('box', a rounded rectangle) applies to every well - now 0 (exact): the mains' side recess is the stowed wheel's circle (80 pts) and the slot (36), the nose's its swept outline. The knee: P (0.518, -0.204), a 0.314, b 0.15, y1 -0.041 (the stowed wheel -0.16 .. +0.08, under the lower wing's root, far over the chine). Reds: 'crosses the second plane (at gear 1)' only (the probable false red). Not flown or gated.
+- HULL-B63 V0 / V1 (the user: "place it where I circled, do a shot extended/retracted and commit. Call it V1 ... save a V0 which is the last version that works before we try the wheels"). MERGED claude/retract-study 462250ae (doors on a curved skin turn on their hinge edge's tangent). V0 = builds/candidates/superpetrel_V0.json (the B54 build, renamed: no wheels, flown AIRBORNE 25.1 s). V1 = builds/candidates/superpetrel_V1.json and the card: the folding knee (gearFold 8, gearKneeDoor 0, the exact round recess), the mains at s1Z 0.85 (25 cm forward: the stowed wheel under the lower wing's leading edge), the nose's two doors only (gearLegDoor 0: the wheel carries no piece of the cut). foldFit: 'crosses the second plane (at gear 0.4)' (the probable false red). V1 not re-flown (B55's amphibian flew 26.4 s).
+- HULL-B64 THE WELL DOORS STAY OPEN WITH THE GEAR DOWN (the user, for V1 and V2: "when extended, the doors stay open, they don't close. They close only for the retracted position"): _cage_gear.js doorBuild - a well door shuts gear down only when the down leg does not pass through it AND a leg door covers the leg's share (gearLegDoor); with no leg door (the Petrel's gearLegDoor 0) the leg stands in the opening and the doors stay open while it is down, shutting only up. Two split doors had shut down because the leg passes along their seam, crossing neither. Seen: the nose gear down, its door open. A change in the RETRACT session's code - told.
+- HULL-B65 THE NOSE WHEEL 5 cm FORWARD, DEEPER INTO THE NOSE (the user: "move the front wheel 5 more cm in front. It really retracts in the nose, probably at a higher angle than 90 degrees"): s2Z 2.8 -> 2.85, gn1Ang -140 -> -155 (a 155 deg forward turn; -140 / -155 / -170 all fit, the wheel wholly in, the two doors shut along the bow).
+- HULL-B66 NO DOORS ON THE PETREL FOR NOW (the user: "you may delete the door on the petrel for now"): gearDoors 2 -> 0 (the nose's open well; the mains had none, gearKneeDoor 0). The card's nose rows otherwise as B65.
+- HULL-B67 THE NOSE TRUNNION INSIDE THE V (the user: "your front wheel rotation point still pokes through a little. Place it higher maybe? We can still move the wheel a tad in front if the mechanism is supported"): _cage_gear.js retIn - on a boat hull the nose's trunnion stands where the V bottom is wide enough for it (half-length 0.08 m) + 20 mm (the cabin-floor rule had it 5 cm over the keel, its ends out through the V's sides). Seen: gear down, the leg rises from inside the hull, nothing pokes out. FORWARD: s2Z 2.92 puts the nose well out through the bow's top (no red: the fit does not see it) - kept at 2.85, the furthest it is clean.
+- HULL-B68 THE NOSE DOORS BACK (the user: "the doors do not render anymore..." - B66's "delete the door" was misread as the gear's): gearDoors 0 -> 2. Asked whether the door to delete is the cabin's.
+- HULL-B69 NO CABIN DOOR (the user: "I meant the cabin main door. Does not make a lot of sense with a bubble canopy, and anyways even the old petrel did not have that, so yes, plain fuselage, no cabin door"): doorOn 0, hgDoor 0 on the card. Seen: the cabin's side plain, the nose doors open beside the down leg. builds/candidates/superpetrel_V1.json refreshed (B65-B69: the nose at 2.85 folding 155 deg, its trunnion inside the V, two doors open while down, no cabin door).
+- HULL-B70 THE SUPER PETREL V2 CARD (awaiting the user's OK on the pictures): merged claude/retract-study d44e54bc (gearFold 9 'lfold', the rigid L; the door rule carried - same as B64). hull_matrix ENGINES.superPetrelV2 = the superPetrel card (V1) with gearFold 9, s1X 0.86, w2Dy 0.0 (the lower wing 2.5 cm lower; the stow allows -0.01 at s1X 0.84, red below). foldFit green at gear 1 / 0.5 / 0; the tyre flat half into the lower wing's exact round recess, no mains doors. Not flown or gated; the V2 build file waits for the user's OK.
+- HULL-B71 V2 FLIES (the user: "just keep it as it is, it's pretty good. Try to fly it"): hull_matrix --one=classic:superPetrelV2 --nofit=1 (two aboard, 72 L): gross 584 kg; settles trim 0.5, roll 0.5, the propeller dry; AIRBORNE 25.8 s at 25.3 m/s, hump 0.184 at 6.5 m/s, swing 3.4, roll 1.2, 0 breaks - FLIES. Sheet: SM 16.7 %, CG 20.3 % MAC, NP 37 %, the step 0.177 m aft of the CG. builds/candidates/superpetrel_V2.json saved (V0 / V1 / V2 side by side). Not gated (the user: not yet); the land roll on the wheels not flown.
+- HULL-B72 THE PETREL ON LAND (the user: "does it take off and land on land?"): perf_study --build=V2 --vs=petrel --fly first REJECTED the take-off - it sat on its TAIL (S5BL / S6BL / TPB / the stab's nodes on the ground beside the three wheels): the nose wheel's contact stood 0.22 m below the mains' (deck 6.5 deg nose up, the 3.5 m tail down). The nose drop (shared card row) s2Drop 0.15 -> -0.04: contacts -0.073 / -0.101, deck 0.8 deg, only AXLEL / AXLER / TW touching. FLOWN ON LAND (the study's flown pass, the autopilot): take-off run 194 m, climb 2.8 m/s, the circuit at 115 km/h / thr 0.45, landing roll 260 m - COMPLETED. ON THE WATER (V2, hull_matrix --nofit): AIRBORNE 25.7 s, 0 breaks - FLIES. V1 shares the nose rows (fixed with it). Builds V1 / V2 refreshed. A note: the flown climb (2.8 m/s) under the probe's 3.9 and the real 5.1.
+- HULL-B73 THE SPRAY STRAKES ON (the user: "ensure also that the ribs that we had on the hull are still there ... V-like protrusions at the bottom of the hull"): the card had hullStrakes 0 since B37 - now 1 (hullStrakeW 0.045, hullStrakeLen 0.85; drawn, _cage_float drawStrakes). V2 build refreshed. The perf study on it: empty 372 kg (+16 % on the brochure's 320, the gear's 65 kg ledger), Vs 76 / 68, V75 161 / 160, Vmax 184 / 180, ROC 3.9 / 5.1, TO roll 177 m, stance deck 0.8 deg, SM 17 %.
+- HULL-B74 THE NOSE GEAR CLEAN AGAIN (the user: "you've made a mess of the front train ... artifacts ... not taking enough elements into account ... ensure that the whole mechanism stays as it should and the mesh aligned with it"): B72's s2Drop -0.04 had jammed the nose wheel against its open doors and well (the stowed wheel 14 mm out of the body - a red B72 did not read). THE V2 CARD: s2Drop 0.08 and s1Drop 0.08 - the stance levelled by lengthening the mains' rigid L as much as the nose is restored (s1Drop 0.15 / s2Drop 0.15 reds: the stowed corner 3 mm into the lower wing). foldFit green down and up; the nose's leg and doors drawn clean. Stance: contacts -0.193 / -0.221, deck 0.8 deg, only the three wheels touch. FLOWN: land - take-off run 180 m, climb 2.7 m/s, circuit 115 km/h at thr 0.45, landing roll 258 m, completed; water - AIRBORNE 25.7 s, 0 breaks, FLIES. V1's card (the base) still carries B72's nose (s2Drop -0.04): not re-checked. V2 build refreshed.
+- HULL-B75 NO FLAPS, THE GEAR'S MASS AND THE CLIMB READ (the user: "the Petrel does not have flaps ... the weight for the wheels ... look at the climb"): V2 card wgFlapType 0 (none; the Cessna base's slotted half-span flaps gone): Vs 76 (unchanged: measured clean), TO roll 124 -> 128 m, the circuit still flies. THE LEDGER'S 'gear' 65 kg = the hull's planing bottom 17.7 (61_gen_frame, 3 kg/m2) + the strut floats 11.7 + the tricycle ~28 (GEN_RULES.retractKg 3.5 % of the gross = 20.4, set on certified retractables - heavy for an LSA's small amphibian gear: a candidate [TUNE], global, not changed). THE CLIMB: the probe's best 3.9 m/s at Vy; the flown 2.7 is the autopilot's own climb speed / throttle, not Vy; the brochure's 5.1 (1000-1400 fpm) at the C172's power loading (0.12 kW/kg, a 172R climbs ~3.7) reads optimistic or solo; the drag CdS 0.62 m2 (the Jodel 0.45, the Cub 0.75). Wings: upper inc 4 / dih 0, lower inc 1.5 / dih 6 - the study's note had the lower's incidence the larger: unconfirmed, not changed.
+- HULL-B76 THE BOUNDS - SOLO, HALF FUEL (the user: "flight solo, half fuel, calculated and autopilot ... see whether there's actually a problem"): V2's build with cabin.occupied [1,0] and the vessel at 45 L (475 kg; the study's ballast held off with a throwaway perfKg): Vs 67 km/h (the brochure's 68), ROC 5.5 m/s calculated (the brochure's 5.1: +8 %), 4.1 flown by the autopilot, V75 166, Vmax 186, TO roll 74 m calculated / 119 m flown, landing roll 290 m, the circuit completed. At 584-600 kg: Vs 76, ROC 3.9 / 2.7. READING: the brochure's stall and climb are solo-weight figures - no deficit in the model. The autopilot's flown climb runs ~1.4 m/s under the calculated best (its own climb speed / throttle, not Vy) - a pilot point, not an aeroplane one.
+- HULL-B77 V3 (the user: "call this guy V3 ... a very nice little plane"): builds/candidates/superpetrel_V3.json = the superPetrelV2 card at B75 (the rigid-L mains, the clean nose at drops 0.08 / 0.08, no flaps, the spray strakes, no cabin door, the lower wing at w2Dy 0.0): flown on water (25.7 s) and land (run 180 m, roll 258 m); solo half fuel meets the brochure (B76). THE GARAGE AUDIT (the user: "this whole work ... needs to be configurable from the garage"): every row this branch added is claimed in _cage_parts' tree (engPylonFwd, the hull's flute / strakes / skirt / rocker / tip-plane / step rows, bpStrutK / bpCabDraw, the gear's gearFold 8 'knee' and 9 'lfold', gearKneeDoor, gearLegDoor, gearWellCut, gearDoors, s1Root; the Upturned tip in the wgTip picker and the design list). GAPS, no control: (1) THE AMPHIBIAN has no switch - implied by hullOn + gearRetract + s1On + s2On, and the Hull design tile writes s1On / s2On 0; (2) fixed in code: a strut float's deck 0.07 m under its wing (TIPF_UNDER), the planing bottom's 3 kg/m2, the retraction's 3.5 % of gross (to become bottom-up), the nose trunnion's hull rule, the door-open-while-down rule (follows gearLegDoor); (3) V1 / V2 / V3 live as hull_matrix cards and build files, not as garage presets.
+- HULL-B78 THE CABANE AS A CENTRAL PYLON; THE SUPER PETREL V4 (the user: "have the pylon supporting the wing, and then the engine wing-mounted ... replace the central struts by a central pylon ... the same tech as the current pylon, except that it would stick to the bottom of the wing ... and we do that properly in the physics model as well"):
+  - THE ROW bpCabPylon (Bracing > cabane: 'struts' / 'central pylon (faired)', parasol or biplane; default 0 = bit-identical). Chain: _cage_brace (default, row; no cabane struts drawn with a pylon; bpCabDraw hidden then), _cage_parts (claimed), _cage_join (bracing.cabPylon 1), 60_gen_spec (kept only at 1), 61_gen_frame (the first plane's roots at CABPY_HW 0.12 off the centreline; the cabane a narrow truss - each root to a base node on the roof's centreline per ring, tied to the top longerons and across, 'inner'; the fairing's skin ~1.5 kg/m2 INFERRED on the base nodes), _cage_eng (drawn: the engine pylon's blended blade from the roof's crown to the first plane's underside at 40 % chord, 0.55 chord long, the caster hugging both).
+  - WING-MOUNTED ENGINES, as they are: 'over the wing (high wing)' (mount 2) on the wing's centre section (engPylonAt 0) is the ONE single-engine wing option - the frame hangs it on the root spars; 'wing nacelles' (mount 3) are pairs only (the frame mirrors entry 1 off entry 0, each finding its bay by |z|): a single centre nacelle through the wing is NOT a small fix - owed.
+  - V4 = ENGINES.superPetrelV4: V3 + bpCabPylon 1, engPylonAt 0 (on the wing), engPylonH 0.08, engBlockZ -0.25 (at -0.55 the plate stood aft of the trailing edge: its blended pylon cast past the wing down to the hull, and SM 9.7 %). Sheet: SM 15.3 %, CG 21.3 % MAC. FLOWN: water AIRBORNE 26.6 s at 24.6 m/s, hump 0.186, swing 3.8, roll 4.3, 0 breaks - FLIES; land (perf_study --fly) run 183 m, climb 2.7, circuit 125 km/h at thr 0.49, landing roll 368 m - completed. Study: CdS 0.59 (V3 0.62), L/D 9.9 (9.7), V75 164, ROC 4.0, empty 380 kg (+7). builds/candidates/superpetrel_V4.json.
+  - SEEN, open: a thin dark sliver behind the central pylon, wing to deck, in quickshot's side view (likely the engine pylon's fillet cast); the engine stands ON the wing (not slung under it as the real Petrel's): a single under-wing / through-wing centre nacelle is the owed mount.
+- HULL-B79 THE CENTRE NACELLE = THE OVER-THE-WING ENGINE SLID DOWN (the user: "as simple as having an up-down slider for the current setting, and then we just slide it down ... either pusher or puller mode, or even both"): the slider is engBlockY ('block up / down', already shown for the over-the-wing mount). _cage_eng drawPylonMount / drawPylonBlade: an engine block slid down into the wing (its plate under the feet + 30 mm) draws NO pylon - the nacelle on the wing is the mount (the cabane pylon, kind 'cabPylon', exempt). V4: engBlockY -0.18 - the hub at 1.460 (V3's 1.456), the nacelle half above, half below the wing; the B78 sliver gone. Sheet SM 15.5 %. FLOWN: water AIRBORNE 26.3 s, roll 1.1 (B78's 4.3), 0 breaks - FLIES; land run 182 m, climb 2.9, landing roll 363 m, completed. MODES: the puller (engAim 1) and the push-pull (engCount 'tandem') both build and draw on the lowered centre nacelle, and both report "prop: through the body" (30-33 points): a 1.6 m disc ahead of the wing at hub 1.46 sweeps through the canopy - a pulling disc wants the hub ~1.6 (on the wing) or a smaller propeller; the pusher clears (its disc over the rod). V4 build refreshed.
+- HULL-B80 V3 / V4 / V4.1 SIDE BY SIDE (the user: "test the last v4.1 and report against v3 and v4"; the pylon-skip rule kept: "the option is clean"): builds/candidates/superpetrel_V4.json = B78 (the engine on its 8 cm pylon ON the wing - the example of a pylon touching both the wing and the nacelle), superpetrel_V4_1.json = B79 (the engine slid into the wing, engBlockY -0.18; the card superPetrelV4). V3 / V4 / V4.1: SM 16.7 / 15.3 / 15.5 %; CdS 0.62 / 0.59 / 0.59; L/D 9.7 / 9.9 / 9.9; ROC calc 3.9 / 4.0 / 4.0; V75 161 / 164 / 164; Vmax 183 / 186 / 186; empty 373 / 380 / 380; water airborne 25.7 / 26.6 / 26.3 s, roll 1.2 / 4.3 / 1.1; land run 180 / 183 / 182 m, flown climb 2.7 / 2.7 / 2.9, landing roll 258 / 368 / 363 m. The V4s' landing roll ~100 m longer: open.
+
+## SEAPLANES-LAND (7-8 Nov 2026): hull-types + retract-study onto master, the Super Petrel LS V4.1 official
+- WHAT LANDED: origin/claude/hull-types (boat hulls, the Super Petrel LS, HULL-B1..B80) + origin/claude/retract-study
+  (its report only), on master L34a cad308635. Report: flydiy-notes/seaplanes-land-2026-11-07.md and
+  seaplanes-land-2026-11-08-slot.md.
+- PETREL OFFICIAL: builds/candidates/superpetrel_V4_1.json is the official Super Petrel (plane_lists row 41, pool
+  official: true); V0-V4 to review/ (rows 42-46). LB.VALIDATED.petrel joins the test planes the way
+  Twin_busher_floats_4b did (ACCEPT, PILLAR, JOINPARITY, the DMG gates through _treecrash_lib BUILDS).
+- RETRACT-LAB: the retract options that are not final sit behind one switch (FLYDIY_RETRACT_LAB / ?retract=lab /
+  flDev). OFF in a player's page: no retract switch on a tricycle or a taildragger, no Retraction tile, no amphibious
+  floats row (a saved build keeps its rows). Node (gates, tools) is lab-on. GATE DESIGN proves the page default.
+  Every control still works by hand; the Petrel's own retract (the hull's wheels) is not behind the flag.
+- AMPH-GEAR: the AP flies an amphibian's wheels by the surface under it (down for land, up for water; a glide under
+  150 m reads the surface under it); GUMPS checks the wanted state. THE GEAR KEY UNDER THE AP acts on EVERY retract
+  build (A0 7 Nov: kept): a press holds where the AP has no say (LIFTOFF, PUTDOWN, a glide over 150 m, the climb before
+  15 m and 1 m/s), elsewhere the AP writes its wanted state back. No press: identical to before.
+- KNOWN LIMIT (the ramp): on the surface the rule is the water under the CG (0.2 m margin) - an amphibian cannot taxi
+  up a ramp out of the water on its wheels; the hull grounds first. GUMPS cap (existing rule): two go-arounds, then
+  the third approach lands as it is.
+- CERT IDENTITY (A0 8 Nov): genStolCageOff drops the 12 hull-types cage rows at GEN_HULL_ROW_OFF (their absent value),
+  the STOL / RETRACT rule. Master vs the merge: 0 moved on 13 certificates (5 validated, Rufus, Twin 4b, C172, 5
+  contract designs).
+- HULL-B50 (option d, A0 8 Nov): HULL-B50 recalibrated the carbon and glass frame rows (GEN_MATERIALS: carbon lin
+  x0.45, k x0.55, c x0.50; glass lin x0.75) with NO version bump - the user's "make carbon worth it", ref the Petrel's
+  332 kg empty. genCertKey folds the row into the key of a design framed in carbon or glass only: those designs
+  re-certify once on load; every other key is byte-identical. No validated, official or shipped-cert plane is framed in
+  carbon or glass. No PHYSICS_V / GEN_SPEC_V bump.
+- GATES: RETRACT re-premised (ec63d92d9: the downwind is a held-speed leg, so the gate measures the thrust to hold it,
+  within 50 % of 1/2 rho V^2 cdA). HULL: a hull-ON build is held to the opposite promise (keeps hullOn + its rows),
+  the hull-off loop skips it. FRAMES: arch:Skymaster-alike re-recorded alone (hull-types b0f00bba0 moves its aft
+  windscreen floor 24 um).
+- OPEN (the user's list): the Petrel's prop touches the water at rest and in the rollout on open sea (mk_sea), never
+  off the SEA lane; the amphibious floats (fltAmph) are drawn, not flown; no tile makes a hull amphibian; the V4.1
+  file carries the base card's meta (cessnaFloatsWOrks, F-PGAR); 43_pilot reads sim.hydro as water for any hull build.
+
+### SEAPLANES-LAND 8 Nov: SEA-OFF - the seaplanes land SWITCHED OFF (L35c), then a testing week
+
+The user (8 Nov, via A0): seaplanes + retract land on master switched off first, proven identical when off; then
+"really thorough testing", no new features (three [CLOUD] testers: SEA-PETREL, SEA-AMPHIB, RETRACT-ROBUST; briefs in
+flydiy-notes/briefs/sea-*-cloud-2026-11-08.md, retract-robust-cloud-2026-11-08.md); SEAPLANES-LAND owns every fix.
+- THE SWITCH is RETRACT-LAB's (_cage_gear.js RETRACT_LAB: the dev toggle flydiy.flDev, ?retract=lab,
+  window.FLYDIY_RETRACT_LAB; ON in node - every gate and rig sees every row). Off, the player's garage shows nothing
+  new: CAGE_LAB_ROWS (hullOn and its 40 rows, the pylon / fin / nacelle-over engine rows, the cabane's pylon + drawn,
+  the tip's own shape, the nacelle's cw_inletOn) at their OFF value are hidden (_cage_ui applyRowVis); the Hull,
+  On-the-fin and tandem tiles hide(), the Hull form tile when(); engMount 7, 8 and the 'rotax 912 iS' preset optHide;
+  the gear handle (Digit9) off the controls panel (input.js `lab`, input_panel.js); the Super Petrel Internal on
+  plane_lists and `lab` in candidates/index.json (garage.js labOk: in neither pool). A build that holds a lab value
+  still shows it. ROWS ONLY: the spec, the save, the flight and the certificate never read the switch.
+- THE PROOF (box, 8 Nov, master L35a vs this branch): tools/_pod_bytes.js on the 6 validated builds - the def, the
+  shakedown sheet, the certificate and 300 flown steps equal to the bit; the cert keys 0 moved; the switch-off row
+  dump (scratchpad rowvis_dump.js: every visible row and option, 44 builds) 0 differ; the gear key inert on every
+  fixed-gear validated build (no ctl.gear, no out.gear; both on the Petrel). GATE POD is red on master too (its base
+  is 28 Oct's; Pilot re-blesses _pod_base.json).
+- Gates written: G116 (BUILD) re-premised - the bracing follows the wing's STIFFNESS (a carbon wing relieves it: no
+  growth, at most 10 % of its mass), master 25.321 -> 24.458 kg, the composite (HULL-B50 (d)) 25.321 -> 24.080;
+  DMGCERTCOST's petrel row (1789 frames, uncut 3049, 35.8-40.7 s under load, ceiling 82 s; re-measure in a quiet
+  slot); JOINPARITY's petrel page row (only builds.petrel added; node = page worst 1.9e-15); PLANELISTS: a lab row
+  stays Internal and off both pools.
+- Merged origin/master L35a 1bcd01d3e: _cage_gear.js (DC3-EDITABLE's ranges + the retract oleo note), _knife_gen.js
+  (BUBBLE-WINDOWS' wallDepth + the retract wells' recess: a dome keeps its ring on the skin).
+- Open (the testers' and Monday's): the Petrel's prop strikes at mk_sea (node), the float Cessna's TOUR timeout at
+  mk_sea (SEA-AMPHIB's first finding), the amphibious floats flown or only drawn, the retract cut rules, the
+  Petrel's composite hull that never cracks behind the cabin (the user's crash photos: it must - Deform's campaign),
+  the browser bar (a water circuit, the same on land, land to sea) in the daily slot 06:00-07:30.
+
+### SEAPLANES-LAND 8 Nov eve: the L35c re-push - the testers' gate reds fixed, three player-visible leaks closed, the card bake
+
+The three [CLOUD] testers (SEA-PETREL, SEA-AMPHIB, RETRACT-ROBUST; reports on claude/*-findings) found four L35c items
+on claude/ready/seaplanes 4c60b5192. Fixed here (tools only, no physics, no key moves; PHYSICS_V / GEN_SPEC_V untouched):
+- ACCEPT (SEA-PETREL F3): `_accept_check.js` app.js regex allows RETRACT's `hudGear();` beside hudWind.
+- DMGSKINGPU (F5): `_dmg_skingpu_check.js` the link-rods window ends at the `// G240` comment (the gear-fold block had
+  pushed the 6th brkWhole skip out of a fixed 400-character window).
+- STOL (F4), two causes: (a) the load door writes the 12 hull rows at their off value - `_stol_check.js` drops them
+  (HULL_ROW_OFF, checked against C.genStolCageOff) as it drops its own rows; (b) the user's HULL-B50 (d) carbon / glass
+  recalibration moves motorglider, etrainer, archaeopteryx, da62 - `stol_baseline.json.gz` gains FIX.b50 rows for
+  those cards ONLY (the recorder refuses to write if any card not framed in carbon or glass moved: none did; the gate
+  refuses a b50 row on any other frame). Section 9 runs its three legs in sequence under GATES_JOBS=1.
+- LEAK 1 (RETRACT-ROBUST X3): the Skymaster-alike starter card was born retractable with the switch off (and struck a
+  prop at rest). Its retract rows move from `over.cage` to `labCage`, which designFull applies only when SEA_LAB().
+  The one place a birth recipe reads the switch: off = L35a's fixed-gear Skymaster; node and the dev toggle keep the
+  lab's retract one. Its prop strike in the lab is C7 (this week).
+- LEAK 2 (found by STOL on this run): the Wing tips row showed HULL-B54's 9th tile "Upturned" with the switch off. Now
+  `hide: () => !SEA_LAB()` (design_flow tileGrid honours it; a saved upturned tip still shows); STOL checks it hidden.
+- THE CARD BAKE (every ARCHETYPE through _bake_joined bakeCard + buildGen, switch OFF, vs master L35a 1bcd01d3e;
+  scratchpad cards_off.js): with HEAD's own _cage_design.js vs this one, ONE card differs: the Skymaster, now back to
+  L35a's build (def equal, 1049.713 kg). Switch ON: 0 of 32 differ (labCage = the old over.cage). Against L35a, the
+  differences that remain are the merge's own, already in 4c60b5192 and named here: (1) all 32 carry the 12 hull rows
+  at their off value (inert: the row dump 0 differ); (2) LOOK: floatplane, twinBush, p38, fourEngine wear the pod
+  nacelle (fitNose 2 + NACELLE_POD) = HULL-B9 / G3915, the user's 4 Nov "the wing nacelles (Twin, Four) wear the same
+  rows", masses within 0.1 kg; (3) the HULL-B50 (d) carbon cards (motorglider 284.8 -> 242.9 kg, etrainer,
+  archaeopteryx, da62); (4) G116's bracing (pusherPod and the strut twins, under 0.12 kg). A0 8 Nov: (1)-(4) are intended (the user asked for each) and ship as named; the nacelles get no extra gating.
+- LEAK 3 (A0's call): the pilot menu's 'forgets the gear' knob (RETRACT-1, PILOT_PROFILE_KNOBS gearForget) is skipped
+  in app.js's knob loop while CAGE_RETRACT_LAB() is off; the profile still clamps and carries it (inert on fixed gear).
+- GATES (box, 1 process, nice'd, inside A0's ride): STOL PASS (612 s; the first run, before the Upturned hide, FAILED on exactly that check: 571 s); ACCEPT and DMGSKINGPU static checks (the regex
+  matches the merge's app.js and master's; 6 skips).
+- OPEN for the testing week: flydiy-notes/seaplanes-testing-week-plan-2026-11-08.md (C1-C8; the user's answers D':
+  retract verdict GO + V13, amphibious floats flown, wheel water on hydro builds, the Petrel's geometry frozen and its
+  porpoise found in the hydro / pilot; a video Monday 06:45). B1 (TOUR ends a leg on a capsize) rides L35d on its own.
+
+## A0 - train L35c, 8 Nov 2026
+
+IN (on L35b): dmgskingpu-green, bubble-clean, geo-crowd, vehicle-green, assets-green, media-green (MEDIA budget 5.5 MiB, user ruling), heroes (R2), look1-shadowsky, skinmat, master-green-twin (HANDLE + DMGGEAR G2640), clip-navaerial, gen-envelope (genBig on the flown span), seaplanes e5a2fe4cb (SWITCHED OFF, testing week).
+DROPPED: pilot-notch, a real conflict in tools/fixtures/stol_baseline.json.gz (seaplanes re-captured it first). Pilot rebases tonight for L35d.
+BATTERY (full log read): 118 PASS / 10 FAIL (L35b 101 / 13).
+- Now green: VEHICLE, MEDIA, ASSETS, GEO, CLIP, DMGSKINGPU.
+- Still red, same as L35b: GEN (only "cruise is quiet in wind" left, Pilot), TOUR, FRAMECOST, ROUNDTRIP, ENGCONFIG (the same stale digest list as L35a/b; no mover).
+- Still red despite their fix: DMGGEAR (now the float nose-in / dig-in cases; SEAPLANES checking), SKINMAT (a wheelWell role row no build emits; SEAPLANES checking).
+- NEW red, fix-forward for L35d: UISMOKE + UISMOKE-PHONE (assets-green: app.js:2138 MATLIB/require in the node harness), (CABIN-CRAFT, assets-green-2: the harness loads matlib.js). DMGMEMBERS: the 5 old builds pass; the seaplanes ready added the Super Petrel to VALIDATED, and its carbon is Euler-capped against a pre-carbon gate rule (SEAPLANES + Deform decide).
+No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change: PHYSICS_V 7, GEN_SPEC_V 10, GEN_CERT_V 7, as on master.
+TIMED GATE: light, stale 12 Oct baseline; all 7 rollouts ran (L35b lost 2 to timeouts). Steady frames p50 33.3 ms on every flown row and scene. Freezes: ONE 4.9 s frame in cub taxi chase @HOME (one run; L35b 0) and one 1.7 s frame in floats water taxi @SEA (first time measured). Cockpit rows p99 166.8-183.4 in one segment (L35b cub cockpit 116.8). Reds are the boot/compile rows (cold shader cache, as L35a/b). Watch the @HOME freeze on L35d.
+
+## CORE-MATH-GREEN - THE 20 STRAY sin/cos/pow ON CORE_MATH, THE PAGE BINDS NO Math (MASTER-GREEN, the user 8 Nov: "Have master clean"; CABIN-CRAFT for A0)
+
+Branch claude/ready/core-math-green, on master 1bcd01d3e (L35a). Code 1b31a88b3, built (flight_core, career_core, index.html) on top, then this note and HANDOVER.
+
+MASTER-GREEN (the user 8 Nov: "Have master clean"), via A0. GATE DMGDETERMINISM was red on master with two lines:
+- "the census: ... 20 STRAY on the builtin" (sin/cos/pow sites in src/core that bypass CORE_MATH);
+- "the sources: no `Math` binding in src/core (none) nor in the built page (ONE)".
+
+
+1. **The 20 stray sites go through CORE_MATH** (`node tools/_core_math_sites.js --apply`; 12 lines in 6 files): 32_hydro 485, 498; 61_gen_frame 2086; 64c_gen_aids 276, 291; 72_accept 255; 73c_mission_run 213, 267; 79_story 239-260. The census now reads "471 sites on CORE_MATH, 22 kept the builtin, 0 STRAY".
+2. **The page's one Math binding was TANK-FIT's local alias in `tools/_cage_energy.js`** (`const Math = window.Math || GL_.Math`, inside the file's IIFE, for speed in node's vm). It is renamed MathL, with its 220 `Math.` uses in that file. Same object, same speed. The built page now has no Math binding.
+
+Merge note: `_cage_energy.js` has 133/132 changed lines, all `Math.` to `MathL.`. A branch editing that file merges with a mechanical rename (any new `Math.` there is fine at run time, but the next DMGDETERMINISM run won't flag it: the alias name just has to stay off `Math`).
+
+## Digests (`tools/_engconfig_check.js --pin`, master's fresh archive against this branch)
+
+All 17 rows identical, the full output byte for byte: the Cub, Jodel, C172, Chinook, the ultralight, twin-boom, twin and pusher fixtures, the metal Cessna, the Cessna on floats, Rufus certified, and the six stock mounts. The gate's PIN table has 17 rows. No physics digest moved.
+
+## Gates (node, `run_gates.js --no-build --jobs 3`)
+
+DMGDETERMINISM PASS (26/26 checks; master's sweep 24/26; the page compare REPORTED not run: no playwright on the box)
+HYDRODYN FLOATS ACCEPT MISSIONS MISSIONPROPS STORY ROUTES ENERGY PARTS TANKMOUNT CREWLOAD DASH MOUNT DESIGNCHECK JOIN DEFAULT SAVE EDBUGS PASS
+NODUMMY FAIL "no reference to the retired figure outside the load migration [tools/box_render.js:42 dummy | tools/newshapes_build.js:121 edDum ...]"  (master 1bcd01d3e has it, same line; files not touched here)
+
+Not run: DMGHULL (red on master, Deform's, 30 min), LAZY (it starts a browser).
 
 ## REAL-FIGURES - THE OFFICIAL PLANES AGAINST THEIR REAL FIGURES AS BANDS: tools/real_check.js (A LOAD SWEEP ON OUR SIDE, A CONDITION BAND ON THEIRS, THE PILOT KEPT APART), THE HISTORY OF EVERY EARLIER COMPARISON (2026-11-07, REAL-FIGURES for A0, cloud - node only; branch claude/ready/real-figures; measured on master e0457618 = L33a, rebased onto cad30863 = L34a, whose src/core change is parked_packs.json only)
 
@@ -312786,6 +313528,399 @@ load) because brochure figures do not say their load; results not biased by the 
 - GATES: no core, editor or generated file changed (`git diff origin/master --stat` is tools/real_*.js, the report and
   its evidence, reports/README.md, .gitignore, this entry); no battery run. `node --check` on both tools.
 
+## NODUMMY-GREEN - NO WORD OF THE RETIRED FIGURE IN tools/; newshapes_build READS THE SEATED CHARACTERS AGAIN (MASTER-GREEN; CABIN-CRAFT for A0)
+
+Branch claude/ready/nodummy-green, on master 1bcd01d3e (L35a). Tool files only (nothing built changes), then this note and HANDOVER.
+
+MASTER-GREEN, via A0. GATE NODUMMY (G3700, the user 25 Oct: "no reference in code to the old model") was red on master: 12 hits in six tool files.
+
+
+- **A real stale reference.** `tools/newshapes_build.js` read the retired figure's groups (`edDum1`/`edDum2`) out of `tools/_crew_head_probe.js`. The seated characters are `edCrew1`/`edCrew2` (`_cage_crew.js`), so its "occupants" line had printed nothing since the figure retired. Both files now use edCrew. The probe takes a character's own group (the innermost), and otherwise the outermost panel or seat group as before. Proof: `node tools/newshapes_build.js --only=stearman --no-fly` now prints "occupants: pilot head in an opening, 15 cm over the coaming rail, 4 cm over the crown; second head in an opening, 16 cm over the coaming rail, 5 cm over the crown" (master: "occupants:" with nothing after it).
+- **A dead alternative.** `tools/quickshot.js` skipped `^edDum|^edCrew`; now `^edCrew` (which already covers the crew).
+- **Unrelated words, renamed:** `box_render.js` `dummy` (a stub gradient) to `stubGrad`; `_treehit_check.js` `atD` (matched the old ATD) to `atDist`.
+- **Comments reworded:** `_bench_check.js` ("the pilot rows' rename"), `_crew_head_probe.js` header.
+
+No re-pin, and the gate is unchanged.
+
+## Gates (node)
+
+NODUMMY PASS  TREEHIT PASS  BENCH PASS
+## STAR-LOVE - the stars smoothed, the water's stars quieter (NIGHT-LOOK, 8 Nov)
+The user, watching the night test: "crazy shimmering of stars both in the sky and the water ... the reflections in the water from the stars should be quite lower ... they really are white pixels, so smoothing, no halo, no decreasing intensity with the viewing angle."
+- CAUSE: the dome drew a 3D grid of cells 1/900 wide, one radiance per lit cell, sampled once at the pixel centre: a sub-pixel cell was hit or missed as the view moved (the shimmer); and the field sat 30x and more over the screen's white at night, so every star was a clipped white pixel. The mirror redraws that sky and the ripples move the read: every reflected star jumped.
+- atmo.js: an equal-angle cube grid (STAR_N 900, STAR_P 0.047), one star per lit cell at a hashed place, a smooth disc (1-x^2)^2 (no halo) of radius max(uStarK.x px footprints, uStarK.y rad), its height 3F/(pi r^2) so its flux is the same at any size (no change with screen or place); 3x3 neighbour cells (9 hashes a sky pixel instead of 1, the named cost); STAR_LVL 0.03 (the brightest just reach white, the disc's edge shows); no Tview extinction (user: "the fading through denser air" goes); the G2600 moon wash kept; uStarK default (1.5 px, 1.5e-4 rad).
+- water.js: the mirror's sky pass draws the stars at MIR.starsK 10 x the sky's level (= 0.3 of the old field) as 2-capture-px discs.
+- PROOF (flydiy-notes/evidence-2026-10-18/2026-11-04/night-photo/star/pairs): clipped star pixels in a 400x200 sky crop 976 -> 16; the lake's water frame-to-frame change in a pan 3.58 -> 1.16; noon's sky identical (only the HUD differs). Gates on the branch: ATMO LIGHT NIGHTVISIBILITY UILAYER WATER CLOUD PROGRAMS PASS; SHADOWSKY/LOOKS/MEDIA/ASSETS = master's reds, same lines. Tuning stills in star/tune1, tune2 (levels 1 .. 0.008, discs 1 .. 2 px).
+
+## UPRIGHT-FOOT - AN UPRIGHT AERIAL OR BEACON READS THE SKIN UNDER ITS OWN BASE, NOT UNDER ITS HEIGHT (8 Nov, for L35d)
+
+**The fault.** FITTINGS-MANUAL stands an upright aerial or beacon at the LOWEST skin point under its footprint. The
+footprint grid (`_cage_access.js`, the sagitta) was sized by the row's largest size: for the comm blade that is its
+230 mm HEIGHT, so the search ran 150 mm fore and aft of a 90 mm root. On master bddb81b0f the blade's record was 31.2 mm on
+the stock card, 89.7 mm on the Cessna, and 672.9 mm on the rod build (it ran down the cabin's aft step and the whole
+blade vanished into the passenger pillar; still `before_rod_side.png`).
+
+**The fix.**
+- `FG.FIT_BASE` (`_fit_gen.js`) names each upright form's real base: the blade's root section (t across, the chord fore and
+  aft), the wire mast's 14 mm foot ring (the row's `foot` 0.140 is clearance, not base), and the beacon's base ring 0.56 d.
+- The grid reads the skin under that base.
+- The record is the whole rise under the base (`lift - low`), also when nothing lies below the site point. Without that,
+  the blade's root ends stood 4 mm into the pillar band with a record of 0.
+- Other fittings are unchanged (the old `foot` grid).
+
+**The probe** (`flydiy-notes/.../2026-11-08/upright_foot/probe.js`; the `sunk` record in mm, master -> fix):
+
+| build | commAerial | navAerial | xpdrAerial | beacon |
+|---|---|---|---|---|
+| stock | 31.2 -> 8.2 | - | - | - |
+| rod (boomStyle 1) | 672.9 -> 8.2 | - | - | 0 -> 0 |
+| Cessna 172 | 89.7 -> 25.8 | 5.8 -> 0.7 | 8.6 -> 4.4 | - |
+| Cessna + rod | - | 0 -> 0 | 0 -> 0 | 0 -> 0 |
+
+No fitting stands deeper than on master. GATE CLIP's measured depths:
+- the comm blade's deepest vertex is 4.0 mm on stock, rod, stock+ifr and stock+panel (inside its record);
+- the nav aerial's wire end in the fin (stock+ifr) is 9.2 mm on master and 6.5 mm with the fix (the mast stands on its own
+  foot ring, 1.3 mm higher).
+
+**The gates** on b3108c3f8 (`--no-build --jobs=1`):
+- FIT, DESIGN, PARTS, FRAMES and SAVE PASS.
+- CLIP is red on this ready alone, and only for the nav aerial's 6.5 mm against master's 5.9 pin. Master itself is red
+  there at 9.2 mm. With claude/ready/clip-navaerial's re-pin (9.2, L35c) laid over, CLIP PASS.
+- TECH is red on master as on this ready ([pitch:seaplane], one table option with no segment). Not this change.
+- **NOT run: ARCHETYPES** (A0: left out of this slot).
+
+The pin could ratchet down to 6.5 once both are on master.
+
+**Stills** (`quickshot` side, crops around the comm blade): `before_/after_{stock,rod,cessna}_side.png` in
+`flydiy-notes/evidence-2026-10-18/2026-11-08/upright_foot/`.
+## DEFORM - DMGHULL (MASTER-GREEN), 8 Nov 2026 (claude/ready/dmghull-green, for L35d)
+
+THE RED: the twin on floats' hump, "each wetted keel's own constant to 1.08 %" (limit 1 %). It is the only failing line
+of 37, and it reads the same on master bddb81b0f and on L34a cad308635.
+FIRST RED (bisected on master's first-parent line, `_dmghull_check.js --only=law`): train L30c's merge of TANK-FIT,
+349bc11f2. The commit before, 04ffb5b6e, passes at 0.57 %.
+- The hull (32_hydro) is untouched. TANK-FIT moved the twin's hump pose by 1 mm: draft 0.2460 -> 0.2450 m, V 7.14 -> 7.05
+  m/s, trim 6.655 -> 6.657 deg.
+- The slip curve is the same smooth creep on both sides: side / (U w) 93.9 at 5 deg, 94.4 at 20, 95.3 at 30, 96.4 at 35,
+  97.8 at 40, 108.5 at 55.
+- The 1 mm put 30 and 35 deg (95.34 and 96.37 kg/m) into one count of wet keel stations (13): 1.08 % inside one group.
+THE READ: a stale premise of the gate, not a hull fault.
+- G3445 took "the same number of wet keel stations" as a fixed wetted keel.
+- But the bench lets the forward speed fall with the slip (U cos b, as G2030 intends), and the step's wake reads it
+  continuously (the S&M profile's C_V = Vflow / sqrt(g b), and the cavity number).
+- So an afterbody station's draft, and m(TE) with it, moves inside a count group. The gate passed before only by where the
+  station boundaries fell.
+THE FIX (tools/_dmghull_check.js only; A0 ruled it asserts more, not less):
+- Each slip angle's side term over U w is held to ITS OWN wetted keel's closed-form m(TE), to 1 % (kept).
+- The closed form: (pi/2) rho kSide T^2 on that angle's drafts, the running maximum per wetted piece, the pieces summed.
+  It is the same closed form the step case already asserts at 2 %.
+- The count groups stay in the line as the reading, with how far m(TE) moves inside them.
+PROOF (branch c4e7b8c66 on master bddb81b0f, built): GATE DMGHULL PASS, 37 of 37 lines.
+- Each case against its own closed form: the twin hump 0.67 %, the twin step 0.11 %, the Cessna on floats hump 0.29 %,
+  the Cessna on floats step 0.34 %.
+- m(TE) moves inside the count groups by up to 1.08 % on the twin's hump, and 0.00 % on the others.
+- No other gate reads the file (run_gates' DMGHULL row only). No core file, no PHYSICS_V or GEN_SPEC_V change, so no plane
+  flies differently.
+
+## ROOF-LIGHTS + FLOWER-CLUMPS - THE HANGARS' ROOF LIGHTS A WEATHERED GRP SHEET, THE WORLD'S ROOF LIGHTS NO LONGER HOLES, THE FLOWER BEDS CLUMP (the user 8 Nov; CABIN-CRAFT for A0, for L35d)
+
+Branch claude/ready/roof-lights, on master 1bcd01d3e (L35a). Code 9fbbccaa8 + 69e439d9b + 57e630fcb, built be9402288 (build c4db25b9f157). On top: this note and HANDOVER.
+
+The user 8 Nov, via A0: "the roof windows in the hangars are really just plain cuts and they look bad, on both club and works ... maybe these wavy transparent plastic with some weathering?" and "the flowers look a little wrong too. I think they lack variation, in size, in value, in spread, in the way they clump."
+
+## What lands
+
+- **The roof lights are a weathered corrugated GRP sheet** (`hangar.js`). One procedural 256 x 256 sheet (`skyAlb`): milky warm base, 58 ribs, yellowing toward the sill, streaks down the fall line, grime at the lower edge, the upper lap, blotches. The ribs' normal map is the roof's own corrugation (`corrNrm`, cloned at the panel's rib count). Inside (`M.skyPanel`): the sheet as map and emissive map, opacity 0.6. Outside (`M.skyPanelExt`): the same sheet, rough, nearly opaque. The timber shed still has none.
+- **The exterior pane faces up** (57e630fcb). It was wound to face down into the shed, like the room's pane, but `M.skyPanelExt` is single-sided where `M.skyPanel` is DoubleSide. From outside only its back face existed, and it was culled, so **every world hangar showed its roof lights as holes onto the dark inside, on master too** (the blue glass of before was never seen). HANGAR_GEN's polished shell bakes this exterior, so the bake carries the fix. Node probe: master exterior panes face down (club 8, works 12); branch up 8/0 and 12/0; the room panes face down on both.
+- **The flower beds clump** (`cover_ring.js`, the fireweed / foam / bunchberry patch rows only). Each bed keeps a value-noise clump mask, so it breaks into clumps with gaps. Strays land near the beds (3.5 % of the near rim). Size varies per plant (x0.72-1.17 by the local density, then a log-normal +-22 %), and so does colour value (+-18 %, with a few paler and darker plants). Draws taken off the beds' own hash, so every other species keeps its draw stream.
+- **The GATE HANGAR stub has no `clone`**: guarded (69e439d9b).
+
+## Stills (lane 1, 19:10-19:27 and 19:33-19:39; evidence-2026-10-18/2026-11-08/roof-lights)
+
+- `before/` = master 1bcd01d3e, `after/` = 4251606cb (inside and flowers), `after2/` = be9402288 (works, with the exterior fix).
+- Inside, works and club (U): the clear cut-outs onto blue sky are now milky panels with ribs, streaks and grime.
+- Outside, works (O, G, C, `after2/HOME.2`): the holes are gone; the panels read as pale ribbed sheets in the green roof. **At grazing (G) the ribs hold** as fine stripes, with a little moire; the panels read as a lighter band.
+- The club's outside still runs at 22:50 (lane 2) as confirmation. Its fix is the same code (the probe covers it).
+- Flowers (club O, background): the even pink block is now clumps of different sizes and tones, with gaps and strays.
+
+
+- Draws: unchanged by construction (the roof panes existed, only culled; the beds keep their batches).
+- Triangles: roof unchanged; the beds have fewer plants. The node census (stub cover ring, master vs branch): every non-flower species identical; the weed patch 128,534 -> 97,267 (-24 %).
+- Textures: +2 (the sheet, ~0.35 MB with mips; the normal map's clone, 512 x 64, ~0.17 MB): **~0.52 MB**.
+- Programs: at most +2 variants (the two roof materials now have maps). The page counts read +11/+12 programs and +7 textures. That diff is muddied: the rebuilt after tree has a stale parked cook, so its parked planes load live. Trains re-cook.
+- Whole-frame counts, branch, works (after2): U 392 draws / 0.75 M tris; O 579 / 21.7 M; G 578 / 22.6 M; B1_side 1583 / 29.5 M. The first pass's 1 call / 2 tris read only the last composite pass; the rig now counts whole frames. There is no master run with the fixed counter yet.
+
+
+HANGAR PASS, STAND PASS, HANGARVIEW PASS, FADES PASS, COVER PASS; node --check OK. The earlier battery: ASSETS fails only on master's 14 sites (hangar.js adds none). HOUSEWORKER red is the stale parked cook of any local rebuild (A0: not a red). SKINMAT, CLIP, SHADOWSKY, ROOMMERGE and ROUNDTRIP are red on master itself.
+
+## Open
+
+- A real corrugated profile for the roof deck (the ribs are a normal map) is the follow-up.
+- Ground cover grows on the world sheds' floors (A0 saw it in B1_side). It is on master too, and it is next on my list.
+## ASSETS-GREEN-2 - GATE UISMOKE RUNS THE MATERIAL LIBRARY AHEAD OF APP.JS (CABIN-CRAFT, 8 Nov 2026, fix-forward for L35d)
+
+- **The red**: since assets-green (de8e69361) app.js makes its materials through MATLIB.make. The page loads matlib.js long before app.js; GATE UISMOKE's sandbox did not, and the site's node fallback (require) has no require there: UISMOKE and UISMOKE-PHONE died at app.js:2138 in L35c (the page was fine).
+- **The fix**: tools/test_ui_smoke.js runs src/viewer/matlib.js in the sandbox right before app.js, as _scene_headless.js and _seats_check.js do. Tools only, no built file.
+- **Gates**: UISMOKE PASS, UISMOKE-PHONE PASS on master L35c b25872b51 + the fix (and on L35a + assets-green + the fix).
+- **Not this ref**: DMGMEMBERS (101/103 in L35c) is the Super Petrel, the sixth build the seaplanes ready added to _load_build.js VALIDATED; its carbon is Euler-capped and its fittings read 0.57-1.15, against rules written before any carbon build. A0 routed it to SEAPLANES and Deform.
+- Note: flyDiy/reports/evidence/ASSETS-GREEN/READY-2.md.
+
+## A0 - train L35d, 9 Nov 2026
+
+IN (on L35c b25872b51): core-math-green, real-figures, nodummy-green, hview-off (the hangar door view off by default), tech-seaplane, emitalloc-child, hangar-names, star-love (the user: star reflections OK, stretch 0), upright-foot (sunk aerials), dmghull-green, roof-lights (the user: OK as built), skinmat-wheelwell, assets-green-2, dmgmembers-petrel, newplane-late (the chooser no longer opens over a flight).
+OUT: comms-section 096ce99e6, merged then REVERTED (6d1b2e108). Its load door wrote cage.accBeacon into every file, so the six validated builds' bench / parked / certificate-store / procurement keys moved (GATE STOL), while def, 4 s, drawing and design check stayed =. Fix d53cafddd (accBeacon written only where it differs from accAerials) re-gates after this train and rides L36a.
+DROPPED: garage-clouds, a real conflict in tools/_hangarview_check.js; Game rebases it.
+BATTERY (full log read): 120 PASS / 8 FAIL (L35c 118 / 10).
+- Now green: UISMOKE, UISMOKE-PHONE, DMGMEMBERS, SKINMAT.
+- Still red, as on L35c: GEN, TOUR, DMGGEAR (the Petrel float nose-in; Deform rules Monday against FAR 23.529 / 23.527), FRAMECOST, ROUNDTRIP, ENGCONFIG (the same stale digest list).
+- New red, both explained: STOL (comms-section, reverted) and BUILT (the train state before the "(built)" commit; push.sh checks BUILT_STRICT after it).
+RE-GATE after the revert, the parked fleet re-cooked (same): STOL, UISMOKE, UISMOKE-PHONE, DMGMEMBERS, SKINMAT, FIT, CLIP, SAVE, PARTS, TECH, PANEL PASS; GEN back to its one L35c red ("cruise is quiet in wind", Pilot), every build digest master's again.
+No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change: PHYSICS_V 7, GEN_SPEC_V 10, GEN_CERT_V 7, as on master.
+TIMED GATE: light, stale 12 Oct baseline; all 7 rollouts ran. Steady frames p50 33.3 ms on every flown row. L35c's 4.9 s cub taxi freeze @HOME is GONE: no frame over 1 s in any taxi, take-off or flight segment. The one >1 s pair (8.5 s + 4.0 s) is in the cub cockpit's garage stand before the reveal (boot/compile, the cold shader cache, as L35a-c). Reds are the boot and compile rows, as before.
+
+## COMMS-SECTION - THE AERIALS GET THEIR OWN PART, COMMUNICATIONS, LAID OUT FROM THE RADIOS (8-9 Nov, AVIONICS-PFD-LAND for the user via A0; out of L35d, for L36a)
+
+The user: "give them their own section right now ... They should probably go to COMMUNICATIONS ... right now just
+cosmetically. But let's prepare for that, for a coherent set." Design: flydiy-notes/COMMS-SECTION-DESIGN-2026-11-08.md
+(the user, 9 Nov: yes to all five; this is ready 1, the move - ready 2, small: an ELT option, the GPS puck and the ELT
+whip shown only when fitted). It was in L35d as 096ce99e6 and taken back out (6d1b2e108, GATE STOL, below); this is it
+again as fresh commits on master ebc4c9edd: 5f104dfa8 + ac2cc9b6b (the move), 7788e581c (the fix), fcb7f5b10 built.
+
+- **The set, `GEN_COMMS`** (src/core/60_gen_spec.js, exported): one row per radio in the panel's order - COM 1 (`com`,
+  commAerial), NAV (`nav`, navAerial), Transponder (`xpdr`, xpdrAerial); COM 2, GPS and ELT declared `later`, with no
+  aerial yet. Each aerial row of GEN_ACCESS names its radio back (`radio: 'com1' | 'nav' | 'xpdr'`; the field is `radio`
+  because `serves` was already the row's description). Nothing flies on it today: it is the table a working radio reads.
+- **The part, Communications (`comms`)** (tools/_cage_parts.js), parent Cabin fit, layer access: a "fitted" switch
+  (`accAerials`, the same key) and one block per radio from COMMS_SET (the placement rows of its aerial; along/around in
+  expert). `when: P => +P.accAerials`, gate `accAerials` - not Fittings' `accOn`: GATE PARTS forbids a part hidden by
+  another part's own switch. Fittings keeps fluids, access, outside instruments and handling; its rows no longer hold the
+  aerials.
+- **The skin beacon is a light:** it moved to Lights with its own switch `accBeacon` (_cage_access.js family + FAMILY).
+  **In a file, an absent `accBeacon` is the aerials' switch** (`accAerials`): the cage's load door fills it into P from
+  accAerials (_cage_gen.js, beside the G180 migrations), the family check reads absent the same, and **cageToSpec writes
+  it only where it parts from accAerials**. So a build whose two switches agree - every build saved before - saves,
+  joins and hashes to master's bits. It also rides BENCH_STATE_ROWS, CERT_STATE_ROWS and PROCURE_STATE_ROWS.
+  - **Why (L35d, 9 Nov):** 096ce99e6 wrote `accBeacon` into every loaded file; the join carried it into spec.cage, so
+    GATE STOL saw the six validated builds' joined spec DIFFER and their bench / parked / certificate-store /
+    procurement keys MOVED (certificates withdrawn, the parked fleet re-cooked). **A new cage key must never land in a
+    loaded file at its default** - STOL's sameSpec is the test.
+- **A click** on an aerial selects Communications, on the beacon Lights (editor.js part map, before the `^edAcc_` row).
+- **Unchanged:** every `acc_<row>_*` key, the access layer, the meshes, the placement code, mass and price (0 kg in rows,
+  as before).
+- **Gates** (nice'd, --jobs=1, 9 Nov 01:54-02:22 on fcb7f5b10): STOL PASS; GEN 76/77 with only master's own "cruise is
+  quiet in wind" (red on ebc4c9edd itself, Pilot's; no build digest moved); PANEL (new 5b: GEN_COMMS ties both ways, and
+  each radio alone on a minimal build draws only its own aerial), PARTS, FIT, SAVE, FITMANUAL, CLIP, WEARPRICE,
+  CERTGATES, BENCH - all PASS.
+- **The saved builds' aerials, master ebc4c9edd vs the ready:** the UPRIGHT-FOOT probe (every aerial row's key, side, host, p,
+  sunk on the stock card, the rod, the Cessna 172 and the metal Cessna) - identical to the bit (1235 bytes).
+- **Known limit (A0: fine, named):** the beacon's placement rows hide with the Lights part when `lightOn` is 0, while
+  the skin beacon (accBeacon) stays drawn. Evidence: flydiy-notes/evidence-2026-10-18/2026-11-08/comms/ (run6.log; run3.log the first, reverted, ready).
+## PILOT-NOTCH + FLARE-NOPUSH + MASTER-GREEN (Pilot), 8 Nov 2026, for L35c
+
+Branch claude/ready/pilot-notch, on master bddb81b0f (L35b; rebased 17:30, built and re-gated on it). The user (7 Nov, approaches): "do a proper job for the approaches; look at real regulations"; (8 Nov) "have master clean". Source: FAA-H-8083-3C (Airplane Flying Handbook) ch. 9.
+
+### The landing notch (G2811)
+A builder lands on the largest flap notch that fits (the trim budget and the 0.35 flare budget, bisected in 0.05), not full flap or nothing. Cub 0.70 (flare-limited, deF 0.330), Jodel 0.60 (trim-limited), the twin 0.70. G2812's name hold on the Jodel D112 is removed in G2813.
+
+### FLARE-NOPUSH (G2813) - AFH 9-8: "Once the actual process of rounding out is started, the pilot should not push the elevator control forward"
+- The round out never lowers the nose more than flareNoPush (0.035 rad, 2 deg) below the highest attitude it has reached.
+- The flare arms at flareArmK 1.0 x flareAgl. It used to arm at flareK 1.3 x, while flTau is sized on 1 x, so the first tick asked for 1.3 x the arriving sink. The forced landing's glide keeps flareK 1.3.
+- The stick has its whole travel in the flare and the roll-out (deFlare 0.70, as the STOL flare's deStol). On the 0.35 stop the nose fell 4 deg with the stick against it. The planner's static flare budget stays 0.35.
+- Measured (node, with the notch; in brackets the notch with the old flare, master flapless where said):
+  - the Jodel w3>HOME in 8 kt: 1.01 m/s with the crosswind cap (1.44; master flapless 1.09);
+  - the user's Cub HOME>w3 0.94, w2>HOME 0.68, and 0.58 in 8 kt;
+  - the card Cub: student 1.10 (2.19), hamfist 0.82 completed (gave up), calm 0.76 (1.21);
+  - Cessna 4 full 1.35 (1.51), Cessna 2 full 0.41 (0.70), the twin 0.90 (0.98).
+
+### The crosswind flap cap (G2816) - AFH ch. 9: "partial wing flaps" in gusty crosswind, a higher touchdown speed
+- A tailwheel aeroplane on wheels whose crosswind is over xwFlapK 0.10 x VAppr lands on its take-off flap at most.
+- The pilot decides on downwind, base or inbound. On final it applies only while the flap is not yet past the take-off setting, so there is never a retraction on short final. The cap holds for the approach and the next departure clears it.
+- Measured: card Cub HOME x4 roll-out swing 46.4 -> 15.0 deg (master 9.3, also warn); x2 7.1 -> 5.9 (master 2.9).
+
+### NAMED COSTS - GATE PILOTMATRIX's baseline moved forward by hand (tools/pilot_baseline.json)
+The committed baseline was from 15 Sep: 13 cells, before the ctl-rev column. It was re-run on 105109bf9 (L35b + this branch) with pilot_matrix.js --set quick --jobs 1 --out. Result: 18 cells, 11 good, 4 warn, 3 bad, 1745 s.
+- Costs (old -> new):
+  - cub:HOME:x2: roll-out swing 2.9 -> 5.9 deg, still good, warn from 6 (the slower touch on the notch);
+  - cub:HOME:calm:up4: sink 1.04 -> 1.57 m/s, warn (the notch alone 1.34);
+  - cub:HOME:calm:student: sink 0.58 -> 1.10 m/s, still good.
+- Within tolerance: club sink 0.54 -> 0.87; bush 0.70 -> 1.16.
+- Better: calm 1.21 -> 0.76; x2 sink 1.33 -> 0.74; HOME-A3 1.49 -> 0.73; dn4 1.76 -> 0.90 (warn on its final control reversals 13.6, a column the old baseline lacked); hamfist 0.88 -> 0.82. The Stearman: calm 0.95 -> 0.84, x2 1.28 -> 0.92.
+- The Cessna c172 (also the metal fixture sync and master since Sep): calm sink 0.95 -> 1.14, aim 31 -> 37 m; x2 1.05 -> 1.16, aim 20 -> 28 m.
+- New cells:
+  - cub:HOME:x4: warn, swing ~15 deg (46.4 before the crosswind cap; master 9.3);
+  - stearman:HOME:x4: sink 1.03;
+  - cub:HOME-A5:calm: warn, sink 1.06;
+  - cub:HOME:calm:sand: as calm;
+  - c172:HOME:calm:rh: sink 1.14.
+- The 3 bad are the Stearman's take-off control reversals (114-130 /min), as on master. The old baseline had no activity column, so G630 never judged them. Pilot owes them.
+
+### MASTER-GREEN (the user 8 Nov; flydiy-notes/MASTER-GREEN-2026-11-08.md)
+- POD (G2817): tools/_pod_base.json re-blessed (--bless, then --bless-bytes) on this branch. Since 28 Oct (f27d824bc) the trains' meant changes moved every validated build's no-pod def and sheet: the cabins, the seats, CERT-RULE's fitted tanks, and the notch's landing flap. The live rules held throughout. The flown steps are the old base's to the bit; the certificates of the Cub, the Jodel and the twin move.
+- ENGCONFIG IDENTITY (G2817): re-pinned with --pin. Against master, only the Cub's and the Jodel's def (the notch) and the pusher fixture's def differ; every flown digest is master's. Still red, as on master: the four-engine card never goes wings-level on the downwind (x3 rows), and the three example cards DIFFER from their saved files. Pilot, L35d.
+- JOINPARITY:
+  - The metal fixture copy is synced to its validated file (G2815; CERT-RULE f671c17d3 fitted the tank, 25 -> 28 L).
+  - The census (G2818): 9 raw loaders go through tools/_load_build.js (econ_sim, engine_torque_seasweep, hydro_trim_table, hand_controls_probe, dmg_scuff_bench, _missions_check, _price_check, _wear_price_check; FLYDIY_RAW_BUILDS=1 keeps the file). 14 tools are declared at their real doors. A new door, viaTourLib, covers _canfly_check and _apsmooth_check.
+  - TANK-SPLIT (G2814): the page capture waits for the nose tank's sliced shaping (window.TANK_NOSE_PENDING). Re-captured: the Cub page = node to the gram (476.448 kg, deck 44 L). The Jodel page has 49 L (467.989 kg); node has 53 L (471.789). Node shapes before the crew layer's late floor and the panel's switch row; the page shapes after. Node moves to the page in L35d. JOINPARITY: 1 FAIL, the Jodel row, named.
+- STOL (G2813): re-captured on this branch. The slower approach is now asked at 0.96 x the notched stock (67.2 km/h; the kit 64.0). It used to be 0.92 x a flapless stock (74.8).
+- Gates on this branch:
+  - On L35a: STOL, POD, PLAN, LINEUP, TAKEOFF, PRICE, WEARPRICE and MISSIONS PASS.
+  - Re-run on L35b (105109bf9): POD and STOL PASS; JOINPARITY 1 FAIL (the Jodel row, named); ENGCONFIG master's fails only, every IDENTITY pin holds.
+  - ARCHETYPES not run: 1900 s x 4 shards does not fit one process. Monday, with the Chinook-alike red.
+
+### OWED (Pilot, L35d or Monday)
+- the Stearman's take-off control reversals (PILOTMATRIX bad, master's own);
+- the Jodel node tank (JOINPARITY);
+- APSMOOTH (rudder hands 19-52 /min on four level rows; suspect G3913's yaw-rate damper);
+- GEN "cruise is quiet in wind" (bank p2p 11.6; suspect the 45 deg downwind join inside the window);
+- ENGCONFIG's quad downwind wings-level and the three example cards;
+- gps-bill (G2809's 8 reverted commits);
+- the floats Cessna 2-full full-flap go-around on cessna-tail (FLAGSHIP, 8 Nov).
+
+### PILOTMATRIX: the 3 bad cells are a TEMPORARY ratchet (Pilot, 8 Nov, after A0)
+The baseline moved in G2813 holds the Stearman's take-off control reversals (stearman:HOME:calm / x2 / x4, 114-130 /min) as bad. That is a real pilot fault, not a new normal. The ratchet only stops it getting worse until it is fixed. It is on Pilot's list this week, after NODE-ACCEPT. Its fix moves those 3 cells forward by hand again.
+
+### PILOT-NOTCH for L35d (Pilot, 8 Nov 22:45): dropped from L35c, rebased on L35c b25872b51
+- L35c dropped it on a real conflict: tools/fixtures/stol_baseline.json.gz, which seaplanes e5a2fe4cb also re-captured and merged first. Rebased on b25872b51: the STOL fixture is master's, then re-captured on top (notch + FLARE-NOPUSH + L35c's seaplanes), with _stol_samebits.js --capture. The HANDOVER append conflict kept both entries.
+- Gates on the rebased tree:
+  - STOL fixture re-captured;
+  - POD PASS (no re-bless needed);
+  - ENGCONFIG IDENTITY: every pin holds (--pin prints the same 17 rows);
+  - JOINPARITY: 1 FAIL, the Jodel row, as named above.
+- PILOTMATRIX's baseline is the one captured on L35b + this branch. L35c's 43_pilot/solver/aero changes are gated on a retractable gear (def.params.retract), an amphibian, or a pair of engines behind the trailing edge. None of the matrix's cells has any of those.
+- G2819 (TANK-SPLIT, node shapes the nose tank sliced, as the page does) was tried and DROPPED. It does not move the Jodel: node stays 471.789 kg, uncached as well. Shaping's timing alone is not the cause. The JOINPARITY Jodel row stays named, Monday. The patch is kept in D:/Dev/pilot_runs/flare_nopush_20261108/.
+
+### L36a addendum (Pilot, Mon 9 Nov 08:30)
+STOL re-captured on this branch on top of 6fd718f5c (SEAPLANES: _stol_fp.js preStol drops the hull-type rows at their off value, as the gate does). The capture and _stol_check.js --selftest PASS together, which is the proof of 6fd718f5c. POD PASS and JOINPARITY (1 FAIL, the Jodel row, named) stand from the L35c run of 8 Nov: 6fd718f5c touches only the two STOL tools.
+## CESSNA PLAQUE - B-CESS RE-BENCHED, LAND AND FLOATS (FLAGSHIP, 8 Nov 2026, on L35c master b25872b51)
+
+The plaque on the official Cessna pair (builds/cessna172_2026-09-20.json and builds/cessna172_floats_2026-11.json, both B-CESS) had been stale since 2026-09-17.
+Both were re-benched in the game itself: ?mode=garage, the build loaded from its slot, the bench's run-all button, then the game's own save. As in the Rufus re-stamp (0e4b27059), each file keeps its own cage.li_flood and finish.decals.regW; neither is in the fingerprint.
+- LAND: FLIES A CIRCUIT, HELD, WORKS HOT AND HIGH, crosswind 21.2 kt. f be13d9c4.
+- FLOATS: FLIES A CIRCUIT, HELD, LIFTS OFF THE WATER, crosswind sticker. f f15f9daf.
+- THE FLOATS' HOT AND HIGH NOW READS "SEA LEVEL ONLY - needs 1259 m". It is advisory and does not gate.
+  - The reason: the floats file never earned the old "WORKS HOT AND HIGH". The file was made on 4 Nov (d68d4f182) as a copy of the land file, plaque included. Its dalt row was the LAND plane's 17 Sep result, already stale ("was"). Tonight is the first time the floats themselves were measured.
+  - Floats are heavier and draggier: the take-off out of the hot mountain strip runs 1259 m, past the bench's 1100 m bound.
+- Not awarded: the test flight, the same as the old plaque, so BENCH_STATE.passed stays false. R3 (PLANE-RENDERS) doesn't need it: the official fiches are baked from the build file and never read the bench.
+- Checked:
+  - re-loaded in the page: nothing stale, the same fingerprints;
+  - through the load door: each file builds its old body bit for bit (node hash + mass: 1065.839 / 1198.088 kg);
+  - the stored spec is the game's re-joined one (the corrected tail's Sh 3.33 m2, span 3.40 m).
+- Seen on the way and sent to Game: in the hidden browser pane, the new-plane chooser opened over the bench test flight and froze the aeroplane at 31 m.
+No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change.
+
+## COMMS-SECTION ready 2 - THE GPS PUCK, THE ELT AND ITS WHIP, EACH SHOWN ONLY WHEN FITTED (9 Nov, AVIONICS-PFD-LAND for the user via A0, for L36a after comms-section)
+
+The user (9 Nov, via A0): yes to the GPS antenna and the ELT, but "Don't get crazy on the radio for now, just have the
+option to equip them, and the little accessories then show, but that's it, it's non essential feature at this stage."
+So: an equip option, the accessory follows it, nothing more. On claude/ready/comms-section 310ddb76d (the train merges
+that first): f0fd2978c + 1fe83abd8 source, 1f055bb72 built.
+
+- **The ELT** (`GEN_AVIONICS.elt`, none / fitted): 1.0 kg, 1100, ACK E-04 / Artex 345 class, `ownBattery` - no bus
+  load, no breaker, no panel room. A select in Instruments' radios fold (it comes from the table). It is billed with the
+  radios, and its mass is placed in the tailcone (61_gen_frame.js, a frame short of the tailpost); with none fitted that
+  line is byte-for-byte the old one. **In a spec only when fitted:** genSystemsResolve sets avionics.elt only for
+  'fitted', clampSpec drops anything else, the panel's fromSpec reads it the same way and a tier pick leaves it alone.
+- **The GPS aerial** (`gpsAerial`, form `puckAerial`, 90 x 22 mm, on the crown 0.18 m aft of the cabin): only for a
+  panel, glass or 10 in GPS (`genGpsPuck`; a portable has its aerial in the unit).
+- **The ELT aerial** (`eltAerial`, form `whipAerial`, 0.45 m raked aft, `foot` 50 mm): on the tailcone's crown at 0.40
+  of the cabin-to-tailpost run, only with the ELT fitted.
+- **GEN_COMMS:** the gps and elt rows carry these aerials and are no longer `later` (COM 2 still is), so Communications
+  shows their placement blocks; both are in the aerials' family (`accAerials`) and a click selects Communications.
+- **No saved build gains a key (L35d's STOL lesson):** every older access row's `acc_<row>_sL/_lv` is written at 0
+  into every save; the two new rows' are `CAGE_DEFAULT_ABSENT` at 0. None of STOL's six validated builds carries a GPS
+  or an ELT.
+- **Gates** (one nice'd --jobs=1 process, 02:35-03:11, A0's lane): STOL PASS (on f5d084be1 and again on 1f055bb72); GEN
+  76/77 with only master's own "cruise is quiet in wind" (on f5d084be1; 1fe83abd8 adds a table field and two gate rows);
+  PANEL (5b: each of the five radios alone draws only its own aerial, a portable GPS no puck, the ELT absent unless
+  fitted, 1.0 kg, no bus load; the avionics table row takes `ownBattery` for its draw), FIT (its reach spread gained a
+  panel GPS + ELT probe), PARTS, SAVE, FITMANUAL, CLIP, WEARPRICE, CERTGATES, BENCH - PASS. The aerials probe (stock,
+  rod, Cessna 172, metal Cessna) is identical to master ebc4c9edd to the bit: none of them fits a GPS or an ELT.
+- **Not yet seen:** no gate draws a build with a panel GPS or an ELT, so the puck and the whip are placed (PANEL 5b) but
+  have not been looked at or CLIP-checked on a fitted build. A garage still of each, owed.
+Evidence: flydiy-notes/evidence-2026-10-18/2026-11-08/comms/ (run7.log, run8.log).
+- **The CLIP look on fitted builds (9 Nov 03:13, closing the gap named above):** CLIP's own measure, in report mode, on
+  three builds with a panel GPS and an ELT fitted (stock IFR, rod, twin booms; evidence comms/clip_gpselt.js, the gate
+  itself unchanged). It found the rod's whip at 0.80 of the tube 30 mm in the fin, so it moved to 0.48, between the nav
+  mast and the beacon (11bbf84bf, built b66640612). Then the puck and the whip are clean on all three: the puck seated
+  2.4 mm (body) / 0.5 mm proud on the rod's collar, the whip 2.7 mm (body) / 0.5 mm proud on the rod. The only other
+  lines are master's own known ones under new build names (the nav wire 6.5 mm in the fin, the twin's legs in the flaps
+  at full travel). Gates re-run on b66640612: FIT, CLIP, PARTS, PANEL, SAVE, FITMANUAL, STOL PASS; the aerials probe
+  identical to master. The garage still is still owed (a GPU slot).
+## SHED-FLOOR + VEG-1 - NO GROUND COVER ON A STANDING SHED'S FLOOR; THE BERRY BUSHES GATHER INTO THICKETS (CABIN-CRAFT, 9 Nov 2026)
+
+- **Shed floor**: grass, fireweed, bunchberry and a shrub grew inside the world's works shed (master too: no slab, the cover masks read only surface and water). Every player shed files its footprint (render_world SHED_FLOORS); both cover rings skip a plant inside it after its draws; a shed that stands or comes down replants only its cells (replantBox). Node: inside 269 -> 0, outside identical, restored exactly on removal.
+- **Thickets**: a raspberry bush walks up a 16 m clump field inside its cell (same land tests), so the same 3840 bushes stand in groups; size by thicket with old/young outliers, value +-12 % (shade in the heart). Beds: 4 % tall spikes, strays 5 %.
+- **Cost**: shrubs 3840 = master, instanced meshes 192 = master: draws and tris unchanged; shrub meshes carry an instance colour (one program variant at most).
+- **Stills** 9 Nov 05:05 (evidence-2026-10-18/2026-11-09/veg-1) vs the roof-lights stills of 8 Nov: works B1_side floor bare (was grass + flowers + the sapling). Gates COVER, FADES, STAND, HANGAR, HANGARVIEW PASS.
+- Note: flyDiy/reports/evidence/VEG-1/READY.md. Open: grass thinner in the bed cores (CPU first); a shed floor slab.
+
+## A0 - train L36a, 9 Nov 2026
+
+IN (on L35d ebc4c9edd):
+- garage-clouds (the hangar room's clouds, the Shed band)
+- comms-section: the Communications part again; the accBeacon rule, where the row is absent while it equals the aerials row
+- comms-gps-elt: the GPS puck and the ELT whip, drawn only when the unit is fitted
+- cessna-plaque: "SEA LEVEL ONLY - needs 1259 m" on the floats
+- strip-micro: natural tyre marks and the bump machinery, off on every strip; plus bbeea8af8, dirt_strip_stills on JOINPARITY's page-door list
+- hangar-bs (master's \b bytes in hangar.js)
+- certcost-petrel: DMGCERTCOST's Petrel ceiling 82 -> 70 s
+- veg-1: no plants inside the shed, varied beds, same cost
+- look1-haze-soft: weather haze plus the far-soft default, no measured cost
+
+OUT: pilot-notch-l36a 8a21c501b, merged then REVERTED (2eb3122c8).
+- GATE TOUR's new line: the user's Cub w3 > tw_ski ground-looped on the Skyline Altiport's landing roll ("the nose 30 deg off the landing roll at 14.4 m/s; off-strip"); 2 of 6 legs.
+- TOUR shard 0 on the train minus 43_pilot.js / 64_gen_build.js flew past 900 s with no failure; on the notch it stopped at 264 s.
+- Pilot never flew TOUR on the notch. Pilot is now flying the leg three ways: notch alone, + FLARE-NOPUSH, + the crosswind flap cap.
+- REVERT TRAP: the ready comes back as FRESH commits on the new master, with TOUR shard 0 green.
+- The revert also takes out 6fd718f5c (the STOL capture's hull rows; Pilot re-sends it as claude/ready/stol-hullrows for L36b) and the G2814/G2818 census commits. JOINPARITY's master lines come back as master's.
+
+A0 FIXES IN THE TRAIN (with the owners' yes):
+- tools/test_build.js: the re-save rows test lists comms-section's stated exception, accBeacon absent while it equals accAerials (_cage_gen.js cageToSpec). GATE BUILD had 8 FAIL lines, each "N-1 of N" and each accBeacon. Every other row is still counted. AVIONICS exports the rule as one table (CAGE_EQUAL_ABSENT) in a later ready and drops this inline line.
+- tools/_framecost_check.js ALLOW: cessna boot/garage:seed/three.updateMatrixWorld, rise 3900 (25365 -> 29207). The reason: the Communications part's re-hung aerials (comms-section) and the roof GPS puck drawn for the FRAMECOST Cessna's panel GPS (comms-gps-elt). It is a one-off garage seed walk with no frame cost; the Cub's +1078 is inside its slack.
+
+BATTERY (full log read): 109 PASS / 9 FAIL.
+- Red as on master (L35d): GEN ("cruise is quiet in wind"), DMGGEAR, ROUNDTRIP (2), ENGCONFIG, FRAMECOST (master's 5 lines, after the ALLOW), TOUR shard 2 (the float Cessna mk_sea > SEA: timeout + prop strike on the water, as L35d).
+- TREECRASH (6 builds, a master standing red): the Cub and Jodel trunk0 work and pieces lines, master's family. Plus a Super Petrel line, "at 5.7 g BROKE UP, worst member 1.05 wing compression". Nothing in L36a touches the Petrel's structure; it is read as master's since dmgmembers-petrel (L35d didn't run TREECRASH). SEAPLANES has it on this week's list. The metal Cessna's rows are green, so cessna-plaque lands.
+- JOINPARITY: 5 FAIL, the same list as master ebc4c9edd (Cub/Jodel node=page masses, the Cub nose tank, the cessnaMetal fixture bytes, the rogue tools list). dirt_strip_stills is off that list.
+- STOL: PASS, both on the train and after the revert.
+
+RE-GATE after the revert (the parked fleet re-cooked, same):
+- STOL PASS; GEN as master (one line); BUILD PASS; FRAMECOST master's 5; JOINPARITY master's 5.
+- TOUR shard 0: PASS. The user's Cub flew all 6 legs, DONE, 30 L left (1425 s), with the same mn_strip > nv_strip divert to w3 as L35d.
+
+No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change: PHYSICS_V 7, GEN_SPEC_V 10, GEN_CERT_V 7, as on master.
+
+TIMED GATE: light, the same shape as L35d. All 7 rollouts ran; steady frames p50 33.3 ms on every flown row.
+- The cold GPU shader cache again: master_bench's MISS (97 links over 5 s; L35d had 89) and compile 40-67 s. This is the rig's Chrome kill at master_bench.js:287, which A0 is fixing this week.
+- The one >1 s frame (3.95 s, c172 cockpit) is under the roll-out screen before the reveal (phase stand, context loading). No taxi, take-off or flight segment has a frame over 1 s.
+
+## A0 - train L36b, 9 Nov 2026
+
+IN (on L36a 7daba875d):
+- strip-micro-2 502c6841a: the bush strips' relief cues, avoidable hazards, puddles and swell. Chaos is still OFF on every strip, so nothing moves in the world yet.
+- dirt-dust: weather-driven dust from the tyres and the prop, on SOIL_WET. Cost A/B on the cooked tree, one run per arm, dust on/off:
+  - gamer taxi, frame median 16.6 / 18.0 ms, p99 35.7 / 36.8;
+  - gamer take-off, median 18.4 / 18.0, p99 35.9 / 35.8;
+  - laptop, median 11.4 / 11.1, p99 16.8 / 15.4;
+  - the dust's own CPU median 0.1 ms, max 1.5;
+  - +1 program link at roll-out, inside FRAMECOST's tolerance.
+- The dust's ASSETS fix (DUSTFIX): the material is made through matlib.js (AS4a), the same material.
+- stol-hullrows 52a725af4: the STOL capture drops the hull-type rows at their off value, as the gate does. Tools only; master's fixture stands. STOL PASS here.
+
+NOT IN: strip-names. Its NAMES gate was red: the island record still carried the old names. It re-gates Tue 00:35 together with strip-chaos-on (w3 0.20, w8 0.40, Pilot-vetted) for Tuesday's first train.
+
+BATTERY (full log read): 128 PASS / 10 FAIL lines.
+- As on master (L36a): GEN ("cruise is quiet in wind"), TOUR shard 2 (the float Cessna mk_sea > SEA), DMGGEAR, FRAMECOST (master's 5 lines), ROUNDTRIP (2), ENGCONFIG.
+- ALTIPORT (3 lines, run in a train for the first time this week): the AP starts its final below the field's circuit height on HOME > tw_skib (the user's Cub and the metal Cessna), plus the doctored-arrival calibration line. DIRT-DUST saw the same on ebc4c9edd without these readies, and Pilot's tw_ski runs logged the same climb-hold on every tree today. It's master's, and on Pilot's list for Tuesday with the w5 / w1 / nv_strip approaches (Pilot's chaos vet: the C172 crashes at w5 after a go-around; Cub and Jodel w5 diverts; the Cub's nv_strip timeout and w1 divert failure).
+- ASSETS: new, from dirt-dust (`new THREE.ShaderMaterial` in dust.js). Fixed by DUSTFIX in this train; ASSETS + DUST re-run green before the push.
+
+No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change: PHYSICS_V 7, GEN_SPEC_V 10, GEN_CERT_V 7.
+
+TIMED GATE: light, the same shape as L36a.
+- 6 of 7 rollouts ran. rp_cub_cockpit_1 died in the rig ("__timeout" is not valid JSON at rollout_perf.js:461) after a 153.6 s garage. That's a rig fault: the CDP evaluate timed out on a slow cold page. Logged for A0's master_bench / rollout fix this week.
+- Steady frames p50 33.3 ms on every flown row; no frame over 1 s in any taxi, take-off or flight segment.
+- The >1 s gaps are all in the garage stand before the reveal (cub chase 5.2 s; the discarded warm_metal 9.0 s + 7.1 s): the cold GPU shader cache, master_bench's MISS, as L35a-L36a.
+- The floats take-off has one 133 ms frame.
 ## REAL-FIGURES-2 - THE HTML REPORT GENERATOR (tools/real_report.js), THREE ACCURACY AXES (GEOMETRY / SPECS / PERFORMANCE), SIX MORE PLANES WITH A REAL PARENT (2026-11-08, REAL-FIGURES for A0, cloud - node only; branch claude/real-figures-2 = 11f70ea39 + master L35a 1bcd01d3e merged, ready as claude/ready/real-figures-2)
 
 THE BRIEF (the user via A0, 8 Nov): a reusable HTML report generator (clear graphics, colour coding for the mismatches,
@@ -312899,35 +314034,9 @@ score on several axes (geometry, specs, performance). Test and report only: no p
   (checked side by side); the neutral engine dials are kept out of the cert keys (GEN_CAGE_ROW_NEUTRAL). Open: the Cub /
   Jodel handbook rows on the tailwheel stop (quick check: Cub 90 m vs 88, Jodel 80 vs 150), the game pilot's three-point
   touchdown and brake law.
-## PROPER-COWLS - THE STRAIGHT COWL: THE TABLE, THE THREE WAYS TO MEET THE NOSE, THE FACE'S RING-ONLY LIFT (2026-11-07, PROPER-COWLS for A0, cloud; branch claude/pensive-wozniak-ib8yjq off master e0457618; first deliverable, the user's pick pending)
-The user, 4 Nov: "proper default cowls ... look at the different engines and engine mounts, and do a default model for each, so cowl fitting is less of a headache ... the one part that looks really goofy in the procedurally generated planes". 7 Nov: "if we start from much simpler geometry, it does a much better job ... the seaplane session, where we worked all the time from the straight cowl ... these are straight cowls that we should design, and see whether we should match them even to the nose of planes or not."
-- THE STRAIGHT COWL (tools/cowl_study/straight.js, a study tool, no birth wired yet): hull-types' NACELLE_POD (G3915) made the rule for every mount. One section firewall to face (no top-line sweep, no axis rise, no cheeks unless needed, no cut-out, no oil door); a lip a quarter of the front's half-size (4-12 cm) onto a flat face matched to the spinner; the length the engine's (the face ends at the spinner's base: -CAGE_ENG.zFw + noseOff); the openings by engine type (boxer two inlets, Rotax two + chin mouth, two-stroke chin mouth, inverted in-line two low, V chin scoop, radial the open ring, electric two slots, PT6 chin lip). Off the body (pylon, nacelles) always the pod: round, the engine's envelope + 6 %, the tail cone.
-- THREE WAYS TO MEET THE FUSELAGE (the user's question; pictures for the pick): A match (fitted: the barrel is the firewall's section, taper 1), B blend (the firewall's section straight to a round front at 0.82 of the firewall, never under the engine's height), C own part (round, the engine's envelope, on the face's centre). Cheeks (lobeN 2, the overhang + 15 mm at the heads' station) where a boxer is wider than the barrel: the Cub's A-65 (0.79 m over the heads on a 0.72 m firewall) and the C172's under A and B - the user's own G180 method, the PA-18's answer.
-- TRAP 1, THE AXIS IS THE ENGINE'S: _cowl_gen axisXY = spineY(zEnd) + apOffY, and the engine layer stands the engine (and the flown thrust line, spec.engines[].y) on it. So lidRise, faceRise AND a single inlet's apOffY move the thrust line: the first cut lowered the C172's by 0.19 m (its lidRise 0.22). The straight cowl keeps today's axis: apOffY 0, the offset into faceRise (the spinner off-centre in the flat face, as on a Cessna or a Rotax nose); off the body the plate moves by it (engBlockY) and the pod is centred on the engine. A single inlet is never offset (the radiator mouths are chin scoops).
-- TRAP 2, faceRise LIFTS THE WHOLE LIP: the bowl's section centre rides the spine linearly, so a 0.076 m face offset raised the Cub's lip top 0.07 m (read as a flare). NEW ROW cw_faceRing (Cowl > nose bowl, 'lift the ring only'): the lift follows how far the bowl has closed toward the ring ((a1 - A(z)) / (a1 - lr)), so the lip keeps the barrel's lines. ABSENT_AT 0 (no saved build gains a key), 0 = the linear lift to the bit. faceRise's row range +-0.12 -> +-0.25 (a Cessna's 0.19). Claimed in _cage_parts.js.
-- NO FLOWN NUMBER MOVES: bakeJoined + buildGen + genShakedown, today vs A / B / C: identical spec hash (cage aside) and shakedown on the C172, Jodel, busher 4b, STOL Cub, Tiger Moth, DC-3; the Cub identical but for 2e-16 m on engines[0].y. (Measured trap: the first headless build of a process reads 41 g differently from the later ones - compare builds in the same order.) No PHYSICS_V question.
-- THE TABLE (tools/cowl_study/gen_matrix.js: one plane per engine type x mount born through _newplane_lib joinedOf, the birth's cowl preset included): today's goofy cases are the WING NACELLES (the nose preset at the synthetic face's 0.16 m plate: the engine stands outside a thimble of a cowl) and OVER THE WING (no cowl drawn); the pusher's back cowl is a fat ring. The chooser greys 'Over the wing' on master (the disc strikes the wing until hull-types' pylon rows land) and offers no turbine twin; the table draws over-the-wing on a generated high wing with engMount 2 set by hand.
-- THE PAGE: tools/cowl_study/page.js (the stills -> JPG, the table) -> reports/evidence/PROPER-COWLS/ (index.html + img/, 71 stills), published as an artifact for the user's pick: https://claude.ai/artifact/SfG2EcNevvLCuoWNf61JxN.
-- Gates (node, --no-build): COWL, PARTS, SAVE, STARTER, DESIGN green; SKINMAT red on master e0457618 too (the FINISH view's click-to-row check), not this change.
-- OPEN, after the pick: the birth's preset per engine type becomes the straight one (_new_plane.js cowlPresetFor -> a 'straight' entry per type in _cage_cowl.js COWL_PRESETS, sized by the rules above, needing the face measured at birth) and a Straight preset tile; the pod for nacelles and pylons on master (hull-types' nacelleOfEngine / NACELLE_POD / the inlet are on that branch only); GATE NEWPLANE / ARCHETYPES re-read (births change their look, not their flight).
-- ROUND 2 (8 Nov, the user: "2 cases; cowl blending with the fuselage (nose and aft bulkhead), and the ones not really blending (pylon, wing mounted) ... engines are rarely placed in the center of the firewall ... The waist line of the plane is usually quite high up at the nose section ... we shrink the front section vertically, and we get it higher so the waistline continues in line with the plane's waistline. Only then we can add bulging ... aim for center the face of the cowl on the prop/engine. That should be a rule."): A / B / C retired. THE BODY RULE (straight.js --opt=waist): the firewall's section; the aft waist on the plane's waistline (a nose: the cage's waistY at the face - the user's fitted C172 sits on it to 3 mm; a pusher's aft face: the middle of the band where the pod is widest); the front centred on the thrust line (lidRise = the axis, so no engine moves), its half-height 0.70 of the firewall's (never under the engine, never past the firewall's top / bottom; the user's 0.64-0.77, C172 0.36), its half-width 0.85 (never under the engine; the user's 0.79-0.99, busher 0.62), its waist level with the aft one; cheeks fitted after (Cub 4.5 cm, C172 6.1 cm, none elsewhere). NEW ROW cw_waistF (Cowl > firewall section, 'widest line height at the barrel end', x the front's half-height): the widest line runs straight from the firewall's waist to it; ABSENT_AT null = follows `waist` to the bit (the row's follow box). THE POD (off the body): the engine's envelope + 2 cm, centred on the propeller (engBlockY), section by type - boxer / Rotax wide and low (sq 0.60), in-line tall and boxy (0.74), V a deep oval (0.58), radial / motor round, turboprop round with keelH 1.45 (the chin grown into the barrel - a mouth in the skin is the next step), tail cone, no cheeks. Measured against the user's fitted cowls (fitted_report.js): Jodel front 0.252 / -0.236 vs 0.257 / -0.267, ugly bi 0.29 / -0.186 vs 0.254 / -0.18, busher 0.531 / -0.375 vs 0.565 / -0.354. No flown number moves (C172, Jodel, busher, turboprop pod; in build order - the first headless build of a process reads the tail 1e-11 m differently). Gates COWL STARTER SAVE PARTS DESIGN green. Page republished at the same link (version 2); evidence in reports/evidence/PROPER-COWLS. ASKED: should a pusher's front narrow to its engine (the user's 0.62) or keep a nose's 0.85?
-- ROUNDS 3-5 (8 Nov; the user's notes via A0 and direct). R3: the propeller's line includes engY (folded into the cowl's axis: engY 0, nothing flown moves - the Tiger Moth's 0.21); the body front centred on the ENGINE's own box; in-lines and pushers narrow toward the engine (the user's busher 0.62); the firewall section FITTED (straight.js aftSection: waist on waistY for a flat-sided nose, fitted for topRound >= 0.5 and pushers; roundness 0.35-0.95); pods sized to the DRAWN engine (O-320 +6 cm on top, Rotax 915 +13), full section to the spinner, the propeller forward by the lip; _cage_cowl.js podPlate (a cowled pod's synthetic face takes the pod's size: the mount plate stays inside); _cowl_gen.js lobeN 3-14 (a helmet per radial cylinder, placed on the drawn heads); generalised cheeks / one blister (fitCheeks); crease_study.js (15 builds: RMS 5-65 mm tied, 4-37 free, 2-23 with wAftTop/Bot - those two rows are core-read, NOT used without A0). The Tiger Moth: engine per the DH.82 reference (REF_MATCH engY 0.21; drawn 0.705 m vs the real 0.752), the cowl round the drawn engine + a blister over the induction G164 draws on top (the proper fix is the engine drawing). The 'Over the wing' tile writes NOSE_AERO (round 2's bare nose was my hand-built study plane).
-  V4/V5 (the user: the nose's BOTTOM): _cowl_gen.js rows, all ABSENT_AT / 0 = every cowl to the bit: exitGap / exitHold / exitLen - the bottom LOWERED under the firewall's, VERTICAL ONLY (the user: no gap along the length; 'the bottom part of the cowl sits lower than the bottom part of the firewall'), held to the bend or tilting back linearly; keelShoulder / keelRound - the bottom's own bend, leaving the firewall LEVEL and rounding into the face (round B: sweep 0.95, shoulder 0.45, round 0.9 - 'almost the best shape we ever got' on the C172); deckShoulder / deckRound - the top's own gentle descent to the spinner; exCut 1 notch / 2 faired RAMP (exRampH) where the drawn exhaust leaves; scoopFollow - the chin scoop rides the keel. straight.js: the drop on the user's own builds (0.24 x the half-height at 70 hp - their Cub 7.9 cm - to 0.04 at 160 hp - their C172 1.9); fitBends (the keel / deck give way to the drawn engine); radials keep the round NACA barrel. No flown number moves (C172 identical); gates COWL PARTS SAVE STARTER DESIGN ENGID NACLAG green. Page v3 (quick renders): https://claude.ai/artifact/SfG2EcNevvLCuoWNf61JxN.
-  OPEN: the generated radial nose smaller than its W-670 (heads show, as today); the Tiger's induction (engine drawing); NEXT, the user's cooling path (inlet / auxiliary intakes / heat OUTLET: the lowered belly - Cub; the bottom exit lip - the C172, no cowl flaps, the air leaves at the lower cowl's aft edge with the exhaust; SIDE GILLS - the Carbon Cub's raised panel of slanted slots, real 3D with thickness / lips / throats, clear of rivets, split line, seam, ramp and scoop; cowl flaps - the 182, radials).
-- PROPER-COWLS round 6 (8 Nov, the user's V5 feedback + Tiger Moth photographs): SIDE GILLS (gillOn..gillT, absent = off): the Carbon Cub's raised panel of slanted hooded slots, real 3D (chamfered border, walls, dark floor, a hood over each slot), placed by gillsFit() in the clear box under the split line, aft of the fastener row, short of the seam, above the ramp / scoop; skipped when there is no room. RADIAL HELMETS READ OFF THE DRAWN ENGINE (straight.js fitHelmets; the user: "you fail to place them where the cylinder heads are ... read the actual engine geometry"): the table's angles (ENG_GEN place.ang, one row) are not what is drawn - _eng_mesh's radialRows defaults to 2, so an M-14P / W-670 preset naming no rows is DRAWN two-row (5 + 4 at 36 deg, rows 1.45 bores apart). The fitter clusters the vertices poking through the bare barrel (clear.js `all`), reads places / rows / stations off them, sizes the helmets to stand 12 mm over every point, then probes the built cowl until 0 mm pokes (Mosquito: 9 helmets on 10 places, two stations). New rows lobeT2 (every other helmet's station) and lobeCount (the bare places), absent = as before. OWED (engine, not done): the M-14P and W-670 presets should say radialRows 1 - a visual change to saved builds' engines, the user's call. A radial on the body is an OVERSIZED STRAIGHT round drum (the user: "prefer an oversized, straight cap").
-  THE INVERTED FOUR-STROKE IN-LINE (_eng_mesh.js `sideInd`; the user's Tiger photographs: "there's nothing on top of that engine"): G164 put the sump, the carb and the airbox ON TOP of an inverted in-line; a Gipsy Major is dry-sumped (oil tank on the fuselage) and its case top is bare. Now: no sump, the intake ports on the flank opposite the exhaust, a side manifold rail along the heads, the carb hanging at its aft end behind the bank, no airbox. Two-strokes keep G164's. Drawn top 0.337 -> 0.157 m over the shaft; the Tiger's cowl needs no blister (the "gum" is gone). ENGMESH green (the intake check accepts the manifold as its source). Mesh only: no flown number moves (Tiger, Mosquito, Cub identical). Measured against the published Gipsy Major (All-Aero: L 1.227 / W 0.508 / H 0.752 m): ours 0.96 flange-to-backplate, 0.48 wide, 0.86 tall before -> ~0.68 after; the bank's proportions match the photographs, the run behind the bank (accessories + mount, 0.25 m) is longer than the photographs' ~0.15 m - OPEN.
-  THE SPLIT LINE, LEVEL (cw_partLevel, absent = 0 = as before; the user: "this line easily gets bent, while in reality it would be cut horizontally ... at a fixed width"): partLevel 1 holds the line at the height partY gives at the firewall, level forward, the groove +-partW METRES (it was +-partW of the section's parameter, which on a boxy section near the waist opens to centimetres - the Tiger's black wedge); the camlocs ride it; it stops where the skin no longer reaches its height.
-- PROPER-COWLS round 7 (8 Nov, the user on round 6): STREAMLINED HELMETS (cw_lobeStream / lobeNose / lobeTail, absent = the round bump): full over the head, a short rise in front, a long smoothstep taper aft, narrowing as it fades (a teardrop from above), both ends inside the cowl; the skin samples 3 azimuths per helmet spread when lobeN >= 3. The radial drum on the body is 0.92 of the heads' radius (the user: "we could also make the nose a little bigger"): the Mosquito's helmets 2.8 cm. SINGLE-ROW RADIAL PRESETS (_eng_page.js): every radial preset but the R-1830 says radialRows 1 (the mesh's default is 2: the M-14P was drawn 5 + 4) - mesh only, engResolve never reads it.
-  THE TIGER MOTH'S FACE: the shaped nose ring (cw_lidRW / lidRTop / lidRBot, absent = lidRadius to the bit; the closing disc follows the ring): the user, "you put the prop straight on the engine block ... flatten the face ... drop more abruptly". straight.js: where the drawn engine within 8 cm of the flange reaches past the round ring, the ring takes the block's outline (+2-2.5 cm), lidLen <= 4.5 cm, shoulder 0.5, round 0.92 - a flat face as tall as the block; the Tiger's cowl clears its engine everywhere (clear.js all round: 0 mm). The rule sets partLevel 1 on body cowls. THE STAND-OFF: eng_mountGap 0.85 -> 0.4 (the row's minimum) takes 5.8 cm off the Tiger's nose (empty -0.2 kg, Vs 19.310 -> 19.307, climb 2.792 -> 2.793) - in the study file, NOT the candidate (its own matched cowl would then overhang the propeller: the user's call). The other ~4 cm the user asked for is the Gipsy's accessory case (accLen 0.16, ENG_GEN default): an engine-resolve change (length, CG) - A0's word.
-- PROPER-COWLS round 8 (8 Nov, the user: "yes to both"): (1) THE TIGER MOTH'S BUILD (builds/candidates/tigermoth_2026-10.json) takes the round's cowl: the flat face as tall as the Gipsy's block (lidRW/lidRTop/lidRBot), the propeller 3 cm ahead of the flange, the panel joint 6 cm behind the face (the side door runs the bank), the level split, the V5 bottom; eng_mountGap 0.85 -> 0.4 (the nose 5.8 cm shorter: empty -0.2 kg, Vs 19.310 -> 19.307, climb 2.792 -> 2.793 - the only flown change; engY 0.21 folded into the cowl's axis, the thrust line unmoved). Its card picture rebaked (thumb_bake --keys). (2) THE LEVEL SPLIT IS EVERY COWL'S (partLevel default 1, absent = 1: saved builds draw it level without gaining a key; display only). The beard fix: a shaped ring's deck / keel / widest line aim at the ring's real height in the barrel end's frame (fr = faceRise), carried back to the local spine in the bowl. GATES: COWL PARTS SAVE DESIGN STARTER NEWPLANE CANDIDATES PLANEFICHE ENGMESH ENGID green. The full battery's ENGCONFIG (pins of 28 Oct) and TECH (pitch:seaplane) fail identically on this branch's base e0457618d - not this work; ROLLANIM's 64.1 B/frame was load (passes alone, base and head); ARCHETYPES' Chinook rejected-takeoff not re-run on the base.
-- PROPER-COWLS round 9 (9 Nov): (1) THE POD'S PLATE IS GONE (the user: "a flat plate between the cowl and the nacelle, it should not be there, at all"): a pod that houses its engine (cowl on, fitNose 0, aftMode 1 - _cage_cowl podPlate) marks its synthetic face `podSized` and the engine layer draws no mount plate there (fwOn 0; the mount's spread still reads the size, inside the pod). Display only. (2) A0's PUSHER TAPER QUESTION (reports/evidence/PROPER-COWLS/README.md, tools/cowl_study/pusher_taper.js): a fresh Busher-style pusher gets taperW 0.679 from the straight rule (1.06 x the 916's drawn half-width 0.299 + 2 cm), not the user's 0.62 (half-width + 1 cm); proposed, NOT applied: a pusher's a1 = max(half-width + 0.01, 0.45 x aW) -> 0.624 / 0.45 / 0.459; no saved pusher's cw_taperW changes. (3) THE RULE (straight.js): the exhaust may leave the cowl (the engine mesh publishes its groups' names - _cage_eng meshFrom userData.matNames - and clear.js / drawnEngine skip emExhaust); a V's front is boxy like an in-line's; a TAPERED NOSE where the block stands above or beside the shaft (the block moves aft into its bay by the taper, the propeller keeps its station, the spinner in proportion - 0.7 of the block's half-width); body cowls to 3.5 m. (4) THE SPITFIRE: not done - the user: "don't sweat the Spitfire, it would need better geometry adjusted. Its nose section is much too short in height". Measured: the drawn Merlin's banks stand 0.59 m over the firewall's centre where the body's top is 0.41; the generator also draws no reduction gear on a V (the prop shaft on the crank, the banks at the flange - a Merlin's shaft is ~0.2 m over its crank): an engine-resolve change, A0's word. The card stays blocked and untouched.
-  NOT YET: the rule run AUTOMATICALLY at every birth (the user, 9 Nov: "use your method systematically for every generator") - straight.js runs headless (measure = a scene build, then fitBends / placeScoop / fitCheeks / fitHelmets rebuild and probe); births (_new_plane.js cowlPresetFor) still take the type x mount presets. The next chantier: the rule as a page-side pass after the birth's first build (the same face, drawn engine and clearance probe the live scene has), its rows written into the born spec.
-- PROPER-COWLS, the user's rulings (9 Nov): the pusher taper STAYS the rule's 0.68 ("068 was fine, it was a mistake"; the proposed pusher rule withdrawn); the Tiger Moth is done (the Gipsy's accessory case is NOT to be shortened); the Spitfire and the Merlin's reduction gear wait. ARCHETYPES' Chinook-alike card ("the circuit completes - rejected-takeoff") fails identically on this branch's base e0457618d (--only=chinook, both trees) - the generator's original card, not the user's validated builds/chinook_2026-09-21_corrected.json (ENGCONFIG digests identical base / head).
 
-- PRACTICAL-CERF (9 Nov, the user; claude/practical-cerf-7fjpwp = real-figures-3 + pilot + brakes + proper-cowls, NOT
-  merged): the SS's 20 m landing was a 100 deg ground loop (the STOL flare's power rolled the stalled wing); real_check
-  flags GROUND LOOP (>30 deg heading on the roll-out). The feel arrival (ap.feelFld): the STOL flare with the power capped
-  at approach + 0.1 and a stall reflex; Cub / Jodel three-point at every load and the user's brake law shorter there; the
-  SS at gross ground-loops still (tail authority, no stab trim). GEN_BRAKES (drum 600 / disc 1400 / double 2600 N a main,
-  kg, price; absent = as it was, cert keys unchanged), brkHold tiles. The SS's cowl: cheeks 0.17 m over the CC340's heads,
-  the side gills (README section 8).
+- CARBON CUB SS to its envelope (9 Nov, the user): the take-off reference 40-50 m (the user's ruling, replacing the single-
+  source 60 ft), the wing at the real size (10.44 m, 16.6 m2; was 17.6) -> 10 / 0 / 1, 99 / 100. Not taken: the drawn cowl
+  bulges do not count in the drag model's cover (the heads billed as bare, 0.083 m2) - a physics decision. The Jodel on
+  heel drums (practical-cerf): handbook landing 165 / 165 / 151 m against the book's 150 (no limit: gave up / 157 / 133).
+  README sections 9-10.

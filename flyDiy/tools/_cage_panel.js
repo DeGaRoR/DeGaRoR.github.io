@@ -60,6 +60,8 @@ function fromSpec(sy) {
     SY.avionics[k] = (s.avionics && s.avionics[k] != null) ? s.avionics[k] : null;
   // G2815: a single big display's side - in the spec only once picked (every other build keeps its bytes)
   if (s.gpsSide === 'pilot' || s.gpsSide === 'copilot') SY.gpsSide = s.gpsSide; else delete SY.gpsSide;
+  // COMMS-SECTION ready 2: the ELT, in the spec only when fitted (an option, not a tier's)
+  if (s.avionics && s.avionics.elt === 'fitted') SY.avionics.elt = 'fitted'; else delete SY.avionics.elt;
   SY.look = { bezel: s.look && LOOK_BEZEL.some(q => q[0] === s.look.bezel) ? s.look.bezel : 'plastic',
               sw: s.look && LOOK_SW.some(q => q[0] === s.look.sw) ? s.look.sw : 'toggle' };   // G371
   seeded = true;
@@ -160,7 +162,7 @@ function pickTier(t) {
   if (t !== 'custom') {
     SY.items = null;
     for (const k of Object.keys(SY.elec)) SY.elec[k] = null;
-    for (const k of Object.keys(SY.avionics)) SY.avionics[k] = null;
+    for (const k of Object.keys(SY.avionics)) if (k !== 'elt') SY.avionics[k] = null;   // (no tier carries an ELT: it stays)
   } else makeCustom();
 }
 
@@ -329,13 +331,13 @@ function renderPanel() {
 
   // ---- the radios -------------------------------------------------------------
   const av = fold(B, 'radios', true);
-  const avLabel = { com: 'COM', xpdr: 'transponder', nav: 'NAV', gps: 'GPS' };
+  const avLabel = { com: 'COM', xpdr: 'transponder', nav: 'NAV', gps: 'GPS', elt: 'ELT' };
   for (const k of Object.keys(C.AV)) {
     const tab = C.AV[k];
     select(av, avLabel[k] || k, Object.keys(tab).map(q => tab[q].note ? q + ': ' + tab[q].note : q).join('\n'),
       Object.keys(tab).map(q => [q, tab[q].name + (tab[q].kg ? ' · ' + fmtKg(tab[q].kg) + ' · ' + fmtCr(tab[q].price) : '') +
         (tab[q].later ? ' — declared, not drawn yet' : '')]),
-      R.avionics[k], v => { makeCustom(); SY.avionics[k] = v; renderPanel(); commit(); });
+      R.avionics[k] || 'none', v => { makeCustom(); SY.avionics[k] = v; renderPanel(); commit(); });   // (the ELT: absent = none)
   }
   // G2815: a single 10 in display - in front of the pilot or of the passenger beside him
   if (R.avionics.gps === 'flat')

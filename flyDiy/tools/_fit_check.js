@@ -665,6 +665,8 @@ function runReach(mode) {
     // not the tier's name — so the ifr probe carries its three
     { systems: 'minimal', avionics: { com: false, nav: false, xpdr: false } },
     { systems: 'ifr', avionics: { com: true, nav: true, xpdr: true } },
+    // COMMS-SECTION ready 2: a panel GPS (its roof puck) and an ELT (its whip) - options no tier carries
+    { systems: 'ifr', avionics: { com: true, nav: true, xpdr: true, gps: true, elt: true } },
     { material: 'alloy' }, { material: 'wood' }, { material: 'carbon' },
     { cargo: 1.2 }, { sillH: 0.9 }, { wing: false }, { engine: false },
     { tailHalfW: 0.30 },

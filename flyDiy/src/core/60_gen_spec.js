@@ -234,7 +234,14 @@ const GEN_MATERIALS = {
     // straight from elastic to in pieces. That is the second axis this row
     // gains once a failure model exists; today it is reporting only.
     phys: { E: 135e9, rho: 1550, sigY: 1500e6 },
-    lin:   { fus: 0.38, wing: 0.44, gear: 0.85 },
+    // HULL-B50, THE COMPOSITE RECALIBRATION (the user: "I've been a little surprised by how little we could save using
+    // composite materials ... let's make this carbon worth it"; the reference: the Super Petrel LS, carbon/epoxy foam,
+    // 320 kg empty on a 912 iS). The members were 0.38 / 0.44 / 0.85 - 70-80 % of the alloy row's - so a carbon
+    // wing came out 4 % under an alloy one and 45 % over the ultralight's tube-and-Dacron; the skin (cover) was right and
+    // was never the mass (a wing's cover is ~3 % of it here). x0.45: the Petrel at 332 kg empty (wings 68 kg + struts
+    // 18 for its 15 m2 biplane), carbon's members ~35 % of alloy's - the UD spar caps' 2-3x specific stiffness and a
+    // moulding's missing fasteners. k / c follow (below)
+    lin:   { fus: 0.17, wing: 0.20, gear: 0.38 },
     cover: 2.40,      // cloth / foam / cloth sandwich, with its resin
     // same reasoning as the alloy row above: the sandwich skin IS the spar cap
     // here, so its stiffness rides with its mass, and `c` rides with both to
@@ -249,8 +256,12 @@ const GEN_MATERIALS = {
     // cantilever. It is linear, its cantilever sits at 0.66 % in the middle of
     // the band, and the ratio to the alloy strut is about 4x where the material
     // and the mass together argue for 3x. An outlier configuration, not a bug.
-    k:     { fus: 1.21e6, wing: 3.60e6, gear: 1.55e5 },
-    c:     { fus: 275,   wing: 900,   gear: 1866 },
+    // (HULL-B50: the stiffness and the damping follow the members down - k x0.55, c x0.50, the damping ratio held. The
+    // lattice's springs are absolute and its masses are lin's: at x0.45 of the mass the old k rang the solver to NaN at
+    // t 0 (measured: k/m up to x1.33 holds, x1.56 diverges - the row already sat near the explicit step's limit); a
+    // composite airframe's deflection under load rises with it, its frequencies ~10 % up)
+    k:     { fus: 0.666e6, wing: 1.98e6, gear: 0.853e5 },
+    c:     { fus: 138,   wing: 450,   gear: 933 },
     refMass: 420,                       // tuned at the size this generator builds
     refGross: 600, coverGauged: true,   // a two-seat composite at that size; the laminate follows the load
     cdWet: 0.0045,                      // moulded: the smoothest body on the list
@@ -327,7 +338,7 @@ const GEN_MATERIALS = {
   glass: {
     name: 'glass + epoxy',
     phys: { E: 20e9, rho: 1900, sigY: 180e6 },
-    lin:   { fus: 0.50, wing: 0.57, gear: 1.10 },
+    lin:   { fus: 0.38, wing: 0.43, gear: 0.83 },   // (HULL-B50: x0.75 - glassfibre's members ~25 % under alloy's, carbon's ~50 % under glass)
     cover: 3.00,
     k:     { fus: 6.05e5, wing: 1.80e6, gear: 1.55e5 },
     c:     { fus: 222,   wing: 725,   gear: 2128 },
@@ -1126,6 +1137,7 @@ const GEN_ACCESS = {
   commAerial: {
     name: 'Comm aerial',
     serves: 'the VHF radio',
+    radio: 'com1',                  // COMMS-SECTION: the radio it serves (GEN_COMMS)
     // the panel arc, session 2: fitted when the fit carries a COM (the tier's
     // answer or the player's), not by the tier's name
     // G278: on twin booms the pod's deck is the wing's shadow and ends at
@@ -1143,6 +1155,7 @@ const GEN_ACCESS = {
   navAerial: {
     name: 'Nav aerial',
     serves: 'the VOR receiver',
+    radio: 'nav',
     need: R => (R.avionics && R.avionics.nav) ? 1 : 0,
     // ON A ROD (G189) it is clamped to the tube's crown, a third of the way
     // down it — `on` picks the surface per aeroplane, and the rod placer
@@ -1162,6 +1175,7 @@ const GEN_ACCESS = {
   xpdrAerial: {
     name: 'Transponder aerial',
     serves: 'the transponder',
+    radio: 'xpdr',
     // UNDERNEATH, ALWAYS: a transponder aerial talks to a radar below it.
     //
     // AND AFT OF THE FUEL DRAIN, which is the other thing on the keel. At
@@ -1178,6 +1192,39 @@ const GEN_ACCESS = {
                          lv: 'keel' },
     snap: 'bay', side: R => R.booms ? 'star' : 'centre',
     form: 'bladeAerial', size: { h: 0.075, c: 0.050, t: 0.008 },
+  },
+  // COMMS-SECTION ready 2 (9 Nov; the user: "just have the option to equip them, and the little accessories then show,
+  // but that's it"): the GPS's puck and the ELT's whip, each drawn ONLY when its unit is fitted. Their placement keys
+  // are absent at 0 (_cage_gen.js CAGE_DEFAULT_ABSENT), so no saved build gains a key.
+  gpsAerial: {
+    name: 'GPS aerial',
+    serves: 'the GPS navigator',
+    radio: 'gps',
+    // a puck on the cabin roof's aft edge, ahead of the comm blade: it wants the sky. A portable GPS has its own
+    // aerial in the unit (R.avionics.gps is true only for a panel, glass or 10 in unit)
+    need: R => (R.avionics && R.avionics.gps) ? 1 : 0,
+    on: R => R.rod ? 'rod' : R.booms ? 'boom' : 'body',
+    at: R => R.rod ? { sL: R.rod.from + R.rod.len * 0.08, lv: 'crown' }
+           : R.booms ? { sL: R.booms.len * 0.25, lv: 'crown' }
+                     : { sL: R.cabinAft + 0.18, lv: 'crown' },
+    snap: 'free', side: R => R.booms ? 'port' : 'centre',
+    form: 'puckAerial', size: { d: 0.090, h: 0.022 },
+  },
+  eltAerial: {
+    name: 'ELT aerial',
+    serves: 'the emergency locator transmitter',
+    radio: 'elt',
+    // the whip on the tailcone's crown, over the ELT bolted inside it (GEN_AVIONICS.elt: 1.0 kg, billed aft)
+    need: R => (R.avionics && R.avionics.elt) ? 1 : 0,
+    on: R => R.rod ? 'rod' : R.booms ? 'boom' : 'body',
+    // (on a rod, at 0.48 between the nav mast (0.35) and the beacon (0.60): at 0.80 it stood 30 mm in the fin - the
+    // CLIP look of 9 Nov)
+    at: R => R.rod ? { sL: R.rod.from + R.rod.len * 0.48, lv: 'crown' }
+           : R.booms ? { sL: R.booms.len * 0.80, lv: 'crown' }
+                     : { sL: R.cabinAft + (R.tailArm - R.cabinAft) * 0.40, lv: 'crown' },
+    // `foot` is what it occupies (its base), not its 0.45 m reach - as the nav aerial's mast
+    snap: 'free', side: R => R.booms ? 'star' : 'centre',
+    form: 'whipAerial', size: { h: 0.450, d: 0.006, foot: 0.050 },
   },
   beacon: {
     name: 'Anti-collision beacon',
@@ -1322,7 +1369,8 @@ function genAccessNeeds(S) {
     // aerials' `need`s read these, so a custom fit with a COM grows its blade
     avionics:  (() => { const r = genSystemsResolve(S);
                         return { com: r.avionics.com !== 'none', nav: r.avionics.nav !== 'none',
-                                 xpdr: r.avionics.xpdr !== 'none' }; })(),
+                                 xpdr: r.avionics.xpdr !== 'none', gps: genGpsPuck(r.avionics.gps),
+                                 elt: r.avionics.elt === 'fitted' }; })(),
     // G2808: the fitted dials and the suction, as the core resolves them (the static port, the venturi, the sight)
     items:     genSystemsResolve(S).items,
     vac:       genSystemsResolve(S).vac,
@@ -1398,7 +1446,7 @@ function genAccessNeedsCage(P, extra) {
     avionics:  E.avionics || (() => {
       const T = GEN_SYSTEMS[E.systems] || GEN_SYSTEMS.basic;
       return { com: T.avionics.com !== 'none', nav: T.avionics.nav !== 'none',
-               xpdr: T.avionics.xpdr !== 'none' }; })(),
+               xpdr: T.avionics.xpdr !== 'none', gps: genGpsPuck(T.avionics.gps), elt: false }; })(),
     // G2808: the fitted dials and the suction (the editor hands the resolved ones over; a bench takes the tier's)
     items:     Array.isArray(E.items) ? E.items : genSystemsResolve({ systems: { fit: E.systems || 'basic' } }).items,
     vac:       E.vac !== undefined ? E.vac : genSystemsResolve({ systems: { fit: E.systems || 'basic' } }).vac,
@@ -2071,6 +2119,24 @@ function genBreakerSize(amps) {
 // genAccessNeeds. `later` rows are declared so the ledger's schema is final
 // — priced and weighed when fitted, nothing drawn yet (a receiver in the
 // stack, no needle).
+// COMMS-SECTION (8 Nov; the user via A0: "give them their own section ... COMMUNICATIONS. At some point we'll end up
+// having a radio, but right now just cosmetically. But let's prepare for that, for a coherent set"). THE SET: each radio
+// the panel can carry, the avionics key that fits it (GEN_AVIONICS, spec.systems.avionics) and the GEN_ACCESS row that is
+// its aerial (the row's own `radio` names it back). The garage's Communications part is laid out from this table, in
+// this order; a working radio later reads "fitted, powered, its aerial placed and whole" through it. Nothing flies off it
+// today. `later` rows are declared, not drawn: COM 2 (a second COM and blade), the GPS's own aerial and the ELT
+// (COMMS-SECTION ready 2).
+const GEN_COMMS = [
+  { radio: 'com1', label: 'COM 1',       avionics: 'com',  aerial: 'commAerial' },
+  { radio: 'com2', label: 'COM 2',       avionics: null,   aerial: null, later: true },
+  { radio: 'nav',  label: 'NAV',         avionics: 'nav',  aerial: 'navAerial' },
+  { radio: 'xpdr', label: 'Transponder', avionics: 'xpdr', aerial: 'xpdrAerial' },
+  { radio: 'gps',  label: 'GPS',         avionics: 'gps',  aerial: 'gpsAerial' },    // (ready 2: a panel, glass or 10 in unit)
+  { radio: 'elt',  label: 'ELT',         avionics: 'elt',  aerial: 'eltAerial' },
+];
+// the GPS units that carry a roof aerial (a portable has its own in the unit)
+const genGpsPuck = g => g === 'panel' || g === 'glass' || g === 'flat' || g === 'flatPair';
+
 const GEN_AVIONICS = {
   com: {
     none:    { name: 'no radio',           kg: 0,   price: 0,    amps: 0 },
@@ -2120,6 +2186,14 @@ const GEN_AVIONICS = {
     flatPair: { name: 'twin 10 in displays (PFD + MFD)', kg: 5.8, price: 19000, amps: 8.0,
                 face: { w: 0.271, h: 0.208, sw: 0.211, sh: 0.158, keys: 'below', knob: true, knobs: 'both', keysN: 12, keySlots: [1, 2, 3, 11], n: 2 },
                 note: 'G1000 class, a Skyhawk\'s: the PFD in front of the pilot, the MFD with its engine strip beside it' },
+  },
+  // COMMS-SECTION ready 2 (9 Nov): the emergency locator, an option and nothing more (the user: "non essential feature
+  // at this stage"). Its own battery (no bus, no breaker, no panel room), bolted in the tailcone under its whip; billed
+  // with the radios, its mass placed aft (61_gen_frame.js). In a spec only when fitted (genSystemsResolve, clampSpec).
+  elt: {
+    none:   { name: 'no ELT',                 kg: 0,   price: 0,    amps: 0 },
+    fitted: { name: 'ELT, 406 MHz',            kg: 1.0, price: 1100, amps: 0, ownBattery: true,
+              note: 'ACK E-04 / Artex ELT 345 class with its own battery and whip aerial, in the tailcone' },
   },
 };
 // G2815: where a single big display stands - in front of the pilot or of the passenger beside him
@@ -2175,6 +2249,8 @@ function genSystemsResolve(S, opts) {
     elec[k] = pick(GEN_ELEC[k], sy.elec && sy.elec[k], T.elec[k]);
   for (const k of ['com', 'xpdr', 'nav', 'gps'])
     avionics[k] = pick(GEN_AVIONICS[k], sy.avionics && sy.avionics[k], T.avionics[k]);
+  // COMMS-SECTION ready 2: the ELT is resolved only when fitted (no tier carries one; every other build keeps its keys)
+  if (sy.avionics && sy.avionics.elt === 'fitted') avionics.elt = 'fitted';
   // G2815: a single big display's side (only for it: no other fit carries the key)
   if (avionics.gps === 'flat') avionics.gpsSide = sy.gpsSide === 'copilot' ? 'copilot' : 'pilot';
   // A BATTERY BUILD HAS A CHARGE GAUGE (A3, 2026-09-20): a pack has no cork
@@ -2238,6 +2314,11 @@ function genSystemsResolve(S, opts) {
       rows.push({ key: k + ':' + avionics[k], group: 'avionics', name: r.name, kg: r.kg, price: r.price, amps: r.amps || 0 });
       nPowered++; loads.push({ key: k, amps: r.amps || 0, av: true });
     }
+  }
+  // the ELT: billed with the radios, on its own battery (no load, no breaker, no harness share)
+  if (avionics.elt === 'fitted') {
+    const r = GEN_AVIONICS.elt.fitted;
+    rows.push({ key: 'elt:fitted', group: 'avionics', name: r.name, kg: r.kg, price: r.price, amps: 0, at: 'tailcone' });
   }
   if (hasBus) {
     const H = GEN_ELEC.harness;
@@ -2589,6 +2670,9 @@ const GEN_PRICES = {
   spat: 380,           // one wheel pant (a main or the third wheel)
   trouser: 560,        // one wheel in full trousers (shell + leg shroud)
   legFair: 240,        // one leg's streamline shroud on its own
+  // RETRACT-1: the retraction system - three actuators, the power pack (or the crank), the up- and down-locks, the
+  // squat switch, the lamps and the horn. A real one is ~10-15 % of a light single's price (RETRACT-STUDY §1.9-1.10)
+  retract: 4200,
 };
 
 // FINISH. `paintJob` above used to be spent unconditionally, which made 1800
@@ -2710,7 +2794,154 @@ const GEN_TIPS = {
   // the Hoerner row and a hair more, no drag of its own.
   endplate:{ name: 'Endplate',   e: 1.05, bow: 0,    arc: 0, fin: 0, plate: [0.55, 1.10] },
   drooped: { name: 'Drooped',    e: 1.03, bow: 0.30, arc: 5, fin: 0, droop: 0.14 },
+  // HULL-B54 (the user, the Super Petrel: "the wingtips are going up, not down ... this very one, but inverted would be
+  // quite perfect"; "flipping the tip is really a new type of wingtip, the current one should not be changed"): the
+  // drooped tip's bend MIRRORED - the same bow rolled UP, its end `droop` tip chords above the joint (63_gen_wing reads
+  // `up`); its length, rise and fullness the same three rows (wgTipBow / wgTipDroop / wgTipFull); e as the drooped. A
+  // buoyant tip is a drooped one (genTipBuoyTable bends down): an upturned tip floats nothing
+  upturned:{ name: 'Upturned',   e: 1.03, bow: 0.30, arc: 5, fin: 0, droop: 0.14, up: 1 },
 };
+
+// HULL-B26: THE TIP'S OWN SHAPE (the user, 5 Nov: "take the existing wingtips, start from that very shape and modify it
+// elegantly ... it should be a setting of the wingtip itself, and how far it is allowed to drop, within reason").
+// Three numbers on the tip (wings[].tipShape; absent, or a number left at the kind's own, = the kind): `bow` its
+// length in tip chords (the planform's own half-ellipse, so the strips, the area and the ribs follow), `droop` how far
+// its end drops, in tip chords, and `full` its section's thickness over the wing's aerofoil where it is fullest. The
+// droop BENDS the tip as one piece (genTipBend): the chord plane rolls down along the bow, theta = PHI smoothstep(s/L)
+// - no kink where the bow starts, its end a straight blade - with PHI solved so the end drops `droop`. WITHIN REASON:
+// PHI <= 85 deg, so a tip of length L drops at most ~0.59 L; a deeper drop is a longer tip. One function for the drawn
+// loft (63_gen_wing), the flown buoyant tip (61_gen_frame, genTipBuoyTable) and the boat's fit (_cage_gen.js)
+const GEN_TIP_SHAPE = { bow: [0.15, 0.80], droop: [0, 0.45], full: [1, 2.6], phiMax: 85 };
+function genTipOf(w) {
+  const K = GEN_TIPS[w && w.tip] || GEN_TIPS.rounded, T = w && w.tipShape;
+  if (!T) return K;
+  return Object.assign({}, K, T.bow != null ? { bow: T.bow } : {}, T.droop != null ? { droop: T.droop } : {},
+                       T.full != null ? { full: T.full } : {});
+}
+// the bend: a path in the tip joint's (out, up) plane over the bow's span s in [0, L], the end `D` metres down:
+// { PHI, drop, th(s), Z(s) out, Y(s) up (negative: down) }
+function genTipBend(L, D) {
+  const N = 64, sm = t => t * t * (3 - 2 * t);
+  const run = PHI => { const Z = [0], Y = [0];
+    for (let i = 0; i < N; i++) { const th = PHI * sm((i + 0.5) / N); Z.push(Z[i] + Math.cos(th) * L / N); Y.push(Y[i] - Math.sin(th) * L / N); }
+    return { Z, Y }; };
+  const pMax = GEN_TIP_SHAPE.phiMax * Math.PI / 180;
+  let PHI = 0;
+  if (D > 1e-6 && L > 1e-6) {
+    if (-run(pMax).Y[N] <= D) PHI = pMax;
+    else { let lo = 0, hi = pMax; for (let k = 0; k < 40; k++) { const m = 0.5 * (lo + hi); if (-run(m).Y[N] < D) lo = m; else hi = m; } PHI = 0.5 * (lo + hi); }
+  }
+  const R = run(PHI);
+  const at = (A, s) => { const u = Math.max(0, Math.min(N, (s / Math.max(1e-9, L)) * N)), i = Math.min(N - 1, Math.floor(u)), f = u - i; return A[i] + (A[i + 1] - A[i]) * f; };
+  return { PHI, drop: -R.Y[N], th: s => PHI * sm(Math.max(0, Math.min(1, s / Math.max(1e-9, L)))), Z: s => at(R.Z, s), Y: s => at(R.Y, s) };
+}
+// the section's fullness along the bow: 1 at the joint (the wing's own aerofoil, no step at the aileron's end), the
+// tip's `full` from mid-bow out
+const genTipFat = (full, s, L) => { const t = Math.max(0, Math.min(1, s / Math.max(1e-9, 0.5 * L))); return 1 + ((full || 1) - 1) * t * t * (3 - 2 * t); };
+// the tip joint's frame off the wing's spar nodes (the station nearest inboard of tipZ and the next): O the front spar's
+// point at the joint, ch the chord (aft), up its normal, out the span outward - what the loft bends about and the frame
+// hangs the buoyant tip on
+function genTipJoint(nodes, Wn, tipZ, side) {
+  if (!Wn || !Wn.F || Wn.F.length < 2) return null;
+  let j = 0;
+  while (j < Wn.F.length - 2 && Math.abs(nodes[Wn.F[j + 1]].p[2]) < tipZ) j++;
+  const a = nodes[Wn.F[j]].p, b = nodes[Wn.F[j + 1]].p, aR = nodes[Wn.R[j]].p, bR = nodes[Wn.R[j + 1]].p;
+  const t = Math.max(0, Math.min(1, (tipZ - Math.abs(a[2])) / Math.max(1e-9, Math.abs(b[2]) - Math.abs(a[2]))));
+  const L3 = (p, q) => [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t, p[2] + (q[2] - p[2]) * t];
+  const O = L3(a, b), OR = L3(aR, bR);
+  const nrm = v => { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
+  const cr = (u, v) => [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
+  const ch = nrm([OR[0] - O[0], OR[1] - O[1], OR[2] - O[2]]);
+  let up = nrm(cr(ch, [0, 0, 1])); if (up[1] < 0) up = up.map(x => -x);
+  const out = nrm(cr(ch, up)).map(x => x * side);
+  return { O, ch, up, out, j };
+}
+// THE BUOYANT TIP FOR THE WATER, off the same shape: in the joint's frame (a aft of the front spar, out, up) the solid
+// the loft draws - the row at s its chord c(s) = cT sqrt(1 - (s/L)^2) (the bow's half-ellipse, about the front spar),
+// its NACA half-thickness x genTipFat, rolled by th(s) about the bend's path - rasterised at each chord station into
+// its horizontal widths and laid as a float record's station table holding, station by station, the drawn tip's own
+// area under its chine and under its deck (a symmetric stand-in of the true volume, layer by layer). Returns the table,
+// the volume (m3), the record's centre (aMid aft of the front spar, zc out, yK the keel, up) in the joint's frame
+function genTipBuoyTable(cT, L, D, full, t, sparF) {
+  if (!(cT > 0.05) || !(L > 0.02)) return null;
+  const BD = genTipBend(L, D), NS = 160, NV = 18, NX = 13, e = cT / 90;
+  const yt = x => 5 * t * (0.2969 * Math.sqrt(x) - 0.1260 * x - 0.3516 * x * x + 0.2843 * x ** 3 - 0.1036 * x ** 4);
+  const sf = sparF != null ? sparF : 0.15, a0 = -sf * cT, a1 = (1 - sf) * cT, cells = [];
+  let vol = 0, zA = 0, zW = 0, yK = Infinity;
+  for (let i = 0; i < NX; i++) {
+    const a = a0 + (a1 - a0) * (i + 0.5) / NX, occ = new Map();
+    for (let k = 0; k <= NS; k++) {
+      const s = L * k / NS, c = cT * Math.sqrt(Math.max(0, 1 - (s / L) ** 2));
+      if (!(c > 1e-3) || a < -sf * c || a > (1 - sf) * c) continue;
+      const h = yt(Math.max(0, Math.min(1, a / c + sf))) * c * genTipFat(full, s, L), th = BD.th(s), Z = BD.Z(s), Y = BD.Y(s);
+      for (let q = 0; q <= NV; q++) {
+        const v = -h + 2 * h * q / NV, o = Z + v * Math.sin(th), u = Y + v * Math.cos(th);
+        const iu = Math.floor(u / e), io = Math.floor(o / e), row = occ.get(iu) || new Set();
+        row.add(io); occ.set(iu, row);
+      }
+    }
+    if (!occ.size) { cells.push(null); continue; }
+    const rows = [...occ.keys()].sort((p, q) => p - q), w = rows.map(r => occ.get(r).size * e);
+    rows.forEach((r, n) => { for (const io of occ.get(r)) { zA += (io + 0.5) * e * e * e; zW += e * e; } });
+    vol += w.reduce((p, q) => p + q, 0) * e * (a1 - a0) / NX;
+    yK = Math.min(yK, rows[0] * e);
+    cells.push({ a, yk: rows[0] * e, yd: (rows[rows.length - 1] + 1) * e, rows, w });
+  }
+  if (!(zW > 0)) return null;
+  const zc = zA / zW, aMid = 0.5 * (a0 + a1), sta = [];
+  for (const C of cells) {
+    if (!C) continue;
+    const H = Math.max(2 * e, C.yd - C.yk), yc = C.yk + 0.6 * H;
+    let A1 = 0, A2 = 0;
+    C.rows.forEach((r, n) => { const y = r * e; if (y < yc) A1 += C.w[n] * e; else A2 += C.w[n] * e; });
+    // (half-beams: a vee keel -> chine holds b (yc - yk) of area, the chine -> deck trapezoid (b + bd)(yd - yc))
+    const b = Math.max(0.005, A1 / Math.max(1e-6, yc - C.yk)), bd = Math.max(b, A2 / Math.max(1e-6, C.yd - yc) - b);
+    const x = C.a - aMid;
+    sta.push({ x: Math.abs(x) < 1e-6 ? -1e-4 : +x.toFixed(5), yk: +(C.yk - yK).toFixed(5), b: +b.toFixed(5), yc: +(yc - yK).toFixed(5),
+               bd: +bd.toFixed(5), yd: +(C.yd - yK).toFixed(5) });
+  }
+  if (!sta.some(r => r.x <= 0) || !sta.some(r => r.x > 0)) return null;
+  return { sta, vol, aMid, zc, yK, drop: BD.drop, PHI: BD.PHI };
+}
+// a built aeroplane's tip joint (the right wing's; the left is its mirror) and the tip's own numbers - what the boat's
+// fit shapes the buoyant tip from
+function genTipJointOf(def) {
+  const S = def && def.spec, w = S && ((S.wings && S.wings[0]) || S.wing), wf = def && def.parts && def.parts.wf;
+  if (!w || !(w.tipR > 1e-6) || !wf || !wf.R) return null;
+  const J = genTipJoint(def.nodes, wf.R, w.tipZ, 1), K = genTipOf(w);
+  if (!J) return null;
+  return Object.assign(J, { cT: w.tipC > 0 ? w.tipC : w.chord * (w.taper || 1), L: w.tipR, t: ((w.naca | 0) % 100) / 100,
+                            sparF: GEN_RULES.sparFront != null ? GEN_RULES.sparFront : 0.15, tip: w.tip,
+                            bow: K.bow || 0, droop: K.droop || 0, full: K.full || 1 });
+}
+// HULL-B26: THE BUOYANT TIP'S FIT - the shortest tip (from its own length up, GEN_TIP_SHAPE.bow) whose bend can put its
+// keel down to yTarget (model y) and whose fullness can then hold kgNeed fully immersed: the drop by bisection on the
+// keel, the fullness on the volume, the drop again at that fullness. Returns { bow, droop, full, kg, keel, ok, reach }
+// in tip chords; ok false = even the longest, fullest tip falls short (reach false: its keel does not get down there)
+function genTipFit(J, yTarget, kgNeed) {
+  const G = GEN_TIP_SHAPE, cT = J.cT;
+  const at = (bow, D, full) => { const B = genTipBuoyTable(cT, bow * cT, D * cT, full, J.t, J.sparF);
+    return B ? { y: J.O[1] + B.yK * J.up[1], kg: 1000 * B.vol } : null; };
+  const dropTo = (bow, dMax, full) => { let a = 0, b = dMax; const r0 = at(bow, 0, full);
+    if (r0 && r0.y <= yTarget) return 0;
+    for (let k = 0; k < 14; k++) { const m = 0.5 * (a + b), r = at(bow, m, full); if (r && r.y > yTarget) a = m; else b = m; }
+    return b; };
+  let best = null;
+  for (let bow = Math.max(J.bow || 0, G.bow[0]); bow <= G.bow[1] + 1e-9; bow = +(bow + 0.05).toFixed(3)) {
+    const dMax = Math.min(G.droop[1], genTipBend(bow * cT, 99).drop / cT), deep = at(bow, dMax, G.full[1]);
+    if (!deep) break;
+    if (deep.y > yTarget) { best = { bow, droop: dMax, full: G.full[1], kg: deep.kg, keel: deep.y, ok: false, reach: false }; continue; }
+    if (deep.kg < kgNeed) { best = { bow, droop: dropTo(bow, dMax, G.full[1]), full: G.full[1], kg: deep.kg, keel: yTarget, ok: false, reach: true }; continue; }
+    let D = dropTo(bow, dMax, 1), f1 = 1, f2 = G.full[1];
+    const r1 = at(bow, D, 1);
+    if (r1 && r1.kg >= kgNeed) f2 = 1;
+    else for (let k = 0; k < 12; k++) { const m = 0.5 * (f1 + f2), r = at(bow, D, m); if (r && r.kg < kgNeed) f1 = m; else f2 = m; }
+    D = dropTo(bow, dMax, f2);
+    const r = at(bow, D, f2);
+    return { bow, droop: D, full: f2, kg: r ? r.kg : 0, keel: r ? r.y : yTarget, ok: true, reach: true };
+  }
+  return best;
+}
 
 // ===========================================================================
 // THE STOL WING (G2820) - LEADING-EDGE AND SPANWISE HIGH-LIFT DEVICES
@@ -2836,9 +3067,24 @@ function genStolCageOff(cage) {
   if (!cage || typeof cage !== 'object') return cage;
   let out = null;
   for (const k of GEN_STOL_ROWS) if (k in cage && cage[k] === GEN_STOL_ROW_OFF[k]) { out = out || Object.assign({}, cage); delete out[k]; }
+  // RETRACT-1 / G1: THE RETRACTABLE GEAR'S ROWS, the same rule - with the gear FIXED (gearRetract 0) every one of them is
+  // a row every build before them lacked, and the preview's position (gearPos) is state whatever the gear: none of them
+  // withdraws a certificate, re-keys the certificate cache or moves a procured fingerprint (every caller of this one)
+  const fixed = !(+cage.gearRetract);
+  for (const k of GEN_RETRACT_ROWS) if (k in cage && (fixed || k === 'gearPos')) { out = out || Object.assign({}, cage); delete out[k]; }
+  // SEAPLANES-LAND (HULL rows): the hull-types branch's new cage rows, at the value every build before them meant, the
+  // same rule - absent IS that value, so they withdraw no certificate, re-key no cache, move no procured fingerprint
+  for (const k in GEN_HULL_ROW_OFF) if (k in cage && cage[k] === GEN_HULL_ROW_OFF[k]) { out = out || Object.assign({}, cage); delete out[k]; }
   for (const k in GEN_CAGE_ROW_NEUTRAL) if (k in cage && cage[k] === GEN_CAGE_ROW_NEUTRAL[k]) { out = out || Object.assign({}, cage); delete out[k]; }
   return out || cage;
 }
+// SEAPLANES-LAND: the hull-types rows' "off" (tools/_cage_brace.js, _cage_eng.js PAGE.defaults: the value the draw and the
+// join read when the key is absent)
+const GEN_HULL_ROW_OFF = { bpStrutK: 1, bpCabDraw: 1, bpCabPylon: 0, engPylonFair: 0, engPylonForm: 0, engPylonAt: 0, engPylonAft: 0.15,
+                           engPylonFwd: 0, engFinAt: 0.55, engFinFwd: 0, engNacOver: 0, engNacLift: 0 };
+// RETRACT-1 / G1: the gear layer's retraction rows (tools/_cage_gear.js), dropped by genStolCageOff when the gear is fixed
+const GEN_RETRACT_ROWS = ['gearRetract', 'gearRetT', 'gearRetAct', 'gearRetFrac', 'gearFold', 'gearFoldNose', 'gearPos',
+                          'gm1Ax', 'gm1Ang', 'gm2Ax', 'gm2Ang', 'gmTwist', 'gn1Ax', 'gn1Ang', 'gn2Ax', 'gn2Ang', 'gnTwist', 'gearWellCut', 'gearDoors', 'gearLegDoor', 'gearNacFit', 'gearNacPod', 'gearShort', 'gearShortNose', 'gearKneeDoor'];
 function genStolCage(P) {
   if (!P || !GEN_STOL_ROWS.some(k => P[k] != null)) return undefined;
   return genStolOf({ slat: Object.keys(GEN_SLATS)[Math.round(+P.wgSlat || 0)] || 'none',
@@ -3365,6 +3611,10 @@ const GEN_RULES = {
   // reproduces the 3.5 / 2.0 literals it had.
   wheelKg:     R => 3.5 * CORE_MATH.pow(Math.max(0.03, R) / 0.20, 2.5),
   wheelTwKg:   R => 2.0 * CORE_MATH.pow(Math.max(0.03, R) / 0.10, 1.5),
+  // RETRACT-1: THE RETRACTION KIT by the design gross - the actuators, the pack, the locks, the beefier trunnions. The real
+  // pairs (RETRACT-STUDY §1.9): a 177 to a 177RG +66 kg (a bigger engine in it), a 172 to a 172RG ~+80 kg (engine and
+  // prop in it), the gear itself 2.5-5 % of the gross; 3.5 % of the gross, 12 kg at the least. [TUNE] on a reference retract
+  retractKg:   gross => Math.max(12, 0.035 * (gross || 0)),
   // THE BOX'S WEBS ON A SKINNED WING (chantier 1, see 61_gen_frame's
   // bracing section): the fraction of the cap's linear density a web, rib
   // post or shear diagonal of the torsion-box lattice bills when the
@@ -4566,7 +4816,37 @@ function genEnvBig(span) { return +span > GEN_WING_ENVELOPE.span[1]; }
 function genWingEnv(span) { return genEnvBig(span) ? Object.assign({}, GEN_WING_ENVELOPE, GEN_WING_ENVELOPE.big) : GEN_WING_ENVELOPE; }
 function genBig(S) {
   const w = S && (Array.isArray(S.wings) ? S.wings[0] : S.wing);
-  return !!(w && genEnvBig(w.span));
+  // MASTER-GREEN (8 Nov): on the span the wing FLIES (genWingSize), not the span asked - clampSpec reads genBig for the
+  // fuel, the vessels and the clampBig rows BEFORE clampWing runs, and a 40 m request on a 0.2 m chord (it flies 16 m)
+  // took the big aeroplane's caps (GATE GEN's wild spec: 4 000 L). A wing asked at 18 m or under is never big: the old
+  // answer, no clamp run (and a wing with no chord to clamp by - a partial spec - keeps the asked answer)
+  if (!(w && genEnvBig(w.span))) return false;
+  const sp = genWingSize(w, 0).span;
+  return isFinite(sp) ? genEnvBig(sp) : true;
+}
+// THE WING'S SIZE, clamped (chord and span; the plane's index k: a second plane's own floor) - clampWing's first lines,
+// lifted so genBig reads the same clamp; w is not touched
+function genWingSize(w, k) {
+  // NEW-SHAPES-1: the second plane sized freely below the first plane's floor (GEN_WING_ENVELOPE.second)
+  const envOf = sp => { const E0 = genWingEnv(sp);       // G3503: the big envelope past 18 m asked
+    return k > 0 ? Object.assign({}, E0, { chord: [GEN_WING_ENVELOPE.second.chord, E0.chord[1]],
+      span: [GEN_WING_ENVELOPE.second.span, E0.span[1]], spanPerChord: [GEN_WING_ENVELOPE.second.spanPerChord, E0.spanPerChord[1]] }) : E0; };
+  let E = envOf(w.span);
+  const big = genEnvBig(w.span);
+  let chord = genClamp(w.chord, ...E.chord);
+  let span = genClamp(w.span, Math.max(E.span[0], E.spanPerChord[0] * chord),
+                              Math.min(E.span[1], E.spanPerChord[1] * chord));
+  // G3579: THE ENVELOPE OF THE SPAN THAT FLIES. A wing asking past 18 m on a chord whose aspect holds it under (19.4 m on
+  // 0.89: held at 17.9) took the big envelope here and the small one on the next resolve - its crank chord flew 3.74 m,
+  // then 2.10 (GATE WINGROWS' sweep). Read again off the clamped span and, if that is the other envelope, clamped again by
+  // it: a wing that is small or big from the start takes exactly the path it always did
+  if (genEnvBig(span) !== big) {
+    E = envOf(span);
+    chord = genClamp(w.chord, ...E.chord);
+    span = genClamp(span, Math.max(E.span[0], E.spanPerChord[0] * chord),
+                          Math.min(E.span[1], E.spanPerChord[1] * chord));
+  }
+  return { chord, span, E };
 }
 
 // G185: ONE PLANE'S CLAMP. Lifted out of clampSpec so a biplane's second
@@ -4587,25 +4867,10 @@ function clampWing(w, S, k) {
   // aspect ratio to 20. Every build inside the old 1.15-2.10 / 6.5-14 box is
   // untouched; GATE GEN's wild spec still clamps, and the sail archetype's
   // circuit is the new corner's flight test.
-  // NEW-SHAPES-1: the second plane sized freely below the first plane's floor (GEN_WING_ENVELOPE.second)
-  const envOf = sp => { const E0 = genWingEnv(sp);       // G3503: the big envelope past 18 m asked
-    return k > 0 ? Object.assign({}, E0, { chord: [GEN_WING_ENVELOPE.second.chord, E0.chord[1]],
-      span: [GEN_WING_ENVELOPE.second.span, E0.span[1]], spanPerChord: [GEN_WING_ENVELOPE.second.spanPerChord, E0.spanPerChord[1]] }) : E0; };
-  let E = envOf(w.span);
-  const big = genEnvBig(w.span), chord0 = w.chord;
-  w.chord = genClamp(w.chord, ...E.chord);
-  w.span = genClamp(w.span, Math.max(E.span[0], E.spanPerChord[0] * w.chord),
-                            Math.min(E.span[1], E.spanPerChord[1] * w.chord));
-  // G3579: THE ENVELOPE OF THE SPAN THAT FLIES. A wing asking past 18 m on a chord whose aspect holds it under (19.4 m on
-  // 0.89: held at 17.9) took the big envelope here and the small one on the next resolve - its crank chord flew 3.74 m,
-  // then 2.10 (GATE WINGROWS' sweep). Read again off the clamped span and, if that is the other envelope, clamped again by
-  // it: a wing that is small or big from the start takes exactly the path it always did
-  if (genEnvBig(w.span) !== big) {
-    E = envOf(w.span);
-    w.chord = genClamp(chord0, ...E.chord);
-    w.span = genClamp(w.span, Math.max(E.span[0], E.spanPerChord[0] * w.chord),
-                              Math.min(E.span[1], E.spanPerChord[1] * w.chord));
-  }
+  // the size (chord, span, and the envelope the rest of the plane is clamped by): genWingSize, the clamp genBig reads
+  const Z = genWingSize(w, k);
+  let E = Z.E;
+  w.chord = Z.chord; w.span = Z.span;
   w.taper = genClamp(w.taper, ...E.taper);
   w.dihedral = genClamp(w.dihedral, 0, 6);
   // Quarter-chord sweep, degrees, positive aft. At the speeds this game flies
@@ -4633,6 +4898,16 @@ function clampWing(w, S, k) {
     w.planAxis = genClamp(w.planAxis == null ? 0.30 : +w.planAxis, 0.10, 0.50);
     w.crankAt = 0;
     w.tip = 'elliptic';
+  }
+  // HULL-B26: THE TIP'S OWN SHAPE (GEN_TIP_SHAPE) - on a tip that has a bow, each number clamped, and kept only where it
+  // is off the kind's own (absent = the kind: no key moves the hash of a wing that is drawn and flown the same)
+  if ('tipShape' in w) {
+    const T = w.tipShape, K = GEN_TIPS[w.tip], G = GEN_TIP_SHAPE, o = {};
+    if (T && typeof T === 'object' && K && K.bow > 0 && w.plan !== 'elliptic') {
+      const put = (key, r, own) => { const v = +T[key]; if (T[key] != null && Number.isFinite(v)) { const c = genClamp(v, r[0], r[1]); if (Math.abs(c - own) > 1e-9) o[key] = c; } };
+      put('bow', G.bow, K.bow); put('droop', G.droop, K.droop || 0); put('full', G.full, 1);
+    }
+    if (Object.keys(o).length) w.tipShape = o; else delete w.tipShape;
   }
   // CRANK: a second wing section, and only a second. `crankAt` is the break
   // station as a fraction of the semispan; 0 means a single straight panel.
@@ -4884,6 +5159,9 @@ const GEN_ENG_LAYOUTS = {
   pushPull: { mounts: ['nose', 'pusher'],              nacAt: [] },
   tri:      { mounts: ['nose', 'wing', 'wing'],        nacAt: [0.35] },
   quad:     { mounts: ['wing', 'wing', 'wing', 'wing'], nacAt: [0.30, 0.62] },
+  // HULL-B15: THE TANDEM - two engines back to back on ONE over-the-wing pylon, the front one pulling, the rear one
+  // pushing (the Dornier Seastar's push-pull pylon; the Wal's tandem nacelles)
+  tandem:   { mounts: ['wingTop', 'wingTop'],         nacAt: [] },
 };
 // the layout key of an engine list, or null for every list the clamp keeps
 // to one mount / the classic pair (the pre-G2790 path, byte for byte)
@@ -4976,6 +5254,7 @@ function clampSpec(spec) {
     for (const k of ['com', 'xpdr', 'nav', 'gps'])
       if (sy.avionics[k] != null && !GEN_AVIONICS[k][sy.avionics[k]]) sy.avionics[k] = null;
     if (sy.gpsSide != null && !GEN_GPS_SIDES.includes(sy.gpsSide)) delete sy.gpsSide;   // G2815 (written only when picked)
+    if ('elt' in sy.avionics && sy.avionics.elt !== 'fitted') delete sy.avionics.elt;  // ready 2: only when fitted
   }
   const ct = S.controls;
   clampControls(ct);
@@ -5113,6 +5392,9 @@ function clampSpec(spec) {
 
   for (const e of S.engines) {
     e.sense = (+e.sense === -1) ? -1 : 1;             // G194: +1 or -1, never else
+    if (e.pylonForm !== 'blade') delete e.pylonForm;  // HULL-B14: 'blade' or absent (the V legs)
+    if (e.pylonAt !== 'roof' || !isFinite(+e.pylonFwd) || !+e.pylonFwd) delete e.pylonFwd; else e.pylonFwd = Math.max(-0.6, Math.min(0.8, +e.pylonFwd));   // HULL-B52
+    if (e.pylonAt !== 'roof' && e.pylonAt !== 'body') delete e.pylonAt;   // HULL-B17: 'roof' (behind the cabin); HULL-B30: 'body' (a wing pair on the rear fuselage); absent (the wing)
     // G477 (the Chinook): THE THRUST LINE'S TILT, degrees, downthrust
     // positive (the prop axis points down at the front). A high pusher's
     // line of action runs above the CG and its thrust pitches the nose
@@ -5122,7 +5404,7 @@ function clampSpec(spec) {
     e.tilt = genClamp(+e.tilt || 0, -15, 15);
     if (typeof POWERPLANTS !== 'undefined' && !POWERPLANTS[e.type])
       e.type = 'a65_sensenich74';
-    if (!['nose', 'pusher', 'wingTop', 'wing'].includes(e.mount)) e.mount = 'nose';
+    if (!['nose', 'pusher', 'wingTop', 'wing', 'fin'].includes(e.mount)) e.mount = 'nose';   // (HULL-B22: 'fin')
     e.place.dx = genFieldClamp('engines[].place.dx', e.place.dx);
     e.place.dy = genFieldClamp('engines[].place.dy', e.place.dy);
     // the mount station (2026-09-04): an envelope, null kept for derivation.
@@ -5133,7 +5415,7 @@ function clampSpec(spec) {
     e.x = genClampN(e.x, -3.0, 8.0);
     e.y = genClampN(e.y, -1.0, 2.5);
     e.z = genClampN(e.z, 0, 6.0);
-    e.pylon = genClampN(e.pylon, 0.05, 1.0);
+    e.pylon = genClampN(e.pylon, 0.05, 1.5);   // (HULL-B15: 1.5 m - a tandem's two discs over a cabin)
     // which way a WING engine faces (2026-09-04): null = the mount's own
     // (over the wing pushes, a pair pulls)
     if (!['puller', 'pusher'].includes(e.aim)) e.aim = null;
@@ -5189,6 +5471,7 @@ function clampSpec(spec) {
   // T2.3 (83): the lift struts drawn per side — the V pair (2, every build
   // before) or a single front strut (1); the truss is the same either way
   S.bracing.struts = Math.round(+S.bracing.struts) === 1 ? 1 : 2;
+  if (+S.bracing.cabPylon === 1) S.bracing.cabPylon = 1; else delete S.bracing.cabPylon;   // HULL-B78: the central pylon (absent = struts)
   // THE FUEL CAPS ROSE (2026-09-05, TURBOPROP §5, the user's ruling): 140 L
   // here and 400 L per vessel / in total were a light aeroplane's numbers;
   // a Caravan carries 1 250 L. Now 2 000 L total, 1 000 L a vessel. Every
@@ -5285,7 +5568,7 @@ function clampSpec(spec) {
       if (!v.unmounted) total += v.capacity;
     }
     if (E.kind === 'battery') { E.kWh = total; S.fuel.litres = 0; }
-    else { S.fuel.litres = genClamp(total, 0, genBig(S) ? 4000 : 2000); E.kWh = 0; }
+    else { S.fuel.litres = genClamp(total, 0, genBig(S) ? 8000 : 2000); E.kWh = 0; }   // (DC3-EDITABLE's 8 000 L, as above)
     // `fuel.tank` is the pre-G99 station and is kept as a READING of the first
     // vessel's bay, because GEN_ACCESS decides where the filler cap goes from
     // it and a cap that moved would be a fitting nobody asked to move.
@@ -5393,7 +5676,8 @@ function clampSpec(spec) {
   // (a stab is usually set a degree or two nose-down; the birdman's sits
   // inclined at rest). 0 = every build before: the spars level
   S.tail.hInc = genClamp(S.tail.hInc || 0, -10, 10);
-  if (!['taildragger', 'tricycle', 'floats'].includes(S.gear.type)) S.gear.type = 'taildragger';
+  // HULL-B1: 'hull' - the fuselage is the boat (the cage's hullOn; its measured lines ride gear.hull)
+  if (!['taildragger', 'tricycle', 'floats', 'hull'].includes(S.gear.type)) S.gear.type = 'taildragger';
   // H2 (G389): the measured floats — the drawn hull's parameters and its
   // placement; absent, the frame sizes a pair from the gross (H1's rule)
   if (S.gear.floats && typeof S.gear.floats === 'object') {
@@ -5430,6 +5714,89 @@ function clampSpec(spec) {
     f.x = f.x == null ? null : genClamp(f.x, -3, big ? 12 : 6);
     f.y = f.y == null ? null : genClamp(f.y, big ? -4.5 : -2.5, 0.5);
   } else S.gear.floats = null;
+  // HULL-B2: THE BOAT'S MEASURED LINES (the join's cageHullTable): rows { x, yk, b, yc, bd, yd } in the water's frame
+  // (x aft of the step, y up from its keel, metres), plus the step keel's place (x aft of the firewall, y over the keel
+  // datum). A row that is not six finite numbers drops the record. ABSENT otherwise -
+  // no key is added to a build that is not a boat.
+  if (S.gear.hull && typeof S.gear.hull === 'object') {
+    const h = S.gear.hull, K6 = ['x', 'yk', 'b', 'yc', 'bd', 'yd'];
+    const rows = Array.isArray(h.sta) ? h.sta.filter(r => r && K6.every(k => Number.isFinite(+r[k])))
+      .map(r => Object.assign({ x: genClamp(+r.x, -12, 16), yk: genClamp(+r.yk, -2, 4), b: genClamp(+r.b, 0, 3), yc: genClamp(+r.yc, -2, 4),
+                   bd: genClamp(+r.bd, 0, 3), yd: genClamp(+r.yd, -2, 5) },
+                   // (HULL-B48: a fluted bottom's water ridge - across and its height - rides along; the normaliser dropped it,
+                   // so the water read the plain V under a drawn arch)
+                   Number.isFinite(+r.zr) && Number.isFinite(+r.yr) ? { zr: genClamp(+r.zr, 0, 3), yr: genClamp(+r.yr, -2, 4) } : {}))
+      .sort((a, b) => a.x - b.x) : [];
+    const nF = rows.filter(r => r.x <= 0).length, nA = rows.length - nF;
+    if (rows.length > 200 || nF < 2 || nA < 2) delete S.gear.hull;
+    else {
+      h.sta = rows;
+      h.x = h.x == null || !Number.isFinite(+h.x) ? null : genClamp(+h.x, -4, 12);
+      h.y = h.y == null || !Number.isFinite(+h.y) ? null : genClamp(+h.y, -2.5, 2.0);
+      h.steps = h.steps === 0 ? 0 : h.steps === 2 ? 2 : 1;   // (HULL-B31: two steps - the table carries the second break)
+      // the strut tip floats (HULL-B3): absent = none
+      if (h.tips && typeof h.tips === 'object') {
+        // kg 0 / y -1 (or absent): not fitted - the frame's gross rule (HULL-B5)
+        h.tips = { on: h.tips.on === 0 ? 0 : 1, at: genClamp(Number.isFinite(+h.tips.at) ? +h.tips.at : 0.85, 0.3, 0.98),   // (HULL-B28: an outrigger stands inboard, to 0.3)
+                   kg: Number.isFinite(+h.tips.kg) && +h.tips.kg > 0 ? genClamp(+h.tips.kg, 2, 2000) : 0,
+                   y: Number.isFinite(+h.tips.y) && +h.tips.y > -0.999 ? genClamp(+h.tips.y, -0.99, 3) : -1,
+                   // (HULL-B26: 'wing' = the wing's own tips are the floats - its drooped, buoyant tip; absent = strut floats)
+                   ...(h.tips.mode === 'wing' || h.tips.mode === 'outrigger' ? { mode: h.tips.mode } : {}),
+                   // (HULL-B45: the plane the strut floats hang under - 1 = a biplane's second plane, the Super Petrel's
+                   // lower wing; absent = the first)
+                   ...(h.tips.plane === 1 ? { plane: 1 } : {}) };   // (HULL-B28: 'outrigger' - the strut float's record, sized and seated as a side hull)
+      } else h.tips = null;
+      // HULL-B19: the sponsons - absent = none; kg 0 / y -1 not fitted (the frame's rule)
+      if (h.spon && typeof h.spon === 'object' && h.spon.on) {
+        const sp = h.spon;
+        h.spon = { on: 1, kg: Number.isFinite(+sp.kg) && +sp.kg > 0 ? genClamp(+sp.kg, 2, 3000) : 0,
+                   y: Number.isFinite(+sp.y) && +sp.y > -0.999 ? genClamp(+sp.y, -0.99, 2) : -1,
+                   x: genClamp(Number.isFinite(+sp.x) ? +sp.x : 0.3, -3, 5), w: genClamp(Number.isFinite(+sp.w) ? +sp.w : 0.32, 0.05, 3),
+                   // HULL-B21: the stub (mode 'stub'): its mean chord (0 not fitted), span / chord, thickness / chord
+                   mode: sp.mode === 'stub' || sp.mode === 'root' ? sp.mode : 'float', c: Number.isFinite(+sp.c) && +sp.c > 0 ? genClamp(+sp.c, 0.2, 4) : 0,   // (HULL-B29: 'root' - the low wing's own roots plane)
+                   k: genClamp(Number.isFinite(+sp.k) ? +sp.k : 0.75, 0.3, 2), t: genClamp(Number.isFinite(+sp.t) ? +sp.t : 0.22, 0.08, 0.4) };
+      } else delete h.spon;
+    }
+  } else if (S.gear.hull !== undefined) delete S.gear.hull;
+  // (a 'hull' with no usable record keeps its type and flies on floats the frame sizes by the gross: a seaplane that
+  // floats, never a boat on phantom wheels - 61_gen_frame.js HULL-B3)
+  // RETRACT-1 (2026-11-03, futureDesigns/RETRACT-STUDY-2026-11.md §3.1): THE RETRACTABLE GEAR - a tricycle's three wheels
+  // swing up in flight. The key only when chosen (the full swivel's rule, G3575): a fixed build carries none and its spec,
+  // its def and its flight are what they were, to the bit. `time` the cycle (s, one way - an Arrow ~7, the A5 ~7, a
+  // Bonanza ~4), `act` what drives it (electric / hydraulic: the bus must be alive; manual: the pilot's arm), `emerg`
+  // the emergency extension (crank, free fall, hand pump, gas blow-down - each its time, 30_solver gearEmerg)
+  if (S.gear.retract && typeof S.gear.retract === 'object' && S.gear.type === 'tricycle') {
+    const r = S.gear.retract;
+    r.time = genClamp(r.time == null ? 6 : +r.time || 6, 2, 20);
+    if (!['electric', 'hydraulic', 'manual'].includes(r.act)) r.act = 'hydraulic';
+    if (!['crank', 'freefall', 'pump', 'blow'].includes(r.emerg)) r.emerg = r.act === 'hydraulic' ? 'freefall' : 'crank';
+    // G1: the FRACTION of the fold it retracts (1 all the way: the key absent; 0.6 a Catalina's or a DC-3's - the stowed
+    // wheel still rolls), and the LIFT the drawn fold gives the wheel's lowest point (m, the join's measurement; absent:
+    // the frame's own rule, 30_solver GH x frac)
+    if (r.frac != null) { r.frac = genClamp(+r.frac || 1, 0.3, 1); if (r.frac >= 1) delete r.frac; }
+    if (r.lift && typeof r.lift === 'object') {
+      for (const k of ['mains', 'nose']) if (r.lift[k] != null) r.lift[k] = genClamp(+r.lift[k] || 0, 0, 3); else delete r.lift[k];
+      if (!Object.keys(r.lift).length) delete r.lift;
+    } else delete r.lift;
+    // G3 (RETRACT-STUDY §8.3): THE WELLS the stowed units reserve, the join's measurement - per unit its station range x
+    // (the frame's body x), its band of the section lv (0 keel .. 1 top), its span fractions, and its litres in the body
+    // and in the wing. The bays give them up (60c genBayResolve). Only with a retraction; four at the most
+    if (Array.isArray(S.gear.wells)) {
+      const ok = w => w && typeof w === 'object' && Array.isArray(w.x) && w.x.length === 2 && w.x.every(v => isFinite(+v));
+      S.gear.wells = S.gear.wells.filter(ok).slice(0, 4).map(w => {
+        const pair = (a, lo, hi) => { const u = [genClamp(+a[0] || 0, lo, hi), genClamp(+a[1] || 0, lo, hi)]; return u[0] <= u[1] ? u : [u[1], u[0]]; };
+        const o = { unit: ['L', 'R', 'T'].includes(w.unit) ? w.unit : 'L', x: pair(w.x, -20, 40),
+                    bodyL: genClamp(+w.bodyL || 0, 0, 2000), wingL: genClamp(+w.wingL || 0, 0, 2000) };
+        if (Array.isArray(w.lv) && w.lv.length === 2) o.lv = pair(w.lv, 0, 1);
+        if (Array.isArray(w.span) && w.span.length === 2) o.span = pair(w.span, 0, 1.5);
+        return o;
+      });
+      if (!S.gear.wells.length) delete S.gear.wells;
+    } else delete S.gear.wells;
+    // a retracting gear wears no spat, trouser or leg shroud (its doors are its fairing, RETRACT-STUDY §8): the drag and
+    // the mass price it bare (the fairing fields are normalised just below, so they must be set before)
+    S.gear.fairing = S.gear.twFairing = 'none'; S.gear.legFair = S.gear.twLegFair = 'none';
+  } else { delete S.gear.retract; delete S.gear.wells; }
   if (!GEN_SUSPENSION[S.gear.suspension]) S.gear.suspension = 'bungee';
   // WHEEL FAIRINGS, off by default. `spat` is the shell over the wheel alone;
   // `full` carries it up the leg as well. The drag model this comment once
@@ -5491,6 +5858,9 @@ function clampSpec(spec) {
       W[0].z = W[1].z = zi; W[2].z = W[3].z = genClamp(zo, 0, 6.0);
     }
     if (LAY === 'pushPull') E[1].sense = -E[0].sense;
+    // the tandem's pair: one pylon (the front entry's height), the front pulling, the rear pushing, opposite hands
+    if (LAY === 'tandem') { E[1].pylon = E[0].pylon; E[0].aim = 'puller'; E[1].aim = 'pusher'; E[1].sense = -E[0].sense;
+      if (E[0].pylonForm) E[1].pylonForm = E[0].pylonForm; else delete E[1].pylonForm; }
   } else if (Array.isArray(S.engines) && S.engines.length) {
     const pair = S.engines[0].mount === 'wing';
     S.engines = S.engines.slice(0, pair ? 2 : 1);
@@ -5893,7 +6263,7 @@ function resolveSpec(spec) {
   // converges in two on any sane taper). LAW.cAt IS the old `lin` when the
   // stations are null, so the legacy bow is unchanged to the bit.
   // (an elliptic planform closes on its own curve: no bow)
-  const bowF = LAW.ell ? 0 : (GEN_TIPS[w.tip] || GEN_TIPS.rounded).bow || 0;
+  const bowF = LAW.ell ? 0 : genTipOf(w).bow || 0;            // (HULL-B26: the tip's own length when it has one)
   let Rb = bowF * LAW.cAt(semi);
   for (let i = 0; i < 3; i++) Rb = bowF * LAW.cAt(Math.max(zR0, semi - Rb));
   Rb = Math.max(0, Math.min(Rb, 0.45 * (semi - zR0)));
@@ -6225,6 +6595,7 @@ function resolveSpec(spec) {
     const d = m === 'pusher' ? { x: S.fuse.boxRear + 0.30, y: 0.45 * S.cab.h, z: 0 }
             : m === 'wingTop' ? { x: w.xLE + 0.30 * w.chord,
                                   y: wingY + 0.06 * w.chord + pylon, z: 0 }
+            : m === 'fin' ? { x: (S.tail && S.tail.vX != null ? S.tail.vX : S.fuse.boxRear + 2) - 0.4, y: 1.3 * S.cab.h, z: 0 }
             : m === 'wing' ? { x: w.xLE + 0.05, y: wingY,
                                z: zR + nacAt * Math.max(0.5, semi - zR) }
             : { x: S.engX, y: S.engY, z: 0 };
@@ -6240,6 +6611,12 @@ function resolveSpec(spec) {
              y: e.y != null ? e.y : d.y,
              z: m === 'wing' ? Math.abs(e.z != null ? e.z : d.z) : 0,
              pylon,
+             // HULL-B14: the over-the-wing pylon's FORM - 'blade' a single wing-section post on the centreline; absent the
+             // V legs to both roots (the frame braces each as it is)
+             ...(e.pylonForm === 'blade' && m === 'wingTop' ? { pylonForm: 'blade' } : {}),
+             ...(e.pylonAt === 'roof' && m === 'wingTop' ? { pylonAt: 'roof' } : {}),
+             ...(e.pylonAt === 'roof' && m === 'wingTop' && +e.pylonFwd ? { pylonFwd: +e.pylonFwd } : {}),   // (HULL-B52)
+             ...(e.pylonAt === 'body' && m === 'wing' ? { pylonAt: 'body' } : {}),   // (HULL-B30: a pair on the rear fuselage)
              pushes: m === 'pusher' ? true : m === 'nose' ? false
                    : e.aim ? e.aim === 'pusher' : m === 'wingTop' };
   });

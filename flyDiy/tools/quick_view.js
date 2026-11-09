@@ -13,6 +13,9 @@
 //   --out       the viewer (default reports/quick_view/<build name>.html - not committed: reports/ is a scratch)
 //   --png       also the four views at once as a picture (the pre-installed Chromium, headless, through Playwright)
 //   --cage      cage rows set first (a what-if without writing a file)
+//   QV_HIDE     (environment) a regex on mesh / layer names to leave out, e.g. QV_HIDE='wing|eng' - the fuselage alone
+//   --closeup   also six close views of the engine's mounting (the pylon: the probe's focus box) as one picture
+//               (--closeK=<k> the distance, k x the box's size, default 1.6; --closeViews=yaw,pitch;yaw,pitch;... radians)
 //   (the page opens on the view its hash names: #three #side #top #front #grid; window.__qv = { cam, draw, set } for a script)
 'use strict';
 const fs = require('fs'), path = require('path');
@@ -55,7 +58,7 @@ const I32 = new Uint32Array(P.I), C8 = Uint8Array.from(P.C);
 const blob = require('zlib').gzipSync(Buffer.concat([bytes(I32), bytes(Q), bytes(C8)]), { level: 9 }).toString('base64');
 const name = (j.name || path.basename(file, '.json')).replace(/[^\w .()-]/g, '');
 const data = { name, mid, half, size: hi.map((h, a) => +(h - lo[a]).toFixed(2)), nOpaque: P.nOpaque,
-               nI: I32.length, nV, blob };
+               nI: I32.length, nV, blob, focus: P.focus || null };
 
 const out = opt('out', path.join(ROOT, 'reports', 'quick_view', name.replace(/[^\w-]+/g, '_') + '.html'));
 fs.mkdirSync(path.dirname(out), { recursive: true });
@@ -65,7 +68,38 @@ console.log('quick_view: ' + name + ' - ' + P.parts + ' parts, ' + P.trisIn + ' 
             ' MB, ' + ((Date.now() - t0) / 1000).toFixed(1) + ' s\n  ' + out);
 
 const png = opt('png');
-if (png) shoot(out, png, opt('size', '1400x900')).catch(e => { console.error('quick_view: no picture - ' + e.message); process.exit(1); });
+const closeup = opt('closeup');
+(async () => {
+  if (png) await shoot(out, png, opt('size', '1400x900'));
+  if (closeup) await shootClose(out, closeup);
+})().catch(e => { console.error('quick_view: no picture - ' + e.message); process.exit(1); });
+
+// THE CLOSE-UP (the pylon session): six views round the focus box - side, both three-quarters from above, front,
+// from behind and below, and the side from below - each 700 x 450, tiled two by three into one picture
+async function shootClose(html, pngFile) {
+  if (!data.focus) throw new Error('no focus box (no engine mounting drawn)');
+  const { chromium } = require('playwright');
+  const b = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+  const pg = await b.newPage({ viewport: { width: 700, height: 450 } });
+  await pg.goto('file://' + path.resolve(html));
+  await pg.waitForFunction(() => window.__qvReady === true || typeof window.__qvError === 'string', null, { timeout: 120000 });
+  const [lo, hi] = data.focus, tg = lo.map((l, a) => (l + hi[a]) / 2);
+  const dist = (+opt('closeK', 1.6)) * Math.max(0.8, hi[1] - lo[1], hi[2] - lo[2], 0.6 * (hi[0] - lo[0]));
+  const shots = [];
+  const views = opt('closeViews') ? opt('closeViews').split(';').map(v => v.split(',').map(Number))
+    : [[-Math.PI / 2, 0], [-0.9, 0.35], [-2.3, 0.35], [0, 0.05], [Math.PI - 0.5, -0.25], [-Math.PI / 2, -0.35]];
+  for (const [yaw, pitch] of views) {
+    await pg.evaluate(([t, d, y, p]) => { const q = window.__qv; q.cam.tgt = t; q.cam.dist = d; q.cam.yaw = y; q.cam.pitch = p; q.draw(); },
+                      [tg, dist, yaw, pitch]);
+    shots.push('data:image/png;base64,' + (await pg.screenshot()).toString('base64'));
+  }
+  await pg.setViewportSize({ width: 1400, height: 450 * Math.ceil(shots.length / 2) });
+  await pg.setContent('<body style="margin:0;display:grid;grid-template-columns:700px 700px">' +
+                      shots.map(u => '<img src="' + u + '" width=700 height=450>').join('') + '</body>');
+  await pg.screenshot({ path: pngFile });
+  await b.close();
+  console.log('  ' + pngFile);
+}
 
 async function shoot(html, pngFile, size) {
   const [w, h] = size.split('x').map(Number);
@@ -193,6 +227,6 @@ const cv = document.getElementById('c'), gl = cv.getContext('webgl2', { antialia
   window.addEventListener('resize', draw);
   const h0 = location.hash.slice(1);
   if (VIEWS[h0]) set(h0); else draw();
-  window.__qv = { cam, draw, set }; window.__qvReady = true;
+  window.__qv = { cam, draw, set, focus: D.focus }; window.__qvReady = true;
 } catch (e) { window.__qvError = String(e && e.message || e); document.body.insertAdjacentHTML('beforeend', '<p style="padding:60px 16px">' + window.__qvError + '</p>'); } })();
 </script></body></html>`; }

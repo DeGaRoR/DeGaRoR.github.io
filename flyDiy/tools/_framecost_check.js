@@ -90,6 +90,10 @@ const ALLOW = [
   // Cessna's restore (master 4553, here 4841) stays master's own red, not admitted here (G3340's note).
   { key: 'boot/garage:seed/three.updateMatrixWorld', build: 'cub', rise: 2050, why: 'the breaker row as real parts (G2802) on top of the arch dash (G3340: +704)', g: 'G2802' },
   { key: 'boot/garage:restore/', build: 'cub', rise: 90, why: 'the breaker row as real parts (G2802) on top of the arch dash (G3340: +28)', g: 'G2802' },
+  // COMMS-SECTION + COMMS-GPS-ELT (L36a, 9 Nov; AVIONICS): the FRAMECOST Cessna (cessnaMetal, a flatPair GPS) walks +3842 matrix
+  // updates in its garage seed (25365 -> 29207): the aerials re-hung under the Communications part and the roof GPS puck
+  // drawn for a panel GPS - a one-off garage seed walk, no frame cost (the Cub +1078, inside its slack)
+  { key: 'boot/garage:seed/three.updateMatrixWorld', build: 'cessna', rise: 3900, why: 'the Communications part re-hung aerials (comms-section) and the roof GPS puck for a panel GPS (comms-gps-elt): a one-off garage seed walk, no frame cost', g: 'COMMS-SECTION' },
   { key: 'boot/garage:seed/three.updateMatrixWorld', build: 'cessna', rise: 2100, why: 'the breaker row as real parts (G2802): 15 breakers, 75 objects', g: 'G2802' },
   // G2808.2 (the user 25 Oct: "Fix everything. Wysiwyg"): the billed things drawn on the Cessna's dash - the NAV head and
   // the hour meter (two dials with their bezels, posts and screws), the slip ball, the ammeter's needle, the tapes

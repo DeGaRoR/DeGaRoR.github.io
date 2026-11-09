@@ -152,7 +152,7 @@ function make(THREE) {
   // PICK_MAT precedent). The join never carries it; it is the flight's own.
   CK.padSwitches = model => {
     if (!model || !model.gauges || !THREE.SphereGeometry) return;
-    const padMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, colorWrite: false });  // pre-ok: colorWrite false
+    const padMat = (typeof MATLIB !== 'undefined' ? MATLIB : require('./matlib.js')).make(THREE, 'basic', { transparent: true, opacity: 0, depthWrite: false, colorWrite: false });  // pre-ok: colorWrite false
     for (const g of model.gauges) {
       if (!/^(switch|knob|key|flap|gpskey)$/.test(g.c.law) || !g.obj.add) continue;
       const pad = new THREE.Mesh(new THREE.SphereGeometry(g.c.padR || (g.c.law === 'key' ? 0.022 : g.c.law === 'flap' ? 0.024 : 0.016), 8, 6), padMat);
@@ -347,8 +347,9 @@ function make(THREE) {
     raw.pitch = o.pitch || 0;              // (a dead gyro only answers slower - LAG_HANG, below)
     raw.r = CK.pw('turn') ? (o.r || 0) : 0;          // G2801: the turn coordinator on its own breaker
     raw.beta = o.beta || 0;
-    const hdgNow = navDeg(o.hdg || 0);
-    raw.hdg = hdgNow;
+    // the compass's heading, north -z (AVIONICS-PFD-LAND 7 Nov: the nav angle, 0 = +x, plus 90 - the strips' numbers, the
+    // PFD's heading arc, the HUD and the flight recorder; the DG and compass cards read the nav angle raw, 90 deg off them)
+    raw.hdg = (navDeg(o.hdg || 0) + 90) % 360;
     raw.rpmEng = (o.rpmEng && o.rpmEng[0]) || 0;
     raw.nz = o.nz != null ? o.nz : 1; raw.nzMax = o.nzMax != null ? o.nzMax : 1; raw.nzMin = o.nzMin != null ? o.nzMin : 1;
     raw.oilP = E.running ? 62 * PSI * Math.min(1, 0.5 + 0.5 * raw.rpmEng / 2000) : 0;

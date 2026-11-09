@@ -64,7 +64,7 @@ const PROCURE_COSMETIC = ['paint', 'finish', 'meta'];          // bench.js BENCH
 const PROCURE_READOUTS = ['fuel'];
 const PROCURE_LOOK = { energy: ['finish', 'hue', 'tint'], vessel: ['finish', 'hue', 'tint'], systems: ['look'] };
 // G3852: whSlick (a tundra's lugs or smooth) is drawing only, as bench.js counts it
-const PROCURE_STATE_ROWS = /^_view|^(explodeD|pilOn|cabOcc|paxOcc\d+|lightOn|li_reflect|li_beaconRpm|accDetail|whSlick)$|^hgDr[A-Z]/;
+const PROCURE_STATE_ROWS = /^_view|^(explodeD|pilOn|cabOcc|paxOcc\d+|lightOn|li_reflect|li_beaconRpm|accDetail|accBeacon|whSlick)$|^hgDr[A-Z]/;
 const prClone = o => JSON.parse(JSON.stringify(o));
 const prNo = (doc, why) => ({ ok: false, doc, why });
 const prR100 = n => Math.round((+n || 0) / 100) * 100;
@@ -416,7 +416,7 @@ function procureFpP1(spec, sv, pv) {
   if (c.systems && typeof c.systems === 'object') for (const k of PROCURE_LOOK.systems) delete c.systems[k];
   if (c.cage && typeof c.cage === 'object') for (const k of Object.keys(c.cage)) if (PROCURE_STATE_ROWS.test(k)) delete c.cage[k];
   // G2820: a STOL record at "every device off" (null) is the absent key (bench.js's rule)
-  if (Array.isArray(c.wings)) for (const w of c.wings) if (w && typeof w === 'object' && w.stol == null) delete w.stol;
+  if (Array.isArray(c.wings)) for (const w of c.wings) if (w && typeof w === 'object') { if (w.stol == null) delete w.stol; if (w.tipShape == null) delete w.tipShape; }   // (HULL-B26: the tip's own shape, null = the kind's - as stol)
   if (c.cage && typeof genStolCageOff === 'function') c.cage = genStolCageOff(c.cage);   // G2827: the rows at "off" are absent
   if (sv == null) sv = typeof GEN_SPEC_V !== 'undefined' ? GEN_SPEC_V : 0;
   if (pv == null) pv = typeof PHYSICS_V !== 'undefined' ? PHYSICS_V : 0;

@@ -70,6 +70,16 @@ const REAL = {
                dims: { length: 6.83, height: 2.03, AR: 6.9, cRoot: 1.60, cTip: 1.60, hSpan: 2.90, track: 1.83,
                        fuelL: 45, seats: 2, engineHP: 65, engineKg: 77, propD: 1.83, cabinW: 0.72,
                        src: 'J-3 type sheet: 22 ft 5 in x 35 ft 3 in x 6 ft 8 in, chord 63 in, 12 US gal, Sensenich 72 in' } },
+  // HULL-B54 (the user: "that plane starts being good enough so it can be compared with the real one"): the Super
+  // Petrel LS (Scoda / EDRA, Rotax 912 iS), a candidate 4th reference - the maker's and the web summaries' figures
+  // (futureDesigns/SUPER-PETREL-2026-11.md): MTOW 600 / empty 320 kg, 15.0 m2 both planes, upper span 8.9 m, stall
+  // 37 kt, climb 1000-1400 fpm (the low end taken at gross), cruise ~86 kt, VH ~97 kt. No published land or water run
+  // at gross, nor glide ratio: left empty, not guessed. The water run is hull_matrix's (the take-off on the step)
+  petrel:    { name: 'Super Petrel LS (912 iS)', mtow: 600, empty: 320, S: 15.0, b: 8.9, powerKW: 73.5,
+               Vs1: 68, V75: 160, Vmax: 180, roc: 5.1, TO: null, LDG: null, LD: null, engineMatch: true,
+               src: 'maker / web summaries: stall 37 kt, cruise ~86 kt, VH ~97 kt, 1000-1400 fpm, 90 L; APPROXIMATE - to confirm against the POH',
+               dims: { length: 6.25, height: 2.25, fuelL: 90, seats: 2, engineHP: 100, engineKg: 63.6,
+                       src: 'type data: 6.25 m long, 8.9 m upper span, 2.2-2.33 m high, 90 L' } },
   pietenpol: { name: 'Pietenpol Air Camper (A-65)', mtow: 476, empty: 280, S: 13.5, b: 8.8, powerKW: 48,
                Vs1: 56, V75: 120, Vmax: 137, roc: 2.5, TO: 120, LDG: 100, LD: 8, T0: 1200, engineMatch: true,
                src: 'type data: stall 35 mph, cruise 75, Vmax 85, 500 fpm' },

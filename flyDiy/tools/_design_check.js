@@ -804,6 +804,49 @@ if (process.argv.includes('--selftest')) {
 
 // ---------------------------------------------------------------------------
 const nRows = D.DESIGN_ROWS.length;
+// RETRACT-LAB (SEAPLANES-LAND, A0 8 Nov: "one gate must still prove the flag is off by default in a real page"):
+// _cage_gear.js RETRACT_LAB - a page (a `location`) with no flag is OFF: the retract switch, its tile and the
+// amphibious floats' row hidden from the player; ?retract=lab, the dev toggle (flydiy.flDev) or FLYDIY_RETRACT_LAB
+// turn it on; node (no `location`: the gates) is on. A saved amphibious float keeps its row (to switch it off).
+{
+  const lab = W.CAGE_RETRACT_LAB;
+  const rowOf = key => {
+    let hit = null;
+    const walk = a => { if (hit || !Array.isArray(a)) return;
+      if (a[0] === key && typeof a[1] === 'string' && typeof a[2] === 'number') { hit = a; return; }
+      for (const x of a) walk(x); };
+    walk(W.CAGE_PAGE.groupsOverride);
+    return hit;
+  };
+  const whenOf = key => { const r = rowOf(key); const o = r && r.find(x => x && typeof x === 'object' && !Array.isArray(x) && typeof x.when === 'function'); return o ? o.when : null; };
+  const tile = D.DESIGN_ROWS.find(r => r.key === 'retract');
+  const trike = Object.assign({}, G.CAGE_PARAMS, W.CAGE_PAGE.defaults, { s2On: 1, s2Leg: 2, gearRetract: 0 });
+  const floats = Object.assign({}, G.CAGE_PARAMS, W.CAGE_PAGE.defaults, { gearFloats: 1, fltAmph: 0 });
+  const wR = whenOf('gearRetract'), wA = whenOf('fltAmph');
+  const had = { flag: W.FLYDIY_RETRACT_LAB, ls: W.localStorage, loc: global.location };
+  const state = (loc, flDev, flag) => {
+    delete W.FLYDIY_RETRACT_LAB; if (flag !== undefined) W.FLYDIY_RETRACT_LAB = flag;
+    if (loc === null) delete global.location; else global.location = { search: loc };
+    W.localStorage = { getItem: k => (k === 'flydiy.flDev' && flDev ? '1' : null) };
+    return { lab: lab(), row: wR(trike), tile: tile.when(), amph: wA(floats), amphSaved: wA(Object.assign({}, floats, { fltAmph: 1 })) };
+  };
+  let S = null;
+  if (check(typeof lab === 'function' && !!wR && !!wA && !!tile && typeof tile.when === 'function',
+            'RETRACT-LAB: the switch, the gearRetract and fltAmph rows\' `when`, the retract tile\'s `when`')) {
+    S = { node: state(null, false), page: state('', false), q: state('?retract=lab', false), dev: state('?x=1', true),
+          forced: state('?retract=lab', true, false) };
+    check(S.node.lab && S.node.row && S.node.tile && S.node.amph, 'RETRACT-LAB: no page (node) is lab-on: every retract row and the tile shown', JSON.stringify(S.node));
+    check(!S.page.lab && !S.page.row && !S.page.tile && !S.page.amph && S.page.amphSaved,
+          'RETRACT-LAB: a page with no flag is OFF: no retract switch on a tricycle, no Retraction tile, no amphibious floats row (a saved one keeps it)', JSON.stringify(S.page));
+    check(S.q.lab && S.q.row && S.q.tile && S.dev.lab && S.dev.row && S.dev.tile, 'RETRACT-LAB: ?retract=lab or the dev toggle (flydiy.flDev) turn it on', JSON.stringify([S.q, S.dev]));
+    check(!S.forced.lab, 'RETRACT-LAB: window.FLYDIY_RETRACT_LAB = false wins over the query and the dev toggle');
+  }
+  delete W.FLYDIY_RETRACT_LAB; if (had.flag !== undefined) W.FLYDIY_RETRACT_LAB = had.flag;
+  if (had.ls === undefined) delete W.localStorage; else W.localStorage = had.ls;
+  if (had.loc === undefined) delete global.location; else global.location = had.loc;
+  console.log('  RETRACT-LAB: node ' + (S && S.node.lab) + ', a page ' + (S && S.page.lab) + ', ?retract=lab ' + (S && S.q.lab) + ', dev ' + (S && S.dev.lab));
+}
+
 const nOpts = D.DESIGN_ROWS.reduce((n, r) =>
   n + (r.kind === 'field' ? 0 : D.rowOptions(r).length), 0);
 const nInactive = D.DESIGN_ROWS.reduce((n, r) =>

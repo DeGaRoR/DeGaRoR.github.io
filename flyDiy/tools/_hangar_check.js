@@ -95,6 +95,10 @@ function runA() {
   for (const sk of Object.keys(CORE.SHELLS))
     ok(typeof CORE.SHELLS[sk].sky === 'string' && CORE.SHELLS[sk].sky.length > 0,
        'shell ' + sk + ' declares no sky family');
+  // HANGAR-NAMES (the user, 8 Nov: "I agree on the default renaming small, medium, big"): a player sees Small / Medium / Big
+  // hangar; the code keys (field / club / works) stay - the saves and the gates read them
+  ok(CORE.SHELLS.field && CORE.SHELLS.field.name === 'Small hangar' && CORE.SHELLS.club && CORE.SHELLS.club.name === 'Medium hangar' &&
+     CORE.SHELLS.works && CORE.SHELLS.works.name === 'Big hangar', 'the shells are not named Small / Medium / Big hangar (HANGAR-NAMES)');
 
   // ---- rule 5: no dead verbs ----------------------------------------------
   const grantable = new Set(['park', 'heavy', 'composite', 'engine']);

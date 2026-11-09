@@ -19,6 +19,9 @@ const check = (ok, what, detail) => { if (!ok) { fails++; console.log('  FAIL ' 
 
 global.THREE = require(path.join(T, '..', 'vendor', 'three.min.js'));
 global.window = global;
+// ASSETS-GREEN (8 Nov): the material library in scope before the seat library, as the page has it (_seat_gen.js's plain
+// material is MATLIB's now - GATE ASSETS MATS)
+global.MATLIB = require(path.join(T, '..', 'src', 'viewer', 'matlib.js'));
 for (const f of ['_gear_kit.js', '_seat_gen.js']) vm.runInThisContext(fs.readFileSync(path.join(T, f), 'utf8'), { filename: f });
 const SG = global.SEAT_GEN;
 const C = require(path.join(T, 'flight_core.js'));

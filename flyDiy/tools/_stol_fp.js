@@ -81,10 +81,17 @@ function fpCheck(C, def) {
 // STOL wing: the join states stol: null on a wing and the rows at "off" (A3) - dropped here, as GATE STOL section 1 drops
 // them before it compares (a row off its default, or a stated record, stays: the gate then names it)
 const STOL_ROW_DEFAULTS = { wgSlat: 0, wgSlatSpan: 1.0, wgVG: 0, wgFence: 0, wgCuff: 0, wgCuffSpan: 0.40, wgDroop: 0, wgFowlerGrow: 0 };
+// SEAPLANES-LAND: the hull-types rows the load door writes at their "off" (src/core/60_gen_spec.js GEN_HULL_ROW_OFF; GATE
+// STOL checks this table is the core's): the stored spec drops them as the gate does, so a capture on a tree with the
+// seaplanes merge stores what the gate compares (Pilot 8 Nov: every build read 'DIFFERS' after a re-capture)
+const HULL_ROW_OFF = { bpStrutK: 1, bpCabDraw: 1, bpCabPylon: 0, engPylonFair: 0, engPylonForm: 0, engPylonAt: 0, engPylonAft: 0.15,
+                       engPylonFwd: 0, engFinAt: 0.55, engFinFwd: 0, engNacOver: 0, engNacLift: 0 };
 function preStol(spec) {
   const J = JSON.parse(JSON.stringify(spec));
   for (const w of J.wings || []) if (w && w.stol === null) delete w.stol;
+  for (const w of J.wings || []) if (w && w.tipShape === null) delete w.tipShape;   // (HULL-B26: stated null at the kind's own, as stol)
   if (J.cage && Object.keys(STOL_ROW_DEFAULTS).every(r => J.cage[r] === STOL_ROW_DEFAULTS[r])) for (const r in STOL_ROW_DEFAULTS) delete J.cage[r];
+  if (J.cage) for (const r in HULL_ROW_OFF) if (J.cage[r] === HULL_ROW_OFF[r]) delete J.cage[r];
   return J;
 }
-module.exports = { h, fpDef, fpFly, fpDraw, fpLap, fpCheck, STOL_ROW_DEFAULTS, preStol };
+module.exports = { h, fpDef, fpFly, fpDraw, fpLap, fpCheck, STOL_ROW_DEFAULTS, HULL_ROW_OFF, preStol };

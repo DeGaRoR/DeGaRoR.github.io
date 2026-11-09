@@ -273,7 +273,7 @@ function genDesignAids(def, bal, opts) {
           const xM = nM.p[0], yM = nM.p[1] - (nM.r || 0);
           const th = Math.atan2((tw.p[1] - (tw.r || 0)) - yM, tw.p[0] - xM);
           o2.deckDeg = th * 180 / Math.PI;
-          o2.ground = (yM + (c0[1] - yM) * Math.cos(th) - (c0[0] - xM) * Math.sin(th)) - R - yM;
+          o2.ground = (yM + (c0[1] - yM) * CORE_MATH.cos(th) - (c0[0] - xM) * CORE_MATH.sin(th)) - R - yM;
         }
       }
       else if (out.floats && out.floats.waterY != null) o2.water = c0[1] - R - out.floats.waterY;
@@ -288,7 +288,7 @@ function genDesignAids(def, bal, opts) {
         if (st.kind === 'wing' && st.flap && flapK !== 'none') {
           const d = fDeg * Math.PI / 180, hx = q[0] + (0.75 - fc) * c, fcl = fc * c;
           const sl = (ftab.slide || 0) * fcl, dr = (ftab.drop || 0) * fcl;
-          pts.push(['flap', [hx + sl + fcl * Math.cos(d), q[1] - dr - fcl * Math.sin(d), q[2]]]);
+          pts.push(['flap', [hx + sl + fcl * CORE_MATH.cos(d), q[1] - dr - fcl * CORE_MATH.sin(d), q[2]]]);
         }
         for (const [nm, p] of pts) {
           const rad = Math.hypot(p[1] - c0[1], p[2] - c0[2]);

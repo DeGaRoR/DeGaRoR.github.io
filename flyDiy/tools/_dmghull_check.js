@@ -217,9 +217,17 @@ function law(key) {
     // wetted keel's own constant) and the wetted keel (the keel stations under the water)
     const curve = [];
     const wetN = q => { let n = 0; for (const s of q.F.sta) if (q.out.d[s.K] > 0) n++; return n; };
+    // MASTER-GREEN (8 Nov): the wetted keel's own m(TE), the slender body's closed form on this angle's drafts - per
+    // wetted piece the running maximum of (pi/2) rho kSide T^2 (a shrinking section sheds and keeps it), the pieces
+    // summed (the hull leaving the water ends one, a re-wetted stern starts its own); T to the hull's top, as 32_hydro
+    const mTE = q => { const sta = q.F.sta, D = q.out.d, kM = P.kSide * 0.5 * Math.PI * P.rho; let run = 0, sum = 0;
+      for (let j = 0; j + 1 < sta.length; j++) { const a = sta[j], b = sta[j + 1], Da = D[a.K], Db = D[b.K];
+        if (Da <= 0 && Db <= 0) { run = 0; continue; }
+        if (Db > 0) { const T = Math.min(Db, b.yt - b.yk); run = Math.max(run, kM * T * T); } else { sum += run; run = 0; } }
+      return sum + run; };
     for (let deg = 0; deg <= 90; deg += 5) {
       const q = f(U * Math.cos(deg * D2R), U * Math.sin(deg * D2R)), uw = U * U * Math.cos(deg * D2R) * Math.sin(deg * D2R);
-      curve.push([deg, +Math.abs(q.side).toFixed(2), +Math.abs(q.panels).toFixed(2), uw > 1e-9 ? Math.abs(q.side) / uw : null, wetN(q)]);
+      curve.push([deg, +Math.abs(q.side).toFixed(2), +Math.abs(q.panels).toFixed(2), uw > 1e-9 ? Math.abs(q.side) / uw : null, wetN(q), mTE(q)]);
     }
     R.curves[where] = curve;
     const pk = curve.reduce((m, x) => x[1] > m[1] ? x : m, curve[0]);
@@ -241,10 +249,14 @@ function law(key) {
     const k0 = curve[1][3], n0 = curve[1][4];
     const groups = new Map();
     for (const x of curve) if (x[3] != null) { if (!groups.has(x[4])) groups.set(x[4], []); groups.get(x[4]).push(x); }
-    let nG = 0, dev = 0;
-    for (const g of groups.values()) { const kg = g[0][3]; nG += g.length; for (const x of g) dev = Math.max(dev, Math.abs(x[3] / kg - 1)); }
+    // MASTER-GREEN (8 Nov): a COUNT of wet stations is not a fixed wetted keel - the forward speed falls with the slip
+    // (U cos b) and the step's wake reads it continuously (the S&M profile's C_V, the cavity number), so an afterbody
+    // station's draft moves inside a count group (the twin's hump: 30 / 35 deg at 13 stations, m 95.34 / 96.37 kg/m
+    // since TANK-FIT's 1 mm of draft). Each angle is held to ITS OWN wetted keel's closed-form m(TE) instead, to 1 %
+    let nG = 0, dev = 0, gDrift = 0;
+    for (const g of groups.values()) { const kg = g[0][3]; nG += g.length; for (const x of g) { dev = Math.max(dev, Math.abs(x[3] / x[5] - 1)); gDrift = Math.max(gDrift, Math.abs(x[3] / kg - 1)); } }
     const gTxt = [...groups.entries()].map(([n, g]) => n + ' stations: ' + g.length + ' (' + g[0][0] + '-' + g[g.length - 1][0] + ' deg, x' + g[0][3].toFixed(1) + ')').join('; ');
-    chk(nG >= 3 && dev < 0.01, `${where}: the side term is U w x ${k0.toFixed(1)} kg/m (the small-slip keel's m(TE)), each wetted keel's own constant to ${(100 * dev).toFixed(2)} % over ${nG} slip angles in ${groups.size} group(s) [${gTxt}] (Jones' U w = V^2 sin b cos b at a fixed wetted keel, 1 %)`);
+    chk(nG >= 3 && dev < 0.01, `${where}: the side term is U w x ${k0.toFixed(1)} kg/m (the small-slip keel's m(TE)), each angle's own wetted keel's m(TE) (the closed form on its drafts) to ${(100 * dev).toFixed(2)} % over ${nG} slip angles; by count of wet stations ${groups.size} group(s) [${gTxt}], m(TE) moving ${(100 * gDrift).toFixed(2)} % inside them as the wake follows U (Jones' U w = V^2 sin b cos b at a fixed wetted keel, 1 %)`);
     const fixed4050 = curve.filter(x => x[0] >= 40 && x[0] <= 50).every(x => x[4] === n0);
     if (fixed4050) chk(pk[0] === 45, `${where}: the side term peaks at ${pk[0]} deg of slip (45: Jones' U w = V^2 sin b cos b, the wetted keel the same through 40-50 deg)`);
     else {

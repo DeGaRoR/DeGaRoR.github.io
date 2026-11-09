@@ -97,7 +97,7 @@ const famOf = s => {
   const L = u.match(/(\d+(?:\.\d+)?) ?L\b/); if (L) t.push('DISP' + Math.round(+L[1] * 61.024 / 10));
   return t;
 };
-function scorePlane(o) {
+function scorePlaneV1(o) {
   const R = REFS[o.ref] || {}, sh = o.shape || null, out = { geometry: null, specs: null, performance: null, items: { geometry: [], specs: [], performance: [] } };
   const agg = (items, W) => { let s = 0, w = 0; for (const it of items) { if (it.score == null) continue; s += it.score * (W[it.k] || 1); w += W[it.k] || 1; } return w > 0 ? s / w : null; };
   if (sh && R.dims) {
@@ -132,6 +132,77 @@ function scorePlane(o) {
     out.items.performance.push({ k: v.k, src: v.src, ours: v.ours, ref: v.ref, verdict: v.verdict, extrap: v.extrap, gap: g, score: itemScore(g), err: lo > b ? lo / b - 1 : hi < a ? hi / a - 1 : 0 });
   }
   out.performance = agg(out.items.performance, W_PERF);
+  let s = 0, w = 0; for (const ax in W_AXES) if (out[ax] != null) { s += out[ax] * W_AXES[ax]; w += W_AXES[ax]; }
+  out.overall = w > 0 ? s / w : null;
+  return out;
+}
+
+// ---- SCORING V2 (the user, 9 Nov: "factor in some uncertainty ... and the amount of reference points ... always work with
+// ranges ... the goal should be for the range to engulf the reference figures, ideally somehow centered") -------------
+// 1. EVERY FIGURE HAS AN UNCERTAINTY, BY WHAT IT IS (SIGMA, a fraction of the figure): a span is a span; a speed moves with
+//    the instrument and the weight; a climb with the weight, the air, the engine's condition and the technique; a field
+//    length with the surface, the wind, the pilot and the brakes. A reference row's own tolerance wins when it is wider.
+// (geometry: a published dimension is exact, but its DEFINITION is not - wing area with or without the fuselage's share,
+// length with or without the spinner and the rudder, height three-point or level, a chord at the root rib or the mean;
+// weights: an empty weight depends on what is fitted and what a source calls "empty")
+const SIGMA = { span: 0.03, S: 0.06, length: 0.04, cRoot: 0.06, cTip: 0.08, hSpan: 0.05, Sh: 0.10, Sv: 0.10, track: 0.06, height: 0.06,
+  hp: 0.03, propD: 0.04, empty: 0.06, mtow: 0.05, fuelL: 0.10,
+  Vs1: 0.06, V75: 0.06, Vmax: 0.06, roc: 0.12, roc2: 0.12, LD: 0.10, TO: 0.25, TO50: 0.25, LDG: 0.25, LDG50: 0.25,
+  TOW: 0.25, TOW2: 0.25, TOWs: 0.25, TOW50: 0.25 };
+// 2. AN ITEM IS SCORED ON CONTAINMENT: our range (the reading at the reference's weights - a span when the reference does not
+//    say its weight) should hold the reference figure. d = how far the figure sits outside our range, as a fraction of it;
+//    z = d / sigma; the score 100 exp(-z^2 / 2): inside 100, one sigma out 61, two 14. Inside, a light CENTRING term: the
+//    figure's distance from our range's middle over the range's half-width costs up to 15 points.
+const CENTRE_W = 0.15;
+const zScore = z => 100 * Math.exp(-0.5 * z * z);
+function itemV2(k, ours, ref, rowTol) {
+  const [rl, rh] = rng(ref), rm = 0.5 * (rl + rh), [ol, oh] = rng(ours), sg = Math.max(SIGMA[k] || 0.05, rowTol || 0);
+  if (!num(rm) || !(rm > 0) || !num(ol)) return null;
+  // the reference's own span counts as held when our range meets it
+  const d = (oh >= rl && ol <= rh) ? 0 : ol > rh ? ol / rh - 1 : 1 - oh / rl;
+  const half = 0.5 * (oh - ol), mid = 0.5 * (ol + oh);
+  const off = d === 0 && half > 1e-9 ? Math.min(1, Math.abs(rm - mid) / half) : 0;
+  const z = d / sg, sc = zScore(z) * (1 - CENTRE_W * off);
+  return { k, ours, ref, sigma: sg, d, z, off, score: sc, signed: mid / rm - 1 };
+}
+// 3. CONFIDENCE, APART FROM ACCURACY: what the plane's figures are worth as evidence. Each performance figure by its source
+//    (a handbook chart 1.0, a type sheet / the maker 0.9, a review 0.6, an encyclopedia 0.5, a ruling 0.5, single-source or
+//    THIN 0.3), one per indicator; geometry and specs a tenth each (they are facts, not performance). E -> 100 (1 - e^(-E/4)):
+//    thin under 45, fair to 70, solid above.
+function srcQuality(src) {
+  const t = String(src || '');
+  if (/THIN|single[- ]source|one source/i.test(t)) return 0.3;
+  if (/ruling/i.test(t)) return 0.5;
+  if (/POH|handbook|flight manual|chart/i.test(t)) return 1.0;
+  if (/sheet|Wipaire|Piper|Cessna|CubCrafters|Jodel|de Havilland|Boeing|Douglas|maker|manufacturer|type certificate/i.test(t)) return 0.9;
+  if (/Plane & Pilot|AOPA|Flying|Kitplanes|review|test/i.test(t)) return 0.6;
+  if (/Wikipedia|aeropedia|AvPay|encyclop/i.test(t)) return 0.5;
+  return 0.6;
+}
+const CONF_BANDS = [[70, 'solid'], [45, 'fair'], [0, 'thin']];
+function scorePlane(o) {
+  const v1 = scorePlaneV1(o);
+  const R = REFS[o.ref] || {}, out = { geometry: null, specs: null, performance: null, items: { geometry: [], specs: [], performance: [] }, v1 };
+  const agg = (items, W) => { let s = 0, w = 0; for (const it of items) { if (it.score == null) continue; s += it.score * (W[it.k] || 1); w += W[it.k] || 1; } return w > 0 ? s / w : null; };
+  for (const it of v1.items.geometry) { const x = itemV2(it.k, it.ours, it.ref, 0); if (x) out.items.geometry.push(Object.assign(x, { err: it.err })); }
+  for (const it of v1.items.specs) {
+    if (typeof it.ours === 'number' && typeof (Array.isArray(it.ref) ? it.ref[0] : it.ref) === 'number' && !['nE', 'blades', 'seats'].includes(it.k)) {
+      const x = itemV2(it.k, it.ours, it.ref, 0); if (x) out.items.specs.push(Object.assign(x, { err: it.err }));
+    } else out.items.specs.push(Object.assign({}, it));   // a name or a count: right or wrong, as before
+  }
+  out.geometry = agg(out.items.geometry, W_GEO); out.specs = agg(out.items.specs, W_SPEC);
+  let E = 0;
+  for (const it of v1.items.performance) {
+    const row = R.rows && R.rows[it.k];
+    const x = itemV2(it.k, it.ours, it.ref, row && row.tol);
+    if (!x) continue;
+    x.src = it.src; x.verdict = it.verdict; x.extrap = it.extrap; x.err = it.err; x.q = srcQuality(row && row.src); E += x.q;
+    out.items.performance.push(x);
+  }
+  out.performance = agg(out.items.performance, W_PERF);
+  E += 0.1 * (out.items.geometry.length + out.items.specs.length);
+  out.evidence = E; out.confidence = 100 * (1 - Math.exp(-E / 4));
+  out.confBand = (CONF_BANDS.find(b => out.confidence >= b[0]) || CONF_BANDS[2])[1];
   let s = 0, w = 0; for (const ax in W_AXES) if (out[ax] != null) { s += out[ax] * W_AXES[ax]; w += W_AXES[ax]; }
   out.overall = w > 0 ? s / w : null;
   return out;
@@ -249,17 +320,86 @@ function bandChart(o) {
     const oa = X(pc(v.ours[0])), ob = X(pc(v.ours[1]));
     s += '<rect class="bar ' + VCLS[v.verdict] + '" x="' + (Math.min(oa, ob) - 3) + '" y="' + (y + rh - 11) + '" width="' + Math.max(6, Math.abs(ob - oa) + 6) + '" height="7" rx="3"><title>ours at the reference\'s weights ' + fr(v.ours, d) + ' ' + (UNIT[v.k] || '') + ': ' + v.verdict + (v.extrap ? ' (extrapolated)' : '') + '</title></rect>';
     const ser = (v.series || []);
-    ser.forEach((q, j) => { if (!num(q.v)) return; s += '<circle class="ld s' + (j + 1) + '" cx="' + X(pc(q.v)) + '" cy="' + (y + 8) + '" r="3.5"><title>' + ['MIN', 'TYP', 'MTOW'][j] + ' ' + f(q.m) + ' kg: ' + f(q.v, d) + ' ' + (UNIT[v.k] || '') + '</title></circle>'; });
+    // A REFERENCE STATED AT ONE WEIGHT (the user, 9 Nov: the PA-18's card "looks really noisy"): a load far from that weight
+    // is not comparable to it - a float plane 150 kg lighter runs 40 % shorter on the water, which is weight, not error.
+    // Such a load's dot is drawn faint and says so; the bar (ours AT the reference's weight) is what the verdict reads
+    const one = Array.isArray(v.kg) && num(v.kg[0]) && num(v.kg[1]) && Math.abs(v.kg[1] - v.kg[0]) < 1 ? v.kg[0] : null;
+    ser.forEach((q, j) => { if (!num(q.v)) return; const far = one != null && Math.abs(q.m - one) > 0.05 * one;
+      s += '<circle class="ld s' + (j + 1) + (far ? ' far' : '') + '" cx="' + X(pc(q.v)) + '" cy="' + (y + 8) + '" r="3.5"><title>' + ['MIN', 'TYP', 'MTOW'][j] + ' ' + f(q.m) + ' kg: ' + f(q.v, d) + ' ' + (UNIT[v.k] || '') + (far ? ' - not comparable: the reference is stated at ' + f(one) + ' kg' : '') + '</title></circle>'; });
   });
+  return s + '</svg>';
+}
+
+// ---- SCORING V2's VISUALS ------------------------------------------------------------------------------------------
+function confChip(sc) {
+  const c = { solid: 'good', fair: 'warn', thin: 'bad' }[sc.confBand] || 'na';
+  return '<span class="chip conf ' + c + '" title="evidence: ' + f(sc.evidence, 1) + ' (each figure weighted by its source) -> confidence ' + f(sc.confidence) + ' / 100"><i>◆</i>' + esc(sc.confBand) + '</span>';
+}
+// accuracy against confidence, one dot per plane: the corner top-right is "matched, and on good evidence"
+function trustMap(list) {
+  const W = 640, H = 380, L = 56, B = 44, T = 14, R = 20, X = v => L + (W - L - R) * v / 100, Y = v => T + (H - T - B) * (1 - (v - 50) / 50);
+  let s = '<svg viewBox="0 0 ' + W + ' ' + H + '" class="chart" role="img" aria-label="accuracy against confidence">';
+  s += '<rect class="trustzone" x="' + X(70) + '" y="' + Y(100) + '" width="' + (X(100) - X(70)) + '" height="' + (Y(85) - Y(100)) + '"/><text class="tick" x="' + (X(100) - 6) + '" y="' + (Y(100) + 14) + '" text-anchor="end">matched, on good evidence</text>';
+  s += '<rect class="thinzone" x="' + X(0) + '" y="' + Y(100) + '" width="' + (X(45) - X(0)) + '" height="' + (Y(50) - Y(100)) + '"/><text class="tick" x="' + (X(0) + 6) + '" y="' + (Y(100) + 14) + '">thin evidence: read with care</text>';
+  for (const v of [50, 60, 70, 80, 90, 100]) s += '<line class="gridl" x1="' + L + '" x2="' + (W - R) + '" y1="' + Y(v) + '" y2="' + Y(v) + '"/><text class="tick" x="' + (L - 6) + '" y="' + (Y(v) + 4) + '" text-anchor="end">' + v + '</text>';
+  for (const v of [0, 20, 45, 70, 100]) s += '<line class="gridl" x1="' + X(v) + '" x2="' + X(v) + '" y1="' + T + '" y2="' + (H - B) + '"/><text class="tick" x="' + X(v) + '" y="' + (H - B + 16) + '" text-anchor="middle">' + v + '</text>';
+  s += '<text class="ax" x="' + ((L + W - R) / 2) + '" y="' + (H - 6) + '" text-anchor="middle">confidence (how much the reference figures are worth)</text><text class="ax" transform="translate(14,' + ((T + H - B) / 2) + ') rotate(-90)" text-anchor="middle">accuracy</text>';
+  list.forEach((p, i) => { const sc = p.sc; if (sc.overall == null) return; const x = X(sc.confidence), y = Y(Math.max(50, sc.overall));
+    s += '<circle class="dot ' + band(sc.overall)[0] + '" cx="' + x + '" cy="' + y + '" r="6"><title>' + esc(p.short) + ': accuracy ' + f(sc.overall) + ', confidence ' + f(sc.confidence) + ' (' + sc.confBand + ')</title></circle>';
+    s += '<text class="lab small" x="' + (x + 9) + '" y="' + (y + 4 + ((i % 3) - 1) * 9) + '">' + esc(p.short) + '</text>'; });
+  return s + '</svg>';
+}
+// the old score and the new, per plane (a dumbbell)
+function oldNew(list) {
+  const W = 640, rh = 24, L = 200, H = list.length * rh + 30, X = v => L + (W - L - 40) * (Math.max(40, v) - 40) / 60;
+  let s = '<svg viewBox="0 0 ' + W + ' ' + H + '" class="chart" role="img" aria-label="the old score and the new">';
+  for (const v of [40, 60, 80, 100]) s += '<line class="gridl" x1="' + X(v) + '" x2="' + X(v) + '" y1="4" y2="' + (H - 22) + '"/><text class="tick" x="' + X(v) + '" y="' + (H - 6) + '" text-anchor="middle">' + v + '</text>';
+  list.forEach((p, i) => { const y = 6 + i * rh + 9, a = p.sc.v1.overall, b = p.sc.overall; if (a == null || b == null) return;
+    s += '<text class="lab" x="' + (L - 8) + '" y="' + (y + 4) + '" text-anchor="end">' + esc(p.short) + '</text>';
+    s += '<line class="link" x1="' + X(a) + '" x2="' + X(b) + '" y1="' + y + '" y2="' + y + '"/><circle class="old" cx="' + X(a) + '" cy="' + y + '" r="4"><title>old ' + f(a) + '</title></circle><circle class="dot ' + band(b)[0] + '" cx="' + X(b) + '" cy="' + y + '" r="5"><title>new ' + f(b) + '</title></circle>'; });
+  return s + '</svg>';
+}
+// PHYSICS SIGNALS: per indicator, every plane's signed error (our range's middle against the figure), over the indicator's
+// own sigma band - a column of dots on one side, outside its band, is the model talking, not one plane
+function signals(list) {
+  const keys = ['Vs1', 'V75', 'Vmax', 'roc', 'TO', 'LDG', 'TOW'], W = 640, rh = 34, L = 150, H = keys.length * rh + 34, lim = 0.6;
+  const X = e => L + (W - L - 20) * (Math.max(-lim, Math.min(lim, e)) + lim) / (2 * lim);
+  let s = '<svg viewBox="0 0 ' + W + ' ' + H + '" class="chart" role="img" aria-label="physics signals">';
+  for (const e of [-0.6, -0.3, 0, 0.3, 0.6]) s += '<line class="' + (e === 0 ? 'zero' : 'gridl') + '" x1="' + X(e) + '" x2="' + X(e) + '" y1="4" y2="' + (H - 24) + '"/><text class="tick" x="' + X(e) + '" y="' + (H - 8) + '" text-anchor="middle">' + (e > 0 ? '+' : '') + (e * 100).toFixed(0) + ' %</text>';
+  keys.forEach((k, i) => {
+    const y = 6 + i * rh, sg = SIGMA[k] || 0.05, vals = [];
+    s += '<rect class="sigband" x="' + X(-sg) + '" y="' + (y + 2) + '" width="' + (X(sg) - X(-sg)) + '" height="' + (rh - 8) + '"><title>' + esc(LABEL[k]) + ': ±' + (sg * 100).toFixed(0) + ' % (the figure\'s own uncertainty)</title></rect>';
+    s += '<text class="lab" x="' + (L - 8) + '" y="' + (y + 18) + '" text-anchor="end">' + esc(LABEL[k]) + '</text>';
+    list.forEach((p, j) => { if (p.light) return; const it = p.sc.items.performance.find(q => q.k === k); if (!it || !num(it.signed)) return; vals.push(it.signed);
+      const jit = ((j % 5) - 2) * 3;
+      s += '<circle class="dot ' + band(it.score)[0] + '" cx="' + X(it.signed) + '" cy="' + (y + 14 + jit) + '" r="5"><title>' + esc(p.short + ' ' + LABEL[k] + ': ' + pctS(it.signed) + ' (z ' + f(it.z, 1) + ', ' + it.src + ')') + '</title></circle>'; });
+    // (the MEDIAN: a few outliers - the anchor Cub, the float props - must not drag the set's lean)
+    if (vals.length >= 3) { const v = vals.slice().sort((a, b) => a - b), n = v.length, m = n % 2 ? v[(n - 1) / 2] : 0.5 * (v[n / 2 - 1] + v[n / 2]); s += '<line class="meanmark" x1="' + X(m) + '" x2="' + X(m) + '" y1="' + (y + 2) + '" y2="' + (y + rh - 6) + '"><title>median ' + pctS(m) + ' over ' + n + ' planes</title></line>'; }
+  });
+  return s + '</svg>';
+}
+// one plane's containment: per indicator, the figure (tick) inside its sigma band (shaded), our range (bar, coloured by score)
+function containChart(sc) {
+  const V = sc.items.performance; if (!V.length) return '';
+  const W = 640, rh = 26, L = 200, H = V.length * rh + 30, lim = 0.6, X = e => L + (W - L - 60) * (Math.max(-lim, Math.min(lim, e)) + lim) / (2 * lim);
+  let s = '<svg viewBox="0 0 ' + W + ' ' + H + '" class="chart" role="img" aria-label="our range against each figure">';
+  for (const e of [-0.6, -0.3, 0, 0.3, 0.6]) s += '<line class="' + (e === 0 ? 'zero' : 'gridl') + '" x1="' + X(e) + '" x2="' + X(e) + '" y1="2" y2="' + (H - 22) + '"/><text class="tick" x="' + X(e) + '" y="' + (H - 6) + '" text-anchor="middle">' + (e > 0 ? '+' : '') + (e * 100).toFixed(0) + ' %</text>';
+  V.forEach((it, i) => { const y = 4 + i * rh, [rl, rh2] = rng(it.ref), rm = 0.5 * (rl + rh2), [ol, oh] = rng(it.ours), d = DEC[it.k] || 0;
+    s += '<text class="lab" x="' + (L - 8) + '" y="' + (y + 15) + '" text-anchor="end">' + esc(LABEL[it.k]) + ' · ' + esc(it.src) + '</text>';
+    s += '<rect class="sigband" x="' + X(rl / rm - 1 - it.sigma) + '" y="' + (y + 2) + '" width="' + (X(rh2 / rm - 1 + it.sigma) - X(rl / rm - 1 - it.sigma)) + '" height="' + (rh - 6) + '"><title>the figure ' + fr(it.ref, d) + ' ±' + (it.sigma * 100).toFixed(0) + ' %</title></rect>';
+    s += '<line class="refmark" x1="' + X(0) + '" x2="' + X(0) + '" y1="' + (y + 2) + '" y2="' + (y + rh - 4) + '"/>';
+    const a = X(ol / rm - 1), b = X(oh / rm - 1);
+    s += '<rect class="bar ' + band(it.score)[0] + '" x="' + (Math.min(a, b) - 3) + '" y="' + (y + 8) + '" width="' + Math.max(6, Math.abs(b - a) + 6) + '" height="8" rx="3"><title>ours ' + fr(it.ours, d) + ': ' + (it.d === 0 ? 'holds the figure' : pctS(it.d) + ' short of it, ' + f(it.z, 1) + ' sigma') + ' - ' + f(it.score) + ' / 100</title></rect>';
+    s += '<text class="tick" x="' + (W - 54) + '" y="' + (y + 15) + '">' + f(it.score) + '</text>'; });
   return s + '</svg>';
 }
 // the global heatmap: planes x axes, a score in every cell
 function heatmap(list) {
-  let h = '<div class="tablewrap"><table class="heat"><thead><tr><th>plane</th><th>parent</th><th>geometry</th><th>specs</th><th>performance</th><th>overall</th><th>items</th></tr></thead><tbody>';
+  let h = '<div class="tablewrap"><table class="heat"><thead><tr><th>plane</th><th>parent</th><th>geometry</th><th>specs</th><th>performance</th><th>overall</th><th>confidence</th><th>items</th></tr></thead><tbody>';
   for (const p of list) {
     const sc = p.sc, n = sc.items.geometry.length + sc.items.specs.length + sc.items.performance.length;
     h += '<tr><td><a href="#p-' + esc(p.key) + '">' + esc(p.short) + '</a>' + (p.o.provisional ? ' <span class="tag">provisional</span>' : '') + (p.light ? ' <span class="tag">light check</span>' : '') + (p.partial ? ' <span class="tag">partial: not ranked</span>' : '') + '</td><td class="muted">' + esc((REFS[p.o.ref] || {}).name || p.o.ref) + '</td>' +
-      ['geometry', 'specs', 'performance', 'overall'].map(a => '<td class="cell ' + band(sc[a])[0] + '">' + chip(sc[a], a) + '</td>').join('') + '<td class="muted">' + n + '</td></tr>';
+      ['geometry', 'specs', 'performance', 'overall'].map(a => '<td class="cell ' + band(sc[a])[0] + '">' + chip(sc[a], a) + '</td>').join('') + '<td>' + confChip(sc) + '</td><td class="muted">' + n + '</td></tr>';
   }
   return h + '</tbody></table></div>';
 }
@@ -320,7 +460,8 @@ table.heat td.cell{text-align:center}table.heat td.cell.good{background:var(--go
 svg{display:block;max-width:100%;height:auto}svg text{fill:var(--ink2);font-size:12px}svg .tick{fill:var(--muted);font-size:11px}svg .lab{fill:var(--ink)}svg .val{fill:var(--ink);font-weight:600}svg .inbar{fill:#fff;font-size:11px;font-weight:600}
 svg .ax{fill:var(--muted);font-size:11px;font-weight:600}svg .grid,svg .gridl{stroke:var(--grid);fill:none;stroke-width:1}svg .zero{stroke:var(--ink2);stroke-width:1}svg .okzone{fill:var(--good-bg);opacity:.6}
 svg .bar.good,svg .dot.good{fill:var(--good)}svg .bar.warn,svg .dot.warn{fill:var(--warn)}svg .bar.bad,svg .dot.bad{fill:var(--bad)}svg .bar.na{fill:var(--na)}svg .dot{stroke:var(--surface);stroke-width:2}
-svg .g.good{fill:var(--good)}svg .g.warn{fill:var(--warn)}svg .g.bad{fill:var(--bad)}svg .bar.s1{fill:var(--s1)}svg .bar.s2{fill:var(--s2)}svg .ld.s1{fill:var(--s1)}svg .ld.s2{fill:var(--s2)}svg .ld.s3{fill:var(--s3)}svg .ld{stroke:var(--surface);stroke-width:2}
+svg .g.good{fill:var(--good)}svg .g.warn{fill:var(--warn)}svg .g.bad{fill:var(--bad)}svg .bar.s1{fill:var(--s1)}svg .bar.s2{fill:var(--s2)}svg .ld.s1{fill:var(--s1)}svg .ld.s2{fill:var(--s2)}svg .ld.s3{fill:var(--s3)}svg .ld{stroke:var(--surface);stroke-width:2}svg .ld.far{opacity:.25}
+svg .trustzone{fill:var(--good-bg)}svg .thinzone{fill:var(--bad-bg);opacity:.6}svg .sigband{fill:var(--refbg)}svg .meanmark{stroke:var(--ink);stroke-width:2.5}svg .link{stroke:var(--muted);stroke-width:2}svg .old{fill:var(--na);stroke:var(--surface);stroke-width:1.5}svg text.small{font-size:11px}.chip.conf i{font-size:10px}
 svg .refband{fill:var(--refbg);stroke:var(--ref);stroke-dasharray:4 3;stroke-width:1}svg .refmark{stroke:var(--ink);stroke-width:2;stroke-dasharray:3 2}
 svg .area{fill-opacity:.25;stroke-width:2}svg .area.good{fill:var(--good);stroke:var(--good)}svg .area.warn{fill:var(--warn);stroke:var(--warn)}svg .area.bad{fill:var(--bad);stroke:var(--bad)}svg .area.na{fill:var(--na);stroke:var(--na)}
 .legend{display:flex;flex-wrap:wrap;gap:14px;font-size:13px;color:var(--ink2);margin:6px 0}.legend span{display:inline-flex;align-items:center;gap:6px}.sw{width:12px;height:12px;border-radius:3px;display:inline-block}
@@ -333,15 +474,16 @@ svg .area{fill-opacity:.25;stroke-width:2}svg .area.good{fill:var(--good);stroke
 function legendBands() {
   return '<div class="legend"><span><span class="sw" style="background:var(--refbg);border:1px dashed var(--ref)"></span>reference band (figure ± its tolerance)</span>' +
     '<span><span class="sw" style="background:var(--good)"></span>● inside</span><span><span class="sw" style="background:var(--warn)"></span>▲ near (≤ 10 % out)</span><span><span class="sw" style="background:var(--bad)"></span>■ outside</span>' +
-    '<span><span class="sw" style="background:var(--s1);border-radius:50%"></span>MIN</span><span><span class="sw" style="background:var(--s2);border-radius:50%"></span>TYP (solo, ½ fuel)</span><span><span class="sw" style="background:var(--s3);border-radius:50%"></span>MTOW</span></div>';
+    '<span><span class="sw" style="background:var(--s1);border-radius:50%"></span>MIN</span><span><span class="sw" style="background:var(--s2);border-radius:50%"></span>TYP (solo, ½ fuel)</span><span><span class="sw" style="background:var(--s3);border-radius:50%"></span>MTOW</span><span><span class="sw" style="background:var(--s2);border-radius:50%;opacity:.25"></span>faint: a load far from the one weight the figure is stated at (not comparable)</span></div>';
 }
 function planeSection(p) {
   const o = p.o, R = REFS[o.ref] || {}, sc = p.sc, sh = o.shape || {};
   let h = '<section class="card" id="p-' + esc(p.key) + '"><div class="plane-head"><div><h3>' + esc(p.label) + '</h3><div class="muted">against the ' + esc(R.name || o.ref) + (o.provisional ? ' · <b>provisional</b>' : '') + (p.light ? ' · <b>light check</b>' : '') + '</div></div>' +
-    '<div class="scores">' + ['geometry', 'specs', 'performance', 'overall'].map(a => '<span title="' + a + '">' + a[0].toUpperCase() + ' ' + chip(sc[a], a) + '</span>').join('') + '</div></div>';
+    '<div class="scores">' + ['geometry', 'specs', 'performance', 'overall'].map(a => '<span title="' + a + '">' + a[0].toUpperCase() + ' ' + chip(sc[a], a) + '</span>').join('') + '<span title="confidence">' + confChip(sc) + '</span></div></div>';
   if (o.note || o.engineNote) h += '<p class="muted">' + esc([o.note, o.engineNote].filter(Boolean).join(' · ')) + '</p>';
   h += notesBlock(p.key);
-  if ((o.verdicts || []).length) { h += '<h4>Performance bands</h4>' + legendBands() + bandChart(o); }
+  if (sc.items.performance.length) h += '<h4>Our range against each figure</h4><div class="legend"><span><span class="sw" style="background:var(--refbg)"></span>the figure ± its uncertainty (by what it is)</span><span><span class="sw" style="background:var(--ink);width:3px"></span>the figure</span><span><span class="sw" style="background:var(--good)"></span>our range, coloured by its score (holding the figure scores 100)</span></div>' + containChart(sc);
+  if ((o.verdicts || []).length) { h += '<details><summary>Every reading, load by load (the bands chart)</summary>' + legendBands() + bandChart(o) + '</details>'; }
   h += '<div class="cols">';
   if (sc.items.geometry.length) {
     h += '<div><h4>Geometry</h4><div class="tablewrap"><table><thead><tr><th>dimension</th><th class="num">ours</th><th class="num">real</th><th class="num">off</th><th></th></tr></thead><tbody>';
@@ -369,7 +511,7 @@ function planeSection(p) {
     h += '<details><summary>The flights (the game\'s pilot and the handbook schedule, at each load)</summary><div class="tablewrap"><table><thead><tr><th>load</th><th>who</th><th class="num">TO roll</th><th class="num">to 50 ft</th><th class="num">climb m/s</th><th class="num">LDG roll</th><th class="num">from 50 ft</th><th>outcome</th></tr></thead><tbody>';
     for (const id of Object.keys(o.flights)) for (const who of ['game', 'poh']) { const r = o.flights[id][who]; if (!r) continue;
       const hard = r.hard || (num(r.LDG) && r.LDG < 20);
-      h += '<tr><td>' + esc(id) + '</td><td>' + (who === 'poh' ? 'handbook' : 'game') + '</td><td class="num">' + f(r.TO) + '</td><td class="num">' + f(r.TO50) + '</td><td class="num">' + f(r.climb, 2) + '</td><td class="num">' + f(r.LDG) + '</td><td class="num">' + f(r.LDG50) + '</td><td>' + esc(r.outcome) + (r.goArounds ? ', ' + r.goArounds + ' go-around' + (r.goArounds > 1 ? 's' : '') : '') + (hard ? ' <span class="chip bad"><i>■</i>hard arrival' + (num(r.tdSink) ? ' ' + f(r.tdSink, 1) + ' m/s' : '') + '</span>' : '') + (r.noseOver ? ' <span class="chip bad"><i>■</i>nose-over after ' + f(r.LDGnoseOver) + ' m (' + f(r.pitchMin) + '°)</span>' : '') + '</td></tr>'; }
+      h += '<tr><td>' + esc(id) + '</td><td>' + (who === 'poh' ? 'handbook' : 'game') + '</td><td class="num">' + f(r.TO) + '</td><td class="num">' + f(r.TO50) + '</td><td class="num">' + f(r.climb, 2) + '</td><td class="num">' + f(r.LDG) + '</td><td class="num">' + f(r.LDG50) + '</td><td>' + esc(r.outcome) + (r.goArounds ? ', ' + r.goArounds + ' go-around' + (r.goArounds > 1 ? 's' : '') : '') + (hard ? ' <span class="chip bad"><i>■</i>hard arrival' + (num(r.tdSink) ? ' ' + f(r.tdSink, 1) + ' m/s' : '') + '</span>' : '') + (r.noseOver ? ' <span class="chip bad"><i>■</i>nose-over after ' + f(r.LDGnoseOver) + ' m (' + f(r.pitchMin) + '°)</span>' : '') + (r.groundLoop ? ' <span class="chip bad"><i>■</i>ground loop (' + f(r.hdgSwing) + '°)</span>' : '') + '</td></tr>'; }
     h += '</tbody></table></div></details>';
   }
   if (o.water && Object.keys(o.water).length) {
@@ -385,14 +527,12 @@ function planeSection(p) {
 }
 const sgn = (v, d = 0) => num(v) ? (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(d) : '—';
 function scoringSection() {
-  const w = o => Object.entries(o).map(([k, v]) => esc(LABEL[k] || k) + ' ' + v).join(', ');
+  const sg = Object.entries(SIGMA).map(([k, v]) => esc(LABEL[k] || k) + ' ±' + (v * 100).toFixed(0) + ' %').join(', ');
   return '<h2 id="scoring">How the scores are computed</h2><div class="card">' +
-    '<p><b>An item</b> scores <code>100 × max(0, 1 − gap / ' + GAP0 + ')</code>. The gap is 0 when ours sits inside the reference band (the figure ± its tolerance), otherwise the relative distance to the band\'s nearest edge: 10 % outside scores 67, ' + (GAP0 * 100) + ' % outside scores 0.</p>' +
-    '<p><b>Geometry</b>: the weighted mean over the key dimensions the reference states. Weights: ' + w(W_GEO) + '. Tolerances: span and area 3 %, chords and tail 5 %, length 3 %, height 8 %. Span, length (spinner to rudder) and height (standing on the gear at its settled deck angle, the blades left out) are measured on the DRAWN aeroplane, the editor\'s own scene through the load door; the wing area is the projected planform the sim flies; chords and tail areas are the built spec\'s.</p>' +
-    '<p><b>Specs</b>: the engine family (named right or not), power per engine (3 %), the engine count, the propeller diameter (5 %) and blades, the empty (3 %) and maximum (5 %) weights, fuel (10 %), seats. Weights: ' + w(W_SPEC) + '.</p>' +
-    '<p><b>Performance</b>: real_check\'s verdict bands (our MIN–MTOW band at the reference\'s weights against the reference\'s condition band), one reading per indicator - the airframe\'s (probes, no pilot) where it exists, else the handbook-flown one. That is the aeroplane\'s capability; the shipped pilot\'s extra cost is shown apart as <i>the pilot\'s share</i>. Weights: ' + w(W_PERF) + '. The best glide is shown but weighs 0: our probe glides with the propeller removed, a handbook glide has it windmilling (worth 10-20 % of L/D), so the two are not like for like.</p>' +
-    '<p><b>Overall</b> = ' + Object.entries(W_AXES).map(([k, v]) => v + ' × ' + k).join(' + ') + ', over the axes a plane has (the rest renormalised). Bands: ● ≥ 80 close, ▲ 60–80 fair, ■ under 60 far.</p>' +
-    '<p class="muted">A reference marked THIN in tools/real_refs.js (one source, or sources that disagree) carries a wider tolerance or a range: a thin figure can neither condemn nor clear a plane by much.</p></div>';
+    '<p><b>Every reference figure carries an uncertainty, by what it is</b> (σ, a fraction of the figure): ' + sg + '. A reference row\'s own tolerance wins when it is wider. A span is a span; a climb moves with the weight, the air, the engine and the technique; a landing roll with the surface, the wind, the pilot and the brakes.</p>' +
+    '<p><b>An item is scored on containment.</b> Our reading at the reference\'s weights is a range (a span when the reference does not say its weight); it should hold the figure. The figure\'s distance outside our range, in σ, gives the score <code>100 × exp(−z² / 2)</code>: held 100, one σ out 61, two σ out 14. Held, a light centring term costs up to ' + (CENTRE_W * 100) + ' points when the figure sits at the very end of our range.</p>' +
+    '<p><b>Confidence is a separate grade</b>, never mixed into the score: each performance figure counts by its source (a handbook chart 1, a type sheet or the maker 0.9, a review 0.6, an encyclopedia 0.5, a ruling 0.5, single-source or THIN 0.3), geometry and specs a tenth each; the sum E gives <code>100 × (1 − e^(−E/4))</code>: <b>thin</b> under 45, <b>fair</b> to 70, <b>solid</b> above. A plane matched on two thin figures reads "99 · thin".</p>' +
+    '<p><b>The axes and the overall</b>: geometry, specs and performance are the weighted means of their items (geometry ' + (W_AXES.geometry * 100) + ' %, specs ' + (W_AXES.specs * 100) + ' %, performance ' + (W_AXES.performance * 100) + ' % of the overall). One reading per performance indicator: the airframe\'s (no pilot), else the handbook-flown; the shipped pilot\'s gap is shown apart.</p></div>';
 }
 function historySection() {
   let h = '<h2 id="history">Every earlier comparison</h2><p class="muted">From tools/real_refs.js HISTORY (the reports each row names).</p><div class="tablewrap"><table><thead><tr><th>plane</th><th>date</th><th>numbers then</th><th>still in the game</th></tr></thead><tbody>';
@@ -419,10 +559,13 @@ function main() {
   const dropped = Object.keys(PLANES).filter(k => PLANES[k].dropped && res[k]);
   html += '<h4>Accuracy, every plane on every axis</h4>' + heatmap(list) + (dropped.length ? '<p class="muted">Taken out of the set: ' + dropped.map(k => esc(PLANES[k].label) + ' (' + esc(PLANES[k].dropped) + ')').join('; ') + '.</p>' : '');
   html += '<h4>The three axes, plane by plane</h4><div class="grid2">' + list.map(p => '<a class="mini" href="#p-' + esc(p.key) + '" style="text-decoration:none;color:inherit"><div class="nm">' + esc(p.short) + '</div>' + radar(p.sc, 120) + '<div>' + chip(p.sc.overall, 'overall') + '</div></a>').join('') + '</div><p class="muted">G geometry · S specs · P performance; the further out, the closer to the real parent.</p>';
+  html += '<h4>Accuracy against confidence</h4><p class="muted">Each plane by how well it matches (up) and by how much its reference figures are worth as evidence (right): a handbook chart counts 1, a review 0.6, a single-source or ruled figure 0.3-0.5. Top right is a match you can trust; on the left, a high score rests on little.</p>' + trustMap(list);
   html += '<h4>Overall score, ranked</h4>' + overallBars(sorted);
+  html += '<h4>The old score and the new</h4><p class="muted">Grey: the score before uncertainty classes and containment (every figure ±5 %, inside-the-band only). Coloured: now.</p>' + oldNew(sorted);
   html += '<h2 id="stats">The statistics</h2>';
   html += '<h4>Verdicts per plane (every indicator and reading)</h4><div class="legend"><span><span class="sw" style="background:var(--good)"></span>● inside</span><span><span class="sw" style="background:var(--warn)"></span>▲ near</span><span><span class="sw" style="background:var(--bad)"></span>■ outside</span></div>' + verdictStack(list);
-  html += '<h4>Where the set is off: each plane\'s deviation, indicator by indicator</h4><p class="muted">One dot per plane (light checks left out): 0 = inside the reference band, otherwise how far outside its edge. The shaded zone is ±10 %. A column of dots on one side is a model-wide bias, not one plane\'s.</p>' + biasDots(list);
+  html += '<h4>Physics signals: where the whole set leans</h4><p class="muted">Per indicator, each plane\'s signed error (our range\'s middle against the figure). The shaded zone is that indicator\'s own uncertainty; the black bar is the set\'s median. Dots spread around zero are planes; dots stacked on one side, past the shading, are the model.</p>' + signals(list.filter(p => !p.o.engineNote));
+  html += '<details><summary>The old deviation chart</summary><h4>Where the set is off: each plane\'s deviation, indicator by indicator</h4><p class="muted">One dot per plane (light checks left out): 0 = inside the reference band, otherwise how far outside its edge. The shaded zone is ±10 %. A column of dots on one side is a model-wide bias, not one plane\'s.</p>' + biasDots(list) + '</details>';
   html += '<h4>The pilot\'s share: the landing roll</h4><div class="legend"><span><span class="sw" style="background:var(--s2)"></span>the game\'s pilot</span><span><span class="sw" style="background:var(--s1)"></span>the best schedule (same pilot, handbook braking)</span><span><span class="sw" style="border:2px dashed var(--ink)"></span>reference</span></div>' + pilotBars(list);
   html += '<h2 id="next">Conclusions and next steps</h2><div class="card">' + (notesBlock('_conclusion') || '<p class="muted">No written conclusion in real_refs.js NOTES._conclusion.</p>') + '<h4>Next steps</h4>' + (notesBlock('_next') || '<p class="muted">None written.</p>') + '</div>';
   html += '<h2 id="planes">Plane by plane</h2>' + list.map(planeSection).join('');

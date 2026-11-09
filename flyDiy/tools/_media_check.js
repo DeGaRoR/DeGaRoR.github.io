@@ -172,7 +172,10 @@ const check = (ok, msg) => { if (!ok) fail.push(msg); return !!ok; };
 // growth is CODE: L28-0 (missions p0, 73b), L28a (+187 KB raw: missions p1/p3/props, menus, story, hire, people), L28b
 // (+281 KB raw: people-crowd, dmg-looks / dmg_members, bench, cert-rule, float-kit), L28c-L29f (+80 KB raw); app.js alone +153 KB
 // since L25c. 5.0 = today + FINISH-3 + ~0.2 MiB of headroom. The per-train STEP row stays the heavy-move tripwire.
-const WIRE_BUDGET_MIB = 5.0;   // was 4.6 (the user, 13 Oct ~13:10: "yes, raise the budget to 4.6 MiB"). - by-name asks only when ONE train adds > 50 KB gz (the per-train STEP row). Earlier acceptances:   // (T41b x SCENERY-SHIP, measured 4.2091: master 4.0530 (its own, accepted) + train 41's +160 KB (accepted))
+// MASTER-GREEN (A0 8 Nov, the user: "decide"): 5.0 -> 5.5. Red on master L35a 1bcd01d3e at 5.18 MiB gz - the cost, named: a
+// player's first load (and every reload past the service worker's cache) is 5.18 MiB on the wire today. All code, no page-size
+// work (the user's 14 Oct rule); the per-train STEP row stays the heavy-move tripwire.
+const WIRE_BUDGET_MIB = 5.5;   // was 5.0 (A0 2 Nov)   // was 4.6 (the user, 13 Oct ~13:10: "yes, raise the budget to 4.6 MiB"). - by-name asks only when ONE train adds > 50 KB gz (the per-train STEP row). Earlier acceptances:   // (T41b x SCENERY-SHIP, measured 4.2091: master 4.0530 (its own, accepted) + train 41's +160 KB (accepted))
 // STEP: how much index.html (CRs removed) may grow over the build before it, MiB.
 // "The build before" is git's: if the built page differs from HEAD's, HEAD (and
 // its parents, when HEAD is a merge); if it IS HEAD's, the parents of the commit
@@ -514,6 +517,19 @@ const present = walkMedia(MEDIA);
     let J = null; try { J = JSON.parse(fs.readFileSync(path.join(ROOT, rel), 'utf8')); } catch (e) {}
     check(!!(J && Array.isArray(J.versions)), `${rel} is a scenery versions index ({versions: [...]})`);
     for (const v of (J && J.versions) || []) { const f = rel.slice(0, -'index.json'.length) + (v && v.file); if (v && v.file && !refs.has(f)) refs.set(f, rel); } } }
+// THE PLANE PICTURES (PLANE-RENDERS, 8 Nov): media/thumbs/index.json - and media/heroes/index.json - are the bakes' own lists
+// (tools/thumb_bake.js { thumbs | heroes: { key: file } }), fetched by plane_thumb.js through a constant + 'index.json' (no
+// literal media/ path to scan), naming the folder's files; thumb_bake's whole bake prunes the folder to its list. Red since
+// THUMBS-ROUND3 (5 Nov) for want of this reading: 43 'orphans', every one of them named by the index
+{ const PT = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'plane_thumb.js'), 'utf8');
+  for (const dir of ['thumbs', 'heroes']) {
+    const rel = 'media/' + dir + '/index.json';
+    if (!present.includes(rel)) continue;
+    const fetched = PT.includes("'media/" + dir + "/'") && /fetch\([A-Z]+ \+ 'index\.json'/.test(PT);
+    if (fetched && !refs.has(rel)) refs.set(rel, 'src/viewer/plane_thumb.js');
+    let J = null; try { J = JSON.parse(fs.readFileSync(path.join(ROOT, rel), 'utf8')); } catch (e) {}
+    check(!!(J && J[dir] && typeof J[dir] === 'object'), `${rel} is a plane-picture index ({${dir}: {key: file}})`);
+    if (fetched) for (const f of Object.values((J && J[dir]) || {})) { const r = 'media/' + dir + '/' + f; if (!refs.has(r)) refs.set(r, rel); } } }
 checkStore(refs, present);
 // MEDIA ACCEPTED BY NAME (a media file the user accepted by its size; the gate holds it to that size - a re-encode that
 // grows it is a new ask, not a silent pass)

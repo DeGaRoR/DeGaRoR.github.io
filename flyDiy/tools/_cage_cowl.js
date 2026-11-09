@@ -74,9 +74,8 @@ for (const g of ROWS) {
 // is NOT in the defaults table: the file states every row the page knows (G377), so a defaulted row would ride into
 // every saved build and move every key the game hashes it by. A build that never moved it carries no key; the row
 // shows its `absent` value, and the generator is handed that value whenever the key is absent (below).
-const ABSENT_AT = { wAftTop: 1, wAftBot: 1, faceRing: 0, waistF: null,
-  exitGap: 0, exitSpan: 140, exitLen: 0.45, exitHold: 0, keelShoulder: null, keelRound: null, deckShoulder: null, deckRound: null, scoopFollow: 0, lobeCount: 0, lobeT2: null, lobeStream: 0, lobeNose: 0.94, lobeTail: 0.04, partLevel: 1, lidRW: null, lidRTop: null, lidRBot: null, exRampH: 0.04, exCut: 0, exCutSpan: 50, exCutLen: 0.12, exCutAz: 270,
-  gillOn: 0, gillN: 6, gillZ: 0.35, gillL: 0.22, gillH: 0.12, gillSlant: 25, gillLip: 0.012, gillT: 0.004 };   // PROPER-COWLS: the exit   // PROPER-COWLS: faceRing, waistF (null = follows waist)
+// G3914: the nacelle inlet's rows too - absent at their defaults (no saved build gains a key)
+const ABSENT_AT = { wAftTop: 1, wAftBot: 1, inletOn: 0, inletW: 0.42, inletH: 0.42, inletLip: 0.014, inletDuct: 0.22, inletY: 0 };
 const cowlDef = { cowlOn: 1, fitNose: 2, cowlGap: 0.0 };
 for (const k of SHOWN) if (!(k in ABSENT_AT)) cowlDef['cw_' + k] = CW.P[k];
 PAGE.defaults = Object.assign(cowlDef, PAGE.defaults || {});
@@ -133,13 +132,13 @@ const GROUP = ['2b · cowl', [
    { when: P => +P.cowlOn }],
   // (FIREWALL RULE: only off the body - a pylon, a nacelle - where the face is the engine's own plate)
   ['cowlGap', 'fore / aft (stand-off from the face)', -0.05, 0.15, 0.002,
-   { when: P => +P.cowlOn && [2, 3, 5, 6].includes(Math.round(+P.engMount || 0)) }],
+   { when: P => +P.cowlOn && [2, 3, 5, 6, 7, 8].includes(Math.round(+P.engMount || 0)) }],
 ].concat(ROWS.filter(g => !SKIP_GROUPS.has(g.id))
              .map(g => [g.id === 'g_aft' ? 'nacelle' : g.name.toLowerCase(), groupItems(g),
                         g.id === 'g_barrel' || g.id === 'g_bowl' || g.id === 'g_scoop' ? 'open' : undefined,
                         // the nacelle rows only mean something off the body
                         g.id === 'g_aft'
-                          ? { when: P => +P.cowlOn && [2, 3, 5, 6].includes(Math.round(P.engMount || 0)) }
+                          ? { when: P => +P.cowlOn && [2, 3, 5, 6, 7, 8].includes(Math.round(P.engMount || 0)) }
                           : { when: P => +P.cowlOn }]))];
 (PAGE.groupsOverride || (PAGE.groups = PAGE.groups || [])).push(GROUP);
 
@@ -462,6 +461,78 @@ function noseFace(mesh, FS, end) {
 // face OFF the body (a pylon, a nacelle: the engine's own plate, no firewall) keeps both - they are how it is placed.
 // No saved build moved (the survey of every repo build and the flagship's files: the cowled pushers and the body
 // cowls all sat at 0; the Chinook's block is on a cowl-less pusher, the twin floatplane's gap on nacelles).
+// GR (the user, 5 Nov: "the enormous pod you've created is also unacceptable. The idea is to fit the nacelle so it
+// fits, maybe swinging front or back, and possibly retracting ... Start again from the linear cowl and nacelle, extend
+// the nacelle as much as required, move the whole assembly up and down, possibly make the nacelle higher if required
+// (and the cowl, keep these aligned, same height, same width)"): THE NACELLE FITTED TO ITS GEAR. When the mains fold
+// into a puller's nacelle (gearRetract, gearFold 'nacelle', the row gearNacFit on) and their wheel is under it, and
+// the nacelle as drawn cannot take the folded leg either way, the engine's FACE is changed - and with it the cowl, the
+// nacelle and the engine together (every layer reads this face):
+//   DEEP ENOUGH   the half-height grows to hold the wheel and its clearance round the leg's pin (the pin 45 % of the
+//                 depth up, the gear layer's own rule), with room for the tail cone's taper; the width to the tyre and
+//                 its offset - cowl and nacelle one section, the same height and width;
+//   HUNG LOWER    the whole assembly moves down just enough for the folded wheel to pass under the wing's underside
+//                 (never up; the leg shortens with it);
+//   LONG ENOUGH   forward under the engine when the folded leg fits there (no longer nacelle needed), else the tail
+//                 cone runs till the folded wheel (the leg's stowed length, less its shortening) lies in its first 55 %
+//                 (where the cone still has 86 % of its section), 4 m at most.
+// Nothing is saved: the rows keep their values; the face says what it did (face.gearFit) and the cowl shows it.
+const NACFIT = { clr: 0.05, coneE: 0.55, coneK: 0.86, over: 0.03, tailMax: 4.0 };
+let nacFitAF = null;
+function nacGearFit(mesh, FS, P, W, face) {
+  if (!+P.gearRetract || Math.round(+P.gearFold || 0) !== 7 || !(P.gearNacFit == null ? 1 : +P.gearNacFit) || !+P.s1On || +P.gearFloats) return null;
+  const sx = +P.s1X || 0, zs = +P.s1Z || 0, R = +P.s1R || 0.2, drop = +P.s1Drop || 0.4;
+  if (Math.abs(Math.abs(face.x) - sx) > face.halfW + 0.15) return null;             // (the wheel is not under it)
+  const GGx = window.GEAR_GEN;
+  if (!GGx || !GGx.cageAirframe || !W.overAt) return null;
+  if (!nacFitAF || nacFitAF.mesh !== mesh || nacFitAF.FS !== FS) nacFitAF = { mesh, FS, AF: GGx.cageAirframe(mesh, FS) };
+  const AF = nacFitAF.AF; if (!AF) return null;
+  const ya = AF.keelAt(zs) - drop, clr = NACFIT.clr;
+  const cyl = Math.max(0.30, Math.min(0.80, +P.s1_oleoCyl || 0.55)), sh = Math.max(0, Math.min(0.45, +P.gearShort || 0));
+  const cylF = sh > 0 ? Math.max(0.30, Math.min(cyl, 1 - sh - 0.06)) : cyl;
+  const stowed = L => L - (sh > 0 ? Math.max(0, Math.min(sh * L, L - cylF * L - 0.05)) : 0);
+  const tail0 = P.cw_tailLen != null ? +P.cw_tailLen : 1.5, cone0 = Math.round(+(P.cw_aftMode == null ? 1 : P.cw_aftMode)) === 1;
+  const lenFwd = (+P.cw_cowlLen || 0.4) + (+P.cw_lidLen || 0.1);
+  // the wing's underside over the stowed wheel (its lowest over the tyre's length; none: off the wing's chord)
+  // (a HIGH wing's only - its middle over the body's centre line at the station: a low wing's wheel stows ahead of it
+  // or into its own well, the gear layer's wing cuts)
+  const wm = (() => { const o2 = W.overAt(face.x, zs), u2 = W.underAt ? W.underAt(face.x, zs) : null; return o2 && u2 ? (o2.y + u2.y) / 2 : null; })();
+  const high = wm != null && AF.cyAt && wm > AF.cyAt(Math.max(AF.z0, Math.min(AF.z1, zs)));
+  const underOver = zw => { if (!high) return null; let y = null;
+    for (const dz of [-R, 0, R]) { const u = W.underAt ? W.underAt(face.x, zw + dz) : null; if (u && (y == null || u.y < y)) y = u.y; }
+    return y; };
+  // the section as drawn: a free cowl (fitNose 0) takes its own rows, not the face's
+  const free = Math.round(+P.fitNose || 0) === 0;
+  const W0 = free && P.cw_aftW != null ? +P.cw_aftW : face.halfW, H0 = free && P.cw_aftH != null ? +P.cw_aftH : face.halfH;
+  // ONE WAY (fwd / aft), A SECTION (centre yc, half-height H), A TAIL: the pin 45 % up the depth; the folded wheel inside
+  // the section with its clearance; under the wing's underside where it stows (none behind the trailing edge); long
+  // enough - forward, under the engine's rear (60 % of the cowl's length past the firewall: the DC-3's), aft, in the
+  // cone's first 55 %
+  const way = (yc, H, tail, cone, fwd) => {
+    const yh = yc - 0.1 * H, L = stowed(Math.max(0, yh - ya)), zw = zs + (fwd ? L : -L), u = underOver(zw);
+    const deep = 0.9 * H >= R + clr && 1.1 * H >= R + clr;
+    const under = u == null || yh + R + clr <= u;
+    const long = fwd ? zw + R + clr <= face.z + lenFwd * 0.6
+                     : cone && face.z - (zw - R - clr) <= NACFIT.coneE * tail;
+    return { ok: deep && under && long, deep, under, long, yh, L, zw, u };
+  };
+  const hw = Math.max(W0, Math.abs(Math.abs(face.x) - sx) + 0.38 * R + 0.06 + clr);
+  if ((way(face.yc, H0, tail0, cone0, true).ok || way(face.yc, H0, tail0, cone0, false).ok) && hw <= W0 + 1e-6) return null;
+  // GROW, the least first: deep enough for the wheel - deepened DOWNWARD (its top kept: the assembly lowered by the
+  // growth; cowl and nacelle one section) - then lowered just enough for the folded wheel to pass under the wing;
+  // forward when it then fits under the engine's rear, else aft into a tail cone as long as it needs (4 m at most)
+  const H = Math.max(H0, (R + clr) / 0.9);
+  const dropFor = fwd => { let dy = -(H - H0);
+    for (let it = 0; it < 5; it++) { const w = way(face.yc + dy, H, tail0, true, fwd);
+      if (w.u == null || w.under) break; dy -= w.yh + R + clr - w.u + 0.002; }
+    return dy; };
+  const dyF = dropFor(true), wF = way(face.yc + dyF, H, tail0, true, true);
+  if (wF.ok) return { dy: dyF, halfW: hw, halfH: H, tailLen: tail0, aftMode: 1, fold: 'forward', legStowed: wF.L, ok: true };
+  const dyA = dropFor(false), wA0 = way(face.yc + dyA, H, tail0, true, false);
+  const tail = Math.min(NACFIT.tailMax, Math.max(tail0, (face.z - (wA0.zw - R - clr)) / NACFIT.coneE));
+  const wA = way(face.yc + dyA, H, tail, true, false);
+  return { dy: dyA, halfW: hw, halfH: H, tailLen: tail, aftMode: 1, fold: 'aft', legStowed: wA.L, ok: wA.ok };
+}
 const cowledPusher = P => P && (P.cowlOn == null || +P.cowlOn) &&
   [1, 4].includes(Math.round(+P.engMount || 0));
 // PROPER-COWLS (2026-11-08): A POD'S PLATE IS THE POD'S SIZE. Off the body the engine draws its own mount plate on the
@@ -480,12 +551,42 @@ const podPlate = (P, face) => {
 };
 function engineFaces(mesh, FS, P) {
   const mount = Math.round((P && P.engMount) || 0);
-  if (mount >= 4 && mount <= 6) {
+  if (mount >= 4 && mount <= 7) {
     const one = (m, extra) => engineFaces(mesh, FS, Object.assign({}, P, { engMount: m }, extra || {}));
     if (mount === 4) return one(0).concat(one(1));
+    // HULL-B15: THE TANDEM - the over-the-wing mount's face twice, back to back: the front unit pulls (its block
+    // forward of the face), the rear one pushes (aft of it), a hand's gap between their plates; one pylon (the first)
+    if (mount === 7) return one(2, { engAim: 1 }).map(u => Object.assign(u, { face: Object.assign({}, u.face, { z: u.face.z + 0.04 }) }))
+      .concat(one(2, { engAim: 2 }).map(u => Object.assign(u, { face: Object.assign({}, u.face, { z: u.face.z - 0.04 }), tandemRear: true })));
     if (mount === 5) return one(0).concat(one(3));
     const inner = +P.engNacAt || 0.30, outer = Math.max(inner + 0.10, +P.engNacAt2 || 0.62);
     return one(3, { engNacAt: inner }).concat(one(3, { engNacAt: outer }));
+  }
+  // HULL-B22: ON THE FIN (engMount 8 - the Seawind's): a tractor at the fin's leading edge, engFinAt of its height (the
+  // drawn fin: CAGE_FIN's mesh, cage units x FS); the plate a hand ahead of the edge, the engine forward of it. A first
+  // cut: the bare engine on its mount, no cowl (the user: "don't bother with the cowls at this stage")
+  if (mount === 8) {
+    const CF = window.CAGE_FIN, V = CF && CF.mesh && CF.mesh.V;
+    if (!V || !V.length) return [];
+    let y0 = Infinity, y1 = -Infinity;
+    for (const v of V) { y0 = Math.min(y0, v[1]); y1 = Math.max(y1, v[1]); }
+    // HULL-B34 (the user, 5 Nov: "extend the nacelle, and have it cross the fin, which should be sized to accept that.
+    // If you put them in contact, you don't even need dedicated support ... a bit like the wing-mounted engine ... except
+    // that we allow modifying the nacelle so the engine is pushed forward"): THE NACELLE CROSSES THE FIN. engFinAt the
+    // height on the fin (of its height; 1 = ON ITS TOP, the nacelle's belly on the fin's tip), engFinFwd how far the
+    // engine stands forward of the fin's leading edge (the nacelle lengthened to reach it); the nacelle's tail runs back
+    // through the fin to past its trailing edge (the cowl's tail cone, sized here: tailLen). No block, no pylon - the
+    // frame ties the engine into the fin's own section at that height (61_gen_frame HULL-B22)
+    const at = Math.max(0.2, Math.min(1, +P.engFinAt || 0.55)), atS = Math.min(at, 0.96);
+    const yE = y0 + at * (y1 - y0), yS = y0 + atS * (y1 - y0), band = 0.05 * (y1 - y0);
+    let zLE = -Infinity, zTE = Infinity;
+    for (const v of V) if (Math.abs(v[1] - yS) < band) { zLE = Math.max(zLE, v[2]); zTE = Math.min(zTE, v[2]); }
+    if (!isFinite(zLE)) return [];
+    const NE = nacelleOfEngine(P), hN = NE ? NE.aftH : 0.14, top = at >= 0.999;
+    const yc = yE * FS + (top ? 0.85 * hN : 0);
+    return [{ face: { z: zLE * FS + 0.14 + Math.max(0, +P.engFinFwd || 0), yc, x: 0, halfW: 0.16, halfH: 0.14, uv: null, waist: 0, synthetic: 1,
+                      fin: { y: yE * FS, zLE: zLE * FS, zTE: zTE * FS, top } },
+              aft: false, kind: 'fin' }];
   }
   // G185: an over-the-wing engine sits on the UPPER plane of a biplane
   const W0 = window.CAGE_WING;
@@ -499,7 +600,20 @@ function engineFaces(mesh, FS, P) {
     // its disc in front of the cabin. No face, no engine: the engine layer says why and the join files it.
     const C2 = window.CAGE2;
     if (C2 && C2.cageAftEngineFace && !+P.rearAperture && !C2.cageAftEngineFace(P)) return [];
-    const f = noseFace(mesh, FS, 'tail');
+    let f = noseFace(mesh, FS, 'tail');
+    // HULL-B20: ON A HULL THE ENGINE'S FACE IS THE BODY'S, ABOVE THE GUNWALE (the user: "you need to get the engine at the
+    // cabin level"): the aft cap's lower part is the boat's hull, not a firewall - the face (and the cowl on it) is the
+    // cap from its gunwale (the drawn skin's widest line there) to its roof; the hull's depth below it never moves it
+    if (f && +P.hullOn) {
+      try {
+        const AF = GG && GG.cageAirframe ? GG.cageAirframe(mesh, FS) : null;
+        if (AF) {
+          const zc = Math.min(AF.z1 - 1e-3, Math.max(AF.z0 + 1e-3, f.z + 0.05)), yW = AF.surf(zc, Math.PI / 2)[1];
+          const top = f.yc + f.halfH, bot = f.yc - f.halfH;
+          if (isFinite(yW) && yW > bot + 0.05 && yW < top - 0.10) f = Object.assign({}, f, { yc: 0.5 * (top + yW), halfH: 0.5 * (top - yW), uv: null, waist: 0 });
+        }
+      } catch (e) {}
+    }
     // G461 (the Chinook): THE PUSHER'S BLOCK MOVES TOO. The pod's aft face
     // is where the mount bolts, and a Chinook's engine sits over the wing's
     // trailing edge, a third of a metre ahead of where the pod ends — the
@@ -511,16 +625,57 @@ function engineFaces(mesh, FS, P) {
   }
   if (mount === 2) {
     if (!W || !W.leAt || ![0, 3].includes(Math.round(P.wgPos || 0))) return [];   // G185: or a parasol
-    const le = W.leAt(0);
+    let le = W.leAt(0);
+    // THE PYLON ON A CABIN ROOF (G3912, the user: "Draw the 'Over the wing' engine on high-wing cabins"). A cabin
+    // wing whose centre is REMOVED (wgCentre 'removed': the two roots bolt to the cabin roof's sides - the Cessna's,
+    // 11 saved builds) has no skin on the centreline, so leAt(0) answered null and the engine was FLOWN AND NOT DRAWN
+    // ("no wing to sit on" - the frame hangs it all the same: 61_gen_frame braces the pylon to both roots' spars and
+    // down to the roof ring). The pylon stands on the roof between the roots: the leading edge and the top read at
+    // the nearest station either side where the wing answers, its foot at the roots' lower skin (the roof line)
+    let onRoof = false, footX = 0.12;
+    for (let k = 1; !le && k <= 30; k++) {
+      const q = [W.leAt(0.05 * k), W.leAt(-0.05 * k)].filter(Boolean);
+      if (q.length) {
+        le = { z: Math.max(...q.map(r => r.z)), yTop: Math.max(...q.map(r => r.yTop)), yBot: Math.min(...q.map(r => r.yBot)) };
+        onRoof = true; footX = 0.05 * k;
+      }
+    }
     if (!le) return [];
     const chPl = W.def && W.def.parts &&
       ((W.def.parts.planes && W.def.parts.planes[W.k || 0]) || W.def.parts);
     const ch = (chPl && chPl.chordAt) ? chPl.chordAt(0) : 1.4;
     const hp = Math.max(0.05, +P.engPylonH || 0.30);
     const aft = aim === 0 ? true : aim === 2;
-    return [{ face: podPlate(P, { z: le.z - 0.30 * ch + bz, yc: le.yTop + hp + by, x: 0,
+    // HULL-B17: ON THE FUSELAGE BEHIND THE CABIN (engPylonAt 1 - the Icon's, the Aventura's: the engine stands on the
+    // roof aft of the wing, its prop over the tail boom). The mount's plate engPylonAft behind the trailing edge, its
+    // feet on the roof's crown there (the drawn skin, cageAirframe's top line) a fore-aft pair under the block; the
+    // frame braces it to the fuselage rings it stands on (61_gen_frame, engines[].pylonAt 'roof')
+    if (Math.round(+P.engPylonAt || 0) === 1) {
+      const AF = GG && GG.cageAirframe ? GG.cageAirframe(mesh, FS) : null;
+      // (HULL-B37, the user: "the engine should reach the wing and intersect it. Place it further fore and high" - a
+      // negative engPylonAft stands the mount FORWARD of the trailing edge, under the wing, to 1.5 m; 0 and up as ever)
+      const pa = +P.engPylonAft, paft = pa < 0 ? Math.max(-1.5, pa) : Math.max(0, pa || 0.15);
+      const zP = le.z - ch - paft + bz;
+      // (HULL-B18, the user: "you have a large gap now because where you placed it is not that flat ... it should try
+      // and follow the fuselage shape"): each foot reads the roof at ITS OWN station - the tail cone falls away aft
+      const topAt = z => { try { if (!AF) return null; const zc = Math.min(AF.z1 - 1e-3, Math.max(AF.z0 + 1e-3, z)); const y = AF.surf(zc, Math.PI)[1]; return isFinite(y) ? y : null; } catch (e) { return null; } };
+      // (HULL-B52: engPylonFwd stands the feet and the body that far FORWARD of the mount, the engine where it was - its
+      // height still over the roof at its own station; the foot's y the roof at the pylon's)
+      const pf = Math.max(-0.6, Math.min(0.8, +P.engPylonFwd || 0));
+      const zF = zP + 0.10 + pf, zR = zP - 0.45 + pf, yR = topAt(zP), yP = pf ? topAt(zP + pf) : yR, yFF = topAt(zF), yFR = topAt(zR);
+      if (yR == null) return [];
+      return [{ face: { z: zP, yc: yR + hp + by, x: 0, halfW: 0.16, halfH: 0.14, uv: null, waist: 0,
+                        synthetic: 1, yBase: yR, chord: 0.9, onRoof: true, aftRoof: true, pylonFwd: pf,
+                        foot: { x: 0.10, y: yP != null ? yP : yR, zF, zR, yF: yFF != null ? yFF : yR, yR: yFR != null ? yFR : yR } },
+                aft, kind: 'wingTop' }];
+    }
+    return [{ face: { z: le.z - 0.30 * ch + bz, yc: le.yTop + hp + by, x: 0,
                       halfW: 0.16, halfH: 0.14, uv: null, waist: 0,
-                      synthetic: 1, yBase: le.yTop, chord: ch }),
+                      synthetic: 1, yBase: onRoof ? le.yBot : le.yTop, chord: ch, onRoof,
+                      // G3913: THE MOUNT'S FEET (the engine layer draws the pylon's bars to them): the front and rear
+                      // spars' stations at the root (a quarter and two thirds of the chord), on the wing's top skin
+                      // either side - the frame braces the pylon's pair to both roots' spars (61_gen_frame)
+                      foot: { x: footX, y: le.yTop, zF: le.z - 0.20 * ch, zR: le.z - 0.62 * ch } },
               aft, kind: 'wingTop' }];
   }
   if (mount === 3) {
@@ -529,14 +684,67 @@ function engineFaces(mesh, FS, P) {
     const x = Math.max(0.3, (+P.engNacAt || 0.35) * semi);
     const aft = aim === 2;
     const out = [];
+    // HULL-B8: A NACELLE OVER THE WING (the user, 4 Nov: "if you have to lift these engines so high up, you need a
+    // pylon. Wing mounted should remain anchored and in contact with the wing structure"). engNacOver 1 stands the
+    // nacelle ON the wing's top skin (its underside on the skin at the station, the block over the spars as the
+    // over-the-wing engine's: the LA-8's, a boat's propellers out of the spray); engNacLift raises it that far again
+    // on a PYLON - the over-the-wing mount's own bars and cables or fairing (_cage_eng.js drawPylonMount, engPylonFair)
+    // down to the front and rear spars either side. The block rows do not move an over-wing nacelle off its skin
+    const over = +P.engNacOver > 0, lift = over ? Math.max(0, +P.engNacLift || 0) : 0;
+    // HULL-B30: ON THE REAR FUSELAGE (engNacOver 2 - the Be-103's engines): each nacelle beside the body behind the wing,
+    // engPylonAft behind its trailing edge, its axis at the fuselage's crown there plus engNacLift, its inboard flank a
+    // stub pylon off the side (the hub a blade's radius + 0.10 out); the stub's root on the skin at the waist (the drawn skin, cageAirframe). The
+    // frame braces it to the two fuselage rings either side (61_gen_frame, engines[].pylonAt 'body')
+    if (Math.round(+P.engNacOver || 0) === 2) {
+      const AF = GG && GG.cageAirframe ? GG.cageAirframe(mesh, FS) : null;
+      // (the wing's leading edge at its first station that answers - a low or a mid wing's root is inside the body)
+      let e0 = null; for (let k = 0; !e0 && k <= 40; k++) e0 = W.leAt(0.05 * k);
+      const NE = nacelleOfEngine(P);
+      if (!AF || !e0) return [];
+      const chPl = W.def && W.def.parts && ((W.def.parts.planes && W.def.parts.planes[W.k || 0]) || W.def.parts);
+      const ch = (chPl && chPl.chordAt) ? chPl.chordAt(0) : 1.4;
+      const z = e0.z - ch - Math.max(0, +P.engPylonAft || 0.15) + bz;
+      const zc = Math.min(AF.z1 - 1e-3, Math.max(AF.z0 + 1e-3, z));
+      let top, side;
+      try { top = AF.surf(zc, Math.PI); side = AF.surf(zc, Math.PI / 2); } catch (e) { return []; }
+      if (!top || !side || !isFinite(top[1]) || !isFinite(side[0])) return [];
+      const hN = NE ? NE.aftH : 0.30, wN = 0.20, xS = Math.abs(side[0]), yc = top[1] + Math.max(0, +P.engNacLift || 0) + by;
+      for (const s of [1, -1]) {
+        // (the hub one blade radius + 0.10 off the side: the disc clears the body - a 0.30 stub put a 912's blade through it)
+        const xN = s * (xS + Math.max(0.30 + wN, 0.5 * (+P.cw_propD || 1.7) + 0.10));
+        out.push({ face: { z, yc, x: xN, halfW: wN, halfH: hN, uv: null, waist: 0, synthetic: 1, chord: 0.9, over: true,
+                           side: { x: xS, y: Math.min(yc, side[1] + 0.5 * (top[1] - side[1])), z: z - 0.25 } },
+                   aft, kind: 'nacelle' });
+      }
+      return out;
+    }
+    if (over) {
+      const NE = nacelleOfEngine(P);
+      const chPl = W.def && W.def.parts && ((W.def.parts.planes && W.def.parts.planes[W.k || 0]) || W.def.parts);
+      for (const s of [1, -1]) {
+        const e = W.leAt(s * x);
+        if (!e) continue;
+        const ch = (chPl && chPl.chordAt) ? chPl.chordAt(s * x) : 1.4;
+        const hN = NE ? NE.aftH : 0.5 * (e.yTop - e.yBot) + 0.10;
+        // (on the skin: the barrel sinks 0.03 into it - in contact, not touching at a line)
+        const yc = e.yTop + (lift > 0.02 ? lift : -0.03) + hN;
+        const face = { z: e.z - 0.30 * ch, yc, x: s * x, halfW: 0.20, halfH: hN, uv: null, waist: 0, synthetic: 1,
+                       chord: ch, over: true };
+        if (lift > 0.02) face.foot = { x: 0.12, y: e.yTop, zF: e.z - 0.20 * ch, zR: e.z - 0.62 * ch };
+        out.push({ face, aft, kind: 'nacelle' });
+      }
+      return out;
+    }
     for (const s of [1, -1]) {
       const e = aft && W.teAt ? W.teAt(s * x) : W.leAt(s * x);
       if (!e) continue;
-      out.push({ face: podPlate(P, { z: (aft ? e.z - 0.10 : e.z + 0.10) + bz,
-                         yc: 0.5 * (e.yTop + e.yBot) + by, x: s * x,
-                         halfW: 0.20, halfH: 0.5 * (e.yTop - e.yBot) + 0.10,
-                         uv: null, waist: 0, synthetic: 1 }),
-                 aft, kind: 'nacelle' });
+      const face = { z: (aft ? e.z - 0.10 : e.z + 0.10) + bz,
+                     yc: 0.5 * (e.yTop + e.yBot) + by, x: s * x,
+                     halfW: 0.20, halfH: 0.5 * (e.yTop - e.yBot) + 0.10,
+                     uv: null, waist: 0, synthetic: 1 };
+      const gf = aft ? null : nacGearFit(mesh, FS, P, W, face);
+      if (gf) Object.assign(face, { yc: face.yc + gf.dy, halfW: gf.halfW, halfH: gf.halfH, gearFit: gf });
+      out.push({ face, aft, kind: 'nacelle' });
     }
     return out;
   }
@@ -1150,6 +1358,21 @@ PAGE.post = ctx => {
 };
 // the layer's own build; `again` is the first pass's starter decision when the
 // wing places it again (returned here for that)
+// G3914: the nacelle's size off the engine it wraps: the envelope's half-span and half-height (about the crank, the
+// thrust line the face stands on) plus a clearance, the barrel its length plus a margin; null without an engine
+const NAC_CLEAR_W = 0.04, NAC_CLEAR_H = 0.10, NAC_MARGIN_L = 0.06, NAC_TAPER = 0.96;
+function nacelleOfEngine(P) {
+  try {
+    const specOf = window.CAGE_ENG_SPEC, EG2 = window.ENG_GEN;
+    const spec = specOf && +P.engOn ? specOf(P) : null;
+    const R = spec && EG2 && EG2.engResolve ? EG2.engResolve(spec) : null;
+    const e = R && R.env;
+    if (!e || !isFinite(e.x0) || !isFinite(e.y0)) return null;
+    return { aftW: Math.max(Math.abs(e.x0), Math.abs(e.x1)) + NAC_CLEAR_W,
+             aftH: Math.max(Math.abs(e.y0), Math.abs(e.y1)) + NAC_CLEAR_H,
+             cowlLen: Math.abs(e.z1 - e.z0) + NAC_MARGIN_L };
+  } catch (err) { return null; }
+}
 function cowlPlace(ctx, again) {
   if (CW.__eyeDet0 != null) { CW.P.detail = CW.__eyeDet0; CW.__eyeDet0 = null; }   // G3713: a thrown build's dial
   const { scene, mesh, P, stat } = ctx;
@@ -1220,8 +1443,29 @@ function cowlPlace(ctx, again) {
   const mode = Math.round(P.fitNose);
   let fit = null;
   if (mode === 1 || mode === 2) {
-    CW.P.aftW = face.halfW;
-    CW.P.aftH = face.halfH;
+    // G3914: A NACELLE FITS ITS ENGINE (the user, 4 Nov: "your nacelle is much too big, no reason to have it this tall
+    // and wide"). Off the body (a pylon, a wing nacelle) there is no firewall to fit: the face is the engine's own
+    // plate (0.16 m half-width), so a fitted nacelle came out a third of the engine's width, and a free one wore the
+    // NOSE cowl's rows it was saved with (the Cessna's firewall: 1.14 x 0.89 m round a flat four 0.31 m tall). The
+    // size is the ENGINE's envelope (ENG_GEN.engResolve: the cylinders' span, the case's height) plus a clearance,
+    // and the barrel its length; the section stays the builder's (sealed) or the fit's (fitted)
+    const NE = station.synthetic ? nacelleOfEngine(P) : null;
+    CW.P.aftW = NE ? NE.aftW : face.halfW;
+    CW.P.aftH = NE ? NE.aftH : face.halfH;
+    // (the barrel HOLDS its width to the propeller's end: a pusher's cylinders sit there, and a nose cowl's taper
+    // - 0.76 on the Cessna - put their heads through the skin; the hardware on the case top takes the height's margin)
+    if (NE) {
+      CW.P.cowlLen = NE.cowlLen; if (P.cw_cowlLen !== undefined) P.cw_cowlLen = NE.cowlLen;
+      CW.P.taperW = Math.max(+CW.P.taperW || 0, NAC_TAPER); CW.P.taperH = Math.max(+CW.P.taperH || 0, NAC_TAPER);
+      if (P.cw_taperW !== undefined) P.cw_taperW = CW.P.taperW;
+      if (P.cw_taperH !== undefined) P.cw_taperH = CW.P.taperH;
+    }
+  }
+  // GR: THE NACELLE FITTED TO ITS GEAR (nacGearFit): its section (free mode too), its tail cone's length
+  if (face.gearFit) {
+    const g = face.gearFit;
+    CW.P.aftW = Math.max(mode === 0 ? CW.P.aftW : 0, g.halfW); CW.P.aftH = Math.max(mode === 0 ? CW.P.aftH : 0, g.halfH);
+    CW.P.aftMode = 1; CW.P.tailLen = g.tailLen;
   }
   if (mode === 1) {
     // SECTION FROM THE BODY (sectionFromFace), then the fitted values back on
@@ -1238,6 +1482,9 @@ function cowlPlace(ctx, again) {
   // would be a rolled hem in the middle of a continuous surface, and the
   // skin's aft row would stand off the cone by the lip's own lap.
   const nacelle = station.synthetic && Math.round(CW.P.aftMode) === 1;
+  // HULL-B34: A FIN NACELLE CROSSES ITS FIN - its tail cone runs from the engine's face back past the fin's trailing
+  // edge at that height (0.25 beyond), whatever the row says
+  if (nacelle && face.fin && isFinite(face.fin.zTE)) CW.P.tailLen = Math.max(0.4, face.z - face.fin.zTE + 0.25);
   if (CW.P.fwLipOn !== undefined) CW.P.fwLipOn = nacelle ? 0 : CW.P.fwLipOn;
   CW.prepareLid();
   // G3713 (COWL-RES): THE EYE VARIANT'S COWL - from variant 1 up the cowl is sampled at detail 2 (the page's own

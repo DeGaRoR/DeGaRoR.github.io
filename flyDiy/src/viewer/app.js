@@ -1358,7 +1358,7 @@
   // until the new one is whole - when the room, the world's sun or its cover moved on (a return from a flight that ended
   // near this shed; a flight ended far away leaves the view it had: the world there is not this shed's). The capture
   // runs with the craft's LIGHTS in the world scene (craftInWorldNow, its meshes hidden): the world's programs are keyed
-  // with them (G1085), so nothing links. No view (the phone garage, no world, ?hview=0, a software renderer): the room's
+  // with them (G1085), so nothing links. No view (the phone garage, no world, no ?hview=1 since 8 Nov, a software renderer): the room's
   // own outdoors, as before.
   let hview = null, hviewKey = null, hviewFor = null, hviewWant = null, hviewFace = 0, hviewHold = 0, hviewFr = 0, hviewLast = null, hviewBooting = false;
   // the room's target is the world's (aa_resolve): the linear split (the presets' 'linear' compositing) or display-space
@@ -1368,7 +1368,10 @@
   const HVIEW_N = { laptop: 768, potato: 768, retro: 768, current: 1024, gamer: 1024, ultra: 1536 };
   const HVIEW_C = [0, 2, 0];          // the capture's eye in the shed's frame: the room's centre, a standing eye
   const HVIEW_NEAR = 3000;            // a flight that ended this near the stand left the world there (m)
-  const hviewOff = () => { try { return /[?&]hview=0\b/.test(location.search || ''); } catch (e) { return false; } };
+  // HVIEW-OFF (8 Nov, the user's verdict on the hangars-matched stills: the captured view is not the look - a generic sky,
+  // no clouds, the apron smeared): OFF by default, the room's own outdoors as until L35a, until the redesign (flydiy-notes/
+  // HANGAR-VIEW-REDESIGN-2026-11-08.md, 'C') replaces it; ?hview=1 turns the capture on (the prototype's stills)
+  const hviewOff = () => { try { return !/[?&]hview=1\b/.test(location.search || ''); } catch (e) { return true; } };
   function hviewSize() {
     const G = window.GFX; if (G && G.soft && G.soft()) return 0;
     let q = null; try { q = /[?&]hviewn=(\d+)/.exec(location.search || ''); } catch (e) {}   // (the proof rig's resolution A/B)
@@ -2135,7 +2138,7 @@
     const pos = new Float32Array(ids.length * 3);
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     geo.setIndex([0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7]);
-    const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({  // pre-ok: colorWrite false (the next line)
+    const mesh = new THREE.Mesh(geo, (typeof MATLIB !== 'undefined' ? MATLIB : require('./matlib.js')).make(THREE, 'basic', {  // pre-ok: colorWrite false (the next line)
       colorWrite: false, depthWrite: false, side: THREE.DoubleSide }));
     mesh.castShadow = true; mesh.frustumCulled = false;
     craft.add(mesh);
@@ -3012,8 +3015,12 @@
     const engRigs = [], strutRigs = [];                              // G179.2
     const keyOfMesh = new Map();                                     // G1860 (DMG-D4b): each part mesh's bucket key
     const floatRigs = [];                                            // H2 (G389)
+    const gearTags = [];                      // RETRACT-1: [obj, unit 'L' | 'R' | 'T'] - the parts a retraction swings
+    const gearMechTags = [];                  // RETRACT GM3: [obj, part name] - a brace's links, an actuator's body and rod
     const anchorRigs = [];                    // G267.2: the tail assembly, rigid on its anchor
     let castorRig = null;
+    let gearSwingRig = null;                  // RETRACT-1: the swing groups (null: a fixed build, nothing moves)
+    let gearMechRig = null;                   // RETRACT GM3: the one kinematics (null: an older snapshot - the swing alone)
     if (data.cage && Array.isArray(data.parts)) {
       const twi = Array.isArray(curDef.refs.tw) ? curDef.refs.tw[0]
                 : curDef.refs.tw;
@@ -3409,6 +3416,7 @@
           // holds the airframe while the axle end rides the node: the
           // suspension visually compresses and stays lined up.
           grp.add(pg);
+          gearTags.push([pg, pt.kind.slice(3)]);   // RETRACT-1: legL / legR / legT
           pg.traverse(o => {
             if (!o.isMesh || !o.geometry) return;
             const pa = o.geometry.attributes.position;
@@ -3540,7 +3548,7 @@
             picks.push({ obj: pg, key: mp[1] === 'throttle' ? 'thr' : mp[1] });
             if (mp[1] !== 'throttle') {
               const pad = new THREE.Mesh(new THREE.SphereGeometry(mp[1] === 'flap' ? 0.05 : 0.035, 8, 6),
-                new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, colorWrite: false }));  // pre-ok: colorWrite false
+                (typeof MATLIB !== 'undefined' ? MATLIB : require('./matlib.js')).make(THREE, 'basic', { transparent: true, opacity: 0, depthWrite: false, colorWrite: false }));  // pre-ok: colorWrite false
               pad.userData.pickPad = 1;
               pad.visible = false;     // C4b (G875): the ray answers it unshown (cockpit.js padSwitches says why)
               if (mp[1] === 'flap') pad.position.set(0, 0.22, 0.14);   // up the lever, where the grip is
@@ -3609,10 +3617,17 @@
                             tip: M0.tip });
           });
         }
+        else if (pt.kind === 'gearMech') {
+          // RETRACT GM3: a brace link, an actuator's body or rod - rigid, at its rest base point; the rig below poses it
+          if (pg.position && pg.position.set) pg.position.set(pt.pivot[0], pt.pivot[1], pt.pivot[2]);
+          grp.add(pg);
+          gearMechTags.push([pg, pt.name]);
+        }
         else if (pt.kind === 'castorT' && nodeOf.tw != null) {
           if (pg.position && pg.position.set)
             pg.position.set(pt.pivot[0], pt.pivot[1], pt.pivot[2]);
           grp.add(pg);
+          gearTags.push([pg, 'T']);                // RETRACT-1
           castorRig = { obj: pg, idx: nodeOf.tw, pivot: pt.pivot,
                         axle: pt.axle, axis: pt.axis,
                         rest0: nodeRest(nodeOf.tw) };
@@ -3621,6 +3636,7 @@
           if (pg.position && pg.position.set)
             pg.position.set(pt.pivot[0], pt.pivot[1], pt.pivot[2]);
           grp.add(pg);
+          gearTags.push([pg, pt.kind === 'tw' ? 'T' : pt.kind === 'mainsL' ? 'L' : 'R']);   // RETRACT-1
           const w = { obj: pg, idx: nodeOf[pt.kind], R: pt.R,
                       pivot: pt.pivot, rest0: nodeRest(nodeOf[pt.kind]),
                       prev: null };
@@ -3638,6 +3654,41 @@
             castorRig.axle[1] - castorRig.pivot[1],
             castorRig.axle[2] - castorRig.pivot[2]);
         twWheel.child = true;              // the castor drives its position
+      }
+      // RETRACT-1 (futureDesigns/RETRACT-STUDY-2026-11.md §3.1): THE SWING. A retractable build's snapshot carries
+      // gearSwing (_cage_join.js: per unit the hinge, the axis in the true frame, the angle); each unit's parts - the
+      // leg (its stretch rig still writes the suspension in its own frame), the wheel, the castor - move under ONE
+      // group per unit, the identity while the gear is down (every vertex where it was), turned about the hinge as the
+      // gear comes up (poseModel: gearPose, off sim.out.gear) and hidden once stowed. No well is cut yet: the stowed
+      // unit lies inside the skin
+      if (data.gearSwing && THREE.Group) {
+        const units = {};
+        for (const [obj, u] of gearTags) {
+          const S = data.gearSwing[u];
+          if (!S || obj.parent !== grp) continue;          // the nose wheel rides inside its castor already
+          if (!units[u]) { const g = new THREE.Group(); g.name = 'gearSwing' + u; g.matrixAutoUpdate = false; grp.add(g);
+                           units[u] = { obj: g, hinge: S.hinge, leg: S.leg, twist: S.twist || 0, turns: S.turns || [],
+                                        frac: S.frac || 1, a: 1 }; }
+          grp.remove(obj); units[u].obj.add(obj);
+        }
+        gearSwingRig = Object.keys(units).length ? Object.values(units) : null;
+        // RETRACT GM3 (WYSIWYG): with the snapshot's gearMech the units AND the mechanism's parts are posed by the core's
+        // gearMechPose - the garage's own function - each matrix carried through the capture's map (T' = Mp T Mp^-1)
+        if (gearSwingRig && data.gearMech && data.gearMech.R && typeof gearMechPose === 'function') {
+          const parts = [];
+          for (const [obj, name] of gearMechTags) {
+            if (obj.parent !== grp) continue;
+            const g = new THREE.Group(); g.name = 'gearMech_' + name; g.matrixAutoUpdate = false; grp.add(g);
+            grp.remove(obj); g.add(obj);
+            parts.push({ obj: g, name });
+          }
+          const Mp = data.gearMech.Mp, a = Mp, det = a[0] * (a[4] * a[8] - a[5] * a[7]) - a[1] * (a[3] * a[8] - a[5] * a[6]) + a[2] * (a[3] * a[7] - a[4] * a[6]);
+          const Mi = [(a[4] * a[8] - a[5] * a[7]) / det, (a[2] * a[7] - a[1] * a[8]) / det, (a[1] * a[5] - a[2] * a[4]) / det,
+                      (a[5] * a[6] - a[3] * a[8]) / det, (a[0] * a[8] - a[2] * a[6]) / det, (a[2] * a[3] - a[0] * a[5]) / det,
+                      (a[3] * a[7] - a[4] * a[6]) / det, (a[1] * a[6] - a[0] * a[7]) / det, (a[0] * a[4] - a[1] * a[3]) / det];
+          gearMechRig = { R: data.gearMech.R, Mp, Mi, parts, a: 1,
+                          units: gearSwingRig.map(U => ({ obj: U.obj, name: 'edLeg' + U.obj.name.slice(9), frac: U.frac })) };
+        }
       }
     }
     // G58.5 TRIPWIRE: the propeller belongs AHEAD of the nose. If it ever
@@ -4023,6 +4074,8 @@
                         ctlMoves: ctlMoves.length ? ctlMoves : null,   // G240
                         picks: picks.length ? picks : null,            // G318
                         castorRig,
+                        gearSwingRig,                                  // RETRACT-1
+                        gearMechRig,                                   // RETRACT GM3
                         surfaces: data.surfaces,
                         link: makeLinkage(LINK_TAU) });  // visual linkage lag (SKIN-PROC)
     // G266.1: THE TAIL GAP — the drawn stab (the snapshot's tailRef, in the
@@ -4691,6 +4744,58 @@
     // G239: ...AND THE RODS AND CABLES FOLLOW THE HORNS THEY ARE BOLTED TO.
     // The same angle the surface turned by, applied to the member's far end,
     // and every vertex moves by its own share of that travel.
+    // RETRACT-1 / G1: THE GEAR FOLDS - each unit's group turned about its hinge by its CHAIN at the position out.gear
+    // (the gear layer's foldPose, replayed: s = (1 - pos) x frac; the wheel's twist about the leg across all of it, then
+    // the turns one after the other), each turn conjugated by the capture's map (conjRot, G357); written only when the
+    // position moved (a gear down or up costs nothing a frame); hidden once stowed - unless it retracts partly (frac < 1:
+    // the wheel stays in sight in its inset)
+    if (model.gearMechRig) {
+      // RETRACT GM3: every part from the core's gearMechPose at the position, through the capture's map
+      const gp = sim && sim.out && typeof sim.out.gear === 'number' ? sim.out.gear : 1, G = model.gearMechRig;
+      const show = U => gp > 0.02 || (U.frac != null && U.frac < 1);
+      for (const U of G.units) U.obj.visible = show(U);
+      const fr = G.units.length ? G.units[0].frac : 1;
+      for (const Q of G.parts) Q.obj.visible = gp > 0.02 || fr < 1;
+      if (gp !== G.a) {
+        G.a = gp;
+        const T = gearMechPose(G.R, gp), Mp = G.Mp, Mi = G.Mi;
+        const put = (obj, t) => {
+          if (!t) return;
+          const A = [t[0], t[1], t[2], t[4], t[5], t[6], t[8], t[9], t[10]], B = new Array(9), C = new Array(9);
+          for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) B[i * 3 + j] = A[i * 3] * Mi[j] + A[i * 3 + 1] * Mi[3 + j] + A[i * 3 + 2] * Mi[6 + j];
+          for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) C[i * 3 + j] = Mp[i * 3] * B[j] + Mp[i * 3 + 1] * B[3 + j] + Mp[i * 3 + 2] * B[6 + j];
+          const tv = [t[3], t[7], t[11]], tm = [Mp[0] * tv[0] + Mp[1] * tv[1] + Mp[2] * tv[2], Mp[3] * tv[0] + Mp[4] * tv[1] + Mp[5] * tv[2], Mp[6] * tv[0] + Mp[7] * tv[1] + Mp[8] * tv[2]];
+          obj.matrix.set(C[0], C[1], C[2], tm[0], C[3], C[4], C[5], tm[1], C[6], C[7], C[8], tm[2], 0, 0, 0, 1);
+          obj.matrixWorldNeedsUpdate = true;
+        };
+        for (const U of G.units) put(U.obj, T[U.name]);
+        for (const Q of G.parts) put(Q.obj, T[Q.name]);
+      }
+    }
+    else if (model.gearSwingRig) {
+      const gp = sim && sim.out && typeof sim.out.gear === 'number' ? sim.out.gear : 1;
+      for (const U of model.gearSwingRig) {
+        U.obj.visible = gp > 0.02 || U.frac < 1;
+        if (gp === U.a) continue;
+        U.a = gp;
+        const s = Math.max(0, Math.min(1, 1 - gp)) * U.frac, nT = U.turns.length;
+        const R = U.M || (U.M = new Float64Array(9)), T9 = U.T9 || (U.T9 = new Float64Array(9)), W9 = U.W9 || (U.W9 = new Float64Array(9));
+        conjRot(U.leg, U.twist * s, R);
+        for (let k = 0; k < nT; k++) {
+          const tk = Math.max(0, Math.min(1, s * nT - k));
+          conjRot(U.turns[k].axis, U.turns[k].ang * tk, T9);
+          for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++)
+            W9[i * 3 + j] = T9[i * 3] * R[j] + T9[i * 3 + 1] * R[3 + j] + T9[i * 3 + 2] * R[6 + j];
+          R.set(W9);
+        }
+        const h = U.hinge;
+        U.obj.matrix.set(R[0], R[1], R[2], h[0] - (R[0] * h[0] + R[1] * h[1] + R[2] * h[2]),
+                         R[3], R[4], R[5], h[1] - (R[3] * h[0] + R[4] * h[1] + R[5] * h[2]),
+                         R[6], R[7], R[8], h[2] - (R[6] * h[0] + R[7] * h[1] + R[8] * h[2]),
+                         0, 0, 0, 1);
+        U.obj.matrixWorldNeedsUpdate = true;
+      }
+    }
     if (model.linkRigs && !still) for (const r of model.linkRigs) {   // G731
       if (!r.posAttr || !r.posAttr.array) continue;
       if (brkWhole(r)) continue;                                  // G1818
@@ -5409,7 +5514,7 @@
       if (R.tearAsk != null && R.tearAsk > sim.t) R.tearAsk = null;
       if (R.islT != null && R.islT > sim.t) R.islT = null;
       const sinceT = sim.t - (R.tearT == null ? -1 : R.tearT);
-      if (!onGpu) R.tearAsk = null;
+      if (!onGpu) { R.tearAsk = null; R.askState = null; }
       if (gain === 1) {
         if (onGpu && R.tearAsk != null) {
           const Wd = GP.places(ge, R.tearAsk);
@@ -5417,21 +5522,21 @@
           // tear undone: past BRK_TEAR_WAIT ms the CPU tears on this frame's exact riding. The page in node never passes a fence:
           // its GPU path never tore, and a sheet stood metres long at rest - GATE DMGPAGEW's sheet row)
           if (!Wd && performance.now() - (R.tearAskMs || 0) > BRK_TEAR_WAIT) {
-            R.tearAsk = null; R.heldAsk = undefined; R.tearT = sim.t; R.tearCpu = (R.tearCpu | 0) + 1;
+            R.tearAsk = null; R.heldAsk = undefined; R.askState = null; R.tearT = sim.t; R.tearCpu = (R.tearCpu | 0) + 1;
             const Xt = Object.assign({}, X, { w: new Float64Array(R.nv * 3), n: null, nB: null });
             SB.poseCage(R, K.rest, sim.p, R.baseD, new Float64Array(R.nv * 3), K.NF, K.down, off, Xt);
             if (SB.tear(R, R.baseD, Xt.w)) { brkIdx(R); R.tornNew = true; }
           }
           if (Wd) { R.tearT = Wd.wTag; R.tearAsk = null;
             // (the held bits as they stood at the sample - G2040 x G1818: an event since may have re-judged a triangle)
-            if (SB.tearPlaces(R, Wd.Wp, ge.p0, R.baseD, R.heldAsk !== undefined ? R.heldAsk : R.held)) { brkIdx(R); R.tornNew = true; }
-            R.heldAsk = undefined; }
+            if (SB.tearPlaces(R, Wd.Wp, ge.p0, R.baseD, R.heldAsk !== undefined ? R.heldAsk : R.held, R.askState)) { brkIdx(R); R.tornNew = true; }
+            R.heldAsk = undefined; R.askState = null; }
         } else if (!(brkFast() && sinceT < (onGpu ? tearEveryGpu() : TEAR_EVERY))) {
           // (G3022 v2: no sample for a record with nothing to tear - no watched triangle, or tearPlaces' own no-tear rule - nor
           // for one the motion clock has not moved TEAR_MOVE since its last sample: its tear clock starts again)
           if (onGpu && (!R.watch || !R.watch.length || (R.noTear && !R.tubeTear && !R.sheetTear && !R.shellTear) ||
                         (R.tearMot != null && (BRK.motion || 0) - R.tearMot < TEAR_MOVE))) { R.tearT = sim.t; G3022.skipped++; }
-          else if (onGpu) { R.tearMot = BRK.motion || 0; G3022.sampled++; GP.sample(ge); R.tearAsk = sim.t; R.tearAskMs = performance.now(); R.heldAsk = R.held ? R.held.slice() : null; }
+          else if (onGpu) { R.tearMot = BRK.motion || 0; G3022.sampled++; GP.sample(ge); R.tearAsk = sim.t; R.tearAskMs = performance.now(); R.heldAsk = R.held ? R.held.slice() : null; R.askState = new Map(); }
           else { R.tearT = sim.t; if (SB.tear(R, R.baseD, R.w)) { brkIdx(R); R.tornNew = true; } }
         } }
       // G1864: the confetti the tear leaves (islands under BRK_ISLAND triangles that touch it), at most every 0.25 s
@@ -7046,7 +7151,7 @@
       const F = fx.F, n = F.panels.length;
       const g = new THREE.BufferGeometry();
       g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(n * 9), 3));
-      const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: 0xd8d2c2, roughness: 0.55, metalness: 0.05, flatShading: true, side: THREE.DoubleSide }));
+      const m = new THREE.Mesh(g, (typeof MATLIB !== 'undefined' ? MATLIB : require('./matlib.js')).make(THREE, 'std', { color: 0xd8d2c2, roughness: 0.55, metalness: 0.05, flatShading: true, side: THREE.DoubleSide }));
       m.frustumCulled = false; m.castShadow = true; m.receiveShadow = true;
       m.userData.fx = fx;
       craft.add(m); floatMeshes.push(m);
@@ -7435,6 +7540,111 @@
     for (let j = 0; j < Math.round(n / 5); j++) { const a = Math.random() * 6.2832, rr = 1.2 * Math.random();
       sprayEmit(D, 1, x + Math.cos(a) * rr, h + 0.15, z + Math.sin(a) * rr, Math.cos(a) * 0.8 * Math.min(2, vy), 0.6 + 0.8 * Math.random() * Math.min(2, vy), Math.sin(a) * 0.8 * Math.min(2, vy)); }
     return n; }, get fx() { return waterFx; } };
+  // ---- DIRT-DUST (2026-11-09): THE DUST A DRY STRIP THROWS - dust.js's system fed the aeroplane's own numbers --------------
+  // The user (9 Nov): "when it's really dry, there are huge puffs of dirt clouds ... at every take-off and landing ... they
+  // tend to stay a long time ... and diffuse slowly". dust.js holds the laws (the sources, the puffs, the draw); here, once a
+  // frame, the aeroplane is gathered for it: the wheels the solver says touch (wheelContacts: the mains in order and the
+  // third wheel; their node's motion over the frame for the velocity, so it reads the same under the physics worker), the
+  // prop (the engine nodes, the thrust axis -xAft, the disc's radius, sim.out.wash - the solver's own slipstream), the wing
+  // (span, weight, airspeed, the tips off the CG along zRt), and the world: the ground, the pavement class under a point
+  // (the premises' pavedAt cls, else the world's surface enum), the soil's water (SOIL_WET off world.day, once a frame), the
+  // climate's wind, DIRT-STRIP's puddles (STRIP_MICRO.puddleAt, when its module is in). The mesh is made with the world and
+  // PARKED in the world scene (worldSettle, as the scar's decal): its one program is linked by the roll-out's compile, never
+  // in flight. Nothing alive: nothing integrated, the mesh hidden (no draw). ?dust=0 off (the A/B's lever), ?dust=<k> a
+  // strength; window.DUST_FX the rig's handle.
+  const DUST_Q = (() => { try { const m = /[?&]dust=([0-9.]+)/.exec(location.search || ''); return m ? +m[1] : null; } catch (e) { return null; } })();
+  let dustFx = null;
+  const DUST_SURF = ['grass', 'dirt', 'gravel', 'dirt', -1, 'paved', 'gravel', 'sand'];   // the SURFACE enum -> a dust class (rock / forest floor read dirt; water none)
+  const DUST_CLS = { dirt: 0, sand: 1, gravel: 2, grass: 3, paved: 4, concrete: 4, asphalt: 4 };
+  // THE SOIL'S WATER, ONCE A FRAME, FOR EVERYONE WHO SHOWS IT (DIRT-STRIP's ask, 9 Nov): SOIL_WET off the day, handed to the
+  // pavement (PAVEMENT.setSoilWet: one shared uniform - the strip's damp tint and its drawn puddles) and to the dust (the same
+  // R: the water drawn is the water splashed in). Runs with the dust off too (?dust=0 is the dust's lever, not the puddles').
+  let soilNow = null;
+  function soilFrame() {
+    soilNow = typeof SOIL_WET !== 'undefined' && world && world.day ? SOIL_WET.at(world.day) : null;
+    if (soilNow && typeof PAVEMENT !== 'undefined' && PAVEMENT.setSoilWet) PAVEMENT.setSoilWet(soilNow.wet);
+  }
+  function dustMake() {
+    if (dustFx || DUST_Q === 0 || typeof DUST === 'undefined' || !THREE.InstancedBufferGeometry) return dustFx;
+    const G = window.GFX && window.GFX.get ? window.GFX.get() : null;
+    const sys = DUST.makeSystem((G && (G.build || G.preset)) || 'gamer');
+    const draw = DUST.make(THREE, sys);
+    draw.mesh.visible = false; scene.add(draw.mesh);
+    const wetR = { R: null };
+    const env = {
+      groundH: (x, z) => groundH(x, z),
+      wind: () => LKW(),
+      cls(x, z) {
+        const O = world && world.premises && world.premises.overlay;
+        const q = O && O.pavedAt ? O.pavedAt(x, z, 0) : null;
+        if (q && q.cls != null && DUST_CLS[q.cls] != null) return DUST_CLS[q.cls];
+        const s = world && world.surface ? world.surface(x, z) : 0, c = DUST_SURF[s];
+        return c === -1 || c == null ? -1 : DUST_CLS[c];
+      },
+      wet: ci => { const R = wetR.R; if (!R) return 0; const k = DUST.CLASSES[ci]; return R.cls[k] != null ? R.cls[k] : R.cls.dirt; },
+      puddle: (x, z) => (typeof STRIP_MICRO !== 'undefined' && STRIP_MICRO.puddleAt && wetR.R ? STRIP_MICRO.puddleAt(x, z, wetR.R.wet) : 0),
+      k: DUST_Q != null && DUST_Q > 0 ? DUST_Q : 1,
+    };
+    const st = { wheels: [], props: [], wing: { span: 10, W: 5000, V: 0, rho: 1.225, tips: [[0, 0, 0], [0, 0, 0]] } };
+    dustFx = { sys, draw, env, st, wetR, prev: new Map(), ms: 0, light: { sun: [0, 1, 0], sunCol: new THREE.Color(), skyCol: new THREE.Color(), gndCol: new THREE.Color() } };
+    return dustFx;
+  }
+  function syncDustFx(dt) {
+    const F = dustFx, sys = F.sys;
+    if (!sim || !def || !def.refs) return;
+    const t0 = performance.now();
+    const WC = typeof sim.wheelContacts === 'function' ? sim.wheelContacts() : null;
+    const P = sim.p, st = F.st;
+    // the wheels: the mains in order, then the third; a node's velocity from its motion over the frame
+    st.wheels.length = 0;
+    const refs = def.refs, ids = (refs.mains || []).slice();
+    if (refs.tw != null && refs.tw >= 0) ids.push(refs.tw);
+    const airborneAll = !WC || WC.water;
+    for (let k = 0; k < ids.length; k++) {
+      const i = ids[k], x = P[i * 3], y = P[i * 3 + 1], z = P[i * 3 + 2];
+      const pv = F.prev.get(i);
+      let vx = pv && dt > 0 ? (x - pv[0]) / dt : 0, vy = pv && dt > 0 ? (y - pv[1]) / dt : 0, vz = pv && dt > 0 ? (z - pv[2]) / dt : 0;
+      // A TELEPORT IS NOT A SKID: a reset, a placement, a new aeroplane moves the node metres in a frame - that motion is
+      // no speed (no wheel goes 120 m/s on a strip), and the frame after it starts from the new place
+      if (vx * vx + vy * vy + vz * vz > 120 * 120) vx = vy = vz = 0;
+      if (pv) { pv[0] = x; pv[1] = y; pv[2] = z; } else F.prev.set(i, [x, y, z]);
+      const on = !airborneAll && (k < (refs.mains || []).length ? !!(WC.mains && WC.mains[k]) : !!WC.tw);
+      let R = 0.2; if (model && model.wheelParts) for (const w of model.wheelParts) if (w.idx === i && w.R > 0) { R = w.R; break; }
+      st.wheels.push({ key: k, x, y: groundH(x, z), z, vx, vy, vz, on, R, brake: sim.ctl ? Math.max(0, Math.min(1, +sim.ctl.brake || 0)) : 0 });
+    }
+    // the props: one disc a thrust node (the mean disc's wash - the solver's out.wash), the axis forward = -xAft
+    st.props.length = 0;
+    const out = sim.out || {}, ax = typeof sim.axes === 'function' ? sim.axes() : null;
+    if (ax && out.wash > 0 && refs.engine && refs.engine.length) {
+      const pp = def.params && (def.params.prop || (typeof POWERPLANTS !== 'undefined' && POWERPLANTS[def.params.powerplant] && POWERPLANTS[def.params.powerplant].prop));
+      const Rd = pp && pp.D > 0 ? pp.D / 2 : 0.9;
+      for (const e of refs.engine) st.props.push({ x: P[e * 3], y: P[e * 3 + 1], z: P[e * 3 + 2], ax: -ax[0][0], ay: -ax[0][1], az: -ax[0][2], R: Rd, wash: out.wash });
+    }
+    // the wing: the tips off the CG along the true right
+    const W = st.wing;
+    const span = def.params && def.params.gen && def.params.gen.span > 0 ? def.params.gen.span : 10;
+    W.span = span; W.W = (sim.totalM || 600) * 9.81; W.V = out.V || 0; W.rho = world && world.atmos && world.atmos.rho0 ? world.atmos.rho0 : 1.225;
+    if (ax && typeof sim.cgPos === 'function') { const c = sim.cgPos(), zr = ax[2], h = span / 2;
+      W.tips[0][0] = c[0] - zr[0] * h; W.tips[0][1] = c[1] - zr[1] * h; W.tips[0][2] = c[2] - zr[2] * h;
+      W.tips[1][0] = c[0] + zr[0] * h; W.tips[1][1] = c[1] + zr[1] * h; W.tips[1][2] = c[2] + zr[2] * h; }
+    else W.V = 0;
+    if (dt > 0) {
+      F.wetR.R = soilNow;   // the frame's one reading (soilFrame): the same water the pavement draws
+      DUST.sources(sys, st, F.env, dt);
+      DUST.step(sys, dt, F.env);
+    }
+    const alive = sys.P.live + sys.G.live;
+    if (!alive) { if (F.draw.mesh.visible) F.draw.mesh.visible = false; F.ms = performance.now() - t0; return; }
+    // lit by the world's own sun and sky (the key's direction, as the spray), the sunlit ground's bounce from below
+    const L = F.light;
+    if (WF && WF.sun && WF.hemi) { const sd = WF.KEY_SKY || WF.SUN_SKY || WF.sun.position; L.sun[0] = sd.x; L.sun[1] = sd.y; L.sun[2] = sd.z;
+      L.sunCol.copy(WF.sun.color).multiplyScalar(WF.sun.intensity); L.skyCol.copy(WF.hemi.color).multiplyScalar(WF.hemi.intensity);
+      L.gndCol.copy(WF.hemi.groundColor || WF.hemi.color).multiplyScalar(WF.hemi.intensity * 0.5); }
+    camera.updateMatrixWorld();
+    F.draw.sync(camera, L);
+    F.ms = performance.now() - t0;
+  }
+  if (typeof window !== 'undefined') window.DUST_FX = { get fx() { return dustFx; }, make: () => dustMake() };
   function syncFloats() {
     for (const m of floatMeshes) {
       const fx = m.userData.fx, F = fx.F, W = fx.out.W;
@@ -7506,7 +7716,9 @@
     // the CG and the aeroplane nosed over into the sea)
     { let cx = 0, cy = 0, mm = 0;
       for (const n of def.nodes) { cx += n.p[0] * n.m; cy += n.p[1] * n.m; mm += n.m; }
-      if (mm > 0 && typeof window !== 'undefined') { window.FLYDIY_CG_MODEL = [cx / mm, cy / mm]; window.FLYDIY_MASS_MODEL = mm; } }   // S1 (G451.1): the all-up mass, for the float advisor
+      if (mm > 0 && typeof window !== 'undefined') { window.FLYDIY_CG_MODEL = [cx / mm, cy / mm]; window.FLYDIY_MASS_MODEL = mm;
+        window.FLYDIY_PROPS_MODEL = typeof HYDRO !== 'undefined' && HYDRO.propDiscs ? HYDRO.propDiscs(def) : null;
+        window.FLYDIY_TIPJOINT_MODEL = typeof genTipJointOf === 'function' ? genTipJointOf(def) : null; } }   // HULL-B26: the tip joint, for the buoyant tips' fit   // HULL-B8: the discs, for the boat's fit (_cage_gen.js cageHullFitAll)   // S1 (G451.1): the all-up mass, for the float advisor
     if (model) craft.add(model.grp);
     // (G1121.1: the flown bake's parked live meshes back in the graph for the walk - FLOWN_BAKE.withKept)
     if (model && window.SHADOW_NEAR) { const tag = () => SHADOW_NEAR.tagCraft(craft, model.grp); if (window.FLOWN_BAKE && FLOWN_BAKE.withKept) FLOWN_BAKE.withKept(tag); else tag(); }   // A6: the craft casts into its own shadow map and reads only that one (G1005: its cascade fitted to model.grp's sphere)
@@ -8393,8 +8605,24 @@
   // G815 (C1b): THE SCRIPT'S UI HALF - the pattern, the trace, the rail, the watchdogs, the card. Inline it runs
   // inside script(), every step, as it always did; under ?simw=1 the pilot flies in the worker and this runs once
   // a frame on the page, reading the pilot's snapshot (sim_link.js mirrors it into `ap`)
+  // SEAPLANES-LAND (A0 7 Nov): THE GEAR KEY UNDER THE AUTOPILOT. The hand is written only when it flies (INP.write), so
+  // under the AP the key did nothing. A press now flips the gear from where it is (out.gear: the snapshot's, so the
+  // worker's flight and the inline one read the same), written through sim.ctl (the worker's ctl patch under ?simw=1);
+  // the AP keeps it wherever it agrees or has no say (the lift-off, the low climb) and writes its wanted state over it
+  // otherwise (43_pilot GEAR, GUMPS). A fixed build's ctl has no gear and nothing runs.
+  let gearHandSeen = null;
+  function gearKeyUnderAP() {
+    if (manual || !INP || typeof INP.gear !== 'function' || !sim.ctl || !('gear' in sim.ctl)) { gearHandSeen = null; return; }
+    const h = INP.gear();
+    if (gearHandSeen !== null && h !== gearHandSeen) {
+      const pos = sim.out && typeof sim.out.gear === 'number' ? sim.out.gear : 1;
+      sim.ctl.gear = pos > 0.5 ? 0 : 1;
+    }
+    gearHandSeen = h;
+  }
   function scriptView(dt) {
     if (!started) { setRail(null); return; }
+    gearKeyUnderAP();
     if (patVis && ap.frame && ap.frame.k !== patVisK) {
       patVisK = ap.frame.k;
       patVis.setActive(patVisK, ap.gs);
@@ -13164,7 +13392,7 @@
       // G3906b: a GL line is one device pixel - a hairline at a phone's DPR. Each segment a square prism 6 cm across (the
       // posts read at 360 px), one geometry, one material kept for the page (disposing it would re-link its program on the
       // next build - G1027's trap; one link on the first build is the phone's cost)
-      gIndMeshMat = gIndMeshMat || new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide });  // pre-ok: the garage's design aid (P = 1 there)
+      gIndMeshMat = gIndMeshMat || (typeof MATLIB !== 'undefined' ? MATLIB : require('./matlib.js')).make(THREE, 'basic', { vertexColors: true, side: THREE.DoubleSide });  // pre-ok: the garage's design aid (P = 1 there)
       gInd = new THREE.Mesh(prismGeo(V, C, 0.06), gIndMeshMat);
       g.dispose();
     } else gInd = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ vertexColors: true }));
@@ -14732,6 +14960,8 @@
       if (!scarMesh && typeof GROUND_SCAR !== 'undefined' && scarPageOn()) { scarMesh = GROUND_SCAR.make(THREE); scene.add(scarMesh); }
       // G3770 (DMG-LOOKS): the model's tube pools, parked likewise (?dmglook=1 only; their slot textures allocated now)
       if (scarPageOn()) lookPools(false);
+      // DIRT-DUST: the dust's batch, parked likewise (hidden; its one program linked by the roll-out's compile)
+      if (!dustFx) dustMake();
     } catch (e) { console.warn('world settle:', e && e.message); }
     finally { camera.position.copy(keep); }
   }
@@ -15992,7 +16222,7 @@
   // exactly what you are asking, so the three cells are back — as
   // `instruments` toggles, off by default, signed as a pilot reads them
   // (+ is nose up, roll right, RIGHT pedal).
-  const R = ['ias','alt','vs','nrg','nrgU','wind','windU','windA','aoa','bank','agl','thr','tas','pwr','de','da','dr']
+  const R = ['ias','alt','vs','nrg','nrgU','wind','windU','windA','gear','gearU','aoa','bank','agl','thr','tas','pwr','de','da','dr']
     .reduce((o, k) => (o[k] = $('r-' + k), o), {});
   // A3: THE ENERGY CELL - the fourth number that is always there. Litres of a
   // tank or kWh of a pack (the build's kind, from sim.fuel), one decimal;
@@ -16039,6 +16269,26 @@
     if (txt !== hudW.txt) { hudW.txt = txt; R.wind.textContent = txt; }
     if (lab !== hudW.lab) { hudW.lab = lab; if (R.windU) R.windU.textContent = lab; }
     if (R.windA && rot !== hudW.rot) { hudW.rot = rot; R.windA.style.transform = rot; R.windA.classList.toggle('calm', calm); }
+  }
+  // RETRACT-1 (futureDesigns/RETRACT-STUDY-2026-11.md §3.1): THE GEAR'S LAMPS - the solver's out.gear (0 up .. 1 down,
+  // a retractable build's only; the physics worker's snapshot carries out whole). Three greens down and locked, three
+  // reds in transit, dark up; the line names the state, the handle against it ('gear DOWN?' while the handle is down
+  // and the gear is not yet), EMERG once the emergency extension was pulled. The cell exists only on such a build
+  // (hudGearOn: flInstApply reads it); written only when it changes
+  let hudGearOn = false, hudGearK = '';
+  function hudGear() {
+    const o = sim && sim.out, on = !!(o && typeof o.gear === 'number');
+    if (on !== hudGearOn) { hudGearOn = on; hudGearK = ''; flInstApply(); }
+    if (!on || !R.gear) return;
+    const pos = o.gear, locked = pos > 0.98, up = pos < 0.02, hd = sim.ctl && sim.ctl.gear === 0 ? 0 : 1;
+    const lamp = locked ? 'g' : up ? '' : 'r';
+    const lab = (o.gearEmerg ? 'EMERG · ' : '') + (locked ? 'gear down' : up ? (hd ? 'gear DOWN?' : 'gear up') : (o.gearMov > 0 ? 'gear coming down' : o.gearMov < 0 ? 'gear going up' : 'gear UNSAFE'));
+    const k = lamp + '|' + lab;
+    if (k === hudGearK) return;
+    hudGearK = k;
+    for (const s of R.gear.children || []) s.className = 'gl' + (lamp ? ' ' + lamp : '');
+    if (R.gearU) R.gearU.textContent = lab;
+    if (RD.gear) RD.gear.classList.toggle('warn', !locked && !up);
   }
   // the netto's state: a 3 s needle and a 20 s ring, as a vario has
   let nettoF = 0, nettoI = 0;
@@ -16096,6 +16346,7 @@
     }
     hudEnergy();
     hudWind();
+    hudGear();
     if (window.ACCEPT_REC) window.ACCEPT_REC.frame();   // G2273 (ACCEPT): the acceptance leg's tick (page) and its signature into the logbook
     if (CAREER_DEV) careerFrame(cg);                     // G2320 (CAREER-WIRE): the aerodromes passed (a survey's evidence)
     // NO GREEN: ok is simply the ink, and warn is only ever used against a
@@ -17302,6 +17553,8 @@
     flPills(fb, PERSONA_ORDER.map(k => ({ label: personaLabel(k), value: k, title: 'copy the ' + personaLabel(k) + ' into the knobs' })), () => false,
             o => { personaCustom = pilotProfileSpec(o.value); personaChoice = 'custom'; sel.value = 'custom'; personaSave(); flRender(); });
     for (const K of PILOT_PROFILE_KNOBS) {
+      // SEA-OFF: RETRACT-1's gear-forget quirk is a retractable gear's: behind the lab switch (_cage_gear.js RETRACT_LAB)
+      if (K.k === 'gearForget' && typeof window.CAGE_RETRACT_LAB === 'function' && !window.CAGE_RETRACT_LAB()) continue;
       const R = cur();
       if (K.kind === 'range') {
         const toUi = K.toUi || (x => x), k = toUi(1) === 1 ? 1 : toUi(1);
@@ -17760,7 +18013,7 @@
     if (p) p.classList.toggle('small', small);
     for (const d0 in RD) {
       if (!RD[d0]) continue;
-      RD[d0].hidden = small ? PFD_SMALL.indexOf(d0) < 0
+      RD[d0].hidden = d0 === 'gear' ? !hudGearOn : small ? PFD_SMALL.indexOf(d0) < 0
                             : !(d0 === 'ias' || d0 === 'alt' || d0 === 'vs' || d0 === 'nrg' || d0 === 'wind' ||
                                 instOn[d0]);
     }
@@ -20274,6 +20527,8 @@
     if (floatMeshes.length) { const ph = !inGarage; for (const m of floatMeshes) m.visible = ph; if (ph) syncFloats(); }
     if (sceneSample) FR.sceneDetail.lap(4);
     if (waterFx && !inGarage) syncWaterFx(running ? fdt : 0);   // (G586: the spray on the frame's own time)
+    if (!inGarage) soilFrame();                                    // DIRT-DUST: the soil's water (the pavement's puddles and the dust read it)
+    if (dustFx && !inGarage) syncDustFx(running ? fdt : 0);     // DIRT-DUST: the strip's dust, on the same time
     // THE INTERACTION FIELD (H7, G460.8): on while a floatplane is over water (the CG's water level finite),
     // stepped before the render with the CG as its centre; off (the slot cleared) otherwise
     // ...AND SOMETHING ELSE MAY ASK FOR IT (2026-09-22): a surfaced whale close to the eye sets

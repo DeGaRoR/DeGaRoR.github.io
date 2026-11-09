@@ -114,7 +114,7 @@ var COVER_RING = (() => {
   const BED_NORM = 1.0;    // measured: with this the three flowers realise their intended share to within a few %
   const bedKeep = (x, z, patch, seed, frac) => {
     const sp = patch * Math.sqrt(Math.PI / frac), cx0 = Math.floor(x / sp), cz0 = Math.floor(z / sp);
-    let best = 0;
+    let best = 0, near = 0;
     for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) {
       const ci = cx0 + i, cj = cz0 + j;
       const bx = (ci + 0.15 + 0.7 * hsh(ci * 3 + seed, cj * 5 - seed)) * sp;
@@ -131,8 +131,14 @@ var COVER_RING = (() => {
       const rim = r * (1 + 0.5 * (vnoise(x, z, patch * 0.55, seed + 91) - 0.5));
       const k = 1 - smooth(rim * 0.8, rim * 1.12, d);
       if (k > best) best = k;
+      const nr = 1 - smooth(rim * 1.1, rim * 2.2, d);                  // FLOWER-CLUMPS: how near a bed's outskirts (the strays)
+      if (nr > near) near = nr;
     }
+    BED.near = near;
     return best; };
+  // FLOWER-CLUMPS (the user 8 Nov: "the flowers ... lack variation, in size, in value, in spread, in the way they clump"):
+  // bedKeep's last outskirts reading (0 .. 1 out to about twice a bed's radius), for the strays the planting loop lets out
+  const BED = { near: 0 };
 
   // ---- THE GRASS FIELD'S TABLES (GRASS-DENSE G2563; GRASS-STUDY §4.4) ---------------------------------------------------
   // the species the field plants (the reed, the one grass of every biome since G551) and, per MIX, the tuft's length: `h` its
@@ -237,7 +243,7 @@ var COVER_RING = (() => {
     // string each, and split every live cell's key back into numbers to test its reach
     const cellKey = (cx, cz) => (cx + 32768) * 65536 + (cz + 32768);
     const protos = new Map();           // species key -> [{ key, w, parts:[{geo, mat}], h, kind }]
-    const STAT = { built: 0, lastMs: 0, maxMs: 0, live: 0, queued: 0, instances: 0, agl: 0, mixAt: null, by: {}, scarSkip: 0 };
+    const STAT = { built: 0, lastMs: 0, maxMs: 0, live: 0, queued: 0, instances: 0, agl: 0, mixAt: null, by: {}, scarSkip: 0, floorSkip: 0 };
     let flowerTex = new Map();
     const root = new THREE.Group(); root.name = 'coverRing'; scene.add(root);
 
@@ -740,6 +746,7 @@ var COVER_RING = (() => {
           const place = c.place || {}, l = place.lift === undefined ? 1 : place.lift, k3 = gk * 3, j = 1 + (rJ * 2 - 1) * S.vary;
           col = lifted([G.col[k3], G.col[k3 + 1], G.col[k3 + 2]], l).map(v => v * j);
         }
+        if (ctx.floorAt && ctx.floorAt(x, z)) { STAT.floorSkip++; continue; }   // SHED-FLOOR: not on a standing shed's floor (after the draws)
         let it = items.get(p); if (!it) { it = { p, xs: [], col: [], rand: [] }; items.set(p, it); }
         it.xs.push(x, G.hAt(x, z), z, h / p.h0, rY * 6.2831853, 0, 0); it.col.push(col[0], col[1], col[2]); it.rand.push(rand);
       }
@@ -778,7 +785,7 @@ var COVER_RING = (() => {
       const items = new Map();   // proto -> { pos: [], col: [] | null }
       // the instance record: x y z s yaw tx tz - tx/tz the ground's slope under a rock that `tilt`s to it (0 0 = upright)
       // (G2358: none where a crash scarred the ground - after the draws, so the cell's stream is the same either way)
-      const push = (p, x, y, z, s, yaw, col, tx, tz) => { if (SCR.n && scarCut(p.kind, x, z)) { STAT.scarSkip++; return; } let it = items.get(p); if (!it) { it = { p, xs: [], col: col ? [] : null }; items.set(p, it); } it.xs.push(x, y, z, s, yaw, tx || 0, tz || 0); if (col) it.col.push(col[0], col[1], col[2]); };
+      const push = (p, x, y, z, s, yaw, col, tx, tz) => { if (SCR.n && scarCut(p.kind, x, z)) { STAT.scarSkip++; return; } if (ctx.floorAt && ctx.floorAt(x, z)) { STAT.floorSkip++; return; } let it = items.get(p); if (!it) { it = { p, xs: [], col: col ? [] : null }; items.set(p, it); } it.xs.push(x, y, z, s, yaw, tx || 0, tz || 0); if (col) it.col.push(col[0], col[1], col[2]); };
       // THE LAWN (a plot's, kind 1): the dry tuft short and dense - the height from the plot's rule (0.10-0.15 m),
       // LAWN_D tufts a m2 x the rule's density factor - on the lawn nodes alone, the biome's rows skip them
       if (G.lawn > 0) {
@@ -841,8 +848,18 @@ var COVER_RING = (() => {
             const x = x0 + R() * C, z = z0 + R() * C, r1 = R(), r2 = R(), r3 = R();
             // the bed (see bedKeep): its own hash for the draw, so the cell's stream R() - and every
             // other species' positions in the cell - are not disturbed by a flower's beds
-            if (patch) { const kp = bedKeep(x, z, patch, sSeed % 1000, bedFrac);
-              if (kp <= 0 || hsh(Math.round(x * 13.7) + 5, Math.round(z * 11.3) - 3) > kp) continue; }
+            // FLOWER-CLUMPS (the user 8 Nov: "they lack variation, in size, in value, in spread, in the way they clump"): inside a
+            // bed a clump field of its own (a sub-bed noise) thins the bed into dense knots, sparse fringes and gaps - only ever a
+            // SUBSET of what master keeps - and a few strays stand out to about twice a bed's radius. The cell's stream R() stays
+            // master's: a flower master keeps draws from R() exactly as before (and is dropped only at the end, after its draws),
+            // a stray master would not keep draws from its own position hash (RR) - so every other species' positions are untouched.
+            let keepMine = true, mKeep = true, local = 1, hc = 0;
+            if (patch) { const kp = bedKeep(x, z, patch, sSeed % 1000, bedFrac), near = BED.near, hv = hsh(Math.round(x * 13.7) + 5, Math.round(z * 11.3) - 3);
+              mKeep = kp > 0 && hv <= kp;
+              const kc = smooth(0.18, 0.6, vnoise(x, z, patch * 0.45, sSeed % 1000 + 307));
+              keepMine = mKeep && hv <= kp * (0.1 + 0.9 * kc); local = kp * kc;
+              if (!mKeep) { if (hsh(Math.round(x * 5.3) + 17, Math.round(z * 4.9) - 11) < 0.05 * near) { keepMine = true; local = 0.3; } else continue; } }
+            const RR = mKeep ? R : () => hsh(Math.round(x * 17.1) + 31 * ++hc, Math.round(z * 19.3) - 7 * hc);
             if (blotch && r1 > blotchAt(x, z, sSeed)) continue;   // the bench's GF.blotch: keeps 1 - blotch .. 1 by area
             const gk = G.at(x, z);
             if (!G.ok[gk] || (band ? !G.shore[gk] : (G.mix[gk] !== centreMix || G.shore[gk]))) continue;
@@ -851,18 +868,47 @@ var COVER_RING = (() => {
             // meadow or nothing instead of the biome's rows (the LAWN row is planted below, on its own)
             if (G.kind[gk] === 1 || G.kind[gk] === 3) continue;
             if (G.cut[gk] > 0.05) continue;   // G2565: the mown ground by a runway ('sides' law) grows the field's cut grass, no flower, no bush
-            if (G.bmax > 0 || G.kill[gk] > 0) { const keep = (1 - G.kill[gk]) * (1 + G.boost[gk]) / (1 + G.bmax); if (keep < 1 && R() > keep) continue; }   // a rejection sampler: n was drawn at (1 + bmax) x
+            if (G.bmax > 0 || G.kill[gk] > 0) { const keep = (1 - G.kill[gk]) * (1 + G.boost[gk]) / (1 + G.bmax); if (keep < 1 && RR() > keep) continue; }   // a rejection sampler: n was drawn at (1 + bmax) x
+            // BERRY-THICKETS (the user 8 Nov, via A0: "keep optimizing what we have, the flowers and the berry bushes"): the bushes
+            // stood as an even scatter. A clump field of the species' own (16 m) gathers them into thickets with open ground
+            // between, WITHOUT ONE BUSH MORE: a bush in a gap walks up the field (three steps at most, inside its cell, each landing
+            // where the same land tests pass), so the count - the cost - is master's; the cell's stream R() is untouched (the walk
+            // reads the field, no draw)
+            let px = x, pz = z, kc = 0.5;
+            if (isShrub) {
+              const kAt = (u, v) => vnoise(u, v, 16, sSeed % 1000 + 511);
+              const fits = (u, v) => { const g = G.at(u, v); return !!G.ok[g] && (band ? !!G.shore[g] : (G.mix[g] === centreMix && !G.shore[g])) && !G.bush[g] && G.kind[g] !== 1 && G.kind[g] !== 3 && !(G.cut[g] > 0.05) && !(G.kill[g] > 0.01); };
+              let k0 = kAt(px, pz);
+              for (let st = 0; st < 3 && k0 < 0.6; st++) {
+                const e = 1.5, gx = kAt(px + e, pz) - kAt(px - e, pz), gz = kAt(px, pz + e) - kAt(px, pz - e), gl = Math.hypot(gx, gz);
+                if (gl < 1e-6) break;
+                const step = 1.5 + 5 * (0.6 - k0) / 0.6;
+                const nx = Math.min(x0 + C - 0.01, Math.max(x0, px + gx / gl * step)), nz = Math.min(z0 + C - 0.01, Math.max(z0, pz + gz / gl * step));
+                if (!fits(nx, nz)) break;
+                px = nx; pz = nz; k0 = kAt(px, pz);
+              }
+              kc = smooth(0.3, 0.75, k0);
+            }
             const p = draw(P, r2);
-            const y = world.terrainH(x, z);
+            const y = world.terrainH(px, pz);
             let s = 1, yaw = r3 * Math.PI * 2, col = null;
-            if (isShrub && place.hMin !== undefined && place.hMax !== undefined && p.h0 > 0) s = (place.hMin + R() * (place.hMax - place.hMin)) / p.h0;
+            if (isShrub && place.hMin !== undefined && place.hMax !== undefined && p.h0 > 0) {
+              s = (place.hMin + RR() * (place.hMax - place.hMin)) / p.h0;
+              // BERRY-THICKETS: bigger in a thicket's heart, smaller at its edge; a few old big bushes and young small ones; a value
+              // spread (+-12 %), some in the shade of their thicket, a few paler - each from the bush's own hash (no draw)
+              const ho = hsh(Math.round(px * 4.3) + 3, Math.round(pz * 5.7) - 17);
+              s *= (0.82 + 0.36 * kc) * (ho < 0.06 ? 1.3 : ho > 0.9 ? 0.62 : 1);
+              const jj = 1 + (hsh(Math.round(px * 3.3) - 29, Math.round(pz * 2.9) + 7) * 2 - 1) * 0.12, hs = hsh(Math.round(px * 2.1) + 13, Math.round(pz * 2.6) - 31);
+              const m = (kc > 0.7 && hs < 0.35) ? [0.8, 0.8, 0.8] : hs > 0.92 ? [1.08, 1.1, 1.0] : [1, 1, 1];
+              col = [jj * m[0], jj * m[1], jj * m[2]];
+            }
             // the species' size ALWAYS (the reed's 0.012 is absolute); a MIX ROW may scale it (`size`, a factor:
             // a village's grass is shorter than a moor's - 2026-09-22)
-            else s = (place.size || 1) * (row.size === undefined ? 1 : row.size) * Math.exp((R() * 2 - 1) * spread);
+            else s = (place.size || 1) * (row.size === undefined ? 1 : row.size) * Math.exp((RR() * 2 - 1) * spread);
             const yy = y - (place.sink || 0);
             if (!noTint && !isShrub) {
               col = lifted([G.col[gk * 3], G.col[gk * 3 + 1], G.col[gk * 3 + 2]], lift);
-              if (vary) { const j = 1 + (R() * 2 - 1) * vary; col = [col[0] * j, col[1] * j, col[2] * j]; }
+              if (vary) { const j = 1 + (RR() * 2 - 1) * vary; col = [col[0] * j, col[1] * j, col[2] * j]; }
               // a species' own hue swing (G3430, the user: "random colouration"): place.hueTurn [lo, hi] degrees about the grey
               // axis, from the tuft's own hash so the cell's stream R() - every other species' tufts - is untouched; the
               // lake-shore fern runs green -> yellow -> bronze (negative is toward red)
@@ -870,7 +916,7 @@ var COVER_RING = (() => {
                 const h = hsh(Math.round(x * 7.3) + 11, Math.round(z * 6.1) - 7), a = place.hueTurn[0] + h * (place.hueTurn[1] - place.hueTurn[0]);
                 col = GF.hueTurn(col, a * Math.PI / 180).map(v => Math.max(0, v));
               }
-            } else if (noTint && !isShrub && vary) { const j = 1 + (R() * 2 - 1) * vary; col = [j, j, j];
+            } else if (noTint && !isShrub && vary) { const j = 1 + (RR() * 2 - 1) * vary; col = [j, j, j];
               // an untinted species' small hue swing (G3430, the user 27 Oct: "don't color them as the ground", the reeds on their
               // own hue/sat/light and "a small variation per instance"): the multiplier that turns place.hueRef (the tinted texel's
               // mean, relative) by hueTurn [lo, hi] degrees - a grey multiplier has no hue to turn; the tuft's own hash, as above
@@ -880,7 +926,15 @@ var COVER_RING = (() => {
                 col = [0, 1, 2].map(i => j * Math.max(0, t[i]) / Math.max(1e-3, rf[i]));
               }
             }
-            push(p, x, yy, z, s, yaw, col, 0, 0); STAT.by[c.name] = (STAT.by[c.name] || 0) + 1; cell.by[c.name] = (cell.by[c.name] || 0) + 1;
+            if (patch) {   // FLOWER-CLUMPS: taller at a clump's heart, shorter at its fringe; a wider value spread, some faded, some in shade
+              s *= (0.72 + 0.45 * local) * Math.exp((hsh(Math.round(x * 6.7) - 13, Math.round(z * 7.9) + 29) - 0.5) * 0.44);
+              if (hsh(Math.round(x * 8.9) + 61, Math.round(z * 9.7) - 43) < 0.04) s *= 1.35;   // VEG-1: a few spikes over the bed
+              const jj = 1 + (hsh(Math.round(x * 3.1) + 41, Math.round(z * 2.7) - 19) * 2 - 1) * 0.18, hv2 = hsh(Math.round(x * 2.3) - 5, Math.round(z * 3.9) + 23);
+              const m = hv2 < 0.22 ? [1.0, 1.14, 1.12] : hv2 > 0.84 ? [0.7, 0.7, 0.7] : [1, 1, 1], b = col || [1, 1, 1];
+              col = [b[0] * jj * m[0], b[1] * jj * m[1], b[2] * jj * m[2]];
+              if (!keepMine) continue;
+            }
+            push(p, px, yy, pz, s, yaw, col, 0, 0); STAT.by[c.name] = (STAT.by[c.name] || 0) + 1; cell.by[c.name] = (cell.by[c.name] || 0) + 1;
           }
         }
       }
@@ -1254,6 +1308,11 @@ var COVER_RING = (() => {
       lakeMargin: () => (FIELD ? Math.max(0, +S.lakeMargin || 0) : 0.3),   // G2572: render_world okAt reads it (both rings), no copy a call
       field: FIELD,
       replant: () => { for (const k of [...cells.keys()]) dropCell(k); for (const b of [...blocks.values()]) buildBlock(b); growing.length = 0; },
+      // SHED-FLOOR: only the cells a box touches (a shed stood or came down: render_world floorsChanged) - dropped, so the
+      // ring plants them again on its budget, nearest first, with what the land test now says
+      replantBox: (x0, z0, x1, z1) => { const C = S.cell; let n = 0;
+        for (const [k, cell] of [...cells]) { const ax = cell.cx * C, az = cell.cz * C; if (ax <= x1 && ax + C >= x0 && az <= z1 && az + C >= z0) { dropCell(k); n++; } }
+        return n; },
       rockPlan,                                                           // the rock map's read (above)
       // G2358 (DMG-SCAR): a crash's scar (its primitives; null or [] lets it go) - the cull above, once; scarIn(x, z, kind):
       // is an instance of that kind cut there (the gate's read)

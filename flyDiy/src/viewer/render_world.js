@@ -235,7 +235,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   // the haze TRANSMITS the light and adds nothing (mistApply is affine in the colour: T = m(1) - m(0))
   const RWY_GLOW_AP = `
     #ifdef USE_FOG
-    if (uAtmoAP.z > 0.5) gl_FragColor.rgb *= atmoAP().a;
+    if (uAtmoAP.z > 0.5) gl_FragColor.rgb *= apScaled(atmoAP()).a;
     { vec3 rwV = normalize((vec4(vAtmoV, 0.0) * viewMatrix).xyz); float rwL = length(vAtmoV);
       gl_FragColor.rgb *= max(mistApply(vec3(1.0), rwV, rwL, cameraPosition.y) - mistApply(vec3(0.0), rwV, rwL, cameraPosition.y), vec3(0.0)); }
     #endif
@@ -307,6 +307,25 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   let fillUpdate = () => {};          // W13 woodland fill streamer (set in the tree block)
   const lakeQuads = [];   // the drawn lake surfaces (box + y): waterDrawY reads them
   let seaPlaneY = 0;      // the drawn sea plane's y: 0, the level the floats ride, on every tier (G1563, REVIEW B25)
+  // SHED-FLOOR (A0 8 Nov, at the works' door: "tall grass growing on the shed's floor"): the player's sheds stand on the
+  // terrain with no slab inside (the exterior is a shell; its pad is the apron and the ring round the walls), and the cover's
+  // land test (okAt: the surface, the water) never knew a building stood there - grass, fireweed, bunchberry and a shrub
+  // grew inside. Every standing shed (HOME's, the side and closed ones - shedNodeAt) files its footprint here, the walls'
+  // box + 0.3 m in the shed's own frame; both rings ask floorAt(x, z) per plant AFTER its draws (cover_ring: the cell's
+  // stream stays the same either way, as the scar cut), and a shed that stands or comes down replants only the cells it
+  // touches (replantBox).
+  const SHED_FLOORS = [];
+  const floorAt = (x, z) => {
+    for (const f of SHED_FLOORS) {
+      if (x < f.x0 || x > f.x1 || z < f.z0 || z > f.z1) continue;
+      const dx = x - f.x, dz = z - f.z;   // into the shed's frame (node.rotation.y = ry: lx = dx c - dz s, lz = dx s + dz c)
+      if (Math.abs(dx * f.c - dz * f.s) <= f.A && Math.abs(dx * f.s + dz * f.c) <= f.B) return true;
+    }
+    return false;
+  };
+  function floorsChanged(f) {
+    for (const r of [coverRing, grassField]) if (r && r.replantBox) r.replantBox(f.x0, f.z0, f.x1, f.z1);
+  }
   let coverRing = null, grassField = null, fillPoolAt = null, standCards = null;   // grassField: the grass's own ring (G2563)   // standCards: the far forest as stand cards (stand_cards.js)   // fillPoolAt: the puddle test the walker shares with the ring (set with it)               // G454.13 the cover ring (set in the tree block once the payload is in)
   let fillApi = null;                 // S3: the ring's prewarm / ringReady / ringStat (set in the fill block)
   let treeSettleOf = null;            // S3: () => the payload's settle promise (set in the tree block)
@@ -4009,6 +4028,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // the alpha gain rides on the COLLECTION now (`place.impa`, 6 or 6.5 in
     // the tuning); uIGainK is the panel's dial over all of them
     const uIGainK = { value: 1 }, uISolid = { value: 1 };
+    const uSoftT0 = { value: new THREE.Vector4(150, 600, 5, 4) };   // (LOOK-1: only when trees.js is absent - its TREE_SOFT is the dial)
     const impaOf = key => { const e = (typeof treeList === 'function') && treeList().find(x => x.key === key);
                             return (e && e.col.place && e.col.place.impa) || 6; };
     // THE IMPOSTOR CASTS ITS OWN SILHOUETTE (W0c.18, the bench's W0a.4). The
@@ -4149,6 +4169,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         sh.uniforms.uG = { value: IMP_G };
         sh.uniforms.uILit = uILit; sh.uniforms.uTrunkOn = uTrunkOn;
         sh.uniforms.uIGainK = uIGainK; sh.uniforms.uISolid = uISolid;
+        sh.uniforms.uSoftT = (typeof window !== 'undefined' && window.TREE_SOFT) || uSoftT0;
         sh.uniforms.uTile = { value: IMP_TILE };
         // G1975 (DEADWOOD-BRIGHT, the user: "one of the impostor dead tree renders really too bright, almost
         // white"): the wrap, the translucency and uFlat are the SHEET'S now, not the leaves' for every impostor. A
@@ -4268,7 +4289,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           .replace('#include <common>', '#include <common>\n' +
             'uniform float uG, uILit, uLeaf, uWrapK, uSSSK, uSSSP, uNearB, uFadeW, uIGainK, uISolid, uTile;\n' +
             (inst ? 'flat varying vec2 vImpP;\nflat varying vec4 vImpT;\nflat varying vec2 vImpB;\nfloat uIGain, uICut, uHue, uSat, uLight, uLightB, uLayerK;\n' : 'uniform float uIGain, uICut, uHue, uSat, uLight, uBark, uLightB, uLayerK;\n') +
-            'uniform float uTrunkOn;\n' +
+            'uniform float uTrunkOn;\nuniform vec4 uSoftT;\n' +
             'uniform float uFlatK, uFlatMean, uBarkW, uBarkS, uBarkF, uBarkSol, uBarkCut, uBarkL;\nfloat uFlat, uWrap, uSSS, _iSol, _iCut, _iLit;\nuniform highp sampler2DArray uImpC, uImpN;\nvarying vec3 vImpDir;\nvarying float vImpD;\nvarying vec2 vUvI;\nflat varying float vImpL;\n' +
             // (impSRGB is kept for the bench's dials; the sheet itself is decoded by
             // the sampler since r186 - see the map_fragment replacement)
@@ -4309,7 +4330,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             // impostor (the user saw it in the first forest shot)
             'texelColor.rgb = clamp(texelColor.rgb / max(texelColor.a, 1e-4), 0.0, 1.0);',   // premultiplied sheet
             'float aSol = max(max(t0.a, t1.a), t2.a);',
-            'texelColor.a = clamp((mix(texelColor.a, aSol, _iSol) - _iCut) * uIGain * uIGainK + 0.5, 0.0, 1.0);',
+            // LOOK-1 (8 Nov): the far edge wider by TREE_SOFT.w (trees.js) - the gain is the ramp's steepness, so dividing it softens the edge
+            'texelColor.a = clamp((mix(texelColor.a, aSol, _iSol) - _iCut) * uIGain * uIGainK / mix(1.0, uSoftT.w, smoothstep(uSoftT.x, uSoftT.y, vImpD)) + 0.5, 0.0, 1.0);',
             // the incoming half of the last rung's window: keep n >= 1 - t
             '{ float _n = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));',
             '  float _fi = clamp((vImpD - (uNearB - uFadeW * 0.5)) / uFadeW, 0.0, 1.0);',
@@ -5847,7 +5869,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             const sl = Math.hypot(world.terrainH(x + d, z) - world.terrainH(x - d, z), world.terrainH(x, z + d) - world.terrainH(x, z - d)) / (2 * d);
             return SPA.meanAt(x, z, code, Math.atan(sl) * 180 / Math.PI); };
           coverRing = COVER_RING.make(THREE, { scene, world, camera, treeBuild, treeList, LEAF: TREE_LEAF, BIO,
-            GF: GF0, biomeAt, codeAt, okAt, poolAt, coverAt, owned: name => !!(grassField && grassField.get().on && grassField.species().includes(name)) });
+            GF: GF0, biomeAt, codeAt, okAt, poolAt, coverAt, floorAt, owned: name => !!(grassField && grassField.get().on && grassField.species().includes(name)) });
           // the field's land test: the cover's, and - under the 'sides' law with `hard` (27_premises GRASS_SIDES, the user's call) - a
           // point the physics calls gravel / paved where nothing hard is drawn (kill under 1: a shoulder polygon, a strip box's margin)
           const PGN = (typeof PREMISES_GEN !== 'undefined') ? PREMISES_GEN : null;
@@ -5857,7 +5879,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             const s = world.surface(x, z); if (s !== world.SURFACE.GRAVEL && s !== world.SURFACE.PAVED && s !== world.SURFACE.SAND) return false;
             const c = world.coverAt ? world.coverAt(x, z) : null; return !(c && c.kill >= 1); };
           grassField = COVER_RING.make(THREE, { scene, world, camera, treeBuild, treeList, LEAF: TREE_LEAF, BIO, layer: 'grass',
-            GF: GF0, biomeAt, codeAt, okAt: okField, poolAt, coverAt, groundMeanAt });
+            GF: GF0, biomeAt, codeAt, okAt: okField, poolAt, coverAt, floorAt, groundMeanAt });
           fillPoolAt = poolAt;
           // THE STAND CARDS (2026-09-22): the far forest beyond the ring, one card per 32 m of treed ground
           if (typeof STAND_CARDS !== 'undefined' && !/[?&]stands=0/.test(location.search))
@@ -6583,6 +6605,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // (G2310: shared by HOME's shed and the side hangars' - the same teardown)
     function dropShed(node) {
       scene.remove(node);
+      const fl = node.userData && node.userData.floor;   // SHED-FLOOR: its footprint goes with it, and the cover grows back
+      if (fl) { const i = SHED_FLOORS.indexOf(fl); if (i >= 0) SHED_FLOORS.splice(i, 1); floorsChanged(fl); }
       const mats = new Set();
       node.traverse(o => {
         if (o.geometry) o.geometry.dispose();
@@ -6719,6 +6743,12 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       node.position.set(H.x, H.y !== undefined ? H.y : 0, H.z);
       node.rotation.y = H.ry;
       scene.add(node);
+      // SHED-FLOOR: its footprint (the walls' box, HD along its x, HW along its z, + 0.3 m) - no cover grows inside
+      { const fD = shed.dims || D0, fA = (+fD.HD || 0) + 0.3, fB = (+fD.HW || 0) + 0.3, fr = Math.hypot(fA, fB);
+        if (fA > 0.3 && fB > 0.3) {
+          const fl = { x: H.x, z: H.z, c: Math.cos(H.ry || 0), s: Math.sin(H.ry || 0), A: fA, B: fB, x0: H.x - fr, x1: H.x + fr, z0: H.z - fr, z1: H.z + fr };
+          node.userData.floor = fl; SHED_FLOORS.push(fl); floorsChanged(fl);
+        } }
       return node;
     }
     standShed(shedDims);
@@ -7296,7 +7326,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         // drawn at terrainH there (the wheels' surface); elsewhere (the analytic world's ground) it keeps its lift
         const sd = { len: a.len, wid: a.wid, hdg: a.hdg, cx: a.x, cz: a.z, shoulderW: shW, cls: RS.cls, seed: pavSeed(a.id), heightAt: world.terrainH, lift: 0.07, resU: 6, resV: 3,
           sinkD0: onPatch && a.premises && premisesR.pavedAt ? PAV.opaqueDepth(RS.cls, a.wid / 2, RS.recipe, 'strip') : null,
-          liftAt: onPatch && a.premises && premisesR.pavedAt && PAV.liftOver ? PAV.liftOver(premisesR.pavedAt, a.id) : null };   // G2115: no lift over another pavement
+          liftAt: onPatch && a.premises && premisesR.pavedAt && PAV.liftOver ? PAV.liftOver(premisesR.pavedAt, a.id) : null,   // G2115: no lift over another pavement
+          refineMin: typeof STRIP_MICRO !== 'undefined' && STRIP_MICRO.has(a.id) ? STRIP_MICRO.REFINE_MIN : 0 };   // DIRT-STRIP: a bumpy strip's rows down to its bumps
         const pgeo = PAV.stripGeometry(THREE, sd);
         const lib = pavLib(PAV.keysFor([RS.cls]));
         const marks = RS.marks === 'none' ? { rects: [], segs: [] } : PAV.marksOf(siteRunway(a), sitePaintStrip);
@@ -7307,7 +7338,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           .map(b => ({ b, d: Math.hypot(b.x - a.x, b.z - a.z) - (b.len + a.len) / 2 })).filter(q => q.d < 30).sort((p, q) => p.d - q.d)
           .map(q => ({ cx: q.b.x, cz: q.b.z, hdg: q.b.hdg, halfL: q.b.len / 2, halfW: q.b.wid / 2 }));
         const rank = world.aerodromes.filter(b => b.len && b.kind !== 'meadow' && b.kind !== 'water' && (b.len < a.len || (b.len === a.len && String(b.id) < String(a.id)))).length;
-        const pmat = PAV.make(THREE, { lib, cls: RS.cls, marks, recipe: RS.recipe, band: RS.band, keep: others, geo: pgeo });   // G925: a row of the one material (the table)
+        const pmat = PAV.make(THREE, { lib, cls: RS.cls, marks, recipe: RS.recipe, band: RS.band, keep: others, geo: pgeo,   // G925: a row of the one material (the table)
+          micro: typeof STRIP_MICRO !== 'undefined' && STRIP_MICRO.glslRow ? STRIP_MICRO.glslRow(a.id) : null });   // DIRT-STRIP: a bumpy strip's puddles
         const pm = new THREE.Mesh(pgeo, pmat); pm.renderOrder = 1.99 + Math.min(19, rank) * 0.0005; pm.receiveShadow = true; pm.name = 'pavement:' + a.id; pm.userData.pavMat = true;
         scene.add(keep(pm));
         geo.dispose();

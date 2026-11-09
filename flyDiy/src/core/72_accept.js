@@ -252,7 +252,7 @@ function acceptStatic(c, ev) {
       if (raw == null) return out(null, 'the bench’s shakedown has not been read (ev.shake): run the bench');
       const a = c.at && typeof c.at === 'object' ? c.at : {}, W0 = acceptNum(SH.mass);
       const add = (acceptNum(a.pax) || 0) * L.occKg + (acceptNum(a.kg) || 0);
-      const r = W0 > 0 && add > 0 ? Math.pow((W0 + add) / W0, c.k === 'stallKmh' ? L.stall : c.k === 'toDistM' ? L.toRun : L.climb) : 1;
+      const r = W0 > 0 && add > 0 ? CORE_MATH.pow((W0 + add) / W0, c.k === 'stallKmh' ? L.stall : c.k === 'toDistM' ? L.toRun : L.climb) : 1;
       return out(Math.round(raw * r * 10) / 10, 'the bench\'s shakedown (' + (c.k === 'stallKmh' ? 'Vs' : c.k === 'toDistM' ? 'TORun' : 'climbRate') + ')' + (r !== 1 ? ', scaled to ' + Math.round(W0 + add) + ' kg' : ''));
     }
   }

@@ -12,6 +12,7 @@
     {"n":13,"list":"official","name":"STOL Cub","file":"builds/candidates/stol_cub_showcase.json","thumb":"cand:stol_cub_showcase.json","note":"official until the user says otherwise (A0 4 Nov)"},
     {"n":25,"list":"official","name":"PA-18 on floats","file":"builds/pa18_floats_2026-10-23.json","thumb":"list:25","note":"official until the user says otherwise (A0 4 Nov)"},
     {"n":26,"list":"official","name":"Client Cub","file":"builds/cub_2026-09-20.json","thumb":"list:26","over":{"controls":{"flap":{"type":"none","span":0,"chord":0}},"systems":{"fit":"minimal"},"paint":{"job":"bare"},"meta":{"name":"Client Cub"}},"note":"as the career hands it over; official until the user says otherwise (A0 4 Nov)"},
+    {"n":41,"list":"internal","name":"Super Petrel LS","file":"builds/candidates/superpetrel_V4_1.json","note":"V4.1, the final one (the user 7 Nov): carbon, a hull, a biplane, a pusher on the central pylon, a retracting tricycle; in the test reference set (LB.VALIDATED.petrel). Internal while seaplanes land switched off (the user 8 Nov): Official after the testing round"},
     {"n":9,"list":"candidates","name":"Stearman-alike","file":"builds/candidates/stearman_2026-10.json","thumb":"cand:stearman_2026-10.json"},
     {"n":10,"list":"candidates","name":"Tiger Moth-alike","file":"builds/candidates/tigermoth_2026-10.json","thumb":"cand:tigermoth_2026-10.json"},
     {"n":11,"list":"candidates","name":"Camel-alike","file":"builds/candidates/camel_2026-10.json","thumb":"cand:camel_2026-10.json"},
@@ -41,6 +42,11 @@
     {"n":35,"list":"internal","name":"Twin busher floats 3b","file":"builds/candidates/review/Twin_busher_floats_3b.json","note":"Rotax 916 iS"},
     {"n":36,"list":"internal","name":"Twin busher floats 4","file":"builds/candidates/review/Twin_busher_floats_4.json"},
     {"n":37,"list":"internal","name":"Stock sailplane","stock":"sailplane","thumb":"stock:sailplane","note":"stock preset"},
-    {"n":38,"list":"internal","name":"sailPlane","file":"builds/candidates/review/sailPlane.json","note":"your export"}
+    {"n":38,"list":"internal","name":"sailPlane","file":"builds/candidates/review/sailPlane.json","note":"your export"},
+    {"n":42,"list":"internal","name":"Super Petrel V0","file":"builds/candidates/review/superpetrel_V0.json","note":"no wheels: the last flying-boat-only build (HULL-B54)"},
+    {"n":43,"list":"internal","name":"Super Petrel V1","file":"builds/candidates/review/superpetrel_V1.json","note":"folding knee mains (gearFold 8), nose into the bow; its nose is messy (s2Drop -0.04)"},
+    {"n":44,"list":"internal","name":"Super Petrel V2","file":"builds/candidates/review/superpetrel_V2.json","note":"rigid-L mains into the lower wing (gearFold 9)"},
+    {"n":45,"list":"internal","name":"Super Petrel V3","file":"builds/candidates/review/superpetrel_V3.json","note":"V2 + clean nose, no flaps, spray strakes - \"a very nice little plane\" (the user)"},
+    {"n":46,"list":"internal","name":"Super Petrel V4","file":"builds/candidates/review/superpetrel_V4.json","note":"V3 + the central faired pylon, the engine on an 8 cm pylon on the wing"}
   ]
 }

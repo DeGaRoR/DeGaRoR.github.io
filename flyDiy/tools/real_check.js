@@ -269,14 +269,8 @@ function flight(spec, def, lc, o) {
       //     more than 1.5 deg under the touchdown attitude) and back on as it sits down; the flaps stay where they are
       //   a TRICYCLE (the 172's handbook): the flaps up (the weight onto the wheels), the wheel full back, maximum brake
       //     pressure without sliding the tyres
-      if (process.env.RC_FLARE && (ap.phase === 'FLARE' || ap.phase === 'FINAL' || (ap.phase === 'ROLLOUT' && SS.thTD == null)) && s % 6 === 0) {
-        const cg = sim.cgPos(), vv = sim.cgVel ? sim.cgVel() : [0, 0, 0];
-        console.error('ARR', ap.phase, 'VAppr', (+ap.VAppr).toFixed(1), 'tech', ap.appr && ap.appr.technique, 'feel', !!ap.feelFld, ((s + 1) / 60).toFixed(2), 'h', cg[1].toFixed(2), 'vs', (vv[1] || 0).toFixed(2), 'V', sim.out.V.toFixed(1), 'beta', (sim.out.beta * 57.3).toFixed(1), 'roll', (sim.out.roll * 57.3).toFixed(1), 'pitch', (sim.out.pitch * 57.3).toFixed(1), 'thr', (+sim.ctl.thr).toFixed(2), 'dr', (+sim.ctl.dr).toFixed(2), 'da', (+sim.ctl.da).toFixed(2), 'de', (+sim.ctl.de).toFixed(2), 'onG', sim.wheelsOnGround());
-      }
       if (ap.phase === 'ROLLOUT' && onSurface(sim)) { if (SS.hTD == null) SS.hTD = sim.out.hdg; else { let dh = sim.out.hdg - SS.hTD; dh = Math.atan2(Math.sin(dh), Math.cos(dh)); SS.hSwing = Math.max(SS.hSwing, Math.abs(dh)); } }
       if (ap.phase === 'ROLLOUT' && onSurface(sim)) { if (SS.thTD == null) SS.thTD = sim.out.pitch; SS.thMin = Math.min(SS.thMin, sim.out.pitch);
-        if (process.env.RC_NODES && (s % 10 === 0)) { const low = []; for (let i = 0; i < sim.n; i++) { const y = sim.p[i * 3 + 1] - (sim.r[i] || 0); if (y < 0.08) low.push((def.nodes[i] && def.nodes[i].tag || i) + ':' + y.toFixed(3)); }
-          console.error('NODES', ((s + 1) / 60).toFixed(2), 'V', sim.out.V.toFixed(1), 'Vg', (+sim.out.Vg).toFixed(1), 'pitch', (sim.out.pitch * 57.3).toFixed(1), 'brake', (+sim.ctl.brake).toFixed(2), 'brakeD', (+sim.ctl.brakeD).toFixed(2), 'dr', (+sim.ctl.dr).toFixed(2), 'hdg', (sim.out.hdg * 57.3).toFixed(1), 'beta', (sim.out.beta * 57.3).toFixed(1), 'twAng', JSON.stringify(sim.out.twAng), 'tw', JSON.stringify(sim.out.twState), 'thr', (+sim.ctl.thr).toFixed(2), 'flap', (+sim.ctl.flap).toFixed(2)); }
         if (process.env.RC_TRACE && (s % 15 === 0)) console.error('ROLLOUT', ((s + 1) / 60).toFixed(2), 'V', sim.out.V.toFixed(1), 'pitch', (sim.out.pitch * 57.3).toFixed(1), 'brake', (+sim.ctl.brake).toFixed(2), 'de', (+sim.ctl.de).toFixed(2)); }
       if (o.tech && o.tech.stopShort && ap.phase === 'ROLLOUT' && onSurface(sim)) {
         sim.ctl.de = 1;
@@ -328,7 +322,6 @@ function flight(spec, def, lc, o) {
     // is not a landing roll (the Birdman as found: 6.3 m/s at 39 km/h, 7 m)
     const RL = ap.report && ap.report.landing;
     rec.tdSink = RL ? RL.sink : null; rec.hard = !!(RL && RL.sink > 3);
-    rec.three = RL ? !!RL.three : null; rec.tdV = RL ? RL.V * 3.6 : null;
     rec.outcome = rec.outcome || ap.report.outcome || 'clock';
     rec.goArounds = phases.filter(p => p[0] === 'GOAROUND').length;
     // the tail on the roll-out: how far the pitch fell under the touchdown attitude (deg; a nose-over starts there)

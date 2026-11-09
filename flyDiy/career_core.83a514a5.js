@@ -2012,7 +2012,7 @@ const MISSION_PREF_KINDS = {
   thrust:     { of: 'spec.engines[].mount',  values: ['tractor', 'pusher'] },
   wing:       { of: 'spec.wing.position',    values: ['high', 'mid', 'low', 'parasol'] },
   tail:       { of: 'spec.tail.type',        values: ['conventional', 'v', 'twinBoom'] },
-  gear:       { of: 'spec.gear.type',        values: ['taildragger', 'tricycle', 'floats'] },
+  gear:       { of: 'spec.gear.type',        values: ['taildragger', 'tricycle', 'floats', 'hull'] },
   canopy:     { of: 'spec.cabin.canopy.style', values: ['screen', 'bubble'] },
   suspension: { of: 'spec.gear.suspension',  values: ['bungee'] },
 };
@@ -2888,7 +2888,7 @@ function missionHitTest(p, a, b) {
       const u = M2 > 0 ? Math.max(0, Math.min(1, ((cx - a.x) * dx + (cy - ya) * dy + (cz - a.z) * dz) / M2)) : 1, q = msrLerp(a, b, u);
       return Math.hypot(q.x - cx, (msrNum(q.y) ? q.y : cy) - cy, q.z - cz) <= p.r ? q : null;
     }
-    const r = p.dir * Math.PI / 180, nx = Math.sin(r), nz = -Math.cos(r);       // the ring faces its heading
+    const r = p.dir * Math.PI / 180, nx = CORE_MATH.sin(r), nz = -CORE_MATH.cos(r);       // the ring faces its heading
     const sa = (a.x - cx) * nx + (a.z - cz) * nz, sb = (b.x - cx) * nx + (b.z - cz) * nz;
     if (!(sa < 0 && sb >= 0)) return null;                                     // through it, the way it faces
     const u = sa / (sa - sb), q = msrLerp(a, b, u);
@@ -2942,7 +2942,7 @@ function missionStrikeTest(p, a, b, reach) {
     return out;
   }
   if (k === 'ring' && msrNum(p.dir)) {
-    const [cx, cy, cz] = p.ring.map(Number), r = p.dir * Math.PI / 180, nx = Math.sin(r), nz = -Math.cos(r);
+    const [cx, cy, cz] = p.ring.map(Number), r = p.dir * Math.PI / 180, nx = CORE_MATH.sin(r), nz = -CORE_MATH.cos(r);
     const sa = (a.x - cx) * nx + (a.z - cz) * nz, sb = (b.x - cx) * nx + (b.z - cz) * nz;
     if ((sa < 0) === (sb < 0) || !msrNum(a.y) || !msrNum(b.y)) return out;   // not across its plane (or no height known)
     const u = sa / (sa - sb), q = msrLerp(a, b, u);
@@ -5091,7 +5091,7 @@ const PROCURE_COSMETIC = ['paint', 'finish', 'meta'];          // bench.js BENCH
 const PROCURE_READOUTS = ['fuel'];
 const PROCURE_LOOK = { energy: ['finish', 'hue', 'tint'], vessel: ['finish', 'hue', 'tint'], systems: ['look'] };
 // G3852: whSlick (a tundra's lugs or smooth) is drawing only, as bench.js counts it
-const PROCURE_STATE_ROWS = /^_view|^(explodeD|pilOn|cabOcc|paxOcc\d+|lightOn|li_reflect|li_beaconRpm|accDetail|whSlick)$|^hgDr[A-Z]/;
+const PROCURE_STATE_ROWS = /^_view|^(explodeD|pilOn|cabOcc|paxOcc\d+|lightOn|li_reflect|li_beaconRpm|accDetail|accBeacon|whSlick)$|^hgDr[A-Z]/;
 const prClone = o => JSON.parse(JSON.stringify(o));
 const prNo = (doc, why) => ({ ok: false, doc, why });
 const prR100 = n => Math.round((+n || 0) / 100) * 100;
@@ -5443,7 +5443,7 @@ function procureFpP1(spec, sv, pv) {
   if (c.systems && typeof c.systems === 'object') for (const k of PROCURE_LOOK.systems) delete c.systems[k];
   if (c.cage && typeof c.cage === 'object') for (const k of Object.keys(c.cage)) if (PROCURE_STATE_ROWS.test(k)) delete c.cage[k];
   // G2820: a STOL record at "every device off" (null) is the absent key (bench.js's rule)
-  if (Array.isArray(c.wings)) for (const w of c.wings) if (w && typeof w === 'object' && w.stol == null) delete w.stol;
+  if (Array.isArray(c.wings)) for (const w of c.wings) if (w && typeof w === 'object') { if (w.stol == null) delete w.stol; if (w.tipShape == null) delete w.tipShape; }   // (HULL-B26: the tip's own shape, null = the kind's - as stol)
   if (c.cage && typeof genStolCageOff === 'function') c.cage = genStolCageOff(c.cage);   // G2827: the rows at "off" are absent
   if (sv == null) sv = typeof GEN_SPEC_V !== 'undefined' ? GEN_SPEC_V : 0;
   if (pv == null) pv = typeof PHYSICS_V !== 'undefined' ? PHYSICS_V : 0;
@@ -7873,15 +7873,15 @@ function storyTutorNext(T, how) {
 function storyFinalPose(a, o) {
   o = o || {};
   const d = o.d || 3000, gs = o.gs || 0.06, V = o.V || 22, floor = o.floor || 60, sg = o.way === -1 ? -1 : 1;
-  const ux = sg * Math.cos(a.hdg), uz = sg * Math.sin(a.hdg);
+  const ux = sg * CORE_MATH.cos(a.hdg), uz = sg * CORE_MATH.sin(a.hdg);
   const sp0 = a.spawn || [a.x || 0, a.z || 0], elev = +a.elev || 0;
   const sp = sg > 0 ? sp0 : [2 * (a.x || 0) - sp0[0], 2 * (a.z || 0) - sp0[1]];
   const ax = sp[0] + 60 * ux, az = sp[1] + 60 * uz;            // the aim point, 60 m in from the landing end
   const x = ax - d * ux, z = az - d * uz;
   const g = typeof o.groundH === 'function' ? o.groundH(x, z) : null;
   const y = Math.max(elev + d * gs, (Number.isFinite(g) ? g : elev) + floor);
-  const cg = Math.cos(Math.atan(gs));
-  return { x, y, z, hdg: sg > 0 ? a.hdg : a.hdg + Math.PI, vx: V * cg * ux, vy: -V * Math.sin(Math.atan(gs)), vz: V * cg * uz };
+  const cg = CORE_MATH.cos(Math.atan(gs));
+  return { x, y, z, hdg: sg > 0 ? a.hdg : a.hdg + Math.PI, vx: V * cg * ux, vy: -V * CORE_MATH.sin(Math.atan(gs)), vz: V * cg * uz };
 }
 // THE WAY THE PILOT WILL LAND IT (the 25 Oct 20:15 page run, 8 kt on the day: posed on a.hdg's final, the pilot given back
 // in the air re-plans the arrival (43_pilot G3473) on the SCORED direction - the wind, the slope, the approach - and flew
@@ -7894,7 +7894,7 @@ function storyFinalWay(a, world, t) {
     const M = siteRunwayModel(a, world);
     if (!M || !Array.isArray(M.dir) || M.dir.length < 2) return 1;
     const wv = typeof world.wind === 'function' ? world.wind(a.x, (+a.elev || 0) + 30, a.z, t || 0) : null;
-    const u = [Math.cos(a.hdg), Math.sin(a.hdg)];
+    const u = [CORE_MATH.cos(a.hdg), CORE_MATH.sin(a.hdg)];
     const sc = siteScoreDirections(M, wv ? [wv[0], wv[2]] : [0, 0], { mode: 'land' }, u, typeof a.landHdg === 'number');
     const D = M.dir[sc.k].u;
     return D[0] * u[0] + D[1] * u[1] >= 0 ? 1 : -1;
@@ -8338,13 +8338,14 @@ const TECH_TABLE = {
   'eng:io360_mccauley': 2, 'eng:o540_hartzell': 2, 'eng:io550_hartzell3': 2, 'eng:io720_hartzell3': 2, 'eng:ranger440_wood': 2,
   'eng:hirth508_wood': 2, 'eng:argus10c_wood': 2, 'eng:w670_hs2b': 2, 'eng:r755_hs2b': 2, 'eng:m14p_v530': 2,
   'eng:r985_hs2b20': 2, 'eng:r1340_hs12d40': 2, 'eng:r1830_hs23e50': 2, 'eng:merlin66_rotol4': 2,
-  'eng:rotax915_carbon': 3, 'eng:rotax916_carbon': 3,
+  'eng:rotax915_carbon': 3, 'eng:rotax916_carbon': 3, 'eng:rotax912is_warp': 2,
   'eng:emrax268_carbon': 3, 'eng:emrax228_3blade': 3, 'eng:e811_velis': 3, 'eng:sp260d_class': 3, 'eng:eppg_direct_130': 3,
   'eng:fes_folding_100': 3, 'eng:outrunner2212_9x47': 3, 'eng:outrunner3548_12x6': 3, 'eng:outrunner6374_18x10': 3,
   'eng:pt6a114a_hartzell3': 3, 'eng:pt6a34_hartzell4': 3, 'eng:pt6a42_hartzell4': 3, 'eng:pt6a60a_hartzell4': 3,
   'cfg:twin': 2,
   'prop:wood': 1, 'prop:maple': 1, 'prop:walnut': 1, 'prop:alu': 1, 'prop:carbon': 1,
   'pitch:climb': 1, 'pitch:standard': 1, 'pitch:cruise': 1,
+  'pitch:seaplane': 1,   // (G3445 FLOAT-KIT, 22 Oct: the float prop's fine pitch, added after the table - off the shelf as every pitch, and floats are 1)
   // ---- systems / avionics
   'fit:minimal': 1, 'fit:basic': 1, 'fit:custom': 1, 'fit:ifr': 2,
   'elec.battery:none': 1, 'elec.battery:lead': 1, 'elec.battery:lithium': 3,
@@ -8356,7 +8357,7 @@ const TECH_TABLE = {
   'av.nav:none': 1, 'av.nav:vor': 2,
   'av.gps:none': 1, 'av.gps:portable': 3, 'av.gps:panel': 3, 'av.gps:glass': 3, 'av.gps:flat': 3, 'av.gps:flatPair': 3,   // G2815
   // ---- gear
-  'gear:taildragger': 1, 'gear:floats': 1, 'gear:tricycle': 2,
+  'gear:taildragger': 1, 'gear:floats': 1, 'gear:tricycle': 2, 'gear:hull': 2,
   'susp:bungee': 1, 'susp:spring': 1, 'susp:oleo': 1,
   'fair:glass': 1, 'fair:alloy': 2, 'fair:carbon': 3,
   // ---- canopy / glazing
@@ -8370,7 +8371,7 @@ const TECH_TABLE = {
 };
 // the gear types and canopy styles clampSpec accepts (60_gen_spec.js clampSpec: an unknown is rewritten to the first);
 // GATE TECH probes clampSpec with each and with an unknown, so this list cannot drift from it
-const TECH_GEAR_TYPES = ['taildragger', 'tricycle', 'floats'];
+const TECH_GEAR_TYPES = ['taildragger', 'tricycle', 'floats', 'hull'];
 const TECH_CANOPY_STYLES = ['screen', 'bubble'];
 // the powertrain families of the editor's `engPower` row (piston / electric / turbine), read off POWERPLANTS: a family
 // opens with the first of its engines
@@ -8509,7 +8510,7 @@ const TECH_ROWS = {
   fairCons: ['fair:glass', 'fair:carbon', 'fair:alloy'],
   // (ENGINE-CONFIGS-2: 4 push-pull, 5 three, 6 four - several engines, the twin's segment, as techKeysOf reads any
   // spec with more than one engine)
-  engMount: [null, null, null, 'cfg:twin', 'cfg:twin', 'cfg:twin', 'cfg:twin'],
+  engMount: [null, null, null, 'cfg:twin', 'cfg:twin', 'cfg:twin', 'cfg:twin', 'cfg:twin', null],   // (HULL-B22: 8 the fin)   // (HULL-B15: 7 the tandem)
   engPower: ['fam:piston', 'fam:electric', 'fam:turbine'],
 };
 // a row's keys, per option index; ctx: { names (the row's own option names), engines (CAGE_JOIN_ENGINES), propMats

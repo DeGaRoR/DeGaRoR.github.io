@@ -582,6 +582,19 @@ function makeModifier0(m, y0) {
       return w > 0 ? h + (target(x, z, h) - h) * w : h;
     } };
   }
+  if (m.kind === 'micro') {
+    // THE STRIP'S MICRO-HEIGHT (DIRT-STRIP, 2026-11-09; 26b_strip_micro.js): h + dh(x, z) - the bush strip's crown, worn
+    // lanes, ISO 8608 roughness and potholes, 0 at its edges and ends. Affine in h (a raise whose dh is the field), so the
+    // raster and the cook carry it as they carry every modifier; its ceiling is the field's own bound (a raise's `add`),
+    // its tiles only those its box reaches (touches), its lattice the raster's finest (feather 1: 0.25 m)
+    if (typeof STRIP_MICRO === 'undefined' || !STRIP_MICRO.on(m.micro)) return null;
+    const f = STRIP_MICRO.field(m.strip, m.micro, m.grade, CORE_MATH.cos, CORE_MATH.sin), bbox = f.bbox;
+    return { id: m.id, kind: 'micro', bbox, bound: () => ({ t: -Infinity, add: f.bound }), touches: f.touches, feather: 1, field: f, apply: (x, z, h) => {
+      if (x < bbox.x0 || x > bbox.x1 || z < bbox.z0 || z > bbox.z1) return h;
+      const d = f.at(x, z);
+      return d !== 0 ? h + d : h;
+    } };
+  }
   if (m.kind === 'shelf') {
     // THE SHELF (the village's withShelf, verbatim): a pad rect in the ITEM's frame (c, yaw), level
     // inside, the base beyond a front margin (front and sides) or a back margin, smoothstepped
@@ -2781,7 +2794,7 @@ function compose(rec0, world, opts) {
   // a DERIVED tree exclude 30 m round the box, and the aerodrome record
   const runways = rec.layers.runways.filter(r => r.c && r.len > 0 && r.wid > 0).map(r => Object.assign({}, RUNWAY_DEF, r));
   { const byId = new Map(roads.map(q => [q.id, q])); for (const r of runways) waysVia(r, byId); }   // (G3092: a way out that follows a road)
-  const aerodromes = [];
+  const aerodromes = [], microStrips = [], microMods = [];
   for (const r of runways) {
     const E = runwayEnds(r);
     // a SEA LANE (G434): the water's own level, nothing graded, nothing painted, nothing excluded
@@ -2826,7 +2839,19 @@ function compose(rec0, world, opts) {
       const L = F.toLocal(p.x, p.z); p.y = +T1(L[0], L[1]).toFixed(2);
       if (p.stand) { const Ls = F.toLocal(p.stand.x, p.stand.z); p.stand.elev = +T1(Ls[0], Ls[1]).toFixed(2); }
     }
+    // THE MICRO-HEIGHT (DIRT-STRIP, 2026-11-09): a strip whose record carries `micro` (chaos > 0) gets its bumps as one more
+    // modifier, made here (its aerodrome record and site already read: the thresholds, the stand, the sheds stand where
+    // they did) and applied LAST (microMods, below the sites' shelves: a road's grade or an end pad over the strip must not
+    // take its bumps off - the ground on the strip is the composed ground + the field, exactly); a strip without - every
+    // strip today - makes nothing, so nothing anywhere moves
+    if (typeof STRIP_MICRO !== 'undefined' && STRIP_MICRO.on(r.micro)) {
+      let grade = 0; for (let a = 0; a <= r.len; a += 3) grade = Math.max(grade, Math.abs(pr.slopeAt(a)));
+      const MM = makeModifier({ id: r.id + ':micro', kind: 'micro', strip: { c: r.c, hdg: r.hdg, len: r.len, wid: r.wid }, micro: r.micro, grade: +grade.toFixed(4) }, F.y0);
+      if (MM) { microMods.push(MM); microStrips.push({ id: r.id, f: MM.field }); }
+    }
   }
+  // (DIRT-STRIP) the micro strips published for STRIP_MICRO.at / puddleAt in the WORLD frame (the island's: nothing when none)
+  if (typeof STRIP_MICRO !== 'undefined') STRIP_MICRO.publish(rec.id || 'premises', microStrips.map(q => ({ id: q.id, f: q.f, toLocal: (x, z) => F.toLocal(x, z) })));
   // THE ROADS (stage 3): a road's nodes sit on the ground AFTER the runways graded it
   const T1r = (lx, lz) => { const w = F.toWorld(lx, lz); let h = world.terrainH(w[0], w[1]); for (const M of mods) h = M.apply(lx, lz, h); return h; };
   const JH = new Map();   // (G2950) a junction's height: the first road graded through it sets it
@@ -2920,6 +2945,7 @@ function compose(rec0, world, opts) {
   const shelves = [];
   for (const st of rec.layers.sites) for (const sh of siteShelves(st, catS, T1s)) { const M = makeModifier(sh, F.y0); if (M) { mods.push(M); shelves.push(sh); } }
   const index = SpatialIndex(256);
+  for (const MM of microMods) mods.push(MM);   // (DIRT-STRIP) the bush strips' bumps, over everything the strip's ground is made of
   mods.forEach((M, i) => { M.ord = i; index.add(M.bbox, M); });   // ord: the order every point applies them in (G611)
   // the surface polygons in PRIORITY order (z, then the record's order): the last wins at a point
   // (v1.35: a ROUND PAD's wheels feel its look's class - after every authored polygon of its priority)

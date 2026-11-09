@@ -248,7 +248,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   const dmgCovered = !(S.fuselage && S.fuselage.covering === 'open');
   const dmgGlazed = dmgCovered && !(S.cab && S.cab.glazing === 'none');
   // the part a node belongs to, and the part's rank: the higher rank is the child of a joint (it comes off)
-  const dmgLay = S.engLayout === 'pushPull' || S.engLayout === 'tri' || S.engLayout === 'quad';
+  const dmgLay = S.engLayout === 'pushPull' || S.engLayout === 'tri' || S.engLayout === 'quad' || S.engLayout === 'tandem';
   const dmgPart = i => {
     const t = nodes[i].tag || '', z = P[i][2], sd = z < 0 ? 'L' : 'R';
     if (t === 'WF' || t === 'WR' || t === 'WB' || t === 'WB2') return { p: 'wing' + (nodes[i].plane || 0) + sd, r: 1, base: 'wing' + (nodes[i].plane || 0), wing: true };
@@ -1139,8 +1139,12 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   const cabane = cabH > R.cabaneMin;
   // G274: the centre section's own width when the builder set one (the
   // root pair moves with it; the panels start there), else the cabin's
-  const zRoot = (w.centreW > 0 ? 0.5 * w.centreW : cab.halfW) + (cabane ? R.cabaneSplay : 0);
-  dmgRootZ[k] = zRoot;                                    // G1815: a node here is a root fitting's
+  // HULL-B78: A CENTRAL PYLON for the cabane (S.bracing.cabPylon, the first plane's) - the wing roots on the pylon, a
+  // half-width CABPY_HW off the centreline, its cabane a narrow truss inside the fairing (below)
+  const CABPY_HW = 0.12, cabPy = cabane && k === 0 && !!(S.bracing && S.bracing.cabPylon);
+  const zRoot = cabPy ? CABPY_HW : (w.centreW > 0 ? 0.5 * w.centreW : cab.halfW) + (cabane ? R.cabaneSplay : 0);
+  dmgRootZ[k] = zRoot;
+  const cabPyBase = new Map();                            // (HULL-B78: the pylon's base nodes, per ring and side)                                    // G1815: a node here is a root fitting's
 
   // CRANK: a second wing section. The break gets its own spar station, because
   // it is a real joint — the outer panel bolts to the centre section there —
@@ -1322,7 +1326,22 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       const [iA, iB] = straddle(x), iN = nearestRing(x);
       const rings = [...new Set([iN, iA, iB])];
       if (!cabane) for (const i of rings) B(nd, F[i][side], 'wing');
-      else {
+      else if (cabPy) {
+        // HULL-B78: THE PYLON's TRUSS - each root node to a base node on the roof's centreline at the same half-width
+        // (each ring's own, tied across to its top longerons and to its mirror): posts and diagonals fore / aft, all
+        // inside the fairing, so undrawn ('inner'); the fairing's own skin (~1.5 kg/m2 over its two faces, INFERRED)
+        for (const i of rings) {
+          const key = i + '_' + s;
+          if (!cabPyBase.has(key)) {
+            const yR = Math.max(P[F[i].TL][1], P[F[i].TR][1]), b = N(ST[i].x, yR, s * CABPY_HW, 'CPB');
+            B(b, F[i].TL, 'cabane', false, 'inner'); B(b, F[i].TR, 'cabane', false, 'inner');
+            const m = cabPyBase.get(i + '_' + (-s)); if (m != null) B(b, m, 'cabane', false, 'inner');
+            pt(b, 1.5 * 2 * Math.max(0.1, P[nd][1] - yR) * 0.3);
+            cabPyBase.set(key, b);
+          }
+          B(nd, cabPyBase.get(key), 'cabane', false, 'inner');
+        }
+      } else {
         // G185: THE CABANE IS THESE MEMBERS, IN OPEN AIR. On a plane a cabane
         // height above the roof the root ties to the top longerons are not
         // hidden under the fabric — they are the struts you see, so they are
@@ -1574,7 +1593,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // linkage and the Fowler's tracks on the rear spar - so the CG, the inertia and the damage layer see them where
   // they are. Nothing on a wing without them: no row, no mass, the same bits.
   {
-    const ST = (typeof genStolOf === 'function') ? genStolOf(w.stol) : null, TIPk = GEN_TIPS[w.tip] || {};
+    const ST = (typeof genStolOf === 'function') ? genStolOf(w.stol) : null, TIPk = genTipOf(w) || {};
     if (ST || TIPk.plate || TIPk.droop) {
       sec('stol');
       const K = GEN_STOL.cost, zAt = [zRoot, ...zs];
@@ -1666,6 +1685,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // is whatever list results — the solver spreads the thrust over it and
   // nEngines (the entries) multiplies it, so a pair pulls twice.
   const engNodes = noseEng ? [EL, ER] : [];
+  const finEng = [];                     // HULL-B22: the fin engines, hung once the fin's truss exists (section 4)
   // G194: WHICH ENGINE each mount node belongs to — a single mount hangs one
   // engine on two nodes (0, 0); a wing pair hangs entry 0 on the port node
   // and entry 1 on the starboard one. Published as refs.engineOf so the
@@ -1678,7 +1698,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // is engine 1, the Trimotor's nacelles 1 and 2, the quad's 0..3) — the
   // solver's per-engine thrust then makes a cut engine a real couple. The
   // single mounts and the classic pair run exactly the old loop.
-  const LAYF = S.engLayout === 'pushPull' || S.engLayout === 'tri' || S.engLayout === 'quad';
+  const LAYF = S.engLayout === 'pushPull' || S.engLayout === 'tri' || S.engLayout === 'quad' || S.engLayout === 'tandem';
   const engCowl = [];                    // G2790: [nodeA, nodeB] per off-nose engine of a layout
   if (!noseEng || LAYF) {
     sec('engines');
@@ -1728,15 +1748,55 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
         const [WL, WR] = NM(e.x, e.y, 0.35 * cab.halfW, 'ENG');
         const rg = F[iRing(e.x)];
         BM(WL, WR);
+        if (e.pylonAt === 'roof') {
+          // HULL-B17: ON THE FUSELAGE BEHIND THE CABIN - the pylon stands on the roof of the two rings either side of the
+          // engine's station (the nearest and the next one forward), its legs to their top corners, crossed; a blade
+          // stands on a narrow root fitting between them on the centreline. No member reaches the wing
+          // (HULL-B52: pylonFwd - the pylon's station that far forward of the engine's, x aft)
+          const xPy = e.x - (+e.pylonFwd || 0);
+          const iA = iRing(xPy);
+          let iB = Math.max(0, Math.min(F.length - 1, iA + (ST[iA].x > xPy ? -1 : 1)));
+          if (iB === iA) iB = Math.max(0, iA - 1);
+          const rA = F[iA], rB = F[iB];
+          if (e.pylonForm === 'blade') {
+            const BLADE_ROOT = 0.06;
+            const [BAL, BAR] = NM(ST[iA].x, Math.max(P[rA.TL][1], P[rA.TR][1]), BLADE_ROOT, 'PYB'), [BBL, BBR] = NM(ST[iB].x, Math.max(P[rB.TL][1], P[rB.TR][1]), BLADE_ROOT, 'PYB');
+            BM(BAL, BAR); BM(BBL, BBR); BM(BAL, BBL); BM(BAR, BBR); BM(BAL, BBR);
+            for (const b of [BAL, BAR]) { BM(b, rA.TL); BM(b, rA.TR); }
+            for (const b of [BBL, BBR]) { BM(b, rB.TL); BM(b, rB.TR); }
+            for (const n of [WL, WR]) { BM(n, BAL); BM(n, BAR); BM(n, BBL); BM(n, BBR); }
+          } else for (const [n, o] of [[WL, 'L'], [WR, 'R']]) {
+            const q = o === 'L' ? 'R' : 'L';
+            BM(n, rA['T' + o]); BM(n, rB['T' + o]); BM(n, rA['T' + q]);   // the legs, and a cross-brace
+          }
+        } else if (e.pylonForm === 'blade') {
+          // HULL-B14: ONE BLADE ON THE CENTRELINE (the user: "a single pillar that would be shaped like a wing ... depending
+          // on what we try to fit on it, it may be enough or not. And that's the physics and the breaking code that should
+          // tell us this"). Its root is a short fitting across the centreline at the front and the rear spar stations
+          // (BLADE_ROOT a side: the blade's own root width, its fitting's bolts), each tied to both roots' spar nodes and
+          // the roof; the mount pair stands on those four alone - no legs out to the roots, no cross-brace. Its lateral
+          // stiffness is that narrow root's: what it carries is the solver's and the break code's to say
+          const BLADE_ROOT = 0.06;
+          const yB = 0.25 * (P[wf.L.F[0]][1] + P[wf.R.F[0]][1] + P[wf.L.R[0]][1] + P[wf.R.R[0]][1]);
+          const xBF = 0.5 * (P[wf.L.F[0]][0] + P[wf.R.F[0]][0]), xBR = 0.5 * (P[wf.L.R[0]][0] + P[wf.R.R[0]][0]);
+          const [BFL, BFR] = NM(xBF, yB, BLADE_ROOT, 'PYB'), [BRL, BRR] = NM(xBR, yB, BLADE_ROOT, 'PYB');
+          BM(BFL, BFR); BM(BRL, BRR); BM(BFL, BRL); BM(BFR, BRR); BM(BFL, BRR);
+          for (const b of [BFL, BFR]) { BM(b, wf.L.F[0]); BM(b, wf.R.F[0]); BM(b, rg.TL); BM(b, rg.TR); }
+          for (const b of [BRL, BRR]) { BM(b, wf.L.R[0]); BM(b, wf.R.R[0]); BM(b, rg.TL); BM(b, rg.TR); }
+          for (const n of [WL, WR]) { BM(n, BFL); BM(n, BFR); BM(n, BRL); BM(n, BRR); }
+        } else
         for (const [n, o] of [[WL, 'L'], [WR, 'R']]) {
           const q = o === 'L' ? 'R' : 'L';
           BM(n, wf[o].F[0]); BM(n, wf[o].R[0]);
           BM(n, wf[q].F[0]);                             // cross-brace
           BM(n, rg['T' + o]);                            // pylon leg, roof
         }
-        hangEngine(e, [WL, WR], [wf.L.F[0], wf.R.F[0], wf.L.R[0], wf.R.R[0]], 0,
+        hangEngine(e, [WL, WR], e.pylonAt === 'roof' ? [rg.TL, rg.TR] : [wf.L.F[0], wf.R.F[0], wf.L.R[0], wf.R.R[0]], 0,
                    engDryM, S.prop.mass);
-        engNodes.push(WL, WR); engIdx.push(0, 0);
+        engNodes.push(WL, WR); engIdx.push(iE, iE);   // (HULL-B15: a tandem's two entries, 0 and 1; a single mount 0)
+        if (LAYF) engCowl.push([WL, WR]);
+      } else if (e.mount === 'fin') {
+        finEng.push({ e, iE, m: engDryM + S.prop.mass });   // (HULL-B22: below, on the fin)
       } else if (e.mount === 'wing') {
         // THE BEARER HAS DEPTH (G179). One node on the four spar nodes of
         // its bay is a node IN THE PLANE OF ITS ANCHORS — rule 1's mechanism
@@ -1754,6 +1814,23 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
         // 13.3 under the engine). Whichever station the join measured, the
         // arm is there. The foot's legs are `inner`.
         const [NL, NR] = NM(e.x, e.y, e.z, 'ENG');
+        // HULL-B30: A PAIR ON THE REAR FUSELAGE (pylonAt 'body' - the Be-103's): each nacelle node on a STUB TRUSS to the
+        // two fuselage rings either side of its station, their side corners top and bottom - a pyramid off the body's
+        // side, no member to the wing (the drawing's stub pylon, _cage_eng.js)
+        if (e.pylonAt === 'body') {
+          const iA = iRing(e.x);
+          let iB = Math.max(0, Math.min(F.length - 1, iA + (ST[iA].x > e.x ? -1 : 1)));
+          if (iB === iA) iB = Math.max(0, iA - 1);
+          const rA = F[iA], rB = F[iB];
+          for (const [n, o] of [[NL, 'L'], [NR, 'R']]) {
+            const anc = [rA['T' + o], rA['B' + o], rB['T' + o], rB['B' + o]].filter(q => q != null);
+            for (const q of anc) BM(n, q);
+            hangEngine({ x: e.x, y: e.y, pushes: e.pushes }, [n], anc, P[n][2], engDryM, S.prop.mass);
+          }
+          engNodes.push(NL, NR); engIdx.push(iE, LAYF ? i + 1 : 1);
+          if (LAYF) engCowl.push([NL, NL], [NR, NR]);
+          continue;
+        }
         const zAll = [zRoot, ...zs];
         let b = 0;
         for (let k = 0; k < zAll.length - 1; k++) if (e.z >= zAll[k]) b = k;
@@ -2083,7 +2160,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       ? S.controls.elevator.chord : 0.40;
     const sparF = R.tailSparFront == null ? 0.15 : R.tailSparFront;
     const dep = R.tailBoxDepth == null ? 0.08 : R.tailBoxDepth;
-    const G = (t.ivAngle || 33) * Math.PI / 180, cG = Math.cos(G), sG = Math.sin(G);
+    const G = (t.ivAngle || 33) * Math.PI / 180, cG = CORE_MATH.cos(G), sG = CORE_MATH.sin(G);
     // G3801 (the user 4 Nov: "all possible options"): THE FOUR WAYS - up or down, in or out (genIvDir); an outward
     // panel's span is its own reach (genIvReach), an inward one's the booms' less half the gap
     const IVD = genIvDir(t), ud = IVD.up ? 1 : -1, io = IVD.out ? -1 : 1;
@@ -2445,6 +2522,23 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     B(VF[i], VX[i], 'tail'); B(VX[i], VR[i], 'tail'); B(VR[i], VX2[i], 'tail'); B(VX2[i], VF[i], 'tail');
     B(VF[i], VR[i], 'tail');
   }
+  // HULL-B22: THE FIN ENGINE - its mount pair at the engine's station, braced to the fin's front spar, its section pair
+  // and its rear spar at the nearest height and to the front spar at the next one up and down (the drawn tubes' feet),
+  // the engine and its blades' mass on the pair
+  for (const { e, iE, m } of finEng) {
+    let j = 0, dj = Infinity;
+    for (let i = 0; i <= nV; i++) { const d = Math.abs(P[VF[i]][1] - e.y); if (d < dj) { dj = d; j = i; } }
+    const [FL, FR] = NM(e.x, e.y, 0.07, 'ENG');
+    B(FL, FR, 'tail');
+    for (const n of [FL, FR]) {
+      for (const q of [VF[j], VX[j], VX2[j], VR[j]]) B(n, q, 'tail');
+      if (j > 0) B(n, VF[j - 1], 'tail');
+      if (j < nV) B(n, VF[j + 1], 'tail');
+    }
+    pt(FL, 0.5 * m); pt(FR, 0.5 * m);
+    engNodes.push(FL, FR); engIdx.push(iE, iE);
+    if (!(EL >= 0)) { EL = FL; ER = FR; }   // (EL was engNodes[0]: undefined before a fin engine)
+  }
   for (let i = 0; i < nV; i++) {
     const ch = [[VF[i], VF[i + 1]], [VR[i], VR[i + 1]], [VX[i], VX[i + 1]], [VX2[i], VX2[i + 1]]];
     for (const [a, b] of ch) B(a, b, 'tail');                 // the four chords
@@ -2563,11 +2657,19 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   const AA = F[Math.max(iAft, engFwd ? 0 : Math.min(iFwd + 1, F.length - 1))];
   const trike = S.gear.type === 'tricycle';
   let GAL, GAR, TW, TW2 = -1, twX, twY, FLOATS = null;
+  // HULL-B3: THE FUSELAGE IS THE BOAT (gear.type 'hull', its measured lines in gear.hull - the join's cageHullTable)
+  // (HULL-B55: an AMPHIBIAN - a tricycle that carries the hull's lines (the join's, a retracting gear on a boat hull):
+  // the wheels below AND the hull after them; its mains / nose refs stay the wheels', the water's record rides FLOATS)
+  const AMPH = S.gear.type === 'tricycle' && !!(S.gear.hull && Array.isArray(S.gear.hull.sta)) && typeof HYDRO !== 'undefined';
+  const hullGear = (S.gear.type === 'hull' || AMPH) && S.gear.hull && Array.isArray(S.gear.hull.sta) && typeof HYDRO !== 'undefined';
   // G3800 (TAILWHEELS): THE SKID's shoe is a hand-sized contact where the wheel's tyre would touch (its contact point,
   // and so the three-point attitude, unchanged): a 3 cm radius at the tyre's bottom, half the wheel assembly's mass
   const SKID = S.gear.type === 'taildragger' && S.gear.twMode === 'skid';
   const twRN = SKID ? 0.03 : S.gear.twR, twDy = SKID ? (S.gear.twR || 0.10) - 0.03 : 0, twKgK = SKID ? 0.5 : 1;
-  if (S.gear.type !== 'floats') {
+  // ...and a 'hull' whose lines never reached the spec (an archetype's birth spec, pre-join) flies on the floats the
+  // gross sizes, the seaplane it can be without its drawing - never on wheels it does not have
+  const WHEELS = S.gear.type !== 'floats' && S.gear.type !== 'hull';
+  if (WHEELS) {
   [GAL, GAR] = NM(gx, gy, 0.5 * tr, 'AXLE', S.gear.contactR);
   B(GAL, GAR, 'gear');
   // What each of those six members IS, now that `vis` can say so. The forward
@@ -2643,6 +2745,13 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     B(TW, F[Math.min(1, F.length-1)].BL, 'gear', false, 'wire');
     B(TW, F[Math.min(1, F.length-1)].BR, 'gear', false, 'wire');
     pt(TW, R.wheelTwKg(S.gear.twR) + mFairTw);        // the nosewheel with its fork, by size
+    // RETRACT-1: THE RETRACTION KIT, billed where it hangs - two thirds on the mains' axles (their actuators, locks
+    // and trunnions), a third on the nose leg's (the pack sits by the firewall, the nose leg's anchors); priced once
+    if (S.gear.retract) {
+      const kit = R.retractKg(gross);
+      pt(GAL, kit / 3); pt(GAR, kit / 3); pt(TW, kit / 3);
+      spend(GEN_PRICES.retract);
+    }
   } else if (BOOMS && TAIL && TAIL.vee && TAIL.down) {   // (G3801: a V whose tips hang below the booms; up, the booms' own)
     // G3800 (TAILWHEELS): THE INVERTED V's TAIL CONTACTS ARE ITS TIPS - a small wheel (or the skid's shoe) under each
     // panel's tip, on a short fork (its hub a hand under the tip), the tip's section and apex its five anchors. The
@@ -2721,7 +2830,269 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     B(TW, HTL, 'gear', false, 'wire'); B(TW, HTR, 'gear', false, 'wire');
     pt(TW, twKgK * R.wheelTwKg(S.gear.twR) + mFairTw);   // the tailwheel assembly, by size (G3800: a skid half of it)
   }
-  } else {
+  } if (hullGear) {   // (HULL-B55: after the wheels on an amphibian - was `else if`)
+    // ---- THE BOAT HULL (HULL-B3, futureDesigns/HULL-TYPES-2026-11.md §3.5). ONE centreline hull record: the drawn
+    // fuselage's keel / chine / gunwale lines as 32_hydro's station table (hullParamsFromTable), so the water pushes
+    // on exactly the hull the builder drew. It rides the floats' machinery whole - a rigid node body of five stations
+    // (keel + the two gunwales: near the bow, mid-forebody, the step, mid-afterbody, near the stern), the slab table
+    // for the force distribution, hydroBuild / tetraCtx unchanged - with its stations TIED INTO THE FUSELAGE'S OWN
+    // FRAMES (no struts: the hull is the fuselage). The step keel's station and height are the join's (gear.hull x,
+    // y: aft of the firewall, over the keel datum); the gunwales are the mains' refs (the pair the viewer and the
+    // ground pass keep; the join's pose reads their mean against the cage's step at the gunwale).
+    // THE MASS: the covering is the fuselage's and is billed there; the hull adds its PLANING BOTTOM's own structure
+    // (keel, step, the bottom's reinforcement) at GEN_RULES-free 3.0 kg per m2 of the planing bottom - INFERRED (a
+    // composite hull's bottom laminate over the fuselage's ~1.5 kg/m2 skin), stated, not measured.
+    const HR = S.gear.hull;
+    const HP = HYDRO.hullParamsFromTable(HR);
+    const xS = HR.x != null ? HR.x : gx, yS = HR.y != null ? HR.y : 0;
+    const FH = HYDRO.makeFloat(HP);
+    let aBot = 0; for (const pn of FH.panels) if (pn.kind === 'bottomF' || pn.kind === 'bottomA') aBot += pn.area0;
+    const mHull = 3.0 * aBot;
+    HP.mFloat = mHull;
+    const xBow = -HP.xs, xSt = HP.L - HP.xs;
+    const stas = [0.90 * xBow, 0.45 * xBow, 0, 0.40 * xSt, 0.85 * xSt];
+    const K = [], DL = [], DR = [], Q = [];
+    for (const xs of stas) {
+      const sc = HYDRO.sectionOf(HP, xs === 0 ? -1e-9 : xs);
+      const bd = Math.max(0.05, sc.bd);
+      K.push(N(xS + xs, yS + sc.yk, 0, 'HLK'));
+      DL.push(N(xS + xs, yS + sc.yd, -bd, 'HLD'));
+      DR.push(N(xS + xs, yS + sc.yd, bd, 'HLD'));
+      Q.push([xs, sc.yk, 0], [xs, sc.yd, -bd], [xs, sc.yd, bd]);
+    }
+    const all = [...K, ...DL, ...DR];
+    for (const i of all) pt(i, mHull / all.length);
+    const NMh = { noMass: true, kMul: 8 }, KMh = { kMul: 8 };
+    const NS = stas.length;
+    for (let i = 0; i + 1 < NS; i++) {
+      B(K[i], K[i + 1], 'gear', false, 'inner', undefined, NMh); B(DL[i], DL[i + 1], 'gear', false, 'inner', undefined, NMh); B(DR[i], DR[i + 1], 'gear', false, 'inner', undefined, NMh);
+      B(K[i], DL[i + 1], 'gear', false, 'inner', undefined, NMh); B(K[i], DR[i + 1], 'gear', false, 'inner', undefined, NMh);
+      B(DL[i], DR[i + 1], 'gear', false, 'inner', undefined, NMh); B(DR[i], DL[i + 1], 'gear', false, 'inner', undefined, NMh);
+    }
+    for (let i = 0; i < NS; i++) { B(K[i], DL[i], 'gear', false, 'inner', undefined, NMh); B(K[i], DR[i], 'gear', false, 'inner', undefined, NMh); B(DL[i], DR[i], 'gear', false, 'inner', undefined, NMh); }
+    clusters.push({ cls: 'float', tag: 'HULL', nodes: all });
+    // THE TIES: each station to the fuselage frame nearest it (the bow to the firewall ring, and to the nose mount
+    // when there is one ahead of it; the stern to the last frame and the tail post), keel to both bottom corners,
+    // each gunwale to its side's bottom and top corners - internal members, inside the covering
+    const nearF = x => { let j = 0, d = Infinity; for (let q = 0; q < ST.length; q++) { const e = Math.abs(ST[q].x - x); if (e < d) { d = e; j = q; } } return j; };
+    for (let i = 0; i < NS; i++) {
+      const Fj = F[nearF(xS + stas[i])];
+      B(K[i], Fj.BL, 'gear', false, 'inner', undefined, KMh); B(K[i], Fj.BR, 'gear', false, 'inner', undefined, KMh);
+      B(DL[i], Fj.BL, 'gear', false, 'inner', undefined, KMh); B(DL[i], Fj.TL, 'gear', false, 'inner', undefined, KMh);
+      B(DR[i], Fj.BR, 'gear', false, 'inner', undefined, KMh); B(DR[i], Fj.TR, 'gear', false, 'inner', undefined, KMh);
+    }
+    if (noseEng && EL >= 0 && ER >= 0) { B(K[0], EL, 'gear', false, 'inner', undefined, KMh); B(K[0], ER, 'gear', false, 'inner', undefined, KMh); }
+    B(K[NS - 1], TPB, 'gear', false, 'inner', undefined, KMh);
+    const slab = { x: stas.slice(), st: stas.map((xs, i) => ({ ids: [K[i], DL[i], DR[i]],
+      K: [Q[i * 3][1], Q[i * 3][2]], DL: [Q[i * 3 + 1][1], Q[i * 3 + 1][2]], DR: [Q[i * 3 + 2][1], Q[i * 3 + 2][2]] })) };
+    FLOATS = [{ side: 0, hull: true, K, DL, DR, tetra: [K[2], K[0], DL[2], DR[2]],
+                tetraLocal: [Q[6], Q[0], Q[7], Q[8]], slab, P: HP, pos: [xS, yS, 0] }];
+    if (!WHEELS) { GAL = DL[2]; GAR = DR[2]; TW = -1; twX = xS; twY = yS; }   // (HULL-B55: an amphibian's refs are its wheels)
+    // ---- THE STRUT TIP FLOATS (HULL-B3, the boat's lateral stability: HULL-TYPES §3.4 "Strut tip floats" - Seabee,
+    // Lake, SeaRey, the Goose; NACA TN-215: every boat but Dornier's stub types needs them. A flying boat with a high
+    // wing and its engine on a pylon has its CG well over its metacentre: the hull alone capsized in 4 s, measured,
+    // GATE HULL). Two small floats of the Wipline family (floatParamsFor: the pair displaces 180 % of what it is
+    // sized for, so one sized for tip.vol / 0.9 of the gross displaces tip.vol of it), hung under the wing at tip.at
+    // of the semispan on a strut pair to that station's spar nodes, their keel `clear` over the hull's own level
+    // waterline at the gross (solved here off the table: a level boat sits on its hull, a heel of a few degrees puts
+    // a float in). SIZED BY VOLUME for now - 6 % of the gross each by default, the Seabee / Lake class's practice,
+    // INFERRED; the moment rule (righting = 2 x upsetting, HULL-TYPES §1.3) is the next row.
+    const TP = HR.tips;
+    const TIPF_UNDER = 0.07;   // (HULL-B46: a strut float's deck under its wing's spar line - half the wing's depth and a gap, m)
+    // ---- HULL-B26: THE BUOYANT WING TIPS (tips.mode 'wing': the Seawind's, the Che-22's - the user, 5 Nov: "the real
+    // one do not even have floats at the top ... it should be a setting of the wingtip itself"). The wing's own tip IS
+    // the float: its record is the tip's drawn shape (60_gen_spec genTipBuoyTable: the bent, filled bow the loft draws,
+    // laid as a station table volume layer by volume layer), its centre on the tip joint's own frame (genTipJoint, the
+    // spar nodes the loft rides), a rigid node body tied into the joint's and the tip's spar nodes - no struts: the tip
+    // is the wing. Its shell is the drooped tip's own (the wing's ledger bills it, 1603); the fuller section's extra
+    // laminate here, 2 kg + 25 kg per m3 of tip, INFERRED (a glass shell of ~1.5 kg/m2 over its wetted area)
+    const w0T = S.wings && S.wings[0], TIPw = w0T ? genTipOf(w0T) : null;
+    if (TP && TP.on !== 0 && TP.mode === 'wing' && wf.L && wf.R && w0T && w0T.tipR > 1e-6 && !(TIPw && TIPw.up)) {   // (HULL-B54: an upturned tip floats nothing)
+      const cT = w0T.tipC > 0 ? w0T.tipC : w0T.chord * (w0T.taper || 1);
+      const BT = genTipBuoyTable(cT, w0T.tipR, (TIPw.droop || 0) * cT, TIPw.full || 1, ((w0T.naca | 0) % 100) / 100, R.sparFront != null ? R.sparFront : 0.15);
+      const TPP = BT && HYDRO.hullParamsFromTable({ sta: BT.sta });
+      if (TPP) {
+        TPP.mFloat = 2 + 25 * BT.vol;
+        for (const [sd, W] of [[-1, wf.L], [1, wf.R]]) {
+          const J = genTipJoint(nodes, W, w0T.tipZ, sd);
+          if (!J) continue;
+          const c = [0, 1, 2].map(i => J.O[i] + J.ch[i] * BT.aMid + J.out[i] * BT.zc + J.up[i] * BT.yK);
+          const xT = c[0], yT = c[1], zT = c[2];
+          const st3 = [-0.80 * TPP.xs, 0, 0.80 * (TPP.L - TPP.xs)];
+          const Kt = [], Lt = [], Rt = [], Qt = [];
+          for (const xs of st3) {
+            const sc = HYDRO.sectionOf(TPP, xs === 0 ? -1e-9 : xs);
+            Kt.push(N(xT + xs, yT + sc.yk, zT, 'TFK'));
+            Lt.push(N(xT + xs, yT + sc.yd, zT - sc.b, 'TFD')); Rt.push(N(xT + xs, yT + sc.yd, zT + sc.b, 'TFD'));
+            Qt.push([xs, sc.yk, 0], [xs, sc.yd, -sc.b], [xs, sc.yd, sc.b]);
+          }
+          const allT = [...Kt, ...Lt, ...Rt];
+          for (const i of allT) pt(i, TPP.mFloat / allT.length);
+          for (let i = 0; i < 3; i++) { B(Kt[i], Lt[i], 'gear', false, 'inner', undefined, NMh); B(Kt[i], Rt[i], 'gear', false, 'inner', undefined, NMh); B(Lt[i], Rt[i], 'gear', false, 'inner', undefined, NMh); }
+          for (let i = 0; i < 2; i++) {
+            B(Kt[i], Kt[i + 1], 'gear', false, 'inner', undefined, NMh); B(Lt[i], Lt[i + 1], 'gear', false, 'inner', undefined, NMh); B(Rt[i], Rt[i + 1], 'gear', false, 'inner', undefined, NMh);
+            B(Kt[i], Lt[i + 1], 'gear', false, 'inner', undefined, NMh); B(Kt[i], Rt[i + 1], 'gear', false, 'inner', undefined, NMh); B(Lt[i], Rt[i + 1], 'gear', false, 'inner', undefined, NMh);
+          }
+          clusters.push({ cls: 'float', tag: 'TIP' + (sd < 0 ? 'L' : 'R'), nodes: allT });
+          // the tie: every station's three nodes into the joint's spar pair and the tip's (the wing's last station)
+          const jo = Math.min(W.F.length - 1, J.j + 1), anc = [W.F[J.j], W.R[J.j], W.F[jo], W.R[jo]];
+          for (let i = 0; i < 3; i++) for (const q of [Kt[i], Lt[i], Rt[i]]) for (const a of anc) B(q, a, 'gear', false, 'inner', undefined, KMh);
+          const slabT = { x: st3.slice(), st: st3.map((xs, i) => ({ ids: [Kt[i], Lt[i], Rt[i]],
+            K: [Qt[i * 3][1], Qt[i * 3][2]], DL: [Qt[i * 3 + 1][1], Qt[i * 3 + 1][2]], DR: [Qt[i * 3 + 2][1], Qt[i * 3 + 2][2]] })) };
+          FLOATS.push({ side: sd, tip: true, wingTip: true, K: Kt, DL: Lt, DR: Rt, tetra: [Kt[1], Kt[0], Lt[1], Rt[1]],
+                        tetraLocal: [Qt[3], Qt[0], Qt[4], Qt[5]], slab: slabT, P: TPP, pos: [xT, yT, zT] });
+        }
+      }
+    } else if (TP && TP.on !== 0 && (TP.plane === 1 && planes[1] ? planes[1].wf : wf).L) {
+      // HULL-B45 (the Super Petrel's floats hang under its LOWER wing, at the interplane struts): tips.plane 1 hangs the
+      // strut floats from the second plane's spar stations, at tips.at of ITS semispan - the same float, struts and fit
+      const PLT = TP.plane === 1 && planes[1] ? planes[1] : planes[0], WFT = PLT.wf, semiT = PLT.semi || G.semi;
+      // HULL-B5: the ROWS' placement (hullTipKg / hullTipY, the Hull tile's fit - the drawing reads the same rows);
+      // unset, the same rule off this build's gross (HYDRO.hullTipFit)
+      const fit0 = (TP.kg > 0 && TP.y > -0.999) ? null : HYDRO.hullTipFit(HR, gross || 400);
+      const kgT = TP.kg > 0 ? TP.kg : fit0.kg, yRel = TP.y > -0.999 ? TP.y : fit0.y;
+      const TPP = HYDRO.tipFloatParams(kgT);
+      const tAt = TP.at != null ? TP.at : 0.85;
+      for (const [sd, W] of [[-1, WFT.L], [1, WFT.R]]) {
+        // the spar station nearest tAt of the semispan
+        let j = 1, dB = Infinity;
+        for (let q = 1; q < W.F.length; q++) { const e = Math.abs(Math.abs(nodes[W.F[q]].p[2]) - tAt * semiT); if (e < dB) { dB = e; j = q; } }
+        const nF = nodes[W.F[j]].p, nR = nodes[W.R[j]].p;
+        // HULL-B46 (the user: "your floats are on top of the low wing. They should sit right below"): under a LOW wing the
+        // waterline's float height can stand above the wing - its deck is held under the wing (the spars' line less
+        // TIPF_UNDER: the wing's half-depth and a gap), the float wetted at rest as the Super Petrel's are
+        const yDeck = Math.max(...[-0.80 * TPP.xs, 0, 0.80 * (TPP.L - TPP.xs)].map(xs => HYDRO.sectionOf(TPP, xs === 0 ? -1e-9 : xs).yd));
+        const yUnder = Math.min(nF[1], nR[1]) - TIPF_UNDER - yDeck;
+        const xT = 0.5 * (nF[0] + nR[0]) + 0.10 * TPP.L, zT = 0.5 * (nF[2] + nR[2]), yT = Math.min(yS + yRel, yUnder);
+        const st3 = [-0.80 * TPP.xs, 0, 0.80 * (TPP.L - TPP.xs)];
+        const Kt = [], Lt = [], Rt = [], Qt = [];
+        for (const xs of st3) {
+          const sc = HYDRO.sectionOf(TPP, xs === 0 ? -1e-9 : xs);
+          Kt.push(N(xT + xs, yT + sc.yk, zT, 'TFK'));
+          Lt.push(N(xT + xs, yT + sc.yd, zT - sc.b, 'TFD')); Rt.push(N(xT + xs, yT + sc.yd, zT + sc.b, 'TFD'));
+          Qt.push([xs, sc.yk, 0], [xs, sc.yd, -sc.b], [xs, sc.yd, sc.b]);
+        }
+        const allT = [...Kt, ...Lt, ...Rt];
+        for (const i of allT) pt(i, TPP.mFloat / allT.length);
+        for (let i = 0; i < 3; i++) { B(Kt[i], Lt[i], 'gear', false, 'inner', undefined, NMh); B(Kt[i], Rt[i], 'gear', false, 'inner', undefined, NMh); B(Lt[i], Rt[i], 'gear', false, 'inner', undefined, NMh); }
+        for (let i = 0; i < 2; i++) {
+          B(Kt[i], Kt[i + 1], 'gear', false, 'inner', undefined, NMh); B(Lt[i], Lt[i + 1], 'gear', false, 'inner', undefined, NMh); B(Rt[i], Rt[i + 1], 'gear', false, 'inner', undefined, NMh);
+          B(Kt[i], Lt[i + 1], 'gear', false, 'inner', undefined, NMh); B(Kt[i], Rt[i + 1], 'gear', false, 'inner', undefined, NMh); B(Lt[i], Rt[i + 1], 'gear', false, 'inner', undefined, NMh);
+        }
+        clusters.push({ cls: 'float', tag: 'TIP' + (sd < 0 ? 'L' : 'R'), nodes: allT });
+        // the struts: both deck edges at the step up to the station's front spar node, the aft deck to the rear one,
+        // a diagonal - streamlined tubes, stiff (kMul 8, the floats' rigging)
+        if (TP.mode === 'outrigger') {
+          // HULL-B28: AN OUTRIGGER HULL'S PYLON (the drawing's faired blade, _cage_float.js): every station's deck edges
+          // to BOTH spar nodes - a triangulated, rigid pylon. The strut float's V pair and two tension wires let a side
+          // hull swing about the spars' line under its water drag (measured: the Cessna boat leaned onto one outrigger to
+          // 44 deg at 7 m/s, whatever its size)
+          for (let i = 0; i < 3; i++) for (const q of [Lt[i], Rt[i]]) for (const a2 of [W.F[j], W.R[j]]) B(q, a2, 'gear', false, 'inner', undefined, KMh);
+        } else {
+          B(Lt[1], W.F[j], 'gear', true, undefined, undefined, KMh); B(Rt[1], W.F[j], 'gear', true, undefined, undefined, KMh);
+          B(Lt[2], W.R[j], 'gear', true, undefined, undefined, KMh); B(Rt[2], W.R[j], 'gear', true, undefined, undefined, KMh);
+          B(Lt[0], W.F[j], 'gear', true, 'wire', undefined, KMh); B(Rt[0], W.R[j], 'gear', true, 'wire', undefined, KMh);
+        }
+        const slabT = { x: st3.slice(), st: st3.map((xs, i) => ({ ids: [Kt[i], Lt[i], Rt[i]],
+          K: [Qt[i * 3][1], Qt[i * 3][2]], DL: [Qt[i * 3 + 1][1], Qt[i * 3 + 1][2]], DR: [Qt[i * 3 + 2][1], Qt[i * 3 + 2][2]] })) };
+        FLOATS.push({ side: sd, tip: true, K: Kt, DL: Lt, DR: Rt, tetra: [Kt[1], Kt[0], Lt[1], Rt[1]],
+                      tetraLocal: [Qt[3], Qt[0], Qt[4], Qt[5]], slab: slabT, P: TPP, pos: [xT, yT, zT] });
+      }
+    }
+    // ---- HULL-B19: THE SPONSONS (HULL-TYPES §1.2 'sponsons': the Icon, the Seastar, the Flywhale, the Wal) - a short
+    // buoyant body a side ON the hull, its inboard deck edge against the hull's side at its station, partly in the water
+    // at rest (the fit's rows: kg by the roll-moment rule on its short arm, its keel half its depth under the rest
+    // waterline). A float of the family sized for its displacement (tipFloatParams), its three stations tied to the
+    // fuselage frame nearest and the next one - no struts: the hull and the sponson are one structure
+    const SP = HR.spon;
+    // ---- HULL-B29: PLANING WING ROOTS (spon.mode 'root' - the Be-103's and the Equator's "float wings", HULL-TYPES 1.1:
+    // the low wing's roots displace water and plane; three planing elements, the step and both wing roots). The wing's
+    // OWN inner panel is the sponson: its record is the root's stub (HYDRO.sponsonTable: the wing's root chord and
+    // thickness, k root chords of span, flat beneath), centred at mid-chord on the panel's own frame (genTipJoint at the
+    // root station plus half the span), its keel on the wing's underside (the aerofoil's lower ordinate at 35 %), tied
+    // into that bay's four spar nodes. Nothing is added to the drawing: the wing IS the float. Its skin doubling, 1.5 kg
+    // per m2 of planing bottom, INFERRED
+    const w0R = S.wings && S.wings[0];
+    if (SP && SP.on && SP.mode === 'root' && w0R && wf.L && wf.R) {
+      const cRt = w0R.chord, tR = Math.max(0.08, ((w0R.naca | 0) % 100) / 100), kR = SP.k || 0.75, spanR = Math.max(0.2, kR * cRt);
+      const STB = HYDRO.sponsonTable(cRt, kR, tR), SPP = STB && HYDRO.hullParamsFromTable(STB);
+      if (SPP) {
+        SPP.mFloat = 1.5 * cRt * spanR;
+        const sfR = R.sparFront != null ? R.sparFront : 0.15;
+        const loR = (typeof genAfEval === 'function' ? genAfEval(w0R.naca).lo(0.35)[1] : -0.5 * tR) * cRt;
+        for (const [sd, W] of [[-1, wf.L], [1, wf.R]]) {
+          const z0 = Math.abs(nodes[W.F[0]].p[2]), J = genTipJoint(nodes, W, z0 + 0.5 * spanR, sd);
+          if (!J) continue;
+          const c = [0, 1, 2].map(i => J.O[i] + J.ch[i] * (0.5 - sfR) * cRt + J.up[i] * loR);
+          const xT = c[0], yT = c[1], zT = c[2];
+          const st3 = [-0.80 * SPP.xs, 0, 0.80 * (SPP.L - SPP.xs)];
+          const Kt = [], Lt = [], Rt = [], Qt = [];
+          for (const xs of st3) {
+            const sc = HYDRO.sectionOf(SPP, xs === 0 ? -1e-9 : xs);
+            Kt.push(N(xT + xs, yT + sc.yk, zT, 'SPK'));
+            Lt.push(N(xT + xs, yT + sc.yd, zT - sc.b, 'SPD')); Rt.push(N(xT + xs, yT + sc.yd, zT + sc.b, 'SPD'));
+            Qt.push([xs, sc.yk, 0], [xs, sc.yd, -sc.b], [xs, sc.yd, sc.b]);
+          }
+          const allT = [...Kt, ...Lt, ...Rt];
+          for (const i of allT) pt(i, SPP.mFloat / allT.length);
+          for (let i = 0; i < 3; i++) { B(Kt[i], Lt[i], 'gear', false, 'inner', undefined, NMh); B(Kt[i], Rt[i], 'gear', false, 'inner', undefined, NMh); B(Lt[i], Rt[i], 'gear', false, 'inner', undefined, NMh); }
+          for (let i = 0; i < 2; i++) {
+            B(Kt[i], Kt[i + 1], 'gear', false, 'inner', undefined, NMh); B(Lt[i], Lt[i + 1], 'gear', false, 'inner', undefined, NMh); B(Rt[i], Rt[i + 1], 'gear', false, 'inner', undefined, NMh);
+            B(Kt[i], Lt[i + 1], 'gear', false, 'inner', undefined, NMh); B(Kt[i], Rt[i + 1], 'gear', false, 'inner', undefined, NMh); B(Lt[i], Rt[i + 1], 'gear', false, 'inner', undefined, NMh);
+          }
+          clusters.push({ cls: 'float', tag: 'SPON' + (sd < 0 ? 'L' : 'R'), nodes: allT });
+          const jo = Math.min(W.F.length - 1, J.j + 1), anc = [W.F[J.j], W.R[J.j], W.F[jo], W.R[jo]];
+          for (let i = 0; i < 3; i++) for (const q of [Kt[i], Lt[i], Rt[i]]) for (const a2 of anc) B(q, a2, 'gear', false, 'inner', undefined, KMh);
+          const slabS = { x: st3.slice(), st: st3.map((xs, i) => ({ ids: [Kt[i], Lt[i], Rt[i]],
+            K: [Qt[i * 3][1], Qt[i * 3][2]], DL: [Qt[i * 3 + 1][1], Qt[i * 3 + 1][2]], DR: [Qt[i * 3 + 2][1], Qt[i * 3 + 2][2]] })) };
+          FLOATS.push({ side: sd, spon: true, root: true, K: Kt, DL: Lt, DR: Rt, tetra: [Kt[1], Kt[0], Lt[1], Rt[1]],
+                        tetraLocal: [Qt[3], Qt[0], Qt[4], Qt[5]], slab: slabS, P: SPP, pos: [xT, yT, zT] });
+        }
+      }
+    } else if (SP && SP.on) {
+      const fitS = HYDRO.hullTipFit(HR, gross || 400);
+      // HULL-B21: a STUB sponson flies its own station table (HYDRO.sponsonTable: the drawn stub), rooted ON the hull's
+      // side (its record's centre half its span out); a float sponson the family's float, w outboard
+      const stub = SP.mode === 'stub', cS = SP.c > 0 ? SP.c : Math.cbrt(1.3 * 2 * fitS.kg / (1000 * 0.685 * (SP.t || 0.22) * (SP.k || 0.75)));
+      const STB = stub ? HYDRO.sponsonTable(cS, SP.k || 0.75, SP.t || 0.22) : null;
+      const SPP = STB ? Object.assign(HYDRO.hullParamsFromTable(STB), { mFloat: 6.0 * cS * (SP.k || 0.75) * cS })
+                      : HYDRO.tipFloatParams(SP.kg > 0 ? SP.kg : 2 * fitS.kg);
+      const ySrel = SP.y > -0.999 ? SP.y : fitS.draft - 0.5 * (STB ? (SP.t || 0.22) * cS : SPP.H);
+      const xsS = -(SP.x != null ? SP.x : 0.3), scH = HYDRO.sectionOf(HP, xsS === 0 ? -1e-9 : xsS);
+      const nearFS = x => { let j = 0, d = Infinity; for (let q = 0; q < ST.length; q++) { const e = Math.abs(ST[q].x - x); if (e < d) { d = e; j = q; } } return j; };
+      for (const sd of [-1, 1]) {
+        const xT = xS + xsS + (STB ? 0 : 0.10 * SPP.L), yT = yS + ySrel;
+        const zT = sd * (scH.bd + (STB ? 0.5 * (SP.k || 0.75) * cS - 0.03 : (SP.w != null ? SP.w : 0.32)));
+        const st3 = [-0.80 * SPP.xs, 0, 0.80 * (SPP.L - SPP.xs)];
+        const Kt = [], Lt = [], Rt = [], Qt = [];
+        for (const xs of st3) {
+          const sc = HYDRO.sectionOf(SPP, xs === 0 ? -1e-9 : xs);
+          Kt.push(N(xT + xs, yT + sc.yk, zT, 'SPK'));
+          Lt.push(N(xT + xs, yT + sc.yd, zT - sc.b, 'SPD')); Rt.push(N(xT + xs, yT + sc.yd, zT + sc.b, 'SPD'));
+          Qt.push([xs, sc.yk, 0], [xs, sc.yd, -sc.b], [xs, sc.yd, sc.b]);
+        }
+        const allT = [...Kt, ...Lt, ...Rt];
+        for (const i of allT) pt(i, SPP.mFloat / allT.length);
+        for (let i = 0; i < 3; i++) { B(Kt[i], Lt[i], 'gear', false, 'inner', undefined, NMh); B(Kt[i], Rt[i], 'gear', false, 'inner', undefined, NMh); B(Lt[i], Rt[i], 'gear', false, 'inner', undefined, NMh); }
+        for (let i = 0; i < 2; i++) {
+          B(Kt[i], Kt[i + 1], 'gear', false, 'inner', undefined, NMh); B(Lt[i], Lt[i + 1], 'gear', false, 'inner', undefined, NMh); B(Rt[i], Rt[i + 1], 'gear', false, 'inner', undefined, NMh);
+          B(Kt[i], Lt[i + 1], 'gear', false, 'inner', undefined, NMh); B(Kt[i], Rt[i + 1], 'gear', false, 'inner', undefined, NMh); B(Lt[i], Rt[i + 1], 'gear', false, 'inner', undefined, NMh);
+        }
+        clusters.push({ cls: 'float', tag: 'SPON' + (sd < 0 ? 'L' : 'R'), nodes: allT });
+        // the root: each station's inboard deck edge and keel to the nearest fuselage frame's side corners
+        const inb = sd < 0 ? Rt : Lt, o = sd < 0 ? 'L' : 'R';
+        for (let i = 0; i < 3; i++) {
+          const Fj = F[nearFS(xT + st3[i])];
+          B(inb[i], Fj['B' + o], 'gear', false, 'inner', undefined, KMh); B(inb[i], Fj['T' + o], 'gear', false, 'inner', undefined, KMh);
+          B(Kt[i], Fj['B' + o], 'gear', false, 'inner', undefined, KMh);
+        }
+        const slabS = { x: st3.slice(), st: st3.map((xs, i) => ({ ids: [Kt[i], Lt[i], Rt[i]],
+          K: [Qt[i * 3][1], Qt[i * 3][2]], DL: [Qt[i * 3 + 1][1], Qt[i * 3 + 1][2]], DR: [Qt[i * 3 + 2][1], Qt[i * 3 + 2][2]] })) };
+        FLOATS.push({ side: sd, spon: true, K: Kt, DL: Lt, DR: Rt, tetra: [Kt[1], Kt[0], Lt[1], Rt[1]],
+                      tetraLocal: [Qt[3], Qt[0], Qt[4], Qt[5]], slab: slabS, P: SPP, pos: [xT, yT, zT] });
+      }
+    }
+  } else if (!WHEELS) {   // (HULL-B55: the floats - never under an amphibian's wheels)
     // ---- FLOATS (H1, G382). Two floats, each a RIGID NODE BODY: keel and
     // both deck edges at four stations (bow, the flat's end, the step, the
     // stern), a triangulated shell drawn inside the float, one cluster so
@@ -3109,7 +3480,11 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   }
   sec('avionics');
   spend(SYS.bill.avionics.price);
-  halfOn(F[0].TL, F[0].TR, SYS.bill.avionics.kg);
+  // COMMS-SECTION ready 2: the ELT is billed with the radios but bolted in the tailcone, under its whip (a frame
+  // short of the tailpost); with none fitted this is the line it always was
+  const eltKg = (SYS.rows.find(r => r.key === 'elt:fitted') || {}).kg || 0;
+  halfOn(F[0].TL, F[0].TR, eltKg ? SYS.bill.avionics.kg - eltKg : SYS.bill.avionics.kg);
+  if (eltKg) { const Ft = F[Math.max(1, F.length - 2)]; halfOn(Ft.TL, Ft.TR, eltKg); }
   // ---- THE OUTFIT (G159) ------------------------------------------------
   // Everything a real aeroplane carries between its structure and its payload.
   // Each item hangs off a CHOICE or a MEASUREMENT of this aeroplane, never a
@@ -3405,6 +3780,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     ledger,
     gearAnchors: [iFwd, iAft], kScale: KS, kGear: KG,
     floats: FLOATS,             // H1: the float records, or null
+    ...(AMPH ? { amph: true } : {}),   // HULL-B55: an amphibian - the wheels are its contacts on land, the hull on the water
     // PERF STUDY chantier 1: what the pass measured for the gauge (pass 1)
     // and the gauge it was billed at (pass 2)
     gauged, gaugeRef, gauge: GG,
@@ -3606,7 +3982,7 @@ function genFrame(S) {
   // from the CG down to the step keel (the rule is 10-15) — the inverse of
   // the taildragger's rake; and the wheels' axle station (S.gear.x, the
   // editor's or a fixture's) is not the step's, so it is not read for floats
-  const floatsGear = S.gear.type === 'floats';
+  const floatsGear = S.gear.type === 'floats' || (S.gear.type === 'hull' && !(S.gear.hull && Array.isArray(S.gear.hull.sta)));
   // ...unless the join measured the drawn float's step (S.gear.floats.x).
   // THE FLOATS' OWN MASS MOVES WITH THE STEP (H2, G389): the first pass
   // stood them at the wheels' station, and their 80 kg walking 0.9 m aft
@@ -3630,7 +4006,9 @@ function genFrame(S) {
            return Ma > 0 ? (Ma * ca + Mf * off + k * (Ma + Mf)) / Ma : cg[0] + k;
          })())
     : null;
-  const gx = (floatsGear ? stepGx
+  // HULL-B3: a boat's "gear station" is its measured step (gear.hull.x)
+  const hullStepX = S.gear.type === 'hull' && S.gear.hull && S.gear.hull.x != null ? S.gear.hull.x : null;
+  const gx = (hullStepX != null ? hullStepX : floatsGear ? stepGx
               : (S.gear.x !== null && S.gear.x !== undefined ? S.gear.x : autoGx))
              + S.place.gearDx;
   const tr = Math.max(0.5, (S.gear.track !== null && S.gear.track !== undefined

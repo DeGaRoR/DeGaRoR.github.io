@@ -62,6 +62,9 @@ function makeContext(opts) {
   g.setTimeout = setTimeout; g.clearTimeout = clearTimeout;
   g.navigator = { userAgent: 'node' };
   g.localStorage = { getItem: () => null, setItem() {}, removeItem() {} };
+  // RETRACT-LAB (SEAPLANES-LAND 7 Nov, _cage_gear.js RETRACT_LAB): the rigs see every retract row, as the developer's
+  // garage does; FLYDIY_RETRACT_LAB=0 asks for the player's garage
+  g.FLYDIY_RETRACT_LAB = process.env.FLYDIY_RETRACT_LAB !== '0';
   g.Image = function () { return el(); };
   const ctx = vm.createContext(g);
   vm.runInContext('var window = globalThis; window.window = window;', ctx);
@@ -77,6 +80,9 @@ function makeContext(opts) {
     const m = /\(\(\) => \{\s*'use strict';\s*const FLAT = new Map\(\);[\s\S]*?G\.TEX_FLAT = texFlat;\s*\}\)\(\);/.exec(A);
     if (m) vm.runInContext(m[0], ctx, { filename: 'assets.js#TEX_FLAT' });
   }
+  // ASSETS-GREEN (8 Nov): THE MATERIAL LIBRARY (src/viewer/matlib.js) - the page loads it before the editor's files, and
+  // the seat library's plain material (tools/_seat_gen.js, the flat view's) is made there now (GATE ASSETS MATS)
+  vm.runInContext(fs.readFileSync(path.join(T, '..', 'src', 'viewer', 'matlib.js'), 'utf8'), ctx, { filename: 'matlib.js' });
   const { MANIFEST } = require(path.join(T, 'build.js'));
   const skip = new Set([...EXCLUDE, ...((opts && opts.exclude) || [])]);
   const loaded = [], errors = [];

@@ -145,6 +145,20 @@ function loadManifests() {
                             list('scenery', 'scenery_packs.json'), list('cars', 'cars_packs.json'), list('camp', 'camp_packs.json'),
                             list('infra', 'infra_packs.json'),
                             glob('models', /_model\.js$/), glob('chars', /_(?:char|anim)\.js$/), glob('animals', /_animal\.js$/))) run(f);
+  // THE CROWD (CHARACTERS G2970, PEOPLE-CROWD G3617): src/chars/crowd_pack.json is a JSON manifest, not a registrar - each cast
+  // member is its own media/chars/<key>.<h8>.json (a registerChar record, read as one) and each clip rides in the pack whole (a
+  // registerCharAnim record). Unparsed, its 19 bins read as orphans (MASTER-GREEN 8 Nov)
+  const CP = path.join(ROOT, 'src', 'chars', 'crowd_pack.json');
+  if (fs.existsSync(CP)) {
+    const P = JSON.parse(fs.readFileSync(CP, 'utf8'));
+    for (const c of P.cast || []) if (c.man) {
+      const mf = path.join(ROOT, ...String(c.man).split('/'));
+      const m = fs.existsSync(mf) ? JSON.parse(fs.readFileSync(mf, 'utf8')) : null;
+      if (m && m.bin) recs.push({ kind: 'char', key: m.key || c.key, bin: m.bin, rec: m, src: c.man });
+      else recs.push({ kind: 'char', key: c.key, bin: 'media/geo/(missing: ' + c.man + ')', rec: {}, src: 'src/chars/crowd_pack.json' });
+    }
+    for (const [k, a] of Object.entries(P.clips || {})) if (a && a.bin) recs.push({ kind: 'anim', key: a.key || k, bin: a.bin, rec: a, src: 'src/chars/crowd_pack.json' });
+  }
   const T = path.join(ROOT, 'src', 'core', 'trees_pack.json');
   if (fs.existsSync(T)) for (const c of JSON.parse(fs.readFileSync(T, 'utf8')).collections || []) if (c.bin) recs.push({ kind: 'tree', key: c.name, bin: c.bin, rec: c, src: 'src/core/trees_pack.json' });
   return recs;

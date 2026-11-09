@@ -66,7 +66,7 @@ if (!SITE || !FG || !K) {
 // is either required or it is absent, and the table already decides that.
 const accDef = {
   accOn: 1,
-  accFluids: 1, accAccess: 1, accInstr: 1, accAerials: 1, accHandling: 1,
+  accFluids: 1, accAccess: 1, accInstr: 1, accAerials: 1, accHandling: 1, accBeacon: 1,
   accDetail: 1,
 };
 PAGE.defaults = Object.assign(accDef, PAGE.defaults || {});
@@ -114,7 +114,10 @@ const GROUP = ['9 · fittings', [
     ['accFluids',   'fuel & oil',    0, 1, 1, ['off', 'on']],
     ['accAccess',   'inspection',    0, 1, 1, ['off', 'on']],
     ['accInstr',    'instruments',   0, 1, 1, ['off', 'on']],
-    ['accAerials',  'aerials & lights', 0, 1, 1, ['off', 'on']],
+    // COMMS-SECTION (8 Nov): the aerials are Communications' (the garage's part `comms`), the skin beacon is a light
+    // (Lights) - two switches where one was; a file with no accBeacon takes accAerials' (_cage_gen.js, the load door)
+    ['accAerials',  'aerials', 0, 1, 1, ['off', 'on']],
+    ['accBeacon',   'anti-collision beacon', 0, 1, 1, ['off', 'on']],
     ['accHandling', 'steps & handles',  0, 1, 1, ['off', 'on']],
   ], 'open', { when: P => +P.accOn }],
   ['detail', [
@@ -141,7 +144,8 @@ const FAMILY = {
   baggageDoor: 'accAccess',
   staticPort: 'accInstr', venturi: 'accInstr', oatProbe: 'accInstr',
   commAerial: 'accAerials', navAerial: 'accAerials', xpdrAerial: 'accAerials',
-  beacon: 'accAerials',
+  gpsAerial: 'accAerials', eltAerial: 'accAerials',                 // COMMS-SECTION ready 2
+  beacon: 'accBeacon',                                              // COMMS-SECTION: a light, not a radio
   step: 'accHandling', grabHandle: 'accHandling', tieDownTail: 'accHandling',
 };
 
@@ -153,7 +157,7 @@ const FAMILY = {
   const bin = {};
   for (const k of ACC_KEYS) (bin[FAMILY[k] || 'accOn'] || (bin[FAMILY[k] || 'accOn'] = [])).push(k);
   const NAME = { accFluids: 'fuel & oil', accAccess: 'inspection',
-                 accInstr: 'instruments', accAerials: 'aerials & lights',
+                 accInstr: 'instruments', accAerials: 'aerials', accBeacon: 'anti-collision beacon',
                  accHandling: 'steps & handles', accOn: 'unfamilied' };
   const host = GROUP[1][GROUP[1].length - 1][1];
   const hostHand = GROUP[1][GROUP[1].length - 2][1];
@@ -422,13 +426,18 @@ function rodSite(row, P, needs, atSL, atLV, bags) {
   const z = Math.max(sp.zTip + 0.06 / FS, Math.min(sp.zRoot - 0.06 / FS, zRaw));
   const under = atLV === 'keel';
   const sgn = under ? -1 : 1;
-  const p = [0, (y0 + sgn * r) * FS, z * FS];
-  const n = [0, sgn, 0];
+  // HULL-B37 (the user: "the fixation rings don't follow your rod rotation"): the tube climbs rodIncl aft of its root,
+  // so the site rides the axis AT ITS STATION (it sat at the root's height, the ring hanging off an inclined rod) and the
+  // collar is square to the tube: fa the axis forward, up square to it
+  const tI = Math.tan(S.rod.incl || 0), yA = y0 + tI * (sp.zRoot - z);
+  const cI = 1 / Math.hypot(1, tI), fa = [0, -tI * cI, cI], up = [0, cI, tI * cI];
+  const p = [0, (yA + sgn * r * up[1]) * FS, (z + sgn * r * up[2]) * FS];
+  const n = [0, sgn * up[1], sgn * up[2]];
   if (bags && bags.metal && K && K.revolve) {
-    const rm = r * FS, ctr = [0, y0 * FS, z * FS];
+    const rm = r * FS, ctr = [0, yA * FS, z * FS];
     // the split collar: a 24 mm wide band, 4 mm proud, and its two clamp
     // lugs standing off the flanks where the bolts go through
-    K.revolve(bags.metal, [ctr[0], ctr[1], ctr[2] - 0.012], [0, 0, 1],
+    K.revolve(bags.metal, [ctr[0], ctr[1] - 0.012 * fa[1], ctr[2] - 0.012 * fa[2]], fa,
       [[rm + 0.0008, 0], [rm + 0.0045, 0.0015], [rm + 0.0045, 0.0225],
        [rm + 0.0008, 0.024], [rm + 0.0008, 0]], 20, false);   // G307: no disc to the axis
     for (const s of [-1, 1])
@@ -595,7 +604,8 @@ PAGE.post = ctx => {
       // `need`s read these); resolved by the core's one reader
       avionics: (typeof genSystemsResolve === 'function')
         ? (r => ({ com: r.avionics.com !== 'none', nav: r.avionics.nav !== 'none',
-                   xpdr: r.avionics.xpdr !== 'none' }))(genSystemsResolve(GS))
+                   xpdr: r.avionics.xpdr !== 'none', gps: ['panel', 'glass', 'flat', 'flatPair'].includes(r.avionics.gps),
+                   elt: r.avionics.elt === 'fitted' }))(genSystemsResolve(GS))
         : undefined,
       // G2808: the fitted dials and the suction (the static port, the venturi, the fuel sight's wire)
       items: (typeof genSystemsResolve === 'function') ? genSystemsResolve(GS).items : undefined,
@@ -700,9 +710,15 @@ PAGE.post = ctx => {
   }
   const pilMoved = [], pilTaken = [];
   AUTO = {}; AUTO_BUILT = true;
+  // RETRACT GM1: the wheel wells' outlines (the gear layer's cuts, cage units: u = z, v = -x) - a site inside one is moved
+  const CUTS = (window.CAGE_GEAR && Array.isArray(window.CAGE_GEAR.cuts) && window.CAGE_GEAR.cuts.length) ? window.CAGE_GEAR.cuts : null;
+  const wellIn = CUTS ? q => CUTS.some(c => q.p[1] < c.ceil && c.outline.every((a, i) => {
+    const b = c.outline[(i + 1) % c.outline.length], l = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+    return ((b[0] - a[0]) * (-q.p[0] - a[1]) - (b[1] - a[1]) * (q.p[2] - a[0])) / l > -0.05 / FS; })) : null;
   for (const row of rows) {
     const fam = FAMILY[row.key];
-    if (fam && !Math.round(P[fam] === undefined ? 1 : P[fam])) continue;
+    const famV = P[fam] === undefined && fam === 'accBeacon' ? P.accAerials : P[fam];   // (COMMS-SECTION: absent = the aerials')
+    if (fam && !Math.round(famV === undefined ? 1 : famV)) continue;
     // a surface with no placer is REPORTED, never dropped in silence — an
     // aeroplane quietly missing its wing filler cap is the acceptance test
     // failing quietly, and quietly is how this gap survived two chantiers
@@ -811,12 +827,21 @@ PAGE.post = ctx => {
     } else {
       // `lv` is a RAIL INDEX and is not a length, so it is not scaled; sL is
       // metres and is. See UNITS at the top of this file.
-      sites = SITE.accessSites(mesh, {
-        sL: atSL / K2,
+      const siteAt = sl => SITE.accessSites(mesh, {
+        sL: sl / K2,
         lv: atLV,
         sC: row.at.sC != null ? row.at.sC / K2 : undefined,
         snap: row.snap, side: row.side,
       });
+      sites = siteAt(atSL);
+      // RETRACT GM1: NOTHING IS BOLTED INTO A WHEEL WELL (the transponder aerial stood in the mains' well, the fuel
+      // drain in the nose's): a site inside a well's outline (CAGE_GEAR.cuts, cage units, 50 mm round) and under its
+      // ceiling slides along the body, aft then forward by 50 mm steps up to 1.2 m, to the first station clear of all
+      if (wellIn && row.on === 'body' && sites.some(wellIn))
+        for (let k = 1; k <= 24; k++) {
+          const tryS = [siteAt(atSL - 0.05 * k), siteAt(atSL + 0.05 * k)].find(ss => ss.length && !ss.some(wellIn));
+          if (tryS) { sites = tryS; break; }
+        }
     }
     // G278: A CROWN FITTING LOOKS FOR THE TOP OF THE AEROPLANE (the user:
     // "these things should always look for the top of the airplane, by
@@ -1055,9 +1080,13 @@ PAGE.post = ctx => {
         // ...and 9 x 9 (was 5 x 5): a venturi's legs land at 0.34 of its
         // 0.19 m length, between the coarse grid's samples, and its foot
         // sat at the gate's 1.5 mm on the cowl profile's flank
+        // UPRIGHT-FOOT (8 Nov): an upright aerial or beacon reads the skin under its own BASE (FG.FIT_BASE), not
+        // under its largest size - the comm blade's height took the search 150 mm off a 90 mm root and down a step
+        const B0 = upright && FG.FIT_BASE && FG.FIT_BASE[String(row.form)] ? FG.FIT_BASE[String(row.form)](sz) : null;
+        const su = B0 ? B0[0] / 4 : foot * 0.1625, sv = B0 ? B0[1] / 4 : foot * 0.1625;
         let lift = 0, low = 0;
         for (let i = -4; i <= 4; i++) for (let j = -4; j <= 4; j++) {
-          const q = surf(i * foot * 0.1625, j * foot * 0.1625);
+          const q = surf(i * su, j * sv);
           const d = (q[0] - pm[0]) * F.n[0] + (q[1] - pm[1]) * F.n[1] + (q[2] - pm[2]) * F.n[2];
           if (d > lift) lift = d;
           if (d < low) low = d;
@@ -1068,7 +1097,10 @@ PAGE.post = ctx => {
         // skin point under its footprint instead, the high side entering the skin; the depth rides the record
         // (`sunk`), and GATE CLIP allows exactly that much for this fitting.
         if (upright) {
-          if (low < -0.0003) { F = frameAt([pm[0] + F.n[0] * low, pm[1] + F.n[1] * low, pm[2] + F.n[2] * low], F.n); sunk = lift - low; }
+          // (UPRIGHT-FOOT: the depth is the whole rise under the base, lift - low, also where nothing lies below the site
+          // point - on the pillar band the blade root's ends stood 4 mm in with the record at 0)
+          if (low < -0.0003) F = frameAt([pm[0] + F.n[0] * low, pm[1] + F.n[1] * low, pm[2] + F.n[2] * low], F.n);
+          if (lift - low > 0.0003) sunk = lift - low;
         } else if (lift > 0.0003) F = Object.assign({}, F, { p: [pm[0] + F.n[0] * (lift + 0.0003), pm[1] + F.n[1] * (lift + 0.0003), pm[2] + F.n[2] * (lift + 0.0003)] });   // (DOOR-HINGES-2: the frame keeps its along)
       }
       // GATE CLIP reads each fitting's own triangles back out of the

@@ -216,6 +216,36 @@ console.log('5. the sources');
   yes(!/toneMappingExposure\s*=\s*.*\*/.test(sl), 'sky_light never compounds an exposure');
 }
 
+// ---- LOOK-1 (8 Nov 2026): THE HAZE FROM THE WEATHER ----------------------------------------------
+// The aerial perspective's optical-depth scale k = gain x (3.912 / the weather's visibility) / the atlas's own sea-level
+// extinction. The user's pick against the A/B sheets: the physical value (gain 1), k 3.3 on the T2.8 day; 1.5 = ~5x.
+{
+  const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'atmo.js'), 'utf8');
+  const cl = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'clouds.js'), 'utf8');
+  const rwH = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'render_world.js'), 'utf8');
+  const DAYH = require('./flight_core.js').DAY;
+  if (!DAYH || typeof ATMO.hazeK !== 'function') fail('ATMO.hazeK / flight_core DAY missing');
+  else {
+    const g0 = ATMO.HAZE.gain, f0 = ATMO.HAZE.force; ATMO.HAZE.gain = 1; ATMO.HAZE.force = null;
+    const kOf = (t, rh) => { const d = DAYH.makeDay({ turbidity: t, rh }); ATMO.setDay(d); return { k: ATMO.hazeK(d), vis: d.visibilityKm }; };
+    const a = kOf(2.8, 0.5), b = kOf(4, 0.5), c = kOf(2.8, 0.95), e = kOf(10, 0.5);
+    yes(Math.abs(a.k - 3.33) < 0.05, 'the T2.8 day draws its own 48 km: k ' + a.k.toFixed(2) + ' (3.33 = the pick of the user)');
+    yes(b.k > a.k && e.k > b.k, 'a hazier day draws hazier: T4 ' + b.k.toFixed(2) + ', T10 ' + e.k.toFixed(2));
+    yes(c.k > 2 * a.k, 'humid air draws hazier (the column visibility of the day falls with rh): rh 0.95 ' + c.k.toFixed(2));
+    ATMO.HAZE.gain = 1.5; const h = kOf(2.8, 0.5); yes(Math.abs(h.k - 5.0) < 0.1, 'the dial: gain 1.5 is the ~5x summer (' + h.k.toFixed(2) + ')');
+    ATMO.HAZE.gain = 1; ATMO.apK(1); yes(ATMO.hazeK({ visibilityKm: 48 }) === 1, 'apK(1) on a rig forces the old picture');
+    ATMO.apK('auto'); yes(ATMO.HAZE.force === null, "apK('auto') gives it back to the weather");
+    ATMO.HAZE.gain = g0; ATMO.HAZE.force = f0; ATMO.setDay(null);
+  }
+  const has = (t, x) => t.indexOf(x) >= 0;
+  yes(has(src, 'od += (e / 4) * (D / 1000) * apK_[0];'), 'seeT (the far plane, the quadrant cull, the visibility on the panel) sees the air the shader draws');
+  yes(has(src, 'vec4 ap = apScaled(atmoAP());'), 'the splice takes the scaled haze');
+  yes(has(cl, 'vec4 ap = apScaled(apSample(d, tm * 0.001));'), 'the clouds take the same scale');
+  yes(cl.split('uni.uApK = ATMO.apUniforms.uApK').length - 1 === 3, 'all three cloud passes wire uApK (an unwired uniform reads 0: no haze at all)');
+  yes(has(rwH, 'gl_FragColor.rgb *= apScaled(atmoAP()).a;'), 'the runway lights dim through the same air');
+  yes(!has(src + cl + rwH, 'atmoAP().a') && !/apSample\([^)]*\); c = c \* ap\.a/.test(cl), 'no reader left on the unscaled atlas');
+}
+
 console.log(`${checks} checks, ${fails} failed`);
 console.log(`GATE ATMO: ${fails ? 'FAIL (' + fails + ' of ' + checks + ')' : 'PASS'}`);
 process.exit(fails ? 1 : 0);

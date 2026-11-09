@@ -137,7 +137,12 @@ check(unhoused.length === 0,
 // row that has gone stale, which is how a table stops describing the thing.
 // No allowance: the shapes above reach every row (the <= 4 that stood here
 // was an allowance for the rows the old hand-copied pass list missed)
-const ghosts = Object.keys(A.AERO_ROLE).filter(k => !sections.has(k));
+// RETRACT G4 (SEAPLANES 8 Nov): a role the editor gives a MESH of its own, not a cageSheet face - each named with the
+// file that must still use it, so the row cannot go stale unseen (a row whose user is gone reads as a ghost again)
+const MESH_ROLES = { wheelWell: ['_cage_ui.js', "matOf('wheelWell')"] };   // _cage_ui wellApply: the wells' own meshes (edWellWing / edWellNac)
+for (const [k, [file, use]] of Object.entries(MESH_ROLES))
+  check(fs.readFileSync(path.join(ROOT, 'tools', file), 'utf8').includes(use), 'the mesh role ' + k + ' is still used by ' + file, use);
+const ghosts = Object.keys(A.AERO_ROLE).filter(k => !sections.has(k) && !(MESH_ROLES[k] && fs.readFileSync(path.join(ROOT, 'tools', MESH_ROLES[k][0]), 'utf8').includes(MESH_ROLES[k][1])));
 check(ghosts.length === 0, 'role rows for sections no build emits',
   ghosts.join(', '));
 
@@ -1198,7 +1203,9 @@ if (process.argv.includes('--selftest')) {
         'finish: the waistband row is not named for what a bubble canopy makes of it (the band round the cockpit)');
   {
     const ED = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'editor.js'), 'utf8');
-    check(/const finSec = view === 'finish' && hit && hit\.section \? hit\.section : null;[\s\S]{0,200}select\(finSec \? key :[\s\S]{0,300}e\.dataset\.sec === finSec[\s\S]{0,200}scrollIntoView/.test(ED),
+    // WEAR-TAB (48056ffbe, 5 Nov) widened it to the wear view (its rows moved out of finish with their keys): the same click
+    // lands on the struck section's row in either view - the pin follows it (MASTER-GREEN, 8 Nov)
+    check(/const finSec = \(view === 'finish' \|\| view === 'wear'\) && hit && hit\.section \? hit\.section : null;[\s\S]{0,200}select\(finSec \? key :[\s\S]{0,300}e\.dataset\.sec === finSec[\s\S]{0,200}scrollIntoView/.test(ED),
           'finish: a click on a surface in the FINISH view does not land on its own section\'s row');
   }
 }

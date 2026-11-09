@@ -416,7 +416,7 @@
     // G3872: AEROSKIN's copy, not clone() - clone() JSON-cloned the skin's userData (the hook below reads aeroU off it:
     // its texture uniforms came back as plain objects) and put {STANDARD} back over AEROSKIN_SURF (the surface branch)
     const dupe = (typeof AEROSKIN !== 'undefined' && AEROSKIN.aeroDupe) || (s => s.clone());
-    const m = src && src.clone ? dupe(src) : new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0.6, metalness: 0.2 });
+    const m = src && src.clone ? dupe(src) : (typeof MATLIB !== 'undefined' ? MATLIB : require('./matlib.js')).make(THREE, 'std', { color: 0x888888, roughness: 0.6, metalness: 0.2 });
     const own = src ? src.onBeforeCompile : null, ownKey = src && src.customProgramCacheKey ? src.customProgramCacheKey.bind(src) : null;
     m.side = THREE.DoubleSide; m.name = 'dmglook:' + ((src && src.name) || 'pool');
     m.onBeforeCompile = (sh, rr) => {

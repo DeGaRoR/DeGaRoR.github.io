@@ -60,6 +60,10 @@ var AUDIO_PARAMS = (function () {
     // members bent (yields + dents), the pieces off the body (the pieces past the core). The physics worker's damage
     // state (sim.dmgState(), sim_view.js: sent on change) else the inline solver's own record (sim.damage()); 0 whole
     'dmgBrk', 'dmgSet', 'dmgPc',
+    // RETRACT-1 (RETRACT-STUDY §1.10, §3.1): THE GEAR WARNING - 1 while a retractable gear is not down and locked, not
+    // on the ground (the squat switch), with the throttle back (under 25 %: the manifold-pressure switch's ~12-14 inHg)
+    // or the flap past the approach setting (over 35 %); 0 otherwise and on every fixed build (no out.gear)
+    'gearWarn',
   ];
   const AP_ENGINE = ['rpm', 'rpmEng', 'thr', 'running', 'crank', 'key', 'thrustPer',
                      'cyl', 'twoStroke', 'blades', 'D', 'gear', 'family',
@@ -176,6 +180,7 @@ var AUDIO_PARAMS = (function () {
     s[I.thrMaster] = thr;
     s[I.flap] = num(ctl.flap, 0); s[I.brake] = num(ctl.brake, 0);
     s[I.de] = num(ctl.de, 0); s[I.da] = num(ctl.da, 0); s[I.dr] = num(ctl.dr, 0);
+    { const g = o.gear; s[I.gearWarn] = (typeof g === 'number' && g <= 0.98 && !(o.gearWow > 0) && (thr < 0.25 || s[I.flap] > 0.35)) ? 1 : 0; }   // RETRACT-1
     // the stall alpha at this flap: toward the measured landing stall over the landing notch, else the polar's delta
     const st = out.stall, fl = s[I.flap];
     s[I.aStall] = st[0] <= 0 ? 0 : st[2] > 0 ? st[0] + (st[1] - st[0]) * Math.min(1, fl / st[2]) : st[0] - st[3] * fl;

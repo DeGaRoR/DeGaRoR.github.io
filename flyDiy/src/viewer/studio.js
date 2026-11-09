@@ -48,7 +48,7 @@ var STUDIO = (function () {
   function bakeEnv(THREE, renderer, L) {
     if (!THREE.PMREMGenerator || !renderer || !renderer.setRenderTarget) return null;
     const es = new THREE.Scene(), geos = [], mats = [];
-    const mk = (geo, color, side) => { const m = new THREE.MeshBasicMaterial({ color, side: side || THREE.FrontSide }); geos.push(geo); mats.push(m); return new THREE.Mesh(geo, m); };
+    const mk = (geo, color, side) => { const m = (typeof MATLIB !== 'undefined' ? MATLIB : require('./matlib.js')).make(THREE, 'basic', { color, side: side || THREE.FrontSide }); geos.push(geo); mats.push(m); return new THREE.Mesh(geo, m); };
     es.add(mk(new THREE.SphereGeometry(20, 16, 8), L.dome, THREE.BackSide));
     if (L.floor > 0) {   // the floor's bounce: a dim disc under the aeroplane, seen by the undersides
       const fl = mk(new THREE.CircleGeometry ? new THREE.CircleGeometry(14, 24) : new THREE.PlaneGeometry(24, 24), new THREE.Color(L.floor, L.floor * 0.93, L.floor * 0.84), THREE.DoubleSide);
@@ -83,7 +83,7 @@ var STUDIO = (function () {
       if (nrt) { scene.environment = nrt.texture; if (rt) rt.dispose(); rt = nrt; }
     }
     const tex = poolTexture(THREE);
-    const poolMat = new THREE.MeshBasicMaterial({ color: 0xffffff, map: tex, transparent: true, depthWrite: false });
+    const poolMat = (typeof MATLIB !== 'undefined' ? MATLIB : require('./matlib.js')).make(THREE, 'basic', { color: 0xffffff, map: tex, transparent: true, depthWrite: false });
     const pool = new THREE.Mesh(new THREE.PlaneGeometry(16, 16), poolMat);
     pool.rotation.x = -Math.PI / 2; pool.position.y = 0.002; pool.name = 'studio:pool'; pool.renderOrder = -1;
     const floor = new THREE.Group(); floor.add(pool); floor.position.y = y || 0; group.add(floor);

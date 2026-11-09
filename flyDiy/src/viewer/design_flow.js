@@ -819,7 +819,13 @@ function maybeAutoOpen() {
     // EMPTY-STAND-LOOK F2: the chooser came up over a new story career in 2 of 3 runs (FLYDIY_STORY_STARTER read before the
     // story's boot had set it): a career's own aeroplane, or its empty stand's choice, is the door - never this one
     const career = () => window.FLYDIY_MODE === 'career' && !(window.WELCOME && window.WELCOME.mode && window.WELCOME.mode.dev);
-    ready.then(() => setTimeout(() => { if (!window.FLYDIY_STORY_STARTER && !career()) openBirth(); }, 400));
+    // NEWPLANE-LATE (FLAGSHIP, 8 Nov 22:58: the chooser came up over a bench test flight and held its render loop - the plane
+    // stood still in the air): FLYDIY_READY is the boot's promise, and a run that never ends (a hidden pane's garage boot)
+    // leaves it to the NEXT run - the roll-out's end opened the first-launch chooser minutes later, out in the world. It is
+    // the garage boot's door only, and only while nothing has been built since the page opened (garage.js writes flydiy.wip
+    // every rebuild), both read when it fires
+    const late = () => { try { return (window.BOOT && window.BOOT.set && window.BOOT.set !== 'garage') || !!window.localStorage.getItem('flydiy.wip'); } catch (e) { return true; } };
+    ready.then(() => setTimeout(() => { if (!window.FLYDIY_STORY_STARTER && !career() && !late()) openBirth(); }, 400));
   } catch (e) {}
 }
 if (typeof window !== 'undefined') {

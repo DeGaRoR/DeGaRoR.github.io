@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 520" width="1100" height="520" font-family="Helvetica, Arial, sans-serif">
+<rect width="1100" height="520" fill="#ffffff"/>
+<text x="14" y="22" font-size="14" font-weight="bold" fill="#1d2733">Water stability: one discriminator, six options (front views at the step)</text>
+<text x="190.0" y="80.0" font-size="12" fill="#1d2733" text-anchor="middle">strut tip floats</text>
+<text x="190.0" y="96.0" font-size="9" fill="#56636f" text-anchor="middle">stabTipZ 0.85 · stabFloatL 1.4 · stabFloatVol 0.06</text>
+<polygon points="190.0,159.7 181.0,160.2 177.8,161.8 175.3,164.4 173.6,167.6 172.0,178.7 171.9,181.7 175.3,192.9 174.9,193.5 175.8,193.6 190.0,199.3 190.0,199.3 204.2,193.6 205.1,193.5 204.7,192.9 208.1,181.7 208.0,178.7 206.4,167.6 204.7,164.4 202.2,161.8 199.0,160.2 190.0,159.7" fill="#e9eef3" stroke="#1d2733" stroke-width="1.4" stroke-linejoin="round"/>
+<polyline points="179.2,161.2 49.0,153.7 34.0,153.1" fill="none" stroke="#1d2733" stroke-width="3.2" stroke-linejoin="round"/>
+<line x1="57.4" y1="154.8" x2="57.4" y2="189.2" stroke="#1d2733" stroke-width="1.6"/>
+<polygon points="52.0,189.2 62.8,189.2 61.0,194.6 57.4,196.4 53.8,194.6" fill="#3d8f4f" stroke="#3d8f4f" stroke-width="1.4" stroke-linejoin="round"/>
+<polyline points="200.8,161.2 331.0,153.7 346.0,153.1" fill="none" stroke="#1d2733" stroke-width="3.2" stroke-linejoin="round"/>
+<line x1="322.6" y1="154.8" x2="322.6" y2="189.2" stroke="#1d2733" stroke-width="1.6"/>
+<polygon points="317.2,189.2 328.0,189.2 326.2,194.6 322.6,196.4 319.0,194.6" fill="#3d8f4f" stroke="#3d8f4f" stroke-width="1.4" stroke-linejoin="round"/>
+<line x1="28.0" y1="192.8" x2="352.0" y2="192.8" stroke="#2a8bc7" stroke-width="1" stroke-dasharray="8 4"/>
+<text x="550.0" y="80.0" font-size="12" fill="#1d2733" text-anchor="middle">hull-side sponsons</text>
+<text x="550.0" y="96.0" font-size="9" fill="#56636f" text-anchor="middle">spnSpan 0.95 · spnChord 1.5 · spnY 0.1 · spnDihedral -4</text>
+<polygon points="550.0,159.7 541.0,160.2 537.8,161.8 535.3,164.4 533.6,167.6 532.0,178.7 531.9,181.7 535.3,192.9 534.9,193.5 535.8,193.6 550.0,199.3 550.0,199.3 564.2,193.6 565.1,193.5 564.7,192.9 568.1,181.7 568.0,178.7 566.4,167.6 564.7,164.4 562.2,161.8 559.0,160.2 550.0,159.7" fill="#e9eef3" stroke="#1d2733" stroke-width="1.4" stroke-linejoin="round"/>
+<polyline points="539.2,161.2 409.0,153.7 394.0,153.1" fill="none" stroke="#1d2733" stroke-width="3.2" stroke-linejoin="round"/>
+<polygon points="536.5,184.0 507.3,187.6 507.3,190.0 535.5,191.2" fill="#3d8f4f" stroke="#3d8f4f" stroke-width="1.4" stroke-linejoin="round"/>
+<polyline points="560.8,161.2 691.0,153.7 706.0,153.1" fill="none" stroke="#1d2733" stroke-width="3.2" stroke-linejoin="round"/>
+<polygon points="563.5,184.0 592.7,187.6 592.7,190.0 564.5,191.2" fill="#3d8f4f" stroke="#3d8f4f" stroke-width="1.4" stroke-linejoin="round"/>
+<line x1="388.0" y1="192.8" x2="712.0" y2="192.8" stroke="#2a8bc7" stroke-width="1" stroke-dasharray="8 4"/>
+<text x="910.0" y="80.0" font-size="12" fill="#1d2733" text-anchor="middle">planing wing roots</text>
+<text x="910.0" y="96.0" font-size="9" fill="#56636f" text-anchor="middle">wgPos low · rootAtChine 1</text>
+<polygon points="910.0,159.7 901.0,160.2 897.8,161.8 895.3,164.4 893.6,167.6 892.0,178.7 891.9,181.7 895.3,192.9 894.9,193.5 895.8,193.6 910.0,199.3 910.0,199.3 924.2,193.6 925.1,193.5 924.7,192.9 928.1,181.7 928.0,178.7 926.4,167.6 924.7,164.4 922.2,161.8 919.0,160.2 910.0,159.7" fill="#e9eef3" stroke="#1d2733" stroke-width="1.4" stroke-linejoin="round"/>
+<polyline points="891.9,190.0 769.0,182.5 754.0,181.9" fill="none" stroke="#1d2733" stroke-width="3.2" stroke-linejoin="round"/>
+<polyline points="928.1,190.0 1051.0,182.5 1066.0,181.9" fill="none" stroke="#1d2733" stroke-width="3.2" stroke-linejoin="round"/>
+<polygon points="892.8,188.8 862.0,186.4 862.0,188.8 892.8,191.8" fill="#3d8f4f" stroke="#3d8f4f" stroke-width="1.4" stroke-linejoin="round"/>
+<polygon points="927.2,188.8 958.0,186.4 958.0,188.8 927.2,191.8" fill="#3d8f4f" stroke="#3d8f4f" stroke-width="1.4" stroke-linejoin="round"/>
+<line x1="748.0" y1="192.8" x2="1072.0" y2="192.8" stroke="#2a8bc7" stroke-width="1" stroke-dasharray="8 4"/>
+<text x="190.0" y="310.0" font-size="12" fill="#1d2733" text-anchor="middle">drooped buoyant tips</text>
+<text x="190.0" y="326.0" font-size="9" fill="#56636f" text-anchor="middle">wgTip drooped · tipDroop 0.55 · tipVol 0.05</text>
+<polygon points="190.0,389.7 181.0,390.2 177.8,391.8 175.3,394.4 173.6,397.6 172.0,408.7 171.9,411.7 175.3,422.9 174.9,423.5 175.8,423.6 190.0,429.3 190.0,429.3 204.2,423.6 205.1,423.5 204.7,422.9 208.1,411.7 208.0,408.7 206.4,397.6 204.7,394.4 202.2,391.8 199.0,390.2 190.0,389.7" fill="#e9eef3" stroke="#1d2733" stroke-width="1.4" stroke-linejoin="round"/>
+<polyline points="179.2,391.2 49.0,383.7 37.0,393.6 34.0,400.2" fill="none" stroke="#1d2733" stroke-width="3.2" stroke-linejoin="round"/>
+<ellipse cx="34.0" cy="400.2" rx="4.8" ry="3.6" fill="#3d8f4f" opacity="0.85"/>
+<polyline points="200.8,391.2 331.0,383.7 343.0,393.6 346.0,400.2" fill="none" stroke="#1d2733" stroke-width="3.2" stroke-linejoin="round"/>
+<ellipse cx="346.0" cy="400.2" rx="4.8" ry="3.6" fill="#3d8f4f" opacity="0.85"/>
+<line x1="28.0" y1="422.8" x2="352.0" y2="422.8" stroke="#2a8bc7" stroke-width="1" stroke-dasharray="8 4"/>
+<text x="550.0" y="310.0" font-size="12" fill="#1d2733" text-anchor="middle">hydrofins</text>
+<text x="550.0" y="326.0" font-size="9" fill="#56636f" text-anchor="middle">finSpan 0.8 · finChord 0.45 · finY 0.08</text>
+<polygon points="550.0,389.7 541.0,390.2 537.8,391.8 535.3,394.4 533.6,397.6 532.0,408.7 531.9,411.7 535.3,422.9 534.9,423.5 535.8,423.6 550.0,429.3 550.0,429.3 564.2,423.6 565.1,423.5 564.7,422.9 568.1,411.7 568.0,408.7 566.4,397.6 564.7,394.4 562.2,391.8 559.0,390.2 550.0,389.7" fill="#e9eef3" stroke="#1d2733" stroke-width="1.4" stroke-linejoin="round"/>
+<polyline points="539.2,391.2 409.0,383.7 394.0,383.1" fill="none" stroke="#1d2733" stroke-width="3.2" stroke-linejoin="round"/>
+<polyline points="535.8,422.7 511.8,426.0" fill="none" stroke="#3d8f4f" stroke-width="4" stroke-linejoin="round"/>
+<polyline points="560.8,391.2 691.0,383.7 706.0,383.1" fill="none" stroke="#1d2733" stroke-width="3.2" stroke-linejoin="round"/>
+<polyline points="564.2,422.7 588.2,426.0" fill="none" stroke="#3d8f4f" stroke-width="4" stroke-linejoin="round"/>
+<line x1="388.0" y1="422.8" x2="712.0" y2="422.8" stroke="#2a8bc7" stroke-width="1" stroke-dasharray="8 4"/>
+<text x="910.0" y="310.0" font-size="12" fill="#1d2733" text-anchor="middle">outrigger hulls (the float layer, wide track)</text>
+<text x="910.0" y="326.0" font-size="9" fill="#56636f" text-anchor="middle">gearFloats 1 · fltTrack 1.55 · fltL 2.6</text>
+<polygon points="910.0,389.7 901.0,390.2 897.8,391.8 895.3,394.4 893.6,397.6 892.0,408.7 891.9,411.7 895.3,422.9 894.9,423.5 895.8,423.6 910.0,429.3 910.0,429.3 924.2,423.6 925.1,423.5 924.7,422.9 928.1,411.7 928.0,408.7 926.4,397.6 924.7,394.4 922.2,391.8 919.0,390.2 910.0,389.7" fill="#e9eef3" stroke="#1d2733" stroke-width="1.4" stroke-linejoin="round"/>
+<polyline points="899.2,391.2 769.0,383.7 754.0,383.1" fill="none" stroke="#1d2733" stroke-width="3.2" stroke-linejoin="round"/>
+<polyline points="899.2,391.2 863.5,389.4" fill="none" stroke="#1d2733" stroke-width="3.2" stroke-linejoin="round"/>
+<line x1="863.5" y1="389.4" x2="863.5" y2="419.8" stroke="#1d2733" stroke-width="1.6"/>
+<polygon points="857.5,419.8 869.5,419.8 867.7,426.4 863.5,428.8 859.3,426.4" fill="#3d8f4f" stroke="#3d8f4f" stroke-width="1.4" stroke-linejoin="round"/>
+<polyline points="920.8,391.2 1051.0,383.7 1066.0,383.1" fill="none" stroke="#1d2733" stroke-width="3.2" stroke-linejoin="round"/>
+<polyline points="920.8,391.2 956.5,389.4" fill="none" stroke="#1d2733" stroke-width="3.2" stroke-linejoin="round"/>
+<line x1="956.5" y1="389.4" x2="956.5" y2="419.8" stroke="#1d2733" stroke-width="1.6"/>
+<polygon points="950.5,419.8 962.5,419.8 960.7,426.4 956.5,428.8 952.3,426.4" fill="#3d8f4f" stroke="#3d8f4f" stroke-width="1.4" stroke-linejoin="round"/>
+<line x1="748.0" y1="422.8" x2="1072.0" y2="422.8" stroke="#2a8bc7" stroke-width="1" stroke-dasharray="8 4"/>
+</svg>

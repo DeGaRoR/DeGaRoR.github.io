@@ -17,15 +17,25 @@
 (function () {
   const LIVE_DRAW = true;
   const W = 240, H = 120, SS = 2, FILL = 0.9, BG0 = '#2b2724', BG1 = '#0a0908';
-  const PREF = 'flydiy.thumb.', BAKED = 'media/thumbs/';
+  const PREF = 'flydiy.thumb.', BAKED = 'media/thumbs/', HEROES = 'media/heroes/';
   const cache = new Map();   // key -> url (the session's)
-  let bgTex = null, pending = null, bakedLoading = false;
+  let bgTex = null, pending = null, bakedLoading = false, heroesLoading = false;
   const tell = key => { try { window.dispatchEvent(new CustomEvent('plane-thumb', { detail: { key } })); } catch (e) {} };
   function loadBaked() {
     if (bakedLoading || typeof fetch !== 'function') return;
     bakedLoading = true;
     fetch(BAKED + 'index.json', { cache: 'no-cache' }).then(r => r.ok ? r.json() : {}).catch(() => ({}))
       .then(j => { api.baked = (j && j.thumbs) || {}; tell('*'); });
+  }
+  // THE HEROES (PLANE-RENDERS R2, 8 Nov): the wider lists' picture - the take-off three-quarter under the studio's light,
+  // baked (tools/thumb_bake.js --hero) for every plane the thumbs bake draws, the same keys; its index fetched on the first
+  // ask, 'plane-thumb' told with key 'hero:*' when it lands. The player's own builds have none yet (R3: at the first
+  // certificate, then an update button - the user, 7 Nov)
+  function loadHeroes() {
+    if (heroesLoading || typeof fetch !== 'function') return;
+    heroesLoading = true;
+    fetch(HEROES + 'index.json', { cache: 'no-cache' }).then(r => r.ok ? r.json() : {}).catch(() => ({}))
+      .then(j => { api.heroes = (j && j.heroes) || {}; tell('hero:*'); });
   }
   const prefs = () => { try { return window.localStorage; } catch (e) { return null; } };
   // a cheap stable hash of the spec (the cache key: an edited build redraws)
@@ -197,6 +207,14 @@
       return f ? BAKED + f : null;
     },
     forget(name) { cache.delete('mine:' + name); const L = prefs(); try { L && L.removeItem(PREF + 'mine:' + name); } catch (e) {} },
+    // the hero of a baked key ('stock:', 'cand:', 'design:', 'arch:'): a URL, or null (none, or its index not landed yet)
+    hero(key) {
+      if (!key || key.startsWith('mine:')) return null;
+      if (api.heroes == null) { loadHeroes(); return null; }
+      const f = api.heroes[key];
+      return f ? HEROES + f : null;
+    },
+    heroes: null,  // { key: file } from media/heroes/index.json, loaded on the first hero() ask
     baked: null,   // { key: file } from media/thumbs/index.json (the bake), loaded at boot
     draw, warm, encode, hashOf,
   };

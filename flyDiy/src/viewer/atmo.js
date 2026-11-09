@@ -539,6 +539,7 @@ var ATMO = (function () {
     #define ATMO_AP_SAMPLER
     uniform sampler2D uApAtlas;
     #endif
+    uniform vec2 uApK;         // x: the aerial perspective's optical-depth scale (1 = the atlas as baked; LOOK-1 8 Nov)
     uniform vec4 uAtmoAP;      // x: the radiance scale (K_SUN x unit), y: dmax (km), z: on/off, w: the tables' gain (A6: the night's stops)
     vec4 apSample(vec3 d, float dist) {
       float el = asin(clamp(d.y, -1.0, 1.0)), az = atan(d.x, -d.z);
@@ -553,6 +554,13 @@ var ATMO = (function () {
       vec4 b = texture2D(uApAtlas, vec2((k1 + uu) / ${AP_N}.0, v));
       vec4 r = mix(a, b, f); r.rgb /= max(1.0, uAtmoAP.w);   // the table's gain taken back out
       return r;
+    }
+    // THE HAZE FROM THE WEATHER (LOOK-1 8 Nov): uApK.x times the air along the same ray - T^k, and the in-scatter of
+    // that one medium on the same path (Koschmieder: L = L_inf (1 - T), so L_k = L (1 - T^k) / (1 - T)). k = 1 is
+    // the atlas exactly as baked. Every reader of apSample goes through this, or its haze disagrees with the rest.
+    vec4 apScaled(vec4 ap) {
+      float T = pow(max(ap.a, 1e-6), uApK.x);
+      return vec4(ap.rgb * ((1.0 - T) / max(1.0 - ap.a, 1e-4)), T);
     }`;
   const AP_PARS_FRAG = `
     varying vec3 vAtmoV;
@@ -565,7 +573,8 @@ var ATMO = (function () {
   const AP_APPLY = `
     #ifdef USE_FOG
     if (uAtmoAP.z > 0.5) {
-      vec4 ap = atmoAP(); gl_FragColor.rgb = gl_FragColor.rgb * ap.a + ap.rgb * uAtmoAP.x * gl_FragColor.a;
+      vec4 ap = apScaled(atmoAP());
+      gl_FragColor.rgb = gl_FragColor.rgb * ap.a + ap.rgb * uAtmoAP.x * gl_FragColor.a;
     }
     gl_FragColor.rgb = mistApply(gl_FragColor.rgb, normalize((vec4(vAtmoV, 0.0) * viewMatrix).xyz), length(vAtmoV), cameraPosition.y);
     #endif
@@ -584,7 +593,21 @@ var ATMO = (function () {
   // would carry the old unit); applyDay then writes the same value from the day
   if (typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.onPre) LIGHT_RIG.onPre((P, old) => { const r = P / old; U.scale.value *= r; apScalars[0] = U.scale.value; for (let i = 4; i < 7; i++) mistScalars[i] *= r; });
                                                               //  | eye xyz, march N | field origin xz, 1/size, band ceiling | drift xz, patch scale, patchiness  (F2)]
-  const apUniforms = { uApAtlas: { value: null }, uAtmoAP: { value: apScalars }, uMist: { value: mistScalars } };
+  const apK_ = new Float32Array([1, 0]);                     // LOOK-1: the aerial perspective's optical-depth scale (x), by reference like apScalars
+  // THE HAZE FROM THE WEATHER (LOOK-1, 8 Nov 2026). The atlas is baked from the day's TURBIDITY on Hillaire's Mie
+  // (mieK above), and at the default T2.8 its sea-level extinction is 0.0246 /km - a Koschmieder visibility of 159 km.
+  // The SAME day states 48 km (07_day.js: visibilityKm = 375 / T^2, less in humid air), so the picture was 3.3x
+  // clearer than its own weather (4.5x at T4, 7.6x at T10), and nothing changed with the humidity at all. Here the
+  // weather's extinction (3.912 / the column visibility: the climate's, a front's murk included, else the day's) over
+  // the atlas's own is the optical-depth scale k, every frame. The mist layer is NOT in it - it is a second medium
+  // (07_day.js), applied after.
+  //   gain   THE DIAL: 1 = the weather's own visibility (k 3.3 on the default day - the user's pick, 8 Nov, against
+  //          the A/B sheets). 1.5 is the hazier summer the user called "OK too" (~5x, ~30 km). ?haze=<gain> in the URL.
+  //   force  a fixed k for a rig (ATMO.apK(k); ATMO.apK('auto') gives it back to the weather). 1 = the old picture.
+  //   k, visKm   what was applied this frame, and from which visibility (read-only)
+  const HAZE = { gain: 1, force: null, k: 1, visKm: null, kMax: 64 };
+  try { const v = new URLSearchParams(location.search).get('haze'); if (v !== null && v !== '' && isFinite(+v)) HAZE.gain = Math.max(0, +v); } catch (e) {}
+  const apUniforms = { uApAtlas: { value: null }, uAtmoAP: { value: apScalars }, uMist: { value: mistScalars }, uApK: { value: apK_ } };
   // THE MIST'S DIALS: on/off (the GRAPHICS menu), the density as a multiplier over the day's own
   // (`day.mistRho0`, derived in 07_day.js - saturated air sees 1.2 km), its top (m ASL)
   // and thickness (m), the forward peak. F8's atmosphere fold writes these.
@@ -612,7 +635,7 @@ var ATMO = (function () {
     SC.fog_fragment = AP_FOG_FRAG;
     SC.tonemapping_fragment = AP_APPLY + '\n' + (SC.tonemapping_fragment || '');
     for (const k of ['basic', 'lambert', 'phong', 'standard', 'physical', 'toon', 'matcap', 'points', 'sprite']) {  // pre-ok: a list of material kinds, not a writer
-      const lib = THREE.ShaderLib[k]; if (lib && lib.uniforms) { lib.uniforms.uAtmoAP = apUniforms.uAtmoAP; lib.uniforms.uMist = apUniforms.uMist; }
+      const lib = THREE.ShaderLib[k]; if (lib && lib.uniforms) { lib.uniforms.uAtmoAP = apUniforms.uAtmoAP; lib.uniforms.uMist = apUniforms.uMist; lib.uniforms.uApK = apUniforms.uApK; }
     }
     // EVERY MATERIAL TAKES THE SAMPLER, a hook of its own or not (G432.2, the user: "check why the
     // houses don't render"): the prototype's onBeforeCompile is an ACCESSOR - a material's own hook is
@@ -648,10 +671,27 @@ var ATMO = (function () {
     sh.uniforms.uApAtlas = apUniforms.uApAtlas;
     if (!sh.uniforms.uAtmoAP) sh.uniforms.uAtmoAP = apUniforms.uAtmoAP;
     if (!sh.uniforms.uMist) sh.uniforms.uMist = apUniforms.uMist;
+    if (!sh.uniforms.uApK) sh.uniforms.uApK = apUniforms.uApK;
     if (typeof CLOUDS !== 'undefined' && CLOUDS.inject) CLOUDS.inject(sh);   // the clouds' shadow sampler rides the same two paths (C2)
     if (typeof SHADOW_NEAR !== 'undefined' && SHADOW_NEAR.inject) SHADOW_NEAR.inject(sh);   // the craft's near map flag (A6)
   }
   function setAP(on) { apScalars[2] = on ? 1 : 0; }
+  function apK(k) {
+    if (k === 'auto' || k === false) HAZE.force = null;
+    else if (k != null && isFinite(+k)) { HAZE.force = Math.max(0, +k); apK_[0] = HAZE.force; }
+    return apK_[0];
+  }
+  const _medH = { sR: [0, 0, 0], sM: 0, e: [0, 0, 0] };
+  function hazeK(day) {
+    if (HAZE.force != null) { HAZE.visKm = null; return HAZE.force; }
+    if (!day) return 1;
+    const CL = typeof CLIMATE_LINK !== 'undefined' && CLIMATE_LINK.pub ? CLIMATE_LINK.pub.haze : null;
+    const vis = (CL && CL.column && CL.column.visibilityKm > 0) ? CL.column.visibilityKm : day.visibilityKm;
+    HAZE.visKm = vis > 0 ? vis : null;
+    if (!(vis > 0)) return 1;
+    medium(0, _medH);                                          // the atlas's own air at sea level (green, per km)
+    return Math.min(HAZE.kMax, HAZE.gain * (3.912 / vis) / Math.max(1e-6, _medH.e[1]));
+  }
 
   // ---- the dome ------------------------------------------------------------
   // The sky-view sample, the sun and moon discs from the transmittance, the
@@ -661,6 +701,7 @@ var ATMO = (function () {
     uniform sampler2D uSky, uT2;
     uniform vec4 uAtm2;           // Rg, Rt, sunRad, moonRad
     uniform float uR, uScale, uEMoon, uStars, uFrame;   // uFrame: the room's yaw onto the world's frame (the shed is a quarter turn)
+    uniform vec2 uStarK;   // STAR-LOVE: x the star disc's radius in pixels' footprints (the mirror's pass sets its own), y its least radius, radians
     uniform float uGlare, uEyeY, uLutGain;                // the corona's strength (S7); the eye's height for the mist; the tables' gain (A6)
     // THE VEIL (CLOUDS C4): cirrus / cirrostratus - a 2D noise sheet at uVeil.w metres, its coverage
     // uVeil.x (a threshold on the noise like the weather map's), drifted by uVeil.yz, optically thin:
@@ -726,24 +767,58 @@ ${MIST_GLSL}
         // the disc's radiance = albedo/pi x (sun on the moon) - the sun's illuminance at the moon is 1: E_moon on us = albedo/pi x omega
         L += Tm * 0.12 / 3.14159265 * lit * edge * above * 1.0;
       }
-      // the stars: a hashed field on a fine grid, hidden by the sky's own light and the path's transmittance.
-      // IN THE SUN'S UNITS: the whole starry sky is ~2e-9 of the sun's illuminance, so one star texel is
-      // ~1e-5 here - anything brighter blurs into a glow in the reflection probe (measured: a white night)
+      // the stars: a hashed field, hidden by the sky's own light and the path's transmittance.
+      // IN THE SUN'S UNITS: the whole starry sky is ~2e-9 of the sun's illuminance - anything brighter blurs into a glow in the reflection probe (measured: a white night)
+      // STAR-LOVE (the user 8 Nov: "they really are white pixels, so smoothing, no halo, no decreasing intensity with the viewing angle"): the field was a 3D
+      // grid of cells 1/900 wide, each lit cell drawn at one radiance, sampled once at the pixel's centre - a cell smaller than a pixel was hit or missed as the
+      // view moved (the shimmer), and a mask that switched with the cells per pixel changed its brightness across the screen. Now each lit cell of an EQUAL-ANGLE
+      // CUBE grid (STAR_N cells across a face, ~0.1 deg) holds ONE STAR at a hashed place, drawn as a smooth disc (1 - x^2)^2 - compact, no halo - of radius
+      // max(uStarK.y rad, uStarK.x pixels' footprint), its height 3 F / (pi r^2) so its flux F is the same at any size: a star crossing pixels keeps its light,
+      // on any screen and at any place on it. The 3 x 3 cells round the pixel's are read (a disc up to a cell wide); no star in a face's border cells (no seam).
+      // The field's mean light is the old one's (the probe and the water see the same night): F = 1.5e-5 x 0.015 x the cell's solid angle / STAR_P per unit b.
       if (uStars > 0.0 && d.y > -0.02) {
-        vec3 g = floor(d * 900.0);
-        float h = hash13(g), h2 = hash13(g + 17.0);
-        float star = smoothstep(0.985, 1.0, h) * (0.4 + 0.6 * h2);
-        // a star is a cell of the grid: once a cell spans several pixels (a long lens, a large screen) it read as a white square; round there, the game's wide view as it was
-        star *= mix(1.0 - smoothstep(0.08, 0.42, length(fract(d * 900.0) - 0.5)), 1.0, smoothstep(0.35, 0.9, 900.0 * length(fwidth(d))));
-        // G2600: THE MOON WASHES THE FAINT STARS OUT - under a full moon the eye's limiting magnitude falls from ~6.5 to
-        // ~4.5, a fifth of the stars left. The moonlit sky (~1e-8 here) is far under the 3e-6 that hides a star below, so
-        // it is the moon's own light that thins them: the faint (low h2) go first, the full moon leaves the brightest 30 %.
-        // By day the term is already 0 (the sky hides every star): the day is untouched.
+        vec3 aD = abs(d); vec2 fuv; vec3 fax; float fsg;
+        if (aD.x >= aD.y && aD.x >= aD.z) { fuv = d.yz / aD.x; fax = vec3(1.0, 0.0, 0.0); fsg = sign(d.x); }
+        else if (aD.y >= aD.z) { fuv = d.xz / aD.y; fax = vec3(0.0, 1.0, 0.0); fsg = sign(d.y); }
+        else { fuv = d.xy / aD.z; fax = vec3(0.0, 0.0, 1.0); fsg = sign(d.z); }
+        const float STAR_N = 900.0, STAR_P = 0.047;
+        vec2 sq = (atan(fuv) * 1.2732395 * 0.5 + 0.5) * STAR_N;     // equal-angle: atan(uv) x 4 / pi, into cells
+        vec2 sc = floor(sq);
+        float pxA = 0.5 * (length(dFdx(d)) + length(dFdy(d)));      // the pixel's footprint, radians
+        float cellA = 1.5707963 / STAR_N;                            // a cell, radians (at the face's centre; ~0.7 of it at a corner)
+        float sr = min(max(uStarK.y, uStarK.x * pxA), 0.7 * cellA);
+        // STAR_LVL: the field at 0.03 of the old one's light - the old stars were 30 x and more over the screen's white at night (every star a clipped white
+        // pixel, the user's "white pixels"); at 0.03 the brightest just reach white and the disc's soft edge shows (measured 8 Nov, the tune2 stills)
+        const float STAR_LVL = 0.03;
+        float sK = STAR_LVL * 3.0 / (3.14159265 * sr * sr) * 1.5e-5 * 0.015 * (12.5663706 / (6.0 * STAR_N * STAR_N)) / STAR_P;
         float wash = clamp(uEMoon / 2.5e-6, 0.0, 1.0) * smoothstep(-0.02, 0.1, uMoon.y);
-        star *= smoothstep(0.7 * wash, 0.7 * wash + 0.12, h2);
-        vec3 tint = mix(vec3(1.0, 0.9, 0.8), vec3(0.8, 0.9, 1.0), h2);
+        vec3 sAcc = vec3(0.0);
+        vec3 fid = fax * (fsg + 2.0);
+        for (int sj = -1; sj <= 1; sj++) for (int si = -1; si <= 1; si++) {
+          vec2 cc = sc + vec2(float(si), float(sj));
+          if (cc.x < 1.0 || cc.y < 1.0 || cc.x > STAR_N - 2.0 || cc.y > STAR_N - 2.0) continue;
+          vec3 key = vec3(cc, dot(fid, vec3(1.0, 5.0, 25.0)));
+          float h = hash13(key);
+          if (h < 1.0 - STAR_P) continue;
+          float h2 = hash13(key + 17.0);
+          vec2 jt = vec2(hash13(key + 31.0), hash13(key + 57.0));
+          vec2 su = tan(((cc + jt) / STAR_N * 2.0 - 1.0) * 0.78539816);   // the star's place on the face (uv), back from equal-angle
+          vec3 sd = fax.x > 0.5 ? vec3(fsg, su.x, su.y) : (fax.y > 0.5 ? vec3(su.x, fsg, su.y) : vec3(su.x, su.y, fsg));
+          float x2 = dot(d - normalize(sd), d - normalize(sd)) / (sr * sr);
+          if (x2 >= 1.0) continue;
+          float b = smoothstep(1.0 - STAR_P, 1.0, h) * (0.4 + 0.6 * h2);
+          // G2600: THE MOON WASHES THE FAINT STARS OUT - under a full moon the eye's limiting magnitude falls from ~6.5 to
+          // ~4.5, a fifth of the stars left. The moonlit sky (~1e-8 here) is far under the 3e-6 that hides a star below, so
+          // it is the moon's own light that thins them: the faint (low h2) go first, the full moon leaves the brightest 30 %.
+          // By day the term is already 0 (the sky hides every star): the day is untouched.
+          b *= smoothstep(0.7 * wash, 0.7 * wash + 0.12, h2);
+          float w = 1.0 - x2;
+          sAcc += mix(vec3(1.0, 0.9, 0.8), vec3(0.8, 0.9, 1.0), h2) * b * w * w;
+        }
         float lum = dot(L, vec3(0.2126, 0.7152, 0.0722));
-        L += tint * star * uStars * 1.5e-5 * Tview * (1.0 - smoothstep(0.0, 3e-6, lum));
+        // STAR-LOVE (the user 8 Nov: "that's what I meant. The fading through denser air"): no extinction - a star keeps its light at every view angle,
+        // down to the horizon (the sky's own light still hides it by day and in the glow)
+        L += sAcc * sK * uStars * (1.0 - smoothstep(0.0, 3e-6, lum));
       }
       L += veil(d, uSun);                                      // THE VEIL (C4): over the sun and moon discs, under the corona
       // THE CORONA (S7): the eye's own scatter around a disc ten thousand times the sky - a 1/theta^2
@@ -767,7 +842,7 @@ ${MIST_GLSL}
   // ---- the GPU half ---------------------------------------------------------
   const G = { ready: false, enabled: false, texT: null, texMS: null, rtSky: null, rtAP: null, quad: null, cam: null, skyMat: null, apMat: null, atmU: null };
   const U = {                                   // shared uniform objects (one value each, every consumer reads them)
-    sun: null, moon: null, eMoon: { value: 0 }, r: { value: 6360.0 }, scale: { value: 1 }, stars: { value: 1 },
+    sun: null, moon: null, eMoon: { value: 0 }, r: { value: 6360.0 }, scale: { value: 1 }, stars: { value: 1 }, starK: { value: { x: 1.5, y: 1.5e-4 } },
     glare: { value: 1 }, eyeY: { value: 0 },
     lutGain: { value: 1 },   // A6: 2^(the exposure's stops) - the sky-view and AP tables are stored x this so a night sky (1e-6 of the sun) is not a half float's subnormal (the white bands on the night horizon)
     veil: { value: new Float32Array([0, 0, 0, 9000]) }, veilSun: { value: new Float32Array(3) }, veilSky: { value: new Float32Array(3) },   // CLOUDS C4
@@ -865,7 +940,7 @@ ${MIST_GLSL}
     // the clear air, four samples along the segment (its extinction varies only with height)
     let e = 0;
     for (let i = 0; i < 4; i++) { medium(Math.max(0, (y0 + (yT - y0) * (i + 0.5) / 4) / 1000), _med); e += (_med.e[0] + _med.e[1] + _med.e[2]) / 3; }
-    od += (e / 4) * (D / 1000);          // medium() is per km
+    od += (e / 4) * (D / 1000) * apK_[0];   // medium() is per km; x the weather's scale, the shader's own (LOOK-1)
     return Math.exp(-od);
   }
   // the distance at which a thing standing at yT stops being visible from an eye at y0
@@ -961,6 +1036,7 @@ ${MIST_GLSL}
   function update(renderer, day, camAltM, eye, world) {
     if (!G.enabled) return false;
     if (setDay(day) || lastVer < 0) { bakeT(); bakeMS(); uploadTex(G.texT, lutT, TW, TH); uploadTex(G.texMS, lutMS, MW, MH); refreshAtmUniforms(G.atmU); lastVer = day ? day.version : 0; }
+    HAZE.k = apK_[0] = hazeK(day);
     const s = day ? day.sun : [0, 1, 0], m = day ? day.moon : [0, -1, 0];
     U.sun.value.set(s[0], s[1], s[2]); U.moon.value.set(m[0], m[1], m[2]);
     U.eMoon.value = day ? ((typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.moonE) ? LIGHT_RIG.moonE(day.moonPhase) : 2.5e-6 * day.moonPhase) : 0;   // G2600: the phase law (light_rig)
@@ -1059,7 +1135,7 @@ ${MIST_GLSL}
     if (!G.enabled) return null;
     const m = new THREE.ShaderMaterial(Object.assign({
       uniforms: { uSky: { value: G.rtSky.texture }, uT2: { value: G.texT }, uAtm2: { value: new THREE.Vector4(P.Rg, P.Rt, P.sunRad, P.moonRad) },
-                  uR: U.r, uScale: U.scale, uEMoon: U.eMoon, uStars: U.stars, uSun: U.sun, uMoon: U.moon, uFrame: { value: frameYaw || 0 },
+                  uR: U.r, uScale: U.scale, uEMoon: U.eMoon, uStars: U.stars, uStarK: U.starK, uSun: U.sun, uMoon: U.moon, uFrame: { value: frameYaw || 0 },
                   uGlare: U.glare, uEyeY: U.eyeY, uMist: apUniforms.uMist, uVeil: U.veil, uVeilSun: U.veilSun, uVeilSky: U.veilSky, uLutGain: U.lutGain,
                   // F2: MIST_GLSL samples the mist's field from the atlas, so the dome - which carries
                   // that block verbatim - needs the sampler too (it is the same texture it helps fill)
@@ -1207,7 +1283,7 @@ ${MIST_GLSL}
     P, setDay, medium: (h) => medium(h, newMed()), transmittance, T, MS, skyRadiance, skyIrradiance, sunTransmittance, groundIrradiance, makeProbe, probes,
     bakeT, bakeMS, tUV, tFromUV, phaseMie, lut: () => ({ T: lutT, MS: lutMS, TW, TH, MW, MH }),
     init, update, domeMat, U, G, get enabled() { return G.enabled; },
-    install, inject, setAP, bakeField, mistODcpu, seeT, seeRange,
+    install, inject, setAP, apK, HAZE, hazeK, bakeField, mistODcpu, seeT, seeRange,
     // the water's mirror capture renders from an eye BELOW the surface; the splice reads its own
     // `cameraPosition`, but the dome's mist takes `uEyeY`, which is the MAIN eye's. A capture that
     // wants it exact brackets itself with this (the water session's ask, 2026-09-22).

@@ -679,7 +679,7 @@ if (SELF) {
   ok(p === null, 'an infinite value has no marker');
 }
 
-// G3914 (A0 5 Nov: TAILWHEELS bumped PHYSICS_V and nobody re-stamped the story's Rufus; its body had moved too, the dummy rows' rename and the new rows, so the load withdrew it): A SHIPPED CERTIFICATE IS CURRENT.
+// G3914 (A0 5 Nov: TAILWHEELS bumped PHYSICS_V and nobody re-stamped the story's Rufus; its body had moved too, the pilot rows' rename and the new rows, so the load withdrew it): A SHIPPED CERTIFICATE IS CURRENT.
 // Each shipped stamped file: the bench check held under this GEN_SPEC_V and PHYSICS_V in the current scheme, the stamp the one recorded here, and the body the load door builds now the one recorded with it. The page's
 // hash is the page's alone (its live export, last bits included), so the door's own hash stands beside it. A red here means re-stamp: load the file in the game, run the bench check, save the file the game writes, and
 // record both hashes; never edit the plaque's numbers

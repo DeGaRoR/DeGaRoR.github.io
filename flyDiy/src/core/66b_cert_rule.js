@@ -44,7 +44,7 @@ const CERT_CONDITION = ['aging'];
 // (BENCH_STATE_ROWS and PROCURE_STATE_ROWS, now one).
 // The crew's names: pilotWho / copWho / cabWho / crewOn (master), pilOn after G3700 (the racer; the load migration renames
 // the older row); the tyres' whSlick and the hangar doors' hgDr* are state too (bench.js / 76_procure, L28b).
-const CERT_STATE_ROWS = /^_view|^(explodeD|pilOn|whSlick|crewOn|pilotWho|copWho|cabWho|cabOcc|paxOcc\d+|lightOn|li_reflect|li_beaconRpm|accDetail|li_(?:nav|beacon|taxi|land|flood|instr|pedal|pax)|li_[a-z]+Fit)$|^hgDr[A-Z]/;
+const CERT_STATE_ROWS = /^_view|^(explodeD|pilOn|whSlick|crewOn|pilotWho|copWho|cabWho|cabOcc|paxOcc\d+|lightOn|li_reflect|li_beaconRpm|accDetail|accBeacon|li_(?:nav|beacon|taxi|land|flood|instr|pedal|pax)|li_[a-z]+Fit)$|^hgDr[A-Z]/;
 // rows the JOIN MEASURES off the design (never the player's): a block -> its measured keys
 const CERT_MEASURED = {
   cabin: ['glazedM2', 'glazingMat', 'seatsX', 'occupied', 'pilots', 'pax'],
@@ -89,7 +89,7 @@ function certStrip(spec, o) {
   // cage, and a dash picked later never withdraws the maker's certificate
   // G2820 / G2827 (STOL-WING, L28b) on the core's path too: a STOL record at "every device off" is the absent key, as
   // bench.js benchStripCosmetic and procureFpP1 have it
-  if (Array.isArray(c.wings)) for (const w of c.wings) if (w && typeof w === 'object' && w.stol == null) delete w.stol;
+  if (Array.isArray(c.wings)) for (const w of c.wings) if (w && typeof w === 'object') { if (w.stol == null) delete w.stol; if (w.tipShape == null) delete w.tipShape; }   // (HULL-B26: the tip's own shape, null = the kind's - as stol)
   if (c.cage && typeof genStolCageOff === 'function') c.cage = genStolCageOff(c.cage);
   if (c.cage && typeof c.cage === 'object' && c.cage.dashV != null) {
     const cg = c.cage;

@@ -118,9 +118,9 @@ function occupants(key, D) {
   finally { if (env == null) delete process.env.FLYDIY_JOIN_PROBE; else process.env.FLYDIY_JOIN_PROBE = env;
             if (nc == null) delete process.env.FLYDIY_JOIN_NOCACHE; else process.env.FLYDIY_JOIN_NOCACHE = nc; }
   const o = (L.probe && L.probe.out) || {};
-  return ['edDum1', 'edDum2'].filter(k => o[k]).map(k => {
+  return ['edCrew1', 'edCrew2'].filter(k => o[k]).map(k => {
     const [x, y, z] = o[k].at, h = D.holes.find(q => z >= q.z0 && z <= q.z1);
-    return { who: k === 'edDum1' ? 'pilot' : 'second', z, headTop: y, inOpening: !!h,
+    return { who: k === 'edCrew1' ? 'pilot' : 'second', z, headTop: y, inOpening: !!h,
              overRail: h ? y - h.rail : null, overCrown: h ? y - h.y1 : null };
   });
 }

@@ -86,8 +86,22 @@ const HV = require(path.join(ROOT, 'src', 'viewer', 'hangar_view.js'));
   const hvCode = hv.replace(/\/\/.*$/gm, '');
   ok(!('userData' in new THREE.WebGLRenderTarget(4, 4)) && !/\.userData\b/.test(hvCode) && /capLin === lin/.test(hvCode),
     '3l the capture target\'s mode is kept in the view (capLin), never on a target\'s userData (three r' + THREE.REVISION + ' has none: the boot\'s first face threw)');
+  // HVIEW-OFF (8 Nov, the user's verdict): the view is OFF by default until the redesign replaces it; ?hview=1 turns it on
+  ok(/const hviewOff = \(\) => \{ try \{ return !\/\[\?&\]hview=1\\b\/\.test\(location\.search \|\| ''\); \} catch \(e\) \{ return true; \} \};/.test(app),
+    '3m the view is off by default (the room\'s own outdoors), on only with ?hview=1 (HVIEW-OFF, 8 Nov: until the redesign)');
+  // GARAGE-CLOUDS (8 Nov, the cloud bisect): the noise volume is baked by CLOUDS.draw (the world's pass) only, so a boot into the garage
+  // marched an empty noise - the room's cloud layer blank on every master back to 22 Oct. The shed's day bakes it itself
+  const cl = src('src/viewer/clouds.js');
+  ok(/CLOUDS\.ready && CLOUDS\.active && !CLOUDS\.baked && CLOUDS\.bakeStep && CLOUDS\.bakeStep\(\)\) skyBakedSun = null;/.test(han) && /if \(!bakeStep\(\)\) return;/.test(cl) && /bakeStep, probe/.test(cl) && /get baked\(\)/.test(cl),
+    '3n the room bakes the clouds\' noise itself (the world\'s draw is its only other baker), and re-shoots its probe when done (GARAGE-CLOUDS)');
   // 4 no readback
   ok(!/readRenderTargetPixels|readPixels|getBufferSubData/.test(hv), '4 NO READBACK in hangar_view.js (the distance reaches the mesh by a vertex fetch)');
+  // HANGAR-BS (8 Nov, found by HVC-DOOR on the prototype): a node patch wrote the regexes' \b as a backspace byte (0x08), so
+  // ?roompolish=0 and ?roomdirt=0 never matched. No control byte in the room's sources; both switches are word boundaries
+  const ctlAt = s => { const m = /[\x00-\x08\x0b\x0c\x0e-\x1f]/.exec(s); return m ? 'byte ' + m[0].charCodeAt(0) + ' at ' + m.index : ''; };
+  const ctlBad = [['app.js', app], ['hangar.js', han], ['hangar_view.js', hv]].map(([f, s]) => ctlAt(s) && f + ' ' + ctlAt(s)).filter(Boolean);
+  ok(!ctlBad.length && /\/\[\?&\]roompolish=0\\b\//.test(han) && /\/\[\?&\]roomdirt=0\\b\//.test(han),
+    '4b no control byte in the room\'s sources, and ?roompolish=0 / ?roomdirt=0 are word boundaries (HANGAR-BS: a backspace byte never matched)', ctlBad.join('; '));
 }
 console.log(fails ? 'GATE HANGARVIEW: FAIL (' + fails + ')' : 'GATE HANGARVIEW: PASS');
 process.exit(fails ? 1 : 0);

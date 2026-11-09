@@ -146,6 +146,20 @@ const ACC_FIT_KEYS = (function () {
   return T ? Object.keys(T) : [];
 })();
 
+// COMMS-SECTION (8 Nov; the user via A0: the aerials "should probably go to COMMUNICATIONS ... prepare for that, for a
+// coherent set"): the aerial rows, read off GEN_COMMS (60_gen_spec.js: each radio and the GEN_ACCESS row that is its
+// aerial), and the skin beacon (a light) leave Fittings for Communications and Lights. Their keys are unchanged.
+const COMMS_SET = (function () {
+  const C = (typeof GEN_COMMS !== 'undefined') ? GEN_COMMS : (typeof window !== 'undefined' ? window.GEN_COMMS : null);
+  return (C || []).filter(r => r.aerial && !r.later && ACC_FIT_KEYS.includes(r.aerial));
+})();
+const COMMS_AERIALS = COMMS_SET.map(r => r.aerial);
+const ACC_LIGHT_KEYS = ACC_FIT_KEYS.filter(k => k === 'beacon');
+const ACC_HOME_KEYS = ACC_FIT_KEYS.filter(k => !COMMS_AERIALS.includes(k) && !ACC_LIGHT_KEYS.includes(k));
+const accHand = keys => keys.filter(k => !(typeof GEN_ACCESS !== 'undefined' && GEN_ACCESS[k] && GEN_ACCESS[k].on === 'cowl'))
+  .reduce((a2, k) => a2.concat(['acc_' + k + '_z', 'acc_' + k + '_h']), []);
+const accFine = keys => keys.reduce((a2, k) => a2.concat(['acc_' + k + '_sL', 'acc_' + k + '_lv']), []);
+
 const CAGE_PARTS = [
 
   // =========================================================================
@@ -273,6 +287,10 @@ const CAGE_PARTS = [
       // G3510: the round body (the aero nose's full rings) is the whole
       // shell's choice, beside the roundness it is shaped by
       ['roundness', ['topRound', 'botRound', 'aeroNose']],
+      // HULL-B1: the boat hull's own rows (the shared ones are the frames above)
+      ['boat hull', ['hullOn', 'hullBeta', 'hullBetaBow', 'hullBetaA', 'hullSteps', 'hullStepZ', 'hullHs',
+                     'hullFlute', 'hullFluteN', 'hullFluteAt', 'hullFluteBow', 'hullFluteAft', 'hullStrakes', 'hullStrakeW', 'hullStrakeLen', 'hullRocker', 'hullSkirt',
+                     'hullStep2Z', 'hullHs2', 'hullTips', 'hullTipAt', 'hullTipPlane', 'hullTipKg', 'hullTipY', 'hullAftDeg', 'hullNoseBase', 'hullTubLen', 'hullTubRise', 'hullTubEnd', 'hullTubH', 'hullSpon', 'hullSponX', 'hullSponW', 'hullSponKg', 'hullSponY', 'hullSponC', 'hullSponK', 'hullSponT', 'hullSponTaper', 'hullSponDih']],
       ['section angles', ['topAngCeil', 'topAngRoof'], EXPERT],
       ['creases', ['crPillar', 'crBand', 'crCap', 'crFrame'], EXPERT],
       ['compensation', ['topComp'], EXPERT],
@@ -594,19 +612,16 @@ const CAGE_PARTS = [
     sections: ['accPaint'],
     groups: [
       ['fitted', ['accOn']],
-      ['families', ['accFluids', 'accAccess', 'accInstr', 'accAerials',
-                    'accHandling']],
+      ['families', ['accFluids', 'accAccess', 'accInstr', 'accHandling']],   // (COMMS-SECTION: accAerials -> Communications, accBeacon -> Lights)
       ['detail', ['accDetail']],
       // FITTINGS-MANUAL: the hand rows, generated as _cage_access.js generates them (the cowl's oil door has none)
-      ['placement', ACC_FIT_KEYS.filter(k => !(typeof GEN_ACCESS !== 'undefined' && GEN_ACCESS[k] && GEN_ACCESS[k].on === 'cowl'))
-        .reduce((a2, k) => a2.concat(['acc_' + k + '_z', 'acc_' + k + '_h']), [])],
+      ['placement', accHand(ACC_HOME_KEYS)],
       // THE FINE PLACEMENT (2026-08-31). Two nudges per declared fitting, in
       // GEN_ACCESS's own units — `sL` metres aft of the firewall, `lv` a rail
       // index — GENERATED from the same key list `_cage_access.js` generates
       // its rows from, so a fitting added to the table cannot leave an
       // unclaimed row behind and one removed cannot leave an orphan claim.
-      ['fine placement', ACC_FIT_KEYS.reduce((a2, k) =>
-        a2.concat(['acc_' + k + '_sL', 'acc_' + k + '_lv']), []), EXPERT],
+      ['fine placement', accFine(ACC_HOME_KEYS), EXPERT],
     ] },
 
   // THE BELLY POD (G2675, BELLY-POD-2; the user: "it should be a configurable volume from the garage editor"). A
@@ -656,7 +671,7 @@ const CAGE_PARTS = [
     // (T2.3 (48): the carry-through beam's switch rides with the centre section)
     groups: [
       ['planform', ['wgSpan', 'wgChord', 'wgChordTip', 'wgTip',
-                    'wgCrankAt', 'wgCrankChord', 'wgCrankX', 'wgTipX', 'wgPlan', 'wgPlanAxis']],
+                    'wgCrankAt', 'wgCrankChord', 'wgCrankX', 'wgTipX', 'wgPlan', 'wgPlanAxis', 'wgTipBow', 'wgTipDroop', 'wgTipFull']],
       // wgPos -> `design`
       ['rigging', ['wgDihedral', 'wgDihedralOut', 'wgIncidence',
                    'wgWashout']],
@@ -710,7 +725,7 @@ const CAGE_PARTS = [
     place: { type: 'bpCabane', fore: 'bpStrutZ', out: 'bpStrutX',
              at: 'the foot, on the deck' },
     groups: [
-      ['cabane', ['bpCabane']],
+      ['cabane', ['bpCabPylon', 'bpCabane', 'bpCabDraw', 'bpStrutK']],
       ['foot', ['bpStrutZ', 'bpStrutX']],
     ] },
 
@@ -906,7 +921,7 @@ const CAGE_PARTS = [
     groups: [
       // (G2760: what the trunk leaves here is the thrust line and the mount's
       // own dials — no second 'fitted' heading under the trunk's)
-      ['thrust line & mounting', ['engOn', 'engMount', 'engAim', 'engNacAt', 'engNacAt2', 'engRotate', 'engPylonH',
+      ['thrust line & mounting', ['engOn', 'engMount', 'engAim', 'engNacAt', 'engNacAt2', 'engNacOver', 'engNacLift', 'engRotate', 'engPylonH', 'engFinAt', 'engFinFwd', 'engPylonAt', 'engPylonAft', 'engPylonFwd', 'engPylonForm', 'engPylonFair',
                   'engBlockZ', 'engBlockY', 'engTilt', 'engPower', 'engPreset', 'engY']],   // G477: the thrust line's tilt
       // THE STAND FIRST (2026-09-03, the user: "the stand is very important for
       // engine placement"): the mount's stand-off is the engine's fore / aft seat
@@ -1006,6 +1021,8 @@ const CAGE_PARTS = [
       ['oil door', ['cw_oilOn', 'cw_oilZ', 'cw_oilW', 'cw_oilL', 'cw_oilSq']],
       // the bench's nacelle termination, back (2026-09-04)
       ['nacelle', ['cw_aftMode', 'cw_tailLen', 'cw_tailDrop']],
+      // G3914: the pusher nacelle's air inlet (in the tail cone's tip)
+      ['nacelle inlet', ['cw_inletOn', 'cw_inletW', 'cw_inletH', 'cw_inletLip', 'cw_inletDuct', 'cw_inletY']],
       ['firewall lip', ['cw_fwLipOn', 'cw_fwLipR', 'cw_fwLipRise',
                         'cw_fwLipIn'], EXPERT],
     ] },
@@ -1102,6 +1119,11 @@ const CAGE_PARTS = [
       ['castor', ['s1_twSpringLen', 's1_twSpringDrop', 's1_twSpringW',
                   's1_twSpringT', 's1_twLeaves', 's1_twRake', 's1_twTrail',
                   's1_twLegDrop', 's1_twSteer', 's1_twSteerVis']],
+      // RETRACT-1: the retractable gear (a tricycle's; the mains are what it is mostly about)
+      ['retraction', ['gearRetract', 'gearRetT', 'gearRetAct', 'gearPos', 'gearRetFrac', 'gearWellCut', 'gearLegDoor', 'gearDoors', 'gearNacFit', 'gearNacPod', 'gearShort', 'gearShortNose', 'gearKneeDoor']],
+      // G1: the fold - the mains' preset or custom turns, the nose's
+      ['fold', ['gearFold', 'gm1Ax', 'gm1Ang', 'gm2Ax', 'gm2Ang', 'gmTwist',
+                'gearFoldNose', 'gn1Ax', 'gn1Ang', 'gn2Ax', 'gn2Ang', 'gnTwist']],
     ] },
 
   // THE FLOATS (H2, G389): one part, both pontoons and their struts; the
@@ -1120,7 +1142,7 @@ const CAGE_PARTS = [
     sections: ['float', 'floatDeck', 'floatBare', 'floatBoard'],
     groups: [
       // G451: the Wipline preset (a starter), the details, and the family's rows; FLOATS-CLASSIC: the style, the board
-      ['catalogue', ['gearFloats', 'fltPreset', 'fltStyle', 'fltDetail', 'fltRudder', 'fltPaddle', 'fltBoard']],
+      ['catalogue', ['gearFloats', 'fltPreset', 'fltStyle', 'fltDetail', 'fltRudder', 'fltPaddle', 'fltBoard', 'fltAmph']],
       ['hull', ['fltL', 'fltStep', 'fltB', 'fltH', 'fltBeta', 'fltBetaBow', 'fltBetaA', 'fltHs', 'fltAft',
                 'fltAftCurve', 'fltFlat', 'fltStem', 'fltRake', 'fltNoseR', 'fltPlan', 'fltStern', 'fltFlare', 'fltMass']],
       ['placement', ['fltZ', 'fltDrop', 'fltInc', 'fltTrack']],
@@ -1282,6 +1304,9 @@ const CAGE_PARTS = [
       ['lamp fairings', ['li_podLen', 'li_podGirth', 'li_reflect']],
       ['the navigation lights', ['li_navSpan', 'li_navChord', 'li_navRise']],
       ['the beacon', ['li_beaconRpm', 'li_beaconSink']],
+      // COMMS-SECTION: the skin beacon (GEN_ACCESS `beacon`, drawn by the fittings' layer where no fin carries one)
+      ['the beacon on the skin', ['accBeacon'].concat(accHand(ACC_LIGHT_KEYS))],
+      ['the beacon on the skin, fine', accFine(ACC_LIGHT_KEYS), EXPERT],
     ] },
 
   // THE INSTRUMENTS (the panel arc, session 2). A LIST, not a set of
@@ -1294,6 +1319,15 @@ const CAGE_PARTS = [
   // layer its geometry (the dials themselves, `edGauge_*`).
   { key: 'instruments', name: 'Instruments', parent: 'fit', layer: 'panel',
     panel: 'CAGE_PANEL' },
+
+  // COMMUNICATIONS (COMMS-SECTION, 8 Nov). The radios' aerials, one group per radio in GEN_COMMS' order (COM 1, NAV,
+  // Transponder): where each blade or wire stands. The radios themselves are still chosen in Instruments (the dash is
+  // laid out from them); a radio not fitted draws no aerial and its rows hide (the fittings' own `when`). Cosmetic
+  // today - the set is what a working radio reads later. The layer is the fittings' (the aerials are drawn there).
+  { key: 'comms', name: 'Communications', parent: 'fit', layer: 'access',
+    when: P => +P.accAerials, gate: 'accAerials',   // (not accOn: Fittings' own switch may not hide another part - GATE PARTS)
+    groups: [['fitted', ['accAerials']]].concat(COMMS_SET.map(r => [r.label + ' aerial', accHand([r.aerial])]))
+      .concat([['fine placement', accFine(COMMS_AERIALS), EXPERT]]) },
 
   // THE FURNISHING (G2806, AVIONICS-GPS phase 2; the user, 11 Oct: "cabin furnishing accounted accurately, its own
   // row"). The seats' kind and the cabin's trim as billed choices, through the same door as the Instruments

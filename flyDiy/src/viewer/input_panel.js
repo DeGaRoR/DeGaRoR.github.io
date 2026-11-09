@@ -139,13 +139,22 @@
     w.appendChild(el('span', null, 'brake steer: the brake key with the rudder held brakes the inside main more (full pedal: that main alone)'));
     return w;
   }
+  // SEA-OFF (SEAPLANES-LAND 8 Nov): an action marked `lab` (the gear handle) is listed only while the lab switch is on
+  // (_cage_gear.js RETRACT_LAB: the dev toggle flydiy.flDev, ?retract=lab)
+  function labOn() {
+    try {
+      if (typeof window.CAGE_RETRACT_LAB === 'function') return !!window.CAGE_RETRACT_LAB();
+      if (/[?&]retract=lab/.test(location.search || '')) return true;
+      return !!(window.localStorage && window.localStorage.getItem('flydiy.flDev') === '1');
+    } catch (e) { return false; }
+  }
   function renderRows() {
     const body = $('ctlBody');
     if (!body || !inp) return;
     while (body.firstChild) body.removeChild(body.firstChild);
     const L = inp.state().listening;
     for (const [g, title] of GROUPS) {
-      const acts = inp.ACTIONS.filter(a => a.group === g);
+      const acts = inp.ACTIONS.filter(a => a.group === g && (!a.lab || labOn()));
       if (!acts.length) continue;
       body.appendChild(el('h3', null, title));
       if (LIVE[g]) { const lv = el('div', 'live'); lv.dataset.g = g; lv.textContent = LIVE[g](inp.state()); body.appendChild(lv); }

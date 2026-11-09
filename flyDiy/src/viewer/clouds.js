@@ -299,7 +299,7 @@ var CLOUDS = (function () {
       float tm = tsum > 0.0 ? tw / tsum : s0[0];
       gTm = tm;
       vec3 c = col / max(alpha, 1e-4);
-      if (uAtmoAP.z > 0.5) { vec4 ap = apSample(d, tm * 0.001); c = c * ap.a + ap.rgb; c = mistApply(c * uScale, d, tm, o.y) / uScale; }
+      if (uAtmoAP.z > 0.5) { vec4 ap = apScaled(apSample(d, tm * 0.001)); c = c * ap.a + ap.rgb; c = mistApply(c * uScale, d, tm, o.y) / uScale; }
       return vec4(c * uScale, alpha);
     }`;
   // the fullscreen march: the ray from the inverse projection, the scene's depth from the resolve target
@@ -420,9 +420,9 @@ var CLOUDS = (function () {
   function skyMats() {
     if (skyMat) return;
     const uni = Object.assign({}, U, { uSkyEye: { value: new THREE.Vector4(40000, 0, 0, 0) } });
-    if (typeof ATMO !== 'undefined' && ATMO.apUniforms) { uni.uApAtlas = ATMO.apUniforms.uApAtlas; uni.uAtmoAP = ATMO.apUniforms.uAtmoAP; uni.uMist = ATMO.apUniforms.uMist; }
-    else uni.uAtmoAP = { value: new Float32Array(4) };
-    skyMat = new THREE.ShaderMaterial({ uniforms: uni, vertexShader: QUAD_VERT, fragmentShader: skyFrag(), glslVersion: THREE.GLSL3, depthTest: false, depthWrite: false, toneMapped: false });
+    if (typeof ATMO !== 'undefined' && ATMO.apUniforms) { uni.uApAtlas = ATMO.apUniforms.uApAtlas; uni.uAtmoAP = ATMO.apUniforms.uAtmoAP; uni.uMist = ATMO.apUniforms.uMist; if (ATMO.apUniforms.uApK) uni.uApK = ATMO.apUniforms.uApK; }
+    else { uni.uAtmoAP = { value: new Float32Array(4) }; uni.uApK = { value: new Float32Array([1, 0]) }; }
+    skyMat = (typeof MATLIB !== 'undefined' ? MATLIB : require('./matlib.js')).make(THREE, 'shader', { uniforms: uni, vertexShader: QUAD_VERT, fragmentShader: skyFrag(), glslVersion: THREE.GLSL3, depthTest: false, depthWrite: false, toneMapped: false });
     skyRT = new THREE.WebGLRenderTarget(SKY_W, SKY_H * SKY_EYES, { type: THREE.FloatType, format: THREE.RGBAFormat, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, depthBuffer: false });
   }
   // the sky pass drawn once without a readback while the noise still bakes: its program compiles then (a
@@ -461,7 +461,7 @@ var CLOUDS = (function () {
     return r.readRenderTargetPixelsAsync(skyRT, 0, 0, SKY_W, SKY_H * SKY_EYES, px).then(b => skyShare(b || px));
   }
   // ATMO's own GLSL: the AP atlas sample + the mist (the splice's functions, verbatim)
-  const ATMO_GLSL = () => (typeof ATMO !== 'undefined' && ATMO.GLSL) ? ATMO.GLSL.AP + ATMO.GLSL.MIST : 'uniform vec4 uAtmoAP; vec4 apSample(vec3 d, float k) { return vec4(0.0, 0.0, 0.0, 1.0); } vec3 mistApply(vec3 c, vec3 d, float D, float y) { return c; }';
+  const ATMO_GLSL = () => (typeof ATMO !== 'undefined' && ATMO.GLSL) ? ATMO.GLSL.AP + ATMO.GLSL.MIST : 'uniform vec4 uAtmoAP; vec4 apSample(vec3 d, float k) { return vec4(0.0, 0.0, 0.0, 1.0); } vec4 apScaled(vec4 a) { return a; } vec3 mistApply(vec3 c, vec3 d, float D, float y) { return c; }';
   // THE COMPOSITE: the march's radiance tone-mapped like the dome, alpha over the frame in display
   // space, through a depth-aware upsample - the four half texels round the pixel weighted by the
   // bilinear weight x the nearness of the depth they saw to the pixel's own (both logarithmic depths
@@ -585,8 +585,8 @@ var CLOUDS = (function () {
   function domeMat(frameYaw, steps, opts) {
     if (!ready) return null;
     const uni = Object.assign({}, U, { uSteps: { value: new THREE.Vector2(steps || 24, 3) }, uFrame: { value: frameYaw || 0 }, uEye: U.uEye });
-    if (typeof ATMO !== 'undefined' && ATMO.apUniforms) { uni.uApAtlas = ATMO.apUniforms.uApAtlas; uni.uAtmoAP = ATMO.apUniforms.uAtmoAP; uni.uMist = ATMO.apUniforms.uMist; }
-    else uni.uAtmoAP = { value: new Float32Array(4) };
+    if (typeof ATMO !== 'undefined' && ATMO.apUniforms) { uni.uApAtlas = ATMO.apUniforms.uApAtlas; uni.uAtmoAP = ATMO.apUniforms.uAtmoAP; uni.uMist = ATMO.apUniforms.uMist; if (ATMO.apUniforms.uApK) uni.uApK = ATMO.apUniforms.uApK; }
+    else { uni.uAtmoAP = { value: new Float32Array(4) }; uni.uApK = { value: new Float32Array([1, 0]) }; }
     const m = new THREE.ShaderMaterial({ uniforms: uni, vertexShader: DOME_VERT, fragmentShader: domeFrag(), glslVersion: THREE.GLSL3, side: THREE.BackSide,
       transparent: true, blending: THREE.NormalBlending, depthTest: !!(opts && opts.depthTest), depthWrite: false, toneMapped: false, fog: false });
     domeMats.push(m);
@@ -627,8 +627,8 @@ var CLOUDS = (function () {
     U.uShadowK.value = new THREE.Vector2(S.shadowSteps, 1); U.uDials2.value = new THREE.Vector4(S.jitter, 0, 0, 0); U.uEye.value = new THREE.Vector3();
     U.uShape.value = new THREE.Vector4(S.detail, S.curl, 0, 0); U.uDZ.value = new THREE.Vector3(0, 0.5, 1e5);
     const uni = Object.assign({}, U);
-    if (typeof ATMO !== 'undefined' && ATMO.apUniforms) { uni.uApAtlas = ATMO.apUniforms.uApAtlas; uni.uAtmoAP = ATMO.apUniforms.uAtmoAP; uni.uMist = ATMO.apUniforms.uMist; }
-    else uni.uAtmoAP = { value: new Float32Array(4) };
+    if (typeof ATMO !== 'undefined' && ATMO.apUniforms) { uni.uApAtlas = ATMO.apUniforms.uApAtlas; uni.uAtmoAP = ATMO.apUniforms.uAtmoAP; uni.uMist = ATMO.apUniforms.uMist; if (ATMO.apUniforms.uApK) uni.uApK = ATMO.apUniforms.uApK; }
+    else { uni.uAtmoAP = { value: new Float32Array(4) }; uni.uApK = { value: new Float32Array([1, 0]) }; }
     uni.uMT = uMT; uni.uMJ = uMJ;
     marchMat = new THREE.ShaderMaterial({ uniforms: uni, vertexShader: QUAD_VERT, fragmentShader: marchFrag(), glslVersion: THREE.GLSL3, depthTest: false, depthWrite: false, toneMapped: false, transparent: false });
     compMat = new THREE.ShaderMaterial({ uniforms: { uCloudTex: U.uCloudTex, uKeyTex: U.uKeyTex, uDepth: U.uDepth, uTexel: U.uTexel, uUp: U.uUp, uLogFar: U.uLogFar, uDZ: U.uDZ, uDepthK: U.uDepthK, uPM: U.uPM, uInvProj: U.uInvProj }, vertexShader: QUAD_VERT, fragmentShader: COMP_FRAG(), depthTest: true, depthWrite: false, transparent: true, toneMapped: true, blending: THREE.NormalBlending });

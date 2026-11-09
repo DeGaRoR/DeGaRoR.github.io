@@ -443,7 +443,7 @@ function make(THREE, scene, world, rec0, opts) {
   let W = bounds.x1 - bounds.x0, H = bounds.z1 - bounds.z0;
 
   // ---- the ground, with the overlay and the wear -----------------------------
-  const groundMat = new THREE.MeshStandardMaterial({ color: o.grass ? 0xffffff : 0x87906f, roughness: 0.97, metalness: 0 });
+  const groundMat = MATLIB.make(THREE, 'std', { color: o.grass ? 0xffffff : 0x87906f, roughness: 0.97, metalness: 0 });
   if (o.grass) { groundMat.map = o.grass.map || null; groundMat.normalMap = o.grass.normalMap || null; }
   // THE MATERIAL MAP (v8): the material polygons composited in priority order into four SLOTS (the
   // map's four channels, one PBR set each - a premises wears up to four sets); the ground shader

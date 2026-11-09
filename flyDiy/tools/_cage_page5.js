@@ -361,6 +361,70 @@ window.CAGE_PAGE = {
         ['ringCowl1W', 'cowl loop 1 width', -0.25, 0.25, 0.005],
         ['ringCowl2W', 'cowl loop 2 width', -0.25, 0.25, 0.005],
       ], 'open'],
+      // HULL-B1 (futureDesigns/HULL-TYPES-2026-11.md): THE BOAT HULL - a reading of the same frames, not a second
+      // body. The frames' bottom heights are the KEEL, their bottom widths the CHINE's half-beam, the waist the
+      // gunwale; these rows are the boat's own (absent from spec.cage while the hull is off). The Undercarriage
+      // tile's Hull option is the usual way in; the switch is here so the hull is reachable without it.
+      ['boat hull', [
+        ['hullOn',      'boat hull (the bottom planes)', 0, 1, 1, ['fuselage', 'boat hull']],
+        ['hullBeta',    'deadrise at the step °',     0, 40, 0.5, { when: P => +P.hullOn }],
+        ['hullBetaBow', 'deadrise at the bow °',      0, 60, 0.5, { when: P => +P.hullOn }],
+        ['hullBetaA',   'deadrise aft of the step °', 0, 40, 0.5, { when: P => +P.hullOn }],
+        ['hullSteps',   'step',                       0, 2, 1, ['stepless', 'one step', 'two steps'], { when: P => +P.hullOn }],
+        // (HULL-B31: the second step - the Dornier Wal's)
+        ['hullStep2Z',  'second step aft of the first', 0.2, 5, 0.01, { when: P => +P.hullOn && Math.round(+P.hullSteps) === 2, dim: 'len' }],
+        ['hullHs2',     'second step depth', 0, 0.3, 0.005, { when: P => +P.hullOn && Math.round(+P.hullSteps) === 2, dim: 'len' }],
+        // (HULL-B37: the range reaches the buoyant taper - the step on the hull or under the taper, one slider)
+        ['hullStepZ',   'step, aft of the cabin frame', -1.50, 4.50, 0.01,
+         { when: P => +P.hullOn && +P.hullSteps > 0, dim: 'len' }],
+        ['hullHs',      'step depth',                 0.00, 0.25, 0.002,
+         { when: P => +P.hullOn && +P.hullSteps > 0, dim: 'len' }],
+        // HULL-B39: THE FLUTED BOTTOM (the EDO's "Batman", the Super Petrel's): concave arcs a side and a sharp keel ridge
+        ['hullFlute',    'fluted bottom (ridge drop, of the half-beam)', 0, 0.45, 0.005, { when: P => +P.hullOn }],
+        ['hullFluteN',   'flutes a side', 1, 2, 1, ['one arc, keel to chine', 'two arcs and a ridge'], { when: P => +P.hullOn && +P.hullFlute > 0 }],
+        ['hullFluteAt',  'ridge across (of the half-beam)', 0.3, 0.8, 0.01, { when: P => +P.hullOn && +P.hullFlute > 0 }],   // (HULL-B46: one arch - its crown's station)
+        ['hullFluteBow', 'flutes fade out by (of the forebody)', 0.35, 1, 0.01, { when: P => +P.hullOn && +P.hullFlute > 0 }],
+        ['hullFluteAft', 'flutes kept aft of the step', 0, 1, 0.01, { when: P => +P.hullOn && +P.hullFlute > 0 }],
+        // HULL-B39: the spray strakes on the forebody's bottom (_cage_float.js drawStrakes)
+        ['hullStrakes',   'spray strakes a side', 0, 3, 1, { when: P => +P.hullOn }],
+        ['hullStrakeW',   'strake width', 0.01, 0.10, 0.005, { when: P => +P.hullOn && +P.hullStrakes > 0, dim: 'm' }],
+        ['hullStrakeLen', 'strakes run aft (of the forebody)', 0.2, 1, 0.01, { when: P => +P.hullOn && +P.hullStrakes > 0 }],
+        // HULL-B12: the afterbody keel's run behind the step (the fit's; shallower carries a tail-heavy boat's stern)
+        ['hullAftDeg',  'afterbody keel run °',       2, 12, 0.5, { when: P => +P.hullOn }],
+        // HULL-B43: the belly's rocker - the keel rising from the cabin to a step under the buoyant taper
+        ['hullRocker',  'belly rocker (rise to the step)', 0, 0.5, 0.005, { when: P => +P.hullOn && +P.hullSteps > 0, dim: 'len' }],
+        // HULL-B44: the skirt - the chine standing out past the topsides, a lip overhanging the water
+        ['hullSkirt',   'skirt (chine reach, of the half-beam)', 0, 0.3, 0.005, { when: P => +P.hullOn }],
+        // HULL-B18: the tub's afterbody under the boom (a pod ending at its aft face: the Icon's, the SeaRey's)
+        ['hullTubLen',  'afterbody under the boom', 0, 3, 0.01, { when: P => +P.hullOn, dim: 'len' }],
+        // HULL-B19: sponsons on the hull's sides (the Icon's, the Seastar's, the Wal's)
+        // (HULL-B29: 'planing wing roots' - a low wing's inner panel planes and floats: the Be-103's, the Equator's)
+        ['hullSpon',    'sponsons', 0, 3, 1, ['none', 'stub wings', 'floats on the sides', 'planing wing roots (a low wing\'s own)'], { when: P => +P.hullOn }],
+        ['hullSponC',   'stub mean chord', 0, 4, 0.01, { when: P => +P.hullOn && Math.round(+P.hullSpon) === 1, dim: 'len' }],
+        ['hullSponK',   'stub / planing root span (of its chord)', 0.3, 2, 0.01, { when: P => +P.hullOn && [1, 3].includes(Math.round(+P.hullSpon)) }],
+        ['hullSponT',   'stub thickness (of its chord)', 0.08, 0.4, 0.005, { when: P => +P.hullOn && Math.round(+P.hullSpon) === 1 }],
+        ['hullSponTaper', 'stub tip taper', 0.2, 1, 0.01, { when: P => +P.hullOn && Math.round(+P.hullSpon) === 1 }],
+        ['hullSponDih', 'stub dihedral °', -15, 15, 0.5, { when: P => +P.hullOn && Math.round(+P.hullSpon) === 1 }],
+        ['hullSponX',   'sponsons forward of the step', -1.5, 2.5, 0.01, { when: P => +P.hullOn && [1, 2].includes(Math.round(+P.hullSpon)), dim: 'len' }],
+        ['hullSponW',   'side floats outboard of the side', 0.1, 1.5, 0.01, { when: P => +P.hullOn && Math.round(+P.hullSpon) === 2, dim: 'len' }],
+        ['hullSponKg',  'side float, each (displacement)', 0, 800, 1, { when: P => +P.hullOn && Math.round(+P.hullSpon) === 2, dim: 'kg' }],
+        ['hullSponY',   'sponson keel over the step keel', -1, 2, 0.005, { when: P => +P.hullOn && [1, 2].includes(Math.round(+P.hullSpon)), dim: 'len' }],
+        ['hullTubRise', 'its keel rise °', 0, 25, 0.5, { when: P => +P.hullOn && +P.hullTubLen > 0 }],
+        ['hullTubEnd',  'its end beam (of the pod\'s)', 0.05, 1, 0.01, { when: P => +P.hullOn && +P.hullTubLen > 0 }],
+        ['hullTubH',    'its depth (of the pod\'s)', 0.1, 1, 0.01, { when: P => +P.hullOn && +P.hullTubLen > 0 }],
+        ['hullNoseBase', 'bow before the fit (0: not moved)', 0, 4, 0.01, { when: P => +P.hullOn && +P.hullNoseBase > 0, dim: 'len' }],
+        // the boat's lateral stability (HULL-B3): strut tip floats under the wing - flown; not yet drawn here
+        // (HULL-B26: 'buoyant wing tips' - the wing's own tip is the float: Wings > tip length / drop / fullness shape it,
+        // the boat's fit sets them; the strut float's rows stand down)
+        // (HULL-B28: 'outrigger hulls' - the Adventurer 333's pontoons, the Seagull's and MVP's side hulls: a bigger float
+        // inboard, resting in the water, on a faired blade)
+        ['hullTips',    'tip floats',                 0, 3, 1, ['none', 'on struts', 'buoyant wing tips (the wing\'s own tip)', 'outrigger hulls (on a faired blade)'], { when: P => +P.hullOn }],
+        ['hullTipAt',   'tip floats at (of the semispan)', 0.30, 0.98, 0.01, { when: P => +P.hullOn && [1, 3].includes(Math.round(+P.hullTips)) }],
+        // HULL-B45: under which plane the strut floats hang (a biplane: the second - the Super Petrel's lower wing)
+        ['hullTipPlane', 'tip floats under', 0, 1, 1, ['the first plane', 'the second plane'], { when: P => +P.hullOn && +P.w2On && [1, 3].includes(Math.round(+P.hullTips)) }],
+        ['hullTipKg',   'tip float, each (displacement)', 0, 600, 1, { when: P => +P.hullOn && [1, 3].includes(Math.round(+P.hullTips)), dim: 'kg' }],
+        ['hullTipY',    'tip float keel over the step keel', -1, 2.5, 0.005, { when: P => +P.hullOn && [1, 3].includes(Math.round(+P.hullTips)), dim: 'len' }],
+      ], 'open'],
       ['conception', [
         // THE INTERIOR MASTER + its element flags. They live in the
         // BASE panel (_cage_ui) but this page REPLACES the tree, so
@@ -1169,7 +1233,7 @@ window.CAGE_PAGE = {
        { when: P => (+P.boomStyle === 1 || +P.boomTwin) && +P.aeroAftOn }],
       ['aeroAftEdge', 'aero aft edge (of the base)', 0.05, 1.5, 0.01,
        { when: P => (+P.boomStyle === 1 || +P.boomTwin) && +P.aeroAftOn && +P.aeroAftShape }],
-      ['rodY',      'rod height',     -0.9, 0.9, 0.005,
+      ['rodY',      'rod height',     -1.5, 0.9, 0.005,   // (HULL-B20: -1.5 - a rod under a deep hull's disc)
        { when: P => +P.boomStyle === 1 && !+P.boomTwin, dim: 'len' }],
       ['rodD',      'rod diameter',    0.04, 0.32, 0.002,
        { when: P => +P.boomStyle === 1 && !+P.boomTwin, dim: 'len' }],

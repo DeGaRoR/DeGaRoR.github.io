@@ -48,6 +48,9 @@ const MANIFEST = {
     // src/weather/days/) and the pure evaluator 07_day lays over its declared spec when the spec names a `plan` (07d).
     // After the day (it reads DAY.usDst, SOLAR) and in the main core: the physics worker evaluates the same plan.
     '07c_weather_days.js', '07d_weather_plan.js',
+    // THE SOIL'S WETNESS (DIRT-DUST, 2026-11-09): the plan's rain over the last 96 h as the top soil's water - the dust
+    // and the strip's puddles read it; pure, after the plan it integrates.
+    '07e_soil_wet.js',
     '08_cloud_field.js',
     // THE CLIMATE (K0, 2026-09-22): the one wind field w(x,y,z,t) - the G72
     // legacy column moved in verbatim, the rich terms, the relief raster;
@@ -78,6 +81,7 @@ const MANIFEST = {
     // - pure, no THREE; makeWorld (20_) reads it at call time through the
     // PREMISES_GEN global, so it only has to be in the bundle; after 25_
     // because its runway records take the airfield's shape.
+    '26b_strip_micro.js',   // DIRT-STRIP: a bush strip's micro-height (the premises' `micro` modifier reads it)
     '27_premises.js',
     // THE ISLAND (W2, 2026-09-14): a world source from data - the baked
     // quadtree as the ground, the cover grid as the classifier, the canopy
@@ -173,6 +177,7 @@ const MANIFEST = {
     '60d_gen_pod.js',
     '61_gen_frame.js',
     '62_gen_aero.js',
+    '62c_gear_mech.js',          // RETRACT GM3: one kinematics for a retracting gear (the garage, quickshot, the flight)
     '63_gen_wing.js',
     '64_gen_build.js',
     // THE DESIGN CHECK (G2640): the derivatives, the modes and the pointers off the built aeroplane; needs 30_'s
@@ -574,6 +579,7 @@ const MANIFEST = {
               'guardrail.js',   // the W-beam beside a road (2026-09-22): the rule, the geometry, the one steel material
               // water.js before render_world.js (G460): the world takes the one water material as it builds its sea
               'water.js', 'spray.js',   // the spray sprites (H7.1, G460.9): app.js's syncWaterFx draws through it
+              'dust.js',   // DIRT-DUST (2026-11-09): the strip's dust - the system, its sources and its batch; app.js's syncDustFx feeds it
               'trees_pack.js', 'trees.js', 'cover_ring.js', 'ground_scar.js', 'stand_cards.js', 'rock_map.js', 'cliffs.js', 'render_world.js',
               'hangar_floor.js', 'hangar_walls.js',
               'hangar_sky.js', 'props.js', 'wood_tex.js', 'skin_tex.js',

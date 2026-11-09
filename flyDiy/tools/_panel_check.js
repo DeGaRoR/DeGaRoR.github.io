@@ -58,7 +58,8 @@ function run() {
   for (const [g, tab] of Object.entries(A)) {
     check(!!tab.none && tab.none.kg === 0 && tab.none.price === 0, 'avionics ' + g + ' has a free `none`');
     for (const [k, r] of Object.entries(tab)) if (k !== 'none')
-      check(r.kg > 0 && r.price > 0 && r.amps > 0, 'avionics ' + g + ':' + k + ' weighs, costs and draws');
+      check(r.kg > 0 && r.price > 0 && (r.amps > 0 || r.ownBattery === true),
+        'avionics ' + g + ':' + k + ' weighs, costs and draws' + (r.ownBattery ? ' (its own battery: no bus load)' : ''));
   }
   for (const [t, row] of Object.entries(T)) {
     if (row.items) for (const k of row.items) check(!!I[k], 'tier ' + t + ' names a real dial', k);
@@ -190,6 +191,35 @@ function run() {
     'a custom minimal with a transponder grows its blade');
   check(!list({ fit: 'minimal', avionics: { xpdr: 'modeS' } }).includes('xpdrAerial'),
     '...but not without a battery (the transponder is dropped)');
+
+  // ---- 5b. THE COMMUNICATIONS SET (COMMS-SECTION, 8 Nov): GEN_COMMS ties each radio to its aerial both ways --------
+  {
+    const CM = C.GEN_COMMS || [], A = C.GEN_ACCESS || {};
+    const drawn = CM.filter(r => r.aerial && !r.later);
+    check(drawn.length >= 3 && drawn.every(r => A[r.aerial] && A[r.aerial].radio === r.radio),
+      'GEN_COMMS: every drawn radio names an aerial row that names it back', drawn.map(r => r.radio + ':' + r.aerial).join(' '));
+    const named = Object.keys(A).filter(k => A[k].radio);
+    check(named.every(k => CM.some(r => r.aerial === k && r.radio === A[k].radio)),
+      '...and every aerial row with a radio is in the set', named.join(' '));
+    // one radio fitted at a time (a battery under it): exactly its own aerial among the set's
+    const AV1 = { com: 'compact', nav: 'vor', xpdr: 'modeS', gps: 'panel', elt: 'fitted' };   // (ready 2: the GPS puck, the ELT whip)
+    const one = drawn.map(r => {
+      const av = { com: 'none', nav: 'none', xpdr: 'none', gps: 'none' }; av[r.avionics] = AV1[r.avionics];
+      const L = list({ fit: 'minimal', elec: { battery: 'lead' }, avionics: av });
+      return { r: r.radio, got: drawn.filter(q => L.includes(q.aerial)).map(q => q.radio) };
+    });
+    check(one.every(o => o.got.length === 1 && o.got[0] === o.r),
+      'each radio alone draws its own aerial and no other', JSON.stringify(one));
+    // ready 2 (9 Nov): a portable GPS has its aerial in the unit - no puck; an ELT is in a spec only when fitted
+    const Lp = list({ fit: 'minimal', elec: { battery: 'lead' }, avionics: { com: 'none', nav: 'none', xpdr: 'none', gps: 'portable' } });
+    check(!Lp.includes('gpsAerial'), 'a portable GPS draws no roof puck', Lp.filter(k => /Aerial/.test(k)).join(' ') || '(no aerial)');
+    const Se = withSys({ fit: 'custom', avionics: { elt: 'none' } }), Sf = withSys({ fit: 'custom', avionics: { elt: 'fitted' } });
+    const Rf = C.genSystemsResolve(Sf), R0 = C.genSystemsResolve(withSys({ fit: 'custom' }));
+    check(!('elt' in Se.systems.avionics) && Sf.systems.avionics.elt === 'fitted' && !('elt' in R0.avionics) &&
+          near(Rf.kg - R0.kg, 1.0) && !Rf.loads.some(l => l.key === 'elt'),
+      'the ELT: absent unless fitted (spec and resolve); fitted it bills 1.0 kg and draws no bus load',
+      JSON.stringify({ none: Se.systems.avionics, kg: +(Rf.kg - R0.kg).toFixed(3) }));
+  }
 
   // ---- 6. THE PART'S DOOR ---------------------------------------------------
   {
@@ -572,7 +602,8 @@ function run() {
     sim.out.Veas = 30; sim.out.roll = 0.3; sim.out.hdg = Math.PI / 2; sim.out.rpm = [2200]; sim.out.rpmEng = [2200];
     for (let i = 0; i < 300; i++) CK.frame(1 / 60, sim, { t: 5 + i / 60 });
     check(CK.gyroOk && near(CK.readings.roll, 0.3, 0.01) && near(CK.readings.ias, 30, 0.1), 'cockpit: in flight the gyro erects and the readings follow');
-    check(near(CK.readings.hdg, 90, 0.5), 'cockpit: heading in degrees, the nav way round', CK.readings.hdg);
+    // (AVIONICS-PFD-LAND 7 Nov: the compass's heading, north -z - nav angle 90 deg (+z, south) reads 180, as the PFD and the HUD)
+    check(near(CK.readings.hdg, 180, 0.5), 'cockpit: heading in degrees, the compass way round (nav + 90, the PFD\'s and the strips\')', CK.readings.hdg);
     check(near(CK.readings.volts, 14.1, 0.01), 'cockpit: at cruise the alternator holds 14.1 V');
     // A3: the fuel gauge reads litres over the DESIGN capacity (the spec's 50 L, 35 aboard -> 0.7), not `frac` (0.8 of what was loaded)
     check(CK.energy && CK.energy.kind === 'fuel' && near(CK.energy.capacity, 50) && near(CK.readings.fuelFrac, 0.7, 0.01),
@@ -582,7 +613,8 @@ function run() {
     const ang = g => { const q = g.obj.quaternion; return 2 * Math.atan2(Math.hypot(q.x, q.y, q.z), q.w) * Math.sign(q.x + q.y + q.z || 1); };
     check(near(ang(gauges[0]) * 180 / Math.PI, 150, 0.5), 'pose: a lin hand turns by its stops (30 m/s -> 150 deg)', ang(gauges[0]) * 180 / Math.PI);
     check(near(ang(gauges[1]) * 180 / Math.PI, 63, 2), 'pose: the fuel hand reads the fraction of the capacity (35 / 50 L)', ang(gauges[1]) * 180 / Math.PI);
-    check(near(ang(gauges[4]) * 180 / Math.PI, 90, 0.5), 'pose: the DG card turns to the heading');
+    // (AVIONICS-PFD-LAND 8 Nov: the card turns to the compass heading - nav 90 deg, +z, is south, 180)
+    check(near(Math.abs(ang(gauges[4]) * 180 / Math.PI), 180, 0.5), 'pose: the DG card turns to the heading - the compass heading, 180 at nav 90', ang(gauges[4]) * 180 / Math.PI);
     // A3: the captured rest comes off - at 2200 rpm the law says 394.7 deg, the group turns 394.7 - 225 = 169.7 on top of the baked 225
     check(near(ang(gauges[8]) * 180 / Math.PI, 169.7, 0.6), 'pose: a hand captured at its rest turns by the law LESS the rest', ang(gauges[8]) * 180 / Math.PI);
     check(near(ang(gauges[3]), -0.3, 0.01), 'pose: the ball rolls against the aeroplane');

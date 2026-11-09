@@ -75,13 +75,14 @@ async function run(src, files) {
   // ---- THE MODULE, in a stub window, its one line flipped on
   src = src.replace(LIVE_OFF, 'const LIVE_DRAW = true;');
   const store = new Map(), events = [], idles = [];
+  const urls = [];
   let fetched = 0, specNow = { cage: { a: 1 }, meta: { name: 'A' } };
   const win = {
     localStorage: { getItem: k => store.has(k) ? store.get(k) : null, setItem: (k, v) => store.set(k, String(v)), removeItem: k => store.delete(k) },
     requestIdleCallback: fn => { idles.push(fn); return idles.length; },
     dispatchEvent: e => events.push(e.detail && e.detail.key),
     GARAGE_SPEC: { get: () => specNow },
-    fetch: () => { fetched++; return Promise.resolve({ ok: true, json: () => Promise.resolve({ thumbs: { 'stock:piper cub': 'stock_piper-cub.webp' } }) }); },
+    fetch: u => { fetched++; urls.push(u); return Promise.resolve({ ok: true, json: () => Promise.resolve(/heroes/.test(u) ? { heroes: { 'stock:piper cub': 'stock_piper-cub.webp' } } : { thumbs: { 'stock:piper cub': 'stock_piper-cub.webp' } }) }); },
   };
   win.window = win;
   const ctx = vm.createContext({ window: win, performance: { now: () => 0 }, setTimeout: (fn) => { idles.push(fn); return 1; },
@@ -120,6 +121,13 @@ async function run(src, files) {
   ok(events.filter(k => k === '*').length === 1, "the index landed: 'plane-thumb' '*' told once");
   ok(T.get('stock:piper cub') === 'media/thumbs/stock_piper-cub.webp', "get('stock:piper cub') -> media/thumbs/stock_piper-cub.webp");
   ok(T.get('stock:jodel') === null, 'a key the bake does not name: null');
+  // THE HEROES (PLANE-RENDERS R2): media/heroes/index.json on the first hero() ask, once; the player's builds have none yet
+  ok(T.hero('mine:A') === null && fetched === 1, "hero('mine:A'): null, nothing fetched (the player's builds: R3)");
+  ok(T.hero('stock:piper cub') === null && fetched === 2 && urls[1] === 'media/heroes/index.json', "hero() before its index: null, media/heroes/index.json fetched");
+  T.hero('stock:jodel'); ok(fetched === 2, 'the heroes index is fetched once, not per ask');
+  await new Promise(res => setImmediate(res)); await new Promise(res => setImmediate(res));
+  ok(events.includes('hero:*'), "the heroes' index landed: 'plane-thumb' 'hero:*' told");
+  ok(T.hero('stock:piper cub') === 'media/heroes/stock_piper-cub.webp' && T.hero('stock:jodel') === null, "hero('stock:piper cub') -> media/heroes/stock_piper-cub.webp; an unnamed key null");
   return { fails, checks };
 }
 (async () => {
@@ -147,6 +155,7 @@ async function run(src, files) {
     ['probe keyed for the AA target', s => s, f => Object.assign({}, f, { app: f.app.replace('compileSliced(sc, null, lit)', 'compileSliced(sc, aa.target(), lit)') })],
     ['forget keeps it', s => s.replace('L && L.removeItem(PREF + \'mine:\' + name)', '0'), f => f],
     ['fog off by null', s => s.replace('S.background = studioBg(THREE); R.shadowMap', 'S.background = studioBg(THREE); S.fog = null; R.shadowMap'), f => f],
+    ['heroes index per ask', s => s.replace('if (heroesLoading || typeof fetch', 'if (typeof fetch'), f => f],
     ['index per ask', s => s.replace('if (bakedLoading || typeof fetch', 'if (typeof fetch'), f => f],
   ];
   let bad = 0;
