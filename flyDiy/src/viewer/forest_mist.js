@@ -33,7 +33,7 @@ var FMIST = (function () {
   // THE DIALS. Strength laws are in strengths(); `force` pins them for a rig ({pool, wisp, oro} 0..1, null = the weather's).
   const S = {
     N: 512, X: 768,                 // the map's side and its first column in the atlas
-    rhoMax: 0.012, octaves: 2,      // per metre in a pocket: the HEAVIEST day (~330 m inside; the user 9 Nov: "not a /2 we need, rather a x2"), down 2 octaves (/4) for the last wisps - no further: below that nothing cuts through the trees
+    rhoMax: 0.012, octaves: 0, coreK: 1.6,      // per metre in a pocket: the HEAVIEST day (~330 m inside; the user 9 Nov: "not a /2 we need, rather a x2"), down 2 octaves (/4) for the last wisps - no further: below that nothing cuts through the trees
     rho: null,                      // a pin over the ladder (the rigs' density sheets), null = the weather's
     swing: 30, covK: 0.8, detailK: 7.7, erode: 0.5, soft: 0.5, stretch: 2.1,   // the contours' swing (m), the share of a full pocket that is mist, the erosion's scale (x the body's) and depth
     period: 160,                    // the noise's cell (m): a wisp a few tree lengths across
@@ -288,21 +288,26 @@ var FMIST = (function () {
     let n = 0.55 * vn(qx, qz) + 0.30 * vn(qx * 2.31 + 5.2, qz * 2.31 + 1.3) + 0.15 * vn(qx * 5.3 - 3.1, qz * 5.3 + 7.7);
     n = Math.min(1, Math.max(0, 0.5 + (n - 0.5) * S.stretch));
     const sw = (n - 0.5) * S.swing, hcs = hc - sw;
-    const pool = k[0] * G * smc(0, 18, lid + sw - y) * (hc >= -30 ? 1 : 0);
-    const wisp = k[1] * Bw * smc(S.wispLo, 0, hcs) * (1 - smc(8, S.wispHi, hcs));
-    const oro = k[2] * smc(S.oroLo, 0, yb - sw) * (1 - smc(60, S.oroHi, yb - sw)) * (1 - smc(40, 160, hc)) * (hc >= -20 ? 1 : 0);
-    const cov = Math.min(1, pool + wisp + oro); if (cov <= 0.002) return 0;
-    const body = smc(1 - S.covK * cov, 1 - S.covK * cov + S.soft, n); if (body <= 0) return 0;
+    const gP = G * smc(0, 18, lid + sw - y) * (hc >= -30 ? 1 : 0);
+    const gW = Bw * smc(S.wispLo, 0, hcs) * (1 - smc(8, S.wispHi, hcs));
+    const gO = smc(S.oroLo, 0, yb - sw) * (1 - smc(60, S.oroHi, yb - sw)) * (1 - smc(40, 160, hc)) * (hc >= -20 ? 1 : 0);
+    const cov = Math.min(1, k[0] * gP + k[1] * gW + k[2] * gO); if (cov <= 0.002) return 0;
+    const geo = Math.max(k[0] > 0.002 ? gP : 0, k[1] > 0.002 ? gW : 0, k[2] > 0.002 ? gO : 0);
+    const thr = 1 - S.covK * cov;
+    let body = Math.min(1, Math.max(0, (n - thr) / Math.max(0.05, 1 - thr))); body = Math.pow(body, S.coreK); if (body <= 0) return 0;
     const rx = qx * S.detailK + y * 0.045, rz = qz * S.detailK + 3.3;
     let e = 0.6 * vn(rx, rz) + 0.4 * vn(rx * 2.7 + 1.9, rz * 2.7 - 4.1); e = Math.min(1, Math.max(0, 0.5 + (e - 0.5) * 2.4));
-    let dd = Math.min(1, Math.max(0, (body - e * S.erode) / (1 - e * S.erode))); dd = dd * dd * (3 - 2 * dd);
-    return dd * smc(0, 0.3, cov) * (S.rho != null ? S.rho : (S._rhoCPU || S.rhoMax));
+    const dd = Math.min(1, Math.max(0, (body - e * S.erode) / (1 - e * S.erode)));
+    return dd * Math.sqrt(geo) * (S.rho != null ? S.rho : S.rhoMax);
   }
   // THE INTENSITY IS THE LADDER (the user, 9 Nov, on the /2 /4 /8 /16 sheet: "they all look right to me in different
   // conditions. The /2 would be really, really heavy morning mist ... the other ones dissipating after rain"): the
   // density per metre falls an octave per half of the strength, from rhoMax (the heaviest morning: clear definition and
   // cuts) to rhoMax/4 (the last wisps, still cutting through the trees) - and the cover takes it to nothing below that.
   // S.rho, when set, pins it (a rig's ladder).
+  // ...AND THEN THE USER SPLIT THEM (9 Nov, on the sheet where both moved together: "plain stuff"): the strength is the
+  // AMOUNT only (the cover's threshold); the density at a core is fixed and the inside of a pocket carries the gradient.
+  // `octaves` stays as the dial for a rig that wants the old coupling (0 = the user's ruling).
   const rhoOf = I => S.rho != null ? S.rho : S.rhoMax * Math.pow(2, -S.octaves * (1 - Math.min(1, Math.max(0, I))));
   const level = I => I >= 0.75 ? 'heavy' : I >= 0.4 ? 'mist' : I >= 0.1 ? 'wisps' : 'none';
   const stats = () => ({ level: level(Math.max(st.k[0], st.k[1], st.k[2])), rho: +rhoOf(Math.max(st.k[0], st.k[1], st.k[2])).toFixed(5), on: ON, use: Object.assign({}, use), cards: st.cards || 0, bakeMs: +st.bakeMs.toFixed(1), k: st.k.map(v => +v.toFixed(3)), hoursDry: st.hoursDry, drift: st.drift.map(v => Math.round(v)), map: st.map });
@@ -335,14 +340,21 @@ var FMIST = (function () {
       // a wisp's top is lumpy and the pool's lid heaves instead of lying as a level slab
       float sw = (n - 0.5) * ${S.swing.toFixed(1)};
       float hcs = hc - sw;
-      float pool = uMist[7].x * m.y * smoothstep(0.0, 18.0, lid + sw - p.y) * step(-30.0, hc);
-      float wisp = uMist[7].y * m.z * smoothstep(${S.wispLo.toFixed(1)}, 0.0, hcs) * (1.0 - smoothstep(8.0, ${S.wispHi.toFixed(1)}, hcs));
-      float oro = uMist[7].z * smoothstep(${S.oroLo.toFixed(1)}, 0.0, yb - sw) * (1.0 - smoothstep(60.0, ${S.oroHi.toFixed(1)}, yb - sw)) * (1.0 - smoothstep(40.0, 160.0, hc)) * step(-20.0, hc);
-      float cov = min(1.0, pool + wisp + oro);
+      // THE PLACE'S OWN SHAPE (geometry: the map's weight x the band's profile, 0..1) and THE WEATHER'S AMOUNT are kept
+      // apart (the user, 9 Nov: "the control for how much the slope holds is good, but now it's all too thick ...
+      // controlling both together is lacking. It just gives you very plain stuff"): the weather sets how much of the
+      // place is mist (the threshold); the shape and the noise set how dense it is inside (the gradient)
+      float gP = m.y * smoothstep(0.0, 18.0, lid + sw - p.y) * step(-30.0, hc);
+      float gW = m.z * smoothstep(${S.wispLo.toFixed(1)}, 0.0, hcs) * (1.0 - smoothstep(8.0, ${S.wispHi.toFixed(1)}, hcs));
+      float gO = smoothstep(${S.oroLo.toFixed(1)}, 0.0, yb - sw) * (1.0 - smoothstep(60.0, ${S.oroHi.toFixed(1)}, yb - sw)) * (1.0 - smoothstep(40.0, 160.0, hc)) * step(-20.0, hc);
+      float cov = min(1.0, uMist[7].x * gP + uMist[7].y * gW + uMist[7].z * gO);   // the weather's AMOUNT
       if (cov <= 0.002) return 0.0;
-      // CUT THROUGH (the user: "needs to be further cut through"): less of a pocket is mist - the threshold sits at
-      // 1 - ${S.covK} x cover, so a full pocket is still only its denser half
-      float body = smoothstep(1.0 - ${S.covK.toFixed(2)} * cov, 1.0 - ${S.covK.toFixed(2)} * cov + ${S.soft.toFixed(2)}, n);   // a wide ramp: a wisp thins toward its edge (the first sheet's were paper cut-outs)
+      float geo = max(uMist[7].x > 0.002 ? gP : 0.0, max(uMist[7].y > 0.002 ? gW : 0.0, uMist[7].z > 0.002 ? gO : 0.0));   // the place's own THICKNESS
+      // THE GRADIENT THROUGH THE POCKET (the user: "the density vary through the cloud itself, less dense on the
+      // borders"): from the threshold to the noise's top, so a wisp is thin at its edge and only its core is thick
+      float thr = 1.0 - ${S.covK.toFixed(2)} * cov;
+      float body = clamp((n - thr) / max(0.05, 1.0 - thr), 0.0, 1.0);
+      body = pow(body, ${S.coreK.toFixed(2)});
       if (body <= 0.0) return 0.0;
       // THE DETAIL: a ~${Math.round(S.period / S.detailK)} m erosion eats the edges (Schneider's remap: base minus the fine noise), so the
       // outline breaks into wisps and the inside keeps its mass
@@ -350,11 +362,7 @@ var FMIST = (function () {
       float e = 0.6 * mistVN(r) + 0.4 * mistVN(r * 2.7 + vec2(1.9, -4.1));
       e = clamp(0.5 + (e - 0.5) * 2.4, 0.0, 1.0);
       float d = clamp((body - e * ${S.erode.toFixed(2)}) / (1.0 - e * ${S.erode.toFixed(2)}), 0.0, 1.0);
-      d *= d * (3.0 - 2.0 * d);                                          // and the remap's edge eased, not cut
-      // the cover SHAPES the pocket (the threshold above, the bands' soft edges): it does not scale the density a second
-      // time (the user, 9 Nov, on the faint ridges ladder: "my guess is you're further multiplied by the weather factor,
-      // and then we get down to nothing" - it was: d x cov x rho put a /2 at /6-/10 inside a half-strength pocket)
-      return d * smoothstep(0.0, 0.3, cov) * uMist[8].z;
+      return d * sqrt(geo) * uMist[8].z;
     }
     // A pocket is droplets (~10 um): Mie's forward peak is narrow and strong - backlit by a low sun the mist glows
     // (the concept art's whole light); side- and front-lit it is the layer's own colour. uMist[11].y = the lobe's gain.
