@@ -144,6 +144,11 @@ function run(WSsrc, files) {
   ok(/o\.userData\.edMarker = true/.test(WSsrc) && /userData && o\.userData\.edMarker\) return;/.test(files.join), 'the join skips it (edMarker)');
   ok(/const want = !!\(T && W && W\.def && W\.nodeCage && scene && \(L\.force \|\| cut\)\);/.test(WSsrc), 'the garage builds it only for the fiche or the cutaway box');
   ok(/if \(window\.CAGE_WINGSTRUCT_DRAW\) window\.CAGE_WINGSTRUCT_DRAW\(ctx\);/.test(files.wing), 'the wing layer hands it its build');
+  // the garage's def is the wing rows' alone: the kind is read off the build's own spec (the 172 drew as cloth without it)
+  ok(/spec: full \}\);/.test(WSsrc) && /window\.GARAGE_SPEC\.get\(\)/.test(WSsrc), 'the garage reads the kind off the whole build\'s spec');
+  { const d = DEFS.metal, spec0 = JSON.parse(JSON.stringify(d.spec)); spec0.material = 'tubeFabric';
+    for (const w of spec0.wings) w.material = null;
+    ok(WS.kindOf({ spec: spec0, parts: d.parts }, 0, lib, d.spec).key === 'alloy', 'a wing-rows def with the whole build\'s spec: the 172 is alloy'); }
   ok(/MATLIB/.test(WSsrc) && !/new [A-Za-z.]*Material\(/.test(WSsrc), 'its materials are the library\'s');
   return { fails, checks, stats };
 }
@@ -166,6 +171,7 @@ const BREAKS = [
   ['the join takes it', WSsrc.replace("o.userData.edMarker = true; ", "")],
   ['built under every build', WSsrc.replace("(L.force || cut));", "true);")],
   ['the cub wing as a D-box', WSsrc.replace("if (row === 'fabric') key = (PP.useStrut || PP.truss) ? 'cub' : 'dbox';", "if (row === 'fabric') key = 'dbox';")],
+  ['the garage without the build\'s spec', WSsrc.replace("const L = libOf(lib), S = spec || def.spec,", "const L = libOf(lib), S = def.spec,")],
   ['a spar outside the covering', WSsrc.replace("const P = (f, xc, ym) => map(", "const P = (f, xc, ym) => map(xc > 0.6 ? [1e3, 0, 0] : ")],
 ];
 let bad = 0;

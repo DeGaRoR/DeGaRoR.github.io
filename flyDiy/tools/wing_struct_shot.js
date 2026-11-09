@@ -42,9 +42,19 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   const pg = await b.newPage({ viewport: { width: W, height: H } });
   const LOG = argv.includes('--log');
   pg.on('pageerror', e => console.error('page error: ' + String(e.message).slice(0, 300)));
-  pg.on('console', m => { if (LOG || (m.type() === 'error' && /wing struct/i.test(m.text()))) console.log('page ' + m.type() + ': ' + m.text().slice(0, 400)); });
+  pg.on('console', m => { if (LOG || /FICHE EDGE/.test(m.text()) || (m.type() === 'error' && /wing struct/i.test(m.text()))) console.log('page ' + m.type() + ': ' + m.text().slice(0, 400)); });
   pg.setDefaultTimeout(600000);
   const t0 = Date.now(), el = () => ((Date.now() - t0) / 1000).toFixed(0) + 's';
+  // --noedge (a debug of the rig only): plane_fiche.js served with its frame-touch refusal turned into a log line, so the
+  // picture that would be refused can be seen
+  if (argv.includes('--noedge')) await pg.route('**/plane_fiche.js*', async route => {
+    const r = await route.fetch(); let t = await r.text();
+    t = t.replace("if (m.edge) throw new Error('the ' + name + ' picture touches its frame');", "if (m.edge) console.warn('FICHE EDGE ' + name + ' ' + JSON.stringify([m.x0, m.y0, m.x1, m.y1, w, h]));");
+    await route.fulfill({ response: r, body: t });
+  });
+  // the fiche is drawn in the garage's STUDIO (its matte takes the background's share: the shed's floor and walls would
+  // fill the frame - plane_fiche.js refuses a picture that touches its frame); --shed keeps the shed
+  if (!argv.includes('--shed')) await pg.addInitScript(() => { try { localStorage.setItem('flydiy.garageStudio', '1'); } catch (e) {} });
   await pg.goto(URL, { waitUntil: 'load' });
   await pg.waitForFunction(() => !!(window.CAGE_UI && window.GARAGE_SPEC && window.FLIGHT_PROBE && window.CAGE_UI_SCENE), null, { timeout: 900000, polling: 2000 });
   console.log('wing_struct_shot: garage up ' + el());
@@ -81,17 +91,20 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     S.traverse(o => { if (/^cageLayer:(wing|wingStruct)$/.test(o.name || '')) { out[o.name] = bx(o); o.children.forEach(c => { if (c.userData && c.userData.wingStruct) out[c.name] = bx(c); }); } });
     out.root = bx(S); out.info = window.CAGE_WINGSTRUCT && window.CAGE_WINGSTRUCT.layer() ? window.CAGE_WINGSTRUCT.layer().userData.wingStruct.planes.map(p => [p.kind, p.halves]) : null;
     V.xray = x0; window.CAGE_UI.build(); return JSON.stringify(out); }));
-  for (const v of FICHE) {
-    const r = await pg.evaluate(async v => {
-      const rec = await window.PLANE_FICHE.generate({ name: 'ws', only: [v], store: false });
+  for (const v0 of FICHE) {
+    const v = v0.replace(/-nows$/, ''), nows = v0 !== v;   // 'cutaway-nows': the cutaway with the structure off (master's)
+    const r = await pg.evaluate(async ([v, nows]) => {
+      const keep = window.CAGE_WINGSTRUCT; if (nows) window.CAGE_WINGSTRUCT = null;
+      let rec; try { rec = await window.PLANE_FICHE.generate({ name: 'ws', only: [v], store: false }); }
+      catch (e) { return { err: String(e && e.message || e) }; } finally { window.CAGE_WINGSTRUCT = keep; }
       const L = window.CAGE_WINGSTRUCT && window.CAGE_WINGSTRUCT.layer();
       const blob = rec.pics[v]; if (!blob) return null;
       const buf = new Uint8Array(await blob.arrayBuffer()); let s = '';
       for (let i = 0; i < buf.length; i += 0x8000) s += String.fromCharCode.apply(null, buf.subarray(i, i + 0x8000));
       return { b64: btoa(s), time: window.PLANE_FICHE.lastTime, ws: L ? L.userData.wingStruct : null };
-    }, v);
-    if (!r) { console.log('wing_struct_shot: no ' + v); continue; }
-    const f = OUTk + '_fiche_' + v + '.webp'; fs.writeFileSync(f, Buffer.from(r.b64, 'base64'));
+    }, [v, nows]);
+    if (!r || r.err) { console.log('wing_struct_shot: ' + v0 + ' refused: ' + (r && r.err)); continue; }
+    const f = OUTk + '_fiche_' + v0 + '.webp'; fs.writeFileSync(f, Buffer.from(r.b64, 'base64'));
     console.log('wing_struct_shot: wrote ' + f + ' ' + JSON.stringify(r.time) + ' ' + el());
   }
   const PRE = { q: [0.85, 0.22, 11], s: [Math.PI / 2, 0.05, 12], f: [0, 0.08, 11], t: [0.6, 1.25, 12], under: [0.6, -0.30, 10], low: [2.3, 0.10, 9.5] };
@@ -127,7 +140,19 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     await sleep(15000);
     console.log('wing_struct_shot: rolled out ' + el());
     const off = +opt('off', 2.5);
+    // software GL draws the world at seconds a frame: the crash runs on a postage stamp, the stills at full size
+    await pg.setViewportSize({ width: 320, height: 200 }); await sleep(3000);
     const r = await pev('return await pageStage(arg);', { kind: 'trunk', D: 40, agl: 4, V: 30, off, steps: 1500 });
+    // ...and on until the wreck has broken and stands (or 6 min)
+    for (let i = 0; i < 120; i++) {
+      const st = await pg.evaluate(() => { const P = window.FLIGHT_PROBE, D = P.damage && P.damage(); const W = window.FLYDIY_WRECK_STATS ? window.FLYDIY_WRECK_STATS() : null;
+        return { crashed: !!(D && D.crashed), broken: D && D.broken ? D.broken.length : 0, rest: !!(W && W.bodies.every(b => b.asleep)), t: P.sim().t }; });
+      if (i % 10 === 0) console.log('wing_struct_shot: crash state ' + JSON.stringify(st));
+      if (st.crashed && st.broken && st.rest && i > 5) break;
+      await sleep(3000);
+    }
+    await pg.evaluate(() => { const pz = document.getElementById('bPause'); if (pz && /pause/i.test(pz.textContent)) pz.click(); return 1; });
+    await pg.setViewportSize({ width: W, height: H }); await sleep(5000);
     console.log('wing_struct_shot: crash ' + JSON.stringify(r && { crashed: r.crashed, broken: r.broken, wall: r.wall, frameMed: r.frameMed, err: r.err }) + ' ' + el());
     const ws = await pg.evaluate(() => { const m = window.FLIGHT_PROBE.model(); return m && m.wsInfo ? m.wsInfo.planes.map(p => [p.kind, p.halves]) : null; });
     console.log('wing_struct_shot: wreck structure ' + JSON.stringify(ws));

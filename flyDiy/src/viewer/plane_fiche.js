@@ -179,7 +179,7 @@
       L.position.copy(fc).addScaledVector(fwd, t0 * fl).addScaledVector(left, 1.1).addScaledVector(up, 0.25);
       S.add(L); st.added.push(L);
     }
-    if (window.CAGE_WINGSTRUCT) { window.CAGE_WINGSTRUCT.show(true); st.ws = true; }
+    if (window.CAGE_WINGSTRUCT) { window.CAGE_WINGSTRUCT.show(true); window.CAGE_WINGSTRUCT.fiche(true); st.ws = true; }
     const WSg = wingStructNear(T, root, S, left, cl, st);
     for (const k of NEAR_OFF) {
       if (WSg && NEAR_KEEP_STRUCT.includes(k)) continue;

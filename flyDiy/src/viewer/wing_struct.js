@@ -39,7 +39,7 @@
   const GAP = 0.010;            // chord fraction: a rib's fixed part stops this far ahead of a hinge line
   // the finishes, LINEAR (jodel_prep.py's spruce: the user's own wing)
   const COL = {
-    spruce: [0.340, 0.190, 0.073], ply: [0.56, 0.40, 0.21], alu: [0.62, 0.64, 0.67], steel: [0.30, 0.33, 0.31],
+    spruce: [0.340, 0.190, 0.073], ply: [0.46, 0.31, 0.15], alu: [0.62, 0.64, 0.67], steel: [0.30, 0.33, 0.31],
     primer: [0.33, 0.40, 0.27], carbon: [0.030, 0.030, 0.034], glass: [0.70, 0.72, 0.64], foam: [0.80, 0.66, 0.36],
     fit: [0.44, 0.46, 0.49], wire: [0.55, 0.56, 0.58],
   };
@@ -96,8 +96,11 @@
   const uniq = (A, eps) => A.slice().sort((a, b) => a - b).filter((z, i, B) => i === 0 || z - B[i - 1] > (eps || 1e-4));
 
   // which kind a plane's wing is built as -> { key, kind, row, fallback }
-  function kindOf(def, k, lib) {
-    const L = libOf(lib), S = def.spec, P0 = def.parts || {}, PP = (P0.planes && P0.planes[k | 0]) || P0;
+  // `spec`: the spec whose rows say what the wing is made of, when the def is not the whole aeroplane's - the garage's
+  // wing layer lofts its wing off the wing rows alone (_cage_wing.js wingGSpec: the generator's default fuselage), and
+  // 'as the aeroplane' then reads that default: the 172 drew as a cloth wing. The page hands the build's own spec
+  function kindOf(def, k, lib, spec) {
+    const L = libOf(lib), S = spec || def.spec, P0 = def.parts || {}, PP = (P0.planes && P0.planes[k | 0]) || P0;
     let row = 'fabric';
     try { row = L.genSurfKey(S, 'wing', k | 0); } catch (e) {}
     let key = row, fallback = false;
@@ -152,7 +155,7 @@
     for (const k of planes) {
       const PP = (P0.planes && P0.planes[k]) || P0, W = S.wings[k] || S.wings[0];
       if (!PP || !PP.wf || !W) continue;
-      const K = kindOf(def, k, opts.lib), KD = K.kind;
+      const K = kindOf(def, k, opts.lib, opts.spec), KD = K.kind;
       const E = L.genAfEval(W.naca);
       const semi = k === 0 ? S.geom.semi : (PP.semi != null ? PP.semi : 0.5 * W.span);
       const CTL = k === 0 ? S.controls : (W.controls || { aileron: { span: 0, chord: 0.22 }, flap: { type: 'none', span: 0.5, chord: 0.2 } });
@@ -270,7 +273,7 @@
         }
         // ---- THE COVER DRAWN: the D-box / the alloy leading edge, upper surface ----
         if (KD.nose) {
-          const xe = KD.nose === 'ply' ? sparF + 0.5 * sw : sparF - 0.5 * sw, n = lod ? 5 : 9;
+          const xe = sparF - 0.5 * sw, n = lod ? 5 : 9;   // (to the spar's face: the spar's own top reads behind it)
           const cn = KD.nose === 'ply' ? 'ply' : KD.noseC;
           const row = f => { const r = []; for (let q = 0; q <= n; q++) { const x = xe * (1 - Math.cos(0.5 * Math.PI * q / n)); const a = E.up(Math.max(0.0, x)); r.push(P(f, a[0], a[1] * f.chord - 0.5 * INSET)); } return r; };
           sweep(A, FR.map(row), cn, false);
@@ -476,7 +479,7 @@
   }
 
   // ---- THE MESHES: a half's arrays into one BufferGeometry, its two materials from the library ----
-  const MATS = { 0: { roughness: 0.78, metalness: 0.03 }, 1: { roughness: 0.38, metalness: 0.85 } };
+  const MATS = { 0: { roughness: 0.78, metalness: 0.03 }, 1: { roughness: 0.45, metalness: 0.6 } };   // (0.85 metal took the warm room for its colour: alloy read gold)
   function material(T, m) {
     const p = Object.assign({ vertexColors: true, flatShading: true, side: T.DoubleSide }, MATS[m]);
     const ML = (typeof window !== 'undefined' && window.MATLIB) || G.MATLIB;
@@ -556,7 +559,8 @@
       }
       if (!L.grp || L.def !== W.def || L.grp.parent !== scene) {
         dispose(L.grp);
-        L.grp = group(T, W.def, { map: W.nodeCage, lod: 0, name: 'cageLayer:wingStruct' });
+        let full = null; try { full = window.GARAGE_SPEC && window.GARAGE_SPEC.get ? window.GARAGE_SPEC.get() : null; } catch (e) {}
+        L.grp = group(T, W.def, { map: W.nodeCage, lod: 0, name: 'cageLayer:wingStruct', spec: full });
         if (!IMMUNE) IMMUNE = [new T.Plane(new T.Vector3(0, 1, 0), 1e6)];
         L.grp.traverse(o => { if (o.isMesh) { o.userData.edMarker = true; o.userData.wingStruct.layer = true; o.onBeforeRender = immune; } });
         L.def = W.def;
@@ -598,6 +602,31 @@
         return sync();
       }),
       layer: () => L.grp,
+      // the fiche's cutaway lights the cabin from three point lamps a metre outside the cut (plane_fiche.js cutOn), right
+      // where this wing's root stands: drawn by them it burns out (spruce read cream). Under the fiche it is lit by the
+      // studio's key, rim and room only - a material variant whose shader takes no point light
+      fiche: safe(on => {
+        const T = window.THREE, ML = window.MATLIB; if (!L.grp || !T || !ML) return null;
+        L.grp.traverse(o => {
+          if (!o.isMesh) return;
+          const arr = Array.isArray(o.material), ms = arr ? o.material : [o.material];
+          const nm = ms.map(m => {
+            if (!on) return m.userData.wsLit || m;
+            if (m.userData.wsLit) return m;
+            const v = ML.shared(T, 'std', { vertexColors: true, flatShading: true, side: T.DoubleSide, roughness: m.roughness, metalness: m.metalness }, 'wingStructFiche');
+            if (!v.userData.wsNoPoint) {
+              v.userData.wsNoPoint = true; v.userData.cageUni = 1;
+              const chunk = T.ShaderChunk.lights_fragment_begin.replace('#if ( NUM_POINT_LIGHTS > 0 ) && defined( RE_Direct )', '#if 0');
+              v.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace('#include <lights_fragment_begin>', chunk); };
+              v.customProgramCacheKey = () => 'wingStructNoPoint';
+            }
+            v.userData.wsLit = m;
+            return v;
+          });
+          o.material = arr ? nm : nm[0];
+        });
+        return L.grp;
+      }),
     };
   }
 })();
