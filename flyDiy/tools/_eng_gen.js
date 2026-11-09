@@ -303,6 +303,19 @@ const ENG_DEFAULT = {
   // 1.34) and multiplies bmep; `critAlt` is metres of ISA altitude the rating
   // holds to (05_atmos reads it through the row's aspiration).
   blower: 0, boost: 1.0, critAlt: 0,
+  // THE TUNE (REAL-FIGURES-3, the Carbon Cub SS, 2026-11-09): the rated bmep
+  // over the architecture's own (ENG_ARCH[arch].bmep, 9.8 bar on a boxer).
+  // 1 is every catalogue engine, untouched. A tuned engine is a real thing a
+  // builder cannot otherwise reach: the CubCrafters CC340 makes 180 hp at
+  // 2700 rpm on 340 in3, 10.7 bar, where the boxer law gives 165 hp — so
+  // the dial, not a hard-coded row. Bounded where real piston aero engines
+  // sit, 8.3 to 11.8 bar on a boxer.
+  bmepK: 1.0,
+  // THE BUILD (the same session): the engine's mass over the swept-volume
+  // law's, for a case and accessories lighter (or heavier) than the fit's.
+  // 1 is every catalogue engine. The CC340 is 240-250 lb dry, 35 lb under
+  // a comparable Lycoming (AVweb, Richmond): 0.88 of the law.
+  massK: 1.0,
   // ELECTRIC (arch 'electric'): the can IS the fiche. Defaults are the
   // registry's own 2212 outrunner — the electric anchor, as the A-65 is
   // the combustion one. rpm rides the shared key (electric default 8500
@@ -545,7 +558,9 @@ function engResolve(spec) {
   // pressure ratio — the whole of a supercharger, at rated power
   const blown = Math.round(P.blower || 0) > 0;
   const boost = blown ? Math.max(1, Math.min(2.5, +P.boost || 1)) : 1;
-  const powerW = (A.bmep * boost * 1e5) * Vd * revS / strokeDiv;
+  const bmepK = Math.max(0.85, Math.min(1.2, +P.bmepK || 1));
+  const bmep = A.bmep * bmepK;
+  const powerW = (bmep * boost * 1e5) * Vd * revS / strokeDiv;
 
   // 3. mass, from swept volume, sub-linearly, with the extras declared.
   // The law was fitted against the registry's DRY ENGINE masses, which are
@@ -553,7 +568,8 @@ function engResolve(spec) {
   // baseline and their flags REMOVE them. Adding them on top of a fit that
   // already contained them is how a model double-counts and reads 12% heavy
   // on every row at once.
-  let mass = ENG_MASS_K * Math.pow(litres, ENG_MASS_E) * (A.kM || 1);
+  let mass = ENG_MASS_K * Math.pow(litres, ENG_MASS_E) * (A.kM || 1)
+    * Math.max(0.75, Math.min(1.25, +P.massK || 1));
   if (!P.accessories) mass *= 0.91;
   if (!P.exhaust) mass *= 0.965;
   if (P.geared) mass += 0.14 * mass + 3.0;    // reduction unit
@@ -665,7 +681,7 @@ function engResolve(spec) {
 
   return {
     arch: P.arch, archName: A.name, cyl: n,
-    displacement: Vd, litres, bmep: A.bmep,
+    displacement: Vd, litres, bmep,
     powerW, powerHP: powerW / 745.7, rpm: P.rpm,
     // the blower (2026-09-05): what the row's aspiration and critAlt become
     blower: blown ? Math.round(P.blower) : 0, boost,
