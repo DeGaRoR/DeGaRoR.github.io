@@ -195,11 +195,15 @@ function run() {
   // (c) the engine suggests, by the registry: a Rotax two-stroke and a 912 ultralight, an A-65 light, the radials heavy,
   //     a motor none
   {
-    const PP = C.POWERPLANTS, sug = k => (C.genElecSetOf(PP[k].engine) || {}).set;
-    const want = { rotax503_wood: 'ultralight', rotax582_ivo: 'ultralight', rotax912_warp: 'ultralight', a65_sensenich74: 'light',
-                   o200_eprops: 'light', io360_mccauley: 'light', r1830_hs23e50: 'heavy', r985_hs2b20: 'heavy', e811_velis: null };
+    const PP = C.POWERPLANTS, sug = k => (C.genElecSetOf(PP[k].engine, k) || {}).set;
+    // (REAL-FIGURES, 9 Nov: as built wins over mass - the A-65 Cub / Jodel, the Camel's Clerget, the Tiger Moth's Gipsy and
+    // the PT-17's W-670 had no electrics; the W-670 at 211 kg would otherwise read 'heavy')
+    const want = { rotax503_wood: 'ultralight', rotax582_ivo: 'ultralight', rotax912_warp: 'ultralight', a65_sensenich74: 'none',
+                   o200_eprops: 'light', io360_mccauley: 'light', r1830_hs23e50: 'heavy', r985_hs2b20: 'heavy', e811_velis: null,
+                   clerget9b_wood: 'none', gipsymajor1_wood: 'none', w670_hs2b: 'none' };
+    for (const k of Object.keys(C.GEN_ELEC_AS_BUILT)) check(!!PP[k], 'suggest: the as-built table names a registry row', k);
     for (const k of Object.keys(want)) check(PP[k] && sug(k) === want[k], 'suggest: ' + k + ' -> ' + want[k], PP[k] ? String(sug(k)) : 'no row');
-    check(C.genElecSetOf(PP.rotax582_ivo.engine).alternator === 'coil12' && C.genElecSetOf(PP.rotax912_warp.engine).alternator === 'int18',
+    check(C.genElecSetOf(PP.rotax582_ivo.engine, 'rotax582_ivo').alternator === 'coil12' && C.genElecSetOf(PP.rotax912_warp.engine, 'rotax912_warp').alternator === 'int18',
           'suggest: a two-stroke\'s coil, a 912\'s integrated generator');
   }
   // (d) THE REFUSALS ARE SAID: a starter with no battery, a generator-only bus, an alternator with no battery, a 12 V

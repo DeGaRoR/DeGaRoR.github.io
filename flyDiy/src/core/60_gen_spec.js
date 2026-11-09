@@ -2041,7 +2041,7 @@ const GEN_ELEC = {
     leadSmall: { name: 'small sealed lead 12 V, 9 Ah', kg: 3.2, price: 90, Ah: 9, set: 'ultralight',
                  note: 'a powersport AGM (YTX9 class) - the two-stroke ultralights\' usual' },
     leadHeavy: { name: 'heavy lead-acid 12 V, 35 Ah', kg: 12.5, price: 420, Ah: 35, set: 'heavy',
-                 note: 'Gill G-35 class for a radial\'s cranking (ESTIMATE: mass and price not sourced)' },
+                 note: 'Gill G-35 class for a radial\'s cranking (ESTIMATE: mass and price not sourced; 12 V - a DC-3 / C-47 bus is really 24 V, the game keeps one 12 V bus)' },
   },
   alternator: {
     none:  { name: 'no alternator',   kg: 0,   price: 0,   A: 0 },
@@ -2061,7 +2061,7 @@ const GEN_ELEC = {
     int18:  { name: 'integrated generator, 18 A', kg: 0.9, price: 350, A: 18, cutIn: 700, internal: true, selfExcited: true,
               set: 'ultralight', note: 'the Rotax 912\'s 250 W internal generator and its external regulator' },
     genHeavy: { name: 'heavy generator, 50 A', kg: 15.0, price: 2600, A: 50, selfExcited: true, set: 'heavy',
-                note: 'engine-driven, on a radial\'s accessory pad (ESTIMATE: ~15-18 kg for the period units)' },
+                note: 'engine-driven, on a radial\'s accessory pad (ESTIMATE: ~15-18 kg for the period units; 12 V here, 24 V on a DC-3)' },
   },
   starter: {
     none: { name: 'hand-propped',      kg: 0,   price: 0,   amps: 0 },
@@ -2131,11 +2131,23 @@ const GEN_ELEC_SETS = {
   heavy:      { name: 'Heavy', battery: 'leadHeavy', alternator: 'genHeavy', starter: 'heavy',
                 note: 'a radial or a big piston: cranking battery, engine-driven generator, heavy starter' },
 };
+// AS BUILT (REAL-FIGURES, 9 Nov: "engine mass cannot tell a 1940 trainer from a 1950 Beaver"): where history says what an
+// engine's aeroplanes carried, that wins over the mass rule. Kept OUT of POWERPLANTS (its rows ride into the build's
+// params, so a field there would move every build's fingerprint). Keyed by the powerplant row.
+const GEN_ELEC_AS_BUILT = {
+  a65_sensenich74:  { set: 'none', why: 'the A-65-8 of the J-3 Cub and the Jodel D.11: no starter, no generator - hand-propped' },
+  clerget9b_wood:   { set: 'none', why: 'a 1917 rotary (the Camel): magnetos only, swung by hand' },
+  gipsymajor1_wood: { set: 'none', why: 'the Tiger Moth as built: no electrics (some post-war ones got a wind generator for lights)' },
+  w670_hs2b:        { set: 'none', why: 'the PT-17 as delivered: no electrical system, a hand-cranked inertia starter' },
+  mikron3_wood:     { set: 'none', why: 'a 1930s light engine: magnetos only, swung by hand' },
+};
 // the set the engine suggests: none for a motor or a turbine (a pack or its own starter-generator), ultralight for a
 // two-stroke or anything under 70 kg dry (a Rotax 912 is 57-61 kg), heavy over 200 kg (the radials), light between.
 // A Rotax 912's own coil is the 18 A integrated generator, a two-stroke's the 12 A lighting coil: `alternator` says which.
-function genElecSetOf(engine) {
+function genElecSetOf(engine, key) {
   const E = engine || {};
+  const AB = key && GEN_ELEC_AS_BUILT[key];
+  if (AB) return { set: AB.set, why: (E.name || key) + ': ' + AB.why };
   if (E.family === 'electric') return { set: null, why: 'an electric motor: the pack starts it, no 12 V starter' };
   if (E.family === 'turbine') return { set: 'heavy', why: 'a turbine: a heavy starter-generator' };
   const kg = +E.mass || 0;

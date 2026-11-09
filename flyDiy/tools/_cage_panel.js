@@ -114,7 +114,7 @@ function elecEngine() {
   try {
     const g = inGame() && window.GARAGE_SPEC && window.GARAGE_SPEC.get ? window.GARAGE_SPEC.get() : null;
     const PP = typeof POWERPLANTS !== 'undefined' ? POWERPLANTS : null;
-    return g && PP && PP[g.engine] ? PP[g.engine].engine : null;
+    return g && PP && PP[g.engine] ? Object.assign({ _key: g.engine }, PP[g.engine].engine) : null;
   } catch (e) { return null; }
 }
 // the steady load (A): the fitted dials and radios, plus the night's lights (nav, beacon at half, the panel lamps)
@@ -146,10 +146,12 @@ function tileRow(parent, label, blurb, opts, cur, onPick) {
 function renderElecTiles(host, C, R, RB) {
   const E = C.ELEC, SETS = typeof GEN_ELEC_SETS !== 'undefined' ? GEN_ELEC_SETS : null;
   const eng = elecEngine();
-  const sug = eng && typeof genElecSetOf === 'function' ? genElecSetOf(eng) : null;
-  // the engine's set as rows: what each part's tiles mark "suggested" (the 912 / two-stroke charging row per the engine)
-  const want = sug && sug.set && SETS ? { battery: SETS[sug.set].battery, starter: SETS[sug.set].starter,
-    alternator: sug.alternator || SETS[sug.set].alternator } : null;
+  const sug = eng && typeof genElecSetOf === 'function' ? genElecSetOf(eng, eng._key) : null;
+  // the engine's set as rows: what each part's tiles mark "for this engine" (the 912 / two-stroke charging row per the
+  // engine; 'none' an engine whose aeroplanes were built with no electrics)
+  const want = !sug || !sug.set ? null : sug.set === 'none' ? { battery: 'none', alternator: 'none', starter: 'none' }
+    : SETS && SETS[sug.set] ? { battery: SETS[sug.set].battery, starter: SETS[sug.set].starter,
+      alternator: sug.alternator || SETS[sug.set].alternator } : null;
   // the system on one line: what it holds, what it charges, what it feeds, how long the battery lasts alone
   const L = elecLoadA(RB);
   const sumKg = (RB.rows || []).filter(r => r.group === 'elec').reduce((a, r) => a + r.kg, 0);
@@ -171,7 +173,8 @@ function renderElecTiles(host, C, R, RB) {
       const b = document.createElement('button');
       b.type = 'button'; b.className = 'wide';
       const kg = E.battery[want.battery].kg + E.alternator[want.alternator].kg + E.starter[want.starter].kg;
-      b.textContent = 'fit the engine\'s set: ' + [E.battery[want.battery].name, E.alternator[want.alternator].name, E.starter[want.starter].name].join(', ') + ' (' + fmtKg(kg) + ')';
+      b.textContent = sug.set === 'none' ? 'take the electrics off, as built (no battery, no generator, no starter)'
+        : 'fit the engine\'s set: ' + [E.battery[want.battery].name, E.alternator[want.alternator].name, E.starter[want.starter].name].join(', ') + ' (' + fmtKg(kg) + ')';
       b.title = 'writes the battery, the charging and the starter marked "for this engine" below; the suction stays as it is';
       b.onclick = () => { makeCustom(); SY.elec.battery = want.battery; SY.elec.alternator = want.alternator; SY.elec.starter = want.starter; renderPanel(); commit(); };
       host.appendChild(b);
