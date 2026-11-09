@@ -8,15 +8,17 @@ a sticker in shadow does not read). The stock Cub as the garage boots it; the Tw
 own finish door (`CAGE_UI.finishFromSpec` + `build`); once per run the panel's own mark button was clicked
 (`panel {"vn1On":1,"vn1Mk":11,"thumb":true}` in each log: it reached the export, the buttons carry the marks' pictures).
 Rig: `node flyDiy/tools/stickers_shot.js --out <dir> --gfx gamer|laptop --size 1920x1080 [--nowatchdog] [--only cub|twin]`
-(`--nowatchdog` for gamer: its frames take seconds on SwiftShader). JPG q90, the canvas only (the editor's columns fold).
+(`--nowatchdog` for gamer: its frames take seconds on SwiftShader). JPG q84, the canvas only (1600 x 1080; the editor's
+columns fold). The Cub's stills are from the `--only cub` runs (stickers_log_*_cub.json), the Twin's from the full runs
+(stickers_log_*_twin.json); the composition is `COMPOSE` in the rig.
 
-## The stills
+## The stills (`sheet_gamer.jpg`, `sheet_laptop.jpg`: all eight of a preset on one page)
 
 | file | what |
 | --- | --- |
 | `cub_<gfx>_threequarter_right.jpg` | the hero shot: the grizzly on the right cowl (right side only), the Alaska map on the fin |
 | `cub_<gfx>_nose_right.jpg` | the right cowl closer: the grizzly, head to the nose as drawn |
-| `cub_<gfx>_left_side.jpg` | the left flank: the bull moose on the cowl (left side only, in the trim's red), the map on the fin |
+| `cub_<gfx>_left_side.jpg` | the left flank: the bull moose on the cowl (left side only, a dark red picked for it), the map on the fin |
 | `cub_<gfx>_nose_left.jpg` | the left cowl closer: the moose |
 | `twin_<gfx>_threequarter_right.jpg` | the glassy panorama on the pod (dark green), the orca on both fins (the trim's orange) |
 | `twin_<gfx>_tail_right.jpg` | the fins: the orca on the near fin's outer face and the far fin |

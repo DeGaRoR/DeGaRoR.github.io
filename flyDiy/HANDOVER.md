@@ -314012,8 +314012,8 @@ RE-PINNED, with the reason written beside each: GATE LIVERY's slot count and GAT
 sticker slots; the kit's layers and pages and the strip's and master's slots unchanged). Nothing else moved.
 
 PICTURES (reports/evidence/LIVERY-STICKERS/, README there; SwiftShader, gamer and laptop, 1600 x 1080 canvas, GOLDEN):
-the stock Cub - the grizzly on the right cowl (right side only), the bull moose on the left cowl (left side only, the
-trim's red), the Alaska map on the fin (both sides), four views each preset; the Twin busher - the glassy panorama on the
+the stock Cub - the grizzly on the right cowl (right side only), the bull moose on the left cowl (left side only, a dark
+red), the Alaska map on the fin (both sides), four views each preset; the Twin busher - the glassy panorama on the
 pod, the orca on both fins (mirrored on the left), the midnight valley on a wing top, four views; the flank probe; the
 marks before / after. The gamer page lost its GPU process to the session's memory limit once per run and recovered.
 
