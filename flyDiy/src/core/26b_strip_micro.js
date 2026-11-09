@@ -223,18 +223,33 @@ const STRIP_MICRO = (() => {
       const a = ih(i, j, sk + 1), b = ih(i, j, sk + 2), e = ih(i, j, sk + 3);
       return [(i + 0.25 + 0.5 * a) * M, (j + 0.25 + 0.5 * b) * M, big ? 0.07 + 0.2 * e * e : 0.008 + 0.017 * e * e];
     }
-    // the stones for the meshes: every 1.2 m cell's, whole inside the strip clear of its ends, none in a way's trough
-    // -> [[u, v, R], ...] in the field's frame
+    // the stones for the meshes: a 1.2 m cell's, whole inside the strip clear of its ends, none in a way's trough or a hole
+    // -> [u, v, R] or null. A stone's footprint (R <= 0.27) stays inside the middle of its own cell (0.3 m clear of its sides)
+    function stoneIn(i, j) {
+      const R = rockIn(i, j, true);
+      if (!R || Math.abs(R[1]) + R[2] > halfW - 0.15 || R[0] < END_IN || R[0] > len - END_IN) return null;
+      if (WAYS.length && waysAt(R[0], R[1])[1] > 0.3) return null;
+      if (pHole > 0 && holesAt(R[0], R[1], 0)[0] > 0.005) return null;
+      return R;
+    }
+    // -> [[u, v, R], ...] in the field's frame (render_world standRocks draws each 2R across, 1.1R tall, a third buried)
     function bigRocks() {
       const out = [];
       if (!(K.rocks > 0)) return out;
-      for (let i = 0; i * 1.2 < len; i++) for (let j = Math.floor(-halfW / 1.2); j * 1.2 < halfW; j++) {
-        const R = rockIn(i, j, true);
-        if (!R || Math.abs(R[1]) + R[2] > halfW - 0.15 || R[0] < END_IN || R[0] > len - END_IN) continue;
-        if (WAYS.length && waysAt(R[0], R[1])[1] > 0.3) continue;
-        out.push(R);
-      }
+      for (let i = 0; i * 1.2 < len; i++) for (let j = Math.floor(-halfW / 1.2); j * 1.2 < halfW; j++) { const R = stoneIn(i, j); if (R) out.push(R); }
       return out;
+    }
+    // THE STONES' BODIES (the user, 9 Nov 21:55: "on the collision model ... any very simple volume that will collide nicely
+    // ... you shouldn't have like 10 centimeters difference"): what stands of a stone over the ground, a paraboloid cap -
+    // STONE_H R high at its middle (1.1 R tall, a third of it buried), 0 at R, the sides 2 STONE_H (56 deg) at the foot: no
+    // point or edge a wheel balances on, inside the drawn stone's rounded outline by at most ~0.2 x its height. On the
+    // composed ground, not in the raster (27_premises stonesAt; its 0.25 m lattice would flatten a 14 cm stone to a few cm)
+    function stoneUV(u, v) {
+      if (!(K.rocks > 0) || u <= 0 || u >= len || v <= -halfW || v >= halfW) return 0;
+      const R = stoneIn(Math.floor(u / 1.2), Math.floor(v / 1.2));
+      if (!R) return 0;
+      const q2 = ((u - R[0]) * (u - R[0]) + (v - R[1]) * (v - R[1])) / (R[2] * R[2]);
+      return q2 < 1 ? STONE_H * R[2] * (1 - q2) : 0;
     }
     function rockAt(u, v) {
       let best = 0;
@@ -273,7 +288,7 @@ const STRIP_MICRO = (() => {
       return h * eT;
     }
     // the ceiling: the crown's top + every octave's amplitude (the ruts and the holes only go down)
-    const bound = crownS * halfW / 2 + amp.reduce((s, a) => s + a, 0) + swA + hzUp + lA + WAYS.reduce((m, W) => m + 2 * W[3] * W[2], 0) + 1e-6;   // (+ the swell's crest, + the highest hazard bump, + the lumps, + every berm)
+    const bound = crownS * halfW / 2 + amp.reduce((s, a) => s + a, 0) + swA + hzUp + lA + WAYS.reduce((m, W) => m + 2 * W[3] * W[2], 0) + (K.rocks > 0 ? STONE_H * 0.27 : 0) + 1e-6;   // (+ the swell's crest, + the highest hazard bump, + the lumps, + every berm, + the tallest stone)
     // the box in the caller's frame (for the modifier's bbox and its tiles)
     const corners = [[0, -halfW], [len, -halfW], [len, halfW], [0, halfW]].map(([u, v]) => [x0 + cs * u - sn * v, z0 + sn * u + cs * v]);
     const bbox = { x0: Math.min(...corners.map(q => q[0])), z0: Math.min(...corners.map(q => q[1])), x1: Math.max(...corners.map(q => q[0])), z1: Math.max(...corners.map(q => q[1])) };
@@ -294,7 +309,7 @@ const STRIP_MICRO = (() => {
         if (fill <= 0 || q[0] <= 0 || q[0] >= len || Math.abs(q[1]) >= halfW) return 0;
         return Math.max(holesAt(q[0], q[1], fill)[1], hazardsAt(q[0], q[1], fill)[1], rutWater(q[0], q[1], fill));
       },
-      hole, lanes, ways: WAYS, waysAt, rockAt, rockIn, bigRocks, toUV, reliefUV, hazards: HZ, a1: amp[OCT.length - 1],
+      hole, lanes, ways: WAYS, waysAt, rockAt, rockIn, bigRocks, stoneIn, stoneUV, stoneAt: (x, z) => { const q = toUV(x, z); return stoneUV(q[0], q[1]); }, toUV, reliefUV, hazards: HZ, a1: amp[OCT.length - 1],
     };
   }
   // THE LIVE LIST (what a world composed): compose publishes its micro strips (in the WORLD frame: { toLocal, f }) by
@@ -311,11 +326,14 @@ const STRIP_MICRO = (() => {
   // walls 2 cm off the wheels' ground, p99 20 mm on w7 at chaos 0.8; 5 cm halves the spans to 4.7 cm there, p99 8 mm, 283 k vertices
   // on that 1020 m strip against 196 k, +0.3 s to build it - the cost named, a strip with chaos only)
   const REFINE_MIN = 0.3, REFINE_MIN_V = 0.05;
+  // a stone's body over the ground, x its R (1.1 R tall, a third buried: 0.733); stoneAt(x, z): the published strips' (the viewer's)
+  const STONE_H = 1.1 * (1 - 1 / 3);
+  function stoneAt(x, z) { for (const L of live.values()) for (const s of L) { const q = s.toLocal(x, z); const b = s.f.bbox; if (q[0] >= b.x0 && q[0] <= b.x1 && q[1] >= b.z0 && q[1] <= b.z1) { const h = s.f.stoneAt(q[0], q[1]); if (h > 0) return h; } } return 0; }
   // glslRow(id): the pavement shader's uMicro, uMicro2 for a published strip - [seed, hole probability (float32), hole depth m,
   // puddles x the grade's own, the 1 m octave's amplitude (the others x sqrt of their wavelength), hazards, hazard size m,
   // 1 + the swell m] and uMicro3 [the ways' ruts m, the lumps m, cart + 2 path (the ways the field built), rocks] - pavement.js
   // pvPuddle / pvRelief / pvWays / pvRockIn read exactly these; null when the strip is flat
   function glslRow(id) { for (const L of live.values()) for (const s of L) if (s.id === id) { const f = s.f; return [f.seed, f.pHole, f.K.holeDepth / 100, f.K.puddles * f.pudOK, f.a1, f.K.hazards, f.K.hazardSize / 100, 1 + f.K.swell / 100,
     f.K.ruts / 100, f.K.lumps / 100, (f.ways.some(W => W[7] === 1) ? 1 : 0) + (f.ways.some(W => W[7] === 2) ? 2 : 0), f.K.rocks]; } return null; }
-  return { KNOBS, on, resolve, derive, field, ih, vnoise, publish, at, puddleAt, has, rocksOf, glslRow, live, CELL, OCT, EDGE_IN, END_IN, REFINE_MIN, REFINE_MIN_V, BERM };
+  return { KNOBS, on, resolve, derive, field, ih, vnoise, publish, at, puddleAt, has, rocksOf, stoneAt, STONE_H, glslRow, live, CELL, OCT, EDGE_IN, END_IN, REFINE_MIN, REFINE_MIN_V, BERM };
 })();
