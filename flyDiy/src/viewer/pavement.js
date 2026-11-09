@@ -1055,10 +1055,10 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
   float M = big ? 1.2 : 0.3; int sk = sd + (big ? 501 : 511);
   int i = int(floor(u / M)), j = int(floor(v / M));
   float vC = (float(j) + 0.5) * M, edge = smoothstep(0.3, 0.9, abs(vC) / halfW);
-  float p = big ? uMicro3.w * (0.4 + 0.6 * edge) : min(0.35, 0.04 + 0.5 * uMicro3.w) * (0.6 + 0.4 * edge);
+  float p = big ? uMicro3.w * edge * edge : min(0.35, 0.04 + 0.5 * uMicro3.w) * (0.6 + 0.4 * edge);
   if (pmH(i, j, sk) >= p) return vec4(9.0, 9.0, 0.0, 0.0);
   float a = pmH(i, j, sk + 1), b = pmH(i, j, sk + 2), e = pmH(i, j, sk + 3);
-  float R = big ? 0.07 + 0.2 * e * e : 0.015 + 0.05 * e * e;
+  float R = big ? 0.07 + 0.2 * e * e : 0.008 + 0.017 * e * e;
   vec2 C = vec2((float(i) + 0.25 + 0.5 * a) * M, (float(j) + 0.25 + 0.5 * b) * M);
   return vec4((vec2(u, v) - C) / R, R, pmH(i, j, sk + 4));
 }`;
@@ -1444,7 +1444,7 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
         // toward the edges, none in a trough; drawn per pixel - a dome's light, its own grey, the soil darkened round its foot -
         // and gone once smaller than the pixel. Drawn only: the rocks the wheels hit are their own work
         float rkK = uMicro3.w > 0.0 ? (1.0 - clamp(wy.y * 1.5, 0.0, 1.0)) * cueK * smoothstep(0.3, 0.6, halfW - abs(v)) : 0.0;
-        if (rkK > 0.01) for (int bI = 0; bI < 2; bI++) {
+        if (rkK > 0.01) for (int bI = 1; bI < 2; bI++) {   // (bI 0, the 7-27 cm stones: the rock pack's meshes now, render_world standRocks)
           vec4 RK = pvRockIn(u, -v, halfW, bI == 0, sdM);
           if (RK.z <= 0.0) continue;
           float vis = rkK * smoothstep(0.5, 1.5, RK.z / max(fwm, 1e-4));
@@ -1458,7 +1458,10 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
             // the island's own rock, grey-brown, darker than the dry soil's crowns - and dusted with the soil it lies in, most at its foot
             vec3 sc = mix(vec3(0.13, 0.12, 0.105), vec3(0.30, 0.27, 0.23), RK.w) * (0.75 + 0.5 * pvNoise(uvS / 0.05 + RK.w * 37.0));
             sc = mix(sc, col, 0.25 + 0.4 * (1.0 - top));
-            col = mix(col, sc * (0.78 + 0.3 * top), vis); rough = mix(rough, 0.6, vis);
+            // WET (the user, 9 Nov 21:20: "they do not look wet"): a wet stone is darker and glossy - its own 0.6 gave it the dry
+            // soil's matt where the wet soil around it shone
+            float wetS = clamp(uPavWet, 0.0, 1.0);
+            col = mix(col, sc * (0.78 + 0.3 * top) * (1.0 - 0.35 * wetS), vis); rough = mix(rough, mix(0.6, 0.15, wetS), vis);
             nT.xy += vec2(RK.x, -RK.y) / max(length(RK.xy), 1e-3) * (0.6 * r / max(top, 0.25)) * vis;
             gMicDbg = vec3(1.0);
           } else if (r < 1.35) col *= 1.0 - 0.3 * vis * (1.0 - smoothstep(1.0, 1.35, r));   // its foot: the soil it sits in
