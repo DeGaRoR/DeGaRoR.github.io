@@ -95,6 +95,7 @@ const MOODS = {
   sun:      { sunK: 1.0, env: 1.0, bg: 1.0, fog: 0.0011, fogC: 0x9fb0c2, expo: 1.0 },
   golden:   { sunK: 0.85, env: 0.85, bg: 0.9, fog: 0.0016, fogC: 0xc9a27a, expo: 1.1, warm: true },
   overcast: { sunK: 0.08, env: 0.75, bg: 0.6, fog: 0.0035, fogC: 0x8d969c, expo: 1.35, grey: true },
+  night:    { sunK: 0.0, env: 0.018, bg: 0.012, fog: 0.004, fogC: 0x0b0f16, expo: 1.0, night: true },
 };
 function applyMood(name, yawDeg) {
   const M = MOODS[name] || MOODS.sun;
@@ -110,7 +111,9 @@ function applyMood(name, yawDeg) {
   renderer.toneMappingExposure = M.expo * (SKY.ev || 1) / (1 + sunDown);
   scene.fog = M.fog > 0 ? new THREE.FogExp2(M.fogC, M.fog) : null;
   WORLD.rotation.y = (yawDeg || 0) * D2R;
-  fill.intensity = M.grey ? 0.25 : 0;
+  fill.intensity = M.grey ? 0.25 : (M.night ? 0.12 : 0);
+  if (M.night) { fill.color.setRGB(0.35, 0.45, 0.7); fill.groundColor.setRGB(0.05, 0.05, 0.06); sun.color.setRGB(0.55, 0.65, 0.95); sun.intensity = 0.06; renderer.toneMappingExposure = 1.6; }
+  else { fill.color.setHex(0xbdd2ea); fill.groundColor.setHex(0x4a4436); }
 }
 
 // ---- the site: the field, the forest, the club next door, a mast ---------------------------------------------------------------
@@ -128,6 +131,8 @@ function buildSite(HD) {
   const geo = new THREE.PlaneGeometry(3000, 3000, 1, 1); geo.rotateX(-Math.PI / 2);
   const uv = geo.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, (uv.getX(i) - 0.5) * 3000, (uv.getY(i) - 0.5) * 3000);
   const gm = SH(THREE, 'std', { color: 0xa9b48e, roughness: 1, metalness: 0, map: siteTex('ground003', 'diff', 4, true), normalMap: siteTex('ground003', 'nor', 4), roughnessMap: siteTex('ground003', 'rough', 4) }, 'field');
+  // a summer meadow is ~0.17 linear (the generator's calibration: the scan's mean measured, not a hand gain)
+  if (typeof SITE_TEX_SETS !== 'undefined' && SITE_TEX_SETS && SITE_TEX_SETS.ground003) DG.calibrate(gm, SITE_TEX_SETS.ground003.diff, 0.16, [0.88, 1.06, 0.72]);
   const ground = new THREE.Mesh(geo, gm); ground.position.y = -0.02; ground.receiveShadow = true; grp.add(ground);
   // the forest: conifers (a trunk and a cone of crown, instanced) round the plot, the airfield's sector kept open in front
   const r = (() => { let s = 77; return () => (s = (s * 16807) % 2147483647) / 2147483647; })();
@@ -210,6 +215,11 @@ function buildHangar(o) {
   BUILT = DG.build(P, o.lod, FIN);
   BUILT.ms = performance.now() - t0;
   BUILT.meshes = addBuilt(ROOT, BUILT, o.stage >= 3 ? (FIN.hn && FIN.hn.MAT) : FIN.MAT);
+  for (const L of ((BUILT.stats.lit && BUILT.stats.lit.lights) || [])) {   // the lamps are real lights (G253: no light without its glass)
+    if (!P.lamps) break;
+    const pl = new THREE.PointLight(new THREE.Color(L.col[0], L.col[1], L.col[2]), L.k * 40, L.range * 1.4, 2);
+    pl.position.set(L.x, L.y, L.z); ROOT.add(pl);
+  }
   WORLD.add(ROOT);
   CUR = key;
   hookMirror();
@@ -224,13 +234,14 @@ function hookMirror() {
   if (!wm || wm.userData.mirrorHooked) return;
   wm.userData.mirrorHooked = true;
   MIRROR.uniforms = { tMirror: { value: null }, uRes: { value: new THREE.Vector2(W, H) }, uMirrorK: { value: 0 } };
+  // THE MIRROR REPLACES THE ENVIRONMENT'S RADIANCE, nothing else: after lights_fragment_maps `radiance` holds what
+  // the environment map returns for the reflected ray; RE_IndirectSpecular then weights it with three's own Fresnel
+  // (the split-sum DFG) and energy. The reflected scene (linear, untonemapped, HDR) is that radiance for a flat mirror,
+  // read at the fragment's own screen position. The bed (the wet slab) is the material's diffuse, untouched.
   wm.onBeforeCompile = sh => {
     Object.assign(sh.uniforms, MIRROR.uniforms);
-    sh.fragmentShader = 'uniform sampler2D tMirror; uniform vec2 uRes; uniform float uMirrorK;\n' + sh.fragmentShader.replace('#include <opaque_fragment>',
-      '{ vec3 Vv = normalize(vViewPosition); float cosT = clamp(dot(normalize(normal), -Vv), 0.0, 1.0);\n' +
-      '  float fr = 0.02 + 0.98 * pow(1.0 - cosT, 5.0); fr = mix(0.35, 1.0, fr);\n' +
-      '  vec3 refl = texture2D(tMirror, gl_FragCoord.xy / uRes).rgb;\n' +
-      '  outgoingLight = mix(outgoingLight, refl * 0.92, fr * uMirrorK); }\n#include <opaque_fragment>');
+    sh.fragmentShader = 'uniform sampler2D tMirror; uniform vec2 uRes; uniform float uMirrorK;\n' + sh.fragmentShader.replace('#include <lights_fragment_maps>',
+      '#include <lights_fragment_maps>\n  radiance = mix(radiance, texture2D(tMirror, gl_FragCoord.xy / uRes).rgb, uMirrorK);');
   };
   wm.customProgramCacheKey = () => 'derelict-mirror';
   wm.needsUpdate = true;
@@ -274,6 +285,10 @@ const VIEWS = {
   roof:     { eye: [2, 1.6, 6], at: [6, 13, -6], fov: 70, yaw: 60, mood: 'sun' },
   graffiti: { eye: [-6.5, 1.5, 12.5], at: [-14.5, 1.4, 5], fov: 55, yaw: -54, mood: 'sun' },
   aerial:   { eye: [-55, 48, 70], at: [0, 2, -2], fov: 40, yaw: 80, mood: 'sun' },
+  barriers: { eye: [-11.6, 1.25, 1.2], at: [-14.4, 0.5, 6.5], fov: 48, yaw: -54, mood: 'sun' },
+  line:     { eye: [-4.5, 1.4, 27.5], at: [-9, 0.55, 21.7], fov: 50, yaw: 66, mood: 'sun', stage: 1 },
+  night:    { eye: [9, 1.7, 34], at: [0, 2.5, 18], fov: 55, yaw: 66, mood: 'night', stage: 1, P: { lamps: 1 } },
+  puddle:   { eye: [1.5, 1.6, -4], at: [0.5, 0.0, 4.5], fov: 55, yaw: 60, mood: 'sun', wet: 0.85 },
 };
 function setView(name, yawOverride) {
   const v = VIEWS[name] || VIEWS.front;
@@ -320,6 +335,7 @@ async function shoot(o0) {
   const v = VIEWS[o.cam] || VIEWS.front;
   if (o.wet === undefined) o.wet = v.wet !== undefined ? v.wet : DG.DEF.wet;
   if (o.P === undefined && v.P) o.P = v.P;
+  if (o0 && o0.stage === undefined && v.stage !== undefined) o.stage = v.stage;
   applyMood(o.mood || v.mood, o.yaw !== undefined ? o.yaw : v.yaw);
   buildHangar(o);
   setView(o.cam, o.yaw);

@@ -42,6 +42,10 @@ const SET = [
   { name: 'aerial2',       cam: 'aerial',   stage: 2 },
   { name: 'lod1',          cam: 'far',      stage: 0, lod: 1 },
   { name: 'lod2',          cam: 'far',      stage: 0, lod: 2 },
+  { name: 'detail_barriers', cam: 'barriers', stage: 0 },
+  { name: 'detail_line',   cam: 'line',     stage: 1 },
+  { name: 'night1',        cam: 'night',    stage: 1 },
+  { name: 'detail_puddle', cam: 'puddle',   stage: 0 },
 ].filter(s => !ONLY || ONLY.includes(s.name) || ONLY.includes(s.cam));
 const TYPES = { '.html': 'text/html', '.js': 'application/javascript', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.ktx2': 'image/ktx2', '.bin': 'application/octet-stream' };
 function serve() {

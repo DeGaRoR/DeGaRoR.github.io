@@ -49,7 +49,7 @@ const DEF = {
   decay: 0.8,      // how far gone the derelict is: 0 a sound shell with its cladding, 1 a skeleton
   wet: 0.65,       // the slab after rain (stages 0-1; the roofed slab dries): 0 dry .. 1 a sheet of water
   gallery: 5.5, bay: 5,
-  graffiti: 1, barriers: 1, weeds: 1, litter: 1, rubble: 1,
+  graffiti: 1, barriers: 1, weeds: 1, litter: 1, rubble: 1, lamps: 0,   // lamps: the made-safe line's warning lamps lit (the night's)
   apron: 0, apronL: 26,   // the build's own cracked apron (the premises' pavement draws it in game)
   ao: 0.8, aoRange: 0.9, aoGround: 1,
 };
@@ -77,13 +77,13 @@ const PRESETS = {
   'derelict hangar, restored':  { stage: 3 },
 };
 const BAGS = ['steel', 'steelNew', 'sheetPale', 'sheetDark', 'sheetWhite', 'sheetNew', 'concFloor', 'concWall',
-              'glass', 'water', 'decal', 'stain', 'weed', 'plastic', 'ply'];
+              'glass', 'water', 'decal', 'stain', 'weed', 'plastic', 'lamp', 'ply'];
 const EXTRA = ['aoskirt'];
 const FOLD = [null,
-  [['steelNew', 'steel'], ['decal', null], ['stain', null], ['plastic', null], ['weed', null]],
+  [['steelNew', 'steel'], ['decal', null], ['stain', null], ['plastic', null], ['lamp', null], ['weed', null]],
   [['steelNew', 'steel'], ['sheetWhite', 'sheetPale'], ['concFloor', 'concWall'], ['ply', 'sheetDark'], ['glass', null], ['water', null],
-   ['decal', null], ['stain', null], ['plastic', null], ['weed', null]]];
-const NO_AO = { glass: 1, water: 1, decal: 1, stain: 1, weed: 1 };   // flat or cut: no voxels of their own in the bake
+   ['decal', null], ['stain', null], ['plastic', null], ['lamp', null], ['weed', null]]];
+const NO_AO = { glass: 1, water: 1, decal: 1, stain: 1, weed: 1, lamp: 1 };   // flat or cut: no voxels of their own in the bake
 
 // ---- the numbers ----------------------------------------------------------------------------------------------------------
 function dimsOf(P) {
@@ -136,7 +136,7 @@ function frame(O, X, Y) {
 const CELL = (c, u, v) => [((c % 4) + clamp(u, 0.004, 0.996)) / 4, 1 - (Math.floor(c / 4) + 1 - clamp(v, 0.004, 0.996)) / 4];
 // weed atlas, 2 x 2: 0 grass, 1 fireweed, 2 alder, 3 dry grass
 const WCELL = (c, u, v) => [((c % 2) + clamp(u, 0.004, 0.996)) / 2, 1 - (Math.floor(c / 2) + 1 - clamp(v, 0.004, 0.996)) / 2];
-const ATLAS = { decal: null, weed: null };
+const ATLAS = { decal: null, weed: null, barrier: null };
 function decalCanvas() {
   if (typeof document === 'undefined') return null;
   const S = 256, c = document.createElement('canvas'); c.width = c.height = 4 * S;
@@ -351,6 +351,7 @@ function memberBent(bag, a, b, kind, pn, lod, sag, dir) {
 // THE PROFILE IS THE TEXTURE'S (house_tex corrworn: 16 ribs to its 3.6 m tile = 0.225 m pitch, the crest at u = 0.037 m
 // off its normal map, measured): u is metres along the frame's X, so the rib under a texel is the rib in the geometry.
 const PITCH = 0.225, CREST = 0.0368, AMP = 0.017;
+const SM = (a, b, x) => { const q = clamp((x - a) / (b - a), 0, 1); return q * q * (3 - 2 * q); };
 const corr = u => AMP * Math.cos(2 * Math.PI * (u - CREST) / PITCH);
 // a sheet on frame F over [u0, u0 + w] x [v0, v1] at depth d; `rots`: [{ piv, ax, ang, when(u, v) }] applied in order
 // (a kink, a hang); `uvf` maps (u, v) to the bag's uv (default metres); `vk` extra rows (the kink lines)
@@ -370,6 +371,246 @@ function sheet(bag, F, u0, w, v0, v1, d, o) {
     const a = ids[j * n + i], b = ids[j * n + i + 1], c = ids[(j + 1) * n + i + 1], e = ids[(j + 1) * n + i];
     bag.quad(a, b, c, e);
   }
+}
+
+// ---- THE BARRIER: a water-filled plastic jersey barrier --------------------------------------------------------------
+// The common rotomoulded HDPE site barrier: 1.6 m long, 0.5 m across the foot, 0.92 m tall; a jersey profile (a foot with
+// a rounded shoulder, a 60-degree slope, an upper wall leaning 3 degrees in) with two moulded grooves, the rotomould's
+// parting line along its crown; two forklift tunnels through the foot; interlocking knuckles (two on one end, one on
+// the other, so a line locks end to end); the filler cap on the crown, the drain plug low on an end. Rounded arrises are
+// shaded smooth (per-vertex normals where the profile turns under 45 degrees), the grooves and the foot's edges stay hard.
+// THE SHEET IS PAINTED, like the buoys' (BUOY-LOOK): one 1024 canvas, the side unrolled along the profile's own
+// perimeter (so "up the barrier" is down the sheet and every weathering law is a law of height or of facing), the ends,
+// the plain parts, the lamp's housing, for a red and a white unit. See barrierCanvas.
+const BARRIER = { L: 1.6, PXM: 220 };
+const BHALF = [[0.25, 0.0], [0.25, 0.105], [0.243, 0.126], [0.228, 0.141], [0.140, 0.300], [0.130, 0.322],
+  [0.1236, 0.450], [0.1116, 0.456], [0.1116, 0.499], [0.1206, 0.505], [0.1150, 0.620], [0.1030, 0.626], [0.1030, 0.669], [0.1120, 0.675],
+  [0.104, 0.840], [0.094, 0.875], [0.074, 0.898], [0.044, 0.912], [0.0, 0.917]];
+const BPATH = (() => {                                     // bottom-left, up, over the crown, down to bottom-right
+  const left = BHALF.map(([x, y]) => [-x, y]), right = BHALF.slice(0, -1).reverse().map(([x, y]) => [x, y]);
+  const pts = left.concat(right), t = [0];
+  for (let i = 1; i < pts.length; i++) t.push(t[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+  // a vertex is smooth where the profile turns less than 45 degrees
+  const segN = []; for (let i = 0; i + 1 < pts.length; i++) { const dx = pts[i + 1][0] - pts[i][0], dy = pts[i + 1][1] - pts[i][1], l = Math.hypot(dx, dy); segN.push([-dy / l, dx / l]); }
+  const smooth = pts.map((_, i) => i > 0 && i < pts.length - 1 && (segN[i - 1][0] * segN[i][0] + segN[i - 1][1] * segN[i][1]) > 0.707);
+  return { pts, t, P: t[t.length - 1], segN, smooth };
+})();
+// the sheet's regions (canvas px; the white unit's are 512 lower)
+const BREG = { side: [0, 0, 768, 512], end: [768, 0, 256, 256], plain: [768, 256, 256, 96], yellow: [768, 352, 256, 80], black: [768, 432, 256, 80] };
+const buv = (X, Y) => [X / 1024, 1 - Y / 1024];
+function barrierMesh(bags, o) {
+  const bag = bags.plastic, Lb = BARRIER.L, PX = BARRIER.PXM, Y0 = o.white ? 512 : 0, lod = o.lod | 0;
+  const c = Math.cos(o.yaw), sn = Math.sin(o.yaw);
+  // tipped onto its side (about its long axis), resting on its foot's edge and its crown
+  const tip = o.tip ? 1.42 : 0, ct = Math.cos(tip), st2 = Math.sin(tip);
+  let lift = 0;
+  if (tip) { lift = 1e9; for (const [x, y] of BPATH.pts) lift = Math.min(lift, x * st2 + y * ct); lift = -lift; }
+  const T = (x, y, z) => { const a = x * ct - y * st2, u = x * st2 + y * ct + lift; return [o.x + a * c + z * sn, o.y + u, o.z - a * sn + z * c]; };
+  const TN = (nx, ny, nz) => { const a = nx * ct - ny * st2, u = nx * st2 + ny * ct; return [a * c + nz * sn, u, -a * sn + nz * c]; };
+  const off = o.off || 0, sideU = z => (z + Lb / 2 + off) * PX;
+  const V = (p, uv, n) => bag.v(p, uv, n);
+  // ---- the sides: spans along the length, the tunnels' spans start their profile 0.10 m up
+  const pk = lod === 0 ? [[-0.55, -0.25], [0.25, 0.55]] : [];
+  const spans = []; { let z = -Lb / 2; for (const [a, b] of pk) { spans.push([z, a, 0]); spans.push([a, b, 1]); z = b; } spans.push([z, Lb / 2, 0]); }
+  const { pts, t, segN, smooth } = BPATH, n = pts.length;
+  for (const [za, zb, tun] of spans) {
+    for (let i = 0; i + 1 < n; i++) {
+      let p0 = pts[i], p1 = pts[i + 1], t0 = t[i], t1 = t[i + 1];
+      if (tun && i === 0) { p0 = [p0[0], 0.10]; t0 = 0.10; }
+      if (tun && i === n - 2) { p1 = [p1[0], 0.10]; t1 = BPATH.P - 0.10; }
+      const nA = smooth[i] ? nrm2(segN[i - 1], segN[i]) : segN[i], nB = smooth[i + 1] ? nrm2(segN[i], segN[i + 1]) : segN[i];
+      const a = V(T(p0[0], p0[1], za), buv(sideU(za), Y0 + t0 * PX), TN(nA[0], nA[1], 0)), b = V(T(p0[0], p0[1], zb), buv(sideU(zb), Y0 + t0 * PX), TN(nA[0], nA[1], 0));
+      const e = V(T(p1[0], p1[1], zb), buv(sideU(zb), Y0 + t1 * PX), TN(nB[0], nB[1], 0)), d = V(T(p1[0], p1[1], za), buv(sideU(za), Y0 + t1 * PX), TN(nB[0], nB[1], 0));
+      bag.quad(a, b, e, d);
+    }
+    if (tun) {                                             // the tunnel: its roof, and the two walls it is cut between
+      const yt = 0.10, gr = (zz, xx) => buv(sideU(zz), Y0 + 2 + Math.abs(xx) * 8);
+      const q = [T(-0.25, yt, za), T(0.25, yt, za), T(0.25, yt, zb), T(-0.25, yt, zb)], dn = TN(0, -1, 0);
+      const ids = q.map((p, k) => V(p, gr(k < 2 ? za : zb, k === 0 || k === 3 ? -0.25 : 0.25), dn)); bag.quad(ids[0], ids[1], ids[2], ids[3]);
+      for (const [zz, s2] of [[za, 1], [zb, -1]]) {
+        const w = [T(-0.25, 0, zz), T(0.25, 0, zz), T(0.25, yt, zz), T(-0.25, yt, zz)], nn = TN(0, 0, s2);
+        const iw = w.map((p, k) => V(p, gr(zz, k % 3 ? 0.25 : -0.25), nn)); if (s2 > 0) bag.quad(iw[0], iw[1], iw[2], iw[3]); else bag.quad(iw[0], iw[3], iw[2], iw[1]);
+      }
+    } else if (tip) {                                      // the underside, seen only when it lies on its side
+      const q = [T(-0.25, 0, za), T(0.25, 0, za), T(0.25, 0, zb), T(-0.25, 0, zb)], dn = TN(0, -1, 0);
+      const ids = q.map((p, k) => V(p, buv(sideU(k < 2 ? za : zb), Y0 + 3), dn)); bag.quad(ids[0], ids[1], ids[2], ids[3]);
+    }
+  }
+  // ---- the ends: a fan from inside the profile, mapped flat onto the end region
+  const [ex, ey] = BREG.end;
+  for (const s2 of [-1, 1]) {
+    const z = s2 * Lb / 2, nn = TN(0, 0, s2), cuv = (x, y) => buv(ex + 18 + (x + 0.25) * PX, Y0 + ey + 18 + (0.917 - y) * PX);
+    const ctr = V(T(0, 0.42, z), cuv(0, 0.42), nn);
+    const ring = pts.concat([[0.25, 0], [-0.25, 0]].slice(0, 1)).map(p => V(T(p[0], p[1], z), cuv(p[0], p[1]), nn));
+    for (let i = 0; i + 1 < ring.length; i++) { if (s2 > 0) bag.tri(ctr, ring[i + 1], ring[i]); else bag.tri(ctr, ring[i], ring[i + 1]); }
+    const b0 = V(T(-0.25, 0, z), cuv(-0.25, 0), nn), b1 = V(T(0.25, 0, z), cuv(0.25, 0), nn);
+    if (s2 > 0) bag.tri(ctr, b0, b1); else bag.tri(ctr, b1, b0);
+  }
+  // ---- the knuckles (two on +z, one on -z), the filler cap, the drain plug: small cylinders on the plain region
+  const [px0, py0] = BREG.plain;
+  const cylB = (cx, cy, cz, ax, r, h, seg, reg) => {
+    const [rx, ry, rw, rh] = reg || BREG.plain;
+    const A = ax === 'y' ? [0, 0, 1] : [1, 0, 0], B = ax === 'y' ? [1, 0, 0] : [0, 1, 0], U = ax === 'y' ? [0, 1, 0] : [0, 0, 1];   // (A, B, U) right-handed: the rings wind outward
+    const ring = (hh) => { const out = []; for (let k = 0; k <= seg; k++) { const a = k / seg * Math.PI * 2, ca = Math.cos(a), sa = Math.sin(a);
+      out.push({ p: [cx + (A[0] * ca + B[0] * sa) * r + U[0] * hh, cy + (A[1] * ca + B[1] * sa) * r + U[1] * hh, cz + (A[2] * ca + B[2] * sa) * r + U[2] * hh], n: [A[0] * ca + B[0] * sa, A[1] * ca + B[1] * sa, A[2] * ca + B[2] * sa], k }); } return out; };
+    const r0 = ring(-h / 2), r1 = ring(h / 2), uvk = (k, top) => buv(rx + 8 + (rw - 16) * k / seg, Y0 + ry + (top ? 10 : rh - 10));
+    for (let k = 0; k < seg; k++) {
+      const a = V(T(...r0[k].p), uvk(k, 0), TN(...r0[k].n)), b = V(T(...r0[k + 1].p), uvk(k + 1, 0), TN(...r0[k + 1].n));
+      const e = V(T(...r1[k + 1].p), uvk(k + 1, 1), TN(...r1[k + 1].n)), d = V(T(...r1[k].p), uvk(k, 1), TN(...r1[k].n));
+      bag.quad(a, b, e, d);
+    }
+    for (const [rr, sgn] of [[r1, 1], [r0, -1]]) {
+      const cc = V(T(cx + U[0] * sgn * h / 2, cy + U[1] * sgn * h / 2, cz + U[2] * sgn * h / 2), buv(rx + rw / 2, Y0 + ry + rh / 2), TN(U[0] * sgn, U[1] * sgn, U[2] * sgn));
+      for (let k = 0; k < seg; k++) { const a = V(T(...rr[k].p), buv(rx + rw / 2 + 30 * Math.cos(k / seg * 6.28), Y0 + ry + rh / 2 + 30 * Math.sin(k / seg * 6.28)), TN(U[0] * sgn, U[1] * sgn, U[2] * sgn));
+        const b = V(T(...rr[k + 1].p), buv(rx + rw / 2 + 30 * Math.cos((k + 1) / seg * 6.28), Y0 + ry + rh / 2 + 30 * Math.sin((k + 1) / seg * 6.28)), TN(U[0] * sgn, U[1] * sgn, U[2] * sgn));
+        if (sgn > 0) bag.tri(cc, a, b); else bag.tri(cc, b, a); }
+    }
+  };
+  void px0; void py0;
+  const sg = lod === 0 ? 10 : 6;
+  cylB(0, 0.24, Lb / 2 + 0.035, 'y', 0.048, 0.13, sg); cylB(0, 0.62, Lb / 2 + 0.035, 'y', 0.048, 0.13, sg);
+  cylB(0, 0.43, -Lb / 2 - 0.035, 'y', 0.048, 0.13, sg);
+  cylB(0, 0.917 + 0.004, -0.35, 'y', 0.07, 0.035, sg);                     // the filler cap
+  if (lod === 0) cylB(0.13, 0.05, -Lb / 2 - 0.012, 'z', 0.028, 0.03, 8);    // the drain plug
+  // ---- the warning lamp (made safe): a yellow housing clipped on the crown, an amber lens each side
+  let lamp = null;
+  if (o.lamp) {
+    const hz = 0.25, yb = 0.917, yc = yb + 0.13;
+    cylB(0, yb + 0.03, hz, 'y', 0.035, 0.06, 8, BREG.black);                  // the clip on the crown
+    cylB(0, yc, hz, 'z', 0.085, 0.07, 14, BREG.yellow);                      // the housing
+    const lb = bags.lamp;
+    for (const s2 of [-1, 1]) {                                               // the lens: a shallow dome each face
+      const zc = hz + s2 * 0.035, seg = 14, ring = 4, R = 0.072, dep = 0.03;
+      const pt = (a, k) => { const rr = R * Math.sin(k / ring * Math.PI / 2), d = dep * Math.cos(k / ring * Math.PI / 2); return [Math.cos(a) * rr, yc + Math.sin(a) * rr, zc + s2 * d]; };
+      const nrmL = (a, k) => { const th = k / ring * Math.PI / 2; return [Math.cos(a) * Math.sin(th), Math.sin(a) * Math.sin(th), s2 * Math.cos(th)]; };
+      const top = lb.v(T(0, yc, zc + s2 * dep), [0.5, 0.5], TN(0, 0, s2));
+      let prev = null;
+      for (let k = 1; k <= ring; k++) {
+        const cur = []; for (let q = 0; q <= seg; q++) { const a = q / seg * Math.PI * 2, p = pt(a, k); cur.push(lb.v(T(p[0], p[1], p[2]), [0.5 + 0.5 * Math.cos(a) * k / ring, 0.5 + 0.5 * Math.sin(a) * k / ring], TN(...nrmL(a, k)))); }
+        for (let q = 0; q < seg; q++) { if (!prev) { if (s2 > 0) lb.tri(top, cur[q], cur[q + 1]); else lb.tri(top, cur[q + 1], cur[q]); }
+          else { if (s2 > 0) lb.quad(prev[q], cur[q], cur[q + 1], prev[q + 1]); else lb.quad(prev[q], prev[q + 1], cur[q + 1], cur[q]); } }
+        prev = cur;
+      }
+    }
+    const lp = T(0, yc, hz);
+    lamp = { x: lp[0], y: lp[1], z: lp[2], nx: sn, nz: c, col: [1.0, 0.56, 0.12], k: 0.35, range: 7, kind: 'barrier' };
+  }
+  return { lamp };
+}
+const nrm2 = (a, b) => { const x = a[0] + b[0], y = a[1] + b[1], l = Math.hypot(x, y) || 1; return [x / l, y / l]; };
+
+// THE BARRIER'S SHEET: three canvases off one plan - the albedo, the roughness, the height (made a normal map by a Sobel
+// pass). Red and white units: the red halfway to its own grey (BUOY-DESAT: the full traffic red is a toy in this
+// light), the white an old HDPE white gone grey-cream. The laws, each a function of the profile's height or facing:
+// UV CHALKING on what faces the sky (the crown and the slope pale and dull, the walls a little); GRIME rising from the
+// ground (the foot dark, splash speckle to 40 cm); RUNS down the walls from the crown and the cap; SCUFFS and black
+// TYRE MARKS low on the ends and the foot; ALGAE green-black in the foot's shadow and the grooves on one face; the
+// moulded legend and the fill line embossed; the parting line along the crown; a stencilled unit number, worn.
+function barrierCanvas() {
+  if (typeof document === 'undefined') return null;
+  const W = 1024, mk = () => { const c = document.createElement('canvas'); c.width = c.height = W; return c; };
+  const cD = mk(), cR = mk(), cH = mk(), gD = cD.getContext('2d'), gR = cR.getContext('2d'), gH = cH.getContext('2d');
+  const r = rng(19420916), rr = (a, b) => a + (b - a) * r();
+  const PX = BARRIER.PXM, { pts, t, segN, P } = BPATH;
+  gR.fillStyle = 'rgb(105,105,105)'; gR.fillRect(0, 0, W, W);             // moulded HDPE: a satin 0.41
+  gH.fillStyle = 'rgb(128,128,128)'; gH.fillRect(0, 0, W, W);
+  // per perimeter metre: the height above the ground and how much the face looks at the sky
+  const at = tt => { let i = 0; while (i < t.length - 2 && t[i + 1] < tt) i++; const f = (tt - t[i]) / Math.max(1e-6, t[i + 1] - t[i]); return { y: pts[i][1] + (pts[i + 1][1] - pts[i][1]) * f, ny: segN[i][1], side: tt < P / 2 ? -1 : 1 }; };
+  const sm = (a, b, x) => { const q = Math.max(0, Math.min(1, (x - a) / (b - a))); return q * q * (3 - 2 * q); };
+  for (const white of [0, 1]) {
+    const Y0 = white ? 512 : 0;
+    const base = white ? [206, 202, 191] : [163, 58, 46], chalk = white ? [222, 218, 206] : [196, 132, 118];
+    const [sx, sy, sw, sh] = BREG.side;
+    // the body, row by row (a row is a height on the profile)
+    for (let yy = 0; yy < sh; yy++) {
+      const q = at(yy / PX); if (yy / PX > P) break;
+      const up = sm(0.15, 0.95, q.ny) * 0.85 + 0.12, grime = 1 - sm(0.0, 0.32, q.y);
+      const cc = base.map((v, k) => v + (chalk[k] - v) * up * (white ? 0.5 : 0.75));
+      const gk = grime * 0.55;
+      gD.fillStyle = `rgb(${cc[0] * (1 - gk) + 62 * gk | 0},${cc[1] * (1 - gk) + 54 * gk | 0},${cc[2] * (1 - gk) + 44 * gk | 0})`;
+      gD.fillRect(sx, Y0 + sy + yy, sw, 1);
+      const ro = 105 + up * 85 + grime * 110; gR.fillStyle = `rgb(${ro | 0},${ro | 0},${ro | 0})`; gR.fillRect(sx, Y0 + sy + yy, sw, 1);
+    }
+    const Yt = tt => Y0 + sy + tt * PX;                                    // the row of a perimeter position
+    const tOfY = (y, side) => { for (let k = 0; k <= 400; k++) { const tt = side < 0 ? k / 400 * P / 2 : P - k / 400 * P / 2; if (at(tt).y >= y) return tt; } return P / 2; };
+    // chalk mottling where the sun has been at it
+    for (let k = 0; k < 1800; k++) { const tt = rr(0, P), q = at(tt), up = sm(0.15, 0.95, q.ny); if (r() > up + 0.15) continue;
+      gD.fillStyle = `rgba(${chalk[0] + 20},${chalk[1] + 20},${chalk[2] + 20},${rr(0.04, 0.16)})`; gD.beginPath(); gD.ellipse(rr(sx, sx + sw), Yt(tt), rr(4, 22), rr(2, 8), 0, 0, 7); gD.fill(); }
+    // the splash speckle up the foot, both faces
+    for (let k = 0; k < 2600; k++) { const side = r() < 0.5 ? -1 : 1, y = Math.pow(r(), 2.2) * 0.42, tt = tOfY(y, side);
+      gD.fillStyle = `rgba(${52 + rr(0, 30) | 0},${46 + rr(0, 24) | 0},${36 + rr(0, 16) | 0},${rr(0.15, 0.55)})`; gD.fillRect(rr(sx, sx + sw), Yt(tt) + rr(-2, 2), rr(1, 3.5), rr(1, 3)); }
+    // the runs: from the crown and the cap down both walls, grey-brown, thin, fading
+    for (let k = 0; k < 120; k++) {
+      const side = r() < 0.5 ? -1 : 1, x = rr(sx, sx + sw), t0 = P / 2 + side * rr(0.02, 0.2), t1 = side < 0 ? rr(0.15, t0 - 0.1) : rr(t0 + 0.1, P - 0.15);
+      const g = gD.createLinearGradient(0, Yt(t0), 0, Yt(t1)), a = rr(0.08, 0.3);
+      g.addColorStop(0, `rgba(58,52,44,${a})`); g.addColorStop(1, 'rgba(58,52,44,0)');
+      gD.strokeStyle = g; gD.lineWidth = rr(0.8, 3.2); gD.beginPath(); gD.moveTo(x, Yt(t0)); gD.lineTo(x + rr(-3, 3), Yt(t1)); gD.stroke();
+      gR.strokeStyle = 'rgba(210,210,210,0.25)'; gR.lineWidth = 2; gR.beginPath(); gR.moveTo(x, Yt(t0)); gR.lineTo(x, Yt(t1)); gR.stroke();
+    }
+    // algae: green-black in the foot's shade and the grooves, one face (the north one) more
+    for (let k = 0; k < 900; k++) { const side = r() < 0.75 ? -1 : 1, y = r() < 0.93 ? Math.pow(r(), 1.8) * 0.13 : (r() < 0.5 ? rr(0.452, 0.462) : rr(0.622, 0.632)), tt = tOfY(y, side);
+      gD.fillStyle = `rgba(${34 + rr(0, 20) | 0},${52 + rr(0, 26) | 0},${30 + rr(0, 10) | 0},${rr(0.12, 0.45)})`; gD.beginPath(); gD.arc(rr(sx, sx + sw), Yt(tt) + rr(-3, 3), rr(1.5, 6), 0, 7); gD.fill();
+      gR.fillStyle = 'rgba(235,235,235,0.3)'; gR.fillRect(rr(sx, sx + sw), Yt(tt), 4, 3); }
+    // scuffs: pale gouges and dark tyre marks, low; scratches anywhere
+    for (let k = 0; k < 70; k++) { const side = r() < 0.5 ? -1 : 1, low = r() < 0.85, y = low ? rr(0.02, 0.3) : rr(0.3, 0.8), tt = tOfY(y, side), x = rr(sx, sx + sw), l = rr(6, 40), a = rr(-0.5, 0.5);
+      const pale = r() < 0.55;
+      gD.strokeStyle = pale ? `rgba(${chalk[0] + 30},${chalk[1] + 30},${chalk[2] + 30},${rr(0.25, 0.6)})` : `rgba(18,16,14,${rr(0.2, 0.55)})`; gD.lineWidth = pale ? rr(0.6, 1.8) : rr(2, 7);
+      gD.beginPath(); gD.moveTo(x, Yt(tt)); gD.lineTo(x + Math.cos(a) * l, Yt(tt) + Math.sin(a) * l * 0.4); gD.stroke();
+      if (pale) { gH.strokeStyle = 'rgba(60,60,60,0.7)'; gH.lineWidth = 1.2; gH.beginPath(); gH.moveTo(x, Yt(tt)); gH.lineTo(x + Math.cos(a) * l, Yt(tt) + Math.sin(a) * l * 0.4); gH.stroke(); } }
+    // the moulding: the legend and the fill line, embossed (height up, the albedo a touch paler, glossier), both faces
+    for (const side of [-1, 1]) {
+      const tt = tOfY(0.56, side), ty = tOfY(0.76, side);
+      for (const cx of [sx + 150, sx + 520]) {
+        gH.fillStyle = 'rgb(176,176,176)'; gH.font = 'bold 22px sans-serif'; gH.textAlign = 'center';
+        gD.fillStyle = `rgba(${chalk[0]},${chalk[1]},${chalk[2]},0.35)`; gD.font = 'bold 22px sans-serif'; gD.textAlign = 'center';
+        for (const [g, txt, yy] of [[gH, 'WATER FILL', tt], [gD, 'WATER FILL', tt]]) { g.save(); g.translate(cx, Yt(yy)); if (side > 0) g.scale(1, -1); g.fillText(txt, 0, 8); g.restore(); }
+        gH.fillRect(cx - 70, Yt(ty) - 1.5, 140, 3); gH.fillStyle = 'rgb(176,176,176)';
+        gH.beginPath(); gH.moveTo(cx + 80, Yt(ty) - 9 * side); gH.lineTo(cx + 92, Yt(ty) + 4 * side); gH.lineTo(cx + 68, Yt(ty) + 4 * side); gH.fill();   // the arrow at MAX
+        gR.fillStyle = 'rgb(80,80,80)'; gR.fillRect(cx - 70, Yt(ty) - 2, 140, 4);
+      }
+    }
+    // the parting line along the crown (a raised seam), a hairline darker
+    gH.fillStyle = 'rgb(160,160,160)'; gH.fillRect(sx, Yt(P / 2) - 1.5, sw, 3);
+    gD.fillStyle = 'rgba(40,30,25,0.18)'; gD.fillRect(sx, Yt(P / 2) - 1, sw, 2);
+    // the stencilled unit number on one face, worn, in white (red unit) or black (white unit)
+    gD.save(); gD.font = 'bold 54px sans-serif'; gD.textAlign = 'center';
+    for (const cx of [sx + 330, sx + 700]) {
+      const num = String(10 + Math.floor(r() * 80)), tt = tOfY(0.66, -1);
+      gD.fillStyle = white ? 'rgba(30,28,26,0.75)' : 'rgba(236,232,224,0.8)'; gD.fillText(num, cx, Yt(tt) + 20);
+    }
+    gD.globalCompositeOperation = 'destination-out';
+    gD.restore();
+    gD.save(); gD.globalCompositeOperation = 'source-atop';
+    for (let k = 0; k < 900; k++) { gD.fillStyle = `rgba(${base[0]},${base[1]},${base[2]},${rr(0.5, 1)})`; const tt = tOfY(0.66, -1); gD.fillRect(rr(sx + 260, sx + 760), Yt(tt) + rr(-30, 30), rr(1, 4), rr(1, 3)); }
+    gD.restore();
+    // a dent or two (soft, low)
+    for (let k = 0; k < 14; k++) { const tt = tOfY(rr(0.08, 0.6), r() < 0.5 ? -1 : 1), x = rr(sx, sx + sw), R2 = rr(8, 24), g = gH.createRadialGradient(x, Yt(tt), 1, x, Yt(tt), R2);
+      g.addColorStop(0, 'rgba(70,70,70,0.6)'); g.addColorStop(1, 'rgba(128,128,128,0)'); gH.fillStyle = g; gH.fillRect(x - R2, Yt(tt) - R2, 2 * R2, 2 * R2); }
+    // the plastic's own grain (a fine orange-peel), everywhere
+    for (let k = 0; k < 9000; k++) { const v = 128 + rr(-14, 14) | 0; gH.fillStyle = `rgba(${v},${v},${v},0.5)`; gH.fillRect(rr(0, W), Y0 + rr(0, 512), 2, 2); }
+    // ---- the ends: the body's colour, chalked at the top, grimed at the foot, scuffed, a tyre mark
+    const [ex, ey, ew, eh] = BREG.end;
+    for (let yy = 0; yy < eh; yy++) { const y = 0.917 - (yy - 18) / PX, grime = 1 - sm(0.0, 0.3, y), up = sm(0.75, 0.92, y) * 0.5 + 0.12, gk = grime * 0.55;
+      const cc = base.map((v, k) => v + (chalk[k] - v) * up * (white ? 0.5 : 0.75));
+      gD.fillStyle = `rgb(${cc[0] * (1 - gk) + 62 * gk | 0},${cc[1] * (1 - gk) + 54 * gk | 0},${cc[2] * (1 - gk) + 44 * gk | 0})`; gD.fillRect(ex, Y0 + ey + yy, ew, 1);
+      const ro = 110 + up * 80 + grime * 110; gR.fillStyle = `rgb(${ro | 0},${ro | 0},${ro | 0})`; gR.fillRect(ex, Y0 + ey + yy, ew, 1); }
+    for (let k = 0; k < 40; k++) { const x = rr(ex + 10, ex + ew - 10), y = Y0 + ey + rr(eh * 0.55, eh - 6); gD.strokeStyle = `rgba(18,16,14,${rr(0.2, 0.5)})`; gD.lineWidth = rr(2, 6); gD.beginPath(); gD.moveTo(x, y); gD.lineTo(x + rr(-20, 20), y + rr(-6, 6)); gD.stroke(); }
+    // ---- the plain parts (the knuckles, the cap), the lamp's yellow housing and its black clip
+    { const [qx, qy, qw, qh] = BREG.plain, g = gD.createLinearGradient(0, Y0 + qy, 0, Y0 + qy + qh); g.addColorStop(0, `rgb(${chalk.join(',')})`); g.addColorStop(1, `rgb(${base.map(v => v * 0.7 | 0).join(',')})`); gD.fillStyle = g; gD.fillRect(qx, Y0 + qy, qw, qh); }
+    { const [qx, qy, qw, qh] = BREG.yellow; gD.fillStyle = 'rgb(196,160,40)'; gD.fillRect(qx, Y0 + qy, qw, qh); for (let k = 0; k < 300; k++) { gD.fillStyle = `rgba(60,50,30,${rr(0.05, 0.25)})`; gD.fillRect(rr(qx, qx + qw), Y0 + qy + rr(0, qh), rr(1, 4), rr(1, 3)); } gR.fillStyle = 'rgb(95,95,95)'; gR.fillRect(qx, Y0 + qy, qw, qh); }
+    { const [qx, qy, qw, qh] = BREG.black; gD.fillStyle = 'rgb(28,27,26)'; gD.fillRect(qx, Y0 + qy, qw, qh); gR.fillStyle = 'rgb(150,150,150)'; gR.fillRect(qx, Y0 + qy, qw, qh); }
+  }
+  // the height -> a tangent-space normal map (Sobel; GL convention, y up the sheet = +v)
+  const hd = gH.getImageData(0, 0, W, W).data, out = gH.createImageData(W, W), o2 = out.data, k3 = 2.2 / 255;
+  const H = (x, y) => hd[(((y + W) % W) * W + ((x + W) % W)) * 4];
+  for (let y = 0; y < W; y++) for (let x = 0; x < W; x++) {
+    const dx = (H(x + 1, y - 1) + 2 * H(x + 1, y) + H(x + 1, y + 1) - H(x - 1, y - 1) - 2 * H(x - 1, y) - H(x - 1, y + 1)) * k3;
+    const dy = (H(x - 1, y + 1) + 2 * H(x, y + 1) + H(x + 1, y + 1) - H(x - 1, y - 1) - 2 * H(x, y - 1) - H(x + 1, y - 1)) * k3;
+    const l = Math.hypot(dx, dy, 1), i = (y * W + x) * 4;
+    o2[i] = (0.5 - 0.5 * dx / l) * 255; o2[i + 1] = (0.5 + 0.5 * dy / l) * 255; o2[i + 2] = (0.5 + 0.5 / l) * 255; o2[i + 3] = 255;
+  }
+  const cN = mk(); cN.getContext('2d').putImageData(out, 0, 0);
+  return { diff: cD, rough: cR, nor: cN };
 }
 
 // ---- the build ------------------------------------------------------------------------------------------------------------
@@ -561,7 +802,7 @@ function build(P0, lod, F) {
     let pg = region.gone(p, n, ri, nRows);
     if (r1 < pg) return { k: 'gone' };
     const a = (r1 - pg) / Math.max(1e-3, 1 - pg);
-    const pH = 0.035 * decay * (region.hang || 1), pB = 0.1 * decay * (region.bend || 1), pT = 0.07 * decay;
+    const pH = 0.018 * decay * (region.hang || 1), pB = 0.05 * decay * (region.bend || 1), pT = 0.035 * decay;
     if (der) {
       if (r2 < pH) return { k: 'hang', a };
       if (r2 < pH + pB) return { k: 'bent', a };
@@ -642,7 +883,7 @@ function build(P0, lod, F) {
   function cladGable(F, uA, uB, yb, topU, d, region) {
     for (let u = uA; u < uB - 0.04; u += 0.9) { const u1 = Math.min(uB, u + 0.9); clad(F, u, u1, yb, Math.min(topU(u), topU(u1)), d, region); }
   }
-  const pick = (main, alt, pAlt) => (p, a) => (hp(p, 51, seed) < pAlt ? bags[alt] : bags[main]);
+  const pick = (main, alt, pAlt) => (p, a) => (hashN(Math.round((p[0] + p[2]) / 0.9), Math.round(p[0] * p[2] > 0 ? 1 : 2), 51, seed) < pAlt ? bags[alt] : bags[main]);   // a column at a time
 
   // ===================================================================== THE FRONT: towers, header girder, the gable band
   const FR = frame([0, 0, HD], [1, 0, 0], Yup);                  // the front's face plane (outside +z)
@@ -751,7 +992,7 @@ function build(P0, lod, F) {
     const top = s => yR(s) + 0.02;
     const reg = {
       bag: pick('sheetPale', 'sheetDark', 0.08),
-      gone: (p, n, ri, nr) => (0.04 + 0.32 * n * n + (ri === nr - 1 ? 0.18 : 0) + (Math.abs(p[0]) > xG - 2 ? 0.08 : 0)) * decay,
+      gone: (p, n, ri, nr) => (0.015 + 0.6 * SM(0.62, 0.9, n) + (ri === nr - 1 ? 0.1 : 0) + (Math.abs(p[0]) > xG - 1.5 ? 0.05 : 0)) * decay,
       bend: 1.4, hang: 0.6, streaks: 0.9,
     };
     // in vertical strips so the top follows the rake (each strip clipped to its own roof line)
@@ -783,10 +1024,10 @@ function build(P0, lod, F) {
     }
     // the windows, a pair of storeys a bay; the sheets round them
     const reg = {
-      bag: pick('sheetPale', 'sheetDark', 0.3),
-      gone: (p, n) => (0.1 + 0.45 * n * n) * decay, bend: 1, hang: 1,
+      bag: pick('sheetPale', 'sheetDark', 0.12),
+      gone: (p, n) => (0.015 + 0.5 * SM(0.64, 0.9, n)) * decay, bend: 1, hang: 1,
     };
-    const regBand = { bag: pick('sheetDark', 'sheetPale', 0.25), gone: (p, n, ri) => (0.15 + 0.5 * n) * decay, bend: 1.2, hang: 1.2 };
+    const regBand = { bag: pick('sheetDark', 'sheetPale', 0.15), gone: (p, n, ri) => (0.03 + 0.55 * SM(0.6, 0.88, n)) * decay, bend: 1.2, hang: 1.2 };
     for (let k = 0; k < NB; k++) {
       const ua = uOf(zF(k + 1)) * (s > 0 ? 1 : 0) + uOf(zF(k)) * (s > 0 ? 0 : 1);
       const u0 = Math.min(uOf(zF(k)), uOf(zF(k + 1))), u1 = Math.max(uOf(zF(k)), uOf(zF(k + 1)));
@@ -868,7 +1109,7 @@ function build(P0, lod, F) {
       }
       // the ground storey: the right-hand gallery (x < 0 seen from the door) white sheet with X rods; the left windows and doors
       if (s < 0) {
-        const regW = { bag: () => bags.sheetWhite, gone: (p, n) => (0.03 + 0.25 * n * n) * decay, bend: 0.8, hang: 0.3, len: 2.4, bendIn: false };
+        const regW = { bag: () => bags.sheetWhite, gone: (p, n) => (0.01 + 0.35 * SM(0.7, 0.92, n)) * decay, bend: 0.8, hang: 0.3, len: 2.4, bendIn: false };
         clad(F2, u0, u1, fy + 0.05, yL2 - 0.3, 0.06, regW);
         if (L < 2) {
           const xr = xi + 0.13, za = zF(k) + 0.25, zb = zF(k + 1) - 0.25;
@@ -894,7 +1135,7 @@ function build(P0, lod, F) {
       clad(F2, u0, u1, yL2 - 0.3, yL2 + 0.95, 0.03, reg2());
     }
   }
-  function reg2() { return { bag: pick('sheetPale', 'sheetWhite', 0.35), gone: (p, n) => (0.06 + 0.3 * n * n) * decay, bend: 0.8, hang: 0.5, len: 2.2 }; }
+  function reg2() { return { bag: pick('sheetPale', 'sheetWhite', 0.25), gone: (p, n) => (0.015 + 0.4 * SM(0.66, 0.9, n)) * decay, bend: 0.8, hang: 0.5, len: 2.2 }; }
 
   // ===================================================================== THE BACK
   {
@@ -1101,37 +1342,44 @@ function build(P0, lod, F) {
       tag(Fp, 0.02, fy + 0.04, 0.66, 0.0, Math.floor(rc() * 4), false); }
   }
 
-  // ===================================================================== BARRIERS AND BOARDS
+  // ===================================================================== BARRIERS, LAMPS AND BOARDS
+  // (the user 9 Nov: "rework the red plastic barriers ... professional quality. Texture work, proper weathering, and more
+  // realistic tone"): the water-filled jersey barrier of barrierMesh below, its painted sheet (barrierCanvas), red and
+  // white units in turn, interlocked end to end where they make a line; warning lamps on the made-safe line
+  const lights = [];
   if (P.barriers && L < 2) {
-    const barrier = (x, z, yaw, tip) => {
-      // a water-filled jersey barrier, 2.0 x 0.45 x 0.8, its profile extruded; tipped over in the derelict
-      const prof = [[-0.24, 0], [0.24, 0], [0.24, 0.12], [0.11, 0.3], [0.09, 0.78], [-0.09, 0.78], [-0.11, 0.3], [-0.24, 0.12]];
-      const c = Math.cos(yaw), sn = Math.sin(yaw), Lb = 1.0;
-      const T = (px, py, pz) => {                                         // local (across, up, along) -> world
-        let a = px, u = py;
-        if (tip) { const ca = Math.cos(tip), sa = Math.sin(tip); const a2 = a * ca - u * sa, u2 = a * sa + u * ca; a = a2; u = u2 + (tip > 0 ? 0.24 : 0.24); }
-        return [x + a * c + pz * sn, fy + u, z - a * sn + pz * c];
-      };
-      const n = prof.length;
-      for (let i = 0; i < n; i++) { const p = prof[i], q = prof[(i + 1) % n];
-        const nn = [q[1] - p[1], -(q[0] - p[0])];
-        face(bags.plastic, [T(p[0], p[1], -Lb), T(q[0], q[1], -Lb), T(q[0], q[1], Lb), T(p[0], p[1], Lb)], nrm(sub(T(p[0] + nn[0], p[1] + nn[1], 0), T(p[0], p[1], 0)))); }
-      for (const e of [-1, 1]) face(bags.plastic, prof.map(p => T(p[0], p[1], e * Lb)), nrm(sub(T(0, 0.4, e * 2), T(0, 0.4, 0))));
-      st.barriers++;
+    const put = (x, z, yaw, o) => { const r = barrierMesh(bags, Object.assign({ x, y: fy, z, yaw, lod: L, off: hashN(Math.round(x * 10), Math.round(z * 10), 61, seed) * 1.8 }, o || {})); st.barriers++; if (r.lamp) lights.push(r.lamp); return r; };
+    // a run of interlocked units from (x0, z0) along `yaw`, each joint a few degrees off true, every `lampEvery` a lamp
+    const run = (x0, z0, yaw, n, o) => {
+      let x = x0, z = z0, a = yaw;
+      for (let q = 0; q < n; q++) {
+        const ja = (hashN(q, Math.round(x0 * 10), 62, seed) - 0.5) * 0.08;
+        a += ja;
+        const cx = x + Math.sin(a) * BARRIER.L / 2, cz = z + Math.cos(a) * BARRIER.L / 2;
+        put(cx, cz, a, Object.assign({ white: (q + (o.w0 || 0)) % 2 === 1, lamp: o.lampEvery && q % o.lampEvery === 1 ? 1 : 0 }, o.each ? o.each(q) : {}));
+        x += Math.sin(a) * (BARRIER.L + 0.015); z += Math.cos(a) * (BARRIER.L + 0.015);
+      }
     };
     if (der) {
-      barrier(-xG + 0.9, 6.0, Math.PI / 2 + 0.1, 0); barrier(-xG + 0.8, 8.3, Math.PI / 2 - 0.05, 0);
-      barrier(-xG + 1.4, 10.6, Math.PI / 2 + 0.5, 1.45); barrier(-xG + 0.9, -4.0, Math.PI / 2, 0);
+      // along the white wall's foot: three still locked, one pulled out and turned, one on its side, one faded white
+      run(-xG + 0.75, 3.0, 0, 3, { w0: 0 });
+      put(-xG + 1.6, 9.6, 0.55, { white: false });
+      put(-xG + 1.5, 11.9, 0.35, { white: false, tip: 1 });
+      put(-xG + 0.8, -4.0, 0.06, { white: true, fade: 1 });
     } else if (stage === 1) {
-      for (let x = -xG + 1.5; x < xG - 1; x += 2.6) if (Math.abs(x) > 1.5) barrier(x + 1.0, HD + 1.6, Math.PI / 2, 0);
+      // the line across the front, the access gap in the middle, a lamp on every fourth
+      const zl = HD + 1.7, half = BARRIER.L + 0.015;
+      const n = Math.floor((xG - 2.2) / half);
+      run(-xG + 0.6, zl, Math.PI / 2, n, { lampEvery: 4 });
+      run(2.2, zl, Math.PI / 2, n, { lampEvery: 4, w0: 1 });
       for (const x of [-6, 6]) {                                            // the boards on their posts
-        for (const dx of [-0.55, 0.55]) beam(bags.steelNew, [x + dx, fy, HD + 2.3], [x + dx, fy + 1.9, HD + 2.3], 0.025, 0.025, [1, 0, 0], 0);
-        K.boxAB(bags.ply, [x - 0.65, fy + 1.0, HD + 2.33], [x + 0.65, fy + 1.9, HD + 2.36]);
-        face(bags.decal, [[x - 0.62, fy + 1.0, HD + 2.37], [x + 0.62, fy + 1.0, HD + 2.37], [x + 0.62, fy + 1.9, HD + 2.37], [x - 0.62, fy + 1.9, HD + 2.37]], [0, 0, 1],
+        for (const dx of [-0.55, 0.55]) beam(bags.steelNew, [x + dx, fy, HD + 2.6], [x + dx, fy + 1.9, HD + 2.6], 0.025, 0.025, [1, 0, 0], 0);
+        K.boxAB(bags.ply, [x - 0.65, fy + 1.0, HD + 2.63], [x + 0.65, fy + 1.9, HD + 2.66]);
+        face(bags.decal, [[x - 0.62, fy + 1.0, HD + 2.67], [x + 0.62, fy + 1.0, HD + 2.67], [x + 0.62, fy + 1.9, HD + 2.67], [x - 0.62, fy + 1.9, HD + 2.67]], [0, 0, 1],
              p => CELL(14, (p[0] - x + 0.62) / 1.24, 0.2 + (p[1] - fy - 1.0) / 0.9 * 0.6));
       }
     } else {
-      for (let q = 0; q < 3; q++) barrier(xG + 1.0, HD - 2.5 - q * 0.6, 0, 0);
+      run(xG + 1.0, HD - 1.2, Math.PI, 3, { w0: 0 });                         // stood aside along the tower
     }
   }
 
@@ -1219,7 +1467,7 @@ function build(P0, lod, F) {
     galleries: { depth: D.GW, floors: [yL2, yGR] }, frames: NB + 1, bay: D.BAY, purlins: NPU * 2, instances,
     front: { x: 0, z: HD + 1.5, side: 1, depth: 0 },
     ground: g, groundAO: occ, aoFoot: null, ao: aoInfo, path: [], people: null, yard: null, pier: null,
-    lit: { lights: [], panes: 0, windows: 0 }, smoke: null, sign: null,
+    lit: { lights, panes: 0, windows: 0 }, smoke: null, sign: null,
   });
   return { bags, stats, P, V: { L: 2 * HW, w: 2 * HD, floorY: fy }, R: null, MAT: (F && F.MAT) || matsOrNull(), BAGS: OUT };
 }
@@ -1264,17 +1512,46 @@ function texOf(lib, key, mapName) {
   return t;
 }
 // role -> [lib, set, tint, metalness, normalScale]
+// THE ALBEDO IS CALIBRATED, NOT GUESSED (the user 9 Nov: "the ground surface often reads as black in your screenshots, why
+// is that?" - measured: the floor's scan averages 0.11 linear, a third of real concrete, and a hand gain of 1.5 left it
+// at 0.18; with the map off the floor read 126/255 against 38). A scanned diffuse is not an albedo: each set's mean is
+// measured off its own pixels when it lands (albedoOf) and the colour is set so the MEAN reaches the material's real
+// value, the scan keeping its own variation. The hue is a luminance-1 tint over the scan's own colour.
+// role -> [lib, set, target albedo (linear luminance), hue [r, g, b], metalness, normalScale]
+// targets (linear): weathered concrete 0.25-0.35, pale cast concrete 0.35-0.45, rust 0.10-0.15, worn galvanised and
+// pale painted sheet 0.35-0.45, white paint 0.55-0.7, dark weathered sheet ~0.08, grey timber 0.25-0.3
 const DRESS = {
-  steel:      ['house', 'rust', [1.05, 0.62, 0.55], 0.3, 0.9],   // red-oxide primer gone to rust (an isotropic scan: a streaked one barber-poles a 70 mm member)
-  steelNew:   ['house', 'steelgrey', 0x9aa0a4, 0.4, 0.6],      // the grey primer of the made-safe stage
-  sheetPale:  ['house', 'corrworn', 0xfff8ee, 0.45, 0.45],      // the pale, streaked header band
-  sheetDark:  ['house', 'corrworn', 0x5a4e46, 0.4, 0.45],      // the dark eave sheets
-  sheetWhite: ['house', 'steelgrey', 0xffffff, 0.15, 0.5],     // the white-painted inner wall
-  sheetNew:   ['house', 'galv', 0xe8ecef, 0.6, 0.4],           // the new roof
-  concFloor:  ['site', 'cracked', [1.5, 1.6, 1.75], 0, 1.0],    // worn, dusty, cracked (the photos' apron and slab): the scan is dark and brown, lifted to grey
-  concWall:   ['hangar', 'concrete008', 0xe9e4d8, 0, 1.0],
-  ply:        ['house', 'greywood', 0xc8b89a, 0, 0.8],
+  steel:      ['house', 'rust', 0.12, [1.45, 0.82, 0.62], 0.3, 0.9],       // red-oxide primer gone to rust (an isotropic scan: a streaked one barber-poles a 70 mm member)
+  steelNew:   ['house', 'steelgrey', 0.30, [0.98, 1.0, 1.03], 0.4, 0.6],   // the grey primer of the made-safe stage
+  sheetPale:  ['house', 'corrworn', 0.40, [1.03, 1.0, 0.95], 0.45, 0.45],  // the pale, streaked header band
+  sheetDark:  ['house', 'corrworn', 0.085, [1.12, 0.98, 0.86], 0.4, 0.45], // the dark eave sheets
+  sheetWhite: ['house', 'steelgrey', 0.58, [1.0, 1.0, 0.98], 0.15, 0.5],   // the white-painted inner wall
+  sheetNew:   ['house', 'galv', 0.45, [0.98, 1.0, 1.02], 0.6, 0.4],        // the new roof
+  concFloor:  ['site', 'cracked', 0.27, [0.95, 1.0, 1.08], 0, 1.0],        // worn, dusty, cracked (the photos' apron and slab): the brown scan pulled to grey
+  concWall:   ['hangar', 'concrete008', 0.40, [1.02, 1.0, 0.96], 0, 1.0],
+  ply:        ['house', 'greywood', 0.28, [1.06, 1.0, 0.9], 0, 0.8],
 };
+// the mean linear luminance of an image (32 x 32, sRGB decoded per pixel), once per image
+const ALB = new WeakMap();
+const s2l = c => (c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+function albedoOf(img) {
+  if (!img) return null;
+  if (Array.isArray(img)) return 0.2126 * s2l(img[0] / 255) + 0.7152 * s2l(img[1] / 255) + 0.0722 * s2l(img[2] / 255);
+  if (ALB.has(img)) return ALB.get(img);
+  if (!(img.complete && img.naturalWidth) || typeof document === 'undefined') return null;
+  const c = document.createElement('canvas'); c.width = c.height = 32;
+  const g = c.getContext('2d'); g.drawImage(img, 0, 0, 32, 32);
+  let px; try { px = g.getImageData(0, 0, 32, 32).data; } catch (e) { return null; }
+  let sum = 0; for (let i = 0; i < px.length; i += 4) sum += 0.2126 * s2l(px[i] / 255) + 0.7152 * s2l(px[i + 1] / 255) + 0.0722 * s2l(px[i + 2] / 255);
+  const a = sum / (px.length / 4); ALB.set(img, a); return a;
+}
+// set m.color so the map's mean reaches `target` (now, or when the image lands); `then` runs after
+function calibrate(m, img, target, hue, then) {
+  const hl = 0.2126 * hue[0] + 0.7152 * hue[1] + 0.0722 * hue[2];
+  const set = () => { const a = albedoOf(img) || 0.18; const k = target / a / hl; m.color.setRGB(hue[0] * k, hue[1] * k, hue[2] * k); if (then) then(); };
+  if (!img || Array.isArray(img) || (img.complete && img.naturalWidth)) set();
+  else { m.color.setRGB(hue[0] * target / 0.18 / hl, hue[1] * target / 0.18 / hl, hue[2] * target / 0.18 / hl); if (img.addEventListener) img.addEventListener('load', set, { once: true }); }
+}
 let MATS = null;
 function matsOrNull() { return MATS; }
 function makeMats() {
@@ -1285,14 +1562,32 @@ function makeMats() {
   for (const k of ['steel', 'steelNew', 'concFloor', 'concWall', 'ply']) M[k] = sh(k, 'std', { color: 0xa09080, roughness: 0.9, metalness: 0 });
   for (const k of ['sheetPale', 'sheetDark', 'sheetWhite', 'sheetNew']) M[k] = sh(k, 'std', { color: 0x9a9a9a, roughness: 0.8, metalness: 0.3, side: side2 });
   M.glass = sh('glass', 'glass', { color: 0xaeb9b6, roughness: 0.3, metalness: 0, opacity: 0.4, side: side2, depthWrite: false });
-  M.water = sh('water', 'std', { color: 0x101214, roughness: 0.035, metalness: 0, envMapIntensity: 1.25, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+  M.water = sh('water', 'std', { color: 0x4a4a4a, roughness: 0.04, metalness: 0, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
   M.decal = sh('decal', 'cut', { color: 0xffffff, roughness: 0.85, metalness: 0, alphaTest: 0.5, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3, side: side2 });
   M.stain = sh('stain', 'glass', { color: 0xffffff, roughness: 0.95, metalness: 0, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
   M.weed = sh('weed', 'cut', { color: 0xffffff, roughness: 0.9, metalness: 0, alphaTest: 0.42 });
-  M.plastic = sh('plastic', 'std', { color: 0xe2541a, roughness: 0.55, metalness: 0 });
+  M.plastic = sh('plastic', 'std', { color: 0xffffff, roughness: 1, metalness: 0 });
+  M.lamp = sh('lamp', 'glow', { color: 0xd88a2a, roughness: 0.25, metalness: 0, emissive: 0xff9a26, emissiveIntensity: 0 });
   const HF = HG.makeFinish ? HG.makeFinish() : null;
   M.aoskirt = HF && HF.MAT ? HF.MAT.aoskirt : null;
   return M;
+}
+// THE PUDDLE IS WET CONCRETE UNDER A WATER SURFACE (the user 9 Nov: "Is the water shader for the puddle appropriate,
+// maintainable and accurate?" - it was not: an opaque near-black sheet that hid the slab, and a bench hook that forced
+// a 35 % mirror at every angle over the whole lit colour). A puddle a few millimetres deep is two things, both of which
+// a standard PBR material already draws correctly: the bed seen through the water - the slab's own map, its albedo
+// darkened by the water filling the pores (x 0.45 at standing water, the wet-film law pavement.js keeps at x 0.62 for a
+// film) and a little more saturated - and the water's surface: roughness 0.04, a dielectric whose reflection three's
+// own Fresnel weights (F0 0.04, water's is 0.02: near enough at grazing, where it matters). No second water system:
+// water.js is the bodies' (depth, waves, foam); a film on a slab is a material. The bench's mirror (tools/_derelict.html)
+// replaces only the environment's RADIANCE in the specular term, under the same Fresnel.
+const WET_DARK = 0.45, WET_SAT = 1.15;
+function wetFrom(M) {
+  if (!M || !M.water || !M.concFloor) return;
+  const w = M.water, f = M.concFloor, c = f.color, l = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
+  w.map = f.map; w.normalMap = null; w.roughnessMap = null; w.roughness = 0.04; w.metalness = 0;
+  w.color.setRGB((l + (c.r - l) * WET_SAT) * WET_DARK, (l + (c.g - l) * WET_SAT) * WET_DARK, (l + (c.b - l) * WET_SAT) * WET_DARK);
+  w.needsUpdate = true;
 }
 function makeFinish() { const M = makeMats(); return { MAT: M, SHADE_U: HG.makeShadeU(), hn: HN() && HN().makeFinish ? HN().makeFinish() : null }; }
 let DEFAULT_FINISH = null;
@@ -1305,10 +1600,11 @@ function applyFinish(P0, F0) {
   const SU = F.SHADE_U;
   for (const k in DRESS) {
     const m = M[k]; if (!m) continue;
-    const [lib, key, tint, metal, ns] = DRESS[k];
+    const [lib, key, target, hue, metal, ns] = DRESS[k];
     const d = texOf(lib, key, 'diff');
     if (d) { m.map = d; m.normalMap = texOf(lib, key, 'nor') || texOf(lib, key, 'nor_gl'); m.roughnessMap = texOf(lib, key, 'rough'); m.roughness = 1; }
-    if (Array.isArray(tint)) m.color.setRGB(tint[0], tint[1], tint[2]); else m.color.setHex(tint);
+    const S0 = libOf(lib), img = S0 && S0[key] ? S0[key].diff : null;
+    calibrate(m, img, target, hue, k === 'concFloor' ? () => wetFrom(M) : null);
     m.metalness = metal; if (m.normalScale) m.normalScale.set(ns, ns);
     if (HG.shadeHouse && !(m.userData && m.userData.houseShaded)) HG.shadeHouse(m, SU);
     if (HG.cloudWeather && /^(sheet|concWall)/.test(k)) HG.cloudWeather(m, k === 'sheetNew' ? 0.1 : 0.55, 0);
@@ -1318,6 +1614,14 @@ function applyFinish(P0, F0) {
   if (!ATLAS.weed) { const c = weedCanvas(); if (c) { ATLAS.weed = new THREE.CanvasTexture(c); ATLAS.weed.colorSpace = THREE.SRGBColorSpace; ATLAS.weed.anisotropy = 8; } }
   if (ATLAS.decal) { M.decal.map = ATLAS.decal; M.stain.map = ATLAS.decal; M.decal.needsUpdate = M.stain.needsUpdate = true; }
   if (ATLAS.weed) { M.weed.map = ATLAS.weed; M.weed.needsUpdate = true; }
+  if (!ATLAS.barrier) { const B = barrierCanvas(); if (B) { const tx = (cv, srgb) => { const t = new THREE.CanvasTexture(cv); if (srgb) t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t; };
+    ATLAS.barrier = { diff: tx(B.diff, true), rough: tx(B.rough), nor: tx(B.nor) }; } }
+  if (ATLAS.barrier && M.plastic) {
+    const m = M.plastic; m.map = ATLAS.barrier.diff; m.roughnessMap = ATLAS.barrier.rough; m.normalMap = ATLAS.barrier.nor; m.normalScale.set(0.7, 0.7); m.color.setHex(0xffffff); m.roughness = 1;
+    m.needsUpdate = true;   // (no house finish on it: its sheet carries its own grime and the house's hook re-reads the map)
+  }
+  // the lamps (the buoys' rule: off unless asked - P.lamps, the night's): an amber lens, its glow an exposed level
+  if (M.lamp) { M.lamp.emissiveIntensity = P.lamps ? 2.2 : 0; M.lamp.color.setHex(P.lamps ? 0xffb050 : 0xc88a3a); M.lamp.needsUpdate = true; }
   // the dirt ramp off the slab (the house's): the dark tide line on the concrete, rust-brown splash on the sheets
   if (SU) {
     SU.uDirtTop.value = P.floorY + 0.9; SU.uDirtH.value = 1.1; SU.uDirtK.value = 0.6; SU.uNoiseK.value = 0.2; SU.uAOd.value = 0.4; SU.uSag.value = 0;
@@ -1335,8 +1639,9 @@ function finishReport() {
 window.DERELICT_GEN = {
   LOD_DETAIL: /^(glass|water|ply)$/,
   DEF, ROWS, PRESETS, STAGES, BAGS, EXTRA, dimsOf, build, applyFinish, makeFinish, finishReport, worksP,
-  atlasCanvas: { decal: decalCanvas, weed: weedCanvas }, corrugation: { PITCH, CREST, AMP },
+  atlasCanvas: { decal: decalCanvas, weed: weedCanvas, barrier: barrierCanvas }, BARRIER, barrierMesh, corrugation: { PITCH, CREST, AMP },
   get MAT() { return defaultFinish().MAT; },
+  albedoOf, calibrate, DRESS, WET: { dark: WET_DARK, sat: WET_SAT },
 };
 // THE CATALOGUE: one building, its stage a dial (the story's), its door hook toward the apron - the works' own entry
 window.DERELICT_GEN.CATALOGUE_V = 1;
