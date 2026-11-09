@@ -139,6 +139,18 @@ function run(WSsrc, files) {
     for (let i = 0; i < A.p.length; i += 3) { const z = Math.abs(A.p[i + 2]); if (z > b.z0 + 0.02 && z < b.z1 - 0.02 && A.p[i] < x0 - 0.12) inside++; }
     ok(inside === 0, 'nothing of the nose drawn in the lamp bay (' + inside + ' vertices)');
     ok(c.halves[0].tris !== a.halves[0].tris, 'the bay changes the drawing'); }
+  // THE WING ENGINES: a nacelle through the wing takes its two compression ribs and its four bearers, the D-nose cut over
+  // its width; one on top takes its ribs and the pylon's feet
+  { const d = DEFS.twinFloats, x0 = d.nodes[d.parts.wf.R.F[0]].p[0];
+    const n = { side: 'R', z0: 1.5, z1: 2.0, xFace: x0 - 0.6 };
+    const a = WS.plan(d, { lib, sides: ['R'] }), c = WS.plan(d, { lib, sides: ['R'], nacelles: [n] });
+    ok(c.info.planes[0].nacelles && c.info.planes[0].nacelles.length === 1, 'the nacelle recorded');
+    ok([n.z0, n.z1].every(z => c.halves[0].ribs.some(r => Math.abs(r - z) < 1e-9)), 'a compression rib each side of the nacelle');
+    // the bearers reach forward of the leading edge, to the firewall (x aft: smaller x is forward)
+    const A = c.halves[0].A; let fwd = 0;
+    for (let i = 0; i < A.p.length; i += 3) { const z = Math.abs(A.p[i + 2]); if (z > n.z0 && z < n.z1 && A.p[i] < x0 - 0.45) fwd++; }
+    ok(fwd > 0, 'the mount reaches the nacelle\'s firewall (' + fwd + ' vertices ahead of the leading edge)');
+    ok(c.halves[0].tris > a.halves[0].tris, 'the nacelle bay draws its mount'); }
   // every construction row has a kind (and fabricAlu, REAL-FIGURES-3's, before it lands)
   for (const r of Object.keys(C('GEN_SURF_MATERIALS')).concat(['fabricAlu'])) ok(r === 'fabric' || !!WS.KINDS[r], 'the row ' + r + ' has a kind');
   ok(!!(WS.KINDS.dbox && WS.KINDS.cub), 'the wooden row\'s two kinds');
@@ -158,7 +170,7 @@ function run(WSsrc, files) {
   ok(/\{ row: 'see inside',\s+\.\.\._vView\('xray'\),\s+to: 0 \}/.test(files.join), 'the capture pins see-inside off (a see-through wing never flies)');
   ok(/if \(window\.CAGE_WINGSTRUCT_DRAW\) window\.CAGE_WINGSTRUCT_DRAW\(ctx\);/.test(files.wing), 'the wing layer hands it its build');
   // the garage's def is the wing rows' alone: the kind is read off the build's own spec (the 172 drew as cloth without it)
-  ok(/spec: full, bays \}\);/.test(WSsrc) && /window\.GARAGE_SPEC\.get\(\)/.test(WSsrc), 'the garage reads the kind off the whole build\'s spec');
+  ok(/spec: full, bays, nacelles \}\);/.test(WSsrc) && /window\.GARAGE_SPEC\.get\(\)/.test(WSsrc), 'the garage reads the kind off the whole build\'s spec');
   { const d = DEFS.metal, spec0 = JSON.parse(JSON.stringify(d.spec)); spec0.material = 'tubeFabric';
     for (const w of spec0.wings) w.material = null;
     ok(WS.kindOf({ spec: spec0, parts: d.parts }, 0, lib, d.spec).key === 'alloy', 'a wing-rows def with the whole build\'s spec: the 172 is alloy'); }

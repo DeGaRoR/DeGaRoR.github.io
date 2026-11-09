@@ -194,7 +194,7 @@
       En.traverse(o => { if (!o.isMesh || !o.geometry) return; mb.setFromObject(o); if (!mb.isEmpty() && !fbb.containsBox(mb)) swap(o, halve); });
     }
     const G = root.children.find(o => o.name === 'cageLayer:gear');
-    if (G) for (const o of G.children) if (/L$/.test(o.name) && o.visible) { o.visible = false; st.hid.push(o); }
+    if (G) bareGear(T, G, left, cl, hw, st);
     ghostNacelles(T, root, left, cl, hw, st, fus);
     hideWells(root, st);
     cutTaper(T, root, p1, p2, st);
@@ -249,23 +249,37 @@
         L.traverse(o => { if (o.name === 'engPylon' && o.isMesh && o.material && (o.material.userData || {}).aeroskin) strip(o); }); }
     }
   }
+  // THE LANDING GEAR, BARE (the user 9 Nov: "you don't seem to represent the wheels ... it should be shown without any
+  // fairings, so without the wheel fairing and without the fairing for the leg, if any"): the near side's units stay
+  // (they were hidden), and every fairing on the cut side and the centreline - a spat, a leg shroud (_cage_gear.js
+  // `gearFair`: a unit's `fair` bag), a gear nacelle pod - leaves; the far side keeps its own (the outline)
+  function bareGear(T, G, left, cl, hw, st) {
+    const b = new T.Box3(), c = new T.Vector3();
+    G.updateMatrixWorld(true);
+    G.traverse(o => {
+      if (!o.visible || !((o.userData && o.userData.gearFair) || /^gearNacPod/.test(o.name || ''))) return;
+      b.setFromObject(o); if (b.isEmpty()) return;
+      if (b.getCenter(c).dot(left) - cl < -hw) return;   // the far side's
+      o.visible = false; st.hid.push(o);
+    });
+  }
   // THE RETRACTABLE GEAR'S RESERVED WELLS (RETRACT G3: `edWellGhost`, amber edges drawn through everything - an editor's
   // instrument, the Petrel's three little boxes on the fiche, the user 9 Nov) leave the cutaway
   function hideWells(root, st) {
     root.traverse(o => { if (o.name === 'edWellGhost' && o.visible) { o.visible = false; st.hid.push(o); } });
   }
-  // THE POD-AND-ROD'S TAPER CLADDING (the user 9 Nov: "the rods in the pod and rod designs are not showing through"):
-  // the sheets over the rod's tightening truss (`taperPanel`, G26/G187) are STRUCTURE to the see-inside view
-  // (_cage_ui.js INTSTRUCT: they stay opaque), so the cut never opened them and the rod running through the taper to
-  // the aft bulkhead (HULL-B37) stood hidden behind them. Cut as the covering is: the near half of the fuselage's slab
+  // THE POD-AND-ROD (the user 9 Nov: "the rods in the pod and rod designs are not showing through"; "we still do not
+  // have the cutout of rods"): the rod (`boomTube`, G26) and the sheets over its tightening truss (`taperPanel`, G187) are
+  // STRUCTURE to the see-inside view (_cage_ui.js INTSTRUCT: opaque), so the cut never went through them - the rod stood
+  // whole where everything round it was cut. Cut as the covering is: the near half of the fuselage's slab, the tube open
   function cutTaper(T, root, p1, p2, st) {
     root.traverse(o => {
       const nm = o.isMesh && o.userData && o.userData.matNames;
-      if (!nm || !nm.includes('taperPanel')) return;
+      if (!nm || !(nm.includes('taperPanel') || nm.includes('boomTube'))) return;
       const arr = Array.isArray(o.material), ms = arr ? o.material : [o.material];
       let ch = false;
       const out = ms.map((m, i) => {
-        if (nm[i] !== 'taperPanel' || !m) return m;
+        if ((nm[i] !== 'taperPanel' && nm[i] !== 'boomTube') || !m) return m;
         ch = true; const n = dup(m); st.clones.push(n);
         n.clippingPlanes = [p1, p2]; n.clipIntersection = true; n.side = T.DoubleSide; n.needsUpdate = true;
         return n;

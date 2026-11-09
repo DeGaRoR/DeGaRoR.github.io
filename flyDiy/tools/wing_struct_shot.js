@@ -66,7 +66,9 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   // a VARIANT: key@row - the validated build with its wings' construction row set (cub@aluFabric, cub@steel), so every
   // kind of structure is drawn on an aeroplane the game flies; key+light - its lamp fitted (the bay's pocket)
   if (BUILD && BUILD.val) for (const k0 of BUILD.val.split(',')) LIST.push({ key: k0.replace(/[@+]/g, '_'), spec: () => {
-    const [k, row] = k0.replace(/\+light$/, '').split('@'), sp = require('./_load_build.js').loadValidated(k).spec;
+    const [k, row] = k0.replace(/\+(light|plain)$/, '').split('@'), sp = require('./_load_build.js').loadValidated(k).spec;
+    // key+plain: the build's decal patterns off for the picture (the Petrel's dark pattern hid its inside - the user 9 Nov)
+    if (/\+plain$/.test(k0) && sp.finish && sp.finish.decals) for (const d of Object.keys(sp.finish.decals)) if (/^m\d+On$/.test(d)) sp.finish.decals[d] = 0;
     if (row) { for (const w of sp.wings || []) w.material = row;   // (the garage reads its own row: wgCons, _cage_wing.js's states)
       const st = [null, 'carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass'].indexOf(row);
       if (st > 0) sp.cage = Object.assign({}, sp.cage, { wgCons: st }); }

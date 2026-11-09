@@ -253,7 +253,12 @@
         // THE LAMP BAYS (the user, 9 Nov: "indent for the wing-mounted lights in the structure"): the D-nose cut where
         // _cage_wing.js cuts the covering (CAGE_LIGHT_BAY: the bay's span and chord, opts.bays) - the nose's cover, its
         // strip and its ribs stop at the bay's edges, two side plates and a back wall make the pocket the lamp sits in
-        const bays = k === 0 ? (opts.bays || []).filter(b => b && b.z1 > b.z0) : [];
+        // ...and THE WING ENGINES' NACELLES (the user 9 Nov: "the mounting point of the wing mounted engines, and maybe a
+        // cut in the leading edge structure, the same way as you did for the lights"): opts.nacelles [{ side, z0, z1, xFace,
+        // top }] - an engine THROUGH the wing cuts the D-nose over its width (a pocket with no back wall: the nacelle
+        // runs in), an engine on TOP stands on the spars (no cut); both take a compression rib each side and their mount
+        const nacs = k === 0 ? (opts.nacelles || []).filter(n => n && n.side === sd && n.z1 > n.z0) : [];
+        const bays = (k === 0 ? (opts.bays || []).filter(b => b && b.z1 > b.z0) : []).concat(nacs.filter(n => !n.top).map(n => Object.assign({ nac: 1 }, n)));
         const inBay = z => bays.some(b => z > b.z0 - 1e-6 && z < b.z1 + 1e-6);
         // the frames of a run of span with the bays taken out: [[frames...], ...]
         const noseRuns = () => {
@@ -404,6 +409,7 @@
         };
         // the lamp bays' pockets
         for (const b of bays) {
+          if (b.nac) continue;   // (a nacelle's opening has no pocket: drawn above)
           const pc = KD.rootC || KD.ribC;
           const fa = frameAt(b.z0), fb = frameAt(b.z1);
           const xb = f => Math.min(sparF - 0.5 * sw - 0.006, Math.max(b.chord || 0.13, (b.depth || 0.06) / f.chord));
@@ -423,6 +429,32 @@
           for (const z of ribZ) { ribAt(z, nearSpecial(z) && (z === PP.zRoot || KD.rib !== 'plate')); ribsDrawn.push(z); }
           // a station that is special but carries no rib of the 0.4 m rule (the strut's, off the pitch): its own
           for (const s of specials) if (!ribZ.some(z => Math.abs(z - s) < 0.05)) { ribAt(s, true); ribsDrawn.push(s); }
+        }
+        // the wing engines' nacelle bays
+        for (const n of nacs) {
+          // the nacelle's ribs (a full rib each side: the compression ribs a nacelle bay has) and its MOUNT: four steel
+          // bearers from the front spar's face forward to the firewall (xFace, body x - its chord fraction on this frame),
+          // bolted to the spar through a fitting each; on top of the wing, the pylon's feet on both spars
+          for (const z of [n.z0, n.z1]) if (z > PP.zRoot + 0.05 && z < zS - 0.05) { ribAt(z, true); ribsDrawn.push(z); }
+          const zm = 0.5 * (n.z0 + n.z1), w = n.z1 - n.z0;
+          for (const z of [n.z0 + 0.22 * w, n.z1 - 0.22 * w]) {
+            const f = frameAt(Math.max(PP.zRoot, Math.min(zS, z)));
+            const xs = sparF - 0.5 * sw - 0.004;
+            if (n.top) {
+              for (const [xc, ww] of [[sparF, sw], [sparR, rw]]) {
+                const y = top(f, xc - 0.5 * ww, xc + 0.5 * ww) + 0.002;
+                bar(A, P(f, xc - 0.5 * ww - 0.01 / f.chord, y), P(f, xc + 0.5 * ww + 0.01 / f.chord, y), 0.06, 0.008, f.up, 'fit', 0);
+              }
+              continue;
+            }
+            const xF = Number.isFinite(n.xFace) && Math.abs(f.ch[0]) > 0.3 ? Math.max(-0.7, Math.min(-0.02, sparF + (n.xFace - f.pF[0]) / (f.ch[0] * f.chord))) : -0.08;
+            for (const yk of [0.62, -0.62]) {
+              const yS = yk > 0 ? yk * yU(f, xs) : -yk * yL(f, xs), yE = yk > 0 ? yk * yU(f, 0.02) : -yk * yL(f, 0.02);
+              bar(A, P(f, xs, yS), P(f, xF, yE), 0.026, 0.026, f.up, 'steel', lod ? 4 : 6);
+              bar(A, P(f, xs - 0.003 / f.chord, yS - 0.03), P(f, xs - 0.003 / f.chord, yS + 0.03), 0.05, 0.006, f.ch, 'fit', 0);
+            }
+          }
+          pinfo.nacelles = (pinfo.nacelles || []).concat([{ side: sd, z0: n.z0, z1: n.z1, top: !!n.top, zm }]);
         }
         // nose ribs: between two main ribs, ahead of the front spar (the J-3's, the Jodel's false nose ribs)
         if (KD.noseRibs && !lod) for (let i = 0; i + 1 < ribZ.length; i++) {
@@ -644,7 +676,19 @@
         // layer's declaration (CAGE_LIGHT_BAY: the span fraction, the half width, the chord, the depth)
         const B = window.CAGE_LIGHT_BAY, UP = window.CAGE_UI && window.CAGE_UI.P, semi = W.def.spec.geom && W.def.spec.geom.semi;
         const bays = (B && UP && +UP.lightOn && semi) ? [{ z0: semi * B.frac - B.half, z1: semi * B.frac + B.half, chord: B.chord, depth: B.depth }] : [];
-        L.grp = group(T, W.def, { map: W.nodeCage, lod: 0, name: 'cageLayer:wingStruct', spec: full, bays });
+        // the wing engines (the engine layer runs before the wing: this build's units) - their stations off the units' own
+        // place (cage x = the body's span axis, nodeCage) and their firewall back in the body's x (the anchor's map)
+        const nacelles = [], E = window.CAGE_ENG;
+        if (E && (E.mount === 'wing' || E.mount === 'wingTop') && Array.isArray(E.units)) {
+          const half = 0.5 * Math.max(0.3, (E.spec && E.spec.fwW) || 0.45) + 0.03, an = W.anchor || {}, wf0 = W.def.parts.wf;
+          const ref = wf0 && wf0.R && wf0.R.F ? W.def.nodes[wf0.R.F[0]].p : [0, 0, 0];
+          for (const u of E.units) {
+            if (!u || !u.at || Math.abs(u.at[0]) < 0.3) continue;
+            const z = Math.abs(u.at[0]), xFace = Number.isFinite(u.faceZ) && an.zCab != null ? ref[0] + an.zCab + (an.dx || 0) - u.faceZ : NaN;
+            nacelles.push({ side: u.at[0] > 0 ? 'R' : 'L', z0: z - half, z1: z + half, xFace, top: E.mount === 'wingTop' });
+          }
+        }
+        L.grp = group(T, W.def, { map: W.nodeCage, lod: 0, name: 'cageLayer:wingStruct', spec: full, bays, nacelles });
         if (!IMMUNE) IMMUNE = [new T.Plane(new T.Vector3(0, 1, 0), 1e6)];
         L.grp.traverse(o => { if (o.isMesh) { o.userData.edMarker = true; o.userData.wingStruct.layer = true; o.onBeforeRender = immune; } });
         L.def = W.def;
