@@ -244,18 +244,6 @@
    "ms": 163158
   },
   {
-   "name": "restored_hall",
-   "cam": "hall",
-   "stage": 3,
-   "stageName": "restored",
-   "lod": 0,
-   "tris": 108176,
-   "draws": 14,
-   "calls": 284,
-   "pendingMaps": 0,
-   "ms": 138705
-  },
-  {
    "name": "restored_office",
    "cam": "office",
    "stage": 3,
@@ -316,6 +304,18 @@
    "ms": 49794
   },
   {
+   "name": "restored_hall",
+   "cam": "hall",
+   "stage": 3,
+   "stageName": "restored",
+   "lod": 0,
+   "tris": 109830,
+   "draws": 14,
+   "calls": 284,
+   "pendingMaps": 0,
+   "ms": 150543
+  },
+  {
    "name": "back0",
    "cam": "back",
    "stage": 0,
@@ -325,7 +325,7 @@
    "draws": 13,
    "calls": 342,
    "pendingMaps": 0,
-   "ms": 126534
+   "ms": 120251
   },
   {
    "name": "back3",
@@ -337,7 +337,7 @@
    "draws": 14,
    "calls": 288,
    "pendingMaps": 0,
-   "ms": 115250
+   "ms": 110533
   },
   {
    "name": "left3",
@@ -349,7 +349,7 @@
    "draws": 14,
    "calls": 292,
    "pendingMaps": 0,
-   "ms": 119948
+   "ms": 88130
   }
  ],
  "errors": []
