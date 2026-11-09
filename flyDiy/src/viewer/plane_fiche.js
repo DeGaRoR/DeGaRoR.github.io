@@ -195,7 +195,8 @@
     }
     const G = root.children.find(o => o.name === 'cageLayer:gear');
     if (G) for (const o of G.children) if (/L$/.test(o.name) && o.visible) { o.visible = false; st.hid.push(o); }
-    ghostNacelles(T, root, left, cl, hw, st);
+    ghostNacelles(T, root, left, cl, hw, st, fus);
+    hideWells(root, st);
     cutTaper(T, root, p1, p2, st);
     return st;
   }
@@ -218,25 +219,40 @@
     }
     return near ? L : null;
   }
-  // THE CUT SIDE'S WING NACELLES (the user 9 Nov: "the one on the cutaway side should be displayed without its cowl ...
-  // keep a transparent suggestion of the full model, faint, so ... the global outline remains clear"): every shell of the
-  // cowl layer standing outside the fuselage on the near side wears a faint see-through copy of its material (the
-  // garage's x-ray alpha, CAGE_VIEW.xrayA); the engine, its mount and its propeller stay as they are
-  function ghostNacelles(T, root, left, cl, hw, st) {
-    const Cw = root.children.find(o => o.name === 'cageLayer:cowl'); if (!Cw) return;
+  // THE DRIVE TRAINS WITHOUT THEIR FAIRINGS (the user 9 Nov: "the one on the cutaway side should be displayed without its
+  // cowl ... keep a transparent suggestion of the full model, faint, so ... the global outline remains clear"; and on the
+  // Petrel: "we still don't see the driving trains as I had asked, without the fairing"): every cowl / nacelle shell and
+  // every pylon FAIRING (the engine layer's `engPylon` in the cowl's AEROSKIN section - its tube bars wear the mount's
+  // and stay) that stands on the cut side outside the fuselage (a wing nacelle) or on the centreline over it (a pylon's
+  // nacelle and its tower) wears a faint see-through copy of its material (the garage's x-ray alpha); the engine, its
+  // mount, its drive and its propeller stand. The nose cowl (cut in half as the covering is) and the far side's
+  // nacelles keep theirs: the outline
+  function ghostNacelles(T, root, left, cl, hw, st, fus) {
     const V = window.CAGE_VIEW, a = Math.min(0.2, (V && V.xrayA) || 0.12), b = new T.Box3(), c = new T.Vector3(), made = new Map();
-    Cw.updateMatrixWorld(true);
-    Cw.traverse(o => {
+    const fb = fus ? new T.Box3().setFromObject(fus) : null;
+    const strip = o => {
       if (!o.isMesh || !o.geometry || !o.visible) return;
       b.setFromObject(o); if (b.isEmpty()) return;
-      if (b.getCenter(c).dot(left) - cl < hw + 0.05) return;   // the nose's cowl, a body-mounted one: not a wing nacelle
+      b.getCenter(c);
+      const lat = c.dot(left) - cl, near = lat > hw + 0.05, centre = Math.abs(lat) < hw, over = !!(fb && c.y > fb.max.y + 0.02);
+      if (!(near || (centre && over))) return;
       const arr = Array.isArray(o.material), ms = arr ? o.material : [o.material];
       st.mats.push([o, o.material]);
       const nm = ms.map(m => { if (!m) return m; let g = made.get(m); if (g) return g;
         g = dup(m); g.transparent = true; g.opacity = a; g.depthWrite = false; g.side = T.DoubleSide; g.needsUpdate = true;
         made.set(m, g); st.clones.push(g); return g; });
       o.material = arr ? nm : nm[0];
-    });
+    };
+    for (const L of root.children) {
+      if (L.name === 'cageLayer:cowl') { L.updateMatrixWorld(true); L.traverse(strip); }
+      if (L.name === 'cageLayer:eng') { L.updateMatrixWorld(true);
+        L.traverse(o => { if (o.name === 'engPylon' && o.isMesh && o.material && (o.material.userData || {}).aeroskin) strip(o); }); }
+    }
+  }
+  // THE RETRACTABLE GEAR'S RESERVED WELLS (RETRACT G3: `edWellGhost`, amber edges drawn through everything - an editor's
+  // instrument, the Petrel's three little boxes on the fiche, the user 9 Nov) leave the cutaway
+  function hideWells(root, st) {
+    root.traverse(o => { if (o.name === 'edWellGhost' && o.visible) { o.visible = false; st.hid.push(o); } });
   }
   // THE POD-AND-ROD'S TAPER CLADDING (the user 9 Nov: "the rods in the pod and rod designs are not showing through"):
   // the sheets over the rod's tightening truss (`taperPanel`, G26/G187) are STRUCTURE to the see-inside view
