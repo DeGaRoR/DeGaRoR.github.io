@@ -14,15 +14,14 @@ to a horn on the arm. Offered in the garage (the mains' leg row, eight rows of i
 saved and loaded (absent at default), flown (its own strut law), drawn as flown (every part posed from three physics
 nodes), broken by the crash model (the leg drops), priced and weighed, gated at tech stage 2.
 
-**Its fairing** (the user, after the first pictures: "an elegant fairing ... something robust that could go on many planes,
-but something that looks good and that hides a bit of this huge mechanics"; then "allow only a fairing for the leg, not
-the wheel on this suspension type" and "do the little proper cuts so the wheel articulation can move freely without
-hitting the fairing"; then "closer to the bone ... slimmer at the bottom ... a fairing that is directional"): the
-leg-fairing row dresses the leg in a boot - one straight tapered streamline in horizontal, flow-aligned slices, the
-smallest that holds the leg's tube, the strut's bracket and the strut over its stroke, ending under the pivot; it is
-cut where the articulation sweeps through it (round holes for the pivot, a slot for the arm, a 2.5 mm lip round
-each), so nothing that moves comes within 3 mm of it at any compression (gated). The wheel takes no fairing on this leg
-(the rows step aside; the join and clampSpec write none). The boot takes the struts' drag from Cd 1.0 to 0.30. Study §7.5.
+**Its fairing** (the user, over several rounds: an elegant fairing that hides the mechanism; the leg only, not the wheel;
+cut so the articulation moves freely; closer to the bone and directional; then a professional model - details, other
+placements, the ground, the profile, the first try's flare, the Wilga itself): the leg-fairing row dresses the leg in a
+boot of three shapes (the new row lvBoot: tapered, flared, trailing - the Wilga's round leg tube and slab). Every section
+is flow-aligned (nose into the flight), the smallest strut-fairing section round what it must hide, the edges straight;
+a square-cut floor the strut leaves through (as on the Wilga); cut round the swept articulation with rubber-trimmed
+lips; seams and ~70-85 screw heads a leg. No wheel fairing on this leg (rows hidden; join and clampSpec write none).
+Cached: 35 ms a leg replayed, 0.3-0.4 s on a leg-row edit. Study §7.5.
 
 The study, every figure sourced or derived: futureDesigns/WILGA-GEAR-STUDY-2026-11.md.
 
@@ -43,7 +42,7 @@ The study, every figure sourced or derived: futureDesigns/WILGA-GEAR-STUDY-2026-
 
 | gate | verdict | note |
 |---|---|---|
-| **WILGAGEAR** (new, core, ~2 min) | **PASS 33/33** | geometry as researched; static 72 mm (the study's 70); limit drop 110 / 115 mm, no bottoming; reserve drop bottoms on the steel stop and recovers; no pogo; trailing arc to 1.4 mm; a broken leg drops (tip 2.32 -> 0.00 m, "the landing gear broke"); drawn = physics through the load chain to 0.4 mm; the garage's red row; the fairing (on the Cub and the host: the boot and no wheel fairing; nothing that moves within 3 mm of the cut boot through the stroke - 20 / 6.7 mm at the closest, and 0.0 mm (FAIL) with the cuts off; the cylinder's body hidden from either side, ahead and behind; clampSpec agrees); nothing else moved |
+| **WILGAGEAR** (new, core, ~2.3 min) | **PASS 45/45** | geometry as researched; static 72 mm (the study's 70); limit drop 110 / 115 mm, no bottoming; reserve drop bottoms on the steel stop and recovers; no pogo; trailing arc to 1.4 mm; a broken leg drops (tip 2.32 -> 0.00 m, "the landing gear broke"); drawn = physics through the load chain to 0.4 mm; the garage's red row; the fairing (7 cases - the Cub tapered / trailing, the host in the three shapes and with its fitting low and high: no wheel fairing, cut and detailed; nothing moving within 3 mm through the stroke - 8.2 mm at the closest, 0.0 mm (FAIL) with the cuts off; the ground 80 mm or more at full stroke on a flat tyre pitched 10 deg nose-down; the cylinder hidden above the floor; the cache replays the same boot to the bit; clampSpec agrees); nothing else moved |
 | GEAR, GEARFALL, TAILWHEEL, CLIP, BUILD, SAVE, PARTS, TAKEOFF, STOL, PILOT | PASS | PARTS after the part tree's new group (it caught the rows); STOL after the flat rows went absent (it caught them) |
 | UISMOKE, DESIGN, JOIN, SUBSTEP, SPECFIX, FIT, KNIFE, CAGEFIT, EDBUGS | PASS | the layers touched |
 | HITBOX, RETRACT | PASS alone | under four jobs each missed a time budget (260 vs 138 ms; 372 ms) |
@@ -58,7 +57,8 @@ After the fairing and the struts' drag (the last code commits) re-run green: WIL
 JOIN, EDBUGS, CAGEFIT, HONEST, BUILD, STOL, DESIGN, SPECFIX, TAKEOFF (TECH: its av.elt line only, as master). After the
 leg-only fairing and its cuts: WILGAGEAR (33/33), CLIP, GEAR, PARTS, UISMOKE, SAVE, JOIN, EDBUGS, CAGEFIT, BUILD, HONEST,
 SPECFIX, DESIGN green. After the directional, slimmer boot: WILGAGEAR, CLIP, GEAR, PARTS, UISMOKE, SAVE, JOIN, EDBUGS,
-CAGEFIT, BUILD green.
+CAGEFIT, BUILD green. After the shapes, details and cache: WILGAGEAR (45/45), CLIP, GEAR, PARTS, UISMOKE, SAVE, JOIN, EDBUGS,
+CAGEFIT, BUILD, STOL, SPECFIX, HONEST, DESIGN green (TECH: its av.elt line only, as master).
 
 Not run here: the full battery (`--all`; the cloud box takes ~2 h a heavy gate); the timed gates (no GPU).
 
@@ -70,7 +70,7 @@ Not run here: the full battery (`--all`; the cloud box takes ~2 h a heavy gate);
 | the Wilga-class host | 111 / 467 / 142 (oleo row) | 119 / 492 / 145 | **+7-15 %** (its wing sets its step) |
 | a build without the leg | | | one compare a substep; all 30 builds bit-identical |
 
-The fairing: one boot a leg (~4 500 triangles with its cuts, built with the garage's drawing), nothing a frame. Drag (a lever leg only): the two struts at the leg's Cd - the
+The fairing: one boot a leg (~4 500 triangles, ~80 screws), nothing a frame; 35 ms a leg replayed from its cache, 0.3-0.4 s on a leg-row edit (the version pushed before took 4.6 s a leg on every redraw - found and fixed in this round). Drag (a lever leg only): the two struts at the leg's Cd - the
 host's gear CdA 0.139 m^2 on the oleo row, 0.199 on the bare trailing link, 0.111 booted.
 
 The leg's 8 nodes and 25 members over the tripod and axle bar they replace, 2-3 substeps, four rigid clusters (~4 %), the
@@ -86,14 +86,15 @@ master (the def and 2 s of node positions).
 - garage_leg_at_rest.png, garage_leg_full_stroke.png, garage_leg_rest_vs_full.png - quick_view close-ups, the same camera
 - rough_strip_landing.png - the landing on a rough strip, five moments from the physics and both struts' traces
 - host_side.png, host_front.png, cub_preview_0_half_full.png - quickshot
-- fairing_at_rest_and_full_stroke.png - the leg fairing at rest and at full stroke (quick_view)
-- fairing_cuts_close.png - its cuts close: the pivot's hole and the arm's slot, at rest and at full stroke (quick_view)
-- fairing_cub.png - the same boot on the Cub (quick_view)
+- fairing_shapes.png - the three shapes, side / three-quarter / ahead (quick_view)
+- fairing_details.png - seams, screws, the floor's cut, the pivot's notch (quick_view)
+- fairing_placements.png - the fitting low / default / high (quick_view)
 
 ## Open questions (each with its default)
 
 The study's §9: the manual's stroke / charge / orifice (default: derived); the arm's extended and full-stroke angles
 (62 / 12); the strut's upper eye (0.18 m up the leg); G-EPZL's arm-off-the-spindle break as its own group (default: the
 whole leg); the strut's skew load on the spindle (not reported); the boot's own drag and mass (default: the
-leg-fairing row's, the struts at the faired Cd); a lever tailwheel (the game's tailwheel); a Wilga card
+leg-fairing row's, the struts at the faired Cd); the strut's ~20 deg sideways skew (default: as derived; moving its upper
+eye into the arm's plane would let the Wilga shape be the photographs' slim slab); a lever tailwheel (the game's tailwheel); a Wilga card
 (none; the gate's host stands in).

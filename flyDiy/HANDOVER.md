@@ -246,8 +246,8 @@ only for a NEW or deeper finding; `--rebase` after a chantier clears some;
 futureDesigns/FITMENT-STUDY-2026-09-12.md.
 GATE WILGAGEAR (WILGA-GEAR, core, ~2 min) is the trailing-link leg's: the geometry as researched, the static deflection
 at gross, a 23.725-style limit drop without bottoming and the reserve drop's recovery, no pogo, the trailing arc, a
-broken leg that drops, the drawn leg = the physics leg through the load chain, the fairing (boot and spat never meet
-through the stroke; the strut hidden), nothing else moved. futureDesigns/WILGA-GEAR-STUDY-2026-11.md.
+broken leg that drops, the drawn leg = the physics leg through the load chain, the fairing (its three shapes and two
+placements: no wheel fairing, nothing moving within 3 mm, the ground, the strut hidden, the cache), nothing else moved. futureDesigns/WILGA-GEAR-STUDY-2026-11.md.
 GATE GEN (after STRESS) audits a GENERATED airframe rather than a fixed one:
 symmetry (nodes, beams AND masses — an asymmetric mass flies a wing low),
 orphans/duplicates, a full RIGIDITY test (rank 3n-6, which is the real form of
@@ -313924,16 +313924,17 @@ static deflection at the loaded mass (the row; 70 mm), the orifice for the 23.47
 - garage: leg kind 4 'trailing-link (Wilga type)' (mains only), 8 rows (absent at default), legLever drawing, the preview
   row gearLvPos (a view key), CAGE_GEAR.lever; the join writes suspension 'lever' + gear.lever (the drawn points); the
   design tile's option. app.js: the leg, the arm and the strut's two halves each posed from three physics nodes.
-- THE FAIRING (the user, mid-session: "an elegant fairing ... robust ... that hides a bit of this huge mechanics"; then
-  "only a fairing for the leg, not the wheel" and "the little proper cuts so the wheel articulation can move freely"):
-  _gear_gen leverBoot (the leg-fairing row only; then "closer to the bone ... directional"): ONE STRAIGHT TAPERED
-  STREAMLINE in horizontal, flow-aligned slices (thickness 40 % of chord) - each slice's smallest streamline round the
-  leg's tube, the bracket and the strut over the stroke, then straight lines in height for the station, the centre and
-  the chord - ending under the pivot with a rounded toe; CUT by leverClear - the swept space of the arm, horn, lugs, axle boss, rod, cylinder, pivot and tyre at
-  33 poses (plain union per part, a 50 mm smooth minimum between parts, less 8 mm), the edges bisected onto the contour,
-  a 2.5 mm lip. No wheel fairing on the trailing link: _cage_gear zeroes st.fair and hides the fairing rows on leg 4,
-  the join and clampSpec write gear.fairing 'none'. 62_gen_aero: a lever leg's two struts in the drag (Cd 1.0 bare,
-  0.30 booted).
+- THE FAIRING (the user, over several rounds; study §7.5): the leg-fairing row only (no wheel fairing on leg 4: rows
+  hidden, the join and clampSpec write gear.fairing 'none'); _gear_gen leverBoot, three shapes on the new row lvBoot
+  (0 tapered, 1 flared, 2 trailing - the Wilga's round tube + slab; absent at default: CAGE_DEFAULT_ABSENT and
+  GEN_LEVER_ROW_OFF hold it). Sections contain the flight direction, square to the leg seen from ahead; each slice's
+  smallest fish-form section (40 %) round the leg's tube, the bracket and the strut over the stroke (its 2-D convex hull),
+  the leading edge and centre straight lines; a square-cut floor the strut leaves through; cut by leverClear (the swept
+  arm, horn, lugs, axle boss, strut, pivot, tyre at 25 poses; smooth union between parts; rubber-trimmed lips); seams and
+  ~70-85 screws a leg; CACHED on its inputs (35 ms a leg replayed, 0.3-0.4 s on a leg-row edit). 62_gen_aero: a lever
+  leg's struts in the drag (Cd 1.0 bare, 0.30 booted). A 45-case placement matrix (fitting 50-110 deg, drop, reach, the
+  three shapes; host and Cub): all clean, nothing moving within 9 mm, the ground 75 mm or more at full stroke on a flat
+  tyre pitched 10 deg nose-down.
 
 **Pitfalls met (each measured, each fixed):**
 - The fixed leg as gear-class members is a 1.2e5 N/m spring and folds under its own strut: kMul 20.
@@ -313957,11 +313958,20 @@ static deflection at the loaded mass (the row; 70 mm), the orifice for the 23.47
   crumpled in the pictures, not in the game. The boot is ~5 000.
 - A boot fitted slice by slice follows the strut's gland aft and down (a "sock") and is lumpy: straight lines in height
   through the slices' own fits read as one fairing.
+- THE FIRST BOOT TOOK 4.6 s A LEG, EVERY REDRAW (no gate times the drawing; found when measuring for this round): the cut
+  field allocated an array per vector op over ~230 capsules, the fit called Math.pow ~1e6 times. Now: convex hulls, a
+  section table, a coarse cut pass whose error is bounded per part (its scallop r - sqrt(r^2 - h^2); a part whose step
+  opens GAPS, h >= r, is always worked in full - the rod and the horn's lugs did, and 1.4 mm was left on some placements),
+  the field in plain arithmetic, and the cache.
+- A cut across a WIDE triangle is a chord inside the true outline: the floor had 3 rings and the pivot's boss came within
+  2.3 mm of it; 8 rings.
+- Horizontal slices on a leg splayed 55 deg read the tube as a long ellipse across the flow (0.35 m deep at the root); a
+  NACA 00xx's thin tail holds a strut 20 cm behind the leg only on a 0.6 m chord.
 - With holes in it, "inside the boot" is no test (parity); GATE WILGAGEAR 7b measures each moving vertex's distance to
   the boot's triangles (a 2 cm cell grid) at 17 poses.
 
-**Gates** (cloud, node; full logs read; the table: reports/evidence/WILGA-GEAR/READY.md). GATE WILGAGEAR (new, core, ~2 min)
-PASS 33/33. PASS: GEAR, GEARFALL, TAILWHEEL, CLIP, BUILD, SAVE, PARTS, TAKEOFF, UISMOKE, STOL, DESIGN, JOIN, SUBSTEP,
+**Gates** (cloud, node; full logs read; the table: reports/evidence/WILGA-GEAR/READY.md). GATE WILGAGEAR (new, core, ~2.3 min)
+PASS 45/45. PASS: GEAR, GEARFALL, TAILWHEEL, CLIP, BUILD, SAVE, PARTS, TAKEOFF, UISMOKE, STOL, DESIGN, JOIN, SUBSTEP,
 SPECFIX, FIT, KNIFE, CAGEFIT, EDBUGS, PILOT; HITBOX and RETRACT PASS run alone (under four jobs each missed a time budget:
 260 vs 138 ms, 372 ms). Red as on master 7daba875 (each line checked there or in L36a's entry): JOINPARITY's five, TECH's
 av.elt line, DESIGNCHECK's carbon post, GEN's "cruise is quiet in wind". DMGGEAR: the two float lines, identical to master 7daba875's log
@@ -313980,4 +313990,6 @@ certificate reads the oleo row's travel for a lever leg's members, nothing for a
 
 **Open** (the study's §9, each with its default): the manual's stroke / charge / orifice; the extended and full-stroke
 angles; the strut's upper eye; G-EPZL's arm-off-the-spindle break as its own group (DMG); the strut's skew load on the
-spindle; the boot's own drag and mass; a lever tailwheel; a Wilga card.
+spindle; the boot's own drag and mass; the strut's ~20 deg sideways skew (its upper eye on the leg's line: the Wilga's
+strut lies in the arm's plane - moving the eye would let the Wilga shape be the photographs' slim slab); a lever
+tailwheel; a Wilga card.

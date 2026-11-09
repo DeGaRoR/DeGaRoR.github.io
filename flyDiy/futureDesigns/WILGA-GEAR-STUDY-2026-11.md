@@ -261,43 +261,62 @@ a limit drop to 0.4 mm; the garage reddens a leg whose tyre meets the body at fu
 Cub and on the host, the leg wears the boot and no wheel fairing; nothing that moves comes within 3 mm of the cut boot
 through the stroke - 20 / 6.7 mm at the closest; the cylinder's body hidden; clampSpec agreeing); nothing else moved. Nine sections, 33 checks, ~2 min.
 
-### 7.5 The fairing (the user: "an elegant fairing ... something robust that could go on many planes, but something that looks good and that hides a bit of this huge mechanics"; then "allow only a fairing for the leg, not the wheel on this suspension type" and "do the little proper cuts so the wheel articulation can move freely without hitting the fairing")
+### 7.5 The fairing
 
-The Wilga's own leg is faired (a white trailing fairing on the red tube [P]); its strut and arm are bare. On the
-trailing link the game's **leg-fairing row** (`s1LegFair`) dresses the leg in a **boot** (`tools/_gear_gen.js leverBoot`);
-**the wheel takes no fairing** - the spat / trousers row and its shape rows step aside on this leg, the gear layer draws
-none, and the join and clampSpec write `gear.fairing 'none'` (the drag, the mass and the price follow the drawing).
+The user, in turn: "an elegant fairing ... something robust that could go on many planes, but something that looks good
+and that hides a bit of this huge mechanics"; "allow only a fairing for the leg, not the wheel"; "the little proper
+cuts so the wheel articulation can move freely"; "closer to the bone ... a fairing that is directional"; then "a proper
+professional 3D model": details, bolts and seams, a cap on what pokes out, other leg placements, the ground, the
+aerodynamic profile, the first try's flare, and the Wilga itself.
 
-- **The boot is sized from what it hides**, not drawn to a fixed shape, so it fits any leg the rows draw: the leg's own
-  faired tube, the strut's bracket lugs, and the strut's cylinder and gland sampled at five points of the stroke - not
-  the pivot (it passes through the cuts' round holes) nor anything of the arm (cut round).
-- **Directional** (the user: "take the direction of flight into account"): every section is a HORIZONTAL slice, a
-  streamline (the spat's tear, thickness 40 % of chord) with its nose into the flight and its chord along the airflow,
-  centred on the leg's line at that height - not a section square to the raked leg.
-- **Close to the bone** (the user: "slimmer at the bottom ... less like a primitive club"): ONE STRAIGHT TAPERED
-  STREAMLINE. Each slice (24, from 3 cm inside the body to just under the pivot) finds its smallest streamline holding
-  its height band's points grown by 10 mm (the chord by bisection, its station along the flow by a golden search); then
-  the station along the flow and the lateral centre become straight lines in height (least squares, weighted by chord)
-  and the chord the smallest straight taper holding every slice at those lines. A rounded toe (0.6 x the bottom
-  thickness deep) closes it under the pivot; the strut's foot below is bare, as on the Wilga. Earlier versions (a box
-  fitted in a fat tear square to the leg, then per-slice fits) read as a club and then as a sock.
-- **THE CUTS** (`leverClear`): the space everything that moves sweeps through the whole stroke - the arm, its horn and
-  the horn's lugs and pin, the axle's boss, the strut's rod and cylinder, the pivot (boss, tube, nut) and the tyre - as
-  capsules from each part's drawn sizes at 33 poses of the kinematics (GEAR_LEVER, the flight's and the preview's own
-  rule), the poses of one part joined plainly (the strut's rod and cylinder one part) and the parts blended by a smooth
-  minimum (50 mm), less 8 mm. The boot (48 + 12 slices x 36, ~4 500 triangles) keeps only where that clearance is positive; every cut edge is placed on the
-  zero contour by bisection along the grid's edge, so the opening is the swept shape's own outline, and a 2.5 mm lip
-  turns in round it. Two openings result: **round holes where the pivot passes through the flanks**, and **a slot in
-  the outboard toe for the arm** (with the horn's and rod's paths blended in).
-- What shows, by design: the arm and the rod below the boot; through the arm's slot from outboard, the strut's gland.
-  The cylinder's body is hidden from either side, ahead and behind (GATE WILGAGEAR 7b).
-- Measured (GATE WILGAGEAR 7b, the drawn meshes posed at 17 points of the stroke against the boot's triangles): nothing
-  that moves comes within 20 mm of the boot on the Cub, 6.7 mm on the host; without the cuts the arm runs through it
-  (0.0 mm - the check fails).
-- Found on the way: the material is two-sided, so an inner skin 2.5 mm under the outer z-fought through it (dropped); a
-  smooth minimum folded over all 200 capsules eroded the boot round the cylinder (each near-equal term shaves up to K/4
-  more - now per part); quick_view snaps any mesh over 6 000 triangles to a coarse grid, which crumpled a 7 600-triangle
-  boot in the pictures (the boot is now ~4 500).
+**The reference** ([P] IMG_5504 / 5527 / 5525 / 5526): the Wilga's red leg tube IS the leading edge; a white flat-sided
+fairing trails behind it and holds the strut, a line of screws down its side, a rounded cap at the root (the strut's
+upper pin poking through near the top), the bottom cut square above the knuckle - the strut's black gaiter, its chrome
+rod, the red arm and the pivot's red end cap bare below.
+
+**No wheel fairing** on the trailing link: the spat / trousers row and its shape rows step aside on leg 4; the gear layer
+draws none; the join and clampSpec write `gear.fairing 'none'`. The leg-fairing row (`s1LegFair`) is its fairing.
+
+**One generator, three shapes** (`tools/_gear_gen.js leverBoot`; the new row **lvBoot, 'leg fairing shape'**, with the
+leg-fairing row, absent at its default like every leg row): (0) **tapered**, (1) **flared** (the first try's: slim down the
+leg, swelling into the knuckle, c = c0 + k t^3), (2) **trailing (Wilga)** - the leg a round tube, the leading edge, and a
+flat-sided slab behind it closing over its last 30 % to a 3 mm trailing edge.
+- **Directional**: every section CONTAINS THE FLIGHT DIRECTION (nose into the flight, chord along the airflow) and is
+  square to the leg as seen from ahead. (Horizontal slices first: the leg's 55 deg splay cut obliquely gave a tube 0.35 m
+  deep across the flow.)
+- **The section** (0, 1): a strut fairing's "fish form" - an elliptic nose to the thickest point 40 % back, a long full
+  tail to a fine point, 40 % thick. (A NACA 00xx was tried: its thin tail could hold the strut, 20 cm behind the leg, only
+  on a 0.6 m chord.) Strut fairings sit at 25-50 % thickness, where their drag on the frontal area is flat.
+- **Closest to the bone**: each slice (16 down the leg) finds its smallest section round what it must hide - the leg's
+  tube, the strut's bracket lugs, the strut's cylinder over the whole stroke, each with 10 mm - by bisection on the chord
+  and a golden search on its leading edge (exactly: the section is convex, so the slice's 2-D convex hull is what has to
+  fit); then THE LEADING EDGE AND THE CENTRE ARE STRAIGHT LINES (least squares, the edge moved forward, whole, until every
+  slice fits) and the chord the smallest straight (or t^3) law holding every slice.
+- **The square-cut bottom** (the Wilga's): a 12 mm rounded rim and a flat floor just under the pivot. The strut leaves
+  THROUGH THE FLOOR, cut round, its foot and gaiter bare below - the round toe it replaces was crossed by the strut
+  through its side wall (the user's "little thing poking through").
+- **The cuts**: the space everything that moves sweeps over the stroke - the arm, its horn, the horn's lugs, the axle's
+  boss, the strut (rod and cylinder one part), the pivot, the tyre - capsules at 25 poses (GEAR_LEVER), a plain union per
+  part, a 50 mm smooth minimum between parts, less 8 mm plus the sampling's own scallop; each cut edge bisected onto the
+  contour; the lip a 2.5 mm RUBBER TRIM.
+- **The details**: seams (1.5 mm dark ribbons 0.4 mm proud) down each side at the thickest point (the Wilga's screw line),
+  round the root joint 10 cm under the fitting and round the lower service panel 10 cm above the floor; domed screw heads
+  8.4 mm across along each (7 / 6 cm pitch), none on or by a cut - ~70-85 screws a leg.
+- **The cache**: the boot is recorded on its inputs and replayed: ~35 ms a leg (a leg without the fairing: 34 ms); a
+  leg-row edit rebuilds it in ~0.3-0.4 s (the first version took 4.6 s a leg, every redraw - measured and fixed: the
+  convex hulls, a coarse pass of the cut field that only reads where it could matter, the field's hot path in plain
+  arithmetic, a table for the section).
+
+**Measured** (GATE WILGAGEAR 7b and a 45-case placement matrix - the host's fitting at 50 / 80 / 110 deg round the body x
+drop 0.65 / 0.80 / 0.95 m x the three shapes; the Cub's fitting x axle reach 0.25 / 0.45 / 0.70 m x tapered / trailing):
+every case builds clean (no layer error, no red row); nothing that moves comes within **9 mm** of the boot through the
+stroke; **the ground**: at full stroke on a tyre flat to 0.6 R and pitched 10 deg nose-down (hard braking on the mains)
+every boot stays **75 mm** or more above it (level: 134 mm or more) - the nose does not strike.
+
+**What it is not yet**: the Wilga shape needs a 20-24 cm leg tube where the photographs show ~8 cm - our strut is skewed
+~20 deg sideways (its upper eye on the leg's line, which leans inboard, its lower on the arm's horn) and swings sideways
+over the stroke, where the Wilga's lies in the arm's plane. The same skew makes the other two shapes deep at the knuckle
+(0.65 m of chord). §9 Q9.
 
 ---
 
@@ -322,8 +341,8 @@ m^2, the trailing link bare **0.199**, booted **0.111** (the oleo row faired 0.0
 faired builds alike at -0.08). The fairing's mass and price are the leg-fairing row's (+5 kg on the host); the trailing
 link never carries a wheel fairing.
 
-**The fairing's drawing**: one boot a leg, ~4 500 triangles with its cuts, built once with the garage's drawing (the cut
-field: 33 poses x 7 parts of capsules, evaluated at ~2 500 grid points and on each cut edge) - nothing a frame.
+**The fairing's drawing**: one boot a leg, ~4 500 triangles and ~70-85 screws; 35 ms a leg replayed from its cache,
+0.3-0.4 s when a leg row changes (§7.5).
 
 ## 9. Open questions (each with its default)
 
@@ -344,9 +363,14 @@ field: 33 poses x 7 parts of capsules, evaluated at ~2 500 grid points and on ea
    spring); a lever tailwheel on the same GEAR_LEVER is a natural follow-up.
 7. **Tyre pressure**. Default: the game's tyre law by the wheel's radius (the 500 x 200's 0.20 MPa rated [S] is not a
    game input).
-8. **The boot's own drag and mass** (its chord grows to ~0.2 m at the knuckle). Default: the leg-fairing row's figures
+8. **The boot's own drag and mass** (its chord grows to ~0.65 m at the knuckle). Default: the leg-fairing row's figures
    and the struts' term at the faired Cd (§8); a boot-sized wetted area is a refinement for the drag owner.
-9. **A Wilga card** in the garage (an archetype matched to a reference model, tools/REF_MATCH.md). Default: none in this
+9. **The strut's skew** (found with the fairing): our strut's upper eye sits on the leg's line, which leans inboard, so
+   the strut runs ~20 deg sideways to the arm's horn and swings sideways over the stroke; the photographs show the
+   Wilga's strut in the arm's plane, its upper pin near the top of the fairing (a long strut). Default: as derived (§4.1);
+   moving the upper eye's bracket outboard into the arm's plane (and up) re-designs the strut and would let the Wilga
+   shape be the photographs' slim slab. The user's call.
+10. **A Wilga card** in the garage (an archetype matched to a reference model, tools/REF_MATCH.md). Default: none in this
    chantier ("touch only what the gear needs"); the gate's host stands in.
 
 ---
