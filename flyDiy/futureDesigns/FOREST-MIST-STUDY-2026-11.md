@@ -253,26 +253,103 @@ September 20, 07:15 AKDT (sun 6 deg, az 95). The concept target the user gave is
 
 ---
 
-## 5. THE WEATHER: WHEN AND WHERE (forest_mist.js `strengths`, held by `tools/_fmist_check.js` section 4)
+## 5. THE WEATHER: WHEN, WHERE, HOW MUCH - piggybacked on the season's plan and the climate (forest_mist.js `strengths`)
 
-Three strengths, 0..1 each, from the day the game already computes - no new state, nothing saved:
+The user, 9 Nov, on the density ladder: *"maybe that should scale with the mist up to divided by 2, because above that
+this is really too much. How is the mist controlled ... we have this rotating schedule of weather in the story, and
+the holistic climate manager, so I would assume that fog spawns automatically ... could we piggyback on that ... scale
+the intensity ... heavy mist, things like that. Because actually they all look right to me in different conditions.
+The divided by 2 would be like really, really heavy morning mist. And the other ones could be just dissipating after
+rain ... And the /2 has this advantage of having like very clear definition and cuts."*
 
-| term | law (`sm` = smoothstep) | what it does in a day |
+**What already drives fog** (nothing new is invented, the pockets read it):
+- **The season's plan** (WEATHER-SEASON, `07d_weather_plan.js` + `07c_weather_days.js`): three blocks of 14 crafted
+  days (early 20 May-2 Jul, high 3 Jul-15 Aug, late 16 Aug-30 Sep), each with authored tracks over its 04:00-28:00
+  weather day. **Fog is authored**: `fog.hold` with a `where` - Valley fog, Morning fog on the sound and Valley fog late
+  summer are `where: low` (0.85-0.9 at 04:00, burnt off by 10-11), the Sea fog bank is `where: sea`. **Rain is
+  authored** (the storms, the gales, the showers, the drizzle) and **SOIL_WET** turns it into the hours since rain.
+  **Low cloud is authored** (stratus/stratocumulus decks at 0.85-0.97 on the drizzle and storm days).
+- **The day** (`07_day.js`) derives from it: `rh`, `cloudBase = 125 (T - Td)`, `cloudCoverEff`, `mistBurn` (the
+  lagged sun x the clear sky), `mistCalm` (3-10 kt), `fogHold`, `fogWhere`, `rain`.
+- **The climate** (`09_climate.js`): the wind every consumer reads (`climate.sample`) - the pockets' drift - and the
+  haze's column (LOOK-1).
+
+**The law** (one strength 0..1 per kind; the scale is the GAME's screen humidity at the club, ~0.75-0.79 at dawn even on
+a mist morning, so the thresholds sit there and not on the forest floor's):
+
+| term | law (`sm` = smoothstep) | the plan's word |
 |---|---|---|
-| **POOL** | `sm(0.80, 0.97, rh) x (1 - mistBurn) x mistCalm` | builds through a humid calm night, deepest at dawn, **burns off as the lagged sun warms the ground** (mid-morning in September at 55 N), held all day under an overcast (the burn is 0 there), torn away by 3-10 kt of wind |
-| **WISP** | `sm(0.72, 0.92, rh) x wet x (1 - burn/2) x (0.4 + 0.6 calm)`, `wet = 0.6 while it rains, else exp(-hoursDry / 5 h)` | **after rain**: the crowns steam, most when the first sun reaches them (the burn takes only half), a fifth left 8 h later, gone after a day dry (`SOIL_WET.hoursDry`) |
-| **ORO** | `sm(0.86, 0.99, rh) x sm(0.35, 0.75, cover) x (1 - sm(700, 1100 m, cloudBase))` | a near-saturated, covered day whose base is under Jolene's summits: the band where the base meets the slopes. The wind does not take it |
+| **POOL** (valley fog) | `sm(0.70, 0.90, rh) x (1 - mistBurn) x mistCalm x (1 - 0.7 sm(0.4, 0.9, cover))` - a calm, humid, CLEAR night; the lagged sun burns it | **`max(law, fogHold)`** when the day declares `where: low`; `0.35 x fogHold` for `where: sea` (the sea itself is the F2 layer's); the authored burn-off is the plan's |
+| **WISP** (the wet forest steaming) | `sm(0.55, 0.80, rh) x wet x (1 - burn/2) x (0.4 + 0.6 calm)`, `wet = 0.6 while it rains, else exp(-hoursDry/8 h)`, none past 36 h | the plan's rain, through SOIL_WET |
+| **ORO** (the cloud on the slopes) | `sm(0.45, 0.8, cover) x (1 - sm(600, 1000 m, cloudBase)) x (0.5 + 0.5 sm(0.75, 0.95, rh))` - the base IS the saturation | the plan's low deck and its dew |
+
+**The intensity is the user's ladder**: the density at a full pocket's heart falls an octave per third of the strength,
+from **0.009 /m (/2 - the heaviest morning: clear definition and cuts)** through /4 and /8 to **/16 (the last wisps)**,
+and the cover takes it to nothing below that (`rhoOf`); a named level for a forecast or the weather panel: `heavy`
+(>= 0.75), `mist` (>= 0.4), `wisps` (>= 0.1).
+
+**The season, tabulated** (node, every crafted day at seven hours; the level's initial and its divisor, and the kind:
+p pool, w wisp, o oro; `reports/evidence/FOREST-MIST/season_table.txt`):
+
+```
+                                5h      7h      9h      11h     14h     18h     21h    
+early  1 cool-northwesterly       .       .       .       .       .       .       .    
+early  2 calm-and-bright        W/8 p     .       .       .       .       .       .    
+early  3 first-cumulus          W/11p     .       .       .       .       .       .    
+early  4 warm-spell             W/7 p     .       .       .       .       .       .    
+early  5 valley-fog             H/2 p   M/3 p   W/9 p     .       .       .       .    
+early  6 thickening-sky         W/11p     .       .       .       .       .       .    
+early  7 grey-and-mild          W/10o   M/6 o   W/8 o   W/11o     .     W/10o   M/6 o  
+early  8 spring-gale            H/2 o   H/2 o   H/2 o   H/2 o   H/2 o   W/9 w   W/10w  
+early  9 spring-showers         W/11w     .       .       .       .       .       .    
+early 10 crisp-dawn             W/10w     .       .       .       .       .       .    
+early 11 breezy-westerly          .       .       .       .       .       .       .    
+early 12 june-cumulus           W/9 p     .       .       .       .       .       .    
+early 13 long-light-evening     W/9 p     .       .       .       .       .       .    
+early 14 midsummer-blue         W/9 p     .       .       .       .       .       .    
+high  1 fair-cumulus            W/10p     .       .       .       .       .       .    
+high  2 clear-high              W/10p     .       .       .       .       .       .    
+high  3 morning-fog             H/2 p   H/3 p   M/5 p     .       .       .       .    
+high  4 warm-hazy               W/9 p     .       .       .       .       .       .    
+high  5 high-cloud              M/6 p     .       .       .       .       .       .    
+high  6 overcast-calm           W/11o   M/6 o   M/7 o   W/8 o   W/10o   W/8 o   M/6 o  
+high  7 the-storm               H/3 o   H/3 o   H/3 o   H/2 o   H/2 o   W/11w   W/10w  
+high  8 showers-sunshine        W/10w     .       .       .       .       .       .    
+high  9 crisp-clear             W/9 w     .       .       .       .       .       .    
+high 10 ridge-day                 .       .       .       .       .       .       .    
+high 11 thermal-day             W/10p     .       .       .       .       .       .    
+high 12 sea-fog                 H/2 p   H/2 p   W/8 p   W/9 p     .       .     W/8 p  
+high 13 golden-evening          W/10p     .       .       .       .       .       .    
+high 14 light-southerly         W/10p     .       .       .       .       .       .    
+late  1 late-summer-high        W/7 p     .       .       .       .       .       .    
+late  2 valley-fog-autumn       H/2 p   H/2 p   M/4 p     .       .       .       .    
+late  3 golden-september        W/8 p     .       .       .       .       .       .    
+late  4 southerly-freshening    W/7 p     .       .       .       .       .       .    
+late  5 first-autumn-storm      H/3 o   H/2 o   H/2 o   H/2 o   H/2 o   W/11w   M/7 w  
+late  6 clearing-showers        W/10w     .       .       .       .       .       .    
+late  7 aurora-night            W/10w   W/13w     .       .       .       .       .    
+late  8 still-and-fair          W/7 p     .       .       .       .       .       .    
+late  9 grey-drizzle            W/10p   M/5 o   M/5 o   M/5 o   M/5 o   M/5 o   M/4 o  
+late 10 southwest-ridge         W/12w     .       .       .       .       .       .    
+late 11 indian-summer           W/11p     .       .       .       .       .       .    
+late 12 equinox-signs           W/8 p   W/12p     .       .       .       .       .    
+late 13 equinox-gale            H/2 o   H/2 o   H/2 o   H/2 o   H/2 o   W/11w   W/8 w  
+late 14 bright-behind-the-gale  W/12w     .       .       .       .       .       .    
+```
+
+Read: the three authored fog days are heavy at dawn and gone by 11 as written; the storms and gales put heavy cloud on
+the slopes while the front passes and leave dissipating wisps in the evening; the drizzle hangs mist on the hills all
+day; most calm clear dawns carry a thin breath in the hollows that is gone by 07:00; the windy days have none.
 
 **WHERE** is the map (section 3.0), **HOW IT MOVES** is the wind: the noise's offset is the integral of
 `climate.sample(eye, 40 m)` (as the F2 banks' is: a position integrated, never `wind x t`, CLIMATE K4), the map is
 fixed - so a pocket's wisps stream downwind across it and fade where its weight does, and a pocket never leaves its
-valley. A stronger wind does not blow the pool away down the valley: it **thins** it (the calm term), which is what
-the inversion does.
+valley. A stronger wind does not blow the pool away down the valley: it **thins** it (the calm term), as the
+inversion does.
 
-Not in the prototype, proposed for the landing (Q5): the POOL's lid rises and thins as it burns (the inversion
-eroded from below: lift the lid by `+60 m x burn` while the strength falls - the "lifts into stratus" stage); a lake's
-steam fog at dusk (cold air over warm water: `rh` and the water's own temperature, which the game does not model yet -
-default: lakes keep the POOL's law); `fogWhere` (the plan's named advection fog) read here too.
+Not in the prototype, proposed for the landing: the POOL's lid rises as it burns (the inversion eroded from below:
+`+60 m x burn` - the "lifts into stratus" stage); a lake's steam fog at dusk (water warmer than the air: the game has no
+water temperature - lakes keep the POOL's law); the forecast and the weather panel naming the level.
 
 ---
 
@@ -333,10 +410,10 @@ Never a picture diff (FOG-MIST SS1f: two frames of the same state differ in half
 4. **The lake at dusk** (the concept art's lodge): steam fog needs the water warmer than the air, which the game does
    not model. Default: **lakes keep the POOL's law** (a calm humid evening fills them as the night comes); a water
    temperature is a separate chantier.
-5. **How often should the player see pockets?** The law makes them a MORNING and AFTER-RAIN thing (radiation fog
-   burns off by mid-morning; wisps last hours after rain). Default: **the law as written** (they are an event, which
-   is what makes them beautiful); a career/promo day can pin them (`FMIST.S.force`), and the weather plans already
-   bring rain.
+5. **How often?** With the plan (section 5's table): heavy on the three authored fog days and through the storms,
+   mist on the drizzle day, a thin breath at dawn on most calm days (gone by 07:00), nothing on windy days. Default:
+   **as tabulated**; the dawn breath can be taken out (`sm(0.70, 0.90)` -> `sm(0.76, 0.92)` leaves only the humid
+   dawns) if it reads as too frequent; Overcast calm's light cloud on the ridges can be held off by its deck type.
 6. **The bake**: Default: **offline with the island** (the island is data: 512^2 x 4 half floats = 2 MB, ~0.5 MB
    gzipped, read at boot instead of 0.6-0.8 s of CPU under the roll-out screen); a worker bake for the analytic world.
 7. **Strength**: the prototype's pocket is ~220 m visibility at its heart. Default: that; the user's eye on the box
