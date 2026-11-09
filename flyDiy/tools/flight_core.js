@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 5892e8495a8392a9
+// body-sha256: 0f98a408da733885
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -38149,6 +38149,9 @@ function clampSpec(spec) {
         S.gear.lever = o;
       }
     } else delete S.gear.lever;
+    // the trailing link wears no wheel fairing (its wheel swings on the arm under the leg's boot; the user, 9 Nov): the
+    // drag, the mass and the price follow the drawing - the leg-fairing row is its fairing
+    S.gear.fairing = 'none';
   } else {
     delete S.gear.lever;
     if (S.gear.suspension === 'lever') S.gear.suspension = 'oleo';   // (a retracting gear or floats: no trailing link)
