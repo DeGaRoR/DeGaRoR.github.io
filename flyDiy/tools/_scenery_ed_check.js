@@ -688,9 +688,7 @@ if (plots.length) {
   check(!bad.length, '15 the shipped record is the save entry by entry (held back: ' + (M.except.join(', ') || 'none') + ')', bad.slice(0, 6).join('; '));
   const FX = JSON.parse(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')), FL = (FX.premises || FX).layers;
   let nSt = 0, nIt = 0; for (const L of Object.keys(FL)) for (const e of FL[L] || []) { if (e && e.stage) nSt++; if (e && Array.isArray(e.items)) for (const it of e.items) if (it && it.stage) nIt++; }
-  // RE-PINNED 9 Nov (HOME-LAYOUT, the user: the club's long hangar "has no reason to exist"): its construction kit sg_k_hangar and
-  // its site item s_club hangar_long left the record on purpose - 17 / 5 -> 16 / 4
-  check(nSt >= 16 && nIt >= 4,'15 every stage the shipped record had is still on it (' + nSt + ' entries, ' + nIt + ' site items) - a save never carries them');
+  check(nSt >= 17 && nIt >= 5, '15 every stage the shipped record had is still on it (' + nSt + ' entries, ' + nIt + ' site items) - a save never carries them');
   console.log('     15 the user\'s ' + M.save + ' shipped: ' + B.layers.roads.length + ' roads in the save; the removals the save makes and the user has not confirmed (kept): ' + (pending.join(', ') || 'none'));
 }
 

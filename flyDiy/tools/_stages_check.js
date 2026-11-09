@@ -231,9 +231,7 @@ function selftest() {
   { const r = doc(r => r.layers.objects.push({ id: 'sg_doctored', kind: 'prop', key: 'drum_steel', x: 0, z: 0, yaw: 0 }));
     must(!R.sandboxHash(JSON.stringify(r), 'default').ok, '1 an entry added without a stage stands in the sandbox: the hash moves'); }
   // 1: a band through the max that is not open
-  // (HOME-LAYOUT 9 Nov: the club's long hangar, this row's subject, is gone - the user: "has no reason to exist"; the mine's mill,
-  //  minedock max 4, carries the same case: a band through the max, closed)
-  must(R.sandboxLaw(doc(r => { r.layers.sites.find(s => s.id === 'mn_s_mine').items.find(i => i.id === 'mill').stage.show = [2, 4]; })).length > 0, '1 a band closed at the max is refused (the sandbox and the max would differ)');
+  must(R.sandboxLaw(doc(r => { r.layers.sites.find(s => s.id === 's_club').items.find(i => i.id === 'hangar_long').stage.show = [2, 2]; })).length > 0, '1 a band closed at the max is refused (the sandbox and the max would differ)');
   must(R.sandboxLaw(doc(r => { r.layers.runways.find(q => q.id === 'tw_ski').stage.vary[0].show = [0, 3]; })).length > 0, '1 a vary through the max is refused');
   must(R.sandboxLaw(doc(r => { r.layers.runways.find(q => q.id === 'nv_strip').stage.vary[0].hdg = 1; })).length > 0, '1 a runway vary of a field a stage may not change is refused');
   must(R.sandboxLaw(doc(r => { r.layers.runways.find(q => q.id === 'tw_ski').stage.vary[0].len = 120; })).length > 0, '1 a varied strip under 150 m is refused');

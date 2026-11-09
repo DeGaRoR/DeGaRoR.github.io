@@ -25,11 +25,8 @@
 // stage text (CONTRACT_TEXT trk.*); world: whether the record changes at this value. The camera target is not written
 // here - it is READ off the record (stageReveal), so a moved building moves its shot.
 const STAGE_REVEALS = {
-  // HOME-LAYOUT (the user, 9 Nov): the club's long hangar and its building site - what these two stages showed - are gone ("has
-  // no reason to exist"); the second hangar is now HOME's big derelict one (DERELICT-HANGAR builds its repair and restoration, and
-  // gives these two their world back). Until then the stages keep their captions and change nothing in the world
-  'field:1':    { at: 'HOME',     caption: 'trk.field.1',    world: false },
-  'field:2':    { at: 'HOME',     caption: 'trk.field.2',    world: false },
+  'field:1':    { at: 'HOME',     caption: 'trk.field.1',    world: true },    // the second hangar's plot: the building site
+  'field:2':    { at: 'HOME',     caption: 'trk.field.2',    world: true },    // the second hangar restored (the club's long hangar)
   'minedock:1': { at: 'mn_strip', caption: 'trk.minedock.1', world: true },    // the mill's (the headframe's) frame going up
   'minedock:2': { at: 'mn_strip', caption: 'trk.minedock.2', world: true },    // the mill and the ore shed
   'minedock:3': { at: 'SEA',      caption: 'trk.minedock.3', world: true },    // the dock's site on the shore
