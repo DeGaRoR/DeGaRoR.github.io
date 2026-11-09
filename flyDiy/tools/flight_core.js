@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: b0bff369ea244e61
+// body-sha256: 7f4d4b9ccaf818b4
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -6908,16 +6908,18 @@ function siteHangarBox(H) {
 function standFor(site, dims, groundAt) {
   if (!site || !site.stand) return site ? site.stand : null;
   const h = site.hangar, st = site.stand;
-  if (!h || !dims || !(dims.HD > h.HD)) return st;
+  const lz = (dims && Number.isFinite(+dims.doorZ)) ? +dims.doorZ : 0;   // DERELICT-HANGAR: the door off the axis (the large hangar)
+  if (!h || !dims || (!(dims.HD > h.HD) && !lz)) return st;
   const dx = -CORE_MATH.cos(h.ry), dz = CORE_MATH.sin(h.ry);
-  let d = dims.HD - h.HD;
+  let d = Math.max(0, dims.HD - h.HD);
   if (site.apron) {   // stay 2 m inside the apron's far edge along the walk
     const ap = site.apron, EDGE = 2;
     const lim = dx < -1e-6 ? (st.x - (ap.x0 + EDGE)) / -dx : dx > 1e-6 ? ((ap.x1 - EDGE) - st.x) / dx : Infinity;
     const limz = dz < -1e-6 ? (st.z - (ap.z0 + EDGE)) / -dz : dz > 1e-6 ? ((ap.z1 - EDGE) - st.z) / dz : Infinity;
     d = Math.max(0, Math.min(d, lim, limz));
   }
-  const x = +(st.x + dx * d).toFixed(3), z = +(st.z + dz * d).toFixed(3);
+  // the door's line: the shed's local z (its width) is (sin ry, cos ry) in the world
+  const x = +(st.x + dx * d + CORE_MATH.sin(h.ry) * lz).toFixed(3), z = +(st.z + dz * d + CORE_MATH.cos(h.ry) * lz).toFixed(3);
   const g = typeof groundAt === 'function' ? +groundAt(x, z) : NaN;
   const elev = Number.isFinite(g) ? +g.toFixed(2) : st.elev;
   return elev !== undefined ? { x, z, hdg: st.hdg, walked: +d.toFixed(3), elev } : { x, z, hdg: st.hdg, walked: +d.toFixed(3) };
@@ -52073,7 +52075,11 @@ function playerShedDims(doc, id, site) {
   const s = doc && doc.sheds && doc.sheds[id];
   const d = (s && s.dims) || {};
   const h = (site && site.hangar) || {};
-  return { HW: d.HW || h.HW, HD: d.HD || h.HD, EAVE: d.EAVE || h.EAVE };
+  const out = { HW: d.HW || h.HW, HD: d.HD || h.HD, EAVE: d.EAVE || h.EAVE };
+  // DERELICT-HANGAR: a shell with galleries (the large hangar) has its door off the axis - the stand walks out on its line
+  const B = (s && typeof hangarBay === 'function') ? hangarBay(s.shell, out) : null;
+  if (B && B.doorZ) out.doorZ = B.doorZ;
+  return out;
 }
 // ===========================================================================
 // THE GAME PREMISES — bases, hangars, and where every aeroplane stands.
@@ -52223,7 +52229,11 @@ const BASE_OFFERS = {
     plots: {
       HOME: { shells: ['club', 'works', 'field'], kits: null, pf: 1, starter: true,
               dims: { field: { HW: 9, HD: 10, EAVE: 4.0 } } },
-      'HOME.2': { shells: ['works', 'club', 'field'], kits: ['park'], pf: 1,
+      // DERELICT-HANGAR (the user 9 Nov: "in the story at some point you can buy that one ... it's actually restoring it,
+      // from the state of the actual ... World War II hangar, which is currently derelict"): until it is held, HOME.2
+      // stands the large hangar DERELICT (closedStage 0: DERELICT_GEN's stage, the world's derelictShell); held, it is the
+      // player's - restored unless the story names its stage (dims.stage)
+      'HOME.2': { shells: ['works', 'club', 'field'], kits: ['park'], pf: 1, closedShed: true, closedStage: 0,
                   dims: { field: { HW: 9, HD: 10, EAVE: 4.0 } } },
     },
   },
@@ -52328,6 +52338,8 @@ function hangarDims(shed) {
   // G3540: a shed's own sign ({ key, w, inside }: HANGAR_GEN signDials - over the door, and on the back wall inside)
   if (d.sign && typeof d.sign.key === 'string' && d.sign.key) out.sign = Object.assign({}, d.sign);
   if (d.ground && typeof d.ground.set === 'string' && d.ground.set) out.ground = Object.assign({}, d.ground);   // G3541/G3542
+  // DERELICT-HANGAR: the large hangar's restoration stage (0 derelict .. 3 restored; the story's to set - absent, restored)
+  if (Number.isFinite(d.stage)) out.stage = Math.max(0, Math.min(3, Math.round(d.stage)));
   return out;
 }
 // THE DOOR, hangar.js's own two lines (GATE GAMEPREM source-scans them so the
@@ -53412,7 +53424,9 @@ function playerClosedSheds(doc) {
     for (const id of Object.keys(O.plots)) {
       const P = O.plots[id], shell = P.shells && P.shells[0];
       if (!P.closedShed || S[id] || !shell || typeof SHELLS === 'undefined' || !SHELLS[shell]) continue;
-      out.push({ id, base: aero, shell, dims: hangarDims({ shell, dims: Object.assign({}, SHELLS[shell].dims, (P.dims && P.dims[shell]) || {}) }), closed: true });
+      const dims = hangarDims({ shell, dims: Object.assign({}, SHELLS[shell].dims, (P.dims && P.dims[shell]) || {}) });
+      if (Number.isFinite(P.closedStage)) dims.stage = P.closedStage;   // (DERELICT-HANGAR: the plot's building as it stands unbought)
+      out.push({ id, base: aero, shell, dims, closed: true });
     }
   }
   return out;
