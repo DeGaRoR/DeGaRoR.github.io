@@ -314,6 +314,42 @@
    "calls": 288,
    "pendingMaps": 0,
    "ms": 49794
+  },
+  {
+   "name": "back0",
+   "cam": "back",
+   "stage": 0,
+   "stageName": "derelict",
+   "lod": 0,
+   "tris": 126730,
+   "draws": 13,
+   "calls": 342,
+   "pendingMaps": 0,
+   "ms": 126534
+  },
+  {
+   "name": "back3",
+   "cam": "back",
+   "stage": 3,
+   "stageName": "restored",
+   "lod": 0,
+   "tris": 109830,
+   "draws": 14,
+   "calls": 288,
+   "pendingMaps": 0,
+   "ms": 115250
+  },
+  {
+   "name": "left3",
+   "cam": "left",
+   "stage": 3,
+   "stageName": "restored",
+   "lod": 0,
+   "tris": 109830,
+   "draws": 14,
+   "calls": 292,
+   "pendingMaps": 0,
+   "ms": 119948
   }
  ],
  "errors": []
