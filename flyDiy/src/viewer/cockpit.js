@@ -126,7 +126,8 @@ function make(THREE) {
     CK.bus = (typeof makeBus === 'function')
       ? makeBus({ battAh: fit ? fit.battAh : 0, altA: fit ? fit.altA : 0, loads, breakers,
                   altCutIn: fit && fit.altCutIn > 0 ? fit.altCutIn : 1100,     // ELEC-SYSTEMS: the catalogue's (the old
-                  starterA: fit && fit.starterA > 0 ? fit.starterA : 150 })   // rows' own values are these constants)
+                  starterA: fit && fit.starterA > 0 ? fit.starterA : 150,     // rows' own values are these constants)
+                  altSelf: fit ? fit.altSelf !== false : true })
       : null;
     if (CK.bus) { CK.bus.master = !!CK.sw.sw_master; CK.bus.alt = !!CK.sw.sw_alt; }
     // THE BREAKERS (G2801): `cb_<key>` 0 = in, 1 = pulled (out) - the dash's push-pull law; all in at bind

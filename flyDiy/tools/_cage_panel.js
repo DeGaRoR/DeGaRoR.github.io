@@ -144,13 +144,17 @@ function tileRow(parent, label, blurb, opts, cur, onPick) {
   parent.appendChild(g);
 }
 function renderElecTiles(host, C, R, RB) {
-  const E = C.ELEC, CL = typeof GEN_ELEC_CLASSES !== 'undefined' ? GEN_ELEC_CLASSES : null;
+  const E = C.ELEC, SETS = typeof GEN_ELEC_SETS !== 'undefined' ? GEN_ELEC_SETS : null;
   const eng = elecEngine();
-  const sug = eng && typeof genElecClassOf === 'function' ? genElecClassOf(eng) : null;
+  const sug = eng && typeof genElecSetOf === 'function' ? genElecSetOf(eng) : null;
+  // the engine's set as rows: what each part's tiles mark "suggested" (the 912 / two-stroke charging row per the engine)
+  const want = sug && sug.set && SETS ? { battery: SETS[sug.set].battery, starter: SETS[sug.set].starter,
+    alternator: sug.alternator || SETS[sug.set].alternator } : null;
   // the system on one line: what it holds, what it charges, what it feeds, how long the battery lasts alone
   const L = elecLoadA(RB);
   const sumKg = (RB.rows || []).filter(r => r.group === 'elec').reduce((a, r) => a + r.kg, 0);
-  const line = !RB.hasBus ? (RB.altA ? 'a generator and no battery: nothing on the panel is fed' : 'no electrics: nothing electric works, the prop is swung by hand')
+  const line = !RB.hasBus ? (RB.altA ? 'an alternator and no battery: it never comes on line, nothing electric is fed' : 'no electrics: nothing electric works, the prop is swung by hand')
+    : !(RB.battAh > 0) ? 'no battery: ' + RB.altA + ' A from the generator above its cut-in only · load ' + L.day.toFixed(1) + ' A by day, ' + L.night.toFixed(1) + ' A at night'
     : RB.battAh + ' Ah battery · ' + (RB.altA ? RB.altA + ' A charging' : 'nothing charging') + ' · load ' + L.day.toFixed(1) +
       ' A by day, ' + L.night.toFixed(1) + ' A at night · on the battery alone ~' +
       (L.night > 0 ? (RB.battAh * 0.8 / L.night).toFixed(1) + ' h' : 'unlimited') + ' (to 20 %)' +
@@ -159,22 +163,19 @@ function renderElecTiles(host, C, R, RB) {
   sl.title = 'the bus in flight (31_elec.js): the battery runs the loads down when nothing charges; the generator carries ' +
     'them and charges the battery above its cut-in; the volt/ammeter reads it, and the flight screen warns LOW VOLTS / NOT CHARGING';
   host.appendChild(sl);
-  // the class: three rows at once (a step, not a formula); the engine's suggestion marked, never applied
-  if (CL) {
-    const opts = [{ v: 'none', name: 'Hand-propped', sub: 'no battery, 0 kg', note: 'no battery, no generator, no starter: a Cub as built in 1938' }];
-    for (const k of Object.keys(CL)) {
-      const c = CL[k], kg = E.battery[c.battery].kg + E.alternator[c.alternator].kg + E.starter[c.starter].kg;
-      opts.push({ v: k, name: c.name, sub: fmtKg(kg) + ' + harness', note: c.note });
+  // the engine's set: said, marked on the tiles below, fitted in one press - never applied by itself
+  if (sug) {
+    const r = el('div', 'r note', sug.why);
+    host.appendChild(r);
+    if (want && !(R.elec.battery === want.battery && R.elec.alternator === want.alternator && R.elec.starter === want.starter)) {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'wide';
+      const kg = E.battery[want.battery].kg + E.alternator[want.alternator].kg + E.starter[want.starter].kg;
+      b.textContent = 'fit the engine\'s set: ' + [E.battery[want.battery].name, E.alternator[want.alternator].name, E.starter[want.starter].name].join(', ') + ' (' + fmtKg(kg) + ')';
+      b.title = 'writes the battery, the charging and the starter marked "for this engine" below; the suction stays as it is';
+      b.onclick = () => { makeCustom(); SY.elec.battery = want.battery; SY.elec.alternator = want.alternator; SY.elec.starter = want.starter; renderPanel(); commit(); };
+      host.appendChild(b);
     }
-    if (sug && sug.cls) { const o = opts.find(q => q.v === sug.cls); if (o) { o.mark = 'suggested'; o.note += '\n' + sug.why; } }
-    tileRow(host, 'class', sug ? (sug.cls ? 'suggested for ' + (eng.name || 'this engine') + ': ' + CL[sug.cls].name.toLowerCase() : sug.why)
-      : 'a set sized to the engine; each part can still be picked below', opts, R.elecClass, v => {
-      makeCustom();
-      if (v === 'none') { SY.elec.battery = 'none'; SY.elec.alternator = 'none'; SY.elec.starter = 'none'; }
-      else { const c = CL[v]; SY.elec.battery = c.battery; SY.elec.starter = c.starter;
-             SY.elec.alternator = v === 'ultralight' && sug && sug.cls === 'ultralight' && sug.alternator ? sug.alternator : c.alternator; }
-      renderPanel(); commit();
-    });
   }
   // one row of tiles per component
   for (const k of ['battery', 'alternator', 'starter', 'vac']) {
@@ -182,7 +183,8 @@ function renderElecTiles(host, C, R, RB) {
     const opts = Object.keys(tab).map(q => {
       const r = tab[q];
       const fig = k === 'battery' ? (r.Ah ? r.Ah + ' Ah' : '') : k === 'alternator' ? (r.A ? r.A + ' A' : '') : k === 'starter' ? (r.amps ? r.amps + ' A crank' : '') : '';
-      return { v: q, name: r.name, note: r.note || '', sub: r.kg ? [fig, fmtKg(r.kg), fmtCr(r.price)].filter(Boolean).join(' · ') : '0 kg' };
+      return { v: q, name: r.name, note: r.note || '', sub: r.kg ? [fig, fmtKg(r.kg), fmtCr(r.price)].filter(Boolean).join(' · ') : '0 kg',
+               mark: want && want[k] === q ? 'for this engine' : null };
     });
     tileRow(host, ELEC_LABEL[k] || k, ELEC_BLURB[k] || '', opts, R.elec[k], v => { makeCustom(); SY.elec[k] = v; renderPanel(); commit(); });
   }
