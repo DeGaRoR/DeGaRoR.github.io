@@ -38,6 +38,9 @@ if (editsFile) {
   if (E.engines) spec.engines = E.engines;
   // the instrument fit: the join's panel column seeds from spec.systems
   if (E.systems) spec.systems = E.systems;
+  // the livery: the paint whole, the finish whole (sections, decals, wear, glass)
+  if (E.paint) spec.paint = E.paint;
+  if (E.finish) spec.finish = E.finish;
   if (E.energy) spec.energy = E.energy;
   if (E.fuel) spec.fuel = E.fuel;
   if (E.prop) Object.assign(spec.prop, E.prop);

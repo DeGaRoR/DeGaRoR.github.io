@@ -250,3 +250,76 @@ The remaining take-off gap comes from the reference: 60 ft is one source's demon
 - TECH: red only on the base's `pitch:seaplane` (114 options now, the new one segmented).
 - ENGCONFIG: the base's list, identical.
 - GEN: the base's `clampSpec holds the envelope` / `cruise is quiet in wind`, identical.
+
+## 6. The user's tailwheel landing, tested in the pilot (branch `claude/practical-cerf-7fjpwp`, not merged)
+
+**The user's technique (9 Nov):**
+- a three-point touchdown, as slow as possible, on full flap;
+- brakes almost at once but progressively (a step bounces it);
+- the stick coming back progressively with the braking and the speed lost, to full up;
+- the brakes eased softly at the mass transfer (the low speed where the tail can no longer be held down), stick held full
+  back;
+- a little brake again in the last metres;
+- by feel: the tail going light means less brake.
+
+**In the pilot:**
+- `A.tailStop = 'feel'`, off by default; the G1936 law stays.
+- The arrival is the pilot's STOL arrival (threshold aim, three-point on the stick's whole travel) for any taildragger on
+  the short technique.
+- Brakes ramp at 0.8 /s from 0.3 s after the touch.
+- The stick goes from where the flare left it, at most 0.6 /s, toward full travel as the brake rises and the speed falls.
+- At the mass transfer (0.6 × the touchdown speed) the brakes are eased to 0.45; below 2 m/s they come back to 0.5.
+- If the tail goes light (pitch 0.5° under three-point) they ease at 1.5 /s; if it lifts, they come off at 3 /s.
+- `A.tailArrive = 'three'` is the arrival alone, for the comparison.
+
+**A/B:** the expert pilot on the short technique (`profile: { technique: { field: 'short' } }`), on grass; landing roll,
+with the landing from 50 ft in brackets.
+
+| plane, load | current (G1936) | the arrival + current brakes | the user's full method |
+|---|---|---|---|
+| Carbon Cub SS 514 kg | 122 m (313), td 69 km/h | 56 m (206), td 52 | 62 m (212), td 52 |
+| Carbon Cub SS 540 kg | 117 (307), td 69 | 58 (209), td 53 | 62 (212), td 53 |
+| Carbon Cub SS 614 kg | 84 (262), td 61 | 20 (159)\*, td 51 | 20 (159)\* |
+| Cub 433 kg | 117 (420), td 66 | 44 (260), three-point | 54 (269) |
+| Cub 451 kg | 120 (425) | 54 (264), three-point | 61 (271) |
+| Cub 550 kg | 91 (366) | 53 (232) | 66 (245) |
+| Jodel 423 kg | gave up (2 go-arounds) | 63 (287), 2 go-arounds | 78 (302), 2 go-arounds |
+| Jodel 443 kg | 124 (407) | out of time (3 go-arounds) | (not flown) |
+
+\* not credible: at 14–3 m/s the SS slows at about 7 m/s² on 0.1–0.16 of brake with the pitch past three-point (11° vs
+9.9°), the tail pressed into the ground after a 2.3 m/s arrival; to trace before it counts.
+
+**What it shows:**
+- **The arrival is the gain.** Touchdown falls from 1.3 to about 1.0 × Vs0, three-point, and the roll halves (SS 117 →
+  58 m, Cub 120 → 54 m).
+- **No nose-over in any run** (lowest pitch ≥ −0.1°).
+- **The soft easing of the brakes at the mass transfer costs 4–13 m** behind the same arrival. The current law keeps full
+  brakes and lets them off only when the tail actually rises, and with a three-point arrival it never rose. The sim may not
+  model what the pilot feels: the bite of the brakes, the load moving forward, brake capacity.
+- **The slow arrival is firm** (1.6–2.8 m/s sink), and on the Jodel it is not yet robust (go-arounds, once out of time).
+
+**Not merged.** Next, before any taildragger is updated:
+- trace the SS's 20 m;
+- soften the arrival's sink;
+- make the Jodel's arrival hold;
+- tie the mass-transfer speed to the aeroplane (brake force × CG height against the weight on the mains and the elevator's
+  tail-down force) instead of 0.6 × Vtd;
+- the brakes' power and weight (the user: the Jodel's real 150 m probably says weak brakes, the Cub's that bigger ones;
+  better brakes should cost mass). That is a new gear row for the brakes' capacity and mass, which is physics: the user's
+  call.
+
+## 7. The Carbon Cub SS's livery (`carbon_cub_ss_livery_q.png`, `carbon_cub_ss_livery_s.png`)
+
+"Graphite and glacier" (the user: distinctive, modern, not the full yellow):
+- a slate-blue metallic fuselage (metal 0.35; at 0.7 it read black under the bench light) with a dark belly sweep under a
+  glacier-cyan line;
+- pearl-white wings and tail (metal 0.3);
+- cyan tips, rudder and registration;
+- polished bare-alloy struts (their own tint, or they inherit the fuselage's);
+- satin-black gear legs and a chrome spinner;
+- the cowl is painted with the fuselage.
+
+It is in the recipe (`carbon_cub_ss.edits.json` `paint` / `finish`; `_rejoin_build.js` now carries both).
+
+**Score:** the SS is **89** (geometry 95, specs 97, performance 80) since the scorer reads CC340 as 340 in³. The STOL Cub is
+kept and measured but no longer compared (`supersededBy: 'carboncubss'`).
