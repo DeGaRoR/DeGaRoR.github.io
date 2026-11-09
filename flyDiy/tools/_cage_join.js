@@ -2618,13 +2618,17 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         const m0 = matList[r.materialIndex] || matList[0];
         if (!m0 || !m0.color) continue;
         const sec = secNames && secNames[r.materialIndex];
+        // LINER-BACK (9 Nov): THE GROUP'S SIDE CROSSES (meshFrom's matSides): a skin face a liner lines draws its front
+        // only ('f'), the liner on it its back only ('b') - one surface, a material each side. The game rebuilt every
+        // payload material two-sided, so without this the liner sat ON the skin's own back face and fought it.
+        const sd = (o.userData && o.userData.matSides && o.userData.matSides[r.materialIndex]) || '';
         // ...and the fallback key carries WHAT IT IS as well as its colour:
         // with the per-part livery, two layer materials can wear the same
         // resolved tint over different finishes, and a colour-only bucket
         // would merge them irreversibly (the exact failure the paragraph
         // above records for the cage).
         const kud = m0.userData || {};
-        const key = (spinKind ? 'p' + spinKind : '') + (sec ? 's' + sec
+        const key = (spinKind ? 'p' + spinKind : '') + (sec ? 's' + sec + (sd ? '|' + sd : '')
           : 'c' + m0.color.getHexString() +
             (m0.transparent ? 'a' + Math.round(m0.opacity * 100) : '') +
             // G2228: AN INSIDE-ONLY SHELL IS ITS OWN BUCKET - the cowl's back twin wears exactly the colour of its
@@ -2690,6 +2694,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           ...(spinKind ? { spin: spinKind } : {}),          // G345.1
           ...(m0.transparent ? { opacity: m0.opacity } : {}),
           ...(sec ? { sec } : {}),
+          ...(sd ? { sd } : {}),                            // LINER-BACK: 'f' front only, 'b' back only
           ...(ud.aeroFinish ? { fin: ud.aeroFinish } : {}),
           // THE VESSELS' OWN FACTORY (2026-09-04, user: "the fuel tank
           // material does not seem to make it in game — red in the editor,

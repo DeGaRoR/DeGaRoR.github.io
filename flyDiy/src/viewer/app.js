@@ -2847,7 +2847,8 @@
               memF: m.memF || null,                   // G214
               metalK: m.metalK || 0,                  // G215
               ribM: m.ribM, wearK: m.wearK, wearM: m.wearM,
-              side: THREE.DoubleSide }));      // G2004: scuffMat - the material itself with the damage layer off
+              // LINER-BACK (9 Nov): the group's side (_cage_join.js sd) - a lined skin face its front, the liner its back
+              side: m.sd === 'b' ? THREE.BackSide : m.sd === 'f' ? THREE.FrontSide : THREE.DoubleSide }));      // G2004: scuffMat - the material itself with the damage layer off
       }
       // ...AND SO ARE THE TANKS AND THE PACKS (2026-09-04, user: "the fuel
       // tank material does not seem to make it in game — red in the editor,
@@ -2924,7 +2925,7 @@
       // Transparency used to be inferred from `opacity` alone, so a material
       // whose texture carried the alpha (the registration sheet) rendered fully
       // opaque and its clear pixels came out BLACK.
-      const common = { side: THREE.DoubleSide, transparent: op < 1, opacity: op,
+      const common = { side: m.sd === 'b' ? THREE.BackSide : m.sd === 'f' ? THREE.FrontSide : THREE.DoubleSide, transparent: op < 1, opacity: op,   // (LINER-BACK)
         depthWrite: op >= 1,
         ...(m.alphaTest ? { alphaTest: m.alphaTest } : {}),
         roughness: m.rough !== undefined ? m.rough : s.r,

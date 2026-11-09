@@ -4889,6 +4889,30 @@ function cageInterior(m, S) {
   // baseT (optional): the extrusion STARTS at baseT below the skin
   // instead of at the skin — the composite's second-stage extrusions
   // ("from this surface, extrude further") begin on the shell's face
+  // THE SKIN'S OWN BACK FACE (LINER-BACK, the user 9 Nov via Deform: "IRL they are 2 faces of the same object ...
+  // could we consider a single surface with direct materials on both sides, hence deleting the possibility of
+  // clipping itself" - the black cloth showed through the Cub's lower cabin sides in whole triangles). A liner that
+  // only copies the skin's shape (the cloth, the plywood and toele panels, the door panels) is no longer an offset
+  // closed solid: each selected skin face is drawn ONCE MORE, the same polygon in the same order (so the same
+  // triangulation, the skin's own diagonal), on exact copies of the skin's vertex positions, in the liner's material,
+  // flagged `back` (drawn BackSide only); the skin face it lines is flagged `backed` (drawn FrontSide only). Nothing
+  // coplanar ever draws from the same side, so nothing can clip or fight. COPIES, not the skin's indices: the editor
+  // draws the cage as one indexed geometry, and a shared vertex would hand the liner the skin's surface field (the
+  // field is per-material pure, _surf_check) - the cloth would wear the exterior's tapes. No edge thickness at the
+  // tears and the door cuts (the user's no). Posts, the composite monocoque and its bands stay solids.
+  const BACKED = new Set();
+  const linerBack = (sel, matF) => {
+    const cp = new Map();
+    const cpOf = vi => { if (!cp.has(vi)) cp.set(vi, V.push(V[vi].slice()) - 1); return cp.get(vi); };
+    for (const fi of sel) {
+      const f = F[fi];
+      if (BACKED.has(f)) continue;
+      const fb = { v: f.v.map(cpOf), m: matF(f), att: 1, back: 1 };
+      if (I.hdl || I.wall) fb.lin = 1;                 // CABIN-INTERIOR: the cabin's visible face (split below)
+      add.push(fb);
+      BACKED.add(f);
+    }
+  };
   const liner = (sel, t, matF, baseT) => {
     if (!sel.length) return;
     const vN = new Map();
@@ -5130,13 +5154,13 @@ function cageInterior(m, S) {
     // sheet lining's depth — a deeper lining cannot graze the skin on
     // tight curvature. Pillars/posts/frames stay on shellT.
     const tSk = I.skinT > 0 ? I.skinT : 0;
-    liner(selPan, tSk || t0 * 0.4, () => 'plywood');
+    linerBack(selPan, () => 'plywood');             // LINER-BACK (was liner(selPan, tSk || t0 * 0.4, ...))
     liner(selPil, t0 * 1.6, () => 'woodFrame');
     // the TOELE (user): the metal skin's interior is metal too — thin
     // sheet, same continuous-lining idiom. Own material name so the
     // viewer can fade interior SKIN apart from metal STRUCTURE
     // (aluminium = frames/stringers/angles).
-    liner(selPanM, tSk || 0.008, () => 'toele');
+    linerBack(selPanM, () => 'toele');              // LINER-BACK (was liner(selPanM, tSk || 0.008, ...))
     // the DOOR PANEL is plywood like the tub (user): inner liner +
     // edge walls over the door's own faces, glass excluded (the pane
     // keeps its seal and its view). Rides the exploded part.
@@ -5148,8 +5172,8 @@ function cageInterior(m, S) {
       if (c === 'wood') selDoor.push(i);
       else if (c === 'metal') selDoorM.push(i);
     });
-    liner(selDoor, tSk || t0 * 0.4, () => 'plywood');
-    liner(selDoorM, tSk || 0.008, () => 'toele');
+    linerBack(selDoor, () => 'plywood');            // LINER-BACK
+    linerBack(selDoorM, () => 'toele');
     // WOODEN BEAMS — TRUE SQUARE prisms (user ruling, second ask: the
     // chamfered octagon still read "rounded" at every level). Every
     // face carries its OWN four vertices, so the smooth-normal pass
@@ -6790,7 +6814,7 @@ function cageInterior(m, S) {
         if (c === 'tube' || (c === 'wood' && !covered.has(i)))
           selC.push(i);
       });
-      liner(selC, (I.skinT > 0 ? I.skinT : 0.006), () => 'cloth');
+      linerBack(selC, () => 'cloth');               // LINER-BACK (was liner(selC, skinT || 0.006, ...): the Cub's poke-through)
     })();
     }
     // ---- G26: POD-AND-ROD FITTINGS + THE TIGHTENING TRUSS -------------------
@@ -7709,7 +7733,8 @@ function cageInterior(m, S) {
       const u = [p[2][0]-p[0][0], p[2][1]-p[0][1], p[2][2]-p[0][2]];
       const w = [p[3][0]-p[1][0], p[3][1]-p[1][1], p[3][2]-p[1][2]];
       const nx = u[1]*w[2]-u[2]*w[1], ny = u[2]*w[0]-u[0]*w[2], nz = u[0]*w[1]-u[1]*w[0];
-      const ly = ny / (Math.hypot(nx, ny, nz) || 1);
+      // (LINER-BACK: a back face keeps the skin's winding - its normal is the skin's outward one; the cabin sees -n)
+      const ly = (f.back ? -ny : ny) / (Math.hypot(nx, ny, nz) || 1);
       const cy = (p[0][1] + p[1][1] + p[2][1] + p[3][1]) / 4, cz = (p[0][2] + p[1][2] + p[2][2] + p[3][2]) / 4;
       if (cz < zA || cz >= zNose0) continue;
       if (I.hdl && ly <= -0.8) f.m = 'headliner';
@@ -7723,7 +7748,8 @@ function cageInterior(m, S) {
     for (const vi of f.v) cz += V[vi][2] / f.v.length;
     return cz < zPax0;
   });
-  m.F = FK.concat(add);
+  // LINER-BACK: the skin faces a back face lines draw their front only (a copy: the input faces are not ours)
+  m.F = (BACKED.size ? FK.map(f => BACKED.has(f) ? Object.assign({}, f, { backed: 1 }) : f) : FK).concat(add);
   m.members = MEMB;
   if (typeof window !== 'undefined') window.CAGE_MEMBERS = MEMB;
   return m;
