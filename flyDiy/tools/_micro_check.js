@@ -75,7 +75,7 @@ const H0 = pts.map(p => W0.terrainH(p[0], p[1]));
   const fh = SM.field(S, { chaos: 0.8, seed: 5 }, 0); let nh = 0, lane = 0, badH = 0;
   for (let i = -2; i < S.len / SM.CELL + 2; i++) for (let m = 0; m < 2; m++) { const H = fh.hole(i, m); if (!H) continue; nh++;
     if (Math.abs(Math.abs(H[1]) - 1.098) < 1.0) lane++;
-    if (S.wid / 2 - Math.abs(H[1]) - H[2] < SM.EDGE_IN[1] - 1e-9 || H[0] - H[2] < SM.END_IN - 1e-9 || H[0] + H[2] > S.len - SM.END_IN + 1e-9) badH++; }
+    if (S.wid / 2 - Math.abs(H[1]) - H[7] < SM.EDGE_IN[1] - 1e-9 || H[0] - H[8] < SM.END_IN - 1e-9 || H[0] + H[8] > S.len - SM.END_IN + 1e-9) badH++; }   // (H[7], H[8]: the stretched hole's reach across / along)
   const expect = fh.K.holes * S.len / 100;
   verdict(nh > expect * 0.5 && nh < expect * 1.6 && lane > nh * 0.5 && badH === 0, `potholes: ${nh} on 400 m (expected ~${expect.toFixed(0)}), ${lane} in the wheel lanes, ${badH} reaching the edge taper or the ends`);
 }
@@ -203,7 +203,7 @@ const W8 = world(withMicro('w7', MICRO8));
       n++;
       const side = Math.sign(H[1]), inner = Math.abs(H[1]) - H[2], outer = Math.abs(H[1]) + H[2];
       if (inner < 0.3 - 1e-9 || outer > hw - 0.5 + 1e-9) bad.push(`len ${len} wid ${wid} chaos ${c}: |v| ${inner.toFixed(2)}..${outer.toFixed(2)}`);
-      if (H[0] - H[2] < SM.END_IN - 1e-9 || H[0] + H[2] > len - SM.END_IN + 1e-9) bad.push(`len ${len}: u ${H[0].toFixed(1)} R ${H[2].toFixed(2)} past the ends`);
+      if (H[0] - H[2] * H[4] < SM.END_IN - 1e-9 || H[0] + H[2] * H[4] > len - SM.END_IN + 1e-9) bad.push(`len ${len}: u ${H[0].toFixed(1)} R ${H[2].toFixed(2)} past the ends`);
       // the clean line: on the other side, from the centreline to the edge taper, no hazard height at all
       for (let k = 0; k <= 20; k++) { const v = -side * (hw - 0.5) * k / 20; for (let du = -H[2]; du <= H[2]; du += 0.25) { const q = f.atUV(H[0] + du, v); const qn = SM.field({ c: [0, 0], hdg: 0.4, len, wid }, { chaos: c, seed, hazards: 0 }, 0).atUV(H[0] + du, v); if (q !== qn) { bad.push(`clean side moved at u ${(H[0] + du).toFixed(1)} v ${v.toFixed(2)}`); k = 99; break; } } }
     }
@@ -221,7 +221,8 @@ const W8 = world(withMicro('w7', MICRO8));
   const PAV = require('../src/viewer/pavement.js'), G = PAV.GLSL.common + PAV.GLSL.map;
   const need = ['0x27d4eb2du', '0x165667b1u', '0x2f6b4c13u', '0x2c1b3c6du', '0x297a2d39u', 'float(h >> 8u) / 16777216.0',
     'pmH(i, m, sd + 11) >= uMicro.y', 'float R = 0.5 + 0.6 * pmH(i, m, sd + 12), hu = (float(i) + 0.15 + 0.7 * pmH(i, m, sd + 13)) * 6.0;',
-    'float lim = halfW - 2.5 - R;', 'pmH(i, m, sd + 14) < 0.667 ? (pmH(i, m, sd + 15) < 0.5 ? -1.0 : 1.0) * 1.098 + (pmH(i, m, sd + 16) - 0.5) * 2.0 * sig : (pmH(i, m, sd + 16) - 0.5) * 2.0 * lim;',
+    'float lim = halfW - 2.5 - eV;', 'float ea = 1.0 + 1.2 * pmH(i, m, sd + 18), th = (pmH(i, m, sd + 19) - 0.5) * 1.05, cth = cos(th), sth = sin(th);', 'float eV = R * sqrt(ea * ea * sth * sth + cth * cth), eU = R * sqrt(ea * ea * cth * cth + sth * sth);',
+    'float r = length(vec2(xy.x / ea, xy.y)) * (1.0 + 0.32 * (0.5 + 0.5 * pmNoise(dd / R * 1.7 + vec2(float(i) * 7.3, float(m) * 3.1), sd + 21)));', 'float aH = 1.0 + 0.6 * pmH(j, 0, sd + 37);', 'max(0.0, max(-wy.x, 0.0) - uMicro3.x * (1.0 - 0.35 * fillM))', 'pmH(i, m, sd + 14) < 0.667 ? (pmH(i, m, sd + 15) < 0.5 ? -1.0 : 1.0) * 1.098 + (pmH(i, m, sd + 16) - 0.5) * 2.0 * sig : (pmH(i, m, sd + 16) - 0.5) * 2.0 * lim;',
     'float D = uMicro.z * (0.5 + 0.5 * pmH(i, m, sd + 17));', 'float R = 1.5 + 1.5 * pmH(j, 0, sd + 32);', 'r += swA * (0.7 * pmNoise(vec2(u, v) / 25.0, sd + 201) + 0.3 * pmNoise(vec2(u, v) / 12.0, sd + 202));', 'float room = halfW - 0.5 - 0.3 - 2.0 * R;',
     'len * (0.05 + 0.9 * (float(j) + 0.2 + 0.6 * pmH(j, 0, sd + 31)) / uMicro2.y)', '(pmH(j, 0, sd + 35) < 0.5 ? -1.0 : 1.0) * (0.3 + R + max(0.0, room) * pmH(j, 0, sd + 36))',
     'uMicro2.z * (0.7 + 0.3 * pmH(j, 0, sd + 34)) * (pmH(j, 0, sd + 33) < 0.6 ? 1.0 : -1.0)', 'r += uMicro2.x * sqrt(lam) * pmNoise(vec2(u, v) / lam, sd + 101 + k);',
@@ -236,7 +237,8 @@ const W8 = world(withMicro('w7', MICRO8));
   const src = fs.readFileSync(path.join(T, '..', 'src', 'core', '26b_strip_micro.js'), 'utf8');
   const jsNeed = ['ih(i, m, seed + 11) >= pHole', 'const R = 0.5 + 0.6 * ih(i, m, seed + 12), u = (i + 0.15 + 0.7 * ih(i, m, seed + 13)) * CELL;', 'ih(i, m, seed + 14) < 0.667',
     'holeD * (0.5 + 0.5 * ih(i, m, seed + 17))', 'let R = 1.5 + 1.5 * ih(j, 0, seed + 32);', 'r += swA * (0.7 * vnoise(u / 25, v / 25, seed + 201) + 0.3 * vnoise(u / 12, v / 12, seed + 202));', 'const room = halfW - 0.5 - 0.3 - 2 * R;', 'len * (0.05 + 0.9 * (j + 0.2 + 0.6 * ih(j, 0, seed + 31)) / K.hazards)',
-    'side * (0.3 + R + Math.max(0, room) * ih(j, 0, seed + 36))', 'K.hazardSize / 100 * (0.7 + 0.3 * ih(j, 0, seed + 34)) * (ih(j, 0, seed + 33) < 0.6 ? 1 : -1)', 'amp[k] * vnoise(u / OCT[k], v / OCT[k], seed + 101 + k)',
+    'side * (0.3 + R + Math.max(0, room) * ih(j, 0, seed + 36))', 'const a = 1 + 1.2 * ih(i, m, seed + 18), th = (ih(i, m, seed + 19) - 0.5) * 1.05, cth = Math.cos(th), sth = Math.sin(th);', 'const lim = halfW - EDGE_IN[1] - eV;',
+    'return Math.sqrt(x * x / (H[4] * H[4]) + y * y) / H[2] * (1 + 0.32 * (0.5 + 0.5 * vnoise(du / H[2] * 1.7 + i * 7.3, dv / H[2] * 1.7 + m * 3.1, seed + 21)));', 'const aH = 1 + 0.6 * ih(j, 0, seed + 37);', 'Math.max(0, w[3] - WAYS[w[2]][2] * (1 - 0.35 * fill))', 'K.hazardSize / 100 * (0.7 + 0.3 * ih(j, 0, seed + 34)) * (ih(j, 0, seed + 33) < 0.6 ? 1 : -1)', 'amp[k] * vnoise(u / OCT[k], v / OCT[k], seed + 101 + k)',
     'const vc = (ih(0, 0, seed + 401) - 0.5) * 2 * room * 0.35;', 'WAYS.push([0.78 + 0.10 * ih(0, 1, seed + 401), 0.15, rutsD, BERM, vc, 0.30, 0.08, 0]);', 'WAYS.push([0.68, 0.10, 0.35 * rutsD, 0.25, cc, 0.25, 0.06, 1]);', 'WAYS.push([0, 0.18, 0.22 * rutsD, 0, cc, 0.25, 0.06, 1]);', 'WAYS.push([0, 0.17, 0.35 * rutsD, 0.2, side * pv, 0.30, 0.10, 2]);',
     'const wayC = (W, u) => W[4] + W[5] * vnoise(u / 60, W[7], seed + 411) + W[6] * vnoise(u / 15, W[7], seed + 421);', 'const dep = W[2] * (0.75 + 0.25 * vnoise(u / 9, W[7] + 3, seed + 431));',
     'const x = v - c - s * W[0] + 0.03 * vnoise(u / 0.7, W[7] * 2 + s, seed + 441), q = x / W[1], t = Math.exp(-q * q * q * q);', 'const bq = (Math.abs(x) - 1.7 * W[1] - 0.06) / (0.6 * W[1] + 0.05);',
