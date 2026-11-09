@@ -193,6 +193,10 @@ const RW = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_world.js'), 
   ok(!!PATCH0, 'potato\'s patchTolPx (' + POT + ') has its base here (master d1a754b94)');
   const PAV0 = { 'HOME stand': 720454, 'HOME taxi': 727302 };
   const BASE = { potato: { 'HOME stand': (PATCH0 || {})['HOME stand'] + PAV0['HOME stand'], 'HOME taxi': (PATCH0 || {})['HOME taxi'] + PAV0['HOME taxi'] }, gamer: { 'HOME stand': 1222208 + PAV0['HOME stand'], 'HOME taxi': 1304000 + PAV0['HOME taxi'] } };
+  // RE-TAKEN 9 Nov (WORKS-LOCATION-A, A0's call), THIS ROW ONLY: the SCENERY cost of the user's own ruling (the works at
+  // location A): road r39's bend moved off the works is longer and graded - +5 708 pavement triangles within 3 km of HOME's
+  // stand (master ebc4c9edd 1 194 766 -> 1 200 474), 3 156 over the d1a754b94 pin (+0.26 %). HOME taxi and gamer keep theirs
+  if (POT === 6) BASE.potato['HOME stand'] = 1200474;
   const C = require(path.join(T, 'flight_core.js')), home = C.siteOf('HOME'), tp = home.taxiOut, m = tp[Math.floor(tp.length / 2)];
   const views = { 'HOME stand': [home.stand.x, home.stand.z], 'HOME taxi': m };
   const pav = {}; for (const [k, [x, z]] of Object.entries(views)) { let t = 0; for (const M of GD.MESHES) { const cx = (M.box[0] + M.box[2]) / 2, cz = (M.box[1] + M.box[3]) / 2; if (Math.hypot(cx - x, cz - z) < 3000) t += M.idx.length / 3; } pav[k] = t; }

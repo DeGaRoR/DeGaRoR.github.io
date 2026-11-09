@@ -313921,3 +313921,12 @@ TIMED GATE: light, the same shape as L36a.
 - Steady frames p50 33.3 ms on every flown row; no frame over 1 s in any taxi, take-off or flight segment.
 - The >1 s gaps are all in the garage stand before the reveal (cub chase 5.2 s; the discarded warm_metal 9.0 s + 7.1 s): the cold GPU shader cache, master_bench's MISS, as L35a-L36a.
 - The floats take-off has one 133 ms frame.
+
+## WORKS-LOCATION-A (9 Nov, Game coordinator for A0; claude/ready/works-location-a): THE WORKS AT LOCATION A - A SCENERY READY
+- The user, 9 Nov ~01:20 via A0: "For the hangar, location A is good"; ~04:00: "move the people and the cars out of the field for the large hangar".
+- HOME.2 (the works) at (-116.63, 729.2), the club's heading -0.8552: touching the club on its right (standing in its door looking out), the doors in line. It stood at (-118, 780), heading -1.9635, its door end on road r39.
+- Road r39: two knots moved so its centreline keeps half width + clearing + poles + 3 m off the footprint: (-140.48, 745.77) -> (-142.32, 747.88); the bend (-114.99, 760.87) -> (-116.28, 770.35).
+- The club's four props in the works' door lane (af_fuel_truck, af_tx_van, af_tx_pallet, af_tx_man) 28 m along its side axis, beside its right wall. The fleet pack, the 2-D map and the premises re-cooked.
+- tools/fixtures/scenery_ship_afb19.json records the move as fieldPatches (applied after the ship; a re-ship applies them again). GATE SCENERYED 15 is left with "sites s39 differs" only: master's own red since L31c (s39-lights), a MASTER-GREEN item.
+- GATE TERRAINMATCH potato "HOME stand" RE-PINNED (A0's call, this row only): 1 197 318 -> 1 200 474. The SCENERY cost of the user's ruling: r39's longer graded bend adds +5 708 pavement triangles within 3 km (master ebc4c9edd 1 194 766), 3 156 over the old pin (+0.26 %). HOME taxi (1 211 714 <= 1 212 870) and gamer keep their pins.
+- Lands in its OWN train (the user's 26 Oct rule: scenery never shares a train with code readies), after its own TIMED A/B on master.
