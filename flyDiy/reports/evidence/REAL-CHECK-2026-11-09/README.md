@@ -250,3 +250,51 @@ The remaining take-off gap comes from the reference: 60 ft is one source's demon
 - TECH: red only on the base's `pitch:seaplane` (114 options now, the new one segmented).
 - ENGCONFIG: the base's list, identical.
 - GEN: the base's `clampSpec holds the envelope` / `cruise is quiet in wind`, identical.
+
+## 8. Second pass on the landing, the brakes, the cowl (branch `claude/practical-cerf-7fjpwp`, with `claude/ready/proper-cowls` merged)
+
+**The SS's "20 m" was a ground loop.** At 614 kg the STOL flare ran on power from 4.6 m: the speed bled to 14.5 m/s, the
+throttle came to 0.56 to hold the sink, and its torque rolled the slow wing 26° left against the ailerons' stop. It touched
+at 2.3 m/s, and the heading swung 100° with the tyres scrubbing sideways.
+- `real_check` now flags a GROUND LOOP (heading moved > 30° on the roll-out), like the nose-over: not a landing roll and
+  never a best figure.
+
+**The arrival** (the user's: three-point, as slow as you can, full flap):
+- **Tried and dropped:** the STOL flare's attitude ramp at idle (the Cub floated 880 m from 50 ft; the SS went round twice)
+  and the plain hold-off with full stick travel (still 1.3 × Vs0, tail-high).
+- **Why the SS can't arrive slowly with the hold-off:** the pilot's approach speed is 1.2 × the elevator-held stall, about
+  60 km/h for the SS against the wing's 51–56. Its elevator can't raise the nose to three-point at full flap with the heavy
+  engine forward, and the garage has no in-flight stab trim (the real Cubs' trimmable stabiliser).
+- **Kept:** the STOL flare (attitude ramp, power-on) with the power capped at the approach's + 0.1, plus a stall reflex: the
+  back pressure is given up while a wing drops past 3° (`ap.feelFld`, its own flag: no steep slope).
+
+| landing roll (from 50 ft), expert pilot on the short technique | the user's full method | the old short technique |
+|---|---|---|
+| Cub 433 / 451 / 550 kg | 57 (360) / 56 (358) / 67 (365) m, three-point at 55–60 km/h | 117 / 120 / 91 m |
+| Jodel 423 / 443 / 513 kg | 79 (387) / 84 (389) / 104 (405) m, three-point | gave up / 124 / – |
+| Carbon Cub SS 514 / 540 kg | 58 (227) / 57 (227) m, touchdown 51 km/h, 10–12° of swing | 122 / 117 m |
+| Carbon Cub SS 614 kg (aft CG) | ground loop: a wing drop at the stall, 2.9 m/s | 84 m |
+
+- **Behind this arrival, the user's brake law** (progressive brakes, the stick following them, soft easing at the mass
+  transfer) **is shorter than the old law** on the Cub (57 against 72 m) and the Jodel (79 against 84).
+- **Open:** the SS at gross and aft CG (its tail authority, a stall reflex that comes too late), and the SS's 10–12° of
+  swing.
+
+**The brakes (`GEN_BRAKES`).**
+
+| choice | holds per main wheel | adds (structure resized) |
+|---|---|---|
+| heel drums | 600 N | 2.4 kg (+2.8) |
+| single-caliper discs | 1400 N | 3.6 kg (+4.2) |
+| double-caliper discs | 2600 N | 5.4 kg (+6.3) |
+
+- **The solver:** the braking friction is min(the surface's, hold ÷ the wheel's load).
+- **Absent is as it always was:** no key on any saved build, and the Cub's certificate key is unchanged (`af84cf8d`).
+- **The pilot's planned stop** reads the hold.
+- **The editor:** a "Brakes" tile row (`brkHold`) that also sets the drawn brake.
+- **Not yet given to any build:** the Jodel on drums against its book's 150 m is the first test.
+
+**The cowl.** The CC340's four heads poked through the Rotax-sized cowl (`carbon_cub_ss_cowl_before_quick.png`). Now
+(`carbon_cub_ss_cowl_quick.png`, quickshot: flat colours, no livery):
+- the cheeks are 0.17 m proud (from 0.06), streamlined, centred over the heads, full length;
+- the side gills of the cowl branch, 7 slanted slots on each flank.
