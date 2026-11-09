@@ -98,6 +98,9 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
       await sleep(3000);
     }
     log('  residents ' + JSON.stringify(R && { how: R.how, plan: R.plan.map(p => p.name + (p.filled ? '' : '(unbaked)')), unplaced: R.unplaced }));
+    // the room's probe forced (on a software renderer the boot's deferred bake waits for compileAsync, which never lands:
+    // no environment, and every polished metal reads black - the page's own door, setEnvSource, bakes it at once)
+    await page.evaluate(() => window.GARAGE_ENV.setEnvSource && window.GARAGE_ENV.setEnvSource('room'));
     await page.waitForFunction(() => { const D = window.GARAGE_ENV._debug(); return !!(D.scene && D.scene.environment); }, null, { timeout: 600000, polling: 2000 }).catch(() => log('  (no environment after 600 s)'));
     await sleep(4000);
     const fp = path.join(OUT, `${SCENE}_${k}_page.jpg`);

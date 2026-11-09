@@ -41,6 +41,9 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     const ok = await page.evaluate(async url => { const r = await fetch('/' + url); const j = await r.json(); window.GARAGE_SPEC.set(j.spec || j); return true; }, PLANES[k]);
     log(k + ' loaded ' + ok);
     await sleep(12000);
+    // the room's probe forced (on a software renderer the boot's deferred bake waits for compileAsync, which never lands:
+    // no environment, and every polished metal reads black - the page's own door, setEnvSource, bakes it at once)
+    await page.evaluate(() => window.GARAGE_ENV.setEnvSource && window.GARAGE_ENV.setEnvSource('room'));
     // the room's own light: its probe (the environment) baked before a picture is taken
     await page.waitForFunction(() => { const D = window.GARAGE_ENV._debug(); return !!(D.scene && D.scene.environment); }, null, { timeout: 120000, polling: 1000 }).catch(() => log('  (no environment after 120 s)'));
     await sleep(2000);
