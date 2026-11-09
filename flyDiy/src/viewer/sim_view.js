@@ -64,7 +64,7 @@ function simViewDefSig(def) {
 //            was pushed from (unit, body frame: aft, up, right) and its share on soft ground - skin_scuff.js reads them
 function simViewDmgState(n, nb) {
   return { v: 0, vB: 0, n, nb, br: [], broken: new Uint8Array(nb), pc: null, nPc: 1, set: new Float32Array(nb), sB: '0:0', sS: '0:0',
-           tied: null, torn: null, pcH: null, nPcH: 1, scar: [], vS: 0, sC: 0, how: null, bend: null, vD: 0,
+           tied: null, torn: null, pcH: null, nPcH: 1, scar: [], vS: 0, sC: 0, how: null, bend: null, vD: 0, lG: 0, liveQ: [], liveClr: false,
            vF: 0, sF: '0', wB: new Float32Array(nb), sW: new Float32Array(n), sD: new Float32Array(n * 3), sN: new Float32Array(n * 3), sG: new Float32Array(n) };   // G2001 (DMG-SCUFF)   // G2040 (DMG-FABRIC): the cover ties - null until one is made
 }
 // G2040 (DMG-FABRIC): the live cover ties' pairs (tied, a Set of a * n + b, a < b), the torn ones' (torn), and the HELD
@@ -100,7 +100,12 @@ function simViewDmgApply(D, P) {
     D.bend = M.size ? M : null; D.vD++; }   // G3770
   if (P.st) { D.set.fill(0); for (let j = 0; j + 1 < P.st.length; j += 2) if (P.st[j] < D.nb) D.set[P.st[j]] = P.st[j + 1]; }
   if (P.sS) D.sS = P.sS;
-  if (P.sc) { D.scar = P.sc.slice(); D.sC = P.sC; D.vS++; }   // G2357
+  if (P.sc) { D.scar = P.sc.slice(); D.sC = P.sC; D.vS++; D.liveQ.length = 0; D.liveClr = true; }   // G2357 (SCAR-LIVE: the sealed decal replaces the trail)
+  // SCAR-LIVE: the live strokes, queued for the page's next groundScars (a new generation: the trail dropped); bounded
+  if (P.lg != null) {
+    if (P.lg !== D.lG) { D.lG = P.lg; D.liveQ.length = 0; D.liveClr = true; }
+    if (P.ls) { for (let j = 0; j < P.ls.length; j++) D.liveQ.push(P.ls[j]); if (D.liveQ.length > 8 * 4096) D.liveQ.splice(0, D.liveQ.length - 8 * 4096); }
+  }
   // G2001: the scuff's inputs, whole each time they come (a payload of the base's kind carries neither key; `sl` the slide records - `sc` is the scar's)
   if (P.sF != null) D.sF = P.sF;
   if (P.wb || P.sl || ((P.st || P.sF != null) && D.vF)) {   // (a payload with neither, once there was some: the heal)

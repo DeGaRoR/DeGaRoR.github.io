@@ -153,14 +153,20 @@ if (argv[0] === '--build') {
     const stW = SV.simViewDmgState(d0.nodes.length, d0.beams.length), stI = SV.simViewDmgState(d0.nodes.length, d0.beams.length);
     const hopW = SH.simDmgHop0(), hopI = SH.simDmgHop0();
     let sends = 0, scarSends = 0, bytes = 0, allBytes = 0, mism = 0, checks = 0, simW = null;
+    // SCAR-LIVE: the live strokes the hop carries - the first one's time, the first seal's, the most a frame, the page's queue
+    const LV = { first: null, seal: null, strokes: 0, maxFrame: 0, firstHit: null, pageQ: 0, cleared: 0 };
     S.runCase(k, c, Object.assign({}, scarOpt, { onFrame: sim => {
       simW = sim;
       const PW = SH.simDmgHop(sim, hopW, core);
-      if (PW) { const P = v8.deserialize(v8.serialize(PW)); sends++; allBytes += JSON.stringify(PW).length; if (P.sc) { scarSends++; bytes += JSON.stringify(P.sc).length; } SV.simViewDmgApply(stW, P); }
+      { const R0 = sim.damageScar ? sim.damageScar() : null; if (LV.firstHit === null && R0 && R0.hits > 0) LV.firstHit = sim.t; }
+      if (PW) { const P = v8.deserialize(v8.serialize(PW)); sends++; allBytes += JSON.stringify(PW).length; if (P.sc) { scarSends++; bytes += JSON.stringify(P.sc).length; } SV.simViewDmgApply(stW, P);
+        if (P.ls && P.ls.length) { const k = P.ls.length / 8; LV.strokes += k; if (k > LV.maxFrame) LV.maxFrame = k; if (LV.first === null) LV.first = sim.t; }
+        if (P.sc && P.sc.length && LV.seal === null) LV.seal = sim.t;
+        if (stW.liveClr) { LV.cleared++; stW.liveClr = false; } LV.pageQ += stW.liveQ.length; stW.liveQ.length = 0; }   // (the page drains it each frame)
       const PI = SH.simDmgHop(sim, hopI, core, 0); if (PI) SV.simViewDmgApply(stI, PI);
       const S0 = sim.damage().scar; if (S0) { checks++; if (JSON.stringify(stW.scar) !== JSON.stringify(S0.prims) || JSON.stringify(stI.scar) !== JSON.stringify(S0.prims)) mism++; }
     } }));
-    out.hop = { sends, scarSends, bytes, allBytes, mism, checks, v: simW && simW.damage().scar ? simW.damage().scar.v : null, prims: stW.scar.length, vS: stW.vS };
+    out.hop = { sends, scarSends, bytes, allBytes, mism, checks, v: simW && simW.damage().scar ? simW.damage().scar.v : null, prims: stW.scar.length, vS: stW.vS, live: LV };
     // 5: reset
     simW.reset(0); const PW = SH.simDmgHop(simW, hopW, core), P = PW ? v8.deserialize(v8.serialize(PW)) : null; if (P) SV.simViewDmgApply(stW, P);
     const SR = simW.damage().scar || { v: 0, prims: [] };
@@ -412,6 +418,9 @@ const rep = msg => console.log('  REPORT  ' + msg);
     // 4 + 5
     yes(r.hop.checks > 0 && r.hop.mism === 0 && r.hop.scarSends === r.hop.v && r.hop.prims > 0,
       '4 the hop: the page\'s scar is the sim\'s at every frame, the worker\'s hop (its window, v8) and the inline one - ' + r.hop.scarSends + ' scar payload(s) (one a sealed event), ' + r.hop.bytes + ' B of scar in ' + r.hop.sends + ' damage payloads (' + r.hop.allBytes + ' B in all)');
+    { const L = r.hop.live;   // SCAR-LIVE (9 Nov, the user: "they should really happen in real time, as the plane scratches the surface")
+      yes(L && L.strokes > 0 && L.first !== null && L.seal !== null && L.first < L.seal - 0.5 && L.maxFrame <= 64 && L.pageQ === L.strokes * 8,
+        '4L the live trail: strokes on the page from ' + (L ? L.first : '?') + ' s, the seal at ' + (L ? L.seal : '?') + ' s (the first contact ' + (L ? L.firstHit : '?') + ' s); ' + (L ? L.strokes : 0) + ' strokes, at most ' + (L ? L.maxFrame : 0) + ' a frame (cap 64), every one queued for the page'); }
     yes(r.reset.prims === 0 && r.reset.sent && r.reset.page === 0 && !r.reset.again, '5 reset: the scar empty under a new version (v' + r.reset.v + '), sent once, the page\'s scar empty');
     for (const c of r.cases) rep(c.label + ': v' + c.v + ', ' + c.n + ' primitives (' + c.craters + ' craters, ' + c.gouges + ' gouges' + (c.slots ? ' incl. ' + c.slots + ' prop slot' : '') + ', ' + c.sweeps + ' sweep), ' + c.area.toFixed(2) + ' m2 (' + c.areaSweep.toFixed(2) + ' with the sweep), ' + c.bytes + ' B; '
       + (c.contacts ? Math.round(100 * c.inFoot / c.contacts) + ' % of ' + c.contacts + ' contact samples in it; ' : '') + 'record ' + (c.rec ? c.rec.hits + ' contacts, ' + c.rec.frames + ' frames, ' + c.rec.seals + ' seal(s), ' + c.rec.ms + ' ms sealing' : '-') + (c.crashed ? '; crashed (' + c.reason + ')' : '') + (c.strike ? '; prop ' + c.strike : ''));
