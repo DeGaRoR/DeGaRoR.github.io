@@ -44,7 +44,7 @@
     if (box || !W.document.body) return box;
     const st = W.document.createElement('style'); st.textContent = css; W.document.head.appendChild(st);
     box = W.document.createElement('div'); box.id = 'diagBox';
-    box.innerHTML = '<h3>flyDiy self-test</h3><div id="diagState"></div><div id="diagTable"></div><div id="diagBtns"></div>';
+    box.innerHTML = '<h3>' + ((typeof GAME_NAMES !== 'undefined' && GAME_NAMES.game) || 'the game') + ' self-test</h3><div id="diagState"></div><div id="diagTable"></div><div id="diagBtns"></div>';
     W.document.body.appendChild(box);
     return box;
   }
@@ -416,8 +416,8 @@
   }
   function text(R) {
     const L = [];
-    if (!R.load) return 'flyDiy self-test (the card alone) ' + R.at + '\n' + (R.bench ? 'GPU ' + R.bench.gpu + '\nTHE CARD ITSELF: ' + benchWords(R.bench) : '');   // (?diag=bench)
-    L.push('flyDiy self-test ' + R.at + '  build ' + R.build);
+    if (!R.load) return ((typeof GAME_NAMES !== 'undefined' && GAME_NAMES.game) || 'the game') + ' self-test (the card alone) ' + R.at + '\n' + (R.bench ? 'GPU ' + R.bench.gpu + '\nTHE CARD ITSELF: ' + benchWords(R.bench) : '');   // (?diag=bench)
+    L.push(((typeof GAME_NAMES !== 'undefined' && GAME_NAMES.game) || 'the game') + ' self-test ' + R.at + '  build ' + R.build);
     L.push('browser Chrome ' + (R.browser.chrome || '?') + ' · ' + R.browser.cores + ' threads · ' + (R.browser.memGB || '?') + ' GB · screen ' + R.browser.screen + ' · window ' + R.browser.window + ' · DPR ' + R.browser.dpr);
     if (R.gl) { L.push('GPU ' + R.gl.renderer); L.push('WebGL ' + Object.entries(R.gl.ext).map(([k, v]) => (v ? '+' : '-') + k).join(' ')); L.push('depth ' + (R.gl.aa ? R.gl.aa.depth + ', target ' + R.gl.aa.buf + ', samples ' + R.gl.aa.samples : '?') + ' · programs ' + R.gl.programs + ' · textures ' + (R.gl.memory && R.gl.memory.textures)); }
     L.push('preset ' + (R.gfx ? R.gfx.preset : '?') + (R.welcome && R.welcome.decision ? ' (the welcome suggested ' + R.welcome.decision.suggest + ')' : '') + ' · load ' + R.load.seconds + ' s');

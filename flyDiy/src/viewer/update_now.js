@@ -245,7 +245,7 @@ html.updNowUp #bootPanel { bottom:84px; }
   function cleanReload(opts) {
     if (S.going) return Promise.resolve(null);
     const mb = W.STORAGE && W.STORAGE.state && W.STORAGE.state.cachedMB;
-    const ask = 'Clean download and reload?\n\nEverything flyDiy keeps on this device is deleted and downloads again: the island, the aircraft media, the music' +
+    const ask = 'Clean download and reload?\n\nEverything ' + ((typeof GAME_NAMES !== 'undefined' && GAME_NAMES.game) || 'the game') + ' keeps on this device is deleted and downloads again: the island, the aircraft media, the music' +
       (mb > 0 ? ' (about ' + Math.round(mb) + ' MB)' : '') + '.\nYour aeroplanes, careers and settings are kept.';
     const yes = (opts && opts.confirm === false) || (typeof W.confirm === 'function' ? !!W.confirm(ask) : true);
     if (!yes) return Promise.resolve(false);
