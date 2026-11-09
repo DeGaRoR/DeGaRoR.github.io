@@ -634,7 +634,7 @@ function garageInit(api) {
                images: null };   // LIVERY-5: an old save's image pages are read and dropped
     if (o && (o.wings || o.fuselage || o.cabin || o.cage))
       return { name: null, spec: o, plaque: null, log: newLog(), images: null };
-    throw new Error('not a flyDiy build');
+    throw new Error('not a ' + ((typeof GAME_NAMES !== 'undefined' && GAME_NAMES.game) || 'the game') + ' build');   // WINGSMITH (shown by the import's alert)
   };
 
   // ---- THE EDITOR, as a load target -------------------------------------
@@ -1404,7 +1404,7 @@ function garageInit(api) {
         loadSpec(got.spec, got.name || f.name.replace(/\.json$/i, ''),
                  got.plaque, got.log, got.images);
         slotsChanged({ imported: got.name || null });
-      } catch (e) { alert('That file is not a flyDiy build: ' + e.message); }
+      } catch (e) { alert('That file is not a ' + ((typeof GAME_NAMES !== 'undefined' && GAME_NAMES.game) || 'the game') + ' build: ' + e.message); }
     };
     r.readAsText(f);
   };
@@ -1481,7 +1481,7 @@ function garageInit(api) {
       if (on && !dropEl && document.body) {
         dropEl = document.createElement('div');
         dropEl.id = 'gDrop';
-        dropEl.innerHTML = '<b>drop to import</b><span>a flyDiy build (.json)</span>';
+        dropEl.innerHTML = '<b>drop to import</b><span>a ' + ((typeof GAME_NAMES !== 'undefined' && GAME_NAMES.game) || 'the game') + ' build (.json)</span>';   // WINGSMITH (the file's tag stays flydiy-build)
         document.body.appendChild(dropEl);
       }
       if (dropEl) dropEl.classList.toggle('on', !!on);
