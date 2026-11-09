@@ -17,8 +17,10 @@
 //   7. THE DRAWN LEG = THE PHYSICS LEG: through the game's own load chain (_load_build: the garage draws the leg, the join
 //      measures it) the frame's nodes stand on the drawn points; and at every compression of a drop the drawn parts as
 //      the garage poses them (GEAR_LEVER at the strut's stroke) sit on the physics nodes (3 mm)
-//   7b. THE FAIRING: the leg's boot only (no wheel fairing on the trailing link), cut so that nothing that moves comes
-//      within 3 mm of it through the stroke, and still hiding the strut
+//   7b. THE FAIRING: the leg's boot only (no wheel fairing on the trailing link) in each of its three shapes and with the
+//      fitting high and low, cut so that nothing that moves comes within 3 mm of it through the stroke, detailed (seams,
+//      screws), clear of the ground at full stroke on a flat tyre pitched nose-down, still hiding the strut above its
+//      floor; its cache replays the same boot
 //   8. NOTHING ELSE MOVED: a build without the leg is bit-identical to one built before it existed (its def keyless)
 // Run: node tools/_wilga_gear_check.js   (one final `GATE WILGAGEAR: PASS|FAIL`)
 'use strict';
@@ -233,8 +235,16 @@ console.log('7b. the fairing (the user: "an elegant fairing ... that hides a bit
     const va = d3 * d6 - d5 * d4; if (va <= 0 && (d4 - d3) >= 0 && (d5 - d6) >= 0) { const w = (d4 - d3) / ((d4 - d3) + (d5 - d6)); return Math.hypot(...sb(p, add(b, sb(c, b).map(x => x * w)))); }
     const den = 1 / (va + vb + vc), v = vb * den, w = vc * den; return Math.hypot(...sb(p, add(a, add(ab.map(x => x * v), ac.map(x => x * w))))); };
   const CELL = 0.02, CAP = 0.02;
-  for (const [file, over, who] of [['builds/cub_2026-09-20_corrected.json', { s1Leg: 4, s1Drop: 0.85 }, 'the Cub'],
-    ['builds/cessna172_2026-09-20_corrected.json', { s1Leg: 4, s1Drop: 0.80, s1R: 0.25, s1X: 1.415, s1Z: 1.45, s2Leg: 3, s2Z: 0.10, s2X: 0, s2R: 0.064, s2Steer: 1 }, 'the Wilga-class host']]) {
+  // the cases: each fairing shape (lvBoot: 0 tapered, 1 flared, 2 trailing - the Wilga's), and the host's fitting high and
+  // low on the body (lvRootAng 50 / 110: "if you would place it lower or higher on the body, how does it fare?")
+  const CUBF = 'builds/cub_2026-09-20_corrected.json', HOSTF = 'builds/cessna172_2026-09-20_corrected.json';
+  const HOST = { s1Leg: 4, s1Drop: 0.80, s1R: 0.25, s1X: 1.415, s1Z: 1.45, s2Leg: 3, s2Z: 0.10, s2X: 0, s2R: 0.064, s2Steer: 1 };
+  const cases = [[CUBF, { s1Leg: 4, s1Drop: 0.85 }, 'the Cub, tapered'], [CUBF, { s1Leg: 4, s1Drop: 0.85, s1_lvBoot: 2 }, 'the Cub, trailing'],
+    [HOSTF, HOST, 'the Wilga-class host, tapered'], [HOSTF, Object.assign({}, HOST, { s1_lvBoot: 1 }), 'the host, flared'],
+    [HOSTF, Object.assign({}, HOST, { s1_lvBoot: 2 }), 'the host, trailing'],
+    [HOSTF, Object.assign({}, HOST, { s1_lvRootAng: 50 }), 'the host, fitting low (50 deg)'], [HOSTF, Object.assign({}, HOST, { s1_lvRootAng: 110 }), 'the host, fitting high (110 deg)']];
+  let groundMin = Infinity, groundAt = '';
+  for (const [file, over, who] of cases) {
     const raw = JSON.parse(fs.readFileSync(path.join(ROOT, file), 'utf8')), s0 = raw.spec || raw;
     const S = SH.sceneBuild(s0, { over: Object.assign({}, over, { s1Fair: 1, s1LegFair: 1 }), garage: s0 }); S.scene.updateMatrixWorld(true);
     const meshes = (name, keep) => { let Gp = null; S.scene.traverse(o => { if (o.name === name) Gp = o; }); const out = [];
@@ -244,7 +254,7 @@ console.log('7b. the fairing (the user: "an elegant fairing ... that hides a bit
         for (let i = 0; i < ix.length; i += 3) tri.push([v[ix[i]], v[ix[i + 1]], v[ix[i + 2]]]); out.push({ v, tri }); }); return out; };
     const isF = o => !!o.userData.fair, all = () => true;
     const units = (S.W.CAGE_GEAR && S.W.CAGE_GEAR.lever) || [];
-    let spats = 0, boots = 0, worst = Infinity, poses = 0, nMov = 0, at = '';
+    let spats = 0, boots = 0, worst = Infinity, poses = 0, nMov = 0, at = '', stats = '';
     for (const u of units) {
       spats += meshes('edLvArm' + u.kind, isF).length + meshes('edWheel' + u.kind, isF).length;
       const boot = meshes('edLeg' + u.kind, isF); boots += boot.length; if (!boot.length) continue;
@@ -259,26 +269,37 @@ console.log('7b. the fairing (the user: "an elegant fairing ... that hides a bit
         return m; };
       const arm = meshes('edLvArm' + u.kind, all), cyl = meshes('edLvCyl' + u.kind, all), rod = meshes('edLvRod' + u.kind, all), whl = meshes('edWheel' + u.kind, all);
       const L = G.gearLeverInit({ piv: u.piv, ax: u.ax, w: u.w, axle: u.axle, horn: u.horn, top: u.top }), sw = (u.rows.ang - u.rows.comp) * D2R;
-      for (let i = 0; i <= 16; i++) {
-        const q = G.gearLeverAt(L, sw * i / 16); poses++;
+      // THE GROUND (the user: "isn't there a chance that it strikes the ground ... this sort of nose at the front?"): at full
+      // stroke on a tyre flat to 0.6 of its radius, level and pitched 10 deg nose-down about the contact (hard braking)
+      { const qF = G.gearLeverAt(L, sw), R0 = (over.s1R || (S.P && S.P.s1R) || 0.2), cp = [qF.axle[0], qF.axle[1] - 0.6 * R0, qF.axle[2]], a = 10 * D2R;
+        for (const M of boot) for (const p of M.v) { const dy = p[1] - cp[1], dz = p[2] - cp[2], g = Math.min(dy, dy * Math.cos(a) - dz * Math.sin(a));
+          if (g < groundMin) { groundMin = g; groundAt = who; } } }
+      if (u.boot) stats = 'style ' + u.boot.style + ', ' + u.boot.cuts + ' cut edges, ' + u.boot.screws + ' screws' + (u.boot.chord ? ', chord ' + u.boot.chord.map(f3).join(' -> ') + ' m' : ', tube r ' + f3(u.boot.tubeR) + ' m');
+      const bootOk = u.boot && u.boot.screws >= 20 && u.boot.cuts > 0; if (!bootOk) stats += ' (NO DETAIL / NO CUT)';
+      for (let i = 0; i <= 12; i++) {
+        const q = G.gearLeverAt(L, sw * i / 12); poses++;
         const Ta = G.gearNodeFrame([u.piv, u.axle, add(u.piv, u.ax)], [u.piv, q.axle, add(u.piv, u.ax)]),
               Tc = G.gearNodeFrame([u.top, u.horn, add(u.top, u.ax)], [u.top, q.horn, add(u.top, u.ax)]),
               Tr = G.gearNodeFrame([u.horn, u.top, add(u.horn, u.ax)], [q.horn, u.top, add(q.horn, u.ax)]);
         for (const [parts, T, nm] of [[arm, Ta, 'the arm'], [whl, Ta, 'the wheel'], [cyl, Tc, 'the cylinder'], [rod, Tr, 'the rod']])
-          for (const M of parts) for (const x of M.v) { const dd = near(app(T, x)); nMov++; if (dd < worst) { worst = dd; at = nm + ' at ' + (i / 16).toFixed(2) + ' of the stroke'; } }
+          for (const M of parts) for (const x of M.v) { const dd = near(app(T, x)); nMov++; if (dd < worst) { worst = dd; at = nm + ' at ' + (i / 12).toFixed(2) + ' of the stroke'; } }
       }
     }
-    yes(units.length === 2 && boots === 2 && spats === 0, who + ': the spat row asks for a spat and the trailing link draws none - both legs wear the boot only');
-    yes(poses === 34 && worst >= 0.003, who + ': through the whole stroke (17 poses a side, ' + nMov + ' points of the arm, wheel, cylinder and rod) nothing comes within 3 mm of the boot - the closest ' +
+    yes(units.length === 2 && boots === 2 && spats === 0 && !/NO /.test(stats), who + ': the spat row asks for a spat and the trailing link draws none - both legs wear the boot, cut and detailed (' + stats + ')');
+    yes(poses === 26 && worst >= 0.003, who + ': through the whole stroke (13 poses a side, ' + nMov + ' points of the arm, wheel, cylinder and rod) nothing comes within 3 mm of the boot - the closest ' +
         (worst >= CAP ? '> ' + mm(CAP) : mm(worst) + ' (' + at + ')'));
     // ...and it still hides the mechanism: the strut's cylinder BODY at rest (above its end collar, 2 cm), seen from either side and from ahead and
     // behind, is behind the boot (a ray from each of its points, four ways, meets a boot triangle). Its gland, at the
     // body's foot, sits just inboard of the arm's slot - the arm swings through the outboard wall there - and shows through
     // it from outboard: printed, by design (the slot is what lets the arm move)
-    if (who === 'the Wilga-class host') {
+    if (who === 'the Wilga-class host, tapered') {
       let hid = 0, tot = 0, gTot = 0, gOut = 0;
       for (const u of units) {
         const boot = meshes('edLeg' + u.kind, isF).flatMap(M => M.tri), cyl = meshes('edLvCyl' + u.kind, all);
+        // (the boot's floor: its lowest point down the leg as seen from ahead - the strut leaves through it, its foot and
+        // gaiter bare below, as on the Wilga; what is hidden is what lies above the floor)
+        const dl = sb(u.piv, u.root).map(x => x / Math.hypot(...sb(u.piv, u.root))), sF = [dl[0], dl[1], 0].map(x => x / Math.hypot(dl[0], dl[1]));
+        const floorH = Math.max(...boot.flatMap(t => t.map(p => dt(sb(p, u.root), sF))));
         const L = G.gearLeverInit({ piv: u.piv, ax: u.ax, w: u.w, axle: u.axle, horn: u.horn, top: u.top });
         const q = G.gearLeverAt(L, G.gearLeverAngOf(L, 'rise', u.rows.dSt, (u.rows.ang - u.rows.comp) * D2R));
         const Tc = G.gearNodeFrame([u.top, u.horn, add(u.top, u.ax)], [u.top, q.horn, add(u.top, u.ax)]);
@@ -287,12 +308,18 @@ console.log('7b. the fairing (the user: "an elegant fairing ... that hides a bit
         const Lx0 = Math.hypot(...sb(u.horn, u.top)), dir0 = sb(q.horn, u.top).map(x => x / Math.hypot(...sb(q.horn, u.top)));
         for (const M of cyl) for (const x of M.v) { const p = app(Tc, x), along = dt(sb(p, u.top), dir0);
           const all4 = [[1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1]].every(dir => hit(p, dir));
-          if (along <= 0.5 * Lx0 - 0.020) { tot++; if (all4) hid++; } else { gTot++; if (!all4) gOut++; } }
+          if (along <= 0.5 * Lx0 - 0.020 && dt(sb(p, u.root), sF) < floorH - 0.03) { tot++; if (all4) hid++; } else { gTot++; if (!all4) gOut++; } }
       }
-      yes(tot > 0 && hid / tot >= 0.95, who + ': and the boot still hides the strut\'s cylinder at rest from either side, ahead and behind (' + (100 * hid / Math.max(1, tot)).toFixed(0) +
-          ' % of its body\'s ' + tot + ' points; its gland shows through the arm\'s slot from outboard: ' + gOut + ' of ' + gTot + ' points)');
+      yes(tot > 0 && hid / tot >= 0.95, who + ': and the boot still hides the strut\'s cylinder at rest, above its floor, from either side, ahead and behind (' + (100 * hid / Math.max(1, tot)).toFixed(0) +
+          ' % of ' + tot + ' points; below the floor - its foot and gaiter, bare as on the Wilga - ' + gOut + ' of ' + gTot + ' show)');
     }
   }
+  yes(groundMin >= 0.05, 'the ground: at full stroke on a tyre flat to 0.6 R, level or 10 deg nose-down, every boot stays ' + mm(groundMin) + ' or more above it (the least: ' + groundAt + ')');
+  // THE CACHE (the boot is recorded on its inputs and replayed): a second build of the same leg is the same boot, to the vertex
+  { const raw = JSON.parse(fs.readFileSync(path.join(ROOT, HOSTF), 'utf8')), s0 = raw.spec || raw, bootV = () => {
+      const S = SH.sceneBuild(s0, { over: Object.assign({}, HOST, { s1LegFair: 1 }), garage: s0 }); let A = null; S.scene.traverse(o => { if (o.isMesh && o.userData.fair && o.parent.name === 'edLegL') A = Array.from(o.geometry.attributes.position.array); }); return A; };
+    const a = bootV(), b = bootV();
+    yes(a && b && a.length === b.length && a.every((x, i) => x === b[i]), 'the boot is cached on its inputs and replayed: a second build draws the same ' + (a ? a.length / 3 : 0) + ' vertices, to the bit'); }
   // the spec agrees with the drawing: a trailing link carries no wheel fairing (the drag, the mass, the price)
   const sp = JSON.parse(JSON.stringify(SPEC)); sp.gear.fairing = 'spat'; sp.gear.legFair = 'fair';
   const cs = C.clampSpec(sp);

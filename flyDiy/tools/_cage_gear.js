@@ -93,6 +93,8 @@ const legRowWhen = (i, key, kind) => {
     return P => kw(P) && +P['s' + i + '_shockKind'] === 1;
   if (key === 'oleoBraceZ')
     return P => kw(P) && +P['s' + i + '_oleoBrace'];
+  if (key === 'lvBoot')                                   // (WILGA-GEAR: the leg fairing's shape, with the leg fairing)
+    return P => kw(P) && Math.round(+P['s' + i + 'LegFair'] || 0) > 0;
   return kw;
 };
 const legRows = i => {
@@ -2847,7 +2849,8 @@ PAGE.post = ctx => {
   }
   // WILGA-GEAR: the legs' records (the drawing's frame, metres) - the join writes spec.gear.lever from them
   const leverOut = legUnits.filter(u => u.lever).map(u => ({ kind: u.kind, piv: u.lever.piv, ax: u.lever.ax, w: u.lever.w,
-    axle: u.lever.axle, horn: u.lever.horn, top: u.lever.top, root: u.lever.root, rows: u.lever.rows }));
+    axle: u.lever.axle, horn: u.lever.horn, top: u.lever.top, root: u.lever.root, rows: u.lever.rows,
+    ...(u.lever.boot ? { boot: u.lever.boot } : {}) }));                    // (the fairing's own figures: GATE WILGAGEAR 7b)
   if (castorUnitOut) {
     const cgp = new THREE.Group();
     cgp.name = 'edCastorT';
