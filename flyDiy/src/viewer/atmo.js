@@ -533,8 +533,9 @@ ${FM_ON ? FMIST.GLSL(AP_N * AP_W, AP_ATLAS_H, AP_TILE_Y) : ''}
                : (uMist[4].w > 1.5 ? mistODField(vec3(uMist[4].x, y0, uMist[4].z), d, D)
                                    : mistOD(y0, d.y, D));
       if (uMist[3].x > 0.0) od += uMist[3].x * slabLen(y0, d.y, D, uMist[3].y, uMist[3].z);
-${FM_ON ? '      od += fmOD(vec3(uMist[4].x, y0, uMist[4].z), d, D);   // FOREST-MIST (?fmist): the pockets\n' : ''}      float T = exp(-od);
+${FM_ON ? '      float odP = fmOD(vec3(uMist[4].x, y0, uMist[4].z), d, D);   // FOREST-MIST (?fmist): the pockets\n' : ''}      float T = exp(-od${FM_ON ? ' - odP' : ''});
       float fwd = 1.0 + uMist[1].w * pow(max(0.0, dot(d, uMist[2].xyz)), 8.0);
+${FM_ON ? '      fwd = (od * fwd + odP * fmFwd(d)) / max(1e-6, od + odP);   // a pocket is droplets: a narrow, strong forward lobe (backlit, it glows)\n' : ''}
       return col * T + uMist[1].rgb * fwd * (1.0 - T);
     }`;
   // apSample(d, distKm): the atlas at a world direction and a distance (the splice's own read, and the clouds')

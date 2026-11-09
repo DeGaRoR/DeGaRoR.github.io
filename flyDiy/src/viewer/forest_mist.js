@@ -41,8 +41,10 @@ var FMIST = (function () {
     driftK: 1,                      // x the wind
     surfN: 4, eyeN: 2, surfM: 450, eyeM: 350,   // the veil's taps: near the surface, near the eye (C)
     marchN: 28, marchKm: 3.5,       // the cloud pass's pocket segment (A)
-    cards: 420, cardKm: 2.6, cardW: 120, cardH: 34, cardA: 0.8, cardEvery: 20,   // the cards (B): how many, how far, how big, how dense, re-dealt every N frames
+    cards: 420, cardKm: 2.6, cardW: 120, cardH: 34, cardA: 1.0, cardEvery: 20,   // the cards (B): how many, how far, how big, how dense, re-dealt every N frames
     force: null,
+    fwd: 4,                         // the pockets' forward lobe (fmFwd): x5 straight at the sun
+    redistribute: 0.6,              // the flat layer gives this share of itself to the pockets while they are live (SS1: they redistribute, they do not add)
   };
   // what runs, live (a rig flips them; the flag says what was BUILT - a technique not in the flag cannot be turned on)
   const use = { a: A, b: B, c: C };
@@ -149,6 +151,10 @@ var FMIST = (function () {
       if (v && v.length >= 3) { st.drift[0] -= v[0] * dt * S.driftK; st.drift[1] -= v[2] * dt * S.driftK; st.wind = [v[0], v[2]]; }
     }
     const M = st.map;
+    // THE DAY'S MOISTURE GATHERS INTO THE POCKETS: the flat layer (written by ATMO.update this frame, before us) thins
+    // by the pockets' share, so the air between them clears. (F1's visibility contract reads MIST.rho0, the un-thinned
+    // density: it errs on the side of drawing more, never of cutting what the eye can see.)
+    if (use.a || use.c) L[0] *= 1 - S.redistribute * Math.min(1, Math.max(k[0], k[1], k[2]));
     L[28] = k[0]; L[29] = k[1]; L[30] = k[2]; L[31] = day && day.cloudBase != null ? day.cloudBase : 1e4;
     // the drift wraps on a multiple of the noise's period x 289 (the value noise's hash is not periodic, but the
     // float precision at 1e5 m is 8 mm - the wrap only keeps a week's drift small)
@@ -158,7 +164,7 @@ var FMIST = (function () {
     L[36] = M ? M.x0 : 0; L[37] = M ? M.z0 : 0; L[38] = M ? M.inv : 0; L[39] = 1 / S.period;
     if (B) { cardMesh && (cardMesh.visible = use.b); if (use.b) cardsUpdate(eye, k, st.wind || [1, 0]); }
     L[40] = C && use.c ? S.surfN : 0; L[41] = C && use.c ? S.eyeN : 0; L[42] = S.surfM; L[43] = S.eyeM;
-    L[44] = A && use.a ? S.marchKm * 1000 : 0; L[45] = 0; L[46] = 0; L[47] = 0;   // the veil starts where the march stops (?fmist=ac)
+    L[44] = A && use.a ? S.marchKm * 1000 : 0; L[45] = S.fwd; L[46] = 0; L[47] = 0;   // the veil starts where the march stops (?fmist=ac)
   }
   // ---- B: THE CARDS ------------------------------------------------------------------------------------------------
   // The candidates are the map's texels that can hold a pocket; every cardEvery frames the nearest are dealt to the
@@ -183,7 +189,7 @@ var FMIST = (function () {
     geo.setAttribute('aCard', new THREE.InstancedBufferAttribute(new Float32Array(n * 4), 4));   // weight, kind, phase, size
     const U = { uMist: ATMO.apUniforms.uMist, uTime: { value: 0 }, uWind: { value: new THREE.Vector2(0, 0) }, uK: { value: new THREE.Vector3() }, uA: { value: S.cardA }, uScale: ATMO.U.scale };
     cardMat = MATLIB.make(THREE, 'shader', { uniforms: U, transparent: true, depthWrite: false, depthTest: true, fog: false,
-      vertexShader: `attribute vec4 aCard; uniform vec2 uWind; uniform float uTime; varying vec2 vUv; varying vec4 vC; varying float vFade;
+      vertexShader: `attribute vec4 aCard; uniform vec2 uWind; uniform float uTime; varying vec2 vUv; varying vec4 vC; varying float vFade; varying vec3 vW;
         void main() {
           vUv = uv; vC = aCard;
           // the card faces the eye about the vertical (a sheet stays level); it streams downwind through its anchor and back
@@ -194,9 +200,9 @@ var FMIST = (function () {
           vFade = sin(3.14159 * s);                                    // born upwind, gone downwind
           vec3 toE = cameraPosition - c; vec3 r = normalize(vec3(toE.z, 0.0, -toE.x));
           vec3 wp = c + r * position.x * aCard.w + vec3(0.0, 1.0, 0.0) * position.y * aCard.w * ${(S.cardH / S.cardW).toFixed(3)};
-          gl_Position = projectionMatrix * viewMatrix * vec4(wp, 1.0);
+          vW = wp; gl_Position = projectionMatrix * viewMatrix * vec4(wp, 1.0);
         }`,
-      fragmentShader: `uniform vec4 uMist[12]; uniform vec3 uK; uniform float uA, uTime; varying vec2 vUv; varying vec4 vC; varying float vFade;
+      fragmentShader: `uniform vec4 uMist[12]; uniform vec3 uK; uniform float uA, uTime; varying vec2 vUv; varying vec4 vC; varying float vFade; varying vec3 vW;
         float h21(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123); }
         float vn(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
           return mix(mix(h21(i), h21(i + vec2(1.0, 0.0)), f.x), mix(h21(i + vec2(0.0, 1.0)), h21(i + vec2(1.0, 1.0)), f.x), f.y); }
@@ -209,7 +215,8 @@ var FMIST = (function () {
           n = clamp(0.5 + (n - 0.5) * 2.6, 0.0, 1.0);
           float a = uA * min(1.0, 1.5 * vC.x) * k * edge * vFade * smoothstep(0.3, 0.7, n) * (1.0 - smoothstep(0.0, 0.5, -q.y) * 0.4);
           if (a < 0.003) discard;
-          gl_FragColor = vec4(uMist[1].rgb, a);
+          float c = max(0.0, dot(normalize(vW - cameraPosition), uMist[2].xyz));
+          gl_FragColor = vec4(uMist[1].rgb * (1.0 + uMist[11].y * (0.35 * pow(c, 6.0) + pow(c, 40.0))), a);
           #include <tonemapping_fragment>
           #include <colorspace_fragment>
         }` });
@@ -258,7 +265,7 @@ var FMIST = (function () {
   const stats = () => ({ on: ON, use: Object.assign({}, use), cards: st.cards || 0, bakeMs: +st.bakeMs.toFixed(1), k: st.k.map(v => +v.toFixed(3)), hoursDry: st.hoursDry, drift: st.drift.map(v => Math.round(v)), map: st.map });
   // THE GLSL, shared by the veil (atmo.js MIST_GLSL) and the march (clouds.js): fmDens(p) per metre.
   // uMist[7] = (pool k, wisp k, oro k, cloud base m) | [8] = (drift x, z, rho, on) | [9] = (map x0, z0, 1/size, 1/period)
-  // | [10] = (surface taps, eye taps, surface metres, eye metres) | [11] = (the veil's nearest distance: the march's reach under ?fmist=ac, 0, 0, 0). The value noise is mistVN (MIST_GLSL's own).
+  // | [10] = (surface taps, eye taps, surface metres, eye metres) | [11] = (the veil's nearest distance: the march's reach under ?fmist=ac, the forward lobe's gain, 0, 0). The value noise is mistVN (MIST_GLSL's own).
   const GLSL = (AP_N_W, ATLAS_H, TILE_Y) => `
     vec4 fmMap(vec2 xz) {
       vec2 uv = clamp((xz - uMist[9].xy) * uMist[9].z, 0.0, 1.0);
@@ -285,6 +292,9 @@ var FMIST = (function () {
       float d = smoothstep(1.0 - cov - 0.15, 1.0 - cov + 0.3, n);   // Schneider's coverage remap: more cover, fatter wisps
       return d * cov * uMist[8].z;
     }
+    // A pocket is droplets (~10 um): Mie's forward peak is narrow and strong - backlit by a low sun the mist glows
+    // (the concept art's whole light); side- and front-lit it is the layer's own colour. uMist[11].y = the lobe's gain.
+    float fmFwd(vec3 d) { float c = max(0.0, dot(d, uMist[2].xyz)); return 1.0 + uMist[11].y * (0.35 * pow(c, 6.0) + pow(c, 40.0)); }
     // THE VEIL (?fmist=c): the pockets' optical depth along the eye's ray to a surface D metres off - a few taps on
     // the last stretch before the surface (the pocket the trees stand in) and the first after the eye (the pocket the
     // eye is in). What a pocket hanging half-way between the two does to a far ridge is missed: the study's SS3c.
