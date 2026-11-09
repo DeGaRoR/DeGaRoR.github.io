@@ -567,6 +567,9 @@ function makeWorld(seed, opts) {
     // that holds half or more of it (w >= 0.5) is the old composition on the raw ground, fading to the bed's as w -> 0
     // (continuous at the modifier's rim, where w is 0). The memo above holds the answer.
     if (LAKE_BED) h = lakeCarve(x, z, h0, h, hb => (PM.terrainFast ? PM.terrainFast(x, z, hb) : PM.terrainH(x, z, hb)));
+    // THE STONES' BODIES (DIRT-STRIP, 27_premises stonesAt): a bumpy strip's stones on the composed ground, exact (not the
+    // raster's) - the wheels and every node feel them; the DRAWN ground is this less stoneH (the stone's mesh stands there)
+    if (PM && PM.stonesAt) { const s = PM.stonesAt(x, z); if (s > 0) h += s; }
     thX[i] = x; thZ[i] = z; thH[i] = h;
     return h;
   }
@@ -1235,6 +1238,7 @@ function makeWorld(seed, opts) {
                     farHeader: ISL.farHeader, farRoot: ISL.farRoot,
                     places: (ISL.premCook && ISL.premCook.places) || null } : null,   // G841: the premises cook's places (the tallies render_premises dresses on)
     terrainH, waterH, terrainHBuild, terrainHExact, waterHBuild, buildReads, surface, SURFACE, groundMaxRect,
+    stoneH: (x, z) => (PM && PM.stonesAt ? PM.stonesAt(x, z) : 0),   // (DIRT-STRIP: what of terrainH is a stone's body)
     get slopeMax() { return PM ? undefined : SLOPE_MAX; },   // the cone's bound (30_solver.js); none under a premises layer
     TILE, tile, aerodromes, settlements: SET.settlements,
     treesNear, canopyH,
