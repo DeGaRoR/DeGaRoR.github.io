@@ -260,6 +260,7 @@ the body aft for exactly this reason.
 | a fin station: the hinge ahead of the tail post (the DC-3's rudder overhangs the cone 0.5 m, ours 1.9 m) | OPEN: reached by the Cub start's own rows this time |
 | a dorsal fillet that curves CONCAVE into the spine (the DC-3's): ours stands convex above it | OPEN: the dorsal left off, the LE run to the spine |
 | a nacelle role in the tool, and the nacelles / props' station (the DC-3's nacelle 2.98-6.88 m aft of the nose, ours 3.59-6.98) | OPEN: step 3 |
+| a strut boot where a gear leg passes the skin (the 172's nose strut enters the lower cowl: GATE CLIP declares it, `DECLARED` in tools/_clip_check.js, C172-CLIP 9 Nov) | OPEN: the honest visual fix |
 
 ## 8. The Camel log (27 Oct 2026)
 
