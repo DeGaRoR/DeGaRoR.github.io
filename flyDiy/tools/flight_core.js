@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: fd015a03c8529cbd
+// body-sha256: 1e46ed274eba66c8
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -34820,10 +34820,13 @@ const GEN_SYSTEMS_SIDES = ['pilot', 'centre'];
 function genHarnessKg(S, elec, nPowered) {
   const H = GEN_ELEC.harness.runs, PT = GEN_ELEC_PARTS.bus;
   const eng = S && S.engines && S.engines[0];
-  const feed = Math.max(H.minFeedM, Math.abs((eng && +eng.x) || 0) + 0.2);
+  // (lengths to the centimetre: a wire run is an estimate, and the join measures the engine's station to a few 1e-9 m
+  // differently from node - GATE JOINPARITY - which an unrounded length carried into every node of the build)
+  const cm = x => Math.round(x * 100) / 100;
+  const feed = Math.max(H.minFeedM, cm(Math.abs((eng && +eng.x) || 0) + 0.2));
   let span = 0;
-  for (const w of (S && S.wings) || []) if (w && +w.span > span) span = +w.span;
-  const arm = (S && S.fuselage && +S.fuselage.tailArm) || 0;
+  for (const w of (S && S.wings) || []) if (w && +w.span > span) span = cm(+w.span);
+  const arm = cm((S && S.fuselage && +S.fuselage.tailArm) || 0);
   const st = GEN_ELEC.starter[elec.starter], al = GEN_ELEC.alternator[elec.alternator];
   let w = 0;
   if (st && st.cableKgM) w += 2 * feed * st.cableKgM;
