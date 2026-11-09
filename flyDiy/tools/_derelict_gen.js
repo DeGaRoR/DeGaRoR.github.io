@@ -1839,6 +1839,31 @@ function texOf(lib, key, mapName) {
   TEXC.set(ck, t);
   return t;
 }
+// TWO SCANS, ONE MAP (the user 9 Nov: "now the floor is a little clean. I suggest you use the previous texture you used for
+// the ground, and that you mix it with this one, gently, so this new ground gets a little bit of character"): the restored
+// slab's map is its own scan with the derelict's laid over at `k`, drawn into a canvas once both have landed (the same
+// lib, the same tile: the two grids agree); null until the library has both sets
+function blendTexOf(lib, keyA, keyB, k) {
+  const S = libOf(lib), A = S && S[keyA], B = S && S[keyB];
+  if (!A || !B || !A.diff || !B.diff || Array.isArray(A.diff) || Array.isArray(B.diff) || typeof document === 'undefined') return null;
+  const ck = lib + '|' + keyA + '+' + keyB + '|' + k;
+  if (TEXC.has(ck)) return TEXC.get(ck);
+  const cv = document.createElement('canvas'); cv.width = cv.height = 512;
+  const t = new THREE.CanvasTexture(cv);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; t.colorSpace = THREE.SRGBColorSpace;
+  const tile = A.tile || 2; t.repeat.set(1 / tile, 1 / tile);
+  const ready = im => im.complete && im.naturalWidth;
+  const draw = () => {
+    if (!ready(A.diff) || !ready(B.diff)) return;
+    const g = cv.getContext('2d'); g.globalAlpha = 1; g.drawImage(A.diff, 0, 0, 512, 512);
+    g.globalAlpha = k; g.drawImage(B.diff, 0, 0, 512, 512); g.globalAlpha = 1;
+    t.needsUpdate = true;
+  };
+  for (const im of [A.diff, B.diff]) if (!ready(im) && im.addEventListener) im.addEventListener('load', draw);
+  draw();
+  TEXC.set(ck, t);
+  return t;
+}
 // role -> [lib, set, tint, metalness, normalScale]
 // THE ALBEDO IS CALIBRATED, NOT GUESSED (the user 9 Nov: "the ground surface often reads as black in your screenshots, why
 // is that?" - measured: the floor's scan averages 0.11 linear, a third of real concrete, and a hand gain of 1.5 left it
@@ -1942,7 +1967,8 @@ function applyFinish(P0, F0) {
   for (const k in DRESS) {
     const m = M[k]; if (!m) continue;
     const [lib, key, target, hue, metal, ns] = ((P.stage | 0) === 3 && DRESS_R[k]) || DRESS[k];
-    const d = texOf(lib, key, 'diff');
+    // (the restored slab: its brushed scan with the derelict's cracked one laid over at 0.3 - a floor with a past)
+    const d = ((P.stage | 0) === 3 && k === 'concFloor' && blendTexOf(lib, key, DRESS.concFloor[1], 0.3)) || texOf(lib, key, 'diff');
     if (d) { m.map = d; m.normalMap = texOf(lib, key, 'nor') || texOf(lib, key, 'nor_gl'); m.roughnessMap = texOf(lib, key, 'rough'); m.roughness = 1; }
     const S0 = libOf(lib), img = S0 && S0[key] ? S0[key].diff : null;
     calibrate(m, img, target, hue, k === 'concFloor' ? () => wetFrom(M) : null);
