@@ -1439,7 +1439,9 @@ const GROUP = ['9 · undercarriage', [
   // spec.gear.retract from these; the flown aeroplane swings the units (app.js gearSwingRig) - no well is cut yet,
   // the stowed gear lies inside the skin (step 4 cuts the wells). The one predicate: GEAR_RETRACTABLE
   ['retraction', [
-    ['gearRetract', 'retraction (a taildragger\'s: the mains)', 0, 1, 1, ['fixed', 'retractable'], { when: P => RETRACT_LAB() && (RETRACT_CAN(P) || +P.gearRetract > 0), note: P => +P.gearRetract ? fitNote() : '' }],
+    // (TAIL-RETRACT, SEAPLANES' review: the row is 'retraction' on every build; a taildragger's says what it retracts)
+    ['gearRetract', 'retraction', 0, 1, 1, ['fixed', 'retractable'], { when: P => RETRACT_LAB() && (RETRACT_CAN(P) || +P.gearRetract > 0),
+      note: P => [GEAR_TAIL(P) ? 'a taildragger: the mains only, the tailwheel stays down' : '', +P.gearRetract ? fitNote() : ''].filter(Boolean).join(' · ') }],
     ['gearRetT', 'cycle time, s (one way)', 2, 20, 0.5, { when: P => +P.gearRetract }],
     ['gearRetAct', 'actuation', 0, 2, 1, ['electric', 'hydraulic', 'manual (Johnson bar)'], { when: P => +P.gearRetract }],
     // G1 (RETRACT-STUDY §8.1): THE FOLD. A preset per unit, or 'custom': up to two turns, each about a body axis
