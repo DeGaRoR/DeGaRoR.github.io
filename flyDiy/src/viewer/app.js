@@ -21040,7 +21040,10 @@
   // slice keys more, and the ground's family (the island's splats, the premises' patches: groundFamily) keyed first.
   // 0 = as before (the default until the cold A/B). (var and declarations: the guard and early callers read these before
   // this line has run - no TDZ; an unset PACE_N paces nothing)
-  var PACE_N = (() => { const m = typeof location !== 'undefined' && /[?&]pace=(\d+)/.exec(location.search || ''); return m ? +m[1] : 0; })();
+  // ?pace=auto: half the machine's threads, 2 to 8 (the driver's compile workers scale with the cores; a phone gets 2-4)
+  var PACE_N = (() => { const m = typeof location !== 'undefined' && /[?&]pace=(\d+|auto)/.exec(location.search || ''); if (!m) return 0;
+    if (m[1] !== 'auto') return +m[1];
+    const hc = (typeof navigator !== 'undefined' && navigator.hardwareConcurrency) || 4; return Math.max(2, Math.min(8, Math.floor(hc / 2))); })();
   function linkingNow() {
     const L = renderer.info && renderer.info.programs; if (!L) return 0;
     let n = 0; for (const p of L) if (p && p.isReady && !p.isReady()) n++;
