@@ -57,7 +57,7 @@ const DEF = {
   leaves: 10,      // the big door's leaves, half a side, each its own track: open they stack at the jambs, the CLEAR width
                    // what is left between the stacks (a DC-3: 28.96 m span, the fin 5.16 m tail-down)
   graffiti: 1, barriers: 1, weeds: 1, litter: 1, rubble: 1, lamps: 0,   // lamps: the made-safe line's warning lamps lit (the night's)
-  apron: 0, apronL: 26, doorOpen: 0, backOpen: 0,   // the restored hangar's doors, 0 shut .. 1 open (telescoped to the jambs): the front's, the back's   // the build's own cracked apron (the premises' pavement draws it in game)
+  apron: 0, apronL: 40, doorOpen: 0, backOpen: 0,   // the restored hangar's doors, 0 shut .. 1 open (telescoped to the jambs): the front's, the back's   // the build's own cracked apron (the premises' pavement draws it in game)
   ao: 0.8, aoRange: 0.9, aoGround: 1,
 };
 const ROWS = [
@@ -728,21 +728,23 @@ function build(P0, lod, F) {
     }
     if (P.apron) {
       // THE APRON: worn concrete bays (5 m), its joints the stain bag's, weeds in them (below)
-      const zA0 = HD + 0.15, zA1 = HD + P.apronL, xA = HW + 6, ya = (x, z) => g(x, z) + 0.06;
-      const ca = L === 0 ? 2.5 : 10, nax = Math.round(2 * xA / ca), naz = Math.max(1, Math.round((zA1 - zA0) / ca));
+      // (the whole front, the gallery's included, 6 m beyond either side: a DC-3's 29 m turns on it; A0 9 Nov: "Design
+      // its apron and approach for a DC-3 taxiing in")
+      const zA0 = HD + 0.15, zA1 = HD + P.apronL, xAL = -HW - 6, xAR = (gal(1) ? xO : HW) + 6, ya = (x, z) => g(x, z) + 0.06;
+      const ca = L === 0 ? 2.5 : 10, nax = Math.round((xAR - xAL) / ca), naz = Math.max(1, Math.round((zA1 - zA0) / ca));
       for (let i = 0; i < nax; i++) for (let j = 0; j < naz; j++) {
-        const x0 = -xA + 2 * xA * i / nax, x1 = -xA + 2 * xA * (i + 1) / nax, z0 = zA0 + (zA1 - zA0) * j / naz, z1 = zA0 + (zA1 - zA0) * (j + 1) / naz;
+        const x0 = xAL + (xAR - xAL) * i / nax, x1 = xAL + (xAR - xAL) * (i + 1) / nax, z0 = zA0 + (zA1 - zA0) * j / naz, z1 = zA0 + (zA1 - zA0) * (j + 1) / naz;
         face(b, [[x0, ya(x0, z1), z1], [x1, ya(x1, z1), z1], [x1, ya(x1, z0), z0], [x0, ya(x0, z0), z0]], Yup, uvFrame([0, 0, 0], [1, 0, 0], [0, 0, -1]));
       }
       if (L === 0) {                                                       // its joints and its cracks, its oil
         const ra = rng(seed * 19 + 2), yl = (x, z) => ya(x, z) + 0.004;
         const jl = (a, b, w) => { const d2 = nrm(sub(b, a)), nn = [-d2[2], 0, d2[0]], q = [add(a, mul(nn, -w)), add(b, mul(nn, -w)), add(b, mul(nn, w)), add(a, mul(nn, w))].map(p => [p[0], yl(p[0], p[2]), p[2]]);
           face(bags.stain, q, Yup, p => { const r0 = sub(p, a); return CELL(15, dot(r0, d2) / Math.max(0.01, len(sub(b, a))), (dot(r0, nn) + w) / (2 * w)); }); };
-        for (let x = -xA + 2.5; x < xA; x += 5) jl([x, 0, zA0], [x, 0, zA1], 0.05);
-        for (let z = zA0 + 5; z < zA1; z += 5) jl([-xA, 0, z], [xA, 0, z], 0.05);
-        for (let c = 0; c < 26; c++) { let x = (ra() * 2 - 1) * xA, z = zA0 + ra() * (zA1 - zA0), a = ra() * 6.28;
+        for (let x = xAL + 2.5; x < xAR; x += 5) jl([x, 0, zA0], [x, 0, zA1], 0.05);
+        for (let z = zA0 + 5; z < zA1; z += 5) jl([xAL, 0, z], [xAR, 0, z], 0.05);
+        for (let c = 0; c < 26; c++) { let x = (xAL + xAR) / 2 + (ra() * 2 - 1) * (xAR - xAL) / 2, z = zA0 + ra() * (zA1 - zA0), a = ra() * 6.28;
           for (let q = 0; q < 8 + ra() * 10; q++) { a += (ra() - 0.5) * 0.9; const x2 = x + Math.cos(a) * 0.7, z2 = z + Math.sin(a) * 0.7; jl([x, 0, z], [x2, 0, z2], 0.02 + ra() * 0.025); x = x2; z = z2; } }
-        for (let q = 0; q < (rest ? 2 : 9); q++) { const x = (ra() * 2 - 1) * (xA - 3), z = zA0 + 2 + ra() * Math.min(30, zA1 - zA0 - 4), r = 0.5 + ra() * 1.1, c = q < 6 ? 11 : 12;
+        for (let q = 0; q < (rest ? 2 : 9); q++) { const x = (xAL + xAR) / 2 + (ra() * 2 - 1) * ((xAR - xAL) / 2 - 3), z = zA0 + 2 + ra() * Math.min(30, zA1 - zA0 - 4), r = 0.5 + ra() * 1.1, c = q < 6 ? 11 : 12;
           face(bags.stain, [[x - r, yl(x, z), z + r], [x + r, yl(x, z), z + r], [x + r, yl(x, z), z - r], [x - r, yl(x, z), z - r]], Yup, p => CELL(c, (p[0] - x + r) / (2 * r), (z + r - p[2]) / (2 * r))); }
       }
       // the step from the apron up to the slab
@@ -1537,8 +1539,9 @@ function build(P0, lod, F) {
       for (const s of [1]) for (let q = 0; q < 4; q++) weed(s * (xG + 1 + rc() * (D.GW - 2)), fy, HD - 1 - rc() * 3, 0.6 + rc() * 1.2, rc() < 0.5 ? 2 : 1, rc());
     }
     if (P.apron) {                                                           // the apron's joints
-      for (let x = -HW - 6 + 2.5; x < HW + 6; x += 5) along(x, HD + 0.6, x, HD + P.apronL - 0.5, gy, safe ? 0.3 : 0.7, false, true);
-      for (let z = HD + 5; z < HD + P.apronL; z += 5) along(-HW - 6, z, HW + 6, z, gy, safe ? 0.3 : 0.7, false, true);
+      const xR6 = (gal(1) ? xO : HW) + 6;
+      for (let x = -HW - 6 + 2.5; x < xR6; x += 5) along(x, HD + 0.6, x, HD + P.apronL - 0.5, gy, safe ? 0.3 : 0.7, false, true);
+      for (let z = HD + 5; z < HD + P.apronL; z += 5) along(-HW - 6, z, xR6, z, gy, safe ? 0.3 : 0.7, false, true);
     }
   }
   // the stains down the concrete under the tower windows and the coping (water runs)

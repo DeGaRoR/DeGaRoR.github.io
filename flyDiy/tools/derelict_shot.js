@@ -54,6 +54,9 @@ const SET = [
   { name: 'step3',         cam: 'step',     stage: 3 },
   { name: 'side0',         cam: 'side',     stage: 0 },
   { name: 'side3',         cam: 'side',     stage: 3 },
+  { name: 'back0',         cam: 'back',     stage: 0 },
+  { name: 'back3',         cam: 'back',     stage: 3 },
+  { name: 'left3',         cam: 'left',     stage: 3 },
 ].filter(s => !ONLY || ONLY.includes(s.name) || ONLY.includes(s.cam));
 const TYPES = { '.html': 'text/html', '.js': 'application/javascript', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.ktx2': 'image/ktx2', '.bin': 'application/octet-stream' };
 function serve() {
