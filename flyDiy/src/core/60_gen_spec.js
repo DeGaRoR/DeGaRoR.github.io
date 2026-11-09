@@ -1977,6 +1977,12 @@ const GEN_DRAG = {
 const GEN_GAUGE = {
   e: { fus: 0.30, wing: 0.49, tail: 0.41, gear: 0.75 },
   lo: 0.6, hi: 3.0,
+  // MASS-SCALE (2026-11-09): THE GEAR'S OWN CEILING. The 3.0 cap kept the gear of a Twin Wasp aeroplane at 3x a light
+  // one's while its gross is 10x: the DC-3's gear billed 2.4 % of its gross where a transport's is 4-5 % (Torenbeek,
+  // Synthesis of Subsonic Airplane Design 8.4; Raymer's transport gear law runs on (Nl Wl)^0.888, steeper than the
+  // GA 0.768 used here). The GA law, uncapped to 8, puts the DC-3's at 4.7 %. Only a gear whose raw gauge passes 3
+  // moves (a design gross over 4.3x its row's refGross: no light aeroplane)
+  hiBy: { gear: 8.0 },
   iterations: 20,        // Newton steps on the fixed point; fixed, so a double generate is byte-equal
 };
 

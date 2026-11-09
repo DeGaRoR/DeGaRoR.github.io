@@ -1,0 +1,20 @@
+builds/candidates/dc3_2026-10.json 6643.7
+engines 1845.5 | wings 1750 | fuselage 1310.2 | gear 423 | furnish 324.4 | outfit 292.7 | bracing 283.7 | tail 277.2 | vessel 64.6 | paint 41.7 | elec 19.1 | panel 8.3 | avionics 3.3
+builds/candidates/dc3_mass.json 7088.9
+engines 1863.5 | wings 1750 | fuselage 1325.5 | furnish 722.8 | gear 432.4 | outfit 292.7 | bracing 283.7 | tail 281.3 | vessel 64.6 | paint 41.7 | elec 19.1 | panel 8.3 | avionics 3.3
+builds/chinook_2026-09-21_corrected.json 235.5
+engines 57.1 | wings 35.4 | outfit 31.2 | fuselage 24.4 | gear 20.4 | elec 16.8 | bracing 16.4 | tail 14.3 | furnish 9 | paint 4.9 | panel 4 | vessel 1.6 | avionics 0
+builds/candidates/chinook_minimal.json 214.9
+engines 57.1 | wings 34.8 | outfit 31.2 | fuselage 24.1 | gear 20 | bracing 16 | tail 14.1 | furnish 9 | paint 4.9 | panel 2.1 | vessel 1.6 | elec 0 | avionics 0
+builds/candidates/camel_2026-10.json 598.9
+engines 209.5 | wings 134.8 | bracing 68.6 | gear 50.5 | fuselage 44 | outfit 27.9 | elec 17 | tail 16.8 | furnish 10.7 | vessel 7 | paint 6.6 | panel 4.5 | avionics 1
+builds/candidates/camel_minimal.json 565.2
+engines 209.5 | wings 132.7 | bracing 67 | gear 49.7 | fuselage 43.4 | outfit 27.7 | tail 16.6 | vessel 6.9 | paint 6.6 | furnish 3 | panel 2.1 | elec 0 | avionics 0
+builds/candidates/tigermoth_2026-10.json 569.4
+engines 166.6 | wings 138.1 | bracing 77.7 | fuselage 50.8 | gear 32.7 | outfit 31.1 | tail 21.3 | elec 17 | furnish 14.9 | paint 7.1 | vessel 6.6 | panel 4.5 | avionics 1
+builds/candidates/tigermoth_minimal.json 535.0
+engines 166.6 | wings 136.1 | bracing 76.1 | fuselage 50.2 | gear 32 | outfit 31.1 | tail 21.1 | paint 7.1 | vessel 6.6 | furnish 6 | panel 2.1 | elec 0 | avionics 0
+builds/candidates/stearman_2026-10.json 902.3
+engines 259.9 | bracing 207.7 | wings 181.1 | fuselage 61 | gear 53.7 | outfit 42.9 | tail 28.3 | furnish 27 | elec 17 | vessel 9.2 | paint 9 | panel 4.5 | avionics 1
+builds/candidates/stearman_minimal.json 851.9
+engines 259.9 | bracing 203.5 | wings 178.5 | fuselage 60.3 | gear 52.6 | outfit 42.9 | tail 27.9 | vessel 9.2 | paint 9 | furnish 6 | panel 2.1 | elec 0 | avionics 0

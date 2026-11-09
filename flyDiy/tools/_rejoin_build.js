@@ -6,7 +6,7 @@
 //   node tools/_rejoin_build.js in.json out.json [edits.json]
 //
 // edits.json: { cage: { dial: value, ... }, enginePreset: <a preset NAME in
-// the engine layer's list>, engines, energy, fuel, prop, wings, meta, systems } — each
+// the engine layer's list>, engines, energy, fuel, prop, wings, meta, systems, outfit } — each
 // optional. The cage dials are overwritten, the preset applied through
 // CAGE_ENG_APPLY_PRESET, the rest assigned, then tools/_bake_joined.js
 // re-measures the whole aeroplane (bench/-free). Prints the leaves that
@@ -38,6 +38,8 @@ if (editsFile) {
   if (E.engines) spec.engines = E.engines;
   // the instrument fit: the join's panel column seeds from spec.systems
   if (E.systems) spec.systems = E.systems;
+  // the furnishing (G2806): the seats' kind and the trim, through the column's own seed so the join writes them
+  if (E.outfit) { spec.outfit = E.outfit; const W = BJ.loadPanel().W; if (W.CAGE_FURNISH) W.CAGE_FURNISH.fromSpec(E.outfit); }
   // the livery: the paint whole, the finish whole (sections, decals, wear, glass)
   if (E.paint) spec.paint = E.paint;
   if (E.finish) spec.finish = E.finish;

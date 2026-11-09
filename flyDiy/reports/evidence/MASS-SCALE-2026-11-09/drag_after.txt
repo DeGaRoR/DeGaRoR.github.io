@@ -1,0 +1,10 @@
+cub       body 0.277 cool 0.009 heads 0.000 scr 0.023 jn 0.017 exh 0.006 gear 0.011 brace 0.000 tb 0.023 kg 476 | layout undefined cowlOn 1 cowl.on undefined mat undefined int 1
+c172      body 0.163 cool 0.021 heads 0.000 scr 0.022 jn 0.017 exh 0.006 gear -0.080 brace 0.000 tb 0.028 kg 977 | layout undefined cowlOn 1 cowl.on undefined mat undefined int 3
+jodel     body 0.146 cool 0.009 heads 0.000 scr 0.023 jn 0.027 exh 0.006 gear -0.035 brace 0.000 tb 0.023 kg 475 | layout undefined cowlOn 1 cowl.on undefined mat undefined int 2
+chinook   body 0.185 cool 0.014 heads 0.000 scr 0.025 jn 0.017 exh 0.006 gear -0.004 brace 0.000 tb 0.029 kg 353 | layout undefined cowlOn 0 cowl.on undefined mat undefined int 4
+pa18f     body 0.277 cool 0.020 heads 0.084 scr 0.023 jn 0.017 exh 0.006 gear 0.011 brace 0.000 tb 0.023 kg 752 | layout undefined cowlOn 1 cowl.on undefined mat undefined int 1
+dc3       body 0.664 cool 0.201 heads 0.000 scr 0.022 jn 0.027 exh 0.024 gear 0.413 brace 0.000 tb 0.067 kg 9083 | layout radial cowlOn 1 cowl.on undefined mat undefined int 3
+stearman  body 0.361 cool 0.221 heads 0.000 scr 0.070 jn 0.039 exh 0.012 gear 0.028 brace 0.199 tb 0.034 kg 1228 | layout radial cowlOn 0 cowl.on undefined mat undefined int 1
+tiger     body 0.107 cool 0.017 heads 0.089 scr 0.070 jn 0.039 exh 0.006 gear -0.023 brace 0.200 tb 0.026 kg 812 | layout undefined cowlOn 1 cowl.on undefined mat undefined int 2
+camel     body 0.110 cool 0.035 heads 0.000 scr 0.050 jn 0.039 exh 0.012 gear 0.102 brace 0.190 tb 0.020 kg 770 | layout radial cowlOn 1 cowl.on undefined mat undefined int 2
+ss        body 0.277 cool 0.024 heads 0.083 scr 0.023 jn 0.017 exh 0.006 gear 0.160 brace 0.000 tb 0.026 kg 579 | layout undefined cowlOn 1 cowl.on undefined mat undefined int 1

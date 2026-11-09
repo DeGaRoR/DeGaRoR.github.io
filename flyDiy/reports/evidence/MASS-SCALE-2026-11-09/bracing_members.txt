@@ -1,0 +1,14 @@
+stearman_2026-10.json ledger 207.7
+    wing                   n 214 L 209.6 A·L dm3 27.37 tubeFabric
+    interplane             n 6 L 10.1 A·L dm3 1.32 tubeFabric
+    wire(wire)             n 8 L 24.7 A·L dm3 0.83 tubeFabric
+tigermoth_2026-10.json ledger 77.7
+    wing                   n 214 L 196.5 A·L dm3 266.52 wood
+    interplane             n 6 L 10.3 A·L dm3 0.99 tubeFabric
+    wire(wire)             n 8 L 24.0 A·L dm3 0.59 tubeFabric
+camel_2026-10.json ledger 68.6
+    wing                   n 210 L 183.1 A·L dm3 245.57 wood
+    interplane             n 6 L 9.5 A·L dm3 0.88 tubeFabric
+    wire(wire)             n 8 L 22.5 A·L dm3 0.54 tubeFabric
+cub_2026-09-20_corrected.json ledger 27.1
+    wing                   n 12 L 43.5 A·L dm3 3.45 tubeFabric
