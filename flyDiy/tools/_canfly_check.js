@@ -111,7 +111,9 @@ for (const [pn, pr] of persons) {
       if (!normal && (r.ok !== e.ok || r.kind !== e.kind || r.need !== e.need)) fail('technique: ' + pn + ' ' + k + ' ' + a.id + ' differs from the expert (' + (r.kind || 'ok') + ' vs ' + (e.kind || 'ok') + ')');
       if (normal) {
         if (!e.ok && r.ok) fail('technique: ' + pn + ' flies ' + k + ' into ' + a.id + ' that the expert refuses');
-        if (r.kind === 'technique' && !(r.need > a.len)) fail('technique: ' + pn + ' ' + k + ' ' + a.id + ' refused with need ' + r.need + ' <= ' + a.len);
+        // (ELEC-SYSTEMS, 9 Nov: pilotCanFly refuses on the UNROUNDED need > len and reports both rounded, so a refusal at
+        // 250.2 m against 250 m reads 'need 250'; what the rule guarantees is the rounded need is not under the strip)
+        if (r.kind === 'technique' && r.need < a.len) fail('technique: ' + pn + ' ' + k + ' ' + a.id + ' refused with need ' + r.need + ' <= ' + a.len);
         if (r.ok && r.need != null && e.need != null && r.need < e.need) fail('technique: ' + pn + ' ' + k + ' ' + a.id + ' needs less than the expert');
       }
       // the shapes: a resolved profile and 76_pilots' object answer the same
