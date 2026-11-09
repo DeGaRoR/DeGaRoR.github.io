@@ -699,5 +699,40 @@ console.log('10 THE FOLD (G1)');
         B.dwThr.toFixed(0) + ' > ' + Us.dwThr.toFixed(0) + ' > ' + U.dwThr.toFixed(0) + ' N');
 }
 
+// ---- 20. THE NACELLE WELL HELD UNDER ITS SKIN (WELL-CLAMP, REAL-FIGURES' TAIL-RETRACT finding; the user 9 Nov: "the
+// well depth clamped to the skin's inner face minus 15 mm, the wheel left proud with the fit note") - the DA62-alike's
+// mains forward into its engine nacelles (the retract battery's da62_nacelle): every cell of every nacelle well stands
+// WELL_SKIN (15 mm) under the nacelle's skin over THAT cell (the old ceiling was the centre line's top less 8 mm for
+// every cell, and a round nacelle's top falls off its centre line); the skin read by skinTopAt agrees with the section
+// sampled 400 times (an independent reading, 2 mm); a well held under the wheel names how far in the fit (wellClamp)
+console.log('20 THE NACELLE WELL (WELL-CLAMP)');
+{ const SH = require('./_scene_headless.js'), BJ = require('./_bake_joined.js'), { D } = BJ.loadPanel();
+  const ad = D.ARCHETYPES.find(x => x.key === 'da62');
+  const bd = LB.gameSpecFull({ v: 0, birth: 1, spec: D.designBake(ad.sel, ad.over) }).spec;
+  const Sn = SH.sceneBuild(bd, { over: { gearRetract: 1, gearFold: 7, s1X: 2.45, s1Z: 1.25 }, garage: bd });
+  const G = Sn.W.CAGE_GEAR, F = Sn.W.CAGE_GEAR_FOLD, fit = G && G.fit, cuts = (fit && fit.cutsNac) || [];
+  check(cuts.length >= 1, 'the DA62-alike, the mains forward into the engine nacelles: a nacelle well cut', cuts.length + ' cuts');
+  // the section's top line at |x|, brute force (400 angles from the top to the side, the nearest in x)
+  const topBF = (A, x, z) => { let best = null, bd2 = Infinity;
+    for (let i = 0; i <= 400; i++) { const s = A.surf(z, Math.PI - 0.5 * Math.PI * i / 400), d = Math.abs(Math.abs(s[0]) - Math.abs(x)); if (d < bd2) { bd2 = d; best = s[1]; } }
+    return bd2 < 0.01 ? best : null; };
+  let cells = 0, over = 0, worst = -Infinity, agree = 0, dmax = 0, offC = 0;
+  for (const c of cuts) { const H = c.hf;
+    for (let j = 0; j < H.nz; j++) for (let i = 0; i < H.nx; i++) {
+      const x = H.x0 + i * H.d, z = H.z0 + j * H.d, N = F.nacAt(x, z);
+      if (!N) continue;
+      const t = F.skinTopAt(N.AF, x - N.xc, z); if (t == null) continue;
+      cells++; const room = t - H.y[j * H.nx + i]; worst = Math.max(worst, -room);
+      if (room < F.WELL_SKIN - 1e-9) over++;
+      if (Math.abs(x - N.xc) > 0.05) offC++;
+      const b = topBF(N.AF, x - N.xc, z); if (b != null) { agree++; dmax = Math.max(dmax, Math.abs(b - t)); }
+    } }
+  check(cells > 0 && over === 0, 'every nacelle well cell stands at least 15 mm under the skin over it (the cells off the centre line too)',
+        cells + ' cells (' + offC + ' off the centre line), ' + over + ' closer; the least room ' + (-worst * 1000).toFixed(1) + ' mm');
+  check(agree > 0 && dmax < 0.002, 'the skin over a cell (skinTopAt) is the section\'s own top line (400 angles: within 2 mm)', agree + ' cells, worst ' + (dmax * 1000).toFixed(2) + ' mm');
+  const note = (fit && fit.wellClamp) ? 'well clamped: wheel ' + fit.wellClamp.cm + ' cm proud' : '';
+  check(!fit.wellClamp || (fit.wellClamp.cm >= 0.5 && /^well clamped: wheel [\d.]+ cm proud$/.test(note)), 'a well held under its wheel names how far (the gearWellCut row\'s note)', note || 'the wheel fits under its skin');
+}
+
 console.log(bad ? 'GATE RETRACT: FAIL (' + bad + ')' : 'GATE RETRACT: PASS');
 process.exitCode = bad ? 1 : 0;
