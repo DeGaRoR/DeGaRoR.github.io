@@ -24,6 +24,23 @@ const SHELF = FULL
   ? { 'Jolene Cub': env(CUB), 'Spare Cub': env(CUB), 'Club Cub': env(CUB), 'Old Jodel': env(JOD), 'Red Jodel': env(JOD), 'Blue Jodel': env(JOD) }
   : { 'Jolene Cub': env(CUB), 'Spare Cub': env(CUB), 'Club Cub': env(CUB), 'Jodel D9': env(JOD), 'Metal Cessna': env('cessna172_2026-09-20_corrected.json') };
 const SLOTS = FULL ? 8 : null;
+// the footprints the packer parks them by (as a save measures them: GATE HANGAR's envelopes)
+const FOOT = { cub: { half: 5.4, fwd: 1.8, aft: 6.9, h: 2.1 }, jodel: { half: 4.4, fwd: 1.8, aft: 5.9 }, cessna: { half: 5.5, fwd: 1.6, aft: 6.6, h: 2.7 } };
+const footOf = n => /Cub/.test(n) ? FOOT.cub : /Jodel/.test(n) ? FOOT.jodel : FOOT.cessna;
+// THE CAREER DOCUMENT, made here (careerNew, as the page makes the dev career) and seeded before the page's first load: the
+// main hangar the large hangar, the shelf the career's own airframes stored inside it in slot order (one boot, not two)
+const CORE = require('./flight_core.js');
+const DOC = (() => {
+  const d = CORE.careerNew({ id: 'dev', seed: 'dev', name: 'the dev career', started: '2026-11-09' });
+  d.sheds.HOME = Object.assign({}, d.sheds.HOME, { shell: 'works', dims: Object.assign({}, CORE.SHELLS.works.dims) });
+  if (SLOTS) d.sheds.HOME.slots = { inside: SLOTS };
+  d.career.airframes = d.career.airframes || {};
+  Object.keys(SHELF).forEach((n, i) => {
+    d.career.airframes[n] = { paid: 0, how: 'scratch', at: 0 };
+    d.fleet[n] = { hangar: 'HOME', aero: 'HOME', kind: 'inside', slot: i, foot: footOf(n) };
+  });
+  return CORE.careerNormalise(d);
+})();
 for (const n of Object.keys(SHELF)) { SHELF[n].name = n; if (SHELF[n].spec && SHELF[n].spec.meta) SHELF[n].spec.meta.name = n; }
 const STAND = { cub: 'flyDiy/builds/' + CUB, dc3: 'flyDiy/builds/candidates/dc3_2026-10.json', jodel: 'flyDiy/builds/' + JOD };
 const want = opt('planes', FULL ? 'jodel' : 'cub,dc3').split(',');
@@ -40,33 +57,23 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   const ctx = await browser.newContext({ viewport: { width: W, height: H } });
   const page = await ctx.newPage();
   const errs = []; page.on('pageerror', e => errs.push(e.message));
-  await ctx.addInitScript(shelf => {
+  await ctx.addInitScript(({ shelf, doc }) => {
     window.FLYDIY_CLOCKSLICE = false;
-    try { if (!sessionStorage.getItem('lhSeeded')) { for (const n of Object.keys(shelf)) localStorage.setItem('flydiy.build.' + n, JSON.stringify(shelf[n])); sessionStorage.setItem('lhSeeded', '1'); } } catch (e) {}
-  }, SHELF);
+    try { if (!sessionStorage.getItem('lhSeeded')) { for (const n of Object.keys(shelf)) localStorage.setItem('flydiy.build.' + n, JSON.stringify(shelf[n]));
+      localStorage.setItem('flydiy.career.dev', JSON.stringify(doc)); sessionStorage.setItem('lhSeeded', '1'); } } catch (e) {}
+  }, { shelf: SHELF, doc: DOC });
   const t0 = Date.now(), log = s => console.log(((Date.now() - t0) / 1000).toFixed(0).padStart(4) + ' s  ' + s);
   const URL0 = `http://127.0.0.1:${srv.address().port}/flyDiy/dev.html?career=1&audio=0`;
   const boot = async () => {
     await page.waitForFunction(() => window.GARAGE_ENV && window.GARAGE_SPEC && window.FLYDIY_PLAYER && window.GARAGE_ENV._debug &&
-      window.BOOT && window.BOOT.state === 'gone', null, { timeout: 900000, polling: 2000 });
+      window.BOOT && window.BOOT.state === 'gone', null, { timeout: 2400000, polling: 5000 });
     await sleep(3000);
     await page.evaluate(() => { const b = [...document.querySelectorAll('#dfBirth button')].find(e => /keep the current/i.test(e.textContent)); if (b) b.click(); });
   };
-  await page.goto(URL0, { timeout: 600000 }); await boot(); log('booted (the dev career born)');
-  // the main hangar becomes the large hangar, the shelf stored inside it (slot order), then a reload builds the room
-  const set = await page.evaluate(({ names, slots }) => {
-    const P = window.FLYDIY_PLAYER, d = P.doc();
-    d.sheds.HOME = Object.assign({}, d.sheds.HOME, { shell: 'works', dims: Object.assign({}, SHELLS.works.dims) });
-    if (slots) d.sheds.HOME.slots = { inside: slots };
-    // a career's fleet is its OWN airframes (74_career.js careerOwnSlots): the shelf recorded as built by the player
-    d.career.airframes = d.career.airframes || {};
-    for (const n of names) d.career.airframes[n] = Object.assign({}, d.career.airframes[n] || {}, { paid: 0, how: 'scratch', at: 0 });
-    names.forEach((n, i) => { d.fleet[n] = Object.assign({}, d.fleet[n] || {}, { hangar: 'HOME', aero: 'HOME', kind: 'inside', slot: i }); });
-    const r = P.set(d);
-    return { shell: r.sheds.HOME.shell, fleet: Object.keys(r.fleet).map(n => n + ':' + r.fleet[n].kind + (r.fleet[n].hangar ? '@' + r.fleet[n].hangar : '')) };
-  }, { names: Object.keys(SHELF), slots: SLOTS });
-  log('set ' + JSON.stringify(set));
-  await page.reload({ timeout: 600000 }); await boot(); log('reloaded: shell ' + await page.evaluate(() => window.GARAGE_ENV.shell()));
+  await page.goto(URL0, { timeout: 600000 }); await boot();
+  const set = await page.evaluate(() => { const d = window.FLYDIY_PLAYER.doc();
+    return { shell: window.GARAGE_ENV.shell(), slots: d.sheds.HOME.slots || null, fleet: Object.keys(d.fleet).map(n => n + ':' + d.fleet[n].kind + (d.fleet[n].hangar ? '@' + d.fleet[n].hangar : '')) }; });
+  log('booted ' + JSON.stringify(set));
   const report = { set, stands: [], errors: errs };
   for (const k of want) {
     await page.evaluate(async url => { const r = await fetch('/' + url); const j = await r.json(); window.GARAGE_SPEC.set(j.spec || j); }, STAND[k]);
