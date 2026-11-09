@@ -160,7 +160,7 @@ The three candidates, weighed against the user's four tests:
 | **the trailing extension** | yes: it is a fairing, it closes on the body | no: past the trailing edge there is no wing to extend | yes, but only on the body side |
 | **off = identical** | trivially: nothing runs | needs the new centre to equal the old exactly | needs the patch to vanish exactly |
 | **crashes** | the wreck classes it COVER and binds it to the frame members nearest each place: it parts along the root and tears (§7) | the centre is the wing's: it would go whole with the wing, never with the body | goes with the body |
-| **cost** | 1 mesh in the existing wing-skin bucket (the Jodel's snapshot: the fillet's range in bucket `c8b95a2`, the wing's own) - **0 extra draws**; 1.1-3.6 k triangles a build | none extra, but every build's wing re-lofted | the body's subdivision grows |
+| **cost** | the fillet in the existing wing-skin bucket (the Jodel's snapshot: the fillet's range in bucket `c8b95a2`, the wing's own) + its joint in the seal's material: **+1 draw with the option on, 0 off**; ~5-9 k triangles a build | none extra, but every build's wing re-lofted | the body's subdivision grows |
 
 **Recommendation: the separate mesh** (the user's own first instinct). It is also what real light aircraft have (§3),
 and it is the only topology that gives the trailing extension and stays bit-identical when off.
@@ -170,13 +170,20 @@ surface to existing meshes):
 - In the pylon, a prism (the blade) flares onto what it stands on in quarter circles, each row reading the surface under
   its OWN position by a ray, with the ends sunk into what they meet.
 - Here the prism is the wing root and the flare is cut in the CROSS PLANE at each chord station.
-- *The body's section*: the airframe contract every fitting stands on (`GEAR_GEN.cageAirframe`, the drawn skin by rays
-  from its axis, a 96 × 72 table).
+- *The body's section*: the DRAWN skin, cut at each station (`wfBody`: the cage sheet's skin and glazing faces, sliced
+  by the station's plane and read by rays from the section's centre, the outermost hit), as the pylon's columns read
+  the skin under their own position. The first cut used the airframe table (`cageAirframe`, 96 × 72, interpolated
+  between its stations), and its foot waved over the skin's facets.
 - *The wing's two lines*: vertical rays through an indexed soup of the drawn skin AND the flaps and ailerons at rest
   (`wfCaster`; a flap that starts at the root is part of the root).
 - *The corner*: where the body's section crosses the wing's line.
 - *Each sheet*: upper and lower, a cubic from a foot on the body (the first section point standing h off the wing) to a
-  foot on the wing (w outboard of the body's side), tangent to both, and sunk into both. There is no "PROPER-COWLS"
+  foot on the wing (w outboard of the body's side), tangent to both, standing on both (sunk 3 mm along the skin's own
+  normal, the pylon's PYLON_SINK rule).
+- *The joint*: the pylon's (`pylonHug` strip). Along every foot runs a strip from the fillet's wall, a joint's width
+  (14 mm) up its own curve, round the corner onto the skin a joint's width past the foot, with a 3 mm bead, in the
+  rubber seal's material (`emPuck`, as the pylon's). It covers the band where the sheet runs tangent to the skin, and
+  the seam a sampled fit leaves between its stations and the skin's facets. There is no "PROPER-COWLS"
   document in the repo; the nearest written rule is REF_MATCH §4's "fitting a cowl (the user's rule)", and this follows
   its spirit: fit to the drawn surfaces, measure, gate the fit.
 
@@ -189,7 +196,7 @@ surface to existing meshes):
 | **high** | the trailing-edge blend under the root only (from 35 % chord), a short extension (0.14 chord), no upper sheet | the user's "probably only the trailing-edge blend" |
 | **biplane** | each plane by its band: the lower plane blended to the fuselage, a parasol upper refused | the user's "should blend the fuselage-wing on biplanes" |
 | **parasol** | **refused, said on the row**: "not fitted: a parasol has no wing-body contact (nothing to blend)" | no contact |
-| **no contact** (a wing hung under the keel by hand) | refused with the gap measured: "its root does not meet the body (the wing stands 3-23 cm clear of it along the root)" | the Spitfire WIP card (§7) |
+| **no contact** (a wing hung under the keel by hand) | refused with the gap measured: "its root does not meet the body (the wing stands 3-17 cm clear of it along the root)" | the Spitfire WIP card (§7) |
 
 ## 6. What was built (claude/wing-fillet)
 
@@ -212,8 +219,18 @@ surface to existing meshes):
 | trailing-edge blend | 0.11 · smoothstep(0.25, 1, s) | 0.03 · smoothstep(0.55, 1, s) | none | 0.26 |
 | full (Kármán) | 0.03 + 0.10 · s^1.6 | 0.015 + 0.035 · s^1.6 | 0.05 | 0.32 |
 
-- The extension shrinks self-similarly, (1 − u)^1.6 both ways, and closes tangent onto the body.
-- The fairing ahead meets in a ROUND nose; the extension meets on a sharp edge.
+- **ONE PIECE** (the user's review of the first cut: "these little pieces at the back ... it should be part of it").
+  - Each sheet is one grid from the fairing ahead of the leading edge to the end of the extension.
+  - A row is the fillet (body foot to wing foot) plus its RETURN. Along the chord, the primary sheet's return runs
+    inside the wing, on its camber line, hidden.
+  - Past the trailing edge the same rows close on the body. The return leaves the wing foot along the wing's line (flat
+    at the trailing edge), sags into a rounded underside going aft, and lands tangent on the body.
+  - Ahead of the leading edge the return turns straight down: a round nose.
+  - The partner sheet (a low wing's lower one) stays on the chord and fades out at its ends.
+  - Every run fades to nothing over its last three stations, so no row ends with a size and nothing needs a cap.
+- **The extension is the wing's root carried aft** (the Sling and Tecnam photos): a low, wide tongue along the body
+  side, its height dropping fast, (1 − u)^2.5, its width running on, (1 − u)^1.2. Carrying the fillet's height aft (the
+  first cut) stood a fin on the body side.
 
 **Robustness features**, each from a measured failure on a test plane:
 - **The feet stand off the body's SIDE, not the raw corner.** On the Jodel the belly rises over the wing aft and the
@@ -221,17 +238,21 @@ surface to existing meshes):
   h off the wing, and the side point the outermost section point between the corner and the foot.
 - **The ends are anchored at the corner's angle**, so the extension follows the body as it rises or narrows. Anchored
   at the side point, the Jodel's extension climbed the side to the waist.
-- **The feet sink** (body 6 mm + 8 % of the radius, wing 3 mm + 5 %), so the sheet crosses each skin at a small angle. A
-  tangent foot ran within a millimetre of the skin for centimetres and the depth buffer interleaved them.
-- **A closed body everywhere.** Past the chord the two sheets meet on one edge, a missing sheet there is a flat plate
-  from the body's side, and a run that stops is closed by an end fan: no hole to see into.
+- **The body foot's line is smoothed in SPACE and laid back on each station's drawn section.** On a flank the foot's
+  height is the wing's line plus h, and a fabric wing's rib scallops jittered it ±1.5 cm station to station on the
+  Tiger Moth. Smoothing the section index did not help (each station's section differs).
+- **Feet on the skin, not sunk deep.** The first cut sank them up to 2.5 cm toward the section's centre. The tangent
+  sheet then surfaced centimetres from its foot, the joint floated above the real edge, and on a box flank (where the
+  centre's direction is not the skin's normal) the foot zigzagged. Now 3 mm along the skin's own normal; the wing foot
+  at most 40 % of the wing's thickness there (a DC-3 trailing edge is thinner than 3 cm).
 - **A run of fewer than 4 stations is dropped** (a corner flickering about the obtuse bound); the ends exist only next
-  to a chord station that has a sheet.
+  to a chord station that has the primary sheet.
 - **The lower sheet's wing foot stays inboard of a root flap**, because a flap goes down through it. The upper sheet may
   rest on the flap's top at rest: the flap moves away from it.
 
-**Material.** The wing skin's livery section (`wingSkin`, `wingSkin2` on the second plane) on the triplanar map: the
-root cap plate's material, so it joins the wing's bucket.
+**Material.** The fillet wears the wing skin's livery section (`wingSkin`, `wingSkin2` on the second plane) on the
+triplanar map: the root cap plate's material, so it joins the wing's bucket. Its joint (`edWingFilletJoint`) wears the
+pylon joint's rubber seal.
 
 **Physics: none** (§8). Mass: none. The flown spec is untouched; `wgFillet` is a drawing row.
 
@@ -241,25 +262,33 @@ The test set is GATE WINGFILLET's: Jodel (low, boxy), DC-3 (low, round, `tools/f
 archetype), motorglider (mid, round), Cub (high), Tiger Moth (biplane), Pietenpol (parasol), Spitfire WIP (low, its
 wing hung under the keel). Measured with each style:
 
-| build | fitted | triangles (style 1 / 2) | note |
-|---|---|---|---|
-| Jodel | yes | 1600 / 2760 | the belly rises over the wing aft: the extension closes onto the belly |
-| DC-3 | yes | 1640 / 2440 | the big fillet climbs the round fuselage, deepest aft: the user's photo |
-| RV | yes | 1600 / 3200 | style 1 is the Sling/Tecnam trailing-edge extension |
-| motorglider | yes, both sheets | 2320 / 3600 | mid wing |
-| Cub | lower sheet aft only | 1080 | high wing |
-| Tiger Moth | lower plane only | 1360 / 2200 | upper refused: parasol |
-| Pietenpol | refused | 0 | "a parasol has no wing-body contact" |
-| Spitfire WIP | refused | 0 | "its root does not meet the body (the wing stands 3-23 cm clear of it along the root)" |
+| build | fitted | fillet triangles, both sides (style 1 / 2) | feet on the drawn skins, worst (body / wing) | note |
+|---|---|---|---|---|
+| Jodel | yes | 5040 / 5680 | 2.5 / 1.5 mm | the belly rises over the wing aft: the tongue closes onto the belly |
+| DC-3 | yes | 4800 / 5440 | 0.4 / 1.1 mm | the big fillet climbs the round fuselage, deepest aft: the user's photo |
+| RV | yes | 5360 / 6000 | 0.3 / 1.8 mm | style 1 is the Sling/Tecnam trailing-edge extension |
+| motorglider | yes, both sheets | 8320 / 8960 | 0.2 / 2.8 mm | mid wing |
+| Cub | the lower sheet aft only | 1680 | 1.9 / 0.0 mm | high wing |
+| Tiger Moth | the lower plane only | 2880 / 3520 | 0.7 / 1.3 mm | upper refused: parasol |
+| Pietenpol | refused | 0 | - | "a parasol has no wing-body contact" |
+| Spitfire WIP | refused | 0 | - | "its root does not meet the body (the wing stands 3-17 cm clear of it along the root)" |
 
-The Spitfire WIP's refusal is a finding for REF_MATCH: the card's wing hangs 3 cm (mid-chord) to 23 cm (leading edge)
-under the keel, so its root needs the card's wing height, or a belly fairing, before a fillet can blend it. That is a
-garage gap (REF_MATCH §7), not this tool's.
+Plus each build's joint (the seal strips), about a third of its fillet's triangles.
 
-GATE WINGFILLET's crash row, on the Jodel's flown snapshot with the full fillet:
-- the fillet is one static range of the wing layer, in the wing's own bucket;
-- every place is classed COVER (`skin_break.inhClass`) and bound by `bindInherit`;
-- **654 places go with the fuselage's members, 466 with the wing's, 188 even**: it parts along the root.
+The Spitfire WIP's refusal is a finding for REF_MATCH: the card's wing hangs 3 to 17 cm under the keel along the root
+(the drawn skin, sliced), so its root needs the card's wing height, or a belly fairing, before a fillet can blend it.
+That is a garage gap (REF_MATCH §7), not this tool's.
+
+GATE WINGFILLET's crash row, on the flown snapshots with the full fillet:
+- the fillet and its joint are two static ranges of the wing layer; every other wing range is as without them;
+- every place is classed COVER (`skin_break.inhClass`) and bound by `bindInherit` to the members beside it (the
+  farthest anchor 0.23 m on the Jodel, 0.68 m on the DC-3);
+- it parts along the root:
+
+| | fillet: places with the fuselage / with the wing / even | joint: same |
+|---|---|---|
+| Jodel | 1220 / 1402 / 360 | 578 / 684 / 194 |
+| DC-3 | 1334 / 1560 / 0 | 624 / 756 / 0 |
 
 ## 8. Physics — the question for the user
 

@@ -250,7 +250,7 @@ the body aft for exactly this reason.
 | a liquid-cooled V-12's long stand-off from the firewall | `eng_mountGap` opened to 8 case radii |
 | retractable gear (the Spitfire's outward-retracting legs) | OPEN |
 | a wing-root fillet (the low wing's fairing into the body) | added (WING-FILLET, 9 Nov): `wgFillet` (none / trailing-edge blend / full Karman fillet), `wgFilletK` (size), `wgFilletAft` (the extension aft, root chords) - a separate mesh fitted to the drawn body and wing (futureDesigns/WING-FILLET-STUDY-2026-11.md); refused, with the reason on the row, on a parasol and on a root that does not meet its body |
-| the Spitfire card's wing hangs UNDER the keel (3 cm at mid-chord to 23 cm at the leading edge, measured by the fillet's refusal, 9 Nov): the real root sits in the body's underside with the big fillet over it | OPEN: the card's wing height (`wgDy`) at the next match, or a belly fairing - the fillet blends contact, it does not bridge a gap |
+| the Spitfire card's wing hangs UNDER the keel (3-17 cm along the root, measured on the drawn skin by the fillet's refusal, 9 Nov): the real root sits in the body's underside with the big fillet over it | OPEN: the card's wing height (`wgDy`) at the next match, or a belly fairing - the fillet blends contact, it does not bridge a gap |
 | a sliding hood on rails (a canopy that slides aft) | OPEN: the cabin's skylight + bubble glass is the closest |
 | the supercharger casing and the long intake under the nose | OPEN |
 | a waist row along the body (the line where a fighter's sides turn under) | OPEN |

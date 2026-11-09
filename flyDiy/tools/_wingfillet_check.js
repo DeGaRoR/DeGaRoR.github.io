@@ -9,7 +9,7 @@
 //               for vertex (every mesh's positions hashed), and nothing named edWingFillet exists; a size or an extension
 //               row with the fillet off draws nothing either; cageToSpec writes none of the three at their defaults
 //               (CAGE_DEFAULT_ABSENT) and writes and loads them back exact when set
-//   2 FIT       on every test build that has a wing-body contact, each style: a mesh (both sides), and on every chord
+//   2 FIT       on every test build that has a wing-body contact, each style: the fillet and its joint (both sides), on every
 //               station of every sheet the feet land on the DRAWN skins at the depth they were sunk (the body foot against
 //               the cage sheet's skin faces, the wing foot against the wing's skin and flaps at rest) within FIT_TOL; the
 //               sheet's middle stands OUTSIDE the body and outside the wing (never inside what it fairs); left = mirror
@@ -66,7 +66,7 @@ function sceneHash(scene) {
     if (!o.isMesh || !o.geometry || !o.geometry.attributes.position) return;
     // (the beacon's rotor turns with the clock: two builds of one aeroplane differ there and nowhere else)
     for (let a = o; a; a = a.parent) if (/^liRotor/.test(a.name || '')) return;
-    if (/^edWingFillet/.test(o.name || '')) fil++;
+    if (/^edWingFillet/.test(o.name || '')) fil++;   // (the fillet and its joint)
     const a = o.geometry.attributes.position, e = o.matrixWorld.elements;
     h.update(String(o.name || '') + ':' + a.count + ':' + e.map(v => v.toFixed(6)).join(','));
     h.update(Buffer.from(a.array.buffer, a.array.byteOffset, a.array.byteLength));
@@ -185,13 +185,14 @@ for (const [key, src, expect] of BUILDS) {
     for (const p of fitted) {
       const S = skinsOf(r, p.k), fit = p.fit;
       let nB = 0, nW = 0, nMid = 0, worstB = 0, worstW = 0, worstMid = 0, badB = 0, badW = 0, badMid = 0;
-      const AF = r.W.CAGE_WING.AF, NJ = fit.sheets[0].rows.find(Boolean).length - 1;
+      const AF = r.W.CAGE_WING.AF, NJ = (fit.sheets.find(q => q.rows.some(Boolean)).rows.find(Boolean).length - 1) >> 1;   // (a row: the fillet 0..NJ, its return NJ..2 NJ)
       for (const sh of fit.sheets) sh.rows.forEach((row, i) => {
         const f = sh.feet[i];
         if (!row || !f || f.plate) return;
         // the body foot: at its sink below the drawn body skin
         const dB = Math.abs(S.body.near(row[0]) - f.sinkB); nB++; worstB = Math.max(worstB, dB); if (dB > FIT_TOL) badB++;
-        if (!f.virt) { const dW = Math.abs(S.wing.near(row[NJ]) - f.sinkW); nW++; worstW = Math.max(worstW, dW); if (dW > FIT_TOL) badW++; }
+        if (!f.virt) { const dW = Math.abs(S.wing.near(row[NJ]) - f.sinkW); nW++; worstW = Math.max(worstW, dW); if (dW > FIT_TOL) { badW++;
+          if (process.env.WF_DEBUG) console.log('    wing foot off: ' + sh.name + ' station ' + i + ' at ' + row[NJ].map(v => v.toFixed(3)).join(',') + ' by ' + (dW * 1000).toFixed(1) + ' mm'); } }
         // the middle: outside the body (its radius at its own angle against the airframe's) and clear of the wing
         if (!f.virt) {
           const m = row[NJ >> 1], z = m[2], cy = AF.surf(Math.max(AF.z0 + 1e-3, Math.min(AF.z1 - 1e-3, z)), Math.PI / 2)[1];
@@ -209,7 +210,7 @@ for (const [key, src, expect] of BUILDS) {
       let L = 0, Rr = 0; for (let v = 0; v < pa.count; v++) { if (pa.getX(v) > 1e-6) Rr++; else if (pa.getX(v) < -1e-6) L++; }
       check(L === Rr && L > 0, `FIT style ${style} plane ${p.k}: both sides drawn, mirrored`, L + ' / ' + Rr + ' vertices, ' + p.mesh.geometry.index.count / 3 + ' triangles');
     }
-    if (style === 2 && expect === true && ['jodel', 'dc3'].includes(key)) CRASH.push([key, src, fitted.map(p => p.mesh.geometry.index.count)]);
+    if (style === 2 && expect === true && ['jodel', 'dc3'].includes(key)) CRASH.push([key, src, [].concat(...fitted.map(p => [p.mesh.geometry.index.count].concat(p.joint ? [p.joint.geometry.index.count] : [])))]);
   }
 }
 // 4 CRASH
