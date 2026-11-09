@@ -401,6 +401,10 @@ const GATES = [
   // at power and its imbalance tearing the mount), the 582's gearbox, FAR 23.361 / .363 / .371 on the mount's certificate,
   // and the negatives (the circuit, a 3.8 g pull, the brakes: nothing). Three children at once
   { id: 'DMGDRIVE', file: '_dmg_drive_check.js', tier: 'core', weight: 3, wall: 1500 },
+  // NOSE-STRIKE (9 Nov, the user's report): the held brake's nose-over on the Cub and the STOL strikes the prop and reads
+  // DAMAGED (DMG.noseAt names the prop for Pilot), the strike allowance by surface (10 cm grass / trees, 1 cm hard), parked
+  // builds and the stick-back / nosewheel negatives untouched. One process
+  { id: 'DMGNOSEOVER', file: '_dmg_noseover_check.js', tier: 'core', weight: 1, wall: 300 },
   // G1818-G1819 (DMG-SKINGPU): the wreck's skin ridden on the GPU - the shader's JS mirror on the packed data against the
   // CPU's riding (0.1 mm in the world, 1 deg) on the crash cases, the tear on read-back places against the full tear, and
   // the page's code: the GPU path only past the damage guard, no material or program touched. Three at once
