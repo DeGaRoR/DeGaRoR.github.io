@@ -15,7 +15,7 @@ import json, os, sys
 P = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fixtures', 'island_jolene.json')
 PLOTS = {
   # the works next door at HOME: north of the apron, its door to the stand's lane; its way joins HOME's taxiOut
-  'HOME': [{ 'id': 'HOME.2', 'x': -118.0, 'z': 780.0, 'hdg': -1.9635,
+  'HOME': [{ 'id': 'HOME.2', 'x': -116.63, 'z': 729.2, 'hdg': -0.8552,   # WORKS-LOCATION-A (the user, 9 Nov): touching the club on its right (standing in its door looking out), its heading, the doors in line (was -118, 780, -1.9635: its door end on road r39)
              'stand': { 'x': -130.2, 'z': 750.4, 'hdg': None },
              'taxiOut': [[-126.0, 730.0], [-130.0, 705.0], [-138.0, 690.0], [-137.5, 664.0], [-132.0, 648.0], [-133.0, 590.0], [-120.0, 500.0], [-92.0, 442.0]] }],
   # Tamgas Hill: west of the hut, the door to the strip; its way to the strip's own last point on the centreline
