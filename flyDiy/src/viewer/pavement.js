@@ -56,7 +56,7 @@ const PAVEMENT = (() => {
     gravel:   { base: 'gravelG',   damage: 'rockG',     shoulder: 'gravelB', grass: 'grassG', tracks: 'gravelF', moss: 'gravelB',   macro: 'dirtAir',       lanes: 0, hexRot: 90, rut: 1, marks: 0, rubber: 0, band: 2.5, soft: [0.6, 0.6, 0.55, 0.8] },
     dirt:     { base: 'dirtS',     damage: 'trailR',    shoulder: 'dry',     grass: 'grassG', tracks: 'dirtG',   moss: 'tracksM',   macro: 'dirtAir',       lanes: 0, hexRot: 90, rut: 1, marks: 0, rubber: 0, band: 1.5, soft: [0.6, 0.7, 0.8, 1.0] },
     sand:     { base: 'sandC',     damage: 'gravelS',   shoulder: 'sandC',   grass: 'grassG', tracks: 'dirtG',   moss: 'mudAir',    macro: 'dirtAir',       lanes: 0, hexRot: 90, rut: 1, marks: 0, rubber: 0, band: 1.0, soft: [0.5, 0.5, 0.6, 1.0] },
-    grass:    { base: 'fieldgrass', damage: 'grassS',   shoulder: 'grassG',  grass: 'lush',   tracks: 'grassP', moss: 'grassG',     macro: 'fieldgrass',   lanes: 0, hexRot: 90, rut: 1, marks: 1, rubber: 0, band: 1.5, soft: [0.6, 0.3, 0.85, 0.7] },
+    grass:    { base: 'fieldgrass', damage: 'gravelF',  shoulder: 'grassG',  grass: 'lush',   tracks: 'grassP', moss: 'grassG',     macro: 'fieldgrass',   lanes: 0, hexRot: 90, rut: 1, marks: 1, rubber: 0, band: 1.5, soft: [0.6, 0.3, 0.85, 0.7] },
   };
 
   const SLOTS = ['base', 'damage', 'shoulder', 'grass', 'tracks', 'moss', 'macro'];
@@ -1690,17 +1690,17 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
     // G2570: A GRASS STRIP WEARS THE GROUND (pavement.js grMatch): its lawn gives way to the island's ground under it, the mesh keeping
     // its worn tracks (their own grass-with-soil colour) and a faint mown wash over its width - the strip's luminance, warmed
     // (lighter, yellower, less saturated) at uStain.w alpha. uMacro.w 0: the strip's own lawn, as before
-    // (DIRT-STRIP, the user 10 Nov 00:40 on Skyline Altiport: "green in the ruts, it makes no sense ... that grass field wouldn't
-    // be plowed fully with tyre marks. That would be more like bare, with some rocks, and a little greenery"): the lanes are
-    // TRODDEN, not tilled - broken patches (a 0.9 m and a 3.5 m noise) where the turf is worn to its soil and grit, grey-brown
-    // off the set's own luminance (never the worn-grass set's green), at most ~half over the island's ground
+    // A GRASS STRIP IS A TRAIL THROUGH THE TUNDRA (DIRT-STRIP; the user 10 Nov on Skyline Altiport: "green in the ruts, it makes no
+    // sense ... wouldn't be plowed fully with tyre marks ... more like bare, with some rocks, and a little greenery", then with two
+    // Alaska photos: "a lot of little grassy plants ... the bicycle image is interesting because you see a dirt trail"): where the
+    // wheels go the plants are worn away to the gravel - two bare tracks at the fleet's wheels (the compacted lanes), their edges
+    // ragged where the plants creep back (a 35 cm and a 2.2 m noise); between and beside them the island's own ground. No lawn,
+    // no mown wash; the coarse slot (gravelF) is the trail's grit
     if (grassy && !road && uMacro.w > 0.0) {
-      float patchy = smoothstep(0.42, 0.72, pvNoise(uvS / 0.9 + 31.0) * 0.6 + pvNoise(uvS / 3.5 + 17.0) * 0.4);
-      float worn = clamp(rut * 1.3 + wheel + tread * 0.6, 0.0, 1.0) * patchy * 0.55;
-      float lum = dot(col, vec3(0.2126, 0.7152, 0.0722));
-      vec3 mown = vec3(lum) * vec3(1.12, 1.06, 0.78) * 1.15, bare = vec3(lum) * vec3(1.06, 0.97, 0.84) * 0.95;
-      col = mix(col, mix(mown, bare, smoothstep(0.0, 0.15, worn)), uMacro.w);
-      gPavA = mix(gPavA, max(worn * gPavA, uStain.w * wPav), uMacro.w);
+      float edgeN = pvNoise(uvS / 0.35 + 31.0) * 0.6 + pvNoise(uvS / 2.2 + 17.0) * 0.4;
+      float trail = smoothstep(0.3, 0.6, clamp(rut * 1.3 + wheel + tread * 0.6, 0.0, 1.0) + 0.45 * (edgeN - 0.5));
+      if (trail > 0.004) { Smp g = pvSet(1, uvS); col = mix(col, g.c.rgb * (0.85 + 0.3 * edgeN), trail); nT = mix(nT, g.n.xyz, trail); rough = mix(rough, g.n.a, trail); }
+      gPavA = mix(gPavA, trail * gPavA, uMacro.w);
     }
     diffuseColor.rgb = col; diffuseColor.a = gPavA;
     gPavDbg = uPavDbg < 1.5 ? gPavN * 0.5 + 0.5 : uPavDbg < 2.5 ? vec3(gPavR) : uPavDbg < 3.5 ? vec3(wetK, 0.0, 0.0) : uPavDbg < 4.5 ? mk
