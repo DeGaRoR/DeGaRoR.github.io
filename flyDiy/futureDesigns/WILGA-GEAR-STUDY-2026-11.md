@@ -219,9 +219,10 @@ one rebound, then dead-beat; the axle stays on its circle about the pivot to 1.4
 - **The spec** - `gear.suspension: 'lever'` (GEN_SUSPENSION.lever) and `gear.lever { piv, horn, top, w, comp, dSt }`: the
   drawn leg in the frame's axes, relative to the axle at full extension (the join's measurement); absent, the frame
   builds the reference (GEN_RULES.lever). clampSpec keeps it only on a fixed wheeled gear.
-- **The frame** (61) - per side the axle, the pivot's two bearing nodes, the arm's boss K, the horn H and the strut's
-  upper eye U (tagged AXLE*: the damage layer's gear part); the leg's members to the body at 20 x the gear class's k
-  (steel, not a spring), the arm (axle, pivots, boss, horn) and the leg's foot (pivots, strut eye) as rigid clusters;
+- **The frame** (61) - per side the axle, the pivot's two bearing nodes, the horn H and the strut's upper eye U (tagged
+  AXLE*: the damage layer's gear part); the leg's members to the body at 20 x the gear class's k and 0.1 x its damper
+  (steel, not a spring), the arm (axle, pivot ends, horn) and the leg's foot (pivot ends, strut eye) as rigid clusters
+  (shape matching: no snap-through, no bending, no substep cost);
   no axle bar; each strut designed on the final masses (parts.lever).
 - **The solver** (30) - the oleo pass after the members (null on every other build), the steel stop after the step;
   `sim.oleo()`.
@@ -252,25 +253,28 @@ for an existing build (GEN_CERT_V; the certificate reads the oleo row's travel f
 ### 7.4 GATE WILGAGEAR (tools/_wilga_gear_check.js, core, ~90 s)
 
 On a **Wilga-class host**: the user's metal Cessna 172 airframe (high wing, four seats, 1.0 t loaded) flown as a
-taildragger on the leg, the Wilga's 2.83 m track and 500 mm tyres. Eight sections, 26 checks: the geometry as
+taildragger on the leg, the Wilga's 2.83 m track and 500 mm tyres. Eight sections, 27 checks: the geometry as
 researched; the static deflection; the 23.725-style limit drop (no bottoming) and the reserve drop; no pogo; the
 trailing arc; a broken leg drops; the drawn leg = the physics leg through the game's own load chain (the Cub on the
 leg, s1Drop 0.85: the frame's nodes on the drawn points to 1e-16 m, the drawn arm and horn on the physics nodes through
-a limit drop to 3 mm); nothing else moved.
+a limit drop to 0.4 mm; the garage reddens a leg whose tyre meets the body at full stroke); nothing else moved.
 
 ---
 
 ## 8. What it costs
 
-| | before | with the leg | |
-|---|---|---|---|
-| nodes / members, the Cub | 97 / 404 | 105 / 429 | the leg truss replaces the tripod and the axle bar |
-| substeps, the Cub | 75 | 77 | +2.7 % (the leg's members and the strut at its stiffest) |
-| substeps, the Wilga-class host | 142 (oleo row) | 145 | the host's wing sets its step |
-| frame time, the Cub parked (node, same machine, interleaved) | 2.38-2.47 ms | 2.68-2.89 ms | +13-17 %: ~4 % the four clusters, the rest the nodes, members and substeps |
-| a build without the leg | | | nothing: one compare a substep, no beam changes shape |
+Measured in node on an idle machine, the frames interleaved, 600 frames each, parked (ms a frame; the VM's absolute speed
+varies, the ratios are the figure):
 
----
+| | without the leg | with the leg | |
+|---|---|---|---|
+| the Cub (its oleo / bungee row vs the leg, drop 0.85) | 97 nodes, 404 members, 75 substeps, 4.82-4.97 ms | 105, 429, 77, 5.36-5.43 ms | **+9-11 %** |
+| the Wilga-class host (the oleo row vs the leg) | 111, 467, 142, 11.05-11.35 ms | 119, 492, 145, 11.86-13.0 ms | **+7-15 %** (its wing sets its step) |
+| a build without the leg | | | one compare a substep; every build bit-identical |
+
+Where it goes: the 8 nodes and 25 members of the two legs over the tripod and the axle bar they replace, 2-3 more
+substeps (the leg's steel members on light nodes), the four rigid clusters (~4 % on the Cub), the oleo pass (two
+struts: negligible).
 
 ## 9. Open questions (each with its default)
 
