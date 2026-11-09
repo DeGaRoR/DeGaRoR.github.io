@@ -116,6 +116,8 @@ const GATES = [
   // WEATHER-SEASON (2026-11-03): the career's weather plan - the pack, the blocks, the 42 days' rules, one source, the
   // season walked, the world's air and wind under it, the forecast, the winter layup (a small gate: ~12 s)
   { id: 'WEATHERPLAN', file: '_weatherplan_check.js', tier: 'core', wall: 15 },
+  // DIRT-DUST (2026-11-09): the soil's wetness off the plan's last 96 h (07e_soil_wet.js) - the dust and the strip's puddles read it
+  { id: 'SOILWET', file: '_soilwet_check.js', tier: 'core' },
   // SKY S3: the atmosphere's model against its numpy mirror, the calibration, the schedule
   { id: 'FOG', file: 'test_fog.js', tier: 'core' },
   { id: 'ATMO', file: '_atmo_check.js', tier: 'core' },
@@ -946,6 +948,7 @@ const GATES = [
   // touchdown's drag climbing over frames (~30 s)
   { id: 'HYDRODYN', file: '_hydro_check.js', tier: 'core' },
   { id: 'WATER', file: '_water_check.js', tier: 'core' },   // H6 G460: the one water material - the felt band's parity with waterH, the hook rules, the laws, the tile
+  { id: 'DUST', file: '_dust_check.js', tier: 'core' },   // DIRT-DUST (2026-11-09): the strip's dust - the weather, the sources, the pools, the batch, the cost
   // WATER-DAMP G2105: a ditched aeroplane settles (the user's Cub, the metal Cessna under 1 cm p-p by 10 s; the old law's
   // limit cycle as the control); the held 360 Hz force is the force; a prop that meets the water stops; the crash ending
   // closes the throttle (~60 s on 2 threads)

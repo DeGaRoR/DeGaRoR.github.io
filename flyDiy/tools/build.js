@@ -48,6 +48,9 @@ const MANIFEST = {
     // src/weather/days/) and the pure evaluator 07_day lays over its declared spec when the spec names a `plan` (07d).
     // After the day (it reads DAY.usDst, SOLAR) and in the main core: the physics worker evaluates the same plan.
     '07c_weather_days.js', '07d_weather_plan.js',
+    // THE SOIL'S WETNESS (DIRT-DUST, 2026-11-09): the plan's rain over the last 96 h as the top soil's water - the dust
+    // and the strip's puddles read it; pure, after the plan it integrates.
+    '07e_soil_wet.js',
     '08_cloud_field.js',
     // THE CLIMATE (K0, 2026-09-22): the one wind field w(x,y,z,t) - the G72
     // legacy column moved in verbatim, the rich terms, the relief raster;
@@ -576,6 +579,7 @@ const MANIFEST = {
               'guardrail.js',   // the W-beam beside a road (2026-09-22): the rule, the geometry, the one steel material
               // water.js before render_world.js (G460): the world takes the one water material as it builds its sea
               'water.js', 'spray.js',   // the spray sprites (H7.1, G460.9): app.js's syncWaterFx draws through it
+              'dust.js',   // DIRT-DUST (2026-11-09): the strip's dust - the system, its sources and its batch; app.js's syncDustFx feeds it
               'trees_pack.js', 'trees.js', 'cover_ring.js', 'ground_scar.js', 'stand_cards.js', 'rock_map.js', 'cliffs.js', 'render_world.js',
               'hangar_floor.js', 'hangar_walls.js',
               'hangar_sky.js', 'props.js', 'wood_tex.js', 'skin_tex.js',
