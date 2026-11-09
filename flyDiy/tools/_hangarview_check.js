@@ -101,6 +101,10 @@ const HV = require(path.join(ROOT, 'src', 'viewer', 'hangar_view.js'));
   const bad = ['src/viewer/app.js', 'src/viewer/hangar.js', 'src/viewer/hangar_view.js', 'src/viewer/clouds.js'].map(ctl).filter(Boolean);
   ok(!bad.length && /const hvC = \(\) => \{ try \{ if \(\/\[\?&\]hvc=door\\b\/\.test\(location\.search/.test(app),
     '3o no control byte in the view\'s sources, and ?hvc=door\'s test is a word boundary (HVC-DOOR: a backspace byte never matched)', bad.join('; '));
+  // HANGAR-VIEW C (the 9 Nov sheet: a red-brown band past the Shed's door): the plot's pad hangs under room:polish, which the view
+  // keeps, and reached 14 m out of the door over the world's grass. It goes with the outdoors
+  ok(/if \(pm\) \{ outdoor\(pm\.material\); inner\.add\(pm\); ROOM_PAD = pm; \}/.test(han) && /if \(ROOM_PAD\) ROOM_PAD\.visible = !viewOut;/.test(han),
+    '3p the plot\'s ground pad goes with the room\'s outdoors while the world\'s view stands in (the Shed\'s brown band past the door)');
   // 4 no readback
   ok(!/readRenderTargetPixels|readPixels|getBufferSubData/.test(hv), '4 NO READBACK in hangar_view.js (the distance reaches the mesh by a vertex fetch)');
   // HANGAR-BS (8 Nov, found by HVC-DOOR on the prototype): a node patch wrote the regexes' \b as a backspace byte (0x08), so
