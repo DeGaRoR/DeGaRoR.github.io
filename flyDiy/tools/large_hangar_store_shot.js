@@ -92,16 +92,16 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     // every resident that stands decoded from its bake (the fleet's idle path bakes a build never baked)
     const t1 = Date.now();
     let R = null;
-    while (Date.now() - t1 < 600000) {
+    while (Date.now() - t1 < 1800000) {
       R = await page.evaluate(() => window.GARAGE_ENV.residents());
       if (R && R.plan.length && R.plan.every(p => p.filled)) break;
       await sleep(3000);
     }
     log('  residents ' + JSON.stringify(R && { how: R.how, plan: R.plan.map(p => p.name + (p.filled ? '' : '(unbaked)')), unplaced: R.unplaced }));
-    await page.waitForFunction(() => { const D = window.GARAGE_ENV._debug(); return !!(D.scene && D.scene.environment); }, null, { timeout: 120000, polling: 1000 }).catch(() => log('  (no environment after 120 s)'));
+    await page.waitForFunction(() => { const D = window.GARAGE_ENV._debug(); return !!(D.scene && D.scene.environment); }, null, { timeout: 600000, polling: 2000 }).catch(() => log('  (no environment after 600 s)'));
     await sleep(4000);
     const fp = path.join(OUT, `${SCENE}_${k}_page.jpg`);
-    await page.screenshot({ path: fp, type: 'jpeg', quality: 86, timeout: 180000 });
+    await page.screenshot({ path: fp, type: 'jpeg', quality: 86, timeout: 900000 });
     log('  ' + path.basename(fp));
     // the hand's own zoom: the wheel over the room (the orbit's distance), then the whole page again - the room wide,
     // the stored aeroplanes round the stand, the garage's panels and sliders where they always are
@@ -110,7 +110,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     for (let i = 0; i < 6; i++) { await page.mouse.wheel(0, 400); await sleep(400); }
     await sleep(5000);
     const fw = path.join(OUT, `${SCENE}_${k}_page_wide.jpg`);
-    await page.screenshot({ path: fw, type: 'jpeg', quality: 86, timeout: 180000 });
+    await page.screenshot({ path: fw, type: 'jpeg', quality: 86, timeout: 900000 });
     log('  ' + path.basename(fw));
     const url = await page.evaluate(({ W, H, EXPO, k }) => {
       const D = window.GARAGE_ENV._debug(), Rr = D.renderer, S = D.scene, h = D.hangar;
