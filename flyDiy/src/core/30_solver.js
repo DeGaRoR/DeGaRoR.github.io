@@ -2018,7 +2018,8 @@ function makeSim(def, world) {
       if (!DMG.noseAt) noseAt(genNoseLayer(N, NZ.c[k]) || 'spinner', onT ? 'rigid' : 'soft', NZ.c[k], 0);   // NOSE-STRIKE
       // the crush past the spinner reaches the propeller: a prop still turning stops on it (DMG-DRIVE grades the strike:
       // a stoppage, or a separation at a tip faster than its blade takes)
-      if (NZ.c[k] > N.layers[0].d1 - 1e-9 && N.layers[0].cone && !eng[k].seized && st.strike !== 'stoppage' && st.strike !== 'separation')
+      // (TAXI-STRIKE: a prop that only lost a tip and runs on is stopped by its hub in the ground all the same)
+      if (NZ.c[k] > N.layers[0].d1 - 1e-9 && N.layers[0].cone && !eng[k].seized && st.strike !== 'stoppage')
         propStrike(k, onT ? 'trunk' : 'ground', DRV.sp.R, onT ? 'rigid' : 'soft');
       let fx = F * nx, fy = F * ny, fz = F * nz;
       if (!onT) {                                    // the nose scraping the ground
@@ -2070,7 +2071,17 @@ function makeSim(def, world) {
     const e = eng[k], st = DRV.st[k], S = DRV.sp; if (!e || !st) return;
     const tip = Math.PI * S.D * (out.rpm[k] || 0) / 60, w = 2 * Math.PI * (out.rpm[k] || 0) / 60;
     const tier = genDriveStrikeTier(bite, S.R, surf, tip, S.sepTip, S.Ub > 0 && surf === 'rigid' ? 0.5 * S.I * w * w / S.Ub : null);   // G2036
-    if (tier <= GEN_DRIVE_STRIKE.indexOf(st.strike)) return;
+    const cur = GEN_DRIVE_STRIKE.indexOf(st.strike), stopR0 = GEN_DRIVE.strike.stop[surf] != null ? GEN_DRIVE.strike.stop[surf] : GEN_DRIVE.strike.stop.soft;
+    // (TAXI-STRIKE: the tier only rises - but a separated prop still running is STOPPED by a later bite past its surface's
+    // stop: the 172's lost tip at 2370 rpm dug on into the runway, full power, until its mount tore off)
+    if (tier <= cur) {
+      if (!(cur === 4 && tier === 4 && !e.seized && bite / S.R > stopR0)) return;
+      st.strikeAt = { t: simT, what, surf, bite, biteR: bite / S.R, tip, rpm: out.rpm[k] || 0, stopAfterSep: true };
+      st.imbN = 0;
+      if (S.gear > 1 && e.running && thrEffOf(k) > GEN_DRIVE.gear.stopPow) { st.gearbox = 'failed'; DK[k] = 0; }
+      else { e.seized = true; e.running = false; e.crank = 0; st.failed = true; st.why = st.strike; DK[k] = 0; }
+      return;
+    }
     const first = !st.strike;
     st.strike = GEN_DRIVE_STRIKE[tier]; st.teardown = true;
     st.strikeAt = { t: simT, what, surf, bite, biteR: bite / S.R, tip, rpm: out.rpm[k] || 0 };
@@ -2128,7 +2139,8 @@ function makeSim(def, world) {
       // the disc's lowest point: down, in the disc's plane
       const dx = (-xAft[0]) * ay / dl, dy = (-1 + ay * ay) / dl, dz = (-xAft[2]) * ay / dl;
       for (let k = 0; k < nE0; k++) {
-        const st = DRV.st[k]; if (st.strike === 'separation') continue;
+        // (TAXI-STRIKE: a disc that lost a tip still turns and still digs - only a stopped one is done with)
+        const st = DRV.st[k]; if (st.strike === 'separation' && eng[k].seized) continue;
         let cx = 0, cy = 0, cz = 0, c = 0;
         for (let j = 0; j < ENG_N.length; j++) if ((ENG_K[j] | 0) === k) { const q = ENG_N[j] * 3; cx += p[q]; cy += p[q+1]; cz += p[q+2]; c++; }
         if (!c) continue;
@@ -2137,8 +2149,8 @@ function makeSim(def, world) {
         if (NOSE) { NZ.gy[k] = g; NZ.gs[k] = 1; }  // G2013: the nose's ground reference (its arming)
         // NOSE-STRIKE (9 Nov): the allowance is the surface's under the disc's lowest point (genDriveTurf: 10 cm soft,
         // 5 cm loose, 1 cm hard); before, 5 cm everywhere - a paved strip's tip touch was no strike
-        const turf = genDriveTurf(typeof world.surface === 'function' ? world.surface(lx, lz) : -1);
-        let pen = g - ly - turf, surf = 'soft', gap = ly - g;
+        const sc = typeof world.surface === 'function' ? world.surface(lx, lz) : -1, turf = genDriveTurf(sc);
+        let pen = g - ly - turf, surf = genDriveGround(sc), gap = ly - g;   // (TAXI-STRIKE: 'hard' on rock and paving)
         if (ly - g < 30 && typeof world.waterH === 'function') { const w = world.waterH(lx, lz); if (w > -1e8 && w > g) { gap = ly - w; if (w - ly > 0) { pen = w - ly; surf = 'water'; } } }
         if (gap < st.gapMin) st.gapMin = gap;        // the disc's least clearance over the surface (the turf's top not counted)
         // NOSE-STRIKE: the FIRST NOSE CONTACT (DMG.noseAt), recorded even inside the allowance (a tip in the grass's top):

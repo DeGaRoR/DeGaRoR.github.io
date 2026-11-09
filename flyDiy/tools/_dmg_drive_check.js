@@ -146,7 +146,11 @@ const rep = msg => console.log('  --    ' + msg);
     // rupture work), not the tip speed: the Cub's idle 650 rpm holds 25 x it, a prop turned by hand 0.5 x
     [1.0, 'rigid', 65, 120, 4, 'a wood prop at idle into a trunk: its blades break (the engine stops; the hub stays on its flange)', 24.7],
     [1.0, 'rigid', 13, 120, 3, 'a wood prop barely turning (eR 0.5) into a trunk stops whole', 0.5],
-    [0.03, 'rigid', 65, 120, 1, 'a wood tip grazing a trunk at idle: a brush still (the energy grades past the brush only)', 24.7]])
+    [0.03, 'rigid', 65, 120, 1, 'a wood tip grazing a trunk at idle: a brush still (the energy grades past the brush only)', 24.7],
+    // TAXI-STRIKE (9 Nov): the HARD ground (rock, paving) - past the brush the prop stops, as on a trunk
+    [0.06, 'hard', 80, 200, 3, 'an alloy prop 6 % into the paving at idle: stopped (soft ground: bent)'],
+    [0.03, 'hard', 236, 200, 1, 'a tip grazing the paving: a brush'],
+    [0.06, 'hard', 236, 200, 4, 'the 172 at full power 6 % into the runway: a blade lost - and it stops (the stop at 4 % on hard ground)']])
     yes(C.genDriveStrikeTier(bite, 1, surf, tip, sep, eR) === want, 'a strike ' + (bite * 100).toFixed(0) + ' % into the disc (' + surf + ', tip ' + tip + ' m/s, the blade\'s ' + sep + (eR != null ? ', eR ' + eR : '') + '): ' + C.GEN_DRIVE_STRIKE[want] + ' - ' + why + ' ' + (eR != null ? FLAG : GAME));
 
   // ---- the children ----
