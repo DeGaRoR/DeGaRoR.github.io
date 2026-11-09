@@ -1693,13 +1693,15 @@ function build(P0, lod, F) {
     // chair, a cabinet, a plan chest - light on triangles, the rooms read lived in
     if (P.offices && L === 0) {
       const xm = (xGR + HW) / 2, gw = HW - xGR;
-      for (let k = 0; k < NB; k++) for (const [yc, lvl] of [[yL2 - 0.17, 0], [yGR - 0.155, 1]]) {
+      // (hung BELOW the window heads - 3.6 m and 7.55 m - or the hall never sees them: a lit office reads by its lamps)
+      for (let k = 0; k < NB; k++) for (const [yc, lvl, yc0] of [[yL2 - 0.62, 0, yL2 - 0.17], [yGR - 0.6, 1, yGR - 0.155]]) {
         if (hashN(k, lvl, 141, seed) < 0.22) continue;                       // a dark office or two
         const zc = (zF(k) + zF(k + 1)) / 2;
         for (const dz of [-1.3, 1.3]) {
           const q = [[xm - 0.32, yc, zc + dz - 0.6], [xm + 0.32, yc, zc + dz - 0.6], [xm + 0.32, yc, zc + dz + 0.6], [xm - 0.32, yc, zc + dz + 0.6]];
           const ids = q.map((p, i) => bags.lamp.v(p, [i % 3 ? 1 : 0, i > 1 ? 1 : 0], [0, -1, 0])); bags.lamp.quad(ids[0], ids[3], ids[2], ids[1]);
-          obox([xm, yc + 0.01, zc + dz], Xp, Yp, 0.36, 0.008, 0.64, null, 'white');   // the fitting's frame
+          obox([xm, yc + 0.035, zc + dz], Xp, Yp, 0.36, 0.035, 0.64, null, 'white');  // the fitting's body
+          for (const sx of [-0.3, 0.3]) tube([xm, yc + 0.07, zc + dz + sx * 1.6], [xm, yc0, zc + dz + sx * 1.6], 0.006, 'grey', 4);   // its hangers
         }
         if (hashN(k, lvl, 142, seed) < 0.55) {                              // the furniture
           const y0 = lvl ? yL2 : fy, z0 = zc - 1.1;

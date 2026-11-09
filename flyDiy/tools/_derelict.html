@@ -63,6 +63,7 @@ const camera = new THREE.PerspectiveCamera(50, W / H, 0.1, 3000);
 const LU = Math.PI;
 const sun = new THREE.DirectionalLight(0xffffff, 2.4 * LU);
 sun.castShadow = true; sun.shadow.mapSize.set(4096, 4096); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.03;
+sun.shadow.radius = 3.5;   // (the user: the shadows "really too harsh" - a softer edge, PCF's own filter)
 const sc = sun.shadow.camera; sc.left = -42; sc.right = 42; sc.top = 42; sc.bottom = -42; sc.near = 1; sc.far = 260;
 scene.add(sun, sun.target);
 const fill = new THREE.HemisphereLight(0xbdd2ea, 0x4a4436, 0);
@@ -92,8 +93,8 @@ async function loadSky() {
 // the building turns under the photograph's sun (the sky cannot): `yaw` puts the sun where a view wants it
 const WORLD = new THREE.Group(); scene.add(WORLD);
 const MOODS = {
-  sun:      { sunK: 1.0, env: 1.0, bg: 1.0, fog: 0.0011, fogC: 0x9fb0c2, expo: 1.0 },
-  golden:   { sunK: 0.85, env: 0.85, bg: 0.9, fog: 0.0016, fogC: 0xc9a27a, expo: 1.1, warm: true },
+  sun:      { sunK: 0.9, env: 1.25, bg: 1.0, fog: 0.0011, fogC: 0x9fb0c2, expo: 1.0 },   // (a little more sky in the shade: the shadows were too hard)
+  golden:   { sunK: 0.8, env: 1.05, bg: 0.9, fog: 0.0016, fogC: 0xc9a27a, expo: 1.1, warm: true },
   overcast: { sunK: 0.08, env: 0.75, bg: 0.6, fog: 0.0035, fogC: 0x8d969c, expo: 1.35, grey: true },
   night:    { sunK: 0.0, env: 0.018, bg: 0.012, fog: 0.004, fogC: 0x0b0f16, expo: 1.0, night: true },
 };

@@ -117,9 +117,12 @@ function runA() {
   for (const sk of Object.keys(CORE.SHELLS)) {
     const dims = CORE.SHELLS[sk].dims;
     const r = CORE.hangarFit(dims, ORDER, { reg: CORE.PROP_REG, shell: sk });
-    ok(r.placed.length + r.recipes.length + r.unplaced.length === totalRows,
+    // (DERELICT-HANGAR: the large hangar stands its own layout by default - its rows are the ones counted)
+    const LYd = CORE.hangarLayout(null, sk);
+    const rowsHere = LYd ? ORDER.reduce((n, k) => { const R = CORE.hangarRows(k, LYd); return n + R.sites.length + R.recipes.length; }, 0) : totalRows;
+    ok(r.placed.length + r.recipes.length + r.unplaced.length === rowsHere,
        sk + ': ' + (r.placed.length + r.recipes.length + r.unplaced.length) +
-       ' outcomes for ' + totalRows + ' declared rows — nothing may vanish');
+       ' outcomes for ' + rowsHere + ' declared rows — nothing may vanish');
     for (const u of r.unplaced)
       ok(typeof u.reason === 'string' && u.reason.length > 0,
          sk + ': unplaced ' + u.key + ' carries no reason');
