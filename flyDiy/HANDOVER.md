@@ -314049,6 +314049,28 @@ OPEN QUESTIONS (defaults in brackets):
    no structure. [as is: the covering tears where members break]
 4. The tapered wing's rear-spar nodes vs the printed rear spar (above): the drawing follows the print. [as is]
 5. A wing lamp bay in the WRECK: not drawn (the bay is a garage declaration the flown def does not carry). [as is]
+6. The builder's per-section dials on the fuselage's structure sections (a tint on the frames): the wing structure wears
+   the finish rows' own look, not those dials. [follow them in a later round, through the cage's section resolver]
+7. Floats: no internal structure drawn (keel, bulkheads, the step). [a chantier of its own, if wanted]
+
+ROUND 3 (the user, 9 Nov late, on the samples):
+- THE GEAR, BARE: "trains" are the landing gear - the cutaway used to HIDE the near units; now they stand, and every fairing
+  on the cut side and the centreline leaves (a spat, a leg shroud, a gear nacelle pod; the far side keeps its own).
+  _cage_gear.js tags a unit's `fair` bag (userData.gearFair: metadata, nothing drawn changes) so the cut knows them.
+- THE ROD CUT THROUGH: "the cutout of rods" - the rod (boomTube) is cut with the taper's cladding, its near half off.
+- THE WING ENGINES' BAYS in the structure: the D-nose cut over the nacelle's width (as the lamp bay), a compression rib each
+  side, four steel bearers from the front spar to the firewall (CAGE_ENG's units, faceZ); an over-the-wing engine stands
+  on the spars (the pylon's feet). The drive trains' fairings are picked by the engine units (a shell holding a non-nose
+  engine; every pylon fairing - the Petrel's tower is a ghost now).
+- THE PETREL'S PICTURES in white: the rig's `petrel+plain` (its decal patterns off, every exterior / liner / structure
+  section in gelcoat) - the build file untouched; the official livery is the builder's.
+- Asked, answered: THE FLOATS have no internal structure (a closed shell, not cut) - offered; THE PETREL'S WING follows
+  its carbon row: a moulded wing IS a spar (UD caps on a shear web) with few ribs (the sandwich skin carries the shape
+  - study 1.4), but the real Super Petrel is tube spars + foam ribs + fabric (open question 1).
+- THE FINISHES: the same factory and finish rows the plane's structure sections resolve to (aeroskin.js aeroMaterial:
+  woodFrame -> spruce, tube -> steelTube, aluminium -> bareAlu, plywood -> ply), in this file's own copies; the builder's
+  per-section dials on those sections (a tint on the frames) are not followed yet - open question 6. MATLIB's plain
+  material for the foam only (no finish row).
 
 SEAMS TOUCHED OUTSIDE MY ZONE (for A0): app.js (Deform's brkCage: one call + one group row + wsWreck / wsClear beside
 brkRestore and the heal); _cage_wing.js (one call at the end of its post, as the tip floats; the covering's opacity under

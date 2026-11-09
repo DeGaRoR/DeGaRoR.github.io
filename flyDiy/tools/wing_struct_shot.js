@@ -87,7 +87,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   const spec = B.spec();
   if (spec) {
     await pg.evaluate(s => {
-      if (s.__plainSkin) { delete s.__plainSkin; try { for (const k of Object.keys(AERO_ROLE)) if (['skin', 'rail', 'pillar'].includes(AERO_ROLE[k]) && !(s.finish.sections[k] && s.finish.sections[k].fin)) s.finish.sections[k] = { fin: 'gelcoat' }; } catch (e) {} }
+      if (s.__plainSkin) { delete s.__plainSkin; try { for (const k of Object.keys(AERO_ROLE)) if (['skin', 'rail', 'pillar', 'liner', 'struct'].includes(AERO_ROLE[k]) && !(s.finish.sections[k] && s.finish.sections[k].fin)) s.finish.sections[k] = { fin: 'gelcoat' }; } catch (e) {} }
       window.GARAGE_SPEC.set(s); const f = document.getElementById('gFleet'); if (f) f.style.display = 'none'; return 1; }, spec);
     console.log('wing_struct_shot: ' + B.key + ' set ' + el());
   }
