@@ -313893,3 +313893,12 @@ No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change: PHYSICS_V 7, GEN_SPEC_V 10, GEN_C
 TIMED GATE: light, the same shape as L35d. All 7 rollouts ran; steady frames p50 33.3 ms on every flown row.
 - The cold GPU shader cache again: master_bench's MISS (97 links over 5 s; L35d had 89) and compile 40-67 s. This is the rig's Chrome kill at master_bench.js:287, which A0 is fixing this week.
 - The one >1 s frame (3.95 s, c172 cockpit) is under the roll-out screen before the reveal (phase stand, context loading). No taxi, take-off or flight segment has a frame over 1 s.
+
+## PROPER-COWLS READY 1 - THE CLOUD COWL METHOD ON MASTER, SAVED DRAWS UNCHANGED (CABIN-CRAFT, 9 Nov 2026)
+
+- **What**: the cloud session's cowl method (claude/pensive-wozniak-ib8yjq, rounds 1-9) re-applied: the method's rows in _cage_cowl / _cowl_gen / _cowl_rows / _cage_parts / _cage_eng / _eng_mesh / _eng_page, the Tiger Moth design's new cowl, and the method's source tools/cowl_study/straight.js + clear.js (nothing calls it yet; READY 2's _cowl_rule.js routes every cowl generator through it, the user's 9 Nov rule).
+- **Saved draws never move (Q1)**: partLevel, partArc, podFit absent 0 (ABSENT_AT); new rows partArc and podFit; generator defaults 1, so new cowls get the level split, the even groove, the plate-less pod. 
+- **User's rulings (9 Nov 17:05, via A0, "yes to all defaults")**: Q1 saved draws stay; Q2 ref-matched archetypes keep their rows; Q3 an engine swap keeps the cowl; Q4 the aero nose untouched; Q5 the groove and no-plate fixes reach new cowls only.
+- **Identity**: 13 saved planes IDENTICAL in spec, def, ledger, price, sheet, design, certKey, procureFp, mass, nodes, beams, draw, fly20; the Tiger Moth design differs by design.
+- **Gates** (17:56-19:54, on claude/proper-cowls 63b3657a2, same code): COWL, ENGMESH, ENGDRAWN, CLIP, WINGROWS, PLANELISTS, UISMOKE, PARTS, PODEDITOR, HULL, FRAMES, DESIGN, KNIFE, CANDIDATES, STOL, RETRACT PASS; ENGCONFIG, GEN, JOINPARITY, POD FAIL as master's own (same lines as L36b; POD = stale base pins by inference (identity equal; L36d battery checks POD, any other line takes this ready out)); ARCHETYPES partial (3600 s cap; its Chinook-alike FAIL is master's own), full run Tuesday morning.
+- Note: flyDiy/reports/evidence/PROPER-COWLS/READY.md. Next: READY 2 (the one cowl rule).
