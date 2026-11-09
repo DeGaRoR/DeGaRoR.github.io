@@ -66,6 +66,7 @@ const V = {
 // a real builder actually chooses.
 const hgDef = {
   hgOn: 1, hgFamily: 0, hgCount: 0, hgOut: 0.06,
+  hgOutSt: 0,                                // C172-CLIP part 2: the elevators' own end inset, 0 = hgOut (CAGE_DEFAULT_ABSENT)
   hgHorn: 1, hgHornAt: 0, hgHornLen: 0.085, hgSize: 1,
   hgFair: 0, hgLink: 1, hgDetail: 1,
   hgDoor: 1, hgDoorEdge: 0,                  // G310: the cabin doors' hinges (0 forward, 1 top, 2 aft, 3 bottom, 4 top + bottom - G1105)
@@ -86,6 +87,7 @@ const GROUP = ['13 · control hardware', [
   ], { when: P => +P.hgOn }],
   ['position', [
     ['hgOut', 'end inset (of the span)', 0.01, 0.20, 0.005],
+    ['hgOutSt', 'elevator end inset (0 = as the others)', 0, 0.20, 0.005],
     ['hgHornAt', 'horn station (± along the span)', -0.30, 0.30, 0.01,
      { when: P => +P.hgOn && +P.hgHorn }],
   ], { when: P => +P.hgOn }],
@@ -838,7 +840,12 @@ PAGE.post = ctx => {
     // curves the edge turns into): a deeper inset than a surface's
     // (DOOR-HINGES: the doors' own 'ends inset' row, 0 = this rule)
     const inset = (s.kind === 'door' && s.inset > 0) ? Math.min(0.45, s.inset)
-      : Math.max(s.kind === 'door' ? 0.12 : 0.005, Math.min(0.30, +P.hgOut || HC.endInset));
+      : Math.max(s.kind === 'door' ? 0.12 : 0.005, Math.min(0.30,
+        // C172-CLIP part 2 (A0 9 Nov): THE ELEVATORS' OWN END INSET. A stab's hinge line starts at its root, so the
+        // surfaces' shared inset can stand its first station against the fuselage's side (the corrected 172: 5.2 mm into
+        // it at 0.06) while a deeper shared one runs the flaps' end hinges into the wing. 0 = the shared row, so every
+        // build that never set it is byte for byte what it was (CAGE_DEFAULT_ABSENT: no saved build gains the key)
+        (s.kind === 'elev' && +P.hgOutSt > 0) ? +P.hgOutSt : (+P.hgOut || HC.endInset)));
     const nOver = Math.round(+P.hgCount || 0);
     const ts = stationsOf(span, nOver).map(t =>
       inset + (1 - 2 * inset) * ((t - HC.endInset) / Math.max(1e-6, 1 - 2 * HC.endInset)));
