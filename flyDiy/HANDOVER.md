@@ -313791,3 +313791,19 @@ The baseline moved in G2813 holds the Stearman's take-off control reversals (ste
 
 ### L36a addendum (Pilot, Mon 9 Nov 08:30)
 STOL re-captured on this branch on top of 6fd718f5c (SEAPLANES: _stol_fp.js preStol drops the hull-type rows at their off value, as the gate does). The capture and _stol_check.js --selftest PASS together, which is the proof of 6fd718f5c. POD PASS and JOINPARITY (1 FAIL, the Jodel row, named) stand from the L35c run of 8 Nov: 6fd718f5c touches only the two STOL tools.
+## CESSNA PLAQUE - B-CESS RE-BENCHED, LAND AND FLOATS (FLAGSHIP, 8 Nov 2026, on L35c master b25872b51)
+
+The plaque on the official Cessna pair (builds/cessna172_2026-09-20.json and builds/cessna172_floats_2026-11.json, both B-CESS) had been stale since 2026-09-17.
+Both were re-benched in the game itself: ?mode=garage, the build loaded from its slot, the bench's run-all button, then the game's own save. As in the Rufus re-stamp (0e4b27059), each file keeps its own cage.li_flood and finish.decals.regW; neither is in the fingerprint.
+- LAND: FLIES A CIRCUIT, HELD, WORKS HOT AND HIGH, crosswind 21.2 kt. f be13d9c4.
+- FLOATS: FLIES A CIRCUIT, HELD, LIFTS OFF THE WATER, crosswind sticker. f f15f9daf.
+- THE FLOATS' HOT AND HIGH NOW READS "SEA LEVEL ONLY - needs 1259 m". It is advisory and does not gate.
+  - The reason: the floats file never earned the old "WORKS HOT AND HIGH". The file was made on 4 Nov (d68d4f182) as a copy of the land file, plaque included. Its dalt row was the LAND plane's 17 Sep result, already stale ("was"). Tonight is the first time the floats themselves were measured.
+  - Floats are heavier and draggier: the take-off out of the hot mountain strip runs 1259 m, past the bench's 1100 m bound.
+- Not awarded: the test flight, the same as the old plaque, so BENCH_STATE.passed stays false. R3 (PLANE-RENDERS) doesn't need it: the official fiches are baked from the build file and never read the bench.
+- Checked:
+  - re-loaded in the page: nothing stale, the same fingerprints;
+  - through the load door: each file builds its old body bit for bit (node hash + mass: 1065.839 / 1198.088 kg);
+  - the stored spec is the game's re-joined one (the corrected tail's Sh 3.33 m2, span 3.40 m).
+- Seen on the way and sent to Game: in the hidden browser pane, the new-plane chooser opened over the bench test flight and froze the aeroplane at 31 m.
+No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change.
