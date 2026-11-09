@@ -116,6 +116,24 @@ async function gallery(page, R, log) {
     window: { W: 3840, H: 2160, eye: [3, 2.2, -HW - 4], at: [1, 1.4, 6], fov: 46 },
     tele:   { W: 3840, H: 2160, eye: [-HD - 26, 1.7, 1.5], at: [0, 2.2, 0], fov: 22 },
   };
+  // CLEAR OF THE LAMPS (the previews, 9 Nov: the hero's eye between two pendants' rods, the top-down's inside a shade): the
+  // room's lights (their fittings hang on rods from the trusses) as points on the floor plan; an eye that hangs among them is
+  // moved to the nearest spot 2.5 m off every lamp's line (a ring search, the aim kept)
+  const lampsXZ = await page.evaluate(() => { const D = window.GARAGE_ENV._debug(), h = D.hangar, g = h.group.position, out = [];
+    D.scene.traverse(o => { if ((o.isSpotLight || o.isPointLight) && o.visible) { const p = o.getWorldPosition(new THREE.Vector3()); if (p.y > 2.5) out.push([p.x - g.x, p.z - g.z]); } });
+    return out; });
+  const clearOf = (eye, r) => {
+    const d = (x, z) => Math.min(...lampsXZ.map(([lx, lz]) => Math.hypot(x - lx, z - lz)), 99);
+    if (d(eye[0], eye[2]) >= r) return eye;
+    for (let rad = 0.5; rad < 8; rad += 0.5) for (let a = 0; a < 16; a++) {
+      const x = eye[0] + rad * Math.cos(a * Math.PI / 8), z = eye[2] + rad * Math.sin(a * Math.PI / 8);
+      if (Math.abs(x) < HD - 2 && Math.abs(z) < HW - 2 && d(x, z) >= r) return [x, eye[1], z];
+    }
+    return eye;
+  };
+  if (V.hero.eye[1] > 4) V.hero.eye = clearOf(V.hero.eye, 2.5);
+  V.top.eye = clearOf(V.top.eye, 2.5); V.top.at = [V.top.eye[0] + 0.01, 0, V.top.eye[2]];
+  log('  lamps ' + lampsXZ.length + ', hero eye ' + JSON.stringify(V.hero.eye.map(v => +v.toFixed(1))) + ', top eye ' + JSON.stringify(V.top.eye.map(v => +v.toFixed(1))));
   const out = [];
   const setMood = i => page.evaluate(i => { window.GARAGE_ENV.setMood(i); return (window.GARAGE_ENV._debug().hangar.moods || [])[i]; }, i);
   // (a software renderer: three moods, not every row - the user: "stay reasonable")

@@ -47,6 +47,15 @@ The large hangar with the DC-3 on the stand, in the afternoon mood:
 - `gallery`: **under the wing**, across to the facade side.
 - `roof`: the trusses.
 
+## Framing, from the previews (9 Nov)
+
+- The hero and top-down eyes keep 2.5 m sideways from every lamp's line: the rig moves an eye that hangs among the
+  pendants. In the first previews a pendant's rods crossed the hero, and the top-down sat inside a lamp's shade.
+- The ultrawide frames from inside the hall with nothing clipping. The under-the-wing, window and telephoto shots work
+  as framed.
+- Three stored aeroplanes (PA-18 on floats, Rufus, B-ITES) had not finished baking in the SwiftShader previews. A GPU
+  run bakes them in seconds.
+
 ## Notes
 
 - The door's view of the world (HANGAR-VIEW) runs only on a GPU. On SwiftShader the rigs load `?soft=0` to get it.
