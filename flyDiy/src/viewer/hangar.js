@@ -1072,6 +1072,10 @@ const roofY = z => EAVE + (RIDGE - EAVE) * (1 - Math.abs(z) / HW);
       uv.setXY(i, uv.getX(i) * 2 * HD, uv.getY(i) * 2 * HW);
     uv.needsUpdate = true; }
   f.rotation.x = -Math.PI / 2; f.receiveShadow = true;
+  // (DERELICT-HANGAR: the large hangar stands on its own slab - DERELICT_GEN's, the derelict's grid and concrete made
+  // good - so the room's scanned floor stands down there; the user 9 Nov: "can't we find some tiles that are in-line with
+  // the pre-restoration stage? Same tile size, same material? But renovated")
+  if (DGR) f.visible = false;
   put(f);
   // NO APRON HERE ANY MORE (G123). It used to be a 26 x 30 plane of flat
   // colour laid at y = -0.01, with no map at all — paint on the grass rather
@@ -2458,7 +2462,7 @@ if (DGR) {
     const gal = (typeof SHELLS !== 'undefined' && SHELLS.works && SHELLS.works.galleries) || { right: 1.0, left: 1.0, lean: 6 };
     const F = DGR.makeFinish('room');
     const stage = Number.isFinite(+D0.stage) ? Math.max(0, Math.min(3, Math.round(+D0.stage))) : 3;   // (the story's stage; restored)
-    const P = { stage, HW, HD, EAVE, floorY: 0, doorOpen: 1, apron: 0, weeds: stage < 3 ? 1 : 0, barriers: stage < 3 ? 1 : 0, aoGround: 0,
+    const P = { stage, HW, HD, EAVE, floorY: 0, doorOpen: 1, apron: 0, slab: 1, weeds: stage < 3 ? 1 : 0, barriers: stage < 3 ? 1 : 0, aoGround: 0,
                 room: 1, offices: 1, lamps: 1, backOpen: (() => { try { return typeof location !== 'undefined' && /[?&]roomback=1/.test(location.search || '') ? 1 : 0; } catch (e) { return 0; } })(),   // (?roomback=1: the back leaves open - the A/B for the probe's light)
                 gallery: gal.lean, galleryL: gal.left, pierR: gal.right };
     DGR.applyFinish(P, F);
@@ -2475,6 +2479,7 @@ if (DGR) {
       if (k === 'stain') m.renderOrder = 3;
     }
     DGR_STATS = { tris: b.stats.tris, draws: b.stats.draws, door: b.stats.door };
+    if (b.MAT && b.MAT.concFloor) ground(b.MAT.concFloor);   // the slab is the room's ground now: the probe's bounce, the floor print's
   } catch (e) { if (typeof console !== 'undefined') console.warn('hangar: the large hangar\'s shell -', e && e.message); }
 }
 
@@ -3180,7 +3185,9 @@ const BG = new THREE.Color(0x14120f);
 const FOG = new THREE.Fog(0x1a1712, 1e9, 2e9);
 // rho 0.0035/m: at the far wall (~35 m) that is 12 % of the light lost, which is a big shed with
 // dust in the air rather than a room full of smoke. base/top are the floor and the roof.
-const ROOM_AIR = { rho: 0.0035, base: -1, top: 11, col: [0.055, 0.050, 0.043] };
+// (DERELICT-HANGAR, the user 9 Nov: "isn't there a little much haze ... a bit is good but that's too much": the large
+// hangar's far wall is ~55 m off, not 35 - half the density there, the same few per cent lost a 35 m room loses at 50 m)
+const ROOM_AIR = { rho: SHELL === 'works' ? 0.0017 : 0.0035, base: -1, top: 11, col: [0.055, 0.050, 0.043] };
 ROOT.add(G);
 
 // THE ROOM HAS TWO LIGHTS AND AN ENVIRONMENT (G62.5, user: "why don't we

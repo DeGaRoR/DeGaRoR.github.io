@@ -712,8 +712,9 @@ function build(P0, lod, F) {
     for (const sx of [-1, 1]) for (const sz of [-1, 1]) gLo = Math.min(gLo, g(sx * HW, sz * HD));
     const cs = L === 0 ? 2 : (L === 1 ? 5 : 40), nx = Math.max(1, Math.round(2 * HW / cs)), nz = Math.max(1, Math.round(2 * HD / cs));
     const b = bags.concFloor;
-    // (P.room: the garage room stands its own floor - hangar.js's slab, its scan and its shadow bake - so none here)
-    if (!P.room) for (let i = 0; i < nx; i++) for (let j = 0; j < nz; j++) {
+    // (P.room: the garage room stands its own floor - hangar.js's slab, its scan and its shadow bake - so none here; P.slab:
+    // the large hangar's room stands on THIS slab, the derelict's grid made good)
+    if (!P.room || P.slab) for (let i = 0; i < nx; i++) for (let j = 0; j < nz; j++) {
       const x0 = -HW + 2 * HW * i / nx, x1 = -HW + 2 * HW * (i + 1) / nx, z0 = -HD + 2 * HD * j / nz, z1 = -HD + 2 * HD * (j + 1) / nz;
       face(b, [[x0, fy, z1], [x1, fy, z1], [x1, fy, z0], [x0, fy, z0]], Yup, uvFrame([0, fy, 0], [1, 0, 0], [0, 0, -1]));
     }
