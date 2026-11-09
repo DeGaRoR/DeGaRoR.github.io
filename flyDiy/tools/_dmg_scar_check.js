@@ -238,6 +238,8 @@ function pageChecks(prims0, yes, rep, extra, hard) {
   for (let i = 0; i < 4; i++) CR.update();
   // the decal, parked as the roll-out parks it, and the scene compiled (the roll-out's compile step)
   const decal = ctx.GROUND_SCAR.make(THREE); scene.add(decal);
+  // SCAR-LIVE: the trail's mesh parked beside it, as worldSettle parks it (before the compile)
+  const live = ctx.GROUND_SCAR.makeLive ? ctx.GROUND_SCAR.makeLive(THREE, decal) : null; if (live) scene.add(live);
   Rr.compile(scene, camera); Rr.render(scene, camera);
   const progKeys = () => (Rr.info.programs || []).map(p => p.cacheKey).sort();
   const L0 = B.links.length, K0 = progKeys();
@@ -290,6 +292,33 @@ function pageChecks(prims0, yes, rep, extra, hard) {
     yes(off === 0 && out === 0, '7 every decal vertex on the ground (terrainH + ' + ctx.GROUND_SCAR.S.lift + ' m on a hilly ground, worst ' + (maxE * 1000).toFixed(3) + ' mm) and inside the footprint', P.count + ' vertices, ' + st.tris + ' triangles, ' + (st.bytes / 1024).toFixed(1) + ' KB');
     rep('the decal: ' + st.prims + ' primitives -> ' + st.tris + ' triangles, ' + P.count + ' vertices, ' + (st.bytes / 1024).toFixed(1) + ' KB of buffers, built in ' + decalMs.toFixed(2) + ' ms; the first frame after the event uploads ' + upFirst + ' buffers / textures (the decal\'s and the rebuilt blocks\'), the next ' + upNext + ' (a steady frame before the crash: ' + upBase + ')'); }
   yes(upNext === upBase && upFirst > upBase, '7 a frame after the event uploads nothing more than a frame before the crash (' + upBase + ': the batches\' own) - the decal\'s buffers and the rebuilt blocks went once (' + (upFirst - upBase) + ')');
+  // 7L (SCAR-LIVE): the live trail - the crash's own slides laid as strokes (each gouge's path step by step, each crater a
+  // dab), 64 a frame as the hop carries them: no program links, its keys the same, every vertex on the ground, and each
+  // frame uploads only the new strokes' range
+  if (live) {
+    const q = [];
+    for (const p of prims) {
+      if (p.k === 'g') for (let j = 0; j + 3 < p.p.length; j += 2) q.push(p.p[j], p.p[j + 1], p.p[j + 2], p.p[j + 3], p.w, p.s || 0, p.ps ? 2 : 0, 1);
+      else if (p.k === 'c') q.push(p.x, p.z, p.x, p.z, p.r, p.s || 0, 1, 1);
+    }
+    let maxRange = 0, rangesOk = true, frames = 0, offL = 0;
+    for (let j = 0; j < q.length; j += 64 * 8) {
+      const part = q.slice(j, j + 64 * 8), k = part.length / 8;
+      ctx.GROUND_SCAR.liveAdd(live, part, world); frames++;
+      const at = live.geometry.getAttribute('position'), R = at.updateRanges || (at.updateRange ? [at.updateRange] : []);
+      const n = R.reduce((a, r) => a + r.count, 0); if (n > maxRange) maxRange = n; if (n !== k * 9 * 3) rangesOk = false;
+      Rr.render(scene, camera);
+    }
+    { const P = live.geometry.getAttribute('position'), used = live.userData.live.used;
+      for (let i = 0; i < used * 9; i++) { const x = P.getX(i), y = P.getY(i), z = P.getZ(i), e = y - hill(x, z);
+        if (Math.abs(e - ctx.GROUND_SCAR.S.lift) > 1e-4 && Math.abs(e - ctx.GROUND_SCAR.S.liftHard) > 1e-4) offL++; } }
+    const L2 = B.links.length, K2 = progKeys();
+    yes(q.length > 0 && L2 === L0 && JSON.stringify(K2) === JSON.stringify(K0) && live.visible && rangesOk && offL === 0,
+      '7L the live trail: ' + q.length / 8 + ' strokes laid over ' + frames + ' frames on the decal\'s own program - links ' + L0 + ' -> ' + L2 + ', program keys the same; each frame uploads only its new strokes (at most ' + maxRange + ' floats of position); every vertex on the ground (' + offL + ' off)',
+      'liveAdd ' + live.userData.live.ms.toFixed(2) + ' ms in all, ' + live.userData.live.msMax.toFixed(2) + ' ms at most a frame');
+    ctx.GROUND_SCAR.liveClear(live); Rr.render(scene, camera);
+    yes(!live.visible && live.userData.live.used === 0 && B.links.length === L0, '7L the seal (or a reset) clears the trail: hidden, nothing drawn, no link');
+  }
   // reset: the decal cleared (its buffers disposed), the ring's cells planted again whole
   let disposed = 0; const g1 = decal.geometry; g1.addEventListener('dispose', () => disposed++);
   ctx.GROUND_SCAR.clear(decal); const rs = CR.scar(null); for (let i = 0; i < 4; i++) CR.update();
