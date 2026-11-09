@@ -9090,6 +9090,11 @@ function cageFromSpec(spec) {
   }
   delete P.dum2On;
   delete P.seatPitch;                            // the bays are the pitch now
+  // (COMMS-SECTION, 8 Nov) THE BEACON'S OWN SWITCH: the skin beacon was in the aerials' family (`accAerials`, "aerials &
+  // lights"); it is a light now (Lights) with `accBeacon`. A file from before carries no accBeacon: it takes the
+  // aerials' switch it was saved under, so a build saved with them off keeps its beacon off (and one at the default, both on)
+  if (c && typeof c === 'object' && !Array.isArray(c) && c.accBeacon == null && c.accAerials != null)
+    P.accBeacon = Math.round(+c.accAerials) ? 1 : 0;
   // (4) THE FRAMES (T2.1): a file from before the frame chantier carries the
   // ring editor's offsets, the lean and the taper width — lifted here into
   // the frames' absolute rows, and the retired keys dropped, so a save
@@ -9212,6 +9217,10 @@ function cageToSpec(P) {
     if (!(+P.hullOn > 0) && CAGE_HULL_ROWS.includes(k)) continue;
     if (CAGE_ZERO_ABSENT.includes(k) && !(+P[k] > 0)) continue;
     if (k in CAGE_DEFAULT_ABSENT && +P[k] === CAGE_DEFAULT_ABSENT[k]) continue;
+    // (COMMS-SECTION, 9 Nov - L35d's STOL: the load door's accBeacon moved every saved file and its keys) the beacon's
+    // switch is written only where it parts from the aerials': absent reads as accAerials (cageFromSpec), so a build
+    // whose two switches agree saves - and joins, and hashes - to master's bits
+    if (k === 'accBeacon' && Math.round(+P[k]) === Math.round(P.accAerials == null ? 1 : +P.accAerials)) continue;
     if (k === 'gearPos' || (!(+P.gearRetract) && CAGE_RETRACT_ROWS.includes(k))) continue;   // RETRACT
     out[k] = P[k]; n++;
   }

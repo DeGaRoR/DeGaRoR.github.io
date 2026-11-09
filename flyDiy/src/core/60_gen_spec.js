@@ -1126,6 +1126,7 @@ const GEN_ACCESS = {
   commAerial: {
     name: 'Comm aerial',
     serves: 'the VHF radio',
+    radio: 'com1',                  // COMMS-SECTION: the radio it serves (GEN_COMMS)
     // the panel arc, session 2: fitted when the fit carries a COM (the tier's
     // answer or the player's), not by the tier's name
     // G278: on twin booms the pod's deck is the wing's shadow and ends at
@@ -1143,6 +1144,7 @@ const GEN_ACCESS = {
   navAerial: {
     name: 'Nav aerial',
     serves: 'the VOR receiver',
+    radio: 'nav',
     need: R => (R.avionics && R.avionics.nav) ? 1 : 0,
     // ON A ROD (G189) it is clamped to the tube's crown, a third of the way
     // down it — `on` picks the surface per aeroplane, and the rod placer
@@ -1162,6 +1164,7 @@ const GEN_ACCESS = {
   xpdrAerial: {
     name: 'Transponder aerial',
     serves: 'the transponder',
+    radio: 'xpdr',
     // UNDERNEATH, ALWAYS: a transponder aerial talks to a radar below it.
     //
     // AND AFT OF THE FUEL DRAIN, which is the other thing on the keel. At
@@ -2063,6 +2066,22 @@ function genBreakerSize(amps) {
 // genAccessNeeds. `later` rows are declared so the ledger's schema is final
 // — priced and weighed when fitted, nothing drawn yet (a receiver in the
 // stack, no needle).
+// COMMS-SECTION (8 Nov; the user via A0: "give them their own section ... COMMUNICATIONS. At some point we'll end up
+// having a radio, but right now just cosmetically. But let's prepare for that, for a coherent set"). THE SET: each radio
+// the panel can carry, the avionics key that fits it (GEN_AVIONICS, spec.systems.avionics) and the GEN_ACCESS row that is
+// its aerial (the row's own `radio` names it back). The garage's Communications part is laid out from this table, in
+// this order; a working radio later reads "fitted, powered, its aerial placed and whole" through it. Nothing flies off it
+// today. `later` rows are declared, not drawn: COM 2 (a second COM and blade), the GPS's own aerial and the ELT
+// (COMMS-SECTION ready 2).
+const GEN_COMMS = [
+  { radio: 'com1', label: 'COM 1',       avionics: 'com',  aerial: 'commAerial' },
+  { radio: 'com2', label: 'COM 2',       avionics: null,   aerial: null, later: true },
+  { radio: 'nav',  label: 'NAV',         avionics: 'nav',  aerial: 'navAerial' },
+  { radio: 'xpdr', label: 'Transponder', avionics: 'xpdr', aerial: 'xpdrAerial' },
+  { radio: 'gps',  label: 'GPS',         avionics: 'gps',  aerial: null, later: true },
+  { radio: 'elt',  label: 'ELT',         avionics: null,   aerial: null, later: true },
+];
+
 const GEN_AVIONICS = {
   com: {
     none:    { name: 'no radio',           kg: 0,   price: 0,    amps: 0 },
