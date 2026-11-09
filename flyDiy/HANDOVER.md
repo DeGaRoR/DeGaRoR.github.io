@@ -312877,3 +312877,13 @@ score on several axes (geometry, specs, performance). Test and report only: no p
   the c172v2 / c172v2f PLANES rows) + the carboncub / stolcub rows; c172x supersededBy c172v2. Report:
   reports/REAL-CHECK-2026-11-09.html (13 planes). The user's "average the best and worst landing rolls": not used (two
   opposite biases; the handbook-schedule reading already measures it) - README section 4.
+
+- CARBON CUB SS (the user 9 Nov, same session; README section 5): the STOL Cub rebuilt to the type,
+  builds/candidates/carbon_cub_ss.json from carbon_cub_ss.edits.json via _rejoin_build (which now takes `systems` and lets
+  eng_ edits ride over a preset). The CC340 from DIALS, not a registry row (the user's rule): two new engine dials in
+  _eng_gen.js, `bmepK` (tune, rated bmep / the layout's, 0.85-1.2) and `massK` (build, mass / the swept-volume law,
+  0.75-1.25), both 1 on every catalogue engine; CC340 = O-320 chassis on a 4.125 in stroke, tune 1.09, build 0.88 -> 180 hp,
+  120 kg. A new flap type `stol` (plain, 50 deg; lift = the slotted row's PA-18 calibration, cd 0.090), appended LAST to
+  GEN_FLAPS + GEN_FLAP_TRAVEL + the Flaps tile. VGs only, two carbon blades 2.03 m, 29 in tyres, 91 L wing roots, a 7 in
+  glass PFD/MFD centre + round ASI/ALT/VSI. 4 / 3 / 4 vs the SS (STOL Cub 1 / 1 / 9): landing roll (handbook) 75-96 m vs 75
+  now inside, TO 37-60 m vs 60 ft (thin). Gaps: no round engine-monitor row, no aluminium-spar + fabric wing material.
