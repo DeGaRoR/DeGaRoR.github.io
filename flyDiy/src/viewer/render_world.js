@@ -6493,9 +6493,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       return mesh;
     }
     function derelictShell(DG, H, dims) {
-      const gal = (typeof SHELLS !== 'undefined' && SHELLS.works && SHELLS.works.galleries) || { right: 5.5, left: 1.0 };
+      const gal = (typeof SHELLS !== 'undefined' && SHELLS.works && SHELLS.works.galleries) || { right: 1.0, left: 1.0, lean: 6 };
       const stage = Number.isFinite(+dims.stage) ? Math.max(0, Math.min(3, Math.round(+dims.stage))) : 3;
-      const P = Object.assign({}, DG.DEF, { stage, HW: dims.HW, HD: dims.HD, EAVE: dims.EAVE, gallery: gal.right, galleryL: gal.left,
+      const P = Object.assign({}, DG.DEF, { stage, HW: dims.HW, HD: dims.HD, EAVE: dims.EAVE, gallery: gal.lean, galleryL: gal.left, pierR: gal.right,
                                             apron: 0, lamps: 0, doorOpen: 0, backOpen: 0, aoGround: 1 });
       const fy = P.floorY || 0, c = Math.cos(H.ry || 0), sn = Math.sin(H.ry || 0), y0 = H.y !== undefined ? H.y : 0;
       P.ground = (X, Z) => { const hx = -Z, hz = X; return world.terrainH(H.x + hx * c + hz * sn, H.z - hx * sn + hz * c) - y0 + fy; };

@@ -155,7 +155,9 @@ const RIDGE = D0.RIDGE || (EAVE + 2.6);
 // G3537 (HANGARS-LOOK, the user 25 Oct: "the shed should have a door exactly 10m wide, that was the brief and the constraint
 // on the cabin strip ... a total width of 14m"): a shed's dims may name its door (`door`, metres; at least half a metre of
 // wall each side) - the cabin's 10 m - and every reader takes it from there (71 hangarDoor, HANGAR_GEN shellOf, the room's acoustics)
-const DOOR_W = (D0.door > 0) ? Math.min(D0.door, 2 * HW - 1) : FRAME === 'steel' ? 2 * HW - 6.5 : Math.max(6, 2 * HW - 5);
+// (DERELICT-HANGAR, the user via A0: "the CLEAR opening" - the steel frame's door is what its ten leaves leave open,
+// stacked at the two 1 m piers' jambs: 0.8 of the opening less their gaps, DERELICT_GEN dims' CLEAR)
+const DOOR_W = (D0.door > 0) ? Math.min(D0.door, 2 * HW - 1) : FRAME === 'steel' ? 0.8 * (2 * HW - 2) - 0.34 : Math.max(6, 2 * HW - 5);
 // DERELICT-HANGAR: the large hangar's clear bay and its door's centre (26_hangar_fit hangarBay: the gallery right, the facade left)
 const BAY = (typeof hangarBay === 'function') ? hangarBay(SHELL, { HW, HD, EAVE }) : null, DOOR_Z = BAY ? BAY.doorZ : 0;
 const DOOR_H = FRAME === 'timber' ? EAVE - 0.5 : Math.min(6.4, EAVE - 1.4);
@@ -1286,7 +1288,7 @@ if (DGR) {
 // leaf stands clear of the whole opening; the exterior build shuts it.
 if (DGR) {
   // the restored hangar's own door: its leaves parked at the jambs; the daylight card in ITS opening (off the axis)
-  const day = new THREE.Mesh(new THREE.PlaneGeometry(DOOR_W + 1, DOOR_H + 0.6), M.daylight);
+  const day = new THREE.Mesh(new THREE.PlaneGeometry(2 * HW - 1, DOOR_H + 0.6), M.daylight);   // (the whole opening between the piers: the clear width is narrower)
   day.rotation.y = Math.PI / 2;
   day.position.set(-HD - 3.0, DOOR_H / 2, DOOR_Z);
   put(day);
@@ -2451,11 +2453,11 @@ let ROOFLIGHTS = { n: 0, x: () => 0 };
 let DGR_STATS = null;
 if (DGR) {
   try {
-    const gal = (typeof SHELLS !== 'undefined' && SHELLS.works && SHELLS.works.galleries) || { right: 5.5, left: 1.0 };
+    const gal = (typeof SHELLS !== 'undefined' && SHELLS.works && SHELLS.works.galleries) || { right: 1.0, left: 1.0, lean: 6 };
     const F = DGR.makeFinish('room');
     const stage = Number.isFinite(+D0.stage) ? Math.max(0, Math.min(3, Math.round(+D0.stage))) : 3;   // (the story's stage; restored)
     const P = { stage, HW, HD, EAVE, floorY: 0, doorOpen: 1, apron: 0, weeds: stage < 3 ? 1 : 0, barriers: stage < 3 ? 1 : 0, aoGround: 0,
-                room: 1, offices: 1, lamps: 1, gallery: gal.right, galleryL: gal.left };
+                room: 1, offices: 1, lamps: 1, gallery: gal.lean, galleryL: gal.left, pierR: gal.right };
     DGR.applyFinish(P, F);
     const b = DGR.build(P, 0, F);
     for (const k of b.BAGS) {

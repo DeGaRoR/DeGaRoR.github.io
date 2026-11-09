@@ -128,7 +128,7 @@ function siteTex(set, map, tile, srgb) {
   return t;
 }
 function buildSite(HD) {
-  const grp = new THREE.Group();
+  const grp = new THREE.Group(), HWb = (DG && DG.DEF && DG.DEF.HW) || 20;
   const geo = new THREE.PlaneGeometry(3000, 3000, 1, 1); geo.rotateX(-Math.PI / 2);
   const uv = geo.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, (uv.getX(i) - 0.5) * 3000, (uv.getY(i) - 0.5) * 3000);
   const gm = SH(THREE, 'std', { color: 0xa9b48e, roughness: 1, metalness: 0, map: siteTex('ground003', 'diff', 4, true), normalMap: siteTex('ground003', 'nor', 4), roughnessMap: siteTex('ground003', 'rough', 4) }, 'field');
@@ -141,7 +141,7 @@ function buildSite(HD) {
   for (let i = 0; i < 2600 && rows.length < 1500; i++) {
     const a = r() * Math.PI * 2, d = 62 + Math.pow(r(), 0.7) * 520, x = Math.sin(a) * d, z = Math.cos(a) * d;
     if (z > -10 && Math.abs(x) < 110 + z * 0.4 && z < 210) continue;          // the airfield and the apron in front
-    if (x < -18 && x > -70 && z > -25 && z < 40) continue;                    // the club next door and its apron
+    if (x < -(HWb + 8) && x > -(HWb + 62) && z > -25 && z < 50) continue;    // the club next door and its apron
     const h = 14 + r() * 18 * (0.6 + 0.4 * Math.min(1, d / 200));
     rows.push([x, z, h, r()]);
   }
@@ -163,12 +163,13 @@ function buildSite(HD) {
     p.set(x, 0, z); s.set(h * 0.025, h * 0.3, h * 0.025); IT.setMatrixAt(i, m4.compose(p, q, s));
   });
   IC.castShadow = IT.castShadow = true; IC.receiveShadow = true; grp.add(IC, IT);
-  // the club hangar next door (HOME.2: the works stands touching the club on its right, the door fronts in one line)
+  // the club hangar next door - apart now (the user via A0: the large hangar is the centrepiece, "with space to its right and
+  // left"), the door fronts in one line
   if (HN && qs.get('club') !== '0') {
     const CP = Object.assign({}, HN.DEF, HN.PRESETS['club hangar']);
     HN.applyFinish(CP);
     const club = HN.build(CP, 0);
-    const cg = new THREE.Group(); cg.position.set(-(20 + CP.HW + 0.6), 0, HD - CP.HD);
+    const cg = new THREE.Group(); cg.position.set(-(HWb + CP.HW + 14), 0, HD - CP.HD);
     addBuilt(cg, club, HN.MAT);
     grp.add(cg);
   }
@@ -278,26 +279,30 @@ function renderMirror() {
 // ---- the views (in the building's frame: the door +z, x across; turned with the world) ------------------------------------------
 const VIEWS = {
   // photo 1: from the apron in sun, square to the opening, a little off-centre
-  front:    { eye: [5, 1.65, 52], at: [0, 6.2, 0], fov: 52, yaw: 66, mood: 'sun' },
+  front:    { eye: [5, 1.65, 64], at: [0, 6.2, 0], fov: 52, yaw: 66, mood: 'sun' },
   // photo 2: from far across the apron, long lens: the flat block, the header, the towers, the void, the mast, the shed
-  far:      { eye: [-30, 1.7, 168], at: [-9, 11.5, 0], fov: 22, yaw: 60, mood: 'sun', P: { apronL: 150 } },
+  far:      { eye: [-30, 1.7, 182], at: [-9, 11.5, 0], fov: 22, yaw: 60, mood: 'sun', P: { apronL: 150 } },
   // photo 3: inside looking out after rain: the puddles, the skeleton, the galleries, the forest in the opening
-  inside:   { eye: [3.5, 1.55, -12.5], at: [-1, 4.2, 30], fov: 66, yaw: 30, mood: 'overcast', wet: 0.92 },
+  inside:   { eye: [3.5, 1.55, -22.5], at: [-1, 4.2, 40], fov: 66, yaw: 30, mood: 'overcast', wet: 0.92 },
   // the stages: three-quarter from the front-right, high enough to see into the roof
-  stage:    { eye: [36, 13, 50], at: [0, 5, 0], fov: 46, yaw: 0, mood: 'sun' },
+  stage:    { eye: [52, 17, 68], at: [2, 5, 0], fov: 46, yaw: 0, mood: 'sun' },
   // details: the window wall of a flank, the roof from below, the graffiti at the white wall's foot
-  flank:    { eye: [33, 2.2, 6], at: [20, 4.6, -4], fov: 50, yaw: -54, mood: 'golden' },
+  flank:    { eye: [40, 2.2, 6], at: [28, 3.6, -4], fov: 50, yaw: -54, mood: 'golden' },
   roof:     { eye: [2, 1.6, 6], at: [6, 13, -6], fov: 70, yaw: 60, mood: 'sun' },
-  graffiti: { eye: [6.5, 1.5, 3.5], at: [14.5, 1.4, -4], fov: 55, yaw: 126, mood: 'sun' },
-  aerial:   { eye: [-55, 48, 70], at: [0, 2, -2], fov: 40, yaw: 80, mood: 'sun' },
-  barriers: { eye: [11.6, 1.25, 1.2], at: [14.4, 0.5, 6.5], fov: 48, yaw: 126, mood: 'sun' },
-  line:     { eye: [-4.5, 1.4, 27.5], at: [-9, 0.55, 21.7], fov: 50, yaw: 66, mood: 'sun', stage: 1 },
-  night:    { eye: [9, 1.7, 34], at: [0, 2.5, 18], fov: 55, yaw: 66, mood: 'night', stage: 1, P: { lamps: 1 } },
+  graffiti: { eye: [13.5, 1.5, 3.5], at: [21.5, 1.4, -4], fov: 55, yaw: 126, mood: 'sun' },
+  aerial:   { eye: [-70, 62, 92], at: [2, 2, -2], fov: 40, yaw: 80, mood: 'sun' },
+  barriers: { eye: [11.6, 1.25, 11.2], at: [14.4, 0.5, 16.5], fov: 48, yaw: 126, mood: 'sun' },
+  line:     { eye: [-4.5, 1.4, 37.5], at: [-9, 0.55, 31.7], fov: 50, yaw: 66, mood: 'sun', stage: 1 },
+  night:    { eye: [9, 1.7, 44], at: [0, 2.5, 28], fov: 55, yaw: 66, mood: 'night', stage: 1, P: { lamps: 1 } },
   puddle:   { eye: [1.5, 1.6, -4], at: [0.5, 0.0, 4.5], fov: 55, yaw: 60, mood: 'sun', wet: 0.85 },
-  restored: { eye: [5, 1.65, 52], at: [0, 6.2, 0], fov: 52, yaw: 66, mood: 'sun', stage: 3, P: { doorOpen: 0.75 } },
-  hall:     { eye: [3.5, 1.65, -14], at: [-1, 5.0, 30], fov: 66, yaw: 60, mood: 'sun', stage: 3, P: { doorOpen: 1 } },
-  office:   { eye: [11.0, 1.7, 29.5], at: [17.4, 1.9, 20.6], fov: 50, yaw: 66, mood: 'sun', stage: 3, P: { doorOpen: 0.6 } },
-  rnight:   { eye: [10, 1.8, 46], at: [1, 4.5, 15], fov: 52, yaw: 66, mood: 'night', stage: 3, P: { lamps: 1, doorOpen: 0.5 } },
+  restored: { eye: [5, 1.65, 64], at: [0, 6.2, 0], fov: 52, yaw: 66, mood: 'sun', stage: 3, P: { doorOpen: 0.75 } },
+  hall:     { eye: [3.5, 1.65, -25], at: [-1, 5.0, 40], fov: 66, yaw: 60, mood: 'sun', stage: 3, P: { doorOpen: 1 } },
+  office:   { eye: [17.0, 1.7, 39.5], at: [23.6, 1.9, 30.6], fov: 50, yaw: 66, mood: 'sun', stage: 3, P: { doorOpen: 0.6 } },
+  // THE STEPPED PROFILE (the user: "from the front you don't see that part is missing. From the side and above you do"):
+  // three-quarter from the front-right, high; and square to the gallery's side
+  step:     { eye: [66, 15, 60], at: [14, 5, 4], fov: 44, yaw: 0, mood: 'sun' },
+  side:     { eye: [78, 5, -6], at: [22, 6.5, -2], fov: 46, yaw: -40, mood: 'golden' },
+  rnight:   { eye: [10, 1.8, 58], at: [1, 4.5, 25], fov: 52, yaw: 66, mood: 'night', stage: 3, P: { lamps: 1, doorOpen: 0.5 } },
 };
 function setView(name, yawOverride) {
   const v = VIEWS[name] || VIEWS.front;

@@ -3,13 +3,18 @@
 // GATE DERELICT - the derelict WWII hangar (tools/_derelict_gen.js, DERELICT-HANGAR 9 Nov 2026), headless.
 // ============================================================================
 // What it holds (futureDesigns/DERELICT-HANGAR-2026-11-09.md):
-//   1 THE ENVELOPE IS THE WORKS': DEF's HW / HD / EAVE are HANGAR_GEN 'works hangar''s, the door head is its DOOR_H,
-//     every stage's geometry stands inside the works' footprint and under its ridge (a hanging sheet or a gutter may
-//     lean out a little: 3 m round, 1.5 m over). Stage 3 (restored) is this generator's own - the user 9 Nov: "build the
-//     full restored model out of your derelict model, and drop the existing one" - inside the same envelope, every sheet
-//     on, every pane glazed, six door leaves; `legacy: 1` still builds the works shell it replaced (the A/B).
+//   1 THE ENVELOPE IS THE REAL HANGAR'S (the user's measurements off the map, 9 Nov via A0): a 44 m hall 60 m deep, a
+//     one-storey office gallery outside its right wall (6 m: 50 m overall), the works' EAVE, ridge and door head; every
+//     stage's geometry stands inside that footprint and under the ridge (a hanging sheet or a gutter may lean out a
+//     little: 3 m round, 1.5 m over). Stage 3 (restored) is this generator's own - every sheet on, every pane glazed, the
+//     door's leaves (NL front + 4 back); `legacy: 1` still builds the old works shell (the A/B, at the works' own size).
+//   9 THE DC-3 PASSES THE DOOR (the user via A0: "The game is designed for everything from a Cub to a DC-3"): the CLEAR
+//     width (the restored leaves open and stacked at the jambs; the bare opening when there are no leaves) and the head
+//     take a DC-3 (span 28.96 m, fin 5.16 m tail-down) taxiing in on the door's centre line with 1 m a wingtip and 0.5 m
+//     over the fin, read off the built leaves themselves, not the dims' arithmetic.
 //   2 EVERY STAGE x LOD BUILDS, finite, with a positive count in every bag the stage names, and inside THE BUDGET
-//     (lod 0 <= 95k tris / 16 draws, lod 1 <= 12k / 10, lod 2 <= 4.5k / 6; the apron off, as in game).
+//     (lod 0 <= 135k tris / 16 draws, lod 1 <= 14.5k / 10, lod 2 <= 5k / 6; the apron off, as in game - the real
+//     hangar is 1.9x the old 40 x 40 box's floor: 95k / 12k / 4.5k before).
 //   3 DETERMINISM: two builds of the same dials are the same bytes (a hash over every bag).
 //   4 PLACE-KEYED RANDOMNESS: a dressing dial (graffiti, litter, weeds, barriers) moves nothing in the steel or the
 //     sheets; the stages are one building: stage 1 keeps every sheet stage 0 did not lose to the weather or the
@@ -19,12 +24,13 @@
 //   6 THE LODS ARE CONSTRUCTIONS: lod 1 has no corrugation (a sheet is 2 tris), no shards, weeds or stains.
 //   7 THE CATALOGUE ENTRY: one building, the house frame, its door hook at +z.
 //   8 NO MATERIAL SITE in the generator (GATE ASSETS AS4a: MATLIB makes them).
-// --selftest breaks 1, 2, 3 and 4 in turn and requires each to go red.
+// --selftest breaks 1, 2, 3, 4 and 9 in turn and requires each to go red.
 'use strict';
 const fs = require('fs'), path = require('path'), vm = require('vm'), crypto = require('crypto');
 const TOOLS = __dirname;
 const SELF = process.argv.includes('--selftest');
-const BUDGET = [{ tris: 95000, draws: 16 }, { tris: 12000, draws: 10 }, { tris: 4500, draws: 6 }];
+const BUDGET = [{ tris: 135000, draws: 16 }, { tris: 14500, draws: 10 }, { tris: 5000, draws: 6 }];
+const DC3 = { span: 28.96, fin: 5.16, tip: 1.0, over: 0.5 };
 
 function load() {
   const src = fs.readFileSync(path.join(TOOLS, '_house_check.js'), 'utf8');
@@ -43,10 +49,12 @@ function run(break_) {
   const W = load(), DG = W.DERELICT_GEN, HN = W.HANGAR_GEN;
   let checks = 0; const fails = [];
   const ok = (c, m) => { checks++; if (!c) fails.push(m); return !!c; };
-  if (break_ === 'envelope') DG.DEF.HW = 21;
+  if (break_ === 'envelope') DG.DEF.HW = 18;
   const works = Object.assign({}, HN.DEF, HN.PRESETS['works hangar']);
-  // 1 the envelope
-  ok(DG.DEF.HW === works.HW && DG.DEF.HD === works.HD && DG.DEF.EAVE === works.EAVE && DG.DEF.floorY === works.floorY, `1 DEF's envelope is the works' (HW ${DG.DEF.HW}/${works.HW}, HD ${DG.DEF.HD}/${works.HD}, EAVE ${DG.DEF.EAVE}/${works.EAVE})`);
+  // 1 the envelope: the real hangar's (hall 40-45 m, 60 m deep, 50 m overall with its gallery), the works' heights
+  const D0 = DG.DEF, real = { HW: D0.HW, HD: D0.HD, xO: D0.HW + D0.gallery };
+  ok(2 * D0.HW >= 40 && 2 * D0.HW <= 45 && 2 * D0.HD === 60 && Math.abs(2 * D0.HW + D0.gallery - 50) <= 1 && D0.gallery >= 5 && D0.gallery <= 10 &&
+     D0.EAVE === works.EAVE && D0.floorY === works.floorY, `1 DEF's envelope is the real hangar's (hall ${2 * D0.HW} x ${2 * D0.HD} m, gallery ${D0.gallery} m, ${2 * D0.HW + D0.gallery} m overall)`);
   const S = HN.shellOf(works), Dd = DG.dimsOf(DG.DEF);
   ok(Math.abs(Dd.DH - S.DOOR_H) < 1e-9, `1 the door head is the works' DOOR_H (${Dd.DH} vs ${S.DOOR_H})`);
   ok(Math.abs(Dd.RIDGE - S.RIDGE) < 1e-9, `1 the ridge is the works' (${Dd.RIDGE} vs ${S.RIDGE})`);
@@ -65,21 +73,38 @@ function run(break_) {
       ok(tris <= bud.tris, `2 stage ${st} lod ${lod}: ${tris} tris <= ${bud.tris}`);
       ok(s.draws <= bud.draws, `2 stage ${st} lod ${lod}: ${s.draws} draws <= ${bud.draws}`);
       const g = 3, top = works.floorY + S.RIDGE + 1.5;
-      ok(bb.x0 >= -works.HW - g && bb.x1 <= works.HW + g && bb.z0 >= -works.HD - g && bb.z1 <= works.HD + g, `1 stage ${st} lod ${lod}: inside the works' footprint + ${g} m (x ${bb.x0.toFixed(2)}..${bb.x1.toFixed(2)}, z ${bb.z0.toFixed(2)}..${bb.z1.toFixed(2)})`);
+      ok(bb.x0 >= -real.HW - g && bb.x1 <= real.xO + g && bb.z0 >= -real.HD - g && bb.z1 <= real.HD + g, `1 stage ${st} lod ${lod}: inside the real footprint + ${g} m (x ${bb.x0.toFixed(2)}..${bb.x1.toFixed(2)}, z ${bb.z0.toFixed(2)}..${bb.z1.toFixed(2)})`);
       ok(bb.y1 <= top, `1 stage ${st} lod ${lod}: under the works' ridge + 1.5 m (${bb.y1.toFixed(2)} <= ${top.toFixed(2)})`);
-      ok(s.stage === st && s.dims.HW === works.HW && s.door.h === S.DOOR_H, `1 stage ${st} lod ${lod}: stats name the stage and the works' dims`);
+      ok(s.stage === st && s.dims.HW === real.HW && s.door.h === S.DOOR_H, `1 stage ${st} lod ${lod}: stats name the stage and the hangar's dims`);
     }
   }
   // 1 stage 3: the restored hangar, the derelict's own frame made whole
   const s3 = B['3/0'].stats;
   ok(s3.sheetsGone === 0 && s3.sheetsBent === 0 && s3.sheetsHung === 0 && s3.sheets > 0, `1 stage 3: every sheet on (${s3.sheets - s3.sheetsGone}/${s3.sheets}, bent ${s3.sheetsBent}, hung ${s3.sheetsHung})`);
   ok(s3.shards === 0 && s3.panes > 0 && s3.per.glass > 0 && !(s3.puddleArea > 0) && !(s3.per.water > 0), '1 stage 3: every pane glazed, no shards, no puddles');
-  ok(s3.door.leaves === 6 && s3.doors.length === 10 && s3.door.shut, `1 stage 3: six front leaves and four back, shut by default (${s3.doors.length} leaves)`);
+  ok(s3.door.leaves === Dd.NL && s3.doors.length === Dd.NL + 4 && s3.door.shut, `1 stage 3: ${Dd.NL} front leaves and four back, shut by default (${s3.doors.length} leaves)`);
   const op = DG.build({ stage: 3, doorOpen: 1 }, 0);
   ok(hashOf(op, ['sheetPale']) !== hashOf(B['3/0'], ['sheetPale']) && hashOf(op, ['concWall', 'sheetNew']) === hashOf(B['3/0'], ['concWall', 'sheetNew']) && op.stats.door.open, '1 stage 3: doorOpen moves the leaves and nothing else of the building');
   for (let lod = 0; lod <= 2; lod++) {
-    const a = DG.build({ stage: 3, legacy: 1 }, lod), w = HN.build(works, lod);
+    const a = DG.build({ stage: 3, legacy: 1, HW: works.HW, HD: works.HD }, lod), w = HN.build(works, lod);
     ok(a.stats.tris === w.stats.tris && hashOf(a, a.BAGS) === hashOf(w, w.BAGS), `1 stage 3 legacy lod ${lod} is still HANGAR_GEN 'works hangar' (the A/B)`);
+  }
+  // 9 THE DC-3 PASSES THE DOOR, off the built leaves: the stacks' inner edges (the front leaves, open), the head
+  {
+    const sp = DC3.span / 2 + DC3.tip;
+    const pass = (b, what) => {
+      const d = b.stats.door, front = b.stats.doors.filter(q => q.z > d.z - 2);
+      let lo = d.x - d.opening / 2, hi = d.x + d.opening / 2;               // the piers' faces
+      for (const q of front) { if (q.x < d.x) lo = Math.max(lo, q.x + q.w / 2); else hi = Math.min(hi, q.x - q.w / 2); }
+      const clear = hi - lo;
+      ok(d.x - sp >= lo - 1e-6 && d.x + sp <= hi + 1e-6, `9 ${what}: a DC-3's span (${DC3.span} m + ${DC3.tip} m a tip) passes between the stacked leaves (${clear.toFixed(2)} m clear, ${lo.toFixed(2)} .. ${hi.toFixed(2)})`);
+      ok(Math.abs(clear - d.clear) < 0.05, `9 ${what}: the stats' clear width is the built one (${d.clear.toFixed(2)} vs ${clear.toFixed(2)})`);
+      ok(d.h >= DC3.fin + DC3.over, `9 ${what}: the fin (${DC3.fin} m) passes under the head (${d.h.toFixed(2)} m) with ${DC3.over} m`);
+      ok(d.clear >= 31, `9 ${what}: the clear width is at least 31 m (A0: "at least ~31-32 m") - ${d.clear.toFixed(2)}`);
+    };
+    pass(op, 'restored, open');
+    pass(B['0/0'], 'derelict (no leaves)');
+    if (break_ === 'door') pass(DG.build({ stage: 3, doorOpen: 1, leaves: 4 }, 0), 'restored, four leaves (the selftest\'s break)');
   }
   // 2 the bags each stage names
   const s0 = B['0/0'].stats, s1 = B['1/0'].stats, s2 = B['2/0'].stats;
@@ -116,12 +141,12 @@ function run(break_) {
 
 if (SELF) {
   let bad = 0;
-  for (const br of ['envelope', 'budget', 'determinism', 'place']) {
+  for (const br of ['envelope', 'budget', 'determinism', 'place', 'door']) {
     const r = run(br);
     console.log(`selftest ${br}: ${r.fails.length ? 'red (' + r.fails.length + ')' : 'GREEN - the break went unseen'}`);
     if (!r.fails.length) bad++;
   }
-  console.log('DERELICT: selftest, ' + (4 - bad) + '/4 breaks seen');
+  console.log('DERELICT: selftest, ' + (5 - bad) + '/5 breaks seen');
   console.log('GATE DERELICT: ' + (bad ? 'FAIL' : 'PASS'));
   process.exit(bad ? 1 : 0);
 }

@@ -309,6 +309,16 @@ function runCozy(union) {
     const C2 = CORE.hangarPark(club, [{ name: '\u0000stand', foot: jodel }, { name: 'Cessna', foot: ces }, { name: 'Cub', foot: cub }], { reg: CORE.PROP_REG });
     ok(!C2.placed.some(p => p.name === '\u0000stand'), 'rule 8: two residents in the full club leave no floor for the stand (why the garage drops to one)');
   }
+  // DERELICT-HANGAR (the user via A0: "THE DC-3 MUST GO THROUGH THE DOOR"): the large hangar's door contract (hangarDoor:
+  // the packer's, the stand's, the roll-out's) is its CLEAR width - what the ten open leaves leave between their stacks -
+  // and a DC-3 (span 28.96 m, fin 5.16 m tail-down) passes it with the packer's own clearance
+  {
+    const works = { shell: 'works', dims: Object.assign({}, CORE.SHELLS.works.dims), kits: CORE.HANGAR_KITS_DEFAULT.slice(), base: 'HOME', tenure: 'own' };
+    const dc3 = { half: 14.48, fwd: 3.2, aft: 16.5, h: 5.16 }, D = CORE.hangarDoor(works);
+    const why = CORE.hangarDoorWhy(works, dc3);
+    ok(why === '' && D.w >= 31 && D.h >= 5.66, 'rule 8: a DC-3 passes the large hangar\'s door (' + D.w.toFixed(2) + ' x ' + D.h.toFixed(2) + ' m clear' + (why ? ': ' + why : '') + ')');
+    ok(Math.abs(D.z) < 1e-9, 'rule 8: the large hangar\'s door is on the hall\'s axis (the piers alike: ' + D.z + ')');
+  }
   // the career's main hangar, and the sandbox's
   const d = CORE.careerNew({ id: 'g2315', seed: 'g2315' }), H = d.sheds.HOME;
   // G2319.1 (train 44; the user, 10 Oct: "keep today's hangar for now, the hearth later"): the career's main hangar is
@@ -613,7 +623,9 @@ function runB(mutSrcH) {
       const L = cz.lights.lamps, K = cl.lights.lamps;
       ok(L.length === 5 && K.length === 5, 'rule 8: five fittings either way (the shadow-map budget)');
       const at = L.map(l => [+(l.parent.position.x).toFixed(2), +(l.parent.position.z).toFixed(2), +(l.parent.position.y).toFixed(2)]);
-      ok(JSON.stringify(at) === JSON.stringify(LY.light.lamps.map(([x, z, y]) => [x, z, y])), 'rule 8: the cozy fittings hang where the layout says ' + JSON.stringify(at));
+      // (the room scales the layout's places to its hall - x by HD / 20, z by HW / 20, hangar.js: the works was 20 x 20 once)
+      const WD = CORE.SHELLS.works.dims, r2 = v => +(+v).toFixed(2);
+      ok(JSON.stringify(at) === JSON.stringify(LY.light.lamps.map(([x, z, y]) => [r2(x * WD.HD / 20), r2(z * WD.HW / 20), r2(Math.min(y, WD.EAVE - 1.6))])), 'rule 8: the cozy fittings hang where the layout says ' + JSON.stringify(at));
       ok(L.every(l => l.userData.hk > 0) && K.every(l => l.userData.hk === undefined), 'rule 8: per-fitting hang factors in the cozy works only');
       ok(cz.lampRig().kelvin === LY.light.kelvin && cl.lampRig().kelvin === 4000 && cl2.lampRig().kelvin === 4000, 'rule 8: the warm filament in the ' + lk + ' works, 4000 K in the club');
       ok(cz.lampRig().gain === (LY.light.gain || 1) && cl.lampRig().gain === 1 && cl2.lampRig().gain === 1, 'rule 8: the ' + lk + ' lamp gain ' + (LY.light.gain || 1) + ', the club 1');
@@ -722,7 +734,7 @@ const BREAKS = [
   ['the club hangs the cozy lamps',
    { srcH: s => s.replace('const LAYIT = (LAYOUT && LAYOUT.light) || null;', 'const LAYIT = (typeof hangarLayout === "function" && hangarLayout("cozy", "works") || {}).light || null;') }],
   ['a wall drawn with a negative box',
-   { srcH: s => s.replace('const DOOR_W = (D0.door > 0) ? Math.min(D0.door, 2 * HW - 1) : FRAME === \'steel\' ? 2 * HW - 6.5 : Math.max(6, 2 * HW - 5)',
+   { srcH: s => s.replace('const DOOR_W = (D0.door > 0) ? Math.min(D0.door, 2 * HW - 1) : FRAME === \'steel\' ? 0.8 * (2 * HW - 2) - 0.34 : Math.max(6, 2 * HW - 5)',
                           'const DOOR_W = (2 * HW - 55)') }],
 ];
 let bad = 0;

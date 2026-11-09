@@ -45,10 +45,17 @@ const HN = () => window.HANGAR_GEN || null;
 const STAGES = ['derelict', 'made safe', 'roofed', 'restored'];
 const DEF = {
   seed: 1942, stage: 0,
-  HW: 20, HD: 20, EAVE: 9.5, floorY: 0.25, slopeX: 0, slopeZ: 0,   // the works hangar's envelope (HANGAR_GEN PRESETS)
+  // THE REAL PROPORTIONS (the user's measurements off the map, 9 Nov via A0: "about 60 m DEEP and 50 m WIDE overall ... the
+  // side gallery takes about 5-10 m, so the hall is ~40-45 m wide ... the gallery has NO second floor ... the FRONT FACADE
+  // stays whole at full height across the gallery too (a false front)"): HW / HD are the HALL's half-width and half-depth
+  // (44 x 60 m), the office gallery a one-storey lean-to OUTSIDE the hall's right wall (`gallery` deep: 44 + 6 = 50 m)
+  HW: 22, HD: 30, EAVE: 9.5, floorY: 0.25, slopeX: 0, slopeZ: 0,
   decay: 0.8,      // how far gone the derelict is: 0 a sound shell with its cladding, 1 a skeleton
   wet: 0.65,       // the slab after rain (stages 0-1; the roofed slab dries): 0 dry .. 1 a sheet of water
-  gallery: 5.5, galleryL: 1.0, bay: 5,   // gallery: the right's depth; galleryL: the left facade's
+  gallery: 6, galleryL: 1.0, pierR: 1.0, bay: 6,   // gallery: the lean-to's depth outside the hall; galleryL / pierR: the door's
+                                                    // concrete piers, left and right, inside the hall's width
+  leaves: 10,      // the big door's leaves, half a side, each its own track: open they stack at the jambs, the CLEAR width
+                   // what is left between the stacks (a DC-3: 28.96 m span, the fin 5.16 m tail-down)
   graffiti: 1, barriers: 1, weeds: 1, litter: 1, rubble: 1, lamps: 0,   // lamps: the made-safe line's warning lamps lit (the night's)
   apron: 0, apronL: 26, doorOpen: 0, backOpen: 0,   // the restored hangar's doors, 0 shut .. 1 open (telescoped to the jambs): the front's, the back's   // the build's own cracked apron (the premises' pavement draws it in game)
   ao: 0.8, aoRange: 0.9, aoGround: 1,
@@ -95,19 +102,25 @@ function dimsOf(P) {
   // seen from the apron the right (+x) keeps its two-storey gallery, the left (-x) is a 1 m facade - its window walls
   // and a narrow concrete tower front, nothing behind them but the hall. The door runs from the facade to the gallery:
   // 33.5 m, its centre 2.25 m left of the building's axis (doorX); a DC-3 (28.96 m) clears it by 2.27 m a side.
-  const GW = clamp(P.gallery, 3, HW * 0.4), GWL = clamp(P.galleryL === undefined ? 1.0 : P.galleryL, 0.6, HW * 0.4);
-  const xGR = HW - GW, xGL = HW - GWL, xG = xGR;                    // (xG: the right gallery's line, the deep one)
-  const xGs = s => (s > 0 ? xGR : xGL), GWs = s => (s > 0 ? GW : GWL), gal = s => GWs(s) >= 2.5;
-  const yL2 = fy + 4.0, yGR = fy + 8.0, yBC = fy + EAVE - 1.0;
+  // THE GALLERY IS A LEAN-TO (the user's measurements): one storey OUTSIDE the hall's right wall, x HW .. xO, under its own
+  // flat roof at yGR; the front stays whole at full height across it (the false front: from the apron the building reads
+  // whole, from the side and above it steps down). The door's jambs are the two concrete piers inside the hall's width.
+  const GW = clamp(P.gallery === undefined ? 6 : P.gallery, 0, 12), GWL = clamp(P.galleryL === undefined ? 1.0 : P.galleryL, 0.6, HW * 0.2);
+  const PR = clamp(P.pierR === undefined ? 1.0 : P.pierR, 0.6, HW * 0.2);
+  const xGR = HW - PR, xGL = HW - GWL, xG = HW, xO = HW + GW;           // the jambs; the gallery's inner (the hall's wall) and outer lines
+  const xGs = s => (s > 0 ? xGR : xGL), GWs = s => (s > 0 ? PR : GWL), gal = s => s > 0 && GW >= 2.5;
+  const yL2 = fy + 4.0, yGR = fy + 4.4, yTW = fy + 8.0, yBC = fy + EAVE - 1.0;   // yGR: the gallery's roof; yTW: the towers' upper floor line
   const NB = Math.max(4, Math.round(2 * HD / P.bay)), BAY = 2 * HD / NB;
   const zF = k => -HD + k * BAY;
-  const DH = Math.min(6.4, EAVE - 1.4);                                  // the works' door head
+  const DH = Math.min(6.4, EAVE - 1.4);                                  // the door head (a DC-3's fin 5.16 m tail-down: 1.2 m under it)
   const BW = Math.min(16, 2 * Math.min(xGL, xGR) - 4), BH = Math.min(5.2, EAVE - 3);
   const xC = HW - 0.45;                                                  // the main columns' line, inboard of the stem wall
   const xe = xC - 0.19;                                                  // the truss's ends, at the columns' inner flange
   const slopeLen = Math.hypot(HW, 2.6);
-  return { HW, HD, fy, EAVE, RIDGE, tp, yR, yTC, GW, GWL, xG, xGR, xGL, xGs, GWs, gal, yL2, yGR, yBC, NB, BAY, zF, DH, BW, BH, xC, xe, slopeLen,
-           DOOR_W: xGL + xGR, doorX: (xGR - xGL) / 2, NP: 16, NPU: Math.max(6, Math.round(slopeLen / 1.55) + 1) };
+  // the door: the opening between the piers, and its CLEAR width - the leaves stacked at the jambs, half a side
+  const NL = Math.max(4, 2 * Math.round((P.leaves || 10) / 2)), LW = (xGL + xGR) / NL + 0.12;
+  return { HW, HD, fy, EAVE, RIDGE, tp, yR, yTC, GW, GWL, PR, xG, xGR, xGL, xO, xGs, GWs, gal, yL2, yGR, yTW, yBC, NB, BAY, zF, DH, BW, BH, xC, xe, slopeLen,
+           DOOR_W: xGL + xGR, doorX: (xGR - xGL) / 2, NL, LW, xDo0: xG + 0.45, xDo1: xG + 1.65, CLEAR: xGL + xGR - 2 * (LW + 0.05), NP: 16, NPU: Math.max(6, Math.round(slopeLen / 1.55) + 1) };
 }
 
 // ---- randomness keyed to places -------------------------------------------------------------------------------------------
@@ -677,7 +690,7 @@ function build(P0, lod, F) {
   if (stage === 3 && P.legacy) return restored(P, lod, F);   // (A/B only: the works shell this stage replaced)
   const L = clamp(lod | 0, 0, 2);
   const D = dimsOf(P);
-  const { HW, HD, fy, yR, yTC, xG, xGR, xGL, xGs, GWs, gal, yL2, yGR, yBC, NB, zF, DH, BW, BH, xC, xe } = D;
+  const { HW, HD, fy, yR, yTC, xG, xGR, xGL, xO, GW, xGs, GWs, gal, yL2, yGR, yTW, yBC, NB, zF, DH, BW, BH, xC, xe } = D;
   const dC = D.doorX, dW = D.DOOR_W / 2;                                // the door's centre and half width (the bay's)
   const bags = {};
   for (const k of BAGS.concat(EXTRA)) bags[k] = Bag(k);
@@ -711,7 +724,7 @@ function build(P0, lod, F) {
     const pier = (x, z) => K.boxAB(bags.concWall, [x - 0.34, fy - 0.02, z - 0.34], [x + 0.34, fy + 0.3, z + 0.34], { ny: true });
     for (let k = 0; k <= NB; k++) {
       const z = clamp(zF(k), -HD + 0.35, HD - 0.35);
-      for (const s of [-1, 1]) { pier(s * xC, z); if (gal(s)) pier(s * xGs(s), z); }
+      for (const s of [-1, 1]) { pier(s * xC, z); if (gal(s)) pier(xO - 0.2, z); }
     }
     if (P.apron) {
       // THE APRON: worn concrete bays (5 m), its joints the stain bag's, weeds in them (below)
@@ -947,7 +960,7 @@ function build(P0, lod, F) {
   // ===================================================================== THE FRONT: towers, header girder, the gable band
   const FR = frame([0, 0, HD], [1, 0, 0], Yup);                  // the front's face plane (outside +z)
   const zT = 0.3;                                                 // the towers stand proud of the gable
-  const towerTop = yGR + 0.85;
+  const towerTop = yTW + 0.85;
   const winGrid = (F2, s0, s1, y0, y1, d, cols, rows, region) => windowWall(F2, s0, s1, y0, y1, d, cols, rows, region);
   // ---- the window walls (steel sash: an outline, T mullions; the glass mostly gone, a few milky panes, shards)
   function windowWall(F2, s0, s1, y0, y1, d, cols, rows, region) {
@@ -1000,16 +1013,22 @@ function build(P0, lod, F) {
   }
   for (const s of [-1, 1]) {
     // the front tower: the gallery's front end, x in [xG, HW], its face zT proud
-    const A = s > 0 ? [xGR - 0.15, HD + zT] : [-HW - 0.15, HD + zT], B = s > 0 ? [HW + 0.15, HD + zT] : [-xGL + 0.15, HD + zT];
+    // (the right one runs on across the gallery to its outer wall: THE FALSE FRONT, at full height over a one-storey lean-to)
+    const A = s > 0 ? [xGR - 0.15, HD + zT] : [-HW - 0.15, HD + zT], B = s > 0 ? [xO + 0.15, HD + zT] : [-xGL + 0.15, HD + zT];
     const Lw = B[0] - A[0];
-    const dS = s > 0 ? 1.0 : Lw - 2.2;                                   // the ground-floor door, toward the opening
+    const dS = s > 0 ? D.xDo0 - A[0] : Lw - 2.2;                          // the ground-floor door: the offices' (into the gallery)
     const holes = [{ s0: dS, s1: dS + 1.2, y0: fy, y1: fy + 2.3 },
-                   { s0: s > 0 ? 2.7 : 0.8, s1: s > 0 ? Lw - 0.8 : Lw - 2.7, y0: fy + 1.2, y1: fy + 3.3 },
-                   { s0: 0.8, s1: Lw - 0.8, y0: yL2 + 0.8, y1: yGR - 0.5 }];
+                   { s0: s > 0 ? dS + 1.8 : 0.8, s1: s > 0 ? Lw - 0.8 : Lw - 2.7, y0: fy + 1.2, y1: fy + 3.3 },
+                   { s0: 0.8, s1: Lw - 0.8, y0: yL2 + 0.8, y1: yTW - 0.5 }];
     const wins = [{ s0: holes[1].s0, s1: holes[1].s1, y0: holes[1].y0, y1: holes[1].y1, cols: 4, rows: 4 },
                   { s0: holes[2].s0, s1: holes[2].s1, y0: holes[2].y0, y1: holes[2].y1, cols: 8, rows: 5 }];
-    if (gal(s)) towerFace(A, B, fy, towerTop, holes, wins);
-    else towerFace(A, B, fy, towerTop, [], []);                              // the facade's front: a plain concrete pier
+    if (gal(s)) {
+      towerFace(A, B, fy, towerTop, holes, wins);
+      // the false front's upper windows look into nothing (the gallery's roof is a storey down): a dark backing panel behind
+      // them, so from the apron a room reads there - the building whole from the front, stepped from the side and above
+      sheet(bags.sheetDark, frame([A[0], 0, HD - 0.45], [1, 0, 0], Yup), holes[2].s0 - 0.2, holes[2].s1 - holes[2].s0 + 0.4, holes[2].y0 - 0.2, holes[2].y1 + 0.2, 0.0, { lod: L });
+      K.boxAB(bags.concWall, [xG, yGR, HD - 0.5], [xO + 0.15, yGR + 0.12, HD]);   // the false front's back: a floor under the backing
+    } else towerFace(A, B, fy, towerTop, [], []);                              // the facade's front: a plain concrete pier
     // the tower's return beside the opening (the reveal of the big door, solid concrete up to the tower's head)
     const xR = s * xGs(s);
     K.wall(bags.concWall, { A: s > 0 ? [xR, HD] : [xR, HD + zT + 0.15], B: s > 0 ? [xR, HD + zT + 0.15] : [xR, HD], y0: fy, t: 0.3, topAt: () => towerTop, inner: false, endCap: [false, false], capTop: true, capBot: false, sub: L === 0 ? 1.5 : 0 });
@@ -1070,131 +1089,117 @@ function build(P0, lod, F) {
     }
   }
 
-  // ===================================================================== THE FLANKS (the galleries' outer walls)
-  for (const s of [-1, 1]) {
-    const F2 = frame([s * HW, 0, s > 0 ? HD : -HD], [0, 0, -s], Yup);  // s along the wall from the front (right) / back (left)
-    const zOf = u => (s > 0 ? HD - u : -HD + u), uOf = z => (s > 0 ? HD - z : z + HD);
-    // the stem: concrete to 1.0 m, the full length
-    K.wall(bags.concWall, { A: s > 0 ? [HW - 0.12, HD] : [-HW + 0.12, -HD], B: s > 0 ? [HW - 0.12, -HD] : [-HW + 0.12, HD], y0: g(s * HW, 0) - 0.3, t: 0.24,
-                             topAt: () => fy + 1.0, inner: true, endCap: [false, false], capTop: true, capBot: false, sub: L === 0 ? 2 : 0 });
-    // the girts (sill, head, sill, head, the band's middle) per bay, on the columns' outer flanges
-    const gys = [fy + 1.05, fy + 3.35, yL2 + 0.85, yL2 + 3.55, (yL2 + 3.55 + yR(HW)) / 2];
+  // ===================================================================== THE FLANKS
+  // A WALL RUN along a side, a bay at a time: window rows (`rows`: [{ y0, y1, cols, rows, ground }]), the sheets round them
+  // (piers, spandrels, the band to `yTop`), the girts, a concrete stem to 1 m (`stem`), the gutter at its eave (`gut`: the
+  // gutter's height). The hall's left wall (two rows to the eave), the hall's right wall over the gallery's roof (a clerestory
+  // row), and the gallery's outer wall (one storey) are three runs of it.
+  function flank(s, xw, yBot, rows, yTop, stem, gut) {
+    const F2 = frame([s * xw, 0, s > 0 ? HD : -HD], [0, 0, -s], Yup);  // u along the wall from the front (right) / back (left)
+    const uOf = z => (s > 0 ? HD - z : z + HD);
+    if (stem) K.wall(bags.concWall, { A: s > 0 ? [xw - 0.12, HD] : [-xw + 0.12, -HD], B: s > 0 ? [xw - 0.12, -HD] : [-xw + 0.12, HD], y0: g(s * xw, 0) - 0.3, t: 0.24,
+                                      topAt: () => fy + 1.0, inner: true, endCap: [false, false], capTop: true, capBot: false, sub: L === 0 ? 2 : 0 });
+    const gys = [];
+    for (const r of rows) gys.push(r.y0 - 0.05, r.y1 + 0.05);
+    gys.push((rows[rows.length - 1].y1 + yTop) / 2);
     if (L < 2) for (let k = 0; k < NB; k++) for (const y of gys) {
-      if (der && hashN(k, Math.round(y * 10), 93 + s, seed) < 0.06 * decay) continue;
-      member(bags.steel, [s * (HW - 0.17), y, zF(k)], [s * (HW - 0.17), y, zF(k + 1)], 'chanS', [s, 0, 0], L);
+      if (y > yTop - 0.2) continue;
+      if (der && hashN(k, Math.round(y * 10), 93 + s + Math.round(xw), seed) < 0.06 * decay) continue;
+      member(bags.steel, [s * (xw - 0.17), y, zF(k)], [s * (xw - 0.17), y, zF(k + 1)], 'chanS', [s, 0, 0], L);
     }
-    // the windows, a pair of storeys a bay; the sheets round them
-    const reg = {
-      bag: pick('sheetPale', 'sheetDark', 0.12),
-      gone: (p, n) => (0.015 + 0.5 * SM(0.64, 0.9, n)) * decay, bend: 1, hang: 1,
-    };
+    const reg = { bag: pick('sheetPale', 'sheetDark', 0.12), gone: (p, n) => (0.015 + 0.5 * SM(0.64, 0.9, n)) * decay, bend: 1, hang: 1 };
     const regBand = { bag: pick('sheetDark', 'sheetPale', 0.15), gone: (p, n, ri) => (0.03 + 0.55 * SM(0.6, 0.88, n)) * decay, bend: 1.2, hang: 1.2 };
     for (let k = 0; k < NB; k++) {
-      const ua = uOf(zF(k + 1)) * (s > 0 ? 1 : 0) + uOf(zF(k)) * (s > 0 ? 0 : 1);
       const u0 = Math.min(uOf(zF(k)), uOf(zF(k + 1))), u1 = Math.max(uOf(zF(k)), uOf(zF(k + 1)));
-      void ua;
       const w0 = u0 + 0.55, w1 = u1 - 0.55;
-      const boarded = roofed && !rest;                                 // stage 2: the ground floor boarded
-      if (boarded) {
-        sheet(bags.ply, F2, w0, w1 - w0, fy + 1.1, fy + 3.3, 0.04, { lod: 1 });
-        if (L === 0) for (let q = 1; q < 4; q++) beam(bags.ply, F2.P(w0, fy + 1.1 + 0.55 * q, 0.06), F2.P(w1, fy + 1.1 + 0.55 * q, 0.06), 0.004, 0.003, F2.N, 0);
+      let yPrev = yBot;
+      for (const r of rows) {
+        if (r.ground && roofed && !rest) {                             // stage 2: the ground floor boarded
+          sheet(bags.ply, F2, w0, w1 - w0, r.y0, r.y1, 0.04, { lod: 1 });
+          if (L === 0) for (let q = 1; q < 4; q++) beam(bags.ply, F2.P(w0, r.y0 + (r.y1 - r.y0) * q / 4, 0.06), F2.P(w1, r.y0 + (r.y1 - r.y0) * q / 4, 0.06), 0.004, 0.003, F2.N, 0);
+        }
+        windowWall(F2, w0, w1, r.y0, r.y1, -0.02, r.cols || 8, r.rows || 4);
+        if (r.y0 - yPrev > 0.05) clad(F2, w0, w1, yPrev, r.y0, 0.04, reg);                  // the spandrel under the row
+        clad(F2, u0, w0, yPrev, r.y1, 0.04, reg); clad(F2, w1, u1, yPrev, r.y1, 0.04, reg);  // the piers beside it
+        yPrev = r.y1;
       }
-      windowWall(F2, w0, w1, fy + 1.1, fy + 3.3, -0.02, 8, 4);
-      windowWall(F2, w0, w1, yL2 + 0.9, yL2 + 3.5, -0.02, 8, 5);
-      // piers beside the windows, the spandrel between the storeys, the band over the upper ones
-      clad(F2, u0, w0, fy + 1.0, yL2 + 0.9, 0.04, reg); clad(F2, w1, u1, fy + 1.0, yL2 + 0.9, 0.04, reg);
-      clad(F2, w0, w1, fy + 3.3, yL2 + 0.9, 0.04, reg);
-      clad(F2, u0, w0, yL2 + 0.9, yL2 + 3.5, 0.04, reg); clad(F2, w1, u1, yL2 + 0.9, yL2 + 3.5, 0.04, reg);
-      clad(F2, u0, u1, yL2 + 3.5, yR(HW) + 0.02, 0.04, regBand);
-      if (L === 0 && !rest) for (let q = 0; q < 3; q++) {                // water down the stem from the sill (restored: washed)
+      if (yTop - yPrev > 0.05) clad(F2, u0, u1, yPrev, yTop, 0.04, regBand);               // the band over the last row
+      if (stem && L === 0 && !rest) for (let q = 0; q < 3; q++) {      // water down the stem from the sill (restored: washed)
         const uq = w0 + (w1 - w0) * (0.15 + 0.7 * hashN(k, q, 99 + s, seed)), wq = 0.25 + 0.35 * hashN(k, q, 100 + s, seed), Lq = 0.5 + 0.45 * hashN(k, q, 101, seed);
         face(bags.stain, [F2.P(uq, fy + 1.0 - Lq, 0.005), F2.P(uq + wq, fy + 1.0 - Lq, 0.005), F2.P(uq + wq, fy + 1.0, 0.005), F2.P(uq, fy + 1.0, 0.005)], F2.N,
              p => { const q2 = sub(p, F2.P(uq, fy + 1.0, 0)); return CELL(q % 2 ? 7 : 5, dot(q2, F2.X) / wq, -q2[1] / Lq); });
         st.decals++;
       }
-      void zOf;
     }
-    // the eave: the gutter's remains (lengths missing, one hanging), the fascia flashing
-    if (L < 2) {
-      const xg = s * (HW + 0.12), yg = yR(HW) - 0.06;
+    // the eave: the gutter's remains (lengths missing, one hanging); stage 2 hangs new gutters (below)
+    if (L < 2 && gut !== undefined && !roofed) {
+      const xg = s * (xw + 0.12), yg = gut;
       for (let i = 0; i < NB; i++) {
-        const z0 = zF(i) + 0.03, z1 = zF(i + 1) - 0.03;
-        const r = hashN(i, s, 94, seed);
-        if (roofed) continue;                                            // stage 2 hangs new gutters (below)
+        const z0 = zF(i) + 0.03, z1 = zF(i + 1) - 0.03, r = hashN(i, s + Math.round(xw), 94, seed);
         if (der && r < 0.35 * decay) continue;
         if (der && r < 0.5 * decay) { const a = [xg, yg, z0], b = [xg + s * 0.4, yg - 2.2, z1 - 1.5]; K.sweepProfile(bags.sheetDark, a, b, K.troughSection(0.075, 0.004, L === 0 ? 7 : 3), [0, 1, 0], 'shell'); continue; }
         K.sweepProfile(bags.sheetDark, [xg, yg, z0], [xg, yg, z1], K.troughSection(0.075, 0.004, L === 0 ? 7 : 3), [0, 1, 0], 'shell');
       }
     }
   }
+  const ROW_G = { y0: fy + 1.1, y1: fy + 3.3, cols: 8, rows: 4, ground: true }, ROW_U = { y0: yL2 + 0.9, y1: yL2 + 3.5, cols: 8, rows: 5 };
+  flank(-1, HW, fy + 1.0, [ROW_G, ROW_U], yR(HW) + 0.02, true, yR(HW) - 0.06);               // the hall's left wall
+  if (gal(1)) {
+    flank(1, HW, yGR + 0.3, [{ y0: yGR + 0.9, y1: yGR + 3.1, cols: 8, rows: 4 }], yR(HW) + 0.02, false, yR(HW) - 0.06);   // over the gallery
+    flank(1, xO, fy + 1.0, [ROW_G], yGR + 0.4, true, yGR + 0.3);                                // the gallery's outer wall
+  } else flank(1, HW, fy + 1.0, [ROW_G, ROW_U], yR(HW) + 0.02, true, yR(HW) - 0.06);
 
-  // ===================================================================== THE GALLERIES
-  for (const s of [-1, 1]) {
-    if (!gal(s)) continue;                                                  // the left is a facade: no gallery behind it
-    const xi = s * xGs(s);
-    // columns, edge beams, joists; the floor and the roof slabs (a bay of the floor fallen in, stage 0-1)
+  // ===================================================================== THE GALLERY (the offices: a lean-to, one storey)
+  if (gal(1)) {
+    const s = 1, xi = HW;
+    // the outer columns, the beams across to the hall's columns, the flat roof slab (a bay of it fallen in, stage 0-1)
     for (let k = 0; k <= NB; k++) {
       const z = clamp(zF(k), -HD + 0.25, HD - 0.25);
-      if (k < NB) column(bags.steel, xi, z, yGR);
-      if (L < 2) for (const y of [yL2 - 0.2, yGR - 0.2]) member(bags.steel, [xi, y, z], [s * xC, y, z], 'chan', [0, 1, 0], L);
+      column(bags.steel, xO - 0.2, z, yGR);
+      if (L < 2) member(bags.steel, [xO - 0.2, yGR - 0.2, z], [xC, yGR - 0.2, z], 'chan', [0, 1, 0], L);
     }
-    for (const y of [yL2 - 0.2, yGR - 0.2]) member(bags.steel, [xi, y, -HD + 0.2], [xi, y, HD - 0.2], 'col', [s, 0, 0], L);
+    member(bags.steel, [xO - 0.2, yGR - 0.2, -HD + 0.2], [xO - 0.2, yGR - 0.2, HD - 0.2], 'col', [1, 0, 0], L);
     const hole = (der || stage === 1) && P.rubble ? Math.floor(hashN(s, 1, 95, seed) * (NB - 3)) + 1 : -1;   // the fallen bay
-    for (const [y, th] of [[yL2, 0.16], [yGR, 0.14]]) {
-      for (let k = 0; k < NB; k++) {
-        const z0 = k === 0 ? -HD + 0.1 : zF(k), z1 = k === NB - 1 ? HD - 0.1 : zF(k + 1);
-        const x0 = Math.min(xi, s * (HW - 0.24)), x1 = Math.max(xi, s * (HW - 0.24));
-        if (k === hole && y === yL2) {
-          // half the bay is gone, the rest hangs at a tilt on its reinforcement
-          const zm = (z0 + z1) / 2;
-          K.plate(bags.concFloor, [[x0, y, z0], [x1, y, z0], [x1, y, zm - 0.6], [x0, y, zm - 0.6]], th, [0, -1, 0]);
-          const slab = [[x0, y, zm + 0.1], [x1, y, zm + 0.1], [x1, y - 1.4, zm + 1.2], [x0, y - 0.9, zm + 1.4]];
-          K.plate(bags.concFloor, slab, th, [0, -1, 0]);
-          if (stage === 1) for (const zz of [zm - 1.0, zm + 0.6]) for (const xx of [x0 + 0.8, x1 - 0.8]) beam(bags.steelNew, [xx, fy, zz], [xx, y - th, zz], 0.04, 0.04, [1, 0, 0], 0);   // acrow props
-          continue;
-        }
-        K.plate(bags.concFloor, [[x0, y, z0], [x1, y, z0], [x1, y, z1], [x0, y, z1]], th, [0, -1, 0]);
-      }
-    }
-    // the gallery's ground under the slab (darker: concrete, the same slab) - nothing to add; THE INNER WALL toward the bay
-    const F2 = frame([xi, 0, s > 0 ? -HD : HD], [0, 0, s], Yup);        // N = X x Y: toward the bay's middle
-    const uOf = z => (s > 0 ? z + HD : HD - z);
+    const y = yGR, th = 0.14, x0 = xi, x1 = xO;
     for (let k = 0; k < NB; k++) {
-      const u0 = Math.min(uOf(zF(k)), uOf(zF(k + 1))) + 0.2, u1 = Math.max(uOf(zF(k)), uOf(zF(k + 1))) - 0.2;
-      const front = k === NB - 1;
-      if (front) {                                                        // the tower: solid concrete toward the bay too
-        const A = s > 0 ? [xi, HD - D.BAY + 0.2] : [xi, HD], B = s > 0 ? [xi, HD] : [xi, HD - D.BAY + 0.2];
-        const As = A, Bs = B;
-        K.wall(bags.concWall, { A: As, B: Bs, y0: fy, t: 0.25, topAt: () => yGR, holes: [{ s0: 1.6, s1: 2.8, y0: fy, y1: fy + 2.2 }],
-                                 inner: true, endCap: [false, false], capTop: false, capBot: false, sub: L === 0 ? 1.5 : 0 });
+      const z0 = k === 0 ? -HD : zF(k), z1 = k === NB - 1 ? HD : zF(k + 1);
+      if (k === hole) {
+        // half the bay is gone, the rest hangs at a tilt on its reinforcement
+        const zm = (z0 + z1) / 2;
+        K.plate(bags.concFloor, [[x0, y, z0], [x1, y, z0], [x1, y, zm - 0.6], [x0, y, zm - 0.6]], th, [0, -1, 0]);
+        K.plate(bags.concFloor, [[x0, y, zm + 0.1], [x1, y, zm + 0.1], [x1, y - 1.4, zm + 1.2], [x0, y - 0.9, zm + 1.4]], th, [0, -1, 0]);
+        if (stage === 1) for (const zz of [zm - 1.0, zm + 0.6]) for (const xx of [x0 + 0.8, x1 - 0.8]) beam(bags.steelNew, [xx, fy, zz], [xx, y - th, zz], 0.04, 0.04, [1, 0, 0], 0);   // acrow props
         continue;
       }
-      // the ground storey: the right-hand gallery (x < 0 seen from the door) white sheet with X rods; the left windows and doors
+      K.plate(bags.concFloor, [[x0, y, z0], [x1, y, z0], [x1, y, z1], [x0, y, z1]], th, [0, -1, 0]);
+    }
+    // its parapet (a dark flashing along the outer edge and the back) and the gallery's floor (the hall's slab stops at the wall)
+    beam(bags.sheetDark, [xO + 0.02, yGR + 0.32, -HD], [xO + 0.02, yGR + 0.32, HD - 0.4], 0.006, 0.12, [1, 0, 0], 0);
+    face(bags.concFloor, [[xi, fy, HD], [xO, fy, HD], [xO, fy, -HD], [xi, fy, -HD]], Yup, uvFrame([0, fy, 0], [1, 0, 0], [0, 0, -1]));
+    // THE INNER WALL toward the hall (the gallery's ground storey on the hall's right wall line): the white sheet with X rods,
+    // an office door and window every third bay, up to the gallery's ceiling; over it the hall's own clerestory (the flank)
+    const yW = yGR - 0.3;
+    const F2 = frame([xi, 0, -HD], [0, 0, s], Yup);                     // N = X x Y: toward the hall
+    const uOf = z => z + HD;
+    for (let k = 0; k < NB; k++) {
+      const u0 = Math.min(uOf(zF(k)), uOf(zF(k + 1))) + 0.2, u1 = Math.max(uOf(zF(k)), uOf(zF(k + 1))) - 0.2;
       if (k % 3 !== 1) {
         const regW = { bag: () => bags.sheetWhite, gone: (p, n) => (0.01 + 0.35 * SM(0.7, 0.92, n)) * decay, bend: 0.8, hang: 0.3, len: 2.4, bendIn: false };
-        clad(F2, u0, u1, fy + 0.05, yL2 - 0.3, 0.06, regW);
+        clad(F2, u0, u1, fy + 0.05, yW, 0.06, regW);
         if (L < 2) {
-          const xr = xi - s * 0.13, za = zF(k) + 0.25, zb = zF(k + 1) - 0.25;
-          member(bags.steel, [xr, fy + 0.4, za], [xr, yL2 - 0.4, zb], 'rod', [1, 0, 0], L);
-          member(bags.steel, [xr, fy + 0.4, zb], [xr, yL2 - 0.4, za], 'rod', [1, 0, 0], L);
-          member(bags.steel, [xr + s * 0.02, fy + 2.1, zF(k) + 0.15], [xr + s * 0.02, fy + 2.1, zF(k + 1) - 0.15], 'chanS', [1, 0, 0], L);
+          const xr = xi - 0.13, za = zF(k) + 0.25, zb = zF(k + 1) - 0.25;
+          member(bags.steel, [xr, fy + 0.4, za], [xr, yW - 0.1, zb], 'rod', [1, 0, 0], L);
+          member(bags.steel, [xr, fy + 0.4, zb], [xr, yW - 0.1, za], 'rod', [1, 0, 0], L);
+          member(bags.steel, [xr + 0.02, fy + 2.1, zF(k) + 0.15], [xr + 0.02, fy + 2.1, zF(k + 1) - 0.15], 'chanS', [1, 0, 0], L);
         }
       } else {
-        const door = true;
-        if (door) {
-          windowWall(F2, u0 + 0.2, u0 + 1.9, fy + 2.4, yL2 - 0.4, 0, 3, 3);
-          windowWall(F2, u0 + 3.2, u1 - 0.2, fy + 1.0, yL2 - 0.4, 0, 5, 5);
-          clad(F2, u0, u0 + 0.2, fy + 0.05, yL2 - 0.3, 0.03, reg2());
-          clad(F2, u0 + 1.9, u0 + 3.2, fy + 0.05, yL2 - 0.3, 0.03, reg2());
-          clad(F2, u0 + 3.2, u1, fy + 0.05, fy + 1.0, 0.03, reg2());
-        } else {
-          windowWall(F2, u0 + 0.15, u1 - 0.15, fy + 1.0, yL2 - 0.4, 0, 8, 5);
-          clad(F2, u0, u1, fy + 0.05, fy + 1.0, 0.03, reg2());
-        }
+        windowWall(F2, u0 + 0.2, u0 + 1.9, fy + 2.4, yW - 0.1, 0, 3, 3);
+        windowWall(F2, u0 + 3.2, u1 - 0.2, fy + 1.0, yW - 0.1, 0, 5, 5);
+        clad(F2, u0, u0 + 0.2, fy + 0.05, yW, 0.03, reg2());
+        clad(F2, u0 + 1.9, u0 + 3.2, fy + 0.05, yW, 0.03, reg2());
+        clad(F2, u0 + 3.2, u1, fy + 0.05, fy + 1.0, 0.03, reg2());
       }
-      // the upper storey: a window wall over a sheet spandrel, both galleries
-      windowWall(F2, u0 + 0.15, u1 - 0.15, yL2 + 0.95, yGR - 0.45, 0, 8, 5);
-      clad(F2, u0, u1, yL2 - 0.3, yL2 + 0.95, 0.03, reg2());
+      clad(F2, u0 - 0.2, u1 + 0.2, yW, yGR + 0.3, 0.03, reg2());          // the strip up to the gallery's roof
     }
   }
   function reg2() { return { bag: pick('sheetPale', 'sheetWhite', 0.25), gone: (p, n) => (0.015 + 0.4 * SM(0.66, 0.9, n)) * decay, bend: 0.8, hang: 0.5, len: 2.2 }; }
@@ -1204,11 +1209,14 @@ function build(P0, lod, F) {
     const FB = frame([0, 0, -HD], [-1, 0, 0], Yup);                     // outside -z; s runs +x -> -x
     for (const s of [-1, 1]) {
       // the back towers: concrete, a door and a window a storey
+      // the back piers: concrete, the hall's full height; behind the gallery its own end wall, one storey, a door and a window
       const A = s > 0 ? [HW + 0.15, -HD - 0.15] : [-xGL + 0.15, -HD - 0.15], B = s > 0 ? [xGR - 0.15, -HD - 0.15] : [-HW - 0.15, -HD - 0.15];
-      const Lw = Math.abs(B[0] - A[0]);
-      if (gal(s)) towerFace(A, B, fy, yGR + 0.4, [{ s0: 1.6, s1: 2.8, y0: fy, y1: fy + 2.2 }, { s0: 3.3, s1: Lw - 0.6, y0: yL2 + 1.0, y1: yGR - 0.6 }],
-                [{ s0: 3.3, s1: Lw - 0.6, y0: yL2 + 1.0, y1: yGR - 0.6, cols: 4, rows: 4 }], 0.25);
-      else towerFace(A, B, fy, yGR + 0.4, [], [], 0.25);
+      towerFace(A, B, fy, yTW + 0.4, [], [], 0.25);
+      if (s > 0 && gal(s)) {
+        const Ag = [xO + 0.15, -HD - 0.15], Bg = [HW + 0.15, -HD - 0.15], Lg = Ag[0] - Bg[0];
+        towerFace(Ag, Bg, fy, yGR + 0.4, [{ s0: 0.9, s1: 2.1, y0: fy, y1: fy + 2.2 }, { s0: 2.7, s1: Lg - 0.6, y0: fy + 1.2, y1: fy + 3.3 }],
+                  [{ s0: 2.7, s1: Lg - 0.6, y0: fy + 1.2, y1: fy + 3.3, cols: 3, rows: 3 }], 0.25);
+      }
     }
     const zb = -HD + 0.12;
     // the wind posts, the opening's head, girts at the sides and over the head
@@ -1234,7 +1242,7 @@ function build(P0, lod, F) {
     cladGable(FB, -xGR, xGL, fy + BH, u => top(-u), 0.08, regB);            // over the head, under the rake
     for (const sx of [-1, 1]) {                                              // over the back towers
       const ua = sx > 0 ? -HW : xGL, ub = sx > 0 ? -xGR : HW;
-      cladGable(FB, ua, ub, yGR + 0.45, u => top(-u), 0.08, regB);
+      cladGable(FB, ua, ub, yTW + 0.45, u => top(-u), 0.08, regB);
     }
   }
 
@@ -1259,13 +1267,13 @@ function build(P0, lod, F) {
       doors.push({ x: cx, z: zf, w, h: y1 - y0 });
     };
     // the front: closed, leaf i covers its sixth; open, the three of a side stack at their jamb
-    const n = 6, W = 2 * dW / n + 0.12, y0 = fy + 0.03, y1 = fy + DH - 0.14;
+    const n = D.NL, W = D.LW, y0 = fy + 0.03, y1 = fy + DH - 0.14;      // (dims: the leaves and the CLEAR width they leave)
     for (let i = 0; i < n; i++) {
       const side = i < n / 2 ? -1 : 1, trk = side < 0 ? i : n - 1 - i;      // 0 outermost
       const xc = -xGL + (2 * dW / n) * (i + 0.5), xo = side < 0 ? -xGL + W / 2 + 0.05 : xGR - W / 2 - 0.05;
       leaf(xc + (xo - xc) * open, HD - 0.42 - trk * 0.24, W, y0, y1, 1);
     }
-    for (let k = 0; k < 3 && L < 2; k++) member(bags.steel, [-xGL - 0.1, fy + DH - 0.05, HD - 0.42 - k * 0.24], [xGR + 0.1, fy + DH - 0.05, HD - 0.42 - k * 0.24], 'chanS', [0, 0, 1], L);
+    for (let k = 0; k < n / 2 && L < 2; k++) member(bags.steel, [-xGL - 0.1, fy + DH - 0.05, HD - 0.42 - k * 0.24], [xGR + 0.1, fy + DH - 0.05, HD - 0.42 - k * 0.24], 'chanS', [0, 0, 1], L);
     // the back: four leaves, two tracks, parting in the middle
     const bw = BW / 4 + 0.08, by1 = fy + BH - 0.1;
     for (let i = 0; i < 4; i++) {
@@ -1515,14 +1523,14 @@ function build(P0, lod, F) {
     const gy = (x, z) => g(x, z) + (P.apron && z > HD ? 0.06 : 0);
     const k0 = roofed ? 0.5 : (safe ? 0.8 : 1.6);
     // outside: the flanks' feet, the towers' feet, the back
-    for (const s of [-1, 1]) along(s * (HW + 0.25), -HD, s * (HW + 0.25), HD, gy, k0, false);
-    along(-HW, -HD - 0.4, HW, -HD - 0.4, gy, k0 * 1.2, false);
-    for (const s of [-1, 1]) along(s * xGs(s), HD + zT + 0.4, s * HW, HD + zT + 0.4, gy, k0 * 1.5, false);
+    for (const s of [-1, 1]) { const xw = s > 0 && gal(1) ? xO : HW; along(s * (xw + 0.25), -HD, s * (xw + 0.25), HD, gy, k0, false); }
+    along(-HW, -HD - 0.4, gal(1) ? xO : HW, -HD - 0.4, gy, k0 * 1.2, false);
+    for (const s of [-1, 1]) along(s * xGs(s), HD + zT + 0.4, s > 0 && gal(1) ? xO : s * HW, HD + zT + 0.4, gy, k0 * 1.5, false);
     // the corners at the opening: alder and fireweed up against the towers
     if (!roofed) for (const s of [-1, 1]) for (let q = 0; q < (der ? 3 : 1); q++) weed(s * (xGs(s) + 0.8 + rc() * (gal(s) ? 3 : 1.5)), gy(s * HW, HD + 1), HD + zT + 0.6 + rc() * 0.8, 1.3 + rc() * 1.5, 2, rc());
     if (der) {
       // inside: the gallery walls' feet toward the bay, the back opening spilling in, the gallery roofs (open to the sky)
-      for (const s of [-1, 1]) along(s * (xGs(s) - 0.3), -HD + 0.5, s * (xGs(s) - 0.3), HD - 1, () => fy, 0.9, true);
+      for (const s of [-1, 1]) along(s * (HW - 0.3), -HD + 0.5, s * (HW - 0.3), HD - 1, () => fy, 0.9, true);
       along(-D.BW / 2, -HD + 0.6, D.BW / 2, -HD + 0.6, () => fy, 1.8, false);
       for (const s of [1]) along(s * (xG + D.GW * 0.45), -HD + 0.5, s * (xG + D.GW * 0.45), HD - 0.8, () => yGR, 1.4, true);
       // the side bays' ground storey at the front: bushes in the light of the tower door
@@ -1537,7 +1545,7 @@ function build(P0, lod, F) {
   if (L === 0) {
     const FT = frame([0, 0, HD + zT + 0.153], [1, 0, 0], Yup);
     for (const s of [-1, 1]) for (let q = 0; q < (rest ? 2 : 7); q++) {
-      const u = s * xGs(s) + s * (0.3 + Math.max(0.1, GWs(s) - 0.6) * hashN(q, s, 97, seed)) - 0.15, top = q < 4 ? towerTop - 0.02 : (q < 6 ? yGR - 0.5 : fy + 3.3), Ls = 0.8 + 1.8 * hashN(q, s, 98, seed);
+      const u = s * xGs(s) + s * (0.3 + Math.max(0.1, (s > 0 && gal(1) ? xO - xGR : GWs(s)) - 0.6) * hashN(q, s, 97, seed)) - 0.15, top = q < 4 ? towerTop - 0.02 : (q < 6 ? yTW - 0.5 : fy + 3.3), Ls = 0.8 + 1.8 * hashN(q, s, 98, seed);
       face(bags.stain, [FT.P(u, top - Ls, 0), FT.P(u + 0.3, top - Ls, 0), FT.P(u + 0.3, top, 0), FT.P(u, top, 0)], FT.N, p => CELL(7, (p[0] - u) / 0.3, (top - p[1]) / Ls));
       st.decals++;
     }
@@ -1600,7 +1608,7 @@ function build(P0, lod, F) {
     }
     if (L === 0) {
       // ---- THE OFFICE ENTRANCE: the right tower's door (x 15.35 .. 16.55), a canopy, its lamp, its number, its plate
-      const dx0 = xGR + 0.85, dx1 = xGR + 2.05, dxc = (dx0 + dx1) / 2, yC = fy + 2.62;
+      const dx0 = D.xDo0, dx1 = D.xDo1, dxc = (dx0 + dx1) / 2, yC = fy + 2.62;
       obox([dxc, yC + 0.06, T0 + 0.55], Xp, Yp, 0.95, 0.06, 0.55, null, 'grey');                       // the canopy's deck
       obox([dxc, yC - 0.02, T0 + 1.09], Xp, Yp, 0.97, 0.12, 0.02, 'office', 'grey');                  // its fascia, the plate on it
       for (const sx of [-0.9, 0.9]) member(bags.steel, [dxc + sx, yC + 0.55, T0 + 0.02], [dxc + sx, yC + 0.1, T0 + 1.05], 'rod', Xp, L);   // the hangers
@@ -1634,7 +1642,7 @@ function build(P0, lod, F) {
         const Yb = [0, 0.97, -0.24];
         for (let q = 0; q < 2; q++) obox([cx, y0 + 0.62 + q * 0.17, cz - 0.24 - q * 0.04], Xp, Yb, Lh + 0.08, 0.05, 0.016, 'wood', 'wood');
       };
-      const bx = (xGR + 2.7 + HW - 0.6) / 2;
+      const bx = (dx1 + 1.8 + xO - 0.6) / 2;
       bench(bx, T0 + 0.42);
       // a round bin with its lid, and a planter with its shrub, right of the door
       { const x = dx1 + 0.75, z = T0 + 0.32, y0 = gy(x, z);
@@ -1673,11 +1681,11 @@ function build(P0, lod, F) {
       // ---- THE HEAT PUMPS on the roof over the offices, on a level steel frame (the user: "refrain from putting anything
       // on the side ... there might be things just sticking next to this, like another hangar"), their pipes into the roof
       for (const zc of [HD - 6.5, HD - 9.0]) {
-        const x0 = HW - 3.4, x1 = HW - 1.6, yb = yR(x0) + 0.15, yf = yb + 0.12;           // the frame's deck, level, over the slope
-        for (const x of [x0, x1]) for (const dz of [-0.55, 0.55]) member(bags.steel, [x, yR(x) - 0.01, zc + dz], [x, yf, zc + dz], 'rod', Xp, L);
+        const x0 = HW + 1.4, x1 = HW + 3.2, yb = yGR + 0.3, yf = yb + 0.12;              // the frame's deck on the gallery's flat roof
+        for (const x of [x0, x1]) for (const dz of [-0.55, 0.55]) member(bags.steel, [x, yGR + 0.07, zc + dz], [x, yf, zc + dz], 'rod', Xp, L);
         for (const dz of [-0.55, 0.55]) member(bags.steel, [x0 - 0.05, yf, zc + dz], [x1 + 0.05, yf, zc + dz], 'chanS', Yp, L);
         obox([(x0 + x1) / 2, yf + 0.43, zc], [0, 0, 1], Yp, 0.45, 0.4, 0.17, 'acfront', 'white');   // the fan toward the front
-        pipe([[(x0 + x1) / 2 + 0.3, yf + 0.2, zc - 0.2], [(x0 + x1) / 2 + 0.3, yf - 0.05, zc - 0.2], [x1 + 0.35, yf - 0.05, zc - 0.2], [x1 + 0.35, yR(x1 + 0.35) - 0.05, zc - 0.2]], 0.028, 'white');
+        pipe([[(x0 + x1) / 2 + 0.3, yf + 0.2, zc - 0.2], [(x0 + x1) / 2 + 0.3, yf - 0.05, zc - 0.2], [x1 + 0.35, yf - 0.05, zc - 0.2], [x1 + 0.35, yGR + 0.05, zc - 0.2]], 0.028, 'white');
       }
       // ---- THE APRON'S LEAD-IN LINE and the door's threshold stripe (yellow paint), when the build lays its apron
       if (P.apron) {
@@ -1693,9 +1701,9 @@ function build(P0, lod, F) {
     // no lamp, no shadow map), most bays on, a few dark; and a little furniture where the windows show it - a desk, its
     // chair, a cabinet, a plan chest - light on triangles, the rooms read lived in
     if (P.offices && L === 0) {
-      const xm = (xGR + HW) / 2, gw = HW - xGR;
+      const xm = (HW + xO) / 2, gw = GW, xG0 = HW;
       // (hung BELOW the window heads - 3.6 m and 7.55 m - or the hall never sees them: a lit office reads by its lamps)
-      for (let k = 0; k < NB; k++) for (const [yc, lvl, yc0] of [[yL2 - 0.62, 0, yL2 - 0.17], [yGR - 0.6, 1, yGR - 0.155]]) {
+      for (let k = 0; k < NB; k++) for (const [yc, lvl, yc0] of [[yGR - 0.72, 0, yGR - 0.15]]) {
         if (hashN(k, lvl, 141, seed) < 0.22) continue;                       // a dark office or two
         const zc = (zF(k) + zF(k + 1)) / 2;
         for (const dz of [-1.3, 1.3]) {
@@ -1706,38 +1714,38 @@ function build(P0, lod, F) {
         }
         if (hashN(k, lvl, 142, seed) < 0.55) {                              // the furniture
           const y0 = lvl ? yL2 : fy, z0 = zc - 1.1;
-          obox([xGR + gw * 0.42, y0 + 0.74, z0], Xp, Yp, 0.75, 0.02, 0.38, 'wood', 'wood');        // the desk's top
-          for (const [ax, az] of [[-0.7, -0.33], [0.7, -0.33], [-0.7, 0.33], [0.7, 0.33]]) obox([xGR + gw * 0.42 + ax, y0 + 0.36, z0 + az], Xp, Yp, 0.025, 0.36, 0.025, null, 'dark');
-          obox([xGR + gw * 0.42, y0 + 0.45, z0 - 0.75], Xp, Yp, 0.24, 0.04, 0.24, null, 'dark');   // the chair's seat
-          obox([xGR + gw * 0.42, y0 + 0.75, z0 - 0.97], Xp, Yp, 0.22, 0.28, 0.03, null, 'dark');   // its back
-          obox([xGR + gw * 0.42, y0 + 0.22, z0 - 0.75], Xp, Yp, 0.03, 0.22, 0.03, null, 'dark');   // its post
-          obox([HW - 0.55, y0 + 0.66, zc + 1.6], Xp, Yp, 0.24, 0.66, 0.3, 'cabinet', 'grey');     // a cabinet by the wall
-          if (!lvl) obox([xGR + gw * 0.42, y0 + 0.45, zc + 1.3], Xp, Yp, 0.6, 0.45, 0.42, null, 'grey');   // a plan chest
+          obox([xG0 + gw * 0.42, y0 + 0.74, z0], Xp, Yp, 0.75, 0.02, 0.38, 'wood', 'wood');        // the desk's top
+          for (const [ax, az] of [[-0.7, -0.33], [0.7, -0.33], [-0.7, 0.33], [0.7, 0.33]]) obox([xG0 + gw * 0.42 + ax, y0 + 0.36, z0 + az], Xp, Yp, 0.025, 0.36, 0.025, null, 'dark');
+          obox([xG0 + gw * 0.42, y0 + 0.45, z0 - 0.75], Xp, Yp, 0.24, 0.04, 0.24, null, 'dark');   // the chair's seat
+          obox([xG0 + gw * 0.42, y0 + 0.75, z0 - 0.97], Xp, Yp, 0.22, 0.28, 0.03, null, 'dark');   // its back
+          obox([xG0 + gw * 0.42, y0 + 0.22, z0 - 0.75], Xp, Yp, 0.03, 0.22, 0.03, null, 'dark');   // its post
+          obox([xO - 0.55, y0 + 0.66, zc + 1.6], Xp, Yp, 0.24, 0.66, 0.3, 'cabinet', 'grey');     // a cabinet by the wall
+          if (!lvl) obox([xG0 + gw * 0.42, y0 + 0.45, zc + 1.3], Xp, Yp, 0.6, 0.45, 0.42, null, 'grey');   // a plan chest
         }
       }
     }
     // ---- THE FLUE: stainless, through the roof over the offices, a rain cap on it
     {
-      const xf = HW - 2.6, zf = -2.0, top = yR(xf) + 1.5;
-      K.cyl(bags.steel, [xf, yGR, zf], [0, 1, 0], 0.13, top - yGR, L === 0 ? 12 : 6, true, { smooth: true });
-      if (L === 0) { K.cyl(bags.steel, [xf, yR(xf) - 0.02, zf], [0, 1, 0], 0.22, 0.12, 12, true); K.cyl(bags.steel, [xf, top + 0.12, zf], [0, 1, 0], 0.24, 0.04, 12, true); }
+      const xf = gal(1) ? HW + 1.6 : HW - 2.6, zf = -2.0, yb = gal(1) ? yGR + 0.14 : yR(xf), top = yb + 3.0;
+      K.cyl(bags.steel, [xf, yb - 0.1, zf], [0, 1, 0], 0.13, top - yb + 0.1, L === 0 ? 12 : 6, true, { smooth: true });
+      if (L === 0) { K.cyl(bags.steel, [xf, yb - 0.02, zf], [0, 1, 0], 0.22, 0.12, 12, true); K.cyl(bags.steel, [xf, top + 0.12, zf], [0, 1, 0], 0.24, 0.04, 12, true); }
     }
     // ---- AT NIGHT the offices are lit: a warm card behind some of the right flank's and the tower's windows
     if (P.lamps && L === 0) {
-      const F2 = frame([HW, 0, HD], [0, 0, -1], Yp), uOf = z => HD - z;
-      for (let k = 0; k < NB; k++) for (const [ya, yb] of [[fy + 1.1, fy + 3.3], [yL2 + 0.9, yL2 + 3.5]]) {
+      const F2 = frame([gal(1) ? xO : HW, 0, HD], [0, 0, -1], Yp), uOf = z => HD - z;
+      for (let k = 0; k < NB; k++) for (const [ya, yb] of [[fy + 1.1, fy + 3.3]]) {
         if (hashN(k, Math.round(ya), 131, seed) > 0.55) continue;
         const u0 = Math.min(uOf(zF(k)), uOf(zF(k + 1))) + 0.6, u1 = Math.max(uOf(zF(k)), uOf(zF(k + 1))) - 0.6;
         const ids = [F2.P(u0, ya, -0.6), F2.P(u1, ya, -0.6), F2.P(u1, yb, -0.6), F2.P(u0, yb, -0.6)].map((p, i) => bags.lamp.v(p, [i % 3 ? 1 : 0, i > 1 ? 1 : 0], F2.N));
         bags.lamp.quad(ids[0], ids[1], ids[2], ids[3]);
       }
-      const ids = [[xGR + 2.6, fy + 1.2, T0 - 0.5], [HW - 0.6, fy + 1.2, T0 - 0.5], [HW - 0.6, fy + 3.3, T0 - 0.5], [xGR + 2.6, fy + 3.3, T0 - 0.5]].map((p, i) => bags.lamp.v(p, [i % 3 ? 1 : 0, i > 1 ? 1 : 0], [0, 0, 1]));
+      const ids = [[D.xDo1 + 0.7, fy + 1.2, T0 - 0.5], [xO - 0.6, fy + 1.2, T0 - 0.5], [xO - 0.6, fy + 3.3, T0 - 0.5], [D.xDo1 + 0.7, fy + 3.3, T0 - 0.5]].map((p, i) => bags.lamp.v(p, [i % 3 ? 1 : 0, i > 1 ? 1 : 0], [0, 0, 1]));
       bags.lamp.quad(ids[0], ids[1], ids[2], ids[3]);
     }
   }
 
   // ===================================================================== THE GROUND SKIRT, THE BAKE, THE LEDGER
-  const occ = [{ x: 0, z: 0, hx: HW + 0.3, hz: HD + 0.3, k: 0.6, soft: 2.2, dry: true }];
+  const xR0 = gal(1) ? xO : HW, occ = [{ x: (xR0 - HW) / 2, z: 0, hx: (xR0 + HW) / 2 + 0.3, hz: HD + 0.3, k: 0.6, soft: 2.2, dry: true }];
   if (P.aoGround && HG.buildGroundAO) HG.buildGroundAO(bags.aoskirt, occ, g);
   // THE FAR BANDS FOLD BAGS (a draw each saved where the difference is under a pixel): the grey primer into the steel, the
   // white sheet into the pale, the slab into the concrete, the boards into the dark sheet; the dressing leaves
@@ -1755,8 +1763,9 @@ function build(P0, lod, F) {
   const stats = Object.assign(st, {
     tris, verts, per, draws, bbox: bb, footprint: 4 * HW * HD, eave: fy + D.EAVE, ridge: fy + D.RIDGE, eaveY: fy + D.EAVE, ridgeY: fy + D.RIDGE, floorY: fy,
     stage, stageName: STAGES[stage], lod: L, shell: 'derelict', dims: { HW, HD, EAVE: D.EAVE }, role: 'hangar', source: 'derelict',
-    door: { x: dC, z: HD, w: D.DOOR_W, h: D.DH, leaves: rest ? 6 : 0, shut: rest && !(P.doorOpen > 0), open: !rest || P.doorOpen > 0, openK: rest ? clamp(P.doorOpen || 0, 0, 1) : 1 }, doors,
-    galleries: { right: D.GW, left: D.GWL, floors: [yL2, yGR] }, frames: NB + 1, bay: D.BAY, purlins: NPU * 2, instances,
+    // w: the CLEAR width an aeroplane passes (restored: what the stacked leaves leave; else the bare opening between the piers)
+    door: { x: dC, z: HD, w: rest ? D.CLEAR : D.DOOR_W, opening: D.DOOR_W, clear: rest ? D.CLEAR : D.DOOR_W, h: D.DH, leaves: rest ? D.NL : 0, shut: rest && !(P.doorOpen > 0), open: !rest || P.doorOpen > 0, openK: rest ? clamp(P.doorOpen || 0, 0, 1) : 1 }, doors,
+    galleries: { right: D.GW, left: D.GWL, outside: true, roof: yGR }, footprint: { x0: -HW, x1: gal(1) ? xO : HW, z0: -HD, z1: HD }, frames: NB + 1, bay: D.BAY, purlins: NPU * 2, instances,
     front: { x: 0, z: HD + 1.5, side: 1, depth: 0 },
     ground: g, groundAO: occ, aoFoot: null, ao: aoInfo, path: [], people: null, yard: null, pier: null,
     lit: { lights, panes: 0, windows: 0 }, smoke: null, sign: null,

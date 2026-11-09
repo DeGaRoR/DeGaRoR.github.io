@@ -734,10 +734,10 @@ function run(mut) {
       ok(cs.length === 1 && cs1.id === 'mn_strip' && cs1.base === 'mn_strip' && cs1.shell === 'field' && cs1.closed === true && hM.ok && eq(cs1.dims, R.hangarDims(hM.doc.sheds.mn_strip)),
          'CLOSED-SHED: playerClosedSheds lists the flagged plot not held, at the shell and dims playerAcquire gives', J(cs));
       ok(hM.ok && !R.playerClosedSheds(hM.doc).some(x => x.id === 'mn_strip') && R.playerWorldSheds(hM.doc).some(x => x.id === 'mn_strip'), 'CLOSED-SHED: once held it leaves the closed list and stands as a held hangar');
-      // DERELICT-HANGAR: HOME.2, not held, stands the large hangar derelict (stage 0); held, it leaves the closed list and its
+      // DERELICT-HANGAR: HOME.2 (the real hangar's 44 m hall: HW 22), not held, stands the large hangar derelict (stage 0); held, it leaves the closed list and its
       // dims name no stage (the restored hangar, unless the story names one)
       const h2 = csAll.find(x => x.id === 'HOME.2');
-      ok(!!h2 && h2.shell === 'works' && h2.closed === true && h2.dims.stage === 0 && h2.dims.HW === 20, 'CLOSED-SHED: HOME.2 unheld stands the large hangar derelict (stage 0)', J(h2));
+      ok(!!h2 && h2.shell === 'works' && h2.closed === true && h2.dims.stage === 0 && h2.dims.HW === 22, 'CLOSED-SHED: HOME.2 unheld stands the large hangar derelict (stage 0)', J(h2));
       const hH = R.playerAcquire(sb, 'HOME', 'HOME.2', 'works', 'own');
       ok(!hH.ok || (!R.playerClosedSheds(hH.doc).some(x => x.id === 'HOME.2') && R.hangarDims(hH.doc.sheds['HOME.2']).stage === undefined),
          'CLOSED-SHED: HOME.2 held leaves the closed list, restored (no stage)', J(hH.ok && hH.doc.sheds['HOME.2']));

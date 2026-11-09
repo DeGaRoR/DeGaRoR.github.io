@@ -50,13 +50,14 @@ const SHELLS = {
   },
   works: {
     // DERELICT-HANGAR (the user 9 Nov: "we just have one, so now we call it the large one"): the large hangar is the
-    // restored WWII hangar (tools/_derelict_gen.js, stage 3) - a steel frame of its own: seen from the apron a two-storey
-    // gallery down the right (+z in the room) 5.5 m deep, a 1 m facade on the left; the door runs between them, 2HW - 6.5
-    // wide (33.5 m), its centre 2.25 m to the facade's side (hangarBay)
+    // restored WWII hangar (tools/_derelict_gen.js, stage 3), at THE REAL PROPORTIONS (the user's measurements, via A0):
+    // a 44 m hall 60 m deep, its door between two 1 m concrete piers (`right` / `left`, inside the hall) - ten leaves that
+    // leave 0.8 of the opening clear (33.3 m: a DC-3's 29 m with 2.1 m a tip) - and a one-storey office gallery `lean`
+    // deep OUTSIDE the hall's right wall (+z in the room), behind a full-height false front
     name: 'Large hangar', frame: 'steel', doors: 'sixLeaf',
-    galleries: { right: 5.5, left: 1.0 },
-    dims: { HW: 20, HD: 20, EAVE: 9.5 },
-    lims: { HW: [10, 24], HD: [10, 26], EAVE: [6.0, 12] },
+    galleries: { right: 1.0, left: 1.0, lean: 6 },
+    dims: { HW: 22, HD: 30, EAVE: 9.5 },
+    lims: { HW: [12, 26], HD: [12, 32], EAVE: [6.0, 12] },
     // BRICK, AND BIG (user, 2026-09-01: "the works one should rather have the
     // brick texture, double size from the original, full roughness and +50%
     // normal"). `tile` is METRES PER TILE, so double the size is 4 m off the
@@ -926,7 +927,7 @@ function hangarBay(shell, dims) {
   const sh = SHELLS[shell], g = sh && sh.galleries;
   if (!g) return null;
   const HW = (dims && dims.HW) || sh.dims.HW;
-  return { z0: -(HW - 0.24), z1: HW - g.right - 0.2, doorW: 2 * HW - g.right - g.left, doorZ: (g.left - g.right) / 2 };
+  return { z0: -(HW - 0.24), z1: HW - 0.24, doorW: 2 * HW - g.right - g.left, doorZ: (g.left - g.right) / 2 };   // (the piers are in the door's line only: the floor runs wall to wall)
 }
 function hangarFit(dims, kitKeys, opts) {
   const HW = (dims && dims.HW) || 15, HD = (dims && dims.HD) || 12.5;
