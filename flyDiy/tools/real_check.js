@@ -232,7 +232,7 @@ function flight(spec, def, lc, o) {
     for (let i = 0; i < 300; i++) sim.step(1 / 60);
     const thRest = sim.out.pitch;                    // the attitude it sits at: three-point on a taildragger
     let shk = null;
-    const ap = C.makePilot(sim, def, world, { shakedown: () => shk || (shk = C.genShakedown(def, { corners: false })) });
+    const ap = C.makePilot(sim, def, world, { shakedown: () => shk || (shk = C.genShakedown(def, { corners: false })), profile: o.profile || undefined });
     if (lane) ap.setRoute(lane, lane);
     const gH = (x, z) => o.water ? world.waterH(x, z) : 0;
     const c0 = sim.cgPos(), h0 = c0[1] - gH(c0[0], c0[2]);
@@ -321,6 +321,7 @@ function flight(spec, def, lc, o) {
     // is not a landing roll (the Birdman as found: 6.3 m/s at 39 km/h, 7 m)
     const RL = ap.report && ap.report.landing;
     rec.tdSink = RL ? RL.sink : null; rec.hard = !!(RL && RL.sink > 3);
+    rec.three = RL ? !!RL.three : null; rec.tdV = RL ? RL.V * 3.6 : null;
     rec.outcome = rec.outcome || ap.report.outcome || 'clock';
     rec.goArounds = phases.filter(p => p[0] === 'GOAROUND').length;
     // the tail on the roll-out: how far the pitch fell under the touchdown attitude (deg; a nose-over starts there)
