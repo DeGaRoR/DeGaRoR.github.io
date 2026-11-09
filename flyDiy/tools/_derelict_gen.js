@@ -1859,22 +1859,25 @@ function macroSlabTexOf(lib, keyA, keyB) {
     for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) g.drawImage(A.diff, i * c, j * c, c, c);
     // the blobs, wrapped (the canvas tiles): soft radial masks, deterministic
     let sd = 7; const rnd = () => (sd = (sd * 16807) % 2147483647) / 2147483647;
-    const blobs = []; for (let q = 0; q < 14; q++) blobs.push([rnd() * N, rnd() * N, (0.18 + 0.32 * rnd()) * N / 2, rnd()]);
+    const blobs = []; for (let q = 0; q < 16; q++) blobs.push([rnd() * N, rnd() * N, (0.22 + 0.42 * rnd()) * N / 2, rnd()]);
     const mk = document.createElement('canvas'); mk.width = mk.height = N; const gm = mk.getContext('2d');
     for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) gm.drawImage(B.diff, i * c, j * c, c, c);
     gm.globalCompositeOperation = 'destination-in';
     const ms = document.createElement('canvas'); ms.width = ms.height = N; const gs = ms.getContext('2d');
     for (const [x, y, r, k] of blobs) for (const ox of [-N, 0, N]) for (const oy of [-N, 0, N]) {
       const gr = gs.createRadialGradient(x + ox, y + oy, 0, x + ox, y + oy, r);
-      gr.addColorStop(0, 'rgba(0,0,0,' + (0.55 + 0.4 * k).toFixed(2) + ')'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+      gr.addColorStop(0, 'rgba(0,0,0,1)'); gr.addColorStop(0.45 + 0.25 * k, 'rgba(0,0,0,0.85)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
       gs.fillStyle = gr; gs.fillRect(x + ox - r, y + oy - r, 2 * r, 2 * r);
     }
     gm.drawImage(ms, 0, 0);
-    g.globalAlpha = 0.85; g.drawImage(mk, 0, 0); g.globalAlpha = 1;
+    g.globalAlpha = 1; g.drawImage(mk, 0, 0);
     // a few broad, faint darker stains (old oil, the worn lanes)
-    for (let q = 0; q < 6; q++) { const x = rnd() * N, y = rnd() * N, r = (0.25 + 0.3 * rnd()) * N / 2;
+    // (the user: "push further the blend, because I still can't see anything": stains at 0.45, and paler repairs at 0.3)
+    const patch = (cnt, col, a, r0, r1) => { for (let q = 0; q < cnt; q++) { const x = rnd() * N, y = rnd() * N, r = (r0 + (r1 - r0) * rnd()) * N / 2;
       for (const ox of [-N, 0, N]) for (const oy of [-N, 0, N]) { const gr = g.createRadialGradient(x + ox, y + oy, 0, x + ox, y + oy, r);
-        gr.addColorStop(0, 'rgba(40,32,24,0.22)'); gr.addColorStop(1, 'rgba(40,32,24,0)'); g.fillStyle = gr; g.fillRect(x + ox - r, y + oy - r, 2 * r, 2 * r); } }
+        gr.addColorStop(0, 'rgba(' + col + ',' + a + ')'); gr.addColorStop(1, 'rgba(' + col + ',0)'); g.fillStyle = gr; g.fillRect(x + ox - r, y + oy - r, 2 * r, 2 * r); } } };
+    patch(8, '34,27,20', 0.45, 0.25, 0.6);      // old oil and the worn lanes
+    patch(5, '236,230,218', 0.3, 0.2, 0.45);    // paler repairs
     t.needsUpdate = true;
   };
   for (const im of [A.diff, B.diff]) if (!ready(im) && im.addEventListener) im.addEventListener('load', draw);
