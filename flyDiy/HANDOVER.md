@@ -313921,3 +313921,64 @@ TIMED GATE: light, the same shape as L36a.
 - Steady frames p50 33.3 ms on every flown row; no frame over 1 s in any taxi, take-off or flight segment.
 - The >1 s gaps are all in the garage stand before the reveal (cub chase 5.2 s; the discarded warm_metal 9.0 s + 7.1 s): the cold GPU shader cache, master_bench's MISS, as L35a-L36a.
 - The floats take-off has one 133 ms frame.
+
+## WING-FILLET - THE WING-ROOT FILLET, AN OPTION: ONE FAIRING FITTED TO THE DRAWN BODY AND WING, WITH THE PYLON'S JOINT (9 Nov 2026, cloud, for the user via A0; claude/wing-fillet)
+
+The user (9 Nov): "a body-wing blend piece generator ... very clear on the DC-3 ... Fast little planes also have this;
+it's particularly visible at the back of the wing ... Always as an option: things stay as-is without the option."
+Then, on the first cut's pictures: "everything but the DC3 looks bad ... this little triangular piece at the back that
+doesn't necessarily connect ... the wavy pattern ... your joint is just not good ... look at what the engine pylon is
+doing ... for the body fit, really try to do what the pylon does ... these little pieces at the back ... should be part
+of it. Do better." The second cut (below) answers that review point by point. Study: futureDesigns/WING-FILLET-STUDY-2026-11.md
+(sources, topology, bands, physics, six questions with defaults). Pictures: reports/evidence/WING-FILLET/ (quickshot
+close-ups before/after; the cloud's SwiftShader still of the stand put its camera inside a hangar wall - no photographic
+still this time).
+
+- **The rows** (`6 · wings > wing-root fillet`, the `wings` part): `wgFillet` (0 none / 1 trailing-edge blend / 2 full
+  Karman fillet), `wgFilletK` (size 0.4-2), `wgFilletAft` (the extension, root chords, 0 = the style's). All three in
+  `CAGE_DEFAULT_ABSENT` (no saved build gains a key) and in `CAGE_LAB_ROWS` (the SEA-OFF rule: the player's garage
+  shows them only on a build that has a fillet, until the user's look; the group follows). The row's note says what was
+  fitted or refused, and why.
+- **The topology: a separate fairing** in the wing layer's group: `edWingFillet` (the wing skin's section, triplanar - the
+  wing's own bucket) + `edWingFilletJoint` (the seal, the pylon joint's emPuck through aeroHardMat) - `...2` on the second
+  plane. The wing and the body are never touched; with the row off nothing runs.
+- **The method** (`_cage_wing.js` wfBody / wfCaster / wfFit / wfGeometry / wfDraw), the pylon's (HULL-B16/B38 pylonHug)
+  turned on its side:
+  - the body as DRAWN: the cage sheet's skin + glazing faces sliced at every station, read by rays from the section's
+    centre (not the airframe table - the first cut's wavy foot);
+  - the wing as drawn: vertical rays through its skin AND its flaps/ailerons at rest;
+  - per station a corner, a body foot (h off the wing's line), a wing foot (w outboard of the body's side); a cubic tangent
+    to both, the feet 3 mm into the skins along the skin's own normal; the body foot's line smoothed in space and laid
+    back on each drawn section (a fabric wing's rib scallops jittered it +-1.5 cm on the Tiger Moth);
+  - ONE PIECE: each sheet one grid, LE fairing -> chord -> extension; a row = the fillet + its RETURN (hidden in the wing
+    along the chord, closing on the body past it - a round nose ahead, a tongue aft); every run fades out, so no plate and
+    no cap anywhere (the first cut's "little pieces at the back");
+  - THE JOINT, the pylon's strip: along every foot (body, wing, the return's foot on the body) a seal from the fillet's
+    wall round onto the skin, 14 mm each way, a 3 mm bead;
+  - the Karman law (small at the LE, largest at the TE); the extension a LOW TONGUE (h (1-u)^2.5, w (1-u)^1.2 - the Sling);
+  - bands: low = upper big, lower only where not obtuse (> 125 deg); mid both; high = the TE blend under the root; biplane
+    plane by plane; **parasol refused** on the row; **no contact refused with the gap** (the Spitfire WIP: "the wing stands
+    3-17 cm clear of it along the root" - a REF_MATCH 7 gap, opened; its wing-root-fillet gap closed); a run of touches
+    only (a gap under a belly) is no contact.
+- **Crashes:** both meshes static in the wing layer: the wreck classes them COVER (skin_break.js inhClass) and binds them
+  to the members beside them (bindInherit); GATE WINGFILLET: Jodel fillet 1220 places with the fuselage / 1402 with the
+  wing / 360 even, DC-3 1334 / 1560 / 0 (the joints alike) - it parts along the root and tears, never floats.
+- **Physics: none.** A credit later would be honest on low wings only (`GEN_DRAG.junct.lowBare` 1.5 -> 1.0, -0.006 m2
+  CdA, ~1 % of a two-seater's drag): the user's call, default none.
+- **GATE WINGFILLET** (new, core, ~4 min, `tools/_wingfillet_check.js`): OFF (three kinds of off draw one scene vertex for
+  vertex; no row saved at default; set rows save and load back), FIT (8 builds x 2 styles: the feet on the drawn skins at
+  their sink within 12 mm - measured worst 2.5 mm body, 2.8 mm wing - middles outside the body, both sides mirrored),
+  REFUSE (Pietenpol, the Tiger Moth's parasol upper, the Spitfire WIP), CRASH (above). `WF_DEBUG=1` names a missed foot.
+- **Gates on this tree** (cloud, node; `run_gates.js --no-build --jobs=3`, the option off on every build): STOL, BUILD,
+  SAVE, PARTS, ASSETS, SKINMAT, CLIP, DMGWRECK, DMGSCAR, WINGFILLET PASS; GEN 76/77 (master's "cruise is quiet in wind");
+  JOINPARITY master's 5. FRAMECOST 23 = master's 5 (run on a master worktree here: the same 5) + 18 rows of THE STALE
+  PARKED COOK (`parked_cook.js --check`: manifest 26485aadd65d, this tree f4f78b90cbbb - any source change stales it; the
+  stand's fleet captured live, draws 914 -> 1043): **A0 re-cooks at the train.** The fillet rows are also dropped at their
+  off values from every fingerprint (`genStolCageOff` GEN_FILLET_ROW_OFF, the hull rows' rule). No PHYSICS_V, GEN_SPEC_V
+  or GEN_CERT_V change.
+- **Found on the way (not this chantier's):** the FIRST headless build (and the first `snapshotOf`) of an aeroplane in a
+  node process draws otherwise than every later one (its held rows written back, `_cage_wing.js` writeRow; the Jodel's
+  wing buckets 11448/... then 13680/6060/...); the beacon's rotor (`liRotor_*`) turns with the clock. Gates that compare
+  drawings across builds should warm up once and skip the rotor (GATE WINGFILLET does both).
+- **Not done / owed:** a photographic still (the GPU box); the user's look at the high wing (the Cub's under-root blob)
+  and at the boxy low wings' TE crest (the Jodel); the seal's paint (rubber vs the fillet's own).
