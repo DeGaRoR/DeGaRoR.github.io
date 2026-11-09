@@ -226,8 +226,76 @@ each fragment (the pocket its trees stand in) + 2 over the first 350 m after the
 
 ---
 
-<!-- RESULTS FOLLOW -->
-<!-- 4 and 6 -->
+## 4. THE PROTOTYPE, IN PICTURES (SwiftShader, `potato`: the trees are its blobs; judge the mist, never the forest)
+
+Rig: `tools/soft_still.js --page dev.html --gfx potato --q fmist=abc --stage tools/forest_mist/stage.js` (one boot, many
+stills: each view x each variant, the variants switched live by `FMIST.use` / `FMIST.S.force` / `FMIST.S.rho`); the
+views were scouted in node on Jolene for layered, forested, sun-facing frames (`tools/forest_mist/` keeps the stage).
+September 20, 07:15 AKDT (sun 6 deg, az 95). The concept target the user gave is `target_concept.webp`.
+
+### 4a. How the look was found (five sheets, three steering notes from the user)
+
+| sheet | what it showed | what changed |
+|---|---|---|
+| 1 (`v1_*`) | nothing visible in either the veil or the cards | the CPU mirror (`FMIST.densCPU`) found it: the octaves' sum sits at 0.5 +- 0.13, so the coverage remap left an optical depth of ~0.02 in a full valley. The noise is stretched before the remap |
+| 2 (`t1_*`, `t2_*`) | **the layering appears**: a band at the far hill's foot behind the near tree line; on the ridges view, mist lying along the far slope at crown height with a pool on the water at the valley's mouth, the far forest stepping back. Lavender-grey, on top of a flat layer that already milks the "off" frame; the cards blank | the pockets' own forward lobe (droplets: a narrow strong Mie peak - backlit they glow); the flat layer gives a share of itself to the pockets while they are live (redistribute, never add: section 1); the cards' deal photographed an empty deck - fixed |
+| user, on sheet 2 | *"the distribution starts to be good, but it lacks detail in the shape and the contours, it needs to be further cut through, and probably set less dense overall, but the direction is good"* | the bands' edges ride the noise (a lumpy top, a heaving lid), a ~20 m erosion breaks the outline (Schneider's base-minus-detail), the cover threshold at 0.8 x, density 0.03 -> 0.018 /m |
+| 3 (`a_*`, `b_*`) | the backlit slope: **broken wisps lying mid-slope along the contours, between the near firs and the far forest** - the target's structure. But flat white paper cut-outs (hard edges, clipped by the lobe); the cards drawn at alpha ~0.07 | a wide body ramp, an eased erosion edge, a gentler stretch, the lobe 4 -> 2.2; the cards x2.4 |
+| user, on sheet 3 | *"still too dense, too milky, not aerial enough. Lower the density a lot, try /2, /4, /8, /16"* | the ladder below; the day's humidity 0.93 -> 0.85 for the sheet (the F2 flat layer at 0.93 milked even the "off" frame) |
+
+### 4b. The density ladder (`rho_div2/4/8/16`: 0.009, 0.0045, 0.00225, 0.0011 /m)
+
+<!-- LADDER -->
+
+### 4c. The renderers side by side
+
+<!-- RENDERERS -->
+
+---
+
+## 5. THE WEATHER: WHEN AND WHERE (forest_mist.js `strengths`, held by `tools/_fmist_check.js` section 4)
+
+Three strengths, 0..1 each, from the day the game already computes - no new state, nothing saved:
+
+| term | law (`sm` = smoothstep) | what it does in a day |
+|---|---|---|
+| **POOL** | `sm(0.80, 0.97, rh) x (1 - mistBurn) x mistCalm` | builds through a humid calm night, deepest at dawn, **burns off as the lagged sun warms the ground** (mid-morning in September at 55 N), held all day under an overcast (the burn is 0 there), torn away by 3-10 kt of wind |
+| **WISP** | `sm(0.72, 0.92, rh) x wet x (1 - burn/2) x (0.4 + 0.6 calm)`, `wet = 0.6 while it rains, else exp(-hoursDry / 5 h)` | **after rain**: the crowns steam, most when the first sun reaches them (the burn takes only half), a fifth left 8 h later, gone after a day dry (`SOIL_WET.hoursDry`) |
+| **ORO** | `sm(0.86, 0.99, rh) x sm(0.35, 0.75, cover) x (1 - sm(700, 1100 m, cloudBase))` | a near-saturated, covered day whose base is under Jolene's summits: the band where the base meets the slopes. The wind does not take it |
+
+**WHERE** is the map (section 3.0), **HOW IT MOVES** is the wind: the noise's offset is the integral of
+`climate.sample(eye, 40 m)` (as the F2 banks' is: a position integrated, never `wind x t`, CLIMATE K4), the map is
+fixed - so a pocket's wisps stream downwind across it and fade where its weight does, and a pocket never leaves its
+valley. A stronger wind does not blow the pool away down the valley: it **thins** it (the calm term), which is what
+the inversion does.
+
+Not in the prototype, proposed for the landing (Q5): the POOL's lid rises and thins as it burns (the inversion
+eroded from below: lift the lid by `+60 m x burn` while the strength falls - the "lifts into stratus" stage); a lake's
+steam fog at dusk (cold air over warm water: `rh` and the water's own temperature, which the game does not model yet -
+default: lakes keep the POOL's law); `fogWhere` (the plan's named advection fog) read here too.
+
+---
+
+## 6. PERFORMANCE - NAMED, NOT HIDDEN
+
+Counted on SwiftShader (the draws, the triangles and the programs of one whole frame, `renderer.info` over every pass;
+**no millisecond from this box is a number**). The streamer keeps moving between stills (the impostors arrive), so a
++-5 draw and a +-0.3 % triangle swing between two stills of the same state is the floor.
+
+<!-- COUNTS -->
+
+| technique | draws | programs | passes | samplers | per-fragment work | CPU |
+|---|---|---|---|---|---|---|
+| **veil** (`c`) | **+0** | **+0** (every fogged program is longer, not new) | +0 | +0 (the atlas) | where the map is not zero: 6 x (1 atlas tap + 3 value noises, + 2 more for the erosion where the body is live) - the F2 `banks` order of cost (+3.3 ms at 6 samples on the 3080, measured), budget **<= 2 ms gamer, <= 1 ms laptop at 2 taps** | ~0 per frame (5 lanes written); the bake once (below) |
+| **march** (`a`) | +0 in the main pass | +0 (the clouds' march, longer) | the cloud pass kept live on a clear dawn (it is 0.67 ms whole at cover 0.2 on the 3080) | +0 | 28 steps x (1 tap + 5 noises + 2 shadow taps) at half resolution; expected 0.3-1 ms by `CLOUDS.stats.gpuMs` | ~0 |
+| **cards** (`b`) | **+1** | **+1** | +0 | +0 | **fill**: up to 420 alpha-blended quads, each 120-240 m, layered along the view - the cost mobile GPUs pay most for | a deal over ~40 k candidates every 20 frames (~1-2 ms on the main thread at each deal, unmeasured here) |
+| the map | - | - | - | - | - | **885 ms on the page under SwiftShader's CPU, 630-780 ms in node**, once per world under the roll-out screen; 2 MB upload. To bake offline with the island (Q6) |
+
+What A0's box must answer (the timed gate's A/B/A, section 7.5): the veil's ms at the stand and in the forest at gamer
+(4+2 taps) and at laptop (2 taps); the march's `CLOUDS.stats.gpuMs` with pockets forced on against off; the cards' ms
+for the record only.
+
+---
 
 ## 7. THE GATE FOR THE LANDING (GATE FMIST, core tier, node; `tools/_fmist_check.js` is its first half)
 
@@ -276,28 +344,26 @@ Never a picture diff (FOG-MIST SS1f: two frames of the same state differ in half
 
 ---
 
+## 9. SOURCES
 
-## 5. THE WEATHER: WHEN AND WHERE (forest_mist.js `strengths`, held by `tools/_fmist_check.js` section 4)
-
-Three strengths, 0..1 each, from the day the game already computes - no new state, nothing saved:
-
-| term | law (`sm` = smoothstep) | what it does in a day |
-|---|---|---|
-| **POOL** | `sm(0.80, 0.97, rh) x (1 - mistBurn) x mistCalm` | builds through a humid calm night, deepest at dawn, **burns off as the lagged sun warms the ground** (mid-morning in September at 55 N), held all day under an overcast (the burn is 0 there), torn away by 3-10 kt of wind |
-| **WISP** | `sm(0.72, 0.92, rh) x wet x (1 - burn/2) x (0.4 + 0.6 calm)`, `wet = 0.6 while it rains, else exp(-hoursDry / 5 h)` | **after rain**: the crowns steam, most when the first sun reaches them (the burn takes only half), a fifth left 8 h later, gone after a day dry (`SOIL_WET.hoursDry`) |
-| **ORO** | `sm(0.86, 0.99, rh) x sm(0.35, 0.75, cover) x (1 - sm(700, 1100 m, cloudBase))` | a near-saturated, covered day whose base is under Jolene's summits: the band where the base meets the slopes. The wind does not take it |
-
-**WHERE** is the map (section 3.0), **HOW IT MOVES** is the wind: the noise's offset is the integral of
-`climate.sample(eye, 40 m)` (as the F2 banks' is: a position integrated, never `wind x t`, CLIMATE K4), the map is
-fixed - so a pocket's wisps stream downwind across it and fade where its weight does, and a pocket never leaves its
-valley. A stronger wind does not blow the pool away down the valley: it **thins** it (the calm term), which is what
-the inversion does.
-
-Not in the prototype, proposed for the landing (Q5): the POOL's lid rises and thins as it burns (the inversion
-eroded from below: lift the lid by `+60 m x burn` while the strength falls - the "lifts into stratus" stage); a lake's
-steam fog at dusk (cold air over warm water: `rh` and the water's own temperature, which the game does not model yet -
-default: lakes keep the POOL's law); `fogWhere` (the plan's named advection fog) read here too.
-
----
-
-
+- Met Office, *Types of fog* - https://weather.metoffice.gov.uk/learn-about/weather/types-of-weather/fog/types-of-fog
+- Wikipedia, *Fog* - https://en.wikipedia.org/wiki/Fog
+- NASA Earth Observatory, valley fog (image 79700) - https://earthobservatory.nasa.gov/IOTD/view.php?id=79700
+- Weather and Radar, *Valley fog formation* - https://weatherandradar.co.uk/weather-news/valley-fog-formation--8b47c31e-f0eb-4a5d-aa61-0f9646b5ed06
+- AMS Glossary of Meteorology: *orographic fog* (https://glossary.ametsoc.org/wiki/orographic-fog/), *orographic cloud*
+  (https://glossary.ametsoc.org/wiki/orographic-cloud/), *upslope fog*, *fog forest*
+- Holder, C. D. 2003, fog precipitation in a Guatemalan cloud forest - https://uon.sdsu.edu/holder_fog_precipitation.pdf
+- The Smokies' "smoke" and transpiration: NY Review of Books letter (1983) - https://www.nybooks.com/articles/1983/02/17/why-the-smokies-are-smoky-contd/ ;
+  WSMV (Aug 2026) - https://www.wsmv.com/2026/08/24/why-do-smoky-mountains-look-smoky-it-comes-trees/ ; Our State -
+  https://www.ourstate.com/the-science-behind-the-smoke-of-the-great-smoky-mountains-north-carolina/
+- Hillaire, S. 2015, *Physically Based and Unified Volumetric Rendering in Frostbite*, SIGGRAPH Advances -
+  https://www.ea.com/news/physically-based-unified-volumetric-rendering-in-frostbite
+- Kovalovs, *Volumetric Effects of The Last of Us: Part Two* (SIGGRAPH) - https://history.siggraph.org/learning/volumetric-effects-of-the-last-of-us-part-two-by-kovalovs
+- Epic, *Exponential Height Fog* and *Volumetric Fog* -
+  https://dev.epicgames.com/documentation/en-us/unreal-engine/exponential-height-fog-in-unreal-engine ,
+  https://docs.unrealengine.com/4.27/BuildingWorlds/FogEffects/VolumetricFog/
+- NVIDIA 2007, *Soft Particles* - https://developer.download.nvidia.com/whitepapers/2007/SDK10/SoftParticles_hi.pdf ;
+  GPU Gems 3 ch. 23, *High-Speed, Off-Screen Particles* - https://developer.nvidia.com/gpugems/GPUGems3/gpugems3_ch23.html
+- Schneider, A. 2015/2017, the Nubis cloud talks (the coverage remap and the base-minus-detail erosion used here)
+- This tree: `futureDesigns/FOG-MIST-2026-09-21.md` (F1-F3), `CLOUDS-2026-09-15.md`, `LOOK-1-STUDY-2026-11.md`,
+  HANDOVER G503 / G506 / G510 / G650, L36a (look1-haze-soft)
