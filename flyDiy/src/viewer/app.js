@@ -7146,7 +7146,13 @@
     if (!HY) return;
     // H2 (G389): a cage build carries its DRAWN floats as parts (floatRigs);
     // the physics hull is drawn only for a spec-only build with none
-    if (model && model.floatRigs) return;
+    // PETREL-DRAW (9 Nov, the user: "the white stuff ... some sort of physics representation that you forgot to get
+    // rid of ... exactly the same happened with the floats"): a CAGE build draws its own water surfaces - the boat
+    // hull is its fuselage (hullOn), the strut tip floats are cage parts - and carries no floatRigs (nothing to rig: no
+    // float pair). The test was floatRigs alone, so the Super Petrel flew under three flat cream PHYSICS hulls (its
+    // hull and both tip floats) drawn over the cage's: the "raw" white hull that hid the seats, and in the far view
+    // the only thing left. The physics hull is the spec-only build's (model.gen) and nothing else's
+    if (model && (model.floatRigs || !model.gen)) return;
     for (const fx of HY.floats) {
       const F = fx.F, n = F.panels.length;
       const g = new THREE.BufferGeometry();
