@@ -262,6 +262,44 @@ for (const key of PROBE) {
      (differ.length ? '  DIFFERS on ' + differ.join(', ') : ''));
 }
 
+// ---- 4. the latent physics fields (ENGINE-DIALS C) -----------------------------------------------------------------
+// gear.stiffness is a row (the mains' s1Stiff); gear.camber and the loft's crownTop / crownSide are FIXED CONSTANTS on a
+// cage build (_cage_join.js CAGE_JOIN_FIXED: nothing the cage draws stands for them). Cowl fields are PROPER-COWLS'
+// one cowl path's, not this gate's.
+console.log('4. THE LATENT PHYSICS FIELDS: A ROW, OR A CONSTANT THE JOIN WRITES');
+{
+  const F = JOIN.CAGE_JOIN_FIXED, D = C.GEN_DEFAULT;
+  ok(F.camber === D.gear.camber && F.crownTop === D.fuselage.crownTop && F.crownSide === D.fuselage.crownSide,
+     'the join\'s constants are GEN_DEFAULT\'s: camber ' + F.camber + ', crownTop ' + F.crownTop + ', crownSide ' + F.crownSide);
+  const js = (P) => JOIN.cageJoinSpec(Object.assign({ s1Leg: 1, s1_shockKind: 1 }, P), { gearType: 'taildragger', track: 1.8 }, { PRESET_NAMES: [] });
+  const a = js({ s1Stiff: 1.7 }), b = js({});
+  ok(a.gear.stiffness === 1.7 && b.gear.stiffness === 1, 'the mains\' stiffness row writes gear.stiffness (1.7 -> 1.7; absent -> 1)');
+  ok(a.gear.camber === 0 && a.fuselage.crownTop === F.crownTop && a.fuselage.crownSide === F.crownSide,
+     'the join writes the camber and the crown constants');
+  const rng = [0.35, 3.0];
+  const bad = [];
+  for (const f of [...files].sort()) {
+    let j; try { j = JSON.parse(fs.readFileSync(at(f), 'utf8')); } catch (e) { continue; }
+    const s = j.spec || j, g = s.gear || {}, fu = s.fuselage || {};
+    const st = g.stiffness == null ? 1 : +g.stiffness;
+    if (!(st >= rng[0] && st <= rng[1])) bad.push(f + ' stiffness ' + st);
+    if ((+g.camber || 0) !== F.camber) bad.push(f + ' camber ' + g.camber);
+    if (fu.crownTop != null && fu.crownTop !== F.crownTop) bad.push(f + ' crownTop ' + fu.crownTop);
+    if (fu.crownSide != null && fu.crownSide !== F.crownSide) bad.push(f + ' crownSide ' + fu.crownSide);
+  }
+  // a file that flew a stiffness before the row (the DC-3-alike's 3) loads with the row at it (cageFromSpec)
+  const CG = require(at('tools/_cage_gen.js'));
+  const seeded = [...files].filter(f => { try { const j = JSON.parse(fs.readFileSync(at(f), 'utf8')), s = j.spec || j;
+    return s.gear && s.gear.stiffness != null && +s.gear.stiffness !== 1; } catch (e) { return false; } });
+  for (const f of seeded) {
+    const s = JSON.parse(fs.readFileSync(at(f), 'utf8')); const sp = s.spec || s;
+    const P = CG.cageFromSpec(sp);
+    ok(+P.s1Stiff === +sp.gear.stiffness, f + ': its stiffness ' + sp.gear.stiffness + ' loads onto the row (s1Stiff ' + P.s1Stiff + ')');
+  }
+  ok(!bad.length, 'every official / candidate / validated build (' + files.size + ') carries a stiffness on the row and the constants' +
+     (bad.length ? ' - ' + bad.join('; ') : ''));
+}
+
 function finish() {
   console.log('GATE ENGINEDIALS: ' + (fails ? 'FAIL (' + fails + ')' : 'PASS'));
   process.exit(fails ? 1 : 0);

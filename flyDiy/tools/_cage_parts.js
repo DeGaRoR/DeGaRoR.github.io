@@ -1116,7 +1116,7 @@ const CAGE_PARTS = [
       ['linkage', ['s1_linkAng', 's1_linkSwing', 's1_linkArmW',
                    's1_linkVee', 's1_linkSpread', 's1_linkX',
                    's1_linkPanel', 's1_linkAxle', 's1_linkAxleX']],
-      ['shock', ['s1_shockKind', 's1_shockAt', 's1_shockZ', 's1_shockAng',
+      ['shock', ['s1_shockKind', 's1Stiff', 's1_shockAt', 's1_shockZ', 's1_shockAng',
                  's1_bungeeSpan']],
       ['oleo', ['s1_oleoAng', 's1_oleoDia', 's1_oleoCyl', 's1_oleoScissor',
                 's1_oleoBrace', 's1_oleoBraceZ']],

@@ -91,6 +91,9 @@ const CAGE_JOIN_ENGINES = {
 //                                     safe direction, never an exploit)
 //   6 maple, 7 walnut     -> their own G125 rows
 // APPEND ONLY, in step with MATERIALS; _join_check walks every entry.
+// ENGINE-DIALS C (9 Nov): THE PHYSICS FIELDS A CAGE BUILD HOLDS AT A CONSTANT - nothing the editor draws stands for
+// them, so the join writes GEN_DEFAULT's value rather than leave a latent field (GATE ENGINEDIALS holds the copy equal)
+const CAGE_JOIN_FIXED = { camber: 0, crownTop: 0.72, crownSide: 0.07 };
 const CAGE_JOIN_PROP_MATS = ['wood', 'wood', 'alu', 'carbon', 'carbon',
                              'carbon', 'maple', 'walnut'];
 
@@ -542,6 +545,13 @@ function cageJoinSpec(P, M, T) {
       spec.gear.lever = { piv: r6(avg('piv')), horn: r6(avg('horn')), top: r6(avg('top')), w: +LVj[0].w.toFixed(4),
                           comp: +((R0.ang - R0.comp) * Math.PI / 180).toFixed(6), dSt: +(+R0.dSt).toFixed(4) };
     }
+    // ENGINE-DIALS C (9 Nov): THE SUSPENSION'S STIFFNESS IS THE MAINS' ROW (s1Stiff; GEN_FIELDS clamps 0.35-3): it was a
+    // physics field (61_gen_frame: the legs' spring rate and damping) no row reached - every build flew 1, the row's
+    // default, so every saved build flies as before
+    spec.gear.stiffness = P.s1Stiff == null ? 1 : +P.s1Stiff;
+    // ...AND THE WHEELS' CAMBER IS A FIXED CONSTANT (0): the gear layer draws every wheel upright, so a lean would fly
+    // what no row shows (CAGE_JOIN_FIXED; every shipped build carries 0)
+    spec.gear.camber = CAGE_JOIN_FIXED.camber;
   }
   const cabin = {};
   // JOINED (2026-09-04): glazing off is an open cockpit — no glass billed.
@@ -704,6 +714,11 @@ function cageJoinSpec(P, M, T) {
   // when it is positive)
   if (typeof M.tailTop === 'number' && isFinite(M.tailTop)) fus.tailTop = M.tailTop;
   if (M.cowlDeck > 0) fus.cowlDeck = M.cowlDeck;
+  // ENGINE-DIALS C (9 Nov): THE LOFT'S CROWN KNOBS ARE FIXED CONSTANTS ON A CAGE BUILD. fuselage.crownTop / crownSide
+  // shape the drag build-up's body (62_gen_aero) and nothing the cage draws - the cage IS the body - so no row can show
+  // them; a cage build flies GEN_DEFAULT's (CAGE_JOIN_FIXED, GATE ENGINEDIALS holds the two equal), as every shipped
+  // build always has, and a hand-edited file cannot fly a value no row shows
+  fus.crownTop = CAGE_JOIN_FIXED.crownTop; fus.crownSide = CAGE_JOIN_FIXED.crownSide;
   if (Object.keys(fus).length) spec.fuselage = fus;
   // G54.3: the tail surfaces, measured off the placed fin/stab layers.
   // clampSpec's envelope bounds every one; anything unmeasured keeps the
@@ -1123,7 +1138,7 @@ function cageSurfHinge(pts, surf, opts) {
 }
 
 if (typeof module !== 'undefined' && module.exports)
-  module.exports = { cageJoinSpec, cageWingCuts, cageWingStationCut, CAGE_JOIN_ENGINES, CAGE_JOIN_PROP_MATS,
+  module.exports = { cageJoinSpec, cageWingCuts, cageWingStationCut, CAGE_JOIN_ENGINES, CAGE_JOIN_PROP_MATS, CAGE_JOIN_FIXED,
                      VIEW_STATE, VIEW_KEEP, cageSurfHinge, cageSurfLine, cageSurfPlane, cagePartMatch };
 // the pure hinge trio for a page that loads the layer without a mount (the
 // headless poser reads them off the window in the browser bench)
