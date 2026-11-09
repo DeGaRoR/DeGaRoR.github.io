@@ -738,6 +738,13 @@ function run(mut) {
       // dims name no stage (the restored hangar, unless the story names one)
       const h2 = csAll.find(x => x.id === 'HOME.2');
       ok(!!h2 && h2.shell === 'works' && h2.closed === true && h2.dims.stage === 0 && h2.dims.HW === 22, 'CLOSED-SHED: HOME.2 unheld stands the large hangar derelict (stage 0)', J(h2));
+      // ...and in a career, at the field track's stage (A0 9 Nov: the old wartime hangar's repair IS the field track's
+      // story): 0 derelict, 1 under repair (stage 2), 2 restored (stage 3)
+      if (typeof CORE.careerNew === 'function') {
+        const st = [0, 1, 2].map(f => { const cd = CORE.careerNew({ id: 'gpf', seed: 'gpf' }); cd.career.tracks = Object.assign({}, cd.career.tracks, { field: f });
+          const x = R.playerClosedSheds(cd).find(q => q.id === 'HOME.2'); return x ? x.dims.stage : null; });
+        ok(J(st) === J([0, 2, 3]), 'CLOSED-SHED: in a career HOME.2 stands at the field track\'s stage (field 0/1/2 -> ' + J(st) + ')');
+      }
       const hH = R.playerAcquire(sb, 'HOME', 'HOME.2', 'works', 'own');
       ok(!hH.ok || (!R.playerClosedSheds(hH.doc).some(x => x.id === 'HOME.2') && R.hangarDims(hH.doc.sheds['HOME.2']).stage === undefined),
          'CLOSED-SHED: HOME.2 held leaves the closed list, restored (no stage)', J(hH.ok && hH.doc.sheds['HOME.2']));

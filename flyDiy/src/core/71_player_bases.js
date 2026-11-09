@@ -150,7 +150,11 @@ const BASE_OFFERS = {
       // from the state of the actual ... World War II hangar, which is currently derelict"): until it is held, HOME.2
       // stands the large hangar DERELICT (closedStage 0: DERELICT_GEN's stage, the world's derelictShell); held, it is the
       // player's - restored unless the story names its stage (dims.stage)
+      // THE STORY'S (A0 9 Nov: "the removed long club hangar was the 'field' career track's payoff ... Your derelict's repair
+      // IS that story"): in a career the unbought building stands at the field track's stage - 0 derelict, 1 under repair
+      // (stage 2: the new roof on, the walls still stripped), 2 restored; the sandbox (no story) keeps it derelict
       'HOME.2': { shells: ['works', 'club', 'field'], kits: ['park'], pf: 1, closedShed: true, closedStage: 0,
+                  closedTrack: { track: 'field', stages: [0, 2, 3] },
                   dims: { field: { HW: 9, HD: 10, EAVE: 4.0 } } },
     },
   },
@@ -1343,6 +1347,9 @@ function playerClosedSheds(doc) {
       if (!P.closedShed || S[id] || !shell || typeof SHELLS === 'undefined' || !SHELLS[shell]) continue;
       const dims = hangarDims({ shell, dims: Object.assign({}, SHELLS[shell].dims, (P.dims && P.dims[shell]) || {}) });
       if (Number.isFinite(P.closedStage)) dims.stage = P.closedStage;   // (DERELICT-HANGAR: the plot's building as it stands unbought)
+      // ...and in a career, at its story track's stage (closedTrack: the track's value -> the building's stage)
+      const T = P.closedTrack, tr = (T && typeof stageTracksOf === 'function') ? stageTracksOf(doc) : null;
+      if (T && tr && Array.isArray(T.stages) && T.stages.length) dims.stage = T.stages[Math.max(0, Math.min(T.stages.length - 1, tr[T.track] || 0))];
       out.push({ id, base: aero, shell, dims, closed: true });
     }
   }

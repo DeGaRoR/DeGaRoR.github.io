@@ -1130,7 +1130,11 @@
       // blackout: colour multiplies the albedo map, so the floor comes back
       // with its own texture and its own lamp pools, at the fraction of the
       // radiance a shaded underside can actually see.
-      const gb = (window.LIGHT_RIG ? window.LIGHT_RIG.groundBounce() : 1);
+      // DERELICT-HANGAR (the user 9 Nov: "The bottom of the wing is really dark ... We should avoid having a very dark part
+      // of the scene there"): the large hangar's lamp-lit floor runs far past any wing's shade - a DC-3's polished
+      // underside reads the floor at half its radiance there, not the club's occlusion term
+      const gb0 = (window.LIGHT_RIG ? window.LIGHT_RIG.groundBounce() : 1);
+      const gb = (hangar && hangar.shell === 'works') ? Math.max(gb0, 0.5) : gb0;
       const gWas = [];
       if (gb < 1 && hangar.groundMats) for (const m of hangar.groundMats) {
         if (!m || !m.color) continue;

@@ -25,8 +25,8 @@
 // stage text (CONTRACT_TEXT trk.*); world: whether the record changes at this value. The camera target is not written
 // here - it is READ off the record (stageReveal), so a moved building moves its shot.
 const STAGE_REVEALS = {
-  'field:1':    { at: 'HOME',     caption: 'trk.field.1',    world: true },    // the second hangar's plot: the building site
-  'field:2':    { at: 'HOME',     caption: 'trk.field.2',    world: true },    // the second hangar restored (the club's long hangar)
+  'field:1':    { at: 'HOME',     caption: 'trk.field.1',    world: true },    // the old wartime hangar (HOME.2), under repair: DERELICT_GEN stage 2
+  'field:2':    { at: 'HOME',     caption: 'trk.field.2',    world: true },    // ...restored: stage 3 (71_player_bases HOME.2 closedTrack)
   'minedock:1': { at: 'mn_strip', caption: 'trk.minedock.1', world: true },    // the mill's (the headframe's) frame going up
   'minedock:2': { at: 'mn_strip', caption: 'trk.minedock.2', world: true },    // the mill and the ore shed
   'minedock:3': { at: 'SEA',      caption: 'trk.minedock.3', world: true },    // the dock's site on the shore
