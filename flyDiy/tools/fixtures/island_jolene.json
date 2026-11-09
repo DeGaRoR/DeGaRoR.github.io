@@ -14610,6 +14610,10 @@
    },
    {
     "id": "w3",
+    "micro": {
+     "chaos": 0.2,
+     "seed": 3
+    },
     "name": "Ridgeback Strip",
     "c": [
      -811.27,
@@ -15138,6 +15142,10 @@
    },
    {
     "id": "nv_strip",
+    "micro": {
+     "chaos": 0.3,
+     "seed": 7
+    },
     "name": "East Point Clearing",
     "c": [
      10030,
@@ -15314,6 +15322,10 @@
    },
    {
     "id": "w5",
+    "micro": {
+     "chaos": 0.45,
+     "seed": 17
+    },
     "name": "strip 10",
     "len": 310,
     "wid": 17,
@@ -15357,6 +15369,10 @@
    },
    {
     "id": "w6",
+    "micro": {
+     "chaos": 0.55,
+     "seed": 19
+    },
     "name": "strip 11",
     "len": 311.5,
     "wid": 21,
@@ -15409,6 +15425,10 @@
    },
    {
     "id": "w7",
+    "micro": {
+     "chaos": 0.7,
+     "seed": 23
+    },
     "name": "strip 12",
     "len": 1020,
     "wid": 9,
@@ -15452,6 +15472,10 @@
    },
    {
     "id": "w4",
+    "micro": {
+     "chaos": 0.8,
+     "seed": 29
+    },
     "name": "strip 9",
     "len": 216.4,
     "wid": 8,
@@ -15514,6 +15538,10 @@
    },
    {
     "id": "w8",
+    "micro": {
+     "chaos": 0.4,
+     "seed": 13
+    },
     "name": "strip 13",
     "len": 391.7,
     "wid": 12,
@@ -15563,6 +15591,10 @@
    },
    {
     "id": "w1",
+    "micro": {
+     "chaos": 0.35,
+     "seed": 11
+    },
     "name": "Cabin Strip",
     "len": 383.3,
     "wid": 18,
