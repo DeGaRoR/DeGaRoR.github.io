@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 828f1ba789138146
+// body-sha256: 36a121c44210f037
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -35391,7 +35391,7 @@ const GEN_HULL_ROW_OFF = { bpStrutK: 1, bpCabDraw: 1, bpCabPylon: 0, engPylonFai
 // WILGA-GEAR: the trailing-link leg's rows per station (tools/_gear_page.js LEG_ROWS[4]) at the value a build without them
 // draws (_cage_gen CAGE_DEFAULT_ABSENT holds the same)
 const GEN_LEVER_ROW_OFF = (() => { const d = { lvArm: 0.4, lvAng: 62, lvComp: 12, lvTop: 0.18, lvReach: 0.45, lvStat: 0.07, lvLegW: 0.09, lvRootAng: 80 }, o = {};
-  for (const i of [1, 2]) for (const k in d) o['s' + i + '_' + k] = d[k];
+  for (const k in d) { o[k] = d[k]; for (const i of [1, 2]) o['s' + i + '_' + k] = d[k]; }   // (the flat base copy too)
   return o; })();
 // RETRACT-1 / G1: the gear layer's retraction rows (tools/_cage_gear.js), dropped by genStolCageOff when the gear is fixed
 const GEN_RETRACT_ROWS = ['gearRetract', 'gearRetT', 'gearRetAct', 'gearRetFrac', 'gearFold', 'gearFoldNose', 'gearPos',
@@ -35944,13 +35944,11 @@ const GEN_RULES = {
   //             rb, zl, ff, vf, stopK: gearOleoDesign's rules (§4)
   //   kgArm / kgStrut / kgLeg  the forged arm with its pivot and bearings, the strut, the upper leg's fittings (DERIVED:
   //             the study's §6, inside the 4-6 % of gross a fixed gear weighs)
-  //   boss      the arm's boss across the pivot (m, up the perpendicular of the arm's line): the frame's node that makes
-  //             the arm a solid (61: the horn cannot fold through it)
   //   kMul / cMul  the leg's and the arm's members at kMul x the gear class's k and cMul x its damper: steel
   //             structure, not a spring (the strut is the spring and its orifice the damper)
   lever: { arm: 0.400, ang: 62, comp: 12, hornK: 0.959, hornDeg: 12.3, qPiv: 0.268, qHorn: 0.173, w: 0.06, top: 0.18,
            legDir: [0.640, 0.577, -0.514], dSt: 0.070, dPiston: 0.045, rp: 3.0, n: 1.3, p2k: 2.2, nFull: 3.0, cd: 0.5,
-           nLim: 2.67, rb: 4, zl: 0.15, ff: 0.05, vf: 0.005, stopK: 3, kgArm: 4.5, kgStrut: 3.2, kgLeg: 2.5, kMul: 20, cMul: 0.1, boss: 0.12 },
+           nLim: 2.67, rb: 4, zl: 0.15, ff: 0.05, vf: 0.005, stopK: 3, kgArm: 4.5, kgStrut: 3.2, kgLeg: 2.5, kMul: 20, cMul: 0.1 },
   // THE BOX'S WEBS ON A SKINNED WING (chantier 1, see 61_gen_frame's
   // bracing section): the fraction of the cap's linear density a web, rib
   // post or shear diagonal of the torsion-box lattice bills when the
@@ -43205,31 +43203,25 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       const KL = { kMul: LR.kMul, cMul: LR.cMul };
       for (const q of [PI, PO, U]) { B(q, fw, 'gear', false, undefined, undefined, KL); B(q, af, 'gear', false, undefined, undefined, KL); B(q, tp0, 'gear', false, 'inner', undefined, KL); }
       B(PI, PO, 'gear', false, undefined, undefined, KL); B(U, PI, 'gear', false, undefined, undefined, KL); B(U, PO, 'gear', false, undefined, undefined, KL);
-      // THE ARM IS A SOLID, NOT A PLANE (rule 10 again): the horn H stands 12 deg off the arm's line, 8 cm off the plane
-      // of the axle and the pivot's two ends - three anchors it can REFLECT through. Measured: the spawn's settle snapped
-      // it to its mirror and the strut read half its stroke for a 70 deg swing of the arm. K is the arm's boss across
-      // the pivot (LR.boss up the perpendicular of the arm's line, at the pivot's mid-plane): with it the arm is a
-      // tetrahedron (axle, PI, PO, K) and H is held by four members, one of them 0.4 m off any plane it could fold through
-      const ap = P[ax], v = [ap[0] - c[0], ap[1] - c[1]], vl = Math.hypot(v[0], v[1]) || 1;
-      const K = N(c[0] - LR.boss * v[1] / vl, c[1] + LR.boss * v[0] / vl, c[2], 'AXLEK' + nm);
-      if ((P[K][1] - c[1]) < 0) { P[K][0] = c[0] + LR.boss * v[1] / vl; P[K][1] = c[1] - LR.boss * v[0] / vl; nodes[K].p = P[K].slice(); }
+      // THE ARM: the axle and the horn on the pivot's two ends. The horn stands 12 deg off the arm's line, 8 cm off the
+      // plane of the axle and the pivot's ends - three anchors it can REFLECT through (rule 10): measured, the spawn's
+      // settle snapped it to its mirror and the strut read half its stroke for a 70 deg swing. The arm's rigid cluster
+      // (below) holds it - a proper rotation has no mirror - so the members are the arm's mass and its damage joints
       B(ax, PI, 'gear', false, undefined, undefined, KL); B(ax, PO, 'gear', false, undefined, undefined, KL);
-      B(K, PI, 'gear', false, undefined, undefined, KL); B(K, PO, 'gear', false, undefined, undefined, KL); B(K, ax, 'gear', false, undefined, undefined, KL);
       B(H, PI, 'gear', false, undefined, undefined, KL); B(H, PO, 'gear', false, undefined, undefined, KL); B(H, ax, 'gear', false, undefined, undefined, KL);
-      B(H, K, 'gear', false, undefined, undefined, KL);
       // the leg's own hardware where it hangs (GEN_RULES.lever: the arm and its bearings, the strut, the fittings)
-      pt(ax, 0.4 * LR.kgArm); pt(PI, 0.12 * LR.kgArm); pt(PO, 0.12 * LR.kgArm); pt(K, 0.16 * LR.kgArm); pt(H, 0.2 * LR.kgArm + 0.5 * LR.kgStrut);
+      pt(ax, 0.5 * LR.kgArm); pt(PI, 0.15 * LR.kgArm); pt(PO, 0.15 * LR.kgArm); pt(H, 0.2 * LR.kgArm + 0.5 * LR.kgStrut);
       pt(U, 0.5 * LR.kgStrut + LR.kgLeg);
       // THE ARM IS FORGED, NOT A TRUSS: on a 0.12 m bearing base its members let the axle bend 16 mm away under the static
       // load and ~0.1 m in a limit drop (GATE WILGAGEAR 5 / 7 measured it). A rigid cluster (G294's shape matching - a
-      // projection, no frequency, no substep cost) holds the axle, the pivot's ends, the boss and the horn in their
-      // shape; the members inside still run (the mass, the drawing, the damage layer's joints)
-      clusters.push({ cls: 'lever', tag: 'LEV' + nm, nodes: [ax, PI, PO, K, H] });
+      // projection, no frequency, no substep cost) holds the axle, the pivot's ends and the horn in their shape (and the
+      // horn off its mirror); the members inside still run (the mass, the damage layer's joints)
+      clusters.push({ cls: 'lever', tag: 'LEV' + nm, nodes: [ax, PI, PO, H] });
       // ...and the leg's FOOT is a forging too (the knuckle that carries the pivot's cylinder and the strut's bracket): the
       // strut's upper eye held to the pivot's axis, so the stroke is the arm's angle's (the kinematics') under a drop's
       // 40 kN as at rest
       clusters.push({ cls: 'lever', tag: 'LEG' + nm, nodes: [PI, PO, U] });
-      LEVREC.sides.push({ side: nm, axle: ax, pi: PI, po: PO, h: H, u: U, k: K });
+      LEVREC.sides.push({ side: nm, axle: ax, pi: PI, po: PO, h: H, u: U });
     }
   } else
   B(GAL, GAR, 'gear');
