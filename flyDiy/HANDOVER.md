@@ -314714,3 +314714,23 @@ TOWN-1 STEP 1, THE COST (HW-COVERAGE, 8 Nov, metla_ab P,B,B,P, Cub, approach 100
 - sea-on: one 2045 ms first-visit task; the Petrel not measured.
 - town-trees: measured on L35d, no measurable cost.
 - **BOOT: the timed gate timed out on its last row (c172 cockpit).** Garage-ready 134-244 s (one boot timeout at 243.7 s) against L38a 150-185 s and L37b 119-149 s, with long tasks up to 32 s. It is mixed with the box's shader-cache misses (worst link 47.8 s), so it is not attributed to an item. First item of the Friday perf round.
+
+## DIRT-STRIP - A NAMED COST: THE BUMPY STRIP'S RIBBON, 5 cm ROWS ACROSS A RUT'S WALL (9 Nov 2026, claude/dirt-strip 11be830d5)
+
+The ruts-first field (26b_strip_micro.js WAYS: vehicle ruts about 10 cm deep at chaos 0.8 with berms, a cart, a path)
+gives the ground steep walls, about 10 cm over 9 cm. GATE MICRO section 7 requires the drawn ribbon to be the wheels'
+ground: p99 under 10 mm, max under 30 mm. With rows 8 cm across (REFINE_MIN_V 0.08) the walls were drawn 2 cm off:
+p99 20.5 mm, max 34 mm on w7 at chaos 0.8 (19:36 gates).
+REFINE_MIN_V is now 0.05. refineAxis halves spans, so this means 4.7 cm rows where the ruts wander. The result there is
+p99 8.4 mm and max 28.7 mm.
+**The cost, named:** w7 (1020 x 9 m) at chaos 0.8 draws 283 k vertices against 196 k (2721 x 104 against 2721 x 72) and
+takes +0.3 s to build (1.2 s against 0.9 s, node). The gate's vertex cap moves from 250 k to 300 k (A0 OK, 9 Nov 19:45).
+It applies only to a strip with chaos on: every strip ships at chaos 0 until the Pilot re-vets the field, so nothing is
+paid today.
+**Tried and rejected:**
+- 0.5 m along (spans 0.75 m): 178 k vertices, but p99 15 mm, because the lumps' 1.8 m octave needs 0.375 m spans.
+- A longer rut wiggle (2.5 m against 0.7 m): it does not move the error.
+- 0.04 and 0.05 across give the same spans.
+**Owed:** a frame-cost bench of the finer rows once a strip's chaos is switched on (the user's default, 9 Nov: keep the
+fine rows and bench their cost).
+Probe: scratchpad ribbon_probe.js <minU> <minV>..., run after a build.
