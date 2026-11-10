@@ -1945,6 +1945,22 @@ function makeSim(def, world) {
     NOSE.forEach((N, k) => { if (!N) return; for (const i of N.body) { NZ.node[i] = k + 1; NZ.K[k] += KGn0(i); } NZ.C[k] = 1.6 * Math.sqrt(NZ.K[k] * N.m); });
     for (let bi = 0; bi < nb; bi++) { const a = NZ.node[beams[bi].a], b = NZ.node[beams[bi].b]; NZ.beam[bi] = a && a === b ? 2 : (a || b) ? 1 : 0; }
   }
+  // ENGINE-LUMP (33_drive GEN_NOSE.lumpZ): per member inside one engine's body (NZ.beam 2), its extra damping along its
+  // length - lumpZ x 2 sqrt(k mu), mu the pair's reduced mass - held under 0.5 mu / dt (the substep's, set on first use)
+  const ENGLUMP = NOSE && GEN_NOSE.lumpZ > 0 ? { bi: [], c: [], mu: [], dt: 0 } : null;
+  if (ENGLUMP) for (let bi = 0; bi < nb; bi++) if (NZ.beam[bi] === 2) { const b = beams[bi], ma = def.nodes[b.a].m || 1, mb = def.nodes[b.b].m || 1; ENGLUMP.bi.push(bi); ENGLUMP.mu.push(ma * mb / (ma + mb)); ENGLUMP.c.push(0); }
+  function lumpPass(dt) {
+    const E = ENGLUMP;
+    if (E.dt !== dt) { E.dt = dt; for (let j = 0; j < E.bi.length; j++) { const b = beams[E.bi[j]], mu = E.mu[j];
+      E.c[j] = Math.min(GEN_NOSE.lumpZ * 2 * Math.sqrt(Math.max(0, b.k) * mu), 0.5 * mu / dt); } }
+    for (let j = 0; j < E.bi.length; j++) {
+      const b = beams[E.bi[j]]; if (b.broken) continue;
+      const ia = b.a * 3, ib = b.b * 3, ex = p[ib] - p[ia], ey = p[ib+1] - p[ia+1], ez = p[ib+2] - p[ia+2], L = Math.sqrt(ex*ex + ey*ey + ez*ez);
+      if (!(L > 1e-6)) continue;
+      const ux = ex / L, uy = ey / L, uz = ez / L, dv = (v[ib] - v[ia]) * ux + (v[ib+1] - v[ia+1]) * uy + (v[ib+2] - v[ia+2]) * uz, F = E.c[j] * dv;
+      f[ia] += F * ux; f[ia+1] += F * uy; f[ia+2] += F * uz; f[ib] -= F * ux; f[ib+1] -= F * uy; f[ib+2] -= F * uz;
+    }
+  }
   // the node contact's spring as rigGround sets it (the core's: the engine's nodes against the obstacle)
   function KGn0(i) { const mi = def.nodes[i].m; return mi <= 6 ? Math.min(9e4, 2.5e5 * mi) : 1.5e4 * mi; }
   // engine k's nose now: its centre (the spinner's tip less Rn along the engine's own axis - its mass centre to its thrust
@@ -2044,8 +2060,9 @@ function makeSim(def, world) {
       // across the engine (the contact point's station on the line between them, clamped: a corner hit is the corner
       // case). (By mass share it went 81 % to the Cub's 90 kg crankcase node, whose tubes no case loads that way: they
       // crushed at their floor and the mount's bottom fittings tore, 10 of 49 winds)
-      const TN = N.thrust;
-      if (TN.length === 2) {
+      const TN = GEN_NOSE.pushCg && N.body.length <= 8 ? N.body : N.thrust;   // (ENGINE-LUMP's A/B: on the body's CG by its mass shares)
+      if (TN === N.body) for (let j = 0; j < TN.length; j++) NZ.wt[j] = N.w[j];
+      else if (TN.length === 2) {
         const a3 = TN[0] * 3, b3 = TN[1] * 3, ex = p[b3] - p[a3], ez = p[b3+2] - p[a3+2], e2 = ex * ex + ez * ez;
         const px = gx - nx * Rn, pz = gz - nz * Rn;
         let t = e2 > 1e-9 ? ((px - p[a3]) * ex + (pz - p[a3+2]) * ez) / e2 : 0.5; t = t < 0 ? 0 : t > 1 ? 1 : t;
@@ -4079,6 +4096,7 @@ function makeSim(def, world) {
       // hold a taxiing aeroplane inside a 0.3 m radius - the axis crossed the beam and pushed it on through
     }
     if (noseArm) nosePass(dt);                       // G2013 (DMG-NOSE): the crushable nose (an armed frame only)
+    if (ENGLUMP !== null && (noseArm || DMG.crashed)) lumpPass(dt);   // ENGINE-LUMP: the crankcase a lump (armed / a crash only)
     if (_prN) trunkPass(dt);                         // G1883: its own function (the hot substep stays the base's size)
     // G1470: DEBRIS (a node every member of which broke - an engine torn off its mount) meets the trunks as a point:
     // with no beam left to test it would fly through the tree it was torn off on
