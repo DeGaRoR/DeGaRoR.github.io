@@ -279,20 +279,20 @@ function fieldRing(opts) {   // (opts: { codeAt, mixAt } - a world of the caller
     const Fx = fs ? fadeCheck(Fd, fs, L.fadeSize(null, null, fs)[0], L.fadeSize(null, null, fs)[1], L.fadeSize(null, null, fs)[2]) : { meshes: 0, cut: 0, bad: 1 };
     ok(Fx.meshes > 0 && Fx.bad === 0, '8e the field\'s truncation leaves out only tufts its own fade (and size fade) collapses', Fx.cut + ' left out, ' + Fx.bad + ' that would draw');
     // (f) THE ROOT GRADIENT (G2571; VEG-ROOT 9 Nov: ON by default, every small plant): the reed's compiled program reads the ring's own
-    // uRoot - the cover's row (0.85) by default, live A -> B -> A (0.85 -> 0.5 -> 0.85) - and every other faded material of the first ring
+    // uRoot - the cover's row (0.95) by default, live A -> B -> A (0.95 -> 0.5 -> 0.95) - and every other faded material of the first ring
     // carries a uRoot of its own: rocks and debris the identity, a shrub its kind's row (x > 0; never the reed's object),
     // so a cache-hit program never keeps another material's state (the cached-program uniforms trap); the law after the map's tint
     { const reed = meshes[0] && meshes[0].material, rnd = () => { Fd.CR.update(); Fd.R.render(Fd.scene, Fd.camera); }, uR = () => { const p = Fd.R.properties.get(reed); return p && p.uniforms && p.uniforms.uRoot; };
       rnd(); const a0 = uR(), x0 = a0 ? a0.value.x : NaN;
       Fd.CR.set({ root: 0.5 }); rnd(); const x1 = uR() ? uR().value.x : NaN;
-      Fd.CR.set({ root: 0.85 }); rnd(); const x2 = uR() ? uR().value.x : NaN;
+      Fd.CR.set({ root: 0.95 }); rnd(); const x2 = uR() ? uR().value.x : NaN;
       let others = 0, othersOk = 0; Bt.R.render(Bt.scene, Bt.camera);
       Bt.CR.root.traverse(o => { if (!(o.isInstancedMesh || o.isBatchedMesh) || !o.material || !o.material.userData.fade || o.userData.coverKind === 'cover') return;
         const p = Bt.R.properties.get(o.material); others++; const k = o.userData.coverKind, u = p && p.uniforms && p.uniforms.uRoot;
         if (u && u !== a0 && ((k === 'rock' || k === 'debris') ? u.value.x === 0 : (k !== 'shrub' || u.value.x > 0))) othersOk++; });
       const fsOk = Fd.B.links.some(l => l.fs && l.fs.indexOf('diffuseColor.rgb *= min(vRoot, 1.0);') >= 0 && l.vs && l.vs.indexOf('vRoot = 1.0 - uRoot.x + uRoot.x * position.y') >= 0);
-      ok(a0 && Math.abs(x0 - 0.85) < 1e-6 && x1 === 0.5 && Math.abs(x2 - 0.85) < 1e-6 && others > 0 && othersOk === others && fsOk,
-         '8f the root gradient: the reed reads the field\'s uRoot (0.85 -> 0.5 -> 0.85 live), every other faded material its own (rocks identity, shrubs their row), the vertex law in the program',
+      ok(a0 && Math.abs(x0 - 0.95) < 1e-6 && x1 === 0.5 && Math.abs(x2 - 0.95) < 1e-6 && others > 0 && othersOk === others && fsOk,
+         '8f the root gradient: the reed reads the field\'s uRoot (0.95 -> 0.5 -> 0.95 live), every other faded material its own (rocks identity, shrubs their row), the vertex law in the program',
          'x ' + [x0, x1, x2].join(' -> ') + ', ' + othersOk + ' of ' + others + ' others right'); }
   }
 }
