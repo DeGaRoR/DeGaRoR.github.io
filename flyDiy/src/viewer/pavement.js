@@ -1698,8 +1698,13 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
     // no mown wash; the coarse slot (gravelF) is the trail's grit
     if (grassy && !road && uMacro.w > 0.0) {
       float edgeN = pvNoise(uvS / 0.35 + 31.0) * 0.6 + pvNoise(uvS / 2.2 + 17.0) * 0.4;
-      float trail = smoothstep(0.3, 0.6, clamp(rut * 1.3 + wheel + tread * 0.6, 0.0, 1.0) + 0.45 * (edgeN - 0.5));
-      if (trail > 0.004) { Smp g = pvSet(1, uvS); col = mix(col, g.c.rgb * (0.85 + 0.3 * edgeN), trail); nT = mix(nT, g.n.xyz, trail); rough = mix(rough, g.n.a, trail); }
+      // (10 Nov 03:50 stills: the first trail read as a white road of many streaks with a dashed tail-wheel line) - only the
+      // MAIN lanes (the fainter passes and the tail wheel stay under the threshold), and the gravel at the ground's own
+      // brightness, grey-brown: the set's detail scaled to the luminance under it
+      float trail = smoothstep(0.5, 0.8, clamp(rut * 1.3 + wheel + tread * 0.6, 0.0, 1.0) + 0.35 * (edgeN - 0.5));
+      if (trail > 0.004) { Smp g = pvSet(1, uvS); const vec3 LW = vec3(0.2126, 0.7152, 0.0722);
+        vec3 grit = g.c.rgb * (dot(col, LW) / max(dot(g.c.rgb, LW), 0.02)) * vec3(1.06, 0.98, 0.86) * (0.9 + 0.2 * edgeN);
+        col = mix(col, grit, trail); nT = mix(nT, g.n.xyz, trail); rough = mix(rough, g.n.a, trail); }
       gPavA = mix(gPavA, trail * gPavA, uMacro.w);
     }
     diffuseColor.rgb = col; diffuseColor.a = gPavA;
