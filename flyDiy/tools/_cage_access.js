@@ -429,7 +429,7 @@ function rodSite(row, P, needs, atSL, atLV, bags) {
   // HULL-B37 (the user: "the fixation rings don't follow your rod rotation"): the tube climbs rodIncl aft of its root,
   // so the site rides the axis AT ITS STATION (it sat at the root's height, the ring hanging off an inclined rod) and the
   // collar is square to the tube: fa the axis forward, up square to it
-  const tI = Math.tan(S.rod.incl || 0), yA = y0 + tI * (sp.zRoot - z);
+  const tI = Math.tan(S.rod.incl || 0), yA = y0 + tI * ((sp.zAx != null ? sp.zAx : sp.zRoot) - z);   // (PETREL-LS: the axis's anchor)
   const cI = 1 / Math.hypot(1, tI), fa = [0, -tI * cI, cI], up = [0, cI, tI * cI];
   const p = [0, (yA + sgn * r * up[1]) * FS, (z + sgn * r * up[2]) * FS];
   const n = [0, sgn * up[1], sgn * up[2]];
@@ -445,6 +445,86 @@ function rodSite(row, P, needs, atSL, atLV, bags) {
         [[0.0060, 0], [0.0060, 0.0090], [0.0035, 0.0110]], 10, true);
   }
   return { p, n, sL: atSL, sC: 0, st: 0, lv: 0, mat: 'boomTube', side: 'centre' };
+}
+
+// PETREL-LS: THE ROD'S SOCKET (the user, 10 Nov: "have the boom actually cut through that part. Then we enlarge the
+// cut slightly and we extrude it in the direction of the boom. And then we bevel the edges. So it looks like ... a part
+// specifically done so that you can stick this boom in it"). Where a single rod enters the body: lines parallel to its
+// axis, a sleeve's radius off it, are cast forward from the tail onto the body's own skin (the cage mesh, the tube
+// itself left out) - the first crossing is where the sleeve must reach aft to, the deepest where it is buried. The
+// sleeve - the cut enlarged by `rodSocketGap`, a wall of a third of the rod's radius - runs from inside the deepest
+// crossing to `rodSocketLen` aft of the first, its mouth bevelled inside and out, in the SKIN's own material (the face
+// the axis meets): moulded with the body, not a fitting. Published (CAGE_ROD_SOCKET) with the tube's root it implies -
+// a few diameters inside the deepest crossing - for the `rodRootAft` row.
+function rodSocket(ctx, P, grp) {
+  window.CAGE_ROD_SOCKET = null;
+  if (!+P.rodSocket || !CG2 || !CG2.cageSpec || !CG2.cageResolve || !K || !K.revolve || !K.Bag) return;
+  const mesh = ctx && ctx.mesh;
+  if (!mesh || !mesh.V || !mesh.F) return;
+  let S, R;
+  try { S = CG2.cageSpec(Object.assign({}, P)); R = CG2.cageResolve(S); } catch (e) { return; }
+  if (!S.rod || S.rod.twin || !R || !R.rodSpan) return;
+  const FS = (CG2.CAGE_UNIT || 1) * (P.planeScale || 1), sp = R.rodSpan;
+  const zAx = sp.zAx != null ? sp.zAx : sp.zRoot, tI = Math.tan(S.rod.incl || 0);
+  const axY = z => (S.rod.y + tI * (zAx - z)) * FS;                    // metres, z in cage units
+  const cI = 1 / Math.hypot(1, tI), fa = [0, -tI * cI, cI];             // forward along the tube
+  const e1 = [1, 0, 0], e2 = [0, cI, tI * cI];                          // square to it
+  const rRod = S.rod.r * FS, gap = Math.max(0.002, +P.rodSocketGap > 0 ? +P.rodSocketGap : 0.012);
+  const rIn = rRod + gap, wall = Math.max(0.010, 0.33 * rRod), rOut = rIn + wall, bev = 0.45 * wall;
+  const L = +P.rodSocketLen > 0 ? +P.rodSocketLen : 0.12;
+  // the body's skin, in metres (the tube's own faces out)
+  const T = [], TM = [];
+  for (const f of mesh.F) {
+    if (!f || !f.v || f.v.length < 3 || f.m === 'boomTube') continue;
+    const co = f.cutOff || [0, 0, 0];
+    const q = f.v.map(i => [(mesh.V[i][0] - co[0]) * FS, (mesh.V[i][1] - co[1]) * FS, (mesh.V[i][2] - co[2]) * FS]);
+    for (let t = 1; t + 1 < q.length; t++) { T.push(q[0], q[t], q[t + 1]); TM.push(f.m); }
+  }
+  const hit = (o, d) => {                                                // nearest crossing ahead, both faces
+    let best = Infinity, bm = null;
+    for (let i = 0; i < TM.length; i++) {
+      const a = T[3 * i], b = T[3 * i + 1], c = T[3 * i + 2];
+      const ab = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], ac = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
+      const pv = [d[1] * ac[2] - d[2] * ac[1], d[2] * ac[0] - d[0] * ac[2], d[0] * ac[1] - d[1] * ac[0]];
+      const det = ab[0] * pv[0] + ab[1] * pv[1] + ab[2] * pv[2];
+      if (Math.abs(det) < 1e-12) continue;
+      const tv = [o[0] - a[0], o[1] - a[1], o[2] - a[2]], u = (tv[0] * pv[0] + tv[1] * pv[1] + tv[2] * pv[2]) / det;
+      if (u < 0 || u > 1) continue;
+      const qv = [tv[1] * ab[2] - tv[2] * ab[1], tv[2] * ab[0] - tv[0] * ab[2], tv[0] * ab[1] - tv[1] * ab[0]];
+      const v = (d[0] * qv[0] + d[1] * qv[1] + d[2] * qv[2]) / det;
+      if (v < 0 || u + v > 1) continue;
+      const s = (ac[0] * qv[0] + ac[1] * qv[1] + ac[2] * qv[2]) / det;
+      if (s > 1e-4 && s < best) { best = s; bm = TM[i]; }
+    }
+    return isFinite(best) ? { s: best, m: bm } : null;
+  };
+  // from just aft of the tube's tip, forward
+  const zT = sp.zTip - 0.02 / FS, O = [0, axY(zT), zT * FS];
+  const at = (u, rad, th) => [O[0] + fa[0] * u + rad * (Math.cos(th) * e1[0] + Math.sin(th) * e2[0]),
+                              O[1] + fa[1] * u + rad * (Math.cos(th) * e1[1] + Math.sin(th) * e2[1]),
+                              O[2] + fa[2] * u + rad * (Math.cos(th) * e1[2] + Math.sin(th) * e2[2])];
+  const h0 = hit(at(0, 0, 0), fa);
+  if (!h0) return;
+  let uMin = h0.s, uMax = h0.s;
+  const seen = {}, RAIL = new Set(['ceilingLoop', 'floorLoop', 'waistband', 'joint', 'doorSeal', 'paneEdge']);
+  if (h0.m && !RAIL.has(h0.m)) seen[h0.m] = 1;
+  for (let k = 0; k < 16; k++) {
+    const h = hit(at(0, rOut, 2 * Math.PI * k / 16), fa);
+    if (h && h.s < h0.s + 3) { uMin = Math.min(uMin, h.s); uMax = Math.max(uMax, h.s); if (h.m && !RAIL.has(h.m)) seen[h.m] = (seen[h.m] || 0) + 1; }
+  }
+  const skinM = Object.keys(seen).sort((a, b) => seen[b] - seen[a])[0] || h0.m;   // the skin most crossed, not a rail
+  const ins = 2 * rRod, uA = Math.max(0, uMin - L), uB = uMax + ins, H = uB - uA;
+  const prof = [[rIn, H], [rIn, bev], [rIn + 0.6 * bev, 0], [rOut - bev, 0], [rOut, bev], [rOut, H]];
+  const bag = K.Bag();
+  K.revolve(bag, at(uA, 0, 0), fa, prof, 32, false);
+  const MO = window.CAGE_MAT_OF;
+  const mat = (MO && skinM && MO(skinM)) || (MO && MO('body')) || new THREE.MeshStandardMaterial({ color: 0xd9a13b, roughness: 0.6 });
+  const m = bag.mesh(grp, mat);
+  if (m) { m.name = 'edRodSocket'; m.userData.edHw = 1; }
+  // the tube's root it implies: a few diameters inside the deepest crossing (cage units aft of the bulkhead)
+  const pDeep = at(uMax + 3 * 2 * rRod, 0, 0), zDeep = pDeep[2] / FS;
+  window.CAGE_ROD_SOCKET = { zFirst: at(uMin, 0, 0)[2] / FS, zDeep: at(uMax, 0, 0)[2] / FS, mat: skinM,
+                             rootAft: +Math.max(0, zAx - zDeep).toFixed(3), sleeve: { from: uA, to: uB, rIn, rOut } };
 }
 
 // THE TWIN BOOMS (G278, the user: "I'd still like for the accessories to
@@ -1140,6 +1220,7 @@ PAGE.post = ctx => {
       if (host) m.userData.partOf = host;      // the join bakes it into that part
     }
   }
+  try { rodSocket(ctx, P, group); } catch (e) { console.error('rod socket', e); }   // PETREL-LS
   scene.add(group);
 
   // (rows: what this aeroplane needs plus what a hand placed - the table rows only looked up are not in it)

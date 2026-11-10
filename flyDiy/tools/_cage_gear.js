@@ -2523,7 +2523,7 @@ PAGE.post = ctx => {
       // inclined tube by the whole rise, and the tailwheel rode it
       const tI = Math.tan(S.rod.incl || 0);
       return { zRoot: R.rodSpan.zRoot * FS, zTip: R.rodSpan.zTip * FS, r: S.rod.r * FS, tI,
-               yAx: z => (S.rod.y + tI * (R.rodSpan.zRoot - z / FS)) * FS };
+               yAx: z => (S.rod.y + tI * ((R.rodSpan.zAx != null ? R.rodSpan.zAx : R.rodSpan.zRoot) - z / FS)) * FS };   // (PETREL-LS: the axis's anchor)
     } catch (e) { return null; }
   })();
   const saddlesOut = [];

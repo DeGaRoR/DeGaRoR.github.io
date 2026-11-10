@@ -1246,6 +1246,18 @@ window.CAGE_PAGE = {
       // boom and boom rod options, compared to the body")
       ['rodIncl',   'rod inclination (tail up)', -12, 20, 0.1,   // (PETREL-LS: the LS boom climbs ~12-13 deg; 12 was the cap)
        { when: P => +P.boomStyle === 1 && !+P.boomTwin }],
+      // PETREL-LS (the user, 10 Nov: the rod "stops a little before" the bulkhead, and "the boom cut through that part ...
+      // enlarge the cut slightly and extrude it in the direction of the boom ... bevel the edges"): the tube's root aft of
+      // the bulkhead (the axis still read there), and the SOCKET where it enters the body - a bevelled sleeve of the
+      // body's skin round it, found where the axis meets the skin (_cage_access.js)
+      ['rodRootAft', 'rod root aft of the bulkhead', 0, 3, 0.005,
+       { when: P => +P.boomStyle === 1 && !+P.boomTwin, dim: 'len', absent: 0 }],
+      ['rodSocket', 'socket where the rod enters', 0, 1, 1, ['none', 'bevelled sleeve'],
+       { when: P => +P.boomStyle === 1 && !+P.boomTwin, absent: 0 }],
+      ['rodSocketLen', 'socket sleeve length (m)', 0.02, 0.5, 0.005,
+       { when: P => +P.boomStyle === 1 && !+P.boomTwin && +P.rodSocket, absent: 0.12 }],
+      ['rodSocketGap', 'socket clearance round the rod (m)', 0.002, 0.06, 0.001,
+       { when: P => +P.boomStyle === 1 && !+P.boomTwin && +P.rodSocket, absent: 0.012 }],
       ['boomLen',   'length',          1.0, 6.0, 0.01, { dim: 'len' }],
       // (aft roof/keel = the boom frame; the cone's section = the tail
       // frame, both in 0 · frames since T2.1)
