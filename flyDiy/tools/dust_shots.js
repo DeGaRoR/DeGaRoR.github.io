@@ -53,10 +53,11 @@ const OUT = opt('out', 'D:/Dev/flydiy-notes/evidence-2026-10-18/2026-11-09/dust/
 const RUNUP = opt('runup', null);
 const HOUR = opt('hour', 'golden');
 const FROM = opt('from', null), DEST = opt('dest', 'CIRCUIT');   // (--from: the take-off at another field, the route pref's spawn)
-const q = [DUST_ON ? null : 'dust=0', GFX ? 'gfx=' + GFX : null].filter(Boolean).join('&');
+const LOOK0 = opt('look', '1') === '0';      // --look 0: the 9 Nov dust look (?dustlook=0), the before of a before/after
+const q = [DUST_ON ? null : 'dust=0', GFX ? 'gfx=' + GFX : null, LOOK0 ? 'dustlook=0' : null].filter(Boolean).join('&');
 const URL0 = opt('url', 'http://localhost:8450/flyDiy/dev.html');
 const URL = q ? URL0 + (URL0.includes('?') ? '&' : '?') + q : URL0;
-const ARM = (DUST_ON ? 'dust' : 'nodust') + '_' + (GFX || 'default') + (RUNUP ? '_runup_' + RUNUP : '') + (FROM ? '_from_' + FROM : '');
+const ARM = (DUST_ON ? 'dust' : 'nodust') + (LOOK0 ? '_look0' : '') + '_' + (GFX || 'default') + (RUNUP ? '_runup_' + RUNUP : '') + (FROM ? '_from_' + FROM : '');
 const PORT = 9400 + (process.pid % 500);
 const CHROME = [opt('chrome', null), 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
   'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe', '/usr/bin/google-chrome',
@@ -140,7 +141,7 @@ async function runup(ev, cmd, shot, rec) {
     const cmd = (method, params) => new Promise(r => { const i = ++id; waits.set(i, r); ws.send(JSON.stringify({ id: i, method, params: params || {} })); });
     const ev = async expr => { const r = await cmd('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true });
       if (!r.result || r.result.exceptionDetails) throw new Error('page: ' + JSON.stringify(r.result && r.result.exceptionDetails && ((r.result.exceptionDetails.exception && r.result.exceptionDetails.exception.description) || r.result.exceptionDetails.text))); return r.result.result.value; };
-    const shot = async v => { if (!STILLS) return; const s = await cmd('Page.captureScreenshot', { format: 'png' });
+    let shot = async v => { if (!STILLS) return; const s = await cmd('Page.captureScreenshot', { format: 'png' });
       fs.mkdirSync(path.dirname(OUT), { recursive: true });
       const f = OUT + '_' + ARM + '_' + v + '.png'; fs.writeFileSync(f, Buffer.from(s.result.data, 'base64')); say('wrote ' + f); };
     await cmd('Page.enable'); await cmd('Runtime.enable');
@@ -182,6 +183,13 @@ async function runup(ev, cmd, shot, rec) {
     // ground track's azimuth in the orbit camera's frame (x = cos az, z = sin az); behind = hd + PI, ahead = hd
     const HD = "(async()=>{const s=FLIGHT_PROBE.sim(),a=s.cgPos().slice();await new Promise(r=>setTimeout(r,400));const b=s.cgPos();return Math.atan2(b[2]-a[2],b[0]-a[0])})()";
     let hd = null;
+    // THE ORBIT, AND WHERE IT LOOKS (10 Nov: the nv_strip stills had the dust in frame and no aeroplane): camSet drives the
+    // orbit only - force it, and record at each shot the mode, the orbit and the CG, so a still that misses says why
+    try { await ev("(FLIGHT_PROBE.camMode&&FLIGHT_PROBE.camModeNow&&FLIGHT_PROBE.camModeNow()!=='orbit'&&FLIGHT_PROBE.camMode('orbit'),1)"); } catch (e) {}
+    rec.probe = {};
+    const PROBE = "(()=>{const s=FLIGHT_PROBE.sim(),c=FLIGHT_PROBE.cam();return {mode:FLIGHT_PROBE.camModeNow&&FLIGHT_PROBE.camModeNow(),cg:s&&s.cgPos?s.cgPos().map(v=>+v.toFixed(1)):null,az:+c.az.toFixed(2),el:+c.el.toFixed(2),dist:+c.dist.toFixed(1)}})()";
+    const shot0 = shot;
+    shot = async v => { try { rec.probe[v] = await ev(PROBE); say(ARM + ' ' + v + ' ' + JSON.stringify(rec.probe[v])); } catch (e) {} return shot0(v); };
     await ev('(window.__dustS.on=true,window.__dustS.t.length=0,1)');
     rec.trace = [];
     while (Date.now() - t0 < AIR_MAX) {

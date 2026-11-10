@@ -67,7 +67,10 @@
     lumMin: 0.05, lumMax: 0.32,   // the dust's luminance kept to a soil's (dark peat .. pale sand)
     dens: 0.6,           // the puff's drawn optical depth over the 9 Nov bench's (the user, 10 Nov: "a lower cloud density")
     fwdMax: 1.8,         // the forward lobe's cap (was 4): a backlit puff glows, it no longer blows out to white at low sun
+    ground: true,        // the ground's colour handed in (false: the class rows)
   };
+  // ?dustlook=0: the 9 Nov look (the class rows, the full density, the 4x lobe) - the before/after's lever
+  try { if (typeof location !== 'undefined' && /[?&]dustlook=0/.test(location.search || '')) { LOOK.dens = 1; LOOK.fwdMax = 4; LOOK.ground = false; } } catch (e) {}
   function albedoFrom(g) {
     if (!g || g.length < 3) return null;
     const c = [g[0] * LOOK.lift, g[1] * LOOK.lift, g[2] * LOOK.lift], l = 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
