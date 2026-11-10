@@ -76,6 +76,14 @@ const TOL = { rel: 0.01, abs: 2 };
 //      { key: 'boot/rollout:compile/', build: '*', why: 'the contact-shadow pass links its programs under the screen', g: 'G1101' }
 // An entry admits a rise until the next --update takes it into the baseline; then it is dead and should go.
 const ALLOW = [
+  // G3961 (HOME-LAYOUT, the user validated the plan 9 Nov ~20:10 via A0; L36d's red): SCENERY - the start's stand moved 60 m along
+  // HOME's row and its ways out were redrawn down the taxiways' Y, so the taxi view is measured at ANOTHER place on ANOTHER route
+  // (now on 13/31 at (263.5, 727.6), heading 0.716): a different scene, not the old one costing more - its triangles fell
+  // (13.04 -> 12.89 M) and its shadow draws with them; the main draws rose 844 -> 1068 (Cub) / 854 -> 1084 (Cessna) and the
+  // Cub's uniform2f 45 -> 95 with what that place sees
+  { key: 'taxi/draws.main', build: 'cub', rise: 260, why: 'the taxi view measured at another place: HOME\'s start moved with the user\'s layout (SCENERY)', g: 'G3961' },
+  { key: 'taxi/draws.main', build: 'cessna', rise: 260, why: 'the taxi view measured at another place: HOME\'s start moved with the user\'s layout (SCENERY)', g: 'G3961' },
+  { key: 'taxi/gl.uniform2f', build: 'cub', rise: 60, why: 'the taxi view measured at another place: HOME\'s start moved with the user\'s layout (SCENERY)', g: 'G3961' },
   // G3340-G3341 (DASH-REDESIGN, the user validated it 18 Oct): the arch dash and the flexible dial layout - the Cub's
   // garage seed walks +704 matrix updates (17652 -> 18356, +4 %) and its restore +28 (778 -> 806): the dash's new pieces
   // and the dials that now fit the plate instead of overflowing (this branch is master + the dash alone; the
