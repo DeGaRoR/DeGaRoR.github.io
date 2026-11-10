@@ -5215,7 +5215,7 @@ const PROCURE_MODELS = {
       tank:     { def: 'std', vals: { std: { tank: 1, eff: { cub: {} } },
                                       long: { tank: 1.5, eff: { cub: PE_({ cost: 965, emptyKg: 9, massKg: 25, toM: 25, cruiseKmh: 0, rangeKm: 188, tankL: 23.8, seats: 0 }) } } } },
       gear:     { def: 'wheels', vals: { wheels: { eff: { cub: {} } },
-                                         tundra: { tyre: 'tundra', eff: { cub: PE_({ cost: 81, emptyKg: 8, massKg: 8, toM: 8, cruiseKmh: -2, rangeKm: -7, tankL: 0, seats: 0 }) } } } },
+                                         tundra: { tyre: 'tundra', eff: { cub: PE_({ cost: 33, emptyKg: 3, massKg: 3, toM: 3, cruiseKmh: -2, rangeKm: -7, tankL: 0, seats: 0 }) } } } },   // (PHYS-SCALE: BUSH-WHEELS' balloon carcass, re-emitted - was cost 81, 8 kg, toM 8)
       avionics: { def: 'basic', vals: { basic: { fit: 'basic', eff: { cub: {} } },
                                         minimal: { fit: 'minimal', eff: { cub: PE_({ cost: -9406, emptyKg: -25, massKg: -25, toM: -22, cruiseKmh: 0, rangeKm: 1, tankL: 0, seats: 0 }) } },
                                         ifr: { fit: 'ifr', eff: { cub: PE_({ cost: 11058, emptyKg: 9, massKg: 9, toM: 8, cruiseKmh: 0, rangeKm: 0, tankL: 0, seats: 0 }) } } } },
