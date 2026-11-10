@@ -72,14 +72,15 @@ const HV = require(path.join(ROOT, 'src', 'viewer', 'hangar_view.js'));
   ok(/compileSliced\(hview\.group, aa && aa\.target \? aa\.target\(\) : null, hangarScene\)/.test(app), '3b the view\'s programs are linked before the reveal');
   ok(/if \(inShed\) hviewTick\(\);/.test(app) && /hviewHold = 45;/.test(app) && /hviewCapture\(\[hviewFace\]\)/.test(app), '3c a return\'s recapture is deferred, a face a shed frame');
   ok(/craftInWorldNow\(\(\) => \{\s*craft\.traverse\(o => \{ if \(\(o\.isMesh/.test(app), '3d the capture keeps the craft\'s lights in the world (its meshes hidden)');
-  ok(/outdoorsShow: on => \{/.test(han) && /o\.name !== 'room:polish'/.test(han) && /skyMesh\.visible = !muted\.sky && !viewOut/.test(han), '3e hangar.js outdoorsShow: the outdoors\' span and the sky; the walls\' polish stays');
+  ok(/outdoorsShow: \(on, keepSky\) => \{/.test(han) && /o\.name !== 'room:polish'/.test(han) && /skyMesh\.visible = !muted\.sky && \(!viewOut \|\| skyLive\)/.test(han) && /hangar\.outdoorsShow\(!up, up\)/.test(app),
+    '3e hangar.js outdoorsShow: the outdoors\' span off, the walls\' polish stays; the live sky kept behind the view (HANGAR-VIEW C)');
   ok(/'hangar\.js',\s*\n\s*'hangar_view\.js'/.test(build), '3f the build manifest carries hangar_view.js after hangar.js');
   ok(/exposureNow: \(\) => LE\.ex/.test(rw), '3g the world hands its eased exposure (the capture is lit as the world shows it)');
   ok(/HVIEW_N = \{ laptop: 768, potato: 768, retro: 768/.test(app) && /G\.soft && G\.soft\(\)\) return 0/.test(app), '3h potato / laptop / retro at 768, none on a software renderer');
   ok(/linear: hviewLinear\(\)/.test(app) && /cap\.isXRRenderTarget = !lin;/.test(hv) && /if \(uLin > 0\.5\) \{ c = pow\(c, vec3\(2\.2\)\); c = uK \* c/.test(hv) && /hviewGain\(\);   \/\/ \(the mood moves/.test(app),
     '3i the capture is drawn as the world frame is (the linear split: radiance, decoded in the room under the exposure ratio; else display-space)');
-  ok(/camera\.position\.set\(HVIEW_C\[0\], HVIEW_C\[1\], HVIEW_C\[2\]\)\.applyMatrix4\(node\.matrixWorld\)/.test(app) && /camera\.position\.copy\(keepEye\)/.test(app) && /if \(first && WF\.worldUpdate\)/.test(app),
-    '3j the world is updated and drawn from the capture eye (the main camera there, put back after every face)');
+  ok(/const C0 = hvC\(\); camera\.position\.set\(C0\[0\], C0\[1\], C0\[2\]\)\.applyMatrix4\(node\.matrixWorld\)/.test(app) && /hview\.capture\(\{ scene, node, C: hvC\(\),/.test(app) && /camera\.position\.copy\(keepEye\)/.test(app) && /if \(first && WF\.worldUpdate\)/.test(app),
+    '3j the world is updated and drawn from the capture eye (hvC: the centre, or the doorway with ?hvc=door - the main camera there, put back after every face)');
   ok(/if \(!hviewWant \|\| hviewBooting/.test(app), '3k the shed frames never capture while the boot does (one set, six faces)');
   // HVIEW-BOOT (8 Nov, the hangars-match stills): cap.userData.lin threw on the first face (three's RenderTarget has no userData), so the
   // boot never captured and every door showed the room's stock outdoors. The view keeps its target's mode itself (capLin)
@@ -94,6 +95,20 @@ const HV = require(path.join(ROOT, 'src', 'viewer', 'hangar_view.js'));
   const cl = src('src/viewer/clouds.js');
   ok(/CLOUDS\.ready && CLOUDS\.active && !CLOUDS\.baked && CLOUDS\.bakeStep && CLOUDS\.bakeStep\(\)\) skyBakedSun = null;/.test(han) && /if \(!bakeStep\(\)\) return;/.test(cl) && /bakeStep, probe/.test(cl) && /get baked\(\)/.test(cl),
     '3n the room bakes the clouds\' noise itself (the world\'s draw is its only other baker), and re-shoots its probe when done (GARAGE-CLOUDS)');
+  // HVC-DOOR (8 Nov, the 19:40 stills: every capture's eye at the centre with ?hvc=door): a node patch wrote the regex's \b as a
+  // backspace byte, so the test never matched (hangar.js's ?roompolish=0 / ?roomdirt=0 too). No control byte in the view's sources
+  const ctl = f => { const m = /[\x00-\x08\x0b\x0c\x0e-\x1f]/.exec(src(f)); return m ? f + ' byte ' + m[0].charCodeAt(0) + ' at ' + m.index : ''; };
+  const bad = ['src/viewer/app.js', 'src/viewer/hangar.js', 'src/viewer/hangar_view.js', 'src/viewer/clouds.js'].map(ctl).filter(Boolean);
+  ok(!bad.length && /const hvC = \(\) => \{ try \{ if \(\/\[\?&\]hvc=door\\b\/\.test\(location\.search/.test(app),
+    '3o no control byte in the view\'s sources, and ?hvc=door\'s test is a word boundary (HVC-DOOR: a backspace byte never matched)', bad.join('; '));
+  // HANGAR-VIEW C (the 9 Nov sheet: a red-brown band past the Shed's door): the plot's pad hangs under room:polish, which the view
+  // keeps, and reached 14 m out of the door over the world's grass. It goes with the outdoors
+  ok(/if \(pm\) \{ outdoor\(pm\.material\); inner\.add\(pm\); ROOM_PAD = pm; \}/.test(han) && /if \(ROOM_PAD\) ROOM_PAD\.visible = !viewOut;/.test(han),
+    '3p the plot\'s ground pad goes with the room\'s outdoors while the world\'s view stands in (the Shed\'s brown band past the door)');
+  // the world's sky dome rides the world camera, which is in the world scene: a live-sky capture drew it opaque over every sky
+  // pixel, so the shells never discarded there and hid the room's clouds (the 9 Nov 08:32 probe: clouds with the shells off only)
+  ok(/if \(o\.skyLive && o\.sky && o\.sky\.visible\) \{ o\.sky\.visible = false; hidden\.push\(o\.sky\); \}/.test(hv) && /camera\.add\(sky\)/.test(rw) && /skyLive: true/.test(app) && /sky: WF\.skyDome/.test(app),
+    '3q a live-sky capture hides the world\'s sky dome too: the capture\'s sky stays transparent and the room\'s live clouds show through the door');
   // 4 no readback
   ok(!/readRenderTargetPixels|readPixels|getBufferSubData/.test(hv), '4 NO READBACK in hangar_view.js (the distance reaches the mesh by a vertex fetch)');
   // HANGAR-BS (8 Nov, found by HVC-DOOR on the prototype): a node patch wrote the regexes' \b as a backspace byte (0x08), so
