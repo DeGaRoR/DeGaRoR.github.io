@@ -801,6 +801,10 @@ GEN_BUILD_GRAMMAR.aluTube   = Object.assign({}, GEN_BUILD_GRAMMAR.tubeFabric,
                                             { name: '6061 tube + Dacron', alias: 'tubeFabric' });
 GEN_BUILD_GRAMMAR.aluFabric = Object.assign({}, GEN_BUILD_GRAMMAR.tubeFabric,
                                             { name: '6061 tube + Dacron', alias: 'tubeFabric' });
+// (REAL-FIGURES-3's aluminium spar under fabric: what prints through the cloth is the ribs, so the fabric grammar
+// under its own name - GATE SKINMAT holds every construction to a grammar row)
+GEN_BUILD_GRAMMAR.fabricAlu = Object.assign({}, GEN_BUILD_GRAMMAR.tubeFabric,
+                                            { name: 'aluminium spar + fabric', alias: 'tubeFabric' });
 // G2047: a glass moulding reads as the carbon one - no fasteners, no seams, the mould's parting line
 GEN_BUILD_GRAMMAR.glass = Object.assign({}, GEN_BUILD_GRAMMAR.carbon, { name: 'glass + epoxy', alias: 'carbon' });
 
