@@ -11,6 +11,7 @@ The study: futureDesigns/WILGA-GEAR-STUDY-2026-11.md. The gate: tools/_wilga_gea
 | host_side.png / host_front.png | the Wilga-class host: the user's metal Cessna airframe as a taildragger on the leg, 2.83 m track, 500 mm tyres | quickshot |
 | fairing_shapes.png | the leg fairing's three shapes (lvBoot: tapered, flared, trailing - the Wilga's), side / three-quarter / ahead, at rest | quick_view, the host with s1LegFair 1 |
 | fairing_details.png | close: the seams and screws, the floor's cut where the strut leaves, the pivot's trimmed notch (tapered above, trailing below) | quick_view |
+| strut_v1_v2.png | the strut's two versions (lvStrut): v1 the derived short strut, v2 the photographs' long strut along the leg - bare, faired at rest, at full stroke, from aft | quick_view |
 | fairing_placements.png | the fitting low / default / high on the body (lvRootAng 50 / 80 / 110), side and ahead | quick_view |
 | cub_preview_0_half_full.png | the garage preview row (gearLvPos) at 0 / 0.5 / 1 on the Cub | quickshot |
 

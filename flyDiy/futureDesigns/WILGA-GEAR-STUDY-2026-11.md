@@ -313,6 +313,22 @@ every case builds clean (no layer error, no red row); nothing that moves comes w
 stroke; **the ground**: at full stroke on a tyre flat to 0.6 R and pitched 10 deg nose-down (hard braking on the mains)
 every boot stays **75 mm** or more above it (level: 134 mm or more) - the nose does not strike.
 
+**The second version** (the user, 10 Nov: "do it as a second version and we'll check"; the row **lvStrut, 'strut mount'**:
+0 v1 - the derived short strut, the default; 1 v2): the photographs read again - the gaiter sits at the fairing's foot
+with the chrome rod leaving it, so the CYLINDER runs up inside the fairing to a pin near its top: a long strut along
+the leg. v2 puts the upper eye on the leg 72 % of the way up (under the fairing's root joint); everything else follows
+the drawn points (the join, the frame, the strut's design). Measured (GATE WILGAGEAR 7c, through the load chain, on the
+host): 1.25 m eye to eye, a 269 mm stroke for the wheel's 270 (v1: 0.50 m, 119 mm; the motion ratio 1.41 -> 0.79 against
+v1's 0.62 -> 0.36), charged 7.4 bar extended / 24.1 static on the same 45 mm piston (v1: 17 / 54); it stands 68 mm
+deflected (the design's 70), takes the limit drop on 242 of 269 mm without bottoming and does not bounce; the linkage
+toggles 60 deg past full stroke, as v1's. Not modelled: the longer strut's mass (GEN_RULES.lever's 3.2 kg).
+What it does NOT do: slim the Wilga shape (its tube 0.101 m in radius against v1's 0.109). The leg leans 31 deg inboard
+while the arm's pivot is horizontal: as the arm rises, the horn - and the strut with it - leaves any plane through the
+leaning leg, ~+-8 cm at the fairing's foot; the fairing must hold that swing. (Tried and reverted: moving the horn along
+the pivot's axis to put the strut in the leg's plane at rest - the swing is the same.) On the aeroplane the slab is
+thin: its leg leans less, or its strut's cylinder is short and high, or its fairing is opened where the strut swings -
+unresolved from the photographs (§9 Q9).
+
 **What it is not yet**: the Wilga shape needs a 20-24 cm leg tube where the photographs show ~8 cm - our strut is skewed
 ~20 deg sideways (its upper eye on the leg's line, which leans inboard, its lower on the arm's horn) and swings sideways
 over the stroke, where the Wilga's lies in the arm's plane. The same skew makes the other two shapes deep at the knuckle
@@ -365,7 +381,7 @@ link never carries a wheel fairing.
    game input).
 8. **The boot's own drag and mass** (its chord grows to ~0.65 m at the knuckle). Default: the leg-fairing row's figures
    and the struts' term at the faired Cd (§8); a boot-sized wetted area is a refinement for the drag owner.
-9. **The strut's skew** (found with the fairing): our strut's upper eye sits on the leg's line, which leans inboard, so
+9. **The strut's skew** (found with the fairing; v2, lvStrut 1, the long strut, was built to check - §7.5): our strut's upper eye sits on the leg's line, which leans inboard, so
    the strut runs ~20 deg sideways to the arm's horn and swings sideways over the stroke; the photographs show the
    Wilga's strut in the arm's plane, its upper pin near the top of the fairing (a long strut). Default: as derived (§4.1);
    moving the upper eye's bracket outboard into the arm's plane (and up) re-designs the strut and would let the Wilga
