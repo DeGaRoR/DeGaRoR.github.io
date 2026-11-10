@@ -2300,7 +2300,8 @@ function wingShellMat(bad, i, v) {
   const t = tintOf(v), tint = typeof t === 'string' && /^#?[0-9a-f]{6}$/i.test(t) ? parseInt(t.replace('#', ''), 16) : null;
   // (alclad, not bareAlu: a welded tank's sheet is satin - bareAlu's 0.9 metal mirrored the room's sky on the end plates,
   // read as a blue patch through the closing rib's holes, the user 10 Nov)
-  return A.aeroMaterial(THREE, { finish: 'alclad', tint: tint != null && tint !== FINISH.alu.col ? tint : null,
+  // (and no clear coat: a tank is not varnished - alclad's coat still mirrored the sky on the end plates at a grazing eye)
+  return A.aeroMaterial(THREE, { finish: 'alclad', tint: tint != null && tint !== FINISH.alu.col ? tint : null, ccK: 0,
                                  surf: 0, fieldM: 1, side: THREE.DoubleSide, opacity: 1, inside: 0, decals: 0 });
 }
 // ...and WHERE IT IS DRAWN (the user 10 Nov: "why is the tank side bluish, with wavy patterns? ... does it intersect a
