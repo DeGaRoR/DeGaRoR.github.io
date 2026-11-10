@@ -180,6 +180,7 @@ const lastFont = page => { for (let i = drawn.length - 1; i >= 0; i--) if (drawn
   ok(/by\.txt\.length\) emitEls\(p0, 'lettering'/.test(ED), 'the finish view gives the lettering its own heading');
   ok(/window\.addEventListener\('aero-face'/.test(UI), 'the panel redraws when a face arrives');
 
-  console.log((fails ? 'GATE LIVERYTEXT: FAIL (' + fails + ' of ' + n + ')' : 'GATE LIVERYTEXT: PASS (' + n + ' checks)'));
+  console.log(n + ' checks');   // run_gates reads the verdict line exact: "GATE <ID>: PASS" and nothing after it
+  console.log((fails ? 'GATE LIVERYTEXT: FAIL (' + fails + ' of ' + n + ')' : 'GATE LIVERYTEXT: PASS'));
   process.exit(fails ? 1 : 0);
 })().catch(e => { console.log('GATE LIVERYTEXT: FAIL (' + (e && e.stack || e) + ')'); process.exit(1); });
