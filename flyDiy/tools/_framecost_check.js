@@ -129,6 +129,10 @@ const ALLOW = [
   { key: 'taxi/gl.uniform1fv', build: '*', rise: 4, why: 'the contact tier\'s draw', g: 'G2118' },
   { key: 'stand/gl.uniform4f', build: '*', rise: 6, why: 'the contact tier\'s draw (uTier, the patch\'s own and the tier\'s)', g: 'G2118' },
   { key: 'taxi/gl.uniform4f', build: '*', rise: 6, why: 'the contact tier\'s draw (uTier, the patch\'s own and the tier\'s)', g: 'G2118' },
+  // VEG-ROOT (10 Nov, A/B on the box: median and p99 unchanged on gamer and laptop): each plant species of the stand's ring carries
+  // its own uRoot (its height sets where the root shade ends), so a switch between two of them uploads one vec4 - +6 uniform4f a
+  // frame at HOME's stand. One entry holds both rises (G2118's 6 + these 6): entries do not add.
+  { key: 'stand/gl.uniform4f', build: '*', rise: 12, why: 'the contact tier\'s draw (G2118, 6) + the plants\' root shade, one uRoot per species (6)', g: 'G2571' },
   { key: 'boot/garage:frames/world.terrainH', build: '*', rise: 10, why: 'the contact tier\'s per-frame read of the ground under the craft (its height over it)', g: 'G2118' },
   { key: 'boot/garage:frames/bytes.uniforms', build: '*', rise: 30000, why: 'the contact tier\'s draw in the garage step\'s frames', g: 'G2118' },
   { key: 'boot/garage:world/world.terrainH', build: '*', rise: 75000, why: 'the pavement rows refined where the ground curves (REFINE\'s tested midpoints) and the over-runs\' chunks', g: 'G2117' },

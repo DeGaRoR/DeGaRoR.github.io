@@ -524,20 +524,25 @@
   // x mix(1 - x, 1, smoothstep(0, y, height / z)) - black at the root to white by y. The reed's material carries it (cover_ring.js:
   // the grass field's dials, the first ring's patches the same material); every other faded material reads U_ROOT_OFF. x 0: the
   // branch is not taken, the picture is today's to the byte. One uniform and one varying - no new program
+  // VEG-ROOT (LOOK-1, 9 Nov 2026; the user: "apply it to every single grass in the game ... even the bushes ... even the flowers",
+  // not the trees; "optimize the shader a lot from the start ... it has to cost us nothing"): the factor is the VERTEX's now -
+  // vRoot = 1 - x + x * height / (top * share), linear in the model's height, so it interpolates exactly - and the fragment
+  // does one min and one multiply, no branch, no smoothstep (x 0: vRoot is 1.0 exactly, today's picture to the byte). The same
+  // uniform, the same programs (cache keys 'fade' / 'fade-leaf' / 'fade-rockcut'), no texture, no buffer: position.y is there.
   const U_ROOT_OFF = { value: (typeof THREE !== 'undefined' && THREE.Vector4) ? new THREE.Vector4(0, 0.4, 1, 0) : { x: 0, y: 0.4, z: 1, w: 0 } };
-  const ROOT_FS = 'if (uRoot.x > 0.0) diffuseColor.rgb *= mix(1.0 - uRoot.x, 1.0, smoothstep(0.0, max(uRoot.y, 1e-3), vRootY));';
+  const ROOT_FS = 'diffuseColor.rgb *= min(vRoot, 1.0);';
   const fadeInject = (sh, set, mat) => {
     const F = set || FADE_GLOBAL;
     sh.uniforms.uRoot = (mat && mat.userData.uRoot) || U_ROOT_OFF;
     { let fs = sh.fragmentShader.replace('#include <map_fragment>', '#include <map_fragment>\n' + ROOT_FS);
-      fs = declOnce(fs, 'varying float vRootY;'); sh.fragmentShader = declOnce(fs, 'uniform vec4 uRoot;'); }
+      sh.fragmentShader = declOnce(fs, 'varying float vRoot;'); }
     sh.uniforms.uFadeNear = F.near; sh.uniforms.uFadeReach = F.reach; sh.uniforms.uFadeTaper = F.taper; sh.uniforms.uFadeAgl = F.agl;
     sh.uniforms.uFadeSize = F.size; sh.uniforms.uFadeHRef = F.href; sh.uniforms.uFadeSizeMax = F.smax;
     sh.uniforms.uFadeBand = U_FADE_BAND; sh.uniforms.uFadeNow = U_FADE_NOW; sh.uniforms.uFadeGrow = U_FADE_GROW;
     sh.uniforms.uUp = sh.uniforms.uUp || { value: 0 };
     sh.uniforms.uWind = U_WIND;
     let vs = sh.vertexShader
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvRootY = position.y / max(uRoot.z, 1e-3);')   // G2571: the model's height, before any bend
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvRoot = 1.0 - uRoot.x + uRoot.x * position.y / max(uRoot.z * uRoot.y, 1e-4);')   // G2571: the model's height, before any bend
       .replace('#include <color_vertex>', '#include <color_vertex>\n' + BATCH_RAND_VS)
       .replace('#include <project_vertex>', FADE_VS + '\n#include <project_vertex>\n' + FADE_CUT_VS)
       .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\n' + UP_VS);
@@ -545,7 +550,7 @@
     // carries, and its NORMAL is not touched (see UP_VS)
     vs = swayOnce(vs, 'aRand * 6.2831');
     vs = declOnce(vs, 'uniform vec4 uWind;');
-    vs = declOnce(vs, 'uniform vec4 uRoot; varying float vRootY;');
+    vs = declOnce(vs, 'uniform vec4 uRoot; varying float vRoot;');
     vs = declOnce(vs, 'uniform float uFadeNear, uFadeReach, uFadeTaper, uFadeAgl, uUp, uFadeBand, uFadeNow, uFadeGrow, uFadeSize, uFadeHRef, uFadeSizeMax;');
     vs = declOnce(vs, '#ifdef USE_INSTANCING\nattribute float aBorn;\n#endif');
     // in a batch `aRand` names the value taken from the colour's alpha (BATCH_RAND_VS), declared in main before its first read
