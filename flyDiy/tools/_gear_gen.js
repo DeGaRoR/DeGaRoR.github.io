@@ -2020,7 +2020,7 @@ function leverRowsOf(P) {
 const LEVER_BOOT_CACHE = new Map();
 function leverBoot(bag, F) {
   const r6 = v => Array.isArray(v) ? v.map(r6) : (typeof v === 'number' ? Math.round(v * 1e6) / 1e6 : v);
-  const key = JSON.stringify(r6([F.root, F.piv, F.ax, F.w, F.axle, F.horn, F.top, F.comp, F.leg && [F.leg.a, F.leg.b, F.leg.chord, F.leg.thick], F.style || 0, F.tau || 0, F.clearKey || null, !!F.det]));
+  const key = JSON.stringify(r6([F.root, F.piv, F.ax, F.w, F.axle, F.horn, F.top, F.comp, F.leg && [F.leg.a, F.leg.b, F.leg.chord, F.leg.thick], F.style || 0, F.tau || 0, F.clearKey || null, !!F.det, F.rootN || null])) + '|' + (F.skinKey || '');
   const bags = [bag, F.det && F.det.dark, F.det && F.det.alloy];
   const hit = LEVER_BOOT_CACHE.get(key);
   if (hit) { hit.ops.forEach((ops, bi) => { const B = bags[bi]; if (!B) return; const map = [];
@@ -2167,7 +2167,8 @@ function leverBootBuild(bag, F) {
   // (the round toe it replaces was crossed by the strut through its side: a gaiter poking out of the wall)
   const tOf = y => Math.min(1, Math.max(0, (yTop - y) / (yTop - yBot))), RE = 0.012;
   const sta = [];
-  for (let j = 0; j <= 48; j++) sta.push({ y: yTop - (yTop - yBot) * j / 48, sh: 0, f: 1 });
+  const EXT = F.skin ? 0.30 : 0;                  // (fitted to the skin: the grid runs on into the body, then is trimmed to it)
+  for (let j = 0; j <= 48; j++) sta.push({ y: yTop + EXT - (yTop + EXT - yBot) * j / 48, sh: 0, f: 1 });
   for (let j = 1; j <= 4; j++) { const q = (Math.PI / 2) * j / 4; sta.push({ y: yBot - RE * Math.sin(q), sh: RE * (1 - Math.cos(q)), f: 1 }); }
   for (const f of [0.875, 0.75, 0.625, 0.5, 0.375, 0.25, 0.125, 0]) sta.push({ y: yBot - RE, sh: RE, f });   // (fine: the floor is cut round the pivot - a cut across a wide triangle is a chord inside the true outline)
   const J = sta.length, Pg = [], Ctr = [];
@@ -2176,6 +2177,40 @@ function leverBootBuild(bag, F) {
     Ctr.push(sh > 0 ? add(cen, mul(sF, -0.05)) : cen);                // (the rim and floor face down the leg: their side from above)
     Pg.push(sec.pts.map(([u, v]) => { let du = u - sec.cen[0], dv = v - sec.cen[1]; const r = Math.hypot(du, dv) || 1;
       const k = Math.max(0, 1 - sh / r) * f; return add(cen, add(mul(FW, du * k), mul(LT, dv * k))); }));
+  }
+  // THE ROOT, FITTED TO THE BODY (the user, 10 Nov: "where the leg meets the fuselage, to have a fairing that fits", as the
+  // engine's and the cabane's pylons do - _cage_eng pylonHug's rays, its fillet and its joint): the leg is fixed, so each of
+  // the boot's 36 lengthwise columns is TRIMMED where it meets the drawn skin - a ray from the column's point 0.30 m down
+  // the leg, up the leg (or, for a column running beside the body - a long slab's trailing edge along a vertical side -
+  // into the body along the fitting's normal, then straight up, then straight inboard); the column re-spaced from that point to the hit, its last
+  // RF flared out to the skin (the pylons' quarter circle), the foot sunk 6 mm; a rubber bead round the foot (the joint)
+  let rootFit = null;
+  if (F.skin) {
+    let jS = 0; while (jS < 47 && sta[jS + 1].y > -0.30) jS++;
+    const inb = nrm(mul(F.ax, -1));               // (straight inboard, square to the flight: the pivot's axis turned in)
+    const RF = 0.04, SINK = 0.006, axes = [mul(dl, -1), F.rootN ? mul(F.rootN, -1) : null, [0, 1, 0], inb].filter(Boolean);
+    let hits = 0; const lens = [];
+    for (let k = 0; k < KS; k++) {
+      const P0 = Pg[jS][k]; let H = null;
+      for (let a = 0; a < axes.length && !H; a++) { const from = a === 0 ? P0 : Pg[Math.max(0, jS - Math.round(jS * 0.6))][k];
+        const h = F.skin(from, axes[a], a === 0 ? 0.45 : 0.9); if (h) H = h.p; }
+      // (no skin within reach - a fitting high on a flat side: the column ends where the plain boot ended, at the fitting)
+      if (H) hits++; else H = Pg[Math.max(0, Math.round(EXT / ((yTop + EXT - yBot) / 48)))][k];
+      const L = len(sub(H, P0)); lens.push(L);
+      const dir = L > 1e-9 ? mul(sub(H, P0), 1 / L) : mul(dl, -1);
+      for (let j = 0; j <= jS; j++) { const s = (jS - j) / jS; Pg[j][k] = add(P0, mul(dir, L * s + (j === 0 ? SINK : 0))); }
+    }
+    // the fillet: each column's last RF flares out along the boot's own normal there (its row's tangent x its column)
+    const flare = [];
+    for (let j = 0; j <= jS; j++) { const row = [];
+      for (let k = 0; k < KS; k++) { const tk = sub(Pg[j][(k + 1) % KS], Pg[j][(k + KS - 1) % KS]), tc = sub(Pg[Math.max(0, j - 1)][k], Pg[Math.min(jS, j + 1)][k]);
+        let nn = nrm(crs(tk, tc)); const c = Ctr[Math.min(J - 1, jS + 4)], out = sub(Pg[j][k], add(c, mul(sF, dot(sub(Pg[j][k], c), sF))));
+        if (dot(nn, out) < 0) nn = mul(nn, -1);
+        const dTop = lens[k] * j / jS, e = dTop < RF ? RF - Math.sqrt(Math.max(0, RF * RF - (RF - dTop) * (RF - dTop))) : 0;
+        row.push(mul(nn, e)); }
+      flare.push(row); }
+    for (let j = 0; j <= jS; j++) for (let k = 0; k < KS; k++) Pg[j][k] = add(Pg[j][k], flare[j][k]);
+    rootFit = { columns: KS, hits, reach: Math.max(...lens), jS };
   }
   const d = sF;                                   // (the floor looks down the leg; the root's cap up it)
   // each point's outward normal (from the grid; the toe's point looks down the leg)
@@ -2237,8 +2272,12 @@ function leverBootBuild(bag, F) {
     face([[j, k], [j, k2], [j + 1, k2]]); face([[j, k], [j + 1, k2], [j + 1, k]]);
   }
   // the root closes against the fitting (a fan, never cut: nothing moves up there)
-  const c0p = Ctr[0], cR = bag.v(c0p);
-  for (let k = 0; k < KS; k++) { const k2 = (k + 1) % KS; triOut(cR, vO(0, k2), vO(0, k), c0p, Pg[0][k2], Pg[0][k], mul(d, -1)); }
+  if (!rootFit) { const c0p = Ctr[0], cR = bag.v(c0p);
+    for (let k = 0; k < KS; k++) { const k2 = (k + 1) % KS; triOut(cR, vO(0, k2), vO(0, k), c0p, Pg[0][k2], Pg[0][k], mul(d, -1)); } }
+  else if (F.det) {                               // the joint: a rubber bead round the foot, just out of the skin
+    const ring = Pg[0].map((p, k) => add(p, mul(nrm(sub(Pg[2][k], p)), 0.008)));
+    sweep(F.det.dark, resample(ring.concat([ring[0]]), 72), () => secRound(0.0045, 8), false);
+  }
   // THE DETAILING (the user: "details on bolts and seams ... a proper professional 3D model"; the Wilga's own fairing,
   // IMG_5504 / 5527: a screw line down its side, a joint at the root): SEAMS - 1.5 mm dark ribbons 0.4 mm proud of the
   // skin - down each side at the section's thickest point, round the root joint 7 cm under the fitting and round the
@@ -2266,9 +2305,10 @@ function leverBootBuild(bag, F) {
     const ring = j => { const r = Pg[j].map((p, k) => ({ p, n: Ng[j][k] })); r.push(r[0]); return r; };
     const jAt = y => Math.max(1, Math.min(47, Math.round((yTop - y) / ((yTop - yBot) / 48))));
     for (const sg of [1, -1]) { const k = kSide(sg); if (k >= 0) { ribbon(down(k)); screws(down(k), 0.07); } }
-    for (const j of [jAt(yTop - 0.10), jAt(yBot + 0.10)]) { ribbon(ring(j)); screws(ring(j), 0.06); }
+    const jRoot = rootFit ? Math.max(2, Math.min(rootFit.jS - 1, Math.round(0.12 / (rootFit.reach / rootFit.jS)))) : jAt(yTop - 0.10);
+    for (const j of [jRoot, jAt(yBot + 0.10)]) { ribbon(ring(j)); screws(ring(j), 0.06); }
   }
-  return { style: STYLE, tubeR, cut: !!cut, cuts: xc.size, screws: nScrew, chord: STYLE === 2 ? null : [lawC(0), lawC(1)] };
+  return { style: STYLE, tubeR, cut: !!cut, cuts: xc.size, screws: nScrew, chord: STYLE === 2 ? null : [lawC(0), lawC(1)], rootFit };
 }
 // THE ARTICULATION'S SWEPT SPACE (WILGA-GEAR, the fairing's cuts): every moving part as capsules (a segment and a radius
 // from its drawing's own sizes, a little generous) at 25 poses from full extension to full stroke - the arm turned about
@@ -2423,7 +2463,8 @@ function legLever(bags, AF, P, st, sgn) {
   // (the trailing link wears no wheel fairing - the gear layer zeroes st.fair - so the leg-fairing row is its only one)
   const clearIn = { piv, ax, w, axle, horn, top, comp: g.comp, pOut, axleIn, hBase, rodL, cylL, R: st.R };
   const clear = (st.legFair && GL) ? leverClear(GL, clearIn) : null;
-  const boot = st.legFair ? leverBoot(bags.fair, { root, piv, ax, w, axle, horn, top, comp: g.comp, leg: { a: root, b: pivTop, chord, thick }, clear, clearKey: clear ? clearIn : null, style: bootStyle, det: { dark: bags.dark, alloy: bags.alloy } }) : null;
+  const boot = st.legFair ? leverBoot(bags.fair, { root, piv, ax, w, axle, horn, top, comp: g.comp, leg: { a: root, b: pivTop, chord, thick }, clear, clearKey: clear ? clearIn : null, style: bootStyle, det: { dark: bags.dark, alloy: bags.alloy },
+    skin: st.leverSkin ? st.leverSkin.cast : null, skinKey: st.leverSkin ? st.leverSkin.key : '', rootN: F.n }) : null;
   if (bootStyle === 2) sweep(bags.steel, resample([off(root, nrm(sub(root, piv)), 0.03), pivTop], 12), () => secRound(boot && boot.tubeR || thick / 2, 20), true, [0, 0, 1]);
   return { axle, axis: [sgn, 0, 0], root: F.p, travel: [0, 1, 0], tip: axle,
            lever: { piv, ax, w, axle, horn, top, root, axleIn, rows: R0, boot } };

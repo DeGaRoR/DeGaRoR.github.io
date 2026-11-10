@@ -2337,6 +2337,20 @@ const dispose = o => {
 };
 
 const prevPost = PAGE.post;
+// WILGA-GEAR: THE LEG FAIRING'S ROOT, FITTED TO THE BODY (the user, 10 Nov: "where the leg meets the fuselage, to have a
+// fairing that fits" - as the engine's and the cabane's pylons do): the boot (_gear_gen leverBoot) trims itself on the
+// drawn skin with the pylons' own rays (_cage_eng pylonCaster: CAGE_PYLON). Here: the caster over the body round the leg,
+// and a key for the boot's cache - the skin's vertices near the fitting, rounded (the body changes, the boot is rebuilt)
+function leverSkinOf(ctx, FS, st, sgn) {
+  const CP = typeof window !== 'undefined' && window.CAGE_PYLON;
+  if (!CP || !ctx || !ctx.mesh) return null;
+  const x0 = Math.min(0, sgn * st.x) - 0.4, x1 = Math.max(0, sgn * st.x) + 0.4, near = [x0, x1, st.z - 1.2, st.z + 1.2];
+  const C = CP.caster(ctx, FS, near);
+  let h = 0, n = 0; const V = ctx.mesh.V || [];
+  for (const v of V) { const x = v[0] * FS, z = v[2] * FS; if (x < near[0] || x > near[1] || z < near[2] || z > near[3]) continue;
+    h = (h * 31 + Math.round(v[0] * FS * 1e4) * 7 + Math.round(v[1] * FS * 1e4) * 13 + Math.round(v[2] * FS * 1e4)) % 2147483647; n++; }
+  return { cast: (o, d, far) => C.cast(o, d, ['body'], far), key: n + ':' + h };
+}
 PAGE.post = ctx => {
   if (prevPost) prevPost(ctx);
   const { scene, mesh, P, stat } = ctx;
@@ -2774,7 +2788,8 @@ PAGE.post = ctx => {
         if (st.leg === 0) r = GG.legBeam(lb, AFx, st.P, st, sgn);
         else if (st.leg === 1) r = GG.legLink(lb, AFx, st.P, st, sgn);
         // WILGA-GEAR: the trailing-link leg - its arm and the strut's two halves in their own bags (each posed apart)
-        else if (st.leg === 4 && !st.single && GG.legLever) { lb.lever = { arm: allBags(), cyl: allBags(), rod: allBags() }; r = GG.legLever(lb, AFx, st.P, st, sgn); }
+        else if (st.leg === 4 && !st.single && GG.legLever) { lb.lever = { arm: allBags(), cyl: allBags(), rod: allBags() };
+          st.leverSkin = st.legFair ? leverSkinOf(ctx, FS, st, sgn) : null; r = GG.legLever(lb, AFx, st.P, st, sgn); delete st.leverSkin; }
         else r = GG.legOleo(lb, AFx, st.P, st, sgn);
         rOleo = r; retLow = st.ret ? st.ret.low || null : null; retSc = st.ret ? st.ret.scissor || null : null;
         if (retLow && wu.proxy) wu.proxy.brakefix = retLow.brakefix;      // (the caliper rides the piston with its wheel)
@@ -2892,7 +2907,7 @@ PAGE.post = ctx => {
   // WILGA-GEAR: the legs' records (the drawing's frame, metres) - the join writes spec.gear.lever from them
   const leverOut = legUnits.filter(u => u.lever).map(u => ({ kind: u.kind, piv: u.lever.piv, ax: u.lever.ax, w: u.lever.w,
     axle: u.lever.axle, horn: u.lever.horn, top: u.lever.top, root: u.lever.root, rows: u.lever.rows,
-    ...(u.lever.boot ? { boot: u.lever.boot } : {}) }));                    // (the fairing's own figures: GATE WILGAGEAR 7b)
+    ...(u.lever.boot ? { boot: u.lever.boot, ...(u.lever.boot.rootFit ? { rootFit: u.lever.boot.rootFit } : {}) } : {}) }));   // (the fairing's own figures: GATE WILGAGEAR 7b)
   if (castorUnitOut) {
     const cgp = new THREE.Group();
     cgp.name = 'edCastorT';

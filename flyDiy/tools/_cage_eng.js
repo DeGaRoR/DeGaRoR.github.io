@@ -1118,6 +1118,9 @@ function drawPylonMount(group, f, P, GK, aft, C) {
   }
   pylonMeshes(group, fair, jb);
 }
+// WILGA-GEAR: THE HUG IS SHARED - the trailing-link leg's root fairing (the user, 10 Nov: "where the leg meets the fuselage,
+// to have a fairing that fits", like the pylons) stands on the same rays and wears the same fillet and joint
+if (typeof window !== 'undefined') window.CAGE_PYLON = { caster: pylonCaster, hug: pylonHug, NS: PYLON_NS };
 // the body in the cowl's section (the nacelle's paint), the joint in the rubber seal's
 function pylonMeshes(group, fair, jb) {
   const SM = typeof window !== 'undefined' && window.CAGE_SECMAT;
