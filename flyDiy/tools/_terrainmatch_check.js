@@ -197,7 +197,9 @@ const RW = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_world.js'), 
   // THE USER'S BUMPS (DIRT-STRIP chaos-on, 10 Nov; A0 approved as the named cost): w3 and w8 bumpy (chaos 0.20 / 0.40) draw their
   // ribbons refined to the bumps' scale (26b REFINE_MIN / REFINE_MIN_V) - the HOME-taxi view's pavement + patch measured 1 212 870 ->
   // 1 218 494 (+5 624, +0.46 %) on master e789e77cb; allowed on both views (HANDOVER: DIRT-STRIP, the bumps' cost)
-  const BUMPS = 5624; for (const k in PAV0) PAV0[k] += BUMPS;
+  // + THE 5 cm ROWS ACROSS A RUT'S WALL, now paid on w3/w8 (DIRT-STRIP 10 Nov, A0 OK 13:55: HANDOVER "the 5 cm rows" named "nothing paid
+  //  today" while every strip was flat): potato HOME taxi 1 218 494 -> 1 226 310 (+7 816, +0.64 %) on claude/dirt-strip-vet-2
+  const BUMPS = 13440; for (const k in PAV0) PAV0[k] += BUMPS;
   const BASE = { potato: { 'HOME stand': (PATCH0 || {})['HOME stand'] + PAV0['HOME stand'], 'HOME taxi': (PATCH0 || {})['HOME taxi'] + PAV0['HOME taxi'] }, gamer: { 'HOME stand': 1222208 + PAV0['HOME stand'], 'HOME taxi': 1304000 + PAV0['HOME taxi'] } };
   const C = require(path.join(T, 'flight_core.js')), home = C.siteOf('HOME'), tp = home.taxiOut, m = tp[Math.floor(tp.length / 2)];
   const views = { 'HOME stand': [home.stand.x, home.stand.z], 'HOME taxi': m };
