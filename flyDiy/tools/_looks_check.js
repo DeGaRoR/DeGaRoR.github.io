@@ -117,7 +117,9 @@ const RP = read('render_premises.js'), RW = read('render_world.js'), WA = read('
 {
   ok(WA.includes('if (vWBody.y < 0.5 ? wIn : !wIn) discard;') && WA.includes('bool wIn = abs(vWP0.x - uWNear.x) < uWNear.z && abs(vWP0.z - uWNear.y) < uWNear.z;'),
     '3 the near patch and the far plane cut each other by ONE test on the still plane');
-  ok(/wh \*= smoothstep\(-6\.0, -40\.0, sd\)/.test(WA) && WA.includes('uniform sampler2D uWSdf; uniform vec4 uWGrid; uniform float uWSdfOn;\' + GLSL_GERSTNER'), '3 the patch\'s waves fade to the coast (the vertex reads the coast field)');
+  // (the vertex's own uniform block: from the coast field's line to GLSL_GERSTNER in ONE string - BAY-MIRROR 2bf142437 put its uWCalm line between them,
+  //  which the old literal pin read as the field gone)
+  ok(/wh \*= smoothstep\(-6\.0, -40\.0, sd\)/.test(WA) && /uniform sampler2D uWSdf; uniform vec4 uWGrid; uniform float uWSdfOn;[^']*' \+ GLSL_GERSTNER/.test(WA), '3 the patch\'s waves fade to the coast (the vertex reads the coast field)');
   const blk = lift(RW, '    const farGeo = (() => {', '    const water = new THREE.Mesh(');
   ok(!!blk, '3 the far plane\'s grid found in render_world.js');
   if (blk) {
