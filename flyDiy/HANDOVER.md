@@ -315127,3 +315127,27 @@ same entry, spelt in another order. (Areas were already compared this way, sk.)
 lattice at terrainH; render_world draws a bumpy strip with its rows down to the bumps and 5 cm across a rut's wall, at terrainH -
 stoneH. The tool now does the same (refineMin / refineMinV, the stoneH law). Before: w3 / w8 p95 15 / 26 mm off the field, the worst
 64 mm over an 11 cm hole - the tool's bridging, not the game's ground.
+
+
+## DIRT-STRIP READY (claude/ready/dirt-strip, 10 Nov 2026; the user via A0 ~16:30: land what we have, as one ready)
+
+What it carries, on post-L37b master, with its own premises cook:
+- **Stones:** the rock pack's meshes, a third buried, with a dark foot and ring, and an exact collision body in terrainH. They grow
+  with chaos. Within 3 m of the centreline and on the turnaround pads (each end to 66 kIn + 4 m in), none stands over 6 cm (the
+  Pilot's C172 braking dip, 0.118 m, less 5 cm). The strip-border stones stay 1.2 m off the edge along a pad.
+- **Pebbles:** the drawn pebbles back at the 9 Nov count, 2-5 cm.
+- **Ruts and potholes:** the 5 cm rows across a rut's wall, a named cost (potato HOME taxi +7 816, +0.64 %).
+- **Puddles and rut water:** flat (ripple 0.4 %); wet earth and the damp ring matte; a thin waterline.
+- **Grass strips:** a trail through the tundra - soil band, packed gravel, lanes that vary, small stones. The tufts are thinned
+  on its lanes (coverSides kill).
+- **The aerodrome's micro.chaos:** read by the Pilot's lane.
+- **Gate changes, each with its reason above:**
+  - TERRAINMATCH measures against terrainH - stoneH, through ground_drawn, which builds bumpy strips as render_world does.
+  - SCENERYED 15 sorts keys.
+  - MICRO 7's < 40 mm is a RE-PIN, NOT A FIX.
+  - The afb19 manifest carries the strips' names and micro.
+- **Not in it (parked):**
+  - dry dirt's grazing sheen at a low sun (waits for the user's word via AIRCRAFT-LOOKS);
+  - the tufts following the trail's merge and gap noise;
+  - w5 / w1 / nv_strip bumps (the Pilot's own reds).
+- **Known master red:** SCENERYED 15's sites s39 (Game).
