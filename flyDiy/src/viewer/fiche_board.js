@@ -198,7 +198,7 @@
     const s = d.specs || {}, D = d.dims || {};
     return [['span', num(D.span, 'm', 2)], ['length', num(D.length, 'm', 2)], ['height', num(D.height, 'm', 2)],
             ['empty', num(s.empty, 'kg')], ['all up', num(s.allUp, 'kg')], ['stall', kmh(s.Vs)], ['cruise', kmh(s.VCruise)],
-            ['climb', num(s.climb, 'm/s', 1)], ['take-off run', num(s.TORun, 'm')],
+            ['climb', num(s.climb, 'm/s', 1)], ['take-off run', s.TOWater ? 'on water: ' + s.TOWater : num(s.TORun, 'm') + (d.sea && s.TORun != null ? ' on water' : '')],
             ['engine', s.engine || d.engine || '—'], ['propeller', s.propD ? (+s.propD).toFixed(2) + ' m' + (s.propBlades ? ', ' + s.propBlades + ' blades' : '') : '—'],
             ['seats', d.seats != null ? String(d.seats) : '—']];
   }
