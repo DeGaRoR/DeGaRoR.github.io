@@ -346,7 +346,7 @@ ok(NAMES[0] === 'continental A-65' && NAMES[17] === 'lycoming O-320' && NAMES[18
     // (d) and the block is not on offer
     for (const k of ['bore', 'stroke', 'cyl', 'rpm', 'finN', 'finR', 'rodPos',
                      'twoStroke', 'liquid', 'geared', 'blower', 'boost',
-                     'critAlt', 'injected', 'stagger', 'bmepK', 'massK'])
+                     'critAlt', 'injected', 'stagger'])
       ok(!shown.has(k), `and hides '${k}' — that would be another engine`);
     const P2 = fresh('rotax 912 (flat)'); P2.engPreset = CUSTOM;
     const all = shownOf(P2);

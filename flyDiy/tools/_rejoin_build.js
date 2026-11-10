@@ -5,8 +5,8 @@
 //
 //   node tools/_rejoin_build.js in.json out.json [edits.json]
 //
-// edits.json: { cage: { dial: value, ... }, enginePreset: <a preset NAME in
-// the engine layer's list>, engines, energy, fuel, prop, wings, meta, systems } — each
+// edits.json: { cage: { dial: value, ... }, enginePreset: <index in the
+// engine layer's list>, engines, energy, fuel, prop, wings, meta } — each
 // optional. The cage dials are overwritten, the preset applied through
 // CAGE_ENG_APPLY_PRESET, the rest assigned, then tools/_bake_joined.js
 // re-measures the whole aeroplane (bench/-free). Prints the leaves that
@@ -29,18 +29,9 @@ if (editsFile) {
     W.CAGE_ENG_APPLY_PRESET(full, E.enginePreset);
     for (const k of Object.keys(full)) if (/^eng/.test(k)) spec.cage[k] = full[k];
     if (keep != null) spec.cage.engPreset = keep;
-    // the edit set's own eng_ dials ride OVER the preset (a custom engine is
-    // a preset's geometry with some dials moved: the Carbon Cub SS's CC340 is
-    // the O-320's chassis with its own stroke, tune and build)
-    for (const k in E.cage || {}) if (/^eng_/.test(k)) spec.cage[k] = E.cage[k];
     console.log('engine preset applied:', E.enginePreset, 'engPreset', spec.cage.engPreset);
   }
   if (E.engines) spec.engines = E.engines;
-  // the instrument fit: the join's panel column seeds from spec.systems
-  if (E.systems) spec.systems = E.systems;
-  // the livery: the paint whole, the finish whole (sections, decals, wear, glass)
-  if (E.paint) spec.paint = E.paint;
-  if (E.finish) spec.finish = E.finish;
   if (E.energy) spec.energy = E.energy;
   if (E.fuel) spec.fuel = E.fuel;
   if (E.prop) Object.assign(spec.prop, E.prop);

@@ -12,8 +12,6 @@ work stay in `../futureDesigns/`. Files moved here on 2026-10-02 kept their name
 
 ## Aircraft studies (with their runs: `.run.txt`, `.asfound.txt`, `.corrected.txt`, `.edits.json`)
 - [C172-STUDY-2026-09-20.md](C172-STUDY-2026-09-20.md) · [CUB-STUDY-2026-09-20.md](CUB-STUDY-2026-09-20.md) · [JODEL-STUDY-2026-09-20.md](JODEL-STUDY-2026-09-20.md) · [CHINOOK-STUDY-2026-09-21.md](CHINOOK-STUDY-2026-09-21.md)
-- [CESSNA-DOSSIER-2026-11-08.md](CESSNA-DOSSIER-2026-11-08.md): the corrected 172 and the 172 on Wipline 2350 floats against the 172R, every number sourced, the gaps and what to change (the brief for this week's Cessna rebuild)
-- [REAL-CHECK-2026-11-08.html](REAL-CHECK-2026-11-08.html): the HTML report (`node tools/real_report.js`): 14 planes with a real parent scored on geometry, specs and performance, the global heatmap, the statistics, conclusions and next steps
 - [REAL-CHECK-2026-11-07.md](REAL-CHECK-2026-11-07.md): every official plane against its real figures as bands (load sweep, the pilot kept apart), the history of every earlier comparison, `tools/real_check.js`
 - [ACCURACY-SHEET-2026-09-21.html](ACCURACY-SHEET-2026-09-21.html) · [FITMENT-STUDY-2026-09-12.md](FITMENT-STUDY-2026-09-12.md) · [LEAN-PILLAR-STUDY-2026-09-01.md](LEAN-PILLAR-STUDY-2026-09-01.md)
 
