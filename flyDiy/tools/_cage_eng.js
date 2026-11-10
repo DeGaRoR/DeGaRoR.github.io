@@ -1089,7 +1089,9 @@ function drawPylonBlade(group, f, P, GK, aft, C) {
   const c = blend ? Lp + 0.06 : 0.5 * (Math.abs(ft.zF - ft.zR) + 0.10 + Lp + 0.06);
   const C2 = C || { cowl: false, cast: () => null }, fair = GK.Bag(), jb = GK.Bag(), O = [ox, yF + 0.5 * H, zc];
   pylonHug(fair, jb, C2, { O, ax: [0, 1, 0], eu: [1, 0, 0], ew: [0, 0, 1], out: e => pylonOutline('foil', c, 0.12, 0, e),
-    fB: blend ? Math.min(PYLON_FIL_B, 0.35 * H) : 0, fT: blend ? Math.min(PYLON_FIL_T, 0.25 * H) : 0,
+    // (PETREL-LS, the user's 'strange shading at the bottom of the engine nacelle': under a nacelle the cabane pylon's top
+    // flare was squeezed between the nacelle's flat belly and its sides into a twisted band - it meets a nacelle plain)
+    fB: blend ? Math.min(PYLON_FIL_B, 0.35 * H) : 0, fT: blend && !(f.kind === 'cabPylon' && C2.cowl) ? Math.min(PYLON_FIL_T, 0.25 * H) : 0,
     dn: ['body', 'wing'], up: C2.cowl ? ['wing', 'cowl'] : ['wing'], top0: y0 - O[1], bot0: yF - O[1], topJoint: C2.cowl });
   pylonMeshes(group, fair, jb, f.kind === 'cabPylon');
 }

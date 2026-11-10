@@ -1557,7 +1557,10 @@ function buildAft(group,mats){
     // a rolled lip turns in to the opening, a duct runs back into the nacelle and ends on a dark face
     const NS=22,rings=[];
     const IW=P.inletOn?clamp(P.inletW,0.12,0.85):0, IH=P.inletOn?clamp(P.inletH,0.12,0.85):0;
-    const kc=Math.max(IW,IH), eCut=P.inletOn?Math.pow(Math.max(0,1-kc*kc),1/2.2):1;
+    // (PETREL-LS: a cone holding its height - tailHold - closes in width only, so it is cut where its WIDTH reaches the
+    // opening's; the lip below rolls in from the held height)
+    const holdT=clamp(+P.tailHold||0,0,1), kyOf=k=>holdT>0?1-(1-k)*(1-holdT):k;
+    const kc=holdT>0?IW:Math.max(IW,IH), eCut=P.inletOn?Math.pow(Math.max(0,1-kc*kc),1/2.2):1;
     const secAt=(e,k,ky)=>({a:Math.max(s0.a*k,0.012),bT:Math.max(s0.bT*(ky==null?k:ky),0.012),
       bB:Math.max(s0.bB*(ky==null?k:ky),0.012),nT:lerp(s0.nT,2,e),nB:lerp(s0.nB,2,e),
       yw:s0.yw*k*(1-e),
@@ -1566,8 +1569,7 @@ function buildAft(group,mats){
     const ringOf=(sect,y0,z)=>AZ.map(th=>{const [x,y]=sectPt(th,sect);return new THREE.Vector3(x,y0+y,z);});
     for(let i=0;i<NS;i++){
       const e=eCut*smooth(i/(NS-1)), k=Math.sqrt(Math.max(0,1-Math.pow(e,2.2)));
-      const hold=clamp(+P.tailHold||0,0,1);   // (PETREL-LS: the height held, the width closing as before)
-      rings.push(ringOf(secAt(e,k,hold>0?1-(1-k)*(1-hold):null),s0.cy-P.tailDrop*e,-e*P.tailLen));
+      rings.push(ringOf(secAt(e,k,holdT>0?kyOf(k):null),s0.cy-P.tailDrop*e,-e*P.tailLen));   // (PETREL-LS: the height held)
     }
     if(!P.inletOn){
       group.add(new THREE.Mesh(loftRings(rings.slice().reverse(),null),mats.skin));
@@ -1579,7 +1581,7 @@ function buildAft(group,mats){
       const inner=secAt(eCut,IW,IH);
       const mid={...inner,a:inner.a+lip*0.9,bT:inner.bT+lip*0.9,bB:inner.bB+lip*0.9};
       const lipRings=[rings[rings.length-1],
-        ringOf(secAt(eCut,(kOut+IW)/2+lip/s0.a*0.5,(kOut+IH)/2+lip/s0.bT*0.5),(s0.cy-P.tailDrop*eCut+yc)/2,zc-lip*0.9),
+        ringOf(secAt(eCut,(kOut+IW)/2+lip/s0.a*0.5,(kyOf(kOut)+IH)/2+lip/s0.bT*0.5),(s0.cy-P.tailDrop*eCut+yc)/2,zc-lip*0.9),
         ringOf(mid,yc,zc-lip*1.2),
         ringOf(inner,yc,zc-lip*0.4),
         ringOf(inner,yc,zc+lip*0.6)];
