@@ -69,6 +69,14 @@ async function run(S) {
     ok(iD > 0 && iD < iW && iW < iH && iH < iO && iO < iA && /if \(only\.includes\('hero'\)\) discs\.push/.test(F), 'RULE the spinning prop: the discs made before the warm, for the hero only, taken off before the next view');
     ok(/PD\.make\(T, pg, tmp, \[0, 0, 1\]\)/.test(F) && /dc\.update\(2400, 0, 1, 0\)/.test(F) && /for \(const m of real\) m\.visible = false;/.test(F), 'RULE the spinning prop: the game\'s disc at full weight, the blades hidden');
     ok(/room\.forEach\(\(l, i\) => \{ l\.intensity = roomI\[i\]; \}\);\n\s*discsOff\(discs\);/.test(F), 'RULE the spinning prop: put back in the finally');
+    // R3 FREEZE (the box 10 Nov: the twin's first frame after the hold one 4482 ms task, 17 programs made in it): the
+    // build-back's programs compiled in slices, after the room is put back and before the hold is lifted
+    {
+      const fin = F.slice(F.indexOf('} finally {', F.indexOf('async function draw(')));
+      const iB = fin.indexOf('V.xray = xray0; U.build();'), iR = fin.indexOf('S.remove(lights);'), iV = fin.indexOf('for (const m of hid) m.visible = true;'),
+        iC = fin.indexOf('await P.compileScreen(root, S); tm.backCompileMs'), iH = fin.indexOf('if (held) hold(false);');
+      ok(iB > 0 && iR > iB && iV > iR && iC > iV && iH > iC && /if \(held && P\.compileScreen\) \{/.test(fin), 'R3 freeze: the build-back\'s programs are not compiled (sliced, the room put back) before the hold lifts');
+    }
     ok(/const CUT_YAW = 50, CUT_EL = 15;/.test(F) && /shoot\('cutaway', heroCam\(T, Fc, CUT_W \/ CUT_H, CUT_YAW, CUT_EL\)/.test(F), 'RULE the cutaway\'s eye: 50 round, 15 up');
     ok(/if \(name === 'hero'\) data\.heroWingY = wingLine\(m, w\);/.test(F), 'RULE the cutaway: the hero\'s wing line measured on its picture');
     ok(/const title = titleOf\(name, await baked\(\)/.test(FB) && /nmS = titleOf\(d\.name \|\| name, bakedIdx\)/.test(FB) && /g\.fillText\(titleOf\(d\.name/.test(FB), 'RULE the title: the draw, the board and the share all through titleOf');
@@ -210,6 +218,8 @@ async function run(S) {
     ['RULE: no game name in the table', 'N', S.N.replace(/^\s*game:.*\n/m, '')],
     ['RULE: no frame on the share', 'FB', FB.replace('if (g.roundRect) g.roundRect(24, 24, Wd - 48, Ht - 48, 28); else g.rect(24, 24, Wd - 48, Ht - 48);', '')],
     ['RULE: the cutaway at the top', 'FB', FB.replace('const under = (wy + GAP) * heroH;', 'const under = 0;')],
+    ['R3 freeze: no compile after the build-back', 'F', F.replace('await P.compileScreen(root, S); tm.backCompileMs', 'tm.backCompileMs')],
+    ['R3 freeze: the compile after the hold lifts', 'F', F.replace(/(\s*if \(held && P\.compileScreen\) \{[\s\S]*?\n      \}\n)(\s*if \(held\) hold\(false\);)/, '$2$1')],
     ['RULE: the shared index without files', 'IDX', JSON.parse(JSON.stringify(S.IDX, (k, v) => (k === 'file' ? undefined : v)))],
   ]);
   let bad = 0;
