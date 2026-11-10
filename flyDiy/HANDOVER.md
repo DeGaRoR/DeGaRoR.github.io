@@ -313943,6 +313943,10 @@ static deflection at the loaded mass (the row; 70 mm), the orifice for the 23.47
   1.25 m, 269 mm of stroke, 7 / 24 bar; every mount 0.13-0.85 stands at 68 mm and takes the limit drop unbottomed; the long
   strut lands at 3.2 g at the CG against the short one's 4.5 (GATE WILGAGEAR 7c). The Wilga fairing stays thick (a 31 deg
   leaning leg on a horizontal pivot swings the strut ~+-8 cm sideways at its foot) - the user: fine.
+- THE ROOT FITTED TO THE BODY (a later ref, claude/wilga-gear-rootfit - after A0 landed the READY as a0/wilga-gear-l37b):
+  the boot trims its 36 columns on the drawn skin with the pylons' rays (_cage_eng exports CAGE_PYLON = { caster, hug };
+  _cage_gear leverSkinOf hands leverBoot a skin cast and a cache key), a 4 cm fillet, a rubber bead round the joint.
+  Full on the default builds; a high side fitting leaves columns ending at the fitting (GATE WILGAGEAR 7b reports it).
 
 **Pitfalls met (each measured, each fixed):**
 - The fixed leg as gear-class members is a 1.2e5 N/m spring and folds under its own strut: kMul 20.
