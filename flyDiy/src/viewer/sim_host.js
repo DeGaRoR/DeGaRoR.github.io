@@ -321,7 +321,10 @@ function simDmgHop(sim, hop, coreNode, win) {
   // page drops its trail; a seal in this payload covers the strokes before its cut - skipped)
   { const SC = sim.damageScar ? sim.damageScar() : null, LV = SC && SC.live;
     if (LV) {
-      if (hop.lG !== LV.g) { hop.lG = LV.g; hop.lS = 0; out = { lg: LV.g }; }
+      // (the first read takes the generation silently - GATE DMGSKIN: a calm flight sends no payload, no key; only a NEW
+      // generation, a reset, tells the page to drop its trail)
+      if (hop.lG === undefined) { hop.lG = LV.g; hop.lS = LV.pub; }
+      else if (hop.lG !== LV.g) { hop.lG = LV.g; hop.lS = 0; out = { lg: LV.g }; }
       if (sg[2] !== hop.sC && LV.cut > hop.lS) hop.lS = LV.cut;
       if (LV.pub - hop.lS > LV.cap) hop.lS = LV.pub - LV.cap;
       const k = Math.min(typeof SCAR !== 'undefined' && SCAR.liveFrame ? SCAR.liveFrame : 64, LV.pub - hop.lS);
