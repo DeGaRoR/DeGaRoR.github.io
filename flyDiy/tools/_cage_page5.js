@@ -400,6 +400,7 @@ window.CAGE_PAGE = {
         ['hullSkirt',   'skirt (chine reach, of the half-beam)', 0, 0.3, 0.005, { when: P => +P.hullOn }],
         // HULL-B18: the tub's afterbody under the boom (a pod ending at its aft face: the Icon's, the SeaRey's)
         ['hullTubLen',  'afterbody under the boom', 0, 3, 0.01, { when: P => +P.hullOn, dim: 'len' }],
+        ['hullTailCut', 'float tail cut straight (off its tip)', 0, 1.5, 0.005, { when: P => +P.hullOn && +P.boomStyle === 1 && !+P.boomTwin && +P.taperOn, dim: 'len', absent: 0 }],   // PETREL-LS
         // HULL-B19: sponsons on the hull's sides (the Icon's, the Seastar's, the Wal's)
         // (HULL-B29: 'planing wing roots' - a low wing's inner panel planes and floats: the Be-103's, the Equator's)
         ['hullSpon',    'sponsons', 0, 3, 1, ['none', 'stub wings', 'floats on the sides', 'planing wing roots (a low wing\'s own)'], { when: P => +P.hullOn }],
@@ -1254,8 +1255,10 @@ window.CAGE_PAGE = {
        { when: P => +P.boomStyle === 1 && !+P.boomTwin, dim: 'len', absent: 0 }],
       ['rodSocket', 'socket where the rod enters', 0, 2, 1, ['auto (with a hull\'s float section)', 'bevelled sleeve', 'none'],
        { when: P => +P.boomStyle === 1 && !+P.boomTwin, absent: 0 }],
-      ['rodSocketLen', 'socket sleeve length (m)', 0.02, 0.5, 0.005,
+      ['rodSocketLen', 'socket sleeve length past the skin (m)', 0, 0.5, 0.005,
        { when: P => +P.boomStyle === 1 && !+P.boomTwin && Math.round(+P.rodSocket || 0) !== 2, absent: 0.12 }],
+      ['rodSocketWall', 'socket wall (x the rod radius)', 0.05, 1, 0.01,
+       { when: P => +P.boomStyle === 1 && !+P.boomTwin && Math.round(+P.rodSocket || 0) !== 2, absent: 0.33 }],
       ['rodSocketGap', 'socket clearance round the rod (m)', 0.002, 0.06, 0.001,
        { when: P => +P.boomStyle === 1 && !+P.boomTwin && Math.round(+P.rodSocket || 0) !== 2, absent: 0.012 }],
       ['boomLen',   'length',          1.0, 6.0, 0.01, { dim: 'len' }],

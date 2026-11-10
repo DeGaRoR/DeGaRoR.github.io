@@ -472,8 +472,8 @@ function rodSocket(ctx, P, grp) {
   const cI = 1 / Math.hypot(1, tI), fa = [0, -tI * cI, cI];             // forward along the tube
   const e1 = [1, 0, 0], e2 = [0, cI, tI * cI];                          // square to it
   const rRod = S.rod.r * FS, gap = Math.max(0.002, +P.rodSocketGap > 0 ? +P.rodSocketGap : 0.012);
-  const rIn = rRod + gap, wall = Math.max(0.010, 0.33 * rRod), rOut = rIn + wall, bev = 0.45 * wall;
-  const L = +P.rodSocketLen > 0 ? +P.rodSocketLen : 0.12;
+  const rIn = rRod + gap, wall = Math.max(0.004, (+P.rodSocketWall > 0 ? +P.rodSocketWall : 0.33) * rRod), rOut = rIn + wall, bev = 0.45 * wall;
+  const L = +P.rodSocketLen >= 0 && P.rodSocketLen != null ? +P.rodSocketLen : 0.12;   // (0: flush with where the skin ends round the rod)
   // the body's skin, in metres (the tube's own faces out)
   const T = [], TM = [];
   for (const f of mesh.F) {

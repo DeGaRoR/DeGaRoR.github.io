@@ -567,25 +567,31 @@ function cageResolve(S) {
     // under the tube, its plan closing on the tube's own width - so the tail ends WRAPPING the rod's lower half, a fillet,
     // and the tube grows out of the float's deck as the Super Petrel's boom does. The same ogive (g = 1 - u^1.6, 1 at the
     // taper's end): every level eases from its taper-end height (relative to the rod's axis there) onto the tip's
+    // PETREL-LS (the user, 10 Nov: "the float aft in the real plane is cut straight ... the 20-30 last centimetres on the
+    // aft part are not existing"): THE TAIL CUT - `hullTailCut` (cage units, 0 = the whole cone) off the cone's tip, the
+    // float ending on its cut section, the aft cap a flat transom; the cone's own stations aft of the cut go
+    const cutL = Math.max(0, Math.min(0.85 * (zTaperP - zConeTip), +S.hullTailCut || 0));
+    const uC = cutL > 0 ? 1 - cutL / Math.max(1e-6, zTaperP - zConeTip) : 1;
+    const US = cutL > 0 ? [uC, ...[0.86, 0.62, 0.34].filter(u => u < uC - 0.06)] : [1, 0.86, 0.62, 0.34];
     if (own) {
       const rr = ROD.r, yA0 = yAx(zTaperP), kT = 1.05 * rr, wT = 1.12 * rr;
-      for (const u of [1, 0.86, 0.62, 0.34]) {
+      for (const u of US) {
         const z = zTaperP + (zConeTip - zTaperP) * u, g = 1 - Math.pow(u, 1.6), yA = yAx(z);
         const roof = yA + (e.roofY - yA0) * g, keel = yA - kT + (e.keelY - (yA0 - kT)) * g;
         // the inner levels keep their share of the section between the keel and the deck
         const fr = v => keel + (roof - keel) * (v - e.keelY) / Math.max(1e-6, e.roofY - e.keelY);
         const wd = v => wT + (v - wT) * g;
-        add(fullRing(u === 1 ? 'htConeTip' : 'htCone' + Math.round(u * 100), z, {
+        add(fullRing(u === US[0] ? 'htConeTip' : 'htCone' + Math.round(u * 100), z, {
           Ww: wd(e.Ww), Wr: wd(e.Wr), Wk: wd(Wk1), roofY: roof, keelY: keel, ceilY: fr(e.ceilY), floorY: fr(e.floorY),
           waistY: e.waistY != null ? fr(e.waistY) : undefined }), { mat: CAGE_MAT.taper });
       }
     }
-    if (!own) for (const u of [1, 0.86, 0.62, 0.34]) {
+    if (!own) for (const u of US) {
       const z = zTaperP + (zConeTip - zTaperP) * u, g = 1 - Math.pow(u, 1.6);
       // (the centreline STRAIGHT from the taper end's centre onto the rod's axis at the tip - a line, never an S - or
       // onto the float tail's own tip)
       const yc = own ? yc1 + (yTip - yc1) * u : yAx(z) + (yc1 - yAx(zTaperP)) * (1 - u), sc = h => rTip + (h - rTip) * g;
-      add(fullRing(u === 1 ? 'htConeTip' : 'htCone' + Math.round(u * 100), z, {
+      add(fullRing(u === US[0] ? 'htConeTip' : 'htCone' + Math.round(u * 100), z, {
         Ww: sc(e.Ww), Wr: sc(e.Wr), Wk: sc(Wk1), roofY: yc + sc(hT), keelY: yc - sc(hT),
         ceilY: yc + sc(e.ceilY - yc1), floorY: yc + sc(e.floorY - yc1),
         waistY: e.waistY != null ? yc + sc(e.waistY - yc1) : undefined }), { mat: CAGE_MAT.taper });
@@ -8477,7 +8483,7 @@ const CAGE_PARAMS = {
   // tightening's aft section; cageLiftLegacy lifts a saved factor.)
   taperOn: 0, taperLen: 0.6, taperPanels: 0,
   boomStyle: 0, rodY: 0, rodD: 0.12, rodIncl: 0,
-  rodRootAft: 0, rodSocket: 0, rodSocketLen: 0.12, rodSocketGap: 0.012,   // PETREL-LS: the tube's root aft of the bulkhead (0 = the rule: the bulkhead, or a hull's float section); its socket (0 auto, 1 on, 2 off)
+  rodRootAft: 0, rodSocket: 0, rodSocketLen: 0.12, rodSocketGap: 0.012, rodSocketWall: 0.33, hullTailCut: 0,   // PETREL-LS: the tube's root aft of the bulkhead (0 = the rule: the bulkhead, or a hull's float section); its socket (0 auto, 1 on, 2 off)
  
   // twin booms (2026-09-04): drawn by the wing layer off the trailing edge.
   // G267: the LOFT — a section (width x height) at each end of the body, a
@@ -9251,7 +9257,7 @@ const CAGE_ZERO_ABSENT = ['pilotRear', 'hullOn', 'noseDeck'];
 // HULL-B1: the boat rows, written only while the hull is on (the CAGE_OPEN_ROWS idiom)
 const CAGE_HULL_ROWS = ['hullBeta', 'hullBetaBow', 'hullBetaA', 'hullStepZ', 'hullHs', 'hullSteps', 'hullStep2Z', 'hullHs2',
   'hullTips', 'hullTipAt', 'hullTipKg', 'hullTipY', 'hullAftDeg', 'hullNoseBase', 'hullTubLen', 'hullTubRise', 'hullTubEnd', 'hullTubH', 'hullDeep', 'hullSpon', 'hullSponKg', 'hullSponY', 'hullSponX', 'hullSponW', 'hullSponC', 'hullSponK', 'hullSponT', 'hullSponTaper', 'hullSponDih',
-  'hullFlute', 'hullFluteN', 'hullFluteAt', 'hullFluteBow', 'hullFluteAft', 'hullStrakes', 'hullStrakeW', 'hullStrakeLen', 'hullRocker', 'hullSkirt', 'hullTipPlane', 'hullTipLen'];
+  'hullFlute', 'hullFluteN', 'hullFluteAt', 'hullFluteBow', 'hullFluteAft', 'hullStrakes', 'hullStrakeW', 'hullStrakeLen', 'hullRocker', 'hullSkirt', 'hullTipPlane', 'hullTipLen', 'hullTailCut'];
 // PILLAR-ANCHORS (3 Nov, the user's call through A0: every saved build with doors takes the pillar snap, and a door
 // stop of 75 deg): rows ABSENT AT THEIR DEFAULT - a file that never set one loads it at the default (the snap on,
 // the stop at 75), and a save writes the row only when it differs, so no saved build gains a key the game hashes
@@ -9555,6 +9561,7 @@ function cageSpec(P) {
                            Math.max(0.08, (P.boomLen || 2.2) - 0.3));
   // HULL-B23: a boat hull on a single rod lofts its taper (buoyant, skinned) - cageResolve's HTAP
   S.hullTaper = !!(+P.hullOn && S.rod && !S.rod.twin && S.taper && S.taper.len > 0);
+  S.hullTailCut = S.hullTaper ? Math.max(0, +P.hullTailCut || 0) : 0;   // PETREL-LS: the float's tail cut straight
 
   const aLean = { keel: T.aft.keelYA - T.aft.keelYB,
                   floor: T.aft.floorYA - T.aft.floorYB };
