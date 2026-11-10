@@ -314562,3 +314562,11 @@ No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change: PHYSICS_V 7, GEN_SPEC_V 10, GEN_C
 - RWYLIGHTS (w4, w5 keep 80 %): the shipped scenery (scenery-ship-g3010 214e8b6cb, 12 Oct) lays gravel aprons and roads across Jolene's w4 (a30~d,
   r45) and w5 (a12~d, a10~d, r25); the law flushes or leaves out the lights on them, as designed. Declared as measured: w4 16 of 22, w5 15 of 24.
 - RWYLIGHTS (the haze on the glow): LOOK-1 6dba7723b reads the transmittance through apScaled() (the weather's haze); the pin takes both forms.
+## RED-NIGHT - a moonless night's ambient takes the night's colour, not a dead sunset's (NIGHT-LOOK, 10 Nov)
+- why: the user 10 Nov on STAR-SKY's Cabin Lake still (7 Jan 2027 18:00 AKST, the sun -19.1, the moon -19.7, new): "why is the light so red?".
+- cause: sky_light.js nightFloor lifts the hemisphere to the readable night level (nightVisibility 1.4) and KEPT its colour, the sun's sky
+  irradiance normalised - at -19 a vanishing long-path residual, measured (0.71, 0.27, 1.0): the shore came out magenta-red (48.6, 17.5, 38.1).
+- fix: the light the floor ADDS takes the night's own colour (starlight, airglow: NIGHT_TINT.col .5 .6 1, the floor's own blue for a black sky);
+  the residual keeps its colour in its own share. The exposed level is unchanged (intensity x luminance = the target); at dusk (residual 95 %)
+  the colour moves under 2 %. Same view after: (20.5, 27.0, 44.3), blue-grey. Live: SKY_LIGHT.nightTint.on (0 = the old).
+- gates: NIGHTVISIBILITY (its vm slice holds NIGHT_TINT) and LIGHT PASS. Evidence: flydiy-notes/evidence-2026-10-18/2026-11-04/night-photo/star/reflect/.
