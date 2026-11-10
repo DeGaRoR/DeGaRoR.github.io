@@ -602,14 +602,24 @@ function makePilot(sim, def, world, opts) {
   };
   const PATS = {};
   const patOpts = { half: (def.params.gen && def.params.gen.span > 0) ? def.params.gen.span / 2 : null };
+  // TAXI-HOME (Pilot, 10 Nov; the user: "important to the story: we have taxi to the runway, but not from the runway"):
+  // THE ARRIVAL'S OWN STAND. ap.setArriveSite(fieldId, site, plotId) - the page's, before departFrom, cleared (null) on
+  // every new route: landed at fieldId and stopped on its strip, the pilot taxis the site's own way out BACKWARD (its
+  // join on the strip, then its points, to the stand) and stops there (planTaxiIn, below). `site` is the plane's own
+  // plot's (71_player_bases playerPlotSite(...).site) or null for the field's own (siteOf); the field's pattern is then
+  // that site's (keyed fieldId|plotId), for the next departure off that stand too. Unset (every gate, every other
+  // field): the stop on the strip and the patterns as before, to the bit
+  ap.arrive = null;
+  ap.setArriveSite = (fieldId, site, plotId) => { ap.arrive = fieldId ? { fieldId, site: site || null, plotId: plotId || null } : null; };
   ap.patOf = a => {
     if (!a) return null;
-    const key = a.id || 'HOME';
+    const arr = ap.arrive && a.id && a.id === ap.arrive.fieldId && ap.arrive.site ? ap.arrive : null;
+    const key = (a.id || 'HOME') + (arr ? '|' + (arr.plotId || 'site') : '');
     if (PATS[key] !== undefined) return PATS[key];
     let P = null;
     try {
       if (typeof sitePattern === 'function')
-        P = sitePattern(a, typeof siteOf === 'function' ? siteOf(a.id) : null, patOpts);   // G710: the way out round the parked aeroplanes, for THIS span
+        P = sitePattern(a, arr ? arr.site : (typeof siteOf === 'function' ? siteOf(a.id) : null), patOpts);   // G710: the way out round the parked aeroplanes, for THIS span
     } catch (e) { P = null; }
     PATS[key] = P;
     return P;
@@ -658,7 +668,7 @@ function makePilot(sim, def, world, opts) {
     const site = (siteOrTaxiOut && !Array.isArray(siteOrTaxiOut)) ? siteOrTaxiOut : null;
     ap.site = site;
     ap.atHold = (opts && opts.atHold) || null;
-    ap.path = null; ap.pathI = 0; ap.stopAfterLineup = false; holdN = 0; planN = 0; ap.pivSpot = null; ap.pivSpotT = null; ap.climbHold = null; ap.toWaitT = null; ap.flareGuard = null; ap.flareGuardN = 0;
+    ap.path = null; ap.pathI = 0; ap.stopAfterLineup = false; ap.taxiIn = false; holdN = 0; planN = 0; ap.pivSpot = null; ap.pivSpotT = null; ap.climbHold = null; ap.toWaitT = null; ap.flareGuard = null; ap.flareGuardN = 0;
     ap.taxiOut = Array.isArray(siteOrTaxiOut) && siteOrTaxiOut.length ? siteOrTaxiOut
                : (site && site.taxiOut) || null;
     to = landable(from, to);
@@ -1850,6 +1860,35 @@ function makePilot(sim, def, world, opts) {
              why: (turn ? 'turning round ' + (best.first ? Math.round(best.first.len) + ' m on' : 'here') + ' (then ' + (best.kind === 'route' ? 'the route' : 'the centreline') + ')' : 'the turn-around by the route') +
                   ' - the route\'s swept wings ' + r1_(-wR.d) + ' m into the ' + TURN_MARGIN + ' m margin of a solid thing at (' + Math.round(wR.x) + ', ' + Math.round(wR.z) + '), ' +
                   (turn ? 'the turn ' : 'the best turn on the spot ') + (best.w.d >= 0 ? 'clear by ' + r1_(best.w.d) + ' m' : r1_(-best.w.d) + ' m into it at (' + Math.round(best.w.x) + ', ' + Math.round(best.w.z) + ')') };
+  };
+  // TAXI-HOME: THE WAY IN. The site's way out to its join on the strip (c0 on the centreline, c1 on the lane), walked
+  // backward to the stand: of the two ways, the one whose join lies ahead of the nose (the nearer, both ahead); neither
+  // ahead (stopped past both joins), the nearer - the follower turns at the hairpin (its pivot, G3800). False (no stand,
+  // no pattern, on the water, off the strip): the stop stands where it is, as before
+  const planTaxiIn = (cg, nose) => {
+    const to = ap.route && ap.route.to;
+    if (!to || !ap.arrive || to.id !== ap.arrive.fieldId || sim.hydro || typeof patternPath !== 'function') return false;
+    const PAT = ap.patOf(to);
+    if (!PAT || !PAT.routes || !PAT.routes.out) return false;
+    const byId = {}; for (const n of PAT.nodes) byId[n.id] = n;
+    let best = null;
+    for (const T of [0, 1]) {
+      const ids = PAT.routes.out[T], jc = 'c' + T;
+      if (!ids || !ids.length || !byId[ids[0]] || byId[ids[0]].kind !== 'stand') continue;
+      const j = ids.indexOf(jc);
+      if (j < 1) continue;
+      const J = byId[jc], dx = J.x - cg[0], dz = J.z - cg[2], d = Math.hypot(dx, dz) || 1e-9;
+      const ahead = (dx * nose[0] + dz * nose[1]) / d > 0.2;
+      const q = { ids: ids.slice(0, j + 1).reverse(), d, ahead };
+      if (!best || (q.ahead && !best.ahead) || (q.ahead === best.ahead && q.d < best.d)) best = q;
+    }
+    if (!best) return false;
+    ap.path = patternPath(PAT, best.ids, 1.0, [cg[0], cg[2]]);
+    if (!ap.path || !ap.path.pts || ap.path.pts.length < 2) { ap.path = null; return false; }
+    ap.pathI = 0; ap.pivAt = null; ap.stopAfterLineup = false; ap.taxiIn = true;
+    ap.budget = Math.max(ap.budget || 0, ap.t + 120 + 2 * ap.path.len / Math.max(1, A.taxiV ?? 5));
+    say('taxi-in', 'taxiing in to ' + (ap.arrive.plotId ? 'its own stand (' + ap.arrive.plotId + ')' : 'the stand') + ', ' + Math.round(ap.path.len) + ' m');
+    return true;
   };
   const planDeparture = (cg, nose) => {
     ap.pivAt = null;
@@ -3513,7 +3552,8 @@ function makePilot(sim, def, world, opts) {
           // ...ONLY ON A STRIP UNDER 300 m: on a long one the site's lane U-turn fits, and the follower's own wide
           // turn is the base's to the bit (pivoting at Jolene HOME's lane U-turn, a fillet a hair under the Cub's
           // 9.4 m, cost GATE LINEUP 26 s and a roll 12.7 m off the skip's pose)
-          const shortHere = (ap.route.from.len || 1100) < 300 || stripRoughOf(ap.route.from);   // (STRIP-LANE 2: and a rough strip)
+          const fHere = ap.taxiIn && ap.route.to ? ap.route.to : ap.route.from;   // (TAXI-HOME: the way in is the To's)
+          const shortHere = (fHere.len || 1100) < 300 || stripRoughOf(fHere);   // (STRIP-LANE 2: and a rough strip)
           const Rpiv = Math.max(RgMin, 13);
           // G3575: A FULL SWIVEL AT A CORNER the wheels cannot steer (tighter than 1 / (1.1 Rpiv), turning more than 45 deg
           // in all): rolled on to the corner's middle (half its turn), turned on the spot to the heading the path leaves it
@@ -3637,9 +3677,10 @@ function makePilot(sim, def, world, opts) {
           if (L.sRem < 2.0 || (L.sRem < 6 && Vg < 0.6)) {
             // G2490: the roll on to the turn's spot done - the turn on the spot, then the path after it
             if (ap.pivAt && ap.pivAt.first === ap.path) { const TP = ap.pivAt; ap.pivAt = null; ap.path = TP.then; ap.pathI = 0; piv = { hdg: TP.hdg, j: 0, t0: ap.t, thr: 0, sg: TP.sg }; pivN++; pivSaid = true; break; }
+            if (ap.taxiIn) { ap.taxiIn = false; ap.path = null; go('STOPPED'); break; }   // TAXI-HOME: at the stand
             go('STOP');
           }
-          else if (phaseT > tMax) { say('taxi-timeout', 'the route took ' + Math.round(phaseT) + ' s — stopping where it is'); go('STOP'); }
+          else if (phaseT > tMax) { say('taxi-timeout', 'the route took ' + Math.round(phaseT) + ' s — stopping where it is'); if (ap.taxiIn) { ap.taxiIn = false; ap.path = null; go('STOPPED'); break; } go('STOP'); }
           break;
         }
         const ddx = ap.taxiTgt[0] - cg[0], ddz = ap.taxiTgt[1] - cg[2];
@@ -5089,7 +5130,7 @@ function makePilot(sim, def, world, opts) {
           if (flatRoll.stuckT > 6 && dRem >= 6) { say('slope-parked', 'the grade is too steep to taxi up - parked on the brakes ' + Math.round(dRem) + ' m short of the level part'); c.brake = 1; }
           if (dRem < 2 || (dRem < 6 && Vg < 0.3) || flatRoll.stuckT > 6 || ap.t - flatRoll.t0 > 90) {
             ap.report.outcome = ap.report.outcome || 'completed';
-            go('STOPPED');
+            go(ap.arrive && !(ap.report.landing && ap.report.landing.onStrip === false) && planTaxiIn(cg, nose) ? 'TAXI' : 'STOPPED');   // TAXI-HOME
           }
           break;
         }
@@ -5228,7 +5269,7 @@ function makePilot(sim, def, world, opts) {
           // part is a taxi, given its own time (120 s) past the flight's budget
           if (flatRoll) { ap.budget = Math.max(ap.budget || 0, ap.t + 120); say('slope', 'stopped on a ' + (Math.abs(gGrade) * 100).toFixed(1) + ' % grade — rolling ' + Math.round(flatRoll.d) + ' m on to the level part'); break; }
           ap.report.outcome = ap.report.outcome || 'completed';
-          go('STOPPED');
+          go(ap.arrive && !(ap.report.landing && ap.report.landing.onStrip === false) && planTaxiIn(cg, nose) ? 'TAXI' : 'STOPPED');   // TAXI-HOME
         }
         break;
       }
