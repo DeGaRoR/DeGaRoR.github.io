@@ -1826,7 +1826,14 @@ function runwaySite(r, F) {
 }
 // (v1.33) a stage's `sock: false` / `ties: false` onto the aerodrome (render_world's windsock, 25_airfield fleetSpots);
 // absent - the record never says it - the aerodrome is untouched
-function stageAero(a, r) { if (r.sock === false) a.sock = false; if (r.ties === false) a.ties = false; return a; }
+function stageAero(a, r) {
+  if (r.sock === false) a.sock = false; if (r.ties === false) a.ties = false;
+  // (DIRT-STRIP x PILOT, 10 Nov) a bumpy strip says so on its aerodrome - the pilot and the ground pattern read a.micro.chaos
+  // (the backtrack lane and the U-turn inside the clear band, the taxi slower with chaos): rough exactly where the field
+  // puts bumps (STRIP_MICRO.on), the chaos as the field resolves it; no `micro` on any other strip (their objects as before)
+  if (typeof STRIP_MICRO !== 'undefined' && STRIP_MICRO.on(r.micro)) a.micro = { chaos: STRIP_MICRO.resolve(r.micro).chaos };
+  return a;
+}
 // G3098 (the Cabin Strip): A STRIP'S DRAWN FLIGHT - `fly` { dep, appr, circuit?, side?, terrainOk? } in the premises frame (the
 // pilot's: dep from the lift-off end, its last point where the tight zone is passed, no turn before it; appr outermost first,
 // ending at the threshold; a point [x, z] or [x, z, metres above the strip's top end]), handed to the pilot in the world
