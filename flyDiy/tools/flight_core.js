@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: c0b14211a1bfd48f
+// body-sha256: 5c4fe704794e66f3
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -40139,6 +40139,14 @@ const GEN_BAYS = {
     serves: 'the second plane’s outboard spar bay',
     span: [0.55, 0.88], feed: 'pumped',
   },
+  // PETREL-LS (the user, 10 Nov: "ensure that we have put the fuel tank where it actually is" - the Super Petrel's
+  // tanks are in the LEADING EDGE of the lower wings): the second plane's D-box, nose to front spar, root to the outer
+  // panel; its kilos ride the front spar's nodes only (the frame has no node ahead of the spar)
+  wing2LE: {
+    name: 'Second wing leading edge', on: 'wing', plane: 1, le: true,
+    serves: 'the second plane’s leading-edge D-box, nose to front spar',
+    span: [0.12, 0.88], feed: 'gravity', chord: [0.02, null],
+  },
   // G477 (the Chinook's blueprint, the user: "it carries what I believe are
   // reservoirs on its struts ... Strut-mounted tanks, ogival"): A POD ON EACH
   // FRONT LIFT STRUT, one tank a side, the pair sharing the vessel's litres.
@@ -40200,11 +40208,13 @@ function genBayResolve(S, key, ST) {
     // G185: a bay on the second plane measures the second plane
     const wk = (B.plane && S.wings && S.wings[B.plane]) || S.wing;
     if (B.plane && !(S.wings && S.wings[B.plane])) return null;
-    let litres = genWingBay(wk, { spanLo: B.span[0], spanHi: B.span[1] });
+    let litres = genWingBay(wk, { spanLo: B.span[0], spanHi: B.span[1],
+      ...(B.chord ? { cLo: B.chord[0], cHi: B.chord[1] != null ? B.chord[1] : GEN_RULES.sparFront } : {}) });   // (PETREL-LS: a leading-edge bay's chord)
     const wellL = genBayWellL(S, B);                        // G3: the gear's wells in this span
     if (wellL > 0) litres = Math.max(0, litres - wellL);
     return { key, name: B.name, on: 'wing', feed: B.feed, free: !!B.free,
              plane: B.plane || 0,                    // G185: which plane holds it
+             ...(B.le ? { le: true } : {}),          // (PETREL-LS: on the front spar's nodes)
              span: B.span.slice(), litres, ...(wellL > 0 ? { wellL } : {}),
              // where its mass acts: the mid-span of the bay, both sides
              zFrac: 0.5 * (B.span[0] + B.span[1]) };
@@ -44335,10 +44345,12 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     } else if (BAY.on === 'wing') {
       // the old 'wing' station was the ROOT spar node and 'panel' the next one
       // out; a null `along` reproduces that rather than picking a midpoint.
+      // (PETREL-LS: the second plane's panel is an outboard bay too - it sat at the root; a leading-edge bay, the
+      // span's middle, on the front spar alone)
       const frac = v.along != null ? v.along
-                 : (v.bay === 'wingPanel' ? 0.34 : 0);
+                 : (v.bay === 'wingPanel' || v.bay === 'wing2Panel' ? 0.34 : BAY.le ? 0.17 : 0);
       const [wl, wr] = wingPair(frac, BAY.plane || 0);
-      const rr = wingPairRear(frac, BAY.plane || 0);
+      const rr = BAY.le ? null : wingPairRear(frac, BAY.plane || 0);
       pair = rr ? [[wl, 0.3], [wr, 0.3], [rr[0], 0.2], [rr[1], 0.2]]
                 : [[wl, 0.5], [wr, 0.5]];
     } else {
