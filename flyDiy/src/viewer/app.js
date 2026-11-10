@@ -3062,7 +3062,12 @@
       // read nodeRest(-1) and threw out of buildModel, which left the
       // birth half-done on a fresh profile. Every wheel node is null here,
       // so every wheel part below is skipped.
-      const onFloats = !!(curDef.parts && curDef.parts.floats && curDef.parts.floats.length);
+      // AMPH-WHEELS (10 Nov, the user: "still no wheels" on the Super Petrel): ...but an AMPHIBIAN carries both - its
+      // water surfaces in parts.floats (the boat hull and its tip floats, or amphibious floats) AND wheel nodes (refs.mains
+      // the wheels, refs.tw its nose wheel). Read as floats, every wheel part was skipped: no wheel drawn, no gearTags, so
+      // no retraction rig (the payload's gearSwing / gearMech unused). Floats with a real third-wheel node are not "on
+      // floats": the stale-part guard holds where it was meant to, refs.tw -1
+      const onFloats = !!(curDef.parts && curDef.parts.floats && curDef.parts.floats.length) && !(twi != null && twi >= 0 && curDef.nodes[twi]);
       const nodeOf = onFloats ? { mainsL: null, mainsR: null, tw: null }
                    : { mainsL: zPos ? m0 : m1, mainsR: zPos ? m1 : m0,
                        tw: (twi != null && twi >= 0) ? twi : null };
