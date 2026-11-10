@@ -314552,3 +314552,13 @@ TIMED GATE (16:50-19:00, with the liner + float-deck still in): taxi chase @HOME
 Parked fleet re-cooked on this build (parked_cook --check same).
 
 No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change: PHYSICS_V 7, GEN_SPEC_V 10, GEN_CERT_V 7.
+## NIGHT-REDS - three master reds re-pinned with their reasons (MASTER-GREEN, NIGHT-LOOK, 10 Nov)
+- LOOKS (_looks_check.js section 3, the coast field): BAY-MIRROR 2bf142437 put its uWCalm line between uWSdfOn and GLSL_GERSTNER in the vertex's uniform
+  string; the literal pin read that as the field gone. The vertex still reads uWSdf: the pin now reads the block as one string. No code change.
+- LAKEBED 2 (02/20's pond): the old pin wanted 0 texels (G753, the old runway). The user's 14 Oct ruling ("keep it this way") accepted rev 28's
+  pond as measured, 28 texels left - _looks_check.js already declares it; LAKEBED now declares the same (POND_LEFT 28; more is red).
+- LAKEBED 3 (the physics has water): the 4 'dry' points were rev 28's 7-9 cm shallows by 02/20, where waterH IS the drawn level (28.54 / 28.65).
+  The test now asks the physics' surface to stand at the drawn level (2 cm) over the ground, not 10 cm over it.
+- RWYLIGHTS (w4, w5 keep 80 %): the shipped scenery (scenery-ship-g3010 214e8b6cb, 12 Oct) lays gravel aprons and roads across Jolene's w4 (a30~d,
+  r45) and w5 (a12~d, a10~d, r25); the law flushes or leaves out the lights on them, as designed. Declared as measured: w4 16 of 22, w5 15 of 24.
+- RWYLIGHTS (the haze on the glow): LOOK-1 6dba7723b reads the transmittance through apScaled() (the weather's haze); the pin takes both forms.

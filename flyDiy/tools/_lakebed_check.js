@@ -109,7 +109,10 @@ if (W && blkR && blkS && blkY) {
   console.log('  (THE OLD CUT: the raw ground stood over the drawn water at ' + oldGap + ' of them, in ' + oldLakes + ' lakes, up to ' + oldWorst.toFixed(2) + ' m - the gap the cut showed)');
   ok(over === 0, '2 every texel a metre inside a drawn lake has its ground under the drawn water', over + ' over' + (over ? ', worst ' + worstOver.toFixed(2) + ' m' : '') + '; ' + prem + ' a premises modifier holds over it');
   const pond = I.lakes.find(L => Math.hypot((L.x0 + L.x1) / 2 - 241, (L.z0 + L.z1) / 2 - 599) < 15);
-  ok(!!pond && env.lakeTexels(pond).inside === 0, '2 02/20\'s pond stays the runway\'s fill (G753: no texel, no quad)', pond && ('texels ' + env.lakeTexels(pond).inside));
+  // (DECLARED EXCEPTION, the user 14 Oct 02:15 via A0, as _looks_check.js section 2 holds it: rev 28 moved / shortened 02/20 - its grade fills only
+  //  the part of the pond under it, 28 field texels stay water, ACCEPTED AS MEASURED. G753's "no texel" was the old runway's; more is red)
+  const POND_LEFT = 28;
+  ok(!!pond && env.lakeTexels(pond).inside <= POND_LEFT, '2 02/20\'s pond: no more water than the user accepted (rev 28: ' + POND_LEFT + ' texels left - the user\'s ruling, 14 Oct)', pond && ('texels ' + env.lakeTexels(pond).inside));
   // the law itself, at a point: the bed only ever lowers, and it is continuous at the line
   let lower = true; for (let k = 0; k < 4000; k++) { const x = -13000 + ((k * 7919) % 38000), z = -29000 + ((k * 104729) % 38000); if (W.terrainH(x, z) > rawH(x, z) + 1e-9) { lower = false; break; } }
   ok(lower, '2 the bed only ever lowers the ground (every ceiling the codec gives still holds)');
@@ -138,7 +141,7 @@ if (W && blkR && blkS && blkY) {
       }
       const ix = px + nx * 2, iz = pz + nz * 2, hi = W.terrainH(ix, iz);
       if (env.lakeRsd(ix, iz) > 1.5 && hi > y - 0.05 && Math.abs(rawH(ix, iz) - B.terrainH(ix, iz)) < 1e-9) wetFail++;
-      if (env.lakeRsd(ix, iz) > 1.5 && hi < y - 0.05 && !(W.waterH(ix, iz) > hi + 0.1)) physFail++;
+      if (env.lakeRsd(ix, iz) > 1.5 && hi < y - 0.05 && !(W.waterH(ix, iz) >= y - 0.02 && W.waterH(ix, iz) > hi)) physFail++;   // (the physics' surface AT the drawn level, over the ground - MASTER-GREEN 10 Nov: the old "10 cm over the ground" counted rev 28's 7-9 cm shallows by 02/20, where waterH IS the level, as dry)
     }
   }
   ok(pts > 5000, '3 the walk crosses every drawn lake\'s line', pts + ' line points');
