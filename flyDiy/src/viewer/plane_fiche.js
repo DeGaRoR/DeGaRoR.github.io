@@ -27,8 +27,8 @@
   // ...and the wing layer's own lift struts (_cage_wing.js `edFit_liftstrut`: the struts and their fittings)
   const keptStrut = (o, top) => { for (let a = o; a && a !== top; a = a.parent) if (a.name === 'edFit_liftstrut') return true; return false; };
   const VIEWS = ['hero', 'above', 'side', 'plan', 'front', 'cutaway'];
-  // THE CUTAWAY'S EYE (the user 9 Nov, on the Cub's fiche: "lower the camera angle so it reads wider"; it sits under the hero's
-  // right wing on the board - fiche_board.js cutPlace): 50 degrees round from the nose, 15 above (was 28)
+  // THE CUTAWAY'S EYE (the user 9 Nov, on the Cub's fiche: "lower the camera angle so it reads wider"; the board puts it
+  // where it fits - fiche_board.js cutFit): 50 degrees round from the nose, 15 above (was 28)
   const CUT_YAW = 50, CUT_EL = 15;
   // THE HERO'S WING LINE (the same ruling): the lowest row of the hero's silhouette in its right-hand band (the far wing's tip
   // on a three-quarter from below), 0 at the top of the cropped picture, 1 at its foot - the board drops the cutaway below it

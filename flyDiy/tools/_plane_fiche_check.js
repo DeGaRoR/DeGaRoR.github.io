@@ -96,7 +96,7 @@ async function run(S) {
       } catch (e) { fitOk = false; } }
       ok(fitOk, 'ROWFIT the share\'s values keep to their column (smaller, then two lines)');
     }
-    ok(/hr \? cutPlace\(d\.heroWingY, hr\.h, ch\)/.test(FB) && /const p = cutPlace\(d\.heroWingY, hero\.offsetHeight, c\.offsetHeight\)/.test(FB), 'RULE the cutaway: placed by cutPlace on the board and the share');
+    ok(/const p = cutFit\(heroBm, hr \?/.test(FB) && /if \(p\) g\.drawImage\(im, 60 \+ p\.x, 60 \+ p\.y, p\.w, p\.h\);/.test(FB) && /const p = cutFit\(hero, \{ x: 0, y: 0, w: hero\.offsetWidth, h: hh \}, c, cw, ch,/.test(FB) && !/cutPlace\(/.test(FB), 'RULE the cutaway (the user 10 Nov): placed where it fits by cutFit on the board and the share, never held under the wing');
   }
   // ---- R3: the doors
   ok(/window\.BENCH_CERTIFIED\(\); \} catch \(e\) \{\} \}\n[^\n]*\n\s*if \(!wasPassed && passed\(\) && window\.FICHE_BOARD\) \{ try \{ window\.FICHE_BOARD\.certified\(\); \} catch \(e\) \{\} \}/.test(BE), 'bench.js awards the fiche beside BENCH_CERTIFIED');
@@ -153,10 +153,15 @@ async function run(S) {
       const L = (S.LISTS && S.LISTS.planes) || [], off = L.filter(p => p.list === 'official' && p.thumb && IDX[p.thumb]);
       ok(off.length >= 5 && off.every(p => typeof IDX[p.thumb].file === 'string'), 'RULE the title: every baked official fiche names its file (' + off.length + ')');
       ok(A.sig() === 'Wingsmith · certified airworthy', 'RULE the signature: "' + A.sig() + '"');
-      // the cutaway under the wing: the hero 300 tall, its wing line at 0.31, a cutaway 160 tall
-      const p = A.cutPlace(0.31, 300, 160), p0 = A.cutPlace(null, 300, 160);
-      ok(p.top > p.wingPx && p.top >= 93 + 6 && p.foot === p.top + 160, 'RULE the cutaway: its box starts below the hero\'s wing line (' + JSON.stringify(p) + ')');
-      ok(p0.top > 0.25 * 300, 'RULE the cutaway: an old fiche (no wing line) still sits low');
+      // the cutaway where it fits: a 20 x 10 area, a solid 6 x 4 cutaway; the hero a block somewhere in it
+      const grid = (w, h, f) => { const a = new Float32Array(w * h); for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) a[y * w + x] = f(x, y) ? 1 : 0; return { w, h, a }; };
+      const C = grid(6, 4, () => true);
+      const left = A.cutSpot(grid(20, 10, (x, y) => x < 12), C), right = A.cutSpot(grid(20, 10, (x, y) => x >= 8), C), bot = A.cutSpot(grid(20, 10, (x, y) => y >= 5), C);
+      const full = A.cutSpot(grid(20, 10, (x, y) => !(x >= 3 && x < 9 && y >= 4 && y < 8)), C);
+      ok(left.over === 0 && left.x >= 12 && left.y === 0, 'RULE the cutaway: the hero on the left -> top right, clear of it (' + JSON.stringify(left) + ')');
+      ok(right.over === 0 && right.x + 6 <= 8, 'RULE the cutaway: the hero on the right -> the left, clear of it (' + JSON.stringify(right) + ')');
+      ok(bot.over === 0 && bot.y + 4 <= 5 && bot.x === 14, 'RULE the cutaway: the hero low -> the top, a tie to the right (' + JSON.stringify(bot) + ')');
+      ok(full.over === 0 && full.x === 3 && full.y === 4, 'RULE the cutaway: the one clear hole is found (' + JSON.stringify(full) + ')');
     }
   }
   // the pure parts, in a stub page
@@ -259,7 +264,8 @@ async function run(S) {
     ['RULE: no frame on the share', 'FB', FB.replace('if (g.roundRect) g.roundRect(24, 24, Wd - 48, Ht - 48, 28); else g.rect(24, 24, Wd - 48, Ht - 48);', '')],
     ['ROWFIT: a value drawn whole', 'FB', FB.replace("rowFit(String(v), 270 + col * 450, 1300 + rw * 44, col ? 260 : 230)", "g.fillText(v, 270 + col * 450, 1300 + rw * 44)")],
     ['ROWFIT: no two lines', 'FB', FB.replace("g.fillText(a, x, y - 11, maxW); g.fillText(ws.slice(i).join(' '), x, y + 13, maxW);", 'g.fillText(v, x, y);')],
-    ['RULE: the cutaway at the top', 'FB', FB.replace('const under = (wy + GAP) * heroH;', 'const under = 0;')],
+    ['RULE: the cutaway blind to the hero', 'FB', FB.replace('o += hero.a[hr + i] * cut.a[cr + i];', 'o += 0;')],
+    ['RULE: the cutaway always top right', 'FB', FB.replace('if (p) g.drawImage(im, 60 + p.x, 60 + p.y, p.w, p.h);', 'if (p) g.drawImage(im, 1560, 60, p.w, p.h);')],
     ['R3 freeze: no compile after the build-back', 'F', F.replace('await P.compileScreen(root, S); tm.backCompileMs', 'tm.backCompileMs')],
     ['R3 freeze: the compile after the hold lifts', 'F', F.replace(/(\s*if \(held && P\.compileScreen\) \{[\s\S]*?\n      \}\n)(\s*if \(held\) hold\(false\);)/, '$2$1')],
     ['RULE: the shared index without files', 'IDX', JSON.parse(JSON.stringify(S.IDX, (k, v) => (k === 'file' ? undefined : v)))],
