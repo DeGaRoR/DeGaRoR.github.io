@@ -21161,7 +21161,9 @@
     let n = 0; for (const p of L) if (p && p.isReady && !p.isReady()) n++;
     return n;
   }
-  function heavyFirst(m) { return (m && m.groundFamily) ? 0 : 1; }
+  // (the naming run, 10 Nov: the four heaviest cold links were the pavement's 34 s, the island ground's 17 and 14 s, the
+  // premises' patch 13 s - the ground's family and the pavement's heavyLink)
+  function heavyFirst(m) { return (m && (m.groundFamily || m.heavyLink)) ? 0 : 1; }
   // PLANE-RENDERS R3 (8 Nov, the twin's first fiche on the box: ONE 9.7 s task inside its sliced compile): the group grows on
   // cached programs (a stand-in whose key three already holds: ~0.1 ms) and then meets a run of NEW ones - the studio's
   // lights re-key every lit program of the plane - 64 new sources in one task. `gmax` caps the group for a path whose sets
