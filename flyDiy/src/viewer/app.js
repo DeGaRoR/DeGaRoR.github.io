@@ -7697,6 +7697,7 @@
   let dustFx = null;
   const DUST_SURF = ['grass', 'dirt', 'gravel', 'dirt', -1, 'paved', 'gravel', 'sand'];   // the SURFACE enum -> a dust class (rock / forest floor read dirt; water none)
   const DUST_CLS = { dirt: 0, sand: 1, gravel: 2, grass: 3, paved: 4, concrete: 4, asphalt: 4 };
+  const DUST_GROUND = ['dirt', 'sand', 'gravel', 'dirt', null];   // a dust class -> the pavement surface whose colour it takes
   // THE SOIL'S WATER, ONCE A FRAME, FOR EVERYONE WHO SHOWS IT (DIRT-STRIP's ask, 9 Nov): SOIL_WET off the day, handed to the
   // pavement (PAVEMENT.setSoilWet: one shared uniform - the strip's damp tint and its drawn puddles) and to the dust (the same
   // R: the water drawn is the water splashed in). Runs with the dust off too (?dust=0 is the dust's lever, not the puddles').
@@ -7781,6 +7782,9 @@
     if (WF && WF.sun && WF.hemi) { const sd = WF.KEY_SKY || WF.SUN_SKY || WF.sun.position; L.sun[0] = sd.x; L.sun[1] = sd.y; L.sun[2] = sd.z;
       L.sunCol.copy(WF.sun.color).multiplyScalar(WF.sun.intensity); L.skyCol.copy(WF.hemi.color).multiplyScalar(WF.hemi.intensity);
       L.gndCol.copy(WF.hemi.groundColor || WF.hemi.color).multiplyScalar(WF.hemi.intensity * 0.5); }
+    // the dust is its ground's colour (the user, 10 Nov): the drawn surface of each class (a grass strip's dust is the soil
+    // under it: dirt's), memoised in the pavement - five map reads a frame while a cloud lives
+    if (typeof PAVEMENT !== 'undefined' && PAVEMENT.surfaceColor && F.draw.setGround) for (let ci = 0; ci < DUST_GROUND.length; ci++) if (DUST_GROUND[ci]) F.draw.setGround(ci, PAVEMENT.surfaceColor(DUST_GROUND[ci]));
     camera.updateMatrixWorld();
     F.draw.sync(camera, L);
     F.ms = performance.now() - t0;
