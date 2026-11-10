@@ -129,7 +129,8 @@ async function runPage(page) {
     const KEEP = "(()=>{const l=[...document.querySelectorAll('button,a,div')].filter(b=>/keep the current build/i.test(b.textContent||'')&&b.children.length===0&&b.offsetParent);l.forEach(x=>x.click());return l.length;})()";
     for (let i = 0; i < 20; i++) { const n = await ev(KEEP); await sleep(500); if (!n && i > 4) break; }
     await sleep(3000);
-    if (WETV !== null) console.log('  wet: ' + await ev(`(()=>{ if (window.PAVEMENT && PAVEMENT.setSoilWet) { PAVEMENT.setSoilWet(${+WETV}); return PAVEMENT.WET.value; } return 'no PAVEMENT.setSoilWet'; })()`));
+    // (10 Nov: PAVEMENT.setSoilWet alone was overwritten each frame by SOIL_WET off the day - no water, no splash) SOIL_WET.force holds it
+    if (WETV !== null) console.log('  wet: ' + await ev(`(()=>{ if (typeof SOIL_WET !== 'undefined') SOIL_WET.force = ${+WETV}; if (window.PAVEMENT && PAVEMENT.setSoilWet) { PAVEMENT.setSoilWet(${+WETV}); return 'force ' + (typeof SOIL_WET !== 'undefined' ? SOIL_WET.force : 'none') + ', pavement ' + PAVEMENT.WET.value; } return 'no PAVEMENT.setSoilWet'; })()`));
     if (JS) console.log('  js: ' + await ev('(()=>{' + JS + '})()').catch(e => 'ERR ' + e.message));
     // the UI out of the picture: the world and the aeroplane alone
     await ev("(()=>{['ui','devPanel','hud','rail'].forEach(i=>{const e=document.getElementById(i);if(e)e.style.visibility='hidden';});document.querySelectorAll('.card,.panel,#phase,#hud,.toast,button').forEach(e=>e.style.visibility='hidden');return 1;})()").catch(() => 0);
@@ -149,12 +150,16 @@ async function runPage(page) {
         if (!best || !(best[2] > 0)) { console.log('  splash: no water on the main wheels lines (is the soil wet? --wet 0.9)'); continue; }
         at = P(best[0] - 8, best[1]); console.log('  splash: ' + best[2] + ' wet samples from u ' + best[0] + ' at n ' + best[1].toFixed(1));
       }
-      const where = await ev(HOLD(at, (V.agl || REST) + DROP));
+      let where = await ev(HOLD(at, (V.agl || REST) + DROP));
+      // (10 Nov 21:15: the first boot's places never took - every view shot at HOME's stand) the CG must be within 5 m of the place
+      const off = w => { try { const c = JSON.parse(w); return Math.hypot(c[0] - at[0], c[2] - at[1]); } catch (e) { return Infinity; } };
+      if (off(where) > 5) { console.log('  place missed (' + where + '), the Go again and a retry'); await ev("(()=>{const b=document.getElementById('bGo'); if (b) b.click();})()"); await sleep(4000); where = await ev(HOLD(at, (V.agl || REST) + DROP)); }
+      if (off(where) > 5) { console.log('  PLACE FAILED for ' + STRIPS[si] + ' ' + vk + ' (' + where + '): not shot'); continue; }
       const dmg = await ev('(() => { const s = FLIGHT_PROBE.sim(), D = s && s.damage ? s.damage() : null; return D ? D.breaks + " breaks, " + D.yields + " yields" : "n/a"; })()').catch(() => 'n/a');
       if (!String(dmg).startsWith('0 breaks') && dmg !== 'n/a') console.log('  DAMAGE after the place on ' + STRIPS[si] + ' ' + vk + ': ' + dmg);
       await ev(`(() => { if (window.DAY_CLOCK && DAY_CLOCK.preset) DAY_CLOCK.preset(${JSON.stringify(HOUR)}); return 1; })()`);
       // (the low-sun views: the orbit's az from the sun's own - across it, or the eye between the Cub and the sun, looking toward it)
-      if (V.sun) { const sa = await ev(`(() => { const dd = window.DAY_CLOCK && DAY_CLOCK.day && DAY_CLOCK.day(), L = dd && dd.sun;   // (07_day: the sun in the world frame) return L ? Math.atan2(L.z !== undefined ? L.z : L[2], L.x !== undefined ? L.x : L[0]) : 'null'; })()`).catch(() => 'null');
+      if (V.sun) { const sa = await ev(`(() => { const W = FLIGHT_PROBE.world && FLIGHT_PROBE.world(), dd = (W && W.day) || (window.DAY_CLOCK && DAY_CLOCK.day && DAY_CLOCK.day()), L = dd && dd.sun;   // (07_day: the sun in the world frame) return L ? Math.atan2(L.z !== undefined ? L.z : L[2], L.x !== undefined ? L.x : L[0]) : 'null'; })()`).catch(() => 'null');
         if (typeof sa === 'number') V.cam[0] = V.sun === 'toward' ? sa + Math.PI : sa + Math.PI / 2; else console.log('  ' + vk + ': no sun direction on the page, az ' + V.cam[0]); }
       await ev(`FLIGHT_PROBE.camSet(${V.cam.join(',')})`);
       await ev(FRAMES(!out.length ? 400 : first ? 240 : 120)); first = false;
