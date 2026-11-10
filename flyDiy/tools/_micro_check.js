@@ -134,6 +134,13 @@ const W8 = world(withMicro('w7', MICRO8));
   { const sz = c => { const F = SM.field({ c: [0, 0], hdg: 0, len: 400, wid: 18 }, { chaos: c, seed: 3 }, 0); return F.bigRocks().reduce((m, r) => Math.max(m, r[2]), 0); };
     const k2 = 0.35 + 0.65 * 0.2 / 0.8, m2 = sz(0.2), m8 = sz(0.8);
     verdict(m2 > 0 && m2 <= 0.27 * k2 + 1e-9 && m8 > m2, `the stones grow with chaos: the widest ${(2 * m2 * 100).toFixed(0)} cm at 0.2 (cap ${(2 * 0.27 * k2 * 100).toFixed(0)}), ${(2 * m8 * 100).toFixed(0)} cm at 0.8`); }
+  // the clear band (the Pilot's bar, 10 Nov): at any chaos, on a narrow and a wide strip, no stone reaching within BAND_V of the
+  // centreline stands over BAND_H; outside it the full sizes stay
+  { let inMax = 0, inN = 0, outMax = 0;
+    for (const c of [0.2, 0.8, 1.0]) for (const wid of [9, 18]) for (const seed of [3, 7, 11]) {
+      for (const r of SM.field({ c: [0, 0], hdg: 0, len: 600, wid }, { chaos: c, seed }, 0).bigRocks()) {
+        const h = SM.STONE_H * r[2]; if (Math.abs(r[1]) - r[2] < SM.BAND_V) { inN++; inMax = Math.max(inMax, h); } else outMax = Math.max(outMax, h); } }
+    verdict(inMax <= SM.BAND_H + 1e-9 && outMax > SM.BAND_H, `the clear band: ${inN} stones reach within ${SM.BAND_V} m of the centreline, the tallest ${(inMax * 100).toFixed(1)} cm proud (cap ${(SM.BAND_H * 100).toFixed(1)} cm); outside, up to ${(outMax * 100).toFixed(1)} cm`); }
   verdict(R7.length > 200 && bad === 0, `the stones on w7 at chaos 0.8: ${R7.length}, 14-54 cm across, whole inside the strip, none in a rut (${bad} not)`);
   // the wheels' ground carries each body EXACTLY (not the raster's 0.25 m lattice); the drawn ground carries none
   const d = [Math.cos(A7.hdg), Math.sin(A7.hdg)], n = [-d[1], d[0]];
