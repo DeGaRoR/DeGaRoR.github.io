@@ -465,7 +465,7 @@ const WATER = (() => {
                 // NIGHT-SHINE, THE SLOPES THE PIXEL CANNOT SHOW (the user 4 Nov: "they would really need to dance with the water"): under a pixel the ripples are a spread of slopes, and each slope
                 // sees the capture higher or lower by twice its tilt, so a far light fills a long streak (Cox-Munk; Bruneton 2010's filtered ellipse). Seven reads along the capture's vertical from the already rippled point, a Gaussian in slope,
                 // scaled by the unresolved variance: none where the ripples are drawn, whole in the far water, a per-pixel dither so the steps read as glitter and not as ghosts. Deep night only (frame()): 0 by day
-                if (uWStretch > 0.0) { float sS = uWStretch * 6.0 * sqrt(max(wSig, 0.0)); if (sS > 1.0e-4) { float nS = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715)))); mr = vec4(0.0); float wT = 0.0, lS = max(material.roughness * uWMirror4.z, 1.0); for (int iS = -3; iS <= 3; iS++) { float qS = (float(iS) + nS - 0.5) / 3.0, gS = exp(-2.0 * qS * qS); mr += textureLod(uWMirror, muv + vec2(0.0, qS * sS), lS) * gS; wT += gS; } mr /= wT; } }
+                if (uWStretch > 0.0) { float sS = uWStretch * 6.0 * sqrt(max(wSig, 0.0)); if (sS > 1.0e-4) { float nS = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715)))); mr = vec4(0.0); float wT = 0.0, lS = max(material.roughness * uWMirror4.z, uWDirN.w); for (int iS = -3; iS <= 3; iS++) { float qS = (float(iS) + nS - 0.5) / 3.0, gS = exp(-2.0 * qS * qS); mr += textureLod(uWMirror, muv + vec2(0.0, qS * sS), lS) * gS; wT += gS; } mr /= wT; } }
                 float edge = smoothstep(0.0, 0.06, muv.x) * smoothstep(1.0, 0.94, muv.x) * smoothstep(0.0, 0.06, muv.y) * smoothstep(1.0, 0.94, muv.y);
                 // THE CAPTURE IS PREMULTIPLIED (G460.11.2, the user: "there are strange reflections"): the foliage is
                 // drawn with alphaToCoverage, so on the multisampled capture a half-covered canopy pixel RESOLVES to
@@ -1680,7 +1680,7 @@ const WATER = (() => {
   //  the far water's star reflections spread by the ripples a pixel cannot draw; .1 made every star a rain streak, 0 left them unmoved by the waves)
   // OFF SWITCHES, live (WATER.nightSea.<key> = 0 from the console or a rig): lamps 0 = no lamp streaks (the shader skips the loop), glintFar 0 = the far glint as master, stretch 0 = no stretch
   // log2(exposure) shine[0]..shine[1], later than the sheen's: the dusk's sun keeps its glitter path and its reflection as they were
-  const NIGHT_SEA = { k: 0.38, col: [0.25, 0.42, 1.0], flat: 0.7, stretch: 0.03, cap: 2.2, glintFar: 1, lamps: 1, shine: [7, 10.5] };   // (the user: "a tad too milky": 30 % of it rides the ripples' slopes; bluer)
+  const NIGHT_SEA = { k: 0.38, col: [0.25, 0.42, 1.0], flat: 0.7, stretch: 0.03, slod: 1, cap: 2.2, glintFar: 1, lamps: 1, shine: [7, 10.5] };   // (the user: "a tad too milky": 30 % of it rides the ripples' slopes; bluer)
   function frame(dt) {
     if (U && U.uWNight) {
       const Wn = typeof window !== 'undefined' ? window : {}, exN = (Wn.GFX && Wn.GFX.exposureBase && Wn.GFX.exposureBase()) || 1;
@@ -1693,7 +1693,7 @@ const WATER = (() => {
       // NIGHT-SHINE: the stretch, its cap, the far glint's fade and the lamps' streaks on the deep-night ramp tS: by day and at dusk all four are off to the bit
       const tS = Math.max(0, Math.min(1, (Math.log2(Math.max(1, exN)) - NIGHT_SEA.shine[0]) / (NIGHT_SEA.shine[1] - NIGHT_SEA.shine[0])));
       const kE = (typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.P ? LIGHT_RIG.P() : 1) / Math.max(0.92, exN);
-      if (U.uWStretch) { U.uWStretch.value = NIGHT_SEA.stretch * tS; U.uWMirMax.value = tS > 0 ? NIGHT_SEA.cap * kE : 1e9; U.uWDirN.value.x = NIGHT_SEA.glintFar * tS; U.uWLampK.value.w = NIGHT_SEA.lamps ? tS : 0; }
+      if (U.uWStretch) { U.uWStretch.value = NIGHT_SEA.stretch * tS; U.uWMirMax.value = tS > 0 ? NIGHT_SEA.cap * kE : 1e9; U.uWDirN.value.x = NIGHT_SEA.glintFar * tS; U.uWDirN.value.w = NIGHT_SEA.slod; U.uWLampK.value.w = NIGHT_SEA.lamps ? tS : 0; }
     }
     if (!T.set) T.t += (dt || 0); else T.seen++;
     T.set = false;
