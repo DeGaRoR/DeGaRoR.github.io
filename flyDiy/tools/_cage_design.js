@@ -1999,7 +1999,7 @@ const DESIGN_ROWS = [
     // back into the spec), because the tile now stands in the leg row's own
     // slot and must light whatever the row holds — a spec read lit nothing
     // until the next join
-    read: P => ['spring', 'bungee', 'oleo'][Math.round(P.s1Leg)] || null,
+    read: P => ['spring', 'bungee', 'oleo', null, 'lever'][Math.round(P.s1Leg)] || null,
     options: [
       { value: 'spring', label: 'Spring steel blade', icon: ICON.suspSpring,
         note: 'the leg IS the spring — a tapered blade off a belly saddle',
@@ -2013,6 +2013,12 @@ const DESIGN_ROWS = [
         note: 'a telescopic strut with a torque scissor and a drag brace',
         writes: { spec: { gear: { suspension: 'oleo' } },
                   cage: { s1Leg: 2, s1_shockKind: 2 } } },
+      // WILGA-GEAR (futureDesigns/WILGA-GEAR-STUDY-2026-11.md): the PZL-104 Wilga's long-stroke trailing link - a fixed
+      // leg, a trailing arm on a pivot, a nitrogen-oil strut; a Wilga-length leg (the drop) so its 0.27 m of travel clears
+      { value: 'lever', label: 'Trailing-link oleo (Wilga type)', icon: ICON.suspOleo,
+        note: 'a fixed leg, a trailing arm on a pivot and a two-stage gas-oil strut: soft and very long-stroke, for rough strips',
+        writes: { spec: { gear: { suspension: 'lever' } },
+                  cage: { s1Leg: 4, s1_shockKind: 2, s1Drop: 0.85 } } },
     ] },
 
   { key: 's1Fair', label: 'Wheel fairings', kind: 'starter',

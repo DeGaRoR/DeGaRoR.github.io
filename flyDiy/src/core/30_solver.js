@@ -147,6 +147,11 @@ function makeSim(def, world) {
   // real wing's strain under the same load (sK = k / kTrue; 1, exactly, on every other beam)
   const beams = def.beams.map(b => ({ ...b, L0: 0, strain: 0, sK: b.kTrue != null ? b.k / b.kTrue : 1, kF: b.k, cF: b.c }));
   let subN = P_.substeps ?? 24;
+  // WILGA-GEAR: THE OLEO STRUTS of a trailing-link leg (61_gen_frame parts.lever: per side the strut's eyes - U on the
+  // leg, H on the arm - and its law, 62c GEAR_LEVER). Not members: the oleo pass below pushes the eyes apart by the gas
+  // and the orifice. null on every other build - one compare a substep, nothing else (no beam changes shape)
+  const OLEO = (def.parts && def.parts.lever && def.parts.lever.sides)
+    ? def.parts.lever.sides.map(q => ({ a: q.u, b: q.h, O: q.O, s: 0, sd: 0, F: 0, sMax: 0, fMax: 0 })) : null;
   // THE TUBE (G294): RIGID CLUSTERS, shape-matched every substep. A group of
   // nodes (a twin boom's) is pulled onto the best-fit rigid transform of
   // its rest shape — Müller's shape matching: the mass-weighted centre,
@@ -949,7 +954,8 @@ function makeSim(def, world) {
   }
   function gearStamp(bi, b, Ft, Fc, m, K) {
     const G = K.leg, Fw = G.floorW * CERT_W, ft = Math.max(Ft, Fw), fc = Math.max(Fc, Fw);
-    const A = CERT_NOSE >= 0 && (b.a === CERT_NOSE || b.b === CERT_NOSE) ? G.nose : (G[CERT_ARCH] || G.bungee);
+    // (WILGA-GEAR: a trailing-link leg's members are a steel leg and a forged arm behind an oleo - the oleo's travel)
+    const A = CERT_NOSE >= 0 && (b.a === CERT_NOSE || b.b === CERT_NOSE) ? G.nose : (G[CERT_ARCH] || (CERT_ARCH === 'lever' ? G.oleo : G.bungee));
     b.fu = 1.5 * m * ft * K.uFit; b.fy0 = b.fu; b.etu = 0;
     if (!b.tens) {
       if (CERT_FLT[bi]) b.fc0 = 1.5 * m * fc * K.uMember;
@@ -3841,6 +3847,47 @@ function makeSim(def, world) {
       }
     }
   }
+  // WILGA-GEAR: each strut's stroke s (its length as built less its length now, + compressed), closing speed sd and
+  // force F (+ pushes the eyes apart) by GEAR_LEVER's law, its damper semi-implicit on the eyes' reduced mass
+  function oleoPass(dt) {
+    for (let k = 0; k < OLEO.length; k++) {
+      const Q = OLEO[k], a3 = Q.a * 3, b3 = Q.b * 3;
+      let dx = p[b3] - p[a3], dy = p[b3 + 1] - p[a3 + 1], dz = p[b3 + 2] - p[a3 + 2];
+      const L = hyp3(dx, dy, dz) || 1e-9;
+      dx /= L; dy /= L; dz /= L;
+      const sd = -((v[b3] - v[a3]) * dx + (v[b3 + 1] - v[a3 + 1]) * dy + (v[b3 + 2] - v[a3 + 2]) * dz);
+      const s = Q.O.Lx - L, ma = m[Q.a], mb = m[Q.b];
+      const F = gearOleoF(Q.O, s, sd, dt, ma * mb / (ma + mb));
+      f[a3] -= F * dx; f[a3 + 1] -= F * dy; f[a3 + 2] -= F * dz;
+      f[b3] += F * dx; f[b3 + 1] += F * dy; f[b3 + 2] += F * dz;
+      Q.s = s; Q.sd = sd; Q.F = F;
+      if (s > Q.sMax) Q.sMax = s;
+      if (F > Q.fMax) Q.fMax = F;
+    }
+  }
+  // WILGA-GEAR: THE BOTTOM STOP, AS A CONSTRAINT (after the step's integration, as the clusters' projection is): a strut
+  // past its stroke S has its eyes put back to S along their line, mass-weighted (the pair's centre unmoved), and their
+  // closing speed taken out (inelastic, momentum kept) - the load then goes into the steel leg and arm, as on the real
+  // gear. A spring stop the integrator could carry let a reserve-energy drop push the strut 47 mm past S and the arm
+  // over its toggle (the arm flipped, the aeroplane on its pivots)
+  function oleoStop() {
+    for (let k = 0; k < OLEO.length; k++) {
+      const Q = OLEO[k], a3 = Q.a * 3, b3 = Q.b * 3;
+      let dx = p[b3] - p[a3], dy = p[b3 + 1] - p[a3 + 1], dz = p[b3 + 2] - p[a3 + 2];
+      const L = hyp3(dx, dy, dz) || 1e-9, ex = (Q.O.Lx - Q.O.S) - L;
+      if (!(ex > 0)) continue;
+      dx /= L; dy /= L; dz /= L;
+      const ma = m[Q.a], mb = m[Q.b], wa = mb / (ma + mb), wb = ma / (ma + mb);
+      p[a3] -= dx * ex * wa; p[a3 + 1] -= dy * ex * wa; p[a3 + 2] -= dz * ex * wa;
+      p[b3] += dx * ex * wb; p[b3 + 1] += dy * ex * wb; p[b3 + 2] += dz * ex * wb;
+      const vc = (v[b3] - v[a3]) * dx + (v[b3 + 1] - v[a3 + 1]) * dy + (v[b3 + 2] - v[a3 + 2]) * dz;
+      if (vc < 0) {
+        v[a3] += dx * vc * wa; v[a3 + 1] += dy * vc * wa; v[a3 + 2] += dz * vc * wa;
+        v[b3] -= dx * vc * wb; v[b3 + 1] -= dy * vc * wb; v[b3 + 2] -= dz * vc * wb;
+      }
+      Q.bottomed = (Q.bottomed || 0) + 1;
+    }
+  }
   function substep(dt) {
     for (let i = 0; i < n; i++) { f[i*3]=0; f[i*3+1]=G*m[i]; f[i*3+2]=0; }
     aeroPass(false);
@@ -3863,6 +3910,7 @@ function makeSim(def, world) {
       f[a3]+=Fb*dx; f[a3+1]+=Fb*dy; f[a3+2]+=Fb*dz;
       f[b3]-=Fb*dx; f[b3+1]-=Fb*dy; f[b3+2]-=Fb*dz;
     }
+    if (OLEO !== null) oleoPass(dt);                 // WILGA-GEAR: the trailing-link legs' struts
     if (postLive) {                                  // G1898.4: one compare a substep for both (none: nothing to do)
       if (nFlr) floorPass();                         // G1813: the kinked members' floors
       if (nTieL) tiePass();                          // G2040 (DMG-FABRIC): the covering's ties
@@ -4052,6 +4100,7 @@ function makeSim(def, world) {
     // G348: a fresh reset's clusters take their rest from THIS pose (placed)
     if (clusterFresh) { for (const C of clusters) clusterRest(C); clusterFresh = false; }
     integrate(dt);
+    if (OLEO !== null) oleoStop();                   // WILGA-GEAR: a bottomed strut stops on steel
     // G294 / G350: the tube holds its shape, and its twist; G1470: a cluster a member broke inside lets go, one a
     // member took a set inside holds its NEW shape (its rest re-taken here, after the substep that bent it)
     for (const C of clusters) { if (C.off) continue; shapeMatch(C, dt); twistHold(C, dt); }
@@ -4393,6 +4442,10 @@ function makeSim(def, world) {
            gear: () => (GR === null ? null : { pos: GR.pos, locked: GR.pos > 0.98, up: GR.pos < 0.02, moving: GR.moving,
                                               wow: GR.wow, power: GR.power, emerg: GR.emerg, handle: ctl.gear === 0 ? 0 : 1,
                                               time: RET.time, act: RET.act, emergKind: RET.emerg }),
+           // WILGA-GEAR: the trailing-link legs' struts - null on every other build; per side { s (m, + compressed), sd
+           // (m/s), F (N), S (the stroke), sMax / fMax since the last oleoPeak(true) }
+           oleo: () => (OLEO === null ? null : OLEO.map(Q => ({ s: Q.s, sd: Q.sd, F: Q.F, S: Q.O.S, sMax: Q.sMax, fMax: Q.fMax, bottomed: Q.bottomed || 0 }))),
+           oleoPeak: clear => { if (OLEO !== null && clear) for (const Q of OLEO) { Q.sMax = Q.s; Q.fMax = Q.F; Q.bottomed = 0; } },
            gearPower: on => { if (GR !== null) GR.power = !!on; },
            gearEmergency: () => { if (GR !== null) { GR.emerg = true; ctl.gear = 1; } } };
   return sim;

@@ -340,6 +340,10 @@ const GATES = [
   // 2/3 of the certified yield) and §7.4's gear rows (the ground loop, the porpoise, the float dig-in). Three at once
   { id: 'DMGGEAR', file: '_dmg_gear_check.js', tier: 'core', weight: 3, wall: 1800 },
   { id: 'GEARFALL', file: '_gear_fall_check.js', tier: 'core', weight: 1, wall: 120 },
+  // WILGA-GEAR (futureDesigns/WILGA-GEAR-STUDY-2026-11.md): the trailing-link oleo leg - the researched geometry, the
+  // static deflection at gross, a 23.725-style limit drop with no bottoming and the reserve drop, no pogo, the trailing
+  // arc, a broken leg drops, the drawn leg = the physics leg through the game's load chain, nothing else moved
+  { id: 'WILGAGEAR', file: '_wilga_gear_check.js', tier: 'core', weight: 1, wall: 150 },
   // G1890-G1892 (DMG-CERTCOST): the certificate's cost - its frames (exact) and its node time per build against a budget,
   // the target (~5 s) and what is left printed; its envelope against the UNCUT certificate (the stored reference while it
   // is still this physics' answer, else computed again) to the bit; the store (IndexedDB) - a record's checks, the round

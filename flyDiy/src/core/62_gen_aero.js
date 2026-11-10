@@ -741,6 +741,14 @@ function genGearCdA(S, semi) {
   const drop = G.legDrop || 0.42;
   const legCd = (G.fairing === 'full' || G.legFair === 'fair') ? 0.30 : 1.0;
   cda += 2 * legCd * drop * 0.05;                 // the main legs
+  // WILGA-GEAR: a trailing link's strut stands in the stream beside its leg (a 60 mm cylinder, eye to eye - the drawn
+  // one, gear.lever, else the reference's 0.50 m); the boot (the leg-fairing row or the trousers) carries it at the
+  // faired leg's Cd. Only a lever leg: the calibration's reference gear has none, and no other build reads a term
+  if (G.suspension === 'lever') {
+    const lv = G.lever, dx = lv && lv.horn && lv.top ? [0, 1, 2].map(k => lv.horn[k] - lv.top[k]) : null;
+    const sL = dx ? Math.sqrt(dx[0] * dx[0] + dx[1] * dx[1] + dx[2] * dx[2]) : 0.50;
+    cda += 2 * legCd * sL * 0.060;                 // the two struts
+  }
   const twDrop = G.twLeg || 0.20;
   cda += (G.twFairing === 'full' || G.twLegFair === 'fair' ? 0.30 : 1.0)
        * twDrop * 0.05;                           // the third leg
@@ -1722,7 +1730,9 @@ function genParams(S, fr, strips) {
           // per tank, in spec order, what the frame billed (the fuel gauges)
           vessels: ((S.energy && S.energy.vessels) || []).map(v => ({
             bay: v.bay, litres: v._res ? +v._res.litres || 0 : 0 })) },
-    ...genSubsteps(fr.nodes, fr.beams, fr.clusters),   // substeps (+ substepsTrue where the flight box is softened, G610; a float's rigid hull out of its network, G790)
+    // (WILGA-GEAR: a trailing-link leg's struts are no members - each stands in here at its stiffest, bottomed on its
+    // stops, so the step is one the integrator carries; its orifice is semi-implicit and asks no step - 62c gearOleoF)
+    ...genSubsteps(fr.nodes, fr.parts && fr.parts.lever ? fr.beams.concat(fr.parts.lever.sides.map(q => ({ a: q.u, b: q.h, k: q.O.kS + q.O.kFull, c: 0, L: q.O.Lx }))) : fr.beams, fr.clusters),   // substeps (+ substepsTrue where the flight box is softened, G610; a float's rigid hull out of its network, G790)
     polarWing, polarTail, polarFin,
     // G185: one polar PER PLANE (polarWing stays the alias of plane 0's —
     // GATE GEN's G9 and every reader of the flat name keep working)

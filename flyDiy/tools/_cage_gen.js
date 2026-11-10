@@ -9002,7 +9002,7 @@ function cageDefaults() {
 // the G46 visual snapshot froze the EXPLODED aeroplane into the mesh that
 // flies. Declared here rather than guessed, and skipped in both directions.
 // (G63.)
-const CAGE_VIEW_KEYS = { explodeD: 1, gearPos: 1 };   // (RETRACT: the gear preview's position is how you look at it, never saved)
+const CAGE_VIEW_KEYS = { explodeD: 1, gearPos: 1, gearLvPos: 1 };   // (RETRACT: the gear preview's position is how you look at it, never saved; WILGA-GEAR: the trailing-link preview too)
 
 // LAYER PARAMETERS RIDE THROUGH. The cage's own parameters are CAGE_PARAMS,
 // but a bench page also carries its layers' (the crew's seats, controls and
@@ -9189,7 +9189,11 @@ const CAGE_DEFAULT_ABSENT = { pilSnap: 1, doorStop: 75, wgStrutPil: 0, wgTipBow:
   // every save; these two rows' are absent at 0, so no saved build gains a key (L35d's STOL lesson)
   acc_gpsAerial_sL: 0, acc_gpsAerial_lv: 0, acc_eltAerial_sL: 0, acc_eltAerial_lv: 0,
   // C172-CLIP part 2 (9 Nov): the elevators' own end inset (_cage_hinge.js hgOutSt), 0 = the surfaces' hgOut
-  hgOutSt: 0 };
+  hgOutSt: 0,
+  // WILGA-GEAR: the trailing-link leg's rows, per station (the core's GEN_LEVER_ROW_OFF: the same table)
+  ...(() => { const d = { lvArm: 0.4, lvAng: 62, lvComp: 12, lvTop: 0.72, lvReach: 0.45, lvStat: 0.07, lvLegW: 0.09, lvRootAng: 80, lvBoot: 0 }, o = {};
+    for (const k in d) { o[k] = d[k]; for (const i of [1, 2]) o['s' + i + '_' + k] = d[k]; }   // (the gear page's flat base copy too)
+    return o; })() };
 // RETRACT (G3511's rule): THE RETRACTABLE GEAR'S ROWS ARE ABSENT WHILE THE GEAR IS FIXED - a build that never chose
 // retraction keeps every key it had - and the preview's position (gearPos) is never saved: it is where the editor's
 // slider was, not the aeroplane (the core's genStolCageOff drops the same from every fingerprint, belt and braces)
@@ -9227,6 +9231,7 @@ function cageToSpec(P) {
     // whose two switches agree saves - and joins, and hashes - to master's bits
     if (k === 'accBeacon' && Math.round(+P[k]) === Math.round(P.accAerials == null ? 1 : +P.accAerials)) continue;
     if (k === 'gearPos' || (!(+P.gearRetract) && CAGE_RETRACT_ROWS.includes(k))) continue;   // RETRACT
+    if (k === 'gearLvPos') continue;                         // WILGA-GEAR: the trailing-link preview is the editor's, not the aeroplane
     out[k] = P[k]; n++;
   }
   return n ? out : null;

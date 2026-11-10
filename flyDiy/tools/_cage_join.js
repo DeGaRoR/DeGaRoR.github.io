@@ -524,8 +524,24 @@ function cageJoinSpec(P, M, T) {
     // RETRACT GM1: a retracting leg is drawn as an oleo on a trunnion (the gear layer), and flies as one
     const s1leg = spec.gear.retract ? 2 : Math.round(P.s1Leg);
     spec.gear.suspension =
-      s1leg === 0 ? 'spring' : s1leg === 2 ? 'oleo' :
+      s1leg === 0 ? 'spring' : s1leg === 2 ? 'oleo' : s1leg === 4 ? 'lever' :
       ['spring', 'bungee', 'oleo'][Math.round(P.s1_shockKind)] || 'bungee';
+    // (WILGA-GEAR: the trailing link wears no wheel fairing - the gear layer draws none, clampSpec says so too)
+    if (spec.gear.suspension === 'lever') spec.gear.fairing = 'none';
+    // WILGA-GEAR: THE TRAILING-LINK LEG AS DRAWN reaches the physics - the gear layer's records (CAGE_GEAR.lever: the
+    // pivot, the strut's eyes, the axle, in the drawing's metres) in the frame's axes (x aft, y up, q outboard), relative
+    // to the axle at full extension, the two sides averaged (they are mirror images); the arm's swing to full stroke and
+    // the charge (the static deflection at gross) from the rows. The frame stands its nodes on these points
+    delete spec.gear.lever;
+    const LVj = s1leg === 4 && window.CAGE_GEAR && window.CAGE_GEAR.lever;
+    if (LVj && LVj.length) {
+      const rel = (u, p) => { const sg = Math.sign(u.axle[0]) || 1;
+        return [-(p[2] - u.axle[2]), p[1] - u.axle[1], sg * (p[0] - u.axle[0])]; };
+      const avg = k => [0, 1, 2].map(c => LVj.reduce((a, u) => a + rel(u, u[k])[c], 0) / LVj.length);
+      const r6 = v => v.map(c => +c.toFixed(6)), R0 = LVj[0].rows;
+      spec.gear.lever = { piv: r6(avg('piv')), horn: r6(avg('horn')), top: r6(avg('top')), w: +LVj[0].w.toFixed(4),
+                          comp: +((R0.ang - R0.comp) * Math.PI / 180).toFixed(6), dSt: +(+R0.dSt).toFixed(4) };
+    }
   }
   const cabin = {};
   // JOINED (2026-09-04): glazing off is an open cockpit — no glass billed.
@@ -997,6 +1013,7 @@ function cagePartMatch(name, ud, twin) {
       name.lastIndexOf('edLink_', 0) === 0 || name.lastIndexOf('edCtl_', 0) === 0 ||
       name.lastIndexOf('edGauge_', 0) === 0 ||           // the panel arc
       name.lastIndexOf('edMech', 0) === 0 ||             // RETRACT GM3: a retracting gear's brace links and actuator
+      name.lastIndexOf('edLv', 0) === 0 ||               // WILGA-GEAR: the trailing-link leg's arm and strut halves
       name === 'edCastorT')
     return { src: name, ctl: true };
   // G179.2: the struts and the engine units (the prop and spinner under a
@@ -2257,7 +2274,14 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           R: c.R, cx: c.p[0], cy2: c.p[1], cz2: c.p[2], groups: {} });
       // G58.3: the legs stretch-follow their axle (suspension visually
       // compresses); the castor fork yaws for ground manoeuvring
+      // WILGA-GEAR: A TRAILING-LINK LEG IS FOUR RIGID PARTS, NOT A STRETCH - the fixed leg, the arm, the strut's cylinder
+      // and its rod, each carried by three of its physics nodes (app.js lever rigs: the axle, the pivot's ends, the
+      // strut's eyes), so the drawn leg follows the physics leg at every compression - and leaves with it when it breaks
+      const LVp = GB.lever || [];
+      for (const lv of LVp) for (const [nm, role, at] of [['edLeg', 'leg', lv.piv], ['edLvArm', 'arm', lv.piv], ['edLvCyl', 'cyl', lv.top], ['edLvRod', 'rod', lv.horn]])
+        PARTS.others.push({ src: nm + lv.kind, kind: 'lever', lever: { role, axle: lv.axle }, axleC: at, groups: {} });
       for (const u of (GB.units && GB.units.legs) || [])
+        if (!LVp.some(lv => lv.kind === u.kind))
         PARTS.others.push({ src: 'edLeg' + u.kind,
           kind: 'leg' + (u.kind === 'T' ? 'T' : u.kind),
           stretch: true, axleC: u.moving || u.axle, rootC: u.root || null,
@@ -2998,6 +3022,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           ...(m.pinAt ? { pinAt: m.pinAt, tipAt: m.tipAt } : {}) }));
       if (pt.kind === 'eng') out2.unit = pt.unit;
       if (pt.kind === 'gearMech') out2.name = pt.mechName;          // RETRACT GM3
+      if (pt.kind === 'lever') out2.lever = { role: pt.lever.role, axle: rotP(-pt.lever.axle[2], pt.lever.axle[1], pt.lever.axle[0]) };   // WILGA-GEAR
       if (pt.stretch && pt.rootC)          // G58.7: the fixed airframe end
         out2.root = rotP(-pt.rootC[2], pt.rootC[1], pt.rootC[0]);
       // G267.2: THE TAIL'S ANCHOR — the points whose nodes' mean travel the

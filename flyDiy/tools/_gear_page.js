@@ -52,6 +52,12 @@ const DEF = {
   // (c) telescopic oleo
   oleoAng: 40, oleoDia: 0.058, oleoCyl: 0.55, oleoScissor: 0.052,
   oleoBrace: 1, oleoBraceZ: 0.42,
+  // (e) WILGA-GEAR: the trailing-link leg (the PZL-104 Wilga's: futureDesigns/WILGA-GEAR-STUDY-2026-11.md; the core's
+  // GEN_RULES.lever holds the same reference) - the arm, its angle extended and at full stroke, the strut's upper eye
+  // up the leg, the axle ahead of the fitting, the static deflection at gross (the strut's charge), the leg's fairing
+  // chord, the fitting round the body. Every row is ABSENT AT ITS DEFAULT (_cage_gen CAGE_DEFAULT_ABSENT): no saved
+  // build gains a key
+  lvArm: 0.400, lvAng: 62, lvComp: 12, lvTop: 0.72, lvReach: 0.45, lvStat: 0.070, lvLegW: 0.090, lvRootAng: 80, lvBoot: 0,
   // the tailwheel assembly
   twR: 0.10, twSpringLen: 0.52, twSpringDrop: 0.30, twSpringW: 0.052,
   twSpringT: 0.009, twLeaves: 3, twRake: 18, twTrail: 0.052,
@@ -95,6 +101,22 @@ const LEG_ROWS = {
     ['oleoBrace', 'drag brace', 0, 1, 1],
     ['oleoBraceZ', 'brace top z', -0.8, 0.8, 0.02],
   ],
+  // WILGA-GEAR (the mains only: the third wheel's row stops at 3)
+  4: [
+    ['lvArm', 'trailing arm length', 0.20, 0.70, 0.005],
+    ['lvAng', 'arm angle, extended (deg below level)', 30, 80, 0.5],
+    ['lvComp', 'arm angle, full stroke (deg)', 0, 40, 0.5],
+    // (the strut's upper mount as a share of the leg from the pivot to the fitting - the user, 10 Nov: "how far on the leg does
+    // the shock mount ... as the default setting, definitely V2": 0.72, the photographs' long strut under the fairing's root;
+    // ~0.13 is the derived short strut, v1)
+    ['lvTop', 'strut mount up the leg (share)', 0.10, 0.85, 0.01],
+    ['lvReach', 'axle ahead of the fitting', -0.30, 1.00, 0.01],
+    ['lvStat', 'static deflection at gross (the charge)', 0.02, 0.20, 0.005],
+    ['lvLegW', 'leg fairing chord', 0.04, 0.16, 0.002],
+    ['lvRootAng', 'fitting round the body', 40, 120, 1],
+    // (the leg fairing's shape - shown with the leg-fairing row: _cage_gear legRowWhen)
+    ['lvBoot', 'leg fairing shape', 0, 2, 1, ['trailing (Wilga)', 'tapered', 'flared']],   // (the user, 10 Nov: "trailing should be the default")
+  ],
   3: [
     ['twSpringLen', 'spring length', 0.20, 1.00, 0.01],
     // DC3-EDITABLE: a spring tip a little above its fitting (the DC-3's -0.025), a long castor's drop and trail (its 0.42)
@@ -118,7 +140,7 @@ for (const rows of Object.values(LEG_ROWS))
 for (let i = 1; i <= 2; i++)
   for (const k of LEG_KEYS) DEF['s' + i + '_' + k] = DEF[k];
 
-const LEGS = ['beam', 'link', 'oleo', 'tailwheel'];
+const LEGS = ['beam', 'link', 'oleo', 'tailwheel', 'trailing-link (Wilga type)'];   // (WILGA-GEAR: 4, the mains' row only)
 // G3575 (DC3-2, the user 26 Oct: "do the swivelling tailwheel ... if no one uses castor, you may ... replace it with your full
 // swivel mechanics"): 'castor' was the picture's only (every third wheel flew linked); its slot is now the FULL SWIVEL
 // wheel, the one of the three the physics reads (_cage_join gear.twSwivel) - no saved build carried it
