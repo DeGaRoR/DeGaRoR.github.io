@@ -14495,13 +14495,18 @@
   // getUniforms: 0.5-1.9 s of the roll-out's 'frames' task, run to run) on programs a catch-up compile had started and
   // not yet linked - two depth programs of the shadow pass, measured. This polls every program the renderer holds
   // (KHR_parallel_shader_compile: isReady never blocks) until all are linked, `capMs` at most, before the frame is drawn.
+  // PACE-REVEAL (BOOT-PROGRAMS, the 10 Nov A/B: under ?pace=auto one cold load drew a 26.2 s frame IN FLIGHT): with the links
+  // paced, the ground's heaviest (the pavement's 34 s) starts later, so the 30 s cap ran out and the first draw that met it
+  // waited in getProgramInfoLog. Paced, the wait also counts what compileSliced has still to key (its live jobs: a job no
+  // tick has touched for 5 s is gone - an abandoned pass never holds a reveal) and the cap is PACE_CAP: the screen stays
+  // up, with its shader count, until all of it has linked
   const programsReady = capMs => (typeof renderer.compileAsync !== 'function' || !renderer.info || !renderer.info.programs) ? null
     : new Promise(res => {
-      const t0 = performance.now();
+      const t0 = performance.now(), cap = PACE_N ? Math.max(capMs, PACE_CAP) : capMs;
       const poll = () => {
-        let ok = true;
-        for (const pr of renderer.info.programs) if (pr.isReady && !pr.isReady()) { ok = false; break; }
-        if (ok || performance.now() - t0 > capMs) res(); else setTimeout(poll, 10);
+        let ok = !(PACE_N && pacedLeft() > 0);
+        if (ok) for (const pr of renderer.info.programs) if (pr.isReady && !pr.isReady()) { ok = false; break; }
+        if (ok || performance.now() - t0 > cap) res(); else setTimeout(poll, 10);
       };
       poll();
     });
@@ -21156,6 +21161,11 @@
   var PACE_N = (() => { const m = typeof location !== 'undefined' && /[?&]pace=(\d+|auto)/.exec(location.search || ''); if (!m) return 0;
     if (m[1] !== 'auto') return +m[1];
     const hc = (typeof navigator !== 'undefined' && navigator.hardwareConcurrency) || 4; return Math.max(2, Math.min(8, Math.floor(hc / 2))); })();
+  // PACE-REVEAL: compileSliced's live paced jobs { left: reps not keyed yet, t: its last tick } and the reveal's cap when paced
+  var PACED_JOBS = new Set(), PACE_CAP = 120000;
+  function pacedLeft() { const now = performance.now(); let n = 0;
+    for (const j of PACED_JOBS) { if (j.left <= 0 || now - j.t > 5000) PACED_JOBS.delete(j); else n += j.left; }
+    return n; }
   function linkingNow() {
     const L = renderer.info && renderer.info.programs; if (!L) return 0;
     let n = 0; for (const p of L) if (p && p.isReady && !p.isReady()) n++;
@@ -21186,7 +21196,8 @@
         seen.add(k); reps.push([o, m]); mats.add(m);
       }
     }));
-    if (PACE_N) reps.sort((a, b) => heavyFirst(a[1]) - heavyFirst(b[1]));   // (stable: the scene's order within each)
+    let job = null;
+    if (PACE_N) { reps.sort((a, b) => heavyFirst(a[1]) - heavyFirst(b[1])); job = { left: reps.length, t: performance.now() }; PACED_JOBS.add(job); }   // (stable: the scene's order within each)
     const litScene = lit || sc;
     let i = 0, G = 1;                     // a NEW AEROSKIN program's source alone is ~0.1-0.3 s: start at one, grow on the cheap ones
     // G1085: a dressed compile runs beside the steps (the one loading's early starts) over sets that mix programs the
@@ -21195,7 +21206,7 @@
     const GMAX = gmax || (dress ? 16 : 64);
     return new Promise(res => {
       const tick = () => {
-        const t0 = performance.now();
+        const t0 = performance.now(); if (job) job.t = t0;
         D(() => {
           const prev = renderer.getRenderTarget(), fog = litScene.fog;
           try {
@@ -21205,7 +21216,7 @@
               const room = PACE_N ? PACE_N - linkingNow() : Infinity; if (room <= 0) break;   // BOOT-PROGRAMS: the driver full
               const grp = new THREE.Group(), n = Math.min(G, reps.length - i, room), t1 = performance.now();
               for (let k = 0; k < n; k++) { const [o, m] = reps[i + k]; grp.add(PROG_WARM.standIn(o, m)); }
-              i += n;
+              i += n; if (job) job.left = reps.length - i;
               try { renderer.compile(grp, camera, litScene); } catch (e) { console.warn('compile slice:', e && e.message); }
               grp.clear();
               const dt = performance.now() - t1;
