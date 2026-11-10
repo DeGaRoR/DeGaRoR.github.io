@@ -61,6 +61,8 @@ const CONTRACT_FIELDS = {
 //   massKg     the take-off mass solo with full fuel (genShakedown mass) — the TORun's mass
 //   emptyKg    nobody aboard, no fuel (genShakedown empty)
 //   toM        the take-off distance at massKg (genShakedown TORun: the roll + the air segment)
+//              (FLOAT-DECK 10 Nov: the two float rows re-read, 1207 -> 243 and 310 -> 53 - the rest deck was 75-80 deg
+//              nose-up on floats; on water this analytic figure is optimistic, the readers' fix brings the hydro run)
 //   cruiseKmh  VCruise × 3.6; rangeKm genShakedown rangeKm; spanM span; cost the ledger (genShakedown cost)
 //   tankL      the vessel's litres (energyL); power the energy kind (fuel | electric)
 // What a design CAN DO is judged from these alone (contractCanDo, 73_): the load against the cabin, the loaded
@@ -76,11 +78,11 @@ const CONTRACT_DESIGNS = {
             gear: 'wheels', seats: 4, bagKg: 40, massKg: 883, emptyKg: 663, toM: 147,
             cruiseKmh: 177, rangeKm: 91, spanM: 11, cost: 137572, tankL: 26.5, power: 'fuel' },
   c172f:  { id: 'c172f',  label: 'Cessna floats',   build: 'bugReports/cessnaFloatsWOrks.json',
-            gear: 'floats', seats: 4, bagKg: 40, massKg: 1018, emptyKg: 798, toM: 1207,
+            gear: 'floats', seats: 4, bagKg: 40, massKg: 1018, emptyKg: 798, toM: 243,
             cruiseKmh: 204, rangeKm: 104, spanM: 11, cost: 202863, tankL: 26.5, power: 'fuel' },
   twinf:  { id: 'twinf',  label: 'twin floatplane', build: 'tools/fixtures/build_v7_ultralight_2026-09-05.json',
             patch: 'floats',
-            gear: 'floats', seats: 1, bagKg: 0, massKg: 475, emptyKg: 382, toM: 310,
+            gear: 'floats', seats: 1, bagKg: 0, massKg: 475, emptyKg: 382, toM: 53,
             cruiseKmh: 130, rangeKm: 110, spanM: 11.8, cost: 68854, tankL: 20.1, power: 'fuel' },
 };
 
