@@ -2955,21 +2955,55 @@ const ARCHETYPES = [
   // keeps its skin and its full canopy, the aero nose follows from the
   // mount, the rod rides high on the bulkhead and the electric pusher hangs
   // LOW on the bulkhead's back (engY down).
+  // THE PROPORTIONS, TO THE MAKER'S THREE-VIEW (2026-11-10, the user: "get the proportions all right on the
+  // archaeopteryx existing card, so I have a reasonable starting point"): the 'Class 2 Hang Glider, 2005' drawing,
+  // traced and matched with tools/ref_match/blueprint.py (refs/archaeopteryx_bp.json; REF_MATCH.md section 12). The
+  // wing (cantilever, 13.4 m to the winglets' tops, the trailing edge straight and the taper on the leading edge - a
+  // crank for the drawing's curve -, winglets; LE 1.08 m behind the nose), the rod (0.22 m, at the wing, to the aft
+  // bulkhead) and the tail (the stab 2.66 m on the rod at the fin's foot, the fin's outline by fit_tail.js, no dorsal)
+  // are the drawing's: IoU plan 0.90, front 0.55. The cabin is the Chinook's (below): the user shapes it from here.
+  // The aft bulkhead about mid-chord (the user: "you don't see it really well on your drawing, but it's sitting at the
+  // middle of the wing"). Left as it was: the E-811 and its fuel (the study's chantier, futureDesigns/archaeopteryx/
+  // STUDY.md), the trike gear (the type's is a nose and a main wheel in tandem: a garage gap). Not flown since.
   { key: 'archaeopteryx', kind: 'recreation', name: 'Archaeopteryx-alike', note: 'suspended pod, ' +
       'rod on the wing, electric pusher low on the bulkhead',
     sel: { class: 'ul1', role: 'glider', seatLayout: 0, paxCount: 0,
-           canopy: 'bubble', mirror: 0, intCons: 0, covering: 'skin',
+           canopy: 'screen', mirror: 0, intCons: 0, covering: 'skin',
            boomStyle: 1, section: 3,
-           wgPos: 0, wgBrace: 0, wgTip: 2, wgFlapType: 0,
+           wgPos: 0, wgBrace: 1, wgTip: 5, wgFlapType: 0,
            engFamily: 'electric', engModel: 'pipistrel E-811', engMount: 'pusher',
            gearLayout: 'trike', suspension: 'spring', s1Fair: 0,
            finArch: 'tall', empennage: 'conv', scheme: 'trim', base: 0xefe6cf, trim: 0xc96f2a },
-    // the wing 0.30 m aft (2026-09-06, the flight-test pass): the third
-    // electric card with the margin under zero as drawn (-4.8 %); at
-    // wgDx -0.30 it is 10.4 % and the circuit is unchanged (253 s, sink 1.07)
-    over: { cage: Object.assign({}, PLAN_RECT, { rodY: 0.42, engY: -0.30,
-                                                 wgSpan: 11.0, wgChord: 1.30,
-                                                 wgChordTip: 1.30, wgDx: -0.30 }),
+    over: { cage: { rodY: 0.75, rodD: 0.30, boomLen: 5.26,
+                    // THE DRIVE AS THE TYPE HAS IT (the user's sketch on the drawing, 10 Nov: "in red the engine, in
+                    // blue the shaft that is auto-drawn if you move the nose cone from the engine, and then the prop
+                    // ... in the middle between the pole and the ground, a bit of clearance on both sides"): the motor
+                    // low on the aft bulkhead behind the pilot (engBlockZ: 1.42-1.85 m behind the nose), the shaft aft
+                    // under the rod (cw_noseOff), a small prop at ~3.05 m, its hub midway between the rod's underside
+                    // and the drawing's ground (engY), ~0.09 m clear of each
+                    engY: -0.13, engBlockZ: 0.2, cw_noseOff: 1.08, cw_propD: 0.75,
+                    // the wing: LE 1.08 / TE 2.30 behind the nose at the root, chord 1.19 -> 1.09 at the crank -> 0.56
+                    wgSpan: 13.0, wgChord: 1.19, wgCrankAt: 0.48, wgCrankChord: 1.09, wgCrankX: 0.08,
+                    wgChordTip: 0.56, wgTipX: 0.52, wgDihedral: 1, wgDihedralOut: 1, wgDx: 0,
+                    // THE CABIN IS THE CHINOOK'S (the user, 10 Nov: "take the setting of the Birdman Chinook for the
+                    // cabin only ... the architecture, and in particular the very low waistline ... a pax out; you
+                    // are not allowed to modify how it looks, you are just allowed to scale it"): the shape rows of
+                    // builds/chinook_2026-09-21_corrected.json verbatim (its planeScale is this card's 0.745 and its
+                    // pod is this one's size, 0.72 x 1.14 m: no scaling), the pax bay off (sel paxCount 0); the
+                    // covering and the material stay this card's.
+                    halfW: 0.48, roofHalfW: 0.195, keelY: -0.71, floorY: -0.58, ceilInset: 0.2, waistY: -0.4,
+                    bandH: 0.052, ringPullIn: 0, wsRun: 1.28, wsBaseBow: 0.48, wsCeilBow: 0.115, wsBaseLift: 0,
+                    noseLen: 0.38, noseW: 0.8, noseH: 0.06, noseCrown: 0, noseDroop: 0.08,
+                    topRound: 0, topAngCeil: 52, crSill: 3, crCeil: 3, crFrontCap: 0.65, crKeel: 3, crSillNose: 3,
+                    cowlLoops: 2, taperLen: 0.25, taperW: 0.78, taperPanels: 1,
+                    // the tail: the stab's size and station, the fin's outline (fit_tail.js), no dorsal fillet
+                    stSpan: 0.98, stChord: 0.47, stChordTip: 1.2, stZ: 0.4,
+                    finDorsal: 0, finDorsalTube: 0,
+                    finHeight: 1.25, finChord: 1.05, finChordTip: 0.7, finSweep: 3, finHinge: 0.4,
+                    finTipZ: -0.2, finTipY: -0.3, finAftZ: 0, finAftY: -0.275, finBaseZ: 0, finBaseY: 0.05,
+                    finMidY: 0.11, finUY: -0.4, finLEZ: -0.65, finLEY: -0.09, finShoulderZ: 0.35,
+                    finShoulderY: 0.28, finTopY: 0.015, finTERoot: -0.055, finTEU: -0.075, finTEMid: 0.01,
+                    finSharpShoulder: 0.95 },
             spec: { fuel: { litres: 0 } } } },
   // 2026-09-04 (the user): "We need a twin engine aircraft archetype, maybe
   // a couple of them. I'm thinking a luxury, small tourer, like the Diamond

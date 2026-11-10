@@ -1,0 +1,139 @@
+{
+  "key": "archaeopteryx_bp",
+  "card": "archaeopteryx",
+  "what": "Ruppert Archaeopteryx, 'Class 2 Hang Glider, 2005' three-view (the manufacturer's drawing, given by the user 2026-11-10; the drawing is not committed, its traced silhouettes are: archaeopteryx_bp/*.png)",
+  "drawing": {
+    "pixels": [
+      800,
+      565
+    ],
+    "dimensions_mm": {
+      "span": 13400,
+      "length": 5905,
+      "height": 2800
+    }
+  },
+  "mmPerPx": 22.37,
+  "mmPerPx_source": "the front view's 13 400 span dimension, ticks 599 px apart; the side view's 5 905 reads 22.3",
+  "ink": 160,
+  "datumAt": 3.4,
+  "wingTopAt": 1.4,
+  "frontDatumSpan": 2.0,
+  "skipLayers": [
+    "eng",
+    "gear",
+    "light",
+    "access",
+    "hinge"
+  ],
+  "wingStations": [
+    0.6,
+    3.0,
+    6.0
+  ],
+  "views": {
+    "side": {
+      "box": [
+        480,
+        185,
+        761,
+        316
+      ],
+      "fore": "left",
+      "erase": [
+        [
+          726,
+          277,
+          742,
+          286
+        ]
+      ],
+      "seeds": [
+        [
+          650,
+          270
+        ],
+        [
+          540,
+          295
+        ],
+        [
+          748,
+          230
+        ]
+      ]
+    },
+    "plan": {
+      "box": [
+        25,
+        255,
+        656,
+        541
+      ],
+      "fore": "down",
+      "erase": [
+        [
+          25,
+          255,
+          175,
+          345
+        ],
+        [
+          470,
+          195,
+          800,
+          395
+        ]
+      ],
+      "seeds": [
+        [
+          200,
+          452
+        ],
+        [
+          300,
+          295
+        ],
+        [
+          336,
+          360
+        ],
+        [
+          336,
+          505
+        ]
+      ]
+    },
+    "front": {
+      "box": [
+        25,
+        30,
+        656,
+        178
+      ],
+      "seeds": [
+        [
+          200,
+          112
+        ],
+        [
+          336,
+          60
+        ],
+        [
+          336,
+          150
+        ]
+      ]
+    }
+  },
+  "tail": {
+    "finAft": 4.95,
+    "finAbove": 0.03,
+    "stabAft": [
+      4.8,
+      5.7
+    ],
+    "stabFrom": 0.1
+  }
+}

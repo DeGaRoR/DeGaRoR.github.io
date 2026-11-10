@@ -20,6 +20,7 @@ Writes `<out-prefix>_<view>.png`. Views:
 - `q`: three-quarter from ahead, starboard and above.
 - `bottom`: from below, the nose to the left (RETRACT G4: the wells).
 - `qb`: three-quarter from ahead, starboard and below.
+- `qr`: three-quarter from behind, starboard and above.
 
 Options:
 
