@@ -112,7 +112,7 @@ const LEG_ROWS = {
     ['lvLegW', 'leg fairing chord', 0.04, 0.16, 0.002],
     ['lvRootAng', 'fitting round the body', 40, 120, 1],
     // (the leg fairing's shape - shown with the leg-fairing row: _cage_gear legRowWhen)
-    ['lvBoot', 'leg fairing shape', 0, 2, 1, ['tapered', 'flared', 'trailing (Wilga)']],
+    ['lvBoot', 'leg fairing shape', 0, 2, 1, ['trailing (Wilga)', 'tapered', 'flared']],   // (the user, 10 Nov: "trailing should be the default")
   ],
   3: [
     ['twSpringLen', 'spring length', 0.20, 1.00, 0.01],

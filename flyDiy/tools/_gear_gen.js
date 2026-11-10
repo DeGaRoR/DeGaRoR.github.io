@@ -2369,7 +2369,9 @@ function legLever(bags, AF, P, st, sgn) {
   const chord = +P.lvLegW || 0.090, thick = chord * 0.46;
   // the leg fairing's shape (lvBoot): the Wilga's trailing fairing makes the leg a ROUND tube, its leading edge - drawn
   // after the fairing, which sizes it
-  const bootStyle = st.legFair ? Math.max(0, Math.min(2, Math.round(+P.lvBoot || 0))) : 0;
+  // (the row's order is the user's: 0 trailing - the default -, 1 tapered, 2 flared; the generator's own codes are 0
+  // tapered, 1 flared, 2 trailing)
+  const bootStyle = st.legFair ? [2, 0, 1][Math.max(0, Math.min(2, Math.round(+P.lvBoot || 0)))] : 0;
   if (bootStyle !== 2) sweep(bags.steel, resample([root, pivTop], 12), t => secTear(chord * (1 - 0.22 * t), thick * (1 - 0.15 * t)), true, [0, 0, 1]);
   // the rear brace: from the leg's upper third back to the body a third of a metre aft of the fitting (drawn; the frame's
   // leg carries the same aft anchor in its members)

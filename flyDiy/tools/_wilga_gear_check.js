@@ -235,14 +235,14 @@ console.log('7b. the fairing (the user: "an elegant fairing ... that hides a bit
     const va = d3 * d6 - d5 * d4; if (va <= 0 && (d4 - d3) >= 0 && (d5 - d6) >= 0) { const w = (d4 - d3) / ((d4 - d3) + (d5 - d6)); return Math.hypot(...sb(p, add(b, sb(c, b).map(x => x * w)))); }
     const den = 1 / (va + vb + vc), v = vb * den, w = vc * den; return Math.hypot(...sb(p, add(a, add(ab.map(x => x * v), ac.map(x => x * w))))); };
   const CELL = 0.02, CAP = 0.02;
-  // the cases: each fairing shape (lvBoot: 0 tapered, 1 flared, 2 trailing - the Wilga's), and the host's fitting high and
-  // low on the body (lvRootAng 50 / 110: "if you would place it lower or higher on the body, how does it fare?")
+  // the cases: each fairing shape (lvBoot: 0 trailing - the Wilga's, the default -, 1 tapered, 2 flared), and the host's
+  // fitting high and low on the body (lvRootAng 50 / 110: "if you would place it lower or higher on the body, how does it fare?")
   const CUBF = 'builds/cub_2026-09-20_corrected.json', HOSTF = 'builds/cessna172_2026-09-20_corrected.json';
   const HOST = { s1Leg: 4, s1Drop: 0.80, s1R: 0.25, s1X: 1.415, s1Z: 1.45, s2Leg: 3, s2Z: 0.10, s2X: 0, s2R: 0.064, s2Steer: 1 };
-  const cases = [[CUBF, { s1Leg: 4, s1Drop: 0.85 }, 'the Cub, tapered'], [CUBF, { s1Leg: 4, s1Drop: 0.85, s1_lvBoot: 2 }, 'the Cub, trailing'],
-    [HOSTF, HOST, 'the Wilga-class host, tapered'], [HOSTF, Object.assign({}, HOST, { s1_lvBoot: 1 }), 'the host, flared'],
-    [HOSTF, Object.assign({}, HOST, { s1_lvBoot: 2 }), 'the host, trailing'],
-    [HOSTF, Object.assign({}, HOST, { s1_lvRootAng: 50 }), 'the host, fitting low (50 deg)'], [HOSTF, Object.assign({}, HOST, { s1_lvRootAng: 110 }), 'the host, fitting high (110 deg)']];
+  const cases = [[CUBF, { s1Leg: 4, s1Drop: 0.85, s1_lvBoot: 1 }, 'the Cub, tapered'], [CUBF, { s1Leg: 4, s1Drop: 0.85 }, 'the Cub, trailing (the default)'],
+    [HOSTF, Object.assign({}, HOST, { s1_lvBoot: 1 }), 'the Wilga-class host, tapered'], [HOSTF, Object.assign({}, HOST, { s1_lvBoot: 2 }), 'the host, flared'],
+    [HOSTF, HOST, 'the host, trailing (the default)'],
+    [HOSTF, Object.assign({}, HOST, { s1_lvRootAng: 50 }), 'the host, trailing, fitting low (50 deg)'], [HOSTF, Object.assign({}, HOST, { s1_lvRootAng: 110 }), 'the host, trailing, fitting high (110 deg)']];
   let groundMin = Infinity, groundAt = '';
   for (const [file, over, who] of cases) {
     const raw = JSON.parse(fs.readFileSync(path.join(ROOT, file), 'utf8')), s0 = raw.spec || raw;
