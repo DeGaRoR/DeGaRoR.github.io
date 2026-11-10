@@ -314143,3 +314143,7 @@ The record changed, so the ready carries its own premises cook (GATE PREMCOOK).
   clean paint unchanged. Stills (black studio, key held at 7 deg): the dirty Cub's glare patch gone (px > 200: 2823 -> 290);
   the Twin Busher's change needs a sky to show (the env term) - flydiy-notes/evidence-2026-10-18/dirt-matte-2026-11-10.
 - Not done: metalness still falls linearly with cover (a dirty BARE metal keeps more metal than its dirt reads).
+## NIGHT-STRETCH - the water's star reflections spread by the waves, on by default (NIGHT-LOOK, 9 Nov)
+- src/viewer/water.js NIGHT_SEA.stretch 0 -> 0.03: the NIGHT-SHINE stretch (7 vertical mirror reads scaled by the unresolved ripple slopes) is ON at night.
+- why: the user 9 Nov, after STAR-LOVE's low-water stills (eye 1 m / 2 m over Cabin Lake): the far water's stars looked unmoved by the waves at 0; .1 made rain streaks; "yes try 0,03 ... turn these on by default".
+- live switch: WATER.nightSea.stretch (0 = off). Evidence: flydiy-notes/evidence-2026-10-18/2026-11-04/night-photo/star/{low,stretch}/.
