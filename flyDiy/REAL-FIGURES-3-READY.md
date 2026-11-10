@@ -107,3 +107,30 @@ On claude/practical-cerf-7fjpwp, not to merge (A0: Pilot's domain):
   had re-serialised `builds/candidates/index.json`, dropping `"official": true` from stol_cub_showcase and
   Twin_busher_floats_4b (the selftest's flagship probe went inert) - the file is master's again byte for byte plus the
   three rows. After the fix (4f88e2b1b): PLANELISTS (with --selftest) PASS, CANDIDATES PASS.
+
+## FRESH ONTO L37a (10 Nov, 09:30 UTC) - branch `claude/ready/real-figures-3b`
+
+- **Why a new branch:** real-figures-3 (0cf00d18f) was merged into L37a and reverted (20d19379d) for two reds. A
+  reverted merge's commits do not re-merge, and rewriting `claude/ready/real-figures-3` would need a force push. So
+  this branch starts from master db2298a41 (L37a, built) and carries the whole of real-figures-3 as ONE fresh commit
+  (838d06b36: `git diff e79a114d8 fd31fbf4a -- flyDiy`, the built files excluded), then the rebuild (50645c5c2). All 87
+  files applied cleanly on L37a.
+- **A0's two reds, fixed:**
+  - **SKINMAT:** `fabricAlu` (the aluminium spar under fabric, MASS-SCALE) is in GEN_BUILD_GRAMMAR now, the tube +
+    fabric look (`60_gen_spec.js`).
+  - **PROCURE (18 of 3170):** `PROCURE_ENG_BASE` (`76_procure.js`) carries `eng_bmepK: 1, eng_massK: 1`, the engine
+    panel's tune / build dials at neutral, placed after `eng_critAlt` where `applyEngPreset` writes them (the check
+    compares the JSON, key order and all). Key names unchanged for ENGINE-DIALS.
+- **A0's gate list, this branch vs plain L37a (same machine, back to back):**
+
+  | gate | this branch | plain L37a |
+  |---|---|---|
+  | SKINMAT | PASS | PASS |
+  | PROCURE | PASS (3170) | PASS |
+  | STOL | PASS | PASS |
+  | CANDIDATES | PASS | PASS |
+  | PLANELISTS | PASS | PASS |
+  | ENGCONFIG | FAIL | FAIL - the same 8 lines, identical: the Chinook pin, the push-pull / trimotor / quad cards, the quad's three downwind cases |
+
+- **Not run here:** DMGDRIVE (A0: "possibly yours", Deform checking) and the full battery (322 jobs; this session's
+  2 h background limit stops it). JOINPARITY failed on plain master e79a114d8 the same way (the Jodel).
