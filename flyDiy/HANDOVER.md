@@ -314505,3 +314505,14 @@ PINS MOVED ON PURPOSE (written reasons):
 - POD: _pod_base.json floats + twinf def + shakedown sheet digests (the same deck and TORun; twinf is the v7 ultralight fixture patched to floats, _pod_check.js:52, not the Twin busher). c172 def + certificate bytes too (A0): C172-CLIP (L37a) moved the def bytes; the flown steps are identical (e8d01f05). One owner touches _pod_base.json today.
 Decisions that change with TORun (the run itself cannot): the lane/strip choice (43_pilot runNeeded), the go/no-go at the hold (43_pilot G2450), the 25_airfield strip >= 1.15 x TORun, the contract toM and accept toDistM, career toM. The Twin 4b flown from SEA, master vs branch: master lift-off 23.4 s, run ~360 m, CLIMB at 32.9 s (pilot: nothing); branch lift-off 23.4 s, run ~360 m, CLIMB at 32.9 s (pilot: nothing)
 Gates: FLOATS, SEAPLANE, PLANEFICHE, HONEST, CERTGATES, HYDRODYN, FLOATSCLASSIC-WATER PASS; TOUR shard 2/4 PASS (red on master). NEWPLANE-BUILDS "fixed tricycle" red as on master.
+## STAR-SKY - the sky turns, star magnitudes, colours and the Milky Way (NIGHT-LOOK, 10 Nov)
+- why: the user 9 Nov: "a soup of stars, everything is the same, that feels like noise ... we could do the milky way".
+- src/viewer/atmo.js, the dome's star block only (no new pass, no texture): the cube grid lives in the sky's frame (uStarM = game -> equatorial from
+  day.geo lat/lon/convergence + sidereal time; starMatrix() node-checked vs SOLAR's sun RA/Dec to 0.013 deg, pole at el 55.04), so the stars turn;
+  fluxes a power law N(>F) ~ F^-a (ATMO.U.starA 0.8 over starMag.x 1e5: most stars under the eye's threshold, the light in the few bright, the
+  field's mean kept), discs r ~ f^starMag.y 0.3, four colour classes; the Milky Way band (J2000 galactic pole) with the core, Cygnus, the Great
+  Rift and a mottled dust (starMag.w 1; 0 = smooth), 2.5x the faint stars inside it, its glow starMag.z 8 x the field's mean radiance, washed by
+  the moon and hidden by any sky light; the mirror's pass (uStars > 1.5) caps a star at 25 x the mean (no white coins on the near water).
+- cost (the dome alone, 1600x900, median): gamer 0.19 -> 0.27 ms, laptop 0.15 -> 0.225 ms; the dust ~0.005 ms (no tier switch needed).
+- gates: ATMO LIGHT SHADOWSKY WATER NIGHTVISIBILITY PASS; LOOKS FAIL(1) = master's own stale uWSdf pin (_looks_check.js:120).
+- live knobs: ATMO.U.starA, ATMO.U.starMag {x range, y growth, z glow, w dust}. Evidence: flydiy-notes/evidence-2026-10-18/2026-11-04/night-photo/star/sky/.
