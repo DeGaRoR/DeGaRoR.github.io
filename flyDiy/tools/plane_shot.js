@@ -39,6 +39,8 @@
 //        [--gpu]                  the machine's graphics card instead of SwiftShader (the box's A/B; a visible window)
 //        [--page index.html]      index.html (built) or dev.html (the loose src/)
 //        [--secs 1500]            the whole run's budget
+//        [--gfx laptop]           the graphics preset (LIVERY-TEXT 9 Nov: laptop draws the decal atlas at 2048 - the phone's
+//                                 512 px pages; gamer / ultra at 4096 - a desktop's 1024)
 //        [--chrome <path>]        the browser (default: Playwright's Chromium, then Chrome, then /usr/bin/chromium*)
 //        [--keep-ui]              the still with the page's UI over it
 //        [--root <dir>]           the repo served (default: the one this file is in) - e.g. a throwaway archive of a branch
@@ -413,7 +415,7 @@ async function shoot(o) {
     // PHONE-EDIT-PERF (2 Nov): the phone profile draws the phone's material tier (aeroskin.js aeroLite: no weathering, no
     // large-scale field, no structure grammar) - a still of a BUILD is its full look: ?phmat=full (--phmat lite: the tier)
     // (G3800: --query k=v&k=v rides the page's own query - a brief's switches)
-    const url = 'http://localhost:' + o.servePort + '/flyDiy/' + o.page + '?profile=phone&gfx=laptop&intro=0&idle=0&phmat=' + (o.phmat === 'lite' ? 'lite' : 'full')
+    const url = 'http://localhost:' + o.servePort + '/flyDiy/' + o.page + '?profile=phone&gfx=' + (/^[a-z]+$/.test(o.gfx || '') ? o.gfx : 'laptop') + '&intro=0&idle=0&phmat=' + (o.phmat === 'lite' ? 'lite' : 'full')
               + (opt('query') ? '&' + opt('query') : '');   // idle=0 (NEW-PLANE): PHONE-1a's idle hold froze the frame and the in-frame check read 0 %
     log('page', url);
     await C.cmd('Page.navigate', { url });
@@ -729,7 +731,7 @@ async function pair(dirA, dirB, out, labels, chrome) {
   const builds = (opt('build', '') || '').split(',').filter(Boolean);
   const size = (opt('size', '1920x1080')).split('x').map(Number);
   const o = {
-    builds, out, size, chrome, gpu: flag('gpu'), page: opt('page', 'index.html'), secs: +opt('secs', 1500), phmat: opt('phmat', 'full'),
+    builds, out, size, chrome, gpu: flag('gpu'), page: opt('page', 'index.html'), secs: +opt('secs', 1500), phmat: opt('phmat', 'full'), gfx: opt('gfx', 'laptop'),
     views: (opt('views', 'q,s,t,f')).split(',').filter(Boolean), keepUi: flag('keep-ui'), fallback: opt('fallback', null),
     root: path.resolve(opt('root', REPO)),
     psize: (opt('psize', '1800x1200')).split('x').map(Number),

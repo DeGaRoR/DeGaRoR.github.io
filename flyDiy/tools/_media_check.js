@@ -349,10 +349,13 @@ function manifestFiles() {
   // THE PEOPLE (G3615 / G3620): tools/portrait_prep.py owns media/people; its generated tables name each file BARE
   // (72_people.js prefixes PEOPLE_FACE_DIR), so collectRefs reads them through BARE_DIRS below
   const people = ['72_people_faces.js', '72_people_bgs.js'].map(f => path.join(ROOT, 'src', 'core', f)).filter(f => fs.existsSync(f));
-  return v.concat(packs, pier, totems, panelhw, cabin, loads, scenery, cars, camp, infra, models, chars, animals, trees, shots, worlds, townkit, sound, maps, people);
+  // LIVERY-TEXT (9 Nov): the livery's faces - aeroskin.js's AERO_TXT_FACES names each style's file and the family's
+  // licence (tools/livery_fonts_prep.js owns media/fonts)
+  const faces = [path.join(ROOT, 'src', 'viewer', 'aeroskin.js')];
+  return v.concat(packs, pier, totems, panelhw, cabin, loads, scenery, cars, camp, infra, models, chars, animals, trees, shots, worlds, townkit, sound, maps, people, faces);
 }
 
-const REF_RE = /media\/[A-Za-z0-9_\-./]+?\.(?:jpg|png|webp|bin|ktx2|mp3|ogg|json)/g;   // webp: LOADING S4's texture prep; ktx2: AS3's (G916); mp3: the sound (G1636); json: Radio Jolene's broadcast script (G1701); ogg: the story's opening (G3380)
+const REF_RE = /media\/[A-Za-z0-9_\-./]+?\.(?:jpg|png|webp|bin|ktx2|mp3|ogg|json|woff2|woff|txt)/g;   // webp: LOADING S4's texture prep; ktx2: AS3's (G916); mp3: the sound (G1636); json: Radio Jolene's broadcast script (G1701); ogg: the story's opening (G3380); woff2/woff/txt: LIVERY-TEXT's faces and their licences
 
 // the manifests that name their files bare, under one media directory (the generated table: '<key>': '<file>')
 const BARE_DIRS = { '72_people_faces.js': 'media/people/', '72_people_bgs.js': 'media/people/' };

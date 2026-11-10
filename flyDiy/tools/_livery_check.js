@@ -248,8 +248,8 @@ const consOfSpec = s => (s.cage && s.cage.intCons != null ? s.cage.intCons : 2);
 // the master)
 function A_ok(SRC) {
   const A = skinOf(SRC);
-  return A.AERO_KIT_LAYERS === 5 && (A.AERO_KIT_PAGES || []).join(',') === '3,4,5,1,2' && A.AERO_MAXD === 9 &&
-         /#define AERO_MAXD 9\n/.test(SRC.skin) && typeof A.aeroDecalImage === 'undefined';
+  return A.AERO_KIT_LAYERS === 5 && (A.AERO_KIT_PAGES || []).join(',') === '3,4,5,1,2' && A.AERO_MAXD === 15 &&
+         /#define AERO_MAXD 15\n/.test(SRC.skin) && typeof A.aeroDecalImage === 'undefined';
 }
 function run(SRC) {
   const fail = [];
