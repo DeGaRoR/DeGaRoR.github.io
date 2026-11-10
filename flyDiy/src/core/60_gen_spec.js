@@ -555,6 +555,17 @@ const GEN_SURF_MATERIALS = {
             c: GEN_MATERIALS.tubeFabric.c,
             cover: 0.42, price: 42, cd0: 0.0022, clmaxK: 1.00, shop: 'tube',
             refGross: 550, coverGauged: false },
+  // THE ALUMINIUM SPAR UNDER FABRIC (REAL-FIGURES-3, the user 9 Nov): the PA-18's wing and the Carbon Cub's -
+  // extruded aluminium spars, stamped aluminium ribs, an aluminium leading edge, fabric over all. The members are
+  // the alloy row's (2024 extrusions), the cloth carries no torsion (the fabric row's wing k), and the cover is the
+  // cloth plus the leading edge's sheet and the lighter metal ribs: between the tube row's 0.42 and the wooden
+  // row's 0.80 (whose ribs are spruce and whose D-box is ply). Built in the metal shop
+  fabricAlu: { name: 'aluminium spar + fabric', phys: GEN_MATERIALS.alloy.phys,
+            lin: GEN_MATERIALS.alloy.lin,
+            k: { fus: GEN_MATERIALS.alloy.k.fus, wing: 1.0e6, gear: GEN_MATERIALS.alloy.k.gear },
+            c: { fus: GEN_MATERIALS.alloy.c.fus, wing: 700, gear: GEN_MATERIALS.alloy.c.gear },
+            cover: 0.55, price: 55, cd0: 0.0022, clmaxK: 1.00, shop: 'metal',
+            refGross: 794, coverGauged: false },
   // G466: the ultralight's wing and tail — two 6061 tube spars, formed
   // ribs, drag cables, Dacron sewn on (see GEN_MATERIALS.aluTube)
   aluFabric: { name: '6061 tube + Dacron', phys: GEN_MATERIALS.aluTube.phys,
@@ -1581,6 +1592,14 @@ const GEN_FLAPS = {
   // flap a transport lands on steeply. Last in the table so every saved row's
   // index (the editor's wgFlapType) is the one it was. Drawn as a plain hinge.
   split:   { name: 'Split flap',   dCl: 0.90, cd: 0.110, rate: 0.20 },
+  // THE STOL FLAP (REAL-FIGURES-3, the Carbon Cub SS, 2026-11-09): a big PLAIN
+  // hinge that runs to 50 deg - the Carbon Cub SS's (15/30/50, Plane & Pilot;
+  // a 2012 SS's listing), and the PA-18's own. The slotted row above was
+  // tunnel-calibrated against the PA-18's POH Vs ratio, and the PA-18's flap is
+  // this one, so the lift is that calibration's; the drag is a plain flap's
+  // past 40 deg, between the slotted row's and the split's. Last in the table
+  // so every saved wgFlapType keeps its index.
+  stol:    { name: 'STOL flap (50 deg)', dCl: 1.60, cd: 0.090, rate: 0.16 },
 };
 
 // ===========================================================================
@@ -1617,7 +1636,7 @@ const GEN_TRAVEL = {                       // degrees, each way
 // the flap's own travel is the type's, where the type has an opinion: a
 // Fowler runs out further than it turns down, and a split flap goes further
 // than either. Absent = the table's own number.
-const GEN_FLAP_TRAVEL = { fowler: 35, slotted: 40, plain: 40, split: 45 };   // (G3506: the DC-3's 45 deg)
+const GEN_FLAP_TRAVEL = { fowler: 35, slotted: 40, plain: 40, split: 45, stol: 50 };   // (G3506: the DC-3's 45 deg)
 
 // travel in RADIANS for one surface key, which is what every caller wants
 function genTravel(which, flapType) {
@@ -2991,7 +3010,12 @@ const GEN_STOL_ROWS = ['wgSlat', 'wgSlatSpan', 'wgVG', 'wgFence', 'wgCuff', 'wgC
 // parked bakes are keyed by it - a miss drew the fleet live, 139 draws for 2, GATE FRAMECOST), the procurement's -
 // must not see them: the build is the one it was before the STOL wing existed.
 const GEN_STOL_ROW_OFF = { wgSlat: 0, wgSlatSpan: 1.0, wgVG: 0, wgFence: 0, wgCuff: 0, wgCuffSpan: 0.40, wgDroop: 0, wgFowlerGrow: 0 };
-// the cage without its STOL rows at "off" (the same object when it has none: a hash over it is the old bytes)
+// THE NEUTRAL ROWS OF LATER DIALS (REAL-FIGURES-3, 2026-11-09), by the same rule: the engine's tune and build
+// (tools/_eng_gen.js bmepK / massK) at 1 are every engine as it was, and the join writes them into every cage - so at
+// 1 they are absent from every key the STOL rows are absent from, and no certificate is withdrawn by a dial nobody moved
+const GEN_CAGE_ROW_NEUTRAL = { eng_bmepK: 1, eng_massK: 1 };
+// the cage without its STOL rows at "off" and its later dials at neutral (the same object when it has none: a hash
+// over it is the old bytes)
 function genStolCageOff(cage) {
   if (!cage || typeof cage !== 'object') return cage;
   let out = null;
@@ -3004,6 +3028,7 @@ function genStolCageOff(cage) {
   // SEAPLANES-LAND (HULL rows): the hull-types branch's new cage rows, at the value every build before them meant, the
   // same rule - absent IS that value, so they withdraw no certificate, re-key no cache, move no procured fingerprint
   for (const k in GEN_HULL_ROW_OFF) if (k in cage && cage[k] === GEN_HULL_ROW_OFF[k]) { out = out || Object.assign({}, cage); delete out[k]; }
+  for (const k in GEN_CAGE_ROW_NEUTRAL) if (k in cage && cage[k] === GEN_CAGE_ROW_NEUTRAL[k]) { out = out || Object.assign({}, cage); delete out[k]; }
   return out || cage;
 }
 // SEAPLANES-LAND: the hull-types rows' "off" (tools/_cage_brace.js, _cage_eng.js PAGE.defaults: the value the draw and the
@@ -5017,9 +5042,9 @@ const GEN_FIELDS = {
                                          v: ['tail.Sh', 'tail.Sv', 'tail.boomX', 'tail.boomLen', 'tail.boomR', 'tail.boomX0',
                                              'tail.boomTaper', 'tail.boomOval', 'tail.boomIncl', 'tail.boomDy', 'tail.stabY'],
                                          twinBoom: ['tail.vAngle', 'tail.Svt'] } } },
-  'wings[].material':  { def: undefined, rule: 'input', join: { states: [null, 'carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass'] } },
-  'tail.finMaterial':  { def: undefined, rule: 'input', join: { states: [null, 'carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass'] } },
-  'tail.stabMaterial': { def: undefined, rule: 'input', join: { states: [null, 'carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass'] } },
+  'wings[].material':  { def: undefined, rule: 'input', join: { states: [null, 'carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass', 'fabricAlu'] } },
+  'tail.finMaterial':  { def: undefined, rule: 'input', join: { states: [null, 'carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass', 'fabricAlu'] } },
+  'tail.stabMaterial': { def: undefined, rule: 'input', join: { states: [null, 'carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass', 'fabricAlu'] } },
   'bracing.cabane':       { def: 'N', rule: 'input', join: { states: ['N', 'V'] } },
   'bracing.interplane':   { def: 'none', rule: 'input', join: { states: ['none', 'N', 'I'] } },
   'bracing.interplaneAt': { def: 0.62, clamp: [0.30, 0.95], rule: 'input', join: { states: [0.62] } },
