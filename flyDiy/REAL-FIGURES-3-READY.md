@@ -85,3 +85,17 @@ On claude/practical-cerf-7fjpwp, not to merge (A0: Pilot's domain):
 3. **Promote the chord candidates** (Cub, float Super Cub at 1.60 m) over the shipped files? Those files are the
    calibration datum of about 105 and 56 checks. Default: no; the candidates stand in the report.
 4. **The propeller classes and the brakes** (physics, PHYSICS_V bump). Default: not in this train.
+
+## ONTO L36d (10 Nov, ~03:00 UTC)
+
+- **Merged, not rebased:** master e79a114d8 merged into this branch (a71999598, then 3d5fb9eca built), because a rebase
+  would need a force push (not done on these branches). The content is this branch's on top of L36d.
+- **real_refs.js:** master's land V2-172 rows kept (`c172v2`, `c172x` supersededBy `c172v2`, the carboncub / stolcub
+  rows). The draft **`c172v2f` floats row is left out**: its build file `builds/cessna172r_floats_2026-11-08.json` is
+  not on master, and a PLANES row pointing at a missing file breaks real_report. It comes back with the floats build.
+- **90_node_exports.js:** the union (this branch's `GEN_CAGE_ROW_NEUTRAL` + master's `genDriveTurf`).
+  **HANDOVER:** both sides kept.
+- **Built files:** rebuilt from the merged sources (`node flyDiy/tools/build.js`), own commit.
+- **GATES: STILL RUNNING.** The full battery restarted at 01:12 UTC after a container restart. At 02:58 UTC it was at
+  10/322 jobs (the heavy jobs first: DMGGEAR, INSTANT, RADIALDIV, HOUSEWORKER, TREECRASH). The result will be added
+  here and pushed when it completes. Before this merge, the branch's own gates were as in the sections above.
