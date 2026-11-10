@@ -43,7 +43,7 @@ FMIST section 1, and the battery's own text assertions (ATMO's `uMist[7]`, CLOUD
 
 ## Gates (node, `run_gates.js --no-build --jobs=2`, on the built tree)
 
-FMIST, ATMO, FOG, GFX, ASSETS, UISMOKE, WORLDRENDER: PASS. CLOUD: <!-- CLOUD -->
+FMIST, ATMO, FOG, GFX, ASSETS, UISMOKE, WORLDRENDER, CLOUD: PASS (CLOUD after acb30be8: atmo.js carries one literal `uMist[7]`).
 
 **FRAMECOST: red, and it is the STALE PARKED COOK, not the mist** - bisected on a clean master worktree:
 - master `e789e77c` on this box: master's 5 boot lines only (`garage:compile/links`, `garage:landing/bytes.bufferData`,
