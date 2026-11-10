@@ -2333,6 +2333,16 @@ function wingTankClear(s) {
   }
   return o;
 }
+// ...and THE FUEL INSIDE IT, its ends drawn d in from the end plates (WING-STRUCTURE, the user 10 Nov: the loft's inset
+// is round the section only - the fuel's ends lay ON the end plates, the see-through blue fighting them: the bluish wavy
+// patch in the closing rib's holes). The outermost sections moved d toward the tank's middle, never past their neighbour
+function fuelSpan(s, d) {
+  const R = s.ribs, n = R.length, sg = R[n - 1].x >= R[0].x ? 1 : -1, o = R.slice();
+  const a = R[0].x + sg * d, b = R[n - 1].x - sg * d;
+  if ((b - a) * sg <= 0 || (n > 2 && ((a - R[1].x) * sg > 0 || (R[n - 2].x - b) * sg > 0))) return R;
+  o[0] = Object.assign({}, R[0], { x: a }); o[n - 1] = Object.assign({}, R[n - 1], { x: b });
+  return o;
+}
 // ...and ITS HARDWARE, as a welded wing tank has it (a 172's, a PA-18's): the end flanges (the seams the end plates are
 // welded on), the filler neck with its cap at the top outboard end, the sump drain at the lowest inboard corner, the
 // outlet fitting and its line running inboard, the vent line, two hold-down straps over the top. Off its own outline:
@@ -2724,7 +2734,7 @@ function drawResults(group, ctx, results) {
             slotMesh(group, VM.wingLoft(s.ribs, tileOf(finishOf(r.v))), mat,
                      'edVessel_' + i + (s.sign > 0 ? 'R' : 'L'), [0, 0, 0], 0);
           if (EN.kind !== 'battery' && VIEW.fill > 0.02)
-            slotMesh(group, VM.wingLoft(s.ribs, 0.4, { fill: MathL.min(1, VIEW.fill), inset: wet ? 0.0 : 0.008 }),
+            slotMesh(group, VM.wingLoft(wet ? s.ribs : fuelSpan(s, 0.006), 0.4, { fill: MathL.min(1, VIEW.fill), inset: wet ? 0.0 : 0.008 }),
                      wet ? matWet(bad) : fuelMat(),
                      'edFuel_' + i + (s.sign > 0 ? 'R' : 'L'), [0, 0, 0], 0);
           continue;

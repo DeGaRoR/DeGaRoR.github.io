@@ -169,6 +169,14 @@ function run(WSsrc, files) {
   { const d = DEFS.metal, F = WS.sparFaces(d, 0, lib)(1.6), KD = WS.KINDS.alloy;
     ok(Math.abs(F.front - (0.5 * KD.sparW * 1.6 + 0.004)) < 1e-12 && Math.abs(F.rear - (0.5 * KD.rearW * 1.6 + 0.004)) < 1e-12, 'the spars\' faces: half the drawn width and 4 mm');
     ok(/const s = wingTankClear\(s0\);/.test(files.energy) && /m\.name = nm \+ '_ends'/.test(files.energy) && /WS\.sparFaces\(W\.def, 0, null, full\)/.test(files.energy) && /END = 0\.012, VT = 0\.014/.test(files.energy), 'the wing tank is drawn clear of the spars, the closing ribs, the stringers'); }
+  // THE FUEL CLEARS THE END PLATES (the user 10 Nov: the bluish wavy patch in the closing rib's holes was the see-through
+  // fuel's ends lying on the end plates): the fuel's loft is drawn off fuelSpan, its outermost sections 6 mm in, either way
+  { const m = /function fuelSpan\(s, d\) \{[\s\S]*?\n\}\n/.exec(files.energy);
+    let f = null; try { f = m && new Function('MathL', m[0] + '; return fuelSpan;')(Math); } catch (e) { f = null; }
+    const R = [{ x: 0.7, pts: [] }, { x: 1.1, pts: [] }, { x: 1.5, pts: [] }], up = f && f({ ribs: R }, 0.006), dn = f && f({ ribs: R.slice().reverse() }, 0.006);
+    ok(!!f && Math.abs(up[0].x - 0.706) < 1e-12 && Math.abs(up[2].x - 1.494) < 1e-12 && up[1] === R[1] && Math.abs(dn[0].x - 1.494) < 1e-12 && Math.abs(dn[2].x - 0.706) < 1e-12 && R[0].x === 0.7,
+       'the fuel\'s ends 6 mm inside the end plates (both senses, the record untouched)');
+    ok(/VM\.wingLoft\(wet \? s\.ribs : fuelSpan\(s, 0\.006\), 0\.4,/.test(files.energy), 'the fuel\'s loft drawn off fuelSpan'); }
   // every construction row has a kind (and fabricAlu, REAL-FIGURES-3's, before it lands)
   for (const r of Object.keys(C('GEN_SURF_MATERIALS')).concat(['fabricAlu'])) ok(r === 'fabric' || !!WS.KINDS[r], 'the row ' + r + ' has a kind');
   ok(!!(WS.KINDS.dbox && WS.KINDS.cub), 'the wooden row\'s two kinds');
@@ -251,7 +259,14 @@ for (const [nm, f2] of FICHE_BREAKS) {
   const r = run(WSsrc, Object.assign({}, files, { fiche: f2 }));
   if (!r.fails.length) { console.log('  selftest ' + nm + ': NOT caught'); bad++; }
 }
-const n = BREAKS.length + APP_BREAKS.length + FICHE_BREAKS.length;
+const ENERGY_BREAKS = [['the fuel on the end plates', files.energy.replace('const a = R[0].x + sg * d, b = R[n - 1].x - sg * d;', 'const a = R[0].x, b = R[n - 1].x;')],
+  ['the fuel off the record\'s sections', files.energy.replace('VM.wingLoft(wet ? s.ribs : fuelSpan(s, 0.006), 0.4,', 'VM.wingLoft(s.ribs, 0.4,')]];
+for (const [nm, e2] of ENERGY_BREAKS) {
+  if (e2 === files.energy) { console.log('  selftest ' + nm + ': the break did not apply'); bad++; continue; }
+  const r = run(WSsrc, Object.assign({}, files, { energy: e2 }));
+  if (!r.fails.length) { console.log('  selftest ' + nm + ': NOT caught'); bad++; }
+}
+const n = BREAKS.length + APP_BREAKS.length + FICHE_BREAKS.length + ENERGY_BREAKS.length;
 console.log('  selftest: ' + (n - bad) + ' of ' + n + ' caught');
 for (const m of base.fails) console.log('  FAIL ' + m);
 console.log('  ' + base.checks + ' checks');

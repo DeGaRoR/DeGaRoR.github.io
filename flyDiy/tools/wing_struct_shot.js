@@ -111,6 +111,16 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     S.traverse(o => { if (/^cageLayer:(wing|wingStruct)$/.test(o.name || '')) { out[o.name] = bx(o); o.children.forEach(c => { if (c.userData && c.userData.wingStruct) out[c.name] = bx(c); }); } });
     out.root = bx(S); out.info = window.CAGE_WINGSTRUCT && window.CAGE_WINGSTRUCT.layer() ? window.CAGE_WINGSTRUCT.layer().userData.wingStruct.planes.map(p => [p.kind, p.halves]) : null;
     V.xray = x0; window.CAGE_UI.build(); return JSON.stringify(out); }));
+  // --tanks (a debug of the energy layer's drawing): every mesh in the energy layer, its box, its material
+  if (argv.includes('--tanks')) console.log('wing_struct_shot: tanks ' + await pg.evaluate(() => {
+    const T = window.THREE, S = window.CAGE_UI_SCENE, out = [];
+    const bx = o => { const b = new T.Box3().setFromObject(o); return [b.min, b.max].map(v => [v.x, v.y, v.z].map(n => +n.toFixed(3))); };
+    S.traverse(o => { if (o.name !== 'cageLayer:energy') return; o.updateMatrixWorld(true);
+      o.traverse(m => { if (!m.isMesh) return; const mt = Array.isArray(m.material) ? m.material[0] : m.material;
+        out.push({ n: m.name, vis: m.visible, box: bx(m), tris: m.geometry.index ? m.geometry.index.count / 3 : m.geometry.attributes.position.count / 3,
+          mat: mt && { t: mt.type, nm: mt.name, col: mt.color && mt.color.getHexString(), op: mt.opacity, tr: mt.transparent, side: mt.side, dw: mt.depthWrite,
+            met: mt.metalness, rough: mt.roughness, env: mt.envMapIntensity, map: !!mt.map, cc: mt.clearcoat } }); }); });
+    return JSON.stringify(out, null, 0).replace(/\},\{/g, '},\n{'); }));
   for (const v0 of FICHE) {
     const v = v0.replace(/-nows$/, ''), nows = v0 !== v;   // 'cutaway-nows': the cutaway with the structure off (master's)
     const r = await pg.evaluate(async ([v, nows]) => {
