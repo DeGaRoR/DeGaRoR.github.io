@@ -314714,3 +314714,84 @@ TOWN-1 STEP 1, THE COST (HW-COVERAGE, 8 Nov, metla_ab P,B,B,P, Cub, approach 100
 - sea-on: one 2045 ms first-visit task; the Petrel not measured.
 - town-trees: measured on L35d, no measurable cost.
 - **BOOT: the timed gate timed out on its last row (c172 cockpit).** Garage-ready 134-244 s (one boot timeout at 243.7 s) against L38a 150-185 s and L37b 119-149 s, with long tasks up to 32 s. It is mixed with the box's shader-cache misses (worst link 47.8 s), so it is not attributed to an item. First item of the Friday perf round.
+
+## G2715-G2719 - CREW-SEATS: THE CREW LAYER SEATS THE ACCEPTED JOB - ITS PASSENGERS IN THE LAYER'S OWN PASSENGER POSE ON THE STAND AND IN FLIGHT (LIVE PEOPLE, NEVER BAKED), THE BUILD'S OCCUPANT IT LEAVES ASHORE AND THE CHAIRS IT TOOK OUT OFF THE LAYER (ABSENT ON THE STAND AND FROM THE FLOWN MESH); THE SPEC, THE CERT KEY AND THE MASSES STAY THE BUILD'S; PARKED / FLEET BAKES AS SAVED (2026-11-10, CREW-SEATS for the GAME COORDINATOR, LOCAL-GPU; branch claude/crew-seats-g2715b off master db2298a41 (L37a), worktree D:/Dev/wt-crew; the 12 Oct design stub on claude/crew-seats-g2715 2cf5b4ef0 superseded)
+
+The gap (FREIGHT-STRAP G2400, OPEN since 11 Oct): a job's passenger in a seat the build leaves empty was weighed (80 kg
+at the seat) but drawn only in flight, as the build's pilot's posed record moved to that seat, never on the stand; a seat
+taken out for cargo (FREIGHT-LOAD seatsOut; G2404 hid it on the stand by group visibility) still drew its chair in flight.
+Since then CHARACTERS (G2970, crowd.js) and PEOPLE (G3619: who the job's passengers are, the client then the pool) landed:
+the passengers queue and board at the roll-out and fade into their seated figures - this work keeps all of that and
+changes only WHERE the seated figure comes from.
+
+**G2715 THE DOOR** - `tools/_cage_crew.js` `window.CAGE_CREW_JOB(job, now)` (the twin of PILOTS' CAGE_CREW_PILOT): `job` =
+`{ pax: [{ i, key }], empty: [i], out: [i] }` (seat i as FREIGHT counts them; key = a body, null = one off the cabin's
+cycle at the seat's own offset - the cycle is never advanced, the build's other faces keep theirs), normalised; null = the
+build's crew exactly as before. A change rebuilds (the debounce; `now`: in this task). In the build (PAGE.post):
+- **the job's passenger** goes through the layer's own `seatOccupant` (the passenger role and POSE_PAX, no controls: hands
+  on the knees, feet on the passenger anchors, the body by key - a crowd cast member by `charByKey`, the registry's
+  rig, never fetched when unknown) and is FORCED LIVE (`markLive(..., job)`: `live.job`, the sitting-idle clip): it
+  crosses the join as a `people` record (`job: true`), even before its body lands (the rig's pose; buildPeople fetches
+  the body);
+- **the build's occupant the job replaces or leaves ashore** is seated as ever and moved to THE GHOST (a group never in
+  the scene: not drawn, not snapshotted; off LIVE_CREW, off the idle ticker - `CAGE_CHAR.unanimate`, new);
+- **a chair taken out** is built into the ghost (its numbers - pan height, mass - the seat's all the same).
+- `seatsAt` (filled, kg) stays the BUILD's, so the join's occupancy / seat billing and the spec do not move: the masses
+  are FREIGHT-STRAP's (78_ freightStrapAdds: the job's passengers, freightStrapChairKg for the chairs out).
+- **THE TANK FIT CLEARS THE BUILD'S CREW, WHATEVER THE JOB** (`tools/_cage_energy.js` `crewWalk`): the energy layer shapes
+  a tank round every crew vertex and writes the shape into the spec - a passenger in a seat the build leaves empty, or a
+  chair taken out, would have moved a tank and the cert key. Its points and its key now skip the job's figures (tagged
+  `crewJob`) and read the ghost. No job on the layer: the plain walk, as before.
+
+**G2716 THE JOIN** - `tools/_cage_join.js`: the live crew's records are one function, `livePeople(inv, cageM, only)` (the
+loop the snapshot ran inline, unchanged but for the `job` row), exported as `CAGE_JOIN.livePeople(cageM, only)`; the
+payload carries `crewJob` (the door's job as snapshotted; none, no row).
+
+**G2717 THE PAGE** - `src/viewer/app.js` (FREIGHT-STRAP block, FREIGHT_PAGE only):
+- `fsCrewWant()`: the accepted load's seats on the flying build (78_ freightStrapSeats, the masses' own rule): every seat
+  the job fills beside the pilot = a passenger (G3619's people via `crowdPax(n, used, contract)`; the cast's manifests
+  fetched when missing), a seat the build fills and the job does not = empty, `seatsOut` = out (none while the loading
+  view is open: it owns the chairs). `fsCrewSync(now)` sets the door: THE SHED'S 700 ms TICK (debounced) and THE ROLL-OUT
+  (`rollOut`, before its trip: `now`, so the snapshot takes the job's crew).
+- **the snapshot's key carries the job** (`snapKey`: the build's key + the door; none = the build's key alone), and
+  syncApply records it so (else every loaded roll-out re-snapshotted).
+- `fsPeople` (flight only) no longer copies the pilot's record: the snapshot's job flies as seated. **A STOP** that changes
+  the seats under way (the next leg's passengers) re-seats the crew layer NOW and builds the new passengers from
+  `CAGE_JOIN.livePeople` on the flown model's map (the layer's pose), hides a delivered one; compared by SEATS, never
+  bodies. The crowd sees the job's passengers as live crew ('l:' seats) - its 'j:' path idles.
+- G2404's `fsChairs` (the stand's hide after the fact) is gone: the crew layer builds the chairs out.
+- `FLYDIY_STRAP.state().crew` = { door, flown (the payload's crewJob), live (the flown job records) } for rigs.
+
+**G2718 THE PARKED BAKES** - `src/viewer/parked.js` holdEditor: while a parked / fleet aeroplane is held in the editor the
+crew doors stand down (`FLYDIY_CREW_JOB` and **`FLYDIY_CREW_PILOT`** null - the build as saved), back before the player's
+restore (unrefuse / release; a door the career moved meanwhile keeps its value). FIXES a leak found 12 Oct: PILOTS' hired
+pilot's body was captured into every parked aeroplane of a career.
+
+**STATED PLAINLY** (decisions taken by default, the user may turn them):
+1. the job's passengers SIT ON THE STAND in the shed once the load is accepted (the brief); at the roll-out the crowd
+   still walks them out and boards them (G2970);
+2. a chair taken out stays out of the flown aeroplane until the next roll-out from the shed (it was taken out in the
+   hangar), and so does a build's occupant a job left ashore; the passengers follow the stops in flight;
+3. a sandbox flight / no accepted load: the door is never set - the build's crew, flown mesh, bake and spec as before.
+
+**COSTS (to measure in the slot)**: no load = nothing (one property read in the tank fit's walk; the door never moves).
+With a load: one crew rebuild in the shed when the load is accepted / changes (a cage build) and one at the roll-out if it
+changed since; the snapshot + bake + spec + craft steps re-run on a roll-out whose job changed (the bake is a memory hit
+for passengers only - no vertex moves; a chair out changes the cabin's vertex count, so the flown bake keys anew: one bake,
+then IndexedDB); each job's passenger = one live character (its draws, its per-frame dress + idle clip); a ghost occupant
+is posed once and never drawn. A stop that changes the seats rebuilds the crew in that task (landed).
+
+**GATES** (to run in A0's slot; nothing has run on the box - node --check only):
+- NEW **GATE CREWSEATS** (`tools/_crewseats_check.js` + `_crewseats_probe.js`; `_load_build.js` gains
+  `FLYDIY_CREW_JOB_SET`, in its cache key): the page's load chain on the metal Cessna under four jobs - N none, P two
+  passengers + seat 3 out (the A/B's), Q two passengers, E crates (the co-pilot ashore): the sandbox clean; P / Q / E join
+  to the sandbox's very spec bytes and seatsAt; the passengers live, dressed, on the stand; the co-pilot in the ghost; the
+  chair off the layer, whole in the ghost; the snapshot's people + crewJob; Q's flown vertex count = N's (never baked), P's
+  lower (the chair out); livePeople; the page's source rows; `--selftest` (5 doctored readings).
+- FREIGHT (its stand-chairs row now reads the door - check against the parked ledger's cub-window stale pin before
+  calling a red), CAGEFIT, JOIN, PARKED, SIMWORKER, UISMOKE, SAVE, BUILD, + CREWLOAD, PILOTS, NODUMMY (crew source rows),
+  TANKMOUNT (the tank fit's walk), JOINPARITY.
+- GPU TIMED: the strict per-frame A/B on the laptop rung - no load vs the metal Cessna with 2 job passengers + 1 seat out
+  (`?freight=1&strapload=` + the job), programs at boot / roll-out, draws.
+
+CODE READY claude/crew-seats-g2715b - gates owed (A0 slot, ~15 min CPU + ~20 min GPU TIMED, Wednesday)

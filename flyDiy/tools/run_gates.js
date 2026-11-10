@@ -722,6 +722,10 @@ const GATES = [
   // then retries on a clock (2, 4 ... 60 s), not on every build - the old loop rebuilt it every ~280 ms in flight. The
   // page's crew + character layers headless, the user's Cub, an asset door that fails / lands late; a mutant self-test. ~20 s
   { id: 'CREWLOAD', file: '_crewload_check.js', tier: 'core', wall: 25 },
+  // CREW-SEATS (G2715, the game): the crew layer seats an accepted job (its passengers live, the chairs it took out and
+  // the build's occupants it leaves ashore off the layer) - the stand, the snapshot and the flown mesh follow, the spec
+  // stays the build's. The page's load chain on the metal Cessna, four jobs, a probe; ~1-2 min
+  { id: 'CREWSEATS', file: '_crewseats_check.js', tier: 'core', wall: 300 },
   // G134: the custom engine — thermo laws over the registry, the clamp
   // door, and the row reaching the frame; ENGID is the identity ruling
   // (untouched preset = the certified row; deviated = modified/custom)

@@ -11791,7 +11791,7 @@
   // the build leaves empty is seated (the build's pilot's posed record moved to that seat, another character). With no
   // accepted load nothing here runs past a null check: no group, no draw, no program, the sim never asked.
   const FST = { sim: null, applied: '', R: null, A: null, drawKey: '', built: null, stand: null, flight: null, busy: false,
-                zDef: null, zFw: null, hidden: [], pax: [], paxKey: '', standM: null, flags: [], warnEl: null, chairs: [] };
+                zDef: null, zFw: null, hidden: [], pax: [], paxKey: '', standM: null, flags: [], warnEl: null };
   const fsSlot = () => (inGarage ? slotOnStand() : (flSlot || slotOnStand()));
   const fsYD = () => { const D = window.CAGE_DATUM; return D && D.fwOk && isFinite(D.yD) ? D.yD : null; };
   function fsAccepted() {
@@ -11885,58 +11885,80 @@
     if (FST.built && window.FREIGHT_STRAP_VIEW) window.FREIGHT_STRAP_VIEW.dispose(FST.built.grp);
     FST.built = null;
   }
-  // the seats in flight: a figure the job does not seat hidden, a passenger the build does not seat drawn
-  // (work only when the model or the seats change: the 700 ms tick re-asserts the hidden figures and nothing else)
-  function fsPeople() {
-    const R = FST.R, M = model, grp = M && M.grp;
-    // G3619: a job's seat the build already fills (a C172's co-pilot, a pilot's body) takes a drawn passenger too -
-    // the build's figure hidden there, so only the job's people queue (pilots and the reserved never do)
-    const jobOwn = s => s.job && s.build && s.i > 0;
-    const hide = R && grp ? R.seats.filter(s => (s.build && !s.job) || jobOwn(s)).map(s => s.i) : [];
-    const want = R && grp ? R.seats.filter(s => (s.job && !s.build) || jobOwn(s)).map(s => s.i) : [];
-    const key = (grp ? grp.uuid : '') + '|' + hide.join(',') + '|' + want.join(',');
-    if (key === FST.paxKey) { for (const o of FST.hidden) if (o.visible) o.visible = false; return; }
-    FST.paxKey = key;
+  // G2715 (CREW-SEATS): THE JOB'S SEATS ARE THE CREW LAYER'S (CAGE_CREW_JOB) - every seat the accepted load fills beside
+  // the pilot takes the job's passenger (G3619's people: the client, then the pool - their bodies the crowd's cast), the
+  // build's occupant it does not carry leaves, the chairs it took out go; the crew layer seats them in its own passenger
+  // pose (the stand) and the join carries them into the flight as LIVE people (the roll-out's snapshot: model.data.crewJob)
+  // - the flown mesh, its bake and the spec stay the build's. While the loading view is open it owns the chairs (its
+  // seat toggles): none out. Nothing accepted: null - the build's crew, exactly as before (the door never moves).
+  function fsCrewWant() {
+    if (!FREIGHT_PAGE || typeof freightStrapSeats !== 'function') return null;
+    const got = fsAccepted();
+    if (!got || !def || !def.spec) return null;
+    const seats = freightStrapSeats(def.spec, got.A.pax | 0);
+    const pax = seats.filter(s => s.job && s.i > 0).map(s => s.i);
+    const empty = seats.filter(s => s.build && !s.job && s.i > 0).map(s => s.i);
+    const loading = !!(window.FREIGHT_LOAD && window.FREIGHT_LOAD.isOpen && window.FREIGHT_LOAD.isOpen());
+    const out = loading ? [] : (Array.isArray(got.A.seatsOut) ? got.A.seatsOut.slice() : []);
+    if (!pax.length && !empty.length && !out.length) return null;
+    const used = new Set([window.FLYDIY_CREW_PILOT, window.CAGE_CHAR && window.CAGE_CHAR.RACER].filter(Boolean));
+    const keys = pax.length ? crowdPax(pax.length, used, got.A.contract) : null;
+    if (pax.length && !keys && CRW.on && !CRW.prep) crowdPrep().catch(() => {});   // (the cast's manifests; the door follows)
+    return { pax: pax.map((i, n) => ({ i, key: (keys && keys[n]) || null })), empty, out };
+  }
+  // the door set (the shed's tick: on the debounce; the roll-out: `now`, its snapshot follows in this task)
+  function fsCrewSync(now) {
+    if (!FREIGHT_PAGE || typeof window.CAGE_CREW_JOB !== 'function') return false;
+    return window.CAGE_CREW_JOB(fsCrewWant(), !!now);
+  }
+  // THE SEATS IN FLIGHT. The snapshot's job flies as it was seated. A STOP changes the job under way (a leg's passengers
+  // delivered, the next leg's aboard): the crew layer is re-seated NOW (the door, now) and the flown model follows its
+  // seats - a passenger of the snapshot's job the new one does not carry hidden, the new job's passengers built from the
+  // crew layer's own records (CAGE_JOIN.livePeople on the model's map: the editor's pose, not a copy of the pilot's), the
+  // build's live occupant the new job leaves out hidden. Compared by SEATS, never by bodies (a body is the shed's pick).
+  // A chair stays as the roll-out left it (taken out in the hangar, put back in the hangar), and so does a build's
+  // occupant the snapshot's job left ashore. Work only when the model or the seats change; the 700 ms tick re-asserts.
+  const fsSeatSets = j => ({ pax: j ? (j.pax || []).map(q => q.i) : [], empty: j ? (j.empty || []).slice() : [] });
+  function fsPeopleReset() {
     for (const o of FST.hidden) o.visible = true;
     FST.hidden = [];
     for (const P of FST.pax) { P.P.dead = true; if (P.P.inst && window.CAGE_CHAR) window.CAGE_CHAR.dispose(P.P.inst); if (P.frame && P.frame.parent) P.frame.parent.remove(P.frame); }
     FST.pax = [];
-    if (!grp) return;
+  }
+  function fsPeople() {
+    const M = model, grp = M && M.grp;
+    if (inGarage || !grp || !M.data || !M.data.cageM) return;
+    let snap = null;
+    try { snap = M.data.crewJob ? JSON.parse(M.data.crewJob) : null; } catch (e) { snap = null; }
+    const A = fsSeatSets(snap), want = fsCrewWant(), B = fsSeatSets(want);
+    const gone = A.pax.filter(i => !B.pax.includes(i)), add = B.pax.filter(i => !A.pax.includes(i));
+    const hide = gone.concat(B.empty.filter(i => !A.empty.includes(i) && !A.pax.includes(i)));
+    const key = grp.uuid + '|' + hide.join(',') + '|' + add.join(',');
+    if (key === FST.paxKey) { for (const o of FST.hidden) if (o.visible) o.visible = false; return; }
+    FST.paxKey = key;
+    fsPeopleReset();
+    if (!hide.length && !add.length) return;
     for (const i of hide) { const o = grp.getObjectByName('flCrew' + (i + 1)); if (o) { o.visible = false; FST.hidden.push(o); } }
-    const recs = M.data && M.data.people, got = fsAccepted(), CC = window.CAGE_CHAR;
-    if (!want.length || !recs || !recs.length || !got || !got.card.seats || !CC) return;
-    // a passenger the build does not seat: the build's pilot's posed record moved to that seat (card -> the cage sheet:
-    // x = card z, z = zFw - card x), another character, at that character's own scale, no hands on the controls
-    const base = recs.find(r => r.idx === 1) || recs[0];
-    const s0 = got.card.seats.find(s => s.i === (base.idx || 1) - 1) || got.card.seats[0];
-    const used = new Set(recs.map(r => r.key));
-    // G2970 (CHARACTERS): the crowd's cast first, once its manifests are in (crowdPrep), then the crew's own
-    const cast = window.CROWD && window.CROWD.castKeys ? window.CROWD.castKeys() : [];
-    const others = [...new Set(cast.concat((CC.list ? CC.list() : []).map(c => c && c.key)))].filter(k => k && !used.has(k));
-    const drawn = crowdPax(want.length, used);
-    want.forEach((i, n) => {
-      const s = got.card.seats.find(q => q.i === i);
-      if (!s) return;
-      const key2 = (drawn ? drawn[n % drawn.length] : others[n % Math.max(1, others.length)]) || base.key;
-      const figM = base.figM.slice();
-      let k = 1; try { const a = CC.rig(base.key), b = CC.rig(key2); if (a && b && a.height > 0 && b.height > 0) k = a.height / b.height; } catch (e) {}
-      for (const j of [0, 1, 2, 4, 5, 6, 8, 9, 10]) figM[j] *= k;
-      figM[12] += s.z - s0.z; figM[14] -= s.x - s0.x;
-      const rec = Object.assign({}, base, { key: key2, idx: 100 + i, figM, jobs: [], anim: null });
+    const J = window.CAGE_JOIN;
+    if (!add.length || !J || typeof J.livePeople !== 'function') return;
+    fsCrewSync(true);
+    const want2 = new Set(add);
+    const recs = J.livePeople(M.data.cageM, o => !!(o.live && o.live.job && want2.has((o.live.idx | 0) - 1)));
+    for (const rec of recs) {
       const before = grp.children.length;
       const ps = buildPeople({ cage: M.data.cage, people: [rec], cageM: M.data.cageM }, grp, []);
       const frame = grp.children.length > before ? grp.children[grp.children.length - 1] : null;
-      if (ps && ps[0]) FST.pax.push({ P: ps[0], frame, seat: i });
-    });
+      if (ps && ps[0]) FST.pax.push({ P: ps[0], frame, seat: (rec.idx | 0) - 1 });
+    }
   }
   // G3619 (PEOPLE, the user 25 Oct): WHO the job's passengers are - the job's own client first (FLYDIY_PEOPLE.client of the
   // contract's provider), then the passenger pool drawn by the contract's id (the same job, the same faces on a reload);
   // only people whose body the crowd's cast holds (CROWD.castKeys: a body not baked yet is skipped), never a reserved
   // person or a pilot (the pool holds neither). -> body keys, or null without the seam / the cast (the cast order then)
-  function crowdPax(n, used) {
+  function crowdPax(n, used, cid) {
     const FP = window.FLYDIY_PEOPLE, cast = window.CROWD && window.CROWD.castKeys ? window.CROWD.castKeys() : [];
     if (!FP || typeof FP.pool !== 'function' || !cast.length || !(n > 0)) return null;
-    const has = new Set(cast), out = [], id = (FST.A && FST.A.contract) || null;
+    const has = new Set(cast), out = [], id = cid || (FST.A && FST.A.contract) || null;
     const take = pid => { const k = FP.char(pid); if (k && has.has(k) && !(used && used.has(k)) && !out.includes(k)) out.push(k); };
     let rec = null;
     try { rec = id && CAREER_DEV && typeof careerContract === 'function' ? careerContract(playerLoad(), id) : null; } catch (e) {}
@@ -11979,7 +12001,7 @@
     if (CRW.prep) return CRW.prep;
     return (CRW.prep = Promise.resolve(window.FLYDIY_LAZY ? window.FLYDIY_LAZY('crowd') : null)
       .then(() => (window.CROWD ? window.CROWD.prepare() : []))
-      .then(ks => { if (ks && ks.length && FST.R && FST.pax.length) { FST.paxKey = null; fsPeople(); } return ks; },
+      .then(ks => { if (ks && ks.length && inGarage) try { fsCrewSync(); } catch (e) {} return ks; },   // (G2715: the job's people, by body)
             e => { CRW.prep = null; throw e; }));
   }
   // the figures to walk: { seat, key, meshes() } (meshes() late-bound: a live passenger's character lands async)
@@ -12125,17 +12147,8 @@
   function crowdThen(fn) { if (CRW.on && (CRW.pending || (CRW.M && CRW.M.busy()))) CRW.after = fn; else fn(); }
   if (typeof window !== 'undefined') window.FLYDIY_CROWD = () => ({ on: CRW.on, pending: CRW.pending, waiting: !!CRW.after,
     seats: [...CRW.seats.keys()], stats: CRW.M ? Object.assign({}, CRW.M.stats) : null, fadeMs: CRW.fadeMs, warmMs: CRW.warmMs });
-  // G2404 (SEATS-OUT): THE CHAIRS THE ACCEPTED LOAD TOOK OUT, on the stand, for as long as it rides; delivered, they are back.
-  // The seat's identity group goes (the join's snapshot asks each MESH for its own `visible`, so no bake changes); a cage
-  // rebuild makes new groups, the tick hides them again; the loading view owns them while it is open. In flight the chair
-  // is baked into the flown mesh and still draws (owed: the flown model has no seats of its own).
-  function fsChairs(got, loading) {
-    if (loading || !inGarage) return;
-    const want = got && Array.isArray(got.A.seatsOut) ? got.A.seatsOut : [];
-    if (!want.length && !FST.chairs.length) return;
-    for (const i of new Set(FST.chairs.concat(want))) { const o = edSitP.getObjectByName('edSeat' + (i + 1)); if (o) o.visible = !want.includes(i); }
-    FST.chairs = want.slice();
-  }
+  // G2404 (SEATS-OUT) -> G2715 (CREW-SEATS): the chairs the accepted load took out are the crew layer's to leave out
+  // (fsCrewWant's `out`): built off the layer, absent on the stand and from the join's snapshot, so from the flown mesh.
   // THE DRAWING'S SYNC (the 700 ms entry tick, an accept, a roll-out, a stop): build the group when the load changes,
   // hang it where it is seen
   function fsSync() {
@@ -12179,8 +12192,8 @@
         model.grp.add(FST.flight);
       }
     }
+    if (inGarage) fsCrewSync();   // G2715 (CREW-SEATS): the shed's crew seats the job
     fsPeople();
-    fsChairs(got, loading);
     fsWarnSync();
   }
   if (FREIGHT_PAGE) setInterval(() => { try { if (inGarage) fsRigDue(); fsSync(); } catch (e) {} }, 700);
@@ -12208,7 +12221,9 @@
     state: () => ({ applied: !!FST.applied, adds: FST.R ? FST.R.adds.length : 0, kg: FST.R ? FST.R.kg : 0, dm: FST.R ? FST.R.dm : 0,
                     simFreight: sim && sim.freight ? (sim.freight() || []).length : null, totalM: sim ? sim.totalM : null,
                     drawn: FST.built ? FST.built.info : null, stand: !!(FST.stand && FST.stand.parent), flight: !!(FST.flight && FST.flight.parent === (model && model.grp)),
-                    seats: FST.R ? FST.R.seats : null, chairs: FST.chairs.slice(), hidden: FST.hidden.length, pax: FST.pax.length, yD: fsYD(),
+                    seats: FST.R ? FST.R.seats : null, chairs: window.FLYDIY_CREW_JOB ? window.FLYDIY_CREW_JOB.out.slice() : [], hidden: FST.hidden.length, pax: FST.pax.length, yD: fsYD(),
+                    crew: { door: window.FLYDIY_CREW_JOB || null, flown: (model && model.data && model.data.crewJob) || null,
+                            live: model && model.data && model.data.people ? model.data.people.filter(r => r.job).map(r => ({ seat: (r.idx | 0) - 1, key: r.key })) : [] },
                     rig: FS_RIG ? { test: FS_RIG.test, design: FS_RIG.design, got: FS_RIG.got || null } : null }),
     stop: fsStop,
     rigLoad: fsRigLoad,
@@ -14353,6 +14368,8 @@
     if (CAREER_DEV && routesRollRefused()) return;   // G3260 (ROUTES): a plane on a route never rolls out
     if (CAREER_DEV) { careerSignNow(); careerCertWarn(); }   // CERT-GATES: the bench signs; an uncertified job is said
     certKick();                        // G1831: the certificate's thread starts with the roll-out
+    // G2715 (CREW-SEATS): the job's seats on the crew layer NOW (a rig's load first), so the snapshot below takes them
+    if (FREIGHT_PAGE && inGarage) try { fsRigDue(); fsCrewSync(true); } catch (e) { console.warn('flyDiy (crew seats):', e && e.message); }
     const reveal = () => { flRevealStart(); if (after) after(); };
     rollHold = false;   // G690: a screen cut short (a roll-in over it) must not hold the next flight
     if (!screenCan()) {
@@ -14584,6 +14601,8 @@
     return v;
   });
   const buildKey = () => { if (!tripSync) tripSync = tripExport(); return tripSync ? tripSync.key : null; };
+  // G2715 (CREW-SEATS): the snapshot's key = the build's + the job the crew layer seats (none: the build's key alone)
+  const snapKey = k => (k != null && window.FLYDIY_CREW_JOB ? k + '|crew ' + JSON.stringify(window.FLYDIY_CREW_JOB) : k);
   // THE STAND, off the route's inputs (applyRoute's own reading, the sim untouched): where the boot grows the ring and
   // the town before the aeroplane has left the shed, and the world's key after
   // G2630: the last finite CG the frame drew (a NaN pose keeps it; the stand, else the origin, before any)
@@ -15151,7 +15170,8 @@
   }
   const TRIP_STEPS = [
     // ---- THE AIRCRAFT: from the shed, the build committed (G680's sync, cut in its three) and its programs
-    { id: 'snapshot', part: 'craft', label: 'committing your build', w: 8, key: buildKey,
+    // G2715 (CREW-SEATS): ...and on the crew the job seats (CAGE_CREW_JOB): a load's passengers are the snapshot's people
+    { id: 'snapshot', part: 'craft', label: 'committing your build', w: 8, key: () => snapKey(buildKey()),
       fn: () => runGen(syncSnapshotSteps(tripSync), 'snapshot', 'committing your build') },
     // C4a (G870) / C4b (G875): THE FLOWN BAKE (flown_bake.js) - the snapshot's exterior and cabin baked into their atlases,
     // or read from the IndexedDB cache. G1027: the landed interface, FLOWN_BAKE.step({ payload, spec, phase, rebuild }) ->
@@ -15850,7 +15870,7 @@
     try {
       if (x.failed) return ['export failed: ' + x.failed];
       (window.GARAGE_SPEC.update || window.GARAGE_SPEC.set)(x.spec);
-      tripKeys.snapshot = tripKeys.spec = x.key;
+      tripKeys.snapshot = snapKey(x.key); tripKeys.spec = x.key;   // (G2715: the snapshot took the crew's job too)
       if (!inTrip) delete tripKeys.bake;   // a sync outside the steps (the bench's test, a load) baked nothing: the next roll-out bakes
       return (window.CAGE_JOIN.errors && window.CAGE_JOIN.errors()) || [];
     } catch (e) {
