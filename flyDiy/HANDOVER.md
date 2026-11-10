@@ -313973,3 +313973,33 @@ No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change.
 - NOT renamed: the repo, the flyDiy/ folder, URLs, file names, code identifiers, storage keys (flydiy.player, flydiy.build.*), the flydiy-build file tag, the caches, console lines, the flydiy:* events.
 - GATE WINGSMITH (new): the name from one string, no player-facing "flyDiy" left in those places, the built pages, the manifest's id, the save keys (selftest 6/6). GATE PWA W1 RE-PINNED: the manifest names are GAME_NAMES.game, no longer the literal flyDiy.
 - FOLLOW-UP (A0 routes it to AIRCRAFT-LOOKS' render pipeline): the AIRWORTHY sticker now reads WINGSMITH - CERTIFIED, so the heroes and thumbnails of certified aircraft want a re-render; the train re-cooks the parked planes. The fiche's signature reads the same key (AIRCRAFT-LOOKS).
+
+## A0 - train L36d, 9-10 Nov 2026
+
+
+IN (on L36b e789e77cb): nose-strike, proper-cowls-int (THE ONE COWL PATH, ready 1), pilot-notch-2, petrel-draw, land-v2-172, names-flag, wingsmith-name. Each ready's own pre-gates are below.
+MERGED THEN REVERTED in this train (they come back as FRESH commits; Game has fixed both):
+- home-layout 1f85c1a5c, merged in by the user's call (it waived the scenery-own-train rule). Its new reds: TAXICLEAR (3: plot HOME.2's way out had a 5.9 m corner under 6.0 m), PARKED (1: af_park1 off a flatten), FRAMECOST taxi draws +224/+230. Fixed locally (6f9cc9baa: the taxiOut order, P2's aircraft onto t_pad, FRAMECOST named SCENERY G3961).
+- hangar-view-c e1615a4a9. Its new reds: CLOUD (1: G436.2, a stale pin), ROUNDTRIP (6: "NOTHING TICKS THE WORLD IN THE SHED", from shedSkyFrame's updateMatrixWorld on every shed frame, a real fault). Fixed locally (f1d2f45eb).
+DROPPED at merge: real-figures-3 (a real conflict in tools/real_refs.js against land-v2's rows). It rebases as a union and rides L37a.
+A0 FIX: POD's c172 + metal cert pins re-taken (52717a290). Cause measured by Deform: NOSE-STRIKE's surface allowance (the user's 10 cm grass / 1 cm paved) changes only the certificate's taxiRough case record (its own run's prop-strike state). The envelope Ft/Fc, byT/byC and the key are unchanged, and the 300 flown steps are the base's to the bit. Bisected: POD passes with nose-strike's two core files reverted. Deform owes one read: does the 172's disc strike in the certificate's rough taxi now?
+
+BATTERY, first run (all ten): 104 PASS / 12 FAIL lines. RE-GATE after the reverts (the parked fleet re-cooked, same): CLOUD, TAXICLEAR (4 shards), PARKED, POD, WINGSMITH, ASSETS, HANGAR, BUILT PASS; FRAMECOST = master's 5 lines; ROUNDTRIP = master's 2.
+Red as on master: GEN, TOUR (the float Cessna), TREECRASH (the Cub and Jodel trunk lines + the Petrel 5.7 g line, SEAPLANES' list), DMGGEAR, FRAMECOST (5), ROUNDTRIP (2), ENGCONFIG (master's lines, plus nose-strike's Chinook IDENTITY sim half, caused by the user's own 10 cm allowance; the Chinook is out of the test battery; not re-pinned), JOINPARITY (now only the Jodel node=page line; pilot-notch-2's census cleared the rest).
+
+TIMED GATE:
+- First run (with home-layout + hangar-view-c): two TAXI freezes after the reveal (metal cockpit 3.5 s, c172 cockpit 10.7 s).
+- RE-RUN on the landed set (L36d2, 00:51-01:49): NO frame over 1 s in any taxi, take-off or flight segment. The only gaps are in the garage stand before the reveal (cub chase 27.9 s, c172 chase 13.4 s): the cold shader cache, as L35a-L36b. So the freezes came with the two pulled readies; home-layout re-enters only once that's explained.
+- 2 rollouts and garage_lag died in the rig (CDP "__timeout" on a slow cold page), as in L36b. RED vs the 12 Oct baseline as on every train this week.
+
+No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change: PHYSICS_V 7, GEN_SPEC_V 10, GEN_CERT_V 7.
+
+THE READIES (their own pre-gates):
+- nose-strike aee84563a (Deform): a prop strike is damage, with the user's Q2 allowances (grass/forest/sand 10 cm, gravel/scree 5, rock/paved 1). DMG.noseAt. GATE DMGNOSEOVER new, PASS; STOL PASS; cert --cmp 0 moved; DMGCRASHUI PASS (20:30, dev.html, worker+inline, damage on/off). ENGCONFIG: one line moved, IDENTITY Chinook sim half (master 9a62a6a61fcc8556 -> 167a999217fe0b46), caused by the user's 10 cm grass allowance (the strike 3 steps later); the Chinook is out of the test battery; nothing re-pinned. Step 4 is judged in this battery. Master finding: the Chinook crashes in ENGCONFIG's unplaced spawn drop.
+- land-v2-172 603b603b2 (FLAGSHIP): the V2-172 (THE Cessna, land) + the A1 nose switch + A4 + nose rows; births unchanged (noseBody at birth deferred to NOSEBODY-BIRTH). 34 PASS pre-gate; NEWPLANE-BUILDS, TECH, ENERGYBASE, ENGCONFIG, FREIGHT red with master's same lines; validated digests unchanged. Pawnee empty -14.1 kg by design (A4). LDG50 one row out (game 464 m vs 438). No PHYSICS_V bump. Note file: flydiy-notes/evidence-2026-10-18/2026-11-09/flagship/land-v2/READY-NOTE-land-v2-172.md.
+- proper-cowls-int (CABIN-CRAFT): THE ONE COWL PATH, READY 1 (the user's rule). 13 saved planes identical, Tiger Moth differs by ruling; the user's cowl Q1-Q5 defaults (17:05). POD: 9 lines claimed stale pins - judged here.
+- pilot-notch-2 (Pilot): the landing notch + FLARE-NOPUSH + the crosswind flap cap fixed (no cap on a short field, xwFlapK 0.15) - the tw_ski ground loop.
+- names-flag a5a765403 (AIRCRAFT-LOOKS): the flag label "Alaska" -> "Big Dipper" (master's NAMES red).
+- wingsmith-name a8792c14f (Game): the game's name Wingsmith in ONE string (GAME_NAMES.game), placeholder, saves/PWA id unchanged; GATE WINGSMITH new.
+- pilot-notch-2 c47e15aef (Pilot), 15 fresh commits (the revert trap respected): the notch, FLARE-NOPUSH, G2815, the G2816 cap + G2816b (no cap on a short field, xwFlapK 0.15), POD/ENGCONFIG pins, the census, TANK-SPLIT, the PILOTMATRIX baseline, the STOL check + re-capture (rule b: the stock Cub lands on its notch, 67.2 vs 64.0 km/h, so the slower approach is asked at 0.96x Vref), HANDOVER. Proof: the user's Cub HOME > w3 > tw_ski ok (touchdown -0.09 m/s, run 68 m) against L36a's ground loop; x2 ok, x4 15 deg as before. PASS TOUR 0/1/3, PILOTMATRIX, PILOT 0-2, ROUTE 0-2, PROFILE, PLAN, TAKEOFF, LINEUP, POD, CESSNAVREF. Reds as master: TOUR 2 (the float Cessna), ENGCONFIG's quad + cards; the branch clears master's 9 identity FAILs. NODE-ACCEPT: Cub PASS (not in this ready).
+- petrel-draw 656c847cf (SEAPLANES): no physics hull on a cage build (app.js buildFloatMeshes). The Petrel draws whole near and far; the validated float planes are unchanged by construction (floatRigs 12, 0 physics hulls); FLOATS, HYDRODYN, SEAPLANE, FLOATDUP PASS.
