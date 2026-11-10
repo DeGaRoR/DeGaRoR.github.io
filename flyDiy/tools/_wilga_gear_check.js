@@ -21,6 +21,8 @@
 //      fitting high and low, cut so that nothing that moves comes within 3 mm of it through the stroke, detailed (seams,
 //      screws), clear of the ground at full stroke on a flat tyre pitched nose-down, still hiding the strut above its
 //      floor; its cache replays the same boot
+//   7c. THE SECOND VERSION (lvStrut 1, the photographs' long strut): through the load chain it stands at the charge's
+//      deflection, absorbs the limit drop without bottoming and does not bounce
 //   8. NOTHING ELSE MOVED: a build without the leg is bit-identical to one built before it existed (its def keyless)
 // Run: node tools/_wilga_gear_check.js   (one final `GATE WILGAGEAR: PASS|FAIL`)
 'use strict';
@@ -242,7 +244,8 @@ console.log('7b. the fairing (the user: "an elegant fairing ... that hides a bit
   const cases = [[CUBF, { s1Leg: 4, s1Drop: 0.85, s1_lvBoot: 1 }, 'the Cub, tapered'], [CUBF, { s1Leg: 4, s1Drop: 0.85 }, 'the Cub, trailing (the default)'],
     [HOSTF, Object.assign({}, HOST, { s1_lvBoot: 1 }), 'the Wilga-class host, tapered'], [HOSTF, Object.assign({}, HOST, { s1_lvBoot: 2 }), 'the host, flared'],
     [HOSTF, HOST, 'the host, trailing (the default)'],
-    [HOSTF, Object.assign({}, HOST, { s1_lvRootAng: 50 }), 'the host, trailing, fitting low (50 deg)'], [HOSTF, Object.assign({}, HOST, { s1_lvRootAng: 110 }), 'the host, trailing, fitting high (110 deg)']];
+    [HOSTF, Object.assign({}, HOST, { s1_lvRootAng: 50 }), 'the host, trailing, fitting low (50 deg)'], [HOSTF, Object.assign({}, HOST, { s1_lvRootAng: 110 }), 'the host, trailing, fitting high (110 deg)'],
+    [HOSTF, Object.assign({}, HOST, { s1_lvStrut: 1 }), 'the host, trailing, the long strut (v2)']];
   let groundMin = Infinity, groundAt = '';
   for (const [file, over, who] of cases) {
     const raw = JSON.parse(fs.readFileSync(path.join(ROOT, file), 'utf8')), s0 = raw.spec || raw;
@@ -324,6 +327,30 @@ console.log('7b. the fairing (the user: "an elegant fairing ... that hides a bit
   const sp = JSON.parse(JSON.stringify(SPEC)); sp.gear.fairing = 'spat'; sp.gear.legFair = 'fair';
   const cs = C.clampSpec(sp);
   yes(cs.gear.suspension === 'lever' && cs.gear.fairing === 'none' && cs.gear.legFair === 'fair', 'clampSpec: a trailing link asking for a spat flies with none, its leg fairing kept (' + cs.gear.fairing + ' / ' + cs.gear.legFair + ')');
+}
+
+console.log('7c. the second version (lvStrut 1 - the user: "do it as a second version and we\'ll check"): the photographs\' long strut along the leg');
+{
+  // through the game's own load chain (the garage draws, the join measures, the frame and the strut's design follow), on
+  // the host: the strut long (its eye under the fairing's root), its stroke near the wheel's travel - and it still stands
+  // at the charge's deflection, absorbs the limit drop without bottoming and does not bounce
+  const LB = require(path.join(T, '_load_build.js'));
+  const raw = JSON.parse(fs.readFileSync(path.join(ROOT, 'builds/cessna172_2026-09-20_corrected.json'), 'utf8'));
+  const sp0 = JSON.parse(JSON.stringify(raw.spec || raw));
+  Object.assign(sp0.cage, { s1Leg: 4, s1Drop: 0.80, s1R: 0.25, s1X: 1.415, s1Z: 1.45, s2Leg: 3, s2Z: 0.10, s2X: 0, s2R: 0.064, s2Steer: 1, s1_lvStrut: 1 });
+  const r = LB.gameSpecFull({ spec: sp0 }), def = C.buildGen(JSON.parse(JSON.stringify(r.spec))), Lv = def.parts.lever;
+  const O = Lv && Lv.sides[0].O, lenS = Lv ? Math.hypot(...[0, 1, 2].map(k => def.nodes[Lv.sides[0].u].p[k] - def.nodes[Lv.sides[0].h].p[k])) : 0;
+  yes(!r.errors.length && r.spec.gear.suspension === 'lever' && Lv && lenS > 1.0 && O.S > 0.2, 'the joined build flies the long strut: ' + f3(lenS) + ' m eye to eye, a ' + mm(O ? O.S : 0) + ' stroke for the wheel\'s 270 (v1: 0.50 m, 119 mm), charged ' +
+      (O ? ((O.P1 - G.GEAR_PA) / 1e5).toFixed(1) + ' bar extended, ' + (O.Fst / O.A / 1e5).toFixed(1) + ' bar static' : '-'));
+  if (Lv) {
+    const sim = settled(def, 8), ol = sim.oleo(), sd = Lv.sides[0], L = leverOf(def, sd, [-Math.sin(Lv.deck), Math.cos(Lv.deck), 0]);
+    const rise = G.gearLeverAt(L, G.gearLeverAngOf(L, 's', ol[0].s, Lv.geom.comp)).rise;
+    yes(Math.abs(rise - LR.dSt) <= 0.010 && sim.wheelsOnGround() === 3 && !sim.stats().bad, 'it stands at the charge\'s deflection: the wheel ' + mm(rise) + ' up (the study: 70 +-10), on its three wheels');
+    const d1 = drop(def, Lv.sink, 0, 3), o1 = d1.sim.oleo(), sMax = Math.max(o1[0].sMax, o1[1].sMax);
+    yes(sMax < O.S && o1.every(q => !q.bottomed) && !d1.sim.stats().bad, 'the limit drop (' + Lv.sink.toFixed(2) + ' m/s) is absorbed without bottoming: ' + mm(sMax) + ' of ' + mm(O.S));
+    const Vs = (def.params && def.params.ap && def.params.ap.Vs) || 25, d3 = drop(def, 1.5, 0.8 * Vs, 4);
+    yes(d3.airMax <= 0.15, 'a firm landing (1.5 m/s at 0.8 Vs) does not bounce: ' + d3.airMax.toFixed(2) + ' s off the ground at most');
+  }
 }
 
 console.log('8. nothing else moved');

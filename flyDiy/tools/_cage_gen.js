@@ -9189,7 +9189,7 @@ const CAGE_DEFAULT_ABSENT = { pilSnap: 1, doorStop: 75, wgStrutPil: 0, wgTipBow:
   // every save; these two rows' are absent at 0, so no saved build gains a key (L35d's STOL lesson)
   acc_gpsAerial_sL: 0, acc_gpsAerial_lv: 0, acc_eltAerial_sL: 0, acc_eltAerial_lv: 0,
   // WILGA-GEAR: the trailing-link leg's rows, per station (the core's GEN_LEVER_ROW_OFF: the same table)
-  ...(() => { const d = { lvArm: 0.4, lvAng: 62, lvComp: 12, lvTop: 0.18, lvReach: 0.45, lvStat: 0.07, lvLegW: 0.09, lvRootAng: 80, lvBoot: 0 }, o = {};
+  ...(() => { const d = { lvArm: 0.4, lvAng: 62, lvComp: 12, lvTop: 0.18, lvReach: 0.45, lvStat: 0.07, lvLegW: 0.09, lvRootAng: 80, lvBoot: 0, lvStrut: 0 }, o = {};
     for (const k in d) { o[k] = d[k]; for (const i of [1, 2]) o['s' + i + '_' + k] = d[k]; }   // (the gear page's flat base copy too)
     return o; })() };
 // RETRACT (G3511's rule): THE RETRACTABLE GEAR'S ROWS ARE ABSENT WHILE THE GEAR IS FIXED - a build that never chose
