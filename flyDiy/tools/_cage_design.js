@@ -212,7 +212,26 @@ function iconFlap(key) {
   if (key === 'slotted') p.push({ d: 'M43 17 L60 26 L44 23 Z' });
   if (key === 'fowler') p.push({ d: 'M46 20 L63 28 L47 26 Z' });
   if (key === 'split') p.push({ d: 'M26 24 L40 22 L52 32 Z' });   // the lower skin hinged down
+  if (key === 'stol') p.push({ d: 'M40 15 L52 34 L40 21 Z' });    // the plain hinge, down to 50 deg
   return { vb: '0 0 64 40', paths: p };
+}
+
+// WING STRUCTURE (REAL-FIGURES-3, the user 9 Nov: "proper buttons, not buried in sliders"): a rib in section - its
+// spar(s) and what covers it. Drawn, as the flap's are: the generator bills a construction and draws no section.
+function iconCons(key) {
+  const rib = 'M4 22 Q8 12 22 11 Q44 11 60 21 Q44 24 22 25 Q8 25 4 22 Z';
+  const p = [{ d: rib }];
+  const spar = (x, w) => p.push({ d: 'M' + x + ' 12 L' + (x + w) + ' 12 L' + (x + w) + ' 25 L' + x + ' 25 Z' });
+  const tube = (x) => p.push({ d: 'M' + (x - 2.5) + ' 18 a2.5 2.5 0 1 0 5 0 a2.5 2.5 0 1 0 -5 0 Z' });
+  if (key === 'auto') p.push({ d: 'M26 17 L38 17 L38 19 L26 19 Z' });
+  if (key === 'carbon') p.push({ d: 'M4 22 Q8 12 22 11 Q44 11 60 21 L58 21 Q44 13 22 13 Q10 14 6 22 Z' });
+  if (key === 'steel') { tube(18); tube(38); }
+  if (key === 'fabric') { spar(16, 4); spar(36, 3); }                    // two spruce spars
+  if (key === 'alloy') { spar(17, 2); spar(37, 2); p.push({ d: 'M4 22 Q8 12 22 11 Q44 11 60 21 L58 21 Q44 13 22 13 Q10 14 6 22 Z' }); }
+  if (key === 'aluFabric') { tube(17); tube(37); }
+  if (key === 'glass') p.push({ d: 'M4 22 Q8 12 22 11 Q44 11 60 21 L58 21 Q44 13 22 13 Q10 14 6 22 Z' });
+  if (key === 'fabricAlu') { spar(17, 2); spar(37, 2); p.push({ d: 'M4 22 Q8 12 22 11 L22 13 Q10 14 6 22 Z' }); }   // metal spars, the leading-edge sheet
+  return { vb: '0 0 64 34', paths: p };
 }
 
 // THE TAIL OUTLINE TILES (TAIL CHANTIER 2 P3): a fin in side view on a
@@ -1439,10 +1458,23 @@ const DESIGN_ROWS = [
     read: P => Math.round(P.wgFlapType),
     // (the split flap, the Spitfire's, 27 Oct: the physics had it, the tile did not; its value is its own
     // index in GEN_FLAPS, as the row's)
-    options: () => ['none', 'plain', 'slotted', 'fowler', 'split'].map(k => {
+    options: () => ['none', 'plain', 'slotted', 'fowler', 'split', 'stol'].map(k => {
       const i = Math.max(0, Object.keys(gFlaps() || {}).indexOf(k));
       return { value: i, label: ((gFlaps() || {})[k] || { name: k }).name,
                icon: iconFlap(k), writes: { cage: { wgFlapType: i } } }; }) },
+
+  // THE WING'S STRUCTURE (REAL-FIGURES-3): the construction row's twin - seven tiles where the slider was. The value is
+  // the row's own index: 0 'as the aeroplane', then the join's surface vocabulary in its order (the aluminium spar
+  // under fabric, the PA-18's and the Carbon Cub's, the seventh)
+  { key: 'wgCons', label: 'Wing structure', kind: 'discriminator',
+    group: 'wing', status: 'live', twin: ['wgCons'],
+    help: 'what the wing is built of - its spars and its covering; it sets the wing\'s weight, stiffness and price',
+    read: P => Math.round(P.wgCons || 0),
+    options: () => [['auto', 'As the aeroplane', 'follows the fuselage'], ['carbon', 'Carbon', 'moulded'],
+                    ['steel', 'Steel tube', 'fabric over welded tube'], ['fabric', 'Wood + fabric', 'spruce spars, ply leading edge'],
+                    ['alloy', 'Aluminium', 'stressed skin'], ['aluFabric', 'Aluminium tube', 'Dacron over 6061 tube'],
+                    ['glass', 'Glassfibre', 'moulded'], ['fabricAlu', 'Aluminium spar + fabric', 'the PA-18\'s and the Carbon Cub\'s']]
+      .map(([k, label, note], i) => ({ value: i, label, note, icon: iconCons(k), writes: { cage: { wgCons: i } } })) },
 
   // ---- G2820: THE STOL WING (60_gen_spec GEN_SLATS / GEN_STOL) ----------
   // Every device off by default; each tile writes its one cage row. The
@@ -3383,8 +3415,8 @@ function designBake(sel, over) {
   // The MW5-alike's sailcloth on tubes was billed as a ply D-box (0.80
   // kg/m2 against 0.42) until the card could say `steel`.
   if (Math.round(+full.wgCons || 0) > 0)
-    wing.material = ['carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass'][   // G466: the fifth stop; G2047 the sixth
-      Math.min(5, Math.round(+full.wgCons) - 1)];
+    wing.material = ['carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass', 'fabricAlu'][   // G466: the fifth stop; G2047 the sixth; the aluminium spar the seventh
+      Math.min(6, Math.round(+full.wgCons) - 1)];
   const wings = [wing];
   const bracing = { type: Math.round(full.wgBrace) ? 'cantilever' : 'strut',
                     struts: Math.round(+full.wgStruts) === 1 ? 1 : 2 };   // T2.3 (83)
