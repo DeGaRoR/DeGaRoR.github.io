@@ -761,7 +761,10 @@ function sitePattern(aero, site, opts) {
   // quarter in) so 75 % of the strip is ahead - the pilot asks 70 % of a short field (43_pilot: need);
   // every strip of 300 m and more keeps its numbers to the bit
   const lenR = Math.hypot(R.end1.x - R.end0.x, R.end1.z - R.end0.z);
-  const kIn = lenR < 300 ? Math.max(0.3, 0.25 * lenR / GP_HOLD_IN) : 1;
+  // SHORT-HOLD (Pilot, 10 Nov SET2): ...AND FROM 300 m TO 380 m THE HOLD LEAVES THE PILOT'S 70 % + 4 m AHEAD. The generic
+  // hold 110 m in left w6 (311.5 m) 201.5 m ahead against the hold's 0.7 x 311.5 = 218 m: the Cub and the Jodel replanned
+  // three times and gave up on the ground (w5, 310 m, the same). Strips of 380 m and more keep 110 m to the bit
+  const kIn = lenR < 300 ? Math.max(0.3, 0.25 * lenR / GP_HOLD_IN) : Math.min(1, (0.3 * lenR - 4) / GP_HOLD_IN);
   const holds = [];
   for (const T of [0, 1]) {
     const dir = T === 0 ? d : [-d[0], -d[1]];
