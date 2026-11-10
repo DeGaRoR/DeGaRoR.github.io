@@ -313921,6 +313921,125 @@ TIMED GATE: light, the same shape as L36a.
 - Steady frames p50 33.3 ms on every flown row; no frame over 1 s in any taxi, take-off or flight segment.
 - The >1 s gaps are all in the garage stand before the reveal (cub chase 5.2 s; the discarded warm_metal 9.0 s + 7.1 s): the cold GPU shader cache, master_bench's MISS, as L35a-L36a.
 - The floats take-off has one 133 ms frame.
+## REAL-FIGURES-2 - THE HTML REPORT GENERATOR (tools/real_report.js), THREE ACCURACY AXES (GEOMETRY / SPECS / PERFORMANCE), SIX MORE PLANES WITH A REAL PARENT (2026-11-08, REAL-FIGURES for A0, cloud - node only; branch claude/real-figures-2 = 11f70ea39 + master L35a 1bcd01d3e merged, ready as claude/ready/real-figures-2)
+
+THE BRIEF (the user via A0, 8 Nov): a reusable HTML report generator (clear graphics, colour coding for the mismatches,
+statistics as graphics, a conclusion and next steps); the planes with a clear real parent tested (the DC-3, the Petrel
+once flyable, the 3 old biplanes, the Birdman Chinook, "our 3 historical ones", the Skymaster lightly); a global accuracy
+score on several axes (geometry, specs, performance). Test and report only: no plane, physics or pilot change.
+
+- tools/real_report.js: ONE self-contained HTML (inline CSS + SVG, no script or fetch, light + dark, phone width) from
+  real_check's JSON in reports/evidence/REAL-CHECK-*/ (the newest per plane wins; a <key>.shape.json overrides the shape).
+  The global view (score tiles, a computed conclusion, the heatmap planes x axes, a radar per plane, the ranked overall),
+  the statistics (verdicts per plane, every plane's deviation per indicator, the pilot's share on the landing roll), the
+  conclusions and next steps (real_refs NOTES), a section per plane (band chart with MIN / TYP / MTOW markers and the
+  verdict bar, geometry and specs tables, every verdict, the loads, the flights, the water runs), the scoring defined from
+  its own constants, the history. Verdicts and scores are recomputed from real_refs.js each run.
+  SCORES: item = 100 x max(0, 1 - gap / 0.30) (gap 0 inside the band); GEOMETRY / SPECS / PERFORMANCE = weighted means
+  (weights in the file and printed in the report); OVERALL = 0.3 G + 0.3 S + 0.4 P. Performance = the airframe's reading,
+  else the handbook-flown one (the shipped pilot's cost is shown apart). Light checks and partial runs leave the set's mean.
+- tools/real_check.js: measureShape (span, area, length on the body axis, height on the WORLD vertical standing on the
+  gear - the body-axis height read a tail-sitter rotated by its deck angle, the DC-3-alike 7.26 m for 5.16 - chords,
+  tail, track; engine, power, count, prop, blades, empty, design gross, fuel, seats); an archetype card through the load
+  door's birth envelope (`card:`); touchdown sink recorded (a drop over 3 m/s flagged "hard"). tools/real_refs.js: dims /
+  specs for every reference (GEO); new rows dc3 (DC-3A), camel, tigermoth, stearman, skymaster (sources in each row,
+  THIN ones marked); PLANES dc3, stearman, tigermoth, camel, birdman, skymaster (card), petrelL; NOTES.
+- REPORT reports/REAL-CHECK-2026-11-08.html (evidence reports/evidence/REAL-CHECK-2026-11-08/). OVERALL (G / S / P):
+  Cub 99 (97/100/100), Jodel 96, Petrel V4.1 land 95 (provisional), Tiger Moth-alike 94, Camel-alike 92, Stearman-alike
+  92, DC-3-alike 90, Chinook 90, 172 corrected 83, PA-18 floats 83, Birdman 79, B-CESS 65, B-CESS floats 51, Skymaster-
+  alike 43 (light check). Set: overall 85, geometry 91, specs 85, performance 82.
+- "OUR 3 HISTORICAL ONES" read as the Cub, Jodel and Cessna of the original studies (already in); the historical
+  recreations (Stearman, Tiger Moth, Camel, DC-3) are in either way. The report says so.
+- FINDINGS (new): the REF_MATCH biplanes' shapes are within 0-7 % on every dimension; their weak side is the mass model
+  on old construction (the Camel 579 kg empty vs 421, +37 %; Tiger Moth +13 %), a 10-25 % climb deficit and static
+  margins of 1-8 %. The DC-3-alike: span exact, engines / props / fuel right, empty -15 to -22 %, cruise / top ~13 %
+  under altitude-quoted figures (THIN), its CG at 50 % MAC light and 66 % with every seat filled (margin 1 %): the game's
+  pilot CAPSIZED landing at that load - a mass-and-balance item to check before it goes official. The Birdman flies
+  (the corrected Chinook does not) but its arrivals are drops (6.3 m/s sink at 39 km/h). The Petrel V4.1 on
+  claude/seaplanes-merge (that branch's sources built in a worktree; its committed flight_core was stale) flies the same
+  land numbers as on claude/hull-types (TO 192 m, climb 2.42, landing 457 at 600 kg); land only, to redo on water. The
+  landing roll stays the pilot's on the biplanes and the Petrel too (+139 to +275 m over the best schedule).
+- RUNTIME (cloud, 4 cores, 5 processes): Stearman 29 min, Camel 37, Tiger Moth 45, Birdman 20, Skymaster 52, DC-3 84,
+  Petrel land 65; a --quick shape pass 3-25 s a plane; the report ~3 s.
+- GATES: no core, editor or generated file changed by this branch (the merge of L35a brings master's own); no battery
+  run; `node --check` on the three tools.
+
+## REAL-FIGURES-2.1 - THE USER'S CUT (THE CORRECTED 172 IS THE CESSNA; B-CESS, ITS FLOATS, THE BIRDMAN AND THE SKYMASTER OUT), GEOMETRY ON THE DRAWN AEROPLANE, THE CESSNA DOSSIER (2026-11-08, REAL-FIGURES for A0, cloud; branch claude/real-figures-2)
+
+- THE CUT (the user 8 Nov; A0 the same day): PLANES rows `dropped:` for cessna, cessnaF, birdman, skymaster - the report
+  lists them in one line under the heatmap. The corrected 172 (`c172x`) is the Cessna. NEW row c172rf = HYDRO-TRIM's
+  builds/c172r_wipline2350_stcprop_2026-10-20.json (the 172R on catalogue-exact Wipline 2350s): INSIDE Wipaire's water
+  figures (265-430 m / 19.5-30 s against 335-501 m / 20-35 s), climb ~10 % better than Wipaire's 749 fpm - the float base
+  for FLAGSHIP's rebuild. FLAGSHIP's final Cessna + its 2350 version are to be added when they land (A0).
+- "DO WE MEASURE THE SAME THING" (the user, on the Jodel): span / length / height now come off the DRAWN aeroplane
+  (tools/_drawn_dims_probe.js through the load door's FLYDIY_JOIN_PROBE: the editor's scene + the fuselage sheet, crew and
+  prop blades out; span tip to tip, length spinner to rudder, height on the gear at the settled deck angle; cage frame x
+  lateral, y up, z FORWARD). The node cloud read the 172 7.47 m long (drawn 8.21, type 8.28), the DC-3 7.26 m high
+  (drawn 5.33, type 5.16). A drawn figure > 35 % off the structure's falls back to it (the Petrel's branch scene reads
+  12.5 m). THE LOAD DOOR RE-MEASURES THE TAIL off the drawing: the Jodel's fin 0.55 m forward of its file (the game's
+  Jodel is 5.88 m long against the D.112's 6.20; the 20 Sep 6.25 m read the file), the corrected 172's fin 0.48 m forward
+  and its stab span 3.20 m where the file's correction says 3.41 - a rebuild edits the CAGE's tail rows, not spec.tail.
+  The Jodel's remaining geometry gaps are real: wing 13.8 m2 against 12.7 (root chord 1.80 vs ~1.72), length -5 %.
+- METRIC FIXES: custom engines matched by displacement (5.9 L = 361 in3 = an IO-360; the corrected 172 scored 0 on its
+  engine before); the best glide weighs 0 (our probe glides prop-off, a handbook glide has the prop windmilling); length
+  tolerance 3 %, height 8 %; the 172R's empty a range 721-744 kg and its fuel 201-212 L.
+- reports/CESSNA-DOSSIER-2026-11-08.md: the 172R reference sheet (every figure with its source and confidence), the
+  corrected 172 and the float 172R measured (geometry, specs, three loads, the flights, the sweep), nine gaps ranked with
+  the cause and the change (climb-out to 50 ft +48 %, empty -11 %, cruise -11 %, climb -10 %, the tail that does not
+  survive the load, CG 43 % MAC at gross, the handbook landing roll -18 %, the game's +37 %), how to re-measure. The POH
+  PDF host, 172guide.com and wipaire.com's 172 page are outside this session's network: the "spec sheet" / "thin" rows are
+  to be re-read by a session with access.
+- SCORES now (11 planes): Cub 99, Jodel 97, 172R on 2350 95, Chinook 95, Tiger Moth 94, Petrel (land, provisional) 93,
+  Stearman 92, Camel 92, DC-3 91, corrected 172 88 (G 98 / S 94 / P 76), PA-18 floats 83.
+- A0 could not be messaged from this cloud session (the bridge refuses a cloud session without the owner's trust card).
+
+## REAL-FIGURES-3 - THE STOL CUB AGAINST THE CARBON CUB SS, THE FINAL CESSNA (V2-172, LAND AND FLOATS) BY LOAD RANGE (2026-11-09, REAL-FIGURES for A0, cloud - node only; results branch claude/real-figures-3, README: reports/evidence/REAL-CHECK-2026-11-09/README.md)
+
+- V2-172 land (builds/cessna172r_2026-11-08.json, run on a worktree of claude/alloy-frame dbd37ff77 with its core built
+  from source - A1 + A4 - and its real_refs): 5 inside / 5 near / 7 outside vs the 172R POH (CESSNA-FINAL's 8 Nov run 2 /
+  9 / 6). In now: empty 729 kg (721-744), analytic TO 284 m (288), handbook landing from 50 ft 378 m (395). Out: TO 50 ft
+  788 m (514; no Vx climb-out in the sweep + the propeller), landing roll handbook 139 / game 240 (168), game climb 3.18
+  (3.66), the glide (not like for like). CG 30.8 / 40.7 % MAC (POH aft limit 36.4 at gross). Its MTOW case is 1127 kg.
+- V2-172 floats (builds/cessna172r_floats_2026-11-08.json, DRAFT): 9 / 1 / 0 vs Wipaire at 920-1157 kg (G3390's 172R on
+  2350s: 8 / 2 / 0), but its own gross case is 1212 kg (over the STC 1157), CG 46 % MAC, flapless, hump R/W 0.27, the
+  supplement's technique does not lift it off.
+- STOL Cub (tools/fixtures/stol_cub_showcase.json) vs the CubCrafters Carbon Cub SS (CC11-160, 1320 lb LSA, CC340 180 hp;
+  new REFS row carboncub, sources in it; the Carbon Cub UL publishes nothing, the EX-3/FX-3 are 2000 lb): 1 / 1 / 9. The
+  kit's always-on slot / VGs / droop make its clean stall the SS's full-flap one (47-52 vs 65 km/h); 141 vs 180 hp: climb
+  5.4-7.0 vs 7.6-10.7 m/s, cruise 150 vs 177-193; TO 30-55 vs 18 m and landing 22-30 vs 75 m (both THIN single-source).
+  At MTOW CG 36 % MAC, full-flap approach trim -0.69.
+- real_refs.js takes claude/alloy-frame's version (CESSNA-FINAL's re-read c172r CG envelope and c172f Wipaire guide rows,
+  the c172v2 / c172v2f PLANES rows) + the carboncub / stolcub rows; c172x supersededBy c172v2. Report:
+  reports/REAL-CHECK-2026-11-09.html (13 planes). The user's "average the best and worst landing rolls": not used (two
+  opposite biases; the handbook-schedule reading already measures it) - README section 4.
+
+- CARBON CUB SS (the user 9 Nov, same session; README section 5): the STOL Cub rebuilt to the type,
+  builds/candidates/carbon_cub_ss.json from carbon_cub_ss.edits.json via _rejoin_build (which now takes `systems` and lets
+  eng_ edits ride over a preset). The CC340 from DIALS, not a registry row (the user's rule): two new engine dials in
+  _eng_gen.js, `bmepK` (tune, rated bmep / the layout's, 0.85-1.2) and `massK` (build, mass / the swept-volume law,
+  0.75-1.25), both 1 on every catalogue engine; CC340 = O-320 chassis on a 4.125 in stroke, tune 1.09, build 0.88 -> 180 hp,
+  120 kg. A new flap type `stol` (plain, 50 deg; lift = the slotted row's PA-18 calibration, cd 0.090), appended LAST to
+  GEN_FLAPS + GEN_FLAP_TRAVEL + the Flaps tile. VGs only, two carbon blades 2.03 m, 29 in tyres, 91 L wing roots, a 7 in
+  glass PFD/MFD centre + round ASI/ALT/VSI. 4 / 3 / 4 vs the SS (STOL Cub 1 / 1 / 9): landing roll (handbook) 75-96 m vs 75
+  now inside, TO 37-60 m vs 60 ft (thin). Gaps: no round engine-monitor row, no aluminium-spar + fabric wing material.
+
+- CARBON CUB SS, second pass (the user, same day): the wing on a new `fabricAlu` surface row (aluminium spar + fabric,
+  the PA-18's; the seventh stop of wgCons / finCons / stCons, TECH_SURF_ROW, a "Wing structure" tile row twin of wgCons)
+  -> empty 428 kg (388-428). real_check: `tech.runup` (the user's STOL take-off: full flap, brakes + stick back to full rpm,
+  power eased if the tail lifts) and `tech.stopShort` by the gear (taildragger = FAA-H-8083-3C ch. 14: three-point, stick
+  full back, brakes firm from touchdown only while the tail is down, flaps down; tricycle = the 172 POH's flaps-up stop),
+  both in the carboncub handbook schedule. NOSE-OVER: a roll-out under -10 deg pitch is flagged, dropped as a landing roll
+  and from the sweep's best (the old handbook law stood the SS on its nose at -19 deg; the earlier "inside 72-86 m" was
+  that). SS 5 / 2 / 4 (STOL Cub re-flown 1 / 1 / 9). Gates: TECH / ENGCONFIG / GEN red exactly as on the base b9ce807bc
+  (checked side by side); the neutral engine dials are kept out of the cert keys (GEN_CAGE_ROW_NEUTRAL). Open: the Cub /
+  Jodel handbook rows on the tailwheel stop (quick check: Cub 90 m vs 88, Jodel 80 vs 150), the game pilot's three-point
+  touchdown and brake law.
+
+- CARBON CUB SS to its envelope (9 Nov, the user): the take-off reference 40-50 m (the user's ruling, replacing the single-
+  source 60 ft), the wing at the real size (10.44 m, 16.6 m2; was 17.6) -> 10 / 0 / 1, 99 / 100. Not taken: the drawn cowl
+  bulges do not count in the drag model's cover (the heads billed as bare, 0.083 m2) - a physics decision. The Jodel on
+  heel drums (practical-cerf): handbook landing 165 / 165 / 151 m against the book's 150 (no limit: gave up / 157 / 133).
+  README sections 9-10.
 ## PROPER-COWLS READY 1 - THE CLOUD COWL METHOD ON MASTER, SAVED DRAWS UNCHANGED (CABIN-CRAFT, 9 Nov 2026)
 
 - **What**: the cloud session's cowl method (claude/pensive-wozniak-ib8yjq, rounds 1-9) re-applied: the method's rows in _cage_cowl / _cowl_gen / _cowl_rows / _cage_parts / _cage_eng / _eng_mesh / _eng_page, the Tiger Moth design's new cowl, and the method's source tools/cowl_study/straight.js + clear.js (nothing calls it yet; READY 2's _cowl_rule.js routes every cowl generator through it, the user's 9 Nov rule).

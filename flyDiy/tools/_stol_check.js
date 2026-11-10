@@ -190,6 +190,13 @@ console.log('1. OFF IS THE BITS (' + Object.keys(CARDS).length + ' cards against
         ok(Object.keys(C.genStolCageOff(Object.assign({}, HULL_ROW_OFF))).length === 0,
            'the hull-types rows\' "off" here is the core\'s (genStolCageOff drops all ' + Object.keys(HULL_ROW_OFF).length + ')');
       for (const r of Object.keys(HULL_ROW_OFF)) if (J2.cage && J2.cage[r] === HULL_ROW_OFF[r]) delete J2.cage[r];
+      // REAL-FIGURES-3: the engine's tune and build dials (eng_bmepK, eng_massK) the load door writes at their neutral 1
+      // (the core's GEN_CAGE_ROW_NEUTRAL, which genStolCageOff drops) go as the STOL and hull rows go
+      const NEU = C.GEN_CAGE_ROW_NEUTRAL || {};
+      if (k === Object.keys(BUILDS)[0])
+        ok(Object.keys(NEU).length > 0 && Object.keys(C.genStolCageOff(Object.assign({}, NEU))).length === 0,
+           'the neutral engine dials here are the core\'s (genStolCageOff drops all ' + Object.keys(NEU).length + ')');
+      for (const r of Object.keys(NEU)) if (J2.cage && J2.cage[r] === NEU[r]) delete J2.cage[r];
       const sameSpec = atDef && JSON.stringify(J2) === JSON.stringify(B.spec);
       // G2827: EVERY key the game hashes a build by is master's - the certificate (against the page's defaults), the
       // parked fleet's bakes (no defaults: parked.js fleetSig), the certificate store's (genCertKey), the procurement's
