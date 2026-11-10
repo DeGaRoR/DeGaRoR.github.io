@@ -20,7 +20,9 @@ const C = require(path.join(__dirname, 'flight_core.js'));
 const ROOT = path.join(__dirname, '..');
 const fails = [];
 const check = (ok, label) => { console.log((ok ? '  ok   ' : '  FAIL ') + label); if (!ok) fails.push(label); };
-const load = f => JSON.parse(fs.readFileSync(path.join(ROOT, f), 'utf8')).spec;
+// THROUGH THE LOAD DOOR (GATE JOINPARITY: no tool flies a validated build raw): the spec the game flies
+const LB = require(path.join(__dirname, '_load_build.js'));
+const load = f => LB.gameSpec(JSON.parse(fs.readFileSync(path.join(ROOT, f), 'utf8')));
 const clone = o => JSON.parse(JSON.stringify(o));
 const BUILDS = { cub: 'builds/cub_2026-09-20_corrected.json', cessna: 'builds/cessna172_2026-09-20_corrected.json',
                  ruckus: 'builds/candidates/ruckus_std_2026-11-09.json' };
