@@ -549,6 +549,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     let seed = (o.seed * 7919 + 17) >>> 0; const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
     const rr = (a, b) => a + (b - a) * rnd();
     const band = Math.max(o.band, 0.6), N = Math.min(3000, Math.round(o.len * 1.4));
+    const padL = typeof STRIP_MICRO !== 'undefined' && STRIP_MICRO.padOf ? STRIP_MICRO.padOf(o.id) : 0;
     const rows = [];
     for (let i = 0; i < N * 3 && rows.length < N; i++) {
       const u = rr(-2, o.len + 2), v = (rnd() < 0.5 ? -1 : 1) * rr(o.wid / 2 + 0.2, o.wid / 2 + band + 1.5);
@@ -559,6 +560,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // the ground under the DEM lake's plane
       { const wy = waterDrawY(w[0], w[1]); if (wy !== null && Number.isFinite(wy) && wy > world.terrainH(w[0], w[1]) - 0.05) continue; }
       if (rnd() > 0.35 + 0.65 * Math.min(1, d / band)) continue;
+      // (DIRT-STRIP, the Pilot 10 Nov: a bumpy strip's turnaround pads - the C172's U-turn swings 0.3 m past the edge there) no border
+      // stone within 1.2 m of the edge along a pad (the stones are drawn only; nothing felt, but no wheel should run through one)
+      if (padL > 0 && d < 1.2 && (u < padL || u > o.len - padL)) continue;
       const size = rr(0.07, 0.3) * (rnd() < 0.05 ? 2.5 : 1);
       // G1003 (A6-GROUND, the playtest: "rocks and debris lie on the taxiway and runway"): not on ANOTHER pavement, nor
       // within its own size + 0.5 m of one - a crossing strip, a taxiway, an apron butting on this band (Jolene's 24 m
