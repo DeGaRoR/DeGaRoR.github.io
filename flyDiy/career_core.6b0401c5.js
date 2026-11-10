@@ -5186,7 +5186,7 @@ const PROCURE_ENGINES = {
 // editor writes), as the A-65's dict + each engine's differences. Without them the panel's load audit reads the old
 // engine's dials under the new index and turns the engine "custom" (measured on the page, G2280); GATE PROCURE holds
 // every dict byte-equal to applyEngPreset's
-const PROCURE_ENG_BASE = {engPower: 0, eng_tStyle: 0, eng_tCanD: 0.4, eng_tCanL: 1.05, eng_gearK: 1.2, eng_flatK: 1.26, eng_tRpm: 1900, eng_stackStyle: 0, eng_eStyle: 0, eng_canD: 0.0278, eng_canL: 0.026, eng_rpm: 2300, eng_volts: 11.1, eng_eFins: 0, eng_escOn: 1, eng_leads: 1, eng_plumb: 1, eng_liquid: 0, eng_geared: 0, eng_arch: 0, eng_cyl: 2, eng_radialRows: 1, eng_inlineAim: 1, eng_vee: 60, eng_bore: 0.0983, eng_stroke: 0.0921, eng_stagger: 0.5, eng_twoStroke: 0, eng_blower: 0, eng_boost: 1, eng_critAlt: 0, eng_finN: 14, eng_finR: 1.34, eng_headFins: 8, eng_rockerW: 0.95, eng_rockerH: 0.66, eng_rockerR: 0.24, eng_rockerBoss: 0.05, eng_rockerBossW: 0.52, eng_rodPos: 0, eng_finShape: 0, eng_rockerSpan: 0, eng_baseFins: 1, eng_injected: 0, eng_airStyle: 0, eng_airbox: 1, eng_intake: 1, eng_exStyle: 1, eng_exDrop: 1.5, eng_exPair: 0, eng_exOut: 0, eng_exAim: 0, eng_exOutX: 0, eng_exOutY: 0, eng_exOutZ: 0, eng_leadR: 0.034, eng_mags: 1, eng_genOn: 1, eng_oilFill: 1, eng_radX: 0, eng_radY: 0.55, eng_radZ: 0.55, eng_radW: 2, eng_radH: 0.75, eng_radD: 0.42, eng_starter: 1, eng_oilFilter: 1, eng_battOn: 1, eng_ecuOn: 0, eng_fuelX: 0, eng_fuelY: 0, eng_thrX: 0, eng_thrY: 0, eng_mount: 1, eng_mountX: 1, eng_mountGap: 0.85, eng_mountR: 1, eng_fwSpread: 1.5, eng_screws: 1};
+const PROCURE_ENG_BASE = {engPower: 0, eng_tStyle: 0, eng_tCanD: 0.4, eng_tCanL: 1.05, eng_gearK: 1.2, eng_flatK: 1.26, eng_tRpm: 1900, eng_stackStyle: 0, eng_eStyle: 0, eng_canD: 0.0278, eng_canL: 0.026, eng_rpm: 2300, eng_volts: 11.1, eng_eFins: 0, eng_escOn: 1, eng_leads: 1, eng_plumb: 1, eng_liquid: 0, eng_geared: 0, eng_arch: 0, eng_cyl: 2, eng_radialRows: 1, eng_inlineAim: 1, eng_vee: 60, eng_bore: 0.0983, eng_stroke: 0.0921, eng_stagger: 0.5, eng_twoStroke: 0, eng_blower: 0, eng_boost: 1, eng_critAlt: 0, eng_bmepK: 1, eng_massK: 1, eng_finN: 14, eng_finR: 1.34, eng_headFins: 8, eng_rockerW: 0.95, eng_rockerH: 0.66, eng_rockerR: 0.24, eng_rockerBoss: 0.05, eng_rockerBossW: 0.52, eng_rodPos: 0, eng_finShape: 0, eng_rockerSpan: 0, eng_baseFins: 1, eng_injected: 0, eng_airStyle: 0, eng_airbox: 1, eng_intake: 1, eng_exStyle: 1, eng_exDrop: 1.5, eng_exPair: 0, eng_exOut: 0, eng_exAim: 0, eng_exOutX: 0, eng_exOutY: 0, eng_exOutZ: 0, eng_leadR: 0.034, eng_mags: 1, eng_genOn: 1, eng_oilFill: 1, eng_radX: 0, eng_radY: 0.55, eng_radZ: 0.55, eng_radW: 2, eng_radH: 0.75, eng_radD: 0.42, eng_starter: 1, eng_oilFilter: 1, eng_battOn: 1, eng_ecuOn: 0, eng_fuelX: 0, eng_fuelY: 0, eng_thrX: 0, eng_thrY: 0, eng_mount: 1, eng_mountX: 1, eng_mountGap: 0.85, eng_mountR: 1, eng_fwSpread: 1.5, eng_screws: 1};
 const PROCURE_ENG_DIALS = {
   a65: {},
   o200: {eng_rpm: 2750, eng_bore: 0.1031875, eng_stroke: 0.098425},
@@ -8330,7 +8330,7 @@ const TECH_SEGS = {
 const TECH_TABLE = {
   // ---- materials
   'mat:tubeFabric': 1, 'mat:wood': 1, 'mat:alloy': 2, 'mat:aluTube': 2, 'mat:carbon': 3, 'mat:glass': 3,
-  'surf:fabric': 1, 'surf:steel': 1, 'surf:alloy': 2, 'surf:aluFabric': 2, 'surf:carbon': 3, 'surf:glass': 3,
+  'surf:fabric': 1, 'surf:steel': 1, 'surf:alloy': 2, 'surf:aluFabric': 2, 'surf:carbon': 3, 'surf:glass': 3, 'surf:fabricAlu': 2,
   // ---- engines
   'eng:a65_sensenich74': 1, 'eng:vw2180_wood': 1, 'eng:rotax277_pusher': 1, 'eng:rotax503_wood': 1, 'eng:rotax582_ivo': 1,
   'eng:jabiru2200_std': 1, 'eng:rotax912_warp': 1, 'eng:o200_eprops': 1, 'eng:mikron3_wood': 1, 'eng:gipsymajor1_wood': 1,
@@ -8358,7 +8358,7 @@ const TECH_TABLE = {
   'av.gps:none': 1, 'av.gps:portable': 3, 'av.gps:panel': 3, 'av.gps:glass': 3, 'av.gps:flat': 3, 'av.gps:flatPair': 3,   // G2815
   // ---- gear
   'gear:taildragger': 1, 'gear:floats': 1, 'gear:tricycle': 2, 'gear:hull': 2,
-  'susp:bungee': 1, 'susp:spring': 1, 'susp:oleo': 1,
+  'susp:bungee': 1, 'susp:spring': 1, 'susp:oleo': 1, 'susp:lever': 2,   // (WILGA-GEAR: the trailing-link oleo leg, the tricycle's stage)
   'fair:glass': 1, 'fair:alloy': 2, 'fair:carbon': 3,
   // ---- canopy / glazing
   'glaze:acrylic': 1, 'glaze:glass': 1, 'glaze:polycarbonate': 2,
@@ -8501,7 +8501,7 @@ function careerTechUnlock(doc, seg) {
 // (_cage_join.js: intCons' order, the surfaces' CONS4 after 'as the aeroplane', glazeMat, the canopy tile, fairCons, the
 // nacelle mount, the powertrain). Two rows read the page's tables, handed in by the editor: `engPreset` (the row's
 // names through CAGE_JOIN_ENGINES) and `cw_material` (CAGE_JOIN_PROP_MATS). GATE TECH holds every list to the join.
-const TECH_SURF_ROW = [null, 'surf:carbon', 'surf:steel', 'surf:fabric', 'surf:alloy', 'surf:aluFabric', 'surf:glass'];
+const TECH_SURF_ROW = [null, 'surf:carbon', 'surf:steel', 'surf:fabric', 'surf:alloy', 'surf:aluFabric', 'surf:glass', 'surf:fabricAlu'];
 const TECH_ROWS = {
   intCons: ['mat:carbon', 'mat:tubeFabric', 'mat:wood', 'mat:alloy', 'mat:aluTube', 'mat:glass'],
   wgCons: TECH_SURF_ROW, w2Cons: TECH_SURF_ROW, finCons: TECH_SURF_ROW, stCons: TECH_SURF_ROW,
@@ -8512,6 +8512,9 @@ const TECH_ROWS = {
   // spec with more than one engine)
   engMount: [null, null, null, 'cfg:twin', 'cfg:twin', 'cfg:twin', 'cfg:twin', 'cfg:twin', null],   // (HULL-B22: 8 the fin)   // (HULL-B15: 7 the tandem)
   engPower: ['fam:piston', 'fam:electric', 'fam:turbine'],
+  // WILGA-GEAR: the mains' leg row - only the trailing-link option is gated (the other four keep their reading by the
+  // spec's suspension, unchanged)
+  s1Leg: [null, null, null, null, 'susp:lever'],
 };
 // a row's keys, per option index; ctx: { names (the row's own option names), engines (CAGE_JOIN_ENGINES), propMats
 // (CAGE_JOIN_PROP_MATS) } -> [key | null] or null (a row the mask does not read)
@@ -8528,6 +8531,7 @@ function techKeysOfPatch(p) {
   const out = [];
   if (!p || typeof p !== 'object') return out;
   if (p.gear && TECH_GEAR_TYPES.includes(p.gear.type)) out.push('gear:' + p.gear.type);
+  if (p.gear && p.gear.suspension === 'lever') out.push('susp:lever');                // WILGA-GEAR (the design tile's option)
   if (p.systems && p.systems.fit) out.push('fit:' + p.systems.fit);
   if (Array.isArray(p.engines)) { for (const e of p.engines) if (e && e.type) out.push('eng:' + e.type); if (p.engines.length > 1) out.push('cfg:twin'); }
   if (p.fuselage && p.fuselage.material) out.push('mat:' + p.fuselage.material);
