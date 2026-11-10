@@ -3521,10 +3521,12 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     } else if (BAY.on === 'wing') {
       // the old 'wing' station was the ROOT spar node and 'panel' the next one
       // out; a null `along` reproduces that rather than picking a midpoint.
+      // (PETREL-LS: the second plane's panel is an outboard bay too - it sat at the root; a leading-edge bay, the
+      // span's middle, on the front spar alone)
       const frac = v.along != null ? v.along
-                 : (v.bay === 'wingPanel' ? 0.34 : 0);
+                 : (v.bay === 'wingPanel' || v.bay === 'wing2Panel' ? 0.34 : BAY.le ? 0.17 : 0);
       const [wl, wr] = wingPair(frac, BAY.plane || 0);
-      const rr = wingPairRear(frac, BAY.plane || 0);
+      const rr = BAY.le ? null : wingPairRear(frac, BAY.plane || 0);
       pair = rr ? [[wl, 0.3], [wr, 0.3], [rr[0], 0.2], [rr[1], 0.2]]
                 : [[wl, 0.5], [wr, 0.5]];
     } else {
