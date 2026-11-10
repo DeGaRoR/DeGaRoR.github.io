@@ -621,7 +621,11 @@ const MANIFEST = {
     // stands its planes in app.js's REF_MOUNT.bpGroup.
     // blueprint_library.js before it (G573.2): the prepared sheets, a plain
     // table (window.BLUEPRINT_LIBRARY) that blueprint.js reads lazily.
+<<<<<<< HEAD
               'garage.js', 'plane_thumb.js', 'plane_fiche.js', 'fiche_board.js', 'storage_ui.js', 'workshop.js', 'plaque.js', 'stickers.js', 'bench_worker.js', 'bench.js', 'accept_rec.js', 'refplane.js', 'blueprint_library.js', 'blueprint.js',
+=======
+              'wing_struct.js', 'garage.js', 'plane_thumb.js', 'plane_fiche.js', 'storage_ui.js', 'workshop.js', 'plaque.js', 'stickers.js', 'bench_worker.js', 'bench.js', 'accept_rec.js', 'refplane.js', 'blueprint_library.js', 'blueprint.js',
+>>>>>>> origin/a0/wing-structure-eol
               'sim_host.js', 'sim_view.js', 'sim_link.js', 'sheet_link.js',
     // plane_thumb.js (G3800, the user's VIGNETTE) after garage.js: window.PLANE_THUMB, the plane cards' side profile -
     // drawn by the page's renderer once a saved build stands still (garage.js saveAs / loadSlot), the stock / candidate

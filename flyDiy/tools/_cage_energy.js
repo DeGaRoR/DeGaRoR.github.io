@@ -2292,6 +2292,146 @@ function matWet(bad) {
   wetMat.emissiveIntensity = bad ? 0.45 : 0;
   return wetMat;
 }
+// THE WING TANK, SEEN (WING-STRUCTURE, the user 9 Nov: "the tank on the cessna ... its texture looks wrong, we could
+// give its material, model and texture a little more love"). It was the simple one (buried between the spars, nobody
+// saw it); the fiche's cutaway and the garage's see-inside show it now. Its SHELL, when it is bare alloy (the welded
+// tank's own, FINISH_OF.alu - the default): AEROSKIN's alclad in its hardware branch (no surface field: triplanar), the
+// sheet the aeroplane's own alloy skin wears, the tank's tint kept - the vessel set's scanned alu at 0.4 m a repeat read as
+// a dark mottle over a 2 m top. Any other finish, and the red of a tank that does not fit, stay the vessel library's.
+function wingShellMat(bad, i, v) {
+  const A = (typeof window !== 'undefined' && window.AEROSKIN) || null;
+  if (bad || finishOf(v) !== 'alu' || !A || !A.aeroMaterial) return slotMat('shell', bad, i, v);
+  const t = tintOf(v), tint = typeof t === 'string' && /^#?[0-9a-f]{6}$/i.test(t) ? parseInt(t.replace('#', ''), 16) : null;
+  // (alclad, not bareAlu: a welded tank's sheet is satin - bareAlu's 0.9 metal mirrored the room's sky on the end plates,
+  // read as a blue patch through the closing rib's holes, the user 10 Nov)
+  // (and no clear coat: a tank is not varnished - alclad's coat still mirrored the sky on the end plates at a grazing eye)
+  return A.aeroMaterial(THREE, { finish: 'alclad', tint: tint != null && tint !== FINISH.alu.col ? tint : null, ccK: 0,
+                                 surf: 0, fieldM: 1, side: THREE.DoubleSide, opacity: 1, inside: 0, decals: 0 });
+}
+// ...and WHERE IT IS DRAWN (the user 10 Nov: "why is the tank side bluish, with wavy patterns? ... does it intersect a
+// spar?" - it did: wingPlace lays its walls on the spar CENTRE lines, inside the drawn spars, its ends on the structure's
+// closing ribs, its top on the stringers - coplanar faces fighting, the blue fuel showing through). A copy of the side
+// record for the DRAWING only (the litres, the bay and everything the join reads stay the record's): the walls on the
+// spars' inner faces (WING_STRUCT.sparFaces: the kind's drawn widths at this chord), the ends 12 mm in, the top and bottom
+// 14 mm in. A page without the structure module keeps 2 cm / 1.5 cm off the lines
+function wingTankClear(s) {
+  const W = (typeof window !== 'undefined' && window.CAGE_WING) || null, WS = (typeof window !== 'undefined' && window.WING_STRUCT) || null;
+  let faces = null;
+  try { if (W && W.def && WS && WS.sparFaces) { let full = null; try { full = window.GARAGE_SPEC.get(); } catch (e) {}
+    faces = WS.sparFaces(W.def, 0, null, full); } } catch (e) { faces = null; }
+  const P = (W && W.def && W.def.parts) || {}, sf = P.sparFront != null ? P.sparFront : 0.15, sr = P.sparRear != null ? P.sparRear : 0.65;
+  const off = (zF, zR) => { const c = MathL.abs(zF - zR) / MathL.max(0.05, sr - sf); return faces ? faces(c) : { front: 0.02, rear: 0.015 }; };
+  const sg = s.x1 >= s.x0 ? 1 : -1, END = 0.012, VT = 0.014, dir = (s.zF0 - s.zR0) >= 0 ? 1 : -1;
+  const o = Object.assign({}, s, { x0: s.x0 + sg * END, x1: s.x1 - sg * END });
+  const a = off(s.zF0, s.zR0), b = off(s.zF1, s.zR1);
+  o.zF0 = s.zF0 - dir * a.front; o.zR0 = s.zR0 + dir * a.rear; o.zF1 = s.zF1 - dir * b.front; o.zR1 = s.zR1 + dir * b.rear;
+  o.d = MathL.max(0.02, s.d - 2 * VT);
+  if (Array.isArray(s.ribs) && s.ribs.length >= 2) {
+    const lo = MathL.min(o.x0, o.x1), hi = MathL.max(o.x0, o.x1);
+    o.ribs = s.ribs.map(rb => {
+      const zs = rb.pts.map(p => p[0]), zMax = MathL.max(...zs), zMin = MathL.min(...zs), q = off(zMax, zMin);
+      const zHi = dir > 0 ? zMax - q.front : zMax - q.rear, zLo = dir > 0 ? zMin + q.rear : zMin + q.front;
+      return { x: MathL.max(lo, MathL.min(hi, rb.x)), pts: rb.pts.map(p => { const yT = p[1] - VT, yB = p[2] + VT;
+        return [MathL.max(zLo, MathL.min(zHi, p[0])), MathL.max(yT, yB + 0.01), MathL.min(yB, yT - 0.01)]; }) };
+    });
+  }
+  return o;
+}
+// ...and THE FUEL INSIDE IT, its ends drawn d in from the end plates (WING-STRUCTURE, the user 10 Nov: the loft's inset
+// is round the section only - the fuel's ends lay ON the end plates, the see-through blue fighting them: the bluish wavy
+// patch in the closing rib's holes). The outermost sections moved d toward the tank's middle, never past their neighbour
+function fuelSpan(s, d) {
+  const R = s.ribs, n = R.length, sg = R[n - 1].x >= R[0].x ? 1 : -1, o = R.slice();
+  const a = R[0].x + sg * d, b = R[n - 1].x - sg * d;
+  if ((b - a) * sg <= 0 || (n > 2 && ((a - R[1].x) * sg > 0 || (R[n - 2].x - b) * sg > 0))) return R;
+  o[0] = Object.assign({}, R[0], { x: a }); o[n - 1] = Object.assign({}, R[n - 1], { x: b });
+  return o;
+}
+// ...and ITS HARDWARE, as a welded wing tank has it (a 172's, a PA-18's): the end flanges (the seams the end plates are
+// welded on), the filler neck with its cap at the top outboard end, the sump drain at the lowest inboard corner, the
+// outlet fitting and its line running inboard, the vent line, two hold-down straps over the top. Off its own outline:
+// the bay's sections where the wing was probed (s.ribs: [z, yTop, yBot] rows), its box otherwise. Garage and fiche only:
+// every piece is a marker (edMarker - the join never flies it), in the vessel library's own hardware / seal / cap slots.
+function wingTankDress(group, s, i, bad, v) {
+  const T3 = THREE, sg = s.x1 >= s.x0 ? 1 : -1, nm = 'edVessel_' + i + (s.sign > 0 ? 'R' : 'L') + '_dress';
+  // the outline at a span station x: [[z, y], ...] round the section (top fore -> aft, bottom aft -> fore)
+  const outline = x => {
+    const R = s.ribs;
+    if (R && R.length >= 2) {
+      let k = 0; while (k < R.length - 2 && (x - R[k + 1].x) * sg > 0) k++;
+      const a = R[k], b = R[k + 1], t = MathL.max(0, MathL.min(1, (x - a.x) / ((b.x - a.x) || 1)));
+      const n = MathL.min(a.pts.length, b.pts.length), top = [], bot = [];
+      for (let j = 0; j < n; j++) { const pa = a.pts[j], pb = b.pts[j];
+        const z = pa[0] + (pb[0] - pa[0]) * t, yT = pa[1] + (pb[1] - pa[1]) * t, yB = pa[2] + (pb[2] - pa[2]) * t;
+        top.push([z, yT]); bot.push([z, yB]); }
+      return top.concat(bot.reverse());
+    }
+    const f = (x - s.x0) / ((s.x1 - s.x0) || 1), zF = s.zF0 + (s.zF1 - s.zF0) * f, zR = s.zR0 + (s.zR1 - s.zR0) * f;
+    const y0 = s.y - s.d / 2, y1 = s.y + s.d / 2;
+    return [[zF, y1], [zR, y1], [zR, y0], [zF, y0]];
+  };
+  const pos = [], idx = [];
+  const tube = (pts, r, n, closed) => {   // a round section swept along points
+    const base = pos.length / 3, ring = pts.length;
+    for (let j = 0; j < ring; j++) {
+      const a = pts[j], b = pts[closed ? (j + 1) % ring : MathL.min(ring - 1, j + 1)], c = pts[closed ? (j - 1 + ring) % ring : MathL.max(0, j - 1)];
+      let tx = b[0] - c[0], ty = b[1] - c[1], tz = b[2] - c[2]; const L = MathL.hypot(tx, ty, tz) || 1; tx /= L; ty /= L; tz /= L;
+      let ux = 0, uy = 1, uz = 0; if (MathL.abs(ty) > 0.9) { ux = 1; uy = 0; }
+      let px = uy * tz - uz * ty, py = uz * tx - ux * tz, pz = ux * ty - uy * tx; const P = MathL.hypot(px, py, pz) || 1; px /= P; py /= P; pz /= P;
+      const qx = ty * pz - tz * py, qy = tz * px - tx * pz, qz = tx * py - ty * px;
+      for (let k = 0; k < n; k++) { const an = 2 * MathL.PI * k / n, cs = MathL.cos(an) * r, sn = MathL.sin(an) * r;
+        pos.push(a[0] + px * cs + qx * sn, a[1] + py * cs + qy * sn, a[2] + pz * cs + qz * sn); }
+    }
+    for (let j = 0; j < (closed ? ring : ring - 1); j++) for (let k = 0; k < n; k++) {
+      const a = base + j * n + k, b = base + ((j + 1) % ring) * n + k, c = base + ((j + 1) % ring) * n + (k + 1) % n, d = base + j * n + (k + 1) % n;
+      idx.push(a, b, c, a, c, d); }
+  };
+  const mesh = (slot, name) => {
+    if (!idx.length) return;
+    const g = new T3.BufferGeometry();
+    g.setAttribute('position', new T3.Float32BufferAttribute(pos.slice(), 3)); g.setIndex(idx.slice()); g.computeVertexNormals();
+    const m = new T3.Mesh(g, slotMat(slot, bad)); m.name = nm + '_' + name; m.userData.edMarker = 1; group.add(m);
+    pos.length = 0; idx.length = 0;
+  };
+  const at = (x, z, y) => [x, y, z];
+  const L = MathL.abs(s.x1 - s.x0), xa = s.x0 + sg * 0.004, xb = s.x1 - sg * 0.004;
+  // THE END PLATES (the user 10 Nov: the bay's loft is open at its ends - the blue fuel showed through the closing rib's
+  // holes): each end's outline filled, in the shell's own material
+  { const ends = []; for (const x of [s.x0, s.x1]) { const O = outline(x), n = O.length, c = O.reduce((q, p) => [q[0] + p[0] / n, q[1] + p[1] / n], [0, 0]);
+      const b0 = pos.length / 3; pos.push(x, c[1], c[0]); for (const p of O) pos.push(x, p[1], p[0]);
+      for (let j = 0; j < n; j++) idx.push(b0, b0 + 1 + j, b0 + 1 + (j + 1) % n); ends.push(1); }
+    if (idx.length) { const g = new T3.BufferGeometry(); g.setAttribute('position', new T3.Float32BufferAttribute(pos.slice(), 3)); g.setIndex(idx.slice()); g.computeVertexNormals();
+      const m = new T3.Mesh(g, wingShellMat(bad, i, v)); m.name = nm + '_ends'; m.userData.edMarker = 1; group.add(m); }
+    pos.length = 0; idx.length = 0; }
+  // the end flanges (a welded lip round each end plate) and two hold-down straps over the top, rubber-lined
+  for (const x of [xa, xb]) tube(outline(x).map(p => at(x, p[0], p[1])), 0.006, 6, true);
+  mesh('hard', 'flange');
+  const out = (x, o) => { const O = outline(x), n = O.length, c = O.reduce((q, p) => [q[0] + p[0] / n, q[1] + p[1] / n], [0, 0]);
+    return O.map(p => { const dz = p[0] - c[0], dy = p[1] - c[1], l = MathL.hypot(dz, dy) || 1; return [p[0] + o * dz / l, p[1] + o * dy / l]; }); };
+  for (const f of [0.3, 0.7]) { const x = s.x0 + (s.x1 - s.x0) * f; tube(out(x, 0.006).map(p => at(x, p[0], p[1])), 0.005, 4, true); }
+  mesh('hard', 'straps');
+  for (const f of [0.3, 0.7]) { const x = s.x0 + (s.x1 - s.x0) * f; tube(out(x, 0.002).map(p => at(x, p[0], p[1])), 0.0035, 4, true); }
+  mesh('seal', 'strapPads');
+  // the filler neck at the top, outboard, mid-chord; its cap; the vent line from the top outboard corner
+  { const x = s.x1 - sg * MathL.min(0.15, 0.2 * L), O = outline(x), topPts = O.slice(0, MathL.max(2, O.length >> 1));
+    const z = 0.5 * (topPts[0][0] + topPts[topPts.length - 1][0]), y = topPts.reduce((m, p) => MathL.max(m, p[1]), -1e9);
+    tube([at(x, z, y - 0.01), at(x, z, y + 0.045)], 0.032, 14, false);
+    mesh('hard', 'neck');
+    tube([at(x, z, y + 0.045), at(x, z, y + 0.06)], 0.038, 14, false);
+    mesh('mark', 'cap');
+    const vz = topPts[topPts.length - 1][0], vy = topPts[topPts.length - 1][1];
+    tube([at(x + sg * 0.06, vz, vy), at(x + sg * 0.06, vz, vy + 0.03), at(x + sg * 0.25, vz, vy + 0.035)], 0.0045, 6, false);
+    mesh('hard', 'vent'); }
+  // the sump drain at the lowest point of the inboard end, the outlet fitting and its line inboard toward the root
+  { const x = s.x0 + sg * 0.06, O = outline(x), bot = O.slice(O.length >> 1);
+    let lo = bot[0]; for (const p of bot) if (p[1] < lo[1]) lo = p;
+    tube([at(x, lo[0], lo[1] + 0.005), at(x, lo[0], lo[1] - 0.028)], 0.009, 10, false);
+    const fr = bot[bot.length - 1];   // the bottom's fore corner
+    tube([at(s.x0 + sg * 0.02, fr[0] - 0.02, fr[1] + 0.02), at(s.x0 - sg * 0.04, fr[0] - 0.02, fr[1] + 0.02)], 0.012, 10, false);
+    mesh('hard', 'fittings');
+    tube([at(s.x0 - sg * 0.04, fr[0] - 0.02, fr[1] + 0.02), at(s.x0 - sg * 0.30, fr[0] - 0.03, fr[1] + 0.01), at(s.x0 - sg * 0.55, fr[0] - 0.03, fr[1] - 0.02)], 0.006, 8, false);
+    mesh('seal', 'line'); }
+}
 // the fuel's own look: avgas is dyed blue, mogas is straw
 let fuelMats = {};
 function fuelMat() {
@@ -2585,18 +2725,20 @@ function drawResults(group, ctx, results) {
       // the panel just outboard of the centre section, and that is all. It is
       // buried between the spars where nothing can see it, so it gets real
       // outward normals and metre-true uv and no hardware.
-      for (const s of r.sides) {
+      for (const s0 of r.sides) {
+        const s = wingTankClear(s0);   // WING-STRUCTURE: drawn clear of the spars' faces, the closing ribs, the stringers
         // G445.2: THE SPAR BAY'S OWN SECTION where the wing could be measured
         // (VESSEL_GEN.wingRibs off the wing layer's probes): the loft, and
         // the fuel inside it cut flat at the slider's level. The box below
         // is what a wing with no probe still gets.
+        if (!wet && EN.kind !== 'battery') wingTankDress(group, s, i, bad, r.v);   // WING-STRUCTURE: its hardware (the cutaway shows it)
         if (s.ribs && s.ribs.length >= 2 && VM.wingLoft) {
-          const mat = wet ? matWet(bad) : slotMat('shell', bad, i, r.v);
+          const mat = wet ? matWet(bad) : wingShellMat(bad, i, r.v);
           if (!wet)
             slotMesh(group, VM.wingLoft(s.ribs, tileOf(finishOf(r.v))), mat,
                      'edVessel_' + i + (s.sign > 0 ? 'R' : 'L'), [0, 0, 0], 0);
           if (EN.kind !== 'battery' && VIEW.fill > 0.02)
-            slotMesh(group, VM.wingLoft(s.ribs, 0.4, { fill: MathL.min(1, VIEW.fill), inset: wet ? 0.0 : 0.008 }),
+            slotMesh(group, VM.wingLoft(wet ? s.ribs : fuelSpan(s, 0.006), 0.4, { fill: MathL.min(1, VIEW.fill), inset: wet ? 0.0 : 0.008 }),
                      wet ? matWet(bad) : fuelMat(),
                      'edFuel_' + i + (s.sign > 0 ? 'R' : 'L'), [0, 0, 0], 0);
           continue;
@@ -2606,7 +2748,7 @@ function drawResults(group, ctx, results) {
           [s.x0, y0, s.zR0], [s.x0, y0, s.zF0], [s.x0, y1, s.zF0], [s.x0, y1, s.zR0],
           [s.x1, y0, s.zR1], [s.x1, y0, s.zF1], [s.x1, y1, s.zF1], [s.x1, y1, s.zR1],
         ];
-        const mat = wet ? matWet(bad) : slotMat('shell', bad, i, r.v);
+        const mat = wet ? matWet(bad) : wingShellMat(bad, i, r.v);
         if (!wet)
           slotMesh(group, VM.wingBox(p8, tileOf(finishOf(r.v))), mat,
                    'edVessel_' + i + (s.sign > 0 ? 'R' : 'L'), [0, 0, 0], 0);
