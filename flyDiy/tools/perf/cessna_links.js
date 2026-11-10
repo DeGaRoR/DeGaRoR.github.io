@@ -19,7 +19,7 @@ const PORT = +opt('port', 0), SLOW = +opt('slow', 1000), DUMP = opt('dump', null
 const UDD = path.resolve(opt('udd', path.join(os.tmpdir(), 'cl' + Date.now().toString(36).slice(-5))));
 const LOADS = opt('builds', 'metal,metal,metal').split(',');
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-const FLY_SEC = +opt('fly-sec', 15), CK = argv.includes('--ck'), HIST = opt('hist', 'ProgramCache').split(',');
+const FLY_SEC = +opt('fly-sec', 15), SETTLE = +opt('settle', -1), CK = argv.includes('--ck'), HIST = opt('hist', 'ProgramCache').split(',');
 // BOOT-PROGRAMS (A0 9 Nov; BOOT-PROGRAMS-2026-11-03: ~90 links a nav of a source the same load already linked, same context,
 // the first program still live = three keyed one source twice): per source linked more than once in a load, the cacheKeys of
 // its programs (renderer.info.programs: the GL program -> three's WebGLProgram), cut to the part that differs
@@ -69,6 +69,10 @@ const HASH = `(function(){ if (window.__CL) return; var C = window.__CL = { ln: 
     const b = ONE ? (b1 = b1 || await MB.browser(UDD)) : await MB.browser(UDD);
     const l = await b.load(BASE + (qs ? '?' + qs : ''), MB.preScript(B.build, null, B.patch) + '\n' + HASH);
     await sleep(3000);   // the garage's own links settle
+    // --settle N (WARM-CACHE, 10 Nov): before the reading, wait until no program is still linking (renderer.info.programs, isReady), up to
+    // 120 s, then N s more - the last links' binaries reach Chrome's program cache before the browser closes (MB_CLOSE_WAIT: the close's wait)
+    if (SETTLE >= 0) { const w0 = Date.now(); for (; Date.now() - w0 < 120000; await sleep(500)) { const n = +(await b.ev('(() => { const r = window.FLIGHT_PROBE && FLIGHT_PROBE.renderer && FLIGHT_PROBE.renderer(); const L = r && r.info && r.info.programs; let n = 0; if (L) for (const p of L) if (p && p.isReady && !p.isReady()) n++; return n; })()', 30000)); if (!(n > 0)) break; }
+      console.log('  settle: links done after ' + ((Date.now() - w0) / 1000).toFixed(1) + ' s, +' + SETTLE + ' s'); await sleep(SETTLE * 1000); }
     const tG = await b.ev('performance.now()');
     let fly = null, frm = null;
     const hangs = [];   // [s after the press, s unanswered] - the roll-out polls the page did not answer in 30 s
