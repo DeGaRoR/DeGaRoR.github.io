@@ -2535,7 +2535,17 @@ function makePilot(sim, def, world, opts) {
     const taxiCap = () => Math.min(A.taxiThrMax ?? 0.85, GP.cap, sim.hydro ? 0.5 : Math.abs(SV.e) > 0.10 ? Math.max(0.5, taxiFF() + 0.15) : 1);
     const taxi = (Vtgt) => SV.taxi(Vtgt, taxiFF(), taxiCap());
     const vsAgl = v => aglG < A.hSafe ? Math.max(v, 1.0) : v;
-    const taxiV = (A.taxiV ?? 5.0) * ST.taxiK;
+    // STRIP-LANE (Pilot, 10 Nov; the DIRT-STRIP re-vet): ON A ROUGH STRIP, TAXI SLOWLY. The Jodel backtracked w3 (chaos 0.2)
+    // at ~8 m/s (the long straight's taxiVFast) and a stone it met put the disc in the ground; a bush strip is taxied at a
+    // walk (FAA-H-8083-3C ch. 2: taxi speed for the surface - "slowly" on rough ground, the tail held down). On a strip whose
+    // aerodrome carries `micro` (chaos > 0), within its length + 40 m of the CG: x (1 - chaos), never under 0.5 (5 m/s ->
+    // 4 at 0.2, 3 at 0.4, 2.5 from 0.5), and no long-straight fast taxi (stripRough, below). Elsewhere taxiV to the bit
+    let stripRough = 0;
+    for (const a of [ap.route.from, ap.route.to]) {
+      const ch = a && a.micro ? +a.micro.chaos : 0;
+      if (ch > 0 && a.len > 0 && Math.hypot(cg[0] - a.x, cg[2] - a.z) < 0.5 * a.len + 40) stripRough = Math.max(stripRough, ch);
+    }
+    const taxiV = (A.taxiV ?? 5.0) * ST.taxiK * (stripRough > 0 ? Math.max(0.5, 1 - stripRough) : 1);
 
     // ---- THE AFCS: modes and selected targets --------------------------------------
     // The phase below SELECTS; `apply` at the end flies. Lateral modes that
@@ -3559,7 +3569,7 @@ function makePilot(sim, def, world, opts) {
           const drMaxG = 0.85 - 0.40 * clamp((Vg - 6) / 4, 0, 1);
           // a long straight (a backtrack) is taxied faster; the bend ahead
           // and the stop still govern through pathSpeed
-          const vMax = L.sRem > 150 && Math.abs(L.ey) < 2 ? Math.min(A.taxiVFast ?? 8, 1.6 * taxiV) : taxiV;
+          const vMax = !(stripRough > 0) && L.sRem > 150 && Math.abs(L.ey) < 2 ? Math.min(A.taxiVFast ?? 8, 1.6 * taxiV) : taxiV;   // (STRIP-LANE: not on a rough strip)
           // G630: groundSteer's gain schedule (speed, mass), and NO rate
           // term: at taxi speed the wheel steers the heading kinematically on
           // either gear, and the rate term only differentiated the contact's
