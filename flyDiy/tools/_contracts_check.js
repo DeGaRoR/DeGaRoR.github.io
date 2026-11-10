@@ -305,7 +305,7 @@ function run(mut) {
       ['c172f', carry('HOME', 'w3', 10, 0), false, 'floats do not land on a runway'],
       ['cub', carry('SEA', 'mk_sea', 10, 0), false, 'wheels do not land on water'],
       ['c172f', carry('SEA', 'mk_sea', 0, 1), true, 'the C172 on floats carries one off the water'],
-      ['c172f', carry('SEA', 'mk_sea', 0, 3), false, 'not three (the lane is 1500 m)'],
+      ['c172f', carry('SEA', 'mk_sea', 0, 3), true, 'three off the 1500 m lane (FLOAT-DECK 10 Nov: "not three" stood on the 1207 m float sheet - the 75-80 deg rest deck; at 243 m loaded by (W/W0)^2 it fits, and the flown solo run off SEA is ~348 m)'],
       ['cub', [{ do: 'land', to: 'nv_strip' }], false, 'no validated design uses East Point (150 m)'],
     ];
     for (const [k, subs, want, label] of CASES) ok(M.contractCanDo(DS[k], subs).ok === want, 'physical: ' + label);
