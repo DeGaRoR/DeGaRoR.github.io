@@ -134,17 +134,21 @@ const REFS = {
   // stall (56 km/h Wikipedia / 37 kt = 68 km/h maker) and quote 1000-1400 fpm: all solo-ish (HULL-B76 found the stall
   // and climb meet at 475 kg, one aboard, half fuel). No flaps on a Petrel.
   petrel: {
-    name: 'Super Petrel LS (Rotax 912 iS)', mtow: 600, empty: 320, fuelL: 90, S: 15.0, powerHP: 100,
-    src: 'maker / Wikipedia EDRA Super Petrel / pilotmix: 320 / 600 kg, stall 56 km/h (Wikipedia) or 37 kt (maker), cruise ~86 kt, VH ~97 kt, climb 1000-1400 fpm, take-off run land 80 m, water 120 m (Wikipedia; a review: water < 400 ft, hard surface 260 ft)',
+    // REPLACED 10 Nov (the user, superpetrelusa.com/specs/specifications - the maker's LS "400 SERIES" page, the 912iS
+    // "Sport" column): the earlier row (Wikipedia 320 kg empty, a 1000-1400 fpm range that mixed the 914 Turbo in) was
+    // wrong on the empty mass by 66 kg and on the climb by the turbo's 400 fpm
+    name: 'Super Petrel LS (Rotax 912 iS, 100 hp)', mtow: 649, empty: 386, fuelL: 91, S: 15.0, powerHP: 100,
+    src: 'Super Petrel USA, LS specifications (superpetrelusa.com/specs/specifications, the 912iS-100 HP column, read 10 Nov 2026): empty 850 lb standard, gross 1,430 lb land / 1,320 lb water, max cruise 100 kt, VNE 113 kt, stall 37 kt, climb 1000 fpm, glide 10:1, take-off ground/water 262/394 ft, landing ground/water 394/328 ft, 24 US gal usable; 20.83 ft long, 8.30 ft high, 29.20 ft span, 161.48 ft2, cabin 46 in',
     poh: { vr: 1.10, vy: 1.35, flapTO: 0, flapLDG: 0, brake: 0.6, note: 'no flaps' },
     rows: {
-      empty: { v: 320, tol: 0.05, src: '320 kg (315 one source, 775 lb a review "as equipped")' },
-      Vs1:   { v: [56, 68], tol: 0.03, kg: 'unknown', flaps: 'up', src: '56 km/h (Wikipedia) to 37 kt (maker)' },
-      V75:   { v: 86 * KT, tol: 0.05, kg: 'unknown', src: 'cruise ~86 kt' },
-      Vmax:  { v: 97 * KT, tol: 0.05, kg: 'unknown', src: 'VH ~97 kt' },
-      roc:   { v: [1000 * FPM, 1400 * FPM], tol: 0.03, kg: 'unknown', src: '1000-1400 fpm' },
-      TO:    { v: [80, 260 * FT], tol: 0.05, kg: 'unknown', flaps: 0, surface: 'paved', src: 'land run 80 m (Wikipedia), 260 ft (review)' },
-      TOW:   { v: [120, 400 * FT], tol: 0.05, kg: 'unknown', surface: 'water', src: 'water run 120 m (Wikipedia), < 400 ft (review)' },
+      empty: { v: 850 * LB, tol: 0.05, src: 'empty weight (standard) 850 lb - maker sheet' },
+      Vs1:   { v: 37 * KT, tol: 0.05, kg: 'unknown', flaps: 'up', src: 'stall 37 kt - maker sheet (weight not stated)' },
+      Vmax:  { v: 100 * KT, tol: 0.05, kg: 'unknown', src: 'max cruise 100 kt (the 912iS at max continuous) - maker sheet' },
+      roc:   { v: 1000 * FPM, tol: 0.05, kg: 'unknown', src: 'max climb rate 1000 ft/min (912iS; the 914 Turbo is 1400) - maker sheet' },
+      LD:    { v: 10, tol: 0.10, kg: 'unknown', src: 'glide ratio 10:1 - maker sheet' },
+      TO:    { v: 262 * FT, tol: 0.10, kg: 'unknown', flaps: 0, surface: 'paved', src: 'take-off ground 262 ft - maker sheet' },
+      TOW:   { v: 394 * FT, tol: 0.10, kg: 'unknown', surface: 'water', src: 'take-off water 394 ft - maker sheet' },
+      LDG:   { v: 394 * FT, tol: 0.10, kg: 'unknown', flaps: 0, surface: 'paved', src: 'landing ground 394 ft (water 328 ft) - maker sheet' },
     } },
   // CHINOOK PLUS 2 (582) - an ultralight sheet, flown one-up (perf_study REAL.chinook's ruling)
   chinook: {
@@ -318,9 +322,11 @@ const GEO = {
               src: 'PA-18-150 sheet (35 ft 2.5 in, 178.5 ft2, 36 US gal); empty = landplane 930 lb + Wipaire seaplane exchange 182 lb' },
   // (HEIGHT-CONV 9 Nov: the Petrel's 2.2-2.33 m is read gear-UP - on the hull. Measured: standing on its wheels 2.74, level
   // 2.88, a blade up 2.78, on the hull 2.33 - the one convention that lands on the maker's figure, as an amphibian's drawing has it)
-  petrel:   { dims: { span: 8.9, length: 6.25, height: [2.2, 2.33], heightAs: 'gearUp', S: 15.0 },
-              specs: { engine: 'Rotax 912 iS', hp: 100, nE: 1, blades: 3, empty: 320, mtow: 600, fuelL: 90, seats: 2 },
-              src: 'maker / Wikipedia (perf_study REAL.petrel.dims)' },
+  petrel:   { dims: { span: 29.20 * FT, length: 20.83 * FT, height: 8.30 * FT, heightAs: 'ground', S: 15.0 },
+              specs: { engine: 'Rotax 912 iS', hp: 100, nE: 1, blades: 3, empty: 850 * LB, mtow: 1430 * LB, fuelL: 24 * 3.785, seats: 2 },
+              // (the user's 3-view, 10 Nov: 253 in long, 356 in span, 96 in high, 117 in stab span - most likely the XP, the
+              // LS's successor: kept out of the scored row)
+              src: 'Super Petrel USA LS specifications (400 series): 20.83 ft, 8.30 ft, 29.20 ft, 161.48 ft2, 24 gal usable' },
   chinook:  { dims: { span: 9.75, length: 5.38, height: 1.78, S: 14.35, cRoot: 1.47, cTip: 1.47 },
               specs: { engine: 'Rotax 582', hp: 64, nE: 1, propD: 1.73, blades: 3, empty: [172, 209], mtow: 476, fuelL: 38, seats: 2 },
               src: 'ASAP Chinook Plus 2 sheet (perf_study REAL.chinook.dims)' },

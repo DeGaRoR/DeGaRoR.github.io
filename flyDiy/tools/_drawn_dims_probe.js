@@ -29,6 +29,11 @@ sc.traverse(o => {
 {
   const PP = window.CAGE_UI && window.CAGE_UI.P, G = window.CAGE2;
   const sh = PP && G && G.cageSheet ? G.cageSheet(PP, { level: 2 }).sheet : null;
-  if (sh) { const k = (G.CAGE_UNIT || 1) * (+PP.planeScale || 1); for (const p of sh.V) add(p[0] * k, p[1] * k, p[2] * k); }
+  // ONLY THE VERTICES A FACE DRAWS (the user 10 Nov, the Petrel "can't miss 60 cm"): the sheet's V also holds construction
+  // points no face uses - the Petrel's 91 of them run to 9.7 m ahead of the nose, so its "length" read 12.5 m, was thrown
+  // out as suspect and the 5.6 m node figure (the first node to the fin's trailing edge: no bow, no rudder) stood in for it
+  if (sh) { const k = (G.CAGE_UNIT || 1) * (+PP.planeScale || 1), used = new Set();
+    for (const f of sh.F) for (const i of f.v) used.add(i);
+    for (const i of used) { const p = sh.V[i]; add(p[0] * k, p[1] * k, p[2] * k); } }
 }
 return { P, meshes, skipped };
