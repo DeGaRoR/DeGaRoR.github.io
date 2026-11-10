@@ -71,15 +71,19 @@ const HASH = `(function(){ if (window.__CL) return; var C = window.__CL = { ln: 
     await sleep(3000);   // the garage's own links settle
     const tG = await b.ev('performance.now()');
     let fly = null, frm = null;
+    const hangs = [];   // [s after the press, s unanswered] - the roll-out polls the page did not answer in 30 s
     if (FLY) { const n0 = await b.ev(MB.A.trips), w0 = Date.now(), tR = await b.ev('performance.now()'); await b.ev(MB.A.rollOut);
-      for (const tEnd = Date.now() + 300000; Date.now() < tEnd; await sleep(200)) { const d = JSON.parse(await b.ev(MB.A.lastTrip, 30000)); if (d.n > n0 && d.kind === 'rollout' && d.done && d.boot === 'gone') break; }
+      // (10 Nov A/B: a 30 s eval timeout here killed 3 loads of 8 - the page did not answer: counted as a hang, the poll goes on)
+      for (const tEnd = Date.now() + 300000; Date.now() < tEnd; await sleep(200)) { const t0h = Date.now(), raw = await b.ev(MB.A.lastTrip, 30000).catch(() => "__timeout"); if (raw === "__timeout") { hangs.push([Math.round((t0h - w0) / 1000), Math.round((Date.now() - t0h) / 1000)]); continue; } const d = JSON.parse(raw); if (d.n > n0 && d.kind === 'rollout' && d.done && d.boot === 'gone') break; }
       fly = +((Date.now() - w0) / 1000).toFixed(1); const tD = await b.ev('performance.now()'); await sleep(2500); await b.ev(MB.A.run).catch(() => 0); await b.ev(MB.A.cam('chase')).catch(() => 0); await sleep(FLY_SEC * 1000);
       // (BOOT-PROGRAMS A/B) the frames: the roll-out's (press -> done) and the first flight's 17.5 s, over 100 ms and the worst
       const fr = JSON.parse(await b.ev('JSON.stringify((window.__MB && __MB.fr || []).map(e => [e[0], e[1]]))', 30000).catch(() => '[]') || '[]');
       const part = (a, z) => { const d = fr.filter(e => e[0] > a && e[0] <= z && e[1] > 0).map(e => e[1]).sort((x, y) => x - y); return { n: d.length, over100: d.filter(x => x > 100).length, over250: d.filter(x => x > 250).length, p99: d.length ? d[Math.min(d.length - 1, Math.floor(d.length * 0.99))] : null, worst: d.length ? d[d.length - 1] : null }; };
-      frm = { rollout: part(tR, tD), flight: part(tD, tD + 1e9), tD: Math.round(tD), slow: fr.filter(e => e[0] > tD && e[1] > 250).map(e => [Math.round((e[0] - tD) / 100) / 10, Math.round(e[1])]) }; }
+      frm = { rollout: part(tR, tD), flight: part(tD, tD + 1e9), tD: Math.round(tD), hangs, slow: fr.filter(e => e[0] > tD && e[1] > 250).map(e => [Math.round((e[0] - tD) / 100) / 10, Math.round(e[1])]) }; }
     // master_bench's ln rows [t0, ms] and ours [t0, hv, hf] were pushed in the same call: zip by order
-    const d = JSON.parse(await b.ev('JSON.stringify({ t: (__MB.ln || []).map(e => [Math.round(e[0]), Math.round(e[1])]), h: __CL.ln.map(e => [e[1], e[2], e[3]]), cx: __CL.cx })', 30000));
+    let dRaw = "__timeout"; for (let k = 0; k < 4 && dRaw === "__timeout"; k++) dRaw = await b.ev('JSON.stringify({ t: (__MB.ln || []).map(e => [Math.round(e[0]), Math.round(e[1])]), h: __CL.ln.map(e => [e[1], e[2], e[3]]), cx: __CL.cx })', 30000).catch(() => "__timeout");
+    if (dRaw === "__timeout") throw new Error("the page did not answer the link read in 4 x 30 s");
+    const d = JSON.parse(dRaw);
     const all = d.t.map((t, i) => ({ t0: t[0], ms: t[1], k: d.h[i] ? d.h[i][0] + d.h[i][1] : '?', vs: d.h[i] && d.h[i][0], fs: d.h[i] && d.h[i][1] }));
     all.forEach((r, i) => r.cx = d.h[i] && d.h[i][2]);
     const rows = all.filter(r => r.t0 <= tG), flown = all.filter(r => r.t0 > tG);
@@ -115,7 +119,7 @@ const HASH = `(function(){ if (window.__CL) return; var C = window.__CL = { ln: 
     if (row.ck && row.ck.own) for (const s of row.slow) s.own = row.ck.own[s.j] || null;
     if (frm) { const after = all.map((r, j) => [r, j]).filter(([r]) => r.t0 > frm.tD - 2000);
       row.flown = after.map(([r, j]) => ({ t: +((r.t0 - frm.tD) / 1000).toFixed(1), ms: r.ms, k: r.k, own: row.ck && row.ck.own ? row.ck.own[j] : null }));
-      console.log('  after the reveal: ' + row.flown.length + ' links; frames > 250 ms (s after, ms): ' + JSON.stringify(frm.slow));
+      console.log('  after the reveal: ' + row.flown.length + ' links; frames > 250 ms (s after, ms): ' + JSON.stringify(frm.slow) + (frm.hangs.length ? '; roll-out HANGS (s after the press, s unanswered): ' + JSON.stringify(frm.hangs) : ''));
       for (const x of row.flown) console.log('    +' + x.t + ' s  link ' + (x.ms / 1000).toFixed(1) + ' s  ' + x.k + '  ' + (x.own || '?')); }
     for (const s of row.slow) console.log('    ' + String(s.t0).padStart(6) + ' ms  link ' + (s.ms / 1000).toFixed(1) + ' s  ' + s.k + '  ' + s.was + (s.own ? '  ' + s.own : ''));
     if (!ONE) await b.close();
