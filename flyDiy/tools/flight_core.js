@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 74235e0068a7334b
+// body-sha256: 05a478eea2fdf5f9
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -45628,7 +45628,12 @@ function genTuneAP(def) {
     liftoff = (CLlo - P.Cl0) / Math.max(0.5, P.a3d) - inc;
   }
   let deckRad = 0;
-  if (!trike) {
+  // FLOAT-DECK (10 Nov; FLAGSHIP's fiche read, A0: "why the float rolls print 3-7x the land roll"): the rest deck is a
+  // TAILWHEEL's three-point - only a taildragger has one. On floats and a hull there is no tailwheel: the run below
+  // read P.TW / P.twX off nothing, its denominator sat on the 0.1 m floor and the deck came out 1.32-1.41 rad (75-80 deg
+  // nose-up) on every float card; genTORunAt probed the roll there below VTailUp (drag ~ lift) and the fiches printed
+  // 805-1164 m (roll_read, master db2298a41). A float or hull build rests at deck 0 (its run attitude is thTailUp)
+  if (!trike && S.gear.type === 'taildragger') {
     const P = def.parts, G = S.gear;
     const twN = def.nodes[P.TW];
     const deck = Math.atan((((twN && twN.p[1]) || 0) - G.twR - (G.y - G.contactR))
