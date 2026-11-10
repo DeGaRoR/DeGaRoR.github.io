@@ -495,6 +495,9 @@ function makePilot(sim, def, world, opts) {
   // reserve — the SAME arithmetic the roll rejects with, so the planner and
   // the judge never disagree
   const runNeeded = () => ST.needK * (0.85 * (A.TORun ?? 500) + stopDist(A.VRot || 18) + reserveOf());
+  // STRIP-LANE: a strip whose aerodrome carries `micro` (chaos > 0, DIRT-STRIP's bumps and stones) - its turns are made on
+  // the centreline, in the rolled band (planDeparture, TAXI's pivots, LINEUP)
+  const stripRoughOf = a => !!(a && a.micro && +a.micro.chaos > 0);
 
   // ---- frames -------------------------------------------------------------
   // The landing/departure frame is the test pilot's: origin td + 450 u so the
@@ -1906,7 +1909,14 @@ function makePilot(sim, def, world, opts) {
     // stopped 61 m from it, 189 ahead: a 1.5 m margin), ran into an obstacle beside the strip 7.5 s into that U-turn
     // (10 g, 82 members broken). A tricycle pivots where it stands (G1949): it keeps the test
     const facingEnd = !trike && (nose[0] * t[0] + nose[1] * t[1]) < -0.2;
-    if (onStrip && isFinite(RgMin) && (from.len || 1100) < 300 && Math.abs(cross) <= 4 && (runAhead >= 0.75 * (from.len || 1100) || facingEnd)) {
+    // STRIP-LANE 2 (Pilot, 10 Nov SET2): A ROUGH STRIP TURNS ROUND LIKE A SHORT ONE, ON ITS CENTRELINE. The lane U-turn at
+    // the pose swings out to the old lane (the C172 on w3: v 6.9 m) and back to the rough lane in a 300 m diagonal - its
+    // propeller struck a stone at v 3.3 m, outside DIRT-STRIP's rolled band (3 m). On a strip carrying `micro` the turn is
+    // the short strip's: on the spot where it stands, or on along the centreline to the end; over 300 m the run it needs
+    // (not 3/4 of the strip) is the test and the roll on is only for a run ahead short of it. Under 300 m, to the bit
+    const tightS = (from.len || 1100) < 300, roughS = stripRoughOf(from);
+    if (onStrip && isFinite(RgMin) && (tightS || roughS) && Math.abs(cross) <= 4 &&
+        (tightS ? (runAhead >= 0.75 * (from.len || 1100) || facingEnd) : (!trike && (runAhead >= need || facingEnd)))) {
       ap.path = null; ap.stopAfterLineup = true;
       // G2450 EAST-POINT-DEPART: ...BUT NOT SHORT OF THE END. A short strip is left from its very end (the user's Cub at
       // East Point stopped 37 m from the closed end in the game, turned there and rolled from 37.3 m in, downwind -
@@ -1914,7 +1924,7 @@ function makePilot(sim, def, world, opts) {
       // the turn's spot - its half-span + 1.5 m from the end (the wing's sweep stays over the strip) - and turns
       // there (LINEUP's creep, then the pivot); a tricycle has its own set-up (LINEUP, G1949: 8 m short)
       ap.pivSpot = null;
-      if (!trike && (nose[0] * t[0] + nose[1] * t[1]) < -0.2) {
+      if (!trike && (nose[0] * t[0] + nose[1] * t[1]) < -0.2 && (tightS || runAhead < need)) {
         const spot = pivRoom(), dEnd = sPos + from.len / 2;
         if (dEnd > spot + 3) ap.pivSpot = { x: from.x - t[0] * (from.len / 2 - spot), z: from.z - t[1] * (from.len / 2 - spot), spot, from: Math.round(dEnd) };
       }
@@ -1927,8 +1937,10 @@ function makePilot(sim, def, world, opts) {
     // an obstacle beside the strip 7.5 s into it (10 g; master's, 189 m ahead, went from where it stood). A taildragger
     // turns on the spot instead (TAXI's G1938 pivot toward a point behind), taxis back along the centreline to the turn's
     // spot at the start end (its half-span + 1.5 m in) and turns there (LINEUP's roll on, then its pivot): the whole strip
-    if (!trike && onStrip && isFinite(RgMin) && (from.len || 1100) < 300 && Math.abs(cross) <= 4 && (nose[0] * t[0] + nose[1] * t[1]) > 0.2) {
-      const spot = pivRoom(), sEnd = -(from.len / 2) + spot;
+    // (STRIP-LANE 2: ...and on a rough strip; over 300 m it turns where the run it needs + 30 m is ahead, not at the end:
+    // w7's 1020 m at a rough strip's walking pace would outlast the taxi's own clock)
+    if (!trike && onStrip && isFinite(RgMin) && (tightS || roughS) && Math.abs(cross) <= 4 && (nose[0] * t[0] + nose[1] * t[1]) > 0.2) {
+      const spot = pivRoom(), sEnd = tightS ? -(from.len / 2) + spot : Math.max(-(from.len / 2) + spot, from.len / 2 - need - 30);
       if (sPos - sEnd > spot + 3) {
         ap.path = null; ap.taxiPath = null; ap.stopAfterLineup = true;
         ap.taxiTgt = [from.x + t[0] * sEnd, from.z + t[1] * sEnd];
@@ -1951,11 +1963,20 @@ function makePilot(sim, def, world, opts) {
             // first node, a half-circle of the lane's radius across the
             // strip, back along the node's own lane — the pattern's own
             // U-turn shape (25_airfield.js), drawn where the aeroplane is
-            const lane = Math.min(12, half - 2.5);
+            // STRIP-LANE 2: ON A ROUGH STRIP A TRICYCLE U-TURNS IN THE PAD AHEAD. Its wheel turn swings the CG 8.8 m and its
+            // pivot 4.3 m (G1949) - neither fits the 3 m band; DIRT-STRIP's turnaround pads (each end to 66 kIn + 4 m in, the
+            // whole width under the band's cap, their kIn: len < 300 ? max(0.3, len / 440) : 1) do. It rolls on along the
+            // centreline to 27 kIn from the end ahead, turns there at the runway lane and is back on the route's own lane
+            // 60 kIn from that end ('@ud', still in the pad) - not a diagonal down the strip (the C172 on w3 at v 3.3 m: a
+            // stone). A taildragger here (it pivots, G1938, shortHere) keeps the rough lane. Elsewhere, to the bit
+            const trikePad = trike && roughS && !tightS;
+            const kInP = Math.max(0.3, Math.min(1, (from.len || 1100) / 440));
+            const lane = (roughS && !trikePad) ? Math.min(GP_LANE_ROUGH, half - 2.5) : Math.min(12, half - 2.5);
             const nrm = [-t[1], t[0]];
-            const sideN0 = ((n0.x - from.x) * nrm[0] + (n0.z - from.z) * nrm[1]) >= 0 ? 1 : -1;
+            const latN0 = (n0.x - from.x) * nrm[0] + (n0.z - from.z) * nrm[1];
+            const sideN0 = latN0 >= 0 ? 1 : -1;
             const cN = (rx * nrm[0] + rz * nrm[1]);
-            const L1 = 30;
+            const L1 = trikePad ? Math.max(12, (from.len || 1100) / 2 - 27 * kInP - (rx * nose[0] + rz * nose[1])) : 30;
             const ua = [cg[0] + nose[0] * L1 + nrm[0] * (-sideN0 * lane - cN),
                         cg[2] + nose[1] * L1 + nrm[1] * (-sideN0 * lane - cN)];
             const ub = [ua[0] + nrm[0] * 2 * sideN0 * lane, ua[1] + nrm[1] * 2 * sideN0 * lane];
@@ -1965,6 +1986,11 @@ function makePilot(sim, def, world, opts) {
               { id: '@ub', x: ub[0], z: ub[1], kind: 'taxi', r: lane },
               { id: '@uc', x: uc[0], z: uc[1], kind: 'taxi', r: 12 }]);
             ids = ['@ua', '@ub', '@uc'].concat(ids);
+            if (trikePad) {
+              const ud = [uc[0] - nose[0] * 33 * kInP + nrm[0] * (latN0 - sideN0 * lane), uc[1] - nose[1] * 33 * kInP + nrm[1] * (latN0 - sideN0 * lane)];
+              nodes.push({ id: '@ud', x: ud[0], z: ud[1], kind: 'taxi', r: 12 });
+              ids.splice(3, 0, '@ud');
+            }
           }
         }
         const P2 = Object.assign({}, PAT, { nodes });
@@ -3487,7 +3513,7 @@ function makePilot(sim, def, world, opts) {
           // ...ONLY ON A STRIP UNDER 300 m: on a long one the site's lane U-turn fits, and the follower's own wide
           // turn is the base's to the bit (pivoting at Jolene HOME's lane U-turn, a fillet a hair under the Cub's
           // 9.4 m, cost GATE LINEUP 26 s and a roll 12.7 m off the skip's pose)
-          const shortHere = (ap.route.from.len || 1100) < 300;
+          const shortHere = (ap.route.from.len || 1100) < 300 || stripRoughOf(ap.route.from);   // (STRIP-LANE 2: and a rough strip)
           const Rpiv = Math.max(RgMin, 13);
           // G3575: A FULL SWIVEL AT A CORNER the wheels cannot steer (tighter than 1 / (1.1 Rpiv), turning more than 45 deg
           // in all): rolled on to the corner's middle (half its turn), turned on the spot to the heading the path leaves it
@@ -3620,7 +3646,7 @@ function makePilot(sim, def, world, opts) {
         const dist = Math.hypot(ddx, ddz) || 1e-9;
         pubN = 'TAXI POINT'; pubX = ap.taxiTgt[0]; pubZ = ap.taxiTgt[1];
         // G1938: the point BEHIND the aeroplane (a backtrack from where the landing stopped) is turned to on the spot
-        if (!trike && isFinite(RgMin) && (ap.route.from.len || 1100) < 300 && (piv || (Math.abs(e) > 1.4 && Vg < 3 && dist > 3 * RgMin))) {
+        if (!trike && isFinite(RgMin) && ((ap.route.from.len || 1100) < 300 || stripRoughOf(ap.route.from)) && (piv || (Math.abs(e) > 1.4 && Vg < 3 && dist > 3 * RgMin))) {
           if (!piv) { piv = { hdg: Math.atan2(ddz, ddx), j: 0, t0: ap.t, thr: 0 }; if (!pivSaid) { pivSaid = true; say('pivot', 'the taxi point is behind — turning on the spot'); } }
           setStatus('turning on the spot (the inside brake, full rudder)', [cond('heading to go', Math.round(Math.abs(e) * 57.3), 6, false, 'deg')]);
           if (pivotFly(piv.hdg) || ap.t - piv.t0 > 40) { piv = null; SV.relatch(); }
@@ -3671,7 +3697,8 @@ function makePilot(sim, def, world, opts) {
           say('pivot', 'lined up ' + Math.round(Math.acos(clamp(alig, -1, 1)) * 57.3) + ' deg off the take-off heading, ' + Math.abs(sCr).toFixed(1) +
               ' m off the centreline - turning on the spot onto a ' + Math.round(a * 57.3) + ' deg intercept (the tailwheel swivels)');
         }
-        if ((!trike || trikePiv) && isFinite(RgMin) && (piv || (alig < -0.2 && Vg < 3 && (trikePiv || RgMin > 0.5 * (ap.route.from.wid || 30) - Math.abs(sCr))))) {
+        // (STRIP-LANE 2: a taildragger on a rough strip pivots facing away whatever the strip's width - the band is 3 m)
+        if ((!trike || trikePiv) && isFinite(RgMin) && (piv || (alig < -0.2 && Vg < 3 && (trikePiv || (!trike && stripRoughOf(ap.route.from)) || RgMin > 0.5 * (ap.route.from.wid || 30) - Math.abs(sCr))))) {
           // G1949: A TRICYCLE SETS ITS TURN UP FIRST. Its turn swings the CG ~6.5 m to the inside (above), so turned on the
           // centreline it ends at the strip's edge and walks 30 m of the strip back to the middle (East Point: then 98 m
           // ahead, too few for the hold). A pilot uses the width: eases over to the far side near the closed end (4 m
