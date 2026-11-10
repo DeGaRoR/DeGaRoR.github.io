@@ -1,16 +1,16 @@
 {
  "what": "join-parity-page",
- "at": "2026-11-10T13:57:17.370Z",
+ "at": "2026-11-08T11:50:16.335Z",
  "door": "load (GARAGE_SPEC.set)",
- "chainSig": "2bb8a847d807f9b12ee49057734ff671e8326c3a",
+ "chainSig": "cbd55041d588a048631e435783d44fc4577ba737",
  "builds": {
   "cub": {
    "file": "builds/cub_2026-09-20_corrected.json",
    "page": {
     "n": 97,
     "nb": 404,
-    "mass": 475.74760786056004,
-    "build": "11193a934954"
+    "mass": 476.44827650311765,
+    "build": "3f54ecacbb59"
    },
    "spec": {
     "cage": {
@@ -631,9 +631,6 @@
      "bpInterZ": 0,
      "bpWires": 1,
      "bpWireD": 5,
-     "bpStrutK": 1,
-     "bpCabDraw": 1,
-     "bpCabPylon": 0,
      "wingOn": 1,
      "wgSpan": 10.7,
      "wgChord": 1.7,
@@ -727,15 +724,6 @@
      "engNacAt": 0.35,
      "engNacAt2": 0.62,
      "engPylonH": 0.3,
-     "engPylonFair": 0,
-     "engPylonForm": 0,
-     "engPylonAt": 0,
-     "engPylonAft": 0.15,
-     "engPylonFwd": 0,
-     "engFinAt": 0.55,
-     "engFinFwd": 0,
-     "engNacOver": 0,
-     "engNacLift": 0,
      "engBlockZ": 0,
      "engBlockY": 0,
      "engAim": 0,
@@ -1197,7 +1185,7 @@
      "kg": 0
     },
     "fuel": {
-     "litres": 45,
+     "litres": 44,
      "tank": "nose"
     },
     "systems": {
@@ -1386,7 +1374,6 @@
       "plan": null,
       "planAxis": null,
       "beam": "on",
-      "tipShape": null,
       "stol": null,
       "material": null
      }
@@ -1564,25 +1551,25 @@
      "vessels": [
       {
        "bay": "nose",
-       "capacity": 45,
+       "capacity": 44,
        "along": -0.17,
-       "lv": 0.5999,
+       "lv": 0.596,
        "rot": 0,
        "form": "deck",
        "dims": {
         "L": 0.275,
         "W": 0.606,
-        "H": 0.354,
+        "H": 0.35,
         "profile": [
          1,
          0.987,
-         0.974,
-         0.948,
-         0.915,
-         0.878,
-         0.83,
-         0.691,
-         0.685
+         0.973,
+         0.947,
+         0.913,
+         0.875,
+         0.827,
+         0.699,
+         0.692
         ]
        },
        "finish": null,
@@ -1593,8 +1580,7 @@
      ]
     },
     "outfit": {
-     "seats": "sling",
-     "trim": "bare"
+     "seats": "sling"
     }
    }
   },
@@ -1603,8 +1589,8 @@
    "page": {
     "n": 115,
     "nb": 502,
-    "mass": 468.23848175197276,
-    "build": "11193a934954"
+    "mass": 467.9892309227051,
+    "build": "3f54ecacbb59"
    },
    "spec": {
     "cage": {
@@ -2225,9 +2211,6 @@
      "bpInterZ": 0,
      "bpWires": 1,
      "bpWireD": 5,
-     "bpStrutK": 1,
-     "bpCabDraw": 1,
-     "bpCabPylon": 0,
      "wingOn": 1,
      "wgSpan": 8.3,
      "wgChord": 1.8,
@@ -2321,15 +2304,6 @@
      "engNacAt": 0.35,
      "engNacAt2": 0.62,
      "engPylonH": 0.3,
-     "engPylonFair": 0,
-     "engPylonForm": 0,
-     "engPylonAt": 0,
-     "engPylonAft": 0.15,
-     "engPylonFwd": 0,
-     "engFinAt": 0.55,
-     "engFinFwd": 0,
-     "engNacOver": 0,
-     "engNacLift": 0,
      "engBlockZ": 0,
      "engBlockY": 0,
      "engAim": 0,
@@ -2785,7 +2759,7 @@
      "kg": 0
     },
     "fuel": {
-     "litres": 50,
+     "litres": 49,
      "tank": "nose"
     },
     "systems": {
@@ -2975,7 +2949,6 @@
       "plan": null,
       "planAxis": null,
       "beam": "on",
-      "tipShape": null,
       "stol": null,
       "material": null
      }
@@ -3159,25 +3132,25 @@
      "vessels": [
       {
        "bay": "nose",
-       "capacity": 50,
+       "capacity": 49,
        "along": -0.2569,
-       "lv": 0.6466,
+       "lv": 0.6372,
        "rot": 0,
        "form": "deck",
        "dims": {
         "L": 0.313,
         "W": 0.825,
-        "H": 0.269,
+        "H": 0.26,
         "profile": [
          1,
          0.985,
-         0.97,
-         0.943,
-         0.905,
-         0.866,
-         0.679,
-         0.618,
-         0.52
+         0.969,
+         0.94,
+         0.901,
+         0.859,
+         0.702,
+         0.639,
+         0.538
         ]
        },
        "finish": null,
@@ -3188,8 +3161,7 @@
      ]
     },
     "outfit": {
-     "seats": "sling",
-     "trim": "light"
+     "seats": "sling"
     }
    }
   },

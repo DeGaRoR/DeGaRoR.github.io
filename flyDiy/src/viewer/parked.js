@@ -653,20 +653,16 @@
     const A = W.AEROSKIN, vis = rec.vis, mats = vis.mats, cache = {};
     const onBlock = m => dupe(m, block);
     const spec = rec.spec;
-    // LINER-BACK (9 Nov): the group's side - the liner (sd 'b') its back always; a lined skin (sd 'f') its front only on
-    // the level that draws the cabin (full), two-sided on the levels that leave the cabin out (nothing behind it there)
-    const matFor = function (mn, full) {
+    const matFor = function (mn) {
+      if (cache[mn]) return cache[mn];
       const m = mats[mn] || { color: 0x808080 };
-      const ck = mn + (m.sd === 'f' && full ? '|F' : '');
-      if (cache[ck]) return cache[ck];
-      const side = m.sd === 'b' ? THREE.BackSide : m.sd === 'f' && full ? THREE.FrontSide : THREE.DoubleSide;
       const op = m.opacity !== undefined ? m.opacity : 1;
       if (A && m.fin) {
         if (m.fin === 'glass') {
           const g = A.aeroGlass(THREE, Object.assign(A.aeroGlassSpec ? A.aeroGlassSpec(spec) : {},
             { tintLin: m.color, opacity: op, ext: m.gext, fieldM: m.fieldM || 1,
               wear: m.wearM != null ? m.wearM : 1, screen: m.sec === 'windshield' ? 1 : 0 }));
-          return cache[ck] = onBlock(g);
+          return cache[mn] = onBlock(g);
         }
         const s = A.aeroMaterial(THREE, { finish: m.fin, tintLin: m.color,
           grm: m.grm || '', struct: m.grm ? 1 : 0, opacity: op, fieldM: m.fieldM || 1,
@@ -675,16 +671,16 @@
           wing: m.wing || 0, tileK: m.tileK, roughK: m.roughK, nrmK: m.nrmK,
           ccK: m.ccK, fieldK: m.fieldK, fieldLK: m.fieldLK, inside: m.inside || 0,
           decals: m.noDec ? 0 : m.noLet ? 0.5 : 1, memF: m.memF || null, metalK: m.metalK || 0,
-          ribM: m.ribM, wearK: m.wearK, wearM: m.wearM, side: side, exactSide: side !== THREE.DoubleSide ? 1 : 0 });
-        return cache[ck] = onBlock(s);
+          ribM: m.ribM, wearK: m.wearK, wearM: m.wearM, side: THREE.DoubleSide });
+        return cache[mn] = onBlock(s);
       }
-      if (m.panel && rec.panel && rec.panel[m.panel]) return cache[ck] = rec.panel[m.panel];
+      if (m.panel && rec.panel && rec.panel[m.panel]) return cache[mn] = rec.panel[m.panel];
       if (m.propMat && typeof W.propBuild === 'function') {
         try {
           const [pk, pm] = m.propMat.split('|');
           const b = W.propBuild(THREE, pk);
           const i = b.prop.parts.findIndex(q => q.mat === pm);
-          if (i >= 0) return cache[ck] = b.mats[i];
+          if (i >= 0) return cache[mn] = b.mats[i];
         } catch (e) {}
       }
       if ((m.lamp || m.lampCup) && W.CAGE_LIGHT) {
@@ -692,19 +688,19 @@
                   : m.lampCup && W.CAGE_LIGHT.cupMat ? W.CAGE_LIGHT.cupMat(1.0, m.lampCol, true, m.lampCup, m.lampK) : null;
         if (src) { const lm = src.clone(); lm.userData = Object.assign({}, src.userData); lm.emissiveIntensity = 0;  // pre-ok: 0: no emission
                    const hook = hookOf(src); if (hook) lm.onBeforeCompile = hook;   // clone() drops it too
-                   return cache[ck] = lm; }
+                   return cache[mn] = lm; }
       }
       if (m.ves && W.CAGE_ENERGY && W.CAGE_ENERGY.material)
-        return cache[ck] = W.CAGE_ENERGY.material({ set: m.ves, tint: m.color, hueRad: m.vesHue || 0, hueOn: !!m.vesHueOn });
+        return cache[mn] = W.CAGE_ENERGY.material({ set: m.ves, tint: m.color, hueRad: m.vesHue || 0, hueOn: !!m.vesHueOn });
       const std = new THREE.MeshStandardMaterial({
-        color: m.color !== undefined ? m.color : 0xaad4ea, side,
+        color: m.color !== undefined ? m.color : 0xaad4ea, side: THREE.DoubleSide,
         transparent: op < 1, opacity: op, depthWrite: op >= 1,
         ...(m.alphaTest ? { alphaTest: m.alphaTest } : {}),
         roughness: m.rough !== undefined ? m.rough : 0.72, metalness: m.metal !== undefined ? m.metal : 0 });
       // a plain inside bucket takes the cabin's darkness through the small hook —
       // its own instance already, so the block goes straight on
       if (m.inside && A && A.aeroCabinHook) { A.aeroCabinHook(THREE, std, 1); if (block) std.userData.aeroD = block; }
-      return cache[ck] = std;
+      return cache[mn] = std;
     };
     matFor.block = block;
     // THE PANE'S MULTIPLY PASS (aeroskin.js's glass family: a pane is a
@@ -746,7 +742,7 @@
       const m = vis.mats[k];
       if (!full && isInterior(m)) return;
       const geo = geos.get(g) || (geos.set(g, geoOf(THREE, g)), geos.get(g));
-      const mesh = new THREE.Mesh(geo, matFor(k, full));
+      const mesh = new THREE.Mesh(geo, matFor(k));
       const clear = isClear(m);
       mesh.renderOrder = clear ? 10 : 0;
       mesh.castShadow = !clear; mesh.receiveShadow = true;

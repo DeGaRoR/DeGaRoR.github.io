@@ -1199,12 +1199,8 @@
   // snapshot's layer ranges). The page and GATE DMGWALL ask this one rule
   const INH_TUBE = new Set(['tube', 'woodFrame', 'boomTube']);
   const INH_RIGID_LAYER = new Set(['cowl', 'gear', 'access', 'light', 'hinge', 'energy', 'eng']);
-  // sd (LINER-BACK, 9 Nov): the bucket's side - 'b' a liner drawn as the skin's own BACK FACE (copies of the skin's
-  // vertices, coincident): whatever its role (cloth, plywood, toele, the headliner, the cabin wall's trim) it is a wall
-  // place on its skin, never a dash-like keep that parts from it where the frame bends (CABIN-CRAFT's audit 1)
-  function inhClass(sec, role, layer, sd) {
+  function inhClass(sec, role, layer) {
     if (sec) {
-      if (sd === 'b') return INH.wall;
       if (INH_TUBE.has(sec)) return INH.tube;
       if (sec === 'reveal') return INH.wall;
       if (role === 'skin' || role === 'rail' || role === 'pillar' || role === 'struct') return INH.cover;
@@ -1216,7 +1212,7 @@
     return INH.cover;                                    // the wing, the fin, the stab, a boom, a float; the sheet's own
   }
   function* inhSteps(L, T, rest, st, every) {
-    Object.assign(st, { places: 0, tube: 0, tubeFar: 0, cover: 0, wall: 0, wallFar: 0, rigid: 0, parts: 0, bigParts: 0, keep: 0, over8: 0, backTw: 0, backFree: 0, done: false });
+    Object.assign(st, { places: 0, tube: 0, tubeFar: 0, cover: 0, wall: 0, wallFar: 0, rigid: 0, parts: 0, bigParts: 0, keep: 0, over8: 0, done: false });
     const S = frameSegs(T, rest), Sall = frameSegs(T, rest, true), Seng = frameSegs(T, rest, 'engines'); let _n = 0;
     for (const E of L) if (!E.cv) E.cv = new Uint8Array(E.R.nv).fill(INH[E.cls] || 0);
     // a welded place never spans two classes or two part objects (two panels touching at a seam are two places: each
@@ -1300,14 +1296,6 @@
           if (_acc.n && _acc.put(R.wi, R.ww, v * K, K)) st.over8++;
         }
         if (R.rep) for (let v = 0; v < R.nv; v++) { const u = R.rep[v]; if (u !== v) { on[v * 2] = on[u * 2]; on[v * 2 + 1] = on[u * 2 + 1]; for (let j = 0; j < 3; j++) ob[v * 3 + j] = ob[u * 3 + j]; } }
-        // A BACK FACE'S OWN SKIN TRIANGLE (LINER-BACK, CABIN-CRAFT's audit 3): the back face is the skin's polygon again,
-        // same order, same diagonal - its triangle's centroid IS its skin triangle's (an inner point: a neighbour is
-        // farther). E.tw [record, triangle] a triangle, -1 when none within BACK_D (the face then follows its places)
-        if (E.back) { const ix = R.idx0 || R.idx, tw = E.tw = new Int32Array(R.nt * 2).fill(-1);
-          for (let t = 0; t < R.nt; t++) { const a = ix[t * 3] * 3, b = ix[t * 3 + 1] * 3, c = ix[t * 3 + 2] * 3; if (a === b && b === c) continue;
-            if (++_n >= every) { _n = 0; yield st.places; }
-            const h = closestCover(G, L, (P[a] + P[b] + P[c]) / 3, (P[a + 1] + P[b + 1] + P[c + 1]) / 3, (P[a + 2] + P[b + 2] + P[c + 2]) / 3, WALL_BOUND);
-            if (h && h.d0 <= BACK_D * BACK_D) { tw[t * 2] = h.r; tw[t * 2 + 1] = h.t; st.backTw++; } else st.backFree++; } }
       }
     }
     // the copies (welded places), bound
@@ -1338,7 +1326,6 @@
         for (let i = x0; i <= x1; i++) for (let j = y0; j <= y1; j++) for (let k = z0; k <= z1; k++) { const q = key(i, j, k); let Lc = cells.get(q); if (!Lc) cells.set(q, Lc = []); Lc.push(r, t); } } });
     return { h, cells, key };
   }
-  const BACK_D = 0.001;                                 // (LINER-BACK: a back face's centroid on its skin's, 1 mm)
   function closestCover(G, cov, x, y, z, reach) {
     const h = G.h, ci = Math.floor(x / h), cj = Math.floor(y / h), ck = Math.floor(z / h), rr = Math.ceil(reach / h);
     let best = null, bd = reach * reach;
@@ -1433,13 +1420,8 @@
   // entries. Returns the triangles removed now
   function wallFollow(E, cov) {
     const R = E.R, on = E.on; if (!R.active || !R.dead || !on) return 0;
-    const i0 = R.idx0, idx = R.idx, dead = R.dead, tw = E.tw; let n = 0;
+    const i0 = R.idx0, idx = R.idx, dead = R.dead; let n = 0;
     for (let t = 0; t < R.nt; t++) { if (dead[t]) continue;
-      // (LINER-BACK, CABIN-CRAFT's audit 3: a back face goes with ITS skin triangle, exactly - not with the first one its
-      // corners found at d 0, which made the liner's hole a ring wider than the skin's)
-      if (tw && tw[t * 2] >= 0) { const C = cov[tw[t * 2]].R;
-        if (C.dead && C.dead[tw[t * 2 + 1]]) { dead[t] = 4; idx[t * 3] = idx[t * 3 + 1] = idx[t * 3 + 2] = i0[t * 3]; n++; }
-        continue; }
       for (let q = 0; q < 3; q++) { const v = i0[t * 3 + q], r = on[v * 2]; if (r < 0) continue; const C = cov[r].R;
         if (C.dead && C.dead[on[v * 2 + 1]]) { dead[t] = 4; idx[t * 3] = idx[t * 3 + 1] = idx[t * 3 + 2] = i0[t * 3]; n++; break; } } }
     R.removed += n; R.followed = (R.followed || 0) + n;

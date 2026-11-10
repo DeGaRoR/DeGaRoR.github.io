@@ -94,10 +94,7 @@ function gameSpecFull(rawIn) {
   // HULL-B8: a tile's `after` doors by name (designApply's `afters`: the rod's fit, the hull's), opened once before
   // the first build as design_flow.js doApply opens them in the game
   if (rawIn && Array.isArray(rawIn.afters) && rawIn.afters.length) raw = Object.assign({ __afters: rawIn.afters.slice() }, raw);
-  // (the probe by its CONTENT as well as its path: an edited probe served its old answer from the cache - LINER-BACK,
-  // 10 Nov, CABINLAMP's tie fix read the stale 'aluminium')
-  const probeSig = process.env.FLYDIY_JOIN_PROBE ? (() => { try { return fs.readFileSync(process.env.FLYDIY_JOIN_PROBE); } catch (e) { return ''; } })() : '';
-  const key = crypto.createHash('sha1').update(chainSig()).update(JSON.stringify(raw)).update(process.env.FLYDIY_JOIN_PROBE || '').update(probeSig).update(process.env.FLYDIY_HEADLESS_MS || '').update(process.env.QV_HIDE || '').digest('hex');
+  const key = crypto.createHash('sha1').update(chainSig()).update(JSON.stringify(raw)).update(process.env.FLYDIY_JOIN_PROBE || '').update(process.env.FLYDIY_HEADLESS_MS || '').update(process.env.QV_HIDE || '').digest('hex');
   const cf = path.join(CACHE_DIR, key + '.json');
   if (process.env.FLYDIY_JOIN_NOCACHE !== '1') {
     try { const c = JSON.parse(fs.readFileSync(cf, 'utf8')); return Object.assign(c, { key, cached: true }); } catch (e) {}

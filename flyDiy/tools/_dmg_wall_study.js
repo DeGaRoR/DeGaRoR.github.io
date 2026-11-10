@@ -86,8 +86,7 @@ function prepare(k) {
     const role = g.sec ? (AS.AERO_ROLE[g.sec] || '') : '';
     const cv = new Uint8Array(nv), obj = new Int32Array(nv).fill(-1), layer = new Array(nv).fill('');
     for (const [ly, a, b, id] of (lay.get(g.key) || [])) for (let v = a; v < b; v++) { layer[v] = ly; obj[v] = id; }
-    const sd = g.sd || ((/\|([bf])$/.exec(g.key || '') || [])[1] || '');   // (LINER-BACK: the page's own class rule, the side too)
-    for (let v = 0; v < nv; v++) cv[v] = SB.inhClass(g.sec, role, layer[v], sd);
+    for (let v = 0; v < nv; v++) cv[v] = SB.inhClass(g.sec, role, layer[v]);
     // (what is MEASURED as a wall place: its role's class without G1859.4 - a window bound rigid is still measured)
     const cm = cv;
     // (a part object wider than RIGID_D is bound as covering, not rigid: not measured as rigid either)

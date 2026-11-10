@@ -107,11 +107,7 @@
   // their live shader, see mergeModel's keep). And no longer 'never a bucket that also rides a control, a gauge or a
   // link' (C4a): nothing writes those meshes' materials (the cockpit lights its lamps and its needles, both live), the
   // fold makes their part a bone, and the pick reads the part through the fold.
-  // LINER-BACK (9 Nov): a liner drawn as the skin's back face (sd 'b') never bakes - the fold is one two-sided material,
-  // and on it the liner would sit on the skin's own face and fight it. It stays live on its back-side material (one
-  // draw). 9 Nov audit: the LINED skin (sd 'f') stays live too - baked, the fold's two-sided face sat on the live liner
-  // and fought it from inside (through the windows, the cockpit's far zone). Cost: one live draw per lined bucket.
-  const bakes = m => !!(m && m.fin && m.fin !== 'glass' && !m.spin && !(m.opacity < 1) && m.sec !== 'dashFace' && !m.sd);
+  const bakes = m => !!(m && m.fin && m.fin !== 'glass' && !m.spin && !(m.opacity < 1) && m.sec !== 'dashFace');
   const setOf = m => (m.inside ? 'in' : 'ext');
   const SETS = ['ext', 'in'];
   // name -> 'ext' | 'in'
@@ -241,7 +237,7 @@
       memF: m.memF || null,
       metalK: m.metalK || 0,
       ribM: m.ribM, wearK: m.wearK, wearM: m.wearM,
-      side: THREE.DoubleSide, exactSide: 0 };   // (the fold: two-sided; a lined bucket (sd) never bakes)
+      side: THREE.DoubleSide };
   }
   function hookOf(m) {
     if (Object.prototype.hasOwnProperty.call(m, 'onBeforeCompile')) return m.onBeforeCompile;

@@ -60,10 +60,7 @@ function survey(site, kind) {
       const a = V[f.v[0]], b = V[f.v[i]], c = V[f.v[i + 1]];
       const q = closest(back, a, b, c), d = Math.hypot(q[0] - back[0], q[1] - back[1], q[2] - back[2]);
       if (d < 0.025) touch[f.m] = Math.min(touch[f.m] == null ? 1e9 : touch[f.m], +d.toFixed(4));
-      // LINER-BACK (10 Nov): a lined skin and its lining are one surface (the lining is the skin's back face, flagged
-      // back, on copies of the same vertices), so the flange is as near to both; the lamp sits on the lining, the
-      // inside face - a tie goes to the back face (else a metal cabin's roof lamp read 'aluminium', the twin2 red)
-      if (d < dMin - 1e-5 || (f.back && d < dMin + 1e-5)) { dMin = Math.min(d, dMin); mMin = f.m; }
+      if (d < dMin) { dMin = d; mMin = f.m; }
       if (!GLASS.has(f.m)) continue;
       const t = rayTri(p, up, a, b, c);
       if (t != null && t < 0.35 && (!over || t < over.t)) over = { t: +t.toFixed(3), m: f.m };

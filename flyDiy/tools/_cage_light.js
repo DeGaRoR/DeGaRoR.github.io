@@ -1359,20 +1359,7 @@ function sites(scene, group, P) {
       // (CABIN-CRAFT: ...or, when every face over the seat is flank, or beside or under glass, the nearest clear one
       // within 0.45 m: a skylight cabin's lamp moves to the solid roof fore or aft of the pane)
       const R = 1.34 * (LIGHTS[s.kind].w / 2) * sizeK0;
-      // LINER-BACK (9 Nov, the user's yes): the liner is now the skin's back face, so the flange laid on it has no lining
-      // under the skin to sink into - on a convex roof its rim stood out and every roof rung was refused. The lamp comes
-      // down its own axis (up to 14 mm, the old ply lining's depth) until the rim clears the skin; the drop is kept.
-      const inside = c => {
-        if (!c) return false;
-        const n = c.n || [0, -1, 0];
-        // (10 Nov: up to 6 mm only - a 10 mm drop hung the twin's left pax lamp under the bare aluminium by the window
-        // pillar, CABINLAMP red; a deeper drop gives the site up and the ladder looks a little further aft)
-        for (const d of [0, 0.002, 0.004, 0.006]) {
-          const q = [c.x + n[0] * d, c.y + n[1] * d, c.z + n[2] * d];
-          if (skinOver(q, n, R)) { if (d) { c.x = q[0]; c.y = q[1]; c.z = q[2]; c.drop = d; } return true; }
-        }
-        return false;
-      };
+      const inside = c => c && skinOver([c.x, c.y, c.z], c.n || [0, -1, 0], R);
       let cl = ceilAt(s.x, s.zBack + 0.12, 0.16, s.kind);
       // a face over the seat whose flange would stand out (the roof falling to a raked screen): the same search a
       // little further aft, over the head, before the ladder gives the roof up
