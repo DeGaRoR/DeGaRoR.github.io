@@ -65,6 +65,14 @@ VIEWS = {
   low:     { at: P(30, 3.2), cam: [BEHIND + 0.04, 0.022, 24] },   // grazing, down the strip: a bumpy strip's relief
   approach: { at: P(-110, 0), agl: 24, cam: [BEHIND, 0.10, 9] },  // short final: the pilot's eye on the strip ahead (the Cub held in the air)
   eye:     { at: P(12, 0.6), cam: [BEHIND, 0.06, 4.5] },          // taxiing, just behind and above the cockpit
+  // THE SPLASH (the user 10 Nov: "if we have water, we need water projections too"): on wet soil the Cub ROLLS through the
+  // wettest 15 m along its main wheels' lines (the page's STRIP_MICRO.puddleAt at the page's wetness), 6 m/s, and two frames
+  // are frozen as its wheels go through; the eye low, ahead and to the side
+  splash:  { splash: true, cam: [AHEAD + 0.75, 0.10, 9] },
+  // dry dirt at a low sun, the eye low (A0 / AIRCRAFT-LOOKS 10 Nov: "the dirt is still too shiny ... flat at low angle"):
+  // across the sun and toward it - set by --hour golden; the orbit's az turned to the sun in the shot loop
+  sunx:    { at: P(40, 2.5), sun: 'across', cam: [0, 0.03, 9] },
+  sunt:    { at: P(40, 2.5), sun: 'toward', cam: [0, 0.03, 9] },
 }; }
 frame(AS[0]);
 const VIEW_KEYS = opt('views', Object.keys(VIEWS).join(',')).split(',');
@@ -130,12 +138,32 @@ async function runPage(page) {
     for (const vk of VIEW_KEYS) {
       const V = VIEWS[vk]; if (!V) continue;
       if (DEADLINE && Date.now() - T0 > DEADLINE * 1000) { console.log('  DEADLINE: ' + STRIPS[si] + ' ' + vk + ' and after not shot'); break; }
-      const where = await ev(HOLD(V.at, (V.agl || REST) + DROP));
+      let at = V.at;
+      if (V.splash) {   // the wettest 15 m along the main wheels' lines (+-0.89 m, the Cub's half-track), from 30 m in
+        const best = JSON.parse(await ev(`(() => { if (typeof STRIP_MICRO === 'undefined' || !window.PAVEMENT) return 'null'; const W = PAVEMENT.WET.value, D = ${JSON.stringify(D)}, N = ${JSON.stringify(N)}, A = ${JSON.stringify({ x: A.x, z: A.z, len: A.len, wid: A.wid })};
+          const Pp = (u, n) => [A.x + D[0] * (u - A.len / 2) + N[0] * n, A.z + D[1] * (u - A.len / 2) + N[1] * n]; let b = null;
+          for (let n0 = -A.wid / 2 + 1.5; n0 <= A.wid / 2 - 1.5; n0 += 0.1) for (let u0 = 30; u0 < A.len - 50; u0 += 5) { let s = 0;
+            for (let du = 0; du < 15; du += 0.25) for (const w of [-0.89, 0.89]) { const q = Pp(u0 + du, n0 + w); s += STRIP_MICRO.puddleAt(q[0], q[1], W) > 0.01 ? 1 : 0; }
+            if (!b || s > b[2]) b = [u0, n0, s]; }
+          return JSON.stringify(b); })()`));
+        if (!best || !(best[2] > 0)) { console.log('  splash: no water on the main wheels lines (is the soil wet? --wet 0.9)'); continue; }
+        at = P(best[0] - 8, best[1]); console.log('  splash: ' + best[2] + ' wet samples from u ' + best[0] + ' at n ' + best[1].toFixed(1));
+      }
+      const where = await ev(HOLD(at, (V.agl || REST) + DROP));
       const dmg = await ev('(() => { const s = FLIGHT_PROBE.sim(), D = s && s.damage ? s.damage() : null; return D ? D.breaks + " breaks, " + D.yields + " yields" : "n/a"; })()').catch(() => 'n/a');
       if (!String(dmg).startsWith('0 breaks') && dmg !== 'n/a') console.log('  DAMAGE after the place on ' + STRIPS[si] + ' ' + vk + ': ' + dmg);
       await ev(`(() => { if (window.DAY_CLOCK && DAY_CLOCK.preset) DAY_CLOCK.preset(${JSON.stringify(HOUR)}); return 1; })()`);
+      // (the low-sun views: the orbit's az from the sun's own - across it, or the eye between the Cub and the sun, looking toward it)
+      if (V.sun) { const sa = await ev(`(() => { const dd = window.DAY_CLOCK && DAY_CLOCK.day && DAY_CLOCK.day(), L = dd && dd.sun;   // (07_day: the sun in the world frame) return L ? Math.atan2(L.z !== undefined ? L.z : L[2], L.x !== undefined ? L.x : L[0]) : 'null'; })()`).catch(() => 'null');
+        if (typeof sa === 'number') V.cam[0] = V.sun === 'toward' ? sa + Math.PI : sa + Math.PI / 2; else console.log('  ' + vk + ': no sun direction on the page, az ' + V.cam[0]); }
       await ev(`FLIGHT_PROBE.camSet(${V.cam.join(',')})`);
       await ev(FRAMES(!out.length ? 400 : first ? 240 : 120)); first = false;
+      if (V.splash) {   // roll: 6 m/s down the strip, run, freeze two frames as the wheels go through
+        const tg = "document.getElementById('bPause').click()";
+        await ev(`FLIGHT_PROBE.place({ dv: [${D[0] * 6}, 0, ${D[1] * 6}] })`);
+        for (const [k, ms] of [[1, 1500], [2, 450]]) { await ev(tg); await sleep(ms); await ev(tg); await ev(`FLIGHT_PROBE.camSet(${V.cam.join(',')})`); await ev(FRAMES(4));
+          const fk = await cap((AS.length > 1 ? STRIPS[si] + '_' : '') + 'splash' + k + '_' + tag + '.png'); console.log('  splash ' + k + ' -> ' + fk); out.push({ page, strip: STRIPS[si], view: 'splash' + k, file: fk }); }
+        continue; }
       await ev(`FLIGHT_PROBE.camSet(${V.cam.join(',')})`); await ev(FRAMES(10));
       const pre = AS.length > 1 ? STRIPS[si] + '_' + vk : vk + '_' + tag;
       const file = await cap(pre + '.png');
