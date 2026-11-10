@@ -23,11 +23,13 @@ a square-cut floor the strut leaves through (as on the Wilga); cut round the swe
 lips; seams and ~70-85 screw heads a leg. No wheel fairing on this leg (rows hidden; join and clampSpec write none).
 Cached: 35 ms a leg replayed, 0.3-0.4 s on a leg-row edit. Study §7.5.
 
-**A second version of the strut** (the user: "do it as a second version and we'll check"; the row lvStrut, v1 the
-default): v2 is the photographs' long strut along the leg, its eye under the fairing's root - 1.25 m eye to eye, a 269 mm
-stroke (v1: 0.50 m, 119 mm), 7 / 24 bar; it stands at 68 mm, takes the limit drop without bottoming, does not bounce
-(GATE WILGAGEAR 7c). It does not slim the Wilga fairing: the leg leans 31 deg on a horizontal pivot, so the strut swings
-~+-8 cm sideways at the fairing's foot whatever its length. Picture: strut_v1_v2.png.
+**The strut's mount is a slider, the long strut by default** (the user: "let's go with V2 ... just how far on the leg does
+the shock mount"): lvTop, 0.10-0.85 of the leg, default 0.72 - the photographs' long strut (1.25 m eye to eye, 269 mm of
+stroke, 7 / 24 bar); ~0.13 is the derived short strut. Every mount stands at 68 mm and takes the limit drop without
+bottoming; the long strut lands at 3.2 g at the CG against the short one's 4.5 (saturating past ~0.3: the wheel's travel
+is the budget). The fairing and its cuts follow the mount. It does not slim the Wilga fairing (the leg leans 31 deg on a
+horizontal pivot: the strut swings ~+-8 cm sideways at the fairing's foot) - the user: a big fairing is fine. Pictures:
+strut_v1_v2.png, strut_mount_slider.png. GATE WILGAGEAR 7c.
 
 The study, every figure sourced or derived: futureDesigns/WILGA-GEAR-STUDY-2026-11.md.
 
@@ -48,7 +50,7 @@ The study, every figure sourced or derived: futureDesigns/WILGA-GEAR-STUDY-2026-
 
 | gate | verdict | note |
 |---|---|---|
-| **WILGAGEAR** (new, core, ~3 min) | **PASS 51/51** | geometry as researched; static 72 mm (the study's 70); limit drop 110 / 115 mm, no bottoming; reserve drop bottoms on the steel stop and recovers; no pogo; trailing arc to 1.4 mm; a broken leg drops (tip 2.32 -> 0.00 m, "the landing gear broke"); drawn = physics through the load chain to 0.4 mm; the garage's red row; the fairing (7 cases - the Cub tapered / trailing, the host in the three shapes and, trailing, with its fitting low and high: no wheel fairing, cut and detailed; nothing moving within 3 mm through the stroke - 8.2 mm at the closest, 0.0 mm (FAIL) with the cuts off; the ground 80 mm or more at full stroke on a flat tyre pitched 10 deg nose-down; the cylinder hidden above the floor; the cache replays the same boot to the bit; clampSpec agrees); nothing else moved |
+| **WILGAGEAR** (new, core, ~3.5 min) | **PASS 55/55** | geometry as researched; static 72 mm (the study's 70); limit drop 110 / 115 mm, no bottoming; reserve drop bottoms on the steel stop and recovers; no pogo; trailing arc to 1.4 mm; a broken leg drops (tip 2.32 -> 0.00 m, "the landing gear broke"); drawn = physics through the load chain to 0.4 mm; the garage's red row; the fairing (7 cases - the Cub tapered / trailing, the host in the three shapes and, trailing, with its fitting low and high: no wheel fairing, cut and detailed; nothing moving within 3 mm through the stroke - 8.2 mm at the closest, 0.0 mm (FAIL) with the cuts off; the ground 80 mm or more at full stroke on a flat tyre pitched 10 deg nose-down; the cylinder hidden above the floor; the cache replays the same boot to the bit; clampSpec agrees); nothing else moved |
 | GEAR, GEARFALL, TAILWHEEL, CLIP, BUILD, SAVE, PARTS, TAKEOFF, STOL, PILOT | PASS | PARTS after the part tree's new group (it caught the rows); STOL after the flat rows went absent (it caught them) |
 | UISMOKE, DESIGN, JOIN, SUBSTEP, SPECFIX, FIT, KNIFE, CAGEFIT, EDBUGS | PASS | the layers touched |
 | HITBOX, RETRACT | PASS alone | under four jobs each missed a time budget (260 vs 138 ms; 372 ms) |
@@ -95,7 +97,8 @@ master (the def and 2 s of node positions).
 - fairing_shapes.png - the three shapes, side / three-quarter / ahead (quick_view)
 - fairing_details.png - seams, screws, the floor's cut, the pivot's notch (quick_view)
 - fairing_placements.png - the fitting low / default / high (quick_view)
-- strut_v1_v2.png - the strut's two versions, bare and faired, at rest and at full stroke (quick_view)
+- strut_v1_v2.png - the short and the long strut, bare and faired, at rest and at full stroke (quick_view)
+- strut_mount_slider.png - the mount at 0.13 / 0.40 / 0.72: the fairing and its cuts follow (quick_view)
 
 ## Open questions (each with its default)
 

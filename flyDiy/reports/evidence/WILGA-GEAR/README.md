@@ -12,6 +12,7 @@ The study: futureDesigns/WILGA-GEAR-STUDY-2026-11.md. The gate: tools/_wilga_gea
 | fairing_shapes.png | the leg fairing's three shapes (lvBoot: tapered, flared, trailing - the Wilga's), side / three-quarter / ahead, at rest | quick_view, the host with s1LegFair 1 |
 | fairing_details.png | close: the seams and screws, the floor's cut where the strut leaves, the pivot's trimmed notch (tapered above, trailing below) | quick_view |
 | strut_v1_v2.png | the strut's two versions (lvStrut): v1 the derived short strut, v2 the photographs' long strut along the leg - bare, faired at rest, at full stroke, from aft | quick_view |
+| strut_mount_slider.png | the strut's mount up the leg (lvTop) at 0.13 (v1), 0.40 and 0.72 (the default): bare, faired at rest from aft, at full stroke - the fairing and its cuts follow | quick_view |
 | fairing_placements.png | the fitting low / default / high on the body (lvRootAng 50 / 80 / 110), side and ahead | quick_view |
 | cub_preview_0_half_full.png | the garage preview row (gearLvPos) at 0 / 0.5 / 1 on the Cub | quickshot |
 

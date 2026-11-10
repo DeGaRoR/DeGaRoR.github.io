@@ -313935,12 +313935,14 @@ static deflection at the loaded mass (the row; 70 mm), the orifice for the 23.47
   leg's struts in the drag (Cd 1.0 bare, 0.30 booted). A 45-case placement matrix (fitting 50-110 deg, drop, reach, the
   three shapes; host and Cub): all clean, nothing moving within 9 mm, the ground 75 mm or more at full stroke on a flat
   tyre pitched 10 deg nose-down.
-- THE STRUT'S SECOND VERSION (the user: "do it as a second version and we'll check"): the row lvStrut ('strut mount', 0
-  v1 the derived short strut - the default -, 1 v2 the photographs' long strut, its eye 72 % up the leg; lvTop shows for
-  v1 only; absent at default in both tables). legLever sets R0.top; the join, the frame and the strut's design follow.
-  v2 on the host: 1.25 m, 269 mm stroke, 7 / 24 bar, 68 mm static, the limit drop on 242 of 269 mm (GATE WILGAGEAR 7c).
-  It does not slim the Wilga fairing: a 31 deg leaning leg on a horizontal pivot swings the strut ~+-8 cm sideways at the
-  fairing's foot (moving the horn into the leg's plane was tried: the same swing - reverted).
+- THE STRUT'S MOUNT, A SLIDER, THE LONG STRUT BY DEFAULT (the user: "do it as a second version", then "let's go with V2 ...
+  just how far on the leg does the shock mount"): lvTop is now the upper eye's SHARE of the leg (pivot -> fitting),
+  0.10-0.85, default 0.72 - the photographs' long strut (legLever sets R0.top; leverRowsOf no longer reads lvTop; ~0.13 is
+  the derived short strut). The join, the frame, the strut's design, the fairing and its cuts all follow the drawn strut.
+  GEN_RULES.lever (the physics' reference without a drawing; GATE WILGAGEAR §1-§6) stays the derived geometry. On the host:
+  1.25 m, 269 mm of stroke, 7 / 24 bar; every mount 0.13-0.85 stands at 68 mm and takes the limit drop unbottomed; the long
+  strut lands at 3.2 g at the CG against the short one's 4.5 (GATE WILGAGEAR 7c). The Wilga fairing stays thick (a 31 deg
+  leaning leg on a horizontal pivot swings the strut ~+-8 cm sideways at its foot) - the user: fine.
 
 **Pitfalls met (each measured, each fixed):**
 - The fixed leg as gear-class members is a 1.2e5 N/m spring and folds under its own strut: kMul 20.
@@ -313976,8 +313978,8 @@ static deflection at the loaded mass (the row; 70 mm), the orifice for the 23.47
 - With holes in it, "inside the boot" is no test (parity); GATE WILGAGEAR 7b measures each moving vertex's distance to
   the boot's triangles (a 2 cm cell grid) at 17 poses.
 
-**Gates** (cloud, node; full logs read; the table: reports/evidence/WILGA-GEAR/READY.md). GATE WILGAGEAR (new, core, ~3 min)
-PASS 51/51. PASS: GEAR, GEARFALL, TAILWHEEL, CLIP, BUILD, SAVE, PARTS, TAKEOFF, UISMOKE, STOL, DESIGN, JOIN, SUBSTEP,
+**Gates** (cloud, node; full logs read; the table: reports/evidence/WILGA-GEAR/READY.md). GATE WILGAGEAR (new, core, ~3.5 min)
+PASS 55/55. PASS: GEAR, GEARFALL, TAILWHEEL, CLIP, BUILD, SAVE, PARTS, TAKEOFF, UISMOKE, STOL, DESIGN, JOIN, SUBSTEP,
 SPECFIX, FIT, KNIFE, CAGEFIT, EDBUGS, PILOT; HITBOX and RETRACT PASS run alone (under four jobs each missed a time budget:
 260 vs 138 ms, 372 ms). Red as on master 7daba875 (each line checked there or in L36a's entry): JOINPARITY's five, TECH's
 av.elt line, DESIGNCHECK's carbon post, GEN's "cruise is quiet in wind". DMGGEAR: the two float lines, identical to master 7daba875's log
