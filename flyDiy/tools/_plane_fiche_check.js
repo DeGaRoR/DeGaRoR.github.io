@@ -169,6 +169,33 @@ async function run(S) {
     const wl = api._wingLine({ d, x0: 0, y0: 1, x1: 19, y1: 8 }, w);
     ok(wl === +((2 - 1 + 1) / 8).toFixed(3), 'RULE the cutaway: the wing line is the right band\'s lowest row (' + wl + ')');
   }
+  {   // FICHE-WATER (FLAGSHIP 10 Nov): a seaplane's take-off is its water run, never genTORunAt's land roll (the floats rolled
+      // as wheels: 800-1557 m on every float card). numbers() itself, out of the file, in a stub page with a stub bench.
+    const i0 = F.indexOf('  function numbers('), i1 = F.indexOf('\n  // ---- the draw', i0);
+    let numbersOf = null; const cx = { JSON, Math, String }; cx.window = cx;
+    try { numbersOf = vm.runInNewContext('(function () {\n' + F.slice(i0, i1) + '\nreturn numbers; })()', cx); }
+    catch (e) { fails.push('FICHE-WATER: numbers() does not load: ' + e.message); }
+    if (typeof numbersOf === 'function') {
+      const Fx = { len: () => 1 }, sp = d => (d && d.specs) || {};
+      cx.FLYDIY_POD = { shake: () => ({ empty: 600, mass: 820, TORun: 1151 }) };
+      const at = (gear, hydro, cage) => { cx.BENCH_STATE = () => ({ results: hydro === undefined ? {} : { hydro } });
+        return numbersOf({ gear: { type: gear }, cage: cage || {}, engines: [], cabin: {} }, Fx, 't'); };
+      const land = at('tricycle'), none = at('floats'), hull = at('tricycle', undefined, { hullOn: 1 }),
+            off = at('floats', { ok: true, verdict: 'LIFTS OFF THE WATER', lift: { t: 21, dist: 357, V: 25 } }),
+            old = at('floats', { ok: true, verdict: 'LIFTS OFF THE WATER' }),
+            stuck = at('floats', { ok: false, verdict: 'STUCK AT THE HUMP', lift: null }),
+            stale = at('floats', { ok: true, stale: true, verdict: 'LIFTS OFF THE WATER', lift: { t: 21, dist: 357, V: 25 } });
+      ok(sp(land).TORun === 1151 && !sp(land).TOWater, 'FICHE-WATER: a land build keeps its take-off run');
+      ok(sp(none).TORun == null && sp(none).TOWater === 'see the hydroplane test', 'FICHE-WATER: floats, no hydroplane run: "see the hydroplane test", never the land roll');
+      ok(sp(hull).TORun == null && sp(hull).TOWater === 'see the hydroplane test', 'FICHE-WATER: a hull is a seaplane too');
+      ok(sp(off).TORun === 357 && sp(off).TOWater == null, 'FICHE-WATER: floats that lift off: the water distance');
+      ok(sp(old).TORun == null && sp(old).TOWater === 'lifts off the water', 'FICHE-WATER: a save from before the lift numbers: the verdict, no number');
+      ok(sp(stuck).TORun == null && sp(stuck).TOWater === 'stuck at the hump', 'FICHE-WATER: stuck at the hump: the verdict');
+      ok(sp(stale).TORun == null && sp(stale).TOWater === 'see the hydroplane test', 'FICHE-WATER: a stale hydroplane result counts for nothing');
+    }
+    ok(/s\.TOWater \? 'on water: ' \+ s\.TOWater : num\(s\.TORun, 'm'\)/.test(FB), 'FICHE-WATER: the board prints the water row');
+    ok(/lift: off \? \{ t: r\.lift\.t, dist: r\.lift\.dist, V: r\.lift\.V \} : null,/.test(BE), 'FICHE-WATER: the hydroplane verdict carries the lift-off as numbers');
+  }
   return { fails, checks };
 }
 (async () => {
@@ -221,6 +248,10 @@ async function run(S) {
     ['R3 freeze: no compile after the build-back', 'F', F.replace('await P.compileScreen(root, S); tm.backCompileMs', 'tm.backCompileMs')],
     ['R3 freeze: the compile after the hold lifts', 'F', F.replace(/(\s*if \(held && P\.compileScreen\) \{[\s\S]*?\n      \}\n)(\s*if \(held\) hold\(false\);)/, '$2$1')],
     ['RULE: the shared index without files', 'IDX', JSON.parse(JSON.stringify(S.IDX, (k, v) => (k === 'file' ? undefined : v)))],
+    ['FICHE-WATER: the land roll on floats', 'F', F.replace('data.specs.TORun = done && h.ok && h.lift ? h.lift.dist : null;', '')],
+    ['FICHE-WATER: a hull on its land figure', 'F', F.replace(' || +(spec.cage && spec.cage.hullOn) > 0', '')],
+    ['FICHE-WATER: the board prints the land figure', 'FB', FB.replace("s.TOWater ? 'on water: ' + s.TOWater : num(s.TORun, 'm')", "num(s.TORun, 'm')")],
+    ['FICHE-WATER: no lift numbers', 'BE', S.BE.replace('lift: off ? { t: r.lift.t, dist: r.lift.dist, V: r.lift.V } : null,', '')],
   ]);
   let bad = 0;
   for (const [nm, k, f2] of BREAKS) { if (f2 === S[k]) { console.log('  selftest ' + nm + ': the break did not apply'); bad++; continue; } const r = await run(Object.assign({}, S, { [k]: f2 })); if (!r.fails.length) { console.log('  selftest ' + nm + ': NOT caught'); bad++; } }
