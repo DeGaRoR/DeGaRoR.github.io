@@ -716,8 +716,9 @@ function run(mut) {
         ok(!M.freightStrapFor(M.freightLoadSettle(dn3), 'Ces', 'c172'), 'delivered: the record leaves with its seats out - every seat back');
       }
       const flS = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'freight_load.js'), 'utf8'), apS = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');
-      ok(/freightLoadBest\(card, job\.items, \{ pax: job\.pax \}\)/.test(flS) && /fsChairs\(got, loading\);/.test(apS),
-         'the view opens on that proposal; the stand hides the chairs the accepted load took out');
+      ok(/freightLoadBest\(card, job\.items, \{ pax: job\.pax \}\)/.test(flS) && /if \(inGarage\) fsCrewSync\(\);/.test(apS) &&
+         /const out = loading \? \[\] : \(Array\.isArray\(got\.A\.seatsOut\)/.test(apS),
+         'the view opens on that proposal; the crew layer leaves out the chairs the accepted load took out (G2715: GATE CREWSEATS)');
     }
     // NOTHING ACCEPTED: no masses, no drawing
     ok(M.freightStrapAdds(D.cub, null) === null && M.freightStrapAdds(D.cub, M.freightAccepted({ career: {} })) === null, 'nothing accepted: no masses (the sim is never asked)');
