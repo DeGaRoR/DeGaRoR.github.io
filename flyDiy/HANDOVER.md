@@ -314275,3 +314275,10 @@ brkRestore and the heal); _cage_wing.js (one call at the end of its post, as the
 see-inside); _cage_ui.js (the cutaway box's onchange only - it threw in the game's garage); build.js (wing_struct.js in
 MANIFEST.viewer before garage.js); run_gates.js (the WINGSTRUCT row). plane_fiche.js: NEAR_OFF's neighbours, cutOn /
 cutOff and six helpers of mine - draw(), the hold, warm, yieldTask, the timing and the finally block untouched.
+
+### PLANE-RENDERS R3 freeze + ROWFIT (AIRCRAFT-LOOKS, 10 Nov, for L37b)
+- The freeze when a fiche finishes is fixed. The shed's first frame after the hold was ONE 4482 ms task (17 programs linked at once after the cutaway's build-back). Now plane_fiche.js compiles them sliced (`P.compileScreen(root, S)`) before `hold(false)`. GPU re-measure 13:40 on the Twin 4b: no long task after the hold, frames at 16.7 ms, `tm.backCompileMs` 6941 (inside the hold).
+- NAMED COST (perf list, R4's next target): the Twin's FIRST fiche still has 3 tasks over 1 s inside the hold: 5937 ms at +2.6 s (the studio's first compile), 1210 ms and 1336 ms. That fiche's median is 16.7 ms and its p99 76 ms. The second fiche has none over 1 s (p99 276 ms).
+- ROWFIT (fiche_board.js share composer): a value keeps to its column. It shrinks down to 22 px, then wraps to two lines inside the row's 44 px. On 14:42's Twin share, "on water: see the hydroplane test" (FICHE-WATER) had run over the engine row. GATE PLANEFICHE draws rowFit on a stub canvas, with 2 new selftest breaks.
+- Owed: the official fiche re-bake, A0 slot Tue 23:25-23:45 GPU after L37b, with FLAGSHIP's claude/fiche-bake-hydro (the 3 float cards froze the land roll). It also covers the heroes + thumbnails with the WINGSMITH · CERTIFIED sticker.
+- Gates 10 Nov 15:46 on 23ba187fc (L37a master db2298a41): PLANEFICHE PASS (selftest 38/38), PLANETHUMB MEDIA NAMES LIGHT BOOT NEWPLANE PASS, BENCH PASS 48 s. FLAGSHIP's claude/ready/fiche-water-l37a sits on df11bdd0e, the parent of this tip.

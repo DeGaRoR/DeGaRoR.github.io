@@ -293,7 +293,20 @@
     g.fillStyle = '#6d675b'; g.font = '500 34px "IBM Plex Sans", sans-serif'; if (d.reg) g.fillText(d.reg, 70, 1232);
     g.font = '400 30px "IBM Plex Sans", sans-serif';
     const rows = specRows(d).filter(x => x[1] !== '—');
-    rows.forEach(([k, v], i) => { const col = i % 2, rw = Math.floor(i / 2); g.fillStyle = '#6d675b'; g.fillText(k, 70 + col * 450, 1300 + rw * 44); g.fillStyle = '#2b2924'; g.fillText(v, 270 + col * 450, 1300 + rw * 44); });
+    // a value keeps to its column (ROWFIT, the 14:42 twin share 10 Nov: "on water: see the hydroplane test" ran over the
+    // engine's row): smaller down to 22 px, then two lines inside the row's 44 px
+    const rowFit = (v, x, y, maxW) => {
+      let px = 30; g.font = '400 30px "IBM Plex Sans", sans-serif';
+      const w0 = g.measureText(v).width; if (w0 <= maxW) { g.fillText(v, x, y); return; }
+      px = Math.max(22, Math.floor(30 * maxW / w0)); g.font = '400 ' + px + 'px "IBM Plex Sans", sans-serif';
+      if (g.measureText(v).width <= maxW) { g.fillText(v, x, y); g.font = '400 30px "IBM Plex Sans", sans-serif'; return; }
+      px = 22; g.font = '400 22px "IBM Plex Sans", sans-serif';
+      const ws = String(v).split(' '); let a = '', i = 0;
+      for (; i < ws.length; i++) { const t = a ? a + ' ' + ws[i] : ws[i]; if (a && g.measureText(t).width > maxW) break; a = t; }
+      g.fillText(a, x, y - 11, maxW); g.fillText(ws.slice(i).join(' '), x, y + 13, maxW);
+      g.font = '400 30px "IBM Plex Sans", sans-serif';
+    };
+    rows.forEach(([k, v], i) => { const col = i % 2, rw = Math.floor(i / 2); g.fillStyle = '#6d675b'; g.fillText(k, 70 + col * 450, 1300 + rw * 44); g.fillStyle = '#2b2924'; rowFit(String(v), 270 + col * 450, 1300 + rw * 44, col ? 260 : 230); });
     g.fillStyle = '#9a9283'; g.font = '400 24px "IBM Plex Sans", sans-serif'; g.textAlign = 'right'; g.fillText(sig(), Wd - 70, 1556); g.textAlign = 'left';
     // the frame: a thin quiet line, rounded, round the whole sheet (the board's .pfFrame, at this size)
     g.strokeStyle = '#d8cdb8'; g.lineWidth = 3; g.beginPath();

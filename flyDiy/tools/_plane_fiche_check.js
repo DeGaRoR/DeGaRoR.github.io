@@ -83,6 +83,19 @@ async function run(S) {
     ok(!/flyDiy ·/.test(FB) && /g\.fillText\(sig\(\)/.test(FB) && /sg\.textContent = sig\(\)/.test(FB) && /GAME_NAMES\.game/.test(FB), 'RULE the signature: the game\'s name from its one place, on the board and the share');
     ok(/^\s*game:\s*'[^']+',/m.test(S.N), 'RULE the signature: 01_names.js holds the game\'s name');
     ok(/\.pfFrame \{[^}]*border:1px solid #[0-9a-f]{6};[^}]*border-radius:\d+px/.test(FB) && /fr\.appendChild\(top\)/.test(FB) && /g\.roundRect\(24, 24, Wd - 48, Ht - 48, 28\)/.test(FB) && /g\.stroke\(\);/.test(FB), 'RULE the frame: a thin rounded line, on the board and the share');
+    { // ROWFIT (the 14:42 twin share 10 Nov: the water row ran over the engine's): a value keeps to its column - drawn on a
+      // stub canvas (a glyph half its size wide), every piece inside maxW and inside the row's 44 px
+      const m = FB.match(/const rowFit = \(v, x, y, maxW\) => \{[\s\S]*?\n    \};/); let fitOk = !!m && /rowFit\(String\(v\), 270 \+ col \* 450, 1300 \+ rw \* 44, col \? 260 : 230\)/.test(FB);
+      if (fitOk) { try {
+        const drawn = []; const g = { font: '', measureText: t => ({ width: String(t).length * (+(/(\d+)px/.exec(g.font) || [0, 30])[1]) * 0.5 }),
+          fillText: (t, x, y) => drawn.push({ w: g.measureText(t).width, y }) };
+        const rowFit = new Function('g', m[0] + '\nreturn rowFit;')(g);
+        for (const [v, mw] of [['on water: see the hydroplane test', 230], ['1151 m', 230], ['sea level only — needs 1178 m', 260]]) {
+          drawn.length = 0; rowFit(v, 270, 1300, mw);
+          if (!drawn.length || drawn.some(d => d.w > mw + 0.5 || Math.abs(d.y - 1300) > 20)) fitOk = false; }
+      } catch (e) { fitOk = false; } }
+      ok(fitOk, 'ROWFIT the share\'s values keep to their column (smaller, then two lines)');
+    }
     ok(/hr \? cutPlace\(d\.heroWingY, hr\.h, ch\)/.test(FB) && /const p = cutPlace\(d\.heroWingY, hero\.offsetHeight, c\.offsetHeight\)/.test(FB), 'RULE the cutaway: placed by cutPlace on the board and the share');
   }
   // ---- R3: the doors
@@ -244,6 +257,8 @@ async function run(S) {
     ['RULE: the old signature', 'FB', FB.replace("g.fillText(sig(), Wd - 70, 1556)", "g.fillText('flyDiy · certified airworthy', 2060, 1560)")],
     ['RULE: no game name in the table', 'N', S.N.replace(/^\s*game:.*\n/m, '')],
     ['RULE: no frame on the share', 'FB', FB.replace('if (g.roundRect) g.roundRect(24, 24, Wd - 48, Ht - 48, 28); else g.rect(24, 24, Wd - 48, Ht - 48);', '')],
+    ['ROWFIT: a value drawn whole', 'FB', FB.replace("rowFit(String(v), 270 + col * 450, 1300 + rw * 44, col ? 260 : 230)", "g.fillText(v, 270 + col * 450, 1300 + rw * 44)")],
+    ['ROWFIT: no two lines', 'FB', FB.replace("g.fillText(a, x, y - 11, maxW); g.fillText(ws.slice(i).join(' '), x, y + 13, maxW);", 'g.fillText(v, x, y);')],
     ['RULE: the cutaway at the top', 'FB', FB.replace('const under = (wy + GAP) * heroH;', 'const under = 0;')],
     ['R3 freeze: no compile after the build-back', 'F', F.replace('await P.compileScreen(root, S); tm.backCompileMs', 'tm.backCompileMs')],
     ['R3 freeze: the compile after the hold lifts', 'F', F.replace(/(\s*if \(held && P\.compileScreen\) \{[\s\S]*?\n      \}\n)(\s*if \(held\) hold\(false\);)/, '$2$1')],
