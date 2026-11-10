@@ -672,7 +672,10 @@ if (plots.length) {
       if (k === 'P') { if (c.P) for (const pk of Object.keys(q.P || {})) if (eq(c.P[pk], q.P[pk])) { if (x.P && pk in x.P) c.P[pk] = x.P[pk]; else delete c.P[pk]; } continue; }
       if (eq(c[k], q[k])) { if (x[k] === undefined) delete c[k]; else c[k] = JSON.parse(JSON.stringify(x[k])); } }
     return c; };
-  const same = (L, x, y) => L === 'areas' ? canA(unC(x)) === canA(unC(y)) : unC(svItems(x, y)) === unC(devary(y, x));
+  // (DIRT-STRIP 10 Nov: an entry compared by its keys, sorted - a field patch the save's entry lacks (w3's micro) lands last
+  //  in it and in its place in the shipped one: the same entry, another key order)
+  const ord = s => JSON.stringify(sk(JSON.parse(s)));
+  const same = (L, x, y) => L === 'areas' ? canA(unC(x)) === canA(unC(y)) : ord(unC(svItems(x, y))) === ord(unC(devary(y, x)));
   // (JOLENE-FOLD) an area the save folded from STAGED v1 entries (the sandbox's view carries no stage, so they fold; the shipped
   //  record's staged entries do not - sg_x_mill, sg_x_lodge): its entries against those sources, stage aside
   const fromStaged = e => !!(e.src && Object.keys(e.src).length) && Object.entries(e.src).every(([k, s]) => (A.layers[k] || []).some(q => q.id === s[0] && q.stage));
