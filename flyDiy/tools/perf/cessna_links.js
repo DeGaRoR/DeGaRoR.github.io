@@ -7,7 +7,7 @@
 // source that differs per load: the cause this rig looks for). --dump <dir> writes the differing sources (load a / load b)
 // for a diff.
 // Usage: node tools/perf/cessna_links.js --port 8650 [--udd D:/cl1] [--builds metal,metal,metal | cub@town=0,cub@town=1] [--slow 1000] [--dump <dir>] [--fallback D:/Dev/DeGaRoR.github.io]
-//        [--ck] [--hist ProgramCache,Shader]   (BOOT-PROGRAMS 9 Nov: --ck names each source linked twice in one load by
+//        [--fly-sec 15] [--ck] [--hist ProgramCache,Shader]   (BOOT-PROGRAMS 9 Nov: --ck names each source linked twice in one load by
 //        the three cacheKeys of its programs, cut to where they differ; --hist the CDP histogram queries)
 //        [--out <file.json>]     (GPU lock first; --udd a SHORT fresh path; no --help: an unknown flag runs it)
 'use strict';
@@ -19,7 +19,7 @@ const PORT = +opt('port', 0), SLOW = +opt('slow', 1000), DUMP = opt('dump', null
 const UDD = path.resolve(opt('udd', path.join(os.tmpdir(), 'cl' + Date.now().toString(36).slice(-5))));
 const LOADS = opt('builds', 'metal,metal,metal').split(',');
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-const CK = argv.includes('--ck'), HIST = opt('hist', 'ProgramCache').split(',');
+const FLY_SEC = +opt('fly-sec', 15), CK = argv.includes('--ck'), HIST = opt('hist', 'ProgramCache').split(',');
 // BOOT-PROGRAMS (A0 9 Nov; BOOT-PROGRAMS-2026-11-03: ~90 links a nav of a source the same load already linked, same context,
 // the first program still live = three keyed one source twice): per source linked more than once in a load, the cacheKeys of
 // its programs (renderer.info.programs: the GL program -> three's WebGLProgram), cut to the part that differs
@@ -29,13 +29,13 @@ const CKR = `JSON.stringify((() => { var R = window.FLIGHT_PROBE && FLIGHT_PROBE
   var W = new Map(), root = function (o) { while (o && o.parent) o = o.parent; return o; }, P0 = window.FLIGHT_PROBE || {}, roots = [];
   try { if (P0.craft && P0.craft()) roots.push(root(P0.craft())); } catch (e) {} try { if (P0.hangarScene && P0.hangarScene()) roots.push(P0.hangarScene()); } catch (e) {}
   roots.forEach(function (sc) { if (sc) sc.traverse(function (o) { if (!o.material) return; (Array.isArray(o.material) ? o.material : [o.material]).forEach(function (m) { if (!m || !R) return; var pp = R.properties.get(m).programs; if (!pp) return;
-    pp.forEach(function (pg) { if (pg && pg.program && !W.has(pg.program)) W.set(pg.program, { mt: m.type, mn: m.name || '', ob: (o.name || o.type || '').slice(0, 40), lights: !!m.lights, gf: !!m.groundFamily, hook: m.onBeforeCompile !== Object.getPrototypeOf(m).onBeforeCompile, def: Object.keys(m.defines || {}).slice(0, 6).join(' '), uni: Object.keys(m.uniforms || {}).slice(0, 8).join(' ') }); }); }); }); });
+    pp.forEach(function (pg) { if (pg && pg.program && !W.has(pg.program)) W.set(pg.program, { np: pp.size, mt: m.type, mn: m.name || '', ob: (o.name || o.type || '').slice(0, 40), lights: !!m.lights, gf: !!m.groundFamily, hook: m.onBeforeCompile !== Object.getPrototypeOf(m).onBeforeCompile, def: Object.keys(m.defines || {}).slice(0, 6).join(' '), uni: Object.keys(m.uniforms || {}).slice(0, 8).join(' ') }); }); }); }); });
   var by = new Map(); for (var j = 0; j < __CL.ln.length; j++) { var k = __CL.ln[j][1] + __CL.ln[j][2], a = by.get(k); if (!a) by.set(k, a = []); a.push(j); }
   var cut = function (a, b) { var p = 0; while (p < a.length && p < b.length && a[p] === b[p]) p++; var q = 0; while (q < a.length - p && q < b.length - p && a[a.length - 1 - q] === b[b.length - 1 - q]) q++; return [p, a.slice(Math.max(0, p - 60), a.length - q).slice(0, 400), b.slice(Math.max(0, p - 60), b.length - q).slice(0, 400)]; };
   var out = []; by.forEach(function (ix, k) { if (ix.length < 2) return; var P = ix.map(function (j) { return M.get(__CL.gp[j]) || null; }), f = P.find(function (x) { return x; });
     out.push({ who: ix.map(function (j) { return W.get(__CL.gp[j]) || null; }), k: k, n: ix.length, t: ix.map(function (j) { return Math.round(__CL.ln[j][0]); }), live: P.map(function (x) { return !!x; }), name: f ? f.name : null,
       d: f ? P.filter(function (x) { return x && x !== f; }).map(function (x) { return cut(String(f.cacheKey), String(x.cacheKey)); }) : [] }); });
-  return { programs: L.length, renderer: !!R, dups: out, own: __CL.gp.map(function (p) { var w = W.get(p); return w ? w.mt + '/' + (w.mn || w.ob) + (w.gf ? ' GROUND' : '') : null; }) }; })())`;
+  return { programs: L.length, renderer: !!R, dups: out, own: __CL.gp.map(function (p) { var w = W.get(p); return w ? w.mt + '/' + (w.mn || w.ob) + (w.gf ? ' GROUND' : '') + (w.np > 1 ? ' [' + w.np + ' programs: re-keyed]' : '') : null; }) }; })())`;
 // the burst: links per second over the load (the most in any 1 s, and the 5 s bins)
 const burst = rows => { const t = rows.map(r => r.t0).sort((a, b) => a - b); let mx = 0; for (let i = 0, j = 0; i < t.length; i++) { while (t[i] - t[j] > 1000) j++; mx = Math.max(mx, i - j + 1); }
   const bins = {}; for (const x of t) { const k = Math.floor(x / 5000) * 5; bins[k] = (bins[k] || 0) + 1; } return { max1s: mx, bins5s: bins }; };
@@ -73,11 +73,11 @@ const HASH = `(function(){ if (window.__CL) return; var C = window.__CL = { ln: 
     let fly = null, frm = null;
     if (FLY) { const n0 = await b.ev(MB.A.trips), w0 = Date.now(), tR = await b.ev('performance.now()'); await b.ev(MB.A.rollOut);
       for (const tEnd = Date.now() + 300000; Date.now() < tEnd; await sleep(200)) { const d = JSON.parse(await b.ev(MB.A.lastTrip, 30000)); if (d.n > n0 && d.kind === 'rollout' && d.done && d.boot === 'gone') break; }
-      fly = +((Date.now() - w0) / 1000).toFixed(1); const tD = await b.ev('performance.now()'); await sleep(2500); await b.ev(MB.A.run).catch(() => 0); await b.ev(MB.A.cam('chase')).catch(() => 0); await sleep(15000);
+      fly = +((Date.now() - w0) / 1000).toFixed(1); const tD = await b.ev('performance.now()'); await sleep(2500); await b.ev(MB.A.run).catch(() => 0); await b.ev(MB.A.cam('chase')).catch(() => 0); await sleep(FLY_SEC * 1000);
       // (BOOT-PROGRAMS A/B) the frames: the roll-out's (press -> done) and the first flight's 17.5 s, over 100 ms and the worst
       const fr = JSON.parse(await b.ev('JSON.stringify((window.__MB && __MB.fr || []).map(e => [e[0], e[1]]))', 30000).catch(() => '[]') || '[]');
       const part = (a, z) => { const d = fr.filter(e => e[0] > a && e[0] <= z && e[1] > 0).map(e => e[1]).sort((x, y) => x - y); return { n: d.length, over100: d.filter(x => x > 100).length, over250: d.filter(x => x > 250).length, p99: d.length ? d[Math.min(d.length - 1, Math.floor(d.length * 0.99))] : null, worst: d.length ? d[d.length - 1] : null }; };
-      frm = { rollout: part(tR, tD), flight: part(tD, tD + 1e9) }; }
+      frm = { rollout: part(tR, tD), flight: part(tD, tD + 1e9), tD: Math.round(tD), slow: fr.filter(e => e[0] > tD && e[1] > 250).map(e => [Math.round((e[0] - tD) / 100) / 10, Math.round(e[1])]) }; }
     // master_bench's ln rows [t0, ms] and ours [t0, hv, hf] were pushed in the same call: zip by order
     const d = JSON.parse(await b.ev('JSON.stringify({ t: (__MB.ln || []).map(e => [Math.round(e[0]), Math.round(e[1])]), h: __CL.ln.map(e => [e[1], e[2], e[3]]), cx: __CL.cx })', 30000));
     const all = d.t.map((t, i) => ({ t0: t[0], ms: t[1], k: d.h[i] ? d.h[i][0] + d.h[i][1] : '?', vs: d.h[i] && d.h[i][0], fs: d.h[i] && d.h[i][1] }));
@@ -113,6 +113,10 @@ const HASH = `(function(){ if (window.__CL) return; var C = window.__CL = { ln: 
       [...g].sort((a, b) => b[1] - a[1]).slice(0, 30).forEach(([k, n]) => console.log('    ' + String(n).padStart(3) + 'x  ' + k)); }
     console.log('  burst: most links in 1 s ' + row.burst.max1s + '; per 5 s ' + JSON.stringify(row.burst.bins5s));
     if (row.ck && row.ck.own) for (const s of row.slow) s.own = row.ck.own[s.j] || null;
+    if (frm) { const after = all.map((r, j) => [r, j]).filter(([r]) => r.t0 > frm.tD - 2000);
+      row.flown = after.map(([r, j]) => ({ t: +((r.t0 - frm.tD) / 1000).toFixed(1), ms: r.ms, k: r.k, own: row.ck && row.ck.own ? row.ck.own[j] : null }));
+      console.log('  after the reveal: ' + row.flown.length + ' links; frames > 250 ms (s after, ms): ' + JSON.stringify(frm.slow));
+      for (const x of row.flown) console.log('    +' + x.t + ' s  link ' + (x.ms / 1000).toFixed(1) + ' s  ' + x.k + '  ' + (x.own || '?')); }
     for (const s of row.slow) console.log('    ' + String(s.t0).padStart(6) + ' ms  link ' + (s.ms / 1000).toFixed(1) + ' s  ' + s.k + '  ' + s.was + (s.own ? '  ' + s.own : ''));
     if (!ONE) await b.close();
   }
