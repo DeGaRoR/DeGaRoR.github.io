@@ -99,3 +99,11 @@ On claude/practical-cerf-7fjpwp, not to merge (A0: Pilot's domain):
 - **GATES: STILL RUNNING.** The full battery restarted at 01:12 UTC after a container restart. At 02:58 UTC it was at
   10/322 jobs (the heavy jobs first: DMGGEAR, INSTANT, RADIALDIV, HOUSEWORKER, TREECRASH). The result will be added
   here and pushed when it completes. Before this merge, the branch's own gates were as in the sections above.
+- **Targeted gates (03:23 UTC)** - the full battery was stopped at the session's 2 h limit (11/322 jobs), so the gates that
+  read what the merge touched were run: STOL, PWA, UPDATE, CARDS, SPECFIX, BENCH, CGBAND, RETRACT, DESIGN, CANDIDATES
+  **PASS**; **JOINPARITY FAIL** - the same single Jodel line fails on plain master e79a114d8 (node 471.789 vs page 467.989
+  kg, first node 0 S0BL), so it is master's, not this branch's; **PLANELISTS FAIL**, this branch's own and now FIXED: the
+  three candidates indexed in d3a2953d6 were not on `builds/lists/plane_lists.json` (rows 47-49 added), and that commit
+  had re-serialised `builds/candidates/index.json`, dropping `"official": true` from stol_cub_showcase and
+  Twin_busher_floats_4b (the selftest's flagship probe went inert) - the file is master's again byte for byte plus the
+  three rows. PLANELISTS (with --selftest) PASS after the fix; CANDIDATES re-running.

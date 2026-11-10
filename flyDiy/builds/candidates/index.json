@@ -3,122 +3,24 @@
   "v": 1,
   "note": "CANDIDATE OFFICIAL (the user, 2 Nov): the staging pool - aeroplanes designed and built, not validated. The garage offers them under 'candidate official' (the load rack and the new-aeroplane cards), in the sandbox and a career, from these files (not the browser's storage). No certificate, not in the career catalogue, the contracts or the story. The file names are the user's / the builders' own and stay as they are. OFFERED here = only what the user named (2 Nov); review/ holds the planes found in the repo, not offered and not in this index, until the user promotes one (review/REVIEW.md). One plane, one file: an older version of a plane that just evolved is not kept, a real configuration change (floats, a STOL kit) is. Add one: node tools/candidates_add.js <a build or an 'export all' file> [--review]. official: true (the user 4 Nov) = on the Official list (builds/lists/plane_lists.json): off the candidate cards, on the chooser's official group and the All planes screen.",
   "planes": [
-    {
-      "file": "stearman_2026-10.json",
-      "name": "Stearman-alike",
-      "note": "radial biplane trainer, two open cockpits - ref-matched (NEW-SHAPES-1)",
-      "from": "NEW-SHAPES-1 (tools/newshapes_build.js)"
-    },
-    {
-      "file": "tigermoth_2026-10.json",
-      "name": "Tiger Moth-alike",
-      "note": "wood and fabric biplane, two open cockpits - ref-matched (NEW-SHAPES-1); open finding: the prop passes through the body",
-      "from": "NEW-SHAPES-1 (tools/newshapes_build.js)"
-    },
-    {
-      "file": "camel_2026-10.json",
-      "name": "Camel-alike",
-      "note": "rotary scout biplane, one open cockpit - ref-matched (NEW-SHAPES-1)",
-      "from": "NEW-SHAPES-1 (tools/newshapes_build.js)"
-    },
-    {
-      "file": "dc3_2026-10.json",
-      "name": "DC-3-alike",
-      "note": "full size, nine bays - DC3-2 v1 (G3579b, flown 28 Oct); its swivel tailwheel and nose dome rows ride dc3-2",
-      "from": "Deform (claude/dc3-2 19eb0b6a2)"
-    },
-    {
-      "file": "stol_cub_showcase.json",
-      "name": "STOL Cub",
-      "note": "the Cub with the STOL kit, a Rotax 915 iS on a three-blade prop and tundra tyres (STOL-WING-2 G2829); open finding: the drawn elevator chord 0.664 is past the flown 0.65 (flies clamped)",
-      "from": "Pilot (tools/fixtures)",
-      "official": true
-    },
-    {
-      "file": "Twin_busher_floats_4b.json",
-      "name": "Twin busher floats 4b",
-      "note": "the user's twin pusher on floats as FLAGSHIP finished it: the least sweep, on the Rotax 916 iS, lifting four aboard, the prop strike fixed (2 Nov; the user's pick ~22:25 - it replaces _2 and _3, now in review/) - flies as meant with claude/ready/boom-reach's float-step fix and 916 iS row",
-      "from": "the user",
-      "official": true
-    },
-    {
-      "file": "superpetrel_V4_1.json",
-      "name": "Super Petrel LS",
-      "note": "the Super Petrel LS, V4.1 - the final one (the user 7 Nov): carbon, a pod-and-rod hull with a step and spray strakes, a sesquiplane on a central faired pylon, the Rotax 912 iS pusher slid into the upper wing, a retracting tricycle (rigid-L mains into the lower wing, the nose forward into the bow); built on claude/hull-types (HULL-B80); lab: behind the lab switch while seaplanes land switched off (the user 8 Nov)",
-      "from": "the hull-types session (tools/hull_matrix.js superPetrelV4)",
-      "lab": true
-    },
-    {
-      "file": "ugly_bi.json",
-      "name": "ugly bi",
-      "note": "the user's little biplane: a low wing and a parasol upper wing on N struts, an O-200, spatted taildragger - built on the phone, never flown",
-      "from": "the user"
-    },
-    {
-      "file": "mosquito.json",
-      "name": "mosquito",
-      "note": "B-MOSQ (9 Oct; DESIGN-TRUST G2640: it would not fly level - its repro steps stay in tools/fixtures/repro/)",
-      "from": "the user (\"you may also add the mosquito\"; tools/fixtures/repro/)"
-    },
-    {
-      "file": "birdman.json",
-      "name": "Birdman",
-      "note": "found in the repo (bugReports/); the user kept it, 4 Nov",
-      "from": "review/, the user 4 Nov"
-    },
-    {
-      "file": "build_v7_twin_2026-09-04.json",
-      "name": "Twin ultralight",
-      "note": "a v7 file, 4 Sep; the user kept it, 4 Nov",
-      "from": "review/, the user 4 Nov"
-    },
-    {
-      "file": "build_v8_pusher_2026-09-11.json",
-      "name": "pusherLight",
-      "note": "a light pusher, a v8 file, 11 Sep; the user kept it, 4 Nov",
-      "from": "review/, the user 4 Nov"
-    },
-    {
-      "file": "flydiy-build (4).json",
-      "name": "twinBoomFail",
-      "note": "twin boom, experimental, the latest of its three saves; the user kept it, 4 Nov",
-      "from": "review/, the user 4 Nov"
-    },
-    {
-      "file": "B-ITES.json",
-      "name": "B-ITES",
-      "note": "the user's export (evidence 2026-11-04/candidates-user/)",
-      "from": "the user"
-    },
-    {
-      "file": "pawnee (1).json",
-      "name": "Pawnee",
-      "note": "the user's export (evidence 2026-11-04/candidates-user/): \"it will remain a candidate for a while\"",
-      "from": "the user"
-    },
-    {
-      "file": "build_v7_ultralight_2026-09-05_floats.json",
-      "name": "Ultralight twin on floats",
-      "note": "the test plane: tools/_load_build.js VALIDATED.twinFloats baked to a file",
-      "from": "tools/fixtures"
-    },
-    {
-      "file": "carbon_cub_ss.json",
-      "name": "Carbon Cub SS",
-      "note": "the STOL Cub on the CC340 (engine dials), slats, the stol flap, Oratex on aluminium spars - REAL-FIGURES-3",
-      "from": "REAL-FIGURES-3 (builds/edits/carbon_cub_ss.edits.json)"
-    },
-    {
-      "file": "cub_chord160.json",
-      "name": "Piper Cub, J-3 chord",
-      "note": "the official Cub at the J-3's 1.60 m chord (16.5 m2) - REAL-FIGURES-3",
-      "from": "REAL-FIGURES-3 (builds/edits/cub_chord160.edits.json)"
-    },
-    {
-      "file": "pa18_floats_chord160.json",
-      "name": "PA-18 floats, PA-18 chord",
-      "note": "the float Super Cub at the PA-18's 1.60 m chord - REAL-FIGURES-3",
-      "from": "REAL-FIGURES-3 (builds/edits/pa18_floats_chord160.edits.json)"
-    }
+    { "file": "stearman_2026-10.json", "name": "Stearman-alike", "note": "radial biplane trainer, two open cockpits - ref-matched (NEW-SHAPES-1)", "from": "NEW-SHAPES-1 (tools/newshapes_build.js)" },
+    { "file": "tigermoth_2026-10.json", "name": "Tiger Moth-alike", "note": "wood and fabric biplane, two open cockpits - ref-matched (NEW-SHAPES-1); open finding: the prop passes through the body", "from": "NEW-SHAPES-1 (tools/newshapes_build.js)" },
+    { "file": "camel_2026-10.json", "name": "Camel-alike", "note": "rotary scout biplane, one open cockpit - ref-matched (NEW-SHAPES-1)", "from": "NEW-SHAPES-1 (tools/newshapes_build.js)" },
+    { "file": "dc3_2026-10.json", "name": "DC-3-alike", "note": "full size, nine bays - DC3-2 v1 (G3579b, flown 28 Oct); its swivel tailwheel and nose dome rows ride dc3-2", "from": "Deform (claude/dc3-2 19eb0b6a2)" },
+    { "file": "stol_cub_showcase.json", "name": "STOL Cub", "note": "the Cub with the STOL kit, a Rotax 915 iS on a three-blade prop and tundra tyres (STOL-WING-2 G2829); open finding: the drawn elevator chord 0.664 is past the flown 0.65 (flies clamped)", "from": "Pilot (tools/fixtures)", "official":true },
+    { "file": "Twin_busher_floats_4b.json", "name": "Twin busher floats 4b", "note": "the user's twin pusher on floats as FLAGSHIP finished it: the least sweep, on the Rotax 916 iS, lifting four aboard, the prop strike fixed (2 Nov; the user's pick ~22:25 - it replaces _2 and _3, now in review/) - flies as meant with claude/ready/boom-reach's float-step fix and 916 iS row", "from": "the user", "official":true },
+    { "file": "superpetrel_V4_1.json", "name": "Super Petrel LS", "note": "the Super Petrel LS, V4.1 - the final one (the user 7 Nov): carbon, a pod-and-rod hull with a step and spray strakes, a sesquiplane on a central faired pylon, the Rotax 912 iS pusher slid into the upper wing, a retracting tricycle (rigid-L mains into the lower wing, the nose forward into the bow); built on claude/hull-types (HULL-B80); lab: behind the lab switch while seaplanes land switched off (the user 8 Nov)", "from": "the hull-types session (tools/hull_matrix.js superPetrelV4)", "lab":true },
+    { "file": "ugly_bi.json", "name": "ugly bi", "note": "the user's little biplane: a low wing and a parasol upper wing on N struts, an O-200, spatted taildragger - built on the phone, never flown", "from": "the user" },
+    { "file": "mosquito.json", "name": "mosquito", "note": "B-MOSQ (9 Oct; DESIGN-TRUST G2640: it would not fly level - its repro steps stay in tools/fixtures/repro/)", "from": "the user (\"you may also add the mosquito\"; tools/fixtures/repro/)" },
+    { "file": "birdman.json", "name": "Birdman", "note": "found in the repo (bugReports/); the user kept it, 4 Nov", "from": "review/, the user 4 Nov" },
+    { "file": "build_v7_twin_2026-09-04.json", "name": "Twin ultralight", "note": "a v7 file, 4 Sep; the user kept it, 4 Nov", "from": "review/, the user 4 Nov" },
+    { "file": "build_v8_pusher_2026-09-11.json", "name": "pusherLight", "note": "a light pusher, a v8 file, 11 Sep; the user kept it, 4 Nov", "from": "review/, the user 4 Nov" },
+    { "file": "flydiy-build (4).json", "name": "twinBoomFail", "note": "twin boom, experimental, the latest of its three saves; the user kept it, 4 Nov", "from": "review/, the user 4 Nov" },
+    { "file": "B-ITES.json", "name": "B-ITES", "note": "the user's export (evidence 2026-11-04/candidates-user/)", "from": "the user" },
+    { "file": "pawnee (1).json", "name": "Pawnee", "note": "the user's export (evidence 2026-11-04/candidates-user/): \"it will remain a candidate for a while\"", "from": "the user" },
+    { "file": "build_v7_ultralight_2026-09-05_floats.json", "name": "Ultralight twin on floats", "note": "the test plane: tools/_load_build.js VALIDATED.twinFloats baked to a file", "from": "tools/fixtures" },
+    { "file": "carbon_cub_ss.json", "name": "Carbon Cub SS", "note": "the STOL Cub on the CC340 (engine dials), slats, the stol flap, Oratex on aluminium spars - REAL-FIGURES-3", "from": "REAL-FIGURES-3 (builds/edits/carbon_cub_ss.edits.json)" },
+    { "file": "cub_chord160.json", "name": "Piper Cub, J-3 chord", "note": "the official Cub at the J-3's 1.60 m chord (16.5 m2) - REAL-FIGURES-3", "from": "REAL-FIGURES-3 (builds/edits/cub_chord160.edits.json)" },
+    { "file": "pa18_floats_chord160.json", "name": "PA-18 floats, PA-18 chord", "note": "the float Super Cub at the PA-18's 1.60 m chord - REAL-FIGURES-3", "from": "REAL-FIGURES-3 (builds/edits/pa18_floats_chord160.edits.json)" }
   ]
 }
