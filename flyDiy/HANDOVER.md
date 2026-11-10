@@ -314109,6 +314109,18 @@ energy mesh's box and material). GATE WINGSTRUCT 227 checks, selftest 19 of 19 (
 record's sections caught). Pictures: fiche_cutaway_{c172_alloy, pa18floats_wingtanks}.jpg re-shot,
 c172_tank_rib_holes_before_after.png. ENERGY, TANKMOUNT, PLANEFICHE green.
 
+THE FULL SERIES (10 Nov, after the cowl session's nacelle firewall - claude/ready/proper-cowls 29c2df8d, the mount plate
+cut to the pod's section): shot in a scratch tree (claude/wing-structure + proper-cowls, never pushed; master's L36d NOT
+merged - its own cowl rework conflicts with proper-cowls in five cowl files, A0's to integrate). GATE WINGSTRUCT and
+PLANEFICHE green there. reports/evidence/WING-STRUCTURE re-shot: fiche_cutaway_* and garage_seeinside_* for the Jodel
+(D-box), the Cub (J-3), the Cub as aluFabric and as steel, the Twin Busher, the Petrel (white), the B-CESS
+(builds/cessna172_2026-09-20.json, its wing tanks) and the PA-18 on floats (its wing tanks); crash_cub_{wss,wsq}_{with,
+without}_structure.jpg. The Petrel's red box is its body tank, as before this chantier.
+FOUND ON THE WAY (_cage_ui.js, one line, the energy/garage panel's owners to know): the garage rebuilds its panel with each
+build, so the 'see inside' box came back UNTICKED while the view stayed see-through (VIEW.xray kept) - a player saw a box
+that lied, and a script clicking it turned see-inside OFF on every second build. The box is now created in the view's
+state. tools/wing_struct_shot.js sets see-inside and the cutaway (checked + change), never toggles them.
+
 SEAMS TOUCHED OUTSIDE MY ZONE (for A0): app.js (Deform's brkCage: one call + one group row + wsWreck / wsClear beside
 brkRestore and the heal); _cage_wing.js (one call at the end of its post, as the tip floats; the covering's opacity under
 see-inside); _cage_ui.js (the cutaway box's onchange only - it threw in the game's garage); build.js (wing_struct.js in
