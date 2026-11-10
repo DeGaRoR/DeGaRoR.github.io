@@ -638,6 +638,22 @@ function nacAt(x, z, wingOnly) {
   for (const N of NACS) if ((!wingOnly || N.kind !== 'cowl') && z >= N.z0 && z <= N.z1 && Math.abs(x - N.xc) <= N.AF.halfWAt(z)) return N;
   return null;
 }
+// WELL-CLAMP (the user 9 Nov): a well's ceiling stands WELL_SKIN under the skin over it - the skin and its stringer (the
+// 8 mm the nacelle's well kept before) and room. THE UPPER SKIN OVER A PLAN PLACE in a section table's own frame (x off
+// its centre line): the top half of its section (surf's angle PI the top, PI/2 the side - nacIn's convention) sampled
+// from the top out and read at |x|; null where the section is narrower than |x| there
+const WELL_SKIN = 0.015;
+function skinTopAt(A, x, z) {
+  const ax = Math.abs(x), K = 24;
+  let prev = null;
+  for (let i = 0; i <= K; i++) {
+    const s = A.surf(z, Math.PI - 0.5 * Math.PI * i / K), q = [Math.abs(s[0]), s[1]];
+    if (i === 0 && ax <= q[0]) return q[1];
+    if (prev && ax >= prev[0] && ax <= q[0]) return prev[1] + (q[0] > prev[0] ? (ax - prev[0]) / (q[0] - prev[0]) : 0) * (q[1] - prev[1]);
+    prev = q;
+  }
+  return null;
+}
 // GR: THE GEAR NACELLE (the F27's, the Dash 8's, the An-24's: a high wing's engine nacelle carried on down and aft as
 // the mains' bay). A nacelle that cannot take the folded leg - too short both ways from the pin (a high wing's leg is a
 // long one) or too shallow for the wheel - is GROWN by the gear layer: a fairing under the wing, the engine nacelle's
@@ -988,12 +1004,21 @@ function foldFit(P, swing, AF, W, MX) {
     if (lFold(P)) lSlots(out.cutsSide, units, bodyIn, MX);
     // GR: THE NACELLES' WELLS - the units' swept points inside a nacelle, cut from below into its skin (the wing's way)
     out.cutsNac = NACS.length ? wellMerge(wellRaw(units, nacIn, MX), mode) : [];
-    // (a nacelle well's ceiling held 8 mm under the nacelle's top: a wheel taller than the nacelle never opens its top)
+    // (a nacelle well's ceiling held under the nacelle's top: a wheel taller than the nacelle never opens its top)
+    // WELL-CLAMP (REAL-FIGURES' TAIL-RETRACT finding, the user 9 Nov: "the well depth clamped to the skin's inner face
+    // minus 15 mm, the wheel left proud"): the ceiling was the CENTRE LINE's top less 8 mm for every cell, and a round
+    // nacelle's top falls off its centre line - on a shallow one the cells beside it opened the upper skin (a sliver).
+    // Each cell now stands WELL_SKIN under the skin over that very cell (skinTopAt); how far the stowed wheel stands
+    // above its clamped ceiling is the fit's note (wellClamp: the gearWellCut row's "well clamped: wheel N cm proud")
+    let proud = 0;
     for (const c of out.cutsNac) { const H = c.hf;
       for (let j = 0; j < H.nz; j++) for (let i = 0; i < H.nx; i++) {
         const x = H.x0 + i * H.d, z = H.z0 + j * H.d, N = nacAt(x, z);
-        if (N) H.y[j * H.nx + i] = Math.min(H.y[j * H.nx + i], N.AF.surf(z, Math.PI)[1] - 0.008);
+        if (!N) continue;
+        const t = skinTopAt(N.AF, x - N.xc, z), lim = (t != null ? t : N.AF.surf(z, Math.PI)[1]) - WELL_SKIN, k = j * H.nx + i;
+        if (H.y[k] > lim) { proud = Math.max(proud, H.y[k] - FIT.clear - lim); H.y[k] = lim; }
       } }
+    if (proud >= 0.005) out.wellClamp = { cm: +(proud * 100).toFixed(1) };
     // G5: THE WING'S CUTS - where the units go into the wing (its skins), and where they go into the body (a low wing's
     // centre section runs through a belly well), merged where they meet: the wing layer's skin is cut by these
     // (the wing's sweep takes the leg's AXIS, not its tube: a wing's rest slot sits in its lower skin by the trunnion,
@@ -1459,7 +1484,9 @@ const GROUP = ['9 · undercarriage', [
     ['gearRetFrac', 'retracts (fraction of the fold)', 0.3, 1, 0.05, { when: P => RETRACT_LAB() && +P.gearRetract }],
     // G4 (RETRACT-STUDY §8.10): THE WELL'S OUTLINE, always cut exactly into the skin - the swept unit's own plan hull,
     // or a rounded box round it (the fallback the user asked to keep: "so we have a fallback in case we struggle")
-    ['gearWellCut', 'well outline', 0, 1, 1, ['exact (the swept unit\'s hull)', 'box (a rounded rectangle)'], { when: P => RETRACT_LAB() && +P.gearRetract }],
+    ['gearWellCut', 'well outline', 0, 1, 1, ['exact (the swept unit\'s hull)', 'box (a rounded rectangle)'], { when: P => RETRACT_LAB() && +P.gearRetract,
+     // WELL-CLAMP: a nacelle well held under its skin with the stowed wheel above it - how far, the fit's own number
+     note: () => { const F = window.CAGE_GEAR && window.CAGE_GEAR.fit; return F && F.wellClamp ? 'well clamped: wheel ' + F.wellClamp.cm + ' cm proud' : ''; } }],
     // G6 (§8.13): THE DOORS - the exact outline's skin rides on the leg (the leg door) and what is left is the well's
     // door(s); the box's are its door(s) alone: one, or two split along the well (the user: "One, or 2, slitting in
     // the middle")
@@ -1497,7 +1524,9 @@ const GROUP = ['9 · undercarriage', [
 // appended group has to go into THAT array; otherwise the base append list.
 (PAGE.groupsOverride || (PAGE.groups = PAGE.groups || [])).push(GROUP);
 window.CAGE_GEAR_FOLD = { FOLD_PRESETS, FOLD_KEYS, FOLD_NOSE_KEYS, foldOf, foldChain, foldPose,   // G1: the one fold
-                          wellHitsTank };                                                       // G3: the reservation
+                          wellHitsTank,                                                         // G3: the reservation
+                          // WELL-CLAMP: the skin over a plan place and this build's nacelle there (GATE RETRACT 20)
+                          skinTopAt, WELL_SKIN, nacAt: (x, z) => nacAt(x, z) };
 
 // ---- GM2 (RETRACT-STUDY §8.11): THE ACTUATION - a brace and an actuator per unit, drawn at rest, posed by the core --
 // The record GEAR_MECH poses (src/core/62c_gear_mech.js): the units' chains (rigid: the leg, the wheel, the castor),
