@@ -314034,3 +314034,31 @@ The record changed, so the ready carries its own premises cook (GATE PREMCOOK).
 - Two fixes from the 9 Nov stills: the Shed's red-brown band past the door was the plot's ground pad (it goes with the room's outdoors while the view stands in, GATE HANGARVIEW 3p); no clouds through the door - the world's sky dome rides the world camera, which is in the world scene, and was drawn opaque into the capture (it is hidden with the live sky, 3q). GPU-confirmed 9 Nov 08:35 (the Shed) and 08:41 (the club), evidence-2026-10-18/2026-11-09/hangar-cloud-look.
 - The works' location A is NOT in this ready (claude/ready/works-location-a, its own train).
 - L36d pulled it for two reds, fixed here: GATE ROUNDTRIP (the room's sky frame ran the world shed node's updateMatrixWorld every frame - now only when the node moved) and GATE CLOUD G436.2 RE-PINNED (the dome turns with the room's real yaw, frameYaw; still depth-tested behind the walls).
+
+## A0 - train L37a, 10 Nov 2026
+
+IN (on L36d e79a114d8): strip-names 2b8d30ea4 + strip-chaos-on 455c9139c (DIRT-STRIP), c172-clip (FLAGSHIP), dirt-matte (AIRCRAFT-LOOKS), night-stretch (NIGHT-LOOK, the user's 0.03 on), well-clamp (SEAPLANES-LAND), hangar-view-c (Game, fixed after L36d).
+MERGED THEN REVERTED: real-figures-3 (6a1d7e812, reverted in 20d19379d). Its reds: SKINMAT (fabricAlu in GEN_MATERIALS but not in GEN_BUILD_GRAMMAR) and PROCURE (18 lines: the engines' dials are no longer applyEngPreset's presets, the new bmepK/massK). It comes back as FRESH commits (the revert trap) for L37b; REAL-FIGURES and ENGINE-DIALS told.
+NOT IN: taxi-strike (Deform, run 2 today), livery-text (AIRCRAFT-LOOKS, twin re-shoot today), wing-structure (HANDOVER line endings normalised; re-pushed as a0/wing-structure-eol for L37b).
+A0 FIX: tools/_map_smoke.js reads the strip names from the names table (NF.w4-w8) instead of the old "strip 9-13" literals (24c6874f9); UISMOKE and UISMOKE-PHONE PASS.
+RE-COOKS: the city (the manifest's input fixture moved; CITYCOOK PASS) and the fleet spots (TAXICLEAR PASS); the parked fleet re-cooked on this build (parked_cook --check same).
+
+BATTERY after the fixes: SKINMAT, PROCURE, CITYCOOK, TAXICLEAR, UISMOKE, UISMOKE-PHONE, BUILT PASS.
+Red as on master (same lines): GEN, TOUR shard 2 (the float Cessna), DMGGEAR, FRAMECOST (5), ROUNDTRIP (2), ENGCONFIG (the Chinook identity half, the quad wings-level lines, pushpull), TREECRASH, JOINPARITY (Jodel node=page), LOOKS case 3, DMGDRIVE (the nose-over 2 m/s rows from NOSE-STRIKE's 10 cm grass + the Super Petrel trunk-graze row; Deform owns).
+
+TIMED GATE:
+- First run (04:50): invalid - master_bench killed, 3 rollouts died in the rig (CDP "__timeout").
+- RE-RUN L37a2, 08:25-09:27, alone on the box: master_bench complete. Taxi chase @HOME and @mn_strip 30 fps, 0 frames over 40 ms; the floats' water taxi 28.6 fps, one 283 ms frame. Every flown taxi / take-off / flight segment: 0 frames over 1 s (as L36d2). The float take-off ran in full this time: 0 frames over 100 ms.
+- The only long gaps are in the garage stand before the reveal and the warm garage loads (cub 180 s, floats 155 s; L36a-L36d2 124-174 s): the cold shader cache (100 links over 5 s).
+- 3 rollouts (cub cockpit, metal chase, c172 chase) died in the rig again, as on the first run and on L36d. Watched: the garage-ready time sits near the rig's limit.
+- RED vs the 12 Oct baseline as on every train since; no new cost found against L36d2.
+
+No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change: PHYSICS_V 7, GEN_SPEC_V 10, GEN_CERT_V 7.
+
+THE READIES:
+- strip-names + strip-chaos-on (DIRT-STRIP): the unpaved strips named by the user (the record and the table agree, GATE NAMES); bumps ON only where the Pilot vetted them (w3 0.20, w8 0.40), every other strip 0 until its re-vet; TERRAINMATCH carries the bumps' +5 624 triangles (approved). The later rocks / stones ready stays HELD (the Jodel w3 departure).
+- c172-clip (FLAGSHIP): the 172's fittings clipped to the V2 skin; READY note flydiy-notes/evidence-2026-10-18/2026-11-10/flagship/c172-clip/READY-NOTE-c172-clip.md.
+- dirt-matte (AIRCRAFT-LOOKS): dirt goes matte (sqrt), the clear coat and the grazing Fresnel are killed by dirt (the user's low-sun shine).
+- night-stretch (NIGHT-LOOK): star reflections spread by the waves, on at 0.03 (the user's call).
+- well-clamp (SEAPLANES-LAND): the retract well depth clamped under the skin.
+- hangar-view-c (Game): the hangar view, with the shed-frame updateMatrixWorld fault fixed after L36d.
