@@ -121,6 +121,7 @@ const GATES = [
   // SKY S3: the atmosphere's model against its numpy mirror, the calibration, the schedule
   { id: 'FOG', file: 'test_fog.js', tier: 'core' },
   { id: 'ATMO', file: '_atmo_check.js', tier: 'core' },
+  { id: 'FMIST', file: '_fmist_check.js', tier: 'core' },   // FOREST-MIST (2026-11-10): off is identical, the map, the weather's law, the row
   { id: 'CLOUD', file: '_cloud_check.js', tier: 'core' },
   { id: 'GE', file: 'test_ground_effect.js', tier: 'core' },
   { id: 'FLAPS', file: 'test_flaps.js', tier: 'core' },

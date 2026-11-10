@@ -130,6 +130,14 @@
         { v: 'on',    label: 'flat', why: 'the day’s humidity as one level layer over the world (the closed form: no cost)' },
         { v: 'land',  label: 'on the land', why: 'the layer lies in the valleys and on the water instead of at one altitude (F2: a short march, a few tenths of a ms)' },
         { v: 'banks', label: 'patchy', why: 'and it thins and thickens in banks that drift downwind - a face you fly into' } ] },
+    // FOREST-MIST (2026-11-10, futureDesigns/FOREST-MIST-STUDY-2026-11.md): pockets of mist caught in the forest and the
+    // valleys, driven by the season's plan and the day (forest_mist.js). Its code is compiled in at the page's start, so
+    // turning it ON reloads the page; OFF takes effect at once (the pockets' lane) and compiles it out from the next start.
+    // A FREE row (like the towns): no preset names it - the desktop presets are frozen (GATE GFX, the user's rule) - and it
+    // is OFF until the player turns it on, or until A0's box has timed it and a preset takes it (the study SS6-7).
+    { k: 'fmist', label: 'forest mist', free: true, reload: true, def: 'off', steps: [
+        { v: 'off', label: 'off', why: 'no pockets of mist in the forest and the valleys' },
+        { v: 'on',  label: 'on', why: 'pockets of mist in the valleys and on the wet forest at dawn, after rain and under a low cloud base, as the weather brings them - RELOADS the page' } ] },
     // THE CLOUDS (C1): the volumetric layer, marched at half or full resolution
     { k: 'clouds', label: 'clouds', steps: [
         { v: 'off',  label: 'off', why: 'a clear sky whatever the day' },
@@ -519,6 +527,13 @@
       M.patch = S.mist === 'banks' ? 0.85 : 0;
       applied.mist = S.mist;
     }
+    // FOREST-MIST: the choice is stored for the next start (forest_mist.js reads it before the shaders are made); OFF also
+    // takes effect now through the pockets' lane, ON needs the code compiled in (set() reloads, below)
+    if (applied.fmist !== S.fmist) {
+      try { if (!/[?&]fmist=/.test(W.location.search || '')) W.localStorage.setItem('flydiy.fmist', S.fmist === 'on' ? '1' : '0'); } catch (e) {}
+      if (W.FMIST && W.FMIST.ON) W.FMIST.use.c = S.fmist === 'on' && W.FMIST.C;
+      applied.fmist = S.fmist;
+    }
     // the sway's gain: 0 is a zero bend in the SAME program, so switching it
     // never recompiles and never makes a second variant of a cached key
     if (W.CLIMATE_LINK) W.CLIMATE_LINK.S.swayGain = S.sway === 'off' ? 0 : 1;
@@ -575,6 +590,8 @@
       const want = S.colour === 'managed', is = !!W.THREE.ColorManagement.enabled;
       if (want !== is) { try { W.localStorage.setItem('flydiy.cm', want ? '1' : '0'); } catch (e) {} W.location.reload(); }
     }
+    // the forest mist's code is compiled at the start: turning it on reloads when it is not in (never under a ?fmist= rig)
+    if (k === 'fmist' && S.fmist === 'on' && W.FMIST && !W.FMIST.C && W.location && !/[?&]fmist=/.test(W.location.search || '')) W.location.reload();
     // the town switch (G590) is decided when the world is composed (app.js TOWN): reload when the row and the world differ
     if (k === 'town' && W.FLYDIY_TOWN && townAll() !== !!W.FLYDIY_TOWN.all && W.location && !/[?&]town=/.test(W.location.search || '')) W.location.reload();   // G1526: the budget's cap counted (potato never reloads into Metlakatla)
     return Object.assign({}, S);
@@ -617,7 +634,7 @@
     { k: 'light', label: 'light & shadows', sub: 'the shadows, the light rig, the exposure, the tone curve', rows: ['shadows', 'canopy', 'lighting', 'exposure', 'tone', 'compositing', 'colour'] },
     { k: 'terrain', label: 'terrain & vegetation', sub: 'the ground, the forest, the cover', rows: ['terrain', 'ground', 'density', 'bands', 'sway', 'cover'] },
     { k: 'water', label: 'water', sub: 'the sea and its reflections', rows: ['water', 'mirror'] },
-    { k: 'sky', label: 'sky', sub: 'the clouds, the mist, the sun', rows: ['clouds', 'mist', 'glare'] },
+    { k: 'sky', label: 'sky', sub: 'the clouds, the mist, the sun', rows: ['clouds', 'mist', 'fmist', 'glare'] },
     { k: 'post', label: 'post-fx', sub: 'the passes over the finished frame', rows: ['bloom', 'look', 'lens', 'rays', 'ao', 'eye'] },
     { k: 'town', label: 'town', sub: 'which towns, their detail, the road furniture', rows: ['town', 'scenery', 'rails', 'poles'] },
   ];
@@ -892,7 +909,7 @@
     // what each option costs to change, for anyone who asks
     restart: () => ({ aa: 'live (reallocates the frame)', density: 'live (re-streams the forest, ~10 s)',
                       bands: 'live', shadows: 'live (recompiles the lit surfaces)', canopy: 'live', lighting: 'live', scale: 'live (reallocates the frame; auto re-sizes it at most every 2 s)',
-                      glare: 'live', mist: 'live', drawDist: 'live', terrain: 'live (the far quadrants re-cut at once: a hitch)', ground: 'live', clouds: 'live',
+                      glare: 'live', mist: 'live', fmist: 'on reloads the page, off is live', drawDist: 'live', terrain: 'live (the far quadrants re-cut at once: a hitch)', ground: 'live', clouds: 'live',
                       bloom: 'live', look: 'live', lens: 'live', rays: 'live', ao: 'live', eye: 'live',
                       compositing: 'live (reallocates the frame)', water: 'live', town: 'reloads the page (G590)', anything: 'no restart' }),
   };

@@ -169,6 +169,29 @@ var CLOUDS = (function () {
 
   // ---- the march --------------------------------------------------------------
   const QUAD_VERT = `varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`;
+  // FOREST-MIST A (prototype, ?fmist=a; futureDesigns/FOREST-MIST-STUDY-2026-11.md): the pockets in the forest marched
+  // FIRST, ahead of the decks (they lie under all of them), on steps that lengthen with distance, to the march's reach
+  // or the scene, lit by this pass's own sun and sky with a two-tap shadow toward the key. The density is the veil's
+  // (forest_mist.js fmDens, inside ATMO's MIST_GLSL). Off, the march's text is exactly what it was.
+  const FM_A = typeof FMIST !== 'undefined' && FMIST.A;
+  const FM_MARCH = FM_A ? `
+      float tE = min(min(tMax, tScene), uMist[11].x);
+      if (uMist[8].w > 0.5 && tE > 1.0) {
+        float Np = ${FMIST.S.marchN}.0;
+        for (int i = 0; i < 64; i++) {
+          if (float(i) >= Np || T < 0.01) break;
+          float u0 = (float(i) + j) / Np, tp = tE * u0 * u0, dtp = tE * (2.0 * u0 + 1.0 / Np) / Np;
+          vec3 p = o + d * tp;
+          float rho = fmDens(p);
+          if (rho <= 1e-6) continue;
+          float odl = (fmDens(p + L * 12.0) * 24.0 + fmDens(p + L * 48.0) * 48.0) * step(-0.1, L.y);
+          vec3 Ls = uSunCol * exp(-odl) * phase(cosT, 0.55) * max(0.0, sign(uSun.y + 0.05));
+          if (uMoon.w > 0.0) Ls += uMoonCol * phase(cosM, 0.55);
+          Ls += mix(uAmbBot, uAmbTop, 0.6);
+          float Tstep = exp(-rho * dtp), a = 1.0 - Tstep;
+          col += T * Ls * a; tw += T * a * tp; tsum += T * a; T *= Tstep;
+        }
+      }` : '';
   const MARCH_GLSL = () => `
     uniform vec4 uSun, uMoon;   // direction xyz, w: the moon lit?
     uniform vec3 uSunCol, uMoonCol, uAmbTop, uAmbBot;   // sun units
@@ -242,14 +265,14 @@ var CLOUDS = (function () {
         for (; k > 0; k--) { if (s0[k - 1] <= t0) break; s0[k] = s0[k - 1]; s1[k] = s1[k - 1]; ord[k] = ord[k - 1]; }
         s0[k] = t0; s1[k] = t1; ord[k] = li; n++;
       }
-      if (n == 0) return vec4(0.0);
+      ${FM_A ? '' : 'if (n == 0) return vec4(0.0);'}
       vec3 col = vec3(0.0); float T = 1.0, tw = 0.0, tsum = 0.0;
       vec3 L = uSun.xyz; float cosT = dot(d, L), cosM = dot(d, uMoon.xyz);
       float N = uSteps.x, budget = N * 4.0 + 64.0, used = 0.0;   // the step budget, shared by the decks
       // a jitter per PIXEL (interleaved gradient noise) breaks the banding. Without a history it is frozen to the screen (uFrame 0): the
       // clouds slide under a fixed grain, the "smoke pattern" (the study's C1). With one (the main view) it moves per frame and the history averages it
       float j = fract(52.9829189 * fract(0.06711056 * gl_FragCoord.x + 0.00583715 * gl_FragCoord.y) + uFrame * 0.618034);
-      for (int s = 0; s < MAXL; s++) {
+${FM_A ? FM_MARCH : ''}      for (int s = 0; s < MAXL; s++) {
         if (s >= n || T < 0.01) break;
         int li = ord[s]; float t0 = s0[s], t1 = s1[s];
         // THE STEP: N steps over the slab when the path is short; a floor and a ceiling on the step so a
@@ -338,7 +361,7 @@ var CLOUDS = (function () {
       // marched to the end and its key (the composite's depth, below) is the FAR plane: the composite's depth test against
       // THIS frame's scene hides whatever is really there (a key at the object's own distance passed the equal test and
       // painted clouds over the treetops - the first cut).
-      bool thru = tScene < deckEntry(o, d);
+      bool thru = ${FM_A ? 'uMist[8].w < 0.5 && ' : ''}tScene < deckEntry(o, d);   // (FOREST-MIST A: the pockets begin at the eye, so a live pocket never marches through)
       vec4 mc = march(o, dr, thru ? 1e9 : tScene, uDials2.x);
       outK = vec4((thru ? dzW1(uDZ.x > 0.5 ? 0.0 : 1.0) : dzW1(dz)) * 0.001, gTm * 0.001, 0.0, 1.0);    // r: the distance (km) this texel saw, for the upsample - a half float holds a distance to 0.1 %, a log depth only to 2 %; g: the cloud's own mean distance (km), for the reprojection
       gl_FragColor = mc;
@@ -898,7 +921,9 @@ var CLOUDS = (function () {
     cloudScalars[4] = keyDir[0]; cloudScalars[5] = keyDir[1]; cloudScalars[6] = keyDir[2]; cloudScalars[7] = lay.base + lay.thick * 0.5;   // G2600: the key's
     cloudScalars[8] = S.shadow * fade; cloudScalars[9] = 0; cloudScalars[10] = 0; cloudScalars[11] = 0;
   }
-  const active = () => ready && S.mode !== 'off' && !!dayRef && lastCover > 0.003 && !!map;
+  const active = () => ready && S.mode !== 'off' && !!dayRef && (lastCover > 0.003 || (FM_A && fmLive())) && !!map;
+  // FOREST-MIST A: the pockets keep the pass live on a clear morning (radiation fog is a CLEAR night's)
+  const fmLive = () => { try { const L = ATMO.apUniforms.uMist.value; return L.length >= 48 && L[35] > 0.5; } catch (e) { return false; } };
   // the shadow tile: re-baked when the map, the layer or the noise changed, or the drift moved (every S.shadowEvery frames)
   function bakeShadow(r) {
     if (needCal && now() >= calDueAt) shadowDirty = true;   // the fit is due (a paused clock drifts nothing: the bake would never come round)

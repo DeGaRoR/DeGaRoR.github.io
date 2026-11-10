@@ -423,6 +423,9 @@ var ATMO = (function () {
   const AP_VERT = `vFogDepth = - mvPosition.z; vAtmoV = mvPosition.xyz;`;
   // THE MIST's GLSL and the atlas sample stand alone (CLOUDS C1: the cloud march applies the same
   // aerial perspective and the same mist to a cloud at its own distance - ATMO.GLSL hands them over)
+  // FOREST-MIST (prototype, futureDesigns/FOREST-MIST-STUDY-2026-11.md): only under ?fmist - off, every string below
+  // and the lanes' array are exactly what they were
+  const FM_ON = typeof FMIST !== 'undefined' && FMIST.ON;
   const MIST_GLSL = `
     // THE MIST (SKY S7): an exponential height layer over the world - density rho0 (per metre)
     // below its top yTop, decaying over H above it - integrated in closed form along the ray
@@ -494,6 +497,7 @@ var ATMO = (function () {
       // change how much mist the day has - that number is the day's own (Koschmieder, SS2a).
       return mix(1.0, smoothstep(0.15, 0.85, n) * 2.0, uMist[6].w);
     }
+${FM_ON ? FMIST.GLSL(AP_N * AP_W, AP_ATLAS_H, AP_TILE_Y) : ''}
     // THE MARCH: the optical depth with a top and a density that vary over the ground. Only the
     // slice of the ray inside [ground, the field's highest top + 5H] is walked; outside it the
     // layer contributes nothing and a sample there is a sample wasted.
@@ -522,17 +526,18 @@ var ATMO = (function () {
     }
     // col -> col through the mist along world dir d for D metres from the eye at y0
     vec3 mistApply(vec3 col, vec3 d, float D, float y0) {
-      if (uMist[0].w < 0.5 || (uMist[0].x <= 0.0 && uMist[3].x <= 0.0)) return col;
+      if (uMist[0].w < 0.5 || (uMist[0].x <= 0.0 && uMist[3].x <= 0.0${FM_ON ? ' && uMist[8].w < 0.5' : ''})) return col;
       float od = uMist[0].x <= 0.0 ? 0.0
                // the eye's XZ is a uniform (the signature carries only y0, and every caller - the
                // splice, the dome, the cloud march - passes the same eye's height in it)
                : (uMist[4].w > 1.5 ? mistODField(vec3(uMist[4].x, y0, uMist[4].z), d, D)
                                    : mistOD(y0, d.y, D));
       if (uMist[3].x > 0.0) od += uMist[3].x * slabLen(y0, d.y, D, uMist[3].y, uMist[3].z);
-      float T = exp(-od);
+${FM_ON ? '      float odP = fmOD(vec3(uMist[4].x, y0, uMist[4].z), d, D);   // FOREST-MIST (?fmist): the pockets\n' : ''}      float T = exp(-od${FM_ON ? ' - odP' : ''});
       float fwd = 1.0 + uMist[1].w * pow(max(0.0, dot(d, uMist[2].xyz)), 8.0);
+${FM_ON ? '      vec3 Lin = (od * uMist[1].rgb * fwd + odP * fmCol(d)) / max(1e-6, od + odP);   // two media, each its own light (the pockets: the beam, fmCol)\n      return col * T + Lin * (1.0 - T);\n' : ''}
       return col * T + uMist[1].rgb * fwd * (1.0 - T);
-    }`;
+    }`.replace(FM_ON ? 'uniform vec4 uMist[' + '7];' : '\u0000', 'uniform vec4 uMist[' + '13];');   // FOREST-MIST's lanes, only when it is on (off: the text as it was)
   // apSample(d, distKm): the atlas at a world direction and a distance (the splice's own read, and the clouds')
   const AP_SAMPLE_GLSL = `
     #ifndef ATMO_AP_SAMPLER
@@ -587,7 +592,7 @@ var ATMO = (function () {
   // there is ONE path through the fog chunks instead of two.
   const AP_FOG_FRAG = '';
   const apScalars = new Float32Array([1, AP_DMAX, 0, 0]);    // shared by REFERENCE through every material's clone
-  const mistScalars = new Float32Array(28);                    // [rho0, yTop, H, on | colour rgb, fwd | sun xyz, 0 | rhoC, base, top, 0 (in cloud, CLOUDS C4)
+  const mistScalars = new Float32Array(FM_ON ? 52 : 28);                    // [rho0, yTop, H, on | colour rgb, fwd | sun xyz, 0 | rhoC, base, top, 0 (in cloud, CLOUDS C4)
   // G2620 THE PRE-EXPOSURE: a switch rescales the dome's scale and its copies in the frame it happens (the update copies
   // U.scale into the aerial perspective and the mist BEFORE applyDay writes it - without this the switch frame's haze
   // would carry the old unit); applyDay then writes the same value from the day
@@ -1071,6 +1076,27 @@ ${MIST_GLSL}
                    ms: ((typeof performance !== 'undefined') ? performance.now() : 0) - t0 };
     return MIST.field;
   }
+  // blit(renderer, px, N, x, y): an N^2 RGBA float map drawn into the atlas's own columns at (x, y) - a scissored
+  // quad, no clear, the way bakeField's field goes in. FOREST-MIST's map (forest_mist.js) is its only caller.
+  function blit(renderer, px, N, x, y) {
+    if (!renderer || !G.rtAP || !G.quad || typeof MATLIB === 'undefined') return false;
+    const tex = new THREE.DataTexture(px, N, N, THREE.RGBAFormat, THREE.FloatType);
+    tex.minFilter = tex.magFilter = THREE.LinearFilter; tex.needsUpdate = true;
+    const mat = MATLIB.make(THREE, 'shader', { uniforms: { uSrc: { value: tex } },
+      vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
+      fragmentShader: 'uniform sampler2D uSrc; varying vec2 vUv; void main() { gl_FragColor = texture2D(uSrc, vUv); }',
+      depthTest: false, depthWrite: false });
+    const prevRT = renderer.getRenderTarget(), ac = renderer.autoClear, pm = G.quad.material;
+    const vp = new THREE.Vector4(), sc = new THREE.Vector4(); renderer.getViewport(vp); renderer.getScissor(sc);
+    const st = renderer.getScissorTest();
+    G.quad.material = mat; renderer.setRenderTarget(G.rtAP); renderer.autoClear = false;
+    renderer.setViewport(x, y, N, N); renderer.setScissor(x, y, N, N); renderer.setScissorTest(true);
+    renderer.render(G.scene, G.cam);
+    renderer.setScissorTest(st); renderer.setViewport(vp); renderer.setScissor(sc);
+    renderer.setRenderTarget(prevRT); renderer.autoClear = ac; G.quad.material = pm;
+    mat.dispose(); tex.dispose();
+    return true;
+  }
 
   // STAR-SKY: the game frame -> the sky's own (equatorial) frame at the island's latitude and local sidereal time (GMST, the IAU 1982 linear term:
   // a second's error a century, nothing here), the grid's convergence as toFrame takes it. Rows X (RA 0h), Y (RA 6h), Z (the pole), written
@@ -1337,7 +1363,7 @@ ${MIST_GLSL}
     P, setDay, medium: (h) => medium(h, newMed()), transmittance, T, MS, skyRadiance, skyIrradiance, sunTransmittance, groundIrradiance, makeProbe, probes,
     bakeT, bakeMS, tUV, tFromUV, phaseMie, lut: () => ({ T: lutT, MS: lutMS, TW, TH, MW, MH }),
     init, update, domeMat, U, G, get enabled() { return G.enabled; },
-    install, inject, setAP, apK, HAZE, hazeK, bakeField, mistODcpu, seeT, seeRange,
+    install, inject, setAP, apK, HAZE, hazeK, bakeField, blit, mistODcpu, seeT, seeRange,
     // the water's mirror capture renders from an eye BELOW the surface; the splice reads its own
     // `cameraPosition`, but the dome's mist takes `uEyeY`, which is the MAIN eye's. A capture that
     // wants it exact brackets itself with this (the water session's ask, 2026-09-22).
