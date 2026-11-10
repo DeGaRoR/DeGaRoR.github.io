@@ -314097,6 +314097,18 @@ garage_seeinside_{c172_alloy, pa18floats_wingtanks}.jpg. Gates: ENERGY, TANKMOUN
 (its 'carbon' plane's cg0, the same four lines on the untouched master worktree).
 SEAM ADDED: _cage_energy.js (the wing branch: wingShellMat + wingTankDress) - the energy layer's owners to know.
 
+ROUND 7 (the user, 10 Nov: "why is the tank side bluish, with wavy patterns? Not clean. Does it intersect a spar?"): it
+did. wingPlace lays the tank's walls on the spar CENTRE lines (inside the drawn spars), its ends on the closing ribs, its
+top and bottom on the stringers - coplanar faces fighting. _cage_energy.js now draws a cleared COPY of the side record
+(wingTankClear; the litres, the bay and all the join reads stay the record's): the walls on the spars' drawn faces
+(WING_STRUCT.sparFaces: the kind's widths at that chord + 4 mm), the ends 12 mm in, top and bottom 14 mm in; END PLATES
+close the loft (it was open-ended); the shell is alclad without a clear coat (bareAlu and the coat mirrored the studio's
+sky); the FUEL's loft ends 6 mm inside the end plates (fuelSpan - its ends lay ON the plates: the see-through blue fought
+them, the last blue patch in the closing rib's holes). The --tanks dump of tools/wing_struct_shot.js found it (every
+energy mesh's box and material). GATE WINGSTRUCT 227 checks, selftest 19 of 19 (the fuel on the plates, the fuel off the
+record's sections caught). Pictures: fiche_cutaway_{c172_alloy, pa18floats_wingtanks}.jpg re-shot,
+c172_tank_rib_holes_before_after.png. ENERGY, TANKMOUNT, PLANEFICHE green.
+
 SEAMS TOUCHED OUTSIDE MY ZONE (for A0): app.js (Deform's brkCage: one call + one group row + wsWreck / wsClear beside
 brkRestore and the heal); _cage_wing.js (one call at the end of its post, as the tip floats; the covering's opacity under
 see-inside); _cage_ui.js (the cutaway box's onchange only - it threw in the game's garage); build.js (wing_struct.js in
