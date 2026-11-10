@@ -44,12 +44,13 @@ var FMIST = (function () {
     // THE LOOK THE USER PICKED (10 Nov, the run11 sheet: "this image was looking best, the ones after that are sort of
     // worse"): 110 m cells, a 450 m window, no stretch, no layers, the original shear. The contour stretch and the
     // altitude layers stay as dials (off), with the contour map baked, for whoever tunes this on the box.
-    farLo: 2500, farHi: 7000,       // the far pocket: the shapes melt to their mean between these distances (m)
+    farLo: 2500, farHi: 7000, farK: 0.4,   // the far pocket: the shapes melt to a thin mean, the density to 40 %, between these distances (m)
+    odCap: 1.5,                     // the veil's soft ceiling per ray (od / (1 + od / cap)): 0.54 -> 0.40, 1.1 -> 0.63, any grazing path -> < 1.5
     elong: 1,                       // the wisps drawn out along the CONTOUR (x the length; 1 = round, the pick)
     layerM: 70, layerSwing: 40, strat: 0, shear: 0.011,   // the horizontal layers (a bank every 70 m of altitude, wavering 40 m; strat 0.85 tried 10 Nov, off: the pick); the vertical shear
     swing: 30, covK: 0.9, detailK: 9.0, erode: 0.5, soft: 0.5, stretch: 2.1,   // the contours' swing (m), the share of a full pocket that is mist, the erosion's scale (x the body's) and depth
     period: 110,                    // the noise's cell (m): a wisp a few tree lengths across (160 -> 110: the user, 10 Nov, "chase more resolution")
-    lidM: 25, lidK: 110,            // the pool's lid over the valley floor: 25 m + 110 m x the pool weight
+    lidM: 25, lidK: 70,             // the pool's lid over the valley floor: 25 m + 70 m x the pool weight (110 filled the valleys like a bath, 10 Nov)
     wispLo: -12, wispHi: 40,        // the wisps' band about the canopy top (m)
     oroLo: -40, oroHi: 140,         // the cloud base's band (m) where it meets a slope
     driftK: 1,                      // x the wind
@@ -421,7 +422,7 @@ ${S.elong > 1 ? `      { vec4 cd = fmDir(p.xz); float w = min(1.0, length(cd.xy)
       float body = uMist[11].z > 0.5 ? smoothstep(thr, thr + ${S.soft.toFixed(2)}, n)
                                      : pow(clamp((n - thr) / max(0.05, 1.0 - thr), 0.0, 1.0), ${S.coreK.toFixed(2)});
       body *= lay;
-      body = mix(body, 0.45 * cov, gFmFar);   // far: the mean, not the shapes
+      body = mix(body, 0.2 * cov, gFmFar);    // far: a thin mean, not the shapes (0.45 laid a white blanket over the valleys from the air, 10 Nov)
       if (body <= 0.0) return 0.0;
       // THE DETAIL: a ~${Math.round(S.period / S.detailK)} m erosion eats the edges (Schneider's remap: base minus the fine noise), so the
       // outline breaks into wisps and the inside keeps its mass
@@ -429,7 +430,7 @@ ${S.elong > 1 ? `      { vec4 cd = fmDir(p.xz); float w = min(1.0, length(cd.xy)
       float e = 0.5 * fmVN(r) + 0.32 * fmVN(r * 2.7 + vec2(1.9, -4.1)) + 0.18 * fmVN(r * 6.1 + vec2(-7.3, 2.2));   // three octaves: the edge breaks at ~12, ~4.5 and ~2 m
       e = clamp(0.5 + (e - 0.5) * 2.4, 0.0, 1.0);
       float d = mix(clamp((body - e * ${S.erode.toFixed(2)}) / (1.0 - e * ${S.erode.toFixed(2)}), 0.0, 1.0), body, gFmFar);
-      return d * (uMist[11].z > 0.5 ? smoothstep(0.0, 0.3, cov) : sqrt(geo)) * uMist[8].z;
+      return d * (uMist[11].z > 0.5 ? smoothstep(0.0, 0.3, cov) : sqrt(geo)) * uMist[8].z * mix(1.0, ${S.farK.toFixed(2)}, gFmFar);   // and thinner: an aerial veil at distance
     }
     // A pocket is droplets (~10 um): Mie's forward peak is narrow and strong - backlit by a low sun the mist glows
     // (the concept art's whole light); side- and front-lit it is the layer's own colour. uMist[11].y = the lobe's gain.
@@ -451,7 +452,12 @@ ${S.elong > 1 ? `      { vec4 cd = fmDir(p.xz); float w = min(1.0, length(cd.xy)
         float Le = min(D - Ls, uMist[10].w), dte = Le / max(1.0, uMist[10].y);
         for (int i = 0; i < 4; i++) { if (float(i) >= uMist[10].y) break; od += fmDens(o + d * ((float(i) + 0.5) * dte)) * dte; }
       }
-      return od;
+      // THE CEILING (the user, 10 Nov, on the high and far sheets: "it almost looks like snow from far away ... a big
+      // blanket of very small, very thick fog that almost looks like wool"): a ray grazing the pool's flat layer from the
+      // air ran its whole last 450 m inside it - two thirds opaque. A pocket here is a VEIL: whatever the angle it
+      // saturates SOFTLY toward odCap (od / (1 + od / cap)): the densest cores thin by a third and keep their gradient - a
+      // hard cap flattened exactly the cores that gave the run11 pick its definition.
+      return od / (1.0 + od / ${S.odCap.toFixed(2)});
     }`;
   return { ON, A, B, C, S, use, densCPU, rhoOf, level, bakeMap, strengths, bake, update, stats, GLSL };
 })();
