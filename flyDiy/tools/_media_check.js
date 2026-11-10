@@ -193,6 +193,8 @@ const STEP_ACCEPTED = [
     fromBytes: 12210701, upToBytes: 12660032 },
   { name: 'train 41: the damage layer, user-accepted 12 Oct by name ("(a) now") - +467 KB raw (+160 KB gz) over master (09683cb08, SCENERY-SHIP); owed back by G3020 / G3021',
     fromBytes: 12709352, upToBytes: 13200000 },
+  { name: 'train L37b: forest mist + the season presets, the R3 fiche + its water runs, star sky, livery text, wing structure, Wilga gear, root darkening - user-accepted 10 Nov by name ("yes to defaults", the 0.30 MiB step asked at ~22:35; their 14 Oct no-page-size-work rule) - +308.8 KB raw over the merged HEAD',
+    fromBytes: 16988608, upToBytes: 17350000 },
 ];
 // index.html's allowed data: payload: the four woff2 fonts (~121 KB base64)
 // plus the two svg select arrows. Anything past this is base64 creeping back.
