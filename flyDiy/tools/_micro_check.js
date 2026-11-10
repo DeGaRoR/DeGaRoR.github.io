@@ -196,7 +196,7 @@ const W8 = world(withMicro('w7', MICRO8));
     const broke = D ? D.breaks : 0, yields = D ? D.yields : 0;
     return { chaos, rms: Math.sqrt(a2 / Math.max(1, n)), aMax, air: air / 60, roll: roll * 57.3, under, broke, yields, dist };
   }
-  const R = [0, 0.4, 0.8, 1.0].map(taxi);
+  const R = [0, 0.4, 0.8, 1.0].map(c => taxi(c));   // (not .map(taxi): its index is no ground)
   for (const r of R) console.log(`  taxi chaos ${r.chaos}: ${r.dist.toFixed(0)} m, vertical accel rms ${r.rms.toFixed(2)} m/s2 (peak ${r.aMax.toFixed(1)}), airborne ${r.air.toFixed(2)} s, roll ${r.roll.toFixed(1)} deg, under-ground frames ${r.under}, breaks ${r.broke}, yields ${r.yields}`);
   verdict(R.every(r => r.dist > 300 && r.under === 0 && !r.broke && r.roll < 25), `the Cub taxies 300 m+ over every chaos upright, undamaged, never under the ground`);
   // 6b THE STONES HIT (the user, 9 Nov 21:55): a row of 40 cm stones (R 0.2, 15 cm of body) across the way 40 m ahead, every
