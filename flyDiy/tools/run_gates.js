@@ -997,6 +997,10 @@ const GATES = [
   { id: 'FLOATLETTERS', file: '_float_letters_check.js', tier: 'core', wall: 2 },
   // AIRCRAFT-BOARD (the user 4 Nov: the fiche, awarded on passed certification): plane_fiche.js's views, award, matte, clone, target. ~1 s
   { id: 'PLANEFICHE', file: '_plane_fiche_check.js', argv: ['--selftest'], tier: 'core', wall: 2 },
+  // WING-STRUCTURE (the user 9 Nov: the cutaway's missing wing, its structure in its place): wing_struct.js on the validated
+  // aeroplanes - the spars on their nodes and the printed rails, the ribs at the field's stations, the wires on the
+  // solver's members, the stringers at the grammar's pitch, the budget, inside the covering, no physics. ~10 s
+  { id: 'WINGSTRUCT', file: '_wingstruct_check.js', argv: ['--selftest'], tier: 'core', wall: 60 },
   { id: 'FLOATSCLASSIC-WATER', file: '_floatsclassic_check.js', argv: ['--only=water'], tier: 'full', wall: 400 },
   // THE PILOT ON THE WATER (H4, G393): the sea lane's circuit, a crosswind
   // take-off, an idle taxi on the water rudder — three flights (~8 min)

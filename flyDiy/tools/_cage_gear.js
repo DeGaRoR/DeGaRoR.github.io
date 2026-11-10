@@ -2823,9 +2823,11 @@ PAGE.post = ctx => {
     || GG.gearMat('fair');
   // ...and only when there ARE spats: the section registry lists what this
   // build actually drew, and an empty bag draws nothing
-  for (const k in bags)
-    bags[k].mesh(group, k === 'fair' && bags[k].tris ? spatM()
-                                                     : GG.gearMat(k));
+  for (const k in bags) {
+    const mb = bags[k].mesh(group, k === 'fair' && bags[k].tris ? spatM()
+                                                                : GG.gearMat(k));
+    if (mb && k === 'fair') mb.userData.gearFair = 1;   // WING-STRUCTURE: the fiche's cutaway shows the gear bare (metadata only)
+  }
   // G58.2/.3: bake each unit into its own NAMED group — the join's
   // snapshot picks these up by name, exactly as it does the prop's
   for (const wb of wheelUnits) {
@@ -2861,6 +2863,7 @@ PAGE.post = ctx => {
       if (k === 'lever') continue;                       // (WILGA-GEAR: the moving parts' own bags, meshed below)
       const mf = lu.bags[k].mesh(lg, legM(k, lu.bags[k]));
       if (k === 'fair' && mf) mf.userData.fair = 1;      // (WILGA-GEAR: GATE WILGAGEAR finds the fairings by it)
+      if (mf && k === 'fair') mf.userData.gearFair = 1;   // (a spat or a leg shroud: WING-STRUCTURE's cutaway leaves it out)
       if (k === 'fair' && mf && exG > 0) {
         const sx = lu.axle ? Math.sign(lu.axle[0]) : 0;
         if (sx) mf.position.x += sx * exG; else mf.position.z += 0.6 * exG;
@@ -2885,6 +2888,7 @@ PAGE.post = ctx => {
     cgp.name = 'edCastorT';
     for (const k in castorUnitOut.bags) {
       const mf = castorUnitOut.bags[k].mesh(cgp, legM(k, castorUnitOut.bags[k]));
+      if (mf && k === 'fair') mf.userData.gearFair = 1;
       if (k === 'fair' && mf && exG > 0) mf.position.z += 0.6 * exG;   // G316
     }
     group.add(cgp);

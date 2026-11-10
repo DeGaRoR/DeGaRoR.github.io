@@ -3327,7 +3327,7 @@ fillPresetSel();
     dx.title = 'Fade the covering and click straight through it — ' +
                'the engine, the seats and the panel become reachable';
     dx.innerHTML = `<span class="k">see inside</span>
-      <label style="flex:none"><input type="checkbox" id="xray"></label>`;
+      <label style="flex:none"><input type="checkbox" id="xray"${VIEW.xray ? ' checked' : ''}></label>`;   // (WING-STRUCTURE: the panel is rebuilt with each build - the box shows the view's state, not unticked over a see-through aeroplane)
     det.appendChild(dx);
     dx.querySelector('input').onchange = e => {
       VIEW.xray = e.target.checked ? 1 : 0;
@@ -3339,8 +3339,13 @@ fillPresetSel();
     <label style="flex:none"><input type="checkbox" id="cutaway"></label>`;
   det.appendChild(d);
   d.querySelector('#cutaway').onchange = e => {
-    renderer.clippingPlanes = e.target.checked
+    // WING-STRUCTURE: the game's garage has no renderer here (it threw: 'setting clippingPlanes of null') - there the
+    // build's own materials are clipped (wing_struct.js cut, REF_MOUNT.setBuildClip); and the cut side's wing shows
+    // its inside
+    if (renderer) renderer.clippingPlanes = e.target.checked
       ? [new THREE.Plane(new THREE.Vector3(1, 0, 0), 0)] : [];
+    else if (window.CAGE_WINGSTRUCT) window.CAGE_WINGSTRUCT.cut(e.target.checked);
+    if (window.CAGE_WINGSTRUCT) window.CAGE_WINGSTRUCT.sync();
     draw();
   };
   const dl = document.createElement('div'); dl.className = 'r';
