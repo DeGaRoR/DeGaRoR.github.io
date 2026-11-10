@@ -38,13 +38,14 @@ var FMIST = (function () {
     // bad, so the heaviest is 0.003 /m (~1.3 km inside: an aerial veil, never a wall) and the last wisps a quarter of it.
     rhoMax: 0.003, octaves: 2, flat: true, coreK: 1.6,   // coreK: the gradient mechanism's (flat: false), kept for the record
     rho: null,                      // a pin over the ladder (the rigs' density sheets), null = the weather's
+    elong: 1.8,                     // the wisps drawn out along the wind (x the length; 2.5 across the view sheeted the hill in the sweep)
     swing: 30, covK: 0.9, detailK: 9.0, erode: 0.5, soft: 0.5, stretch: 2.1,   // the contours' swing (m), the share of a full pocket that is mist, the erosion's scale (x the body's) and depth
-    period: 110,                    // the noise's cell (m): a wisp a few tree lengths across (160 -> 110: the user, 10 Nov, "chase more resolution")
+    period: 70,                     // the noise's cell (m): a wisp a few tree lengths across (160 -> 70: the user, 10 Nov, "chase more resolution"; the CPU sweep of 10 Nov)
     lidM: 25, lidK: 110,            // the pool's lid over the valley floor: 25 m + 110 m x the pool weight
     wispLo: -12, wispHi: 40,        // the wisps' band about the canopy top (m)
     oroLo: -40, oroHi: 140,         // the cloud base's band (m) where it meets a slope
     driftK: 1,                      // x the wind
-    surfN: 4, eyeN: 2, surfM: 450, eyeM: 350,   // the veil's taps: near the surface, near the eye (C)
+    surfN: 4, eyeN: 2, surfM: 200, eyeM: 350,   // surfM 450 -> 200: a pixel sees the mist in front of ITS trees, not 450 m of grazing band (the banks of 10 Nov)   // the veil's taps: near the surface, near the eye (C)
     marchN: 28, marchKm: 3.5,       // the cloud pass's pocket segment (A)
     cards: 420, cardKm: 2.6, cardW: 120, cardH: 34, cardA: 2.4, cardEvery: 20,   // the cards (B): how many, how far, how big, how dense, re-dealt every N frames
     force: null,
@@ -184,12 +185,13 @@ var FMIST = (function () {
     L[40] = C && use.c ? S.surfN : 0; L[41] = C && use.c ? S.eyeN : 0; L[42] = S.surfM; L[43] = S.eyeM;
     L[44] = A && use.a ? S.marchKm * 1000 : 0; L[45] = S.fwd; L[46] = S.flat ? 1 : 0;
     // the key's beam at the pockets (sun or moon, through the air to ~150 m), in the dome's units like the layer's colour
+    L[51] = S.elong; L[47] = st.wind ? Math.atan2(st.wind[1], st.wind[0]) : (S._windA || 0);
     if (L.length >= 52 && day && ATMO.sunTransmittance) {
       const key = (typeof SKY_LIGHT !== 'undefined' && SKY_LIGHT.isMoon) ? day.moon : day.sun;
       const up = key[1] > -0.02 ? 1 : 0, Tk = ATMO.sunTransmittance(0.15, Math.max(0.01, key[1]), st._T || (st._T = [0, 0, 0]));
       const moonK = (typeof SKY_LIGHT !== 'undefined' && SKY_LIGHT.isMoon && ATMO.U.eMoon) ? ATMO.U.eMoon.value : 1;
       const sc = ATMO.U.scale.value * up * moonK * S.sunK;
-      L[48] = Tk[0] * sc; L[49] = Tk[1] * sc; L[50] = Tk[2] * sc; L[51] = 0;
+      L[48] = Tk[0] * sc; L[49] = Tk[1] * sc; L[50] = Tk[2] * sc;
     } L[46] = 0; L[47] = 0;   // the veil starts where the march stops (?fmist=ac)
   }
   // ---- B: THE CARDS ------------------------------------------------------------------------------------------------
@@ -290,7 +292,9 @@ var FMIST = (function () {
     const inWisp = k[1] * Bw > 0.002 && hc > S.wispLo - 15 && hc < S.wispHi + 30;
     const inOro = k[2] > 0.002 && yb > S.oroLo - 30 && yb < S.oroHi + 30 && hc > -20 && hc < 190;
     if (!(inPool || inWisp || inOro)) return 0;
-    const qx = (x + drift[0]) / S.period + y * 0.011, qz = (z + drift[1]) / S.period - y * 0.007;
+    let qx = (x + drift[0]) / S.period + y * 0.011, qz = (z + drift[1]) / S.period - y * 0.007;
+    { const aw = S._windA || 0, wx = Math.cos(aw), wz = Math.sin(aw), al = qx * wx + qz * wz, ac = -qx * wz + qz * wx, st = Math.max(1, S.elong);
+      qx = wx * al / st - wz * ac; qz = wz * al / st + wx * ac; }
     let n = 0.55 * vn(qx, qz) + 0.30 * vn(qx * 2.31 + 5.2, qz * 2.31 + 1.3) + 0.15 * vn(qx * 5.3 - 3.1, qz * 5.3 + 7.7);
     n = Math.min(1, Math.max(0, 0.5 + (n - 0.5) * S.stretch));
     const sw = (n - 0.5) * S.swing, hcs = hc - sw;
@@ -351,6 +355,10 @@ var FMIST = (function () {
       // THE BODY: the noise rides the wind, the map does not - wisps stream through a pocket and fade at its edges; a slow
       // vertical shear so a wisp leans. The octaves' sum sits at 0.5 +- 0.13, so it is stretched to the unit (x2.6).
       vec2 q = (p.xz + uMist[8].xy) * uMist[9].w + vec2(p.y * 0.011, -p.y * 0.007);
+      // ELONGATED ALONG THE WIND (a wisp is drawn out downwind): the coordinate squeezed along the wind's direction
+      // (uMist[12].w = the stretch, 1 = round) - the wind's unit vector rides uMist[11].w as an angle
+      { float aw = uMist[11].w; vec2 wd = vec2(cos(aw), sin(aw)); float al = dot(q, wd), ac = dot(q, vec2(-wd.y, wd.x));
+        q = wd * al / max(1.0, uMist[12].w) + vec2(-wd.y, wd.x) * ac; }
       float n = 0.55 * fmVN(q) + 0.30 * fmVN(q * 2.31 + vec2(5.2, 1.3)) + 0.15 * fmVN(q * 5.3 + vec2(-3.1, 7.7));
       n = clamp(0.5 + (n - 0.5) * ${S.stretch.toFixed(2)}, 0.0, 1.0);
       // THE CONTOURS (the user, 9 Nov: "lacks detail in the shape and the contours"): the bands' edges ride the noise, so
