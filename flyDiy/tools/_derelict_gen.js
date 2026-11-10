@@ -716,7 +716,17 @@ function build(P0, lod, F) {
     // the large hangar's room stands on THIS slab, the derelict's grid made good)
     if (!P.room || P.slab) for (let i = 0; i < nx; i++) for (let j = 0; j < nz; j++) {
       const x0 = -HW + 2 * HW * i / nx, x1 = -HW + 2 * HW * (i + 1) / nx, z0 = -HD + 2 * HD * j / nz, z1 = -HD + 2 * HD * (j + 1) / nz;
-      face(b, [[x0, fy, z1], [x1, fy, z1], [x1, fy, z0], [x0, fy, z0]], Yup, uvFrame([0, fy, 0], [1, 0, 0], [0, 0, -1]));
+      // (restored: THE BAYS - the user 9 Nov, "yes pls" to a second draw of the macro map: no second map, no second draw - the
+      // slab in 12 m bays, each reading its own window of the 16 m map, turned a quarter at random and offset, so no 16 m
+      // pattern repeats in rows; the window changes at a face edge, as a slab's bay joint)
+      if (rest) {
+        const BAY = 12, bx = Math.floor(((x0 + x1) / 2 + 600) / BAY), bz = Math.floor(((z0 + z1) / 2 + 600) / BAY);
+        const r = hashN(bx, bz, 213, seed), q = Math.floor(r * 4), ox = hashN(bx, bz, 214, seed) * 16, oz = hashN(bx, bz, 215, seed) * 16;
+        const cx = bx * BAY - 600, cz = bz * BAY - 600;
+        face(b, [[x0, fy, z1], [x1, fy, z1], [x1, fy, z0], [x0, fy, z0]], Yup, p => {
+          const u = p[0] - cx, v = -(p[2] - cz), uu = q === 0 ? u : q === 1 ? -v : q === 2 ? -u : v, vv = q === 0 ? v : q === 1 ? u : q === 2 ? -v : -u;
+          return [uu + ox, vv + oz]; });
+      } else face(b, [[x0, fy, z1], [x1, fy, z1], [x1, fy, z0], [x0, fy, z0]], Yup, uvFrame([0, fy, 0], [1, 0, 0], [0, 0, -1]));
     }
     // the slab's edge, down into the ground (the foundation the works shell stands on, G405.1's ring)
     if (!P.room) for (const [A, B] of [[[-HW, HD], [HW, HD]], [[HW, HD], [HW, -HD]], [[HW, -HD], [-HW, -HD]], [[-HW, -HD], [-HW, HD]]])
