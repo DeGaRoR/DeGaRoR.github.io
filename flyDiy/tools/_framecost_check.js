@@ -76,6 +76,12 @@ const TOL = { rel: 0.01, abs: 2 };
 //      { key: 'boot/rollout:compile/', build: '*', why: 'the contact-shadow pass links its programs under the screen', g: 'G1101' }
 // An entry admits a rise until the next --update takes it into the baseline; then it is dead and should go.
 const ALLOW = [
+  // G3774 (DMG-LOOKS ON BY DEFAULT, the user 10 Nov: "absolutely no reason not to"): the member pools and their slot
+  // textures parked with the world (worldSettle) - measured OFF (?dmglook=0) vs ON on one build (Deform 10 Nov 22:08):
+  // the Cub's boot +10 GL calls in garage:images and +11 in garage:worldCompile, +2 MiB; no draw, program or frame
+  // counter moved at the stand or the taxi (Cub and Cessna)
+  { key: 'boot/garage:images/gl.calls', build: '*', rise: 12, why: 'the wreck members pools parked (DMG-LOOKS on by default)', g: 'G3774' },
+  { key: 'boot/garage:worldCompile/gl.calls', build: '*', rise: 12, why: 'the wreck members pools parked (DMG-LOOKS on by default)', g: 'G3774' },
   // G3340-G3341 (DASH-REDESIGN, the user validated it 18 Oct): the arch dash and the flexible dial layout - the Cub's
   // garage seed walks +704 matrix updates (17652 -> 18356, +4 %) and its restore +28 (778 -> 806): the dash's new pieces
   // and the dials that now fit the plate instead of overflowing (this branch is master + the dash alone; the
