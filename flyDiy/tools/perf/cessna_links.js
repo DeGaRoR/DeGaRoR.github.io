@@ -9,6 +9,8 @@
 // Usage: node tools/perf/cessna_links.js --port 8650 [--udd D:/cl1] [--builds metal,metal,metal | cub@town=0,cub@town=1] [--slow 1000] [--dump <dir>] [--fallback D:/Dev/DeGaRoR.github.io]
 //        [--fly-sec 15] [--ck] [--hist ProgramCache,Shader]   (BOOT-PROGRAMS 9 Nov: --ck names each source linked twice in one load by
 //        the three cacheKeys of its programs, cut to where they differ; --hist the CDP histogram queries)
+//        [--lights] [--cam chase|cockpit|chase,cockpit]   (CRAFT-LIGHT RE-KEY 10 Nov: every change of the light count three keys a render on, per
+//        scene, named - see LIGHTS_HOOK; --cam the flight's view, chase by default; 'chase,cockpit' splits --fly-sec between them in turn)
 //        [--out <file.json>]     (GPU lock first; --udd a SHORT fresh path; no --help: an unknown flag runs it)
 'use strict';
 const fs = require('fs'), path = require('path'), os = require('os');
@@ -19,7 +21,36 @@ const PORT = +opt('port', 0), SLOW = +opt('slow', 1000), DUMP = opt('dump', null
 const UDD = path.resolve(opt('udd', path.join(os.tmpdir(), 'cl' + Date.now().toString(36).slice(-5))));
 const LOADS = opt('builds', 'metal,metal,metal').split(',');
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+const LIGHTS = argv.includes('--lights'), CAM = opt('cam', 'chase');
 const FLY_SEC = +opt('fly-sec', 15), SETTLE = +opt('settle', -1), CK = argv.includes('--ck'), HIST = opt('hist', 'ProgramCache').split(',');
+// --lights (CRAFT-LIGHT RE-KEY, 10 Nov): every change of the light count three would key a render on, per scene, named.
+// three r186 counts a light when it is visible through every parent and on the camera's layers (WebGLRenderer.render:
+// traverseVisible + layers.test). The page hook keeps the scenes' lights (re-listed in idle time every 3 s, never inside a
+// frame) and, per render, counts those whose chain is visible and whose layers test the camera's: a few dozen parent walks.
+// A change is logged with the time, the scene, the camera (type, layer mask), the target, the counts, the craft's
+// visibility chain and the caller (the stack under render): [t, scene, cam, mask, rt, 'dir,point,spot', stack]
+const LIGHTS_HOOK = `(() => { const R = window.FLIGHT_PROBE && FLIGHT_PROBE.renderer && FLIGHT_PROBE.renderer(); if (!R || R.__lh) return R ? 1 : 0;
+  const orig = R.render, LH = window.__LH = { log: [], scenes: new Map(), last: new Map(), n: 0 };
+  const list = sc => { const ls = []; sc.traverse(o => { if (o.isLight && !o.isAmbientLight) ls.push(o); }); LH.scenes.set(sc, ls); };
+  const relist = () => { for (const sc of LH.scenes.keys()) list(sc); setTimeout(() => (window.requestIdleCallback || (f => f()))(relist), 3000); };
+  relist();
+  const shown = (o, sc) => { for (let x = o; x; x = x.parent) { if (x.visible === false) return false; if (x === sc) return true; } return false; };
+  R.render = function (sc, cam) {
+    try {
+      if (sc && cam && sc.isScene) {
+        if (!LH.scenes.has(sc)) list(sc);
+        let d = 0, p = 0, s = 0; const hid = [];
+        for (const L of LH.scenes.get(sc)) { const on = shown(L, sc) && L.layers.test(cam.layers); if (on) { if (L.isDirectionalLight) d++; else if (L.isPointLight) p++; else if (L.isSpotLight) s++; } else if (L.isPointLight || L.isSpotLight) hid.push(L); }
+        const k = d + ',' + p + ',' + s, prev = LH.last.get(sc);
+        if (prev !== k) { LH.last.set(sc, k);
+          if (LH.log.length < 600) { const why = hid.slice(0, 3).map(L => { let x = L, w = ''; for (; x && x !== sc; x = x.parent) if (x.visible === false) { w = 'hidden:' + (x.name || x.type); break; } return (L.name || L.type) + '<' + (L.parent && (L.parent.name || L.parent.type)) + (w ? ' ' + w : !L.layers.test(cam.layers) ? ' layers ' + L.layers.mask : x ? '' : ' off-scene'); });
+            LH.log.push([Math.round(performance.now()), sc.name || 'scene#' + sc.id, (cam.name || cam.type), cam.layers.mask, (R.getRenderTarget() ? 'rt' : 'screen'), k, why.join(' | '),
+              (new Error().stack || '').split('\\n').slice(2, 6).map(l => l.trim().replace(/^at /, '').replace(/\\(.*\\/([^/]+:\\d+):\\d+\\)$/, '($1)')).join(' < ')]); } }
+      }
+    } catch (e) {}
+    return orig.apply(this, arguments);
+  };
+  R.__lh = 1; return 1; })()`;
 // BOOT-PROGRAMS (A0 9 Nov; BOOT-PROGRAMS-2026-11-03: ~90 links a nav of a source the same load already linked, same context,
 // the first program still live = three keyed one source twice): per source linked more than once in a load, the cacheKeys of
 // its programs (renderer.info.programs: the GL program -> three's WebGLProgram), cut to the part that differs
@@ -68,6 +99,7 @@ const HASH = `(function(){ if (window.__CL) return; var C = window.__CL = { ln: 
     const key = LOADS[li], [bk, qs] = key.split('@'), B = MB.BUILDS[bk];
     const b = ONE ? (b1 = b1 || await MB.browser(UDD)) : await MB.browser(UDD);
     const l = await b.load(BASE + (qs ? '?' + qs : ''), MB.preScript(B.build, null, B.patch) + '\n' + HASH);
+    if (LIGHTS) console.log('  lights hook: ' + await b.ev(LIGHTS_HOOK).catch(e => 'failed ' + e.message));
     await sleep(3000);   // the garage's own links settle
     // --settle N (WARM-CACHE, 10 Nov): before the reading, wait until no program is still linking (renderer.info.programs, isReady), up to
     // 120 s, then N s more - the last links' binaries reach Chrome's program cache before the browser closes (MB_CLOSE_WAIT: the close's wait)
@@ -79,7 +111,7 @@ const HASH = `(function(){ if (window.__CL) return; var C = window.__CL = { ln: 
     if (FLY) { const n0 = await b.ev(MB.A.trips), w0 = Date.now(), tR = await b.ev('performance.now()'); await b.ev(MB.A.rollOut);
       // (10 Nov A/B: a 30 s eval timeout here killed 3 loads of 8 - the page did not answer: counted as a hang, the poll goes on)
       for (const tEnd = Date.now() + 300000; Date.now() < tEnd; await sleep(200)) { const t0h = Date.now(), raw = await b.ev(MB.A.lastTrip, 30000).catch(() => "__timeout"); if (raw === "__timeout") { hangs.push([Math.round((t0h - w0) / 1000), Math.round((Date.now() - t0h) / 1000)]); continue; } const d = JSON.parse(raw); if (d.n > n0 && d.kind === 'rollout' && d.done && d.boot === 'gone') break; }
-      fly = +((Date.now() - w0) / 1000).toFixed(1); const tD = await b.ev('performance.now()'); await sleep(2500); await b.ev(MB.A.run).catch(() => 0); await b.ev(MB.A.cam('chase')).catch(() => 0); await sleep(FLY_SEC * 1000);
+      fly = +((Date.now() - w0) / 1000).toFixed(1); const tD = await b.ev('performance.now()'); await sleep(2500); await b.ev(MB.A.run).catch(() => 0); { const cs = CAM.split(','); for (const c of cs) { await b.ev(MB.A.cam(c)).catch(() => 0); await sleep(FLY_SEC * 1000 / cs.length); } }
       // (BOOT-PROGRAMS A/B) the frames: the roll-out's (press -> done) and the first flight's 17.5 s, over 100 ms and the worst
       const fr = JSON.parse(await b.ev('JSON.stringify((window.__MB && __MB.fr || []).map(e => [e[0], e[1]]))', 30000).catch(() => '[]') || '[]');
       const part = (a, z) => { const d = fr.filter(e => e[0] > a && e[0] <= z && e[1] > 0).map(e => e[1]).sort((x, y) => x - y); return { n: d.length, over100: d.filter(x => x > 100).length, over250: d.filter(x => x > 250).length, p99: d.length ? d[Math.min(d.length - 1, Math.floor(d.length * 0.99))] : null, worst: d.length ? d[d.length - 1] : null }; };
@@ -124,6 +156,9 @@ const HASH = `(function(){ if (window.__CL) return; var C = window.__CL = { ln: 
     if (frm) { const after = all.map((r, j) => [r, j]).filter(([r]) => r.t0 > frm.tD - 2000);
       row.flown = after.map(([r, j]) => ({ t: +((r.t0 - frm.tD) / 1000).toFixed(1), ms: r.ms, k: r.k, own: row.ck && row.ck.own ? row.ck.own[j] : null }));
       console.log('  after the reveal: ' + row.flown.length + ' links; frames > 250 ms (s after, ms): ' + JSON.stringify(frm.slow) + (frm.hangs.length ? '; roll-out HANGS (s after the press, s unanswered): ' + JSON.stringify(frm.hangs) : ''));
+      if (LIGHTS) { row.lights = JSON.parse(await b.ev('JSON.stringify(window.__LH ? __LH.log : [])', 30000).catch(() => '[]') || '[]');
+        console.log('  light counts (dir,point,spot) per scene, each change: ' + row.lights.length + (row.lights.length >= 600 ? ' (capped)' : ''));
+        for (const e of row.lights) console.log('    ' + ((e[0] - frm.tD) / 1000).toFixed(1).padStart(7) + ' s  ' + e[1] + '  ' + e[2] + ' mask ' + e[3] + ' ' + e[4] + '  ' + e[5] + (e[6] ? '  off: ' + e[6] : '') + '  @ ' + e[7]); }
       for (const x of row.flown) console.log('    +' + x.t + ' s  link ' + (x.ms / 1000).toFixed(1) + ' s  ' + x.k + '  ' + (x.own || '?')); }
     for (const s of row.slow) console.log('    ' + String(s.t0).padStart(6) + ' ms  link ' + (s.ms / 1000).toFixed(1) + ' s  ' + s.k + '  ' + s.was + (s.own ? '  ' + s.own : ''));
     if (!ONE) await b.close();
