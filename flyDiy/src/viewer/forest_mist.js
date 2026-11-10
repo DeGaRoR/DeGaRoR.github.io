@@ -38,7 +38,7 @@ var FMIST = (function () {
     // bad, so the heaviest is 0.003 /m (~1.3 km inside: an aerial veil, never a wall) and the last wisps a quarter of it.
     rhoMax: 0.003, octaves: 2, flat: true, coreK: 1.6,   // coreK: the gradient mechanism's (flat: false), kept for the record
     rho: null,                      // a pin over the ladder (the rigs' density sheets), null = the weather's
-    swing: 30, covK: 0.8, detailK: 9.0, erode: 0.5, soft: 0.5, stretch: 2.1,   // the contours' swing (m), the share of a full pocket that is mist, the erosion's scale (x the body's) and depth
+    swing: 30, covK: 0.9, detailK: 9.0, erode: 0.5, soft: 0.5, stretch: 2.1,   // the contours' swing (m), the share of a full pocket that is mist, the erosion's scale (x the body's) and depth
     period: 110,                    // the noise's cell (m): a wisp a few tree lengths across (160 -> 110: the user, 10 Nov, "chase more resolution")
     lidM: 25, lidK: 110,            // the pool's lid over the valley floor: 25 m + 110 m x the pool weight
     wispLo: -12, wispHi: 40,        // the wisps' band about the canopy top (m)
@@ -275,9 +275,12 @@ var FMIST = (function () {
   }
   // ---- THE CPU MIRROR of fmDens (the GLSL's arithmetic; the calibration and the gate read it, never the page) -----
   const fr = x => x - Math.floor(x);
-  const h21 = (x, y) => fr(Math.sin(x * 127.1 + y * 311.7) * 43758.5453123);
-  const vn = (x, y) => { const ix = Math.floor(x), iy = Math.floor(y); let fx = x - ix, fy = y - iy; fx = fx * fx * (3 - 2 * fx); fy = fy * fy * (3 - 2 * fy);
-    const a = h21(ix, iy), b = h21(ix + 1, iy), c = h21(ix, iy + 1), d = h21(ix + 1, iy + 1); return (a + (b - a) * fx) * (1 - fy) + (c + (d - c) * fx) * fy; };
+  const h21 = (x, y) => { let a = fr(x * 0.1031), b = fr(y * 0.1031), c = fr(x * 0.1031);   // fmH, the same arithmetic
+    const d = a * (b + 33.33) + b * (c + 33.33) + c * (a + 33.33); a += d; b += d; c += d; return fr((a + b) * c); };
+  const md = (v, n) => v - n * Math.floor(v / n);
+  const vn = (x, y) => { x = md(x, 512); y = md(y, 512); const ix = Math.floor(x), iy = Math.floor(y); let fx = x - ix, fy = y - iy; fx = fx * fx * (3 - 2 * fx); fy = fy * fy * (3 - 2 * fy);
+    const jx = md(ix + 1, 512), jy = md(iy + 1, 512);
+    const a = h21(ix, iy), b = h21(jx, iy), c = h21(ix, jy), d = h21(jx, jy); return (a + (b - a) * fx) * (1 - fy) + (c + (d - c) * fx) * fy; };
   const smc = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
   function densCPU(m, k, base, drift, x, y, z) {
     const i = Math.min(m.N - 1, Math.max(0, Math.floor((x - m.x0) * m.inv * m.N))), j = Math.min(m.N - 1, Math.max(0, Math.floor((z - m.z0) * m.inv * m.N)));
@@ -319,6 +322,17 @@ var FMIST = (function () {
   // | [10] = (surface taps, eye taps, surface metres, eye metres) | [11] = (the veil's nearest distance: the march's reach under ?fmist=ac, the forward lobe's gain, 0, 0)
   // | [12] = (the key's beam at the pockets rgb, 0). The value noise is mistVN (MIST_GLSL's own).
   const GLSL = (AP_N_W, ATLAS_H, TILE_Y) => `
+    // THE POCKETS' OWN VALUE NOISE, sin-free (Hoskins' hash12): the F2 layer's mistVN hashes with fract(sin(x) * 43758),
+    // which fp32 cannot carry past a few thousand - the finer noise (110 m cells, a ~2 m octave) put its arguments at
+    // 1e4-3e6 and the "random" lattice went smooth: big blobs where finer wisps were asked for (the sheet of 10 Nov).
+    // The lattice is also wrapped to 512 cells (56 km at 110 m: never seen on the island) so the hash's input stays small.
+    float fmH(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
+    float fmVN(vec2 p) {
+      p = mod(p, 512.0);
+      vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+      vec2 j = mod(i + 1.0, 512.0);
+      return mix(mix(fmH(i), fmH(vec2(j.x, i.y)), f.x), mix(fmH(vec2(i.x, j.y)), fmH(j), f.x), f.y);
+    }
     vec4 fmMap(vec2 xz) {
       vec2 uv = clamp((xz - uMist[9].xy) * uMist[9].z, 0.0, 1.0);
       vec2 t = vec2((${S.X}.0 + 0.5 + uv.x * ${S.N - 1}.0) / ${AP_N_W}.0, (${TILE_Y}.0 + 0.5 + uv.y * ${S.N - 1}.0) / ${ATLAS_H}.0);
@@ -337,7 +351,7 @@ var FMIST = (function () {
       // THE BODY: the noise rides the wind, the map does not - wisps stream through a pocket and fade at its edges; a slow
       // vertical shear so a wisp leans. The octaves' sum sits at 0.5 +- 0.13, so it is stretched to the unit (x2.6).
       vec2 q = (p.xz + uMist[8].xy) * uMist[9].w + vec2(p.y * 0.011, -p.y * 0.007);
-      float n = 0.55 * mistVN(q) + 0.30 * mistVN(q * 2.31 + vec2(5.2, 1.3)) + 0.15 * mistVN(q * 5.3 + vec2(-3.1, 7.7));
+      float n = 0.55 * fmVN(q) + 0.30 * fmVN(q * 2.31 + vec2(5.2, 1.3)) + 0.15 * fmVN(q * 5.3 + vec2(-3.1, 7.7));
       n = clamp(0.5 + (n - 0.5) * ${S.stretch.toFixed(2)}, 0.0, 1.0);
       // THE CONTOURS (the user, 9 Nov: "lacks detail in the shape and the contours"): the bands' edges ride the noise, so
       // a wisp's top is lumpy and the pool's lid heaves instead of lying as a level slab
@@ -364,7 +378,7 @@ var FMIST = (function () {
       // THE DETAIL: a ~${Math.round(S.period / S.detailK)} m erosion eats the edges (Schneider's remap: base minus the fine noise), so the
       // outline breaks into wisps and the inside keeps its mass
       vec2 r = q * ${S.detailK.toFixed(2)} + vec2(p.y * 0.045, 3.3);
-      float e = 0.5 * mistVN(r) + 0.32 * mistVN(r * 2.7 + vec2(1.9, -4.1)) + 0.18 * mistVN(r * 6.1 + vec2(-7.3, 2.2));   // three octaves: the edge breaks at ~12, ~4.5 and ~2 m
+      float e = 0.5 * fmVN(r) + 0.32 * fmVN(r * 2.7 + vec2(1.9, -4.1)) + 0.18 * fmVN(r * 6.1 + vec2(-7.3, 2.2));   // three octaves: the edge breaks at ~12, ~4.5 and ~2 m
       e = clamp(0.5 + (e - 0.5) * 2.4, 0.0, 1.0);
       float d = clamp((body - e * ${S.erode.toFixed(2)}) / (1.0 - e * ${S.erode.toFixed(2)}), 0.0, 1.0);
       return d * (uMist[11].z > 0.5 ? smoothstep(0.0, 0.3, cov) : sqrt(geo)) * uMist[8].z;
