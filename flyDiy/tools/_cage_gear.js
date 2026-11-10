@@ -93,8 +93,6 @@ const legRowWhen = (i, key, kind) => {
     return P => kw(P) && +P['s' + i + '_shockKind'] === 1;
   if (key === 'oleoBraceZ')
     return P => kw(P) && +P['s' + i + '_oleoBrace'];
-  if (key === 'lvTop')                                    // (WILGA-GEAR: v1's eye height; v2 puts its own)
-    return P => kw(P) && Math.round(+P['s' + i + '_lvStrut'] || 0) === 0;
   if (key === 'lvBoot')                                   // (WILGA-GEAR: the leg fairing's shape, with the leg fairing)
     return P => kw(P) && Math.round(+P['s' + i + 'LegFair'] || 0) > 0;
   return kw;

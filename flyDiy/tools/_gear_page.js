@@ -57,7 +57,7 @@ const DEF = {
   // up the leg, the axle ahead of the fitting, the static deflection at gross (the strut's charge), the leg's fairing
   // chord, the fitting round the body. Every row is ABSENT AT ITS DEFAULT (_cage_gen CAGE_DEFAULT_ABSENT): no saved
   // build gains a key
-  lvArm: 0.400, lvAng: 62, lvComp: 12, lvTop: 0.18, lvReach: 0.45, lvStat: 0.070, lvLegW: 0.090, lvRootAng: 80, lvBoot: 0, lvStrut: 0,
+  lvArm: 0.400, lvAng: 62, lvComp: 12, lvTop: 0.72, lvReach: 0.45, lvStat: 0.070, lvLegW: 0.090, lvRootAng: 80, lvBoot: 0,
   // the tailwheel assembly
   twR: 0.10, twSpringLen: 0.52, twSpringDrop: 0.30, twSpringW: 0.052,
   twSpringT: 0.009, twLeaves: 3, twRake: 18, twTrail: 0.052,
@@ -106,10 +106,10 @@ const LEG_ROWS = {
     ['lvArm', 'trailing arm length', 0.20, 0.70, 0.005],
     ['lvAng', 'arm angle, extended (deg below level)', 30, 80, 0.5],
     ['lvComp', 'arm angle, full stroke (deg)', 0, 40, 0.5],
-    // (the strut's mount - the user, 10 Nov: "do it as a second version and we'll check": v2 is the photographs' long strut
-    // along the leg, its upper eye high under the fairing's root; lvTop sets v1's eye)
-    ['lvStrut', 'strut mount', 0, 1, 1, ['short, low eye (v1, derived)', 'long, high eye (v2, Wilga photos)']],
-    ['lvTop', 'strut eye up the leg', 0.08, 0.40, 0.005],
+    // (the strut's upper mount as a share of the leg from the pivot to the fitting - the user, 10 Nov: "how far on the leg does
+    // the shock mount ... as the default setting, definitely V2": 0.72, the photographs' long strut under the fairing's root;
+    // ~0.13 is the derived short strut, v1)
+    ['lvTop', 'strut mount up the leg (share)', 0.10, 0.85, 0.01],
     ['lvReach', 'axle ahead of the fitting', -0.30, 1.00, 0.01],
     ['lvStat', 'static deflection at gross (the charge)', 0.02, 0.20, 0.005],
     ['lvLegW', 'leg fairing chord', 0.04, 0.16, 0.002],

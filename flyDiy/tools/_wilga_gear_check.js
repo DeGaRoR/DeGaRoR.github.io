@@ -21,8 +21,9 @@
 //      fitting high and low, cut so that nothing that moves comes within 3 mm of it through the stroke, detailed (seams,
 //      screws), clear of the ground at full stroke on a flat tyre pitched nose-down, still hiding the strut above its
 //      floor; its cache replays the same boot
-//   7c. THE SECOND VERSION (lvStrut 1, the photographs' long strut): through the load chain it stands at the charge's
-//      deflection, absorbs the limit drop without bottoming and does not bounce
+//   7c. THE STRUT'S MOUNT (lvTop, a share of the leg; default 0.72 - the photographs' long strut): through the load chain,
+//      over the slider's range, each stands at the charge's deflection and absorbs the limit drop without bottoming; the
+//      long strut lands softer than the derived short one and does not bounce
 //   8. NOTHING ELSE MOVED: a build without the leg is bit-identical to one built before it existed (its def keyless)
 // Run: node tools/_wilga_gear_check.js   (one final `GATE WILGAGEAR: PASS|FAIL`)
 'use strict';
@@ -245,7 +246,8 @@ console.log('7b. the fairing (the user: "an elegant fairing ... that hides a bit
     [HOSTF, Object.assign({}, HOST, { s1_lvBoot: 1 }), 'the Wilga-class host, tapered'], [HOSTF, Object.assign({}, HOST, { s1_lvBoot: 2 }), 'the host, flared'],
     [HOSTF, HOST, 'the host, trailing (the default)'],
     [HOSTF, Object.assign({}, HOST, { s1_lvRootAng: 50 }), 'the host, trailing, fitting low (50 deg)'], [HOSTF, Object.assign({}, HOST, { s1_lvRootAng: 110 }), 'the host, trailing, fitting high (110 deg)'],
-    [HOSTF, Object.assign({}, HOST, { s1_lvStrut: 1 }), 'the host, trailing, the long strut (v2)']];
+    [HOSTF, Object.assign({}, HOST, { s1_lvTop: 0.13 }), 'the host, trailing, the short strut (v1: mount 0.13)'],
+    [HOSTF, Object.assign({}, HOST, { s1_lvTop: 0.40 }), 'the host, trailing, the mount half-way (0.40)']];
   let groundMin = Infinity, groundAt = '';
   for (const [file, over, who] of cases) {
     const raw = JSON.parse(fs.readFileSync(path.join(ROOT, file), 'utf8')), s0 = raw.spec || raw;
@@ -329,28 +331,38 @@ console.log('7b. the fairing (the user: "an elegant fairing ... that hides a bit
   yes(cs.gear.suspension === 'lever' && cs.gear.fairing === 'none' && cs.gear.legFair === 'fair', 'clampSpec: a trailing link asking for a spat flies with none, its leg fairing kept (' + cs.gear.fairing + ' / ' + cs.gear.legFair + ')');
 }
 
-console.log('7c. the second version (lvStrut 1 - the user: "do it as a second version and we\'ll check"): the photographs\' long strut along the leg');
+console.log('7c. the strut\'s mount up the leg (lvTop, a share of the leg - the user: "how far on the leg does the shock mount ... definitely V2"): the default 0.72, the photographs\' long strut, and the slider\'s range');
 {
   // through the game's own load chain (the garage draws, the join measures, the frame and the strut's design follow), on
-  // the host: the strut long (its eye under the fairing's root), its stroke near the wheel's travel - and it still stands
-  // at the charge's deflection, absorbs the limit drop without bottoming and does not bounce
+  // the host at mounts 0.13 (v1, the derived short strut) .. 0.85: each stands at the charge's deflection and absorbs the
+  // limit drop without bottoming; the long strut (the default) lands softer than the short one and does not bounce
   const LB = require(path.join(T, '_load_build.js'));
   const raw = JSON.parse(fs.readFileSync(path.join(ROOT, 'builds/cessna172_2026-09-20_corrected.json'), 'utf8'));
-  const sp0 = JSON.parse(JSON.stringify(raw.spec || raw));
-  Object.assign(sp0.cage, { s1Leg: 4, s1Drop: 0.80, s1R: 0.25, s1X: 1.415, s1Z: 1.45, s2Leg: 3, s2Z: 0.10, s2X: 0, s2R: 0.064, s2Steer: 1, s1_lvStrut: 1 });
-  const r = LB.gameSpecFull({ spec: sp0 }), def = C.buildGen(JSON.parse(JSON.stringify(r.spec))), Lv = def.parts.lever;
-  const O = Lv && Lv.sides[0].O, lenS = Lv ? Math.hypot(...[0, 1, 2].map(k => def.nodes[Lv.sides[0].u].p[k] - def.nodes[Lv.sides[0].h].p[k])) : 0;
-  yes(!r.errors.length && r.spec.gear.suspension === 'lever' && Lv && lenS > 1.0 && O.S > 0.2, 'the joined build flies the long strut: ' + f3(lenS) + ' m eye to eye, a ' + mm(O ? O.S : 0) + ' stroke for the wheel\'s 270 (v1: 0.50 m, 119 mm), charged ' +
-      (O ? ((O.P1 - G.GEAR_PA) / 1e5).toFixed(1) + ' bar extended, ' + (O.Fst / O.A / 1e5).toFixed(1) + ' bar static' : '-'));
-  if (Lv) {
-    const sim = settled(def, 8), ol = sim.oleo(), sd = Lv.sides[0], L = leverOf(def, sd, [-Math.sin(Lv.deck), Math.cos(Lv.deck), 0]);
+  const peakG = (def, V) => { const sim = settled(def, 8), M = def.nodes.reduce((a, n) => a + n.m, 0);
+    for (let i = 0; i < sim.n; i++) { sim.p[i * 3 + 1] += 0.03; sim.v[i * 3] = 0; sim.v[i * 3 + 1] = -V; sim.v[i * 3 + 2] = 0; }
+    sim.ctl.thr = 0; sim.oleoPeak(true);
+    const vy = () => { let a = 0; for (let i = 0; i < sim.n; i++) a += def.nodes[i].m * sim.v[i * 3 + 1]; return a / M; };
+    let prev = vy(), n = 0; for (let f = 0; f < 360; f++) { sim.step(1 / 120); const v = vy(); n = Math.max(n, 1 + (v - prev) * 120 / 9.81); prev = v; }
+    return { n, ol: sim.oleo(), bad: sim.stats().bad }; };
+  const res = {};
+  for (const fr of [null, 0.13, 0.40, 0.85]) {
+    const sp0 = JSON.parse(JSON.stringify(raw.spec || raw));
+    Object.assign(sp0.cage, { s1Leg: 4, s1Drop: 0.80, s1R: 0.25, s1X: 1.415, s1Z: 1.45, s2Leg: 3, s2Z: 0.10, s2X: 0, s2R: 0.064, s2Steer: 1 }, fr == null ? {} : { s1_lvTop: fr });
+    const r = LB.gameSpecFull({ spec: sp0 }), def = C.buildGen(JSON.parse(JSON.stringify(r.spec))), Lv = def.parts.lever;
+    const who = fr == null ? 'the default (0.72)' : 'mount ' + fr.toFixed(2);
+    if (!Lv) { yes(false, who + ': no trailing link in the joined build (' + r.errors.length + ' errors)'); continue; }
+    const sd = Lv.sides[0], O = sd.O, lenS = Math.hypot(...[0, 1, 2].map(k => def.nodes[sd.u].p[k] - def.nodes[sd.h].p[k]));
+    const sim = settled(def, 8), ol = sim.oleo(), L = leverOf(def, sd, [-Math.sin(Lv.deck), Math.cos(Lv.deck), 0]);
     const rise = G.gearLeverAt(L, G.gearLeverAngOf(L, 's', ol[0].s, Lv.geom.comp)).rise;
-    yes(Math.abs(rise - LR.dSt) <= 0.010 && sim.wheelsOnGround() === 3 && !sim.stats().bad, 'it stands at the charge\'s deflection: the wheel ' + mm(rise) + ' up (the study: 70 +-10), on its three wheels');
-    const d1 = drop(def, Lv.sink, 0, 3), o1 = d1.sim.oleo(), sMax = Math.max(o1[0].sMax, o1[1].sMax);
-    yes(sMax < O.S && o1.every(q => !q.bottomed) && !d1.sim.stats().bad, 'the limit drop (' + Lv.sink.toFixed(2) + ' m/s) is absorbed without bottoming: ' + mm(sMax) + ' of ' + mm(O.S));
-    const Vs = (def.params && def.params.ap && def.params.ap.Vs) || 25, d3 = drop(def, 1.5, 0.8 * Vs, 4);
-    yes(d3.airMax <= 0.15, 'a firm landing (1.5 m/s at 0.8 Vs) does not bounce: ' + d3.airMax.toFixed(2) + ' s off the ground at most');
+    const d = peakG(def, Lv.sink), used = Math.max(d.ol[0].sMax, d.ol[1].sMax) / O.S;
+    res[fr == null ? 'def' : fr] = { n: d.n, lenS, def };
+    yes(!r.errors.length && Math.abs(rise - LR.dSt) <= 0.010 && sim.wheelsOnGround() === 3 && d.ol.every(q => !q.bottomed) && !d.bad,
+        who + ': ' + f3(lenS) + ' m eye to eye, ' + mm(O.S) + ' of stroke, ' + ((O.P1 - G.GEAR_PA) / 1e5).toFixed(1) + ' / ' + (O.Fst / O.A / 1e5).toFixed(1) + ' bar; stands ' + mm(rise) +
+        ' deflected (70 +-10); the limit drop (' + Lv.sink.toFixed(2) + ' m/s) on ' + (100 * used).toFixed(0) + ' % of its stroke, no bottoming, ' + d.n.toFixed(2) + ' g at the CG');
   }
+  if (res.def && res[0.13]) yes(res.def.n < res[0.13].n - 0.5, 'the long strut lands softer: ' + res.def.n.toFixed(2) + ' g against the short strut\'s ' + res[0.13].n.toFixed(2) + ' (its leverage near constant over the stroke; the wheel\'s 270 mm stays the energy budget)');
+  if (res.def) { const Vs = (res.def.def.params && res.def.def.params.ap && res.def.def.params.ap.Vs) || 25, d3 = drop(res.def.def, 1.5, 0.8 * Vs, 4);
+    yes(d3.airMax <= 0.15, 'the default: a firm landing (1.5 m/s at 0.8 Vs) does not bounce - ' + d3.airMax.toFixed(2) + ' s off the ground at most'); }
 }
 
 console.log('8. nothing else moved');

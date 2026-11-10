@@ -1994,7 +1994,7 @@ function leverRowsOf(P) {
     legDir: [0.640, 0.577, -0.514], dSt: 0.070 };
   const v = (k, d) => (P[k] != null && isFinite(+P[k]) ? +P[k] : d);
   return Object.assign({}, LR, { arm: v('lvArm', LR.arm), ang: v('lvAng', LR.ang), comp: v('lvComp', LR.comp),
-                                 top: v('lvTop', LR.top), dSt: v('lvStat', LR.dSt) });
+                                 dSt: v('lvStat', LR.dSt) });   // (top: legLever's, from the lvTop share of the leg)
 }
 // THE TRAILING-LINK LEG'S FAIRING (WILGA-GEAR; the user: "an elegant fairing for that particular type of suspension ... not
 // too complex, something robust that could go on many planes, but something that looks good and that hides a bit of
@@ -2357,11 +2357,11 @@ function legLever(bags, AF, P, st, sgn) {
   const F = fitOn(AF, st, st.z, sgn * rootAng, 0);
   const root = off(F.p, F.n, 0.012);
   const legDir = toFrame(nrm(sub(root, piv)));
-  // THE STRUT'S MOUNT (lvStrut): v1 - the derived eye, lvTop (0.18 m) up the leg; v2 - the photographs' (IMG_5504 / 5527:
-  // the gaiter at the fairing's foot, the cylinder up inside it, the upper pin near its top): a long strut along the leg,
-  // its upper eye 72 % of the way up, under the fairing's root joint. The frame, the strut's design and the fairing all
-  // follow the drawn points (the join measures them)
-  if (Math.round(+P.lvStrut || 0) === 1) R0.top = 0.72 * len(sub(root, piv));
+  // THE STRUT'S UPPER MOUNT, a share of the leg from the pivot to the fitting (lvTop - the user: "how far on the leg does the
+  // shock mount"; default 0.72, "definitely V2": the photographs' long strut, IMG_5504 / 5527 - the gaiter at the fairing's
+  // foot, the cylinder up inside it, the upper pin near its top; ~0.13 is the derived short strut, v1). The frame, the
+  // strut's design (its stroke, charge and orifice), the fairing and its cuts all follow the drawn points
+  R0.top = Math.max(0.05, Math.min(0.90, P.lvTop != null && isFinite(+P.lvTop) ? +P.lvTop : 0.72)) * len(sub(root, piv));
   const g = GL ? GL.gearLeverRef(R0, legDir) : g0;
   const horn = toCage(axle, g.horn), top = toCage(axle, g.top), w = g.w;
   const ax = [sgn, 0, 0];                                   // the pivot's axis, outboard
