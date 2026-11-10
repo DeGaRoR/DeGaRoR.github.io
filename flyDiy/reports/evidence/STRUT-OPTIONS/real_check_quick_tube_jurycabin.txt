@@ -22,4 +22,4 @@ Build `builds/candidates/ruckus_struts_2026-11-10.json` through the load door; 3
 | LD  | airframe | 4.6 (4.1–5.1) | 188–249 | 6.0 | **outside** (extrap.) | — |
 | TO m | airframe (grass) | 107 (96–117) | 249 | 56 | **outside** | — |
 
-[ruckus_struts_2026-11-10] done in 13 s
+[ruckus_struts_2026-11-10] done in 19 s
