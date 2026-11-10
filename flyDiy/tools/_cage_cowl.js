@@ -75,7 +75,8 @@ for (const g of ROWS) {
 // every saved build and move every key the game hashes it by. A build that never moved it carries no key; the row
 // shows its `absent` value, and the generator is handed that value whenever the key is absent (below).
 // G3914: the nacelle inlet's rows too - absent at their defaults (no saved build gains a key)
-const ABSENT_AT = { wAftTop: 1, wAftBot: 1, inletOn: 0, inletW: 0.42, inletH: 0.42, inletLip: 0.014, inletDuct: 0.22, inletY: 0 };
+const ABSENT_AT = { wAftTop: 1, wAftBot: 1, inletOn: 0, inletW: 0.42, inletH: 0.42, inletLip: 0.014, inletDuct: 0.22, inletY: 0,
+                    tailHold: 0 };   // (PETREL-LS: the tail cone's held height)
 const cowlDef = { cowlOn: 1, fitNose: 2, cowlGap: 0.0 };
 for (const k of SHOWN) if (!(k in ABSENT_AT)) cowlDef['cw_' + k] = CW.P[k];
 PAGE.defaults = Object.assign(cowlDef, PAGE.defaults || {});

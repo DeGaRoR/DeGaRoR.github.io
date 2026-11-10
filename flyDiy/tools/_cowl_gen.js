@@ -87,6 +87,10 @@ const P={
   scoopLipH:0.011, scoopLipDepth:0.032, scoopDuct:0.125,
   // aft — the fuselage is a given; the cowl inherits its section by default
   aftMode:0, stubLen:0.5, tailLen:1.5, tailDrop:0.02, pylon:1,
+  // PETREL-LS (the user, 10 Nov: "keep [the nacelle] very linear ... so it does not taper on side view ... don't change
+  // the taper seen from the top"): the share of the cone's HEIGHT held along it - 0 a cone (every build before), 1 level
+  // in side view (the width alone closes, a vertical edge at the tip)
+  tailHold:0,
   // G3914: THE NACELLE'S AIR INLET (the user, 4 Nov: "a nacelle on a pusher should be allowed an air inlet ... a set
   // of controls for the inlet"): an opening in the tail cone's tip - on a pusher the cone is the nacelle's NOSE, into
   // the air - its width / height as fractions of the nacelle's section, the lip's roll, the duct's depth, its centre
@@ -1562,7 +1566,8 @@ function buildAft(group,mats){
     const ringOf=(sect,y0,z)=>AZ.map(th=>{const [x,y]=sectPt(th,sect);return new THREE.Vector3(x,y0+y,z);});
     for(let i=0;i<NS;i++){
       const e=eCut*smooth(i/(NS-1)), k=Math.sqrt(Math.max(0,1-Math.pow(e,2.2)));
-      rings.push(ringOf(secAt(e,k),s0.cy-P.tailDrop*e,-e*P.tailLen));
+      const hold=clamp(+P.tailHold||0,0,1);   // (PETREL-LS: the height held, the width closing as before)
+      rings.push(ringOf(secAt(e,k,hold>0?1-(1-k)*(1-hold):null),s0.cy-P.tailDrop*e,-e*P.tailLen));
     }
     if(!P.inletOn){
       group.add(new THREE.Mesh(loftRings(rings.slice().reverse(),null),mats.skin));

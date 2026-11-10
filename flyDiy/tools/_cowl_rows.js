@@ -298,6 +298,7 @@ const COWL_ROWS = [
     { k: 'tailLen', label: 'tail cone length', lo: 0.4, hi: 4, step: 0.02, when: 'P.aftMode===1' },   // DC3-EDITABLE: the DC-3's nacelle cone, 3.35
     // Advanced
     { k: 'tailDrop', label: 'tail cone droop', lo: -0.2, hi: 0.2, step: 0.005, when: 'P.aftMode===1' },
+    { k: 'tailHold', label: 'tail cone height held (side view: 0 a cone, 1 level)', lo: 0, hi: 1, step: 0.01, when: 'P.aftMode===1' },   // PETREL-LS
     { k: 'pylon', label: 'Pylon + wing stub', lo: 0, hi: 1, step: 1, when: 'P.aftMode===1' },
     // G3914: the nacelle's air inlet, in the tail cone's tip (on a pusher, the nacelle's nose)
     { k: 'inletOn', label: 'air inlet (in the tail cone)', lo: 0, hi: 1, step: 1, names: ['none', 'inlet'], when: 'P.aftMode===1' },
