@@ -2019,7 +2019,7 @@ function makeSim(def, world) {
       // the crush past the spinner reaches the propeller: a prop still turning stops on it (DMG-DRIVE grades the strike:
       // a stoppage, or a separation at a tip faster than its blade takes)
       // (TAXI-STRIKE: a prop that only lost a tip and runs on is stopped by its hub in the ground all the same)
-      if (NZ.c[k] > N.layers[0].d1 - 1e-9 && N.layers[0].cone && !eng[k].seized && st.strike !== 'stoppage')
+      if (NZ.c[k] > N.layers[0].d1 - 1e-9 && N.layers[0].cone && !eng[k].seized && st.strike !== 'stoppage' && (st.strike !== 'separation' || !onT))
         propStrike(k, onT ? 'trunk' : 'ground', DRV.sp.R, onT ? 'rigid' : 'soft');
       let fx = F * nx, fy = F * ny, fz = F * nz;
       if (!onT) {                                    // the nose scraping the ground
@@ -2075,7 +2075,9 @@ function makeSim(def, world) {
     // (TAXI-STRIKE: the tier only rises - but a separated prop still running is STOPPED by a later bite past its surface's
     // stop: the 172's lost tip at 2370 rpm dug on into the runway, full power, until its mount tore off)
     if (tier <= cur) {
-      if (!(cur === 4 && tier === 4 && !e.seized && bite / S.R > stopR0)) return;
+      // (GATE DMGDRIVE, G2036: a TRUNK's graze at power breaks a blade and the prop turns on short of it - the imbalance
+      // takes the mount; only the GROUND stops it after: the disc digs on into it)
+      if (!(cur === 4 && tier === 4 && surf !== 'rigid' && !e.seized && bite / S.R > stopR0)) return;
       st.strikeAt = { t: simT, what, surf, bite, biteR: bite / S.R, tip, rpm: out.rpm[k] || 0, stopAfterSep: true };
       st.imbN = 0;
       if (S.gear > 1 && e.running && thrEffOf(k) > GEN_DRIVE.gear.stopPow) { st.gearbox = 'failed'; DK[k] = 0; }
