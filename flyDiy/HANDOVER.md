@@ -314270,6 +314270,15 @@ static deflection at the loaded mass (the row; 70 mm), the orifice for the 23.47
   the boot trims its 36 columns on the drawn skin with the pylons' rays (_cage_eng exports CAGE_PYLON = { caster, hug };
   _cage_gear leverSkinOf hands leverBoot a skin cast and a cache key), a 4 cm fillet, a rubber bead round the joint.
   Full on the default builds; a high side fitting leaves columns ending at the fitting (GATE WILGAGEAR 7b reports it).
+  THEN AN OPTION, PLAIN BY DEFAULT (the user, 10 Nov, after the low/mid/high x shape matrix: "whenever you intersect cut
+  windows or any seam in the fuselage, then it generates big glitches ... an option ... when it works, why not"): the row
+  lvJoint is now 'leg fairing root' - 0 plain (the default, no skin cast at all), 1 fitted with a riveted strip (the pylons'
+  Bezier strip on the skin's own normal, 2.6 mm rivets every 3.5 cm), 2 fitted with no strip. One trim axis for every column
+  (per-column axes zig-zagged the foot); the Wilga's leg tube trimmed with the slab ("the darker gray part in front ... would
+  need to follow") with no fillet of its own (its fillet stood through the slab's thin sides); a ray much longer than its
+  neighbours' (through a window to the cabin's far side) is a miss filled from them. Known limit: rays still read cut
+  windows and seams as holes - the reason it is not the default. GATE WILGAGEAR 7b: plain at the default, fitted 36/36 with
+  the strip where asked (host and Cub).
 
 **Pitfalls met (each measured, each fixed):**
 - The fixed leg as gear-class members is a 1.2e5 N/m spring and folds under its own strut: kMul 20.
