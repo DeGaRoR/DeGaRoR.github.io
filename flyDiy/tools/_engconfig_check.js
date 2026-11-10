@@ -255,7 +255,7 @@ const PIN = {
   'tools/fixtures/build_v7_twin_2026-09-04.json': 'b272e4d2fa0f485e 221d6c2405b15e1e',
   'tools/fixtures/build_v8_pusher_2026-09-11.json': '382e0869b7b40fca 1e888903ddfb652c',
   'bugReports/cessnaMetal (1).json': '94470c8f8a15303b a46c863c418b9466',
-  'bugReports/cessnaFloatsWOrks.json': 'f96f0f0fb183066c c0cb85e1b844a200',
+  'bugReports/cessnaFloatsWOrks.json': '2629b4e69583e6bf c0cb85e1b844a200',   // FLOAT-DECK 10 Nov: the def moves (a float build rests at deck 0), the flown steps do not
   'tools/fixtures/repro/rufus_2026-10-18_certified.json': '4cdd3f968a12bfe3 210d8b580d8fe556',
   'stock nose': '643179bc32524858 31cce33943cc578a',
   'stock pusher': '5c93f8d9d359df46 5613f19c025bd3cf',
