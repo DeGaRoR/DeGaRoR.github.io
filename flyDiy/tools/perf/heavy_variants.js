@@ -3,7 +3,7 @@
 // pavement 34 s, the island ground 17 + 14 s, the premises patch 13 s) as text, counted, and their variants written for
 // cold_links_bench.js. FXC's link time follows FLOW CONTROL, not size (COLD-LINKS G1310): a loop with constant bounds is
 // unrolled, a loop inside it multiplies, a branchy body inside both is paid at every copy.
-//   node tools/perf/heavy_variants.js <progs.json> [--only pavement,island-] [--stats] [--dyn <out.json>]
+//   node tools/perf/heavy_variants.js <progs.json> [--only pavement,island-] [--stats] [--dyn <out.json>] [--bisect <out.json> --stubs pv]
 // progs.json: cold_links_src.js's [{ name, mark, vs, fs }].
 //   --stats  per program: length, loops (constant-bound / other), the deepest nest, the largest unrolled trip product
 //            (the constant bounds multiplied down a nest), the body copies an unroll writes (every constant loop's product,
@@ -17,7 +17,7 @@
 const fs = require('fs');
 const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 && argv[i + 1] !== undefined && !argv[i + 1].startsWith('--') ? argv[i + 1] : d; };
-const IN = argv.find(a => !a.startsWith('--') && !['--only', '--dyn'].includes(argv[argv.indexOf(a) - 1]));
+const IN = argv.find(a => !a.startsWith('--') && !['--only', '--dyn', '--bisect', '--stubs'].includes(argv[argv.indexOf(a) - 1]));
 if (!IN) { console.error('heavy_variants: <progs.json> [--only p1,p2] [--stats] [--dyn out.json]'); process.exit(2); }
 const P = JSON.parse(fs.readFileSync(IN, 'utf8'));
 const ONLY = opt('only', null) ? opt('only').split(',') : null;
@@ -61,7 +61,7 @@ function stats(p) {
     ifs: (f.match(/\bif\s*\(/g) || []).length, tex: (f.match(/\btexture(?:Lod|Grad|Fetch)?\s*\(|\btexelFetch\s*\(/g) || []).length, fns,
     top: L.filter(l => l.lit).sort((a, b) => b.product - a.product).slice(0, 6).map(l => l.var + '<' + l.bound + ' x' + l.product + '@d' + l.depth) };
 }
-if (argv.includes('--stats') || !opt('dyn', null)) {
+if (argv.includes('--stats') || (!opt('dyn', null) && !opt('bisect', null))) {
   for (const p of P.filter(picked)) console.log(JSON.stringify(stats(p)));
 }
 const DYN = opt('dyn', null);
@@ -78,4 +78,28 @@ if (DYN) {
   });
   fs.writeFileSync(DYN, JSON.stringify(out));
   console.log('heavy_variants: ' + out.length + ' programs -> ' + DYN);
+}
+// --bisect <out.json> --stubs pv,pm   THE BISECT (HEAVY-SHADERS, 10 Nov: the uniform-bound loops changed nothing - the time is
+//   not the constant loops' unroll). MEASUREMENT ONLY, never a look: per picked program, the original twice (the second with
+//   a `#define BIS_COPY` line: another source, so no program cache answers it - the spread between the two is the noise),
+//   then one variant per function whose name starts with a --stubs prefix, that function made to return zero at once (the
+//   compiler drops its body and everything only it fed) - the link time each one saves names where the time goes.
+//   cold_links_bench --batch 4 links them a few at a time.
+const BIS = opt('bisect', null);
+if (BIS) {
+  const PRE = (opt('stubs', 'pv') || '').split(',').filter(Boolean), out = [];
+  const ZERO = { float: '0.0', vec2: 'vec2(0.0)', vec3: 'vec3(0.0)', vec4: 'vec4(0.0)', int: '0', bool: 'false', void: '' };
+  const copy = (src, k) => src.replace(/^(#version[^\n]*\n)/, '$1#define BIS_COPY ' + k + '\n');
+  for (const p of P.filter(picked)) {
+    out.push(Object.assign({}, p, { name: p.name + ':base' }), Object.assign({}, p, { name: p.name + ':base2', fs: copy(p.fs, 2) }));
+    const DEF = /\n(float|vec[234]|int|bool|void)\s+(\w+)\s*\(([^)]*)\)\s*\{/g; let m; const seen = new Set();
+    while ((m = DEF.exec(p.fs))) {
+      const [all, ty, fn] = m; if (!PRE.some(x => fn.startsWith(x)) || seen.has(fn)) continue; seen.add(fn);
+      const at = m.index + all.length, fs2 = p.fs.slice(0, at) + ' return' + (ZERO[ty] ? ' ' + ZERO[ty] : '') + '; ' + p.fs.slice(at);
+      out.push(Object.assign({}, p, { name: p.name + ':stub-' + fn, fs: copy(fs2, 'stub_' + fn) }));
+    }
+    console.log('  bisect ' + p.name + ': base x2 + ' + seen.size + ' stubs (' + [...seen].join(' ') + ')');
+  }
+  fs.writeFileSync(BIS, JSON.stringify(out));
+  console.log('heavy_variants: ' + out.length + ' programs -> ' + BIS);
 }
