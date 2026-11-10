@@ -76,7 +76,7 @@ for (const g of ROWS) {
 // shows its `absent` value, and the generator is handed that value whenever the key is absent (below).
 // G3914: the nacelle inlet's rows too - absent at their defaults (no saved build gains a key)
 const ABSENT_AT = { wAftTop: 1, wAftBot: 1, inletOn: 0, inletW: 0.42, inletH: 0.42, inletLip: 0.014, inletDuct: 0.22, inletY: 0,
-                    tailHold: 0 };   // (PETREL-LS: the tail cone's held height)
+                    tailHold: 0, inletBand: 0 };   // (PETREL-LS: the tail cone's held height, the inlet's even band)
 const cowlDef = { cowlOn: 1, fitNose: 2, cowlGap: 0.0 };
 for (const k of SHOWN) if (!(k in ABSENT_AT)) cowlDef['cw_' + k] = CW.P[k];
 PAGE.defaults = Object.assign(cowlDef, PAGE.defaults || {});

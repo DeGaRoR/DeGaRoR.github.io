@@ -96,6 +96,9 @@ const P={
   // the air - its width / height as fractions of the nacelle's section, the lip's roll, the duct's depth, its centre
   // up / down. Off by default (every cowl as it was)
   inletOn:0, inletW:0.42, inletH:0.42, inletLip:0.014, inletDuct:0.22, inletY:0,
+  // PETREL-LS (the user, 10 Nov: "a proper lip ... a band around it of equivalent distance relative to the border"): the
+  // band's width, m - 0 = the opening a fraction of the section (inletW / inletH, every build before)
+  inletBand:0,
   inheritStub:1, stubSqTop:0.81, stubSqBot:0.79, stubDeckH:0.99, stubWaist:0.34, stubKeelH:0.98,
   // propeller
   bladeN:2, propD:1.91, rootChord:0.165, tipChord:0.05, chordBulge:0.18,
@@ -1578,10 +1581,16 @@ function buildAft(group,mats){
       // its centre `inletY` x the section's height up), then the duct back into the nacelle
       const zc=-eCut*P.tailLen, yc=s0.cy-P.tailDrop*eCut+P.inletY*s0.bT, lip=Math.max(0.002,P.inletLip);
       const kOut=Math.sqrt(Math.max(0,1-Math.pow(eCut,2.2)));
-      const inner=secAt(eCut,IW,IH);
+      // PETREL-LS: a BAND of even width - the opening is the cut ring's own section drawn in by `inletBand` all round
+      // (the same azimuths, so the lip's loops run parallel to the edge); else a fraction of the section, as before
+      const band=Math.max(0,+P.inletBand||0), outer=secAt(eCut,kOut,holdT>0?kyOf(kOut):null);
+      const inner=band>0?{...outer,a:Math.max(0.01,outer.a-band),bT:Math.max(0.01,outer.bT-band),bB:Math.max(0.01,outer.bB-band),
+                           yw:outer.yw*Math.max(0.01,outer.a-band)/Math.max(1e-6,outer.a)}:secAt(eCut,IW,IH);
       const mid={...inner,a:inner.a+lip*0.9,bT:inner.bT+lip*0.9,bB:inner.bB+lip*0.9};
+      const roll=band>0?{...outer,a:0.5*(outer.a+inner.a)+lip*0.5,bT:0.5*(outer.bT+inner.bT)+lip*0.5,bB:0.5*(outer.bB+inner.bB)+lip*0.5}
+                       :secAt(eCut,(kOut+IW)/2+lip/s0.a*0.5,(kyOf(kOut)+IH)/2+lip/s0.bT*0.5);
       const lipRings=[rings[rings.length-1],
-        ringOf(secAt(eCut,(kOut+IW)/2+lip/s0.a*0.5,(kyOf(kOut)+IH)/2+lip/s0.bT*0.5),(s0.cy-P.tailDrop*eCut+yc)/2,zc-lip*0.9),
+        ringOf(roll,(s0.cy-P.tailDrop*eCut+yc)/2,zc-lip*0.9),
         ringOf(mid,yc,zc-lip*1.2),
         ringOf(inner,yc,zc-lip*0.4),
         ringOf(inner,yc,zc+lip*0.6)];

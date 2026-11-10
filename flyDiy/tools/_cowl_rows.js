@@ -305,6 +305,7 @@ const COWL_ROWS = [
     { k: 'inletW', label: 'inlet width (of the section)', lo: 0.12, hi: 0.85, step: 0.01, when: 'P.aftMode===1&&P.inletOn' },
     { k: 'inletH', label: 'inlet height (of the section)', lo: 0.12, hi: 0.85, step: 0.01, when: 'P.aftMode===1&&P.inletOn' },
     { k: 'inletLip', label: 'inlet lip', lo: 0.002, hi: 0.05, step: 0.001, when: 'P.aftMode===1&&P.inletOn' },
+    { k: 'inletBand', label: 'inlet band, even all round (m; 0 = the width / height above)', lo: 0, hi: 0.2, step: 0.002, when: 'P.aftMode===1&&P.inletOn' },   // PETREL-LS
     { k: 'inletDuct', label: 'inlet duct depth', lo: 0.02, hi: 0.6, step: 0.01, when: 'P.aftMode===1&&P.inletOn' },
     { k: 'inletY', label: 'inlet up / down (of the height)', lo: -0.5, hi: 0.5, step: 0.01, when: 'P.aftMode===1&&P.inletOn' },
   ] },
