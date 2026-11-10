@@ -41,6 +41,10 @@ PAGE.defaults = Object.assign({
   // cabane as ONE faired pylon on the centreline (the engine pylon's blended blade, roof to the wing's underside) - the
   // frame roots the wing at the pylon and runs the cabane as a narrow truss inside it (61_gen_frame cabPylon)
   bpCabPylon: 0,
+  // PETREL-LS (the user, 10 Nov: "the pylon... has to move back a lot and get a lot longer"): the faired pylon's
+  // centre fore/aft (m, + forward; 0 = 0.40 of the centre chord behind the leading edge) and its length (m; 0 = 0.55
+  // of that chord) - drawn only (the frame's cabane truss inside it stands at the cabane's own station)
+  bpPylonZ: 0, bpPylonLen: 0,
 }, PAGE.defaults || {});
 
 // ---- panel ----------------------------------------------------------------
@@ -55,6 +59,8 @@ const BRACE_ITEMS = [
     ['bpStrutX', 'in / out (foot)', -0.25, 0.35, 0.01, { when: onCab, dim: 'm' }],
     ['bpCabDraw', 'cabane drawn', 0, 1, 1, ['hidden (flown, not drawn)', 'drawn'], { when: P => onCab(P) && !+P.bpCabPylon }],
     ['bpCabPylon', 'cabane form', 0, 1, 1, ['struts', 'central pylon (faired)'], { when: onCab }],
+    ['bpPylonZ', 'pylon fore / aft (+ forward)', -1.20, 0.60, 0.005, { when: P => onCab(P) && +P.bpCabPylon, dim: 'm', absent: 0 }],
+    ['bpPylonLen', 'pylon length (0 = 0.55 chord)', 0, 2.5, 0.01, { when: P => onCab(P) && +P.bpCabPylon, dim: 'm', absent: 0 }],
     ['bpStrutK', 'strut size (cabane, interplane)', 0.3, 1.5, 0.01, { when: P => onCab(P) || onBip(P) }],
   ], { when: onCab }],
   ['interplane & wires', [

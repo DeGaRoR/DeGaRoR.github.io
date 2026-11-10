@@ -8387,7 +8387,7 @@ const CAGE_PARAMS = {
   hullSkirt: 0,                                              // (HULL-B44: the chine's skirt - its reach past the topsides)
   hullTips: 1, hullTipAt: 0.85, hullTipKg: 0, hullTipY: -1,
   hullTipPlane: 0,                     // HULL-B45: the strut floats under the first plane (0) or a biplane's second (1)
-  hullTipLen: 0,                       // PETREL-LS: the strut floats' length, m (0 = the family's own; only shortens)
+  hullTipLen: 0,                       // PETREL-LS: the strut floats' length, m (0 = the family's own; the displacement kept)
   // HULL-B12: the afterbody keel's run (deg, the fit's 7-deg rule by default; less for a tail-heavy boat's deeper
   // afterbody) and the bow the builder drew before the balance first lengthened it (0: the fit has not moved the bow)
   hullAftDeg: 7, hullNoseBase: 0,

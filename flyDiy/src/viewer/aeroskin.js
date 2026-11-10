@@ -1017,6 +1017,11 @@ const AERO_SEC = {
   // paintable.
   engMount: { parent: 'body',     fin: 'trim',    label: 'the engine mount',
               layer: 'eng' },
+  // PETREL-LS (the user, 10 Nov: "the pylon... change the color of it, please. It is so dark, I cannot see it"): the
+  // FAIRED pylons (the engine's blade, the cabane pylon) their own section - unset it follows the engine mount, as they
+  // were dressed before
+  pylon:    { parent: 'engMount', fin: 'trim',    label: 'the pylon fairing',
+              layer: 'eng' },
   accPaint: { parent: 'body', fin: 'trim',      label: 'the fittings',
               layer: 'access', wears: 'parent' },
   // ---- the cabin and its crew (phase D) -----------------------------------

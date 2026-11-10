@@ -2027,18 +2027,21 @@ function propDiscs(def) {
   const Q = EN && EN.powerW > 0 && EN.rpm > 0 ? EN.powerW / (EN.rpm * 2 * Math.PI / 60) * (EN.gear || 1) : 0;
   return acc.filter(Boolean).map(a => ({ x: a[0] / a[3], y: a[1] / a[3], z: a[2] / a[3], R: PR.D / 2, Q }));
 }
-// ...and the tip float's own hull for a displacement (the family scaled: floatParamsFor's pair displaces 1.8 x what
-// it is sized for, so one float sized for kg / 0.9 displaces kg)
-// PETREL-LS (the user: "a little something sticking out at the back" - the Super Petrel's 2.0 m floor float's tail over
-// its lowered afterbody; the LS drawing's tip floats are ~1.26 m): `len` (m, the row hullTipLen; 0 = the family's own)
-// SHORTENS the float about its bow - the length, the step station, the shell's mass and its cg shrink with it, the
-// section stays (so it displaces less: a float the family's floor makes 2.0 m for a light boat). Never lengthens.
+// ...and THE SMALL FLOATS' own hull for a displacement (tip floats, outriggers, float sponsons): the family scaled so
+// ONE float displaces `kg` to its deck. PETREL-LS (the user, 10 Nov: "there's absolutely no reason to have such a
+// stupid limit on the little floats"): these no longer go through floatParamsFor, whose 60 kg gross floor is the MAIN
+// floats' (a pair for an aeroplane) - it made every tip float under 54 kg displacement a 2.0 m, 54 kg float.
+// `len` (m, the row hullTipLen; 0 = the family's own proportions) sets the float's length AT THE SAME DISPLACEMENT:
+// the length and step station by s, the section by 1/sqrt(s), the shell's mass by sqrt(s) (its skin, L x girth).
 const tipFloatParams = (kg, len) => {
-  const P = floatParamsFor(Math.max(5, kg / 0.9)); delete P._keel;
-  if (len > 0 && len < P.L) {
-    const s = len / P.L;
-    P.L *= s; P.xs *= s; P.mFloat *= s;
-    if (Array.isArray(P.cgFloat)) P.cgFloat = [P.cgFloat[0] * s, P.cgFloat[1], P.cgFloat[2]];
+  if (!DEF_VOL) DEF_VOL = makeFloat(DEF).volDeck * DEF.rho;
+  const k = Math.cbrt(Math.max(1, kg) / DEF_VOL);
+  const P = scaleParams(DEF, k); P.scale = k; delete P._keel;
+  if (len > 0 && Math.abs(len - P.L) > 1e-6) {
+    const s = len / P.L, c = 1 / Math.sqrt(s);
+    for (const key of FLOAT_METRIC) if (typeof P[key] === 'number') P[key] *= (key === 'L' || key === 'xs') ? s : c;
+    P.wrArea *= c * c; P.mFloat *= Math.sqrt(s);
+    if (Array.isArray(P.cgFloat)) P.cgFloat = [P.cgFloat[0] * s, P.cgFloat[1] * c, P.cgFloat[2] * c];
   }
   return P;
 };

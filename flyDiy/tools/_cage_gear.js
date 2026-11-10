@@ -1418,7 +1418,7 @@ window.CAGE_LAB_ROWS = {
   hullOn: 0,
   engPylonAt: 0, engPylonAft: 0.15, engPylonFwd: 0, engPylonForm: 0, engPylonFair: 0,
   engNacOver: 0, engNacLift: 0, engFinAt: 0.55, engFinFwd: 0,
-  bpCabPylon: 0, bpCabDraw: 1, bpStrutK: 1,
+  bpCabPylon: 0, bpCabDraw: 1, bpStrutK: 1, bpPylonZ: 0, bpPylonLen: 0,
   wgTipBow: 0, wgTipDroop: 0, wgTipFull: 1,
   cw_inletOn: 0,   // the pusher nacelle's air inlet (HULL-B25; its own rows hang off it)
 };

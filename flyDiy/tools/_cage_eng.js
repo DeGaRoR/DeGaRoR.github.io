@@ -1067,7 +1067,10 @@ function drawPylonMount(group, f, P, GK, aft, C) {
 // the body in the cowl's section (the nacelle's paint), the joint in the rubber seal's
 function pylonMeshes(group, fair, jb) {
   const SM = typeof window !== 'undefined' && window.CAGE_SECMAT;
-  const m = fair.mesh(group, (SM && SM('cowl', { surf: 0, fieldM: 1 })) || matOf('emMount'));
+  // (PETREL-LS: the fairing's own livery section, 'pylon' - following the engine mount's when unset, as matOf did)
+  const A = AKM(), pm = SM && SM('pylon', { fin: A && A.aeroHardFinish && A.aeroHardFinish('eng', 'emMount'),
+                                          tint0: EP.COL.emMount || EP.NEUTRAL, surf: 0, fieldM: 1, side: THREE.DoubleSide });
+  const m = fair.mesh(group, pm || (SM && SM('cowl', { surf: 0, fieldM: 1 })) || matOf('emMount'));
   if (m) m.name = 'engPylon';
   const j = jb.mesh(group, matOf('emPuck'));
   if (j) j.name = 'engPylonJoint';
@@ -1655,7 +1658,7 @@ function engPlace(ctx, prev) {
       const AFp = GGn && GGn.cageAirframe ? GGn.cageAirframe(ctx.mesh, FS) : null;
       if (le && GK && W.underAt && AFp) {
         const top = z => { try { const zc = Math.min(AFp.z1 - 1e-3, Math.max(AFp.z0 + 1e-3, z)); const y = AFp.surf(zc, Math.PI)[1]; return isFinite(y) ? y : null; } catch (e) { return null; } };
-        const Lp = Math.max(0.30, 0.55 * ch), zc = le.z - 0.40 * ch, u = W.underAt(0, zc), yb = top(zc);
+        const Lp = +P.bpPylonLen > 0 ? +P.bpPylonLen : Math.max(0.30, 0.55 * ch), zc = le.z - 0.40 * ch + (+P.bpPylonZ || 0), u = W.underAt(0, zc), yb = top(zc);   // (PETREL-LS: the rows)
         if (u && yb != null && u.y > yb + 0.05) {
           const f = { kind: 'cabPylon', x: 0, z: zc - (Lp / 2 - 0.05), yc: u.y + 0.01, halfH: 0, chord: Lp / 0.42,
                       foot: { x: 0.06, y: yb, zF: zc + Lp / 2, zR: zc - Lp / 2, yF: top(zc + Lp / 2), yR: top(zc - Lp / 2) } };
