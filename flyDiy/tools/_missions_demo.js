@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // ============================================================================
 // THE DEMO PACK (MISSIONS-P1/P2) — writes src/missions/demo_p1.json: one mission
-// per new runtime piece, on Jolene between HOME and Ridgeback Strip (w3), for the
+// per new runtime piece, on Jolene between HOME and Fishing Village Strip (w3), for the
 // local session that draws P1 (the props, the shutter, the markers) to fly them:
 //   demo.gates   a speed run: two balloon gates timed (medals), a ring, land at w3
 //   demo.rally   a rally on an embedded route: checkpoints + splits DERIVED here
@@ -81,7 +81,7 @@ const pack = {
   sites: [{ id: 'demo.mast', asset: 'weather mast', at: { x: -900, z: -2500, hdg: 0 }, state: 'planned', field: 'w3' }],
   text: {
     'ms.demo.title': t('Demo missions (P1/P2)'), 'ms.demo.speed': t('Speed'), 'ms.demo.misc': t('The rest'),
-    'ms.demo.gates.title': t('Between the balloons'), 'ms.demo.gates.brief': t('Two gates on the way to Ridgeback Strip, timed, then the ring. Low: 150 m at most.'),
+    'ms.demo.gates.title': t('Between the balloons'), 'ms.demo.gates.brief': t('Two gates on the way to Fishing Village Strip, timed, then the ring. Low: 150 m at most.'),
     'ms.demo.gates.say': t('That was quick. Again?'),
     'ms.demo.rally.title': t('The demo rally'), 'ms.demo.rally.brief': t('Coordinates and split times only. Back home after the last.'),
     'ms.demo.photo.title': t('A picture of the hill'), 'ms.demo.photo.brief': t('Over the hill, between 100 and 500 m above it: the shutter does the rest.'),
@@ -90,10 +90,10 @@ const pack = {
     'ct.demo.order.follow': t('It fits. Could the next one be lower?'),
     'ms.demo.client.title': t('Make my old plane faster'), 'ms.demo.client.brief': t('Here is my old plane. 120 km/h with a passenger, then bring it back.'),
     'ct.demo.client.follow': t('Faster still?'),
-    'ms.demo.rules.title': t('Careful with David'), 'ms.demo.rules.brief': t('David and his gear to Ridgeback Strip. Not a scratch on either.'),
-    'ms.demo.bush.title': t('Wait for me'), 'ms.demo.bush.brief': t('Land at Ridgeback, tie down on the first spot, wait half an hour.'),
+    'ms.demo.rules.title': t('Careful with David'), 'ms.demo.rules.brief': t('David and his gear to Fishing Village Strip. Not a scratch on either.'),
+    'ms.demo.bush.title': t('Wait for me'), 'ms.demo.bush.brief': t('Land at the Fishing Village Strip, tie down on the first spot, wait half an hour.'),
     'ms.demo.bush.say': t('Thanks for waiting. Let us go.'),
-    'ms.demo.supply.title': t('Up before breakfast'), 'ms.demo.supply.brief': t('David and Jody to Ridgeback, after seven, twenty minutes at most. David stays; Jody goes on to strip 10 or 11, either.'),
+    'ms.demo.supply.title': t('Up before breakfast'), 'ms.demo.supply.brief': t('David and Jody to the Fishing Village Strip, after seven, twenty minutes at most. David stays; Jody goes on to the Cannery Runway or the Old Community Runway, either.'),
     'ms.demo.supply.say': t('David is off - the mast crew starts today.'), 'ms.demo.supply.done': t('The mast stands. Good work.'),
   },
 };

@@ -615,7 +615,8 @@ console.log('12. THE TABLE - one material, a row a part; THE MERGE - per cell, i
     'ONE material for all three (transparent, no depth write), its program key the table hook\'s');
   const decl = new Set(); for (const mm of tall.match(/uniform [^;]+;/g) || []) for (const n of mm.replace(/uniform (?:highp )?\w+ /, '').replace(';', '').split(',')) decl.add(n.trim().replace(/\[.*\]/, ''));
   const undecl = Array.from(decl).filter(n => !(n in made[0].mNew.uniforms));
-  verdict(undecl.length === 0 && decl.size === 5, `the table text declares ${decl.size} uniforms, all on the one material (${Array.from(decl).join(' ')})` + (undecl.length ? ' - MISSING ' + undecl.join(', ') : ''));
+  // (DIRT-STRIP 2026-11-09: six - uPavWet, the soil's wetness every pavement's puddles read, joined uPavA uPavN uPavOn uPavDbg uPavT)
+  verdict(undecl.length === 0 && decl.size === 6, `the table text declares ${decl.size} uniforms, all on the one material (${Array.from(decl).join(' ')})` + (undecl.length ? ' - MISSING ' + undecl.join(', ') : ''));
   // a live edit reaches the row: setKeep packs again
   { const part = made[0].gNew.userData.pavRow; P.setKeep(part, [keep[0]]); const d = P.TAB.data, o = part.row * P.PV.W * 4;
     verdict(d[o + P.PV.N * 4 + 2] === 1 && d[o + P.PV.KA * 4] === f32(10), 'setKeep re-packs the row (1 keep box)'); P.setKeep(part, keep); }

@@ -313898,6 +313898,175 @@ TIMED GATE: light, the same shape as L35d. All 7 rollouts ran; steady frames p50
 - The cold GPU shader cache again: master_bench's MISS (97 links over 5 s; L35d had 89) and compile 40-67 s. This is the rig's Chrome kill at master_bench.js:287, which A0 is fixing this week.
 - The one >1 s frame (3.95 s, c172 cockpit) is under the roll-out screen before the reveal (phase stand, context loading). No taxi, take-off or flight segment has a frame over 1 s.
 
+## A0 - train L36b, 9 Nov 2026
+
+IN (on L36a 7daba875d):
+- strip-micro-2 502c6841a: the bush strips' relief cues, avoidable hazards, puddles and swell. Chaos is still OFF on every strip, so nothing moves in the world yet.
+- dirt-dust: weather-driven dust from the tyres and the prop, on SOIL_WET. Cost A/B on the cooked tree, one run per arm, dust on/off:
+  - gamer taxi, frame median 16.6 / 18.0 ms, p99 35.7 / 36.8;
+  - gamer take-off, median 18.4 / 18.0, p99 35.9 / 35.8;
+  - laptop, median 11.4 / 11.1, p99 16.8 / 15.4;
+  - the dust's own CPU median 0.1 ms, max 1.5;
+  - +1 program link at roll-out, inside FRAMECOST's tolerance.
+- The dust's ASSETS fix (DUSTFIX): the material is made through matlib.js (AS4a), the same material.
+- stol-hullrows 52a725af4: the STOL capture drops the hull-type rows at their off value, as the gate does. Tools only; master's fixture stands. STOL PASS here.
+
+NOT IN: strip-names. Its NAMES gate was red: the island record still carried the old names. It re-gates Tue 00:35 together with strip-chaos-on (w3 0.20, w8 0.40, Pilot-vetted) for Tuesday's first train.
+
+BATTERY (full log read): 128 PASS / 10 FAIL lines.
+- As on master (L36a): GEN ("cruise is quiet in wind"), TOUR shard 2 (the float Cessna mk_sea > SEA), DMGGEAR, FRAMECOST (master's 5 lines), ROUNDTRIP (2), ENGCONFIG.
+- ALTIPORT (3 lines, run in a train for the first time this week): the AP starts its final below the field's circuit height on HOME > tw_skib (the user's Cub and the metal Cessna), plus the doctored-arrival calibration line. DIRT-DUST saw the same on ebc4c9edd without these readies, and Pilot's tw_ski runs logged the same climb-hold on every tree today. It's master's, and on Pilot's list for Tuesday with the w5 / w1 / nv_strip approaches (Pilot's chaos vet: the C172 crashes at w5 after a go-around; Cub and Jodel w5 diverts; the Cub's nv_strip timeout and w1 divert failure).
+- ASSETS: new, from dirt-dust (`new THREE.ShaderMaterial` in dust.js). Fixed by DUSTFIX in this train; ASSETS + DUST re-run green before the push.
+
+No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change: PHYSICS_V 7, GEN_SPEC_V 10, GEN_CERT_V 7.
+
+TIMED GATE: light, the same shape as L36a.
+- 6 of 7 rollouts ran. rp_cub_cockpit_1 died in the rig ("__timeout" is not valid JSON at rollout_perf.js:461) after a 153.6 s garage. That's a rig fault: the CDP evaluate timed out on a slow cold page. Logged for A0's master_bench / rollout fix this week.
+- Steady frames p50 33.3 ms on every flown row; no frame over 1 s in any taxi, take-off or flight segment.
+- The >1 s gaps are all in the garage stand before the reveal (cub chase 5.2 s; the discarded warm_metal 9.0 s + 7.1 s): the cold GPU shader cache, master_bench's MISS, as L35a-L36a.
+- The floats take-off has one 133 ms frame.
+## PROPER-COWLS READY 1 - THE CLOUD COWL METHOD ON MASTER, SAVED DRAWS UNCHANGED (CABIN-CRAFT, 9 Nov 2026)
+
+- **What**: the cloud session's cowl method (claude/pensive-wozniak-ib8yjq, rounds 1-9) re-applied: the method's rows in _cage_cowl / _cowl_gen / _cowl_rows / _cage_parts / _cage_eng / _eng_mesh / _eng_page, the Tiger Moth design's new cowl, and the method's source tools/cowl_study/straight.js + clear.js (nothing calls it yet; READY 2's _cowl_rule.js routes every cowl generator through it, the user's 9 Nov rule).
+- **Saved draws never move (Q1)**: partLevel, partArc, podFit absent 0 (ABSENT_AT); new rows partArc and podFit; generator defaults 1, so new cowls get the level split, the even groove, the plate-less pod. 
+- **User's rulings (9 Nov 17:05, via A0, "yes to all defaults")**: Q1 saved draws stay; Q2 ref-matched archetypes keep their rows; Q3 an engine swap keeps the cowl; Q4 the aero nose untouched; Q5 the groove and no-plate fixes reach new cowls only.
+- **Identity**: 13 saved planes IDENTICAL in spec, def, ledger, price, sheet, design, certKey, procureFp, mass, nodes, beams, draw, fly20; the Tiger Moth design differs by design.
+- **Gates** (17:56-19:54, on claude/proper-cowls 63b3657a2, same code): COWL, ENGMESH, ENGDRAWN, CLIP, WINGROWS, PLANELISTS, UISMOKE, PARTS, PODEDITOR, HULL, FRAMES, DESIGN, KNIFE, CANDIDATES, STOL, RETRACT PASS; ENGCONFIG, GEN, JOINPARITY, POD FAIL as master's own (same lines as L36b; POD = stale base pins by inference (identity equal; L36d battery checks POD, any other line takes this ready out)); ARCHETYPES partial (3600 s cap; its Chinook-alike FAIL is master's own), full run Tuesday morning.
+- Note: flyDiy/reports/evidence/PROPER-COWLS/READY.md. Next: READY 2 (the one cowl rule).
+
+## PILOT-NOTCH-2 (Pilot, 9 Nov, for L36d): the landing notch, FLARE-NOPUSH and the crosswind cap, back as fresh commits on L36b
+
+L36a reverted pilot-notch (2eb3122c8). claude/ready/pilot-notch-2 brings it back as fresh commits (cherry-pick -x) on
+L36b master e789e77cb: G2811 the landing notch, G2812, G2813 FLARE-NOPUSH, G2815, G2816 the crosswind flap cap, G2817 the
+POD/ENGCONFIG pins, G2818 the census (1/2 + 2/2), G2814 TANK-SPLIT (1/2 + 2/2), the PILOTMATRIX baseline, and:
+
+- G2816b (new): the crosswind flap cap is never applied on a short-field approach (ap.shortFld), and only over a real
+  crosswind (xwFlapK 0.10 -> 0.15 x VAppr, ~2.7 m/s on the Cub). Why: the user's Cub w3 > tw_ski on the game's 8 kt day
+  came in on take-off flap, high, slipped, touched down at 1.87 m/s 140 m into the 380 m altiport and ground-looped
+  (a88e5a682). FAA-H-8083-3C ch. 9: a short field lands on full flap at the lowest safe speed; partial flap is for a
+  gusty crosswind.
+- G2813 (rule b, the check moved with the meant change): GATE STOL's "a slower approach" is asked at 0.96 x the stock
+  Vref, not 0.92 - the stock Cub now lands on its notch (67.2 km/h against the kit's 64.0). STOL's fixture re-captured
+  on this branch (32 cards + 6 builds). GATE PILOT shard 2 reads the stock Cub's lap from that fixture: the stock landing
+  roll is 95 m now (165 m on the old capture); the STOL Cub's 30 m stays under 0.6 x 95 = 57 m; lift-off unchanged.
+
+Gated on the branch (a git-archive copy, one nice'd node process, 9 Nov 17:56-21:08):
+- the user's Cub HOME > w3 > tw_ski: ok both legs (tw_ski: touchdown -0.09 m/s, run 68 m, 0.9 m off the centreline).
+- pilot_matrix cub:HOME:x2 ok (swing 5.9 deg), cub:HOME:x4 ~ (swing 15 deg, as with the cap before).
+- PASS: TOUR shards 0, 1, 3; PILOTMATRIX; STOL --selftest (after the re-capture); PILOT 0-2; ROUTE 0-2; PROFILE; PLAN;
+  TAKEOFF; LINEUP; POD; CESSNAVREF 0-1.
+- Red, and red on L36b master too (its train log): TOUR shard 2, the float Cessna mk_sea > SEA (the 1800 s leg timeout
+  and a prop strike on the water, t 620.5 here, 604.6 on master); ENGCONFIG's quad never wings-level on the downwind and
+  the pushpull / trimotor / four cards that differ from their saved files. This branch clears ENGCONFIG's identity rows
+  (master's 9 FAILs there).
+- NODE-ACCEPT (claude/accept-detect-pilot 9bb8107e6, not in this ready): first run, SELFTEST PASS, the Cub PASS
+  (taxi W0, circuits W0 / W8 / W15) in 616 s; the Jodel not run (time).
+
+No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change.
+
+## HANGAR-VIEW C (9 Nov, Game coordinator for A0; claude/ready/hangar-view-c): THE DOOR'S VIEW WITH THE ROOM'S LIVE SKY
+- The user, 9 Nov 17:05 via A0 ("yes to all defaults"): the clouds through the door look OK, ships with the hangar view. The view stays OFF by default (HVIEW-OFF, ?hview=1).
+- From the prototype claude/proto/hangar-view-c: the room's sky is the world's at the real shed (the node's yaw turns the dome, the clouds, the key and the probe; the clouds' eye is the shed); the capture leaves its sky transparent and the room's live sky and clouds draw behind it; ?hvc=door captures from the doorway at eye height (and its regex's  is a real word boundary, HVC-DOOR).
+- Two fixes from the 9 Nov stills: the Shed's red-brown band past the door was the plot's ground pad (it goes with the room's outdoors while the view stands in, GATE HANGARVIEW 3p); no clouds through the door - the world's sky dome rides the world camera, which is in the world scene, and was drawn opaque into the capture (it is hidden with the live sky, 3q). GPU-confirmed 9 Nov 08:35 (the Shed) and 08:41 (the club), evidence-2026-10-18/2026-11-09/hangar-cloud-look.
+- The works' location A is NOT in this ready (claude/ready/works-location-a, its own train).
+
+## WINGSMITH (9 Nov, Game coordinator for A0; claude/ready/wingsmith-name): THE GAME IS CALLED WINGSMITH
+- The user, 9 Nov ~17:30: "Wingsmith is the name of the game instead of flyDiy, the cub remains the cub"; "I don't have a logo or typography yet, so it's a placeholder for now".
+- ONE string: GAME_NAMES.game in src/core/01_names.js. Read by the page title and the loading brand (tools/build.js fills the __GAME_NAME__ mark of shell.html / body.html), the welcome card and device gate, the Back box, the build import, the clean download, the self-test, and the AIRWORTHY and bench stickers' rings. A logo or typeface later swaps in at those reads.
+- manifest.webmanifest: name and short_name Wingsmith; id, start_url and scope "./" unchanged, so the installed app and its data stay (Android may show its one-time "name changed" prompt - A0: acceptable).
+- NOT renamed: the repo, the flyDiy/ folder, URLs, file names, code identifiers, storage keys (flydiy.player, flydiy.build.*), the flydiy-build file tag, the caches, console lines, the flydiy:* events.
+- GATE WINGSMITH (new): the name from one string, no player-facing "flyDiy" left in those places, the built pages, the manifest's id, the save keys (selftest 6/6). GATE PWA W1 RE-PINNED: the manifest names are GAME_NAMES.game, no longer the literal flyDiy.
+- FOLLOW-UP (A0 routes it to AIRCRAFT-LOOKS' render pipeline): the AIRWORTHY sticker now reads WINGSMITH - CERTIFIED, so the heroes and thumbnails of certified aircraft want a re-render; the train re-cooks the parked planes. The fiche's signature reads the same key (AIRCRAFT-LOOKS).
+
+## A0 - train L36d, 9-10 Nov 2026
+
+
+IN (on L36b e789e77cb): nose-strike, proper-cowls-int (THE ONE COWL PATH, ready 1), pilot-notch-2, petrel-draw, land-v2-172, names-flag, wingsmith-name. Each ready's own pre-gates are below.
+MERGED THEN REVERTED in this train (they come back as FRESH commits; Game has fixed both):
+- home-layout 1f85c1a5c, merged in by the user's call (it waived the scenery-own-train rule). Its new reds: TAXICLEAR (3: plot HOME.2's way out had a 5.9 m corner under 6.0 m), PARKED (1: af_park1 off a flatten), FRAMECOST taxi draws +224/+230. Fixed locally (6f9cc9baa: the taxiOut order, P2's aircraft onto t_pad, FRAMECOST named SCENERY G3961).
+- hangar-view-c e1615a4a9. Its new reds: CLOUD (1: G436.2, a stale pin), ROUNDTRIP (6: "NOTHING TICKS THE WORLD IN THE SHED", from shedSkyFrame's updateMatrixWorld on every shed frame, a real fault). Fixed locally (f1d2f45eb).
+DROPPED at merge: real-figures-3 (a real conflict in tools/real_refs.js against land-v2's rows). It rebases as a union and rides L37a.
+A0 FIX: POD's c172 + metal cert pins re-taken (52717a290). Cause measured by Deform: NOSE-STRIKE's surface allowance (the user's 10 cm grass / 1 cm paved) changes only the certificate's taxiRough case record (its own run's prop-strike state). The envelope Ft/Fc, byT/byC and the key are unchanged, and the 300 flown steps are the base's to the bit. Bisected: POD passes with nose-strike's two core files reverted. Deform owes one read: does the 172's disc strike in the certificate's rough taxi now?
+
+BATTERY, first run (all ten): 104 PASS / 12 FAIL lines. RE-GATE after the reverts (the parked fleet re-cooked, same): CLOUD, TAXICLEAR (4 shards), PARKED, POD, WINGSMITH, ASSETS, HANGAR, BUILT PASS; FRAMECOST = master's 5 lines; ROUNDTRIP = master's 2.
+Red as on master: GEN, TOUR (the float Cessna), TREECRASH (the Cub and Jodel trunk lines + the Petrel 5.7 g line, SEAPLANES' list), DMGGEAR, FRAMECOST (5), ROUNDTRIP (2), ENGCONFIG (master's lines, plus nose-strike's Chinook IDENTITY sim half, caused by the user's own 10 cm allowance; the Chinook is out of the test battery; not re-pinned), JOINPARITY (now only the Jodel node=page line; pilot-notch-2's census cleared the rest).
+
+TIMED GATE:
+- First run (with home-layout + hangar-view-c): two TAXI freezes after the reveal (metal cockpit 3.5 s, c172 cockpit 10.7 s).
+- RE-RUN on the landed set (L36d2, 00:51-01:49): NO frame over 1 s in any taxi, take-off or flight segment. The only gaps are in the garage stand before the reveal (cub chase 27.9 s, c172 chase 13.4 s): the cold shader cache, as L35a-L36b. So the freezes came with the two pulled readies; home-layout re-enters only once that's explained.
+- 2 rollouts and garage_lag died in the rig (CDP "__timeout" on a slow cold page), as in L36b. RED vs the 12 Oct baseline as on every train this week.
+
+No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change: PHYSICS_V 7, GEN_SPEC_V 10, GEN_CERT_V 7.
+
+THE READIES (their own pre-gates):
+- nose-strike aee84563a (Deform): a prop strike is damage, with the user's Q2 allowances (grass/forest/sand 10 cm, gravel/scree 5, rock/paved 1). DMG.noseAt. GATE DMGNOSEOVER new, PASS; STOL PASS; cert --cmp 0 moved; DMGCRASHUI PASS (20:30, dev.html, worker+inline, damage on/off). ENGCONFIG: one line moved, IDENTITY Chinook sim half (master 9a62a6a61fcc8556 -> 167a999217fe0b46), caused by the user's 10 cm grass allowance (the strike 3 steps later); the Chinook is out of the test battery; nothing re-pinned. Step 4 is judged in this battery. Master finding: the Chinook crashes in ENGCONFIG's unplaced spawn drop.
+- land-v2-172 603b603b2 (FLAGSHIP): the V2-172 (THE Cessna, land) + the A1 nose switch + A4 + nose rows; births unchanged (noseBody at birth deferred to NOSEBODY-BIRTH). 34 PASS pre-gate; NEWPLANE-BUILDS, TECH, ENERGYBASE, ENGCONFIG, FREIGHT red with master's same lines; validated digests unchanged. Pawnee empty -14.1 kg by design (A4). LDG50 one row out (game 464 m vs 438). No PHYSICS_V bump. Note file: flydiy-notes/evidence-2026-10-18/2026-11-09/flagship/land-v2/READY-NOTE-land-v2-172.md.
+- proper-cowls-int (CABIN-CRAFT): THE ONE COWL PATH, READY 1 (the user's rule). 13 saved planes identical, Tiger Moth differs by ruling; the user's cowl Q1-Q5 defaults (17:05). POD: 9 lines claimed stale pins - judged here.
+- pilot-notch-2 (Pilot): the landing notch + FLARE-NOPUSH + the crosswind flap cap fixed (no cap on a short field, xwFlapK 0.15) - the tw_ski ground loop.
+- names-flag a5a765403 (AIRCRAFT-LOOKS): the flag label "Alaska" -> "Big Dipper" (master's NAMES red).
+- wingsmith-name a8792c14f (Game): the game's name Wingsmith in ONE string (GAME_NAMES.game), placeholder, saves/PWA id unchanged; GATE WINGSMITH new.
+- pilot-notch-2 c47e15aef (Pilot), 15 fresh commits (the revert trap respected): the notch, FLARE-NOPUSH, G2815, the G2816 cap + G2816b (no cap on a short field, xwFlapK 0.15), POD/ENGCONFIG pins, the census, TANK-SPLIT, the PILOTMATRIX baseline, the STOL check + re-capture (rule b: the stock Cub lands on its notch, 67.2 vs 64.0 km/h, so the slower approach is asked at 0.96x Vref), HANDOVER. Proof: the user's Cub HOME > w3 > tw_ski ok (touchdown -0.09 m/s, run 68 m) against L36a's ground loop; x2 ok, x4 15 deg as before. PASS TOUR 0/1/3, PILOTMATRIX, PILOT 0-2, ROUTE 0-2, PROFILE, PLAN, TAKEOFF, LINEUP, POD, CESSNAVREF. Reds as master: TOUR 2 (the float Cessna), ENGCONFIG's quad + cards; the branch clears master's 9 identity FAILs. NODE-ACCEPT: Cub PASS (not in this ready).
+- petrel-draw 656c847cf (SEAPLANES): no physics hull on a cage build (app.js buildFloatMeshes). The Petrel draws whole near and far; the validated float planes are unchanged by construction (floatRigs 12, 0 physics hulls); FLOATS, HYDRODYN, SEAPLANE, FLOATDUP PASS.
+
+## DIRT-STRIP - THE USER'S BUMPS ON w3 AND w8 SWITCHED ON, AND THEIR NAMED COST (10 Nov 2026, claude/ready/strip-chaos-on)
+
+The shipped record (tools/fixtures/island_jolene.json) carries micro on the two strips the Pilot coordinator vetted on 9 Nov
+13:25: w3 (Fishing Village Strip) chaos 0.20 seed 3, w8 (Hiking Strip) chaos 0.40 seed 13. Every other strip stays flat until
+its own re-vet; the mine strip (the Rufus's P1) stays 0.
+**The cost, named (A0 approved, 10 Nov 00:50):** their ribbons are refined to the bumps' scale (26b REFINE_MIN / REFINE_MIN_V).
+GATE TERRAINMATCH's potato HOME-taxi view goes from 1 212 870 to 1 218 494 triangles (+5 624, +0.46 %) on master e789e77cb.
+The gate's base carries it as BUMPS, on both views.
+GATE MICRO section 1 now checks that the shipped record is bumpy on exactly those strips. The sections after it judge w7's
+field against the island with every strip's micro taken out.
+The record changed, so the ready carries its own premises cook (GATE PREMCOOK).
+## DIRT-MATTE (10 Nov, the user: "the dirt is still too shiny ... flat when viewed in low angle with the sun")
+- aeroweather.js: the dirt's matte rides sqrt(cover) (wxMat), not the cover; a dirt-only cover `aeroWxDirt` (chips taken out:
+  bare alloy keeps its sparkle) takes the clear coat down by sqrt too and roughens what is left (ccRough 0.50 -> 0.85), and
+  the base lobe's grazing Fresnel (specularF90 -> 0.15) and half its head-on specular go with it, Standard and Physical
+  alike. Constants of the dirt: no uniform, no program variant. GATE WEATHER holds each line (+5 checks, +4 probes).
+- Measured (three's DFG approx, a painted panel under a 0.25 clear coat, sky = 1): at 84 deg cover 0.5 0.269 -> 0.034;
+  clean paint unchanged. Stills (black studio, key held at 7 deg): the dirty Cub's glare patch gone (px > 200: 2823 -> 290);
+  the Twin Busher's change needs a sky to show (the env term) - flydiy-notes/evidence-2026-10-18/dirt-matte-2026-11-10.
+- Not done: metalness still falls linearly with cover (a dirty BARE metal keeps more metal than its dirt reads).
+## NIGHT-STRETCH - the water's star reflections spread by the waves, on by default (NIGHT-LOOK, 9 Nov)
+- src/viewer/water.js NIGHT_SEA.stretch 0 -> 0.03: the NIGHT-SHINE stretch (7 vertical mirror reads scaled by the unresolved ripple slopes) is ON at night.
+- why: the user 9 Nov, after STAR-LOVE's low-water stills (eye 1 m / 2 m over Cabin Lake): the far water's stars looked unmoved by the waves at 0; .1 made rain streaks; "yes try 0,03 ... turn these on by default".
+- live switch: WATER.nightSea.stretch (0 = off). Evidence: flydiy-notes/evidence-2026-10-18/2026-11-04/night-photo/star/{low,stretch}/.
+## HANGAR-VIEW C (9 Nov, Game coordinator for A0; claude/ready/hangar-view-c): THE DOOR'S VIEW WITH THE ROOM'S LIVE SKY
+- The user, 9 Nov 17:05 via A0 ("yes to all defaults"): the clouds through the door look OK, ships with the hangar view. The view stays OFF by default (HVIEW-OFF, ?hview=1).
+- From the prototype claude/proto/hangar-view-c: the room's sky is the world's at the real shed (the node's yaw turns the dome, the clouds, the key and the probe; the clouds' eye is the shed); the capture leaves its sky transparent and the room's live sky and clouds draw behind it; ?hvc=door captures from the doorway at eye height (and its regex's  is a real word boundary, HVC-DOOR).
+- Two fixes from the 9 Nov stills: the Shed's red-brown band past the door was the plot's ground pad (it goes with the room's outdoors while the view stands in, GATE HANGARVIEW 3p); no clouds through the door - the world's sky dome rides the world camera, which is in the world scene, and was drawn opaque into the capture (it is hidden with the live sky, 3q). GPU-confirmed 9 Nov 08:35 (the Shed) and 08:41 (the club), evidence-2026-10-18/2026-11-09/hangar-cloud-look.
+- The works' location A is NOT in this ready (claude/ready/works-location-a, its own train).
+- L36d pulled it for two reds, fixed here: GATE ROUNDTRIP (the room's sky frame ran the world shed node's updateMatrixWorld every frame - now only when the node moved) and GATE CLOUD G436.2 RE-PINNED (the dome turns with the room's real yaw, frameYaw; still depth-tested behind the walls).
+
+## A0 - train L37a, 10 Nov 2026
+
+IN (on L36d e79a114d8): strip-names 2b8d30ea4 + strip-chaos-on 455c9139c (DIRT-STRIP), c172-clip (FLAGSHIP), dirt-matte (AIRCRAFT-LOOKS), night-stretch (NIGHT-LOOK, the user's 0.03 on), well-clamp (SEAPLANES-LAND), hangar-view-c (Game, fixed after L36d).
+MERGED THEN REVERTED: real-figures-3 (6a1d7e812, reverted in 20d19379d). Its reds: SKINMAT (fabricAlu in GEN_MATERIALS but not in GEN_BUILD_GRAMMAR) and PROCURE (18 lines: the engines' dials are no longer applyEngPreset's presets, the new bmepK/massK). It comes back as FRESH commits (the revert trap) for L37b; REAL-FIGURES and ENGINE-DIALS told.
+NOT IN: taxi-strike (Deform, run 2 today), livery-text (AIRCRAFT-LOOKS, twin re-shoot today), wing-structure (HANDOVER line endings normalised; re-pushed as a0/wing-structure-eol for L37b).
+A0 FIX: tools/_map_smoke.js reads the strip names from the names table (NF.w4-w8) instead of the old "strip 9-13" literals (24c6874f9); UISMOKE and UISMOKE-PHONE PASS.
+RE-COOKS: the city (the manifest's input fixture moved; CITYCOOK PASS) and the fleet spots (TAXICLEAR PASS); the parked fleet re-cooked on this build (parked_cook --check same).
+
+BATTERY after the fixes: SKINMAT, PROCURE, CITYCOOK, TAXICLEAR, UISMOKE, UISMOKE-PHONE, BUILT PASS.
+Red as on master (same lines): GEN, TOUR shard 2 (the float Cessna), DMGGEAR, FRAMECOST (5), ROUNDTRIP (2), ENGCONFIG (the Chinook identity half, the quad wings-level lines, pushpull), TREECRASH, JOINPARITY (Jodel node=page), LOOKS case 3, DMGDRIVE (the nose-over 2 m/s rows from NOSE-STRIKE's 10 cm grass + the Super Petrel trunk-graze row; Deform owns).
+
+TIMED GATE:
+- First run (04:50): invalid - master_bench killed, 3 rollouts died in the rig (CDP "__timeout").
+- RE-RUN L37a2, 08:25-09:27, alone on the box: master_bench complete. Taxi chase @HOME and @mn_strip 30 fps, 0 frames over 40 ms; the floats' water taxi 28.6 fps, one 283 ms frame. Every flown taxi / take-off / flight segment: 0 frames over 1 s (as L36d2). The float take-off ran in full this time: 0 frames over 100 ms.
+- The only long gaps are in the garage stand before the reveal and the warm garage loads (cub 180 s, floats 155 s; L36a-L36d2 124-174 s): the cold shader cache (100 links over 5 s).
+- 3 rollouts (cub cockpit, metal chase, c172 chase) died in the rig again, as on the first run and on L36d. Watched: the garage-ready time sits near the rig's limit.
+- RED vs the 12 Oct baseline as on every train since; no new cost found against L36d2.
+
+No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change: PHYSICS_V 7, GEN_SPEC_V 10, GEN_CERT_V 7.
+
+THE READIES:
+- strip-names + strip-chaos-on (DIRT-STRIP): the unpaved strips named by the user (the record and the table agree, GATE NAMES); bumps ON only where the Pilot vetted them (w3 0.20, w8 0.40), every other strip 0 until its re-vet; TERRAINMATCH carries the bumps' +5 624 triangles (approved). The later rocks / stones ready stays HELD (the Jodel w3 departure).
+- c172-clip (FLAGSHIP): the 172's fittings clipped to the V2 skin; READY note flydiy-notes/evidence-2026-10-18/2026-11-10/flagship/c172-clip/READY-NOTE-c172-clip.md.
+- dirt-matte (AIRCRAFT-LOOKS): dirt goes matte (sqrt), the clear coat and the grazing Fresnel are killed by dirt (the user's low-sun shine).
+- night-stretch (NIGHT-LOOK): star reflections spread by the waves, on at 0.03 (the user's call).
+- well-clamp (SEAPLANES-LAND): the retract well depth clamped under the skin.
+- hangar-view-c (Game): the hangar view, with the shed-frame updateMatrixWorld fault fixed after L36d.
+
 ## WILGA-GEAR - THE TRAILING-LINK OLEO LEG, THE PZL-104 WILGA'S KIND: A FIFTH MAIN-LEG FAMILY, RESEARCHED, FLOWN, DRAWN AS FLOWN, BREAKABLE, PRICED AND GATED (9 Nov 2026, WILGA-GEAR for A0, a CLOUD session: node + quickshot / quick_view; branch claude/loving-pasteur-aly3v9, pushed as claude/wilga-gear and claude/ready/wilga-gear)
 
 The user: "modeling the Wilga type suspension, very close to original, full integrated in the game"; "ensure you get full

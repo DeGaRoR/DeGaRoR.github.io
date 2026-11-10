@@ -17,8 +17,12 @@ const FIX = path.join(__dirname, 'fixtures', 'build_v7_ultralight_2026-09-05.jso
 function one(wx, off) {
   const C = require(CORE);
   if (off && C.PAR.propFx) C.PAR.propFx = { torque: 0, gyro: 0, pfactor: 0, swirl: 0 };
-  const spec = JSON.parse(fs.readFileSync(FIX, 'utf8')).spec;
-  spec.gear.type = 'floats';
+  // G2818 (MASTER-GREEN, GATE JOINPARITY's census): the twin floatplane as GATE SEAPLANE flies it - the load door's
+  // twinFloats (tools/_load_build.js: its float patch, the page's chain); FLYDIY_RAW_BUILDS=1 the file as written, as before.
+  // (--core: the chain is this tree's, the flight the core named)
+  let spec;
+  if (process.env.FLYDIY_RAW_BUILDS === '1') { spec = JSON.parse(fs.readFileSync(FIX, 'utf8')).spec; spec.gear.type = 'floats'; }
+  else spec = require('./_load_build.js').loadValidated('twinFloats').spec;
   const def = C.buildGen(C.genMigrateSpec(spec));
   const world = C.makeWorld(); world.setWind({ base: [wx, 0, 0], gust: 0 });
   const sea = world.aerodromes.find(a => a.id === 'SEA');

@@ -1,0 +1,336 @@
+<!doctype html>
+<!-- tools/_dust.html - THE DUST BENCH (DIRT-DUST, 2026-11-09): src/viewer/dust.js on a stand-in strip (take-off, landing,
+     run-up, taxi; soil wetness, wind, surface, strength; the phone / gamer budget; fps). Served from the repo (dev.html style:
+     the vendored three, the dust module as is). The published phone page is this file with three from the CDN and dust.js
+     inlined (the DIRT-DUST session's generator). -->
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Strip Dust Bench</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: the 3D view fills the top of the screen; the bench's controls sit in one panel under it (beside it on a wide screen), the game's garage look. */
+:root {
+  --bg: #1a1815; --panel: #201d1a; --line: #3a352f;
+  --ink: #f4efe6; --dim: #c0b8ac; --faint: #97907f;
+  --acc: #e6dbc9; --acc-ink: #221f1b; --warn: #d8a07a;
+  --f-ui: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+  --f-num: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--ink); font: 14px/1.45 var(--f-ui); margin: 0; }
+.wrap { display: grid; grid-template-columns: 1fr; gap: 0; min-height: 100%; }
+@media (min-width: 900px) { .wrap { grid-template-columns: minmax(0, 1fr) 340px; height: 100%; } }
+.view { position: relative; min-height: 56vh; background: #000; }
+@media (min-width: 900px) { .view { min-height: 0; } }
+canvas#c { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+.hud { position: absolute; left: max(10px, env(safe-area-inset-left, 0px)); top: 10px; display: flex; gap: 6px; flex-wrap: wrap; pointer-events: none; }
+.chip { font: 500 11px/1 var(--f-num); letter-spacing: .02em; color: var(--ink); background: rgba(26,24,21,.72); border: 1px solid rgba(230,219,201,.18); padding: 5px 7px; border-radius: 3px; font-variant-numeric: tabular-nums; }
+.chip b { color: var(--acc); font-weight: 500; }
+.say { position: absolute; left: max(10px, env(safe-area-inset-left, 0px)); bottom: 10px; right: max(10px, env(safe-area-inset-right, 0px)); font: 12px/1.35 var(--f-ui); color: var(--dim); text-shadow: 0 1px 2px #000; pointer-events: none; }
+.side { background: var(--panel); border-left: 1px solid var(--line); padding-block: 14px 24px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); overflow-y: auto; display: flex; flex-direction: column; gap: 16px; }
+h1 { font: 600 15px/1.2 var(--f-ui); margin: 0; letter-spacing: .01em; text-wrap: balance; }
+.sub { color: var(--faint); font-size: 12px; margin-top: 3px; }
+.grp { display: flex; flex-direction: column; gap: 7px; }
+.lab { font: 500 10.5px/1 var(--f-ui); text-transform: uppercase; letter-spacing: .09em; color: var(--faint); }
+.pills { display: flex; flex-wrap: wrap; gap: 5px; }
+.pills button { font: 500 12.5px/1 var(--f-ui); color: var(--dim); background: transparent; border: 1px solid var(--line); padding: 7px 10px; border-radius: 3px; cursor: pointer; }
+.pills button[aria-pressed="true"] { background: var(--acc); color: var(--acc-ink); border-color: var(--acc); }
+.pills button:focus-visible, input[type=range]:focus-visible { outline: 2px solid var(--warn); outline-offset: 2px; }
+.row { display: grid; grid-template-columns: 1fr auto; align-items: baseline; gap: 6px; }
+.val { font: 12px var(--f-num); color: var(--ink); font-variant-numeric: tabular-nums; }
+input[type=range] { width: 100%; accent-color: var(--acc); margin: 0; }
+.note { color: var(--dim); font-size: 12.5px; line-height: 1.5; border-top: 1px solid var(--line); padding-top: 12px; }
+.note p { margin: 0 0 8px; max-width: 62ch; }
+.warn { color: var(--warn); }
+@media (prefers-reduced-motion: reduce) { .pills button { transition: none; } }
+</style>
+</head><body>
+<div class="wrap">
+  <div class="view">
+    <canvas id="c" aria-label="A dry bush strip at golden hour with a light aeroplane raising dust"></canvas>
+    <div class="hud" aria-live="off">
+      <span class="chip">fps <b id="fps">-</b></span>
+      <span class="chip">puffs <b id="np">0</b></span>
+      <span class="chip">grit <b id="ng">0</b></span>
+      <span class="chip">cover <b id="cov">0</b> scr</span>
+      <span class="chip">sim <b id="cpu">0</b> ms</span>
+    </div>
+    <div class="say" id="say">Loading the bench.</div>
+  </div>
+  <aside class="side">
+    <div>
+      <h1>Strip dust bench</h1>
+      <div class="sub">DIRT-DUST, design proposal, 9 Nov. The game's own dust shader and simulation, on your phone.</div>
+    </div>
+    <div class="grp">
+      <span class="lab">Scenario</span>
+      <div class="pills" id="scen">
+        <button id="s-takeoff" data-v="takeoff" aria-pressed="true">Take-off</button>
+        <button id="s-landing" data-v="landing" aria-pressed="false">Landing</button>
+        <button id="s-runup" data-v="runup" aria-pressed="false">Run-up</button>
+        <button id="s-taxi" data-v="taxi" aria-pressed="false">Taxi</button>
+      </div>
+    </div>
+    <div class="grp">
+      <span class="lab">Camera</span>
+      <div class="pills" id="cam">
+        <button id="c-side" data-v="side" aria-pressed="true">Beside the strip</button>
+        <button id="c-end" data-v="end" aria-pressed="false">Strip end</button>
+        <button id="c-chase" data-v="chase" aria-pressed="false">Chase</button>
+      </div>
+    </div>
+    <div class="grp">
+      <span class="lab">Sun</span>
+      <div class="pills" id="sun">
+        <button id="u-back" data-v="back" aria-pressed="true">Behind the dust</button>
+        <button id="u-front" data-v="front" aria-pressed="false">Behind you</button>
+        <button id="u-high" data-v="high" aria-pressed="false">Midday</button>
+      </div>
+    </div>
+    <div class="grp">
+      <span class="lab">Surface</span>
+      <div class="pills" id="surf">
+        <button id="f-dirt" data-v="0" aria-pressed="true">Dirt</button>
+        <button id="f-sand" data-v="1" aria-pressed="false">Sand</button>
+        <button id="f-gravel" data-v="2" aria-pressed="false">Gravel</button>
+        <button id="f-grass" data-v="3" aria-pressed="false">Dry grass</button>
+      </div>
+    </div>
+    <div class="grp">
+      <div class="row"><label class="lab" for="wet">Soil wetness</label><span class="val" id="wetv">bone dry</span></div>
+      <input id="wet" type="range" min="0" max="1" step="0.01" value="0.02">
+    </div>
+    <div class="grp">
+      <div class="row"><label class="lab" for="wind">Wind, from behind you</label><span class="val" id="windv">3 m/s</span></div>
+      <input id="wind" type="range" min="0" max="10" step="0.5" value="3">
+    </div>
+    <div class="grp">
+      <div class="row"><label class="lab" for="k">Dust strength</label><span class="val" id="kv">x1.0</span></div>
+      <input id="k" type="range" min="0.25" max="3" step="0.05" value="1">
+    </div>
+    <div class="grp">
+      <div class="row"><label class="lab" for="linger">Linger</label><span class="val" id="lingerv">30 s</span></div>
+      <input id="linger" type="range" min="8" max="120" step="1" value="30">
+    </div>
+    <div class="grp">
+      <div class="row"><label class="lab" for="height">Cloud height</label><span class="val" id="heightv">4.5 m</span></div>
+      <input id="height" type="range" min="1.5" max="9" step="0.25" value="4.5">
+    </div>
+    <div class="grp">
+      <div class="row"><label class="lab" for="aspect">Puff width, x its height</label><span class="val" id="aspectv">x2.0</span></div>
+      <input id="aspect" type="range" min="1" max="5" step="0.1" value="2">
+    </div>
+    <div class="grp">
+      <span class="lab">Budget</span>
+      <div class="pills" id="tier">
+        <button id="t-phone" data-v="phone" aria-pressed="false">Phone</button>
+        <button id="t-gamer" data-v="gamer" aria-pressed="true">Gamer</button>
+      </div>
+    </div>
+    <div class="note">
+      <p>The dust follows the soil: dry is full clouds, damp is a thin skirt, wet is mud clods and no dust. In the game the wetness comes from the last four days of the weather plan.</p>
+      <p>Each puff grows and thins on its own (turbulent diffusion), drifts with the wind, and loses its coarse grains in seconds while the fines hang for a minute or more. The sun scatters forward through it, so dust with the sun behind it glows.</p>
+      <p class="warn">On the S20, please note the fps chip during a take-off on "Phone". That number decides the phone budget.</p>
+    </div>
+  </aside>
+</div>
+<!--THREE--><script src="../vendor/three.min.js"></script><!--/THREE-->
+<!--DUST--><script src="../src/viewer/dust.js"></script><!--/DUST-->
+<script>
+(function () {
+const DUST = window.DUST;
+const $ = id => document.getElementById(id);
+const canvas = $('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, logarithmicDepthBuffer: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(42, 1, 0.3, 6000);
+
+// ---- the sky: a gradient dome with a sun glow -------------------------------------------------------------------
+const skyU = { uSun: { value: new THREE.Vector3(0, 0.2, -1) }, uTop: { value: new THREE.Color(0.20, 0.36, 0.62) }, uHor: { value: new THREE.Color(0.95, 0.78, 0.58) } };
+const sky = new THREE.Mesh(new THREE.SphereGeometry(5000, 32, 16), new THREE.ShaderMaterial({ side: THREE.BackSide, depthWrite: false, uniforms: skyU,
+  vertexShader: 'varying vec3 vD; void main(){ vD = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
+  fragmentShader: 'varying vec3 vD; uniform vec3 uSun, uTop, uHor; void main(){ float h = clamp(vD.y, 0.0, 1.0); vec3 c = mix(uHor, uTop, pow(h, 0.55)); float s = max(0.0, dot(normalize(vD), normalize(uSun))); c += vec3(1.0, 0.85, 0.6) * (pow(s, 600.0) * 6.0 + pow(s, 12.0) * 0.35); if (vD.y < 0.0) c = uHor * 0.8; gl_FragColor = vec4(c, 1.0); }' }));
+scene.add(sky);
+scene.fog = new THREE.Fog(0xc9b597, 600, 4500);
+
+// ---- light -------------------------------------------------------------------------------------------------------
+const sun = new THREE.DirectionalLight(0xffe2b8, 3.2); sun.castShadow = true;
+sun.shadow.mapSize.set(1024, 1024); Object.assign(sun.shadow.camera, { left: -60, right: 60, top: 60, bottom: -60, near: 1, far: 600 });
+scene.add(sun, sun.target);
+const hemi = new THREE.HemisphereLight(0x9cb6d8, 0x6b5a40, 0.9); scene.add(hemi);
+
+// ---- the ground: dry late-summer grass and the strip ------------------------------------------------------------
+function canvasTex(w, h, draw, rep) { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rep[0], rep[1]); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t; }
+const speckle = (g, w, h, base, cols, n, smin, smax) => { g.fillStyle = base; g.fillRect(0, 0, w, h); for (let i = 0; i < n; i++) { g.fillStyle = cols[i % cols.length]; const s = smin + Math.random() * (smax - smin); g.globalAlpha = 0.25 + Math.random() * 0.5; g.fillRect(Math.random() * w, Math.random() * h, s, s * (0.6 + Math.random())); } g.globalAlpha = 1; };
+const grassTex = canvasTex(256, 256, (g, w, h) => speckle(g, w, h, '#7d7a4a', ['#6b6a3c', '#948b55', '#5c6236', '#a69a62', '#706a40'], 5000, 1, 4), [400, 400]);
+const groundMat = new THREE.MeshStandardMaterial({ map: grassTex, roughness: 0.95 });
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(8000, 8000), groundMat); ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+const STRIP_LEN = 700, STRIP_W = 16;
+const stripTex = [
+  canvasTex(256, 1024, (g, w, h) => { speckle(g, w, h, '#9c8466', ['#8a7257', '#ad9473', '#7d6750', '#b8a07e'], 9000, 1, 3); g.globalAlpha = 0.18; g.fillStyle = '#5e4c39'; for (const x of [0.36, 0.64]) g.fillRect(x * w - 10, 0, 20, h); g.globalAlpha = 1; }, [1, 6]),
+  canvasTex(256, 1024, (g, w, h) => speckle(g, w, h, '#c9b48f', ['#bfa880', '#d6c29d', '#b49d76'], 9000, 1, 2), [1, 6]),
+  canvasTex(256, 1024, (g, w, h) => speckle(g, w, h, '#8d8780', ['#77716a', '#a39d95', '#5f5a54', '#b3ada4'], 14000, 1, 5), [1, 6]),
+  canvasTex(256, 1024, (g, w, h) => { speckle(g, w, h, '#8f8452', ['#7f7646', '#a39566', '#9b8662', '#6c6a3e'], 9000, 1, 4); g.globalAlpha = 0.3; g.fillStyle = '#8f7a5e'; for (const x of [0.36, 0.64]) g.fillRect(x * w - 9, 0, 18, h); g.globalAlpha = 1; }, [1, 6]),
+];
+const stripMat = new THREE.MeshStandardMaterial({ map: stripTex[0], roughness: 1 });
+const strip = new THREE.Mesh(new THREE.PlaneGeometry(STRIP_W, STRIP_LEN), stripMat); strip.rotation.x = -Math.PI / 2; strip.rotation.z = -Math.PI / 2; strip.position.set(STRIP_LEN / 2 - 120, 0.01, 0); strip.receiveShadow = true; scene.add(strip);
+// a far ridge and a tree line, for depth
+{ const n = 220, pos = [], idx = []; for (let i = 0; i <= n; i++) { const a = i / n * Math.PI * 2, r = 3200, h = 260 + 220 * Math.sin(a * 3.1 + 1) * Math.sin(a * 7.3) + 120 * Math.sin(a * 17.0 + 2);
+    pos.push(Math.cos(a) * r, -20, Math.sin(a) * r, Math.cos(a) * r, Math.max(60, h), Math.sin(a) * r); if (i < n) { const k = i * 2; idx.push(k, k + 2, k + 1, k + 1, k + 2, k + 3); } }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
+  scene.add(new THREE.Mesh(g, new THREE.MeshLambertMaterial({ color: 0x55604f, side: THREE.DoubleSide }))); }
+{ const cone = new THREE.ConeGeometry(2.6, 14, 7); cone.translate(0, 7, 0); const N = 900, m = new THREE.InstancedMesh(cone, new THREE.MeshLambertMaterial({ color: 0x2f3d27 }), N); const o = new THREE.Object3D();
+  for (let i = 0; i < N; i++) { let x, z; do { x = -700 + Math.random() * 1700; z = (Math.random() < 0.5 ? -1 : 1) * (70 + Math.random() * 260); } while (false);
+    const s = 0.6 + Math.random() * 0.9; o.position.set(x, 0, z); o.scale.set(s, s * (0.8 + Math.random() * 0.5), s); o.updateMatrix(); m.setMatrixAt(i, o.matrix); }
+  m.castShadow = false; scene.add(m); }
+// a windsock pole, for scale
+{ const p = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 6, 6), new THREE.MeshStandardMaterial({ color: 0xdedad2 })); p.position.set(40, 3, 22); scene.add(p); }
+
+// ---- the aeroplane: a generic high-wing taildragger (the bench's stand-in, not a game model) ------------------------
+const plane = new THREE.Group();
+{ const white = new THREE.MeshStandardMaterial({ color: 0xe9e4d8, roughness: 0.55 }), red = new THREE.MeshStandardMaterial({ color: 0x8e2b22, roughness: 0.5 }), dark = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.8 }), glass = new THREE.MeshStandardMaterial({ color: 0x2a3440, roughness: 0.15, metalness: 0.2 });
+  const add = (g, m, x, y, z, rx, ry, rz) => { const o = new THREE.Mesh(g, m); o.position.set(x, y, z); o.rotation.set(rx || 0, ry || 0, rz || 0); o.castShadow = true; plane.add(o); return o; };
+  // the fuselage, x forward: a box tapering aft
+  const fg = new THREE.BoxGeometry(6.6, 1.05, 0.82, 6, 1, 1); { const p = fg.attributes.position; for (let i = 0; i < p.count; i++) { const x = p.getX(i), t = (3.3 - x) / 6.6; const k = 1 - 0.72 * Math.max(0, t - 0.35) / 0.65; p.setY(i, p.getY(i) * k + (1 - k) * 0.25); p.setZ(i, p.getZ(i) * k); } fg.computeVertexNormals(); }
+  add(fg, white, 0, 1.25, 0);
+  add(new THREE.BoxGeometry(5.0, 0.12, 0.84), red, -0.4, 1.05, 0);
+  add(new THREE.BoxGeometry(1.4, 0.55, 0.86), glass, 1.3, 1.75, 0);
+  add(new THREE.BoxGeometry(1.6, 0.14, 10.7), white, 1.1, 2.1, 0);
+  for (const s of [-1, 1]) { add(new THREE.CylinderGeometry(0.035, 0.035, 2.9, 6), white, 1.1, 1.45, s * 1.75, s * 1.05, 0, 0); }
+  add(new THREE.BoxGeometry(0.9, 0.08, 3.2), white, -3.0, 1.5, 0);
+  add(new THREE.BoxGeometry(0.9, 1.1, 0.07), red, -3.1, 2.0, 0);
+  for (const s of [-1, 1]) { add(new THREE.CylinderGeometry(0.04, 0.04, 0.85, 6), dark, 1.58, 0.62, s * 0.62, s * 0.7, 0, 0); add(new THREE.CylinderGeometry(0.31, 0.31, 0.22, 16), dark, 1.6, 0.31, s * 0.95, Math.PI / 2, 0, 0); }
+  add(new THREE.CylinderGeometry(0.08, 0.08, 0.06, 10), dark, -3.25, 1.01, 0, Math.PI / 2, 0, 0); add(new THREE.CylinderGeometry(0.025, 0.025, 0.3, 6), dark, -3.2, 1.15, 0);
+  add(new THREE.ConeGeometry(0.2, 0.4, 12), red, 3.5, 1.32, 0, 0, 0, -Math.PI / 2);
+  const disc = add(new THREE.CircleGeometry(0.92, 32), new THREE.MeshBasicMaterial({ color: 0x111111, transparent: true, opacity: 0.18, side: THREE.DoubleSide, depthWrite: false }), 3.42, 1.32, 0, 0, Math.PI / 2, 0); disc.castShadow = false;
+}
+// the model's frame: x forward, the main wheels' axle at x 1.6, y 0.31; the taildragger sits 11 deg nose up about the main axle
+const pivot = new THREE.Group(); pivot.add(plane); plane.position.set(-1.6, -0.31, 0); scene.add(pivot);
+const REST_PITCH = 0.19;
+
+// ---- the dust ----------------------------------------------------------------------------------------------------
+let tierName = 'gamer', sys = DUST.makeSystem(tierName), dust = DUST.make(THREE, sys); scene.add(dust.mesh);
+function setTier(t) { tierName = t; scene.remove(dust.mesh); dust.dispose(); sys = DUST.makeSystem(t); dust = DUST.make(THREE, sys); scene.add(dust.mesh); }
+const S = { scen: 'takeoff', cam: 'side', sun: 'back', cls: 0, wet: 0.02, wind: 3, k: 1 };
+const env = { groundH: () => 0, wind: () => [S.wind * 0.35, -S.wind * 0.94, S.wind], cls: () => S.cls, wet: () => S.wet, puddle: () => 0, get k() { return S.k; } };
+
+// ---- the scenarios: the aeroplane's pose, speed and power as functions of the scenario's clock --------------------
+// returns { x, z, yaw, h (main wheels' height), pitch, V, vy, thr (0..1), brake, on }
+const A_ROLL = 2.0, VR = 22;
+const SC = {
+  takeoff: { dur: 95, at(t) {   // 4 s idle, 5 s run-up at full power, then the roll, the lift-off, the climb
+      if (t < 4) return { x: 0, z: 0, yaw: 0, h: 0, pitch: REST_PITCH, V: 0, vy: 0, thr: 0.12, on: true };
+      if (t < 9) return { x: 0, z: 0, yaw: 0, h: 0, pitch: REST_PITCH, V: 0, vy: 0, thr: 1, on: true };
+      const r = t - 9, tr = VR / A_ROLL;
+      if (r < tr) { const V = A_ROLL * r, tailUp = Math.min(1, Math.max(0, (V - 9) / 6)); return { x: 0.5 * A_ROLL * r * r, z: 0, yaw: 0, h: 0, pitch: REST_PITCH * (1 - tailUp) + 0.02, V, vy: 0, thr: 1, on: true }; }
+      const c = r - tr, x0 = 0.5 * A_ROLL * tr * tr; return { x: x0 + VR * c + 0.6 * c * c, z: 0, yaw: 0, h: Math.min(120, 2.6 * c * c / (1 + c * 0.6)), pitch: 0.12, V: VR + 1.2 * c, vy: 3, thr: 1, on: c < 0.05 }; } },
+  landing: { dur: 80, at(t) {   // the flare over the threshold, a three-point touchdown at 2 s, the roll-out braking
+      const T = 6, Vt = 19;
+      if (t < T) { const u = (T - t), V = Vt + 0.4 * u; return { x: 330 - (Vt * u + 0.2 * u * u), z: 0, yaw: 0, h: Math.max(0, 0.06 * u * u + 0.15 * u), pitch: REST_PITCH * 0.9, V, vy: -(0.12 * u + 0.15), thr: 0.05, on: false }; }
+      const r = t - T, dec = 2.4, ts = Vt / dec, rr = Math.min(r, ts), V = Math.max(0, Vt - dec * r);
+      return { x: 330 + Vt * rr - 0.5 * dec * rr * rr, z: 0, yaw: 0, h: 0, pitch: REST_PITCH, V, vy: r < 0.1 ? -0.9 : 0, thr: 0.05, brake: r > 2 ? 0.6 : 0, on: true }; } },
+  runup: { dur: 70, at(t) { const p = t > 3 && t < 15 ? 0.85 : 0.12; return { x: 60, z: 0, yaw: 0, h: 0, pitch: REST_PITCH, V: 0, vy: 0, thr: p, on: true }; } },
+  taxi: { dur: 75, at(t) {   // a taxi out along the strip and a 180 at its end
+      const V = 6, L = 120, tl = L / V;
+      if (t < tl) return { x: -20 + V * t, z: 3, yaw: 0, h: 0, pitch: REST_PITCH, V, vy: 0, thr: 0.3, on: true };
+      const a = Math.min(Math.PI, (t - tl) * 0.55), R = 6, cx = -20 + L, cz = 3 - R;
+      if (a < Math.PI) return { x: cx + Math.sin(a) * R, z: cz + Math.cos(a) * R, yaw: a, h: 0, pitch: REST_PITCH, V, vy: 0, thr: 0.35, on: true };
+      const t2 = t - tl - Math.PI / 0.55; return { x: cx - V * t2, z: cz - R, yaw: Math.PI, h: 0, pitch: REST_PITCH, V: t2 < 18 ? V : 0, vy: 0, thr: t2 < 18 ? 0.3 : 0.1, on: true }; } },
+};
+let clock = 0, prev = null;
+const st = { wheels: [{ key: 0 }, { key: 1 }, { key: 2 }], props: [{}], wing: { span: 10.7, W: 5300, rho: 1.225, tips: [[0, 0, 0], [0, 0, 0]] } };
+const T_STATIC = 2000, DISC_A = Math.PI * 0.92 * 0.92;
+function pose(t) {
+  const P = SC[S.scen].at(t), cy = Math.cos(P.yaw), sy = Math.sin(P.yaw);
+  pivot.position.set(P.x, P.h + 0.31, P.z); pivot.rotation.set(0, -P.yaw, P.pitch, 'YXZ');
+  pivot.updateMatrixWorld(true);
+  const W = (lx, ly, lz) => new THREE.Vector3(lx, ly, lz).applyMatrix4(plane.matrixWorld);
+  const vx = cy * P.V, vz = -sy * P.V;   // yaw positive turns left (to -z... the frame's own)
+  const wl = [W(1.6, 0.0, -0.95), W(1.6, 0.0, 0.95), W(-3.25, 0.93, 0)];
+  for (let k = 0; k < 3; k++) { const w = st.wheels[k], p = wl[k]; Object.assign(w, { x: p.x, y: 0, z: p.z, vx, vy: P.vy, vz, on: P.on && (k < 2 || P.pitch > 0.12) && p.y < 0.4, R: k < 2 ? 0.31 : 0.08, brake: P.brake || 0 }); }
+  const d = W(3.42, 1.32, 0), fwd = new THREE.Vector3(1, 0, 0).transformDirection(plane.matrixWorld);
+  const T = T_STATIC * P.thr * Math.max(0.55, 1 - P.V / 60);
+  Object.assign(st.props[0], { x: d.x, y: d.y, z: d.z, ax: fwd.x, ay: fwd.y, az: fwd.z, R: 0.92, wash: Math.sqrt(P.V * P.V + 2 * T / (1.225 * DISC_A)) - P.V });
+  st.wing.V = Math.max(1, P.V); const tl = W(1.1, 2.1, -5.35), tr = W(1.1, 2.1, 5.35); st.wing.tips[0] = [tl.x, tl.y, tl.z]; st.wing.tips[1] = [tr.x, tr.y, tr.z];
+  return P;
+}
+// ---- cameras -------------------------------------------------------------------------------------------------------
+const tgt = new THREE.Vector3();
+function placeCam(P) {
+  const ax = pivot.position.x, az = pivot.position.z, ay = pivot.position.y;
+  if (S.cam === 'side') { const cx = Math.max(-40, Math.min(420, ax * 0.35 + 90)); camera.position.set(cx, 1.7, 48); tgt.set(Math.min(ax, cx + 60), Math.min(ay + 1.5, 6), az); camera.fov = 42; }   // (the strip kept in frame: the cloud stays on the ground)
+  else if (S.cam === 'end') { camera.position.set(-70, 2.2, -12); tgt.set(ax, ay + 2, az); camera.fov = 30; }
+  else { const yaw = -pivot.rotation.y; camera.position.set(ax - Math.cos(yaw) * 22, ay + 5, az + Math.sin(yaw) * 22 + 6); tgt.set(ax, ay + 1.5, az); camera.fov = 50; }
+  camera.updateProjectionMatrix(); camera.lookAt(tgt);
+}
+function placeSun() {
+  // the sun's direction (toward it): low and beyond the strip (the dust backlit from the side camera), low behind the eye, or high
+  const el = S.sun === 'high' ? 52 : 11, az = S.sun === 'back' ? -1.25 : S.sun === 'front' ? 1.9 : 0.6;
+  const d = new THREE.Vector3(Math.cos(az) * Math.cos(el * Math.PI / 180), Math.sin(el * Math.PI / 180), -Math.sin(az) * Math.cos(el * Math.PI / 180)).normalize();
+  // the side camera looks toward -z: a sun at -z is behind the dust
+  if (S.sun === 'back') d.set(0.25, Math.sin(11 * Math.PI / 180), -1).normalize();
+  if (S.sun === 'front') d.set(-0.3, Math.sin(11 * Math.PI / 180), 1).normalize();
+  sun.position.copy(d).multiplyScalar(300).add(new THREE.Vector3(pivot.position.x, 0, 0)); sun.target.position.set(pivot.position.x, 0, 0);
+  const low = S.sun !== 'high';
+  sun.color.set(low ? 0xffd2a0 : 0xfff3e2); sun.intensity = low ? 2.8 : 3.4;
+  hemi.color.set(low ? 0x8aa6cc : 0xa9c3e6); hemi.intensity = low ? 0.75 : 0.95;
+  skyU.uSun.value.copy(d); skyU.uHor.value.set(low ? 0xf0c79a : 0xcfdbe6); skyU.uTop.value.set(low ? 0x34598f : 0x3d6fb3);
+  scene.fog.color.set(low ? 0xc9ae8c : 0xb9c6cf);
+  return d;
+}
+let sunDir = placeSun();
+const sunCol = new THREE.Color(), skyCol = new THREE.Color(), gndCol = new THREE.Color();
+// ---- the controls ----------------------------------------------------------------------------------------------------
+function pills(id, key, conv, after) { const el = $(id); el.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; for (const x of el.querySelectorAll('button')) x.setAttribute('aria-pressed', String(x === b)); S[key] = conv ? conv(b.dataset.v) : b.dataset.v; if (after) after(); }); }
+const restart = () => { clock = 0; setTier(tierName); };
+pills('scen', 'scen', null, restart);
+pills('cam', 'cam');
+pills('sun', 'sun', null, () => { sunDir = placeSun(); });
+pills('surf', 'cls', Number, () => { stripMat.map = stripTex[S.cls]; stripMat.needsUpdate = true; restart(); });
+pills('tier', 'tier', null, () => setTier(S.tier));
+const WETW = v => v < 0.08 ? 'bone dry' : v < 0.2 ? 'dry' : v < 0.35 ? 'damp' : v < 0.55 ? 'wet' : 'mud';
+$('wet').addEventListener('input', e => { S.wet = +e.target.value; $('wetv').textContent = WETW(S.wet) + ' (' + S.wet.toFixed(2) + ')'; });
+$('wind').addEventListener('input', e => { S.wind = +e.target.value; $('windv').textContent = S.wind + ' m/s'; });
+$('k').addEventListener('input', e => { S.k = +e.target.value; $('kv').textContent = 'x' + S.k.toFixed(2); });
+// the cloud's own laws, live (dust.js DUST.L: what the game reads too; the defaults are the game's)
+$('linger').addEventListener('input', e => { DUST.L.linger = +e.target.value; $('lingerv').textContent = DUST.L.linger + ' s'; });
+$('height').addEventListener('input', e => { DUST.L.rvMax = +e.target.value; DUST.L.rvCap = Math.max(9, DUST.L.rvMax); $('heightv').textContent = DUST.L.rvMax.toFixed(2).replace(/0$/, '') + ' m'; });
+$('aspect').addEventListener('input', e => { DUST.L.aspect = +e.target.value; $('aspectv').textContent = 'x' + DUST.L.aspect.toFixed(1); });
+$('wetv').textContent = WETW(S.wet);
+const SAY = { takeoff: 'Take-off: a few seconds at idle, a full-power run-up on the brakes, then the roll and the climb. The prop blast scours the strip; the cloud hangs and drifts.',
+  landing: 'Landing: the flare, a three-point touchdown (the puff), the roll-out on the brakes. Less dust than a take-off: the engine is at idle.',
+  runup: 'Run-up: twelve seconds at high power, standing still. The blast throws dust and grit aft along the ground.',
+  taxi: 'Taxi: 6 m/s down the strip, a 180 at the end, back. The tyres trail low dust.' };
+// ---- the loop --------------------------------------------------------------------------------------------------------
+function resize() { const r = canvas.getBoundingClientRect(); renderer.setSize(r.width, r.height, false); camera.aspect = r.width / Math.max(1, r.height); camera.updateProjectionMatrix(); }
+new ResizeObserver(resize).observe(canvas); resize();
+const fpsBuf = []; let last = performance.now(), hudT = 0, simMs = 0;
+function frame(now) {
+  requestAnimationFrame(frame);
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  fpsBuf.push(dt); if (fpsBuf.length > 90) fpsBuf.shift();
+  clock += dt; if (clock > SC[S.scen].dur) restart();
+  const P = pose(clock);
+  const t0 = performance.now();
+  DUST.sources(sys, st, env, dt); DUST.step(sys, dt, env);
+  placeCam(P);
+  sunCol.copy(sun.color).multiplyScalar(sun.intensity); skyCol.copy(hemi.color).multiplyScalar(hemi.intensity); gndCol.copy(hemi.groundColor).multiplyScalar(hemi.intensity * 0.5).add(new THREE.Color(0.35, 0.3, 0.22).multiplyScalar(sun.intensity * Math.max(0, sunDir.y) * 0.5));
+  camera.updateMatrixWorld();
+  dust.sync(camera, { sun: [sunDir.x, sunDir.y, sunDir.z], sunCol, skyCol, gndCol });
+  simMs += ((performance.now() - t0) - simMs) * 0.05;
+  sun.position.copy(sunDir).multiplyScalar(300).add(new THREE.Vector3(pivot.position.x, 0, 0)); sun.target.position.set(pivot.position.x, 0, 0);
+  renderer.render(scene, camera);
+  if (now - hudT > 400) { hudT = now; const s = fpsBuf.slice().sort((a, b) => a - b), med = s[s.length >> 1] || 0.016;
+    $('fps').textContent = (1 / med).toFixed(0); $('np').textContent = sys.P.live; $('ng').textContent = sys.G.live; $('cov').textContent = dust.cover.toFixed(1); $('cpu').textContent = simMs.toFixed(2);
+    $('say').textContent = SAY[S.scen] + '  ' + Math.max(0, SC[S.scen].dur - clock).toFixed(0) + ' s to the replay.'; }
+}
+requestAnimationFrame(frame);
+})();
+</script>
+</body></html>

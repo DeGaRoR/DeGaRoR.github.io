@@ -975,7 +975,8 @@ function makeSim(def, world) {
   // DMG-D4b (train 41; the user: "it hilariously certifies a crashed plane... that rule really has to account for aircraft
   // integrity"): THE AEROPLANE'S INTEGRITY, ONE FIELD the flight certificate and the career read. damaged: a primary member
   // broken (the nose crushed round a trunk is a dent - G1470's noseB - not a break) or a part parted (a cluster cut, G1840);
-  // a set within the envelope, a prop strike alone, a dent: not damaged. broken: the primary members broken; separated: the
+  // a set within the envelope, a dent: not damaged; NOSE-STRIKE (9 Nov, the user): a prop strike alone IS damaged (the prop
+  // repaired or inspected, a teardown owed: Lycoming SB 533). broken: the primary members broken; separated: the
   // parts parted (their tags); why: the first, in plain words (the card's). Non-enumerable: the damage object's copies and
   // hashes see nothing new. Under the physics worker the worker publishes it (sim_host meta.struct) and the page's mirror
   // reads it there (sim_link) - the page's own core is never stepped (its damage() holds no break at all)
@@ -995,12 +996,12 @@ function makeSim(def, world) {
     if (PODS !== null && typeof genPodDamage === 'function' && (DMG.pod.tFirst >= 0 || DMG.breaks > 0)) {
       if (podC === null || podCn !== DMG.pod.n || podCb !== DMG.breaks || podCy !== DMG.yields) { podC = genPodDamage(def, DMG); podCn = DMG.pod.n; podCb = DMG.breaks; podCy = DMG.yields; }
       const pod = podC, podBad = pod.state === 'holed' || pod.state === 'crushed' || pod.state === 'torn off';
-      const damaged = broken > 0 || separated.length > 0 || DMG.wires > 0 || podBad;
+      const damaged = broken > 0 || separated.length > 0 || DMG.wires > 0 || DMG.propStrike || podBad;
       return { damaged, broken, separated, pod,
-               why: !damaged ? null : (podBad && (!fp || PODM.has(fp.beam))) ? pod.say : fp ? (STRUCT_WORDS[fp.cls] || 'the structure') + ' broke' : separated.length ? 'a part came off' : 'a bracing wire snapped' };
+               why: !damaged ? null : (podBad && (!fp || PODM.has(fp.beam))) ? pod.say : fp ? (STRUCT_WORDS[fp.cls] || 'the structure') + ' broke' : separated.length ? 'a part came off' : DMG.wires > 0 ? 'a bracing wire snapped' : 'the propeller struck: a teardown before the next flight' };
     }
-    const damaged = broken > 0 || separated.length > 0 || DMG.wires > 0;
-    return { damaged, broken, separated, why: !damaged ? null : fp ? (STRUCT_WORDS[fp.cls] || 'the structure') + ' broke' : separated.length ? 'a part came off' : 'a bracing wire snapped' };
+    const damaged = broken > 0 || separated.length > 0 || DMG.wires > 0 || DMG.propStrike;
+    return { damaged, broken, separated, why: !damaged ? null : fp ? (STRUCT_WORDS[fp.cls] || 'the structure') + ' broke' : separated.length ? 'a part came off' : DMG.wires > 0 ? 'a bracing wire snapped' : 'the propeller struck: a teardown before the next flight' };
   } });
   // ---- DMG-D3 CLUSTERS (G1840-G1842): A CLUSTER IS ONE BREAKABLE PART (DEFORM-AND-BREAK §4.7 (i)) ----
   // A shape-matched cluster (the fin, the rod, a twin boom, a float) holds its shape by projection, so the members
@@ -1351,7 +1352,7 @@ function makeSim(def, world) {
     clDirty = false; stripDead.fill(0); for (let si = 0; si < SW.length; si++) SW[si] = def.strips[si].w;
     DMG.brokeUp = null; DMG.stripsSplit = 0; DMG.stripsDropped = 0;
     DMG.yields = 0; DMG.breaks = 0; DMG.work = 0; DMG.broken.length = 0; DMG.firstBreak = null; DMG.firstYield = null;
-    DMG.crashed = false; DMG.over = false; DMG.reason = null; DMG.at = null; DMG.dented = false; DMG.propStrike = false; DMG.propAt = null;
+    DMG.crashed = false; DMG.over = false; DMG.reason = null; DMG.at = null; DMG.dented = false; DMG.propStrike = false; DMG.propAt = null; DMG.noseAt = null;
     DMG.rest = null; DMG.restFrom = null; DMG.fall = false;
     DMG.gPeak = 0; DMG.setMax = 0; DMG.orphans.length = 0; DMG.members = 0; DMG.dents = 0; DMG.primary = 0; DMG.firstPrimary = null; DMG.holed = 0; DMG.wires = 0; gF = 0; cIx = cIy = cIz = 0;
     for (const b of beams) b.yielded = false;
@@ -1763,7 +1764,14 @@ function makeSim(def, world) {
     const e = eng[k]; if (!e || e.seized) return;
     e.seized = true; e.running = false; e.crank = 0;
     DMG.propStrike = true; if (!DMG.propAt) DMG.propAt = { eng: k, what, t: simT };
+    if (!DMG.noseAt) noseAt('prop', surf || 'soft', bite || 0, 3);   // NOSE-STRIKE (no drivetrain: a strike stops it)
   }
+  // NOSE-STRIKE (9 Nov): the first nose contact - { t, what: 'prop' | the nose's layer ('spinner', 'cowl', ...), surf,
+  // bite (m), tier (GEN_DRIVE_STRIKE's index, 0 inside the allowance) }. NOT ENUMERABLE (as DMG.structural): the damage
+  // object's copies, digests and the worker's publish see nothing new; node's rigs (tools/_accept_detect.js) read it
+  let noseAtV = null;
+  Object.defineProperty(DMG, 'noseAt', { configurable: true, enumerable: false, get: () => noseAtV, set: v => { noseAtV = v; } });
+  function noseAt(what, surf, bite, tier) { noseAtV = { t: simT, what, surf, bite: +bite || 0, tier: tier | 0 }; }
   // G2105 (WATER-DAMP): THE PROP IN THE WATER. The prop strike existed only on the ground (noseGnd, the trunk): a ditched
   // aeroplane whose disc went under kept its full thrust if the power was left on (729 N at 0.6 throttle on the user's
   // Cub, measured by WATER-LOOK) - the "engine still running" the user saw rock the wreck. Water is 800 times the air: a
@@ -2013,6 +2021,7 @@ function makeSim(def, world) {
       if (!(F > 0)) continue;
       if (F > st.crushF) st.crushF = F;
       st.crush = NZ.c[k]; st.crushOf = N.Dc; st.crushOn = onT ? 'trunk' : 'ground';
+      if (!DMG.noseAt) noseAt(genNoseLayer(N, NZ.c[k]) || 'spinner', onT ? 'rigid' : 'soft', NZ.c[k], 0);   // NOSE-STRIKE
       // the crush past the spinner reaches the propeller: a prop still turning stops on it (DMG-DRIVE grades the strike:
       // a stoppage, or a separation at a tip faster than its blade takes)
       if (NZ.c[k] > N.layers[0].d1 - 1e-9 && N.layers[0].cone && !eng[k].seized && st.strike !== 'stoppage' && st.strike !== 'separation')
@@ -2073,6 +2082,7 @@ function makeSim(def, world) {
     st.strikeAt = { t: simT, what, surf, bite, biteR: bite / S.R, tip, rpm: out.rpm[k] || 0 };
     if (first) st.internal = dmgRnd(nb + k, 17) < GEN_DRIVE.internalP;   // the teardown's finding (seeded: the build's own)
     DMG.propStrike = true; if (!DMG.propAt) DMG.propAt = { eng: k, what, t: simT };
+    if (!DMG.noseAt) noseAt('prop', surf, bite, tier); else if (tier > DMG.noseAt.tier) DMG.noseAt.tier = tier;   // NOSE-STRIKE
     const stopR = GEN_DRIVE.strike.stop[surf] != null ? GEN_DRIVE.strike.stop[surf] : GEN_DRIVE.strike.stop.soft;
     const stops = tier === 3 || (tier === 4 && bite / S.R > stopR) || e.seized;
     if (S.gear > 1 && tier >= 2 && st.gearbox !== 'failed') st.gearbox = 'damaged';
@@ -2131,15 +2141,21 @@ function makeSim(def, world) {
         cx /= c; cy /= c; cz /= c;
         const lx = cx + Rp * dx, ly = cy + Rp * dy, lz = cz + Rp * dz, g = world.terrainH(lx, lz);
         if (NOSE) { NZ.gy[k] = g; NZ.gs[k] = 1; }  // G2013: the nose's ground reference (its arming)
-        let pen = g - ly - GEN_DRIVE.strike.turf, surf = 'soft', gap = ly - g;
+        // NOSE-STRIKE (9 Nov): the allowance is the surface's under the disc's lowest point (genDriveTurf: 10 cm soft,
+        // 5 cm loose, 1 cm hard); before, 5 cm everywhere - a paved strip's tip touch was no strike
+        const turf = genDriveTurf(typeof world.surface === 'function' ? world.surface(lx, lz) : -1);
+        let pen = g - ly - turf, surf = 'soft', gap = ly - g;
         if (ly - g < 30 && typeof world.waterH === 'function') { const w = world.waterH(lx, lz); if (w > -1e8 && w > g) { gap = ly - w; if (w - ly > 0) { pen = w - ly; surf = 'water'; } } }
         if (gap < st.gapMin) st.gapMin = gap;        // the disc's least clearance over the surface (the turf's top not counted)
+        // NOSE-STRIKE: the FIRST NOSE CONTACT (DMG.noseAt), recorded even inside the allowance (a tip in the grass's top):
+        // Pilot's NODE-ACCEPT noseOver reads it, so the detector and the damage see the one event
+        if (gap < 0 && !DMG.noseAt) noseAt('prop', surf, -gap / dl, 0);
         if (pen > 0) propStrike(k, surf === 'water' ? 'water' : 'ground', pen / dl, surf);   // (what it struck: the water is no ground - GATE WATERDAMP 4 reads it)
         // G2357 (DMG-SCAR): the slot a turning prop chops in the ground when the strike stops it or tears a blade off (the
         // grade DMG-DRIVE just gave it; a brush or a bent blade on an airframe that is otherwise whole leaves the turf to hide it)
         if (SCR !== null && pen > 0 && surf === 'soft' && (st.strike === 'stoppage' || st.strike === 'separation') && (out.rpm[k] || 0) > 30) {
           const hl = Math.hypot(xAft[0], xAft[2]) || 1;
-          scarStrike(SCR, k, lx, lz, xAft[2] / hl, -xAft[0] / hl, (pen + GEN_DRIVE.strike.turf) / dl, Rp, simT);
+          scarStrike(SCR, k, lx, lz, xAft[2] / hl, -xAft[0] / hl, (pen + turf) / dl, Rp, simT);
         }
       }
     }

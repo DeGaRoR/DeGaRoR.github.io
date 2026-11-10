@@ -59,7 +59,7 @@ var HANGAR_VIEW = (() => {
     const faceU = () => ({ uF: { value: basis.map(b => b.F) }, uU: { value: basis.map(b => b.U) }, uR: { value: basis.map(b => b.R) } });
     const viewMat = near => (typeof MATLIB !== 'undefined' ? MATLIB : require('./matlib.js')).make(THREE, 'shader', {
       uniforms: Object.assign(faceU(), { uCol: { value: null }, uDist: { value: null }, uC: { value: V3() }, uFar: { value: S.far },
-        uHalf: { value: 0.5 / S.N }, uHalfD: { value: 0.5 / S.n }, uJump: { value: S.jump }, uLin: { value: 0 }, uK: { value: 1 } }),
+        uHalf: { value: 0.5 / S.N }, uHalfD: { value: 0.5 / S.n }, uJump: { value: S.jump }, uLin: { value: 0 }, uK: { value: 1 }, uSkyLive: { value: 0 } }),
       defines: near ? { HV_NEAR: '' } : {},
       vertexShader: GLSL_FACE + `
         uniform sampler2D uDist; uniform vec3 uC; uniform float uFar, uHalfD;
@@ -76,13 +76,15 @@ var HANGAR_VIEW = (() => {
           gl_Position.z = 0.5 * gl_Position.w;   // a backdrop: never clipped by the room camera's near / far (no depth test)
         }`,
       fragmentShader: GLSL_FACE + `
-        uniform sampler2D uCol; uniform float uHalf, uJump, uLin, uK;
+        uniform sampler2D uCol; uniform float uHalf, uJump, uLin, uK, uSkyLive;
         varying vec3 vDir; varying float vL;
         void main() {
           #ifdef HV_NEAR
           if (fwidth(vL) > uJump) discard;     // a sheet across a depth jump: the far shell shows through
           #endif
-          vec3 c = texture2D(uCol, hvAtlas(normalize(vDir), uHalf)).rgb;
+          vec4 c4 = texture2D(uCol, hvAtlas(normalize(vDir), uHalf));
+          if (uSkyLive > 0.5 && c4.a < 0.5) discard;   // HANGAR-VIEW C: the capture's sky is transparent - the room's live sky shows
+          vec3 c = c4.rgb;
           // LINEAR (the room's target is aa_resolve's linear split): the capture's radiance, decoded, scaled by the world's
           // exposure over the room's - the room's ONE tone map in the blit then shows the world camera's pixels.
           // DISPLAY (the display-space target, or the canvas): the capture's display values, raw (no tone map)
@@ -121,7 +123,7 @@ var HANGAR_VIEW = (() => {
     const qCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
     const blitMat = (typeof MATLIB !== 'undefined' ? MATLIB : require('./matlib.js')).make(THREE, 'shader', { uniforms: { uT: { value: null }, uLin: { value: 0 } }, vertexShader: QUAD_VERT,
       fragmentShader: 'uniform sampler2D uT; uniform float uLin; varying vec2 vUv; void main() { vec3 c = max(texture2D(uT, vUv).rgb, vec3(0.0));' +
-        ' if (uLin > 0.5) c = pow(c / (vec3(1.0) + c), vec3(1.0 / 2.2)); gl_FragColor = vec4(c, 1.0); }',
+        ' if (uLin > 0.5) c = pow(c / (vec3(1.0) + c), vec3(1.0 / 2.2)); gl_FragColor = vec4(c, clamp(texture2D(uT, vUv).a, 0.0, 1.0)); }',
       depthTest: false, depthWrite: false, toneMapped: false });
     // the depth buffer to metres along the ray: reversed float ([0, 1], near at 1: w = f n / ((f - n) d + n)) or the
     // logarithmic buffer (d = log2(1 + w) / log2(far + 1)); the face's 90 degrees take w to the distance
@@ -178,6 +180,9 @@ var HANGAR_VIEW = (() => {
       if (o.exposure > 0) renderer.toneMappingExposure = o.exposure;
       const hidden = [];
       for (const h of (o.hide || [])) if (h && h.visible) { h.visible = false; hidden.push(h); }
+      // HANGAR-VIEW C (9 Nov 08:32 probe): the world's dome rides the world camera, which is IN the world scene - drawn opaque (alpha 1)
+      // over every sky pixel, so the shells never discarded and hid the room's live clouds. With the live sky it goes too
+      if (o.skyLive && o.sky && o.sky.visible) { o.sky.visible = false; hidden.push(o.sky); }
       const bg = o.scene.background; o.scene.background = null;
       try {
         for (const k of list) {
@@ -188,9 +193,9 @@ var HANGAR_VIEW = (() => {
           // the world's shadow maps are NOT redrawn: the world aims its cascades at the stand / the aircraft in its own update,
           // not at the eye, and the maps hold what the last world frame drew there (the boot's warm draw; a return's taxi-in)
           renderer.shadowMap.autoUpdate = false;
-          renderer.setRenderTarget(T); renderer.setClearColor(0x000000, 1); renderer.autoClear = false; renderer.clear(true, true, true);
+          renderer.setRenderTarget(T); renderer.setClearColor(0x000000, o.skyLive ? 0 : 1); renderer.autoClear = false; renderer.clear(true, true, true);
           // THE SKY FIRST, as the water's mirror draws it (water.js G460.11.3): the dome rides the main camera
-          if (o.sky) {
+          if (o.sky && !o.skyLive) {
             skyScene = skyScene || new THREE.Scene();
             const sky = o.sky, par = sky.parent, vis = sky.visible;
             skyScene.add(sky); sky.position.copy(capCam.position); sky.visible = true;
@@ -198,7 +203,10 @@ var HANGAR_VIEW = (() => {
             sky.visible = vis; sky.position.set(0, 0, 0); if (par) par.add(sky); else skyScene.remove(sky);
           }
           // THE CLOUDS: their march for this eye, composited by the scene's own cloud quad at the cloud's depth
-          if (o.clouds) { try { o.clouds(renderer, capCam, T); } catch (e) {} }
+          if (o.clouds && !o.skyLive) { try { o.clouds(renderer, capCam, T); } catch (e) {} }
+          // HANGAR-VIEW C: the world's shadow maps once more with the shed hidden (the first face of a set): its shadow on the apron
+          // is the world shed's, which the room stands in place of
+          if (o.shadowRedraw && k === list[0] && !st.stage.done) renderer.shadowMap.needsUpdate = true;
           renderer.render(o.scene, capCam);
           // the face into the staging atlases: colour as drawn, distance resolved
           blitMat.uniforms.uT.value = T.texture; blitMat.uniforms.uLin.value = lin ? 1 : 0; region(st.stage.col, k, N); pass(blitMat, st.stage.col);
@@ -217,7 +225,7 @@ var HANGAR_VIEW = (() => {
         if (old) disposeSet(old);
         for (const m of [farMesh, nearMesh]) { const U = m.material.uniforms;
           U.uCol.value = st.live.col.texture; U.uDist.value = st.live.dist.texture; U.uC.value.set(o.C[0], o.C[1], o.C[2]);
-          U.uHalf.value = 0.5 / st.live.N; U.uHalfD.value = 0.5 / st.live.n; U.uFar.value = S.far; U.uJump.value = S.jump; U.uLin.value = st.live.lin ? 1 : 0; }
+          U.uHalf.value = 0.5 / st.live.N; U.uHalfD.value = 0.5 / st.live.n; U.uFar.value = S.far; U.uJump.value = S.jump; U.uLin.value = st.live.lin ? 1 : 0; U.uSkyLive.value = o.skyLive ? 1 : 0; }
         st.C = o.C.slice(); st.captures++; st.live.ex = o.exposure > 0 ? o.exposure : null;
         if (cap) { cap.dispose(); cap = null; }   // the capture target is let go between sets (MSAA + depth at N: ~30 MB at 1024)
         group.visible = st.on;

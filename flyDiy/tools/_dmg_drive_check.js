@@ -29,6 +29,11 @@ const argv = process.argv.slice(2);
 process.env.FLYDIY_CERT = '1';
 const L = require('./_treecrash_lib.js');
 const D = require('./_dmg_drive_lib.js');
+// NOSE-STRIKE (9 Nov): the strike's allowance is the SURFACE's (genDriveTurf: 10 cm soft, 5 loose, 1 hard) - the brush row
+// sets its disc 2 cm past the allowance of the ground the build is placed on (noseOver's flat field at HOME), as before
+const turfAt = (C, k) => { if (!C.genDriveTurf) return C.GEN_DRIVE.strike.turf;
+  const { W, strip } = L.flatWorld(0), s = C.makeSim(L.defOf(k, {}), W); s.reset(0); C.placeAtAerodrome(s, Object.assign({}, strip, { elev: 0, spawnElev: 0 }));
+  const c = s.cgPos(); return C.genDriveTurf(typeof W.surface === 'function' ? W.surface(c[0], c[2]) : -1); };
 const REF = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'reports', 'evidence', 'DMG-DRIVE', 'real_numbers.json'), 'utf8'));
 const FLAG = '[as recalled - A0 to open]', GAME = '[GAME - no source]';
 const f2 = x => (x == null || !isFinite(x) ? '-' : (+x).toFixed(2)), pc = r => ((r - 1) * 100).toFixed(1) + ' %';
@@ -55,7 +60,7 @@ if (argv[0] === '--part') {
     if (!hydro) {
       out.nose = [2, 4, 8].map(V => { const r = D.noseOver(k, Object.assign({ V, thr: 0.2, secs: 2 }, o));
         return { V, discT: r.discT, strikeT: r.strikeT, at: r.at, running: r.running, d: (r.drive || []).map(slim), finite: r.finite }; });
-      const T = C.GEN_DRIVE.strike.turf;
+      const T = turfAt(C, k); out.brushT = T;
       // (the disc set 2 cm past the turf with the nose RISING at 0.3 m/s: one touch, then the tail settles - at rest the Jodel's would tip on over)
       { const r = D.noseOver(k, Object.assign({ V: -0.3, gap: -(T + 0.02), thr: 0.2, secs: 2 }, o)); out.brush = { running: r.running, d: (r.drive || []).map(slim), finite: r.finite }; }
       // (G2035: the trunk in the disc, 0.75 m across - clear of the spinner, which takes a centred 3 m/s taxi before the blades reach it)
@@ -185,7 +190,7 @@ const rep = msg => console.log('  --    ' + msg);
       yes(n.finite && d.teardown && (d.strike === 'stoppage' || d.strike === 'separation' ? stopped : (d.strike === 'bent' || d.strike === 'brush')) && n.strikeT != null && n.strikeT <= (n.discT || 0) + 0.05,
         'a nose-over at ' + n.V + ' m/s: the disc meets the ground ' + f2(n.discT) + ' s in, the strike ' + f2(n.strikeT) + ' s (the base: only once the nose\'s nodes did) - \'' + d.strike + '\' (bite ' + f2(a.biteR) + ' R, tip ' + Math.round(a.tip || 0) + ' m/s), the engine ' + (stopped ? 'stopped' : 'running') + ', a teardown owed' + (d.internal ? ', the teardown finds internal damage' : '')); }
     if (S.brush) { const d = S.brush.d[0];
-      yes(S.brush.finite && d.strike === 'brush' && S.brush.running[0] && d.teardown, 'a brush (2 cm of soil past the turf\'s ' + C.GEN_DRIVE.strike.turf * 100 + ' cm): \'' + d.strike + '\', the engine runs on, a teardown still owed (SB 533: any strike that needs the prop repaired)'); }
+      yes(S.brush.finite && d.strike === 'brush' && S.brush.running[0] && d.teardown, 'a brush (2 cm of soil past the turf\'s ' + Math.round((S.brushT != null ? S.brushT : C.GEN_DRIVE.strike.turf) * 100) + ' cm, the surface allowance): \'' + d.strike + '\', the engine runs on, a teardown still owed (SB 533: any strike that needs the prop repaired)'); }
     if (S.trunk3) { const d = S.trunk3.d[0];
       yes(S.trunk3.finite && (d.strike === 'stoppage' || d.strike === 'separation') && !S.trunk3.running[0], 'a trunk in the disc at 3 m/s (0.75 m across the nose, clear of the spinner - G2035): \'' + d.strike + '\' (tip ' + Math.round((d.strikeAt || {}).tip || 0) + ' m/s' + (d.strike === 'separation' ? ': the blades broke off' : '') + '), the engine stopped (a sudden stoppage)'); }
     for (const n of (S.noseIn || [])) { const d = n.d[0], lab = 'the bow digging in at ' + Math.round(n.V * 3.6) + ' km/h, ' + n.sink + ' m/s, ' + n.pitch + ' deg';

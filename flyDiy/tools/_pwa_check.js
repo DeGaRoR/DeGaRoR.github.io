@@ -120,7 +120,10 @@ function pngSize(file) {
   try { M = JSON.parse(read(MP)); } catch (e) { M = null; }
   check(!!M, 'W1 manifest.webmanifest is JSON');
   M = M || {};
-  check(M.name && /flyDiy/.test(M.name) && M.short_name === 'flyDiy', 'W1 name and short_name', M.name + ' / ' + M.short_name);
+  // RE-PINNED 9 Nov (WINGSMITH, the user: "Wingsmith is the name of the game instead of flyDiy"): the names are the game's
+  // name, GAME_NAMES.game (src/core/01_names.js), no longer the literal 'flyDiy'; id / start_url / scope below are unchanged
+  const GAME = (() => { try { const b = vm.createContext({}); vm.runInContext(fs.readFileSync(path.join(ROOT, 'src', 'core', '01_names.js'), 'utf8'), b); return b.GAME_NAMES && b.GAME_NAMES.game; } catch (e) { return null; } })();
+  check(!!GAME && M.name === GAME && M.short_name === GAME, 'W1 name and short_name are the game\'s name (GAME_NAMES.game)', M.name + ' / ' + M.short_name + ' vs ' + GAME);
   check(M.id === './' && M.start_url === './' && M.scope === './', 'W1 id, start_url and scope are ./ (the folder; ?v= and the user\'s query stay the page\'s)');
   check(M.display === 'standalone' && M.orientation === 'any', 'W1 display standalone, orientation any');
   check(/^#[0-9a-f]{6}$/i.test(M.background_color || '') && /^#[0-9a-f]{6}$/i.test(M.theme_color || ''), 'W1 background and theme colours');

@@ -65,7 +65,12 @@ const GEN_DRIVE = {
   // a bent prop's thrust; the vibration of each tier
   // (turf: a disc on soft ground mows the grass's top `turf` m before its tips meet the soil - not a strike; the metal
   // Cessna's disc sits 1.1 cm into the ground settled on its nosewheel, 4.2 cm in the spawn's settle, HANDOVER G1824)
-  strike: { turf: 0.05, brush: 0.04, stop: { soft: 0.15, water: 0.25, rigid: 0.04 }, sep: { wood: 120, maple: 120, walnut: 120, carbon: 120, alu: 200 },
+  // NOSE-STRIKE (9 Nov, the user: "10 cm on grass and trees ... 1 cm over hard ground, so there's a little margin for
+  // error"): the allowance is the SURFACE's (20_world SURFACE order: GRASS, ROCK, SCREE, FOREST_FLOOR, WATER, PAVED,
+  // GRAVEL, SAND) - 10 cm on the soft ground (grass, the forest floor, sand), 5 cm on the loose (scree, gravel), 1 cm on
+  // the hard (rock, paved); the water has its own test (none); off the map's surfaces (-1) the grass's (`turf`)
+  turfS: [0.10, 0.01, 0.05, 0.10, 0, 0.01, 0.05, 0.10],
+  strike: { turf: 0.10, brush: 0.04, stop: { soft: 0.15, water: 0.25, rigid: 0.04 }, sep: { wood: 120, maple: 120, walnut: 120, carbon: 120, alu: 200 },
             sepWater: 1.6,   // the water gives more than the soil: a blade breaks there only past 1.6 x its tip speed (an
                              // ordinary bow-in at 0.2 throttle dipped the twin's carbon tips 4.6 % of R at 128 m/s)
             bentK: 0.6, vib: { brush: 0.1, bent: 0.6, stoppage: 0, separation: 1 },
@@ -159,6 +164,12 @@ function genDriveOverspeed(st, ratio, dt) {
 const GEN_DRIVE_STRIKE = [null, 'brush', 'bent', 'stoppage', 'separation'];
 // (G2036: `eR` the turning prop's energy over a brittle blade's rupture work, 0.5 I w^2 / Ub - given for a brittle blade on
 // a rigid obstacle, where it grades past the brush alone: >= 1 the blade breaks (separation), < 1 the prop stops whole)
+// NOSE-STRIKE: the allowance on a surface code (20_world SURFACE; -1 or unknown: the grass's)
+function genDriveTurf(s) {
+  const T = GEN_DRIVE.turfS;
+  return s >= 0 && s < T.length ? T[s] : GEN_DRIVE.strike.turf;
+}
+
 function genDriveStrikeTier(bite, R, surf, tip, sepTip, eR) {
   const S = GEN_DRIVE.strike, r = bite / (R || 1);
   if (!(r > 0)) return 0;

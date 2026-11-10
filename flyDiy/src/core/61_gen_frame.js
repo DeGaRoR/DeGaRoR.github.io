@@ -3552,7 +3552,15 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // person plus the seat they arrived with. GATE BUILD caught it, which is
     // exactly what that check is for: an occupant weighs 80 kg and nothing
     // else may ride in on the same number.
-    const seats = Math.max(1, seatRows.length);
+    // A4 (CESSNA-FINAL, 8 Nov): ...AND EVERY SEAT THE CAGE DRAWS, once the cabin's seats are the SEAT LIBRARY's.
+    // `seating` names the FAMILY (the join: "it still sizes a cabin the join did not measure"); the drawn count is
+    // `cabin.seatsX`'s, one station per seat. Counted off the family, a four-seat 172 ('side2' by its bay count) billed
+    // its two front seats and the rear pair weighed nothing. A cabin whose drawn seats carry their own masses
+    // (`cabin.seatsKg`: the join writes it only when a drawn seat weighs other than the outfit's row - SEATS,
+    // 2026-11-02) bills every one of them, seat for seat. A cabin on the old row (no seatsKg: every save drawn on the
+    // tube & sling) keeps the family's count, to the bit - the validated Cub and Jodel among them (the Jodel's
+    // drawn second sling is not billed: named in CESSNA-FINAL-PLAN, not changed here)
+    const seats = (Array.isArray(cb.seatsKg) && seatsX && seatsX.length === cb.seatsKg.length) ? seatsX.length : Math.max(1, seatRows.length);
     const EN = (S.engines && S.engines[0]) || {};
     const PPn = S.pplant || POWERPLANTS[EN.type] || POWERPLANTS.a65_sensenich74;
     const kW = ((PPn.engine && PPn.engine.powerW) || 0) / 1000;

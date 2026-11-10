@@ -1172,7 +1172,9 @@
       let srt = skyReady ? rt : null;
       // ONE SKY (S5): the outdoors reflect the physical sky, in the shed's frame, re-baked with the room
       if (!srt && typeof ATMO !== 'undefined' && ATMO.enabled && hangar.SHED_FRAME_YAW !== undefined) {
-        if (!shedSkyProbe) shedSkyProbe = ATMO.makeProbe(renderer, { frameYaw: hangar.SHED_FRAME_YAW, capHex: 0x6d7a45, gb: (window.LIGHT_RIG ? window.LIGHT_RIG.groundBounce() : 1) });
+        const fyNow = hangar.frameYaw ? hangar.frameYaw() : hangar.SHED_FRAME_YAW;   // HANGAR-VIEW C: the room's real yaw
+        if (shedSkyProbe && shedSkyProbe.__fy !== fyNow) { try { shedSkyProbe.dispose && shedSkyProbe.dispose(); } catch (e) {} shedSkyProbe = null; }
+        if (!shedSkyProbe) { shedSkyProbe = ATMO.makeProbe(renderer, { frameYaw: fyNow, capHex: 0x6d7a45, gb: (window.LIGHT_RIG ? window.LIGHT_RIG.groundBounce() : 1) }); if (shedSkyProbe) shedSkyProbe.__fy = fyNow; }
         if (shedSkyProbe) { shedSkyProbe.bake(world.day, true); srt = { texture: shedSkyProbe.texture, dispose: () => {} }; }
       }
       if (!srt && sky && sky.image && sky.image.width && THREE.PMREMGenerator) {
@@ -1233,8 +1235,24 @@
   // of garage:firstFrame's 1.4 s task, the cube faces' shadow maps). Under envDeferred this call's bake requests
   // (rebake, a mood) only mark envDirty, and markBaked records the sun done()'s one bake will shoot - the loop has not
   // started, so the day has not moved when the first frame compares.
+  // HANGAR-VIEW C: the room's sky is the world's at the real shed - its node's yaw and its centre (the clouds' eye)
+  let skyFrameKey = null, skyFramePre = null;
+  function shedSkyFrame() {
+    if (!hangar || !hangar.setSkyFrame || typeof hviewNode !== 'function') return;
+    // (GATE ROUNDTRIP, L36d: NOTHING TICKS THE WORLD IN THE SHED - this ran the shed node's updateMatrixWorld every frame, 34
+    //  world objects; the node's own place and turn are read first, and the matrices are updated only when they moved)
+    let node = null, c = null; try { node = hviewNode(); if (node) { const p = node.position, pre = hangarRoom + '|' + Math.round((node.rotation.y || 0) * 1e4) + '|' + Math.round(p.x * 10) + ',' + Math.round(p.y * 10) + ',' + Math.round(p.z * 10) + '|' + (node.parent ? node.parent.id : '');
+      if (pre === skyFramePre) return; skyFramePre = pre; node.updateMatrixWorld(true); c = new THREE.Vector3(HVIEW_C[0], HVIEW_C[1], HVIEW_C[2]).applyMatrix4(node.matrixWorld); } } catch (e) { node = null; }   // (the boot's first frames: no world yet)
+    if (!node || !c) return;
+    const yaw = node.rotation.y || 0;
+    const key = hangarRoom + '|' + Math.round(yaw * 1e4) + '|' + Math.round(c.x) + ',' + Math.round(c.z);
+    if (key === skyFrameKey) return;
+    skyFrameKey = key;
+    if (hangar.setSkyFrame(yaw, [c.x, c.y, c.z])) { try { bakeHangarEnvSliced(); } catch (e) {} }   // the room's probe sees the turned sky
+  }
   function shedDayTick() {
     if (!hangar || !hangar.applyDay || !world.day) return;
+    shedSkyFrame();
     const r = hangar.applyDay(world.day, renderer);
     if (r && r.rebake) { bakeHangarEnvSliced(); r.markBaked(); }   // G2662: the clock's bake, a slice a frame
     if (r && hangar.moodFor) { const mi = hangar.moodFor(world.day); if (mi !== hangarMood) setMood(mi, { fromClock: true }); }
@@ -1367,6 +1385,9 @@
   function hviewGain() { if (hview && hview.linear) { const ex = hview.gain(0); if (ex > 0 && renderer.toneMappingExposure > 0) hview.gain(ex / renderer.toneMappingExposure); } }
   const HVIEW_N = { laptop: 768, potato: 768, retro: 768, current: 1024, gamer: 1024, ultra: 1536 };
   const HVIEW_C = [0, 2, 0];          // the capture's eye in the shed's frame: the room's centre, a standing eye
+  // HANGAR-VIEW C (8 Nov, question 6): ?hvc=door captures from 2.5 m inside the doorway (the door at the room's -x, -HD), where the
+  // eyes that look out stand - the parallax exact there instead of at the centre
+  const hvC = () => { try { if (/[?&]hvc=door\b/.test(location.search || '') && hangar && hangar.dims && hangar.dims.HD > 3) return [-(hangar.dims.HD - 2.5), 1.7, 0]; } catch (e) {} return HVIEW_C; };
   const HVIEW_NEAR = 3000;            // a flight that ended this near the stand left the world there (m)
   // HVIEW-OFF (8 Nov, the user's verdict on the hangars-matched stills: the captured view is not the look - a generic sky,
   // no clouds, the apron smeared): OFF by default, the room's own outdoors as until L35a, until the redesign (flydiy-notes/
@@ -1405,7 +1426,7 @@
       hview.group.matrixAutoUpdate = false; hview.group.matrix.copy(hangar.group.matrixWorld); hview.group.matrixWorldNeedsUpdate = true;
       hview.on(up); hviewGain();
     }
-    if (hangar.outdoorsShow) hangar.outdoorsShow(!up);
+    if (hangar.outdoorsShow) hangar.outdoorsShow(!up, up);   // HANGAR-VIEW C: the live sky stays behind the view
   }
   // one call: `faces` of the world drawn into the view's staging (all six: the boot's); true when the view is whole
   function hviewCapture(faces) {
@@ -1425,7 +1446,7 @@
     // anchor, as worldSettle) - the camera put back after every face
     const keepEye = camera.position.clone(), first = !hview.staging;
     node.updateMatrixWorld(true);
-    camera.position.set(HVIEW_C[0], HVIEW_C[1], HVIEW_C[2]).applyMatrix4(node.matrixWorld);
+    const C0 = hvC(); camera.position.set(C0[0], C0[1], C0[2]).applyMatrix4(node.matrixWorld);
     craftInWorldNow(() => {
       craft.traverse(o => { if ((o.isMesh || o.isPoints || o.isLine || o.isSprite) && o.visible) { o.visible = false; meshes.push(o); } });   // its lights stay: the programs' key
       try {
@@ -1436,8 +1457,9 @@
             if (G && G.setExposure && base > 0) G.setExposure(renderer, base); renderer.toneMappingExposure = exRoom; }
         }
         const ex = (WF.exposureNow && WF.exposureNow() > 0 ? WF.exposureNow() : WORLD_EXPOSURE) * k;
-        r = hview.capture({ scene, node, C: HVIEW_C, hide: [node], sky: WF.skyDome,
-          clouds: (typeof CLOUDS !== 'undefined' && CLOUDS.draw) ? CLOUDS.draw : null, faces, exposure: ex, linear: hviewLinear() });
+        r = hview.capture({ scene, node, C: hvC(), hide: [node], sky: WF.skyDome,
+          clouds: (typeof CLOUDS !== 'undefined' && CLOUDS.draw) ? CLOUDS.draw : null, faces, exposure: ex, linear: hviewLinear(),
+          skyLive: true, shadowRedraw: true });   // HANGAR-VIEW C: the place without its sky (the room's live sky behind it), no shed shadow
       } finally { for (const o of meshes) o.visible = true; camera.position.copy(keepEye); }
     });
     // whole: on screen, and the room's probe re-shot (it sees the view through the door: the floor and the aeroplane take the
@@ -1495,7 +1517,10 @@
       const e = camera.position.toArray(), t = target.toArray(); return { room: hangarRoom, eye: e, target: t, fov: camera.fov, worldEye: W(e), worldTarget: W(t) }; },
     flyFov: v => { cam.fov = +v; flApplyFov(); return camera.fov; },
     // (the A/B rig) the return's deferred recapture asked for now, as hviewReturn asks it (45 shed frames, then a face a frame)
-    defer: () => { if (!hview || !WF) return false; hviewWant = hviewKeyNow(hviewNode()); hviewFace = 0; hviewHold = 45; return true; } };
+    defer: () => { if (!hview || !WF) return false; hviewWant = hviewKeyNow(hviewNode()); hviewFace = 0; hviewHold = 45; return true; },
+    // (HANGAR-VIEW C's rig) the world's own shed hidden / shown: the world at the room's eye is then what the door must show
+    shedShow: v => { const n = hviewNode(); if (!n) return null; n.visible = v !== false; return n.visible; },
+    frame: () => ({ yaw: hangar && hangar.frameYaw ? hangar.frameYaw() : null, key: skyFrameKey }) };
 
   // A NEW SIZE IS A NEW ROOM. genHangarBuild builds a whole shed from nothing,
   // so changing a dimension means throwing the old one away and asking again —
@@ -7197,7 +7222,13 @@
     if (!HY) return;
     // H2 (G389): a cage build carries its DRAWN floats as parts (floatRigs);
     // the physics hull is drawn only for a spec-only build with none
-    if (model && model.floatRigs) return;
+    // PETREL-DRAW (9 Nov, the user: "the white stuff ... some sort of physics representation that you forgot to get
+    // rid of ... exactly the same happened with the floats"): a CAGE build draws its own water surfaces - the boat
+    // hull is its fuselage (hullOn), the strut tip floats are cage parts - and carries no floatRigs (nothing to rig: no
+    // float pair). The test was floatRigs alone, so the Super Petrel flew under three flat cream PHYSICS hulls (its
+    // hull and both tip floats) drawn over the cage's: the "raw" white hull that hid the seats, and in the far view
+    // the only thing left. The physics hull is the spec-only build's (model.gen) and nothing else's
+    if (model && (model.floatRigs || !model.gen)) return;
     for (const fx of HY.floats) {
       const F = fx.F, n = F.panels.length;
       const g = new THREE.BufferGeometry();
@@ -7591,6 +7622,111 @@
     for (let j = 0; j < Math.round(n / 5); j++) { const a = Math.random() * 6.2832, rr = 1.2 * Math.random();
       sprayEmit(D, 1, x + Math.cos(a) * rr, h + 0.15, z + Math.sin(a) * rr, Math.cos(a) * 0.8 * Math.min(2, vy), 0.6 + 0.8 * Math.random() * Math.min(2, vy), Math.sin(a) * 0.8 * Math.min(2, vy)); }
     return n; }, get fx() { return waterFx; } };
+  // ---- DIRT-DUST (2026-11-09): THE DUST A DRY STRIP THROWS - dust.js's system fed the aeroplane's own numbers --------------
+  // The user (9 Nov): "when it's really dry, there are huge puffs of dirt clouds ... at every take-off and landing ... they
+  // tend to stay a long time ... and diffuse slowly". dust.js holds the laws (the sources, the puffs, the draw); here, once a
+  // frame, the aeroplane is gathered for it: the wheels the solver says touch (wheelContacts: the mains in order and the
+  // third wheel; their node's motion over the frame for the velocity, so it reads the same under the physics worker), the
+  // prop (the engine nodes, the thrust axis -xAft, the disc's radius, sim.out.wash - the solver's own slipstream), the wing
+  // (span, weight, airspeed, the tips off the CG along zRt), and the world: the ground, the pavement class under a point
+  // (the premises' pavedAt cls, else the world's surface enum), the soil's water (SOIL_WET off world.day, once a frame), the
+  // climate's wind, DIRT-STRIP's puddles (STRIP_MICRO.puddleAt, when its module is in). The mesh is made with the world and
+  // PARKED in the world scene (worldSettle, as the scar's decal): its one program is linked by the roll-out's compile, never
+  // in flight. Nothing alive: nothing integrated, the mesh hidden (no draw). ?dust=0 off (the A/B's lever), ?dust=<k> a
+  // strength; window.DUST_FX the rig's handle.
+  const DUST_Q = (() => { try { const m = /[?&]dust=([0-9.]+)/.exec(location.search || ''); return m ? +m[1] : null; } catch (e) { return null; } })();
+  let dustFx = null;
+  const DUST_SURF = ['grass', 'dirt', 'gravel', 'dirt', -1, 'paved', 'gravel', 'sand'];   // the SURFACE enum -> a dust class (rock / forest floor read dirt; water none)
+  const DUST_CLS = { dirt: 0, sand: 1, gravel: 2, grass: 3, paved: 4, concrete: 4, asphalt: 4 };
+  // THE SOIL'S WATER, ONCE A FRAME, FOR EVERYONE WHO SHOWS IT (DIRT-STRIP's ask, 9 Nov): SOIL_WET off the day, handed to the
+  // pavement (PAVEMENT.setSoilWet: one shared uniform - the strip's damp tint and its drawn puddles) and to the dust (the same
+  // R: the water drawn is the water splashed in). Runs with the dust off too (?dust=0 is the dust's lever, not the puddles').
+  let soilNow = null;
+  function soilFrame() {
+    soilNow = typeof SOIL_WET !== 'undefined' && world && world.day ? SOIL_WET.at(world.day) : null;
+    if (soilNow && typeof PAVEMENT !== 'undefined' && PAVEMENT.setSoilWet) PAVEMENT.setSoilWet(soilNow.wet);
+  }
+  function dustMake() {
+    if (dustFx || DUST_Q === 0 || typeof DUST === 'undefined' || !THREE.InstancedBufferGeometry) return dustFx;
+    const G = window.GFX && window.GFX.get ? window.GFX.get() : null;
+    const sys = DUST.makeSystem((G && (G.build || G.preset)) || 'gamer');
+    const draw = DUST.make(THREE, sys);
+    draw.mesh.visible = false; scene.add(draw.mesh);
+    const wetR = { R: null };
+    const env = {
+      groundH: (x, z) => groundH(x, z),
+      wind: () => LKW(),
+      cls(x, z) {
+        const O = world && world.premises && world.premises.overlay;
+        const q = O && O.pavedAt ? O.pavedAt(x, z, 0) : null;
+        if (q && q.cls != null && DUST_CLS[q.cls] != null) return DUST_CLS[q.cls];
+        const s = world && world.surface ? world.surface(x, z) : 0, c = DUST_SURF[s];
+        return c === -1 || c == null ? -1 : DUST_CLS[c];
+      },
+      wet: ci => { const R = wetR.R; if (!R) return 0; const k = DUST.CLASSES[ci]; return R.cls[k] != null ? R.cls[k] : R.cls.dirt; },
+      puddle: (x, z) => (typeof STRIP_MICRO !== 'undefined' && STRIP_MICRO.puddleAt && wetR.R ? STRIP_MICRO.puddleAt(x, z, wetR.R.wet) : 0),
+      k: DUST_Q != null && DUST_Q > 0 ? DUST_Q : 1,
+    };
+    const st = { wheels: [], props: [], wing: { span: 10, W: 5000, V: 0, rho: 1.225, tips: [[0, 0, 0], [0, 0, 0]] } };
+    dustFx = { sys, draw, env, st, wetR, prev: new Map(), ms: 0, light: { sun: [0, 1, 0], sunCol: new THREE.Color(), skyCol: new THREE.Color(), gndCol: new THREE.Color() } };
+    return dustFx;
+  }
+  function syncDustFx(dt) {
+    const F = dustFx, sys = F.sys;
+    if (!sim || !def || !def.refs) return;
+    const t0 = performance.now();
+    const WC = typeof sim.wheelContacts === 'function' ? sim.wheelContacts() : null;
+    const P = sim.p, st = F.st;
+    // the wheels: the mains in order, then the third; a node's velocity from its motion over the frame
+    st.wheels.length = 0;
+    const refs = def.refs, ids = (refs.mains || []).slice();
+    if (refs.tw != null && refs.tw >= 0) ids.push(refs.tw);
+    const airborneAll = !WC || WC.water;
+    for (let k = 0; k < ids.length; k++) {
+      const i = ids[k], x = P[i * 3], y = P[i * 3 + 1], z = P[i * 3 + 2];
+      const pv = F.prev.get(i);
+      let vx = pv && dt > 0 ? (x - pv[0]) / dt : 0, vy = pv && dt > 0 ? (y - pv[1]) / dt : 0, vz = pv && dt > 0 ? (z - pv[2]) / dt : 0;
+      // A TELEPORT IS NOT A SKID: a reset, a placement, a new aeroplane moves the node metres in a frame - that motion is
+      // no speed (no wheel goes 120 m/s on a strip), and the frame after it starts from the new place
+      if (vx * vx + vy * vy + vz * vz > 120 * 120) vx = vy = vz = 0;
+      if (pv) { pv[0] = x; pv[1] = y; pv[2] = z; } else F.prev.set(i, [x, y, z]);
+      const on = !airborneAll && (k < (refs.mains || []).length ? !!(WC.mains && WC.mains[k]) : !!WC.tw);
+      let R = 0.2; if (model && model.wheelParts) for (const w of model.wheelParts) if (w.idx === i && w.R > 0) { R = w.R; break; }
+      st.wheels.push({ key: k, x, y: groundH(x, z), z, vx, vy, vz, on, R, brake: sim.ctl ? Math.max(0, Math.min(1, +sim.ctl.brake || 0)) : 0 });
+    }
+    // the props: one disc a thrust node (the mean disc's wash - the solver's out.wash), the axis forward = -xAft
+    st.props.length = 0;
+    const out = sim.out || {}, ax = typeof sim.axes === 'function' ? sim.axes() : null;
+    if (ax && out.wash > 0 && refs.engine && refs.engine.length) {
+      const pp = def.params && (def.params.prop || (typeof POWERPLANTS !== 'undefined' && POWERPLANTS[def.params.powerplant] && POWERPLANTS[def.params.powerplant].prop));
+      const Rd = pp && pp.D > 0 ? pp.D / 2 : 0.9;
+      for (const e of refs.engine) st.props.push({ x: P[e * 3], y: P[e * 3 + 1], z: P[e * 3 + 2], ax: -ax[0][0], ay: -ax[0][1], az: -ax[0][2], R: Rd, wash: out.wash });
+    }
+    // the wing: the tips off the CG along the true right
+    const W = st.wing;
+    const span = def.params && def.params.gen && def.params.gen.span > 0 ? def.params.gen.span : 10;
+    W.span = span; W.W = (sim.totalM || 600) * 9.81; W.V = out.V || 0; W.rho = world && world.atmos && world.atmos.rho0 ? world.atmos.rho0 : 1.225;
+    if (ax && typeof sim.cgPos === 'function') { const c = sim.cgPos(), zr = ax[2], h = span / 2;
+      W.tips[0][0] = c[0] - zr[0] * h; W.tips[0][1] = c[1] - zr[1] * h; W.tips[0][2] = c[2] - zr[2] * h;
+      W.tips[1][0] = c[0] + zr[0] * h; W.tips[1][1] = c[1] + zr[1] * h; W.tips[1][2] = c[2] + zr[2] * h; }
+    else W.V = 0;
+    if (dt > 0) {
+      F.wetR.R = soilNow;   // the frame's one reading (soilFrame): the same water the pavement draws
+      DUST.sources(sys, st, F.env, dt);
+      DUST.step(sys, dt, F.env);
+    }
+    const alive = sys.P.live + sys.G.live;
+    if (!alive) { if (F.draw.mesh.visible) F.draw.mesh.visible = false; F.ms = performance.now() - t0; return; }
+    // lit by the world's own sun and sky (the key's direction, as the spray), the sunlit ground's bounce from below
+    const L = F.light;
+    if (WF && WF.sun && WF.hemi) { const sd = WF.KEY_SKY || WF.SUN_SKY || WF.sun.position; L.sun[0] = sd.x; L.sun[1] = sd.y; L.sun[2] = sd.z;
+      L.sunCol.copy(WF.sun.color).multiplyScalar(WF.sun.intensity); L.skyCol.copy(WF.hemi.color).multiplyScalar(WF.hemi.intensity);
+      L.gndCol.copy(WF.hemi.groundColor || WF.hemi.color).multiplyScalar(WF.hemi.intensity * 0.5); }
+    camera.updateMatrixWorld();
+    F.draw.sync(camera, L);
+    F.ms = performance.now() - t0;
+  }
+  if (typeof window !== 'undefined') window.DUST_FX = { get fx() { return dustFx; }, make: () => dustMake() };
   function syncFloats() {
     for (const m of floatMeshes) {
       const fx = m.userData.fx, F = fx.F, W = fx.out.W;
@@ -11403,9 +11539,8 @@
     if (!C2 || !P || typeof C2.cageResolve !== 'function') return null;
     const FS = (C2.CAGE_UNIT || 1) * (P.planeScale || 1);
     const R = C2.cageResolve(C2.cageSpec(Object.assign({}, P)));
-    const zOf = n => { const q = R.rings.find(x => x.name === n); const l = q && q.lv && (q.lv.waist || q.lv.keel); return l && isFinite(l.z) ? l.z * FS : null; };
-    const z = ['wsFront', 'wsAft', 'aeroWsA', 'ring'].map(zOf).find(v => v != null);
-    return z;
+    // (CESSNA-FINAL A1: through the cage's one home - the nose ring first when the nose section is body)
+    return typeof C2.cageFirewallZ === 'function' && typeof C2.cageNamedZ === 'function' ? C2.cageFirewallZ(C2.cageNamedZ(R, FS)) : null;
   }
   function frFrame() {
     if (!inGarage || !showCage || !edSit.visible) return null;
@@ -14906,6 +15041,8 @@
       if (!scarMesh && typeof GROUND_SCAR !== 'undefined' && scarPageOn()) { scarMesh = GROUND_SCAR.make(THREE); scene.add(scarMesh); }
       // G3770 (DMG-LOOKS): the model's tube pools, parked likewise (?dmglook=1 only; their slot textures allocated now)
       if (scarPageOn()) lookPools(false);
+      // DIRT-DUST: the dust's batch, parked likewise (hidden; its one program linked by the roll-out's compile)
+      if (!dustFx) dustMake();
     } catch (e) { console.warn('world settle:', e && e.message); }
     finally { camera.position.copy(keep); }
   }
@@ -20471,6 +20608,8 @@
     if (floatMeshes.length) { const ph = !inGarage; for (const m of floatMeshes) m.visible = ph; if (ph) syncFloats(); }
     if (sceneSample) FR.sceneDetail.lap(4);
     if (waterFx && !inGarage) syncWaterFx(running ? fdt : 0);   // (G586: the spray on the frame's own time)
+    if (!inGarage) soilFrame();                                    // DIRT-DUST: the soil's water (the pavement's puddles and the dust read it)
+    if (dustFx && !inGarage) syncDustFx(running ? fdt : 0);     // DIRT-DUST: the strip's dust, on the same time
     // THE INTERACTION FIELD (H7, G460.8): on while a floatplane is over water (the CG's water level finite),
     // stepped before the render with the CG as its centre; off (the slot cleared) otherwise
     // ...AND SOMETHING ELSE MAY ASK FOR IT (2026-09-22): a surfaced whale close to the eye sets

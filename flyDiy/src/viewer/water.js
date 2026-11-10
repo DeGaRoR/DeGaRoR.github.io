@@ -1676,9 +1676,11 @@ const WATER = (() => {
   // NIGHT-BRIGHT: the sheen, an exposed level (x P / the true exposure), in from dusk, none under an exposure of ~3 (the day's to the bit)
   // NIGHT-SHINE: the stretch, the hot points' cap (an exposed level), the far glint's fade, as judged in the hero; these and the lamps' streaks ride a DEEP-night ramp,
   // (the stretch SHIPS AT 0, the hero's was .1: on a calm lake seen from above at full night it smeared the stars' reflections into a curtain of bars - the user's call; 0 = no reads, no cap)
+  // (NIGHT-STRETCH, the user 9 Nov, after the 1 m / 2 m low-water stills of STAR-LOVE's dim stars: "yes try 0,03 ... Don't forget to turn these on by default" - ON at 0.03:
+  //  the far water's star reflections spread by the ripples a pixel cannot draw; .1 made every star a rain streak, 0 left them unmoved by the waves)
   // OFF SWITCHES, live (WATER.nightSea.<key> = 0 from the console or a rig): lamps 0 = no lamp streaks (the shader skips the loop), glintFar 0 = the far glint as master, stretch 0 = no stretch
   // log2(exposure) shine[0]..shine[1], later than the sheen's: the dusk's sun keeps its glitter path and its reflection as they were
-  const NIGHT_SEA = { k: 0.38, col: [0.25, 0.42, 1.0], flat: 0.7, stretch: 0, cap: 2.2, glintFar: 1, lamps: 1, shine: [7, 10.5] };   // (the user: "a tad too milky": 30 % of it rides the ripples' slopes; bluer)
+  const NIGHT_SEA = { k: 0.38, col: [0.25, 0.42, 1.0], flat: 0.7, stretch: 0.03, cap: 2.2, glintFar: 1, lamps: 1, shine: [7, 10.5] };   // (the user: "a tad too milky": 30 % of it rides the ripples' slopes; bluer)
   function frame(dt) {
     if (U && U.uWNight) {
       const Wn = typeof window !== 'undefined' ? window : {}, exN = (Wn.GFX && Wn.GFX.exposureBase && Wn.GFX.exposureBase()) || 1;

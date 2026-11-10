@@ -33,12 +33,23 @@ if (!SM) { console.log('FAIL STRIP_MICRO is not exported'); console.log('GATE MI
 // ---- 1. OFF IS OFF -------------------------------------------------------------------------------------------------
 const IN = require('./island_node.js');
 const FIX = JSON.parse(fs.readFileSync(path.join(T, 'fixtures', 'island_jolene.json'), 'utf8'));
-const withMicro = (id, micro) => { const J = JSON.parse(JSON.stringify(FIX)); const r = J.layers.runways.find(q => q.id === id); r.micro = micro; return J; };
+// THE SHIPPED RECORD IS BUMPY WHERE THE PILOT VETTED IT (DIRT-STRIP chaos-on: w3 0.20, w8 0.40, the user's 9 Nov; every other
+// strip flat, the mine strip above all): checked here, then every strip's micro taken out (FIX0) - the sections below judge
+// the field on w7 against the bare island, as before
 const world = J => IN.islandWorld('jolene', { premises: JSON.stringify(J) });
-const W0 = world(FIX);
+{
+  const VET = { w3: 0.2, w8: 0.4 };
+  const recs = FIX.layers.runways.filter(r => r.micro).map(r => r.id + ':' + r.micro.chaos).sort().join(', ');
+  world(FIX); const pub = [...SM.live.values()].flat().map(s => s.id).sort().join(', ');
+  const want = Object.keys(VET).sort().map(k => k + ':' + VET[k]).join(', ');
+  verdict(recs === want && pub === Object.keys(VET).sort().join(', '), `Jolene as shipped is bumpy on the Pilot-vetted strips only: ${recs || 'none'} in the record (want ${want}), ${pub || 'none'} published; the mine strip and the rest flat`);
+}
+const FIX0 = JSON.parse(JSON.stringify(FIX)); for (const r of FIX0.layers.runways) delete r.micro;
+const withMicro = (id, micro) => { const J = JSON.parse(JSON.stringify(FIX0)); const r = J.layers.runways.find(q => q.id === id); r.micro = micro; return J; };
+const W0 = world(FIX0);
 const A7 = W0.aerodromes.find(a => a.id === 'w7');
 const live0 = SM.live.size;
-verdict(live0 === 0, `Jolene as shipped publishes no micro strip (${live0})`);
+verdict(live0 === 0, `Jolene with every strip's micro taken out publishes none (${live0})`);
 const pts = [];
 { const d = [Math.cos(A7.hdg), Math.sin(A7.hdg)], n = [-d[1], d[0]];
   for (let i = 0; i < 3000; i++) { const u = (rng() - 0.5) * (A7.len + 60), v = (rng() - 0.5) * (A7.wid + 40); pts.push([A7.x + d[0] * u + n[0] * v, A7.z + d[1] * u + n[1] * v, u, v]); } }
@@ -67,7 +78,7 @@ const H0 = pts.map(p => W0.terrainH(p[0], p[1]));
   verdict(out === 0, `0 outside the strip's box (${out} of the outside points not 0)`);
   verdict(edge === 0, `on the last half metre inside an edge only the crown (0 at the edge itself): ${edge} points carry bumps`);
   verdict(over === 0, `never over its ceiling ${f8.bound.toFixed(3)} m (${over} over, ${nIn} inside)`);
-  const sd = c => { const f = SM.field(S, { chaos: c, crown: 0, rut: 0, holes: 0, seed: 1 }, 0); let a = 0, a2 = 0, k = 0;
+  const sd = c => { const f = SM.field(S, { chaos: c, crown: 0, rut: 0, holes: 0, hazards: 0, swell: 0, seed: 1 }, 0); let a = 0, a2 = 0, k = 0;
     for (let i = 0; i < 20000; i++) { const h = f.atUV(10 + rng() * 380, (rng() - 0.5) * 8); a += h; a2 += h * h; k++; } return Math.sqrt(a2 / k - (a / k) ** 2); };
   const s4 = sd(0.4), s8 = sd(0.8);
   verdict(s4 > 0.005 && s4 < 0.02 && s8 > 0.025 && s8 < 0.07, `ISO 8608 roughness: chaos 0.4 sd ${(s4 * 100).toFixed(2)} cm (class C 0.5-2), 0.8 sd ${(s8 * 100).toFixed(2)} cm (class E 2.5-7)`);
@@ -191,6 +202,54 @@ const W8 = world(withMicro('w7', MICRO8));
   const r0 = ribbon(0), r1 = ribbon(C.STRIP_MICRO.REFINE_MIN);
   console.log(`  the ribbon over w7 at chaos 0.8 (1020 x 9 m): rows as before ${r0.verts} vertices, drawn - wheels p50 ${(r0.p50 * 1000).toFixed(1)} p99 ${(r0.p99 * 1000).toFixed(1)} max ${(r0.max * 1000).toFixed(1)} mm; refined to ${C.STRIP_MICRO.REFINE_MIN} m ${r1.verts} vertices, p50 ${(r1.p50 * 1000).toFixed(1)} p99 ${(r1.p99 * 1000).toFixed(1)} max ${(r1.max * 1000).toFixed(1)} mm`);
   verdict(r1.p99 < 0.01 && r1.max < 0.03 && r1.verts < 250000, `the drawn ribbon is the wheels' ground: p99 ${(r1.p99 * 1000).toFixed(1)} mm (< 10), max ${(r1.max * 1000).toFixed(1)} mm (< 30), ${r1.verts} vertices (< 250 k)`);
+}
+
+// ---- 8. THE HAZARDS: avoidable, never across --------------------------------------------------------------------------
+{
+  let bad = [], n = 0, counts = [];
+  for (const c of [0.1, 0.3, 0.6, 0.9]) for (const [len, wid] of [[150, 12], [216, 8], [1020, 9], [543, 18]]) for (let seed = 0; seed < 6; seed++) {
+    const f = SM.field({ c: [0, 0], hdg: 0.4, len, wid }, { chaos: c, seed }, 0), hw = wid / 2;
+    counts.push(f.hazards.length);
+    for (const H of f.hazards) {
+      n++;
+      const side = Math.sign(H[1]), inner = Math.abs(H[1]) - H[2], outer = Math.abs(H[1]) + H[2];
+      if (inner < 0.3 - 1e-9 || outer > hw - 0.5 + 1e-9) bad.push(`len ${len} wid ${wid} chaos ${c}: |v| ${inner.toFixed(2)}..${outer.toFixed(2)}`);
+      if (H[0] - H[2] < SM.END_IN - 1e-9 || H[0] + H[2] > len - SM.END_IN + 1e-9) bad.push(`len ${len}: u ${H[0].toFixed(1)} R ${H[2].toFixed(2)} past the ends`);
+      // the clean line: on the other side, from the centreline to the edge taper, no hazard height at all
+      for (let k = 0; k <= 20; k++) { const v = -side * (hw - 0.5) * k / 20; for (let du = -H[2]; du <= H[2]; du += 0.25) { const q = f.atUV(H[0] + du, v); const qn = SM.field({ c: [0, 0], hdg: 0.4, len, wid }, { chaos: c, seed, hazards: 0 }, 0).atUV(H[0] + du, v); if (q !== qn) { bad.push(`clean side moved at u ${(H[0] + du).toFixed(1)} v ${v.toFixed(2)}`); k = 99; break; } } }
+    }
+  }
+  const byC = c => counts.slice({ 0.1: 0, 0.3: 24, 0.6: 48, 0.9: 72 }[c], { 0.1: 24, 0.3: 48, 0.6: 72, 0.9: 96 }[c]);
+  verdict(bad.length === 0 && n > 50, `${n} hazards over 4 chaos x 4 strips x 6 seeds: inside 0.3 m of the centreline to 0.5 m of the edge on ONE side, clear of the ends, the other half untouched${bad.length ? ': ' + bad.slice(0, 3).join(' | ') : ''}`);
+  verdict(byC(0.1).every(k => k === 0) && byC(0.3).every(k => k <= 1) && byC(0.9).some(k => k === 3), `how many: none at chaos 0.1, at most 1 at 0.3, 3 at 0.9 where they fit (${[0.1, 0.3, 0.6, 0.9].map(c => byC(c).join('')).join(' / ')})`);
+  // a hazard hole holds water
+  let wet = 0; for (let seed = 0; seed < 12; seed++) { const f = SM.field({ c: [0, 0], hdg: 0, len: 600, wid: 18 }, { chaos: 0.9, puddles: 1, holes: 0, seed }, 0); for (const H of f.hazards) if (H[3] < 0 && f.puddleAt(H[0] - 300, H[1], 0.9) > 0) wet++; }
+  verdict(wet > 0, `a hazard's hole holds water when the soil is wet (${wet} of the holes tried, no potholes on)`);
+}
+
+// ---- 9. THE SHADER READS THE SAME FIELD --------------------------------------------------------------------------------
+{
+  const PAV = require('../src/viewer/pavement.js'), G = PAV.GLSL.common + PAV.GLSL.map;
+  const need = ['0x27d4eb2du', '0x165667b1u', '0x2f6b4c13u', '0x2c1b3c6du', '0x297a2d39u', 'float(h >> 8u) / 16777216.0',
+    'pmH(i, m, sd + 11) >= uMicro.y', 'float R = 0.5 + 0.6 * pmH(i, m, sd + 12), hu = (float(i) + 0.15 + 0.7 * pmH(i, m, sd + 13)) * 6.0;',
+    'float lim = halfW - 2.5 - R;', 'pmH(i, m, sd + 14) < 0.667 ? (pmH(i, m, sd + 15) < 0.5 ? -1.0 : 1.0) * 1.098 + (pmH(i, m, sd + 16) - 0.5) * 2.0 * sig : (pmH(i, m, sd + 16) - 0.5) * 2.0 * lim;',
+    'float D = uMicro.z * (0.5 + 0.5 * pmH(i, m, sd + 17));', 'float R = 1.5 + 1.5 * pmH(j, 0, sd + 32);', 'r += swA * (0.7 * pmNoise(vec2(u, v) / 25.0, sd + 201) + 0.3 * pmNoise(vec2(u, v) / 12.0, sd + 202));', 'float room = halfW - 0.5 - 0.3 - 2.0 * R;',
+    'len * (0.05 + 0.9 * (float(j) + 0.2 + 0.6 * pmH(j, 0, sd + 31)) / uMicro2.y)', '(pmH(j, 0, sd + 35) < 0.5 ? -1.0 : 1.0) * (0.3 + R + max(0.0, room) * pmH(j, 0, sd + 36))',
+    'uMicro2.z * (0.7 + 0.3 * pmH(j, 0, sd + 34)) * (pmH(j, 0, sd + 33) < 0.6 ? 1.0 : -1.0)', 'r += uMicro2.x * sqrt(lam) * pmNoise(vec2(u, v) / lam, sd + 101 + k);',
+    'gMicH = pvHoles(u, -v, halfW, 2.0 * halfL, fillM);'];
+  const miss = need.filter(l => G.indexOf(l) < 0);
+  const src = fs.readFileSync(path.join(T, '..', 'src', 'core', '26b_strip_micro.js'), 'utf8');
+  const jsNeed = ['ih(i, m, seed + 11) >= pHole', 'const R = 0.5 + 0.6 * ih(i, m, seed + 12), u = (i + 0.15 + 0.7 * ih(i, m, seed + 13)) * CELL;', 'ih(i, m, seed + 14) < 0.667',
+    'holeD * (0.5 + 0.5 * ih(i, m, seed + 17))', 'let R = 1.5 + 1.5 * ih(j, 0, seed + 32);', 'r += swA * (0.7 * vnoise(u / 25, v / 25, seed + 201) + 0.3 * vnoise(u / 12, v / 12, seed + 202));', 'const room = halfW - 0.5 - 0.3 - 2 * R;', 'len * (0.05 + 0.9 * (j + 0.2 + 0.6 * ih(j, 0, seed + 31)) / K.hazards)',
+    'side * (0.3 + R + Math.max(0, room) * ih(j, 0, seed + 36))', 'K.hazardSize / 100 * (0.7 + 0.3 * ih(j, 0, seed + 34)) * (ih(j, 0, seed + 33) < 0.6 ? 1 : -1)', 'amp[k] * vnoise(u / OCT[k], v / OCT[k], seed + 101 + k)'];
+  const jmiss = jsNeed.filter(l => src.indexOf(l) < 0);
+  verdict(!miss.length && !jmiss.length, `the shader's holes, hazards and relief are the field's, line for line (${need.length} GLSL lines, ${jsNeed.length} JS lines${miss.length ? '; GLSL MISSING ' + miss[0] : ''}${jmiss.length ? '; JS MISSING ' + jmiss[0] : ''}), on the field's v (the ribbon's flipped)`);
+  // the ribbon's v is the field's flipped: a world point's pavement (u, v) against the field's toUV
+  const g = PAV.stripGeometry(require('../vendor/three.min.js'), { len: A7.len, wid: A7.wid, hdg: A7.hdg, cx: A7.x, cz: A7.z, shoulderW: 3, cls: 'dirt', seed: 1, heightAt: () => 0, lift: 0, resU: 30, resV: 2 });
+  const L = [...SM.live.values()].flat().find(s => s.id === 'w7');
+  let flip = 0, nn = 0; const pos = g.attributes.position.array, pav = g.attributes.aPav.array;
+  if (L) for (let i = 0; i < pav.length / 4; i += 7) { const q = L.toLocal(pos[i * 3], pos[i * 3 + 2]), uv = L.f.toUV(q[0], q[1]); nn++; if (Math.abs(uv[0] - pav[i * 4]) > 0.01 || Math.abs(uv[1] + pav[i * 4 + 1]) > 0.01) flip++; }
+  verdict(L && nn > 20 && flip === 0, `the ribbon's (u, v) is the field's (u, -v) at ${nn} vertices of w7 (${flip} off by more than 1 cm)`);
 }
 console.log(fails ? 'GATE MICRO: FAIL' : 'GATE MICRO: PASS');
 process.exitCode = fails ? 1 : 0;

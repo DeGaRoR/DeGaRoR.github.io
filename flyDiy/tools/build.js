@@ -48,6 +48,9 @@ const MANIFEST = {
     // src/weather/days/) and the pure evaluator 07_day lays over its declared spec when the spec names a `plan` (07d).
     // After the day (it reads DAY.usDst, SOLAR) and in the main core: the physics worker evaluates the same plan.
     '07c_weather_days.js', '07d_weather_plan.js',
+    // THE SOIL'S WETNESS (DIRT-DUST, 2026-11-09): the plan's rain over the last 96 h as the top soil's water - the dust
+    // and the strip's puddles read it; pure, after the plan it integrates.
+    '07e_soil_wet.js',
     '08_cloud_field.js',
     // THE CLIMATE (K0, 2026-09-22): the one wind field w(x,y,z,t) - the G72
     // legacy column moved in verbatim, the rich terms, the relief raster;
@@ -576,6 +579,7 @@ const MANIFEST = {
               'guardrail.js',   // the W-beam beside a road (2026-09-22): the rule, the geometry, the one steel material
               // water.js before render_world.js (G460): the world takes the one water material as it builds its sea
               'water.js', 'spray.js',   // the spray sprites (H7.1, G460.9): app.js's syncWaterFx draws through it
+              'dust.js',   // DIRT-DUST (2026-11-09): the strip's dust - the system, its sources and its batch; app.js's syncDustFx feeds it
               'trees_pack.js', 'trees.js', 'cover_ring.js', 'ground_scar.js', 'stand_cards.js', 'rock_map.js', 'cliffs.js', 'render_world.js',
               'hangar_floor.js', 'hangar_walls.js',
               'hangar_sky.js', 'props.js', 'wood_tex.js', 'skin_tex.js',
@@ -908,6 +912,21 @@ function fill(tpl, slot, blob) {
   }
   return tpl.replace(marker, () => blob);
 }
+// WINGSMITH (9 Nov): the game's player-facing name is GAME_NAMES.game (src/core/01_names.js, the one source); the page's
+// <title> and the loading screen's brand carry __GAME_NAME__, filled here (HTML-escaped), every one of them, or no build
+const GAME_NAME_MARK = '__GAME_NAME__';
+let gameNameMemo = null;
+function gameName() {
+  if (gameNameMemo) return gameNameMemo;
+  const n = new Function(read(path.join(CORE_DIR, '01_names.js')) + '\n;return typeof GAME_NAMES !== "undefined" && GAME_NAMES.game;')();
+  if (typeof n !== 'string' || !n.trim()) { console.error('BUILD FAIL: GAME_NAMES.game is not set (src/core/01_names.js)'); process.exit(1); }
+  return (gameNameMemo = n);
+}
+function fillGameName(tpl, name) {
+  if (!tpl.includes(GAME_NAME_MARK)) { console.error(`BUILD FAIL: ${name} carries no ${GAME_NAME_MARK}`); process.exit(1); }
+  const v = gameName().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  return tpl.split(GAME_NAME_MARK).join(v);
+}
 
 function buildCore() {
   const parts = MANIFEST.core.map(f => read(path.join(CORE_DIR, f)));
@@ -989,7 +1008,7 @@ function buildViewer(core) {
     console.log('src/viewer/shell.html not present — core-only build.');
     return [];
   }
-  const shell = read(shellPath);
+  const shell = fillGameName(read(shellPath), V.shell);
   const css = V.styles.map(f => read(path.join(VIEW_DIR, f))).join('\n');
   const bootJs = read(path.join(VIEW_DIR, V.boot));
   syntaxCheck(V.boot, bootJs);
@@ -1006,7 +1025,7 @@ function buildViewer(core) {
     const img = i === 0 ? `src="${r.src}" fetchpriority="high"` : `data-src="${r.src}"`;
     return `<figure class="bs" data-set="${set}"${r.txt ? ` data-txt="${esc(r.txt)}"` : ''}><img ${img} alt="" decoding="async"><figcaption>${esc(r.cap)}</figcaption></figure>`;
   }).join('\n');
-  let bodyHtml = read(path.join(VIEW_DIR, V.body));
+  let bodyHtml = fillGameName(read(path.join(VIEW_DIR, V.body)), V.body);
   bodyHtml = fill(bodyHtml, 'SHOTS', figures);
   const cardsPath = path.join(VIEW_DIR, V.bootCards);
   const cardsJs = fs.existsSync(cardsPath) ? read(cardsPath) : '';

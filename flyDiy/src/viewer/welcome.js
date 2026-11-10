@@ -288,7 +288,7 @@
         if (u.indexOf(BACKDROP) >= 0) { o.style.backgroundImage = 'linear-gradient(rgba(20,18,15,.58), rgba(20,18,15,.72)), url("' + u + '")'; break; } }
     } catch (e) {}
     const card = el('div', 'wcard'); o.appendChild(card);
-    card.appendChild(el('div', 'wbrand', 'flyDiy'));
+    card.appendChild(el('div', 'wbrand', ((typeof GAME_NAMES !== 'undefined' && GAME_NAMES.game) || 'the game')));   // WINGSMITH: the game's name (01_names.js)
     (W.document.body || W.document.documentElement).appendChild(o);
     return { o, card };
   };
@@ -352,7 +352,7 @@
   // (PHONE-NO-GATE, the user 3 Nov - the "Build on this phone" choice and its card are gone)
   const showGate = (env, d) => new Promise(res => {
     const { card } = open();
-    card.appendChild(el('h1', null, 'flyDiy needs WebGL2'));
+    card.appendChild(el('h1', null, ((typeof GAME_NAMES !== 'undefined' && GAME_NAMES.game) || 'the game') + ' needs WebGL2'));
     card.appendChild(el('p', null, 'This browser has no WebGL2, which the game draws with. A recent Chrome, Edge, Firefox or Safari has it, on a computer or a phone.'));
     facts(card, env, d);
     const foot = el('div', 'wfoot');

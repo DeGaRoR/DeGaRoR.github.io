@@ -45,7 +45,8 @@ const freePort = () => new Promise((res, rej) => { const s = net.createServer();
   const save = (name, url) => { fs.writeFileSync(path.join(OUT, name), Buffer.from(url.split(',')[1], 'base64')); return name; };
   try {
     for (const k of which) {
-      const j = JSON.parse(fs.readFileSync(path.join(ROOT, BUILDS[k]), 'utf8')), spec = j.spec || j;
+      // G2818 (MASTER-GREEN, GATE JOINPARITY's census): the build as the game flies it (tools/_load_build.js; FLYDIY_RAW_BUILDS=1 as written)
+      const j = JSON.parse(fs.readFileSync(path.join(ROOT, BUILDS[k]), 'utf8')), spec = process.env.FLYDIY_RAW_BUILDS === '1' ? (j.spec || j) : require('./_load_build.js').loadBuild(BUILDS[k]).spec;
       const R = report.builds[k] = { build: BUILDS[k] };
       // 1. the reference: the same build with the module removed, the programs compiled for each preset
       const ref = await open('?noscuff', spec);

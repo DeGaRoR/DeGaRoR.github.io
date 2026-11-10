@@ -19,6 +19,12 @@
 // Pure data and one lookup: no DOM, no THREE, no storage.
 // ===========================================================================
 var GAME_NAMES = {
+  // ---- the game itself (WINGSMITH, the user 9 Nov: "Wingsmith is the name of the game instead of flyDiy"; a placeholder in
+  // plain text, no logo or typeface yet - every place a player reads the game's name reads THIS, so a logo swaps in once:
+  // the page title and the loading screen (tools/build.js fills their name mark), the welcome card, the Back box, the build
+  // import, the clean download, the self-test, the AIRWORTHY sticker, the fiche's signature; the manifest's name is checked
+  // against it, GATE WINGSMITH). The repo, its folder, URLs, files, storage keys and save formats keep "flydiy") ----
+  game:     'Wingsmith',
   // ---- the island and its places (shown in the briefs, the plot words, the cards, the map) ----
   island:   'Jolene',                         // the island (was Annette)
   town:     'Cedar Harbour',                  // the town on the west shore (was Metlakatla)
@@ -32,12 +38,19 @@ var GAME_NAMES = {
   fields: {
     HOME:     'Jolene AFB 13/31',
     w2:       'Jolene AFB 02/20',
-    w3:       'Ridgeback Strip',              // (was Tamgas Hill Strip)
+    w3:       'Fishing Village Strip',        // (the user, 9 Nov: was Ridgeback Strip, was Tamgas Hill Strip)
     SEA:      'Greywater Dock',               // (was Annette Dock)
     mk_sea:   'Cedar Harbour Seaplane Base',  // (was Metlakatla Seaplane Base)
     mn_strip: 'Copperhead Mine Street',       // (was Jumbo Mine Street)
     nv_strip: 'East Point Clearing',
     tw_ski:   'Skyline Altiport',
+    // (DIRT-STRIP, the user 9 Nov on the strip map: the unnamed strips named - by where they are)
+    w4:       'Mountainside Strip',           // high in the mountains, 21 % (was strip 9)
+    w5:       'Cannery Runway',               // by the buildings on the south bay (was strip 10)
+    w6:       'Old Community Runway',         // (was strip 11)
+    w7:       'New Community Runway',         // the 1 km one (was strip 12)
+    w8:       'Hiking Strip',                 // in a little valley east of the Cabin Strip (was strip 13)
+    w1:       'Cabin Strip',
     cb_sea:   'Cabin Lake',                   // (CABIN-LAKE 26 Oct: the seaplane lane in front of the Cabin Strip, by the user's piers)
   },
 };
