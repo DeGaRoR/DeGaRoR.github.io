@@ -70,7 +70,11 @@ const GEN_DRIVE = {
   // GRAVEL, SAND) - 10 cm on the soft ground (grass, the forest floor, sand), 5 cm on the loose (scree, gravel), 1 cm on
   // the hard (rock, paved); the water has its own test (none); off the map's surfaces (-1) the grass's (`turf`)
   turfS: [0.10, 0.01, 0.05, 0.10, 0, 0.01, 0.05, 0.10],
-  strike: { turf: 0.10, brush: 0.04, stop: { soft: 0.15, water: 0.25, rigid: 0.04 }, sep: { wood: 120, maple: 120, walnut: 120, carbon: 120, alu: 200 },
+  // TAXI-STRIKE (9 Nov, Deform's 172 diag: full power, the nose pushed down at 3.5 m/s on HOME's runway - the disc bit the
+  // paving, graded a 'soft' separation (tip 236 > 200 m/s, bite under 15 % R), and the engine ran on at 2370 rpm into the
+  // runway until the mount tore off): 'hard' is the ground the turf table calls hard (rock, paving) - past the brush the
+  // prop STOPS there, as on a trunk (Lycoming SB 533: a strike at power on a hard surface is a sudden stoppage)
+  strike: { turf: 0.10, brush: 0.04, stop: { soft: 0.15, water: 0.25, rigid: 0.04, hard: 0.04 }, sep: { wood: 120, maple: 120, walnut: 120, carbon: 120, alu: 200 },
             sepWater: 1.6,   // the water gives more than the soil: a blade breaks there only past 1.6 x its tip speed (an
                              // ordinary bow-in at 0.2 throttle dipped the twin's carbon tips 4.6 % of R at 128 m/s)
             bentK: 0.6, vib: { brush: 0.1, bent: 0.6, stoppage: 0, separation: 1 },
@@ -159,7 +163,7 @@ function genDriveOverspeed(st, ratio, dt) {
   if (lvl >= 2) st.teardown = true;
   return failed;
 }
-// THE STRIKE'S TIER from the bite (m), the disc's radius, the surface ('soft' | 'water' | 'rigid') and the tip speed at
+// THE STRIKE'S TIER from the bite (m), the disc's radius, the surface ('soft' | 'hard' | 'water' | 'rigid') and the tip speed at
 // contact (m/s) against the blade's own (genDriveSpec sepTip): 1 brush, 2 bent, 3 stoppage, 4 separation
 const GEN_DRIVE_STRIKE = [null, 'brush', 'bent', 'stoppage', 'separation'];
 // (G2036: `eR` the turning prop's energy over a brittle blade's rupture work, 0.5 I w^2 / Ub - given for a brittle blade on
@@ -169,6 +173,9 @@ function genDriveTurf(s) {
   const T = GEN_DRIVE.turfS;
   return s >= 0 && s < T.length ? T[s] : GEN_DRIVE.strike.turf;
 }
+// TAXI-STRIKE: the strike's surface on a surface code - 'hard' where the turf table gives the hard ground's allowance
+// (rock, paving: 1 cm), else 'soft'
+function genDriveGround(s) { return s >= 0 && s < GEN_DRIVE.turfS.length && GEN_DRIVE.turfS[s] > 0 && GEN_DRIVE.turfS[s] <= 0.01 ? 'hard' : 'soft'; }
 
 function genDriveStrikeTier(bite, R, surf, tip, sepTip, eR) {
   const S = GEN_DRIVE.strike, r = bite / (R || 1);
