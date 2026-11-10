@@ -315107,3 +315107,18 @@ Measured on the ribbon itself (w7, chaos 0.8, 2721 x 104 = 282 984 vertices) ove
 **The re-pin:** section 7 draws from its own rng (seed 70707), and the worst is bounded at < 40 mm. p99 < 10 mm, the ribbon's
 measure, is unchanged, and so is the geometry: this loosens the gate, it fixes nothing. Tightening it back means finer rows or
 softer rut walls, at the vertex cost named in "A NAMED COST: THE BUMPY STRIP'S RIBBON".
+
+
+## DIRT-STRIP - TWO GATES MEASURE WHAT THEY MEAN, AND THE 5 cm ROWS ARE PAID (10 Nov 2026, claude/dirt-strip-vet-2)
+
+**GATE TERRAINMATCH measures a bumpy strip's ribbon against terrainH - stoneH.** The wheels' ground (world.terrainH) carries
+every strip stone's body (27_premises stonesAt, exact, not the raster). The ribbon draws the ground WITHOUT them: the stones are
+the rock pack's meshes standing on it (render_world standRocks), so the ribbon's own law is terrainH - stoneH (world.stoneH; 0
+off a stone, and on every island without a bumpy strip). Against terrainH the w3 / w8 strips read p95 5.9 / 7.3 mm (the 13:24
+slot): the stones' heights, not a gap in the ground. Its crease test reads the same law (tools/terrain_match.js groundH).
+**GATE SCENERYED 15 compares an entry with its keys sorted.** Key order is not meaning: a manifest field patch the save's entry
+lacks (w3 / w8's micro, scenery_ship_afb19.json fieldPatches) lands last in it and in its own place in the shipped entry - the
+same entry, spelt in another order. (Areas were already compared this way, sk.)
+**The cost, now paid (A0 OK, 10 Nov ~13:55):** the 5 cm rows across a rut's wall (REFINE_MIN_V 0.05, the named cost of 9 Nov, then
+"nothing paid today") are drawn on w3 and w8, bumpy since L37a: TERRAINMATCH's potato HOME-taxi count 1 218 494 -> 1 226 310
+(+7 816 triangles, +0.64 %); BUMPS 5 624 -> 13 440.
