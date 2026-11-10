@@ -314003,3 +314003,13 @@ THE READIES (their own pre-gates):
 - wingsmith-name a8792c14f (Game): the game's name Wingsmith in ONE string (GAME_NAMES.game), placeholder, saves/PWA id unchanged; GATE WINGSMITH new.
 - pilot-notch-2 c47e15aef (Pilot), 15 fresh commits (the revert trap respected): the notch, FLARE-NOPUSH, G2815, the G2816 cap + G2816b (no cap on a short field, xwFlapK 0.15), POD/ENGCONFIG pins, the census, TANK-SPLIT, the PILOTMATRIX baseline, the STOL check + re-capture (rule b: the stock Cub lands on its notch, 67.2 vs 64.0 km/h, so the slower approach is asked at 0.96x Vref), HANDOVER. Proof: the user's Cub HOME > w3 > tw_ski ok (touchdown -0.09 m/s, run 68 m) against L36a's ground loop; x2 ok, x4 15 deg as before. PASS TOUR 0/1/3, PILOTMATRIX, PILOT 0-2, ROUTE 0-2, PROFILE, PLAN, TAKEOFF, LINEUP, POD, CESSNAVREF. Reds as master: TOUR 2 (the float Cessna), ENGCONFIG's quad + cards; the branch clears master's 9 identity FAILs. NODE-ACCEPT: Cub PASS (not in this ready).
 - petrel-draw 656c847cf (SEAPLANES): no physics hull on a cage build (app.js buildFloatMeshes). The Petrel draws whole near and far; the validated float planes are unchanged by construction (floatRigs 12, 0 physics hulls); FLOATS, HYDRODYN, SEAPLANE, FLOATDUP PASS.
+
+## DIRT-MATTE (10 Nov, the user: "the dirt is still too shiny ... flat when viewed in low angle with the sun")
+- aeroweather.js: the dirt's matte rides sqrt(cover) (wxMat), not the cover; a dirt-only cover `aeroWxDirt` (chips taken out:
+  bare alloy keeps its sparkle) takes the clear coat down by sqrt too and roughens what is left (ccRough 0.50 -> 0.85), and
+  the base lobe's grazing Fresnel (specularF90 -> 0.15) and half its head-on specular go with it, Standard and Physical
+  alike. Constants of the dirt: no uniform, no program variant. GATE WEATHER holds each line (+5 checks, +4 probes).
+- Measured (three's DFG approx, a painted panel under a 0.25 clear coat, sky = 1): at 84 deg cover 0.5 0.269 -> 0.034;
+  clean paint unchanged. Stills (black studio, key held at 7 deg): the dirty Cub's glare patch gone (px > 200: 2823 -> 290);
+  the Twin Busher's change needs a sky to show (the env term) - flydiy-notes/evidence-2026-10-18/dirt-matte-2026-11-10.
+- Not done: metalness still falls linearly with cover (a dirty BARE metal keeps more metal than its dirt reads).
