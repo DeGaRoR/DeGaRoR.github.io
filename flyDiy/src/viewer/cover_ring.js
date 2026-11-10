@@ -148,7 +148,7 @@ var COVER_RING = (() => {
   const FIELD_SPECIES = ['grass_reed'];
   // THE ROOT GRADIENT (G2571, trees.js ROOT_FS): one uniform for the reed's material, whichever ring plants it - the field's
   // `root` / `rootH` write it each frame (x strength, y the height share, z the tufts' top in the model's units); 0 = today's
-  const ROOT_U = { value: (typeof THREE !== 'undefined' && THREE.Vector4) ? new THREE.Vector4(0.6, 0.5, 100, 0) : { x: 0.6, y: 0.5, z: 100, w: 0, set() {} } };   // the field is grass_reed: MID
+  const ROOT_U = { value: (typeof THREE !== 'undefined' && THREE.Vector4) ? new THREE.Vector4(0.6, 0.8, 100, 0) : { x: 0.6, y: 0.8, z: 100, w: 0, set() {} } };   // the field is grass_reed: MID
   // THE ROOT ON EVERY SMALL PLANT (VEG-ROOT, LOOK-1 9 Nov; the user: "apply it to every single grass in the game ... even the
   // bushes ... even the flowers", NOT the trees - they never take the ring's fade): ONE ROW PER KIND, [strength, the share of
   // the plant's height it fades out by], a collection's own `place.root` / `place.rootH` wins; one vec4 per species, z its top
@@ -157,7 +157,7 @@ var COVER_RING = (() => {
   // THREE LEVELS (the user, 10 Nov ~21:30): LOW for every grass and flower (a little under the first day's 0.6), MID the first day's
   // value, HIGH the strong one; HIGH on the dead grass and the three flowers that read too bright (fireweed, bunchberry, foam flower),
   // MID on the grasses in the medium tones. Bushes: none (the 17:00 verdict). [strength, the share of the height it fades out by]
-  const ROOT_LEVEL = { low: [0.5, 0.5], mid: [0.6, 0.5], high: [0.95, 1.3] };
+  const ROOT_LEVEL = { low: [0.5, 0.7], mid: [0.6, 0.8], high: [0.95, 1.3] };   // (22:20, the user: the fade over half the height was what read too light - LOW fades out at 70 %, MID at 80 %, the darkness kept)
   const ROOT_SPECIES = { grass_dry: 'high', flower_fireweed: 'high', flower_bunchberry: 'high', flower_foam: 'high', grass_scan: 'mid', grass_plates: 'mid', grass_reed: 'mid' };
   const ROOT_KIND = { cover: ROOT_LEVEL.low, flower: ROOT_LEVEL.low };
   const ROOT_SP = new Map();
@@ -252,7 +252,7 @@ var COVER_RING = (() => {
           aglPre: 150, preBudgetMs: 2, lead: 4, grow: 0.8, growNear: 60,
           // (G2567, the box 11 Oct 11:03 TIMED, cost3/: 2 tuft shapes + the size fade capped at 1.0 + 70 tufts / m2 - the forest view
           // 2.57 -> 2.23 ms, app10 4.21 -> 2.07, app30 3.85 -> 1.03 on gamer, every view under train 43's; draws +6..+9)
-          root: 0.6, rootH: 0.5,   // (VEG-ROOT 10 Nov ~21:30: the field is grass_reed, MID) G2571: the root gradient's strength (0 = none) and the share of the tuft's height it fades out by (VEG-ROOT 9 Nov: on, the cover's row)
+          root: 0.6, rootH: 0.8,   // (VEG-ROOT 10 Nov ~21:30: the field is grass_reed, MID; 22:20 its fade to 80 %) G2571: the root gradient's strength (0 = none) and the share of the tuft's height it fades out by (VEG-ROOT 9 Nov: on, the cover's row)
           lakeMargin: 0.03,      // G2572: how far ABOVE a lake's water the ground must stand for a tuft (m; render_world okAt; the sea keeps 0.3)
           tufts: 70, cards: 3, variants: 2, block: 2, sizeFade: 1, sizeMax: 1, hRef: 0.3, blotch: 0.05, clumpM: 4, clumpAmp: 0.3, hK: 1, sigmaK: 1, tier: 1, trunc: 1,
           colour: 1, match: 1, vary: 0.05, cutH: 0.08, cutSigma: 0.1, cutDens: 1.2, stripH: 0.07, stripDens: 1 }
