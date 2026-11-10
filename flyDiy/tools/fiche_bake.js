@@ -9,8 +9,15 @@
 // keyed by the list's picture key (design:cub, list:5, cand:<file>, stock:<name>) - the key fiche_board.js and the All planes
 // screen ask by. The fiche's name is the list's. A plane that fails keeps its old fiche (nothing pruned after a miss).
 //
-//   node tools/fiche_bake.js --gpu [--secs 900] [--only <key,key>] [--keep <dir>]   (a box run: one Chrome, the graphics card)
+//   node tools/fiche_bake.js --gpu [--secs 900] [--only <key,key>] [--keep <dir>] [--hydro-secs 150]   (a box run: one Chrome, the graphics card)
 //   node tools/fiche_bake.js --dry                                                  the list and the files, no browser
+//
+// A SEAPLANE'S TAKE-OFF (FICHE-WATER, 10 Nov): a float build's fiche prints the hydroplane test's lift-off, never the land
+// estimate (plane_fiche.js numbers: data.sea, specs.TORun = results.hydro.lift.dist, else specs.TOWater). So before its fiche
+// draws, the probe runs the bench's own Hydroplane row (window.BENCH_RUN('hydro'): computed, no card) and waits for it to
+// settle (HYDRO_MS). The row is offered only for a build with floats (bench.js 'hydro' when: api.hasFloats), so BENCH_RUN
+// returns false on a land build and touches nothing: a land plane bakes exactly as before. A run still going at HYDRO_MS
+// leaves the fiche on "see the hydroplane test". The bake's line names each run (hydro: lift-off m / verdict / none).
 'use strict';
 const fs = require('fs'), path = require('path'), os = require('os'), { spawnSync } = require('child_process');
 const FLY = path.join(__dirname, '..'), OUT = path.join(FLY, 'media', 'fiches');
@@ -23,15 +30,26 @@ const safe = k => k.replace(/[^\w.-]+/g, '_');
 if (flag('dry')) { for (const r of rows) console.log(r.thumb.padEnd(40), r.name.padEnd(28), r.file); process.exit(0); }
 const keep = opt('keep', null), work = keep || fs.mkdtempSync(path.join(os.tmpdir(), 'fiche_bake_'));
 fs.mkdirSync(work, { recursive: true });
+const HYDRO_MS = 1000 * +opt('hydro-secs', '150');   // the hydroplane run's wait inside one plane's probe (its --probe-secs is 300)
 // the probe: the plane on the stand, its fiche drawn (no store), its pictures and numbers handed back
 const PROBE = `(async () => {
   const P = window.PLANE_FICHE; if (!P) return { error: 'no PLANE_FICHE' };
   try { if (window.NEW_PLANE && NEW_PLANE.isOpen()) NEW_PLANE.close(); } catch (e) {}
   const t0 = performance.now();
+  // FICHE-WATER: the hydroplane test first - a float build only (BENCH_RUN is false where the row is not offered)
+  let hydro = null;
+  const hy = () => { try { const B = window.BENCH_STATE && window.BENCH_STATE(); return (B && B.results && B.results.hydro) || null; } catch (e) { return null; } };
+  if (typeof window.BENCH_RUN === 'function' && window.BENCH_RUN('hydro')) {
+    const t1 = performance.now();
+    while (performance.now() - t1 < ${HYDRO_MS}) { const h = hy(); if (h && !h.running) break; await new Promise(r => setTimeout(r, 250)); }
+    const h = hy();
+    hydro = { ms: Math.round(performance.now() - t1), done: !!(h && !h.running), ok: !!(h && h.ok), verdict: h ? String(h.verdict || h.running || '') : 'no result',
+              lift: (h && h.lift) || null };
+  }
   const rec = await P.generate({ name: 'bake', store: false });
   const b64 = b => new Promise(res => { const fr = new FileReader(); fr.onload = () => res(String(fr.result).split(',')[1]); fr.readAsDataURL(b); });
   const files = {}; for (const [k, b] of Object.entries(rec.pics)) files[k] = await b64(b);
-  return { ms: Math.round(performance.now() - t0), time: P.lastTime, data: rec.data, files };
+  return { ms: Math.round(performance.now() - t0), time: P.lastTime, data: rec.data, files, hydro };
 })()`;
 const probeFile = path.join(work, 'fiche_probe.js'); fs.writeFileSync(probeFile, PROBE);
 const builds = rows.map(r => path.join(FLY, r.file));
@@ -57,7 +75,10 @@ for (const r of rows) {
   let file = ''; try { file = JSON.parse(fs.readFileSync(path.join(FLY, r.file), 'utf8')).name || ''; } catch (e) {}
   index.fiches[r.thumb] = { name: r.name, file, data, pics };
   done++;
-  console.log('fiche_bake:', r.thumb, r.name, v.ms + ' ms', Object.keys(pics).join(','), 'worst task ' + JSON.stringify(v.time && v.time.worst));
+  console.log('fiche_bake:', r.thumb, r.name, v.ms + ' ms', Object.keys(pics).join(','), 'worst task ' + JSON.stringify(v.time && v.time.worst),
+    'hydro: ' + (!v.hydro ? 'none' : !v.hydro.done ? 'unsettled after ' + v.hydro.ms + ' ms (the fiche says see the hydroplane test)'
+      : v.hydro.lift ? 'lift-off ' + Math.round(v.hydro.lift.dist) + ' m in ' + v.hydro.ms + ' ms' : v.hydro.verdict + ' (' + v.hydro.ms + ' ms)'),
+    'take-off row: ' + JSON.stringify(v.data && v.data.specs ? (v.data.specs.TOWater ? 'on water: ' + v.data.specs.TOWater : v.data.specs.TORun) : null));
 }
 { const n = {}; for (const e of Object.values(index.fiches)) if (e.file) n[e.file] = (n[e.file] || 0) + 1;   // a name two files share ("build") names neither
   for (const e of Object.values(index.fiches)) if (e.file && n[e.file] > 1) e.file = ''; }
