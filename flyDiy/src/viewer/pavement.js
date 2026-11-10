@@ -1706,11 +1706,28 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
       // (10 Nov 03:50 stills: the first trail read as a white road of many streaks with a dashed tail-wheel line) - only the
       // MAIN lanes (the fainter passes and the tail wheel stay under the threshold), and the gravel at the ground's own
       // brightness, grey-brown: the set's detail scaled to the luminance under it
-      float trail = smoothstep(0.5, 0.8, clamp(rut * 1.3 + wheel + tread * 0.6, 0.0, 1.0) + 0.35 * (edgeN - 0.5));
-      if (trail > 0.004) { Smp g = pvSet(1, uvS); const vec3 LW = vec3(0.2126, 0.7152, 0.0722);
-        vec3 grit = g.c.rgb * (dot(col, LW) / max(dot(g.c.rgb, LW), 0.02)) * vec3(1.06, 0.98, 0.86) * (0.9 + 0.2 * edgeN);
-        col = mix(col, grit, trail); nT = mix(nT, g.n.xyz, trail); rough = mix(rough, g.n.a, trail); }
-      gPavA = mix(gPavA, trail * gPavA, uMacro.w);
+      // (10 Nov, the user: "the ruts don't blend in nicely and they lack detail, readability and individuality") ALONG the strip the
+      // worn lanes widen and narrow (a 45 m and a 140 m noise), run together into one bare patch where both are high (a turning
+      // spot), go grassed-over for short stretches (a 9 m noise); ACROSS, a band of dark bare soil (the plants worn off) round the
+      // packed gravel, so a track fades into the tundra instead of ending on a cut line; IN it small stones (2-5 cm, 0.22 m cells)
+      float wv = pvNoise(vec2(u / 45.0, seed + 21.0)) * 0.65 + pvNoise(vec2(u / 140.0, seed + 23.0)) * 0.35;
+      float gap = smoothstep(0.62, 0.8, pvNoise(vec2(u / 9.0, seed + 29.0)));
+      float merge = smoothstep(0.62, 0.82, wv) * exp(-v * v / 3.2);
+      float trS = clamp(rut * 1.3 + wheel + tread * 0.6, 0.0, 1.0) + 0.45 * (wv - 0.5) + 0.6 * merge - 0.35 * gap + 0.35 * (edgeN - 0.5);
+      float soil = smoothstep(0.3, 0.58, trS), trail = smoothstep(0.55, 0.85, trS);
+      if (soil > 0.004) { const vec3 LW = vec3(0.2126, 0.7152, 0.0722); float lum = dot(col, LW);
+        Smp f = pvSet(4, uvS); float sk = soil * (1.0 - trail);
+        vec3 dirt = f.c.rgb * (lum / max(dot(f.c.rgb, LW), 0.02)) * vec3(0.9, 0.8, 0.66) * 0.8;   // bare soil: the ground's brightness, browner, darker
+        col = mix(col, dirt, sk); nT = mix(nT, f.n.xyz, sk * 0.7); rough = mix(rough, f.n.a, sk);
+        Smp g = pvSet(1, uvS);
+        vec3 grit = g.c.rgb * (lum / max(dot(g.c.rgb, LW), 0.02)) * vec3(1.06, 0.98, 0.86) * (0.85 + 0.3 * edgeN);
+        col = mix(col, grit, trail); nT = mix(nT, g.n.xyz, trail); rough = mix(rough, g.n.a, trail);
+        vec2 pc = floor(uvS / 0.22), ph = pvHash2(pc + seed * 3.1);
+        if (ph.x < 0.4 * trail) { vec2 pq = (pc + 0.25 + 0.5 * pvHash2(pc + seed * 5.7 + 11.0)) * 0.22 - uvS; float pr = 0.01 + 0.015 * ph.y;
+          float pbV = (1.0 - smoothstep(0.7 * pr, pr, length(pq * vec2(1.0, 1.0 + 0.6 * ph.y)))) * smoothstep(0.5, 1.5, pr / max(fwidth(uvS.x), 1e-4));
+          col = mix(col, vec3(0.3, 0.285, 0.26) * (0.7 + 0.6 * ph.x / 0.4) * min(lum / 0.18, 1.6), pbV * 0.9); }
+      }
+      gPavA = mix(gPavA, soil * gPavA, uMacro.w);
     }
     diffuseColor.rgb = col; diffuseColor.a = gPavA;
     gPavDbg = uPavDbg < 1.5 ? gPavN * 0.5 + 0.5 : uPavDbg < 2.5 ? vec3(gPavR) : uPavDbg < 3.5 ? vec3(wetK, 0.0, 0.0) : uPavDbg < 4.5 ? mk
