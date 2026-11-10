@@ -1630,13 +1630,16 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
       float fill = clamp((uPavWet - 0.25) / 0.6, 0.0, 1.0) * uMicro.w;
       vec2 pw = gMicH.yz;                                                 // (the relief's pvHoles: the same water, the same ring)
       float ringK = pw.y * wPav * fill;
-      col *= 1.0 - 0.3 * ringK; rough = mix(rough, 0.4, ringK);
+      col *= 1.0 - 0.3 * ringK; rough = mix(rough, 0.6, ringK);   // (the user 10 Nov: damp earth darkens, it does not shine - 0.4 mirrored the low sun)
       // THE SHORE, SOFT (the user, 9 Nov 17:20: "make sure the border is not too harsh. That should be muddy water"): the
       // water comes in over its first 8 mm of depth, the line broken by a 6 cm noise, after a band of wet, glossy mud
       float shore = pw.x + 0.003 * (pvNoise(P / 0.06 + seed * 5.0) - 0.5);
       float mudK = smoothstep(-0.004, 0.004, shore) * (1.0 - smoothstep(0.004, 0.012, shore)) * wPav;
-      col *= 1.0 - 0.25 * mudK; rough = mix(rough, 0.18, mudK);
-      pudA = smoothstep(0.0, max(fwidth(pw.x) * 1.5, 0.008), shore) * wPav;
+      col *= 1.0 - 0.32 * mudK; rough = mix(rough, 0.5, mudK);    // (10 Nov: 0.18 made the wall above the water a bright wavy band - "water with bumps")
+      // THE WATERLINE (10 Nov): a thin dark wet line on the earth side of the shore, 2 mm of depth wide - the edge reads as water meeting earth
+      float wl = (1.0 - smoothstep(0.0, 0.002 + fwidth(shore), -shore)) * step(shore, 0.0) * wPav;
+      col *= 1.0 - 0.35 * wl;
+      pudA = smoothstep(0.0, max(fwidth(pw.x) * 1.5, 0.003), shore) * wPav;   // (10 Nov: a crisper edge, 8 -> 3 mm of depth)
       if (pudA > 0.0) {
         float dz = clamp(pw.x / 0.05, 0.0, 1.0);
         // WATER, NOT MUD (the user, 9 Nov 21:40: the puddles "do not look wet ... make them a little bit more reflective"): the
@@ -1654,8 +1657,10 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
     // (11b) the water is LEVEL: its normal the world's up, a breath of ripple (a 25 cm and an 8 cm noise, 1-2 %) so the sky
     // it mirrors is not glass
     if (pudA > 0.0) {
-      vec2 rp = vec2(pvNoise(P / 0.25 + seed * 13.0), pvNoise(P / 0.25 + seed * 13.0 + 7.3)) - 0.5 + 0.5 * (vec2(pvNoise(P / 0.08 + 3.1), pvNoise(P / 0.08 + 9.7)) - 0.5);
-      gPavN = normalize(mix(gPavN, normalize(vec3(rp.x * 0.03, 1.0, rp.y * 0.03)), pudA));
+      // (10 Nov, the user: "water is flat by definition, and yours is wavy": 3 % from a 25 and an 8 cm noise broke a low sun's
+      //  mirror into streaks - now 0.4 % over 40 cm: still water, a breath of air)
+      vec2 rp = vec2(pvNoise(P / 0.4 + seed * 13.0), pvNoise(P / 0.4 + seed * 13.0 + 7.3)) - 0.5;
+      gPavN = normalize(mix(gPavN, normalize(vec3(rp.x * 0.004, 1.0, rp.y * 0.004)), pudA));
     }
     gPavR = clamp(rough, mix(0.03, 0.015, pudA), 1.0);   // (11b: the water smoother than any ground)
     // THE SPECULAR ANTI-ALIAS (G1047, the ground's: splat_ground uSFilt.y): the roughness floor grows with the
