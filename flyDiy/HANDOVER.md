@@ -314062,3 +314062,15 @@ THE READIES:
 - night-stretch (NIGHT-LOOK): star reflections spread by the waves, on at 0.03 (the user's call).
 - well-clamp (SEAPLANES-LAND): the retract well depth clamped under the skin.
 - hangar-view-c (Game): the hangar view, with the shed-frame updateMatrixWorld fault fixed after L36d.
+
+## STAR-SKY - the sky turns, star magnitudes, colours and the Milky Way (NIGHT-LOOK, 10 Nov)
+- why: the user 9 Nov: "a soup of stars, everything is the same, that feels like noise ... we could do the milky way".
+- src/viewer/atmo.js, the dome's star block only (no new pass, no texture): the cube grid lives in the sky's frame (uStarM = game -> equatorial from
+  day.geo lat/lon/convergence + sidereal time; starMatrix() node-checked vs SOLAR's sun RA/Dec to 0.013 deg, pole at el 55.04), so the stars turn;
+  fluxes a power law N(>F) ~ F^-a (ATMO.U.starA 0.8 over starMag.x 1e5: most stars under the eye's threshold, the light in the few bright, the
+  field's mean kept), discs r ~ f^starMag.y 0.3, four colour classes; the Milky Way band (J2000 galactic pole) with the core, Cygnus, the Great
+  Rift and a mottled dust (starMag.w 1; 0 = smooth), 2.5x the faint stars inside it, its glow starMag.z 8 x the field's mean radiance, washed by
+  the moon and hidden by any sky light; the mirror's pass (uStars > 1.5) caps a star at 25 x the mean (no white coins on the near water).
+- cost (the dome alone, 1600x900, median): gamer 0.19 -> 0.27 ms, laptop 0.15 -> 0.225 ms; the dust ~0.005 ms (no tier switch needed).
+- gates: ATMO LIGHT SHADOWSKY WATER NIGHTVISIBILITY PASS; LOOKS FAIL(1) = master's own stale uWSdf pin (_looks_check.js:120).
+- live knobs: ATMO.U.starA, ATMO.U.starMag {x range, y growth, z glow, w dust}. Evidence: flydiy-notes/evidence-2026-10-18/2026-11-04/night-photo/star/sky/.
