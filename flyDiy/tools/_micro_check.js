@@ -138,9 +138,11 @@ const W8 = world(withMicro('w7', MICRO8));
   // centreline stands over BAND_H; outside it the full sizes stay
   { let inMax = 0, inN = 0, outMax = 0;
     for (const c of [0.2, 0.8, 1.0]) for (const wid of [9, 18]) for (const seed of [3, 7, 11]) {
-      for (const r of SM.field({ c: [0, 0], hdg: 0, len: 600, wid }, { chaos: c, seed }, 0).bigRocks()) {
-        const h = SM.STONE_H * r[2]; if (Math.abs(r[1]) - r[2] < SM.BAND_V) { inN++; inMax = Math.max(inMax, h); } else outMax = Math.max(outMax, h); } }
-    verdict(inMax <= SM.BAND_H + 1e-9 && outMax > SM.BAND_H, `the clear band: ${inN} stones reach within ${SM.BAND_V} m of the centreline, the tallest ${(inMax * 100).toFixed(1)} cm proud (cap ${(SM.BAND_H * 100).toFixed(1)} cm); outside, up to ${(outMax * 100).toFixed(1)} cm`); }
+      for (const len of [600, 250]) { const F = SM.field({ c: [0, 0], hdg: 0, len, wid }, { chaos: c, seed }, 0), pad = 66 * (len < 300 ? Math.max(0.3, len / 440) : 1) + 4;
+        if (Math.abs(F.PAD_L - pad) > 1e-9) { inMax = Infinity; continue; }
+        for (const r of F.bigRocks()) { const h = SM.STONE_H * r[2];   // (and the turnaround pads, the Pilot 10 Nov: each end to 66 kIn + 4 m in)
+          if (Math.abs(r[1]) - r[2] < SM.BAND_V || r[0] - r[2] < pad || r[0] + r[2] > len - pad) { inN++; inMax = Math.max(inMax, h); } else outMax = Math.max(outMax, h); } } }
+    verdict(inMax <= SM.BAND_H + 1e-9 && outMax > SM.BAND_H, `the clear band and the end pads: ${inN} stones reach within ${SM.BAND_V} m of the centreline or into a pad (70 m on a 600 m strip, 41 m on 250 m), the tallest ${(inMax * 100).toFixed(1)} cm proud (cap ${(SM.BAND_H * 100).toFixed(1)} cm); outside, up to ${(outMax * 100).toFixed(1)} cm`); }
   verdict(R7.length > 200 && bad === 0, `the stones on w7 at chaos 0.8: ${R7.length}, 14-54 cm across, whole inside the strip, none in a rut (${bad} not)`);
   // the wheels' ground carries each body EXACTLY (not the raster's 0.25 m lattice); the drawn ground carries none
   const d = [Math.cos(A7.hdg), Math.sin(A7.hdg)], n = [-d[1], d[0]];

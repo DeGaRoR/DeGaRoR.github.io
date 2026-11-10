@@ -231,10 +231,14 @@ const STRIP_MICRO = (() => {
     // THE CLEAR BAND (the Pilot's bar, 10 Nov): within BAND_V of the centreline (the widest main gear's half track + 1.5 m) a
     // stone stands no higher than BAND_H over the ground (the tail-up prop disc's clearance less a margin) at any chaos: its R
     // is capped at BAND_H / STONE_H. Outside the band the stones are fair game
+    // AND THE TURNAROUND PADS (the Pilot 10 Nov: a tricycle cannot pivot inside the band - the C172's U-turn at an end swings out
+    // to the strip's edge): from each end to the pilot's own hold, 66 kIn + 4 m in (kIn = len < 300 ? max(0.3, len / 440) : 1 - 70 m on
+    // a long strip), the whole width under the band's cap - a bush strip's rolled turnaround at each end
+    const PAD_L = 66 * (len < 300 ? Math.max(0.3, len / 440) : 1) + 4;
     const STONE_K = 0.35 + 0.65 * Math.min(1, K.chaos / 0.8);
     function stoneIn(i, j) {
       const R0 = rockIn(i, j, true), R = R0 ? [R0[0], R0[1], R0[2] * STONE_K] : null;
-      if (R && Math.abs(R[1]) - R[2] < BAND_V) R[2] = Math.min(R[2], BAND_H / STONE_H);
+      if (R && (Math.abs(R[1]) - R[2] < BAND_V || R[0] - R[2] < PAD_L || R[0] + R[2] > len - PAD_L)) R[2] = Math.min(R[2], BAND_H / STONE_H);
       if (!R || Math.abs(R[1]) + R[2] > halfW - 0.15 || R[0] < END_IN || R[0] > len - END_IN) return null;
       if (WAYS.length && waysAt(R[0], R[1])[1] > 0.3) return null;
       if (pHole > 0 && holesAt(R[0], R[1], 0)[0] > 0.005) return null;
@@ -317,7 +321,7 @@ const STRIP_MICRO = (() => {
         if (fill <= 0 || q[0] <= 0 || q[0] >= len || Math.abs(q[1]) >= halfW) return 0;
         return Math.max(holesAt(q[0], q[1], fill)[1], hazardsAt(q[0], q[1], fill)[1], rutWater(q[0], q[1], fill));
       },
-      hole, lanes, ways: WAYS, waysAt, rockAt, rockIn, bigRocks, stoneIn, stoneUV, stoneAt: (x, z) => { const q = toUV(x, z); return stoneUV(q[0], q[1]); }, toUV, reliefUV, hazards: HZ, a1: amp[OCT.length - 1],
+      PAD_L, hole, lanes, ways: WAYS, waysAt, rockAt, rockIn, bigRocks, stoneIn, stoneUV, stoneAt: (x, z) => { const q = toUV(x, z); return stoneUV(q[0], q[1]); }, toUV, reliefUV, hazards: HZ, a1: amp[OCT.length - 1],
     };
   }
   // THE LIVE LIST (what a world composed): compose publishes its micro strips (in the WORLD frame: { toLocal, f }) by
@@ -329,6 +333,8 @@ const STRIP_MICRO = (() => {
   // has(id): a published strip of that id is bumpy (render_world refines its ribbon to REFINE_MIN: pavement.js refineAxis)
   function has(id) { for (const L of live.values()) for (const s of L) if (s.id === id) return true; return false; }
   // rocksOf(id): a published strip's mesh stones, [u, v, R] in its field's frame (the ribbon's v is the field's flipped)
+  // padOf(id): a published strip's turnaround pad length at each end (m; 0 when it has no micro)
+  function padOf(id) { for (const L of live.values()) for (const s of L) if (s.id === id) return s.f.PAD_L || 0; return 0; }
   function rocksOf(id) { for (const L of live.values()) for (const s of L) if (s.id === id) return s.f.bigRocks ? s.f.bigRocks() : []; return []; }
   // the drawn ribbon's finest rows (pavement.js refineAxis): 0.3 m along (the lumps' 1.8 m), 5 cm across (a rut's wall: 8 cm drew the
   // walls 2 cm off the wheels' ground, p99 20 mm on w7 at chaos 0.8; 5 cm halves the spans to 4.7 cm there, p99 8 mm, 283 k vertices
@@ -344,5 +350,5 @@ const STRIP_MICRO = (() => {
   // pvPuddle / pvRelief / pvWays / pvRockIn read exactly these; null when the strip is flat
   function glslRow(id) { for (const L of live.values()) for (const s of L) if (s.id === id) { const f = s.f; return [f.seed, f.pHole, f.K.holeDepth / 100, f.K.puddles * f.pudOK, f.a1, f.K.hazards, f.K.hazardSize / 100, 1 + f.K.swell / 100,
     f.K.ruts / 100, f.K.lumps / 100, (f.ways.some(W => W[7] === 1) ? 1 : 0) + (f.ways.some(W => W[7] === 2) ? 2 : 0), f.K.rocks]; } return null; }
-  return { KNOBS, on, resolve, derive, field, ih, vnoise, publish, at, puddleAt, has, rocksOf, stoneAt, STONE_H, BAND_V, BAND_H, glslRow, live, CELL, OCT, EDGE_IN, END_IN, REFINE_MIN, REFINE_MIN_V, BERM };
+  return { KNOBS, on, resolve, derive, field, ih, vnoise, publish, at, puddleAt, has, rocksOf, padOf, stoneAt, STONE_H, BAND_V, BAND_H, glslRow, live, CELL, OCT, EDGE_IN, END_IN, REFINE_MIN, REFINE_MIN_V, BERM };
 })();
