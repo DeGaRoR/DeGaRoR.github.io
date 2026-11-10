@@ -886,7 +886,7 @@ const CAGE_PARTS = [
     groups: [
       ['fitted', ['hgOn']],
       ['type', ['hgFamily', 'hgCount']],
-      ['position', ['hgOut', 'hgHornAt']],
+      ['position', ['hgOut', 'hgOutSt', 'hgHornAt']],   // hgOutSt: the elevators' own end inset (C172-CLIP)
       ['size', ['hgHornLen', 'hgSize']],
       ['linkage', ['hgHorn', 'hgLink']],
       ['fairings', ['hgFair']],
