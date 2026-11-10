@@ -106,4 +106,4 @@ On claude/practical-cerf-7fjpwp, not to merge (A0: Pilot's domain):
   three candidates indexed in d3a2953d6 were not on `builds/lists/plane_lists.json` (rows 47-49 added), and that commit
   had re-serialised `builds/candidates/index.json`, dropping `"official": true` from stol_cub_showcase and
   Twin_busher_floats_4b (the selftest's flagship probe went inert) - the file is master's again byte for byte plus the
-  three rows. PLANELISTS (with --selftest) PASS after the fix; CANDIDATES re-running.
+  three rows. After the fix (4f88e2b1b): PLANELISTS (with --selftest) PASS, CANDIDATES PASS.
