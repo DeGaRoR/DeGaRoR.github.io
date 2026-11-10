@@ -1065,15 +1065,17 @@ function drawPylonMount(group, f, P, GK, aft, C) {
   pylonMeshes(group, fair, jb);
 }
 // the body in the cowl's section (the nacelle's paint), the joint in the rubber seal's
-function pylonMeshes(group, fair, jb) {
+function pylonMeshes(group, fair, jb, blendTop) {
   const SM = typeof window !== 'undefined' && window.CAGE_SECMAT;
   // (PETREL-LS: the fairing's own livery section, 'pylon' - following the engine mount's when unset, as matOf did)
   const A = AKM(), pm = SM && SM('pylon', { fin: A && A.aeroHardFinish && A.aeroHardFinish('eng', 'emMount'),
                                           tint0: EP.COL.emMount || EP.NEUTRAL, surf: 0, fieldM: 1, side: THREE.DoubleSide });
   const m = fair.mesh(group, pm || (SM && SM('cowl', { surf: 0, fieldM: 1 })) || matOf('emMount'));
   if (m) m.name = 'engPylon';
-  const j = jb.mesh(group, matOf('emPuck'));
-  if (j) j.name = 'engPylonJoint';
+  // (PETREL-LS, the user: "very strange shading at the bottom of the engine nacelle"): a FAIRED cabane pylon is not an
+  // engine mount on rubber - its joints are the fairing's own skin, not the black puck band
+  const j = jb.mesh(group, blendTop && m ? m.material : matOf('emPuck'));
+  if (j) j.name = blendTop ? 'engPylon' : 'engPylonJoint';
 }
 // HULL-B14: THE SINGLE BLADE - one symmetric wing-section post on the mount's centreline, 12 % thick
 // (HULL-B38: a vertical prism under the plate - its chord the mean of the feet's spread and the plate's - hugging what
@@ -1089,7 +1091,7 @@ function drawPylonBlade(group, f, P, GK, aft, C) {
   pylonHug(fair, jb, C2, { O, ax: [0, 1, 0], eu: [1, 0, 0], ew: [0, 0, 1], out: e => pylonOutline('foil', c, 0.12, 0, e),
     fB: blend ? Math.min(PYLON_FIL_B, 0.35 * H) : 0, fT: blend ? Math.min(PYLON_FIL_T, 0.25 * H) : 0,
     dn: ['body', 'wing'], up: C2.cowl ? ['wing', 'cowl'] : ['wing'], top0: y0 - O[1], bot0: yF - O[1], topJoint: C2.cowl });
-  pylonMeshes(group, fair, jb);
+  pylonMeshes(group, fair, jb, f.kind === 'cabPylon');
 }
 const matOf = name => {
   const A = AKM();
