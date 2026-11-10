@@ -2029,6 +2029,13 @@ function makePilot(sim, def, world, opts) {
               const ud = [uc[0] - nose[0] * 33 * kInP + nrm[0] * (latN0 - sideN0 * lane), uc[1] - nose[1] * 33 * kInP + nrm[1] * (latN0 - sideN0 * lane)];
               nodes.push({ id: '@ud', x: ud[0], z: ud[1], kind: 'taxi', r: 12 });
               ids.splice(3, 0, '@ud');
+              // ...and the roll on stays on the centreline to the pad's inner edge ('@u0', 60 kIn from the end): a straight
+              // line to '@ua' drifted out to v -5 over the 70 m before the pad (the 10 Nov re-fly, w3)
+              const L0 = L1 - 33 * kInP;
+              if (L0 > 5) {
+                nodes.push({ id: '@u0', x: cg[0] + nose[0] * L0 - nrm[0] * cN, z: cg[2] + nose[1] * L0 - nrm[1] * cN, kind: 'taxi', r: 12 });
+                ids.unshift('@u0');
+              }
             }
           }
         }
