@@ -225,8 +225,12 @@ const STRIP_MICRO = (() => {
     }
     // the stones for the meshes: a 1.2 m cell's, whole inside the strip clear of its ends, none in a way's trough or a hole
     // -> [u, v, R] or null. A stone's footprint (R <= 0.27) stays inside the middle of its own cell (0.3 m clear of its sides)
+    // THE STONES GROW WITH CHAOS (the Pilot's bar, 10 Nov: the Jodel's prop met an edge stone on w3 at chaos 0.2 - its lane's fault,
+    // but a 54 cm stone standing 20 cm proud on the gentlest strip is the ground's): x 0.35 at chaos 0 .. 1 from chaos 0.8; the
+    // count was already the chaos's (rocks). rockIn (the shader's twin) keeps the full size; only the meshes' stones scale
+    const STONE_K = 0.35 + 0.65 * Math.min(1, K.chaos / 0.8);
     function stoneIn(i, j) {
-      const R = rockIn(i, j, true);
+      const R0 = rockIn(i, j, true), R = R0 ? [R0[0], R0[1], R0[2] * STONE_K] : null;
       if (!R || Math.abs(R[1]) + R[2] > halfW - 0.15 || R[0] < END_IN || R[0] > len - END_IN) return null;
       if (WAYS.length && waysAt(R[0], R[1])[1] > 0.3) return null;
       if (pHole > 0 && holesAt(R[0], R[1], 0)[0] > 0.005) return null;

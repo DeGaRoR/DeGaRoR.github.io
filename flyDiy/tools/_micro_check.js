@@ -130,6 +130,10 @@ const W8 = world(withMicro('w7', MICRO8));
   let S7 = null; for (const L of SM.live.values()) for (const s of L) if (s.id === 'w7') S7 = s;
   const R7 = SM.rocksOf('w7'), f7 = S7 && S7.f, hw = A7.wid / 2;
   const bad = R7.filter(r => r[2] < 0.069 || r[2] > 0.271 || Math.abs(r[1]) + r[2] > hw - 0.15 || (f7.ways.length && f7.waysAt(r[0], r[1])[1] > 0.3)).length;
+  // the stones grow with chaos (the Pilot's bar, 10 Nov): x 0.35 at 0 .. 1 from 0.8 - on an 18 m strip at 0.2 none wider than 2 x 0.27 x 0.51
+  { const sz = c => { const F = SM.field({ c: [0, 0], hdg: 0, len: 400, wid: 18 }, { chaos: c, seed: 3 }, 0); return F.bigRocks().reduce((m, r) => Math.max(m, r[2]), 0); };
+    const k2 = 0.35 + 0.65 * 0.2 / 0.8, m2 = sz(0.2), m8 = sz(0.8);
+    verdict(m2 > 0 && m2 <= 0.27 * k2 + 1e-9 && m8 > m2, `the stones grow with chaos: the widest ${(2 * m2 * 100).toFixed(0)} cm at 0.2 (cap ${(2 * 0.27 * k2 * 100).toFixed(0)}), ${(2 * m8 * 100).toFixed(0)} cm at 0.8`); }
   verdict(R7.length > 200 && bad === 0, `the stones on w7 at chaos 0.8: ${R7.length}, 14-54 cm across, whole inside the strip, none in a rut (${bad} not)`);
   // the wheels' ground carries each body EXACTLY (not the raster's 0.25 m lattice); the drawn ground carries none
   const d = [Math.cos(A7.hdg), Math.sin(A7.hdg)], n = [-d[1], d[0]];
