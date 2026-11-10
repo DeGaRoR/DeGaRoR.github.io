@@ -56,6 +56,25 @@
     paved:  { fines: 0.03, loose: 0.0,  ut: 9.0, col: [0.40, 0.39, 0.37] },
   };
   const MUD_COL = [0.16, 0.12, 0.085];
+  // THE GROUND'S OWN COLOUR (the user, 10 Nov, on the Cub at low sun on a dark dirt strip: "the color of the dirt cloud is not
+  // well matched to the ground at all ... and maybe a lower cloud density as well"). The `col` rows above were a fixed tan
+  // off reflectance tables, near twice the drawn strip's albedo: the page now hands the drawn surface's colour (PAVEMENT
+  // .surfaceColor - the base set's graded mean, the look's tint) and the dust is that ground, a shade lighter (dry fines
+  // scatter a little more than the bulk soil - LIFT, INFERRED), its brightness held to a soil's range. The rows stay the
+  // fallback (node, a class with no drawn surface).
+  const LOOK = {
+    lift: 1.25,          // dust over its ground's albedo (INFERRED: a shade lighter, the same hue)
+    lumMin: 0.05, lumMax: 0.32,   // the dust's luminance kept to a soil's (dark peat .. pale sand)
+    dens: 0.6,           // the puff's drawn optical depth over the 9 Nov bench's (the user, 10 Nov: "a lower cloud density")
+    fwdMax: 1.8,         // the forward lobe's cap (was 4): a backlit puff glows, it no longer blows out to white at low sun
+  };
+  function albedoFrom(g) {
+    if (!g || g.length < 3) return null;
+    const c = [g[0] * LOOK.lift, g[1] * LOOK.lift, g[2] * LOOK.lift], l = 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+    if (!(l > 0)) return null;
+    const k = l < LOOK.lumMin ? LOOK.lumMin / l : l > LOOK.lumMax ? LOOK.lumMax / l : 1;
+    return [c[0] * k, c[1] * k, c[2] * k];
+  }
   // ---- THE TIERS: the pools and the overdraw budget (screens of puff cover), the longest life -------------------------
   // phone = the laptop preset's (the S20 loads it), potato beside it; the cover numbers are the frame's fill budget for
   // the dust, from the research's mobile overdraw figures (design doc section 4) - to be measured, the doc names it
@@ -467,7 +486,7 @@
     #include <logdepthbuf_pars_fragment>
     varying vec2 vUv; varying vec4 vA; varying vec3 vCol; varying float vTau, vGd, vK, vSv;
     uniform sampler2D uNoise;
-    uniform vec3 uSunV, uSunCol, uSkyCol, uGndCol; uniform float uOpacity, uG;
+    uniform vec3 uSunV, uSunCol, uSkyCol, uGndCol; uniform float uOpacity, uG, uDens, uFwdMax;
     void main() {
       #include <logdepthbuf_fragment>
       vec2 q = vUv * 2.0 - 1.0;
@@ -483,7 +502,7 @@
         float n = n1.r * 0.62 + n2.r * 0.38;
         float th = sqrt(1.0 - d2);
         float dens = th * smoothstep(0.18, 0.8, n * (0.45 + 0.55 * th) + 0.3 * th);
-        float tau = vTau * dens * 2.0;
+        float tau = vTau * dens * 2.0 * uDens;
         a = 1.0 - exp(-tau);
         a *= smoothstep(-0.05 * vSv, 0.3 * vSv + 0.15, vGd);      // soft on the ground
         a *= smoothstep(0.0, 0.04, age);                           // born over a moment
@@ -499,7 +518,7 @@
         // scattering in a thick puff flattens the lobe
         float cs = -uSunV.z, g = uG;
         float hg = (1.0 - g * g) / pow(1.0 + g * g - 2.0 * g * cs, 1.5);
-        float ph = min(4.0, mix(hg, 1.0, clamp(vTau * 0.35, 0.0, 0.8)));
+        float ph = min(uFwdMax, mix(hg, 1.0, clamp(vTau * 0.35, 0.0, 0.8)));
         float sky = 0.75 + 0.25 * N.y;
         float fwd = max(0.0, ph - 1.0);                            // the forward excess: through the puff, not off its lit side
         col = vCol * (uSunCol * (sh * (0.55 + 0.45 * max(0.0, ndl * 0.5 + 0.5)) + fwd * (1.0 - 0.4 * thick)) + uSkyCol * sky + uGndCol * 0.35 * (1.0 - N.y * 0.5)) / 3.14159265;
@@ -563,7 +582,7 @@
     const mat = MATLIB.make(THREE, 'shader', { vertexShader: VERT, fragmentShader: FRAG, transparent: true, depthWrite: false, depthTest: true, side: THREE.DoubleSide,
       uniforms: { uStretch: { value: 0.03 }, uMinNdc: { value: 0.0019 }, uNear: { value: 0 }, uCol: { value: colV }, uMud: { value: new THREE.Vector3(MUD_COL[0], MUD_COL[1], MUD_COL[2]) },
         uNoise: { value: tex }, uSunV: { value: new THREE.Vector3(0, 0, 1) }, uSunCol: { value: new THREE.Color(1, 1, 1) }, uSkyCol: { value: new THREE.Color(0.5, 0.6, 0.7) },
-        uGndCol: { value: new THREE.Color(0.2, 0.18, 0.14) }, uOpacity: { value: 1 }, uG: { value: 0.6 } } });
+        uGndCol: { value: new THREE.Color(0.2, 0.18, 0.14) }, uOpacity: { value: 1 }, uG: { value: 0.6 }, uDens: { value: LOOK.dens }, uFwdMax: { value: LOOK.fwdMax } } });
     mat.toneMapped = true; mat.name = 'dust';
     const mesh = new THREE.Mesh(g, mat); mesh.frustumCulled = false; mesh.renderOrder = 4; mesh.name = 'dust';
     const sunW = new THREE.Vector3();
@@ -637,12 +656,14 @@
         }
         return w;
       },
+      // the dust of class ci takes this ground's colour (linear rgb of the drawn surface; albedoFrom's lift and range)
+      setGround(ci, rgb) { const c = albedoFrom(rgb), v = colV[ci]; if (!c || !v) return false; v.set(c[0], c[1], c[2]); return true; },
       dispose() { g.dispose(); mat.dispose(); tex.dispose(); },
     };
     return api;
   }
 
-  const DUST = { makeSystem, step, sources, make, emitPuff, emitGrit, billow, CLASSES, CLS, TIERS, TIER_OF, L, dryK, utK, GLSL: { vert: VERT, frag: FRAG } };
+  const DUST = { makeSystem, step, sources, make, emitPuff, emitGrit, billow, albedoFrom, LOOK, CLASSES, CLS, TIERS, TIER_OF, L, dryK, utK, GLSL: { vert: VERT, frag: FRAG } };
   if (typeof window !== 'undefined') window.DUST = DUST;
   if (typeof module !== 'undefined' && module.exports) module.exports = DUST;
 })();

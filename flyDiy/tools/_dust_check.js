@@ -162,8 +162,35 @@ console.log('5. the draw');
     const E = DUST.make(THREE, DUST.makeSystem('gamer'));
     yes(E.sync(cam, null) === 0 && !E.mesh.visible, 'nothing alive: nothing drawn (the mesh hidden)');
     const bt = DUST.billow(64); yes(bt.data.length === 64 * 64 * 4 && bt.data.some(v => v > 200) && bt.data.some(v => v < 60), 'the billow texture is made in code (no file)');
+    // the ground's colour (the user, 10 Nov): the batch takes a class's colour from its drawn surface
+    const dirtGround = [0.170, 0.111, 0.074];   // the dirt strip's drawn surface (PAVEMENT.surfaceColor('dirt'), 10 Nov)
+    yes(D.setGround(0, dirtGround) && Math.abs(D.material.uniforms.uCol.value[0].x - DUST.albedoFrom(dirtGround)[0]) < 1e-6 && !D.setGround(0, null),
+      'the batch takes its ground colour (setGround; no colour: the row kept)');
     D.dispose(); E.dispose();
   }
+}
+
+console.log('5b. the look (the user, 10 Nov: "the color of the dirt cloud is not well matched to the ground at all ... and maybe a lower cloud density")');
+{
+  const lum = c => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2], LK = DUST.LOOK;
+  const ground = [0.170, 0.111, 0.074], d = DUST.albedoFrom(ground);   // the dirt strip as drawn (PAVEMENT.surfaceColor('dirt'))
+  yes(d && Math.abs(d[0] / d[2] - ground[0] / ground[2]) < 1e-6 && Math.abs(d[1] / d[2] - ground[1] / ground[2]) < 1e-6,
+    'the dust is its ground hue (' + d.map(v => v.toFixed(3)).join(', ') + ' off the strip ' + ground.join(', ') + ')');
+  yes(lum(d) > lum(ground) && lum(d) < 1.5 * lum(ground), 'a shade lighter than its ground, never a pale tan (luminance ' + lum(d).toFixed(3) + ' vs the ground ' + lum(ground).toFixed(3) + ')');
+  yes(lum(d) < 0.6 * lum(DUST.CLS.dirt.col), 'on the dark strip it is darker than the 9 Nov fixed tan (' + lum(d).toFixed(3) + ' vs ' + lum(DUST.CLS.dirt.col).toFixed(3) + ')');
+  const pale = DUST.albedoFrom([0.9, 0.85, 0.8]), black = DUST.albedoFrom([0.01, 0.008, 0.006]);
+  yes(lum(pale) <= LK.lumMax + 1e-9 && lum(black) >= LK.lumMin - 1e-9, 'held to a soil range (' + LK.lumMin + ' .. ' + LK.lumMax + ')');
+  // the backlit peak at a low sun: the forward lobe's excess (ph - 1) over the lit side, times the albedo - the 9 Nov puff
+  // at the 4x cap and the tan vs today's
+  const peak = (alb, cap) => lum(alb) * (1 + (cap - 1));
+  const was = peak(DUST.CLS.dirt.col, 4.0), now = peak(d, LK.fwdMax);
+  yes(now < 0.3 * was, 'backlit at a low sun it glows, never blows out: the peak ' + (now / was * 100).toFixed(0) + ' % of the 9 Nov puff (forward cap ' + LK.fwdMax + ', was 4)');
+  yes(LK.dens > 0.3 && LK.dens < 1, 'a lower drawn density (' + LK.dens + ' of the 9 Nov optical depth)');
+  const f = DUST.GLSL.frag;
+  yes(/vTau \* dens \* 2\.0 \* uDens/.test(f) && /min\(uFwdMax,/.test(f), 'the shader draws them (uDens on the optical depth, uFwdMax on the lobe)');
+  const app = src('src/viewer/app.js'), pv = src('src/viewer/pavement.js');
+  yes(/PAVEMENT\.surfaceColor && F\.draw\.setGround/.test(app) && /function surfaceColor\(cls\)/.test(pv) && /groundColor, surfaceColor,/.test(pv),
+    'the page hands the drawn surface colour (PAVEMENT.surfaceColor -> the batch setGround)');
 }
 
 console.log('6. the cost');
