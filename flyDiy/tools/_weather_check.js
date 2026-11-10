@@ -73,7 +73,16 @@ function audit(ctx) {
     check(n >= 4, 'glsl: the surface block samples less than it claims', String(n));
     // the invariants, verbatim
     check(/metalnessFactor \*= 1\.0 - cov;/.test(S), 'no shiny dirt: metalness does not fall with cover');
-    check(/max\(roughnessFactor, flo \* wxRV\), cov\)/.test(S), 'no shiny dirt: roughness does not saturate up to the floor');
+    check(/max\(roughnessFactor, flo \* wxRV\), wxMat\)/.test(S), 'no shiny dirt: roughness does not saturate up to the floor');
+    // DIRT-MATTE (the user 9 Nov: "the dirt is still too shiny ... flat when viewed in low angle with the sun"): the
+    // matte rides the cover's square root, and the dirt's own cover (chips out) takes the varnish and the base lobe's
+    // grazing mirror down
+    check(/float wxMat = sqrt\(clamp\(cov, 0\.0, 1\.0\)\);/.test(S), 'dirt-matte: the matte does not ride the cover\'s square root');
+    check(/aeroWxDirt = wxMat;/.test(S) && S.indexOf('aeroWxDirt *= 1.0 - ch;') > S.indexOf('aeroWxDirt = wxMat;'), 'dirt-matte: the dirt\'s own cover is not written before the chips take it out');
+    check(/material\.clearcoat \*= 1\.0 - aeroWxDirt;/.test(glsl.CC), 'dirt-matte: the varnish does not go with the dirt\'s square root');
+    check(/material\.specularF90 = mix\(material\.specularF90, 0\.\d+, aeroWxDirt\);/.test(glsl.CC) && glsl.CC.indexOf('specularF90') > glsl.CC.indexOf('#endif'),
+      'dirt-matte: the base lobe keeps its grazing mirror on dirt (or only under the clear coat\'s define)');
+    check(!!knobs && knobs.ccRough >= 0.8, 'dirt-matte: dusty varnish is left glossy', 'ccRough ' + (knobs && knobs.ccRough));
     check(/normalize\(mix\(normal, nonPerturbedNormal, uWxR\.x \* dustCov\)\)/.test(S), 'dust does not fill the microsurface');
     check(/material\.clearcoat \*= 1\.0 - aeroWxCov;/.test(glsl.CC), 'no shiny dirt: the clear coat does not fall with cover');
     // G345.2: the define is r186's — under the old one the block is dead
@@ -328,6 +337,10 @@ if (SELF) {
     ['a fetch outside the branch', c => { c.glsl.SURF = 'vec4 t0 = texture2D(tGrunge, vec2(0.0));\n' + c.glsl.SURF; }, 'outside the uniform branch'],
     ['metalness that goes UP', c => { c.glsl.SURF = c.glsl.SURF.replace('metalnessFactor *= 1.0 - cov;', 'metalnessFactor *= 1.0 + cov;'); }, 'metalness does not fall'],
     ['a clear coat that keeps its shine', c => { c.glsl.CC = c.glsl.CC.replace('material.clearcoat *= 1.0 - aeroWxCov;', ''); }, 'clear coat'],
+    ['dirt-matte: a linear matte', c => { c.glsl.SURF = c.glsl.SURF.replace('float wxMat = sqrt(clamp(cov, 0.0, 1.0));', 'float wxMat = cov;'); }, 'square root'],
+    ['dirt-matte: chips matted too', c => { c.glsl.SURF = c.glsl.SURF.replace('aeroWxDirt *= 1.0 - ch;', ''); }, 'chips take it out'],
+    ['dirt-matte: the grazing mirror kept', c => { c.glsl.CC = c.glsl.CC.replace(/material\.specularF90 = [^;]*;/, ''); }, 'grazing mirror'],
+    ['dirt-matte: glossy dusty varnish', c => { c.knobs = Object.assign({}, c.knobs, { ccRough: 0.5 }); }, 'dusty varnish'],
     ['a layer with three coefficients', c => { c.layers = clone(c.layers); c.layers[0].c = [1, 0, 0]; }, 'four coefficients'],
     ['an unreachable layer', c => { c.layers = clone(c.layers); c.layers[1].c = [0, 0, 0, 0]; }, 'reachable from no macro'],
     ['a glossy mud', c => { c.cols = clone(c.cols); c.cols[2].v[3] = 0.5; }, 'glossy floor'],

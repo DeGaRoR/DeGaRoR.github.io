@@ -314015,3 +314015,12 @@ The gate's base carries it as BUMPS, on both views.
 GATE MICRO section 1 now checks that the shipped record is bumpy on exactly those strips. The sections after it judge w7's
 field against the island with every strip's micro taken out.
 The record changed, so the ready carries its own premises cook (GATE PREMCOOK).
+## DIRT-MATTE (10 Nov, the user: "the dirt is still too shiny ... flat when viewed in low angle with the sun")
+- aeroweather.js: the dirt's matte rides sqrt(cover) (wxMat), not the cover; a dirt-only cover `aeroWxDirt` (chips taken out:
+  bare alloy keeps its sparkle) takes the clear coat down by sqrt too and roughens what is left (ccRough 0.50 -> 0.85), and
+  the base lobe's grazing Fresnel (specularF90 -> 0.15) and half its head-on specular go with it, Standard and Physical
+  alike. Constants of the dirt: no uniform, no program variant. GATE WEATHER holds each line (+5 checks, +4 probes).
+- Measured (three's DFG approx, a painted panel under a 0.25 clear coat, sky = 1): at 84 deg cover 0.5 0.269 -> 0.034;
+  clean paint unchanged. Stills (black studio, key held at 7 deg): the dirty Cub's glare patch gone (px > 200: 2823 -> 290);
+  the Twin Busher's change needs a sky to show (the env term) - flydiy-notes/evidence-2026-10-18/dirt-matte-2026-11-10.
+- Not done: metalness still falls linearly with cover (a dirty BARE metal keeps more metal than its dirt reads).
