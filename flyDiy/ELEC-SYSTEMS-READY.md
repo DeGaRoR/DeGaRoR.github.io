@@ -166,3 +166,7 @@ plus the bus parts. It replaced 1.2 kg + 0.15 kg per powered item. **PHYSICS_V 7
   (trim 'bare') and takes the Jodel's -1.90 kg.
 - **JOINPARITY:** re-capture the page after this lands (see above).
 - **The full battery** still has to run on a machine that can carry it.
+- **No build card in this branch's diff** (master..claude/elec-systems -- flyDiy/builds/ is empty: the Jodel edit and its
+  revert cancel). LINER-BACK (claude/liner-back 729f49f04, aiming at L37b) edits `outfit.trim` on the one-line Cub and
+  Jodel cards; nothing here conflicts with it as text. Its measures with the liner: Cub 354.77 -> 353.35 kg (+2.4 %;
+  ~+2.9 % with this branch's cable runs), Jodel 343.63 -> 342.45 kg (+7.0 %; JODEL-GEO then carries the electrics-off edit).
