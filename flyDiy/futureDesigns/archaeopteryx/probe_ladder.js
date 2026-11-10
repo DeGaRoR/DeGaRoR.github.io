@@ -24,6 +24,13 @@ const STEPS = [
     cage: Object.assign({ wgCons: 5 }, WING), spec: BATT }],
   ['7 + 1.0 m prop (clears)', { kWh: 2.07, sel: { wgBrace: 1, engModel: 'e-PPG 12 kW', gearLayout: 'tail', canopy: 'screen', scheme: 'bare' },
     cage: Object.assign({ wgCons: 5, cw_propD: 1.0, propR: 0.5 }, WING), spec: BATT }],
+  // the user's 2005 three-view (STUDY.md §9): the 13.4 m planform (TE straight, the LE's taper as a crank), winglets,
+  // 1.5 deg, the tail's macro rows toward the drawing, the wing 0.20 m forward for a ~13 % margin
+  ['8 + the three-view geometry', { kWh: 2.07, sel: { wgBrace: 1, engModel: 'e-PPG 12 kW', gearLayout: 'tail', canopy: 'screen', scheme: 'bare', wgTip: 5 },
+    cage: { wgSpan: 13.4, wgChord: 1.14, wgCrankAt: 0.48, wgCrankChord: 1.03, wgCrankX: 0.11, wgChordTip: 0.53, wgTipX: 0.55,
+            wgDihedral: 1.5, wgCons: 5, cw_propD: 1.0, propR: 0.5, wgDx: 0.2,
+            stSpan: 0.98, stChord: 0.72, stChordTip: 0.67, stSweep: 0, finHeight: 1.03, finChord: 1.32, finChordTip: 0.68 },
+    spec: BATT }],
   ['x pod 6061 tube + Dacron', { kWh: 2.07, sel: { wgBrace: 1, engModel: 'e-PPG 12 kW', gearLayout: 'tail', canopy: 'screen', scheme: 'bare', intCons: 4 },
     cage: Object.assign({ wgCons: 5, cw_propD: 1.0, propR: 0.5 }, WING), spec: BATT }],
 ];

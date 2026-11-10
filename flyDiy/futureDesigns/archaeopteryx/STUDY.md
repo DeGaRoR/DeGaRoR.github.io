@@ -58,9 +58,9 @@ No code was changed and no gate was run. The two probes in this folder are headl
 shaft and folding prop about 1-2 kg; a ZHAW student twin-motor system weighed 16.6 kg), so the Electeryx is about
 72 kg empty.
 
-**Unknown (needed before a fit):** the tail type (conventional, T or cruciform), the undercarriage (Wikipedia says
-only that it "normally lands on the main wheel"), the wing's sweep, dihedral and chord law, the pod's and the rod's
-dimensions, the airfoil, and the propeller's diameter and station.
+**Unknown (needed before a fit):** ~~the tail type, the undercarriage, the wing's sweep, dihedral and chord law, the
+pod's and the rod's dimensions~~ (answered by the user's three-view, §9), the airfoil, and **the propeller's diameter
+and station on the electric version** (the three-view is the 2005 glider, with no drive).
 
 ## 3. What the garage has, row by row
 
@@ -147,9 +147,11 @@ moulded wing's profile drag would bring the sheet into the low 20s before any ma
    through a tapering cone, the prop behind it under the rod. Needed: a pusher variant that keeps the aft aeropod, with
    the motor's station inside the pod and `cw_noseOff` as the shaft. Your doubt was right: the back aeropod and the
    pusher do not combine today.
-4. **The monowheel.** No single-wheel layout. It is the largest single drag item (0.15 m2 of the 0.34) and 9-10 kg of
-   gear. Needed: a `gearLayout` monowheel (main under the seat, a nose skid or small wheel, a tail skid, wingtip
-   skids), with the ground handling that goes with one wheel.
+4. **The glider's undercarriage.** No centreline layout. The three-view (§9) shows a glider's tandem gear: a nose wheel
+   0.31 m behind the nose, a main wheel 2.16 m behind it under the wing's trailing edge, and a tail bumper; the wings
+   rest on a tip. Ours is two mains plus a third wheel, the largest single drag item (0.15 m2 of the 0.34) and 9-10 kg.
+   Needed: a `gearLayout` "centreline" (main wheel, optional nose wheel, tail skid, wingtip skids), with the ground
+   handling of an aeroplane that rolls on one wheel and a wing tip.
 5. **The card's own bugs**, fixable in the card today (step 7 does most of them):
    - all three electric cards (`archaeopteryx`, `motorglider`, `etrainer`) are born with an **avgas tank** (24-53 L).
      The engine family does not set the energy kind, and `fuel.litres: 0` does not stop the energy layer fitting one;
@@ -191,8 +193,8 @@ to fly once gap 1 lands.
   was not searched from here. REF_MATCH (tools/REF_MATCH.md §0) wants a GLB. Without one, the route is the Camel's §8
   "before the model": photographs, a three-view and the published dimensions, with the shapes taken from them by eye
   and flagged as such.
-- **What to ask for first:** three-view or side/top/front photographs (the tail type, the gear, the pod's outline, the
-  rod's diameter and length, the prop's station and size), and the OSTIV 2015 paper.
+- **What to ask for first:** ~~a three-view~~ (received, §9); photographs of the ELECTRIC version's aft pod (the
+  prop's station and size, the shape of the cone the shaft runs through), and the OSTIV 2015 paper.
 
 ## 8. A chantier order, if it goes ahead
 
@@ -204,3 +206,58 @@ to fly once gap 1 lands.
 6. Airbrakes, vario panel, parachute (gaps 7-8).
 
 Each fitted value lands on a garage row, each missing control goes into REF_MATCH §7, as CLAUDE.md asks.
+
+## 9. The three-view (the user, 2026-11-10)
+
+The user gave a manufacturer's three-view: **"Archaeopteryx, Class 2 Hang Glider, 2005"**, dimensioned 13 400 span,
+5 905 length, 2 800 height. It is the pure glider of 2005, before the production 13.6 m wing and before the drive.
+The image is not committed (a third party's drawing in a public repository); the user holds it. Measured off the
+800 x 565 px image: front-view span 599 px, so **22.37 mm/px**; the side view's 5 905 gives 22.3, the same scale. Read
+at about one pixel, so +-25 mm on a length.
+
+**The wing** (plan view; the nose points DOWN the page, so the straight edge is the TRAILING edge):
+
+| from the centreline | 0.5 m | 1.4 m | 3.2 m | 4.1 m | 5.0 m | 5.9 m | 6.5 m |
+|---|---|---|---|---|---|---|---|
+| chord | 1.14 | 1.12 | 1.03 | 0.94 | 0.82 | 0.64 | 0.53 |
+
+- integrated about 12.7 m2 (published 12.8): the drawing and the type data agree;
+- the trailing edge straight (about 0.12 m forward at the tip), **all the taper on the leading edge**, a curve, not two
+  straights; the quarter-chord line about 3 deg aft;
+- a constant **0.22 m control strip** along the trailing edge, split at **2.72 m** from the centreline: flaps inboard
+  (the front view draws them deflected, dash-dotted), ailerons outboard;
+- **winglets**: upturned about 60 deg, about 0.45 m tall, swept (they show in the side view as a small swept fin above
+  the wing); dihedral about 1.5 deg;
+- four rectangular panels at the root, two each side of the boom, at mid-chord: probably transparent panels to see
+  up through the wing (**not confirmed**);
+- the root section sits on the pod top: wing LE 1.08 m and TE 2.24 m behind the nose (side view).
+
+**The tail** (conventional): the stab on the boom at the fin's root, 2.66 m span, chord 0.57 m at the root to 0.38 at
+the tip, trailing edge straight, about 1.25 m2. The fin about 1.6-1.7 m over the boom, chord 0.87 m at the root to
+0.59 m at the top, the rudder about 45 % of its chord; LE 5.06 m behind the nose. The tail arm (quarter chords) about
+3.7 m, so a tailplane volume of about 0.37.
+
+**The pod and the rod:** the pod hangs from the wing on a **neck about 0.5 m wide** (the user's pylon, seen from the
+front), widening to about 0.80 m, about 0.9 m deep from the wing to the wheel. It ends in a **vertical aft face 2.95 m
+behind the nose**, about half the length: no cone in this version. The rod leaves the pod's top at the wing's trailing
+edge, at wing level, about 0.17 m in diameter (side and plan agree), straight to the fin. The card's `rodD` is 0.12.
+
+**The undercarriage:** a nose wheel 0.31 m behind the nose, a main wheel 2.16 m behind it, a tail bumper (§5 gap 4).
+**The pilot:** sat nearly upright under the wing, legs dropping through the floor (the foot launch, dashed).
+
+**What it changes in the study:**
+- gap 4 is a glider's tandem centreline gear, not a monowheel alone;
+- the planform is buildable today: `wingArch` constant + taper (crank 0.48, crank chord 1.03, tip 0.53, `wgTipX` to
+  keep the TE straight), `wgTip` winglet, `wgDihedral` 1.5. The curved LE becomes two straights; an elliptic
+  `wgPlan` with its straight line at the TE would be closer, but `wgPlanAxis` stops at 0.50 of the chord (a small gap);
+- the tail is a conventional tail on the rod: live. The macro rows (`stSpan`/`stChord`/`stChordTip`, `fin*`) brought
+  the stab to 2.65 m and 0.61 m but read 1.63 m2 of area against the drawing's 1.25: the outline wants `fit_tail.js`
+  on a traced outline, not hand-set multipliers;
+- **the pusher question stays open**: this pod ends in a flat aft face, which is exactly where our Pusher mount bolts
+  its motor. Whether the electric version grew a cone (the user's "a little section getting smaller" with the shaft
+  through it) needs a photograph of an Electeryx.
+
+**Step 8 of the ladder** (`probe_ladder.js`, the three-view's geometry on step 7: the 13.4 m planform, winglets, 1.5 deg,
+the tail rows, the wing 0.20 m forward): **143.6 kg empty, L/D 13.4, static margin 12.8 %**. The geometry costs and
+saves nothing; the gaps of §5 are untouched by it, as expected. The seeded tail (no rows stated) was 1.89 m2 of stab
+against 1.25: the birth's volume rule sizes the stab half again too big for this aeroplane.
