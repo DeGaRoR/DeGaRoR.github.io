@@ -11464,6 +11464,7 @@
     ['parts60', '60 kg of crated parts', { kg: 60 }, 'goods.parts', 0],
     ['mail60p', '60 kg of mail + a passenger', { kg: 60 }, 'goods.mail', 1],
     ['bags20p3', '20 kg of bags + three passengers', { kg: 20 }, 'goods.mail', 3],   // G3619: the queue's rig (a C172)
+    ['parts40p2', '40 kg of crated parts + two passengers', { kg: 40 }, 'goods.parts', 2],   // G2715: CREW-SEATS' A/B (a C172, seat 3 out)
     ['tools80', '80 kg of tools', { kg: 80 }, 'goods.tools', 0],
     ['supplies90', '90 kg of supplies (sacks)', { kg: 90 }, 'goods.supplies', 0],
     ['samples100', '100 kg of ore samples', { kg: 100 }, 'goods.samples', 0],
@@ -11696,8 +11697,9 @@
   // THE RIGS' LOAD (?freight=1&strapload=<test>[:<design>], the sandbox only): the hold named (the validated design's
   // card; the stand's build is not replaced), the test load as the packer proposes it, accepted - no view, no click, so
   // a census (FRAMECOST_QUERY) or a timed A/B runs "no load" (strapload=none:cub) against "loaded" by the URL alone
-  const FS_RIG = (() => { try { const m = /[?&]strapload=([a-z0-9]+)(?::([a-z0-9]+))?(&|$)/i.exec(window.location.search || ''); return FREIGHT_DEV && m ? { test: m[1], design: m[2] || null, done: false } : null; } catch (e) { return null; } })();
-  function fsRigLoad(test, design) {
+  const FS_RIG = (() => { try { const m = /[?&]strapload=([a-z0-9]+)(?::([a-z0-9]+))?(?::([0-9,]+))?(&|$)/i.exec(window.location.search || ''); return FREIGHT_DEV && m ? { test: m[1], design: m[2] || null, out: m[3] ? m[3].split(',').map(Number) : [], done: false } : null; } catch (e) { return null; } })();
+  // (G2715: `out` - the seats the rig takes out, ?strapload=<test>:<design>:<i,j>; only an empty seat goes, 77_'s rule)
+  function fsRigLoad(test, design, out) {
     if (!FREIGHT_DEV) return null;
     if (design && FREIGHT_CARDS[design]) frStandDesign = design;
     const card = frCard();
@@ -11706,11 +11708,11 @@
     const T = FR_TESTS.find(t => t[0] === test);
     if (!T) return null;
     const items = T[2] ? freightItems(T[2], T[3]) : [freightItem({ id: 'drum.1', kind: 'drum', kg: 165, dims: [0.64, 0.64, 0.93] })];
-    frSandboxRec = freightLoadRecord(card, freightLoadNew(card, items, { pax: T[4] }), { slot: slotOnStand() });
+    frSandboxRec = freightLoadRecord(card, freightLoadNew(card, items, { pax: T[4], seatsOut: Array.isArray(out) ? out : [] }), { slot: slotOnStand() });
     fsSync();
-    return { items: frSandboxRec.items.length, kg: frSandboxRec.kg, card: card.id };
+    return { items: frSandboxRec.items.length, kg: frSandboxRec.kg, card: card.id, seatsOut: frSandboxRec.seatsOut || [] };
   }
-  const fsRigDue = () => { if (FS_RIG && !FS_RIG.done && curKey === 'gen' && def) { FS_RIG.done = true; FS_RIG.got = fsRigLoad(FS_RIG.test, FS_RIG.design); } };
+  const fsRigDue = () => { if (FS_RIG && !FS_RIG.done && curKey === 'gen' && def) { FS_RIG.done = true; FS_RIG.got = fsRigLoad(FS_RIG.test, FS_RIG.design, FS_RIG.out); } };
   function fsFlightStart() { try { fsRigDue(); fsApply(); fsSync(); } catch (e) { console.warn('flyDiy (freight strap): the load could not be put aboard -', e && e.message); } }
   function fsGarage() {
     try {
@@ -12086,7 +12088,7 @@
                     seats: FST.R ? FST.R.seats : null, chairs: window.FLYDIY_CREW_JOB ? window.FLYDIY_CREW_JOB.out.slice() : [], hidden: FST.hidden.length, pax: FST.pax.length, yD: fsYD(),
                     crew: { door: window.FLYDIY_CREW_JOB || null, flown: (model && model.data && model.data.crewJob) || null,
                             live: model && model.data && model.data.people ? model.data.people.filter(r => r.job).map(r => ({ seat: (r.idx | 0) - 1, key: r.key })) : [] },
-                    rig: FS_RIG ? { test: FS_RIG.test, design: FS_RIG.design, got: FS_RIG.got || null } : null }),
+                    rig: FS_RIG ? { test: FS_RIG.test, design: FS_RIG.design, out: FS_RIG.out, got: FS_RIG.got || null } : null }),
     stop: fsStop,
     rigLoad: fsRigLoad,
     cutaway: fsCutaway,
