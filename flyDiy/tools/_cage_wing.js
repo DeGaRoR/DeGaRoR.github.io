@@ -276,8 +276,8 @@ const WING_ITEMS = [
   // aluminium (never plywood: a wooden wing is fabric-covered, the ply is the
   // leading-edge D-box only); 'as the aeroplane' is fabric on a wood or tube
   // fuselage, alloy on alloy, carbon on carbon (GEN_SURF_DEFAULT)
-  ['wgCons', 'construction', 0, 6, 1,
-   ['as the aeroplane', 'carbon', 'steel tube', 'fabric on wood', 'aluminium', 'aluminium tube', 'glassfibre'],
+  ['wgCons', 'construction', 0, 7, 1,
+   ['as the aeroplane', 'carbon', 'steel tube', 'fabric on wood', 'aluminium', 'aluminium tube', 'glassfibre', 'fabric on aluminium spar'],
    on],
   // G3503 (DC3-BUILD): aft to 6 m (negative is aft) - a full-size DC-3's wing stands
   // ~4 m behind its cockpit ring; the flown envelope's xLE window still holds it (DC3-EDITABLE: to 9 m, the big box's 12 m LE)
@@ -599,7 +599,7 @@ function wingMat(cl, plane) {
   // dresses every class
   // G213: the wing's own tokens in the row's order, and 'as the aeroplane'
   // through GEN_SURF_DEFAULT (fabric on a wood or tube fuselage)
-  const CONS4 = ['carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass'];   // G466: the fifth stop; G2047 the sixth
+  const CONS4 = ['carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass', 'fabricAlu'];   // G466: the fifth stop; G2047 the sixth
   const FUS4 = ['carbon', 'tubeFabric', 'wood', 'alloy', 'aluTube', 'glass'];
   const SD = (typeof GEN_SURF_DEFAULT !== 'undefined' && GEN_SURF_DEFAULT) ||
     { tubeFabric: 'fabric', wood: 'fabric', alloy: 'alloy', carbon: 'carbon', aluTube: 'aluFabric', glass: 'glass' };

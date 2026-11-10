@@ -75,7 +75,7 @@ var SPACE_CONFIG = (function () {
   };
   // the fuselage's material token (60_gen_spec.js GEN_MATERIALS; the surfaces' own tokens for an odd spec) -> class
   const MATERIAL_CLASS = { tubeFabric: 'fabric', steel: 'fabric', fabric: 'wood', wood: 'wood', aluTube: 'ultralight',
-                           aluFabric: 'ultralight', alloy: 'metal', carbon: 'composite' };
+                           aluFabric: 'ultralight', fabricAlu: 'fabric', alloy: 'metal', carbon: 'composite' };
 
   // ---- the Web Audio spec's BiquadFilterNode, magnitude only (RBJ cookbook, the spec's own formulas) -------------
   function biquadCoefs(type, f0, Q, gainDb, sr) {

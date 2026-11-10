@@ -1,0 +1,259 @@
+{
+ "_what": "REAL-FIGURES-3 (the user 9 Nov): the STOL Cub made a Carbon Cub SS - the real engine built from DIALS, not a row (the CC340: the O-320's chassis, 5.125 x 4.125 in, 340 in3, 2700 rpm, tune 1.09 = 10.7 bar -> 180 hp, build 0.88 -> 120 kg as normally equipped: 240-250 lb dry, 35 lb under a comparable Lycoming), a two-blade 2.03 m carbon prop, only the real STOL features (VGs; no slot, no droop, no drooped tips), the new STOL flap (a plain hinge to 50 deg, the SS's 15/30/50), a Super Cub-sized tail, the wing on the new aluminium-spar-under-fabric row (wgCons 7), (3.2 m, THIN) with the Cub's elevator chord, 29 in Airstreak tundra tyres (the largest CubCrafters option; ours were 30.7 in), an 8 in tailwheel, 24 US gal in two wing-root tanks, and the SS's panel: one 7 in glass PFD/MFD in the centre with round airspeed, altimeter and VSI, COM and transponder (its round engine monitor, a CGR-30P, has no row: small tacho / oil / fuel gauges stand in) The livery (the user: distinctive, modern, not the full yellow): 'graphite and glacier' - a metallic slate-blue fuselage (metal 0.35) with a satin-black belly sweep under a glacier-cyan line, pearl-white wings and tail (metal 0.3), cyan tips and rudder, a raw carbon cowl, polished bare-alloy struts, a chrome spinner, satin-black legs, a cyan registration. The wing to the real SS's size (34 ft 3 in = 10.44 m span, ~16.6 m2: Wikipedia, aeropedia, a dealer's 179 sq ft): span 10.70 -> 10.44 m, chord 1.70 -> 1.60 m, the Cub's 63 in (179 sq ft over 34.25 ft is a 1.59 m mean chord; the STOL Cub's wing was 17.6 m2).",
+ "enginePreset": "lycoming O-320",
+ "cage": {
+  "engPreset": 41,
+  "wgSlat": 0,
+  "wgSlatSpan": 0,
+  "wgVG": 1,
+  "wgDroop": 0,
+  "wgTip": 2,
+  "wgFlapType": 5,
+  "cw_propD": 2.03,
+  "cw_bladeN": 2,
+  "stSpan": 1.589,
+  "stHinge": 0.2074,
+  "s1R": 0.368,
+  "s2R": 0.1,
+  "eng_stroke": 0.104775,
+  "eng_bmepK": 1.09,
+  "eng_massK": 0.88,
+  "wgCons": 7,
+  "wgSpan": 10.44,
+  "wgChord": 1.6,
+  "wgChordTip": 1.6
+ },
+ "prop": {
+  "D": 2.03,
+  "blades": 2,
+  "material": "carbon",
+  "pitch": "standard"
+ },
+ "energy": {
+  "kind": "fuel",
+  "fuel": "avgas100LL",
+  "cell": "lifepo4",
+  "kWh": 0,
+  "vessel": null,
+  "finish": null,
+  "hue": 0,
+  "tint": null,
+  "vessels": [
+   {
+    "bay": "wingRoot",
+    "capacity": 91,
+    "along": null,
+    "lv": null,
+    "rot": 0,
+    "form": "box",
+    "finish": null,
+    "hue": null,
+    "tint": null,
+    "dims": null
+   }
+  ]
+ },
+ "fuel": {
+  "litres": 91,
+  "tank": "wing"
+ },
+ "meta": {
+  "name": "Carbon Cub SS"
+ },
+ "wings": {
+  "stol": {
+   "vg": 1
+  },
+  "tip": "rounded"
+ },
+ "systems": {
+  "fit": "custom",
+  "units": "aviation",
+  "items": [
+   "asi",
+   "alt",
+   "vsi",
+   "compass",
+   "tacho",
+   "oilP",
+   "oilT",
+   "fuel",
+   "volts"
+  ],
+  "elec": {
+   "battery": "lithium",
+   "alternator": "alt60",
+   "starter": "yes",
+   "vac": "none"
+  },
+  "avionics": {
+   "com": "compact",
+   "xpdr": "modeS",
+   "nav": "none",
+   "gps": "glass"
+  },
+  "side": "centre",
+  "look": {
+   "bezel": "plastic",
+   "sw": "toggle"
+  }
+ },
+ "paint": {
+  "job": "full",
+  "base": 6979734,
+  "trim": 1358028,
+  "sweep": 0.55,
+  "gloss": 0.8,
+  "regX": 0.3
+ },
+ "finish": {
+  "sections": {
+   "strut": {
+    "fin": "bareAlu",
+    "tint": 13225683,
+    "metal": 0.9
+   },
+   "body": {
+    "tint": 6979734,
+    "metal": 0.35
+   },
+   "waistband": {
+    "tint": 1358028
+   },
+   "ceilingLoop": {
+    "tint": 6979734,
+    "metal": 0.35
+   },
+   "pillarFront": {
+    "tint": 6979734,
+    "metal": 0.35
+   },
+   "pillarCabin": {
+    "tint": 6979734,
+    "metal": 0.35
+   },
+   "floorLoop": {
+    "tint": 6979734,
+    "metal": 0.35
+   },
+   "gearLeg": {
+    "tint": 1447963,
+    "metal": 0.15
+   },
+   "pillarWindow": {
+    "tint": 6979734,
+    "metal": 0.35
+   },
+   "dummy2": {
+    "tint": 6083612
+   },
+   "pillarPassenger": {
+    "tint": 6979734,
+    "metal": 0.35
+   },
+   "pillarTail": {
+    "tint": 6979734,
+    "metal": 0.35
+   },
+   "joint": {
+    "tint": 3817285
+   },
+   "wingTip": {
+    "tint": 1358028,
+    "metal": 0.3
+   },
+   "finRud": {
+    "tint": 1358028,
+    "metal": 0.3
+   },
+   "spinner": {
+    "fin": "chrome"
+   },
+   "wingSkin": {
+    "tint": 15922160,
+    "metal": 0.3
+   },
+   "finSkin": {
+    "tint": 15922160,
+    "metal": 0.3
+   },
+   "stabSkin": {
+    "tint": 15922160,
+    "metal": 0.3
+   },
+   "wingStol": {
+    "tint": 1358028
+   },
+   "cowlSkin": {
+    "fin": "composite"
+   }
+  },
+  "wear": 0.05,
+  "decals": {
+   "regH": 0.16,
+   "regL": 3.55,
+   "regC": 0.16,
+   "regW": 1,
+   "regLock": 1,
+   "imgW": 0.15,
+   "imgH": 0.15,
+   "wimL": 0.65,
+   "regCol": 1358028,
+   "regOutOn": 0,
+   "m1On": 1,
+   "m1Pat": 2,
+   "m1A": 1447963,
+   "m1B": 1358028,
+   "m1D": 15922160,
+   "m1L": -1.3,
+   "m1C": -0.25,
+   "m1W": 8.6,
+   "m1H": 1.1,
+   "m1Rot": 0,
+   "m1Tgt": 0,
+   "m1Mode": 1,
+   "regFont": 2,
+   "wregOn": 1,
+   "wregH": 0.55,
+   "wregL": 2.6,
+   "wregC": -1.1,
+   "wregRot": 0,
+   "wregMode": 2,
+   "m1P": 0.36,
+   "m1Q": 0.42,
+   "m2On": 1,
+   "m2Pat": 2,
+   "m2A": 1358028,
+   "m2B": 15922160,
+   "m2P": 0.4,
+   "m2Q": 0.45,
+   "m2R": null,
+   "m2S": null,
+   "m2Clr": 0,
+   "m2Tgt": 5,
+   "m2Mode": 1,
+   "m2Fit": 1,
+   "m2L": 4.6,
+   "m2C": 0.4,
+   "m2W": 1.4,
+   "m2H": 1.2,
+   "m3On": 1,
+   "m3Pat": 3,
+   "m3A": 1358028,
+   "m3B": 15922160,
+   "m3L": -1.5,
+   "m3C": 0.12,
+   "m3W": 5.2,
+   "m3H": 0.22,
+   "m3P": 0.3,
+   "m3Q": 0.35,
+   "m3Rot": 0,
+   "m3Tgt": 0,
+   "m3Mode": 1
+  },
+  "glass": {
+   "opacity": 0.35,
+   "rainbow": 0.5
+  }
+ }
+}
