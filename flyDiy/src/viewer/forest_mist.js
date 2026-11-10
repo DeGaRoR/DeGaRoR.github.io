@@ -33,10 +33,13 @@ var FMIST = (function () {
   // THE DIALS. Strength laws are in strengths(); `force` pins them for a rig ({pool, wisp, oro} 0..1, null = the weather's).
   const S = {
     N: 512, X: 768,                 // the map's side and its first column in the atlas
-    rhoMax: 0.012, octaves: 0, coreK: 1.6, flat: false,   // flat: the A/B's other mechanism (with rhoMax 0.006 and octaves 2 it is the user's "/2, the weather on both")      // per metre in a pocket: the HEAVIEST day (~330 m inside; the user 9 Nov: "not a /2 we need, rather a x2"), down 2 octaves (/4) for the last wisps - no further: below that nothing cuts through the trees
+    // THE DENSITY (per metre at a full pocket's heart, the heaviest day) and its ladder: the user's A/B, 9-10 Nov - the flat
+    // body with the weather on BOTH the amount and the density read best ("the finer ones"), and the dense end looked
+    // bad, so the heaviest is 0.003 /m (~1.3 km inside: an aerial veil, never a wall) and the last wisps a quarter of it.
+    rhoMax: 0.003, octaves: 2, flat: true, coreK: 1.6,   // coreK: the gradient mechanism's (flat: false), kept for the record
     rho: null,                      // a pin over the ladder (the rigs' density sheets), null = the weather's
-    swing: 30, covK: 0.8, detailK: 7.7, erode: 0.5, soft: 0.5, stretch: 2.1,   // the contours' swing (m), the share of a full pocket that is mist, the erosion's scale (x the body's) and depth
-    period: 160,                    // the noise's cell (m): a wisp a few tree lengths across
+    swing: 30, covK: 0.8, detailK: 9.0, erode: 0.5, soft: 0.5, stretch: 2.1,   // the contours' swing (m), the share of a full pocket that is mist, the erosion's scale (x the body's) and depth
+    period: 110,                    // the noise's cell (m): a wisp a few tree lengths across (160 -> 110: the user, 10 Nov, "chase more resolution")
     lidM: 25, lidK: 110,            // the pool's lid over the valley floor: 25 m + 110 m x the pool weight
     wispLo: -12, wispHi: 40,        // the wisps' band about the canopy top (m)
     oroLo: -40, oroHi: 140,         // the cloud base's band (m) where it meets a slope
@@ -296,7 +299,7 @@ var FMIST = (function () {
     const thr = 1 - S.covK * cov;
     let body = S.flat ? smc(thr, thr + S.soft, n) : Math.pow(Math.min(1, Math.max(0, (n - thr) / Math.max(0.05, 1 - thr))), S.coreK); if (body <= 0) return 0;
     const rx = qx * S.detailK + y * 0.045, rz = qz * S.detailK + 3.3;
-    let e = 0.6 * vn(rx, rz) + 0.4 * vn(rx * 2.7 + 1.9, rz * 2.7 - 4.1); e = Math.min(1, Math.max(0, 0.5 + (e - 0.5) * 2.4));
+    let e = 0.5 * vn(rx, rz) + 0.32 * vn(rx * 2.7 + 1.9, rz * 2.7 - 4.1) + 0.18 * vn(rx * 6.1 - 7.3, rz * 6.1 + 2.2); e = Math.min(1, Math.max(0, 0.5 + (e - 0.5) * 2.4));
     const dd = Math.min(1, Math.max(0, (body - e * S.erode) / (1 - e * S.erode)));
     return dd * (S.flat ? smc(0, 0.3, cov) : Math.sqrt(geo)) * (S.rho != null ? S.rho : S.rhoMax);
   }
@@ -361,7 +364,7 @@ var FMIST = (function () {
       // THE DETAIL: a ~${Math.round(S.period / S.detailK)} m erosion eats the edges (Schneider's remap: base minus the fine noise), so the
       // outline breaks into wisps and the inside keeps its mass
       vec2 r = q * ${S.detailK.toFixed(2)} + vec2(p.y * 0.045, 3.3);
-      float e = 0.6 * mistVN(r) + 0.4 * mistVN(r * 2.7 + vec2(1.9, -4.1));
+      float e = 0.5 * mistVN(r) + 0.32 * mistVN(r * 2.7 + vec2(1.9, -4.1)) + 0.18 * mistVN(r * 6.1 + vec2(-7.3, 2.2));   // three octaves: the edge breaks at ~12, ~4.5 and ~2 m
       e = clamp(0.5 + (e - 0.5) * 2.4, 0.0, 1.0);
       float d = clamp((body - e * ${S.erode.toFixed(2)}) / (1.0 - e * ${S.erode.toFixed(2)}), 0.0, 1.0);
       return d * (uMist[11].z > 0.5 ? smoothstep(0.0, 0.3, cov) : sqrt(geo)) * uMist[8].z;
