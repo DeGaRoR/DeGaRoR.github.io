@@ -181,7 +181,7 @@ var PROG_WARM = (() => {
       let n = 0;
       try {
         let room = opt.pace ? opt.pace() : Infinity;
-        if (room !== Infinity && queue.length > 1) queue.sort((a, b) => (a.m.groundFamily ? 0 : 1) - (b.m.groundFamily ? 0 : 1));
+        if (room !== Infinity && queue.length > 1) queue.sort((a, b) => (a.m.groundFamily || a.m.heavyLink ? 0 : 1) - (b.m.groundFamily || b.m.heavyLink ? 0 : 1));
         while (queue.length && room-- > 0) {
           const e = queue.shift(); e.t = now;
           try {
