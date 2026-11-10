@@ -68,9 +68,23 @@
     dens: 0.6,           // the puff's drawn optical depth over the 9 Nov bench's (the user, 10 Nov: "a lower cloud density")
     fwdMax: 1.8,         // the forward lobe's cap (was 4): a backlit puff glows, it no longer blows out to white at low sun
     ground: true,        // the ground's colour handed in (false: the class rows)
+    // V2 (the user, 10 Nov: "more interesting patterns in this cloud ... vortices ... zones where they are more and less
+    // dense ... here it's mostly a big blur ... the sprites ... really old school"). The industry's three answers, none
+    // invented here (research: flydiy-notes/DIRT-DUST-V2-RESEARCH-2026-11-10.md):
+    //   SIX-WAY LIT VOLUME SPRITES  (Unity's VFX Graph six-way smoke lighting; EmberGen / Houdini flipbooks): each puff
+    //       draws a baked volume of billowing lobes, lit from six directions at bake time and blended by the sun's
+    //       direction at run time - internal shadow, cauliflower edges, a silver rim when backlit; a flipbook of its life
+    //       (young: dense lobes, old: torn wisps)
+    //   CLOUD-SCALE SHADOW  (Frostbite / opacity-map practice, done per puff): each puff's sun and sky are dimmed by the
+    //       optical depth of the other puffs between it and the light - dark cores, lit tops and edges
+    //   EDDIES  (Ghost of Tsushima's curl noise on particles; Chen et al. 1999's turbulent wake stage): the puffs ride a
+    //       divergence-free swirl field of the surface layer, so a trail breaks into lobes and gaps instead of a smooth tube
+    v2: true,
   };
   // ?dustlook=0: the 9 Nov look (the class rows, the full density, the 4x lobe) - the before/after's lever
-  try { if (typeof location !== 'undefined' && /[?&]dustlook=0/.test(location.search || '')) { LOOK.dens = 1; LOOK.fwdMax = 4; LOOK.ground = false; } } catch (e) {}
+  try { if (typeof location !== 'undefined' && /[?&]dustlook=0/.test(location.search || '')) { LOOK.dens = 1; LOOK.fwdMax = 4; LOOK.ground = false; LOOK.v2 = false; } } catch (e) {}
+  // ?dustv2=0: the 10 Nov colour tune without V2 (the lit volume sprites, the cloud's shadow, the eddies)
+  try { if (typeof location !== 'undefined' && /[?&]dustv2=0/.test(location.search || '')) LOOK.v2 = false; } catch (e) {}
   function albedoFrom(g) {
     if (!g || g.length < 3) return null;
     const c = [g[0] * LOOK.lift, g[1] * LOOK.lift, g[2] * LOOK.lift], l = 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
@@ -124,6 +138,11 @@
     vortK: 0.5,
     // fade
     tauMin: 0.003,
+    // V2 EDDIES: the surface layer's large eddies as a curl-noise swirl (divergence-free: the cloud does not collapse or
+    // explode, it folds) - u_e near sigma_v (~0.5 m/s in light wind, + a share of the wind), scale ~ the puffs' (15-25 m),
+    // turning over in ~eddyT s; a little vertical (lumps that lift and sink). INFERRED from Taylor's sigma_v and the
+    // footage's lobes; the bench's slider
+    eddyU: 0.6, eddyUWind: 0.12, eddyL: 18, eddyT: 9, eddyW: 0.25,
   };
   const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
   const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
@@ -213,6 +232,24 @@
     out[0] = w ? w[0] * k : 0; out[1] = w ? w[1] * k : 0; out[2] = w ? (w[2] != null ? w[2] : Math.hypot(w[0], w[1])) : 0;
     return out;
   }
+  // ---- V2: the eddies - curl of a smooth scalar field psi(x, z, t) (3-D value noise: x, z in eddyL, t in eddyT) -------
+  const hsh3 = (x, y, z) => { let h = (x * 374761393 + y * 668265263 + z * 1440662683) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
+  function vn3(x, y, z) {
+    const ix = Math.floor(x), iy = Math.floor(y), iz = Math.floor(z), fx = x - ix, fy = y - iy, fz = z - iz;
+    const sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy), sz = fz * fz * (3 - 2 * fz);
+    const l = (a, b, t) => a + (b - a) * t;
+    return l(l(l(hsh3(ix, iy, iz), hsh3(ix + 1, iy, iz), sx), l(hsh3(ix, iy + 1, iz), hsh3(ix + 1, iy + 1, iz), sx), sy),
+             l(l(hsh3(ix, iy, iz + 1), hsh3(ix + 1, iy, iz + 1), sx), l(hsh3(ix, iy + 1, iz + 1), hsh3(ix + 1, iy + 1, iz + 1), sx), sy), sz);
+  }
+  const psi = (x, z, t) => vn3(x, z, t) + 0.5 * vn3(x * 2.03 + 17.1, z * 2.03 - 5.3, t * 1.7 + 3.1);
+  const EDDY = [0, 0, 0];
+  function eddyAt(x, z, t, U, out) {
+    const k = 1 / L.eddyL, e = 0.35, X = x * k, Z = z * k, T = t / L.eddyT;
+    const dpx = (psi(X + e, Z, T) - psi(X - e, Z, T)) / (2 * e), dpz = (psi(X, Z + e, T) - psi(X, Z - e, T)) / (2 * e);
+    // u = (d psi / dz, -d psi / dx): divergence-free in the plane; the vertical a separate slow field
+    out[0] = dpz * U; out[1] = -dpx * U; out[2] = (vn3(X * 1.3 + 41, Z * 1.3, T * 0.8) - 0.5) * 2 * L.eddyW * U;
+    return out;
+  }
   // ---- step(sys, dt, env): integrate both pools, merge the old puffs ---------------------------------------------
   const WV = [0, 0, 0];
   const MERGE = new Map();
@@ -242,11 +279,14 @@
       const hc = Math.max(0.2, P.p[i * 3 + 1] - g);
       windAt(env, hc, WV);
       const dr = Math.min(1, L.puffDrag * dt);
-      P.v[i * 3] += (WV[0] - P.v[i * 3]) * dr;
-      P.v[i * 3 + 2] += (WV[1] - P.v[i * 3 + 2]) * dr;
+      // V2: the eddies (a young puff still rides its source's jet: the swirl comes in over the jet's decay)
+      let ex = 0, ez = 0, ey = 0;
+      if (LOOK.v2 && L.eddyU > 0) { eddyAt(x, z, sys.t, (L.eddyU + L.eddyUWind * spd10) * (1 - Math.exp(-a / L.jetTau)), EDDY); ex = EDDY[0]; ez = EDDY[1]; ey = EDDY[2]; }
+      P.v[i * 3] += (WV[0] + ex - P.v[i * 3]) * dr;
+      P.v[i * 3 + 2] += (WV[1] + ez - P.v[i * 3 + 2]) * dr;
       // the vertical: its own momentum dies, and the centre settles toward the dome's (ground + domeK rv)
       const yT = g + L.domeK * rv;
-      P.v[i * 3 + 1] += (-(P.p[i * 3 + 1] - yT) * 0.4 - P.v[i * 3 + 1]) * dr;
+      P.v[i * 3 + 1] += (-(P.p[i * 3 + 1] - yT) * 0.4 + ey - P.v[i * 3 + 1]) * dr;
       P.p[i * 3] += P.v[i * 3] * dt; P.p[i * 3 + 1] += P.v[i * 3 + 1] * dt; P.p[i * 3 + 2] += P.v[i * 3 + 2] * dt;
       if (P.p[i * 3 + 1] < g) P.p[i * 3 + 1] = g;
     }
@@ -441,9 +481,11 @@
     #include <logdepthbuf_pars_vertex>
     attribute vec3 iPos; attribute vec3 iVel; attribute vec4 iA;   // iA: age01, size (m), seed, kind (1 puff, 0 grit, 2 mud)
     attribute vec4 iB;                                              // iB: optical depth at the centre, ground y, class, a puff's half-height
+    attribute vec2 iC;                                              // iC (V2): the puff's sun and sky through the other puffs (0..1)
     uniform float uStretch, uMinNdc, uNear;
-    uniform vec3 uCol[5]; uniform vec3 uMud;
+    uniform vec3 uCol[5]; uniform vec3 uMud; uniform vec3 uSunV;
     varying vec2 vUv; varying vec4 vA; varying vec3 vCol; varying float vTau, vGd, vK, vSv;
+    varying vec3 vLq, vUq; varying vec2 vSh;                         // V2: the sun and the sky's up in the sprite's frame; iC
     void main() {
       vUv = uv; vA = iA;
       vec4 vp = modelViewMatrix * vec4(iPos, 1.0);
@@ -471,6 +513,11 @@
         ay = ku > 0.01 ? up / ku : vec2(0.0, 1.0); ax = vec2(ay.y, -ay.x);
         hy = mix(s, sv, clamp(ku, 0.0, 1.0));
       }
+      // V2: the sprite's frame is (ax, ay, the view's +z): the sun and the world's up turned into it (one quad, one frame)
+      vec3 upV = (viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz;
+      vLq = vec3(dot(uSunV.xy, ax), dot(uSunV.xy, ay), uSunV.z);
+      vUq = vec3(dot(upV.xy, ax), dot(upV.xy, ay), upV.z);
+      vSh = iC;
       vec2 c = uv - 0.5;
       vec2 off = ax * c.x * len * 2.0 + ay * c.y * hy * 2.0;
       vp.xy += off;
@@ -488,8 +535,20 @@
     #include <common>
     #include <logdepthbuf_pars_fragment>
     varying vec2 vUv; varying vec4 vA; varying vec3 vCol; varying float vTau, vGd, vK, vSv;
-    uniform sampler2D uNoise;
+    varying vec3 vLq, vUq; varying vec2 vSh;
+    uniform sampler2D uNoise, uSixA, uSixB;
     uniform vec3 uSunV, uSunCol, uSkyCol, uGndCol; uniform float uOpacity, uG, uDens, uFwdMax;
+    uniform float uV2, uLife, uTauRef, uZoom; uniform vec4 uAtlas;          // uAtlas: columns, rows, frames, pixels a frame
+    // SIX-WAY: the baked light from +x, +y, +z (the eye's side) and -x, -y, -z, weighted by the light's direction squared
+    float six(vec3 l, vec4 A, vec4 B) {
+      vec3 p = max(l, 0.0), n = max(-l, 0.0); p *= p; n *= n;
+      return dot(p, vec3(A.r, A.g, B.b)) + dot(n, vec3(B.r, B.g, A.b));
+    }
+    vec2 tileUv(vec2 u01, float f) {
+      float c = mod(f, uAtlas.x), r = floor(f / uAtlas.x);
+      vec2 inner = (u01 * (uAtlas.w - 2.0) + 1.0) / uAtlas.w;    // a texel's margin: no bleed from the next frame
+      return (vec2(c, r) + inner) / uAtlas.xy;
+    }
     void main() {
       #include <logdepthbuf_fragment>
       vec2 q = vUv * 2.0 - 1.0;
@@ -497,7 +556,38 @@
       if (d2 > 1.0) discard;
       float age = vA.x, s = vA.y, seed = vA.z, kind = vA.w;
       vec3 col; float a;
-      if (kind > 0.5 && kind < 1.5) {
+      if (kind > 0.5 && kind < 1.5 && uV2 > 0.5) {
+        // V2 THE PUFF: a six-way lit volume, a frame of its life. The frame: the puff's seconds on a log clock (the
+        // turbulence is fastest young), offset by its seed; mirrored and turned a little by the seed (the light with it)
+        float secs = age * uLife;
+        float fr = clamp(log2(1.0 + secs / 1.5) / log2(41.0), 0.0, 1.0) * (uAtlas.z - 1.0);
+        fr = min(uAtlas.z - 1.0, fr + floor(seed * 4.0));
+        float f0 = floor(fr), f1 = min(f0 + 1.0, uAtlas.z - 1.0), fk = fr - f0;
+        float th = (fract(seed * 13.7) - 0.5) * 0.9, cth = cos(th), sth = sin(th);
+        float mir = fract(seed * 7.3) > 0.5 ? -1.0 : 1.0;
+        vec2 qr = vec2(cth * q.x - sth * q.y, sth * q.x + cth * q.y); qr.x *= mir;
+        vec2 u01 = clamp(qr * 0.5 * uZoom + 0.5, 0.0, 1.0);   // (the baked body fills ~70 % of its frame)
+        vec4 A = mix(texture2D(uSixA, tileUv(u01, f0)), texture2D(uSixA, tileUv(u01, f1)), fk);
+        vec4 B = mix(texture2D(uSixB, tileUv(u01, f0)), texture2D(uSixB, tileUv(u01, f1)), fk);
+        // the column's optical depth from the baked coverage, scaled to this puff's (its centre's, the frame's reference)
+        float ts = -log(1.0 - min(A.a, 0.995));
+        float tau = 2.0 * vTau * uDens * ts / uTauRef;
+        a = 1.0 - exp(-tau);
+        a *= smoothstep(-0.05 * vSv, 0.3 * vSv + 0.15, vGd);
+        a *= smoothstep(0.0, 0.04, age);
+        vec3 lq = vLq, uq = vUq;
+        lq.xy = vec2(cth * lq.x - sth * lq.y, sth * lq.x + cth * lq.y); lq.x *= mir;
+        uq.xy = vec2(cth * uq.x - sth * uq.y, sth * uq.x + cth * uq.y); uq.x *= mir;
+        // the sun: six-way, its backlit share (light from -z, through the puff to the eye) lifted by the forward lobe
+        float cs = -uSunV.z, g = uG;
+        float hg = (1.0 - g * g) / pow(1.0 + g * g - 2.0 * g * cs, 1.5);
+        float ph = min(uFwdMax, mix(hg, 1.0, clamp(vTau * 0.35, 0.0, 0.8)));
+        float back = max(-lq.z, 0.0); back *= back;
+        float sun = six(lq, A, B) + back * A.b * max(0.0, ph - 1.0);
+        float mean = (A.r + A.g + A.b + B.r + B.g + B.b) / 6.0;
+        float sky = 0.5 * six(uq, A, B) + 0.5 * mean, gnd = six(-uq, A, B);
+        col = vCol * (uSunCol * sun * vSh.x * 1.6 + uSkyCol * sky * vSh.y * 1.3 + uGndCol * gnd * 0.5) / 3.14159265;
+      } else if (kind > 0.5 && kind < 1.5) {
         // THE PUFF: a sphere's column, torn by the billow (two taps of the baked noise: density r, its normal gb)
         vec2 o = vec2(seed * 7.13, seed * 3.71) + vec2(age * 0.06, -age * 0.09);
         vec4 n1 = texture2D(uNoise, vUv * 0.6 + o);
@@ -539,6 +629,99 @@
       #include <tonemapping_fragment>
       #include <colorspace_fragment>
     }`;
+  // ---- V2 THE SIX-WAY BAKE: a dust puff's volume over its life, lit from six directions, packed in two atlases ---------
+  // (Unity's six-way smoke lighting: each direction's light in a channel - A: +x, +y, -z (from behind), coverage; B: -x,
+  // -y, +z (from the eye's side). Made here once from code - lobes of billowing dust eroded by turbulence, young dense
+  // and round, old torn and thin - no file, nothing to credit.) A volume N^3 a frame; the light's transmittance by running
+  // sums along each axis; the eye's march along -z; per pixel, the light a scattering event sees, averaged over the
+  // column (so a map is 0..1: lit fraction), and the column's coverage.
+  let SIX = null;
+  function sixWay(o) {
+    o = o || {};
+    const N = o.N || 52, PX = o.px || 64, F = o.frames || 16, C = o.cols || 4, R = Math.ceil(F / C), K = o.k || 18.0;
+    let sd = (o.seed || 7) >>> 0;
+    const rnd1 = () => { sd = (sd + 0x6D2B79F5) >>> 0; let t = sd; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+    const lobes = [];
+    // a core and a ring of lobes in an oblate body (a dust puff is wider than tall, its lobes rolling outward)
+    lobes.push({ c: [0, -0.08, 0], r: 0.62, out: [0, 0.2, 0] });
+    for (let k = 0; k < 14; k++) {
+      let x, y, z; do { x = rnd1() * 2 - 1; y = rnd1() * 2 - 1; z = rnd1() * 2 - 1; } while (x * x + y * y + z * z > 1);
+      const d = Math.hypot(x, y, z) || 1;
+      lobes.push({ c: [x * 0.62, y * 0.36, z * 0.62], r: 0.24 + 0.22 * rnd1(), out: [x / d, y / d * 0.5, z / d] });
+    }
+    const fbm = (x, y, z) => { let f = 0, a = 0.5, s = 1; for (let i = 0; i < 4; i++) { f += a * vn3(x * s + i * 19.1, y * s - i * 7.7, z * s + i * 3.3); a *= 0.5; s *= 2.03; } return f / 0.9375; };
+    const W = C * PX, H = R * PX, outA = new Uint8Array(W * H * 4), outB = new Uint8Array(W * H * 4);
+    const sig = new Float32Array(N * N * N), Lt = [0, 1, 2, 3, 4, 5].map(() => new Float32Array(N * N * N));
+    const at = (x, y, z) => (z * N + y) * N + x, dl = 2 / N;
+    const cols = new Float32Array(N * N * 7);      // per column: 6 maps + coverage
+    const tauC = [];
+    for (let f = 0; f < F; f++) {
+      const t = F > 1 ? f / (F - 1) : 0;
+      const ero = 0.2 + 0.75 * t, thin = 1 - 0.55 * t, rot = t * 1.1, cr = Math.cos(rot), sr = Math.sin(rot);
+      for (let iz = 0; iz < N; iz++) for (let iy = 0; iy < N; iy++) for (let ix = 0; ix < N; ix++) {
+        const px = (ix + 0.5) * dl - 1, py = (iy + 0.5) * dl - 1, pz = (iz + 0.5) * dl - 1;
+        let sh = 0;
+        for (const L0 of lobes) {
+          const sp = 0.18 * t, cx = L0.c[0] + L0.out[0] * sp, cy = L0.c[1] + L0.out[1] * sp, cz = L0.c[2] + L0.out[2] * sp, rr = L0.r * (1 + 0.15 * t);
+          const q = 1 - Math.hypot(px - cx, py - cy, pz - cz) / rr;
+          if (q > sh) sh = q;
+        }
+        const rad = Math.hypot(px, py, pz);
+        sh *= 1 - smooth(0.82, 0.99, rad);
+        if (sh <= 0) { sig[at(ix, iy, iz)] = 0; continue; }
+        // the churn: the noise's frame turns about the vertical and rolls outward with the frame
+        const wx = cr * px + sr * pz, wz = -sr * px + cr * pz;
+        const n = fbm(wx * 3.4 + t * 0.9, py * 3.4 - t * 0.6, wz * 3.4 + t * 0.5);
+        const n2 = vn3(px * 11 + t * 3.1, py * 11 - t * 1.3, pz * 11);
+        const d = sh - ero * (1 - n) * (1.25 - 0.6 * Math.min(1, sh * 2)) - 0.1 * (1 - n2);
+        sig[at(ix, iy, iz)] = d > 0 ? d * K * thin : 0;
+      }
+      // the light's transmittance from each side: a running sum along the axis, half the voxel's own
+      const run = (Li, axis, sign) => {
+        for (let a = 0; a < N; a++) for (let b = 0; b < N; b++) {
+          let acc = 0;
+          for (let s0 = 0; s0 < N; s0++) {
+            const s1 = sign > 0 ? N - 1 - s0 : s0;
+            const id = axis === 0 ? at(s1, a, b) : axis === 1 ? at(a, s1, b) : at(a, b, s1);
+            const sv = sig[id] * dl;
+            Li[id] = Math.exp(-(acc + 0.5 * sv)); acc += sv;
+          }
+        }
+      };
+      // Lt: 0 +x, 1 +y, 2 -z (behind), 3 -x, 4 -y, 5 +z (the eye's side)
+      run(Lt[0], 0, 1); run(Lt[1], 1, 1); run(Lt[2], 2, -1); run(Lt[3], 0, -1); run(Lt[4], 1, -1); run(Lt[5], 2, 1);
+      let tMax = 0;
+      for (let iy = 0; iy < N; iy++) for (let ix = 0; ix < N; ix++) {
+        let T = 1; const acc = [0, 0, 0, 0, 0, 0];
+        for (let iz = N - 1; iz >= 0; iz--) {
+          const id = at(ix, iy, iz), dt = sig[id] * dl;
+          if (dt <= 0) continue;
+          const w = T * (1 - Math.exp(-dt));
+          for (let k = 0; k < 6; k++) acc[k] += w * Lt[k][id];
+          T *= Math.exp(-dt);
+        }
+        const cov = 1 - T, o7 = (iy * N + ix) * 7;
+        for (let k = 0; k < 6; k++) cols[o7 + k] = cov > 1e-4 ? acc[k] / cov : 0.5;
+        cols[o7 + 6] = cov;
+        const tc = -Math.log(Math.max(1e-6, T)); if (tc > tMax) tMax = tc;
+      }
+      tauC.push(tMax);
+      // up-sample the N^2 columns to the frame's PX^2 (bilinear), into the atlases
+      const tc0 = f % C, tr0 = Math.floor(f / C);
+      for (let y = 0; y < PX; y++) for (let x = 0; x < PX; x++) {
+        const gx = clamp((x + 0.5) / PX * N - 0.5, 0, N - 1), gy = clamp((y + 0.5) / PX * N - 0.5, 0, N - 1);
+        const x0 = Math.floor(gx), y0 = Math.floor(gy), x1 = Math.min(N - 1, x0 + 1), y1 = Math.min(N - 1, y0 + 1), fx = gx - x0, fy = gy - y0;
+        const v = k => { const g00 = cols[(y0 * N + x0) * 7 + k], g10 = cols[(y0 * N + x1) * 7 + k], g01 = cols[(y1 * N + x0) * 7 + k], g11 = cols[(y1 * N + x1) * 7 + k];
+          return (g00 * (1 - fx) + g10 * fx) * (1 - fy) + (g01 * (1 - fx) + g11 * fx) * fy; };
+        const o4 = ((tr0 * PX + y) * W + tc0 * PX + x) * 4, edge = x === 0 || y === 0 || x === PX - 1 || y === PX - 1;
+        const b = q => Math.round(clamp(q, 0, 1) * 255);
+        outA[o4] = b(v(0)); outA[o4 + 1] = b(v(1)); outA[o4 + 2] = b(v(2)); outA[o4 + 3] = edge ? 0 : b(v(6));
+        outB[o4] = b(v(3)); outB[o4 + 1] = b(v(4)); outB[o4 + 2] = b(v(5)); outB[o4 + 3] = 255;
+      }
+    }
+    const sorted = tauC.slice().sort((a, b) => a - b);
+    return { A: outA, B: outB, W, H, F, C, R, PX, tauRef: Math.max(0.5, sorted[sorted.length >> 1]), tauC };
+  }
   // THE BILLOW TEXTURE: 128^2, tileable - fbm of value noise (four octaves) lifted by an inverted cellular term (the
   // rounded lobes of a dust cloud's edge), and the gradient's normal in g, b. Made once, here (no file, nothing to credit).
   function billow(N) {
@@ -577,20 +760,27 @@
     const pos = new Float32Array(n * 3), vel = new Float32Array(n * 3), A = new Float32Array(n * 4), B = new Float32Array(n * 4);
     const aP = new THREE.InstancedBufferAttribute(pos, 3), aV = new THREE.InstancedBufferAttribute(vel, 3), aA = new THREE.InstancedBufferAttribute(A, 4), aB = new THREE.InstancedBufferAttribute(B, 4);
     for (const at of [aP, aV, aA, aB]) at.setUsage(THREE.DynamicDrawUsage);
-    g.setAttribute('iPos', aP); g.setAttribute('iVel', aV); g.setAttribute('iA', aA); g.setAttribute('iB', aB);
+    const Cs = new Float32Array(n * 2), aC = new THREE.InstancedBufferAttribute(Cs, 2); aC.setUsage(THREE.DynamicDrawUsage);
+    g.setAttribute('iPos', aP); g.setAttribute('iVel', aV); g.setAttribute('iA', aA); g.setAttribute('iB', aB); g.setAttribute('iC', aC);
     g.instanceCount = 0;
     const bt = billow(128), tex = new THREE.DataTexture(bt.data, bt.N, bt.N, THREE.RGBAFormat);
     tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.magFilter = THREE.LinearFilter; tex.minFilter = THREE.LinearMipmapLinearFilter; tex.generateMipmaps = true; tex.needsUpdate = true;
     const colV = CLASSES.map(k => new THREE.Vector3(CLS[k].col[0], CLS[k].col[1], CLS[k].col[2]));
+    // V2: the six-way atlases (baked once a page, shared by every batch)
+    if (!SIX) { const t0 = Date.now(); SIX = sixWay(); SIX.ms = Date.now() - t0; }
+    const sixTex = d => { const t = new THREE.DataTexture(d, SIX.W, SIX.H, THREE.RGBAFormat); t.magFilter = THREE.LinearFilter; t.minFilter = THREE.LinearFilter; t.generateMipmaps = false; t.needsUpdate = true; return t; };
+    const texA = sixTex(SIX.A), texB = sixTex(SIX.B);
     const mat = MATLIB.make(THREE, 'shader', { vertexShader: VERT, fragmentShader: FRAG, transparent: true, depthWrite: false, depthTest: true, side: THREE.DoubleSide,
       uniforms: { uStretch: { value: 0.03 }, uMinNdc: { value: 0.0019 }, uNear: { value: 0 }, uCol: { value: colV }, uMud: { value: new THREE.Vector3(MUD_COL[0], MUD_COL[1], MUD_COL[2]) },
         uNoise: { value: tex }, uSunV: { value: new THREE.Vector3(0, 0, 1) }, uSunCol: { value: new THREE.Color(1, 1, 1) }, uSkyCol: { value: new THREE.Color(0.5, 0.6, 0.7) },
-        uGndCol: { value: new THREE.Color(0.2, 0.18, 0.14) }, uOpacity: { value: 1 }, uG: { value: 0.6 }, uDens: { value: LOOK.dens }, uFwdMax: { value: LOOK.fwdMax } } });
+        uGndCol: { value: new THREE.Color(0.2, 0.18, 0.14) }, uOpacity: { value: 1 }, uG: { value: 0.6 }, uDens: { value: LOOK.dens }, uFwdMax: { value: LOOK.fwdMax },
+        uSixA: { value: texA }, uSixB: { value: texB }, uV2: { value: LOOK.v2 ? 1 : 0 }, uLife: { value: sys.tier.life }, uTauRef: { value: SIX.tauRef }, uZoom: { value: 0.72 },
+        uAtlas: { value: new THREE.Vector4(SIX.C, SIX.R, SIX.F, SIX.PX) } } });
     mat.toneMapped = true; mat.name = 'dust';
     const mesh = new THREE.Mesh(g, mat); mesh.frustumCulled = false; mesh.renderOrder = 4; mesh.name = 'dust';
     const sunW = new THREE.Vector3();
     // the sort: live puffs and grit by their view depth, far first
-    const keyD = new Float32Array(n), idx = new Uint32Array(n), order = [];
+    const keyD = new Float32Array(n), idx = new Uint32Array(n), order = [], SH = new Float32Array(sys.P.n * 2).fill(1);
     let nearS = 0;
     const api = {
       mesh, material: mat, sys, cover: 0, drawn: 0,
@@ -625,6 +815,25 @@
         nearS += (nearT - nearS) * (nearT > nearS ? 0.25 : 0.05);
         mat.uniforms.uNear.value = nearS;
         api.cover = cov;
+        // V2 THE CLOUD'S OWN SHADOW: each puff's sun and sky through the other puffs (a Gaussian puff's optical depth at
+        // the ray's closest pass, summed over the puffs ahead along the light) - n^2 over the live puffs, a few 10k steps
+        mat.uniforms.uV2.value = LOOK.v2 ? 1 : 0;
+        if (LOOK.v2 && light && light.sun) {
+          const sl = Math.hypot(light.sun[0], light.sun[1], light.sun[2]) || 1, sx = light.sun[0] / sl, sy = light.sun[1] / sl, sz = light.sun[2] / sl;
+          for (let a = 0; a < nP; a++) {
+            const i = idx[a], xi = P.p[i * 3], yi = P.p[i * 3 + 1], zi = P.p[i * 3 + 2];
+            let ts = 0, tu = 0;
+            for (let b = 0; b < nP; b++) {
+              if (a === b) continue;
+              const j = idx[b], dx = P.p[j * 3] - xi, dy = P.p[j * 3 + 1] - yi, dz = P.p[j * 3 + 2] - zi;
+              const rho2 = P.r[j] * P.rv[j] * 1.2, d2 = dx * dx + dy * dy + dz * dz;
+              const t1 = dx * sx + dy * sy + dz * sz;
+              if (t1 > 0) { const q = (d2 - t1 * t1) / rho2; if (q < 6) ts += P.tau[j] * Math.exp(-q); }
+              if (dy > 0) { const q = (d2 - dy * dy) / rho2; if (q < 6) tu += P.tau[j] * Math.exp(-q); }
+            }
+            SH[i * 2] = Math.exp(-0.9 * ts); SH[i * 2 + 1] = Math.exp(-0.5 * tu);
+          }
+        }
         // write the instances, far first
         let w = 0;
         for (let k = 0; k < m; k++) {
@@ -634,6 +843,7 @@
             vel[w * 3] = P.v[j * 3]; vel[w * 3 + 1] = P.v[j * 3 + 1]; vel[w * 3 + 2] = P.v[j * 3 + 2];
             A[w * 4] = Math.min(1, P.age[j] / Math.max(1, sys.tier.life)); A[w * 4 + 1] = P.r[j]; A[w * 4 + 2] = P.seed[j]; A[w * 4 + 3] = 1;
             B[w * 4] = P.tau[j]; B[w * 4 + 1] = P.gy[j]; B[w * 4 + 2] = P.cls[j]; B[w * 4 + 3] = P.rv[j];
+            Cs[w * 2] = LOOK.v2 ? SH[j * 2] : 1; Cs[w * 2 + 1] = LOOK.v2 ? SH[j * 2 + 1] : 1;
             // (the age the shader reads for its fade-in is the puff's seconds / life: a puff is born over its first moment)
             A[w * 4] = P.age[j] < 0.5 ? P.age[j] * 0.08 : Math.min(1, 0.04 + P.age[j] / Math.max(1, sys.tier.life));
           } else {
@@ -642,12 +852,13 @@
             vel[w * 3] = G.v[q * 3]; vel[w * 3 + 1] = G.v[q * 3 + 1]; vel[w * 3 + 2] = G.v[q * 3 + 2];
             A[w * 4] = G.age[q] / G.life[q]; A[w * 4 + 1] = G.s[q]; A[w * 4 + 2] = G.seed[q]; A[w * 4 + 3] = G.kind[q];
             B[w * 4] = 1; B[w * 4 + 1] = -1e4; B[w * 4 + 2] = G.cls[q]; B[w * 4 + 3] = 0;
+            Cs[w * 2] = 1; Cs[w * 2 + 1] = 1;
           }
           w++;
         }
         g.instanceCount = w; api.drawn = w;
         mesh.visible = w > 0;
-        if (w) { aP.needsUpdate = true; aV.needsUpdate = true; aA.needsUpdate = true; aB.needsUpdate = true;
+        if (w) { aP.needsUpdate = true; aV.needsUpdate = true; aA.needsUpdate = true; aB.needsUpdate = true; aC.needsUpdate = true;
           aP.addUpdateRange && (aP.clearUpdateRanges(), aP.addUpdateRange(0, w * 3)); aV.addUpdateRange && (aV.clearUpdateRanges(), aV.addUpdateRange(0, w * 3));
           aA.addUpdateRange && (aA.clearUpdateRanges(), aA.addUpdateRange(0, w * 4)); aB.addUpdateRange && (aB.clearUpdateRanges(), aB.addUpdateRange(0, w * 4)); }
         if (light) {
@@ -661,12 +872,12 @@
       },
       // the dust of class ci takes this ground's colour (linear rgb of the drawn surface; albedoFrom's lift and range)
       setGround(ci, rgb) { const c = albedoFrom(rgb), v = colV[ci]; if (!c || !v) return false; v.set(c[0], c[1], c[2]); return true; },
-      dispose() { g.dispose(); mat.dispose(); tex.dispose(); },
+      dispose() { g.dispose(); mat.dispose(); tex.dispose(); texA.dispose(); texB.dispose(); },
     };
     return api;
   }
 
-  const DUST = { makeSystem, step, sources, make, emitPuff, emitGrit, billow, albedoFrom, LOOK, CLASSES, CLS, TIERS, TIER_OF, L, dryK, utK, GLSL: { vert: VERT, frag: FRAG } };
+  const DUST = { makeSystem, step, sources, make, emitPuff, emitGrit, billow, sixWay, eddyAt, albedoFrom, LOOK, CLASSES, CLS, TIERS, TIER_OF, L, dryK, utK, GLSL: { vert: VERT, frag: FRAG } };
   if (typeof window !== 'undefined') window.DUST = DUST;
   if (typeof module !== 'undefined' && module.exports) module.exports = DUST;
 })();

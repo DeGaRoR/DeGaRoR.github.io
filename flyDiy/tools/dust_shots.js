@@ -53,11 +53,11 @@ const OUT = opt('out', 'D:/Dev/flydiy-notes/evidence-2026-10-18/2026-11-09/dust/
 const RUNUP = opt('runup', null);
 const HOUR = opt('hour', 'golden');
 const FROM = opt('from', null), DEST = opt('dest', 'CIRCUIT');   // (--from: the take-off at another field, the route pref's spawn)
-const LOOK0 = opt('look', '1') === '0';      // --look 0: the 9 Nov dust look (?dustlook=0), the before of a before/after
-const q = [DUST_ON ? null : 'dust=0', GFX ? 'gfx=' + GFX : null, LOOK0 ? 'dustlook=0' : null].filter(Boolean).join('&');
+const LOOK0 = opt('look', '1') === '0', V2OFF = opt('v2', '1') === '0';   // --v2 0: ?dustv2=0 (the colour tune alone)      // --look 0: the 9 Nov dust look (?dustlook=0), the before of a before/after
+const q = [DUST_ON ? null : 'dust=0', GFX ? 'gfx=' + GFX : null, LOOK0 ? 'dustlook=0' : null, V2OFF ? 'dustv2=0' : null].filter(Boolean).join('&');
 const URL0 = opt('url', 'http://localhost:8450/flyDiy/dev.html');
 const URL = q ? URL0 + (URL0.includes('?') ? '&' : '?') + q : URL0;
-const ARM = (DUST_ON ? 'dust' : 'nodust') + (LOOK0 ? '_look0' : '') + '_' + (GFX || 'default') + (RUNUP ? '_runup_' + RUNUP : '') + (FROM ? '_from_' + FROM : '');
+const ARM = (DUST_ON ? 'dust' : 'nodust') + (LOOK0 ? '_look0' : V2OFF ? '_v1' : '') + '_' + (GFX || 'default') + (RUNUP ? '_runup_' + RUNUP : '') + (FROM ? '_from_' + FROM : '');
 const PORT = 9400 + (process.pid % 500);
 const CHROME = [opt('chrome', null), 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
   'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe', '/usr/bin/google-chrome',

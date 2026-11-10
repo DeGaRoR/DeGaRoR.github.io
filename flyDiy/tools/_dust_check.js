@@ -18,7 +18,7 @@ const fs = require('fs'), path = require('path');
 const ROOT = path.join(__dirname, '..'), src = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
 const DUST = require('../src/viewer/dust.js');
 global.MATLIB = require('../src/viewer/matlib.js');   // the batch's material comes from the library (AS4a), as in the page
-let fails = 0, checks = 0;
+let fails = 0, checks = 0; let THREE_OK = null;
 const ok = m => { checks++; console.log('  ok   ' + m); }, fail = m => { checks++; fails++; console.log('  FAIL ' + m); };
 const yes = (c, m) => (c ? ok : fail)(m);
 const T0 = Date.now();
@@ -143,6 +143,7 @@ console.log('4. the pools');
 console.log('5. the draw');
 {
   let THREE = null; try { THREE = require('../vendor/three.min.js'); } catch (e) { THREE = null; }
+  THREE_OK = THREE && THREE.InstancedBufferGeometry ? THREE : null;
   if (!THREE || !THREE.InstancedBufferGeometry) fail('the vendored three loads in node');
   else {
     const r = run(takeoff, { T: 25 }), D = DUST.make(THREE, r.sys);
@@ -191,6 +192,55 @@ console.log('5b. the look (the user, 10 Nov: "the color of the dirt cloud is not
   const app = src('src/viewer/app.js'), pv = src('src/viewer/pavement.js');
   yes(/PAVEMENT\.surfaceColor && F\.draw\.setGround && DUST\.LOOK\.ground/.test(app) && /function surfaceColor\(cls\)/.test(pv) && /groundColor, surfaceColor,/.test(pv),
     'the page hands the drawn surface colour (PAVEMENT.surfaceColor -> the batch setGround)');
+}
+
+console.log('5c. V2 (the user, 10 Nov: "vortices ... zones where they are more and less dense ... the sprites ... really old school")');
+{
+  // the eddies: divergence-free in the plane (the cloud folds, never collapses or explodes), of the set speed
+  const o = [0, 0, 0], h = 0.35 * DUST.L.eddyL; let worst = 0, umax = 0;   // (the field's own difference step)
+  for (let k = 0; k < 40; k++) {
+    const x = (k * 37.3) % 400, z = (k * 91.7) % 400, t = k * 3.1;
+    const ux1 = DUST.eddyAt(x + h, z, t, 1, o)[0], ux0 = DUST.eddyAt(x - h, z, t, 1, o)[0];
+    const uz1 = DUST.eddyAt(x, z + h, t, 1, o)[1], uz0 = DUST.eddyAt(x, z - h, t, 1, o)[1];
+    const div = (ux1 - ux0) / (2 * h) + (uz1 - uz0) / (2 * h), u = DUST.eddyAt(x, z, t, 1, o);
+    worst = Math.max(worst, Math.abs(div)); umax = Math.max(umax, Math.hypot(u[0], u[1]));
+  }
+  yes(worst < 2e-3 && umax > 0.3 && umax < 3, 'the eddies fold the cloud: divergence ' + worst.toExponential(1) + ' /s, speed up to ' + umax.toFixed(2) + ' x the set (curl noise)');
+  // the six-way bake: a body that fills its frame, lobes lit on the sun's side, a rim when backlit, thinning with age
+  const t0 = Date.now(), S = DUST.sixWay(), ms = Date.now() - t0;
+  const frame = (f, fn) => { const tc = f % S.C, tr = Math.floor(f / S.C); let v = 0, n = 0;
+    for (let y = 0; y < S.PX; y++) for (let x = 0; x < S.PX; x++) { const o4 = ((tr * S.PX + y) * S.W + tc * S.PX + x) * 4; const r = fn(o4, x, y); if (r != null) { v += r; n++; } } return n ? v / n : 0; };
+  const cov0 = frame(0, o4 => S.A[o4 + 3] / 255), covN = frame(S.F - 1, o4 => S.A[o4 + 3] / 255);
+  yes(cov0 > 0.15 && covN < cov0 && S.tauC[S.F - 1] < 0.5 * S.tauC[0], 'the puff thins over its life (coverage ' + cov0.toFixed(2) + ' -> ' + covN.toFixed(2) + ', centre depth ' + S.tauC[0].toFixed(1) + ' -> ' + S.tauC[S.F - 1].toFixed(1) + ')');
+  // lit from above vs below over the dense pixels: the sun's side brighter (internal shadow)
+  // internal shadow: a pixel lit from one side vs the other differs (the lobe's lit face and its shaded face)
+  const sx = frame(0, o4 => S.A[o4 + 3] > 200 ? Math.abs(S.A[o4] - S.B[o4]) : null), sy = frame(0, o4 => S.A[o4 + 3] > 200 ? Math.abs(S.A[o4 + 1] - S.B[o4 + 1]) : null);
+  yes(sx / 255 > 0.12 && sy / 255 > 0.12, 'the lobes shade themselves: a pixel lit from one side vs the other differs by ' + (sx / 255).toFixed(2) + ' (x), ' + (sy / 255).toFixed(2) + ' (y)');
+  // the rim: backlit, the thin edge passes more light than the dense core
+  const rim = frame(0, o4 => S.A[o4 + 3] > 20 && S.A[o4 + 3] < 120 ? S.A[o4 + 2] : null), core = frame(0, o4 => S.A[o4 + 3] > 240 ? S.A[o4 + 2] : null);
+  yes(rim > 1.5 * core, 'backlit, the edges glow and the core is dark (rim ' + (rim / 255).toFixed(2) + ' vs core ' + (core / 255).toFixed(2) + ')');
+  console.log('       the bake: ' + S.W + 'x' + S.H + ' x2 atlases, ' + S.F + ' frames, ' + ms + ' ms in node (the game ships it baked: named)');
+  if (THREE_OK) {
+    // the cloud's own shadow: of two puffs on the sun's line, the far one (from the sun) is darker
+    const sys = DUST.makeSystem('gamer');
+    DUST.emitPuff(sys, 0, 2, 0, 0, 0, 0, 6, 40, 0, 0); DUST.emitPuff(sys, 30, 2, 0, 0, 0, 0, 6, 40, 0, 0);
+    const env = { groundH: () => 0, wind: () => [0, 0, 0], cls: () => 0, wet: () => 0 };
+    DUST.step(sys, 0.5, env);
+    const D = DUST.make(THREE_OK, sys), cam = new THREE_OK.PerspectiveCamera(50, 1.6, 0.3, 5000); cam.position.set(15, 5, 80); cam.lookAt(15, 2, 0); cam.updateMatrixWorld();
+    D.sync(cam, { sun: [1, 0.05, 0] });
+    const C = D.mesh.geometry.attributes.iC.array, P = D.mesh.geometry.attributes.iPos.array, n = D.mesh.geometry.instanceCount;
+    let near = 1, far = 1; for (let w = 0; w < n; w++) { if (P[w * 3] > 15) near = C[w * 2]; else far = C[w * 2]; }
+    yes(far < 0.8 * near, 'the cloud shades itself: the puff behind another from the sun gets ' + (far * 100).toFixed(0) + ' % of the sun, the front one ' + (near * 100).toFixed(0) + ' %');
+    // its cost: a full gamer pool
+    const big = DUST.makeSystem('gamer');
+    for (let k = 0; k < big.P.n; k++) DUST.emitPuff(big, (k % 24) * 9, 2, Math.floor(k / 24) * 9, 0, 0, 0, 5, 20, 0, 0);
+    DUST.step(big, 0.1, env);
+    const E = DUST.make(THREE_OK, big), ts = [];
+    for (let k = 0; k < 30; k++) { const a = process.hrtime.bigint(); E.sync(cam, { sun: [0.3, 0.4, -1] }); ts.push(Number(process.hrtime.bigint() - a) / 1e6); }
+    ts.sort((a, b) => a - b);
+    yes(ts[15] < 3, 'the draw\'s sync with the shadow, a full gamer pool (' + big.P.live + ' puffs): median ' + ts[15].toFixed(2) + ' ms (node)');
+    D.dispose(); E.dispose();
+  }
 }
 
 console.log('6. the cost');
