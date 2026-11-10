@@ -3916,6 +3916,18 @@ function compose(rec0, world, opts) {
     return o;
   }
   // THE 'sides' LAW (GRASS_SIDES above): what is drawn beside an aerodrome's pavement decides - bare on it and its drawn side,
+  // A GRASS STRIP'S TRAIL IS BARE (DIRT-STRIP, the user 10 Nov on Skyline Altiport: "vegetation grows on the ruts"): the pavement draws
+  // the wheels' lanes as worn gravel (pavement.js: THE LANES, the trail's smoothstep(0.5, 0.8, ...) over them) - the tufts thin
+  // to a few there by the same law: the fleet's mean half-track 1.098 m spread by sig = 0.35 + 0.05 halfW, and the tail wheel's
+  // lane down the middle at 0.55 (the shader's 40 cm wander and ragged edge left out: a tuft at a lane's edge is the plants
+  // creeping back) -> the kill (0 .. 0.85)
+  function trailKill(it, lx, lz) {
+    if (!it.d || !it.e0) return 0;
+    const px = lx - it.e0[0], pz = lz - it.e0[1], v = px * it.d[1] - pz * it.d[0];
+    const sig = 0.35 + 0.05 * it.halfW, l1 = (Math.abs(v) - 1.098) / sig, l2 = v / (sig * 0.8);
+    const ln = Math.max(Math.exp(-l1 * l1), 0.55 * Math.exp(-l2 * l2)), s = Math.min(1, Math.max(0, (ln - 0.45) / 0.35));
+    return 0.85 * s * s * (3 - 2 * s);
+  }
   // cut across the band and the mow band, wild past the blend; a grass strip's surface cut; a road as today plus a mown verge
   function coverSides(lx, lz, cell) {
     const G = GRASS_SIDES, VERGE = PAVE_FADE + 6;
@@ -3931,7 +3943,7 @@ function compose(rec0, world, opts) {
       let k = 0, c = 0;
       if (clr) { k = 1; if (k > kill) kill = k; continue; }
       if (d >= 0) {   // ON the pavement: bare, but a grass strip's surface is cut grass and a grass road / polygon worn grass (40 %, cut)
-        if (it.cls === 'grass') { if (it.kind === 'strip') { if (G.stripGrass > 0) { c = 1; surf = 1; } else k = 1; } else { k = 0.6; c = 1; } }
+        if (it.cls === 'grass') { if (it.kind === 'strip') { if (G.stripGrass > 0) { c = 1; surf = 1; k = trailKill(it, lx, lz); } else k = 1; } else { k = 0.6; c = 1; } }
         else k = 1;
         if (it.soft && d < 1 && it.cls !== 'grass') boost = Math.max(boost, 0.5 * (1 - d));
       } else if (aero) {
