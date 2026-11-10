@@ -21,8 +21,8 @@
   const STUDIO = { key: 1.5, rim: 1.8, room: 1 }, CUT_STUDIO = { key: 1.0, rim: 0.5, amb: 0.3, room: 0.35 };
   const NEAR_OFF = ['wing', 'wing2', 'brace', 'light', 'hinge', 'access'];   // the cutaway's near half also loses these (the user 4 Nov: NEAR WINGS OFF)
   const VIEWS = ['hero', 'above', 'side', 'plan', 'front', 'cutaway'];
-  // THE CUTAWAY'S EYE (the user 9 Nov, on the Cub's fiche: "lower the camera angle so it reads wider"; it sits under the hero's
-  // right wing on the board - fiche_board.js cutPlace): 50 degrees round from the nose, 15 above (was 28)
+  // THE CUTAWAY'S EYE (the user 9 Nov, on the Cub's fiche: "lower the camera angle so it reads wider"; the board puts it
+  // where it fits - fiche_board.js cutFit): 50 degrees round from the nose, 15 above (was 28)
   const CUT_YAW = 50, CUT_EL = 15;
   // THE HERO'S WING LINE (the same ruling): the lowest row of the hero's silhouette in its right-hand band (the far wing's tip
   // on a three-quarter from below), 0 at the top of the cropped picture, 1 at its foot - the board drops the cutaway below it
