@@ -2076,10 +2076,11 @@ function makeSim(def, world) {
     // stop: the 172's lost tip at 2370 rpm dug on into the runway, full power, until its mount tore off)
     if (tier <= cur) {
       // (GATE DMGDRIVE, G2036: a TRUNK's graze at power breaks a blade and the prop turns on short of it - the imbalance
-      // takes the mount; only HARD ground stops it after (rock, paving - SB 533's hard surface): on soft ground a fast tip's
-      // bite is a separation by the tier table itself, and the metal Cessna's graze, shaken nose-down onto the turf, was
-      // stopped there before its 88 kN imbalance took the mount - run 2's red row)
-      if (!(cur === 4 && tier === 4 && surf === 'hard' && !e.seized && bite / S.R > stopR0)) return;
+      // takes the mount. Only a prop that lost its blade TO THE GROUND is stopped by the ground it digs on into (the 172's
+      // tip on the turf, full power): a trunk's separation keeps turning when the shake then drops the nose on the turf -
+      // run 2's metal Cessna graze; run 3's 'hard ground only' let the 172 on the turf run on again)
+      const sepOnGround = st.strikeAt && st.strikeAt.surf !== 'rigid' && st.strikeAt.surf !== 'water';
+      if (!(cur === 4 && tier === 4 && surf !== 'rigid' && sepOnGround && !e.seized && bite / S.R > stopR0)) return;
       st.strikeAt = { t: simT, what, surf, bite, biteR: bite / S.R, tip, rpm: out.rpm[k] || 0, stopAfterSep: true };
       st.imbN = 0;
       if (S.gear > 1 && e.running && thrEffOf(k) > GEN_DRIVE.gear.stopPow) { st.gearbox = 'failed'; DK[k] = 0; }
