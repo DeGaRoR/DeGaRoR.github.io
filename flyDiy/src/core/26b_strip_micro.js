@@ -228,9 +228,13 @@ const STRIP_MICRO = (() => {
     // THE STONES GROW WITH CHAOS (the Pilot's bar, 10 Nov: the Jodel's prop met an edge stone on w3 at chaos 0.2 - its lane's fault,
     // but a 54 cm stone standing 20 cm proud on the gentlest strip is the ground's): x 0.35 at chaos 0 .. 1 from chaos 0.8; the
     // count was already the chaos's (rocks). rockIn (the shader's twin) keeps the full size; only the meshes' stones scale
+    // THE CLEAR BAND (the Pilot's bar, 10 Nov): within BAND_V of the centreline (the widest main gear's half track + 1.5 m) a
+    // stone stands no higher than BAND_H over the ground (the tail-up prop disc's clearance less a margin) at any chaos: its R
+    // is capped at BAND_H / STONE_H. Outside the band the stones are fair game
     const STONE_K = 0.35 + 0.65 * Math.min(1, K.chaos / 0.8);
     function stoneIn(i, j) {
       const R0 = rockIn(i, j, true), R = R0 ? [R0[0], R0[1], R0[2] * STONE_K] : null;
+      if (R && Math.abs(R[1]) - R[2] < BAND_V) R[2] = Math.min(R[2], BAND_H / STONE_H);
       if (!R || Math.abs(R[1]) + R[2] > halfW - 0.15 || R[0] < END_IN || R[0] > len - END_IN) return null;
       if (WAYS.length && waysAt(R[0], R[1])[1] > 0.3) return null;
       if (pHole > 0 && holesAt(R[0], R[1], 0)[0] > 0.005) return null;
@@ -332,6 +336,7 @@ const STRIP_MICRO = (() => {
   const REFINE_MIN = 0.3, REFINE_MIN_V = 0.05;
   // a stone's body over the ground, x its R (1.1 R tall, a third buried: 0.733); stoneAt(x, z): the published strips' (the viewer's)
   const STONE_H = 1.1 * (1 - 1 / 3);
+  const BAND_V = 3.0, BAND_H = 0.06;   // the Pilot 10 Nov (L37a, smooth w3): the lowest rolling prop clearance 0.118 m, the C172's braking nose dip on the centreline, less 5 cm; BAND_V the C172's half track 1.15 m + 1.5
   function stoneAt(x, z) { for (const L of live.values()) for (const s of L) { const q = s.toLocal(x, z); const b = s.f.bbox; if (q[0] >= b.x0 && q[0] <= b.x1 && q[1] >= b.z0 && q[1] <= b.z1) { const h = s.f.stoneAt(q[0], q[1]); if (h > 0) return h; } } return 0; }
   // glslRow(id): the pavement shader's uMicro, uMicro2 for a published strip - [seed, hole probability (float32), hole depth m,
   // puddles x the grade's own, the 1 m octave's amplitude (the others x sqrt of their wavelength), hazards, hazard size m,
@@ -339,5 +344,5 @@ const STRIP_MICRO = (() => {
   // pvPuddle / pvRelief / pvWays / pvRockIn read exactly these; null when the strip is flat
   function glslRow(id) { for (const L of live.values()) for (const s of L) if (s.id === id) { const f = s.f; return [f.seed, f.pHole, f.K.holeDepth / 100, f.K.puddles * f.pudOK, f.a1, f.K.hazards, f.K.hazardSize / 100, 1 + f.K.swell / 100,
     f.K.ruts / 100, f.K.lumps / 100, (f.ways.some(W => W[7] === 1) ? 1 : 0) + (f.ways.some(W => W[7] === 2) ? 2 : 0), f.K.rocks]; } return null; }
-  return { KNOBS, on, resolve, derive, field, ih, vnoise, publish, at, puddleAt, has, rocksOf, stoneAt, STONE_H, glslRow, live, CELL, OCT, EDGE_IN, END_IN, REFINE_MIN, REFINE_MIN_V, BERM };
+  return { KNOBS, on, resolve, derive, field, ih, vnoise, publish, at, puddleAt, has, rocksOf, stoneAt, STONE_H, BAND_V, BAND_H, glslRow, live, CELL, OCT, EDGE_IN, END_IN, REFINE_MIN, REFINE_MIN_V, BERM };
 })();
