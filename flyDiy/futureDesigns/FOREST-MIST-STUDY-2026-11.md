@@ -283,6 +283,13 @@ On the pick, the season's own days (the plan on, nothing forced):
   frame there); it is flag-only and owed to the box if anyone wants it; (d) the evening after the first autumn storm
   (Aug 20, 19:00): wisps on the far slope in the low sun - they read as flat cream blotches at this angle, the weakest
   frame of the pick; a softer `soft` ramp or a lower `stretch` for the WISP term is the dial if the box shows it too.
+- the user on (a): *"it almost looks like snow from far away ... a big blanket ... that almost looks like wool"*. Two
+  causes, both mine: the far fade melted the wisps into a solid mean, and a grazing ray through the pool ran its whole
+  window in it. Fixed (a thin far mean at 40 % density, a soft per-ray ceiling `od / (1 + od / 1.5)`, the lid 25 + 70 m):
+  `s12_after_wool_fix.jpg` - the slope at full strength keeps the run11 look; from 725 m the pockets are a few pale
+  patches in the valleys, and **the high frame with the mist OFF is as pale as with it on**: the remaining "snowy" read
+  of the far island is the base scene on SwiftShader's potato (pale ground, the morning's haze and flat layer), not the
+  pockets - to be judged on the box (READY's tuning brief).
 
 ## 5. THE WEATHER: WHEN, WHERE, HOW MUCH - piggybacked on the season's plan and the climate (forest_mist.js `strengths`)
 
