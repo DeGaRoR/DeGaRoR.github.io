@@ -38,15 +38,18 @@ var FMIST = (function () {
     // bad, so the heaviest is 0.003 /m (~1.3 km inside: an aerial veil, never a wall) and the last wisps a quarter of it.
     rhoMax: 0.003, octaves: 2, flat: true, coreK: 1.6,   // coreK: the gradient mechanism's (flat: false), kept for the record
     rho: null,                      // a pin over the ladder (the rigs' density sheets), null = the weather's
-    elong: 2.0,                     // the wisps drawn out along the CONTOUR (x the length; along the wind leaned them downhill, 10 Nov)
-    layerM: 70, layerSwing: 40, strat: 0.85,   // the horizontal layers: a bank every 70 m of altitude, wavering 40 m, 0.85 of the density banded
+    // THE LOOK THE USER PICKED (10 Nov, the run11 sheet: "this image was looking best, the ones after that are sort of
+    // worse"): 110 m cells, a 450 m window, no stretch, no layers, the original shear. The contour stretch and the
+    // altitude layers stay as dials (off), with the contour map baked, for whoever tunes this on the box.
+    elong: 1,                       // the wisps drawn out along the CONTOUR (x the length; 1 = round, the pick)
+    layerM: 70, layerSwing: 40, strat: 0, shear: 0.011,   // the horizontal layers (a bank every 70 m of altitude, wavering 40 m; strat 0.85 tried 10 Nov, off: the pick); the vertical shear
     swing: 30, covK: 0.9, detailK: 9.0, erode: 0.5, soft: 0.5, stretch: 2.1,   // the contours' swing (m), the share of a full pocket that is mist, the erosion's scale (x the body's) and depth
-    period: 70,                     // the noise's cell (m): a wisp a few tree lengths across (160 -> 70: the user, 10 Nov, "chase more resolution"; the CPU sweep of 10 Nov)
+    period: 110,                    // the noise's cell (m): a wisp a few tree lengths across (160 -> 110: the user, 10 Nov, "chase more resolution")
     lidM: 25, lidK: 110,            // the pool's lid over the valley floor: 25 m + 110 m x the pool weight
     wispLo: -12, wispHi: 40,        // the wisps' band about the canopy top (m)
     oroLo: -40, oroHi: 140,         // the cloud base's band (m) where it meets a slope
     driftK: 1,                      // x the wind
-    surfN: 4, eyeN: 2, surfM: 200, eyeM: 350,   // surfM 450 -> 200: a pixel sees the mist in front of ITS trees, not 450 m of grazing band (the banks of 10 Nov)   // the veil's taps: near the surface, near the eye (C)
+    surfN: 4, eyeN: 2, surfM: 450, eyeM: 350,   // (200 m was tried 10 Nov: finer but streaky - the user preferred 450)   // the veil's taps: near the surface, near the eye (C)
     marchN: 28, marchKm: 3.5,       // the cloud pass's pocket segment (A)
     cards: 420, cardKm: 2.6, cardW: 120, cardH: 34, cardA: 2.4, cardEvery: 20,   // the cards (B): how many, how far, how big, how dense, re-dealt every N frames
     force: null,
@@ -306,7 +309,7 @@ var FMIST = (function () {
     const inWisp = k[1] * Bw > 0.002 && hc > S.wispLo - 15 && hc < S.wispHi + 30;
     const inOro = k[2] > 0.002 && yb > S.oroLo - 30 && yb < S.oroHi + 30 && hc > -20 && hc < 190;
     if (!(inPool || inWisp || inOro)) return 0;
-    let qx = (x + drift[0]) / S.period + y * 0.003, qz = (z + drift[1]) / S.period - y * 0.002;
+    let qx = (x + drift[0]) / S.period + y * S.shear, qz = (z + drift[1]) / S.period - y * S.shear * 0.64;
     if (m.px2) { const c2 = m.px2[o], s2 = m.px2[o + 1], w = Math.min(1, Math.hypot(c2, s2));
       if (w > 0.02) { const a = 0.5 * Math.atan2(s2, c2), wx = Math.cos(a), wz = Math.sin(a), st = 1 + (Math.max(1, S.elong) - 1) * w, al = qx * wx + qz * wz, ac = -qx * wz + qz * wx;
         qx = wx * al / st - wz * ac; qz = wz * al / st + wx * ac; } }
@@ -375,14 +378,14 @@ var FMIST = (function () {
       if (!(inPool || inWisp || inOro)) return 0.0;
       // THE BODY: the noise rides the wind, the map does not - wisps stream through a pocket and fade at its edges; a slow
       // vertical shear so a wisp leans. The octaves' sum sits at 0.5 +- 0.13, so it is stretched to the unit (x2.6).
-      vec2 q = (p.xz + uMist[8].xy) * uMist[9].w + vec2(p.y * 0.003, -p.y * 0.002);   // (the shear 0.011 -> 0.003: it leaned the wisps downhill)
+      vec2 q = (p.xz + uMist[8].xy) * uMist[9].w + vec2(p.y * ${S.shear.toFixed(4)}, -p.y * ${(S.shear * 0.64).toFixed(4)});   // a slow vertical shear (S.shear)
       // DRAWN OUT ALONG THE CONTOUR (the user, 10 Nov: "a lot of your mist reads as going downhill, while in my
       // references they're rather horizontal layers"): the coordinate squeezed along the level line across the slope
       // (the baked direction; round on flat ground), uMist[12].w = the stretch
-      { vec4 cd = fmDir(p.xz); float w = min(1.0, length(cd.xy));
+${S.elong > 1 ? `      { vec4 cd = fmDir(p.xz); float w = min(1.0, length(cd.xy));
         if (w > 0.02) { float a = 0.5 * atan(cd.y, cd.x); vec2 wd = vec2(cos(a), sin(a));
           float st = mix(1.0, max(1.0, uMist[12].w), w), al = dot(q, wd), ac = dot(q, vec2(-wd.y, wd.x));
-          q = wd * al / st + vec2(-wd.y, wd.x) * ac; } }
+          q = wd * al / st + vec2(-wd.y, wd.x) * ac; } }` : '      // (the contour stretch is compiled out at elong 1 - no tap)'}
       float n = 0.55 * fmVN(q) + 0.30 * fmVN(q * 2.31 + vec2(5.2, 1.3)) + 0.15 * fmVN(q * 5.3 + vec2(-3.1, 7.7));
       n = clamp(0.5 + (n - 0.5) * ${S.stretch.toFixed(2)}, 0.0, 1.0);
       // THE CONTOURS (the user, 9 Nov: "lacks detail in the shape and the contours"): the bands' edges ride the noise, so
@@ -391,7 +394,7 @@ var FMIST = (function () {
       float hcs = hc - sw;
       // THE LAYERS: mist sits at heights (an inversion, the condensation level), so where it meets a slope it draws a
       // level stripe across it - a soft bank every ${S.layerM} m of altitude, its height wavering with the noise
-      float lay = mix(1.0, smoothstep(0.25, 0.8, 0.5 + 0.5 * cos(6.2832 * (p.y + (n - 0.5) * ${S.layerSwing.toFixed(1)}) / ${S.layerM.toFixed(1)})), ${S.strat.toFixed(2)});
+      float lay = ${S.strat > 0 ? `mix(1.0, smoothstep(0.25, 0.8, 0.5 + 0.5 * cos(6.2832 * (p.y + (n - 0.5) * ${S.layerSwing.toFixed(1)}) / ${S.layerM.toFixed(1)})), ${S.strat.toFixed(2)})` : '1.0'};   // (the layers: compiled out at strat 0)
       // THE PLACE'S OWN SHAPE (geometry: the map's weight x the band's profile, 0..1) and THE WEATHER'S AMOUNT are kept
       // apart (the user, 9 Nov: "the control for how much the slope holds is good, but now it's all too thick ...
       // controlling both together is lacking. It just gives you very plain stuff"): the weather sets how much of the
