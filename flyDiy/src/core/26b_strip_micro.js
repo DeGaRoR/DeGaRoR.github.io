@@ -212,16 +212,16 @@ const STRIP_MICRO = (() => {
     }
     // THE ROCKS (not felt): a stone in one 1.2 m cell in `rocks`, toward the edges (the grader's windrow, what the wheels
     // threw), 7-27 cm - the rock pack's meshes, a third buried (render_world standRocks, from bigRocks); pebbles in 0.3 m cells,
-    // 1.6-5 cm across, drawn by the pavement (the user, 9 Nov 21:15: "nothing above ... 5 max ... the bigger rocks need to be
+    // 2-5 cm across (as many as the 9 Nov field drew: the user 10 Nov "get them back"), drawn by the pavement (the user, 9 Nov 21:15: "nothing above ... 5 max ... the bigger rocks need to be
     // the mesh ones"). Each sits in the middle half of its cell, so a point
     // asks its own cell only. -> [u, v, R] or null (pavement.js pvRock, line for line)
     function rockIn(i, j, big) {
       const M = big ? 1.2 : 0.3, sk = seed + (big ? 501 : 511);
       const vC = (j + 0.5) * M, edge = ss(0.3, 0.9, Math.abs(vC) / halfW);
-      const p = big ? K.rocks * edge * edge : Math.min(0.35, 0.04 + 0.5 * K.rocks) * (0.6 + 0.4 * edge);
+      const p = big ? K.rocks * edge * edge : Math.min(0.6, 0.1 + 0.9 * K.rocks) * (0.6 + 0.4 * edge);
       if (ih(i, j, sk) >= p) return null;
       const a = ih(i, j, sk + 1), b = ih(i, j, sk + 2), e = ih(i, j, sk + 3);
-      return [(i + 0.25 + 0.5 * a) * M, (j + 0.25 + 0.5 * b) * M, big ? 0.07 + 0.2 * e * e : 0.008 + 0.017 * e * e];
+      return [(i + 0.25 + 0.5 * a) * M, (j + 0.25 + 0.5 * b) * M, big ? 0.07 + 0.2 * e * e : 0.01 + 0.015 * e];
     }
     // the stones for the meshes: a 1.2 m cell's, whole inside the strip clear of its ends, none in a way's trough or a hole
     // -> [u, v, R] or null. A stone's footprint (R <= 0.27) stays inside the middle of its own cell (0.3 m clear of its sides)
