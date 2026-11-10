@@ -93,7 +93,7 @@ const legRowWhen = (i, key, kind) => {
     return P => kw(P) && +P['s' + i + '_shockKind'] === 1;
   if (key === 'oleoBraceZ')
     return P => kw(P) && +P['s' + i + '_oleoBrace'];
-  if (key === 'lvBoot')                                   // (WILGA-GEAR: the leg fairing's shape, with the leg fairing)
+  if (key === 'lvBoot' || key === 'lvJoint')              // (WILGA-GEAR: the leg fairing's shape and joint, with the leg fairing)
     return P => kw(P) && Math.round(+P['s' + i + 'LegFair'] || 0) > 0;
   return kw;
 };
@@ -2750,7 +2750,7 @@ PAGE.post = ctx => {
         else if (st.leg === 1) r = GG.legLink(lb, AFx, st.P, st, sgn);
         // WILGA-GEAR: the trailing-link leg - its arm and the strut's two halves in their own bags (each posed apart)
         else if (st.leg === 4 && !st.single && GG.legLever) { lb.lever = { arm: allBags(), cyl: allBags(), rod: allBags() };
-          st.leverSkin = st.legFair ? leverSkinOf(ctx, FS, st, sgn) : null; r = GG.legLever(lb, AFx, st.P, st, sgn); delete st.leverSkin; }
+          st.leverSkin = st.legFair && Math.round(+st.P.lvJoint || 0) >= 1 ? leverSkinOf(ctx, FS, st, sgn) : null; r = GG.legLever(lb, AFx, st.P, st, sgn); delete st.leverSkin; }
         else r = GG.legOleo(lb, AFx, st.P, st, sgn);
         rOleo = r; retLow = st.ret ? st.ret.low || null : null; retSc = st.ret ? st.ret.scissor || null : null;
         if (retLow && wu.proxy) wu.proxy.brakefix = retLow.brakefix;      // (the caliper rides the piston with its wheel)

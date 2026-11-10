@@ -247,7 +247,9 @@ console.log('7b. the fairing (the user: "an elegant fairing ... that hides a bit
     [HOSTF, HOST, 'the host, trailing (the default)'],
     [HOSTF, Object.assign({}, HOST, { s1_lvRootAng: 50 }), 'the host, trailing, fitting low (50 deg)'], [HOSTF, Object.assign({}, HOST, { s1_lvRootAng: 110 }), 'the host, trailing, fitting high (110 deg)'],
     [HOSTF, Object.assign({}, HOST, { s1_lvTop: 0.13 }), 'the host, trailing, the short strut (v1: mount 0.13)'],
-    [HOSTF, Object.assign({}, HOST, { s1_lvTop: 0.40 }), 'the host, trailing, the mount half-way (0.40)']];
+    [HOSTF, Object.assign({}, HOST, { s1_lvTop: 0.40 }), 'the host, trailing, the mount half-way (0.40)'],
+    [HOSTF, Object.assign({}, HOST, { s1_lvJoint: 1 }), 'the host, trailing, root fitted to the body (lvJoint 1)'],
+    [CUBF, { s1Leg: 4, s1Drop: 0.85, s1_lvJoint: 1 }, 'the Cub, trailing, root fitted to the body (lvJoint 1)']];
   let groundMin = Infinity, groundAt = '';
   for (const [file, over, who] of cases) {
     const raw = JSON.parse(fs.readFileSync(path.join(ROOT, file), 'utf8')), s0 = raw.spec || raw;
@@ -285,8 +287,11 @@ console.log('7b. the fairing (the user: "an elegant fairing ... that hides a bit
       // finds the body's skin up the leg - it meets the fuselage all round, filleted, its joint round the foot
       // (all round on the default builds; a fitting high on a flat side or low on the belly may leave a few columns with no
       // skin within reach - they end at the fitting as the plain boot did: reported, three quarters at least)
-      const rf = u.rootFit; stats += rf ? '; root fitted to the skin on ' + rf.hits + '/' + rf.columns + ' columns' : '; NO ROOT FIT';
-      if (!rf || rf.hits < (/default/.test(who) ? rf.columns : 0.7 * rf.columns)) stats += ' (NO ROOT FIT)';
+      // (an option since 10 Nov - lvJoint 1/2; plain at the default, the user: "in most cases it will just [glitch]" where its
+      // rays cross a window's or a seam's cut): fitted on three quarters of the columns at least where asked, absent elsewhere
+      const rf = u.rootFit, wantRf = (over.s1_lvJoint || 0) >= 1;
+      stats += rf ? '; root fitted to the skin on ' + rf.hits + '/' + rf.columns + ' columns' + (rf.joint ? ', strip ' + rf.joint + ' columns, ' + rf.rivets + ' rivets' : '') : '; plain root';
+      if (wantRf ? (!rf || rf.hits < 0.75 * rf.columns || (over.s1_lvJoint === 1 && !(rf.rivets > 10))) : !!rf) stats += ' (ROOT FIT WRONG)';
       for (let i = 0; i <= 12; i++) {
         const q = G.gearLeverAt(L, sw * i / 12); poses++;
         const Ta = G.gearNodeFrame([u.piv, u.axle, add(u.piv, u.ax)], [u.piv, q.axle, add(u.piv, u.ax)]),
@@ -296,7 +301,7 @@ console.log('7b. the fairing (the user: "an elegant fairing ... that hides a bit
           for (const M of parts) for (const x of M.v) { const dd = near(app(T, x)); nMov++; if (dd < worst) { worst = dd; at = nm + ' at ' + (i / 12).toFixed(2) + ' of the stroke'; } }
       }
     }
-    yes(units.length === 2 && boots === 2 && spats === 0 && !/NO /.test(stats), who + ': the spat row asks for a spat and the trailing link draws none - both legs wear the boot, cut and detailed (' + stats + ')');
+    yes(units.length === 2 && boots === 2 && spats === 0 && !/NO |WRONG/.test(stats), who + ': the spat row asks for a spat and the trailing link draws none - both legs wear the boot, cut and detailed (' + stats + ')');
     yes(poses === 26 && worst >= 0.003, who + ': through the whole stroke (13 poses a side, ' + nMov + ' points of the arm, wheel, cylinder and rod) nothing comes within 3 mm of the boot - the closest ' +
         (worst >= CAP ? '> ' + mm(CAP) : mm(worst) + ' (' + at + ')'));
     // ...and it still hides the mechanism: the strut's cylinder BODY at rest (above its end collar, 2 cm), seen from either side and from ahead and
