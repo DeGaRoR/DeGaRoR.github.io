@@ -43,7 +43,19 @@ FMIST section 1, and the battery's own text assertions (ATMO's `uMist[7]`, CLOUD
 
 ## Gates (node, `run_gates.js --no-build --jobs=2`, on the built tree)
 
-FMIST, ATMO, FOG, GFX, ASSETS, UISMOKE, WORLDRENDER: PASS. CLOUD and FRAMECOST: <!-- CLOUDFC -->
+FMIST, ATMO, FOG, GFX, ASSETS, UISMOKE, WORLDRENDER: PASS. CLOUD: <!-- CLOUD -->
+
+**FRAMECOST: red, and it is the STALE PARKED COOK, not the mist** - bisected on a clean master worktree:
+- master `e789e77c` on this box: master's 5 boot lines only (`garage:compile/links`, `garage:landing/bytes.bufferData`,
+  `garage:seed` / `garage:restore` `updateMatrixWorld`) - its standing red.
+- this branch: those 5 + the stand and taxi rows (Cub stand `draws.main` 914 -> 1043, `draws.shadow` 169.5 -> 266,
+  `bytes.uniforms` 205 k -> 720 k; the Cessna the same; taxi +56 / +42).
+- master + ONLY this branch's `gfx_settings.js` reproduces it exactly - and so does the row with no `free`, no `reload`,
+  out of the sky group, or moved to the end: ANY viewer source change does. `tools/parked_cook.js --check`: master
+  "manifest build 26485aadd65d, this tree 26485aadd65d (same)"; this branch "this tree 70b9c3bfaeb6 (STALE: every key
+  is captured live until a re-cook)". The cooked parked fleet is signed with the build id (parked_cook.js header), so a
+  stale cook draws the parked aeroplanes live at the stand. **A0's train re-cook clears it** (the cook refuses
+  SwiftShader, so it cannot be done from this cloud). With the row off, the mist itself adds nothing (GATE FMIST 1).
 
 ## Owed to the box (A0 books it) - the numbers this cloud cannot give
 
