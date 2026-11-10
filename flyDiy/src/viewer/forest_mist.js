@@ -44,6 +44,7 @@ var FMIST = (function () {
     // THE LOOK THE USER PICKED (10 Nov, the run11 sheet: "this image was looking best, the ones after that are sort of
     // worse"): 110 m cells, a 450 m window, no stretch, no layers, the original shear. The contour stretch and the
     // altitude layers stay as dials (off), with the contour map baked, for whoever tunes this on the box.
+    farLo: 2500, farHi: 7000,       // the far pocket: the shapes melt to their mean between these distances (m)
     elong: 1,                       // the wisps drawn out along the CONTOUR (x the length; 1 = round, the pick)
     layerM: 70, layerSwing: 40, strat: 0, shear: 0.011,   // the horizontal layers (a bank every 70 m of altitude, wavering 40 m; strat 0.85 tried 10 Nov, off: the pick); the vertical shear
     swing: 30, covK: 0.9, detailK: 9.0, erode: 0.5, soft: 0.5, stretch: 2.1,   // the contours' swing (m), the share of a full pocket that is mist, the erosion's scale (x the body's) and depth
@@ -102,7 +103,7 @@ var FMIST = (function () {
       const v = 1 - Math.min(1, Math.max(0, (g[k] - floor[k]) / (0.45 * relief)));   // 1 on the valley floor, 0 halfway up
       const hollow = Math.min(1, Math.max(0, (gb2[k] - gb[k]) / 40 + 0.5));         // > 0.5 a gully, < 0.5 a spur
       const lowAir = Math.exp(-Math.max(0, floor[k]) / 450);                         // cold air pools LOW (a 900 m saddle keeps a seventh)
-      const P = v * lowAir * (0.45 + 0.55 * Math.max(foB[k], wetB[k])) * (wet[k] ? (g[k] < 0.5 ? 0.12 : 0.8) : 1);   // a lake steams, the open sea is the F2 layer's (and a plan's fog.hold)
+      const P = v * lowAir * (0.45 + 0.55 * Math.max(foB[k], wetB[k])) * (wet[k] ? (g[k] < 0.5 ? 0 : 0.8) : 1);   // a lake steams; the open sea is the F2 layer's and a plan's fog.hold (0.12 flecked it white from the air, 10 Nov)
       const Wp = foB[k] * (0.35 + 0.65 * hollow) * (0.7 + 0.3 * Math.min(1, wetB[k] * 3));
       px[k * 4] = g[k] + can[k];
       px[k * 4 + 1] = Math.min(1, P);
@@ -369,6 +370,10 @@ var FMIST = (function () {
       vec2 t = vec2((${S.X}.0 + 0.5 + uv.x * ${S.N - 1}.0) / ${AP_N_W}.0, (${TILE_Y}.0 + 0.5 + uv.y * ${S.N - 1}.0) / ${ATLAS_H}.0);
       return texture2D(uApAtlas, t);
     }
+    // THE FAR POCKET (the far and high sheets of 10 Nov: 110 m wisps read as white speckle - snow on the hills, whitecaps
+    // on the sea): past ~3 km the shapes melt toward their mean, as the clouds' noise does past its texel - a soft haze
+    // where the valley holds mist. fmOD sets it from the surface's distance; 0 near (the shapes as they are).
+    float gFmFar = 0.0;
     float fmDens(vec3 p) {
       vec4 m = fmMap(p.xz);
       float hc = p.y - m.x;                                              // over the canopy (negative: in the crowns)
@@ -416,13 +421,14 @@ ${S.elong > 1 ? `      { vec4 cd = fmDir(p.xz); float w = min(1.0, length(cd.xy)
       float body = uMist[11].z > 0.5 ? smoothstep(thr, thr + ${S.soft.toFixed(2)}, n)
                                      : pow(clamp((n - thr) / max(0.05, 1.0 - thr), 0.0, 1.0), ${S.coreK.toFixed(2)});
       body *= lay;
+      body = mix(body, 0.45 * cov, gFmFar);   // far: the mean, not the shapes
       if (body <= 0.0) return 0.0;
       // THE DETAIL: a ~${Math.round(S.period / S.detailK)} m erosion eats the edges (Schneider's remap: base minus the fine noise), so the
       // outline breaks into wisps and the inside keeps its mass
       vec2 r = q * ${S.detailK.toFixed(2)} + vec2(p.y * 0.045, 3.3);
       float e = 0.5 * fmVN(r) + 0.32 * fmVN(r * 2.7 + vec2(1.9, -4.1)) + 0.18 * fmVN(r * 6.1 + vec2(-7.3, 2.2));   // three octaves: the edge breaks at ~12, ~4.5 and ~2 m
       e = clamp(0.5 + (e - 0.5) * 2.4, 0.0, 1.0);
-      float d = clamp((body - e * ${S.erode.toFixed(2)}) / (1.0 - e * ${S.erode.toFixed(2)}), 0.0, 1.0);
+      float d = mix(clamp((body - e * ${S.erode.toFixed(2)}) / (1.0 - e * ${S.erode.toFixed(2)}), 0.0, 1.0), body, gFmFar);
       return d * (uMist[11].z > 0.5 ? smoothstep(0.0, 0.3, cov) : sqrt(geo)) * uMist[8].z;
     }
     // A pocket is droplets (~10 um): Mie's forward peak is narrow and strong - backlit by a low sun the mist glows
@@ -438,6 +444,7 @@ ${S.elong > 1 ? `      { vec4 cd = fmDir(p.xz); float w = min(1.0, length(cd.xy)
     // eye is in). What a pocket hanging half-way between the two does to a far ridge is missed: the study's SS3c.
     float fmOD(vec3 o, vec3 d, float D) {
       if (uMist[8].w < 0.5 || D > 25000.0 || D < uMist[11].x) return 0.0;
+      gFmFar = smoothstep(${S.farLo.toFixed(1)}, ${S.farHi.toFixed(1)}, D);
       float od = 0.0, Ls = min(D, uMist[10].z), ns = max(1.0, uMist[10].x), dts = Ls / ns;
       for (int i = 0; i < 8; i++) { if (float(i) >= uMist[10].x) break; od += fmDens(o + d * (D - (float(i) + 0.5) * dts)) * dts; }
       if (D > Ls && uMist[10].y > 0.5) {

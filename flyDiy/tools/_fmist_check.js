@@ -62,7 +62,7 @@ else {
     if (m1.px[k * 4] < 0.5 && m1.px[k * 4 + 3] < 0.5) { sea += p; nSea++; }
   }
   yes(inRange && fin, 'every texel finite, the weights in [0, 1]');
-  yes(nSea > 0 && sea / nSea <= 0.13, 'the open sea is nearly free of pool (mean ' + (sea / Math.max(1, nSea)).toFixed(3) + ' - the sea fog is the F2 layer\'s)');
+  yes(nSea > 0 && sea / nSea < 0.01, 'the open sea holds no pool (mean ' + (sea / Math.max(1, nSea)).toFixed(3) + ' - the sea fog is the F2 layer\'s)');
   // valley floors against ridges: the 5 % lowest and highest land over its own floor
   const land = [];
   for (let k = 0; k < N * N; k++) if (m1.px[k * 4] - m1.px[k * 4 + 3] >= 0 && m1.px[k * 4 + 3] > 1) land.push([m1.px[k * 4] - m1.px[k * 4 + 3], m1.px[k * 4 + 1]]);
