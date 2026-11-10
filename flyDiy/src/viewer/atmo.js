@@ -880,7 +880,7 @@ ${MIST_GLSL}
   // ---- the GPU half ---------------------------------------------------------
   const G = { ready: false, enabled: false, texT: null, texMS: null, rtSky: null, rtAP: null, quad: null, cam: null, skyMat: null, apMat: null, atmU: null };
   const U = {                                   // shared uniform objects (one value each, every consumer reads them)
-    sun: null, moon: null, eMoon: { value: 0 }, r: { value: 6360.0 }, scale: { value: 1 }, stars: { value: 1 }, starK: { value: { x: 1.5, y: 1.5e-4 } }, starM: { value: new Float32Array([1, 0, 0, 0, 1, 0, 0, 0, 1]) }, starMag: { value: { x: 100, y: 0.25, z: 1, w: 1 } }, starA: { value: 1.5 },
+    sun: null, moon: null, eMoon: { value: 0 }, r: { value: 6360.0 }, scale: { value: 1 }, stars: { value: 1 }, starK: { value: { x: 1.5, y: 1.5e-4 } }, starM: { value: new Float32Array([1, 0, 0, 0, 1, 0, 0, 0, 1]) }, starMag: { value: { x: 1e5, y: 0.3, z: 8, w: 1 } }, starA: { value: 0.8 },
     glare: { value: 1 }, eyeY: { value: 0 },
     lutGain: { value: 1 },   // A6: 2^(the exposure's stops) - the sky-view and AP tables are stored x this so a night sky (1e-6 of the sun) is not a half float's subnormal (the white bands on the night horizon)
     veil: { value: new Float32Array([0, 0, 0, 9000]) }, veilSun: { value: new Float32Array(3) }, veilSky: { value: new Float32Array(3) },   // CLOUDS C4
