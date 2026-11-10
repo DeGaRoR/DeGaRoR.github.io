@@ -1419,6 +1419,17 @@ function garageInit(api) {
   // THE JSON DOORS, ON THE RIBBON beside the other four verbs
   if ($('gExport')) $('gExport').addEventListener('click', exportFile);
   if ($('gExportAll')) $('gExportAll').addEventListener('click', exportAllFile);
+  // PHONE IMPORT (the user, 11 Nov 00:35: "nothing happens when clicking on import" on the phone): Android's picker
+  // filters by MIME, and a .json file is rarely registered as application/json, so accept="application/json,.json"
+  // can leave the picker empty or never open it; and a display:none input is not reliably clickable on every mobile
+  // browser. On a touch device the input takes any file (the reader below refuses a non-build with a message) and
+  // stands off-screen instead of hidden. Desktop keeps the .json filter.
+  const touchDev = (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0) ||
+                   (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+  if (fileIn && touchDev && fileIn.removeAttribute) {
+    fileIn.removeAttribute('accept'); fileIn.hidden = false;
+    if (fileIn.style) Object.assign(fileIn.style, { position: 'fixed', left: '-9999px', top: '0', width: '1px', height: '1px', opacity: '0' });
+  }
   if ($('gImport')) $('gImport').addEventListener('click',
     () => { if (fileIn) { fileIn.value = ''; fileIn.click(); } });
   // THE NAME IS THE MENU (2026-09-03, the user: "simply the plane's name on
