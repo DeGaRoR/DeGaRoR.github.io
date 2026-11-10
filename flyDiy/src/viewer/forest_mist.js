@@ -38,7 +38,8 @@ var FMIST = (function () {
     // bad, so the heaviest is 0.003 /m (~1.3 km inside: an aerial veil, never a wall) and the last wisps a quarter of it.
     rhoMax: 0.003, octaves: 2, flat: true, coreK: 1.6,   // coreK: the gradient mechanism's (flat: false), kept for the record
     rho: null,                      // a pin over the ladder (the rigs' density sheets), null = the weather's
-    elong: 1.8,                     // the wisps drawn out along the wind (x the length; 2.5 across the view sheeted the hill in the sweep)
+    elong: 2.0,                     // the wisps drawn out along the CONTOUR (x the length; along the wind leaned them downhill, 10 Nov)
+    layerM: 70, layerSwing: 40, strat: 0.85,   // the horizontal layers: a bank every 70 m of altitude, wavering 40 m, 0.85 of the density banded
     swing: 30, covK: 0.9, detailK: 9.0, erode: 0.5, soft: 0.5, stretch: 2.1,   // the contours' swing (m), the share of a full pocket that is mist, the erosion's scale (x the body's) and depth
     period: 70,                     // the noise's cell (m): a wisp a few tree lengths across (160 -> 70: the user, 10 Nov, "chase more resolution"; the CPU sweep of 10 Nov)
     lidM: 25, lidK: 110,            // the pool's lid over the valley floor: 25 m + 110 m x the pool weight
@@ -104,7 +105,19 @@ var FMIST = (function () {
       pool += px[k * 4 + 1]; wisp += px[k * 4 + 2];
     }
     const ms = ((typeof performance !== 'undefined') ? performance.now() : Date.now()) - t0;
-    return { N, x0: b.x0, z0: b.z0, inv: 1 / size, size, px, ms, poolMean: pool / (N * N), wispMean: wisp / (N * N) };
+    // THE CONTOURS' DIRECTION (the user, 10 Nov: "in my references they're rather horizontal layers"): the level line
+    // across the slope at every texel, from the land under a 200 m blur, as the DOUBLED angle (cos 2a, sin 2a) - a
+    // direction with no sign, which blends between texels where an angle would wrap - x how steep it is (flat ground:
+    // no direction, a round wisp). Its own 512^2 in the atlas, beside the map.
+    const px2 = new Float32Array(N * N * 4);
+    for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+      const gx = (at(gb, i + 1, j) - at(gb, i - 1, j)) / (2 * step), gz = (at(gb, i, j + 1) - at(gb, i, j - 1)) / (2 * step);
+      const sl = Math.hypot(gx, gz), k = j * N + i;
+      const a = Math.atan2(gx, -gz);                                  // the contour: perpendicular to the fall line
+      const w = Math.min(1, Math.max(0, (sl - 0.03) / 0.12));
+      px2[k * 4] = Math.cos(2 * a) * w; px2[k * 4 + 1] = Math.sin(2 * a) * w; px2[k * 4 + 2] = sl; px2[k * 4 + 3] = 1;
+    }
+    return { N, x0: b.x0, z0: b.z0, inv: 1 / size, size, px, px2, ms, poolMean: pool / (N * N), wispMean: wisp / (N * N) };
   }
   // ---- WHEN: the weather's law (CPU, per frame; pure in the day + the soil) ----------------------------------------
   const sm = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
@@ -151,6 +164,7 @@ var FMIST = (function () {
     st.map = { N: m.N, x0: m.x0, z0: m.z0, inv: m.inv, poolMean: m.poolMean, wispMean: m.wispMean };
     st.bakeMs = m.ms;
     AT.blit(renderer, m.px, m.N, S.X, AT.AP.TILE_Y);
+    AT.blit(renderer, m.px2, m.N, S.X + S.N, AT.AP.TILE_Y);   // the contours' direction, the next 512 columns
     if (B) cardsBuild(m, scene);
     console.log('forest mist: map ' + m.N + '^2 in ' + m.ms.toFixed(0) + ' ms (pool mean ' + m.poolMean.toFixed(3) + ', wisp mean ' + m.wispMean.toFixed(3) + ')');
     return st.map;
@@ -292,19 +306,21 @@ var FMIST = (function () {
     const inWisp = k[1] * Bw > 0.002 && hc > S.wispLo - 15 && hc < S.wispHi + 30;
     const inOro = k[2] > 0.002 && yb > S.oroLo - 30 && yb < S.oroHi + 30 && hc > -20 && hc < 190;
     if (!(inPool || inWisp || inOro)) return 0;
-    let qx = (x + drift[0]) / S.period + y * 0.011, qz = (z + drift[1]) / S.period - y * 0.007;
-    { const aw = S._windA || 0, wx = Math.cos(aw), wz = Math.sin(aw), al = qx * wx + qz * wz, ac = -qx * wz + qz * wx, st = Math.max(1, S.elong);
-      qx = wx * al / st - wz * ac; qz = wz * al / st + wx * ac; }
+    let qx = (x + drift[0]) / S.period + y * 0.003, qz = (z + drift[1]) / S.period - y * 0.002;
+    if (m.px2) { const c2 = m.px2[o], s2 = m.px2[o + 1], w = Math.min(1, Math.hypot(c2, s2));
+      if (w > 0.02) { const a = 0.5 * Math.atan2(s2, c2), wx = Math.cos(a), wz = Math.sin(a), st = 1 + (Math.max(1, S.elong) - 1) * w, al = qx * wx + qz * wz, ac = -qx * wz + qz * wx;
+        qx = wx * al / st - wz * ac; qz = wz * al / st + wx * ac; } }
     let n = 0.55 * vn(qx, qz) + 0.30 * vn(qx * 2.31 + 5.2, qz * 2.31 + 1.3) + 0.15 * vn(qx * 5.3 - 3.1, qz * 5.3 + 7.7);
     n = Math.min(1, Math.max(0, 0.5 + (n - 0.5) * S.stretch));
     const sw = (n - 0.5) * S.swing, hcs = hc - sw;
+    const lay = 1 + (smc(0.25, 0.8, 0.5 + 0.5 * Math.cos(6.2832 * (y + (n - 0.5) * S.layerSwing) / S.layerM)) - 1) * S.strat;
     const gP = G * smc(0, 18, lid + sw - y) * (hc >= -30 ? 1 : 0);
     const gW = Bw * smc(S.wispLo, 0, hcs) * (1 - smc(8, S.wispHi, hcs));
     const gO = smc(S.oroLo, 0, yb - sw) * (1 - smc(60, S.oroHi, yb - sw)) * (1 - smc(40, 160, hc)) * (hc >= -20 ? 1 : 0);
     const cov = Math.min(1, k[0] * gP + k[1] * gW + k[2] * gO); if (cov <= 0.002) return 0;
     const geo = Math.max(k[0] > 0.002 ? gP : 0, k[1] > 0.002 ? gW : 0, k[2] > 0.002 ? gO : 0);
     const thr = 1 - S.covK * cov;
-    let body = S.flat ? smc(thr, thr + S.soft, n) : Math.pow(Math.min(1, Math.max(0, (n - thr) / Math.max(0.05, 1 - thr))), S.coreK); if (body <= 0) return 0;
+    let body = S.flat ? smc(thr, thr + S.soft, n) : Math.pow(Math.min(1, Math.max(0, (n - thr) / Math.max(0.05, 1 - thr))), S.coreK); body *= lay; if (body <= 0) return 0;
     const rx = qx * S.detailK + y * 0.045, rz = qz * S.detailK + 3.3;
     let e = 0.5 * vn(rx, rz) + 0.32 * vn(rx * 2.7 + 1.9, rz * 2.7 - 4.1) + 0.18 * vn(rx * 6.1 - 7.3, rz * 6.1 + 2.2); e = Math.min(1, Math.max(0, 0.5 + (e - 0.5) * 2.4));
     const dd = Math.min(1, Math.max(0, (body - e * S.erode) / (1 - e * S.erode)));
@@ -337,6 +353,11 @@ var FMIST = (function () {
       vec2 j = mod(i + 1.0, 512.0);
       return mix(mix(fmH(i), fmH(vec2(j.x, i.y)), f.x), mix(fmH(vec2(i.x, j.y)), fmH(j), f.x), f.y);
     }
+    vec4 fmDir(vec2 xz) {
+      vec2 uv = clamp((xz - uMist[9].xy) * uMist[9].z, 0.0, 1.0);
+      vec2 t = vec2((${S.X + S.N}.0 + 0.5 + uv.x * ${S.N - 1}.0) / ${AP_N_W}.0, (${TILE_Y}.0 + 0.5 + uv.y * ${S.N - 1}.0) / ${ATLAS_H}.0);
+      return texture2D(uApAtlas, t);
+    }
     vec4 fmMap(vec2 xz) {
       vec2 uv = clamp((xz - uMist[9].xy) * uMist[9].z, 0.0, 1.0);
       vec2 t = vec2((${S.X}.0 + 0.5 + uv.x * ${S.N - 1}.0) / ${AP_N_W}.0, (${TILE_Y}.0 + 0.5 + uv.y * ${S.N - 1}.0) / ${ATLAS_H}.0);
@@ -354,17 +375,23 @@ var FMIST = (function () {
       if (!(inPool || inWisp || inOro)) return 0.0;
       // THE BODY: the noise rides the wind, the map does not - wisps stream through a pocket and fade at its edges; a slow
       // vertical shear so a wisp leans. The octaves' sum sits at 0.5 +- 0.13, so it is stretched to the unit (x2.6).
-      vec2 q = (p.xz + uMist[8].xy) * uMist[9].w + vec2(p.y * 0.011, -p.y * 0.007);
-      // ELONGATED ALONG THE WIND (a wisp is drawn out downwind): the coordinate squeezed along the wind's direction
-      // (uMist[12].w = the stretch, 1 = round) - the wind's unit vector rides uMist[11].w as an angle
-      { float aw = uMist[11].w; vec2 wd = vec2(cos(aw), sin(aw)); float al = dot(q, wd), ac = dot(q, vec2(-wd.y, wd.x));
-        q = wd * al / max(1.0, uMist[12].w) + vec2(-wd.y, wd.x) * ac; }
+      vec2 q = (p.xz + uMist[8].xy) * uMist[9].w + vec2(p.y * 0.003, -p.y * 0.002);   // (the shear 0.011 -> 0.003: it leaned the wisps downhill)
+      // DRAWN OUT ALONG THE CONTOUR (the user, 10 Nov: "a lot of your mist reads as going downhill, while in my
+      // references they're rather horizontal layers"): the coordinate squeezed along the level line across the slope
+      // (the baked direction; round on flat ground), uMist[12].w = the stretch
+      { vec4 cd = fmDir(p.xz); float w = min(1.0, length(cd.xy));
+        if (w > 0.02) { float a = 0.5 * atan(cd.y, cd.x); vec2 wd = vec2(cos(a), sin(a));
+          float st = mix(1.0, max(1.0, uMist[12].w), w), al = dot(q, wd), ac = dot(q, vec2(-wd.y, wd.x));
+          q = wd * al / st + vec2(-wd.y, wd.x) * ac; } }
       float n = 0.55 * fmVN(q) + 0.30 * fmVN(q * 2.31 + vec2(5.2, 1.3)) + 0.15 * fmVN(q * 5.3 + vec2(-3.1, 7.7));
       n = clamp(0.5 + (n - 0.5) * ${S.stretch.toFixed(2)}, 0.0, 1.0);
       // THE CONTOURS (the user, 9 Nov: "lacks detail in the shape and the contours"): the bands' edges ride the noise, so
       // a wisp's top is lumpy and the pool's lid heaves instead of lying as a level slab
       float sw = (n - 0.5) * ${S.swing.toFixed(1)};
       float hcs = hc - sw;
+      // THE LAYERS: mist sits at heights (an inversion, the condensation level), so where it meets a slope it draws a
+      // level stripe across it - a soft bank every ${S.layerM} m of altitude, its height wavering with the noise
+      float lay = mix(1.0, smoothstep(0.25, 0.8, 0.5 + 0.5 * cos(6.2832 * (p.y + (n - 0.5) * ${S.layerSwing.toFixed(1)}) / ${S.layerM.toFixed(1)})), ${S.strat.toFixed(2)});
       // THE PLACE'S OWN SHAPE (geometry: the map's weight x the band's profile, 0..1) and THE WEATHER'S AMOUNT are kept
       // apart (the user, 9 Nov: "the control for how much the slope holds is good, but now it's all too thick ...
       // controlling both together is lacking. It just gives you very plain stuff"): the weather sets how much of the
@@ -382,6 +409,7 @@ var FMIST = (function () {
       // saturates, the weather on both the amount and the density); 0: the gradient
       float body = uMist[11].z > 0.5 ? smoothstep(thr, thr + ${S.soft.toFixed(2)}, n)
                                      : pow(clamp((n - thr) / max(0.05, 1.0 - thr), 0.0, 1.0), ${S.coreK.toFixed(2)});
+      body *= lay;
       if (body <= 0.0) return 0.0;
       // THE DETAIL: a ~${Math.round(S.period / S.detailK)} m erosion eats the edges (Schneider's remap: base minus the fine noise), so the
       // outline breaks into wisps and the inside keeps its mass
