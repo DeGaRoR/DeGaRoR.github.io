@@ -29,7 +29,10 @@
      "propD": 1.91,
      "propBlades": 2
     },
-    "pxPerM": 84.132
+    "sea": false,
+    "heroProp": "disc",
+    "pxPerM": 84.132,
+    "heroWingY": 0.321
    },
    "pics": {
     "hero": "design_cub/hero.webp",
@@ -68,7 +71,10 @@
      "propD": 1.83,
      "propBlades": 2
     },
-    "pxPerM": 108.146
+    "sea": false,
+    "heroProp": "disc",
+    "pxPerM": 108.146,
+    "heroWingY": 0.448
    },
    "pics": {
     "hero": "design_jodel/hero.webp",
@@ -97,17 +103,20 @@
     "nEngines": 1,
     "seats": 4,
     "specs": {
-     "empty": 709.8404387009701,
-     "allUp": 1062.4804387009701,
-     "Vs": 24.25791678628078,
-     "VCruise": 54,
-     "climb": 5.675427797418751,
-     "TORun": 222,
+     "empty": 713.1989346299488,
+     "allUp": 1065.8389346299489,
+     "Vs": 24.143319050296974,
+     "VCruise": 54.1,
+     "climb": 5.627261351640659,
+     "TORun": 225,
      "engine": "Lycoming O-540-B2C5",
      "propD": 2.06,
      "propBlades": 2
     },
-    "pxPerM": 81.654
+    "sea": false,
+    "heroProp": "disc",
+    "pxPerM": 81.654,
+    "heroWingY": 0.257
    },
    "pics": {
     "hero": "list_5/hero.webp",
@@ -136,17 +145,21 @@
     "nEngines": 1,
     "seats": 4,
     "specs": {
-     "empty": 841.9129158302791,
-     "allUp": 1194.5529158302804,
-     "Vs": 25.721547994294276,
-     "VCruise": 55.7,
-     "climb": 6.66337394091438,
-     "TORun": 1138,
+     "empty": 845.4479527739961,
+     "allUp": 1198.0879527739964,
+     "Vs": 25.597461107780077,
+     "VCruise": 55.4,
+     "climb": 6.618748951546907,
+     "TORun": null,
      "engine": "Lycoming O-540-B2C5",
      "propD": 2.083,
-     "propBlades": 2
+     "propBlades": 2,
+     "TOWater": "lifts off the water"
     },
-    "pxPerM": 81.654
+    "sea": true,
+    "heroProp": "disc",
+    "pxPerM": 81.654,
+    "heroWingY": 0.217
    },
    "pics": {
     "hero": "list_39/hero.webp",
@@ -164,7 +177,7 @@
     "name": "Twin busher floats 4b",
     "reg": "F-FORE",
     "dims": {
-     "span": 10.75,
+     "span": 10.66,
      "length": 7.42,
      "height": 3.42
     },
@@ -180,12 +193,16 @@
      "Vs": 23.12815661218526,
      "VCruise": 47.4,
      "climb": 5.553046187293997,
-     "TORun": 1151,
+     "TORun": null,
      "engine": "Rotax 916 iS",
      "propD": 1.91,
-     "propBlades": 3
+     "propBlades": 3,
+     "TOWater": "see the hydroplane test"
     },
-    "pxPerM": 83.741
+    "sea": true,
+    "heroProp": "disc",
+    "pxPerM": 84.389,
+    "heroWingY": 0.626
    },
    "pics": {
     "hero": "cand_Twin_busher_floats_4b.json/hero.webp",
@@ -224,7 +241,10 @@
      "propD": 1.91,
      "propBlades": 2
     },
-    "pxPerM": 91.23
+    "sea": false,
+    "heroProp": "disc",
+    "pxPerM": 91.23,
+    "heroWingY": 0.286
    },
    "pics": {
     "hero": "list_7/hero.webp",
@@ -263,7 +283,10 @@
      "propD": 1.73,
      "propBlades": 3
     },
-    "pxPerM": 92.248
+    "sea": false,
+    "heroProp": "disc",
+    "pxPerM": 92.248,
+    "heroWingY": 0.289
    },
    "pics": {
     "hero": "stock_chinook/hero.webp",
@@ -281,7 +304,7 @@
     "name": "STOL Cub",
     "reg": "F-STOL",
     "dims": {
-     "span": 10.7,
+     "span": 10.6,
      "length": 6.92,
      "height": 2.88
     },
@@ -302,7 +325,10 @@
      "propD": 1.8,
      "propBlades": 3
     },
-    "pxPerM": 84.124
+    "sea": false,
+    "heroProp": "disc",
+    "pxPerM": 84.914,
+    "heroWingY": 0.306
    },
    "pics": {
     "hero": "cand_stol_cub_showcase.json/hero.webp",
@@ -336,12 +362,16 @@
      "Vs": 20.081955825383393,
      "VCruise": 40,
      "climb": 4.338016007924088,
-     "TORun": 805,
+     "TORun": null,
      "engine": "Lycoming O-320-E2D",
      "propD": 1.91,
-     "propBlades": 2
+     "propBlades": 2,
+     "TOWater": "see the hydroplane test"
     },
-    "pxPerM": 84.132
+    "sea": true,
+    "heroProp": "disc",
+    "pxPerM": 84.132,
+    "heroWingY": 0.272
    },
    "pics": {
     "hero": "list_25/hero.webp",
@@ -380,7 +410,10 @@
      "propD": 1.91,
      "propBlades": 2
     },
-    "pxPerM": 83.898
+    "sea": false,
+    "heroProp": "disc",
+    "pxPerM": 83.898,
+    "heroWingY": 0.321
    },
    "pics": {
     "hero": "list_26/hero.webp",
