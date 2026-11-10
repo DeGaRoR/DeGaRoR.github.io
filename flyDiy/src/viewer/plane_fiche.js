@@ -241,6 +241,16 @@
       let s = null; try { s = window.FLYDIY_POD && FLYDIY_POD.shake ? FLYDIY_POD.shake() : null; } catch (e) { s = null; }
       if (!s) s = genShakedown(buildGen(genMigrateSpec(spec)), { corners: false });
       data.specs = { empty: s.empty, allUp: s.mass, Vs: s.Vs, VCruise: s.VCruise, climb: s.climbRate, TORun: s.TORun, engine: s.engineName, propD: s.propD, propBlades: s.propBlades };
+      // FLAGSHIP 10 Nov (A0: the Twin's fiche said 1151 m): A SEAPLANE'S TAKE-OFF IS ITS WATER RUN. TORun is the analytic
+      // LAND roll, the floats rolled as wheels (800-1557 m on every float card), so on floats or a hull the row is the
+      // bench's Hydroplane test: its lift-off distance when settled and ok, its verdict when not, never the land figure
+      data.sea = /float|hull/i.test(String((spec.gear && spec.gear.type) || '')) || +(spec.cage && spec.cage.hullOn) > 0;
+      if (data.sea) {
+        let h = null; try { const B = window.BENCH_STATE && window.BENCH_STATE(); h = B && B.results && B.results.hydro; } catch (e) { h = null; }
+        const done = !!(h && !h.running && !h.stale);
+        data.specs.TORun = done && h.ok && h.lift ? h.lift.dist : null;
+        data.specs.TOWater = !done ? 'see the hydroplane test' : (h.ok && h.lift ? null : String(h.verdict || '').toLowerCase());
+      }
     } catch (e) { data.specsError = String(e && e.message || e).slice(0, 120); }
     return data;
   }
