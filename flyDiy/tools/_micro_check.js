@@ -251,6 +251,17 @@ const W8 = world(withMicro('w7', MICRO8));
   console.log(`  the ribbon over w7 at chaos 0.8 (1020 x 9 m): rows as before ${r0.verts} vertices, drawn - wheels p50 ${(r0.p50 * 1000).toFixed(1)} p99 ${(r0.p99 * 1000).toFixed(1)} max ${(r0.max * 1000).toFixed(1)} mm; refined to ${C.STRIP_MICRO.REFINE_MIN} m ${r1.verts} vertices, p50 ${(r1.p50 * 1000).toFixed(1)} p99 ${(r1.p99 * 1000).toFixed(1)} max ${(r1.max * 1000).toFixed(1)} mm`);
   // the worst (10 Nov, 3 x 60 000 points on the 5 cm rows: 22, 29, 31 mm; the gate's 6000 read 17-33 by the sample) is a ruts' 10 cm
   // wall between two rows - 40 mm bounds it with room; p99 (8 mm, steady) is the ribbon's measure
+  // (A0 10 Nov: rows by chaos) a strip under chaos 0.6 is drawn on 8 cm rows - w7 at 0.4 on them, its own ground, the same bar
+  { const W4 = world(withMicro('w7', Object.assign({}, MICRO8, { chaos: 0.4 }))), G4 = (x, z) => W4.terrainH(x, z) - W4.stoneH(x, z), rv = C.STRIP_MICRO.refineVOf('w7');
+    const g4 = (() => { const g = PAV.stripGeometry(THREE, { len: A7.len, wid: A7.wid, hdg: A7.hdg, cx: A7.x, cz: A7.z, shoulderW: 3, cls: 'dirt', seed: 1, heightAt: G4, lift: 0.07, resU: 6, resV: 3, sinkD0: 0.8, refineMin: C.STRIP_MICRO.REFINE_MIN, refineMinV: rv });
+      const pos = g.attributes.position.array, nV = g.userData.pav.rows, nU = g.userData.pav.cols, rng = (s => () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; })(40404), e = [];
+      const ray = new THREE.Raycaster(), mesh = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }));
+      const d = [Math.cos(A7.hdg), Math.sin(A7.hdg)], n = [-d[1], d[0]];
+      for (let k = 0; k < 3000; k++) { const u = (rng() - 0.5) * (A7.len - 12), v = (rng() - 0.5) * (A7.wid - 5), x = A7.x + d[0] * u + n[0] * v, z = A7.z + d[1] * u + n[1] * v;
+        ray.set(new THREE.Vector3(x, 1e4, z), new THREE.Vector3(0, -1, 0)); const h = ray.intersectObject(mesh)[0]; if (h) e.push(Math.abs(h.point.y - G4(x, z))); }
+      e.sort((p, q) => p - q); return { rv, verts: nU * nV, n: e.length, p99: e[Math.floor(e.length * 0.99)], max: e[e.length - 1] }; })();
+    verdict(Math.abs(g4.rv - 0.08) < 1e-9 && g4.n > 2500 && g4.p99 < 0.01 && g4.max < 0.04, `rows by chaos: w7 at 0.4 on ${g4.rv * 100} cm rows (5 cm from 0.6), ${g4.verts} vertices, drawn - wheels p99 ${(g4.p99 * 1000).toFixed(1)} mm (< 10), max ${(g4.max * 1000).toFixed(1)} (< 40)`);
+    world(withMicro('w7', MICRO8)); }   // (w7 published at 0.8 again: the sections after read it)
   verdict(r1.p99 < 0.01 && r1.max < 0.04 && r1.verts < 300000, `the drawn ribbon is the wheels' ground: p99 ${(r1.p99 * 1000).toFixed(1)} mm (< 10), max ${(r1.max * 1000).toFixed(1)} mm (< 40: a rut's wall between two rows), ${r1.verts} vertices (< 300 k: the rut walls' 5 cm rows, DIRT-STRIP 9 Nov)`);
 }
 
