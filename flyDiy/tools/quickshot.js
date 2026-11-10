@@ -187,6 +187,12 @@ if (MARKS.includes('fittings') && S.W.CAGE_ACCESS)
 if (MARKS.includes('corners'))
   for (const w of (S.spec.windows || [])) if (w.shape === 'quad' && w.corners) for (const c of w.corners) marks.push({ p: [P.halfW * FS * 1.2, c[1] * FS, c[0] * FS], col: [255, 230, 60], r: 5 });
 
+// --deck DEG (the user 9 Nov: "take it so Rufus stands on the ground"): the aeroplane pitched nose-up by its ground
+// attitude (a taildragger's deck angle) about the lateral axis, every triangle and normal, before any view
+const DECK = +opt('deck', 0) * Math.PI / 180;
+if (DECK) { const c = Math.cos(DECK), sn = Math.sin(DECK);
+  for (const t of tris) { for (let k = 0; k < 9; k += 3) { const y = t[k + 1], z = t[k + 2]; t[k + 1] = y * c + z * sn; t[k + 2] = z * c - y * sn; }
+    if (t.n) for (let k = 0; k < 9; k += 3) { const y = t.n[k + 1], z = t.n[k + 2]; t.n[k + 1] = y * c + z * sn; t.n[k + 2] = z * c - y * sn; } } }
 // ---- the raster ---------------------------------------------------------------------------------------------
 function view(name) {
   // u right, w up on the picture; d = toward the camera (larger = nearer)
