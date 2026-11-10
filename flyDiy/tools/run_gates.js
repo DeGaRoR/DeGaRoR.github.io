@@ -401,6 +401,10 @@ const GATES = [
   // at power and its imbalance tearing the mount), the 582's gearbox, FAR 23.361 / .363 / .371 on the mount's certificate,
   // and the negatives (the circuit, a 3.8 g pull, the brakes: nothing). Three children at once
   { id: 'DMGDRIVE', file: '_dmg_drive_check.js', tier: 'core', weight: 3, wall: 1500 },
+  // NOSE-STRIKE (9 Nov, the user's report): the held brake's nose-over on the Cub and the STOL strikes the prop and reads
+  // DAMAGED (DMG.noseAt names the prop for Pilot), the strike allowance by surface (10 cm grass / trees, 1 cm hard), parked
+  // builds and the stick-back / nosewheel negatives untouched. One process
+  { id: 'DMGNOSEOVER', file: '_dmg_noseover_check.js', tier: 'core', weight: 1, wall: 300 },
   // G1818-G1819 (DMG-SKINGPU): the wreck's skin ridden on the GPU - the shader's JS mirror on the packed data against the
   // CPU's riding (0.1 mm in the world, 1 deg) on the crash cases, the tear on read-back places against the full tear, and
   // the page's code: the GPU path only past the damage guard, no material or program touched. Three at once
@@ -511,6 +515,7 @@ const GATES = [
   // shotPose); 19 mutations
   { id: 'ROLLSND', file: '_rollsnd_check.js', tier: 'core', wall: 180 },
   { id: 'PWA', file: '_pwa_check.js', tier: 'core', wall: 5 },   // G3910 (PHONE-1b): the installed app - the manifest and its icons, the pages' link, the worker never answering the page, force sync (check / clean download: only flydiy* caches and this folder's worker, never localStorage), the menu rows, the installed-mode CSS
+  { id: 'WINGSMITH', file: '_wingsmith_check.js', argv: ['--selftest'], tier: 'core', wall: 5 },   // WINGSMITH (9 Nov): the game's player-facing name from GAME_NAMES.game alone; the saves, the install's id and the storage keys untouched
   { id: 'UPDATE', file: '_update_check.js', tier: 'core', wall: 5 },   // UPDATE-NOW G1535-G1539: the "Update" pill on a differing version.json, nothing on the same build or a failed fetch, the cache-busting URL (params kept, stripped after load), the autosave before the navigation, the media worker's sweep across an update
   { id: 'UILAYER', file: '_ui_layer_check.js', tier: 'core', wall: 10 },   // G1370: the in-world helpers on the UI layer; the verbs off for the roll-out shot
   // CARDS-CORNER G3060-G3069 (the user, 12 Oct: "the certifications, the end of the flight, the crash, all of them should

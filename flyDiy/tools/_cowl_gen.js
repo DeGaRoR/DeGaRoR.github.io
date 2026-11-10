@@ -44,10 +44,16 @@ const P={
   // light aeroplane is actually built to; 16 mm is the head across the flats.
   fastOn:1, fastPitch:0.11, fastD:0.016,
   partOn:1, partY:0.0, partW:0.0022,
+  // PROPER-COWLS: 1 = the split held LEVEL at the firewall's height, its groove a constant width (partW in metres).
+  // THE DEFAULT, saved builds included (the user, 8 Nov: "yes" to every cowl's split level); 0 = the section's parameter
+  partLevel:1,
+  // ...and 1 = the groove +-partW METRES on a parameter split too (partLevel 0); 0 = +-partW of the parameter, as every
+  // saved build drew it before PROPER-COWLS (absent at 0 in the garage: a saved draw never moves)
+  partArc:1,
   oilOn:1, oilZ:0.42, oilW:0.13, oilL:0.16, oilSq:1,
-  deckH:1, deckSweep:0, waist:0, waistSweep:0, keelH:0.95, keelSweep:0.55,
+  deckH:1, deckSweep:0, waist:0, waistF:null, waistSweep:0, keelH:0.95, keelSweep:0.55,
   // lid
-  lidRise:0.06, faceRise:0.018, lidLen:0.125, lidMode:1, lidR:0.17, lidGap:0.009,
+  lidRise:0.06, faceRise:0.018, faceRing:0, lidLen:0.125, lidMode:1, lidR:0.17, lidGap:0.009,
   lidRound:0.53, lidSqTop:0.62, lidSqBot:0.6, lidShoulder:0.45,
   // apertures cut into the surface
   detail:1.0,
@@ -63,11 +69,29 @@ const P={
   // lobes / cut
   lobeN:2, lobeAmp:0.022, lobeAz:0, lobeSig:34.0, lobeT:0.45, lobeTSig:0.3,
   cutSpan:0, cutAz:270.0,
+  // PROPER-COWLS (2026-11-08): the cooling air's and the exhaust's way out at the bottom of the aft edge (the user:
+  // "very often there is a cut in the cowl at the bottom aft part, so that the exhaust can go through ... they make
+  // the cowl a bit bigger at the bottom, so that there is a gap there"). All off (0) by default: every cowl drawn
+  // before them is drawn to the bit.
+  exitGap:0, exitSpan:140, exitLen:0.45, exitHold:0, keelShoulder:null, keelRound:null, deckShoulder:null, deckRound:null, scoopFollow:0, exRampH:0.04, exCut:0, exCutSpan:50, exCutLen:0.12, exCutAz:270,
+  // PROPER-COWLS: the side gills (the Carbon Cub's): off by default
+  // PROPER-COWLS: a radial's helmets as the engine draws them - how many (0 = lobeN) and every other one's station (a
+  // two-row radial's rear row; null = lobeT)
+  lobeCount:0, lobeT2:null,
+  // PROPER-COWLS: streamlined helmets (lobeStream 1): full over the head, a short rise from lobeNose, a long taper to
+  // lobeTail
+  lobeStream:0, lobeNose:0.94, lobeTail:0.04,
+  // PROPER-COWLS: the nose ring's own half-width / reach up / reach down (null = lidRadius)
+  lidRW:null, lidRTop:null, lidRBot:null,
+  gillOn:0, gillN:6, gillZ:0.35, gillL:0.22, gillH:0.12, gillSlant:25, gillLip:0.012, gillT:0.004,
   // chin scoop
   scoopOn:1, scoopZ:0, scoopW:0.065, scoopH:0.055, scoopLen:0.22, scoopDrop:0.7,
   scoopAp:0.68, scoopSq:0.5, scoopRake:0.18,
   scoopLipH:0.011, scoopLipDepth:0.032, scoopDuct:0.125,
   // aft — the fuselage is a given; the cowl inherits its section by default
+  // PROPER-COWLS: 1 = a free pod (fitNose 0, tail cone) sizes the engine's mount to itself and draws no plate (_cage_cowl
+  // podPlate); absent at 0 in the garage, so a saved pod keeps the plate it was drawn with
+  podFit:1,
   aftMode:0, stubLen:0.5, tailLen:1.5, tailDrop:0.02, pylon:1,
   // G3914: THE NACELLE'S AIR INLET (the user, 4 Nov: "a nacelle on a pusher should be allowed an air inlet ... a set
   // of controls for the inlet"): an opening in the tail cone's tip - on a pusher the cone is the nacelle's NOSE, into
@@ -221,6 +245,16 @@ function angDiff(a,b){let d=(a-b)%TAU; if(d>Math.PI)d-=TAU; if(d<-Math.PI)d+=TAU
 const SEG=112;
 const zEnd=()=>P.cowlLen+P.lidLen;
 function lidRadius(){ return P.lidMode===1 ? P.spinR+P.lidGap : P.lidR; }
+/* THE NOSE RING'S OWN SHAPE (PROPER-COWLS, the user, 8 Nov, the Tiger Moth: "you put the prop straight on the engine
+   block ... there's almost no cowl shape that can encompass it without striking through the engine block ... flatten
+   the face ... drop more abruptly and with less rounding"). The ring was a circle of lidRadius about the cone; an
+   inverted in-line hangs half a metre of block under its shaft, right up to the flange, and only a FLAT FACE as tall as
+   the block can close in front of it. lidRW / lidRTop / lidRBot: the ring's half-width, and its reach above and below
+   its centre (the propeller's axis), metres; absent = lidRadius, to the bit. The closing disc follows the ring. */
+const lidShaped=()=>P.lidRW!=null||P.lidRTop!=null||P.lidRBot!=null;
+const lidRW=()=>P.lidRW!=null?Math.max(0.004,+P.lidRW):lidRadius();
+const lidRT=()=>P.lidRTop!=null?Math.max(0.004,+P.lidRTop):lidRadius();
+const lidRB=()=>P.lidRBot!=null?Math.max(0.004,+P.lidRBot):lidRadius();
 /* THE FIREWALL EDGE IS NOT AT z = 0 WHEN IT IS A LIP. The aft plane of the
    cowl is still z = 0 — that is the firewall, and the cowl must not grow into
    the fuselage — so the LIP occupies the last few millimetres of it and the
@@ -248,9 +282,19 @@ function aftStart(){ if(!P.fwLipOn) return 0; const g=fwGeom(); return g.r+g.sr;
 /* No spine curvature. The barrel is a straight ruled surface from the firewall
    loop to the lid loop; the lid axis then runs straight to the face, which can
    be lifted independently of the barrel-end offset. */
+/* PROPER-COWLS (2026-11-07): `faceRing` 1 - THE FACE'S LIFT MOVES THE RING, NOT THE LIP. The straight cowl keeps its
+   barrel on the firewall's centre and puts the spinner where the thrust line is: the lift then follows how far the
+   bowl has closed toward the ring (0 at the barrel end, 1 at the ring), so the lip's top and bottom lines stay on the
+   barrel's instead of the whole lip rising with the axis. 0 (the default, and every build that never set it) is the
+   linear lift it always was, to the bit. */
 function spineY(z){
   if(z<=0) return 0;
   if(z<=P.cowlLen) return P.lidRise*clamp(z/Math.max(P.cowlLen,1e-4),0,1);
+  if(P.faceRing&&P.faceRise){
+    if(!LID) prepareLid();
+    const a1=P.aftW*P.taperW, lr=lidRW(), d=Math.max(a1-lr,1e-4);
+    return P.lidRise + P.faceRise*clamp((a1-LID.A.at(Math.min(z,zEnd())))/d,0,1);
+  }
   return P.lidRise + P.faceRise*clamp((z-P.cowlLen)/Math.max(P.lidLen,1e-4),0,1);
 }
 
@@ -295,21 +339,54 @@ function prepareLid(){
   const sa=(a1-a0)/cl, sh=(h1-h0)/cl;
   const c1=clamp(P.lidShoulder,0,0.92), c2=clamp(P.lidRound,0,1);
   const pz=[cl, cl+L*c1, ze-L*0.05, ze];
-  const A=mkCurve(pz,[a1, a1+sa*L*c1, lr+(a1-lr)*c2, lr]);
+  const lw=lidRW();
+  const A=mkCurve(pz,[a1, a1+sa*L*c1, lw+(a1-lw)*c2, lw]);
   // one recipe, used for the deck and the keel with their own scale and sweep
-  const half=(k,sweep,end)=>{
+  // (q1 / q2: this line's own shoulder and fullness - the keel's may differ from the rest, see keelShoulder)
+  // (level: the line leaves z0 LEVEL - the fuselage's own bottom carried on - rather than on the barrel's taper)
+  const half=(k,sweep,end,q1,q2,level)=>{
+    const a1c=q1!=null?q1:c1, a2c=q2!=null?q2:c2;
     const z0=cl-clamp(sweep,0,0.95)*cl, Lh=ze-z0;
-    const v0=k*lerp(h0,h1,z0/cl), sv=sh*k;
-    return {z0, k, c:mkCurve([z0, z0+Lh*c1, ze-Lh*0.05, ze],
-                             [v0, v0+sv*Lh*c1, end+(v0-end)*c2, end])};
+    const v0=k*lerp(h0,h1,z0/cl), sv=level?0:sh*k;
+    return {z0, k, c:mkCurve([z0, z0+Lh*a1c, ze-Lh*0.05, ze],
+                             [v0, v0+sv*Lh*a1c, end+(v0-end)*a2c, end])};
   };
   const kT=eDeckH(), kB=eKeelH();
+  // A SHAPED RING'S HEIGHTS ARE THE AXIS'S, NOT THE BARREL'S (PROPER-COWLS, the user, 8 Nov: "the little protrusion at
+  // the bottom fore end ... like a little beard. It needs to be smooth"). The lines are drawn about the local spine,
+  // which climbs by faceRise inside the bowl; a ring reaching 0.52 m under the propeller is 0.36 m under the barrel's
+  // spine, and a keel aimed at 0.52 dipped 2.6 cm before the bowl lifted it. With a shaped ring the three lines aim at
+  // the ring's real height in the barrel end's frame (fr = the spine's climb) and are carried back to the local spine
+  // in the bowl (sectionAtZ): the bottom rises into the face. Round rings: fr = 0, to the bit.
+  const fr=lidShaped()?(+P.faceRise||0):0;
   // the waist is the height of the widest line; it must return to the axis by
   // the lid end, otherwise the closing ring would not be circular on the cone
   const kW=clamp(eWaist(),-0.85*kB,0.85*kT);
-  const T=half(kT, P.deckSweep, lr);
-  const K=half(kB, P.keelSweep, lr);
-  const W=half(kW, P.waistSweep, 0);
+  // PROPER-COWLS V5 (the user, 8 Nov: "you are drawing the top side completely straight ... a little taper ... so that
+  // you come and kiss better the top of the prop"): the top line's own bend, as the keel's (absent = the bowl's pair)
+  const T=half(kT, P.deckSweep, lidRT()+fr,
+               P.deckShoulder==null?null:clamp(+P.deckShoulder,0,0.92), P.deckRound==null?null:clamp(+P.deckRound,0,1));
+  // PROPER-COWLS V4 (the user, 8 Nov: "the easing is better but it's not enough ... a Cessna nose is very rounded"):
+  // THE KEEL'S OWN BEND. The bowl's shoulder and fullness were one pair for every line, and a cowl whose top must
+  // carry the barrel late (shoulder 0.88) bent its bottom late and sharp too. keelShoulder / keelRound give the bottom
+  // its own, and it leaves the barrel LEVEL (the fuselage's bottom line carried on, not the taper's straight slope):
+  // the shoulder is how long it stays level, the fullness how round it arrives - a quarter-ellipse into the face.
+  // Absent (null) = the bowl's pair, to the bit.
+  const K=half(kB, P.keelSweep, lidRB()-fr,
+               P.keelShoulder==null?null:clamp(+P.keelShoulder,0,0.92), P.keelRound==null?null:clamp(+P.keelRound,0,1),
+               P.keelShoulder!=null);   // its own bend leaves the firewall level and rounds up into the face
+  // PROPER-COWLS (2026-11-08): `waistF` - THE WIDEST LINE'S HEIGHT AT THE BARREL END, as a fraction of the front's
+  // half-height. A straight cowl's front is centred on the thrust line and shorter than the firewall, so a waist held at
+  // ONE fraction of the height would fall or climb along the barrel; with waistF the widest line runs straight from the
+  // firewall's waist to the front's (the fuselage's waistline carried on). Absent (null) = `waist`, to the bit.
+  const kWf=(P.waistF==null)?kW:clamp(+P.waistF,-0.85*kB,0.85*kT);
+  let W;
+  if(kWf===kW) W=half(kW, P.waistSweep, fr);
+  else {
+    const z0=cl-clamp(P.waistSweep,0,0.95)*cl, Lh=ze-z0;
+    const yA=kW*h0, yF=kWf*h1, v0=lerp(yA,yF,z0/cl), sv=(yF-yA)/cl;
+    W={z0, k:kW, kF:kWf, yA, yF, c:mkCurve([z0, z0+Lh*c1, ze-Lh*0.05, ze], [v0, v0+sv*Lh*c1, fr+(v0-fr)*c2, fr])};
+  }
   LID={pz,A,T,K,W,cl};
 }
 /* Panel seam. Real cowls are several panels, so the face is a separate skin
@@ -348,7 +425,8 @@ function sectionAtZ(z){
   const hLin=lerp(P.aftH,P.aftH*P.taperH,clamp(z/cl,0,1));
   let bT = z<=LID.T.z0 ? LID.T.k*hLin : Math.max(LID.T.c.at(z),0.003);
   let bB = z<=LID.K.z0 ? LID.K.k*hLin : Math.max(LID.K.c.at(z),0.003);
-  const yw = z<=LID.W.z0 ? LID.W.k*hLin : LID.W.c.at(z);
+  let yw = z<=LID.W.z0 ? (LID.W.kF==null ? LID.W.k*hLin : lerp(LID.W.yA,LID.W.yF,clamp(z/cl,0,1))) : LID.W.c.at(z);
+  if(z>cl&&lidShaped()){ const sh=cy-P.lidRise; bT=Math.max(bT-sh,0.003); bB=Math.max(bB+sh,0.003); if(z>LID.W.z0) yw-=sh; }
   const si=seamInset(z);
   if(si){ a=Math.max(a-si,0.003); bT=Math.max(bT-si,0.003); bB=Math.max(bB-si,0.003); }
   return {a,bT,bB,nT,nB,cy,yw:clamp(yw,-bB*0.9,bT*0.9),b:bT,wT,wB};
@@ -372,19 +450,83 @@ function sectPt(th,s){
 function lobeAt(th,z){
   if(P.lobeN<1||P.lobeAmp<=0) return 0;
   const t=clamp(z/Math.max(zEnd(),1e-4),0,1);
-  const w=Math.exp(-Math.pow((t-P.lobeT)/Math.max(0.03,P.lobeTSig),2));
+  /* STREAMLINED HELMETS (PROPER-COWLS, the user, 8 Nov: "they are elongated in the longitudinal direction ... more
+     aerodynamic ... but they should stop at the end of the cowl"). lobeStream 0: a round bump, a Gaussian along the
+     cowl (lobeTSig its spread) - as always. lobeStream 1: full height over the head (lobeT +- lobeTSig), a short
+     rise from lobeNose in front and a long taper back to lobeTail behind (smoothsteps), nothing outside them - the
+     ring and the firewall edge stay round; and the helmet narrows as it fades (a teardrop seen from above). */
+  const stream=P.lobeStream>0;
+  const sm=u=>{u=clamp(u,0,1); return u*u*(3-2*u);};
+  const prof=tc=>{
+    if(!stream) return Math.exp(-Math.pow((t-tc)/Math.max(0.03,P.lobeTSig),2));
+    const tN=clamp(P.lobeNose,0,1), tA=clamp(P.lobeTail,0,1);
+    if(t>=tN||t<=tA) return 0;
+    const h=Math.max(0.005,P.lobeTSig), p1=Math.min(tN-0.01,tc+h), p0=Math.max(tA+0.01,tc-h);
+    if(t>p1) return sm((tN-t)/Math.max(1e-3,tN-p1));
+    if(t<p0) return sm((t-tA)/Math.max(1e-3,p0-tA));
+    return 1;
+  };
+  const one=(az,w)=>{
+    const s=P.lobeSig*DEG*(stream?0.55+0.45*w:1);
+    return P.lobeAmp*w*Math.exp(-Math.pow(angDiff(th,az)/s,2));
+  };
+  // A TWO-ROW RADIAL (PROPER-COWLS, the user: "read the actual engine geometry"): the helmets alternate between the
+  // two rows' stations (lobeT, lobeT2) and the last lobeN - lobeCount places are bare (the drawn rows are 5 + 4)
+  if(P.lobeN>=3 && (P.lobeT2!=null || P.lobeCount>0)){
+    const n=Math.round(P.lobeN), m=P.lobeCount>0?Math.min(n,Math.round(P.lobeCount)):n;
+    const w0=prof(P.lobeT), w1=P.lobeT2!=null?prof(+P.lobeT2):w0;
+    if(w0<0.008&&w1<0.008) return 0;
+    let d=0;
+    for(let k=0;k<m;k++){ const w=k%2?w1:w0; if(w>=0.008) d+=one(P.lobeAz*DEG+k*TAU/n,w); }
+    return d;
+  }
+  const w=prof(P.lobeT);
   if(w<0.008) return 0;
-  const azs=[P.lobeAz*DEG]; if(P.lobeN>=2) azs.push(Math.PI-P.lobeAz*DEG);
+  const azs=[P.lobeAz*DEG];
+  // PROPER-COWLS (2026-11-08): 3 or more - one helmet over each cylinder of a radial, evenly round from lobeAz (the
+  // first cylinder's azimuth, 0 = the flank, 90 = the top). 1 and 2 are the cheeks they always were, to the bit.
+  if(P.lobeN>=3){ const n=Math.round(P.lobeN); for(let k=1;k<n;k++) azs.push(P.lobeAz*DEG+k*TAU/n); }
+  else if(P.lobeN>=2) azs.push(Math.PI-P.lobeAz*DEG);
   let d=0;
-  for(const az of azs) d+=P.lobeAmp*w*Math.exp(-Math.pow(angDiff(th,az)/(P.lobeSig*DEG),2));
+  for(const az of azs) d+=one(az,w);
   return d;
+}
+/* THE LOWERED BOTTOM (PROPER-COWLS V4, the user, 8 Nov: "the bottom part of the cowl sits lower than the bottom part
+   of the firewall" - no gap along the length, nothing sideways: only the bottom, on the vertical). The bottom half moves
+   DOWN by exitGap at the keel, by nothing at the widest line (the sides stay the cabin's). Along the length:
+   exitHold 0 - the drop fades out over the first exitLen of the cowl; exitHold 1 - it holds along the barrel and the
+   bottom's own bend (keelSweep) rounds it up into the face. Returns the vertical offset (negative = down). */
+function exitAt(th,z){
+  if(!(P.exitGap>0)) return 0;
+  const sn=Math.sin(th); if(sn>=0) return 0;
+  const wv=smooth(Math.min(1,-sn));                 // 0 at the widest line, 1 at the keel
+  let wz;
+  if(P.exitHold>0){
+    const cl=Math.max(P.cowlLen,1e-4), z0=cl-clamp(P.keelSweep,0,0.95)*cl, ze=zEnd();
+    wz = z<=z0 ? 1 : 1-smooth(clamp((z-z0)/Math.max(ze-z0,1e-4),0,1));
+  } else wz=1-clamp(z/Math.max(1e-3,P.exitLen*zEnd()),0,1);   // linear: the bottom TILTS from the firewall
+  return -P.exitGap*wv*wz;
+}
+/* THE EXHAUST CUT: a notch in the aft edge, exCutSpan wide round exCutAz (270 = the bottom), exCutLen deep */
+function inExCut(th,z){
+  return P.exCut>0 && z<P.exCutLen && Math.abs(angDiff(th,P.exCutAz*DEG))<P.exCutSpan*DEG/2;
+}
+/* V5: THE EXHAUST RAMP (exCut 2, the user: "a little bevel that is making a little aerodynamic exhaust path"): in place
+   of the notch, the skin over the cut's sector is pressed DOWN into a wedge - exRampH deep at the aft edge, nothing at
+   exCutLen - and the aft edge stays open there (the fold is not drawn over it): the exhaust's own faired way out */
+function rampAt(th,z){
+  if(Math.round(P.exCut)!==2 || !(P.exRampH>0)) return 0;
+  const half=P.exCutSpan*DEG/2, a=Math.abs(angDiff(th,P.exCutAz*DEG));
+  if(a>=half || z>=P.exCutLen) return 0;
+  const wa=Math.pow(Math.cos(a/half*Math.PI/2),2), u=clamp(z/Math.max(1e-3,P.exCutLen),0,1);
+  return -P.exRampH*wa*Math.pow(1-u,1.5);
 }
 function surfPoint(th,z){
   const s=sectionAtZ(z);
   let [x,y]=sectPt(th,s);
   const d=lobeAt(th,z);
   if(d){const L=Math.hypot(x,y)||1; x+=x/L*d; y+=y/L*d;}
-  return [x, s.cy+y];
+  return [x, s.cy+y+exitAt(th,z)+rampAt(th,z)];
 }
 /* implicit: <1 inside the section at that z (lobes ignored — they live on the barrel flanks) */
 function sectF(x,y,z){
@@ -445,7 +587,9 @@ function prepareMesh(){
     let dt=Math.abs(t2-t1); if(dt>Math.PI)dt=TAU-dt;
     w[i]=0.15*seg+Math.sqrt(dt*seg*R);   // equal sagitta: density ~ sqrt(kappa)
   }
-  AZ=equalise(w,Math.max(28,Math.round(60*d)),M).map(u=>u*TAU);
+  // (a radial's helmets - lobeN 3+ - want three samples across each one's spread, or they draw as facets)
+  const nHelm=(P.lobeN>=3&&P.lobeAmp>0)?Math.ceil(360/Math.max(3,P.lobeSig/3)*Math.min(1,d)):0;
+  AZ=equalise(w,Math.max(28,Math.round(60*d),Math.min(240,nHelm)),M).map(u=>u*TAU);
 
   // --- stations: weighted by turning of the deck meridian ---
   const MZ=480, mp=[];
@@ -520,9 +664,13 @@ function buildSurface(group,mats,aps){
   }
   // closing panel at the lid end, in the same plane the rim solver reports
   const cyE=spineY(ze);
+  const sE=lidShaped()?sectionAtZ(ze):null, rMax=sE?Math.max(sE.a,sE.bT,sE.bB):1;
   for(let i=1;i<=NC;i++){
     const f=1-i/NC, r=Math.max(lr*f,0.004);
     const rx=[],ry=[],rz=[];
+    if(sE){ const g=Math.max(f,0.004/rMax);            // the shaped ring, scaled into the face
+      for(let j=0;j<SEG;j++){ const [x,y]=sectPt(AZ[j],sE); rx.push(x*g); ry.push(cyE+y*g); rz.push(ze); } }
+    else
     for(let j=0;j<SEG;j++){const th=AZ[j];
       rx.push(Math.cos(th)*r); ry.push(cyE+Math.sin(th)*r); rz.push(ze);}
     px.push(rx); py.push(ry); pz.push(rz);
@@ -564,6 +712,7 @@ function buildSurface(group,mats,aps){
   for(let i=0;i<R-1;i++){
     for(let j=0;j<SEG;j++){
       if(cutA>0 && Math.abs(angDiff(AZ[j]+angDiff(AZ[(j+1)%SEG],AZ[j])/2,cutC))<cutA/2) continue;
+      if(Math.round(P.exCut)===1 && inExCut(AZ[j]+angDiff(AZ[(j+1)%SEG],AZ[j])/2, 0.5*(pz[i][j]+pz[i+1][j]))) continue;
       const j2=(j+1)%SEG;
       let poly=[V(i,j),V(i,j2),V(i+1,j2),V(i+1,j)];
       let gv=[[i,j],[i,j2],[i+1,j2],[i+1,j]];
@@ -738,6 +887,7 @@ function buildFirewallLip(group,mats){
     cur = i<kS ? OUT : IN;
     for(let j=0;j<S;j++){
       if(cutA>0 && Math.abs(angDiff(AZ[j]+angDiff(AZ[(j+1)%S],AZ[j])/2,cutC))<cutA/2) continue;
+      if(P.exCut>0 && inExCut(AZ[j]+angDiff(AZ[(j+1)%S],AZ[j])/2, 0)) continue;
       const j2=(j+1)%S;
       const A=V[i][j], B=V[i][j2], C=V[i+1][j2], D=V[i+1][j];
       tri(A,B,C); tri(A,C,D);
@@ -845,7 +995,7 @@ function buildScoop(group,mats){
   if(!P.scoopOn) return;
   const d=clamp(P.detail,0.35,2), ze=zEnd(), rings=[], inside=[];
   const NS=Math.max(9,Math.round(14*d)), SS=Math.max(18,Math.round(32*d));
-  const baseY=spineY(ze*0.6)-sectionAtZ(P.cowlLen*0.5).bB*P.scoopDrop;
+  const baseY=spineY(ze*0.6)-sectionAtZ(P.cowlLen*0.5).bB*P.scoopDrop, yC=[];
   // THE STATION (2026-09-05): scoopZ slides the mouth from the lid (0, the
   // line every cowl before it was drawn from — byte-identical there) back to
   // the firewall (1), where a reverse-flow turbine takes its air
@@ -855,7 +1005,12 @@ function buildScoop(group,mats){
   for(let i=0;i<NS;i++){
     const t=i/(NS-1), e=smooth(t);
     const a=P.scoopW*lerp(0.5,1,e), b=P.scoopH*lerp(0.30,1,e);
-    const y=baseY-P.scoopH*P.scoopRake*e, z=lerp(z0,z1,t);
+    const z=lerp(z0,z1,t);
+    // V5 scoopFollow: the scoop rides the keel - its top a third of its height inside the skin at every station, so a
+    // keel that rounds up into the face carries it (absent / 0: the straight raked line it always was)
+    let y=baseY-P.scoopH*P.scoopRake*e;
+    if(P.scoopFollow>0){ const sk=sectionAtZ(clamp(z,0,ze)); y=(sk.cy-sk.bB)+b/3-b; }
+    yC.push(y);
     const ring=[],ins=[];
     for(let j=0;j<SS;j++){
       const th=j/SS*TAU,[x,yy]=superPt(th,a,b,n);
@@ -877,7 +1032,7 @@ function buildScoop(group,mats){
   /* Mouth lip: same cross-section idea as the aperture lip — a rounded edge of
      real thickness, then a converging throat, then a duct. Offsets are applied
      to the actual mouth ring, so it still works where the scoop was trimmed. */
-  const cyF=baseY-P.scoopH*P.scoopRake, mouth=rings[NS-1];
+  const cyF=P.scoopFollow>0?yC[NS-1]:baseY-P.scoopH*P.scoopRake, mouth=rings[NS-1];
   const off=(d,dz)=>mouth.map(v=>{
     const dx=v.x, dy=v.y-cyF, r=Math.hypot(dx,dy)||1e-6, f=Math.max(0.06,(r-d)/r);
     return new THREE.Vector3(dx*f, cyF+dy*f, v.z+dz);
@@ -932,6 +1087,168 @@ function cowlNormalAt(th,z){
   const out=(p[0]*n[0]+(p[1]-spineY(z))*n[1])>=0?1:-1;   // point it outward
   return [out*n[0]/L,out*n[1]/L,out*n[2]/L];
 }
+
+/* ---- THE SIDE GILLS (PROPER-COWLS, the user, 8 Nov: "little side shark fins ... like the Carbon Cub's ... real 3D,
+   beautiful and detailed ... they shouldn't intersect other cuts or the rivets") --------------------------------------
+   A raised panel on each lower flank, aft, carrying gillN slanted slots, each with a pressed hood over its forward edge
+   that opens aft (the warm air leaves rearward). Everything is laid out in the cowl's own surface coordinates - t round
+   the section (metres of arc), s along the axis (metres) - and mapped onto the skin with surfPoint + cowlNormalAt, so the
+   panel conforms to the barrel, its cheeks and its bends.
+   THE CLEAR BOX COMES FIRST: the panel lives between the aft-edge fastener row and the panel seam (or the barrel's end),
+   under the split line and its camlocs, above the exhaust ramp / cut and the chin scoop, each with a margin; the
+   requested size shrinks to fit, and a box too small for a panel draws nothing (gillsFit() says why).
+   TOPOLOGY: the plate's face is ONE polygon with the slots as holes (earcut), its border a rounded chamfer down to the
+   skin, each slot a wall of the dark interior down to a dark floor 0.8 mm off the skin, each hood a shell with its two
+   end cheeks closed. Nothing is a grid with quads knocked out. */
+/* THE SPLIT LINE, LEVEL (PROPER-COWLS, the user, 8 Nov: "this line easily gets bent, while in reality it would be cut
+   horizontally most of the time, at a fixed width of cut"). partLevel 0: the line is the section's parameter partY
+   all along (it climbs and falls with the waist and the taper) and the groove is +-partW of that parameter - which on
+   a boxy section opens to centimetres near the waist. partLevel 1: the line is the height partY gives at the firewall,
+   held level forward, and the groove is +-partW METRES about it; where the skin no longer reaches that height the
+   line stops. Right flank; the left is pi - th. */
+function partLevelY(){ return surfPoint(P.partY*Math.PI*0.5, aftStart())[1]; }
+function partThAtY(y,z){
+  let lo=-Math.PI/2+1e-3, hi=Math.PI/2-1e-3;
+  const f=t=>surfPoint(t,z)[1]-y;
+  if(f(lo)>0||f(hi)<0) return null;
+  for(let k=0;k<40;k++){ const m=0.5*(lo+hi); if(f(m)>0) hi=m; else lo=m; }
+  return 0.5*(lo+hi);
+}
+function partTh(z){ return P.partLevel ? partThAtY(partLevelY(),z) : P.partY*Math.PI*0.5; }
+
+function gillsFit(){
+  const ze=zEnd(), cl=Math.max(P.cowlLen,1e-4);
+  const r=Math.max(0.004,P.fastD*0.5);
+  // along: clear of the aft fastener row, short of the seam (or the barrel's end)
+  const zA=P.fastOn?Math.max(Math.min(ze*0.06,0.02),aftStart()+r*1.2):aftStart();
+  const zLo=zA+r+0.018;
+  let zHi=cl*0.96;
+  if(P.seamOn) zHi=Math.min(zHi,clamp(P.seamPos,0,1)*ze-Math.max(P.seamWidth,5e-4)-0.015);
+  if(P.oilOn) {} // the oil door is on the top deck: nowhere near a lower flank
+  // round: under the split line (and its camlocs), above the bottom's own features
+  const thLv=P.partOn?partTh(0.5*(zLo+zHi)):null, thSplit=P.partOn?(thLv!=null?thLv:P.partY*Math.PI*0.5):0;
+  const zm=0.5*(zLo+zHi);
+  const arcPer=(th)=>{const e=0.01,a=surfPoint(th-e,zm),b=surfPoint(th+e,zm);return Math.hypot(b[0]-a[0],b[1]-a[1])/(2*e);};
+  const rad=Math.max(0.05,arcPer(-0.6));
+  let thHi=thSplit-(r+0.016)/rad;
+  let thLo=-80*DEG;
+  if(P.exCut>0){ const lo=(P.exCutAz-360)*DEG+P.exCutSpan*DEG/2; thLo=Math.max(thLo, lo+0.02/rad); }   // the right side's view of it
+  if(P.scoopOn) thLo=Math.max(thLo, -Math.PI/2+(P.scoopW+0.02)/rad);
+  const L=Math.min(P.gillL, zHi-zLo), H=Math.min(P.gillH, (thHi-thLo)*rad);
+  if(!(L>=0.06 && H>=0.04)) return {ok:false, why:'no room on the lower flank ('+(Math.max(0,zHi-zLo)*100).toFixed(0)+' x '+(Math.max(0,(thHi-thLo)*rad)*100).toFixed(0)+' cm clear)'};
+  // the centre: the station asked, kept inside; round, low in the clear band (the gills sit under the heads)
+  const zc=clamp(zLo+clamp(P.gillZ,0,1)*(zHi-zLo), zLo+L/2, zHi-L/2);
+  const thc=Math.max(thLo+H/2/rad, Math.min(thHi-H/2/rad, 0.5*(thLo+thHi)));
+  return {ok:true, zc, thc, rad, L, H, zLo, zHi, thLo, thHi};
+}
+function buildGills(group,mats){
+  if(!(P.gillOn>0)) return;
+  const F=gillsFit(); if(!F.ok) return;
+  const d=clamp(P.detail,0.35,2), V2=(x,y)=>new THREE.Vector2(x,y);
+  const L=F.L, H=F.H, hT=Math.max(0.0015,P.gillT), N=Math.max(2,Math.round(P.gillN));
+  // the panel's outline (s along, t round), a rounded rectangle
+  const rc=0.18*Math.min(L,H), NC=Math.max(3,Math.round(5*d));
+  const rrect=(hx,hy,rr)=>{const pts=[];
+    for(const [cx,cy,a0] of [[hx-rr,hy-rr,0],[-hx+rr,hy-rr,Math.PI/2],[-hx+rr,-hy+rr,Math.PI],[hx-rr,-hy+rr,1.5*Math.PI]])
+      for(let k=0;k<=NC;k++){const a=a0+k/NC*Math.PI/2; pts.push(V2(cx+rr*Math.cos(a),cy+rr*Math.sin(a)));}
+    return pts;};
+  const outline=rrect(L/2,H/2,rc);
+  // the slots: N stadiums, slanted - the top leaning AFT (s negative) by gillSlant
+  const al=P.gillSlant*DEG, ax=[-Math.sin(al),Math.cos(al)], px=[Math.cos(al),Math.sin(al)];   // along the slot / across it (forward)
+  const mS=0.16*H, usable=L-2*mS-Math.abs(Math.tan(al))*(H-2*mS);
+  const pitch=Math.max(0.01,usable/N), ws=0.55*pitch, ls=Math.max(0.02,(H-2*mS)/Math.cos(al)*0.92);
+  const slots=[];
+  for(let i=0;i<N;i++){
+    const c=[-usable/2+pitch*(i+0.5),0];
+    const pts=[], NE=Math.max(4,Math.round(6*d)), rr=ws/2, hl=ls/2-rr;
+    for(const sg of [1,-1]) for(let k=0;k<=NE;k++){
+      const a=(sg>0?-Math.PI/2:Math.PI/2)+k/NE*Math.PI;          // a half-circle at each end
+      const aU=sg*hl+rr*Math.cos(a), cU=rr*Math.sin(a);         // along / across in the slot frame
+      pts.push(V2(c[0]+ax[0]*aU+px[0]*cU, c[1]+ax[1]*aU+px[1]*cU));
+    }
+    slots.push({c, pts, hl, rr});
+  }
+  for(const side of [1,-1]){
+    // (s,t,h) -> the scene: t is arc length round the section; the left side mirrors theta, not s
+    // every mapped vertex also records the skin's outward normal under it: each triangle is then wound against it
+    // (the panel faces out, the hood's shell faces out, a wall faces into its slot) whatever side it is on
+    let NRM=[];
+    const map=(sv,tv,h)=>{
+      const th=F.thc+tv/F.rad, thS=side>0?th:Math.PI-th, z=F.zc+sv;
+      const p=surfPoint(thS,z), n=cowlNormalAt(thS,z);
+      NRM.push(n);
+      return [p[0]+n[0]*h, p[1]+n[1]*h, z+n[2]*h];
+    };
+    const meshOf=(pos,idx,mat,flipIn)=>{
+      const nr=NRM; NRM=[];
+      for(let t=0;t<idx.length;t+=3){
+        const a=idx[t],b=idx[t+1],c=idx[t+2];
+        const ux=pos[3*b]-pos[3*a], uy=pos[3*b+1]-pos[3*a+1], uz=pos[3*b+2]-pos[3*a+2];
+        const vx=pos[3*c]-pos[3*a], vy=pos[3*c+1]-pos[3*a+1], vz=pos[3*c+2]-pos[3*a+2];
+        const gx=uy*vz-uz*vy, gy=uz*vx-ux*vz, gz=ux*vy-uy*vx;
+        const na=nr[a]||[0,0,0], nb=nr[b]||na, nc=nr[c]||na;
+        const dot=gx*(na[0]+nb[0]+nc[0])+gy*(na[1]+nb[1]+nc[1])+gz*(na[2]+nb[2]+nc[2]);
+        if((dot<0)!==!!flipIn){ idx[t+1]=c; idx[t+2]=b; }
+      }
+      const g=new THREE.BufferGeometry();
+      g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.setIndex(idx); g.computeVertexNormals();
+      const m=new THREE.Mesh(g,mat); m.name='cowlGills'; group.add(m); return m;};
+    // the face: one polygon, the slots its holes
+    {
+      const holes=slots.map(o=>o.pts.slice().reverse());
+      const tri=THREE.ShapeUtils.triangulateShape(outline, holes);
+      const all=outline.concat(...holes), pos=[], idx=[];
+      for(const v of all){const q=map(v.x,v.y,hT); pos.push(q[0],q[1],q[2]);}
+      for(const t of tri){ if(side>0) idx.push(t[0],t[1],t[2]); else idx.push(t[0],t[2],t[1]); }
+      meshOf(pos,idx,mats.skin);
+    }
+    // the border: a rounded chamfer from the face down into the skin
+    {
+      const grow=(pts,g)=>{ // offset an outline outward by g (it is convex)
+        const n=pts.length; return pts.map((v,i)=>{const a=pts[(i-1+n)%n], b=pts[(i+1)%n];
+          let nx=b.y-a.y, ny=-(b.x-a.x); const l=Math.hypot(nx,ny)||1; nx/=l; ny/=l;
+          if(nx*v.x+ny*v.y<0){nx=-nx;ny=-ny;} return V2(v.x+nx*g,v.y+ny*g);});};
+      const rings=[[outline,hT],[grow(outline,hT*0.55),hT*0.55],[grow(outline,hT*1.25),-0.0005]];
+      const n=outline.length, pos=[], idx=[];
+      for(const [pts,h] of rings) for(const v of pts){const q=map(v.x,v.y,h); pos.push(q[0],q[1],q[2]);}
+      for(let r=0;r<rings.length-1;r++) for(let j=0;j<n;j++){
+        const a=r*n+j, b=r*n+(j+1)%n, c=(r+1)*n+(j+1)%n, e=(r+1)*n+j;
+        if(side>0) idx.push(a,e,c,a,c,b); else idx.push(a,c,e,a,b,c);
+      }
+      meshOf(pos,idx,mats.skin);
+    }
+    // each slot: its wall down to a dark floor just off the skin; its hood over the forward edge, open aft
+    for(const o of slots){
+      const n=o.pts.length, pos=[], idx=[];
+      for(const h of [hT,0.0008]) for(const v of o.pts){const q=map(v.x,v.y,h); pos.push(q[0],q[1],q[2]);}
+      for(let j=0;j<n;j++){const a=j,b=(j+1)%n,c=n+(j+1)%n,e=n+j; idx.push(a,b,c,a,c,e);}
+      const cen=map(o.c[0],o.c[1],0.0008), base=pos.length/3; pos.push(cen[0],cen[1],cen[2]);
+      for(let j=0;j<n;j++) idx.push(base,n+j,n+(j+1)%n);
+      meshOf(pos,idx,innerMat(mats));
+      // the hood: across u from the forward edge (height 0) to its lip (gillLip), 70 % of the slot's width; along the
+      // slot's straight part, with the end cheeks closed down to the face
+      const NA=Math.max(6,Math.round(10*d)), NU=Math.max(5,Math.round(7*d));
+      const hp=[], lipH=Math.max(0.003,P.gillLip), cov=0.6*2*o.rr;
+      for(let i=0;i<=NA;i++){const aU=-o.hl+2*o.hl*i/NA;
+        for(let k=0;k<=NU;k++){const u=k/NU, cU=o.rr-u*cov, hh=hT+lipH*Math.sin(u*Math.PI/2);
+          hp.push([o.c[0]+ax[0]*aU+px[0]*cU, o.c[1]+ax[1]*aU+px[1]*cU, hh]);}}
+      const hpos=[], hidx=[];
+      for(const [a,b,h] of hp){const q=map(a,b,h); hpos.push(q[0],q[1],q[2]);}
+      const W=NU+1;
+      for(let i=0;i<NA;i++) for(let k=0;k<NU;k++){const a=i*W+k,b=a+1,c=a+W+1,e=a+W;
+        if(side>0) hidx.push(a,b,c,a,c,e); else hidx.push(a,c,b,a,e,c);}
+      // the cheeks: each end of the hood closed down to the face (a fan from the forward edge's foot)
+      for(const i of [0,NA]){
+        const foot=hpos.length/3, fp=hp[i*W];
+        for(let k=0;k<=NU;k++){const q=map(hp[i*W+k][0],hp[i*W+k][1],hT); hpos.push(q[0],q[1],q[2]);}
+        for(let k=0;k<NU;k++){const top=i*W+k, top2=top+1, bot=foot+k, bot2=foot+k+1;
+          hidx.push(top,top2,bot2,top,bot2,bot);}
+      }
+      meshOf(hpos,hidx,mats.skin);
+    }
+  }
+}
+
 /* one camloc: a shallow disc standing proud of the skin, with a slot in it.
    The slot is what makes it read as a fastener rather than a rivet, and it is
    two triangles. */
@@ -988,17 +1305,29 @@ function buildDetail(group,mats){
       for(let i=0;i<=NZ;i++){
         const z=lerp(zL,zP,i/NZ);
         const row=[];
+        let ok=true;
         for(const o of [-w,w]){
-          const th=sgn>0?(th0+o):(Math.PI-th0-o);
+          let th;
+          if(P.partLevel){ const t=partThAtY(partLevelY()+o,z); if(t==null){ ok=false; break; } th=sgn>0?t:Math.PI-t; }
+          // THE GROOVE IS A WIDTH IN METRES IN BOTH MODES (PROPER-COWLS, the user, 8 Nov: "it still shows the issue
+          // with the horizontal cuts ... make sure that you apply the fix everywhere"): +-partW of the section's own
+          // parameter opened to centimetres where a boxy section turns fast in it (the black wedge); now the offset
+          // is partW over the surface's own arc per radian at that station - the line keeps its path, the groove
+          // its width
+          else if(!P.partArc) th=sgn>0?(th0+o):(Math.PI-th0-o);     // (the saved builds' groove, ABSENT_AT partArc 0)
+          else { const e=1e-3, a=surfPoint(th0-e,z), b=surfPoint(th0+e,z);
+                 const arc=Math.max(1e-3,Math.hypot(b[0]-a[0],b[1]-a[1])/(2*e)), dth=o/arc;
+                 th=sgn>0?(th0+dth):(Math.PI-th0-dth); }
           const p=surfPoint(th,z), n=cowlNormalAt(th,z);
           row.push(new THREE.Vector3(p[0]+n[0]*0.0006,p[1]+n[1]*0.0006,
                                      z+n[2]*0.0006));
         }
+        if(!ok) break;                             // (level: the skin no longer reaches the line's height)
         rings.push(row);
       }
       const pos=[],idx=[];
       for(const r of rings) for(const v of r) pos.push(v.x,v.y,v.z);
-      for(let i=0;i<NZ;i++){
+      for(let i=0;i<rings.length-1;i++){
         const a=i*2,b=i*2+1,c=(i+1)*2+1,e=(i+1)*2;
         idx.push(a,b,c,a,c,e);
       }
@@ -1029,11 +1358,11 @@ function buildDetail(group,mats){
     }
     // and along the split line, both flanks — as far as the line goes
     if(P.partOn){
-      const th0=P.partY*Math.PI*0.5;
       const n=Math.max(2,Math.round(zP/pitch));
       for(const sgn of [1,-1])
         for(let k=1;k<=n;k++){
-          const z=zP*k/(n+1);
+          const z=zP*k/(n+1), th0=partTh(z);
+          if(th0==null) continue;
           camlocInto(pos,idx,sgn>0?th0:Math.PI-th0,z,r,r*0.35);
         }
     }
@@ -1472,6 +1801,6 @@ function cowlSizeToEngine(env, opt) {
   return r;
 }
 
-const COWL_API = { TAU, P, MATERIALS, PRESETS, lerp, clamp, smooth, sqExp, superPt, angDiff, SEG, zEnd, lidRadius, spineY, bez, mkCurve, eSqAftTop, eSqAftBot, eDeckH, eKeelH, eWaist, prepareLid, seamInset, sectionAtZ, sectPt, lobeAt, surfPoint, sectF, pierceZ, equalise, prepareMesh, apertureList, fitAperture, apG, buildSurface, aftStart, fwGeom, fwLipProfile, sectNormal2, buildFirewallLip, lipProfile, buildLips, buildDetail, cowlNormalAt, loftRings, fan, buildScoop, buildAft, spinProfile, coneBaseZ, axisXY, bladePlaneZ, coneRadiusAtBlade, buildNose, naca, airfoilLoop, propGeometry, cowlFitEngine, cowlApplyEngine, cowlSizeToEngine };
+const COWL_API = { gillsFit, buildGills, exitAt, inExCut, TAU, P, MATERIALS, PRESETS, lerp, clamp, smooth, sqExp, superPt, angDiff, SEG, zEnd, lidRadius, spineY, bez, mkCurve, eSqAftTop, eSqAftBot, eDeckH, eKeelH, eWaist, prepareLid, seamInset, sectionAtZ, sectPt, lobeAt, surfPoint, sectF, pierceZ, equalise, prepareMesh, apertureList, fitAperture, apG, buildSurface, aftStart, fwGeom, fwLipProfile, sectNormal2, buildFirewallLip, lipProfile, buildLips, buildDetail, cowlNormalAt, loftRings, fan, buildScoop, buildAft, spinProfile, coneBaseZ, axisXY, bladePlaneZ, coneRadiusAtBlade, buildNose, naca, airfoilLoop, propGeometry, cowlFitEngine, cowlApplyEngine, cowlSizeToEngine };
 if (typeof module !== 'undefined') module.exports = COWL_API;
 if (typeof window !== 'undefined') window.COWL_GEN = COWL_API;

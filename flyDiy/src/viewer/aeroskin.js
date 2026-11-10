@@ -2695,7 +2695,7 @@ const AERO_FLAGS = [
   { n: 'USA', r: 1.9, hw: Array.from({ length: 13 }, (_, i) => [i & 1 ? '#ffffff' : '#b22234', 1]),
     canton: ['#3c3b6e', 0.76 / 1.9, 7 / 13], stars: ['#ffffff', 'usa'] },
   { n: 'UK', r: 2, bg: '#012169', saltire: [['#ffffff', 0.2], ['#c8102e', 0.0667]], cross: ['#ffffff', 1 / 3, 9], cross2: ['#c8102e', 1 / 5] },
-  { n: 'Alaska', r: 1.41, bg: '#0f204b', stars: ['#ffb612', 'alaska'] },
+  { n: 'Big Dipper', r: 1.41, bg: '#0f204b', stars: ['#ffb612', 'alaska'] },   // (the shown name a fictional one - GATE NAMES; the row's place, which a save keeps, and its star pattern unchanged)
   { n: 'Ukraine', h: ['#0057b7', '#ffd700'] },
   { n: 'Estonia', r: 11 / 7, h: ['#0072ce', '#000000', '#ffffff'] },
   { n: 'Lithuania', r: 5 / 3, h: ['#fdb913', '#006a44', '#c1272d'] },
@@ -2742,7 +2742,7 @@ function aeroFlagDraw(g, F, X, Y, W, H) {
       const cw = F.canton[1] * W, ch = F.canton[2] * H, R = 0.0616 * H / 2 * 1.0;
       for (let row = 0; row < 9; row++) { const n = row & 1 ? 5 : 6;
         for (let i = 0; i < n; i++) aeroStar5(g, X + cw * ((row & 1 ? 2 : 1) + 2 * i) / 12, Y + ch * (row + 1) / 10, R); }
-    } else {                       // Alaska: the Big Dipper and Polaris (hoist to the left)
+    } else {                       // the Big Dipper and Polaris (hoist to the left)
       const S = [[0.07, 0.69], [0.19, 0.72], [0.29, 0.63], [0.37, 0.53], [0.49, 0.58], [0.53, 0.43], [0.43, 0.37], [0.85, 0.18]];
       S.forEach(([x, y], i) => aeroStar5(g, X + x * W, Y + y * H, (i === 7 ? 0.09 : 0.065) * H));
     }

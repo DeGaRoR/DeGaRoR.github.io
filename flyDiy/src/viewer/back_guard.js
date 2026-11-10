@@ -89,7 +89,7 @@
     const st = D.createElement('style'); st.id = 'bgCss'; st.textContent = CSS; (D.head || D.body).appendChild(st);
     box = D.createElement('div'); box.id = 'bgBox'; box.hidden = true;
     box.setAttribute('role', 'alertdialog'); box.setAttribute('aria-labelledby', 'bgHead');
-    const h = D.createElement('div'); h.className = 'bgHead'; h.id = 'bgHead'; h.textContent = 'Leave flyDiy?';
+    const h = D.createElement('div'); h.className = 'bgHead'; h.id = 'bgHead'; h.textContent = 'Leave ' + ((typeof GAME_NAMES !== 'undefined' && GAME_NAMES.game) || 'the game') + '?';   // WINGSMITH: the game's name (01_names.js)
     const t = D.createElement('div'); t.className = 'bgBody'; t.textContent = 'Going back closes the game. Anything not saved is lost.';
     const a = D.createElement('div'); a.className = 'bgActs';
     const bl = D.createElement('button'); bl.className = 'bgLeave'; bl.type = 'button'; bl.textContent = 'Leave';

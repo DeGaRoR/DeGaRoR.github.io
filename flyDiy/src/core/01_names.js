@@ -19,6 +19,12 @@
 // Pure data and one lookup: no DOM, no THREE, no storage.
 // ===========================================================================
 var GAME_NAMES = {
+  // ---- the game itself (WINGSMITH, the user 9 Nov: "Wingsmith is the name of the game instead of flyDiy"; a placeholder in
+  // plain text, no logo or typeface yet - every place a player reads the game's name reads THIS, so a logo swaps in once:
+  // the page title and the loading screen (tools/build.js fills their name mark), the welcome card, the Back box, the build
+  // import, the clean download, the self-test, the AIRWORTHY sticker, the fiche's signature; the manifest's name is checked
+  // against it, GATE WINGSMITH). The repo, its folder, URLs, files, storage keys and save formats keep "flydiy") ----
+  game:     'Wingsmith',
   // ---- the island and its places (shown in the briefs, the plot words, the cards, the map) ----
   island:   'Jolene',                         // the island (was Annette)
   town:     'Cedar Harbour',                  // the town on the west shore (was Metlakatla)

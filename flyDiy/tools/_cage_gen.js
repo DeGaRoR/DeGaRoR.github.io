@@ -1107,7 +1107,7 @@ function cageResolve(S) {
   // buildCage2 are the keepers; the seam they expose stays the contract
   // for whatever the bubble becomes.)
 
-  return { rings, bays, chain, noseTwin, noseRing, mirrorZ,
+  return { rings, bays, chain, noseTwin, noseRing, mirrorZ, noseBody: !!S.noseBody,
            rodSpan: ROD ? { zRoot: zRodRoot, zTip: zCap, ring: rodRing } : null };
 }
 
@@ -9806,6 +9806,12 @@ function cageSpec(P) {
                               dy: (+P.thrY || 0) / ps, dx: (+P.thrX || 0) / ps,
                               len: (P.thrLen != null ? +P.thrLen : 0.16) / ps };
   }
+  // CESSNA-FINAL A1 (the user 8 Nov: "the nose section is there exactly for that reason"): THE NOSE SECTION IS BODY.
+  // The engine's firewall plate stands on the nose ring's face (the cowl's noseFace); with `noseBody` on, that ring
+  // is the firewall (cageFirewallZ below) and the section behind it - the firewall to the windscreen base, a 172's
+  // footwell and pedal floor - is fuselage: the join's datum, the frame's first ring, the body's billing start there.
+  // Absent / 0: G49's rule (the firewall is the windscreen base), every saved build to the bit
+  S.noseBody = +P.noseBody > 0 ? 1 : 0;
   return S;
 }
 
@@ -10992,13 +10998,19 @@ function cageGlazedM2(s, FS) {
 // same station to keep the drawn wing inside the flown one's envelope.
 function cageNamedZ(R, FS) {
   return name => {
-    const r = R && R.rings && R.rings.find(q => q.name === name);
+    // CESSNA-FINAL A1: 'noseFw' - the nose ring (the engine's firewall face), named only on a build whose nose
+    // section is body (`noseBody`); on any other it does not exist, so the chain below falls to wsFront as ever
+    const r = name === 'noseFw' ? (R && R.noseBody ? R.noseRing : null)
+            : R && R.rings && R.rings.find(q => q.name === name);
     const l = r && r.lv && (r.lv.waist || r.lv.keel);
     return l && isFinite(l.z) ? l.z * FS : null;
   };
 }
+// THE ONE HOME OF THE FIREWALL'S STATION (G3050): the join's datum, the wing layer, the tank bays, the pillar and the
+// freight sites. CESSNA-FINAL A1: 'noseFw' first - present only with `noseBody` on - then G49's windscreen base
+const CAGE_FIREWALL_CHAIN = ['noseFw', 'wsFront', 'wsAft', 'aeroWsA', 'ring'];
 function cageFirewallZ(zOf) {
-  for (const n of ['wsFront', 'wsAft', 'aeroWsA', 'ring']) { const z = zOf(n); if (z != null) return z; }
+  for (const n of CAGE_FIREWALL_CHAIN) { const z = zOf(n); if (z != null) return z; }
   return null;
 }
 

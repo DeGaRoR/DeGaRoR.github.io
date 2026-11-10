@@ -105,10 +105,12 @@ const PRESETS = {
   // no airbox, because a radial breathes through its rear spider. The firewall
   // is sized from the engine the resolve actually builds — 0.59 m and 0.63 m
   // across the heads, measured, not guessed.
-  'Verner Scarlett 7U': { arch: 'radial', cyl: 7, exStyle: 2,
+  // SINGLE-ROW RADIALS SAY SO (PROPER-COWLS, 8 Nov 2026): the mesh's radialRows defaults to 2, so a radial preset
+  // naming no rows was DRAWN two-row (the M-14P as 5 + 4 at 36 deg). Every radial here but the R-1830 is one row.
+  'Verner Scarlett 7U': { arch: 'radial', radialRows: 1, cyl: 7, exStyle: 2,
     bore: 0.080, stroke: 0.064, rpm: 2350, finR: 1.3,
     fwW: 0.66, fwH: 0.66, carbOn: 0, airbox: 0, plumb: 0 },
-  'Rotec R3600': { arch: 'radial', cyl: 9, exStyle: 2,
+  'Rotec R3600': { arch: 'radial', radialRows: 1, cyl: 9, exStyle: 2,
     bore: 0.088, stroke: 0.066, rpm: 2500, finR: 1.3,
     fwW: 0.72, fwH: 0.72, carbOn: 0, airbox: 0, plumb: 0 },
   // THE AMATEUR IN-LINES (G165). Both INVERTED, which is what an aero
@@ -150,16 +152,16 @@ const PRESETS = {
     critAlt: 4600 },
   'Ranger L-440': { arch: 'inline', cyl: 6, twoStroke: 0, inlineAim: 0,
     bore: 4.125 * IN, stroke: 5.5 * IN, rpm: 2450, exStyle: 2 },
-  'Continental W-670': { arch: 'radial', cyl: 7, exStyle: 2,
+  'Continental W-670': { arch: 'radial', radialRows: 1, cyl: 7, exStyle: 2,
     bore: 5.125 * IN, stroke: 4.625 * IN, rpm: 2075, finR: 1.4,
     fwW: 1.05, fwH: 1.05, carbOn: 0, airbox: 0, plumb: 0 },
-  'Jacobs R-755': { arch: 'radial', cyl: 7, exStyle: 2,
+  'Jacobs R-755': { arch: 'radial', radialRows: 1, cyl: 7, exStyle: 2,
     bore: 5.25 * IN, stroke: 5.0 * IN, rpm: 2200, finR: 1.4,
     fwW: 1.10, fwH: 1.10, carbOn: 0, airbox: 0, plumb: 0 },
-  'Vedeneyev M-14P': { arch: 'radial', cyl: 9, exStyle: 2, blower: 2,
+  'Vedeneyev M-14P': { arch: 'radial', radialRows: 1, cyl: 9, exStyle: 2, blower: 2,
     boost: 1.35, critAlt: 500, bore: 0.105, stroke: 0.130, rpm: 2900,
     finR: 1.4, fwW: 1.00, fwH: 1.00, carbOn: 0, airbox: 0, plumb: 0 },
-  'P&W R-1340': { arch: 'radial', cyl: 9, exStyle: 2, blower: 2,
+  'P&W R-1340': { arch: 'radial', radialRows: 1, cyl: 9, exStyle: 2, blower: 2,
     boost: 1.20, critAlt: 300, bore: 5.75 * IN, stroke: 5.75 * IN,
     rpm: 2250, finR: 1.4, fwW: 1.25, fwH: 1.25, carbOn: 0, airbox: 0,
     plumb: 0 },
@@ -168,7 +170,7 @@ const PRESETS = {
   // SUPERCHARGED since the blower model (2026-09-05): boost is the published
   // take-off manifold pressure over ambient (36.5 inHg -> 1.22), the ceiling
   // its 5 000 ft rating; the R-1830's 48 inHg is 1.60 to 4 900 ft
-  'P&W R-985': { arch: 'radial', cyl: 9, exStyle: 2, blower: 2, boost: 1.22,
+  'P&W R-985': { arch: 'radial', radialRows: 1, cyl: 9, exStyle: 2, blower: 2, boost: 1.22,
     critAlt: 1500,
     bore: 5.1875 * IN, stroke: 5.1875 * IN, rpm: 2300, finR: 1.4,
     fwW: 1.10, fwH: 1.10, carbOn: 0, airbox: 0, plumb: 0 },
@@ -231,7 +233,7 @@ const PRESETS = {
   // PRESETS_AFTER_CUSTOM below, so presetNames() lists it after the custom engine and no saved index moves.
   // NEW-SHAPES-1: THE CLERGET 9B, the Camel's rotary - nine cylinders of 120 x 160 mm (16.3 L), ~1.0 m across the
   // heads; no carburettor and no airbox (a rotary breathes through its hollow crankshaft), long finned barrels
-  'Clerget 9B': { arch: 'radial', cyl: 9, exStyle: 2,
+  'Clerget 9B': { arch: 'radial', radialRows: 1, cyl: 9, exStyle: 2,
     bore: 0.120, stroke: 0.160, rpm: 1250, finR: 1.25,
     fwW: 1.00, fwH: 1.00, carbOn: 0, airbox: 0, plumb: 0,
     mountGap: 0.40 },   // a rotary sits close on its bearer plate: the cylinders inside a short cowl, not ahead of it

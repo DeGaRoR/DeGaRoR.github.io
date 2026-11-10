@@ -7146,7 +7146,13 @@
     if (!HY) return;
     // H2 (G389): a cage build carries its DRAWN floats as parts (floatRigs);
     // the physics hull is drawn only for a spec-only build with none
-    if (model && model.floatRigs) return;
+    // PETREL-DRAW (9 Nov, the user: "the white stuff ... some sort of physics representation that you forgot to get
+    // rid of ... exactly the same happened with the floats"): a CAGE build draws its own water surfaces - the boat
+    // hull is its fuselage (hullOn), the strut tip floats are cage parts - and carries no floatRigs (nothing to rig: no
+    // float pair). The test was floatRigs alone, so the Super Petrel flew under three flat cream PHYSICS hulls (its
+    // hull and both tip floats) drawn over the cage's: the "raw" white hull that hid the seats, and in the far view
+    // the only thing left. The physics hull is the spec-only build's (model.gen) and nothing else's
+    if (model && (model.floatRigs || !model.gen)) return;
     for (const fx of HY.floats) {
       const F = fx.F, n = F.panels.length;
       const g = new THREE.BufferGeometry();
@@ -11457,9 +11463,8 @@
     if (!C2 || !P || typeof C2.cageResolve !== 'function') return null;
     const FS = (C2.CAGE_UNIT || 1) * (P.planeScale || 1);
     const R = C2.cageResolve(C2.cageSpec(Object.assign({}, P)));
-    const zOf = n => { const q = R.rings.find(x => x.name === n); const l = q && q.lv && (q.lv.waist || q.lv.keel); return l && isFinite(l.z) ? l.z * FS : null; };
-    const z = ['wsFront', 'wsAft', 'aeroWsA', 'ring'].map(zOf).find(v => v != null);
-    return z;
+    // (CESSNA-FINAL A1: through the cage's one home - the nose ring first when the nose section is body)
+    return typeof C2.cageFirewallZ === 'function' && typeof C2.cageNamedZ === 'function' ? C2.cageFirewallZ(C2.cageNamedZ(R, FS)) : null;
   }
   function frFrame() {
     if (!inGarage || !showCage || !edSit.visible) return null;
