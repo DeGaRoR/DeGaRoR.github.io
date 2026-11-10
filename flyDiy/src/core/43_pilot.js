@@ -355,9 +355,26 @@ function makePilot(sim, def, world, opts) {
   // the same shakedown (machineSheet is a pure function of the def and its getter), only later; and a memo of the
   // value rather than of its truth, so a page with no machineSheet asks once
   let sheetV = null, sheetDone = false;
+  // THE SHEET AT THE WEIGHT ON BOARD (REAL-FIGURES, 10 Nov; the user: "the T/O and landing on land numbers feel like the
+  // pilot's fault"). The sheet is measured once, at the def's own load; a pilot flies Vref for the LANDING weight. The
+  // Super Petrel's sheet stood at 617 kg: one pilot and half fuel (503 kg, stall 67 km/h) flew a 98 km/h approach and
+  // touched at 93 (1.4 Vs) for a 359 m roll. Off the sheet's mass by more than 2 % (freight strapped in, a light load,
+  // a long flight's burn), the stall-scaled speeds go as sqrt(m / m_sheet) and the runs as m / m_sheet; within it, the
+  // sheet as measured (every gate that flies its def's own load: to the bit)
+  let sheetW = null;
   const sheetOf = () => {
     if (!sheetDone) { sheetV = (typeof machineSheet === 'function' ? machineSheet(def, { shakedown: opts.shakedown }) : null); sheetDone = true; }
-    return sheetV;
+    const m0 = sheetV && sheetV.mass, m = sim.totalM;
+    if (!(m0 > 0) || !(m > 0) || Math.abs(m / m0 - 1) <= 0.02) return sheetV;
+    const r = Math.round(m / m0 * 200) / 200;                 // a fresh copy per half-percent of weight, not per frame
+    if (sheetW && sheetW.r === r) return sheetW.S;
+    const k = Math.sqrt(r), S = Object.assign({}, sheetV);
+    for (const f of ['Vs', 'Vs0', 'Vref', 'Vrot', 'Vy', 'Vx', 'Vbg', 'Vms', 'Vtd', 'sinkBg', 'sinkMin']) if (typeof S[f] === 'number') S[f] *= k;
+    for (const f of ['TORun', 'LDGrun', 'wingLoad']) if (typeof S[f] === 'number') S[f] *= r;
+    if (typeof S.W === 'number') S.W *= r;
+    S.mass = m0 * r; S.weightK = k;
+    sheetW = { r, S };
+    return S;
   };
   // G399.7 (P0.7): the sheet's ladder, TECS and the path ARE the pilot — the
   // flags that kept the old modes selectable (G399.2-G399.5) are retired,

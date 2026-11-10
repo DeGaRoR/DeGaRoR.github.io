@@ -314076,3 +314076,59 @@ The user, 4 Nov: "proper default cowls ... look at the different engines and eng
 - PROPER-COWLS, the user's rulings (9 Nov): the pusher taper STAYS the rule's 0.68 ("068 was fine, it was a mistake"; the proposed pusher rule withdrawn); the Tiger Moth is done (the Gipsy's accessory case is NOT to be shortened); the Spitfire and the Merlin's reduction gear wait. ARCHETYPES' Chinook-alike card ("the circuit completes - rejected-takeoff") fails identically on this branch's base e0457618d (--only=chinook, both trees) - the generator's original card, not the user's validated builds/chinook_2026-09-21_corrected.json (ENGCONFIG digests identical base / head).
 - PROPER-COWLS round 10 (9 Nov, the user: the Carbon Cub SS "would need big bulging ... ogival and where it matters ... we mostly get a bump that looks like a mole"): THE CHEEK FIT IS STREAMLINED (straight.js fitCheeksStream; the round fit stays as fitCheeksRound, --roundCheeks): every drawn vertex through the bare cowl (clear.js all round, the exhaust aside), folded onto one side when both flanks stand out (two mirrored cheeks); the cheek is an OGIVE - full height only from p0 to the heads' front p1, a smoothstep rise from the firewall (lobeTail) that may carry the rear heads on its way up, a short front to lobeNose, narrowing as it fades; p0 and the spread fitted for the least cheek standing 12 mm over every point, then probed to 0 mm. --cheeksOnly keeps a build's own cowl and refits only its cheeks. The Carbon Cub SS (claude/real-figures-3 builds/candidates/carbon_cub_ss.json, a custom O-320-chassis engine whose heads stood 17 cm through its cowl): reports/evidence/PROPER-COWLS/carbon_cub_ss_cheeks.json - lobeN 2, 21 cm, 51 deg, full over t 0.58-0.97 - 0 mm left; the file itself is the real-figures session's, not changed here. OPEN: the face apertures' cutter ignores the cheeks (sectF: "lobes ignored"), so a cheek reaching into the nose bowl smears a pair of inlets into black arcs (the rule's own cowl on the Carbon Cub) - the cheeks should stop at the bowl, or the cutter learn them.
 - PROPER-COWLS round 11 (9 Nov, the user: "the DC3, this poor thing really needs a proper radial cowl. Make the updated copy available quickly to other sessions"): reports/evidence/PROPER-COWLS/dc3_radial_cowl_rows.json (48 rows over tools/fixtures/dc3_2026-10.json's cage or DC3_FIT) and dc3_2026-10_radial_cowl.json (the whole build): a round drum per nacelle centred on the R-1830, 14 streamlined helmets over its two rows (3 cm; the bare drum let the heads through by 1.7 cm; 0 mm after), the build's own nacelle tail (cw_tailLen 3.35) kept; engY 0.164 of offset moved from cw_faceRise into engBlockY - the propeller unmoved: empty 6440.617 kg, Vs 30.621, climb 8.066 identical. The fixture and dc3_build.js are NOT edited (the DC-3 sessions own them). The rows need this branch's generator (lobeT2/lobeCount/lobeStream/lobeNose/lobeTail). Rule fixes found on it: clear.js measured EVERY unit's engine against the last cowl copy (a twin: 5 m "pokes") - now the first unit's pair; a pod's drum was put 16 cm under its engine (the body cowls' faceRise override ran on pods too) - body cowls only now; the pod's radial drum 0.92 like the body's; merged radial heads (a two-row 14's points are one ring) are placed by _eng_mesh's own layout rule.
+
+## PETREL-LS phase 1 closed - THE LATTICE OVER THE DRAWING, THE TAIL'S TRUSS FIXED, THE PILOT FLIES THE WEIGHT ON BOARD (2026-11-10, REAL-FIGURES, cloud; branch claude/practical-cerf-7fjpwp)
+
+THE PHYSICS LATTICE OVER THE DRAWING (the user: "render the physics node and beam model on top of the plane"). Scratch
+renderer: the joined def's nodes and beams (from LB.loadBuild, the game's path) projected into quickshot's frames with
+the join's datum (CAGE_DATUM via _geoparity_lib's bake: x = zFw - z, y = y_cage - yD). Wings, cabane, interplane,
+stab, floats, gear and engine sit within 1-2 cm of the drawing. The fin did not, and three join/frame rules were the
+cause (all in this entry's commit):
+- THE TAPER WAS A RATIO, NOT A TAPER (_cage_join.js taperOf / finTaperAbove): the 75 %/25 % chord ratio r was filed
+  as tip/root. A straight planform through those two chords has tip/root (3r - 1)/(3 - r): the Petrel's fin read 0.53
+  for a drawn 0.23 and flew as a parallel box leaning aft. GEN_TAIL_ENVELOPE's taper floor 0.35 -> 0.15 (hTaper and
+  vTaper) so the fit is not clamped back.
+- THE POST WAS CLAMPED AFT (60_gen_spec fu.postGap floor 0.35 -> 0.05): the join measured the Petrel's post 0.13 m
+  behind the boom's end; the floor stood the truss's post 0.35 m back, under the rudder. Most measured builds read
+  0.12-0.13 and were clamped the same way.
+- THE RAISED STAB AND THE SWEPT FIN'S ROOT HUNG ON THE POST (61_gen_frame, FIN-MOUNT): a stab more than 0.15 m above
+  the post's top now hangs on the fin (a fin row moved to its height, its roots tied to that row, its tip wires up and
+  down the fin; its tips keep their ties to the last ring - the stab's roll path: without them GATE TAKEOFF's v7
+  ultralight stab rolled 5.4 deg on its mains through the taxi); a fin root node ahead of the last ring also ties to
+  the ring before (its post ties stay). 62_gen_aero's fin strips read the rows where they stand (TAIL.fins[].uV).
+Fleet (43 builds, base vs new, the game's load path): every validated build +0.2..+0.8 pts of static margin; mosquito
++5.1, ugly_bi +2.4. The negative margins (chinook / jodel uncorrected, birdman, pawnee, v8 pusher) were negative before.
+The rudder is not a lattice member: it flies as the aft ctlFrac of the fin strips; the truss's rear spar (the hinge)
+still rakes more than the drawn hinge (the fin layer declares it: measure.hinge.lineM) - not done.
+
+THE PILOT FLIES THE WEIGHT ON BOARD (43_pilot sheetOf). The sheet is measured at the def's load; off it by more than
+2 % (freight strapped in, a light case, a long burn) the stall-scaled speeds go as sqrt(m / m_sheet), the runs as
+m / m_sheet. Inside 2 %: the sheet as measured, to the bit (every gate that flies its def's own load). The Petrel's
+sheet stood at 617 kg; one pilot and half fuel (503 kg) approached at 98 km/h and touched at 93 (1.4 Vs): now 82-84.
+
+WHAT THE PETREL IS NOW (superpetrel_V4_2 vs the maker's LS sheet, 912iS): empty 386-390 kg (386), climb and stall
+inside the load range, speed at max continuous ~214 km/h vs 185 and best glide 11.6 vs 10 (parasite drag ~30-50 % low:
+no pusher-in-wake prop loss, no tip float / step / pylon drag - physics, the user's call). Balance: SM 13 % two-up,
+1 % solo full fuel, ~4 % solo low fuel; NP 39 % MAC. Water: rest PASS (tail 0.17 m clear); the run FAILS PETRELTRIM
+(b) by 0.20 m at the hump (9-14 kt): the keel trims +2.9 deg at rest, ~9.5 deg at the hump (the tank band 8-12), 13.8 at
+lift-off - _petrel_trim_check's pitch reads the nose-to-post line, 5.8 deg under the keel, so its (c) passes on that
+offset. Not the CG (seats or engine -15 cm: 1 cm), not the pilot (full forward stick through the hump: -0.08 m).
+Water at 503 kg: a roll oscillation at the hump (tip floats dig, the run decays; the same with the ailerons held) -
+the game's pilot rejects. At 649 kg: TO 344 m, landing roll 353 m vs the maker's 120 / 100 m. Land: TO 126-134 m
+(lift-off 1.36 Vs: the high thrust line fights the rotation) vs 80; landing rolls are normal landings, not short-field.
+Fuel stays where the maker's manual puts it (the lower wings + a header); the LE bay ahead of a 0.15 spar holds 25 L.
+
+GATES (this commit's core vs the same gates on 9c81f09c9, both run today): PILOT FAIL -> PASS; GEN, TAKEOFF, LOAD,
+JOINPARITY, DESIGN were red before (cruise quiet in wind, the pitch rate 12.6 deg/s, the ultimate load, the parity
+capture of 4 Nov stale on 4 builds, the editor's icons). New: TAKEOFF's stand 2 m/s cross (-z) lifts off 6.0 deg off
+the heading (bound < 6: the v7 ultralight's fin now flies its drawn taper, 0.47 for 0.69); JOINPARITY's metal Cessna
+and Cessna floats move (the corrected taper) - re-capture with tools/join_parity_page.js. STRESS TAILWHEEL BIPLANE
+DMGMEMBERS BUILD FIN JOIN GEOPARITY PARTS HULL HYDROTRIM CERTGATES PASS.
+
+THE PLANES' FINAL VERSIONS (real_refs.js PLANES, for the report): petrel42 = builds/candidates/superpetrel_V4_2.json is
+the Super Petrel (petrelL / V4.1 superseded); ruckus = ruckus_std_2026-11-09.json (round 3), cub160, jodelg, cessna,
+cessnaF, pa18f160, dc3r, chinookm, tigermothm, camelm, stearman, birdman, skymaster (card), c172rf, carboncubss as
+before; c172v2 / c172v2f keep their 9 Nov alloy-frame evidence (their files are not on this branch).
+
+PHASE 2 (open): the hump trim / tail dip; the water roll oscillation; the pusher wake and the missing drag items; the
+rotation; the hinge line; the LE tank bay to the real spar line.

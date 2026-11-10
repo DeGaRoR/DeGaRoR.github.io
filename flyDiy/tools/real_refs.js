@@ -392,8 +392,8 @@ const PLANES = {
   skymaster:{ dropped: 'the user 8 Nov: not wanted in the set', label: 'Skymaster-alike (archetype card)', card: 'skymaster', ref: 'skymaster', group: 'archetype',
               note: 'an engine-configuration archetype, never hand-authored to the type: a light check' },
   // PETREL-LS (10 Nov): the V4.2, fitted round by round to the maker's three LS drawings (reports/evidence/PETREL-LS-2026-11-10)
-  petrel42: { label: 'Super Petrel V4.2 (LS-fitted, candidate)', short: 'Super Petrel', file: 'builds/candidates/superpetrel_V4_2.json', ref: 'petrel', water: true, land: true, group: 'seaplane' },
-  petrelL:  { label: 'Super Petrel V4.1, land (claude/seaplanes-merge; PROVISIONAL)', file: 'builds/candidates/superpetrel_V4_1.json', ref: 'petrel', land: true,
+  petrel42: { label: 'Super Petrel V4.2 (fitted to the maker\'s LS drawings, 10 Nov)', short: 'Super Petrel', file: 'builds/candidates/superpetrel_V4_2.json', ref: 'petrel', water: true, land: true, group: 'seaplane' },
+  petrelL:  { label: 'Super Petrel V4.1, land (claude/seaplanes-merge; PROVISIONAL)', file: 'builds/candidates/superpetrel_V4_1.json', ref: 'petrel', land: true, supersededBy: 'petrel42',
               branch: 'claude/seaplanes-merge', provisional: true, note: 'not flyable on water on that branch yet: land figures only, to redo once it flies' },
   c172rf:   { label: '172R on Wipline 2350 floats, STC prop (G3390, 20 Oct)', short: '172R on Wipline 2350', file: 'builds/c172r_wipline2350_stcprop_2026-10-20.json', ref: 'c172f', water: true,
               note: 'HYDRO-TRIM\'s stock 172R on the catalogue-exact Wipline 2350s with the STC 82 x 43 prop: the floats Cessna that exists today, until FLAGSHIP\'s rebuild lands' },
