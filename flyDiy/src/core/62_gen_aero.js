@@ -1644,9 +1644,18 @@ function genParams(S, fr, strips) {
   cda.drag.brace = braceDCdA + tailBraceDCdA;
   // STRUT-OPTIONS (2026-11-10): THE LIFT STRUT'S SECTION AND ITS JURY STRUT PAY THEIR DRAG. Absent rows: not a key,
   // not a term (the bytes every build had).
+  // ...NOT on the body's row: on the struts' own blobs (fr.refs.strutDrag, one a side; params.strutCdA, each side's
+  // axial CdA - 30_solver's blob), so the drag acts where the struts are (REAL-FIGURES, 10 Nov: on the body's row it
+  // acted at the cabin ring and weathercocked a rod-boom ultralight). cda.drag.strutOpt keeps the whole for the ledger
+  let strutCdA = null;
   {
     const so = genStrutOptCdA(S, fr);
-    if (so) { cda.fusCdA[0] += so.cda; cda.drag.strutOpt = so.cda; }
+    if (so) {
+      cda.drag.strutOpt = so.cda;
+      const nb = (fr.refs && fr.refs.strutDrag && fr.refs.strutDrag.length) || 0;
+      if (nb) strutCdA = [so.cda / nb, 0, 0];
+      else cda.fusCdA[0] += so.cda;              // (no strut nodes: never on a strut-braced frame - the old row)
+    }
   }
   // THE BELLY POD (G2410, 60d_gen_pod genPodCdA): its parasite area (Raymer's component build-up on its own wetted
   // area, the interference of a store on the fuselage in it) on the axial row; its plan and side areas on the
@@ -1707,6 +1716,7 @@ function genParams(S, fr, strips) {
   // PRICE-CAL step 2: an old airframe's drag (60_gen_spec GEN_AGING; absent spec.aging: x1, as before)
   const AGd = genAgingOf(S).dragK;
   if (AGd !== 1) { cda.fusCdA[0] *= AGd; cda.fusCdA[1] *= AGd; cda.fusCdA[2] *= AGd; for (const k of [0, 1, 2]) if (cda.fusCdAAft && cda.fusCdAAft[k]) cda.fusCdAAft[k] *= AGd; }
+  if (AGd !== 1 && strutCdA) strutCdA[0] *= AGd;   // STRUT-OPTIONS: the struts' own blobs age as the body's row does
   cda.drag.axial = cda.fusCdA[0];
   // Control effectiveness from surface chord. The reference pairs are the
   // fleet's own calibrated numbers at the default chord fractions, so a stock
@@ -1802,6 +1812,7 @@ function genParams(S, fr, strips) {
     flaps,
     stabTrim: 0, sparSpacing: fr.parts.sparSpacing,
     fusCdA: cda.fusCdA, fusCdAAft: cda.fusCdAAft,
+    ...(strutCdA ? { strutCdA } : {}),   // STRUT-OPTIONS: the struts' own blobs (the key only then)
     // G461 (the 172's neutral point): THE BODY'S OWN PITCHING MOMENT and the
     // TAIL'S DYNAMIC-PRESSURE EFFICIENCY, the two textbook terms the probe
     // had no word for. A body in potential flow carries a destabilising

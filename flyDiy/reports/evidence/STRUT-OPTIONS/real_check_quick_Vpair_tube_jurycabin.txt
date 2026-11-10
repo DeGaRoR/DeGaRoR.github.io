@@ -10,7 +10,7 @@ Build `../../../tmp/claude-0/-workspace-DeGaRoR-github-io/e0936b33-b5c4-564f-923
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
 | min | 235 | 39 | 22 | 43 | 41 | 76 | 90 | 2.32 (60) | 5.2 | 1.69 | 52 | 0.054 (0.50) |
 | typ | 249 | 39 | 24 | 44 | 42 | 75 | 90 | 2.06 (61) | 5.2 | 1.69 | 60 | 0.066 (0.50) |
-| mtow | 249 | 39 | 24 | 44 | 42 | 75 | 90 | 2.05 (61) | 5.2 | 1.69 | 60 | 0.066 (0.50) |
+| mtow | 249 | 39 | 24 | 44 | 42 | 75 | 90 | 2.05 (61) | 5.2 | 1.68 | 60 | 0.066 (0.50) |
 
 | indicator | reading | reference (band) | at kg | ours at those kg | verdict | ours equals theirs at |
 |---|---|---|---|---|---|---|
@@ -22,4 +22,4 @@ Build `../../../tmp/claude-0/-workspace-DeGaRoR-github-io/e0936b33-b5c4-564f-923
 | LD  | airframe | 4.6 (4.1–5.1) | 188–249 | 5.2 | **near** (extrap.) | — |
 | TO m | airframe (grass) | 107 (96–117) | 249 | 60 | **outside** | — |
 
-[ruckus_v] done in 10 s
+[ruckus_v] done in 18 s

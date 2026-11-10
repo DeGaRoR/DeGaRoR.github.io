@@ -11,7 +11,8 @@
 // 3. THE JURY IS WHAT IT SAYS: four clamp nodes ('JS'), one jury per lift strut, drawn as the strut is; each half of a
 //    split strut at twice the whole strut's k (the pair in series is the strut it was); the mass added is the drawn
 //    jury's length at the class's own per metre x juryMassK (a hidden jury, the tie: none).
-// 4. THE DRAG IS WHAT IT SAYS: a round strut adds (cdRound tubeD L_drawn - the streamline bill) to the axial body row,
+// 4. THE DRAG IS WHAT IT SAYS AND WHERE IT IS: a round strut adds (cdRound tubeD L_drawn - the streamline bill) on the
+//    struts' own blobs (one a side, refs.strutDrag: never the body's axial row, which acts at the cabin ring),
 //    a jury its drawn length x juryT x its section's Cd; a profiled strut with no jury adds nothing.
 // 5. THE KEYS: genStolCageOff drops wgStrutSec 0 / wgJury 0 (every key the game hashes a build by).
 'use strict';
@@ -20,7 +21,9 @@ const C = require(path.join(__dirname, 'flight_core.js'));
 const ROOT = path.join(__dirname, '..');
 const fails = [];
 const check = (ok, label) => { console.log((ok ? '  ok   ' : '  FAIL ') + label); if (!ok) fails.push(label); };
-const load = f => JSON.parse(fs.readFileSync(path.join(ROOT, f), 'utf8')).spec;
+// THROUGH THE LOAD DOOR (GATE JOINPARITY: no tool flies a validated build raw): the spec the game flies
+const LB = require(path.join(__dirname, '_load_build.js'));
+const load = f => LB.gameSpec(JSON.parse(fs.readFileSync(path.join(ROOT, f), 'utf8')));
 const clone = o => JSON.parse(JSON.stringify(o));
 const BUILDS = { cub: 'builds/cub_2026-09-20_corrected.json', cessna: 'builds/cessna172_2026-09-20_corrected.json',
                  ruckus: 'builds/candidates/ruckus_std_2026-11-09.json' };
@@ -65,7 +68,8 @@ for (const k in BUILDS) {
   const d0 = C.buildGen(clone(s));
   const s1 = clone(s); s1.bracing.section = null; s1.bracing.jury = null; s1.cage.wgStrutSec = 0; s1.cage.wgJury = 0;
   check(same(d0, C.buildGen(s1)), k + ': section null, jury null, cage rows at 0 -> nodes, beams, params, cert key identical');
-  check(!d0.beams.some(b => 'strut' in b || 'round' in b), k + ': no member carries the new fields');
+  check(!d0.beams.some(b => 'strut' in b || 'round' in b) && !('strutDrag' in d0.refs) && !('strutCdA' in d0.params),
+        k + ': no member, ref or param carries the new fields');
 }
 
 console.log('2-4. every option on the Cub and the Ruckus');
@@ -103,8 +107,13 @@ for (const k of ['cub', 'ruckus']) {
       const lift = d.beams.filter(b => b.ext && b.cls === 'wing' && (b.strut === 'lift' || b.strut === 'half')).reduce((a, b) => a + b.L, 0);
       const want4 = jl * T.juryT * (section ? T.cdRound : T.cdStream)
         + (section ? lift * T.cdRound * T.tubeD - 2 * 0.10 * (0.55 * semi * 1.12) * 0.06 : 0);
-      const dc = d.params.fusCdA[0] - cda0;
-      check(Math.abs(dc - want4) < 1e-9 && dc > 0, `${tag}: body drag area +${dc.toFixed(4)} m2 (the bill: ${want4.toFixed(4)})`);
+      // ON THE STRUTS' OWN BLOBS (one a side, refs.strutDrag), the body's row untouched
+      const sbl = d.refs.strutDrag || [];
+      check(Math.abs(d.params.fusCdA[0] - cda0) < 1e-12 && sbl.length === 2 && sbl.every(ids => ids.length === 4)
+            && sbl[0].every(i => d.nodes[i].p[2] * d.nodes[sbl[0][0]].p[2] > 0),
+            `${tag}: the drag on two strut blobs (one a side), not on the body's axial row`);
+      const dc = d.params.strutCdA ? d.params.strutCdA[0] * sbl.length : 0;
+      check(Math.abs(dc - want4) < 1e-9 && dc > 0, `${tag}: strut drag area +${dc.toFixed(4)} m2 (the bill: ${want4.toFixed(4)})`);
     }
   }
 }

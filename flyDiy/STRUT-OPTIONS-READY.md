@@ -57,10 +57,37 @@ Two new rows in the wing's **struts & fixation** group (`tools/_cage_wing.js`), 
 | `juryMassK` | 1 | MEASURED: the wing class bills 0.50 kg/m on the Ruckus's lift strut (0.72 on the Cub's steel); a 1 in x .035 4130 jury tube is 0.53 kg/m, a 25 x 1.2 mm 6061 one 0.24 kg/m — the class's per metre sits in that band |
 | section mass | unchanged | a streamline strut is a round tube formed to shape on a die at constant perimeter (Univair / Wicks streamline tubing; the Cessna 172's 3.5 in round tube formed to a streamline, `_strut_gen.js` STRUT_FIT notes): same metal per metre |
 
-**The bill** (`62_gen_aero genStrutOptCdA`, axial body row, `params.drag.strutOpt`): a round strut takes back
+**The bill** (`62_gen_aero genStrutOptCdA`, `params.drag.strutOpt` for the ledger): a round strut takes back
 genGearCdA's streamline bill (2 x 0.10 x 0.06 x 0.55 semispan x 1.12) and pays every DRAWN lift-strut member
 `cdRound x tubeD x L`; a jury pays its drawn length `x juryT x` its section's Cd. Hidden members pay nothing. No row,
 no key, no term.
+
+**Where it acts** (REAL-FIGURES' finding, 10 Nov): the first cut added it to the body's axial row (`fusCdA[0]`), which
+the solver applies at the cabin ring's blob. It now acts **on the struts**: one 4-node blob a side on the strut's foot
+and its wing end(s) (`61_gen_frame refs.strutDrag`, `params.strutCdA` = each side's axial CdA, `30_solver` blob), so
+each side reads its own air. Both keys exist only on a strut-option build. The streamline bill it takes back stays
+on the body row (0.03 m² on the Ruckus), as before.
+
+**The design check's stability rows, measured** (`genDesignCheck`, the Ruckus std through the load door,
+`reports/evidence/STRUT-OPTIONS/design_check_ruckus.txt`). REAL-FIGURES saw SM 7.6 -> 17.1 % and the spiral turn to
+a fail with round tubes. The cause is **not where the drag sits**: the design check evaluates at the build's own
+autopilot cruise speed (`params.ap.VCruise`), and the round tubes' drag lowers it from 26.3 to 19.6 m/s (V pair).
+At equal speed the numbers barely move:
+
+| Ruckus, V pair, round tube + cabin jury | SM | spiral (s) | dutch damping |
+|---|---|---|---|
+| profiled, no jury, at its own 26.3 m/s | 0.150 | warn 10.5 | 0.260 |
+| at 26.3 m/s, drag on the struts (this fix) | 0.157 | warn 10.2 | 0.282 |
+| at 26.3 m/s, drag on the body row (the first cut) | 0.157 | warn 9.5 | 0.265 |
+| at 26.3 m/s, no strut drag at all | 0.157 | warn 9.5 | 0.265 |
+| at its own cruise, ~19.6 m/s (drag on the struts) | 0.258 | **fail 3.7** | 0.368 |
+| *profiled, no jury, flown at 19.6 m/s* | *0.248* | ***fail 3.8*** | *0.342* |
+
+The body-row placement and no strut drag read the same: the check's derivatives do not see the axial row's position.
+The drag on the struts adds a little yaw damping (dutch 0.265 -> 0.282, spiral 9.5 -> 10.2 s). The profiled Ruckus
+fails the spiral the same way at 19.6 m/s. So the fail belongs to this airframe at a slow cruise, whatever the
+struts; it is not a strut-drag bug. Whether the check should judge the spiral at the autopilot's cruise speed is a
+design-check question, outside this chantier.
 
 ## Measurements — the Ruckus (standard) and its variants
 
@@ -75,7 +102,7 @@ no pilot), MTOW 249 kg; logs in `reports/evidence/STRUT-OPTIONS/real_check_quick
 | round tubes only | 158 | 1.19 | 106 | 90 | 6.2 | 2.74 (70) | 55 | 18 |
 | jury to the cabin only | 160 | 0.92 | 118 | 102 | 7.0 | 3.27 (77) | 52 | 14 |
 | **round tubes + jury to the cabin** (the candidate) | **160** | **1.28** | **102** | **87** | **6.0** | **2.58 (68)** | **56** | **20** |
-| V pair + round tubes + jury | 162 | 1.69 | 90 | 75 | 5.2 | 2.05 (61) | 60 | 24 |
+| V pair + round tubes + jury | 162 | 1.68 | 90 | 75 | 5.2 | 2.05 (61) | 60 | 24 |
 | *reference (B&B airframe sheet)* | *115* | | *87 (83-91)* | *80* | *4.6* | *3.30* | *107* | |
 
 Frame (GATE STRUTOPT): round tubes add **+0.273 m²** drag area (single strut a side, 2 x 3.08 m) and nothing else;
@@ -98,6 +125,24 @@ the new candidate).
 
 ## Gates
 
-GATE STRUTOPT (new, core, ~3 s): PASS — 118 checks. Core battery: see below.
+GATE STRUTOPT (new, core, ~15 s through the load door): **PASS**.
 
-GATES_PLACEHOLDER
+The full core battery (`run_gates.js`, 321 jobs) could not finish on this cloud box: the container was restarted
+twice under it (at 4 jobs, then at 2). So the gates this change can reach were run by name (`--only`), and every red one
+was run again on the base commit `9cf60dd2` (a worktree) to compare:
+
+| gate | this branch | base `9cf60dd2` |
+|---|---|---|
+| STRUTOPT (new) | PASS | — |
+| STRUT, PILLAR, PARTS, CANDIDATES, GENPAIRS, CLIP, STRESS, HONEST, SKIN, UISMOKE | PASS | — |
+| GEN (4 shards) | FAIL: 76/77, *cruise is quiet in wind* only | known red on master (brief) |
+| JOINPARITY | 5 FAIL (Cub / Jodel node = page masses, the Cub nose tank, the metal Cessna fixture, the raw-readers list) | the same 5 |
+| LOAD | FAIL: *every airframe survived the ultimate load* | the same |
+| DESIGN | FAIL: propPitch / brakesT tiles with no drawable icon | the same 13 lines |
+| DMGCERT | FAIL (the ultimate-load bench breaks: 5 lines) | the same 5 |
+
+JOINPARITY's raw-readers list does not include `_strutopt_check.js`: it read builds raw at first, then was moved to
+the load door. The new tiles in DESIGN draw: the gate's findings are the base's lines exactly. Not run: the full-tier
+sweeps (ARCHETYPES, PILOTMATRIX, SEAPLANE, HOTHIGH) and the rest of core (ENGCONFIG pins, a known red, among them).
+None of them can see a build without the new rows any differently, because the 36 shipped frames are identical through
+the load door. A jury or tube build is held by STRUTOPT, not by any of them.

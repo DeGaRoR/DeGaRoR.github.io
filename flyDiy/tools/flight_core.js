@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: ed6d19457ea98f6e
+// body-sha256: 116d1e4486ad3afe
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -18490,6 +18490,9 @@ function makeSim(def, world) {
     };
     blob(def.refs.fusDrag,    GR === null ? P_.fusCdA : GR.cda);   // RETRACT-1: the gear's drag by its position
     blob(def.refs.fusDragAft, P_.fusCdAAft);
+    // STRUT-OPTIONS (2026-11-10): the lift struts' optional drag (a round tube, a jury), one blob a side on the
+    // struts' own nodes (61_gen_frame refs.strutDrag) - absent on every build without the wing's strut rows
+    if (P_.strutCdA && def.refs.strutDrag) for (const ids of def.refs.strutDrag) blob(ids, P_.strutCdA);
     // G461: THE BODY'S OWN PITCHING MOMENT (Munk). A closed body in potential
     // flow feels no lift and a pure couple, 2 q (k2 - k1) Vol per radian of
     // incidence, NOSE-UP with the nose up — destabilising, the term every
@@ -40893,6 +40896,9 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   const D = Math.PI / 180;
   const nodes = [], beams = [];
   const degenerate = [];                            // B10: the members B() refused (zero length)
+  // STRUT-OPTIONS (2026-11-10): where the lift struts' optional drag acts - one 4-node blob a side on the struts' own
+  // ends (refs.strutDrag), only when the spec asks for a strut option (the bytes every build had otherwise)
+  const strutDragRefs = [];
   const clusters = [];                              // G294: rigid node groups (the tube)
   // G327: a fin's cluster — its truss and the station it stands on — with
   // its stiffness declared as a K_tip for the end-of-lattice resolution
@@ -42271,6 +42277,15 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       // one as well"). Neither option touches a build without its row: no `section`, no `jury` -> the two lines as
       // they always were.
       const SOPT = genStrutOpts(S);
+      // THE DRAG ACTS WHERE THE STRUTS ARE (REAL-FIGURES' finding on the first cut, 10 Nov: billed on the body's
+      // axial row it acted at the cabin ring's blob, well aft of the CG on a rod-boom ultralight, and weathercocked
+      // the Ruckus - SM 7.6 -> 17.1 %, the spiral 12.6 s -> a 4.5 s fail). The blob's four nodes are the strut's
+      // foot and its wing end(s): their mean is the drawn strut's (or the V pair's) middle, on this side, so each
+      // side's drag reads its own air (a yaw rate drags the advancing side's harder: the damping a real strut gives)
+      if (SOPT.round || SOPT.jury)
+        strutDragRefs.push((S.bracing && S.bracing.struts) === 1
+          ? [strutRoot, WF[iStrut], strutRoot, WF[iStrut]]
+          : [strutRoot, WF[iStrut], strutRoot, WR[iStrut]]);
       if (!SOPT.jury) {
         B(strutRoot, WF[iStrut], 'wing', true, 0, 0, SOPT.lift || undefined);
         B(strutRoot, WR[iStrut], 'wing', (S.bracing && S.bracing.struts) !== 1, 0, 0, SOPT.lift || undefined);
@@ -44648,6 +44663,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     upLo: [F[0].BL, F[0].BR], upHi: [F[0].TL, F[0].TR],
     fusDrag: [F[iCabR].BL, F[iCabR].BR, F[iCabR].TL, F[iCabR].TR],
     fusDragAft: [F[F.length-2].BL, F[F.length-2].BR, F[F.length-2].TL, F[F.length-2].TR],
+    ...(strutDragRefs.length ? { strutDrag: strutDragRefs } : {}),   // STRUT-OPTIONS (the key only then)
     engine: engNodes, engineOf: engIdx, mains: [GAL, GAR], tw: TW, fin: FIN, fin2: FIN2,
     ...(TW2 >= 0 ? { tw2: TW2 } : {}),               // G3800: a twin boom's second tail contact (the key only then)
     // THE DRAWING'S DATUM IS THE WING CARRY-THROUGH (G179.3, the user: "we
@@ -46562,9 +46578,18 @@ function genParams(S, fr, strips) {
   cda.drag.brace = braceDCdA + tailBraceDCdA;
   // STRUT-OPTIONS (2026-11-10): THE LIFT STRUT'S SECTION AND ITS JURY STRUT PAY THEIR DRAG. Absent rows: not a key,
   // not a term (the bytes every build had).
+  // ...NOT on the body's row: on the struts' own blobs (fr.refs.strutDrag, one a side; params.strutCdA, each side's
+  // axial CdA - 30_solver's blob), so the drag acts where the struts are (REAL-FIGURES, 10 Nov: on the body's row it
+  // acted at the cabin ring and weathercocked a rod-boom ultralight). cda.drag.strutOpt keeps the whole for the ledger
+  let strutCdA = null;
   {
     const so = genStrutOptCdA(S, fr);
-    if (so) { cda.fusCdA[0] += so.cda; cda.drag.strutOpt = so.cda; }
+    if (so) {
+      cda.drag.strutOpt = so.cda;
+      const nb = (fr.refs && fr.refs.strutDrag && fr.refs.strutDrag.length) || 0;
+      if (nb) strutCdA = [so.cda / nb, 0, 0];
+      else cda.fusCdA[0] += so.cda;              // (no strut nodes: never on a strut-braced frame - the old row)
+    }
   }
   // THE BELLY POD (G2410, 60d_gen_pod genPodCdA): its parasite area (Raymer's component build-up on its own wetted
   // area, the interference of a store on the fuselage in it) on the axial row; its plan and side areas on the
@@ -46625,6 +46650,7 @@ function genParams(S, fr, strips) {
   // PRICE-CAL step 2: an old airframe's drag (60_gen_spec GEN_AGING; absent spec.aging: x1, as before)
   const AGd = genAgingOf(S).dragK;
   if (AGd !== 1) { cda.fusCdA[0] *= AGd; cda.fusCdA[1] *= AGd; cda.fusCdA[2] *= AGd; for (const k of [0, 1, 2]) if (cda.fusCdAAft && cda.fusCdAAft[k]) cda.fusCdAAft[k] *= AGd; }
+  if (AGd !== 1 && strutCdA) strutCdA[0] *= AGd;   // STRUT-OPTIONS: the struts' own blobs age as the body's row does
   cda.drag.axial = cda.fusCdA[0];
   // Control effectiveness from surface chord. The reference pairs are the
   // fleet's own calibrated numbers at the default chord fractions, so a stock
@@ -46720,6 +46746,7 @@ function genParams(S, fr, strips) {
     flaps,
     stabTrim: 0, sparSpacing: fr.parts.sparSpacing,
     fusCdA: cda.fusCdA, fusCdAAft: cda.fusCdAAft,
+    ...(strutCdA ? { strutCdA } : {}),   // STRUT-OPTIONS: the struts' own blobs (the key only then)
     // G461 (the 172's neutral point): THE BODY'S OWN PITCHING MOMENT and the
     // TAIL'S DYNAMIC-PRESSURE EFFICIENCY, the two textbook terms the probe
     // had no word for. A body in potential flow carries a destabilising
