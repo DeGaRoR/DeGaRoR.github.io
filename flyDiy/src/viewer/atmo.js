@@ -837,6 +837,7 @@ ${MIST_GLSL}
           vec3 sd = fax.x > 0.5 ? vec3(fsg, su.x, su.y) : (fax.y > 0.5 ? vec3(su.x, fsg, su.y) : vec3(su.x, su.y, fsg));
           float u = hash13(key + 71.0) * (h < 1.0 - STAR_P ? 0.5 : 1.0);   // the flux quantile (the band's extra stars from the faint half)
           float f = pow(1.0 - u * aR, -1.0 / sA) / nR;                    // the flux / the mean: N(>F) ~ F^-a
+          if (uStars > 1.5) f = min(f, 25.0);   // the mirror's pass (its stars x10): a bright star's reflection, blurred by the water, kept under the screen's white - no coin on the near water
           float srs = min(sr * max(1.0, pow(f, uStarMag.y)), 0.7 * cellA);
           vec3 dq = q - normalize(sd);
           float x2 = dot(dq, dq) / (srs * srs);
