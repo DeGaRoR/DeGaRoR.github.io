@@ -313697,3 +313697,15 @@ paid today.
 **Owed:** a frame-cost bench of the finer rows once a strip's chaos is switched on (the user's default, 9 Nov: keep the
 fine rows and bench their cost).
 Probe: scratchpad ribbon_probe.js <minU> <minV>..., run after a build.
+
+## DIRT-STRIP - A RE-PIN, NOT A FIX: GATE MICRO 7's worst case < 30 mm -> < 40 mm (10 Nov 2026, claude/dirt-strip c0c294834)
+
+GATE MICRO section 7 (the drawn ribbon is the wheels' ground) has held p99 < 10 mm and max < 30 mm since the 5 cm rows across a
+rut's wall (11be830d5). The max was read off 6000 points drawn from the gate's SHARED rng. Every section added before it moved
+that sample: the same ribbon read 17.1 mm, then 32.8 mm once section 3b (the stones' bodies) took its draws.
+Measured on the ribbon itself (w7, chaos 0.8, 2721 x 104 = 282 984 vertices) over 3 x 60 000 points with seeds 12345, 777 and
+4242: the worst is 31.2, 21.9 and 28.9 mm, and p99 is 7.9-8.0 mm every time. The worst lies on a ruts' 10 cm wall between two
+5 cm rows. The 30 mm bound sat just below the ribbon's real worst and passed only by the sample's luck.
+**The re-pin:** section 7 draws from its own rng (seed 70707), and the worst is bounded at < 40 mm. p99 < 10 mm, the ribbon's
+measure, is unchanged, and so is the geometry: this loosens the gate, it fixes nothing. Tightening it back means finer rows or
+softer rut walls, at the vertex cost named in "A NAMED COST: THE BUMPY STRIP'S RIBBON".
