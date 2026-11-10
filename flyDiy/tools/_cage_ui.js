@@ -3327,7 +3327,7 @@ fillPresetSel();
     dx.title = 'Fade the covering and click straight through it — ' +
                'the engine, the seats and the panel become reachable';
     dx.innerHTML = `<span class="k">see inside</span>
-      <label style="flex:none"><input type="checkbox" id="xray"></label>`;
+      <label style="flex:none"><input type="checkbox" id="xray"${VIEW.xray ? ' checked' : ''}></label>`;   // (WING-STRUCTURE: the panel is rebuilt with each build - the box shows the view's state, not unticked over a see-through aeroplane)
     det.appendChild(dx);
     dx.querySelector('input').onchange = e => {
       VIEW.xray = e.target.checked ? 1 : 0;

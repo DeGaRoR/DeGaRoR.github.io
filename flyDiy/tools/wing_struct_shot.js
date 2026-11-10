@@ -141,8 +141,9 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   for (const v of GARAGE) {
     const base = v.replace(/[xc]+$/, ''), xr = /x/.test(v.slice(base.length)), cut = /c/.test(v.slice(base.length));
     await pg.evaluate(([xr, cut]) => {
-      const x = document.getElementById('xray'); if (x && x.checked !== xr) x.click();
-      const c = document.getElementById('cutaway'); if (c && c.checked !== cut) c.click();
+      // set, not toggled: the garage's panel is rebuilt with each build (its boxes fresh) while the view keeps its state
+      const x = document.getElementById('xray'); if (x) { x.checked = xr; x.dispatchEvent(new Event('change')); }
+      const c = document.getElementById('cutaway'); if (c) { c.checked = cut; c.dispatchEvent(new Event('change')); }
       return 1;
     }, [xr, cut]);
     await sleep(3000);
