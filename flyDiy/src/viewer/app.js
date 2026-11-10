@@ -21049,7 +21049,9 @@
     let n = 0; for (const p of L) if (p && p.isReady && !p.isReady()) n++;
     return n;
   }
-  function heavyFirst(m) { return (m && m.groundFamily) ? 0 : 1; }
+  // (the naming run, 10 Nov: the four heaviest cold links were the pavement's 34 s, the island ground's 17 and 14 s, the
+  // premises' patch 13 s - the ground's family and the pavement's heavyLink)
+  function heavyFirst(m) { return (m && (m.groundFamily || m.heavyLink)) ? 0 : 1; }
   function compileSliced(sc, target, lit, fogless, dress) {
     const D = dress || (f => f());
     if (typeof renderer.compile !== 'function' || typeof renderer.compileAsync !== 'function' || typeof PROG_WARM === 'undefined' || !PROG_WARM.standIn)
