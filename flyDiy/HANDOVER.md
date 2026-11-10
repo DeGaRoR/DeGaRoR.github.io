@@ -315122,3 +315122,8 @@ same entry, spelt in another order. (Areas were already compared this way, sk.)
 **The cost, now paid (A0 OK, 10 Nov ~13:55):** the 5 cm rows across a rut's wall (REFINE_MIN_V 0.05, the named cost of 9 Nov, then
 "nothing paid today") are drawn on w3 and w8, bumpy since L37a: TERRAINMATCH's potato HOME-taxi count 1 218 494 -> 1 226 310
 (+7 816 triangles, +0.64 %); BUMPS 5 624 -> 13 440.
+
+**And TERRAINMATCH's drawn ground is the game's (10 Nov, 14:40 probe):** tools/ground_drawn.js built every strip on a 6 m x 3 m
+lattice at terrainH; render_world draws a bumpy strip with its rows down to the bumps and 5 cm across a rut's wall, at terrainH -
+stoneH. The tool now does the same (refineMin / refineMinV, the stoneH law). Before: w3 / w8 p95 15 / 26 mm off the field, the worst
+64 mm over an 11 cm hole - the tool's bridging, not the game's ground.
