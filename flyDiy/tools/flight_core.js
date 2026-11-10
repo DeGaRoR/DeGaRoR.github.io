@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 5c4fe704794e66f3
+// body-sha256: d0af9a5bd665064a
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -26229,9 +26229,26 @@ function makePilot(sim, def, world, opts) {
   // the same shakedown (machineSheet is a pure function of the def and its getter), only later; and a memo of the
   // value rather than of its truth, so a page with no machineSheet asks once
   let sheetV = null, sheetDone = false;
+  // THE SHEET AT THE WEIGHT ON BOARD (REAL-FIGURES, 10 Nov; the user: "the T/O and landing on land numbers feel like the
+  // pilot's fault"). The sheet is measured once, at the def's own load; a pilot flies Vref for the LANDING weight. The
+  // Super Petrel's sheet stood at 617 kg: one pilot and half fuel (503 kg, stall 67 km/h) flew a 98 km/h approach and
+  // touched at 93 (1.4 Vs) for a 359 m roll. Off the sheet's mass by more than 2 % (freight strapped in, a light load,
+  // a long flight's burn), the stall-scaled speeds go as sqrt(m / m_sheet) and the runs as m / m_sheet; within it, the
+  // sheet as measured (every gate that flies its def's own load: to the bit)
+  let sheetW = null;
   const sheetOf = () => {
     if (!sheetDone) { sheetV = (typeof machineSheet === 'function' ? machineSheet(def, { shakedown: opts.shakedown }) : null); sheetDone = true; }
-    return sheetV;
+    const m0 = sheetV && sheetV.mass, m = sim.totalM;
+    if (!(m0 > 0) || !(m > 0) || Math.abs(m / m0 - 1) <= 0.02) return sheetV;
+    const r = Math.round(m / m0 * 200) / 200;                 // a fresh copy per half-percent of weight, not per frame
+    if (sheetW && sheetW.r === r) return sheetW.S;
+    const k = Math.sqrt(r), S = Object.assign({}, sheetV);
+    for (const f of ['Vs', 'Vs0', 'Vref', 'Vrot', 'Vy', 'Vx', 'Vbg', 'Vms', 'Vtd', 'sinkBg', 'sinkMin']) if (typeof S[f] === 'number') S[f] *= k;
+    for (const f of ['TORun', 'LDGrun', 'wingLoad']) if (typeof S[f] === 'number') S[f] *= r;
+    if (typeof S.W === 'number') S.W *= r;
+    S.mass = m0 * r; S.weightK = k;
+    sheetW = { r, S };
+    return S;
   };
   // G399.7 (P0.7): the sheet's ladder, TECS and the path ARE the pilot — the
   // flags that kept the old modes selectable (G399.2-G399.5) are retired,
@@ -37643,7 +37660,7 @@ const GEN_TAIL_ENVELOPE = {
   // stock); the thin-airfoil tau formula holds to 0.70
   elevChord: [0.15, 0.65], rudChord: [0.15, 0.65],
   // P4: the trapezoid the truss stands on — tip over root chord
-  hTaper: [0.35, 1.0], vTaper: [0.35, 1.0],
+  hTaper: [0.15, 1.0], vTaper: [0.15, 1.0],
 };
 
 // THE FIELD REGISTRY (SPEC-FIXPOINT G1550-G1559, the 2026-10-04 review's E3).
@@ -38545,7 +38562,7 @@ function clampSpec(spec) {
   S.cargo.kg = genClamp(S.cargo.kg || 0, 0, 400);
   fu.tailBays = genClamp(fu.tailBays | 0, 3, 6);
   fu.boom = (fu.boom === 'rod' || fu.boom === 'loft' || fu.boom === 'twin') ? fu.boom : null;
-  fu.postGap = genClamp(fu.postGap, 0.35, 1.10);
+  fu.postGap = genClamp(fu.postGap, 0.05, 1.10);
   fu.crownTop = genClamp(fu.crownTop, 0, 1);
   fu.crownSide = genClamp(fu.crownSide, 0, 0.6);
   // The TAIL-END SECTION. These were in the spec from the start but had no
@@ -43358,13 +43375,21 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // drops by the spar spacing x tan(hInc) (LE up +, x aft +); the aero
   // reads the stab's chord off these nodes, so the tail flies its setting
   const tanI = Math.tan(((t.hInc || 0) * Math.PI) / 180);
+  // FIN-MOUNT (10 Nov, the user on the Petrel's tail: "the rudder really ... gets completely confused"): A STAB RAISED
+  // UP THE FIN HANGS ON THE FIN. Its root and tip ties ran to the post and the last ring whatever its height - right
+  // for a Cub's stab on the cone, but a cruciform stab 0.37 m up the fin drew them as long diagonals and wires down
+  // through the rudder. Raised clear of the post's top (more than 0.15 m), the fin gets a row AT the stab's height
+  // and the stab's roots tie to that row, its tips' up-and-down wires to the rows above and below (the Cub's own
+  // brace, carried up the fin). On the cone (every stab under that line): the rule below, to the bit.
+  const stabOnFin = (stabY - P[TPT][1]) > 0.15;
+  const stabTips = [];
   const HF = { L: [], R: [] }, HR = { L: [], R: [] }, HB = { L: [], R: [] };
   for (const [sd, sg] of [['L', -1], ['R', 1]]) {
     HF[sd] = zsH.map(z => N(xFH(z), stabY, sg * z, 'HF'));
     HR[sd] = zsH.map(z => N(xRH(z), stabY - (xRH(z) - xFH(z)) * tanI, sg * z, 'HR'));
     HB[sd] = zsH.map(z => SO(N(0.5 * (xFH(z) + xRH(z)), stabY - dep * chordH(z) - 0.5 * (xRH(z) - xFH(z)) * tanI, sg * z, 'HB'), dep * chordH(z) - stHalf));
     const ring = sd === 'L' ? [last.TL, last.BL] : [last.TR, last.BR];
-    for (const nd of [HF[sd][0], HR[sd][0], HB[sd][0]]) {
+    if (!stabOnFin) for (const nd of [HF[sd][0], HR[sd][0], HB[sd][0]]) {
       B(nd, TPB, 'tail'); B(nd, TPT, 'tail');
       for (const r of ring) B(nd, r, 'tail');
     }
@@ -43407,6 +43432,9 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // with steel WIRES from the tips up to the fin post and down to its foot
     // — tension-only, the G185 wire law, drawn — and the tip still ties to
     // the last ring's pair as the old tips did (the lattice's own roll path)
+    // (FIN-MOUNT: the tip's wires go up and down the fin, below; its ties to the last ring stay - they are the stab's
+    // roll path, G199.5: hung on the fin alone the v7 ultralight's stab rolled 5.4 deg on its mains through the taxi)
+    if (stabOnFin) { stabTips.push([H, sd]); for (const r of ring) B(H, r, 'tail'); continue; }
     B(H, TPT, 'wire', true, 'wire', null, { tens: true, pre: 5e-4 });
     B(H, TPB, 'wire', true, 'wire', null, { tens: true, pre: 5e-4 });
     for (const r of ring) B(H, r, 'tail');
@@ -43433,15 +43461,34 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   const xFV = u => t.vX + rakeV * hV * u + (sparF - 0.5) * chordV(u);
   const xRV = u => t.vX + rakeV * hV * u + (0.5 - CR) * chordV(u);
   const nV = Math.max(2, Math.min(3, Math.round(hV / 0.55)));
+  // (FIN-MOUNT: the interior row nearest the raised stab moves to its height - the stab's roots land on it)
+  const uV = []; for (let i = 0; i <= nV; i++) uV.push(i / nV);
+  let jStab = -1;
+  if (stabOnFin) {
+    const us = (stabY - yV0) / hV;
+    if (us > 0.5 / nV && us < 1 - 0.5 / nV) {
+      jStab = 1; for (let i = 1; i < nV; i++) if (Math.abs(uV[i] - us) < Math.abs(uV[jStab] - us)) jStab = i;
+      uV[jStab] = us;
+    }
+  }
   const VF = [], VR = [], VX = [], VX2 = [];
   for (let i = 0; i <= nV; i++) {
-    const u = i / nV, y = yV0 + hV * u, xm = 0.5 * (xFV(u) + xRV(u));
+    const u = uV[i], y = yV0 + hV * u, xm = 0.5 * (xFV(u) + xRV(u));
     VF.push(N(xFV(u), y, 0, 'VF')); VR.push(N(xRV(u), y, 0, 'VR'));
     // the pair either side: the fin's own thickness, a diamond section
     VX.push(SO(N(xm, y, 0.5 * dep * chordV(u), 'VX'), 0.5 * dep * chordV(u) - finHalf));
     VX2.push(SO(N(xm, y, -0.5 * dep * chordV(u), 'VX'), 0.5 * dep * chordV(u) - finHalf));
   }
   for (const nd of [VF[0], VR[0], VX[0], VX2[0]]) {
+    // FIN-MOUNT (10 Nov): A ROOT AHEAD OF THE LAST RING STANDS ON THE BAY UNDER IT TOO. A swept fin's root runs forward
+    // along the boom (the Petrel's front spar 0.8 m ahead of the post) and hung on the post alone. Ahead of the last
+    // ring, the root node also ties to the top pair of the ring before it (the last ring's pair it already has). The post
+    // ties stay: they are what holds the post's top square for a stab on the cone (GATE TAKEOFF's stab roll, G199.5:
+    // taken off, the stand's stab rolled 5-6 deg on its post through the taxi). Over the last ring or aft of it: to the bit
+    const xn = P[nd][0];
+    let k = -1;
+    if (xn < lastST.x - 0.02) for (let i = ST.length - 2; i >= 0; i--) if (ST[i].x <= xn) { k = i; break; }
+    if (k >= 0 && F[k] && F[k] !== last) { B(nd, F[k].TL, 'tail'); B(nd, F[k].TR, 'tail'); }
     B(nd, TPT, 'tail'); B(nd, TPB, 'tail');                   // the root, the keel row to TPB
     B(nd, last.TL, 'tail'); B(nd, last.TR, 'tail');
   }
@@ -43474,20 +43521,37 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       B(VF[i], X[i + 1], 'tail'); B(X[i], VF[i + 1], 'tail');
       B(VR[i], X[i + 1], 'tail'); B(X[i], VR[i + 1], 'tail');
     }
-    const bayV = (hV / nV) * 0.5 * (chordV(i / nV) + chordV((i + 1) / nV));
+    const bayV = hV * (uV[i + 1] - uV[i]) * 0.5 * (chordV(uV[i]) + chordV(uV[i + 1]));
     cover(1.9 * bayV, [VF[i], VF[i + 1], VR[i], VR[i + 1], VX[i], VX[i + 1], VX2[i], VX2[i + 1]]
                         .concat(i === nV - 1 ? [FIN] : []));
-    const ribV = Math.max(1, Math.round((hV / nV) / 0.4)) * 0.5 * (chordV(i / nV) + chordV((i + 1) / nV)) * 0.30;
+    const ribV = Math.max(1, Math.round((hV * (uV[i + 1] - uV[i])) / 0.4)) * 0.5 * (chordV(uV[i]) + chordV(uV[i + 1])) * 0.30;
     pt(VF[i + 1], 0.5 * ribV); pt(VR[i + 1], 0.5 * ribV);
   }
   for (const nd of [VF[nV], VR[nV], VX[nV], VX2[nV]]) B(FIN, nd, 'tail');   // the apex on the last section
   pt(FIN, 1.15 * cTipV * 0.30);              // the apex's bow (G235), as the tips'
   B(FIN, VF[nV - 1], 'tail'); B(FIN, VR[nV - 1], 'tail');   // ...and out of its plane (the same mechanism)
+  // FIN-MOUNT: the raised stab's roots on the fin's row at its height (its own side's section node, both spars, the
+  // rows above and below for depth), its tips braced up and down the fin as a Cub's to its post (tension wires)
+  if (stabOnFin) {
+    const j = jStab >= 1 ? jStab : 1;
+    for (const sd of ['L', 'R']) {
+      const XS = sd === 'R' ? VX : VX2;
+      for (const nd of [HF[sd][0], HR[sd][0], HB[sd][0]]) {
+        B(nd, VF[j], 'tail'); B(nd, VR[j], 'tail'); B(nd, XS[j], 'tail');
+        B(nd, XS[j - 1], 'tail'); B(nd, XS[Math.min(nV, j + 1)], 'tail');
+      }
+    }
+    for (const [H, sd] of stabTips) {
+      const XS = sd === 'R' ? VX : VX2;
+      B(H, XS[Math.min(nV, j + 1)], 'wire', true, 'wire', null, { tens: true, pre: 5e-4 });
+      B(H, XS[j - 1], 'wire', true, 'wire', null, { tens: true, pre: 5e-4 });
+    }
+  }
   // G327: the fin as one cluster with the post and the last ring it stands on
   finCluster('FIN', [...VF, ...VR, ...VX, ...VX2, FIN], [TPT, TPB, last.TL, last.TR],
              hV, chordV(0), MB, { front: VF[0], rear: VR[0], tip: FIN });
   TAIL = { HF, HR, HB, VF, VR, VX, VX2, zsH, semiH, zRootH, chordH, hV, chordV, nV,
-           fins: [{ VF, VR, VX, VX2, FIN, side: 1, hV, chordV, nV }],   // G268: one fin here, two on a twin boom
+           fins: [{ VF, VR, VX, VX2, FIN, side: 1, hV, chordV, nV, uV }],   // G268: one fin here, two on a twin boom (FIN-MOUNT: its rows' heights)
            sparFront: sparF, rearH: 1 - CT, rearV: 1 - CR };
   }
 
@@ -45409,9 +45473,10 @@ function genStrips(S, fr) {
     // G268: every fin the truss built — one on a post, one a boom on a twin
     for (const fn of (T.fins || [T])) {
       for (let b = 0; b < fn.nV; b++) {
-        const u0 = b / fn.nV, u1 = (b + 1) / fn.nV;
+        // (FIN-MOUNT: the rows where the truss put them - one moves to a raised stab's height; uniform otherwise)
+        const u0 = fn.uV ? fn.uV[b] : b / fn.nV, u1 = fn.uV ? fn.uV[b + 1] : (b + 1) / fn.nV;
         strips.push({ kind: 'fin', side: 1, t: 0.5, chord: fn.chordV(0.5 * (u0 + u1)),
-          area: (fn.hV / fn.nV) * 0.5 * (fn.chordV(u0) + fn.chordV(u1)),
+          area: fn.hV * (u1 - u0) * 0.5 * (fn.chordV(u0) + fn.chordV(u1)),
           fIn: fn.VF[b], fOut: fn.VF[b + 1], rIn: fn.VR[b], rOut: fn.VR[b + 1],
           w: [[fn.VF[b], cfV * 0.5], [fn.VF[b + 1], cfV * 0.5],
               [fn.VR[b], crV * 0.5], [fn.VR[b + 1], crV * 0.5]],
