@@ -206,6 +206,9 @@ const DOORS = {
     // (G2799, the census of 20 Oct: the tour flown in the real page from the WIP slot, the storage screen's shelf, the
     // garage's clock bake under _page_node with the file as its autosave - the page's own chain each time)
     'tour_real', 'storage_shot', '_clockbake_check',
+    // (PLANE-RENDERS 10 Nov: LISTS-SHOT pictures every plane list; its three validated files are seeded into the real page's
+    // storage shelf (localStorage flydiy.build.<name>), as storage_shot's - the page's own load chain; never flown)
+    'lists_shot',
     // (COWL-RES G3713/G3716: the eye variants' stills and the entry/exit probe hand the file to the real page's
     // GARAGE_SPEC.set - the page's own load chain - and judge what it draws)
     'cowl_res_stills', 'cowl_res_probe',
