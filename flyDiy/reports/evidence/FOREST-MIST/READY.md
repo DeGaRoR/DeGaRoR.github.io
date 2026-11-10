@@ -73,3 +73,45 @@ FMIST, ATMO, FOG, GFX, ASSETS, UISMOKE, WORLDRENDER, CLOUD: PASS (CLOUD after ac
 
 The phone's taps (Q3); the dawn breath's frequency (Q5); the lake's steam fog at dusk (Q4); the offline bake (Q6);
 the contour stretch / altitude layers (built, off - the user preferred the pick).
+
+## For the GPU session that tunes the look (the user, 10 Nov: "I'm also okay to keep tuning the look with a session that has GPU access ... but still take into account what I said")
+
+**The user's notes, in order - the look must keep every one:**
+1. "the distribution starts to be good, but it lacks detail in the shape and the contours, it needs to be further cut
+   through, and probably set less dense overall"
+2. "still too dense, too milky, not aerial enough"
+3. the ladder: "they all look right to me in different conditions" - the weather scales them (section 5's law)
+4. "now it's all too thick ... the density could vary through the cloud itself, less dense on the borders"
+5. A/B: the weather on both the amount and the density read best; "the finer ones are best, the dense ones look bad"
+6. "a lot of your mist reads as going downhill ... in my references they're rather horizontal layers ... some read as
+   the mountain being showered by mist" - then: the run11 sheet "was looking best, the ones after that are sort of
+   worse"; the wind-stretched one "reads too vertical, and the valley is too light in density and amount"
+7. from the air: "it almost looks like snow from far away ... a big blanket of very small, very thick fog that almost
+   looks like wool ... if there was as much fog on the island there would be fog everywhere"
+
+**The reference**: `s08_PICK_run11.jpg` (the ground look to keep) and `target_concept.webp` (the goal: wisps lying
+mid-slope between tree layers, backlit, thin, crowns through them).
+
+**The dials** (all `FMIST.S.*`, live in the console with `?fmist=c` or the row on; the ones marked * are baked into the
+GLSL at the start - change them in forest_mist.js and reload):
+| dial | now | what it does |
+|---|---|---|
+| `rhoMax` | 0.003 | per metre at a full pocket's heart on the heaviest day |
+| `octaves` | 2 | the weather's ladder below it (2 = down to a quarter) |
+| `covK`* | 0.9 | how much of a place's weight can be mist (the threshold) |
+| `period` (lane) | 110 | the wisp's cell, m |
+| `detailK`*, `erode`* | 9, 0.5 | the erosion's scale (~12 m) and depth |
+| `soft`*, `stretch`* | 0.5, 2.1 | the body's edge ramp and the noise's contrast |
+| `swing`* | 30 | how far the band edges heave (m) |
+| `lidM`*, `lidK`* | 25, 70 | the valley pool's lid over the floor (m) |
+| `wispLo`*, `wispHi`* | -12, 40 | the wisp band about the canopy top (m) |
+| `odCap`* | 1.5 | the soft ceiling per ray (the air's view) |
+| `farLo`*, `farHi`*, `farK`* | 2500, 7000, 0.4 | the far fade |
+| `surfN`, `eyeN`, `surfM`, `eyeM` | 4, 2, 450, 350 | the veil's taps and windows (cost) |
+| `fwd`, `sunK` | 2.2, 0.5 | the droplet lobe and the beam's share (backlit glow) |
+| `elong`*, `strat`* | 1, 0 | contour stretch and altitude layers - built, OFF (the user preferred without; note 6) |
+| `force` | null | `{ pool, wisp, oro }` pins the weather for a sheet |
+
+**The rigs**: the weather panel's "the season" moments for the conditions; `tools/forest_mist/stage.js` with
+`tools/soft_still.js` for sheets; `tools/forest_mist/raycpu.js` (the veil per pixel on the CPU, seconds; it does not
+model the far fade) and `glsltest.js` (the GLSL against the CPU mirror) for quick checks off the GPU.
