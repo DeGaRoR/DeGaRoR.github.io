@@ -7784,7 +7784,7 @@
       L.gndCol.copy(WF.hemi.groundColor || WF.hemi.color).multiplyScalar(WF.hemi.intensity * 0.5); }
     // the dust is its ground's colour (the user, 10 Nov): the drawn surface of each class (a grass strip's dust is the soil
     // under it: dirt's), memoised in the pavement - five map reads a frame while a cloud lives
-    if (typeof PAVEMENT !== 'undefined' && PAVEMENT.surfaceColor && F.draw.setGround) for (let ci = 0; ci < DUST_GROUND.length; ci++) if (DUST_GROUND[ci]) F.draw.setGround(ci, PAVEMENT.surfaceColor(DUST_GROUND[ci]));
+    if (typeof PAVEMENT !== 'undefined' && PAVEMENT.surfaceColor && F.draw.setGround && DUST.LOOK.ground) for (let ci = 0; ci < DUST_GROUND.length; ci++) if (DUST_GROUND[ci]) F.draw.setGround(ci, PAVEMENT.surfaceColor(DUST_GROUND[ci]));
     camera.updateMatrixWorld();
     F.draw.sync(camera, L);
     F.ms = performance.now() - t0;

@@ -189,7 +189,7 @@ console.log('5b. the look (the user, 10 Nov: "the color of the dirt cloud is not
   const f = DUST.GLSL.frag;
   yes(/vTau \* dens \* 2\.0 \* uDens/.test(f) && /min\(uFwdMax,/.test(f), 'the shader draws them (uDens on the optical depth, uFwdMax on the lobe)');
   const app = src('src/viewer/app.js'), pv = src('src/viewer/pavement.js');
-  yes(/PAVEMENT\.surfaceColor && F\.draw\.setGround/.test(app) && /function surfaceColor\(cls\)/.test(pv) && /groundColor, surfaceColor,/.test(pv),
+  yes(/PAVEMENT\.surfaceColor && F\.draw\.setGround && DUST\.LOOK\.ground/.test(app) && /function surfaceColor\(cls\)/.test(pv) && /groundColor, surfaceColor,/.test(pv),
     'the page hands the drawn surface colour (PAVEMENT.surfaceColor -> the batch setGround)');
 }
 
