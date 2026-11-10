@@ -1250,14 +1250,14 @@ window.CAGE_PAGE = {
       // enlarge the cut slightly and extrude it in the direction of the boom ... bevel the edges"): the tube's root aft of
       // the bulkhead (the axis still read there), and the SOCKET where it enters the body - a bevelled sleeve of the
       // body's skin round it, found where the axis meets the skin (_cage_access.js)
-      ['rodRootAft', 'rod root aft of the bulkhead', 0, 3, 0.005,
+      ['rodRootAft', 'rod root aft of the bulkhead (0 = the bulkhead, or in a hull\'s float section)', 0, 3, 0.005,
        { when: P => +P.boomStyle === 1 && !+P.boomTwin, dim: 'len', absent: 0 }],
-      ['rodSocket', 'socket where the rod enters', 0, 1, 1, ['none', 'bevelled sleeve'],
+      ['rodSocket', 'socket where the rod enters', 0, 2, 1, ['auto (with a hull\'s float section)', 'bevelled sleeve', 'none'],
        { when: P => +P.boomStyle === 1 && !+P.boomTwin, absent: 0 }],
       ['rodSocketLen', 'socket sleeve length (m)', 0.02, 0.5, 0.005,
-       { when: P => +P.boomStyle === 1 && !+P.boomTwin && +P.rodSocket, absent: 0.12 }],
+       { when: P => +P.boomStyle === 1 && !+P.boomTwin && Math.round(+P.rodSocket || 0) !== 2, absent: 0.12 }],
       ['rodSocketGap', 'socket clearance round the rod (m)', 0.002, 0.06, 0.001,
-       { when: P => +P.boomStyle === 1 && !+P.boomTwin && +P.rodSocket, absent: 0.012 }],
+       { when: P => +P.boomStyle === 1 && !+P.boomTwin && Math.round(+P.rodSocket || 0) !== 2, absent: 0.012 }],
       ['boomLen',   'length',          1.0, 6.0, 0.01, { dim: 'len' }],
       // (aft roof/keel = the boom frame; the cone's section = the tail
       // frame, both in 0 · frames since T2.1)

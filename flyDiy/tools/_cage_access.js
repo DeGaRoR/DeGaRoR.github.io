@@ -458,12 +458,14 @@ function rodSite(row, P, needs, atSL, atLV, bags) {
 // a few diameters inside the deepest crossing - for the `rodRootAft` row.
 function rodSocket(ctx, P, grp) {
   window.CAGE_ROD_SOCKET = null;
-  if (!+P.rodSocket || !CG2 || !CG2.cageSpec || !CG2.cageResolve || !K || !K.revolve || !K.Bag) return;
+  const sockMode = Math.round(+P.rodSocket || 0);                       // 0 auto, 1 on, 2 off
+  if (sockMode === 2 || !(+P.boomStyle === 1) || +P.boomTwin || !CG2 || !CG2.cageSpec || !CG2.cageResolve || !K || !K.revolve || !K.Bag) return;
   const mesh = ctx && ctx.mesh;
   if (!mesh || !mesh.V || !mesh.F) return;
   let S, R;
   try { S = CG2.cageSpec(Object.assign({}, P)); R = CG2.cageResolve(S); } catch (e) { return; }
   if (!S.rod || S.rod.twin || !R || !R.rodSpan) return;
+  if (sockMode === 0 && !S.hullTaper) return;                           // auto: a rod rooted in a hull's float section
   const FS = (CG2.CAGE_UNIT || 1) * (P.planeScale || 1), sp = R.rodSpan;
   const zAx = sp.zAx != null ? sp.zAx : sp.zRoot, tI = Math.tan(S.rod.incl || 0);
   const axY = z => (S.rod.y + tI * (zAx - z)) * FS;                    // metres, z in cage units

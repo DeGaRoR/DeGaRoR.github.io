@@ -449,6 +449,22 @@ function cageResolve(S) {
   // a hull's underside on the way. 0 (absent): the bulkhead, every build before
   const zRodAx = zPaxA;
   if (ROD && ROD.rootAft > 0) zRodRoot = zPaxA - ROD.rootAft;
+  // THE RULE (the user, 10 Nov: "when there is a hull and taper ... we don't have to reach the aft bulkhead section right
+  // behind the cabin. We have to reach the float section, which will generate the proper socket"): a rod over a hull's
+  // buoyant taper (HTAP) roots INSIDE the float section - two diameters forward of the float's own pillar, never forward
+  // of the bulkhead - and enters it through its socket (_cage_access.js, on by default there). rodRootAft > 0 overrides
+  // (measured once the float's rings exist, rodRootIn below: a few diameters forward of the first station where the
+  // tube is wholly inside the float's section, at least two forward of its pillar)
+  const rodRootIn = () => {
+    if (!ROD || ROD.rootAft > 0 || !HTAP) return zRodRoot;
+    const r = ROD.r, yAx = z => ROD.y + Math.tan(ROD.incl || 0) * (zRodAx - z);
+    const pts = rings.filter(Q => !Q.rod && Q.lv && Q.lv.roof && Q.lv.keel && Q.lv.waist && Q.lv.waist.z <= zPaxA + 1e-6)
+      .map(Q => ({ z: Q.lv.waist.z, top: Q.lv.roof.y, bot: Q.lv.keel.y })).sort((a, b) => a.z - b.z);
+    let zIn = null;
+    for (const q of pts) { const y = yAx(q.z); if (y + 1.25 * r <= q.top && y - 1.25 * r >= q.bot) { zIn = q.z; break; } }
+    const floor = zTaperA + 4 * r;
+    return Math.min(zPaxA, Math.max(floor, zIn != null ? zIn + 4 * r : floor));
+  };
   // rod rings are regular 14-gons on the rod circle (6 levels + the two
   // centre columns): even spacing = the CC limit is a circle. Control
   // radius compensates the n-gon shrink so the DISPLAYED tube hits
@@ -841,7 +857,7 @@ function cageResolve(S) {
     // cap the cowl and the engine bolt to (capFace, as the cowl nose's);
     // an aerodynamic one in G19's domed point
     return { rings, bays, aero: true, aeroFace: CFG.noseFinish !== 'aero',
-             rodSpan: ROD ? { zRoot: zRodRoot, zAx: zRodAx, zTip: zCap, ring: rodRing }
+             rodSpan: ROD ? { zRoot: (zRodRoot = rodRootIn()), zAx: zRodAx, zTip: zCap, ring: rodRing }
                           : null };
   }
 
@@ -1114,7 +1130,7 @@ function cageResolve(S) {
   // for whatever the bubble becomes.)
 
   return { rings, bays, chain, noseTwin, noseRing, mirrorZ,
-           rodSpan: ROD ? { zRoot: zRodRoot, zAx: zRodAx, zTip: zCap, ring: rodRing } : null };
+           rodSpan: ROD ? { zRoot: (zRodRoot = rodRootIn()), zAx: zRodAx, zTip: zCap, ring: rodRing } : null };
 }
 
 // ---------------------------------------------------------------------------
@@ -6933,7 +6949,7 @@ function cageInterior(m, S) {
       };
       // ---- the bolted socket on the aft face ----
       // (PETREL-LS: none when the tube's root is aft of the bulkhead - nothing to bolt; held at its socket instead)
-      const rootHW = !(S.rod.rootAft > 0);
+      const rootHW = !(S.rod.rootAft > 0 || S.hullTaper);   // (and the float-rooted rod, the rule above)
       const zF = zPax0 - 0.012;
       if (rootHW) plate(rr + 0.055, rr + 0.006, zF, 0.008);
       if (rootHW) sleeve(rr + 0.007, zF - 0.004, zF - 0.095);
@@ -8461,7 +8477,7 @@ const CAGE_PARAMS = {
   // tightening's aft section; cageLiftLegacy lifts a saved factor.)
   taperOn: 0, taperLen: 0.6, taperPanels: 0,
   boomStyle: 0, rodY: 0, rodD: 0.12, rodIncl: 0,
-  rodRootAft: 0, rodSocket: 0, rodSocketLen: 0.12, rodSocketGap: 0.012,   // PETREL-LS: the tube's root aft of the bulkhead; its socket in the skin (_cage_access.js)
+  rodRootAft: 0, rodSocket: 0, rodSocketLen: 0.12, rodSocketGap: 0.012,   // PETREL-LS: the tube's root aft of the bulkhead (0 = the rule: the bulkhead, or a hull's float section); its socket (0 auto, 1 on, 2 off)
  
   // twin booms (2026-09-04): drawn by the wing layer off the trailing edge.
   // G267: the LOFT — a section (width x height) at each end of the body, a
