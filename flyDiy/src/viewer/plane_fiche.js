@@ -375,6 +375,13 @@
       S.remove(lights); key.dispose && key.dispose(); rim.dispose && rim.dispose(); amb.dispose && amb.dispose(); rt.dispose();
       for (const m of hid) m.visible = true;
       root.rotation.x = pitch0; root.updateMatrixWorld(true);
+      // THE SHED'S FIRST FRAME (R3 freeze, the box 10 Nov 03:30: the twin's first frame after the hold was ONE 4482 ms task,
+      // the renderer's programs 62 -> 79 inside it): the build-back above makes the aeroplane's materials anew, keyed for
+      // the room's lights again, and the loop's first frame linked all seventeen at once. They are compiled here in slices,
+      // with the room as it will be drawn (the studio's lights gone, the hidden overlays back), while the frame is still held
+      if (held && P.compileScreen) {
+        try { const t1 = nowMs(); await P.compileScreen(root, S); tm.backCompileMs = Math.round(nowMs() - t1); } catch (e) { tm.backCompileErr = String(e && e.message || e); }
+      }
       if (held) hold(false);
     }
     tm.ms = Math.round(nowMs() - t0);
