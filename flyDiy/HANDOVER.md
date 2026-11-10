@@ -314062,3 +314062,10 @@ THE READIES:
 - night-stretch (NIGHT-LOOK): star reflections spread by the waves, on at 0.03 (the user's call).
 - well-clamp (SEAPLANES-LAND): the retract well depth clamped under the skin.
 - hangar-view-c (Game): the hangar view, with the shed-frame updateMatrixWorld fault fixed after L36d.
+
+### LIVERY-TEXT (AIRCRAFT-LOOKS, 10 Nov, for L37b; the user's yes 13:01 on the Cub's lettering)
+- A plane gets six text pieces besides the registration (one line, 24 characters each), in six faces from google/fonts fetched on first use (577 KB in media/fonts, the RFN faces whole). Accents and Polish letters draw correctly. The text lives in paint (`t<n>On/Txt/Face/B/I/H/L/C`) and is drawn into the decal atlas. GATE LIVERYTEXT.
+- plane_shot `--gfx <preset>` (default laptop, as before) takes stills at the desktop's 1024 px decal pages vs the phone's 512.
+- NAMED COST: the decal slots go 9 -> 15, measured as the cold link of the 5 AEROSKIN programs on a fresh profile (RTX 3080, ANGLE D3D11): 4.8 s wall -> 5.3 s (+0.5 s, +10%).
+- Open: text over a door or a window doesn't show. On the Twin 4b's test still, "Busher Air" at L 1.9 lay over the cabin door and windows, and only its last letter showed. Check whether doors carry the text decals before the Cessna's lettering (a GPU still owed).
+- Gates 10 Nov 15:46 on L37a master db2298a41: LIVERYTEXT PASS (its verdict line made exact, 5f4d43035), MEDIA NAMES BOOT PASS. LIVERY FAIL 2 of 328 (cub_2026-09-20 strut castAlu) is the same on master db2298a41, not this ready's.
