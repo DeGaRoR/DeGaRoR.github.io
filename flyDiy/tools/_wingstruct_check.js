@@ -168,7 +168,7 @@ function run(WSsrc, files) {
   // off the stringers
   { const d = DEFS.metal, F = WS.sparFaces(d, 0, lib)(1.6), KD = WS.KINDS.alloy;
     ok(Math.abs(F.front - (0.5 * KD.sparW * 1.6 + 0.004)) < 1e-12 && Math.abs(F.rear - (0.5 * KD.rearW * 1.6 + 0.004)) < 1e-12, 'the spars\' faces: half the drawn width and 4 mm');
-    ok(/const s = wingTankClear\(s0\);/.test(files.energy) && /WS\.sparFaces\(W\.def, 0, null, full\)/.test(files.energy) && /END = 0\.012, VT = 0\.014/.test(files.energy), 'the wing tank is drawn clear of the spars, the closing ribs, the stringers'); }
+    ok(/const s = wingTankClear\(s0\);/.test(files.energy) && /m\.name = nm \+ '_ends'/.test(files.energy) && /WS\.sparFaces\(W\.def, 0, null, full\)/.test(files.energy) && /END = 0\.012, VT = 0\.014/.test(files.energy), 'the wing tank is drawn clear of the spars, the closing ribs, the stringers'); }
   // every construction row has a kind (and fabricAlu, REAL-FIGURES-3's, before it lands)
   for (const r of Object.keys(C('GEN_SURF_MATERIALS')).concat(['fabricAlu'])) ok(r === 'fabric' || !!WS.KINDS[r], 'the row ' + r + ' has a kind');
   ok(!!(WS.KINDS.dbox && WS.KINDS.cub), 'the wooden row\'s two kinds');

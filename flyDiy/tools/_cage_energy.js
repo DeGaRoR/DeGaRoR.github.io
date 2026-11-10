@@ -2335,7 +2335,7 @@ function wingTankClear(s) {
 // outlet fitting and its line running inboard, the vent line, two hold-down straps over the top. Off its own outline:
 // the bay's sections where the wing was probed (s.ribs: [z, yTop, yBot] rows), its box otherwise. Garage and fiche only:
 // every piece is a marker (edMarker - the join never flies it), in the vessel library's own hardware / seal / cap slots.
-function wingTankDress(group, s, i, bad) {
+function wingTankDress(group, s, i, bad, v) {
   const T3 = THREE, sg = s.x1 >= s.x0 ? 1 : -1, nm = 'edVessel_' + i + (s.sign > 0 ? 'R' : 'L') + '_dress';
   // the outline at a span station x: [[z, y], ...] round the section (top fore -> aft, bottom aft -> fore)
   const outline = x => {
@@ -2378,6 +2378,14 @@ function wingTankDress(group, s, i, bad) {
   };
   const at = (x, z, y) => [x, y, z];
   const L = MathL.abs(s.x1 - s.x0), xa = s.x0 + sg * 0.004, xb = s.x1 - sg * 0.004;
+  // THE END PLATES (the user 10 Nov: the bay's loft is open at its ends - the blue fuel showed through the closing rib's
+  // holes): each end's outline filled, in the shell's own material
+  { const ends = []; for (const x of [s.x0, s.x1]) { const O = outline(x), n = O.length, c = O.reduce((q, p) => [q[0] + p[0] / n, q[1] + p[1] / n], [0, 0]);
+      const b0 = pos.length / 3; pos.push(x, c[1], c[0]); for (const p of O) pos.push(x, p[1], p[0]);
+      for (let j = 0; j < n; j++) idx.push(b0, b0 + 1 + j, b0 + 1 + (j + 1) % n); ends.push(1); }
+    if (idx.length) { const g = new T3.BufferGeometry(); g.setAttribute('position', new T3.Float32BufferAttribute(pos.slice(), 3)); g.setIndex(idx.slice()); g.computeVertexNormals();
+      const m = new T3.Mesh(g, wingShellMat(bad, i, v)); m.name = nm + '_ends'; m.userData.edMarker = 1; group.add(m); }
+    pos.length = 0; idx.length = 0; }
   // the end flanges (a welded lip round each end plate) and two hold-down straps over the top, rubber-lined
   for (const x of [xa, xb]) tube(outline(x).map(p => at(x, p[0], p[1])), 0.006, 6, true);
   mesh('hard', 'flange');
@@ -2706,7 +2714,7 @@ function drawResults(group, ctx, results) {
         // (VESSEL_GEN.wingRibs off the wing layer's probes): the loft, and
         // the fuel inside it cut flat at the slider's level. The box below
         // is what a wing with no probe still gets.
-        if (!wet && EN.kind !== 'battery') wingTankDress(group, s, i, bad);   // WING-STRUCTURE: its hardware (the cutaway shows it)
+        if (!wet && EN.kind !== 'battery') wingTankDress(group, s, i, bad, r.v);   // WING-STRUCTURE: its hardware (the cutaway shows it)
         if (s.ribs && s.ribs.length >= 2 && VM.wingLoft) {
           const mat = wet ? matWet(bad) : wingShellMat(bad, i, r.v);
           if (!wet)
