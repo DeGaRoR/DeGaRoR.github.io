@@ -290,7 +290,7 @@ const CAGE_PARTS = [
       // HULL-B1: the boat hull's own rows (the shared ones are the frames above)
       ['boat hull', ['hullOn', 'hullBeta', 'hullBetaBow', 'hullBetaA', 'hullSteps', 'hullStepZ', 'hullHs',
                      'hullFlute', 'hullFluteN', 'hullFluteAt', 'hullFluteBow', 'hullFluteAft', 'hullStrakes', 'hullStrakeW', 'hullStrakeLen', 'hullRocker', 'hullSkirt',
-                     'hullStep2Z', 'hullHs2', 'hullTips', 'hullTipAt', 'hullTipPlane', 'hullTipKg', 'hullTipY', 'hullAftDeg', 'hullNoseBase', 'hullTubLen', 'hullTubRise', 'hullTubEnd', 'hullTubH', 'hullSpon', 'hullSponX', 'hullSponW', 'hullSponKg', 'hullSponY', 'hullSponC', 'hullSponK', 'hullSponT', 'hullSponTaper', 'hullSponDih']],
+                     'hullStep2Z', 'hullHs2', 'hullTips', 'hullTipAt', 'hullTipPlane', 'hullTipLen', 'hullTipKg', 'hullTipY', 'hullAftDeg', 'hullNoseBase', 'hullTubLen', 'hullTubRise', 'hullTubEnd', 'hullTubH', 'hullSpon', 'hullSponX', 'hullSponW', 'hullSponKg', 'hullSponY', 'hullSponC', 'hullSponK', 'hullSponT', 'hullSponTaper', 'hullSponDih']],
       ['section angles', ['topAngCeil', 'topAngRoof'], EXPERT],
       ['creases', ['crPillar', 'crBand', 'crCap', 'crFrame'], EXPERT],
       ['compensation', ['topComp'], EXPERT],

@@ -471,7 +471,7 @@ window.CAGE_TIPFLOAT_DRAW = ctx => {
   const TB = CG2.cageHullTable(CG2.cageHullLines(P), FS);
   if (!TB) return;
   const yK = TB.yStep * FS + yRel;                       // the tip float's keel, cage metres
-  const Pt = HY.tipFloatParams(kg), tAt = +P.hullTipAt || 0.85;
+  const Pt = HY.tipFloatParams(kg, +P.hullTipLen || 0), tAt = +P.hullTipAt || 0.85;   // (PETREL-LS: hullTipLen, the frame's own)
   tipGroup = new THREE.Group();
   tipGroup.name = 'cageLayer:float';
   scene.add(tipGroup);

@@ -425,6 +425,7 @@ window.CAGE_PAGE = {
         ['hullTipAt',   'tip floats at (of the semispan)', 0.30, 0.98, 0.01, { when: P => +P.hullOn && [1, 3].includes(Math.round(+P.hullTips)) }],
         // HULL-B45: under which plane the strut floats hang (a biplane: the second - the Super Petrel's lower wing)
         ['hullTipPlane', 'tip floats under', 0, 1, 1, ['the first plane', 'the second plane'], { when: P => +P.hullOn && +P.w2On && [1, 3].includes(Math.round(+P.hullTips)) }],
+        ['hullTipLen',  'tip float length (0 = the family\'s own)', 0, 2.5, 0.01, { when: P => +P.hullOn && Math.round(+P.hullTips) === 1, absent: 0 }],   // (PETREL-LS)
         ['hullTipKg',   'tip float, each (displacement)', 0, 600, 1, { when: P => +P.hullOn && [1, 3].includes(Math.round(+P.hullTips)), dim: 'kg' }],
         ['hullTipY',    'tip float keel over the step keel', -1, 2.5, 0.005, { when: P => +P.hullOn && [1, 3].includes(Math.round(+P.hullTips)), dim: 'len' }],
       ], 'open'],

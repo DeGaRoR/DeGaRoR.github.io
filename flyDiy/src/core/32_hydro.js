@@ -2029,7 +2029,19 @@ function propDiscs(def) {
 }
 // ...and the tip float's own hull for a displacement (the family scaled: floatParamsFor's pair displaces 1.8 x what
 // it is sized for, so one float sized for kg / 0.9 displaces kg)
-const tipFloatParams = kg => { const P = floatParamsFor(Math.max(5, kg / 0.9)); delete P._keel; return P; };
+// PETREL-LS (the user: "a little something sticking out at the back" - the Super Petrel's 2.0 m floor float's tail over
+// its lowered afterbody; the LS drawing's tip floats are ~1.26 m): `len` (m, the row hullTipLen; 0 = the family's own)
+// SHORTENS the float about its bow - the length, the step station, the shell's mass and its cg shrink with it, the
+// section stays (so it displaces less: a float the family's floor makes 2.0 m for a light boat). Never lengthens.
+const tipFloatParams = (kg, len) => {
+  const P = floatParamsFor(Math.max(5, kg / 0.9)); delete P._keel;
+  if (len > 0 && len < P.L) {
+    const s = len / P.L;
+    P.L *= s; P.xs *= s; P.mFloat *= s;
+    if (Array.isArray(P.cgFloat)) P.cgFloat = [P.cgFloat[0] * s, P.cgFloat[1], P.cgFloat[2]];
+  }
+  return P;
+};
 const FLOAT_METRIC = ['L', 'xs', 'B', 'H', 'hs', 'rChine', 'rGun', 'rLip', 'rTransom', 'railW', 'railT',
                       'keelW', 'keelH', 'skW', 'skH', 'wrDepth'];
 function scaleParams(base, k, over) {
