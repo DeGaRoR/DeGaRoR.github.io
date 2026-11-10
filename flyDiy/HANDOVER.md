@@ -314536,3 +314536,19 @@ Gates: FLOATS, SEAPLANE, PLANEFICHE, HONEST, CERTGATES, HYDRODYN, FLOATSCLASSIC-
 - NAMED COST: the decal slots go 9 -> 15, measured as the cold link of the 5 AEROSKIN programs on a fresh profile (RTX 3080, ANGLE D3D11): 4.8 s wall -> 5.3 s (+0.5 s, +10%).
 - Open: text over a door or a window doesn't show. On the Twin 4b's test still, "Busher Air" at L 1.9 lay over the cabin door and windows, and only its last letter showed. Check whether doors carry the text decals before the Cessna's lettering (a GPU still owed).
 - Gates 10 Nov 15:46 on L37a master db2298a41: LIVERYTEXT PASS (its verdict line made exact, 5f4d43035), MEDIA NAMES BOOT PASS. LIVERY FAIL 2 of 328 (cub_2026-09-20 strut castAlu) is the same on master db2298a41, not this ready's.
+
+## A0 - train L37b, 10 Nov 2026
+
+IN (on L37a db2298a41): wing-structure (a0/wing-structure-eol), real figures 3 back as a fresh commit + ENGINE-DIALS' SKINMAT/PROCURE fix (a0/rf3-return), veg-root c2db41114 (LOOK-1, the stronger roots; the user's 3-level tune rides next), amph-wheels (SEAPLANES: the Petrel's wheels drawn), Wilga gear (a0/wilga-gear-l37b: _cage_gen / _cage_gear / 60_gen_spec conflicts with C172-CLIP, WING-STRUCTURE and REAL-FIGURES resolved by union, both sides kept), star-sky (NIGHT-LOOK: magnitudes, colours, the Milky Way, the turning sky), the R3 fiche + fiche-water (a0/fiche-l37b: build.js file list union with wing_struct.js), livery-text (AIRCRAFT-LOOKS), forest-mist (cloud; the row OFF by default until LOOK-1's timed veil test Wed 04:50 - the user then wants it ON), lists-shot-fix (JOINPARITY: lists_shot.js declared on the page door).
+MERGED THEN REVERTED (return as FRESH commits):
+- liner-back (CABIN): its new Cub/Jodel mass turned STOL, KNIFE, PROCURE, DMGNOSEOVER and DMGSCAR red - gates its ready had not run; bisected on master + liner alone (Temp tree, 19:02-19:11). CABIN re-pins with reasons + Deform's written rulings -> claude/ready/liner-back-2 after Wed 10:50.
+- float-deck (SEAPLANES): PROCURE (the float options' toM) and STOL (floatplane def) red from the deck change; its fix (float-deck-2) not green by the 22:15 cut -> a fresh replay for L38a (float-deck-l38a, with float-deck-contracts).
+A0 IN THE TRAIN: MEDIA wire budget 5.5 -> 6.0 MiB gz (5.54 with this train's code; the user's 8 Nov "decide" and 14 Oct no-page-size-work rule); the 0.30 MiB per-train STEP accepted BY NAME by the user (10 Nov ~22:50, "yes to defaults").
+
+BATTERY (the full set at 16:50, then the re-runs after the reverts): STOL, KNIFE, PROCURE, DMGNOSEOVER, DMGSCAR, CONTRACTS, MEDIA, FMIST, PARKED PASS after the reverts.
+Red as on master (same lines): GEN, TREECRASH, DMGGEAR, DMGDRIVE (the Super Petrel graze row), FRAMECOST (5), ROUNDTRIP (2, the physics worker), ENGCONFIG, JOINPARITY (the Jodel node=page row), LIVERY (2, the cub strut), NEWPLANE-BUILDS (fixed tricycle), POD (c172 since C172-CLIP; its re-bless rides float-deck-l38a), TOUR shard 2 (the float Cessna; fixed by float-deck in L38a), SCENERYED 15 (L37a's strip names; DIRT-STRIP + Game fix it), LOOKS case 3 (night-reds in L38a).
+
+TIMED GATE (16:50-19:00, with the liner + float-deck still in): taxi chase @HOME and @mn_strip 30 fps, 0 frames over 40 ms; no frame over 1 s in any taxi, take-off or flight segment. The floats' water taxi 25.4 fps, uneven 59 %, p90 50 ms (L37a2: 28.6 / 12 %) - one sample, watched. Warm garage 136.7 s (L37a2 180). Rig __timeouts as on L36d/L37a. The two reverts only remove work (the liner's double-sided skin, an analytic estimate), so the measured train is the upper bound.
+Parked fleet re-cooked on this build (parked_cook --check same).
+
+No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change: PHYSICS_V 7, GEN_SPEC_V 10, GEN_CERT_V 7.
