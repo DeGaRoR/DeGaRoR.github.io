@@ -39,7 +39,7 @@ global.FMIST = fresh(path.join(SRC, 'forest_mist.js'));
 ATMO = fresh(path.join(SRC, 'atmo.js'));
 const onG = ATMO.GLSL.MIST;
 yes(FMIST.ON && FMIST.A && FMIST.C, '?fmist=ac turns both techniques on');
-yes(/uniform vec4 uMist\[13\];/.test(onG) && /float fmDens\(vec3 p\)/.test(onG) && /fmOD\(vec3\(uMist\[4\]\.x, y0, uMist\[4\]\.z\), d, D\)/.test(onG), 'the density and the veil live inside MIST_GLSL, 13 lanes');
+yes(/uniform vec4 uMist\[13\];/.test(onG) && !/uniform vec4 uMist\[7\];/.test(onG) && /float fmDens\(vec3 p\)/.test(onG) && /fmOD\(vec3\(uMist\[4\]\.x, y0, uMist\[4\]\.z\), d, D\)/.test(onG), 'the density and the veil live inside MIST_GLSL, 13 lanes');
 yes(ATMO.apUniforms.uMist.value.length === 52, 'the lanes array on is 52 floats');
 global.location = { search: '?fmist=zz' };
 yes(!fresh(path.join(SRC, 'forest_mist.js')).ON, 'an unknown ?fmist value is off');
@@ -90,10 +90,9 @@ yes(L({ cloudCoverEff: 0.9 })[0] < 0.4 * L({ cloudCoverEff: 0 })[0], 'an overcas
 console.log('5. the GRAPHICS row');
 {
   const G = fs.readFileSync(path.join(SRC, 'gfx_settings.js'), 'utf8');
-  const row = /\{ k: 'fmist', label: 'forest mist', reload: true, steps: \[/.test(G);
-  const presets = (G.match(/fmist: 'off', /g) || []).length;
-  yes(row, 'the row exists and is a reload row (the veil is compiled in at the start)');
-  yes(presets === 6, 'every preset names it, OFF until the box has timed it (' + presets + ' of 6)');
+  const presets = (G.match(/fmist: '(off|on)'/g) || []).length;
+  yes(/\{ k: 'fmist', label: 'forest mist', free: true, reload: true, def: 'off', steps: \[/.test(G), 'the row exists: a free reload row, off by default (the veil is compiled in at the start)');
+  yes(presets === 0, 'no preset names it: the desktop presets stay frozen (GATE GFX), the player turns it on (' + presets + ' preset keys)');
   yes(/rows: \['clouds', 'mist', 'fmist', 'glare'\]/.test(G), 'it sits in the sky group');
   global.location = { search: '' }; global.localStorage = { getItem: k => (k === 'flydiy.fmist' ? '1' : null) };
   const F2 = fresh(path.join(SRC, 'forest_mist.js'));
@@ -102,5 +101,6 @@ console.log('5. the GRAPHICS row');
   yes(!fresh(path.join(SRC, 'forest_mist.js')).ON, 'nothing stored, no flag: off');
   delete global.localStorage;
 }
-console.log((fails ? 'GATE FMIST: FAIL' : 'GATE FMIST: PASS') + ' (' + (checks - fails) + '/' + checks + ')');
+console.log((checks - fails) + ' of ' + checks + ' checks');
+console.log(fails ? 'GATE FMIST: FAIL' : 'GATE FMIST: PASS');
 process.exitCode = fails ? 1 : 0;

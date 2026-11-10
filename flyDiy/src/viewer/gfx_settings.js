@@ -133,8 +133,9 @@
     // FOREST-MIST (2026-11-10, futureDesigns/FOREST-MIST-STUDY-2026-11.md): pockets of mist caught in the forest and the
     // valleys, driven by the season's plan and the day (forest_mist.js). Its code is compiled in at the page's start, so
     // turning it ON reloads the page; OFF takes effect at once (the pockets' lane) and compiles it out from the next start.
-    // OFF on every preset until A0's box has timed it (the study SS6-7).
-    { k: 'fmist', label: 'forest mist', reload: true, steps: [
+    // A FREE row (like the towns): no preset names it - the desktop presets are frozen (GATE GFX, the user's rule) - and it
+    // is OFF until the player turns it on, or until A0's box has timed it and a preset takes it (the study SS6-7).
+    { k: 'fmist', label: 'forest mist', free: true, reload: true, def: 'off', steps: [
         { v: 'off', label: 'off', why: 'no pockets of mist in the forest and the valleys' },
         { v: 'on',  label: 'on', why: 'pockets of mist in the valleys and on the wet forest at dawn, after rain and under a low cloud base, as the weather brings them - RELOADS the page' } ] },
     // THE CLOUDS (C1): the volumetric layer, marched at half or full resolution
@@ -280,12 +281,12 @@
     // G1524 (POTATO-DEEP): THE LAPTOP RUNG, under potato - integrated graphics (the user's EliteBook: Intel HD 620, ~1/3 of
     // the GTX 660 potato was cut for, its memory the system's DDR4): potato's rows at half the screen's resolution, the far
     // terrain rough; its BUDGETS row holds less (no target MSAA, the town and forest nearer)
-    laptop:  Object.assign({ ground: 'plain', scale: 0.5,  cover: 'off',  scenery: 'low',  drawDist: 'vis', terrain: 6, aa: 'off',  density: 100, bands: 'near', shadows: 'off',   canopy: 'off', rails: 'off', poles: 'off', glare: 'off', sway: 'off', mist: 'on',    fmist: 'off', clouds: 'off',  water: 'simple', mirror: 'off' }, COLOUR, POST_OFF),
-    potato:  Object.assign({ ground: 'plain', scale: 0.67, cover: 'off',  scenery: 'low',  drawDist: 'vis', terrain: 6, aa: 'off',  density: 100, bands: 'near', shadows: 'off',   canopy: 'off', rails: 'off', poles: 'off', glare: 'off', sway: 'off', mist: 'on',    fmist: 'off', clouds: 'off',  water: 'simple', mirror: 'off' }, COLOUR, POST_OFF),
-    retro:   Object.assign({ ground: 'lean', scale: 0.85, cover: 'lean', scenery: 'lean', drawDist: 'vis', terrain: 2, aa: 'off',   density: 100, bands: 'near', shadows: 'near',  canopy: 'off', rails: 'on', poles: 'off', glare: 'on',  sway: 'off', mist: 'on',    fmist: 'off', clouds: 'off',  water: 'simple', mirror: 'off' }, COLOUR, POST_OFF),
-    current: Object.assign({ ground: 'far1', scale: 1,    cover: 'full', scenery: 'full', drawDist: 'vis', terrain: 2, aa: 'off',   density: 128, bands: 'near', shadows: 'full',  canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'on',    fmist: 'off', clouds: 'half', water: 'simple',   mirror: 'off' }, COLOUR, POST_BLOOM),
-    gamer:   Object.assign({ ground: 'far1', scale: 1,    cover: 'full', scenery: 'full', drawDist: 'vis', terrain: 1, aa: 'msaa', density: 128, bands: 'mid', shadows: 'full',  canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'land',  fmist: 'off', clouds: 'half', water: 'simple',   mirror: 'auto' }, COLOUR, POST_BLOOM),
-    ultra:   Object.assign({ ground: 'full', scale: 1,    cover: 'full', scenery: 'full', drawDist: 'vis', terrain: 1, aa: 'full', density: 200, bands: 'mid', shadows: 'ultra', canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'banks', fmist: 'off', clouds: 'full', water: 'full',   mirror: 'auto' }, COLOUR, POST_BLOOM),
+    laptop:  Object.assign({ ground: 'plain', scale: 0.5,  cover: 'off',  scenery: 'low',  drawDist: 'vis', terrain: 6, aa: 'off',  density: 100, bands: 'near', shadows: 'off',   canopy: 'off', rails: 'off', poles: 'off', glare: 'off', sway: 'off', mist: 'on',    clouds: 'off',  water: 'simple', mirror: 'off' }, COLOUR, POST_OFF),
+    potato:  Object.assign({ ground: 'plain', scale: 0.67, cover: 'off',  scenery: 'low',  drawDist: 'vis', terrain: 6, aa: 'off',  density: 100, bands: 'near', shadows: 'off',   canopy: 'off', rails: 'off', poles: 'off', glare: 'off', sway: 'off', mist: 'on',    clouds: 'off',  water: 'simple', mirror: 'off' }, COLOUR, POST_OFF),
+    retro:   Object.assign({ ground: 'lean', scale: 0.85, cover: 'lean', scenery: 'lean', drawDist: 'vis', terrain: 2, aa: 'off',   density: 100, bands: 'near', shadows: 'near',  canopy: 'off', rails: 'on', poles: 'off', glare: 'on',  sway: 'off', mist: 'on',    clouds: 'off',  water: 'simple', mirror: 'off' }, COLOUR, POST_OFF),
+    current: Object.assign({ ground: 'far1', scale: 1,    cover: 'full', scenery: 'full', drawDist: 'vis', terrain: 2, aa: 'off',   density: 128, bands: 'near', shadows: 'full',  canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'on',    clouds: 'half', water: 'simple',   mirror: 'off' }, COLOUR, POST_BLOOM),
+    gamer:   Object.assign({ ground: 'far1', scale: 1,    cover: 'full', scenery: 'full', drawDist: 'vis', terrain: 1, aa: 'msaa', density: 128, bands: 'mid', shadows: 'full',  canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'land',  clouds: 'half', water: 'simple',   mirror: 'auto' }, COLOUR, POST_BLOOM),
+    ultra:   Object.assign({ ground: 'full', scale: 1,    cover: 'full', scenery: 'full', drawDist: 'vis', terrain: 1, aa: 'full', density: 200, bands: 'mid', shadows: 'ultra', canopy: 'on',  rails: 'on', poles: 'on', glare: 'on',  sway: 'on',  mist: 'banks', clouds: 'full', water: 'full',   mirror: 'auto' }, COLOUR, POST_BLOOM),
   };
   // G1113 (TREES-NEAR, 2026-09-30): gamer draws 'minimum' (the full tree to 30 m, its light rung to 60 m) - the step that held
   // the rule "no regression" against master on the low flight over the forest (60 m AGL, the headline), the Cub's and the
