@@ -1243,7 +1243,7 @@ window.CAGE_PAGE = {
       // G267.1: the rod's inclination against the body, tail up positive,
       // about the bulkhead flange (the user: "set inclination for the twin
       // boom and boom rod options, compared to the body")
-      ['rodIncl',   'rod inclination (tail up)', -12, 12, 0.1,
+      ['rodIncl',   'rod inclination (tail up)', -12, 20, 0.1,   // (PETREL-LS: the LS boom climbs ~12-13 deg; 12 was the cap)
        { when: P => +P.boomStyle === 1 && !+P.boomTwin }],
       ['boomLen',   'length',          1.0, 6.0, 0.01, { dim: 'len' }],
       // (aft roof/keel = the boom frame; the cone's section = the tail
