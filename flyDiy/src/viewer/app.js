@@ -5662,10 +5662,11 @@
   // (tools/dmg_wall_census.js). Measured: it takes the lining's leaks but not the window beads' (most of the black), so
   // it is the FALLBACK - it runs only on the old binding (?wallbind=0); the inherited one (G1855-G1857) keeps the
   // lining whole on its covering
-  // G3770-G3773 (DMG-LOOKS, dmg_members.js says what and why): ?dmglook=1 (window.FLYDIY_DMGLOOK = true, read at load) -
-  // the wreck's frame members drawn by material: the parting rule (skin_break.js R.look) and the member pool, parked with
-  // the world (worldSettle) and drawn once something is broken. OFF by default: nothing here runs, nothing is made
-  try { if (/[?&]dmglook=1(&|$)/.test(location.search || '')) window.FLYDIY_DMGLOOK = true; } catch (e) {}
+  // G3770-G3773 (DMG-LOOKS, dmg_members.js says what and why): the wreck's frame members drawn by material: the parting
+  // rule (skin_break.js R.look) and the member pool, parked with the world (worldSettle) and drawn once something is
+  // broken. G3774 (the user, 10 Nov: "absolutely no reason not to"): ON BY DEFAULT - ?dmglook=0 (or window.FLYDIY_DMGLOOK
+  // = false before load) is the old drawing, the A/B; read at load
+  try { if (/[?&]dmglook=0(&|$)/.test(location.search || '')) window.FLYDIY_DMGLOOK = false; else if (window.FLYDIY_DMGLOOK !== false) window.FLYDIY_DMGLOOK = true; } catch (e) {}
   const lookOn = () => window.FLYDIY_DMGLOOK === true && typeof DMG_MEMBERS !== 'undefined' && !!window.SKIN_BREAK;
   if (lookOn()) SKIN_BREAK.OPT.looks = true;
   const LOOK = { P: null, vB: -1, M: null, mFor: null, plans: 0, ms: 0, msMax: 0, mMs: 0, slots: 0, pools: null, poolsFor: null, lateLink: 0,
@@ -14988,7 +14989,7 @@
         contactMesh = CONTACT_SHADOW.make(THREE); scene.add(contactMesh); }
       // G2359 (DMG-SCAR): the scar's decal, parked in the world before its compile (its program linked with the world's)
       if (!scarMesh && typeof GROUND_SCAR !== 'undefined' && scarPageOn()) { scarMesh = GROUND_SCAR.make(THREE); scene.add(scarMesh); }
-      // G3770 (DMG-LOOKS): the model's tube pools, parked likewise (?dmglook=1 only; their slot textures allocated now)
+      // G3770 (DMG-LOOKS): the model's tube pools, parked likewise (DMG-LOOKS on - the default since G3774, ?dmglook=0 off; their slot textures allocated now)
       if (scarPageOn()) lookPools(false);
       // DIRT-DUST: the dust's batch, parked likewise (hidden; its one program linked by the roll-out's compile)
       if (!dustFx) dustMake();
