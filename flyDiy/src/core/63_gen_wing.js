@@ -614,10 +614,14 @@ function genBeamInto(M, b, N, B) {
     let e1 = genV3.norm(genV3.cross(ax, up)), e2 = genV3.cross(ax, e1);
     // 9 mm across for a wire: still about twice a real tie rod, so it reads at
     // distance, but 12 mm left the tailwheel looking braced by scaffolding poles
-    const r = b.vis === 'wire' ? 0.0045 : GEN_TUBE_R[b.cls] * (b.ext ? 1.15 : 1);
+    // STRUT-OPTIONS (2026-11-10): a round lift strut (b.round, the wing's 'strut section' row) is a tube of the drag's
+    // own diameter, and a jury strut (b.strut 'jury') the jury's frontal; absent, the lines they always were
+    const r = b.vis === 'wire' ? 0.0045
+      : b.round ? 0.5 * (b.strut === 'jury' ? GEN_STRUT_OPT.juryT : GEN_STRUT_OPT.tubeD)
+      : GEN_TUBE_R[b.cls] * (b.ext ? 1.15 : 1);
     // Only a wing's external member is a lift strut. Every `vis === 'wire'` beam
     // 61_gen_frame.js emits is `cls: 'gear'`, so no wire reaches this branch.
-    const lift = b.ext && (b.cls === 'wing' || b.cls === 'cabane' || b.cls === 'interplane');
+    const lift = !b.round && b.ext && (b.cls === 'wing' || b.cls === 'cabane' || b.cls === 'interplane');
     if (lift) {
       // chord fore-and-aft: body x, projected perpendicular to the strut axis
       const d = ax[0];

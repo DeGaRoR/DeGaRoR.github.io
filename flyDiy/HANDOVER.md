@@ -352,6 +352,16 @@ monotone and inside Cox-Munk; the tile periodic, zero-mean, deterministic.
 What it cannot hold is the picture: that is `tools/cloud_shot.js` over the
 east coast (see G460).
 
+GATE STRUTOPT (STRUT-OPTIONS 2026-11-10, core, ~3 s) holds the wing's lift-strut
+options (`wgStrutSec` -> `bracing.section 'tube'`, `wgJury` -> `bracing.jury
+'wing'|'cabin'`): absent rows are the old bytes (nodes, beams, params, cert key
+on the Cub, the Cessna, the Ruckus); every option is rank 3n-6 and symmetric on
+one strut and the V pair; a jury build has its clamps, its juries drawn as the
+struts are, each strut half at twice the class k; the mass and the drag added are
+exactly the bill (62_gen_aero genStrutOptCdA, GEN_STRUT_OPT's sourced figures).
+`tools/_strut_opt_digest.js` freezes every shipped build's frame through the load
+door for a before/after diff. See STRUT-OPTIONS-READY.md.
+
 GATE HOTHIGH (appended G72, full tier) is the same air with an aeroplane in
 it, which is a different claim: that the model REACHES the wing and the
 engine. Four sections — the solver reporting the air the model says it is

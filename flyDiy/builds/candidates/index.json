@@ -137,6 +137,12 @@
       "name": "Ruckus",
       "note": "the backcountry Ruckus: the Rotax 582, 26-inch bush wheels, Beringer brakes, a locking tailwheel, two tanks",
       "from": "RUCKUS (builds/edits/ruckus_2026-11-09.edits.json)"
+    },
+    {
+      "file": "ruckus_struts_2026-11-10.json",
+      "name": "Ruckus (round struts, jury)",
+      "note": "the standard Ruckus with the wing's new strut options: round-tube lift struts and a jury strut back to the cabin (STRUT-OPTIONS)",
+      "from": "STRUT-OPTIONS (builds/edits/ruckus_struts_2026-11-10.edits.json)"
     }
   ]
 }
