@@ -1365,7 +1365,9 @@ function sites(scene, group, P) {
       const inside = c => {
         if (!c) return false;
         const n = c.n || [0, -1, 0];
-        for (const d of [0, 0.003, 0.006, 0.010, 0.014]) {
+        // (10 Nov: up to 6 mm only - a 10 mm drop hung the twin's left pax lamp under the bare aluminium by the window
+        // pillar, CABINLAMP red; a deeper drop gives the site up and the ladder looks a little further aft)
+        for (const d of [0, 0.002, 0.004, 0.006]) {
           const q = [c.x + n[0] * d, c.y + n[1] * d, c.z + n[2] * d];
           if (skinOver(q, n, R)) { if (d) { c.x = q[0]; c.y = q[1]; c.z = q[2]; c.drop = d; } return true; }
         }
