@@ -47,6 +47,14 @@
     {"n":43,"list":"internal","name":"Super Petrel V1","file":"builds/candidates/review/superpetrel_V1.json","note":"folding knee mains (gearFold 8), nose into the bow; its nose is messy (s2Drop -0.04)"},
     {"n":44,"list":"internal","name":"Super Petrel V2","file":"builds/candidates/review/superpetrel_V2.json","note":"rigid-L mains into the lower wing (gearFold 9)"},
     {"n":45,"list":"internal","name":"Super Petrel V3","file":"builds/candidates/review/superpetrel_V3.json","note":"V2 + clean nose, no flaps, spray strakes - \"a very nice little plane\" (the user)"},
-    {"n":46,"list":"internal","name":"Super Petrel V4","file":"builds/candidates/review/superpetrel_V4.json","note":"V3 + the central faired pylon, the engine on an 8 cm pylon on the wing"}
+    {"n":46,"list":"internal","name":"Super Petrel V4","file":"builds/candidates/review/superpetrel_V4.json","note":"V3 + the central faired pylon, the engine on an 8 cm pylon on the wing"},
+    {"n":47,"list":"candidates","name":"Super Petrel V4.2","file":"builds/candidates/superpetrel_V4_2.json","note":"the boom swept up from the stern, the fuel in the lower wings - REAL-FIGURES"},
+    {"n":48,"list":"candidates","name":"Ruckus (round struts, jury)","file":"builds/candidates/ruckus_struts_2026-11-10.json","note":"STRUT-OPTIONS' test variant"},
+    {"n":49,"list":"candidates","name":"Ruckus (backcountry)","file":"builds/candidates/ruckus_2026-11-09.json","note":"the 582, bush wheels - REAL-FIGURES"},
+    {"n":50,"list":"candidates","name":"Ruckus (standard)","file":"builds/candidates/ruckus_std_2026-11-09.json","note":"the B&B sheet's airframe, Polini 303 - REAL-FIGURES"},
+    {"n":51,"list":"candidates","name":"Carbon Cub SS","file":"builds/candidates/carbon_cub_ss.json","note":"the STOL Cub on the CC340 (engine dials), slats, the stol flap, Oratex on aluminium spars - REAL-FIGURES-3"},
+    {"n":52,"list":"candidates","name":"Piper Cub, J-3 chord","file":"builds/candidates/cub_chord160.json","note":"the official Cub at the J-3's 1.60 m chord (16.5 m2) - REAL-FIGURES-3"},
+    {"n":53,"list":"candidates","name":"PA-18 floats, PA-18 chord","file":"builds/candidates/pa18_floats_chord160.json","note":"the float Super Cub at the PA-18's 1.60 m chord - REAL-FIGURES-3"},
+    {"n":54,"list":"candidates","name":"Jodel D112, D.112 geometry","file":"builds/candidates/jodel_geo.json","note":"the official Jodel on the D.112's wing (12.76 m2, rounded tips), 6.21 m, its 60 L tank ahead of the pilot - JODEL-GEO"}
   ]
 }
