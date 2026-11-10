@@ -20,6 +20,12 @@
   // an eye from above: the garage's overhead lights wash a top surface out (5 Nov, measured on the twin and the Tiger Moth: room at 20-50 % brings its colour back, the reflection changes nothing)
   const STUDIO = { key: 1.5, rim: 1.8, room: 1 }, CUT_STUDIO = { key: 1.0, rim: 0.5, amb: 0.3, room: 0.35 };
   const NEAR_OFF = ['wing', 'wing2', 'brace', 'light', 'hinge', 'access'];   // the cutaway's near half also loses these (the user 4 Nov: NEAR WINGS OFF)
+  // WING-STRUCTURE (the user 9 Nov: "the cutaway has a missing wing. Replace it with the wing's proper internal structure"):
+  // the near wing's covering goes as before and its STRUCTURE stands in its place (wing_struct.js, built under the
+  // see-inside view this cutaway draws in) - and the lift struts stay with it: they are the wing's structure too
+  const NEAR_KEEP_STRUCT = ['brace', 'light'];   // (the lamps sit in the structure's bays: the user 9 Nov)
+  // ...and the wing layer's own lift struts (_cage_wing.js `edFit_liftstrut`: the struts and their fittings)
+  const keptStrut = (o, top) => { for (let a = o; a && a !== top; a = a.parent) if (a.name === 'edFit_liftstrut') return true; return false; };
   const VIEWS = ['hero', 'above', 'side', 'plan', 'front', 'cutaway'];
   const frames = n => new Promise(res => { const f = () => (n-- > 0 ? requestAnimationFrame(f) : res()); f(); });
   function hashOf(spec) {
@@ -142,7 +148,7 @@
     for (let i = 0; i < 20; i++) { await frames(3); const bb = box(); if (bb === pb) return; pb = bb; }
   }
   function cutOn(T, R, root, S) {
-    const V = window.CAGE_VIEW, st = { mats: [], clones: [], hid: [], added: [] };
+    const V = window.CAGE_VIEW, st = { mats: [], clones: [], hid: [], added: [], vis: [] };
     root.updateMatrixWorld(true);
     const F = frameOf(T, root), { c, fwd, left, up } = F, cl = c.dot(left);
     const fus = root.children.find(o => o.isMesh);   // the cut's width: this plane's own fuselage
@@ -175,20 +181,147 @@
       L.position.copy(fc).addScaledVector(fwd, t0 * fl).addScaledVector(left, 1.1).addScaledVector(up, 0.25);
       S.add(L); st.added.push(L);
     }
+    cabinLight(T, S, fc, fwd, left, up, fl, st);
+    lightFloor(T, root, st);
+    if (window.CAGE_WINGSTRUCT) { window.CAGE_WINGSTRUCT.show(true); window.CAGE_WINGSTRUCT.fiche(true); st.ws = true; }
+    const WSg = wingStructNear(T, root, S, left, cl, st);
     for (const k of NEAR_OFF) {
+      if (WSg && NEAR_KEEP_STRUCT.includes(k)) continue;
       const Lr = root.children.find(o => o.name === 'cageLayer:' + k); if (!Lr) continue;
-      Lr.traverse(o => { if (o.isMesh) swap(o, halve); });
+      Lr.traverse(o => { if (o.isMesh && !(o.userData && o.userData.wingStruct) && !(WSg && keptStrut(o, Lr))) swap(o, halve); });
     }
     const En = root.children.find(o => o.name === 'cageLayer:energy');   // a vessel out of the body goes with the near wing
-    if (En && fus) {
+    if (En && fus && !WSg) {   // (WING-STRUCTURE: with the near wing drawn as its structure, its tanks stay in it - the user 9 Nov)
       const fbb = new T.Box3().setFromObject(fus).expandByScalar(0.05), mb = new T.Box3();
       En.traverse(o => { if (!o.isMesh || !o.geometry) return; mb.setFromObject(o); if (!mb.isEmpty() && !fbb.containsBox(mb)) swap(o, halve); });
     }
     const G = root.children.find(o => o.name === 'cageLayer:gear');
-    if (G) for (const o of G.children) if (/L$/.test(o.name) && o.visible) { o.visible = false; st.hid.push(o); }
+    if (G) bareGear(T, G, left, cl, hw, st);
+    ghostNacelles(T, root, left, cl, hw, st, fus);
+    hideWells(root, st);
+    cutTaper(T, root, p1, p2, st);
     return st;
   }
+  // the structure's layer (wing_struct.js: `cageLayer:wingStruct`, a sibling of the wing layer in the cage scene) - the
+  // near half shown, the far half hidden (it would stand inside the far wing's opaque covering); null without one
+  function wingStructNear(T, root, S, left, cl, st) {
+    let L = null;
+    const find = o => { if (!L && o.name === 'cageLayer:wingStruct') L = o; };
+    root.traverse(find); if (!L && S) S.traverse(find);
+    if (!L || !L.children.length) return null;
+    const c = new T.Vector3(); let near = 0;
+    L.updateMatrixWorld(true);
+    for (const m of L.children) {
+      if (!m.isMesh) continue;
+      if (!m.geometry.boundingSphere) m.geometry.computeBoundingSphere();
+      c.copy(m.geometry.boundingSphere.center).applyMatrix4(m.matrixWorld);
+      const isNear = c.dot(left) > cl;
+      if (m.visible !== isNear) { st.vis.push([m, m.visible]); m.visible = isNear; }
+      if (isNear) near++;
+    }
+    return near ? L : null;
+  }
+  // THE DRIVE TRAINS WITHOUT THEIR FAIRINGS (the user 9 Nov: "the one on the cutaway side should be displayed without its
+  // cowl ... keep a transparent suggestion of the full model, faint, so ... the global outline remains clear"; and on the
+  // Petrel: "we still don't see the driving trains as I had asked, without the fairing"): every cowl / nacelle shell and
+  // every pylon FAIRING (the engine layer's `engPylon` in the cowl's AEROSKIN section - its tube bars wear the mount's
+  // and stay) that is not on the far side - a shell that holds a non-nose engine (CAGE_ENG's units), a shell on the cut
+  // side outside the fuselage, a pylon's fairing - wears a faint see-through copy of its material (the garage's x-ray alpha); the engine, its
+  // mount, its drive and its propeller stand. The nose cowl (cut in half as the covering is) and the far side's
+  // nacelles keep theirs: the outline
+  function ghostNacelles(T, root, left, cl, hw, st, fus) {
+    void fus;
+    const V = window.CAGE_VIEW, a = Math.min(0.2, (V && V.xrayA) || 0.12), b = new T.Box3(), c = new T.Vector3(), made = new Map();
+    // the engines that are not the nose's (CAGE_ENG: the units' own places, in the engine layer's frame): a shell that
+    // holds one is its nacelle or its cowl, wherever it stands
+    const E = window.CAGE_ENG, EL = root.children.find(o => o.name === 'cageLayer:eng'), at = [];
+    if (E && E.mount && E.mount !== 'nose' && EL) { EL.updateMatrixWorld(true);
+      for (const u of E.units || []) if (u && u.at) at.push(EL.localToWorld(new T.Vector3(u.at[0], u.at[1], u.at[2]))); }
+    const holds = bb => at.some(p => bb.clone().expandByScalar(0.05).containsPoint(p));
+    const strip = (o, pylon) => {
+      if (!o.isMesh || !o.geometry || !o.visible) return;
+      b.setFromObject(o); if (b.isEmpty()) return;
+      b.getCenter(c);
+      const lat = c.dot(left) - cl, near = lat > hw + 0.05, far = lat < -hw - 0.05;
+      if (far || !(near || pylon || holds(b))) return;
+      const arr = Array.isArray(o.material), ms = arr ? o.material : [o.material];
+      st.mats.push([o, o.material]);
+      const nm = ms.map(m => { if (!m) return m; let g = made.get(m); if (g) return g;
+        g = dup(m); g.transparent = true; g.opacity = a; g.depthWrite = false; g.side = T.DoubleSide; g.needsUpdate = true;
+        made.set(m, g); st.clones.push(g); return g; });
+      o.material = arr ? nm : nm[0];
+    };
+    for (const L of root.children) {
+      if (L.name === 'cageLayer:cowl') { L.updateMatrixWorld(true); L.traverse(strip); }
+      if (L.name === 'cageLayer:eng') { L.updateMatrixWorld(true);
+        L.traverse(o => { if (o.name === 'engPylon' && o.isMesh && o.material && (o.material.userData || {}).aeroskin) strip(o, true); }); }
+    }
+  }
+  // THE CABIN, LIT (the user 9 Nov: "it's very dark in the cabin ... light the cabin quite a bit everywhere, generate max
+  // light"): five warm lamps along the cabin's own centreline, just inside the cut, and a soft sky / ground fill - the
+  // wing's structure takes no point light under the fiche (wing_struct.js fiche), so these cannot burn it
+  const CAB_LAMPS = [[0.38, 2.6], [0.19, 3.2], [0, 3.4], [-0.19, 3.0], [-0.38, 2.4]], CAB_FILL = 0.9;
+  function cabinLight(T, S, fc, fwd, left, up, fl, st) {
+    for (const [t0, pw] of CAB_LAMPS) {
+      const L = new T.PointLight(0xfff4e6, pw, 0, 2);
+      L.position.copy(fc).addScaledVector(fwd, t0 * fl).addScaledVector(left, 0.15).addScaledVector(up, 0.3);
+      S.add(L); st.added.push(L);
+    }
+    const H = new T.HemisphereLight(0xfff8ee, 0x9a8f80, CAB_FILL);
+    S.add(H); st.added.push(H);
+  }
+  // THE CABIN FLOOR, PALER (the user 9 Nov: "lighten the flooring material"): the floor's own section (`cabFloor`,
+  // _cage_crew.js) asked again with a pale default tint - a builder's own pick of the floor's tint wins as ever (the same
+  // material back: nothing changes)
+  function lightFloor(T, root, st) {
+    const SM = window.CAGE_SECMAT; if (!SM) return;
+    let m0 = null, m1 = null;
+    try { m0 = SM('cabFloor', { surf: 0, fieldM: 1, side: T.FrontSide, tint0: 0x9a7b4e });
+          m1 = SM('cabFloor', { surf: 0, fieldM: 1, side: T.FrontSide, tint0: 0xe3d3b2 }); } catch (e) { return; }
+    if (!m0 || !m1 || m0 === m1) return;
+    root.traverse(o => { if (o.isMesh && o.material === m0) { st.mats.push([o, o.material]); o.material = m1; } });
+  }
+  // THE LANDING GEAR, BARE (the user 9 Nov: "you don't seem to represent the wheels ... it should be shown without any
+  // fairings, so without the wheel fairing and without the fairing for the leg, if any"): the near side's units stay
+  // (they were hidden), and every fairing on the cut side and the centreline - a spat, a leg shroud (_cage_gear.js
+  // `gearFair`: a unit's `fair` bag), a gear nacelle pod - leaves; the far side keeps its own (the outline)
+  function bareGear(T, G, left, cl, hw, st) {
+    const b = new T.Box3(), c = new T.Vector3();
+    G.updateMatrixWorld(true);
+    G.traverse(o => {
+      if (!o.visible || !((o.userData && o.userData.gearFair) || /^gearNacPod/.test(o.name || ''))) return;
+      b.setFromObject(o); if (b.isEmpty()) return;
+      if (b.getCenter(c).dot(left) - cl < -hw) return;   // the far side's
+      o.visible = false; st.hid.push(o);
+    });
+  }
+  // THE RETRACTABLE GEAR'S RESERVED WELLS (RETRACT G3: `edWellGhost`, amber edges drawn through everything - an editor's
+  // instrument, the Petrel's three little boxes on the fiche, the user 9 Nov) leave the cutaway
+  function hideWells(root, st) {
+    root.traverse(o => { if (o.name === 'edWellGhost' && o.visible) { o.visible = false; st.hid.push(o); } });
+  }
+  // THE POD-AND-ROD (the user 9 Nov: "the rods in the pod and rod designs are not showing through"; "we still do not
+  // have the cutout of rods"): the rod (`boomTube`, G26) and the sheets over its tightening truss (`taperPanel`, G187) are
+  // STRUCTURE to the see-inside view (_cage_ui.js INTSTRUCT: opaque), so the cut never went through them - the rod stood
+  // whole where everything round it was cut. Cut as the covering is: the near half of the fuselage's slab, the tube open
+  function cutTaper(T, root, p1, p2, st) {
+    root.traverse(o => {
+      const nm = o.isMesh && o.userData && o.userData.matNames;
+      if (!nm || !(nm.includes('taperPanel') || nm.includes('boomTube'))) return;
+      const arr = Array.isArray(o.material), ms = arr ? o.material : [o.material];
+      let ch = false;
+      const out = ms.map((m, i) => {
+        if ((nm[i] !== 'taperPanel' && nm[i] !== 'boomTube') || !m) return m;
+        ch = true; const n = dup(m); st.clones.push(n);
+        n.clippingPlanes = [p1, p2]; n.clipIntersection = true; n.side = T.DoubleSide; n.needsUpdate = true;
+        return n;
+      });
+      if (ch) { st.mats.push([o, o.material]); o.material = arr ? out : out[0]; }
+    });
+  }
   function cutOff(st) {
+    for (const [o, v] of (st.vis || []).reverse()) o.visible = v;
+    if (st.ws && window.CAGE_WINGSTRUCT) window.CAGE_WINGSTRUCT.show(false);
     for (const o of st.hid) o.visible = true;
     for (const L of st.added) { if (L.parent) L.parent.remove(L); if (L.dispose) L.dispose(); }
     for (const [o, m] of st.mats.reverse()) o.material = m;

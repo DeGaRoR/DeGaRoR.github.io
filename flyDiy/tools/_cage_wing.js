@@ -609,11 +609,15 @@ function wingMat(cl, plane) {
       'fabric';
   // the editor's per-part livery, when its UI is on the page; the direct
   // factory call below stays as the standalone bench's path
+  // WING-STRUCTURE (the user 9 Nov: "the transparent setting in the editor also turns on wing transparency"): under
+  // SEE INSIDE the covering takes the x-ray's alpha as the fuselage's does (_cage_ui.js xrayA), and the wing's structure
+  // stands in it (wing_struct.js). The capture never flies it: the join pins `see inside` off (VIEW_STATE)
+  const V = window.CAGE_VIEW, xa = (V && V.xray) ? (V.xrayA != null ? V.xrayA : 0.12) : 1;
   if (window.CAGE_SECMAT) {
     const m = window.CAGE_SECMAT((plane ? CLSEC2 : CLSEC)[cl] || (plane ? 'wingSkin2' : 'wingSkin'), {
       cons, struct: 1, wing: 1,
       surf: 1, fieldM: 1,        // the wing's field is ALREADY in metres
-      side: THREE.DoubleSide });
+      side: THREE.DoubleSide, opacity: xa });
     if (!m) return null;
     if (!plane) return m;
     // THE SECOND PLANE'S MATERIAL IS ITS OWN OBJECT. AEROSKIN pools on LOOK,
@@ -630,7 +634,7 @@ function wingMat(cl, plane) {
     finish: A.aeroFinishFor('body', cons),
     grm: cons, struct: 1, wing: 1,
     surf: 1, fieldM: 1,          // the wing's field is ALREADY in metres
-    side: THREE.DoubleSide,
+    side: THREE.DoubleSide, opacity: xa,
   });
 }
 
@@ -1028,6 +1032,9 @@ PAGE.post = ctx => {
   early.publish(ctx);
   // HULL-B5: the boat's tip floats hang off THIS wing (the float layer draws them from the flown records)
   if (window.CAGE_TIPFLOAT_DRAW) { try { window.CAGE_TIPFLOAT_DRAW(ctx); } catch (e) { console.error('tip floats:', e); } }
+  // WING-STRUCTURE: the wing's inside (src/viewer/wing_struct.js), drawn off this build's def - only under the see-inside
+  // view or the cutaway box; otherwise it builds nothing
+  if (window.CAGE_WINGSTRUCT_DRAW) window.CAGE_WINGSTRUCT_DRAW(ctx);
 };
 let STRUT_PIL = null;                 // PILLAR-ANCHORS P4: this build's picked strut pillar
 const wingPost = ctx => {
