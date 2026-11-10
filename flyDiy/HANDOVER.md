@@ -314062,3 +314062,7 @@ THE READIES:
 - night-stretch (NIGHT-LOOK): star reflections spread by the waves, on at 0.03 (the user's call).
 - well-clamp (SEAPLANES-LAND): the retract well depth clamped under the skin.
 - hangar-view-c (Game): the hangar view, with the shed-frame updateMatrixWorld fault fixed after L36d.
+
+LINER-BACK (CABIN-CRAFT, 10 Nov, L37b): the cabin liner is the skin's own back face (one surface, FrontSide skin + BackSide liner on copied vertices, faces flagged back; game buckets s<sec>|f and s<sec>|b, a lined bucket never bakes). The user validated it 9 Nov ("I validate the double sided mesh") and took the new mass: the Cub's cabin trim is 'bare' and the Jodel's 'light' (REAL-FIGURES' MASS-BUDGET-CUB-JODEL), ENGCONFIG + POD cub/jodel re-pinned. Note: reports/evidence/LINER-BACK/READY.md.
+TRAP (the load door's join cache): tools/.joincache keyed a FLYDIY_JOIN_PROBE by its PATH only, so an edited probe answered from the cache with the old probe's verdict (CABINLAMP read a stale 0.5 s result). It now keys the probe's content too (_load_build.js). If a probe-driven gate answers too fast after a probe edit, suspect the cache; deleting tools/.joincache is safe.
+TRAP (a lamp on a lined skin): a probe looking for "the nearest face" finds the skin and its lining at the same distance (copied vertices); a tie must go to the back face (f.back), or a metal cabin's roof lamp reads 'aluminium'.
