@@ -702,7 +702,7 @@ var ATMO = (function () {
     uniform vec4 uAtm2;           // Rg, Rt, sunRad, moonRad
     uniform float uR, uScale, uEMoon, uStars, uFrame;   // uFrame: the room's yaw onto the world's frame (the shed is a quarter turn)
     uniform mat3 uStarM;   // STAR-SKY: the game frame -> the sky's own (equatorial): rows RA 0h, RA 6h, the pole - it turns with the island's sidereal time (update())
-    uniform vec4 uStarMag; // STAR-SKY: x the flux range Fmax/Fmin, y the disc's growth r ~ f^y, z the Milky Way's glow (1 = the field's mean radiance at the core), w its dust (0 = a smooth band)
+    uniform vec4 uStarMag; uniform float uStarA; // STAR-SKY: uStarA the counts' slope N(>F) ~ F^-a (a < 1: the light in the few bright stars, the many faint ones under the eye's threshold); x the flux range Fmax/Fmin, y the disc's growth r ~ f^y, z the Milky Way's glow (1 = the field's mean radiance at the core), w its dust (0 = a smooth band)
     uniform vec2 uStarK;   // STAR-LOVE: x the star disc's radius in pixels' footprints (the mirror's pass sets its own), y its least radius, radians
     uniform float uGlare, uEyeY, uLutGain;                // the corona's strength (S7); the eye's height for the mist; the tables' gain (A6)
     // THE VEIL (CLOUDS C4): cirrus / cirrostratus - a 2D noise sheet at uVeil.w metres, its coverage
@@ -822,7 +822,8 @@ ${MIST_GLSL}
           band *= mix(1.0, (1.0 - 0.8 * rift) * mot, uStarMag.w);
         }
         float Pc = STAR_P * (1.0 + 2.5 * band);                      // the band's denser faint stars (the pixel's band for its 3 x 3: a cell is 0.1 deg)
-        float aR = 1.0 - pow(uStarMag.x, -1.5), nR = 3.0 * (1.0 - pow(uStarMag.x, -0.5)) / aR;   // the power law's inverse and its mean
+        float sA = uStarA, aR = 1.0 - pow(uStarMag.x, -sA);                                        // the power law's inverse and its mean (in Fmin)
+        float nR = abs(sA - 1.0) < 0.01 ? log(uStarMag.x) / aR : sA / (1.0 - sA) * (pow(uStarMag.x, 1.0 - sA) - 1.0) / aR;
         vec3 sAcc = vec3(0.0);
         vec3 fid = fax * (fsg + 2.0);
         for (int sj = -1; sj <= 1; sj++) for (int si = -1; si <= 1; si++) {
@@ -835,7 +836,7 @@ ${MIST_GLSL}
           vec2 su = tan(((cc + jt) / STAR_N * 2.0 - 1.0) * 0.78539816);   // the star's place on the face (uv), back from equal-angle
           vec3 sd = fax.x > 0.5 ? vec3(fsg, su.x, su.y) : (fax.y > 0.5 ? vec3(su.x, fsg, su.y) : vec3(su.x, su.y, fsg));
           float u = hash13(key + 71.0) * (h < 1.0 - STAR_P ? 0.5 : 1.0);   // the flux quantile (the band's extra stars from the faint half)
-          float f = pow(1.0 - u * aR, -0.6666667) / nR;                   // the flux / the mean: N(>F) ~ F^-1.5
+          float f = pow(1.0 - u * aR, -1.0 / sA) / nR;                    // the flux / the mean: N(>F) ~ F^-a
           float srs = min(sr * max(1.0, pow(f, uStarMag.y)), 0.7 * cellA);
           vec3 dq = q - normalize(sd);
           float x2 = dot(dq, dq) / (srs * srs);
@@ -879,7 +880,7 @@ ${MIST_GLSL}
   // ---- the GPU half ---------------------------------------------------------
   const G = { ready: false, enabled: false, texT: null, texMS: null, rtSky: null, rtAP: null, quad: null, cam: null, skyMat: null, apMat: null, atmU: null };
   const U = {                                   // shared uniform objects (one value each, every consumer reads them)
-    sun: null, moon: null, eMoon: { value: 0 }, r: { value: 6360.0 }, scale: { value: 1 }, stars: { value: 1 }, starK: { value: { x: 1.5, y: 1.5e-4 } }, starM: { value: new Float32Array([1, 0, 0, 0, 1, 0, 0, 0, 1]) }, starMag: { value: { x: 100, y: 0.25, z: 1, w: 1 } },
+    sun: null, moon: null, eMoon: { value: 0 }, r: { value: 6360.0 }, scale: { value: 1 }, stars: { value: 1 }, starK: { value: { x: 1.5, y: 1.5e-4 } }, starM: { value: new Float32Array([1, 0, 0, 0, 1, 0, 0, 0, 1]) }, starMag: { value: { x: 100, y: 0.25, z: 1, w: 1 } }, starA: { value: 1.5 },
     glare: { value: 1 }, eyeY: { value: 0 },
     lutGain: { value: 1 },   // A6: 2^(the exposure's stops) - the sky-view and AP tables are stored x this so a night sky (1e-6 of the sun) is not a half float's subnormal (the white bands on the night horizon)
     veil: { value: new Float32Array([0, 0, 0, 9000]) }, veilSun: { value: new Float32Array(3) }, veilSky: { value: new Float32Array(3) },   // CLOUDS C4
@@ -1187,7 +1188,7 @@ ${MIST_GLSL}
     if (!G.enabled) return null;
     const m = new THREE.ShaderMaterial(Object.assign({
       uniforms: { uSky: { value: G.rtSky.texture }, uT2: { value: G.texT }, uAtm2: { value: new THREE.Vector4(P.Rg, P.Rt, P.sunRad, P.moonRad) },
-                  uR: U.r, uScale: U.scale, uEMoon: U.eMoon, uStars: U.stars, uStarK: U.starK, uStarM: U.starM, uStarMag: U.starMag, uSun: U.sun, uMoon: U.moon, uFrame: { value: frameYaw || 0 },
+                  uR: U.r, uScale: U.scale, uEMoon: U.eMoon, uStars: U.stars, uStarK: U.starK, uStarM: U.starM, uStarMag: U.starMag, uStarA: U.starA, uSun: U.sun, uMoon: U.moon, uFrame: { value: frameYaw || 0 },
                   uGlare: U.glare, uEyeY: U.eyeY, uMist: apUniforms.uMist, uVeil: U.veil, uVeilSun: U.veilSun, uVeilSky: U.veilSky, uLutGain: U.lutGain,
                   // F2: MIST_GLSL samples the mist's field from the atlas, so the dome - which carries
                   // that block verbatim - needs the sampler too (it is the same texture it helps fill)
