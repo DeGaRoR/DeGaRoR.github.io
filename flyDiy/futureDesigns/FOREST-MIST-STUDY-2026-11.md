@@ -15,33 +15,34 @@ Prototype behind `?fmist=` (off by default: nothing is created, uploaded or spli
 - `tools/_fmist_check.js` section 1). Pictures: `reports/evidence/FOREST-MIST/`.
 
 
-## 0. THE ANSWER FIRST
+## 0. THE ANSWER FIRST (as it stands on 10 Nov, after the user's eight steering notes)
 
-- **What the concept art shows is three different mists**, and each has its own place and its own clock (section 1):
-  the valley POOL (radiation fog: drains into hollows on a clear calm night, a flat top, burns off two hours after
-  the sun), the forest WISP (wet crowns steaming after rain, strongest when the first sun warms them, gone after half a
-  day dry) and the cloud base resting on the slopes (OROGRAPHIC: a low, near-saturated deck where it meets the hill).
-  What they share is the thing that makes the art read: **they sit IN the forest, at a height tied to the ground**, so
-  each ridge stands out of the mist that fills the valley in front of it.
-- **The game already has the valley half of this, built and shipped**: FOG-MIST F2 (G503, Sept) gives the ground mist
-  a top that follows the valley floors and drifting banks (`mist: land` on gamer, `banks` on ultra). It is a fog on
-  surfaces at 94 m texels with a 900 m bank noise - a soft blanket, not pockets; it has no forest term and no rain
-  term; and on a fresh profile it is off whenever the air is under 70 % (`mistRho0`), which is most of the playable
-  day. That is why the concept art's pockets are not in the game (section 2a).
-- **One baked map + the weather's law + two renderers** is the recommendation (sections 3, 5):
-  - the **POCKET MAP** (512^2 over the island, into the atmosphere atlas's free columns: no new sampler) says WHERE
-    mist can sit - valley floors under a lid, wet forest in hollows, the cloud base's band on the slopes - and the
-    **weather** (humidity, the lagged sun, the wind's calm, the hours since rain, the cover and the base) says WHEN and
-    HOW MUCH. The noise drifts on the wind while the map stays put: **the wisps stream through a pocket and dissolve at
-    its edge - it moves with the wind and stays stuck in the valley**, which is the user's ask exactly;
-  - **THE VEIL (`?fmist=c`)** - the pockets as a second term inside the mist every fogged material already applies:
-    no draw, no pass, no sampler, every tier including the phone;
-  - **THE MARCH (`?fmist=a`)** - the same density marched inside the clouds' pass (the user's first idea): lit, with
-    volume against the sky and parallax, composited through the clouds' depth-aware upsample. Gamer and ultra only,
-    because the clouds' pass is off on laptop/potato/retro (the phone is `laptop`).
-  - **THE CARDS (`?fmist=b`, the user's second idea)** were built too and are **not recommended**: section 4 shows why.
-- Prototype pictures: section 4. Performance: section 6 (counts here, the box's GPU numbers owed to A0). Questions,
-  each with a default: section 8.
+- **What the concept art shows is three mists**, each with its own place and clock (section 1): the valley POOL
+  (radiation fog: a clear calm night, a flat top, burnt off two hours after the sun), the forest WISP (wet crowns
+  steaming after rain), the cloud base on the slopes (OROGRAPHIC). They sit IN the forest at heights tied to the land,
+  so each ridge stands out of the mist in front of it.
+- **The game had the valley half** (FOG-MIST F2, Sept: `mist: land/banks`), a soft blanket at 94 m texels with no
+  forest and no rain term, off under 70 % humidity - why the art's pockets were never in the game (section 2a).
+- **Built: one pocket map + the weather's law + the veil** (sections 3, 5): the map says WHERE (512^2 over the island
+  into the atmosphere atlas: no new sampler); the season's plan and the day say WHEN and HOW MUCH (the authored fog days,
+  the rain through the soil's hours-dry, the low base and the cover); the noise drifts on the wind while the map stays,
+  so the wisps stream through a pocket and fade at its edge - *"move with the wind but stay stuck in there"*.
+- **The renderer picked by the user is THE VEIL** - the pockets inside the mist every fogged material already applies:
+  no draw, no pass, no sampler, sorted with everything (trees, impostors, water) by construction. **THE MARCH** (the
+  user's first idea: the same density in the clouds' pass) and **THE CARDS** (the user's second: drifting sheets) were
+  built and judged (sections 3, 4); both stay flag-only. The cards lose on sorting (a hard line where a sheet meets a
+  crown), on the cockpit and on far pockets; the march costs the clouds' pass, which the phone does not run.
+- **The look** is the user's pick of 10 Nov (`reports/evidence/FOREST-MIST/s08_PICK_run11.jpg`): 110 m wisps eroded to
+  ~2 m, the weather on both the amount and the density (0.003 /m at the heaviest, a quarter for the last wisps), lit by
+  the sun's beam with a droplet forward lobe (backlit, it glows).
+- **In the game** (READY for A0, `reports/evidence/FOREST-MIST/READY.md`): a GRAPHICS row **forest mist: off / on**
+  (sky; OFF until the player turns it on - the desktop presets are frozen), **GATE FMIST** in the core battery, and the
+  weather panel's **"the season"**: nine moments and the 42 crafted days, one click each, for screenshots.
+- **When you see it** (section 5's table): heavy at dawn on the three authored fog days (gone by 10-11), cloud on the
+  slopes through the storms, wisps the evening after, mist on the hills on the drizzle day, a thin breath at dawn on
+  most calm days, nothing on windy days.
+- **Owed to the box**: the veil's ms (budget <= 2 ms gamer, <= 1 ms laptop), FRAMECOST with the row on, then the
+  presets' defaults and the offline bake (sections 6, 7).
 
 ---
 
@@ -166,7 +167,8 @@ The density (`fmDens`, GLSL, one atlas tap + 3 value-noise taps):
 `cov = pool_k G [y under the lid] + wisp_k B [band -12..+40 m about the canopy top] + oro_k [band -40..+140 m about the
 cloud base, near the ground]`, then Schneider's coverage remap of a 3-octave value noise (160 m cell, a slow vertical
 shear so a wisp leans), **the noise drifted by the integral of the wind at 40 m, the map not**: per metre
-`0.018 x d x cov` (~220 m visibility inside a full pocket).
+`rho(I) x d x cover-edge` - **as picked: 0.003 /m at the heaviest weather (~1.3 km visibility inside: a veil, never a
+wall), a quarter of it for the last wisps**, 110 m cells, a three-octave erosion to ~2 m, a sin-free hash (section 4a).
 
 ### 3a. THE MARCH - the cloud system, lower and finer (`?fmist=a`, the user's first idea)
 
@@ -213,7 +215,7 @@ each fragment (the pocket its trees stand in) + 2 over the first 350 m after the
 | night/moon | the mist colour follows the moon's light (LOOK-1-MOON) |
 | cockpit | the eye's 350 m: you see out of a pocket you are in; the white-out is the F2/C4 slab's |
 | far | everywhere a surface is (to 25 km): the far ridges get their pockets too |
-| cost | 0 draws, 0 programs added (the same programs, longer), 0 passes, 1 atlas tap + 3 value noises x 6 taps per fogged fragment where the map is not zero. By F2's measured scale (6 samples of field + noise = +3.3 ms at the stand on the 3080) **budget +2-3 ms on the 3080 at 6 taps, ~+1 ms at 2 taps**: the phone takes 2 (Q3) |
+| cost | 0 draws, 0 programs added (the same programs, longer), 0 passes, 1 atlas tap + 3 value noises x 6 taps per fogged fragment where the map is not zero. By F2's measured scale (6 samples of field + noise = +3.3 ms at the stand on the 3080) **budget <= 2 ms on the 3080 at 4+2 taps, <= 1 ms at 2 taps**: the phone takes 2 (Q3) |
 
 ### 3d. The others, considered
 
@@ -378,7 +380,18 @@ Counted on SwiftShader (the draws, the triangles and the programs of one whole f
 **no millisecond from this box is a number**). The streamer keeps moving between stills (the impostors arrive), so a
 +-5 draw and a +-0.3 % triangle swing between two stills of the same state is the floor.
 
-<!-- COUNTS -->
+| still (the pick, run 11) | draws | triangles | programs |
+|---|---|---|---|
+| slope off | 950 | 10.49 M | 455 |
+| slope I100 | 954 | 10.52 M | 455 |
+| slope I066 | 954 | 10.52 M | 455 |
+| slope I033 | 956 | 10.54 M | 455 |
+| ridges I100 | 1308 | 11.80 M | 455 |
+| vf_slope weather | 936 | 10.49 M | 455 |
+
+The veil adds **no draw and no program** (the slope's off 950 against on 954-956: the impostors still arriving between
+stills - the same drift appears between two OFF stills of earlier sheets; programs flat at 455). The march and the cards
+were counted in the earlier sheets: the cards +1 draw / +1 program, the march +0 (the clouds' pass).
 
 | technique | draws | programs | passes | samplers | per-fragment work | CPU |
 |---|---|---|---|---|---|---|
@@ -419,10 +432,10 @@ Never a picture diff (FOG-MIST SS1f: two frames of the same state differ in half
 
 ## 8. QUESTIONS FOR THE USER (each with the default this session would take)
 
-1. **Which renderer?** Default: **the VEIL on every preset + the MARCH on gamer and ultra** (one map, one law).
-   Alternatives: the veil alone everywhere (cheapest, no volume against the sky); the march alone (no phone mist).
-2. **The cards?** Default: **not landed** (section 4: hard crown cuts, sprite planes from the cockpit, no far
-   pockets, fill-rate on the phone). Kept in the branch as the comparison.
+1. ~~Which renderer?~~ **ANSWERED (10 Nov): the veil**, the user's pick sheet; the march stays flag-only (a later
+   ultra-only option if the box shows room).
+2. ~~The cards?~~ **ANSWERED: not landed** (hard crown cuts, sprite planes from the cockpit, no far pockets, the
+   phone's fill rate). Kept in the branch as the comparison.
 3. **The phone**: Default: **the veil at 2 taps** (the surface's only) on `laptop`/`potato`, 4+2 on `current`/`gamer`/
    `ultra`; a GRAPHICS row `forest mist: off / veil / volume` (volume = veil + march), `off` on potato if the box
    says the 2 taps cost more than 1 ms there.
@@ -435,8 +448,10 @@ Never a picture diff (FOG-MIST SS1f: two frames of the same state differ in half
    dawns) if it reads as too frequent; Overcast calm's light cloud on the ridges can be held off by its deck type.
 6. **The bake**: Default: **offline with the island** (the island is data: 512^2 x 4 half floats = 2 MB, ~0.5 MB
    gzipped, read at boot instead of 0.6-0.8 s of CPU under the roll-out screen); a worker bake for the analytic world.
-7. **Strength**: the prototype's pocket is ~220 m visibility at its heart. Default: that; the user's eye on the box
-   sheet decides (one dial, `FMIST.S.rho`).
+7. ~~Strength~~ **ANSWERED (10 Nov)**: 0.003 /m at the heaviest, the weather on the amount and the density; one
+   dial left for the box's eye, `FMIST.S.rhoMax`.
+8. **The presets' default** (new): ON for current / gamer / ultra once the box has timed it? Default: **yes, if
+   the veil holds its budget** - a change to the frozen desktop presets, so the user's word, then A0's FRAMECOST ALLOW.
 
 ---
 
