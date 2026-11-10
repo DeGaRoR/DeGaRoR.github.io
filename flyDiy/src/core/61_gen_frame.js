@@ -456,6 +456,12 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
                  gear: isG, cls, ext: vis === 'inner' ? false : (!!ext || isG),
                  vis: vis || null, L };
     if (opt && opt.tens) bm.tens = true;
+    // STRUT-OPTIONS (2026-11-10): what a lift-strut member IS, only where the wing's strut rows asked for it
+    // (bracing.section / bracing.jury): 'lift' a whole lift strut, 'half' one of its two halves at a jury strut's
+    // clamp, 'jury' the jury strut, 'tie' the hidden fore-and-aft tie between the pair's clamps; `round` the tube
+    // section. Absent on every member of every build without the rows (the bytes they were).
+    if (opt && opt.strut) bm.strut = opt.strut;
+    if (opt && opt.round) bm.round = true;
     if (opt && opt.pre) bm.pre = opt.pre;
     // G1803 (DMG-D0): THE LEDGER SECTION open as the member is built (sec(): 'fuselage', 'wings', 'bracing', 'tail', 'gear',
     // 'engines', ...) - the one its mass and money are billed to below, so the repair bill (DEFORM §10) sums a beam's
@@ -1345,7 +1351,8 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // PILLAR-ANCHORS (P4): a PICKED pillar (S.bracing.strutAt, its ring's station, the join's) roots the strut on
     // that ring - the C pillar's included, the box clamp being the auto rule's; absent, the rule above, unchanged
     const strutAt = S.bracing && S.bracing.strutAt != null ? +S.bracing.strutAt : null;
-    const strutRoot = F[strutAt != null && isFinite(strutAt) ? nearestRing(strutAt) : Math.min(nearestRing(xF), iBox)][opposeTag + sd];
+    const iStrutRing = strutAt != null && isFinite(strutAt) ? nearestRing(strutAt) : Math.min(nearestRing(xF), iBox);
+    const strutRoot = F[iStrutRing][opposeTag + sd];
     const side = attachTag + sd, other = attachTag + (s > 0 ? 'L' : 'R');
     // rule 3, box depth through the root: front and rear spars land on
     // DIFFERENT frames wherever the geometry allows, so the biggest moment in
@@ -1463,8 +1470,54 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       // T2.3 (83): ONE strut (bracing.struts 1) draws only the front member;
       // the rear one stays as a hidden fan member, so the truss the physics
       // flies is the same aeroplane — the drawing is what changes
-      B(strutRoot, WF[iStrut], 'wing', true);
-      B(strutRoot, WR[iStrut], 'wing', (S.bracing && S.bracing.struts) !== 1);
+      // STRUT-OPTIONS (2026-11-10, the user on the Ruckus and the Cub: "an option so that these are simply tubes ...
+      // from the middle of the truss, you got another half one going back towards the cabin ... we model this little
+      // one as well"). Neither option touches a build without its row: no `section`, no `jury` -> the two lines as
+      // they always were.
+      const SOPT = genStrutOpts(S);
+      if (!SOPT.jury) {
+        B(strutRoot, WF[iStrut], 'wing', true, 0, 0, SOPT.lift || undefined);
+        B(strutRoot, WR[iStrut], 'wing', (S.bracing && S.bracing.struts) !== 1, 0, 0, SOPT.lift || undefined);
+      } else {
+        // THE JURY STRUT. A clamp node on each lift strut at GEN_STRUT_OPT.juryAt of its length from the foot; the
+        // strut is the two halves either side of it, each at TWICE the class k so the pair in series is the one
+        // strut's axial spring it was (30_solver: F = k dL, a member's k does not scale with its length), and
+        // their masses sum to the whole strut's (half L each). From the clamp:
+        //   'wing'   the J-3 / PA-18 arrangement: a short strut UP to the wing's spar at the station nearest the
+        //            clamp, inboard of the lift strut's own (the front clamp to the front spar, the rear to the rear);
+        //   'cabin'  the Ruckus's (the user: "going back towards the cabin"): a strut AFT and in to the fuselage's
+        //            wing-side longeron one ring behind the strut's foot.
+        // A clamp on a straight strut with one brace off it is a hinge (two directions at the node), so the pair's
+        // clamps are joined by a HIDDEN fore-and-aft tie and a diagonal, massless: the jury fitting's own stiffness
+        // across the pair (GATE GEN's rank test is the proof they are needed and enough: GATE STRUTOPT). On a single strut (bracing.struts 1) the
+        // rear member is still in the truss, hidden, and so are its halves, its jury and the tie.
+        const tops = [WF[iStrut], WR[iStrut]], spars = [cF, cR];
+        const drawn = [true, (S.bracing && S.bracing.struts) !== 1];
+        const f = GEN_STRUT_OPT.juryAt, rp = P[strutRoot];
+        const iTo = SOPT.jury === 'cabin' ? Math.min(F.length - 1, iStrutRing + 1) : -1;
+        const zMid = Math.abs(rp[2]) + f * (Math.abs(P[tops[0]][2]) - Math.abs(rp[2]));
+        let jSt = 0;                                  // the spar station nearest the clamp, inboard of the strut's
+        for (let j = 0; j <= iStrut; j++)
+          if (Math.abs(Math.abs(P[cF[j]][2]) - zMid) < Math.abs(Math.abs(P[cF[jSt]][2]) - zMid)) jSt = j;
+        const mids = [];
+        for (let m = 0; m < 2; m++) {
+          const tp = P[tops[m]];
+          const md = N(rp[0] + f * (tp[0] - rp[0]), rp[1] + f * (tp[1] - rp[1]), rp[2] + f * (tp[2] - rp[2]), 'JS');
+          mids.push(md);
+          const HALF = { kx: 2, strut: 'half', ...(SOPT.round ? { round: true } : {}) };
+          B(strutRoot, md, 'wing', drawn[m], 0, 0, HALF);
+          B(md, tops[m], 'wing', drawn[m], 0, 0, HALF);
+          const to = SOPT.jury === 'cabin' ? F[iTo][side] : spars[m][jSt];
+          // (a hidden jury - the single strut's rear - is massless: it stands for the clamp's stiffness, not for a tube)
+          B(md, to, 'wing', drawn[m], 0, 0, { strut: 'jury', ...(drawn[m] ? { massK: GEN_STRUT_OPT.juryMassK } : { noMass: true }),
+                                              ...(SOPT.round ? { round: true } : {}) });
+        }
+        B(mids[0], mids[1], 'wing', 0, 0, 0, { strut: 'tie', noMass: true });
+        // ...and its diagonal, the front clamp to the rear strut's wing end: two clamps on two straight struts are six
+        // freedoms, held by the two struts, the two juries and the tie - five; the diagonal is the sixth (the rank
+        // test's 3n - 6 found the hinge without it)
+        B(mids[0], tops[1], 'wing', 0, 0, 0, { strut: 'tie', noMass: true });
+      }
       // fan ends: station 0 always; the TIP pair only where the fan may
       // reach it — an uncranked wing (byte-identical emissions). On a
       // cranked wing nothing reaches past the crank; the outer panel's

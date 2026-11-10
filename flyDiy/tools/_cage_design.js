@@ -3460,6 +3460,9 @@ function designBake(sel, over) {
   const wings = [wing];
   const bracing = { type: Math.round(full.wgBrace) ? 'cantilever' : 'strut',
                     struts: Math.round(+full.wgStruts) === 1 ? 1 : 2 };   // T2.3 (83)
+  // STRUT-OPTIONS (2026-11-10): an archetype's strut section and jury strut (absent at 0: the bytes every card had)
+  if (Math.round(+full.wgStrutSec || 0) === 1) bracing.section = 'tube';
+  if (Math.round(+full.wgJury || 0) > 0) bracing.jury = [null, 'wing', 'cabin'][Math.round(+full.wgJury)] || undefined;
   if (+full.w2On) {
     const w2 = {
       span: +full.w2Span, chord: +full.w2Chord,
