@@ -729,10 +729,12 @@ console.log('13. THE RUNWAY LOOK (G1390-G1394) - the declared width drawn whatev
   // meanAt), the part carries match and the mown tint in its row, and the shader lets the ground through but for the tracks and a
   // wash of at most grMowA - the strip's drawn colour within grMowA of the ground's own; no new program (the same uniform rows)
   { const mr = P.resolve({ cls: 'grass' }, { pavement: {} }).recipe, mm = P.make(THREE, { lib, cls: 'grass', recipe: mr, band: 1.5 }), MU = mm.uniforms;
-    const law = P.GLSL.map.indexOf('if (grassy && !road && uMacro.w > 0.0) {') >= 0 && P.GLSL.map.indexOf('gPavA = mix(gPavA, max(worn * gPavA, uStain.w * wPav), uMacro.w);') >= 0;
+    // (DIRT-STRIP 10 Nov, the user on Skyline Altiport: a grass strip is a TRAIL through the tundra - the ground through but for the
+    // gravel tracks; no mown wash any more)
+    const law = P.GLSL.map.indexOf('if (grassy && !road && uMacro.w > 0.0) {') >= 0 && P.GLSL.map.indexOf('gPavA = mix(gPavA, trail * gPavA, uMacro.w);') >= 0;
     verdict(P.RECIPE.grMatch === 1 && P.groundColor('grass', mr) === null && P.opaqueDepth('grass', 9, mr, 'strip') === Infinity && MU.uMacro.value.w === 1
       && Math.abs(MU.uStain.value.w - P.RECIPE.grMowA) < 1e-9 && P.RECIPE.grMowA <= 0.2 && law && P.LOOK_KEYS.indexOf('grMatch') >= 0 && P.LOOK_KEYS.indexOf('grMowA') >= 0,
-      `a grass strip shows the ground under it (grMatch ${P.RECIPE.grMatch}): not sunk, its tufts the ground's colour, its wash ${P.RECIPE.grMowA} - two look keys, the law in GLSL.map`);
+      `a grass strip shows the ground under it (grMatch ${P.RECIPE.grMatch}): not sunk, its tufts the ground's colour, the trail's gravel tracks alone drawn over it - two look keys, the law in GLSL.map`);
     P.dispose(mm); }
   P.dispose(m);
 }

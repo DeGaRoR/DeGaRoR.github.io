@@ -518,9 +518,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       if (!b || !b.parts.length) continue;
       const bb = e.sub.bb || [-0.5, 0, -0.5, 0.5, 1, 0.5];
       out.push({ key: e.key, bb, parts: b.parts.map(q => {
-        const geo = q.geo.clone(), P = geo.attributes.position, H = new Float32Array(P.count), h0 = Math.max(1e-3, bb[4] - bb[1]);
+        const geo = q.geo.clone(), P = geo.attributes.position, H = new Array(P.count), h0 = Math.max(1e-3, bb[4] - bb[1]);
         for (let i = 0; i < P.count; i++) H[i] = (P.getY(i) - bb[1]) / h0;
-        geo.setAttribute('aRockH', new THREE.BufferAttribute(H, 1));
+        geo.setAttribute('aRockH', new THREE.Float32BufferAttribute(H, 1));   // (three's own typed array: GATE MATLIB's realm)
         return { geo, mat: footed(MATLIB.shared(THREE, 'std', { map: q.mat.map || null, roughness: 1, metalness: 0 }, 'stripstone')) };
       }) });
     }
