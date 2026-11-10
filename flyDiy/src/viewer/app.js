@@ -13428,7 +13428,10 @@
   function placeIndicators() {
     const d = standOffset();
     // G255: a screenshot has no marks; G1115: nor the roll-out shot (the CG post and its labels rode out on the aeroplane)
-    gGrp.visible = !!d && !SHOT.on && !(typeof ROLLANIM !== 'undefined' && ROLLANIM.busy && ROLLANIM.busy()) && !window.__frLoading   // G2345: not under the loading view (its own CG bar)
+    // AIDS-GARAGE (10 Nov, A0 on the SEAPLANES stills: the floats aid's "floats N x the weight / move the floats" rode on
+    // the aeroplane in flight): standOffset() is [0,0,0] whenever the cage view is off - an array, so truthy - and this
+    // group hangs on the CRAFT, so outside the shed the posts and the aids flew along. They are the garage's: in it only
+    gGrp.visible = inGarage && !!d && !SHOT.on && !(typeof ROLLANIM !== 'undefined' && ROLLANIM.busy && ROLLANIM.busy()) && !window.__frLoading   // G2345: not under the loading view (its own CG bar)
       && !stMarksOff;   // G3357: not on the story's paint-only stage (T0)
     if (d) gGrp.position.set(d[0], d[1], d[2]);
   }
@@ -14459,6 +14462,7 @@
     // they fly to the strip bolted to the wing.
     rigLift = 0; clearLoadViz();
     inGarage = false; rolledOut = true;
+    if (typeof placeIndicators === 'function') placeIndicators();   // AIDS-GARAGE: the shed's marks stay in the shed
     playerFlightStart();               // PREM-S2: the airframe this flight flies, measured as it rolls out
     fsFlightStart();                   // G2400 (FREIGHT-STRAP): the accepted load aboard (the masses before the reset below)
     crowdStart();                      // G2970 (CHARACTERS): whoever is aboard walks out to the door first
