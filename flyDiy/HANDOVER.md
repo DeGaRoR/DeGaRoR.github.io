@@ -313926,8 +313926,8 @@ static deflection at the loaded mass (the row; 70 mm), the orifice for the 23.47
   design tile's option. app.js: the leg, the arm and the strut's two halves each posed from three physics nodes.
 - THE FAIRING (the user, over several rounds; study §7.5): the leg-fairing row only (no wheel fairing on leg 4: rows
   hidden, the join and clampSpec write gear.fairing 'none'); _gear_gen leverBoot, three shapes on the new row lvBoot
-  (0 tapered, 1 flared, 2 trailing - the Wilga's round tube + slab; absent at default: CAGE_DEFAULT_ABSENT and
-  GEN_LEVER_ROW_OFF hold it). Sections contain the flight direction, square to the leg seen from ahead; each slice's
+  (0 trailing - the Wilga's round tube + slab, THE DEFAULT (the user, 10 Nov) -, 1 tapered, 2 flared; legLever maps the
+  row onto the generator's own codes [2, 0, 1]; absent at default: CAGE_DEFAULT_ABSENT and GEN_LEVER_ROW_OFF hold it). Sections contain the flight direction, square to the leg seen from ahead; each slice's
   smallest fish-form section (40 %) round the leg's tube, the bracket and the strut over the stroke (its 2-D convex hull),
   the leading edge and centre straight lines; a square-cut floor the strut leaves through; cut by leverClear (the swept
   arm, horn, lugs, axle boss, strut, pivot, tyre at 25 poses; smooth union between parts; rubber-trimmed lips); seams and

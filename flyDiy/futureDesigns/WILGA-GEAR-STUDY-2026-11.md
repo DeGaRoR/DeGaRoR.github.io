@@ -278,9 +278,9 @@ rod, the red arm and the pivot's red end cap bare below.
 draws none; the join and clampSpec write `gear.fairing 'none'`. The leg-fairing row (`s1LegFair`) is its fairing.
 
 **One generator, three shapes** (`tools/_gear_gen.js leverBoot`; the new row **lvBoot, 'leg fairing shape'**, with the
-leg-fairing row, absent at its default like every leg row): (0) **tapered**, (1) **flared** (the first try's: slim down the
-leg, swelling into the knuckle, c = c0 + k t^3), (2) **trailing (Wilga)** - the leg a round tube, the leading edge, and a
-flat-sided slab behind it closing over its last 30 % to a 3 mm trailing edge.
+leg-fairing row, absent at its default like every leg row): (0) **trailing (Wilga)** - THE DEFAULT (the user, 10 Nov) - the
+leg a round tube, the leading edge, and a flat-sided slab behind it closing over its last 30 % to a 3 mm trailing edge;
+(1) **tapered**; (2) **flared** (the first try's: slim down the leg, swelling into the knuckle, c = c0 + k t^3).
 - **Directional**: every section CONTAINS THE FLIGHT DIRECTION (nose into the flight, chord along the airflow) and is
   square to the leg as seen from ahead. (Horizontal slices first: the leg's 55 deg splay cut obliquely gave a tube 0.35 m
   deep across the flow.)

@@ -17,7 +17,7 @@ nodes), broken by the crash model (the leg drops), priced and weighed, gated at 
 **Its fairing** (the user, over several rounds: an elegant fairing that hides the mechanism; the leg only, not the wheel;
 cut so the articulation moves freely; closer to the bone and directional; then a professional model - details, other
 placements, the ground, the profile, the first try's flare, the Wilga itself): the leg-fairing row dresses the leg in a
-boot of three shapes (the new row lvBoot: tapered, flared, trailing - the Wilga's round leg tube and slab). Every section
+boot of three shapes (the new row lvBoot: trailing - the Wilga's round leg tube and slab, the default -, tapered, flared). Every section
 is flow-aligned (nose into the flight), the smallest strut-fairing section round what it must hide, the edges straight;
 a square-cut floor the strut leaves through (as on the Wilga); cut round the swept articulation with rubber-trimmed
 lips; seams and ~70-85 screw heads a leg. No wheel fairing on this leg (rows hidden; join and clampSpec write none).
@@ -42,7 +42,7 @@ The study, every figure sourced or derived: futureDesigns/WILGA-GEAR-STUDY-2026-
 
 | gate | verdict | note |
 |---|---|---|
-| **WILGAGEAR** (new, core, ~2.3 min) | **PASS 45/45** | geometry as researched; static 72 mm (the study's 70); limit drop 110 / 115 mm, no bottoming; reserve drop bottoms on the steel stop and recovers; no pogo; trailing arc to 1.4 mm; a broken leg drops (tip 2.32 -> 0.00 m, "the landing gear broke"); drawn = physics through the load chain to 0.4 mm; the garage's red row; the fairing (7 cases - the Cub tapered / trailing, the host in the three shapes and with its fitting low and high: no wheel fairing, cut and detailed; nothing moving within 3 mm through the stroke - 8.2 mm at the closest, 0.0 mm (FAIL) with the cuts off; the ground 80 mm or more at full stroke on a flat tyre pitched 10 deg nose-down; the cylinder hidden above the floor; the cache replays the same boot to the bit; clampSpec agrees); nothing else moved |
+| **WILGAGEAR** (new, core, ~2.3 min) | **PASS 45/45** | geometry as researched; static 72 mm (the study's 70); limit drop 110 / 115 mm, no bottoming; reserve drop bottoms on the steel stop and recovers; no pogo; trailing arc to 1.4 mm; a broken leg drops (tip 2.32 -> 0.00 m, "the landing gear broke"); drawn = physics through the load chain to 0.4 mm; the garage's red row; the fairing (7 cases - the Cub tapered / trailing, the host in the three shapes and, trailing, with its fitting low and high: no wheel fairing, cut and detailed; nothing moving within 3 mm through the stroke - 8.2 mm at the closest, 0.0 mm (FAIL) with the cuts off; the ground 80 mm or more at full stroke on a flat tyre pitched 10 deg nose-down; the cylinder hidden above the floor; the cache replays the same boot to the bit; clampSpec agrees); nothing else moved |
 | GEAR, GEARFALL, TAILWHEEL, CLIP, BUILD, SAVE, PARTS, TAKEOFF, STOL, PILOT | PASS | PARTS after the part tree's new group (it caught the rows); STOL after the flat rows went absent (it caught them) |
 | UISMOKE, DESIGN, JOIN, SUBSTEP, SPECFIX, FIT, KNIFE, CAGEFIT, EDBUGS | PASS | the layers touched |
 | HITBOX, RETRACT | PASS alone | under four jobs each missed a time budget (260 vs 138 ms; 372 ms) |
