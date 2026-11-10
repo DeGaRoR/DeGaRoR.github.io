@@ -57,7 +57,7 @@ const DEF = {
   // up the leg, the axle ahead of the fitting, the static deflection at gross (the strut's charge), the leg's fairing
   // chord, the fitting round the body. Every row is ABSENT AT ITS DEFAULT (_cage_gen CAGE_DEFAULT_ABSENT): no saved
   // build gains a key
-  lvArm: 0.400, lvAng: 62, lvComp: 12, lvTop: 0.72, lvReach: 0.45, lvStat: 0.070, lvLegW: 0.090, lvRootAng: 80, lvBoot: 0,
+  lvArm: 0.400, lvAng: 62, lvComp: 12, lvTop: 0.72, lvReach: 0.45, lvStat: 0.070, lvLegW: 0.090, lvRootAng: 80, lvBoot: 0, lvJoint: 0,
   // the tailwheel assembly
   twR: 0.10, twSpringLen: 0.52, twSpringDrop: 0.30, twSpringW: 0.052,
   twSpringT: 0.009, twLeaves: 3, twRake: 18, twTrail: 0.052,
@@ -120,7 +120,8 @@ const LEG_ROWS = {
     ['lvLegW', 'leg fairing chord', 0.04, 0.16, 0.002],
     ['lvRootAng', 'fitting round the body', 40, 120, 1],
     // (the leg fairing's shape - shown with the leg-fairing row: _cage_gear legRowWhen)
-    ['lvBoot', 'leg fairing shape', 0, 2, 1, ['trailing (Wilga)', 'tapered', 'flared']],   // (the user, 10 Nov: "trailing should be the default")
+    ['lvBoot', 'leg fairing shape', 0, 2, 1, ['trailing (Wilga)', 'tapered', 'flared']],
+    ['lvJoint', 'leg fairing root', 0, 2, 1, ['plain', 'fitted to the body, riveted strip', 'fitted to the body, no strip']],   // (the user, 10 Nov: "trailing should be the default")
   ],
   3: [
     ['twSpringLen', 'spring length', 0.20, 1.00, 0.01],
