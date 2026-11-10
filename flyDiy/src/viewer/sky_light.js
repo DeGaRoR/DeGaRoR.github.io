@@ -76,9 +76,23 @@ var SKY_LIGHT = (function () {
     const t = Math.min(1, -el / 6), w = t * t * (3 - 2 * t);
     const target = minimum * w / (exposure * L);
     if (hemi.intensity >= target) return false;
+    // RED-NIGHT (the user 10 Nov: "why is the light so red? Under what conditions?" - Cabin Lake, the sun at -19, no moon): the sky's
+    // colour above is the SUN's sky irradiance even far under the horizon, a vanishing long-path residual, reddish; the floor lifted it a
+    // million-fold and kept that colour - a dead sunset painted on the shore. The light the floor ADDS is the night's own (starlight,
+    // airglow; the rods see it blue-grey): the colour is the two lights' mix by their share - at dusk, where the residual is most of the
+    // floor, nothing moves; at deep night it is the night's colour. The exposed level is the same (intensity x luminance = the target's).
+    if (NIGHT_TINT.on > 0) {
+      const f = NIGHT_TINT.on * (1 - Math.max(0, hemi.intensity) / target), N = NIGHT_TINT.col, LN = .2126 * N[0] + .7152 * N[1] + .0722 * N[2];
+      const r = c.r / L * (1 - f) + N[0] / LN * f, g = c.g / L * (1 - f) + N[1] / LN * f, b = c.b / L * (1 - f) + N[2] / LN * f, m = Math.max(r, g, b);
+      c.setRGB(r / m, g / m, b / m); hemi.intensity = target * L / (.2126 * c.r + .7152 * c.g + .0722 * c.b);
+      return true;
+    }
     hemi.intensity = target;
     return true;
   }
+  // the night's own light (RED-NIGHT): on 1 = the floor's added light takes col (the airglow floor's own blue, as for a black sky); 0 = the old
+  // (the residual sun's colour kept). Live: SKY_LIGHT.nightTint
+  var NIGHT_TINT = { on: 1, col: [.5, .6, 1] };
   function applyDay(day, o) {
     if (!day || typeof ATMO === 'undefined') return null;
     if (K_SUN == null && !calibrate()) return null;
@@ -180,7 +194,7 @@ var SKY_LIGHT = (function () {
     return { isMoon, el, exposure: ex, sunI: key ? key.intensity : 0, hemiI: hemi ? hemi.intensity : 0 };
   }
   const API = { applyDay, groundHalf, calibrate, K: () => ({ K_SUN, K_HEMI }), get isMoon() { return isMoon; }, resetExposure: () => { lastEx = -1; }, last: null,
-                gnd: null };   // the ground half as last derived (linear rgb) - the F8 readout and GATE LIGHT read it
+                gnd: null, nightTint: NIGHT_TINT };   // the ground half as last derived (linear rgb) - the F8 readout and GATE LIGHT read it
   if (typeof window !== 'undefined') window.SKY_LIGHT = API;
   return API;
 })();
