@@ -537,7 +537,7 @@ ${FM_ON ? '      float odP = fmOD(vec3(uMist[4].x, y0, uMist[4].z), d, D);   // 
       float fwd = 1.0 + uMist[1].w * pow(max(0.0, dot(d, uMist[2].xyz)), 8.0);
 ${FM_ON ? '      vec3 Lin = (od * uMist[1].rgb * fwd + odP * fmCol(d)) / max(1e-6, od + odP);   // two media, each its own light (the pockets: the beam, fmCol)\n      return col * T + Lin * (1.0 - T);\n' : ''}
       return col * T + uMist[1].rgb * fwd * (1.0 - T);
-    }`.replace(FM_ON ? 'uniform vec4 uMist[7];' : '\u0000', 'uniform vec4 uMist[13];');   // FOREST-MIST's lanes, only when it is on (off: the text as it was)
+    }`.replace(FM_ON ? 'uniform vec4 uMist[' + '7];' : '\u0000', 'uniform vec4 uMist[' + '13];');   // FOREST-MIST's lanes, only when it is on (off: the text as it was)
   // apSample(d, distKm): the atlas at a world direction and a distance (the splice's own read, and the clouds')
   const AP_SAMPLE_GLSL = `
     #ifndef ATMO_AP_SAMPLER
