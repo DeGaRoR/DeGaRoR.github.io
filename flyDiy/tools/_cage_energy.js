@@ -2291,14 +2291,16 @@ function matWet(bad) {
 // THE WING TANK, SEEN (WING-STRUCTURE, the user 9 Nov: "the tank on the cessna ... its texture looks wrong, we could
 // give its material, model and texture a little more love"). It was the simple one (buried between the spars, nobody
 // saw it); the fiche's cutaway and the garage's see-inside show it now. Its SHELL, when it is bare alloy (the welded
-// tank's own, FINISH_OF.alu - the default): AEROSKIN's bareAlu in its hardware branch (no surface field: triplanar), the
-// finish the aeroplane's own alloy wears, the tank's tint kept - the vessel set's scanned alu at 0.4 m a repeat read as
+// tank's own, FINISH_OF.alu - the default): AEROSKIN's alclad in its hardware branch (no surface field: triplanar), the
+// sheet the aeroplane's own alloy skin wears, the tank's tint kept - the vessel set's scanned alu at 0.4 m a repeat read as
 // a dark mottle over a 2 m top. Any other finish, and the red of a tank that does not fit, stay the vessel library's.
 function wingShellMat(bad, i, v) {
   const A = (typeof window !== 'undefined' && window.AEROSKIN) || null;
   if (bad || finishOf(v) !== 'alu' || !A || !A.aeroMaterial) return slotMat('shell', bad, i, v);
   const t = tintOf(v), tint = typeof t === 'string' && /^#?[0-9a-f]{6}$/i.test(t) ? parseInt(t.replace('#', ''), 16) : null;
-  return A.aeroMaterial(THREE, { finish: 'bareAlu', tint: tint != null && tint !== FINISH.alu.col ? tint : null,
+  // (alclad, not bareAlu: a welded tank's sheet is satin - bareAlu's 0.9 metal mirrored the room's sky on the end plates,
+  // read as a blue patch through the closing rib's holes, the user 10 Nov)
+  return A.aeroMaterial(THREE, { finish: 'alclad', tint: tint != null && tint !== FINISH.alu.col ? tint : null,
                                  surf: 0, fieldM: 1, side: THREE.DoubleSide, opacity: 1, inside: 0, decals: 0 });
 }
 // ...and WHERE IT IS DRAWN (the user 10 Nov: "why is the tank side bluish, with wavy patterns? ... does it intersect a
