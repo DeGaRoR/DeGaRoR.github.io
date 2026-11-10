@@ -271,7 +271,7 @@ function cageJoinSpec(P, M, T) {
       // the row came home. A P without the key (a headless caller) says nothing.
       ...(P.wgCons != null ? { material: Math.round(P.wgCons) > 0
         ? ['carbon', 'steel', 'fabric',
-           'alloy', 'aluFabric', 'glass'][Math.round(P.wgCons) - 1] : null } : {}),   // G466: the fifth stop; G2047 the sixth
+           'alloy', 'aluFabric', 'glass', 'fabricAlu'][Math.round(P.wgCons) - 1] : null } : {}),   // G466: the fifth stop; G2047 the sixth
     }, ...(+P.w2On ? [cageJoinPlane2(P, T)] : [])],
     bracing: { type: Math.round(P.wgBrace) ? 'cantilever' : 'strut',
                struts: Math.round(+P.wgStruts) === 1 ? 1 : 2,          // T2.3 (83)
@@ -770,7 +770,7 @@ function cageJoinSpec(P, M, T) {
   // THE TAIL'S OWN CONSTRUCTIONS (G116), same contract as the wing's:
   // 0 says nothing, absent means the aeroplane's own material
   {
-    const CONS4 = ['carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass'];   // G213; G466 the fifth stop; G2047 the sixth
+    const CONS4 = ['carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass', 'fabricAlu'];   // G213; G466 the fifth stop; G2047 the sixth
     // SPEC-FIXPOINT (A3): STATED in both states, null = the aeroplane's own
     if (P.finCons != null)
       tl.finMaterial = Math.round(P.finCons) > 0 ? CONS4[Math.round(P.finCons) - 1] : null;

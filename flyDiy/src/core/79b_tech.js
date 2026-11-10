@@ -58,7 +58,7 @@ const TECH_SEGS = {
 const TECH_TABLE = {
   // ---- materials
   'mat:tubeFabric': 1, 'mat:wood': 1, 'mat:alloy': 2, 'mat:aluTube': 2, 'mat:carbon': 3, 'mat:glass': 3,
-  'surf:fabric': 1, 'surf:steel': 1, 'surf:alloy': 2, 'surf:aluFabric': 2, 'surf:carbon': 3, 'surf:glass': 3,
+  'surf:fabric': 1, 'surf:steel': 1, 'surf:alloy': 2, 'surf:aluFabric': 2, 'surf:carbon': 3, 'surf:glass': 3, 'surf:fabricAlu': 2,
   // ---- engines
   'eng:a65_sensenich74': 1, 'eng:vw2180_wood': 1, 'eng:rotax277_pusher': 1, 'eng:rotax503_wood': 1, 'eng:rotax582_ivo': 1,
   'eng:jabiru2200_std': 1, 'eng:rotax912_warp': 1, 'eng:o200_eprops': 1, 'eng:mikron3_wood': 1, 'eng:gipsymajor1_wood': 1,
@@ -229,7 +229,7 @@ function careerTechUnlock(doc, seg) {
 // (_cage_join.js: intCons' order, the surfaces' CONS4 after 'as the aeroplane', glazeMat, the canopy tile, fairCons, the
 // nacelle mount, the powertrain). Two rows read the page's tables, handed in by the editor: `engPreset` (the row's
 // names through CAGE_JOIN_ENGINES) and `cw_material` (CAGE_JOIN_PROP_MATS). GATE TECH holds every list to the join.
-const TECH_SURF_ROW = [null, 'surf:carbon', 'surf:steel', 'surf:fabric', 'surf:alloy', 'surf:aluFabric', 'surf:glass'];
+const TECH_SURF_ROW = [null, 'surf:carbon', 'surf:steel', 'surf:fabric', 'surf:alloy', 'surf:aluFabric', 'surf:glass', 'surf:fabricAlu'];
 const TECH_ROWS = {
   intCons: ['mat:carbon', 'mat:tubeFabric', 'mat:wood', 'mat:alloy', 'mat:aluTube', 'mat:glass'],
   wgCons: TECH_SURF_ROW, w2Cons: TECH_SURF_ROW, finCons: TECH_SURF_ROW, stCons: TECH_SURF_ROW,
