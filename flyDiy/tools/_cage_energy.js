@@ -2301,6 +2301,35 @@ function wingShellMat(bad, i, v) {
   return A.aeroMaterial(THREE, { finish: 'bareAlu', tint: tint != null && tint !== FINISH.alu.col ? tint : null,
                                  surf: 0, fieldM: 1, side: THREE.DoubleSide, opacity: 1, inside: 0, decals: 0 });
 }
+// ...and WHERE IT IS DRAWN (the user 10 Nov: "why is the tank side bluish, with wavy patterns? ... does it intersect a
+// spar?" - it did: wingPlace lays its walls on the spar CENTRE lines, inside the drawn spars, its ends on the structure's
+// closing ribs, its top on the stringers - coplanar faces fighting, the blue fuel showing through). A copy of the side
+// record for the DRAWING only (the litres, the bay and everything the join reads stay the record's): the walls on the
+// spars' inner faces (WING_STRUCT.sparFaces: the kind's drawn widths at this chord), the ends 12 mm in, the top and bottom
+// 14 mm in. A page without the structure module keeps 2 cm / 1.5 cm off the lines
+function wingTankClear(s) {
+  const W = (typeof window !== 'undefined' && window.CAGE_WING) || null, WS = (typeof window !== 'undefined' && window.WING_STRUCT) || null;
+  let faces = null;
+  try { if (W && W.def && WS && WS.sparFaces) { let full = null; try { full = window.GARAGE_SPEC.get(); } catch (e) {}
+    faces = WS.sparFaces(W.def, 0, null, full); } } catch (e) { faces = null; }
+  const P = (W && W.def && W.def.parts) || {}, sf = P.sparFront != null ? P.sparFront : 0.15, sr = P.sparRear != null ? P.sparRear : 0.65;
+  const off = (zF, zR) => { const c = MathL.abs(zF - zR) / MathL.max(0.05, sr - sf); return faces ? faces(c) : { front: 0.02, rear: 0.015 }; };
+  const sg = s.x1 >= s.x0 ? 1 : -1, END = 0.012, VT = 0.014, dir = (s.zF0 - s.zR0) >= 0 ? 1 : -1;
+  const o = Object.assign({}, s, { x0: s.x0 + sg * END, x1: s.x1 - sg * END });
+  const a = off(s.zF0, s.zR0), b = off(s.zF1, s.zR1);
+  o.zF0 = s.zF0 - dir * a.front; o.zR0 = s.zR0 + dir * a.rear; o.zF1 = s.zF1 - dir * b.front; o.zR1 = s.zR1 + dir * b.rear;
+  o.d = MathL.max(0.02, s.d - 2 * VT);
+  if (Array.isArray(s.ribs) && s.ribs.length >= 2) {
+    const lo = MathL.min(o.x0, o.x1), hi = MathL.max(o.x0, o.x1);
+    o.ribs = s.ribs.map(rb => {
+      const zs = rb.pts.map(p => p[0]), zMax = MathL.max(...zs), zMin = MathL.min(...zs), q = off(zMax, zMin);
+      const zHi = dir > 0 ? zMax - q.front : zMax - q.rear, zLo = dir > 0 ? zMin + q.rear : zMin + q.front;
+      return { x: MathL.max(lo, MathL.min(hi, rb.x)), pts: rb.pts.map(p => { const yT = p[1] - VT, yB = p[2] + VT;
+        return [MathL.max(zLo, MathL.min(zHi, p[0])), MathL.max(yT, yB + 0.01), MathL.min(yB, yT - 0.01)]; }) };
+    });
+  }
+  return o;
+}
 // ...and ITS HARDWARE, as a welded wing tank has it (a 172's, a PA-18's): the end flanges (the seams the end plates are
 // welded on), the filler neck with its cap at the top outboard end, the sump drain at the lowest inboard corner, the
 // outlet fitting and its line running inboard, the vent line, two hold-down straps over the top. Off its own outline:
@@ -2671,7 +2700,8 @@ function drawResults(group, ctx, results) {
       // the panel just outboard of the centre section, and that is all. It is
       // buried between the spars where nothing can see it, so it gets real
       // outward normals and metre-true uv and no hardware.
-      for (const s of r.sides) {
+      for (const s0 of r.sides) {
+        const s = wingTankClear(s0);   // WING-STRUCTURE: drawn clear of the spars' faces, the closing ribs, the stringers
         // G445.2: THE SPAR BAY'S OWN SECTION where the wing could be measured
         // (VESSEL_GEN.wingRibs off the wing layer's probes): the loft, and
         // the fuel inside it cut flat at the slider's level. The box below

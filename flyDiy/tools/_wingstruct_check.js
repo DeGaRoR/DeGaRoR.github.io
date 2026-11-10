@@ -163,6 +163,12 @@ function run(WSsrc, files) {
       if (z > t.z0 + 0.03 && z < t.z1 - 0.03 && x > xF + 0.06 && x < xR - 0.06) inside++; }
     ok(inside === 0, 'nothing drawn through the tank (' + inside + ' vertices between the spars)');
     ok(h.audit.spars.F.length === WS.plan(d, { lib, sides: ['R'], audit: true }).halves[0].audit.spars.F.length, 'the spars run through as the tank\'s walls'); }
+  // THE TANK CLEARS THE SPARS (the user 10 Nov: "does it intersect a spar?"): the energy layer draws its wing tank off a
+  // cleared copy - the walls on the spars' drawn faces (sparFaces), the ends inside the closing ribs, the top and bottom
+  // off the stringers
+  { const d = DEFS.metal, F = WS.sparFaces(d, 0, lib)(1.6), KD = WS.KINDS.alloy;
+    ok(Math.abs(F.front - (0.5 * KD.sparW * 1.6 + 0.004)) < 1e-12 && Math.abs(F.rear - (0.5 * KD.rearW * 1.6 + 0.004)) < 1e-12, 'the spars\' faces: half the drawn width and 4 mm');
+    ok(/const s = wingTankClear\(s0\);/.test(files.energy) && /WS\.sparFaces\(W\.def, 0, null, full\)/.test(files.energy) && /END = 0\.012, VT = 0\.014/.test(files.energy), 'the wing tank is drawn clear of the spars, the closing ribs, the stringers'); }
   // every construction row has a kind (and fabricAlu, REAL-FIGURES-3's, before it lands)
   for (const r of Object.keys(C('GEN_SURF_MATERIALS')).concat(['fabricAlu'])) ok(r === 'fabric' || !!WS.KINDS[r], 'the row ' + r + ' has a kind');
   ok(!!(WS.KINDS.dbox && WS.KINDS.cub), 'the wooden row\'s two kinds');
@@ -200,7 +206,7 @@ function run(WSsrc, files) {
   ok(/cutTaper\(T, root, p1, p2, st\);/.test(F) && /nm\[i\] !== 'taperPanel'/.test(F), 'the pod-and-rod\'s taper cladding is cut');
   return { fails, checks, stats };
 }
-const files = { fiche: rd('src/viewer/plane_fiche.js'), wing: rd('tools/_cage_wing.js'), skin: rd('src/viewer/aeroskin.js'), build: rd('tools/build.js'), app: rd('src/viewer/app.js'), join: rd('tools/_cage_join.js') };
+const files = { energy: rd('tools/_cage_energy.js'), fiche: rd('src/viewer/plane_fiche.js'), wing: rd('tools/_cage_wing.js'), skin: rd('src/viewer/aeroskin.js'), build: rd('tools/build.js'), app: rd('src/viewer/app.js'), join: rd('tools/_cage_join.js') };
 const WSsrc = rd('src/viewer/wing_struct.js');
 const base = run(WSsrc, files);
 for (const s of base.stats || []) console.log('  ' + s);

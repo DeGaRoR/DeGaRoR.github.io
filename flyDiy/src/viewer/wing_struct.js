@@ -637,7 +637,14 @@
     if (o.parent) o.parent.remove(o);
     o.traverse(m => { if (m.geometry) m.geometry.dispose(); });   // (the materials are the library's, shared)
   }
-  const api = { BUDGET, KINDS, COL, INSET, kindOf, plan, make, group, dispose };
+  // THE SPARS' DRAWN FACES, for what sits between them (the user 10 Nov, on the wing tank: "does it intersect a spar?" - it
+  // did: the energy layer laid its walls on the spar CENTRE lines, inside the drawn spars). -> chord => { front, rear }: how
+  // far aft of the front spar's line and fore of the rear's a body must stand to clear the faces (metres, a 4 mm gap)
+  function sparFaces(def, k, lib, spec) {
+    const KD = kindOf(def, k | 0, lib, spec).kind;
+    return chord => ({ front: 0.5 * KD.sparW * chord + 0.004, rear: 0.5 * KD.rearW * chord + 0.004 });
+  }
+  const api = { BUDGET, KINDS, COL, INSET, kindOf, plan, make, group, dispose, sparFaces };
   if (typeof window !== 'undefined') window.WING_STRUCT = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 
