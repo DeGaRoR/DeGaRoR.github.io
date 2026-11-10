@@ -1,6 +1,5 @@
-// FMIST CHECK - the forest-mist PROTOTYPE, headless (FOREST-MIST study, 2026-11-09). Not in the battery yet: the
-// gate the chosen technique lands with is specified in futureDesigns/FOREST-MIST-STUDY-2026-11.md SS7; this is the
-// prototype's own proof that it is inert when off, and that its map and its weather law say what the study says.
+// GATE FMIST - the forest mist, headless (FOREST-MIST, 2026-11-09/10; futureDesigns/FOREST-MIST-STUDY-2026-11.md SS7):
+// it is inert when off, its map and its weather law say what the study says, and the GRAPHICS row is wired.
 //
 // 1. OFF IS IDENTICAL: without ?fmist the mist's GLSL carries no pocket code, the lanes' array is the 28 it was, and
 //    atmo.js / clouds.js put every pocket string behind a ternary that yields '' (the source rule)
@@ -10,7 +9,8 @@
 // 4. THE LAW: zero in dry air; the pool burns off with the lagged sun and dies in wind; the wisps fade with the hours
 //    since rain; the cloud-base band needs a low, covered sky
 //
-// Run: node tools/_fmist_check.js   (one final `FMIST CHECK: PASS|FAIL`)
+//
+// Run: node tools/_fmist_check.js   (contract: one final `GATE FMIST: PASS|FAIL`)
 'use strict';
 const fs = require('fs'), path = require('path');
 let fails = 0, checks = 0;
@@ -87,5 +87,20 @@ yes(L({ rh: 0.98, cloudCoverEff: 0.9, cloudBase: 400 })[2] > 0.5 && L({ rh: 0.98
 yes(L({ cloudCoverEff: 0.9 })[0] < 0.4 * L({ cloudCoverEff: 0 })[0], 'an overcast night keeps the ground warm: little radiation fog under it');
 { const k = L({ rh: 0.6, mistCalm: 0.5 }, { hoursDry: 400 }); yes(k[0] === 0 && k[1] === 0, 'a dry, breezy day long after rain: no pool, no wisps'); }
 
-console.log((fails ? 'FMIST CHECK: FAIL' : 'FMIST CHECK: PASS') + ' (' + (checks - fails) + '/' + checks + ')');
+console.log('5. the GRAPHICS row');
+{
+  const G = fs.readFileSync(path.join(SRC, 'gfx_settings.js'), 'utf8');
+  const row = /\{ k: 'fmist', label: 'forest mist', reload: true, steps: \[/.test(G);
+  const presets = (G.match(/fmist: 'off', /g) || []).length;
+  yes(row, 'the row exists and is a reload row (the veil is compiled in at the start)');
+  yes(presets === 6, 'every preset names it, OFF until the box has timed it (' + presets + ' of 6)');
+  yes(/rows: \['clouds', 'mist', 'fmist', 'glare'\]/.test(G), 'it sits in the sky group');
+  global.location = { search: '' }; global.localStorage = { getItem: k => (k === 'flydiy.fmist' ? '1' : null) };
+  const F2 = fresh(path.join(SRC, 'forest_mist.js'));
+  yes(F2.ON && F2.C && !F2.A && !F2.B, 'the stored choice compiles the veil alone (the cards and the march stay behind ?fmist=)');
+  global.localStorage = { getItem: () => null };
+  yes(!fresh(path.join(SRC, 'forest_mist.js')).ON, 'nothing stored, no flag: off');
+  delete global.localStorage;
+}
+console.log((fails ? 'GATE FMIST: FAIL' : 'GATE FMIST: PASS') + ' (' + (checks - fails) + '/' + checks + ')');
 process.exitCode = fails ? 1 : 0;

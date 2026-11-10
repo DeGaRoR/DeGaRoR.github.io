@@ -228,30 +228,49 @@ each fragment (the pocket its trees stand in) + 2 over the first 350 m after the
 
 ## 4. THE PROTOTYPE, IN PICTURES (SwiftShader, `potato`: the trees are its blobs; judge the mist, never the forest)
 
-Rig: `tools/soft_still.js --page dev.html --gfx potato --q fmist=abc --stage tools/forest_mist/stage.js` (one boot, many
-stills: each view x each variant, the variants switched live by `FMIST.use` / `FMIST.S.force` / `FMIST.S.rho`); the
-views were scouted in node on Jolene for layered, forested, sun-facing frames (`tools/forest_mist/` keeps the stage).
-September 20, 07:15 AKDT (sun 6 deg, az 95). The concept target the user gave is `target_concept.webp`.
+Rig: `tools/soft_still.js --page dev.html --gfx potato --q fmist=abc --stage tools/forest_mist/stage.js` - one boot, many
+stills, the variants switched live (`FMIST.use`, `FMIST.S.force`, `FMIST.S.rho`). The eyes were scouted in node on
+Jolene for layered, forested, sun-facing frames. Dawn of 20 September (07:15 AKDT, sun 6 deg at az 95) unless a plan
+day is named. The user's target: `target_concept.webp` (a bush plane on a strip at sunrise, wisps lying mid-slope
+between tree layers, backlit). Every sheet is in `reports/evidence/FOREST-MIST/` (`sNN_*`).
 
-### 4a. How the look was found (five sheets, three steering notes from the user)
+**THE PICK: `s08_PICK_run11.jpg`** (the user, 10 Nov: *"this image was looking best, the ones after that are sort of
+worse"*): the veil, 110 m cells with a three-octave erosion to ~2 m, a 450 m window before each surface, the threshold
+at 0.9 x the cover, the weather on both the amount and the density (0.003 /m at the heaviest, a quarter of it for the
+last wisps), the pockets lit by the key's beam. Slope off / 1 / 0.66 / 0.33, the ridges at 1, and the season's Valley
+fog (Aug 17, 06:30) with nothing forced.
+
+### 4a. How the look was found - eleven sheets, eight steering notes
 
 | sheet | what it showed | what changed |
 |---|---|---|
-| 1 (`v1_*`) | nothing visible in either the veil or the cards | the CPU mirror (`FMIST.densCPU`) found it: the octaves' sum sits at 0.5 +- 0.13, so the coverage remap left an optical depth of ~0.02 in a full valley. The noise is stretched before the remap |
-| 2 (`t1_*`, `t2_*`) | **the layering appears**: a band at the far hill's foot behind the near tree line; on the ridges view, mist lying along the far slope at crown height with a pool on the water at the valley's mouth, the far forest stepping back. Lavender-grey, on top of a flat layer that already milks the "off" frame; the cards blank | the pockets' own forward lobe (droplets: a narrow strong Mie peak - backlit they glow); the flat layer gives a share of itself to the pockets while they are live (redistribute, never add: section 1); the cards' deal photographed an empty deck - fixed |
-| user, on sheet 2 | *"the distribution starts to be good, but it lacks detail in the shape and the contours, it needs to be further cut through, and probably set less dense overall, but the direction is good"* | the bands' edges ride the noise (a lumpy top, a heaving lid), a ~20 m erosion breaks the outline (Schneider's base-minus-detail), the cover threshold at 0.8 x, density 0.03 -> 0.018 /m |
-| 3 (`a_*`, `b_*`) | the backlit slope: **broken wisps lying mid-slope along the contours, between the near firs and the far forest** - the target's structure. But flat white paper cut-outs (hard edges, clipped by the lobe); the cards drawn at alpha ~0.07 | a wide body ramp, an eased erosion edge, a gentler stretch, the lobe 4 -> 2.2; the cards x2.4 |
-| user, on sheet 3 | *"still too dense, too milky, not aerial enough. Lower the density a lot, try /2, /4, /8, /16"* | the ladder below; the day's humidity 0.93 -> 0.85 for the sheet (the F2 flat layer at 0.93 milked even the "off" frame) |
+| `v1` (run 2) | nothing visible | the CPU mirror found it: the octaves' sum sits at 0.5 +- 0.13 and the coverage remap left od ~0.02 in a full valley. Stretched before the remap |
+| `s02_*` | **the layering appears**: a band at the far hill's foot behind the near tree line; mist along the far slope at crown height, a pool at the valley's mouth; a sea of fog under the ridges from above. Lavender-grey, on a flat layer that already milks the "off"; the cards blank | the pockets' own forward lobe; the flat layer gives its share to the pockets (redistribute, never add); the cards' deal photographed an empty deck - fixed |
+| user | *"the distribution starts to be good, but it lacks detail in the shape and the contours, it needs to be further cut through, and probably set less dense overall"* | the bands' edges ride the noise, a ~20 m erosion, the threshold up, 0.03 -> 0.018 /m |
+| `s03_backlit_slope` | **broken wisps lying mid-slope along the contours between the near firs and the far forest** - the target's structure; but paper cut-outs, clipped white | a wide body ramp, an eased erosion edge, a lower lobe |
+| user | *"still too dense, too milky, not aerial enough. Lower the density a lot, try /2, /4, /8, /16"* | the ladder |
+| `s04_ladder_*` | backlit: /2 solid strips, /4 translucent, /8 airy, /16 nearly gone; front-lit (the ridges) far fainter at every step | - |
+| user | *"they all look right to me in different conditions. The /2 would be really heavy morning mist, the others dissipating after rain ... could we piggyback on the weather schedule and the climate"* | **section 5**: the season's plan and the day drive the strength; the ladder is the intensity |
+| user | on the ridges: *"too faint ... you're further multiplied by the weather factor ... it's not a /2 we need, rather a x2"* | it was: the cover multiplied the density a second time (/6-/10 at "/2"); the pockets were lit by the layer's HORIZONTAL irradiance (x sin 6 deg). The double count removed, x2, the key's beam |
+| `s05_x2_flat_saturated` | strong, glowing, but flat | - |
+| user | *"now it's all too thick ... lost definition ... the density could vary through the cloud itself, less dense on the borders ... controlling both together is lacking"* | the gradient mechanism (the weather on the amount only, thin edges, thick cores) |
+| user | *"the simpler option: divide by 2 and keep the mechanism where the weather controls both - compare"* | `s06_ab_gradient_vs_flat2`: the gradient's cores clip to white; **flat /2 translucent, aerial, fades with the weather** |
+| user | *"new is better, chase more resolution; the finer ones are best, the dense ones look bad: halve again?"* | 0.003 /m, finer cells and a third erosion octave |
+| `s07_sin_hash_blobs` | bigger, smoother banks - the opposite of finer | **the `fract(sin(x) * 43758)` hash breaks in fp32 at the finer noise's arguments** (real GPUs too); the pockets got their own sin-free hash (Hoskins), the lattice wrapped to 512 cells. `tools/forest_mist/glsltest.js` then proved the GPU density equal to the CPU mirror (4096 points on SwiftShader, 21 % vs 23 % in mist, mean diff 0.05), so the CPU mirror became the fast rig (`raycpu.js`: the veil per pixel in seconds) |
+| **`s08_PICK_run11`** | **the pick** | - |
+| `s09_wind_stretch_rejected`, `sweep.png`, `contour_sweep.png` | a 200 m window, 70 m cells, the wisps drawn out along the wind: finer, but they lean down the slope like rain (*"reads too vertical, and the valley is too light"*); then drawn out along the baked contour with altitude layers (*"in my references they're rather horizontal layers"*) | **both kept as dials, off** (`elong`, `strat`, the contour map baked beside the pocket map); both compile out at their off values |
 
-### 4b. The density ladder (`rho_div2/4/8/16`: 0.009, 0.0045, 0.00225, 0.0011 /m)
+### 4b. The renderers side by side
 
-<!-- LADDER -->
+- **The veil (`c`)** is every sheet above.
+- **The cards (`b`)**: in every sheet they were the weakest - nearly invisible until boosted, then puffs that cannot sit
+  between tree layers (no depth to fade against: a hard line where a sheet meets a crown), invisible beyond their deal
+  radius. Shot again on the pick in `s10_*` (section 4c).
+- **The march (`a`)**: the clouds' pass on SwiftShader - section 4c.
 
-### 4c. The renderers side by side
+### 4c. The last load on the pick (cockpit, from above, far, cards and march, the evening after the storm)
 
-<!-- RENDERERS -->
-
----
+<!-- R14 -->
 
 ## 5. THE WEATHER: WHEN, WHERE, HOW MUCH - piggybacked on the season's plan and the climate (forest_mist.js `strengths`)
 

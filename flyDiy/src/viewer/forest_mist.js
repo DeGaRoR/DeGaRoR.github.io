@@ -28,6 +28,9 @@ var FMIST = (function () {
   'use strict';
   let flag = '';
   try { flag = new URLSearchParams(location.search).get('fmist') || ''; } catch (e) {}
+  // THE GRAPHICS ROW (gfx_settings.js `fmist`): stored for the start, because the veil's code is compiled into the mist
+  // when the shaders are made; a ?fmist= rig wins over it
+  if (!flag) { try { if (typeof localStorage !== 'undefined' && localStorage.getItem('flydiy.fmist') === '1') flag = 'c'; } catch (e) {} }
   const ON = /^[abc]+$/.test(flag);
   const A = ON && flag.indexOf('a') >= 0, B = ON && flag.indexOf('b') >= 0, C = ON && flag.indexOf('c') >= 0;
   // THE DIALS. Strength laws are in strengths(); `force` pins them for a rig ({pool, wisp, oro} 0..1, null = the weather's).
