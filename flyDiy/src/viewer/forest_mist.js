@@ -30,7 +30,9 @@ var FMIST = (function () {
   try { flag = new URLSearchParams(location.search).get('fmist') || ''; } catch (e) {}
   // THE GRAPHICS ROW (gfx_settings.js `fmist`): stored for the start, because the veil's code is compiled into the mist
   // when the shaders are made; a ?fmist= rig wins over it
-  if (!flag) { try { if (typeof localStorage !== 'undefined' && localStorage.getItem('flydiy.fmist') === '1') flag = 'c'; } catch (e) {} }
+  // ON BY DEFAULT (the user, 10 Nov ~20:55: "otherwise I don't see it; if it looks bad at least I can do something"): nothing
+  // stored is on; only the row's stored 'off' ('0') leaves the veil out
+  if (!flag) { try { if (typeof localStorage !== 'undefined') { const v = localStorage.getItem('flydiy.fmist'); if (v === '1' || v === null) flag = 'c'; } } catch (e) {} }
   const ON = /^[abc]+$/.test(flag);
   const A = ON && flag.indexOf('a') >= 0, B = ON && flag.indexOf('b') >= 0, C = ON && flag.indexOf('c') >= 0;
   // THE DIALS. Strength laws are in strengths(); `force` pins them for a rig ({pool, wisp, oro} 0..1, null = the weather's).
