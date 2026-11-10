@@ -6673,11 +6673,18 @@
   // compile links its program: none links in a crash) and the cover ring's cull (cover_ring.js scar: the grass out of
   // the footprint, the shrubs and the debris out of the sweep too). The shed, a reset or a new flight lets it go: the
   // decal's buffers freed, the ring's cells under it planted again whole. Damage off: never a read (one compare a frame)
-  let scarMesh = null;
+  let scarMesh = null, scarLiveMesh = null;   // (SCAR-LIVE: the trail while it slides - ground_scar.js makeLive)
   const SCARS = { st: null, vS: -1, on: false, last: null };
   const scarPageOn = () => (typeof FLYDIY_DAMAGE === 'boolean' ? FLYDIY_DAMAGE : (typeof GEN_DAMAGE_DEFAULT !== 'undefined' && GEN_DAMAGE_DEFAULT === true));
   function groundScars() {
     const D = !inGarage && sim && world && scarPageOn() ? dmgNow() : null;
+    // SCAR-LIVE: the strokes since the last frame laid now (the seal or a reset first lets the trail go); a frame's work
+    // is bounded by the hop (liveFrame strokes)
+    if (scarLiveMesh && D && D.liveQ) {
+      if (D.liveClr) { GROUND_SCAR.liveClear(scarLiveMesh); D.liveClr = false; }
+      if (D.liveQ.length) { GROUND_SCAR.liveAdd(scarLiveMesh, D.liveQ, world); D.liveQ.length = 0; }
+      window.FLYDIY_SCAR_LIVE = scarLiveMesh.userData.live;   // (GATE DMGSCAR's read: n, used, adds, strokes, ms, msMax)
+    }
     if (!(D && D.scar && D.scar.length)) { if (SCARS.on) scarsClear(); return; }
     if (SCARS.st === D && SCARS.vS === D.vS) return;
     SCARS.st = D; SCARS.vS = D.vS; SCARS.on = true;
@@ -6777,6 +6784,7 @@
   };
   function scarsClear() {
     GROUND_SCAR.clear(scarMesh);
+    if (scarLiveMesh) GROUND_SCAR.liveClear(scarLiveMesh);   // SCAR-LIVE
     const ring = window.TREE_FILL && TREE_FILL.cover ? TREE_FILL.cover() : null;
     if (ring && ring.scar) ring.scar(null);
     SCARS.st = null; SCARS.vS = -1; SCARS.on = false; window.FLYDIY_SCAR = null;
@@ -15090,6 +15098,8 @@
         contactMesh = CONTACT_SHADOW.make(THREE); scene.add(contactMesh); }
       // G2359 (DMG-SCAR): the scar's decal, parked in the world before its compile (its program linked with the world's)
       if (!scarMesh && typeof GROUND_SCAR !== 'undefined' && scarPageOn()) { scarMesh = GROUND_SCAR.make(THREE); scene.add(scarMesh); }
+      // SCAR-LIVE: the trail's mesh beside it, on the same material (the same program: linked by the same compile)
+      if (scarMesh && !scarLiveMesh && GROUND_SCAR.makeLive) { scarLiveMesh = GROUND_SCAR.makeLive(THREE, scarMesh); scene.add(scarLiveMesh); }
       // G3770 (DMG-LOOKS): the model's tube pools, parked likewise (DMG-LOOKS on - the default since G3774, ?dmglook=0 off; their slot textures allocated now)
       if (scarPageOn()) lookPools(false);
       // DIRT-DUST: the dust's batch, parked likewise (hidden; its one program linked by the roll-out's compile)

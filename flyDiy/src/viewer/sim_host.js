@@ -317,6 +317,21 @@ function simDmgHop(sim, hop, coreNode, win) {
   if (!sg) return null;
   const clk = typeof performance !== 'undefined' ? performance : Date, t0 = clk.now();
   let out = null;
+  // SCAR-LIVE: the live strokes since the last read, at most liveFrame a frame (lg the ring's generation: a new one, the
+  // page drops its trail; a seal in this payload covers the strokes before its cut - skipped)
+  { const SC = sim.damageScar ? sim.damageScar() : null, LV = SC && SC.live;
+    if (LV) {
+      // (the first read takes the generation silently - GATE DMGSKIN: a calm flight sends no payload, no key; only a NEW
+      // generation, a reset, tells the page to drop its trail)
+      if (hop.lG === undefined) { hop.lG = LV.g; hop.lS = LV.pub; }
+      else if (hop.lG !== LV.g) { hop.lG = LV.g; hop.lS = 0; out = { lg: LV.g }; }
+      if (sg[2] !== hop.sC && LV.cut > hop.lS) hop.lS = LV.cut;
+      if (LV.pub - hop.lS > LV.cap) hop.lS = LV.pub - LV.cap;
+      const k = Math.min(typeof SCAR !== 'undefined' && SCAR.liveFrame ? SCAR.liveFrame : 64, LV.pub - hop.lS);
+      if (k > 0) { const a = new Array(k * 8);
+        for (let j = 0; j < k; j++) { const o = ((hop.lS + j) % LV.cap) * 8; for (let q = 0; q < 8; q++) a[j * 8 + q] = LV.b[o + q]; }
+        out = Object.assign(out || {}, { lg: LV.g, ls: a }); hop.lS += k; }
+    } }
   if (sg[2] !== hop.sC) {           // G2357: the scar alone (its own payload: the page's grass and decal, once an event)
     hop.sC = sg[2];
     out = { sC: sg[2], sc: sim.damage().scar.prims.slice() };
