@@ -1185,11 +1185,14 @@ function garageInit(api) {
         if (!confirm('Delete the saved build "' + n + '"?')) return;
         lsDel(SLOT + n);
         try { if (window.PLANE_THUMB) window.PLANE_THUMB.forget(n); } catch (e) {}
+        try { if (window.FICHE_BOARD) window.FICHE_BOARD.forget(n); } catch (e) {}   // (R3: the fiche goes with its plane)
         if (slotName === n) slotName = '';
         slotsChanged({ deleted: n });
         syncRibbon();
       });
       row.appendChild(b);
+      // PLANE-RENDERS R3: the fiche's door, on a plane that has one (fiche_board.js; added when the store answers)
+      try { if (window.FICHE_BOARD) window.FICHE_BOARD.rowButton(row, n); } catch (e) {}
       // "bring it home" (GQ5: free, instant) on an aeroplane standing outside - tied down at a base or away
       if (P && (P.kind === 'out' || P.kind === 'away') && api.bringHome) {
         const hb = document.createElement('button');
@@ -1215,6 +1218,7 @@ function garageInit(api) {
           if (r && !r.ok) { alert(r.why || 'refused'); return; }
           lsDel(SLOT + n);
           try { if (window.PLANE_THUMB) window.PLANE_THUMB.forget(n); } catch (e) {}
+          try { if (window.FICHE_BOARD) window.FICHE_BOARD.forget(n); } catch (e) {}   // (R3: the fiche goes with its plane)
           if (slotName === n) slotName = '';
           slotsChanged({ deleted: n });
           syncRibbon();
@@ -1344,6 +1348,8 @@ function garageInit(api) {
     try { if (window.PARKED && window.PARKED.fleetQueue) window.PARKED.fleetQueue(name); } catch (e) {}
     // G3800: the plane cards' side profile, drawn once the stand is still (plane_thumb.js; never on the save's path)
     try { if (window.PLANE_THUMB) window.PLANE_THUMB.saved(name); } catch (e) {}
+    // PLANE-RENDERS R3: a certified plane's fiche waits for its first save's name (fiche_board.js; nothing drawn here otherwise)
+    try { if (window.FICHE_BOARD) window.FICHE_BOARD.saved(name); } catch (e) {}
   };
   // EXPORT is a file, because a build you cannot hand to somebody else is not
   // really saved. It commits first for the same reason saving does, and more

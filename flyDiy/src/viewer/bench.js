@@ -184,6 +184,8 @@ function benchHydroVerdict(r) {
     done: true,
     verdict: off ? 'LIFTS OFF THE WATER' : r.bad ? 'SIM DIVERGED' : (r.ventMax < 0.5 || r.hump.R >= 0.8 * r.TW) ? 'STUCK AT THE HUMP' : 'STAYED ON THE WATER',
     ok: off,
+    // FLAGSHIP 10 Nov (the Twin's fiche): the lift-off as numbers, not only inside the note - the fiche's water take-off
+    lift: off ? { t: r.lift.t, dist: r.lift.dist, V: r.lift.V } : null,
     note: 'hump R/W ' + benchNum(r.hump.R, 2) + ' at ' + benchNum(r.hump.V * 3.6, 0) + ' km/h · T/W ' + benchNum(r.TW, 2)
         + ' · step air ' + benchNum(r.ventMax, 2) + ' · trim ' + benchNum(r.trimMin, 0) + '…' + benchNum(r.trimMax, 0) + '°'
         + (off ? ' · off at ' + benchNum(r.lift.t, 0) + ' s, ' + benchNum(r.lift.dist, 0) + ' m, ' + benchNum(r.lift.V * 3.6, 0) + ' km/h' : '')
@@ -1268,6 +1270,8 @@ function benchInit(api) {
     else award(t, r, after);
     // G2742 (STORY-PAGE): the page hears the airworthiness certificate land (app.js: the career's story; nobody else sets it)
     if (!wasPassed && passed() && typeof window.BENCH_CERTIFIED === 'function') { try { window.BENCH_CERTIFIED(); } catch (e) {} }
+    // PLANE-RENDERS R3: ...and the fiche (fiche_board.js): awarded with the certificate, drawn once its card is closed
+    if (!wasPassed && passed() && window.FICHE_BOARD) { try { window.FICHE_BOARD.certified(); } catch (e) {} }
   }
   // THE AIRWORTHINESS CERTIFICATE (A9, the user: "we need like a master
   // sticker"): one bigger roundel, the registration and the day, worn on
