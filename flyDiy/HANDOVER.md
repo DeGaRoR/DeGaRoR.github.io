@@ -314552,3 +314552,9 @@ TIMED GATE (16:50-19:00, with the liner + float-deck still in): taxi chase @HOME
 Parked fleet re-cooked on this build (parked_cook --check same).
 
 No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change: PHYSICS_V 7, GEN_SPEC_V 10, GEN_CERT_V 7.
+
+### PLANE-RENDERS R3 RE-BAKE (AIRCRAFT-LOOKS, 10 Nov 23:25, for L38a)
+- The official fiches are re-baked on L37b master 6f1497d72, with the R3 rules, the Wingsmith signature, and the cutaway's near wing drawn as its structure (WING-STRUCTURE). It used FLAGSHIP's fiche_bake.js hydro step (26cbeda75 as a patch). The 7 cand:/list: heroes were re-baked too (the WINGSMITH sticker).
+- The wing structure shows in 8 of 10. list:5 Metal Cessna and list:7 Rufus drew their cutaway with no cut at all, so they keep their PREVIOUS fiche here; their re-bake is in the Wed 11 Nov 15:00 picture set.
+- The hydro step was REFUSED on all 3 float cards (the bench busy for the whole 60 s). Their row reads "on water: see the hydroplane test", no longer the land roll. FLAGSHIP is looking into it before Wednesday's set.
+- Gates: MEDIA PLANEFICHE PLANETHUMB PASS.
