@@ -314062,3 +314062,14 @@ THE READIES:
 - night-stretch (NIGHT-LOOK): star reflections spread by the waves, on at 0.03 (the user's call).
 - well-clamp (SEAPLANES-LAND): the retract well depth clamped under the skin.
 - hangar-view-c (Game): the hangar view, with the shed-frame updateMatrixWorld fault fixed after L36d.
+
+## FLOAT-DECK (SEAPLANES-LAND, 10 Nov; ready claude/ready/float-deck)
+
+genTuneAP (62_gen_aero ~950): the rest deck is a TAILWHEEL's three-point, so only gear.type 'taildragger' gets one. Floats and a hull rest at deck 0. Before: the run read P.TW / P.twX off nothing, the 0.1 m denominator floor put the deck at 1.32-1.43 rad (75-80 deg nose-up), and genTORunAt probed the roll there (drag ~ lift, a floored at 0.15): the fiches printed 805-1557 m float take-offs.
+A.deck has one reader, genTORunAt (64_gen_build:435). liftoffTh / thRotate / thTailUp are unchanged (the liftoff cap never applied on floats). The pilot never reads deck, so the run is the same; what moves is TORun and its readers (43_pilot runNeeded and the go/no-go at the hold, 25_airfield strip check, accept/contract toDistM, career toM).
+TORun master -> branch: cessna172_floats 1164 -> 222 m, pa18_floats 805 -> 197, c172r wipline landprop 1557 -> 460, stcprop 1343 -> 303, ultralight_floats 319 -> 53; Twin_busher_floats_4b 1151 -> 233. Every taildragger unchanged to the digit.
+PINS MOVED ON PURPOSE (written reasons):
+- ENGCONFIG: bugReports/cessnaFloatsWOrks.json def digest f96f0f0fb183066c -> 2629b4e69583e6bf. The def carries ap.deck (1.317 -> 0) and ap.TORun; its 300 flown steps digest c0cb85e1b844a200 is unchanged.
+- POD: _pod_base.json floats + twinf def + shakedown sheet digests (the same deck and TORun; twinf is the v7 ultralight fixture patched to floats, _pod_check.js:52, not the Twin busher). c172 def + certificate bytes too (A0): C172-CLIP (L37a) moved the def bytes; the flown steps are identical (e8d01f05). One owner touches _pod_base.json today.
+Decisions that change with TORun (the run itself cannot): the lane/strip choice (43_pilot runNeeded), the go/no-go at the hold (43_pilot G2450), the 25_airfield strip >= 1.15 x TORun, the contract toM and accept toDistM, career toM. The Twin 4b flown from SEA, master vs branch: master lift-off 23.4 s, run ~360 m, CLIMB at 32.9 s (pilot: nothing); branch lift-off 23.4 s, run ~360 m, CLIMB at 32.9 s (pilot: nothing)
+Gates: FLOATS, SEAPLANE, PLANEFICHE, HONEST, CERTGATES, HYDRODYN, FLOATSCLASSIC-WATER PASS; TOUR shard 2/4 PASS (red on master). NEWPLANE-BUILDS "fixed tricycle" red as on master.
