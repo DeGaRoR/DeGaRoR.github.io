@@ -9,7 +9,7 @@
 // keyed by the list's picture key (design:cub, list:5, cand:<file>, stock:<name>) - the key fiche_board.js and the All planes
 // screen ask by. The fiche's name is the list's. A plane that fails keeps its old fiche (nothing pruned after a miss).
 //
-//   node tools/fiche_bake.js --gpu [--secs 900] [--only <key,key>] [--keep <dir>] [--hydro-secs 150]   (a box run: one Chrome, the graphics card)
+//   node tools/fiche_bake.js --gpu [--secs 900] [--only <key,key>] [--keep <dir>] [--hydro-secs 150] [--busy-secs 60]   (a box run: one Chrome, the graphics card)
 //   node tools/fiche_bake.js --dry                                                  the list and the files, no browser
 //
 // A SEAPLANE'S TAKE-OFF (FICHE-WATER, 10 Nov): a float build's fiche prints the hydroplane test's lift-off, never the land
@@ -31,6 +31,7 @@ if (flag('dry')) { for (const r of rows) console.log(r.thumb.padEnd(40), r.name.
 const keep = opt('keep', null), work = keep || fs.mkdtempSync(path.join(os.tmpdir(), 'fiche_bake_'));
 fs.mkdirSync(work, { recursive: true });
 const HYDRO_MS = 1000 * +opt('hydro-secs', '150');   // the hydroplane run's wait inside one plane's probe (its --probe-secs is 300)
+const BUSY_MS = 1000 * +opt('busy-secs', '60');      // a float build's wait for a busy bench to take the row
 // the probe: the plane on the stand, its fiche drawn (no store), its pictures and numbers handed back
 const PROBE = `(async () => {
   const P = window.PLANE_FICHE; if (!P) return { error: 'no PLANE_FICHE' };
@@ -39,11 +40,20 @@ const PROBE = `(async () => {
   // FICHE-WATER: the hydroplane test first - a float build only (BENCH_RUN is false where the row is not offered)
   let hydro = null;
   const hy = () => { try { const B = window.BENCH_STATE && window.BENCH_STATE(); return (B && B.results && B.results.hydro) || null; } catch (e) { return null; } };
-  if (typeof window.BENCH_RUN === 'function' && window.BENCH_RUN('hydro')) {
+  // a BUSY bench (a row still running, a flight pending - AIRCRAFT-LOOKS' 14:42 rig) also answers false: on a float or hull
+  // build (the stand's spec, plane_fiche.js's own test) the probe asks again for up to BUSY_MS; a land build asks once, as before
+  let sea = false; try { const sp = window.GARAGE_SPEC && window.GARAGE_SPEC.get();
+    sea = !!sp && (/float|hull/i.test(String((sp.gear && sp.gear.type) || '')) || +(sp.cage && sp.cage.hullOn) > 0); } catch (e) { sea = false; }
+  const tb = performance.now();
+  let asked = typeof window.BENCH_RUN === 'function' && window.BENCH_RUN('hydro');
+  while (!asked && sea && typeof window.BENCH_RUN === 'function' && performance.now() - tb < ${BUSY_MS}) {
+    await new Promise(r => setTimeout(r, 500)); asked = window.BENCH_RUN('hydro'); }
+  if (!asked && sea) hydro = { ms: Math.round(performance.now() - tb), done: false, ok: false, verdict: 'not offered or busy', lift: null, refused: true };
+  if (asked) {
     const t1 = performance.now();
     while (performance.now() - t1 < ${HYDRO_MS}) { const h = hy(); if (h && !h.running) break; await new Promise(r => setTimeout(r, 250)); }
     const h = hy();
-    hydro = { ms: Math.round(performance.now() - t1), done: !!(h && !h.running), ok: !!(h && h.ok), verdict: h ? String(h.verdict || h.running || '') : 'no result',
+    hydro = { ms: Math.round(performance.now() - t1), waited: Math.round(t1 - tb), done: !!(h && !h.running), ok: !!(h && h.ok), verdict: h ? String(h.verdict || h.running || '') : 'no result',
               lift: (h && h.lift) || null };
   }
   const rec = await P.generate({ name: 'bake', store: false });
@@ -76,7 +86,7 @@ for (const r of rows) {
   index.fiches[r.thumb] = { name: r.name, file, data, pics };
   done++;
   console.log('fiche_bake:', r.thumb, r.name, v.ms + ' ms', Object.keys(pics).join(','), 'worst task ' + JSON.stringify(v.time && v.time.worst),
-    'hydro: ' + (!v.hydro ? 'none' : !v.hydro.done ? 'unsettled after ' + v.hydro.ms + ' ms (the fiche says see the hydroplane test)'
+    'hydro: ' + (!v.hydro ? 'none' : v.hydro.refused ? 'REFUSED for ' + v.hydro.ms + ' ms on a float build (the bench busy, or no row - the fiche says see the hydroplane test)' : !v.hydro.done ? 'unsettled after ' + v.hydro.ms + ' ms (the fiche says see the hydroplane test)'
       : v.hydro.lift ? 'lift-off ' + Math.round(v.hydro.lift.dist) + ' m in ' + v.hydro.ms + ' ms' : v.hydro.verdict + ' (' + v.hydro.ms + ' ms)'),
     'take-off row: ' + JSON.stringify(v.data && v.data.specs ? (v.data.specs.TOWater ? 'on water: ' + v.data.specs.TOWater : v.data.specs.TORun) : null));
 }
