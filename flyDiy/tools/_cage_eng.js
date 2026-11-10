@@ -1662,8 +1662,14 @@ function engPlace(ctx, prev) {
         if (u && yb != null && u.y > yb + 0.05) {
           const f = { kind: 'cabPylon', x: 0, z: zc - (Lp / 2 - 0.05), yc: u.y + 0.01, halfH: 0, chord: Lp / 0.42,
                       foot: { x: 0.06, y: yb, zF: zc + Lp / 2, zR: zc - Lp / 2, yF: top(zc + Lp / 2), yR: top(zc - Lp / 2) } };
+          // PETREL-LS (the user, 10 Nov: "a wing pylon... restricted to wing size, and as such it should be ... in case
+          // there is a central nacelle, then this thing can be extended further to cover the central nacelle"): THE RULE.
+          // The cabane pylon joins what is over it on the CENTRELINE only - the first plane's centre section and, when
+          // the engine hangs there, the central nacelle (the cowl layer). pylonHug fits its chord to the run with a
+          // surface over it, so the rows bpPylonZ / bpPylonLen may carry it aft along a central nacelle past the wing,
+          // and are cut back where neither is over it; a wing nacelle (outboard of the caster's +-0.4 m) never counts
           drawPylonBlade(group, f, Object.assign({}, P, { engPylonFair: 3 }), GK, false,
-                         pylonCaster(ctx, FS, [-1.0, 1.0, zc - 1.2, zc + 1.2]));
+                         pylonCaster(ctx, FS, [-0.4, 0.4, zc - Math.max(1.2, Lp), zc + Math.max(1.2, Lp)]));
         }
       }
     }
