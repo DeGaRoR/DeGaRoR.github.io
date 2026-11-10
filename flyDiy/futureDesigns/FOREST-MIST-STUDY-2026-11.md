@@ -272,7 +272,17 @@ fog (Aug 17, 06:30) with nothing forced.
 
 ### 4c. The last load on the pick (cockpit, from above, far, cards and march, the evening after the storm)
 
-<!-- R14 -->
+On the pick, the season's own days (the plan on, nothing forced):
+- `s10_cockpit_valley_fog.jpg` - Valley fog (Aug 17, 06:30), 25 m over the valley floor: the valley ahead full under its
+  lid, a bank on the far slope - the white-out you fly into.
+- `s10_high_valley_fog.jpg` - the same morning from 725 m: the valleys hold the pool, the ridges stand out (before the
+  far-pocket fix: the speckle on the hills it caused is what the fix answers).
+- `s11_far_cards_march_storm_eve.jpg`: (a) the far view after the fix - the sea clean, the island's valleys a soft haze
+  under the morning's flat layer; (b) **the cards: not visible** in this rig even boosted - not chased further, they do
+  not land; (c) **the march: nothing drawn** - the clouds' pass on SwiftShader is unreliable (LOOK-1: it blacked the
+  frame there); it is flag-only and owed to the box if anyone wants it; (d) the evening after the first autumn storm
+  (Aug 20, 19:00): wisps on the far slope in the low sun - they read as flat cream blotches at this angle, the weakest
+  frame of the pick; a softer `soft` ramp or a lower `stretch` for the WISP term is the dial if the box shows it too.
 
 ## 5. THE WEATHER: WHEN, WHERE, HOW MUCH - piggybacked on the season's plan and the climate (forest_mist.js `strengths`)
 
