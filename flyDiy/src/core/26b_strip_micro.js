@@ -321,7 +321,7 @@ const STRIP_MICRO = (() => {
         if (fill <= 0 || q[0] <= 0 || q[0] >= len || Math.abs(q[1]) >= halfW) return 0;
         return Math.max(holesAt(q[0], q[1], fill)[1], hazardsAt(q[0], q[1], fill)[1], rutWater(q[0], q[1], fill));
       },
-      PAD_L, REFINE_V: K.chaos >= 0.6 ? REFINE_MIN_V : 0.08, hole, lanes, ways: WAYS, waysAt, rockAt, rockIn, bigRocks, stoneIn, stoneUV, stoneAt: (x, z) => { const q = toUV(x, z); return stoneUV(q[0], q[1]); }, toUV, reliefUV, hazards: HZ, a1: amp[OCT.length - 1],
+      PAD_L, hole, lanes, ways: WAYS, waysAt, rockAt, rockIn, bigRocks, stoneIn, stoneUV, stoneAt: (x, z) => { const q = toUV(x, z); return stoneUV(q[0], q[1]); }, toUV, reliefUV, hazards: HZ, a1: amp[OCT.length - 1],
     };
   }
   // THE LIVE LIST (what a world composed): compose publishes its micro strips (in the WORLD frame: { toLocal, f }) by
@@ -334,9 +334,6 @@ const STRIP_MICRO = (() => {
   function has(id) { for (const L of live.values()) for (const s of L) if (s.id === id) return true; return false; }
   // rocksOf(id): a published strip's mesh stones, [u, v, R] in its field's frame (the ribbon's v is the field's flipped)
   // padOf(id): a published strip's turnaround pad length at each end (m; 0 when it has no micro)
-  // refineVOf(id): a published strip's rows across (m) - 5 cm across a rut's wall only where the ruts are deep (chaos >= 0.6), 8 cm
-  // below (A0 10 Nov: L37a's refined w3 / w8 cost ~+200 k triangles in HOME-taxi's view); 0 when it has no micro
-  function refineVOf(id) { for (const L of live.values()) for (const s of L) if (s.id === id) return s.f.REFINE_V || REFINE_MIN_V; return 0; }
   function padOf(id) { for (const L of live.values()) for (const s of L) if (s.id === id) return s.f.PAD_L || 0; return 0; }
   function rocksOf(id) { for (const L of live.values()) for (const s of L) if (s.id === id) return s.f.bigRocks ? s.f.bigRocks() : []; return []; }
   // the drawn ribbon's finest rows (pavement.js refineAxis): 0.3 m along (the lumps' 1.8 m), 5 cm across (a rut's wall: 8 cm drew the
@@ -353,5 +350,5 @@ const STRIP_MICRO = (() => {
   // pvPuddle / pvRelief / pvWays / pvRockIn read exactly these; null when the strip is flat
   function glslRow(id) { for (const L of live.values()) for (const s of L) if (s.id === id) { const f = s.f; return [f.seed, f.pHole, f.K.holeDepth / 100, f.K.puddles * f.pudOK, f.a1, f.K.hazards, f.K.hazardSize / 100, 1 + f.K.swell / 100,
     f.K.ruts / 100, f.K.lumps / 100, (f.ways.some(W => W[7] === 1) ? 1 : 0) + (f.ways.some(W => W[7] === 2) ? 2 : 0), f.K.rocks]; } return null; }
-  return { KNOBS, on, resolve, derive, field, ih, vnoise, publish, at, puddleAt, has, rocksOf, padOf, refineVOf, stoneAt, STONE_H, BAND_V, BAND_H, glslRow, live, CELL, OCT, EDGE_IN, END_IN, REFINE_MIN, REFINE_MIN_V, BERM };
+  return { KNOBS, on, resolve, derive, field, ih, vnoise, publish, at, puddleAt, has, rocksOf, padOf, stoneAt, STONE_H, BAND_V, BAND_H, glslRow, live, CELL, OCT, EDGE_IN, END_IN, REFINE_MIN, REFINE_MIN_V, BERM };
 })();
