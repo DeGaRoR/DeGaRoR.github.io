@@ -524,7 +524,8 @@ function knifeCut(m, win, opt) {
     return a1 < bb.u0 - 1e-9 || a0 > bb.u1 + 1e-9 || b1 < bb.v0 - 1e-9 || b0 > bb.v1 + 1e-9;
   } : null;
   // (GR: `opt.yMax` - a face wholly over it is not this well's: a high wing's centre section over a nose well)
-  const over = opt.yMax != null ? f => f.v.every(i => m.V[i][1] > opt.yMax) : null;
+  const over = opt.yMax != null ? f => f.v.every(i => m.V[i][1] > opt.yMax)
+             : opt.yMin != null ? f => f.v.every(i => m.V[i][1] < opt.yMin) : null;   // (a top cut: a face wholly under is not the roof's)
   for (const f of m.F) {
     if (f.v.length < 3 || f.knife || (opt.mats && !opt.mats.has(f.m)) ||
         f.m === 'joint' || f.m === 'doorSeal' || (far && far(f)) || (over && over(f))) { F.push(f); continue; }
@@ -1196,18 +1197,33 @@ function skinYOf(tris, cell, hi) {
       const y = l1 * A[1] + l2 * B[1] + l3 * C[1]; if (best == null || (hi ? y > best : y < best)) best = y; }
     return best; };
 }
+// THE HANGING NACELLE'S MAST (the study's stage 3): a cut from ABOVE (`c.top`) - the knife looking down, the roof's skin
+// holed to the outline (plan (z, x) in TOP_FRAME's (u, v), the sheet's units) and nothing else: no pane, no walls, no box
+// (the mast fills it); a face wholly under `c.yMin` is not the roof's (the floor, the keel under the mast)
+const TOP_FRAME = { n0: [0, 1, 0], c0: [0, 0, 0], t1: [0, 0, 1], t2: [1, 0, 0] };
 function knifeWells(sh, cuts, sides) {
-  // (one list may hold both: a cut with its own frame is a side well)
+  // (one list may hold both: a cut with its own frame is a side well; a top cut is the mast's hole)
+  const tops = cuts ? cuts.filter(c => c.top) : [];
+  if (cuts) cuts = cuts.filter(c => !c.top);
   if (sides === undefined && cuts) { sides = cuts.filter(c => c.frame); cuts = cuts.filter(c => !c.frame); }
-  if (!sh || ((!cuts || !cuts.length) && (!sides || !sides.length))) return sh;
+  if (!sh || ((!cuts || !cuts.length) && (!sides || !sides.length) && !tops.length)) return sh;
   cuts = cuts || [];
   const N = knifeNormals(sh);
   if (sh.N) for (let i = 0; i < sh.N.length && i < N.length; i++) { const n = sh.N[i]; if (n && (n[0] || n[1] || n[2])) N[i] = n; }
   let m = Object.assign({}, sh, { N, knifeLoops: (sh.knifeLoops || []).slice(), knifeHole: new Map(sh.knifeHole || []),
                                   knifeHoleLen: (sh.knifeHoleLen || []).slice(), knifeStats: (sh.knifeStats || []).slice() });
+  for (const c of tops) {
+    m = knifeCut(m, { well: (c.units || []).join('') }, { frame: TOP_FRAME, outline: c.outline, mats: WELL_MATS, depth: 0.001,
+                                                         yMin: c.yMin, paneMat: 'wheelWell', wallMat: 'wheelWell' });
+    m = Object.assign({}, m, { F: m.F.filter(f => !(f.knife && f.m === 'wheelWell')) });
+  }
+  // (MONOWHEEL: a sunk wheel's square hole is the skin's UNDER the tyre - a face wholly over its ceiling is not its: the
+  // rod over the Archaeopteryx's wheel faces down too, and the knife, looking up, cut it and dragged a corner of it down
+  // to the hole's edge - a triangle from the rod to the keel, the user's "big yellow triangular shape")
   for (const c of cuts)
     m = knifeCut(m, { well: (c.units || []).join('') }, { frame: WELL_FRAME, outline: c.outline, ceil: c.hf ? wellCeilFn(c) : c.ceil,
-                                                         mats: WELL_MATS, paneMat: 'wheelWell', wallMat: 'wheelWell' });
+                                                         mats: WELL_MATS, paneMat: 'wheelWell', wallMat: 'wheelWell',
+                                                         ...(c.hole && isFinite(c.ceil) ? { yMax: c.ceil + 0.02 } : {}) });
   if (cuts.length) m = knifeCarve(m, cuts);
   // P2: the knife's panes and walls dropped (the hole stays); each cut's own closed box, off the sheet's ORIGINAL skin
   if (cuts.length) {

@@ -16,6 +16,7 @@
 //     --crop z0,z1,y0,y1         the side view's window, metres (z forward, y up)
 //     --around x,y,z,r           any view framed on a point (layer metres), r either way of it
 //     --wire                     the lofts' grids drawn over the picture (the hub's blend: rows and rays)
+//     --half                     the cutaway: the body's starboard half left out, so what runs inside the cabin shows
 //     --w 1400                   picture width, px
 //     --marks fittings|corners|reg   rings on the placed fittings / a quad window's corners / the registration
 //     --gear 0..1                a retractable gear's position (RETRACT G1: 1 down, 0 up) - the editor's own preview row
@@ -82,8 +83,12 @@ const DEC = Object.assign({ regL: 2.10, regC: 0.28, regH: 0.30, regW: 0.96 }, (s
 const inReg = f => { if (!sheet.A || f.v.some(i => !sheet.A[i])) return false;
   let sl = 0, sc = 0; for (const i of f.v) { sl += sheet.A[i][0]; sc += sheet.A[i][1]; } sl = sl / f.v.length * FS; sc = sc / f.v.length * FS;
   return Math.abs(sl - DEC.regL) < DEC.regW / 2 && Math.abs(sc - DEC.regC) < DEC.regH / 2; };
+// --half: THE CUTAWAY - the body's starboard half (+x, the side the side view looks from) left out, so what runs inside
+// the cabin shows (the hanging nacelle's mast down to the keel)
+const HALF = argv.includes('--half');
 for (const f of sheet.F) {
   if (SKIP_SHEET.has(f.m) || f.v.length < 3) continue;
+  if (HALF && f.v.reduce((a, i) => a + sheet.V[i][0], 0) / f.v.length > 1e-4) continue;
   const col = MARKS.includes('reg') && inReg(f) ? [245, 245, 245] : GLASS.has(f.m) ? (f.m === 'drawnPane' ? [70, 170, 230] : [60, 110, 160])
     : f.m === 'joint' || f.m === 'paneEdge' || f.m === 'doorSeal' || f.m === 'reveal' ? [40, 40, 44]
     : f.m === 'wheelWell' ? [96, 100, 92]
@@ -177,7 +182,7 @@ S.scene.traverse(o => {
   if (/^edAcc_/.test(o.name || '') || (o.parent && /access/.test(o.parent.name || ''))) col = [220, 40, 40];
   // (the hub's blend wears the body's paint in the editor - its livery section follows the fuselage's; here the sheet's
   // own colour, as the rod it grows out of is drawn)
-  if (o.name === 'rodHubSocket') col = hex(skin);
+  if (o.name === 'rodHubSocket' || o.name === 'hangMast') col = hex(skin);   // (and the hanging nacelle's mast: the body's paint)
   if (m && m.transparent && m.opacity < 0.3) return;
   const pos = o.geometry.attributes.position, idx = o.geometry.index;
   const n = idx ? idx.count : pos.count;

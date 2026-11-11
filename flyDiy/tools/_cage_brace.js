@@ -47,7 +47,8 @@ PAGE.defaults = Object.assign({
 // ---- panel ----------------------------------------------------------------
 // A cabane exists on a PARASOL plane (wgPos 3) and on a biplane (w2On, from
 // G185.6 on); the rows are gated the same way the part is.
-const onCab = P => Math.round(P.wgPos || 0) === 3 || !!+P.w2On;
+// (THE HANGING NACELLE: a parasol on the mast has no cabane - 61_gen_frame 3d)
+const onCab = P => (Math.round(P.wgPos || 0) === 3 && !+P.hangOn) || !!+P.w2On;
 const onBip = P => !!+P.w2On;
 const BRACE_ITEMS = [
   ['cabane', [

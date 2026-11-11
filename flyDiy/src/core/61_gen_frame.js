@@ -1141,7 +1141,9 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // root pair moves with it; the panels start there), else the cabin's
   // HULL-B78: A CENTRAL PYLON for the cabane (S.bracing.cabPylon, the first plane's) - the wing roots on the pylon, a
   // half-width CABPY_HW off the centreline, its cabane a narrow truss inside the fairing (below)
-  const CABPY_HW = 0.12, cabPy = cabane && k === 0 && !!(S.bracing && S.bracing.cabPylon);
+  // (THE HANGING NACELLE, 3d: the first plane stands on the mast alone - no ties to the cabin's rings, no cabane)
+  const hangK = k === 0 && !!(S.fuse && S.fuse.hang);
+  const CABPY_HW = 0.12, cabPy = cabane && k === 0 && !hangK && !!(S.bracing && S.bracing.cabPylon);
   const zRoot = cabPy ? CABPY_HW : (w.centreW > 0 ? 0.5 * w.centreW : cab.halfW) + (cabane ? R.cabaneSplay : 0);
   dmgRootZ[k] = zRoot;
   const cabPyBase = new Map();                            // (HULL-B78: the pylon's base nodes, per ring and side)                                    // G1815: a node here is a root fitting's
@@ -1323,6 +1325,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // snap-through, and it cost a red STRESS gate to find.
     const lo = opposeTag + sd;
     for (const [nd, x] of [[rootF, xF], [rootR, xR]]) {
+      if (hangK) continue;                               // (the hanging nacelle: the mast, 3d, carries the wing)
       const [iA, iB] = straddle(x), iN = nearestRing(x);
       const rings = [...new Set([iN, iA, iB])];
       if (!cabane) for (const i of rings) B(nd, F[i][side], 'wing');
@@ -1561,8 +1564,9 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       }
       // and the box has to carry through the fuselage too, or the whole
       // bending moment still arrives at a point (rule 3)
+      // (THE HANGING NACELLE, 3d: the box carries through the hub and down the mast, not into the cabin's rings)
       const [iA] = straddle(xF), iN = nearestRing(xF);
-      for (const i of [...new Set([iN, iA])]) {
+      if (!hangK) for (const i of [...new Set([iN, iA])]) {
         B(cFB[0], F[i][lo], 'wing'); B(cRB[0], F[i][lo], 'wing');
       }
     }
@@ -1707,6 +1711,78 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       for (const m of hub) if (!RC.nodes.includes(m)) RC.nodes.push(m);
       if (RC.dmg) RC.dmg.root = hub.slice();
       RC.hub = hub.slice();
+    }
+  }
+
+  // ---- 3d. THE HANGING NACELLE'S MAST (the Archaeopteryx study's stage 3, futureDesigns/archaeopteryx/CONFIG_STUDY.md;
+  // the user, 11 Nov: "the pylon is structural and should go down to the bottom of the plane, where the supporting beam
+  // will go, making the fuselage as we see it now not the central piece anymore ... a proper cut to allow the pylon
+  // through, and be constrained at its bottom to the supporting beam") ----
+  // fuselage.hang: ONE MAST on the centreline, from the wing's centre section straight down through the cabin to the
+  // keel, where the drawn one stands (hangX, the join's measure; else its station on the root chord: hangAt its middle,
+  // hangLen its chord, GEN_HANG's when absent - the hub's, the cabin slides free of it); a monowheel's axle hangs from its
+  // foot and the pusher bolts on its back face (the user: "the wheel should anchor onto the pylon ... the engine ... on
+  // the back face of the pylon"). A lattice of
+  // four longerons at the drawn blade's own thickness (+-hw: tc of its chord, halved), a ring and a diagonal every lv
+  // and a diagonal on every face - a beam in both directions, not a plane truss. Its HEAD is in the hub: tied to the
+  // root bay's spar nodes and their caps, and in the rod's rigid cluster when the rod is rooted there (3c). Its FOOT is
+  // CLAMPED ON THE KEEL: its two lowest levels tied to the bottom longerons' corners of the rings round its chord - two
+  // levels, so the cabin cannot swing about it. The cabin's rings no longer carry the wing (3, mkWing: no root ties on
+  // a hanging nacelle): the wing stands on the mast, the cabin hangs from its foot. Weightless members (the mast billed
+  // once, kgM a metre, over its nodes); cabane class (its buckling, 30_solver); inside the blade, so undrawn ('inner')
+  const MAST = [];
+  let mastRef = null;
+  if (S.fuse && S.fuse.hang && wf.L && wf.R && S.wings && S.wings[0]) {
+    const w0 = S.wings[0], H0 = typeof GEN_HANG !== 'undefined' ? GEN_HANG : { at: 0.5, len: 0.35, tc: 0.12, kgM: 2.4, lv: 0.3 };
+    const at = S.fuse.hangAt != null ? +S.fuse.hangAt : H0.at, len = S.fuse.hangLen != null ? +S.fuse.hangLen : H0.len;
+    let ph = 0.5 * Math.max(0.20, len * w0.chord);
+    // (where the join measured the drawn mast - hangX, its front and back - else at its station on the root chord)
+    const HX = Array.isArray(S.fuse.hangX) ? S.fuse.hangX : null, xc0 = w0.xLE + at * w0.chord;
+    const xa = HX ? HX[0] : xc0 - ph, xb = HX ? HX[1] : xc0 + ph, xc = 0.5 * (xa + xb);
+    ph = 0.5 * (xb - xa);
+    const hw = Math.max(0.012, 0.5 * H0.tc * 2 * ph);
+    const rF = wf.L.F[0], rR = wf.L.R[0];
+    // the head's level: the root chord line (the root spar nodes'), at x; the foot's: the keel (the bottom longerons')
+    const yTop = x => { const t = Math.max(0, Math.min(1, (x - P[rF][0]) / ((P[rR][0] - P[rF][0]) || 1))); return P[rF][1] + (P[rR][1] - P[rF][1]) * t; };
+    const yKeel = x => {
+      let i = 0; while (i < ST.length - 2 && ST[i + 1].x < x) i++;
+      const a = P[F[i].BL][1], b = P[F[i + 1].BL][1], t = Math.max(0, Math.min(1, (x - ST[i].x) / ((ST[i + 1].x - ST[i].x) || 1)));
+      return a + (b - a) * t;
+    };
+    const Hm = 0.5 * (yTop(xa) + yTop(xb)) - 0.5 * (yKeel(xa) + yKeel(xb));
+    if (Hm > 0.2) {
+      const nL = Math.max(2, Math.round(Hm / H0.lv)), lv = [];
+      for (let l = 0; l <= nL; l++) {
+        const q = [];
+        for (const [x, z] of [[xa, -hw], [xa, hw], [xb, -hw], [xb, hw]]) {
+          const y = yKeel(x) + (yTop(x) - yKeel(x)) * l / nL;
+          const n = N(x, y, z, 'MST'); q.push(n); MAST.push(n);
+        }
+        lv.push(q);
+      }
+      const M = (a, b) => B(a, b, 'cabane', false, 'inner', undefined, { noMass: true });
+      for (let l = 0; l <= nL; l++) {
+        const [aL, aR, bL, bR] = lv[l];
+        M(aL, aR); M(bL, bR); M(aL, bL); M(aR, bR); M(l % 2 ? aR : aL, l % 2 ? bL : bR);   // the ring and its diagonal
+        if (l === nL) continue;
+        const [cL, cR, dL, dR] = lv[l + 1], alt = l % 2;
+        M(aL, cL); M(aR, cR); M(bL, dL); M(bR, dR);                                       // the four longerons
+        M(alt ? aL : bL, alt ? dL : cL); M(alt ? aR : bR, alt ? dR : cR);                 // the side faces
+        M(alt ? aL : aR, alt ? cR : cL); M(alt ? bL : bR, alt ? dR : dL);                 // the leading / trailing faces
+      }
+      // the head in the hub
+      const hub = [];
+      for (const sd of ['L', 'R']) for (const q of [wf[sd].F[0], wf[sd].R[0], wf[sd].FB ? wf[sd].FB[0] : null, wf[sd].RB ? wf[sd].RB[0] : null])
+        if (q != null && !hub.includes(q)) hub.push(q);
+      for (const t of lv[nL]) for (const h of hub) M(t, h);
+      const RCh = clusters.find(c => c.tag === 'ROD');
+      if (RCh && RCh.hub) for (const t of lv[nL]) if (!RCh.nodes.includes(t)) RCh.nodes.push(t);
+      // the foot clamped on the keel: the two lowest levels to the bottom corners of the rings round the chord
+      const rings = [...new Set([nearestRing(xa), nearestRing(xb), ...straddle(xc)])];
+      for (const l of [0, 1]) for (const t of lv[l]) for (const i of rings) { M(t, F[i].BL); M(t, F[i].BR); }
+      const kg = H0.kgM * Hm;
+      for (const n of MAST) pt(n, kg / MAST.length);
+      mastRef = { nodes: MAST.slice(), head: lv[nL].slice(), foot: lv[0].slice(), x: [xa, xb], hw, h: Hm, kg, rings };
     }
   }
 
@@ -2776,6 +2852,13 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // same load path. Nothing here changes k, c or mass.
   // MONOWHEEL: the one axle hangs on both sides' members - the two legs forward, the two drag braces aft (no cross
   // wires: the legs ARE the cross), and below both of the ring's top corners (rule 10, the same snap-blockers)
+  // (THE HANGING NACELLE, 3d: the one wheel hangs from the MAST's foot - its four keel-level corners, and up to the level
+  // above for rule 10 - not from the cabin's rings: the user, "the wheel has to be anchored on the pylon")
+  if (MONO && mastRef) {
+    const [aL, aR, bL, bR] = mastRef.foot, l1 = mastRef.nodes.slice(4, 8);
+    B(GAL, aL, 'gear', false, 'leg'); B(GAL, aR, 'gear', false, 'leg'); B(GAL, bL, 'gear'); B(GAL, bR, 'gear');
+    for (const q of l1) B(GAL, q, 'gear', false, 'inner');
+  } else
   if (MONO) {
     B(GAL, fwdL, 'gear', false, 'leg'); B(GAL, fwdR, 'gear', false, 'leg');
     B(GAL, AA.BL, 'gear'); B(GAL, AA.BR, 'gear');
@@ -2799,7 +2882,8 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // A near-vertical member up to the ring's TOP corner is also what a
   // bungee-sprung light aeroplane actually has, and like the tailwheel's it is
   // INTERNAL: under the covering it should not be visible.
-  if (MONO) { B(GAL, F[iFwd].TL, 'gear', false, 'inner'); B(GAL, F[iFwd].TR, 'gear', false, 'inner'); }
+  if (MONO && mastRef) { /* (on the mast: its level above is the snap-blocker) */ }
+  else if (MONO) { B(GAL, F[iFwd].TL, 'gear', false, 'inner'); B(GAL, F[iFwd].TR, 'gear', false, 'inner'); }
   else if (!LEVER) {
   B(GAL, F[iFwd].TL, 'gear', false, 'inner');
   B(GAR, F[iFwd].TR, 'gear', false, 'inner');
@@ -3894,6 +3978,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     engine: engNodes, engineOf: engIdx, mains: GAL === GAR ? [GAL] : [GAL, GAR], tw: TW, fin: FIN, fin2: FIN2,   // (MONOWHEEL: one main)
     ...(TW2 >= 0 ? { tw2: TW2 } : {}),               // G3800: a twin boom's second tail contact (the key only then)
     ...(SKIDS.length ? { skids: SKIDS } : {}),       // TIP-SKID: the wingtip skids' shoes (the key only then)
+    ...(mastRef ? { mast: mastRef } : {}),          // THE HANGING NACELLE: the mast (3d; the key only then)
     // THE DRAWING'S DATUM IS THE WING CARRY-THROUGH (G179.3, the user: "we
     // have to treat the whole wing consistently, and get rid of that
     // different treatment for the central part"). The centre section is

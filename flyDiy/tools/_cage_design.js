@@ -3004,7 +3004,7 @@ const ARCHETYPES = [
            engFamily: 'electric', engModel: 'pipistrel E-811', engMount: 'pusher',
            gearLayout: 'mono', suspension: 'spring', s1Fair: 0,
            finArch: 'tall', empennage: 'conv', scheme: 'trim', base: 0xefe6cf, trim: 0xc96f2a },
-    over: { cage: { rodY: 0.7979, rodD: 0.30, boomLen: 4.63,
+    over: { cage: { rodY: 0.7979, rodD: 0.30, boomLen: 4.93,
                     // THE HUB (the study's stage 2, 11 Nov): the rod slots into the wing's centre section, the top skin
                     // raised over it in a Gaussian hump, the rod's crown at the wing's highest point - rodY is the hump's
                     // own fit on this wing (_cage_wing.js hubHump), a ring with screws where the rod leaves the TE
@@ -3022,8 +3022,15 @@ const ARCHETYPES = [
                     // to a 4 cm edge (aeroAftTip 0.85 - 0.5 bows in, 1.0 sags), its tip 0.75 of the height raised to the rod
                     // (aeroAftDroop -0.2): the bottom line climbs 0.25 m to the tip, near straight (the fin shape climbs
                     // dead straight, but from the pillar and 0.5 m: too steep)
-                    aeroAftOver: 1, aeroAftOn: 1, aeroAftShape: 1, aeroAftLen: 1.2, aeroAftTip: 0.85, aeroAftEdge: 0.75,
+                    aeroAftOver: 1, aeroAftOn: 1, aeroAftShape: 1, aeroAftLen: 1.5, aeroAftTip: 0.85, aeroAftEdge: 0.75,
                     aeroAftDroop: -0.2,
+                    // THE HANGING NACELLE (the study's stage 3; the user's photo of the real one, 11 Nov: the cabin, then the
+                    // aft section with "the pillar and the wheel ... at the back of the cabin pillar"): one mast from the hub
+                    // down to the keel inside the aft section, at 0.85 of the root chord (its middle ~1.79 m behind the nose,
+                    // about the CG; 0.30 of the chord, 0.36 m), the wheel hung from its foot, the pusher on its back face.
+                    // The cabin slides free of it: pulled 0.30 m forward (pilotLen 1.05 -> 0.75, the rod as much longer,
+                    // boomLen 4.63 -> 4.93, the aft section 1.2 -> 1.5 so its tip stays where it was)
+                    hangOn: 1, hangAt: 0.85, hangLen: 0.30,
                     // the wing: LE 1.08 / TE 2.30 behind the nose at the root, chord 1.19 -> 1.09 at the crank -> 0.56
                     wgSpan: 13.0, wgChord: 1.19, wgCrankAt: 0.48, wgCrankChord: 1.09, wgCrankX: 0.08,
                     wgChordTip: 0.56, wgTipX: 0.52, wgDihedral: 1, wgDihedralOut: 1, wgDx: 0,
@@ -3062,10 +3069,10 @@ const ARCHETYPES = [
                     aftKeelY: -0.71, aftRoofY: 0.815,
                     // ...THEN ON ONE WHEEL (the study's stage 1, 11 Nov, the user's photo of the real one: "for gliders,
                     // we need to allow super light wheels ... sunk wheels"): the Undercarriage tile's Monowheel - the main
-                    // on the centreline under the aft pillar (s1AxZ -0.08), a bicycle wheel (whProfile 3, 0.20 m) half sunk
+                    // on the centreline under the mast (below), a bicycle wheel (whProfile 3, 0.20 m) half sunk
                     // through a square cut in the skin (s1Sink), the nose unit a skid 0.45 m behind the nose faired as the
                     // nose grown down (s2Fair), a skid under each wingtip (wgTipSkid)
-                    pilotLen: 1.05, s1Z: 1.13, s1X: 0, s1AxZ: -0.08, s1R: 0.2, s1Drop: 0.05, s1Root: 1, s1Sink: 0.45,
+                    pilotLen: 0.75, s1Z: 1.13, s1X: 0, s1AxZ: 0, s1R: 0.2, s1Drop: 0.05, s1Root: 1, s1Sink: 0.45,
                     whProfile: 3,
                     s2Leg: 3, s2Nose: 1, s2Z: 0.45, s2Steer: 4, s2Fair: 1, s2R: 0.10, s2Drop: 0.05, s2_twLegDrop: 0.09,
                     wgTipSkid: 1,

@@ -287,6 +287,8 @@ const CAGE_PARTS = [
       // G3510: the round body (the aero nose's full rings) is the whole
       // shell's choice, beside the roundness it is shaped by
       ['roundness', ['topRound', 'botRound', 'aeroNose']],
+      // the hanging nacelle (the Archaeopteryx study's stage 3): the cabin hung on one mast from the wing
+      ['hanging nacelle', ['hangOn', 'hangAt', 'hangLen']],
       // HULL-B1: the boat hull's own rows (the shared ones are the frames above)
       ['boat hull', ['hullOn', 'hullBeta', 'hullBetaBow', 'hullBetaA', 'hullSteps', 'hullStepZ', 'hullHs',
                      'hullFlute', 'hullFluteN', 'hullFluteAt', 'hullFluteBow', 'hullFluteAft', 'hullStrakes', 'hullStrakeW', 'hullStrakeLen', 'hullRocker', 'hullSkirt',

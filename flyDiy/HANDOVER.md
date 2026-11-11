@@ -248,6 +248,10 @@ GATE MONOWHEEL (MONOWHEEL, core, ~10 min) is the single wheel's, the wingtip ski
 and keys (absent when off), one centreline axle, one wheel billed, the hoop drawn on the shoe's contact, the cert's ground
 loads on one main, the motor glider on one wheel and a tail skid parked on one wingtip skid, rolling and flying HOME's
 circuit, the tile's Monowheel parked on its nose skid. futureDesigns/archaeopteryx/CONFIG_STUDY.md section 4.
+GATE NACELLE (NACELLE, core, ~3 min) is the hanging nacelle's mast: the spec's keys (a wing above the cabin only), the
+mast's lattice from the hub to the keel where the drawn one stands, no other tie from the wing to the cabin's rings, the
+monowheel hung from the mast's foot, the aeroplane parked and the cabin hung under 2 g more, the pusher on the mast's back
+face, the cabin sliding free of it, the sunk wheel's cut leaving the rod whole. CONFIG_STUDY.md stage 3.
 GATE WILGAGEAR (WILGA-GEAR, core, ~2 min) is the trailing-link leg's: the geometry as researched, the static deflection
 at gross, a 23.725-style limit drop without bottoming and the reserve drop's recovery, no pogo, the trailing arc, a
 broken leg that drops, the drawn leg = the physics leg through the load chain, the fairing (its three shapes and two
@@ -314649,3 +314653,40 @@ skid, the load rig and the cage's rod drawing all hang on it), so the stage is T
   depth-tested), the qrb view (3/4 from behind, below).
 - GATE HUB (new, core, ~1 min).
 
+
+## NACELLE - THE HANGING NACELLE'S MAST, AND THE CARD ON EVERYTHING SO FAR (11 Nov 2026; the Archaeopteryx study's stage 3, first piece)
+
+The user: "the pylon is structural and should go down to the bottom of the plane, where the supporting beam will go,
+making the fuselage as we see it now not the central piece anymore ... a proper cut to allow the pylon through, and be
+constrained at its bottom to the supporting beam"; then, on the real one's photo: "the cabin piece is actually in front
+of the pillar ... the whole cabin should be able to move relative to the pillar ... the wheel anchored on the pillar ...
+the engine anchors on the pillar".
+- **fuselage.hang** (+ hangAt, hangLen: the mast's middle and chord on the root chord; hangX: the drawn mast's front and
+  back, the join's measure). Rows hangOn / hangAt / hangLen (Fuselage > hanging nacelle), a wing above the cabin only.
+- **The frame** (61_gen_frame 3d): one mast, a four-longeron lattice at the drawn blade's thickness (a beam both ways),
+  from the hub's root bay (tied to its 8 root nodes, in the rod's rigid cluster when the rod is rooted there) to the keel
+  (its two lowest levels on the bottom corners of the rings round it) where the drawn one stands (hangX), else on the
+  chord. The wing no longer ties to the cabin's rings (no root ties, no cabane, no box carry-through into the rings): it
+  stands on the mast. A monowheel's axle hangs from the mast's foot. GEN_HANG: 2.4 kg/m INFERRED. Measured: the hub held,
+  2 g more on the cabin, its nose's keel drops 12 mm (it hangs now).
+- **The drawing** (_cage_wing hangMastDraw, after the wing and BEFORE its early readers): the engine pylon's blended
+  blade, from the keel (or a sunk wheel's fork) up into the wing; the roof cut round it where there is a gap under the
+  wing (the knife's new TOP cut, _knife_gen knifeWells `c.top`: looking down, the hole only); CAGE_HANG published for the
+  gear layer (a centreline main's fitting = the mast's middle, the sunk fork rises to the mast's foot) and the cowl layer
+  (a pusher bolts on the mast's back face - the engine layer is an early reader for it). pylonHug gained `botCap`.
+- **THE TRIANGLE FROM THE ROD TO THE KEEL** was the sunk wheel's square cut (MONOWHEEL): the knife looked up through the
+  rod's down-facing skin over the wheel and dragged one of its corners to the hole. A hole cut now ignores faces wholly
+  over its ceiling (yMax), as a well already could.
+- **The aft section over a pusher** (aeroAftOver, this card's row): its crown runs straight from the pillar to the tip,
+  and it gets a ring every eighth of its length.
+- **The card** (_cage_design archaeopteryx): the monowheel (0.20 m bicycle wheel, half sunk), the faired nose skid, the
+  wingtip skids, the hub, and the hanging nacelle: the mast at 0.85 of the root chord (0.36 m chord, ~1.79 m behind the
+  nose, about the CG) inside the aft section, the cabin pulled 0.30 m forward of it (pilotLen 0.75, boomLen 4.93, the aft
+  section 1.5 m: the wing, the tail and the aft section's tip where they were).
+- quickshot: --half (the cutaway: the body's starboard half left out).
+- GATE NACELLE (new, core, ~3 min). GATE HUB's load path steps the actual box at the build's own substep (the wingtip
+  skids' stiff shoes rang at the old fixed step). FRAMES' corpus re-recorded for the Archaeopteryx alone.
+- Open: on a parasol with the rod raised, the aft section's top and the mast's cut are not clean; the motor's front
+  flange shows through the aft section's side; TAXICLEAR's footprint row for the card (5.5 m half) is under its 6.5 m
+  semispan since the card was fitted to its drawing (before this session); the keel beam, the role materials and the
+  tent, the A-pillars to the hub, the load rig hanging the nacelle are the stage's next pieces.

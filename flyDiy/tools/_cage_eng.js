@@ -982,7 +982,16 @@ function pylonHug(bag, jbag, C, o) {
       for (let j = 0; j < NJ; j++) jbag.quad(rg[k][j], rg[k2][j], rg[k2][j + 1], rg[k][j + 1]);
     }
   };
-  strip(-1, PYLON_JOINT_B, fB);
+  // (`botCap`: the foot stands on nothing the rays see - the hanging nacelle's mast on a wheel's fork - so no joint
+  // strip there: the foot is CLOSED, a flat cap on its own vertices, as the top is with nothing over it)
+  if (o.botCap) {
+    const ring = rows[0].row.map(([uw, t]) => at(uw, t)), n = ring.length;
+    const c = [0, 1, 2].map(a => ring.reduce((m, p) => m + p[a], 0) / n);
+    const e1 = ring[0].map((v, a) => v - c[a]), e2 = ring[1].map((v, a) => v - c[a]);
+    const up = (e1[1] * e2[2] - e1[2] * e2[1]) * ax[0] + (e1[2] * e2[0] - e1[0] * e2[2]) * ax[1] + (e1[0] * e2[1] - e1[1] * e2[0]) * ax[2];
+    const ic = bag.v(c), iv = ring.map(p => bag.v(p));
+    for (let k = 0; k < n; k++) { const k2 = (k + 1) % n; if (up < 0) bag.tri(ic, iv[k], iv[k2]); else bag.tri(ic, iv[k2], iv[k]); }
+  } else strip(-1, PYLON_JOINT_B, fB);
   if (o.topJoint) strip(1, PYLON_JOINT_T, fT);
   return { bot, top: topE };
 }
@@ -1362,7 +1371,8 @@ PAGE.post = ctx => {
   if (EW) EW.place('eng', ctx, engPlace, () => {
     const NF = window.CAGE_NOSE, m = Math.round(+P.engMount || 0);
     // (ENGINE-CONFIGS-2: the three's and the four's nacelles stand on the wing too - mounts 5 and 6)
-    if (!+P.engOn || ![2, 3, 5, 6, 7].includes(m) || !NF || !NF.engineFaces) return null;
+    // (THE HANGING NACELLE: a pusher on the mast's back face stands on the wing's mast too)
+    if (!+P.engOn || !([2, 3, 5, 6, 7].includes(m) || (m === 1 && +P.hangOn)) || !NF || !NF.engineFaces) return null;
     const FS = (CG2 && CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
     const faces = NF.engineFaces(ctx.mesh, FS, P);
     // (HULL-B38: the pylon's ends read the wing's skins too - its top and underside under each mount, every plane - so

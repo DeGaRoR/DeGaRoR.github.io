@@ -2423,6 +2423,11 @@ PAGE.post = ctx => {
   for (const st of stations)
     if (st.leg === 3) st.z = (st.id === 2 && +P.s2Nose && !TBg) ? AF.z1 - Math.max(0.02, st.z)   // (MONOWHEEL: the nose skid)
       : (TBg ? TBg.zTip : AF.z0) + Math.max(0.02, st.z);
+  // THE HANGING NACELLE (the user, 11 Nov: "the wheel has to be anchored on the pylon"): a centreline main hangs from the
+  // MAST's foot - its fitting the mast's middle (the wing layer's CAGE_HANG, drawn before this one), its own fore / aft
+  // the row's offset from there (s1AxZ)
+  const HG = +P.hangOn && P.wingOn && typeof window !== 'undefined' ? window.CAGE_HANG : null;
+  if (HG) for (const st of stations) if (st.id === 1 && st.leg !== 3 && !(st.x > 0.01)) st.z = HG.zc;
   // G3800: THE INVERTED V (the stab layer's mount 4): the tail's contacts at the panel tips - x the gap's half, y the
   // boom's centre less the panel's drop (cant, the booms' half-track less the half gap), z the tip the stab layer drew
   // on the last build (window.CAGE_IV_TIPS, metres; it draws after this layer) or a quarter metre ahead of the boom end
@@ -2727,7 +2732,9 @@ PAGE.post = ctx => {
     const K = window.GEAR_KIT, x = sgn * st.x, z = st.z + (st.axZ || 0);
     const k = AF.keelAt(Math.max(AF.z0 + 1e-3, Math.min(AF.z1 - 1e-3, z)));
     const yA = k + st.R * (2 * st.sink - 1), prof = GG.TYRE[Math.round(+st.P.whProfile || 0)] || GG.TYRE[0];
-    const hw = st.R * prof.hw * 1.05, top = k + 0.06, clr = 0.02;
+    // (THE HANGING NACELLE: the fork rises to the mast's foot, which stands on it - the wing layer's CAGE_HANG)
+    const HGf = +P.hangOn && P.wingOn && st.id === 1 && !(st.x > 0.01) ? window.CAGE_HANG : null;
+    const hw = st.R * prof.hw * 1.05, top = HGf && isFinite(HGf.yFoot) ? Math.max(k + 0.06, HGf.yFoot + 0.01) : k + 0.06, clr = 0.02;
     for (const s of [-1, 1]) {
       const xp = x + s * (hw + 0.012), yc = 0.5 * (yA + top);
       K.boxIn(lb.steel, [xp, yc, z], [0.003, 0.5 * (top - yA) + 0.02, 0.045], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
@@ -3230,7 +3237,9 @@ PAGE.post = ctx => {
     ...(fit && fit.wells ? { wells: fit.wells } : {}),   // G3: the reserved volumes (the join's gear.wells, the tanks' keep-out)
     // G4: the wells' cuts in the knife's terms (cage units, the plan outline, the ceiling) - _cage_ui cuts the DRAWN
     // fuselage with them (wellApply); the measured sheet is never cut (the legs stand on the skin the contracts read)
-    ...((fit && fit.cuts && fit.cuts.length) || sunkCuts.length ? { cuts: (fit && fit.cuts ? cutsCage(fit.cuts, FS) : []).concat(sunkCuts) } : {}),   // (MONOWHEEL: the sunk wheels' square cuts)
+    // (MONOWHEEL: the sunk wheels' square cuts; THE HANGING NACELLE: the mast's hole through the roof, the wing layer's)
+    ...((hc => (fit && fit.cuts && fit.cuts.length) || sunkCuts.length || hc.length ? { cuts: (fit && fit.cuts ? cutsCage(fit.cuts, FS) : []).concat(sunkCuts, hc) } : {})(
+      +P.hangOn && P.wingOn && Array.isArray(window.CAGE_HANG_CUTS) ? window.CAGE_HANG_CUTS : [])),
     // GR: the side wells (the Catalina's recesses in the hull's side), the knife's terms with their own frames
     ...(fit && fit.cutsSide && fit.cutsSide.length ? { cutsSide: cutsSideCage(fit.cutsSide, FS) } : {}),
     // G5: the wing's cuts (its own and the body's, merged) in the layer's own metres (the wing's skin is drawn in them)

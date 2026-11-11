@@ -636,6 +636,11 @@ function engineFaces(mesh, FS, P) {
     // its shaft and its prop stand where they stand without it (a build loads the same on a page without the row)
     if (f && +P.aeroAftOver && +P.aeroAftOn && (+P.boomStyle || +P.boomTwin))
       f = Object.assign({}, f, { z: f.z + Math.max(0.3, +P.aeroAftLen || 0.9) * FS });
+    // THE HANGING NACELLE (the user, 11 Nov: "the fact that in this case the engine anchors on the pillar is really good"):
+    // the pusher bolts on the MAST's back face, wherever the cabin ends (the wing layer's CAGE_HANG, published before its
+    // early readers: the engine layer places again over it, _cage_eng)
+    const HGe = +P.hangOn && P.wingOn && typeof window !== 'undefined' ? window.CAGE_HANG : null;
+    if (f && HGe && isFinite(HGe.zR)) f = Object.assign({}, f, { z: HGe.zR });
     // (FIREWALL RULE: a cowled pusher stands on the face itself - the block does not move it)
     if (f && cowledPusher(P)) return [{ face: f, aft: true, kind: 'pusher' }];
     return f ? [{ face: Object.assign({}, f, { z: f.z + bz, yc: f.yc + by }), aft: true, kind: 'pusher' }] : [];

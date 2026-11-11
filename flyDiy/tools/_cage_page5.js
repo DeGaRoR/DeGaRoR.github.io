@@ -1250,6 +1250,18 @@ window.CAGE_PAGE = {
       // socket from the rod up to the wing's underside (the engine pylon's hugging blade, _cage_eng)
       ['rodHub',    'rod rooted in', 0, 1, 1, ['the aft bulkhead', 'the wing (the hub\'s rear socket)'],
        { when: P => +P.boomStyle === 1 && !+P.boomTwin && +P.wingOn }],
+      // THE HANGING NACELLE (the Archaeopteryx study's stage 3; the user, 11 Nov: "the pylon is structural and should go
+      // down to the bottom of the plane, where the supporting beam will go, making the fuselage as we see it now not the
+      // central piece anymore"): the cabin hung on ONE mast from the wing's centre section through a cut in the roof to
+      // the keel, a monowheel hung from its foot, the pusher on its back face; its station and chord on the root chord -
+      // the hub's: the cabin slides free of it ("the whole cabin should be able to move relative to the pillar"). A wing
+      // above the cabin (high or parasol) only
+      ['hangOn',    'the cabin',       0, 1, 1, ['carries the wing', 'hangs on a mast from the wing'],
+       { when: P => +P.wingOn && (Math.round(+P.wgPos || 0) === 0 || Math.round(+P.wgPos || 0) === 3) }],
+      ['hangAt',    'mast station on the chord (its middle)', 0.10, 0.95, 0.01,
+       { when: P => +P.hangOn && +P.wingOn }],
+      ['hangLen',   'mast chord (of the chord)', 0.20, 0.60, 0.01,
+       { when: P => +P.hangOn && +P.wingOn }],
       ['boomLen',   'length',          1.0, 6.0, 0.01, { dim: 'len' }],
       // (aft roof/keel = the boom frame; the cone's section = the tail
       // frame, both in 0 · frames since T2.1)

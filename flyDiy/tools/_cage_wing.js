@@ -991,6 +991,10 @@ function wingGSpec(P) {
       // G2820: the STOL devices, drawn as the join flies them
       ...((st => st ? { stol: st } : {})(genStolCage(P))),
     }, ...(+P.w2On ? [w2SpecOf()] : [])],
+    // THE HANGING NACELLE (the join's fuselage.hang): the first plane stands on the mast, no cabane, no root ties to the
+    // cabin's rings (61_gen_frame 3 / 3d) - the drawn struts follow
+    ...(+P.hangOn && (Math.round(+P.wgPos || 0) === 0 || Math.round(+P.wgPos || 0) === 3)
+      ? { fuselage: { hang: true, ...(P.hangAt != null ? { hangAt: +P.hangAt } : {}), ...(P.hangLen != null ? { hangLen: +P.hangLen } : {}) } } : {}),
     bracing: { type: Math.round(P.wgBrace) ? 'cantilever' : 'strut',
                struts: Math.round(+P.wgStruts) === 1 ? 1 : 2,          // T2.3 (83)
                cabane: Math.round(P.bpCabane || 0) ? 'V' : 'N',
@@ -1051,6 +1055,7 @@ let radGroup = null;                         // the wing radiators (27 Oct)
 // G2880: the build below, then its early readers (above) - after every exit
 PAGE.post = ctx => {
   wingPost(ctx);
+  hangMastDraw(ctx);                  // (the hanging nacelle's mast: after the wing it carries, before its early readers - the pusher on its back face)
   early.publish(ctx);
   hubSocketDraw(ctx);                 // (the hub's rear socket: after the wing, which it reads)
   cabPylonDraw(ctx);                  // (HULL-B78's central pylon: after the wing it stands under)
@@ -1165,7 +1170,7 @@ let cabPyGroup = null;
 function cabPylonDraw(ctx) {
   const { scene, P } = ctx;
   if (cabPyGroup) { cabPyGroup.traverse(o => { if (o.geometry) o.geometry.dispose(); }); if (cabPyGroup.parent) cabPyGroup.parent.remove(cabPyGroup); cabPyGroup = null; }
-  if (!+P.bpCabPylon || !(Math.round(+P.wgPos || 0) === 3 || +P.w2On) || !P.wingOn) return;
+  if (!+P.bpCabPylon || !(Math.round(+P.wgPos || 0) === 3 || +P.w2On) || !P.wingOn || +P.hangOn) return;   // (a hanging nacelle: the mast)
   const W = window.CAGE_WING, GK = window.GEAR_KIT, PY = window.CAGE_PYLON;
   if (!W || !GK || !PY || !PY.drawPylonBlade || !GG || !GG.cageAirframe) return;
   try {
@@ -1186,6 +1191,76 @@ function cabPylonDraw(ctx) {
                       PY.pylonCaster(ctx, FS, [-1.0, 1.0, zc - 1.2, zc + 1.2]));
     scene.add(cabPyGroup);
   } catch (e) { console.error('cabane pylon:', e); }
+}
+// THE HANGING NACELLE'S MAST (the Archaeopteryx study's stage 3; the user, 11 Nov: "the pylon is structural and should
+// go down to the bottom of the plane, where the supporting beam will go ... a proper cut to allow the pylon through, and
+// be constrained at its bottom to the supporting beam"): ONE straight blade on the centreline (the engine pylon's 12 %
+// wing section, _cage_eng pylonOutline), its middle and chord on the root chord (hangAt, hangLen - the
+// frame's own, 61_gen_frame 3d), its station the hub's (hangAt, on the root chord: the cabin slides free of it), from the KEEL inside the cabin straight up through the roof to the wing's underside,
+// blended into the wing (the hugging body, pylonHug: its top flared into the wing, its foot on the keel's inside). The
+// ROOF IS CUT round it: the blade's outline and a finger's clearance, looked at from above (the knife's top cut,
+// _knife_gen knifeWells), handed on with the gear's cuts (CAGE_GEAR.cuts) - the editor and quickshot cut the drawn
+// sheet with them after the chain. The mast's paint is the body's
+const HANG_CLR = 0.008;
+let hangGroup = null;
+function hangMastDraw(ctx) {
+  const { scene, P } = ctx;
+  if (hangGroup) { hangGroup.traverse(o => { if (o.geometry) o.geometry.dispose(); }); if (hangGroup.parent) hangGroup.parent.remove(hangGroup); hangGroup = null; }
+  window.CAGE_HANG_CUTS = null; window.CAGE_HANG = null;
+  const pos = Math.round(+P.wgPos || 0);
+  if (!+P.hangOn || !P.wingOn || !(pos === 0 || pos === 3)) return;
+  const W = window.CAGE_WING, GK = window.GEAR_KIT, PY = window.CAGE_PYLON;
+  if (!W || !GK || !PY || !PY.pylonHug || !PY.pylonOutline || !GG || !GG.cageAirframe) return;
+  try {
+    const FS = (CG2 && CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
+    const le = W.leAt ? W.leAt(0) : null;
+    const chPl = W.def && W.def.parts && ((W.def.parts.planes && W.def.parts.planes[0]) || W.def.parts);
+    const ch = chPl && chPl.chordAt ? chPl.chordAt(0) : 1.0;
+    const AF = GG.cageAirframe(ctx.mesh, FS);
+    if (!le || !W.underAt || !AF) return;
+    // ITS STATION IS THE HUB'S, on the root chord (hangAt its middle): the cabin moves free of it (the user, 11 Nov: "the
+    // whole cabin should be able to move relative to the pillar ... the cabin in front of the pillar"; the wing's fore /
+    // aft row moves the hub, the mast with it)
+    const at = P.hangAt != null ? +P.hangAt : 0.50, lenK = P.hangLen != null ? +P.hangLen : 0.35;
+    const Lp = Math.max(0.20, lenK * ch), zc = le.z - at * ch;
+    if (!(zc > AF.z0 + 0.02 && zc < AF.z1 - 0.02)) return;
+    const u = W.underAt(0, zc), yK = AF.keelAt(zc), yR = AF.surf(zc, Math.PI)[1];
+    if (!(u && isFinite(yK) && isFinite(yR) && u.y > yK + 0.2)) return;
+    const out = e => PY.pylonOutline('foil', Lp, 0.12, 0, e);
+    hangGroup = new THREE.Group(); hangGroup.name = 'cageLayer:hangMast';
+    // THE FOOT: on the keel - or, a SUNK monowheel hanging from it (the gear layer's sunk fork), on the tyre's fork, a
+    // finger over the tyre (its top 2 R sink over the keel line), not down through it
+    const sunkR = +P.s1On && !(+P.s1X > 0.01) && Math.round(+P.s1Leg || 0) !== 3 && +P.s1Sink > 0 ? +P.s1R || 0 : 0;
+    const yFoot = sunkR > 0 ? yK + 2 * sunkR * Math.min(0.7, +P.s1Sink) + 0.02 : null;
+    const CST = PY.pylonCaster(ctx, FS, [-0.6, 0.6, zc - Lp, zc + Lp]);
+    // THE ROOF UNDER THE WING: the body's skin straight down from the wing's underside (the section's own crown can be the
+    // rod's, over an aft section) - the gap the mast crosses in the open, and the skin it goes through
+    // (a roof is over the cabin's middle: a ray that reaches the keel started inside the body - the wing set into its crown)
+    const hR0 = CST.cast([0, u.y - 0.003, zc], [0, -1, 0], ['body'], 3), hR = hR0 && hR0.p[1] > 0.5 * (yK + u.y) ? hR0 : null;
+    const yRoof = hR ? hR.p[1] : yR;
+    const fair = GK.Bag(), jb = GK.Bag(), O = [0, 0.5 * (yK + Math.min(yRoof, u.y)), zc];
+    PY.pylonHug(fair, jb, CST,
+                { O, ax: [0, 1, 0], eu: [1, 0, 0], ew: [0, 0, 1], out, fB: yFoot != null ? 0 : 0.03, fT: 0.07,
+                  dn: yFoot != null ? [] : ['body'], up: ['wing'],
+                  top0: u.y - O[1], bot0: (yFoot != null ? yFoot : yK) - O[1], topJoint: true, botCap: yFoot != null });
+    let bm = null;
+    try { if (window.CAGE_SECMAT) bm = window.CAGE_SECMAT('boomSkin', { surf: 0, fieldM: 1, struct: 1, side: THREE.DoubleSide }); } catch (e) {}
+    const m = fair.mesh(hangGroup, bm || MAT.liftstrut);
+    if (m) m.name = 'hangMast';
+    const j = jb.mesh(hangGroup, GG.gearMat ? GG.gearMat('dark') : MAT.liftstrut);
+    if (j) j.name = 'hangMastJoint';
+    scene.add(hangGroup);
+    // (for the gear layer, after this one: a monowheel hangs from the mast's foot)
+    window.CAGE_HANG = { zc, zF: zc + 0.5 * Lp, zR: zc - 0.5 * Lp, yK, yFoot: yFoot != null ? yFoot : yK };
+    // THE CUT through the roof (only where the roof is under the wing: a wing on the roof meets the blade there), handed to
+    // the gear layer (it runs after this one and publishes CAGE_GEAR.cuts, the list the sheet is cut with)
+    if (hR && yRoof < u.y - 0.005) {
+      let o = out(HANG_CLR).map(q => [(zc + q[1]) / FS, q[0] / FS]);
+      let a2 = 0; for (let i = 0; i < o.length; i++) { const p0 = o[i], p1 = o[(i + 1) % o.length]; a2 += p0[0] * p1[1] - p1[0] * p0[1]; }
+      if (a2 < 0) o = o.reverse();
+      window.CAGE_HANG_CUTS = [{ units: ['MAST'], top: 1, outline: o, ceil: (yRoof - 0.15) / FS, yMin: (yRoof - 0.15) / FS }];
+    }
+  } catch (e) { console.error('hanging mast:', e); }
 }
 let hubGroup = null;
 function hubSocketDraw(ctx) {

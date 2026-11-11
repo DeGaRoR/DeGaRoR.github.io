@@ -2784,6 +2784,11 @@ const GEN_TIP_SHAPE = { bow: [0.15, 0.80], droop: [0, 0.45], full: [1, 2.6], phi
 // that goes down at rest on a single main wheel, a sailplane's - instead of scraping. Its drag: the hoop's two legs, a
 // round tube (Cd 1.2 on h x 2r each), on the tip's strip. The first plane's only. Mass and price INFERRED (a glider's
 // bolt-on tip skid: a bent 6061 tube and a nylon shoe, ~0.3 kg, the STOL fence's 90 a side)
+// THE HANGING NACELLE'S MAST (61_gen_frame 3d, the Archaeopteryx study's stage 3): its station (at, the middle) and chord
+// (len) as fractions of the root chord when the spec leaves them out (the hub's: the cabin slides free of it); tc its section's thickness over chord (the drawn
+// blade's 12 %, _cage_eng pylonOutline); kgM its mass a metre - a carbon blade, spar and fairing, ~2.4 kg/m INFERRED (a
+// sailplane's fin post class); lv the lattice's bay height (m)
+const GEN_HANG = { at: 0.50, len: 0.35, tc: 0.12, kgM: 2.4, lv: 0.30 };
 const GEN_TIP_SKID = { h: [0.02, 0.30], h0: 0.10, xc: [0.15, 0.75], xs: 0.45, bow: 0.6, r: 0.008, cd: 1.2, kg: 0.30, each: 90 };
 // ...its STATION (m from the centreline): `bow` of the way out along a tip's bow (a rounded, clipped, Hoerner or
 // elliptic tip: the bow's own outer reach would otherwise touch the ground first, the wing tilted on a single main), at
@@ -5957,6 +5962,20 @@ function clampSpec(spec) {
   // THE HUB'S REAR SOCKET (61_gen_frame 3c): the rod slots into the wing's centre section - a rod's only, the key only
   // when on
   if (!(fu.rodHub === true && fu.boom === 'rod')) delete fu.rodHub;
+  // THE HANGING NACELLE (the Archaeopteryx study's stage 3, 61_gen_frame 3d): the cabin hangs on ONE structural mast from
+  // the wing's centre section down to the keel - a first plane above the cabin (high or parasol) only; the mast's station
+  // on the root chord (hangAt, its middle) and its chord (hangLen), both fractions of the root chord, only with the key
+  {
+    const w0h = S.wings && S.wings[0], posH = w0h ? (w0h.position || 'high') : null;
+    // (hangX: the drawn mast's front and back stations, the join's measure - the frame stands it there)
+    const hx = fu.hangX, hxOk = Array.isArray(hx) && hx.length === 2 && hx.every(Number.isFinite) && hx[1] - hx[0] > 0.05 && hx[1] - hx[0] < 2;
+    if (!(fu.hang === true && hxOk)) delete fu.hangX;
+    if (!(fu.hang === true && (posH === 'high' || posH === 'parasol'))) { delete fu.hang; delete fu.hangAt; delete fu.hangLen; delete fu.hangX; }
+    else for (const [k, lo, hi] of [['hangAt', 0.10, 0.95], ['hangLen', 0.20, 0.60]]) {
+      const v = +fu[k];
+      if (fu[k] != null && Number.isFinite(v)) fu[k] = genClamp(v, lo, hi); else delete fu[k];
+    }
+  }
   fu.postGap = genClamp(fu.postGap, 0.35, 1.10);
   fu.crownTop = genClamp(fu.crownTop, 0, 1);
   fu.crownSide = genClamp(fu.crownSide, 0, 0.6);

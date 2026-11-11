@@ -704,6 +704,15 @@ function cageJoinSpec(P, M, T) {
            : Math.round(+P.boomStyle || 0) === 1 ? 'rod' : 'loft';
   // THE HUB'S REAR SOCKET (the Archaeopteryx study's stage 2): the rod rooted in the wing's centre section
   if (fus.boom === 'rod' && +P.rodHub) fus.rodHub = true;
+  // THE HANGING NACELLE (the study's stage 3): the cabin on one structural mast from the wing's centre section to the
+  // keel, its station and chord on the root chord (the hub's: the cabin slides free of it), and where the drawn one stood
+  // (hangX, measured below; the spec drops it all under a wing that is not above the cabin)
+  if (+P.hangOn && P.wingOn) {
+    fus.hang = true;
+    if (P.hangAt != null) fus.hangAt = +P.hangAt;
+    if (Array.isArray(M.hangX)) fus.hangX = M.hangX.slice();
+    if (P.hangLen != null) fus.hangLen = +P.hangLen;
+  }
   if (M.tailArm > 0) fus.tailArm = M.tailArm;
   if (M.postGap > 0) fus.postGap = M.postGap;
   // G54: the boom's path between the measured endpoints. clampSpec
@@ -1650,6 +1659,11 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         const mains2 = (G2.contacts || []).filter(c => c.st && !isSingle(c));
         if (mains2.length)
           M.gearX = zFw - mains2.reduce((s, c) => s + c.p[2], 0) / mains2.length;
+        // THE HANGING NACELLE'S MAST, as drawn (the wing layer's CAGE_HANG: its back face on the drawn aft bulkhead): its
+        // front and back stations on the same firewall datum, so the frame's mast stands where the drawn one does
+        const HGm = window.CAGE_HANG;
+        if (+P.hangOn && HGm && isFinite(HGm.zF) && isFinite(HGm.zR))
+          M.hangX = [Math.round((zFw - HGm.zF) * 1e4) / 1e4, Math.round((zFw - HGm.zR) * 1e4) / 1e4];
         const zRing = zOf2('ring');
         if (zRing != null) {
           const sparF = (typeof GEN_RULES !== 'undefined' &&

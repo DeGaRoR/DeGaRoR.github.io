@@ -646,6 +646,17 @@ function cageResolve(S) {
     // keeps its height (edge 1) or rises past it (edge > 1) — the pod
     // morphs into a fin. The droop rides every shape the same way.
     const shp = AA.shape || 0, edge = AA.edge == null ? 0.6 : AA.edge;
+    // THE CROWN RUNS STRAIGHT (the aft section over a pusher, aeroAftOver - the Archaeopteryx's; the user, 11 Nov, on the V
+    // under the rod: "fix it rather than just getting rid of it", and the photo's straight top): the held axis' squeeze and
+    // the droop's lift pulled the roof down mid-length and up again at the tip - a dip, wider than the rod over it, a V on
+    // each side of it. Over a pusher the roof and the ceiling run straight from the pillar's to the tip's; the sides and
+    // the bottom keep their law
+    const crownAt = (v, f) => {
+      const pw = 2.2 - 1.3 * AA.tip, e = 1 - Math.pow(Math.max(0, 1 - Math.pow(f, pw)), 0.5 + 0.9 * AA.tip);
+      const sc = 1 - 0.95 * e, sh = 1 - (1 - edge) * e, sUp = (shp === 1 || shp === 3) ? sh : sc;
+      const mid = 0.5 * (baseD.roofY + baseD.keelY);
+      return mid + (v - mid) * (v >= mid ? sUp : (shp === 1 ? sh : sc)) - AA.droop * f * f;
+    };
     const ringAft = (name, zz) => {
       const f = Math.min(1, (zPaxA - zz) / Math.max(1e-6, zPaxA - zTipA));
       const pw = 2.2 - 1.3 * AA.tip;                  // dome ... teardrop
@@ -670,14 +681,25 @@ function cageResolve(S) {
       });
       for (const k in Rg.lv) { Rg.lv[k].y += dy;
         if (Rg.lv[k].yC != null) Rg.lv[k].yC += dy; }
+      if (AA.over) for (const [k, v] of [['roof', baseD.roofY], ['ceil', baseD.ceilY]]) {
+        const L = Rg.lv[k]; if (!L || v == null) continue;
+        const d = crownAt(v, 0) + (crownAt(v, 1) - crownAt(v, 0)) * f - L.y;
+        L.y += d; if (L.yC != null) L.yC += d;
+      }
       return Rg;
     };
     add(ringAft('aeroAftTip', zTipA), null);
     // the squeezed shapes read through two more rings (the cone keeps its
     // one — the template's ring list does not move)
+    // (THE AFT SECTION OVER A PUSHER, AA.over: a ring every eighth of its length - the side wall narrows at its ceiling
+    // and at its band at different rates, and over three bays each quad twisted into a fold, a lit V under the rod)
+    if (AA.over) for (const t of [0.93, 0.86, 0.78, 0.69, 0.59, 0.48, 0.36, 0.24, 0.12])
+      add(ringAft('aeroAftK' + Math.round(t * 100), zPaxA - t * AA.len), { mat: CAGE_MAT.plain });
+    else {
     if (shp) add(ringAft('aeroAftM2', zPaxA - 0.80 * AA.len), { mat: CAGE_MAT.plain });
     add(ringAft('aeroAftM', zPaxA - 0.55 * AA.len), { mat: CAGE_MAT.plain });
     if (shp) add(ringAft('aeroAftM0', zPaxA - 0.28 * AA.len), { mat: CAGE_MAT.plain });
+    }
   }
   // with the taper on, the pillar pair reverts to the full cabin section
   // — a pillar is a pillar again, the contraction is the taper's
@@ -8416,6 +8438,7 @@ const CAGE_PARAMS = {
   // tightening's aft section; cageLiftLegacy lifts a saved factor.)
   taperOn: 0, taperLen: 0.6, taperPanels: 0,
   boomStyle: 0, rodY: 0, rodD: 0.12, rodIncl: 0,
+  hangOn: 0, hangAt: 0.50, hangLen: 0.35,   // (the hanging nacelle, the Archaeopteryx study's stage 3: off; GEN_HANG's mast)
   // twin booms (2026-09-04): drawn by the wing layer off the trailing edge.
   // G267: the LOFT — a section (width x height) at each end of the body, a
   // squareness, and a fairing (length, cone -> ogive, cap) at each end.
@@ -9198,6 +9221,7 @@ const CAGE_DEFAULT_ABSENT = { pilSnap: 1, doorStop: 75, wgStrutPil: 0, wgTipBow:
   s2Nose: 0,                         // (MONOWHEEL: the third unit's leaf spring at the tail, as ever)
   s1Sink: 0, s2Sink: 0,              // (MONOWHEEL: no wheel sunk into the body)
   rodHub: 0,                         // (the hub's rear socket: the rod on the aft bulkhead, as ever)
+  hangOn: 0, hangAt: 0.50, hangLen: 0.35,   // (the hanging nacelle: the cabin carries the wing, as ever; GEN_HANG's mast)
   bpCabPyAt: 0.40, bpCabPyLen: 0.55, // (the hub's pylon on the chord: HULL-B78's own)
   hullFlute: 0, hullFluteN: 2, hullFluteAt: 0.55, hullFluteBow: 0.85, hullFluteAft: 0, hullStrakes: 0, hullStrakeW: 0.05, hullStrakeLen: 0.8, hullRocker: 0, hullSkirt: 0, hullTipPlane: 0,   // (HULL-B39, B43, B44, B45)
   // COMMS-SECTION ready 2 (9 Nov): the GPS puck's and the ELT whip's nudges - every older row's are written at 0 in
@@ -9408,7 +9432,8 @@ function cageSpec(P) {
         // G339: the shape (0 cone, 1 blade, 2 flat, 3 fin) and the edge the
         // held axis keeps at the tip (a fraction of its base)
         shape: Math.max(0, Math.min(3, Math.round(+P.aeroAftShape || 0))),
-        edge: Math.max(0.05, Math.min(1.5, +P.aeroAftEdge == null ? 0.6 : +P.aeroAftEdge)) }
+        edge: Math.max(0.05, Math.min(1.5, +P.aeroAftEdge == null ? 0.6 : +P.aeroAftEdge)),
+        ...(+P.aeroAftOver ? { over: 1 } : {}) }
     : null;
   S.config = {
     noseMode: P.aeroNose ? 'aero' : 'cowl',

@@ -185,6 +185,9 @@ gear. With that:
    stage 1's train: the faired skid as a protrusion of the body, the bicycle wheel, the sunk wheel (a square cut).
 3. **The hanging nacelle:**
    - the pylon (drawing reused, physics as cabane);
+     **THE MAST DONE 11 Nov** (HANDOVER "NACELLE", GATE NACELLE): one structural mast from the hub to the keel, the cabin
+     free of it and ahead of it (as the photo), the wheel hung from its foot, the pusher on its back face; the wing no
+     longer tied into the cabin's rings.
    - the role materials;
    - the tent row;
    - the A-pillars on to the hub;
