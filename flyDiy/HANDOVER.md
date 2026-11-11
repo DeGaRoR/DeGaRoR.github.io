@@ -314623,3 +314623,25 @@ The user, 11 Nov ~16:00: "Ship it on, the drawbacks are not severe." app.js PACE
 
 - **The cost, named.** The cold A/B (10 Nov, evidence 2026-11-10/hwcov/boot_ab2) and the PACE-REVEAL legs (11 Nov, 2026-11-11/hwcov/pace_reveal): the roll-out walls go (auto 11-46 s vs 35-115 s off, worst frames mostly under 2 s vs 7-56 s), 0 links after the reveal (the old 26 s in-flight class is gone), but 1 cold load of 2 had a 1.2 s frame 1.2 s after the reveal (0 links: a first-use cost) and the garage ready can be slower on a cold profile (one load 233 s vs 117-143 s). The first-use frame is parked for Friday's perf round.
 - **Evidence of the parts.** dedupe (claude/prog-dedupe, not landed: 83 -> 76 twins); the GPU program cache keeps no entry over ~106 KB (the heavies never cached warm, 256 MB disk cache = no change); the pavement's 20 s link is 2/3 its sin()-hash noise (bisect 2026-11-11/hwcov/heavy_shaders) - both for the perf round.
+## PILOT 11 Nov - STRIP-LANE + SHORT-HOLD + TAXI-HOME core (claude/ready/strip-lane)
+
+Five commits on L38a master 603da882f; the ready is the gated sha.
+- STRIP-LANE (25_airfield sitePattern, 43_pilot): a strip whose aerodrome carries `micro` (chaos > 0, DIRT-STRIP; needs its
+  aerodrome micro.chaos line, a0fbf6c6f / b4a6d97ca, to switch on) is backtracked 1 m off its centreline (GP_LANE_ROUGH) and
+  taxied at taxiV x max(0.5, 1 - chaos), no long-straight speed-up. The Jodel w3 prop strike (10 Nov 05:00, the old lane
+  at v 6.5 m through the edge stones at ~8 m/s) is clean.
+- STRIP-LANE 2 + 3: on a rough strip a taildragger turns round like on a short strip (on the spot, the centreline back, the
+  pivot at the end); a tricycle U-turns in DIRT-STRIP's turnaround pad ahead (66 kIn + 4 m from each end, the whole width
+  under the 6 cm band cap) and rejoins the lane inside it, the roll on staying on the centreline to the pad's inner edge.
+  Re-fly 10 Nov 21:45 on vet-2 with the pads: C172 w3 ok/ok (widest 10.3 m, in the pads), Jodel w3 2.0 m, Cub w6 1.9 m,
+  Jodel w6 2.2 m, all ok/ok.
+- SHORT-HOLD: on strips from 300 to 380 m the hold leaves 0.7 len + 4 m ahead (kIn = min(1, (0.3 len - 4) / 110)): w6 /
+  w5 gave the Cub and the Jodel 201.5 m against the 218 m the hold asks and they gave up on the ground. 380 m and more: as
+  before (w1 383 m, w3, w8, HOME unchanged).
+- TAXI-HOME core: ap.setArriveSite(fieldId, site, plotId) / null - landed at fieldId and stopped on its strip, the pilot
+  taxis the site's way out backward to its stand and goes STOPPED there (verdict 'taxi-in'); site = a plot's
+  playerPlotSite(...).site, or null for the field's own stand. Opt-in: unset (every gate, every other field) = as before.
+  The page half is Game's (claude/ready/taxi-home, stacked on this): main plot setArriveSite(field, null, null), own plot
+  (field, plotSite, plotId), any other To setArriveSite(null), before every departFrom.
+- Open (Pilot, parked by the land-only week): the C172 approach (w8 / w5 go-arounds and divert, the w3 touchdown at
+  29.8 m/s), the Cub / Jodel w5 arrivals. No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change.
