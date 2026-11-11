@@ -300,8 +300,11 @@
   }
 
   // ===================================================================================================================
-  // X-RAY: electrics and tanks
+  // X-RAY: electrics and tanks - the plan large on the left (nose up), a numbered key on the right, the nose magnified,
+  // the power budget along the bottom (the drag page's composition: no leader crosses the plane)
   // ===================================================================================================================
+  const badge = (K, th, q, n) => `<circle cx="${q[0].toFixed(1)}" cy="${q[1].toFixed(1)}" r="10" fill="${th.bg}" stroke="${th.ink}" stroke-width="1.2"/>` +
+    K.T(q[0], q[1] + 4.5, String(n), { sz: 12.5, w: 600, a: 'middle' });
   function pageXray(D, o, th, K) {
     const M = D.model, E = D.elec, Tk = D.tanks, pic = o.pics && o.pics.plan;
     const words = E.altA ? (E.elec.alternator === 'gen20' ? 'generator' : 'alternator') : 'battery';
@@ -309,13 +312,13 @@
       E.hasBus ? 'Every light on: ' + r1(E.night.A) + ' A of the ' + (E.altA ? E.altA + ' A ' + words : 'battery') : 'No battery, no lights: hand-propped',
       E.hasBus && E.dark.min != null ? 'With the ' + words + ' dead at night, the battery lasts ' + r0(E.dark.min) + ' min (the game\'s own bus, run down to 9 V).' : '');
     if (!pic || !pic.frame) return out;
-    const m = planMap(pic, { x: 320, y: 150, w: 420, h: 600 }), N = m.N, SY = CAT.systems, FUEL = CAT.engine;
-    out.push(`<defs><filter id="xg"><feColorMatrix type="saturate" values="0"/></filter><pattern id="xf" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="${FUEL}" stroke-width="2"/></pattern></defs>`);
-    out.push(picImg(pic, m, th === THEMES.sheet ? 0.35 : 0.2, 'xg'));
+    const m = planMap(pic, { x: 48, y: 146, w: 712, h: 508 }), N = m.N, SY = CAT.systems, FUEL = CAT.engine;
+    out.push(`<defs><filter id="xg"><feColorMatrix type="saturate" values="0"/></filter><pattern id="xf" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="${FUEL}" stroke-width="2.2"/></pattern></defs>`);
+    out.push(picImg(pic, m, th === THEMES.sheet ? 0.4 : 0.22, 'xg'));
     const wf = M.nodes.filter(n => M.tags[n[4]] === 'WF'), wr = M.nodes.filter(n => M.tags[n[4]] === 'WR');
     const near = (arr, z) => arr.slice().sort((a, b) => Math.abs(a[2] - z) - Math.abs(b[2] - z))[0];
-    const semi = M.semi;
-    // the fuel: the bay outlined, hatched to its tank's share
+    const semi = M.semi, key = [];
+    // the fuel bay, hatched, its tank's litres
     const v0 = Tk.vessels[0];
     let fuelP = null;
     if (v0 && v0.bayRes) {
@@ -323,16 +326,16 @@
       if (B.on === 'wing' && B.span) for (const sg of [1, -1]) {
         const z0 = sg * B.span[0] * semi, z1 = sg * B.span[1] * semi;
         const p = [[near(wf, z0)[0] + 0.05, 0, z0], [near(wf, z1)[0] + 0.05, 0, z1], [near(wr, z1)[0] - 0.05, 0, z1], [near(wr, z0)[0] - 0.05, 0, z0]].map(N);
-        out.push(`<path d="M${p.map(q => q[0].toFixed(1) + ' ' + q[1].toFixed(1)).join(' L')} Z" fill="url(#xf)" fill-opacity=".55" stroke="${FUEL}" stroke-width="1.4" stroke-dasharray="5 4"/>`);
-        if (sg > 0) fuelP = N([near(wr, (z0 + z1) / 2)[0], 0, (z0 + z1) / 2]);
+        out.push(`<path d="M${p.map(q => q[0].toFixed(1) + ' ' + q[1].toFixed(1)).join(' L')} Z" fill="url(#xf)" fill-opacity=".6" stroke="${FUEL}" stroke-width="1.5" stroke-dasharray="5 4"/>`);
+        if (sg > 0) fuelP = [(p[1][0] + p[2][0]) / 2 + 14, (p[1][1] + p[2][1]) / 2];
       } else if (B.x0 != null) {
         const s0 = byTag(M, 'S0TR')[0] || [0, 0, 0.3], hw = Math.abs(s0[2]);
         const p = [[B.x0, 0, -hw * 0.8], [B.x0, 0, hw * 0.8], [B.x1 - 0.02, 0, hw * 0.95], [B.x1 - 0.02, 0, -hw * 0.95]].map(N);
-        out.push(`<path d="M${p.map(q => q[0].toFixed(1) + ' ' + q[1].toFixed(1)).join(' L')} Z" fill="url(#xf)" fill-opacity=".7" stroke="${FUEL}" stroke-width="1.4"/>`);
-        fuelP = N([(B.x0 + B.x1) / 2, 0, hw]);
+        out.push(`<path d="M${p.map(q => q[0].toFixed(1) + ' ' + q[1].toFixed(1)).join(' L')} Z" fill="url(#xf)" fill-opacity=".75" stroke="${FUEL}" stroke-width="1.5"/>`);
+        fuelP = [Math.max(p[1][0], p[2][0]) + 16, (p[0][1] + p[2][1]) / 2];
       }
     }
-    // the electrics: the bus to every lamp, square runs
+    // the electrics
     const fw = mean(byTag(M, 'S0BL').concat(byTag(M, 'S0BR'))), panel = mean(byTag(M, 'S0TL').concat(byTag(M, 'S0TR')));
     const eng = M.prop.at || fw, fin = byTag(M, 'FIN')[0] || mean(byTag(M, 'VF'));
     const tipL = wf.reduce((a, q) => (q[2] < a[2] ? q : a), wf[0]), tipR = wf.reduce((a, q) => (q[2] > a[2] ? q : a), wf[0]);
@@ -340,119 +343,136 @@
     const battery = [fw[0] - 0.12, fw[1], 0.12], bus = [panel[0] + 0.25, panel[1], -0.1], bay = E.litePos.bayFrac;
     const wAt = z => { const q = near(wf, z); return [q[0] - 0.05, q[1], z]; };
     const lamp = { nav: [[tipL[0], 0, tipL[2] - 0.05], [tipR[0], 0, tipR[2] + 0.05], [tail[0] + 0.05, 0, 0]], beacon: [[fin[0], 0, 0]],
-                   taxi: [wAt(-bay * semi)], land: [wAt(bay * semi)], cabin: [[panel[0] + 0.9, 0, 0]] };
-    const fit = k => E.lamps.some(l => (k === 'cabin' ? ['flood', 'instr', 'pedal', 'pax'].includes(l.key) : l.key === k));
-    const amps = k => E.lamps.filter(l => (k === 'cabin' ? ['flood', 'instr', 'pedal', 'pax'].includes(l.key) : l.key === k)).reduce((a, l) => a + l.amps, 0);
+                   land: [wAt(bay * semi)], taxi: [wAt(-bay * semi)], cabin: [[panel[0] + 0.9, 0, 0]] };
+    const CABIN = ['flood', 'instr', 'pedal', 'pax'];
+    const fit = k => E.lamps.some(l => (k === 'cabin' ? CABIN.includes(l.key) : l.key === k));
+    const amps = k => E.lamps.filter(l => (k === 'cabin' ? CABIN.includes(l.key) : l.key === k)).reduce((a, l) => a + l.amps, 0);
     const brk = k => (E.breakers.find(b => b.key === k) || {}).A;
-    const run = (a, b) => { const A = N(a), B = N(b), m1 = N([a[0], 0, 0]), m2 = N([b[0], 0, 0]); return `<path d="M${A[0].toFixed(1)} ${A[1].toFixed(1)} L${m1[0].toFixed(1)} ${m1[1].toFixed(1)} L${m2[0].toFixed(1)} ${m2[1].toFixed(1)} L${B[0].toFixed(1)} ${B[1].toFixed(1)}" fill="none" stroke="${SY}" stroke-opacity="0.8" stroke-width="1.2"/>`; };
+    const run = (a, b) => { const A = N(a), B = N(b), m1 = N([a[0], 0, 0]), m2 = N([b[0], 0, 0]); return `<path d="M${A[0].toFixed(1)} ${A[1].toFixed(1)} L${m1[0].toFixed(1)} ${m1[1].toFixed(1)} L${m2[0].toFixed(1)} ${m2[1].toFixed(1)} L${B[0].toFixed(1)} ${B[1].toFixed(1)}" fill="none" stroke="${SY}" stroke-opacity="0.85" stroke-width="1.4"/>`; };
+    const LAMPS = [['nav', 'Navigation lights ×3', () => amps('nav') + ' A · ' + brk('navLt') + ' A breaker'],
+                   ['land', 'Landing light', () => amps('land') + ' A · ' + brk('landLt') + ' A breaker'],
+                   ['taxi', 'Taxi light', () => amps('taxi') + ' A · ' + brk('taxiLt') + ' A breaker'],
+                   ['beacon', 'Beacon', () => r1(amps('beacon')) + ' A on average (it flashes)'],
+                   ['cabin', 'Cabin & panel lights', () => r1(amps('cabin')) + ' A · dimmable']];
     if (E.hasBus) {
       out.push(run(battery, bus)); if (E.altA) out.push(run(eng, bus));
       for (const k in lamp) if (fit(k)) for (const p of lamp[k]) out.push(run(bus, p));
       for (const k in lamp) if (fit(k)) for (const p of lamp[k]) { const q = N(p);
-        out.push(`<circle cx="${q[0].toFixed(1)}" cy="${q[1].toFixed(1)}" r="4.6" fill="${k === 'beacon' ? th.bad : th.bg}" stroke="${th.ink}" stroke-width="1.3"/>`); }
-      const bq = N(bus); out.push(`<rect x="${(bq[0] - 8).toFixed(1)}" y="${(bq[1] - 4).toFixed(1)}" width="16" height="8" rx="1.5" ${K.fillAttr(SY, 0.9)}/>`);
-      const bt = N(battery); out.push(`<rect x="${(bt[0] - 5).toFixed(1)}" y="${(bt[1] - 6).toFixed(1)}" width="10" height="12" rx="1.5" ${K.fillAttr(SY, 0.9)}/>`);
-      // the callouts: the lamps
-      const C = (p, lx, ly, a, t1, t2) => K.call(out, N(p), lx, ly, a, t1, t2);
-      const wy = Math.max(...wr.map(q => N(q)[1])) + 40;
-      if (fit('nav')) C(lamp.nav[1], 1152, 190, 'end', 'Navigation lights ×3', amps('nav') + ' A, ' + brk('navLt') + ' A breaker');
-      if (fit('land')) C(lamp.land[0], 1152, wy, 'end', 'Landing light', amps('land') + ' A, ' + brk('landLt') + ' A breaker');
-      if (fit('taxi')) C(lamp.taxi[0], 48, wy, 'start', 'Taxi light', amps('taxi') + ' A, ' + brk('taxiLt') + ' A breaker');
-      if (fit('beacon')) C(lamp.beacon[0], 1152, 620, 'end', 'Beacon', r1(amps('beacon')) + ' A average (it pulses)');
-      if (fit('cabin')) C(lamp.cabin[0], 1152, Math.max(400, wy + 70), 'end', 'Cabin & panel lights', r1(amps('cabin')) + ' A, dimmable');
-      // the loupe: the firewall and the panel, the parts at their own size
-      const lc = [130, 258], lr = 70, x0 = Math.min(eng[0], battery[0]) - 0.2, x1 = Math.max(panel[0] + 0.55, eng[0] + 0.35), Z = Math.min(260, (2 * lr - 56) / (x1 - x0));
-      const Mx = p => [lc[0] + p[2] * Z, lc[1] + (p[0] - (x0 + x1) / 2) * Z];
-      out.push(`<clipPath id="xl"><circle cx="${lc[0]}" cy="${lc[1]}" r="${lr}"/></clipPath><circle cx="${lc[0]}" cy="${lc[1]}" r="${lr}" fill="${th.bg}" stroke="${SY}" stroke-width="1.2"/>`);
+        out.push(`<circle cx="${q[0].toFixed(1)}" cy="${q[1].toFixed(1)}" r="5" fill="${k === 'beacon' ? th.bad : th.bg}" stroke="${th.ink}" stroke-width="1.4"/>`); }
+      const bq = N(bus); out.push(`<rect x="${(bq[0] - 9).toFixed(1)}" y="${(bq[1] - 4.5).toFixed(1)}" width="18" height="9" rx="1.5" ${K.fillAttr(SY, 0.9)}/>`);
+      const bt = N(battery); out.push(`<rect x="${(bt[0] - 5.5).toFixed(1)}" y="${(bt[1] - 6.5).toFixed(1)}" width="11" height="13" rx="1.5" ${K.fillAttr(SY, 0.9)}/>`);
+      // the numbered badges, beside each lamp (outboard of a wing lamp, behind the beacon, inboard of the cabin's)
+      let num = 0;
+      for (const [k, name, sub] of LAMPS) { if (!fit(k)) continue; num++;
+        for (const p of lamp[k]) { const q = N(p), dx = k === 'cabin' ? 22 : p[2] > 0.3 ? 18 : p[2] < -0.3 ? -18 : 18, dy = k === 'nav' && Math.abs(p[2]) < 0.3 ? 14 : -16;
+          out.push(badge(K, th, [q[0] + dx, q[1] + dy], num)); }
+        key.push([num, name, sub()]); }
+      // the nose, magnified: the parts at their own size
+      // ×3.5 the plan's own scale, centred on the battery and the bus (and the engine's parts when they sit close by: a pusher's
+      // stay in the plan, where they are)
+      const lc = [140, 572], lr = 80;
+      const xa = Math.min(battery[0], bus[0]) - 0.12, xb = Math.max(battery[0], bus[0]) + 0.12;
+      const Z = Math.min(3.5 * m.k, (2 * lr - 30) / (xb - xa)), cxm = (xa + xb) / 2;
+      const x0 = cxm - lr / Z, x1 = cxm + lr / Z;
+      const Mx = p => [lc[0] + p[2] * Z, lc[1] + (p[0] - cxm) * Z];
+      const inLoupe = q => Math.hypot(q[0] - lc[0], q[1] - lc[1]) < lr - 6;
+      out.push(`<clipPath id="xl"><circle cx="${lc[0]}" cy="${lc[1]}" r="${lr}"/></clipPath><circle cx="${lc[0]}" cy="${lc[1]}" r="${lr}" fill="${th.bg}" stroke="${SY}" stroke-width="1.4"/>`);
       const g = [], gl = [];
-      for (const b of M.beams) { const A = P3(M, b[0]), B = P3(M, b[1]); if (Math.max(A[0], B[0]) > x1 + 0.4 || b[3]) continue; g.push(K.L(Mx(A), Mx(B), th.member, 0.8)); }
+      for (const b of M.beams) { const A = P3(M, b[0]), B = P3(M, b[1]); if (Math.min(A[0], B[0]) > x1 + 0.2 || Math.max(A[0], B[0]) < x0 - 0.2 || b[3]) continue; g.push(K.L(Mx(A), Mx(B), th.member, 0.9)); }
       const part = k => E.parts.find(p => p.key === k);
-      const rbox = (p, d, lab) => { const q = Mx(p), w = d[1] * Z, h = d[0] * Z; g.push(`<rect x="${(q[0] - w / 2).toFixed(1)}" y="${(q[1] - h / 2).toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="1.5" ${K.fillAttr(SY, 0.9)}/>`); gl.push(K.T(q[0] + w / 2 + 4, q[1] + 4, lab, { sz: 12 })); };
-      const rcan = (p, d, ln, lab, left0) => { const q = Mx(p), left = !!left0, w = d * Z, h = ln * Z;
-        g.push(`<rect x="${(q[0] - w / 2).toFixed(1)}" y="${(q[1] - h / 2).toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="${(w / 2).toFixed(1)}" ${K.fillAttr(SY, 0.9)}/>`);
-        gl.push(K.T(left ? q[0] - w / 2 - 4 : q[0] + w / 2 + 4, q[1] + 4, lab, { sz: 12, a: left ? 'end' : 'start' })); };
+      const rbox = (p, d, lab) => { const q = Mx(p), w = d[1] * Z, h = d[0] * Z; g.push(`<rect x="${(q[0] - w / 2).toFixed(1)}" y="${(q[1] - h / 2).toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="1.5" ${K.fillAttr(SY, 0.9)}/>`); if (inLoupe(q)) gl.push(K.T(q[0] + w / 2 + 5, q[1] + 4, lab, { sz: 12.5, w: 500 })); };
       const bat = part('battery'), alt = part('alternator'), st = part('starter'), busP = part('bus'), wire = part('wire');
       if (bat) rbox(battery, bat.dims, 'battery');
-      if (alt) rcan([eng[0] + 0.15, 0, -0.12], alt.dia, alt.len, words, true);
-      if (st) rcan([eng[0] + 0.1, 0, 0.13], st.dia, st.len, 'starter');
+      // the engine's machines stay in the plan, at their own size, where the engine is
+      const can = (p, d, ln) => { const q = N(p), w = Math.max(4, d * m.k), h = Math.max(5, ln * m.k); out.push(`<rect x="${(q[0] - w / 2).toFixed(1)}" y="${(q[1] - h / 2).toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="${(w / 2).toFixed(1)}" ${K.fillAttr(SY, 0.95)}/>`); };
+      if (alt) can([eng[0] + 0.15, 0, -0.12], alt.dia, alt.len);
+      if (st) can([eng[0] + 0.1, 0, 0.13], st.dia, st.len);
       rbox(bus, [0.06, 0.18], 'bus');
       out.push(`<g clip-path="url(#xl)">${g.join('')}</g>` + gl.join(''));
-      out.push(K.L([lc[0] + lr * 0.72, lc[1] - lr * 0.7], N([(x0 + x1) / 2, 0, 0]), th.lead, 0.8, '3 4'));
-      const lines = [];
-      if (bat) lines.push('Battery · ' + bat.name.replace('lead-acid 12 V, ', 'lead-acid, ') + ' · ' + bat.kg + ' kg');
-      if (alt) lines.push(alt.name.replace(/^./, c => c.toUpperCase()) + ' · ' + alt.kg + ' kg');
-      if (st) lines.push('Starter · 150 A while cranking · ' + st.kg + ' kg');
-      if (busP) lines.push('Bus bar & ' + busP.breakers + ' breakers · ' + r1(busP.kg + (wire ? wire.kg : 0)) + ' kg with the wire');
-      lines.forEach((t, i) => out.push(K.T(48, lc[1] + lr + 24 + i * 17, t, { sz: 12.5, c: i ? th.dim : th.ink })));
-    }
-    if (fuelP && v0) K.call(out, fuelP, 1152, 300, 'end', 'Fuel · ' + r0(v0.litres) + ' L' + (v0.bayRes && v0.bayRes.on === 'wing' ? ', ' + r0(v0.litres / 2) + ' L a side' : ' in the nose'),
-      r0(v0.contentsKg) + ' kg of fuel; the ' + (v0.bayRes ? v0.bayRes.name.toLowerCase() : 'bay') + ' could take ' + r0(v0.bayRes ? v0.bayRes.litres : 0) + ' L');
-    // the budget: one bar, the loads against what the alternator makes
+      out.push(K.L([lc[0] + lr * 0.7, lc[1] - lr * 0.7], N([cxm, 0, 0.25]), th.lead, 0.9, '3 4'));
+      out.push(K.T(lc[0], lc[1] + lr + 20, 'firewall and panel, ×' + r1(Z / m.k), { sz: 12, c: th.dim, a: 'middle' }));
+      // the right column: the key
+      const cx = 800; let y = 176;
+      out.push(K.T(cx, y, 'ON THE BUS', { sz: 11, c: th.faint, w: 600, ls: 1.2 })); y += 30;
+      for (const [n, name, sub] of key) { out.push(badge(K, th, [cx + 10, y - 5], n) + K.T(cx + 30, y, name, { sz: 15, w: 500 }) + K.T(cx + 30, y + 18, sub, { sz: 13, c: th.dim })); y += 46; }
+      y += 6; out.push(K.T(cx, y, 'FIREWALL, PANEL, ENGINE', { sz: 11, c: th.faint, w: 600, ls: 1.2 })); y += 26;
+      const nose = [];
+      if (bat) nose.push(['Battery', bat.name.replace('lead-acid 12 V, ', 'lead-acid, ') + ' · ' + bat.kg + ' kg']);
+      if (alt) nose.push([words.replace(/^./, c => c.toUpperCase()), alt.name.replace(/ (generator|alternator)$/, '') + ' · ' + alt.kg + ' kg']);
+      if (st) nose.push(['Starter', '150 A while cranking · ' + st.kg + ' kg']);
+      if (busP) nose.push(['Bus bar & ' + busP.breakers + ' breakers', r1(busP.kg + (wire ? wire.kg : 0)) + ' kg with the wire']);
+      for (const [a, b] of nose) { out.push(`<rect x="${cx + 4}" y="${y - 11}" width="12" height="12" rx="2" ${K.fillAttr(SY, 0.9)}/>` + K.T(cx + 30, y, a, { sz: 14, w: 500 }) + K.T(1152, y, b, { sz: 13, c: th.dim, a: 'end' })); y += 25; }
+      if (fuelP && v0) { y += 14; out.push(K.T(cx, y, 'FUEL', { sz: 11, c: th.faint, w: 600, ls: 1.2 })); y += 28;
+        out.push(badge(K, th, fuelP, 'F') + badge(K, th, [cx + 10, y - 5], 'F') +
+          K.T(cx + 30, y, r0(v0.litres) + ' L' + (v0.bayRes && v0.bayRes.on === 'wing' ? ', ' + r0(v0.litres / 2) + ' L a side' : ' in the nose') + ' · ' + r0(v0.contentsKg) + ' kg', { sz: 15, w: 500 }) +
+          K.T(cx + 30, y + 18, 'the ' + (v0.bayRes ? v0.bayRes.name.toLowerCase() : 'bay') + ' could take ' + r0(v0.bayRes ? v0.bayRes.litres : 0) + ' L', { sz: 13, c: th.dim })); }
+    } else if (fuelP && v0) out.push(badge(K, th, fuelP, 'F'));
+    // the budget along the bottom
     if (E.hasBus) {
-      const by = 714, bx = 48, bw = W - 96, full = Math.max(E.altA, E.night.A) * 1.08, sc = bw / full; let x = bx;
-      out.push(K.T(48, by - 12, 'THE POWER BUDGET AT NIGHT', { sz: 11, c: th.faint, w: 600, ls: 1.2 }));
-      const seg = (a, col, lab, op) => { const w = a * sc; out.push(`<rect x="${x.toFixed(1)}" y="${by}" width="${Math.max(0, w - 1.5).toFixed(1)}" height="14" rx="2" ${K.fillAttr(col, op)}/>`);
-        if (lab && w > lab.length * 6.6 + 6) out.push(K.T(x + 2, by + 32, lab, { sz: 12, c: th.dim })); x += w; };
+      const by = 712, bx = 48, bw = W - 96, full = Math.max(E.altA, E.night.A) * 1.08, sc = bw / full; let x = bx;
+      out.push(K.T(48, by - 12, 'THE POWER BUDGET AT NIGHT, AMPS', { sz: 11, c: th.faint, w: 600, ls: 1.2 }));
+      const seg = (a, col, lab, op) => { const w = a * sc; out.push(`<rect x="${x.toFixed(1)}" y="${by}" width="${Math.max(0, w - 1.5).toFixed(1)}" height="15" rx="2" ${K.fillAttr(col, op)}/>`);
+        if (lab && w > lab.length * 6.8 + 6) out.push(K.T(x + 2, by + 33, lab, { sz: 12.5, c: th.dim })); x += w; };
       seg(E.day.A, SY, 'panel & radios ' + r1(E.day.A), 0.9);
       for (const k of ['land', 'taxi', 'nav', 'beacon', 'cabin']) if (amps(k)) seg(amps(k), k === 'beacon' ? th.bad : th.faint, k + ' ' + r1(amps(k)), k === 'beacon' ? 0.8 : 0.45);
-      if (E.altA) { const ax = bx + E.altA * sc; out.push(K.L([ax, by - 10], [ax, by + 22], th.ink, 1.6) + K.T(ax - 4, by - 14, words + ' ' + E.altA + ' A', { sz: 12.5, a: 'end', w: 600 })); }
+      if (E.altA) { const ax = bx + E.altA * sc; out.push(K.L([ax, by - 10], [ax, by + 24], th.ink, 1.8) + K.T(ax - 5, by - 14, words + ' makes ' + E.altA + ' A', { sz: 13, a: 'end', w: 600 })); }
     }
     return out;
   }
 
   // ===================================================================================================================
-  // WHAT THE SIM FLIES
+  // WHAT THE SIM FLIES - the plan large on the left (nose up), the side view and the key on the right
   // ===================================================================================================================
   function pageModel(D, o, th, K) {
     const M = D.model, n = M.nodes;
     const out = head(th, K, o, 'What the sim flies · the model itself', n.length + ' masses, ' + M.beams.length + ' members, ' + M.strips.length + ' lifting panels',
-      'Plan above, side below, one scale. The rendered plane is the faint ghost behind it.');
+      'Everything the simulation computes, and nothing else. The rendered plane is the faint ghost behind it.');
     const Dp = M.prop.D || 1.8, eng = M.prop.at || [0, 1, 0];
     const xs = n.map(q => q[0]), ys = n.map(q => q[1]), zs = n.map(q => q[2]);
-    const xmin = Math.min(...xs, eng[0] - 0.4), xmax = Math.max(...xs) + 0.5, zext = Math.max(...zs.map(Math.abs)) + 0.2;
+    const xmin = Math.min(...xs, eng[0] - 0.3), xmax = Math.max(...xs) + 0.3, zext = Math.max(...zs.map(Math.abs), Dp / 2) + 0.15;
     const ymin = Math.min(...ys, eng[1] - Dp / 2) - 0.1, ymax = Math.max(...ys, eng[1] + Dp / 2) + 0.1;
-    const s = Math.min(640 / (xmax - xmin), 400 / (2 * zext), 560 / (2 * zext + ymax - ymin + 1));
-    const X0 = 48 + (680 - (xmax - xmin) * s) / 2 - xmin * s, PY = 160 + zext * s, SY = PY + zext * s + 30 + ymax * s;
-    const pl = p => [X0 + p[0] * s, PY + p[2] * s], sd = p => [X0 + p[0] * s, SY - p[1] * s];
+    // the plan: z across, x down
+    const s = Math.min(712 / (2 * zext), 560 / (xmax - xmin)), PCX = 404, PT = 150 + (560 - (xmax - xmin) * s) / 2 - xmin * s;
+    const pl = p => [PCX + p[2] * s, PT + p[0] * s];
+    // the side: in the right column's top
+    const s2 = Math.min(352 / (xmax - xmin), 150 / (ymax - ymin)), SX = 800 + (352 - (xmax - xmin) * s2) / 2 - xmin * s2, SB = 160 + ymax * s2;
+    const sd = p => [SX + p[0] * s2, SB - p[1] * s2];
     out.push(`<defs><filter id="mg"><feColorMatrix type="saturate" values="0"/></filter><pattern id="mh" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="5" stroke="${CAT.fittings}" stroke-width="1.8"/></pattern></defs>`);
-    // the ghosts (the plan turned nose-left by its own frame)
     const pp = o.pics && o.pics.plan, ps = o.pics && o.pics.side;
-    if (pp && pp.frame) { const f = s / pp.s; out.push(`<image href="${pp.href}" width="${pp.W}" height="${pp.H}" transform="matrix(0 ${f} ${f} 0 ${(X0 - f * pp.frame.oy).toFixed(2)} ${(PY - f * pp.frame.ox).toFixed(2)})" opacity="${th.ghost}" filter="url(#mg)"/>`); }
-    if (ps && ps.frame) { const f = s / ps.s; out.push(`<image href="${ps.href}" width="${ps.W}" height="${ps.H}" transform="matrix(${f} 0 0 ${f} ${(X0 - f * ps.frame.ox).toFixed(2)} ${(SY - f * ps.frame.oy).toFixed(2)})" opacity="${th.ghost}" filter="url(#mg)"/>`); }
-    // the lifting panels (front spar at 15 % of the chord), the control share hatched
+    if (pp && pp.frame) { const f = s / pp.s; out.push(`<image href="${pp.href}" width="${pp.W}" height="${pp.H}" transform="matrix(${f} 0 0 ${f} ${(PCX - f * pp.frame.ox).toFixed(2)} ${(PT - f * pp.frame.oy).toFixed(2)})" opacity="${th.ghost}" filter="url(#mg)"/>`); }
+    if (ps && ps.frame) { const f = s2 / ps.s; out.push(`<image href="${ps.href}" width="${ps.W}" height="${ps.H}" transform="matrix(${f} 0 0 ${f} ${(SX - f * ps.frame.ox).toFixed(2)} ${(SB - f * ps.frame.oy).toFixed(2)})" opacity="${th.ghost}" filter="url(#mg)"/>`); }
     const quad = (st, P) => {
       const F0 = P3(M, st[0]), F1 = P3(M, st[1]), R0 = P3(M, st[2]), R1 = P3(M, st[3]), ch = st[4], cs = st[6];
       const at = (F, R, t) => { const d = [0, 1, 2].map(q => R[q] - F[q]), Ln = Math.hypot(...d) || 1; return [0, 1, 2].map(q => F[q] + d[q] / Ln * ch * (t - 0.15)); };
       const hinge = 1 - cs, poly = (pts, attr) => `<path d="M${pts.map(q => q[0].toFixed(1) + ' ' + q[1].toFixed(1)).join(' L')} Z" ${attr}/>`;
-      return poly([at(F0, R0, 0), at(F1, R1, 0), at(F1, R1, hinge), at(F0, R0, hinge)].map(P), K.fillAttr(CAT.structure, th === THEMES.sheet ? 0.3 : 0.16)) +
+      return poly([at(F0, R0, 0), at(F1, R1, 0), at(F1, R1, hinge), at(F0, R0, hinge)].map(P), K.fillAttr(CAT.structure, th === THEMES.sheet ? 0.32 : 0.18)) +
         (cs > 0 ? poly([at(F0, R0, hinge), at(F1, R1, hinge), at(F1, R1, 1), at(F0, R0, 1)].map(P), `fill="url(#mh)" stroke="${CAT.fittings}" stroke-width="0.9"`) : '');
     };
     for (const st of M.strips) if (M.KIND[st[5]] !== 'fin') out.push(quad(st, pl));
     for (const st of M.strips) if (M.KIND[st[5]] === 'fin') out.push(quad(st, sd));
-    for (const b of M.beams) { if (b[3]) continue; const A = P3(M, b[0]), B = P3(M, b[1]); out.push(K.L(pl(A), pl(B), th.member, 0.6) + K.L(sd(A), sd(B), th.member, 0.6)); }
-    // the body's two drag points, flat plates to scale
-    const disc = (q, a) => `<circle cx="${q[0].toFixed(1)}" cy="${q[1].toFixed(1)}" r="${(Math.sqrt(a / Math.PI) * s).toFixed(1)}" fill="${th.ink}" fill-opacity=".1" stroke="${th.ink}" stroke-width="1.3" stroke-dasharray="4 3"/>`;
-    if (M.drag.fwd) out.push(disc(sd(M.drag.fwd), M.drag.cda[0]));
-    if (M.drag.aft) out.push(disc(sd(M.drag.aft), (M.drag.cdaAft[1] || 0) * 0.25));
-    // the propeller disc, edge-on
+    for (const b of M.beams) { if (b[3]) continue; const A = P3(M, b[0]), B = P3(M, b[1]); out.push(K.L(pl(A), pl(B), th.member, 0.7) + K.L(sd(A), sd(B), th.member, 0.5)); }
+    const disc = (q, a, k) => `<circle cx="${q[0].toFixed(1)}" cy="${q[1].toFixed(1)}" r="${(Math.sqrt(a / Math.PI) * k).toFixed(1)}" fill="${th.ink}" fill-opacity=".1" stroke="${th.ink}" stroke-width="1.3" stroke-dasharray="4 3"/>`;
+    if (M.drag.fwd) out.push(disc(sd(M.drag.fwd), M.drag.cda[0], s2) + disc(pl(M.drag.fwd), M.drag.cda[0], s));
+    if (M.drag.aft) out.push(disc(sd(M.drag.aft), (M.drag.cdaAft[1] || 0) * 0.25, s2) + disc(pl(M.drag.aft), (M.drag.cdaAft[1] || 0) * 0.25, s));
     const ex = M.prop.pusher ? eng[0] + 0.25 : eng[0] - 0.12;
-    out.push(K.L(pl([ex, 0, -Dp / 2]), pl([ex, 0, Dp / 2]), CAT.engine, 2.6) + K.L(sd([ex, eng[1] - Dp / 2, 0]), sd([ex, eng[1] + Dp / 2, 0]), CAT.engine, 2.6));
-    for (const i of M.contacts) { const q = sd(P3(M, i)); out.push(`<rect x="${(q[0] - 4).toFixed(1)}" y="${(q[1] - 4).toFixed(1)}" width="8" height="8" ${K.fillAttr(CAT.gear, 0.95)}/>`); }
-    if (M.floats) for (const q of byTag(M, 'FLK')) { const p = sd(q); out.push(`<rect x="${(p[0] - 2.5).toFixed(1)}" y="${(p[1] - 2.5).toFixed(1)}" width="5" height="5" ${K.fillAttr(CAT.gear, 0.95)}/>`); }
-    const mr = m => Math.max(0.9, Math.sqrt(m) * 0.95);
+    out.push(K.L(pl([ex, 0, -Dp / 2]), pl([ex, 0, Dp / 2]), CAT.engine, 3) + K.L(sd([ex, eng[1] - Dp / 2, 0]), sd([ex, eng[1] + Dp / 2, 0]), CAT.engine, 2.4));
+    for (const i of M.contacts) { const a = pl(P3(M, i)), b = sd(P3(M, i));
+      out.push(`<rect x="${(a[0] - 4.5).toFixed(1)}" y="${(a[1] - 4.5).toFixed(1)}" width="9" height="9" ${K.fillAttr(CAT.gear, 0.95)}/><rect x="${(b[0] - 3.5).toFixed(1)}" y="${(b[1] - 3.5).toFixed(1)}" width="7" height="7" ${K.fillAttr(CAT.gear, 0.95)}/>`); }
+    if (M.floats) for (const q of byTag(M, 'FLK')) { const a = pl(q); out.push(`<rect x="${(a[0] - 2.5).toFixed(1)}" y="${(a[1] - 2.5).toFixed(1)}" width="5" height="5" ${K.fillAttr(CAT.gear, 0.95)}/>`); }
     for (const q of n) if (q[3] > 0.05) { const a = pl(q), b = sd(q);
-      out.push(`<circle cx="${a[0].toFixed(1)}" cy="${a[1].toFixed(1)}" r="${mr(q[3]).toFixed(1)}" fill="${th.ink}" fill-opacity=".75"/><circle cx="${b[0].toFixed(1)}" cy="${b[1].toFixed(1)}" r="${mr(q[3]).toFixed(1)}" fill="${th.ink}" fill-opacity=".75"/>`); }
-    // the right column: the legend, each kind with its mark and its count
-    const cx = 790; let y = 186;
+      out.push(`<circle cx="${a[0].toFixed(1)}" cy="${a[1].toFixed(1)}" r="${Math.max(1.1, Math.sqrt(q[3]) * 1.15).toFixed(1)}" fill="${th.ink}" fill-opacity=".72"/><circle cx="${b[0].toFixed(1)}" cy="${b[1].toFixed(1)}" r="${Math.max(0.8, Math.sqrt(q[3]) * 0.8).toFixed(1)}" fill="${th.ink}" fill-opacity=".72"/>`); }
+    out.push(K.T(800, 150, 'FROM THE SIDE', { sz: 11, c: th.faint, w: 600, ls: 1.2 }));
+    // the key
+    let y = Math.max(SB - ymin * s2 + 46, 352);
     const nW = M.strips.filter(st => M.KIND[st[5]] === 'wing').length, nC = M.strips.filter(st => st[6] > 0).length, kg = n.reduce((a, q) => a + q[3], 0);
-    const row = (mark, t1, t2) => { out.push(mark(cx + 10, y - 5) + K.T(cx + 34, y, t1, { sz: 15, w: 500 }) + K.T(cx + 34, y + 18, t2, { sz: 13, c: th.dim })); y += 62; };
-    row((x, yy) => `<circle cx="${x}" cy="${yy}" r="6" fill="${th.ink}" fill-opacity=".75"/>`, n.length + ' mass points, ' + r0(kg) + ' kg', 'the size of a dot is its weight');
-    row((x, yy) => K.L([x - 9, yy], [x + 9, yy], th.ink, 1), M.beams.length + ' members', 'each its own spring and damper; each can bend or break');
-    row((x, yy) => `<rect x="${x - 9}" y="${yy - 6}" width="18" height="12" ${K.fillAttr(CAT.structure, 0.4)}/>`, nW + ' wing and ' + (M.strips.length - nW) + ' tail panels', 'each its own lift and drag, at its own airflow');
-    row((x, yy) => `<rect x="${x - 9}" y="${yy - 6}" width="18" height="12" fill="url(#mh)" stroke="${CAT.fittings}"/>`, nC + ' with a control surface', 'aileron, flap, elevator, rudder: the rear share moves');
-    row((x, yy) => `<circle cx="${x}" cy="${yy}" r="8" fill="${th.ink}" fill-opacity=".1" stroke="${th.ink}" stroke-dasharray="3 2"/>`, 'The body: two drag points', 'front ' + (M.drag.cda[0] || 0).toFixed(2) + ' m², the nose, cowl and gear in it');
-    row((x, yy) => K.L([x, yy - 9], [x, yy + 9], CAT.engine, 2.6), 'Propeller: a disc ' + Dp.toFixed(2) + ' m across', 'thrust off its curve; the engine is ' + r0(M.engineKg) + ' kg on its mount');
-    row((x, yy) => `<rect x="${x - 4}" y="${yy - 4}" width="8" height="8" ${K.fillAttr(CAT.gear, 0.95)}/>`, M.floats ? 'Float keels and wheels' : 'Wheels', 'where the plane touches the ground or the water');
+    const row = (mark, t1, t2) => { out.push(mark(810, y - 5) + K.T(834, y, t1, { sz: 15, w: 500 }) + K.T(834, y + 18, t2, { sz: 13, c: th.dim })); y += 52; };
+    row((x, yy) => `<circle cx="${x}" cy="${yy}" r="6" fill="${th.ink}" fill-opacity=".72"/>`, n.length + ' mass points, ' + r0(kg) + ' kg', 'a dot\'s size is its weight');
+    row((x, yy) => K.L([x - 9, yy], [x + 9, yy], th.ink, 1), M.beams.length + ' members', 'each a spring that can bend or break');
+    row((x, yy) => `<rect x="${x - 9}" y="${yy - 6}" width="18" height="12" ${K.fillAttr(CAT.structure, 0.4)}/>`, nW + ' wing and ' + (M.strips.length - nW) + ' tail panels', 'each with its own lift and drag');
+    row((x, yy) => `<rect x="${x - 9}" y="${yy - 6}" width="18" height="12" fill="url(#mh)" stroke="${CAT.fittings}"/>`, nC + ' with a control surface', 'aileron, flap, elevator, rudder');
+    row((x, yy) => `<circle cx="${x}" cy="${yy}" r="8" fill="${th.ink}" fill-opacity=".1" stroke="${th.ink}" stroke-dasharray="3 2"/>`, 'The body: two drag points', (M.drag.cda[0] || 0).toFixed(2) + ' m² in front, the nose and gear included');
+    row((x, yy) => K.L([x - 9, yy], [x + 9, yy], CAT.engine, 3), 'Propeller: a disc ' + Dp.toFixed(2) + ' m across', 'on an engine of ' + r0(M.engineKg) + ' kg');
+    row((x, yy) => `<rect x="${x - 4.5}" y="${yy - 4.5}" width="9" height="9" ${K.fillAttr(CAT.gear, 0.95)}/>`, M.floats ? 'Float keels and wheels' : 'Wheels', 'where it touches ground or water');
     if (o.note) out.push(K.T(48, H - 32, o.note, { sz: 12, c: th.warn }));
     return out;
   }
