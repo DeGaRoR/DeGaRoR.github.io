@@ -16,3 +16,7 @@ drawn stab is smaller than the flown one.
 - builds/cessna172_2026-09-20_corrected.json: flies hSpan 3.20 m, Sh 3.11 m2; same note.
 So the official Metal Cessna's pitch stability, trim and certificate are computed with a tailplane ~27 % wider than the
 one the player sees. The fin's height agrees; its chord was not checked beyond its top.
+
+## CLOSED (12 Nov, A0): a stale fiche
+The 10 Nov baked fiche (3cad3e994) was stale at 2.69 m. The re-bake e78d1a062 (claude/ready/cut-takes, L38c) shows the
+stab at 3.40 m, the same as the editor (the headless load path: 3.42 m) and the flight model (3.40 m). No tail mismatch.
