@@ -1,0 +1,16 @@
+cub160 builds/candidates/cub_chord160.json
+jodel builds/jodel_2026-09-20_corrected.json
+pa18f160 builds/candidates/pa18_floats_chord160.json
+petrelL builds/candidates/superpetrel_V4_1.json
+chinook builds/chinook_2026-09-21_corrected.json
+dc3 builds/candidates/dc3_2026-10.json
+stearman builds/candidates/stearman_2026-10.json
+tigermoth builds/candidates/tigermoth_2026-10.json
+camel builds/candidates/camel_2026-10.json
+c172rf builds/c172r_wipline2350_stcprop_2026-10-20.json
+carboncubss builds/candidates/carbon_cub_ss.json
+c172v2 builds/cessna172r_2026-11-08.json
+cub builds/cub_2026-09-20_corrected.json
+pa18f builds/pa18_floats_2026-10-23.json
+stolcub tools/fixtures/stol_cub_showcase.json
+cessna builds/cessna172_2026-09-20.json
