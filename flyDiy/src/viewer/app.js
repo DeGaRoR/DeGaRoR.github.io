@@ -16114,7 +16114,7 @@
     // the aeroplane's again when it leaves
     window.FLYDIY_DEST_REFILL = () => {
       const s = $('selDest'), DM = driveOn();
-      if (DM) { s.innerHTML = ''; for (const c of DM.choices()) { const o = document.createElement('option'); o.value = c.id; o.textContent = c.label; s.appendChild(o); } s.value = DM.to || ''; }
+      if (DM) { s.innerHTML = ''; for (const c of DM.choices()) { const o = document.createElement('option'); o.value = c.id; o.textContent = c.label; o.disabled = c.ok === false; s.appendChild(o); } s.value = DM.to || ''; }
       else { fill(s, routeGear(false)); s.value = destId; }
     };
     // G710: a remembered id the world does not have (another island, a strip deleted) is not a route

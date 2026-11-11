@@ -15,6 +15,8 @@
 //          the footprint against the roads' bands and the hard ground), never STUCK
 //   PERF   the physics' cost a 60 Hz frame (car.step: 4 substeps), the driver's (D.step), setDest's (a route + a U-turn
 //          planned) - printed, bounded loosely (a shared machine)
+//   TOWNOFF the page's default world (the town switched off, G590): Cedar Harbour unreachable, said so in the To picker
+//   PAGE   the drive mode's wiring by its source: the lazy pack, nothing in MANIFEST.core, app.js's hooks
 // ~25 s (the island composed: 5 s). node tools/_drive_trip_check.js [--track out.json]
 'use strict';
 const fs = require('fs'), path = require('path');
@@ -122,6 +124,35 @@ const turns = D.log.filter(l => l.what === 'uturn').map(l => l.msg.replace(/: .*
   const car_ms = perf.car / perf.n / 1e6, drv_ms = perf.drv / perf.n / 1e6, dmax = Math.max(...perf.dest);
   row('PERF', car_ms < 2.5 && drv_ms < 1 && dmax < 3000, 'a 60 Hz frame: the physics ' + f(car_ms, 3) + ' ms (4 substeps), the driver ' + f(drv_ms, 3) + ' ms (' + perf.n + ' frames); setDest ' +
     perf.dest.map(x => f(x, 0) + ' ms').join(' / ') + ' (a route + a U-turn planned)');
+}
+// ---- TOWNOFF: the page's default world - the town switched off (G590: 27_premises TOWN_OFF, world_boot.js's TOWN; the GRAPHICS
+// 'town' row or ?town=1 turns it on) takes Cedar Harbour's streets with it: the car's places are HOME's network's only, and
+// the drive mode lists the town greyed, saying so (drive_mode.js DM.choices) ----
+{
+  const PG = C.PREMISES_GEN, raw = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'island_jolene.json'), 'utf8'));
+  const Dp = PG.dropPlaces(PG.unwrap(raw).rec, PG.TOWN_OFF.drop, PG.TOWN_OFF.keep);
+  const W2 = IN.islandWorld('jolene', { premises: JSON.stringify(Dp.rec) }), O2 = W2.premises.overlay;
+  const aero2 = W2.aerodromes.map(a => { const s = C.siteOf(a.id); return { id: a.id, name: C.fieldName(a.id, a.name), x: a.x, z: a.z, stand: s && s.stand }; });
+  const h2 = aero2.find(a => a.id === 'HOME');
+  const I2 = VI.vehIslandSpec(O2.roadGraph(), { rec: W2.premises.rec, toWorld: (x, z) => O2.frame.toWorld(x, z), aerodromes: aero2, sites: [], from: [h2.stand.x, h2.stand.z] });
+  const ids = I2.spec.places.map(p => p.id).sort();
+  const DMsrc = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'drive_mode.js'), 'utf8');
+  row('TOWNOFF', !ids.includes('mk_hall') && !ids.includes('mk_sea') && ids.includes('HOME') && /the town is off/.test(DMsrc),
+    'the town off (' + Dp.n + ' entries dropped): the car\'s places ' + ids.join(', ') + ' - Cedar Harbour unreachable, the To picker lists it greyed ("the town is off"); the drive there needs Graphics: Town all (or ?town=1)');
+}
+// ---- PAGE: the drive mode's wiring, by its source (the browser rig is tools/drive_shot.js) ----
+{
+  const B = require(path.join(ROOT, 'tools', 'build.js'));
+  const lazy = B.MANIFEST.lazy.map(([d, f]) => d + '/' + f);
+  const want = ['src/cars/cars_car.js', 'src/vehicle/vehicle.js', 'src/vehicle/vehicle_drive.js', 'src/vehicle/vehicle_island.js', 'src/viewer/drive_mode.js'];
+  const APP = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');
+  const hooks = { loop: /driveOn\(\); if \(DM\) DM\.frame\(pc\.steps\)/, target: /target\.fromArray\(driveOn\(\)\.target\(\)\)/, camera: /DMc\.tailAxis\(\)/,
+    hud: /if \(DM\) \{ DM\.hud\(\); return; \}/, map: /DMm\.drawOnMap\(/, trip: /if \(DM\) return DM\.trip\(\)/, picker: /DM\.setDest\(id\); flRender\(\)/,
+    pause: /DM\.paused = !!on/, restart: /DM\.restart\(\); return;/, refill: /FLYDIY_DEST_REFILL = /, entry: /DRIVE_Q\) setTimeout\(\(\) => DRIVE\.enter\(\)/ };
+  const miss = Object.keys(hooks).filter(k => !hooks[k].test(APP));
+  const core = B.MANIFEST.core.some(n => /vehicle|drive_mode|cars?[_/]/i.test(n));
+  row('PAGE', want.every(w => lazy.includes(w)) && !miss.length && !core,
+    'lazy: ' + want.filter(w => lazy.includes(w)).length + ' of ' + want.length + ' files in MANIFEST.lazy, none in MANIFEST.core; app.js hooks ' + (Object.keys(hooks).length - miss.length) + ' of ' + Object.keys(hooks).length + (miss.length ? ' (missing: ' + miss.join(', ') + ')' : ' (loop, target, camera, hud, map, trip, picker, pause, restart, refill, ?drive=1)'));
 }
 if (TRACK) fs.writeFileSync(TRACK, JSON.stringify({ track, log: D.log, places: Object.values(G.places).map(p => ({ id: p.id, name: p.name, x: p.x, z: p.z })), joins: I.report.joins }));
 console.log('GATE DRIVE-TRIP: ' + (fails ? 'FAIL' : 'PASS'));

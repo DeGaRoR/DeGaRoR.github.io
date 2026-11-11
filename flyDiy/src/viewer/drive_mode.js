@@ -121,7 +121,15 @@
     if (r !== 'none') DM.to = id;
     return r;
   };
-  DM.choices = () => (G ? Object.values(G.places).filter(p => p.kind === 'stop').sort((a, b) => a.name.localeCompare(b.name)).map(p => ({ id: p.id, label: p.name })) : []);
+  // (the town switched off - G590, world_boot.js's TOWN: the GRAPHICS 'town' row, ?town=1 - takes Cedar Harbour's streets
+  // with it: its place is listed, greyed, saying so, rather than missing)
+  DM.choices = () => {
+    if (!G) return [];
+    const L = Object.values(G.places).filter(p => p.kind === 'stop').sort((a, b) => a.name.localeCompare(b.name)).map(p => ({ id: p.id, label: p.name, ok: true }));
+    if (!G.places[TOWN.id] && window.FLYDIY_TOWN && !window.FLYDIY_TOWN.all)
+      L.push({ id: TOWN.id, label: ((typeof GAME_NAMES !== 'undefined' && GAME_NAMES.town) || 'the town') + ' - the town is off (Graphics: Town, all)', ok: false });
+    return L;
+  };
 
   // ---- THE FRAME (app.js's loop, after the aeroplane's block): the steps the real time owes, each 1/60 s ----
   DM.frame = function (steps) {
