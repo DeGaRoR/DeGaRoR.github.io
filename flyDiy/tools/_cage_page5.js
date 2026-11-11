@@ -1245,6 +1245,11 @@ window.CAGE_PAGE = {
       // boom and boom rod options, compared to the body")
       ['rodIncl',   'rod inclination (tail up)', -12, 12, 0.1,
        { when: P => +P.boomStyle === 1 && !+P.boomTwin }],
+      // THE HUB'S REAR SOCKET (the Archaeopteryx study's stage 2; the user: "the centre section is the heart of the plane
+      // ... a rear socket for the rod to slot in"): the rod's root tied into the wing's centre section, a streamlined
+      // socket from the rod up to the wing's underside (the engine pylon's hugging blade, _cage_eng)
+      ['rodHub',    'rod rooted in', 0, 1, 1, ['the aft bulkhead', 'the wing (the hub\'s rear socket)'],
+       { when: P => +P.boomStyle === 1 && !+P.boomTwin && +P.wingOn }],
       ['boomLen',   'length',          1.0, 6.0, 0.01, { dim: 'len' }],
       // (aft roof/keel = the boom frame; the cone's section = the tail
       // frame, both in 0 · frames since T2.1)

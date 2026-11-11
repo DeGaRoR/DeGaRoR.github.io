@@ -562,7 +562,7 @@ const CAGE_PARTS = [
              at: 'aft of the taper; twin, off the wing’s trailing edge' },
     groups: [
       // boomStyle -> `design`; these shape the rod once it is chosen
-      ['rod', ['rodY', 'rodD', 'rodIncl']],
+      ['rod', ['rodY', 'rodD', 'rodIncl', 'rodHub']],
       ['twin booms', ['boomTwin', 'boomX', 'boomDy', 'boomDz']],
       ['section', ['boomWf', 'boomHf', 'boomWa', 'boomHa', 'boomSquare', 'boomIncl', 'boomCollar']],
       ['wing end', ['boomNoseLen', 'boomNoseK', 'boomNoseCap']],
@@ -593,7 +593,7 @@ const CAGE_PARTS = [
                               'frTailTopZ', 'frTailWaistZ', 'frTailBotZ'], EXPERT],
       // the pod's aero tail where the pod ends at the bulkhead (a rod boom,
       // twin booms) — moved here from the Boom (G267)
-      ['aero aft', ['aeroAftOn', 'aeroAftLen', 'aeroAftDroop', 'aeroAftTip',
+      ['aero aft', ['aeroAftOn', 'aeroAftOver', 'aeroAftLen', 'aeroAftDroop', 'aeroAftTip',
                     'aeroAftShape', 'aeroAftEdge']],   // G339: the shape and its edge
     ] },
 
@@ -1105,7 +1105,7 @@ const CAGE_PARTS = [
       // `s1R`/`s2R` (the wheel radii) -> `wheels` (2026-09-03, the user: "the
       // wheel radius for example is under the main gear and not the wheel")
       ['station', ['s1On', 's1Z', 's1X', 's1Leg', 's1Drop', 's1AxZ', 's1Root', 's1Brake',
-                   's1Steer']],
+                   's1Steer', 's1Sink']],
       ['fairing', ['s1Fair', 's1FairSkirt', 's1FairTail', 's1FairRake',
                    's1FairW', 's1LegFair']],
       ['blade', ['s1_beamAng', 's1_beamW', 's1_beamT', 's1_beamTaper',
@@ -1160,7 +1160,7 @@ const CAGE_PARTS = [
              fore: 's2Z', out: 's2X', up: 's2Drop', at: 'station 2' },
     groups: [
       ['station', ['s2On', 's2Z', 's2X', 's2Leg', 's2Drop', 's2AxZ', 's2Root', 's2Brake',
-                   's2Steer']],
+                   's2Steer', 's2Sink', 's2Nose']],
       ['fairing', ['s2Fair', 's2FairSkirt', 's2FairTail', 's2FairRake',
                    's2FairW', 's2LegFair']],
       ['blade', ['s2_beamAng', 's2_beamW', 's2_beamT', 's2_beamTaper',

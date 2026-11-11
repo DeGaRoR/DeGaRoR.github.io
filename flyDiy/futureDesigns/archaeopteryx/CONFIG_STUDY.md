@@ -180,6 +180,9 @@ gear. With that:
    user chose), the nose skid (the leaf spring at the nose, faired with the wheel's spat). The tearing fairing waits for
    the tent material (stage 3).
 2. **The hub's boom:** the single boom off the hub. This retires the rod-on-a-bulkhead for this card.
+   **DONE 11 Nov, as the rod re-rooted** (HANDOVER "HUB", GATE HUB): not the twin boom at x = 0 but the rod itself, its
+   root ring tied into the root bay and the bay in the rod's rigid cluster; a bolted collar at the trailing edge. Also in
+   stage 1's train: the faired skid as a protrusion of the body, the bicycle wheel, the sunk wheel (a square cut).
 3. **The hanging nacelle:**
    - the pylon (drawing reused, physics as cabane);
    - the role materials;

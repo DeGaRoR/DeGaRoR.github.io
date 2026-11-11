@@ -1039,12 +1039,59 @@ let radGroup = null;                         // the wing radiators (27 Oct)
 PAGE.post = ctx => {
   wingPost(ctx);
   early.publish(ctx);
+  hubSocketDraw(ctx);                 // (the hub's rear socket: after the wing, which it reads)
   // HULL-B5: the boat's tip floats hang off THIS wing (the float layer draws them from the flown records)
   if (window.CAGE_TIPFLOAT_DRAW) { try { window.CAGE_TIPFLOAT_DRAW(ctx); } catch (e) { console.error('tip floats:', e); } }
   // WING-STRUCTURE: the wing's inside (src/viewer/wing_struct.js), drawn off this build's def - only under the see-inside
   // view or the cutaway box; otherwise it builds nothing
   if (window.CAGE_WINGSTRUCT_DRAW) window.CAGE_WINGSTRUCT_DRAW(ctx);
 };
+// THE HUB'S REAR SOCKET (the Archaeopteryx study's stage 2; the frame's 61_gen_frame 3c ties the rod's root into the wing's
+// centre section): where the rod meets the wing, drawn after the wing (it reads its trailing edge and its underside). Under
+// a GAP - the rod's crown below the wing's underside at its root - the socket is the engine pylon's blended blade standing on
+// the rod and hugging the wing (_cage_eng CAGE_PYLON); where the rod already runs INTO the centre section, a bolted sleeve
+// where it leaves the trailing edge, its four bolts - the rod reads slotted into the wing
+let hubGroup = null;
+function hubSocketDraw(ctx) {
+  const { scene, P } = ctx;
+  if (hubGroup) { hubGroup.traverse(o => { if (o.geometry) o.geometry.dispose(); }); if (hubGroup.parent) hubGroup.parent.remove(hubGroup); hubGroup = null; }
+  const W = window.CAGE_WING, GK = window.GEAR_KIT, PY = window.CAGE_PYLON;
+  if (!+P.rodHub || +P.boomStyle !== 1 || +P.boomTwin || !P.wingOn || !W || !GK || !CG2 || !CG2.cageResolve) return;
+  try {
+    const FS = (CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
+    const Sp = CG2.cageSpec(P), Rr = CG2.cageResolve(Sp), te = W.teAt ? W.teAt(0) : null;
+    if (!Sp.rod || !Rr.rodSpan || !te || !W.underAt) return;
+    const zR = Rr.rodSpan.zRoot * FS, rr = Sp.rod.r * FS, tI = Math.tan(Sp.rod.incl || 0);
+    const yAx = z => (Sp.rod.y + tI * (Rr.rodSpan.zRoot - z / FS)) * FS;
+    const SM = window.CAGE_SECMAT, mat = (SM && SM('wingLongeron', { surf: 0, fieldM: 1 })) || MAT.liftstrut;
+    hubGroup = new THREE.Group(); hubGroup.name = 'cageLayer:hubSocket';
+    const zS = Math.min(zR - 0.04, te.z + 0.20), uS = W.underAt(0, zS);
+    if (uS && yAx(zS) + rr < uS.y - 0.03 && PY) {
+      // the gap: a foil blade from the rod's crown up to the wing's underside, a hand ahead of the trailing edge, its
+      // root flared onto the rod and its top onto the wing (the pylon's fillets)
+      const Lp = Math.max(0.25, Math.min(0.5, zR - te.z)), zc = Math.min(zR - 0.02, te.z + Lp / 2 + 0.03);
+      const yb = yAx(zc) + 0.9 * rr, u2 = W.underAt(0, zc);
+      if (u2 && u2.y > yb + 0.04) {
+        const H = u2.y - yb, bag = GK.Bag(), jb = GK.Bag();
+        const C = PY.pylonCaster(ctx, FS, [-1.0, 1.0, zc - 1.2, zc + 1.2]);
+        PY.pylonHug(bag, jb, C, { O: [0, yb + 0.5 * H, zc], ax: [0, 1, 0], eu: [1, 0, 0], ew: [0, 0, 1],
+          out: e => PY.pylonOutline('foil', Lp, 0.14, 0, e), fB: Math.min(0.06, 0.35 * H), fT: Math.min(0.06, 0.25 * H),
+          dn: ['body'], up: ['wing'], top0: 0.5 * H + 0.01, bot0: -0.5 * H - 0.01, topJoint: true });
+        bag.mesh(hubGroup, mat); jb.mesh(hubGroup, mat);
+      }
+    } else if (zR > te.z) {
+      // the rod in the wing: the socket's collar at the trailing edge (a tapered sleeve from 1.33 r at the edge to the
+      // rod a hand aft) and four bolts through it
+      const bag = GK.Bag(), z0 = te.z + 0.05, L = 0.14, ax = [0, 0, 1], yc = yAx(te.z - 0.04);
+      GK.revolve(bag, [0, yAx(z0), z0], ax, [[rr * 1.33, 0], [rr * 1.34, -0.03], [rr * 1.16, -L], [rr * 1.01, -L - 0.01]], 32);
+      for (let k = 0; k < 4; k++) { const a = Math.PI / 4 + k * Math.PI / 2;
+        GK.bolt(bag, [Math.sin(a) * rr * 1.24, yc + Math.cos(a) * rr * 1.24, te.z - 0.04], [Math.sin(a), Math.cos(a), 0], 0.008, 0.012); }
+      const m = bag.mesh(hubGroup, mat);
+      if (m) m.name = 'rodHubSocket';
+    }
+    scene.add(hubGroup);
+  } catch (e) { console.error('hub socket:', e); }
+}
 let STRUT_PIL = null;                 // PILLAR-ANCHORS P4: this build's picked strut pillar
 const wingPost = ctx => {
   if (prevPost) prevPost(ctx);

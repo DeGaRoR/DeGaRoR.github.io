@@ -314597,4 +314597,39 @@ CONFIG_STUDY.md (revision 2: the hub and the hanging nacelle; this is its stage 
   the wash pitches it onto its nose or its tail from a standstill (and its static margin is -10 %) - stage 4's card work.
 - **Not done**: the fairing that TEARS and COLLAPSES (the tent material, stage 3); a dedicated nose-skid leg shape (the
   leaf spring at the nose is the tail skid's).
+- **The faired skid** (the user: "a protrusion of the fuselage with a protective skid behind it ... a single model"):
+  any faired skid (s2Fair > 0 on the Skid row) is a lofted foil keel under the skid's fitting (_cage_gear skidProtrusion):
+  its root cast onto the drawn skin with the engine pylon's caster and flared (the blended fillet), the chord shrinking
+  and the leading edge sweeping aft with depth, down to 15 mm above the shoe's sole; sized by the skid's own rows. No
+  spat on a skid. _cage_eng exposes CAGE_PYLON (pylonCaster, pylonHug, pylonOutline). Its physics is still the spat's
+  price and drag (gear.twFairing): the honest protrusion drag is owed.
+- **The bicycle wheel** (whProfile 3, "super light wheels ... a new model"): its own drawing (_gear_gen wheelCycle:
+  a narrow tube tyre 0.20 R wide, a thin rim, a small hub, 24 wire spokes), GEN_RULES.wheelCycleKg (1.3 kg at R 0.25)
+  and GEN_PRICES.wheelCycle, a quarter of the drag width, the slim tyre's grip (TYRE_CN); the physics reads the carcass
+  off spec.cage.whProfile as the tyre grip always did (no new spec key).
+- **The sunk wheel** (s<i>Sink, "only a proper square cut through the fuselage"): the axle where that share of the
+  diameter stands above the keel line, the leg a fork of two plates and an axle up into the body, the skin cut square
+  round the tyre by the retract's knife with no well's box (a `hole` cut: knifeWells skips its wellBox; the structure
+  inside the prism is cleared). gear.sink (the mains') reaches the spec: the drag counts the share outside, no leg.
+  Quickshot shades a cut sheet smoothly (the knife's normals) where an uncut one is flat: a look, not geometry.
+  GEN_DEFAULT carries gear.mono false (GATE DESIGN's rule: a tile writes only a path the default carries); the clamp
+  deletes it unless true, so every resolved spec and certificate key is the bytes it was (checked on the Cub).
+
+## HUB - THE ROD SLOTTED INTO THE WING'S CENTRE SECTION (11 Nov 2026; the Archaeopteryx study's stage 2)
+
+The user: "the centre section is the heart of the plane ... a rear socket for the rod to slot in". The study planned
+the twin boom's recipe at x = 0; the rod is the better base (one rigid tube already, the conventional tail, the tail
+skid, the load rig and the cage's rod drawing all hang on it), so the stage is THE ROD RE-ROOTED.
+- **fuselage.rodHub** (the cage's rodHub row, Fuselage > boom > rod; the join writes it on a rod only; the clamp keeps
+  it only there).
+- **The frame** (61_gen_frame 3c): the ROD cluster's root ring (the bulkhead ring at boxRear) tied to the wing's root
+  bay - both spars, both sides, the box caps, stations 0 and 1 (G294: the attachment BAY rigid) - and those 16 nodes in
+  the rod's rigid cluster; the ties weightless, the socket billed once (~1.2 kg on the root ring: 64 ties at the
+  fuselage gauge weighed 17 kg on the card). The pod's own members to the rod stay; stage 3's pylon takes the pod off.
+  Measured (GATE HUB C): the tail post under 300 N held at the wing's root bay alone drops 8 mm (18 mm without).
+- **The drawing** (_cage_wing hubSocketDraw, after the wing: the engine layer runs BEFORE the wing layer, so CAGE_WING
+  is the previous build's there - the cabane pylon HULL-B78 reads it that way and is missing on a first headless
+  build): where the rod runs into the centre section, a bolted sleeve where it leaves the trailing edge
+  (rodHubSocket); under a gap, the pylon's blended blade from the rod's crown to the wing's underside.
+- GATE HUB (new, core, ~1 min).
 

@@ -197,6 +197,10 @@ const GATES = [
   // hoop on one contact), the nose skid; the motor glider on one wheel and a tail skid parks on one wingtip skid, rolls to
   // 25 m/s and flies HOME's circuit; the tile's Monowheel parks on its nose skid (~8 min, one probe in parallel)
   { id: 'MONOWHEEL', file: '_monowheel_check.js', tier: 'core', weight: 2, wall: 900 },
+  // HUB (the Archaeopteryx study's stage 2): the rod slotted into the wing's centre section - the spec's key, the root bay
+  // in the rod's rigid cluster and tied to its root ring, the socket's mass, the tail held off the wing alone, the drawn
+  // collar (~1 min)
+  { id: 'HUB', file: '_hub_check.js', tier: 'core', wall: 300 },
   // G2125 PILOT-PROFILE: the climb on speed (>= 1.3 Vs, the attitude under the type's cap) on the Jodel, the user's Cub
   // and metal Cessna; the planned vertical profile over Jolene's ridge to Jumbo Mine (reversals near zero, the clearance
   // kept); East Point's approach over the 'map' trees (no contact, 10 m over the tops on final) (~8 min, 3 cases in parallel)
