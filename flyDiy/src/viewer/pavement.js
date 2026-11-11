@@ -1652,6 +1652,17 @@ float pvRelief(float u, float v, float halfW, float len, vec4 holes) {
     if (lk.match > 0.5) return null;   // G2570: a matched grass strip draws the ground itself - a tuft there takes the ground's (the cover ring's meanAt)
     return [c[0] * lk.side[0], c[1] * lk.side[1], c[2] * lk.side[2]];   // G1392: the side's look
   }
+  // surfaceColor(cls): the drawn SURFACE's linear colour - its base set graded as the shader grades it (the look's
+  // saturation), times the look's surface tint - what a wheel there raises as dust (DIRT-DUST, 10 Nov: the dust takes its
+  // ground's colour). The module's recipe; memoised on GC_V as groundColor.
+  const SC_MEMO = { v: -1, m: new Map() };
+  function surfaceColor(cls) {
+    if (SC_MEMO.v !== GC_V) { SC_MEMO.v = GC_V; SC_MEMO.m.clear(); }
+    if (SC_MEMO.m.has(cls)) return SC_MEMO.m.get(cls);
+    const row = CLASS_DEF[cls]; let c = null;
+    if (row && row.base) { const lk = lookOf(cls, R), m = gradedMean(row.base, R, SHARED, lk.sat); c = [m[0] * lk.surf[0], m[1] * lk.surf[1], m[2] * lk.surf[2]]; }
+    SC_MEMO.m.set(cls, c); return c;
+  }
   // ---- THE RUNWAY LOOK (G1392) -------------------------------------------------------------------------------
   // LIVE: the world look's overlay (look()), laid over every pavement's own recipe for the look's keys only
   let LIVE = null;
@@ -2274,7 +2285,7 @@ float pvRelief(float u, float v, float halfW, float len, vec4 holes) {
   }
   function merge(THREE, parts, o) { const out = [], it = mergeSteps(THREE, parts, o, out); while (!it.next().done); return out; }
   const api = { CLASSES, CLASS_DEF, SLOTS, RECIPE, KNOBS, ENTRY_KNOBS, PRESETS, resolve, NMARK, NSEG, get recipe() { return R; },
-    stripGeometry, roadGeometry, polyGeometry, field, opaqueDepth, sinkAt, liftK, liftOver, translucent, SINK, REFINE, setKeep, NKEEP, shoulderFor, sharedLib, groundColor, gradedMean, lanesOf, standMarks, marksOf, roadMarks, collapse, recorder, library, keysFor, make, set, reset, debug, pavtest, exportRecipe, dispose, GLSL, hook, mats: MATS,
+    stripGeometry, roadGeometry, polyGeometry, field, opaqueDepth, sinkAt, liftK, liftOver, translucent, SINK, REFINE, setKeep, NKEEP, shoulderFor, sharedLib, groundColor, surfaceColor, gradedMean, lanesOf, standMarks, marksOf, roadMarks, collapse, recorder, library, keysFor, make, set, reset, debug, pavtest, exportRecipe, dispose, GLSL, hook, mats: MATS,
     // G925-G928: the table, the one material, the merge, the A/B
     // G1390-G1393: the runway look (per surface type), its live overlay, the alpha's CPU twin
     LOOK_GROUPS, LOOK_KEYS, LOOK_WEAR, groupOf, lookOf, look, tintRGB, alphaTwin, twinNoise: { hash: tHash, noise: tNoise, fbm: tFbm },
