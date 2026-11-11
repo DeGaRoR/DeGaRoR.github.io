@@ -91,14 +91,16 @@ console.log('5. the GRAPHICS row');
 {
   const G = fs.readFileSync(path.join(SRC, 'gfx_settings.js'), 'utf8');
   const presets = (G.match(/fmist: '(off|on)'/g) || []).length;
-  yes(/\{ k: 'fmist', label: 'forest mist', free: true, reload: true, def: 'off', steps: \[/.test(G), 'the row exists: a free reload row, off by default (the veil is compiled in at the start)');
+  yes(/\{ k: 'fmist', label: 'forest mist', free: true, reload: true, def: 'on', steps: \[/.test(G), 'the row exists: a free reload row, ON by default (the user 10 Nov; the veil is compiled in at the start)');
   yes(presets === 0, 'no preset names it: the desktop presets stay frozen (GATE GFX), the player turns it on (' + presets + ' preset keys)');
   yes(/rows: \['clouds', 'mist', 'fmist', 'glare'\]/.test(G), 'it sits in the sky group');
   global.location = { search: '' }; global.localStorage = { getItem: k => (k === 'flydiy.fmist' ? '1' : null) };
   const F2 = fresh(path.join(SRC, 'forest_mist.js'));
   yes(F2.ON && F2.C && !F2.A && !F2.B, 'the stored choice compiles the veil alone (the cards and the march stay behind ?fmist=)');
   global.localStorage = { getItem: () => null };
-  yes(!fresh(path.join(SRC, 'forest_mist.js')).ON, 'nothing stored, no flag: off');
+  { const F3 = fresh(path.join(SRC, 'forest_mist.js')); yes(F3.ON && F3.C && !F3.A && !F3.B, 'nothing stored, no flag: ON - the veil alone (the user 10 Nov: on by default)'); }
+  global.localStorage = { getItem: k => (k === 'flydiy.fmist' ? '0' : null) };
+  yes(!fresh(path.join(SRC, 'forest_mist.js')).ON, 'the row stored off: off');
   delete global.localStorage;
 }
 console.log((checks - fails) + ' of ' + checks + ' checks');
