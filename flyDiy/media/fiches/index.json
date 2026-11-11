@@ -238,17 +238,20 @@
     "nEngines": 1,
     "seats": 1,
     "specs": {
-     "empty": 275.1610253936501,
-     "allUp": 366.6810253936503,
-     "Vs": 14.738617596417482,
+     "empty": 275.5140059612015,
+     "allUp": 367.0340059612014,
+     "Vs": 14.745764434222494,
      "VCruise": 33.1,
-     "climb": 4.871822799581268,
+     "climb": 4.863179478441897,
      "TORun": 77,
      "engine": "Rotax 912 UL",
      "propD": 1.91,
      "propBlades": 2
     },
-    "pxPerM": 91.23
+    "sea": false,
+    "heroProp": "disc",
+    "pxPerM": 91.23,
+    "heroWingY": 0.286
    },
    "pics": {
     "hero": "list_7/hero.webp",
