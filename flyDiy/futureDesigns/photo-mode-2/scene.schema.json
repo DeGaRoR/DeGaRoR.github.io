@@ -4,143 +4,395 @@
   "title": "Wingsmith scene (photo mode 2)",
   "description": "One picture's whole setting: camera, time, weather, plane, pose, quality. Written by the in-game photo bar (SCENE.get) and by people; read by SCENE.apply and tools/scene_shot.js. A missing field means 'leave it as the page has it'. Unknown fields are kept and written back. Units: metres, degrees; world axes x, y up, z as terrainH reads them. Design: futureDesigns/PHOTO-MODE-2-2026-11-11.md section 3.",
   "type": "object",
-  "required": ["what", "v"],
+  "required": [
+    "what",
+    "v"
+  ],
   "additionalProperties": true,
   "properties": {
-    "what": { "const": "wingsmith-scene" },
-    "v": { "const": 1 },
-    "name": { "type": "string", "maxLength": 80 },
-    "made": { "type": "string", "format": "date-time" },
-    "game": { "type": "string", "description": "the build that wrote it (FLYDIY_BUILD / train name), for the report only" },
-    "note": { "type": "string" },
-
-    "site": { "enum": ["garage", "flight"], "default": "flight" },
-
+    "what": {
+      "const": "wingsmith-scene"
+    },
+    "v": {
+      "const": 1
+    },
+    "name": {
+      "type": "string",
+      "maxLength": 80
+    },
+    "made": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "game": {
+      "type": "string",
+      "description": "the build that wrote it (FLYDIY_BUILD / train name), for the report only"
+    },
+    "note": {
+      "type": "string"
+    },
+    "site": {
+      "enum": [
+        "garage",
+        "flight"
+      ],
+      "default": "flight"
+    },
     "world": {
       "type": "object",
       "properties": {
-        "kind": { "enum": ["island", "analytic"], "default": "island" },
-        "seed": { "type": "integer", "default": 0 }
+        "kind": {
+          "enum": [
+            "island",
+            "analytic"
+          ],
+          "default": "island"
+        },
+        "seed": {
+          "type": "integer",
+          "default": 0
+        }
       }
     },
-
     "camera": {
       "type": "object",
       "properties": {
-        "anchor": { "enum": ["plane", "world"], "default": "plane",
-          "description": "plane: eye/target in the plane's HEADING frame (x forward along the heading, y up, z right; the plane's pitch and roll do not rotate it), origin at the CG. world: world metres." },
-        "eye": { "$ref": "#/$defs/vec3" },
-        "target": { "$ref": "#/$defs/vec3" },
-        "roll": { "type": "number", "minimum": -180, "maximum": 180, "default": 0 },
-        "fov": { "type": "number", "minimum": 10, "maximum": 100, "description": "vertical, degrees" },
-        "mode": { "enum": ["free", "orbit", "chase", "cockpit", "wing", "tower"], "default": "free",
-          "description": "the camera the bar returns to after the shot; the picture itself is always taken from eye/target" },
-        "level": { "type": "boolean", "default": true }
+        "anchor": {
+          "enum": [
+            "plane",
+            "world"
+          ],
+          "default": "plane",
+          "description": "plane: eye/target in the plane's HEADING frame (x forward along the heading, y up, z right; the plane's pitch and roll do not rotate it), origin at the CG. world: world metres."
+        },
+        "eye": {
+          "$ref": "#/$defs/vec3"
+        },
+        "target": {
+          "$ref": "#/$defs/vec3"
+        },
+        "roll": {
+          "type": "number",
+          "minimum": -180,
+          "maximum": 180,
+          "default": 0
+        },
+        "fov": {
+          "type": "number",
+          "minimum": 10,
+          "maximum": 100,
+          "description": "vertical, degrees"
+        },
+        "mode": {
+          "enum": [
+            "free",
+            "orbit",
+            "chase",
+            "cockpit",
+            "wing",
+            "tower"
+          ],
+          "default": "free",
+          "description": "the camera the bar returns to after the shot; the picture itself is always taken from eye/target"
+        },
+        "level": {
+          "type": "boolean",
+          "default": true
+        }
       }
     },
-
     "time": {
       "type": "object",
       "properties": {
-        "date": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
-        "localHours": { "type": "number", "minimum": 0, "maximum": 24 },
-        "utc": { "type": "number", "description": "alternative to localHours, hours UTC" },
-        "preset": { "enum": ["dawn", "morning", "noon", "afternoon", "golden", "sunset", "dusk", "night"],
-          "description": "DAY_CLOCK.preset; used only if localHours and utc are absent" },
-        "frozen": { "type": "boolean", "default": true }
+        "date": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+        },
+        "localHours": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 24
+        },
+        "utc": {
+          "type": "number",
+          "description": "alternative to localHours, hours UTC"
+        },
+        "preset": {
+          "enum": [
+            "dawn",
+            "morning",
+            "noon",
+            "afternoon",
+            "golden",
+            "sunset",
+            "dusk",
+            "night"
+          ],
+          "description": "DAY_CLOCK.preset; used only if localHours and utc are absent"
+        },
+        "frozen": {
+          "type": "boolean",
+          "default": true
+        }
       }
     },
-
     "weather": {
       "type": "object",
       "description": "the DAY_CLOCK save() fields, plus the cloud shader dials and the waves' phase",
       "properties": {
-        "cloudType": { "type": "string" },
-        "cloudCover": { "type": "number", "minimum": 0, "maximum": 1 },
-        "cloudSeed": { "type": "integer" },
+        "cloudType": {
+          "type": "string"
+        },
+        "cloudCover": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "cloudSeed": {
+          "type": "integer"
+        },
         "cloudUpper": {},
-        "turbidity": { "type": "number" },
+        "turbidity": {
+          "type": "number"
+        },
         "wind": {
           "type": "object",
           "properties": {
-            "kts": { "type": "number", "minimum": 0 },
-            "dirDeg": { "type": "number" },
-            "gust": { "type": "number", "minimum": 0 },
-            "refH": { "type": "number" },
-            "breeze": { "type": "number" }
+            "kts": {
+              "type": "number",
+              "minimum": 0
+            },
+            "dirDeg": {
+              "type": "number"
+            },
+            "gust": {
+              "type": "number",
+              "minimum": 0
+            },
+            "refH": {
+              "type": "number"
+            },
+            "breeze": {
+              "type": "number"
+            }
           }
         },
         "storm": {},
-        "oatC": { "type": "number" }, "dewC": { "type": "number" }, "qnhPa": { "type": "number" },
-        "seaT": { "type": "number", "description": "sim time the waves are drawn at (their phase); frozen with the scene" },
-        "clouds": { "type": "object", "description": "the clouds_ui DIALS whitelist: detail, erodeK, shadow, shadowSoft, ambDepth, driftK, veil, veilKm, steps, lightSteps, seed, base" }
+        "oatC": {
+          "type": "number"
+        },
+        "dewC": {
+          "type": "number"
+        },
+        "qnhPa": {
+          "type": "number"
+        },
+        "seaT": {
+          "type": "number",
+          "description": "sim time the waves are drawn at (their phase); frozen with the scene"
+        },
+        "clouds": {
+          "type": "object",
+          "description": "the clouds_ui DIALS whitelist: detail, erodeK, shadow, shadowSoft, ambDepth, driftK, veil, veilKm, steps, lightSteps, seed, base"
+        }
       }
     },
-
     "garage": {
-      "type": ["object", "null"],
+      "type": [
+        "object",
+        "null"
+      ],
       "description": "only when site = garage",
       "properties": {
-        "mood": { "type": "integer", "minimum": 0 },
-        "door": { "enum": ["open", "closed"] }
+        "mood": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "door": {
+          "enum": [
+            "open",
+            "closed"
+          ]
+        }
       }
     },
-
     "plane": {
-      "type": ["object", "null"],
+      "type": [
+        "object",
+        "null"
+      ],
       "description": "null = no plane in the picture",
       "properties": {
-        "ref": { "type": "string", "description": "a readable name only: stock:<key>, arch:<key>, mine:<slot>" },
-        "build": { "type": "object", "description": "the garage's export envelope, inline: { what:'flydiy-build', v: GEN_SPEC_V, name, spec, plaque?, log? } (garage.js exportFile); migrated by genNormaliseSpec" }
+        "ref": {
+          "type": "string",
+          "description": "a readable name only: stock:<key>, arch:<key>, mine:<slot>"
+        },
+        "build": {
+          "type": "object",
+          "description": "the garage's export envelope, inline: { what:'flydiy-build', v: GEN_SPEC_V, name, spec, plaque?, log? } (garage.js exportFile); migrated by genNormaliseSpec"
+        }
       }
     },
-
     "pose": {
-      "type": ["object", "null"],
+      "type": [
+        "object",
+        "null"
+      ],
       "properties": {
-        "where": { "enum": ["ground", "water", "air", "stand"] },
-        "at": { "type": "array", "minItems": 3, "maxItems": 3, "items": { "type": ["number", "null"] },
-          "description": "the CG, world metres; y null on ground/water = seated by seatOnGround / on waterH" },
-        "agl": { "type": "number", "minimum": 0, "description": "air: height of the CG above terrainH (used when at[1] is null)" },
-        "hdg": { "type": "number", "description": "degrees, the site.hdg convention" },
-        "pitch": { "type": ["number", "null"], "minimum": -90, "maximum": 90, "description": "ground: null = from the wheels" },
-        "roll": { "type": ["number", "null"], "minimum": -180, "maximum": 180 },
+        "where": {
+          "enum": [
+            "ground",
+            "water",
+            "air",
+            "stand"
+          ]
+        },
+        "at": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "description": "the CG, world metres; y null on ground/water = seated by seatOnGround / on waterH"
+        },
+        "agl": {
+          "type": "number",
+          "minimum": 0,
+          "description": "air: height of the CG above terrainH (used when at[1] is null)"
+        },
+        "hdg": {
+          "type": "number",
+          "description": "degrees, the site.hdg convention"
+        },
+        "pitch": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": -90,
+          "maximum": 90,
+          "description": "ground: null = from the wheels"
+        },
+        "roll": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": -180,
+          "maximum": 180
+        },
         "controls": {
           "type": "object",
           "properties": {
-            "elevator": { "$ref": "#/$defs/unit" },
-            "aileron": { "$ref": "#/$defs/unit" },
-            "rudder": { "$ref": "#/$defs/unit" },
-            "flaps": { "type": "number", "minimum": 0, "maximum": 1 },
-            "gear": { "type": "number", "minimum": 0, "maximum": 1, "description": "1 = down" },
-            "throttle": { "type": "number", "minimum": 0, "maximum": 1 }
+            "elevator": {
+              "$ref": "#/$defs/unit"
+            },
+            "aileron": {
+              "$ref": "#/$defs/unit"
+            },
+            "rudder": {
+              "$ref": "#/$defs/unit"
+            },
+            "flaps": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "gear": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "1 = down"
+            },
+            "throttle": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
           }
         },
         "prop": {
           "type": "object",
           "properties": {
-            "look": { "enum": ["still", "blur"] },
-            "rpm": { "type": "number", "minimum": 0 },
-            "angleDeg": { "type": "number" }
+            "look": {
+              "enum": [
+                "still",
+                "blur"
+              ]
+            },
+            "rpm": {
+              "type": "number",
+              "minimum": 0
+            },
+            "angleDeg": {
+              "type": "number"
+            }
           }
         },
-        "canopy": { "type": "number", "minimum": 0, "maximum": 1 }
+        "canopy": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
       }
     },
-
     "quality": {
       "type": "object",
       "properties": {
-        "best": { "type": "boolean", "default": true },
-        "rung": { "enum": ["auto", "A", "B", "C", "D", "E"], "default": "auto", "description": "the memory ladder, design section 2.4" },
-        "output": { "type": ["array", "null"], "items": { "type": "integer", "minimum": 64 }, "minItems": 2, "maxItems": 2,
-          "description": "[w, h] in pixels; null = 2x the window, as the rung allows" },
-        "overrides": { "type": "object", "description": "extra GFX rows on top of the photo layer, e.g. { density: 200 }" }
+        "rung": {
+          "enum": [
+            "auto",
+            "A",
+            "B",
+            "C",
+            "D",
+            "E"
+          ],
+          "default": "auto",
+          "description": "the memory ladder, design section 2.4"
+        },
+        "output": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "integer",
+            "minimum": 64
+          },
+          "minItems": 2,
+          "maxItems": 2,
+          "description": "[w, h] in pixels, the saved picture's size; null = the window's size. Rendered at up to 2x and scaled down (design 2.4-2.5)"
+        },
+        "overrides": {
+          "type": "object",
+          "description": "extra GFX rows on top of the photo layer, e.g. { density: 200 }"
+        },
+        "hq": {
+          "type": "boolean",
+          "default": true,
+          "description": "the high-quality option (opt-out): ultra rows, density 200, real trees to 1000 m (TREE_LOD [150, 1000, 1000], fade 60), the levers of design section 2.2"
+        }
       }
     }
   },
   "$defs": {
-    "vec3": { "type": "array", "minItems": 3, "maxItems": 3, "items": { "type": "number" } },
-    "unit": { "type": "number", "minimum": -1, "maximum": 1 }
+    "vec3": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {
+        "type": "number"
+      }
+    },
+    "unit": {
+      "type": "number",
+      "minimum": -1,
+      "maximum": 1
+    }
   }
 }

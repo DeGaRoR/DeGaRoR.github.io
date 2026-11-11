@@ -41,5 +41,5 @@
     "controls": { "elevator": -0.1, "aileron": -0.35, "rudder": 0.05, "flaps": 0, "gear": 1, "throttle": 0.8 },
     "prop": { "look": "blur", "rpm": 2300, "angleDeg": 0 }
   },
-  "quality": { "best": true, "rung": "auto", "output": null, "overrides": {} }
+  "quality": { "hq": true, "rung": "auto", "output": null, "overrides": {} }
 }
