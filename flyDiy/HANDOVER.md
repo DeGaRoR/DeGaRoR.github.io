@@ -244,6 +244,10 @@ another layer's solid. `fixtures/clip_baseline.json` makes it a ratchet: red
 only for a NEW or deeper finding; `--rebase` after a chantier clears some;
 `--report` lists every fitting's worst depth. See
 futureDesigns/FITMENT-STUDY-2026-09-12.md.
+GATE MONOWHEEL (MONOWHEEL, core, ~10 min) is the single wheel's, the wingtip skid's and the nose skid's: the spec's flag
+and keys (absent when off), one centreline axle, one wheel billed, the hoop drawn on the shoe's contact, the cert's ground
+loads on one main, the motor glider on one wheel and a tail skid parked on one wingtip skid, rolling and flying HOME's
+circuit, the tile's Monowheel parked on its nose skid. futureDesigns/archaeopteryx/CONFIG_STUDY.md section 4.
 GATE WILGAGEAR (WILGA-GEAR, core, ~2 min) is the trailing-link leg's: the geometry as researched, the static deflection
 at gross, a 23.725-style limit drop without bottoming and the reserve drop's recovery, no pogo, the trailing arc, a
 broken leg that drops, the drawn leg = the physics leg through the load chain, the fairing (its three shapes and two
@@ -314552,3 +314556,45 @@ TIMED GATE (16:50-19:00, with the liner + float-deck still in): taxi chase @HOME
 Parked fleet re-cooked on this build (parked_cook --check same).
 
 No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change: PHYSICS_V 7, GEN_SPEC_V 10, GEN_CERT_V 7.
+
+## MONOWHEEL - THE SINGLE WHEEL, THE WINGTIP SKID UNDER ANY TIP, THE NOSE SKID (11 Nov 2026, cloud; the Archaeopteryx study's stage 1; branch claude/archaeopteryx-sailplane-study-q8tzz2)
+
+The user: "a true single-wheel gear type, we will reuse it on other gliders"; the tip skid "under any tip type. It's
+better"; "the front has a skid ... with a fairing in front". The configuration study: futureDesigns/archaeopteryx/
+CONFIG_STUDY.md (revision 2: the hub and the hanging nacelle; this is its stage 1).
+
+- **gear.mono** (60_gen_spec): a FLAG on a wheeled gear (taildragger / tricycle), not a type - the third unit keeps its
+  end and every rule that reads the type reads the same unit. Absent when off. A monowheel drops `retract` and the
+  `lever` suspension (both built per side). The join writes it off a centreline mains row (track < 0.02; the gear page
+  always documented "x = 0 is a single centreline wheel").
+- **The frame**: one axle node `AXLEC` at z 0 (GAR aliases GAL; refs.mains holds it ONCE - every reader that sums or
+  averages refs.mains is generic), its two legs to both forward belly nodes, two drag braces aft, two snap-blockers to
+  the ring's top corners (rule 10); one wheel, fairing and leg billed. Hard two-main sites fixed: the shakedown's AXLER
+  lookup (falls back to AXLEC), genCertGroundLoads (one main: both halves on it), genGearCdA (one wheel), the
+  differential brake (a z 0 wheel has no side), 29_obstacles' stance shape. Left as they are (read generically or only
+  index L/R by sign): app.js's wheel parts (a centreline main is the gear layer's kind R, the app's mainsR = refs.mains[0]),
+  the audio (mains[1] undefined reads as no wheel), the pilot's brake pivot (nothing to pivot on - a glider is pushed).
+- **TIP-SKID** (60_gen_spec GEN_TIP_SKID, genTipSkidZ): `wings[0].tipSkid` = the shoe's depth under the lower skin (m,
+  0.02-0.30, rows wgTipSkid / wgTipSkidH, default 0.10), ON ANY TIP: at 0.6 of a bowed tip's bow (at the joint on a
+  drooped / upturned tip, at the end on a square / winglet / endplate one - measured: at the joint a rounded tip's last
+  0.34 m touched first), 45 % chord. The shoe is one node a side (refs.skids), the apex of the bay's four spar nodes
+  (gear class, kMul 8, weightless members), sliding on the tail skid's law (30_solver: TW_SKID_MU, no scrape, no scar).
+  Drag: the hoop's two legs on the tip strip (as the endplate). Drawn by 63_gen_wing into the pitot group (bound to the
+  same spar nodes, so it rides the wing), the shoe's sleeve radius = the node's contact radius.
+- **The nose skid**: a tricycle's third unit on the Skid row (s2Steer 4) flies twMode 4 (62_gen_aero passes it, the
+  solver arms the law for a nose unit too; a nose WHEEL is unchanged, no key). The leaf spring and shoe (leg 3) at the
+  nose: `s2Nose` 1 counts its station back from the nose (AF.z1) as a tailwheel's counts from the tail. A faired skid
+  wears the wheel's spat (s2Fair 1) and trousers (2) round the shoe (_gear_gen).
+- **The tile**: Undercarriage > Monowheel (s1X 0, the nose skid, the wingtip skid on; reads 'mono' on a centreline main).
+  Taildragger / Tricycle write `s1X` back (a pair's own, else 0.86) and `s2Nose` 0. All 32 archetypes born bit-identical
+  (spec, nodes, beams, params, refs hashed against HEAD).
+- **The pilot** (39b_servos): on one wheel past 2 deg of bank the ground aileron is the whole stick the level loop's way
+  (the seaplane's low-float rule, G3331): the motor glider's roll levelled in 6 s and it left at 18 s (114 s with the
+  0.44 the proportional law gave: the swinging wing kept the high-T/W taildragger's line hold, G2829, at taxi power).
+- **Measured**: the motor glider on one wheel ahead of its CG and a tail skid parks on the wheel, the skid and one tip
+  skid (~11 deg); rolls to 25 m/s in 5.8 s; flies HOME's circuit. The Archaeopteryx card on a monowheel and a nose skid
+  is NOT flyable yet, and not for the gear: its pusher blows on the stab, so with the wheel near the CG the elevator in
+  the wash pitches it onto its nose or its tail from a standstill (and its static margin is -10 %) - stage 4's card work.
+- **Not done**: the fairing that TEARS and COLLAPSES (the tent material, stage 3); a dedicated nose-skid leg shape (the
+  leaf spring at the nose is the tail skid's).
+

@@ -176,6 +176,9 @@ gear. With that:
 
 1. **The monowheel** (alone, useful at once to every glider): the gear type, the faired nose skid, the one-or-two
    mains in the solver and the cert; and the **skid wingtip** type.
+   **DONE 11 Nov** (HANDOVER "MONOWHEEL", GATE MONOWHEEL): `gear.mono`, the skid under any tip (a wing setting, as the
+   user chose), the nose skid (the leaf spring at the nose, faired with the wheel's spat). The tearing fairing waits for
+   the tent material (stage 3).
 2. **The hub's boom:** the single boom off the hub. This retires the rod-on-a-bulkhead for this card.
 3. **The hanging nacelle:**
    - the pylon (drawing reused, physics as cabane);
