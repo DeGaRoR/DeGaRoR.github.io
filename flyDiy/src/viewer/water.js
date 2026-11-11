@@ -1039,7 +1039,7 @@ const WATER = (() => {
     ringOffset: false, ringFar: 4000, skyK: 1, skyGain: 0, ringSky: true,
     // (round 2, A0 19 Oct: 'a ring near the shore' - HOME must pay nothing) over land the ring fades by the eye's distance to WATER, gone by ringIn m inland
     ringIn: 150, waterD: 0,
-    starsK: 10, starPx: 2.0 };   // STAR-LOVE: the stars in the mirror's sky - x their level in the sky (10 x the dome's STAR_LVL 0.03 = 0.3 of the old field's light: the user's 'quite lower'), their discs' radius in capture pixels
+    starsK: 10, starPx: 0.75 };   // STAR-LOVE: the stars in the mirror's sky - x their level in the sky (10 x the dome's STAR_LVL 0.03 = 0.3 of the old field's light: the user's 'quite lower'), their discs' radius in capture pixels
   // G2620 THE PRE-EXPOSURE: a capture holds the radiance of the P it was taken at - a switch re-captures at once
   if (typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.onPre) LIGHT_RIG.onPre(() => { MIR.last = null; });
   const mirrorTmp = {};
@@ -1680,7 +1680,7 @@ const WATER = (() => {
   //  the far water's star reflections spread by the ripples a pixel cannot draw; .1 made every star a rain streak, 0 left them unmoved by the waves)
   // OFF SWITCHES, live (WATER.nightSea.<key> = 0 from the console or a rig): lamps 0 = no lamp streaks (the shader skips the loop), glintFar 0 = the far glint as master, stretch 0 = no stretch
   // log2(exposure) shine[0]..shine[1], later than the sheen's: the dusk's sun keeps its glitter path and its reflection as they were
-  const NIGHT_SEA = { k: 0.38, col: [0.25, 0.42, 1.0], flat: 0.7, stretch: 0.03, slod: 1, rmip: 1, cap: 2.2, glintFar: 1, lamps: 1, shine: [7, 10.5] };   // (the user: "a tad too milky": 30 % of it rides the ripples' slopes; bluer)
+  const NIGHT_SEA = { k: 0.38, col: [0.25, 0.42, 1.0], flat: 0.7, stretch: 0.06, slod: 1, rmip: 0, cap: 2.2, glintFar: 1, lamps: 1, shine: [7, 10.5] };   // (the user: "a tad too milky": 30 % of it rides the ripples' slopes; bluer)
   function frame(dt) {
     if (U && U.uWNight) {
       const Wn = typeof window !== 'undefined' ? window : {}, exN = (Wn.GFX && Wn.GFX.exposureBase && Wn.GFX.exposureBase()) || 1;
