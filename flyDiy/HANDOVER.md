@@ -314606,3 +314606,13 @@ TIMED GATE (02:56-03:58): taxi chase @HOME and @mn_strip 30 fps, 0 frames over 4
 Parked fleet re-cooked on this build.
 
 No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change.
+
+## STAR-REFLECT - the reflected stars small first, then spread by the waves (NIGHT-LOOK, 11 Nov)
+- why: the user 10 Nov: the reflected stars are "at least 10 times larger than what they look in the sky ... I would rather blur something which
+  is already smaller from the start"; "the more distorted, the better".
+- cause (the 10 Nov 21:53 crops): not the capture's disc but the ROUGHNESS mip on the mirror read (roughness x MIR.lod 5): every star a 10 px blob.
+- src/viewer/water.js: the night stretch reads' blur is uWStrL (x the mip floor = NIGHT_SEA.slod 1, y the roughness mip's share = NIGHT_SEA.rmip 0);
+  MIR.starPx 2 -> 0.75 capture px (about the sky's own size); NIGHT_SEA.stretch 0.03 -> 0.06. Deep night only (the stretch is 0 by day).
+- the 11 Nov 07:46 stills (Cabin Lake, eye 1 m, 7 variants): v2 kept - narrow 4-6 px streaks; slod 0.5 or 0 hatches; stretch .1/.15 longer streaks
+  with more dither. Live: WATER.mirror.starPx, WATER.nightSea.{stretch, slod, rmip} (master's: 2, 0.03, 1, 1).
+- Evidence: flydiy-notes/evidence-2026-10-18/2026-11-04/night-photo/star/reflect2/ (crops_a/b, zoom_v0_v2_v4).
