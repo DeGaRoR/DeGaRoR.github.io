@@ -314688,3 +314688,29 @@ TOWN-1 STEP 1, THE COST (HW-COVERAGE, 8 Nov, metla_ab P,B,B,P, Cub, approach 100
 - **Rig note.** Both sides flew the approach as the WRECK of the rig's low pass at HOME (master_bench's pass breaks the Cub, "short of Jolene 13/31",
   on both P and B): the comparison is fair, the stills of 8 Nov 07:05 are not usable. The town views now come from the free camera, the aeroplane and
   the UI hidden.
+
+## Train L38b (A0, 11 Nov 2026, 18:17-21:30)
+
+**Landed (13):** gfx-garage-profile ca16e67d5, star-reflect 63d325b3f (stars 0.06, the user's pick), veg-root-field 0d7b02a19, pace-on 19a99ff27 (boot pacing ON, the user: "ship it on"), dirt-v2 a77e39037, mosquito-cowl 978c3b4ab, fmist-on e45385c16 (forest mist ON), strip-lane 03f6d6405, picture-set cb0147300, liner-back-2 a3aee55fd, town-trees 19c7c78f8, tier-normals 68d297742 (the black bars), sea-on fe80b412b.
+
+**Held to L38c:**
+- engine-dials-c 12600ef78: BENCH red (Rufus' door body moved off its stamp) and POD red (C172 base bytes). Both are green without it. Game: the latent fields move the MAJOR fingerprint, which would supersede every player's certificate on update (the 24 Oct Rufus bug). The fix is at the source -> engine-dials-c2.
+- plane-list dbc5e742a -> plane-list-2: row 15 "Cub, fittings by hand" goes INTERNAL (the user's 10 Nov DROP).
+- taxi-home: absent.
+
+**Train commits:**
+- GATE ACCEPT re-pin, the user's Cub tank 44 -> 45 L. LINER-BACK-2 makes the load door give the file's 45 L (probed: master 44, liner-back-2 alone 45, L38b 45).
+- media/thumbs: master's cand_cub_fittings_hand thumb and its index entry put back. picture-set's whole re-bake had pruned it while master's row 15 still pointed at it; plane-list-2 removes the key in L38c.
+
+**Gates:**
+- Full battery 167 on the 15-item merge, then a 27-gate re-check on the landed 13 (L38b2).
+- Reds compared BY CHECK NAME with master (the same 12 gates run on bda599c08). These are master's, standing, and go to the perf/robustness round: GEN, TREECRASH, DMGGEAR, DMGDRIVE, FRAMECOST, ROUNDTRIP, LIVERY, JOINPARITY, NEWPLANE-BUILDS, ENGCONFIG (as L38a), plus the gates newly in the list, red on master with the same checks: FLIGHTREC, DESTTO, DMGINST, SIMWORKER-EDGES (NaN bounding sphere after an edit), SCENERYED, FREIGHT (2 of 2511), CARDDRAG (#gImpCard, A0's HOTFIX 3 -> gimp-drag fix in L38c), TECH (av.elt none/fitted have no tech segment).
+- DMGSCAR 2J: LINER-BACK-2's named edge, accepted by Deform.
+
+**Costs named:**
+- Forest mist veil: gamer +2.1 ms (lake) / +4.7 ms (forest), laptop ~0. One 150 s stall in the weather tour, not reproduced.
+- Dust V2: 0.61 ms shadow on the gamer, 0.05 ms on the phone, 4 texture reads.
+- Boot pacing ON: a 1.2 s first-use frame in 1 of 2 cold loads.
+- sea-on: one 2045 ms first-visit task; the Petrel not measured.
+- town-trees: measured on L35d, no measurable cost.
+- **BOOT: the timed gate timed out on its last row (c172 cockpit).** Garage-ready 134-244 s (one boot timeout at 243.7 s) against L38a 150-185 s and L37b 119-149 s, with long tasks up to 32 s. It is mixed with the box's shader-cache misses (worst link 47.8 s), so it is not attributed to an item. First item of the Friday perf round.
