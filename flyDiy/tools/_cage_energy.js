@@ -2696,7 +2696,9 @@ function drawResults(group, ctx, results) {
           pts.push(new T3.Vector2(MathL.max(0.002, 0.5 * pd.D * MathL.pow(MathL.max(0, s), 0.65)), (u - 0.5) * pd.L));
         }
         const geo = new T3.LatheGeometry(pts, 28);
-        const m = new T3.Mesh(geo, wet ? matWet(bad) : slotMat('shell', bad, i, r.v));
+        // STRUT-POD (A0 11 Nov, the user: the Chinook's strut tanks drew see-through and ignored the livery): a pod is always a shell -
+        // the wet-wing fuel material (matWet, 40 % blue, no shell) is for a wet WING's fuel only; the pod's mass + price keep the wet rows
+        const m = new T3.Mesh(geo, slotMat('shell', bad, i, r.v));
         m.name = 'edVessel_' + i + (pd.sign > 0 ? 'R' : 'L');
         m.quaternion.setFromUnitVectors(new T3.Vector3(0, 1, 0), new T3.Vector3(pd.axis[0], pd.axis[1], pd.axis[2]));
         m.position.set(pd.c[0], pd.c[1], pd.c[2]);
