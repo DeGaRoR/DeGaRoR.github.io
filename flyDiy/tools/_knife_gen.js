@@ -1215,7 +1215,8 @@ function knifeWells(sh, cuts, sides) {
     const skinY = skinYOf(tris, 0.1), skinTop = skinYOf(tris, 0.1, true);
     const V = m.V.slice(), N = m.N.slice(), A = m.A ? m.A.slice() : null, aw = A && A.length ? (A.find(a => a) || [0, 0, 0, 0]).length : 4;
     const F = m.F.filter(f => f.m !== 'wheelWell');
-    for (const c of cuts) { const b = wellBox(c, skinY, null, skinTop); if (!b) continue; const base = V.length;
+    for (const c of cuts) { if (c.hole) continue;   // (MONOWHEEL: a sunk wheel's square cut - the hole alone, no well)
+      const b = wellBox(c, skinY, null, skinTop); if (!b) continue; const base = V.length;
       for (let i = 0; i < b.V.length; i++) { V.push(b.V[i]); N.push(b.N[i]); if (A) A.push(new Array(aw).fill(0)); }
       for (const t of b.F) F.push({ v: t.map(i => i + base), m: 'wheelWell', knife: 1 }); }
     m = Object.assign({}, m, { V, N, A, F });

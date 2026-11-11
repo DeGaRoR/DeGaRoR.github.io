@@ -229,6 +229,7 @@ const gearStations = P => {
                leg: Math.round(P['s' + i + 'Leg']), R: P['s' + i + 'R'],
                drop: P['s' + i + 'Drop'], brake: P['s' + i + 'Brake'],
                axZ: +P['s' + i + 'AxZ'] || 0,
+               sink: Math.max(0, Math.min(0.7, +P['s' + i + 'Sink'] || 0)),   // MONOWHEEL: the sunk wheel's share in the body
                // NEW-SHAPES-1: where the legs root - 0 auto (a wing under the body takes them), 1 the fuselage
                root: Math.round(+P['s' + i + 'Root'] || 0),
                fair: Math.round(P['s' + i + 'Fair'] || 0),

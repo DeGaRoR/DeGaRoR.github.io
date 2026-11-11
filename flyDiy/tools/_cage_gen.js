@@ -9192,6 +9192,7 @@ const CAGE_HULL_ROWS = ['hullBeta', 'hullBetaBow', 'hullBetaA', 'hullStepZ', 'hu
 const CAGE_DEFAULT_ABSENT = { pilSnap: 1, doorStop: 75, wgStrutPil: 0, wgTipBow: 0, wgTipDroop: 0, wgTipFull: 1,
   wgTipSkid: 0, wgTipSkidH: 0.10,   // (TIP-SKID: the wingtip skid, off; its depth)
   s2Nose: 0,                         // (MONOWHEEL: the third unit's leaf spring at the tail, as ever)
+  s1Sink: 0, s2Sink: 0,              // (MONOWHEEL: no wheel sunk into the body)
   hullFlute: 0, hullFluteN: 2, hullFluteAt: 0.55, hullFluteBow: 0.85, hullFluteAft: 0, hullStrakes: 0, hullStrakeW: 0.05, hullStrakeLen: 0.8, hullRocker: 0, hullSkirt: 0, hullTipPlane: 0,   // (HULL-B39, B43, B44, B45)
   // COMMS-SECTION ready 2 (9 Nov): the GPS puck's and the ELT whip's nudges - every older row's are written at 0 in
   // every save; these two rows' are absent at 0, so no saved build gains a key (L35d's STOL lesson)

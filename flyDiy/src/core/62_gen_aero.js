@@ -743,11 +743,12 @@ function genGearCdA(S, semi) {
   const nMn = G.mono ? 1 : 2;                       // MONOWHEEL: one main on the centreline
   // (MONOWHEEL: the bicycle wheel, the cage's whProfile 3, is a quarter as wide - a narrow tube tyre)
   const wW = Math.round(+((S.cage && S.cage.whProfile) || 0)) === 3 ? 0.20 : 0.76;
-  let cda = nMn * wCd * (2 * R * wW * R)          // two mains (one, a monowheel)
+  const sunk = 1 - (G.sink > 0 ? G.sink : 0);      // (MONOWHEEL: a sunk wheel's share outside the body)
+  let cda = nMn * wCd * (2 * R * wW * R) * sunk   // two mains (one, a monowheel)
           + tCd * (2 * Rt * 0.76 * Rt);           // the third wheel
   const drop = G.legDrop || 0.42;
   const legCd = (G.fairing === 'full' || G.legFair === 'fair') ? 0.30 : 1.0;
-  cda += nMn * legCd * drop * 0.05;               // the main legs
+  cda += G.sink > 0 ? 0 : nMn * legCd * drop * 0.05;   // the main legs (a sunk wheel's fork is inside)
   // WILGA-GEAR: a trailing link's strut stands in the stream beside its leg (a 60 mm cylinder, eye to eye - the drawn
   // one, gear.lever, else the reference's 0.50 m); the boot (the leg-fairing row or the trousers) carries it at the
   // faired leg's Cd. Only a lever leg: the calibration's reference gear has none, and no other build reads a term

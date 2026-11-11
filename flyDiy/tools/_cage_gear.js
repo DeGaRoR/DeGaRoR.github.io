@@ -138,6 +138,11 @@ const station = (i, name) => [name, [
   // MONOWHEEL: THE NOSE SKID - the third unit's leaf spring and shoe (the tail skid's, leg 3) at the NOSE: its station
   // then counts back from the nose (AF.z1) as a tailwheel's counts forward from the tail (AF.z0); the join measures it
   // ahead of the mains (a tricycle), and the Tail contact row's Skid makes it slide
+  // MONOWHEEL (the user, 11 Nov: "sunk wheels for gliders ... only a proper square cut through the fuselage"): THE SUNK
+  // WHEEL - the share of the wheel's diameter inside the body; the leg becomes a fork up into it and the skin is cut
+  // square round the tyre (the retract's knife, no well). 0: the leg as ever
+  ['s' + i + 'Sink', 'sunk into the body (share of the wheel)', 0, 0.7, 0.01,
+   { when: P => +P['s' + i + 'On'] && Math.round(+P['s' + i + 'Leg']) !== 3 && !GEAR_RETRACTABLE(P) }],
   ...(i === 2 ? [['s2Nose', 'spring at', 0, 1, 1, ['the tail', 'the nose (a nose skid)'],
                   { when: P => +P.s2On && Math.round(+P.s2Leg) === 3 && !+P.boomTwin }]] : []),
   // G3503 (DC3-BUILD): the half track to 3.2 m, the wheel to 0.65 m and the leg drop to
@@ -2713,6 +2718,29 @@ PAGE.post = ctx => {
   // x 1.4, the depth the shoe's level (the leg's drop and the radius). The steel shoe stays proud under it - the protective
   // skid - and the spring inside it. In the static bags: it is the body's, not the suspension's. Any faired skid (spat or
   // trousers on the row) is this one shape
+  // MONOWHEEL: THE SUNK WHEEL (s<i>Sink) - its axle where the given share of its diameter stands above the keel line at
+  // its station, a fork of two plates either side of the tyre up into the body (the anchor's job: the hanging nacelle's
+  // pylon will carry it, stage 3), and a SQUARE CUT round the tyre (sunkCuts: the knife's hole and the structure it
+  // clears, no well's box - the knife's `hole` cut) a hand of clearance all round, up to the tyre's top
+  const sunkCuts = [];
+  const sunkFork = (lb, st, sgn) => {
+    const K = window.GEAR_KIT, x = sgn * st.x, z = st.z + (st.axZ || 0);
+    const k = AF.keelAt(Math.max(AF.z0 + 1e-3, Math.min(AF.z1 - 1e-3, z)));
+    const yA = k + st.R * (2 * st.sink - 1), prof = GG.TYRE[Math.round(+st.P.whProfile || 0)] || GG.TYRE[0];
+    const hw = st.R * prof.hw * 1.05, top = k + 0.06, clr = 0.02;
+    for (const s of [-1, 1]) {
+      const xp = x + s * (hw + 0.012), yc = 0.5 * (yA + top);
+      K.boxIn(lb.steel, [xp, yc, z], [0.003, 0.5 * (top - yA) + 0.02, 0.045], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
+    }
+    K.taper(lb.steel, [x - hw - 0.02, yA, z], [x + hw + 0.02, yA, z], 0.006, 0.006, 8);   // the axle
+    const zs = [z - st.R - clr, z + st.R + clr], xs = [x - hw - 0.02 - clr, x + hw + 0.02 + clr];
+    let o = [[zs[1], -xs[1]], [zs[0], -xs[1]], [zs[0], -xs[0]], [zs[1], -xs[0]]].map(p => [p[0] / FS, p[1] / FS]);
+    let a2 = 0; for (let j = 0; j < 4; j++) { const p = o[j], q = o[(j + 1) % 4]; a2 += p[0] * q[1] - q[0] * p[1]; }
+    if (a2 < 0) o = o.reverse();
+    sunkCuts.push({ units: ['S' + st.id + (sgn < 0 ? 'L' : sgn > 0 && st.x > 0.01 ? 'R' : '')], mode: 'box', outline: o,
+                    ceil: (yA + st.R + clr) / FS, hole: 1 });
+    return { axle: [x, yA, z], axis: [sgn || 1, 0, 0], root: [x, top, z], tip: [x, yA, z], travel: [0, 1, 0] };
+  };
   const skidProtrusion = (r, st) => {
     const PY = window.CAGE_PYLON;
     if (!PY || !r.root || !r.axle) return;
@@ -2820,7 +2848,8 @@ PAGE.post = ctx => {
                     if (catS) { st.ret.low = allBags(); st.P = Object.assign({}, st.P, { oleoCyl: Math.min(+st.P.oleoCyl || 0.55, 0.42) }); }
                     else if (shortRow(P, !!st.single) > 0) { st.ret.low = allBags(); st.P = Object.assign({}, st.P, { oleoCyl: cylFOf(st.P.oleoCyl, P, !!st.single) }); }
                     retMounts.push({ key: st.single ? 'T' : (sgn > 0 ? 'L' : 'R'), wing: !!m, depth: 2 * st.ret.in, z: st.z }); }
-        if (st.leg === 0) r = GG.legBeam(lb, AFx, st.P, st, sgn);
+        if (st.sink > 0 && !RETR) r = sunkFork(lb, st, sgn);   // MONOWHEEL: the sunk wheel's fork
+        else if (st.leg === 0) r = GG.legBeam(lb, AFx, st.P, st, sgn);
         else if (st.leg === 1) r = GG.legLink(lb, AFx, st.P, st, sgn);
         // WILGA-GEAR: the trailing-link leg - its arm and the strut's two halves in their own bags (each posed apart)
         else if (st.leg === 4 && !st.single && GG.legLever) { lb.lever = { arm: allBags(), cyl: allBags(), rod: allBags() }; r = GG.legLever(lb, AFx, st.P, st, sgn); }
@@ -2831,7 +2860,7 @@ PAGE.post = ctx => {
         // G133: spats ride their UNITS now, not the static shared bags —
         // a nose spat sits on its fork, a main spat on its own leg, so
         // the flown aeroplane carries them with the moving parts
-        if (st.steer > 0 && st.x < 0.01) {
+        if (st.steer > 0 && st.x < 0.01 && !(st.sink > 0 && !RETR)) {
           // 2026-09-04 (the user: "the tricycle configuration tries strange
           // things for the front wheel"): the nose castor used to be drawn
           // INTO THE LEG'S bags, so the join stretched fork and spat with the
@@ -3201,7 +3230,7 @@ PAGE.post = ctx => {
     ...(fit && fit.wells ? { wells: fit.wells } : {}),   // G3: the reserved volumes (the join's gear.wells, the tanks' keep-out)
     // G4: the wells' cuts in the knife's terms (cage units, the plan outline, the ceiling) - _cage_ui cuts the DRAWN
     // fuselage with them (wellApply); the measured sheet is never cut (the legs stand on the skin the contracts read)
-    ...(fit && fit.cuts && fit.cuts.length ? { cuts: cutsCage(fit.cuts, FS) } : {}),
+    ...((fit && fit.cuts && fit.cuts.length) || sunkCuts.length ? { cuts: (fit && fit.cuts ? cutsCage(fit.cuts, FS) : []).concat(sunkCuts) } : {}),   // (MONOWHEEL: the sunk wheels' square cuts)
     // GR: the side wells (the Catalina's recesses in the hull's side), the knife's terms with their own frames
     ...(fit && fit.cutsSide && fit.cutsSide.length ? { cutsSide: cutsSideCage(fit.cutsSide, FS) } : {}),
     // G5: the wing's cuts (its own and the body's, merged) in the layer's own metres (the wing's skin is drawn in them)

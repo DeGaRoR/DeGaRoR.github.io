@@ -26,6 +26,12 @@
 //    measures a tricycle on one wheel, the nose unit flies the skid's law (params.twMode 4), and parked it settles on
 //    the wheel, the nose skid and one wingtip skid.
 // F. THE EDITOR: the tile reads 'mono' on a centreline main; leaving it for a pair brings the pair's half track back.
+// G. THE FAIRED SKID (the user: "a protrusion of the fuselage with a protective skid behind it"): one drawn fairing, from
+//    the skin down to just above the shoe's sole, and no spat.
+// H. THE BICYCLE WHEEL (whProfile 3): the main weighs GEN_RULES.wheelCycleKg, the gear is narrower in the drag and cheaper,
+//    the drawn wheel is narrow.
+// I. THE SUNK WHEEL (s1Sink): gear.sink reaches the spec, the skin is cut square round the tyre with no well's box, the
+//    drag counts the share outside, and it parks on the sunk wheel, the nose skid and one wingtip skid.
 'use strict';
 const path = require('path'), fs = require('fs'), os = require('os'), { spawn } = require('child_process');
 const T = __dirname;
@@ -153,6 +159,54 @@ function probe(args) {
     const { down } = park(d, 10), S = d.refs.skids || [];
     ok(down.includes(d.refs.mains[0]) && down.includes(tw) && S.filter(i => down.includes(i)).length === 1,
        `E parked on the wheel, the nose skid and one wingtip skid (${down.map(i => d.nodes[i].tag).join(' ')})`); }
+
+  console.log('G. THE FAIRED SKID IS THE BODY GROWN DOWN');
+  const SH = require(path.join(T, '_scene_headless.js'));
+  const NOSE = { s1X: 0, s1AxZ: -0.08, s2Leg: 3, s2Nose: 1, s2Z: 0.45, s2Steer: 4, s2Fair: 1, wgTipSkid: 1 };
+  const ar = born('archaeopteryx', {}, {});
+  const worldPts = m => { const g = m.geometry, pa = g && g.attributes && g.attributes.position, out = [];
+    if (!pa) return out; const e = m.matrixWorld.elements;
+    for (let i = 0; i < pa.count; i++) { const x = pa.getX(i), y = pa.getY(i), z = pa.getZ(i);
+      out.push([e[0] * x + e[4] * y + e[8] * z + e[12], e[1] * x + e[5] * y + e[9] * z + e[13], e[2] * x + e[6] * y + e[10] * z + e[14]]); }
+    return out; };
+  { const S = SH.sceneBuild(ar.spec, { over: NOSE, garage: ar.spec }), CG = S.W.CAGE_GEAR || {};
+    const c2 = (CG.contacts || []).find(c => c.st && c.st.id === 2), fairs = [];
+    S.scene.traverse(m => { if (m.isMesh && m.userData && m.userData.gearFair) fairs.push(m); });
+    const pts = fairs.reduce((a, m) => a.concat(worldPts(m)), []);
+    const yMin = pts.length ? Math.min(...pts.map(q => q[1])) : NaN, yMax = pts.length ? Math.max(...pts.map(q => q[1])) : NaN;
+    const sole = c2 ? c2.p[1] - c2.R : NaN, keel = c2 && CG.AF ? CG.AF.keelAt(c2.p[2]) : NaN;
+    ok(c2 && fairs.length === 1 && Math.abs(yMin - (sole + 0.015)) < 0.01 && yMax >= keel - 0.02,
+       `G one fairing, from the skin (${r3(yMax)} m, the keel ${r3(keel)}) down to just above the shoe's sole (${r3(yMin)}, the sole ${r3(sole)}) - no spat`); }
+
+  console.log('H. THE BICYCLE WHEEL');
+  { const a = born('motorglider', { s2Nose: 0, s2Z: 0.06, s1Z: 2.0, whProfile: 3 }, MONO), dA = C.buildGen(JSON.parse(JSON.stringify(a.spec)));
+    const R = dA.spec.gear.wheelR, mA = dA.nodes[dA.refs.mains[0]].m, mT = defT.nodes[defT.refs.mains[0]].m;
+    const dWheel = C.GEN_RULES.wheelKg(R) - C.GEN_RULES.wheelCycleKg(R);
+    ok(Math.abs((mT - mA) - dWheel) < 1e-6 && C.GEN_RULES.wheelCycleKg(0.25) > 1.2 && C.GEN_RULES.wheelCycleKg(0.25) < 1.4,
+       `H the main weighs the bicycle wheel's law: ${mA.toFixed(2)} kg (the aircraft wheel's ${mT.toFixed(2)}; 16" ${C.GEN_RULES.wheelCycleKg(0.25).toFixed(2)} kg)`);
+    const cA = C.genGearCdA(dA.spec, dA.spec.geom.semi), cT = C.genGearCdA(defT.spec, defT.spec.geom.semi);
+    ok(cA < cT && dA.parts.ledger.gear.cost < defT.parts.ledger.gear.cost,
+       `H narrower and cheaper: gear drag ${cA.toFixed(4)} m2 (${cT.toFixed(4)}), gear ${Math.round(dA.parts.ledger.gear.cost)} (${Math.round(defT.parts.ledger.gear.cost)})`);
+    const S = SH.sceneBuild(ar.spec, { over: Object.assign({}, NOSE, { whProfile: 3, s1R: 0.2 }), garage: ar.spec });
+    let wx = null; S.scene.traverse(o => { if (o.name === 'edWheelR') { const q = []; o.traverse(m => { if (m.isMesh) q.push(...worldPts(m)); });
+      if (q.length) wx = Math.max(...q.map(v => v[0])) - Math.min(...q.map(v => v[0])); } });
+    ok(wx != null && wx < 0.35 * 0.2 * 2, `H drawn narrow: the wheel ${wx != null ? (wx * 1000).toFixed(0) : '-'} mm across (a 0.20 m wheel)`); }
+
+  console.log('I. THE SUNK WHEEL');
+  { const SINK = Object.assign({}, NOSE, { s1Sink: 0.5, s1R: 0.2, whProfile: 3 });
+    const a = born('archaeopteryx', SINK, MONO), d = C.buildGen(JSON.parse(JSON.stringify(a.spec)));
+    const S = SH.sceneBuild(ar.spec, { over: SINK, garage: ar.spec }), cuts = (S.W.CAGE_GEAR && S.W.CAGE_GEAR.cuts) || [];
+    const hole = cuts.find(c => c.hole && (c.units || []).some(u => /^S1/.test(u)));
+    const KG = require(path.join(T, '_knife_gen.js')), m = hole ? KG.knifeWells(S.built.sheet, cuts) : null;
+    const wells = m ? m.F.filter(f => f.m === 'wheelWell').length : -1;
+    ok(d.spec.gear.sink === 0.5 && hole && wells === 0,
+       `I the mains sunk half (gear.sink ${d.spec.gear.sink}), a square cut through the skin (${hole ? hole.outline.length + ' corners' : 'none'}), no well (${wells} well faces)`);
+    const g2 = JSON.parse(JSON.stringify(d.spec)); delete g2.gear.sink;
+    const c1 = C.genGearCdA(d.spec, d.spec.geom.semi), c0 = C.genGearCdA(g2, d.spec.geom.semi);
+    ok(c1 < c0, `I the drag counts what stands out (${c1.toFixed(4)} m2, unsunk ${c0.toFixed(4)})`);
+    const { down } = park(d, 10), Sk = d.refs.skids || [];
+    ok(down.includes(d.refs.mains[0]) && down.includes(d.refs.tw) && Sk.filter(i => down.includes(i)).length === 1,
+       `I parked on the sunk wheel, the nose skid and one wingtip skid (${down.map(i => d.nodes[i].tag).join(' ')})`); }
 
   console.log('F. THE EDITOR');
   { const row = D.DESIGN_ROWS ? D.DESIGN_ROWS.find(r => r.key === 'gearLayout') : null;

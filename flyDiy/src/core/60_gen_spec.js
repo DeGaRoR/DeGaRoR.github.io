@@ -4509,6 +4509,9 @@ const GEN_DEFAULT = {
   // price; GEN_FAIR_MATS). All defaults reproduce a pre-G133 build exactly —
   // genNormaliseSpec is the migration path, no version bump (the G85 rule).
   gear: { type: 'taildragger', fairing: 'none', twFairing: 'none',
+          // MONOWHEEL: one main on the centreline - false here, and the clamp DELETES it unless true (a resolved spec
+          // carries the key only on a monowheel)
+          mono: false,
           legFair: 'none', twLegFair: 'none',
           fairTail: 1.0, twFairTail: 1.0, fairMat: 'glass',
           suspension: 'bungee',
@@ -5713,6 +5716,9 @@ function clampSpec(spec) {
     delete S.gear.retract;
     if (S.gear.suspension === 'lever') S.gear.suspension = 'oleo';
   } else delete S.gear.mono;
+  // MONOWHEEL: THE SUNK MAINS - the share of the wheel's diameter inside the body (the cage's s1Sink, the join's); the
+  // drag counts the rest, no leg in the stream. Absent at 0
+  if (+S.gear.sink > 0) S.gear.sink = genClamp(+S.gear.sink, 0, 0.7); else delete S.gear.sink;
   // H2 (G389): the measured floats — the drawn hull's parameters and its
   // placement; absent, the frame sizes a pair from the gross (H1's rule)
   if (S.gear.floats && typeof S.gear.floats === 'object') {

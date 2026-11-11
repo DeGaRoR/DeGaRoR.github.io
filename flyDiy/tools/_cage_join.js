@@ -417,6 +417,8 @@ function cageJoinSpec(P, M, T) {
     spec.gear = { type: M.gearType };
     if (M.track > 0) spec.gear.track = M.track;
     if (M.mono) spec.gear.mono = true;             // MONOWHEEL: one main on the centreline (no track)
+    // MONOWHEEL: the mains sunk into the body (their share; the drag counts what stands out)
+    if (+P.s1Sink > 0 && +P.s1On) spec.gear.sink = Math.min(0.7, +P.s1Sink);
     if (M.contactR > 0) spec.gear.wheelR = M.contactR;
     // G51: the measured third wheel — axle height in the keel datum,
     // station firewall-anchored. clampSpec bounds them.
