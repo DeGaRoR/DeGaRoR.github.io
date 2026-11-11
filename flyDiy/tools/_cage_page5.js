@@ -591,7 +591,10 @@ window.CAGE_PAGE = {
     ['4 · cabin', [
       ['dimensions', [
         // seating starter select injected below
-        ['pilotLen',  'length',         0.30, 2.00, 0.01, { dim: 'len' }],
+        // (11 Nov, FIT-PROCEDURE: from 0.10 - the pilot door is the quarter bay PLUS this bay, and a long windscreen
+        // run (the PC-6's 45 deg A-pillar) left a door 0.92 m wide, through the first cabin window; the generator
+        // always took any length - only the slider stopped at 0.30)
+        ['pilotLen',  'length',         0.10, 2.00, 0.01, { dim: 'len' }],
         // (halfW / roofHalfW / roofY / keelY are the frames' REFERENCE
         // SECTION since T2.1; the lean rows became the frames' fore/aft)
         ['floorY',    'floor height',  -1.20, 0.00, 0.005, { dim: 'len' }],
