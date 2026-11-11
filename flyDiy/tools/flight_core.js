@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: a0522f0c7ff376da
+// body-sha256: 129777d8d3252593
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -64205,6 +64205,7 @@ const TECH_TABLE = {
   'prop:wood': 1, 'prop:maple': 1, 'prop:walnut': 1, 'prop:alu': 1, 'prop:carbon': 1,
   'pitch:climb': 1, 'pitch:standard': 1, 'pitch:cruise': 1,
   'pitch:seaplane': 1,   // (G3445 FLOAT-KIT, 22 Oct: the float prop's fine pitch, added after the table - off the shelf as every pitch, and floats are 1)
+  'pitch:auto': 1,   // (ENGINE-DIALS B: the pitch row's automatic pick - off the shelf, as every pitch)
   // ---- systems / avionics
   'fit:minimal': 1, 'fit:basic': 1, 'fit:custom': 1, 'fit:ifr': 2,
   'elec.battery:none': 1, 'elec.battery:lead': 1, 'elec.battery:lithium': 3,
@@ -64378,6 +64379,8 @@ const TECH_ROWS = {
   // WILGA-GEAR: the mains' leg row - only the trailing-link option is gated (the other four keep their reading by the
   // spec's suspension, unchanged)
   s1Leg: [null, null, null, null, 'susp:lever'],
+  // ENGINE-DIALS B: the propeller's pitch row (_cage_eng.js PROP_PITCHES, in its order)
+  propPitch: ['pitch:auto', 'pitch:climb', 'pitch:standard', 'pitch:cruise', 'pitch:seaplane'],
 };
 // a row's keys, per option index; ctx: { names (the row's own option names), engines (CAGE_JOIN_ENGINES), propMats
 // (CAGE_JOIN_PROP_MATS) } -> [key | null] or null (a row the mask does not read)
