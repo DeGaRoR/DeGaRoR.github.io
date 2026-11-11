@@ -1,0 +1,187 @@
+<title>Aero Body Plan</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column for a phone; each aeroplane a plate (two drawings, one table); summary first, the rods first */
+:root {
+  --bg: #f5f7f8; --panel: #ffffff; --ink: #17212b; --muted: #5a6875; --rule: #d6dde3;
+  --accent: #1f5fa8;            /* the new flown body */
+  --old: #c2412d;               /* the body flown today */
+  --boom: #2f8a57;              /* the booms' own side force */
+  --drawn: #c9d1d8;             /* the drawn silhouette */
+  --warn: #9a6400; --warnbg: #fbf0d9; --bad: #a3321f; --badbg: #f9e3de; --ok: #26734a; --okbg: #e1f2e8; --minbg: #e8edf2;
+  --f-display: "Space Grotesk", "Segoe UI", system-ui, sans-serif;
+  --f-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #11171d; --panel: #18212a; --ink: #e4eaef; --muted: #98a6b3; --rule: #2c3844;
+  --accent: #6aa8ec; --old: #ef8068; --boom: #6cc792; --drawn: #34424f;
+  --warn: #e8b55a; --warnbg: #3a2e14; --bad: #f19a86; --badbg: #3e2019; --ok: #79cf9d; --okbg: #17321f; --minbg: #24303b; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #11171d; --panel: #18212a; --ink: #e4eaef; --muted: #98a6b3; --rule: #2c3844;
+  --accent: #6aa8ec; --old: #ef8068; --boom: #6cc792; --drawn: #34424f;
+  --warn: #e8b55a; --warnbg: #3a2e14; --bad: #f19a86; --badbg: #3e2019; --ok: #79cf9d; --okbg: #17321f; --minbg: #24303b; color-scheme: dark }
+body { background: var(--bg); color: var(--ink); font: 15px/1.55 var(--f-body); }
+.wrap { max-width: 860px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 28px 64px; display: grid; gap: 28px; }
+h1, h2, h3 { font-family: var(--f-display); text-wrap: balance; margin: 0; line-height: 1.2; }
+h1 { font-size: 2rem; letter-spacing: -0.01em; }
+h2 { font-size: 1.35rem; padding-top: 6px; border-top: 2px solid var(--ink); }
+h3 { font-size: 1.1rem; }
+p { margin: 0; max-width: 68ch; }
+section { display: grid; gap: 14px; }
+.eyebrow { font: 500 0.72rem/1 var(--f-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.lede { font-size: 1.05rem; }
+.status { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { font: 500 0.75rem/1 var(--f-mono); padding: 6px 9px; border: 1px solid var(--rule); border-radius: 4px; background: var(--panel); }
+.tw { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 0.86rem; }
+th { text-align: left; font: 500 0.7rem/1.3 var(--f-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); padding: 6px 8px; border-bottom: 1px solid var(--rule); }
+td { padding: 6px 8px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.num.new { color: var(--accent); font-weight: 500; }
+.num.same { color: var(--muted); }
+.arr { color: var(--muted); }
+.pair { white-space: nowrap; }
+table.layers { min-width: 620px; }
+table.layers td:last-child { white-space: nowrap; }
+.chg { font-family: var(--f-mono); font-variant-numeric: tabular-nums; color: var(--muted); white-space: nowrap; }
+.ind { display: inline-block; width: 12px; }
+.pick { background: var(--minbg); font-weight: 600; }
+.plane { background: var(--panel); border: 1px solid var(--rule); border-radius: 6px; padding: 16px; display: grid; gap: 12px; }
+.plane header { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; justify-content: space-between; }
+.tag { font: 500 0.72rem/1.2 var(--f-mono); color: var(--muted); }
+figure { margin: 0; display: grid; gap: 6px; }
+.pics { display: grid; gap: 4px; }
+.pic { width: 100%; height: auto; display: block; }
+.pic .grid { stroke: var(--rule); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.pic .axis { stroke: var(--muted); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.pic .drawn { fill: var(--drawn); stroke: none; }
+.pic .before { fill: none; stroke: var(--old); stroke-width: 1.6; stroke-dasharray: 5 3; vector-effect: non-scaling-stroke; }
+.pic .after { fill: none; stroke: var(--accent); stroke-width: 2; vector-effect: non-scaling-stroke; }
+.pic .base { stroke: var(--accent); stroke-width: 3; vector-effect: non-scaling-stroke; }
+.pic .prop { stroke: var(--ink); stroke-width: 1.5; stroke-dasharray: 2 2; vector-effect: non-scaling-stroke; }
+.pic .mk-before { fill: var(--old); } .pic .mk-after { fill: var(--accent); } .pic .mk-boom { fill: var(--boom); }
+figcaption { font-size: 0.8rem; color: var(--muted); }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 0.8rem; color: var(--muted); }
+.sw { display: inline-block; width: 22px; height: 10px; vertical-align: middle; margin-right: 5px; }
+.sw.d { background: var(--drawn); } .sw.b { border-top: 2px dashed var(--old); height: 0; } .sw.a { border-top: 2px solid var(--accent); height: 0; }
+.pill { font: 500 0.7rem/1 var(--f-mono); padding: 3px 6px; border-radius: 3px; white-space: nowrap; }
+.pill.ok { color: var(--ok); background: var(--okbg); } .pill.warn { color: var(--warn); background: var(--warnbg); }
+.pill.bad { color: var(--bad); background: var(--badbg); } .pill.minor { color: var(--muted); background: var(--minbg); }
+.alt { font-size: 0.84rem; color: var(--muted); }
+ol.rules, ul.list { margin: 0; padding-left: 1.3em; display: grid; gap: 8px; max-width: 70ch; }
+.q { background: var(--panel); border: 1px solid var(--rule); border-radius: 6px; padding: 12px 14px; display: grid; gap: 4px; }
+.q .def { font-size: 0.88rem; } .q .def b { color: var(--accent); }
+.formula { font: 0.84rem/1.6 var(--f-mono); background: var(--panel); border: 1px solid var(--rule); border-radius: 6px; padding: 10px 12px; overflow-x: auto; white-space: pre; }
+details { background: var(--panel); border: 1px solid var(--rule); border-radius: 6px; padding: 10px 14px; }
+details > summary { cursor: pointer; font-family: var(--f-display); font-weight: 600; }
+details[open] > summary { margin-bottom: 12px; }
+details .plane { border: none; padding: 0; border-top: 1px solid var(--rule); padding-top: 14px; border-radius: 0; }
+a { color: var(--accent); }
+a:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+code { font-family: var(--f-mono); font-size: 0.85em; }
+</style>
+
+<div class="wrap">
+<header style="display:grid;gap:10px">
+  <div class="eyebrow">Wingsmith · AERO-BODY · step 1 of 2 · 11 Nov 2026</div>
+  <h1>Aero Body Plan</h1>
+  <p class="lede">The physics should fly the body the player sees. Today three official aeroplanes fly a body that is not drawn: two rod booms fly a full fuselage cone, and the Twin flies a 1.07 m cone behind its back cowl. This page shows each one drawn against flown, the model that replaces it, and what moves.</p>
+  <div class="status"><span class="chip">prototype: node only, no game file touched</span><span class="chip">nothing lands before the perf round (13–14 Nov)</span><span class="chip">code from 16 Nov on claude/aero-body-*</span></div>
+</header>
+
+<section>
+  <h2>What moves on the official planes</h2>
+  <p>Proposed model B (below). The six conventional official planes (Cub, Jodel, both Metal Cessnas, STOL Cub, PA-18 on floats) move by 0.1 km/h or less and 0.002 of static margin or less; they are in the last table. No certificate row changes its level on any plane measured.</p>
+  <div class="tw"><table><thead><tr><th>Plane</th><th>Body length flown</th><th>Body CdA m²</th><th>Cruise km/h</th><th>Static margin</th><th>Cn_β</th></tr></thead><tbody>{{SUMMARY}}</tbody></table></div>
+  <div class="legend"><span><span class="sw d"></span>drawn</span><span><span class="sw b"></span>flown today</span><span><span class="sw a"></span>flown after</span></div>
+</section>
+
+<section>
+  <h2>The model, in five rules</h2>
+  <ol class="rules">
+    <li><b>The body is the drawing.</b> The join measures the drawn skin (the gear layer's own sampler of the cage) and the cowl layer (PROPER-COWLS' mesh, cut column by column) into one table, nose to closure. The core reads that table for drag and side area. The structure lattice keeps its own stations.</li>
+    <li><b>A body that ends in a base pays for the base.</b> Where the closure is steeper than 20° the flow leaves the skin. The body ahead of that point is a forebody: friction × (1 + 1.5/f<sup>1.5</sup>) (Hoerner, <i>Fluid-Dynamic Drag</i> ch. 6). The section there is a base at Cd 0.14 (Raymer, <i>Aircraft Design</i> eq. 12.37). A body that closes smoothly (every conventional fuselage) keeps today's rule, Raymer's 1 + 60/f³ + f/400.</li>
+    <li><b>Rods and booms are tubes.</b> Friction on their drawn diameter and length (0.004 × π d L, the twin booms' own coefficient), and their side area d × L.</li>
+    <li><b>Side force where the side area is.</b> On a pod-and-rod the aft side force acts at the centroid of the drawn aft side area. The twin booms get their own point at the booms' centroid. Conventional bodies keep today's point, which the Cub calibration was fitted on.</li>
+    <li><b>No floor on boom layouts.</b> The conventional tail-arm floor (<code>60_gen_spec.js:6359</code>) is skipped on pod-and-rod and twin-boom builds. The Twin's lattice then ends at its drawn pod (−7.5 kg of phantom cone).</li>
+  </ol>
+  <div class="formula">body CdA = cdWet · Swet(nose → separation) · (1 + 1.5 / f^1.5) · boxK      forebody
+         + 0.14 · (A_section at separation − A_rod)                         base
+         + 0.004 · π · d_rod · L_rod                                         rod
+separation: the first station aft of the widest where −d(r_eq)/dx > tan 20°</div>
+</section>
+
+<section>
+  <h2>Case 1 · Rods</h2>
+  <p>For each rod plane, both layers are checked. The <b>structure</b> is mostly right: the rod flies on the tube element (G314) at the drawn tube's EI and GJ. But its lattice still sits on the cone's stations and bills the cone's bay faces, so it carries 3–9 kg the drawing does not have. The <b>aero body</b> is wrong: it is the phantom cone, with 3 to 7 times the drawn aft side area, acting 0.7–1.4 m further aft.</p>
+  {{RODS}}
+  <details><summary>Three more rod builds (Birdman, v8 pusher, v7 twin)</summary>{{RODS_MORE}}</details>
+  <p>The rods' Cn_β drops 9–14 % on every build. The aft side force was over-weathercocking: an area that is not there, too far aft. Static margins barely move, under 0.01. The negative margins on the Birdman and the v8 pusher stay negative; that is their CG, a separate matter.</p>
+</section>
+
+<section>
+  <h2>Case 2 · The back cowl (Twin)</h2>
+  {{TWIN}}
+  <p>The back cowl closes steeply, so the flow leaves 0.2 m into it: the Twin is a forebody with a 0.78 m² base at x 2.05, which costs about what the phantom cone did. The static margin rises from 0.277 to 0.333 because the booms' side and vertical cross-flow (0.70 m²) now acts on the booms, centred at 3.9 m, instead of the pod's last ring.</p>
+</section>
+
+<section>
+  <h2>Which drag law</h2>
+  <p>The drawn geometry is the same in every column; only the drag law differs. Raymer's form factor (model A, today's rule applied to the drawn length) is a fit for slender fuselages. Below a fineness of about 3 it explodes: it charges the v8 pusher's blunt pod Cd 0.83 on its frontal area, close to a flat plate's. Hoerner's forebody-plus-base method is the textbook treatment for a body ending in a base, which is what every pod here is. Body CdA m² · cruise km/h:</p>
+  <div class="tw"><table><thead><tr><th>Plane</th><th>Today (phantom)</th><th>A: Raymer FF</th><th>B: forebody + base 0.14</th><th>B-H: Hoerner base law</th></tr></thead><tbody>{{MODELS}}</tbody></table></div>
+  <p>Recommended: B. It names a penalty you can see (the base) and it is conservative against Hoerner's own base law, which gives Cd 0.06–0.10 on these bases.</p>
+</section>
+
+<section>
+  <h2>Case 3 · The conventional officials</h2>
+  <p>Their flown body already matches the drawing: the measured table changes the length by the tail cap behind the last ring, and the nose by the drawn cowl against the core's derived one. Body length flown (today → measured), and the numbers:</p>
+  <div class="tw"><table><thead><tr><th>Plane</th><th>Length</th><th>Body CdA m²</th><th>Cruise km/h</th><th>Static margin</th><th>Cn_β</th></tr></thead><tbody>{{CONV}}</tbody></table></div>
+</section>
+
+<section>
+  <h2>GATE AEROBODY</h2>
+  <ul class="list">
+    <li><b>Length:</b> for every official plane the flown body runs from the drawn nose to the drawn closure within 2 %. Measured off the headless editor through the load door, the same way the plane loads.</li>
+    <li><b>Base accounted:</b> a body with a base reports the base's area and drag row (the plaque's drag page), and a closed body reports zero.</li>
+    <li><b>Rods real:</b> on every rod build, the flown aft section is at most 1.6 × the drawn rod's diameter at mid-rod, and the rod's drag and side rows use its drawn diameter.</li>
+    <li><b>No floor on booms:</b> no twin-boom or rod build's lattice extends past its drawn pod.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>Found on the way</h2>
+  <ul class="list">
+    <li><b>Phantom nose cowls.</b> The core derives a cowl for every build (60_gen_spec 4c) and wets it. Rufus has a bare engine yet flies a 0.88 m cowl ahead of its firewall. The pod builds fly the core's cowl instead of their drawn aero nose (Twin −0.59 m flown vs −0.71 drawn). The measured table fixes this for drag; the 4c cowl stays for the engine-enclosure check.</li>
+    <li><b>The v8 pusher's and v7 twin's core cabin box is 0.4–0.5 m longer than drawn</b> (box 1.70 m, drawn pod 1.16 m). The aero body follows the drawing. The lattice is the frame's question, flagged to A0.</li>
+    <li><b>Super Petrel</b> (validated reference, not official): its flown nose is 0.43 m short of its drawn hull bow (−7.7 % length). It is outside this gate's list; the measured table covers it when it joins.</li>
+    <li><b>Float hulls carry no air drag</b> (SEAPLANES-LAND's backlog). Not taken here.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>Not now: aft aero pods, the Archaeopteryx</h2>
+  <p>No official plane carries an aft aero pod. The model covers one with no extra code: its rings are in the drawn skin, so the table measures it, and the 20° rule decides whether it closes cleanly (no base) or not. When the "engine not at the back" restriction lifts (the Archaeopteryx branch's <code>aeroAftOver</code>), a pod drawn over a pusher is measured the same way. The pusher-suction question below then applies to it as well.</p>
+</section>
+
+<section>
+  <h2>Your calls</h2>
+  <div class="q"><b>1. The drag law for bodies that end in a base.</b><span class="def"><b>Default:</b> B, forebody + base at Cd 0.14. A (Raymer on the drawn length) costs the pods 8–26 km/h of cruise; B-H is a little cleaner than B.</span></div>
+  <div class="q"><b>2. A pusher right behind a base: credit its suction?</b><span class="def"><b>Default:</b> no credit and no debit. A pusher's inflow can reattach a steep afterbody, but the same prop then works in the body's wake. I found no source I could check from the cloud that sizes the net, so it stays out until one is named.</span></div>
+  <div class="q"><b>3. The rod's cross-flow coefficient.</b><span class="def"><b>Default:</b> 0.31, the body row the twin booms already wear. A round tube in cross-flow is nearer 1.2 (Hoerner); that variant is in each rod table (Cn_β 4–6 % higher than with 0.31).</span></div>
+  <div class="q"><b>4. The rod's structure.</b><span class="def"><b>Default:</b> bill the rod as the drawn tube (mass) and no covering aft of the pod, but leave the lattice nodes where they are as the tube element's carriers. Inertia moves 1–3 %. Moving the nodes onto the tube would shorten the solver's step, which is a frame chantier.</span></div>
+  <div class="q"><b>5. The conventional six: drawn nose and tail cap too?</b><span class="def"><b>Default:</b> yes, for WYSIWYG and so the gate holds at 2 %. It moves them by 0.1 km/h or less, and cdWet is not re-solved.</span></div>
+  <div class="q"><b>6. The separation angle.</b><span class="def"><b>Default:</b> 20° (Hoerner's boattail range is 15–20°). The rod pods do not move with it (their closures are steeper than 30°). The Twin's back cowl does: its body reads 0.209 m² at 15°, 0.181 at 20° and 0.136 at 30°.</span></div>
+</section>
+
+<section>
+  <h2>Steps</h2>
+  <ol class="rules">
+    <li>Now: this page, and the prototype scripts on the session branch (evidence only).</li>
+    <li>From 16 Nov, on <code>claude/aero-body-*</code>: the join writes <code>fuselage.aeroBody</code> (the measured table, closure, base, rod), the core reads it in genFusCdA, the floor goes on boom layouts, the booms get their own side-force point, GATE AEROBODY, a PHYSICS_V bump, and every pin that moves re-pinned with its reason.</li>
+    <li>A0 trains it with the full battery, FLAGSHIP re-certifies the official planes, and REAL-FIGURES checks the cruises.</li>
+  </ol>
+</section>
+</div>

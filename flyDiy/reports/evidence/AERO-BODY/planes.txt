@@ -1,0 +1,13 @@
+cub builds/cub_2026-09-20_corrected.json
+jodel builds/jodel_2026-09-20_corrected.json
+c172 builds/cessna172_2026-09-20.json
+twin builds/candidates/Twin_busher_floats_4b.json
+rufus builds/rufus_2026-10-18_certified.json
+chinook builds/chinook_2026-09-21_corrected.json
+stolcub builds/candidates/stol_cub_showcase.json
+pa18f builds/pa18_floats_2026-10-23.json
+birdman builds/candidates/birdman.json
+v8pusher builds/candidates/build_v8_pusher_2026-09-11.json
+v7twin builds/candidates/build_v7_twin_2026-09-04.json
+petrel builds/candidates/superpetrel_V4_1.json
+c172f builds/cessna172_floats_2026-11.json

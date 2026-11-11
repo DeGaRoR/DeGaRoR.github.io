@@ -1,0 +1,13 @@
+const D = window.CAGE_DATUM || {}, S = __scene; S.updateMatrixWorld(true);
+let mnt = null; S.traverse(o => { if (!mnt && o.name === 'cageLayer:cowl') mnt = o; });
+const out = { datum: D, cowl: window.CAGE_COWL ? { len: window.CAGE_COWL.len, mode: window.CAGE_COWL.mode, face: window.CAGE_COWL.face && { z: window.CAGE_COWL.face.z, yc: window.CAGE_COWL.face.yc, halfW: window.CAGE_COWL.face.halfW, halfH: window.CAGE_COWL.face.halfH }, units: window.CAGE_COWL.units } : null };
+const bins = {}; const v = new THREE.Vector3(); const names = {};
+const vis = o => { let p = o; while (p) { if (p.visible === false) return false; p = p.parent; } return true; };
+if (mnt) mnt.traverse(o => { if (!o.isMesh || !vis(o) || !o.geometry) return; names[o.name || '?'] = (names[o.name || '?'] || 0) + 1;
+  const p = o.geometry.attributes.position; for (let i = 0; i < p.count; i++) { v.fromBufferAttribute(p, i).applyMatrix4(o.matrixWorld);
+    const k = Math.round(v.z / 0.02); const b = bins[k] || (bins[k] = { x0: 1e9, x1: -1e9, y0: 1e9, y1: -1e9, n: 0 });
+    b.n++; if (v.x < b.x0) b.x0 = v.x; if (v.x > b.x1) b.x1 = v.x; if (v.y < b.y0) b.y0 = v.y; if (v.y > b.y1) b.y1 = v.y; } });
+out.names = names;
+out.bins = Object.keys(bins).map(Number).sort((a, b) => b - a).map(k => [k * 0.02, bins[k].x0, bins[k].x1, bins[k].y0, bins[k].y1, bins[k].n]);
+out.P = (() => { const P = window.CAGE_UI && window.CAGE_UI.P || {}; const o = {}; for (const k in P) if (/^cw_|cowl|engMount|taper|aeroAft|rod|boom/.test(k)) o[k] = P[k]; return o; })();
+return JSON.stringify(out);
