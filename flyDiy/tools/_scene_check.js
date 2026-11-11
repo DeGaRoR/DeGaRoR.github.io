@@ -65,6 +65,22 @@ const example = JSON.parse(fs.readFileSync(path.join(DES, 'example_cub_lagoon.sc
   ok(C.SCENE_HQ_CAP_S > 0 && C.SCENE_HQ_CAP_S < 60, 'the high-quality shot is capped under a minute', C.SCENE_HQ_CAP_S + ' s');
 }
 
+// ---- 1b. the command line (tools/scene.js: what agents run, tools/PHOTO.md) ----------------------------------------
+console.log('1b. the command line');
+{
+  const cp = require('child_process'), os = require('os');
+  const run = (...a) => cp.spawnSync(process.execPath, [path.join(T, 'scene.js'), ...a], { encoding: 'utf8' });
+  const r1 = run('check', path.join(DES, 'example_cub_lagoon.scene.json'));
+  ok(r1.status === 0 && /: ok - "Cub over the lagoon"/.test(r1.stdout), 'scene.js check: the example is ok', r1.status);
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'scene-')), bad = path.join(tmp, 'bad.scene.json');
+  fs.writeFileSync(bad, JSON.stringify({ what: 'wingsmith-scene', v: 1, camera: { eye: [1, 2] } }));
+  const r2 = run('check', bad);
+  ok(r2.status === 1 && /REFUSED/.test(r2.stdout), 'scene.js check: a bad scene exits 1 and says why', r2.status);
+  const r3 = run('new', '--name', 'gate');
+  ok(r3.status === 0 && C.sceneNormalise(r3.stdout).ok, 'scene.js new: writes a scene that normalises', r3.status);
+  try { fs.rmSync(tmp, { recursive: true, force: true }); } catch (e) {}
+}
+
 // ---- 2. the frame -------------------------------------------------------------------------------------------------
 console.log('2. the frame');
 {

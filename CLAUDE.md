@@ -22,3 +22,10 @@ fit-to-reference tool, not hand guessing:
 Keep it a tool: every fitted value lands on a garage row in the card (`flyDiy/tools/_cage_design.js` ARCHETYPES), a
 missing control is flagged as a garage gap (REF_MATCH.md section 7) and then built as a row, and the how-to is updated
 with whatever the next aeroplane teaches.
+
+## Pictures of the game (the photo tool)
+
+Any picture of Wingsmith (a screenshot, a promo shot, a before/after): read `flyDiy/tools/PHOTO.md` first. Its status
+table says what exists. Write the picture's setting as a scene file (`flyDiy/shots/scenes/<name>.scene.json`), and
+check it with `node flyDiy/tools/scene.js check`. Design and the user's rulings: `flyDiy/futureDesigns/PHOTO-MODE-2-2026-11-11.md`.
+Keep it a tool: whatever a picture teaches goes back into PHOTO.md.

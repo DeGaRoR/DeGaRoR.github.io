@@ -315304,3 +315304,17 @@ placePose (from def.nodes) equals placeAtAerodrome on an un-stanced reset, and e
 **Not done here (the note's P1-P6):** photo.js and the garage's bar, scenes in the game, the pose through SIMW (the
 worker) and the Plane tab (Dev only), the high-quality stepper + GFX.push/pop + the machine table, scene_shot.js. P4-P6 need
 a LOCAL session and a GPU box slot from A0.
+
+### PHOTO-MODE-2 - the user's review of the page (11 Nov, late) and THE AGENTS' HOW-TO
+- The bar is the flight interface's own TOP BAR (futureDesigns/design_handoff_flight_interface): the PHOTO plate with
+  five slots (camera, light, picture, scene, go to) at the left, Done at the right; the shutter a floating
+  half-transparent round button; the high-quality spinner in the middle (a ring that fills with the %, one short line,
+  the time after 8 s); the shot must never trip "Page unresponsive" (no main-thread task over 200 ms) nor the GPU's
+  watchdog (no frame over ~0.5 s; Windows' TDR is 2 s and loses the WebGL context).
+- NO posing tools: Save this scene (where you are), Load a scene, and "go to" the start places in photo mode
+  (`FLYDIY_ROUTE.spawn(id)` + Restart - the picker was removed from the game, the hook is still there). A map click
+  teleport is low priority, later.
+- NOT this scope: making the Steam page's 5-10 scenes. IN scope: any agent / session can use the tool alone ->
+  NEW `tools/PHOTO.md` (the status table, the scene file field by field, the conventions, the pitfalls, a hand-off
+  paragraph), NEW `tools/scene.js` (check / new / put / get - the core's own functions), the root CLAUDE.md points
+  there. GATE SCENE 1b runs the command line. EVERY phase that lands updates PHOTO.md's status table.
