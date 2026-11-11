@@ -33,7 +33,7 @@ const fmt = (v, u) => v == null ? '   -   ' : (u === 'deg' ? v.toFixed(1) : v.to
 function table(ref, B) {
   const ours = C.measure(B, { stations: C.stations(ref), probes: C.probes(ref) });
   const win = C.windows(B);
-  const T = C.compare(ref, ours, win);
+  const T = C.compare(ref, ours, win, B);
   return { ours, win, T };
 }
 function printTable(T, title) {
@@ -93,7 +93,9 @@ if (cmd === 'new') {
   if (B.errors.length) console.log('build errors: ' + B.errors.join(' | '));
   const r = table(doc.ref, B);
   printTable(r.T, (doc.name || '') + ' (build ' + B.ms + ' ms)');
-  console.log('\nour windows (side, starboard): ' + r.win.map(w => w.a0.toFixed(2) + '-' + w.a1.toFixed(2) + ' x ' + w.h0.toFixed(2) + '..' + w.h1.toFixed(2)).join(' | '));
+  const FO = C.folds(B);
+  console.log('\n' + (FO.len > 0.04 ? 'X FOLDS in the skin: ' + FO.len + ' m of the body, the worst at ' + FO.at + ' m aft, ' + FO.h + ' m up (' + FO.depth + ' m deep)' : '+ no fold in the skin'));
+  console.log('our windows (side, starboard): ' + r.win.map(w => w.a0.toFixed(2) + '-' + w.a1.toFixed(2) + ' x ' + w.h0.toFixed(2) + '..' + w.h1.toFixed(2)).join(' | '));
   if (opt('png') && opt('sheet')) console.log('overlays: ' + overlays(doc.ref, B, opt('sheet'), opt('png')).join(' '));
   if (opt('json')) fs.writeFileSync(opt('json'), JSON.stringify({ ours: r.ours, windows: r.win, table: r.T }, null, 1));
 } else if (cmd === 'fit') {
@@ -101,23 +103,30 @@ if (cmd === 'new') {
   // step, walked one at a time a step up and down, the step halved when nothing helps, scored on that step's key
   // measurements (sum of (diff / tol)^2). Writes the result into the plane file only with --write.
   const f = pos[1], doc = readPlane(f), rows = JSON.parse(pos[2]);   // {"row": [lo, hi, step], ...}
-  const ids = opt('km', '').split(',').filter(Boolean);
+  // THE HOLDS (11 Nov: a windscreen fit shortened the windscreen's run and pulled the wing, the gear and the tail 0.21 m
+  // forward - its score never looked at them): every fit also scores the aeroplane's main stations, unless --nohold
+  const HOLD = ['tailpost', 'wing.le', 'wheel.a', 'cowl.back', 'body.front'];
+  const ids = opt('km', '').split(',').filter(Boolean).concat(argv.includes('--nohold') ? [] : HOLD.filter(h => !opt('km', '').split(',').includes(h)));
   const ref = doc.ref, stations = C.stations(ref);
   const score = over => {
     const B = DT.build(doc.spec, over, { level: 0, passes: +opt('passes', 2) });
-    const T = C.compare(ref, C.measure(B, { stations, probes: C.probes(ref) }), C.windows(B));
+    const T = C.compare(ref, C.measure(B, { stations, probes: C.probes(ref) }), C.windows(B), B);
     let s = 0, n = 0;
     for (const r of T.rows) {
       if (r.diff == null || !r.tol) continue;
       if (ids.length && !ids.some(k => r.id === k || r.id.indexOf(k + '.') === 0 || (/^(profile|window)$/.test(k) && r.id.indexOf(k) === 0))) continue;
       s += Math.min(400, (r.diff / r.tol) ** 2); n++;
     }
+    // a fold in the skin is never bought for a better line (the user: continuous shapes): a heavy penalty
+    if (!argv.includes('--nofolds')) { const FO = C.folds(B); if (FO.len > 0.04) s += 400 + 4000 * FO.len; }
     return { s, n, T };
   };
   const cur = Object.assign({}, doc.spec.cage), step = {}, base = DT.build(doc.spec, null, { level: 0, passes: 1 }).P;
   const over = {};
   for (const k of Object.keys(rows)) {
-    over[k] = cur[k] != null ? cur[k] : base[k]; step[k] = rows[k][2];
+    over[k] = cur[k] != null ? cur[k] : base[k] != null ? base[k] : DT.followValue(doc.spec, k); step[k] = rows[k][2];
+    // a row the plane has never set and nothing derives (a new row, absent = 0): it starts at 0, inside its range
+    if ((over[k] == null || !isFinite(+over[k])) && !/^fr(Nose|Win|Post|Cab|Pax|Boom)/.test(k)) over[k] = Math.min(rows[k][1], Math.max(rows[k][0], 0));
     // a row that FOLLOWS (null: the garage derives it, e.g. a frame that follows the reference section) has no number
     // to start from: it is left out of the search, named, and set by hand if it must move
     if (over[k] == null || !isFinite(+over[k])) { console.log('  ' + k + ' follows (no value): left out'); delete over[k]; delete rows[k]; }
@@ -186,6 +195,54 @@ if (cmd === 'new') {
   console.log('\nLIGHT CHECKS (' + (doc.name || '') + ')');
   for (const o of out) console.log((o.ok == null ? ' ' : o.ok ? '+' : 'X') + ' ' + o.label.padEnd(24) + String(typeof o.ours === 'number' ? o.ours.toFixed(o.ours > 100 ? 0 : 2) : o.ours).padStart(14) + '   ref ' + String(o.ref == null ? '-' : o.ref).padEnd(26) + ' ' + (o.note || ''));
   if (opt('json')) fs.writeFileSync(opt('json'), JSON.stringify({ checks: out, shakedown: { mass: sh.mass, empty: sh.empty, cgMAC: cg, sm: sh.staticMargin, cBar: sh.cBar, Sw: sh.Sw } }, null, 1));
+} else if (cmd === 'trace') {
+  // TRACE THE DRAWING'S LINES (the user, 11 Nov: "not enough reference points ... you've been too blind"): each line is
+  // followed on the sheet from a start point to an end column (dt_core.trace) and kept in the reference block as
+  // ref.lines, scored against our outline every few cm by `check` (offset, worst point, slope, per named stretch).
+  //   table.js trace <plane.json|ref.json> --sheet <img> '<[{"id":"top.nose","view":"side","edge":"top","from":[x,y],"to":x,
+  //                  "spans":[[a0,a1,"name"]], "step":4}, ...]>' [--png <out>]
+  const f = pos[1], doc = readPlane(f), ref = doc.ref || doc, specs = JSON.parse(pos[2]);
+  const S = PNG.decode(fs.readFileSync(opt('sheet'))), ink = new Uint8Array(S.W * S.H);
+  for (let i = 0; i < S.W * S.H; i++) { const a = S.rgba[i * 4 + 3]; const g = a ? (S.rgba[i * 4] + S.rgba[i * 4 + 1] + S.rgba[i * 4 + 2]) / 3 : 255; ink[i] = g < +opt('ink', 170) ? 1 : 0; }
+  ref.lines = (ref.lines || []).filter(L => !specs.some(s => s.id === L.id));
+  for (const sp of specs) {
+    const to = { step: sp.step || 4, jump: sp.jump || 3, gap: sp.gap || 12, maxRun: sp.maxRun || 6, vertical: !!sp.vertical };
+    let pts = C.trace(ink, S.W, S.H, sp.from[0], sp.from[1], sp.to, to);
+    if (sp.back != null) { const b = C.trace(ink, S.W, S.H, sp.from[0], sp.from[1], sp.back, to); pts = b.slice(1).reverse().concat(pts); }
+    pts.sort((a, b) => sp.vertical ? a[1] - b[1] : a[0] - b[0]);
+    const L = { id: sp.id, view: sp.view, edge: sp.edge || 'top', parts: sp.parts, spans: sp.spans, tol: sp.tol, along: sp.along, read: sp.read, signed: sp.signed, kinkTol: sp.kinkTol, pts };
+    ref.lines.push(L);
+    console.log(sp.id + ': ' + pts.length + ' points, x ' + pts[0][0] + '..' + pts[pts.length - 1][0]);
+  }
+  // the windows' shapes off the sheet: each window mark's box, its interior (the paper reached from the box's centre
+  // without crossing ink), the fullness of its top and bottom quarters (dt_core.shapeFill)
+  for (const k of Object.keys(ref.marks || {})) {
+    if (!/^window\./.test(k)) continue;
+    const m = ref.marks[k]; if (!m.pts || m.pts.length < 2) continue;
+    const x0 = Math.round(Math.min(m.pts[0][0], m.pts[1][0])) + 1, x1 = Math.round(Math.max(m.pts[0][0], m.pts[1][0])) - 1;
+    const y0 = Math.round(Math.min(m.pts[0][1], m.pts[1][1])) + 1, y1 = Math.round(Math.max(m.pts[0][1], m.pts[1][1])) - 1;
+    const seen = new Uint8Array(S.W * S.H), st = [[Math.round((x0 + x1) / 2), Math.round((y0 + y1) / 2)]];
+    while (st.length) { const [x, y] = st.pop(); if (x < x0 || x > x1 || y < y0 || y > y1) continue; const i = y * S.W + x; if (seen[i] || ink[i]) continue; seen[i] = 1; st.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]); }
+    const f = C.shapeFill((x, y) => !!seen[y * S.W + x], x0, y0, x1, y1);
+    m.tf = f.tf; m.bf = f.bf; console.log(k + ': top fullness ' + f.tf + ', bottom ' + f.bf);
+  }
+  if (opt('png')) {      // the traces drawn over the sheet, for the eye
+    const img = Buffer.from(S.rgba);
+    for (const L of ref.lines) for (const [x, y] of L.pts) for (let d = -1; d <= 1; d++) for (let e = -1; e <= 1; e++) {
+      const xx = Math.round(x) + d, yy = Math.round(y) + e; if (xx < 0 || yy < 0 || xx >= S.W || yy >= S.H) continue;
+      const o = (yy * S.W + xx) * 4; img[o] = 255; img[o + 1] = 0; img[o + 2] = 160; img[o + 3] = 255; }
+    fs.writeFileSync(opt('png'), PNG.encode(S.W, S.H, img)); console.log('traces drawn: ' + opt('png'));
+  }
+  if (doc.ref) history(doc, 'refs', 'traced ' + specs.map(s => s.id).join(', '));
+  writePlane(f, doc);
+} else if (cmd === 'unset') {
+  // rows back to the garage's own (removed from the plane's cage: the default, or the follow value) - "a brand new
+  // cowl" is the cowl's shape rows unset (the user, 11 Nov). A pattern unsets every matching row except --keep's.
+  const f = pos[1], doc = readPlane(f), re = new RegExp(pos[2]), keep = new RegExp(opt('keep', '^$'));
+  const gone = Object.keys(doc.spec.cage).filter(k => re.test(k) && !keep.test(k));
+  for (const k of gone) delete doc.spec.cage[k];
+  history(doc, opt('step', 'fit'), (opt('why', '') + ' unset ' + gone.join(' ')).trim());
+  writePlane(f, doc); console.log('unset ' + gone.length + ' rows: ' + gone.join(' '));
 } else if (cmd === 'set') {
   const f = pos[1], rows = JSON.parse(pos[2] || '{}'), doc = readPlane(f);
   const defs = DT.rowDefs(), unknown = Object.keys(rows).filter(k => !defs[k] && !(k in (doc.spec.cage || {})));

@@ -131,6 +131,11 @@ const GROUP = ['8 · tail — fin (2D)', [
   ['size', [
     // DC3-EDITABLE: a big aeroplane's fin (GEN_TAIL_ENVELOPE.big's 5.5 m)
     ['finHeight',   'height (× the drawn)',           0.50, 2.50, 0.01],
+    // FIN STATION (DRAFTING TABLE, 11 Nov): the fin along its deck - a fin whose rudder ends ahead of the tail cone
+    ['finZ',        'fore / aft (on the deck, + forward)', -0.60, 2.00, 0.005, { absent: 0 }],
+    // THE DORSAL'S SHAPE (DRAFTING TABLE, 11 Nov): a straight dorsal of any length, meeting the fin at any height
+    ['finDorsalFwd', 'dorsal reach (forward)',              0.00, 3.00, 0.01, { absent: 0, when: P => +P.finDorsal }],
+    ['finDorsalH',   'dorsal height at the fin',           -0.30, 1.50, 0.005, { absent: 0, when: P => +P.finDorsal }],
     ['finChord',    'chord (× the drawn, about the hinge)', 0.50, 2.20, 0.01],
     ['finChordTip', 'tip chord (of the root)',        0.30, 1.50, 0.01],
     ['finSweep',    'sweep (deg, the post rakes)',    -10, 45, 0.5],
@@ -573,6 +578,11 @@ PAGE.post = ctx => {
   const S = FIN.finSpec(P.boomStyle
     ? Object.assign(Object.create(P), { finKeel: 0, finDorsal: dorsalTube ? 1 : 0 }) : P);
   S.cutPrep = cutMode;              // crease the rails the cut runs along
+  // FIN STATION (DRAFTING TABLE): the whole fin along its deck, + forward (_fin_gen buildFin2's dz); absent = 0
+  if (+P.finZ) S.zShift = +P.finZ;
+  // THE DORSAL'S SHAPE (DRAFTING TABLE): its forward reach and its height at the fin (_fin_gen buildFin2); absent = 0
+  if (+P.finDorsalFwd) S.dorsalFwd = +P.finDorsalFwd;
+  if (+P.finDorsalH) S.dorsalH = +P.finDorsalH;
   // TWIN BOOMS (2026-09-04): the fin rides a BOOM, not the fuselage — its
   // deck is the boom's own top line (a straight tube), its keel the tube's
   // belly, its tail cap the boom's tip; built once, drawn at ±boomX

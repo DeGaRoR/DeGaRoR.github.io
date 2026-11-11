@@ -401,3 +401,33 @@ the max half-width; the engine (below).
 3. The architecture step's `sel` choices in the page (today a re-birth from a candidate card).
 4. The engine auto-fit (a garage function).
 5. `real_check --ref` reading the plane file's own `ref` block.
+
+## ROUND 2 (11 Nov, evening): the user's critique, turned into what the table looks for
+
+The user's verdict on round 1: "you miss real big trends, important key data points". Their comments were taken "not
+so much to match the PC-6, but to sharpen what you look for automatically". Each became a check every plane gets:
+
+| the user saw | the check now | where |
+|---|---|---|
+| "not enough reference points ... it's clearly a slope downward on top" | **traced lines**: the drawing's outline followed densely off the sheet (`table.js trace`, `dt_core.trace`), top / bottom / plan / the windscreen, every 2-5 cm; per named stretch the mean offset, the worst point and **the slope** (the cowl read 3.6 deg where the drawing rises 9.8) | `ref.lines`, `lineRows` |
+| "the bottom ... is broken where the wheel anchors, you have a bump" | **the sharpest turn** along a line, ours against the drawing's (a kink the drawing does not have); **folds**: a depth jump inside the fuselage's own side view (a frame pulled through its neighbours dents the skin while the outline stays straight) - also a penalty in the fitter | `lineRows` kink, `folds` |
+| "the fin is actually incredibly straight ... the stabilizer/elevator assembly is super straight" | **the bow** of each stretch (its largest departure from its own chord), ours against the drawing's; lines may run UP the sheet (a fin edge: traced on the transposed sheet, compared by slicing at heights) or ALONG the span (a stab edge, top view) | `trace` vertical, `lineCompare` along / read |
+| "your windows are upside down in shape" | **the window's shape**: the fullness of its top and bottom quarters, off the sheet (the window's interior filled from its centre) and off ours | `shapeFill`, `window.*.shape` |
+| "you need finer sampling at the base of the windshield" | the windscreen and the cowl-to-windscreen line traced every 2-3 px (2.5-4 cm) | trace `step` |
+| "you should adopt a brand new cowl and fit only the side profile" | `table.js unset '^cw_' --keep ...`: the cowl back to the garage's own, its details off, only its taper and droop fitted on the lines | `unset` |
+| "why is your plane showing through?" | a bug of the table's: the skin's sheet-metal panels (`toele`) had been taken for the inside | `dt_build` INSIDE |
+| "in the UI, we don't need the table with the numbers" | the page draws the sheet, our outline, the marks and the traced lines; the numbers stay in `table.js` | `drafting.html` |
+
+Also learned: the fitter is a coordinate search and gets stuck when two rows must move together (the fin forward AND
+its corners): start it from a geometric guess (the fin moved to the rudder's line first), then let it search.
+Follow rows (frames that follow the reference section) now start from the generator's own value
+(`dt_node.followValue`), and a row the plane never set starts at 0.
+
+### Found in the garage this round
+
+| finding | done |
+|---|---|
+| a fin station: the fin could not stand ahead of the tail cone (the PC-6's rudder ends 0.1 m ahead of it; the DC-3's hinge 0.5 m) | **built: `finZ`** "fore / aft (on the deck, + forward)" (`_fin_gen.js` buildFin2's anchor, `_cage_fin.js`, the part tree); absent = 0, every saved fin to the bit (GATE FIN, GATE PARTS pass) |
+| the drawn windows' corner radii: R1 / R2 ("fwd top", "aft top") round the window's BOTTOM corners as measured (and as the user saw), R3 / R4 the top | OPEN: flagged; the PC-6 uses R3 / R4 for its rounded tops |
+| the stab's height `stY` stops at 0.8: the PC-6's sits 7.6 cm higher | OPEN |
+| the dorsal: `finRootFwd` reaches 1.5 m ahead of the fin's LE; the PC-6's starts 1.9 m ahead | OPEN |

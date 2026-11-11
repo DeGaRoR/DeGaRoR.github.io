@@ -25,7 +25,9 @@
   const GLASS = /window|windshield|pane$|^drawnPane|skylight|bubble|canopy|glass/i;
   const SEAM_PILLAR = /^pillar/;
   const SEAM_WAIST = /^waistband/;
-  const INSIDE = /ceilingLoop|floorLoop|bulkhead|firewall|fireProof|fireSeal|tube|cloth|dash|shoulder|toele|plywood|floorBoard|seat|reveal|paneEdge/;
+  // (the skin is 'body', 'joint', 'aluminium', 'toele' (tôle: the sheet-metal panels) and 'shoulder': all kept - leaving
+  // toele out made the fuselage see-through, the user caught it 11 Nov)
+  const INSIDE = /ceilingLoop|floorLoop|bulkhead|firewall|fireProof|fireSeal|^tube|cloth|dash|plywood|floorBoard|seat|reveal|paneEdge/;
   // the layers the outline needs (the others are fittings, lamps, hinges: detail the drafting never reads)
   const LAYER_PART = { cowl: 'cowl', eng: 'engine', wing: 'wing', brace: 'strut', gear: 'gear', float: 'float',
     fin: 'fin', stab: 'stab', pod: 'body' };

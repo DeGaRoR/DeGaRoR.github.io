@@ -6,9 +6,9 @@
   "cage": {
    "planeScale": 0.745,
    "paxCount": 3,
-   "paxLen": 0.95,
-   "pilotLen": 0.45,
-   "boomLen": 4.114,
+   "paxLen": 1.01,
+   "pilotLen": 0.3,
+   "boomLen": 4.08,
    "tailLen": 0.169815,
    "cabPillarW": 0.115,
    "paxPillarW": 0.11,
@@ -27,13 +27,13 @@
    "tailRoofY": 0.46,
    "tailKeelY": -0.46,
    "ringPullIn": 0.023043,
-   "wsRun": 0.95,
-   "wsTopOff": 0.081824,
-   "wsBaseBow": 0.45,
-   "wsCeilBow": 0.3,
+   "wsRun": 0.67,
+   "wsTopOff": 0.21,
+   "wsBaseBow": 0.65,
+   "wsCeilBow": 0.57,
    "apilW": 0.92,
    "apilPerp": 1,
-   "noseLen": 0.77,
+   "noseLen": 1.05,
    "noseW": 0.97,
    "pfW": 0.3,
    "topRound": 1,
@@ -45,21 +45,21 @@
    "skyExt": 5,
    "winSillPilot": 0,
    "winSillPax": 0,
-   "paxWinN": 2,
+   "paxWinN": 1,
    "paxWinShape": 0,
-   "paxWinZ": 0.871,
+   "paxWinZ": 1.938,
    "paxWinPitch": 1.067,
-   "paxWinY": 0.28,
+   "paxWinY": 0.247,
    "paxWinW": 0.917,
-   "paxWinH": 0.483,
-   "paxWinR": 0.06,
+   "paxWinH": 0.55,
+   "paxWinR": 0.05,
    "paxWinDepth": 0.006,
    "paxWinTopK": 1,
    "paxWinSkew": 0,
-   "paxWinR1": 0.22,
-   "paxWinR2": 0.22,
-   "paxWinR3": -1,
-   "paxWinR4": -1,
+   "paxWinR1": 0.05,
+   "paxWinR2": 0.05,
+   "paxWinR3": 0.1,
+   "paxWinR4": 0.3,
    "win2N": 1,
    "win2Shape": 1,
    "win2Z": -0.32,
@@ -75,21 +75,21 @@
    "win2R2": -1,
    "win2R3": -1,
    "win2R4": -1,
-   "win3N": 0,
+   "win3N": 1,
    "win3Shape": 0,
-   "win3Z": 1.6,
+   "win3Z": 0.871,
    "win3Pitch": 0.75,
-   "win3Y": 0.4,
-   "win3W": 0.4,
-   "win3H": 0.32,
-   "win3R": 0.06,
+   "win3Y": 0.247,
+   "win3W": 0.917,
+   "win3H": 0.55,
+   "win3R": 0.05,
    "win3Depth": 0.006,
    "win3TopK": 1,
    "win3Skew": 0,
-   "win3R1": -1,
-   "win3R2": -1,
-   "win3R3": -1,
-   "win3R4": -1,
+   "win3R1": 0.05,
+   "win3R2": 0.05,
+   "win3R3": 0.3,
+   "win3R4": 0.1,
    "glazeMat": 0,
    "crPillar": 3,
    "crSill": 0,
@@ -104,7 +104,7 @@
    "noseCrown": 0.16,
    "noseH": 1.07,
    "noseDroop": 0,
-   "wsBaseLift": 0.05,
+   "wsBaseLift": 0.11,
    "cowlLoops": 2,
    "cowlEase": 0.29,
    "cowlBulge": 0.99,
@@ -196,14 +196,13 @@
    "aftCowlLoops": -1,
    "aftRingNoseTop": -1,
    "aftRingNoseBot": -1,
-   "frNoseTopY": null,
-   "frNoseBotY": null,
+   "frNoseTopY": 0.12,
+   "frNoseBotY": -1.125,
    "frNoseTopW": null,
    "frNoseBotW": null,
    "frNoseBotZ": 0,
-   "frWinTopY": null,
-   "frWinWaistY": null,
-   "frWinBotY": -0.836385304649054,
+   "frWinTopY": 1.155,
+   "frWinBotY": -1.19,
    "frWinTopW": null,
    "frWinWaistW": null,
    "frWinBotW": null,
@@ -217,9 +216,9 @@
    "frPostTopZ": 0,
    "frPostWaistZ": 0,
    "frPostBotZ": 0,
-   "frCabTopY": null,
+   "frCabTopY": 0.875,
    "frCabWaistY": null,
-   "frCabBotY": null,
+   "frCabBotY": -1.22,
    "frCabTopW": null,
    "frCabWaistW": null,
    "frCabBotW": null,
@@ -319,27 +318,27 @@
    "stThick": 0.05,
    "stThickTE": 0.012,
    "stX": 0.05,
-   "stY": 0.408,
-   "stZ": -0.153,
+   "stY": 0.94,
+   "stZ": -0.152,
    "stCons": 0,
    "stOver": 0,
    "stMount": 0,
    "stCant": 0,
    "stInc": 0,
    "stRootGuard": 1,
-   "stTipZ": -0.2,
+   "stTipZ": -0.125,
    "stTipY": -0.3,
-   "stAftZ": 0,
+   "stAftZ": -0.1,
    "stAftY": -0.3,
    "stBaseZ": 0,
    "stBaseY": 0,
    "stMidY": -0.2,
    "stUY": 0,
    "stRootFwd": 0,
-   "stLEZ": -0.1,
-   "stLEY": 0,
-   "stShoulderZ": 0.305521,
-   "stShoulderY": 0,
+   "stLEZ": -0.475,
+   "stLEY": -0.05,
+   "stShoulderZ": 0.255,
+   "stShoulderY": 0.15,
    "stTopY": 0,
    "stTERoot": 0,
    "stTEU": 0,
@@ -349,10 +348,10 @@
    "stSharpBase": 3,
    "stSharpShoulder": 0,
    "stSharpLE": 3,
-   "stSpan": 1.935,
+   "stSpan": 1.94,
    "stChord": 1.06,
-   "stChordTip": 1,
-   "stSweep": 0,
+   "stChordTip": 1.33,
+   "stSweep": -3,
    "stHinge": 0.20742366048889416,
    "finOn": 1,
    "finProject": 1,
@@ -376,33 +375,33 @@
    "finKeel": 1,
    "finCrA": 0,
    "finCrB": 0,
-   "finTipZ": 0.6,
-   "finTipY": -0.3,
-   "finAftZ": 0.3,
-   "finAftY": -0.3,
-   "finBaseZ": 0.3,
-   "finBaseY": 0,
-   "finMidY": -0.2,
-   "finUY": 0,
-   "finRootFwd": 0,
-   "finLEZ": -0.1,
-   "finLEY": 0,
-   "finShoulderZ": 0.305521,
-   "finShoulderY": 0,
-   "finTopY": 0,
-   "finTERoot": 0,
-   "finTEU": 0,
-   "finTEMid": 0,
+   "finTipZ": 0.125,
+   "finTipY": -0.45,
+   "finAftZ": 0,
+   "finAftY": -0.425,
+   "finBaseZ": 0,
+   "finBaseY": 0.05,
+   "finMidY": 0.11,
+   "finUY": -0.4,
+   "finRootFwd": -0.228,
+   "finLEZ": -0.65,
+   "finLEY": -0.09,
+   "finShoulderZ": 0.35,
+   "finShoulderY": 0.28,
+   "finTopY": 0.015,
+   "finTERoot": -0.055,
+   "finTEU": -0.075,
+   "finTEMid": 0.01,
    "finSharpTip": 3,
    "finSharpAft": 3,
    "finSharpBase": 3,
-   "finSharpShoulder": 0,
+   "finSharpShoulder": 0.95,
    "finSharpLE": 3,
-   "finHeight": 1.57,
-   "finChord": 1.6,
-   "finChordTip": 0.42,
-   "finSweep": -8,
-   "finHinge": 0.35,
+   "finHeight": 1.55,
+   "finChord": 1,
+   "finChordTip": 1,
+   "finSweep": 0,
+   "finHinge": 0.205,
    "mass": 620,
    "cgZ": 1.17,
    "cgY": 0.05,
@@ -412,8 +411,8 @@
    "s1Z": 2.652,
    "s1X": 1.5,
    "s1Leg": 2,
-   "s1R": 0.335,
-   "s1Drop": 0.832,
+   "s1R": 0.345,
+   "s1Drop": 0.584,
    "s1Brake": 1,
    "s1Steer": 0,
    "s1Fair": 0,
@@ -757,91 +756,8 @@
    "cowlOn": 1,
    "fitNose": 1,
    "cowlGap": 0,
-   "cw_fwLipOn": 1,
-   "cw_fwLipR": 0.004,
-   "cw_fwLipRise": 0,
-   "cw_fwLipIn": 0.025,
    "cw_cowlLen": 1.815,
-   "cw_aftW": 0.5346006505551372,
-   "cw_aftH": 0.3406349704887502,
-   "cw_taperW": 0.7,
-   "cw_taperH": 1,
-   "cw_lidRise": 0.06,
    "cw_lidLen": 0.325,
-   "cw_lidShoulder": 0.45,
-   "cw_lidRound": 0.53,
-   "cw_faceRise": 0.018,
-   "cw_deckSweep": 0,
-   "cw_keelSweep": 0.55,
-   "cw_waistSweep": 0,
-   "cw_lidMode": 1,
-   "cw_lidR": 0.17,
-   "cw_lidGap": 0.009,
-   "cw_deckH": 1,
-   "cw_keelH": 1,
-   "cw_waist": 0.05337383734191484,
-   "cw_sqAftTop": 0.5329149083978864,
-   "cw_sqAftBot": 0.5639850552920584,
-   "cw_sqFrontTop": 0.54,
-   "cw_sqFrontBot": 0.48,
-   "cw_lidSqTop": 0.62,
-   "cw_lidSqBot": 0.6,
-   "cw_detail": 1,
-   "cw_lobeN": 2,
-   "cw_lobeAmp": 0.022,
-   "cw_lobeT": 0.45,
-   "cw_lobeAz": 0,
-   "cw_lobeSig": 34,
-   "cw_lobeTSig": 0.3,
-   "cw_cutSpan": 0,
-   "cw_cutAz": 270,
-   "cw_apMode": 1,
-   "cw_apW": 0.296,
-   "cw_apH": 0.108,
-   "cw_apSq": 0.47,
-   "cw_apOffX": 0,
-   "cw_apOffY": 0,
-   "cw_pairX": 0.2,
-   "cw_pairW": 0.08,
-   "cw_pairH": 0.048,
-   "cw_pairY": 0.012,
-   "cw_pairSq": 0.625,
-   "cw_lipMode": 0,
-   "cw_lipThick": 0.009,
-   "cw_lipDepth": 0.055,
-   "cw_lipRound": 0.55,
-   "cw_lipProtrude": 0.5,
-   "cw_lipInset": 0.028,
-   "cw_ductLen": 0.12,
-   "cw_ductFlare": 0,
-   "cw_scoopOn": 1,
-   "cw_scoopZ": 0,
-   "cw_scoopLen": 0.22,
-   "cw_scoopW": 0.065,
-   "cw_scoopH": 0.055,
-   "cw_scoopSq": 0.5,
-   "cw_scoopDrop": 0.7,
-   "cw_scoopRake": 0.18,
-   "cw_scoopAp": 0.68,
-   "cw_scoopLipH": 0.011,
-   "cw_scoopLipDepth": 0.032,
-   "cw_scoopDuct": 0.125,
-   "cw_seamOn": 1,
-   "cw_seamType": 1,
-   "cw_seamPos": 0.745,
-   "cw_seamWidth": 0.005,
-   "cw_seamDepth": 0.0022,
-   "cw_partOn": 1,
-   "cw_partY": 0,
-   "cw_partW": 0.0022,
-   "cw_fastOn": 1,
-   "cw_fastPitch": 0.11,
-   "cw_fastD": 0.016,
-   "cw_oilOn": 1,
-   "cw_oilZ": 0.42,
-   "cw_oilW": 0.13,
-   "cw_oilL": 0.16,
-   "cw_oilSq": 1,
    "cw_noseOff": -0.04,
    "cw_spinR": 0.101,
    "cw_spinLen": 0.25,
@@ -981,7 +897,19 @@
    "fltKitPrevD": 0,
    "fltKitPrevN": 0,
    "fltKitPrevMat": 0,
-   "fltKitPrevPitch": -1
+   "fltKitPrevPitch": -1,
+   "cw_scoopOn": 0,
+   "cw_apMode": 0,
+   "cw_lobeN": 0,
+   "cw_oilOn": 0,
+   "cw_taperW": 0.57,
+   "cw_taperH": 0.68,
+   "cw_lidRise": 0,
+   "cw_faceRise": 0.058,
+   "finZ": 0.558,
+   "finDorsalFwd": 0.11,
+   "finDorsalH": 0.275,
+   "frWinTopZ": 0.09
   },
   "wings": [
    {
@@ -1604,7 +1532,9 @@
       331.7,
       223.3
      ]
-    ]
+    ],
+    "tf": 0.468,
+    "bf": 0.708
    },
    "window.door1": {
     "view": "side",
@@ -1617,7 +1547,9 @@
       408.3,
       207.3
      ]
-    ]
+    ],
+    "tf": 0.616,
+    "bf": 0.786
    },
    "window.door2": {
     "view": "side",
@@ -1630,7 +1562,9 @@
       472.3,
       208.3
      ]
-    ]
+    ],
+    "tf": 0.659,
+    "bf": 0.672
    },
    "window.round": {
     "view": "side",
@@ -1643,7 +1577,9 @@
       529.3,
       203
      ]
-    ]
+    ],
+    "tf": 0.587,
+    "bf": 0.627
    },
    "stab.te": {
     "view": "top",
@@ -1687,6 +1623,15 @@
      [
       890,
       257.5
+     ]
+    ]
+   },
+   "stab.top": {
+    "view": "side",
+    "pts": [
+     [
+      845,
+      178
      ]
     ]
    }
@@ -1810,6 +1755,132 @@
     "who": "session",
     "step": "drive",
     "line": "the tail wheel's height and the main wheel's bottom to the sheet {\"s2_twLegDrop\":0.087,\"s1Drop\":0.832}"
+   },
+   {
+    "date": "2026-11-11T21:31",
+    "who": "session",
+    "step": "refs",
+    "line": "traced side.top.nose, side.screen, side.top.aft, side.bottom, top.side.fore, top.side.aft"
+   },
+   {
+    "date": "2026-11-11T21:32",
+    "who": "session",
+    "step": "refs",
+    "line": "traced side.screen, side.top.aft, side.bottom"
+   },
+   {
+    "date": "2026-11-11T21:33",
+    "who": "session",
+    "step": "refs",
+    "line": "traced fin.le, fin.te, dorsal, stab.le, stab.te"
+   },
+   {
+    "date": "2026-11-11T21:35",
+    "who": "session",
+    "step": "refs",
+    "line": "traced "
+   },
+   {
+    "date": "2026-11-11T21:36",
+    "who": "session",
+    "step": "body",
+    "line": "the belly's bump at the wheel: the windscreen frame's raised bottom (the Caravan card's) brought down into the line {\"frWinBotY\":-1.15}"
+   },
+   {
+    "date": "2026-11-11T21:40",
+    "who": "session",
+    "step": "body",
+    "line": "fit: the belly one straight line, cowl to cabin (the door post left to follow: raising it folded the skin) {\"frWinBotY\":-1.19,\"frCabBotY\":-1.22,\"frNoseBotY\":-1.125}"
+   },
+   {
+    "date": "2026-11-11T21:41",
+    "who": "session",
+    "step": "body",
+    "line": "the door windows rounded at the outer top corner, as drawn (the user: 'upside down'); one row each; the garage's R1/R2 'top' round the bottom (flagged) {\"paxWinN\":1,\"paxWinZ\":1.938,\"paxWinY\":0.247,\"paxWinH\":0.55,\"paxWinR\":0.05,\"paxWinR1\":0.05,\"paxWinR2\":0.05,\"paxWinR3\":0.1,\"paxWinR4\":0.3,\"win3N\":1,\"win3Shape\":0,\"win3Z\":0.871,\"win3Y\":0.247,\"win3W\":0.917,\"win3H\":0.55,\"win3R\":0.05,\"win3R1\":0.05,\"win3R2\":0.05,\"win3R3\":0.3,\"win3R4\":0.1}"
+   },
+   {
+    "date": "2026-11-11T21:42",
+    "who": "session",
+    "step": "body",
+    "line": "fit: the cabin's pillars off the door windows, the tail post held {\"pilotLen\":0.3,\"paxLen\":1.01,\"boomLen\":4.08}"
+   },
+   {
+    "date": "2026-11-11T21:43",
+    "who": "session",
+    "step": "body",
+    "line": "fit: the windscreen's line (slope, bows) and the cabin's height {\"frWinTopY\":0.995,\"frCabTopY\":0.875,\"wsRun\":0.67,\"wsTopOff\":0.09,\"wsBaseBow\":0.3,\"wsCeilBow\":0.36,\"wsBaseLift\":0.08}"
+   },
+   {
+    "date": "2026-11-11T21:43",
+    "who": "session",
+    "step": "drive",
+    "line": "a brand new cowl (the user): its shape rows back to the garage's own; length, spinner and propeller kept unset cw_fwLipOn cw_fwLipR cw_fwLipRise cw_fwLipIn cw_aftW cw_aftH cw_taperW cw_taperH cw_lidRise cw_lidShoulder cw_lidRound cw_faceRise cw_deckSweep cw_keelSweep cw_waistSweep cw_lidMode cw_lidR cw_lidGap cw_deckH cw_keelH cw_waist cw_sqAftTop cw_sqAftBot cw_sqFrontTop cw_sqFrontBot cw_lidSqTop cw_lidSqBot cw_detail cw_lobeN cw_lobeAmp cw_lobeT cw_lobeAz cw_lobeSig cw_lobeTSig cw_cutSpan cw_cutAz cw_apMode cw_apW cw_apH cw_apSq cw_apOffX cw_apOffY cw_pairX cw_pairW cw_pairH cw_pairY cw_pairSq cw_lipMode cw_lipThick cw_lipDepth cw_lipRound cw_lipProtrude cw_lipInset cw_ductLen cw_ductFlare cw_scoopOn cw_scoopZ cw_scoopLen cw_scoopW cw_scoopH cw_scoopSq cw_scoopDrop cw_scoopRake cw_scoopAp cw_scoopLipH cw_scoopLipDepth cw_scoopDuct cw_seamOn cw_seamType cw_seamPos cw_seamWidth cw_seamDepth cw_partOn cw_partY cw_partW cw_fastOn cw_fastPitch cw_fastD cw_oilOn cw_oilZ cw_oilW cw_oilL cw_oilSq"
+   },
+   {
+    "date": "2026-11-11T21:43",
+    "who": "session",
+    "step": "drive",
+    "line": "the plain cowl: no scoop, no aperture, no lobes, no oil cooler (the chin ignored for now) {\"cw_scoopOn\":0,\"cw_apMode\":0,\"cw_lobeN\":0,\"cw_oilOn\":0}"
+   },
+   {
+    "date": "2026-11-11T21:46",
+    "who": "session",
+    "step": "drive",
+    "line": "fit: the new cowl's taper to the side and top lines (the top falls to the nose) {\"cw_taperW\":0.57,\"cw_taperH\":0.68,\"cw_lidRise\":0,\"cw_faceRise\":0.058}"
+   },
+   {
+    "date": "2026-11-11T21:50",
+    "who": "session",
+    "step": "wing",
+    "line": "fit: a straight, rectangular stab on the traced LE / TE (the user: 'super straight'), as high as stY goes (0.8: a gap) {\"stY\":0.8,\"stZ\":-0.43,\"stChord\":1.06,\"stChordTip\":1.33,\"stSweep\":-3,\"stTipZ\":-0.125,\"stAftZ\":-0.1,\"stLEZ\":-0.475,\"stSpan\":1.94,\"stShoulderZ\":0.255,\"stShoulderY\":0.15,\"stLEY\":-0.05,\"stSharpShoulder\":0,\"stSharpLE\":3,\"stRootFwd\":0}"
+   },
+   {
+    "date": "2026-11-11T21:56",
+    "who": "session",
+    "step": "wing",
+    "line": "the fin straight and its dorsal straight (the user), placed by geometry with the new rows finZ, finDorsalFwd, finDorsalH {\"finOn\":1,\"finProject\":1,\"finCut\":1,\"finVentralOn\":1,\"finVentralH\":0.4,\"finVentralC\":0.6,\"finVentralZ\":0.08,\"finVentralTip\":0.35,\"finVentralShape\":0,\"finCutGap\":0.012,\"finSolid\":1,\"finThick\":0.06,\"finThickTE\":0.015,\"finFillet\":0.035,\"finCons\":0,\"finDorsalTube\":0,\"finDorsal\":1,\"finRootGuard\":1,\"finKeel\":1,\"finCrA\":0,\"finCrB\":0,\"finTipZ\":0.125,\"finTipY\":-0.45,\"finAftZ\":0,\"finAftY\":-0.425,\"finBaseZ\":0,\"finBaseY\":0.05,\"finMidY\":0.11,\"finUY\":-0.4,\"finRootFwd\":-0.228,\"finLEZ\":-0.65,\"finLEY\":-0.09,\"finShoulderZ\":0.35,\"finShoulderY\":0.28,\"finTopY\":0.015,\"finTERoot\":-0.055,\"finTEU\":-0.075,\"finTEMid\":0.01,\"finSharpTip\":3,\"finSharpAft\":3,\"finSharpBase\":3,\"finSharpShoulder\":0.95,\"finSharpLE\":3,\"finHeight\":1.57,\"finChord\":1,\"finChordTip\":1,\"finSweep\":0,\"finHinge\":0.205,\"finZ\":0.558,\"finDorsalFwd\":0.11,\"finDorsalH\":0.275}"
+   },
+   {
+    "date": "2026-11-11T21:57",
+    "who": "session",
+    "step": "body",
+    "line": "the nose section +0.28 to put back what the windscreen fit's shorter run pulled forward (wing, gear, tail) {\"noseLen\":1.05}"
+   },
+   {
+    "date": "2026-11-11T21:58",
+    "who": "session",
+    "step": "wing",
+    "line": "the stab back to its station (its fit had run on the shifted stations), the fin's top {\"stZ\":-0.152,\"finHeight\":1.55}"
+   },
+   {
+    "date": "2026-11-11T21:58",
+    "who": "session",
+    "step": "wing",
+    "line": "the stab's height on the drawing (the slider's range opened to 1.2) {\"stY\":0.9}"
+   },
+   {
+    "date": "2026-11-11T22:01",
+    "who": "session",
+    "step": "body",
+    "line": "fit: the windscreen on its traced line, the stations held {\"frWinTopY\":1.155,\"wsTopOff\":0.21,\"wsBaseBow\":0.65,\"wsCeilBow\":0.57,\"wsBaseLift\":0.11,\"frNoseTopY\":0.12,\"frWinTopZ\":0.09,\"frWinWaistY\":-1.13}"
+   },
+   {
+    "date": "2026-11-11T22:01",
+    "who": "session",
+    "step": "body",
+    "line": "the windscreen frame's waist pulled to the keel made the cockpit window a long triangle unset frWinWaistY"
+   },
+   {
+    "date": "2026-11-11T22:02",
+    "who": "session",
+    "step": "drive",
+    "line": "the main wheel back on the drawing (the belly frames had moved its root) {\"s1Drop\":0.584,\"s1R\":0.345}"
+   },
+   {
+    "date": "2026-11-11T22:02",
+    "who": "session",
+    "step": "wing",
+    "line": "the stab's top on the drawing {\"stY\":0.94}"
    }
   ],
   "datumLE": 3000,
@@ -1823,6 +1894,3071 @@
     "kg": 2800,
     "fwd": 32,
     "aft": 38
+   }
+  ],
+  "lines": [
+   {
+    "id": "side.top.nose",
+    "view": "side",
+    "edge": "top",
+    "spans": [
+     [
+      0.5,
+      1.6,
+      "cowl fore"
+     ],
+     [
+      1.6,
+      2.64,
+      "cowl aft"
+     ],
+     [
+      2.64,
+      3.05,
+      "windscreen base"
+     ]
+    ],
+    "pts": [
+     [
+      69,
+      212.5
+     ],
+     [
+      72,
+      212
+     ],
+     [
+      75,
+      211.5
+     ],
+     [
+      78,
+      211
+     ],
+     [
+      81,
+      210.5
+     ],
+     [
+      84,
+      209.5
+     ],
+     [
+      87,
+      209
+     ],
+     [
+      90,
+      208.5
+     ],
+     [
+      93,
+      208
+     ],
+     [
+      96,
+      207.5
+     ],
+     [
+      99,
+      206.5
+     ],
+     [
+      102,
+      206.5
+     ],
+     [
+      105,
+      205.5
+     ],
+     [
+      108,
+      205
+     ],
+     [
+      111,
+      204.5
+     ],
+     [
+      114,
+      203.5
+     ],
+     [
+      117,
+      203.5
+     ],
+     [
+      120,
+      202.5
+     ],
+     [
+      123,
+      202
+     ],
+     [
+      126,
+      201.5
+     ],
+     [
+      129,
+      201.5
+     ],
+     [
+      132,
+      201
+     ],
+     [
+      135,
+      200.5
+     ],
+     [
+      138,
+      200.5
+     ],
+     [
+      141,
+      200
+     ],
+     [
+      144,
+      199.5
+     ],
+     [
+      147,
+      199.5
+     ],
+     [
+      150,
+      199
+     ],
+     [
+      153,
+      198.5
+     ],
+     [
+      156,
+      198.5
+     ],
+     [
+      159,
+      198
+     ],
+     [
+      162,
+      197.5
+     ],
+     [
+      165,
+      197
+     ],
+     [
+      168,
+      196.5
+     ],
+     [
+      171,
+      196.5
+     ],
+     [
+      174,
+      196
+     ],
+     [
+      177,
+      195.5
+     ],
+     [
+      180,
+      195.5
+     ],
+     [
+      183,
+      195
+     ],
+     [
+      186,
+      194.5
+     ],
+     [
+      189,
+      194.5
+     ],
+     [
+      192,
+      194
+     ],
+     [
+      195,
+      193.5
+     ],
+     [
+      198,
+      193.5
+     ],
+     [
+      201,
+      193
+     ],
+     [
+      204,
+      192.5
+     ],
+     [
+      207,
+      192.5
+     ],
+     [
+      210,
+      192
+     ],
+     [
+      213,
+      191.5
+     ],
+     [
+      216,
+      191.5
+     ],
+     [
+      219,
+      191
+     ],
+     [
+      222,
+      190.5
+     ],
+     [
+      225,
+      190.5
+     ],
+     [
+      228,
+      190
+     ],
+     [
+      231,
+      189.5
+     ],
+     [
+      234,
+      189.5
+     ],
+     [
+      237,
+      189
+     ],
+     [
+      240,
+      188.5
+     ],
+     [
+      243,
+      188.5
+     ],
+     [
+      246,
+      188
+     ],
+     [
+      249,
+      187.5
+     ],
+     [
+      252,
+      187.5
+     ],
+     [
+      255,
+      187
+     ],
+     [
+      258,
+      186.5
+     ],
+     [
+      261,
+      186.5
+     ],
+     [
+      264,
+      186
+     ],
+     [
+      267,
+      185.5
+     ]
+    ]
+   },
+   {
+    "id": "top.side.fore",
+    "view": "top",
+    "edge": "top",
+    "spans": [
+     [
+      0.5,
+      2.64,
+      "cowl"
+     ],
+     [
+      2.64,
+      3.5,
+      "cabin"
+     ]
+    ],
+    "pts": [
+     [
+      70,
+      970
+     ],
+     [
+      74,
+      968.5
+     ],
+     [
+      78,
+      968.5
+     ],
+     [
+      82,
+      966
+     ],
+     [
+      86,
+      968.5
+     ],
+     [
+      90,
+      968.5
+     ],
+     [
+      94,
+      967.5
+     ],
+     [
+      98,
+      965.5
+     ],
+     [
+      102,
+      965.5
+     ],
+     [
+      106,
+      965
+     ],
+     [
+      110,
+      964.5
+     ],
+     [
+      114,
+      964
+     ],
+     [
+      118,
+      963.5
+     ],
+     [
+      122,
+      963
+     ],
+     [
+      126,
+      964.5
+     ],
+     [
+      130,
+      961.5
+     ],
+     [
+      134,
+      961
+     ],
+     [
+      138,
+      960.5
+     ],
+     [
+      142,
+      959.5
+     ],
+     [
+      146,
+      958.5
+     ],
+     [
+      150,
+      958
+     ],
+     [
+      154,
+      957.5
+     ],
+     [
+      158,
+      956.5
+     ],
+     [
+      162,
+      955.5
+     ],
+     [
+      166,
+      955
+     ],
+     [
+      170,
+      954
+     ],
+     [
+      174,
+      953.5
+     ],
+     [
+      178,
+      952.5
+     ],
+     [
+      182,
+      951.5
+     ],
+     [
+      186,
+      951
+     ],
+     [
+      190,
+      950.5
+     ],
+     [
+      194,
+      949.5
+     ],
+     [
+      198,
+      948.5
+     ],
+     [
+      202,
+      948
+     ],
+     [
+      206,
+      947.5
+     ],
+     [
+      210,
+      946.5
+     ],
+     [
+      214,
+      945.5
+     ],
+     [
+      218,
+      945
+     ],
+     [
+      222,
+      944
+     ],
+     [
+      226,
+      943.5
+     ],
+     [
+      230,
+      942.5
+     ],
+     [
+      234,
+      941.5
+     ],
+     [
+      239,
+      941
+     ],
+     [
+      243,
+      941
+     ],
+     [
+      247,
+      941
+     ],
+     [
+      251,
+      941
+     ],
+     [
+      255,
+      941
+     ],
+     [
+      259,
+      941
+     ],
+     [
+      263,
+      941
+     ],
+     [
+      267,
+      941
+     ],
+     [
+      271,
+      941
+     ],
+     [
+      275,
+      941
+     ],
+     [
+      279,
+      942.5
+     ],
+     [
+      283,
+      941
+     ],
+     [
+      287,
+      941
+     ],
+     [
+      291,
+      941
+     ],
+     [
+      295,
+      941
+     ],
+     [
+      299,
+      941
+     ]
+    ]
+   },
+   {
+    "id": "top.side.aft",
+    "view": "top",
+    "edge": "top",
+    "spans": [
+     [
+      5.5,
+      6.7,
+      "aft cabin"
+     ],
+     [
+      6.7,
+      10.3,
+      "boom"
+     ]
+    ],
+    "pts": [
+     [
+      472,
+      941
+     ],
+     [
+      476,
+      941
+     ],
+     [
+      480,
+      941
+     ],
+     [
+      484,
+      941
+     ],
+     [
+      488,
+      941
+     ],
+     [
+      492,
+      941
+     ],
+     [
+      496,
+      941
+     ],
+     [
+      500,
+      941
+     ],
+     [
+      504,
+      941
+     ],
+     [
+      508,
+      941
+     ],
+     [
+      512,
+      941
+     ],
+     [
+      516,
+      941
+     ],
+     [
+      520,
+      941
+     ],
+     [
+      524,
+      941
+     ],
+     [
+      528,
+      941.5
+     ],
+     [
+      532,
+      941.5
+     ],
+     [
+      536,
+      942.5
+     ],
+     [
+      540,
+      942.5
+     ],
+     [
+      544,
+      943.5
+     ],
+     [
+      548,
+      943.5
+     ],
+     [
+      552,
+      944.5
+     ],
+     [
+      556,
+      944.5
+     ],
+     [
+      560,
+      945.5
+     ],
+     [
+      564,
+      945.5
+     ],
+     [
+      568,
+      946.5
+     ],
+     [
+      572,
+      946.5
+     ],
+     [
+      576,
+      947.5
+     ],
+     [
+      580,
+      945.5
+     ],
+     [
+      584,
+      948
+     ],
+     [
+      588,
+      948.5
+     ],
+     [
+      592,
+      949
+     ],
+     [
+      596,
+      949.5
+     ],
+     [
+      600,
+      950
+     ],
+     [
+      604,
+      950.5
+     ],
+     [
+      608,
+      951
+     ],
+     [
+      612,
+      951.5
+     ],
+     [
+      616,
+      952
+     ],
+     [
+      620,
+      952.5
+     ],
+     [
+      624,
+      953
+     ],
+     [
+      628,
+      953.5
+     ],
+     [
+      632,
+      954
+     ],
+     [
+      636,
+      954.5
+     ],
+     [
+      640,
+      955
+     ],
+     [
+      644,
+      955.5
+     ],
+     [
+      648,
+      956
+     ],
+     [
+      652,
+      956.5
+     ],
+     [
+      656,
+      957
+     ],
+     [
+      660,
+      957.5
+     ],
+     [
+      664,
+      958
+     ],
+     [
+      668,
+      958.5
+     ],
+     [
+      672,
+      959
+     ],
+     [
+      676,
+      959.5
+     ],
+     [
+      680,
+      960
+     ],
+     [
+      684,
+      960.5
+     ],
+     [
+      688,
+      961
+     ],
+     [
+      692,
+      961.5
+     ],
+     [
+      696,
+      962
+     ],
+     [
+      700,
+      962.5
+     ],
+     [
+      704,
+      963
+     ],
+     [
+      708,
+      963.5
+     ],
+     [
+      712,
+      964
+     ],
+     [
+      716,
+      964.5
+     ],
+     [
+      720,
+      965
+     ],
+     [
+      725,
+      965.5
+     ],
+     [
+      729,
+      966
+     ],
+     [
+      733,
+      966.5
+     ],
+     [
+      737,
+      967
+     ],
+     [
+      741,
+      967.5
+     ],
+     [
+      745,
+      968
+     ],
+     [
+      749,
+      968.5
+     ],
+     [
+      753,
+      969
+     ],
+     [
+      757,
+      969.5
+     ],
+     [
+      761,
+      970
+     ],
+     [
+      765,
+      970.5
+     ],
+     [
+      769,
+      971
+     ],
+     [
+      773,
+      971.5
+     ],
+     [
+      777,
+      972
+     ],
+     [
+      781,
+      972.5
+     ],
+     [
+      785,
+      973
+     ],
+     [
+      789,
+      974
+     ],
+     [
+      795,
+      974.5
+     ],
+     [
+      799,
+      974.5
+     ],
+     [
+      803,
+      974.5
+     ],
+     [
+      807,
+      974.5
+     ],
+     [
+      811,
+      974.5
+     ],
+     [
+      815,
+      974.5
+     ],
+     [
+      819,
+      974.5
+     ]
+    ]
+   },
+   {
+    "id": "side.screen",
+    "view": "side",
+    "edge": "top",
+    "spans": [
+     [
+      2.9,
+      3.6,
+      "windscreen"
+     ]
+    ],
+    "pts": [
+     [
+      272,
+      183
+     ],
+     [
+      274,
+      180.5
+     ],
+     [
+      276,
+      178.5
+     ],
+     [
+      278,
+      176
+     ],
+     [
+      280,
+      174.5
+     ],
+     [
+      282,
+      172.5
+     ],
+     [
+      284,
+      170.5
+     ],
+     [
+      286,
+      168.5
+     ],
+     [
+      288,
+      167.5
+     ],
+     [
+      290,
+      169
+     ],
+     [
+      292,
+      164.5
+     ],
+     [
+      294,
+      162.5
+     ],
+     [
+      296,
+      161.5
+     ],
+     [
+      298,
+      160.5
+     ],
+     [
+      300,
+      159
+     ],
+     [
+      302,
+      157.5
+     ],
+     [
+      304,
+      156.5
+     ],
+     [
+      306,
+      155.5
+     ],
+     [
+      308,
+      155
+     ],
+     [
+      310,
+      154
+     ]
+    ]
+   },
+   {
+    "id": "side.top.aft",
+    "view": "side",
+    "edge": "top",
+    "spans": [
+     [
+      5.5,
+      6.7,
+      "aft cabin"
+     ],
+     [
+      6.7,
+      8.5,
+      "boom fore"
+     ],
+     [
+      8.5,
+      9.5,
+      "boom aft"
+     ]
+    ],
+    "pts": [
+     [
+      468,
+      154
+     ],
+     [
+      472,
+      154.5
+     ],
+     [
+      476,
+      154.5
+     ],
+     [
+      480,
+      155
+     ],
+     [
+      484,
+      155.5
+     ],
+     [
+      488,
+      155.5
+     ],
+     [
+      492,
+      156
+     ],
+     [
+      496,
+      156.5
+     ],
+     [
+      500,
+      156.5
+     ],
+     [
+      504,
+      157
+     ],
+     [
+      508,
+      157.5
+     ],
+     [
+      512,
+      157.5
+     ],
+     [
+      516,
+      158
+     ],
+     [
+      520,
+      158.5
+     ],
+     [
+      524,
+      158.5
+     ],
+     [
+      528,
+      159
+     ],
+     [
+      532,
+      159.5
+     ],
+     [
+      536,
+      159.5
+     ],
+     [
+      540,
+      160
+     ],
+     [
+      544,
+      160.5
+     ],
+     [
+      548,
+      160.5
+     ],
+     [
+      552,
+      161
+     ],
+     [
+      556,
+      161.5
+     ],
+     [
+      560,
+      161.5
+     ],
+     [
+      564,
+      162
+     ],
+     [
+      568,
+      162.5
+     ],
+     [
+      572,
+      162.5
+     ],
+     [
+      576,
+      163
+     ],
+     [
+      580,
+      163.5
+     ],
+     [
+      584,
+      164
+     ],
+     [
+      588,
+      164.5
+     ],
+     [
+      592,
+      164.5
+     ],
+     [
+      596,
+      165
+     ],
+     [
+      600,
+      165.5
+     ],
+     [
+      604,
+      165
+     ],
+     [
+      608,
+      166
+     ],
+     [
+      612,
+      166.5
+     ],
+     [
+      616,
+      166.5
+     ],
+     [
+      620,
+      167
+     ],
+     [
+      624,
+      167.5
+     ],
+     [
+      628,
+      167.5
+     ],
+     [
+      632,
+      168
+     ],
+     [
+      636,
+      168.5
+     ],
+     [
+      640,
+      168.5
+     ],
+     [
+      644,
+      169
+     ],
+     [
+      648,
+      169.5
+     ],
+     [
+      652,
+      169.5
+     ],
+     [
+      656,
+      170
+     ],
+     [
+      660,
+      170.5
+     ],
+     [
+      664,
+      170.5
+     ],
+     [
+      668,
+      171
+     ],
+     [
+      672,
+      171.5
+     ],
+     [
+      676,
+      171.5
+     ],
+     [
+      680,
+      172
+     ],
+     [
+      684,
+      172.5
+     ],
+     [
+      688,
+      172.5
+     ],
+     [
+      692,
+      173
+     ],
+     [
+      696,
+      173.5
+     ],
+     [
+      700,
+      173.5
+     ],
+     [
+      704,
+      174
+     ],
+     [
+      708,
+      174.5
+     ],
+     [
+      712,
+      174.5
+     ],
+     [
+      716,
+      175
+     ],
+     [
+      720,
+      175.5
+     ],
+     [
+      725,
+      176
+     ],
+     [
+      729,
+      176.5
+     ],
+     [
+      733,
+      176.5
+     ],
+     [
+      737,
+      177
+     ],
+     [
+      741,
+      177.5
+     ],
+     [
+      745,
+      177.5
+     ],
+     [
+      749,
+      178
+     ],
+     [
+      753,
+      178.5
+     ],
+     [
+      757,
+      178.5
+     ],
+     [
+      761,
+      179
+     ],
+     [
+      765,
+      177
+     ],
+     [
+      769,
+      179.5
+     ],
+     [
+      773,
+      180
+     ],
+     [
+      777,
+      180.5
+     ],
+     [
+      781,
+      180.5
+     ],
+     [
+      785,
+      181
+     ],
+     [
+      789,
+      181.5
+     ]
+    ]
+   },
+   {
+    "id": "side.bottom",
+    "view": "side",
+    "edge": "bottom",
+    "spans": [
+     [
+      1.9,
+      2.64,
+      "cowl aft (no chin)"
+     ],
+     [
+      2.64,
+      4.5,
+      "cabin fore"
+     ],
+     [
+      4.5,
+      6.6,
+      "cabin aft"
+     ],
+     [
+      6.6,
+      10.3,
+      "boom"
+     ]
+    ],
+    "pts": [
+     [
+      99,
+      264.5
+     ],
+     [
+      103,
+      270.5
+     ],
+     [
+      107,
+      270.5
+     ],
+     [
+      111,
+      271
+     ],
+     [
+      115,
+      271
+     ],
+     [
+      119,
+      271.5
+     ],
+     [
+      123,
+      271.5
+     ],
+     [
+      127,
+      271.5
+     ],
+     [
+      131,
+      272
+     ],
+     [
+      135,
+      272
+     ],
+     [
+      139,
+      272.5
+     ],
+     [
+      143,
+      272.5
+     ],
+     [
+      147,
+      272.5
+     ],
+     [
+      151,
+      273
+     ],
+     [
+      155,
+      273
+     ],
+     [
+      159,
+      273.5
+     ],
+     [
+      163,
+      273.5
+     ],
+     [
+      167,
+      273.5
+     ],
+     [
+      171,
+      274
+     ],
+     [
+      175,
+      274.5
+     ],
+     [
+      179,
+      275.5
+     ],
+     [
+      183,
+      277
+     ],
+     [
+      187,
+      275
+     ],
+     [
+      191,
+      275
+     ],
+     [
+      195,
+      275.5
+     ],
+     [
+      199,
+      275.5
+     ],
+     [
+      203,
+      275.5
+     ],
+     [
+      207,
+      276
+     ],
+     [
+      211,
+      276
+     ],
+     [
+      215,
+      276.5
+     ],
+     [
+      219,
+      276.5
+     ],
+     [
+      223,
+      276.5
+     ],
+     [
+      227,
+      277
+     ],
+     [
+      231,
+      277.5
+     ],
+     [
+      235,
+      277.5
+     ],
+     [
+      239,
+      278
+     ],
+     [
+      243,
+      278
+     ],
+     [
+      247,
+      278
+     ],
+     [
+      251,
+      278
+     ],
+     [
+      255,
+      278
+     ],
+     [
+      259,
+      278
+     ],
+     [
+      263,
+      278
+     ],
+     [
+      267,
+      278
+     ],
+     [
+      271,
+      278
+     ],
+     [
+      275,
+      279
+     ],
+     [
+      279,
+      278
+     ],
+     [
+      284,
+      275
+     ],
+     [
+      288,
+      277.5
+     ],
+     [
+      292,
+      277.5
+     ],
+     [
+      296,
+      277.5
+     ],
+     [
+      300,
+      277.5
+     ],
+     [
+      304,
+      277.5
+     ],
+     [
+      308,
+      277.5
+     ],
+     [
+      312,
+      277.5
+     ],
+     [
+      316,
+      277.5
+     ],
+     [
+      320,
+      277.5
+     ],
+     [
+      324,
+      277.5
+     ],
+     [
+      328,
+      277.5
+     ],
+     [
+      332,
+      277.5
+     ],
+     [
+      336,
+      277.5
+     ],
+     [
+      341,
+      277.5
+     ],
+     [
+      345,
+      278
+     ],
+     [
+      349,
+      280.5
+     ],
+     [
+      353,
+      278.5
+     ],
+     [
+      357,
+      277.5
+     ],
+     [
+      361,
+      277.5
+     ],
+     [
+      365,
+      277.5
+     ],
+     [
+      369,
+      277.5
+     ],
+     [
+      373,
+      277.5
+     ],
+     [
+      377,
+      277.5
+     ],
+     [
+      381,
+      277.5
+     ],
+     [
+      385,
+      277.5
+     ],
+     [
+      389,
+      277.5
+     ],
+     [
+      393,
+      277.5
+     ],
+     [
+      397,
+      277.5
+     ],
+     [
+      401,
+      277.5
+     ],
+     [
+      405,
+      277.5
+     ],
+     [
+      414,
+      277.5
+     ],
+     [
+      418,
+      277.5
+     ],
+     [
+      422,
+      277.5
+     ],
+     [
+      426,
+      277.5
+     ],
+     [
+      430,
+      277.5
+     ],
+     [
+      434,
+      277.5
+     ],
+     [
+      438,
+      277.5
+     ],
+     [
+      442,
+      277.5
+     ],
+     [
+      446,
+      277.5
+     ],
+     [
+      450,
+      277.5
+     ],
+     [
+      454,
+      277.5
+     ],
+     [
+      458,
+      277.5
+     ],
+     [
+      463,
+      277.5
+     ],
+     [
+      467,
+      277.5
+     ],
+     [
+      472,
+      277.5
+     ],
+     [
+      476,
+      277.5
+     ],
+     [
+      480,
+      277.5
+     ],
+     [
+      484,
+      277.5
+     ],
+     [
+      488,
+      277.5
+     ],
+     [
+      492,
+      277.5
+     ],
+     [
+      496,
+      277.5
+     ],
+     [
+      500,
+      277.5
+     ],
+     [
+      504,
+      277.5
+     ],
+     [
+      508,
+      277.5
+     ],
+     [
+      512,
+      277.5
+     ],
+     [
+      516,
+      277.5
+     ],
+     [
+      520,
+      277.5
+     ],
+     [
+      524,
+      277.5
+     ],
+     [
+      528,
+      277.5
+     ],
+     [
+      532,
+      276.5
+     ],
+     [
+      536,
+      276.5
+     ],
+     [
+      540,
+      275.5
+     ],
+     [
+      544,
+      275
+     ],
+     [
+      548,
+      274.5
+     ],
+     [
+      552,
+      274
+     ],
+     [
+      556,
+      273.5
+     ],
+     [
+      560,
+      273
+     ],
+     [
+      564,
+      272.5
+     ],
+     [
+      568,
+      271.5
+     ],
+     [
+      572,
+      271.5
+     ],
+     [
+      576,
+      270.5
+     ],
+     [
+      580,
+      270
+     ],
+     [
+      584,
+      269.5
+     ],
+     [
+      588,
+      269
+     ],
+     [
+      592,
+      268.5
+     ],
+     [
+      596,
+      268
+     ],
+     [
+      600,
+      267.5
+     ],
+     [
+      604,
+      266.5
+     ],
+     [
+      608,
+      266
+     ],
+     [
+      612,
+      265.5
+     ],
+     [
+      616,
+      265
+     ],
+     [
+      620,
+      264.5
+     ],
+     [
+      624,
+      264
+     ],
+     [
+      628,
+      263.5
+     ],
+     [
+      632,
+      262.5
+     ],
+     [
+      636,
+      262.5
+     ],
+     [
+      640,
+      261.5
+     ],
+     [
+      644,
+      261
+     ],
+     [
+      648,
+      260.5
+     ],
+     [
+      652,
+      260
+     ],
+     [
+      656,
+      259.5
+     ],
+     [
+      660,
+      259
+     ],
+     [
+      664,
+      258.5
+     ],
+     [
+      668,
+      257.5
+     ],
+     [
+      672,
+      257
+     ],
+     [
+      676,
+      256.5
+     ],
+     [
+      680,
+      256
+     ],
+     [
+      684,
+      255.5
+     ],
+     [
+      688,
+      255
+     ],
+     [
+      692,
+      254.5
+     ],
+     [
+      696,
+      253.5
+     ],
+     [
+      700,
+      253.5
+     ],
+     [
+      704,
+      252.5
+     ],
+     [
+      708,
+      252
+     ],
+     [
+      712,
+      251.5
+     ],
+     [
+      716,
+      251
+     ],
+     [
+      720,
+      250.5
+     ],
+     [
+      725,
+      249.5
+     ],
+     [
+      729,
+      249
+     ],
+     [
+      733,
+      248.5
+     ],
+     [
+      737,
+      248
+     ],
+     [
+      741,
+      247.5
+     ],
+     [
+      745,
+      247
+     ],
+     [
+      749,
+      246.5
+     ],
+     [
+      753,
+      246
+     ],
+     [
+      757,
+      245.5
+     ],
+     [
+      761,
+      244.5
+     ],
+     [
+      765,
+      244
+     ],
+     [
+      769,
+      243.5
+     ],
+     [
+      773,
+      243
+     ],
+     [
+      777,
+      242.5
+     ],
+     [
+      781,
+      242
+     ],
+     [
+      785,
+      241.5
+     ],
+     [
+      789,
+      240.5
+     ],
+     [
+      793,
+      240.5
+     ],
+     [
+      797,
+      239.5
+     ],
+     [
+      801,
+      239
+     ],
+     [
+      806,
+      238.5
+     ],
+     [
+      810,
+      238
+     ],
+     [
+      814,
+      237.5
+     ],
+     [
+      818,
+      236.5
+     ],
+     [
+      822,
+      236
+     ],
+     [
+      826,
+      235.5
+     ],
+     [
+      830,
+      235
+     ],
+     [
+      834,
+      234.5
+     ],
+     [
+      838,
+      234
+     ],
+     [
+      842,
+      233.5
+     ],
+     [
+      846,
+      232.5
+     ],
+     [
+      850,
+      232.5
+     ],
+     [
+      854,
+      231.5
+     ],
+     [
+      858,
+      231
+     ]
+    ]
+   },
+   {
+    "id": "fin.le",
+    "view": "side",
+    "edge": "lo",
+    "parts": [
+     "fin"
+    ],
+    "spans": [
+     [
+      1.5,
+      2.7,
+      "fin LE"
+     ]
+    ],
+    "along": "h",
+    "read": "a",
+    "pts": [
+     [
+      756.5,
+      36
+     ],
+     [
+      756.5,
+      39
+     ],
+     [
+      756.5,
+      42
+     ],
+     [
+      756.5,
+      45
+     ],
+     [
+      756.5,
+      48
+     ],
+     [
+      756.5,
+      51
+     ],
+     [
+      756.5,
+      55
+     ],
+     [
+      756.5,
+      58
+     ],
+     [
+      756.5,
+      61
+     ],
+     [
+      756.5,
+      64
+     ],
+     [
+      756.5,
+      67
+     ],
+     [
+      756,
+      70
+     ],
+     [
+      756.5,
+      73
+     ],
+     [
+      756.5,
+      76
+     ],
+     [
+      756.5,
+      79
+     ],
+     [
+      756.5,
+      82
+     ],
+     [
+      756.5,
+      85
+     ],
+     [
+      756.5,
+      88
+     ],
+     [
+      756.5,
+      91
+     ],
+     [
+      756.5,
+      94
+     ],
+     [
+      756.5,
+      97
+     ],
+     [
+      756.5,
+      101
+     ],
+     [
+      756.5,
+      104
+     ],
+     [
+      756.5,
+      107
+     ],
+     [
+      756.5,
+      110
+     ],
+     [
+      756.5,
+      113
+     ],
+     [
+      756.5,
+      116
+     ]
+    ]
+   },
+   {
+    "id": "fin.te",
+    "view": "side",
+    "edge": "hi",
+    "parts": [
+     "fin"
+    ],
+    "spans": [
+     [
+      0.9,
+      2.6,
+      "rudder TE"
+     ]
+    ],
+    "along": "h",
+    "read": "a",
+    "pts": [
+     [
+      850.5,
+      37
+     ],
+     [
+      850.5,
+      40
+     ],
+     [
+      850.5,
+      43
+     ],
+     [
+      850.5,
+      46
+     ],
+     [
+      850.5,
+      49
+     ],
+     [
+      850.5,
+      52
+     ],
+     [
+      850.5,
+      55
+     ],
+     [
+      850.5,
+      58
+     ],
+     [
+      850.5,
+      61
+     ],
+     [
+      850.5,
+      64
+     ],
+     [
+      850.5,
+      67
+     ],
+     [
+      850.5,
+      70
+     ],
+     [
+      850.5,
+      73
+     ],
+     [
+      850.5,
+      76
+     ],
+     [
+      850.5,
+      79
+     ],
+     [
+      850.5,
+      82
+     ],
+     [
+      850.5,
+      85
+     ],
+     [
+      850.5,
+      88
+     ],
+     [
+      850.5,
+      91
+     ],
+     [
+      850.5,
+      94
+     ],
+     [
+      850.5,
+      97
+     ],
+     [
+      851,
+      100
+     ],
+     [
+      850.5,
+      103
+     ],
+     [
+      850.5,
+      106
+     ],
+     [
+      850.5,
+      109
+     ],
+     [
+      850.5,
+      112
+     ],
+     [
+      850.5,
+      115
+     ],
+     [
+      850.5,
+      118
+     ],
+     [
+      850.5,
+      121
+     ],
+     [
+      850.5,
+      124
+     ],
+     [
+      850.5,
+      127
+     ],
+     [
+      850.5,
+      130
+     ],
+     [
+      850.5,
+      133
+     ],
+     [
+      850.5,
+      136
+     ],
+     [
+      850.5,
+      139
+     ],
+     [
+      850.5,
+      142
+     ],
+     [
+      850.5,
+      145
+     ],
+     [
+      850.5,
+      148
+     ],
+     [
+      850.5,
+      151
+     ],
+     [
+      850.5,
+      154
+     ],
+     [
+      850.5,
+      157
+     ],
+     [
+      850.5,
+      160
+     ],
+     [
+      850.5,
+      163
+     ],
+     [
+      850.5,
+      166
+     ],
+     [
+      850.5,
+      169
+     ]
+    ]
+   },
+   {
+    "id": "dorsal",
+    "view": "side",
+    "edge": "top",
+    "parts": [
+     "fin",
+     "body",
+     "pillar",
+     "waist"
+    ],
+    "spans": [
+     [
+      7.3,
+      9,
+      "dorsal"
+     ]
+    ],
+    "pts": [
+     [
+      608,
+      162.5
+     ],
+     [
+      611,
+      162
+     ],
+     [
+      614,
+      161
+     ],
+     [
+      617,
+      160.5
+     ],
+     [
+      620,
+      159.5
+     ],
+     [
+      623,
+      158.5
+     ],
+     [
+      626,
+      157.5
+     ],
+     [
+      629,
+      157
+     ],
+     [
+      632,
+      156
+     ],
+     [
+      635,
+      155.5
+     ],
+     [
+      638,
+      154.5
+     ],
+     [
+      641,
+      153.5
+     ],
+     [
+      644,
+      152.5
+     ],
+     [
+      647,
+      152
+     ],
+     [
+      650,
+      151
+     ],
+     [
+      653,
+      150.5
+     ],
+     [
+      656,
+      149.5
+     ],
+     [
+      659,
+      148.5
+     ],
+     [
+      662,
+      148
+     ],
+     [
+      665,
+      147
+     ],
+     [
+      668,
+      146.5
+     ],
+     [
+      671,
+      145.5
+     ],
+     [
+      674,
+      144.5
+     ],
+     [
+      677,
+      143.5
+     ],
+     [
+      680,
+      143
+     ],
+     [
+      683,
+      142
+     ],
+     [
+      686,
+      141.5
+     ],
+     [
+      689,
+      140.5
+     ],
+     [
+      692,
+      139.5
+     ],
+     [
+      695,
+      138.5
+     ],
+     [
+      698,
+      138
+     ],
+     [
+      701,
+      137
+     ],
+     [
+      704,
+      136.5
+     ],
+     [
+      707,
+      135.5
+     ],
+     [
+      710,
+      134.5
+     ],
+     [
+      713,
+      133.5
+     ],
+     [
+      716,
+      133
+     ],
+     [
+      719,
+      132
+     ],
+     [
+      722,
+      131.5
+     ],
+     [
+      725,
+      130.5
+     ],
+     [
+      728,
+      129.5
+     ],
+     [
+      731,
+      128.5
+     ],
+     [
+      734,
+      128
+     ],
+     [
+      737,
+      127
+     ],
+     [
+      740,
+      126.5
+     ],
+     [
+      743,
+      125.5
+     ],
+     [
+      746,
+      124.5
+     ],
+     [
+      749,
+      123.5
+     ],
+     [
+      752,
+      123
+     ]
+    ]
+   },
+   {
+    "id": "stab.le",
+    "view": "top",
+    "edge": "lo",
+    "parts": [
+     "stab"
+    ],
+    "spans": [
+     [
+      0.3,
+      2.5,
+      "stab LE"
+     ]
+    ],
+    "along": "s",
+    "read": "a",
+    "signed": true,
+    "pts": [
+     [
+      793.5,
+      800
+     ],
+     [
+      793.5,
+      804
+     ],
+     [
+      793.5,
+      808
+     ],
+     [
+      793.5,
+      812
+     ],
+     [
+      793.5,
+      816
+     ],
+     [
+      793.5,
+      820
+     ],
+     [
+      793.5,
+      824
+     ],
+     [
+      793.5,
+      828
+     ],
+     [
+      793.5,
+      832
+     ],
+     [
+      793.5,
+      836
+     ],
+     [
+      793.5,
+      840
+     ],
+     [
+      793.5,
+      844
+     ],
+     [
+      793.5,
+      848
+     ],
+     [
+      793.5,
+      852
+     ],
+     [
+      793.5,
+      856
+     ],
+     [
+      793.5,
+      860
+     ],
+     [
+      793.5,
+      864
+     ],
+     [
+      793.5,
+      868
+     ],
+     [
+      793.5,
+      872
+     ],
+     [
+      793.5,
+      876
+     ],
+     [
+      793.5,
+      880
+     ],
+     [
+      793.5,
+      884
+     ],
+     [
+      793.5,
+      888
+     ],
+     [
+      793.5,
+      892
+     ],
+     [
+      793.5,
+      896
+     ],
+     [
+      793.5,
+      900
+     ],
+     [
+      793.5,
+      904
+     ],
+     [
+      793.5,
+      908
+     ],
+     [
+      793.5,
+      912
+     ],
+     [
+      793.5,
+      916
+     ],
+     [
+      793.5,
+      920
+     ],
+     [
+      793.5,
+      924
+     ],
+     [
+      793.5,
+      928
+     ],
+     [
+      793.5,
+      932
+     ],
+     [
+      793.5,
+      936
+     ],
+     [
+      793.5,
+      940
+     ],
+     [
+      793.5,
+      944
+     ],
+     [
+      793.5,
+      948
+     ],
+     [
+      793.5,
+      952
+     ],
+     [
+      793.5,
+      956
+     ],
+     [
+      793.5,
+      960
+     ],
+     [
+      793.5,
+      964
+     ],
+     [
+      793.5,
+      968
+     ],
+     [
+      793.5,
+      972
+     ]
+    ]
+   },
+   {
+    "id": "stab.te",
+    "view": "top",
+    "edge": "hi",
+    "parts": [
+     "stab"
+    ],
+    "spans": [
+     [
+      0.3,
+      2.5,
+      "elevator TE"
+     ]
+    ],
+    "along": "s",
+    "read": "a",
+    "signed": true,
+    "pts": [
+     [
+      889.5,
+      793
+     ],
+     [
+      889.5,
+      797
+     ],
+     [
+      889.5,
+      803
+     ],
+     [
+      889.5,
+      808
+     ],
+     [
+      889.5,
+      812
+     ],
+     [
+      889.5,
+      816
+     ],
+     [
+      889.5,
+      820
+     ],
+     [
+      889.5,
+      825
+     ],
+     [
+      889.5,
+      829
+     ],
+     [
+      889.5,
+      833
+     ],
+     [
+      889.5,
+      837
+     ],
+     [
+      889.5,
+      841
+     ],
+     [
+      889.5,
+      845
+     ],
+     [
+      889.5,
+      849
+     ],
+     [
+      889.5,
+      854
+     ],
+     [
+      889.5,
+      858
+     ],
+     [
+      889.5,
+      862
+     ],
+     [
+      889.5,
+      866
+     ],
+     [
+      889.5,
+      871
+     ],
+     [
+      889.5,
+      875
+     ],
+     [
+      889.5,
+      879
+     ],
+     [
+      889.5,
+      883
+     ],
+     [
+      889.5,
+      888
+     ],
+     [
+      889.5,
+      892
+     ],
+     [
+      889.5,
+      896
+     ],
+     [
+      889.5,
+      900
+     ],
+     [
+      889.5,
+      904
+     ],
+     [
+      889.5,
+      908
+     ],
+     [
+      889.5,
+      912
+     ],
+     [
+      889.5,
+      916
+     ],
+     [
+      889.5,
+      920
+     ],
+     [
+      889.5,
+      925
+     ],
+     [
+      889.5,
+      929
+     ],
+     [
+      889.5,
+      933
+     ],
+     [
+      889.5,
+      937
+     ],
+     [
+      889.5,
+      942
+     ],
+     [
+      889.5,
+      946
+     ],
+     [
+      889.5,
+      950
+     ],
+     [
+      889.5,
+      954
+     ],
+     [
+      889.5,
+      958
+     ],
+     [
+      889.5,
+      962
+     ],
+     [
+      889.5,
+      966
+     ],
+     [
+      889.5,
+      971
+     ]
+    ]
    }
   ]
  }

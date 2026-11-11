@@ -48,9 +48,9 @@
 
   // ---- the raster: the plane's parts drawn into a view's pixel grid, front-most part a pixel ------------------
   // V: the view (ox, oy, k, rot, flip); W x H the grid; x0, y0 the grid's top-left in sheet pixels
-  function raster(view, tris, parts, V, W, H, x0, y0) {
+  function raster(view, tris, parts, V, W, H, x0, y0, zOut) {
     x0 = x0 || 0; y0 = y0 || 0;
-    const id = new Uint8Array(W * H), zb = new Float32Array(W * H).fill(-1e9);
+    const id = new Uint8Array(W * H), zb = zOut || new Float32Array(W * H).fill(-1e9);
     const nT = parts.length, P = new Float32Array(9);
     for (let t = 0; t < nT; t++) {
       for (let e = 0; e < 3; e++) {
@@ -177,6 +177,104 @@
     return out;
   }
 
+  // ---- LINES: the drawing's outline traced densely (the user, 11 Nov: "you miss real big trends ... not enough
+  // reference points") -------------------------------------------------------------------------------------------
+  // trace(ink, W, H, x0, y0, x1, opts): follow a dark line on the sheet from (x0, y0) column by column to x1. At each
+  // column the ink run nearest the line's predicted height (its own slope, from the last points) is taken, within
+  // `jump` px; a gap (a crossing leg, a strut's shadow, a broken line) is bridged by the prediction for up to `gap`
+  // columns. ink: Uint8Array W x H, 1 = ink. Returns [[x, y], ...] every `step` columns (sheet pixels, y the run's centre).
+  function trace(ink, W, H, x0, y0, x1, opts) {
+    opts = opts || {};
+    if (opts.vertical) {            // a line that runs up the sheet (a fin's edge): trace the transposed sheet, x1 = the end ROW
+      const T = new Uint8Array(W * H);
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) T[x * H + y] = ink[y * W + x];
+      return trace(T, H, W, y0, x0, x1, Object.assign({}, opts, { vertical: false })).map(p => [p[1], p[0]]);
+    }
+    const jump = opts.jump || 3, gap = opts.gap || 12, step = opts.step || 1, dir = x1 >= x0 ? 1 : -1;
+    const pts = [[x0, y0]];
+    let y = y0, slope = 0, miss = 0, last = [x0, y0];
+    const hist = [[x0, y0]];
+    for (let x = x0 + dir; dir > 0 ? x <= x1 : x >= x1; x += dir) {
+      const pred = y + slope * dir;
+      let best = null, bd = 1e9;
+      for (let yy = Math.max(0, Math.floor(pred - jump - 1)); yy <= Math.min(H - 1, Math.ceil(pred + jump + 1)); yy++) {
+        if (!ink[yy * W + x]) continue;
+        let a = yy, b = yy; while (a > 0 && ink[(a - 1) * W + x]) a--; while (b < H - 1 && ink[(b + 1) * W + x]) b++;
+        if (b - a > (opts.maxRun || 6)) continue;             // a vertical stroke (a leg, a frame line) is not our line
+        const c = (a + b) / 2, d = Math.abs(c - pred);
+        if (d < bd && d <= jump) { bd = d; best = c; }
+      }
+      if (best == null) { if (++miss > gap) break; y = pred; continue; }
+      miss = 0; y = best; hist.push([x, y]);
+      if (hist.length > 8) hist.shift();
+      if (hist.length >= 4) { const a = hist[0], b = hist[hist.length - 1]; slope = (b[1] - a[1]) / Math.abs(b[0] - a[0]); }
+      if (Math.abs(x - last[0]) >= step) { pts.push([x, +y.toFixed(1)]); last = [x, y]; }
+    }
+    return pts;
+  }
+  // our outline along a reference line: the fuselage (or a named part set) sliced at each point's station, its top or
+  // bottom (side view), its half-width (top view); the line's points in view metres beside ours
+  function lineCompare(ref, line, B) {
+    const V = ref.views && ref.views[line.view]; if (!V) return null;
+    const set = new Set((line.parts || ['body', 'glass', 'screen', 'pillar', 'waist', 'cowl']).map(p => PID[p]));
+    // the line's own axes: along = the axis it runs along (where we slice), read = the axis compared; in the view's
+    // metres: side X = a, Y = h; top X = a, Y = s; front X = s, Y = h. Defaults: a fuselage line runs along a (side:
+    // reads h, its top or bottom; top: reads the half-width)
+    const AX = { a: 0, h: 1, s: 2 };
+    const viewAx = line.view === 'side' ? ['a', 'h'] : line.view === 'top' ? ['a', 's'] : ['s', 'h'];
+    const along = line.along || 'a', read = line.read || (line.view === 'top' ? 's' : 'h');
+    const lo = line.edge === 'bottom' || line.edge === 'lo';
+    const out = [];
+    for (const q of line.pts) {
+      const p = fromPx(V, q[0], q[1]), coord = { [viewAx[0]]: p[0], [viewAx[1]]: p[1] };
+      const c = slice(B.tris, B.parts, set, AX[along], coord[along]);
+      let o = null;
+      if (c) o = read === 's' && !line.signed ? Math.max(c.hi[2], -c.lo[2]) : lo ? c.lo[AX[read]] : c.hi[AX[read]];
+      const r = read === 's' && !line.signed ? Math.abs(coord.s) : coord[read];
+      out.push({ a: coord[along], ref: r, ours: o });
+    }
+    return out;
+  }
+  // a line's rows for the table: per named stretch (line.spans [[a0, a1, name], ...]) the mean offset (ours - ref), the
+  // worst point, and the SLOPE difference (the trend: a nose that falls where the drawing's rises reads here first)
+  function lineRows(ref, B) {
+    const rows = [];
+    for (const L of (ref.lines || [])) {
+      const P = lineCompare(ref, L, B); if (!P) continue;
+      for (const [a0, a1, name] of (L.spans || [[-1e9, 1e9, 'all']])) {
+        const q = P.filter(p => p.a >= a0 && p.a <= a1 && p.ours != null);
+        if (q.length < 2) continue;
+        const d = q.map(p => p.ours - p.ref), mean = d.reduce((x, y) => x + y, 0) / d.length;
+        const worst = d.reduce((x, y) => Math.abs(y) > Math.abs(x) ? y : x, 0);
+        const fit = arr => { const n = arr.length, mx = arr.reduce((s, p) => s + p[0], 0) / n, my = arr.reduce((s, p) => s + p[1], 0) / n;
+          let sxx = 0, sxy = 0; for (const p of arr) { sxx += (p[0] - mx) ** 2; sxy += (p[0] - mx) * (p[1] - my); } return sxx ? sxy / sxx : 0; };
+        const sOurs = fit(q.map(p => [p.a, p.ours])), sRef = fit(q.map(p => [p.a, p.ref]));
+        const tol = L.tol || 0.02, ang = (Math.atan(sOurs) - Math.atan(sRef)) * 180 / Math.PI;
+        rows.push({ id: 'line.' + L.id + '.' + name + '.offset', label: L.id + ', ' + name + ': mean offset', unit: 'm', ours: mean, ref: 0, src: 'line', diff: mean, tol, ok: Math.abs(mean) <= tol });
+        rows.push({ id: 'line.' + L.id + '.' + name + '.worst', label: L.id + ', ' + name + ': worst point', unit: 'm', ours: worst, ref: 0, src: 'line', diff: worst, tol: 2 * tol, ok: Math.abs(worst) <= 2 * tol });
+        // STRAIGHTNESS: the largest departure from the stretch's own chord, ours against the drawing's (a curved fin edge
+        // where the drawing is ruled straight); KINK: the sharpest turn between neighbouring 15 cm runs (a bump where a
+        // fitting meets the skin; the user: "aim for continuous lines and shapes wherever possible")
+        const dev = arr => { const a = arr[0], b = arr[arr.length - 1], k = (b[1] - a[1]) / ((b[0] - a[0]) || 1e-9);
+          return arr.reduce((m, p) => Math.max(m, Math.abs(p[1] - (a[1] + k * (p[0] - a[0])))), 0); };
+        const kink = arr => { let m = 0; const run = 0.15;
+          for (let i = 0; i < arr.length; i++) {
+            const j = arr.findIndex(p => p[0] >= arr[i][0] + run), l = arr.findIndex(p => p[0] >= arr[i][0] + 2 * run);
+            if (j < 0 || l < 0) break;
+            const s1 = Math.atan2(arr[j][1] - arr[i][1], arr[j][0] - arr[i][0]), s2 = Math.atan2(arr[l][1] - arr[j][1], arr[l][0] - arr[j][0]);
+            m = Math.max(m, Math.abs(s2 - s1) * 180 / Math.PI);
+          }
+          return m; };
+        const qo = q.map(p => [p.a, p.ours]), qr = q.map(p => [p.a, p.ref]);
+        const dO = dev(qo), dR = dev(qr), kO = kink(qo), kR = kink(qr);
+        rows.push({ id: 'line.' + L.id + '.' + name + '.straight', label: L.id + ', ' + name + ': bow (ours vs drawing)', unit: 'm', ours: dO, ref: dR, src: 'line', diff: dO - dR, tol, ok: Math.abs(dO - dR) <= tol });
+        rows.push({ id: 'line.' + L.id + '.' + name + '.kink', label: L.id + ', ' + name + ': sharpest turn', unit: 'deg', ours: kO, ref: kR, src: 'line', diff: kO - kR, tol: L.kinkTol || 6, ok: kO - kR <= (L.kinkTol || 6) });
+        rows.push({ id: 'line.' + L.id + '.' + name + '.slope', label: L.id + ', ' + name + ': slope', unit: 'deg', ours: Math.atan(sOurs) * 180 / Math.PI, ref: Math.atan(sRef) * 180 / Math.PI, src: 'line', diff: ang, tol: L.slopeTol || 1, ok: Math.abs(ang) <= (L.slopeTol || 1) });
+      }
+    }
+    return rows;
+  }
+
   // ---- OUR key measurements (the plane as the generator built it) ------------------------------------------------
   // stations: the table's own list of profile stations (metres aft of the tip), from the reference's marks
   function measure(B, opts) {
@@ -263,6 +361,42 @@
     }
     return M;
   }
+  // a window's SHAPE in two numbers: how full the top and the bottom quarters of its box are (a window rounded at the
+  // top reads tf < bf; the user, 11 Nov: "your windows are ... upside down in shape")
+  function shapeFill(inside, x0, y0, x1, y1) {
+    const h = y1 - y0 + 1, q = Math.max(1, Math.round(h / 4));
+    const frac = (ya, yb) => { let n = 0, t = 0; for (let y = ya; y <= yb; y++) for (let x = x0; x <= x1; x++) { t++; if (inside(x, y)) n++; } return t ? n / t : 0; };
+    return { tf: +frac(y0, y0 + q - 1).toFixed(3), bf: +frac(y1 - q + 1, y1).toFixed(3) };
+  }
+  // FOLDS: the fuselage's skin seen from the side, alone, at 2 cm: neighbouring skin pixels whose depth jumps by more
+  // than `jump` mean the skin folds in on itself or opens (a frame pulled through its neighbours: the PC-6's door-post
+  // bottom raised 0.4 m left the belly line straight and a dent inside it - a slice of the outline cannot see that).
+  // Returns the folds' total length (metres along the body) and where the worst one sits.
+  function folds(B, jump) {
+    jump = jump || 0.2;
+    const keep = new Set([PID.body, PID.pillar, PID.waist, PID.glass, PID.screen]);
+    const idx = []; for (let t = 0; t < B.parts.length; t++) if (keep.has(B.parts[t])) idx.push(t);
+    const T2 = new Float32Array(idx.length * 9), P2 = new Uint8Array(idx.length);
+    idx.forEach((t, i) => { T2.set(B.tris.subarray(t * 9, t * 9 + 9), i * 9); P2[i] = B.parts[t]; });
+    const all = extent(T2, P2, keep); if (!all) return { len: 0 };
+    const res = 50, V = { ox: -all.lo[0] * res + 2, oy: all.hi[1] * res + 2, k: res, rot: 0 };
+    const W = Math.ceil((all.hi[0] - all.lo[0]) * res) + 4, H = Math.ceil((all.hi[1] - all.lo[1]) * res) + 4;
+    const zb = new Float32Array(W * H).fill(-1e9), id = raster('side', T2, P2, V, W, H, 0, 0, zb);
+    const cols = new Uint8Array(W); let worst = null, wd = 0;
+    for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
+      const i = y * W + x; if (!id[i]) continue;
+      for (const j of [i + 1, i + W]) {
+        if (!id[j]) continue;
+        // a jump only counts INSIDE the silhouette: both neighbours' own neighbours are skin too (the outline's edge,
+        // where the far side shows past a curve, is not a fold)
+        if (!id[j + 1] || !id[j - 1] || !id[j + W] || !id[j - W] || !id[i - 1] || !id[i - W]) continue;
+        const d = Math.abs(zb[i] - zb[j]);
+        if (d > jump) { cols[x] = 1; if (d > wd) { wd = d; worst = fromPx(V, x, y); } }
+      }
+    }
+    let n = 0; for (let x = 0; x < W; x++) n += cols[x];
+    return { len: +(n / res).toFixed(2), at: worst ? +worst[0].toFixed(2) : null, h: worst ? +worst[1].toFixed(2) : null, depth: +wd.toFixed(2) };
+  }
   // the windows as the side view shows them (starboard): boxes in view metres, from a 1 cm raster
   function windows(B) {
     const res = 100;
@@ -279,7 +413,8 @@
     const id = raster('side', T2, P2, V, W, H, 0, 0);
     return components(id, W, H, PID.glass, 20).map(c => {
       const p0 = fromPx(V, c.x0, c.y1 + 1), p1 = fromPx(V, c.x1 + 1, c.y0);
-      return { a0: +p0[0].toFixed(3), a1: +p1[0].toFixed(3), h0: +p0[1].toFixed(3), h1: +p1[1].toFixed(3) };
+      const f = shapeFill((x, y) => id[y * W + x] === PID.glass, c.x0, c.y0, c.x1, c.y1);
+      return { a0: +p0[0].toFixed(3), a1: +p1[0].toFixed(3), h0: +p0[1].toFixed(3), h1: +p1[1].toFixed(3), tf: f.tf, bf: f.bf };
     }).sort((x, y) => x.a0 - y.a0);
   }
 
@@ -305,6 +440,7 @@
     ['fin.le.at',        'fin LE at the mark\'s height',  'm',  0.03,   { mark: 'fin.le.at', view: 'side', c: 'X', probe: { parts: ['fin'], at: 'h', read: 'a', edge: 'lo' } }],
     ['fin.te.at',        'rudder TE at the mark\'s height', 'm', 0.03,  { mark: 'fin.te.at', view: 'side', c: 'X', probe: { parts: ['fin'], at: 'h', read: 'a', edge: 'hi' } }],
     ['strut.at',         'wing strut at the mark\'s height', 'm', 0.04, { mark: 'strut.at', view: 'side', c: 'X', probe: { parts: ['strut'], at: 'h', read: 'a', edge: 'lo' } }],
+    ['stab.top',         'tailplane top at the mark',    'm',  0.02,   { mark: 'stab.top', view: 'side', c: 'Y', probe: { parts: ['stab'], at: 'a', read: 'h', edge: 'hi' } }],
     ['stab.span',        'tailplane span',               'm',  0.03,   { fig: 'geometry.stabSpan' }],
     ['stab.le',          'tailplane LE',                 'm',  0.03,   { mark: 'stab.le', view: 'top', c: 'X' }],
     ['stab.te',          'tailplane TE',                 'm',  0.03,   { mark: 'stab.te', view: 'top', c: 'X' }],
@@ -359,8 +495,8 @@
     return out.sort((x, y) => x.a0 - y.a0);
   }
   // THE TABLE: ours against the reference's, row by row
-  function compare(ref, ours, oursWin) {
-    const rows = [];
+  function compare(ref, ours, oursWin, B) {
+    const rows = B ? lineRows(ref, B) : [];
     for (const [id, label, unit, tol, rule] of KM) {
       const o = ours[id];
       let r = null, src = '';
@@ -390,6 +526,12 @@
       const cx = (rw.a0 + rw.a1) / 2, cy = (rw.h0 + rw.h1) / 2;
       let best = null, bd = 1e9;
       for (const w of W) { const d = Math.hypot((w.a0 + w.a1) / 2 - cx, (w.h0 + w.h1) / 2 - cy); if (d < bd) { bd = d; best = w; } }
+      const rm = ref.marks[rw.id];
+      if (best && rm && rm.tf != null && best.tf != null) {
+        const o = best.tf - best.bf, r = rm.tf - rm.bf, d = o - r;
+        rows.push({ id: rw.id + '.shape', label: rw.id.replace('window.', 'window ') + ' shape (top - bottom fullness)', unit: '', ours: o, ref: r,
+                    src: 'mark', diff: d, tol: 0.15, ok: Math.abs(d) <= 0.15 });
+      }
       for (const c of ['a0', 'a1', 'h0', 'h1']) {
         const o = best ? best[c] : null, d = o == null ? null : o - rw[c];
         rows.push({ id: rw.id + '.' + c, label: rw.id.replace('window.', 'window ') + ' ' + ({ a0: 'fore edge', a1: 'aft edge', h0: 'bottom', h1: 'top' })[c],
@@ -414,7 +556,7 @@
   }
 
   const api = { VIEWS, PARTS, PID, COLOURS, FUSE, proj, toPx, fromPx, raster, edges, slice, extent, components,
-    measure, windows, KM, markValue, figValue, refProfiles, refWindows, compare, stations, probes };
+    measure, windows, KM, markValue, figValue, refProfiles, refWindows, compare, stations, probes, shapeFill, folds, trace, lineCompare, lineRows };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.DT_CORE = api;
 })(typeof self !== 'undefined' ? self : this);

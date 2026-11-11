@@ -37,6 +37,17 @@ function birthSel(key, sel) {
   return D.designBake(Object.assign({}, a.sel, sel), a.over);
 }
 function build(spec, over, opts) { return context().DT_BUILD.build(W, spec, over, opts); }
+// THE VALUE A FOLLOW ROW TAKES (a frame row left null follows the reference section): the generator's own resolved
+// frame (cageSpec(P).frames.<frame>.val), so a search can start a follow row from where it stands
+const FRAME = { Nose: 'nose', Win: 'win', Post: 'post', Cab: 'cab', Pax: 'pax', Boom: 'boom' };
+function followValue(spec, key, over) {
+  const m = /^fr(Nose|Win|Post|Cab|Pax|Boom)(Top|Waist|Bot)(Y|W|Z)$/.exec(key);
+  if (!m) return null;
+  const W = context(), P = Object.assign(W.CAGE2.cageFromSpec(spec), over || {});
+  const fr = W.CAGE2.cageSpec(Object.assign({}, P)).frames || {};
+  const f = fr[FRAME[m[1]]], k = m[2].toLowerCase() + m[3];
+  return f && f.val && isFinite(f.val[k]) ? f.val[k] : null;
+}
 function rowDefs() { return context().DT_BUILD.rowDefs(W); }
 function load() { context(); return LOAD; }
-module.exports = { context, birth, birthSel, build, rowDefs, load, ROOT, CORE: require('./dt_core.js') };
+module.exports = { context, birth, birthSel, build, rowDefs, followValue, load, ROOT, CORE: require('./dt_core.js') };
