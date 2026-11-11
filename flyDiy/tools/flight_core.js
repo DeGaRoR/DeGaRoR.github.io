@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: f24a1573e8364a2c
+// body-sha256: 84ac9686c3c0d490
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -38587,6 +38587,9 @@ function clampSpec(spec) {
   S.cargo.kg = genClamp(S.cargo.kg || 0, 0, 400);
   fu.tailBays = genClamp(fu.tailBays | 0, 3, 6);
   fu.boom = (fu.boom === 'rod' || fu.boom === 'loft' || fu.boom === 'twin') ? fu.boom : null;
+  // THE HUB'S REAR SOCKET (61_gen_frame 3c): the rod slots into the wing's centre section - a rod's only, the key only
+  // when on
+  if (!(fu.rodHub === true && fu.boom === 'rod')) delete fu.rodHub;
   fu.postGap = genClamp(fu.postGap, 0.35, 1.10);
   fu.crownTop = genClamp(fu.crownTop, 0, 1);
   fu.crownSide = genClamp(fu.crownSide, 0, 0.6);
@@ -42531,6 +42534,32 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   const { wf, zs, zRoot, zCrank, xF, xR, xFat, xRat, sparSpacing, chordAt, yF,
           incAt, ribZ, linC, useStrut, strutOffset, sparFront, sparRear } = planes[0];
   const w = S.wing, G = S.geom;
+
+  // ---- 3c. THE HUB'S REAR SOCKET (the Archaeopteryx study's stage 2, futureDesigns/archaeopteryx/CONFIG_STUDY.md;
+  // the user, 11 Nov: "the centre section is the heart of the plane ... a rear socket for the rod to slot in") ----
+  // fuselage.rodHub: THE ROD SLOTS INTO THE WING'S CENTRE SECTION. Its root ring (the bulkhead ring at boxRear, the ROD
+  // cluster's first) is tied to the root bay's spar nodes - both spars, both sides, and the box caps under them - and
+  // those nodes join the rod's rigid cluster: the twin boom's recipe (G294: the attachment BAY rigid, both its stations;
+  // bolted to one rib the tail rode +-200 mm), so the tail's loads go into the wing's own box, not through the pod.
+  // The pod's own members to the rod stay (stage 3's pylon takes the pod off them). Nothing without the key
+  if (S.fuse && S.fuse.rodHub && S.fuse.boom === 'rod' && wf.L && wf.R) {
+    const RC = clusters.find(c => c.tag === 'ROD');
+    if (RC && RC.rings && RC.rings.length) {
+      const hub = [];
+      for (const sd of ['L', 'R']) for (const j of [0, Math.min(1, wf[sd].F.length - 1)])
+        for (const q of [wf[sd].F[j], wf[sd].R[j], wf[sd].FB ? wf[sd].FB[j] : null, wf[sd].RB ? wf[sd].RB[j] : null])
+          if (q != null && !hub.includes(q)) hub.push(q);
+      const far = (a, b) => Math.hypot(P[a][0] - P[b][0], P[a][1] - P[b][1], P[a][2] - P[b][2]) > 0.05;
+      // (the ties WEIGHTLESS - the cluster is the stiffness, the members its damage joints - and the socket billed once:
+      // a bolted alloy saddle and sleeve, ~1.2 kg INFERRED (the pod-and-rod's bulkhead socket's class), on the rod's root
+      // ring; 64 members at the fuselage's own gauge weighed 17 kg on the Archaeopteryx card)
+      for (const q of RC.rings[0]) for (const m of hub) if (far(q, m)) B(q, m, 'fus', 0, 0, 0, { noMass: true });
+      for (const q of RC.rings[0]) pt(q, 1.2 / RC.rings[0].length);
+      for (const m of hub) if (!RC.nodes.includes(m)) RC.nodes.push(m);
+      if (RC.dmg) RC.dmg.root = hub.slice();
+      RC.hub = hub.slice();
+    }
+  }
 
   // ---- 2b. engines OFF the nose (2026-09-04) ----------------------------
   // The pusher hangs on the ring nearest its station (the aft bulkhead) as
