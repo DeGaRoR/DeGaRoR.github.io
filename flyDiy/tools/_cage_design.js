@@ -2978,10 +2978,10 @@ const ARCHETYPES = [
                     // THE DRIVE AS THE TYPE HAS IT (the user's sketch on the drawing, 10 Nov: "in red the engine, in
                     // blue the shaft that is auto-drawn if you move the nose cone from the engine, and then the prop
                     // ... in the middle between the pole and the ground, a bit of clearance on both sides"): the motor
-                    // low behind the pilot (engBlockZ: 1.42-1.85 m behind the nose), the shaft aft
-                    // under the rod (cw_noseOff), a small prop at ~3.05 m, its hub midway between the rod's underside
-                    // and the drawing's ground (engY), ~0.09 m clear of each
-                    engY: -0.13, engBlockZ: 0.67, cw_noseOff: 1.08, cw_propD: 0.75,
+                    // on the aft bulkhead, low (11 Nov, the user: "it still needs to stick to the aft bulkhead"; 2.09-2.52
+                    // m behind the nose), the shaft aft under the rod (cw_noseOff), a small prop at ~3.05 m just past the
+                    // aft pod's tip, its hub midway between the rod's underside and the drawing's ground (engY)
+                    engY: -0.13, engBlockZ: 0, cw_noseOff: 0.46, cw_propD: 0.75,
                     // the wing: LE 1.08 / TE 2.30 behind the nose at the root, chord 1.19 -> 1.09 at the crank -> 0.56
                     wgSpan: 13.0, wgChord: 1.19, wgCrankAt: 0.48, wgCrankChord: 1.09, wgCrankX: 0.08,
                     wgChordTip: 0.56, wgTipX: 0.52, wgDihedral: 1, wgDihedralOut: 1, wgDx: 0,
@@ -2998,6 +2998,12 @@ const ARCHETYPES = [
                     cowlLoops: 2,
                     // no taper section (11 Nov, the user: "remove the taper section"): the rod straight off the aft pillar
                     taperOn: 0,
+                    // THE AERO AFT, OVER THE PUSHER (11 Nov, the user: "an aero aft pod ... ignoring the engine and the
+                    // shaft and everything, just drawing ... it tapers on the width, but it doesn't taper on the height"):
+                    // the blade, 0.89 m, to ~2.98 m behind the nose (the drawing's aft face 2.95). aeroAftOver is a row
+                    // of this branch (_cage_gen.js, _cage_cowl.js): a page without it draws no aft pod and stands the
+                    // engine, the shaft and the prop exactly where this one does
+                    aeroAftOver: 1, aeroAftOn: 1, aeroAftShape: 1, aeroAftLen: 1.2, aeroAftEdge: 1.0, aeroAftTip: 0.5,
                     // doorless, as the Chinook (11 Nov, the user: "the window joint is drawing wrong, as a staircase
                     // across the window" - the door's front edge, cut along the lattice where it crossed the long
                     // raked windscreen run)
@@ -3011,7 +3017,10 @@ const ARCHETYPES = [
                     // on the pillar kept and the wheels 0.2 m aft of it, the legs as short as the pod floor allows
                     // (0.15 m clear; a 45-deg leg from that anchor would put the axle above the floor): ~19 deg from
                     // vertical, level. Measured: the mains 2.23 m behind the nose, the CG empty 1.93, loaded 1.77
-                    pilotLen: 1.05, s1Z: 1.13, s1AxZ: -0.20, s1R: 0.13, s1Drop: 0.05, s1Root: 1,
+                    // ...AND WITH THE ENGINE BACK ON THE BULKHEAD (the CG 0.17 m further aft) the mains 0.2 m further
+                    // back: 0.40 m aft of the anchor, 39 deg (the user's 45 max); the mains 2.43 m behind the nose, the CG
+                    // empty 2.10, loaded 1.88 - angled legs, not on the aft pod, so the build stands on master too
+                    pilotLen: 1.05, s1Z: 1.13, s1AxZ: -0.40, s1R: 0.13, s1Drop: 0.05, s1Root: 1,
                     s2Z: 3.0, s2R: 0.10, s2Drop: 0.05,
                     // the tail: the stab's size and station, the fin's outline (fit_tail.js), no dorsal fillet
                     stSpan: 0.98, stChord: 0.47, stChordTip: 1.2, stZ: 0.4,

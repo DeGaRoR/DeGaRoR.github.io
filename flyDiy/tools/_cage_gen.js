@@ -8422,6 +8422,10 @@ const CAGE_PARAMS = {
   // the aero aft (2026-09-04, cut 1): the cowl layer lofts it on the aft face
   aeroAftOn: 0, aeroAftLen: 0.9, aeroAftDroop: 0, aeroAftTip: 0.5,
   aeroAftShape: 0, aeroAftEdge: 0.6,         // G339: cone | blade | flat | fin, the edge's fraction
+  // ARCHAEOPTERYX (11 Nov, the user: "an aero aft pod enabled here ... ignoring the engine and the shaft and everything,
+  // just drawing"): 1 draws the aero aft over a pusher's bulkhead too - the drawing only, the engine and its shaft stay
+  // where they are and fly as they did; 0 (every build before it) keeps the pusher's open face
+  aeroAftOver: 0,
   // bubble crest (G15, superseded by canopy below — kept as a dev param):
   // a smooth longitudinal bump of the roof/ceil over the pilot+pax cabin.
   // h 0 = off (the fit identity path).
@@ -9386,7 +9390,8 @@ function cageSpec(P) {
   const noseEngK = engMountK === 0 || engMountK === 4 || engMountK === 5;
   // the aero aft (cut 2): the pod's own rings past the bulkhead; never with
   // a pusher on the bulkhead (its cowl is the aft), only where the pod ends
-  const aeroAft = (+P.aeroAftOn && (P.boomStyle || +P.boomTwin) && !aftEng)
+  // (ARCHAEOPTERYX: ...unless aeroAftOver asks for the pod over the pusher, drawn only)
+  const aeroAft = (+P.aeroAftOn && (P.boomStyle || +P.boomTwin) && (!aftEng || +P.aeroAftOver))
     ? { len: Math.max(0.3, +P.aeroAftLen || 0.9), droop: +P.aeroAftDroop || 0,
         tip: Math.max(0, Math.min(1, +P.aeroAftTip == null ? 0.5 : +P.aeroAftTip)),
         // G339: the shape (0 cone, 1 blade, 2 flat, 3 fin) and the edge the

@@ -1217,8 +1217,11 @@ window.CAGE_PAGE = {
       // the job). Length, droop, and the tip from a rounded dome to a teardrop.
       // (2026-09-04: wherever the pod ENDS at the bulkhead — a rod boom or twin
       // booms of either construction — and no pusher sits on it)
+      // ARCHAEOPTERYX (11 Nov): over a pusher too, when aeroAftOver asks for it (the pod drawn over the engine's face)
+      ['aeroAftOver', 'aero aft over the pusher (drawing only)', 0, 1, 1,
+       { when: P => (+P.boomStyle === 1 || +P.boomTwin) && [1, 4].includes(Math.round(P.engMount || 0)) }],
       ['aeroAftOn', 'aero aft',        0, 1, 1,
-       { when: P => (+P.boomStyle === 1 || +P.boomTwin) && ![1, 4].includes(Math.round(P.engMount || 0)) }],
+       { when: P => (+P.boomStyle === 1 || +P.boomTwin) && (![1, 4].includes(Math.round(P.engMount || 0)) || +P.aeroAftOver) }],
       ['aeroAftLen', 'aero aft length', 0.3, 2.0, 0.01,
        { when: P => (+P.boomStyle === 1 || +P.boomTwin) && +P.aeroAftOn, dim: 'len' }],
       ['aeroAftDroop', 'aero aft droop', -0.3, 0.3, 0.005,
