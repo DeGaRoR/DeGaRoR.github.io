@@ -21158,8 +21158,8 @@
   // 0 = as before (the default until the cold A/B). (var and declarations: the guard and early callers read these before
   // this line has run - no TDZ; an unset PACE_N paces nothing)
   // ?pace=auto: half the machine's threads, 2 to 8 (the driver's compile workers scale with the cores; a phone gets 2-4)
-  var PACE_N = (() => { const m = typeof location !== 'undefined' && /[?&]pace=(\d+|auto)/.exec(location.search || ''); if (!m) return 0;
-    if (m[1] !== 'auto') return +m[1];
+  var PACE_N = (() => { const m = typeof location !== 'undefined' && /[?&]pace=(\d+|auto)/.exec(location.search || ''); 
+    if (m && m[1] !== 'auto') return +m[1];   // PACE-ON (the user, 11 Nov ~16:00: "Ship it on, the drawbacks are not severe"): auto is the DEFAULT, ?pace=0 the opt-out
     const hc = (typeof navigator !== 'undefined' && navigator.hardwareConcurrency) || 4; return Math.max(2, Math.min(8, Math.floor(hc / 2))); })();
   // PACE-REVEAL: compileSliced's live paced jobs { left: reps not keyed yet, t: its last tick } and the reveal's cap when paced
   var PACED_JOBS = new Set(), PACE_CAP = 120000;

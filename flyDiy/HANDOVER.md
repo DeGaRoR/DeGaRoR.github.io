@@ -314606,3 +314606,10 @@ TIMED GATE (02:56-03:58): taxi chase @HOME and @mn_strip 30 fps, 0 frames over 4
 Parked fleet re-cooked on this build.
 
 No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change.
+
+## HWCOV - PACE-ON (BOOT-PROGRAMS pacing ON by default), 11 Nov 2026
+
+The user, 11 Nov ~16:00: "Ship it on, the drawbacks are not severe." app.js PACE_N: ?pace=auto is the DEFAULT (half the threads, 2-8), ?pace=0 the opt-out, ?pace=N a fixed count. With it, PACE-REVEAL: programsReady also waits for compileSliced's live paced jobs, cap 120 s when paced.
+
+- **The cost, named.** The cold A/B (10 Nov, evidence 2026-11-10/hwcov/boot_ab2) and the PACE-REVEAL legs (11 Nov, 2026-11-11/hwcov/pace_reveal): the roll-out walls go (auto 11-46 s vs 35-115 s off, worst frames mostly under 2 s vs 7-56 s), 0 links after the reveal (the old 26 s in-flight class is gone), but 1 cold load of 2 had a 1.2 s frame 1.2 s after the reveal (0 links: a first-use cost) and the garage ready can be slower on a cold profile (one load 233 s vs 117-143 s). The first-use frame is parked for Friday's perf round.
+- **Evidence of the parts.** dedupe (claude/prog-dedupe, not landed: 83 -> 76 twins); the GPU program cache keeps no entry over ~106 KB (the heavies never cached warm, 256 MB disk cache = no change); the pavement's 20 s link is 2/3 its sin()-hash noise (bisect 2026-11-11/hwcov/heavy_shaders) - both for the perf round.
