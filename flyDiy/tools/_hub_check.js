@@ -29,8 +29,9 @@ const born = cage => {
   const s0 = D.designBake(Object.assign({}, A.sel), { cage: Object.assign({}, A.over.cage, cage), spec: Object.assign({}, A.over.spec) });
   return LB.gameSpecFull({ v: s0.v, birth: 1, spec: s0 }).spec;
 };
-// (the card carries the hub since 11 Nov: the baseline turns it off)
-const s0 = born({ rodHub: 0 }), s1 = born({ rodHub: 1 });
+// (the card carries the hub since 11 Nov: the baseline turns it off; and it hangs on the mast since then too - the hub is
+// read on its own, the mast's head joining its cluster is GATE NACELLE's)
+const s0 = born({ rodHub: 0, hangOn: 0 }), s1 = born({ rodHub: 1, hangOn: 0 });
 const d0 = C.buildGen(JSON.parse(JSON.stringify(s0))), d1 = C.buildGen(JSON.parse(JSON.stringify(s1)));
 const rod = d => (d.parts.clusters || d.clusters || []).find(c => c.tag === 'ROD');
 
