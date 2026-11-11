@@ -156,6 +156,11 @@ S.scene.traverse(o => {
   if (!o.isMesh || !o.geometry || !o.geometry.attributes || !o.geometry.attributes.position) return;
   // --wire: a mesh that keeps its loft's grid (userData.grid, rows of points - the hub's blend) draws it, its rows and
   // its rays, the quads' own edges (depth-tested: only what is seen)
+  // ...and a mesh that keeps its own quads' edges (userData.wireGeo, a segment list: the wing layer's skin parts)
+  if (WIRE && o.userData && o.userData.wireGeo && o.userData.wireGeo.attributes && o.userData.wireGeo.attributes.position) {
+    const pa = o.userData.wireGeo.attributes.position, q = new THREE.Vector3(), Wm = i => { q.fromBufferAttribute(pa, i).applyMatrix4(o.matrixWorld); return [q.x, q.y, q.z]; };
+    for (let i = 0; i + 1 < pa.count; i += 2) wires.push({ a: Wm(i), b: Wm(i + 1) });
+  }
   if (WIRE && o.userData && Array.isArray(o.userData.grid)) {
     const Gd = o.userData.grid, Wm = p => { const q = new THREE.Vector3(p[0], p[1], p[2]).applyMatrix4(o.matrixWorld); return [q.x, q.y, q.z]; };
     for (let i = 0; i < Gd.length; i++) for (let k = 0; k < Gd[i].length; k++) {
@@ -204,10 +209,17 @@ function view(name) {
     top: { u: p => -p[2], w: p => -p[0], d: p => p[1] },                  // from above, the nose to the left
     front: { u: p => -p[0], w: p => p[1], d: p => p[2] },                // head-on, starboard on the left
     bottom: { u: p => -p[2], w: p => p[0], d: p => -p[1] },              // RETRACT G4: from below, the nose to the left
-    q: {}, qb: {}, qr: {},                                                 // set below
+    q: {}, qb: {}, qr: {}, qrb: {},                                        // set below
   }[name];
   if (name === 'qb') {  // RETRACT G4: a three-quarter from ahead, starboard, BELOW (the wells): yaw 37 deg, pitch -28 deg
     const cy = Math.cos(0.65), sy = Math.sin(0.65), cp = Math.cos(-0.49), sp = Math.sin(-0.49);
+    V.u = p => -p[2] * cy + p[0] * sy;
+    const dd = p => p[0] * cy + p[2] * sy;
+    V.w = p => p[1] * cp - dd(p) * sp;
+    V.d = p => dd(p) * cp + p[1] * sp;
+  }
+  if (name === 'qrb') {  // a three-quarter from BEHIND, starboard, BELOW (the hub's underside): yaw -37 deg, pitch -22 deg
+    const cy = Math.cos(-0.65), sy = Math.sin(-0.65), cp = Math.cos(-0.38), sp = Math.sin(-0.38);
     V.u = p => -p[2] * cy + p[0] * sy;
     const dd = p => p[0] * cy + p[2] * sy;
     V.w = p => p[1] * cp - dd(p) * sp;

@@ -314629,14 +314629,23 @@ skid, the load rig and the cage's rod drawing all hang on it), so the stage is T
   Measured (GATE HUB C): the tail post under 300 N held at the wing's root bay alone drops 8 mm (18 mm without).
 - **The drawing** (_cage_wing hubSocketDraw, after the wing: the engine layer runs BEFORE the wing layer, so CAGE_WING
   is the previous build's there - the cabane pylon HULL-B78 reads it that way and is missing on a first headless
-  build): where the rod runs into the centre section, ONE BLENDED SURFACE (the user: "keep protruding your cylinder into
-  the wing, and then it has to blend with the wing ... a proper custom model ... rather than two meshes intersecting"):
-  blendRodIntoWing - the rod's cylinder carried on to 45 % of the root chord and the centre section's own section
-  (sampled off the drawn skin; tabulated on a 4 mm grid, exact within the fillet's reach of the skin, the sign beyond)
-  joined by a smooth union (blend radius 1.1 r inside the wing, 0.55 of it at the trailing edge: a constant one swelled the rod into a knob round the thin edge), lofted round the rod's axis (72 rows x 96 rays, each ray bisected onto
-  the union's surface); where that surface is the wing's own skin it sinks 7 mm under it, eased in over its last 12 mm
-  (so the line where it disappears is the true line the fillet meets the skin on), the aft row tucked into the rod.
-  Kept between builds (BLEND_MEMO: recomputed only when the rod or the section changes). Named rodHubSocket, the
-  body's paint (boomSkin); quickshot paints it the sheet's colour. Under a gap, the pylon's blended blade.
+  build).
+- **THE CENTRE SECTION SWALLOWS THE ROD** (the user's method, 11 Nov: "start from the geometry of the center wing ... raise
+  the center section of the aft edge proportionally over the chord ... until it gets higher than the rod ... the highest
+  point of the wing corresponds to the highest point of the rod ... deforming the bottom section of the wing a bit in the
+  same way ... a little tolerance, so that there is sort of a ring emerging ... from behind a Gauss curve"). _cage_wing
+  hubHump moves the wing's OWN skin vertices before any mesh is made of them (every reader - the struts, the gear, the
+  fin, the flown aeroplane - sees the deformed wing): the rod FITTED (its crown at the wing's highest point at the
+  centreline: rodY written and rebuilt), carried forward through the wing to that point (drawn, rodHubSocket); the top
+  raised by how far the rod's crown + 6 mm stands over it (smooth, zero at the highest point, growing to the trailing
+  edge), the bottom lowered likewise (eased out ahead of the rod's end), across the span a Gaussian whose width is the
+  narrowest that holds the rod's section (never under 1.25 r); the trailing edge's face becomes the wall the rod comes
+  out of. The rows for it: wings[].centreRows (63_gen_wing: the centre section lofted in N rows between the root ribs,
+  the spar points and weights blended; 25 on a hub) and the first bay's loop cuts (CAGE_HUB_CUTS, 0.30-0.64 m) - both
+  the wing layer's (window.CAGE_HUB_ROWS / CAGE_HUB_CUTS), the join takes the same. On the card the rod (22.4 cm) is
+  thicker than the centre section (14.3 cm): the bottom moves ~8 cm. The separate blend surface and the collar are gone,
+  and with S.rod.hub the bulkhead's flange (plate, sleeve, bolts, backing ring and its X) is not drawn.
+- quickshot: --around x,y,z,r (any view framed on a point), --wire (a mesh's userData.wireGeo / userData.grid edges,
+  depth-tested), the qrb view (3/4 from behind, below).
 - GATE HUB (new, core, ~1 min).
 

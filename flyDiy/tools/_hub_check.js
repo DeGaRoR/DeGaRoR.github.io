@@ -73,7 +73,7 @@ console.log('C. THE LOAD PATH');
 console.log('D. THE DRAWING');
 { const has = sp => { const S = SH.sceneBuild(sp, { over: {}, garage: sp }); let f = false; S.scene.traverse(o => { if (o.name === 'rodHubSocket') f = true; }); return f; };
   const S1 = born({ rodHub: 1 });
-  ok(has(S1) && !has(s0), 'D the rod blended into the centre section (rodHubSocket) with the row, none without'); }
+  ok(has(S1) && !has(s0), 'D the rod carried through the wing (rodHubSocket) under its hump with the row, none without'); }
 
 console.log(fails.length ? 'GATE HUB: FAIL (' + fails.length + ')' : 'GATE HUB: PASS');
 process.exit(fails.length ? 1 : 0);

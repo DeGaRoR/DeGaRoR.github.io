@@ -4931,6 +4931,8 @@ function clampWing(w, S, k) {
     }
     if (Object.keys(o).length) w.tipShape = o; else delete w.tipShape;
   }
+  // THE HUB: the centre section's rows across (63_gen_wing; the wing layer shapes them) - 3..48, absent otherwise
+  if ('centreRows' in w) { const n = Math.round(+w.centreRows); if (n > 2) w.centreRows = Math.min(48, n); else delete w.centreRows; }
   // TIP-SKID: the skid's depth under the skin, clamped; absent, zero or not a number = none (the key gone). The first
   // plane's only (the frame hangs it on plane 0's tip joint)
   if ('tipSkid' in w) {

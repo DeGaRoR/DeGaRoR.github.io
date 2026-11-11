@@ -65,9 +65,21 @@ const SLAT_KEYS = Object.keys(GEN_SLATS);                 // G2820
 // G189: the lamp bay's edges as loft stations — the join's cageWingCuts,
 // the same arithmetic off the same declaration, so the drawn loft and the
 // flown loft have the same rows (see the join's note)
-const wingCutsOf = P => (typeof CAGE_JOIN_WING_CUTS === 'function')
+const wingCutsOf0 = P => (typeof CAGE_JOIN_WING_CUTS === 'function')
   ? CAGE_JOIN_WING_CUTS(P)
   : (window.CAGE_JOIN_WING_CUTS ? window.CAGE_JOIN_WING_CUTS(P) : null);
+// THE HUB (the rod rooted in the wing's centre section, rodHub): the rod's hump is shaped on the wing's own skin
+// (hubHump) - across the centre (`centreRows` rows: one on the centreline) and out over the first bay, whose rows the loop
+// cuts give (metres from the centreline, out to where the hump's bell has died). The join takes the same two (the flown
+// loft has the drawn one's rows)
+const hubOnP = P => !!P && +P.rodHub && Math.round(+P.boomStyle || 0) === 1 && !+P.boomTwin && +P.wingOn;
+const HUB_CUTS = [0.30, 0.34, 0.38, 0.43, 0.49, 0.56, 0.64];
+window.CAGE_HUB_ROWS = P => hubOnP(P) ? { centreRows: 25 } : {};
+window.CAGE_HUB_CUTS = (P, base) => {
+  if (!hubOnP(P)) return base;
+  return (base || []).concat(HUB_CUTS.map(v => v * (+P.planeScale || 1))).sort((a, b) => a - b).map(v => +v.toFixed(4));
+};
+const wingCutsOf = P => window.CAGE_HUB_CUTS(P, wingCutsOf0(P));
 PAGE.defaults = Object.assign({
   // G140: wgSweep is RETIRED — the planform is three stations now (root,
   // crank, tip), each with a chord and a fore/aft offset in metres. The
@@ -975,6 +987,7 @@ function wingGSpec(P) {
       // G189: the lamp bay's two edges as loft stations, so the cut is the
       // width asked for (the same declaration the bay below resolves)
       cuts: wingCutsOf(P),
+      ...window.CAGE_HUB_ROWS(P),                                     // (the hub: the centre's rows, as the join)
       // G2820: the STOL devices, drawn as the join flies them
       ...((st => st ? { stol: st } : {})(genStolCage(P))),
     }, ...(+P.w2On ? [w2SpecOf()] : [])],
@@ -1051,102 +1064,97 @@ PAGE.post = ctx => {
 // a GAP - the rod's crown below the wing's underside at its root - the socket is the engine pylon's blended blade standing on
 // the rod and hugging the wing (_cage_eng CAGE_PYLON); where the rod already runs INTO the centre section, a bolted sleeve
 // where it leaves the trailing edge, its four bolts - the rod reads slotted into the wing
-// THE BLEND (hubSocketDraw): the smooth union of the rod and the wing's centre section, lofted round the rod's axis. The
-// wing's distance field is the centreline section's (sampled off the drawn skin, overAt / underAt), tabulated once on a
-// 4 mm grid and read bilinearly - the fillet spans a hand either side, where the wing is its own extrusion but for the
-// dihedral's rise (taken off the drawn underside at 0.3 m). Only the cells within the fillet's reach of the skin need the
-// distance exactly (each measures the skin's segments near it); beyond that the sign is the field's whole job (the
-// section's top and bottom lines). Kept between builds: recomputed only when the rod or the centre section changes
-let BLEND_MEMO = null;
-function blendRodIntoWing(group, W, GK, o) {
-  const { rr, yAx, te, le } = o;
-  // (the loft's rows along the rod and rays round it; `res` - a review's override, e.g. quickshot --over '{"hubBlendRes":18}' - for
-  // a topology read at a low subdivision)
-  const NR0 = o.res >= 6 ? Math.round(o.res) : 72, NS0 = o.res >= 6 ? 4 * Math.round(o.res / 3) : 96;
-  if (!le || !(le.z > te.z + 0.2)) return;
-  const chord = le.z - te.z, kB = Math.max(0.06, 1.1 * rr);             // the fillet's width
-  const NZ = 80, P = [], top = [], bot = [];
-  for (let i = 0; i <= NZ; i++) { const z = te.z + 0.002 + (chord - 0.004) * i / NZ, t = W.overAt(0, z), u = W.underAt(0, z);
-    if (t && u) { top.push([z, t.y]); bot.push([z, u.y]); } }
-  if (top.length < 5) return;
-  for (const q of top) P.push(q);
-  for (let k = bot.length - 1; k >= 0; k--) P.push(bot[k]);
-  const zMid = te.z + 0.5 * chord, u0 = W.underAt(0, zMid), u3 = W.underAt(0.3, zMid);
-  const tDih = (u0 && u3) ? (u3.y - u0.y) / 0.3 : 0;
-  const zA = te.z - (kB + 0.10), zB = te.z + 0.40 * chord;
-  const key = [NR0, NS0, rr, kB, tDih, yAx(zA), yAx(zB), yAx(te.z)].map(v => v.toFixed(4)).join() + '|' +
-              top.map((q, i) => q[0].toFixed(3) + ',' + q[1].toFixed(3) + ',' + bot[i][1].toFixed(3)).join(';');
-  let rows = BLEND_MEMO && BLEND_MEMO.key === key ? BLEND_MEMO.rows : null;
-  if (!rows) {
-  const reach = kB + 0.04, segs = [];
-  for (let k = 0, j = P.length - 1; k < P.length; j = k++) segs.push([P[j], P[k], Math.min(P[j][0], P[k][0]), Math.max(P[j][0], P[k][0])]);
-  const yOf = (L, z) => { if (z <= L[0][0]) return L[0][1]; for (let k = 1; k < L.length; k++) if (z <= L[k][0]) { const a = L[k - 1], b = L[k];
-    return a[1] + (b[1] - a[1]) * (z - a[0]) / (b[0] - a[0] || 1e-9); } return L[L.length - 1][1]; };
-  const polyD = (y, z) => {
-    const inside = z > top[0][0] && z < top[top.length - 1][0] && y < yOf(top, z) && y > yOf(bot, z);
-    let dm = reach * reach;
-    for (const [a, b, z0, z1] of segs) {
-      if (z0 - reach > z || z1 + reach < z) continue;
-      const ez = b[0] - a[0], ey = b[1] - a[1], L2 = ez * ez + ey * ey || 1e-12;
-      const t = Math.max(0, Math.min(1, ((z - a[0]) * ez + (y - a[1]) * ey) / L2));
-      const dz = z - a[0] - t * ez, dy = y - a[1] - t * ey, d2 = dz * dz + dy * dy;
-      if (d2 < dm) dm = d2;
-    }
-    return inside ? -Math.sqrt(dm) : Math.sqrt(dm);
-  };
-  // the grid: z over the loft's span, y over the rod's reach either side of its axis
-  const yc0 = yAx(0.5 * (zA + zB)), HI = rr + kB + 0.18;
-  const G = 0.004, gz0 = zA - 0.02, gy0 = Math.min(yc0, yAx(zA), yAx(zB)) - HI - 0.02;
-  const nz = Math.ceil((zB + 0.02 - gz0) / G) + 1, ny = Math.ceil((Math.max(yc0, yAx(zA), yAx(zB)) + HI + 0.02 - gy0) / G) + 1;
-  const GD = new Float32Array(nz * ny);
-  for (let j = 0; j < ny; j++) for (let i = 0; i < nz; i++) GD[j * nz + i] = polyD(gy0 + j * G, gz0 + i * G);
-  const dWing = (x, y, z) => {
-    const fy = (y - Math.abs(x) * tDih - gy0) / G, fz = (z - gz0) / G;
-    const j = Math.max(0, Math.min(ny - 2, Math.floor(fy))), i = Math.max(0, Math.min(nz - 2, Math.floor(fz)));
-    const ty = Math.max(0, Math.min(1, fy - j)), tz = Math.max(0, Math.min(1, fz - i));
-    const a = GD[j * nz + i], b = GD[j * nz + i + 1], c = GD[(j + 1) * nz + i], d = GD[(j + 1) * nz + i + 1];
-    return (a * (1 - tz) + b * tz) * (1 - ty) + (c * (1 - tz) + d * tz) * ty;
-  };
-  const zF = te.z + 0.45 * chord;                                   // the rod carried this far into the wing
-  const dRod = (x, y, z) => { const yy = y - yAx(Math.min(z, zF)), dr = Math.sqrt(x * x + yy * yy) - rr; return z > zF ? Math.max(dr, z - zF) : dr; };
-  // THE FILLET GROWS INTO THE WING: its blend radius 0.55 of kB at the trailing edge, the whole from a quarter of the chord
-  // in (a constant one wraps the thin edge and swells the rod into a knob there; a fairing grows its fillet from behind)
-  const sm3 = v => v * v * (3 - 2 * v);
-  const kAt = z => kB * (0.55 + 0.45 * sm3(Math.max(0, Math.min(1, (z - (te.z - 0.03)) / (0.25 * chord)))));
-  const smin = (a, b, k) => { const h = Math.max(k - Math.abs(a - b), 0) / k; return Math.min(a, b) - h * h * k / 4; };
-  const dU = (x, y, z) => smin(dRod(x, y, z), dWing(x, y, z), kAt(z));
-  const sstep = (e0, e1, v) => { const t = Math.max(0, Math.min(1, (v - e0) / (e1 - e0))); return t * t * (3 - 2 * t); };
-  const NR = NR0, NS = NS0; rows = [];
-  for (let i = 0; i <= NR; i++) {
-    const z = zA + (zB - zA) * i / NR, yc = yAx(z), row = [];
-    for (let k = 0; k < NS; k++) {
-      const th = 2 * Math.PI * k / NS, dx = Math.sin(th), dy = Math.cos(th);
-      let lo = 0, hi = HI, prev = 0, found = false;
-      for (let q = 1; q <= 30; q++) { const r2 = hi * q / 30; if (dU(dx * r2, yc + dy * r2, z) > 0) { lo = prev; hi = r2; found = true; break; } prev = r2; }
-      if (!found) lo = hi;
-      else for (let it = 0; it < 22; it++) { const m = 0.5 * (lo + hi); if (dU(dx * m, yc + dy * m, z) > 0) hi = m; else lo = m; }
-      let rho = 0.5 * (lo + hi);
-      // ON THE WING'S OWN SKIN the surface sinks under it - 7 mm, eased in over the last 12 mm of its approach (the
-      // fillet meets the skin tangentially, so the line where it disappears is the true line it meets it on)
-      const dw = found ? dWing(dx * rho, yc + dy * rho, z) : -1;
-      rho = Math.max(0.2 * rr, rho - 0.007 * (1 - sstep(0.002, 0.014, dw)));
-      if (i === 0) rho = rr - 0.002;                                  // the aft row tucked into the rod
-      row.push([dx * rho, yc + dy * rho, z]);
-    }
-    rows.push(row);
+// THE HUB'S HUMP (the Archaeopteryx study's stage 2; the user, 11 Nov: "start from the geometry of the center wing ... only
+// the top surface ... raise the center section of the aft edge proportionally over the chord ... until it gets higher
+// than the rod ... the rod should be positioned in a way that the highest point of the wing corresponds to the highest
+// point of the rod ... maybe you start deforming the bottom section of the wing a bit in the same way ... with a little
+// tolerance, so that there is sort of a ring emerging where they intersect ... if you would look at the back of the wing,
+// that would look like a Gauss curve, more or less, with the center section able to swallow the rod").
+// THE WING'S OWN SKIN, MOVED - before any mesh is made of it (so every reader - the struts, the gear, the fin, the flown
+// aeroplane - sees the wing that is drawn). In cage metres (x the span, y up, z forward):
+//   - the undeformed section at the centreline (the centre's own vertices: centreRows puts a row on it), its top and its
+//     bottom as functions of z, its highest point (zTop, yTop);
+//   - THE ROD FITTED: its crown at the wing's highest point (P.rodY, the editor's row - written and rebuilt when it is
+//     off by a millimetre), its axis yA(z) on its inclination; it runs forward through the wing to zTop;
+//   - the TOP raised by up0(z) = how far the rod's crown and HUB_TOL stand over the top skin at z (smoothly zero ahead
+//     of the point where it starts, so it grows from the highest point to the trailing edge); the BOTTOM lowered by lo0(z),
+//     the same for the rod's underside, carried on past the rod's front end and eased out over a quarter of the chord;
+//   - across the span a GAUSSIAN, exp(-(x / sigma)^2), sigma the narrowest that holds the rod's whole section at that z
+//     (never under HUB_SIG of its radius) - from behind, the trailing edge is a bell over the rod.
+// The trailing edge's own face (the curb, upper to lower) becomes the wall the rod comes out of. Returns the fit (for
+// the rod's own drawing); null when off
+const HUB_TOL = 0.006, HUB_SIG = 1.25;
+let HUB_HUMP = null;
+function hubHump(groups, toCage, P) {
+  if (!hubOnP(P) || !CG2 || !CG2.cageResolve) return null;
+  const FS = (CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
+  let Sp, Rr;
+  try { Sp = CG2.cageSpec(P); Rr = CG2.cageResolve(Sp); } catch (e) { return null; }
+  if (!Sp.rod || !Rr.rodSpan) return null;
+  const G = ['skin', 'canopy'].map(k => groups[k]).filter(g => g && g.nv);
+  if (!G.length) return null;
+  // the centreline section (the centre's middle row), undeformed
+  const C = [];
+  for (const g of G) for (let i = 0; i < g.nv; i++) {
+    const q = toCage([g.pos[i * 3], g.pos[i * 3 + 1], g.pos[i * 3 + 2]]);
+    if (Math.abs(q[0]) < 0.012) C.push([q[2], q[1]]);
   }
-  BLEND_MEMO = { key, rows };
+  if (C.length < 10) return null;
+  let iLE = 0, iTE = 0;
+  for (let i = 1; i < C.length; i++) { if (C[i][0] > C[iLE][0]) iLE = i; if (C[i][0] < C[iTE][0]) iTE = i; }
+  const LE = C[iLE], TE = C[iTE], chord = LE[0] - TE[0];
+  const midY = z => TE[1] + (LE[1] - TE[1]) * (z - TE[0]) / (chord || 1);
+  const up = C.filter(q => q[1] >= midY(q[0])).sort((a, b) => a[0] - b[0]), lo = C.filter(q => q[1] < midY(q[0])).sort((a, b) => a[0] - b[0]);
+  const yOf = (L, z) => { if (!L.length) return 0; if (z <= L[0][0]) return L[0][1]; for (let k = 1; k < L.length; k++) if (z <= L[k][0]) {
+    const a = L[k - 1], b = L[k]; return a[1] + (b[1] - a[1]) * (z - a[0]) / ((b[0] - a[0]) || 1e-9); } return L[L.length - 1][1]; };
+  let zTop = TE[0], yTop = -Infinity;
+  for (const q of up) if (q[1] > yTop) { yTop = q[1]; zTop = q[0]; }
+  // THE ROD FITTED: the crown at the wing's highest point
+  const rr = Sp.rod.r * FS, tI = Math.tan(Sp.rod.incl || 0), zR0 = Rr.rodSpan.zRoot * FS;
+  const yA0 = yTop - rr - tI * (zR0 - zTop);                      // the axis at the rod's root station
+  const rodYfit = +(yA0 / FS).toFixed(4);
+  if (Math.abs(rodYfit - (+P.rodY || 0)) > 1.5e-3 / FS) {
+    P.rodY = rodYfit;
+    if (typeof setTimeout === 'function') setTimeout(() => { const U = window.CAGE_UI; if (U && U.syncSliders) U.syncSliders(); if (U && U.build) U.build(); }, 0);
   }
-  const NR = rows.length - 1, NS = rows[0].length;
-  const bag = GK.Bag(), ids = rows.map(r => r.map(p => bag.v(p)));
-  for (let i = 0; i < NR; i++) for (let k = 0; k < NS; k++) {
-    const k2 = (k + 1) % NS;
-    bag.quad(ids[i][k], ids[i + 1][k], ids[i + 1][k2], ids[i][k2]);   // (outward: k runs over the crown to +x, i forward)
+  const yA = z => yA0 + tI * (zR0 - z);
+  const sm = (e0, e1, v) => { const t = Math.max(0, Math.min(1, (v - e0) / (e1 - e0))); return t * t * (3 - 2 * t); };
+  const sp = v => { const k = 0.015; return v >= k ? v : v <= -k ? 0 : (v + k) * (v + k) / (4 * k); };   // a smooth max(0, v)
+  const zEase = 0.25 * chord;
+  const up0 = z => z <= zTop ? sp(yA(z) + rr + HUB_TOL - yOf(up, z))
+                             : sp(yA(zTop) + rr + HUB_TOL - yOf(up, zTop)) * (1 - sm(zTop, zTop + 0.12 * chord, z));   // (eased out ahead: no step)
+  const lo0 = z => z <= zTop ? sp(yOf(lo, z) - (yA(z) - rr - HUB_TOL))
+                             : sp(yOf(lo, zTop) - (yA(zTop) - rr - HUB_TOL)) * (1 - sm(zTop, zTop + zEase, z));
+  // sigma at z: the narrowest bell holding the rod's section (its top over the skin at every x), never under HUB_SIG r
+  const sigOf = (d0, need) => { let s = HUB_SIG * rr; if (!(d0 > 1e-4)) return s;
+    for (let k = 1; k <= 24; k++) { const x = rr * k / 24, n = need(x); if (n > 1e-4 && n < d0) s = Math.max(s, x / Math.sqrt(Math.log(d0 / n))); else if (n >= d0) s = Math.max(s, 3 * rr); }
+    return s; };
+  const SIG = new Map();
+  const sigAt = (z, upper) => { const key = (upper ? 'u' : 'l') + Math.round(z * 500); if (SIG.has(key)) return SIG.get(key);
+    const d0 = upper ? up0(z) : lo0(z), c = Math.max(-1, Math.min(1, 0));
+    const zz = upper ? z : Math.min(z, zTop);
+    const need = upper ? (x => yA(zz) + Math.sqrt(Math.max(0, rr * rr - x * x)) + HUB_TOL - yOf(up, zz))
+                       : (x => yOf(lo, zz) - (yA(zz) - Math.sqrt(Math.max(0, rr * rr - x * x)) - HUB_TOL));
+    const sgv = sigOf(d0, x => z > zTop && !upper ? need(x) * (1 - sm(zTop, zTop + zEase, z)) : need(x)); SIG.set(key, sgv); return sgv; };
+  // the cage's vertical, back in the payload's frame (toCage is rigid: its linear part's inverse)
+  const o0 = toCage([0, 0, 0]), M = [[1, 0, 0], [0, 1, 0], [0, 0, 1]].map(e => { const q = toCage(e); return [q[0] - o0[0], q[1] - o0[1], q[2] - o0[2]]; });
+  // M[k] = the image of e_k; for a rotation the inverse is the transpose: raw = sum_k (dcage . M[k]) e_k
+  const back = d => [0, 1, 2].map(k => d[0] * M[k][0] + d[1] * M[k][1] + d[2] * M[k][2]);
+  let moved = 0, maxUp = 0, maxLo = 0;
+  for (const g of G) for (let i = 0; i < g.nv; i++) {
+    const q = toCage([g.pos[i * 3], g.pos[i * 3 + 1], g.pos[i * 3 + 2]]);
+    const z = q[2], x = q[0];
+    if (z < TE[0] - 0.02 || z > LE[0] + 0.02) continue;
+    const upper = q[1] >= midY(z);
+    const d0 = upper ? up0(z) : lo0(z);
+    if (!(d0 > 1e-5)) continue;
+    const s = sigAt(z, upper), dy = (upper ? 1 : -1) * d0 * Math.exp(-(x / s) * (x / s));
+    if (Math.abs(dy) < 1e-5) continue;
+    const r = back([0, dy, 0]);
+    g.pos[i * 3] += r[0]; g.pos[i * 3 + 1] += r[1]; g.pos[i * 3 + 2] += r[2];
+    moved++; if (upper) maxUp = Math.max(maxUp, dy); else maxLo = Math.max(maxLo, -dy);
   }
-  let bm = null;
-  try { if (window.CAGE_SECMAT) bm = window.CAGE_SECMAT('boomSkin', { surf: 0, fieldM: 1, struct: 1, side: THREE.DoubleSide }); } catch (e) {}
-  const m = bag.mesh(group, bm || MAT.liftstrut);
-  if (m) { m.name = 'rodHubSocket'; m.userData.grid = rows; }      // (the loft's grid: quickshot --wire draws its rows and rays)
+  return { rr, yA0, tI, zR0, zTop, yTop, te: TE[0], le: LE[0], chord, rodYfit, moved, maxUp, maxLo };
 }
 let hubGroup = null;
 function hubSocketDraw(ctx) {
@@ -1160,34 +1168,20 @@ function hubSocketDraw(ctx) {
     if (!Sp.rod || !Rr.rodSpan || !te || !W.underAt) return;
     const zR = Rr.rodSpan.zRoot * FS, rr = Sp.rod.r * FS, tI = Math.tan(Sp.rod.incl || 0);
     const yAx = z => (Sp.rod.y + tI * (Rr.rodSpan.zRoot - z / FS)) * FS;
-    const SM = window.CAGE_SECMAT, mat = (SM && SM('wingLongeron', { surf: 0, fieldM: 1 })) || MAT.liftstrut;
     hubGroup = new THREE.Group(); hubGroup.name = 'cageLayer:hubSocket';
-    const zS = Math.min(zR - 0.04, te.z + 0.20), uS = W.underAt(0, zS);
-    if (uS && yAx(zS) + rr < uS.y - 0.03 && PY) {
-      // the gap: a foil blade from the rod's crown up to the wing's underside, a hand ahead of the trailing edge, its
-      // root flared onto the rod and its top onto the wing (the pylon's fillets)
-      const Lp = Math.max(0.25, Math.min(0.5, zR - te.z)), zc = Math.min(zR - 0.02, te.z + Lp / 2 + 0.03);
-      const yb = yAx(zc) + 0.9 * rr, u2 = W.underAt(0, zc);
-      if (u2 && u2.y > yb + 0.04) {
-        const H = u2.y - yb, bag = GK.Bag(), jb = GK.Bag();
-        const C = PY.pylonCaster(ctx, FS, [-1.0, 1.0, zc - 1.2, zc + 1.2]);
-        PY.pylonHug(bag, jb, C, { O: [0, yb + 0.5 * H, zc], ax: [0, 1, 0], eu: [1, 0, 0], ew: [0, 0, 1],
-          out: e => PY.pylonOutline('foil', Lp, 0.14, 0, e), fB: Math.min(0.06, 0.35 * H), fT: Math.min(0.06, 0.25 * H),
-          dn: ['body'], up: ['wing'], top0: 0.5 * H + 0.01, bot0: -0.5 * H - 0.01, topJoint: true });
-        bag.mesh(hubGroup, mat); jb.mesh(hubGroup, mat);
-      }
-    } else if (zR > te.z - 0.05) {
-      // THE ROD GROWS INTO THE CENTRE SECTION (the user, 11 Nov: "keep protruding your cylinder into the wing, and then it
-      // has to blend with the wing ... a proper custom model that would blend both, rather than two meshes intersecting"):
-      // ONE BLENDED SURFACE. The two target shapes as distance fields - the rod's cylinder carried on forward into the wing
-      // (to 45 % of the root chord) and the centre section's own section, sampled off the drawn skin across the span the
-      // fillet reaches (overAt / underAt) - joined by a SMOOTH UNION (its blend radius kB the fillet's width), and that
-      // surface lofted as a tube round the rod's axis: section by section along the rod, ray by ray round it, each ray
-      // solved for where the union's surface is. Where that surface is the wing's own skin it is tucked 6 mm inside it
-      // (hidden: the wing draws its skin), so what shows is exactly the fillet - the rod's crown and flanks swelling into
-      // the wing's lower and upper skins, easing back to the bare rod aft of the trailing edge. Its aft row tucks into the
-      // rod (no lip), its forward rows end inside the wing. The body's paint (the rod's own section)
-      blendRodIntoWing(hubGroup, W, GK, { zR, rr, yAx, te, le: W.leAt ? W.leAt(0) : null, res: +P.hubBlendRes || 0 });
+    // THE ROD THROUGH THE WING: from its root (the bulkhead's station) forward to the wing's highest point, where the
+    // hump begins - the same tube, in the body's paint; inside the hump wherever it is covered, out of the trailing
+    // edge's wall where it is not (the ring)
+    const H = HUB_HUMP;
+    if (H && H.zTop > zR + 0.02) {
+      const bag = GK.Bag(), ax = [0, 0, 1], zA = zR - 0.01, zB = H.zTop;
+      const ring = (z) => [0, H.yA0 + H.tI * (H.zR0 - z), z];
+      GK.revolve(bag, ring(zA), ax, [[rr * 0.999, 0], [rr * 0.999, zB - zA]], 48);
+      GK.revolve(bag, ring(zB), ax, [[rr * 0.999, 0], [0, 0]], 48);
+      let bm = null;
+      try { if (window.CAGE_SECMAT) bm = window.CAGE_SECMAT('boomSkin', { surf: 0, fieldM: 1, struct: 1, side: THREE.DoubleSide }); } catch (e) {}
+      const m = bag.mesh(hubGroup, bm || MAT.liftstrut);
+      if (m) m.name = 'rodHubSocket';
     }
     scene.add(hubGroup);
   } catch (e) { console.error('hub socket:', e); }
@@ -1323,6 +1317,9 @@ const wingPost = ctx => {
             zCab - (p[0] - refP[0]) + dx];
   };
 
+  // THE HUB: the centre section swallows the rod (hubHump) - the skin's own vertices moved, before any mesh is made of them
+  HUB_HUMP = hubHump(pay.groups, toCage, P);
+
   // wing verts bind to spar nodes ONLY; a face is wing iff all its verts do
   const G_INFL = typeof GEN_INFL === 'number' ? GEN_INFL : 4;
   const wingVert = g => i => {
@@ -1352,6 +1349,7 @@ const wingPost = ctx => {
                    : new THREE.Mesh(pr.geo, mat);
     // RETRACT G5: the skin's own meshes are the ones a wheel well is cut into (_cage_ui wellApply, after the gear)
     if (o.isMesh && (cl === 'main' || cl === 'centre' || cl === 'tip' || cl === 'stol')) o.userData.wingSkin = cl;
+    if (o.isMesh && pr.wire) o.userData.wireGeo = pr.wire;          // (the quads' own edges: quickshot --wire)
     if (offset) o.position.set(offset[0], offset[1], offset[2]);
     group.add(o);
     return pr;

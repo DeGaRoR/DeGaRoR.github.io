@@ -246,6 +246,11 @@ function cageJoinSpec(P, M, T) {
       // TIP-SKID (60_gen_spec GEN_TIP_SKID): the wingtip skid, its shoe's depth under the skin - absent when off (no key
       // moves the hash of a wing without one)
       ...(+P.wgTipSkid ? { tipSkid: +P.wgTipSkidH > 0 ? +P.wgTipSkidH : 0.10 } : {}),
+      // THE HUB (the rod rooted in the centre section): the centre's rows and the first bay's loop cuts the rod's hump
+      // is shaped on (_cage_wing hubHump) - the same keys the wing layer draws with
+      // THE HUB (the rod rooted in the centre section): the centre's rows the rod's hump is shaped on - the wing layer's
+      // own (_cage_wing CAGE_HUB_ROWS / CAGE_HUB_CUTS), so the flown loft has the drawn one's rows
+      ...(typeof window !== 'undefined' && window.CAGE_HUB_ROWS ? window.CAGE_HUB_ROWS(P) : {}),
       crankAt: P.wgCrankAt > 0 ? P.wgCrankAt : 0,
       crankChord: P.wgCrankAt > 0 ? +P.wgCrankChord : null,
       crankX: P.wgCrankAt > 0 ? (+P.wgCrankX || 0) : null,
@@ -255,7 +260,7 @@ function cageJoinSpec(P, M, T) {
       beam: P.wgBeam == null || +P.wgBeam ? 'on' : 'off',              // T2.3 (48)
       // G189: the lamp bay's edges as loft stations (null = none), the same
       // arithmetic the wing layer uses, so the flown loft has the bay's rows
-      cuts: cageWingCuts(P),
+      cuts: (typeof window !== 'undefined' && window.CAGE_HUB_CUTS) ? window.CAGE_HUB_CUTS(P, cageWingCuts(P)) : cageWingCuts(P),
       // G2820: THE STOL WING (60_gen_spec genStolCage) - STATED in both
       // states (A3): the record, or null when every device is off, so the
       // garage's per-key merge can take a slat back off. A P without the

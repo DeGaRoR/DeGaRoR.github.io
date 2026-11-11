@@ -1339,6 +1339,20 @@ function genWingInto(def, out) {
       wingSectionAt(N[PP.wf.L.F[0]].p, N[PP.wf.L.R[0]].p, [[PP.wf.L.F[0], 1]], [[PP.wf.L.R[0], 1]], W.chord, ctrPts),
       wingSectionAt(N[PP.wf.R.F[0]].p, N[PP.wf.R.R[0]].p, [[PP.wf.R.F[0], 1]], [[PP.wf.R.R[0], 1]], W.chord, ctrPts),
     ];
+    // THE HUB (the Archaeopteryx study, 11 Nov; the user: "start from the geometry of the centre wing ... even if you need
+    // to add a couple of subdivisions"): `centreRows` rows across the centre section instead of its two root rows - each
+    // the section between the root ribs, its spar points and their weights blended - so the wing layer can shape the
+    // centre (the rod's hump). Display topology only; absent, the two rows as ever
+    if (W.centreRows > 2) {
+      const nC = Math.round(W.centreRows), LF = PP.wf.L.F[0], LR = PP.wf.L.R[0], RF = PP.wf.R.F[0], RR = PP.wf.R.R[0];
+      const lerp = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+      rows = [];
+      for (let i = 0; i < nC; i++) {
+        const t = i / (nC - 1);
+        rows.push(wingSectionAt(lerp(N[LF].p, N[RF].p, t), lerp(N[LR].p, N[RR].p, t),
+                                [[LF, 1 - t], [RF, t]], [[LR, 1 - t], [RR, t]], W.chord, ctrPts));
+      }
+    }
     // the carry-through IS the root: both rows sit at span fraction 0. Row
     // index put the tip band on one side of it and the wing walk on the other.
     // the aerofoil contour runs TE -> upper -> LE -> lower -> TE, so its first
