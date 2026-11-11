@@ -61,8 +61,7 @@ function page(key, title) {
     block('Performance', titles(ref.src)); block('Dimensions', titles(ref.geoSrc));
     if (o.engineNote) { out.push(T(800, by, 'Not like for like', { sz: 12, w: 600, c: '#c27a3e' })); by += 17; for (const ln of wrapText(o.engineNote, 50).slice(0, 3)) { out.push(T(800, by, ln, { sz: 12, c: '#c27a3e' })); by += 16; } } }
   // THE DISCREPANCY, per section: every item a bar from zero (ours against the book, signed), coloured by its score
-  const top = 438; out.push(T(48, top - 22, 'THE DISCREPANCY, ITEM BY ITEM', { sz: 11, c: TH.faint, w: 600, ls: 1.2 }));
-  out.push(`<text x="1152" y="${top - 22}" font-size="12" text-anchor="end"><tspan font-weight="600" fill="${TH.ink}">ours</tspan><tspan fill="${TH.faint}" dx="8">the real one</tspan></text>`);
+  const top = 438; out.push(T(48, top - 22, 'THE DISCREPANCY, ITEM BY ITEM · VALUES: OURS VS REAL', { sz: 11, c: TH.faint, w: 600, ls: 1.2 }));
   ax.forEach((a, ci) => {
     const x0 = 48 + ci * 372, mid = x0 + 252, span = 0.30, half = 88, X = e => mid + half * Math.max(-1, Math.min(1, e / span));
     out.push(T(x0, top, NM[a], { sz: 13, w: 600 }) + L([mid, top + 8], [mid, 748], 'rgba(43,41,36,.4)', 1) + T(X(-span), top, '−30 %', { sz: 10, c: TH.faint, a: 'middle' }) + T(X(span), top, '+30 %', { sz: 10, c: TH.faint, a: 'middle' }));
@@ -73,9 +72,9 @@ function page(key, title) {
       const y = top + 24 + i * step, e = it.signed != null ? it.signed : it.err, [c] = BAND(it.score), nm = LABEL[it.k] || it.k, u = UNIT[it.k] || '';
       out.push(T(x0, y + 1, nm + (a === 'performance' && it.src && !/^airframe/.test(it.src) ? ' (handbook)' : ''), { sz: 12.5, w: 500 }));
       const cut = (v, n) => { v = String(v); return v.length > n ? v.slice(0, n - 1) + '…' : v; };
-      // the values: ours in bold black, the real figure in grey (the key is in the section's header)
+      // the values, both grey: "ours vs real" (the convention is in the section's title)
       const ov = typeof it.ours === 'string' ? cut(it.ours, 15) : fv(it.ours, it.k), rv = typeof it.ref === 'string' ? cut(it.ref, 15) : fv(it.ref, it.k);
-      out.push(`<text x="${x0}" y="${(y + 15).toFixed(1)}" font-size="11.5"><tspan font-weight="600" fill="${TH.ink}">${esc(ov)}</tspan><tspan fill="${TH.faint}" dx="6">${esc(rv)}</tspan>${u ? `<tspan fill="${TH.faint}" dx="4">${esc(u)}</tspan>` : ''}</text>`);
+      out.push(T(x0, y + 15, ov + ' vs ' + rv + (u ? ' ' + u : ''), { sz: 11.5, c: TH.dim }));
       if (typeof e === 'number' && isFinite(e)) { const xa = X(0), xb = X(e);
         out.push(`<rect x="${Math.min(xa, xb).toFixed(1)}" y="${y - 2}" width="${Math.max(2, Math.abs(xb - xa)).toFixed(1)}" height="9" rx="2" fill="${c}"/>` + T(Math.abs(e) > span ? (e > 0 ? X(span) + 4 : X(-span) - 4) : xb + (e >= 0 ? 4 : -4), y + 6, (e >= 0 ? '+' : '−') + Math.abs(Math.round(e * 100)) + ' %', { sz: 10.5, c, a: e >= 0 ? 'start' : 'end', w: 600 })); }
       else out.push(T(mid, y + 6, it.score >= 100 ? 'the same' : 'different', { sz: 11, c, a: 'middle', w: 600 }));
