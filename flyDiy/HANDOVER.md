@@ -314818,3 +314818,10 @@ OPEN (with the default taken):
 3. Cowl fields (no editor row): PROPER-COWLS' one cowl path (CABIN-CRAFT integrates it) - not touched here, by the
    user's rule; still so after L36d's PROPER-COWLS. Listed for that path: spec.cowl's six fields - fillet 0.10, taper 0.94, intake 'chin' and halfW / top /
    bot (null: derived) - no join line writes any of them; every official and candidate file carries GEN_DEFAULT's.
+
+## ENGINE-DIALS C2 (Game, 12 Nov 00:15-01:05; ready claude/ready/engine-dials-c2, replaces engine-dials-c 12600ef78)
+
+- A0 held engine-dials-c out of L38b: BENCH (the story Rufus: the load door builds e5b65f7d, stamped 24e2e238) and POD (c172 def + certificate bytes) red with it, green without.
+- BENCH, a real fault fixed, no re-stamp: the join WROTE gear.stiffness 1, gear.camber 0, fuselage.crownTop 0.72 / crownSide 0.07 into every cage build; the major fingerprint hashes the spec as written, so every aeroplane's certificate would have been superseded on the update (G3780 R3: a game update is not a change to the aeroplane). Now at the default they stay ABSENT (the physics reads GEN_DEFAULT's, the same values; a stiffness off 1 is still written): Rufus is 24e2e238 again, untouched. GATE ENGINEDIALS 4 holds the new rule (absent at the default; the constants equal GEN_DEFAULT; the files scan as before).
+- POD, re-pinned with the reason in _pod_check.js A: only the C172 moved (def 6dd3e32e -> bf8dd73, cert 847af8c1 -> eb68eff5) because its custom engine no longer inherits the A-65 fallback key's propeller row (name, Tstatic, kV2, D 1.88 -> 1.8: numbers that fly nothing). The 300 flown steps are the base's to the bit on all six builds.
+- (A page re-stamp could not have fixed BENCH anyway: the test flight is awarded once and keeps its fingerprint.)

@@ -273,9 +273,13 @@ console.log('4. THE LATENT PHYSICS FIELDS: A ROW, OR A CONSTANT THE JOIN WRITES'
      'the join\'s constants are GEN_DEFAULT\'s: camber ' + F.camber + ', crownTop ' + F.crownTop + ', crownSide ' + F.crownSide);
   const js = (P) => JOIN.cageJoinSpec(Object.assign({ s1Leg: 1, s1_shockKind: 1 }, P), { gearType: 'taildragger', track: 1.8 }, { PRESET_NAMES: [] });
   const a = js({ s1Stiff: 1.7 }), b = js({});
-  ok(a.gear.stiffness === 1.7 && b.gear.stiffness === 1, 'the mains\' stiffness row writes gear.stiffness (1.7 -> 1.7; absent -> 1)');
-  ok(a.gear.camber === 0 && a.fuselage.crownTop === F.crownTop && a.fuselage.crownSide === F.crownSide,
-     'the join writes the camber and the crown constants');
+  // (C2, 12 Nov: at the default the fields stay ABSENT - the physics reads GEN_DEFAULT's, held equal above - so the update
+  // moves no certificate fingerprint: GATE BENCH's shipped Rufus; G3780 R3, "a game update is not a change to the aeroplane")
+  ok(a.gear.stiffness === 1.7 && b.gear.stiffness === undefined && D.gear.stiffness === 1,
+     'the mains\' stiffness row writes gear.stiffness off its default (1.7 -> 1.7); at 1 it stays absent, the physics\' 1');
+  const fu = a.fuselage || {};
+  ok(!('camber' in a.gear) && !('crownTop' in fu) && !('crownSide' in fu),
+     'the join leaves the camber and the crown absent: the physics flies GEN_DEFAULT\'s, the constants');
   const rng = [0.35, 3.0];
   const bad = [];
   for (const f of [...files].sort()) {

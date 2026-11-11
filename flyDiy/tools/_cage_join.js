@@ -548,10 +548,16 @@ function cageJoinSpec(P, M, T) {
     // ENGINE-DIALS C (9 Nov): THE SUSPENSION'S STIFFNESS IS THE MAINS' ROW (s1Stiff; GEN_FIELDS clamps 0.35-3): it was a
     // physics field (61_gen_frame: the legs' spring rate and damping) no row reached - every build flew 1, the row's
     // default, so every saved build flies as before
-    spec.gear.stiffness = P.s1Stiff == null ? 1 : +P.s1Stiff;
+    // ENGINE-DIALS C2 (12 Nov, GATE BENCH's red on the story's Rufus): AT THE DEFAULT THE FIELD STAYS ABSENT. The
+    // physics reads an absent stiffness as GEN_DEFAULT's 1, and the certificate's major fingerprint hashes the spec as
+    // written: a 1 written into every build moved every aeroplane's fingerprint (Rufus 24e2e238 -> e5b65f7d) and would
+    // have superseded every player's certificate on the update - G3780 R3, the user's: "a game update is not a change
+    // to the aeroplane". A stiffness off 1 (the row moved, or the DC-3-alike's 3 seeded by cageFromSpec) is written
+    if (P.s1Stiff != null && +P.s1Stiff !== 1) spec.gear.stiffness = +P.s1Stiff; else delete spec.gear.stiffness;
     // ...AND THE WHEELS' CAMBER IS A FIXED CONSTANT (0): the gear layer draws every wheel upright, so a lean would fly
-    // what no row shows (CAGE_JOIN_FIXED; every shipped build carries 0)
-    spec.gear.camber = CAGE_JOIN_FIXED.camber;
+    // what no row shows (CAGE_JOIN_FIXED; every shipped build carries 0). C2: left ABSENT - the physics flies
+    // GEN_DEFAULT's camber, which GATE ENGINEDIALS holds equal to the constant - so no fingerprint moves
+    delete spec.gear.camber;
   }
   const cabin = {};
   // JOINED (2026-09-04): glazing off is an open cockpit — no glass billed.
@@ -718,7 +724,9 @@ function cageJoinSpec(P, M, T) {
   // shape the drag build-up's body (62_gen_aero) and nothing the cage draws - the cage IS the body - so no row can show
   // them; a cage build flies GEN_DEFAULT's (CAGE_JOIN_FIXED, GATE ENGINEDIALS holds the two equal), as every shipped
   // build always has, and a hand-edited file cannot fly a value no row shows
-  fus.crownTop = CAGE_JOIN_FIXED.crownTop; fus.crownSide = CAGE_JOIN_FIXED.crownSide;
+  // (ENGINE-DIALS C2, 12 Nov: left ABSENT rather than written - the physics reads GEN_DEFAULT's, the constants; written,
+  // they moved every cage build's certificate fingerprint on the update, GATE BENCH's Rufus red - see the gear above)
+  delete fus.crownTop; delete fus.crownSide;
   if (Object.keys(fus).length) spec.fuselage = fus;
   // G54.3: the tail surfaces, measured off the placed fin/stab layers.
   // clampSpec's envelope bounds every one; anything unmeasured keeps the
