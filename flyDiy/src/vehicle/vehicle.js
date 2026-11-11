@@ -232,19 +232,57 @@ function makeVehicle(def, world, opts) {
     return F;
   }
 
-  const C = def.wheels.map(() => ({}));            // per wheel contact scratch
+  // THE SUBSTEP'S SCRATCH (TOW-LAUNCH, GROUND-VEHICLE §8.1): the spike made ~250 small arrays a substep (the vector
+  // helpers' returns) - 60 000 a second at 240 Hz, the browser's young collector's to sweep. Every vector below is a
+  // preallocated slot or scalars, and every expression keeps the spike's arithmetic IN ITS ORDER (a + b + c left to right,
+  // the same products): GATE VEHICLE and GATE DRIVE-TRIP print the same digits, bit for bit
+  const C = def.wheels.map(() => ({ on: false, r: [0, 0, 0], n: [0, 0, 0], ft: [0, 0, 0], lt: [0, 0, 0], Fn: 0, mu: 0, crr: 0, mL: 0, mT: 0, lamL: 0, lamT: 0, Fd: 0, capL: 0 }));
+  const SR = new Float64Array(9), SI = new Float64Array(9), SW = new Float64Array(9);   // R, its inverse inertia, its inertia (world)
+  const SF = new Float64Array(3), ST = new Float64Array(3), SV = new Float64Array(3), SA = new Float64Array(3);   // force, torque, a point's velocity, a scratch
+  function qToRInto(q, R) {
+    const w = q[0], x = q[1], y = q[2], z = q[3];
+    R[0] = 1 - 2 * (y * y + z * z); R[1] = 2 * (x * y - w * z); R[2] = 2 * (x * z + w * y);
+    R[3] = 2 * (x * y + w * z); R[4] = 1 - 2 * (x * x + z * z); R[5] = 2 * (y * z - w * x);
+    R[6] = 2 * (x * z - w * y); R[7] = 2 * (y * z + w * x); R[8] = 1 - 2 * (x * x + y * y);
+  }
+  function invIwInto(R, M) {   // R diag(1/I) R^T
+    const a = 1 / Ib[0], b = 1 / Ib[1], c = 1 / Ib[2];
+    for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++)
+      M[i * 3 + j] = R[i * 3] * a * R[j * 3] + R[i * 3 + 1] * b * R[j * 3 + 1] + R[i * 3 + 2] * c * R[j * 3 + 2];
+  }
+  function IwInto(R, M) {
+    for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++)
+      M[i * 3 + j] = R[i * 3] * Ib[0] * R[j * 3] + R[i * 3 + 1] * Ib[1] * R[j * 3 + 1] + R[i * 3 + 2] * Ib[2] * R[j * 3 + 2];
+  }
+  // M b, b = (b0, b1, b2), into o
+  const mulInto = (M, b0, b1, b2, o) => { o[0] = M[0] * b0 + M[1] * b1 + M[2] * b2; o[1] = M[3] * b0 + M[4] * b1 + M[5] * b2; o[2] = M[6] * b0 + M[7] * b1 + M[8] * b2; };
+  // a body point's offset from the CG in the world, into o
+  const relInto = (R, p0, p1, p2, o) => mulInto(R, p0 - cgB[0], p1 - cgB[1], p2 - cgB[2], o);
+  // the velocity of the chassis at r (world offset from the CG), into SV: v + w x r
+  const ptVelInto = r => { const w = st.w, v = st.v; SV[0] = v[0] + (w[1] * r[2] - w[2] * r[1]); SV[1] = v[1] + (w[2] * r[0] - w[0] * r[2]); SV[2] = v[2] + (w[0] * r[1] - w[1] * r[0]); };
+  const addFs = (rx, ry, rz, fx, fy, fz) => { SF[0] += fx; SF[1] += fy; SF[2] += fz; ST[0] += ry * fz - rz * fy; ST[1] += rz * fx - rx * fz; ST[2] += rx * fy - ry * fx; };
+  // the effective mass of the chassis for an impulse along u at r
+  const mEffS = (Ii, r, u) => {
+    mulInto(Ii, r[1] * u[2] - r[2] * u[1], r[2] * u[0] - r[0] * u[2], r[0] * u[1] - r[1] * u[0], SA);
+    const a = SA; return 1 / (1 / m + ((a[1] * r[2] - a[2] * r[1]) * u[0] + (a[2] * r[0] - a[0] * r[2]) * u[1] + (a[0] * r[1] - a[1] * r[0]) * u[2]));
+  };
+  function applyImpS(Ii, r, J0, J1, J2) {
+    const v = st.v, w = st.w;
+    v[0] += J0 / m; v[1] += J1 / m; v[2] += J2 / m;
+    mulInto(Ii, r[1] * J2 - r[2] * J1, r[2] * J0 - r[0] * J2, r[0] * J1 - r[1] * J0, SA); w[0] += SA[0]; w[1] += SA[1]; w[2] += SA[2];
+  }
   function substep(dt) {
-    const R = qToR(st.q), Ii = invIw(R);
-    const ex = [R[0], R[3], R[6]], ey = [R[1], R[4], R[7]], ez = [R[2], R[5], R[8]];
-    const F = [0, -m * VEH_G, 0], T = [0, 0, 0];
-    const addF = (r, f) => { F[0] += f[0]; F[1] += f[1]; F[2] += f[2]; const t = vCross(r, f); T[0] += t[0]; T[1] += t[1]; T[2] += t[2]; };
+    const R = SR, Ii = SI; qToRInto(st.q, R); invIwInto(R, Ii);
+    const ex0 = R[0], ex1 = R[3], ex2 = R[6], ey0 = R[1], ey1 = R[4], ey2 = R[7], ez0 = R[2], ez1 = R[5], ez2 = R[8];
+    const X = st.x;
+    SF[0] = 0; SF[1] = -m * VEH_G; SF[2] = 0; ST[0] = 0; ST[1] = 0; ST[2] = 0;
     // the air
-    const V = vLen(st.v);
-    if (V > 0.01 && def.aero.CdA > 0) { const k = -0.5 * VEH_RHO * def.aero.CdA * V; F[0] += k * st.v[0]; F[1] += k * st.v[1]; F[2] += k * st.v[2]; }
+    { const v = st.v, V = Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+      if (V > 0.01 && def.aero.CdA > 0) { const k = -0.5 * VEH_RHO * def.aero.CdA * V; SF[0] += k * v[0]; SF[1] += k * v[1]; SF[2] += k * v[2]; } }
     // the steering slews toward the asked bicycle angle
     const dT = Math.max(-1, Math.min(1, ctl.steer)) * def.steer.dMax, dStep = def.steer.rate * dt;
     delta += Math.max(-dStep, Math.min(dStep, dT - delta));
-    const u = vDot(st.v, ex);
+    const u = st.v[0] * ex0 + st.v[1] * ex1 + st.v[2] * ex2;
     const Fdrv = driveForce(u);
     // PROVIDER 'wheels': the struts, the loads, the tyres' frames; the drive's share through each contacted wheel
     let nOn = 0, driveOn = 0;
@@ -252,38 +290,43 @@ function makeVehicle(def, world, opts) {
       const w = def.wheels[i], S = wh[i], c = C[i];
       c.on = false; S.on = false; S.Fn = 0; S.Fd = 0;
       S.delta = wheelDelta(w, delta);
-      const hpB = [w.at[0], w.at[1] + w.bump, w.at[2]];
-      const rhp = rel(R, hpB), hp = [st.x[0] + rhp[0], st.x[1] + rhp[1], st.x[2] + rhp[2]];
+      relInto(R, w.at[0], w.at[1] + w.bump, w.at[2], SA);
+      const rh0 = SA[0], rh1 = SA[1], rh2 = SA[2], hp0 = X[0] + rh0, hp1 = X[1] + rh1, hp2 = X[2] + rh2;
       const Lmax = w.bump + w.droop;
-      const cx = hp[0] - ey[0] * S.s, cz = hp[2] - ey[2] * S.s;
-      const gy = H(cx, cz), n = normalAt(cx, cz, gy);
-      const dn = -vDot(ey, n);                     // the strut's direction (-up) on the normal: < 0
+      const cx = hp0 - ey0 * S.s, cz = hp2 - ey2 * S.s;
+      const gy = H(cx, cz);
+      // the ground's normal (normalAt: finite differences, normalised)
+      const hx = H(cx + NE, cz), hz = H(cx, cz + NE);
+      let n0 = -(hx - gy) / NE, n1 = 1, n2 = -(hz - gy) / NE;
+      { const l = Math.sqrt(n0 * n0 + n1 * n1 + n2 * n2) || 1e-12; n0 = n0 / l; n1 = n1 / l; n2 = n2 / l; }
+      const dn = -(ey0 * n0 + ey1 * n1 + ey2 * n2);   // the strut's direction (-up) on the normal: < 0
       if (dn > -0.3) { S.s = Lmax; continue; }
-      let s = (w.r - ((hp[0] - cx) * n[0] + (hp[1] - gy) * n[1] + (hp[2] - cz) * n[2])) / dn;
+      let s = (w.r - ((hp0 - cx) * n0 + (hp1 - gy) * n1 + (hp2 - cz) * n2)) / dn;
       if (s >= Lmax) { S.s = Lmax; continue; }      // hanging: the wheel is in the air
       let bottom = 0; if (s < 0) { bottom = -s; s = 0; }
-      const vhp = ptVel(rhp), sdot = vDot(vhp, n) / (-dn);
+      SA[0] = rh0; SA[1] = rh1; SA[2] = rh2; ptVelInto(SA);
+      const sdot = (SV[0] * n0 + SV[1] * n1 + SV[2] * n2) / (-dn);
       let Fs = w.k * (w.sFree - s) - w.c * sdot + def.susp.kStop * bottom;
       if (Fs < 0) Fs = 0;
       S.s = s;
       if (Fs <= 0) continue;
-      const cp = [hp[0] - ey[0] * s - n[0] * w.r, hp[1] - ey[1] * s - n[1] * w.r, hp[2] - ey[2] * s - n[2] * w.r];
-      const r = [cp[0] - st.x[0], cp[1] - st.x[1], cp[2] - st.x[2]];
-      addF(r, [n[0] * Fs, n[1] * Fs, n[2] * Fs]);
+      const cp0 = hp0 - ey0 * s - n0 * w.r, cp1 = hp1 - ey1 * s - n1 * w.r, cp2 = hp2 - ey2 * s - n2 * w.r;
+      const r = c.r; r[0] = cp0 - X[0]; r[1] = cp1 - X[1]; r[2] = cp2 - X[2];
+      addFs(r[0], r[1], r[2], n0 * Fs, n1 * Fs, n2 * Fs);
       const cs = Math.cos(S.delta), sn = Math.sin(S.delta);
-      const fw = [ex[0] * cs + ez[0] * sn, ex[1] * cs + ez[1] * sn, ex[2] * cs + ez[2] * sn];
-      const fn = vDot(fw, n);
-      const ft = vNorm([fw[0] - fn * n[0], fw[1] - fn * n[1], fw[2] - fn * n[2]]);
-      const lt = vCross(ft, n);                    // the tyre's right, in the ground's plane
-      const [mu, crr] = surfOf(cp[0], cp[2]);
-      c.on = true; c.r = r; c.n = n; c.ft = ft; c.lt = lt; c.Fn = Fs; c.mu = mu; c.crr = crr;
-      c.mL = mEff(Ii, r, ft); c.mT = mEff(Ii, r, lt); c.lamL = 0; c.lamT = 0;
+      const fw0 = ex0 * cs + ez0 * sn, fw1 = ex1 * cs + ez1 * sn, fw2 = ex2 * cs + ez2 * sn;
+      const fn = fw0 * n0 + fw1 * n1 + fw2 * n2;
+      const ft = c.ft; { let a0 = fw0 - fn * n0, a1 = fw1 - fn * n1, a2 = fw2 - fn * n2; const l = Math.sqrt(a0 * a0 + a1 * a1 + a2 * a2) || 1e-12; ft[0] = a0 / l; ft[1] = a1 / l; ft[2] = a2 / l; }
+      const lt = c.lt; lt[0] = ft[1] * n2 - ft[2] * n1; lt[1] = ft[2] * n0 - ft[0] * n2; lt[2] = ft[0] * n1 - ft[1] * n0;   // the tyre's right, in the ground's plane
+      const sf = surfOf(cp0, cp2), mu = sf[0], crr = sf[1];
+      c.on = true; c.n[0] = n0; c.n[1] = n1; c.n[2] = n2; c.Fn = Fs; c.mu = mu; c.crr = crr;
+      c.mL = mEffS(Ii, r, ft); c.mT = mEffS(Ii, r, lt); c.lamL = 0; c.lamT = 0;
       S.on = true; S.Fn = Fs; nOn++;
       // THE DRIVE: only a driven wheel ON THE GROUND carries its share, capped by its traction
       let Fd = 0;
       if (w.drive > 0) { const cap = def.drive.tc * mu * Fs; Fd = Math.max(-cap, Math.min(cap, Fdrv * w.drive)); driveOn++; }
       c.Fd = Fd; S.Fd = Fd;
-      if (Fd) addF(r, [ft[0] * Fd, ft[1] * Fd, ft[2] * Fd]);
+      if (Fd) addFs(r[0], r[1], r[2], ft[0] * Fd, ft[1] * Fd, ft[2] * Fd);
       // the brake this wheel can take (pedal, + the hand brake on its wheels), ABS-capped under the friction
       let B = Math.max(0, Math.min(1, ctl.brake)) * def.brake.F * w.brake + (w.hand ? Math.max(0, Math.min(1, ctl.hand)) * def.brake.handF / 2 : 0);
       B = Math.min(B, def.brake.abs * mu * Fs);
@@ -293,36 +336,42 @@ function makeVehicle(def, world, opts) {
     out.proxyHit = false;
     const nP = def.proxy.length;
     for (let k = 0; k < nP; k++) {
-      const rp = rel(R, def.proxy[k]), px = st.x[0] + rp[0], py = st.x[1] + rp[1], pz = st.x[2] + rp[2];
+      const pb = def.proxy[k]; relInto(R, pb[0], pb[1], pb[2], SA);
+      const px = X[0] + SA[0], py = X[1] + SA[1], pz = X[2] + SA[2];
       const gy = H(px, pz), pen = gy - py;
       if (pen <= 0) continue;
       out.proxyHit = true;
-      const vp = ptVel(rp);
-      let Fn = 3e5 * pen - 2e4 * vp[1]; if (Fn < 0) Fn = 0;
-      const sp = Math.hypot(vp[0], vp[2]);
+      ptVelInto(SA);
+      const vp0 = SV[0], vp1 = SV[1], vp2 = SV[2];
+      let Fn = 3e5 * pen - 2e4 * vp1; if (Fn < 0) Fn = 0;
+      const sp = Math.hypot(vp0, vp2);
       const kf = sp > 1e-6 ? Math.min(0.5 * Fn / sp, m / dt / nP) : 0;
-      addF(rp, [-kf * vp[0], Fn, -kf * vp[2]]);
+      addFs(SA[0], SA[1], SA[2], -kf * vp0, Fn, -kf * vp2);
     }
     // the velocities step on the explicit forces (the gyroscopic term included)
-    const Iwv = mulRv(Iw(R), st.w), gyr = vCross(st.w, Iwv);
-    st.v[0] += F[0] / m * dt; st.v[1] += F[1] / m * dt; st.v[2] += F[2] / m * dt;
-    const dw = mulRv(Ii, [T[0] - gyr[0], T[1] - gyr[1], T[2] - gyr[2]]);
-    st.w[0] += dw[0] * dt; st.w[1] += dw[1] * dt; st.w[2] += dw[2] * dt;
+    {
+      const w = st.w, v = st.v; IwInto(R, SW); mulInto(SW, w[0], w[1], w[2], SA);
+      const g0 = w[1] * SA[2] - w[2] * SA[1], g1 = w[2] * SA[0] - w[0] * SA[2], g2 = w[0] * SA[1] - w[1] * SA[0];
+      v[0] += SF[0] / m * dt; v[1] += SF[1] / m * dt; v[2] += SF[2] / m * dt;
+      mulInto(Ii, ST[0] - g0, ST[1] - g1, ST[2] - g2, SA);
+      w[0] += SA[0] * dt; w[1] += SA[1] * dt; w[2] += SA[2] * dt;
+    }
     // THE TYRES: sequential impulses on the stepped velocities
     const Ca = def.tyre.Ca, u0 = def.tyre.u0;
     for (let it = 0; it < ITER; it++) {
       for (let i = 0; i < C.length; i++) {
         const c = C[i]; if (!c.on) continue;
-        let vc = ptVel(c.r);
+        const r = c.r, ft = c.ft, lt = c.lt;
+        ptVelInto(r);
         // along the wheel: rolling resistance + the brake, a capped friction (holds a parked car)
-        const vl = vDot(vc, c.ft);
+        const vl = SV[0] * ft[0] + SV[1] * ft[1] + SV[2] * ft[2];
         let L = c.lamL - vl * c.mL;
         L = Math.max(-c.capL, Math.min(c.capL, L));
         let dL = L - c.lamL; c.lamL = L;
-        if (dL) applyImp(Ii, c.r, [c.ft[0] * dL, c.ft[1] * dL, c.ft[2] * dL]);
+        if (dL) applyImpS(Ii, r, ft[0] * dL, ft[1] * dL, ft[2] * dL);
         // across it: the soft (compliant) side force, the linear tyre at speed, a no-slip parked
-        vc = ptVel(c.r);
-        const vt = vDot(vc, c.lt), vlong = Math.abs(vDot(vc, c.ft));
+        ptVelInto(r);
+        const vt = SV[0] * lt[0] + SV[1] * lt[1] + SV[2] * lt[2], vlong = Math.abs(SV[0] * ft[0] + SV[1] * ft[1] + SV[2] * ft[2]);
         const gam = Math.max(vlong, u0) / (Ca * c.Fn * dt);
         let Tn = c.lamT - (vt + gam * c.lamT) / (1 / c.mT + gam);
         // the friction ellipse: what the wheel's grip leaves after the drive and the brake
@@ -330,23 +379,25 @@ function makeVehicle(def, world, opts) {
         const capT = cap2 > 0 ? Math.sqrt(cap2) : 0;
         Tn = Math.max(-capT, Math.min(capT, Tn));
         const dT2 = Tn - c.lamT; c.lamT = Tn;
-        if (dT2) applyImp(Ii, c.r, [c.lt[0] * dT2, c.lt[1] * dT2, c.lt[2] * dT2]);
+        if (dT2) applyImpS(Ii, r, lt[0] * dT2, lt[1] * dT2, lt[2] * dT2);
       }
     }
     // the pose steps
     st.x[0] += st.v[0] * dt; st.x[1] += st.v[1] * dt; st.x[2] += st.v[2] * dt;
-    const [qw, qx, qy, qz] = st.q, [wx, wy, wz] = st.w, h = 0.5 * dt;
-    const q2 = [qw + h * (-wx * qx - wy * qy - wz * qz), qx + h * (wx * qw + wy * qz - wz * qy),
-                qy + h * (wy * qw + wz * qx - wx * qz), qz + h * (wz * qw + wx * qy - wy * qx)];
-    const ql = Math.hypot(q2[0], q2[1], q2[2], q2[3]); st.q = [q2[0] / ql, q2[1] / ql, q2[2] / ql, q2[3] / ql];
+    { const q = st.q, qw = q[0], qx = q[1], qy = q[2], qz = q[3], wx = st.w[0], wy = st.w[1], wz = st.w[2], h = 0.5 * dt;
+      const a0 = qw + h * (-wx * qx - wy * qy - wz * qz), a1 = qx + h * (wx * qw + wy * qz - wz * qy),
+            a2 = qy + h * (wy * qw + wz * qx - wx * qz), a3 = qz + h * (wz * qw + wx * qy - wy * qx);
+      const ql = Math.hypot(a0, a1, a2, a3); q[0] = a0 / ql; q[1] = a1 / ql; q[2] = a2 / ql; q[3] = a3 / ql; }
     // the wheels' spin (the renderer's), the outputs
+    let Fsum = 0;
     for (let i = 0; i < wh.length; i++) {
       const c = C[i], S = wh[i];
       S.lamL = c.on ? c.lamL / dt : 0; S.lamT = c.on ? c.lamT / dt : 0;
-      if (c.on) { const vc = ptVel(c.r); S.vl = vDot(vc, c.ft); S.slipT = Math.atan2(vDot(vc, c.lt), Math.max(0.1, Math.abs(S.vl))); }
+      if (c.on) { ptVelInto(c.r); S.vl = SV[0] * c.ft[0] + SV[1] * c.ft[1] + SV[2] * c.ft[2]; S.slipT = Math.atan2(SV[0] * c.lt[0] + SV[1] * c.lt[1] + SV[2] * c.lt[2], Math.max(0.1, Math.abs(S.vl))); }
       S.spin += (S.vl / def.wheels[i].r) * dt;
+      Fsum = Fsum + S.Fd;
     }
-    out.onGround = nOn; out.driveOn = driveOn; out.Fdrive = wh.reduce((s, S) => s + S.Fd, 0);
+    out.onGround = nOn; out.driveOn = driveOn; out.Fdrive = Fsum;
     st.t += dt;
   }
   function step(dtFrame) {
