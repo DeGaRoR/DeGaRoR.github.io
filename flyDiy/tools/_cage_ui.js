@@ -2673,7 +2673,7 @@ function previewDraw() {
 // flank's own side plane (x of the handle) - writing the corner's two rows (P[<row>Q<k>Z / Y], cage units), a drag
 // tick at a time (the slider drag's own deferral: DRAG_ON / DRAG_TICK, the settle build on the release). The game's
 // editor (EXT) has no viewport of its own: there the corner rows are the hand.
-const QUAD_ROWS = ['paxWin', 'win2', 'win3'];
+const QUAD_ROWS = ['paxWin', 'win2', 'win3', 'win4', 'win5', 'win6'];   // (11 Nov: six rows)
 function quadHandles(sheet, spec, FS) {
   disposeObj(quadObj); quadObj = null;
   if (EXT || !G.cageQuadWindow || !sheet) return;

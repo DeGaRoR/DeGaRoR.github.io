@@ -9274,7 +9274,23 @@ function cageToSpec(P) {
 // pitch. The knife cuts CONVEX outlines (a convex clip is an intersection of half-planes): a quad dragged concave,
 // or crossed into a bow-tie, is REFUSED with its reason - kept in the list, never cut, the sheet watertight - the
 // way an overlapping window is.
+// MORE ROWS OF DRAWN WINDOWS (11 Nov, FIT-PROCEDURE; the user: "maybe we need to have more than 3 possible rows of
+// windows ... that's indeed something which allows to give a lot of personality to a plane"): rows 4-6 on win4*-win6*.
+// Their keys are NOT defaults - no saved file carries them and none is written until a row is used (the panel shows
+// CAGE_WIN_ABSENT, the row's own values, while absent) - so every build before reads to the bit; an unused row costs
+// one skipped turn of the loop.
+const CAGE_WIN_ROWS = [[1, 'paxWin'], [2, 'win2'], [3, 'win3'], [4, 'win4'], [5, 'win5'], [6, 'win6']];
+const CAGE_WIN_ABSENT = { N: 0, Shape: 0, Z: 1.6, Pitch: 0.75, Y: 0.40, W: 0.40, H: 0.32, R: 0.06, Depth: 0.006,
+                          TopK: 1, Skew: 0, R1: -1, R2: -1, R3: -1, R4: -1 };
+// a row's keys with its absent values filled (rows 4-6 only: rows 1-3 have CAGE_DEFAULT's); P itself when nothing is missing
+function cageWinRow(P, pre) {
+  if (pre === 'paxWin' || pre === 'win2' || pre === 'win3') return P;
+  let Q = null;
+  for (const k in CAGE_WIN_ABSENT) if (P[pre + k] == null) { Q = Q || Object.assign({}, P); Q[pre + k] = CAGE_WIN_ABSENT[k]; }
+  return Q || P;
+}
 function cageQuadRect(P, pre) {
+  P = cageWinRow(P, pre);
   const z = +P[pre + 'Z'], y = +P[pre + 'Y'], W = Math.max(0.02, +P[pre + 'W']), H = Math.max(0.02, +P[pre + 'H']);
   const topK = P[pre + 'TopK'] == null ? 1 : Math.max(0, +P[pre + 'TopK']);
   const sk = +P[pre + 'Skew'] || 0, Wt = W * topK;
@@ -9282,6 +9298,7 @@ function cageQuadRect(P, pre) {
 }
 const CAGE_QUAD_KEYS = pre => [1, 2, 3, 4].flatMap(c => [pre + 'Q' + c + 'Z', pre + 'Q' + c + 'Y']);
 function cageQuadWindow(P, pre, i) {
+  P = cageWinRow(P, pre);
   const R0 = cageQuadRect(P, pre), dz = i * +P[pre + 'Pitch'];
   const num = v => v != null && v !== '' && isFinite(+v);
   const abs = R0.map((c, k) => {
@@ -9331,27 +9348,28 @@ function cageSpec(P) {
   S.windows = [];
   {
     const rim = +P.rimW > 0 ? +P.rimW : 0.012;
-    // T2.2: three rows — row 1 on the paxWin* keys, rows 2-3 on win2*/win3*
-    for (const [row, pre] of [[1, 'paxWin'], [2, 'win2'], [3, 'win3']]) {
-      const n = Math.max(0, Math.min(4, Math.round(+P[pre + 'N'] || 0)));
-      if (!n) continue;
-      const r = Math.max(0, +P[pre + 'R'] || 0);
+    // T2.2: three rows — row 1 on the paxWin* keys, rows 2-3 on win2*/win3* (11 Nov: six, rows 4-6 on win4*-win6*)
+    for (const [row, pre] of CAGE_WIN_ROWS) {
+      if (!(Math.round(+P[pre + 'N'] || 0) > 0)) continue;
+      const Pw = cageWinRow(P, pre);
+      const n = Math.max(0, Math.min(4, Math.round(+Pw[pre + 'N'] || 0)));
+      const r = Math.max(0, +Pw[pre + 'R'] || 0);
       const rr = [1, 2, 3, 4].map(k => {
-        const v = P[pre + 'R' + k];
+        const v = Pw[pre + 'R' + k];
         return v == null || !isFinite(+v) || +v < 0 ? r : +v;
       });
-      const topK = P[pre + 'TopK'] == null ? 1 : Math.max(0, +P[pre + 'TopK']);
-      const skew = +P[pre + 'Skew'] || 0;
-      const quad = Math.round(+P[pre + 'Shape'] || 0) === 2;
+      const topK = Pw[pre + 'TopK'] == null ? 1 : Math.max(0, +Pw[pre + 'TopK']);
+      const skew = +Pw[pre + 'Skew'] || 0;
+      const quad = Math.round(+Pw[pre + 'Shape'] || 0) === 2;
       for (let i = 0; i < n; i++) {
-        const w = { shape: +P[pre + 'Shape'] ? 'ellipse' : 'rect', row, i,
-                    z: +P[pre + 'Z'] + i * +P[pre + 'Pitch'], y: +P[pre + 'Y'],
-                    w: +P[pre + 'W'], h: +P[pre + 'H'], r, rr, topK, skew,
-                    depth: Math.max(0, +P[pre + 'Depth'] || 0),
+        const w = { shape: +Pw[pre + 'Shape'] ? 'ellipse' : 'rect', row, i,
+                    z: +Pw[pre + 'Z'] + i * +Pw[pre + 'Pitch'], y: +Pw[pre + 'Y'],
+                    w: +Pw[pre + 'W'], h: +Pw[pre + 'H'], r, rr, topK, skew,
+                    depth: Math.max(0, +Pw[pre + 'Depth'] || 0),
                     step: Math.max(0.006, rim * 1.1) };
         // BUBBLE-WINDOWS: the blister's height, absent unless set (an unset row leaves the window as it was)
-        if (+P[pre + 'Bulge'] > 0) w.bulge = +P[pre + 'Bulge'];
-        if (quad) Object.assign(w, cageQuadWindow(P, pre, i));
+        if (+Pw[pre + 'Bulge'] > 0) w.bulge = +Pw[pre + 'Bulge'];
+        if (quad) Object.assign(w, cageQuadWindow(Pw, pre, i));
         S.windows.push(w);
       }
     }
@@ -11061,7 +11079,7 @@ if (typeof module !== 'undefined')
                      cageRims, cageInterior, cageCut, cageGlassSill,
                      cageCanopy, cageShoulder, cageBodyZones, cageFrameZones, cageZoneAt, CAGE_ZONE_RINGS,
                      cageDefaults, cageFromSpec, cageToSpec, cageSheet, cageDoorEdges, cageAftEngineFace,
-                     CAGE_GLASS_MATS, cageGlazedM2, cageQuadRect, cageQuadWindow, CAGE_QUAD_KEYS,
+                     CAGE_GLASS_MATS, cageGlazedM2, cageQuadRect, cageQuadWindow, CAGE_QUAD_KEYS, CAGE_WIN_ROWS, CAGE_WIN_ABSENT, cageWinRow,
                      CAGE_VIEW_KEYS, CAGE_LVI_BASE, cageLvIndex };
 if (typeof window !== 'undefined')
   window.CAGE2 = { CAGE_DEFAULT, CAGE_PARAMS, CAGE_MAT, CAGE_AFT_SUB,
@@ -11074,5 +11092,5 @@ if (typeof window !== 'undefined')
                    cageRims, cageInterior, cageCut, cageGlassSill,
                    cageCanopy, cageShoulder, cageBodyZones, cageFrameZones, cageZoneAt, CAGE_ZONE_RINGS,
                    cageDefaults, cageFromSpec, cageToSpec, cageSheet, cageDoorEdges, cageAftEngineFace,
-                   CAGE_GLASS_MATS, cageGlazedM2, cageQuadRect, cageQuadWindow, CAGE_QUAD_KEYS,
+                   CAGE_GLASS_MATS, cageGlazedM2, cageQuadRect, cageQuadWindow, CAGE_QUAD_KEYS, CAGE_WIN_ROWS, CAGE_WIN_ABSENT, cageWinRow,
                    CAGE_VIEW_KEYS, CAGE_LVI_BASE, cageLvIndex };

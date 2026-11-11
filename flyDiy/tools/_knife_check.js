@@ -191,6 +191,33 @@ const SKIN_ONLY = { intOn: 0, shoulderOn: 0, doorPanelOn: 0 };
   // the radius clamps to its corner: an absurd radius on a tiny window still closes
   const tiny = KG.knifeOutline(Object.assign({}, base, { w: 0.08, h: 0.06, rr: [0.45, 0.45, 0.45, 0.45], topK: 0.5 }));
   check(tiny.length >= 8 && convex(tiny), 'SHAPES four oversize radii clamp to the corner they sit on (' + tiny.length + ' points)');
+  // BOTH FLANKS THE RIGHT WAY UP (11 Nov, FIT-PROCEDURE: "radius - fwd top" rounded the forward BOTTOM corner on the
+  // starboard flank - knifeCut's t2 points down there): a rounded corner takes area off its corner, so the window's
+  // centroid on the skin sits LOWER with the top corner R1 rounded than with the bottom corner R4, and further AFT with
+  // the forward corner R1 than with the aft corner R2 - on both flanks. (A window symmetric top to bottom is cut point
+  // for point as before: section 1's corpus.)
+  {
+    const cen = rr => {
+      const sh = sheetOf(Object.assign({}, PAGE_BASE, SKIN_ONLY, { paxWinN: 1, paxWinR: 0, paxWinR1: rr[0], paxWinR2: rr[1], paxWinR3: rr[2], paxWinR4: rr[3] }));
+      const o = {};
+      for (const l of (sh.knifeLoops || [])) {
+        let a = 0, cz = 0, cy = 0; const q = l.pts.map(p => [p[2], p[1]]);
+        for (let k = 0; k < q.length; k++) { const p0 = q[k], p1 = q[(k + 1) % q.length], c = p0[0] * p1[1] - p1[0] * p0[1];
+          a += c; cz += (p0[0] + p1[0]) * c; cy += (p0[1] + p1[1]) * c; }
+        o[l.side > 0 ? 'starboard' : 'port'] = [cz / (3 * a), cy / (3 * a)];
+      }
+      return o;
+    };
+    const R1 = cen([0.15, 0, 0, 0]), R2 = cen([0, 0.15, 0, 0]), R4 = cen([0, 0, 0, 0.15]), out = [];
+    let good = 0;
+    for (const f of ['starboard', 'port']) {
+      if (!R1[f] || !R2[f] || !R4[f]) { out.push(f + ' no loop'); continue; }
+      const top = R1[f][1] < R4[f][1], fwd = R1[f][0] < R2[f][0];
+      if (top && fwd) good++;
+      out.push(f + ': R1 rounds the ' + (fwd ? 'fwd' : 'aft') + ' ' + (top ? 'top' : 'bottom'));
+    }
+    check(good === 2, 'SHAPES radius R1 ("fwd top") rounds the forward top corner on both flanks (' + out.join(', ') + ')');
+  }
   // the cut: a trapezoid, a parallelogram and a triangle on the page aeroplane, watertight
   for (const [nm, over] of [['trapezoid', { paxWinTopK: 0.55 }], ['parallelogram', { paxWinSkew: 0.12 }],
                             ['triangle', { paxWinTopK: 0, paxWinR: 0.03 }], ['four radii', { paxWinR1: 0.15, paxWinR2: 0, paxWinR3: 0.02, paxWinR4: 0.1 }]]) {
@@ -213,6 +240,17 @@ const SKIN_ONLY = { intOn: 0, shoulderOn: 0, doorPanelOn: 0 };
   const w = watertight(sh);
   const mats = new Set(); for (const f of sh.F) if (f.knife) mats.add(f.m);
   check(w.ok && w.loops === 6, 'ROWS a window on the pax bay, the taper and the boom: 6 loops, watertight (' + w.loops + ', over ' + w.over + ')');
+  // SIX ROWS (11 Nov): rows 4-6 on win4*-win6*, their keys absent but the count (the row's own values fill in): a
+  // row-6 window cut on the boom beside the three above - 8 loops, watertight, none refused
+  {
+    const P6 = Object.assign({}, P, { win6N: 1, win6Z: -1.05, win6Y: 0.25, win6W: 0.2, win6H: 0.16 });
+    const S6 = G.cageSpec(P6), w6 = watertight(sheetOf(P6));
+    check(S6.windows.length === 4 && S6.windows.some(x => x.row === 6) && S6.windows.every(x => !x.refused) && w6.ok && w6.loops === 8,
+          'ROWS a sixth row cuts its window too: rows ' + S6.windows.map(x => x.row + (x.refused ? '!' : '')).join(',') + ', ' + w6.loops + ' loops, watertight ' + w6.ok);
+    const P4 = Object.assign({}, PAGE_BASE, SKIN_ONLY, { win4N: 1 });
+    const S4 = G.cageSpec(P4).windows.find(x => x.row === 4);
+    check(!!S4 && S4.w === 0.40 && S4.h === 0.32 && S4.z === 1.6, 'ROWS a row with only its count set takes the row\'s own values (' + (S4 ? S4.z + ' ' + S4.w + 'x' + S4.h : 'none') + ')');
+  }
   // the refusal: the second row laid over the first
   const Q = Object.assign({}, PAGE_BASE, SKIN_ONLY, { paxWinN: 2, win2N: 1, win2Z: PAGE_BASE.paxWinZ + 0.1, win2Y: PAGE_BASE.paxWinY, win2W: 0.4, win2H: 0.3 });
   const SQ = G.cageSpec(Q);
