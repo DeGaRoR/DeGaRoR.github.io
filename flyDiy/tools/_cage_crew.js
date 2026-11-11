@@ -650,9 +650,9 @@ function buildPedals(g, A, P, sx) {
     const onFire = A.zFire != null && A.zFire > zA + 0.08;
     const zC = onFire ? A.zFire - 0.008 : zA + 0.24;
     const belly = A.bellyAt ? A.bellyAt(xp, zC) : null;
-    // 18 mm over the belly: the block's own half-height and the skin's
-    // liner (the cabin's inner face is ~4 mm inside the outer skin)
-    const yC = Math.max(A.floorAt(zC), belly != null ? belly + 0.018 : -Infinity);
+    // 15.5 mm over the belly: the block's own half-height (14 mm) and a hairline (LINER-BACK 9 Nov: the liner is the
+    // skin's back face now - the 4 mm it used to add lifted the block off the floor of the nose)
+    const yC = Math.max(A.floorAt(zC), belly != null ? belly + 0.0155 : -Infinity);
     const e0 = [xp + eye[0], yA + eye[1], zA + eye[2]], e1 = [xp, yC + 0.010, zC];
     // the cable follows the belly where the belly rises above its chord (a
     // convex-up run under the pedals to a fairlead at the nose): four legs,
@@ -1691,7 +1691,9 @@ if (typeof window !== 'undefined') window.CAGE_CREW_FLOOR = {
   },
 };
 const FLOOR_T = 0.012;
-const FLOOR_MARGIN = 0.004;                 // the board's edge stands this far inside the wall (G354)
+const FLOOR_MARGIN = 0.0015;                // the board's edge stands this far inside the wall (G354; LINER-BACK 9 Nov: was 4 mm,
+                                            // buried in the 6-14 mm lining - the lining is now the skin's back face, so 4 mm
+                                            // showed as a slot along both edges; 1.5 mm = the hairline every lining kept)
 let FLOOR_THRU = [];                        // [{x, z, r}] a control passing through, metres
 const floorThru = (x, z, r) => { FLOOR_THRU.push({ x, z, r }); };
 const FLOOR_WALL = /^(body|floorLoop|waistband|ceilingLoop|pillar)/;

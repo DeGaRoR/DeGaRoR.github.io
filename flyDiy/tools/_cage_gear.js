@@ -1430,8 +1430,11 @@ const RETRACT_LAB = () => {
     if (typeof window.FLYDIY_RETRACT_LAB === 'boolean') return window.FLYDIY_RETRACT_LAB;
     // no page (node: the gates, the tools) - no player to hide it from: the lab's rows are all there
     if (typeof location === 'undefined') return true;
-    if (/[?&]retract=lab\b/.test(location.search || '')) return true;
-    return !!(window.localStorage && window.localStorage.getItem('flydiy.flDev') === '1');
+    // SEA-ON (10 Nov, the user: "I need to see these things and play with it; I'm still the sole player"): the hulls
+    // and the retractable gear are ON by default in the player's garage too. ?retract=off is the way back (a session's
+    // look at the old garage); ?retract=lab and the dev toggle still say on
+    if (/[?&]retract=off\b/.test(location.search || '')) return false;
+    return true;
   } catch (e) { return true; }
 };
 window.CAGE_RETRACT_LAB = RETRACT_LAB;

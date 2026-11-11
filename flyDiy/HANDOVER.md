@@ -314606,3 +314606,111 @@ TIMED GATE (02:56-03:58): taxi chase @HOME and @mn_strip 30 fps, 0 frames over 4
 Parked fleet re-cooked on this build.
 
 No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change.
+
+## STAR-REFLECT - the reflected stars small first, then spread by the waves (NIGHT-LOOK, 11 Nov)
+- why: the user 10 Nov: the reflected stars are "at least 10 times larger than what they look in the sky ... I would rather blur something which
+  is already smaller from the start"; "the more distorted, the better".
+- cause (the 10 Nov 21:53 crops): not the capture's disc but the ROUGHNESS mip on the mirror read (roughness x MIR.lod 5): every star a 10 px blob.
+- src/viewer/water.js: the night stretch reads' blur is uWStrL (x the mip floor = NIGHT_SEA.slod 1, y the roughness mip's share = NIGHT_SEA.rmip 0);
+  MIR.starPx 2 -> 0.75 capture px (about the sky's own size); NIGHT_SEA.stretch 0.03 -> 0.06. Deep night only (the stretch is 0 by day).
+- the 11 Nov 07:46 stills (Cabin Lake, eye 1 m, 7 variants): v2 kept - narrow 4-6 px streaks; slod 0.5 or 0 hatches; stretch .1/.15 longer streaks
+  with more dither. Live: WATER.mirror.starPx, WATER.nightSea.{stretch, slod, rmip} (master's: 2, 0.03, 1, 1).
+- Evidence: flydiy-notes/evidence-2026-10-18/2026-11-04/night-photo/star/reflect2/ (crops_a/b, zoom_v0_v2_v4).
+
+## HWCOV - PACE-ON (BOOT-PROGRAMS pacing ON by default), 11 Nov 2026
+
+The user, 11 Nov ~16:00: "Ship it on, the drawbacks are not severe." app.js PACE_N: ?pace=auto is the DEFAULT (half the threads, 2-8), ?pace=0 the opt-out, ?pace=N a fixed count. With it, PACE-REVEAL: programsReady also waits for compileSliced's live paced jobs, cap 120 s when paced.
+
+- **The cost, named.** The cold A/B (10 Nov, evidence 2026-11-10/hwcov/boot_ab2) and the PACE-REVEAL legs (11 Nov, 2026-11-11/hwcov/pace_reveal): the roll-out walls go (auto 11-46 s vs 35-115 s off, worst frames mostly under 2 s vs 7-56 s), 0 links after the reveal (the old 26 s in-flight class is gone), but 1 cold load of 2 had a 1.2 s frame 1.2 s after the reveal (0 links: a first-use cost) and the garage ready can be slower on a cold profile (one load 233 s vs 117-143 s). The first-use frame is parked for Friday's perf round.
+- **Evidence of the parts.** dedupe (claude/prog-dedupe, not landed: 83 -> 76 twins); the GPU program cache keeps no entry over ~106 KB (the heavies never cached warm, 256 MB disk cache = no change); the pavement's 20 s link is 2/3 its sin()-hash noise (bisect 2026-11-11/hwcov/heavy_shaders) - both for the perf round.
+## PILOT 11 Nov - STRIP-LANE + SHORT-HOLD + TAXI-HOME core (claude/ready/strip-lane)
+
+Five commits on L38a master 603da882f; the ready is the gated sha.
+- STRIP-LANE (25_airfield sitePattern, 43_pilot): a strip whose aerodrome carries `micro` (chaos > 0, DIRT-STRIP; needs its
+  aerodrome micro.chaos line, a0fbf6c6f / b4a6d97ca, to switch on) is backtracked 1 m off its centreline (GP_LANE_ROUGH) and
+  taxied at taxiV x max(0.5, 1 - chaos), no long-straight speed-up. The Jodel w3 prop strike (10 Nov 05:00, the old lane
+  at v 6.5 m through the edge stones at ~8 m/s) is clean.
+- STRIP-LANE 2 + 3: on a rough strip a taildragger turns round like on a short strip (on the spot, the centreline back, the
+  pivot at the end); a tricycle U-turns in DIRT-STRIP's turnaround pad ahead (66 kIn + 4 m from each end, the whole width
+  under the 6 cm band cap) and rejoins the lane inside it, the roll on staying on the centreline to the pad's inner edge.
+  Re-fly 10 Nov 21:45 on vet-2 with the pads: C172 w3 ok/ok (widest 10.3 m, in the pads), Jodel w3 2.0 m, Cub w6 1.9 m,
+  Jodel w6 2.2 m, all ok/ok.
+- SHORT-HOLD: on strips from 300 to 380 m the hold leaves 0.7 len + 4 m ahead (kIn = min(1, (0.3 len - 4) / 110)): w6 /
+  w5 gave the Cub and the Jodel 201.5 m against the 218 m the hold asks and they gave up on the ground. 380 m and more: as
+  before (w1 383 m, w3, w8, HOME unchanged).
+- TAXI-HOME core: ap.setArriveSite(fieldId, site, plotId) / null - landed at fieldId and stopped on its strip, the pilot
+  taxis the site's way out backward to its stand and goes STOPPED there (verdict 'taxi-in'); site = a plot's
+  playerPlotSite(...).site, or null for the field's own stand. Opt-in: unset (every gate, every other field) = as before.
+  The page half is Game's (claude/ready/taxi-home, stacked on this): main plot setArriveSite(field, null, null), own plot
+  (field, plotSite, plotId), any other To setArriveSite(null), before every departFrom.
+- Open (Pilot, parked by the land-only week): the C172 approach (w8 / w5 go-arounds and divert, the w3 touchdown at
+  29.8 m/s), the Cub / Jodel w5 arrivals. No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change.
+## PLANE-RENDERS PICTURE SET (AIRCRAFT-LOOKS, Wed 11 Nov, claude/ready/picture-set on bda599c08)
+
+The official repository's pictures, the user 10 Nov. Baked in A0's 16:30-17:00 GPU slot; gates 17:00 (MEDIA PLANEFICHE PLANETHUMB, --jobs=1).
+
+- The Client Cub first, as the story hands it over: its own livery (worn white, blue sweep, N1938J), no flaps, the minimal panel. Two fixes not yet on master were applied in the bake's TREE ONLY: Game's storyClientSpec without paint.job 'bare', and FLAGSHIP's list:26 over without it. Both files were put back before the commit. In the game it looks like this once those two land (FLAGSHIP's plane-list ready, L38b).
+- Fiches: list:39, Twin 4b, list:25 (the float cards) with FLAGSHIP's nodeHydro (fiche_bake.js from 34508ecfa): lift-off on water 286 / 305 / 236 m. Also list:26, the Client Cub.
+- Every hero and every thumb re-baked.
+- Not here: list:5 Metal Cessna and list:7 Rufus. Their 10 Nov cutaways have no cut; CUT TAKES (the next ready) re-bakes them in the 21:05 slot.
+- fiche_bake.js fix: a name two files share ("build") is counted over EVERY official row, not only the --only rows. GATE PLANEFICHE failed at 17:00 because the PA-18's "build" was written back while Rufus's row already held ''. FLAGSHIP's classes rebase (claude/fiche-bake-hydro-pl) needs the same fix.
+- No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change. Media only, plus the bake tool.
+LINER-BACK-2 (CABIN-CRAFT, 11 Nov, L38a): the liner as the skin's own back face, re-landed as fresh commits after L37b pulled liner-back; five battery gates its own set never ran had gone red there. The user validated it on 9 Nov ("I validate the double sided mesh") and took the new mass ("Yes, take the new mass"). The Cub's cabin trim is 'bare' and the Jodel's 'light' (REAL-FIGURES' MASS-BUDGET-CUB-JODEL). Note: reports/evidence/LINER-BACK/READY.md.
+RE-PINNED with the mass budget (cub + jodel only): ENGCONFIG IDENTITY, POD, JOINPARITY capture, STOL baseline (stol_baseline.json.gz re-captured; the other builds are the same), PROCURE's option effects (src/core/76_procure.js, from --emit: with the 'bare'/'light' trims, each option's empty-mass delta no longer carries a furnishing share). KNIFE's corpus is re-recorded: the window planes' cut sheet shrinks because the liner is no longer a separate sheet; the window loops are the same.
+DMGNOSEOVER (Deform agrees, 10 Nov): DMGNOSEOVER's 18 m/s full-brake stick-back negative was at the tip line on master: min -4.92 deg (12 deg below parked at 9.43 s), no strike. The liner Cub's CG is 4.4 mm forward and 2.1 mm up: ~2.9 mm from removing the aft furnishing lump (a J-3 has none), ~1.4 mm from the liner's +0.95 kg billed at VSN L/R. That tips it to -41.7 deg and a prop strike. Physical in direction, a knife-edge in size. The old row becomes a REPORT (both margins printed, never fails). The negative becomes 18 m/s at 0.8 brake or 15 m/s at full brake, whichever keeps master and the liner clearly near level, chosen by measured margin (at least 6 deg above the tip point on the worse arm): CUB_NEG = 18 m/s at 0.8 brake (master L38a: 6.60 deg, 11.38 deg clear; 15 m/s full brake strikes on master too).
+PARKED (Deform): the liner's mass is billed at VSN (firewall top, x -0.17), forward of the lining's real centroid (~x 1.0). It is a known approximation worth ~1 mm of CG, parked and not for this week.
+DMGSCAR 2J, a KNOWN EDGE (Deform accepts it for this landing): a different wreck path, 1 of 26 skipping runs at 75 % on a 5-touchdown run (the Jodel, 30 m/s into a trunk 2.5 m out, node 51). The rule is the scar join's 80 %, owner Deform, to be looked at in next week's crash round (judge a 5-touchdown run by its length share or by its touchdown count). The solver is deterministic, so a re-run proves nothing.
+TRAP (the load door's join cache): tools/.joincache keyed a FLYDIY_JOIN_PROBE by its PATH only, so an edited probe answered from the cache with the old probe's verdict. It now keys the probe's content too (_load_build.js). Deleting tools/.joincache is safe.
+TRAP (a lamp on a lined skin): a nearest-face probe finds the skin and its lining at the same distance; a tie must go to the back face (f.back).
+LESSON: a ready that moves a validated plane's spec, mass or drawing runs every battery gate that reads them (STOL, KNIFE, PROCURE, DMG*), not only its own set.
+TOWN-1 STEP 1 (HW-COVERAGE, 7 Nov): THE TOWN'S TREES JOIN THE FOREST (src/viewer/render_world.js TREE_FILL.town / townInto; render_premises.js buildTrees)
+The user, via A0: "priority on the trees, because that's for me a bug, really ... the way it is managed now seems just ridiculous".
+- **What it was.** Metlakatla's record trees (the forest zones' planting, the placed tree objects) were the town's own draw (G556): a 64 m cell's
+  trees one THREE.LOD on the rungs' 0 / 60 / 132 m bands read from the CELL's centre (a whole cell popping a rung at once, up to 45 m off), no
+  impostor, no fade, and nothing past TREE_GONE (900 m), where the island's trees stand to 9 km on their impostors.
+- **What it is.** In the game the town hands its list to the forest's fill (TREE_FILL.town): each tree is walked into its 1 km fill chunk's BASE part
+  as one more record (townInto, with the chunk's first row), at its own place, yaw, size and sink: the island's rungs, its per-tree partition and
+  fades, the chunk's merged impostor, the 9 km reach. In the walk's record a town tree is sp 0, w = yaw / 6.283 (series 0: md 0, never a snag),
+  can = -size (its own scale; the canopy map is not asked). A changed list restales only the chunks whose list changed (G2931: drawn until the new
+  walk lands); dispose hands back []. The trunks stay the town's (TH 'prem', there before the ring builds): the fill keeps them out of its hits
+  (rec.town / rec.townN). TREE_FILL.townStat() counts chunks, trees and the misses (a key the fill's pool does not hold: not drawn).
+- **The before.** ?towntrees=0: the town's cells, as on master (also the fallback: no fill, or the pack not in). tools/perf/metla_ab.js: side P =
+  the town on with its own trees; --shots <dir>: chase stills on the way in and orbit stills parked over the densest tree cell.
+TOWN-1 STEP 1, THE COST (HW-COVERAGE, 8 Nov, metla_ab P,B,B,P, Cub, approach 100 s from 4 km, gamer preset, a real parked cook)
+- **Draw calls on the way in went UP.** The approach's median calls: P (?towntrees=0) 787 and 616, B (the fill) 976 and 905, about +200 to +300.
+  The pass at HOME: P 1412 and 894, B 863 and 843. Frame time shows no clear change either way: approach fps P 27.9, B 29.3 and 26.6; the pass's
+  medians fps B 23.35 / P 22.6, p99 116.7 / 108.35 ms, worst 133 / 150 ms. Run-to-run spread is wider than the two sides' gap.
+- **Species misses: 0.** All 3536 town trees went into 6 fill chunks; the premises' own tree cells went from 316 to 0.
+- **Not the cause yet.** The old far rung (132-900 m) cast no shadow and nothing past 900 m drew; the fill's merged chunk impostor casts and reaches
+  9 km, and a species the chunk did not hold before is a new record (its rung meshes per part, near the eye only). Which one costs the calls is
+  measured by metla_ab's town views (the draw census per scene group, 2a5167a10), not guessed. A cheap cut (fewer rungs or no shadow for the town's
+  records, say) waits for that census.
+- **Rig note.** Both sides flew the approach as the WRECK of the rig's low pass at HOME (master_bench's pass breaks the Cub, "short of Jolene 13/31",
+  on both P and B): the comparison is fair, the stills of 8 Nov 07:05 are not usable. The town views now come from the free camera, the aeroplane and
+  the UI hidden.
+
+## Train L38b (A0, 11 Nov 2026, 18:17-21:30)
+
+**Landed (13):** gfx-garage-profile ca16e67d5, star-reflect 63d325b3f (stars 0.06, the user's pick), veg-root-field 0d7b02a19, pace-on 19a99ff27 (boot pacing ON, the user: "ship it on"), dirt-v2 a77e39037, mosquito-cowl 978c3b4ab, fmist-on e45385c16 (forest mist ON), strip-lane 03f6d6405, picture-set cb0147300, liner-back-2 a3aee55fd, town-trees 19c7c78f8, tier-normals 68d297742 (the black bars), sea-on fe80b412b.
+
+**Held to L38c:**
+- engine-dials-c 12600ef78: BENCH red (Rufus' door body moved off its stamp) and POD red (C172 base bytes). Both are green without it. Game: the latent fields move the MAJOR fingerprint, which would supersede every player's certificate on update (the 24 Oct Rufus bug). The fix is at the source -> engine-dials-c2.
+- plane-list dbc5e742a -> plane-list-2: row 15 "Cub, fittings by hand" goes INTERNAL (the user's 10 Nov DROP).
+- taxi-home: absent.
+
+**Train commits:**
+- GATE ACCEPT re-pin, the user's Cub tank 44 -> 45 L. LINER-BACK-2 makes the load door give the file's 45 L (probed: master 44, liner-back-2 alone 45, L38b 45).
+- media/thumbs: master's cand_cub_fittings_hand thumb and its index entry put back. picture-set's whole re-bake had pruned it while master's row 15 still pointed at it; plane-list-2 removes the key in L38c.
+
+**Gates:**
+- Full battery 167 on the 15-item merge, then a 27-gate re-check on the landed 13 (L38b2).
+- Reds compared BY CHECK NAME with master (the same 12 gates run on bda599c08). These are master's, standing, and go to the perf/robustness round: GEN, TREECRASH, DMGGEAR, DMGDRIVE, FRAMECOST, ROUNDTRIP, LIVERY, JOINPARITY, NEWPLANE-BUILDS, ENGCONFIG (as L38a), plus the gates newly in the list, red on master with the same checks: FLIGHTREC, DESTTO, DMGINST, SIMWORKER-EDGES (NaN bounding sphere after an edit), SCENERYED, FREIGHT (2 of 2511), CARDDRAG (#gImpCard, A0's HOTFIX 3 -> gimp-drag fix in L38c), TECH (av.elt none/fitted have no tech segment).
+- DMGSCAR 2J: LINER-BACK-2's named edge, accepted by Deform.
+
+**Costs named:**
+- Forest mist veil: gamer +2.1 ms (lake) / +4.7 ms (forest), laptop ~0. One 150 s stall in the weather tour, not reproduced.
+- Dust V2: 0.61 ms shadow on the gamer, 0.05 ms on the phone, 4 texture reads.
+- Boot pacing ON: a 1.2 s first-use frame in 1 of 2 cold loads.
+- sea-on: one 2045 ms first-visit task; the Petrel not measured.
+- town-trees: measured on L35d, no measurable cost.
+- **BOOT: the timed gate timed out on its last row (c172 cockpit).** Garage-ready 134-244 s (one boot timeout at 243.7 s) against L38a 150-185 s and L37b 119-149 s, with long tasks up to 32 s. It is mixed with the box's shader-cache misses (worst link 47.8 s), so it is not attributed to an item. First item of the Friday perf round.

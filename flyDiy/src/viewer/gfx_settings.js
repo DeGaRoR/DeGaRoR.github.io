@@ -135,7 +135,7 @@
     // turning it ON reloads the page; OFF takes effect at once (the pockets' lane) and compiles it out from the next start.
     // A FREE row (like the towns): no preset names it - the desktop presets are frozen (GATE GFX, the user's rule) - and it
     // is OFF until the player turns it on, or until A0's box has timed it and a preset takes it (the study SS6-7).
-    { k: 'fmist', label: 'forest mist', free: true, reload: true, def: 'off', steps: [
+    { k: 'fmist', label: 'forest mist', free: true, reload: true, def: 'on', steps: [   // ON by default (the user, 10 Nov ~20:55)
         { v: 'off', label: 'off', why: 'no pockets of mist in the forest and the valleys' },
         { v: 'on',  label: 'on', why: 'pockets of mist in the valleys and on the wet forest at dawn, after rain and under a low cloud base, as the weather brings them - RELOADS the page' } ] },
     // THE CLOUDS (C1): the volumetric layer, marched at half or full resolution

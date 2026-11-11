@@ -608,6 +608,7 @@ function standFor(site, dims, groundAt) {
 // null = the aircraft's own slope; a number is the editor's future
 // declaration, flown if shallower than the aircraft's.
 const GP_FILLET = 12, GP_HOLD_IN = 110, GP_LANE = 12, GP_UTURN_R = 12;
+const GP_LANE_ROUGH = 1.0;   // STRIP-LANE: a rough strip's backtrack lane, m off its centreline (sitePattern)
 
 // ---- THE PARKED AEROPLANES, AND THE WAY OUT ROUND THEM (G710) ----------------
 // The Jolene playtest: "the autopilot gets a collision with the wing of the cub when getting out of the
@@ -745,7 +746,14 @@ function sitePattern(aero, site, opts) {
     const side = (tx - R.cx) * n[0] + (tz - R.cz) * n[1];
     laneSg = side > 0 ? -1 : 1;
   }
-  const lane = Math.min(GP_LANE, R.half - 2.5);
+  // STRIP-LANE (Pilot, 10 Nov; the DIRT-STRIP re-vet): A ROUGH STRIP IS BACKTRACKED DOWN ITS MIDDLE. half - 2.5 m keeps a
+  // runway's lane clear of its edge lights; on a bush strip the edge is where the stones are (DIRT-STRIP 26b_strip_micro:
+  // rocks x edge^2, the rolled centre band kept clear) - the Jodel's w3 backtrack at v 6.5 m (2.5 m from the edge, ~8 m/s)
+  // struck one with its propeller. A strip whose aerodrome carries `micro` (chaos > 0) gets the lane GP_LANE_ROUGH off the
+  // centreline and its U-turn made there, inside the band (the follower pivots what the wheels cannot steer, as at HOME);
+  // a strip without - every strip but the bumpy ones - keeps its lane to the bit
+  const rough = !!(aero && aero.micro && +aero.micro.chaos > 0);
+  const lane = rough ? Math.min(GP_LANE_ROUGH, R.half - 2.5) : Math.min(GP_LANE, R.half - 2.5);
   const ends = [R.end0, R.end1];
   // A SHORT STRIP'S NODES (G527): the hold 110 m in and the U-turn 27-90 m in are a long runway's - on a
   // 150 m bush strip hold0 stood 35 m PAST the middle, 40 m of run ahead, and the pilot replanned the
@@ -753,7 +761,10 @@ function sitePattern(aero, site, opts) {
   // quarter in) so 75 % of the strip is ahead - the pilot asks 70 % of a short field (43_pilot: need);
   // every strip of 300 m and more keeps its numbers to the bit
   const lenR = Math.hypot(R.end1.x - R.end0.x, R.end1.z - R.end0.z);
-  const kIn = lenR < 300 ? Math.max(0.3, 0.25 * lenR / GP_HOLD_IN) : 1;
+  // SHORT-HOLD (Pilot, 10 Nov SET2): ...AND FROM 300 m TO 380 m THE HOLD LEAVES THE PILOT'S 70 % + 4 m AHEAD. The generic
+  // hold 110 m in left w6 (311.5 m) 201.5 m ahead against the hold's 0.7 x 311.5 = 218 m: the Cub and the Jodel replanned
+  // three times and gave up on the ground (w5, 310 m, the same). Strips of 380 m and more keep 110 m to the bit
+  const kIn = lenR < 300 ? Math.max(0.3, 0.25 * lenR / GP_HOLD_IN) : Math.min(1, (0.3 * lenR - 4) / GP_HOLD_IN);
   const holds = [];
   for (const T of [0, 1]) {
     const dir = T === 0 ? d : [-d[0], -d[1]];

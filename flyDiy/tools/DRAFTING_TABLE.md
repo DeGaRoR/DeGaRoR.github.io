@@ -465,3 +465,22 @@ narrower roof ... It's a square so that you can load square boxes in it", and as
 The PC-6 after round 3: 122 / 175 (floor raised to 120), no fold, the inside never shows, the walls within 5 mm.
 Still open: the chin intake, the cockpit door window, the tail wheel's station, the engine (-114A, not -27) and the
 empty mass, the static margin.
+
+## ROUND 4 (11 Nov, late): the turbine inside its cowl; the windows' flank bug fixed in the garage
+
+- **The turbine poked out of its cowl** (the user: "the turbine is longer than the cowl"): the Caravan card's PT6 stood
+  4.85 case radii (0.98 m) off the firewall, its reduction gearbox ahead of the nose bowl. The propeller rides the
+  engine's flange plus `cw_noseOff` (the shaft), so the fix moves nothing the drawing fixed: `eng_mountGap` 4.85 ->
+  3.35 (the turbine 0.30 m aft; one unit = the case radius, 0.203 m) and `cw_noseOff` -0.24 -> +0.065 (the shaft
+  0.30 m longer). The spinner tip, the cowl front and every station stay put. Lesson: **moving an engine fore / aft
+  without moving its propeller is the stand-off and the shaft moved together.**
+- **A clean, straight nose** (the user: "just something straight", no chin): the nose ring's bottom stood proud of the
+  bowl - `cw_keelSweep` 0 and `cw_lidRBot` 0.15 take it away; the bowl squared to the barrel (`cw_lidSqTop` /
+  `cw_lidSqBot` 0.8, `cw_lidShoulder` 0.9, `cw_lidRound` 0.6).
+- **The windows' "top" radii rounded the bottom**: not a label but a garage bug - `_knife_gen.js` knifeCut cut a window
+  that is not symmetric top to bottom upside down on the starboard flank only. Fixed on its own branch for A0
+  (`claude/fit-procedure-garage-windows`, with rows 4-6 of drawn windows), merged here; the PC-6's radii now sit on
+  their own labels (R1 / R2 the tops).
+- **A sliver is not a window**: `dt_core.windows` leaves out glazed patches under 6 cm; the cockpit window had been
+  paired with a 3 cm strip. The PC-6 reads 119 / 175 (its two cockpit-edge passes were that pairing's luck); the floor
+  follows.

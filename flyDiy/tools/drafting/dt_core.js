@@ -434,7 +434,9 @@
       const p0 = fromPx(V, c.x0, c.y1 + 1), p1 = fromPx(V, c.x1 + 1, c.y0);
       const f = shapeFill((x, y) => id[y * W + x] === PID.glass, c.x0, c.y0, c.x1, c.y1);
       return { a0: +p0[0].toFixed(3), a1: +p1[0].toFixed(3), h0: +p0[1].toFixed(3), h1: +p1[1].toFixed(3), tf: f.tf, bf: f.bf };
-    }).sort((x, y) => x.a0 - y.a0);
+    // A SLIVER IS NOT A WINDOW (11 Nov: a 3 cm strip of glass showing between the door and the band was paired with the
+    // drawing's cockpit window): a glazed patch under 6 cm in either direction is left out
+    }).filter(w => w.a1 - w.a0 >= 0.06 && w.h1 - w.h0 >= 0.06).sort((x, y) => x.a0 - y.a0);
   }
 
   // ---- THE REFERENCE'S key measurements, from its marks on the blueprint -------------------------------------------

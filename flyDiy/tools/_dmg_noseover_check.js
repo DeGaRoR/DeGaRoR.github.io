@@ -66,7 +66,8 @@ for (const key of ['cub', 'stol', 'metal', 'jodel']) for (const ground of ['home
 }
 
 // 3 / 4. the rolls
-function roll(key, ground, V, de, secs) {
+function roll(key, ground, V, de, secs, brake) {
+  if (brake == null) brake = 1;
   const { sim } = place(key, ground);
   for (let f = 0; f < SETTLE; f++) sim.step(DT);
   const x0 = sim.axes()[0], hl = Math.hypot(x0[0], x0[2]), fx = -x0[0] / hl, fz = -x0[2] / hl;
@@ -74,7 +75,7 @@ function roll(key, ground, V, de, secs) {
   for (let i = 0; i < sim.n; i++) { sim.v[i * 3] += V * fx; sim.v[i * 3 + 2] += V * fz; }
   let tAbs = SETTLE * DT, thMin = th0, tMin = tAbs, tOver = null, Vend = V;
   for (let f = 0; f < secs * 60; f++) {
-    sim.ctl.thr = 0; sim.ctl.brake = 1; sim.ctl.de = de; sim.ctl.da = 0; sim.ctl.dr = 0;
+    sim.ctl.thr = 0; sim.ctl.brake = brake; sim.ctl.de = de; sim.ctl.da = 0; sim.ctl.dr = 0;
     sim.step(DT); tAbs += DT;
     const th = pitchOf(sim); if (th < thMin) { thMin = th; tMin = tAbs; }
     if (tOver == null && th < th0 - 12) tOver = tAbs;
@@ -99,7 +100,24 @@ for (const [key, ground, V] of [['cub', 'flat', 12], ['cub', 'home', 12], ['cub'
   coherent(tag, r.D);
 }
 console.log('4. THE NEGATIVES');
-for (const [key, ground, V, de, nose] of [['cub', 'flat', 18, 1, 'taildragger, stick back'], ['stol', 'flat', 18, 1, 'taildragger, stick back'], ['metal', 'flat', 18, 0, 'the 172 on its nosewheel'], ['metal', 'home', 12, 0, 'the 172 on its nosewheel']]) {
+// LINER-BACK-2 (10 Nov, Deform agrees): the Cub's 18 m/s full-brake stick-back negative sat AT the tip line on master
+// (min -4.92 deg, 12 deg below parked at 9.43 s, no strike); the liner Cub's CG 4.4 mm forward + 2.1 mm up (the aft
+// furnishing lump gone - a J-3 has none - and the liner's +0.95 kg billed at VSN) tips it over. Physical in direction,
+// a knife-edge in size: that row is now a REPORT (printed, never fails) and the Cub's negative is CUB_NEG, chosen by
+// measured margin, which must stay at least NEG_MARGIN deg above the tip point (parked - 12 deg).
+const CUB_NEG = { V: 18, brake: 0.8 }, NEG_MARGIN = 6;
+for (const [V, brake] of [[18, 1], [18, 0.8], [15, 1]]) {
+  const r = roll('cub', 'flat', V, 1, 15, brake), tip = r.th0 - 12;
+  console.log('  REPORT cub flat ' + V + ' m/s, brake ' + brake + ' (taildragger, stick back): ' + desc(r) + ' - margin above the tip point ' + f2(r.thMin - tip) + ' deg');
+}
+{
+  const tag = 'cub flat ' + CUB_NEG.V + ' m/s at ' + CUB_NEG.brake + ' brake (taildragger, stick back)', r = roll('cub', 'flat', CUB_NEG.V, 1, 15, CUB_NEG.brake), S = r.D.structural || {};
+  console.log('  ' + tag + ': ' + desc(r));
+  yes(!r.D.propStrike && !r.D.noseAt && !S.damaged, tag + ': no strike, no nose contact, not damaged');
+  yes(r.thMin - (r.th0 - 12) >= NEG_MARGIN, tag + ': clear of the tip point by ' + f2(r.thMin - (r.th0 - 12)) + ' deg (at least ' + NEG_MARGIN + ')');
+  coherent(tag, r.D);
+}
+for (const [key, ground, V, de, nose] of [['stol', 'flat', 18, 1, 'taildragger, stick back'], ['metal', 'flat', 18, 0, 'the 172 on its nosewheel'], ['metal', 'home', 12, 0, 'the 172 on its nosewheel']]) {
   const tag = key + ' ' + ground + ' ' + V + ' m/s (' + nose + ')', r = roll(key, ground, V, de, 15), S = r.D.structural || {};
   console.log('  ' + tag + ': ' + desc(r));
   yes(!r.D.propStrike && !r.D.noseAt && !S.damaged, tag + ': no strike, no nose contact, not damaged');

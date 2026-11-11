@@ -1424,8 +1424,10 @@ function garageInit(api) {
   // file control (no hidden input, no programmatic click, no type filter - Android files a .json under no MIME) and,
   // as a second door that needs no picker at all, a box to PASTE the build's JSON text. Both go through readFile.
   // Desktop keeps the button, the hidden input and the .json filter.
-  const touchDev = (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0) ||
-                   (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+  // (no device test of its own - GATE GFX: welcome.js alone decides the device; its phone PROFILE covers phones + tablets)
+  const touchDev = () => (typeof window !== 'undefined' && window.PROFILE && window.PROFILE.name === 'phone') ||
+                   (typeof document !== 'undefined' && document.documentElement && document.documentElement.classList &&
+                    document.documentElement.classList.contains('phone'));
   let impCard = null;
   const impOpen = () => {
     if (!impCard && document.createElement && document.body) {
@@ -1457,7 +1459,7 @@ function garageInit(api) {
     if (impCard) impCard.hidden = false;
   };
   if ($('gImport')) $('gImport').addEventListener('click',
-    () => { if (touchDev) { impOpen(); return; } if (fileIn) { fileIn.value = ''; fileIn.click(); } });
+    () => { if (touchDev()) { impOpen(); return; } if (fileIn) { fileIn.value = ''; fileIn.click(); } });
   // THE NAME IS THE MENU (2026-09-03, the user: "simply the plane's name on
   // the top left, clicking on it gives all the ribbon options in a standard
   // menu"). The six verbs above are untouched — same ids, same handlers; what

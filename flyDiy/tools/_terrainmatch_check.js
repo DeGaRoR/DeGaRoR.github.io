@@ -168,6 +168,8 @@ const RW = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_world.js'), 
     const u = GT.sinkU(cx, cz, S.half, R);
     ok(u[2] === S.half - R && u[3] === GT.S.drop && 2 * R + GT.S.ramp < S.half, '...the layer\'s uniform sinks its vertices more than a cell inside (their triangles within 2 cells: the band) - the core starts after the ramp', JSON.stringify(u));
     const tris = (N - 1) * (N - 1) * 2; ok(tris === 8192, '...one draw of ' + tris + ' triangles');
+    { const nor = r.value.geometry.getAttribute('normal').array; let bad = 0; for (let k = 0; k < nor.length; k += 3) { const l = Math.hypot(nor[k], nor[k + 1], nor[k + 2]); if (!(Math.abs(l - 1) < 1e-3 && nor[k + 1] > 0)) bad++; }
+      ok(bad === 0, '...every normal of the tier finite, unit and up (11 Nov, the black bars: its +z edge row was NaN)', bad + ' bad of ' + nor.length / 3); }
   }
   ok(/uniform vec4 uTier;/.test(RW) && /if \(max\(tD\.x, tD\.y\) < uTier\.z\) \{ transformed\.y -= uTier\.w; vWPi\.y -= uTier\.w; \}/.test(RW), 'render_world: the ground hook sinks a vertex under the tier by uTier (a vertex test: no discard, early-Z kept)');
   ok(/uTier: \{ value: new THREE\.Vector4\(0, 0, 0, 0\) \}/.test(RW) && /sh\.uniforms\.uTier = TIER_U\.fine;/.test(RW) && /tierU: TIER_U\.patch/.test(RW) && /if \(o\.tierU && !tier\) sh\.uniforms\.uTier = o\.tierU;/.test(RP), '...off for every ground program (the ring, the far terrain) but the patch\'s (opts.tierU) and the fine tiles\' (TIER_U.fine)');

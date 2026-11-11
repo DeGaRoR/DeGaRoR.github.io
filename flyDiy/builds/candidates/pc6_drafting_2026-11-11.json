@@ -56,10 +56,10 @@
    "paxWinDepth": 0.006,
    "paxWinTopK": 1,
    "paxWinSkew": 0,
-   "paxWinR1": 0.05,
-   "paxWinR2": 0.05,
-   "paxWinR3": 0.1,
-   "paxWinR4": 0.3,
+   "paxWinR1": 0.3,
+   "paxWinR2": 0.1,
+   "paxWinR3": 0.05,
+   "paxWinR4": 0.05,
    "win2N": 1,
    "win2Shape": 1,
    "win2Z": -0.32,
@@ -86,10 +86,10 @@
    "win3Depth": 0.006,
    "win3TopK": 1,
    "win3Skew": 0,
-   "win3R1": 0.05,
-   "win3R2": 0.05,
-   "win3R3": 0.3,
-   "win3R4": 0.1,
+   "win3R1": 0.1,
+   "win3R2": 0.3,
+   "win3R3": 0.05,
+   "win3R4": 0.05,
    "glazeMat": 0,
    "crPillar": 3,
    "crSill": 0,
@@ -749,7 +749,7 @@
    "eng_thrY": 0,
    "eng_mount": 1,
    "eng_mountX": 1,
-   "eng_mountGap": 4.85,
+   "eng_mountGap": 3.35,
    "eng_mountR": 1,
    "eng_fwSpread": 1.5,
    "spinMat": 0,
@@ -758,7 +758,7 @@
    "cowlGap": 0,
    "cw_cowlLen": 1.815,
    "cw_lidLen": 0.325,
-   "cw_noseOff": -0.24,
+   "cw_noseOff": 0.0645,
    "cw_spinR": 0.2,
    "cw_spinLen": 0.45,
    "cw_spinRound": 0.6,
@@ -912,7 +912,13 @@
    "frWinTopZ": 0.09,
    "cw_sqAftTop": 0.9,
    "cw_sqAftBot": 0.9,
-   "cw_partLevel": 1
+   "cw_partLevel": 1,
+   "cw_lidSqTop": 0.8,
+   "cw_lidSqBot": 0.8,
+   "cw_lidShoulder": 0.9,
+   "cw_lidRound": 0.6,
+   "cw_keelSweep": 0,
+   "cw_lidRBot": 0.15
   },
   "wings": [
    {
@@ -1932,6 +1938,18 @@
     "who": "session",
     "step": "fit",
     "line": "{\"topRound\":0.05,\"topAngCeil\":70,\"topAngRoof\":88}"
+   },
+   {
+    "date": "2026-11-11T23:27",
+    "who": "session",
+    "step": "fit",
+    "line": "turbine 0.30 m aft inside the cowl, shaft 0.30 m longer; clean straight nose bowl {\"eng_mountGap\":3.35,\"cw_noseOff\":0.0645,\"cw_lidSqTop\":0.8,\"cw_lidSqBot\":0.8,\"cw_lidShoulder\":0.9,\"cw_lidRound\":0.6,\"cw_keelSweep\":0,\"cw_lidRBot\":0.15}"
+   },
+   {
+    "date": "2026-11-11T23:28",
+    "who": "session",
+    "step": "fit",
+    "line": "the knife's flank fix: the rounded corners named by their own labels {\"paxWinR1\":0.3,\"paxWinR2\":0.1,\"paxWinR3\":0.05,\"paxWinR4\":0.05,\"win3R1\":0.1,\"win3R2\":0.3,\"win3R3\":0.05,\"win3R4\":0.05}"
    }
   ],
   "datumLE": 3000,

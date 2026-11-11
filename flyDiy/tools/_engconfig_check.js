@@ -246,8 +246,8 @@ const kidsDone = PINMODE ? null : runKids();
 say('1 IDENTITY - the saved builds and the single mounts, digested against master (1bcd01d3e + the landing notch)');
 const VAL_FILES = new Set(Object.values(LB.VALIDATED).map(v => v.build).concat(['tools/fixtures/repro/rufus_2026-10-18_certified.json']));
 const PIN = {
-  'builds/cub_2026-09-20_corrected.json': 'eece122e0b81e79f 8064ad76b0127161',
-  'builds/jodel_2026-09-20_corrected.json': '231d8f26af8c8756 3497672e75dd4e23',
+  'builds/cub_2026-09-20_corrected.json': '030fcb9946adc31e ef32151105b90ed4',
+  'builds/jodel_2026-09-20_corrected.json': '202e618adef1efa0 2768fd6cab2c9814',
   'builds/cessna172_2026-09-20_corrected.json': '4b96bdef8b315409 b4a926d9ce6d6b33',
   'builds/chinook_2026-09-21_corrected.json': '0ce32059d36b92a3 9a62a6a61fcc8556',
   'tools/fixtures/build_v7_ultralight_2026-09-05.json': 'f6a9c697f782f45b e7942c80c42fb7f0',
