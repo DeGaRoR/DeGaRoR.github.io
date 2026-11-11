@@ -132,7 +132,11 @@ for (const r of rows) {
     'node hydro: ' + (!nh ? '-' : nh.lift ? 'lift-off ' + Math.round(nh.lift.dist) + ' m at ' + nh.lift.t.toFixed(1) + ' s, ' + Math.round(nh.lift.V * 3.6) + ' km/h' : nh.why),
     'take-off row: ' + JSON.stringify(data.specs ? (data.specs.TOWater ? 'on water: ' + data.specs.TOWater : data.specs.TORun + (data.sea ? ' m on water' : ' m')) : null));
 }
-{ const n = {}; for (const e of Object.values(index.fiches)) if (e.file) n[e.file] = (n[e.file] || 0) + 1;   // a name two files share ("build") names neither
+// a name two files share ("build") names neither - counted over EVERY official row's file, not only this bake's: with --only
+// a row baked before already holds '' and hid the share (11 Nov: --only list:25 wrote PA-18's "build" back, Rufus's was '')
+{ const n = {}, own = f => { try { return JSON.parse(fs.readFileSync(path.join(FLY, f), 'utf8')).name || ''; } catch (e) { return ''; } };
+  for (const q of L.planes) if (q.list === 'official' && q.file && q.thumb) { const k = own(q.file); if (k) n[k] = (n[k] || 0) + 1; }
+  for (const e of Object.values(index.fiches)) if (e.file) n[e.file] = Math.max(n[e.file] || 0, 1);
   for (const e of Object.values(index.fiches)) if (e.file && n[e.file] > 1) e.file = ''; }
 fs.mkdirSync(OUT, { recursive: true });
 fs.writeFileSync(path.join(OUT, 'index.json'), JSON.stringify(index, null, 1) + '\n');
