@@ -46,7 +46,7 @@
     {"n":44,"list":"legacy","name":"Super Petrel V2","file":"builds/candidates/review/superpetrel_V2.json","note":"rigid-L mains into the lower wing (gearFold 9)"},
     {"n":45,"list":"legacy","name":"Super Petrel V3","file":"builds/candidates/review/superpetrel_V3.json","note":"V2 + clean nose, no flaps, spray strakes - \"a very nice little plane\" (the user)"},
     {"n":46,"list":"legacy","name":"Super Petrel V4","file":"builds/candidates/review/superpetrel_V4.json","note":"V3 + the central faired pylon, the engine on an 8 cm pylon on the wing"},
-    {"n":15,"list":"archive","name":"Cub, fittings by hand","file":"builds/candidates/review/cub_fittings_hand_2026-10.json","thumb":"cand:cub_fittings_hand_2026-10.json","note":"from a test (FITTINGS-MANUAL); not merged"},
+    {"n":15,"list":"archive","name":"Cub, fittings by hand","file":"builds/candidates/review/cub_fittings_hand_2026-10.json","note":"from a test (FITTINGS-MANUAL); not merged; INTERNAL (A0 4 Nov), DROP in the user's classes (10 Nov): archived, no picture (A0 11 Nov: no hero baked; PLANE-RENDERS' picture set dropped its thumb)"},
     {"n":31,"list":"archive","name":"twinBoomFail, older save","file":"bugReports/flydiy-build (3).json","note":"flydiy-build (3)"},
     {"n":32,"list":"archive","name":"Garage Special","gen":1,"note":"the first test aircraft (GEN_DEFAULT, no file)"},
     {"n":35,"list":"archive","name":"Twin busher floats 3b","file":"builds/candidates/review/Twin_busher_floats_3b.json","note":"Rotax 916 iS"},
