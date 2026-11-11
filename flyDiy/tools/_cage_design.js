@@ -2977,31 +2977,19 @@ const ARCHETYPES = [
     over: { cage: { rodY: 0.75, rodD: 0.30, boomLen: 4.63,
                     // THE DRIVE (the user, 10-11 Nov: the engine "right in the back of the pilot at the bottom", on the aft
                     // bulkhead - "the pillar is where the aft bulkhead is where the engine is"): the pusher on the
-                    // bulkhead, low (engY), under its COWL as the aft pod (11 Nov: "use the cowl, that one will already fit
-                    // on the aft bulkhead ... by varying the length we can get to the shape that we need"): the straight
-                    // barrel of the pusher pods (NACELLE_POD) on the body's face, narrowing in plan (the blade the drawing's
-                    // aft pod is), ~0.9 m long; the small prop on a shaft just past its end, the disc 0.23 m off the
-                    // ground and 0.20 m under the rod
-                    engY: -0.13, cw_propD: 0.75, cw_noseOff: 0.58,   // (the shaft: the prop and its spinner past the cowl's thin end)
-                    // (11 Nov, the user over the render: "move the cowl waistline in line with the cabin waistline ... make
-                    // the creases of the cowl hard, and try to get the shape I drew in red, but based on the plans. This
-                    // upwards line is necessary for taking off"): SEALED to the face (fitNose 2: the size the body's, the
-                    // section ours), the widest line at the cabin's (-0.52 of the half-height: the Chinook's low waist),
-                    // square (0.9) with no panel joint and no split line (either tears the square section at the waist);
-                    // a short straight barrel, then a long bowl whose bottom line bends up from ~2.5 m (the plans' pod
-                    // bottom: flat, then rising) to 0.28 m above the keel at the end, the top line held to the rod, the
-                    // end face 0.20 m wide round the prop's axis. Rotation before the prop touches: ~19 deg. NOTE: a BIRTH
-                    // fits the cowl to the engine's type once (_cage_cowl.js cowlForEngine) and restyles three of these
-                    // rows (cw_waist, cw_sqAftTop, cw_sqAftBot) - builds/archaeopteryx_2026-11-10.json carries them as set. A ~2 cm
-                    // GAP stays between the bulkhead and the cowl: the seat scan (_cage_cowl.js noseFace) reads the
-                    // rod's bolted socket, which stands aft of the face at its top edge, as skin, and sets the cowl back
-                    cowlOn: 1, fitNose: 2, ...NACELLE_POD, cw_inletOn: 0, cw_seamOn: 0, cw_partOn: 0,
-                    cw_waist: -0.6, cw_sqAftTop: 0.9, cw_sqAftBot: 0.9, cw_sqFrontTop: 0.9, cw_sqFrontBot: 0.9,
-                    // (11 Nov, the user: "even narrower at the end ... it really ends up like a wing, with almost no
-                    // thickness"): the width to the row's floor at the barrel end and a 4 cm end face - a blade
-                    cw_cowlLen: 0.40, cw_lidLen: 0.51, cw_taperW: 0.3, cw_taperH: 1.0,
-                    cw_lidMode: 0, cw_lidRW: 0.02, cw_lidRTop: 0.60, cw_lidRBot: 0.245, cw_lidShoulder: 0.5, cw_lidRound: 0.6,
-                    cw_deckSweep: 0, cw_deckShoulder: 0.92, cw_deckRound: 1, cw_keelSweep: 0, cw_keelShoulder: 0, cw_keelRound: 0.6,
+                    // bulkhead, no cowl; a shaft aft (cw_noseOff) to the small prop just past the aft pod's tip, its
+                    // disc 0.24 m off the ground and ~0.19 m under the rod (engY)
+                    engY: -0.38, cw_propD: 0.75, cw_noseOff: 0.50, cowlOn: 0,
+                    // THE AFT POD: THE AERO AFT OVER THE PUSHER (11 Nov, the user: "try again with the aero aft instead of
+                    // the cowl ... the real thing is straight tapers; the cowl looks odd and bulby"). aeroAftOver is a row
+                    // of this branch (_cage_gen.js, _cage_cowl.js): the aero aft drawn over a pusher's bulkhead, the engine
+                    // staying on it; a page without the row draws no aft pod. The blade, 0.89 m (to ~2.99 m behind the
+                    // nose; the plans' aft face 2.95), continuous skin from the pillar (no gap): its width tapers straight
+                    // to a 4 cm edge (aeroAftTip 0.85 - 0.5 bows in, 1.0 sags), its tip 0.75 of the height raised to the rod
+                    // (aeroAftDroop -0.2): the bottom line climbs 0.25 m to the tip, near straight (the fin shape climbs
+                    // dead straight, but from the pillar and 0.5 m: too steep)
+                    aeroAftOver: 1, aeroAftOn: 1, aeroAftShape: 1, aeroAftLen: 1.2, aeroAftTip: 0.85, aeroAftEdge: 0.75,
+                    aeroAftDroop: -0.2,
                     // the wing: LE 1.08 / TE 2.30 behind the nose at the root, chord 1.19 -> 1.09 at the crank -> 0.56
                     wgSpan: 13.0, wgChord: 1.19, wgCrankAt: 0.48, wgCrankChord: 1.09, wgCrankX: 0.08,
                     wgChordTip: 0.56, wgTipX: 0.52, wgDihedral: 1, wgDihedralOut: 1, wgDx: 0,

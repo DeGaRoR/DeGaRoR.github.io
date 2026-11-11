@@ -623,6 +623,11 @@ function engineFaces(mesh, FS, P) {
     // trailing edge, a third of a metre ahead of where the pod ends — the
     // same engBlockZ / engBlockY the over-the-wing and nacelle mounts take
     // (block fore / aft, up / down), applied to the face the pusher stands on.
+    // ARCHAEOPTERYX (11 Nov): THE AERO AFT OVER THE PUSHER IS A DRAWING (_cage_gen.js aeroAftOver) - its rings move the
+    // aft-most cap to the pod's tip, so the face is put back on the bulkhead by the aero aft's own length: the engine,
+    // its shaft and its prop stand where they stand without it (a build loads the same on a page without the row)
+    if (f && +P.aeroAftOver && +P.aeroAftOn && (+P.boomStyle || +P.boomTwin))
+      f = Object.assign({}, f, { z: f.z + Math.max(0.3, +P.aeroAftLen || 0.9) * FS });
     // (FIREWALL RULE: a cowled pusher stands on the face itself - the block does not move it)
     if (f && cowledPusher(P)) return [{ face: f, aft: true, kind: 'pusher' }];
     return f ? [{ face: Object.assign({}, f, { z: f.z + bz, yc: f.yc + by }), aft: true, kind: 'pusher' }] : [];
