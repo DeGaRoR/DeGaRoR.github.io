@@ -1419,16 +1419,26 @@ function garageInit(api) {
   // THE JSON DOORS, ON THE RIBBON beside the other four verbs
   if ($('gExport')) $('gExport').addEventListener('click', exportFile);
   if ($('gExportAll')) $('gExportAll').addEventListener('click', exportAllFile);
-  // PHONE IMPORT (the user, 11 Nov 00:35: "nothing happens when clicking on import" on the phone): Android's picker
-  // filters by MIME, and a .json file is rarely registered as application/json, so accept="application/json,.json"
-  // can leave the picker empty or never open it; and a display:none input is not reliably clickable on every mobile
-  // browser. On a touch device the input takes any file (the reader below refuses a non-build with a message) and
-  // stands off-screen instead of hidden. Desktop keeps the .json filter.
+  // PHONE IMPORT (the user, 11 Nov 00:35 and 00:55: "nothing happens when clicking on import", Chrome on the phone,
+  // the picker never opens). A programmatic input.click() from the button is refused by the phone's Chrome, so on a
+  // touch device the file input itself LIES OVER the import button (transparent, the button's own size): the
+  // player's tap lands on the real file input and the browser opens its picker natively, with nothing to refuse.
+  // Any file is accepted there (Android's picker filters .json by an unregistered MIME); the reader below refuses a
+  // non-build with a message. Desktop keeps the button, the hidden input and the .json filter.
   const touchDev = (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0) ||
                    (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
-  if (fileIn && touchDev && fileIn.removeAttribute) {
+  const impBtn = $('gImport');
+  if (fileIn && impBtn && touchDev && document.createElement && impBtn.parentNode && fileIn.removeAttribute) {
+    const wrap = document.createElement('div');
+    wrap.style.position = 'relative'; wrap.style.display = 'flex'; wrap.style.flexDirection = 'column';
+    impBtn.parentNode.insertBefore(wrap, impBtn);
+    wrap.appendChild(impBtn);
     fileIn.removeAttribute('accept'); fileIn.hidden = false;
-    if (fileIn.style) Object.assign(fileIn.style, { position: 'fixed', left: '-9999px', top: '0', width: '1px', height: '1px', opacity: '0' });
+    Object.assign(fileIn.style, { position: 'absolute', left: '0', top: '0', width: '100%', height: '100%',
+      opacity: '0', cursor: 'pointer', zIndex: '3', fontSize: '40px' });
+    wrap.appendChild(fileIn);
+    fileIn.addEventListener('click', () => { fileIn.value = ''; });
+    fileIn.addEventListener('change', () => { const sh = $('edShelf'); if (sh) sh.hidden = true; });
   }
   if ($('gImport')) $('gImport').addEventListener('click',
     () => { if (fileIn) { fileIn.value = ''; fileIn.click(); } });
