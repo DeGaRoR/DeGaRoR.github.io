@@ -314753,3 +314753,68 @@ constant-speed class - builds on this row; extend it here, never beside it):
 OPEN (with the default taken):
 1. The design tiles still write a pitch with their blades (wood -> cruise, carbon -> climb). The row now shows it and
    can change it after. Default: left (the tiles are starters: one click, a sensible propeller).
+
+## ENGINE-DIALS C - THE LATENT PHYSICS FIELDS: A ROW OR A CONSTANT THE JOIN WRITES; THE SNAPSHOTS FOLLOW THE BUILDS; THE REGISTRY'S PROP NUMBERS NAMED (9-11 Nov 2026, cloud, ENGINE-DIALS for A0; claude/ready/engine-dials-c, on engine-dials-b)
+
+THE BRIEF'S FINDINGS 4 AND 5: physics fields no editor row reaches (gear stiffness and camber, the fuselage crown; the
+cowl fields are PROPER-COWLS' one cowl path's - not touched, see OPEN 4); the registry's dead propeller numbers; the
+per-aircraft snapshots in procurement, freight and economy written by hand from a measurement.
+
+WHAT:
+- GEAR STIFFNESS IS A ROW: the mains' `suspension stiffness ×` (s1Stiff, 0.35-3, GEN_FIELDS' clamp; the frame scales
+  the legs' spring by it and their damping by its root), written by the join to spec.gear.stiffness, absent at 1
+  (CAGE_DEFAULT_ABSENT, GEN_CAGE_ROW_NEUTRAL), claimed by the mains' shock group. The audit's "every shipped build at
+  the default" missed one: the DC-3-alike (candidate) flies stiffness 3 (DC3-BUILD set it in the spec) - cageFromSpec
+  now seeds the row from a file's stiffness when its cage has none, so it flies its 3 and the row shows it.
+- CAMBER AND CROWN ARE FIXED CONSTANTS on a cage build: gear.camber (the gear layer draws every wheel upright) and the
+  loft's crownTop / crownSide (the drag build-up's body; the cage IS the body, nothing drawn stands for them). The join
+  writes GEN_DEFAULT's values (_cage_join.js CAGE_JOIN_FIXED: 0, 0.72, 0.07), so a hand-edited file cannot fly a value
+  no row shows. Every shipped build already carries them.
+- THE SNAPSHOTS FOLLOW THE BUILDS: tools/snapshots.js is the one writer of CONTRACT_DESIGNS' numbers (genShakedown, GATE
+  CONTRACTS' measurement), FREIGHT_CARDS (tools/_freight_site.js) and PROCURE's option effects (GATE PROCURE's
+  --emit), off the build files CONTRACT_DESIGNS names, stamped with the files' hash (`// SNAPSHOTS-OF` in
+  72_contract_data.js). GATE SNAPSHOTS (new, core, ms) is red when a validated build changed and its snapshots did not:
+  an edit follows with `node tools/snapshots.js --write` (~10 min: the PROCURE measurement). Written now on master 603da882 (A0
+  9 Nov: "exactly the audit's point") - the drift the finding is about, inside the old gates' 3 %: THE METAL CESSNA
+  883 -> 880 kg, 663 -> 662 empty, take-off 147 -> 144 m; the Cessna floats 1018 -> 1017 kg, 798 -> 799 empty (its
+  take-off already master's 243); four procurement effects of the Cessna (the O-320's empty -77 -> -78, the IO-360's
+  take-off 13 -> 15, the long tank's mass 17 -> 16 and cruise 2 -> 1, three seats' cruise -2 -> -1); its freight card
+  (2 lines - master's one FREIGHT red line, now green). The Cub, the Jodel and the twin: unchanged.
+- THE REGISTRY'S PROPELLER NUMBERS (A0's ruling, 9 Nov): every row's Tstatic / kV2 "flies nothing, kept for the
+  certificate keys" - the comment over POWERPLANTS says so. Each garage build synthesises params.prop, which the solver,
+  the pilot, the drive and the hydro read first (the A-65's pair is GATE GEN's calibration anchor besides), but the
+  resolved spec carries the row (spec.pplant) and genCertKey, the bench's and the parked fleet's fingerprints hash it:
+  deleted, every certificate key moved (measured on the first cut: the STOL Cub f801025a -> 217bc677). They are dropped
+  at the next GEN_CERT_V bump - A0's board item of its own.
+- GATE ENGINEDIALS 4: the stiffness row writes gear.stiffness; the DC-3's 3 loads onto the row; the join's constants are
+  GEN_DEFAULT's and it writes them; every official / candidate / validated build carries a stiffness on the row's range
+  and the constants.
+
+DIGESTS, master 603da882 against this ready (the load door, 18 builds): ready A's - the 16 it left identical stay
+identical (def and certificate key; the flown spec but the two neutral cage keys): the Cub af84cf8d, the STOL Cub
+f801025a, the metal Cessna bd677633, the Cessna floats 78476d00, the twin 4b 21535e6e, the Super Petrel 54a231ae, the
+Chinook 8e50507f, the Rufus 7052bcd0. MOVED: the DC-3-alike's flown spec gains `s1Stiff: 3` in its cage - its def is
+master's (it flies the same 3), its certificate key moves (5b320edf -> bee2ad62; a candidate, no shipped certificate).
+No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change.
+
+GATES (node, 11 Nov, the stack's top = this ready, against master 603da882, `run_gates.js --no-build`):
+- The 27 of A's list: master's verdict on each, line for line - but FREIGHT, red on master (1 line: the Cessna card),
+  green here (the snapshot write). ENGINEDIALS and SNAPSHOTS (new): PASS.
+- THE FLIGHT GATES: STOL (the fixture untouched), GEN shards 0-2, PILOT (3 shards), TAKEOFF, SEAPLANE, ARCHETYPES shards
+  0 / 2 / 3: PASS. TOUR shard 0 (`_tour_check.js --shard=0/4`): PASS - the user's Cub
+  HOME > w3 > tw_ski > mn_strip > nv_strip > w2 > HOME, DONE, 6 legs, 28.6 L left, the mn_strip > nv_strip divert to w3.
+  RED, each master's own, read on master 603da882 the same day: GEN shard 3 "cruise is quiet in wind" (master's standing
+  red; GEN's old clampSpec-envelope red is gone with master's 4bb26b34), ARCHETYPES shard 1 "Chinook-alike: the circuit
+  completes - rejected-takeoff".
+
+COSTS: none in flight. GATE SNAPSHOTS: a hash of five build files (ms). The writer: ~10 min, only when a validated
+build file changes.
+
+OPEN (with the default taken):
+1. GATE SNAPSHOTS turns red on any edit to the five validated build files until `--write` runs (~10 min). Default:
+   that is the rule ("edits follow"); build.js does not run the writer (it would add minutes to every build).
+2. CONTRACT_DESIGNS.c172 is measured off bugReports/cessnaMetal (1).json, not the Official list's
+   builds/cessna172_2026-09-20.json (JOINPARITY's fixture line is the same pair). Default: the table's own file.
+3. Cowl fields (no editor row): PROPER-COWLS' one cowl path (CABIN-CRAFT integrates it) - not touched here, by the
+   user's rule; still so after L36d's PROPER-COWLS. Listed for that path: spec.cowl's six fields - fillet 0.10, taper 0.94, intake 'chin' and halfW / top /
+   bot (null: derived) - no join line writes any of them; every official and candidate file carries GEN_DEFAULT's.
