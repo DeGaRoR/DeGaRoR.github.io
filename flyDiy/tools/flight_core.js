@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: cfce22b22a286855
+// body-sha256: 6848588ba3b233d3
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -35289,6 +35289,7 @@ function genAgingOf(S) {
 const GEN_PRICES = {
   wheel: 790,          // each: wheel, tyre, brake (a Matco 5.00-5 pair $1 096 + a tyre $254-294 = $680-900); was 320
   thirdWheel: 1200,    // tailwheel or nosewheel assembly (ABI / Scott 3200, $1.0-1.4k); was 260
+  wheelCycle: 160,     // MONOWHEEL: a bicycle wheel (whProfile 3) - a 16-20" wheel, tyre and tube ($80-250, catalogue)
   // `instruments` retired (the panel arc, session 2): GEN_INSTR prices the fit
   paintM2: 40,         // the colour coats a builder sprays, per m2 painted (DIY materials for a C172, ~60 m2, $1.5-4k est.)
   coverM2: 75,         // a fabric covering system's materials per m2 of CLOTH, over the row's kilos (a Cub's $3-6k)
@@ -36245,6 +36246,10 @@ const GEN_RULES = {
   // reproduces the 3.5 / 2.0 literals it had.
   wheelKg:     R => 3.5 * CORE_MATH.pow(Math.max(0.03, R) / 0.20, 2.5),
   wheelTwKg:   R => 2.0 * CORE_MATH.pow(Math.max(0.03, R) / 0.10, 1.5),
+  // MONOWHEEL (the user, 11 Nov, the Archaeopteryx's main: "for gliders, we need to allow super light wheels"): THE
+  // BICYCLE WHEEL (the cage's whProfile 3) - a wire-spoked rim, a narrow tube tyre and a small hub: a 16" wheel (R 0.25)
+  // with its tyre and tube ~1.3 kg (a 20" ~1.6), INFERRED from bicycle catalogue weights; no brake drum of its own
+  wheelCycleKg: R => 1.3 * CORE_MATH.pow(Math.max(0.03, R) / 0.25, 1.5),
   // RETRACT-1: THE RETRACTION KIT by the design gross - the actuators, the pack, the locks, the beefier trunnions. The real
   // pairs (RETRACT-STUDY §1.9): a 177 to a 177RG +66 kg (a bigger engine in it), a 172 to a 172RG ~+80 kg (engine and
   // prop in it), the gear itself 2.5-5 % of the gross; 3.5 % of the gross, 12 kg at the least. [TUNE] on a reference retract
@@ -43442,7 +43447,10 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // for - it pays for its floats (HYDRO.floatPrice, billed with the pair below)
   // MONOWHEEL (60_gen_spec gear.mono): ONE main wheel on the centreline - one wheel, one fairing, one leg to pay for
   const MONO = !!S.gear.mono, nMn = MONO ? 1 : 2;
-  if (S.gear.type !== 'floats') spend(nMn * GEN_PRICES.wheel + GEN_PRICES.thirdWheel + (ARCH.price || 0));
+  // ...and THE BICYCLE WHEEL (the cage's whProfile 3, every wheel of the build as the row draws them): its own mass law
+  // and price (GEN_RULES.wheelCycleKg, GEN_PRICES.wheelCycle). Every other carcass: the rule as before
+  const CYCLE = Math.round(+((S.cage && S.cage.whProfile) || 0)) === 3;
+  if (S.gear.type !== 'floats') spend(nMn * (CYCLE ? GEN_PRICES.wheelCycle : GEN_PRICES.wheel) + GEN_PRICES.thirdWheel + (ARCH.price || 0));
   // G133: THE FAIRINGS WEIGH AND COST. Glassfibre datum: a shell's mass
   // scales with the wheel's area (55·R² ≈ 2.2 kg at R 0.20; a trouser's
   // deeper shell 88·R², its leg shroud included), stretched a little by the
@@ -43613,7 +43621,8 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   B(GAR, F[iFwd].TR, 'gear', false, 'inner');
   }
   // wheels by their size (PERF STUDY chantier 1, GEN_RULES.wheelKg) + fairings
-  pt(GAL, R.wheelKg(S.gear.wheelR) + mFairMain); if (!MONO) pt(GAR, R.wheelKg(S.gear.wheelR) + mFairMain);
+  const mWheel = CYCLE ? R.wheelCycleKg(S.gear.wheelR) : R.wheelKg(S.gear.wheelR);
+  pt(GAL, mWheel + mFairMain); if (!MONO) pt(GAR, mWheel + mFairMain);
 
   // The third wheel. `refs.tw` is whichever it is — the solver steers that node
   // and the sign of twSteer says which end it lives at.
@@ -43654,7 +43663,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     } else { B(TW, twUpL, 'gear', false, 'wire'); B(TW, twUpR, 'gear', false, 'wire'); }
     B(TW, F[Math.min(1, F.length-1)].BL, 'gear', false, 'wire');
     B(TW, F[Math.min(1, F.length-1)].BR, 'gear', false, 'wire');
-    pt(TW, R.wheelTwKg(S.gear.twR) + mFairTw);        // the nosewheel with its fork, by size
+    pt(TW, (CYCLE && !SKID ? R.wheelCycleKg(S.gear.twR) : R.wheelTwKg(S.gear.twR)) + mFairTw);        // the nosewheel with its fork, by size (a bicycle wheel's own)
     // RETRACT-1: THE RETRACTION KIT, billed where it hangs - two thirds on the mains' axles (their actuators, locks
     // and trunnions), a third on the nose leg's (the pack sits by the firewall, the nose leg's anchors); priced once
     if (S.gear.retract) {
@@ -45737,7 +45746,9 @@ function genGearCdA(S, semi) {
             * (G.twFairing && G.twFairing !== 'none'
                ? genFairDroplet(G.twFairTail) : 1);
   const nMn = G.mono ? 1 : 2;                       // MONOWHEEL: one main on the centreline
-  let cda = nMn * wCd * (2 * R * 0.76 * R)        // two mains (one, a monowheel)
+  // (MONOWHEEL: the bicycle wheel, the cage's whProfile 3, is a quarter as wide - a narrow tube tyre)
+  const wW = Math.round(+((S.cage && S.cage.whProfile) || 0)) === 3 ? 0.20 : 0.76;
+  let cda = nMn * wCd * (2 * R * wW * R)          // two mains (one, a monowheel)
           + tCd * (2 * Rt * 0.76 * Rt);           // the third wheel
   const drop = G.legDrop || 0.42;
   const legCd = (G.fairing === 'full' || G.legFair === 'fair') ? 0.30 : 1.0;
@@ -46786,7 +46797,7 @@ function genParams(S, fr, strips) {
     // 'castor' was the picture's only)
     tyre: (() => {
       const prof = Math.round(+((S.cage && S.cage.whProfile) || 0));
-      return { main: TYRE_CN[prof === 1 ? 'tundra' : prof === 2 ? 'slim' : 'standard'],
+      return { main: TYRE_CN[prof === 1 ? 'tundra' : (prof === 2 || prof === 3) ? 'slim' : 'standard'],   // (a bicycle tyre: the slim's)
                tw: TYRE_CN[S.gear.type === 'tricycle' ? 'nosewheel' : 'tailwheel'] };
     })(),
     ap,
