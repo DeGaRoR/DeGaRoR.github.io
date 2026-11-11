@@ -1123,6 +1123,33 @@ function genWingInto(def, out) {
         chord: (1 - hf) * fm.chord, side,
         infl: frameAt(zm).wF });
     }
+    // ---- TIP-SKID (60_gen_spec GEN_TIP_SKID): THE WINGTIP SKID's HOOP, a fitting in the pitot's group ----
+    // Off the numbers the frame hangs the shoe's node on (61_gen_frame 5c): the tip joint's station (where the bow
+    // starts; a square or winglet tip's end), the aerofoil's own lower contour (genAfEval), from xc[0] to xc[1] of the
+    // chord, its underside h under the skin at the middle (xs, where the node touches the ground). Each piece bound to the
+    // joint bay's spar nodes as the loft's own points are (wingSectionAt), so it rides the wing as the pitot does; the
+    // ends start just under the skin's line (the pitot's rule: a tube's rim must not cut the skin). Plane 0's only, and
+    // nothing on a wing without one (the pitot group is the bytes it was)
+    if (kPl === 0 && W.tipSkid > 0 && typeof GEN_TIP_SKID !== 'undefined') {
+      const K = GEN_TIP_SKID, hS = +W.tipSkid, zS = genTipSkidZ(W, zAll[zAll.length - 1]);
+      const f = frameAt(zS), E = genAfEval(W.naca), NSEG = 14;
+      const ch = genV3.norm(genV3.sub(f.pR, f.pF));
+      let nr = genV3.norm(genV3.cross(ch, [0, 0, 1])); if (nr[1] < 0) nr = genV3.mul(nr, -1);
+      const sm = t => t * t * (3 - 2 * t);
+      const pts = [];
+      for (let i = 0; i <= NSEG; i++) {
+        const u = i / NSEG, xc = K.xc[0] + (K.xc[1] - K.xc[0]) * u;
+        // the hoop: down from just under the skin, a flat run along the bottom, back up (a rounded trapezoid); the
+        // bottom's centreline 1.6 r over its underside - the shoe's radius (the frame's contact radius)
+        const dep = K.r * 0.9 + (hS - 1.6 * K.r - K.r * 0.9) * sm(Math.min(1, CORE_MATH.sin(Math.PI * u) / 0.62));
+        const q = wingSectionAt(f.pF, f.pR, f.wF, f.wR, f.chord, [E.lo(xc)])[0];
+        pts.push({ p: genV3.sub(q.p, genV3.mul(nr, dep)), infl: q.infl });
+      }
+      for (let i = 0; i < NSEG; i++) genTubeInto(pitot, pts[i].p, pts[i + 1].p, K.r, 8, pts[i].infl, B);
+      // the shoe: a nylon sleeve over the bottom run's middle third
+      const i0 = Math.round(NSEG / 3), i1 = NSEG - i0;
+      for (let i = i0; i < i1; i++) genTubeInto(pitot, pts[i].p, pts[i + 1].p, K.r * 1.6, 8, pts[i].infl, B);
+    }
     // ---- G2820: THE STOL DEVICES, drawn where the strips fly them -------
     // Into the plane's own skin (they are painted with it, flex with it and
     // need no new group anywhere downstream); every point a blend of the

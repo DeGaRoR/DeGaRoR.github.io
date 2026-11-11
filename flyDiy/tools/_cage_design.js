@@ -200,6 +200,9 @@ rodFit.door = 'CAGE_ROD_FIT_NEXT';
 // HULL-B3: ...and the boat's starting lines off the flown CG on the next builds (_cage_float.js CAGE_HULL_FIT_NEXT:
 // the step by the 12-deg rule, the afterbody keel on a 7-deg run - _cage_gen.js cageHullFit)
 const hullFit = () => { if (W.CAGE_HULL_FIT_NEXT) W.CAGE_HULL_FIT_NEXT(); };
+// MONOWHEEL: leaving the single wheel for a pair, the pair's half track comes back (the gear page's own default);
+// any pair the build already has is kept as it is
+const mainsPairX = P => (+P.s1X > 0.01 ? +P.s1X : 0.86);
 hullFit.door = 'CAGE_HULL_FIT_NEXT';
 
 // FLAP — the classic trailing-edge cross-sections: none, hinged plain, the
@@ -422,6 +425,9 @@ function iconSide(o) {
   if (gr === 'trike') paths.push({ d: 'M10 26 L10 32', w: 1 }, { d: 'M30 26 L30 32', w: 1 },
                                  { d: 'M10 32 a2.6 2.6 0 1 0 0.1 0', w: 1 },
                                  { d: 'M30 32 a2.6 2.6 0 1 0 0.1 0', w: 1 });
+  // MONOWHEEL: one wheel under the body, the nose skid's blade ahead of it
+  if (gr === 'mono') paths.push({ d: 'M24 26 L24 30', w: 1 }, { d: 'M24 30 a3 3 0 1 0 0.1 0', w: 1 },
+                                { d: 'M9 26 L11 31 L17 31.5', w: 1 });
   // a pair of floats: two struts down to a long hull with a step
   if (gr === 'floats') paths.push({ d: 'M14 26 L12 32', w: 1 }, { d: 'M26 26 L28 32', w: 1 },
                                   { d: 'M4 32 L8 30 L24 30 L24 32 L32 33 L32 35 L4 35 Z', w: 1 });
@@ -1875,7 +1881,8 @@ const DESIGN_ROWS = [
     pair: [{ cage: 's2Leg', spec: 'gear.type', via: 'join' }],
     help: 'different aeroplanes on the ground — the placement rule ' +
           'inverts and the rest attitude follows',
-    read: P => +P.hullOn ? 'hull' : +P.gearFloats ? 'floats' : +P.s2Leg === 3 ? 'tail' : 'trike',
+    read: P => +P.hullOn ? 'hull' : +P.gearFloats ? 'floats'
+      : (+P.s1On && +P.s1X <= 0.01) ? 'mono' : +P.s2Leg === 3 ? 'tail' : 'trike',
     // the spec channel carries the INTENT (`gear.type` is a real spec field
     // with a default); the join then measures the built cage and overwrites
     // it, and the two agreeing is exactly what the starter's cage values are
@@ -1886,7 +1893,7 @@ const DESIGN_ROWS = [
         icon: iconSide({ canopy: 'screen', gear: 'tail' }),
         writes: { cage: { s2On: 1, s2Leg: 3, s2Z: 0.06, s2X: 0, s2R: 0.07,
                           s2Steer: 1, s2Brake: 0, s1Z: 2.00, s1Steer: 0,
-                          s1On: 1, gearFloats: 0, hullOn: 0 },
+                          s1On: 1, gearFloats: 0, hullOn: 0, s1X: mainsPairX, s2Nose: 0 },
                   spec: { gear: { type: 'taildragger' } } } },
       // THE STRUT IS THE LONG PART AND THE FORK IS THE SHORT ONE
       // (2026-09-11, alongside the nose-fairing repair). The height from the
@@ -1909,8 +1916,20 @@ const DESIGN_ROWS = [
         writes: { cage: { s2On: 1, s2Leg: 2, s2Z: 2.60, s2X: 0, s2R: 0.14,
                           s2Steer: 1, s2Brake: 0, s1Z: 0.95, s1Steer: 0,
                           s2Drop: 0.37, s2_twLegDrop: 0.09,
-                          s1On: 1, gearFloats: 0, hullOn: 0 },
+                          s1On: 1, gearFloats: 0, hullOn: 0, s1X: mainsPairX, s2Nose: 0 },
                   spec: { gear: { type: 'tricycle' } } } },
+      // MONOWHEEL (the Archaeopteryx study's stage 1, 11 Nov; the user: "a true single-wheel gear type, we will reuse it
+      // on other gliders"): THE MAINS ON THE CENTRELINE (half track 0: the join measures a single main and writes
+      // gear.mono), a little aft of the CG as a tricycle's; ahead, the NOSE SKID - the third unit's leaf spring and shoe
+      // (the tail skid's, the Tail contact row's Skid) at the nose; the wing rests on its WINGTIP SKID (the wing's own
+      // row, on any tip). Any of these is the builder's to change after: a nose wheel, a tail skid behind instead
+      { value: 'mono', label: 'Monowheel',
+        icon: iconSide({ canopy: 'screen', gear: 'mono' }),
+        note: 'one wheel on the centreline, a nose skid, the wing resting on a wingtip skid (a sailplane\'s)',
+        writes: { cage: { s1On: 1, s1X: 0, s1Z: 0.95, s1Steer: 0,
+                          s2On: 1, s2Leg: 3, s2Nose: 1, s2Z: 0.45, s2X: 0, s2R: 0.07, s2Steer: 4, s2Brake: 0,
+                          wgTipSkid: 1, gearFloats: 0, hullOn: 0 },
+                  spec: { gear: { type: 'tricycle', mono: true } } } },
       // THE FLOATS (H1, G383): both wheel stations off, the flag on; the
       // frame builds two floats sized by the gross (32_hydro's
       // floatParamsFor) and the flight starts on the water. Not drawn in the

@@ -2775,6 +2775,25 @@ const GEN_TIPS = {
 // PHI <= 85 deg, so a tip of length L drops at most ~0.59 L; a deeper drop is a longer tip. One function for the drawn
 // loft (63_gen_wing), the flown buoyant tip (61_gen_frame, genTipBuoyTable) and the boat's fit (_cage_gen.js)
 const GEN_TIP_SHAPE = { bow: [0.15, 0.80], droop: [0, 0.45], full: [1, 2.6], phiMax: 85 };
+// TIP-SKID (the Archaeopteryx study, 11 Nov; the user: "do the skid under any tip type. It's better"): THE WINGTIP SKID,
+// a SETTING ON ANY TIP, not a kind - a hoop of tube under the tip joint (genTipJoint's frame: where the tip's bow starts,
+// a square or winglet tip's end), its shoe `wings[0].tipSkid` metres under the lower skin (absent = none: no key moves
+// the hash of a wing without one), standing from xc[0] to xc[1] of the joint's chord and touching the ground at xs. One
+// ground contact a side (61_gen_frame refs.skids) that SLIDES on the tail skid's law (30_solver TW_SKID_MU) - the wing
+// that goes down at rest on a single main wheel, a sailplane's - instead of scraping. Its drag: the hoop's two legs, a
+// round tube (Cd 1.2 on h x 2r each), on the tip's strip. The first plane's only. Mass and price INFERRED (a glider's
+// bolt-on tip skid: a bent 6061 tube and a nylon shoe, ~0.3 kg, the STOL fence's 90 a side)
+const GEN_TIP_SKID = { h: [0.02, 0.30], h0: 0.10, xc: [0.15, 0.75], xs: 0.45, bow: 0.6, r: 0.008, cd: 1.2, kg: 0.30, each: 90 };
+// ...its STATION (m from the centreline): `bow` of the way out along a tip's bow (a rounded, clipped, Hoerner or
+// elliptic tip: the bow's own outer reach would otherwise touch the ground first, the wing tilted on a single main), at
+// the tip joint on a tip that bends (drooped, upturned: the bend is its own) and at the tip on one without a bow (square,
+// winglet, endplate). Measured on the motor glider at rest on its tip: a skid at the joint left the rounded tip's last
+// 0.34 m to touch first. One function, so the frame's shoe and the loft's hoop are the same station
+function genTipSkidZ(w, semi) {
+  if (!(w && w.tipR > 1e-6)) return semi;
+  const K = genTipOf(w) || {};
+  return (K.droop > 0 || K.up) ? w.tipZ : w.tipZ + GEN_TIP_SKID.bow * w.tipR;
+}
 function genTipOf(w) {
   const K = GEN_TIPS[w && w.tip] || GEN_TIPS.rounded, T = w && w.tipShape;
   if (!T) return K;
@@ -4904,6 +4923,12 @@ function clampWing(w, S, k) {
     }
     if (Object.keys(o).length) w.tipShape = o; else delete w.tipShape;
   }
+  // TIP-SKID: the skid's depth under the skin, clamped; absent, zero or not a number = none (the key gone). The first
+  // plane's only (the frame hangs it on plane 0's tip joint)
+  if ('tipSkid' in w) {
+    const h = +w.tipSkid;
+    if (k === 0 && Number.isFinite(h) && h > 0) w.tipSkid = genClamp(h, GEN_TIP_SKID.h[0], GEN_TIP_SKID.h[1]); else delete w.tipSkid;
+  }
   // CRANK: a second wing section, and only a second. `crankAt` is the break
   // station as a fraction of the semispan; 0 means a single straight panel.
   // This is the Jodel's wing — a flat centre section and sharply dihedralled
@@ -5673,6 +5698,16 @@ function clampSpec(spec) {
   S.tail.hInc = genClamp(S.tail.hInc || 0, -10, 10);
   // HULL-B1: 'hull' - the fuselage is the boat (the cage's hullOn; its measured lines ride gear.hull)
   if (!['taildragger', 'tricycle', 'floats', 'hull'].includes(S.gear.type)) S.gear.type = 'taildragger';
+  // MONOWHEEL (the Archaeopteryx study's stage 1, 11 Nov; the user: "a true single-wheel gear type, we will reuse it on
+  // other gliders"): THE MAINS ARE ONE WHEEL ON THE CENTRELINE - a sailplane's, a motor glider's. A flag on a wheeled
+  // gear, not a type: the third unit keeps its own end (a nose wheel or a nose skid ahead - 'tricycle' -, a tail wheel or
+  // a tail skid behind - 'taildragger'), and every rule that reads the type reads the same unit. At rest the wing goes
+  // down on a tip (the wingtip skid, wings[0].tipSkid, is the wing's own row). The key only when on (a two-wheel build's
+  // spec is the bytes it was); no retraction, no trailing link (both are built per side)
+  if (S.gear.mono === true && (S.gear.type === 'taildragger' || S.gear.type === 'tricycle')) {
+    delete S.gear.retract;
+    if (S.gear.suspension === 'lever') S.gear.suspension = 'oleo';
+  } else delete S.gear.mono;
   // H2 (G389): the measured floats — the drawn hull's parameters and its
   // placement; absent, the frame sizes a pair from the gross (H1's rule)
   if (S.gear.floats && typeof S.gear.floats === 'object') {

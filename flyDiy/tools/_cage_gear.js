@@ -135,6 +135,11 @@ const station = (i, name) => [name, [
   // is the fitting plus the family's law plus s<i>AxZ (2026-09-04)
   ['s' + i + 'Z',     'fitting fore / aft',
                                      -4, 4, 0.01, sOnM(i)],
+  // MONOWHEEL: THE NOSE SKID - the third unit's leaf spring and shoe (the tail skid's, leg 3) at the NOSE: its station
+  // then counts back from the nose (AF.z1) as a tailwheel's counts forward from the tail (AF.z0); the join measures it
+  // ahead of the mains (a tricycle), and the Tail contact row's Skid makes it slide
+  ...(i === 2 ? [['s2Nose', 'spring at', 0, 1, 1, ['the tail', 'the nose (a nose skid)'],
+                  { when: P => +P.s2On && Math.round(+P.s2Leg) === 3 && !+P.boomTwin }]] : []),
   // G3503 (DC3-BUILD): the half track to 3.2 m, the wheel to 0.65 m and the leg drop to
   // 1.6 m (metres, unscaled: a DC-3's 2.82 m half track and 1.14 m tyres under the nacelles)
   // DC3-EDITABLE: to the big box's 8 m track (4 m), 0.90 m wheel and 1.80 m leg (gear.legDrop's clampBig)
@@ -2411,7 +2416,8 @@ PAGE.post = ctx => {
   // end as it is to the pod's on a single body), the same row for both
   const TBg = (+P.boomTwin && typeof window !== 'undefined' && window.CAGE_BOOMS && window.CAGE_BOOMS.yBot) ? window.CAGE_BOOMS : null;
   for (const st of stations)
-    if (st.leg === 3) st.z = (TBg ? TBg.zTip : AF.z0) + Math.max(0.02, st.z);
+    if (st.leg === 3) st.z = (st.id === 2 && +P.s2Nose && !TBg) ? AF.z1 - Math.max(0.02, st.z)   // (MONOWHEEL: the nose skid)
+      : (TBg ? TBg.zTip : AF.z0) + Math.max(0.02, st.z);
   // G3800: THE INVERTED V (the stab layer's mount 4): the tail's contacts at the panel tips - x the gap's half, y the
   // boom's centre less the panel's drop (cant, the booms' half-track less the half gap), z the tip the stab layer drew
   // on the last build (window.CAGE_IV_TIPS, metres; it draws after this layer) or a quarter metre ahead of the boom end

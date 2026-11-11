@@ -3428,8 +3428,14 @@ function makeSim(def, world) {
   // hold TW_SCOTT.hold of that grip, the kingpin's friction by the Scott figure at a Cessna 170's tail load.
   // Two tail contacts (a twin boom's, refs.tw2) fly the same law with their own state each.
   const TW1 = def.refs ? def.refs.tw : -1, TW2 = def.refs && def.refs.tw2 != null ? def.refs.tw2 : -1;
+  // TIP-SKID (61_gen_frame refs.skids): THE WINGTIP SKIDS' SHOES slide on the tail skid's law below (TW_SKID_MU, Coulomb
+  // in every direction, held parked at 0.02 m/s) - a wing down on its skid slides, it does not scrape (no `scrape`, no
+  // scar, no scuff). Absent on every aeroplane without them: the array is all zeros, the branch the bytes it was
+  const SKD = new Uint8Array(n);
+  if (def.refs && Array.isArray(def.refs.skids)) for (const i of def.refs.skids) if (i >= 0 && i < n) SKD[i] = 1;
   const TW_ARC = TW_SCOTT.arc;
-  const TWM = (P_.twSteer > 0 && TW1 >= 0) ? (P_.twMode || 1) : 0;
+  // (MONOWHEEL: a NOSE skid flies the skid's law too - twMode 4 on a nose unit; a nose wheel stays the rudder's, 0)
+  const TWM = (TW1 >= 0 && (P_.twSteer > 0 || P_.twMode === 4)) ? (P_.twMode || 1) : 0;
   const TWL = TWM ? { m: TWM, k: 0, trail: 0, Mf: 0, E: TW_SCOTT.E,
     st: [0, 0], ang: [0, 0], df: [0, 0], F: [0, 0], ff: [0, 0], fMax: [0, 0] } : null;
   if (TWL) out.twState = [0, 0], out.twAng = [0, 0], out.twF = [0, 0], out.twFmax = TWL.fMax;
@@ -3962,7 +3968,7 @@ function makeSim(def, world) {
           ? (GROUND_SURF[world.surface(p[i3], p[i3+2])] || GROUND_DEF)
           : GROUND_DEF;
         // G1938: the differential brake, per main (its side of the built pose); brakeD 0 is the old line exactly
-        const bkI = !isMain ? 0 : ctl.brakeD ? Math.max(0, Math.min(1, ctl.brake + (def.nodes[i].p[2] > 0 ? 1 : -1) * ctl.brakeD)) : ctl.brake;
+        const bkI = !isMain ? 0 : ctl.brakeD ? Math.max(0, Math.min(1, ctl.brake + (def.nodes[i].p[2] > 1e-6 ? 1 : def.nodes[i].p[2] < -1e-6 ? -1 : 0) * ctl.brakeD)) : ctl.brake;   // (MONOWHEEL: a centreline wheel has no side)
         const muR = su[0] + (isMain ? bkI * su[1] : 0);
         // G121.3: BELOW WALKING PACE THE COEFFICIENT IS A DAMPER, NOT A
         // RESISTANCE. The 0.2 m/s regularization means the sub-0.2 regime
@@ -3999,8 +4005,8 @@ function makeSim(def, world) {
         if (isTW && TWL) TWL.F[twQ] = kL * vl;                          // the side force (the fork's springs read it next substep)
         f[i3]   -= kR*vr_*hx + kL*vl*lx;
         f[i3+2] -= kR*vr_*hz + kL*vl*lz;
-      } else if (isTW) {
-        // G3800: THE TAIL SKID (twMode 4) - a steel shoe sliding, Coulomb in every direction at its surface's mu
+      } else if (isTW || SKD[i]) {
+        // G3800: THE TAIL SKID (twMode 4) - and TIP-SKID's wingtip shoes, the same law - a steel shoe sliding, Coulomb in every direction at its surface's mu
         // (TW_SKID_MU), regularised at 0.02 m/s so it holds parked as a wheel's creep does; no rolling, no steering
         const sk = TW_SKID_MU[world && world.surface ? world.surface(p[i3], p[i3+2]) : 0];
         const vx = v[i3], vz = v[i3+2], sp = hyp2(vx, vz);

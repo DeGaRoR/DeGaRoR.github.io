@@ -83,6 +83,8 @@ PAGE.defaults = Object.assign({
   // HULL-B26: the tip's own shape (60_gen_spec GEN_TIP_SHAPE) - its length and drop in tip chords, 0 = the kind's own;
   // its fullness over the wing's aerofoil, 1 = the aerofoil
   wgTipBow: 0, wgTipDroop: 0, wgTipFull: 1,
+  // TIP-SKID (60_gen_spec GEN_TIP_SKID): the wingtip skid under any tip, and its shoe's depth under the skin (m)
+  wgTipSkid: 0, wgTipSkidH: 0.10,
   wgCentre: 0, wgCentreW: 0, wgBrace: 0, wgCrankAt: 0, wgDihedralOut: 6,
   wgStruts: 2,                     // T2.3 (83): lift struts per side (2 = the V pair, 1 = a single front strut)
   wgBeam: 1,                       // T2.3 (48): the carry-through beam drawn in a cut centre section
@@ -197,6 +199,8 @@ const tipShapeNote = key => P => {
 const tipShapeOf = P => (+P.wgTipBow > 0 || +P.wgTipDroop > 0 || +P.wgTipFull > 1)
   ? { tipShape: { bow: +P.wgTipBow > 0 ? +P.wgTipBow : null, droop: +P.wgTipDroop > 0 ? +P.wgTipDroop : null,
                   full: +P.wgTipFull > 1 ? +P.wgTipFull : null } } : {};
+// (TIP-SKID: the same key the join flies - _cage_join.js cageJoinSpec; absent when off)
+const tipSkidOf = P => +P.wgTipSkid ? { tipSkid: +P.wgTipSkidH > 0 ? +P.wgTipSkidH : 0.10 } : {};
 const WING_ITEMS = [
   ['wingOn',   'wings',          0, 1, 1],
   // G185: 'parasol' — on cabane struts above the deck, lift struts to the
@@ -225,6 +229,10 @@ const WING_ITEMS = [
   ['wgTipBow',   'tip length (tip chords, 0 = its own)', 0, 0.8, 0.01, { when: tipBowed, note: tipShapeNote('bow') }],
   ['wgTipDroop', 'tip drop (tip chords, 0 = its own)', 0, 0.45, 0.01, { when: tipBowed, note: tipShapeNote('droop') }],
   ['wgTipFull',  'tip fullness (x the aerofoil)', 1, 2.6, 0.05, { when: tipBowed }],
+  // TIP-SKID (the user, 11 Nov: "do the skid under any tip type"): a hoop of tube under the tip joint, ON ANY TIP - the
+  // wing that goes down at rest on a single main wheel slides on it (the tail skid's law) instead of scraping
+  ['wgTipSkid',  'wingtip skid', 0, 1, 1, ['none', 'skid'], { when: P => +P.wingOn }],
+  ['wgTipSkidH', 'skid depth under the skin', 0.02, 0.30, 0.005, { when: P => +P.wingOn && +P.wgTipSkid, dim: 'm' }],
   ['wgCrankAt', 'crank at',      0, 0.85, 0.05, { when: P => +P.wingOn && !+P.wgPlan, note: heldNote('wgCrankAt') }],
   // G140: the crank SECTION — its own chord and fore/aft seat, the same
   // two numbers the root and tip carry. On a strutted wing the crank is
@@ -370,7 +378,7 @@ const WING_ITEMS = [
 // generated twin was a second row of the same key that moved nothing)
 const W2_DROP = new Set(['wingOn', 'wgPos', 'wgBrace', 'wgStruts', 'wgStrutZ', 'wgStrutX', 'pilSnap', 'wgStrutPil',   // T2.3: the strut count is the fuselage fan's
                          'wgDx', 'wgDy', 'wgParaH',
-                         'wgTipBow', 'wgTipDroop', 'wgTipFull',   // HULL-B26: the tip's own shape is the first plane's (cageJoinPlane2 writes none)
+                         'wgTipBow', 'wgTipDroop', 'wgTipFull', 'wgTipSkid', 'wgTipSkidH',   // TIP-SKID too; HULL-B26: the tip's own shape is the first plane's (cageJoinPlane2 writes none)
                          // G2820: the STOL devices are the first plane's in the
                          // editor (the spec and the physics take them per plane)
                          'wgSlat', 'wgSlatSpan', 'wgVG', 'wgFence', 'wgCuff', 'wgCuffSpan',
@@ -956,6 +964,7 @@ function wingGSpec(P) {
       cabaneH: Math.round(P.wgPos) === 3 ? (+P.wgParaH || 0.45) : null,
       tip: TIP_KEYS[Math.round(P.wgTip)] || 'rounded',
       ...tipShapeOf(P),
+      ...tipSkidOf(P),
       crankAt: P.wgCrankAt > 0 ? P.wgCrankAt : 0,
       crankChord: P.wgCrankAt > 0 ? +P.wgCrankChord : null,
       crankX: P.wgCrankAt > 0 ? (+P.wgCrankX || 0) : null,

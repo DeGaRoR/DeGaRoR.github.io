@@ -192,6 +192,11 @@ const GATES = [
   // fixed wheel), a twin boom's wheel a boom, the inverted V on its tip wheels flying HOME's circuit, its controls'
   // signs and volumes, the old saves' migration (~10 min, four probes at a time)
   { id: 'TAILWHEEL', file: '_tailwheel_check.js', tier: 'core', weight: 4, wall: 900 },
+  // MONOWHEEL (the Archaeopteryx study's stage 1): the single wheel on the centreline (gear.mono: the spec's flag, one axle
+  // node, one wheel billed, the cert's ground loads on it), the wingtip skid under any tip (its shoe's node and the drawn
+  // hoop on one contact), the nose skid; the motor glider on one wheel and a tail skid parks on one wingtip skid, rolls to
+  // 25 m/s and flies HOME's circuit; the tile's Monowheel parks on its nose skid (~8 min, one probe in parallel)
+  { id: 'MONOWHEEL', file: '_monowheel_check.js', tier: 'core', weight: 2, wall: 900 },
   // G2125 PILOT-PROFILE: the climb on speed (>= 1.3 Vs, the attitude under the type's cap) on the Jodel, the user's Cub
   // and metal Cessna; the planned vertical profile over Jolene's ridge to Jumbo Mine (reversals near zero, the clearance
   // kept); East Point's approach over the 'map' trees (no contact, 10 m over the tops on final) (~8 min, 3 cases in parallel)

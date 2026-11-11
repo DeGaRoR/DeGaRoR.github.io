@@ -282,8 +282,12 @@ function genStrips(S, fr) {
   const TIPk = GEN_TIPS[wk.tip] || GEN_TIPS.rounded;
   // (per side: one plate, one fence each - both faces; genParams' sum is both sides)
   const stPlate = TIPk.plate ? 2 * (TIPk.plate[0] * PL.chordAt(semi)) * (TIPk.plate[1] * PL.chordAt(semi)) * 0.006 : 0;
+  // TIP-SKID (60_gen_spec GEN_TIP_SKID): the hoop's two legs in the air, a round tube each (h x 2r, Cd 1.2), on the
+  // tip's strip as the endplate is - the first plane's only; 0 (the bytes it was) on a wing without one
+  const stSkid = (k === 0 && wk.tipSkid > 0 && typeof GEN_TIP_SKID !== 'undefined')
+    ? 2 * wk.tipSkid * 2 * GEN_TIP_SKID.r * GEN_TIP_SKID.cd : 0;
   const stXcd = (zLo, zHi, tip) => {
-    let a = tip ? stPlate : 0;
+    let a = tip ? stPlate + stSkid : 0;
     for (const zf of stFences) if (zf >= zLo && zf < zHi) { const c = PL.chordAt(zf); a += 2 * (GEN_STOL.fence.h * c) * c * GEN_STOL.fence.cf; }
     return a;
   };
@@ -326,7 +330,7 @@ function genStrips(S, fr) {
           // reads the strip's own numbers, never a single aeroplane-wide one
           plane: k, sparSpacing: PL.sparSpacing, cf,
         });
-        const xcd = (ST || stPlate > 0) ? stXcd(zLo, zHi, b === PL.zs.length - 1 && t > 0.5) : 0;
+        const xcd = (ST || stPlate > 0 || stSkid > 0) ? stXcd(zLo, zHi, b === PL.zs.length - 1 && t > 0.5) : 0;
         if (ST || xcd > 0) {
           // G2820: keys only where a device reaches - every other strip is
           // the object it always was
@@ -736,11 +740,12 @@ function genGearCdA(S, semi) {
   const tCd = (G.twFairing === 'full' ? 0.15 : G.twFairing === 'spat' ? 0.22 : 0.55)
             * (G.twFairing && G.twFairing !== 'none'
                ? genFairDroplet(G.twFairTail) : 1);
-  let cda = 2 * wCd * (2 * R * 0.76 * R)          // two mains
+  const nMn = G.mono ? 1 : 2;                       // MONOWHEEL: one main on the centreline
+  let cda = nMn * wCd * (2 * R * 0.76 * R)        // two mains (one, a monowheel)
           + tCd * (2 * Rt * 0.76 * Rt);           // the third wheel
   const drop = G.legDrop || 0.42;
   const legCd = (G.fairing === 'full' || G.legFair === 'fair') ? 0.30 : 1.0;
-  cda += 2 * legCd * drop * 0.05;                 // the main legs
+  cda += nMn * legCd * drop * 0.05;               // the main legs
   // WILGA-GEAR: a trailing link's strut stands in the stream beside its leg (a 60 mm cylinder, eye to eye - the drawn
   // one, gear.lever, else the reference's 0.50 m); the boot (the leg-fairing row or the trousers) carries it at the
   // faired leg's Cd. Only a lever leg: the calibration's reference gear has none, and no other build reads a term
@@ -1639,6 +1644,8 @@ function genParams(S, fr, strips) {
       const cAt = z => (PL.chordAt || fr.parts.chordAt)(z);
       const TIP = GEN_TIPS[wk.tip] || GEN_TIPS.rounded;
       if (TIP.plate) { const c = cAt(semi); sd += 2 * 2 * (TIP.plate[0] * c) * (TIP.plate[1] * c) * 0.006; }
+      // TIP-SKID: the skids' legs (both sides), reported with the devices (the same sum genStrips' tip strip flies)
+      if (k === 0 && wk.tipSkid > 0 && typeof GEN_TIP_SKID !== 'undefined') sd += 2 * 2 * wk.tipSkid * 2 * GEN_TIP_SKID.r * GEN_TIP_SKID.cd;
       const CTk = k === 0 ? S.controls : wk.controls;
       const aSt = CTk && CTk.aileron ? (1 - CTk.aileron.span) * semi : semi;
       for (const zf of genStolFences(wk.stol, semi, PL.zRoot, aSt, CTk && CTk.aileron ? CTk.aileron.span : 0)) {
@@ -1766,6 +1773,9 @@ function genParams(S, fr, strips) {
     // G3800 (TAILWHEELS): a taildragger's tail contact, 30_solver twLine's law: 2 lockable, 3 fixed, 4 skid - the key
     // only when chosen (absent: 1, the steerable Scott-type wheel, every taildragger's default)
     ...(S.gear.type !== 'tricycle' && S.gear.twMode ? { twMode: { lock: 2, fixed: 3, skid: 4 }[S.gear.twMode] } : {}),
+    // MONOWHEEL: a NOSE SKID (a tricycle's third unit on the skid row, 4) slides on the tail skid's law - the key on a
+    // tricycle only then (its nose wheel stays the rudder's, no key, as before)
+    ...(S.gear.type === 'tricycle' && S.gear.twMode === 'skid' ? { twMode: 4 } : {}),
     // RETRACT-1 (RETRACT-STUDY §3.1): the retractable gear - the key only when chosen. `cdA` is the gear's own drag area
     // (genGearCdA, inside fusCdA[0] as on every build: every design-time number - the plaque, the AP's speeds - stays the
     // gear-DOWN aeroplane's), which the solver takes back off as the gear comes up (30_solver gearPos)

@@ -243,6 +243,9 @@ function cageJoinSpec(P, M, T) {
         ? { tipShape: +P.wgTipBow > 0 || +P.wgTipDroop > 0 || +P.wgTipFull > 1
             ? { bow: +P.wgTipBow > 0 ? +P.wgTipBow : null, droop: +P.wgTipDroop > 0 ? +P.wgTipDroop : null,
                 full: +P.wgTipFull > 1 ? +P.wgTipFull : null } : null } : {}),
+      // TIP-SKID (60_gen_spec GEN_TIP_SKID): the wingtip skid, its shoe's depth under the skin - absent when off (no key
+      // moves the hash of a wing without one)
+      ...(+P.wgTipSkid ? { tipSkid: +P.wgTipSkidH > 0 ? +P.wgTipSkidH : 0.10 } : {}),
       crankAt: P.wgCrankAt > 0 ? P.wgCrankAt : 0,
       crankChord: P.wgCrankAt > 0 ? +P.wgCrankChord : null,
       crankX: P.wgCrankAt > 0 ? (+P.wgCrankX || 0) : null,
@@ -413,6 +416,7 @@ function cageJoinSpec(P, M, T) {
   if (M.gearType) {
     spec.gear = { type: M.gearType };
     if (M.track > 0) spec.gear.track = M.track;
+    if (M.mono) spec.gear.mono = true;             // MONOWHEEL: one main on the centreline (no track)
     if (M.contactR > 0) spec.gear.wheelR = M.contactR;
     // G51: the measured third wheel — axle height in the keel datum,
     // station firewall-anchored. clampSpec bounds them.
@@ -1331,6 +1335,8 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         M.contactR = mains[0].R;
         const mz = mains.reduce((s, c) => s + c.p[2], 0) / mains.length;
         M.gearType = single && single.p[2] > mz ? 'tricycle' : 'taildragger';
+        // MONOWHEEL (60_gen_spec gear.mono): the mains row on the centreline - one wheel, no track
+        if (M.track < 0.02) M.mono = true;
       }
     }
     const AF = G2.AF, W = window.CAGE_WING;
@@ -2270,7 +2276,9 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       const GB = window.CAGE_GEAR || {};
       for (const c of GB.contacts || [])
         PARTS.wheels.push({
-          kind: c.st.x <= 0.01 ? 'tw' : (c.p[0] > 0 ? 'mainsL' : 'mainsR'),
+          // (MONOWHEEL: the mains row on the centreline is the one main, 'mainsR' - the gear layer's kind R, the flown
+          // wheel the app hangs on refs.mains[0] - never the third wheel)
+          kind: c.st.x <= 0.01 && c.st.single !== false ? 'tw' : (c.p[0] > 0 ? 'mainsL' : 'mainsR'),
           R: c.R, cx: c.p[0], cy2: c.p[1], cz2: c.p[2], groups: {} });
       // G58.3: the legs stretch-follow their axle (suspension visually
       // compresses); the castor fork yaws for ground manoeuvring
@@ -3523,7 +3531,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       const axv = sim2.axes();
       out.push(row('SETTLED TW over ground (want 0)', 0, agl('TW')));
       out.push(row('SETTLED mains over ground (want 0)', 0,
-        Math.min(agl('AXLEL'), agl('AXLER'))));
+        Math.min(...['AXLEL', 'AXLER', 'AXLEC'].map(agl).filter(v => isFinite(v)))));   // (MONOWHEEL: AXLEC)
       // the BODY AXIS (noseFrame→tailMid) is itself inclined in the
       // design frame — the settled axis pitch equals stance MINUS that
       // inclination. Comparing raw axis pitch to stance is the trap

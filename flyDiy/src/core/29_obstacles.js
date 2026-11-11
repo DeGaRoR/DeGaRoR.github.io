@@ -424,7 +424,7 @@ const OBSTACLES = (() => {
     if (!spec || !drawn || !drawn.mains || !drawn.stance || typeof resolveSpec !== 'function' || typeof genFrame !== 'function') return null;
     const RS = resolveSpec(JSON.parse(JSON.stringify(spec))), S = RS.spec || RS, fr = genFrame(S);
     const refs = fr.refs || {};
-    if (!refs.mains || refs.mains.length < 2) return null;
+    if (!refs.mains || refs.mains.length < 1) return null;   // (MONOWHEEL: one main is a stance too)
     const mean = ids => { const a = Array.isArray(ids) ? ids : [ids]; let x = 0, y = 0; for (const i of a) { x += fr.nodes[i].p[0]; y += fr.nodes[i].p[1]; } return [x / a.length, y / a.length]; };
     const nF = mean(refs.noseFrame), tM = mean(refs.tailMid), uH = mean(refs.upHi), uL = mean(refs.upLo);
     const ax = [tM[0] - nF[0], tM[1] - nF[1]], la = Math.hypot(ax[0], ax[1]) || 1e-9, uy = [uH[0] - uL[0], uH[1] - uL[1]], lu = Math.hypot(uy[0], uy[1]) || 1e-9;

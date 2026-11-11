@@ -698,8 +698,9 @@ function genCertGroundLoads(def, nTD) {
     return out;
   }
   const Mn = (R.mains || []).filter(i => i >= 0);
-  if (Mn.length !== 2) return out;
-  const [iL, iR] = def.nodes[Mn[0]].p[2] < def.nodes[Mn[1]].p[2] ? Mn : [Mn[1], Mn[0]];
+  if (Mn.length !== 2 && Mn.length !== 1) return out;
+  // MONOWHEEL: one main - both halves of every case on its one wheel (the side load's two pushes, the same way, sum)
+  const [iL, iR] = Mn.length === 1 ? [Mn[0], Mn[0]] : def.nodes[Mn[0]].p[2] < def.nodes[Mn[1]].p[2] ? Mn : [Mn[1], Mn[0]];
   const tw = R.tw != null && R.tw >= 0 ? R.tw : -1;
   const xm = 0.5 * (def.nodes[iL].p[0] + def.nodes[iR].p[0]);
   const sT = tw >= 0 && Math.abs(def.nodes[tw].p[0] - xm) > 1e-3 ? Math.max(0, Math.min(1, (c[0] - xm) / (def.nodes[tw].p[0] - xm))) : 0;

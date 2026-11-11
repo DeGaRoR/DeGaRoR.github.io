@@ -2595,7 +2595,9 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   sec('gear');
   // FLOATS-CLASSIC (the user 3 Nov: floats "need to come with weight and price"): a float build has no wheels to pay
   // for - it pays for its floats (HYDRO.floatPrice, billed with the pair below)
-  if (S.gear.type !== 'floats') spend(2 * GEN_PRICES.wheel + GEN_PRICES.thirdWheel + (ARCH.price || 0));
+  // MONOWHEEL (60_gen_spec gear.mono): ONE main wheel on the centreline - one wheel, one fairing, one leg to pay for
+  const MONO = !!S.gear.mono, nMn = MONO ? 1 : 2;
+  if (S.gear.type !== 'floats') spend(nMn * GEN_PRICES.wheel + GEN_PRICES.thirdWheel + (ARCH.price || 0));
   // G133: THE FAIRINGS WEIGH AND COST. Glassfibre datum: a shell's mass
   // scales with the wheel's area (55·R² ≈ 2.2 kg at R 0.20; a trouser's
   // deeper shell 88·R², its leg shroud included), stretched a little by the
@@ -2615,10 +2617,10 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     + (S.gear.twLegFair === 'fair' && S.gear.twFairing !== 'full'
        ? fairShroudM(S.gear.twLeg || 0.20) : 0);
   spend(FMAT.price * (
-    (S.gear.fairing === 'full' ? 2 * GEN_PRICES.trouser
-      : S.gear.fairing === 'spat' ? 2 * GEN_PRICES.spat : 0)
+    (S.gear.fairing === 'full' ? nMn * GEN_PRICES.trouser
+      : S.gear.fairing === 'spat' ? nMn * GEN_PRICES.spat : 0)
     + (S.gear.legFair === 'fair' && S.gear.fairing !== 'full'
-       ? 2 * GEN_PRICES.legFair : 0)
+       ? nMn * GEN_PRICES.legFair : 0)
     + (S.gear.twFairing === 'full' ? GEN_PRICES.trouser
       : S.gear.twFairing === 'spat' ? GEN_PRICES.spat : 0)
     + (S.gear.twLegFair === 'fair' && S.gear.twFairing !== 'full'
@@ -2664,16 +2666,21 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   const hullGear = (S.gear.type === 'hull' || AMPH) && S.gear.hull && Array.isArray(S.gear.hull.sta) && typeof HYDRO !== 'undefined';
   // G3800 (TAILWHEELS): THE SKID's shoe is a hand-sized contact where the wheel's tyre would touch (its contact point,
   // and so the three-point attitude, unchanged): a 3 cm radius at the tyre's bottom, half the wheel assembly's mass
-  const SKID = S.gear.type === 'taildragger' && S.gear.twMode === 'skid';
+  // (MONOWHEEL: and a tricycle's NOSE skid - the same shoe where the nose wheel's tyre would touch)
+  const SKID = (S.gear.type === 'taildragger' || S.gear.type === 'tricycle') && S.gear.twMode === 'skid';
   const twRN = SKID ? 0.03 : S.gear.twR, twDy = SKID ? (S.gear.twR || 0.10) - 0.03 : 0, twKgK = SKID ? 0.5 : 1;
   // ...and a 'hull' whose lines never reached the spec (an archetype's birth spec, pre-join) flies on the floats the
   // gross sizes, the seaplane it can be without its drawing - never on wheels it does not have
   const WHEELS = S.gear.type !== 'floats' && S.gear.type !== 'hull';
   // WILGA-GEAR: THE TRAILING-LINK LEG (62c GEAR_LEVER; the study futureDesigns/WILGA-GEAR-STUDY-2026-11.md) - on a
   // lever build the mains are not the six-member tripod below: each leg is its own truss, the points the drawn leg's
-  const LEVER = WHEELS && S.gear.suspension === 'lever' && !S.gear.retract;
+  const LEVER = WHEELS && S.gear.suspension === 'lever' && !S.gear.retract && !MONO;
   let LEVREC = null;
   if (WHEELS) {
+  // MONOWHEEL: ONE AXLE NODE on the centreline ('AXLEC'); GAR is the same node (every reader of the pair - the lever's
+  // design, the parts - reads one wheel), and refs.mains holds it once
+  if (MONO) { GAL = GAR = N(gx, gy, 0, 'AXLEC', S.gear.contactR); }
+  else
   [GAL, GAR] = NM(gx, gy, 0.5 * tr, 'AXLE', S.gear.contactR);
   if (LEVER) {
     // THE LEG, per side, at full extension (the strut's L0 is its length as built): the pivot as two bearing nodes on
@@ -2720,7 +2727,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       clusters.push({ cls: 'lever', tag: 'LEG' + nm, nodes: [PI, PO, U] });
       LEVREC.sides.push({ side: nm, axle: ax, pi: PI, po: PO, h: H, u: U });
     }
-  } else
+  } else if (!MONO)
   B(GAL, GAR, 'gear');
   // What each of those six members IS, now that `vis` can say so. The forward
   // pair is the SUSPENSION LEG — bungee cord, spring steel or oleo, drawn as
@@ -2730,6 +2737,12 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // they made the undercarriage read as a cage, and an X of bracing wires under
   // the belly is both what a tube-and-fabric aeroplane actually has and the
   // same load path. Nothing here changes k, c or mass.
+  // MONOWHEEL: the one axle hangs on both sides' members - the two legs forward, the two drag braces aft (no cross
+  // wires: the legs ARE the cross), and below both of the ring's top corners (rule 10, the same snap-blockers)
+  if (MONO) {
+    B(GAL, fwdL, 'gear', false, 'leg'); B(GAL, fwdR, 'gear', false, 'leg');
+    B(GAL, AA.BL, 'gear'); B(GAL, AA.BR, 'gear');
+  } else
   if (!LEVER) {
   B(GAL, fwdL, 'gear', false, 'leg'); B(GAL, AA.BL, 'gear');
   B(GAL, fwdR, 'gear', false, 'wire');
@@ -2749,12 +2762,13 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // A near-vertical member up to the ring's TOP corner is also what a
   // bungee-sprung light aeroplane actually has, and like the tailwheel's it is
   // INTERNAL: under the covering it should not be visible.
-  if (!LEVER) {
+  if (MONO) { B(GAL, F[iFwd].TL, 'gear', false, 'inner'); B(GAL, F[iFwd].TR, 'gear', false, 'inner'); }
+  else if (!LEVER) {
   B(GAL, F[iFwd].TL, 'gear', false, 'inner');
   B(GAR, F[iFwd].TR, 'gear', false, 'inner');
   }
   // wheels by their size (PERF STUDY chantier 1, GEN_RULES.wheelKg) + fairings
-  pt(GAL, R.wheelKg(S.gear.wheelR) + mFairMain); pt(GAR, R.wheelKg(S.gear.wheelR) + mFairMain);
+  pt(GAL, R.wheelKg(S.gear.wheelR) + mFairMain); if (!MONO) pt(GAR, R.wheelKg(S.gear.wheelR) + mFairMain);
 
   // The third wheel. `refs.tw` is whichever it is — the solver steers that node
   // and the sign of twSteer says which end it lives at.
@@ -3271,6 +3285,33 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     const [FL, FR] = FLOATS;
     for (const i of [1, 3]) { B(FL.DR[i], FR.DL[i], 'gear', true, undefined, undefined, { kMul: 8 }); B(FL.DR[i], FR.DL[i === 1 ? 3 : 1], 'gear', true, 'wire', undefined, { kMul: 8 }); }
     GAL = FL.K[2]; GAR = FR.K[2]; TW = -1; twX = gx; twY = yK;
+  }
+
+  // ---- 5c. TIP-SKID (60_gen_spec GEN_TIP_SKID): THE WINGTIP SKIDS, one a side under the first plane's tip joint ----
+  // The shoe is ONE NODE, its ground contact (refs.skids: the solver slides it on the tail skid's law, 30_solver), on
+  // the joint's own frame (genTipJoint: the front spar's point on the chord line, the chord, the section's up) at xs of
+  // the chord, its underside h under the lower skin the loft draws (genAfEval, the same evaluator: 63_gen_wing draws
+  // the hoop off the same numbers), tied into the joint bay's four spar nodes - a tetrahedron's apex, rigid (rule 4) -
+  // by four members inside the hoop: gear class, the bracing's rate x8 (the apex stands a hand under a near-flat bay,
+  // so its members are near the bay's plane and carry its load at sin^2 of their angle: the float tie's kMul), weightless
+  // (the shoe's mass is the node's). Nothing on a wing without one: no node, no member, no key.
+  const SKIDS = [];
+  {
+    const w0K = S.wings && S.wings[0], hK = w0K ? +w0K.tipSkid : 0;
+    if (hK > 0 && wf.L && wf.R && typeof GEN_TIP_SKID !== 'undefined') {
+      const K = GEN_TIP_SKID, tz = genTipSkidZ(w0K, G.semi);
+      const cJ = chordAt(tz), lo = (typeof genAfEval === 'function' ? genAfEval(w0K.naca).lo(K.xs)[1] : -0.05);
+      for (const [sd, W] of [[-1, wf.L], [1, wf.R]]) {
+        const J = genTipJoint(nodes, W, tz, sd);
+        if (!J) continue;
+        const pS = [0, 1, 2].map(i => J.O[i] + J.ch[i] * (K.xs - sparFront) * cJ + J.up[i] * (lo * cJ - hK + 1.6 * K.r));
+        const SKn = N(pS[0], pS[1], pS[2], 'SK', 1.6 * K.r);   // (the shoe's radius: the drawn sleeve's)
+        const jo = Math.min(W.F.length - 1, J.j + 1);
+        for (const a of [W.F[J.j], W.R[J.j], W.F[jo], W.R[jo]]) B(SKn, a, 'gear', false, 'inner', undefined, { noMass: true, kMul: 8 });
+        pt(SKn, K.kg); spend(K.each);
+        SKIDS.push(SKn);
+      }
+    }
   }
 
   // ---- 6. payload, fuel, systems --------------------------------------
@@ -3812,8 +3853,9 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     upLo: [F[0].BL, F[0].BR], upHi: [F[0].TL, F[0].TR],
     fusDrag: [F[iCabR].BL, F[iCabR].BR, F[iCabR].TL, F[iCabR].TR],
     fusDragAft: [F[F.length-2].BL, F[F.length-2].BR, F[F.length-2].TL, F[F.length-2].TR],
-    engine: engNodes, engineOf: engIdx, mains: [GAL, GAR], tw: TW, fin: FIN, fin2: FIN2,
+    engine: engNodes, engineOf: engIdx, mains: GAL === GAR ? [GAL] : [GAL, GAR], tw: TW, fin: FIN, fin2: FIN2,   // (MONOWHEEL: one main)
     ...(TW2 >= 0 ? { tw2: TW2 } : {}),               // G3800: a twin boom's second tail contact (the key only then)
+    ...(SKIDS.length ? { skids: SKIDS } : {}),       // TIP-SKID: the wingtip skids' shoes (the key only then)
     // THE DRAWING'S DATUM IS THE WING CARRY-THROUGH (G179.3, the user: "we
     // have to treat the whole wing consistently, and get rid of that
     // different treatment for the central part"). The centre section is

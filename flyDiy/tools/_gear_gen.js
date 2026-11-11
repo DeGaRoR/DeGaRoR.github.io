@@ -2498,6 +2498,15 @@ function legTailwheel(bags, AF, P, st) {
     sweep(bags.steel, resample([[x0, yS + 0.010, shoe[2] + 0.105], [x0, yS + 0.030, shoe[2] + 0.140]], 3),
           () => secBlade(Math.max(0.03, P.twSpringW * 0.9) * 2, 0.008), true, [1, 0, 0]);   // the toe, upturned
     for (const sz of [-0.05, 0.05]) bolt(bags.alloy, [x0, yS + 0.018, shoe[2] + sz], [0, 1, 0], 0.006, 0.016);
+    // MONOWHEEL (the user, 11 Nov: "the front has a skid ... with a fairing in front"): THE SKID's FAIRING - the wheel's
+    // own spat round the shoe (its virtual axle, the radius the stance is measured on: the shell the drag already prices,
+    // gear.twFairing), the shoe's sole under its skirt; trousers shroud the blade as they shroud the leaf spring
+    if (st.fair) {
+      spat(bags, [x0, yS + st.R, shoe[2]], [1, 0, 0], st.R,
+           { full: st.fair === 2, skirt: st.fairSkirt, tail: st.fairTail, rake: st.fairRake, width: st.fairW });
+      if (st.fair === 2)
+        legShroud(bags.fair, blade, tip[1] + 0.02, Math.max(0.10, P.twSpringW * 2.2), Math.max(P.twSpringT * 4, P.twSpringW * 0.9));
+    }
     return { axle: [x0, yS + st.R, shoe[2]], axis: [1, 0, 0], root, tip, travel: nrm([0, 1, 0.35]), skid: true };
   }
   // G58.3: a caller that wants the castor assembly separable (the cage
