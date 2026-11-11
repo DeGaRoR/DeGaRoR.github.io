@@ -151,6 +151,7 @@ const turns = D.log.filter(l => l.what === 'uturn').map(l => l.msg.replace(/: .*
     pause: /DM\.paused = !!on/, restart: /DM\.restart\(\); return;/, refill: /FLYDIY_DEST_REFILL = /, entry: /DRIVE_Q\) setTimeout\(\(\) => DRIVE\.enter\(\)/ };
   const miss = Object.keys(hooks).filter(k => !hooks[k].test(APP));
   const core = B.MANIFEST.core.some(n => /vehicle|drive_mode|cars?[_/]/i.test(n));
+  if (!/body\.driveMode #flNotice, body\.driveMode #bSkip/.test(fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'flight.css'), 'utf8'))) miss.push('css (the aeroplane\'s verbs off while driving)');
   row('PAGE', want.every(w => lazy.includes(w)) && !miss.length && !core,
     'lazy: ' + want.filter(w => lazy.includes(w)).length + ' of ' + want.length + ' files in MANIFEST.lazy, none in MANIFEST.core; app.js hooks ' + (Object.keys(hooks).length - miss.length) + ' of ' + Object.keys(hooks).length + (miss.length ? ' (missing: ' + miss.join(', ') + ')' : ' (loop, target, camera, hud, map, trip, picker, pause, restart, refill, ?drive=1)'));
 }
