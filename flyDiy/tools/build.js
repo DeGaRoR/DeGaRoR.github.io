@@ -253,6 +253,10 @@ const MANIFEST = {
     // stage (computed), the career's segment, the editor's rows, the market's and the makers' filter; pure, GATE TECH.
     // GAME-PLAN-2026-10-15 §R, §4.
     '79b_tech.js',
+    // THE SCENE (PHOTO-MODE-2 P0): one picture's setting as a small file (camera, time, weather, the plane inline, its pose,
+    // the quality and size) - the photo bar's and the rigs' one format - and the scene inside the PNG; pure, GATE SCENE.
+    // futureDesigns/PHOTO-MODE-2-2026-11-11.md §3.
+    '89_scene.js',
     '90_node_exports.js',
   ],
   // THE CAREER-ONLY CORE (G2685 CAREER-LAZY, the coordinator's sanity check 8 Oct: train 43 grew index.html by 324 KB,

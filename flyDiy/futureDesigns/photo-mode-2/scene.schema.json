@@ -374,8 +374,8 @@
         },
         "hq": {
           "type": "boolean",
-          "default": true,
-          "description": "the high-quality option (opt-out): ultra rows, density 200, real trees to 1000 m (TREE_LOD [150, 1000, 1000], fade 60), the levers of design section 2.2"
+          "default": false,
+          "description": "the high-quality option, OPT-IN (off by default): the night hero's settings (ultra, density 200, TREE_LOD [150, 1000, 1000], fade 60) scaled to the player's machine, capped at SCENE_HQ_CAP_S (design 2.2-2.2c)"
         }
       }
     }

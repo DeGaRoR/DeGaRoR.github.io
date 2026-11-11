@@ -98,3 +98,43 @@ function placeAtLineup(sim, a, pose, world, refs) {
   const gH = (world && typeof world.terrainH === 'function') ? world.terrainH : (() => (a && a.elev) || 0);
   return seatOnGround(sim, gH, refs);
 }
+
+// PHOTO-MODE-2 P0 (2026-11-11): THE POSE, ANYWHERE. The other helpers here only yaw and translate (the spawn identity,
+// the stand, the line-up); a promo shot wants the aeroplane at any attitude - banked over the lagoon, nose up off the
+// strip. placePose puts the AS-BUILT geometry (def.nodes, the rest shape every beam's length comes from) at a rigid
+// attitude about its mass centre and moves that centre to `at`: no node moves relative to another, so no member is
+// strained by it. Angles in radians:
+//   hdg   - the spawn identity's heading (placeAtAerodrome's: the nose along (cos hdg, 0, sin hdg); HOME is pi);
+//   pitch - nose up +, about the build's own datum (the x axis the generator draws the fuselage on);
+//   roll  - right wing down + (+z is the LEFT side, AXES & SIGNS).
+// The order is the aerospace one: roll about the body's own x, then pitch, then the heading about world y. The
+// velocities are zeroed, or set along the nose at `speed` (m/s) for the things a held frame draws off them (the prop's
+// blur reads rpm, not v; the streamers read v). Masses are the sim's (a freight load stays aboard). Returns the CG.
+// Call after sim.reset (and stance); on the ground follow it with seatOnGround. GATE SCENE holds it: every beam's
+// length to 1e-9, the CG at `at`, the axes rotated as asked, and HOME's pose = placeAtAerodrome's to the bit.
+// Under the physics worker the page's sim is a view: a page goes through SIMW (PHOTO-MODE-2 P3), never sim.p by hand.
+function placePose(sim, def, pose) {
+  const N = def.nodes, n = sim.n, P = sim.p, V = sim.v, M = sim.m;
+  let cx = 0, cy = 0, cz = 0, mt = 0;
+  for (let i = 0; i < n; i++) { const p = N[i].p, w = M[i]; cx += p[0] * w; cy += p[1] * w; cz += p[2] * w; mt += w; }
+  cx /= mt; cy /= mt; cz /= mt;
+  const at = pose.at || [cx, cy, cz];
+  const b = -(pose.roll || 0), a = -(pose.pitch || 0), th = Math.PI - (pose.hdg == null ? Math.PI : pose.hdg);
+  const snap = v => Math.abs(v) < 1e-12 ? 0 : v;
+  const cb = snap(CORE_MATH.cos(b)), sb = snap(CORE_MATH.sin(b));
+  const ca = snap(CORE_MATH.cos(a)), sa = snap(CORE_MATH.sin(a));
+  const c = snap(CORE_MATH.cos(th)), s = snap(CORE_MATH.sin(th));
+  for (let i = 0; i < n; i++) {
+    const p = N[i].p;
+    let x = p[0] - cx, y = p[1] - cy, z = p[2] - cz, t;
+    t = y * cb - z * sb; z = y * sb + z * cb; y = t;          // roll, about the body's x
+    t = x * ca - y * sa; y = x * sa + y * ca; x = t;          // pitch, about its z
+    t = x * c + z * s; z = -x * s + z * c; x = t;             // the heading, about world y (placeAtAerodrome's turn)
+    P[i * 3] = x + at[0]; P[i * 3 + 1] = y + at[1]; P[i * 3 + 2] = z + at[2];
+  }
+  const sp = pose.speed || 0;
+  // the nose: -x of the build, through the same three turns
+  const nx = -ca * c, ny = -sa, nz = ca * s;
+  for (let i = 0; i < n; i++) { V[i * 3] = sp * nx; V[i * 3 + 1] = sp * ny; V[i * 3 + 2] = sp * nz; }
+  return [at[0], at[1], at[2]];
+}

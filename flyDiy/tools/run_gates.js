@@ -494,6 +494,7 @@ const GATES = [
   { id: 'DMGSCUFF', file: '_dmg_scuff_check.js', tier: 'core', weight: 2, wall: 120 },   // G2005 (DMG-SCUFF): the damage drawn where the physics put it
   // G286: the graphics settings menu - presets, the pref, the handles
   { id: 'GFX', file: '_gfx_check.js', tier: 'core' },
+  { id: 'SCENE', file: '_scene_check.js', tier: 'core', wall: 10 },   // PHOTO-MODE-2 P0: the scene file (89_scene.js) + its schema's enums, the scene in the PNG, placePose rigid and signed
   // G3880-G3884 (GAME-MENUS): the browser's Back asks first - the guard armed at the first input, Back -> the box (the sim held),
   // Stay keeps the flight, Leave leaves, the tab's beforeunload; and NEVER on a rig (WELCOME.RIG, ?nogate, ?backguard=0, a frame)
   { id: 'BACKGUARD', file: '_backguard_check.js', tier: 'core' },

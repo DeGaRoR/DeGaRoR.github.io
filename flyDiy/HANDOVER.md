@@ -315276,3 +315276,31 @@ Key facts it rests on: `GFX.set` persists and flips the preset to custom (so the
 FAR_FILL/FAR_WOOD are build-time constants; the clouds' temporal history needs ~20 frames after a resize; nothing in
 core poses pitch/roll (placePose is new, rigid, in 39c_placement.js). Build order P0-P6; P4-P6 need a LOCAL session
 and a GPU box slot from A0. Six questions (Q1-Q6) to the user, each with a default, in the note's section 6.
+
+## PHOTO-MODE-2 P0 - THE SCENE FILE AND THE POSE, IN THE CORE (11 Nov 2026 night, cloud, node only; branch claude/optimistic-dirac-1zu6u1)
+
+The user (11 Nov, after the design note): high quality OPT-IN ("I don't think we should have the HD option by default"),
+scaled to the player's machine (a potato is not offered the night hero's trees as they are), the shot may take longer
+than 10 s with a % on screen but is capped under a minute; "can you start now?" -> P0, the cloud half. The note's
+answers and the machine table: futureDesigns/PHOTO-MODE-2-2026-11-11.md (2.2b, 2.2c, 6).
+
+**Files.** NEW `src/core/89_scene.js` (MANIFEST.core before 90_node_exports; pure): `sceneNormalise` (parse, refuse,
+clamp with a warning, unknown fields kept), `SCENE_ENUMS`, `sceneFrame` / `sceneToWorld` / `sceneFromWorld` (the
+plane-anchored camera: x forward along the heading, y up, z right), `sceneOutputSize` (the window's by default,
+SCENE_MAX_SIDE 8192), `scenePngPut` / `scenePngGet` (one iTXt chunk `wingsmith-scene` before IEND; the zlib stream is the
+caller's: CompressionStream in a page, zlib in node), `SCENE_HQ_CAP_S` = 55. `placePose(sim, def, {at, hdg, pitch, roll,
+speed})` in `39c_placement.js`: the AS-BUILT geometry (def.nodes) rigidly turned about its CG (roll about x, pitch, then
+placeAtAerodrome's heading turn) and moved to `at`; v zeroed or along the nose. NEW GATE SCENE (`tools/_scene_check.js`,
+core, ~3 s). 90_node_exports.js: the new names.
+
+**Signs, measured (GATE SCENE 4, off sim.axes()):** pitch + = nose up, roll + = RIGHT wing down (+z is the left), the nose
+along (cos hdg, 0, sin hdg) - placeAtAerodrome's heading, HOME pi. Two things the gate taught: `reset` lifts def.nodes as
+one onto the ground (0.91 m on the stock build) and `stance` pitches a taildragger rigidly onto its three wheels, so
+placePose (from def.nodes) equals placeAtAerodrome on an un-stanced reset, and every order seats to the same pose
+(8.9e-16 m). Rigid: every beam's length kept to 1.9e-13 m.
+
+**Sizes:** a scene with the C172 inline is 32.6 KB of JSON, 12.2 KB compressed in the picture.
+
+**Not done here (the note's P1-P6):** photo.js and the garage's bar, scenes in the game, the pose through SIMW (the
+worker) and the Plane tab (Dev only), the high-quality stepper + GFX.push/pop + the machine table, scene_shot.js. P4-P6 need
+a LOCAL session and a GPU box slot from A0.
