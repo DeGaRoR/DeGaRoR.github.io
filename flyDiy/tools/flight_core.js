@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 1c66e0c88c018674
+// body-sha256: a0522f0c7ff376da
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -22958,15 +22958,18 @@ function genDriveTorqueFactor(cyl, family) {
 function genDriveSpec(def) {
   const P = (def && def.params) || {}, PP = typeof POWERPLANTS !== 'undefined' ? POWERPLANTS[P.powerplant] : null;
   const E = P.engine || (PP && PP.engine) || {}, PR = P.prop || (PP && PP.prop) || {}, SP = (def && def.spec && def.spec.prop) || {};
-  const row = GEN_DRIVE.eng[P.powerplant] || {};
+  // ENGINE-DIALS (2026-11-09): A CUSTOM ENGINE READS NOTHING OFF THE TABLE'S ROW - its powerplant key is the join's
+  // fallback (the A-65's: four cylinders), never its engine; its own row carries its cylinders and its maximum
+  const custom = !!(def && def.spec && Array.isArray(def.spec.engines) && def.spec.engines[0] && def.spec.engines[0].custom);
+  const row = custom ? {} : (GEN_DRIVE.eng[P.powerplant] || {});
   const rated = E.rpm > 0 ? E.rpm : 2300, gear = E.gear > 0 ? E.gear : 1;
-  const cyl = row.cyl || (E.layout === 'radial' ? 7 : GEN_DRIVE.famCyl[E.family] || 4);
+  const cyl = (custom && E.cyl > 0 ? E.cyl : row.cyl) || (E.layout === 'radial' ? 7 : GEN_DRIVE.famCyl[E.family] || 4);
   const D = PR.D > 0 ? PR.D : 1.8, R = D / 2;
   const mass = SP.mass > 0 ? SP.mass : (2 * 2.4 * CORE_MATH.pow(D / 1.88, 2.5));
   const blades = SP.blades > 0 ? SP.blades : 2, mat = SP.material || 'wood';
   const omegaR = 2 * Math.PI * (rated / gear) / 60;
   const Q = (E.powerW || 0) / (2 * Math.PI * rated / 60);       // the engine's mean torque at rated (N m, crank)
-  return { rated, rpmMax: row.rpmMax || rated, gear, cyl, family: E.family || 'four', cs: !!E.cs, powerW: E.powerW || 0,
+  return { rated, rpmMax: (custom && E.rpmMax > 0 ? E.rpmMax : row.rpmMax) || rated, gear, cyl, family: E.family || 'four', cs: !!E.cs, powerW: E.powerW || 0,
            Q, Qprop: Q * gear, tqK: genDriveTorqueFactor(cyl, E.family), D, R, mass, blades, mat, omegaR,
            I: GEN_DRIVE.Ik * mass * R * R, sepTip: GEN_DRIVE.strike.sep[mat] || GEN_DRIVE.strike.sep.wood,
            hub: GEN_NOSE.hub[mat] != null ? GEN_NOSE.hub[mat] : GEN_NOSE.hub.wood,   // G2035: the hub's depth (the disc's band)
@@ -35708,7 +35711,15 @@ const GEN_STOL_ROW_OFF = { wgSlat: 0, wgSlatSpan: 1.0, wgVG: 0, wgFence: 0, wgCu
 // THE NEUTRAL ROWS OF LATER DIALS (REAL-FIGURES-3, 2026-11-09), by the same rule: the engine's tune and build
 // (tools/_eng_gen.js bmepK / massK) at 1 are every engine as it was, and the join writes them into every cage - so at
 // 1 they are absent from every key the STOL rows are absent from, and no certificate is withdrawn by a dial nobody moved
-const GEN_CAGE_ROW_NEUTRAL = { eng_bmepK: 1, eng_massK: 1 };
+// (ENGINE-DIALS, 9 Nov: the reduction's ratio, the maximum rpm and the constant-speed propeller by the same rule)
+// ENGINE-DIALS (2026-11-09): THE PROPELLER DIAMETER THE WING'S BALANCE RULE ASSUMES FOR A NOSE ENGINE - the registry
+// row's own for a registry engine (every build before, byte for byte), and for a CUSTOM engine its own disc (the
+// spec's D, else the generic 1.80 m) - never the A-65's 1.88 it borrowed through the fallback key
+function genEngPropD0(S, e0, PP0) {
+  if (e0 && e0.custom) return (S.prop && S.prop.D > 0) ? S.prop.D : 1.80;
+  return PP0.prop.D;
+}
+const GEN_CAGE_ROW_NEUTRAL = { eng_bmepK: 1, eng_massK: 1, eng_gearRatio: 1, eng_rpmMax: 0, eng_cs: 0 };
 // the cage without its STOL rows at "off" and its later dials at neutral (the same object when it has none: a hash
 // over it is the old bytes)
 function genStolCageOff(cage) {
@@ -38111,7 +38122,8 @@ function clampSpec(spec) {
       cu.name = typeof cu.name === 'string' && cu.name
         ? cu.name.slice(0, 48) : 'custom engine';
       cu.mass = genClamp(cu.mass, 0.05, 900);
-      cu.powerW = genClamp(cu.powerW, 100, 1000000);
+      // (ENGINE-DIALS: 1 MW -> 2 MW - the registry's Merlin 66 is 1.283 MW, and every registry row is a custom point)
+      cu.powerW = genClamp(cu.powerW, 100, 2000000);
       cu.rpm = genClamp(cu.rpm == null ? 2300 : cu.rpm, 400, 14000);
       // the panel arc: a reduction unit between crank and prop (prop = rpm /
       // gear); 1 = direct drive. Read by genShaftRpm, never by the thrust law.
@@ -38123,6 +38135,14 @@ function clampSpec(spec) {
         ? cu.family : (cu.aspiration === 'electric' ? 'electric'
                        : cu.aspiration === 'turbine' ? 'turbine' : 'four');
       cu.cooling = cu.cooling === 'liquid' ? 'liquid' : 'air';
+      // ENGINE-DIALS (2026-11-09): THE FIELDS A CUSTOM ENGINE USED TO BORROW FROM THE A-65 (its engines[].type is the
+      // A-65's: the join's fallback key), now its own, each absent unless its dial says so: the cylinders (33_drive's
+      // FAR 23.361 factor; a piston's resolve), the radial layout (the drag build-up's cooling term), a governed
+      // propeller (a turbine; a piston's row) and the drivetrain's maximum rpm (33_drive's overspeed bands)
+      if (Number.isFinite(+cu.cyl) && Math.round(+cu.cyl) >= 1) cu.cyl = Math.min(28, Math.round(+cu.cyl)); else delete cu.cyl;
+      if (cu.layout !== 'radial') delete cu.layout;
+      if (cu.cs === true || cu.cs === 1) cu.cs = true; else delete cu.cs;
+      if (Number.isFinite(+cu.rpmMax) && +cu.rpmMax > 0) cu.rpmMax = genClamp(+cu.rpmMax, cu.rpm, 14000); else delete cu.rpmMax;
       // WHERE ITS MASS SITS (the cgFwd half-session, 2026-09-05): the CG aft
       // of the prop flange, the bench's own cgZ for a drawn engine; null lets
       // the registry table (GEN_ENG_CG) answer, or the old mount-node lump
@@ -38850,7 +38870,7 @@ function resolveSpec(spec) {
     const PP0 = POWERPLANTS[S.engine] || POWERPLANTS.a65_sensenich74;
     const e0 = S.engines[0];
     const mE = (e0.custom && e0.custom.mass) || PP0.engine.mass;
-    const engX0 = -(0.18 + 0.32 * PP0.prop.D / 2);
+    const engX0 = -(0.18 + 0.32 * genEngPropD0(S, e0, PP0) / 2);
     const xAC = w.xLE + 0.25 * w.chord;
     const xOf = e => e.x != null ? e.x
       : e.mount === 'pusher' ? S.cab.noseGap + S.cab.len + S.fuse.cargoLen + 0.30
@@ -38866,7 +38886,7 @@ function resolveSpec(spec) {
     const e = S.engines[0], m = e.mount;
     const PP0 = POWERPLANTS[S.engine] || POWERPLANTS.a65_sensenich74;
     const mE = (e.custom && e.custom.mass) || PP0.engine.mass;
-    const engX0 = -(0.18 + 0.32 * PP0.prop.D / 2);
+    const engX0 = -(0.18 + 0.32 * genEngPropD0(S, e, PP0) / 2);
     const xE = e.x != null ? e.x
              : m === 'pusher' ? S.cab.noseGap + S.cab.len + S.fuse.cargoLen + 0.30
              : m === 'wingTop' ? w.xLE + 0.30 * w.chord : w.xLE + 0.05;
@@ -39189,8 +39209,10 @@ function resolveSpec(spec) {
   // the preset survives as the prop-diameter default and the legacy lookup
   // key (params.powerplant), so nothing built before this line moves.
   const CU = S.engines[0] && S.engines[0].custom;
+  // (ENGINE-DIALS: a custom row's default propeller is the generic 1.80 m, never the registry row's it fell back to -
+  // the A-65's 1.88 for every custom engine; a drawn build always states its own D, so only a bare spec reads it)
   const PP = CU
-    ? { price: CU.price, engine: CU, prop: REG ? REG.prop : { D: 1.80 } }
+    ? { price: CU.price, engine: CU, prop: { D: 1.80 } }
     : REG;
   S.pplant = PP;
   // WHERE THE ENGINE'S MASS SITS (2026-09-05, the cgFwd half-session): the CG
@@ -60036,7 +60058,10 @@ const ECON_WEAR = {
 // the resolved spec's engine and prop prices: each engine's row and each prop's (60_ resolveSpec writes prop.price)
 function econPowerPrices(R) {
   const engs = (R && Array.isArray(R.engines) && R.engines.length) ? R.engines : (R && R.engine ? [R.engine] : []);
-  const one = e => { const k = typeof e === 'string' ? e : e && (e.type || e.engine); const P = k && POWERPLANTS[k]; return P ? +P.price || 0 : 0; };
+  // (ENGINE-DIALS: a custom engine is priced as its own row - resolveSpec's market curve - never the registry row of its
+  // fallback key, the A-65's 11 000 for every custom engine)
+  const one = e => { if (e && typeof e === 'object' && e.custom && isFinite(+e.custom.price)) return +e.custom.price;
+                     const k = typeof e === 'string' ? e : e && (e.type || e.engine); const P = k && POWERPLANTS[k]; return P ? +P.price || 0 : 0; };
   const n = Math.max(1, engs.length);
   const eng = engs.map(one);
   return { n, engine: eng.length ? eng : [0], prop: Math.round(+(R && R.prop && R.prop.price) || 0) };
@@ -60601,7 +60626,7 @@ const PROCURE_ENGINES = {
 // editor writes), as the A-65's dict + each engine's differences. Without them the panel's load audit reads the old
 // engine's dials under the new index and turns the engine "custom" (measured on the page, G2280); GATE PROCURE holds
 // every dict byte-equal to applyEngPreset's
-const PROCURE_ENG_BASE = {engPower: 0, eng_tStyle: 0, eng_tCanD: 0.4, eng_tCanL: 1.05, eng_gearK: 1.2, eng_flatK: 1.26, eng_tRpm: 1900, eng_stackStyle: 0, eng_eStyle: 0, eng_canD: 0.0278, eng_canL: 0.026, eng_rpm: 2300, eng_volts: 11.1, eng_eFins: 0, eng_escOn: 1, eng_leads: 1, eng_plumb: 1, eng_liquid: 0, eng_geared: 0, eng_arch: 0, eng_cyl: 2, eng_radialRows: 1, eng_inlineAim: 1, eng_vee: 60, eng_bore: 0.0983, eng_stroke: 0.0921, eng_stagger: 0.5, eng_twoStroke: 0, eng_blower: 0, eng_boost: 1, eng_critAlt: 0, eng_bmepK: 1, eng_massK: 1, eng_finN: 14, eng_finR: 1.34, eng_headFins: 8, eng_rockerW: 0.95, eng_rockerH: 0.66, eng_rockerR: 0.24, eng_rockerBoss: 0.05, eng_rockerBossW: 0.52, eng_rodPos: 0, eng_finShape: 0, eng_rockerSpan: 0, eng_baseFins: 1, eng_injected: 0, eng_airStyle: 0, eng_airbox: 1, eng_intake: 1, eng_exStyle: 1, eng_exDrop: 1.5, eng_exPair: 0, eng_exOut: 0, eng_exAim: 0, eng_exOutX: 0, eng_exOutY: 0, eng_exOutZ: 0, eng_leadR: 0.034, eng_mags: 1, eng_genOn: 1, eng_oilFill: 1, eng_radX: 0, eng_radY: 0.55, eng_radZ: 0.55, eng_radW: 2, eng_radH: 0.75, eng_radD: 0.42, eng_starter: 1, eng_oilFilter: 1, eng_battOn: 1, eng_ecuOn: 0, eng_fuelX: 0, eng_fuelY: 0, eng_thrX: 0, eng_thrY: 0, eng_mount: 1, eng_mountX: 1, eng_mountGap: 0.85, eng_mountR: 1, eng_fwSpread: 1.5, eng_screws: 1};
+const PROCURE_ENG_BASE = {engPower: 0, eng_tStyle: 0, eng_tCanD: 0.4, eng_tCanL: 1.05, eng_gearK: 1.2, eng_flatK: 1.26, eng_tRpm: 1900, eng_bmepK: 1, eng_massK: 1, eng_stackStyle: 0, eng_eStyle: 0, eng_canD: 0.0278, eng_canL: 0.026, eng_rpm: 2300, eng_volts: 11.1, eng_eFins: 0, eng_escOn: 1, eng_leads: 1, eng_plumb: 1, eng_liquid: 0, eng_geared: 0, eng_gearRatio: 1, eng_arch: 0, eng_cyl: 2, eng_radialRows: 1, eng_inlineAim: 1, eng_vee: 60, eng_bore: 0.0983, eng_stroke: 0.0921, eng_stagger: 0.5, eng_twoStroke: 0, eng_rpmMax: 0, eng_cs: 0, eng_blower: 0, eng_boost: 1, eng_critAlt: 0, eng_finN: 14, eng_finR: 1.34, eng_headFins: 8, eng_rockerW: 0.95, eng_rockerH: 0.66, eng_rockerR: 0.24, eng_rockerBoss: 0.05, eng_rockerBossW: 0.52, eng_rodPos: 0, eng_finShape: 0, eng_rockerSpan: 0, eng_baseFins: 1, eng_injected: 0, eng_airStyle: 0, eng_airbox: 1, eng_intake: 1, eng_exStyle: 1, eng_exDrop: 1.5, eng_exPair: 0, eng_exOut: 0, eng_exAim: 0, eng_exOutX: 0, eng_exOutY: 0, eng_exOutZ: 0, eng_leadR: 0.034, eng_mags: 1, eng_genOn: 1, eng_oilFill: 1, eng_radX: 0, eng_radY: 0.55, eng_radZ: 0.55, eng_radW: 2, eng_radH: 0.75, eng_radD: 0.42, eng_starter: 1, eng_oilFilter: 1, eng_battOn: 1, eng_ecuOn: 0, eng_fuelX: 0, eng_fuelY: 0, eng_thrX: 0, eng_thrY: 0, eng_mount: 1, eng_mountX: 1, eng_mountGap: 0.85, eng_mountR: 1, eng_fwSpread: 1.5, eng_screws: 1};
 const PROCURE_ENG_DIALS = {
   a65: {},
   o200: {eng_rpm: 2750, eng_bore: 0.1031875, eng_stroke: 0.098425},
@@ -64246,7 +64271,11 @@ function techKeysOfSpec(spec) {
   for (const w of (Array.isArray(S.wings) ? S.wings : [])) { const m = w && surf(w.material); if (m) add('surf:' + m); }
   for (const f of ['finMaterial', 'stabMaterial']) { const m = S.tail && surf(S.tail[f]); if (m) add('surf:' + m); }
   const E = Array.isArray(S.engines) && S.engines.length ? S.engines : (D.engines || []);
-  for (const e of E) if (e && e.type) add('eng:' + e.type);
+  // (ENGINE-DIALS: a custom engine is its FAMILY's - the shop that can build that kind of engine - never the registry row
+  // of the join's fallback key, the A-65's, which put a custom turbine in the first segment)
+  const famOf = cu => { const f = cu.family || (cu.aspiration === 'electric' ? 'electric' : cu.aspiration === 'turbine' ? 'turbine' : 'four');
+                        return Object.keys(TECH_FAMILIES).find(g => TECH_FAMILIES[g].includes(f)) || 'piston'; };
+  for (const e of E) if (e && e.custom && typeof e.custom === 'object') add('fam:' + famOf(e.custom)); else if (e && e.type) add('eng:' + e.type);
   if (E.length > 1) add('cfg:twin');
   const pr = S.prop || {};
   add('prop:' + (pr.material || 'wood'));
