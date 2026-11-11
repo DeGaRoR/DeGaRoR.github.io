@@ -1647,7 +1647,10 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
         // silt swallows it: 0.16 read as wet earth) and a near-mirror, the sky's reflection its whole look
         vec3 murk = vec3(0.065, 0.05, 0.035);                                 // muddy water, deep: brown-black, the bed gone within 5 cm
         col = mix(col, mix(col * 0.35, murk, 0.55 + 0.45 * dz), pudA);
-        rough = mix(rough, 0.015, pudA);
+        // (11 Nov stills: a film under ~3 mm took the mirror with the ground's grain still in its normal - a glitter, neither wet earth
+        //  nor flat water) the mirror and the level normal come in only as the water deepens: pudA cubed
+        float pdk = pudA * pudA * pudA;
+        rough = mix(rough, 0.015, pdk);
       }
     }
     // ---- the normal into the world, the roughness, the alpha
@@ -1660,9 +1663,9 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
       // (10 Nov, the user: "water is flat by definition, and yours is wavy": 3 % from a 25 and an 8 cm noise broke a low sun's
       //  mirror into streaks - now 0.4 % over 40 cm: still water, a breath of air)
       vec2 rp = vec2(pvNoise(P / 0.4 + seed * 13.0), pvNoise(P / 0.4 + seed * 13.0 + 7.3)) - 0.5;
-      gPavN = normalize(mix(gPavN, normalize(vec3(rp.x * 0.004, 1.0, rp.y * 0.004)), pudA));
+      gPavN = normalize(mix(gPavN, normalize(vec3(rp.x * 0.004, 1.0, rp.y * 0.004)), pudA * pudA * pudA));
     }
-    gPavR = clamp(rough, mix(0.03, 0.015, pudA), 1.0);   // (11b: the water smoother than any ground)
+    gPavR = clamp(rough, mix(0.03, 0.015, pudA * pudA * pudA), 1.0);   // (11b: the water smoother than any ground)
     // THE SPECULAR ANTI-ALIAS (G1047, the ground's: splat_ground uSFilt.y): the roughness floor grows with the
     // pixel's footprint (sqrt of metres a pixel), so a relief finer than the pixel cannot throw the sun's lobe about
     if (uSpec.z > 0.0) gPavR = max(gPavR, min(1.0, uSpec.z * sqrt(length(fw))));
