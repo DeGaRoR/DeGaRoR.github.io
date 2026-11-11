@@ -256,9 +256,11 @@ const GEN_NOSE = {
   // ground at the nose) and through a crash, the members inside one engine's body are damped along their length at
   // lumpZ x critical for the pair (on top of their own), held under half the explicit bound (c dt / mu < 0.5). 0: off
   lumpZ: 1,
-  // ...and the nose's push on the body's CG (its nodes' mass shares) in place of the two thrust nodes: OFF (G2014's reason
-  // above, the crankcase node's tubes) - the A/B of the substep trace
-  pushCg: false,
+  // ...and the nose's push on the body's CG (its nodes' mass shares) in place of the two thrust nodes: ON - the A/B (Deform
+  // 11 Nov, the substep trace, 30 m/s into a trunk): the torn engine's peak internal energy (spin and ringing) metal 73.9 kJ
+  // (master) -> 33.7 (the lump alone) -> 3.5 kJ (the lump + this); the Jodel 29.5 -> 22.2 -> 0.7 kJ. G2014's reason (the
+  // Cub's crankcase tubes crushed at their floor, 10 of 49 winds) is GATE DMGNOSE's to judge
+  pushCg: true,
 };
 // Alexander's mean crush load of a shell of diameter D
 function genNoseShell(S, D) { return GEN_NOSE.alex * S.s0 * CORE_MATH.pow(S.t, 1.5) * Math.sqrt(Math.max(0, D)); }
