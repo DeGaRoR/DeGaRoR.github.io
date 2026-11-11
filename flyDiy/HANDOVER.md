@@ -315264,3 +315264,15 @@ read p99 10.1 mm on them. The real cut (a coarser refine at low chaos / fine row
 - VEG-ROOT FIELD BY COLOUR (LOOK-1, the user 11 Nov "by colour per tuft"), claude/ready/veg-root-key e20cb0a11: two fixes. (1) The field's key runs AFTER the root law (three's color_vertex comes before begin_vertex; on master the law overwrote the key, which changed nothing). (2) The key's weight is the TINTED texel mean's r/g, not the raw texture's (1.72), so vColor r/g x w = the tuft's albedo r/g = the ground's own. Band 0.85-1.05: below MID (0.6, 80 %), above HIGH (0.95, 1.3), blended between. Gates COVER TREES FADES PASS; 8f asserts the order and the weight (node reads 1.000: no tint uniforms in node). IN GAME 12 Nov 16:45 (dev.html): live w 1.014; the HOME field around the parked Cub, 18,010 tufts, albedo r/g q05/q25/q50/q75/q95 0.775/1.004/1.247/1.291/1.322, 12.9 % MID, 72.1 % HIGH. CAVEAT: home field only (the cover ring streams around the aircraft). NO PICTURE: the free eye does not stream the world; FLIGHT_PROBE.place leaves the Cub at home on master 5bc7de1c9+, so the keyed / key-off still is OWED to the perf round with place() fixed.
 
 - DIRT-EDGE (DIRT-DUST, the user marked "the clean, sharp rounded shape" on the Petrel crash frames), claude/ready/dirt-edge 6d5524acb: the crash puff's hard circle came from saturation (the zoomed V2 sprite still covered ~0.9 at the quad's discard circle). Every puff: a soft depth cap vT = 1.6 (1 - e^(-vTau/1.6)) (0.25 -> 0.23, 0.5 -> 0.43, 1 -> 0.74, 6 -> 1.56; one puff never opaque, ~0.8 max; overlaps still stack) and the depth + alpha fade from 0.45 r (was the last 15 %). VISIBLE ON ALL DUST, named: take-off / roll dust (0.05-1) a little thinner, most where thickest; each puff reads ~20 % smaller with softer edges. Gates DUST (new: no hard circle; a crash-dense puff is never a flat disc) + ASSETS PASS. NOT GPU-checked (GATE DUST's atlas emulation); the next crash stills show it.
+## PHOTO-MODE-2 - DESIGN NOTE (11 Nov 2026, cloud, design only; branch claude/optimistic-dirac-1zu6u1)
+
+The user (11 Nov): one photo bar for the garage and the flight, a best-quality shot (2x, far trees, mirror water,
+best shadows, full clouds) built in steps with a status and never a freeze, saved scenes (one file for the player and
+for the rigs), the plane posed anywhere. Note: `futureDesigns/PHOTO-MODE-2-2026-11-11.md`; the scene format:
+`futureDesigns/photo-mode-2/scene.schema.json` (JSON Schema 2020-12, validated) + `example_cub_lagoon.scene.json`.
+Page for the user: https://claude.ai/artifact/4hAJjrQq9w6iMkhVq58nLR. No code changed.
+Key facts it rests on: `GFX.set` persists and flips the preset to custom (so the shot needs a GFX.push/pop layer);
+`aa.setScale` is clamped to 1 (2x goes through the pixel ratio, with a memory ladder: 8x MSAA at 2x 1080p ~ 1.2 GB);
+FAR_FILL/FAR_WOOD are build-time constants; the clouds' temporal history needs ~20 frames after a resize; nothing in
+core poses pitch/roll (placePose is new, rigid, in 39c_placement.js). Build order P0-P6; P4-P6 need a LOCAL session
+and a GPU box slot from A0. Six questions (Q1-Q6) to the user, each with a default, in the note's section 6.
