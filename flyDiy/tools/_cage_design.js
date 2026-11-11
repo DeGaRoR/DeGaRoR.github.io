@@ -2982,7 +2982,7 @@ const ARCHETYPES = [
                     // barrel of the pusher pods (NACELLE_POD) on the body's face, narrowing in plan (the blade the drawing's
                     // aft pod is), ~0.9 m long; the small prop on a shaft just past its end, the disc 0.23 m off the
                     // ground and 0.20 m under the rod
-                    engY: -0.13, cw_propD: 0.75, cw_noseOff: 0.45,   // (the shaft: the prop just past the cowl's end)
+                    engY: -0.13, cw_propD: 0.75, cw_noseOff: 0.58,   // (the shaft: the prop and its spinner past the cowl's thin end)
                     // (11 Nov, the user over the render: "move the cowl waistline in line with the cabin waistline ... make
                     // the creases of the cowl hard, and try to get the shape I drew in red, but based on the plans. This
                     // upwards line is necessary for taking off"): SEALED to the face (fitNose 2: the size the body's, the
@@ -2992,11 +2992,15 @@ const ARCHETYPES = [
                     // bottom: flat, then rising) to 0.28 m above the keel at the end, the top line held to the rod, the
                     // end face 0.20 m wide round the prop's axis. Rotation before the prop touches: ~19 deg. NOTE: a BIRTH
                     // fits the cowl to the engine's type once (_cage_cowl.js cowlForEngine) and restyles three of these
-                    // rows (cw_waist, cw_sqAftTop, cw_sqAftBot) - builds/archaeopteryx_2026-11-10.json carries them as set
+                    // rows (cw_waist, cw_sqAftTop, cw_sqAftBot) - builds/archaeopteryx_2026-11-10.json carries them as set. A ~2 cm
+                    // GAP stays between the bulkhead and the cowl: the seat scan (_cage_cowl.js noseFace) reads the
+                    // rod's bolted socket, which stands aft of the face at its top edge, as skin, and sets the cowl back
                     cowlOn: 1, fitNose: 2, ...NACELLE_POD, cw_inletOn: 0, cw_seamOn: 0, cw_partOn: 0,
-                    cw_waist: -0.52, cw_sqAftTop: 0.9, cw_sqAftBot: 0.9, cw_sqFrontTop: 0.9, cw_sqFrontBot: 0.9,
-                    cw_cowlLen: 0.40, cw_lidLen: 0.51, cw_taperW: 0.7, cw_taperH: 1.0,
-                    cw_lidMode: 0, cw_lidRW: 0.10, cw_lidRTop: 0.635, cw_lidRBot: 0.245, cw_lidShoulder: 0.5, cw_lidRound: 0.6,
+                    cw_waist: -0.6, cw_sqAftTop: 0.9, cw_sqAftBot: 0.9, cw_sqFrontTop: 0.9, cw_sqFrontBot: 0.9,
+                    // (11 Nov, the user: "even narrower at the end ... it really ends up like a wing, with almost no
+                    // thickness"): the width to the row's floor at the barrel end and a 4 cm end face - a blade
+                    cw_cowlLen: 0.40, cw_lidLen: 0.51, cw_taperW: 0.3, cw_taperH: 1.0,
+                    cw_lidMode: 0, cw_lidRW: 0.02, cw_lidRTop: 0.60, cw_lidRBot: 0.245, cw_lidShoulder: 0.5, cw_lidRound: 0.6,
                     cw_deckSweep: 0, cw_deckShoulder: 0.92, cw_deckRound: 1, cw_keelSweep: 0, cw_keelShoulder: 0, cw_keelRound: 0.6,
                     // the wing: LE 1.08 / TE 2.30 behind the nose at the root, chord 1.19 -> 1.09 at the crank -> 0.56
                     wgSpan: 13.0, wgChord: 1.19, wgCrankAt: 0.48, wgCrankChord: 1.09, wgCrankX: 0.08,
@@ -3029,6 +3033,11 @@ const ARCHETYPES = [
                     // vertical, level. Measured: the mains 2.23 m behind the nose, the CG empty 1.93, loaded 1.77
                     // ...AND WITH THE ENGINE ON THE BULKHEAD the mains 0.2 m further back: 0.40 m aft of the anchor (the
                     // user's 45 deg max), angled legs
+                    // THE SECTION STRAIGHT TO THE PILLAR (11 Nov, the user: "a little thing that is going downwards just
+                    // aft of the cabin ... the section should remain straight"): with no taper section the aft rows act
+                    // at the pillar, and the original card's aftKeelY (-0.765) / aftRoofY (0.78) stood off the Chinook
+                    // cabin's keelY / roofY - the last ring dipped 4 cm. Equal now
+                    aftKeelY: -0.71, aftRoofY: 0.815,
                     pilotLen: 1.05, s1Z: 1.13, s1AxZ: -0.40, s1R: 0.13, s1Drop: 0.05, s1Root: 1,
                     s2Z: 3.0, s2R: 0.10, s2Drop: 0.05,
                     // the tail: the stab's size and station, the fin's outline (fit_tail.js), no dorsal fillet
