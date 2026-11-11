@@ -199,7 +199,10 @@ const RW = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_world.js'), 
   // 1 218 494 (+5 624, +0.46 %) on master e789e77cb; allowed on both views (HANDOVER: DIRT-STRIP, the bumps' cost)
   // + THE 5 cm ROWS ACROSS A RUT'S WALL, now paid on w3/w8 (DIRT-STRIP 10 Nov, A0 OK 13:55: HANDOVER "the 5 cm rows" named "nothing paid
   //  today" while every strip was flat): potato HOME taxi 1 218 494 -> 1 226 310 (+7 816, +0.64 %) on claude/dirt-strip-vet-2
-  const BUMPS = 13440; for (const k in PAV0) PAV0[k] += BUMPS;
+  // + THE REFINED BUMPY STRIPS AS THE GAME DRAWS THEM (DIRT-STRIP 11 Nov; A0 10 Nov ~21:35 "name it"): ground_drawn now builds w3 / w8
+  //  as render_world does - L37a's real cost on master, measured: potato HOME taxi 1226310 -> 1438368 (+212058); gamer HOME taxi 2044742 -> 2242608 (+197866) (the rows by chaos saved
+  //  nothing: refineAxis lands 5 and 8 cm floors on the same ~9.4 cm rows)
+  const BUMPS = 225498; for (const k in PAV0) PAV0[k] += BUMPS;
   const BASE = { potato: { 'HOME stand': (PATCH0 || {})['HOME stand'] + PAV0['HOME stand'], 'HOME taxi': (PATCH0 || {})['HOME taxi'] + PAV0['HOME taxi'] }, gamer: { 'HOME stand': 1222208 + PAV0['HOME stand'], 'HOME taxi': 1304000 + PAV0['HOME taxi'] } };
   const C = require(path.join(T, 'flight_core.js')), home = C.siteOf('HOME'), tp = home.taxiOut, m = tp[Math.floor(tp.length / 2)];
   const views = { 'HOME stand': [home.stand.x, home.stand.z], 'HOME taxi': m };
