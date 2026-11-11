@@ -1182,6 +1182,18 @@ function hubSocketDraw(ctx) {
       try { if (window.CAGE_SECMAT) bm = window.CAGE_SECMAT('boomSkin', { surf: 0, fieldM: 1, struct: 1, side: THREE.DoubleSide }); } catch (e) {}
       const m = bag.mesh(hubGroup, bm || MAT.liftstrut);
       if (m) m.name = 'rodHubSocket';
+      // THE RING (the user, 11 Nov: "a little ring on the rod that has exactly the same diameter as the Gauss curve ... so
+      // that it's very, very clean ... a little screw or some detail"): where the rod comes out of the trailing edge's wall,
+      // a bare alloy collar as wide as the bell's own clearance round the rod's crown (the rod and HUB_TOL), a hand into
+      // the wall and a finger proud of it, its aft edge chamfered; six screw heads round its proud band
+      const rb = GK.Bag(), zW = H.te, rO = rr + HUB_TOL, zi = zW + 0.012, zo = zW - 0.018;
+      GK.revolve(rb, ring(zi), ax, [[rr * 1.001, 0], [rO, 0], [rO, -(zi - zo) + 0.004], [rO - 0.004, -(zi - zo)], [rr * 1.001, -(zi - zo)]], 48, true);
+      for (let k = 0; k < 6; k++) {
+        const a = (k + 0.5) * Math.PI / 3, c = ring(zW - 0.008);
+        GK.bolt(rb, [c[0] + Math.sin(a) * rO, c[1] + Math.cos(a) * rO, c[2]], [Math.sin(a), Math.cos(a), 0], 0.0045, 0.0025);
+      }
+      const rm = rb.mesh(hubGroup, (GG && GG.gearMat) ? GG.gearMat('alloy') : MAT.pitot);
+      if (rm) rm.name = 'rodHubRing';
     }
     scene.add(hubGroup);
   } catch (e) { console.error('hub socket:', e); }
