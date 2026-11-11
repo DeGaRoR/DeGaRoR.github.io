@@ -314606,3 +314606,92 @@ TIMED GATE (02:56-03:58): taxi chase @HOME and @mn_strip 30 fps, 0 frames over 4
 Parked fleet re-cooked on this build.
 
 No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change.
+
+## ENGINE-DIALS A - EVERY REGISTRY ENGINE IS A POINT ON THE CUSTOM ENGINE'S DIALS; A CUSTOM ENGINE INHERITS NOTHING FROM THE A-65 (9-11 Nov 2026, cloud, ENGINE-DIALS for A0; claude/ready/engine-dials-a)
+
+BASE: origin/master 603da882 (L38a): REAL-FIGURES-3's bmepK / massK (landed in L37b) and ENGINE-GAP's engFrom path
+are both on it. Rebased on 11 Nov from the first cut on RF3 39dc1313 (A0's ruling, 9 Nov: "build ON bmepK / massK").
+The readies land in order A, B, C.
+
+THE BRIEF'S FINDINGS 1 AND 2 (the hard-coded content audit): registry rows official content flies sat outside the
+dial ranges (the 582's 43 kg, the 915 / 916, the Clerget; no tune or build at all on an electric or a turbine), and a
+custom engine read the A-65's data through its fallback key (engines[].type is 'a65_sensenich74' for every custom
+engine): the drive's cylinders, the default propeller diameter, the economy's price, the tech stage; and it could not
+be a radial (the cooling drag) or constant-speed.
+
+WHAT:
+- tools/_eng_gen.js: REAL-FIGURES-3's tune (bmepK) and build (massK) on all three kinds of engine - an electric's
+  tune is the shear stress over the style's (torque at the same can and mass), a turbine's the core's specific power
+  over the style's; one range for all (ENG_DIAL_RANGE, tune 0.5-2.0, build 0.4-2.2: the registry's extremes, the
+  503's 0.59 to the Verner's 1.80, the Clerget's 0.50 to the 277's 2.06). Each is multiplied LAST, on the power and on
+  the model's whole mass: mid-chain, the 912's power stepped two ulps at a time past 59 600 and no build reached the
+  916's 85.8 kg (the gearbox, jacket and turbo additions left a hole). At 1 every engine is the same double as before.
+- tools/_eng_page.js: the pair on the electric and turbine panels; piston rpm 1000-7500 (was 1800-6500: the
+  Clerget's 1 250, the 503's 6 800); three new rows - the reduction ratio (gearRatio, 1.0-3.5; absent 1, what a geared
+  custom engine flew before), the drive's maximum rpm (rpmMax, 0 = rated: the 582's 6 800), a constant-speed
+  propeller (cs). All absent at their default (CAGE_DEFAULT_ABSENT, GEN_CAGE_ROW_NEUTRAL), claimed by the engine
+  part (_cage_parts.js), hidden under a catalogue engine (geometry, not installation).
+- tools/_cage_eng.js CAGE_ENG_FACTS: the custom row carries the engine's own cylinders (a piston's resolve), layout
+  'radial', cs (a turbine always; a piston by its row), rpmMax; a TURBINE's gear is 1 (its rpm is the propeller's, the
+  registry's convention: n2 / tRpm put a custom PT6's propeller at ~120 rpm).
+- src/core: clampSpec keeps the four new fields (absent otherwise); a custom engine's default propeller is 1.80 m, not
+  the A-65's 1.88 (resolveSpec and the wing's balance rule, genEngPropD0); 33_drive reads a custom engine's own
+  cylinders and maximum, never the fallback key's row; the economy prices a custom engine as its own row (was the
+  A-65's 11 000); the tech stage reads a custom engine's family (fam:piston / electric / turbine; was eng:a65); a
+  custom engine's power cap 1 -> 2 MW (the Merlin 66 is 1.283 MW and is a dial point).
+- 76_procure.js PROCURE_ENG_BASE = applyEngPreset's write with the new rows (RF3's base was red: 18 PROCURE lines).
+- GATE ENGINEDIALS (new, core, ~1 s; tools/_enginedials_check.js + tools/engine_dial_points.json):
+  1 every one of the 44 POWERPLANTS rows has a dial point (a preset to start from + the custom engine's dials), every
+    dial inside its row's range, and the custom engine at it carries the row's mass, power, rpm, gear, aspiration,
+    critical altitude, family, cooling, layout, cs, flat rating and length TO THE BIT (Object.is), again through
+    clampSpec and again through 33_drive (rated, max, gear, cylinders, family, cs, power, torque, its factor, omega).
+    Printed, not compared: where the mass sits (the custom row's own vs GEN_ENG_CG's 1 cm rounding, GATE ENGID's 2 cm)
+    and the price (a garage engine prices on the uncertified curve, G134). `--emit` re-solves the table (1 s): the
+    tune and build by bisection then the neighbouring ulps; where a product chain skips the row's double, the main
+    geometry dial (bore / can / gas generator) walks by single ulps. Two seeds: the 3548 outrunner (no preset: a
+    35 x 48 mm can) and the EMRAX 268 / 228 (rated at 2 400 rpm, drawn at 4 500 / 5 000: a 0.30 / 0.26 m can).
+  2 every propeller official / candidate / validated content flies is on the cowl page's rows (D, blades, material).
+  3 a custom engine inherits nothing: five dial points (the 582, the Verner radial, the R-1830, an EMRAX, a PT6) as
+    custom engines on five fallback keys give one engine, one propeller, one drive, one wing station, one tech stage,
+    one price. (On the base this section fails: the propeller and the drive followed the key.)
+
+DIGESTS, master 603da882 against this ready (node, the load door tools/_load_build.js: each build's flown spec, its
+buildGen def - nodes, beams, strips, refs, params - and genCertKey; 18 builds):
+- IDENTICAL def and certificate key on 16: the Cub (cert af84cf8d), the Jodel (59b49604), the metal Cessna (bd677633),
+  the Cessna on floats (78476d00), the STOL Cub (f801025a; the STOL fixture untouched), the Twin busher floats 4b
+  (21535e6e), the Super Petrel LS (54a231ae), the Chinook, the Rufus, the PA-18 floats, the Camel, the DC-3, cessnaMetal
+  (1), cessnaFloatsWOrks, the twin fixture, flydiy-build (4).
+- The flown SPEC moves on every build by exactly two cage keys: eng_bmepK: 1 and eng_massK: 1 are no longer written
+  (CAGE_DEFAULT_ABSENT) - REAL-FIGURES-3's neutral-row rule (GEN_CAGE_ROW_NEUTRAL) already kept them out of every key.
+- MOVED, as meant: the corrected 172 (internal; a custom engine) - its custom row gains `cyl: 4`, the four it borrowed
+  from the A-65, so its drive is the same (def 1f8d18db -> 13aabf4b, cert bce62d1a -> 4277a11b); the Carbon Cub SS
+  (candidate; bmepK 1.09 / massK 0.88): the pair multiplied last, its power and mass move in the last bits (def
+  446e17d7 -> b5ce0115, cert dd1915de -> 9b614c83). Neither carries a shipped certificate.
+- GATE ENGCONFIG's identity lines (`--pin`; red on master: stale pins) are master's, line for line.
+- No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change.
+
+GATES (node, 11 Nov, this ready against master 603da882, both run here, `run_gates.js --no-build`):
+- The same verdict as master on all 27 run: BUILD, SAVE, PARTS, ENGMESH, ENGID, STARTER, JOIN, PRICE, PROCURE,
+  WEARPRICE, ECON, PLANELISTS, CANDIDATES, HYDRODYN, FLOATS, FLOATKIT, DESIGN, SKINMAT, CONTRACTS, STORY, RPM, GEAR,
+  UISMOKE PASS; red on master and here, line for line: JOINPARITY 1 (the Jodel's node = page), TECH (av.elt:none /
+  fitted without a segment), FREIGHT 1 (ready C's snapshot write fixes it), ENGCONFIG (stale pins + the quad). Plus
+  ENGINEDIALS (new): PASS.
+- The flight gates ran on the stack's top (ready C; see its note). This ready's defs are master's on every validated
+  build (above).
+
+COSTS: none in flight (no validated def moved). GATE ENGINEDIALS ~1 s; `--emit` ~1 s.
+
+DECIDED (A0, 9 Nov):
+- The tune and build multiplied LAST: accepted - identical at 1, and every registry row is reachable exactly. RF3's
+  Carbon Cub SS (a candidate, not validated) moves in the last bits for that reason; no gate on this base pins its row.
+- PRICES, G134's rule: a catalogue engine keeps its registry price; a garage-built dial point is priced on the
+  uncertified market curve, even when it matches a catalogue engine's numbers (the 503's point 8 586 against the row's
+  4 700; the E-811's 17 280 against 28 000).
+- ENGINE-GAP's engFrom path (master): its keyed path now also carries the row's governed propeller (row.cs) and the
+  drive table's maximum (GEN_DRIVE rpmMax) while the custom engine's own cs / rpmMax rows are untouched; cylinders
+  and layout come from the resolve (the same arch).
+
+OPEN (each with the default this ready takes):
+1. A custom engine saved before this ready and never re-joined flies its family's cylinder count in 33_drive (a
+   two-stroke 2, not the A-65's 4): its certificate's drive loads move. None is shipped. Default: no PHYSICS_V bump.
+2. The custom row's `torque` (written since G134) is read by nothing; left.
