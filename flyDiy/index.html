@@ -4713,7 +4713,7 @@ html.phone #npWrap .npBtn { flex:1; min-width:0; padding:0 8px; }
     </div>
   </aside>
 </div>
-<script>window.FLYDIY_BUILD='94e7483c7863';window.FLYDIY_BUILD_DATE='2026-11-11T10:57:25.218Z';</script>
+<script>window.FLYDIY_BUILD='048bd2d578ce';window.FLYDIY_BUILD_DATE='2026-11-11T11:16:22.809Z';</script>
 <script>
 // ===========================================================================
 // THE NAMES (G3240 NAMES, 2026-10-22; GAME-PLAN-2026-10-15 §R and §13). The user, 15 Oct: "Everything should have a
@@ -11641,7 +11641,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = THREE;
 <script>
 (function () {
   window.FLYDIY_CAREER_WANT = function () { return /[?&](career|map|freight)=1(&|$)/.test(location.search || '') || window.FLYDIY_MODE === 'career'; };
-  var SRC = window.FLYDIY_CAREER_SRC = "career_core.9aefed9d.js";
+  var SRC = window.FLYDIY_CAREER_SRC = "career_core.f5905185.js";
   var mode = window.FLYDIY_WELCOME ? Promise.resolve(window.FLYDIY_WELCOME).then(null, function () {}) : Promise.resolve();
   var load = window.FLYDIY_CAREER_LOAD = mode.then(function () {
     if (!window.FLYDIY_CAREER_WANT()) return false;
@@ -18681,6 +18681,18 @@ function sitePaintStrip(q, R, RW, RH, marks) {
 }
 
 // is (x, z) on the flat pad, where y = 0 is exact?
+// the shallowest cap a pad may set: a DC-3 (its tail 17.6 m aft of the stand at the hall's centre) with 2 m behind it
+const SITE_HD_MIN = 20;
+// the deepest shed (HD) a site's hangar plot holds on the flat pad: HOME's (the pad is HOME's alone; another site: no cap)
+function siteMaxHD(site) {
+  const s = typeof site === 'string' ? siteOf(site) : site, h = s && s.hangar;
+  if (!h || s !== AIRFIELD_SITES.HOME) return Infinity;
+  // (only where the pad frames the plot: the user 9 Nov caught a 24 m hall with a DC-3 through its back wall - the page's
+  // HOME record is not the static one, the cap came out under the shell's floor and the room clamped to its shortest.
+  // A cap that would leave less than SITE_HD_MIN is not this pad's: no cap)
+  const c = Math.floor(AIRFIELD_PAD.zAbs - Math.abs(h.z));
+  return c >= SITE_HD_MIN ? c : Infinity;
+}
 function siteOnPad(x, z) {
   return x >= AIRFIELD_PAD.x0 && x <= AIRFIELD_PAD.x1 &&
          Math.abs(z) <= AIRFIELD_PAD.zAbs;
@@ -18730,16 +18742,18 @@ function siteHangarBox(H) {
 function standFor(site, dims, groundAt) {
   if (!site || !site.stand) return site ? site.stand : null;
   const h = site.hangar, st = site.stand;
-  if (!h || !dims || !(dims.HD > h.HD)) return st;
+  const lz = (dims && Number.isFinite(+dims.doorZ)) ? +dims.doorZ : 0;   // DERELICT-HANGAR: the door off the axis (the large hangar)
+  if (!h || !dims || (!(dims.HD > h.HD) && !lz)) return st;
   const dx = -CORE_MATH.cos(h.ry), dz = CORE_MATH.sin(h.ry);
-  let d = dims.HD - h.HD;
+  let d = Math.max(0, dims.HD - h.HD);
   if (site.apron) {   // stay 2 m inside the apron's far edge along the walk
     const ap = site.apron, EDGE = 2;
     const lim = dx < -1e-6 ? (st.x - (ap.x0 + EDGE)) / -dx : dx > 1e-6 ? ((ap.x1 - EDGE) - st.x) / dx : Infinity;
     const limz = dz < -1e-6 ? (st.z - (ap.z0 + EDGE)) / -dz : dz > 1e-6 ? ((ap.z1 - EDGE) - st.z) / dz : Infinity;
     d = Math.max(0, Math.min(d, lim, limz));
   }
-  const x = +(st.x + dx * d).toFixed(3), z = +(st.z + dz * d).toFixed(3);
+  // the door's line: the shed's local z (its width) is (sin ry, cos ry) in the world
+  const x = +(st.x + dx * d + CORE_MATH.sin(h.ry) * lz).toFixed(3), z = +(st.z + dz * d + CORE_MATH.cos(h.ry) * lz).toFixed(3);
   const g = typeof groundAt === 'function' ? +groundAt(x, z) : NaN;
   const elev = Number.isFinite(g) ? +g.toFixed(2) : st.elev;
   return elev !== undefined ? { x, z, hdg: st.hdg, walked: +d.toFixed(3), elev } : { x, z, hdg: st.hdg, walked: +d.toFixed(3) };
@@ -19435,9 +19449,17 @@ const SHELLS = {
     skin: null, sky: 'alps', price: 0, status: 'live',
   },
   works: {
-    name: 'Big hangar', frame: 'portal', doors: 'sixLeaf',
-    dims: { HW: 20, HD: 20, EAVE: 9.5 },
-    lims: { HW: [10, 24], HD: [10, 26], EAVE: [6.0, 12] },
+    // DERELICT-HANGAR (the user 9 Nov: "we just have one, so now we call it the large one"): the large hangar is the
+    // restored WWII hangar (tools/_derelict_gen.js, stage 3), at THE REAL PROPORTIONS (the user's measurements, via A0):
+    // a 44 m hall 60 m deep, its door between two 1 m concrete piers (`right` / `left`, inside the hall) - ten leaves that
+    // leave 0.8 of the opening clear (33.3 m: a DC-3's 29 m with 2.1 m a tip) - and a one-storey office gallery `lean`
+    // deep OUTSIDE the hall's right wall (+z in the room), behind a full-height false front
+    name: 'Large hangar', frame: 'steel', doors: 'sixLeaf',
+    galleries: { right: 1.0, left: 1.0, lean: 6 },
+    // (the real 50 x 60 m: HW 22 + the 6 m gallery, HD 30. A SITE's flat pad may cap the depth - shellLims(key, site):
+    // HOME's main plot, z 62 on a pad of |z| <= 90, takes 56 m; HOME.2 at the Y's foot, the real 60)
+    dims: { HW: 22, HD: 30, EAVE: 9.5 },
+    lims: { HW: [12, 24], HD: [12, 30], EAVE: [6.0, 12] },
     // BRICK, AND BIG (user, 2026-09-01: "the works one should rather have the
     // brick texture, double size from the original, full roughness and +50%
     // normal"). `tile` is METRES PER TILE, so double the size is 4 m off the
@@ -19474,8 +19496,13 @@ const SHELLS = {
     sky: 'alps', price: 6000, status: 'live',
   },
 };
-function shellLims(key) {
-  return (SHELLS[key] || SHELLS.club).lims;
+// shellLims(key, site?): the shell's slider envelope - capped, for a site, by what its flat pad holds (siteMaxHD: HOME's
+// main plot at z 62 on a pad of |z| <= 90 takes HD 28; a site with no pad cap leaves the shell's own)
+function shellLims(key, site) {
+  const L = (SHELLS[key] || SHELLS.club).lims;
+  const cap = site && typeof siteMaxHD === 'function' ? siteMaxHD(site) : Infinity;
+  if (!(cap < L.HD[1])) return L;
+  return Object.assign({}, L, { HD: [L.HD[0], Math.max(L.HD[0], cap)] });
 }
 
 // ---- THE CAPABILITIES -----------------------------------------------------
@@ -20249,6 +20276,10 @@ HANGAR_LAYOUTS.hearthLight = {
 // else none (a layout is one shell's arrangement - the kits' own rows stand
 // in any other)
 function hangarLayout(key, shell) {
+  // DERELICT-HANGAR (the user 9 Nov: "take the scenery from the works garage that we had and just put it in there ... the
+  // maximum of them really, in the new big hangar"): the large hangar stands the works' own scenery by default - the cozy
+  // layout - whatever room it is; a named layout (the career's hearth) still wins
+  if (!key && (shell || 'club') === 'works') key = 'cozy';
   const L = key && HANGAR_LAYOUTS[key];
   return L && (!L.shell || L.shell === (shell || 'club')) ? L : null;
 }
@@ -20296,6 +20327,15 @@ function hangarFootprint(key, reg) {
   return p ? [p.dim[0] / 2, p.dim[2] / 2] : [0.4, 0.4];
 }
 
+// THE CLEAR BAY of a shell with galleries (the large hangar), in the room's frame (z across, +z the right-hand gallery):
+// the walls' faces either side (the left facade's stem, the gallery's front), the door's width and its centre - from the
+// dims, so a resized hall stays one: null for a shell without galleries (the bay is the whole floor, the door centred)
+function hangarBay(shell, dims) {
+  const sh = SHELLS[shell], g = sh && sh.galleries;
+  if (!g) return null;
+  const HW = (dims && dims.HW) || sh.dims.HW;
+  return { z0: -(HW - 0.24), z1: HW - 0.24, doorW: 2 * HW - g.right - g.left, doorZ: (g.left - g.right) / 2 };   // (the piers are in the door's line only: the floor runs wall to wall)
+}
 function hangarFit(dims, kitKeys, opts) {
   const HW = (dims && dims.HW) || 15, HD = (dims && dims.HD) || 12.5;
   const EAVE = (dims && dims.EAVE) || 7.0;
@@ -20318,12 +20358,19 @@ function hangarFit(dims, kitKeys, opts) {
   // the metalshop). A left-out row is REPORTED, never silent - the invariant below holds
   const omit = new Set((opts && Array.isArray(opts.omit)) ? opts.omit : []);
   const lanes = { shop: [], build: [], back: [] };  // packed intervals per wall
+  const floorRects = [];                             // (DERELICT-HANGAR: the gallery shell's floor, for the rows drawn out of it)
 
+  // DERELICT-HANGAR: in a shell with galleries the rows stand in the CLEAR BAY - the shop wall is the gallery's front,
+  // the floor and the back wall map across the bay, the aeroplane's slot is the door's line (hangarBay)
+  const BAY = hangarBay((opts && opts.shell) || 'club', { HW, HD, EAVE });
+  // the rows keep the places they were authored at (the user 9 Nov: "position everything by ignoring the galleries"); what
+  // would stand in the gallery is drawn out to its front (fit below), the shop wall IS the gallery's front
+  const zIn = z => z;
   const resolve = s => {
-    if (s.at === 'shop') return { x: -HD + s.along * 2 * HD, z: HW - s.out };
+    if (s.at === 'shop') return { x: -HD + s.along * 2 * HD, z: (BAY ? BAY.z1 : HW) - s.out };
     if (s.at === 'build') return { x: -HD + s.along * 2 * HD, z: -HW + s.out };
-    if (s.at === 'back') return { x: HD - s.out, z: -HW + s.along * 2 * HW };
-    return { x: s.fx * HD, z: s.fz * HW };          // floor
+    if (s.at === 'back') return { x: HD - s.out, z: zIn(-HW + s.along * 2 * HW) };
+    return { x: s.fx * HD, z: zIn(s.fz * HW) };     // floor
   };
   // oriented half-extents: a quarter turn swaps them; anything between is
   // taken at the nearer quarter, which over-covers slightly and that is the
@@ -20337,6 +20384,8 @@ function hangarFit(dims, kitKeys, opts) {
     const foot = orient(isRecipe ? row.foot : hangarFootprint(row.prop, reg),
                         row.dry);
     const p = resolve(row);
+    const moved = !!(BAY && row.at !== 'shop' && p.z + foot[1] > BAY.z1);
+    if (moved) p.z = BAY.z1 - foot[1] - 0.05;                     // out of the gallery, to its front
     const out = { kit, at: row.at, x: p.x, z: p.z, ry: row.dry || 0,
                   y: row.y || 0 };
     if (isRecipe) { out.recipe = row.recipe; out.n = row.n; out.free = !!row.free; out.foot = row.foot; }
@@ -20347,7 +20396,7 @@ function hangarFit(dims, kitKeys, opts) {
     // 1. bounds — even a `free` row: free waives the keepouts and the
     // packing (the hung wing is ALLOWED across the doorway), never the
     // walls. A nine-metre wing does not hang on an eight-metre wall.
-    if (Math.abs(p.x) + foot[0] > HD || Math.abs(p.z) + foot[1] > HW) {
+    if (Math.abs(p.x) + foot[0] > HD || (BAY ? (p.z - foot[1] < -HW || p.z + foot[1] > BAY.z1 + 0.05) : Math.abs(p.z) + foot[1] > HW)) {
       unplaced.push({ kit, key: label, at: row.at,
                       reason: 'outside the shell' });
       return;
@@ -20362,7 +20411,7 @@ function hangarFit(dims, kitKeys, opts) {
         return;
       }
       // 3. the aeroplane's slot
-      if (Math.abs(p.z) - foot[1] < 2.2 &&
+      if (Math.abs(p.z - (BAY ? BAY.doorZ : 0)) - foot[1] < 2.2 &&
           p.x - foot[0] < HD - 2.0 && p.x + foot[0] > -HD + 2.0) {
         unplaced.push({ kit, key: label, at: row.at,
                         reason: 'blocks the aircraft bay' });
@@ -20394,6 +20443,16 @@ function hangarFit(dims, kitKeys, opts) {
       unplaced.push({ kit, key: label, at: row.at,
                       reason: 'needs ' + row.on });
       return;
+    }
+    // DERELICT-HANGAR: a row drawn out of the gallery stands only where the floor at its front is free - the rest of the
+    // rooms it was part of (the lounge's corner, a plan table) IS the gallery now: reported, never piled on another
+    if (BAY && !(row.y > 0) && !row.on) {
+      const rc = { x0: p.x - foot[0], x1: p.x + foot[0], z0: p.z - foot[1], z1: p.z + foot[1], moved };
+      if (floorRects.some(o => (moved || o.moved) && rc.x0 < o.x1 - 1e-6 && rc.x1 > o.x0 + 1e-6 && rc.z0 < o.z1 - 1e-6 && rc.z1 > o.z0 + 1e-6)) {
+        unplaced.push({ kit, key: label, at: row.at, reason: 'in the gallery' });
+        return;
+      }
+      floorRects.push(rc);
     }
     if (row.light) out.light = row.light;
     if (isRecipe) { recipes.push(out); (row.props || []).forEach(k => placedKeys.add(k)); }
@@ -64729,7 +64788,11 @@ function playerShedDims(doc, id, site) {
   const s = doc && doc.sheds && doc.sheds[id];
   const d = (s && s.dims) || {};
   const h = (site && site.hangar) || {};
-  return { HW: d.HW || h.HW, HD: d.HD || h.HD, EAVE: d.EAVE || h.EAVE };
+  const out = { HW: d.HW || h.HW, HD: d.HD || h.HD, EAVE: d.EAVE || h.EAVE };
+  // DERELICT-HANGAR: a shell with galleries (the large hangar) has its door off the axis - the stand walks out on its line
+  const B = (s && typeof hangarBay === 'function') ? hangarBay(s.shell, out) : null;
+  if (B && B.doorZ) out.doorZ = B.doorZ;
+  return out;
 }
 // ===========================================================================
 // THE GAME PREMISES — bases, hangars, and where every aeroplane stands.
@@ -64879,7 +64942,16 @@ const BASE_OFFERS = {
     plots: {
       HOME: { shells: ['club', 'works', 'field'], kits: null, pf: 1, starter: true,
               dims: { field: { HW: 9, HD: 10, EAVE: 4.0 } } },
-      'HOME.2': { shells: ['works', 'club', 'field'], kits: ['park'], pf: 1,
+      // DERELICT-HANGAR (the user 9 Nov: "in the story at some point you can buy that one ... it's actually restoring it,
+      // from the state of the actual ... World War II hangar, which is currently derelict"): until it is held, HOME.2
+      // stands the large hangar DERELICT (closedStage 0: DERELICT_GEN's stage, the world's derelictShell); held, it is the
+      // player's - restored unless the story names its stage (dims.stage)
+      // THE STORY'S (A0 9 Nov: "the removed long club hangar was the 'field' career track's payoff ... Your derelict's repair
+      // IS that story"): in a career the unbought building stands at the field track's stage - HOME-DERELICT (the user 10 Nov,
+      // "the 4 phases"): the track has 3 steps, each its own stage - 0 derelict, 1 made safe, 2 roofed, 3 restored; the sandbox
+      // (no story) keeps it derelict
+      'HOME.2': { shells: ['works', 'club', 'field'], kits: ['park'], pf: 1, closedShed: true, closedStage: 0,
+                  closedTrack: { track: 'field', stages: [0, 1, 2, 3] },
                   dims: { field: { HW: 9, HD: 10, EAVE: 4.0 } } },
     },
   },
@@ -64984,6 +65056,8 @@ function hangarDims(shed) {
   // G3540: a shed's own sign ({ key, w, inside }: HANGAR_GEN signDials - over the door, and on the back wall inside)
   if (d.sign && typeof d.sign.key === 'string' && d.sign.key) out.sign = Object.assign({}, d.sign);
   if (d.ground && typeof d.ground.set === 'string' && d.ground.set) out.ground = Object.assign({}, d.ground);   // G3541/G3542
+  // DERELICT-HANGAR: the large hangar's restoration stage (0 derelict .. 3 restored; the story's to set - absent, restored)
+  if (Number.isFinite(d.stage)) out.stage = Math.max(0, Math.min(3, Math.round(d.stage)));
   return out;
 }
 // THE DOOR, hangar.js's own two lines (GATE GAMEPREM source-scans them so the
@@ -64992,9 +65066,10 @@ function hangarDims(shed) {
 function hangarDoor(shed) {
   const D = hangarDims(shed);
   const sh = (typeof SHELLS !== 'undefined' && SHELLS[shed && shed.shell]) || SHELLS.club;
-  const timber = sh.frame === 'timber';
-  const D0 = D, HW = D.HW;   // (G3537: hangar.js's own expression, read with the same names)
-  return { w: (D0.door > 0) ? Math.min(D0.door, 2 * HW - 1) : Math.max(6, 2 * HW - 5), h: timber ? D.EAVE - 0.5 : Math.min(6.4, D.EAVE - 1.4) };
+  const timber = sh.frame === 'timber', FRAME = sh.frame;
+  const D0 = D, HW = D.HW;   // (G3537: hangar.js's own expression, read with the same names; DERELICT-HANGAR: the steel frame's door)
+  return { w: (D0.door > 0) ? Math.min(D0.door, 2 * HW - 1) : FRAME === 'steel' ? 0.8 * (2 * HW - 2) - 0.34 : Math.max(6, 2 * HW - 5), h: timber ? D.EAVE - 0.5 : FRAME === 'steel' ? Math.min(7.6, D.EAVE - 1.9) : Math.min(6.4, D.EAVE - 1.4),
+           z: (typeof hangarBay === 'function' && hangarBay(shed && shed.shell, D)) ? hangarBay(shed && shed.shell, D).doorZ : 0 };
 }
 // What the fit-out stands on the floor: every prop and recipe hangarFit
 // PLACED (an unplaced one stands nowhere), as a plan rectangle at its
@@ -65065,6 +65140,7 @@ function hangarDoorWhy(shed, foot) {
 // aeroplane already parked (the corner points a hand would try first).
 function hangarPark(shed, planes, opts) {
   const D = hangarDims(shed), door = hangarDoor(shed);
+  const BAY = typeof hangarBay === 'function' ? hangarBay((shed && shed.shell) || 'club', D) : null;
   // opts.keep (G2315, the garage's residents): floor already taken - the build stand's aeroplane, { x0, x1, z0, z1 } in
   // the room's frame - packed around like the fit-out
   const obs = hangarObstacles(shed, opts && opts.reg).concat((opts && Array.isArray(opts.keep)) ? opts.keep : []);
@@ -65081,13 +65157,14 @@ function hangarPark(shed, planes, opts) {
       if (why) { unplaced.push({ name: p.name, why }); continue; }
       // the engine mount's range: the keep-out rectangle inside the walls
       const cxHi = D.HD - p.f.aft - PARK_CLR, cxLo = -D.HD + p.f.fwd + PARK_CLR;
-      const czHi = D.HW - p.f.half - PARK_CLR, czLo = -czHi;
+      // DERELICT-HANGAR: the clear bay and the door's line (the large hangar's gallery and facade; the club: +-HW and 0)
+      const czHi = (BAY ? BAY.z1 : D.HW) - p.f.half - PARK_CLR, czLo = BAY ? BAY.z0 + p.f.half + PARK_CLR : -czHi, zc0 = BAY ? BAY.doorZ : 0;
       let got = null;
-      if (cxHi >= cxLo - 1e-9 && czHi >= -1e-9) {
+      if (cxHi >= cxLo - 1e-9 && czHi >= czLo - 1e-9) {
         const near = obs.concat(rects);
         const xs = new Set(), zs = new Set();
         for (let x = cxHi; x >= cxLo - 1e-9; x -= PARK_STEP) xs.add(+x.toFixed(3));
-        for (let k = 0; k * PARK_STEP <= czHi + 1e-9; k++) { zs.add(+(k * PARK_STEP).toFixed(3)); zs.add(+(-k * PARK_STEP).toFixed(3)); }
+        for (let k = 0; k * PARK_STEP <= Math.max(czHi - zc0, zc0 - czLo) + 1e-9; k++) { zs.add(+(zc0 + k * PARK_STEP).toFixed(3)); zs.add(+(zc0 - k * PARK_STEP).toFixed(3)); }
         xs.add(+cxLo.toFixed(3)); zs.add(+czHi.toFixed(3)); zs.add(+czLo.toFixed(3));
         for (const o of near) {
           xs.add(+(o.x0 - p.f.aft - PARK_CLR).toFixed(3)); xs.add(+(o.x1 + p.f.fwd + PARK_CLR).toFixed(3));
@@ -65095,7 +65172,7 @@ function hangarPark(shed, planes, opts) {
         }
         const X = Array.from(xs).filter(x => x <= cxHi + 1e-9 && x >= cxLo - 1e-9).sort((a, b) => b - a);
         const Z = Array.from(zs).filter(z => z <= czHi + 1e-9 && z >= czLo - 1e-9)
-          .sort(how === 'centre' ? ((a, b) => (Math.abs(a) - Math.abs(b)) || (b - a)) : ((a, b) => a - b));
+          .sort(how === 'centre' ? ((a, b) => (Math.abs(a - zc0) - Math.abs(b - zc0)) || (b - a)) : ((a, b) => a - b));
         for (const cx of X) {
           const x0 = cx - p.f.fwd - PARK_CLR, x1 = cx + p.f.aft + PARK_CLR;
           const band = near.filter(o => x0 < o.x1 - 1e-9 && x1 > o.x0 + 1e-9);   // what this depth meets
@@ -66065,7 +66142,12 @@ function playerClosedSheds(doc) {
     for (const id of Object.keys(O.plots)) {
       const P = O.plots[id], shell = P.shells && P.shells[0];
       if (!P.closedShed || S[id] || !shell || typeof SHELLS === 'undefined' || !SHELLS[shell]) continue;
-      out.push({ id, base: aero, shell, dims: hangarDims({ shell, dims: Object.assign({}, SHELLS[shell].dims, (P.dims && P.dims[shell]) || {}) }), closed: true });
+      const dims = hangarDims({ shell, dims: Object.assign({}, SHELLS[shell].dims, (P.dims && P.dims[shell]) || {}) });
+      if (Number.isFinite(P.closedStage)) dims.stage = P.closedStage;   // (DERELICT-HANGAR: the plot's building as it stands unbought)
+      // ...and in a career, at its story track's stage (closedTrack: the track's value -> the building's stage)
+      const T = P.closedTrack, tr = (T && typeof stageTracksOf === 'function') ? stageTracksOf(doc) : null;
+      if (T && tr && Array.isArray(T.stages) && T.stages.length) dims.stage = T.stages[Math.max(0, Math.min(T.stages.length - 1, tr[T.track] || 0))];
+      out.push({ id, base: aero, shell, dims, closed: true });
     }
   }
   return out;
@@ -66969,8 +67051,13 @@ function acceptPlaqueLeg(legs, fp, alias) {
 // stage text (CONTRACT_TEXT trk.*); world: whether the record changes at this value. The camera target is not written
 // here - it is READ off the record (stageReveal), so a moved building moves its shot.
 const STAGE_REVEALS = {
-  'field:1':    { at: 'HOME',     caption: 'trk.field.1',    world: true },    // the second hangar's plot: the building site
-  'field:2':    { at: 'HOME',     caption: 'trk.field.2',    world: true },    // the second hangar restored (the club's long hangar)
+  // HOME-DERELICT (the user 10 Nov via A0, "the 4 phases"): the old wartime hangar (HOME.2) takes DERELICT_GEN's stages in order -
+  // 0 derelict (no story yet), 1 made safe, 2 roofed, 3 restored (71_player_bases HOME.2 closedTrack). world: false - the record
+  // has no element at these stages (the derelict's stage is the plot's, playerClosedSheds, not the record's: GATE STAGES 5); the
+  // building still changes with the track; the reveal's camera on it is owed (stageElementsAt / stageReveal do not read plots)
+  'field:1':    { at: 'HOME',     caption: 'trk.field.1',    world: false },    // made safe: DERELICT_GEN stage 1
+  'field:2':    { at: 'HOME',     caption: 'trk.field.2',    world: false },    // roofed: stage 2
+  'field:3':    { at: 'HOME',     caption: 'trk.field.3',    world: false },    // restored: stage 3
   'minedock:1': { at: 'mn_strip', caption: 'trk.minedock.1', world: true },    // the mill's (the headframe's) frame going up
   'minedock:2': { at: 'mn_strip', caption: 'trk.minedock.2', world: true },    // the mill and the ore shed
   'minedock:3': { at: 'SEA',      caption: 'trk.minedock.3', world: true },    // the dock's site on the shore
@@ -67503,7 +67590,7 @@ function freightStrapNext(doc, slot, card) {
   return { doc: r.doc, rec: r.rec, how: 'proposed', why: '' };
 }
 if (typeof module !== 'undefined')
-  module.exports = { STORY_GRANT, STORY_T6_FEE, TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, TREE_HITS, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, STRIP_SURFACES, stripSurface, stripGear, stripAllows, stripFallback, stripLandable, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, GEN_DRIVE, GEN_DRIVE_OS, GEN_DRIVE_STRIKE, genDriveTurf, genDriveSpec, genDriveState, genDriveOverspeed, genDriveStrikeTier, genDriveTorqueFactor, GEN_NOSE, genNoseSpec, genNoseF, genNoseWork, genNoseLayer, genNoseShell, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genDesignCheck, genDesignDerivs, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_CRASH, GEN_CRASH_TUBE_DT, genPhysKey, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_SEAT_TYPES, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_COMMS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genMesh, genBeamInto, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, GEN_CERT, GEN_CERT_V, genDamageOn, GEN_CERT_CACHE, genCertKey, genCertify, genCertifySteps, genCertAttach, genCertSystem, genCertForces, genCertBench, genCertBenchPose, genCertDrop, genCertDropSim, genCertSettled, genCertCombine, genCertMirror, GEN_CERT_HOOK, genCertBow, genCertFlown, genCertAeroLoads, genCertProbeSim, genCertSpeeds, genCertSink, genCertDrive, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay, GEN_WING_ENVELOPE, GEN_FIELDS, genFieldClamp, genNullToDefault, genSpecMerge, SERVO_GAINS, makeServos, SERVO_TUNE, servoWrapPi, servoCrossWind, servoRestHeight, FLIGHT_BASES, FLIGHT_BASE_DEFAULT, flightBases, flightBase, flightWhere, flightCanDepart, flightStripGeom, flightToChoices, flightToRecord, flightLeg, flightRouteMigrate, FLIGHT_FIELD_R, servoStepHold, PILOT_PROFILES, pilotProfile, GEN_DMG_GROUP, GEN_CERT_FLOOR, TYRE_CN, genCertMirrorAll, genCertMountKinds, GEN_COVER, SCAR, SCAR_SURF, scarSurf, scarMake, scarHit, scarStrike, scarReset, scarFrame, scarSeal, scarSegD, scarSimplify, scarSweepIn, scarIn, scarBox, CORE_MATH, fsin: CORE_MATH.sin, fcos: CORE_MATH.cos, fpow: CORE_MATH.pow, BASE_OFFERS, PREM_RATES, KIT_PRICES, PARK_CLR, PARK_DOOR_CLR, PARK_STEP, hangarDims, hangarDoor, hangarDoorWhy, hangarObstacles, parkFoot, hangarPark, hangarRoomFor, playerHangarsAt, playerBaseIds, playerResidents, playerFootOf, playerWhere, playerPack, playerCharge, playerFleetReconcile, playerStore, playerWheelOut, playerArrive, playerRecover, shellPrice, plotPrice, playerOffers, playerAcquire, playerRelease, playerUpgradeCost, playerUpgrade, playerGoTo, playerClock, playerLabourFactor, FLEET_SPOT, FLEET_SPOT_FOOT, fleetSpots, fleetSpotDist, fleetSpotPts, fleetField, PREM_MAIN, PREM_SIDE_MAX, PREM_SLOTS, PREM_WEAR, playerLedger, playerIsMain, playerSideIds, playerSlots, playerFits, playerWearNow, playerWearReset, playerWearMacro, playerWearSpec, playerFootOfDef, playerPlace, playerBringHome, playerRollFrom, flightBasesOf, playerPilot, PILOT_PROFILE_KNOBS, pilotProfileSpec, ACCEPT_RULES, ACCEPT_KINDS, acceptEvidence, acceptStatic, acceptDesignRow, acceptLegMeasure, makeAcceptRecorder, acceptSampleOf, acceptLoadOfSim, makeAcceptLeg, acceptLegStart, acceptCanon, acceptHash, acceptSign, acceptSigned, acceptStopAt, acceptVerdict, acceptPlaqueLeg, acceptFpOk, CONTRACT_FIELDS, CONTRACT_DESIGNS, CONTRACT_TRACKS, CONTRACT_PROVIDERS, CONTRACT_TEXT, CONTRACT_KINDS, CONTRACT_DO, CONTRACT_OPS, CONTRACT_CRIT_KINDS, CONTRACT_CONFIG_WORDS, CONTRACT_FIT, CONTRACT_PAY, CONTRACT_GEN, CONTRACT_DUSK_H, CONTRACT_FOLLOW_MAX, CONTRACT_JOB_CLASSES, contractHash, contractRng, contractKm, contractFieldsOf, contractText, contractTextOk, contractLoadWords, contractKeys, contractNormalise, contractCritWhy, contractConfigWord, contractValidate, contractCrit, contractAuthored, contractGearOk, contractTakeoffM, contractSubFit, contractCanDo, contractDoers, contractSubsOf, contractClasses, contractPay, contractEpoch, contractJob, contractJobs, contractJobById, contractVars, contractFollowUp, contractFollowById, contractCritDiff, contractSubOnStop, contractPayTotal, contractImportPack, contractCritWords, contractFollowLine, CAREER_V, CAREER_KEY, CAREER_GRANT, CAREER_VOUCHER, careerKey, careerNew, careerNormalise, careerContract, careerNeedsOk, careerOfferIds, careerRefresh, careerOffers, careerAccept, careerTrack, careerAbandon, contractOnStop, careerComplete, careerOnStop, contractCertUlt, contractCertifiable, CAREER_MAP_LOOK, CAREER_MAP_V, careerDesignCert, careerDesignOfShake, careerMapContract, careerMapRecord, careerOverflewAdd, careerStopRecord, careerTrackedLoad, careerLegCrit, careerAcceptHook, careerEventLines, STAGE_REVEALS, STAGE_SHOT, STAGE_PHASES, stageMaxes, stageTracksOf, stageKey, stageRevealsBetween, stageElementsAt, stagePointOf, stageReveal, stageHost, contractStoryBase, ECON_V, ECON_BOOK, econRound, econRefPrice, econShellPrice, econLedgerCost, econAirframePrice, econCatalogPrice, econSignOn, econRepairCost, ECON_LEDGER, econLedgerClass, econAfford, econBuy, econMaterialise, econAcquire, econUpgrade, econFlyable, econRepair, ECON_TEXT, econLoans, econLoanOffer, econLoanPay, econLoanJob, ECON_BANDS, ECON_REF, econRefPick, econRefFly, econReference, econCalibration, PROCURE_V, PROCURE_MARGIN, PROCURE_USED_MAX, PROCURE_USED_EVERY, PROCURE_COND, PROCURE_DELIVERY, PROCURE_COSMETIC, PROCURE_LOOK, PROCURE_STATE_ROWS, PROCURE_TEXT, procureText, PROCURE_MAKERS, PROCURE_ENGINES, PROCURE_TINTS, PROCURE_FINISH, PROCURE_MODELS, PROCURE_EFF_KEYS, procureValidated, procureCatalogue, procureModelIds, procureDefaults, procureDesignOf, procureRegOk, procureOpts, procureBaseSpec, procureSpec, procureCert, procureFp, procureFpP1, procureP1Matches, procureLedgerOf, procureEditBill, procureEconStub, procureEcon, procureEconSource, procurePrice, procureOptWord, procureSheet, procureBoard, procureBuildDesign, procureSaveDesign, procureAirframeSlots, procureEnvelope, procureBuyModel, procureUsedCert, procureFlyableAt, procureUsedEpoch, PROCURE_REPAIRS, procureUsedListing, procureMarket, procureUsedById, procureMarketOf, procureSold, procureUsedWords, procureUsedSpec, procureBuyUsed, procureOnSave, procureAnchor, PROCURE_READOUTS, PROCURE_ENG_BASE, PROCURE_ENG_DIALS, PREM_WORLD, playerWorldSheds, playerClosedSheds, premResidentsDrawn, playerRollHangar, playerPlotSite, careerMapMark, FREIGHT_V, FREIGHT_KINDS, FREIGHT_BAG, FREIGHT_GOODS, FREIGHT_GENERIC, FREIGHT_STRETCHER, FREIGHT_FLOOR, FREIGHT_SEAT, FREIGHT_PACK, FREIGHT_DOOR_GRID, FREIGHT_CARDS, freightItem, freightSplit, freightItems, freightKg, freightRestY, freightHoldFits, freightDoorPass, freightDoorAny, freightNoDoor, freightSeats, freightObstacles, freightSpaces, freightReport, freightPack, freightCardPod, freightPodDoor, freightFits, freightCardOf, freightSubItems, freightMark, GEN_POD, genPodOn, genPodKeel, genPodResolve, genPodStraddle, genPodSpace, genPodCdA, genPodClearance, genPodBalance, genCertPodMounts, genPodShell, PILOTS_V, PILOTS_ORDER, PILOTS_COMPANION, PILOTS_RESERVED, PILOTS_MARKET, PILOTS_GROW, PILOTS_WEATHER, PILOTS_SHORT_M, PILOTS_PAVED, PILOTS_SIGNON_STUB, PILOTS_TRAITS, PILOTS_REFUSALS, PILOTS_ROSTER, PILOTS_TEXT, PILOTS_KNOB_SEC, pilotsText, pilotsName, pilotsKnobs, pilotsBaseFlat, pilotsProfile, pilotsLandings, pilotsGrowth, pilotsFlatOf, pilotsProfileOf, pilotsFliesLike, pilotsSignOn, pilotsBlock, pilotsCompanion, pilotsHired, pilotsOffers, pilotsHire, pilotsFire, pilotsPick, pilotsPicked, pilotsPlace, pilotsBoatHome, pilotsRefusal, pilotsCanFly, pilotsOnFlightEnd, pilotsRepairK, pilotsCard, pilotsImportPack, FREIGHT_LOAD_V, freightLoadNew, freightLoadPropose, freightLoadAshore, freightLoadReport, freightLoadTarget, freightLoadMove, freightLoadUnload, freightLoadSeat, freightLoadRecord, freightLoadAccept, freightAccepted, freightLoadFromRecord, freightLoadCard, freightLoadJob, freightStopItems, freightLoadSettle, contractSites, contractStops, contractDests, CONTRACT_SHAPES, CONTRACT_THEN, HANGAR_LAYOUTS, hangarLayout, hangarRows, CAREER_MAIN, careerMainShed, jsonFinite, jsonReadFinite, DAY_WAIT_TARGETS, DAY_WAIT_MIN_S, DAY_MOON_WORDS, dayAbs, dayFromAbs, dayProbe, dayPresetUtc, dayWaitUntil, dayNextFullMoon, dayMoonAt, dayMoonWord, dayLocalAbs, dayDuskDawnH, CONTRACT_DAWN_H, CONTRACT_WHEN_KINDS, contractWhenWhy, contractWhenWords, contractWhenOk, CAREER_DAY0, careerDayOk, careerDayNorm, careerDay, careerDaySet, careerCrashReset, CONTRACT_NIGHT, contractWhenSpan, contractWhenMid, contractWhenNight, contractWhenWait, contractSky, contractMoonAt, contractMoonWords, contractFlyable, careerOfferSky, careerLocalDate, careerNightLine, careerTrackedWhen, careerWaitWindow, careerWindowNight, FREIGHT_STRAP_V, FREIGHT_LOOK, FREIGHT_STRAP, freightLookGoods, freightLookKey, freightStrapGenY, freightStrapShares, freightStrapSeats, freightStrapSeatBill, freightStrapBaggage, freightStrapAdds, freightStrapFlags, freightStrapFor, freightStrapStacks, freightStrapBands, freightStrapMesh, freightStrapNext, VPROFILE, ROUTE_V, ROUTE_MARGIN, ROUTE_AGL_DEFAULT, ROUTE_MAX_PTS, ROUTE_ENDS, routeGroundAt, routeSafeAlt, routeAltMSL, routeSetRef, routeNew, routeAddPt, routeNormalise, routePerf, routeSpeedOf, routeCaptureR, routeProfile, routeLegs, routeVPerf, routeVLegs, FLARE_ARM_MAX, NAV_FIXES, PREM_STORE, playerStoreSlots, playerBaseOutside, playerStoreWhere, playerStoreSettle, playerMove, playerFloorSync, playerFlyStart, playerStoreView, playerResidentsShown, playerCardOf, PILOT_STAB, STORY_V, STORY_ROLES, STORY_CHECKS, STORY_BEATS, storySite, storyChecklist, storyNew, storyNormalise, storyOf, storyStart, storyJobsOpen, storyMask, storyStep, playerShedLocked, playerShedsOpen, playerSendTo, storyGrantCabin, STORY_FILES, STORY_SLOTS, STORY_CABIN_SHED, STORY_NO_CABIN, STORY_JOBS, STORY_OCCASIONS, storyCabinShed, storyNewCareer, storyClientSpec, storyApply, storyOccasionListings, storyJobIds, storyJobHeld, storyCard, STORY_TIM, storyTimLines, STORY_LADDER, STORY_LADDER_RULE, storyLadderNew, storyLadderStep, ROUTES_V, ROUTES_PAY, routesList, routesActive, routeOfPlane, routeOfPilot, routeNow, routeDesignOf, routeTerms, routeOffer, routeSign, routeSettle, routeEnd, routesBlock, routePos, routeWords, routeAeroName, routeSettleLines, routesMapOf, routeOfferWords, pilotsOnRoute, storyRoutePilot, storyRouteLine, storyRoute, genMarginBand, GEN_MARGIN_BANDS, CERT_FP_SCHEME, CERT_GROUPS, CERT_GROUP_KEYS, CERT_STATE_ROWS, CERT_MINOR_BLOCKS, certStrip, certMajorOf, certMajor, certGroupsChanged, certChangeLine, certCanon, certHash, genEnvBig, genWingEnv, genBig, scarBoxes, scarChains, scarBowl, scarHulls, scarHull, scarHullIn, GEN_OCC, genOccSpec, genOccSpaceOf, genOccSeries, genOccJudge, genOccDRI, genOccEiband, genOccCFC, genOccWire, TECH_V, TECH_MAX, TECH_SEGS, TECH_TABLE, TECH_GEAR_TYPES, TECH_CANOPY_STYLES, TECH_FAMILIES, techName, techWhy, techSegOf, techKeysOfSpec, techKeysOfSystems, techStolOn, techStageOfSpec, techOver, techNew, techNormalise, careerTechOf, careerTechSeg, careerTechAllows, careerTechStageOk, careerTechUnlock, TECH_SURF_ROW, TECH_ROWS, techRowKeys, techKeysOfPatch, TECH_DESIGNS, techKeysOfModel, techStageOfKeys, techStageOfModel, techListingOk, techModelOk, techOptionOk, GAME_NAMES, fieldName, careerOwnSlots, careerImportable, careerCopyName, careerSaveKey, careerSlotTag, CAREER_SLOT_TAG, careerImport, GEN_ENG_LAYOUTS, genEngLayoutOf, genEngLayoutEngines, GAME_PEOPLE, PEOPLE_FACES, PEOPLE_BGS, PEOPLE_BG, PEOPLE_BG_SCENES, PEOPLE_BG_PILOT, PEOPLE_BG_PX, peopleBg, PEOPLE_V, PEOPLE_IDS, PEOPLE_ROLES, PEOPLE_FACE_PX, PEOPLE_FACE_DIR, PEOPLE_FROM_PACK, peopleOf, peopleName, peopleClientOf, peopleFace, peoplePool, pilotsWage, pilotsPayroll, pilotsDay, pilotsId, PILOTS_WAGE_STUB, PILOTS_LEVEL, PILOTS_DAY_S, PILOTS_PAY_UT_S, CONTRACT_DO_NEXT, CONTRACT_CRIT_NEXT, contractPlaceXZ, contractPlaceKm, CONTRACT_RUNTIME_PENDING, contractRuntimeOk, pilotCanFly, CONTRACT_RUNTIME_WAITS, MISSION_PACK_WHAT, MISSION_PACK_V, MISSION_DO, MISSION_PLACE_KINDS, MISSION_PLACES_OF, MISSION_RULES, MISSION_RULES_NEW, MISSION_PREF_KINDS, MISSION_TEXT, missionText, missionOrder, missionPlaceKind, missionPlaceNorm, missionPlaceWhy, missionPersonWhy, missionNormalise, missionPackNormalise, missionToContract, missionFromContract, missionStrip, missionCanon, missionWhy, missionPackValidate, missionPackContracts, missionPackInstall, missionReward, missionRallyDerive, missionTutorial, missionPackFromContracts, MISSION_RUN_V, MISSION_FLIGHT_KINDS, missionInFlight, missionPrefOf, missionPrefsJudge, missionHandoverWired, contractDelivery, contractProfit, missionBlueprintName, missionRulesJudge, missionTimerTarget, missionTimerOnSub, missionTimerGroups, missionTimersOnStop, missionHitTest, missionObjectives, missionTrackNew, missionTrackStep, missionTrackEvidence, missionStepOnStop, missionMarkers, careerHandover, careerFail, careerRestart, careerOrderBind, ACCEPT_LOAD_LAWS, missionStopChecks, missionLegDone, careerOnDone, CONTRACT_ONDONE, MISSION_PROP_DIMS, MISSION_GATE_PROP, missionStrikeRule, missionStrikeTest, STORY_REG, STORY_TUTOR, storyTutorSteps, storyTutorTick, storyTutorNext, storyFinalPose, storyFinalWay, GEN_SEAPLANE_PROPS, hangarSignSpot, GEN_SLATS, GEN_STOL, GEN_STOL_ROWS, genStolOf, genStolCage, genStolLocked, genStolStrip, genStolFences, genStallAngle, GEN_STOL_ROW_OFF, genStolCageOff, genStolGain, GEN_TRIM, genFurnK, GEN_ELEC_PARTS, GEN_LIGHT_AMPS, GEN_LIGHT_BREAKER, genBreakerSize, GEN_POD_UI, genPodLD, genPodShapeOf, genPodFromVolume, genPodReadout, GEN_POD_NODE_Z, genPodNodesAt, GEN_POD_DMG, genPodDamage, genPodFloorAt, genPodGearKeep, GEN_GPS_SIDES, careerSkyCover, genDesignAids, genAidPropOff, genKeyIssues, genAidLevers, genAidBalance, GEN_CERT_TIER, genCertTierOf, genCertTiers, genAidCorners, GEN_AIDS, CERT_NEED_WORDS, contractCertNeed, careerCertOf, careerFleetHolds, careerCertLine, careerSignOfBench, careerSign, ECON_SHADY, ECON_SHADY_TEXT, econShadyOffer, econShadyJob, WEATHER_DAYS, WEATHER_PLAN, SOIL_WET, careerSeasonLand, CAREER_SEASON, TW_SCOTT, TW_SKID_MU, genIvDir, genIvReach, freightLoadBest, freightStrapChairKg, GEN_AGING, genAgingOf, careerGrant, econPayScale, econPay, econAgeFactor, econZeroValue, econNewPrice, econUsedValue, econSaleWhy, econSaleValue, econSell, econDeliveredValue, ECON_WEAR, econPowerPrices, econGroupSection, econRepairBill, econWorkFreeWhy, econAgingNow, econAgingSettle, ECON_CARE, econCareK, econAgingSpec, econAgingStart, econAgingFlown, ECON_RESTORES, ECON_STRUCT_SECS, econRestoreCost, econRestore, playerBreakBill, playerBreak, playerBroken, playerRepairFree, GEN_TIP_SHAPE, genTipOf, genTipBend, genTipFat, genTipJoint, genTipBuoyTable, genTipJointOf, genTipFit, pilotGearDice, GEAR_MECH, gearFoldPose, gearMechPose, GEAR_LEVER, STRIP_MICRO, GEN_CAGE_ROW_NEUTRAL };
+  module.exports = { STORY_GRANT, STORY_T6_FEE, TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, TREE_HITS, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, STRIP_SURFACES, stripSurface, stripGear, stripAllows, stripFallback, stripLandable, sitePaintStrip, siteOnPad, siteMaxHD, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, GEN_DRIVE, GEN_DRIVE_OS, GEN_DRIVE_STRIKE, genDriveTurf, genDriveSpec, genDriveState, genDriveOverspeed, genDriveStrikeTier, genDriveTorqueFactor, GEN_NOSE, genNoseSpec, genNoseF, genNoseWork, genNoseLayer, genNoseShell, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genDesignCheck, genDesignDerivs, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_CRASH, GEN_CRASH_TUBE_DT, genPhysKey, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_SEAT_TYPES, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_COMMS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genMesh, genBeamInto, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, GEN_CERT, GEN_CERT_V, genDamageOn, GEN_CERT_CACHE, genCertKey, genCertify, genCertifySteps, genCertAttach, genCertSystem, genCertForces, genCertBench, genCertBenchPose, genCertDrop, genCertDropSim, genCertSettled, genCertCombine, genCertMirror, GEN_CERT_HOOK, genCertBow, genCertFlown, genCertAeroLoads, genCertProbeSim, genCertSpeeds, genCertSink, genCertDrive, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarBay, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay, GEN_WING_ENVELOPE, GEN_FIELDS, genFieldClamp, genNullToDefault, genSpecMerge, SERVO_GAINS, makeServos, SERVO_TUNE, servoWrapPi, servoCrossWind, servoRestHeight, FLIGHT_BASES, FLIGHT_BASE_DEFAULT, flightBases, flightBase, flightWhere, flightCanDepart, flightStripGeom, flightToChoices, flightToRecord, flightLeg, flightRouteMigrate, FLIGHT_FIELD_R, servoStepHold, PILOT_PROFILES, pilotProfile, GEN_DMG_GROUP, GEN_CERT_FLOOR, TYRE_CN, genCertMirrorAll, genCertMountKinds, GEN_COVER, SCAR, SCAR_SURF, scarSurf, scarMake, scarHit, scarStrike, scarReset, scarFrame, scarSeal, scarSegD, scarSimplify, scarSweepIn, scarIn, scarBox, CORE_MATH, fsin: CORE_MATH.sin, fcos: CORE_MATH.cos, fpow: CORE_MATH.pow, BASE_OFFERS, PREM_RATES, KIT_PRICES, PARK_CLR, PARK_DOOR_CLR, PARK_STEP, hangarDims, hangarDoor, hangarDoorWhy, hangarObstacles, parkFoot, hangarPark, hangarRoomFor, playerHangarsAt, playerBaseIds, playerResidents, playerFootOf, playerWhere, playerPack, playerCharge, playerFleetReconcile, playerStore, playerWheelOut, playerArrive, playerRecover, shellPrice, plotPrice, playerOffers, playerAcquire, playerRelease, playerUpgradeCost, playerUpgrade, playerGoTo, playerClock, playerLabourFactor, FLEET_SPOT, FLEET_SPOT_FOOT, fleetSpots, fleetSpotDist, fleetSpotPts, fleetField, PREM_MAIN, PREM_SIDE_MAX, PREM_SLOTS, PREM_WEAR, playerLedger, playerIsMain, playerSideIds, playerSlots, playerFits, playerWearNow, playerWearReset, playerWearMacro, playerWearSpec, playerFootOfDef, playerPlace, playerBringHome, playerRollFrom, flightBasesOf, playerPilot, PILOT_PROFILE_KNOBS, pilotProfileSpec, ACCEPT_RULES, ACCEPT_KINDS, acceptEvidence, acceptStatic, acceptDesignRow, acceptLegMeasure, makeAcceptRecorder, acceptSampleOf, acceptLoadOfSim, makeAcceptLeg, acceptLegStart, acceptCanon, acceptHash, acceptSign, acceptSigned, acceptStopAt, acceptVerdict, acceptPlaqueLeg, acceptFpOk, CONTRACT_FIELDS, CONTRACT_DESIGNS, CONTRACT_TRACKS, CONTRACT_PROVIDERS, CONTRACT_TEXT, CONTRACT_KINDS, CONTRACT_DO, CONTRACT_OPS, CONTRACT_CRIT_KINDS, CONTRACT_CONFIG_WORDS, CONTRACT_FIT, CONTRACT_PAY, CONTRACT_GEN, CONTRACT_DUSK_H, CONTRACT_FOLLOW_MAX, CONTRACT_JOB_CLASSES, contractHash, contractRng, contractKm, contractFieldsOf, contractText, contractTextOk, contractLoadWords, contractKeys, contractNormalise, contractCritWhy, contractConfigWord, contractValidate, contractCrit, contractAuthored, contractGearOk, contractTakeoffM, contractSubFit, contractCanDo, contractDoers, contractSubsOf, contractClasses, contractPay, contractEpoch, contractJob, contractJobs, contractJobById, contractVars, contractFollowUp, contractFollowById, contractCritDiff, contractSubOnStop, contractPayTotal, contractImportPack, contractCritWords, contractFollowLine, CAREER_V, CAREER_KEY, CAREER_GRANT, CAREER_VOUCHER, careerKey, careerNew, careerNormalise, careerContract, careerNeedsOk, careerOfferIds, careerRefresh, careerOffers, careerAccept, careerTrack, careerAbandon, contractOnStop, careerComplete, careerOnStop, contractCertUlt, contractCertifiable, CAREER_MAP_LOOK, CAREER_MAP_V, careerDesignCert, careerDesignOfShake, careerMapContract, careerMapRecord, careerOverflewAdd, careerStopRecord, careerTrackedLoad, careerLegCrit, careerAcceptHook, careerEventLines, STAGE_REVEALS, STAGE_SHOT, STAGE_PHASES, stageMaxes, stageTracksOf, stageKey, stageRevealsBetween, stageElementsAt, stagePointOf, stageReveal, stageHost, contractStoryBase, ECON_V, ECON_BOOK, econRound, econRefPrice, econShellPrice, econLedgerCost, econAirframePrice, econCatalogPrice, econSignOn, econRepairCost, ECON_LEDGER, econLedgerClass, econAfford, econBuy, econMaterialise, econAcquire, econUpgrade, econFlyable, econRepair, ECON_TEXT, econLoans, econLoanOffer, econLoanPay, econLoanJob, ECON_BANDS, ECON_REF, econRefPick, econRefFly, econReference, econCalibration, PROCURE_V, PROCURE_MARGIN, PROCURE_USED_MAX, PROCURE_USED_EVERY, PROCURE_COND, PROCURE_DELIVERY, PROCURE_COSMETIC, PROCURE_LOOK, PROCURE_STATE_ROWS, PROCURE_TEXT, procureText, PROCURE_MAKERS, PROCURE_ENGINES, PROCURE_TINTS, PROCURE_FINISH, PROCURE_MODELS, PROCURE_EFF_KEYS, procureValidated, procureCatalogue, procureModelIds, procureDefaults, procureDesignOf, procureRegOk, procureOpts, procureBaseSpec, procureSpec, procureCert, procureFp, procureFpP1, procureP1Matches, procureLedgerOf, procureEditBill, procureEconStub, procureEcon, procureEconSource, procurePrice, procureOptWord, procureSheet, procureBoard, procureBuildDesign, procureSaveDesign, procureAirframeSlots, procureEnvelope, procureBuyModel, procureUsedCert, procureFlyableAt, procureUsedEpoch, PROCURE_REPAIRS, procureUsedListing, procureMarket, procureUsedById, procureMarketOf, procureSold, procureUsedWords, procureUsedSpec, procureBuyUsed, procureOnSave, procureAnchor, PROCURE_READOUTS, PROCURE_ENG_BASE, PROCURE_ENG_DIALS, PREM_WORLD, playerWorldSheds, playerClosedSheds, premResidentsDrawn, playerRollHangar, playerPlotSite, careerMapMark, FREIGHT_V, FREIGHT_KINDS, FREIGHT_BAG, FREIGHT_GOODS, FREIGHT_GENERIC, FREIGHT_STRETCHER, FREIGHT_FLOOR, FREIGHT_SEAT, FREIGHT_PACK, FREIGHT_DOOR_GRID, FREIGHT_CARDS, freightItem, freightSplit, freightItems, freightKg, freightRestY, freightHoldFits, freightDoorPass, freightDoorAny, freightNoDoor, freightSeats, freightObstacles, freightSpaces, freightReport, freightPack, freightCardPod, freightPodDoor, freightFits, freightCardOf, freightSubItems, freightMark, GEN_POD, genPodOn, genPodKeel, genPodResolve, genPodStraddle, genPodSpace, genPodCdA, genPodClearance, genPodBalance, genCertPodMounts, genPodShell, PILOTS_V, PILOTS_ORDER, PILOTS_COMPANION, PILOTS_RESERVED, PILOTS_MARKET, PILOTS_GROW, PILOTS_WEATHER, PILOTS_SHORT_M, PILOTS_PAVED, PILOTS_SIGNON_STUB, PILOTS_TRAITS, PILOTS_REFUSALS, PILOTS_ROSTER, PILOTS_TEXT, PILOTS_KNOB_SEC, pilotsText, pilotsName, pilotsKnobs, pilotsBaseFlat, pilotsProfile, pilotsLandings, pilotsGrowth, pilotsFlatOf, pilotsProfileOf, pilotsFliesLike, pilotsSignOn, pilotsBlock, pilotsCompanion, pilotsHired, pilotsOffers, pilotsHire, pilotsFire, pilotsPick, pilotsPicked, pilotsPlace, pilotsBoatHome, pilotsRefusal, pilotsCanFly, pilotsOnFlightEnd, pilotsRepairK, pilotsCard, pilotsImportPack, FREIGHT_LOAD_V, freightLoadNew, freightLoadPropose, freightLoadAshore, freightLoadReport, freightLoadTarget, freightLoadMove, freightLoadUnload, freightLoadSeat, freightLoadRecord, freightLoadAccept, freightAccepted, freightLoadFromRecord, freightLoadCard, freightLoadJob, freightStopItems, freightLoadSettle, contractSites, contractStops, contractDests, CONTRACT_SHAPES, CONTRACT_THEN, HANGAR_LAYOUTS, hangarLayout, hangarRows, CAREER_MAIN, careerMainShed, jsonFinite, jsonReadFinite, DAY_WAIT_TARGETS, DAY_WAIT_MIN_S, DAY_MOON_WORDS, dayAbs, dayFromAbs, dayProbe, dayPresetUtc, dayWaitUntil, dayNextFullMoon, dayMoonAt, dayMoonWord, dayLocalAbs, dayDuskDawnH, CONTRACT_DAWN_H, CONTRACT_WHEN_KINDS, contractWhenWhy, contractWhenWords, contractWhenOk, CAREER_DAY0, careerDayOk, careerDayNorm, careerDay, careerDaySet, careerCrashReset, CONTRACT_NIGHT, contractWhenSpan, contractWhenMid, contractWhenNight, contractWhenWait, contractSky, contractMoonAt, contractMoonWords, contractFlyable, careerOfferSky, careerLocalDate, careerNightLine, careerTrackedWhen, careerWaitWindow, careerWindowNight, FREIGHT_STRAP_V, FREIGHT_LOOK, FREIGHT_STRAP, freightLookGoods, freightLookKey, freightStrapGenY, freightStrapShares, freightStrapSeats, freightStrapSeatBill, freightStrapBaggage, freightStrapAdds, freightStrapFlags, freightStrapFor, freightStrapStacks, freightStrapBands, freightStrapMesh, freightStrapNext, VPROFILE, ROUTE_V, ROUTE_MARGIN, ROUTE_AGL_DEFAULT, ROUTE_MAX_PTS, ROUTE_ENDS, routeGroundAt, routeSafeAlt, routeAltMSL, routeSetRef, routeNew, routeAddPt, routeNormalise, routePerf, routeSpeedOf, routeCaptureR, routeProfile, routeLegs, routeVPerf, routeVLegs, FLARE_ARM_MAX, NAV_FIXES, PREM_STORE, playerStoreSlots, playerBaseOutside, playerStoreWhere, playerStoreSettle, playerMove, playerFloorSync, playerFlyStart, playerStoreView, playerResidentsShown, playerCardOf, PILOT_STAB, STORY_V, STORY_ROLES, STORY_CHECKS, STORY_BEATS, storySite, storyChecklist, storyNew, storyNormalise, storyOf, storyStart, storyJobsOpen, storyMask, storyStep, playerShedLocked, playerShedsOpen, playerSendTo, storyGrantCabin, STORY_FILES, STORY_SLOTS, STORY_CABIN_SHED, STORY_NO_CABIN, STORY_JOBS, STORY_OCCASIONS, storyCabinShed, storyNewCareer, storyClientSpec, storyApply, storyOccasionListings, storyJobIds, storyJobHeld, storyCard, STORY_TIM, storyTimLines, STORY_LADDER, STORY_LADDER_RULE, storyLadderNew, storyLadderStep, ROUTES_V, ROUTES_PAY, routesList, routesActive, routeOfPlane, routeOfPilot, routeNow, routeDesignOf, routeTerms, routeOffer, routeSign, routeSettle, routeEnd, routesBlock, routePos, routeWords, routeAeroName, routeSettleLines, routesMapOf, routeOfferWords, pilotsOnRoute, storyRoutePilot, storyRouteLine, storyRoute, genMarginBand, GEN_MARGIN_BANDS, CERT_FP_SCHEME, CERT_GROUPS, CERT_GROUP_KEYS, CERT_STATE_ROWS, CERT_MINOR_BLOCKS, certStrip, certMajorOf, certMajor, certGroupsChanged, certChangeLine, certCanon, certHash, genEnvBig, genWingEnv, genBig, scarBoxes, scarChains, scarBowl, scarHulls, scarHull, scarHullIn, GEN_OCC, genOccSpec, genOccSpaceOf, genOccSeries, genOccJudge, genOccDRI, genOccEiband, genOccCFC, genOccWire, TECH_V, TECH_MAX, TECH_SEGS, TECH_TABLE, TECH_GEAR_TYPES, TECH_CANOPY_STYLES, TECH_FAMILIES, techName, techWhy, techSegOf, techKeysOfSpec, techKeysOfSystems, techStolOn, techStageOfSpec, techOver, techNew, techNormalise, careerTechOf, careerTechSeg, careerTechAllows, careerTechStageOk, careerTechUnlock, TECH_SURF_ROW, TECH_ROWS, techRowKeys, techKeysOfPatch, TECH_DESIGNS, techKeysOfModel, techStageOfKeys, techStageOfModel, techListingOk, techModelOk, techOptionOk, GAME_NAMES, fieldName, careerOwnSlots, careerImportable, careerCopyName, careerSaveKey, careerSlotTag, CAREER_SLOT_TAG, careerImport, GEN_ENG_LAYOUTS, genEngLayoutOf, genEngLayoutEngines, GAME_PEOPLE, PEOPLE_FACES, PEOPLE_BGS, PEOPLE_BG, PEOPLE_BG_SCENES, PEOPLE_BG_PILOT, PEOPLE_BG_PX, peopleBg, PEOPLE_V, PEOPLE_IDS, PEOPLE_ROLES, PEOPLE_FACE_PX, PEOPLE_FACE_DIR, PEOPLE_FROM_PACK, peopleOf, peopleName, peopleClientOf, peopleFace, peoplePool, pilotsWage, pilotsPayroll, pilotsDay, pilotsId, PILOTS_WAGE_STUB, PILOTS_LEVEL, PILOTS_DAY_S, PILOTS_PAY_UT_S, CONTRACT_DO_NEXT, CONTRACT_CRIT_NEXT, contractPlaceXZ, contractPlaceKm, CONTRACT_RUNTIME_PENDING, contractRuntimeOk, pilotCanFly, CONTRACT_RUNTIME_WAITS, MISSION_PACK_WHAT, MISSION_PACK_V, MISSION_DO, MISSION_PLACE_KINDS, MISSION_PLACES_OF, MISSION_RULES, MISSION_RULES_NEW, MISSION_PREF_KINDS, MISSION_TEXT, missionText, missionOrder, missionPlaceKind, missionPlaceNorm, missionPlaceWhy, missionPersonWhy, missionNormalise, missionPackNormalise, missionToContract, missionFromContract, missionStrip, missionCanon, missionWhy, missionPackValidate, missionPackContracts, missionPackInstall, missionReward, missionRallyDerive, missionTutorial, missionPackFromContracts, MISSION_RUN_V, MISSION_FLIGHT_KINDS, missionInFlight, missionPrefOf, missionPrefsJudge, missionHandoverWired, contractDelivery, contractProfit, missionBlueprintName, missionRulesJudge, missionTimerTarget, missionTimerOnSub, missionTimerGroups, missionTimersOnStop, missionHitTest, missionObjectives, missionTrackNew, missionTrackStep, missionTrackEvidence, missionStepOnStop, missionMarkers, careerHandover, careerFail, careerRestart, careerOrderBind, ACCEPT_LOAD_LAWS, missionStopChecks, missionLegDone, careerOnDone, CONTRACT_ONDONE, MISSION_PROP_DIMS, MISSION_GATE_PROP, missionStrikeRule, missionStrikeTest, STORY_REG, STORY_TUTOR, storyTutorSteps, storyTutorTick, storyTutorNext, storyFinalPose, storyFinalWay, GEN_SEAPLANE_PROPS, hangarSignSpot, GEN_SLATS, GEN_STOL, GEN_STOL_ROWS, genStolOf, genStolCage, genStolLocked, genStolStrip, genStolFences, genStallAngle, GEN_STOL_ROW_OFF, genStolCageOff, genStolGain, GEN_TRIM, genFurnK, GEN_ELEC_PARTS, GEN_LIGHT_AMPS, GEN_LIGHT_BREAKER, genBreakerSize, GEN_POD_UI, genPodLD, genPodShapeOf, genPodFromVolume, genPodReadout, GEN_POD_NODE_Z, genPodNodesAt, GEN_POD_DMG, genPodDamage, genPodFloorAt, genPodGearKeep, GEN_GPS_SIDES, careerSkyCover, genDesignAids, genAidPropOff, genKeyIssues, genAidLevers, genAidBalance, GEN_CERT_TIER, genCertTierOf, genCertTiers, genAidCorners, GEN_AIDS, CERT_NEED_WORDS, contractCertNeed, careerCertOf, careerFleetHolds, careerCertLine, careerSignOfBench, careerSign, ECON_SHADY, ECON_SHADY_TEXT, econShadyOffer, econShadyJob, WEATHER_DAYS, WEATHER_PLAN, SOIL_WET, careerSeasonLand, CAREER_SEASON, TW_SCOTT, TW_SKID_MU, genIvDir, genIvReach, freightLoadBest, freightStrapChairKg, GEN_AGING, genAgingOf, careerGrant, econPayScale, econPay, econAgeFactor, econZeroValue, econNewPrice, econUsedValue, econSaleWhy, econSaleValue, econSell, econDeliveredValue, ECON_WEAR, econPowerPrices, econGroupSection, econRepairBill, econWorkFreeWhy, econAgingNow, econAgingSettle, ECON_CARE, econCareK, econAgingSpec, econAgingStart, econAgingFlown, ECON_RESTORES, ECON_STRUCT_SECS, econRestoreCost, econRestore, playerBreakBill, playerBreak, playerBroken, playerRepairFree, GEN_TIP_SHAPE, genTipOf, genTipBend, genTipFat, genTipJoint, genTipBuoyTable, genTipJointOf, genTipFit, pilotGearDice, GEAR_MECH, gearFoldPose, gearMechPose, GEAR_LEVER, STRIP_MICRO, GEN_CAGE_ROW_NEUTRAL };
 
 // (DMG-DETERMINISM G2353, standalone): NODE REFUSES A STALE CORE. tools/flight_core.js is generated (tools/build.js) and
 // tracked, so a tree whose generated files were put back from git (`git checkout -- tools/flight_core.js`, a stash, a fresh
@@ -67520,7 +67607,7 @@ if (typeof module !== 'undefined' && typeof require === 'function' && typeof __f
 })();
 </script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='1c66e0c88c01';window.FLYDIY_BUILD='94e7483c7863';window.FLYDIY_AUDIO_SRC={"engine_worklet":"src/viewer/audio/engine_worklet.js?v=26807db6","prop_worklet":"src/viewer/audio/prop_worklet.js?v=48283511","airframe_worklet":"src/viewer/audio/airframe_worklet.js?v=1e68b31b"};window.FLYDIY_MUSIC=[{"id":"fma238392","file":"media/audio/music/holiznacc0_yet_again.ae80f04f.mp3","title":"Yet Again","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/yet-again-lofi-peaceful/","station":"lofi","contexts":["garage","welcome"],"lufs":-16,"durationS":135.9},{"id":"fma275835","file":"media/audio/music/holiznacc0_break_from_reality.6cd41edd.mp3","title":"Break From Reality","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/break-from-reality-lofi-peaceful-mp3/","station":"lofi","contexts":["garage","welcome","cruise"],"lufs":-16,"durationS":207},{"id":"fma275843","file":"media/audio/music/holiznacc0_the_best_of_times.4c1984ae.mp3","title":"The Best Of Times","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/the-best-of-times-lofi-relaxing-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":168},{"id":"fma267057","file":"media/audio/music/holiznacc0_faded_in_the_sunlight.4ce1349b.mp3","title":"Faded in the Sunlight","artist":"HoliznaCC0","album":"Summer Air ( Lo-fi )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/summer-air-lo-fi/faded-in-the-sunlight/","station":"lofi","contexts":["garage","welcome"],"lufs":-17.2,"durationS":178.2},{"id":"fma265836","file":"media/audio/music/holiznacc0_peaceful_drift.55118944.mp3","title":"Peaceful Drift","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/peaceful-drift-lofi-nostalgic-calm/","station":"lofi","contexts":["garage"],"lufs":-17.4,"durationS":128.3},{"id":"fma265847","file":"media/audio/music/holiznacc0_ease_into_night.32448511.mp3","title":"Ease into Night","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ease-into-night-lofi-relax-chill/","station":"lofi","contexts":["garage"],"lufs":-17.9,"durationS":151.8},{"id":"fma268742","file":"media/audio/music/holiznacc0_washed_up.eca2e877.mp3","title":"Washed Up","artist":"HoliznaCC0","album":"OCEAN MEMORY ( Lo-fi Chill )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/ocean-memory-lo-fi-chill/washed-up/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":234.6},{"id":"fma275832","file":"media/audio/music/holiznacc0_down_time.c1f35243.mp3","title":"Down Time","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/down-time-lofi-peaceful-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":130.3},{"id":"fma275836","file":"media/audio/music/holiznacc0_ocean_breeze.1c28251e.mp3","title":"Ocean Breeze","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ocean-breeze-lofi-ukulele-peaceful-mp3/","station":"lofi","contexts":["garage","cruise"],"lufs":-16,"durationS":197.6},{"id":"fma164357","file":"media/audio/music/loyalty_freak_music_traveling_in_your_mind.993d471f.mp3","title":"Traveling in your mind","artist":"Loyalty Freak Music","album":"TO CHILL AND STAY AWAKE","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/TO_CHILL_AND_STAY_AWAKE/Loyalty_Freak_Music_-_TO_CHILL_AND_STAY_AWAKE_-_05_Traveling_in_your_mind/","station":"lofi","contexts":["cruise","welcome","garage"],"lufs":-18.2,"durationS":236.6},{"id":"fma171982","file":"media/audio/music/loyalty_freak_music_beach.b048753f.mp3","title":"Beach","artist":"Loyalty Freak Music","album":"MELODIES WITH A BEAT","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/MELODIES_WITH_A_BEAT/Loyalty_Freak_Music_-_MELODIES_WITH_A_BEAT_-_08_Beach/","station":"lofi","contexts":["garage"],"lufs":-17.3,"durationS":161},{"id":"fma279362","file":"media/audio/music/holiznacc0_kodama.566d47aa.mp3","title":"Kodama","artist":"HoliznaCC0","album":"Nature Spirit","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/nature-spirit/kodama/","station":"jazz","contexts":["garage"],"lufs":-18.7,"durationS":150.7},{"id":"fma278622","file":"media/audio/music/ketsa_as_above_so_below.89e379ac.mp3","title":"As Above So Below","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/as-above-so-below-1/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":233.4},{"id":"fma279012","file":"media/audio/music/ketsa_time_runs_like_the_thames.6ff984d7.mp3","title":"Time Runs Like The Thames","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/vintage-modernity/time-runs-like-the-thames/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":274},{"id":"fmaia_shreveport_stomp","file":"media/audio/music/jelly_roll_morton_shreveport_stomp.e54398f1.mp3","title":"Shreveport Stomp","artist":"Jelly Roll Morton","album":"1924","licence":"Public domain","source":"https://archive.org/details/shreveport-stomp-jelly-roll-morton-1924","station":"jazz","contexts":["garage"],"lufs":-21,"durationS":171},{"id":"fmaia_wolverine_blues","file":"media/audio/music/benson_orchestra_of_chicago_jelly_roll_morton_wolverine_blues.1d938bf6.mp3","title":"Wolverine Blues","artist":"Benson Orchestra of Chicago (Jelly Roll Morton)","album":"1923, Library of Congress National Jukebox","licence":"Public domain","source":"https://archive.org/details/loc-jukebox-67806-wolverine-blues","station":"jazz","contexts":["garage"],"lufs":-17.5,"durationS":184.8},{"id":"fma278664","file":"media/audio/music/tommaso_croce_generic_sloppy_dub.9cc4f5ec.mp3","title":"Generic Sloppy Dub","artist":"Tommaso Croce","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Dilating_Times/backwards/generic-sloppy-dub/","station":"dubambient","contexts":["garage","cruise"],"lufs":-17.4,"durationS":316.7},{"id":"fma278757","file":"media/audio/music/1000_handz_greenery.6b82d1b4.mp3","title":"Greenery","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/greenery/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":209.4},{"id":"fma278845","file":"media/audio/music/guided_levitation_return_to_our_home.763873e2.mp3","title":"Return To Our Home","artist":"Guided Levitation","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/guided-levitation/eternal/return-to-our-home/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":430.2},{"id":"fma279307","file":"media/audio/music/matthew_c_wright_calming_royalty_free_piano_a_season_of_change.1228ba10.mp3","title":"Calming Royalty Free Piano - \"A Season of Change\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/calming-royalty-free-piano-a-season-of-change/","station":"classical","contexts":["garage","welcome"],"lufs":-17.6,"durationS":151},{"id":"fma279308","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_autumn_sunshine.cfc128af.mp3","title":"Gentle Royalty Free Piano - \"Autumn Sunshine\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-autumn-sunshine/","station":"classical","contexts":["garage","welcome"],"lufs":-18.7,"durationS":186.2},{"id":"fma279304","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_rustling.3ea1a7a8.mp3","title":"Gentle Royalty Free Piano - \"Rustling\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-rustling/","station":"classical","contexts":["garage","welcome"],"lufs":-17,"durationS":161.1},{"id":"fmaia_goldberg_14","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_13.e46289fd.mp3","title":"Goldberg Variations, BWV 988: Variatio 13","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":254.5},{"id":"fmaia_goldberg_20","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_19.024a83f6.mp3","title":"Goldberg Variations, BWV 988: Variatio 19","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.2,"durationS":85},{"id":"fmaia_goldberg_25","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_24_canone_a.38d27e77.mp3","title":"Goldberg Variations, BWV 988: Variatio 24, Canone all'Ottava","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.4,"durationS":165.5},{"id":"fmaia_goldberg_27","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_26.cb2b4f50.mp3","title":"Goldberg Variations, BWV 988: Variatio 26","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16,"durationS":122.8},{"id":"fmaia_goldberg_31","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria_da_capo.b65c85c5.mp3","title":"Goldberg Variations, BWV 988: Aria da capo","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":170.1},{"id":"fmaia_goldberg_01","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria.8a525c07.mp3","title":"Goldberg Variations, BWV 988: Aria","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-19.6,"durationS":299.5},{"id":"fma278391","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_i_m_callin_late.73576f4b.mp3","title":"Peaceful Royalty Free Guitar - \"I'm Callin' Late\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-im-callin-late/","station":"roots","contexts":["garage","cruise"],"lufs":-19.2,"durationS":138.8},{"id":"fma279039","file":"media/audio/music/mr_smith_ranchero.03b7fda8.mp3","title":"Ranchero","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/synchromatic/ranchero/","station":"roots","contexts":["garage","cruise"],"lufs":-16.5,"durationS":114.2},{"id":"fma278388","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_a_cloudy_life.5400048e.mp3","title":"Calming Royalty Free Guitar - \"A Cloudy Life\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-a-cloudy-life/","station":"roots","contexts":["garage"],"lufs":-19,"durationS":170.8},{"id":"fma237449","file":"media/audio/music/mr_smith_ships.d2277b62.mp3","title":"Ships","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/ships/","station":"roots","contexts":["garage","cruise"],"lufs":-16.6,"durationS":82.1},{"id":"fma248055","file":"media/audio/music/mr_smith_quidi_vidi.94325e9a.mp3","title":"Quidi Vidi","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/quidi-vidi/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.9},{"id":"fma248226","file":"media/audio/music/mr_smith_in_the_mist.4ca7d4da.mp3","title":"In the Mist","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/in-the-mist/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":54.7},{"id":"fma256748","file":"media/audio/music/maarten_schellekens_whispers_of_the_glen.a0af8efe.mp3","title":"Whispers of the Glen","artist":"Maarten Schellekens","album":null,"licence":"CC0","source":"https://freemusicarchive.org/music/maarten-schellekens/public-domain-1/whispers-of-the-glen/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":161.6},{"id":"fma273704p1","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_1.cc7cdbdd.mp3","title":"Ghostman Blues, part 1","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":161},{"id":"fma273704p3","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_3.0ee810e4.mp3","title":"Ghostman Blues, part 3","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16.1,"durationS":178.9},{"id":"fma271999p2","file":"media/audio/music/daniel_william_lawrence_a_land_of_corn_and_wine_part_2.1a3e2a6e.mp3","title":"A Land of Corn and Wine, part 2","artist":"Daniel William Lawrence","album":"A Land of Corn and Wine","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/a-land-of-corn-and-wine/a-land-of-corn-and-wine-traditional-instrumental-blues-full-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":355.7},{"id":"fma277192","file":"media/audio/music/ketsa_time_falls_like_autumn_leaves.0b326725.mp3","title":"Time falls like Autumn Leaves","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/time-falls-like-autumn-leaves/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":159.7},{"id":"fma279132","file":"media/audio/music/1000_handz_neighbor.194f378e.mp3","title":"Neighbor","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/neighbor/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":129.9},{"id":"fma279302","file":"media/audio/music/1000_handz_busted_tape.8ac88609.mp3","title":"Busted Tape","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/busted-tape/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":66},{"id":"fma277908","file":"media/audio/music/pamela_yuen_beloved.95635664.mp3","title":"Beloved","artist":"Pamela Yuen","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/pamela-yuen/ambient-music-1/beloved-1/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":211.7},{"id":"fma233918","file":"media/audio/music/mr_smith_the_newfie.010088ef.mp3","title":"The Newfie","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/the-newfie/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":87.3},{"id":"fma237242","file":"media/audio/music/mr_smith_da_rock.f15eeafe.mp3","title":"Da Rock","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/da-rock/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":119},{"id":"fma237915","file":"media/audio/music/mr_smith_nfld.ba344a97.mp3","title":"NFLD","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/nfld/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":105.5},{"id":"fma246044","file":"media/audio/music/mr_smith_the_newfie_pt_2.6d0e2be2.mp3","title":"The Newfie Pt 2","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/the-newfie-pt-2/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":85.4},{"id":"fma250186","file":"media/audio/music/mr_smith_sun_glitter.0a050709.mp3","title":"Sun Glitter","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/sun-glitter/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.5},{"id":"fma252236","file":"media/audio/music/mr_smith_birchy_nap.e91e17e6.mp3","title":"Birchy Nap","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/birchy-nap/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":55.2},{"id":"fma278389","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_brown_hair_and_chacos.53071383.mp3","title":"Quiet Royalty Free Guitar - \"Brown Hair and Chacos\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-brown-hair-and-chacos/","station":"roots","contexts":["garage","cruise"],"lufs":-18.5,"durationS":151},{"id":"fma278390","file":"media/audio/music/matthew_c_wright_slow_royalty_free_guitar_how_about_forever.19ea0bdb.mp3","title":"Slow Royalty Free Guitar - \"How About Forever\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/slow-royalty-free-guitar-how-about-forever/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":189.2},{"id":"fma278392","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_just_a_flight_away.b39b38a7.mp3","title":"Relaxing Royalty Free Guitar - \"Just a Flight Away\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-just-a-flight-away/","station":"roots","contexts":["garage","cruise"],"lufs":-17.9,"durationS":124.3},{"id":"fma278394","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_montana.ac8ceebf.mp3","title":"Peaceful Royalty Free Guitar - \"Montana\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-montana/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":156},{"id":"fma278395","file":"media/audio/music/matthew_c_wright_soothing_royalty_free_guitar_old_steel.a75dce3f.mp3","title":"Soothing Royalty Free Guitar - \"Old Steel\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/soothing-royalty-free-guitar-old-steel/","station":"roots","contexts":["garage","cruise"],"lufs":-20.6,"durationS":131.9},{"id":"fma278396","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_so_proud_of_you.dd50ab59.mp3","title":"Relaxing Royalty Free Guitar - \"So Proud of You\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-so-proud-of-you/","station":"roots","contexts":["garage","cruise"],"lufs":-19.5,"durationS":205.4},{"id":"fma278397","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_this_here_house.560c1a4a.mp3","title":"Quiet Royalty Free Guitar - \"This Here House\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-this-here-house/","station":"roots","contexts":["garage","cruise"],"lufs":-22,"durationS":157},{"id":"fma278398","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_time_to_let_go.c14ebc99.mp3","title":"Calming Royalty Free Guitar - \"Time to Let Go\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-time-to-let-go/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":178.8},{"id":"fma278399","file":"media/audio/music/matthew_c_wright_simple_royalty_free_guitar_village_on_the_lake.b92784aa.mp3","title":"Simple Royalty Free Guitar - \"Village on the Lake\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/simple-royalty-free-guitar-village-on-the-lake/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":130.3}];window.FLYDIY_AUDIO_MEDIA={"amb.forest.day":["media/audio/sfx/amb_forest_day_288899.157bf96e.mp3"],"amb.forest.night":["media/audio/sfx/amb_forest_night_333221.3df54da1.mp3"],"amb.wind.light":["media/audio/sfx/amb_wind_light_160469.4d45c6a1.mp3"],"amb.wind.clear":["media/audio/sfx/amb_wind_clear_156414.f23315bb.mp3"],"amb.wind.mountain":["media/audio/sfx/amb_wind_mountain_165526.140f3920.mp3"],"amb.wind.storm":["media/audio/sfx/amb_wind_storm_157280.9fdd2a2c.mp3"],"amb.shore.surf":["media/audio/sfx/amb_shore_surf_155641.27350310.mp3"],"amb.shore.rocks":["media/audio/sfx/amb_shore_rocks_155895.6ee71344.mp3"],"amb.lake.near":["media/audio/sfx/amb_lake_near_135046.22d12339.mp3"],"amb.lake.lap":["media/audio/sfx/amb_lake_lap_428088.0018a69a.mp3"],"amb.stream":["media/audio/sfx/amb_stream_264180.4ff25da2.mp3"],"amb.harbour":["media/audio/sfx/amb_harbour_339440.fc5b7cd1.mp3"],"amb.village":["media/audio/sfx/amb_village_435819.20299c23.mp3"],"amb.airfield":["media/audio/sfx/amb_airfield_319102.6b4237cf.mp3"],"amb.hangar":["media/audio/sfx/amb_hangar_427861.f9afe454.mp3"],"amb.rain.roof":["media/audio/sfx/amb_rain_roof_329578.c0aba715.mp3"],"amb.frogs.night":["media/audio/sfx/amb_frogs_night_135561.9aa1f6e9.mp3"],"amb.loons":["media/audio/sfx/amb_loons_39339.7d136ae5.mp3"],"amb.meadow":["media/audio/sfx/amb_meadow_639459.3facef88.mp3"],"bird.eagle":["media/audio/sfx/bird_eagle_381200.1d11590c.mp3","media/audio/sfx/bird_eagle_392212.13114290.mp3","media/audio/sfx/bird_eagle_nps-golden-eagle.ca760fa8.mp3"],"bird.gull":["media/audio/sfx/bird_gull_166710.bb2f19eb.mp3","media/audio/sfx/bird_gull_263786.51e3ecb8.mp3","media/audio/sfx/bird_gull_73497.919ce49c.mp3"],"bird.crow":["media/audio/sfx/bird_crow_182090.1a94cd39.mp3","media/audio/sfx/bird_crow_361470.92582da1.mp3","media/audio/sfx/bird_crow_75162.543a2c22.mp3","media/audio/sfx/bird_crow_nps-raven.8c13e1ca.mp3"],"bird.owl":["media/audio/sfx/bird_owl_465697.2ee834d0.mp3","media/audio/sfx/bird_owl_479588.817cca9b.mp3","media/audio/sfx/bird_owl_558396.fc398755.mp3"],"dog":["media/audio/sfx/dog_160366.86fe02dc.mp3"],"gnd.gravel":["media/audio/sfx/gnd_gravel_251661.0e48f11b.mp3"],"mech.creak":["media/audio/sfx/mech_creak_119468.101f6d88.mp3","media/audio/sfx/mech_creak_238289.6d8b72b3.mp3"],"mech.door":["media/audio/sfx/mech_door_345066.66dbaf6d.mp3"],"mech.switch":["media/audio/sfx/mech_switch_361371.9ced067b.mp3","media/audio/sfx/mech_switch_423957.6b08a0c1.mp3"],"water.drip":["media/audio/sfx/water_drip_166986.f81c294b.mp3"],"ui.click":["media/audio/sfx/ui_click_528561.bdd8b52e.mp3"],"vehicle.pickup":["media/audio/sfx/vehicle_pickup_450227.be208f91.mp3"],"amb.rain.outside":["media/audio/sfx/amb_rain_outside_523391.da71d15a.mp3"],"amb.birds.open":["media/audio/sfx/amb_birds_open_456766.c24bacac.mp3"],"amb.lake.shore":["media/audio/sfx/amb_lake_shore_352356.21fc75ef.mp3"],"amb.sea.open":["media/audio/sfx/amb_sea_open_460061.6c0c2f0e.mp3"],"bird.loon":["media/audio/sfx/bird_loon_39339.3c306d67.mp3","media/audio/sfx/bird_loon_nps-loon.ebce31d5.mp3","media/audio/sfx/bird_loon_nps-loon.c47baae3.mp3"],"tram.bell":["media/audio/sfx/tram_bell_497561.9e7279e8.mp3"],"tram.hum":["media/audio/sfx/tram_hum_442493.2b3fe7d3.mp3"],"boat.idle":["media/audio/sfx/boat_idle_637743.0d3d93e0.mp3"],"animal.bear":["media/audio/sfx/animal_bear_nps-grizzly-vocal.def683e6.mp3","media/audio/sfx/animal_bear_nps-grizzly-vocal.98163160.mp3","media/audio/sfx/animal_bear_nps-grizzly-roar.02f72aba.mp3"],"animal.elk":["media/audio/sfx/animal_elk_nps-elk-bugle-1.10ba252d.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.d2390a80.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.c7320d85.mp3"],"animal.deer":["media/audio/sfx/animal_deer_351113.97a7d90b.mp3","media/audio/sfx/animal_deer_351113.5b6da753.mp3"],"animal.whale.blow":["media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.58dfd4e5.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.d2504229.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.7663f71d.mp3"],"animal.orca.blow":["media/audio/sfx/animal_orca_blow_nps-porpoise.b8a0c8fc.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.5d0de2ec.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.45872e4e.mp3"],"bird.thrush":["media/audio/sfx/bird_thrush_nps-varied-thrush.603dc854.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dc4d4664.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dba365b7.mp3"],"mill.stamp":["media/audio/sfx/mill_stamp_322871.33f9ef7a.mp3"]};window.FLYDIY_VOICE={"voice":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"voices":{"norman":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"john":{"name":"john","id":"en_US-john-medium","who":"male, US","role":"Chief Walt Brennan (the interview)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/john/medium","dataset":"LibriVox readings by one reader, ~12.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"fine-tuned (600 epochs) from en_US-kristin-medium, itself trained from scratch on public-domain LibriVox","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"kristin":{"name":"kristin","id":"en_US-kristin-medium","who":"female, US","role":"Officer Dana Hale (recorded messages)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/kristin/medium","dataset":"LibriVox readings by one reader, ~11.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (2000 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"libritts":{"name":"libritts","id":"en_US-libritts-high","who":"US, 904 speakers (LibriTTS)","role":"the residents who phone in","quality":"high","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/libritts/high","dataset":"LibriTTS train-clean-360 (Zen et al. 2019; from LibriSpeech, from LibriVox)","datasetLicence":"CC BY 4.0","datasetUrl":"http://www.openslr.org/60/","lineage":"trained from scratch on train-clean-360","credit":"LibriTTS corpus by Heiga Zen et al. (Google), CC BY 4.0, http://www.openslr.org/60/","render":{"lufs":-20,"kbps":48,"takes":"whole"}}},"script":{"file":"media/audio/voice/radio_script.96bc74e6.json","items":352,"seconds":2085.9,"bytes":12743609}}</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='87ab55ba6f5b';window.FLYDIY_BUILD='048bd2d578ce';window.FLYDIY_AUDIO_SRC={"engine_worklet":"src/viewer/audio/engine_worklet.js?v=26807db6","prop_worklet":"src/viewer/audio/prop_worklet.js?v=48283511","airframe_worklet":"src/viewer/audio/airframe_worklet.js?v=1e68b31b"};window.FLYDIY_MUSIC=[{"id":"fma238392","file":"media/audio/music/holiznacc0_yet_again.ae80f04f.mp3","title":"Yet Again","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/yet-again-lofi-peaceful/","station":"lofi","contexts":["garage","welcome"],"lufs":-16,"durationS":135.9},{"id":"fma275835","file":"media/audio/music/holiznacc0_break_from_reality.6cd41edd.mp3","title":"Break From Reality","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/break-from-reality-lofi-peaceful-mp3/","station":"lofi","contexts":["garage","welcome","cruise"],"lufs":-16,"durationS":207},{"id":"fma275843","file":"media/audio/music/holiznacc0_the_best_of_times.4c1984ae.mp3","title":"The Best Of Times","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/the-best-of-times-lofi-relaxing-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":168},{"id":"fma267057","file":"media/audio/music/holiznacc0_faded_in_the_sunlight.4ce1349b.mp3","title":"Faded in the Sunlight","artist":"HoliznaCC0","album":"Summer Air ( Lo-fi )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/summer-air-lo-fi/faded-in-the-sunlight/","station":"lofi","contexts":["garage","welcome"],"lufs":-17.2,"durationS":178.2},{"id":"fma265836","file":"media/audio/music/holiznacc0_peaceful_drift.55118944.mp3","title":"Peaceful Drift","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/peaceful-drift-lofi-nostalgic-calm/","station":"lofi","contexts":["garage"],"lufs":-17.4,"durationS":128.3},{"id":"fma265847","file":"media/audio/music/holiznacc0_ease_into_night.32448511.mp3","title":"Ease into Night","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ease-into-night-lofi-relax-chill/","station":"lofi","contexts":["garage"],"lufs":-17.9,"durationS":151.8},{"id":"fma268742","file":"media/audio/music/holiznacc0_washed_up.eca2e877.mp3","title":"Washed Up","artist":"HoliznaCC0","album":"OCEAN MEMORY ( Lo-fi Chill )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/ocean-memory-lo-fi-chill/washed-up/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":234.6},{"id":"fma275832","file":"media/audio/music/holiznacc0_down_time.c1f35243.mp3","title":"Down Time","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/down-time-lofi-peaceful-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":130.3},{"id":"fma275836","file":"media/audio/music/holiznacc0_ocean_breeze.1c28251e.mp3","title":"Ocean Breeze","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ocean-breeze-lofi-ukulele-peaceful-mp3/","station":"lofi","contexts":["garage","cruise"],"lufs":-16,"durationS":197.6},{"id":"fma164357","file":"media/audio/music/loyalty_freak_music_traveling_in_your_mind.993d471f.mp3","title":"Traveling in your mind","artist":"Loyalty Freak Music","album":"TO CHILL AND STAY AWAKE","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/TO_CHILL_AND_STAY_AWAKE/Loyalty_Freak_Music_-_TO_CHILL_AND_STAY_AWAKE_-_05_Traveling_in_your_mind/","station":"lofi","contexts":["cruise","welcome","garage"],"lufs":-18.2,"durationS":236.6},{"id":"fma171982","file":"media/audio/music/loyalty_freak_music_beach.b048753f.mp3","title":"Beach","artist":"Loyalty Freak Music","album":"MELODIES WITH A BEAT","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/MELODIES_WITH_A_BEAT/Loyalty_Freak_Music_-_MELODIES_WITH_A_BEAT_-_08_Beach/","station":"lofi","contexts":["garage"],"lufs":-17.3,"durationS":161},{"id":"fma279362","file":"media/audio/music/holiznacc0_kodama.566d47aa.mp3","title":"Kodama","artist":"HoliznaCC0","album":"Nature Spirit","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/nature-spirit/kodama/","station":"jazz","contexts":["garage"],"lufs":-18.7,"durationS":150.7},{"id":"fma278622","file":"media/audio/music/ketsa_as_above_so_below.89e379ac.mp3","title":"As Above So Below","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/as-above-so-below-1/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":233.4},{"id":"fma279012","file":"media/audio/music/ketsa_time_runs_like_the_thames.6ff984d7.mp3","title":"Time Runs Like The Thames","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/vintage-modernity/time-runs-like-the-thames/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":274},{"id":"fmaia_shreveport_stomp","file":"media/audio/music/jelly_roll_morton_shreveport_stomp.e54398f1.mp3","title":"Shreveport Stomp","artist":"Jelly Roll Morton","album":"1924","licence":"Public domain","source":"https://archive.org/details/shreveport-stomp-jelly-roll-morton-1924","station":"jazz","contexts":["garage"],"lufs":-21,"durationS":171},{"id":"fmaia_wolverine_blues","file":"media/audio/music/benson_orchestra_of_chicago_jelly_roll_morton_wolverine_blues.1d938bf6.mp3","title":"Wolverine Blues","artist":"Benson Orchestra of Chicago (Jelly Roll Morton)","album":"1923, Library of Congress National Jukebox","licence":"Public domain","source":"https://archive.org/details/loc-jukebox-67806-wolverine-blues","station":"jazz","contexts":["garage"],"lufs":-17.5,"durationS":184.8},{"id":"fma278664","file":"media/audio/music/tommaso_croce_generic_sloppy_dub.9cc4f5ec.mp3","title":"Generic Sloppy Dub","artist":"Tommaso Croce","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Dilating_Times/backwards/generic-sloppy-dub/","station":"dubambient","contexts":["garage","cruise"],"lufs":-17.4,"durationS":316.7},{"id":"fma278757","file":"media/audio/music/1000_handz_greenery.6b82d1b4.mp3","title":"Greenery","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/greenery/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":209.4},{"id":"fma278845","file":"media/audio/music/guided_levitation_return_to_our_home.763873e2.mp3","title":"Return To Our Home","artist":"Guided Levitation","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/guided-levitation/eternal/return-to-our-home/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":430.2},{"id":"fma279307","file":"media/audio/music/matthew_c_wright_calming_royalty_free_piano_a_season_of_change.1228ba10.mp3","title":"Calming Royalty Free Piano - \"A Season of Change\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/calming-royalty-free-piano-a-season-of-change/","station":"classical","contexts":["garage","welcome"],"lufs":-17.6,"durationS":151},{"id":"fma279308","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_autumn_sunshine.cfc128af.mp3","title":"Gentle Royalty Free Piano - \"Autumn Sunshine\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-autumn-sunshine/","station":"classical","contexts":["garage","welcome"],"lufs":-18.7,"durationS":186.2},{"id":"fma279304","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_rustling.3ea1a7a8.mp3","title":"Gentle Royalty Free Piano - \"Rustling\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-rustling/","station":"classical","contexts":["garage","welcome"],"lufs":-17,"durationS":161.1},{"id":"fmaia_goldberg_14","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_13.e46289fd.mp3","title":"Goldberg Variations, BWV 988: Variatio 13","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":254.5},{"id":"fmaia_goldberg_20","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_19.024a83f6.mp3","title":"Goldberg Variations, BWV 988: Variatio 19","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.2,"durationS":85},{"id":"fmaia_goldberg_25","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_24_canone_a.38d27e77.mp3","title":"Goldberg Variations, BWV 988: Variatio 24, Canone all'Ottava","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.4,"durationS":165.5},{"id":"fmaia_goldberg_27","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_26.cb2b4f50.mp3","title":"Goldberg Variations, BWV 988: Variatio 26","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16,"durationS":122.8},{"id":"fmaia_goldberg_31","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria_da_capo.b65c85c5.mp3","title":"Goldberg Variations, BWV 988: Aria da capo","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":170.1},{"id":"fmaia_goldberg_01","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria.8a525c07.mp3","title":"Goldberg Variations, BWV 988: Aria","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-19.6,"durationS":299.5},{"id":"fma278391","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_i_m_callin_late.73576f4b.mp3","title":"Peaceful Royalty Free Guitar - \"I'm Callin' Late\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-im-callin-late/","station":"roots","contexts":["garage","cruise"],"lufs":-19.2,"durationS":138.8},{"id":"fma279039","file":"media/audio/music/mr_smith_ranchero.03b7fda8.mp3","title":"Ranchero","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/synchromatic/ranchero/","station":"roots","contexts":["garage","cruise"],"lufs":-16.5,"durationS":114.2},{"id":"fma278388","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_a_cloudy_life.5400048e.mp3","title":"Calming Royalty Free Guitar - \"A Cloudy Life\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-a-cloudy-life/","station":"roots","contexts":["garage"],"lufs":-19,"durationS":170.8},{"id":"fma237449","file":"media/audio/music/mr_smith_ships.d2277b62.mp3","title":"Ships","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/ships/","station":"roots","contexts":["garage","cruise"],"lufs":-16.6,"durationS":82.1},{"id":"fma248055","file":"media/audio/music/mr_smith_quidi_vidi.94325e9a.mp3","title":"Quidi Vidi","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/quidi-vidi/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.9},{"id":"fma248226","file":"media/audio/music/mr_smith_in_the_mist.4ca7d4da.mp3","title":"In the Mist","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/in-the-mist/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":54.7},{"id":"fma256748","file":"media/audio/music/maarten_schellekens_whispers_of_the_glen.a0af8efe.mp3","title":"Whispers of the Glen","artist":"Maarten Schellekens","album":null,"licence":"CC0","source":"https://freemusicarchive.org/music/maarten-schellekens/public-domain-1/whispers-of-the-glen/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":161.6},{"id":"fma273704p1","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_1.cc7cdbdd.mp3","title":"Ghostman Blues, part 1","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":161},{"id":"fma273704p3","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_3.0ee810e4.mp3","title":"Ghostman Blues, part 3","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16.1,"durationS":178.9},{"id":"fma271999p2","file":"media/audio/music/daniel_william_lawrence_a_land_of_corn_and_wine_part_2.1a3e2a6e.mp3","title":"A Land of Corn and Wine, part 2","artist":"Daniel William Lawrence","album":"A Land of Corn and Wine","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/a-land-of-corn-and-wine/a-land-of-corn-and-wine-traditional-instrumental-blues-full-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":355.7},{"id":"fma277192","file":"media/audio/music/ketsa_time_falls_like_autumn_leaves.0b326725.mp3","title":"Time falls like Autumn Leaves","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/time-falls-like-autumn-leaves/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":159.7},{"id":"fma279132","file":"media/audio/music/1000_handz_neighbor.194f378e.mp3","title":"Neighbor","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/neighbor/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":129.9},{"id":"fma279302","file":"media/audio/music/1000_handz_busted_tape.8ac88609.mp3","title":"Busted Tape","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/busted-tape/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":66},{"id":"fma277908","file":"media/audio/music/pamela_yuen_beloved.95635664.mp3","title":"Beloved","artist":"Pamela Yuen","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/pamela-yuen/ambient-music-1/beloved-1/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":211.7},{"id":"fma233918","file":"media/audio/music/mr_smith_the_newfie.010088ef.mp3","title":"The Newfie","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/the-newfie/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":87.3},{"id":"fma237242","file":"media/audio/music/mr_smith_da_rock.f15eeafe.mp3","title":"Da Rock","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/da-rock/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":119},{"id":"fma237915","file":"media/audio/music/mr_smith_nfld.ba344a97.mp3","title":"NFLD","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/nfld/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":105.5},{"id":"fma246044","file":"media/audio/music/mr_smith_the_newfie_pt_2.6d0e2be2.mp3","title":"The Newfie Pt 2","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/the-newfie-pt-2/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":85.4},{"id":"fma250186","file":"media/audio/music/mr_smith_sun_glitter.0a050709.mp3","title":"Sun Glitter","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/sun-glitter/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.5},{"id":"fma252236","file":"media/audio/music/mr_smith_birchy_nap.e91e17e6.mp3","title":"Birchy Nap","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/birchy-nap/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":55.2},{"id":"fma278389","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_brown_hair_and_chacos.53071383.mp3","title":"Quiet Royalty Free Guitar - \"Brown Hair and Chacos\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-brown-hair-and-chacos/","station":"roots","contexts":["garage","cruise"],"lufs":-18.5,"durationS":151},{"id":"fma278390","file":"media/audio/music/matthew_c_wright_slow_royalty_free_guitar_how_about_forever.19ea0bdb.mp3","title":"Slow Royalty Free Guitar - \"How About Forever\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/slow-royalty-free-guitar-how-about-forever/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":189.2},{"id":"fma278392","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_just_a_flight_away.b39b38a7.mp3","title":"Relaxing Royalty Free Guitar - \"Just a Flight Away\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-just-a-flight-away/","station":"roots","contexts":["garage","cruise"],"lufs":-17.9,"durationS":124.3},{"id":"fma278394","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_montana.ac8ceebf.mp3","title":"Peaceful Royalty Free Guitar - \"Montana\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-montana/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":156},{"id":"fma278395","file":"media/audio/music/matthew_c_wright_soothing_royalty_free_guitar_old_steel.a75dce3f.mp3","title":"Soothing Royalty Free Guitar - \"Old Steel\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/soothing-royalty-free-guitar-old-steel/","station":"roots","contexts":["garage","cruise"],"lufs":-20.6,"durationS":131.9},{"id":"fma278396","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_so_proud_of_you.dd50ab59.mp3","title":"Relaxing Royalty Free Guitar - \"So Proud of You\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-so-proud-of-you/","station":"roots","contexts":["garage","cruise"],"lufs":-19.5,"durationS":205.4},{"id":"fma278397","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_this_here_house.560c1a4a.mp3","title":"Quiet Royalty Free Guitar - \"This Here House\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-this-here-house/","station":"roots","contexts":["garage","cruise"],"lufs":-22,"durationS":157},{"id":"fma278398","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_time_to_let_go.c14ebc99.mp3","title":"Calming Royalty Free Guitar - \"Time to Let Go\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-time-to-let-go/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":178.8},{"id":"fma278399","file":"media/audio/music/matthew_c_wright_simple_royalty_free_guitar_village_on_the_lake.b92784aa.mp3","title":"Simple Royalty Free Guitar - \"Village on the Lake\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/simple-royalty-free-guitar-village-on-the-lake/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":130.3}];window.FLYDIY_AUDIO_MEDIA={"amb.forest.day":["media/audio/sfx/amb_forest_day_288899.157bf96e.mp3"],"amb.forest.night":["media/audio/sfx/amb_forest_night_333221.3df54da1.mp3"],"amb.wind.light":["media/audio/sfx/amb_wind_light_160469.4d45c6a1.mp3"],"amb.wind.clear":["media/audio/sfx/amb_wind_clear_156414.f23315bb.mp3"],"amb.wind.mountain":["media/audio/sfx/amb_wind_mountain_165526.140f3920.mp3"],"amb.wind.storm":["media/audio/sfx/amb_wind_storm_157280.9fdd2a2c.mp3"],"amb.shore.surf":["media/audio/sfx/amb_shore_surf_155641.27350310.mp3"],"amb.shore.rocks":["media/audio/sfx/amb_shore_rocks_155895.6ee71344.mp3"],"amb.lake.near":["media/audio/sfx/amb_lake_near_135046.22d12339.mp3"],"amb.lake.lap":["media/audio/sfx/amb_lake_lap_428088.0018a69a.mp3"],"amb.stream":["media/audio/sfx/amb_stream_264180.4ff25da2.mp3"],"amb.harbour":["media/audio/sfx/amb_harbour_339440.fc5b7cd1.mp3"],"amb.village":["media/audio/sfx/amb_village_435819.20299c23.mp3"],"amb.airfield":["media/audio/sfx/amb_airfield_319102.6b4237cf.mp3"],"amb.hangar":["media/audio/sfx/amb_hangar_427861.f9afe454.mp3"],"amb.rain.roof":["media/audio/sfx/amb_rain_roof_329578.c0aba715.mp3"],"amb.frogs.night":["media/audio/sfx/amb_frogs_night_135561.9aa1f6e9.mp3"],"amb.loons":["media/audio/sfx/amb_loons_39339.7d136ae5.mp3"],"amb.meadow":["media/audio/sfx/amb_meadow_639459.3facef88.mp3"],"bird.eagle":["media/audio/sfx/bird_eagle_381200.1d11590c.mp3","media/audio/sfx/bird_eagle_392212.13114290.mp3","media/audio/sfx/bird_eagle_nps-golden-eagle.ca760fa8.mp3"],"bird.gull":["media/audio/sfx/bird_gull_166710.bb2f19eb.mp3","media/audio/sfx/bird_gull_263786.51e3ecb8.mp3","media/audio/sfx/bird_gull_73497.919ce49c.mp3"],"bird.crow":["media/audio/sfx/bird_crow_182090.1a94cd39.mp3","media/audio/sfx/bird_crow_361470.92582da1.mp3","media/audio/sfx/bird_crow_75162.543a2c22.mp3","media/audio/sfx/bird_crow_nps-raven.8c13e1ca.mp3"],"bird.owl":["media/audio/sfx/bird_owl_465697.2ee834d0.mp3","media/audio/sfx/bird_owl_479588.817cca9b.mp3","media/audio/sfx/bird_owl_558396.fc398755.mp3"],"dog":["media/audio/sfx/dog_160366.86fe02dc.mp3"],"gnd.gravel":["media/audio/sfx/gnd_gravel_251661.0e48f11b.mp3"],"mech.creak":["media/audio/sfx/mech_creak_119468.101f6d88.mp3","media/audio/sfx/mech_creak_238289.6d8b72b3.mp3"],"mech.door":["media/audio/sfx/mech_door_345066.66dbaf6d.mp3"],"mech.switch":["media/audio/sfx/mech_switch_361371.9ced067b.mp3","media/audio/sfx/mech_switch_423957.6b08a0c1.mp3"],"water.drip":["media/audio/sfx/water_drip_166986.f81c294b.mp3"],"ui.click":["media/audio/sfx/ui_click_528561.bdd8b52e.mp3"],"vehicle.pickup":["media/audio/sfx/vehicle_pickup_450227.be208f91.mp3"],"amb.rain.outside":["media/audio/sfx/amb_rain_outside_523391.da71d15a.mp3"],"amb.birds.open":["media/audio/sfx/amb_birds_open_456766.c24bacac.mp3"],"amb.lake.shore":["media/audio/sfx/amb_lake_shore_352356.21fc75ef.mp3"],"amb.sea.open":["media/audio/sfx/amb_sea_open_460061.6c0c2f0e.mp3"],"bird.loon":["media/audio/sfx/bird_loon_39339.3c306d67.mp3","media/audio/sfx/bird_loon_nps-loon.ebce31d5.mp3","media/audio/sfx/bird_loon_nps-loon.c47baae3.mp3"],"tram.bell":["media/audio/sfx/tram_bell_497561.9e7279e8.mp3"],"tram.hum":["media/audio/sfx/tram_hum_442493.2b3fe7d3.mp3"],"boat.idle":["media/audio/sfx/boat_idle_637743.0d3d93e0.mp3"],"animal.bear":["media/audio/sfx/animal_bear_nps-grizzly-vocal.def683e6.mp3","media/audio/sfx/animal_bear_nps-grizzly-vocal.98163160.mp3","media/audio/sfx/animal_bear_nps-grizzly-roar.02f72aba.mp3"],"animal.elk":["media/audio/sfx/animal_elk_nps-elk-bugle-1.10ba252d.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.d2390a80.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.c7320d85.mp3"],"animal.deer":["media/audio/sfx/animal_deer_351113.97a7d90b.mp3","media/audio/sfx/animal_deer_351113.5b6da753.mp3"],"animal.whale.blow":["media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.58dfd4e5.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.d2504229.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.7663f71d.mp3"],"animal.orca.blow":["media/audio/sfx/animal_orca_blow_nps-porpoise.b8a0c8fc.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.5d0de2ec.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.45872e4e.mp3"],"bird.thrush":["media/audio/sfx/bird_thrush_nps-varied-thrush.603dc854.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dc4d4664.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dba365b7.mp3"],"mill.stamp":["media/audio/sfx/mill_stamp_322871.33f9ef7a.mp3"]};window.FLYDIY_VOICE={"voice":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"voices":{"norman":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"john":{"name":"john","id":"en_US-john-medium","who":"male, US","role":"Chief Walt Brennan (the interview)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/john/medium","dataset":"LibriVox readings by one reader, ~12.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"fine-tuned (600 epochs) from en_US-kristin-medium, itself trained from scratch on public-domain LibriVox","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"kristin":{"name":"kristin","id":"en_US-kristin-medium","who":"female, US","role":"Officer Dana Hale (recorded messages)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/kristin/medium","dataset":"LibriVox readings by one reader, ~11.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (2000 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"libritts":{"name":"libritts","id":"en_US-libritts-high","who":"US, 904 speakers (LibriTTS)","role":"the residents who phone in","quality":"high","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/libritts/high","dataset":"LibriTTS train-clean-360 (Zen et al. 2019; from LibriSpeech, from LibriVox)","datasetLicence":"CC BY 4.0","datasetUrl":"http://www.openslr.org/60/","lineage":"trained from scratch on train-clean-360","credit":"LibriTTS corpus by Heiga Zen et al. (Google), CC BY 4.0, http://www.openslr.org/60/","render":{"lufs":-20,"kbps":48,"takes":"whole"}}},"script":{"file":"media/audio/voice/radio_script.96bc74e6.json","items":352,"seconds":2085.9,"bytes":12743609}}</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=d854feec"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=52c3ced6"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3678040d"></script>
@@ -67567,7 +67654,7 @@ if (typeof module !== 'undefined' && typeof require === 'function' && typeof __f
 <script type="text/x-flydiy">window.CAGE_UI_LAZY = 1; window.CAGE_IN_GAME = 1;</script>
 <script type="text/x-flydiy">
 (function () {
-  var SRC = {"_sport_gen":"tools/_sport_gen.js?v=4e7d9a83","_marine_gen":"tools/_marine_gen.js?v=6e4eebf9","_navaid_gen":"tools/_navaid_gen.js?v=130193d7","_meteo_gen":"tools/_meteo_gen.js?v=48f08238","scenery_landmark":"src/scenery/scenery_landmark.js?v=bfc3ff4b","scenery_vessel":"src/scenery/scenery_vessel.js?v=e743cbf2","scenery_wreck":"src/scenery/scenery_wreck.js?v=f02332a8","scenery_crowd":"src/scenery/scenery_crowd.js?v=7912e4ef","scenery_lods":"src/scenery/scenery_lods.js?v=4d103a39","camp_camp":"src/camp/camp_camp.js?v=1f4ae79d","camp_lods":"src/camp/camp_lods.js?v=15cbff06","infra_pylon":"src/infra/infra_pylon.js?v=552fef8f","premises_host":"src/viewer/premises_host.js?v=f48ddf2c","premises_ui":"src/viewer/premises_ui.js?v=1873b2cc","world_rail":"src/viewer/world_rail.js?v=92770f7a","ktx2_loader":"vendor/ktx2/ktx2_loader.js?v=841b4114","townkit":"src/viewer/townkit.js?v=53c25ee1","kit_lot":"src/viewer/kit_lot.js?v=57d263e0","diag":"src/viewer/diag.js?v=2e0b8354","story_intro":"src/viewer/story_intro.js?v=816a6e70","map_pack":"src/viewer/map_pack.js?v=09cc503f","map_menu":"src/viewer/map_menu.js?v=707fca69","freight_load":"src/viewer/freight_load.js?v=b15a752b","freight_strap":"src/viewer/freight_strap.js?v=57b4d0e1","crowd":"src/viewer/crowd.js?v=ba5b4c86"}, got = {}, busy = 0;
+  var SRC = {"_sport_gen":"tools/_sport_gen.js?v=4e7d9a83","_marine_gen":"tools/_marine_gen.js?v=6e4eebf9","_navaid_gen":"tools/_navaid_gen.js?v=130193d7","_meteo_gen":"tools/_meteo_gen.js?v=48f08238","scenery_landmark":"src/scenery/scenery_landmark.js?v=bfc3ff4b","scenery_vessel":"src/scenery/scenery_vessel.js?v=e743cbf2","scenery_wreck":"src/scenery/scenery_wreck.js?v=f02332a8","scenery_crowd":"src/scenery/scenery_crowd.js?v=7912e4ef","scenery_lods":"src/scenery/scenery_lods.js?v=4d103a39","camp_camp":"src/camp/camp_camp.js?v=1f4ae79d","camp_lods":"src/camp/camp_lods.js?v=15cbff06","infra_pylon":"src/infra/infra_pylon.js?v=552fef8f","premises_host":"src/viewer/premises_host.js?v=f48ddf2c","premises_ui":"src/viewer/premises_ui.js?v=1873b2cc","world_rail":"src/viewer/world_rail.js?v=92770f7a","ktx2_loader":"vendor/ktx2/ktx2_loader.js?v=841b4114","townkit":"src/viewer/townkit.js?v=53c25ee1","kit_lot":"src/viewer/kit_lot.js?v=57d263e0","diag":"src/viewer/diag.js?v=2e0b8354","story_intro":"src/viewer/story_intro.js?v=816a6e70","map_pack":"src/viewer/map_pack.js?v=09eb2404","map_menu":"src/viewer/map_menu.js?v=707fca69","freight_load":"src/viewer/freight_load.js?v=b15a752b","freight_strap":"src/viewer/freight_strap.js?v=57b4d0e1","crowd":"src/viewer/crowd.js?v=ba5b4c86"}, got = {}, busy = 0;
   window.FLYDIY_LAZY_SRC = SRC;
   var lazy = window.FLYDIY_LAZY = function (names) {
     return Promise.all([].concat(names).map(function (n) {
@@ -179328,6 +179415,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // genHangarBuild's exterior had ({ group, mats by hangar.js's names, dims }) or null (the caller builds the bare one).
     const POLISH_PRESET = { field: 'field shed', club: 'club hangar', works: 'works hangar' };
     function polishedShell(H, dims, shell) {
+      const DG = typeof window !== 'undefined' ? window.DERELICT_GEN : null;
+      if (shell === 'works' && DG && DG.build && SHELL.polish && typeof document !== 'undefined') { const d = derelictShell(DG, H, dims); if (d) return d; }
       const HGN = typeof window !== 'undefined' ? window.HANGAR_GEN : null;
       if (!SHELL.polish || !HGN || !HGN.build || !HGN.PRESETS || typeof document === 'undefined' || !POLISH_PRESET[shell]) return null;
       const P = Object.assign({}, HGN.DEF, HGN.PRESETS[POLISH_PRESET[shell]],
@@ -179353,7 +179442,59 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       if (pad) inner.add(pad);
       const mats = {};
       for (const k in built.MAT) if (k.slice(0, 2) === 'h_') mats[k.slice(2)] = built.MAT[k];
+      if (shell === 'club') { const nb = nameBoard('HANGAR 2', P); if (nb) inner.add(nb); }   // DERELICT-HANGAR: the medium one is Hangar 2
       return { group, mats, flat, pad, dims: { HW: dims.HW, HD: dims.HD, EAVE: dims.EAVE, RIDGE: dims.EAVE + 2.6 }, polished: true, stats: built.stats };
+    }
+    // DERELICT-HANGAR (the user 9 Nov: "the large hangar ... restoring it, from the state of the actual Metlakatla or Annette
+    // Island World War II hangar"; the room is this mesh too): THE LARGE HANGAR OUTSIDE is DERELICT_GEN's - at the stage the
+    // shed holds (dims.stage: 0 derelict .. 3 restored, the story's; a player's works is the restored hangar), its galleries
+    // the shell's, on the world's ground (the house frame turned under the shed's as polishedShell's), its own finish. No
+    // player dress (its cladding is its own), the coarse rung's casters its cladding and its roof.
+    // THE NAME BOARD (the user 9 Nov: "if you call that hangar 2 ... maybe this one should be called hangar 1, the other one
+    // should be called hangar 2"): the large hangar's board's style (white on a deep blue, a border), on the wall pier right
+    // of the door seen from the apron - the gable over the door is the plot's own painted sign's - 2.1 x 0.62 m, 3.2 m up
+    let NAME_TEX = null;
+    function nameBoard(text, P) {
+      if (typeof document === 'undefined' || typeof MATLIB === 'undefined') return null;
+      if (!NAME_TEX) {
+        const c = document.createElement('canvas'); c.width = 512; c.height = 152; const g = c.getContext('2d');
+        g.fillStyle = '#1d3557'; g.fillRect(0, 0, 512, 152); g.strokeStyle = '#e8e6df'; g.lineWidth = 6; g.strokeRect(9, 9, 494, 134);
+        g.fillStyle = '#efede6'; g.font = 'bold 78px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, 256, 80);
+        NAME_TEX = new THREE.CanvasTexture(c); NAME_TEX.colorSpace = THREE.SRGBColorSpace; NAME_TEX.anisotropy = 8;
+      }
+      const HW = P.HW, HD = P.HD, door = P.doorW > 0 ? P.doorW : Math.max(6, 2 * HW - 5), pier = HW - door / 2;
+      if (pier < 2.3) return null;                                   // no wall beside the door to take it
+      const w = Math.min(2.1, pier - 0.3), h = w * 152 / 512, m = MATLIB.shared(THREE, 'std', { map: NAME_TEX, roughness: 0.6, metalness: 0.05 }, 'namebrd');
+      const geo = new THREE.BoxGeometry(w, h, 0.03), mesh = new THREE.Mesh(geo, m);
+      mesh.position.set(door / 2 + pier / 2, (P.floorY || 0) + 3.2, HD + 0.14); mesh.castShadow = false; mesh.receiveShadow = true; mesh.name = 'shed:nameboard';
+      return mesh;
+    }
+    function derelictShell(DG, H, dims) {
+      const gal = (typeof SHELLS !== 'undefined' && SHELLS.works && SHELLS.works.galleries) || { right: 1.0, left: 1.0, lean: 6 };
+      const stage = Number.isFinite(+dims.stage) ? Math.max(0, Math.min(3, Math.round(+dims.stage))) : 3;
+      const P = Object.assign({}, DG.DEF, { stage, HW: dims.HW, HD: dims.HD, EAVE: dims.EAVE, gallery: gal.lean, galleryL: gal.left, pierR: gal.right,
+                                            apron: 0, lamps: 0, doorOpen: 0, backOpen: 0, aoGround: 1 });
+      const fy = P.floorY || 0, c = Math.cos(H.ry || 0), sn = Math.sin(H.ry || 0), y0 = H.y !== undefined ? H.y : 0;
+      P.ground = (X, Z) => { const hx = -Z, hz = X; return world.terrainH(H.x + hx * c + hz * sn, H.z - hx * sn + hz * c) - y0 + fy; };
+      let F = null, built = null;
+      // each stage its own materials (MATLIB's scope): a held shed (restored) and a closed one (derelict) side by side - the
+      // career's HANGAR 1 beside HOME.2 - never re-dress each other's shared records
+      try { F = DG.makeFinish('world' + stage); DG.applyFinish(P, F); built = DG.build(P, 0, F); }
+      catch (e) { console.warn('the large hangar outside:', e && e.message); return null; }
+      if (!built || !built.stats || !built.MAT) return null;
+      const group = new THREE.Group(), inner = new THREE.Group();
+      inner.rotation.y = -Math.PI / 2; inner.position.y = -fy; group.add(inner);
+      const flat = [];
+      for (const k of built.BAGS) {
+        const b = built.bags[k], m0 = built.MAT[k];
+        if (!b || !b.tris || !m0) continue;
+        const m = b.mesh(inner, m0);
+        if (!m) continue;
+        if (/^(glass|lamp|stain|decal|water|weed|aoskirt)$/.test(k)) { m.castShadow = false; if (k === 'aoskirt' || k === 'stain') { m.renderOrder = k === 'aoskirt' ? 5 : 3; flat.push(m); } }
+      }
+      if (F.SHADE_U && F.SHADE_U.uDirtY0) F.SHADE_U.uDirtY0.value = y0 - fy;   // (G581: the dirt line where it stands)
+      return { group, mats: {}, coarseCast: [built.MAT.sheetPale, built.stats.stage >= 2 ? built.MAT.sheetNew : built.MAT.steel].filter(Boolean),
+               flat, pad: null, dims: { HW: dims.HW, HD: dims.HD, EAVE: dims.EAVE, RIDGE: dims.EAVE + 2.6 }, polished: true, derelict: true, stats: built.stats };
     }
     // the merged shell's coarse rung (G1398): its meshes of at least `share` of the surface, sharing their geometry and
     // material (nothing copied); null when that keeps nothing. `cast` (a Set of materials): only those cast - the outer
@@ -179498,7 +179639,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       const D0 = dims || { HW: H.HW, HD: H.HD, EAVE: H.EAVE };
       const shell = (dims && dims.shell) || 'club';
       const shed = polishedShell(H, D0, shell) || genHangarBuild(THREE, D0, { exterior: true, shell: dims && dims.shell });
-      if (dress) dressExterior(shed.mats, shell, dress);
+      if (dress) dressExterior(shed.mats, shell, dress);   // (DERELICT-HANGAR: the large hangar hands no mats - it wears its own cladding)
       shed.group.traverse(o => {
         if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; }
       });
@@ -179539,7 +179680,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         // clone keeps the building the same building across the switch;
         // the box's 0..1 uv is the same grammar the sheeting bands wear
         // (wallOutAlb repeats 4 x 1 per piece), so nothing else changes.
-        const skin = (MT.wallOut || MT.wall).clone(); skin.side = THREE.FrontSide;   // (G3532: a polished timber shed bakes no wallOut piece)
+        const CC = shed.coarseCast || [];   // (DERELICT-HANGAR: the large hangar hands its cladding and its roof here, no mats)
+        const skin = (MT.wallOut || MT.wall || CC[0]).clone(); skin.side = THREE.FrontSide;   // (G3532: a polished timber shed bakes no wallOut piece)
         if (skin.userData && skin.userData.houseShaded) { skin.onBeforeCompile = () => {}; skin.userData = {}; }   // (a box has no aHouseAO: plain)
         const body = new THREE.Mesh(
           new THREE.BoxGeometry(2 * D.HD, D.EAVE, 2 * D.HW), skin);
@@ -179576,7 +179718,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           0, 0, 6, 0, 0, 6, 6, 6, 0, 6, 6, 6], 2));
         rgeo.computeVertexNormals();
         const plainOf = m => { if (!m || !(m.userData && m.userData.houseShaded)) return m; const q = m.clone(); q.onBeforeCompile = () => {}; q.userData = {}; return q; };   // G3532
-        const roof = new THREE.Mesh(rgeo, plainOf(MT.roofOut));
+        const roof = new THREE.Mesh(rgeo, plainOf(MT.roofOut || CC[1] || CC[0]));
         coarse.add(body, roof);
         coarse.traverse(o => { o.castShadow = true; o.receiveShadow = true; });
       }
@@ -179586,7 +179728,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // the stem - the same geometry and materials as the near rung, shared, not copied: past the switch only the
       // steel, the gutters, the trims and the glass go. The box above stays for a shell that did not merge.
       const wears = m => !!m && merged.children.some(o => o.material === m);   // (the timber shed has no wallOut piece: its cladding is wall)
-      const coarseOf = merged ? shellCoarse(merged, SHELL.coarseShare, new Set([wears(shed.mats.wallOut) ? shed.mats.wallOut : shed.mats.wall, shed.mats.roofOut].filter(Boolean))) : null;
+      const coarseOf = merged ? shellCoarse(merged, SHELL.coarseShare, new Set(shed.coarseCast || [wears(shed.mats.wallOut) ? shed.mats.wallOut : shed.mats.wall, shed.mats.roofOut].filter(Boolean))) : null;
       let node = shed.group;
       if (THREE.LOD) {
         const lod = new THREE.LOD();
@@ -189186,7 +189328,18 @@ const EXT = !!(opts && opts.exterior);
 // bakes are shared, which is the whole reason a second family is a chantier
 // and not a rewrite.
 const SHELL = (opts && opts.shell) || 'club';
-const FRAME = SHELL === 'field' ? 'timber' : 'portal';
+const FRAME = SHELL === 'field' ? 'timber' : (SHELL === 'works' ? 'steel' : 'portal');
+// DERELICT-HANGAR (the user 9 Nov: "use this mesh and appropriate textures to refactor the large hangar inside, so it looks
+// exactly like this one, same mesh even"): the large hangar's room stands the restored WWII hangar itself -
+// DERELICT_GEN stage 3, the same bags the world shows - in place of the portal shell below (its walls, gables, doors,
+// trusses, purlins, deck and roof lights). Everything that is the ROOM stays this file's: the floor, the outdoors, the
+// fit-out, the lamps, the sky, the moods, the parts, the bakes. The exterior build (the world's) keeps its own path for
+// now. ?roomderelict=0 or opts.derelict === false: the portal shell as it was.
+const DGR = (() => {
+  if (FRAME !== 'steel' || EXT || (opts && opts.derelict === false) || typeof window === 'undefined' || !window.DERELICT_GEN) return null;
+  try { if (typeof location !== 'undefined' && /[?&]roomderelict=0/.test(location.search || '')) return null; } catch (e) {}
+  return window.DERELICT_GEN;
+})();
 // G2315 WORKS-COZY: the LAYOUT (26_hangar_fit HANGAR_LAYOUTS) - the kits stood otherwise in their own shell, and the
 // room's warmth (LAYIT: the lamps over the rooms, the filament, the fire, the low pendants). None in the sandbox's club:
 // every branch below on LAYOUT / LAYIT is skipped there, and the room is built call for call as before.
@@ -189233,8 +189386,14 @@ const RIDGE = D0.RIDGE || (EAVE + 2.6);
 // G3537 (HANGARS-LOOK, the user 25 Oct: "the shed should have a door exactly 10m wide, that was the brief and the constraint
 // on the cabin strip ... a total width of 14m"): a shed's dims may name its door (`door`, metres; at least half a metre of
 // wall each side) - the cabin's 10 m - and every reader takes it from there (71 hangarDoor, HANGAR_GEN shellOf, the room's acoustics)
-const DOOR_W = (D0.door > 0) ? Math.min(D0.door, 2 * HW - 1) : Math.max(6, 2 * HW - 5);
-const DOOR_H = FRAME === 'timber' ? EAVE - 0.5 : Math.min(6.4, EAVE - 1.4);
+// (DERELICT-HANGAR, the user via A0: "the CLEAR opening" - the steel frame's door is what its ten leaves leave open,
+// stacked at the two 1 m piers' jambs: 0.8 of the opening less their gaps, DERELICT_GEN dims' CLEAR)
+const DOOR_W = (D0.door > 0) ? Math.min(D0.door, 2 * HW - 1) : FRAME === 'steel' ? 0.8 * (2 * HW - 2) - 0.34 : Math.max(6, 2 * HW - 5);
+// DERELICT-HANGAR: the large hangar's clear bay and its door's centre (26_hangar_fit hangarBay: the gallery right, the facade left)
+const BAY = (typeof hangarBay === 'function') ? hangarBay(SHELL, { HW, HD, EAVE }) : null, DOOR_Z = BAY ? BAY.doorZ : 0;
+// (DERELICT-HANGAR: the steel frame's head clears the game's DC-3 as built - 7.0 m to the fin's top - with 0.5 m: 7.6 m, 1.9 m
+// under the eave for the header)
+const DOOR_H = FRAME === 'timber' ? EAVE - 0.5 : FRAME === 'steel' ? Math.min(7.6, EAVE - 1.9) : Math.min(6.4, EAVE - 1.4);
 // THE BACK DOORS (G64, user: "I think we'd better add some doors over there and
 // have the wing hang in front of it"). A bi-parting pair: two leaves on ONE
 // track, each sliding to its own side, so unlike the six-leaf front they never
@@ -190145,6 +190304,10 @@ const roofY = z => EAVE + (RIDGE - EAVE) * (1 - Math.abs(z) / HW);
       uv.setXY(i, uv.getX(i) * 2 * HD, uv.getY(i) * 2 * HW);
     uv.needsUpdate = true; }
   f.rotation.x = -Math.PI / 2; f.receiveShadow = true;
+  // (DERELICT-HANGAR: the large hangar stands on its own slab - DERELICT_GEN's, the derelict's grid and concrete made
+  // good - so the room's scanned floor stands down there; the user 9 Nov: "can't we find some tiles that are in-line with
+  // the pre-restoration stage? Same tile size, same material? But renovated")
+  if (DGR) f.visible = false;
   put(f);
   // NO APRON HERE ANY MORE (G123). It used to be a 26 x 30 plane of flat
   // colour laid at y = -0.01, with no map at all — paint on the grass rather
@@ -190169,7 +190332,9 @@ const GY = (SILL + HEAD) / 2, GH = HEAD - SILL;
 // genuinely CUT (G52's rule: an opening is pieces of wall around a hole,
 // never a pane laid on a solid face), because a shed lit only through its
 // door is a cave with a bright end.
-if (FRAME === 'timber') {
+if (DGR) {
+  // (the large hangar's walls are the restored hangar's, stood below)
+} else if (FRAME === 'timber') {
   const WW = 1.1, WH = 0.9, WSILL = 1.45;    // the window, and its sill
   const wxc = HD * 0.30;                     // toward the back, clear of door
   for (const s of [1, -1]) {
@@ -190248,7 +190413,9 @@ for (const s of [1, -1]) {
 // TIMBER (HANGARS S4): solid boards, the person door by the corner, the
 // gable above — and NO back doors. The hung wing wants a big flat plane
 // behind it (G64's whole argument), and a board wall IS one.
-if (FRAME === 'timber') {
+if (DGR) {
+  // (the restored hangar's back: its own opening and leaves)
+} else if (FRAME === 'timber') {
   const MDZ = Math.min(13.5, HW - 1.5);
   const z0 = MDZ - 0.55, z1 = MDZ + 0.55;      // the person-door opening
   put(mbox(0.14, EAVE, z0 + HW, M.wallBack, HD, EAVE / 2, (z0 - HW) / 2));
@@ -190357,7 +190524,14 @@ if (FRAME === 'timber') {
 // than the wall beside its opening has nowhere else to go, so the track
 // cantilevers out and a post props its end. Parked open (interior) the
 // leaf stands clear of the whole opening; the exterior build shuts it.
-if (FRAME === 'timber') {
+if (DGR) {
+  // the restored hangar's own door: its leaves parked at the jambs; the daylight card in ITS opening (off the axis)
+  const day = new THREE.Mesh(new THREE.PlaneGeometry(2 * HW - 1, DOOR_H + 0.6), M.daylight);   // (the whole opening between the piers: the clear width is narrower)
+  day.rotation.y = Math.PI / 2;
+  day.position.set(-HD - 3.0, DOOR_H / 2, DOOR_Z);
+  put(day);
+  M.dayCardMesh = day;
+} else if (FRAME === 'timber') {
   const side = (HW - DOOR_W / 2);
   for (const s of [1, -1])
     put(mbox(0.14, EAVE, side, M.wall, -HD, EAVE / 2,
@@ -191235,6 +191409,7 @@ if (!EXT) {
     const PRE = { field: 'field shed', club: 'club hangar', works: 'works hangar' }[SHELL];
     let off = !!(opts && opts.polish === false);
     try { off = off || (typeof location !== 'undefined' && /[?&]roompolish=0\b/.test(location.search || '')); } catch (e) {}
+    if (DGR) off = true;                                 // (the restored hangar wears its own gutters, signs and services)
     if (HGN && HGN.build && HGN.PRESETS && PRE && !off) {
       try {
         // G3540 v2 (the user 25 Oct: "the hanging wing under construction must never sit in front of it"): the inside sign's
@@ -191352,7 +191527,7 @@ let ROOFLIGHTS = { n: 0, x: () => 0 };
     for (const s of [1, -1])
       put(box(2 * HD, 0.14, 0.14, M.beamMain, 0, EAVE - 0.02, s * (HW - 0.10)));
   }
-  const NT = (EXT || FRAME === 'timber')
+  const NT = (EXT || FRAME === 'timber' || DGR)
     ? 0 : Math.max(4, 1 + Math.round(2 * HD / 4.2));
   for (let i = 0; i < NT; i++) {
     const x = -HD + 0.6 + (2 * HD - 1.2) * i / (NT - 1);
@@ -191387,8 +191562,8 @@ let ROOFLIGHTS = { n: 0, x: () => 0 };
   const lightX = k => -HD + 3.4 + k * (2 * HD - 6.8) / (NLIGHT - 1);
   ROOFLIGHTS = { n: NLIGHT, x: lightX };
   // purlins and the deck underside — the SECONDARY BEAMS (G41)
-  for (const s of [1, -1]) {
-    for (let k = 0; k <= 6 && !EXT; k++) {
+  if (!DGR) for (const s of [1, -1]) {
+    for (let k = 0; k <= 6 && !EXT && !DGR; k++) {
       const f = k / 6, z = s * HW * f, y = EAVE + (RIDGE - EAVE) * (1 - f) - 0.14;
       put(box(2 * HD - 1, 0.14, 0.10, M.beamSec, 0, y, z));
     }
@@ -191423,13 +191598,13 @@ let ROOFLIGHTS = { n: 0, x: () => 0 };
     }
     deck(xc, SX1, LT0, LT1);
   }
-  put(box(2 * HD, 0.3, 0.7, M.beamSec, 0, RIDGE + 0.05, 0));
+  if (!DGR) put(box(2 * HD, 0.3, 0.7, M.beamSec, 0, RIDGE + 0.05, 0));
   // ROOF LIGHTS. Four openings down each slope — the reason the middle of a
   // hangar is not a cave, and the softest light in the scene. Each is a hole in
   // the deck (above), a semi-transparent pane sitting in it, a kerb round its
   // edge and two bars across: the frame is what makes a rooflight read as a
   // fitting rather than as a rectangle of brighter roof.
-  for (const s of [1, -1]) for (let k = 0; k < NLIGHT; k++) {
+  if (!DGR) for (const s of [1, -1]) for (let k = 0; k < NLIGHT; k++) {
     const x = lightX(k);
     const P = (dx, t) => slopeP(s, x + dx, t);
     // the pane, a hair below the deck plane so it never z-fights the kerb
@@ -191506,6 +191681,38 @@ let ROOFLIGHTS = { n: 0, x: () => 0 };
     for (let j = 1; j < 3 && !EXT; j++)           // glazing bars across, shallower than the trimmer
       band(-LHW + 2 * LHW * j / 3 - 0.05, -LHW + 2 * LHW * j / 3 + 0.05, LT0 + KT, LT1 - KT, 0.07);
   }
+}
+
+// ---- DERELICT-HANGAR: THE LARGE HANGAR'S SHELL - the restored WWII hangar, DERELICT_GEN stage 3 ---------------------
+// built in the house frame (the door to +z) and turned under this one (the door at -x: room x = -Z, z = X) by baking
+// the quarter turn into each bag's geometry, so every bag is one plain mesh of G (named: mergeRoom leaves it alone).
+// The leaves parked open, the slab left to this room's own floor, the offices lit (their ceiling panels, the windows'
+// glow): the gallery is lit by its own glow, never by a lamp (the shadow-map budget stays the five fittings').
+let DGR_STATS = null;
+if (DGR) {
+  try {
+    const gal = (typeof SHELLS !== 'undefined' && SHELLS.works && SHELLS.works.galleries) || { right: 1.0, left: 1.0, lean: 6 };
+    const F = DGR.makeFinish('room');
+    const stage = Number.isFinite(+D0.stage) ? Math.max(0, Math.min(3, Math.round(+D0.stage))) : 3;   // (the story's stage; restored)
+    const P = { stage, HW, HD, EAVE, floorY: 0, doorOpen: 1, apron: 0, slab: 1, weeds: stage < 3 ? 1 : 0, barriers: stage < 3 ? 1 : 0, aoGround: 0,
+                room: 1, offices: 1, lamps: 1, backOpen: (() => { try { return typeof location !== 'undefined' && /[?&]roomback=1/.test(location.search || '') ? 1 : 0; } catch (e) { return 0; } })(),   // (?roomback=1: the back leaves open - the A/B for the probe's light)
+                gallery: gal.lean, galleryL: gal.left, pierR: gal.right };
+    DGR.applyFinish(P, F);
+    const b = DGR.build(P, 0, F);
+    for (const k of b.BAGS) {
+      const bag = b.bags[k], mat = b.MAT && b.MAT[k];
+      if (!bag || !bag.tris || !mat) continue;
+      const m = bag.mesh(G, mat);
+      if (!m) continue;
+      m.geometry.rotateY(-Math.PI / 2);
+      m.name = 'room:derelict:' + k;
+      m.castShadow = !/^(glass|lamp|stain|decal|water|weed)$/.test(k); m.receiveShadow = true;
+      if (k === 'glass') m.renderOrder = 6;
+      if (k === 'stain') m.renderOrder = 3;
+    }
+    DGR_STATS = { tris: b.stats.tris, draws: b.stats.draws, door: b.stats.door };
+    if (b.MAT && b.MAT.concFloor) ground(b.MAT.concFloor);   // the slab is the room's ground now: the probe's bounce, the floor print's
+  } catch (e) { if (typeof console !== 'undefined') console.warn('hangar: the large hangar\'s shell -', e && e.message); }
 }
 
 // ===========================================================================
@@ -192258,7 +192465,9 @@ const BG = new THREE.Color(0x14120f);
 const FOG = new THREE.Fog(0x1a1712, 1e9, 2e9);
 // rho 0.0035/m: at the far wall (~35 m) that is 12 % of the light lost, which is a big shed with
 // dust in the air rather than a room full of smoke. base/top are the floor and the roof.
-const ROOM_AIR = { rho: 0.0035, base: -1, top: 11, col: [0.055, 0.050, 0.043] };
+// (DERELICT-HANGAR, the user 9 Nov: "isn't there a little much haze ... a bit is good but that's too much": the large
+// hangar's far wall is ~55 m off, not 35 - half the density there, the same few per cent lost a 35 m room loses at 50 m)
+const ROOM_AIR = { rho: SHELL === 'works' ? 0.0017 : 0.0035, base: -1, top: 11, col: [0.055, 0.050, 0.043] };
 ROOT.add(G);
 
 // THE ROOM HAS TWO LIGHTS AND AN ENVIRONMENT (G62.5, user: "why don't we
@@ -192430,9 +192639,11 @@ kelvinRGB(LAMP.kelvin, LAMP.rgb);
 // G2315: the cozy works hangs its five over the rooms (authored in the works' metres, scaled with the shell like the
 // layout's rows), each at its own height - and each keeps the club's floor light: hk is ITS hang height's inverse square
 // (LAMP_HK's rule, per fitting), read by setMood. The club: the cross at 0.74 of the eave, hk unset (LAMP_HK), as ever.
+// (DERELICT-HANGAR: in the large hangar the layout's fittings hang over the CLEAR BAY - its z mapped as hangarFit maps the rows)
+const ZIN = z => (!BAY ? z : Math.min(z, BAY.z1 - 1.2));   // (over the hall: a fitting authored over the right-hand rooms hangs at the gallery's front)
 const LAMP_AT = LAYIT
   ? LAYIT.lamps.map(([lx, lz, ly]) => { const y = Math.min(ly, EAVE - 1.6);
-      return [lx * HD / 20, lz * HW / 20, y, Math.max(0.1, Math.min(1.6, (y / (7.0 * 0.74)) * (y / (7.0 * 0.74))))]; })
+      return [lx * HD / 20, ZIN(lz * HW / 20), y, Math.max(0.1, Math.min(1.6, (y / (7.0 * 0.74)) * (y / (7.0 * 0.74))))]; })
   : ((opts && Array.isArray(opts.lampXZ) && opts.lampXZ.length === LAMP_XZ.length && opts.lampXZ.every(p => Array.isArray(p) && p.length === 2 && p.every(Number.isFinite)))
       ? opts.lampXZ : LAMP_XZ).map(([ax, az]) => [FX(ax), FZ(az), EAVE * 0.74, 0]);   // G3354: a shed's own cross (opts.lampXZ)
 for (const [x, z, y, hk] of LAMP_AT) {
@@ -192527,11 +192738,29 @@ for (const [x, z, y, hk] of LAMP_AT) {
   lamps.push(L);
   G.add(g);
 }
+// DERELICT-HANGAR: THE LARGE HALL'S FILL (the user 9 Nov: "it's gonna look dark with the five lamps, so I'd rather that you
+// add some"). Six more high-bay fittings over the clear bay - two rows of three either side of the door's line, under the
+// trusses - lit as the five are (the mood's lamp level, the filament's colour, the lamps' switch), but WITHOUT shadow maps:
+// a spot map is a fragment texture unit (G62.10: 5 maps + 1 + 7 samplers = 13 of 16) and the moving aeroplane already has
+// the five over it. Kept apart from `lamps` (lampsAt / setLampsAt are the five's).
+const fill = [];
+if (DGR) for (const fx of [-12.5, 0.5, 12.5]) for (const fz of [-8.5, 8.5]) {
+  const x = fx * HD / 20, z = DOOR_Z + fz, y = Math.min(EAVE - 2.2, 7.3), hook = 1.30;
+  const g = new THREE.Group(); g.position.set(x, y, z);
+  claim(prop('lamp_pendant', x, z, rr(-3, 3), y + hook), 'lamps');
+  const rodH = roofY(z) - (y + hook);
+  g.add(cyl(0.012, 0.012, rodH, M.steelDark, 0, hook + rodH / 2, 0, 6));
+  const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.055, 10, 8), M.bulb); bulb.position.y = 0.12; bulb.castShadow = false; g.add(bulb);
+  const L = new THREE.SpotLight(LAMP.rgb.getHex(), 90, 26, LAMP.angle, 0.5, 2);
+  L.castShadow = false; L.target.position.set(x, 0, z); G.add(L.target);
+  L.position.y = 0.12; L.userData.hk = Math.max(0.1, Math.min(1.6, (y / (7.0 * 0.74)) * (y / (7.0 * 0.74))));
+  g.add(L); fill.push(L); G.add(g);
+}
 // G2315 THE LOW PENDANTS (the cozy works): a shade on its rod and a lit bulb over a table or a bench - no light of their
 // own (the five fittings above light the rooms; a sixth shadow map is past the texture-unit budget the cross was cut
 // to), on the lamps' switch, so they burn and go out with the rig
 if (LAYIT && LAYIT.pendants) for (const [lx, lz, ly] of LAYIT.pendants) {
-  const x = lx * HD / 20, z = lz * HW / 20, y = Math.min(ly, EAVE - 1.6), hook = 1.30;
+  const x = lx * HD / 20, z = ZIN(lz * HW / 20), y = Math.min(ly, EAVE - 1.6), hook = 1.30;
   const g = new THREE.Group(); g.position.set(x, y, z);
   claim(prop('lamp_pendant', x, z, rr(-3, 3), y + hook), 'lamps');
   const rodH = roofY(z) - (y + hook);
@@ -192814,6 +193043,7 @@ function applyMutes(m) {
   if (muted.stove && STOVE.light) STOVE.light.intensity = 0;
   if (muted.lamps) {
     for (const L of lamps) L.intensity = 0;
+    for (const L of fill) L.intensity = 0;      // (the large hall's fill)
     if (WORK.light) WORK.light.intensity = 0;   // G3354
     M.bulb.emissiveIntensity = 0;
   }
@@ -192980,7 +193210,7 @@ const setMood = i => {
   // noon and the aeroplane blown white (the user's 003140, "even after
   // reloading the page"). Inverse-square on the hang height, the club's own
   // eave the identity, so every row's number still means what it measured.
-  for (const L of lamps) {
+  for (const L of lamps.concat(fill)) {          // (the large hall's fill burns with the five)
     L.intensity = m.lamp * LAMP.gain * (L.userData.hk || LAMP_HK);
     L.angle = LAMP.angle;
     L.color.copy(LAMP.rgb);
@@ -193393,7 +193623,8 @@ return {
   doorAxis: -1, floorY: 0,
   // B10 (G1035): the roll-out shot (rollanim.js) reads the opening, moves the
   // aeroplane's print with the aeroplane and hides a mobile prop in its way
-  door: { w: DOOR_W, h: DOOR_H },
+  door: { w: DOOR_W, h: DOOR_H, z: DOOR_Z },   // (DERELICT-HANGAR: z, the door's centre across the room - off the axis in the large hangar)
+  derelict: DGR_STATS,
   craftPrint: () => CS.quad || null, mobileGroup: MOBILE,
   dims: { HW: HW, HD: HD, EAVE: EAVE, RIDGE: RIDGE },
   shell: SHELL, layout: LAYOUT ? opts.layout : null,   // G2315: the layout this room stands in (cozy: the career's works)
@@ -193401,7 +193632,7 @@ return {
   // S2): the editor paints the report, the gate asserts nothing is dropped
   // silently
   kits: KITS.slice(), fitReport: FIT,
-  lights: { key: key, lamps: lamps },
+  lights: { key: key, lamps: lamps, fill: fill },
   lampRig: lampRig, setLampRig: setLampRig, lampRigDefault: lampRigDefault,
   texBudget: texBudget,        // dev: what the room costs in fragment samplers
   census: census,              // dev: meshes and triangles, which ARE draw calls here
@@ -219256,6 +219487,7 @@ const ROLLANIM = (() => {
       x0: gp.x + (h.doorAxis || -1) * HD,          // the door plane
       x1: gp.x - (h.doorAxis || -1) * HD,          // the back wall
       zc: gp.z, HW, EAVE, floorY: gp.y + (h.floorY || 0),
+      dz: door.z || 0,                             // DERELICT-HANGAR: the door's centre across the room (the large hangar's is off the axis)
       doorW: door.w > 0 ? door.w : Math.max(6, 2 * HW - 5),
       doorH: door.h > 0 ? door.h : Math.min(6.4, EAVE - 1.4),
       axis: h.doorAxis || -1,
@@ -219648,7 +219880,7 @@ const ROLLANIM = (() => {
     const u = (x - room.x0) * -ax;                      // metres INTO the shed from the door plane
     if (y < room.floorY + 0.3) return false;
     if (u < -m) return true;                            // outside, in front of the door
-    if (u <= m) return zr < room.doorW / 2 - m && y < room.floorY + room.doorH - S.head;   // in the opening
+    if (u <= m) return Math.abs(z - room.zc - (room.dz || 0)) < room.doorW / 2 - m && y < room.floorY + room.doorH - S.head;   // in the opening
     return u < Math.abs(room.x1 - room.x0) - m && zr < room.HW - m && y < room.floorY + room.EAVE - 0.5;
   }
   // a point inside a wall's solid (the door wall round its opening, the flanks, the back, the roof)
@@ -219656,7 +219888,7 @@ const ROLLANIM = (() => {
     const ax = room.axis, u = (x - room.x0) * -ax, zr = Math.abs(z - room.zc), yy = y - room.floorY;
     const len = Math.abs(room.x1 - room.x0);
     if (u < -0.3 || u > len + 0.3 || zr > room.HW + 0.3 || yy < 0) return false;
-    if (Math.abs(u) < 0.3) return zr > room.doorW / 2 || yy > room.doorH;
+    if (Math.abs(u) < 0.3) return Math.abs(z - room.zc - (room.dz || 0)) > room.doorW / 2 || yy > room.doorH;
     if (Math.abs(zr - room.HW) < 0.3 || Math.abs(u - len) < 0.3) return yy < room.EAVE + 0.5;
     return yy > room.EAVE && yy < room.EAVE + 2.5;
   }
@@ -219692,8 +219924,8 @@ const ROLLANIM = (() => {
     if (p.y < room.floorY + 0.35) p.y = room.floorY + 0.35;
     if (u < -m) return;
     if (u <= m) {
-      const zl = room.doorW / 2 - m - 0.01;
-      p.z = room.zc + clamp(p.z - room.zc, -zl, zl);
+      const zl = room.doorW / 2 - m - 0.01, zd = room.zc + (room.dz || 0);
+      p.z = zd + clamp(p.z - zd, -zl, zl);
       p.y = Math.min(p.y, room.floorY + room.doorH - S.head - 0.01);
       return;
     }
@@ -231853,6 +232085,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
 <script type="text/x-flydiy" src="tools/_big_gen.js?v=c5363ee5"></script>
 <script type="text/x-flydiy" src="tools/_shed_gen.js?v=b916fb8b"></script>
 <script type="text/x-flydiy" src="tools/_hangar_gen.js?v=2198eb70"></script>
+<script type="text/x-flydiy" src="tools/_derelict_gen.js?v=1dfddf8f"></script>
 <script type="text/x-flydiy" src="tools/_tower_gen.js?v=aa67fb52"></script>
 <script type="text/x-flydiy" src="tools/_tram_gen.js?v=1773c14a"></script>
 <script type="text/x-flydiy" src="tools/_totem_gen.js?v=fb058afc"></script>
@@ -231863,7 +232096,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
 <script type="text/x-flydiy" src="src/viewer/powerline.js?v=7d3258d9"></script>
 <script type="text/x-flydiy" src="tools/_village_gen.js?v=963127d6"></script>
 <script type="text/x-flydiy" src="src/viewer/parked.js?v=60bce560"></script>
-<script type="text/x-flydiy" src="src/viewer/fleet_spots_pack.js?v=42556881"></script>
+<script type="text/x-flydiy" src="src/viewer/fleet_spots_pack.js?v=9f8d39d9"></script>
 <script type="text/x-flydiy" src="src/viewer/fleet_stand.js?v=b930f29e"></script>
 <script type="text/x-flydiy" src="src/viewer/flown_bake.js?v=f0d63050"></script>
 <script type="text/x-flydiy" src="src/viewer/scenery_life.js?v=762a8693"></script>
@@ -232610,12 +232843,33 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   function worldShedsFollow() {
     if (!WF) return;
     if (roomId() === 'HOME') { if (WF.setShedDims) WF.setShedDims(worldShed()); }
-    else if (WF.setPlayerSheds) WF.setPlayerSheds(worldSideSheds());
+    else if (WF.setPlayerSheds) { WF.setPlayerSheds(worldSideSheds()); shedTexWarm(); }
+  }
+  // HOME-DERELICT (the freeze A/B, 10 Nov 22:38-23:08: a 4.6-5.8 s TAXI frame 3 of 3 at (-111, 628), the big hangar first in
+  // view, render-side, no long task, no program wait): THE SIDE SHEDS' TEXTURES UPLOADED WHERE THEY STAND UP. Their programs
+  // are linked with the world's (compileSliced walks the scene), but a texture reaches the GPU at its first DRAW - the large
+  // hangar's canvas-made maps (DERELICT_GEN: the cladding, the slab, the stains, the boards) all at once, the first frame it
+  // enters the view. initTexture uploads each one here instead, under the loading screen (the world's build) or in the
+  // garage's quiet (a document change); a texture once uploaded is not uploaded again
+  function shedTexWarm() {
+    if (!WF || !renderer || typeof renderer.initTexture !== 'function') return 0;
+    const seen = new Set(); let n = 0;
+    const warm = t => { if (t && t.isTexture && !seen.has(t)) { seen.add(t); try { renderer.initTexture(t); n++; } catch (e) {} } };
+    try {
+      scene.traverse(o => {
+        if (!o.name || o.name.indexOf('shed:') !== 0) return;
+        o.traverse(m => {
+          const ms = m.material ? (Array.isArray(m.material) ? m.material : [m.material]) : [];
+          for (const mt of ms) { for (const k in mt) warm(mt[k]); if (mt.uniforms) for (const k in mt.uniforms) warm(mt.uniforms[k] && mt.uniforms[k].value); }
+        });
+      });
+    } catch (e) { console.warn('flyDiy: the side sheds\' textures -', e && e.message); }
+    return n;
   }
   function worldBuilt(wf) {
     WF = wf;
     // G2310 (PREM-S3): the side hangars held stand at their plots from the world's first frame (none in the sandbox)
-    try { if (WF && WF.setPlayerSheds) WF.setPlayerSheds(worldSideSheds()); } catch (e) { console.warn('flyDiy: the side hangars could not stand -', e && e.message); }
+    try { if (WF && WF.setPlayerSheds) { WF.setPlayerSheds(worldSideSheds()); shedTexWarm(); } } catch (e) { console.warn('flyDiy: the side hangars could not stand -', e && e.message); }
     if (typeof window !== 'undefined') window.WORLD = WF;   // DEVCAM: the inspector's handle on the world
     // GFX (G286): the saved graphics settings are applied the moment the
     // world exists - before its first chunk of forest is planted
@@ -232804,8 +233058,9 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   // shell's own default is", which is what a fresh profile gets. The envelope
   // the sliders may drag over is the SHELL's (26_hangar_fit.js) — a timber
   // field shed's eave floor is below a steel shed's.
+  // (DERELICT-HANGAR: HOME's main plot caps the depth at its flat pad - siteMaxHD; another plot the shell's own)
   const dimLims = () => (typeof shellLims === 'function')
-    ? shellLims(shedHome().shell)
+    ? shellLims(shedHome().shell, hangarRoom === 'HOME' ? 'HOME' : null)
     : { HW: [7, 24], HD: [6, 20], EAVE: [4.2, 11] };
   let envRT = null, envPM = null;
   // whether the aeroplane contributes to the room's own reflection probe. Off
@@ -233003,7 +233258,11 @@ window.FLYDIY_WORLD_COMPOSE = function () {
       // blackout: colour multiplies the albedo map, so the floor comes back
       // with its own texture and its own lamp pools, at the fraction of the
       // radiance a shaded underside can actually see.
-      const gb = (window.LIGHT_RIG ? window.LIGHT_RIG.groundBounce() : 1);
+      // DERELICT-HANGAR (the user 9 Nov: "The bottom of the wing is really dark ... We should avoid having a very dark part
+      // of the scene there"): the large hangar's lamp-lit floor runs far past any wing's shade - a DC-3's polished
+      // underside reads the floor at half its radiance there, not the club's occlusion term
+      const gb0 = (window.LIGHT_RIG ? window.LIGHT_RIG.groundBounce() : 1);
+      const gb = (hangar && hangar.shell === 'works') ? Math.max(gb0, 0.5) : gb0;
       const gWas = [];
       if (gb < 1 && hangar.groundMats) for (const m of hangar.groundMats) {
         if (!m || !m.color) continue;
@@ -233264,9 +233523,11 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   const hvC = () => { try { if (/[?&]hvc=door\b/.test(location.search || '') && hangar && hangar.dims && hangar.dims.HD > 3) return [-(hangar.dims.HD - 2.5), 1.7, 0]; } catch (e) {} return HVIEW_C; };
   const HVIEW_NEAR = 3000;            // a flight that ended this near the stand left the world there (m)
   // HVIEW-OFF (8 Nov, the user's verdict on the hangars-matched stills: the captured view is not the look - a generic sky,
-  // no clouds, the apron smeared): OFF by default, the room's own outdoors as until L35a, until the redesign (flydiy-notes/
-  // HANGAR-VIEW-REDESIGN-2026-11-08.md, 'C') replaces it; ?hview=1 turns the capture on (the prototype's stills)
-  const hviewOff = () => { try { return !/[?&]hview=1\b/.test(location.search || ''); } catch (e) { return true; } };
+  // no clouds, the apron smeared) held it off until the redesign (flydiy-notes/HANGAR-VIEW-REDESIGN-2026-11-08.md, 'C': the live
+  // sky, L37a). HVIEW-ON (the user 10 Nov ~20:55 via A0: "When we land the new scenery, we have to regenerate these because all
+  // hangars have moved"): ON by default with the scenery train - the capture is live, keyed on the room's place (hviewKeyNow),
+  // so every moved hangar takes its own view; ?hview=0 turns it off (the room's own outdoors)
+  const hviewOff = () => { try { return /[?&]hview=0\b/.test(location.search || ''); } catch (e) { return true; } };
   function hviewSize() {
     const G = window.GFX; if (G && G.soft && G.soft()) return 0;
     let q = null; try { q = /[?&]hviewn=(\d+)/.exec(location.search || ''); } catch (e) {}   // (the proof rig's resolution A/B)
@@ -233521,9 +233782,14 @@ window.FLYDIY_WORLD_COMPOSE = function () {
       residentsSync(bb);
       const ox = (CAREER_DEV && RES && RES.dx) || 0, oz = (CAREER_DEV && RES && RES.dz) || 0;
       if (CAREER_DEV) { hangar.group.position.x = -ox; hangar.group.position.z = -oz; }
+      // DERELICT-HANGAR: the sandbox's stand on the door's line - the large hangar's door is off the axis (its gallery
+      // on the right), so the room moves under the stand by the door's offset and a DC-3 rolls out through the middle
+      // (the career's residents plan carries it in RES.dz: residentsSync0's o0)
+      const sz = (!CAREER_DEV && hangar.door && hangar.door.z) ? hangar.door.z : 0;
+      if (sz) hangar.group.position.z = -sz;
       if (isFinite(bb.min.x) && bb.max.x > bb.min.x)
         hangar.placeMobile({ x0: bb.min.x + ox, x1: bb.max.x + ox,
-                             z0: bb.min.z + oz, z1: bb.max.z + oz });
+                             z0: bb.min.z + oz + sz, z1: bb.max.z + oz + sz });
       // G1714: where the radio stands now - the garage's music leans toward it (boombox.js -> music.js)
       if (window.BOOMBOX && hangar.mobileProp) window.BOOMBOX.placed(hangar.mobileProp('boombox'));
       // the kit moved, so its print on the floor moves with it
@@ -233595,7 +233861,16 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     const has = !!(bb && isFinite(bb.min.x) && bb.max.x > bb.min.x);
     // the stand's box, scene frame, and as a footprint about its origin (the model's)
     const sb = has ? { x0: q(bb.min.x), x1: q(bb.max.x), z0: q(bb.min.z), z1: q(bb.max.z) } : null;
-    const footOf = n => parkFoot(playerFootOf(d, n));
+    // THE TURN (the user 9 Nov, on the full hangar: "the aircraft, I believe, should have a random rotation, and if possible
+    // ... made to optimize their positioning against the other planes"): a resident stands turned by its own yaw (a hash
+    // of its name and the try, within RES_YAW either way), packed by the box of the TURNED plan - its place reserved for the
+    // turn. Six tries of yaws; the first that stands every resident wins, else the one that stands most, the straight
+    // pack last (today's) - a turn never costs an aeroplane its place.
+    const RES_YAW = 0.45;
+    const yawOf = (n, t) => { if (!t) return 0; let h = 2166136261; const k = n + '|' + t; for (let i = 0; i < k.length; i++) { h ^= k.charCodeAt(i); h = Math.imul(h, 16777619); } return (((h >>> 0) / 4294967296) * 2 - 1) * RES_YAW; };
+    const turn = (f, a) => { if (!a) return f; const c = Math.cos(a), sn = Math.abs(Math.sin(a));
+      return Object.assign({}, f, { fwd: f.fwd * c + f.half * sn, aft: f.aft * c + f.half * sn, half: f.half * c + Math.max(f.fwd, f.aft) * sn }); };
+    const footOf = (n, a) => turn(parkFoot(playerFootOf(d, n)), a || 0);
     const base = JSON.stringify([names, names.map(n => (d.fleet[n] && d.fleet[n].foot) || null), shed.shell, shed.layout || null, shed.dims || null, shed.kits, shed.omit || null]);
     const sig = base + JSON.stringify(sb);
     if (sig !== RES.sig) {
@@ -233603,43 +233878,56 @@ window.FLYDIY_WORLD_COMPOSE = function () {
       const keepAt = o => sb ? [{ x0: sb.x0 + o.x - clr, x1: sb.x1 + o.x + clr, z0: sb.z0 + o.z - clr, z1: sb.z1 + o.z + clr }] : [];
       const obs = () => (RES.obsSig === base ? RES.obs : (RES.obsSig = base, RES.obs = hangarObstacles(shed)));
       const fits = (plan, o) => {
-        const K = keepAt(o), O = obs(), rects = plan.map(p => resRect(footOf(p.name), p.x, p.z, clr));
+        const K = keepAt(o), O = obs(), rects = plan.map(p => resRect(footOf(p.name, p.yaw), p.x, p.z, clr));
         const D = hangarDims(shed);
         return rects.every((r, i) => r.x0 >= -D.HD - 1e-6 && r.x1 <= D.HD + 1e-6 && r.z0 >= -D.HW - 1e-6 && r.z1 <= D.HW + 1e-6 &&
           !K.some(k => resHit(r, k)) && !O.some(b => resHit(r, b)) && rects.every((s, j) => j === i || !resHit(r, s)));
       };
-      let plan = null, how = '', o = { x: 0, z: 0 }, unplaced = [];
+      // DERELICT-HANGAR: the stand stands on the door's line - the large hangar's door is off the axis (its gallery on
+      // the right), so 'where the stand is' starts there, not at the room's centre (the club: 0, as ever)
+      const o0 = { x: 0, z: (hangar && hangar.door && isFinite(hangar.door.z)) ? hangar.door.z : 0 };
+      let plan = null, how = '', o = o0, unplaced = [];
       // 1. kept, or swapped in place
       const sw = RES.swap; RES.swap = null;
       if (RES.base === base || (sw && RES.plan.some(p => p.name === sw.at))) {
-        let cand = RES.plan.map(p => ({ name: p.name, x: p.x, z: p.z }));
-        if (sw) cand = cand.map(p => p.name === sw.at ? { name: sw.in, x: p.x, z: p.z } : p).filter(p => names.includes(p.name));
+        let cand = RES.plan.map(p => ({ name: p.name, x: p.x, z: p.z, yaw: p.yaw || 0 }));
+        if (sw) cand = cand.map(p => p.name === sw.at ? { name: sw.in, x: p.x, z: p.z, yaw: p.yaw } : p).filter(p => names.includes(p.name));
         const same = cand.length === names.length - RES.unplaced.length && cand.every(p => names.includes(p.name));
         if (same && fits(cand, off)) { plan = cand; o = off; unplaced = RES.unplaced.filter(u => names.includes(u.name)); how = sw ? 'swapped in place' : 'kept'; }
       }
-      // 2. round the stand, the room where it stands
-      if (!plan) {
-        const P = names.length ? hangarPark(shed, names.map(n => ({ name: n, foot: footOf(n) })), { keep: keepAt({ x: 0, z: 0 }) }) : { placed: [], unplaced: [] };
-        plan = P.placed.map(p => ({ name: p.name, x: p.x, z: p.z })); unplaced = P.unplaced; how = 'round the stand'; o = { x: 0, z: 0 };
-        // 3. the room moves: the stand packed with them
-        if (unplaced.length && sb) {
+      // 2. round the stand, the room where it stands; 3. the room moves: the stand packed with them - each with the
+      // residents turned (THE TURN's tries), the straight pack last
+      const packWith = t => {
+        const Y = {}; for (const n of names) Y[n] = yawOf(n, t);
+        const P = names.length ? hangarPark(shed, names.map(n => ({ name: n, foot: footOf(n, Y[n]) })), { keep: keepAt(o0) }) : { placed: [], unplaced: [] };
+        let R = { plan: P.placed.map(p => ({ name: p.name, x: p.x, z: p.z, yaw: Y[p.name] })), unplaced: P.unplaced, how: 'round the stand', o: o0 };
+        if (R.unplaced.length && sb) {
           // the stand MUST stand (the packer orders by size: two residents in today's club left the stand out - the 8 Oct
           // slot's club + 1, empty), so: every resident with it, then one at a time - the first set (in the residents'
           // order) that stands the stand and the most of them
           const sf = { half: Math.max(-sb.z0, sb.z1), fwd: Math.max(0.3, -sb.x0), aft: Math.max(0.3, sb.x1) };
           const sets = [names].concat(names.length > 1 ? names.map(n => [n]) : []);
           for (const set of sets) {
-            const Q = hangarPark(shed, [{ name: '\u0000stand', foot: sf }].concat(set.map(n => ({ name: n, foot: footOf(n) }))), {});
+            const Q = hangarPark(shed, [{ name: '\u0000stand', foot: sf }].concat(set.map(n => ({ name: n, foot: footOf(n, Y[n]) }))), {});
             const st = Q.placed.find(p => p.name === '\u0000stand');
             const got = Q.placed.filter(p => p.name !== '\u0000stand');
-            if (st && got.length > plan.length) {
-              plan = got.map(p => ({ name: p.name, x: p.x, z: p.z })); how = 'the room moved';
-              unplaced = names.filter(n => !got.some(p => p.name === n)).map(n => ({ name: n, why: 'no floor left beside the stand' }));
-              o = { x: st.x, z: st.z };        // where the stand's origin stands in the room
+            if (st && got.length > R.plan.length) {
+              R = { plan: got.map(p => ({ name: p.name, x: p.x, z: p.z, yaw: Y[p.name] })), how: 'the room moved', o: { x: st.x, z: st.z },   // (o: where the stand's origin stands in the room)
+                    unplaced: names.filter(n => !got.some(p => p.name === n)).map(n => ({ name: n, why: 'no floor left beside the stand' })) };
             }
-            if (plan.length === names.length) break;
+            if (R.plan.length === names.length) break;
           }
         }
+        return R;
+      };
+      if (!plan) {
+        let best = null;
+        for (const t of [1, 2, 3, 4, 5, 6, 0]) {
+          const R = packWith(t);
+          if (!best || R.plan.length > best.plan.length) best = R;
+          if (R.plan.length === names.length) break;
+        }
+        plan = best.plan; unplaced = best.unplaced; how = best.how + (best.plan.some(p => p.yaw) ? ', turned' : ''); o = best.o;
       }
       RES.base = base; RES.sig = sig; RES.packs = (RES.packs || 0) + (how === 'kept' || how === 'swapped in place' ? 0 : 1);
       RES.how = how; RES.plan = plan; RES.unplaced = unplaced; RES.dx = o.x; RES.dz = o.z;
@@ -233649,7 +233937,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
         const k = 'mine:' + p.name;
         let g = RES.holders.get(k);
         if (!g) { g = window.PARKED.resident(THREE, k, RES.rung); g.userData.resident = p.name; RES.holders.set(k, g); RES.group.add(g); }
-        g.position.set(p.x, 0, p.z); g.rotation.y = Math.PI;            // nose to the door (-x), as the stand
+        g.position.set(p.x, 0, p.z); g.rotation.y = Math.PI + (p.yaw || 0);   // nose to the door (-x), as the stand, turned by its yaw
       }
     }
     // the room (and the residents with it) under the stand: minus the stand's place in the room's frame
@@ -233661,7 +233949,11 @@ window.FLYDIY_WORLD_COMPOSE = function () {
       const f = RES.frame;
       if (f && azT === f.az && elT === f.el && distT === f.dist) { const F = garageFraming(); azT = F.az; elT = F.el; distT = F.dist; RES.frame = { az: F.az, el: F.el, dist: F.dist }; }
     }
-    for (const g of RES.holders.values()) if (!g.userData.filled) window.PARKED.residentFill(g);
+    for (const g of RES.holders.values()) if (!g.userData.filled) {
+      const p = window.PARKED.residentFill(g);
+      if (p && p.then) p.then(ok => { if (ok) residentsPrint(); });   // (landed later: its print baked then)
+    }
+    residentsPrint();
     residentsShow();
     RES.ms = performance.now() - t0;
   }
@@ -233699,6 +233991,19 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   }
   // shown: the hand's choice while it holds (until the next view), else the view's default - on in the room view
   // (the garage's own framing, 3/4 front, refit), off in the close views (side, plan, nose, interior)
+  // THE RESIDENTS' PRINT ON THE FLOOR (the user 9 Nov: "planes do not seem to cast a shadow onto that ground"): the floor's
+  // contact shadow is the room's baked print of what stands on its shadow layer (hangar.js bakeGroundShadow, layer 3 - the
+  // fit-out's); a resident joins that layer once its airframe has landed, and the print is baked again when the set of
+  // landed residents changes (never on a slider's drag: the same set costs a string compare)
+  function residentsPrint() {
+    if (!RES || !RES.group || !hangar || !hangar.bakeGroundShadow) return;
+    const on = [];
+    for (const [k, g] of RES.holders) if (g.userData.filled) { on.push(k + '@' + g.position.x.toFixed(2) + ',' + g.position.z.toFixed(2) + ',' + g.rotation.y.toFixed(3)); g.traverse(o => { if (o.isMesh) o.layers.enable(3); }); }
+    const sig = on.sort().join('|') + '|' + RES.group.visible;
+    if (sig === RES.printSig) return;
+    RES.printSig = sig;
+    try { hangar.bakeGroundShadow(renderer, hangarScene); } catch (e) {}
+  }
   const residentsOnNow = () => (RES.user !== null ? RES.user : RES.view === 'room');
   function residentsShow() { if (RES && RES.group) RES.group.visible = residentsOnNow(); }
   function residentsView(k) {
@@ -233711,7 +234016,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   const residentsApi = () => CAREER_DEV ? {
     on: residentsOnNow(), view: RES.view, user: RES.user, rung: RES.rung, ms: +RES.ms.toFixed(2), err: RES.err || null, packs: RES.packs || 0,
     how: RES.how || null, room: { dx: RES.dx || 0, dz: RES.dz || 0 }, lastSwap: RES.lastSwap || null,
-    plan: RES.plan.map(p => ({ name: p.name, x: p.x, z: p.z, filled: !!resHolder(p.name).userData.filled, tris: resHolder(p.name).userData.tris || 0 })),
+    plan: RES.plan.map(p => ({ name: p.name, x: p.x, z: p.z, yaw: +(p.yaw || 0).toFixed(3), filled: !!resHolder(p.name).userData.filled, tris: resHolder(p.name).userData.tris || 0 })),
     unplaced: RES.unplaced.slice(),
   } : null;
   function residentsSet(on) {
@@ -233810,6 +234115,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
       if (shed.shell === k) return k;
       shed.shell = k;
       shed.dims = Object.assign({}, SHELLS[k].dims);
+      { const L = dimLims(); if (shed.dims.HD > L.HD[1]) shed.dims.HD = L.HD[1]; }   // (the site's pad: the large hangar at HOME's main plot)
       playerSave();
       disposeHangar();
       if (inGarage) applyEnv(); else getHangar();
@@ -248136,7 +248442,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     routeBuild($('bootRoute'), 'rollout');
     // PREM-S2: a change to the hangars held (or the garage's door) re-draws the base line
     window.FLYDIY_PLAYER.onChange = () => { try { routeBuild($('edRoute'), 'garage'); routeBuild($('bootRoute'), 'rollout'); routeSync(); } catch (e) {}
-      try { if (WF && WF.setPlayerSheds) WF.setPlayerSheds(worldSideSheds()); } catch (e) {} roomFollow(); };   // G2310: the side hangars and the room follow the document
+      try { if (WF && WF.setPlayerSheds) { WF.setPlayerSheds(worldSideSheds()); shedTexWarm(); } } catch (e) {} roomFollow(); };   // G2310: the side hangars and the room follow the document
     // G1375: the pickers re-filled for the gear (the garage's build, or the one flying), the route fitted to it first;
     // only when the gear changed - a refill under an open list would close it
     let refGear = gear0;
