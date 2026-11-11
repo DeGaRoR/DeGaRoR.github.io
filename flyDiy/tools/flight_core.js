@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: b49f9d6f45340602
+// body-sha256: 1c66e0c88c018674
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -17206,7 +17206,8 @@ function makeSim(def, world) {
       if (!DMG.noseAt) noseAt(genNoseLayer(N, NZ.c[k]) || 'spinner', onT ? 'rigid' : 'soft', NZ.c[k], 0);   // NOSE-STRIKE
       // the crush past the spinner reaches the propeller: a prop still turning stops on it (DMG-DRIVE grades the strike:
       // a stoppage, or a separation at a tip faster than its blade takes)
-      if (NZ.c[k] > N.layers[0].d1 - 1e-9 && N.layers[0].cone && !eng[k].seized && st.strike !== 'stoppage' && st.strike !== 'separation')
+      // (TAXI-STRIKE: a prop that only lost a tip and runs on is stopped by its hub in the ground all the same)
+      if (NZ.c[k] > N.layers[0].d1 - 1e-9 && N.layers[0].cone && !eng[k].seized && st.strike !== 'stoppage' && (st.strike !== 'separation' || !onT))
         propStrike(k, onT ? 'trunk' : 'ground', DRV.sp.R, onT ? 'rigid' : 'soft');
       let fx = F * nx, fy = F * ny, fz = F * nz;
       if (!onT) {                                    // the nose scraping the ground
@@ -17258,7 +17259,22 @@ function makeSim(def, world) {
     const e = eng[k], st = DRV.st[k], S = DRV.sp; if (!e || !st) return;
     const tip = Math.PI * S.D * (out.rpm[k] || 0) / 60, w = 2 * Math.PI * (out.rpm[k] || 0) / 60;
     const tier = genDriveStrikeTier(bite, S.R, surf, tip, S.sepTip, S.Ub > 0 && surf === 'rigid' ? 0.5 * S.I * w * w / S.Ub : null);   // G2036
-    if (tier <= GEN_DRIVE_STRIKE.indexOf(st.strike)) return;
+    const cur = GEN_DRIVE_STRIKE.indexOf(st.strike), stopR0 = GEN_DRIVE.strike.stop[surf] != null ? GEN_DRIVE.strike.stop[surf] : GEN_DRIVE.strike.stop.soft;
+    // (TAXI-STRIKE: the tier only rises - but a separated prop still running is STOPPED by a later bite past its surface's
+    // stop: the 172's lost tip at 2370 rpm dug on into the runway, full power, until its mount tore off)
+    if (tier <= cur) {
+      // (GATE DMGDRIVE, G2036: a TRUNK's graze at power breaks a blade and the prop turns on short of it - the imbalance
+      // takes the mount. Only a prop that lost its blade TO THE GROUND is stopped by the ground it digs on into (the 172's
+      // tip on the turf, full power): a trunk's separation keeps turning when the shake then drops the nose on the turf -
+      // run 2's metal Cessna graze; run 3's 'hard ground only' let the 172 on the turf run on again)
+      const sepOnGround = st.strikeAt && st.strikeAt.surf !== 'rigid' && st.strikeAt.surf !== 'water';
+      if (!(cur === 4 && tier === 4 && surf !== 'rigid' && sepOnGround && !e.seized && bite / S.R > stopR0)) return;
+      st.strikeAt = { t: simT, what, surf, bite, biteR: bite / S.R, tip, rpm: out.rpm[k] || 0, stopAfterSep: true };
+      st.imbN = 0;
+      if (S.gear > 1 && e.running && thrEffOf(k) > GEN_DRIVE.gear.stopPow) { st.gearbox = 'failed'; DK[k] = 0; }
+      else { e.seized = true; e.running = false; e.crank = 0; st.failed = true; st.why = st.strike; DK[k] = 0; }
+      return;
+    }
     const first = !st.strike;
     st.strike = GEN_DRIVE_STRIKE[tier]; st.teardown = true;
     st.strikeAt = { t: simT, what, surf, bite, biteR: bite / S.R, tip, rpm: out.rpm[k] || 0 };
@@ -17316,7 +17332,8 @@ function makeSim(def, world) {
       // the disc's lowest point: down, in the disc's plane
       const dx = (-xAft[0]) * ay / dl, dy = (-1 + ay * ay) / dl, dz = (-xAft[2]) * ay / dl;
       for (let k = 0; k < nE0; k++) {
-        const st = DRV.st[k]; if (st.strike === 'separation') continue;
+        // (TAXI-STRIKE: a disc that lost a tip still turns and still digs - only a stopped one is done with)
+        const st = DRV.st[k]; if (st.strike === 'separation' && eng[k].seized) continue;
         let cx = 0, cy = 0, cz = 0, c = 0;
         for (let j = 0; j < ENG_N.length; j++) if ((ENG_K[j] | 0) === k) { const q = ENG_N[j] * 3; cx += p[q]; cy += p[q+1]; cz += p[q+2]; c++; }
         if (!c) continue;
@@ -17325,8 +17342,8 @@ function makeSim(def, world) {
         if (NOSE) { NZ.gy[k] = g; NZ.gs[k] = 1; }  // G2013: the nose's ground reference (its arming)
         // NOSE-STRIKE (9 Nov): the allowance is the surface's under the disc's lowest point (genDriveTurf: 10 cm soft,
         // 5 cm loose, 1 cm hard); before, 5 cm everywhere - a paved strip's tip touch was no strike
-        const turf = genDriveTurf(typeof world.surface === 'function' ? world.surface(lx, lz) : -1);
-        let pen = g - ly - turf, surf = 'soft', gap = ly - g;
+        const sc = typeof world.surface === 'function' ? world.surface(lx, lz) : -1, turf = genDriveTurf(sc);
+        let pen = g - ly - turf, surf = genDriveGround(sc), gap = ly - g;   // (TAXI-STRIKE: 'hard' on rock and paving)
         if (ly - g < 30 && typeof world.waterH === 'function') { const w = world.waterH(lx, lz); if (w > -1e8 && w > g) { gap = ly - w; if (w - ly > 0) { pen = w - ly; surf = 'water'; } } }
         if (gap < st.gapMin) st.gapMin = gap;        // the disc's least clearance over the surface (the turf's top not counted)
         // NOSE-STRIKE: the FIRST NOSE CONTACT (DMG.noseAt), recorded even inside the allowance (a tip in the grass's top):
@@ -22900,7 +22917,11 @@ const GEN_DRIVE = {
   // GRAVEL, SAND) - 10 cm on the soft ground (grass, the forest floor, sand), 5 cm on the loose (scree, gravel), 1 cm on
   // the hard (rock, paved); the water has its own test (none); off the map's surfaces (-1) the grass's (`turf`)
   turfS: [0.10, 0.01, 0.05, 0.10, 0, 0.01, 0.05, 0.10],
-  strike: { turf: 0.10, brush: 0.04, stop: { soft: 0.15, water: 0.25, rigid: 0.04 }, sep: { wood: 120, maple: 120, walnut: 120, carbon: 120, alu: 200 },
+  // TAXI-STRIKE (9 Nov, Deform's 172 diag: full power, the nose pushed down at 3.5 m/s on HOME's runway - the disc bit the
+  // paving, graded a 'soft' separation (tip 236 > 200 m/s, bite under 15 % R), and the engine ran on at 2370 rpm into the
+  // runway until the mount tore off): 'hard' is the ground the turf table calls hard (rock, paving) - past the brush the
+  // prop STOPS there, as on a trunk (Lycoming SB 533: a strike at power on a hard surface is a sudden stoppage)
+  strike: { turf: 0.10, brush: 0.04, stop: { soft: 0.15, water: 0.25, rigid: 0.04, hard: 0.04 }, sep: { wood: 120, maple: 120, walnut: 120, carbon: 120, alu: 200 },
             sepWater: 1.6,   // the water gives more than the soil: a blade breaks there only past 1.6 x its tip speed (an
                              // ordinary bow-in at 0.2 throttle dipped the twin's carbon tips 4.6 % of R at 128 m/s)
             bentK: 0.6, vib: { brush: 0.1, bent: 0.6, stoppage: 0, separation: 1 },
@@ -22989,7 +23010,7 @@ function genDriveOverspeed(st, ratio, dt) {
   if (lvl >= 2) st.teardown = true;
   return failed;
 }
-// THE STRIKE'S TIER from the bite (m), the disc's radius, the surface ('soft' | 'water' | 'rigid') and the tip speed at
+// THE STRIKE'S TIER from the bite (m), the disc's radius, the surface ('soft' | 'hard' | 'water' | 'rigid') and the tip speed at
 // contact (m/s) against the blade's own (genDriveSpec sepTip): 1 brush, 2 bent, 3 stoppage, 4 separation
 const GEN_DRIVE_STRIKE = [null, 'brush', 'bent', 'stoppage', 'separation'];
 // (G2036: `eR` the turning prop's energy over a brittle blade's rupture work, 0.5 I w^2 / Ub - given for a brittle blade on
@@ -22999,6 +23020,9 @@ function genDriveTurf(s) {
   const T = GEN_DRIVE.turfS;
   return s >= 0 && s < T.length ? T[s] : GEN_DRIVE.strike.turf;
 }
+// TAXI-STRIKE: the strike's surface on a surface code - 'hard' where the turf table gives the hard ground's allowance
+// (rock, paving: 1 cm), else 'soft'
+function genDriveGround(s) { return s >= 0 && s < GEN_DRIVE.turfS.length && GEN_DRIVE.turfS[s] > 0 && GEN_DRIVE.turfS[s] <= 0.01 ? 'hard' : 'soft'; }
 
 function genDriveStrikeTier(bite, R, surf, tip, sepTip, eR) {
   const S = GEN_DRIVE.strike, r = bite / (R || 1);
@@ -23243,6 +23267,16 @@ const SCAR = {
                               //    sealed again once, where the pieces finally lie
   // G2381: a scuff on hard ground at least this wide (rubber and metal, streaks the decal draws)
   wScuff: 0.4,                // m GAME
+  // SCAR-LIVE (9 Nov; the user, watching crash tests: "the marks the crash leaves on the ground are generated after the
+  // fact, with significant delay. They should really happen in real time, as the plane scratches the surface"): the
+  // seal above is the scar's SHAPE (the joined furrows, the craters that stopped, the depth from the whole work), made
+  // when the event ends - the wreck at rest, ~4 s after the verdict. Until then the page drew nothing. Now every slide
+  // point a contact lays (SCAR.step apart) is also a live STROKE in a ring (scarLive: x0 z0 x1 z1 w s kind a), a blow
+  // past eBlow a dab, a prop strike its slot; the page lays each within a frame or two (ground_scar.js liveAdd) and the
+  // seal's decal replaces the trail in the frame it comes. A stroke waits while its event is not ARMED (pub: what the page
+  // may read) and is dropped if the event closes unarmed - a brush leaves nothing, as before. Nothing is written to the
+  // physics. liveCap the ring, liveFrame the most the hop carries a frame
+  liveCap: 4096, liveFrame: 64,
 };
 SCAR.eBlow = Math.round(Math.PI * SCAR.qB * CORE_MATH.pow(3 * SCAR.sod, 3) / 6);   // 970 J: a bowl deeper than the sod
 // the ground's class under a point: 0 turf, 1 bare, 2 hard, -1 water (world.SURFACE: GRASS 0, ROCK 1, SCREE 2,
@@ -23267,6 +23301,7 @@ function scarMake(def, nE) {
   for (let b = 0; b < nb; b++) { ba[b] = def.beams[b].a; bb[b] = def.beams[b].b; }
   for (let i = 0; i < n; i++) nr[i] = def.nodes[i].r || 0;
   return { n, ns, w, ba, bb, nr, tPrev: -1, last: null, rest: null, acc: new Float64Array(ns * 8), touched: new Int32Array(ns), nt: 0,
+           live: { b: new Float32Array(SCAR.liveCap * 8), cap: SCAR.liveCap, n: 0, pub: 0, cut: 0, g: 1 },   // SCAR-LIVE
            trk: new Array(ns).fill(null), segs: [], strikes: [], ev: { open: false, armed: false, E: 0, t0: 0, tLast: 0, sw: [], ww: [] }, overSealed: false,
            out: { v: 0, prims: [] }, hits: 0, frames: 0, ms: 0, seals: 0 };
 }
@@ -23295,11 +23330,21 @@ function scarStrike(R, k, x, z, ex, ez, b, Rp, t) {
   R.strikes.push({ k, x, z, ex, ez, b, c });
   if (!E.open) { E.open = true; E.t0 = t; }
   E.tLast = t; E.armed = true;
+  scarLive(R, x - ex * c / 2, z - ez * c / 2, x + ex * c / 2, z + ez * c / 2, SCAR.blade * 2, 0, 2, 1);   // SCAR-LIVE (s: the slot is soil's)
+  R.live.pub = R.live.n;
+}
+// SCAR-LIVE: a stroke into the ring - (x0, z0) to (x1, z1), w wide, on ground class s (0 turf, 1 bare, 2 hard), kind 0 a
+// slide's step, 1 a blow's dab (w its radius), 2 a prop's slot; a its strength. Published at once if the event is armed
+function scarLive(R, x0, z0, x1, z1, w, s, kind, a) {
+  const L = R.live, o = (L.n % L.cap) * 8, b = L.b;
+  b[o] = x0; b[o + 1] = z0; b[o + 2] = x1; b[o + 3] = z1; b[o + 4] = w; b[o + 5] = s; b[o + 6] = kind; b[o + 7] = a;
+  L.n++; if (R.ev.armed) L.pub = L.n;
 }
 function scarReset(R) {
   R.acc.fill(0); R.nt = 0; R.trk.fill(null); R.segs.length = 0; R.strikes.length = 0;
   const E = R.ev; E.open = false; E.armed = false; E.E = 0; E.sw.length = 0; E.ww.length = 0; R.overSealed = false; R.rest = null; R.carry = null; R.carrySegs = null;
   if (R.out.prims.length || R.out.v) { R.out.v++; R.out.prims = []; }   // a new version, empty: the page lets its scar go
+  { const L = R.live; L.n = 0; L.pub = 0; L.cut = 0; L.g++; }   // SCAR-LIVE: a new generation (the page drops its trail)
 }
 // once a frame, on a frame with a contact or an event open, or a sealed scar waiting for the wreck's rest (30_solver step,
 // after dmgOver)
@@ -23309,7 +23354,10 @@ function scarFrame(R, p, m, world, t, D, v) {
   const A = R.acc, n = R.n, E = R.ev;
   let fw = 0;
   const add = (T, x, z) => { T.L += Math.hypot(x - T.lx, z - T.lz); T.lx = x; T.lz = z;
-    const k = T.pts.length; if (Math.hypot(x - T.pts[k - 2], z - T.pts[k - 1]) >= SCAR.step) T.pts.push(x, z); };
+    const k = T.pts.length; if (Math.hypot(x - T.pts[k - 2], z - T.pts[k - 1]) >= SCAR.step) {
+      // SCAR-LIVE: the step just laid is a stroke (none over the water)
+      const s = scarSurf(world, x, z); if (s >= 0) scarLive(R, T.pts[k - 2], T.pts[k - 1], x, z, T.w, s, 0, 1);
+      T.pts.push(x, z); } };
   const dtF = R.tPrev >= 0 && t - R.tPrev > 0 && t - R.tPrev < 0.1 ? t - R.tPrev : 1 / 60; R.tPrev = t;
   for (let q = 0; q < R.nt; q++) {
     const i = R.touched[q], o = i * 8, Wn = A[o + 1], Wf = A[o + 2], Fm = A[o + 3], x0 = A[o + 4], z0 = A[o + 5], x1 = A[o + 6], z1 = A[o + 7];
@@ -23328,6 +23376,9 @@ function scarFrame(R, p, m, world, t, D, v) {
       if (ul > 1e-3) { T.v = ul / dtt; T.ux = ux / ul; T.uz = uz / ul; if (!T.u0) T.u0 = [T.ux, T.uz]; } }
     T.Wf += Wf; T.t1 = t; if (Fm > T.Fm) T.Fm = Fm;
     if (t - T.t0 <= SCAR.impS) T.imp += Wn;
+    // SCAR-LIVE: a blow past eBlow is a dab where it struck, its bowl's footprint (the seal decides whether it stays a crater)
+    if (!T.dab && T.imp >= SCAR.eBlow) { T.dab = true; const s = scarSurf(world, x1, z1);
+      if (s >= 0) { const rb = Math.cbrt(6 * T.imp / SCAR.qB / Math.PI), r = Math.min(SCAR.rMax, Math.max(SCAR.rMin, SCAR.rim * rb)); scarLive(R, x1, z1, x1, z1, r, s, 1, 1); } }
     fw += Wn + Wf;
   }
   R.nt = 0;
@@ -23337,6 +23388,7 @@ function scarFrame(R, p, m, world, t, D, v) {
   if (E.open) E.E += fw;
   if (!E.open) { if (R.rest !== null) scarRest(R, p, v, world, t, D); return; }   // (a wreck at rest still touches)
   if (!E.armed && (D.breaks > 0 || D.crashed || E.E > SCAR.eArm)) E.armed = true;
+  if (E.armed) R.live.pub = R.live.n;                // SCAR-LIVE: the strokes waiting for the arming go to the page
   // the sweep: the CG's track while the wreck touches, a point a metre; the low nodes' reach across it
   if (t - E.tLast < 0.05) {
     let cx = 0, cz = 0, M = 0; for (let i = 0; i < n; i++) { cx += m[i] * p[i * 3]; cz += m[i] * p[i * 3 + 2]; M += m[i]; }
@@ -23358,6 +23410,9 @@ function scarFrame(R, p, m, world, t, D, v) {
   if ((D.over && !R.overSealed) || t - E.tLast > SCAR.quiet) {
     if (D.over) R.overSealed = true;
     if (E.armed) { scarSeal(R, world, p, D, t); R.rest = { t0: t, tc: t }; }
+    // SCAR-LIVE: sealed, the decal covers every stroke so far (cut: the hop skips those not sent yet); closed unarmed (a
+    // brush), its waiting strokes are dropped
+    if (E.armed) R.live.cut = R.live.n; else R.live.n = R.live.pub;
     // (G2378: a chain still moving at the seal - the D.over seal comes 4 s after the crash, a part may still slide - is
     // CARRIED into the next event, its slides kept: the next seal replaces its prims with the whole chain's)
     const keep = R.carrySegs || []; R.carrySegs = null;
