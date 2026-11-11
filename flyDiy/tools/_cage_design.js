@@ -2996,6 +2996,10 @@ const ARCHETYPES = [
                     noseLen: 0.38, noseW: 0.8, noseH: 0.06, noseCrown: 0, noseDroop: 0.08,
                     topRound: 0, topAngCeil: 52, crSill: 3, crCeil: 3, crFrontCap: 0.65, crKeel: 3, crSillNose: 3,
                     cowlLoops: 2, taperLen: 0.25, taperW: 0.78, taperPanels: 1,
+                    // doorless, as the Chinook (11 Nov, the user: "the window joint is drawing wrong, as a staircase
+                    // across the window" - the door's front edge, cut along the lattice where it crossed the long
+                    // raked windscreen run)
+                    doorOn: 0,
                     // the tail: the stab's size and station, the fin's outline (fit_tail.js), no dorsal fillet
                     stSpan: 0.98, stChord: 0.47, stChordTip: 1.2, stZ: 0.4,
                     finDorsal: 0, finDorsalTube: 0,

@@ -272,7 +272,7 @@
    "memDia": 0.0025,
    "memRise": 0.0004,
    "paneThick": 0.004,
-   "doorOn": 1,
+   "doorOn": 0,
    "doorPax": 0,
    "doorDeep": 1,
    "doorSill": 0.06,
@@ -1208,7 +1208,7 @@
    "baggage": 0,
    "seating": "single",
    "glazingMat": "acrylic",
-   "glazedM2": 1.867,
+   "glazedM2": 1.895,
    "pilots": 1,
    "pax": 0,
    "halfW": 0.27725972869969645,
@@ -1338,7 +1338,7 @@
      "dims": {
       "L": 0.222,
       "W": 0.355,
-      "H": 0.079
+      "H": 0.08
      },
      "finish": null,
      "hue": null,
