@@ -2995,7 +2995,9 @@ const ARCHETYPES = [
                     bandH: 0.052, ringPullIn: 0, wsRun: 1.28, wsBaseBow: 0.48, wsCeilBow: 0.115, wsBaseLift: 0,
                     noseLen: 0.38, noseW: 0.8, noseH: 0.06, noseCrown: 0, noseDroop: 0.08,
                     topRound: 0, topAngCeil: 52, crSill: 3, crCeil: 3, crFrontCap: 0.65, crKeel: 3, crSillNose: 3,
-                    cowlLoops: 2, taperLen: 0.25, taperW: 0.78, taperPanels: 1,
+                    cowlLoops: 2,
+                    // no taper section (11 Nov, the user: "remove the taper section"): the rod straight off the aft pillar
+                    taperOn: 0,
                     // doorless, as the Chinook (11 Nov, the user: "the window joint is drawing wrong, as a staircase
                     // across the window" - the door's front edge, cut along the lattice where it crossed the long
                     // raked windscreen run)
