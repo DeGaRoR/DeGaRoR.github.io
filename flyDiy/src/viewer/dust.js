@@ -65,7 +65,8 @@
   const LOOK = {
     lift: 1.25,          // dust over its ground's albedo (INFERRED: a shade lighter, the same hue)
     lumMin: 0.05, lumMax: 0.32,   // the dust's luminance kept to a soil's (dark peat .. pale sand)
-    dens: 0.6,           // the puff's drawn optical depth over the 9 Nov bench's (the user, 10 Nov: "a lower cloud density")
+    dens: 0.45,          // the puff's drawn optical depth over the 9 Nov bench's (the user, 10 Nov: "a lower cloud density"; 11 Nov on V2:
+                         // "a little too dense / not transparent enough": 0.6 -> 0.45)
     fwdMax: 1.8,         // the forward lobe's cap (was 4): a backlit puff glows, it no longer blows out to white at low sun
     ground: true,        // the ground's colour handed in (false: the class rows)
     // V2 (the user, 10 Nov: "more interesting patterns in this cloud ... vortices ... zones where they are more and less
@@ -100,8 +101,8 @@
     // few discs 180 m across; the phone's smaller pool takes wider ones
     phone:  { puffs: 64,  grit: 160, cover: 1.5, life: 75,  merge: 1.0, mergeMax: 30 },
     potato: { puffs: 80,  grit: 240, cover: 2.0, life: 80,  merge: 1.0, mergeMax: 28 },
-    retro:  { puffs: 128, grit: 400, cover: 3.5, life: 90,  merge: 0.9, mergeMax: 24 },
-    gamer:  { puffs: 192, grit: 700, cover: 6.0, life: 120, merge: 0.8, mergeMax: 20 },
+    retro:  { puffs: 160, grit: 400, cover: 3.5, life: 90,  merge: 0.9, mergeMax: 24 },
+    gamer:  { puffs: 256, grit: 700, cover: 6.0, life: 120, merge: 0.8, mergeMax: 20 },
   };
   const TIER_OF = { laptop: 'phone', potato: 'potato', retro: 'retro', current: 'retro', gamer: 'gamer', ultra: 'gamer' };
   // ---- THE LAWS (named constants; the design doc's section 3 carries their sources) -----------------------------------
@@ -126,7 +127,7 @@
     wheelK: 0.075, wheelV0: 2.0,     // optical m^2 a second per (m/s over V0)^2 at fines 1, dry (AP-42: per metre ~linear in speed, so ~V^2 a second;
                                      // the user, 9 Nov: "taxi should emit less dirt" - 6 m/s is a twelfth of the 20 m/s roll's)
     brakeK: 1.0,                     // + this x brake x the rolling rate
-    spacing: 1.4, spacingV: 0.12, topUpAge: 0.5,   // a source tops its current puff up until it moved max(spacing, spacingV x its speed) or it is this old
+    spacing: 0.8, spacingV: 0.06, topUpAge: 0.3,   // (the user, 11 Nov on V2: "too few emitted puffs": half the 9 Nov spacing)   // a source tops its current puff up until it moved max(spacing, spacingV x its speed) or it is this old
     gritRate: 9,                     // grit a second per m/s at loose 1, dry (gravel and sand's rooster tail)
     // touchdown
     tdMin: 0.25, tdK: 0.6,           // m/s of sink to count; optical m^2 per (m/s sink x m/s ground speed) (the user, 9 Nov: the first touch "a tad too much": 3 -> 0.6)
@@ -782,15 +783,31 @@
     const bt = billow(128), tex = new THREE.DataTexture(bt.data, bt.N, bt.N, THREE.RGBAFormat);
     tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.magFilter = THREE.LinearFilter; tex.minFilter = THREE.LinearMipmapLinearFilter; tex.generateMipmaps = true; tex.needsUpdate = true;
     const colV = CLASSES.map(k => new THREE.Vector3(CLS[k].col[0], CLS[k].col[1], CLS[k].col[2]));
-    // V2: the six-way atlases (baked once a page, shared by every batch)
-    if (!SIX) { const t0 = Date.now(); SIX = sixWay(); SIX.ms = Date.now() - t0; }
-    const sixTex = d => { const t = new THREE.DataTexture(d, SIX.W, SIX.H, THREE.RGBAFormat); t.magFilter = THREE.LinearFilter; t.minFilter = THREE.LinearFilter; t.generateMipmaps = false; t.needsUpdate = true; return t; };
-    const texA = sixTex(SIX.A), texB = sixTex(SIX.B);
+    // V2: the six-way atlases, shared by every batch. THE PAGE LOADS THEM SHIPPED (tools/dust_atlas_bake.js: two images
+    // under media/tex/dust, decoded off the main thread - the bake is ~1 s, never paid at load); node, or a page without
+    // the table (the bench), bakes here. Until both images are in, the puffs draw the 9 Nov way (uV2 0).
+    const ATL = typeof DUST_ATLAS !== 'undefined' && DUST_ATLAS && typeof Image !== 'undefined' ? DUST_ATLAS : null;
+    if (!SIX) {
+      if (ATL) {
+        const base = typeof FLYDIY_ASSET_BASE !== 'undefined' ? FLYDIY_ASSET_BASE : '';
+        SIX = Object.assign({ shipped: true, imgs: [ATL.A, ATL.B].map(src => { const im = new Image(); im.decoding = 'async'; im.src = base + src; return im; }) }, ATL);
+      } else { const t0 = Date.now(); SIX = sixWay(); SIX.ms = Date.now() - t0; }
+    }
+    const filt = t => { t.magFilter = THREE.LinearFilter; t.minFilter = THREE.LinearFilter; t.generateMipmaps = false; return t; };
+    const sixTex = k => {
+      if (!SIX.shipped) { const t = filt(new THREE.DataTexture(SIX[k], SIX.W, SIX.H, THREE.RGBAFormat)); t.needsUpdate = true; return t; }
+      const im = SIX.imgs[k === 'A' ? 0 : 1], t = filt(new THREE.Texture());   // (flipY: the baker wrote row H-1 first)
+      const go = () => { t.image = im; t.needsUpdate = true; };
+      if (im.complete && im.naturalWidth) go(); else im.addEventListener('load', go, { once: true });
+      return t;
+    };
+    const texA = sixTex('A'), texB = sixTex('B');
+    const sixReady = () => !SIX.shipped || (SIX.imgs[0].complete && SIX.imgs[0].naturalWidth > 0 && SIX.imgs[1].complete && SIX.imgs[1].naturalWidth > 0);
     const mat = MATLIB.make(THREE, 'shader', { vertexShader: VERT, fragmentShader: FRAG, transparent: true, depthWrite: false, depthTest: true, side: THREE.DoubleSide,
       uniforms: { uStretch: { value: 0.03 }, uMinNdc: { value: 0.0019 }, uNear: { value: 0 }, uCol: { value: colV }, uMud: { value: new THREE.Vector3(MUD_COL[0], MUD_COL[1], MUD_COL[2]) },
         uNoise: { value: tex }, uSunV: { value: new THREE.Vector3(0, 0, 1) }, uSunCol: { value: new THREE.Color(1, 1, 1) }, uSkyCol: { value: new THREE.Color(0.5, 0.6, 0.7) },
         uGndCol: { value: new THREE.Color(0.2, 0.18, 0.14) }, uOpacity: { value: 1 }, uG: { value: 0.6 }, uDens: { value: LOOK.dens }, uFwdMax: { value: LOOK.fwdMax },
-        uSixA: { value: texA }, uSixB: { value: texB }, uV2: { value: LOOK.v2 ? 1 : 0 }, uLife: { value: sys.tier.life }, uTauRef: { value: SIX.tauRef }, uZoom: { value: SIX.zoom }, uGain: { value: SIX.gain.slice(0, 16).concat(Array(Math.max(0, 16 - SIX.gain.length)).fill(1)) },
+        uSixA: { value: texA }, uSixB: { value: texB }, uV2: { value: LOOK.v2 && sixReady() ? 1 : 0 }, uLife: { value: sys.tier.life }, uTauRef: { value: SIX.tauRef }, uZoom: { value: SIX.zoom }, uGain: { value: SIX.gain.slice(0, 16).concat(Array(Math.max(0, 16 - SIX.gain.length)).fill(1)) },
         uAtlas: { value: new THREE.Vector4(SIX.C, SIX.R, SIX.F, SIX.PX) } } });
     mat.toneMapped = true; mat.name = 'dust';
     const mesh = new THREE.Mesh(g, mat); mesh.frustumCulled = false; mesh.renderOrder = 4; mesh.name = 'dust';
@@ -833,7 +850,7 @@
         api.cover = cov;
         // V2 THE CLOUD'S OWN SHADOW: each puff's sun and sky through the other puffs (a Gaussian puff's optical depth at
         // the ray's closest pass, summed over the puffs ahead along the light) - n^2 over the live puffs, a few 10k steps
-        mat.uniforms.uV2.value = LOOK.v2 ? 1 : 0;
+        mat.uniforms.uV2.value = LOOK.v2 && sixReady() ? 1 : 0;
         if (LOOK.v2 && light && light.sun) {
           const sl = Math.hypot(light.sun[0], light.sun[1], light.sun[2]) || 1, sx = light.sun[0] / sl, sy = light.sun[1] / sl, sz = light.sun[2] / sl;
           for (let a = 0; a < nP; a++) {

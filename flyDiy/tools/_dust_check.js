@@ -132,7 +132,8 @@ console.log('4. the pools');
     const r = run(takeoff, { T: 40, tier });
     yes(!r.over && r.maxP <= r.sys.P.n && r.maxG <= r.sys.G.n, tier + ': never past the pools (' + r.maxP + '/' + r.sys.P.n + ' puffs, ' + r.maxG + '/' + r.sys.G.n + ' grit)');
   }
-  yes(dry.merged > 20 && dry.maxP < 0.75 * dry.sys.P.n, 'old puffs merge: a 60 s take-off peaks at ' + dry.maxP + ' live puffs (' + dry.merged + ' merges)');
+  // (11 Nov: the user's "too few emitted puffs" - half the spacing, twice the puffs: the peak's bar 0.75 -> 0.8 of the pool)
+  yes(dry.merged > 20 && dry.maxP < 0.8 * dry.sys.P.n, 'old puffs merge: a 60 s take-off peaks at ' + dry.maxP + ' live puffs (' + dry.merged + ' merges)');
   { let w = 0; for (let i = 0; i < dry.sys.P.n; i++) if (dry.sys.P.age[i] >= 0) w = Math.max(w, dry.sys.P.r[i]);
     yes(w < dry.sys.tier.mergeMax + 15, 'a trail stays a trail: the widest puff at 60 s is ' + w.toFixed(0) + ' m (no merge past ' + dry.sys.tier.mergeMax + ' m)'); }
   { const ph = run(takeoff, { T: 40, tier: 'phone' });
@@ -219,7 +220,14 @@ console.log('5c. V2 (the user, 10 Nov: "vortices ... zones where they are more a
   // the rim: backlit, the thin edge passes more light than the dense core
   const rim = frame(0, o4 => S.A[o4 + 3] > 20 && S.A[o4 + 3] < 120 ? S.A[o4 + 2] : null), core = frame(0, o4 => S.A[o4 + 3] > 240 ? S.A[o4 + 2] : null);
   yes(rim > 1.5 * core, 'backlit, the edges glow and the core is dark (rim ' + (rim / 255).toFixed(2) + ' vs core ' + (core / 255).toFixed(2) + ')');
-  console.log('       the bake: ' + S.W + 'x' + S.H + ' x2 atlases, ' + S.F + ' frames, ' + ms + ' ms in node (the game ships it baked: named)');
+  console.log('       the bake: ' + S.W + 'x' + S.H + ' x2 atlases, ' + S.F + ' frames, ' + ms + ' ms in node - the page never pays it: shipped');
+  // THE SHIPPED ATLAS (tools/dust_atlas_bake.js): the table is this bake's (a stale atlas after a sixWay change is red),
+  // its two images are on disk, and the build loads the table before dust.js
+  let ATL = null; try { ATL = require('../src/viewer/dust_atlas.js'); } catch (e) {}
+  const BK = require('./dust_atlas_bake.js'), bsrc = src('tools/build.js');
+  yes(ATL && ATL.sig === BK.sigOf(S) && fs.existsSync(path.join(ROOT, ATL.A)) && fs.existsSync(path.join(ROOT, ATL.B)) && ATL.F === S.F && Math.abs(ATL.tauRef - S.tauRef) < 1e-3,
+    'the page loads the atlas baked, never bakes it (dust_atlas.js sig ' + (ATL && ATL.sig) + ' = this bake ' + BK.sigOf(S) + '; re-run tools/dust_atlas_bake.js after a sixWay change)');
+  yes(bsrc.indexOf("'dust_atlas.js'") > 0 && bsrc.indexOf("'dust_atlas.js'") < bsrc.indexOf("'dust.js'"), 'the build loads the atlas table before dust.js');
   if (THREE_OK) {
     // the cloud's own shadow: of two puffs on the sun's line, the far one (from the sun) is darker
     const sys = DUST.makeSystem('gamer');
