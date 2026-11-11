@@ -212,6 +212,10 @@ const GATES = [
   // Conquer's sheet as a generic vehicle, flat / brake / reverse / airborne / turn / 10 % hill, a 300 m traced road
   // followed, U-turns at a gravel apron off a re-route, one of the world's roads out and back, the path traps; ~15 s
   { id: 'VEHICLE', file: '_vehicle_check.js', tier: 'core', wall: 15 },
+  // TOW-LAUNCH phase 1: THE CAR DRIVES FROM HOME TO CEDAR HARBOUR on Jolene as shipped - the island's road graph as the
+  // driver's (drawn crossings joined vehicle-side, no scenery edited), facing away at the start, two re-routes behind,
+  // three U-turns at a road's end and at junctions (no drawn apron on Jolene), the body on the road; ~20 s
+  { id: 'DRIVE-TRIP', file: '_drive_trip_check.js', tier: 'core', wall: 25 },
   // G770: the player's default is the Cub (the artifact's own garage bridge, against the design rows),
   // GEN_DEFAULT is still the old stock every gate flies, and the browser rigs carry the old stock's pin
   { id: 'DEFAULT', file: '_default_check.js', tier: 'core' },
