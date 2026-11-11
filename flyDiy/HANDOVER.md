@@ -314795,3 +314795,18 @@ is posed once and never drawn. A stop that changes the seats rebuilds the crew i
   (`?freight=1&strapload=` + the job), programs at boot / roll-out, draws.
 
 CODE READY claude/crew-seats-g2715b - gates owed (A0 slot, ~15 min CPU + ~20 min GPU TIMED, Wednesday)
+### RESULTS (Wed 11 Nov, A0 slots; rebased onto L38b 0c90344f8: one conflict, tools/_load_build.js's cache key - master's probe-content key kept, FLYDIY_CREW_JOB_SET appended)
+- CPU gates on the work (9dad081dc): CREWSEATS (new, rows 1-7), JOIN, CAGEFIT, PARKED, SIMWORKER, UISMOKE, SAVE, BUILD,
+  CREWLOAD, PILOTS, TANKMOUNT PASS. Standing master reds, not this work: FREIGHT 1/2511 (the cub window pin row),
+  NODUMMY (_cage_gen.js:1341), JOINPARITY (Jodel 471.789/467.989, the same in land_L38a_gates.log).
+- Cost: no new program at boot or at roll-out with no load; zero crew draws with no load. With passengers, the cost is
+  their own char programs (char:<key>:<mat>, linked once per character - 3.4 s worst on the laptop rung) and their draws.
+- GPU TIMED SPLIT 22:45-23:15 (laptop rung, chase, 3 job passengers bags20p3:c172, each tree its own cook --check (same)):
+  M 1: gaps 5.6 + 4.2 + 2.1 + 1.2 s while HOLDING, taxi 4.4 fps. B 2: 5.1 + 38.4 s HOLDING, taxi 3.4 fps.
+  M 3: 5.3 + 51.0 s HOLDING, taxi 0.2 fps. THE IN-FLIGHT STALLS ARE MASTER'S: the long task (24-49 s on M, 37 s on B)
+  is the crowd's job passengers boarding while the trip HOLDS (G2970 people, seats j:1-3) - on master without this work.
+  Evidence D:/Dev/flydiy-notes/evidence-2026-10-18/2026-11-11/crew-seats/split (run.log, legs, 2_B_live.cpuprofile).
+- Branch claude/ready/crew-seats = L38b 0c90344f8 + 19ad1be11 + 6e3f6ac31. Nothing ran on the box outside A0's slots,
+  except the Tue 14:24 misfire (build + cook, reported at once).
+
+READY for the GAME COORDINATOR
