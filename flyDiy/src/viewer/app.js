@@ -5767,11 +5767,7 @@
   // rule (skin_break.js R.look) and the member pool, parked with the world (worldSettle) and drawn once something is
   // broken. G3774 (the user, 10 Nov: "absolutely no reason not to"): ON BY DEFAULT - ?dmglook=0 (or window.FLYDIY_DMGLOOK
   // = false before load) is the old drawing, the A/B; read at load
-  // A0 L38a HOLD (11 Nov 02:50): OFF by default again - with SCAR-LIVE (scarPageOn() true in the page) the member pools park at the
-  // garage's compile: GATE FRAMECOST boot/garage:compile/links 5 -> 40 (cub), 5 -> 45 (cessna), and the timed gate's boot long tasks ~2x
-  // (worst 19-44 s vs L37b 8-14 s). Deform's 22:08 measure ran without scar-live, so the pools never parked. Back ON once the pools
-  // share one program (or park lazily). ?dmglook=1 is the look
-  try { if (/[?&]dmglook=1(&|$)/.test(location.search || '')) window.FLYDIY_DMGLOOK = true; else if (window.FLYDIY_DMGLOOK !== true) window.FLYDIY_DMGLOOK = false; } catch (e) {}
+  try { if (/[?&]dmglook=0(&|$)/.test(location.search || '')) window.FLYDIY_DMGLOOK = false; else if (window.FLYDIY_DMGLOOK !== false) window.FLYDIY_DMGLOOK = true; } catch (e) {}
   const lookOn = () => window.FLYDIY_DMGLOOK === true && typeof DMG_MEMBERS !== 'undefined' && !!window.SKIN_BREAK;
   if (lookOn()) SKIN_BREAK.OPT.looks = true;
   const LOOK = { P: null, vB: -1, M: null, mFor: null, plans: 0, ms: 0, msMax: 0, mMs: 0, slots: 0, pools: null, poolsFor: null, lateLink: 0,
