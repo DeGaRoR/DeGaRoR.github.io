@@ -538,7 +538,7 @@
     varying vec3 vLq, vUq; varying vec2 vSh;
     uniform sampler2D uNoise, uSixA, uSixB;
     uniform vec3 uSunV, uSunCol, uSkyCol, uGndCol; uniform float uOpacity, uG, uDens, uFwdMax;
-    uniform float uV2, uLife, uTauRef, uZoom; uniform vec4 uAtlas;          // uAtlas: columns, rows, frames, pixels a frame
+    uniform float uV2, uLife, uTauRef, uZoom; uniform vec4 uAtlas; uniform float uGain[16];          // uAtlas: columns, rows, frames, pixels a frame
     // SIX-WAY: the baked light from +x, +y, +z (the eye's side) and -x, -y, -z, weighted by the light's direction squared
     float six(vec3 l, vec4 A, vec4 B) {
       vec3 p = max(l, 0.0), n = max(-l, 0.0); p *= p; n *= n;
@@ -571,7 +571,7 @@
         vec4 B = mix(texture2D(uSixB, tileUv(u01, f0)), texture2D(uSixB, tileUv(u01, f1)), fk);
         // the column's optical depth from the baked coverage, scaled to this puff's (its centre's, the frame's reference)
         float ts = -log(1.0 - min(A.a, 0.995));
-        float tau = 2.0 * vTau * uDens * ts / uTauRef;
+        float tau = 2.0 * vTau * uDens * ts / uTauRef * mix(uGain[int(f0)], uGain[int(f1)], fk);
         a = 1.0 - exp(-tau);
         a *= smoothstep(-0.05 * vSv, 0.3 * vSv + 0.15, vGd);
         a *= smoothstep(0.0, 0.04, age);
@@ -719,8 +719,24 @@
         outB[o4] = b(v(3)); outB[o4 + 1] = b(v(4)); outB[o4 + 2] = b(v(5)); outB[o4 + 3] = 255;
       }
     }
-    const sorted = tauC.slice().sort((a, b) => a - b);
-    return { A: outA, B: outB, W, H, F, C, R, PX, tauRef: Math.max(0.5, sorted[sorted.length >> 1]), tauC };
+    const sorted = tauC.slice().sort((a, b) => a - b), tauRef = Math.max(0.5, sorted[sorted.length >> 1]);
+    // THE MASS, KEPT: a frame's mean drawn depth over the puff's disc (at the shader's zoom) against the 9 Nov disc's (a
+    // sphere's column, 0.43 of its centre's over the quad) - the shader scales each frame by it, so the sprite redraws
+    // where the dust is, never how much there is (the puff's own optical depth already thins with its age and size;
+    // measured 10 Nov: unscaled, the sprite carried 0.6 of the mass young and 0.2 old - a faint cloud)
+    const Z = o.zoom || 0.72, gain = [];
+    for (let f = 0; f < F; f++) {
+      const tc0 = f % C, tr0 = Math.floor(f / C); let sm = 0, nn = 0;
+      for (let y = 0; y < PX; y++) for (let x = 0; x < PX; x++) {
+        const qx = (x + 0.5) / PX * 2 - 1, qy = (y + 0.5) / PX * 2 - 1; nn++;
+        if (qx * qx + qy * qy > 1) continue;
+        const ux = clamp(Math.floor((qx * 0.5 * Z + 0.5) * PX), 0, PX - 1), uy = clamp(Math.floor((qy * 0.5 * Z + 0.5) * PX), 0, PX - 1);
+        const a = outA[((tr0 * PX + uy) * W + tc0 * PX + ux) * 4 + 3] / 255;
+        sm += -Math.log(1 - Math.min(a, 0.995)) / tauRef;
+      }
+      gain.push(sm > 0 ? 0.43 / (sm / nn) : 1);
+    }
+    return { A: outA, B: outB, W, H, F, C, R, PX, tauRef, tauC, gain, zoom: Z };
   }
   // THE BILLOW TEXTURE: 128^2, tileable - fbm of value noise (four octaves) lifted by an inverted cellular term (the
   // rounded lobes of a dust cloud's edge), and the gradient's normal in g, b. Made once, here (no file, nothing to credit).
@@ -774,7 +790,7 @@
       uniforms: { uStretch: { value: 0.03 }, uMinNdc: { value: 0.0019 }, uNear: { value: 0 }, uCol: { value: colV }, uMud: { value: new THREE.Vector3(MUD_COL[0], MUD_COL[1], MUD_COL[2]) },
         uNoise: { value: tex }, uSunV: { value: new THREE.Vector3(0, 0, 1) }, uSunCol: { value: new THREE.Color(1, 1, 1) }, uSkyCol: { value: new THREE.Color(0.5, 0.6, 0.7) },
         uGndCol: { value: new THREE.Color(0.2, 0.18, 0.14) }, uOpacity: { value: 1 }, uG: { value: 0.6 }, uDens: { value: LOOK.dens }, uFwdMax: { value: LOOK.fwdMax },
-        uSixA: { value: texA }, uSixB: { value: texB }, uV2: { value: LOOK.v2 ? 1 : 0 }, uLife: { value: sys.tier.life }, uTauRef: { value: SIX.tauRef }, uZoom: { value: 0.72 },
+        uSixA: { value: texA }, uSixB: { value: texB }, uV2: { value: LOOK.v2 ? 1 : 0 }, uLife: { value: sys.tier.life }, uTauRef: { value: SIX.tauRef }, uZoom: { value: SIX.zoom }, uGain: { value: SIX.gain.slice(0, 16).concat(Array(Math.max(0, 16 - SIX.gain.length)).fill(1)) },
         uAtlas: { value: new THREE.Vector4(SIX.C, SIX.R, SIX.F, SIX.PX) } } });
     mat.toneMapped = true; mat.name = 'dust';
     const mesh = new THREE.Mesh(g, mat); mesh.frustumCulled = false; mesh.renderOrder = 4; mesh.name = 'dust';
