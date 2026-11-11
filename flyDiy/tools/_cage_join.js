@@ -292,7 +292,10 @@ function cageJoinSpec(P, M, T) {
                // wires in the file.
                cabane: (Math.round(P.wgPos) === 3 || +P.w2On) && Math.round(P.bpCabane || 0) ? 'V' : 'N',
                // HULL-B78: the cabane as one central faired pylon (the frame's narrow truss inside it)
-               ...((Math.round(P.wgPos) === 3 || +P.w2On) && +P.bpCabPylon ? { cabPylon: 1 } : {}),
+               ...((Math.round(P.wgPos) === 3 || +P.w2On) && +P.bpCabPylon ? { cabPylon: 1,
+                 // (the hub's pylon: its place and chord - written only off HULL-B78's 0.40 / 0.55)
+                 ...(P.bpCabPyAt != null && Math.abs(+P.bpCabPyAt - 0.40) > 1e-6 ? { cabPyAt: +P.bpCabPyAt } : {}),
+                 ...(P.bpCabPyLen != null && Math.abs(+P.bpCabPyLen - 0.55) > 1e-6 ? { cabPyLen: +P.bpCabPyLen } : {}) } : {}),
                ...(+P.w2On ? { interplane: ['N', 'I', 'none'][Math.round(P.bpInter || 0)] || 'N',
                                interplaneAt: +P.bpInterAt || 0.62,
                                wires: ['none', 'both', 'flying'][Math.round(P.bpWires == null ? 1 : P.bpWires)] || 'both' }

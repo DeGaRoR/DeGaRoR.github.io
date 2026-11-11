@@ -41,6 +41,7 @@ PAGE.defaults = Object.assign({
   // cabane as ONE faired pylon on the centreline (the engine pylon's blended blade, roof to the wing's underside) - the
   // frame roots the wing at the pylon and runs the cabane as a narrow truss inside it (61_gen_frame cabPylon)
   bpCabPylon: 0,
+  bpCabPyAt: 0.40, bpCabPyLen: 0.55,   // (the hub's pylon on the chord: HULL-B78's own)
 }, PAGE.defaults || {});
 
 // ---- panel ----------------------------------------------------------------
@@ -55,6 +56,10 @@ const BRACE_ITEMS = [
     ['bpStrutX', 'in / out (foot)', -0.25, 0.35, 0.01, { when: onCab, dim: 'm' }],
     ['bpCabDraw', 'cabane drawn', 0, 1, 1, ['hidden (flown, not drawn)', 'drawn'], { when: P => onCab(P) && !+P.bpCabPylon }],
     ['bpCabPylon', 'cabane form', 0, 1, 1, ['struts', 'central pylon (faired)'], { when: onCab }],
+    // THE HUB'S PYLON (the Archaeopteryx study, stage 3; the user: "have controls for moving these fore and aft"): it is
+    // the centre section's, so the wing's fore / aft row moves it with the wing; these place it on the chord
+    ['bpCabPyAt',  'pylon along the chord (its middle, from the LE)', 0.10, 0.95, 0.01, { when: P => onCab(P) && +P.bpCabPylon }],
+    ['bpCabPyLen', 'pylon chord (x the wing\'s)', 0.20, 0.95, 0.01, { when: P => onCab(P) && +P.bpCabPylon }],
     ['bpStrutK', 'strut size (cabane, interplane)', 0.3, 1.5, 0.01, { when: P => onCab(P) || onBip(P) }],
   ], { when: onCab }],
   ['interplane & wires', [

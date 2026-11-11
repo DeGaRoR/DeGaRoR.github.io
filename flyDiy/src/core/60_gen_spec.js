@@ -5502,6 +5502,14 @@ function clampSpec(spec) {
   // before) or a single front strut (1); the truss is the same either way
   S.bracing.struts = Math.round(+S.bracing.struts) === 1 ? 1 : 2;
   if (+S.bracing.cabPylon === 1) S.bracing.cabPylon = 1; else delete S.bracing.cabPylon;   // HULL-B78: the central pylon (absent = struts)
+  // THE HUB'S PYLON (the Archaeopteryx study's stage 3; the user: "the pylon ... have controls for moving these fore and
+  // aft"): the central pylon's place along the centre section's chord (its middle, a share from the leading edge) and its
+  // own chord (a share of the wing's) - it is the HUB's, so the wing's fore / aft row carries it. Absent: HULL-B78's 0.40
+  // and 0.55 (the frame's own rings, every build before); only with the pylon
+  for (const [k, lo, hi] of [['cabPyAt', 0.10, 0.95], ['cabPyLen', 0.20, 0.95]]) {
+    const v = +S.bracing[k];
+    if (S.bracing.cabPylon && S.bracing[k] != null && Number.isFinite(v)) S.bracing[k] = genClamp(v, lo, hi); else delete S.bracing[k];
+  }
   // THE FUEL CAPS ROSE (2026-09-05, TURBOPROP §5, the user's ruling): 140 L
   // here and 400 L per vessel / in total were a light aeroplane's numbers;
   // a Caravan carries 1 250 L. Now 2 000 L total, 1 000 L a vessel. Every

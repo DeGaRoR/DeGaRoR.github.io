@@ -1176,7 +1176,8 @@ function cabPylonDraw(ctx) {
     const AFp = GG.cageAirframe(ctx.mesh, FS);
     if (!le || !W.underAt || !AFp) return;
     const top = z => { try { const zc = Math.min(AFp.z1 - 1e-3, Math.max(AFp.z0 + 1e-3, z)); const y = AFp.surf(zc, Math.PI)[1]; return isFinite(y) ? y : null; } catch (e) { return null; } };
-    const Lp = Math.max(0.30, 0.55 * ch), zc = le.z - 0.40 * ch, u = W.underAt(0, zc), yb = top(zc);
+    const at = P.bpCabPyAt != null ? +P.bpCabPyAt : 0.40, lenK = P.bpCabPyLen != null ? +P.bpCabPyLen : 0.55;   // (the hub's pylon on the chord)
+    const Lp = Math.max(0.30, lenK * ch), zc = le.z - at * ch, u = W.underAt(0, zc), yb = top(zc);
     if (!(u && yb != null && u.y > yb + 0.05)) return;
     const f = { kind: 'cabPylon', x: 0, z: zc - (Lp / 2 - 0.05), yc: u.y + 0.01, halfH: 0, chord: Lp / 0.42,
                 foot: { x: 0.06, y: yb, zF: zc + Lp / 2, zR: zc - Lp / 2, yF: top(zc + Lp / 2), yR: top(zc - Lp / 2) } };

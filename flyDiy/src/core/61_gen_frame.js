@@ -1327,6 +1327,14 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       const rings = [...new Set([iN, iA, iB])];
       if (!cabane) for (const i of rings) B(nd, F[i][side], 'wing');
       else if (cabPy) {
+        // (THE HUB'S PYLON placed - S.bracing.cabPyAt / cabPyLen: the truss stands on the rings under the pylon's own
+        // chord - its two ends' straddling pairs and the ring nearest its middle - not under each spar; absent, as ever)
+        const BRp = S.bracing || {};
+        if (BRp.cabPyAt != null || BRp.cabPyLen != null) {
+          const pc = w.xLE + (BRp.cabPyAt != null ? BRp.cabPyAt : 0.40) * w.chord, ph = 0.5 * Math.max(0.30, (BRp.cabPyLen != null ? BRp.cabPyLen : 0.55) * w.chord);
+          rings.length = 0;
+          for (const i of new Set([nearestRing(pc), ...straddle(pc - ph), ...straddle(pc + ph)])) rings.push(i);
+        }
         // HULL-B78: THE PYLON's TRUSS - each root node to a base node on the roof's centreline at the same half-width
         // (each ring's own, tied across to its top longerons and to its mirror): posts and diagonals fore / aft, all
         // inside the fairing, so undrawn ('inner'); the fairing's own skin (~1.5 kg/m2 over its two faces, INFERRED)
