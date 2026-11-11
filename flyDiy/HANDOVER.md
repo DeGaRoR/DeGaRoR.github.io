@@ -314682,3 +314682,9 @@ What it carries, on post-L37b master, with its own premises cook:
   - the tufts following the trail's merge and gap noise;
   - w5 / w1 / nv_strip bumps (the Pilot's own reds).
 - **Known master red:** SCENERYED 15's sites s39 (Game).
+
+**MASTER'S COST SINCE L37a, NAMED (DIRT-STRIP 11 Nov, A0 10 Nov ~21:35):** L37a's bumpy w3 / w8 are drawn refined (rows to the bumps,
+~9.4 cm across a rut's wall); TERRAINMATCH's ground_drawn did not refine them, so BUMPS (5 624) was an undercount. Drawn as the game
+draws them: potato HOME taxi 1226310 -> 1438368 (+212058); gamer HOME taxi 2044742 -> 2242608 (+197866). BUMPS 13440 -> 225498. Tried and rejected: rows by chaos (a 5 / 8 cm floor) - refineAxis
+halves the 3 m rows, so both floors stop at the same ~9.4 cm rows (the same count to the vertex), and MICRO's accuracy at chaos 0.4
+read p99 10.1 mm on them. The real cut (a coarser refine at low chaos / fine rows only near the eye) is PARKED, on the board under Friday's perf round (A0 11 Nov).
