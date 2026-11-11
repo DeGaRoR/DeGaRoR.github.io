@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 8131039561b82b04
+// body-sha256: cfce22b22a286855
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -25117,6 +25117,8 @@ function servoCrossWind(out, F) {
 //   TW           { Lwb, steer } the follower's geometry (the trike's bandwidth cap)
 //   features     { trimCalm, groundP1D, xwBank, water, deTop, porpoise } — 43's own laws
 function makeServos(sim, def, opts) {
+  // MONOWHEEL: one main on the centreline (61_gen_frame refs.mains holds it once) - the wing rests on a tip
+  const MONO_G = !!(def && def.refs && Array.isArray(def.refs.mains) && def.refs.mains.length === 1);
   opts = opts || {};
   const A = (def && def.params && def.params.ap) || {};
   const G = Object.assign({}, SERVO_GAINS, SERVO_TUNE[opts.pilot] || {});
@@ -25554,8 +25556,13 @@ function makeServos(sim, def, opts) {
       // G3331 (WATER-HEEL, 20 Oct - the float Cessna on the game's 8 kt leg, t66: on the step at 17-25 m/s the hull heeled 9 -> 35 deg
       // with the aileron on the roll-out's 0.30 stop, then over): ON THE WATER A HEEL PAST 8 DEG IS ANSWERED WITH THE WHOLE STICK - the
       // low float is the capsize, and a seaplane pilot holds full aileron to lift it (FAA-H-8083-23); under 8 deg, the 0.30 as before
+      // MONOWHEEL (the Archaeopteryx study's stage 1): ...AND A WING DOWN ON ONE WHEEL TOO - a sailplane on its single main
+      // rests on a wingtip skid, and its pilot rolls with the whole stick toward the high wing until the low one lifts (the
+      // glider's take-off, wings level as soon as the ailerons bite): past 2 deg of bank the WHOLE stick, the level loop's
+      // own way; under it the loop as before
       c.da = S.groundAil(phW, onWater && Math.abs(S.ph) > 0.14 ? 1.0 : G.gAilRoll);
-    } else c.da = S.groundAil(0, G.gAilTaxi);
+      if (MONO_G && !onWater && Math.abs(S.ph) > 0.035 && c.da) c.da = Math.sign(c.da);
+    } else { c.da = S.groundAil(0, G.gAilTaxi); if (MONO_G && !onWater && Math.abs(S.ph) > 0.035 && c.da) c.da = Math.sign(c.da); }
     S.tailUp = tailUp;
     return tailUp;
   };
