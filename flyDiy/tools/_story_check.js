@@ -721,8 +721,8 @@ async function ladderRun() {
   const S = M.storyOf(d), cub = S.planes.client, RW = M.playerWhere(d, 'Rufus');
   ok(S.beat === 'T2' && S.done.join() === 'T0,T1' && !d.sheds.HOME.locked && !d.ledger.some(l => l.k === 'story' && l.ref === 'HOME'), 'Skip: T1 complete as a stop at HOME (the hangar ours since the start: no ledger line - STORY-HOME-FIX F3)', S.beat);
   ok(RW.kind === 'in' && RW.hangar === 'HOME' && d.here === 'HOME', 'Rufus straight into the HOME hangar, the garage there', JSON.stringify(RW) + ' here ' + d.here);
-  ok(cub && prefs.has('flydiy.build.' + cub) && M.playerWhere(d, cub).aero === 'HOME' && M.playerStoreWhere(d, cub).kind === 'outside' && d.career.airframes[cub].owner === 'client' && S.base.client && S.base.client.paint.job === 'bare',
-     "T2's client Cub effect fired: the Cub parked outside at HOME as it arrives, bound", cub + ' ' + JSON.stringify(M.playerWhere(d, cub || '')));
+  ok(cub && prefs.has('flydiy.build.' + cub) && M.playerWhere(d, cub).aero === 'HOME' && M.playerStoreWhere(d, cub).kind === 'outside' && d.career.airframes[cub].owner === 'client' && S.base.client && S.base.client.paint.job !== 'bare',
+     "T2's client Cub effect fired: the Cub parked outside at HOME as it arrives (its own livery, PLANE-LIST), bound", cub + ' ' + JSON.stringify(M.playerWhere(d, cub || '')));
   ok(d.wallet === w0 && JSON.stringify(d.career.pilots || null) === log0 && JSON.stringify(d.career.contracts) === con0 && d.ledger.filter(l => l.amount).length === 0 && d.ledger.length - led0 <= 2,
      'no money, no logbook row, no contract moved: only what the stop records', 'wallet ' + d.wallet + ', ledger +' + (d.ledger.length - led0));
   X.storySkipSync();
