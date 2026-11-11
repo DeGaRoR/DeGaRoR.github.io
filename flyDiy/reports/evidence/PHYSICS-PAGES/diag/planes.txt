@@ -14,3 +14,4 @@ cub builds/cub_2026-09-20_corrected.json
 pa18f builds/pa18_floats_2026-10-23.json
 stolcub tools/fixtures/stol_cub_showcase.json
 cessna builds/cessna172_2026-09-20.json
+rufus builds/rufus_2026-10-18_certified.json

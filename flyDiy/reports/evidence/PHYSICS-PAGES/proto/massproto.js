@@ -131,30 +131,60 @@ function sunburst2(D, cx, cy, R, box) {
     a = a1;
   }
   out.unshift(`<defs>${defs.join('')}</defs>`);
-  // the label columns: right and left of the ring, stacked, inside the box
-  const colX = { r: cx + R + 34, l: cx - R - 34 };
-  for (const side of ['r', 'l']) {
-    const L2 = labels.filter(q => (Math.sin(q.am) >= 0) === (side === 'r')).map(q => {
-      const lines = wrap2(q.r.name, 17), h = 14 * lines.length + 15;
-      return Object.assign(q, { lines, h, want: cy - (R + 14) * Math.cos(q.am) - h / 2 + 8 }); }).sort((p, q) => p.want - q.want);
-    // stack top-down, then push up from the bottom if it overflows
-    let y = box.y0; for (const q of L2) { q.y = Math.max(q.want, y); y = q.y + q.h + 4; }
-    let yb = box.y1; for (let i = L2.length - 1; i >= 0; i--) { const q = L2[i]; if (q.y + q.h > yb) q.y = yb - q.h; yb = q.y - 4; }
-    for (const q of L2) {
-      const ax = cx + (R + 2) * Math.sin(q.am), ay = cy - (R + 2) * Math.cos(q.am), ex = colX[side] + (side === 'r' ? -8 : 8), ey = q.y + 9;
-      const kx = cx + (R + 16) * Math.sin(q.am), ky = cy - (R + 16) * Math.cos(q.am);
-      out.push(`<path d="M${ax.toFixed(1)} ${ay.toFixed(1)} L${kx.toFixed(1)} ${ky.toFixed(1)} L${ex.toFixed(1)} ${ey.toFixed(1)}" fill="none" stroke="${TH.lead}" stroke-width=".9"/>`);
-      const an = side === 'r' ? 'start' : 'end', chip = side === 'r' ? colX.r : colX.l - 10;
-      out.push(`<rect x="${chip}" y="${q.y + 1}" width="10" height="10" rx="2" fill="${fillOf(q.c.key, q.r.payload)}" stroke="${TH.edge}" stroke-width=".7"/>`);
-      const tx = side === 'r' ? colX.r + 16 : colX.l - 16;
-      q.lines.forEach((ln, i) => out.push(T(tx, q.y + 10 + 14 * i, ln, { sz: 12.5, w: 500, a: an })));
-      out.push(T(tx, q.y + 10 + 14 * q.lines.length, r1(q.r.kg) + ' kg · ' + (100 * q.r.kg / D.M < 1 ? '<1' : Math.round(100 * q.r.kg / D.M)) + ' %' + (q.c.rows.length === 1 || q.r.name === CAT[q.c.key][0] ? '' : ''), { sz: 11.5, c: TH.dim, a: an }));
-    }
+  // the callouts ALL AROUND the ring: each label on a circle outside it, at its slice's own angle, pushed apart along the
+  // circle where two would overlap; one straight leader from the slice to its label; every label kept inside the box
+  const RL = R + 34, PADX = box.x0 || 40, PADX1 = box.x1 || 690;
+  const L2 = labels.map(q => { const lines = wrap2(q.r.name, 16); const w = Math.max(...lines.map(l => l.length), 13) * 6.6, h = 14 * lines.length + 14; return Object.assign(q, { lines, w, h, th: q.am }); }).sort((p, q) => p.am - q.am);
+  const place = q => { const x = cx + RL * Math.sin(q.th), y = cy - RL * Math.cos(q.th), sn = Math.sin(q.th), cs = Math.cos(q.th);
+    const an = sn > 0.28 ? 'start' : sn < -0.28 ? 'end' : 'middle';
+    const bx = an === 'start' ? x : an === 'end' ? x - q.w : x - q.w / 2, by = cs > 0.28 ? y - q.h : cs < -0.28 ? y : y - q.h / 2;
+    return { x, y, an, bx: Math.max(PADX, Math.min(PADX1 - q.w, bx)), by: Math.max(box.y0, Math.min(box.y1 - q.h, by)) }; };
+  const hit = (a, b) => a.bx < b.bx + b.q.w + 6 && b.bx < a.bx + a.q.w + 6 && a.by < b.by + b.q.h + 2 && b.by < a.by + a.q.h + 2;
+  for (let it = 0; it < 400; it++) {
+    let moved = false; const P = L2.map(q => Object.assign(place(q), { q }));
+    for (let i = 0; i < L2.length; i++) { const j = (i + 1) % L2.length; if (i === j) continue;
+      if (hit(P[i], P[j])) { L2[i].th -= 0.012; L2[j].th += 0.012; moved = true; } }
+    if (!moved) break;
   }
-  out.push(T(cx, cy - 4, r0(D.M) + ' kg', { sz: 21, w: 600, a: 'middle' }) + T(cx, cy + 16, 'as flown', { sz: 12, c: TH.dim, a: 'middle' }));
+  for (const q of L2) {
+    const p = place(q), ax = cx + (R + 2) * Math.sin(q.am), ay = cy - (R + 2) * Math.cos(q.am);
+    // the leader: straight, from the slice to the label's nearest edge
+    const ex = Math.max(p.bx - 3, Math.min(p.bx + q.w + 3, ax)), ey = Math.max(p.by - 2, Math.min(p.by + q.h + 2, ay));
+    out.push(`<line x1="${ax.toFixed(1)}" y1="${ay.toFixed(1)}" x2="${ex.toFixed(1)}" y2="${ey.toFixed(1)}" stroke="${TH.lead}" stroke-width=".9"/><circle cx="${ax.toFixed(1)}" cy="${ay.toFixed(1)}" r="1.6" fill="${TH.ink}"/>`);
+    const tx = p.an === 'start' ? p.bx + 14 : p.an === 'end' ? p.bx + q.w : p.bx + q.w / 2 + 7, chip = p.an === 'start' ? p.bx : p.an === 'end' ? p.bx + q.w - Math.max(...q.lines.map(l => l.length)) * 6.6 - 14 : p.bx + q.w / 2 - Math.max(...q.lines.map(l => l.length)) * 3.3 - 7;
+    out.push(`<rect x="${chip.toFixed(1)}" y="${(p.by + 2).toFixed(1)}" width="10" height="10" rx="2" fill="${fillOf(q.c.key, q.r.payload)}" stroke="${TH.edge}" stroke-width=".7"/>`);
+    q.lines.forEach((ln, i) => out.push(T(tx, p.by + 11 + 14 * i, ln, { sz: 12.5, w: 500, a: p.an })));
+    out.push(T(tx, p.by + 11 + 14 * q.lines.length, r1(q.r.kg) + ' kg · ' + (100 * q.r.kg / D.M < 1 ? '<1' : Math.round(100 * q.r.kg / D.M)) + ' %', { sz: 11.5, c: TH.dim, a: p.an }));
+  }
+  out.push(T(cx, cy - 4, r0(D.M) + ' kg', { sz: 21, w: 600, a: 'middle' }) + T(cx, cy + 16, D.emptyCenter ? 'empty' : 'as flown', { sz: 12, c: TH.dim, a: 'middle' }));
   return out;
 }
 
+// AS FLOWN: one bar from zero to the maximum take-off weight - the empty plane (its categories, as in the circle), then
+// what is added to it (crew, fuel, cargo), then what is left to the maximum
+function loadBar(D, bx, by, bw) {
+  const out = [], kx = bw / Math.max(D.mtow, D.M), H = 26; let x = bx;
+  out.push(T(bx, by - 14, 'AS FLOWN · WHAT GETS ADDED TO THE EMPTY PLANE', { sz: 11, c: TH.faint, w: 600, ls: 1.2 }));
+  const empty = D.rows.filter(r => !r.payload), emptyKg = empty.reduce((a, r) => a + r.kg, 0);
+  for (const c of cats({ rows: empty }).sort((a, b) => b.v - a.v)) { const w = c.v * kx;
+    out.push(`<rect x="${x.toFixed(1)}" y="${by}" width="${Math.max(0, w - 1).toFixed(1)}" height="${H}" fill="${CAT[c.key][1]}" fill-opacity=".8" stroke="${TH.edge}" stroke-width=".6"/>`); x += w; }
+  out.push(T((bx + x) / 2, by + H / 2 + 4.5, 'empty ' + r0(emptyKg) + ' kg', { sz: 12.5, w: 600, a: 'middle' }));
+  const add = [['cabin', 'crew & passengers'], ['fuel', 'fuel'], ['cargo', 'cargo']];
+  // the added loads' labels: under their segment, stepped down a row where they would touch the one before
+  const placed = [];
+  for (const [key, nm] of add) { const r = D.rows.find(q => q.key === key); if (!r || r.kg < 0.5) continue; const w = r.kg * kx;
+    out.push(`<rect x="${x.toFixed(1)}" y="${by}" width="${Math.max(0, w - 1).toFixed(1)}" height="${H}" fill="url(#ld)" stroke="${CAT[r.cat === 'load' ? 'finish' : r.cat][1]}" stroke-width="1.4"/>`);
+    const lab = '+ ' + nm + ' ' + r0(r.kg) + ' kg', lw = lab.length * 6.4, cxl = x + w / 2;
+    let row = 0; while (placed.some(p => p.row === row && Math.abs(p.cx - cxl) < (p.w + lw) / 2 + 8)) row++;
+    placed.push({ row, cx: cxl, w: lw });
+    const ly = by + H + 22 + 18 * row;
+    out.push(L([cxl, by + H + 2], [cxl, ly - 12], TH.lead, 0.8) + T(Math.min(bx + bw, Math.max(bx + lw / 2, cxl)), ly, lab, { sz: 12, a: 'middle' })); x += w; }
+  const mxp = bx + D.mtow * kx;
+  out.push(T(x - 2, by - (mxp - x < 150 ? 22 : 6), 'as flown ' + r0(D.M) + ' kg', { sz: 12.5, w: 600, a: 'end' }));
+  if (D.mtow > D.M) out.push(`<rect x="${x.toFixed(1)}" y="${by}" width="${((D.mtow - D.M) * kx - 1).toFixed(1)}" height="${H}" fill="none" stroke="${TH.ink}" stroke-dasharray="3 3"/>` + T(x + (D.mtow - D.M) * kx / 2, by + H / 2 + 4, r0(D.mtow - D.M) + ' kg free', { sz: 11.5, c: TH.dim, a: 'middle' }));
+  const mx = bx + D.mtow * kx; out.push(L([mx, by - 10], [mx, by + H + 10], '#b5462a', 1.8) + T(mx, by - 6, 'max ' + r0(D.mtow) + ' kg', { sz: 12, w: 600, c: '#b5462a', a: 'end' }));
+  return out;
+}
 function bars(D, bx, by, bw) {
   const out = [], C2 = cats(D).sort((a, b) => b.v - a.v);
   let x = bx;
@@ -179,14 +209,14 @@ function bars(D, bx, by, bw) {
 // draws - CG along, weight up, the good range (the game's own margin bands, 5 to 40 % of the mean chord ahead of the
 // neutral point) up to the maximum take-off weight, the loading walked from empty, and the fuel burnt back out
 function balance(D, bx, by, bw) {
-  const out = [], pic = D.pics.side, fr = pic.frame, f = Math.min(bw / pic.W, 110 / pic.H), ox = bx + (bw - pic.W * f) / 2, oy = by;
+  const out = [], pic = D.pics.side, fr = pic.frame, f = Math.min(bw / pic.W, 170 / pic.H), ox = bx + (bw - pic.W * f) / 2, oy = by;
   const Xp = x => ox + f * (x * pic.s + fr.ox), Yb = oy + pic.H * f;
   const np = D.bal.npX, cb = D.bal.cBar, g0 = np - 0.40 * cb, g1 = np - 0.05 * cb;
   out.push(`<rect x="${Xp(g0).toFixed(1)}" y="${oy - 4}" width="${(Xp(g1) - Xp(g0)).toFixed(1)}" height="${(pic.H * f + 8).toFixed(1)}" fill="#a9bd6e" fill-opacity=".25" stroke="#7d8f45" stroke-dasharray="4 3"/>`);
   out.push(`<image href="${pic.href}" x="${ox.toFixed(1)}" y="${oy}" width="${(pic.W * f).toFixed(1)}" height="${(pic.H * f).toFixed(1)}"/>`);
   out.push(`<circle cx="${Xp(D.cg).toFixed(1)}" cy="${(oy + pic.H * f * 0.55).toFixed(1)}" r="7" fill="${TH.bg}" stroke="${TH.ink}" stroke-width="1.6"/><path d="M${Xp(D.cg) - 7} ${oy + pic.H * f * 0.55} A7 7 0 0 1 ${Xp(D.cg)} ${oy + pic.H * f * 0.55 - 7} L${Xp(D.cg)} ${oy + pic.H * f * 0.55} Z M${Xp(D.cg) + 7} ${oy + pic.H * f * 0.55} A7 7 0 0 1 ${Xp(D.cg)} ${oy + pic.H * f * 0.55 + 7} L${Xp(D.cg)} ${oy + pic.H * f * 0.55} Z" fill="${TH.ink}"/>`);
   // the zoom lines from the range on the picture to the chart below
-  const cx0 = bx + 40, cx1 = bx + bw - 10, cy0 = Yb + 40, cy1 = cy0 + 280;
+  const cx0 = bx + 40, cx1 = bx + bw - 10, cy0 = Yb + 36, cy1 = cy0 + 236;
   const xlo = Math.min(g0, ...D.steps.map(s => s[1].x), D.noFuel.x) - 0.08, xhi = Math.max(np, ...D.steps.map(s => s[1].x), D.noFuel.x) + 0.08;
   const mlo = Math.floor(D.steps[0][1].m * 0.9 / 50) * 50, mhi = Math.ceil(D.mtow * 1.06 / 50) * 50;
   const X = x => cx0 + (cx1 - cx0) * (x - xlo) / (xhi - xlo), Y = m => cy1 - (cy1 - cy0) * (m - mlo) / (mhi - mlo);
@@ -205,24 +235,26 @@ function balance(D, bx, by, bw) {
   let prev = null;
   D.steps.forEach(([lab, p], i) => { if (i && Math.abs(p.m - D.steps[i - 1][1].m) < 0.5) return; const q = [X(p.x), Y(p.m)]; if (prev) out.push(`<path d="M${prev[0].toFixed(1)} ${prev[1].toFixed(1)} L${q[0].toFixed(1)} ${q[1].toFixed(1)}" stroke="${TH.ink}" stroke-width="1.6" fill="none"/>`);
     out.push(`<circle cx="${q[0].toFixed(1)}" cy="${q[1].toFixed(1)}" r="${i === 3 ? 6 : 4.5}" fill="${i === 3 ? TH.ink : TH.bg}" stroke="${TH.ink}" stroke-width="1.5"/>`);
-    out.push(T(q[0] + 9, q[1] + 4, (i ? lab : 'empty') + ' · ' + r0(p.m) + ' kg', { sz: 12, w: i === 3 ? 600 : 400, c: i === 3 ? TH.ink : TH.dim })); prev = q; });
+    const lft = i % 2 === 0 && i > 0; out.push(T(q[0] + (lft ? -9 : 9), q[1] + 4, (i ? lab : 'empty') + ' · ' + r0(p.m) + ' kg', { sz: 12, w: i === 3 ? 600 : 400, c: i === 3 ? TH.ink : TH.dim, a: lft ? 'end' : 'start' })); prev = q; });
   const nf = D.noFuel, a = [X(D.cg), Y(D.M)], z = [X(nf.x), Y(nf.m)];
   out.push(`<path d="M${a[0].toFixed(1)} ${a[1].toFixed(1)} L${z[0].toFixed(1)} ${z[1].toFixed(1)}" stroke="#c27a3e" stroke-width="1.6" stroke-dasharray="4 3" fill="none"/><circle cx="${z[0].toFixed(1)}" cy="${z[1].toFixed(1)}" r="4.5" fill="${TH.bg}" stroke="#c27a3e" stroke-width="1.5"/>` +
-    T(z[0] - 9, z[1] + 16, 'fuel burnt: CG ' + (nf.x >= D.cg ? '+' : '') + r0((nf.x - D.cg) * 100) + ' cm', { sz: 12, c: '#8a5520', a: 'end' }));
+    '');
   const sm = D.bal.sm, band = sm < 0 ? 'behind the neutral point' : sm < 0.05 ? 'close to the neutral point' : sm <= 0.40 ? 'in the good range' : 'far forward';
   out.push(T(bx, cy1 + 58, 'As flown: CG ' + r0(D.cg * 100) + ' cm behind the firewall, ' + band + ',', { sz: 12.5 }) + T(bx, cy1 + 76, r0(sm * 100) + ' % of the mean chord ahead of the neutral point.', { sz: 12.5 }));
   out.push(T(bx, cy1 + 94, r0(D.mtow - D.M) + ' kg below the maximum take-off weight.', { sz: 12.5, c: TH.dim }));
+  out.push(`<circle cx="${bx + 4}" cy="${cy1 + 107}" r="4" fill="${TH.bg}" stroke="#c27a3e" stroke-width="1.5"/>` + T(bx + 14, cy1 + 112, 'With the fuel burnt the CG moves ' + Math.abs(Math.round((nf.x - D.cg) * 100)) + ' cm ' + (nf.x >= D.cg ? 'aft' : 'forward') + ' (the dashed line).', { sz: 12.5, c: '#8a5520' }));
   return out;
 }
 function page(D, variant) {
   const out = [`<defs>${hatch}</defs>`, `<rect width="${W}" height="${H}" fill="${TH.bg}"/>`, `<rect x="12" y="12" width="${W - 24}" height="${H - 24}" rx="14" fill="none" stroke="${TH.hair}" stroke-width="1.5"/>`];
-  out.push(T(48, 58, 'MASS & BALANCE · WHERE THE ' + r0(D.M) + ' KG ARE', { sz: 12.5, c: TH.faint, w: 600, ls: 1.8 }));
-  const big = cats(D).sort((a, b) => b.v - a.v)[0];
-  out.push(T(48, 94, CAT[big.key][0] + ' is ' + r0(100 * big.v / D.M) + ' % of it; the CG sits ' + r0(D.bal.sm * 100) + ' % ahead of the neutral point', { sz: 26, w: 600 }));
-  out.push(T(48, 120, 'Empty ' + r0(D.steps[0][1].m) + ' kg, as flown ' + r0(D.M) + ' kg, maximum ' + r0(D.mtow) + ' kg. Hatched: what the plane carries rather than is.', { sz: 14.5, c: TH.dim }));
+  out.push(T(48, 58, 'MASS & BALANCE · THE EMPTY PLANE, THEN WHAT IT CARRIES', { sz: 12.5, c: TH.faint, w: 600, ls: 1.8 }));
+  const Em = D.rows.filter(r => !r.payload), eKg = Em.reduce((a, r) => a + r.kg, 0), big = cats({ rows: Em }).sort((a, b) => b.v - a.v)[0];
+  out.push(T(48, 94, CAT[big.key][0] + ' is ' + r0(100 * big.v / eKg) + ' % of the empty plane; the CG sits ' + r0(D.bal.sm * 100) + ' % ahead of the neutral point', { sz: 24, w: 600 }));
+  out.push(T(48, 120, 'Empty ' + r0(D.steps[0][1].m) + ' kg, as flown ' + r0(D.M) + ' kg, maximum ' + r0(D.mtow) + ' kg. The circle is the plane itself; the bar adds what it carries (hatched).', { sz: 14.5, c: TH.dim }));
   out.push(T(W - 48, 58, D.name + '  ' + (D.reg || ''), { sz: 15, w: 600, a: 'end' }) + T(W - 48, H - 32, 'Wingsmith · certified airworthy', { sz: 12, c: TH.faint, a: 'end' }));
   if (variant === 'treemap') out.push(...treemap(D, 48, 150, 600, 590));
-  if (variant === 'sunburst') out.push(...sunburst2(D, 362, 458, 160, { y0: 146, y1: 762 }));
+  if (variant === 'sunburst') { const Em = D.rows.filter(r => !r.payload), De = Object.assign({}, D, { rows: Em, M: Em.reduce((a, r) => a + r.kg, 0), emptyCenter: true });
+    out.push(...sunburst2(De, 360, 392, 122, { x0: 40, x1: 680, y0: 146, y1: 612 })); out.push(...loadBar(D, 48, 668, 620)); }
   if (variant === 'bars') out.push(...bars(D, 48, 180, 620));
   out.push(T(700, 166, 'BALANCE', { sz: 11, c: TH.faint, w: 600, ls: 1.2 }));
   out.push(...balance(D, 700, 190, 452));

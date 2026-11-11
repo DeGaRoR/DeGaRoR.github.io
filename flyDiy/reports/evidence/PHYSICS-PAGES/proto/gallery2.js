@@ -15,19 +15,19 @@ const WHAT = {
 };
 let figs = '';
 // THE REFERENCE PAGE (prototype): REAL-FIGURES' measurement drawn as a fiche page, one per plane it validated
-{ const RP = require('./refpage.js'), RR = require('/workspace/pp-wt/flyDiy/tools/real_refs.js');
+{ const RP = require('./refpage2.js'), RR = require('/workspace/pp-wt/flyDiy/tools/real_refs.js');
   const KS = ['c172v2', 'carboncubss', 'cub160', 'jodel', 'pa18f160', 'chinook', 'c172rf', 'dc3', 'stearman', 'tigermoth', 'camel', 'petrelL'];
   let opts = '', ff = '';
   KS.forEach((k, i) => { const P = RR.PLANES[k] || {}, t = (P.short || P.label || k).split(' (')[0], sv = RP.page(k, t); if (!sv) return;
     opts += `<option value="${k}">${t}</option>`; ff += `<figure class="rfig" data-r="${k}"${i ? ' hidden' : ''}><div class="scroll">${sv}</div></figure>`; });
-  window_ref = `<section class="page" id="reference"><div class="head"><h2>Reference <span class="tag">prototype</span></h2><p class="what">A plane against the real one it stands for, drawn from REAL-FIGURES' own measurement and sources. Every published figure sits on one axis of percent from the book. The grey band is the book's own scatter. The coloured bar is ours, from the lightest to the heaviest load the book's figure could have been stated at. Figures measured more than one way (the airframe, the handbook's technique, the game's pilot) get a row each. The real dimensions are beside the chart.</p><label class="pick">Plane <select id="refpick">${opts}</select></label></div>${ff}</section>`; }
+  window_ref = `<section class="page" id="reference"><div class="head"><h2>Reference <span class="tag">prototype</span></h2><p class="what">A plane against the real one it stands for, scored as REAL-FIGURES scores it. The global score sits top right. The triangle shows geometry, specs and performance, each section with its score below. Then every item's discrepancy, ours against the book, coloured by its score.</p><label class="pick">Plane <select id="refpick">${opts}</select></label></div>${ff}</section>`; }
 // MASS & BALANCE: prototypes for AIRCRAFT-LOOKS' page (theirs to build in the game): the sunburst the user picked, the treemap beside it
 { const MP = require('./massproto.js');
-  figs += `<section class="page" id="mass"><div class="head"><h2>Mass &amp; balance <span class="tag">prototype for AIRCRAFT-LOOKS</span></h2><p class="what">Where every kilogram is. The inner ring holds the categories, named along their arcs. The outer ring holds each part of the plane, called out with its kilograms. Hatching marks what the plane carries rather than what it is. Beside it is the weight-and-balance envelope a handbook draws: the CG's good range (the game's own margin bands) up to the maximum take-off weight, the loading walked from empty, and the fuel burnt back out. Below the sunburst is the treemap, for comparison.</p></div>`;
+  figs += `<section class="page" id="mass"><div class="head"><h2>Mass &amp; balance <span class="tag">prototype for AIRCRAFT-LOOKS</span></h2><p class="what">Where every kilogram is. The circle is the empty plane: categories on the inner ring, every part on the outer ring, called out with straight leaders all around it. The bar below adds what the plane carries (crew, fuel, cargo, hatched) up to the maximum take-off weight. Beside it is the weight-and-balance envelope a handbook draws: the CG's good range (the game's own margin bands) up to the maximum take-off weight, the loading walked from empty, and the fuel burnt back out. </p></div>`;
   for (const k of KEYS) { const Dm = MP.data(k);
     figs += `<figure class="fig" data-k="${k}" data-th="sheet"${k === 'cub' ? '' : ' hidden'}><div class="scroll">${MP.page(Dm, 'sunburst')}</div></figure>`;
     figs += `<figure class="fig" data-k="${k}" data-th="screen" hidden><div class="scroll">${MP.page(Dm, 'sunburst')}</div></figure>`;
-    figs += `<figure class="fig alt" data-k="${k}" data-th="sheet"${k === 'cub' ? '' : ' hidden'}><div class="scroll">${MP.page(Dm, 'treemap')}</div><figcaption class="altcap">The same plane as a treemap</figcaption></figure>`; }
+  }
   figs += `</section>`; }
 for (const p of FP.PAGES) {
   figs += `<section class="page" id="${p.id}"><div class="head"><h2>${p.name}</h2><p class="what">${WHAT[p.id]}</p></div>`;
