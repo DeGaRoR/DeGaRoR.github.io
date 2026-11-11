@@ -1,0 +1,77 @@
+{
+ "cub": {
+  "verdict": "BROKE AT 6.01 g",
+  "yieldAt": 6.008749999999995,
+  "breakAt": 6.008749999999995,
+  "breakFirst": {
+   "cls": "wing",
+   "seam": "fitting",
+   "how": "tension"
+  },
+  "brokeAt": 6.008749999999995,
+  "brokeKey": "wing0R:strut",
+  "brokeSeam": "fitting",
+  "frames": 420,
+  "ms": 11060,
+  "keys": [
+   "kind",
+   "ok",
+   "rig",
+   "sim",
+   "def",
+   "done",
+   "pump",
+   "snapshot"
+  ]
+ },
+ "c172": {
+  "verdict": "BROKE AT 6.08 g",
+  "yieldAt": 3.847499999999994,
+  "breakAt": 6.079999999999995,
+  "breakFirst": {
+   "cls": "wing",
+   "seam": "fitting",
+   "how": "tension"
+  },
+  "brokeAt": 6.079999999999995,
+  "brokeKey": "wing0R:strut",
+  "brokeSeam": "fitting",
+  "frames": 480,
+  "ms": 29701,
+  "keys": [
+   "kind",
+   "ok",
+   "rig",
+   "sim",
+   "def",
+   "done",
+   "pump",
+   "snapshot"
+  ]
+ },
+ "twin": {
+  "verdict": "BROKE AT 13.17 g",
+  "yieldAt": 6.958749999999991,
+  "breakAt": 7.2991666666666575,
+  "breakFirst": {
+   "cls": "wing",
+   "seam": null,
+   "how": "kink"
+  },
+  "brokeAt": 13.17333333333341,
+  "brokeKey": "wing0R:root",
+  "brokeSeam": "fitting",
+  "frames": 1380,
+  "ms": 68990,
+  "keys": [
+   "kind",
+   "ok",
+   "rig",
+   "sim",
+   "def",
+   "done",
+   "pump",
+   "snapshot"
+  ]
+ }
+}
