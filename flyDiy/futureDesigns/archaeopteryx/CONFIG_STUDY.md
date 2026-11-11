@@ -1,4 +1,4 @@
-# THE HUB AND THE HANGING NACELLE - a configuration study, revision 2 (2026-11-11)
+# THE HUB AND THE HANGING NACELLE - a configuration study, revision 2 (2026-11-11; the user's decisions in section 10)
 
 Revision 1 (same file, in git: 0af737863) proposed a new frame built from the wing down, a beam and a pylon as new
 geometry, a crew anchored on the beam, and a one-surface blended centre section. The user's answer turned it round:
@@ -48,9 +48,9 @@ This revision is the design that answers that. **Study only, no code.** Every ho
 | **hub** | the centre section + carry-through | `wgCentre` constructions (60_gen_spec.js:3637; 63_gen_wing.js:1266-1350); carry-through nodes WF/WR/WB/FB/RB (61_gen_frame.js:1285, 1537, 1573-1584) | the sockets named (node sets) and drawn (fittings) |
 | **tail boom** | a single boom off the hub's back | the TWIN BOOM: roots tied to the spar nodes and box caps, the root bay clustered rigid (61_gen_frame.js:2059-2087); drawn by the wing layer off the TE (_cage_wing.js:2557-2700) | one boom at x = 0 (today `boomX` min 0.6, _cage_page5.js:1160) |
 | **rear socket** | the boom's fitting on the hub | the pod-and-rod's BOLTED SOCKET: plate, sleeve, bolts, already tagged `fit` (_cage_gen.js q4, :6833-6880) | drawn on the hub's rear spar instead of the bulkhead |
-| **pylon** | a straight wing-section mast from the hub's bottom socket to the nacelle | the over-the-wing engine pylon's drawing: `engPylonForm` 'single blade', `engPylonFair` 'wing-section fairing' (_cage_eng.js:666-668); physics as a `'cabane'` tube (Euler buckling already covers `cabane`, 30_solver.js:767) | turned downward; its length free (the wing can stand above the cabin, as the parasol's `cabaneH` does) |
+| **pylon** | a single straight wing-section mast on the centreline from the hub's bottom socket to the nacelle | the over-the-wing engine pylon's drawing: `engPylonForm` 'single blade', `engPylonFair` 'wing-section fairing' (_cage_eng.js:666-668); physics as a `'cabane'` tube (Euler buckling already covers `cabane`, 30_solver.js:767) | turned downward; its length free (the wing can stand above the cabin, as the parasol's `cabaneH` does) |
 | **pusher on the pylon** | the old aft bulkhead's job, on the pylon's aft face | `engMount` pusher on `engineFaces` (_cage_cowl.js:596-628); the shaft (`cw_noseOff`) | the face read off the pylon's aft edge |
-| **keel beam** | the nacelle's keel rail, made structural | the cage's keel level and the frame's bottom longerons (61_gen_frame.js:778-797) | a member material by ROLE (§3) |
+| **keel beam** | the nacelle's keel rail, made structural; a visible faired beam on the naked version | the cage's keel level and the frame's bottom longerons (61_gen_frame.js:778-797); the pylon's wing-section drawing | a member material by ROLE (§3); its fairing drawn when there is no skin |
 | **V struts** | from the nose up to the hub's front fittings: rigid tubes | the cage's A-pillars (`apilW`, `apilPerp`, `cabPillarW`, _cage_page5.js:1283-1286); tube members | the A-pillars carried on up to the hub; a windscreen-V row usable on any cabin (the Cub's centre strut) |
 | **seat, pedals, controls** | in the nacelle | the crew as today (`anchors()`, _cage_crew.js:2450-2530): the nacelle keeps its rings and floor | nothing |
 | **the tent** | skin and light cage | the cage's sheet; a material row like glass's (G2047); the cloth cover's tear law (`GEN_COVER.fabric`, 60_gen_spec.js:481); tube buckling | one material row: thin poles, ripstop, collapses |
@@ -93,14 +93,21 @@ Covered: the tent's skin over the cage. Open frame: the hard members alone, the 
   - The main wheel on the centreline, under the pylon's foot.
   - The nose unit: a wheel or the faired skid.
   - A tail skid (the tailwheel's skid).
-  - **Wingtip skids** for the wing that goes down at rest.
+  - The wing that goes down at rest lands on its **tip**, and that tip is a wingtip type (below), not part of the gear.
 - **The physics:**
   - `refs.mains` holds two nodes today, and the solver and the cert assume it at four sites (30_solver.js:949, 1578,
     3941, 4283; frame :3815).
   - The single wheel is one axle node. Those four sites learn "one or two".
-  - The tip skids are two contact nodes at the wing's tips.
-- Ground handling on one wheel and a tip is new behaviour; the taildragger's tip-strike logic is the nearest precedent
-  to read first.
+- Ground handling on one wheel and a tip is new behaviour.
+
+**The skid tip: a new wingtip type.**
+- The tips are a list of kinds (`GEN_TIPS`, 60_gen_spec.js:2731). New kinds are APPENDED, never inserted, because the
+  cage saves a tip as an index. `endplate`, `drooped` and `upturned` came in that way.
+- `skid`: a tip with a skid shoe under its end, a row with `skid: [height, length]` in tip chords, drawn by the wing
+  layer and priced as drag the way the endplate's plate is (62_gen_aero).
+- Its physics: the shoe's node is a ground contact with a sliding law. The model is the tail contact (`refs.tw`, and
+  the twin boom's second one `TW2`, 30_solver.js:2602, 3429), which sizes its law off its static load.
+- So any glider gets it by picking the tip, monowheel or not.
 
 ## 5. Swappable hung modules: trikes and more
 
@@ -139,7 +146,7 @@ gear. With that:
 - `61_gen_frame.js`:
   - the hub's ties: the boom by the twin-boom recipe at x = 0, the pylon, the struts' heads;
   - member materials by role (§3);
-  - the monowheel axle and the tip skids.
+  - the monowheel axle; the skid tip's contact node.
 - `30_solver.js`, `66_gen_cert.js`: one or two mains.
 - `65_gen_loadtest.js`:
   - the trestle pins the body today ("every non-wing node", :21);
@@ -167,8 +174,8 @@ gear. With that:
 
 ## 9. Staging
 
-1. **The monowheel** (alone, useful at once to every glider): the gear type, the tip skids, the faired nose skid, the
-   one-or-two mains in the solver and the cert.
+1. **The monowheel** (alone, useful at once to every glider): the gear type, the faired nose skid, the one-or-two
+   mains in the solver and the cert; and the **skid wingtip** type.
 2. **The hub's boom:** the single boom off the hub. This retires the rod-on-a-bulkhead for this card.
 3. **The hanging nacelle:**
    - the pylon (drawing reused, physics as cabane);
@@ -180,11 +187,15 @@ gear. With that:
 4. **The card:** the Archaeopteryx re-built on it, its masses against the 54 kg, the battery beside the pilot, flown.
 5. **Later:** the trike carriage as a second module; the slot-in fittings; the blended centre section.
 
-## 10. Questions left for the user
+## 10. Decisions (the user, 11 Nov) and what is left
 
-1. **The pylon's line:** a single centreline mast (the photos), or the cage's aft pillar pair joined at the bottom? The
-   study assumes the single mast, with the nacelle's aft face behind it.
-2. **The keel beam's own shape:** the cage's keel rail as it is (inside the tent), or a visible faired beam under the
-   naked version?
-3. **The tip skids:** a row on the wing (all gliders), or part of the monowheel layout?
-4. **The trike module:** in step 5, or as a test of the interface already in step 3?
+1. **The pylon: a single centreline mast**, as in the photos, the nacelle's aft face behind it.
+2. **The keel: a visible faired beam on the naked version.** With skin it sits inside the tent. Without skin it is a
+   beam you can see under the seat (the pylon's wing-section drawing, laid flat). Its own drawing row on the nacelle.
+3. **The wingtip skids: a new wingtip type** (section 4), not a gear row.
+4. **The trike module: later** (stage 5). The plane comes first.
+
+Left open:
+- **Winglet and skid together.** A wing has ONE tip kind, and the three-view's Archaeopteryx has winglets. Either a
+  second appended type, "winglet + skid" (the skid shoe under the winglet's root), or the skid drawn under any tip
+  through a tip-shape number. The study proposes the first: two rows, no new mechanism.
