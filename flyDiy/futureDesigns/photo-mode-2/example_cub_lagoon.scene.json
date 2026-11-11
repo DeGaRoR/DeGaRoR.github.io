@@ -1,0 +1,45 @@
+{
+  "what": "wingsmith-scene",
+  "v": 1,
+  "name": "Cub over the lagoon",
+  "made": "2026-11-11T18:20:00Z",
+  "game": "L38a",
+  "note": "An ILLUSTRATION of the format (design note section 3): the place and the build are placeholders, not a staged picture. A real file carries the whole build envelope inline.",
+  "site": "flight",
+  "world": { "kind": "island", "seed": 0 },
+  "camera": {
+    "anchor": "plane",
+    "eye": [-9.5, 2.1, 6.0],
+    "target": [0.4, 0.2, 0],
+    "roll": 0,
+    "fov": 38,
+    "mode": "free",
+    "level": true
+  },
+  "time": { "date": "2026-06-21", "localHours": 19.25, "frozen": true },
+  "weather": {
+    "cloudType": "cuh",
+    "cloudCover": 0.3,
+    "cloudSeed": 1,
+    "turbidity": 2.8,
+    "wind": { "kts": 8, "dirDeg": 250, "gust": 0, "refH": 10, "breeze": 1 },
+    "seaT": 1234.5,
+    "clouds": { "veil": 0.2 }
+  },
+  "garage": null,
+  "plane": {
+    "ref": "stock:cub",
+    "build": { "what": "flydiy-build", "v": 10, "name": "Cub", "spec": {} }
+  },
+  "pose": {
+    "where": "air",
+    "at": [1520.0, null, -840.0],
+    "agl": 45,
+    "hdg": 250,
+    "pitch": 4,
+    "roll": -18,
+    "controls": { "elevator": -0.1, "aileron": -0.35, "rudder": 0.05, "flaps": 0, "gear": 1, "throttle": 0.8 },
+    "prop": { "look": "blur", "rpm": 2300, "angleDeg": 0 }
+  },
+  "quality": { "best": true, "rung": "auto", "output": null, "overrides": {} }
+}
