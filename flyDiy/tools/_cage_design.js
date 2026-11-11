@@ -2979,12 +2979,25 @@ const ARCHETYPES = [
                     // bulkhead - "the pillar is where the aft bulkhead is where the engine is"): the pusher on the
                     // bulkhead, low (engY), under its COWL as the aft pod (11 Nov: "use the cowl, that one will already fit
                     // on the aft bulkhead ... by varying the length we can get to the shape that we need"): the straight
-                    // barrel of the pusher pods (NACELLE_POD), fitted to the body's face, full height to its end
-                    // (cw_taperH 1), its width narrowing to 0.3 (the blade the drawing's aft pod is, in plan), 0.86 m long; the
-                    // small prop on a shaft just past its end, the disc 0.23 m off the ground and 0.20 m under the rod
+                    // barrel of the pusher pods (NACELLE_POD) on the body's face, narrowing in plan (the blade the drawing's
+                    // aft pod is), ~0.9 m long; the small prop on a shaft just past its end, the disc 0.23 m off the
+                    // ground and 0.20 m under the rod
                     engY: -0.13, cw_propD: 0.75, cw_noseOff: 0.45,   // (the shaft: the prop just past the cowl's end)
-                    cowlOn: 1, fitNose: 1, ...NACELLE_POD, cw_cowlLen: 0.86, cw_taperW: 0.3, cw_taperH: 1.0,
-                    cw_inletOn: 0,   // (the section the preset's 0.55: at 0.9 the halves leave a gap at the waist)
+                    // (11 Nov, the user over the render: "move the cowl waistline in line with the cabin waistline ... make
+                    // the creases of the cowl hard, and try to get the shape I drew in red, but based on the plans. This
+                    // upwards line is necessary for taking off"): SEALED to the face (fitNose 2: the size the body's, the
+                    // section ours), the widest line at the cabin's (-0.52 of the half-height: the Chinook's low waist),
+                    // square (0.9) with no panel joint and no split line (either tears the square section at the waist);
+                    // a short straight barrel, then a long bowl whose bottom line bends up from ~2.5 m (the plans' pod
+                    // bottom: flat, then rising) to 0.28 m above the keel at the end, the top line held to the rod, the
+                    // end face 0.20 m wide round the prop's axis. Rotation before the prop touches: ~19 deg. NOTE: a BIRTH
+                    // fits the cowl to the engine's type once (_cage_cowl.js cowlForEngine) and restyles three of these
+                    // rows (cw_waist, cw_sqAftTop, cw_sqAftBot) - builds/archaeopteryx_2026-11-10.json carries them as set
+                    cowlOn: 1, fitNose: 2, ...NACELLE_POD, cw_inletOn: 0, cw_seamOn: 0, cw_partOn: 0,
+                    cw_waist: -0.52, cw_sqAftTop: 0.9, cw_sqAftBot: 0.9, cw_sqFrontTop: 0.9, cw_sqFrontBot: 0.9,
+                    cw_cowlLen: 0.40, cw_lidLen: 0.51, cw_taperW: 0.7, cw_taperH: 1.0,
+                    cw_lidMode: 0, cw_lidRW: 0.10, cw_lidRTop: 0.635, cw_lidRBot: 0.245, cw_lidShoulder: 0.5, cw_lidRound: 0.6,
+                    cw_deckSweep: 0, cw_deckShoulder: 0.92, cw_deckRound: 1, cw_keelSweep: 0, cw_keelShoulder: 0, cw_keelRound: 0.6,
                     // the wing: LE 1.08 / TE 2.30 behind the nose at the root, chord 1.19 -> 1.09 at the crank -> 0.56
                     wgSpan: 13.0, wgChord: 1.19, wgCrankAt: 0.48, wgCrankChord: 1.09, wgCrankX: 0.08,
                     wgChordTip: 0.56, wgTipX: 0.52, wgDihedral: 1, wgDihedralOut: 1, wgDx: 0,
