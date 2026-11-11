@@ -325,3 +325,136 @@ if (require.main === module) {
   const fn = { load: loadTest, drag: dragPage, elec: elecPage, tank: tankPage }[which];
   fs.writeFileSync(path.join(H, 'out_' + k + '_' + which + '.svg'), fn(k));
 }
+
+// ===================================================================================================================
+// 5. WHAT THE SIM FLIES - plan above side, one scale: the mass points, the members, the lifting panels and their control
+//    surfaces, the two body drag points, the propeller disc, the ground contacts; the drawn plane only as a faint ghost
+// ===================================================================================================================
+const SIMDEF = {};
+function simDef(k) {
+  if (SIMDEF[k]) return SIMDEF[k];
+  const C = require('./core.js'); return (SIMDEF[k] = C.buildGen(JSON.parse(JSON.stringify(SPECS[k].spec))));
+}
+function simPage(k) {
+  const def = simDef(k), sp = def.spec, n = def.nodes, W = 800;
+  const xs = n.map(q => q.p[0]), ys = n.map(q => q.p[1]), zs = n.map(q => q.p[2]);
+  const D = (def.params.prop && def.params.prop.D) || 1.8, engI = [].concat(def.refs.engine || []);
+  const eng = mean(engI.map(i => n[i].p)), pusher = sp.engAt && sp.engAt[0] && sp.engAt[0].mount === 'pusher';
+  const xmin = Math.min(...xs, eng[0] - 0.4), xmax = Math.max(...xs) + 0.5, zext = Math.max(...zs.map(Math.abs)) + 0.2;
+  const ymin = Math.min(...ys, eng[1] - D / 2) - 0.1, ymax = Math.max(...ys, eng[1] + D / 2) + 0.1;
+  const s = Math.min(560 / (xmax - xmin), 330 / (2 * zext)), X0 = (W - (xmax - xmin) * s) / 2 - xmin * s;
+  const PY = 132 + zext * s, SY = PY + zext * s + 40 + ymax * s;   // plan centreline; side datum (y = 0)
+  const Hh = Math.round(SY - ymin * s + 118);
+  const pl = p => [X0 + p[0] * s, PY + p[2] * s], sd = p => [X0 + p[0] * s, SY - p[1] * s];
+  let out = `<defs><filter id="sg${k}"><feColorMatrix type="saturate" values="0"/></filter>` +
+    `<pattern id="hz${k}" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="5" stroke="${CAT.fittings}" stroke-width="1.6"/></pattern></defs>`;
+  // the ghosts: the drawn plane, faint, on the calibrated fiche pictures (the plan turned nose-left by its own frame)
+  { const c = CAL[k].plan, f = s / c.s;
+    out += `<image href="${img(k, 'plan')}" width="${c.W}" height="${c.H}" transform="matrix(0 ${f} ${f} 0 ${(X0 - f * c.oy).toFixed(2)} ${(PY - f * c.ox).toFixed(2)})" opacity="0.3" filter="url(#sg${k})"/>`;
+    const cs = CAL[k].side, fs2 = s / cs.s;
+    out += `<image href="${img(k, 'side')}" width="${cs.W}" height="${cs.H}" transform="matrix(${fs2} 0 0 ${fs2} ${(X0 - fs2 * cs.ox).toFixed(2)} ${(SY - fs2 * cs.oy).toFixed(2)})" opacity="0.3" filter="url(#sg${k})"/>`; }
+  // the lifting panels: a strip's chord quad off its spar nodes (front spar at 15 % of the chord), its control share
+  const CT = sp.controls || {};
+  const share = st => st.kind === 'stab' ? (CT.elevator && CT.elevator.chord) || 0 : st.kind === 'fin' ? (CT.rudder && CT.rudder.chord) || 0
+    : st.ail ? (CT.aileron && CT.aileron.chord) || 0 : st.flap ? (CT.flap && CT.flap.chord) || 0 : 0;
+  const quad = (st, P) => {
+    const F0 = n[st.fIn].p, F1 = n[st.fOut].p, R0 = n[st.rIn].p, R1 = n[st.rOut].p;
+    const at = (F, R, t) => { const d = [0, 1, 2].map(q => R[q] - F[q]), L = Math.hypot(...d) || 1; return [0, 1, 2].map(q => F[q] + d[q] / L * st.chord * (t - 0.15)); };
+    const cs = share(st), te = 1, hinge = 1 - cs;
+    const body = [at(F0, R0, 0), at(F1, R1, 0), at(F1, R1, hinge), at(F0, R0, hinge)].map(P);
+    const ctl = cs > 0 ? [at(F0, R0, hinge), at(F1, R1, hinge), at(F1, R1, te), at(F0, R0, te)].map(P) : null;
+    const poly = (pts, fill, op, stroke) => `<path d="M${pts.map(q => q[0].toFixed(1) + ' ' + q[1].toFixed(1)).join(' L')} Z" fill="${fill}" fill-opacity="${op}" stroke="${stroke}" stroke-width="0.8"/>`;
+    return poly(body, CAT.structure, 0.16, 'rgba(143,176,196,.7)') + (ctl ? poly(ctl, `url(#hz${k})`, 0.9, CAT.fittings) : '');
+  };
+  for (const st of def.strips) if (st.kind !== 'fin') out += quad(st, pl);
+  for (const st of def.strips) if (st.kind === 'fin') out += quad(st, sd);
+  // the members, thin
+  for (const b of def.beams) { if (b.vis === 'inner') continue; const A = n[b.a].p, B = n[b.b].p;
+    out += L(pl(A), pl(B), 'rgba(192,184,172,.22)', 0.6) + L(sd(A), sd(B), 'rgba(192,184,172,.22)', 0.6); }
+  // the two body drag points: a flat plate of each one's AXIAL drag area (front) and the aft one's side area, to scale
+  const fd = mean([].concat(def.refs.fusDrag).map(i => n[i].p)), fa = mean([].concat(def.refs.fusDragAft).map(i => n[i].p));
+  const cda = def.params.fusCdA, cdaA = def.params.fusCdAAft;
+  const disc = (q, a, col) => `<circle cx="${q[0].toFixed(1)}" cy="${q[1].toFixed(1)}" r="${(Math.sqrt(a / Math.PI) * s).toFixed(1)}" fill="${col}" fill-opacity=".22" stroke="${col}" stroke-width="1.3" stroke-dasharray="4 3"/>`;
+  out += disc(sd(fd), cda[0], INK) + disc(sd(fa), cdaA[1] * 0.25, INK);
+  // the propeller: a disc of its diameter, edge-on in both views
+  const ex = pusher ? eng[0] + 0.25 : eng[0] - 0.12;
+  out += L(pl([ex, 0, -D / 2]), pl([ex, 0, D / 2]), CAT.engine, 2.4) + L(sd([ex, eng[1] - D / 2, 0]), sd([ex, eng[1] + D / 2, 0]), CAT.engine, 2.4);
+  // the ground contacts
+  for (const i of [].concat(def.refs.mains || [], def.refs.tw >= 0 ? [def.refs.tw] : [])) { const q = sd(n[i].p); out += `<rect x="${(q[0] - 4).toFixed(1)}" y="${(q[1] - 4).toFixed(1)}" width="8" height="8" fill="${CAT.gear}"/>`; }
+  if (def.parts.floats) for (const q of n.filter(q => q.tag === 'FLK')) { const p = sd(q.p); out += `<rect x="${(p[0] - 2.5).toFixed(1)}" y="${(p[1] - 2.5).toFixed(1)}" width="5" height="5" fill="${CAT.gear}"/>`; }
+  // the masses: a dot per node, its area to its kilograms (both views)
+  const mr = m => Math.max(0.9, Math.sqrt(m) * 0.95);
+  for (const q of n) if (q.m > 0.05) { const a = pl(q.p), b = sd(q.p); out += `<circle cx="${a[0].toFixed(1)}" cy="${a[1].toFixed(1)}" r="${mr(q.m).toFixed(1)}" fill="${INK}" fill-opacity=".8"/><circle cx="${b[0].toFixed(1)}" cy="${b[1].toFixed(1)}" r="${mr(q.m).toFixed(1)}" fill="${INK}" fill-opacity=".8"/>`; }
+  // callouts
+  const engM = engI.reduce((a, i) => a + n[i].m, 0) + n.filter(q => q.tag === 'CGE').reduce((a, q) => a + q.m, 0);
+  const call = (q, lx, ly, a, t1, t2, col) => { const lyy = q[1] > ly ? ly + 24 : ly - 18; out += L(q, [a === 'middle' ? lx : lx + (a === 'end' ? -40 : 40), lyy], 'rgba(244,239,230,.32)', 0.8) + T(lx, ly - 2, t1, { sz: 13.5, a, w: 500 }) + (t2 ? T(lx, ly + 15, t2, { sz: 12, a, c: col || DIM }) : ''); };
+  const top = def.strips.filter(st => st.kind === 'wing' && n[st.fOut].p[2] < 0).sort((a, b) => n[a.fOut].p[2] - n[b.fOut].p[2]);
+  const ailSt = top.find(st => st.ail) || top[0] || def.strips[0], outSt = top[0] || def.strips[0];
+  const nW = def.strips.filter(st => st.kind === 'wing').length, nT = def.strips.length - nW;
+  call(pl(mean([n[ailSt.rOut].p, n[ailSt.rIn].p])), W - 40, 128, 'end', 'Aileron, flap, elevator, rudder', 'the rear share of a panel: it moves that panel\'s lift', CAT.fittings);
+  call(pl(mean([n[outSt.fIn].p, n[outSt.fOut].p])), 40, 128, 'start', nW + ' wing panels, ' + nT + ' tail panels', 'each its own lift and drag curve, at its own airflow');
+  const cge = n.find(q => q.tag === 'CGE'); if (cge) call(sd(cge.p), 40, Hh - 60, 'start', 'Engine: ' + Math.round(engM) + ' kg on its mount points', 'power, torque and its gyroscopic pull act there', CAT.engine);
+  call(sd([ex, eng[1] + D / 2, 0]), W - 40, Hh - 60, 'end', 'Propeller: a disc ' + D.toFixed(2) + ' m across', 'thrust from its curve, its torque on the airframe', CAT.engine);
+  call(sd(fd), W / 2, Hh - 22, 'middle', 'Body: two drag points, the nose and cowl included', 'front ' + cda[0].toFixed(2) + ' m² (gear in it), dashed discs to scale');
+  // the Twin's aft point behind its pod (AFT-PODS)
+  if (k === 'twin') { const q = pl([fa[0], 0, 0]); out += `<circle cx="${q[0].toFixed(1)}" cy="${q[1].toFixed(1)}" r="11" fill="none" stroke="#d8a07a" stroke-width="1.4"/>` + T(q[0] + 16, q[1] - 14, 'aft body point behind the drawn pod', { sz: 12, c: '#d8a07a' }); }
+  // header
+  out += eyebrow(32, 40, 'What the sim flies · the model itself');
+  out += T(32, 72, n.length + ' masses, ' + def.beams.length + ' members, ' + def.strips.length + ' lifting panels', { sz: 24, w: 600 });
+  out += T(32, 94, 'Plan above, side below, one scale. The rendered plane is the faint ghost behind it.', { sz: 13, c: DIM });
+  return svg(W, Hh, out, 'The simulation model of the ' + NAME[k]);
+}
+
+// ===================================================================================================================
+// 6. THE BREAKING POINT - the load test carried on until a part lets go (the bench to destruction)
+// ===================================================================================================================
+const GRPNAME = key => { const m = /^(wing|boom)(\d?)([LR]):(\w+)$/.exec(key || ''); if (!m) return key;
+  const side = m[3] === 'L' ? 'left' : 'right';
+  return m[1] === 'boom' ? side + ' boom attachment' : side + ' ' + (m[4] === 'strut' ? 'lift strut fitting' : m[4] === 'root' ? 'wing root fitting' : m[4]); };
+function breakPage(k) {
+  const B = J('destroy_' + k + '.json')[k], st = B.st, W = 800, Hh = 520;
+  const n = B.nodes, Dp = B.dispBreak || B.dispEnd;
+  let tip = 0; n.forEach((q, i) => { if (q.tag === 'WF') tip = Math.max(tip, Math.abs(Dp[i][1])); });
+  const K = tip > 0.1 * B.semi ? 1 : Math.max(5, Math.round(0.11 * B.semi / Math.max(1e-4, tip) / 5) * 5);
+  const cx = W / 2; let base = 0, s = 1;
+  const P = (i, ex) => { const p = n[i].p, d = ex ? Dp[i] : [0, 0, 0]; return [cx - (p[2] + K * d[2]) * s, base - (p[1] + K * d[1]) * s]; };
+  { let u0 = Infinity, u1 = -Infinity, v0 = Infinity, v1 = -Infinity;
+    for (let i = 0; i < n.length; i++) for (const ex of [0, 1]) { const q = P(i, ex); u0 = Math.min(u0, q[0] - cx); u1 = Math.max(u1, q[0] - cx); v0 = Math.min(v0, q[1]); v1 = Math.max(v1, q[1]); }
+    s = Math.min(700 / Math.max(2 * Math.abs(u0), 2 * Math.abs(u1)), 230 / (v1 - v0));
+    let top = Infinity; for (let i = 0; i < n.length; i++) for (const ex of [0, 1]) top = Math.min(top, P(i, ex)[1]); base = 160 - top; }
+  let out = '';
+  for (const b of B.beams) if (b.cls === 'wing' && n[b.a].tag === 'WF' && n[b.b].tag === 'WF') out += L(P(b.a, 0), P(b.b, 0), FAINT, 1.1, '4 5');
+  const BAD = 'rgb(224,110,70)', WARN = '#d8a07a';
+  const brokenSet = new Set(B.broken);
+  B.beams.forEach((b, i) => { if (b.vis === 'inner' || brokenSet.has(i) || b.yielded) return; out += L(P(b.a, 1), P(b.b, 1), 'rgba(151,144,127,.35)', 0.8); });
+  B.beams.forEach((b, i) => { if (b.vis === 'inner' || brokenSet.has(i) || !b.yielded) return; out += L(P(b.a, 1), P(b.b, 1), WARN, 1.8); });
+  B.beams.forEach((b, i) => { if (!brokenSet.has(i)) return; out += L(P(b.a, 1), P(b.b, 1), BAD, 2.2, '5 4'); });
+  if (B.firstBreak) { const b = B.beams[B.firstBreak.beam], a = P(b.a, 1), c = P(b.b, 1), m = [(a[0] + c[0]) / 2, (a[1] + c[1]) / 2];
+    out += `<circle cx="${m[0].toFixed(1)}" cy="${m[1].toFixed(1)}" r="11" fill="none" stroke="${BAD}" stroke-width="1.8"/>`;
+    out += T(m[0] + (m[0] < cx ? -16 : 16), m[1] - 16, (B.firstBreak.how === 'kink' ? 'first to buckle' : 'first to break'), { sz: 12.5, c: BAD, w: 600, a: m[0] < cx ? 'end' : 'start' }); }
+  // the ladder: limit, ultimate, first set, first break, the part let go
+  const gMax = Math.max(7, (st.brokeAt || 6) * 1.08), lx0 = 40, lx1 = W - 40, ly = Hh - 88, gx = g => lx0 + (lx1 - lx0) * g / gMax;
+  out += L([lx0, ly], [lx1, ly], 'rgba(244,239,230,.35)', 1);
+  for (let g = 0; g <= gMax; g += (gMax > 10 ? 2 : 1)) out += L([gx(g), ly - 3], [gx(g), ly + 3], FAINT, 1) + T(gx(g), ly + 16, g + ' g', { sz: 10.5, c: FAINT, a: 'middle' });
+  const mk = (g, lab, col, up, anc) => { if (g == null) return; const x = gx(g); out += `<circle cx="${x.toFixed(1)}" cy="${ly}" r="4.5" fill="${col}"/>` + L([x, ly - 6], [x, ly - (up ? 34 : 20)], col, 1) +
+    T(x + (anc === 'end' ? -5 : anc === 'start' ? 5 : 0), ly - (up ? 38 : 24), lab, { sz: 12, c: col, a: anc || (x > W - 140 ? 'end' : x < 140 ? 'start' : 'middle'), w: 500 }); };
+  const near = g => g != null && Math.abs(g - 5.7) < 1.2;
+  mk(3.8, 'limit 3.8', DIM, false, st.yieldAt != null && Math.abs(st.yieldAt - 3.8) < 0.8 ? 'end' : null);
+  mk(5.7, 'ultimate 5.7', DIM, true, near(st.brokeAt) || near(st.breakAt) ? 'end' : null);
+  const same = st.yieldAt != null && st.breakAt != null && Math.abs(st.yieldAt - st.breakAt) < 0.05;
+  const bk = st.breakAt != null && Math.abs((st.brokeAt || 0) - st.breakAt) > 0.05 && Math.abs(st.breakAt - (st.yieldAt || 0)) < 1.2;
+  if (!same) mk(st.yieldAt, 'first bend ' + st.yieldAt.toFixed(2), WARN, false, Math.abs(st.yieldAt - 3.8) < 0.8 ? 'start' : bk ? 'end' : null);
+  if (st.breakAt != null && Math.abs((st.brokeAt || 0) - st.breakAt) > 0.05) mk(st.breakAt, 'first ' + (B.firstBreak && B.firstBreak.how === 'kink' ? 'buckle ' : 'break ') + st.breakAt.toFixed(1), BAD, bk, bk ? 'start' : null);
+  mk(st.brokeAt, (same ? 'bends and breaks ' : 'lets go ') + st.brokeAt.toFixed(2), BAD, true, near(st.brokeAt) ? 'start' : null);
+  // header
+  const seq = B.groups.map(G => GRPNAME(G.key));
+  out += eyebrow(32, 40, 'Breaking point · the bench to destruction');
+  out += T(32, 72, 'It broke at ' + st.brokeAt.toFixed(1) + ' g: the ' + seq[0], { sz: 24, w: 600 });
+  out += T(32, 94, (seq.length > 1 ? 'Then, within 0.3 s: ' + seq.slice(1).join(', ') + '. ' : '') + (K === 1 ? 'Drawn true to scale.' : 'Bending drawn ×' + K + '.'), { sz: 13, c: DIM });
+  // footer key
+  const ky = Hh - 30; let kx = 32;
+  for (const [c, t, d] of [['rgba(151,144,127,.6)', 'held', null], [WARN, 'bent for good (past yield)', null], [BAD, 'broken', '5 4']]) { out += L([kx, ky - 4], [kx + 22, ky - 4], c, 2.2, d) + T(kx + 30, ky, t, { sz: 12, c: DIM }); kx += 52 + t.length * 6.6; }
+  out += T(W - 32, ky, B.beams.filter(b => b.yielded).length + ' members bent, ' + B.broken.length + ' broken', { sz: 12, c: FAINT, a: 'end' });
+  return svg(W, Hh, out, 'Test to destruction of the ' + NAME[k]);
+}
+module.exports.simPage = simPage; module.exports.breakPage = breakPage;

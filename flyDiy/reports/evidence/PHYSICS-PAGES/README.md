@@ -19,3 +19,13 @@ Findings:
   32_hydro has no air term (Twin busher: 0.133 m2 "main gear" = 13 km/h, an asterisk on the page)
 - the Cub at night with every light on: 19.5 A of its 20 A generator; battery alone 49 min
 - the game pages should read the fiche bake's camera frame (centre + px/m per view) instead of fitting: one re-bake
+
+Prototype 2 (11 Nov, evening): two pages added at the user's request.
+  node destroy2.js cub|c172|twin   the bench to destruction (bench_worker benchLoadRun, destroy): the jig, the shape when a
+                                   part lets go, sim.damage() (broken, firstBreak, firstYield, groups) -> destroy_<k>.json
+  render.js simPage   WHAT THE SIM FLIES: plan above side, one scale - node masses, members, the strips as chord panels
+                      (front spar at 15 % of the chord, the control share hatched), the two body drag points (fusCdA /
+                      fusCdAAft as flat plates), the prop disc, the contacts; the fiche pictures as a faint ghost
+  render.js breakPage BREAKING POINT: the front view at the moment the first group lets go, bent / broken members, the
+                      g ladder (limit, ultimate, first bend, first break, lets go). A fold past 10 % of the half-span is
+                      drawn true to scale (the Twin folds 2.8 m before its roots let go at 13.2 g)

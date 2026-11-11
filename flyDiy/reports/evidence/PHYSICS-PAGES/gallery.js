@@ -6,11 +6,15 @@ const KEYS = ['cub', 'c172', 'twin'], SHORT = { cub: 'Piper Cub', c172: 'Metal C
 const PAGES = [
   { id: 'load', fn: R.loadTest, name: 'Load test', what: 'The certification bench as the game runs it: the plane on its back on trestles, sandbags to 3.8 g, then 5.7 g. Every member of the airframe the solver flies is drawn where it ended up, the bending made visible, coloured by the share of its own yield force it carries.',
     src: 'makeLoadTest, genLoadStations, GEN_LOAD_LIMIT / GEN_LOAD_ULT (65_gen_loadtest.js); each member\'s yield force fy0 / fc0 from the damage model' },
+  { id: 'break', fn: R.breakPage, name: 'Breaking point', what: 'The same bench, carried on past 5.7 g until a part lets go: the garage\'s own test to destruction, with the damage model on. Members that bent for good and members that broke are marked; the first failure is ringed. The scale below places the first bend, the first break and the moment a part lets go against the limit and ultimate loads.',
+    src: 'benchLoadRun with destroy (bench_worker.js), makeLoadTest, sim.damage(): yields, breaks, firstBreak, groups (the parts that let go as a whole)' },
   { id: 'drag', fn: R.dragPage, name: 'Drag', what: 'The drag build-up the solver flies with. Each disc is a flat plate with the same drag, drawn to the plane\'s scale. Each km/h is the core\'s own cruise rule (drag at 65 % of the thrust, the rule the belly pod\'s cost is solved with), run again with that part\'s drag area taken off. The figures do not add up: each is that part on its own.',
     src: 'genFusCdA, genGearCdA (62_gen_aero.js), the truss and nacelle rows of genParams, genPodCdA (60d_gen_pod.js), genProbeAt / thrustAt' },
   { id: 'elec', fn: R.elecPage, name: 'Electrics', what: 'An X-ray from above: the battery, generator, starter and bus where the frame bills them, every lamp with its draw and its breaker, and the power budget. The endurance is the game\'s own bus (makeBus) run with the generator switched off until the volts drop under 9.',
     src: 'genSystemsResolve parts and breakers, GEN_ELEC, GEN_ELEC_PARTS, GEN_LIGHT_AMPS, genBreakerSize, makeBus (31_elec.js)' },
-  { id: 'tank', fn: R.tankPage, name: 'Tanks & structure', what: 'The same X-ray, for what holds the plane together and what it carries: every wing, tail and fuselage member the solver bends, the fuel bay and the tank fitted in it.',
+  { id: 'sim', fn: R.simPage, name: 'What the sim flies', what: 'The model itself, with nothing added: a dot for every mass point (its size is its weight), the members, the lifting panels the wings and tail are cut into with their control surfaces hatched, the two points the body\'s drag acts on (dashed discs, flat plates to scale), the propeller disc and the ground contacts. The rendered plane stays as a faint ghost behind it, so whatever the model has and the drawing does not, or the reverse, shows.',
+    src: 'buildGen: def.nodes (masses), def.beams, def.strips (chord, ail / flap, the control chords), refs.fusDrag / fusDragAft with params.fusCdA / fusCdAAft, params.prop, refs.mains / tw' },
+  { id: 'tank', fn: R.tankPage, name: 'Tanks & structure', what: 'Superseded for the structure by What the sim flies; the tank part would join the Electrics X-ray. The same X-ray, for what holds the plane together and what it carries: every wing, tail and fuselage member the solver bends, the fuel bay and the tank fitted in it.',
     src: 'def.beams / def.nodes of buildGen, genBayResolve, genVesselResolve (60c_gen_energy.js)' },
 ];
 let figs = '';
@@ -52,6 +56,7 @@ p { margin:0; max-width:65ch; }
 .bar button:focus-visible, .zoom:focus-visible { outline:2px solid var(--ed-acc); outline-offset:2px; }
 .bar .sp { flex:1; }
 .zoom { font:500 11px/1 var(--sans); color:var(--ed-dim); background:none; border:1px solid var(--ed-border); border-radius:6px; padding:8px 10px; cursor:pointer; }
+.wrap > *, .page > *, .fig { min-width:0; }
 .page { display:grid; gap:12px; }
 .head { display:grid; gap:6px; }
 .what { color:var(--ed-dim); font-size:14px; }
@@ -77,9 +82,9 @@ table.nums { border-collapse:collapse; font-variant-numeric:tabular-nums; font-s
 </style>
 <div class="wrap">
 <header>
-  <span class="eyebrow">Wingsmith · fiche pages · prototype 1</span>
+  <span class="eyebrow">Wingsmith · fiche pages · prototype 2</span>
   <h1>The physics a player never sees</h1>
-  <p class="lede">Four fiche pages, drawn from numbers the game already computes for the three official planes, loaded the way the game loads them. Nothing here is new physics: each figure names the core function it comes from. They are meant to sit beside the Mass &amp; price page, work as devlog pictures, and help a player tune the plane.</p>
+  <p class="lede">Six fiche pages, drawn from numbers the game already computes for the three official planes, loaded the way the game loads them. Nothing here is new physics: each figure names the core function it comes from. They are meant to sit beside the Mass &amp; price page, work as devlog pictures, and help a player tune the plane.</p>
   <div class="key"><span><i style="background:var(--c-structure)"></i>Structure</span><span><i style="background:var(--c-engine)"></i>Engine &amp; fuel</span><span><i style="background:var(--c-gear)"></i>Gear</span><span><i style="background:var(--c-systems)"></i>Systems</span><span><i style="background:var(--c-fittings)"></i>Fittings</span><span><i style="background:var(--c-interior)"></i>Interior</span><span><i style="background:var(--c-finish)"></i>Finish</span></div>
 </header>
 <div class="bar" role="group" aria-label="Plane">
@@ -98,13 +103,15 @@ ${figs}
     <li><b>The floats have no air drag of their own.</b> The core charges a float plane as two bare wheels, a third wheel and legs (genGearCdA), and the water code has no air term. The Twin's "floats cost 13 km/h" is the wheel formula's number, so the drag page prints it with an asterisk. Fixing it is a core change, outside this brief.</li>
     <li><b>The Cub runs on the edge at night.</b> Every light on draws 19.5 A from a 20 A generator. The Cessna's 60 A alternator has three times the headroom.</li>
     <li><b>The callouts sit on the baked fiche pictures</b> by fitting the core's nodes onto them, which is good to a few pixels. The game pages would read the camera frame from the fiche bake itself. That needs one re-bake on the GPU box, which I will ask A0 for.</li>
+    <li><b>The bodies behind pods are not the drawn ones.</b> On twin-boom planes a core rule stretches the pod into a tail cone that is not there (the Twin's aft drag point sits behind its pod on What the sim flies); on rod-boom planes the aft body is a generic full cone where the drawing has a thin tube. Evidence sent to A0 (AFT-PODS.md).</li>
+    <li><b>The Cessna takes a permanent set at its limit load.</b> On the bench to destruction a member first bends for good at 3.85 g, just past the 3.8 g a certified wing must carry without one. Sent to A0.</li>
     <li><b>Lamp positions are approximate here.</b> They come from the wing and fin nodes. The game page would read the light layer's own measured sites.</li>
   </ul>
 </section>
 <section class="panel">
   <h2>Questions for you</h2>
   <ol>
-    <li><b>Which pages go in the game?</b> <span class="def">Default: three pages beside Mass &amp; price. Load test, Drag, and one X-ray that merges Electrics with Tanks &amp; structure. The logbook page stays a design for later.</span></li>
+    <li><b>Which pages go in the game?</b> <span class="def">Default: four pages beside Mass &amp; price. Load test with its breaking point on one page, Drag, an X-ray (Electrics with the tanks), and What the sim flies. The logbook page stays a design for later.</span></li>
     <li><b>The floats' missing air drag:</b> print it with the asterisk now, or wait for a core fix first? <span class="def">Default: the asterisk now, and the gap filed for a core session.</span></li>
     <li><b>Which look for the pictures?</b> <span class="def">Default: the dark garage panel shown here for the devlog and Steam pictures, and the fiche's own cream sheet inside the board if Mass &amp; price uses it, with the same category colours on both.</span></li>
     <li><b>Tuning:</b> should a tap on a drag disc or a member open that part in the garage? <span class="def">Default: not in the first version. Read-only pages first, links in a later round.</span></li>
