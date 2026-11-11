@@ -805,7 +805,7 @@ if (process.argv.includes('--selftest')) {
 // ---------------------------------------------------------------------------
 const nRows = D.DESIGN_ROWS.length;
 // RETRACT-LAB (SEAPLANES-LAND, A0 8 Nov: "one gate must still prove the flag is off by default in a real page"):
-// _cage_gear.js RETRACT_LAB - a page (a `location`) with no flag is OFF: the retract switch, its tile and the
+// _cage_gear.js RETRACT_LAB - SEA-ON 10 Nov: a page with no flag is now ON (?retract=off is the old garage: the retract switch, its tile and the
 // amphibious floats' row hidden from the player; ?retract=lab, the dev toggle (flydiy.flDev) or FLYDIY_RETRACT_LAB
 // turn it on; node (no `location`: the gates) is on. A saved amphibious float keeps its row (to switch it off).
 {
@@ -834,10 +834,13 @@ const nRows = D.DESIGN_ROWS.length;
   if (check(typeof lab === 'function' && !!wR && !!wA && !!tile && typeof tile.when === 'function',
             'RETRACT-LAB: the switch, the gearRetract and fltAmph rows\' `when`, the retract tile\'s `when`')) {
     S = { node: state(null, false), page: state('', false), q: state('?retract=lab', false), dev: state('?x=1', true),
-          forced: state('?retract=lab', true, false) };
+          forced: state('?retract=lab', true, false), off: state('?retract=off', false) };
     check(S.node.lab && S.node.row && S.node.tile && S.node.amph, 'RETRACT-LAB: no page (node) is lab-on: every retract row and the tile shown', JSON.stringify(S.node));
-    check(!S.page.lab && !S.page.row && !S.page.tile && !S.page.amph && S.page.amphSaved,
-          'RETRACT-LAB: a page with no flag is OFF: no retract switch on a tricycle, no Retraction tile, no amphibious floats row (a saved one keeps it)', JSON.stringify(S.page));
+    // SEA-ON (10 Nov, the user: the hulls and the retract ON by default - "I need to see these things and play with it")
+    check(S.page.lab && S.page.row && S.page.tile && S.page.amph,
+          'SEA-ON: a page with no flag is ON: the retract switch on a tricycle, the Retraction tile, the amphibious floats row', JSON.stringify(S.page));
+    check(!S.off.lab && !S.off.row && !S.off.tile && !S.off.amph && S.off.amphSaved,
+          'SEA-ON: ?retract=off is the old garage: no retract switch, no tile, no amphibious floats row (a saved one keeps it)', JSON.stringify(S.off));
     check(S.q.lab && S.q.row && S.q.tile && S.dev.lab && S.dev.row && S.dev.tile, 'RETRACT-LAB: ?retract=lab or the dev toggle (flydiy.flDev) turn it on', JSON.stringify([S.q, S.dev]));
     check(!S.forced.lab, 'RETRACT-LAB: window.FLYDIY_RETRACT_LAB = false wins over the query and the dev toggle');
   }
