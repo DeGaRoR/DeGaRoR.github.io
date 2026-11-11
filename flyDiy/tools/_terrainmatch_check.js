@@ -197,6 +197,12 @@ const RW = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_world.js'), 
   // 1 218 494 (+5 624, +0.46 %) on master e789e77cb; allowed on both views (HANDOVER: DIRT-STRIP, the bumps' cost)
   const BUMPS = 5624; for (const k in PAV0) PAV0[k] += BUMPS;
   const BASE = { potato: { 'HOME stand': (PATCH0 || {})['HOME stand'] + PAV0['HOME stand'], 'HOME taxi': (PATCH0 || {})['HOME taxi'] + PAV0['HOME taxi'] }, gamer: { 'HOME stand': 1222208 + PAV0['HOME stand'], 'HOME taxi': 1304000 + PAV0['HOME taxi'] } };
+  // RE-TAKEN 9 Nov (HOME-LAYOUT, A0's call), THE TWO "HOME stand" ROWS ONLY: SCENERY - the user's validated HOME layout moved the
+  // start's stand (the medium hangar's) 60 m along the row, and this row measures within 3 km OF THE STAND: the same eye 60 m
+  // west, +10 568 (potato, +0.88 %) / +14 584 (gamer, +0.75 %) triangles, measured on L36d (before the bumps). The HOME taxi rows
+  // went down and keep their pins. Rebased on L37a: the user's bumps (BUMPS above) ride on top, as on every other row
+  if (POT === 6) BASE.potato['HOME stand'] = 1207886 + BUMPS;
+  BASE.gamer['HOME stand'] = 1957246 + BUMPS;
   const C = require(path.join(T, 'flight_core.js')), home = C.siteOf('HOME'), tp = home.taxiOut, m = tp[Math.floor(tp.length / 2)];
   const views = { 'HOME stand': [home.stand.x, home.stand.z], 'HOME taxi': m };
   const pav = {}; for (const [k, [x, z]] of Object.entries(views)) { let t = 0; for (const M of GD.MESHES) { const cx = (M.box[0] + M.box[2]) / 2, cz = (M.box[1] + M.box[3]) / 2; if (Math.hypot(cx - x, cz - z) < 3000) t += M.idx.length / 3; } pav[k] = t; }

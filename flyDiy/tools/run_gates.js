@@ -1161,6 +1161,10 @@ const GATES = [
   // no negative geometry (the instrumented stub caught the glazing band and
   // the stem course inside-out at the old slider floor).
   { id: 'HANGAR', file: '_hangar_check.js', tier: 'core' },
+  // THE DERELICT HANGAR (DERELICT-HANGAR, 9 Nov 2026): the works hangar as the derelict WWII hangar and the story's
+  // stages back to the works - the envelope is the works', every stage x lod inside its budget, place-keyed randomness,
+  // stage 3 IS the works build (futureDesigns/DERELICT-HANGAR-2026-11-09.md).
+  { id: 'DERELICT', file: '_derelict_check.js', tier: 'core' },
   // THE ENERGY MODULE (G97-G101): fourteen aeroplanes frozen as numbers —
   // cg0, every node mass and position, the ledger's empty/payload split and
   // the fitting list — BEFORE `spec.fuel` grows into a section with a v5->v6

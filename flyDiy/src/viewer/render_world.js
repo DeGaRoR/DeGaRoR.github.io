@@ -6462,6 +6462,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // genHangarBuild's exterior had ({ group, mats by hangar.js's names, dims }) or null (the caller builds the bare one).
     const POLISH_PRESET = { field: 'field shed', club: 'club hangar', works: 'works hangar' };
     function polishedShell(H, dims, shell) {
+      const DG = typeof window !== 'undefined' ? window.DERELICT_GEN : null;
+      if (shell === 'works' && DG && DG.build && SHELL.polish && typeof document !== 'undefined') { const d = derelictShell(DG, H, dims); if (d) return d; }
       const HGN = typeof window !== 'undefined' ? window.HANGAR_GEN : null;
       if (!SHELL.polish || !HGN || !HGN.build || !HGN.PRESETS || typeof document === 'undefined' || !POLISH_PRESET[shell]) return null;
       const P = Object.assign({}, HGN.DEF, HGN.PRESETS[POLISH_PRESET[shell]],
@@ -6487,7 +6489,59 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       if (pad) inner.add(pad);
       const mats = {};
       for (const k in built.MAT) if (k.slice(0, 2) === 'h_') mats[k.slice(2)] = built.MAT[k];
+      if (shell === 'club') { const nb = nameBoard('HANGAR 2', P); if (nb) inner.add(nb); }   // DERELICT-HANGAR: the medium one is Hangar 2
       return { group, mats, flat, pad, dims: { HW: dims.HW, HD: dims.HD, EAVE: dims.EAVE, RIDGE: dims.EAVE + 2.6 }, polished: true, stats: built.stats };
+    }
+    // DERELICT-HANGAR (the user 9 Nov: "the large hangar ... restoring it, from the state of the actual Metlakatla or Annette
+    // Island World War II hangar"; the room is this mesh too): THE LARGE HANGAR OUTSIDE is DERELICT_GEN's - at the stage the
+    // shed holds (dims.stage: 0 derelict .. 3 restored, the story's; a player's works is the restored hangar), its galleries
+    // the shell's, on the world's ground (the house frame turned under the shed's as polishedShell's), its own finish. No
+    // player dress (its cladding is its own), the coarse rung's casters its cladding and its roof.
+    // THE NAME BOARD (the user 9 Nov: "if you call that hangar 2 ... maybe this one should be called hangar 1, the other one
+    // should be called hangar 2"): the large hangar's board's style (white on a deep blue, a border), on the wall pier right
+    // of the door seen from the apron - the gable over the door is the plot's own painted sign's - 2.1 x 0.62 m, 3.2 m up
+    let NAME_TEX = null;
+    function nameBoard(text, P) {
+      if (typeof document === 'undefined' || typeof MATLIB === 'undefined') return null;
+      if (!NAME_TEX) {
+        const c = document.createElement('canvas'); c.width = 512; c.height = 152; const g = c.getContext('2d');
+        g.fillStyle = '#1d3557'; g.fillRect(0, 0, 512, 152); g.strokeStyle = '#e8e6df'; g.lineWidth = 6; g.strokeRect(9, 9, 494, 134);
+        g.fillStyle = '#efede6'; g.font = 'bold 78px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, 256, 80);
+        NAME_TEX = new THREE.CanvasTexture(c); NAME_TEX.colorSpace = THREE.SRGBColorSpace; NAME_TEX.anisotropy = 8;
+      }
+      const HW = P.HW, HD = P.HD, door = P.doorW > 0 ? P.doorW : Math.max(6, 2 * HW - 5), pier = HW - door / 2;
+      if (pier < 2.3) return null;                                   // no wall beside the door to take it
+      const w = Math.min(2.1, pier - 0.3), h = w * 152 / 512, m = MATLIB.shared(THREE, 'std', { map: NAME_TEX, roughness: 0.6, metalness: 0.05 }, 'namebrd');
+      const geo = new THREE.BoxGeometry(w, h, 0.03), mesh = new THREE.Mesh(geo, m);
+      mesh.position.set(door / 2 + pier / 2, (P.floorY || 0) + 3.2, HD + 0.14); mesh.castShadow = false; mesh.receiveShadow = true; mesh.name = 'shed:nameboard';
+      return mesh;
+    }
+    function derelictShell(DG, H, dims) {
+      const gal = (typeof SHELLS !== 'undefined' && SHELLS.works && SHELLS.works.galleries) || { right: 1.0, left: 1.0, lean: 6 };
+      const stage = Number.isFinite(+dims.stage) ? Math.max(0, Math.min(3, Math.round(+dims.stage))) : 3;
+      const P = Object.assign({}, DG.DEF, { stage, HW: dims.HW, HD: dims.HD, EAVE: dims.EAVE, gallery: gal.lean, galleryL: gal.left, pierR: gal.right,
+                                            apron: 0, lamps: 0, doorOpen: 0, backOpen: 0, aoGround: 1 });
+      const fy = P.floorY || 0, c = Math.cos(H.ry || 0), sn = Math.sin(H.ry || 0), y0 = H.y !== undefined ? H.y : 0;
+      P.ground = (X, Z) => { const hx = -Z, hz = X; return world.terrainH(H.x + hx * c + hz * sn, H.z - hx * sn + hz * c) - y0 + fy; };
+      let F = null, built = null;
+      // each stage its own materials (MATLIB's scope): a held shed (restored) and a closed one (derelict) side by side - the
+      // career's HANGAR 1 beside HOME.2 - never re-dress each other's shared records
+      try { F = DG.makeFinish('world' + stage); DG.applyFinish(P, F); built = DG.build(P, 0, F); }
+      catch (e) { console.warn('the large hangar outside:', e && e.message); return null; }
+      if (!built || !built.stats || !built.MAT) return null;
+      const group = new THREE.Group(), inner = new THREE.Group();
+      inner.rotation.y = -Math.PI / 2; inner.position.y = -fy; group.add(inner);
+      const flat = [];
+      for (const k of built.BAGS) {
+        const b = built.bags[k], m0 = built.MAT[k];
+        if (!b || !b.tris || !m0) continue;
+        const m = b.mesh(inner, m0);
+        if (!m) continue;
+        if (/^(glass|lamp|stain|decal|water|weed|aoskirt)$/.test(k)) { m.castShadow = false; if (k === 'aoskirt' || k === 'stain') { m.renderOrder = k === 'aoskirt' ? 5 : 3; flat.push(m); } }
+      }
+      if (F.SHADE_U && F.SHADE_U.uDirtY0) F.SHADE_U.uDirtY0.value = y0 - fy;   // (G581: the dirt line where it stands)
+      return { group, mats: {}, coarseCast: [built.MAT.sheetPale, built.stats.stage >= 2 ? built.MAT.sheetNew : built.MAT.steel].filter(Boolean),
+               flat, pad: null, dims: { HW: dims.HW, HD: dims.HD, EAVE: dims.EAVE, RIDGE: dims.EAVE + 2.6 }, polished: true, derelict: true, stats: built.stats };
     }
     // the merged shell's coarse rung (G1398): its meshes of at least `share` of the surface, sharing their geometry and
     // material (nothing copied); null when that keeps nothing. `cast` (a Set of materials): only those cast - the outer
@@ -6632,7 +6686,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       const D0 = dims || { HW: H.HW, HD: H.HD, EAVE: H.EAVE };
       const shell = (dims && dims.shell) || 'club';
       const shed = polishedShell(H, D0, shell) || genHangarBuild(THREE, D0, { exterior: true, shell: dims && dims.shell });
-      if (dress) dressExterior(shed.mats, shell, dress);
+      if (dress) dressExterior(shed.mats, shell, dress);   // (DERELICT-HANGAR: the large hangar hands no mats - it wears its own cladding)
       shed.group.traverse(o => {
         if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; }
       });
@@ -6673,7 +6727,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         // clone keeps the building the same building across the switch;
         // the box's 0..1 uv is the same grammar the sheeting bands wear
         // (wallOutAlb repeats 4 x 1 per piece), so nothing else changes.
-        const skin = (MT.wallOut || MT.wall).clone(); skin.side = THREE.FrontSide;   // (G3532: a polished timber shed bakes no wallOut piece)
+        const CC = shed.coarseCast || [];   // (DERELICT-HANGAR: the large hangar hands its cladding and its roof here, no mats)
+        const skin = (MT.wallOut || MT.wall || CC[0]).clone(); skin.side = THREE.FrontSide;   // (G3532: a polished timber shed bakes no wallOut piece)
         if (skin.userData && skin.userData.houseShaded) { skin.onBeforeCompile = () => {}; skin.userData = {}; }   // (a box has no aHouseAO: plain)
         const body = new THREE.Mesh(
           new THREE.BoxGeometry(2 * D.HD, D.EAVE, 2 * D.HW), skin);
@@ -6710,7 +6765,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           0, 0, 6, 0, 0, 6, 6, 6, 0, 6, 6, 6], 2));
         rgeo.computeVertexNormals();
         const plainOf = m => { if (!m || !(m.userData && m.userData.houseShaded)) return m; const q = m.clone(); q.onBeforeCompile = () => {}; q.userData = {}; return q; };   // G3532
-        const roof = new THREE.Mesh(rgeo, plainOf(MT.roofOut));
+        const roof = new THREE.Mesh(rgeo, plainOf(MT.roofOut || CC[1] || CC[0]));
         coarse.add(body, roof);
         coarse.traverse(o => { o.castShadow = true; o.receiveShadow = true; });
       }
@@ -6720,7 +6775,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // the stem - the same geometry and materials as the near rung, shared, not copied: past the switch only the
       // steel, the gutters, the trims and the glass go. The box above stays for a shell that did not merge.
       const wears = m => !!m && merged.children.some(o => o.material === m);   // (the timber shed has no wallOut piece: its cladding is wall)
-      const coarseOf = merged ? shellCoarse(merged, SHELL.coarseShare, new Set([wears(shed.mats.wallOut) ? shed.mats.wallOut : shed.mats.wall, shed.mats.roofOut].filter(Boolean))) : null;
+      const coarseOf = merged ? shellCoarse(merged, SHELL.coarseShare, new Set(shed.coarseCast || [wears(shed.mats.wallOut) ? shed.mats.wallOut : shed.mats.wall, shed.mats.roofOut].filter(Boolean))) : null;
       let node = shed.group;
       if (THREE.LOD) {
         const lod = new THREE.LOD();

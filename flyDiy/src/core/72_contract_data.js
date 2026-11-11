@@ -89,7 +89,7 @@ const CONTRACT_DESIGNS = {
 // ---- THE TRACKS (§11.2 as amended by §R G-PROV: the mine and the dock are ONE track, two projects) ----------
 // Each track's stages in order, as text keys (the construction look and the finished look; STAGES draws them).
 const CONTRACT_TRACKS = {
-  field:    { max: 2, stages: ['trk.field.1', 'trk.field.2'] },
+  field:    { max: 3, stages: ['trk.field.1', 'trk.field.2', 'trk.field.3'] },   // (HOME-DERELICT 10 Nov: the derelict's four phases, the user)
   minedock: { max: 4, stages: ['trk.minedock.1', 'trk.minedock.2', 'trk.minedock.3', 'trk.minedock.4'] },
   resort:   { max: 3, stages: ['trk.resort.1', 'trk.resort.2', 'trk.resort.3'] },
   survey:   { max: 3, stages: ['trk.survey.1', 'trk.survey.2', 'trk.survey.3'] },
@@ -158,10 +158,10 @@ const CONTRACT_PROVIDERS = {
       C_({ id: 'field.04', provider: 'field', kind: 'contract', title: 'ct.field.04.title', brief: 'ct.field.04.brief',
            stages: [{ subs: [{ do: 'carry', from: 'HOME', to: 'w3', load: { kg: 0, pax: 1 } }] },
                     { subs: [{ do: 'carry', from: 'w3', to: 'HOME', load: { kg: 0, pax: 1 } }] }],
-           pay: { base: 3000 }, rep: { provider: 'field', gain: 0.75 }, needs: { after: ['field.03'] } }),
+           pay: { base: 3000 }, rep: { provider: 'field', gain: 0.75 }, unlock: { stage: 'field:2' }, needs: { after: ['field.03'] } }),
       C_({ id: 'field.05', provider: 'field', kind: 'contract', title: 'ct.field.05.title', brief: 'ct.field.05.brief',
            stages: [{ subs: [{ do: 'carry', from: 'w3', to: 'HOME', load: { kg: 120, pax: 0 } }] }],
-           pay: { base: 4500 }, rep: { provider: 'field', gain: 1 }, unlock: { stage: 'field:2' },
+           pay: { base: 4500 }, rep: { provider: 'field', gain: 1 }, unlock: { stage: 'field:3' },
            needs: { rep: 1, after: ['field.04'] } }),
     ],
     builds: [],
@@ -445,8 +445,9 @@ const CONTRACT_TEXT = {
   'prov.field.short': CT_('Trust'), 'prov.minedock.short': CT_('Mine & Dock'), 'prov.resort.short': CT_('Resort'),
   'prov.survey.short': CT_('Survey'), 'prov.clients.short': CT_('Clients'),
   // the tracks' stages (what goes up; STAGES draws them)
-  'trk.field.1': CT_('The second hangar\'s shell, under repair'),
-  'trk.field.2': CT_('The second hangar restored and the old tower lit'),
+  'trk.field.1': CT_('The old wartime hangar, made safe'),
+  'trk.field.2': CT_('The old wartime hangar, under its new roof'),
+  'trk.field.3': CT_('The old wartime hangar restored and the old tower lit'),
   'trk.minedock.1': CT_('The headframe\'s frame on the hill'),
   'trk.minedock.2': CT_('The headframe and the ore shed'),
   'trk.minedock.3': CT_('The pier extension, under way'),
@@ -502,11 +503,11 @@ const CONTRACT_TEXT = {
   'ct.field.02.title': CT_('Tools from the hill'), 'ct.field.02.brief': CT_('A crate of hand tools waits at ' + GAME_NAMES.hill + '. Bring it home.'),
   'ct.field.02.done': CT_('The bench has tools again.'),
   'ct.field.03.title': CT_('The first mail run'), 'ct.field.03.brief': CT_('Two mail sacks: one for the hill, one for the lodge. Any order.'),
-  'ct.field.03.done': CT_('The Trust starts on the second hangar.'),
+  'ct.field.03.done': CT_('The Trust starts on the old wartime hangar.'),
   'ct.field.04.title': CT_('The inspector'), 'ct.field.04.brief': CT_('Take the Trust\'s inspector to the hill, and bring her back.'),
   'ct.field.04.done': CT_('She signed the form without looking up.'),
   'ct.field.05.title': CT_('Light the tower'), 'ct.field.05.brief': CT_('The tower\'s new lamp is at ' + GAME_NAMES.hill + ', and it is heavy.'),
-  'ct.field.05.done': CT_('The tower is lit and the second hangar stands.'),
+  'ct.field.05.done': CT_('The tower is lit and the old wartime hangar stands restored.'),
   'ct.minedock.01.title': CT_('Look at the road'), 'ct.minedock.01.brief': CT_('Fly over the mine street and tell us if it is still a strip.'),
   'ct.minedock.01.done': CT_('Rough, short, landable. The company is in.'),
   'ct.minedock.02.title': CT_('Engineers in'), 'ct.minedock.02.brief': CT_('Two engineers, from the field to the mine street.'),
