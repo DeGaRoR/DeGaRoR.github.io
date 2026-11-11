@@ -518,6 +518,14 @@
   // after the colour is read, the alpha then set to 1 (an opaque material ignores it; nothing else reads it). The
   // same stream, the same thresholds: the thinning is the instanced draw's, instance for instance.
   const BATCH_RAND_VS = '#ifdef USE_BATCHING\n  float _bRand = 0.5;\n  #ifdef USE_BATCHING_COLOR\n  _bRand = vColor.a; vColor.a = 1.0;\n  #endif\n#endif';
+  // THE FIELD BY COLOUR (VEG-ROOT, the user 11 Nov: "by colour per tuft"): uRoot.w > 0 is the texture mean's red-to-green; times the
+  // tuft's own colour's (the ground's tint) it is the albedo's - green (~0.75) keeps the material's strength and share (MID), brown
+  // or yellow (>= 1.05) takes HIGH (0.95, 1.3: the strong look); between, blended. After the colour, so vColor is the tuft's.
+  const ROOT_KEY_HI = [0.95, 1.3], ROOT_KEY_RG = [0.85, 1.05];
+  const ROOT_KEY_VS = '#if defined( USE_COLOR ) || defined( USE_INSTANCING_COLOR ) || defined( USE_BATCHING_COLOR )\n' +
+    'if (uRoot.w > 0.0) { float _rk = smoothstep(' + ROOT_KEY_RG[0].toFixed(3) + ', ' + ROOT_KEY_RG[1].toFixed(3) + ', vColor.r / max(vColor.g, 1e-4) * uRoot.w);\n' +
+    '  float _rx = mix(uRoot.x, ' + ROOT_KEY_HI[0].toFixed(3) + ', _rk), _ry = mix(uRoot.y, ' + ROOT_KEY_HI[1].toFixed(3) + ', _rk);\n' +
+    '  vRoot = 1.0 - _rx + _rx * position.y / max(uRoot.z * _ry, 1e-4); }\n#endif';
   // THE ROOT GRADIENT (GRASS-DENSE G2571; the user, 12 Oct: "Apply a gradient from dark at the bottom to transparent at the top (or
   // black to white in multiply mode). That will greatly help anchor the grass"): a material's own uRoot (x strength 0..1, y the
   // height it fades out by as a share of the reference top, z that top in the model's units), after the tint: the diffuse
@@ -543,7 +551,7 @@
     sh.uniforms.uWind = U_WIND;
     let vs = sh.vertexShader
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvRoot = 1.0 - uRoot.x + uRoot.x * position.y / max(uRoot.z * uRoot.y, 1e-4);')   // G2571: the model's height, before any bend
-      .replace('#include <color_vertex>', '#include <color_vertex>\n' + BATCH_RAND_VS)
+      .replace('#include <color_vertex>', '#include <color_vertex>\n' + BATCH_RAND_VS + '\n' + ROOT_KEY_VS)
       .replace('#include <project_vertex>', FADE_VS + '\n#include <project_vertex>\n' + FADE_CUT_VS)
       .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\n' + UP_VS);
     // the tuft bends BY HEIGHT (a 0.12 m lawn tuft by ~nothing), on the phase `aRand` already
