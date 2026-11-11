@@ -200,7 +200,7 @@ if (SELF) {
   red('the core names the pool', () => sourceRows(Object.assign({}, S, { core: S.core + "\nconst X = 'builds/candidates/a.json';" })));
   red('a review plane offered', () => { const o = JSON.parse(P.index); o.planes.push({ file: Object.keys(R.files)[0], name: 'x' }); return reviewRows(R, JSON.stringify(o)); });
   red('a review plane with no REVIEW.md row', () => reviewRows({ files: R.files, md: '' }, P.index));
-  red('a stock row without its picture', () => sourceRows(Object.assign({}, S, { garage: S.garage.replace("thumbOn(b, 'stock:' + s.name)", '') })));
+  red('a pool row without its picture', () => sourceRows(Object.assign({}, S, { garage: S.garage.replace("thumbOn(b, 'cand:' + c.file)", '') })));   // PLANE-LIST: no stock shelf, its break retired
   red('no export all button', () => sourceRows(Object.assign({}, S, { body: S.body.replace('<button id="gExportAll"', '<button id="gX"') })));
 }
 
