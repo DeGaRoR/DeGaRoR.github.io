@@ -358,18 +358,21 @@ for (const k in GEO) if (REFS[k]) Object.assign(REFS[k], { dims: GEO[k].dims, sp
 // card (designBake -> the load door's birth envelope). `ref`: the REFS row. `water`: it takes off from water.
 // `official`: on builds/lists/plane_lists.json's official list. `engineNote`: when the build's engine is not the type's.
 // ---------------------------------------------------------------------------------------------------------------------
+// listRow (A0, 11 Nov): the plane list's row n (builds/lists/plane_lists.json) of the same TYPE, so GATE PLANELISTS can
+// check both sides; null = no list row (jodel_geo, the floats Cessnas, the Ruckus). Where the row's file differs from
+// `file` (the Cub 1 / Jodel 2 / PA-18 25 / Petrel 41) or its blob does, see reports/REAL-FIGURES-CANON.md.
 const PLANES = {
   cub:      { supersededBy: 'cub160', label: 'Piper Cub (official)', file: 'builds/cub_2026-09-20_corrected.json', ref: 'cub', official: true },
   // (the user, 9 Nov: the J-3's chord, 1.60 m; the shipped file is the calibration datum of 105 checks, so the candidate
   // stands in the report in its place until the user promotes it)
-  cub160:   { label: 'Piper Cub, J-3 chord 1.60 m (candidate; the shipped Cub has 1.70)', short: 'Piper Cub', file: 'builds/candidates/cub_chord160.json', ref: 'cub' },
-  jodelg:   { label: 'Jodel D112: the D.112 wing, length and 60 L tank (candidate)', short: 'Jodel D112', file: 'builds/candidates/jodel_geo.json', ref: 'd112' },
+  cub160:   { listRow: 48, label: 'Piper Cub, J-3 chord 1.60 m (candidate; the shipped Cub has 1.70)', short: 'Piper Cub', file: 'builds/candidates/cub_chord160.json', ref: 'cub' },
+  jodelg:   { listRow: null, label: 'Jodel D112: the D.112 wing, length and 60 L tank (candidate)', short: 'Jodel D112', file: 'builds/candidates/jodel_geo.json', ref: 'd112' },
   jodel:    { supersededBy: 'jodelg', label: 'Jodel D112 (official)', file: 'builds/jodel_2026-09-20_corrected.json', ref: 'd112', official: true },
   cessna:   { dropped: 'the user 8 Nov: the corrected 172 is the Cessna; B-CESS is dismissed', label: 'Metal Cessna B-CESS (official)', file: 'builds/cessna172_2026-09-20.json', ref: 'c172r', official: true,
               engineNote: 'the build flies an O-540 235 hp (the type: IO-360 160 hp) on an 18.4 m2 wing (16.2): power-bound rows are not like for like', cgSweep: true },
   cessnaF:  { dropped: 'the user 8 Nov: dismissed; a Cessna on Wipline 2350 floats is to be rebuilt from the corrected 172', label: 'Metal Cessna on floats (official)', file: 'builds/cessna172_floats_2026-11.json', ref: 'c172f', official: true, water: true,
               engineNote: 'O-540 235 hp against the 160-180 hp the references cover' },
-  pa18f160: { label: 'PA-18 on floats, chord 1.60 m (candidate; the shipped one has 1.70)', short: 'PA-18 on floats', file: 'builds/candidates/pa18_floats_chord160.json', ref: 'pa18f', water: true,
+  pa18f160: { listRow: 49, label: 'PA-18 on floats, chord 1.60 m (candidate; the shipped one has 1.70)', short: 'PA-18 on floats', file: 'builds/candidates/pa18_floats_chord160.json', ref: 'pa18f', water: true,
               engineNote: 'O-320 150 hp against Wipaire\'s 160 hp; EDO-style seaplane floats against Wipline amphibians' },
   pa18f:    { supersededBy: 'pa18f160', label: 'PA-18 on floats (official)', file: 'builds/pa18_floats_2026-10-23.json', ref: 'pa18f', official: true, water: true,
               engineNote: 'O-320 150 hp against Wipaire\'s 160 hp; EDO-style seaplane floats against Wipline amphibians' },
@@ -378,13 +381,13 @@ const PLANES = {
   chinook:  { supersededBy: 'chinookm', label: 'Chinook (official, out of the battery)', file: 'builds/chinook_2026-09-21_corrected.json', ref: 'chinook', official: true },
   // REAL-FIGURES-2 (2026-11-08): the planes with a clear real parent
   // MASS-SCALE / TAIL-RETRACT (2026-11-09, claude/practical-cerf-7fjpwp): the candidates standing in for their cards
-  ruckus:   { label: 'Top Rudder Ruckus, standard (candidate, from Rufus)', short: 'Ruckus', file: 'builds/candidates/ruckus_std_2026-11-09.json', ref: 'ruckus', group: 'ultralight' },
-  dc3r:     { label: 'DC-3-alike: the radial cowl, mains retracting into the nacelles, airliner-furnished, constant-speed (candidate)', short: 'DC-3', file: 'builds/candidates/dc3_2026-10.json', ref: 'dc3', group: 'historical' },
-  chinookm: { label: 'Chinook, pull-start (no battery, generator or starter; candidate)', short: 'Chinook', file: 'builds/chinook_2026-09-21_corrected.json', ref: 'chinook', group: 'ultralight' },
-  tigermothm:{ label: 'Tiger Moth-alike, no electrics as built (candidate)', short: 'Tiger Moth', file: 'builds/candidates/tigermoth_2026-10.json', ref: 'tigermoth', group: 'biplane' },
-  camelm:   { label: 'Camel-alike, no electrics as built (candidate)', short: 'Camel', file: 'builds/candidates/camel_2026-10.json', ref: 'camel', group: 'biplane' },
+  ruckus:   { listRow: null, label: 'Top Rudder Ruckus, standard (candidate, from Rufus)', short: 'Ruckus', file: 'builds/candidates/ruckus_std_2026-11-09.json', ref: 'ruckus', group: 'ultralight' },
+  dc3r:     { listRow: 12, label: 'DC-3-alike: the radial cowl, mains retracting into the nacelles, airliner-furnished, constant-speed (candidate)', short: 'DC-3', file: 'builds/candidates/dc3_2026-10.json', ref: 'dc3', group: 'historical' },
+  chinookm: { listRow: 8, label: 'Chinook, pull-start (no battery, generator or starter; candidate)', short: 'Chinook', file: 'builds/chinook_2026-09-21_corrected.json', ref: 'chinook', group: 'ultralight' },
+  tigermothm:{ listRow: 10, label: 'Tiger Moth-alike, no electrics as built (candidate)', short: 'Tiger Moth', file: 'builds/candidates/tigermoth_2026-10.json', ref: 'tigermoth', group: 'biplane' },
+  camelm:   { listRow: 11, label: 'Camel-alike, no electrics as built (candidate)', short: 'Camel', file: 'builds/candidates/camel_2026-10.json', ref: 'camel', group: 'biplane' },
   dc3:      { supersededBy: 'dc3r', label: 'DC-3-alike (candidate)', file: 'builds/candidates/dc3_2026-10.json', ref: 'dc3', group: 'historical' },
-  stearman: { label: 'Stearman-alike (candidate)', file: 'builds/candidates/stearman_2026-10.json', ref: 'stearman', group: 'biplane' },
+  stearman: { listRow: 9, label: 'Stearman-alike (candidate)', file: 'builds/candidates/stearman_2026-10.json', ref: 'stearman', group: 'biplane' },
   tigermoth:{ supersededBy: 'tigermothm', label: 'Tiger Moth-alike (candidate)', file: 'builds/candidates/tigermoth_2026-10.json', ref: 'tigermoth', group: 'biplane' },
   camel:    { supersededBy: 'camelm', label: 'Camel-alike (candidate)', file: 'builds/candidates/camel_2026-10.json', ref: 'camel', group: 'biplane' },
   birdman:  { dropped: 'the user 8 Nov: not needed (it is the Chinook as first built)', label: 'Birdman (candidate: the Chinook as found)', file: 'builds/candidates/birdman.json', ref: 'chinook', group: 'ultralight',
@@ -392,12 +395,12 @@ const PLANES = {
   skymaster:{ dropped: 'the user 8 Nov: not wanted in the set', label: 'Skymaster-alike (archetype card)', card: 'skymaster', ref: 'skymaster', group: 'archetype',
               note: 'an engine-configuration archetype, never hand-authored to the type: a light check' },
   // PETREL-LS (10 Nov): the V4.2, fitted round by round to the maker's three LS drawings (reports/evidence/PETREL-LS-2026-11-10)
-  petrel42: { label: 'Super Petrel V4.2 (fitted to the maker\'s LS drawings, 10 Nov)', short: 'Super Petrel', file: 'builds/candidates/superpetrel_V4_2.json', ref: 'petrel', water: true, land: true, group: 'seaplane' },
+  petrel42: { listRow: 41, label: 'Super Petrel V4.2 (fitted to the maker\'s LS drawings, 10 Nov)', short: 'Super Petrel', file: 'builds/candidates/superpetrel_V4_2.json', ref: 'petrel', water: true, land: true, group: 'seaplane' },
   petrelL:  { label: 'Super Petrel V4.1, land (claude/seaplanes-merge; PROVISIONAL)', file: 'builds/candidates/superpetrel_V4_1.json', ref: 'petrel', land: true, supersededBy: 'petrel42',
               branch: 'claude/seaplanes-merge', provisional: true, note: 'not flyable on water on that branch yet: land figures only, to redo once it flies' },
-  c172rf:   { label: '172R on Wipline 2350 floats, STC prop (G3390, 20 Oct)', short: '172R on Wipline 2350', file: 'builds/c172r_wipline2350_stcprop_2026-10-20.json', ref: 'c172f', water: true,
+  c172rf:   { listRow: null, label: '172R on Wipline 2350 floats, STC prop (G3390, 20 Oct)', short: '172R on Wipline 2350', file: 'builds/c172r_wipline2350_stcprop_2026-10-20.json', ref: 'c172f', water: true,
               note: 'HYDRO-TRIM\'s stock 172R on the catalogue-exact Wipline 2350s with the STC 82 x 43 prop: the floats Cessna that exists today, until FLAGSHIP\'s rebuild lands' },
-  carboncubss: { label: 'Carbon Cub SS (CC340, built to the type)', short: 'Carbon Cub SS', file: 'builds/candidates/carbon_cub_ss.json', ref: 'carboncub',
+  carboncubss: { listRow: 47, label: 'Carbon Cub SS (CC340, built to the type)', short: 'Carbon Cub SS', file: 'builds/candidates/carbon_cub_ss.json', ref: 'carboncub',
               note: 'REAL-FIGURES-3, the user 9 Nov: the CC340 built from the engine dials (the O-320 chassis on the CC340 stroke, 340 in3, 2700 rpm, the new tune 1.09 and build 0.88 dials: 180 hp, 120 kg), a 2-blade carbon 2.03 m, VGs only (no slot, droop or drooped tips), the new STOL flap (plain, to 50 deg), a Super Cub-sized tail, 29 in tundras, 91 L in the wing roots, one 7 in glass PFD/MFD with round ASI / ALT / VSI (builds/candidates/carbon_cub_ss.edits.json)' },
   // (the user, 9 Nov: the STOL Cub is a Cub with a kit, not a Carbon Cub - kept, measured, no longer compared: the Carbon
   // Cub SS is the aeroplane that IS a real one)
@@ -408,9 +411,9 @@ const PLANES = {
   // CESSNA-FINAL (FLAGSHIP, 8 Nov): the corrected 172 + seven build rows - the lowered aft roof, 212 L at the wing root,
   // the DRAWN stab to the 172R's 3.40 m / 3.30 m2 (stSpan 1.19 -> 1.264: the join measures the drawing, spec.tail does not
   // survive a load), 'standard' seats, the 'full' trim (a 172 as delivered), V2-172. No generator change yet (Part 2)
-  c172v2f:  { label: 'Cessna 172 V2-172 on Wipline 2350 floats (draft)', short: 'V2-172 floats', file: 'builds/cessna172r_floats_2026-11-08.json', ref: 'c172f', water: true,
+  c172v2f:  { listRow: null, label: 'Cessna 172 V2-172 on Wipline 2350 floats (draft)', short: 'V2-172 floats', file: 'builds/cessna172r_floats_2026-11-08.json', ref: 'c172f', water: true,
               note: 'CESSNA-FINAL step 4 (draft): the land V2 + the G3390 float rows, the float system at Wipaire\'s 138 kg; flapless at gross (CG 45 % MAC) until A1' },
-  c172v2:   { label: 'Cessna 172 V2-172 (land, build rows)', short: 'Cessna 172 V2-172', file: 'builds/cessna172r_2026-11-08.json', ref: 'c172r',
+  c172v2:   { listRow: 50, label: 'Cessna 172 V2-172 (land, build rows)', short: 'Cessna 172 V2-172', file: 'builds/cessna172r_2026-11-08.json', ref: 'c172r',
               note: 'CESSNA-FINAL step 2: the corrected 172 on build rows only; the empty CG still aft (the aluminium generator\'s A1)' },
 };
 

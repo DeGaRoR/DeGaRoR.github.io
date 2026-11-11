@@ -38,3 +38,41 @@ The canon should be the V2-172 floats once those three are fixed. That is the us
 1. The canon files above that exist only on this branch need it to land: `jodel_geo`, `superpetrel_V4_2`, `ruckus_std`, and the four adopted cards' content (Chinook, Tiger Moth, Camel, DC-3).
 2. The list should name the canon files by name (`cub_chord160`, `pa18_floats_chord160`, `jodel_geo`, `superpetrel_V4_2`). A list row whose filename matches but whose blob differs is the old aeroplane.
 3. The validator's next step (REAL-FIGURES made perennial) stamps every result with its build's blob, so a mismatch like this one is flagged automatically.
+
+## Answers to A0 (11 Nov, after FLAGSHIP's PLANE CANON)
+
+**(a) The live set, confirmed.** One file per type, as tested on 11 Nov. The `listRow` field now in each `real_refs.js`
+PLANES entry gives the plane list's row for the same type (ask d):
+
+| PLANES key | file | listRow |
+|---|---|---|
+| cub160 | `builds/candidates/cub_chord160.json` | 48 |
+| jodelg | `builds/candidates/jodel_geo.json` | — (list 2 carries jodel_2026-09-20_corrected) |
+| chinookm | `builds/chinook_2026-09-21_corrected.json` | 8 (same name, different blob) |
+| stearman | `builds/candidates/stearman_2026-10.json` | 9 |
+| tigermothm | `builds/candidates/tigermoth_2026-10.json` | 10 (same name, different blob) |
+| camelm | `builds/candidates/camel_2026-10.json` | 11 (same name, different blob) |
+| dc3r | `builds/candidates/dc3_2026-10.json` | 12 (same name, different blob) |
+| pa18f160 | `builds/candidates/pa18_floats_chord160.json` | 49 |
+| petrel42 | `builds/candidates/superpetrel_V4_2.json` | 41 (the list's file is V4_1) |
+| carboncubss | `builds/candidates/carbon_cub_ss.json` | 47 |
+| c172v2 | `builds/cessna172r_2026-11-08.json` | 50 |
+| c172v2f | `builds/cessna172r_floats_2026-11-08.json` (claude/alloy-frame) | — |
+| c172rf | `builds/c172r_wipline2350_stcprop_2026-10-20.json` | — (a test plane from now on) |
+| ruckus | `builds/candidates/ruckus_std_2026-11-09.json` | — (until the cards land) |
+
+**(b)** Waiting for the user's answer to Q1. On a yes, the Cub and the PA-18 floats rows point back to list 1 / 25's
+files, and the chord-160 cards stay "next" (48 / 49).
+
+**(c) The Ruckus cards need three features master does not have.** Both cards (`ruckus_std_2026-11-09`, the Solo
+103, and `ruckus_2026-11-09`, the Back-Country) use four rows absent from origin/master 1f5b82195:
+
+| rows | feature | where it is |
+|---|---|---|
+| `noseDeck` | NOSE-DECK, the nose's top skin on an open frame | only on claude/practical-cerf-7fjpwp |
+| `wgStrutSec`, `wgJury` | STRUT-OPTIONS, round-tube struts and the jury strut | claude/strut-options, its own READY 1343f1e00, not landed |
+| `brkHold` | the brakes' hold, GEN_BRAKES | practical-cerf only; it went out with the reverted real-figures-3 |
+
+On master the cards would load with those rows ignored: no nose deck, profiled struts with no jury, and the old
+brakes. That is not the aeroplane the user approved. A claude/ready/ruckus therefore has to stack on, or carry,
+STRUT-OPTIONS and the brakes. The order is the user's / A0's call.
