@@ -1060,6 +1060,9 @@ PAGE.post = ctx => {
 let BLEND_MEMO = null;
 function blendRodIntoWing(group, W, GK, o) {
   const { rr, yAx, te, le } = o;
+  // (the loft's rows along the rod and rays round it; `res` - a review's override, e.g. quickshot --over '{"hubBlendRes":18}' - for
+  // a topology read at a low subdivision)
+  const NR0 = o.res >= 6 ? Math.round(o.res) : 72, NS0 = o.res >= 6 ? 4 * Math.round(o.res / 3) : 96;
   if (!le || !(le.z > te.z + 0.2)) return;
   const chord = le.z - te.z, kB = Math.max(0.06, 1.1 * rr);             // the fillet's width
   const NZ = 80, P = [], top = [], bot = [];
@@ -1071,7 +1074,7 @@ function blendRodIntoWing(group, W, GK, o) {
   const zMid = te.z + 0.5 * chord, u0 = W.underAt(0, zMid), u3 = W.underAt(0.3, zMid);
   const tDih = (u0 && u3) ? (u3.y - u0.y) / 0.3 : 0;
   const zA = te.z - (kB + 0.10), zB = te.z + 0.40 * chord;
-  const key = [rr, kB, tDih, yAx(zA), yAx(zB), yAx(te.z)].map(v => v.toFixed(4)).join() + '|' +
+  const key = [NR0, NS0, rr, kB, tDih, yAx(zA), yAx(zB), yAx(te.z)].map(v => v.toFixed(4)).join() + '|' +
               top.map((q, i) => q[0].toFixed(3) + ',' + q[1].toFixed(3) + ',' + bot[i][1].toFixed(3)).join(';');
   let rows = BLEND_MEMO && BLEND_MEMO.key === key ? BLEND_MEMO.rows : null;
   if (!rows) {
@@ -1113,7 +1116,7 @@ function blendRodIntoWing(group, W, GK, o) {
   const smin = (a, b, k) => { const h = Math.max(k - Math.abs(a - b), 0) / k; return Math.min(a, b) - h * h * k / 4; };
   const dU = (x, y, z) => smin(dRod(x, y, z), dWing(x, y, z), kAt(z));
   const sstep = (e0, e1, v) => { const t = Math.max(0, Math.min(1, (v - e0) / (e1 - e0))); return t * t * (3 - 2 * t); };
-  const NR = 72, NS = 96; rows = [];
+  const NR = NR0, NS = NS0; rows = [];
   for (let i = 0; i <= NR; i++) {
     const z = zA + (zB - zA) * i / NR, yc = yAx(z), row = [];
     for (let k = 0; k < NS; k++) {
@@ -1143,7 +1146,7 @@ function blendRodIntoWing(group, W, GK, o) {
   let bm = null;
   try { if (window.CAGE_SECMAT) bm = window.CAGE_SECMAT('boomSkin', { surf: 0, fieldM: 1, struct: 1, side: THREE.DoubleSide }); } catch (e) {}
   const m = bag.mesh(group, bm || MAT.liftstrut);
-  if (m) m.name = 'rodHubSocket';
+  if (m) { m.name = 'rodHubSocket'; m.userData.grid = rows; }      // (the loft's grid: quickshot --wire draws its rows and rays)
 }
 let hubGroup = null;
 function hubSocketDraw(ctx) {
@@ -1184,7 +1187,7 @@ function hubSocketDraw(ctx) {
       // (hidden: the wing draws its skin), so what shows is exactly the fillet - the rod's crown and flanks swelling into
       // the wing's lower and upper skins, easing back to the bare rod aft of the trailing edge. Its aft row tucks into the
       // rod (no lip), its forward rows end inside the wing. The body's paint (the rod's own section)
-      blendRodIntoWing(hubGroup, W, GK, { zR, rr, yAx, te, le: W.leAt ? W.leAt(0) : null });
+      blendRodIntoWing(hubGroup, W, GK, { zR, rr, yAx, te, le: W.leAt ? W.leAt(0) : null, res: +P.hubBlendRes || 0 });
     }
     scene.add(hubGroup);
   } catch (e) { console.error('hub socket:', e); }

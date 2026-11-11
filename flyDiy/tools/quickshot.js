@@ -14,6 +14,8 @@
 //     --frames '{"qb":[u0,u1,w0,w1],...}'   the views' frames given (each picture prints the frame it used)
 //     --over '{"row":value}'     panel rows over the build (try a slider without saving a file)
 //     --crop z0,z1,y0,y1         the side view's window, metres (z forward, y up)
+//     --around x,y,z,r           any view framed on a point (layer metres), r either way of it
+//     --wire                     the lofts' grids drawn over the picture (the hub's blend: rows and rays)
 //     --w 1400                   picture width, px
 //     --marks fittings|corners|reg   rings on the placed fittings / a quad window's corners / the registration
 //     --gear 0..1                a retractable gear's position (RETRACT G1: 1 down, 0 up) - the editor's own preview row
@@ -139,6 +141,7 @@ if (CUTSN) {
 S.scene.updateMatrixWorld(true);
 const v = new THREE.Vector3();
 const segs = [];   // RETRACT G3: the gear's reserved wells (edWellGhost's edges), drawn over the picture
+const WIRE = argv.includes('--wire'), wires = [];   // --wire: the lofts' grids (userData.grid), depth-tested
 S.scene.traverse(o => {
   if (o.isLineSegments && o.geometry && o.geometry.attributes && o.geometry.attributes.position) {
     let inWell = false; for (let q = o; q; q = q.parent) if (q.name === 'edWellGhost') inWell = true;
@@ -151,6 +154,16 @@ S.scene.traverse(o => {
     return;
   }
   if (!o.isMesh || !o.geometry || !o.geometry.attributes || !o.geometry.attributes.position) return;
+  // --wire: a mesh that keeps its loft's grid (userData.grid, rows of points - the hub's blend) draws it, its rows and
+  // its rays, the quads' own edges (depth-tested: only what is seen)
+  if (WIRE && o.userData && Array.isArray(o.userData.grid)) {
+    const Gd = o.userData.grid, Wm = p => { const q = new THREE.Vector3(p[0], p[1], p[2]).applyMatrix4(o.matrixWorld); return [q.x, q.y, q.z]; };
+    for (let i = 0; i < Gd.length; i++) for (let k = 0; k < Gd[i].length; k++) {
+      const k2 = (k + 1) % Gd[i].length;
+      wires.push({ a: Wm(Gd[i][k]), b: Wm(Gd[i][k2]) });
+      if (i + 1 < Gd.length) wires.push({ a: Wm(Gd[i][k]), b: Wm(Gd[i + 1][k]) });
+    }
+  }
   if (o.visible === false || /^edVessel_|^edFuel_|^edCrew/.test(o.name || '')) return;
   let hidden = false; for (let q = o; q; q = q.parent) if (q.visible === false) hidden = true;
   if (hidden) return;
@@ -214,6 +227,10 @@ function view(name) {
   for (const t of tris) if (!FOCUS || t.gear) for (let k = 0; k < 9; k += 3) { const p = [t[k], t[k + 1], t[k + 2]]; const u = V.u(p), w = V.w(p); u0 = Math.min(u0, u); u1 = Math.max(u1, u); w0 = Math.min(w0, w); w1 = Math.max(w1, w); }
   const crop = opt('crop', null);
   if (crop && name === 'side') { const [z0, z1, y0, y1] = crop.split(',').map(Number); u0 = -z1; u1 = -z0; w0 = y0; w1 = y1; }
+  // --around x,y,z,r: ANY view framed on a point (the layer's metres: x starboard, y up, z forward), r either way of it
+  const AR = opt('around', null);
+  if (AR) { const [ax, ay, az, ar] = AR.split(',').map(Number), pu = V.u([ax, ay, az]), pw = V.w([ax, ay, az]);
+            u0 = pu - ar; u1 = pu + ar; w0 = pw - 0.62 * ar; w1 = pw + 0.62 * ar; }
   if (FOCUS) { const m = 0.18 * Math.max(u1 - u0, w1 - w0); u0 -= m; u1 += m; w0 -= m; w1 += m; }
   // --frames '{"qb":[u0,u1,w0,w1]}': a frame given (a series of pictures in one frame); every frame used is printed
   const FR = opt('frames', null) ? JSON.parse(opt('frames', '{}'))[name] : null;
@@ -281,6 +298,14 @@ function view(name) {
       const X = x + dx, Y = y + dy; if (X < 0 || Y < 0 || X >= Wd || Y >= H) continue;
       const i = Y * Wd + X; out[i * 3] = m.col[0]; out[i * 3 + 1] = m.col[1]; out[i * 3 + 2] = m.col[2];
     }
+  }
+  for (const s of wires) {  // --wire: the grid's edges, 1 px, where they are seen (the depth buffer, a hair's bias)
+    const ax = (V.u(s.a) - u0) * sc, ay = (w1 - V.w(s.a)) * sc, az = V.d(s.a), bx = (V.u(s.b) - u0) * sc, by = (w1 - V.w(s.b)) * sc, bz = V.d(s.b);
+    const n = Math.ceil(Math.max(Math.abs(bx - ax), Math.abs(by - ay))) + 1;
+    for (let k = 0; k <= n; k++) { const t = k / n, x = Math.round(ax + (bx - ax) * t), y = Math.round(ay + (by - ay) * t), z = az + (bz - az) * t;
+      if (x < 0 || y < 0 || x >= Wd || y >= H) continue;
+      const i = y * Wd + x; if (z < zb[i] - 0.004) continue;
+      out[i * 3] = 20; out[i * 3 + 1] = 20; out[i * 3 + 2] = 24; }
   }
   for (const s of segs) {   // RETRACT G3: the wells' edges, 2 px, over everything
     const ax = (V.u(s.a) - u0) * sc, ay = (w1 - V.w(s.a)) * sc, bx = (V.u(s.b) - u0) * sc, by = (w1 - V.w(s.b)) * sc;

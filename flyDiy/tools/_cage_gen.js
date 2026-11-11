@@ -6886,13 +6886,17 @@ function cageInterior(m, S) {
         return [dx / l * rad, cy + dy / l * rad, z];
       };
       // ---- the bolted socket on the aft face ----
+      // (the user, 11 Nov: "get rid of the flange there, which was meant at fixing it on a flat surface" - a rod rooted in
+      // the wing's centre section (S.rod.hub) is blended into it; no plate, sleeve or bolts on the bulkhead)
       const zF = zPax0 - 0.012;
+      if (!S.rod.hub) {
       plate(rr + 0.055, rr + 0.006, zF, 0.008);
       sleeve(rr + 0.007, zF - 0.004, zF - 0.095);
       for (let k = 0; k < 8; k++) {
         const a2 = (k + 0.5) * Math.PI / 4;
         bolt(Math.sin(a2) * (rr + 0.038),
              yAxR(zF) + Math.cos(a2) * (rr + 0.038), zF - 0.004, 0.018, 0.0085);
+      }
       }
       // ---- planned joints: the bulkhead hoop's own nodes, processed
       // EXACTLY as the longitudinal chains process them (inCtr — same
@@ -6910,7 +6914,7 @@ function cageInterior(m, S) {
       // inside, bolts through the bulkhead) — members land on the
       // ring's rim, never graze the cap skin at glancing angles
       const zXi = zPax0 + 0.015;
-      if (md || cl) {
+      if ((md || cl) && !S.rod.hub) {   // (the flange's backing ring and its X: none on a rod rooted in the wing)
         plate(rr + 0.052, rr + 0.006, zXi, 0.007);
         const XN = [
           fb(md && jn(md.tL), cl && -cl.ceil.x, cl && cl.ceil.y),
@@ -9487,7 +9491,8 @@ function cageSpec(P) {
   S.rod = (P.boomStyle || +P.boomTwin)
     ? { r: Math.max(0.015, (P.rodD || 0.12) / 2), y: P.rodY || 0,
         incl: (+P.rodIncl || 0) * Math.PI / 180,            // G267.1, tail up +
-        twin: +P.boomTwin ? 1 : 0 }
+        twin: +P.boomTwin ? 1 : 0,
+        hub: +P.rodHub && +P.wingOn ? 1 : 0 }               // (the rod rooted in the wing's centre section: no flange)
     : 0;
   // G189: on a rod the taper's truss lives INSIDE the boom's length (see
   // cageResolve), so it cannot be longer than the boom less a hand of bare
