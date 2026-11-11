@@ -147,16 +147,21 @@
      "Vs": 25.597461107780077,
      "VCruise": 55.4,
      "climb": 6.618748951546907,
-     "TORun": null,
+     "TORun": 286,
      "engine": "Lycoming O-540-B2C5",
      "propD": 2.083,
      "propBlades": 2,
-     "TOWater": "lifts off the water"
+     "TOWater": null
     },
     "sea": true,
     "heroProp": "disc",
     "pxPerM": 81.654,
-    "heroWingY": 0.217
+    "heroWingY": 0.217,
+    "hydroNode": {
+     "t": 20.2,
+     "V": 29.6,
+     "dist": 286
+    }
    },
    "pics": {
     "hero": "list_39/hero.webp",
@@ -190,16 +195,21 @@
      "Vs": 23.12815661218526,
      "VCruise": 47.4,
      "climb": 5.553046187293997,
-     "TORun": null,
+     "TORun": 305,
      "engine": "Rotax 916 iS",
      "propD": 1.91,
      "propBlades": 3,
-     "TOWater": "see the hydroplane test"
+     "TOWater": null
     },
     "sea": true,
     "heroProp": "disc",
     "pxPerM": 84.389,
-    "heroWingY": 0.626
+    "heroWingY": 0.626,
+    "hydroNode": {
+     "t": 23.4,
+     "V": 26.2,
+     "dist": 305
+    }
    },
    "pics": {
     "hero": "cand_Twin_busher_floats_4b.json/hero.webp",
@@ -356,16 +366,21 @@
      "Vs": 20.081955825383393,
      "VCruise": 40,
      "climb": 4.338016007924088,
-     "TORun": null,
+     "TORun": 236,
      "engine": "Lycoming O-320-E2D",
      "propD": 1.91,
      "propBlades": 2,
-     "TOWater": "see the hydroplane test"
+     "TOWater": null
     },
     "sea": true,
     "heroProp": "disc",
     "pxPerM": 84.132,
-    "heroWingY": 0.272
+    "heroWingY": 0.272,
+    "hydroNode": {
+     "t": 22.7,
+     "V": 22.1,
+     "dist": 236
+    }
    },
    "pics": {
     "hero": "list_25/hero.webp",

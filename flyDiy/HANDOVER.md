@@ -314645,3 +314645,13 @@ Five commits on L38a master 603da882f; the ready is the gated sha.
   (field, plotSite, plotId), any other To setArriveSite(null), before every departFrom.
 - Open (Pilot, parked by the land-only week): the C172 approach (w8 / w5 go-arounds and divert, the w3 touchdown at
   29.8 m/s), the Cub / Jodel w5 arrivals. No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change.
+## PLANE-RENDERS PICTURE SET (AIRCRAFT-LOOKS, Wed 11 Nov, claude/ready/picture-set on bda599c08)
+
+The official repository's pictures, the user 10 Nov. Baked in A0's 16:30-17:00 GPU slot; gates 17:00 (MEDIA PLANEFICHE PLANETHUMB, --jobs=1).
+
+- The Client Cub first, as the story hands it over: its own livery (worn white, blue sweep, N1938J), no flaps, the minimal panel. Two fixes not yet on master were applied in the bake's TREE ONLY: Game's storyClientSpec without paint.job 'bare', and FLAGSHIP's list:26 over without it. Both files were put back before the commit. In the game it looks like this once those two land (FLAGSHIP's plane-list ready, L38b).
+- Fiches: list:39, Twin 4b, list:25 (the float cards) with FLAGSHIP's nodeHydro (fiche_bake.js from 34508ecfa): lift-off on water 286 / 305 / 236 m. Also list:26, the Client Cub.
+- Every hero and every thumb re-baked.
+- Not here: list:5 Metal Cessna and list:7 Rufus. Their 10 Nov cutaways have no cut; CUT TAKES (the next ready) re-bakes them in the 21:05 slot.
+- fiche_bake.js fix: a name two files share ("build") is counted over EVERY official row, not only the --only rows. GATE PLANEFICHE failed at 17:00 because the PA-18's "build" was written back while Rufus's row already held ''. FLAGSHIP's classes rebase (claude/fiche-bake-hydro-pl) needs the same fix.
+- No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change. Media only, plus the bake tool.
