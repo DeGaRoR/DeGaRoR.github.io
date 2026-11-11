@@ -1053,6 +1053,7 @@ PAGE.post = ctx => {
   wingPost(ctx);
   early.publish(ctx);
   hubSocketDraw(ctx);                 // (the hub's rear socket: after the wing, which it reads)
+  cabPylonDraw(ctx);                  // (HULL-B78's central pylon: after the wing it stands under)
   // HULL-B5: the boat's tip floats hang off THIS wing (the float layer draws them from the flown records)
   if (window.CAGE_TIPFLOAT_DRAW) { try { window.CAGE_TIPFLOAT_DRAW(ctx); } catch (e) { console.error('tip floats:', e); } }
   // WING-STRUCTURE: the wing's inside (src/viewer/wing_struct.js), drawn off this build's def - only under the see-inside
@@ -1155,6 +1156,35 @@ function hubHump(groups, toCage, P) {
     moved++; if (upper) maxUp = Math.max(maxUp, dy); else maxLo = Math.max(maxLo, -dy);
   }
   return { rr, yA0, tI, zR0, zTop, yTop, te: TE[0], le: LE[0], chord, rodYfit, moved, maxUp, maxLo };
+}
+// HULL-B78: THE CABANE AS A CENTRAL PYLON (bpCabPylon) - the engine pylon's blended blade (_cage_eng CAGE_PYLON), standing
+// on the roof's crown under the first plane's centre section and hugging the wing's underside. Drawn here, after the wing
+// it reads (the engine layer drew it before the wing was built - off the previous build's, missing on a first build);
+// the same geometry
+let cabPyGroup = null;
+function cabPylonDraw(ctx) {
+  const { scene, P } = ctx;
+  if (cabPyGroup) { cabPyGroup.traverse(o => { if (o.geometry) o.geometry.dispose(); }); if (cabPyGroup.parent) cabPyGroup.parent.remove(cabPyGroup); cabPyGroup = null; }
+  if (!+P.bpCabPylon || !(Math.round(+P.wgPos || 0) === 3 || +P.w2On) || !P.wingOn) return;
+  const W = window.CAGE_WING, GK = window.GEAR_KIT, PY = window.CAGE_PYLON;
+  if (!W || !GK || !PY || !PY.drawPylonBlade || !GG || !GG.cageAirframe) return;
+  try {
+    const FS = (CG2 && CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
+    const le = W.leAt ? W.leAt(0) : null;
+    const chPl = W.def && W.def.parts && ((W.def.parts.planes && W.def.parts.planes[0]) || W.def.parts);
+    const ch = chPl && chPl.chordAt ? chPl.chordAt(0) : 1.0;
+    const AFp = GG.cageAirframe(ctx.mesh, FS);
+    if (!le || !W.underAt || !AFp) return;
+    const top = z => { try { const zc = Math.min(AFp.z1 - 1e-3, Math.max(AFp.z0 + 1e-3, z)); const y = AFp.surf(zc, Math.PI)[1]; return isFinite(y) ? y : null; } catch (e) { return null; } };
+    const Lp = Math.max(0.30, 0.55 * ch), zc = le.z - 0.40 * ch, u = W.underAt(0, zc), yb = top(zc);
+    if (!(u && yb != null && u.y > yb + 0.05)) return;
+    const f = { kind: 'cabPylon', x: 0, z: zc - (Lp / 2 - 0.05), yc: u.y + 0.01, halfH: 0, chord: Lp / 0.42,
+                foot: { x: 0.06, y: yb, zF: zc + Lp / 2, zR: zc - Lp / 2, yF: top(zc + Lp / 2), yR: top(zc - Lp / 2) } };
+    cabPyGroup = new THREE.Group(); cabPyGroup.name = 'cageLayer:cabPylon';
+    PY.drawPylonBlade(cabPyGroup, f, Object.assign({}, P, { engPylonFair: 3 }), GK, false,
+                      PY.pylonCaster(ctx, FS, [-1.0, 1.0, zc - 1.2, zc + 1.2]));
+    scene.add(cabPyGroup);
+  } catch (e) { console.error('cabane pylon:', e); }
 }
 let hubGroup = null;
 function hubSocketDraw(ctx) {

@@ -1066,7 +1066,7 @@ function drawPylonMount(group, f, P, GK, aft, C) {
 }
 // the body in the cowl's section (the nacelle's paint), the joint in the rubber seal's
 // MONOWHEEL: THE HUGGING BODY for another layer - the gear layer's faired skid is this blade hung under the keel
-window.CAGE_PYLON = { pylonCaster, pylonHug, pylonOutline };
+window.CAGE_PYLON = { pylonCaster, pylonHug, pylonOutline, drawPylonBlade };
 function pylonMeshes(group, fair, jb) {
   const SM = typeof window !== 'undefined' && window.CAGE_SECMAT;
   const m = fair.mesh(group, (SM && SM('cowl', { surf: 0, fieldM: 1 })) || matOf('emMount'));
@@ -1554,7 +1554,6 @@ function engPlace(ctx, prev) {
   })();
   const propInfo = P.propOn ? CW.propGeometry() : null;
   const ex = Math.max(0, P.explodeD || 0) * FS;
-  let cabPyDrawn = false;                              // (HULL-B78: the cabane pylon, drawn once)
   units.forEach((u, k) => {
     const f = u.face, sfx = k ? '#' + k : '';
     const ug = new THREE.Group();
@@ -1646,26 +1645,8 @@ function engPlace(ctx, prev) {
         group.add(pl);
       } else drawPylonMount(group, f, P, GK, !!u.aft, pylonCaster(ctx, FS, [(f.x || 0) - 1.0, (f.x || 0) + 1.0, f.z - 1.1, f.z + 1.1]));
     }
-    // HULL-B78: THE CABANE AS A CENTRAL PYLON (bpCabPylon) - the engine pylon's blended blade, standing on the roof's
-    // crown under the first plane's centre section and hugging the wing's underside (drawn once, with the first unit)
-    if (+P.bpCabPylon && (Math.round(+P.wgPos || 0) === 3 || +P.w2On) && !cabPyDrawn) {
-      cabPyDrawn = true;
-      const W = window.CAGE_WING, GK = window.GEAR_KIT, GGn = window.GEAR_GEN || null;
-      const le = W && W.leAt ? W.leAt(0) : null;
-      const chPl = W && W.def && W.def.parts && ((W.def.parts.planes && W.def.parts.planes[0]) || W.def.parts);
-      const ch = chPl && chPl.chordAt ? chPl.chordAt(0) : 1.0;
-      const AFp = GGn && GGn.cageAirframe ? GGn.cageAirframe(ctx.mesh, FS) : null;
-      if (le && GK && W.underAt && AFp) {
-        const top = z => { try { const zc = Math.min(AFp.z1 - 1e-3, Math.max(AFp.z0 + 1e-3, z)); const y = AFp.surf(zc, Math.PI)[1]; return isFinite(y) ? y : null; } catch (e) { return null; } };
-        const Lp = Math.max(0.30, 0.55 * ch), zc = le.z - 0.40 * ch, u = W.underAt(0, zc), yb = top(zc);
-        if (u && yb != null && u.y > yb + 0.05) {
-          const f = { kind: 'cabPylon', x: 0, z: zc - (Lp / 2 - 0.05), yc: u.y + 0.01, halfH: 0, chord: Lp / 0.42,
-                      foot: { x: 0.06, y: yb, zF: zc + Lp / 2, zR: zc - Lp / 2, yF: top(zc + Lp / 2), yR: top(zc - Lp / 2) } };
-          drawPylonBlade(group, f, Object.assign({}, P, { engPylonFair: 3 }), GK, false,
-                         pylonCaster(ctx, FS, [-1.0, 1.0, zc - 1.2, zc + 1.2]));
-        }
-      }
-    }
+    // HULL-B78: THE CABANE AS A CENTRAL PYLON - drawn by the wing layer now, after the wing it stands under (_cage_wing
+    // cabPylonDraw: this layer runs BEFORE the wing's, so CAGE_WING here was the previous build's - missing on a first)
     // HULL-B30: A NACELLE ON THE REAR FUSELAGE stands on a STUB PYLON - a short wing-section blade from the fuselage's
     // side (its root flared into the skin, 18 % thick) to the nacelle's inboard flank (16 %, a small fillet), its chord
     // the nacelle's mount station over 0.85 m; the frame's stub truss (61_gen_frame pylonAt 'body') inside it
