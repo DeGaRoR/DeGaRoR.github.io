@@ -484,3 +484,22 @@ empty mass, the static margin.
 - **A sliver is not a window**: `dt_core.windows` leaves out glazed patches under 6 cm; the cockpit window had been
   paired with a 3 cm strip. The PC-6 reads 119 / 175 (its two cockpit-edge passes were that pairing's luck); the floor
   follows.
+
+## ROUND 5 (11 Nov, night): the user's look over the drawing - wing, windscreen, door, sill, a straight tail
+
+The user, on the renders (their word over the drawing where the two differ):
+
+| asked | done | rows |
+|---|---|---|
+| "the wing needs to go down, without touching the cabin height; the centre section top only, so the cabin fits below it" | the wing 0.13 m down (its lower skin now 0.13 m under the roof), the centre section `open` (the upper skin alone, the Cub's); the windscreen frame's top brought down to the roof (it had been lifted to 1.24 m, into the old wing) | `wgDy` 0.08 -> -0.05, `wgCentre` 2, `frWinTopY` 1.155 -> 0.95 |
+| "the run of the windshield is longer, so the A pillar is about 45 degrees in side view" | 61.5 -> 44.9 deg; the nose shorter by the same so no station moves | `wsRun` 0.75 -> 0.99, `noseLen` 0.97 -> 0.73 |
+| "the door is much thinner, so it does not intersect with the back window" | the pilot door is the quarter bay PLUS the pilot bay; 0.92 m -> 0.77 m, its aft edge 3.995 (the window at 4.06); the pilot bay below the slider's old 0.30 (garage gap -> `claude/fit-procedure-garage-windows` dc87d793, A0 told), the length given to the pax bays so the tail stays | `pilotLen` 0.10, `paxLen` 1.0767 |
+| "decrease the sill, so it dips below the waistline" | the pilot's glass carried down past the waistband (the drawing's cockpit door window) | `winSillPilot` 0.14 |
+| "the fin has an ugly little wave at the top" | the template's LE SHOULDER sat 0.35 forward of the tip and 0.10 ABOVE it (the earlier fit's way of standing the LE upright): the shoulder back on its template offsets, the top pair's bulge 0, the rudder's TE bulges 0; the tip and the LE refitted (`finTipZ` 0.44) and both top corners raised together (the top had hung on the hump) | `finShoulderZ/Y` 0.035 / 0.0205, `finTopY` 0, `finTE*` 0, `finTipY` = `finAftY` -0.29 |
+| "same for the stabs from top view, and the elevators; full straight" | the same shoulder hump at the tips, and -3 deg of sweep bending the hinge line: shoulder on template, sweep 0, the LE / tips refitted on the drawing's straight edges | `stShoulderZ` 0.075, `stSweep` 0, `stLEZ` -0.355, `stTipZ` 0.335, `stChordTip` 0.99 |
+| "do some 3/4 views" | quickshot gained `qr` (behind, above) and `qp` (ahead, port, above) | `tools/quickshot.js` |
+
+Lessons for the table: **a corner the fitter moves to satisfy a line can make a bump the line does not see** (the fin's
+shoulder stood the LE upright and humped the top): a straight surface is fitted with its shoulder ON the template and
+the line rows scored; and the table's lines are the drawing's, but **the user's eye wins where they differ** - GATE
+DRAFTING now holds the user's 45 deg A-pillar instead of the drawing's windscreen line, and its floor follows (118).
