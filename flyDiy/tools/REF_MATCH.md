@@ -12,6 +12,9 @@ procedure's: a fitter is only ever run on the rows of the step in hand.
 
 **Handing a model to a new session:** `tools/ref_match/KICKOFF.md` is the message to paste with the GLB.
 
+**Fitting from drawings or photos, and proving the result against the real figures:** `tools/FIT_AND_VALIDATE.md`
+(the method and best practices from REAL-FIGURES, 7-11 Nov 2026).
+
 **The rule above all: every change is a garage row.** A card is a list of the rows a builder could set by hand. If a
 shape needs something no row offers, stop and flag it (section 7): the garage gets the control, then the card uses it.
 
