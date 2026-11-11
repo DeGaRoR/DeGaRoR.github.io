@@ -314629,7 +314629,14 @@ skid, the load rig and the cage's rod drawing all hang on it), so the stage is T
   Measured (GATE HUB C): the tail post under 300 N held at the wing's root bay alone drops 8 mm (18 mm without).
 - **The drawing** (_cage_wing hubSocketDraw, after the wing: the engine layer runs BEFORE the wing layer, so CAGE_WING
   is the previous build's there - the cabane pylon HULL-B78 reads it that way and is missing on a first headless
-  build): where the rod runs into the centre section, a bolted sleeve where it leaves the trailing edge
-  (rodHubSocket); under a gap, the pylon's blended blade from the rod's crown to the wing's underside.
+  build): where the rod runs into the centre section, ONE BLENDED SURFACE (the user: "keep protruding your cylinder into
+  the wing, and then it has to blend with the wing ... a proper custom model ... rather than two meshes intersecting"):
+  blendRodIntoWing - the rod's cylinder carried on to 45 % of the root chord and the centre section's own section
+  (sampled off the drawn skin; tabulated on a 4 mm grid, exact within the fillet's reach of the skin, the sign beyond)
+  joined by a smooth union (blend radius 1.1 r inside the wing, 0.55 of it at the trailing edge: a constant one swelled the rod into a knob round the thin edge), lofted round the rod's axis (72 rows x 96 rays, each ray bisected onto
+  the union's surface); where that surface is the wing's own skin it sinks 7 mm under it, eased in over its last 12 mm
+  (so the line where it disappears is the true line the fillet meets the skin on), the aft row tucked into the rod.
+  Kept between builds (BLEND_MEMO: recomputed only when the rod or the section changes). Named rodHubSocket, the
+  body's paint (boomSkin); quickshot paints it the sheet's colour. Under a gap, the pylon's blended blade.
 - GATE HUB (new, core, ~1 min).
 

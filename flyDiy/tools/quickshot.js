@@ -157,6 +157,9 @@ S.scene.traverse(o => {
   const m = Array.isArray(o.material) ? o.material[0] : o.material;
   let col = m && m.color ? [m.color.r * 255, m.color.g * 255, m.color.b * 255].map(Math.round) : [180, 180, 180];
   if (/^edAcc_/.test(o.name || '') || (o.parent && /access/.test(o.parent.name || ''))) col = [220, 40, 40];
+  // (the hub's blend wears the body's paint in the editor - its livery section follows the fuselage's; here the sheet's
+  // own colour, as the rod it grows out of is drawn)
+  if (o.name === 'rodHubSocket') col = hex(skin);
   if (m && m.transparent && m.opacity < 0.3) return;
   const pos = o.geometry.attributes.position, idx = o.geometry.index;
   const n = idx ? idx.count : pos.count;

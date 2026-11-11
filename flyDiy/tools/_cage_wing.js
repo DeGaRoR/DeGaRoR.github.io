@@ -1051,6 +1051,100 @@ PAGE.post = ctx => {
 // a GAP - the rod's crown below the wing's underside at its root - the socket is the engine pylon's blended blade standing on
 // the rod and hugging the wing (_cage_eng CAGE_PYLON); where the rod already runs INTO the centre section, a bolted sleeve
 // where it leaves the trailing edge, its four bolts - the rod reads slotted into the wing
+// THE BLEND (hubSocketDraw): the smooth union of the rod and the wing's centre section, lofted round the rod's axis. The
+// wing's distance field is the centreline section's (sampled off the drawn skin, overAt / underAt), tabulated once on a
+// 4 mm grid and read bilinearly - the fillet spans a hand either side, where the wing is its own extrusion but for the
+// dihedral's rise (taken off the drawn underside at 0.3 m). Only the cells within the fillet's reach of the skin need the
+// distance exactly (each measures the skin's segments near it); beyond that the sign is the field's whole job (the
+// section's top and bottom lines). Kept between builds: recomputed only when the rod or the centre section changes
+let BLEND_MEMO = null;
+function blendRodIntoWing(group, W, GK, o) {
+  const { rr, yAx, te, le } = o;
+  if (!le || !(le.z > te.z + 0.2)) return;
+  const chord = le.z - te.z, kB = Math.max(0.06, 1.1 * rr);             // the fillet's width
+  const NZ = 80, P = [], top = [], bot = [];
+  for (let i = 0; i <= NZ; i++) { const z = te.z + 0.002 + (chord - 0.004) * i / NZ, t = W.overAt(0, z), u = W.underAt(0, z);
+    if (t && u) { top.push([z, t.y]); bot.push([z, u.y]); } }
+  if (top.length < 5) return;
+  for (const q of top) P.push(q);
+  for (let k = bot.length - 1; k >= 0; k--) P.push(bot[k]);
+  const zMid = te.z + 0.5 * chord, u0 = W.underAt(0, zMid), u3 = W.underAt(0.3, zMid);
+  const tDih = (u0 && u3) ? (u3.y - u0.y) / 0.3 : 0;
+  const zA = te.z - (kB + 0.10), zB = te.z + 0.40 * chord;
+  const key = [rr, kB, tDih, yAx(zA), yAx(zB), yAx(te.z)].map(v => v.toFixed(4)).join() + '|' +
+              top.map((q, i) => q[0].toFixed(3) + ',' + q[1].toFixed(3) + ',' + bot[i][1].toFixed(3)).join(';');
+  let rows = BLEND_MEMO && BLEND_MEMO.key === key ? BLEND_MEMO.rows : null;
+  if (!rows) {
+  const reach = kB + 0.04, segs = [];
+  for (let k = 0, j = P.length - 1; k < P.length; j = k++) segs.push([P[j], P[k], Math.min(P[j][0], P[k][0]), Math.max(P[j][0], P[k][0])]);
+  const yOf = (L, z) => { if (z <= L[0][0]) return L[0][1]; for (let k = 1; k < L.length; k++) if (z <= L[k][0]) { const a = L[k - 1], b = L[k];
+    return a[1] + (b[1] - a[1]) * (z - a[0]) / (b[0] - a[0] || 1e-9); } return L[L.length - 1][1]; };
+  const polyD = (y, z) => {
+    const inside = z > top[0][0] && z < top[top.length - 1][0] && y < yOf(top, z) && y > yOf(bot, z);
+    let dm = reach * reach;
+    for (const [a, b, z0, z1] of segs) {
+      if (z0 - reach > z || z1 + reach < z) continue;
+      const ez = b[0] - a[0], ey = b[1] - a[1], L2 = ez * ez + ey * ey || 1e-12;
+      const t = Math.max(0, Math.min(1, ((z - a[0]) * ez + (y - a[1]) * ey) / L2));
+      const dz = z - a[0] - t * ez, dy = y - a[1] - t * ey, d2 = dz * dz + dy * dy;
+      if (d2 < dm) dm = d2;
+    }
+    return inside ? -Math.sqrt(dm) : Math.sqrt(dm);
+  };
+  // the grid: z over the loft's span, y over the rod's reach either side of its axis
+  const yc0 = yAx(0.5 * (zA + zB)), HI = rr + kB + 0.18;
+  const G = 0.004, gz0 = zA - 0.02, gy0 = Math.min(yc0, yAx(zA), yAx(zB)) - HI - 0.02;
+  const nz = Math.ceil((zB + 0.02 - gz0) / G) + 1, ny = Math.ceil((Math.max(yc0, yAx(zA), yAx(zB)) + HI + 0.02 - gy0) / G) + 1;
+  const GD = new Float32Array(nz * ny);
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nz; i++) GD[j * nz + i] = polyD(gy0 + j * G, gz0 + i * G);
+  const dWing = (x, y, z) => {
+    const fy = (y - Math.abs(x) * tDih - gy0) / G, fz = (z - gz0) / G;
+    const j = Math.max(0, Math.min(ny - 2, Math.floor(fy))), i = Math.max(0, Math.min(nz - 2, Math.floor(fz)));
+    const ty = Math.max(0, Math.min(1, fy - j)), tz = Math.max(0, Math.min(1, fz - i));
+    const a = GD[j * nz + i], b = GD[j * nz + i + 1], c = GD[(j + 1) * nz + i], d = GD[(j + 1) * nz + i + 1];
+    return (a * (1 - tz) + b * tz) * (1 - ty) + (c * (1 - tz) + d * tz) * ty;
+  };
+  const zF = te.z + 0.45 * chord;                                   // the rod carried this far into the wing
+  const dRod = (x, y, z) => { const yy = y - yAx(Math.min(z, zF)), dr = Math.sqrt(x * x + yy * yy) - rr; return z > zF ? Math.max(dr, z - zF) : dr; };
+  // THE FILLET GROWS INTO THE WING: its blend radius 0.55 of kB at the trailing edge, the whole from a quarter of the chord
+  // in (a constant one wraps the thin edge and swells the rod into a knob there; a fairing grows its fillet from behind)
+  const sm3 = v => v * v * (3 - 2 * v);
+  const kAt = z => kB * (0.55 + 0.45 * sm3(Math.max(0, Math.min(1, (z - (te.z - 0.03)) / (0.25 * chord)))));
+  const smin = (a, b, k) => { const h = Math.max(k - Math.abs(a - b), 0) / k; return Math.min(a, b) - h * h * k / 4; };
+  const dU = (x, y, z) => smin(dRod(x, y, z), dWing(x, y, z), kAt(z));
+  const sstep = (e0, e1, v) => { const t = Math.max(0, Math.min(1, (v - e0) / (e1 - e0))); return t * t * (3 - 2 * t); };
+  const NR = 72, NS = 96; rows = [];
+  for (let i = 0; i <= NR; i++) {
+    const z = zA + (zB - zA) * i / NR, yc = yAx(z), row = [];
+    for (let k = 0; k < NS; k++) {
+      const th = 2 * Math.PI * k / NS, dx = Math.sin(th), dy = Math.cos(th);
+      let lo = 0, hi = HI, prev = 0, found = false;
+      for (let q = 1; q <= 30; q++) { const r2 = hi * q / 30; if (dU(dx * r2, yc + dy * r2, z) > 0) { lo = prev; hi = r2; found = true; break; } prev = r2; }
+      if (!found) lo = hi;
+      else for (let it = 0; it < 22; it++) { const m = 0.5 * (lo + hi); if (dU(dx * m, yc + dy * m, z) > 0) hi = m; else lo = m; }
+      let rho = 0.5 * (lo + hi);
+      // ON THE WING'S OWN SKIN the surface sinks under it - 7 mm, eased in over the last 12 mm of its approach (the
+      // fillet meets the skin tangentially, so the line where it disappears is the true line it meets it on)
+      const dw = found ? dWing(dx * rho, yc + dy * rho, z) : -1;
+      rho = Math.max(0.2 * rr, rho - 0.007 * (1 - sstep(0.002, 0.014, dw)));
+      if (i === 0) rho = rr - 0.002;                                  // the aft row tucked into the rod
+      row.push([dx * rho, yc + dy * rho, z]);
+    }
+    rows.push(row);
+  }
+  BLEND_MEMO = { key, rows };
+  }
+  const NR = rows.length - 1, NS = rows[0].length;
+  const bag = GK.Bag(), ids = rows.map(r => r.map(p => bag.v(p)));
+  for (let i = 0; i < NR; i++) for (let k = 0; k < NS; k++) {
+    const k2 = (k + 1) % NS;
+    bag.quad(ids[i][k], ids[i + 1][k], ids[i + 1][k2], ids[i][k2]);   // (outward: k runs over the crown to +x, i forward)
+  }
+  let bm = null;
+  try { if (window.CAGE_SECMAT) bm = window.CAGE_SECMAT('boomSkin', { surf: 0, fieldM: 1, struct: 1, side: THREE.DoubleSide }); } catch (e) {}
+  const m = bag.mesh(group, bm || MAT.liftstrut);
+  if (m) m.name = 'rodHubSocket';
+}
 let hubGroup = null;
 function hubSocketDraw(ctx) {
   const { scene, P } = ctx;
@@ -1079,15 +1173,18 @@ function hubSocketDraw(ctx) {
           dn: ['body'], up: ['wing'], top0: 0.5 * H + 0.01, bot0: -0.5 * H - 0.01, topJoint: true });
         bag.mesh(hubGroup, mat); jb.mesh(hubGroup, mat);
       }
-    } else if (zR > te.z) {
-      // the rod in the wing: the socket's collar at the trailing edge (a tapered sleeve from 1.33 r at the edge to the
-      // rod a hand aft) and four bolts through it
-      const bag = GK.Bag(), z0 = te.z + 0.05, L = 0.14, ax = [0, 0, 1], yc = yAx(te.z - 0.04);
-      GK.revolve(bag, [0, yAx(z0), z0], ax, [[rr * 1.33, 0], [rr * 1.34, -0.03], [rr * 1.16, -L], [rr * 1.01, -L - 0.01]], 32);
-      for (let k = 0; k < 4; k++) { const a = Math.PI / 4 + k * Math.PI / 2;
-        GK.bolt(bag, [Math.sin(a) * rr * 1.24, yc + Math.cos(a) * rr * 1.24, te.z - 0.04], [Math.sin(a), Math.cos(a), 0], 0.008, 0.012); }
-      const m = bag.mesh(hubGroup, mat);
-      if (m) m.name = 'rodHubSocket';
+    } else if (zR > te.z - 0.05) {
+      // THE ROD GROWS INTO THE CENTRE SECTION (the user, 11 Nov: "keep protruding your cylinder into the wing, and then it
+      // has to blend with the wing ... a proper custom model that would blend both, rather than two meshes intersecting"):
+      // ONE BLENDED SURFACE. The two target shapes as distance fields - the rod's cylinder carried on forward into the wing
+      // (to 45 % of the root chord) and the centre section's own section, sampled off the drawn skin across the span the
+      // fillet reaches (overAt / underAt) - joined by a SMOOTH UNION (its blend radius kB the fillet's width), and that
+      // surface lofted as a tube round the rod's axis: section by section along the rod, ray by ray round it, each ray
+      // solved for where the union's surface is. Where that surface is the wing's own skin it is tucked 6 mm inside it
+      // (hidden: the wing draws its skin), so what shows is exactly the fillet - the rod's crown and flanks swelling into
+      // the wing's lower and upper skins, easing back to the bare rod aft of the trailing edge. Its aft row tucks into the
+      // rod (no lip), its forward rows end inside the wing. The body's paint (the rod's own section)
+      blendRodIntoWing(hubGroup, W, GK, { zR, rr, yAx, te, le: W.leAt ? W.leAt(0) : null });
     }
     scene.add(hubGroup);
   } catch (e) { console.error('hub socket:', e); }

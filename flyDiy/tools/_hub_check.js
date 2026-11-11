@@ -13,7 +13,7 @@
 //    the row the cluster and the masses are the bytes they were.
 // C. THE LOAD PATH: a download at the tail post, the airframe held at the wing's root bay alone - with the socket the
 //    tail stands on the wing (its sag a fraction of the rod hung through the pod).
-// D. THE DRAWING: where the rod runs into the centre section, the socket's collar at the trailing edge (rodHubSocket);
+// D. THE DRAWING: where the rod runs into the centre section, one blended surface growing it into the wing (rodHubSocket);
 //    no socket without the row.
 'use strict';
 const path = require('path');
@@ -73,7 +73,7 @@ console.log('C. THE LOAD PATH');
 console.log('D. THE DRAWING');
 { const has = sp => { const S = SH.sceneBuild(sp, { over: {}, garage: sp }); let f = false; S.scene.traverse(o => { if (o.name === 'rodHubSocket') f = true; }); return f; };
   const S1 = born({ rodHub: 1 });
-  ok(has(S1) && !has(s0), 'D the socket\'s collar drawn at the trailing edge with the row, none without'); }
+  ok(has(S1) && !has(s0), 'D the rod blended into the centre section (rodHubSocket) with the row, none without'); }
 
 console.log(fails.length ? 'GATE HUB: FAIL (' + fails.length + ')' : 'GATE HUB: PASS');
 process.exit(fails.length ? 1 : 0);
