@@ -617,6 +617,15 @@
           214
         ]
       ]
+    },
+    "tailwheel.bottom": {
+      "view": "side",
+      "pts": [
+        [
+          890,
+          257.5
+        ]
+      ]
     }
   },
   "architecture": {

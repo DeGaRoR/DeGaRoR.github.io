@@ -96,7 +96,7 @@ function shade(B, o) {
   const COL = {};
   for (const name of Object.keys(DT_CORE.COLOURS)) { const c = DT_CORE.COLOURS[name]; COL[DT_CORE.PID[name]] = [parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16)]; }
   COL[DT_CORE.PID.body] = [205, 210, 218]; COL[DT_CORE.PID.pillar] = [205, 210, 218]; COL[DT_CORE.PID.waist] = [190, 196, 206];
-  COL[DT_CORE.PID.wing] = [215, 220, 226]; COL[DT_CORE.PID.glass] = [80, 110, 140];
+  COL[DT_CORE.PID.wing] = [215, 220, 226]; COL[DT_CORE.PID.glass] = [80, 110, 140]; COL[DT_CORE.PID.screen] = [80, 110, 140];
   const L = [0.35, 0.8, 0.5], ll = Math.hypot(L[0], L[1], L[2]);
   for (let t = 0; t < n; t++) {
     const o9 = t * 9;

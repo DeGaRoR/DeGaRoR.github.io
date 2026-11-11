@@ -315,3 +315,89 @@ Decided with the user, 11 Nov:
 - **First run:** the PC-6 Porter, blueprints only. The DC-3 stays manual (re-injecting it into the tool is a later
   test); the Archaeopteryx waits for its new architecture; the Tiger Moth is not re-run.
 - **This spec in the repo:** this file, branch `claude/fit-procedure-drafting-table`.
+
+## BUILT (11 Nov 2026, session FIT-PROCEDURE, branch claude/fit-procedure-drafting-table)
+
+The first cut, run end to end on the PC-6 (below). What exists:
+
+| file | what |
+|---|---|
+| `flyDiy/drafting.html` | the page: one file, no game, no 3D engine. Steps, the view (side / top / front over the sheet, the outline in parts, the marks), the numbers strip, the step's garage rows, the quick 3D, save. The sheet image stays in the browser's IndexedDB (by its SHA-256). Opened from the main menu ("New reference plane"). |
+| `tools/drafting/dt_worker.js` | the page's worker: loads `dt_manifest.js` (the core's generator files + the editor's layers, minus crew, panel, characters, energy, lamps, hinges, fittings, the UI and the join) and answers init / birth / build (rasters of the outline per view, the measurements, the 3D picture). |
+| `tools/drafting/dt_build.js` | a plane file through the garage's generator: triangles tagged by part (body, glass, screen, pillar, waist, wing, strut, fin, stab, cowl, engine, gear, float), in the table frame. Two passes by default (some layers read what a later layer published). |
+| `tools/drafting/dt_core.js` | pure: the views, the raster and its edges, slices, our key measurements, the probes, the comparison (`KM`). |
+| `tools/drafting/dt_steps.js` | each step's garage rows (labels and ranges come from the garage at run time) and its key measurements. |
+| `tools/drafting/table.js` | the CLI: `new`, `check` (+ overlays), `set`, `fit` (scoped search), `weigh` (the light checks), `rows`, `compare`. |
+| `tools/drafting/refs/pc6.json` | the PC-6/B2-H4 reference block. |
+| `builds/candidates/pc6_drafting_2026-11-11.json` | the PC-6, the garage's save format with its `ref` block. |
+
+Measured (headless Chromium, local server): first paint 0.13 s; the garage ready in the worker 0.5 s; a build 0.33 s;
+a slider round trip 0.66 s. In node a build is ~0.8 s (two passes); `weigh` ~20 s (the garage's whole load door).
+
+### Lessons the first run taught (fold into the steps)
+
+- **Two passes.** The garage's layers read what a later layer published on the previous build: the first build in a
+  fresh context is one pass stale (the Caravan read 11.29 m long, then 11.03). Headless checks build twice.
+- **The coupling (REF_MATCH section 4) bites the fitter.** The cowl's axis rise moves the thrust line, and every height
+  is measured from it: a cowl fit scored on the nose alone moved the whole aeroplane 4 cm. Score every profile, and
+  carry `engY` in the cowl's search.
+- **Follow rows.** A frame row that follows the reference section is `null`: the fitter now leaves it out (it read as
+  0 and collapsed the nose).
+- **Measure what the garage draws.** The body sheet starts at the firewall (the cowl is its own layer); a 3-blade
+  prop's box is 13 % short of its disc (read the tip radius); a tyre measured top to bottom catches the legs (read its
+  chord near the ground); a window crossed by a strut splits in two (measure the fuselage alone); the windscreen
+  touches the cockpit window (its own part).
+- **Points on the outline (probes).** Where no row has a number (the fin's edges, the strut), mark a point on the
+  drawing's outline and compare ours at the same height. General, and it gives the fitter something true to aim at.
+- **A drawing is not consistent with itself.** The Commons PC-6 sheet's front view puts the wheels ~5 cm lower than
+  its side view: heights are read on the side view, and the views are scaled each on its own figure.
+- **The variant trap is real.** Three of the sources were for other PC-6 models or another aeroplane altogether (the
+  15.2 m span of the pre-H4 tips, a 2.67 m propeller, the Marabu's type certificate): the reference step locks the
+  variant first.
+
+### The PC-6 log (11 Nov 2026)
+
+Reference: FOCA TCDS F 56-10 (the B2-H4 column), the Pilatus factsheet, NZ CAA TAR 1/21B/14; the Commons sheet
+(Kaboldy, CC BY-SA 4.0, kept off git) scaled per view, 36 marks. Started from the Caravan-alike with a tail wheel
+(`--sel gearLayout:tail`): the Beaver-alike read 3/48, the Caravan 8/52.
+
+| step | rows (how) | result |
+|---|---|---|
+| wing | `wgSpan 15.87 wgChord 1.93 wgChordTip 1.93 wgCrankChord 1.93 wgDihedral 1 wgDihedralOut 1 wgDy 0.08` (figures, the front view) | span, chord, LE (1 mm), top, dihedral in |
+| nose | `eng_mountGap 4.85 cw_cowlLen 1.815 cw_lidLen 0.325` (arithmetic: the PT6 sits forward) | cowl face 3 mm, firewall 3 mm |
+| sections | `noseLen 0.77 boomLen 4.114` (arithmetic) | wing LE, cockpit, tail post exact |
+| body heights | `fit`: `engY roofY keelY aftRoofY aftKeelY tailRoofY tailKeelY halfW tailHalfW`, then `frPaxTopY frPaxBotY` | the boom's profiles within 1-3 cm |
+| tail | `stSpan 1.935 stZ -0.153 stChord 1.06 stSweep 0 stChordTip 1 finHeight 1.57`; `fit` on the fin's corners against two probes | stab span exact, fin top 1 cm, fin LE / TE at 2.15 m within 2-4 cm |
+| gear | `s1Z 2.652 s1Drop 0.832 s1X 1.5 s1R 0.335 s2_twLegDrop 0.087` | wheel, track, tail wheel height exact |
+| windows | `paxWin*` (two door windows), `win2*` (the round one), by arithmetic from the marks | door 2 and the round window within 3 cm |
+| struts | `wgStruts 1 wgStrutZ 0.1` | the strut at the door post, 1.5 cm |
+| cowl | `cw_taperW 0.7 cw_taperH 1.0 engY -0.115` (`fit` with the coupling; taperH held at 1: never the inverted cone) | nose profiles within ~5 cm |
+
+**40 / 60 key measurements inside tolerance.** Light checks (`weigh`): CG 30.1 % MAC (3572 mm, inside the TCDS
+envelope 11-38 % at 1219 kg), static margin 19.3 %, wing area 30.6 m2 (30.15), chord 1.93; empty mass 1035 kg
+against the factsheet's 1250 (-17 %, the mass model, as REAL-FIGURES found on the DC-3); main axle to CG 36 deg (the
+game's taildragger band is 12-25: the PC-6 carries its mains far forward); prop clearance 0.15 m.
+
+**Open on the PC-6 (next round):** door 1's front 20 cm behind the cabin pillar (the cabin frame's station); the cockpit
+door window's shape (the native pilot window, not a drawn one); the nose profiles (the firewall section, the chin);
+the max half-width; the engine (below).
+
+### Garage gaps the PC-6 found (also REF_MATCH section 7)
+
+| gap | what was done |
+|---|---|
+| the flown tail envelope: a 5.13 m stab and a 2.5 m fin on a 15.9 m span fly clamped (hSpan 1.5-4.5, vHeight 0.6-2.2; the big envelope is for spans past 18 m) | drawn true, flies clamped: the join says so |
+| a fin station: the fin cannot stand ahead of the tail post (the DC-3's gap again) | the fin's corners at their forward limits; the rudder's foot 0.3 m aft |
+| the tail wheel's station is held at the tail post (`s2Z` does nothing) | 0.21 m forward of the sheet's |
+| the stab's station `stZ` stops at -0.6 | reached by the chord instead |
+| the engine auto-fit: no PT6A-27 in the catalogue (550 shp, 149 kg) | flies the Caravan's PT6A-114A (675 hp, 160 kg) |
+| the empty mass of an all-metal utility type reads 17 % light | flagged, not fixed |
+
+### Still to build (in order)
+
+1. The light checks in the page: the join and the solver in the worker at the check step (today `table.js weigh`).
+2. Editing in the page: marks are placed; rows change by slider; the views' boxes and origins are placed by tap. Not
+   yet: dragging a mark ON the outline to set a row (the handles), the sheet cut by lasso, a re-scale by two points.
+3. The architecture step's `sel` choices in the page (today a re-birth from a candidate card).
+4. The engine auto-fit (a garage function).
+5. `real_check --ref` reading the plane file's own `ref` block.

@@ -14,13 +14,13 @@
   const VIEWS = ['side', 'top', 'front'];
   // PRIORITY when two parts meet at a pixel edge: the line belongs to the higher (glass and seams over skin)
   const PARTS = ['none', 'body', 'glass', 'pillar', 'waist', 'wing', 'strut', 'fin', 'stab', 'cowl', 'engine',
-    'gear', 'float', 'other'];
+    'gear', 'float', 'other', 'screen'];
   const PID = {}; PARTS.forEach((p, i) => { PID[p] = i; });
   const COLOURS = { body: '#1f6feb', glass: '#e8590c', pillar: '#7048e8', waist: '#7048e8', wing: '#0ca678',
     strut: '#0ca678', fin: '#d6336c', stab: '#d6336c', cowl: '#f59f00', engine: '#f59f00', gear: '#495057',
-    float: '#1098ad', other: '#868e96' };
+    float: '#1098ad', other: '#868e96', screen: '#e8590c' };
   // which parts make up "the fuselage" for profiles
-  const FUSE = new Set([PID.body, PID.glass, PID.pillar, PID.waist, PID.cowl]);
+  const FUSE = new Set([PID.body, PID.glass, PID.pillar, PID.waist, PID.cowl, PID.screen]);
 
   // ---- view mapping -------------------------------------------------------------------------------------------
   function proj(view, a, h, s) {         // table frame -> view metres, plus depth (bigger = nearer the eye)
@@ -201,7 +201,7 @@
     }
     // the body sheet starts at the FIREWALL (the cowl is its own layer): its front is the cowl's back edge; the cowl's
     // front is the body's front face (the spinner sits ahead of it)
-    const body = extent(T, Pt, S(['body', 'glass', 'pillar', 'waist']));
+    const body = extent(T, Pt, S(['body', 'glass', 'pillar', 'waist', 'screen']));
     if (body) { put('cowl.back', body.lo[0]); put('tailpost', body.hi[0]); put('body.halfw', body.hi[2]); }
     const fin = extent(T, Pt, S(['fin']));
     if (fin) { put('fin.top', fin.hi[1]); put('fin.te', fin.hi[0]); put('fin.le', fin.lo[0]); }
@@ -270,8 +270,13 @@
     if (!all) return [];
     const V = { ox: -all.lo[0] * res + 4, oy: all.hi[1] * res + 4, k: res, rot: 0 };
     const W = Math.ceil((all.hi[0] - all.lo[0]) * res) + 8, H = Math.ceil((all.hi[1] - all.lo[1]) * res) + 8;
-    // the whole plane drawn, so a window hidden behind the wing or a strut is not counted as glass
-    const id = raster('side', B.tris, B.parts, V, W, H, 0, 0);
+    // the FUSELAGE alone is drawn (its skin, glass and seams): a window is the body's, and a strut or a leg standing in
+    // front of it in the side view must not split it in two (the PC-6's strut ahead of its door)
+    const keep = new Set([PID.body, PID.glass, PID.pillar, PID.waist, PID.screen]);
+    const n = B.parts.length, idx = []; for (let t = 0; t < n; t++) if (keep.has(B.parts[t])) idx.push(t);
+    const T2 = new Float32Array(idx.length * 9), P2 = new Uint8Array(idx.length);
+    idx.forEach((t, i) => { T2.set(B.tris.subarray(t * 9, t * 9 + 9), i * 9); P2[i] = B.parts[t]; });
+    const id = raster('side', T2, P2, V, W, H, 0, 0);
     return components(id, W, H, PID.glass, 20).map(c => {
       const p0 = fromPx(V, c.x0, c.y1 + 1), p1 = fromPx(V, c.x1 + 1, c.y0);
       return { a0: +p0[0].toFixed(3), a1: +p1[0].toFixed(3), h0: +p0[1].toFixed(3), h1: +p1[1].toFixed(3) };
@@ -309,6 +314,7 @@
     ['wheel.dia',        'main wheel diameter',          'm',  0.02,   { mark: 'wheel.dia', view: 'side', c: 'dist' }],
     ['track',            'track',                        'm',  0.01,   { fig: 'geometry.track' }],
     ['tailwheel.a',      'tail wheel, aft',              'm',  0.03,   { mark: 'tailwheel', view: 'side', c: 'X' }],
+    ['tailwheel.bottom', 'tail wheel bottom',            'm',  0.02,   { mark: 'tailwheel.bottom', view: 'side', c: 'Y' }],
   ];
   function markValue(ref, m, rule) {
     const V = ref.views && ref.views[rule.view];

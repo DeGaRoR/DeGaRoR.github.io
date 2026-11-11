@@ -264,6 +264,10 @@ the body aft for exactly this reason.
 | a dorsal fillet that curves CONCAVE into the spine (the DC-3's): ours stands convex above it | OPEN: the dorsal left off, the LE run to the spine |
 | a nacelle role in the tool, and the nacelles / props' station (the DC-3's nacelle 2.98-6.88 m aft of the nose, ours 3.59-6.98) | OPEN: step 3 |
 | a strut boot where a gear leg passes the skin (the 172's nose strut enters the lower cowl: GATE CLIP declares it, `DECLARED` in tools/_clip_check.js, C172-CLIP 9 Nov) | OPEN: the honest visual fix |
+| the flown tail envelope on a mid-size type: the PC-6's 5.13 m stab and 2.5 m fin fly clamped (hSpan 1.5-4.5, vHeight 0.6-2.2; the big envelope is for spans past 18 m) (DRAFTING_TABLE.md, 11 Nov) | OPEN: drawn true, flies clamped |
+| the tail wheel's station held at the tail post (`s2Z` moves nothing; the PC-6's sits 0.21 m aft of ours) | OPEN |
+| the stab's station `stZ` stops at -0.6 cage units | OPEN: reached by the chord |
+| the engine auto-fit: a type's engine from its power, mass and kind (the PC-6's PT6A-27, 550 shp / 149 kg, is not in the catalogue) | OPEN: the nearest catalogue engine flies |
 
 ## 8. The Camel log (27 Oct 2026)
 
