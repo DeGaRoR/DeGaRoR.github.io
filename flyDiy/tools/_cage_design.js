@@ -2975,13 +2975,16 @@ const ARCHETYPES = [
            gearLayout: 'trike', suspension: 'spring', s1Fair: 0,
            finArch: 'tall', empennage: 'conv', scheme: 'trim', base: 0xefe6cf, trim: 0xc96f2a },
     over: { cage: { rodY: 0.75, rodD: 0.30, boomLen: 4.63,
-                    // THE DRIVE AS THE TYPE HAS IT (the user's sketch on the drawing, 10 Nov: "in red the engine, in
-                    // blue the shaft that is auto-drawn if you move the nose cone from the engine, and then the prop
-                    // ... in the middle between the pole and the ground, a bit of clearance on both sides"): the motor
-                    // on the aft bulkhead, low (11 Nov, the user: "it still needs to stick to the aft bulkhead"; 2.09-2.52
-                    // m behind the nose), the shaft aft under the rod (cw_noseOff), a small prop at ~3.05 m just past the
-                    // aft pod's tip, its hub midway between the rod's underside and the drawing's ground (engY)
-                    engY: -0.13, engBlockZ: 0, cw_noseOff: 0.46, cw_propD: 0.75,
+                    // THE DRIVE (the user, 10-11 Nov: the engine "right in the back of the pilot at the bottom", on the aft
+                    // bulkhead - "the pillar is where the aft bulkhead is where the engine is"): the pusher on the
+                    // bulkhead, low (engY), under its COWL as the aft pod (11 Nov: "use the cowl, that one will already fit
+                    // on the aft bulkhead ... by varying the length we can get to the shape that we need"): the straight
+                    // barrel of the pusher pods (NACELLE_POD), fitted to the body's face, full height to its end
+                    // (cw_taperH 1), its width narrowing to 0.3 (the blade the drawing's aft pod is, in plan), 0.86 m long; the
+                    // small prop on a shaft just past its end, the disc 0.23 m off the ground and 0.20 m under the rod
+                    engY: -0.13, cw_propD: 0.75, cw_noseOff: 0.45,   // (the shaft: the prop just past the cowl's end)
+                    cowlOn: 1, fitNose: 1, ...NACELLE_POD, cw_cowlLen: 0.86, cw_taperW: 0.3, cw_taperH: 1.0,
+                    cw_inletOn: 0,   // (the section the preset's 0.55: at 0.9 the halves leave a gap at the waist)
                     // the wing: LE 1.08 / TE 2.30 behind the nose at the root, chord 1.19 -> 1.09 at the crank -> 0.56
                     wgSpan: 13.0, wgChord: 1.19, wgCrankAt: 0.48, wgCrankChord: 1.09, wgCrankX: 0.08,
                     wgChordTip: 0.56, wgTipX: 0.52, wgDihedral: 1, wgDihedralOut: 1, wgDx: 0,
@@ -2998,12 +3001,6 @@ const ARCHETYPES = [
                     cowlLoops: 2,
                     // no taper section (11 Nov, the user: "remove the taper section"): the rod straight off the aft pillar
                     taperOn: 0,
-                    // THE AERO AFT, OVER THE PUSHER (11 Nov, the user: "an aero aft pod ... ignoring the engine and the
-                    // shaft and everything, just drawing ... it tapers on the width, but it doesn't taper on the height"):
-                    // the blade, 0.89 m, to ~2.98 m behind the nose (the drawing's aft face 2.95). aeroAftOver is a row
-                    // of this branch (_cage_gen.js, _cage_cowl.js): a page without it draws no aft pod and stands the
-                    // engine, the shaft and the prop exactly where this one does
-                    aeroAftOver: 1, aeroAftOn: 1, aeroAftShape: 1, aeroAftLen: 1.2, aeroAftEdge: 1.0, aeroAftTip: 0.5,
                     // doorless, as the Chinook (11 Nov, the user: "the window joint is drawing wrong, as a staircase
                     // across the window" - the door's front edge, cut along the lattice where it crossed the long
                     // raked windscreen run)
@@ -3012,14 +3009,13 @@ const ARCHETYPES = [
                     // front wheel almost at the tip ... as little as you can ... if not, we just push the back pillar
                     // back a little bit until it stands"): the mains on the aft pillar, the nose wheel 0.2 m behind the
                     // tip, both at the row's 0.05 m minimum; the pillar pushed 0.47 m aft (pilotLen 0.42 -> 1.05) with
-                    // the motor, the prop, the wing and the tail held where they were (engBlockZ, boomLen). THEN (the
+                    // the wing and the tail held where they were (boomLen). THEN (the
                     // user: "it really looks toyish"): the wheels a little bigger (0.13 / 0.10 m), the mains' anchor
                     // on the pillar kept and the wheels 0.2 m aft of it, the legs as short as the pod floor allows
                     // (0.15 m clear; a 45-deg leg from that anchor would put the axle above the floor): ~19 deg from
                     // vertical, level. Measured: the mains 2.23 m behind the nose, the CG empty 1.93, loaded 1.77
-                    // ...AND WITH THE ENGINE BACK ON THE BULKHEAD (the CG 0.17 m further aft) the mains 0.2 m further
-                    // back: 0.40 m aft of the anchor, 39 deg (the user's 45 max); the mains 2.43 m behind the nose, the CG
-                    // empty 2.10, loaded 1.88 - angled legs, not on the aft pod, so the build stands on master too
+                    // ...AND WITH THE ENGINE ON THE BULKHEAD the mains 0.2 m further back: 0.40 m aft of the anchor (the
+                    // user's 45 deg max), angled legs
                     pilotLen: 1.05, s1Z: 1.13, s1AxZ: -0.40, s1R: 0.13, s1Drop: 0.05, s1Root: 1,
                     s2Z: 3.0, s2R: 0.10, s2Drop: 0.05,
                     // the tail: the stab's size and station, the fin's outline (fit_tail.js), no dorsal fillet
