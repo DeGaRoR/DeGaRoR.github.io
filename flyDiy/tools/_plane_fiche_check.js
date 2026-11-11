@@ -84,6 +84,9 @@ async function run(S) {
       ok(iP > 0 && iP < iS && F.indexOf("await warm('the cutaway')") < iP, 'CUT TAKES: a small first draw of the cutaway, after its warm, before its picture');
       ok(/const whole = peek\(false\);/.test(F) && /R\.localClippingEnabled = clip;/.test(F) && /if \(opts\.checkCut != null \? opts\.checkCut : opts\.store === false\) \{/.test(F), 'CUT TAKES: the bake draws it whole too (the clipping off)');
       ok(/if \(d < CUT_MIN\) throw new Error\('the cutaway: the cut did not take/.test(F) && iS > F.indexOf('the cut did not take'), 'CUT TAKES: an uncut cutaway stops the fiche, before its picture');
+      // CUT PINNED (11 Nov: the Metal Cessna's cut wiped by app.js applyBuildClip - a plane with a reference model mounted)
+      ok(/const pinClip = \(n, planes, inter\) => \{\s*Object\.defineProperty\(n, 'clippingPlanes', \{[^\n]*set: \(\) => \{\} \}\);/.test(F) && !/\bn\.clippingPlanes = \[/.test(F) && (F.match(/pinClip\(n, \[p1/g) || []).length >= 3,
+        'CUT PINNED: the cut\'s copies keep their planes (a write from outside ignored), every clip site through pinClip');
     }
     ok(/if \(name === 'hero'\) data\.heroWingY = wingLine\(m, w\);/.test(F), 'RULE the cutaway: the hero\'s wing line measured on its picture');
     ok(/const title = titleOf\(name, await baked\(\)/.test(FB) && /nmS = titleOf\(d\.name \|\| name, bakedIdx\)/.test(FB) && /g\.fillText\(titleOf\(d\.name/.test(FB), 'RULE the title: the draw, the board and the share all through titleOf');
@@ -270,6 +273,7 @@ async function run(S) {
     ['RULE: the cutaway from the old height', 'F', F.replace('CUT_YAW = 50, CUT_EL = 15', 'CUT_YAW = 50, CUT_EL = 28')],
     ['CUT TAKES: no first small draw', 'F', F.replace("let pre = peek(true); await yieldTask('the cutaway, a first small draw');", 'let pre = null;')],
     ['CUT TAKES: an uncut cutaway saved', 'F', F.replace("if (d < CUT_MIN) throw new Error('the cutaway: the cut did not take (", "if (d < CUT_MIN) console.warn('the cutaway: the cut did not take (")],
+    ['CUT PINNED: a write from outside takes', 'F', F.replace("get: () => planes, set: () => {} });", "get: () => planes, set: v => { planes = v; } });")],
     ['RULE: no wing line', 'F', F.replace("if (name === 'hero') data.heroWingY = wingLine(m, w);", '')],
     ['RULE: the wing line from the left band', 'F', F.replace('xa = m.x1 - Math.max(1, Math.round(cw * WING_BAND)) + 1', 'xa = m.x0')],
     ['RULE: the file key as the title', 'FB', FB.replace('const title = titleOf(name, await baked().catch(() => ({})));', 'const title = label(name);')],

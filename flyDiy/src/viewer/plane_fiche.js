@@ -141,6 +141,16 @@
   }
   // ---- the cutaway's state: the see-inside build, the near half clipped on clones (a cached material is the next build's) ------
   // THE CLONE TRAP (proved 4 Nov, the twin's white wing): Material.clone() drops onBeforeCompile, how the finishes and liveries reach the shader
+  // CUT PINNED (11 Nov, the Metal Cessna list:5 on the box, 22:14: at its cutaway's draws its 51 cut materials were on the
+  // plane but NOT ONE carried a plane - Rufus's 37 did): a plane with a REFERENCE MOUNTED (the Cessna's ref model) has its
+  // build materials' clipping written by app.js applyBuildClip - `m.clippingPlanes = buildClip` (null when no split is
+  // asked) on EVERY material under the stand, at every applyVis - and the warm's frames ran it, so the cut was wiped before
+  // the first draw (the 10 Nov cutaways "came out whole", CUT TAKES caught it at 0.00 %). The cut's own copies keep their
+  // planes: a write from outside is ignored (the copies are the fiche's alone, dropped at cutOff)
+  const pinClip = (n, planes, inter) => {
+    Object.defineProperty(n, 'clippingPlanes', { configurable: true, enumerable: true, get: () => planes, set: () => {} });
+    n.clipIntersection = inter;
+  };
   const dup = m => {
     const u = m.userData; m.userData = {}; const c = m.clone(); m.userData = u; c.userData = u;
     c.onBeforeCompile = m.onBeforeCompile; c.customProgramCacheKey = m.customProgramCacheKey;
@@ -199,7 +209,7 @@
     // (LINER-BACK: a lined skin is FrontSide and its liner BackSide on the SAME faces - forced DoubleSide they fight at one
     // depth; every other material opens DoubleSide as before)
     const keepSide = m => (m.side === T.FrontSide || m.side === T.BackSide) && m.userData && m.userData.exactSide ? m.side : T.DoubleSide;
-    const halve = m => { const n = dup(m); st.clones.push(n); n.clippingPlanes = [p1]; n.clipIntersection = false; n.side = keepSide(m); n.needsUpdate = true; return n; };
+    const halve = m => { const n = dup(m); st.clones.push(n); pinClip(n, [p1], false); n.side = keepSide(m); n.needsUpdate = true; return n; };
     root.traverseVisible(o => {
       if (!o.isMesh) return;
       swap(o, mt => {
@@ -208,7 +218,7 @@
         n = dup(mt); made.set(mt, n); st.clones.push(n);
         const glass = (mt.transmission || 0) > 0 || /glass|glaz|perspex|plexi|screen/i.test(mt.name || '');
         if (glass) n.opacity = 0.3; else { n.opacity = 1; n.transparent = false; n.depthWrite = true; innerFace(n, mt); }
-        n.clippingPlanes = [p1, p2]; n.clipIntersection = true; n.side = keepSide(mt); n.needsUpdate = true;
+        pinClip(n, [p1, p2], true); n.side = keepSide(mt); n.needsUpdate = true;
         return n;
       });
     });
@@ -352,7 +362,7 @@
       const out = ms.map((m, i) => {
         if ((nm[i] !== 'taperPanel' && nm[i] !== 'boomTube') || !m) return m;
         ch = true; const n = dup(m); st.clones.push(n);
-        n.clippingPlanes = [p1, p2]; n.clipIntersection = true; n.side = T.DoubleSide; n.needsUpdate = true;
+        pinClip(n, [p1, p2], true); n.side = T.DoubleSide; n.needsUpdate = true;
         return n;
       });
       if (ch) { st.mats.push([o, o.material]); o.material = arr ? out : out[0]; }

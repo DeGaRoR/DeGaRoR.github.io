@@ -103,17 +103,20 @@
     "nEngines": 1,
     "seats": 4,
     "specs": {
-     "empty": 709.8404387009701,
-     "allUp": 1062.4804387009701,
-     "Vs": 24.25791678628078,
-     "VCruise": 54,
-     "climb": 5.675427797418751,
-     "TORun": 222,
+     "empty": 713.1989346299488,
+     "allUp": 1065.8389346299489,
+     "Vs": 24.143319050296974,
+     "VCruise": 54.1,
+     "climb": 5.627261351640659,
+     "TORun": 225,
      "engine": "Lycoming O-540-B2C5",
      "propD": 2.06,
      "propBlades": 2
     },
-    "pxPerM": 81.654
+    "sea": false,
+    "heroProp": "disc",
+    "pxPerM": 81.654,
+    "heroWingY": 0.257
    },
    "pics": {
     "hero": "list_5/hero.webp",
