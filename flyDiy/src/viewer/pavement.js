@@ -1826,6 +1826,7 @@ float pvRelief(float u, float v, float halfW, float len, vec4 holes) {
     m.userData.pavTable = true;
     m.onBeforeCompile = sh => { sh._pavU = m.uniforms; hookT(sh); if (PT.frag) sh.fragmentShader = PT.frag(sh.fragmentShader); };
     m.customProgramCacheKey = () => 'pavement:T' + hookT.toString().length + PT.key;
+    m.heavyLink = true;   // BOOT-PROGRAMS: the boot's heaviest link (34 s cold, 10 Nov naming run) - paced links key it first
     if (PT.want && !PT.scene) m.onBeforeRender = PT.catch;
     return (TAB.mat = m);
   }
@@ -2045,6 +2046,7 @@ float pvRelief(float u, float v, float halfW, float len, vec4 holes) {
     }
     m.onBeforeCompile = sh => { sh._pavU = m.uniforms; hook(sh); if (PT.frag) sh.fragmentShader = PT.frag(sh.fragmentShader); };
     m.customProgramCacheKey = () => 'pavement:' + hook.toString().length + PT.key;
+    m.heavyLink = true;   // BOOT-PROGRAMS: the boot's heaviest link (34 s cold, 10 Nov naming run) - paced links key it first
     if (PT.want && !PT.scene) m.onBeforeRender = PT.catch;
     if (PT.mode === 't1') { m.userData.pavNM = [m.uniforms.uMarkN.value, m.uniforms.uSegN.value]; m.uniforms.uMarkN.value = 0; m.uniforms.uSegN.value = 0; }
     MATS.push(m);

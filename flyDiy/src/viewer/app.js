@@ -14495,13 +14495,18 @@
   // getUniforms: 0.5-1.9 s of the roll-out's 'frames' task, run to run) on programs a catch-up compile had started and
   // not yet linked - two depth programs of the shadow pass, measured. This polls every program the renderer holds
   // (KHR_parallel_shader_compile: isReady never blocks) until all are linked, `capMs` at most, before the frame is drawn.
+  // PACE-REVEAL (BOOT-PROGRAMS, the 10 Nov A/B: under ?pace=auto one cold load drew a 26.2 s frame IN FLIGHT): with the links
+  // paced, the ground's heaviest (the pavement's 34 s) starts later, so the 30 s cap ran out and the first draw that met it
+  // waited in getProgramInfoLog. Paced, the wait also counts what compileSliced has still to key (its live jobs: a job no
+  // tick has touched for 5 s is gone - an abandoned pass never holds a reveal) and the cap is PACE_CAP: the screen stays
+  // up, with its shader count, until all of it has linked
   const programsReady = capMs => (typeof renderer.compileAsync !== 'function' || !renderer.info || !renderer.info.programs) ? null
     : new Promise(res => {
-      const t0 = performance.now();
+      const t0 = performance.now(), cap = PACE_N ? Math.max(capMs, PACE_CAP) : capMs;
       const poll = () => {
-        let ok = true;
-        for (const pr of renderer.info.programs) if (pr.isReady && !pr.isReady()) { ok = false; break; }
-        if (ok || performance.now() - t0 > capMs) res(); else setTimeout(poll, 10);
+        let ok = !(PACE_N && pacedLeft() > 0);
+        if (ok) for (const pr of renderer.info.programs) if (pr.isReady && !pr.isReady()) { ok = false; break; }
+        if (ok || performance.now() - t0 > cap) res(); else setTimeout(poll, 10);
       };
       poll();
     });
@@ -21020,7 +21025,7 @@
   // G1340 THE DRAW GUARD (shader_warm.js PROG_WARM.guard): in the world, a draw of a material with no program yet is held
   // a frame or a few while its program links on the driver's threads, never compiled and waited for inside the frame
   drawGuard = (typeof PROG_WARM !== 'undefined' && PROG_WARM.guard && typeof renderer.compileAsync === 'function' && !(typeof location !== 'undefined' && /[?&]guard=0(&|$)/.test(location.search)))
-    ? PROG_WARM.guard(THREE, renderer, { on: () => !inGarage && !holdRender && !!WF && !!(aa && aa.target && aa.target()), scenes: () => [scene] }) : null;
+    ? PROG_WARM.guard(THREE, renderer, { on: () => !inGarage && !holdRender && !!WF && !!(aa && aa.target && aa.target()), scenes: () => [scene], pace: () => PACE_N ? PACE_N - linkingNow() : Infinity }) : null;
   // (the guard holds only behind the AA target: the scene pass draws there and a held frame is not resolved - aa.hold -
   // so the canvas keeps the last whole frame; with no target the scene draws onto the canvas and nothing is held)
   if (drawGuard && aa && aa.hold) aa.hold(() => drawGuard.heldNow > 0);
@@ -21145,6 +21150,30 @@
   // its lights stood where the frame will find them) and put back before it returns: the stand-ins are gathered and
   // each task's compile made INSIDE it, so the dress never outlives a task - no frame, no other step's compile ever
   // meets it, and the step can run beside the others (its links on the driver's threads) instead of holding the draw
+  // BOOT-PROGRAMS (A0 9 Nov, HWCOV; the user yes 17:05): THE LINKS PACED. A cold first visit sent its ~600 programs to the
+  // driver as fast as the slices could key them: 85 links in one second, 288 in 15 s, the ground's heavy programs (link
+  // waits of 33, 17, 15, 14 s) queued among ~30 others (evidence 2026-11-09/hwcov/boot_programs: 353 D3D compiles, 90 s).
+  // ?pace=N: at most N programs linking (three's isReady: KHR_parallel_shader_compile's COMPLETION_STATUS, no wait) when a
+  // slice keys more, and the ground's family (the island's splats, the premises' patches: groundFamily) keyed first.
+  // 0 = as before (the default until the cold A/B). (var and declarations: the guard and early callers read these before
+  // this line has run - no TDZ; an unset PACE_N paces nothing)
+  // ?pace=auto: half the machine's threads, 2 to 8 (the driver's compile workers scale with the cores; a phone gets 2-4)
+  var PACE_N = (() => { const m = typeof location !== 'undefined' && /[?&]pace=(\d+|auto)/.exec(location.search || ''); 
+    if (m && m[1] !== 'auto') return +m[1];   // PACE-ON (the user, 11 Nov ~16:00: "Ship it on, the drawbacks are not severe"): auto is the DEFAULT, ?pace=0 the opt-out
+    const hc = (typeof navigator !== 'undefined' && navigator.hardwareConcurrency) || 4; return Math.max(2, Math.min(8, Math.floor(hc / 2))); })();
+  // PACE-REVEAL: compileSliced's live paced jobs { left: reps not keyed yet, t: its last tick } and the reveal's cap when paced
+  var PACED_JOBS = new Set(), PACE_CAP = 120000;
+  function pacedLeft() { const now = performance.now(); let n = 0;
+    for (const j of PACED_JOBS) { if (j.left <= 0 || now - j.t > 5000) PACED_JOBS.delete(j); else n += j.left; }
+    return n; }
+  function linkingNow() {
+    const L = renderer.info && renderer.info.programs; if (!L) return 0;
+    let n = 0; for (const p of L) if (p && p.isReady && !p.isReady()) n++;
+    return n;
+  }
+  // (the naming run, 10 Nov: the four heaviest cold links were the pavement's 34 s, the island ground's 17 and 14 s, the
+  // premises' patch 13 s - the ground's family and the pavement's heavyLink)
+  function heavyFirst(m) { return (m && (m.groundFamily || m.heavyLink)) ? 0 : 1; }
   // PLANE-RENDERS R3 (8 Nov, the twin's first fiche on the box: ONE 9.7 s task inside its sliced compile): the group grows on
   // cached programs (a stand-in whose key three already holds: ~0.1 ms) and then meets a run of NEW ones - the studio's
   // lights re-key every lit program of the plane - 64 new sources in one task. `gmax` caps the group for a path whose sets
@@ -21167,6 +21196,8 @@
         seen.add(k); reps.push([o, m]); mats.add(m);
       }
     }));
+    let job = null;
+    if (PACE_N) { reps.sort((a, b) => heavyFirst(a[1]) - heavyFirst(b[1])); job = { left: reps.length, t: performance.now() }; PACED_JOBS.add(job); }   // (stable: the scene's order within each)
     const litScene = lit || sc;
     let i = 0, G = 1;                     // a NEW AEROSKIN program's source alone is ~0.1-0.3 s: start at one, grow on the cheap ones
     // G1085: a dressed compile runs beside the steps (the one loading's early starts) over sets that mix programs the
@@ -21175,16 +21206,17 @@
     const GMAX = gmax || (dress ? 16 : 64);
     return new Promise(res => {
       const tick = () => {
-        const t0 = performance.now();
+        const t0 = performance.now(); if (job) job.t = t0;
         D(() => {
           const prev = renderer.getRenderTarget(), fog = litScene.fog;
           try {
             if (fogless) litScene.fog = null;
             renderer.setRenderTarget(target, 0);
             while (i < reps.length && performance.now() - t0 < 30) {
-              const grp = new THREE.Group(), n = Math.min(G, reps.length - i), t1 = performance.now();
+              const room = PACE_N ? PACE_N - linkingNow() : Infinity; if (room <= 0) break;   // BOOT-PROGRAMS: the driver full
+              const grp = new THREE.Group(), n = Math.min(G, reps.length - i, room), t1 = performance.now();
               for (let k = 0; k < n; k++) { const [o, m] = reps[i + k]; grp.add(PROG_WARM.standIn(o, m)); }
-              i += n;
+              i += n; if (job) job.left = reps.length - i;
               try { renderer.compile(grp, camera, litScene); } catch (e) { console.warn('compile slice:', e && e.message); }
               grp.clear();
               const dt = performance.now() - t1;
@@ -21192,7 +21224,7 @@
             }
           } finally { renderer.setRenderTarget(prev); if (fogless) litScene.fog = fog; }
         });
-        if (i < reps.length) { setTimeout(tick, 0); return; }
+        if (i < reps.length) { setTimeout(tick, PACE_N && linkingNow() >= PACE_N ? 25 : 0); return; }
         // the link: compileAsync's own poll - over EVERY program of the material (G992: compileAsync reads only its
         // currentProgram, the last one keyed; a material met as two object kinds, or lit and fogless, has one program
         // per key, and the ones still linking made the settings screen's first frame wait 1.1 s in getProgramInfoLog)
