@@ -2974,14 +2974,14 @@ const ARCHETYPES = [
            engFamily: 'electric', engModel: 'pipistrel E-811', engMount: 'pusher',
            gearLayout: 'trike', suspension: 'spring', s1Fair: 0,
            finArch: 'tall', empennage: 'conv', scheme: 'trim', base: 0xefe6cf, trim: 0xc96f2a },
-    over: { cage: { rodY: 0.75, rodD: 0.30, boomLen: 5.26,
+    over: { cage: { rodY: 0.75, rodD: 0.30, boomLen: 4.63,
                     // THE DRIVE AS THE TYPE HAS IT (the user's sketch on the drawing, 10 Nov: "in red the engine, in
                     // blue the shaft that is auto-drawn if you move the nose cone from the engine, and then the prop
                     // ... in the middle between the pole and the ground, a bit of clearance on both sides"): the motor
-                    // low on the aft bulkhead behind the pilot (engBlockZ: 1.42-1.85 m behind the nose), the shaft aft
+                    // low behind the pilot (engBlockZ: 1.42-1.85 m behind the nose), the shaft aft
                     // under the rod (cw_noseOff), a small prop at ~3.05 m, its hub midway between the rod's underside
                     // and the drawing's ground (engY), ~0.09 m clear of each
-                    engY: -0.13, engBlockZ: 0.2, cw_noseOff: 1.08, cw_propD: 0.75,
+                    engY: -0.13, engBlockZ: 0.67, cw_noseOff: 1.08, cw_propD: 0.75,
                     // the wing: LE 1.08 / TE 2.30 behind the nose at the root, chord 1.19 -> 1.09 at the crank -> 0.56
                     wgSpan: 13.0, wgChord: 1.19, wgCrankAt: 0.48, wgCrankChord: 1.09, wgCrankX: 0.08,
                     wgChordTip: 0.56, wgTipX: 0.52, wgDihedral: 1, wgDihedralOut: 1, wgDx: 0,
@@ -3000,6 +3000,14 @@ const ARCHETYPES = [
                     // across the window" - the door's front edge, cut along the lattice where it crossed the long
                     // raked windscreen run)
                     doorOn: 0,
+                    // THE STANCE (11 Nov, the user: "the main wheels on the back pillar as far back as you can, and the
+                    // front wheel almost at the tip ... as little as you can ... if not, we just push the back pillar
+                    // back a little bit until it stands"): the mains on the aft pillar, the nose wheel 0.2 m behind the
+                    // tip, both at the row's 0.05 m minimum; the pillar pushed 0.47 m aft (pilotLen 0.42 -> 1.05) with
+                    // the motor, the prop, the wing and the tail held where they were (engBlockZ, boomLen). Measured:
+                    // the mains 2.02 m behind the nose, the CG empty 1.94 (it stands on its own, 8 cm), loaded 1.77
+                    pilotLen: 1.05, s1Z: 1.13, s1AxZ: 0, s1R: 0.05, s1Drop: 0.17, s1Root: 1,
+                    s2Z: 3.0, s2R: 0.05, s2Drop: 0.12,
                     // the tail: the stab's size and station, the fin's outline (fit_tail.js), no dorsal fillet
                     stSpan: 0.98, stChord: 0.47, stChordTip: 1.2, stZ: 0.4,
                     finDorsal: 0, finDorsalTube: 0,
