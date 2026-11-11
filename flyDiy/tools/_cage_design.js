@@ -1106,6 +1106,12 @@ function iconSteer(mode) {
 // THE CARCASS in section, as the tyre meets the ground: a standard tyre, the
 // tundra's fat round balloon, a slim one — each round its rim
 function iconCarcass(mode) {
+  // MONOWHEEL: the bicycle wheel - a thin tyre ring, its spokes
+  if (mode === 3) {
+    const sp = [];
+    for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4; sp.push({ d: 'M32 20 L' + P2(32 + 13 * Math.cos(a), 20 + 13 * Math.sin(a)), w: 0.6 }); }
+    return { vb: '0 0 64 40', paths: [{ d: 'M17 20 a15 15 0 1 0 30 0 a15 15 0 1 0 -30 0 Z', w: 2.2 }].concat(sp) };
+  }
   const ell = (rx, ry) => 'M' + P2(32 - rx, 20) + ' a' + rx + ' ' + ry +
     ' 0 1 0 ' + (2 * rx) + ' 0 a' + rx + ' ' + ry + ' 0 1 0 ' + (-2 * rx) + ' 0 Z';
   const rx = mode === 1 ? 17 : mode === 2 ? 5 : 9;
@@ -2214,6 +2220,10 @@ const DESIGN_ROWS = [
       { value: 1, label: 'Tundra balloon', icon: iconCarcass(1),
         note: 'a fat low-pressure tyre for rough strips', writes: { cage: { whProfile: 1 } } },
       { value: 2, label: 'Slim', icon: iconCarcass(2), writes: { cage: { whProfile: 2 } } },
+      // MONOWHEEL (the user, 11 Nov: "for gliders, we need to allow super light wheels ... a new model"): wire spokes, a
+      // narrow tube tyre - its own mass law, price and drag (GEN_RULES.wheelCycleKg, GEN_PRICES.wheelCycle)
+      { value: 3, label: 'Bicycle (light)', icon: iconCarcass(3),
+        note: 'a wire-spoked wheel on a narrow tube tyre: a glider\'s, a third of an aircraft wheel\'s weight', writes: { cage: { whProfile: 3 } } },
     ] },
 
   // THE COWL PRESETS (G2760, the user: "we need presets for the cowl shape,

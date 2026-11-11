@@ -2701,6 +2701,58 @@ PAGE.post = ctx => {
   // is centreline by construction, so it gets one contact whatever its row's
   // lateral offset says (two identical contacts otherwise).
   const isSingle = st => st.single != null ? !!st.single : st.x <= 0.01;
+  // MONOWHEEL (the user, 11 Nov: "a skid with a fairing is in the end a protrusion of the fuselage with a protective skid
+  // behind it ... a single model for blended ... size that protrusion using the skid existing controls"; the reference:
+  // the Archaeopteryx's nose piece, "really an extension of the nose piece, fully aerodynamic"): THE FAIRED SKID IS THE
+  // BODY GROWN DOWN - a lofted foil keel under the skid's fitting, from the drawn skin (every vertex of its root row cast
+  // up onto the body: the engine pylon's caster and section, _cage_eng CAGE_PYLON) down to just above the shoe's sole. Its
+  // root flared (the blended fillet, a third of its height, at most 8 cm) so it is one surface with the body; its chord
+  // shrinking with depth and its leading edge sweeping aft, so in profile it runs out of the nose's line down to the shoe;
+  // its section thinning to a narrow keel at the bottom. Sized by the skid's own rows: the chord the run from the fitting
+  // to the shoe plus a nose ahead (the spring's length, its drop, the castor's trail), the thickness the spring's width
+  // x 1.4, the depth the shoe's level (the leg's drop and the radius). The steel shoe stays proud under it - the protective
+  // skid - and the spring inside it. In the static bags: it is the body's, not the suspension's. Any faired skid (spat or
+  // trousers on the row) is this one shape
+  const skidProtrusion = (r, st) => {
+    const PY = window.CAGE_PYLON;
+    if (!PY || !r.root || !r.axle) return;
+    const zA = Math.min(r.root[2], r.axle[2]) - 0.05, zB = Math.max(r.root[2], r.axle[2]) + 0.14;
+    const c = Math.max(0.25, zB - zA), zc = 0.5 * (zA + zB);
+    const sole = r.axle[1] - st.R, keel = AF.keelAt(Math.max(AF.z0 + 1e-3, Math.min(AF.z1 - 1e-3, zc)));
+    if (!(keel > sole + 0.04)) return;
+    const H = keel - sole, t = Math.max(0.04, 1.4 * (+st.P.twSpringW || 0.052)), fB = Math.min(0.08, 0.33 * H);
+    const C = PY.pylonCaster({ scene, mesh }, FS, [-0.6, 0.6, zA - 0.5, zB + 0.5]);
+    const bodyY = (x, z) => { const h = C.cast([x, sole - 0.05, z], [0, 1, 0], ['body'], 4); return h ? h.p[1] : null; };
+    const NR = 14, yBot = sole + 0.015, bag = bags.fair, rows = [];
+    for (let i = 0; i <= NR; i++) {
+      const sv = i / NR, e = sv < 0.3 ? fB * (1 - sv / 0.3) * (1 - sv / 0.3) : 0;
+      const k = 1 - 0.42 * sv * sv, tk = Math.sqrt(Math.max(0.03, 1 - sv * sv * sv * sv)), wOff = -0.28 * c * sv * sv;
+      const pts = PY.pylonOutline('foil', c * k, t * tk / (c * k), 0, e);
+      rows.push(pts.map(([u, w]) => {
+        const x = u, z = zc + w + wOff, yb = bodyY(x, z);
+        const yTop = (yb != null ? yb : keel) + 0.006;                     // (the root sunk into the skin it meets)
+        return [x, yTop + (yBot - yTop) * sv, z];
+      }));
+    }
+    const ids = rows.map(rw => rw.map(p => bag.v(p)));
+    const n = rows[0].length;
+    // each quad wound outward (away from its row's centre line)
+    const cen = rows.map(rw => [0, 1, 2].map(a => rw.reduce((m, p) => m + p[a], 0) / rw.length));
+    for (let i = 0; i < NR; i++) for (let q = 0; q < n; q++) {
+      const q2 = (q + 1) % n, A = rows[i][q], B = rows[i][q2], D = rows[i + 1][q];
+      const e1 = [B[0] - A[0], B[1] - A[1], B[2] - A[2]], e2 = [D[0] - A[0], D[1] - A[1], D[2] - A[2]];
+      const nn = [e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]];
+      const o = [A[0] - cen[i][0], 0, A[2] - cen[i][2]];
+      if (nn[0] * o[0] + nn[2] * o[2] >= 0) bag.quad(ids[i][q], ids[i][q2], ids[i + 1][q2], ids[i + 1][q]);
+      else bag.quad(ids[i][q], ids[i + 1][q], ids[i + 1][q2], ids[i][q2]);
+    }
+    // the bottom: a fan to its centre, facing down
+    const L = rows[NR], ic = bag.v(cen[NR]);
+    for (let q = 0; q < n; q++) {
+      const q2 = (q + 1) % n, A = L[q], B = L[q2], ny = (A[2] - cen[NR][2]) * (B[0] - cen[NR][0]) - (A[0] - cen[NR][0]) * (B[2] - cen[NR][2]);
+      if (ny <= 0) bag.tri(ic, ids[NR][q], ids[NR][q2]); else bag.tri(ic, ids[NR][q2], ids[NR][q]);
+    }
+  };
   for (const st of stations) {
     const sides = (st.leg === 3 && TBg) ? [-1, 1] : (st.leg === 3 || st.x <= 0.01) ? [0] : [-1, 1];
     for (const s of sides) {
@@ -2748,6 +2800,7 @@ PAGE.post = ctx => {
         st.steerByHinge = !!window.HINGE_GEN;
         r = (st.mount && st.mount.tip && GG.legTipWheel) ? GG.legTipWheel(proxy, AFx, st.P, st)   // G3800: the V's tips
           : GG.legTailwheel(proxy, AFx, st.P, st);
+        if (r && r.skid && st.fair && !st.mount) skidProtrusion(r, st);   // MONOWHEEL: the faired skid
         if (r.castor && yaws)
           castorUnitOut = { bags: cb, top: r.castor.top, ax: r.castor.ax,
                             axle: r.axle, ears: r.castor.ears };

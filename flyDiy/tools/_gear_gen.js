@@ -181,6 +181,8 @@ const TYRE = {
   1: { hw: 0.44, bead: 0.25, bulge: 1.04, bulgeAt: 0.72, crown: 0.10,
        torus: 1, beadW: 0.60, faceW: 0.50 },
   2: { hw: 0.29, bead: 0.46, bulge: 1.00, bulgeAt: 0.84, crown: 0.02 },
+  // MONOWHEEL: the bicycle wheel (wheelCycle draws it): a narrow tube tyre on a big thin rim
+  3: { hw: 0.10, bead: 0.82, bulge: 1.00, bulgeAt: 0.90, crown: 0.02 },
 };
 // the torus section, [radius, axial] from one bead round the crown to the
 // other: an ellipse whose outer extremity is R and whose inner side passes
@@ -346,9 +348,37 @@ function tyreLugs(bag, at3, TT, L, R) {
       }
     }
 }
+// MONOWHEEL (the user, 11 Nov, the Archaeopteryx's photograph: "super light wheels ... a new model"): THE BICYCLE WHEEL
+// (whProfile 3) - its own drawing: a narrow tube tyre (a round section 0.20 R wide on a 0.16 R wall), a thin box-section
+// rim, a small barrel hub with its two flanges, 24 wire spokes crossing from alternate flanges to the rim, a valve.
+// Every part in the spinning bags (tyre, hub, alloy, dark), as wheel()'s are; no brake (a glider's wheel has none)
+function wheelCycle(bags, ctr, axis, R) {
+  const ax = nrm(axis);
+  let e1 = Math.abs(ax[1]) > 0.9 ? [1, 0, 0] : [0, 1, 0];
+  e1 = nrm(sub(e1, mul(ax, dot(e1, ax))));
+  const e2 = crs(ax, e1);
+  const at = (rad, hh, an) => add(ctr, add(mul(ax, hh), add(mul(e1, Math.cos(an) * rad), mul(e2, Math.sin(an) * rad))));
+  const h = 0.16 * R, w = 0.20 * R, rc = R - 0.5 * h, Rr = R - h;
+  const tyre = [];
+  for (let i = 0; i <= 20; i++) { const a = -Math.PI / 2 + Math.PI * 2 * i / 20; tyre.push([rc + 0.5 * h * Math.cos(a), 0.5 * w * Math.sin(a)]); }
+  revolve(bags.tyre, ctr, ax, tyre, 48);
+  const rw = 0.42 * w, rd = Math.max(0.012, 0.07 * R);
+  revolve(bags.hub, ctr, ax, [[Rr + 0.004, -rw], [Rr + 0.004, rw], [Rr - rd, rw * 0.7], [Rr - rd, -rw * 0.7], [Rr + 0.004, -rw]], 48);
+  const hb = Math.max(0.012, 0.06 * R), hw2 = Math.max(0.035, 0.30 * R), fl = Math.max(0.022, 0.11 * R);
+  revolve(bags.alloy, ctr, ax, [[hb, -hw2], [hb, hw2]], 18, true);
+  for (const s of [-1, 1]) revolve(bags.alloy, ctr, ax, [[hb, s * hw2 * 0.80], [fl, s * hw2 * 0.80], [fl, s * hw2 * 0.70], [hb, s * hw2 * 0.70]], 18, true);
+  const NS = 24, sr = Math.max(0.0011, 0.0045 * R);
+  for (let k = 0; k < NS; k++) {
+    const an = 2 * Math.PI * k / NS, s = k % 2 ? 1 : -1;
+    taper(bags.alloy, at(fl * 0.95, s * hw2 * 0.75, an + s * 0.30), at(Rr - rd * 0.6, s * rw * 0.25, an), sr, sr, 4);
+  }
+  const b0 = at(Rr - rd, 0, 0.4), b1 = at(Rr - rd - 0.03, 0, 0.4);
+  taper(bags.dark, b0, b1, 0.003, 0.0025, 6);
+}
 function wheel(bags, ctr, axis, R, opt) {
   opt = opt || {};
   const P = opt.P || {};
+  if (Math.round(+P.whProfile || 0) === 3) return wheelCycle(bags, ctr, axis, R);
   const prof0 = TYRE[Math.round(P.whProfile || 0)] || TYRE[0];
   // G3851: the proposal's carcass (null = today's, untouched). The tundra's bevelled lugs (G3851b) come with it when the
   // tundra row picks them (whSlick 2) or the page asks (?tyres=new&lugs=1); the proposal itself stays off by default
@@ -2498,15 +2528,9 @@ function legTailwheel(bags, AF, P, st) {
     sweep(bags.steel, resample([[x0, yS + 0.010, shoe[2] + 0.105], [x0, yS + 0.030, shoe[2] + 0.140]], 3),
           () => secBlade(Math.max(0.03, P.twSpringW * 0.9) * 2, 0.008), true, [1, 0, 0]);   // the toe, upturned
     for (const sz of [-0.05, 0.05]) bolt(bags.alloy, [x0, yS + 0.018, shoe[2] + sz], [0, 1, 0], 0.006, 0.016);
-    // MONOWHEEL (the user, 11 Nov: "the front has a skid ... with a fairing in front"): THE SKID's FAIRING - the wheel's
-    // own spat round the shoe (its virtual axle, the radius the stance is measured on: the shell the drag already prices,
-    // gear.twFairing), the shoe's sole under its skirt; trousers shroud the blade as they shroud the leaf spring
-    if (st.fair) {
-      spat(bags, [x0, yS + st.R, shoe[2]], [1, 0, 0], st.R,
-           { full: st.fair === 2, skirt: st.fairSkirt, tail: st.fairTail, rake: st.fairRake, width: st.fairW });
-      if (st.fair === 2)
-        legShroud(bags.fair, blade, tip[1] + 0.02, Math.max(0.10, P.twSpringW * 2.2), Math.max(P.twSpringT * 4, P.twSpringW * 0.9));
-    }
+    // MONOWHEEL (the user, 11 Nov: "a skid with a fairing is in the end a protrusion of the fuselage with a protective
+    // skid behind it"): a FAIRED skid wears no spat - the cage layer hangs the body's own protrusion over the spring down
+    // to the shoe (_cage_gear skidProtrusion, the engine pylon's blended blade); here the spring and the shoe as ever
     return { axle: [x0, yS + st.R, shoe[2]], axis: [1, 0, 0], root, tip, travel: nrm([0, 1, 0.35]), skid: true };
   }
   // G58.3: a caller that wants the castor assembly separable (the cage

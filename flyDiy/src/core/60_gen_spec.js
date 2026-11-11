@@ -2646,6 +2646,7 @@ function genAgingOf(S) {
 const GEN_PRICES = {
   wheel: 790,          // each: wheel, tyre, brake (a Matco 5.00-5 pair $1 096 + a tyre $254-294 = $680-900); was 320
   thirdWheel: 1200,    // tailwheel or nosewheel assembly (ABI / Scott 3200, $1.0-1.4k); was 260
+  wheelCycle: 160,     // MONOWHEEL: a bicycle wheel (whProfile 3) - a 16-20" wheel, tyre and tube ($80-250, catalogue)
   // `instruments` retired (the panel arc, session 2): GEN_INSTR prices the fit
   paintM2: 40,         // the colour coats a builder sprays, per m2 painted (DIY materials for a C172, ~60 m2, $1.5-4k est.)
   coverM2: 75,         // a fabric covering system's materials per m2 of CLOTH, over the row's kilos (a Cub's $3-6k)
@@ -3602,6 +3603,10 @@ const GEN_RULES = {
   // reproduces the 3.5 / 2.0 literals it had.
   wheelKg:     R => 3.5 * CORE_MATH.pow(Math.max(0.03, R) / 0.20, 2.5),
   wheelTwKg:   R => 2.0 * CORE_MATH.pow(Math.max(0.03, R) / 0.10, 1.5),
+  // MONOWHEEL (the user, 11 Nov, the Archaeopteryx's main: "for gliders, we need to allow super light wheels"): THE
+  // BICYCLE WHEEL (the cage's whProfile 3) - a wire-spoked rim, a narrow tube tyre and a small hub: a 16" wheel (R 0.25)
+  // with its tyre and tube ~1.3 kg (a 20" ~1.6), INFERRED from bicycle catalogue weights; no brake drum of its own
+  wheelCycleKg: R => 1.3 * CORE_MATH.pow(Math.max(0.03, R) / 0.25, 1.5),
   // RETRACT-1: THE RETRACTION KIT by the design gross - the actuators, the pack, the locks, the beefier trunnions. The real
   // pairs (RETRACT-STUDY §1.9): a 177 to a 177RG +66 kg (a bigger engine in it), a 172 to a 172RG ~+80 kg (engine and
   // prop in it), the gear itself 2.5-5 % of the gross; 3.5 % of the gross, 12 kg at the least. [TUNE] on a reference retract

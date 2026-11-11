@@ -2597,7 +2597,10 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // for - it pays for its floats (HYDRO.floatPrice, billed with the pair below)
   // MONOWHEEL (60_gen_spec gear.mono): ONE main wheel on the centreline - one wheel, one fairing, one leg to pay for
   const MONO = !!S.gear.mono, nMn = MONO ? 1 : 2;
-  if (S.gear.type !== 'floats') spend(nMn * GEN_PRICES.wheel + GEN_PRICES.thirdWheel + (ARCH.price || 0));
+  // ...and THE BICYCLE WHEEL (the cage's whProfile 3, every wheel of the build as the row draws them): its own mass law
+  // and price (GEN_RULES.wheelCycleKg, GEN_PRICES.wheelCycle). Every other carcass: the rule as before
+  const CYCLE = Math.round(+((S.cage && S.cage.whProfile) || 0)) === 3;
+  if (S.gear.type !== 'floats') spend(nMn * (CYCLE ? GEN_PRICES.wheelCycle : GEN_PRICES.wheel) + GEN_PRICES.thirdWheel + (ARCH.price || 0));
   // G133: THE FAIRINGS WEIGH AND COST. Glassfibre datum: a shell's mass
   // scales with the wheel's area (55·R² ≈ 2.2 kg at R 0.20; a trouser's
   // deeper shell 88·R², its leg shroud included), stretched a little by the
@@ -2768,7 +2771,8 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   B(GAR, F[iFwd].TR, 'gear', false, 'inner');
   }
   // wheels by their size (PERF STUDY chantier 1, GEN_RULES.wheelKg) + fairings
-  pt(GAL, R.wheelKg(S.gear.wheelR) + mFairMain); if (!MONO) pt(GAR, R.wheelKg(S.gear.wheelR) + mFairMain);
+  const mWheel = CYCLE ? R.wheelCycleKg(S.gear.wheelR) : R.wheelKg(S.gear.wheelR);
+  pt(GAL, mWheel + mFairMain); if (!MONO) pt(GAR, mWheel + mFairMain);
 
   // The third wheel. `refs.tw` is whichever it is — the solver steers that node
   // and the sign of twSteer says which end it lives at.
@@ -2809,7 +2813,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     } else { B(TW, twUpL, 'gear', false, 'wire'); B(TW, twUpR, 'gear', false, 'wire'); }
     B(TW, F[Math.min(1, F.length-1)].BL, 'gear', false, 'wire');
     B(TW, F[Math.min(1, F.length-1)].BR, 'gear', false, 'wire');
-    pt(TW, R.wheelTwKg(S.gear.twR) + mFairTw);        // the nosewheel with its fork, by size
+    pt(TW, (CYCLE && !SKID ? R.wheelCycleKg(S.gear.twR) : R.wheelTwKg(S.gear.twR)) + mFairTw);        // the nosewheel with its fork, by size (a bicycle wheel's own)
     // RETRACT-1: THE RETRACTION KIT, billed where it hangs - two thirds on the mains' axles (their actuators, locks
     // and trunnions), a third on the nose leg's (the pack sits by the firewall, the nose leg's anchors); priced once
     if (S.gear.retract) {

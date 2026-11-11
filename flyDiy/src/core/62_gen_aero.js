@@ -741,7 +741,9 @@ function genGearCdA(S, semi) {
             * (G.twFairing && G.twFairing !== 'none'
                ? genFairDroplet(G.twFairTail) : 1);
   const nMn = G.mono ? 1 : 2;                       // MONOWHEEL: one main on the centreline
-  let cda = nMn * wCd * (2 * R * 0.76 * R)        // two mains (one, a monowheel)
+  // (MONOWHEEL: the bicycle wheel, the cage's whProfile 3, is a quarter as wide - a narrow tube tyre)
+  const wW = Math.round(+((S.cage && S.cage.whProfile) || 0)) === 3 ? 0.20 : 0.76;
+  let cda = nMn * wCd * (2 * R * wW * R)          // two mains (one, a monowheel)
           + tCd * (2 * Rt * 0.76 * Rt);           // the third wheel
   const drop = G.legDrop || 0.42;
   const legCd = (G.fairing === 'full' || G.legFair === 'fair') ? 0.30 : 1.0;
@@ -1790,7 +1792,7 @@ function genParams(S, fr, strips) {
     // 'castor' was the picture's only)
     tyre: (() => {
       const prof = Math.round(+((S.cage && S.cage.whProfile) || 0));
-      return { main: TYRE_CN[prof === 1 ? 'tundra' : prof === 2 ? 'slim' : 'standard'],
+      return { main: TYRE_CN[prof === 1 ? 'tundra' : (prof === 2 || prof === 3) ? 'slim' : 'standard'],   // (a bicycle tyre: the slim's)
                tw: TYRE_CN[S.gear.type === 'tricycle' ? 'nosewheel' : 'tailwheel'] };
     })(),
     ap,

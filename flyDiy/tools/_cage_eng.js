@@ -1065,6 +1065,8 @@ function drawPylonMount(group, f, P, GK, aft, C) {
   pylonMeshes(group, fair, jb);
 }
 // the body in the cowl's section (the nacelle's paint), the joint in the rubber seal's
+// MONOWHEEL: THE HUGGING BODY for another layer - the gear layer's faired skid is this blade hung under the keel
+window.CAGE_PYLON = { pylonCaster, pylonHug, pylonOutline };
 function pylonMeshes(group, fair, jb) {
   const SM = typeof window !== 'undefined' && window.CAGE_SECMAT;
   const m = fair.mesh(group, (SM && SM('cowl', { surf: 0, fieldM: 1 })) || matOf('emMount'));
