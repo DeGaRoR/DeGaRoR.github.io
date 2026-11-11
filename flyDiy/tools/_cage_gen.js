@@ -6830,10 +6830,12 @@ function cageInterior(m, S) {
         }
         return o;
       };
+      // (ARCHAEOPTERYX, the user 11 Nov: the rod's hardware is not the body's skin - `fit` marks it, so the cowl's
+      // seat scan (_cage_cowl.js noseFace) does not read the socket on the aft face as skin domed past the firewall)
       const q4 = (p0, p1, p2, p3, mm) => add.push({
         v: [V.push(p0.slice()) - 1, V.push(p1.slice()) - 1,
             V.push(p2.slice()) - 1, V.push(p3.slice()) - 1],
-        m: mm || 'aluminium' });
+        m: mm || 'aluminium', fit: 1 });
       // SOLID ring plate: front/back annulus sheets + rim walls
       const plate = (rOut, rIn, z, wz) => {
         const O = circ(16, rOut, z), H = circ(16, rIn, z);

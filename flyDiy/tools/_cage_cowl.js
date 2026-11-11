@@ -422,8 +422,16 @@ function noseFace(mesh, FS, end) {
   // band just outside the aperture's outline and within 50 mm forward of it.
   // Structure is inboard (normalised radius < 1) and the coaming is well aft,
   // so the band sees the skin and nothing else.
+  // ...and NOT THE ROD'S HARDWARE (ARCHAEOPTERYX, the user 11 Nov: "ignore the plate of the rod to place the cowl"):
+  // a pod-and-rod's bolted socket stands aft of the bulkhead at the face's top edge, inside this band, and was read as
+  // skin - a pusher's cowl stood ~2 cm off its firewall with the firewall showing through. The fittings' faces carry
+  // `fit` (_cage_gen.js, the G26 pod-and-rod fittings); their vertices are their own, so they are left out by index.
+  const fitV = new Set();
+  for (const f of mesh.F) if (f.fit) for (const i of f.v) fitV.add(i);
   let over = 0;
-  for (const p of mesh.V) {
+  for (let vi = 0; vi < mesh.V.length; vi++) {
+    if (fitV.has(vi)) continue;
+    const p = mesh.V[vi];
     const d = sg * (p[2] * FS) - sg * z;
     if (d <= 1e-4 || d > 0.05) continue;
     const nr = Math.max(Math.abs(p[0] * FS) / Math.max(halfW, 1e-4),
