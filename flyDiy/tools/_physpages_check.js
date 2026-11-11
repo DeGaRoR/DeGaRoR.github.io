@@ -102,6 +102,10 @@ function child(k) {
     const m0 = def.nodes.reduce((a, n) => a + n.m, 0), m1 = M.nodes.reduce((a, n) => a + n[3], 0);
     ok(near(m0, m1, 0.01 * def.nodes.length), 'MODEL mass ' + m1 + ' vs ' + m0);
     ok(near(M.prop.D, def.params.prop.D, 1e-3) && M.contacts.length >= (M.floats ? 1 : 3), 'MODEL propeller or contacts');
+    { // the discs: at each engine station without the editor's measure (drawn 0); moved by it, exactly, with it (drawn 1)
+      const E = (S.engAt || []).filter(Boolean), off = E.map((e, i) => [-0.2 - 0.01 * i, 0.03]), M2 = C.genFicheModel(def, { propOff: off });
+      ok(M.prop.discs.length === E.length && M.prop.discs.every((q, i) => near(q[0], E[i].x, 2e-3) && near(q[1], E[i].y, 2e-3) && q[3] === 0)
+         && M2.prop.discs.every((q, i) => near(q[0], E[i].x + off[i][0], 2e-3) && near(q[1], E[i].y + off[i][1], 2e-3) && q[3] === 1), 'MODEL propeller discs at the flange, or at the drawn hub given'); }
   }
   // ---- DRAW: the fit, and the pages in both themes ------------------------------------------------------------------------
   {

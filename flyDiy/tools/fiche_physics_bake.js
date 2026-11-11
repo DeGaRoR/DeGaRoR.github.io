@@ -13,7 +13,13 @@ const safe = k => k.replace(/[^\w.-]+/g, '_');
 if (argv[0] === '--one') {
   const C = require(path.join(T, 'flight_core.js')), LB = require(path.join(T, '_load_build.js'));
   const [file, dir] = [argv[1], argv[2]], t0 = Date.now();
-  const D = C.genFichePages(C.buildGen(LB.loadBuild(file).spec));
+  // the drawn hubs: the editor's engine record (CAGE_ENG) read in the load door's own scene by a two-line probe, then
+  // 64c genAidPropOff - the model page draws the propeller discs where the blades are drawn
+  const PR = path.join(require('os').tmpdir(), 'fiche_physics_cage_eng.probe.js');
+  fs.writeFileSync(PR, 'const U = window.CAGE_ENG && window.CAGE_ENG.units;\nreturn U ? { units: U.map(u => u && { at: u.at && Array.from(u.at), propAt: u.propAt && Array.from(u.propAt) }) } : null;\n');
+  process.env.FLYDIY_JOIN_PROBE = PR;
+  const B = LB.loadBuild(file), CE = B.probe && typeof B.probe === 'object' ? B.probe : null;
+  const D = C.genFichePages(C.buildGen(B.spec), { propOff: C.genAidPropOff(CE) });
   fs.mkdirSync(path.join(OUT, dir), { recursive: true });
   fs.writeFileSync(path.join(OUT, dir, 'physics.json'), JSON.stringify(D));
   console.log(`${dir.padEnd(36)} ${(JSON.stringify(D).length / 1024).toFixed(0)} KB  ${D.load && D.load.verdict}  ${D.destroy && D.destroy.verdict}  ${((Date.now() - t0) / 1000).toFixed(0)} s`);

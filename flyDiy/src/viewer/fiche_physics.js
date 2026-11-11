@@ -479,9 +479,11 @@
     const out = head(th, K, o, 'What the sim flies · the model itself', n.length + ' masses, ' + M.beams.length + ' members, ' + M.strips.length + ' lifting panels',
       'Everything the simulation computes, and nothing else. The rendered plane is the faint ghost behind it.');
     const Dp = M.prop.D || 1.8, eng = M.prop.at || [0, 1, 0];
+    // the discs where the blades are drawn (66c prop.discs); data from before them: one disc at the engine's flange
+    const discs = (M.prop.discs && M.prop.discs.length) ? M.prop.discs : [[eng[0], eng[1], 0, 0]];
     const xs = n.map(q => q[0]), ys = n.map(q => q[1]), zs = n.map(q => q[2]);
-    const xmin = Math.min(...xs, eng[0] - 0.3), xmax = Math.max(...xs) + 0.3, zext = Math.max(...zs.map(Math.abs), Dp / 2) + 0.15;
-    const ymin = Math.min(...ys, eng[1] - Dp / 2) - 0.1, ymax = Math.max(...ys, eng[1] + Dp / 2) + 0.1;
+    const xmin = Math.min(...xs, ...discs.map(q => q[0] - 0.3)), xmax = Math.max(...xs, ...discs.map(q => q[0])) + 0.3, zext = Math.max(...zs.map(Math.abs), ...discs.map(q => Math.abs(q[2]) + Dp / 2)) + 0.15;
+    const ymin = Math.min(...ys, ...discs.map(q => q[1] - Dp / 2)) - 0.1, ymax = Math.max(...ys, ...discs.map(q => q[1] + Dp / 2)) + 0.1;
     // the plan: z across, x down
     const s = Math.min(712 / (2 * zext), 560 / (xmax - xmin)), PCX = 404, PT = 150 + (560 - (xmax - xmin) * s) / 2 - xmin * s;
     const pl = p => [PCX + p[2] * s, PT + p[0] * s];
@@ -505,8 +507,7 @@
     const disc = (q, a, k) => `<circle cx="${q[0].toFixed(1)}" cy="${q[1].toFixed(1)}" r="${(Math.sqrt(a / Math.PI) * k).toFixed(1)}" fill="${th.ink}" fill-opacity=".1" stroke="${th.ink}" stroke-width="1.3" stroke-dasharray="4 3"/>`;
     if (M.drag.fwd) out.push(disc(sd(M.drag.fwd), M.drag.cda[0], s2) + disc(pl(M.drag.fwd), M.drag.cda[0], s));
     if (M.drag.aft) out.push(disc(sd(M.drag.aft), (M.drag.cdaAft[1] || 0) * 0.25, s2) + disc(pl(M.drag.aft), (M.drag.cdaAft[1] || 0) * 0.25, s));
-    const ex = M.prop.pusher ? eng[0] + 0.25 : eng[0] - 0.12;
-    out.push(K.L(pl([ex, 0, -Dp / 2]), pl([ex, 0, Dp / 2]), CAT.engine, 3) + K.L(sd([ex, eng[1] - Dp / 2, 0]), sd([ex, eng[1] + Dp / 2, 0]), CAT.engine, 2.4));
+    for (const q of discs) out.push(K.L(pl([q[0], 0, q[2] - Dp / 2]), pl([q[0], 0, q[2] + Dp / 2]), CAT.engine, 3) + K.L(sd([q[0], q[1] - Dp / 2, 0]), sd([q[0], q[1] + Dp / 2, 0]), CAT.engine, 2.4));
     for (const i of M.contacts) { const a = pl(P3(M, i)), b = sd(P3(M, i));
       out.push(`<rect x="${(a[0] - 4.5).toFixed(1)}" y="${(a[1] - 4.5).toFixed(1)}" width="9" height="9" ${K.fillAttr(CAT.gear, 0.95)}/><rect x="${(b[0] - 3.5).toFixed(1)}" y="${(b[1] - 3.5).toFixed(1)}" width="7" height="7" ${K.fillAttr(CAT.gear, 0.95)}/>`); }
     if (M.floats) for (const q of byTag(M, 'FLK')) { const a = pl(q); out.push(`<rect x="${(a[0] - 2.5).toFixed(1)}" y="${(a[1] - 2.5).toFixed(1)}" width="5" height="5" ${K.fillAttr(CAT.gear, 0.95)}/>`); }
@@ -560,7 +561,8 @@
     return (cache[key] = new Promise(res => {
       let w = null;
       w = BW.start(m => { if (m && m.kind === 'fiche') { res(m.data || null); if (w) w.kill(); } }, () => res(null));
-      if (!w || !w.post({ kind: 'fiche', seq: 1, spec: JSON.parse(JSON.stringify(spec)) })) { if (w) w.kill(); res(null); }
+      // o.propOff: the drawn hubs (64c genAidPropOff of the editor's CAGE_ENG) when the plane is the one on the stand
+      if (!w || !w.post({ kind: 'fiche', seq: 1, spec: JSON.parse(JSON.stringify(spec)), propOff: o.propOff || null })) { if (w) w.kill(); res(null); }
     }));
   }
   function picsFor(rec, model, inline) {

@@ -390,7 +390,7 @@ function benchWorkerBody(CORE, BW) {
       } else if (job.kind === 'fiche') {
         // PHYSICS-PAGES: the fiche's physics pages' data (66c genFichePages: the load test, the bench to destruction, the
         // drag, the electrics, the tanks, the model) - a minute at most on a strong wing, off the page; one answer
-        post({ kind: 'fiche', seq: job.seq, data: CORE.genFichePages ? CORE.genFichePages(CORE.buildGen(job.spec), { cert: job.cert || null }) : null });
+        post({ kind: 'fiche', seq: job.seq, data: CORE.genFichePages ? CORE.genFichePages(CORE.buildGen(job.spec), { cert: job.cert || null, propOff: job.propOff || null }) : null });
       } else if (job.kind === 'levers') {
         // DESIGN-AIDS: the static margin's levers (64c genAidLevers: the aeroplane rebuilt with the wing 0.1 m aft and the
         // stabiliser 10 % bigger) - two buildGens, off the page; one answer

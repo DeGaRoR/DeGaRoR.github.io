@@ -20,7 +20,8 @@
 //            (refs.fusDrag / fusDragAft with params.fusCdA / fusCdAAft), the propeller disc (params.prop.D at
 //            refs.engine), the ground contacts
 //
-//   genFichePages(def, { destroy: true|false, load: true|false }) -> { v, model, load, destroy, drag, elec, tanks }
+//   genFichePages(def, { destroy: true|false, load: true|false, propOff }) -> { v, model, load, destroy, drag, elec, tanks }
+//            (propOff: genAidPropOff(CAGE_ENG), the drawn hubs; the model's propeller discs stand there)
 //
 // Heavy parts: the load test steps the sim (seconds), the bench to destruction longer (up to a minute on a strong wing):
 // the page asks for them on the bench's thread; each part can be left out ({ load: false, destroy: false }).
@@ -33,7 +34,7 @@ const GEN_FICHE_TEN = [1, 10, 100, 1000, 1e4, 1e5];
 function genFicheR(x, k) { const m = GEN_FICHE_TEN[k == null ? 3 : k]; return Math.round(x * m) / m; }
 
 // the airframe as the solver holds it: what the model page draws, and what every other page places its callouts by
-function genFicheModel(def) {
+function genFicheModel(def, opts) {
   const S = def.spec || {}, CT = S.controls || {}, P = def.params || {};
   const tags = [], tagIx = {};
   const tagOf = t => { t = t || ''; if (!(t in tagIx)) { tagIx[t] = tags.length; tags.push(t); } return tagIx[t]; };
@@ -53,7 +54,12 @@ function genFicheModel(def) {
     drag: { fwd: mid(def.refs && def.refs.fusDrag), aft: mid(def.refs && def.refs.fusDragAft),
             cda: (P.fusCdA || []).map(v => genFicheR(v, 4)), cdaAft: (P.fusCdAAft || []).map(v => genFicheR(v, 4)) },
     prop: { D: genFicheR((P.prop && P.prop.D) || 0), at: mid(engI), pusher: engAt.some(e => e && e.mount === 'pusher'),
-            mounts: engAt.map(e => e && e.mount) },
+            mounts: engAt.map(e => e && e.mount),
+            // the discs where the blades are DRAWN: each engine station (the mount's flange) moved by the editor's own
+            // measure of its hub (64c genAidPropOff off CAGE_ENG, handed in as opts.propOff); [x, y, z, drawn 1|0] - a
+            // disc without that measure stays at its flange (drawn 0)
+            discs: engAt.map((e, i) => { if (!e) return null; const PO = opts && Array.isArray(opts.propOff) ? opts.propOff : null, off = PO && PO[i];
+              return [genFicheR(e.x + (off ? off[0] : 0)), genFicheR(e.y + (off ? off[1] : 0)), genFicheR(e.z || 0), off ? 1 : 0]; }).filter(Boolean) },
     engineKg: genFicheR(engI.reduce((a, i) => a + def.nodes[i].m, 0) + def.nodes.filter(n => n.tag === 'CGE').reduce((a, n) => a + n.m, 0), 1),
     contacts: [].concat((def.refs && def.refs.mains) || [], def.refs && def.refs.tw >= 0 ? [def.refs.tw] : []),
     floats: !!(def.parts && def.parts.floats),
@@ -220,7 +226,7 @@ function genFicheTanks(def) {
 
 function genFichePages(def, opts) {
   const o = opts || {};
-  return { v: GEN_FICHE_PAGES_V, model: genFicheModel(def),
+  return { v: GEN_FICHE_PAGES_V, model: genFicheModel(def, o),
            load: o.load === false ? null : genFicheLoad(def),
            destroy: o.destroy === false ? null : genFicheDestroy(def, o),
            drag: genFicheDrag(def), elec: genFicheElec(def), tanks: genFicheTanks(def) };
