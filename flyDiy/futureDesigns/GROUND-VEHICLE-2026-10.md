@@ -292,3 +292,47 @@ unchanged: the HANDOVER block lists them.
    (`world.roadNet`) as a second source.
 5. **The worker.** The physics worker hosts a vehicle like an aeroplane (`snap` / `unsnap` exist).
 6. **The boat** (§2): the `hull` and `thrust` providers, the yaw-rate steering, the water graph.
+
+---
+
+## 9. TOW-LAUNCH phase 1 (2026-11-11): the car drives HOME -> Cedar Harbour
+
+The user (11 Nov): "see a car DRIVE, in the game, from HOME to Metlakatla" (Cedar Harbour), with "a LITTLE UI ... REUSE
+THE PLANE'S UI". Branch `claude/tow-launch-phase1`. What landed against §8:
+
+| §8 step | as built |
+|---|---|
+| 1 the bundle | a LAZY pack, not MANIFEST.core: `tools/build.js` MANIFEST.lazy carries `src/cars/cars_car.js` + `cars_lods.js`, `src/vehicle/vehicle.js`, `vehicle_drive.js`, `vehicle_island.js` and `src/viewer/drive_mode.js`, fetched on the first ask to drive. `tools/flight_core.js` is byte-identical, the first load carries none of it, GATE VEHICLE's BITS row holds unchanged. The substep's vectors are scratch slots (bit-identical outputs; young-gen GCs 442 -> 211 per 6000 frames) |
+| 2 the page | `drive_mode.js` (the car, its rig, its words) + app.js's `DRIVE` switch beside SCENERY (the solver held, the aeroplane off the stage) and `driveOn()` hooks: the loop's step, the chase's target / heading / distance, `hud()` (the PFD's ias / alt / vs cells re-labelled km/h, km to go, gear; the rail's phase word and status line), `drawMap()` (the car's arrow, the road ahead, the U-turn's moves, the way come), `flTrip()` (the top bar), `planSet()` (the To picker), `gmHold()` (Pause), `fullReset()` (Restart), the view key (chase / orbit). Entry: the menu's "Drive the pickup" row; `?drive=1` |
+| 3 the To picker | the flight's `#selDest`, refilled with the car's places (`FLYDIY_DEST_REFILL`), the aeroplane's again on leaving |
+| 4 the road graph | `vehicle_island.js` `vehIslandSpec(O.roadGraph(), ...)`: the premises graph as the driver's; DRAWN CROSSINGS and T's joined vehicle-side (no scenery edited; `report.joins`); spans whose line misses their junctions rebuilt off the record's waypoints (`report.rebuilt`, the bug below); the places: every field (its stand) and the town hall, on the car's network within 600 m |
+| 5 the worker | NOT yet: the car steps on the main thread (0.10-0.11 ms a frame on Jolene). Next |
+
+**U-turns without aprons.** Jolene carries no roadside apron. `vehRoadGraph` adds `G.turns`: every JUNCTION (3+ roads)
+and every ROAD END; the U-turn there is planned in a corridor of its own - `vehClearGrid`: the road bands round the point
+(each road's half width less the distance to its centreline, a 0.2 m grid) and the HARD GROUND (`world.surface` PAVED /
+GRAVEL at 1 m, a chamfer distance) - so the car backs into a side street, or turns on an airfield's apron at a road's end.
+The planner sweeps such a site ONCE per candidate with its clearance recorded (an apron keeps its three-margin search,
+GATE VEHICLE unchanged): mean 59 ms a site, 361 ms the worst (a site where nothing fits). `route()` ranks the U-turns
+(the nearest 12 priced; a junction costs 40 m more than an apron) and `plan()` tries them in turn, falling back on the
+long way.
+
+**Findings.**
+- HOME's road r3 CROSSES the town's mk_sa01 at (-2857.9, -8473.4), 7 m before r3's end, with no junction: without the
+  vehicle-side join HOME and Cedar Harbour are two graphs. The user's to trace in the editor if wanted (the join then
+  becomes a junction and the vehicle's join a no-op).
+- 27_premises.js `O.roadGraph()`: a straight street's junction waypoints on a straight span are dropped from its drawn
+  line (`straightOf`), so the graph's nearest-drawn-point search maps a junction to the next real vertex - 283 of Jolene's
+  spans missed their nodes by up to 60 m, some were a single point. Rebuilt in the adapter; the core fix (use `wp` when
+  `straightOf` thinned the line) belongs to the premises.
+- THE TOWN IS OFF BY DEFAULT in the page (G590 TOWN_OFF: Graphics > Town, or `?town=1`): its streets go with it, so the
+  car cannot reach Cedar Harbour unless the town is on. The To picker lists it greyed and says why.
+- The town's 90 deg single-waypoint corners: cross-track 1.95 m at most there (the open road 0.2 m rms); the body's corner
+  0.48 m past a road's edge at the worst sample (a junction's corner, inside the crossing street).
+- Graded streets meeting at different levels make 0.25 m creases: the sheet's lower collision box (one box, overhangs
+  included) touches by 4 mm. A finer proxy (a bumper box) is the cure, not a gate bound.
+
+**GATE DRIVE-TRIP** (`tools/_drive_trip_check.js`, core, ~25 s): GRAPH / TRIP / PERF / TOWNOFF / PAGE. The trip: facing
+away at HOME -> a back-in U-turn at the road's end on HOME's apron; 4 km on, a new To behind (HOME) -> a nose-in U-turn at
+the r2/r5 junction; then Cedar Harbour again -> a U-turn at r2/r21; ARRIVED 0.65 m from the town hall's stop after 13.7 km
+(21.3 min, 63 km/h at most), the manoeuvres tracked within 3 cm, never STUCK.

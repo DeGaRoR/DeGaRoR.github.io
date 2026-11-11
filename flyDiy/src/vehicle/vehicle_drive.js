@@ -3,7 +3,7 @@
 // the follower that steers it, the U-turn it plans at a roadside apron, the
 // road graph and the destination it re-routes to. Pure: no THREE, no DOM; it
 // drives a makeVehicle (vehicle.js) through its `ctl` and reads its pose.
-// Node only, not in the bundle yet (as vehicle.js).
+// A lazy file of the page since TOW-LAUNCH, as vehicle.js (GROUND-VEHICLE §9).
 //
 // WHAT IT REUSES AND WHAT IT CANNOT (futureDesigns/GROUND-VEHICLE-2026-10.md §3, §4):
 //  - the path's SHAPE is 39_ground_path.js's: samples { x, z, hdg, kap, s }, kap

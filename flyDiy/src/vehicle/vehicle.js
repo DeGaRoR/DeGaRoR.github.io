@@ -1,8 +1,9 @@
 // ============================================================
 // THE GROUND VEHICLE (G2940 GROUND-VEHICLE, 2026-10-11) — the physics spike for
-// driveable vehicles. Node only: no THREE, no DOM, and NOT in the bundle yet
-// (tools/build.js MANIFEST.core does not list it, so the aeroplane's core, its
-// hash and every page are untouched; the integration lands it as 45_vehicle.js).
+// driveable vehicles. Pure: no THREE, no DOM. NOT in MANIFEST.core (the
+// aeroplane's core and its hash are untouched): since TOW-LAUNCH (11 Nov) it is
+// a LAZY file of the page (tools/build.js MANIFEST.lazy), fetched with the drive
+// mode (src/viewer/drive_mode.js) - GROUND-VEHICLE-2026-10.md §9.
 //
 // The user (11 Oct): "a long drive on the road I have traced and back, the
 // ability to set a new destination (like the autopilot's in-flight re-routing),
