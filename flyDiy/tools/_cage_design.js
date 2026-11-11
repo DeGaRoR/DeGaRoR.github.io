@@ -2993,7 +2993,8 @@ const ARCHETYPES = [
   // are the drawing's: IoU plan 0.90, front 0.55. The cabin is the Chinook's (below): the user shapes it from here.
   // The aft bulkhead about mid-chord (the user: "you don't see it really well on your drawing, but it's sitting at the
   // middle of the wing"). Left as it was: the E-811 and its fuel (the study's chantier, futureDesigns/archaeopteryx/
-  // STUDY.md), the trike gear (the type's is a nose and a main wheel in tandem: a garage gap). Not flown since.
+  // STUDY.md). The gear: one sunk bicycle wheel, a faired nose skid and wingtip skids (CONFIG_STUDY.md stage 1); the rod
+  // in the wing's hub (stage 2). Not flown since (stage 4 rebuilds and flies it).
   { key: 'archaeopteryx', kind: 'recreation', name: 'Archaeopteryx-alike', note: 'suspended pod, ' +
       'rod on the wing, electric pusher low on the bulkhead',
     sel: { class: 'ul1', role: 'glider', seatLayout: 0, paxCount: 0,
@@ -3001,9 +3002,13 @@ const ARCHETYPES = [
            boomStyle: 1, section: 3,
            wgPos: 0, wgBrace: 1, wgTip: 5, wgFlapType: 0,
            engFamily: 'electric', engModel: 'pipistrel E-811', engMount: 'pusher',
-           gearLayout: 'trike', suspension: 'spring', s1Fair: 0,
+           gearLayout: 'mono', suspension: 'spring', s1Fair: 0,
            finArch: 'tall', empennage: 'conv', scheme: 'trim', base: 0xefe6cf, trim: 0xc96f2a },
-    over: { cage: { rodY: 0.75, rodD: 0.30, boomLen: 4.63,
+    over: { cage: { rodY: 0.7979, rodD: 0.30, boomLen: 4.63,
+                    // THE HUB (the study's stage 2, 11 Nov): the rod slots into the wing's centre section, the top skin
+                    // raised over it in a Gaussian hump, the rod's crown at the wing's highest point - rodY is the hump's
+                    // own fit on this wing (_cage_wing.js hubHump), a ring with screws where the rod leaves the TE
+                    rodHub: 1,
                     // THE DRIVE (the user, 10-11 Nov: the engine "right in the back of the pilot at the bottom", on the aft
                     // bulkhead - "the pillar is where the aft bulkhead is where the engine is"): the pusher on the
                     // bulkhead, no cowl; a shaft aft (cw_noseOff) to the small prop just past the aft pod's tip, its
@@ -3055,8 +3060,15 @@ const ARCHETYPES = [
                     // at the pillar, and the original card's aftKeelY (-0.765) / aftRoofY (0.78) stood off the Chinook
                     // cabin's keelY / roofY - the last ring dipped 4 cm. Equal now
                     aftKeelY: -0.71, aftRoofY: 0.815,
-                    pilotLen: 1.05, s1Z: 1.13, s1AxZ: -0.40, s1R: 0.13, s1Drop: 0.05, s1Root: 1,
-                    s2Z: 3.0, s2R: 0.10, s2Drop: 0.05,
+                    // ...THEN ON ONE WHEEL (the study's stage 1, 11 Nov, the user's photo of the real one: "for gliders,
+                    // we need to allow super light wheels ... sunk wheels"): the Undercarriage tile's Monowheel - the main
+                    // on the centreline under the aft pillar (s1AxZ -0.08), a bicycle wheel (whProfile 3, 0.20 m) half sunk
+                    // through a square cut in the skin (s1Sink), the nose unit a skid 0.45 m behind the nose faired as the
+                    // nose grown down (s2Fair), a skid under each wingtip (wgTipSkid)
+                    pilotLen: 1.05, s1Z: 1.13, s1X: 0, s1AxZ: -0.08, s1R: 0.2, s1Drop: 0.05, s1Root: 1, s1Sink: 0.45,
+                    whProfile: 3,
+                    s2Leg: 3, s2Nose: 1, s2Z: 0.45, s2Steer: 4, s2Fair: 1, s2R: 0.10, s2Drop: 0.05, s2_twLegDrop: 0.09,
+                    wgTipSkid: 1,
                     // the tail: the stab's size and station, the fin's outline (fit_tail.js), no dorsal fillet
                     stSpan: 0.98, stChord: 0.47, stChordTip: 1.2, stZ: 0.4,
                     finDorsal: 0, finDorsalTube: 0,

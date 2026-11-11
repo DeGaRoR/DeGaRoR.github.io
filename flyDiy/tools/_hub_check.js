@@ -29,7 +29,8 @@ const born = cage => {
   const s0 = D.designBake(Object.assign({}, A.sel), { cage: Object.assign({}, A.over.cage, cage), spec: Object.assign({}, A.over.spec) });
   return LB.gameSpecFull({ v: s0.v, birth: 1, spec: s0 }).spec;
 };
-const s0 = born({}), s1 = born({ rodHub: 1 });
+// (the card carries the hub since 11 Nov: the baseline turns it off)
+const s0 = born({ rodHub: 0 }), s1 = born({ rodHub: 1 });
 const d0 = C.buildGen(JSON.parse(JSON.stringify(s0))), d1 = C.buildGen(JSON.parse(JSON.stringify(s1)));
 const rod = d => (d.parts.clusters || d.clusters || []).find(c => c.tag === 'ROD');
 
@@ -58,14 +59,18 @@ console.log('C. THE LOAD PATH');
     const wf = d.parts.wf, pin = new Set();
     for (const sd of ['L', 'R']) for (const j of [0, 1]) for (const k of ['F', 'R', 'FB', 'RB']) if (wf[sd][k] && wf[sd][k][j] != null) pin.add(wf[sd][k][j]);
     const p0 = Array.from(sim.p), tp = d.parts.TPB, y0 = sim.p[tp * 3 + 1];
-    // (the load rig's own way, 65_gen_loadtest: the load an impulse a substep, the trestle clamped after every substep)
-    const dt = 1 / 3000;
-    for (let s = 0; s < 3000 * 3; s++) {
+    // (the load rig's own way, 65_gen_loadtest: the actual box at its own substep - trueBox; the wingtip skids' stiff
+    // shoes need the step the build asks for, a coarser one rang them and shook the frame -, the load an impulse a
+    // substep, the trestle clamped after every substep; the drop averaged over the last second)
+    const N = (sim.trueBox ? sim.trueBox() : 0) || d.params.substepsTrue || d.params.substeps || 24, dt = 1 / (60 * N);
+    let acc = 0, n = 0;
+    for (let s = 0; s < 60 * N * 3; s++) {
       sim.impulse(tp, 0, -300 * dt, 0);
       sim.step(dt, 1);
       for (const i of pin) { for (let c = 0; c < 3; c++) { sim.p[i * 3 + c] = p0[i * 3 + c]; sim.v[i * 3 + c] = 0; } }
+      if (s >= 60 * N * 2) { acc += y0 - sim.p[tp * 3 + 1]; n++; }
     }
-    return y0 - sim.p[tp * 3 + 1];
+    return acc / n;
   };
   const a = sag(d0), b = sag(d1);
   ok(isFinite(a) && isFinite(b) && b < a, `C the tail post held off the wing alone drops ${(1000 * b).toFixed(0)} mm with the socket (${(1000 * a).toFixed(0)} mm through the pod)`); }
