@@ -128,7 +128,7 @@ function meshAt(M, x, z) {
       //  and potholes: w3 / w8 p95 15 / 26 mm off the field, the worst 64 mm over an 11 cm hole)
       heightAt: W.stoneH && SMg && SMg.has(a.id) ? (x, z) => W.terrainH(x, z) - W.stoneH(x, z) : W.terrainH, lift: 0.07, resU: 6, resV: 3, sinkD0: a.premises && O.pavedAt ? PAV.opaqueDepth(RS.cls, a.wid / 2, RS.recipe, 'strip') : null,
       liftAt: a.premises && O.pavedAt && PAV.liftOver ? PAV.liftOver(O.pavedAt, a.id) : null,
-      refineMin: SMg && SMg.has(a.id) ? SMg.REFINE_MIN : 0, refineMinV: SMg && SMg.has(a.id) ? SMg.refineVOf(a.id) : 0 }));
+      refineMin: SMg && SMg.has(a.id) ? SMg.REFINE_MIN : 0, refineMinV: SMg && SMg.has(a.id) ? SMg.REFINE_MIN_V : 0 }));
   }
 }
 // THE DRAWN GROUND at (x, z): { y, kind, fu, fv (the position in the cell of the lattice on top) }

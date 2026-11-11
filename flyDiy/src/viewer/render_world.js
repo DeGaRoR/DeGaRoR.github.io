@@ -7394,7 +7394,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           sinkD0: onPatch && a.premises && premisesR.pavedAt ? PAV.opaqueDepth(RS.cls, a.wid / 2, RS.recipe, 'strip') : null,
           liftAt: onPatch && a.premises && premisesR.pavedAt && PAV.liftOver ? PAV.liftOver(premisesR.pavedAt, a.id) : null,   // G2115: no lift over another pavement
           refineMin: typeof STRIP_MICRO !== 'undefined' && STRIP_MICRO.has(a.id) ? STRIP_MICRO.REFINE_MIN : 0,
-          refineMinV: typeof STRIP_MICRO !== 'undefined' && STRIP_MICRO.has(a.id) ? (STRIP_MICRO.refineVOf ? STRIP_MICRO.refineVOf(a.id) : STRIP_MICRO.REFINE_MIN_V) : 0 };   // (and 5 cm across: the ruts' walls)   // DIRT-STRIP: a bumpy strip's rows down to its bumps
+          refineMinV: typeof STRIP_MICRO !== 'undefined' && STRIP_MICRO.has(a.id) ? STRIP_MICRO.REFINE_MIN_V : 0 };   // (and 5 cm across: the ruts' walls)   // DIRT-STRIP: a bumpy strip's rows down to its bumps
         const pgeo = PAV.stripGeometry(THREE, sd);
         const lib = pavLib(PAV.keysFor([RS.cls]));
         const marks = RS.marks === 'none' ? { rects: [], segs: [] } : PAV.marksOf(siteRunway(a), sitePaintStrip);
