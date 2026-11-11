@@ -1,0 +1,894 @@
+{
+ "cub": {
+  "name": "piperCub",
+  "elec": {
+   "battery": "lead",
+   "alternator": "gen20",
+   "starter": "yes",
+   "vac": "venturi"
+  },
+  "battAh": 16,
+  "altA": 20,
+  "starter": true,
+  "vac": "venturi",
+  "loads": [
+   {
+    "key": "fuel",
+    "amps": 0.1,
+    "cb": "fuel"
+   },
+   {
+    "key": "volts",
+    "amps": 0.02,
+    "cb": "volts"
+   },
+   {
+    "key": "com",
+    "amps": 0.5,
+    "av": true,
+    "cb": "com"
+   }
+  ],
+  "lights": [
+   {
+    "key": "lt_taxi",
+    "amps": 5,
+    "cb": "taxiLt"
+   },
+   {
+    "key": "lt_beacon",
+    "amps": 1.5,
+    "cb": "beaconLt"
+   },
+   {
+    "key": "lt_land",
+    "amps": 8,
+    "cb": "landLt"
+   },
+   {
+    "key": "lt_nav",
+    "amps": 2.5,
+    "cb": "navLt"
+   },
+   {
+    "key": "lt_flood",
+    "amps": 0.5,
+    "cb": "cabinLt"
+   },
+   {
+    "key": "lt_instr",
+    "amps": 0.6,
+    "cb": "cabinLt"
+   },
+   {
+    "key": "lt_pedal",
+    "amps": 0.3,
+    "cb": "cabinLt"
+   },
+   {
+    "key": "lt_pax",
+    "amps": 0.5,
+    "cb": "cabinLt"
+   }
+  ],
+  "breakers": [
+   {
+    "key": "fuel",
+    "A": 1,
+    "feeds": [
+     "fuel"
+    ],
+    "group": "panel"
+   },
+   {
+    "key": "volts",
+    "A": 1,
+    "feeds": [
+     "volts"
+    ],
+    "group": "panel"
+   },
+   {
+    "key": "com",
+    "A": 1,
+    "feeds": [
+     "com"
+    ],
+    "group": "avionics"
+   },
+   {
+    "key": "field",
+    "A": 5,
+    "feeds": [
+     "alternator"
+    ],
+    "group": "elec"
+   },
+   {
+    "key": "taxiLt",
+    "A": 7.5,
+    "feeds": [
+     "taxi"
+    ],
+    "group": "lights"
+   },
+   {
+    "key": "beaconLt",
+    "A": 3,
+    "feeds": [
+     "beacon"
+    ],
+    "group": "lights"
+   },
+   {
+    "key": "landLt",
+    "A": 15,
+    "feeds": [
+     "land"
+    ],
+    "group": "lights"
+   },
+   {
+    "key": "navLt",
+    "A": 5,
+    "feeds": [
+     "nav"
+    ],
+    "group": "lights"
+   },
+   {
+    "key": "cabinLt",
+    "A": 3,
+    "feeds": [
+     "flood",
+     "instr",
+     "pedal",
+     "pax"
+    ],
+    "group": "lights"
+   }
+  ],
+  "parts": [
+   {
+    "key": "battery",
+    "kind": "lead",
+    "name": "lead-acid 12 V, 16 Ah",
+    "kg": 7,
+    "at": "firewallLow",
+    "dims": [
+     0.178,
+     0.079,
+     0.168
+    ]
+   },
+   {
+    "key": "alternator",
+    "kind": "gen20",
+    "name": "20 A generator",
+    "kg": 4,
+    "at": "engine",
+    "len": 0.21,
+    "dia": 0.11
+   },
+   {
+    "key": "starter",
+    "kind": "yes",
+    "name": "electric starter",
+    "kg": 4,
+    "at": "engine",
+    "len": 0.19,
+    "dia": 0.09
+   },
+   {
+    "key": "vac",
+    "kind": "venturi",
+    "name": "venturi",
+    "kg": 0.4,
+    "at": "engine"
+   },
+   {
+    "key": "bus",
+    "kind": "bus",
+    "name": "master contactor, bus bar and 9 breakers",
+    "kg": 0.72,
+    "at": "panel",
+    "breakers": 9
+   },
+   {
+    "key": "wire",
+    "kind": "wire",
+    "name": "the wire",
+    "kg": 0.9299999999999999,
+    "at": "panel"
+   }
+  ],
+  "rows": [
+   {
+    "key": "fuel",
+    "group": "panel",
+    "name": "fuel quantity",
+    "kg": 0.55,
+    "price": 270,
+    "amps": 0.1
+   },
+   {
+    "key": "volts",
+    "group": "panel",
+    "name": "volt / ammeter",
+    "kg": 0.15,
+    "price": 120,
+    "amps": 0.02
+   },
+   {
+    "key": "battery:lead",
+    "group": "elec",
+    "name": "lead-acid 12 V, 16 Ah",
+    "kg": 7,
+    "price": 180,
+    "amps": 0
+   },
+   {
+    "key": "alternator:gen20",
+    "group": "elec",
+    "name": "20 A generator",
+    "kg": 4,
+    "price": 450,
+    "amps": 0
+   },
+   {
+    "key": "starter:yes",
+    "group": "elec",
+    "name": "electric starter",
+    "kg": 4,
+    "price": 1100,
+    "amps": 0
+   },
+   {
+    "key": "vac:venturi",
+    "group": "elec",
+    "name": "venturi",
+    "kg": 0.4,
+    "price": 150,
+    "amps": 0
+   },
+   {
+    "key": "com:compact",
+    "group": "avionics",
+    "name": "VHF COM, compact",
+    "kg": 1,
+    "price": 1600,
+    "amps": 0.5
+   },
+   {
+    "key": "harness",
+    "group": "elec",
+    "name": "master, breakers and harness",
+    "kg": 1.65,
+    "price": 1200,
+    "amps": 0
+   }
+  ],
+  "day": {
+   "A": 0.62,
+   "V": 14.1,
+   "net": 0
+  },
+  "night": {
+   "A": 19.520000000000003,
+   "V": 14.1,
+   "net": 0
+  },
+  "dark": {
+   "A": 19.520000000000003,
+   "V": 12.699809375,
+   "net": -19.520000000000003,
+   "min": 49.25
+  },
+  "darkDay": {
+   "A": 0.62,
+   "V": 12.6999939453125,
+   "net": -0.62,
+   "min": 360
+  },
+  "kg": 17.05,
+  "price": 3080
+ },
+ "c172": {
+  "name": "cessnaMetal",
+  "elec": {
+   "battery": "lead",
+   "alternator": "alt60",
+   "starter": "yes",
+   "vac": "pump"
+  },
+  "battAh": 16,
+  "altA": 60,
+  "starter": true,
+  "vac": "pump",
+  "loads": [
+   {
+    "key": "aiE",
+    "amps": 1,
+    "cb": "aiE"
+   },
+   {
+    "key": "turn",
+    "amps": 0.3,
+    "cb": "turn"
+   },
+   {
+    "key": "fuel",
+    "amps": 0.1,
+    "cb": "fuel"
+   },
+   {
+    "key": "volts",
+    "amps": 0.02,
+    "cb": "volts"
+   },
+   {
+    "key": "hobbs",
+    "amps": 0.02,
+    "cb": "hobbs"
+   },
+   {
+    "key": "com",
+    "amps": 0.5,
+    "av": true,
+    "cb": "com"
+   },
+   {
+    "key": "xpdr",
+    "amps": 0.7,
+    "av": true,
+    "cb": "xpdr"
+   },
+   {
+    "key": "nav",
+    "amps": 0.5,
+    "av": true,
+    "cb": "nav"
+   }
+  ],
+  "lights": [
+   {
+    "key": "lt_taxi",
+    "amps": 5,
+    "cb": "taxiLt"
+   },
+   {
+    "key": "lt_beacon",
+    "amps": 1.5,
+    "cb": "beaconLt"
+   },
+   {
+    "key": "lt_land",
+    "amps": 8,
+    "cb": "landLt"
+   },
+   {
+    "key": "lt_nav",
+    "amps": 2.5,
+    "cb": "navLt"
+   },
+   {
+    "key": "lt_flood",
+    "amps": 0.5,
+    "cb": "cabinLt"
+   },
+   {
+    "key": "lt_instr",
+    "amps": 0.6,
+    "cb": "cabinLt"
+   },
+   {
+    "key": "lt_pedal",
+    "amps": 0.3,
+    "cb": "cabinLt"
+   },
+   {
+    "key": "lt_pax",
+    "amps": 0.5,
+    "cb": "cabinLt"
+   }
+  ],
+  "breakers": [
+   {
+    "key": "aiE",
+    "A": 2,
+    "feeds": [
+     "aiE"
+    ],
+    "group": "panel"
+   },
+   {
+    "key": "turn",
+    "A": 1,
+    "feeds": [
+     "turn"
+    ],
+    "group": "panel"
+   },
+   {
+    "key": "fuel",
+    "A": 1,
+    "feeds": [
+     "fuel"
+    ],
+    "group": "panel"
+   },
+   {
+    "key": "volts",
+    "A": 1,
+    "feeds": [
+     "volts"
+    ],
+    "group": "panel"
+   },
+   {
+    "key": "hobbs",
+    "A": 1,
+    "feeds": [
+     "hobbs"
+    ],
+    "group": "panel"
+   },
+   {
+    "key": "com",
+    "A": 1,
+    "feeds": [
+     "com"
+    ],
+    "group": "avionics"
+   },
+   {
+    "key": "xpdr",
+    "A": 1,
+    "feeds": [
+     "xpdr"
+    ],
+    "group": "avionics"
+   },
+   {
+    "key": "nav",
+    "A": 1,
+    "feeds": [
+     "nav"
+    ],
+    "group": "avionics"
+   },
+   {
+    "key": "field",
+    "A": 5,
+    "feeds": [
+     "alternator"
+    ],
+    "group": "elec"
+   },
+   {
+    "key": "taxiLt",
+    "A": 7.5,
+    "feeds": [
+     "taxi"
+    ],
+    "group": "lights"
+   },
+   {
+    "key": "beaconLt",
+    "A": 3,
+    "feeds": [
+     "beacon"
+    ],
+    "group": "lights"
+   },
+   {
+    "key": "landLt",
+    "A": 15,
+    "feeds": [
+     "land"
+    ],
+    "group": "lights"
+   },
+   {
+    "key": "navLt",
+    "A": 5,
+    "feeds": [
+     "nav"
+    ],
+    "group": "lights"
+   },
+   {
+    "key": "cabinLt",
+    "A": 3,
+    "feeds": [
+     "flood",
+     "instr",
+     "pedal",
+     "pax"
+    ],
+    "group": "lights"
+   }
+  ],
+  "parts": [
+   {
+    "key": "battery",
+    "kind": "lead",
+    "name": "lead-acid 12 V, 16 Ah",
+    "kg": 7,
+    "at": "firewallLow",
+    "dims": [
+     0.178,
+     0.079,
+     0.168
+    ]
+   },
+   {
+    "key": "alternator",
+    "kind": "alt60",
+    "name": "60 A alternator",
+    "kg": 4.5,
+    "at": "engine",
+    "len": 0.16,
+    "dia": 0.13
+   },
+   {
+    "key": "starter",
+    "kind": "yes",
+    "name": "electric starter",
+    "kg": 4,
+    "at": "engine",
+    "len": 0.19,
+    "dia": 0.09
+   },
+   {
+    "key": "vac",
+    "kind": "pump",
+    "name": "engine-driven vacuum pump",
+    "kg": 1.2,
+    "at": "engine"
+   },
+   {
+    "key": "bus",
+    "kind": "bus",
+    "name": "master contactor, bus bar and 14 breakers",
+    "kg": 0.87,
+    "at": "panel",
+    "breakers": 14
+   },
+   {
+    "key": "wire",
+    "kind": "wire",
+    "name": "the wire",
+    "kg": 1.5299999999999998,
+    "at": "panel"
+   }
+  ],
+  "rows": [
+   {
+    "key": "aiE",
+    "group": "panel",
+    "name": "attitude, electric",
+    "kg": 1,
+    "price": 2800,
+    "amps": 1
+   },
+   {
+    "key": "turn",
+    "group": "panel",
+    "name": "turn coordinator",
+    "kg": 0.7,
+    "price": 1260,
+    "amps": 0.3
+   },
+   {
+    "key": "fuel",
+    "group": "panel",
+    "name": "fuel quantity",
+    "kg": 0.55,
+    "price": 270,
+    "amps": 0.1
+   },
+   {
+    "key": "volts",
+    "group": "panel",
+    "name": "volt / ammeter",
+    "kg": 0.15,
+    "price": 120,
+    "amps": 0.02
+   },
+   {
+    "key": "hobbs",
+    "group": "panel",
+    "name": "hour meter",
+    "kg": 0.1,
+    "price": 110,
+    "amps": 0.02
+   },
+   {
+    "key": "battery:lead",
+    "group": "elec",
+    "name": "lead-acid 12 V, 16 Ah",
+    "kg": 7,
+    "price": 180,
+    "amps": 0
+   },
+   {
+    "key": "alternator:alt60",
+    "group": "elec",
+    "name": "60 A alternator",
+    "kg": 4.5,
+    "price": 1150,
+    "amps": 0
+   },
+   {
+    "key": "starter:yes",
+    "group": "elec",
+    "name": "electric starter",
+    "kg": 4,
+    "price": 1100,
+    "amps": 0
+   },
+   {
+    "key": "vac:pump",
+    "group": "elec",
+    "name": "engine-driven vacuum pump",
+    "kg": 1.2,
+    "price": 600,
+    "amps": 0
+   },
+   {
+    "key": "com:compact",
+    "group": "avionics",
+    "name": "VHF COM, compact",
+    "kg": 1,
+    "price": 1600,
+    "amps": 0.5
+   },
+   {
+    "key": "xpdr:modeS",
+    "group": "avionics",
+    "name": "Mode-S transponder",
+    "kg": 0.7,
+    "price": 3400,
+    "amps": 0.7
+   },
+   {
+    "key": "nav:vor",
+    "group": "avionics",
+    "name": "VOR receiver + CDI",
+    "kg": 1.6,
+    "price": 2200,
+    "amps": 0.5
+   },
+   {
+    "key": "harness",
+    "group": "elec",
+    "name": "master, breakers and harness",
+    "kg": 2.4,
+    "price": 1200,
+    "amps": 0
+   }
+  ],
+  "day": {
+   "A": 3.14,
+   "V": 14.1,
+   "net": 0
+  },
+  "night": {
+   "A": 22.040000000000003,
+   "V": 14.1,
+   "net": 0
+  },
+  "dark": {
+   "A": 22.040000000000003,
+   "V": 12.699784765625,
+   "net": -22.040000000000003,
+   "min": 43.583333333333336
+  },
+  "darkDay": {
+   "A": 3.14,
+   "V": 12.6999693359375,
+   "net": -3.14,
+   "min": 305.75
+  },
+  "kg": 19.099999999999998,
+  "price": 4230
+ },
+ "twin": {
+  "name": "Twin busher floats 4b",
+  "elec": {
+   "battery": "lead",
+   "alternator": "gen20",
+   "starter": "none",
+   "vac": "none"
+  },
+  "battAh": 16,
+  "altA": 20,
+  "starter": false,
+  "vac": "none",
+  "loads": [],
+  "lights": [
+   {
+    "key": "lt_taxi",
+    "amps": 5,
+    "cb": "taxiLt"
+   },
+   {
+    "key": "lt_beacon",
+    "amps": 1.5,
+    "cb": "beaconLt"
+   },
+   {
+    "key": "lt_land",
+    "amps": 8,
+    "cb": "landLt"
+   },
+   {
+    "key": "lt_nav",
+    "amps": 2.5,
+    "cb": "navLt"
+   },
+   {
+    "key": "lt_flood",
+    "amps": 0.5,
+    "cb": "cabinLt"
+   },
+   {
+    "key": "lt_instr",
+    "amps": 0.6,
+    "cb": "cabinLt"
+   },
+   {
+    "key": "lt_pedal",
+    "amps": 0.3,
+    "cb": "cabinLt"
+   },
+   {
+    "key": "lt_pax",
+    "amps": 0.5,
+    "cb": "cabinLt"
+   }
+  ],
+  "breakers": [
+   {
+    "key": "field",
+    "A": 5,
+    "feeds": [
+     "alternator"
+    ],
+    "group": "elec"
+   },
+   {
+    "key": "taxiLt",
+    "A": 7.5,
+    "feeds": [
+     "taxi"
+    ],
+    "group": "lights"
+   },
+   {
+    "key": "beaconLt",
+    "A": 3,
+    "feeds": [
+     "beacon"
+    ],
+    "group": "lights"
+   },
+   {
+    "key": "landLt",
+    "A": 15,
+    "feeds": [
+     "land"
+    ],
+    "group": "lights"
+   },
+   {
+    "key": "navLt",
+    "A": 5,
+    "feeds": [
+     "nav"
+    ],
+    "group": "lights"
+   },
+   {
+    "key": "cabinLt",
+    "A": 3,
+    "feeds": [
+     "flood",
+     "instr",
+     "pedal",
+     "pax"
+    ],
+    "group": "lights"
+   }
+  ],
+  "parts": [
+   {
+    "key": "battery",
+    "kind": "lead",
+    "name": "lead-acid 12 V, 16 Ah",
+    "kg": 7,
+    "at": "firewallLow",
+    "dims": [
+     0.178,
+     0.079,
+     0.168
+    ]
+   },
+   {
+    "key": "alternator",
+    "kind": "gen20",
+    "name": "20 A generator",
+    "kg": 4,
+    "at": "engine",
+    "len": 0.21,
+    "dia": 0.11
+   },
+   {
+    "key": "bus",
+    "kind": "bus",
+    "name": "master contactor, bus bar and 6 breakers",
+    "kg": 0.63,
+    "at": "panel",
+    "breakers": 6
+   },
+   {
+    "key": "wire",
+    "kind": "wire",
+    "name": "the wire",
+    "kg": 0.57,
+    "at": "panel"
+   }
+  ],
+  "rows": [
+   {
+    "key": "battery:lead",
+    "group": "elec",
+    "name": "lead-acid 12 V, 16 Ah",
+    "kg": 7,
+    "price": 180,
+    "amps": 0
+   },
+   {
+    "key": "alternator:gen20",
+    "group": "elec",
+    "name": "20 A generator",
+    "kg": 4,
+    "price": 450,
+    "amps": 0
+   },
+   {
+    "key": "harness",
+    "group": "elec",
+    "name": "master, breakers and harness",
+    "kg": 1.2,
+    "price": 1200,
+    "amps": 0
+   }
+  ],
+  "day": {
+   "A": 0,
+   "V": 14.1,
+   "net": 0
+  },
+  "night": {
+   "A": 18.900000000000002,
+   "V": 14.1,
+   "net": 0
+  },
+  "dark": {
+   "A": 18.900000000000002,
+   "V": 12.699815429687499,
+   "net": -18.900000000000002,
+   "min": 50.833333333333336
+  },
+  "darkDay": {
+   "A": 0,
+   "V": 12.7,
+   "net": 0,
+   "min": 360
+  },
+  "kg": 12.2,
+  "price": 1830
+ }
+}
