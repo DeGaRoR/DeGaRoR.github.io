@@ -314663,3 +314663,28 @@ DMGSCAR 2J, a KNOWN EDGE (Deform accepts it for this landing): a different wreck
 TRAP (the load door's join cache): tools/.joincache keyed a FLYDIY_JOIN_PROBE by its PATH only, so an edited probe answered from the cache with the old probe's verdict. It now keys the probe's content too (_load_build.js). Deleting tools/.joincache is safe.
 TRAP (a lamp on a lined skin): a nearest-face probe finds the skin and its lining at the same distance; a tie must go to the back face (f.back).
 LESSON: a ready that moves a validated plane's spec, mass or drawing runs every battery gate that reads them (STOL, KNIFE, PROCURE, DMG*), not only its own set.
+TOWN-1 STEP 1 (HW-COVERAGE, 7 Nov): THE TOWN'S TREES JOIN THE FOREST (src/viewer/render_world.js TREE_FILL.town / townInto; render_premises.js buildTrees)
+The user, via A0: "priority on the trees, because that's for me a bug, really ... the way it is managed now seems just ridiculous".
+- **What it was.** Metlakatla's record trees (the forest zones' planting, the placed tree objects) were the town's own draw (G556): a 64 m cell's
+  trees one THREE.LOD on the rungs' 0 / 60 / 132 m bands read from the CELL's centre (a whole cell popping a rung at once, up to 45 m off), no
+  impostor, no fade, and nothing past TREE_GONE (900 m), where the island's trees stand to 9 km on their impostors.
+- **What it is.** In the game the town hands its list to the forest's fill (TREE_FILL.town): each tree is walked into its 1 km fill chunk's BASE part
+  as one more record (townInto, with the chunk's first row), at its own place, yaw, size and sink: the island's rungs, its per-tree partition and
+  fades, the chunk's merged impostor, the 9 km reach. In the walk's record a town tree is sp 0, w = yaw / 6.283 (series 0: md 0, never a snag),
+  can = -size (its own scale; the canopy map is not asked). A changed list restales only the chunks whose list changed (G2931: drawn until the new
+  walk lands); dispose hands back []. The trunks stay the town's (TH 'prem', there before the ring builds): the fill keeps them out of its hits
+  (rec.town / rec.townN). TREE_FILL.townStat() counts chunks, trees and the misses (a key the fill's pool does not hold: not drawn).
+- **The before.** ?towntrees=0: the town's cells, as on master (also the fallback: no fill, or the pack not in). tools/perf/metla_ab.js: side P =
+  the town on with its own trees; --shots <dir>: chase stills on the way in and orbit stills parked over the densest tree cell.
+TOWN-1 STEP 1, THE COST (HW-COVERAGE, 8 Nov, metla_ab P,B,B,P, Cub, approach 100 s from 4 km, gamer preset, a real parked cook)
+- **Draw calls on the way in went UP.** The approach's median calls: P (?towntrees=0) 787 and 616, B (the fill) 976 and 905, about +200 to +300.
+  The pass at HOME: P 1412 and 894, B 863 and 843. Frame time shows no clear change either way: approach fps P 27.9, B 29.3 and 26.6; the pass's
+  medians fps B 23.35 / P 22.6, p99 116.7 / 108.35 ms, worst 133 / 150 ms. Run-to-run spread is wider than the two sides' gap.
+- **Species misses: 0.** All 3536 town trees went into 6 fill chunks; the premises' own tree cells went from 316 to 0.
+- **Not the cause yet.** The old far rung (132-900 m) cast no shadow and nothing past 900 m drew; the fill's merged chunk impostor casts and reaches
+  9 km, and a species the chunk did not hold before is a new record (its rung meshes per part, near the eye only). Which one costs the calls is
+  measured by metla_ab's town views (the draw census per scene group, 2a5167a10), not guessed. A cheap cut (fewer rungs or no shadow for the town's
+  records, say) waits for that census.
+- **Rig note.** Both sides flew the approach as the WRECK of the rig's low pass at HOME (master_bench's pass breaks the Cub, "short of Jolene 13/31",
+  on both P and B): the comparison is fair, the stills of 8 Nov 07:05 are not usable. The town views now come from the free camera, the aeroplane and
+  the UI hidden.

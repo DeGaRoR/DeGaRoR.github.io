@@ -3355,6 +3355,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       const tt = (rec.key && typeof treeTrunk === 'function') ? treeTrunk(rec.key) : null;
       const h = tt ? tt.h : 5.3, wf = tt ? tt.wf : 0.3, M = rec.mats;   // (5.3 m: the cone fallback's own top)
       for (let i = 0; i < rec.n; i++) {
+        if (rec.town && rec.town[i]) continue;   // TOWN-1: a town tree's trunk is the town's (TH 'prem')
         const b = i * 16, sy = Math.hypot(M[b + 4], M[b + 5], M[b + 6]);
         TREE_HITS.trunkOf(h * sy, wf, _tk);
         const foot = M[b + 13], y0 = lift ? Math.max(foot, lift(i)) : foot;
@@ -5480,6 +5481,29 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // a tree's record in a walk: x, y, z, sp, the hash, the canopy, the mix's snag share (G1975)
       const FILL_REC = 7;
       const POLY_CAN = 12;   // G2935: a polygon's mix over ground the canopy map calls bare stands this tall (m), the stand cards' tree
+      // TOWN-1 (2026-11-07, the user: "priority on the trees, because that's for me a bug, really"): THE TOWN'S TREES JOIN
+      // THE FOREST. Metlakatla's record trees (its forest zones' planting, the placed tree objects) were the town's own
+      // draw (render_premises buildTrees, G556): a 64 m cell's trees one THREE.LOD on the rungs' 0 / 60 / 132 m bands read
+      // from the CELL's centre - a whole cell popping a rung at once, no impostor, no fade - and nothing past 900 m
+      // (TREE_GONE), where the island's trees stand to 9 km on their impostors. Now the town hands its list here
+      // (TREE_FILL.town) and each tree is walked into its fill chunk's BASE part as one more record: the same rungs, the
+      // same partition and fades, the chunk's merged impostor, at the record's own place, yaw and size. The trunks stay
+      // the town's (TH 'prem': the physics has them before the ring builds), so the fill keeps these out of its hits
+      // (rec.town). ?towntrees=0: the town draws its own (render_premises), the before.
+      // In the walk's record a town tree is x, y (the foot, the record's sink turned into the subject's), z, sp 0,
+      // w = the yaw / 6.283 in [0, 1) (series 0: md 0, no snag), can = -size (the record's scale, not the map's), md 0
+      const TOWN_T = new Map();   // 'cx,cz' -> [{ key, x, y, z, yaw, size, sink }] (world)
+      let townGi = null, townGiOf = null;
+      const townInto = (cx, cz, recs) => {
+        const L = TOWN_T.get(cx + ',' + cz); if (!L || !SHAPE.real) return;
+        if (townGiOf !== SHAPE.list) { townGiOf = SHAPE.list; townGi = new Map(SHAPE.list.map((H, gi) => [H.key, gi])); }
+        for (const t of L) {
+          const gi = townGi.get(t.key); if (gi === undefined) { STAT.townMiss = (STAT.townMiss || 0) + 1; continue; }
+          const SH = SHAPE.list[gi], sy = t.size * ((SH.series[0] && SH.series[0].scaleY) || 1);
+          const w = (((t.yaw % 6.283) + 6.283) % 6.283) / 6.283;
+          recs[gi].push(t.x, t.y - (t.sink || 0) * t.size + (SH.sink || 0) * sy, t.z, 0, w, -t.size, 0);
+        }
+      };
       function walk(cx, cz, recs, g0, g1, part) {
         if (!world.buildReads) return walkRows(cx, cz, recs, g0, g1, part);
         world.buildReads(1);
@@ -5487,6 +5511,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       }
       function walkRows(cx, cz, recs, g0, g1, part) {
         const ng = NG, spc = CH / ng;
+        if (part === BASE && g0 === 0 && !PROBE) townInto(cx, cz, recs);   // TOWN-1: the chunk's town trees, with its first row
         for (let gz = g0; gz < g1; gz++) for (let gx = 0; gx < ng; gx++) {
           // the base part is the even sub-lattice; the fill part the rest
           if (part === BASE ? ((gx | gz) & 1) : !((gx | gz) & 1)) continue;
@@ -5647,7 +5672,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             // THE MAP'S SIZE: on an island a tree is as tall as the canopy
             // map says (x gain), over the model's own height, with the mix's
             // spread as jitter; elsewhere the collection's size
-            const s = (ISLC && can > 0 && SH.h)
+            if (can < 0) { (rec.town || (rec.town = new Uint8Array(n)))[i] = 1; rec.townN = (rec.townN || 0) + 1; }   // TOWN-1
+            const s = can < 0 ? -can   // TOWN-1: a town tree, at its record's own size
+              : (ISLC && can > 0 && SH.h)
               ? Math.max(FILL.island.min, Math.min(FILL.island.max, can * FILL.island.gain / SH.h)) * (1 + TREE_MIX.spread * (2 * w - 0.9)) * kSz
               : SH.white ? sizeOf(SH.size, w)
                          : [1.15, 1.0, 1.1, 0.9, 0.85][sp] * (0.62 + w * 0.55);
@@ -5917,6 +5944,22 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       };
       if (typeof window !== 'undefined')
         window.TREE_FILL = { get: () => FILL.ng,
+          // TOWN-1: the town's trees (world [{ key, x, y, z, yaw, size, sink }]; [] when the town goes), walked into their
+          // chunks' base parts (townInto); the chunks whose list changed go stale (G2931: drawn until the new walk lands)
+          town: list => {
+            const sig = L => L.map(t => t.key + '@' + t.x.toFixed(2) + ',' + t.y.toFixed(2) + ',' + t.z.toFixed(2) + ',' + t.yaw.toFixed(3) + ',' + t.size.toFixed(3)).join(';');
+            const was = new Map(); for (const [k, L] of TOWN_T) was.set(k, sig(L));
+            TOWN_T.clear();
+            for (const t of list || []) { const k = Math.floor(t.x / CH) + ',' + Math.floor(t.z / CH); let L = TOWN_T.get(k); if (!L) TOWN_T.set(k, L = []); L.push(t); }
+            const ch = [];
+            for (const k of new Set([...was.keys(), ...TOWN_T.keys()])) {
+              if (was.get(k) === (TOWN_T.has(k) ? sig(TOWN_T.get(k)) : undefined)) continue;
+              const [cx, cz] = k.split(',').map(Number); ch.push({ x0: cx * CH + 1, z0: cz * CH + 1, x1: (cx + 1) * CH - 1, z1: (cz + 1) * CH - 1 });
+            }
+            const restaled = staleRegions(ch);
+            return { trees: (list || []).length, chunks: TOWN_T.size, changed: ch.length, restaled };
+          },
+          townStat: () => ({ chunks: TOWN_T.size, trees: [...TOWN_T.values()].reduce((a, L) => a + L.length, 0), miss: STAT.townMiss || 0 }),
           island: () => Object.assign({}, FILL.island),
           setIsland: o => { Object.assign(FILL.island, o || {}); staleAll(); return Object.assign({}, FILL.island); },
           onIsland: () => !!ISLC,
@@ -6102,7 +6145,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         const nx = Math.max(Math.abs((c2.cx + 0.5) * CH - cg[0]) - CH / 2, 0), nz = Math.max(Math.abs((c2.cz + 0.5) * CH - cg[2]) - CH / 2, 0);
         const d2 = nx * nx + nz * nz;
         if (!b.hit && d2 < HIT_ON * HIT_ON) {
-          let n = 0; for (const rec of b.recs) n += rec.n;
+          let n = 0; for (const rec of b.recs) n += rec.n - (rec.townN || 0);   // (TOWN-1: the town's trunks are not the fill's)
           const a = new Float32Array(n * 5); let o = 0; for (const rec of b.recs) o = trunksOf(rec, a, o, null);
           b.hit = 'fill:' + c2.cx + ',' + c2.cz + ':' + part; HITS.set(b.hit, a);
         } else if (b.hit && d2 > HIT_OFF * HIT_OFF) { HITS.drop(b.hit); b.hit = null; }
