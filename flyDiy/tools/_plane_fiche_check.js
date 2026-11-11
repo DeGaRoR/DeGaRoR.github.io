@@ -150,7 +150,7 @@ async function run(S) {
       checks++;
       ok(A.titleOf('piperCub', IDX) === 'Piper Cub', 'RULE the title: the official Cub loaded from its file is "Piper Cub", not "piperCub" (' + A.titleOf('piperCub', IDX) + ')');
       ok(A.titleOf('Cubby', IDX) === 'Cubby' && A.titleOf('build', IDX) === 'build', 'RULE the title: a player\'s own name stays; a name two files share maps to neither');
-      const L = (S.LISTS && S.LISTS.planes) || [], off = L.filter(p => p.list === 'official' && p.thumb && IDX[p.thumb]);
+      const L = (S.LISTS && S.LISTS.planes) || [], off = L.filter(p => ['reproduction', 'story', 'original'].includes(p.list) && p.thumb && IDX[p.thumb]);   // PLANE-LIST: the classes with fiches
       ok(off.length >= 5 && off.every(p => typeof IDX[p.thumb].file === 'string'), 'RULE the title: every baked official fiche names its file (' + off.length + ')');
       ok(A.sig() === 'Wingsmith · certified airworthy', 'RULE the signature: "' + A.sig() + '"');
       // the cutaway where it fits: a 20 x 10 area, a solid 6 x 4 cutaway; the hero a block somewhere in it

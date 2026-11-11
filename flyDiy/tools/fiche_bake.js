@@ -2,7 +2,7 @@
 // fiche_bake.js - PLANE-RENDERS R3: THE OFFICIAL PLANES' FICHES, BAKED (the user, 7 Nov: official planes ship with their fiche, "a
 // loading time that not everybody has, at the price of a few pictures. That's acceptable").
 //
-// The Official list (builds/lists/plane_lists.json, list 'official') drawn by the game's own generator (plane_fiche.js
+// The plane list's player classes (builds/lists/plane_lists.json: reproduction, story, original, wip - PLANE-LIST, the user 10 Nov) drawn by the game's own generator (plane_fiche.js
 // PLANE_FICHE.generate, store off) in ONE garage page (tools/plane_shot.js --probe ... --probe-out), each plane loaded by the
 // user's door (the fleet's Import), its fiche's pictures handed back as base64 and written to
 //   media/fiches/<key>/<view>.webp   + media/fiches/index.json { what: 'flydiy-fiches', fiches: { <list key>: { name, data, pics: { view: file } } } }
@@ -25,7 +25,7 @@ const argv = process.argv.slice(2), flag = k => argv.includes('--' + k);
 const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 && argv[i + 1] != null && !argv[i + 1].startsWith('--') ? argv[i + 1] : d; };
 const L = JSON.parse(fs.readFileSync(path.join(FLY, 'builds', 'lists', 'plane_lists.json'), 'utf8'));
 const only = opt('only', '') ? opt('only').split(',') : null;
-const rows = L.planes.filter(p => p.list === 'official' && p.file && p.thumb && (!only || only.includes(p.thumb)));
+const rows = L.planes.filter(p => ['reproduction', 'story', 'original', 'wip'].includes(p.list) && p.file && p.thumb && (!only || only.includes(p.thumb)));
 const safe = k => k.replace(/[^\w.-]+/g, '_');
 if (flag('dry')) { for (const r of rows) console.log(r.thumb.padEnd(40), r.name.padEnd(28), r.file); process.exit(0); }
 const keep = opt('keep', null), work = keep || fs.mkdtempSync(path.join(os.tmpdir(), 'fiche_bake_'));

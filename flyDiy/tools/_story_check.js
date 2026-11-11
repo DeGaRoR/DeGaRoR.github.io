@@ -66,7 +66,7 @@ function run(M) {
   const cubFile = fs.readdirSync(path.join(ROOT, 'builds')).find(f => /^cub_.*\.json$/.test(f) && !/edits|corrected/.test(f));
   const cub = JSON.parse(fs.readFileSync(path.join(ROOT, 'builds', cubFile), 'utf8')).spec;
   const base = JSON.parse(JSON.stringify(cub));                     // the client's Cub as it ARRIVES: unfinished
-  base.controls.flap = { type: 'none', span: 0, chord: 0 }; base.systems = { fit: 'minimal' }; base.paint = Object.assign({}, base.paint, { job: 'bare' });
+  base.controls.flap = { type: 'none', span: 0, chord: 0 }; base.systems = { fit: 'minimal' };   // PLANE-LIST (the user 10 Nov): it arrives in its own livery, not bare
   const other = Object.keys(C.POWERPLANTS).find(k => k !== base.engines[0].type);
   const done = JSON.parse(JSON.stringify(base));                    // ... and as the player delivers it
   done.engines[0].type = other; done.controls.flap = { type: 'plain', span: 0.4, chord: 0.25 };
@@ -378,7 +378,7 @@ async function pageRun() {
   // stands, bound as the client's, quietly (no line for Tim at T0)
   { const cl = M.storyOf(d).planes.client;
     ok(cl && prefs.has('flydiy.build.' + cl) && M.playerStoreWhere(d, cl).kind === 'outside' && M.playerStoreWhere(d, cl).aero === 'HOME' && d.career.airframes[cl] && d.career.airframes[cl].owner === 'client' &&
-       M.storyOf(d).beat === 'T0' && !half.line() && M.storyOf(d).base.client && M.storyOf(d).base.client.paint.job === 'bare',
+       M.storyOf(d).beat === 'T0' && !half.line() && M.storyOf(d).base.client && M.storyOf(d).base.client.paint.job !== 'bare',
        "T0: the client's Cub already waits outside at HOME (bound, its arrival spec kept, the client's row written before the lift), and nothing is said of it yet", cl + ' ' + JSON.stringify(cl ? M.playerStoreWhere(d, cl) : null)); }
   ok(/from: \(CAREER_DEV && STORY_PAGE && storyFleetFrom\(\)\) \|\| \(inGarage \? rollFromId\(\) : fromId\)/.test(fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8')),
      "while it waits (T0 / T1) the fleet's drawn set is HOME's apron: the Cub's prop baked in the cabin's garage, stood at HOME by the roll-out");
@@ -449,9 +449,16 @@ async function pageRun() {
   ok(cub && cub.aero === 'HOME' && M.playerStoreWhere(d, S.planes.client).kind === 'outside', "T2: the client's Cub is parked outside the WWII hangar (HOME's apron)", S.planes.client + ' ' + JSON.stringify(cub));
   const env = JSON.parse(prefs.get('flydiy.build.' + S.planes.client) || 'null'), base = S.base.client || {};
   const file = JSON.parse(fs.readFileSync(path.join(ROOT, 'builds', 'cub_2026-09-20.json'), 'utf8')).spec;
-  ok(env && env.spec && base.controls.flap.type === 'none' && base.systems.fit === 'minimal' && base.paint.job === 'bare' && base.engines[0].type === file.engines[0].type &&
+  ok(env && env.spec && base.controls.flap.type === 'none' && base.systems.fit === 'minimal' && JSON.stringify(base.paint) === JSON.stringify(file.paint) && base.engines[0].type === file.engines[0].type &&
      JSON.stringify(env.spec) === JSON.stringify(base) && d.career.airframes[S.planes.client].owner === 'client',
-     "the Cub as it arrives: flaps off, the minimal panel, bare, the same engine; bound with that spec, the client's", base.engines[0].type);
+     "the Cub as it arrives: flaps off, the minimal panel, its own battered livery (PLANE-LIST), the same engine; bound with that spec, the client's", base.engines[0].type);
+  // PLANE-LIST (Game's ask, 11 Nov): the handover touches ONLY the flaps, the panel and the slot's name - the user's window,
+  // narrow cowl, aged cowl tint, livery, decals and wear (CLIENT-CUB-LOOK, 4 Nov) can never be overridden again
+  { const laid = M.storyClientSpec(file), want = JSON.parse(JSON.stringify(file));
+    want.controls = Object.assign({}, want.controls, { flap: { type: 'none', span: 0, chord: 0 } }); want.systems = { fit: 'minimal' };
+    want.meta = Object.assign({}, want.meta, { name: 'Client Cub' });
+    ok(JSON.stringify(laid) === JSON.stringify(want), "the handover changes only the flaps, the panel and the name (the Cub's own look kept whole)",
+       Object.keys(laid).filter(k => JSON.stringify(laid[k]) !== JSON.stringify(want[k])).join(',')); }
   ok(M.storyChecklist(base, base, M.STORY_BEATS.find(b => b.id === 'T2').goal.checklist).every(x => !x.ok), 'every item of the checklist is open on it (no battery: no lights)');
   ok(!out.career.lines.some(l => /hangar is yours/.test(l.text || '')), "STORY-1: the arrival card does not hand over HOME's hangar - it has been yours since the start", (out.career.lines[0] || {}).text);
   half.storyCardSync(); half.storyCardSync();                       // (the budget is measured once the build held still a tick)

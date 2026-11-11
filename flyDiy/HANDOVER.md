@@ -314606,3 +314606,17 @@ TIMED GATE (02:56-03:58): taxi chase @HOME and @mn_strip 30 fps, 0 frames over 4
 Parked fleet re-cooked on this build.
 
 No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change.
+
+## PLANE-LIST - THE USER'S PLANE CLASSES, ONE ROW PER PLANE (FLAGSHIP, 11 Nov 2026; the user 10 Nov via A0: "ensure we have an official list of planes and we're not getting confused ... I do not want to see duplicated planes anymore"; page https://claude.ai/artifact/TyiPT6hD7RMp78mJUt896v v4)
+builds/lists/plane_lists.json v2 is the one list. Its classes (row field `list`):
+- reproduction: the types REAL-FIGURES tests against the real aircraft (Piper Cub, Jodel D112, Cessna 172 = the V2-172, PA-18 on floats, Carbon Cub SS, Chinook, Super Petrel LS (lab row), DC-3, Stearman, Tiger Moth, Camel; the two Ruckus join with REAL-FIGURES' ready);
+- story: the story's planes and the career's fleet, the validated Cessnas only (Rufus, Client Cub, Cessna (validated) = bugReports/cessnaMetal (1), Cessna on floats (validated) = bugReports/cessnaFloatsWOrks; the career's Cub and Jodel are the reproductions);
+- original: the game's own (Twin busher 4b, the Twin-582 floatplane, STOL Cub, pusherLight, twinBoomFail, mosquito, B-ITES, ugly bi - it flies: node circuit 10 Nov 23:20);
+- wip: Pawnee, the sailplane (moved out of review/; the Spitfire and Skymaster shapes join with the chooser's ready);
+- next (a reproduction's next version until it replaces its type: the J-3-chord Cub, the PA-18-chord floats), legacy (the test planes the gates fly: F-GCES, B-CESS land + floats, quadwin, stol kit, JodelGlass, Birdman, Twin busher 2/3, the single-seat UL, the 4 Sep twin, the twin boom, Petrel V0-V4), archive (kept, out of the game).
+The player sees the first four (garage.js PLAYER_CLASSES; a lab row only with the lab on), the developer all seven (new_plane.js LIST_CLASSES headings). Every file stays where it is: legacy files are relabelled, never moved (the gates read them in place).
+- The garage's stock-designs shelf is gone (its six presets were copies of listed planes; stockByName stays for a stock door).
+- builds/candidates/index.json: "hide": "legacy" | "next" keeps a pool file off the rack (birdman, the 4 Sep twin, the two chord160 cards); the sailplane is a pool row.
+- The Client Cub is handed over in its own battered white and blue (79_story.js storyClientSpec: the 'bare' paint line removed; flaps off and the minimal panel stay). GATE STORY: the handover changes only the flaps, the panel and the name (Game's row); the list's row 26 has no paint over.
+- GATE PLANELISTS: the classes table row for row, one file one row, nothing a player sees reads review/, the pool agrees (hidden = its class, offered = a player class, official = reproduction/story/original, the lab flag), no stock shelf; a selftest break for each rule. NEWPLANE, PLANEFICHE, fiche_bake read the classes.
+NEXT (a second small ready): the chooser's 8 "-alike" shapes open their real plane (Cub, Jodel, C172, Chinook, Tiger Moth, Stearman, Camel, Twin-582) and the Spitfire / Skymaster WIP rows.
