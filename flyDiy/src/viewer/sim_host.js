@@ -490,6 +490,8 @@ function makeSimHost(CORE, init, keptWorld) {
     }
   }
   // app.js applyRoute; `stand`: true = the site's own, an object = the page's (standFor, the player's door), false = the spawn
+  // TAXI-HOME (app.js arriveFor): the arrival's own stand, set on the host's pilot before its departFrom as the page sets its own
+  const arriveOn = (q, A) => { if (q && typeof q.setArriveSite === 'function') q.setArriveSite(A ? A.fieldId : null, A ? A.site : null, A ? A.plotId : null); };
   function place() {
     const PL = init.place || {}, ap = H.ap;
     const from = aeroById(PL.from || 'HOME');
@@ -513,6 +515,7 @@ function makeSimHost(CORE, init, keptWorld) {
       // app.js applyRoute (G700): the wheels on the ground under the walked stand
       if (PL.seat && typeof CORE.seatOnGround === 'function') CORE.seatOnGround(sim, (x, z) => world.terrainH(x, z), def.refs);
       ap.setRoute(from, to);
+      arriveOn(ap, PL.arrive);   // TAXI-HOME
       ap.departFrom(from, to, stSite);
     } else {
       CORE.placeAtAerodrome(sim, from);
@@ -538,6 +541,7 @@ function makeSimHost(CORE, init, keptWorld) {
     if (sim.setEngine && sim.eng) for (let i = 0; i < sim.eng.length; i++) sim.setEngine(i, { key: 'both', running: true });
     H.ap = mkPilot();
     H.ap.setRoute(from, to);
+    arriveOn(H.ap, (init.place || {}).arrive);   // TAXI-HOME
     H.ap.departFrom(from, to, stSite, { atHold: pose });
     H.lineup = pose;
     return true;
@@ -687,8 +691,9 @@ function makeSimHost(CORE, init, keptWorld) {
         const cur = aeroById(c.from), to = (c.to == null || c.to === 'CIRCUIT') ? cur : aeroById(c.to);
         if (H.accept) { H.accept.abort(ap, 'a new leg began'); H.accept = null; }   // G2273: the leg belonged to that pilot
         H.ap = mkPilot();
+        arriveOn(H.ap, c.arrive || null);   // TAXI-HOME: the leg's To decides (the page's arriveFor)
         H.ap.departFrom(cur, to);
-        H.legFrom = c.from; if (init.place) init.place = Object.assign({}, init.place, { to: c.to });
+        H.legFrom = c.from; if (init.place) init.place = Object.assign({}, init.place, { to: c.to, arrive: c.arrive || null });   // (TAXI-HOME: the leg's arrival with it)
         H.apGen++;
         H.end = { air: false, wasAir: false, still: 0, over: H.end.over };
         break;
