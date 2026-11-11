@@ -314714,3 +314714,25 @@ TOWN-1 STEP 1, THE COST (HW-COVERAGE, 8 Nov, metla_ab P,B,B,P, Cub, approach 100
 - sea-on: one 2045 ms first-visit task; the Petrel not measured.
 - town-trees: measured on L35d, no measurable cost.
 - **BOOT: the timed gate timed out on its last row (c172 cockpit).** Garage-ready 134-244 s (one boot timeout at 243.7 s) against L38a 150-185 s and L37b 119-149 s, with long tasks up to 32 s. It is mixed with the box's shader-cache misses (worst link 47.8 s), so it is not attributed to an item. First item of the Friday perf round.
+
+
+## PLANE-RENDERS CUT TAKES + CUT PINNED (AIRCRAFT-LOOKS, Wed 11 Nov, claude/ready/cut-takes on 0c90344f8)
+
+The user, 11 Nov: the Rufus and Metal Cessna fiches show no inside of their wings. Both cutaways now open.
+
+**Two causes, two fixes (plane_fiche.js):**
+- **CUT TAKES (Rufus).** The 10 Nov cutaways were drawn while the cut's programs were still being made inside the picture's own draw, and in that draw no clipping took.
+  - The fix: a small first draw before the picture.
+  - Where the fiche is not stored (the bake: `opts.checkCut`, by default `store === false`), the same small draw with the clipping off must differ by `CUT_MIN` (1 %) of its pixels. Else it tries once more after two frames, else the fiche stops with "the cutaway: the cut did not take" instead of saving an uncut cutaway.
+  - The game's award pays only the small draw.
+- **CUT PINNED (the Metal Cessna).** Found on the box at 22:14: at the Cessna's cutaway draws, its cut materials were on the plane but none carried a clipping plane (Rufus's 37 did).
+  - The cause: a plane with a reference model mounted has every build material's clipping written by app.js `applyBuildClip` (`m.clippingPlanes = buildClip`, null without a split) at each `applyVis`. The warm's frames ran it and wiped the cut.
+  - The fix: the cut's own copies pin their planes (`pinClip`: a write from outside is ignored; the copies are dropped at `cutOff`).
+  - app.js is not touched. Any other code that makes its own clipped copies of build materials on a ref-mounted plane meets the same writer.
+
+**Baked:** list:7 Rufus and list:5 Metal Cessna, all six views each. The numbers moved slightly with the current build (Cessna TORun 222 -> 225 m).
+- The bake-only check draw (clipping off) is the worst task: about 6 s on the Cessna, 1.1 s on Rufus. It is never run in the game.
+
+**Gates:** PLANEFICHE (3 CUT TAKES rows, the CUT PINNED row, a `_cutDiffers` unit check; selftest 46 of 46), MEDIA, PLANETHUMB: PASS at --jobs=1.
+
+**Owed:** the full 20-row fiche pass on the new list (about 30 min of GPU, A0 places it). The other official cutaways were baked before both fixes. Any plane with a reference model mounted may have the same wiped cut; CUT TAKES now stops the bake on it instead of saving it.
