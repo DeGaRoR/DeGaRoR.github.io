@@ -3006,10 +3006,13 @@ const ARCHETYPES = [
                     // front wheel almost at the tip ... as little as you can ... if not, we just push the back pillar
                     // back a little bit until it stands"): the mains on the aft pillar, the nose wheel 0.2 m behind the
                     // tip, both at the row's 0.05 m minimum; the pillar pushed 0.47 m aft (pilotLen 0.42 -> 1.05) with
-                    // the motor, the prop, the wing and the tail held where they were (engBlockZ, boomLen). Measured:
-                    // the mains 2.02 m behind the nose, the CG empty 1.94 (it stands on its own, 8 cm), loaded 1.77
-                    pilotLen: 1.05, s1Z: 1.13, s1AxZ: 0, s1R: 0.05, s1Drop: 0.17, s1Root: 1,
-                    s2Z: 3.0, s2R: 0.05, s2Drop: 0.12,
+                    // the motor, the prop, the wing and the tail held where they were (engBlockZ, boomLen). THEN (the
+                    // user: "it really looks toyish"): the wheels a little bigger (0.13 / 0.10 m), the mains' anchor
+                    // on the pillar kept and the wheels 0.2 m aft of it, the legs as short as the pod floor allows
+                    // (0.15 m clear; a 45-deg leg from that anchor would put the axle above the floor): ~19 deg from
+                    // vertical, level. Measured: the mains 2.23 m behind the nose, the CG empty 1.93, loaded 1.77
+                    pilotLen: 1.05, s1Z: 1.13, s1AxZ: -0.20, s1R: 0.13, s1Drop: 0.05, s1Root: 1,
+                    s2Z: 3.0, s2R: 0.10, s2Drop: 0.05,
                     // the tail: the stab's size and station, the fin's outline (fit_tail.js), no dorsal fillet
                     stSpan: 0.98, stChord: 0.47, stChordTip: 1.2, stZ: 0.4,
                     finDorsal: 0, finDorsalTube: 0,
