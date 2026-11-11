@@ -1,0 +1,109 @@
+{
+  "what": "drafting-ref",
+  "v": 1,
+  "identity": {
+    "name": "Pilatus PC-6 Turbo-Porter",
+    "maker": "Pilatus Aircraft",
+    "variant": "PC-6/B2-H4",
+    "engine": "Pratt & Whitney Canada PT6A-27, 550 shp, Hartzell HC-B3TN-3D three-blade",
+    "locked": "2026-11-11",
+    "notes": [
+      "The H4 index (SB 149A, 1985): MTOW 2800 kg, extended composite wingtips (span 15.87 m, not 15.2 m), enlarged dorsal fin.",
+      "Rejected: FOCA TC F 90-05 (the Marabu, Baerfuss 1972) - not this aeroplane."
+    ]
+  },
+  "sources": {
+    "tcds": "FOCA Type Certificate Data Sheet F 56-10, issue 7, 20 Sep 2006 (PC-6 series, the B2-H4 column) - the authority",
+    "factsheet": "Pilatus factsheet 'PC-6 The world's leading STOL' (performance stated for the PC-6/B2-H4, ISA)",
+    "tar": "CAA New Zealand Type Acceptance Report TAR 1/21B/14 Rev 1, 8 Sep 2023 (https://www.aviation.govt.nz/assets/aircraft/type-acceptance-reports/Pilatus_PC-6.pdf)",
+    "sheet": "Wikimedia Commons 'Pilatus PC-6 Turbo-Porter 3-view line drawing.svg' by Kaboldy, CC BY-SA 4.0 (https://commons.wikimedia.org/wiki/File:Pilatus_PC-6_Turbo-Porter_3-view_line_drawing.svg) - used as a private reference, never committed or shipped"
+  },
+  "figures": {
+    "geometry.span": { "v": 15.87, "unit": "m", "src": "tcds" },
+    "geometry.length": { "v": 10.9, "unit": "m", "src": "tcds", "cond": "overall; factsheet 35 ft 9 in" },
+    "geometry.height": { "v": 3.2, "unit": "m", "src": "tcds", "cond": "static, on the ground (tail down): not an attitude-free figure" },
+    "geometry.chord": { "v": 1.9, "unit": "m", "src": "tcds", "cond": "constant over the span: MAC = 1.9 m" },
+    "geometry.wingArea": { "v": 30.15, "unit": "m2", "src": "tcds" },
+    "geometry.airfoil": { "v": "NACA 64-514", "src": "tcds", "cond": "constant over the span" },
+    "geometry.stabSpan": { "v": 5.13, "unit": "m", "src": "factsheet", "cond": "16 ft 10 in; the old manual's figure 16 ft 9.5 in" },
+    "geometry.propDia": { "v": [2.515, 2.565], "unit": "m", "src": "tcds", "cond": "99-101 in (the factsheet's 2.67 m is another propeller)" },
+    "geometry.track": { "v": 3.0, "unit": "m", "src": "factsheet", "cond": "9 ft 10 in" },
+    "specs.mtow": { "v": 2800, "unit": "kg", "src": "tcds" },
+    "specs.mlw": { "v": 2660, "unit": "kg", "src": "tcds" },
+    "specs.basicOperating": { "v": 1250, "unit": "kg", "src": "factsheet", "cond": "depends on configuration" },
+    "specs.power": { "v": 550, "unit": "shp", "src": "tcds", "cond": "take-off and max continuous up to 43 C; 680 shp thermodynamic" },
+    "specs.engineMass": { "v": 149, "unit": "kg", "src": "PT6A-27 dry mass, P&WC (approx.)", "quality": "thin" },
+    "specs.fuel": { "v": [128, 170], "unit": "US gal usable", "src": "tcds", "cond": "two wing tanks at +3790 mm and a 3 gal booster tank at +5820 mm; 130 or 173 total" },
+    "specs.seats": { "v": 11, "src": "tcds", "cond": "1 pilot + 10 on 3 benches; normal 8 singles" },
+    "specs.cg": { "v": "3608-3722 mm at 2800 kg (32-38 % MAC); 3209-3722 mm at 1450 kg (11-38 % MAC); straight lines between", "src": "tcds" },
+    "specs.datum": { "v": "3 m ahead of the vertical tangent to the wing leading edge", "src": "tcds" },
+    "specs.level": { "v": "T-rails on the cabin floor horizontal", "src": "tcds" },
+    "specs.seatStations": { "v": [3050, 3850, 4570, 5280], "unit": "mm from datum", "src": "tcds", "cond": "two singles at each; benches at 3850, 4570, 5280" },
+    "specs.flaps": { "v": { "takeoff": 28, "landing": 38 }, "unit": "deg", "src": "tcds" },
+    "perf.Vs1": { "v": 107, "unit": "km/h", "src": "factsheet", "kg": "gross", "flaps": "up", "cond": "58 KEAS" },
+    "perf.Vs0": { "v": 96, "unit": "km/h", "src": "factsheet", "kg": "gross", "flaps": "full", "cond": "52 KEAS" },
+    "perf.roc": { "v": 5.13, "unit": "m/s", "src": "factsheet", "kg": "gross" },
+    "perf.cruise": { "v": 232, "unit": "km/h", "src": "factsheet", "cond": "max cruise, 125 KTAS, altitude not stated" },
+    "perf.TO50": { "v": 440, "unit": "m", "src": "factsheet", "kg": "unknown", "surface": "unknown", "cond": "over 15 m, STOL technique, ISA" },
+    "perf.LDG50": { "v": 315, "unit": "m", "src": "factsheet", "kg": "unknown", "cond": "over 15 m, STOL technique, ISA" },
+    "perf.VNE": { "v": 280, "unit": "km/h", "src": "tcds", "cond": "151 kt" },
+    "perf.VFE": { "v": 176, "unit": "km/h", "src": "tcds", "cond": "95 kt" }
+  },
+  "image": {
+    "file": "pc6_3view_1280_white.png",
+    "sha256": "f2819f9766d53d639ccc5106991528fbf5e0b948c2a47deddc91f84da652bc57",
+    "size": [1280, 1644],
+    "how": "the Commons SVG rendered by Wikimedia at 1280 px (thumb), laid on white",
+    "local": "never committed: the sheet stays on the device (the page's IndexedDB) or in a session's scratchpad"
+  },
+  "views": {
+    "side": { "box": [0, 0, 1000, 372], "ox": 26, "oy": 238.5, "k": 80.55, "rot": 0, "flip": false,
+              "scaleBy": "geometry.length (878 px = 10.90 m)", "check": "span-scaled plan: 10.97 m, +0.6 %",
+              "note": "drawn level (window sills horizontal), ground lines drawn tilted; origin = the spinner's tip" },
+    "top":  { "box": [0, 352, 912, 1640], "ox": 26, "oy": 991.5, "k": 79.96, "rot": 0, "flip": false,
+              "scaleBy": "geometry.span (1269 px = 15.87 m)", "check": "length 10.97 m against 10.90 (+0.6 %)" },
+    "front": { "box": [912, 352, 1280, 1640], "ox": 1040, "oy": 991.5, "k": 79.84, "rot": 90, "flip": false,
+               "scaleBy": "geometry.span (1267 px = 15.87 m)", "check": "prop disc 2.54 m (TCDS 2.51-2.57)",
+               "note": "turned 90 deg (up is to the right of the sheet); its wheel height disagrees with the side view by ~5 cm: heights are read on the side view" }
+  },
+  "marks": {
+    "wing.le": { "view": "side", "pts": [[311, 152]] },
+    "wing.te": { "view": "side", "pts": [[465.5, 154]] },
+    "wing.top": { "view": "side", "pts": [[350, 135.5]] },
+    "body.front": { "view": "side", "pts": [[66, 239]] },
+    "cowl.back": { "view": "side", "pts": [[238.3, 200]] },
+    "tailpost": { "view": "side", "pts": [[860, 192]] },
+    "fin.top": { "view": "side", "pts": [[790, 17]] },
+    "fin.te": { "view": "side", "pts": [[851, 100]] },
+    "wheel": { "view": "side", "pts": [[283.5, 328.2]] },
+    "wheel.bottom": { "view": "side", "pts": [[283.5, 354.5]] },
+    "wheel.dia": { "view": "side", "pts": [[283.5, 302], [283.5, 354.5]] },
+    "tailwheel": { "view": "side", "pts": [[890, 246.5]] },
+    "body.halfw": { "view": "top", "pts": [[500, 941]] },
+    "stab.le": { "view": "top", "pts": [[793.5, 900]] },
+    "profile.0": { "view": "side", "pts": [[150, 199], [150, 273]] },
+    "profileW.0": { "view": "top", "pts": [[150, 958]] },
+    "profile.1": { "view": "side", "pts": [[200, 193.5], [200, 275.5]] },
+    "profileW.1": { "view": "top", "pts": [[200, 948.5]] },
+    "profile.2": { "view": "side", "pts": [[560, 161.5], [560, 273]] },
+    "profileW.2": { "view": "top", "pts": [[560, 945.5]] },
+    "profile.3": { "view": "side", "pts": [[640, 168.5], [640, 261.5]] },
+    "profileW.3": { "view": "top", "pts": [[640, 955]] },
+    "profile.4": { "view": "side", "pts": [[700, 173.5], [700, 253.5]] },
+    "profileW.4": { "view": "top", "pts": [[700, 962.5]] },
+    "profile.5": { "view": "side", "pts": [[780, 180.5], [780, 242]] },
+    "profileW.5": { "view": "top", "pts": [[780, 972.5]] },
+    "window.cockpit": { "view": "side", "pts": [[295, 168.3], [331.7, 223.3]] },
+    "window.door1": { "view": "side", "pts": [[353.3, 178.3], [408.3, 207.3]] },
+    "window.door2": { "view": "side", "pts": [[417.3, 178.3], [472.3, 208.3]] },
+    "window.round": { "view": "side", "pts": [[503.3, 176.7], [529.3, 203]] }
+  },
+  "architecture": {
+    "candidates": ["beaver", "caravan"],
+    "why": "high wing on struts; the Beaver-alike is the tailwheel bush plane, the Caravan-alike carries the PT6A"
+  },
+  "gaps": [],
+  "history": [
+    { "date": "2026-11-11", "who": "session FIT-PROCEDURE", "step": "references", "line": "variant locked; TCDS, factsheet, TAR; the Commons sheet scaled per view; 30 marks read off the sheet" }
+  ]
+}
