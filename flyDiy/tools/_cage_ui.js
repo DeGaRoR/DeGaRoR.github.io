@@ -81,7 +81,7 @@ const BASE_GROUPS = [
   ['layout', [
     ['paxCount',  'pax bays',      0, 12, 1],
     ['paxLen',    'pax len',       0.4, 3.0, 0.01],
-    ['pilotLen',  'pilot len',     0.3, 2.0, 0.01],
+    ['pilotLen',  'pilot len',     0.1, 2.0, 0.01],      // (11 Nov: from 0.10, as the page's row)
     ['boomLen',   'boom len',      1.0, 6.0, 0.01],
     ['tailLen',   'tail len',      0.05, 0.6, 0.005],
     ['pillarW',   'pillar width',  0.00, 0.30, 0.005],
