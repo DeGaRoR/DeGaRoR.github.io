@@ -1407,7 +1407,7 @@ function garageInit(api) {
         if (o && o.what === 'flydiy-fleet' && Array.isArray(o.builds))
           return void alert('That is an "export all" file of ' + o.builds.length + ' aeroplanes - import opens one build (export one from its slot).');
         const got = unwrap(String(r.result));
-        loadSpec(got.spec, got.name || f.name.replace(/\.json$/i, ''),
+        loadSpec(got.spec, got.name || String(f.name || 'pasted').replace(/\.json$/i, ''),
                  got.plaque, got.log, got.images);
         slotsChanged({ imported: got.name || null });
       } catch (e) { alert('That file is not a ' + ((typeof GAME_NAMES !== 'undefined' && GAME_NAMES.game) || 'the game') + ' build: ' + e.message); }
@@ -1419,8 +1419,45 @@ function garageInit(api) {
   // THE JSON DOORS, ON THE RIBBON beside the other four verbs
   if ($('gExport')) $('gExport').addEventListener('click', exportFile);
   if ($('gExportAll')) $('gExportAll').addEventListener('click', exportAllFile);
+  // PHONE IMPORT (the user, 11 Nov, three tries: "nothing happens when clicking on import", Chrome on the phone, the
+  // picker never opens). On a touch device IMPORT opens a small card at the top edge with the browser's OWN visible
+  // file control (no hidden input, no programmatic click, no type filter - Android files a .json under no MIME) and,
+  // as a second door that needs no picker at all, a box to PASTE the build's JSON text. Both go through readFile.
+  // Desktop keeps the button, the hidden input and the .json filter.
+  const touchDev = (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0) ||
+                   (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+  let impCard = null;
+  const impOpen = () => {
+    if (!impCard && document.createElement && document.body) {
+      impCard = document.createElement('div'); impCard.id = 'gImpCard';
+      impCard.setAttribute('style', 'position:fixed;z-index:9000;top:calc(env(safe-area-inset-top,0px) + 10px);left:10px;right:10px;' +
+        'max-width:460px;margin:0 auto;padding:14px;background:rgba(32,29,26,.97);color:#f4efe6;border:1px solid rgba(255,248,236,.18);' +
+        "border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.5);font:14px/1.4 'IBM Plex Sans',system-ui,sans-serif");
+      impCard.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">' +
+        '<b style="font-weight:600;letter-spacing:.04em">Import an aeroplane</b>' +
+        '<button type="button" data-x style="min-height:40px;min-width:40px;background:none;border:0;color:#c0b8ac;font-size:22px">×</button></div>' +
+        '<div style="color:#c0b8ac;margin-bottom:6px">Choose the .json file:</div>' +
+        '<input type="file" data-f style="display:block;width:100%;min-height:44px;color:#f4efe6;margin-bottom:14px">' +
+        '<div style="color:#c0b8ac;margin-bottom:6px">or paste its text here:</div>' +
+        '<textarea data-t rows="4" style="width:100%;box-sizing:border-box;background:rgba(255,255,255,.06);color:#f4efe6;' +
+        'border:1px solid rgba(255,255,255,.18);border-radius:6px;padding:8px;font:12px/1.3 ui-monospace,monospace"></textarea>' +
+        '<button type="button" data-p style="margin-top:10px;min-height:44px;width:100%;border-radius:8px;border:1px solid #e6dbc9;' +
+        'background:#e6dbc9;color:#221f1b;font-weight:600">Load the pasted text</button>';
+      document.body.appendChild(impCard);
+      const q = k => impCard.querySelector('[data-' + k + ']');
+      q('x').addEventListener('click', () => { impCard.hidden = true; });
+      q('f').addEventListener('change', () => { const f = q('f').files && q('f').files[0]; if (f) { impCard.hidden = true; readFile(f); } q('f').value = ''; });
+      q('p').addEventListener('click', () => {
+        const t = (q('t').value || '').trim(); if (!t) return;
+        impCard.hidden = true; q('t').value = '';
+        try { readFile(new File([t], 'pasted.json', { type: 'application/json' })); }
+        catch (err) { readFile(new Blob([t], { type: 'application/json' })); }
+      });
+    }
+    if (impCard) impCard.hidden = false;
+  };
   if ($('gImport')) $('gImport').addEventListener('click',
-    () => { if (fileIn) { fileIn.value = ''; fileIn.click(); } });
+    () => { if (touchDev) { impOpen(); return; } if (fileIn) { fileIn.value = ''; fileIn.click(); } });
   // THE NAME IS THE MENU (2026-09-03, the user: "simply the plane's name on
   // the top left, clicking on it gives all the ribbon options in a standard
   // menu"). The six verbs above are untouched — same ids, same handlers; what
