@@ -157,6 +157,8 @@ var COVER_RING = (() => {
   // THREE LEVELS (the user, 10 Nov ~21:30): LOW for every grass and flower (a little under the first day's 0.6), MID the first day's
   // value, HIGH the strong one; HIGH on the dead grass and the three flowers that read too bright (fireweed, bunchberry, foam flower),
   // MID on the grasses in the medium tones. Bushes: none (the 17:00 verdict). [strength, the share of the height it fades out by]
+  const FIELD_MATS = [];
+  const fieldRG = () => { let r = 0, g = 0; for (const m of FIELD_MATS) { const t = m.userData.texMean; if (t) { r += t[0]; g += t[1]; } } return g > 0 ? Math.max(0.05, r / g) : 1; };   // VEG-ROOT 11 Nov: the field's materials (their texture mean's red-to-green keys the field by colour)
   const ROOT_LEVEL = { low: [0.5, 0.7], mid: [0.6, 0.8], high: [0.95, 1.3] };   // (22:20, the user: the fade over half the height was what read too light - LOW fades out at 70 %, MID at 80 %, the darkness kept)
   const ROOT_SPECIES = { grass_dry: 'high', flower_fireweed: 'high', flower_bunchberry: 'high', flower_foam: 'high', grass_scan: 'mid', grass_plates: 'mid', grass_reed: 'mid' };
   const ROOT_KIND = { cover: ROOT_LEVEL.low, flower: ROOT_LEVEL.low };
@@ -252,6 +254,7 @@ var COVER_RING = (() => {
           aglPre: 150, preBudgetMs: 2, lead: 4, grow: 0.8, growNear: 60,
           // (G2567, the box 11 Oct 11:03 TIMED, cost3/: 2 tuft shapes + the size fade capped at 1.0 + 70 tufts / m2 - the forest view
           // 2.57 -> 2.23 ms, app10 4.21 -> 2.07, app30 3.85 -> 1.03 on gamer, every view under train 43's; draws +6..+9)
+          rootKey: true,           // VEG-ROOT 11 Nov (the user, "by colour per tuft"): a brown/yellow tuft HIGH, a green one this row (MID)
           root: 0.6, rootH: 0.8,   // (VEG-ROOT 10 Nov ~21:30: the field is grass_reed, MID; 22:20 its fade to 80 %) G2571: the root gradient's strength (0 = none) and the share of the tuft's height it fades out by (VEG-ROOT 9 Nov: on, the cover's row)
           lakeMargin: 0.03,      // G2572: how far ABOVE a lake's water the ground must stand for a tuft (m; render_world okAt; the sea keeps 0.3)
           tufts: 70, cards: 3, variants: 2, block: 2, sizeFade: 1, sizeMax: 1, hRef: 0.3, blotch: 0.05, clumpM: 4, clumpAmp: 0.3, hK: 1, sigmaK: 1, tier: 1, trunc: 1,
@@ -386,7 +389,7 @@ var COVER_RING = (() => {
               // (G1385: trees.js retint now applies it - COVER_BASE, the same numbers - and the grass's own master on top,
               // so a master or a species tint moved later keeps it; asked again here for a material hooked before)
               if (c.kind === 'cover' && mat.userData.uLight && LEAF.retint) LEAF.retint(mat);
-              if (FIELD_SPECIES.includes(c.name)) { if (c.kind === 'cover') mat.userData.uRoot = ROOT_U; }   // G2571: the reed's root gradient (trees.js fadeInject)
+              if (FIELD_SPECIES.includes(c.name)) { if (c.kind === 'cover') { mat.userData.uRoot = ROOT_U; if (!FIELD_MATS.includes(mat)) FIELD_MATS.push(mat); } }   // G2571: the reed's root gradient (trees.js fadeInject)
               else if (ROOT_KIND[c.kind]) mat.userData.uRoot = rootOf(c, c.kind, e.sub.bb ? e.sub.bb[4] : (e.sub.h || 1));   // VEG-ROOT: its kind's row, its own top
               if (c.kind === 'cover' && mat.userData.uFlat) { mat.userData.uFlat.value = place.contrast === undefined ? 1 : place.contrast; measureMean(mat);
                 if (mat.map && !(mat.map.image && mat.map.image.width)) { const t0 = mat.map; const poll = () => { if (t0.image && t0.image.width) measureMean(mat); else setTimeout(poll, 500); }; setTimeout(poll, 500); } }
@@ -1209,7 +1212,7 @@ var COVER_RING = (() => {
       const t = now();
       LEAF.fade(S.near, S.reach, S.taper, aglK, FSET);   // (the field: its own set, and its size fade; the first ring: the shared one)
       if (FIELD && LEAF.fadeSize) LEAF.fadeSize(S.sizeFade, S.hRef / Math.max(1e-6, fieldH0), FSET, S.sizeMax);
-      if (FIELD) ROOT_U.value.set(Math.max(0, Math.min(1, +S.root || 0)), Math.max(0.01, +S.rootH || 0.4), fieldH0, 0);   // G2571 (live: a uniform)
+      if (FIELD) ROOT_U.value.set(Math.max(0, Math.min(1, +S.root || 0)), Math.max(0.01, +S.rootH || 0.4), fieldH0, S.rootKey ? fieldRG() : 0);   // (w: the field by colour, 11 Nov)   // G2571 (live: a uniform)
       if (LEAF.grow) LEAF.grow(t, null, S.grow);
       { const dt = t - EYE.t;
         if (dt > 0 && dt < 0.5 && isFinite(EYE.x)) { const a = Math.min(1, dt / 0.5); EYE.vx += ((ex - EYE.x) / dt - EYE.vx) * a; EYE.vz += ((ez - EYE.z) / dt - EYE.vz) * a; }
