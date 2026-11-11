@@ -12,6 +12,9 @@ procedure's: a fitter is only ever run on the rows of the step in hand.
 
 **Handing a model to a new session:** `tools/ref_match/KICKOFF.md` is the message to paste with the GLB.
 
+**The next tool (design, 11 Nov 2026):** `tools/DRAFTING_TABLE.md`, a light phone-first page for matched planes,
+blueprints first, built on this method and its limits (the Spitfire, section 10).
+
 **The rule above all: every change is a garage row.** A card is a list of the rows a builder could set by hand. If a
 shape needs something no row offers, stop and flag it (section 7): the garage gets the control, then the card uses it.
 
