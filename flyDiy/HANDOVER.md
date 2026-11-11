@@ -314695,3 +314695,61 @@ OPEN (each with the default this ready takes):
 1. A custom engine saved before this ready and never re-joined flies its family's cylinder count in 33_drive (a
    two-stroke 2, not the A-65's 4): its certificate's drive loads move. None is shipped. Default: no PHYSICS_V bump.
 2. The custom row's `torque` (written since G134) is read by nothing; left.
+
+## ENGINE-DIALS B - THE PROPELLER'S PITCH, A ROW OF ITS OWN; THE FLOAT KIT SETS IT THE SAME WAY (9-11 Nov 2026, cloud, ENGINE-DIALS for A0; claude/ready/engine-dials-b, on engine-dials-a)
+
+THE BRIEF'S FINDING 3: the pitch had no control of its own. The Chinook flies 'auto' (genPropAuto picks the class for
+the measured wing), which the editor could not set; 'seaplane' came only through the Wipline float kit; the design
+tiles wrote spec.prop.pitch as a side effect of a blade choice (wood -> cruise, carbon -> climb).
+
+WHAT:
+- tools/_cage_eng.js: a `pitch` row in the propeller group - automatic (picked for the wing), fine (climb), standard,
+  coarse (cruise), seaplane (the float prop): exactly GEN_PROP_PITCH's classes and 'auto', in the float kit's order
+  (KIT_PITCHES, whose saved fltKitPrevPitch indexes it). The row is a VIEW of spec.prop.pitch and never a cage key
+  (CAGE_VIEW_KEYS: no saved file gains a key, no fingerprint moves): each build the row reads the spec's pitch; a
+  builder's move writes the spec through GARAGE_SPEC.update, the call the design tiles' spec writes and the kit
+  already made (CAGE_PROP_PITCH.set). PAGE.load forgets, so a load never writes a pitch. Claimed by the propeller part
+  (_cage_parts.js, its own 'pitch' group on the trunk - physics, not the expert blade shape).
+- tools/_cage_float.js: the kit's seaplane propeller and its restore set the pitch through that same writer.
+- tech (79b_tech.js): 'pitch:auto' at segment 1 (the table's rule: a propeller is off the shelf); TECH_ROWS reads the
+  row; GATE TECH's pitch options include 'auto' (its option count 119 -> 120).
+- GATE ENGINEDIALS 2 grows: every official / candidate / validated build's pitch is on the row (the Chinook's auto, the
+  float Cessna's seaplane); the row is exactly GEN_PROP_PITCH + auto; the kit's list is the row's, in its order; the
+  kit sets through the row's writer; the writer moves the row and writes spec.prop.pitch.
+
+DIGESTS: no core physics file changes (79b_tech.js is the tech mask). The flown spec, def and certificate key of every
+build are ready A's (the row is never written to the cage and the join does not read it).
+
+GATES (node, 11 Nov, against master 603da882): the same verdict as master on the 27 run (A's list) - TECH red as
+master's, the same av.elt line (its option count 120 for 119: 'auto'); ENGINEDIALS PASS. The flight gates: on the
+stack's top (ENGINE-DIALS C).
+
+UNSEEN: the row in a page (no browser here): UISMOKE runs the built page's script blocks with stubs and passes; the
+write-through needs GARAGE_SPEC, which only the page has (the gate drives it with a stub).
+
+THE PITCH API (A0, 9 Nov: PROP-CLASSES - claude/practical-cerf-7fjpwp, prop materials with a section efficiency, a
+constant-speed class - builds on this row; extend it here, never beside it):
+- STATES: tools/_cage_eng.js `PROP_PITCHES = ['auto', 'climb', 'standard', 'cruise', 'seaplane']` and
+  `PROP_PITCH_LABELS`, one per state, same order. The list is GEN_PROP_PITCH's keys + 'auto' (GATE ENGINEDIALS 2 holds
+  that equality), in the float kit's order (_cage_float.js KIT_PITCHES: a saved fltKitPrevPitch is an index into it).
+  A NEW CLASS: a GEN_PROP_PITCH row (60_gen_spec.js: fm, pd, name) + APPENDED to PROP_PITCHES, PROP_PITCH_LABELS,
+  KIT_PITCHES and TECH_ROWS.propPitch (79b_tech.js, + its TECH_TABLE 'pitch:<key>' segment). Append, never insert:
+  KIT_PITCHES' saved index must keep its meaning. 'auto' picks only among GEN_PROP_AUTO_ORDER (climb / standard /
+  cruise); a class 'auto' may pick goes in there too.
+- THE ROW: `propPitch` in the engine layer's propeller group, a drop over PROP_PITCH_LABELS; claimed by the propeller
+  part's 'pitch' group (_cage_parts.js); a VIEW key (_cage_gen.js CAGE_VIEW_KEYS): never saved in the cage, never in a
+  fingerprint. Its value is the spec's: spec.prop.pitch is the one state, the row mirrors it.
+- THE WRITER (the kit's hook): `window.CAGE_PROP_PITCH = { KEYS, LABELS, set(P, key) }`. set() moves the row and writes
+  spec.prop.pitch through GARAGE_SPEC.update({ prop: { pitch } }) (deferred by a tick, as the design tiles' spec writes
+  are). The float kit calls it (_cage_float.js setPitch(p, P)); anything else that picks a pitch (a tile, a class
+  starter) should too, so the row and the spec cannot disagree.
+- THE SYNC: every build, propPitchSync(P) in the engine layer's PAGE.post - a row the builder moved since the last build
+  goes through set(); otherwise the row takes the spec's pitch. PAGE.load forgets (pitchSeen = null): a load never
+  writes a pitch.
+- THE PHYSICS: unchanged by the row - resolveSpec reads spec.prop.pitch (genPropSynth; 'auto' -> genPropAuto in
+  buildGen). A constant-speed class would also want 33_drive / genShaftRpm's `cs` (today an ENGINE field: the registry's
+  turbines, ready A's custom-engine `cs` row); say which owns it when the class lands.
+
+OPEN (with the default taken):
+1. The design tiles still write a pitch with their blades (wood -> cruise, carbon -> climb). The row now shows it and
+   can change it after. Default: left (the tiles are starters: one click, a sensible propeller).
