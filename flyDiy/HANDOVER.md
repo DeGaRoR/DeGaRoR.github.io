@@ -314593,3 +314593,16 @@ GATE STOL's baseline re-captured on 6f1497d72 (L37b) with FLOAT-DECK L38a: the f
 - The wing structure shows in 8 of 10. list:5 Metal Cessna and list:7 Rufus drew their cutaway with no cut at all, so they keep their PREVIOUS fiche here; their re-bake is in the Wed 11 Nov 15:00 picture set.
 - The hydro step was REFUSED on all 3 float cards (the bench busy for the whole 60 s). Their row reads "on water: see the hydroplane test", no longer the land roll. FLAGSHIP is looking into it before Wednesday's set.
 - Gates: MEDIA PLANEFICHE PLANETHUMB PASS.
+
+## A0 - train L38a, 11 Nov 2026
+
+IN (on L37b 6f1497d72 + the three phone-import HOTFIXes f38d182e0): night-reds (LOOKS case 3), red-night (NIGHT-LOOK: a moonless night's ambient takes the night's own colour, not the dead sunset's), taxi-strike (Deform: the prop strike at taxi), fiche-place (the fiche board's placement), dmglook-on (DMG-LOOKS ON by default, G3774, the user 10 Nov; ?dmglook=0 is the old drawing), float-deck-l38a (SEAPLANES: the floats' rest deck + the contract/procure re-bless), scar-live (DMG-SCAR live in the page; merges dmglook-on, a00038822), fiche-bake.
+A0: an L38a DMG-LOOKS hold (e4f75cc63) was made on a misread FRAMECOST line (garage:compile links 5 -> 40 is master's red since L37a, 42/48 in L37b) and reverted before the push: DMG-LOOKS ships ON.
+
+BATTERY (00:05-01:38, 137 asked, 134 kept): 122 PASS. Red as on master (same lines): GEN (cruise quiet in wind), TREECRASH, DMGGEAR, DMGDRIVE (the Petrel graze row), FRAMECOST (5, garage compile links / landing bufferData / updateMatrixWorld), ROUNDTRIP (2, the physics worker), LIVERY (2, the cub strut), JOINPARITY (the Jodel node=page row), NEWPLANE-BUILDS (fixed tricycle), ENGCONFIG. Green again vs L37b: STOL, DMGNOSEOVER, DMGSCAR, MEDIA, KNIFE, CONTRACTS, PROCURE, BUILT, POD, TOUR.
+Re-check on the hotfix merge (02:42-03:58): FRAMECOST (same 5), DMGMEMBERS, DMGWRECK, DMGSCAR, DMGPOD, UPDATE, UISMOKE-PHONE, PWA, EDBUGS, BUILT.
+
+TIMED GATE (02:56-03:58): taxi chase @HOME and @mn_strip 30 fps, 0 frames over 40 ms, no frame over 1 s in any taxi, take-off or flight segment. The boot's long tasks (worst 13-34 s) are the box's GPU shader cache: "MISS suspected" every train (warm garage L37a 164/196 s, L37b 137/146, L38a 209/185, L38a2 114/184) - HWCOV's warm-cache item (Wed 08:15), not this train.
+Parked fleet re-cooked on this build.
+
+No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change.
