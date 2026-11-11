@@ -13,8 +13,8 @@
    "cabPillarW": 0.115,
    "paxPillarW": 0.11,
    "pillarW": 0.1,
-   "halfW": 0.75,
-   "roofHalfW": 0.77,
+   "halfW": 0.85,
+   "roofHalfW": 0.85,
    "roofY": 0.895,
    "keelY": -1.26,
    "floorY": -0.49759,
@@ -27,18 +27,18 @@
    "tailRoofY": 0.46,
    "tailKeelY": -0.46,
    "ringPullIn": 0.023043,
-   "wsRun": 0.67,
-   "wsTopOff": 0.21,
-   "wsBaseBow": 0.65,
+   "wsRun": 0.75,
+   "wsTopOff": 0.2,
+   "wsBaseBow": 0.63,
    "wsCeilBow": 0.57,
    "apilW": 0.92,
    "apilPerp": 1,
-   "noseLen": 1.05,
+   "noseLen": 0.97,
    "noseW": 0.97,
    "pfW": 0.3,
-   "topRound": 1,
-   "topAngCeil": 45,
-   "topAngRoof": 78,
+   "topRound": 0.05,
+   "topAngCeil": 70,
+   "topAngRoof": 88,
    "topComp": 1.03,
    "bubble": 1,
    "skylight": 0,
@@ -104,7 +104,7 @@
    "noseCrown": 0.16,
    "noseH": 1.07,
    "noseDroop": 0,
-   "wsBaseLift": 0.11,
+   "wsBaseLift": 0.125,
    "cowlLoops": 2,
    "cowlEase": 0.29,
    "cowlBulge": 0.99,
@@ -203,34 +203,34 @@
    "frNoseBotZ": 0,
    "frWinTopY": 1.155,
    "frWinBotY": -1.19,
-   "frWinTopW": null,
-   "frWinWaistW": null,
-   "frWinBotW": null,
+   "frWinTopW": 0.85,
+   "frWinWaistW": 0.85,
+   "frWinBotW": 0.85,
    "frWinBotZ": 0,
    "frPostTopY": null,
    "frPostWaistY": null,
    "frPostBotY": null,
-   "frPostTopW": null,
-   "frPostWaistW": null,
-   "frPostBotW": null,
+   "frPostTopW": 0.85,
+   "frPostWaistW": 0.85,
+   "frPostBotW": 0.85,
    "frPostTopZ": 0,
    "frPostWaistZ": 0,
    "frPostBotZ": 0,
    "frCabTopY": 0.875,
    "frCabWaistY": null,
    "frCabBotY": -1.22,
-   "frCabTopW": null,
-   "frCabWaistW": null,
-   "frCabBotW": null,
+   "frCabTopW": 0.85,
+   "frCabWaistW": 0.85,
+   "frCabBotW": 0.85,
    "frCabTopZ": 0,
    "frCabWaistZ": 0,
    "frCabBotZ": 0,
    "frPaxTopY": 0.784,
    "frPaxWaistY": null,
    "frPaxBotY": -1.049,
-   "frPaxTopW": null,
-   "frPaxWaistW": null,
-   "frPaxBotW": null,
+   "frPaxTopW": 0.77,
+   "frPaxWaistW": 0.77,
+   "frPaxBotW": 0.77,
    "frPaxTopZ": 0,
    "frPaxWaistZ": 0,
    "frPaxBotZ": 0,
@@ -754,13 +754,13 @@
    "eng_fwSpread": 1.5,
    "spinMat": 0,
    "cowlOn": 1,
-   "fitNose": 1,
+   "fitNose": 2,
    "cowlGap": 0,
    "cw_cowlLen": 1.815,
    "cw_lidLen": 0.325,
-   "cw_noseOff": -0.04,
-   "cw_spinR": 0.101,
-   "cw_spinLen": 0.25,
+   "cw_noseOff": -0.24,
+   "cw_spinR": 0.2,
+   "cw_spinLen": 0.45,
    "cw_spinRound": 0.6,
    "cw_bladeStation": 0.42,
    "cw_shaftR": 0.045,
@@ -909,7 +909,10 @@
    "finZ": 0.558,
    "finDorsalFwd": 0.11,
    "finDorsalH": 0.275,
-   "frWinTopZ": 0.09
+   "frWinTopZ": 0.09,
+   "cw_sqAftTop": 0.9,
+   "cw_sqAftBot": 0.9,
+   "cw_partLevel": 1
   },
   "wings": [
    {
@@ -1881,6 +1884,54 @@
     "who": "session",
     "step": "wing",
     "line": "the stab's top on the drawing {\"stY\":0.94}"
+   },
+   {
+    "date": "2026-11-11T22:13",
+    "who": "session",
+    "step": "refs",
+    "line": "traced front.wall"
+   },
+   {
+    "date": "2026-11-11T22:19",
+    "who": "session",
+    "step": "body",
+    "line": "the square cabin (the user: 'so that you can load square boxes in it'): every cabin frame as wide at its top as at its waist and bottom, the roof flat (topRound 0.05: 0 is the pitched roof's own mode); the aft frame narrows as drawn {\"halfW\":0.85,\"roofHalfW\":0.85,\"frCabTopW\":0.85,\"frCabWaistW\":0.85,\"frCabBotW\":0.85,\"frPaxTopW\":0.77,\"frPaxWaistW\":0.77,\"frPaxBotW\":0.77,\"frPostTopW\":0.85,\"frPostWaistW\":0.85,\"frPostBotW\":0.85,\"frWinTopW\":0.85,\"frWinWaistW\":0.85,\"frWinBotW\":0.85,\"topAngRoof\":88,\"topAngCeil\":70,\"topRound\":0.05}"
+   },
+   {
+    "date": "2026-11-11T22:26",
+    "who": "session",
+    "step": "fit",
+    "line": "{\"fitNose\":2,\"cw_sqAftTop\":0.9,\"cw_sqAftBot\":0.9,\"cw_spinR\":0.2,\"cw_spinLen\":0.45,\"cw_noseOff\":-0.24}"
+   },
+   {
+    "date": "2026-11-11T22:28",
+    "who": "session",
+    "step": "fit",
+    "line": "{\"cw_partLevel\":1}"
+   },
+   {
+    "date": "2026-11-11T22:33",
+    "who": "session",
+    "step": "fit",
+    "line": "fit {\"topRound\":0.09,\"topAngCeil\":40,\"topAngRoof\":90}"
+   },
+   {
+    "date": "2026-11-11T22:35",
+    "who": "session",
+    "step": "fit",
+    "line": "fit {\"wsTopOff\":0.2,\"wsCeilBow\":0.57,\"wsBaseBow\":0.63,\"wsBaseLift\":0.125}"
+   },
+   {
+    "date": "2026-11-11T22:36",
+    "who": "session",
+    "step": "fit",
+    "line": "{\"wsRun\":0.75,\"noseLen\":0.97}"
+   },
+   {
+    "date": "2026-11-11T22:37",
+    "who": "session",
+    "step": "fit",
+    "line": "{\"topRound\":0.05,\"topAngCeil\":70,\"topAngRoof\":88}"
    }
   ],
   "datumLE": 3000,
@@ -4959,6 +5010,175 @@
       971
      ]
     ]
+   },
+   {
+    "id": "front.wall",
+    "view": "front",
+    "edge": "hi",
+    "parts": [
+     "body",
+     "glass",
+     "screen",
+     "pillar",
+     "waist"
+    ],
+    "spans": [
+     [
+      -0.2,
+      0.4,
+      "lower wall"
+     ],
+     [
+      0.4,
+      1.05,
+      "upper wall"
+     ]
+    ],
+    "along": "h",
+    "read": "s",
+    "pts": [
+     [
+      1022,
+      940.5
+     ],
+     [
+      1025,
+      940.5
+     ],
+     [
+      1028,
+      940.5
+     ],
+     [
+      1031,
+      940.5
+     ],
+     [
+      1034,
+      940.5
+     ],
+     [
+      1037,
+      940.5
+     ],
+     [
+      1040,
+      940.5
+     ],
+     [
+      1043,
+      940.5
+     ],
+     [
+      1046,
+      940.5
+     ],
+     [
+      1049,
+      940.5
+     ],
+     [
+      1052,
+      940.5
+     ],
+     [
+      1055,
+      940.5
+     ],
+     [
+      1058,
+      940.5
+     ],
+     [
+      1061,
+      940.5
+     ],
+     [
+      1064,
+      940.5
+     ],
+     [
+      1067,
+      940.5
+     ],
+     [
+      1070,
+      940.5
+     ],
+     [
+      1073,
+      940.5
+     ],
+     [
+      1076,
+      940.5
+     ],
+     [
+      1079,
+      940.5
+     ],
+     [
+      1082,
+      940.5
+     ],
+     [
+      1085,
+      940.5
+     ],
+     [
+      1088,
+      940.5
+     ],
+     [
+      1091,
+      940.5
+     ],
+     [
+      1094,
+      940.5
+     ],
+     [
+      1097,
+      940.5
+     ],
+     [
+      1100,
+      940.5
+     ],
+     [
+      1103,
+      940.5
+     ],
+     [
+      1106,
+      940.5
+     ],
+     [
+      1109,
+      940.5
+     ],
+     [
+      1112,
+      940.5
+     ],
+     [
+      1115,
+      940.5
+     ],
+     [
+      1118,
+      940.5
+     ],
+     [
+      1121,
+      940.5
+     ],
+     [
+      1124,
+      940.5
+     ]
+    ],
+    "note": "the wall read column by column (struts cross it; the tracer veered): straight at y 940.5 from x 1022 to 1125"
    }
   ]
  }

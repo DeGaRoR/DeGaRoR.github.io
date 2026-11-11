@@ -14,11 +14,11 @@
   const VIEWS = ['side', 'top', 'front'];
   // PRIORITY when two parts meet at a pixel edge: the line belongs to the higher (glass and seams over skin)
   const PARTS = ['none', 'body', 'glass', 'pillar', 'waist', 'wing', 'strut', 'fin', 'stab', 'cowl', 'engine',
-    'gear', 'float', 'other', 'screen'];
+    'gear', 'float', 'other', 'screen', 'inside'];
   const PID = {}; PARTS.forEach((p, i) => { PID[p] = i; });
   const COLOURS = { body: '#1f6feb', glass: '#e8590c', pillar: '#7048e8', waist: '#7048e8', wing: '#0ca678',
     strut: '#0ca678', fin: '#d6336c', stab: '#d6336c', cowl: '#f59f00', engine: '#f59f00', gear: '#495057',
-    float: '#1098ad', other: '#868e96', screen: '#e8590c' };
+    float: '#1098ad', other: '#868e96', screen: '#e8590c', inside: '#ff00ff' };
   // which parts make up "the fuselage" for profiles
   const FUSE = new Set([PID.body, PID.glass, PID.pillar, PID.waist, PID.cowl, PID.screen]);
 
@@ -397,6 +397,25 @@
     let n = 0; for (let x = 0; x < W; x++) n += cols[x];
     return { len: +(n / res).toFixed(2), at: worst ? +worst[0].toFixed(2) : null, h: worst ? +worst[1].toFixed(2) : null, depth: +wd.toFixed(2) };
   }
+  // THE INSIDE SHOWS: the fuselage's inner faces (frames, firewall, floor, lining) seen from outside in a view, at 1 cm -
+  // an open ring between two parts, a missing panel. Returns the visible area per view (m2) and where.
+  function insideShows(B) {
+    const out = {};
+    const all = extent(B.tris, B.parts, new Set(PARTS.slice(1).map(p => PID[p])));
+    if (!all) return out;
+    for (const view of VIEWS) {
+      const res = 50, lo = view === 'side' ? [all.lo[0], all.lo[1]] : view === 'top' ? [all.lo[0], all.lo[2]] : [all.lo[2], all.lo[1]];
+      const hi = view === 'side' ? [all.hi[0], all.hi[1]] : view === 'top' ? [all.hi[0], all.hi[2]] : [all.hi[2], all.hi[1]];
+      const V = { ox: -lo[0] * res + 2, oy: hi[1] * res + 2, k: res, rot: 0 };
+      const W = Math.ceil((hi[0] - lo[0]) * res) + 4, H = Math.ceil((hi[1] - lo[1]) * res) + 4;
+      const id = raster(view, B.tris, B.parts, V, W, H, 0, 0);
+      let n = 0, sx = 0, sy = 0;
+      for (let i = 0; i < W * H; i++) if (id[i] === PID.inside) { n++; sx += i % W; sy += (i / W) | 0; }
+      const at = n ? fromPx(V, sx / n, sy / n) : null;
+      out[view] = { m2: +(n / res / res).toFixed(3), at: at ? at.map(v => +v.toFixed(2)) : null };
+    }
+    return out;
+  }
   // the windows as the side view shows them (starboard): boxes in view metres, from a 1 cm raster
   function windows(B) {
     const res = 100;
@@ -556,7 +575,7 @@
   }
 
   const api = { VIEWS, PARTS, PID, COLOURS, FUSE, proj, toPx, fromPx, raster, edges, slice, extent, components,
-    measure, windows, KM, markValue, figValue, refProfiles, refWindows, compare, stations, probes, shapeFill, folds, trace, lineCompare, lineRows };
+    measure, windows, KM, markValue, figValue, refProfiles, refWindows, compare, stations, probes, shapeFill, folds, insideShows, trace, lineCompare, lineRows };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.DT_CORE = api;
 })(typeof self !== 'undefined' ? self : this);

@@ -19,7 +19,7 @@
   'use strict';
   // THE PARTS: what the outline draws as its own line, and the key measurements read
   const PARTS = ['none', 'body', 'glass', 'pillar', 'waist', 'wing', 'strut', 'fin', 'stab', 'cowl', 'engine',
-    'gear', 'float', 'other', 'screen'];
+    'gear', 'float', 'other', 'screen', 'inside'];
   const PID = {}; PARTS.forEach((p, i) => { PID[p] = i; });
   // the body sheet's materials (_cage_gen.js face tags): glazing, seams, what is inside (left out)
   const GLASS = /window|windshield|pane$|^drawnPane|skylight|bubble|canopy|glass/i;
@@ -27,7 +27,8 @@
   const SEAM_WAIST = /^waistband/;
   // (the skin is 'body', 'joint', 'aluminium', 'toele' (tôle: the sheet-metal panels) and 'shoulder': all kept - leaving
   // toele out made the fuselage see-through, the user caught it 11 Nov)
-  const INSIDE = /ceilingLoop|floorLoop|bulkhead|firewall|fireProof|fireSeal|^tube|cloth|dash|plywood|floorBoard|seat|reveal|paneEdge/;
+  // ('floorLoop' and 'ceilingLoop' are bands of the OUTER skin too: 11 Nov, the inside check found them seen from outside)
+  const INSIDE = /bulkhead|firewall|fireProof|fireSeal|^tube|cloth|dash|plywood|floorBoard|seat|reveal|paneEdge/;
   // the layers the outline needs (the others are fittings, lamps, hinges: detail the drafting never reads)
   const LAYER_PART = { cowl: 'cowl', eng: 'engine', wing: 'wing', brace: 'strut', gear: 'gear', float: 'float',
     fin: 'fin', stab: 'stab', pod: 'body' };
@@ -72,8 +73,10 @@
     const xyz = [], pid = [];
     const sh = built.sheet;
     for (const f of sh.F) {
-      if (f.v.length < 3 || INSIDE.test(f.m)) continue;
-      const part = /^windshield/.test(f.m) ? 'screen' : GLASS.test(f.m) ? 'glass' : SEAM_PILLAR.test(f.m) ? 'pillar' : SEAM_WAIST.test(f.m) ? 'waist' : 'body';
+      if (f.v.length < 3) continue;
+      // the INSIDE is kept as its own part: never measured, but a check of its own - seen from outside, it is a hole
+      // (an open ring between the cowl and the body, a skin taken for the inside: the user, 11 Nov)
+      const part = INSIDE.test(f.m) ? 'inside' : /^windshield/.test(f.m) ? 'screen' : GLASS.test(f.m) ? 'glass' : SEAM_PILLAR.test(f.m) ? 'pillar' : SEAM_WAIST.test(f.m) ? 'waist' : 'body';
       for (let t = 1; t + 1 < f.v.length; t++) {
         for (const i of [f.v[0], f.v[t], f.v[t + 1]]) xyz.push(sh.V[i][0] * FS, sh.V[i][1] * FS, sh.V[i][2] * FS);
         pid.push(PID[part]);

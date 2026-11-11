@@ -93,6 +93,8 @@ if (cmd === 'new') {
   if (B.errors.length) console.log('build errors: ' + B.errors.join(' | '));
   const r = table(doc.ref, B);
   printTable(r.T, (doc.name || '') + ' (build ' + B.ms + ' ms)');
+  const IN = C.insideShows(B), inside = Object.keys(IN).filter(v => IN[v].m2 > 0.01);
+  console.log(inside.length ? 'X THE INSIDE SHOWS: ' + inside.map(v => v + ' ' + IN[v].m2 + ' m2 around (' + IN[v].at.join(', ') + ')').join('; ') : '+ the inside never shows');
   const FO = C.folds(B);
   console.log('\n' + (FO.len > 0.04 ? 'X FOLDS in the skin: ' + FO.len + ' m of the body, the worst at ' + FO.at + ' m aft, ' + FO.h + ' m up (' + FO.depth + ' m deep)' : '+ no fold in the skin'));
   console.log('our windows (side, starboard): ' + r.win.map(w => w.a0.toFixed(2) + '-' + w.a1.toFixed(2) + ' x ' + w.h0.toFixed(2) + '..' + w.h1.toFixed(2)).join(' | '));
@@ -119,6 +121,7 @@ if (cmd === 'new') {
     }
     // a fold in the skin is never bought for a better line (the user: continuous shapes): a heavy penalty
     if (!argv.includes('--nofolds')) { const FO = C.folds(B); if (FO.len > 0.04) s += 400 + 4000 * FO.len; }
+    if (!argv.includes('--noinside')) { const IN = C.insideShows(B); for (const v of Object.keys(IN)) if (IN[v].m2 > 0.01) s += 200 + 2000 * IN[v].m2; }
     return { s, n, T };
   };
   const cur = Object.assign({}, doc.spec.cage), step = {}, base = DT.build(doc.spec, null, { level: 0, passes: 1 }).P;
@@ -131,13 +134,18 @@ if (cmd === 'new') {
     // to start from: it is left out of the search, named, and set by hand if it must move
     if (over[k] == null || !isFinite(+over[k])) { console.log('  ' + k + ' follows (no value): left out'); delete over[k]; delete rows[k]; }
   }
+  // THE SEARCH WALKS THE GARAGE'S OWN STEPS (11 Nov: a roof fit ended on topAngRoof 89.5, rounded to the row's step
+  // AFTER the search to 90 - and 90 folded the roof, a value the search never scored): every trial value is rounded to
+  // its row's step first, so the value written is the value scored
+  const defs = DT.rowDefs(), snap = (k, v) => { const st = defs[k] && defs[k].step; return st ? +(Math.round(v / st) * st).toFixed(4) : v; };
+  for (const k of Object.keys(over)) over[k] = snap(k, over[k]);
   let best = score(over); console.log('start ' + best.s.toFixed(2) + ' over ' + best.n + ' rows ' + JSON.stringify(over));
   for (let round = 0; round < +opt('rounds', 6); round++) {
     let moved = false;
     for (const k of Object.keys(rows)) {
       for (const sg of [1, -1]) {
         for (;;) {
-          const v = +Math.min(rows[k][1], Math.max(rows[k][0], over[k] + sg * step[k])).toFixed(4);
+          const v = snap(k, +Math.min(rows[k][1], Math.max(rows[k][0], over[k] + sg * step[k])).toFixed(4));
           if (v === over[k]) break;
           const tr = Object.assign({}, over, { [k]: v }), sc = score(tr);
           if (sc.s < best.s - 1e-6) { best = sc; Object.assign(over, tr); moved = true; console.log('  ' + k.padEnd(14) + String(v).padStart(9) + '  -> ' + best.s.toFixed(2)); }
@@ -147,9 +155,6 @@ if (cmd === 'new') {
     }
     if (!moved) { if (Object.keys(step).every(k => step[k] <= rows[k][2] / 4)) break; for (const k of Object.keys(step)) step[k] /= 2; }
   }
-  // rounded to each row's own garage step
-  const defs = DT.rowDefs();
-  for (const k of Object.keys(over)) { const st = defs[k] && defs[k].step; if (st) over[k] = +(Math.round(over[k] / st) * st).toFixed(4); }
   console.log('best ' + best.s.toFixed(2) + ' ' + JSON.stringify(over));
   if (argv.includes('--write')) { doc.spec.cage = Object.assign({}, doc.spec.cage, over); history(doc, opt('step', 'fit'), 'fit ' + JSON.stringify(over)); writePlane(f, doc); console.log('written'); }
 } else if (cmd === 'weigh') {

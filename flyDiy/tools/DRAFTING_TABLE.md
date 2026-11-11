@@ -431,3 +431,37 @@ Follow rows (frames that follow the reference section) now start from the genera
 | the drawn windows' corner radii: R1 / R2 ("fwd top", "aft top") round the window's BOTTOM corners as measured (and as the user saw), R3 / R4 the top | OPEN: flagged; the PC-6 uses R3 / R4 for its rounded tops |
 | the stab's height `stY` stops at 0.8: the PC-6's sits 7.6 cm higher | OPEN |
 | the dorsal: `finRootFwd` reaches 1.5 m ahead of the fin's LE; the PC-6's starts 1.9 m ahead | OPEN |
+
+## ROUND 3 (11 Nov, night): the square cabin and the nose
+
+The user: "you have a blind spot ... on the front view ... the cabin is actually totally squared, and yours is a
+narrower roof ... It's a square so that you can load square boxes in it", and asked for the nose in good definition
+("there seems to be a complex assembly there"). What the table looks for now, on every plane:
+
+| the user saw | the check now | where |
+|---|---|---|
+| a narrow, pitched roof the table never noticed: it read the front view's outline only as an extent | **front-view lines**: the cabin's walls traced on the front view (`ref.lines` `front.wall`, upper and lower wall) and scored like every other line; where the tracer veers off at a strut, the points are set by hand on the sheet | `refs/pc6.json`, `lineRows` |
+| "a complex assembly" at the nose: a round cowl in a square cabin front left an open ring with the frames inside showing | **the inside shows**: the inside faces (`dt_build` part `inside`: bulkheads, the firewall, tubes, the dash, the seats...) kept in the raster as their own part, and any of them seen from outside in any view is reported with its area and place (`table.js check`), penalised in `fit` (`--noinside` to drop) and failed by GATE DRAFTING | `dt_core.insideShows` |
+| | **the fitter walks the garage's steps**: it rounded its result to each row's step AFTER the search, and one roof fit ended on 89.5 deg, written as 90, which folded the roof (a value never scored); every trial is now on the row's step | `table.js fit` |
+
+### Garage lessons this round (REF_MATCH section 7)
+
+- **A square cabin**: the cabin rows (`halfW`, `roofHalfW`, every frame's top / waist / bottom widths) at one width,
+  `topAngRoof` ~88, `topAngCeil` ~70, and `topRound` 0.05 - **`topRound` 0 is not a sharp corner but the PITCHED
+  roof mode**.
+- **A cowl on a square fuselage**: `fitNose` 1 (fitted) rounds the section and leaves a ring at the firewall;
+  `fitNose` 2 (sealed: the size from the body, the section the cowl's own) with `cw_sqAftTop` / `cw_sqAftBot` ~0.9
+  closes it.
+- **A square cowl's split line**: in its default mode (`cw_partLevel` 0) the groove is a width in the section's own
+  parameter, which on a boxy section opens to centimetres near the waist - a dark wedge along the side (the inside
+  check does not see it: it is the strip, not the inside). `cw_partLevel` 1 (level, a fixed width in metres) is the
+  garage's own answer.
+- **The spinner** of a turbine card is small (the Caravan's 0.20 m): sized from the drawing (the PC-6's 0.40 m across,
+  0.45 m long), its base sunk into the nose bowl by the same length (`cw_noseOff`), so the spinner tip - the table's
+  datum - and every station stay put.
+- **Squaring the roof moves the windscreen's side outline** (3 deg steeper here): `wsRun` and `noseLen` moved
+  together (+0.08 / -0.08 m) bring it back without moving the wing, the gear or the tail.
+
+The PC-6 after round 3: 122 / 175 (floor raised to 120), no fold, the inside never shows, the walls within 5 mm.
+Still open: the chin intake, the cockpit door window, the tail wheel's station, the engine (-114A, not -27) and the
+empty mass, the static margin.

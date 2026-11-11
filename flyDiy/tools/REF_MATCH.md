@@ -268,6 +268,8 @@ the body aft for exactly this reason.
 | the tail wheel's station held at the tail post (`s2Z` moves nothing; the PC-6's sits 0.21 m aft of ours) | OPEN |
 | the stab's station `stZ` stops at -0.6 cage units | OPEN: reached by the chord |
 | the engine auto-fit: a type's engine from its power, mass and kind (the PC-6's PT6A-27, 550 shp / 149 kg, is not in the catalogue) | OPEN: the nearest catalogue engine flies |
+| `topRound` 0 is the PITCHED roof mode, not a sharp corner: a square cabin wants 0.05 (DRAFTING_TABLE.md round 3) | OPEN: label it in the row |
+| a square cowl's split line opens to a dark wedge in its default mode (`cw_partLevel` 0: the width is in the section's parameter) | the answer exists: `cw_partLevel` 1; OPEN: make it the default for a boxy section |
 
 ## 8. The Camel log (27 Oct 2026)
 
