@@ -154,9 +154,14 @@ function draw(rec, A) {
   if (fd) out.push(disc(map.side(fd), P_.fusCdA[0]) + disc(map.plan(fd), P_.fusCdA[0]));
   if (fa) out.push(disc(map.side(fa), P_.fusCdAAft[1] * 0.25) + disc(map.plan(fa), P_.fusCdAAft[1] * 0.25));
   const D = (P_.prop && P_.prop.D) || 0;
-  for (const e of (S.engAt || [])) { if (!e) continue; const ex = e.x + (e.mount === 'pusher' ? 0.25 : -0.12);
-    out.push(L(map.side([ex, e.y - D / 2, e.z]), map.side([ex, e.y + D / 2, e.z]), TH.eng, 2.4) + L(map.plan([ex, e.y, e.z - D / 2]), map.plan([ex, e.y, e.z + D / 2]), TH.eng, 2.4));
-    const fc = map.front([ex, e.y, e.z]); out.push(`<circle cx="${fc[0].toFixed(1)}" cy="${fc[1].toFixed(1)}" r="${(D / 2 * k).toFixed(1)}" fill="none" stroke="${TH.eng}" stroke-width="1.6"/>`); }
+  // the disc where the blades are DRAWN: the engine station (the mount's flange) moved by the editor's own measure of its hub
+  // (64c genAidPropOff off CAGE_ENG, as the design aids take it; FLAGSHIP, 12 Nov: no more fixed 0.12 m). The physics'
+  // strike disc still sits at the flange: a thin dashed tick there, in the side view
+  const PO = C.genAidPropOff(rec.probe && rec.probe.eng);
+  (S.engAt || []).forEach((e, i) => { if (!e) return; const off = PO && PO[i], ex = e.x + (off ? off[0] : 0), ey = e.y + (off ? off[1] : 0);
+    out.push(L(map.side([ex, ey - D / 2, e.z]), map.side([ex, ey + D / 2, e.z]), TH.eng, 2.4) + L(map.plan([ex, ey, e.z - D / 2]), map.plan([ex, ey, e.z + D / 2]), TH.eng, 2.4));
+    if (off && Math.abs(off[0]) > 0.02) out.push(L(map.side([e.x, e.y - D / 2, e.z]), map.side([e.x, e.y + D / 2, e.z]), TH.eng, 0.9, '3 3'));
+    const fc = map.front([ex, ey, e.z]); out.push(`<circle cx="${fc[0].toFixed(1)}" cy="${fc[1].toFixed(1)}" r="${(D / 2 * k).toFixed(1)}" fill="none" stroke="${TH.eng}" stroke-width="1.6"/>`); });
   for (const i of [].concat(def.refs.mains || [], def.refs.tw >= 0 ? [def.refs.tw] : [])) for (const vk of ['side', 'front']) { const q = map[vk](n[i].p); out.push(`<rect x="${(q[0] - 3.5).toFixed(1)}" y="${(q[1] - 3.5).toFixed(1)}" width="7" height="7" fill="${TH.gear}" stroke="${TH.edge}" stroke-width=".6"/>`); }
   // the masses: small (a dot no bigger than 2.6 px) - the planform must stay readable
   for (const q of n) if (q.m > 0.05) for (const vk of ['side', 'plan']) { const a = map[vk](q.p); out.push(`<circle cx="${a[0].toFixed(1)}" cy="${a[1].toFixed(1)}" r="${Math.min(2.6, 0.7 + Math.sqrt(q.m) * 0.22).toFixed(1)}" fill="${TH.ink}" fill-opacity=".55"/>`); }
@@ -183,7 +188,7 @@ function draw(rec, A) {
   y += 8; out.push(T(x0, y, 'CG ' + r0(A.bal.cgX * 100) + ' cm, NP ' + r0(A.bal.npX * 100) + ' cm behind the firewall · margin ' + r0(A.bal.sm * 100) + ' %', { sz: 12, c: TH.dim }));
   const ky = 866; let kx = 40;
   for (const [mark, t] of [[`<rect x="0" y="-9" width="16" height="10" fill="${TH.struct}" fill-opacity=".35" stroke="${TH.edge}"/>`, 'lifting panel'], [`<rect x="0" y="-9" width="16" height="10" fill="url(#hh)" stroke="${TH.ctl}"/>`, 'control surface'],
-    [`<circle cx="8" cy="-4" r="6" fill="none" stroke="${TH.ink}" stroke-dasharray="3 2"/>`, 'body drag point'], [`<line x1="0" y1="-4" x2="16" y2="-4" stroke="${TH.eng}" stroke-width="2.4"/>`, 'propeller'],
+    [`<circle cx="8" cy="-4" r="6" fill="none" stroke="${TH.ink}" stroke-dasharray="3 2"/>`, 'body drag point'], [`<line x1="0" y1="-4" x2="16" y2="-4" stroke="${TH.eng}" stroke-width="2.4"/>`, 'propeller, where drawn'], [`<line x1="0" y1="-4" x2="16" y2="-4" stroke="${TH.eng}" stroke-width="1" stroke-dasharray="3 3"/>`, 'physics strike disc (flange)'],
     [`<rect x="4" y="-8" width="7" height="7" fill="${TH.gear}"/>`, 'ground contact'], [`<line x1="0" y1="-4" x2="16" y2="-4" stroke="${TH.float}" stroke-width="1.4"/>`, 'float / hull members'], [`<circle cx="8" cy="-4" r="2.4" fill="${TH.ink}" fill-opacity=".55"/>`, 'mass']]) {
     out.push(`<g transform="translate(${kx},${ky})">${mark}</g>` + T(kx + 22, ky, t, { sz: 12, c: TH.dim })); kx += 34 + t.length * 6.4; }
   return `<svg viewBox="0 0 1200 900" xmlns="http://www.w3.org/2000/svg" font-family="'IBM Plex Sans', system-ui, sans-serif">${out.join('')}</svg>`;

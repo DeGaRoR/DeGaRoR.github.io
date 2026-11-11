@@ -43,4 +43,6 @@ for (const vk in views) {
   const rle = []; let cur = 0, run = 0; for (let i = 0; i < m.length; i++) { if (m[i] === cur) run++; else { rle.push(run); cur = m[i]; run = 1; } } rle.push(run);
   out[vk] = { W, H, s: PXM, u0, v0, rle };
 }
-return { views: out, meshes: meshes.length, afTris, datum: DT, bodyEnd, bodyNose, frame: 'model' };
+// the editor's engine record: each unit's mount point and its drawn prop hub (the join's frame), for genAidPropOff
+const CE = window.CAGE_ENG && Array.isArray(window.CAGE_ENG.units) ? { units: window.CAGE_ENG.units.map(u => u && { at: u.at && Array.from(u.at), propAt: u.propAt && Array.from(u.propAt) }) } : null;
+return { views: out, meshes: meshes.length, afTris, datum: DT, bodyEnd, bodyNose, frame: 'model', eng: CE };

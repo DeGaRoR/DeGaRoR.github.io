@@ -15,3 +15,13 @@
   (register(): 98-100 % of their pixels land on it). Float / hull members drawn; masses small; the aft body the physics
   flies, per plane; a body-depth check on rod / twin-boom planes.
 - The Metal Cessna: the 10 Nov fiche shows its stab 2.70 m; today's editor (headless load path) draws it 3.42 m, as flown.
+
+## Version 3 (12 Nov)
+- The propeller disc stands where the blades are drawn: engine station + 64c genAidPropOff(CAGE_ENG) (probe_raster2 now
+  returns CAGE_ENG's units; diag2 applies it). Was a fixed flange - 0.12 m (FLAGSHIP's trace). Offsets read: Cessnas
+  -0.255 m, Cubs/Jodel -0.165, DC-3 -0.305, Tiger Moth -0.095, Stearman/Camel/Rufus/Ruckus -0.065, pushers: Petrel
+  +0.255, Chinook +0.065. The physics strike disc still sits at the flange (dashed tick; FLAGSHIP's fix after the perf round).
+- Ruckus added (its own reproduction, not Rufus): builds/candidates/ruckus_std_2026-11-09.json from
+  claude/practical-cerf-7fjpwp, the card REAL-CHECK-2026-11-11/ruckus.json tests. Findings: tailplane area (gross) -14 %,
+  fin top -4 %, aft-body depth at 3.21 m +30 % (a rod drawn, a fuselage cone flown: the AFT-PODS case).
+- The V2-172 (list:50, cessna172r_2026-11-08) labelled the official Cessna for comparisons; B-CESS labelled legacy.
