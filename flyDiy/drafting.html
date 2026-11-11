@@ -166,7 +166,7 @@ function pump() {
   const views = {};
   for (const v of C.VIEWS) if (ref.views && ref.views[v]) views[v] = ref.views[v];
   const msg = { op: 'build', id: ++S.buildId, spec: S.doc.spec, over: S.over, passes: o.passes || 1, level: 0,
-    views, stations: C.stations(ref) };
+    views, stations: C.stations(ref), probes: C.probes(ref) };
   if (S.view === 'q') msg.shade = { W: 900, H: 600, yaw: S.yaw, pitch: S.pitch };
   status('building...');
   WK.postMessage(msg);

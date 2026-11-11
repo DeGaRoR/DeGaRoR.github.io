@@ -199,16 +199,28 @@
       if (t) { put('wing.tip.le', t.lo[0]); put('wing.tip.te', t.hi[0]); put('wing.tip.top', t.hi[1]); }
       if (r && t) put('wing.dihedral', Math.atan2(t.hi[1] - r.hi[1], sTip - sRoot) * 180 / Math.PI);
     }
+    // the body sheet starts at the FIREWALL (the cowl is its own layer): its front is the cowl's back edge; the cowl's
+    // front is the body's front face (the spinner sits ahead of it)
     const body = extent(T, Pt, S(['body', 'glass', 'pillar', 'waist']));
-    if (body) { put('body.front', body.lo[0]); put('tailpost', body.hi[0]); put('body.halfw', body.hi[2]); }
+    if (body) { put('cowl.back', body.lo[0]); put('tailpost', body.hi[0]); put('body.halfw', body.hi[2]); }
     const fin = extent(T, Pt, S(['fin']));
     if (fin) { put('fin.top', fin.hi[1]); put('fin.te', fin.hi[0]); put('fin.le', fin.lo[0]); }
     const stab = extent(T, Pt, S(['stab']));
-    if (stab) { put('stab.span', stab.hi[2] - stab.lo[2]); put('stab.le', stab.lo[0]); put('stab.te', stab.hi[0]); }
-    const eng = extent(T, Pt, S(['engine']));
-    if (eng) put('prop.dia', Math.max(eng.hi[2] - eng.lo[2], eng.hi[1] - eng.lo[1]));
+    if (stab) {
+      put('stab.span', stab.hi[2] - stab.lo[2]);
+      const r = slice(T, Pt, S(['stab']), 2, Math.min(1.0, stab.hi[2] * 0.4));   // the stab's chord 40 % out (clear of the fin)
+      if (r) { put('stab.le', r.lo[0]); put('stab.te', r.hi[0]); }
+    }
+    // the propeller: twice the farthest engine point from the thrust line, in the prop's plane (the first 30 cm aft
+    // of the tip) - a box would read a three-blade disc 13 % small
+    let rMax = 0;
+    for (let t = 0; t < Pt.length; t++) {
+      if (Pt[t] !== PID.engine) continue;
+      for (let e = 0; e < 3; e++) { const o = t * 9 + e * 3; if (T[o] > 0.3) continue; const r = Math.hypot(T[o + 1], T[o + 2]); if (r > rMax) rMax = r; }
+    }
+    if (rMax) put('prop.dia', 2 * rMax);
     const cowl = extent(T, Pt, S(['cowl']));
-    if (cowl) { put('cowl.back', cowl.hi[0]); put('cowl.front', cowl.lo[0]); }
+    if (cowl) put('body.front', cowl.lo[0]);
     // the wheels: the gear's lowest parts, fore half (mains) and aft half (tail or nose wheel)
     const gear = extent(T, Pt, S(['gear']));
     if (gear && body) {
@@ -222,7 +234,10 @@
           // the tyre's diameter: the gear's points within 4 cm (fore / aft) of the wheel's centre, top to bottom
           const col = extent(T, Pt, S(['gear']), (a, h, s) => a < mid && s > 0.05 && Math.abs(a - ac) < 0.04 && h < fore.lo[1] + 1.2);
           put('wheel.a', ac); put('wheel.bottom', fore.lo[1]);
-          if (col) { const top = Math.min(col.hi[1], fore.lo[1] + 1.2); put('wheel.dia', Math.min(1.5, top - fore.lo[1])); }
+          // the tyre's diameter from its chord a little above the ground (the legs above it never reach that low):
+          // a circle's chord c at height y from its bottom gives D = c^2 / (4 y) + y
+          const y = 0.06, ch = extent(T, Pt, S(['gear']), (a, h, s) => a < mid && s > 0.05 && h < fore.lo[1] + y);
+          if (ch) { const c = ch.hi[0] - ch.lo[0]; put('wheel.dia', c * c / (4 * y) + y); }
           put('track', 2 * (tyre.lo[2] + tyre.hi[2]) / 2);
         }
       }
@@ -232,6 +247,13 @@
       if (nose && !(fore && Math.abs(nose.lo[1] - fore.lo[1]) > 0.5)) { /* a nose wheel reads here when there is one */ }
     }
     put('height', all.hi[1] - all.lo[1]);
+    // PROBES: a point marked on the drawing's OUTLINE is compared with ours at the same height (or station): the part
+    // sliced there, its fore (lo) or aft (hi) edge - the general way to match an edge the rows have no number for
+    for (const pr of (opts.probes || [])) {
+      const axis = pr.at === 'h' ? 1 : pr.at === 's' ? 2 : 0, read = pr.read === 'h' ? 1 : pr.read === 's' ? 2 : 0;
+      const c = slice(T, Pt, S(pr.parts), axis, pr.value);
+      if (c) put(pr.id, pr.edge === 'lo' ? c.lo[read] : c.hi[read]);
+    }
     // the fuselage profile at the reference's stations
     for (const st of (opts.stations || [])) {
       const c = slice(T, Pt, FUSE, 0, st);
@@ -274,9 +296,13 @@
     ['tailpost',         'tail post',                    'm',  0.01,   { mark: 'tailpost', view: 'side', c: 'X' }],
     ['body.halfw',       'body half-width (max)',        'm',  0.02,   { mark: 'body.halfw', view: 'top', c: 'absY' }],
     ['fin.top',          'fin top',                      'm',  0.03,   { mark: 'fin.top', view: 'side', c: 'Y' }],
-    ['fin.te',           'rudder trailing edge',         'm',  0.03,   { mark: 'fin.te', view: 'side', c: 'X' }],
+    ['fin.te',           'rudder trailing edge (aft-most)', 'm', 0.03,  { mark: 'fin.te', view: 'side', c: 'X' }],
+    ['fin.le.at',        'fin LE at the mark\'s height',  'm',  0.03,   { mark: 'fin.le.at', view: 'side', c: 'X', probe: { parts: ['fin'], at: 'h', read: 'a', edge: 'lo' } }],
+    ['fin.te.at',        'rudder TE at the mark\'s height', 'm', 0.03,  { mark: 'fin.te.at', view: 'side', c: 'X', probe: { parts: ['fin'], at: 'h', read: 'a', edge: 'hi' } }],
+    ['strut.at',         'wing strut at the mark\'s height', 'm', 0.04, { mark: 'strut.at', view: 'side', c: 'X', probe: { parts: ['strut'], at: 'h', read: 'a', edge: 'lo' } }],
     ['stab.span',        'tailplane span',               'm',  0.03,   { fig: 'geometry.stabSpan' }],
-    ['stab.le',          'tailplane LE (root)',          'm',  0.03,   { mark: 'stab.le', view: 'top', c: 'X' }],
+    ['stab.le',          'tailplane LE',                 'm',  0.03,   { mark: 'stab.le', view: 'top', c: 'X' }],
+    ['stab.te',          'tailplane TE',                 'm',  0.03,   { mark: 'stab.te', view: 'top', c: 'X' }],
     ['prop.dia',         'propeller diameter',           'm',  0.02,   { fig: 'geometry.propDia' }],
     ['wheel.a',          'main wheel centre, aft',       'm',  0.01,   { mark: 'wheel', view: 'side', c: 'X' }],
     ['wheel.bottom',     'main wheel bottom',            'm',  0.01,   { mark: 'wheel.bottom', view: 'side', c: 'Y' }],
@@ -368,9 +394,21 @@
     return { rows, n: scored.length, pass: scored.filter(r => r.ok).length };
   }
   function stations(ref) { return refProfiles(ref).map(p => +p.a.toFixed(2)); }
+  // the probes the reference's marks ask for: each KM row with a probe rule and a placed mark
+  function probes(ref) {
+    const out = [];
+    for (const [id, , , , rule] of KM) {
+      if (!rule.probe) continue;
+      const m = ref.marks && ref.marks[rule.mark], V = ref.views && ref.views[rule.view];
+      if (!m || !V || !m.pts || !m.pts.length) continue;
+      const p = fromPx(V, m.pts[0][0], m.pts[0][1]);
+      out.push(Object.assign({ id, value: rule.probe.at === 'h' ? p[1] : p[0] }, rule.probe));
+    }
+    return out;
+  }
 
   const api = { VIEWS, PARTS, PID, COLOURS, FUSE, proj, toPx, fromPx, raster, edges, slice, extent, components,
-    measure, windows, KM, markValue, figValue, refProfiles, refWindows, compare, stations };
+    measure, windows, KM, markValue, figValue, refProfiles, refWindows, compare, stations, probes };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.DT_CORE = api;
 })(typeof self !== 'undefined' ? self : this);

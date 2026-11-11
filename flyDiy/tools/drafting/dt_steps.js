@@ -31,7 +31,7 @@
         ['fin', ['finHeight', 'finChord', 'finChordTip', 'finSweep']],
         ['stab', ['stSpan', 'stChord', 'stChordTip', 'stSweep', 'stY', 'stZ']],
       ],
-      km: ['span', 'wing.chord', 'wing.le', 'wing.te', 'wing.top', 'wing.dihedral', 'fin.top', 'fin.te', 'stab.span', 'stab.le'] },
+      km: ['span', 'wing.chord', 'wing.le', 'wing.te', 'wing.top', 'wing.dihedral', 'strut.at', 'fin.top', 'fin.le.at', 'fin.te.at', 'fin.te', 'stab.span', 'stab.le', 'stab.te'] },
     { id: 'drive', n: 6, title: 'Drivetrain, cowl, gear', what: 'the engine and the prop on the thrust line, the cowl\'s front face and taper, the wheels where they are',
       groups: [
         ['engine', ['engY', 'cw_noseOff', 'cw_propD']],

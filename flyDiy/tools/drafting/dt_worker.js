@@ -51,7 +51,7 @@ self.onmessage = ev => {
     if (m.op === 'build') {
       const B = DT_BUILD.build(self, m.spec, m.over || null, { level: m.level || 0, passes: m.passes || 1 });
       const out = { op: 'built', id: m.id, ms: B.ms, errors: B.errors, frame: B.frame, views: {} };
-      out.measure = DT_CORE.measure(B, { stations: m.stations || [] });
+      out.measure = DT_CORE.measure(B, { stations: m.stations || [], probes: m.probes || [] });
       out.windows = DT_CORE.windows(B);
       if (m.keys) { out.P = {}; for (const k of m.keys) out.P[k] = B.P[k]; }
       const tr = [];

@@ -30,7 +30,13 @@ function context() {
   return W;
 }
 function birth(key) { return context().DT_BUILD.birth(W, key); }
+// a card's birth with some of its choices changed (the architecture step): the card's sel + over, designBake's own way
+function birthSel(key, sel) {
+  const D = context().CAGE_DESIGN, a = D.ARCHETYPES.find(x => x.key === key);
+  if (!a) throw new Error('no archetype ' + key);
+  return D.designBake(Object.assign({}, a.sel, sel), a.over);
+}
 function build(spec, over, opts) { return context().DT_BUILD.build(W, spec, over, opts); }
 function rowDefs() { return context().DT_BUILD.rowDefs(W); }
 function load() { context(); return LOAD; }
-module.exports = { context, birth, build, rowDefs, load, ROOT, CORE: require('./dt_core.js') };
+module.exports = { context, birth, birthSel, build, rowDefs, load, ROOT, CORE: require('./dt_core.js') };
