@@ -417,3 +417,50 @@ Not in this landing (said, not hidden):
 - **cowl flaps** (default: v2), the scoop's azimuth (cheeks / dorsal) and a NACA flush inlet (default: later).
 - **radials**: a cowled radial is judged on its drawn front; the DC-3-alike candidate's saved front is a 0.70 x 0.24 m
   slot (0.10 m2 for two 895 kW engines' worth: 0.25 x) - the card's drawing, not the model.
+
+## 11. THE SECOND LANDING (12 Nov; the user: "we can make the row, but we have to modify the twin busher and the superpetrel at once ... let's have at least a top scoop ... the superpetrel, it has quite a large opening now. Let's fix that")
+
+What landed:
+
+- **A pusher's propeller sucks on its outlet** (`GEN_COOL.suck` 0.6). The Petrel's opening was measured right: its
+  throat is 0.038 m2, the drawn hole, about 24 x 22 cm in a 57 cm nacelle. What the model missed is the pusher's own
+  help. The cowl's outlet sits just ahead of the disc, where the static pressure falls by rho/2 ((V + v)^2 - V^2) of
+  the induced velocity v. The pressure driving the air through the engine grows, and the flow grows with its root:
+  V_in = V sqrt(1 + suck (f^2 - 1)). This applies in flight only; the ground keeps its `pushInflow` law. The Petrel's
+  air runs at 1.18 x its climb speed, which takes it from 0.81 to 0.96.
+- **list:41 Super Petrel LS**: its nose inlet goes from 0.42 to 0.47 of the nacelle (0.048 m2). It now passes the hot
+  climb at 1.20, and its cooling drag is unchanged (the outlet is sized for you).
+- **list:6 Twin busher floats 4b**: the chin scoop is turned to face the flight and rides the bottom line, with
+  half-sizes 0.20 x 0.15 m and a 0.9 mouth opening, and the cowl's bottom is lowered with an exit gap of 0.22. It goes
+  from 0 to 1.22. Its oil reads 108 C in the hot climb, against 168 C before. Its cooling drag rises 0.018 -> 0.021 m2.
+  A top scoop is no use on this plane: the cowl's top sits under the wing.
+- **The top scoop** (`cw_scoopTop`, row "sits: under the cowl (a chin scoop) / on top of the cowl"). It is the same
+  scoop mirrored above the spine: the rake lifts the mouth away from the skin, and when it follows, it follows the
+  deck line. Absent means the chin scoop, bit for bit.
+- **Only the open part of a mouth is measured** (`coolOpenings`): the scoop's opening is sampled against the cowl's
+  own section at the mouth's station. The first sizing of the Twin busher's scoop showed why this matters. Its rows
+  said 0.07 m2, but the scoop was drawn inside the deep cowl, so the drawing had a notch. The row now says so ("the
+  scoop is drawn inside the cowl's skin"), and the pusher remedy says to stand the scoop out of the skin.
+
+**Not landed: the rows going real.** A sweep of every card on the lists and every archetype the shed births finds
+more fails than the two planes (38 C, full-power climb, after this landing):
+
+| | fails |
+|---|---|
+| official | list:13 STOL Cub 0.65, list:26 Client Cub 0.97 |
+| candidates / internal | list:12 DC-3-alike, list:22/31 twinBoomFail, list:23 B-ITES 0.94, list:27 Ultralight twin on floats, list:28 Single-seat ultralight, list:38 sailPlane, list:33-36 the older Twin bushers, list:42-46 the older Petrels (0.94-0.96) |
+| archetypes (a new player's first design) | rv 0.57, spitfire 0.39, caravan 0.05, beaver 0.66, sesqui 0.89, ul1 0.86, motorglider 0.88, ttail 0.95, vtail 0.99; and the wing-nacelle twins da62, twinBush, p38, fourEngine, floatplane at 0, because their nacelle cowls are drawn closed (`cw_apMode` 0: no front at all) |
+
+Going real today would withdraw two official certificates and leave nine of the archetypes, plus the five wing
+twins, uncertifiable from birth.
+
+The tractor fails also raise a calibration doubt. The rv archetype draws 0.039 m2 for 134 kW, about what a real RV
+has, and real RVs cool in a hot climb (marginally). A single inlet velocity ratio (`kappa` 0.45) is likely too harsh
+on small, efficient pressure-cowl inlets. Their velocity ratio climbs well above 0.45 at climb speeds, and the
+baffles' resistance, not the inlet, limits the flow.
+
+The proposal, for the user's ruling:
+1. calibrate on an RV-class cowl (the inlet ratio rising as the inlet shrinks, the baffle limit);
+2. re-sweep;
+3. open the wing twins' nacelle faces and re-draw whatever still fails among the official cards and the archetypes;
+4. then rule the rows real, with `sign.rules` for kept signatures.
