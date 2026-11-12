@@ -4713,7 +4713,7 @@ html.phone #npWrap .npBtn { flex:1; min-width:0; padding:0 8px; }
     </div>
   </aside>
 </div>
-<script>window.FLYDIY_BUILD='b7718139fbab';window.FLYDIY_BUILD_DATE='2026-11-12T10:23:40.007Z';</script>
+<script>window.FLYDIY_BUILD='8e572dbd2ca3';window.FLYDIY_BUILD_DATE='2026-11-12T15:39:15.533Z';</script>
 <script>
 // ===========================================================================
 // THE NAMES (G3240 NAMES, 2026-10-22; GAME-PLAN-2026-10-15 §R and §13). The user, 15 Oct: "Everything should have a
@@ -46425,10 +46425,15 @@ const GEN_DRAG = {
 //   path      the air may warm by dT = eps (Tlim - T_ambient) before the hot side is at its limit: a hot day shrinks
 //             the gap, which is why a hot climb is the sizing case. PROPOSED constants, calibrated so the cowls fitted
 //             to real reference models (the Cub, the V2-172, the Jodel) pass the hot climb with a real margin (GATE COOL)
-//   kappa     the inlet's velocity ratio V_inlet / V_free behind a fixed exit (0.3-0.5 for a diffusing inlet); bare
-//             heads and fins in the stream at kappaBare
+//   ivr       the inlet's BEST velocity ratio V_inlet / V_free (ENGINE-COOLING 3): a small inlet, the engine's passages
+//             pulling hard behind it, runs near it (0.6-0.9 in a climb); a big one spills (the passages limit it)
+//   passages  the engine's own fins and baffles: `passages` x the air its hot climb needs, at that climb's inlet speed,
+//             with nothing ahead of them (an engine is built to be cooled); in series with the inlet and a drawn outlet,
+//             mdot = 1 / sqrt(sum 1 / mdot_i^2). Calibrated so the reference-fitted cowls (the Cub, the V2-172, the
+//             Jodel) keep a real margin and a big inlet stops buying air past ~3 x (it spills round the cowl)
+//   kappaBare the heads and fins left in the stream (the Cub's, a bare engine's), beside the cowl's air
 //   r         the exit velocity over the free stream: the momentum the air keeps (a baffled cowl 0.7, a radiator duct
-//             with a diffuser 0.8): cooling drag D = mdot V (1 - r), CdA = 2 kappa A (1 - r)
+//             with a diffuser 0.8): cooling drag D = mdot V (1 - r), CdA = 2 (mdot / rho V) (1 - r)
 //   outRatio  the drawn outlet that passes the inlet's flow (the heated air is thinner: the classic 1.3 x)
 //   slip      the slipstream's share at a nose inlet (behind the propeller's roots), of the actuator disc's velocity
 //             ratio; a pusher's own inlets on the ground get `pushInflow` of the disc's static velocity (the prop sucks)
@@ -46449,7 +46454,7 @@ const GEN_COOL = {
           liquid:   { Tlim: 110, eps: 0.55 },
           electric: { Tlim: 70,  eps: 0.50 },
           turbine:  { Tlim: 90,  eps: 0.50 } },
-  kappa: 0.45, kappaBare: 0.5,
+  ivr: 0.8, passages: 3.0, kappaBare: 0.5,
   r: { cowl: 0.70, duct: 0.80 },
   outRatio: 1.3,
   slip: 0.6, etaClimb: 0.65, FM: 0.7, pushInflow: 0.25, suck: 0.6,
@@ -57384,16 +57389,24 @@ function genFusSwet(S, ST) {
 // gen.drag for the plaque and the study.
 // ENGINE COOLING (ENGINE-COOLING, futureDesigns/ENGINE-COOLING-2026-11.md; GEN_COOL's header in 60_gen_spec says what
 // each constant is). Pure, no sim: the heat (genEngineThermo) -> the air it needs (Q = mdot cp dT) -> the air the drawn
-// openings pass (kappa rho V_inlet A, capped by a drawn outlet) -> a MARGIN per case (the hot-day climb, the taxi, the
-// cruise), and the cooling DRAG from the momentum the air loses (CdA = 2 mdot (1 - r) / rho V).
+// geometry passes -> a MARGIN per case (the hot-day climb, the taxi, the cruise), and the cooling DRAG from the momentum
+// the air loses (CdA = 2 mdot (1 - r) / rho V).
+// THE AIR PASSED (ENGINE-COOLING 3, the user 12 Nov: "if you recalibrate something, that should be your coefficients
+// around the opening or the geometry of the opening"): three resistances IN SERIES - the drawn inlet (ivr rho V A_in: a
+// small inlet runs near its best velocity ratio), the engine's own passages (its fins and baffles: `passages` x the air
+// its hot climb needs, at that climb's inlet speed - an engine is built to be cooled; past that the air spills round the
+// cowl), and a drawn outlet (ivr rho V A_out / outRatio) - mdot = 1 / sqrt(sum 1 / mdot_i^2). The cylinder heads in the
+// wind pass beside it (kappaBare rho V A_heads).
 // WHAT IS READ: spec.cooling (the join's measurement of the drawn cowl, m2: `face` the front apertures net of the
-// spinner, `scoop` the scoop's mouth and `scoopRev` its facing, `nacInlet` a nacelle cone's inlet, `exit` the lowered
-// bottom, `gills` the side gills), the cage's wing radiators (rad* rows, cage metres), the cylinder heads the cowl
-// leaves in the wind (genHeadsFrontal), the engine's facing (engAt.pushes). The cowl's +z faces the propeller: on a
-// tractor the face apertures take the air in, on a pusher they face aft and let it out.
-// THREE ANSWERS (`kind`): 'bare' - no cowl, the engine in the wind (the heads / nacelle drag already bills it; cooling
-// passes); 'legacy' - a cowled spec nobody measured (a headless build, an old fiche): no margin, today's GEN_DRAG.kCool;
-// 'measured' - the model.
+// spinner, `scoop` the scoop's open mouth and `scoopRev` its facing, `scoopAlt` its mouth at the other end, `nacInlet` a
+// nacelle cone's inlet, `exit` the lowered bottom, `gills` the side gills, `headsOut` / `headsAll` the cylinders' frontal
+// outside the drawn skin / in all, `units` each engine unit's cowl: turned round (aft), its area factor, its scoop turned
+// on its own), the cage's wing radiators (rad* rows), the engine's facing (engAt.pushes). The cowl's +z faces the
+// propeller: on a tractor the face apertures take the air in, on a pusher they face aft and let it out.
+// THREE ANSWERS (`kind`): 'bare' - no cowl, the engine in the wind: its heads alone (headsAll); 'legacy' - a cowled spec
+// nobody measured (a headless build, an old fiche): no margin, today's GEN_DRAG.kCool; 'measured' - the model.
+// EVERY ENGINE ON THE BODY is judged (a push-pull's nose and rear: the rear one wears the nose cowl turned round); the
+// answer is the worst one's, its drag the sum. Wing and pylon nacelles all wear one cowl: engine 0 speaks for them.
 //   o.VClimb, o.VCruise  EAS, m/s (the aeroplane's own: GEN_VRATIO x Vs at build, def.params.ap after)
 function genHeadsFrontal(S) {
   const E = S.engBox, cw = S.cowl || {}, covers = cw.covers || {};
@@ -57407,16 +57420,22 @@ function genHeadsFrontal(S) {
   const out = Math.max(0, E.cylReach - (cowlOn && at.halfW > 0 ? at.halfW : E.halfW));
   return 2 * out * (2 * E.cylR) * 2;                    // both banks, each bank's reach x its height
 }
-function genCoolOpen(S) {
+// the body's engines (a nose, a pusher), by their index in engAt; none: engine 0 speaks for every nacelle
+function genCoolBodyEngines(S) {
+  const ks = (S.engAt || []).map((e, i) => e && (e.mount === 'nose' || e.mount === 'pusher') ? i : -1).filter(i => i >= 0);
+  return ks.length ? ks : [0];
+}
+function genCoolOpen(S, k) {
   const K = GEN_COOL, cg = S.cage || {}, cw = S.cowl || {};
   const cowlOn = S.cage && S.cage.cowlOn != null ? !!+S.cage.cowlOn : cw.on !== false;
-  const at = (S.engAt && S.engAt[0]) || {};
+  const EA = S.engAt || [], ki = k > 0 ? k : 0;
+  const at = EA[ki] || EA[0] || {};
   const pushes = !!at.pushes;
   const nEng = Math.max(1, (S.engines && S.engines.length) || 1);
   // the engines whose cooling the BODY row pays: those on the body (a nose, a pusher); a wing or pylon nacelle's is in
   // the nacelle rule's 0.30 x frontal ("cylinders, radiator, exhaust, the lot"), and the per-kW term before this charged
   // one engine whatever the count - so one at least, as it did
-  const nBody = Math.max(1, (S.engAt || []).filter(e => e && (e.mount === 'nose' || e.mount === 'pusher')).length);
+  const nBody = Math.max(1, EA.filter(e => e && (e.mount === 'nose' || e.mount === 'pusher')).length);
   // the wing radiators (27 Oct): a ducted radiator's mouth under each wing (or one and an oil cooler) - the duct is drawn
   // with its exit flap, so its outlet is the duct's own; shared between the engines when there are several
   const rm = Math.round(+cg.radMode || 0), ps = +cg.planeScale > 0 ? +cg.planeScale : 1;
@@ -57424,37 +57443,63 @@ function genCoolOpen(S) {
   const oilK = Math.max(0, +cg.radOilK || 0.55);
   const radA = rm === 1 ? 2 * mouth : rm === 2 ? mouth * (1 + oilK * oilK) : 0;
   const parts = [];
-  if (!cowlOn) return { kind: 'bare', pushes, nEng, nBody, inA: 0, outA: 0, bareA: 0, radA: radA / nEng, exitSized: true, parts };
   const C = S.cooling && typeof S.cooling === 'object' ? S.cooling : null;
-  if (!C) return { kind: 'legacy', pushes, nEng, nBody, inA: 0, outA: 0, bareA: 0, radA: radA / nEng, exitSized: true, parts };
   const n = v => Math.max(0, +v || 0);
+  // the heads in the wind: measured against the drawn skin when the join could (headsOut / headsAll), else the
+  // generator's own reach against its cowl loft (genHeadsFrontal)
+  if (!cowlOn) return { kind: 'bare', k: ki, pushes, nEng, nBody, inA: 0, outA: 0, radA: radA / nEng, exitSized: true, parts,
+                        bareA: C && C.headsAll != null ? n(C.headsAll) : genHeadsFrontal(S) };
+  if (!C) return { kind: 'legacy', k: ki, pushes, nEng, nBody, inA: 0, outA: 0, bareA: 0, radA: radA / nEng, exitSized: true, parts };
+  // this engine's unit: its cowl's area factor (a clone scaled to another kind of face) and its scoop turned on its own
+  const U = (Array.isArray(C.units) && C.units[ki]) || {}, kf = +U.k > 0 ? +U.k : 1, turned = !!+U.turned;
   let inA = 0, outA = 0;
   const put = (A, faces, what) => { if (!(A > 0)) return; parts.push({ what, A, faces }); if (faces === 'fwd') inA += A; else outA += A; };
-  put(n(C.face), pushes ? 'aft' : 'fwd', 'the cowl\'s front openings');
-  // a scoop's mouth faces the cowl's +z (the propeller) unless it is turned round
-  put(n(C.scoop), (!!+C.scoopRev) === pushes ? 'fwd' : 'aft', 'the scoop');
+  put(kf * n(C.face), pushes ? 'aft' : 'fwd', 'the cowl\'s front openings');
+  // a scoop's mouth faces the cowl's +z (the propeller) unless it is turned round (on this unit: cw_scoopAft)
+  const rev = turned ? !+C.scoopRev : !!+C.scoopRev;
+  put(kf * n(turned ? C.scoopAlt : C.scoop), rev === pushes ? 'fwd' : 'aft', 'the scoop');
   // a nacelle cone's inlet faces -z: the flight on a pusher, aft on a tractor
-  put(n(C.nacInlet), pushes ? 'fwd' : 'aft', 'the nacelle\'s inlet');
-  put(n(C.exit), 'aft', 'the lowered bottom (the exit)');
-  put(n(C.gills), 'aft', 'the gills');
-  const bareA = genHeadsFrontal(S);
-  return { kind: 'measured', pushes, nEng, nBody, inA, outA, bareA, radA: radA / nEng, exitSized: !(outA > 0), parts };
+  put(kf * n(C.nacInlet), pushes ? 'fwd' : 'aft', 'the nacelle\'s inlet');
+  // the lowered bottom's crescent and the gills' hoods open towards the cowl's FIREWALL end: aft on a tractor (the way
+  // out), into the flight on a pusher, whose cowl is turned round (ENGINE-COOLING 3: there they are inlets, and a
+  // pusher's way out is its face, round the spinner at the propeller's end)
+  put(kf * n(C.exit), pushes ? 'fwd' : 'aft', 'the lowered bottom (the exit)');
+  put(kf * n(C.gills), pushes ? 'fwd' : 'aft', 'the gills');
+  const bareA = C.headsOut != null ? n(C.headsOut) : genHeadsFrontal(S);
+  return { kind: 'measured', k: ki, pushes, nEng, nBody, inA, outA, bareA, radA: radA / nEng, exitSized: !(outA > 0), parts };
 }
 function genCooling(S, o) {
+  const ks = genCoolBodyEngines(S);
+  const per = ks.map(k => genCoolingOne(S, o, k));
+  // the worst engine answers; the drag is every body engine's (wing nacelles: engine 0's alone, as the body row always
+  // paid one)
+  let w = per[0];
+  for (const p of per) if (p.hot && w.hot && p.hot.margin < w.hot.margin) w = p;
+  const out = Object.assign({}, w);
+  if (per.length > 1) {
+    out.cdA = per.reduce((s, p) => s + (p.cdA || 0), 0);
+    out.engines = per.map(p => ({ k: p.k, pushes: p.pushes, margin: p.hot ? p.hot.margin : null, limit: p.hot ? p.hot.limit : null }));
+  }
+  return out;
+}
+function genCoolingOne(S, o, k) {
   const K = GEN_COOL, oo = o || {};
   const EN = (S.engines && S.engines[0]) || {};
   const PP = S.pplant || POWERPLANTS[EN.type] || POWERPLANTS.a65_sensenich74;
   const eng = (PP && PP.engine) || {};
   const th = genEngineThermo(eng);
   const path = th.family === 'turbine' ? 'turbine' : th.family === 'electric' ? 'electric' : th.cooling;
-  const op = genCoolOpen(S);
+  const op = genCoolOpen(S, k);
   const kW = (eng.powerW || 0) / 1000, D = (S.prop && S.prop.D) || (PP.prop && PP.prop.D) || 1.8;
   const Adisc = Math.PI * D * D / 4;
   const asp = eng.aspiration || 'na';
   const crit = (asp === 'turbo' || asp === 'super') && eng.critAlt > 0 ? ATMOS_ISA.sigma(eng.critAlt) : 1;
-  const out = { kind: op.kind, path, coolKW: th.coolKW, pushes: op.pushes, nEng: op.nEng,
-                inA: op.inA + op.radA, outA: op.outA, bareA: op.bareA, radA: op.radA, exitSized: op.exitSized, parts: op.parts };
-  if (op.kind !== 'measured' && !(op.radA > 0 && op.kind === 'legacy')) return out;
+  // the heads' air: a bare engine's (any piston: its cylinders, its radiator, in the wind); a cowled one's air-cooled
+  // heads only (a liquid head's barrel is not what the cowl is sized for)
+  const bareA = op.kind === 'bare' ? (path === 'turbine' || path === 'electric' ? 0 : op.bareA) : (path === 'air' ? op.bareA : 0);
+  const out = { kind: op.kind, k: op.k, path, coolKW: th.coolKW, pushes: op.pushes, nEng: op.nEng,
+                inA: op.inA + op.radA, outA: op.outA, bareA, radA: op.radA, exitSized: op.exitSized, parts: op.parts };
+  if (op.kind === 'legacy' && !(op.radA > 0)) return out;
   if (op.kind === 'legacy') out.kind = 'measured';                // the radiators are measured whatever the cowl
   const duct = op.radA > 0 && op.radA >= op.inA;                  // the air goes through a radiator duct
   const r = duct ? K.r.duct : K.r.cowl;
@@ -57466,7 +57511,7 @@ function genCooling(S, o) {
     const T = K.etaClimb * Pw / Math.max(1, V);
     return (1 + Math.sqrt(1 + 2 * T / (rho * Adisc * V * V))) / 2;
   };
-  const caseAt = (A, h, pFrac, Veas, ground) => {
+  const air = (A, h, pFrac, Veas, ground) => {
     const rho = A.rho(h), sig = A.sigma(h), Tc = A.T(h) - 273.15;
     const pr = pFrac * atmosPowerRatio(sig, asp, eng.flatK || 1, crit);
     const Q = th.coolKW * pr * 1000;                              // W, per engine
@@ -57480,15 +57525,39 @@ function genCooling(S, o) {
       const V = Veas / Math.sqrt(sig), f = slip(pr * kW * 1000, V, rho);
       Vin = V * (op.pushes ? Math.sqrt(1 + K.suck * (f * f - 1)) : 1 + K.slip * (f - 1));
     }
-    const capIn = K.kappa * rho * Vin * out.inA;
-    const capOut = op.exitSized ? Infinity : K.kappa * rho * Vin * op.outA / K.outRatio;
-    const flow = Math.min(capIn, capOut);
-    const bare = K.kappaBare * rho * Vin * op.bareA;
+    return { rho, Tc, Q, need, Vin };
+  };
+  const VC = oo.VClimb > 0 ? oo.VClimb : 30, VCr = oo.VCruise > 0 ? oo.VCruise : VC * 1.24;
+  const HOT = makeAtmos({ dISA: K.hot.dISA });
+  // THE ENGINE'S PASSAGES, an equivalent area (m2 at the free stream): `passages` x what its hot climb needs there
+  const h0 = air(HOT, K.hot.h, 1, VC, false);
+  const Aeng = K.passages * h0.need / (h0.rho * h0.Vin);
+  const inv2 = f => f > 0 && isFinite(f) ? 1 / (f * f) : (f === Infinity ? 0 : Infinity);
+  const caseAt = (A, h, pFrac, Veas, ground) => {
+    const { rho, Tc, Q, need, Vin } = air(A, h, pFrac, Veas, ground);
+    const fIn = K.ivr * rho * Vin * out.inA, fEng = rho * Vin * Aeng;
+    const fOut = op.exitSized ? Infinity : K.ivr * rho * Vin * op.outA / K.outRatio;
+    const rIn = inv2(fIn), rEng = inv2(fEng), rOut = inv2(fOut), sum = rIn + rEng + rOut;
+    const flow = isFinite(sum) && sum > 0 ? 1 / Math.sqrt(sum) : 0;
+    const bare = K.kappaBare * rho * Vin * bareA;
     const pass = flow + bare;
+    // the inlet that would pass `m` x the need, the outlet sized for it (through the engine's passages); the outlet that
+    // would, through the inlet AS DRAWN (Infinity: the inlet must grow first)
+    const T = m => m * need - bare;
+    const inAt = m => {
+      const t = T(m); if (!(t > 0)) return 0;
+      const rhs = 1 / (t * t) - rEng;
+      return rhs > 0 ? 1 / Math.sqrt(rhs) / (K.ivr * rho * Vin) : Infinity;
+    };
+    const outAt = m => {
+      const t = T(m); if (!(t > 0)) return 0;
+      const rhs = 1 / (t * t) - rEng - rIn;
+      return rhs > 0 ? K.outRatio / Math.sqrt(rhs) / (K.ivr * rho * Vin) : Infinity;
+    };
+    const inNeed = inAt(1), inPass = inAt(K.warn);
     return { rho, oatC: Tc, Q: Q / 1000, dT: dT(Tc), need, pass, flow, bare, margin: need > 0 ? pass / need : Infinity,
-             Vin, inNeed: Math.max(0, need - bare) / (K.kappa * rho * Vin),
-             outNeed: Math.max(0, need - bare) / (K.kappa * rho * Vin) * K.outRatio,
-             limit: capOut < capIn ? 'outlet' : 'inlet' };
+             Vin, inNeed, inPass, outNeed: outAt(1), outPass: outAt(K.warn),
+             limit: rOut >= rIn && rOut >= rEng ? 'outlet' : rEng > rIn ? 'engine' : 'inlet' };
   };
   // the case the caller is IN (the cockpit's needle: o.at = { air: an atmosphere, h, pFrac, Veas, ground })
   if (oo.at && oo.at.air) {
@@ -57496,22 +57565,22 @@ function genCooling(S, o) {
     out.at = caseAt(a.air, a.h || 0, Math.max(0, Math.min(1, +a.pFrac || 0)), Math.max(0, +a.Veas || 0), !!a.ground);
     if (oo.atOnly) return out;
   }
-  const VC = oo.VClimb > 0 ? oo.VClimb : 30, VCr = oo.VCruise > 0 ? oo.VCruise : VC * 1.24;
-  const HOT = makeAtmos({ dISA: K.hot.dISA });
   out.hot = caseAt(HOT, K.hot.h, 1, VC, false);
   out.taxi = caseAt(HOT, K.hot.h, K.taxi.power, 0, true);
   out.cruise = caseAt(ATMOS_ISA, 0, K.cruisePower, VCr, false);
-  // THE DRAG: the flow a fixed geometry passes is kappa rho V A of its EFFECTIVE inlet - the drawn inlet, capped by a
-  // drawn outlet; with no outlet drawn, the outlet is SIZED FOR YOU to the hot climb's need (the default every saved
-  // build reads: its drag follows what its engine needs, not how big its face is drawn) - and the heads' air is billed
-  // by the heads term (the need here is net of it). Per engine, x the engines on the body (nBody).
+  out.Aeng = Aeng;
+  if (op.kind === 'bare') { out.cdA = 0; out.margin = out.hot.margin; return out; }   // (a bare engine's drag: the heads term)
+  // THE DRAG: the momentum of the air the geometry passes - with no outlet drawn, the outlet is SIZED FOR YOU to the hot
+  // climb's need (the default every saved build reads: its drag follows what its engine needs, not how big its face is
+  // drawn); a drawn outlet passes what the series passes; never less than the air it NEEDS (an engine starved of air
+  // overheats - the margin says so - and does not fly faster for it). Net of the heads' air (the heads term bills it).
+  // Equivalent free-stream areas (m2): the air over rho V_inlet
   const H = out.hot;
-  // (never less than the air it NEEDS: an engine starved of air overheats - the margin says so - and does not fly
-  // faster for it)
-  const Aeff = op.exitSized ? H.inNeed : Math.max(H.inNeed, Math.min(out.inA, op.outA / K.outRatio));
+  const needEq = Math.max(0, H.need - H.bare) / (H.rho * H.Vin), flowEq = H.flow / (H.rho * H.Vin);
+  const Aeff = op.exitSized ? needEq : Math.max(needEq, flowEq);
   // the cruise's dynamic pressure over the inlet's: the flow rides the slipstream, the momentum is lost on the free stream
   const fC = out.cruise.Vin / (VCr / Math.sqrt(ATMOS_ISA.sigma(0)));
-  let cda = 2 * K.kappa * Aeff * fC * (1 - r);
+  let cda = 2 * Aeff * fC * (1 - r);
   // MEREDITH: a radiator duct's heat as thrust, k M^2 Q at the cruise (a cowl gets none)
   let meredithN = 0;
   if (duct) {
@@ -57520,10 +57589,14 @@ function genCooling(S, o) {
     cda = Math.max(0, cda - meredithN / q);
   }
   out.Aeff = Aeff; out.r = r; out.duct = duct; out.meredithN = meredithN;
-  out.cdA = cda * op.nBody;
+  // one engine's; genCooling sums the body's (a single engine's body row: x nBody as it always was - one)
+  out.cdA = ks1(S) ? cda * op.nBody : cda;
   out.margin = H.margin;
   return out;
 }
+// the body row's old count: one engine's cooling x nBody when ONE engine speaks for the body (a single, or wing
+// nacelles: nBody 1); with several body engines genCooling sums them each once
+function ks1(S) { return genCoolBodyEngines(S).length <= 1; }
 
 // the plaque's few numbers (genShakedown's `cooling`): null for a cowled spec never measured
 function genCoolSummary(def) {
@@ -57531,8 +57604,10 @@ function genCoolSummary(def) {
   if (!S || typeof genCooling !== 'function') return null;
   const C = genCooling(S, { VClimb: ap.VClimb, VCruise: ap.VCruise });
   if (C.kind === 'legacy') return null;
-  if (C.kind === 'bare') return { kind: 'bare' };
   const r3 = v => Math.round(v * 1000) / 1000, r2 = v => Math.round(v * 100) / 100;
+  // (ENGINE-COOLING 3: a bare engine's own figure - its heads in the wind)
+  if (C.kind === 'bare') return { kind: 'bare', bareA: r3(C.bareA), needKgS: r2(C.hot.need), passKgS: r2(C.hot.pass),
+                                  margin: r2(C.hot.margin), taxi: r2(C.taxi.margin) };
   return { kind: C.kind, pushes: C.pushes, inA: r3(C.inA), outA: C.exitSized ? null : r3(C.outA), bareA: r3(C.bareA),
            needA: r3(C.hot.inNeed), needKgS: r2(C.hot.need), passKgS: r2(C.hot.pass), margin: r2(C.hot.margin),
            taxi: r2(C.taxi.margin), cruise: r2(C.cruise.margin), cdA: r3(C.cdA), limit: C.hot.limit };
@@ -57547,7 +57622,7 @@ function genCoolOilC(S, at) {
   const C = genCooling(S, { at, atOnly: true });
   if (C.kind === 'legacy' && !(C.radA > 0)) return null;
   const T = at.air.T(at.h || 0) - 273.15;
-  const x = C.kind === 'bare' || !C.at ? 0.5 : (C.at.pass > 0 ? Math.min(2, C.at.need / C.at.pass) : 2);
+  const x = !C.at ? 0.5 : (C.at.pass > 0 ? Math.min(2, C.at.need / C.at.pass) : 2);
   const oil = Math.max(T + 20, T + (K.oilRed - T) * Math.pow(x, 0.7));
   return { oilC: oil, margin: x > 0 ? 1 / x : Infinity };
 }
@@ -62677,16 +62752,32 @@ function genCoolRows(def) {
   if (C.kind === 'legacy') return [];
   const lim = 'FAR 23.1043\'s climb cooling day: 38 C at sea level, full power at Vy. Fail under ' + K.pass.toFixed(2) +
               ' x the air the engine needs, warn under ' + K.warn.toFixed(2);
-  if (C.kind === 'bare')
-    return [{ id: 'cool.climb', group: 'power', tier: 'safe', proposed: true, label: 'Engine cooling, hot-day climb', value: null, unit: '',
-              level: 'pass', limit: lim, why: 'no cowl: the engine and its cooling stand in the air', fix: '' }];
   const H = C.hot, T = C.taxi, m = H.margin;
-  const lvl = m < K.pass ? 'fail' : m < K.warn ? 'warn' : 'pass';
+  const lvlOf = v => v < K.pass ? 'fail' : v < K.warn ? 'warn' : 'pass';
+  // ENGINE-COOLING 3 (the user: "check Rufus ... completely open engines, what kind of figure we get"): a bare engine's
+  // own figure - its cylinders' frontal in the wind
+  if (C.kind === 'bare' && (C.path === 'electric' || C.path === 'turbine'))
+    return [{ id: 'cool.climb', group: 'power', tier: 'safe', proposed: true, label: 'Engine cooling, hot-day climb', value: null, unit: '',
+              level: 'pass', limit: lim, why: 'no cowl: an ' + (C.path === 'electric' ? 'electric motor' : 'engine') + ' in the open air cools itself', fix: '' }];
+  if (C.kind === 'bare') {
+    const bl = lvlOf(m);
+    return [{ id: 'cool.climb', group: 'power', tier: 'safe', proposed: true, label: 'Engine cooling, hot-day climb', value: r2(m),
+              unit: 'x the air needed', level: bl, limit: lim,
+              why: 'no cowl: ' + r3(C.bareA) + ' m2 of cylinders in the wind pass ' + r2(m) + ' x the ' + r2(H.need) + ' kg/s the engine needs at ' + Math.round(H.oatC) + ' C',
+              fix: bl === 'pass' ? '' : 'a bare engine this hot needs a cowl with an inlet (or a bigger engine is the wrong fix: it heats more)' }];
+  }
+  const lvl = lvlOf(m);
   const cm = v => Math.round(v * 100);
   // the mouth to draw, as width x height (an oval 1.2 x as wide as tall)
   const mouth = A => { const h = Math.sqrt(4 * A / (Math.PI * 1.2)); return cm(1.2 * h) + ' x ' + cm(h) + ' cm'; };
   // the sizes to draw are the PASS line's (K.warn x the need: a design drawn to exactly 1.00 runs hot)
-  const need = r3(H.inNeed * K.warn), have = r3(C.inA), outNeed = r3(H.outNeed * K.warn);
+  const need = r3(H.inPass), have = r3(C.inA), outNeed = r3(H.outPass);
+  // a push-pull: the engine that answers (the worst), named
+  const who = Array.isArray(C.engines) && C.engines.length > 1 ? (C.pushes ? 'the rear engine: ' : 'the nose engine: ') : '';
+  // the way out: a tractor's at its firewall end (the lowered bottom, the gills); a pusher's cowl is turned round, so
+  // its way out is its face, round the spinner at the propeller's end
+  const wayOut = C.pushes ? 'open the cowl\'s face round the spinner (inlets: one, round the spinner - on a pusher it is the way out)'
+                          : 'lower the cowl\'s bottom (exit gap) or add gills';
   const fwd = C.parts.filter(p => p.faces === 'fwd').map(p => p.what), aftIn = C.parts.filter(p => p.faces === 'aft' && /front|scoop|inlet/.test(p.what));
   let why, fix = '';
   const air = r2(H.need) + ' kg/s of air at ' + Math.round(H.oatC) + ' C to carry ' + Math.round(H.Q) + ' kW';
@@ -62697,9 +62788,10 @@ function genCoolRows(def) {
     why = 'no opening faces the air' + (C.pushes && aftIn.length ? ': this cowl\'s openings face the propeller, which on a pusher is backwards' : '') +
           ' - in a hot climb the engine gets none of the ' + air + buriedNote;
     // ...and the air needs a way out: a pusher's aft face round the spinner is its outlet, often a sliver
-    const outFix = !C.exitSized && C.outA < outNeed ? '; and give the air a way out: about ' + outNeed + ' m2 of outlet (now ' + r3(C.outA) +
-                   ') - lower the cowl\'s bottom (exit gap) or add gills' : '';
-    fix = (C.pushes ? 'turn the scoop round (cowl page, chin scoop: mouth faces the firewall), let it stand out of the skin (rides the bottom line, or sits on top of the cowl) and size its mouth to about ' + need + ' m2 (about ' + mouth(need) + ')'
+    const outFix = !C.exitSized && (!isFinite(outNeed) || C.outA < outNeed) ? '; and give the air a way out: about ' + (isFinite(outNeed) ? outNeed : r3(need * K.outRatio)) + ' m2 of outlet (now ' + r3(C.outA) +
+                   ') - ' + wayOut : '';
+    fix = (C.pushes ? (who ? 'turn the rear cowl\'s scoop into the air (cowl page, scoop: the rear engine\'s scoop), ' : 'turn the scoop round (cowl page, chin scoop: mouth faces the firewall), ') +
+                      'let it stand out of the skin (rides the bottom line, or sits on top of the cowl) and size its mouth to about ' + need + ' m2 (about ' + mouth(need) + ')'
                     : 'open the cowl\'s front (inlets) or fit a scoop: about ' + need + ' m2 in all (about ' + mouth(need) + ')') + outFix;
   } else {
     const by = H.limit === 'outlet' ? 'the outlet' : 'the inlets';
@@ -62707,12 +62799,13 @@ function genCoolRows(def) {
           (fwd.length ? '; in: ' + fwd.join(', ') + ', ' + have + ' m2' : '') + (C.exitSized ? '' : '; out: ' + r3(C.outA) + ' m2');
     if (lvl !== 'pass') {
       if (H.limit === 'outlet') fix = (C.inA >= need ? 'the inlet is big enough but the air cannot leave: ' : 'the air cannot leave: ') +
-        'give it about ' + outNeed + ' m2 of outlet (now ' + r3(C.outA) + ') - lower the cowl\'s bottom (exit gap) or add gills' +
+        'give it about ' + (isFinite(outNeed) ? outNeed : r3(need * K.outRatio)) + ' m2 of outlet (now ' + r3(C.outA) + ') - ' + wayOut +
         (C.inA < need ? '; then enlarge ' + (fwd.length ? fwd.join(' / ') : 'the inlets') + ' to about ' + need + ' m2 (now ' + have + ')' : '');
       else if (C.radA > 0 && C.radA >= C.inA - C.radA) fix = 'grow the radiators\' mouths to about ' + need + ' m2 in all (now ' + have + '), or open their exit flaps';
       else fix = 'enlarge ' + (fwd.length ? fwd.join(' / ') : 'the inlets') + ' to about ' + need + ' m2 (now ' + have + ')';
     }
   }
+  if (who) { why = who + why + ' (the other engine ' + C.engines.filter(e => e.k !== C.k).map(e => r2(e.margin) + ' x').join(', ') + ')'; if (fix) fix = who + fix; }
   const rows = [{ id: 'cool.climb', group: 'power', tier: 'safe', proposed: true, label: 'Engine cooling, hot-day climb',
                   value: r2(m), unit: 'x the air needed', level: lvl, limit: lim, why, fix }];
   const tl = T.margin < K.pass ? 'warn' : 'pass';
@@ -67919,7 +68012,7 @@ if (typeof module !== 'undefined' && typeof require === 'function' && typeof __f
 })();
 </script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='bd11a0c5cdd5';window.FLYDIY_BUILD='b7718139fbab';window.FLYDIY_AUDIO_SRC={"engine_worklet":"src/viewer/audio/engine_worklet.js?v=26807db6","prop_worklet":"src/viewer/audio/prop_worklet.js?v=48283511","airframe_worklet":"src/viewer/audio/airframe_worklet.js?v=1e68b31b"};window.FLYDIY_MUSIC=[{"id":"fma238392","file":"media/audio/music/holiznacc0_yet_again.ae80f04f.mp3","title":"Yet Again","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/yet-again-lofi-peaceful/","station":"lofi","contexts":["garage","welcome"],"lufs":-16,"durationS":135.9},{"id":"fma275835","file":"media/audio/music/holiznacc0_break_from_reality.6cd41edd.mp3","title":"Break From Reality","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/break-from-reality-lofi-peaceful-mp3/","station":"lofi","contexts":["garage","welcome","cruise"],"lufs":-16,"durationS":207},{"id":"fma275843","file":"media/audio/music/holiznacc0_the_best_of_times.4c1984ae.mp3","title":"The Best Of Times","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/the-best-of-times-lofi-relaxing-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":168},{"id":"fma267057","file":"media/audio/music/holiznacc0_faded_in_the_sunlight.4ce1349b.mp3","title":"Faded in the Sunlight","artist":"HoliznaCC0","album":"Summer Air ( Lo-fi )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/summer-air-lo-fi/faded-in-the-sunlight/","station":"lofi","contexts":["garage","welcome"],"lufs":-17.2,"durationS":178.2},{"id":"fma265836","file":"media/audio/music/holiznacc0_peaceful_drift.55118944.mp3","title":"Peaceful Drift","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/peaceful-drift-lofi-nostalgic-calm/","station":"lofi","contexts":["garage"],"lufs":-17.4,"durationS":128.3},{"id":"fma265847","file":"media/audio/music/holiznacc0_ease_into_night.32448511.mp3","title":"Ease into Night","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ease-into-night-lofi-relax-chill/","station":"lofi","contexts":["garage"],"lufs":-17.9,"durationS":151.8},{"id":"fma268742","file":"media/audio/music/holiznacc0_washed_up.eca2e877.mp3","title":"Washed Up","artist":"HoliznaCC0","album":"OCEAN MEMORY ( Lo-fi Chill )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/ocean-memory-lo-fi-chill/washed-up/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":234.6},{"id":"fma275832","file":"media/audio/music/holiznacc0_down_time.c1f35243.mp3","title":"Down Time","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/down-time-lofi-peaceful-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":130.3},{"id":"fma275836","file":"media/audio/music/holiznacc0_ocean_breeze.1c28251e.mp3","title":"Ocean Breeze","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ocean-breeze-lofi-ukulele-peaceful-mp3/","station":"lofi","contexts":["garage","cruise"],"lufs":-16,"durationS":197.6},{"id":"fma164357","file":"media/audio/music/loyalty_freak_music_traveling_in_your_mind.993d471f.mp3","title":"Traveling in your mind","artist":"Loyalty Freak Music","album":"TO CHILL AND STAY AWAKE","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/TO_CHILL_AND_STAY_AWAKE/Loyalty_Freak_Music_-_TO_CHILL_AND_STAY_AWAKE_-_05_Traveling_in_your_mind/","station":"lofi","contexts":["cruise","welcome","garage"],"lufs":-18.2,"durationS":236.6},{"id":"fma171982","file":"media/audio/music/loyalty_freak_music_beach.b048753f.mp3","title":"Beach","artist":"Loyalty Freak Music","album":"MELODIES WITH A BEAT","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/MELODIES_WITH_A_BEAT/Loyalty_Freak_Music_-_MELODIES_WITH_A_BEAT_-_08_Beach/","station":"lofi","contexts":["garage"],"lufs":-17.3,"durationS":161},{"id":"fma279362","file":"media/audio/music/holiznacc0_kodama.566d47aa.mp3","title":"Kodama","artist":"HoliznaCC0","album":"Nature Spirit","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/nature-spirit/kodama/","station":"jazz","contexts":["garage"],"lufs":-18.7,"durationS":150.7},{"id":"fma278622","file":"media/audio/music/ketsa_as_above_so_below.89e379ac.mp3","title":"As Above So Below","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/as-above-so-below-1/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":233.4},{"id":"fma279012","file":"media/audio/music/ketsa_time_runs_like_the_thames.6ff984d7.mp3","title":"Time Runs Like The Thames","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/vintage-modernity/time-runs-like-the-thames/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":274},{"id":"fmaia_shreveport_stomp","file":"media/audio/music/jelly_roll_morton_shreveport_stomp.e54398f1.mp3","title":"Shreveport Stomp","artist":"Jelly Roll Morton","album":"1924","licence":"Public domain","source":"https://archive.org/details/shreveport-stomp-jelly-roll-morton-1924","station":"jazz","contexts":["garage"],"lufs":-21,"durationS":171},{"id":"fmaia_wolverine_blues","file":"media/audio/music/benson_orchestra_of_chicago_jelly_roll_morton_wolverine_blues.1d938bf6.mp3","title":"Wolverine Blues","artist":"Benson Orchestra of Chicago (Jelly Roll Morton)","album":"1923, Library of Congress National Jukebox","licence":"Public domain","source":"https://archive.org/details/loc-jukebox-67806-wolverine-blues","station":"jazz","contexts":["garage"],"lufs":-17.5,"durationS":184.8},{"id":"fma278664","file":"media/audio/music/tommaso_croce_generic_sloppy_dub.9cc4f5ec.mp3","title":"Generic Sloppy Dub","artist":"Tommaso Croce","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Dilating_Times/backwards/generic-sloppy-dub/","station":"dubambient","contexts":["garage","cruise"],"lufs":-17.4,"durationS":316.7},{"id":"fma278757","file":"media/audio/music/1000_handz_greenery.6b82d1b4.mp3","title":"Greenery","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/greenery/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":209.4},{"id":"fma278845","file":"media/audio/music/guided_levitation_return_to_our_home.763873e2.mp3","title":"Return To Our Home","artist":"Guided Levitation","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/guided-levitation/eternal/return-to-our-home/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":430.2},{"id":"fma279307","file":"media/audio/music/matthew_c_wright_calming_royalty_free_piano_a_season_of_change.1228ba10.mp3","title":"Calming Royalty Free Piano - \"A Season of Change\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/calming-royalty-free-piano-a-season-of-change/","station":"classical","contexts":["garage","welcome"],"lufs":-17.6,"durationS":151},{"id":"fma279308","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_autumn_sunshine.cfc128af.mp3","title":"Gentle Royalty Free Piano - \"Autumn Sunshine\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-autumn-sunshine/","station":"classical","contexts":["garage","welcome"],"lufs":-18.7,"durationS":186.2},{"id":"fma279304","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_rustling.3ea1a7a8.mp3","title":"Gentle Royalty Free Piano - \"Rustling\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-rustling/","station":"classical","contexts":["garage","welcome"],"lufs":-17,"durationS":161.1},{"id":"fmaia_goldberg_14","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_13.e46289fd.mp3","title":"Goldberg Variations, BWV 988: Variatio 13","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":254.5},{"id":"fmaia_goldberg_20","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_19.024a83f6.mp3","title":"Goldberg Variations, BWV 988: Variatio 19","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.2,"durationS":85},{"id":"fmaia_goldberg_25","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_24_canone_a.38d27e77.mp3","title":"Goldberg Variations, BWV 988: Variatio 24, Canone all'Ottava","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.4,"durationS":165.5},{"id":"fmaia_goldberg_27","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_26.cb2b4f50.mp3","title":"Goldberg Variations, BWV 988: Variatio 26","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16,"durationS":122.8},{"id":"fmaia_goldberg_31","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria_da_capo.b65c85c5.mp3","title":"Goldberg Variations, BWV 988: Aria da capo","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":170.1},{"id":"fmaia_goldberg_01","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria.8a525c07.mp3","title":"Goldberg Variations, BWV 988: Aria","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-19.6,"durationS":299.5},{"id":"fma278391","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_i_m_callin_late.73576f4b.mp3","title":"Peaceful Royalty Free Guitar - \"I'm Callin' Late\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-im-callin-late/","station":"roots","contexts":["garage","cruise"],"lufs":-19.2,"durationS":138.8},{"id":"fma279039","file":"media/audio/music/mr_smith_ranchero.03b7fda8.mp3","title":"Ranchero","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/synchromatic/ranchero/","station":"roots","contexts":["garage","cruise"],"lufs":-16.5,"durationS":114.2},{"id":"fma278388","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_a_cloudy_life.5400048e.mp3","title":"Calming Royalty Free Guitar - \"A Cloudy Life\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-a-cloudy-life/","station":"roots","contexts":["garage"],"lufs":-19,"durationS":170.8},{"id":"fma237449","file":"media/audio/music/mr_smith_ships.d2277b62.mp3","title":"Ships","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/ships/","station":"roots","contexts":["garage","cruise"],"lufs":-16.6,"durationS":82.1},{"id":"fma248055","file":"media/audio/music/mr_smith_quidi_vidi.94325e9a.mp3","title":"Quidi Vidi","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/quidi-vidi/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.9},{"id":"fma248226","file":"media/audio/music/mr_smith_in_the_mist.4ca7d4da.mp3","title":"In the Mist","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/in-the-mist/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":54.7},{"id":"fma256748","file":"media/audio/music/maarten_schellekens_whispers_of_the_glen.a0af8efe.mp3","title":"Whispers of the Glen","artist":"Maarten Schellekens","album":null,"licence":"CC0","source":"https://freemusicarchive.org/music/maarten-schellekens/public-domain-1/whispers-of-the-glen/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":161.6},{"id":"fma273704p1","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_1.cc7cdbdd.mp3","title":"Ghostman Blues, part 1","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":161},{"id":"fma273704p3","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_3.0ee810e4.mp3","title":"Ghostman Blues, part 3","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16.1,"durationS":178.9},{"id":"fma271999p2","file":"media/audio/music/daniel_william_lawrence_a_land_of_corn_and_wine_part_2.1a3e2a6e.mp3","title":"A Land of Corn and Wine, part 2","artist":"Daniel William Lawrence","album":"A Land of Corn and Wine","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/a-land-of-corn-and-wine/a-land-of-corn-and-wine-traditional-instrumental-blues-full-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":355.7},{"id":"fma277192","file":"media/audio/music/ketsa_time_falls_like_autumn_leaves.0b326725.mp3","title":"Time falls like Autumn Leaves","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/time-falls-like-autumn-leaves/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":159.7},{"id":"fma279132","file":"media/audio/music/1000_handz_neighbor.194f378e.mp3","title":"Neighbor","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/neighbor/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":129.9},{"id":"fma279302","file":"media/audio/music/1000_handz_busted_tape.8ac88609.mp3","title":"Busted Tape","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/busted-tape/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":66},{"id":"fma277908","file":"media/audio/music/pamela_yuen_beloved.95635664.mp3","title":"Beloved","artist":"Pamela Yuen","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/pamela-yuen/ambient-music-1/beloved-1/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":211.7},{"id":"fma233918","file":"media/audio/music/mr_smith_the_newfie.010088ef.mp3","title":"The Newfie","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/the-newfie/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":87.3},{"id":"fma237242","file":"media/audio/music/mr_smith_da_rock.f15eeafe.mp3","title":"Da Rock","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/da-rock/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":119},{"id":"fma237915","file":"media/audio/music/mr_smith_nfld.ba344a97.mp3","title":"NFLD","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/nfld/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":105.5},{"id":"fma246044","file":"media/audio/music/mr_smith_the_newfie_pt_2.6d0e2be2.mp3","title":"The Newfie Pt 2","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/the-newfie-pt-2/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":85.4},{"id":"fma250186","file":"media/audio/music/mr_smith_sun_glitter.0a050709.mp3","title":"Sun Glitter","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/sun-glitter/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.5},{"id":"fma252236","file":"media/audio/music/mr_smith_birchy_nap.e91e17e6.mp3","title":"Birchy Nap","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/birchy-nap/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":55.2},{"id":"fma278389","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_brown_hair_and_chacos.53071383.mp3","title":"Quiet Royalty Free Guitar - \"Brown Hair and Chacos\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-brown-hair-and-chacos/","station":"roots","contexts":["garage","cruise"],"lufs":-18.5,"durationS":151},{"id":"fma278390","file":"media/audio/music/matthew_c_wright_slow_royalty_free_guitar_how_about_forever.19ea0bdb.mp3","title":"Slow Royalty Free Guitar - \"How About Forever\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/slow-royalty-free-guitar-how-about-forever/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":189.2},{"id":"fma278392","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_just_a_flight_away.b39b38a7.mp3","title":"Relaxing Royalty Free Guitar - \"Just a Flight Away\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-just-a-flight-away/","station":"roots","contexts":["garage","cruise"],"lufs":-17.9,"durationS":124.3},{"id":"fma278394","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_montana.ac8ceebf.mp3","title":"Peaceful Royalty Free Guitar - \"Montana\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-montana/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":156},{"id":"fma278395","file":"media/audio/music/matthew_c_wright_soothing_royalty_free_guitar_old_steel.a75dce3f.mp3","title":"Soothing Royalty Free Guitar - \"Old Steel\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/soothing-royalty-free-guitar-old-steel/","station":"roots","contexts":["garage","cruise"],"lufs":-20.6,"durationS":131.9},{"id":"fma278396","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_so_proud_of_you.dd50ab59.mp3","title":"Relaxing Royalty Free Guitar - \"So Proud of You\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-so-proud-of-you/","station":"roots","contexts":["garage","cruise"],"lufs":-19.5,"durationS":205.4},{"id":"fma278397","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_this_here_house.560c1a4a.mp3","title":"Quiet Royalty Free Guitar - \"This Here House\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-this-here-house/","station":"roots","contexts":["garage","cruise"],"lufs":-22,"durationS":157},{"id":"fma278398","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_time_to_let_go.c14ebc99.mp3","title":"Calming Royalty Free Guitar - \"Time to Let Go\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-time-to-let-go/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":178.8},{"id":"fma278399","file":"media/audio/music/matthew_c_wright_simple_royalty_free_guitar_village_on_the_lake.b92784aa.mp3","title":"Simple Royalty Free Guitar - \"Village on the Lake\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/simple-royalty-free-guitar-village-on-the-lake/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":130.3}];window.FLYDIY_AUDIO_MEDIA={"amb.forest.day":["media/audio/sfx/amb_forest_day_288899.157bf96e.mp3"],"amb.forest.night":["media/audio/sfx/amb_forest_night_333221.3df54da1.mp3"],"amb.wind.light":["media/audio/sfx/amb_wind_light_160469.4d45c6a1.mp3"],"amb.wind.clear":["media/audio/sfx/amb_wind_clear_156414.f23315bb.mp3"],"amb.wind.mountain":["media/audio/sfx/amb_wind_mountain_165526.140f3920.mp3"],"amb.wind.storm":["media/audio/sfx/amb_wind_storm_157280.9fdd2a2c.mp3"],"amb.shore.surf":["media/audio/sfx/amb_shore_surf_155641.27350310.mp3"],"amb.shore.rocks":["media/audio/sfx/amb_shore_rocks_155895.6ee71344.mp3"],"amb.lake.near":["media/audio/sfx/amb_lake_near_135046.22d12339.mp3"],"amb.lake.lap":["media/audio/sfx/amb_lake_lap_428088.0018a69a.mp3"],"amb.stream":["media/audio/sfx/amb_stream_264180.4ff25da2.mp3"],"amb.harbour":["media/audio/sfx/amb_harbour_339440.fc5b7cd1.mp3"],"amb.village":["media/audio/sfx/amb_village_435819.20299c23.mp3"],"amb.airfield":["media/audio/sfx/amb_airfield_319102.6b4237cf.mp3"],"amb.hangar":["media/audio/sfx/amb_hangar_427861.f9afe454.mp3"],"amb.rain.roof":["media/audio/sfx/amb_rain_roof_329578.c0aba715.mp3"],"amb.frogs.night":["media/audio/sfx/amb_frogs_night_135561.9aa1f6e9.mp3"],"amb.loons":["media/audio/sfx/amb_loons_39339.7d136ae5.mp3"],"amb.meadow":["media/audio/sfx/amb_meadow_639459.3facef88.mp3"],"bird.eagle":["media/audio/sfx/bird_eagle_381200.1d11590c.mp3","media/audio/sfx/bird_eagle_392212.13114290.mp3","media/audio/sfx/bird_eagle_nps-golden-eagle.ca760fa8.mp3"],"bird.gull":["media/audio/sfx/bird_gull_166710.bb2f19eb.mp3","media/audio/sfx/bird_gull_263786.51e3ecb8.mp3","media/audio/sfx/bird_gull_73497.919ce49c.mp3"],"bird.crow":["media/audio/sfx/bird_crow_182090.1a94cd39.mp3","media/audio/sfx/bird_crow_361470.92582da1.mp3","media/audio/sfx/bird_crow_75162.543a2c22.mp3","media/audio/sfx/bird_crow_nps-raven.8c13e1ca.mp3"],"bird.owl":["media/audio/sfx/bird_owl_465697.2ee834d0.mp3","media/audio/sfx/bird_owl_479588.817cca9b.mp3","media/audio/sfx/bird_owl_558396.fc398755.mp3"],"dog":["media/audio/sfx/dog_160366.86fe02dc.mp3"],"gnd.gravel":["media/audio/sfx/gnd_gravel_251661.0e48f11b.mp3"],"mech.creak":["media/audio/sfx/mech_creak_119468.101f6d88.mp3","media/audio/sfx/mech_creak_238289.6d8b72b3.mp3"],"mech.door":["media/audio/sfx/mech_door_345066.66dbaf6d.mp3"],"mech.switch":["media/audio/sfx/mech_switch_361371.9ced067b.mp3","media/audio/sfx/mech_switch_423957.6b08a0c1.mp3"],"water.drip":["media/audio/sfx/water_drip_166986.f81c294b.mp3"],"ui.click":["media/audio/sfx/ui_click_528561.bdd8b52e.mp3"],"vehicle.pickup":["media/audio/sfx/vehicle_pickup_450227.be208f91.mp3"],"amb.rain.outside":["media/audio/sfx/amb_rain_outside_523391.da71d15a.mp3"],"amb.birds.open":["media/audio/sfx/amb_birds_open_456766.c24bacac.mp3"],"amb.lake.shore":["media/audio/sfx/amb_lake_shore_352356.21fc75ef.mp3"],"amb.sea.open":["media/audio/sfx/amb_sea_open_460061.6c0c2f0e.mp3"],"bird.loon":["media/audio/sfx/bird_loon_39339.3c306d67.mp3","media/audio/sfx/bird_loon_nps-loon.ebce31d5.mp3","media/audio/sfx/bird_loon_nps-loon.c47baae3.mp3"],"tram.bell":["media/audio/sfx/tram_bell_497561.9e7279e8.mp3"],"tram.hum":["media/audio/sfx/tram_hum_442493.2b3fe7d3.mp3"],"boat.idle":["media/audio/sfx/boat_idle_637743.0d3d93e0.mp3"],"animal.bear":["media/audio/sfx/animal_bear_nps-grizzly-vocal.def683e6.mp3","media/audio/sfx/animal_bear_nps-grizzly-vocal.98163160.mp3","media/audio/sfx/animal_bear_nps-grizzly-roar.02f72aba.mp3"],"animal.elk":["media/audio/sfx/animal_elk_nps-elk-bugle-1.10ba252d.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.d2390a80.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.c7320d85.mp3"],"animal.deer":["media/audio/sfx/animal_deer_351113.97a7d90b.mp3","media/audio/sfx/animal_deer_351113.5b6da753.mp3"],"animal.whale.blow":["media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.58dfd4e5.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.d2504229.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.7663f71d.mp3"],"animal.orca.blow":["media/audio/sfx/animal_orca_blow_nps-porpoise.b8a0c8fc.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.5d0de2ec.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.45872e4e.mp3"],"bird.thrush":["media/audio/sfx/bird_thrush_nps-varied-thrush.603dc854.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dc4d4664.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dba365b7.mp3"],"mill.stamp":["media/audio/sfx/mill_stamp_322871.33f9ef7a.mp3"]};window.FLYDIY_VOICE={"voice":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"voices":{"norman":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"john":{"name":"john","id":"en_US-john-medium","who":"male, US","role":"Chief Walt Brennan (the interview)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/john/medium","dataset":"LibriVox readings by one reader, ~12.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"fine-tuned (600 epochs) from en_US-kristin-medium, itself trained from scratch on public-domain LibriVox","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"kristin":{"name":"kristin","id":"en_US-kristin-medium","who":"female, US","role":"Officer Dana Hale (recorded messages)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/kristin/medium","dataset":"LibriVox readings by one reader, ~11.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (2000 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"libritts":{"name":"libritts","id":"en_US-libritts-high","who":"US, 904 speakers (LibriTTS)","role":"the residents who phone in","quality":"high","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/libritts/high","dataset":"LibriTTS train-clean-360 (Zen et al. 2019; from LibriSpeech, from LibriVox)","datasetLicence":"CC BY 4.0","datasetUrl":"http://www.openslr.org/60/","lineage":"trained from scratch on train-clean-360","credit":"LibriTTS corpus by Heiga Zen et al. (Google), CC BY 4.0, http://www.openslr.org/60/","render":{"lufs":-20,"kbps":48,"takes":"whole"}}},"script":{"file":"media/audio/voice/radio_script.96bc74e6.json","items":352,"seconds":2085.9,"bytes":12743609}}</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='4f37d489a8dd';window.FLYDIY_BUILD='8e572dbd2ca3';window.FLYDIY_AUDIO_SRC={"engine_worklet":"src/viewer/audio/engine_worklet.js?v=26807db6","prop_worklet":"src/viewer/audio/prop_worklet.js?v=48283511","airframe_worklet":"src/viewer/audio/airframe_worklet.js?v=1e68b31b"};window.FLYDIY_MUSIC=[{"id":"fma238392","file":"media/audio/music/holiznacc0_yet_again.ae80f04f.mp3","title":"Yet Again","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/yet-again-lofi-peaceful/","station":"lofi","contexts":["garage","welcome"],"lufs":-16,"durationS":135.9},{"id":"fma275835","file":"media/audio/music/holiznacc0_break_from_reality.6cd41edd.mp3","title":"Break From Reality","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/break-from-reality-lofi-peaceful-mp3/","station":"lofi","contexts":["garage","welcome","cruise"],"lufs":-16,"durationS":207},{"id":"fma275843","file":"media/audio/music/holiznacc0_the_best_of_times.4c1984ae.mp3","title":"The Best Of Times","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/the-best-of-times-lofi-relaxing-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":168},{"id":"fma267057","file":"media/audio/music/holiznacc0_faded_in_the_sunlight.4ce1349b.mp3","title":"Faded in the Sunlight","artist":"HoliznaCC0","album":"Summer Air ( Lo-fi )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/summer-air-lo-fi/faded-in-the-sunlight/","station":"lofi","contexts":["garage","welcome"],"lufs":-17.2,"durationS":178.2},{"id":"fma265836","file":"media/audio/music/holiznacc0_peaceful_drift.55118944.mp3","title":"Peaceful Drift","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/peaceful-drift-lofi-nostalgic-calm/","station":"lofi","contexts":["garage"],"lufs":-17.4,"durationS":128.3},{"id":"fma265847","file":"media/audio/music/holiznacc0_ease_into_night.32448511.mp3","title":"Ease into Night","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ease-into-night-lofi-relax-chill/","station":"lofi","contexts":["garage"],"lufs":-17.9,"durationS":151.8},{"id":"fma268742","file":"media/audio/music/holiznacc0_washed_up.eca2e877.mp3","title":"Washed Up","artist":"HoliznaCC0","album":"OCEAN MEMORY ( Lo-fi Chill )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/ocean-memory-lo-fi-chill/washed-up/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":234.6},{"id":"fma275832","file":"media/audio/music/holiznacc0_down_time.c1f35243.mp3","title":"Down Time","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/down-time-lofi-peaceful-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":130.3},{"id":"fma275836","file":"media/audio/music/holiznacc0_ocean_breeze.1c28251e.mp3","title":"Ocean Breeze","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ocean-breeze-lofi-ukulele-peaceful-mp3/","station":"lofi","contexts":["garage","cruise"],"lufs":-16,"durationS":197.6},{"id":"fma164357","file":"media/audio/music/loyalty_freak_music_traveling_in_your_mind.993d471f.mp3","title":"Traveling in your mind","artist":"Loyalty Freak Music","album":"TO CHILL AND STAY AWAKE","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/TO_CHILL_AND_STAY_AWAKE/Loyalty_Freak_Music_-_TO_CHILL_AND_STAY_AWAKE_-_05_Traveling_in_your_mind/","station":"lofi","contexts":["cruise","welcome","garage"],"lufs":-18.2,"durationS":236.6},{"id":"fma171982","file":"media/audio/music/loyalty_freak_music_beach.b048753f.mp3","title":"Beach","artist":"Loyalty Freak Music","album":"MELODIES WITH A BEAT","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/MELODIES_WITH_A_BEAT/Loyalty_Freak_Music_-_MELODIES_WITH_A_BEAT_-_08_Beach/","station":"lofi","contexts":["garage"],"lufs":-17.3,"durationS":161},{"id":"fma279362","file":"media/audio/music/holiznacc0_kodama.566d47aa.mp3","title":"Kodama","artist":"HoliznaCC0","album":"Nature Spirit","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/nature-spirit/kodama/","station":"jazz","contexts":["garage"],"lufs":-18.7,"durationS":150.7},{"id":"fma278622","file":"media/audio/music/ketsa_as_above_so_below.89e379ac.mp3","title":"As Above So Below","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/as-above-so-below-1/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":233.4},{"id":"fma279012","file":"media/audio/music/ketsa_time_runs_like_the_thames.6ff984d7.mp3","title":"Time Runs Like The Thames","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/vintage-modernity/time-runs-like-the-thames/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":274},{"id":"fmaia_shreveport_stomp","file":"media/audio/music/jelly_roll_morton_shreveport_stomp.e54398f1.mp3","title":"Shreveport Stomp","artist":"Jelly Roll Morton","album":"1924","licence":"Public domain","source":"https://archive.org/details/shreveport-stomp-jelly-roll-morton-1924","station":"jazz","contexts":["garage"],"lufs":-21,"durationS":171},{"id":"fmaia_wolverine_blues","file":"media/audio/music/benson_orchestra_of_chicago_jelly_roll_morton_wolverine_blues.1d938bf6.mp3","title":"Wolverine Blues","artist":"Benson Orchestra of Chicago (Jelly Roll Morton)","album":"1923, Library of Congress National Jukebox","licence":"Public domain","source":"https://archive.org/details/loc-jukebox-67806-wolverine-blues","station":"jazz","contexts":["garage"],"lufs":-17.5,"durationS":184.8},{"id":"fma278664","file":"media/audio/music/tommaso_croce_generic_sloppy_dub.9cc4f5ec.mp3","title":"Generic Sloppy Dub","artist":"Tommaso Croce","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Dilating_Times/backwards/generic-sloppy-dub/","station":"dubambient","contexts":["garage","cruise"],"lufs":-17.4,"durationS":316.7},{"id":"fma278757","file":"media/audio/music/1000_handz_greenery.6b82d1b4.mp3","title":"Greenery","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/greenery/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":209.4},{"id":"fma278845","file":"media/audio/music/guided_levitation_return_to_our_home.763873e2.mp3","title":"Return To Our Home","artist":"Guided Levitation","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/guided-levitation/eternal/return-to-our-home/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":430.2},{"id":"fma279307","file":"media/audio/music/matthew_c_wright_calming_royalty_free_piano_a_season_of_change.1228ba10.mp3","title":"Calming Royalty Free Piano - \"A Season of Change\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/calming-royalty-free-piano-a-season-of-change/","station":"classical","contexts":["garage","welcome"],"lufs":-17.6,"durationS":151},{"id":"fma279308","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_autumn_sunshine.cfc128af.mp3","title":"Gentle Royalty Free Piano - \"Autumn Sunshine\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-autumn-sunshine/","station":"classical","contexts":["garage","welcome"],"lufs":-18.7,"durationS":186.2},{"id":"fma279304","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_rustling.3ea1a7a8.mp3","title":"Gentle Royalty Free Piano - \"Rustling\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-rustling/","station":"classical","contexts":["garage","welcome"],"lufs":-17,"durationS":161.1},{"id":"fmaia_goldberg_14","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_13.e46289fd.mp3","title":"Goldberg Variations, BWV 988: Variatio 13","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":254.5},{"id":"fmaia_goldberg_20","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_19.024a83f6.mp3","title":"Goldberg Variations, BWV 988: Variatio 19","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.2,"durationS":85},{"id":"fmaia_goldberg_25","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_24_canone_a.38d27e77.mp3","title":"Goldberg Variations, BWV 988: Variatio 24, Canone all'Ottava","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.4,"durationS":165.5},{"id":"fmaia_goldberg_27","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_26.cb2b4f50.mp3","title":"Goldberg Variations, BWV 988: Variatio 26","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16,"durationS":122.8},{"id":"fmaia_goldberg_31","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria_da_capo.b65c85c5.mp3","title":"Goldberg Variations, BWV 988: Aria da capo","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":170.1},{"id":"fmaia_goldberg_01","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria.8a525c07.mp3","title":"Goldberg Variations, BWV 988: Aria","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-19.6,"durationS":299.5},{"id":"fma278391","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_i_m_callin_late.73576f4b.mp3","title":"Peaceful Royalty Free Guitar - \"I'm Callin' Late\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-im-callin-late/","station":"roots","contexts":["garage","cruise"],"lufs":-19.2,"durationS":138.8},{"id":"fma279039","file":"media/audio/music/mr_smith_ranchero.03b7fda8.mp3","title":"Ranchero","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/synchromatic/ranchero/","station":"roots","contexts":["garage","cruise"],"lufs":-16.5,"durationS":114.2},{"id":"fma278388","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_a_cloudy_life.5400048e.mp3","title":"Calming Royalty Free Guitar - \"A Cloudy Life\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-a-cloudy-life/","station":"roots","contexts":["garage"],"lufs":-19,"durationS":170.8},{"id":"fma237449","file":"media/audio/music/mr_smith_ships.d2277b62.mp3","title":"Ships","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/ships/","station":"roots","contexts":["garage","cruise"],"lufs":-16.6,"durationS":82.1},{"id":"fma248055","file":"media/audio/music/mr_smith_quidi_vidi.94325e9a.mp3","title":"Quidi Vidi","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/quidi-vidi/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.9},{"id":"fma248226","file":"media/audio/music/mr_smith_in_the_mist.4ca7d4da.mp3","title":"In the Mist","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/in-the-mist/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":54.7},{"id":"fma256748","file":"media/audio/music/maarten_schellekens_whispers_of_the_glen.a0af8efe.mp3","title":"Whispers of the Glen","artist":"Maarten Schellekens","album":null,"licence":"CC0","source":"https://freemusicarchive.org/music/maarten-schellekens/public-domain-1/whispers-of-the-glen/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":161.6},{"id":"fma273704p1","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_1.cc7cdbdd.mp3","title":"Ghostman Blues, part 1","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":161},{"id":"fma273704p3","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_3.0ee810e4.mp3","title":"Ghostman Blues, part 3","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16.1,"durationS":178.9},{"id":"fma271999p2","file":"media/audio/music/daniel_william_lawrence_a_land_of_corn_and_wine_part_2.1a3e2a6e.mp3","title":"A Land of Corn and Wine, part 2","artist":"Daniel William Lawrence","album":"A Land of Corn and Wine","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/a-land-of-corn-and-wine/a-land-of-corn-and-wine-traditional-instrumental-blues-full-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":355.7},{"id":"fma277192","file":"media/audio/music/ketsa_time_falls_like_autumn_leaves.0b326725.mp3","title":"Time falls like Autumn Leaves","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/time-falls-like-autumn-leaves/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":159.7},{"id":"fma279132","file":"media/audio/music/1000_handz_neighbor.194f378e.mp3","title":"Neighbor","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/neighbor/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":129.9},{"id":"fma279302","file":"media/audio/music/1000_handz_busted_tape.8ac88609.mp3","title":"Busted Tape","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/busted-tape/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":66},{"id":"fma277908","file":"media/audio/music/pamela_yuen_beloved.95635664.mp3","title":"Beloved","artist":"Pamela Yuen","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/pamela-yuen/ambient-music-1/beloved-1/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":211.7},{"id":"fma233918","file":"media/audio/music/mr_smith_the_newfie.010088ef.mp3","title":"The Newfie","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/the-newfie/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":87.3},{"id":"fma237242","file":"media/audio/music/mr_smith_da_rock.f15eeafe.mp3","title":"Da Rock","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/da-rock/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":119},{"id":"fma237915","file":"media/audio/music/mr_smith_nfld.ba344a97.mp3","title":"NFLD","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/nfld/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":105.5},{"id":"fma246044","file":"media/audio/music/mr_smith_the_newfie_pt_2.6d0e2be2.mp3","title":"The Newfie Pt 2","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/the-newfie-pt-2/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":85.4},{"id":"fma250186","file":"media/audio/music/mr_smith_sun_glitter.0a050709.mp3","title":"Sun Glitter","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/sun-glitter/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.5},{"id":"fma252236","file":"media/audio/music/mr_smith_birchy_nap.e91e17e6.mp3","title":"Birchy Nap","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/birchy-nap/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":55.2},{"id":"fma278389","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_brown_hair_and_chacos.53071383.mp3","title":"Quiet Royalty Free Guitar - \"Brown Hair and Chacos\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-brown-hair-and-chacos/","station":"roots","contexts":["garage","cruise"],"lufs":-18.5,"durationS":151},{"id":"fma278390","file":"media/audio/music/matthew_c_wright_slow_royalty_free_guitar_how_about_forever.19ea0bdb.mp3","title":"Slow Royalty Free Guitar - \"How About Forever\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/slow-royalty-free-guitar-how-about-forever/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":189.2},{"id":"fma278392","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_just_a_flight_away.b39b38a7.mp3","title":"Relaxing Royalty Free Guitar - \"Just a Flight Away\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-just-a-flight-away/","station":"roots","contexts":["garage","cruise"],"lufs":-17.9,"durationS":124.3},{"id":"fma278394","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_montana.ac8ceebf.mp3","title":"Peaceful Royalty Free Guitar - \"Montana\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-montana/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":156},{"id":"fma278395","file":"media/audio/music/matthew_c_wright_soothing_royalty_free_guitar_old_steel.a75dce3f.mp3","title":"Soothing Royalty Free Guitar - \"Old Steel\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/soothing-royalty-free-guitar-old-steel/","station":"roots","contexts":["garage","cruise"],"lufs":-20.6,"durationS":131.9},{"id":"fma278396","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_so_proud_of_you.dd50ab59.mp3","title":"Relaxing Royalty Free Guitar - \"So Proud of You\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-so-proud-of-you/","station":"roots","contexts":["garage","cruise"],"lufs":-19.5,"durationS":205.4},{"id":"fma278397","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_this_here_house.560c1a4a.mp3","title":"Quiet Royalty Free Guitar - \"This Here House\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-this-here-house/","station":"roots","contexts":["garage","cruise"],"lufs":-22,"durationS":157},{"id":"fma278398","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_time_to_let_go.c14ebc99.mp3","title":"Calming Royalty Free Guitar - \"Time to Let Go\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-time-to-let-go/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":178.8},{"id":"fma278399","file":"media/audio/music/matthew_c_wright_simple_royalty_free_guitar_village_on_the_lake.b92784aa.mp3","title":"Simple Royalty Free Guitar - \"Village on the Lake\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/simple-royalty-free-guitar-village-on-the-lake/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":130.3}];window.FLYDIY_AUDIO_MEDIA={"amb.forest.day":["media/audio/sfx/amb_forest_day_288899.157bf96e.mp3"],"amb.forest.night":["media/audio/sfx/amb_forest_night_333221.3df54da1.mp3"],"amb.wind.light":["media/audio/sfx/amb_wind_light_160469.4d45c6a1.mp3"],"amb.wind.clear":["media/audio/sfx/amb_wind_clear_156414.f23315bb.mp3"],"amb.wind.mountain":["media/audio/sfx/amb_wind_mountain_165526.140f3920.mp3"],"amb.wind.storm":["media/audio/sfx/amb_wind_storm_157280.9fdd2a2c.mp3"],"amb.shore.surf":["media/audio/sfx/amb_shore_surf_155641.27350310.mp3"],"amb.shore.rocks":["media/audio/sfx/amb_shore_rocks_155895.6ee71344.mp3"],"amb.lake.near":["media/audio/sfx/amb_lake_near_135046.22d12339.mp3"],"amb.lake.lap":["media/audio/sfx/amb_lake_lap_428088.0018a69a.mp3"],"amb.stream":["media/audio/sfx/amb_stream_264180.4ff25da2.mp3"],"amb.harbour":["media/audio/sfx/amb_harbour_339440.fc5b7cd1.mp3"],"amb.village":["media/audio/sfx/amb_village_435819.20299c23.mp3"],"amb.airfield":["media/audio/sfx/amb_airfield_319102.6b4237cf.mp3"],"amb.hangar":["media/audio/sfx/amb_hangar_427861.f9afe454.mp3"],"amb.rain.roof":["media/audio/sfx/amb_rain_roof_329578.c0aba715.mp3"],"amb.frogs.night":["media/audio/sfx/amb_frogs_night_135561.9aa1f6e9.mp3"],"amb.loons":["media/audio/sfx/amb_loons_39339.7d136ae5.mp3"],"amb.meadow":["media/audio/sfx/amb_meadow_639459.3facef88.mp3"],"bird.eagle":["media/audio/sfx/bird_eagle_381200.1d11590c.mp3","media/audio/sfx/bird_eagle_392212.13114290.mp3","media/audio/sfx/bird_eagle_nps-golden-eagle.ca760fa8.mp3"],"bird.gull":["media/audio/sfx/bird_gull_166710.bb2f19eb.mp3","media/audio/sfx/bird_gull_263786.51e3ecb8.mp3","media/audio/sfx/bird_gull_73497.919ce49c.mp3"],"bird.crow":["media/audio/sfx/bird_crow_182090.1a94cd39.mp3","media/audio/sfx/bird_crow_361470.92582da1.mp3","media/audio/sfx/bird_crow_75162.543a2c22.mp3","media/audio/sfx/bird_crow_nps-raven.8c13e1ca.mp3"],"bird.owl":["media/audio/sfx/bird_owl_465697.2ee834d0.mp3","media/audio/sfx/bird_owl_479588.817cca9b.mp3","media/audio/sfx/bird_owl_558396.fc398755.mp3"],"dog":["media/audio/sfx/dog_160366.86fe02dc.mp3"],"gnd.gravel":["media/audio/sfx/gnd_gravel_251661.0e48f11b.mp3"],"mech.creak":["media/audio/sfx/mech_creak_119468.101f6d88.mp3","media/audio/sfx/mech_creak_238289.6d8b72b3.mp3"],"mech.door":["media/audio/sfx/mech_door_345066.66dbaf6d.mp3"],"mech.switch":["media/audio/sfx/mech_switch_361371.9ced067b.mp3","media/audio/sfx/mech_switch_423957.6b08a0c1.mp3"],"water.drip":["media/audio/sfx/water_drip_166986.f81c294b.mp3"],"ui.click":["media/audio/sfx/ui_click_528561.bdd8b52e.mp3"],"vehicle.pickup":["media/audio/sfx/vehicle_pickup_450227.be208f91.mp3"],"amb.rain.outside":["media/audio/sfx/amb_rain_outside_523391.da71d15a.mp3"],"amb.birds.open":["media/audio/sfx/amb_birds_open_456766.c24bacac.mp3"],"amb.lake.shore":["media/audio/sfx/amb_lake_shore_352356.21fc75ef.mp3"],"amb.sea.open":["media/audio/sfx/amb_sea_open_460061.6c0c2f0e.mp3"],"bird.loon":["media/audio/sfx/bird_loon_39339.3c306d67.mp3","media/audio/sfx/bird_loon_nps-loon.ebce31d5.mp3","media/audio/sfx/bird_loon_nps-loon.c47baae3.mp3"],"tram.bell":["media/audio/sfx/tram_bell_497561.9e7279e8.mp3"],"tram.hum":["media/audio/sfx/tram_hum_442493.2b3fe7d3.mp3"],"boat.idle":["media/audio/sfx/boat_idle_637743.0d3d93e0.mp3"],"animal.bear":["media/audio/sfx/animal_bear_nps-grizzly-vocal.def683e6.mp3","media/audio/sfx/animal_bear_nps-grizzly-vocal.98163160.mp3","media/audio/sfx/animal_bear_nps-grizzly-roar.02f72aba.mp3"],"animal.elk":["media/audio/sfx/animal_elk_nps-elk-bugle-1.10ba252d.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.d2390a80.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.c7320d85.mp3"],"animal.deer":["media/audio/sfx/animal_deer_351113.97a7d90b.mp3","media/audio/sfx/animal_deer_351113.5b6da753.mp3"],"animal.whale.blow":["media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.58dfd4e5.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.d2504229.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.7663f71d.mp3"],"animal.orca.blow":["media/audio/sfx/animal_orca_blow_nps-porpoise.b8a0c8fc.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.5d0de2ec.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.45872e4e.mp3"],"bird.thrush":["media/audio/sfx/bird_thrush_nps-varied-thrush.603dc854.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dc4d4664.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dba365b7.mp3"],"mill.stamp":["media/audio/sfx/mill_stamp_322871.33f9ef7a.mp3"]};window.FLYDIY_VOICE={"voice":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"voices":{"norman":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"john":{"name":"john","id":"en_US-john-medium","who":"male, US","role":"Chief Walt Brennan (the interview)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/john/medium","dataset":"LibriVox readings by one reader, ~12.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"fine-tuned (600 epochs) from en_US-kristin-medium, itself trained from scratch on public-domain LibriVox","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"kristin":{"name":"kristin","id":"en_US-kristin-medium","who":"female, US","role":"Officer Dana Hale (recorded messages)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/kristin/medium","dataset":"LibriVox readings by one reader, ~11.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (2000 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"libritts":{"name":"libritts","id":"en_US-libritts-high","who":"US, 904 speakers (LibriTTS)","role":"the residents who phone in","quality":"high","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/libritts/high","dataset":"LibriTTS train-clean-360 (Zen et al. 2019; from LibriSpeech, from LibriVox)","datasetLicence":"CC BY 4.0","datasetUrl":"http://www.openslr.org/60/","lineage":"trained from scratch on train-clean-360","credit":"LibriTTS corpus by Heiga Zen et al. (Google), CC BY 4.0, http://www.openslr.org/60/","render":{"lufs":-20,"kbps":48,"takes":"whole"}}},"script":{"file":"media/audio/voice/radio_script.96bc74e6.json","items":352,"seconds":2085.9,"bytes":12743609}}</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=d854feec"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=52c3ced6"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3678040d"></script>
@@ -69170,7 +69263,7 @@ const CAGE_PARTS = [
       ['inlet lip', ['cw_lipMode', 'cw_lipThick', 'cw_lipDepth',
                      'cw_lipRound', 'cw_lipProtrude', 'cw_lipInset',
                      'cw_ductLen', 'cw_ductFlare']],
-      ['chin scoop', ['cw_scoopOn', 'cw_scoopRev', 'cw_scoopTop', 'cw_scoopFollow', 'cw_scoopZ', 'cw_scoopLen', 'cw_scoopW',
+      ['chin scoop', ['cw_scoopOn', 'cw_scoopRev', 'cw_scoopTop', 'cw_scoopAft', 'cw_scoopFollow', 'cw_scoopZ', 'cw_scoopLen', 'cw_scoopW',
                       'cw_scoopH', 'cw_scoopSq', 'cw_scoopDrop',
                       'cw_scoopRake', 'cw_scoopAp', 'cw_scoopLipH',
                       'cw_scoopLipDepth', 'cw_scoopDuct']],
@@ -74363,7 +74456,111 @@ function designFull(sel, over) {
     const nm = designPresetNames()[Math.round(cage.engPreset)];
     if (nm) W.CAGE_ENG_APPLY_PRESET(full, nm);
   }
+  // ENGINE-COOLING 3: the birth opens the cowl to what the engine needs (designCoolBirth); a stock tile is not a birth
+  if (!stock) { const cw = designCoolBirth(full); for (const k in cw) cage[k] = cw[k]; }
   return { full, cage, spec };
+}
+
+// ENGINE-COOLING 3 - THE BIRTH OPENS THE COWL (the user 12 Nov: "the starting designs ... have never been authored, so
+// they come as what they are ... just add a rule and regenerate them"). An archetype is born with the openings its
+// engine needs - sized to its heat by GEN_COOL's own law (62_gen_aero genCooling: the inlet, the engine's passages and
+// the outlet in series) at a light aeroplane's hot climb, to TARGET x the need (headroom over the 1.15 pass line) - and
+// never smaller than its card draws (the rule only opens):
+//   a puller (the nose, a pulling wing or pylon engine; a layout's pullers): the cowl's front, round the spinner
+//   a pusher on the body (and a push-pull's or a tandem's rear engine): the chin scoop turned into the air, riding the
+//     bottom line (the rear engine of a layout: its own scoop turned, cw_scoopAft), and the face round the spinner
+//     opened as its way out
+//   a pusher in a nacelle closed by its tail cone (aftMode 1): the cone's inlet
+//   where the front cannot hold it - a wing nacelle's small face round its spinner, a narrow inline or vee - a chin
+//   scoop into the air as well, riding the bottom line; a turbine's oil cooler: that scoop alone
+//   a liquid engine with wing radiators (radMode): the radiators' mouths, the nose left as drawn
+// Untouched: no cowl, an electric engine, a fin mount. Returns the rows it changed (the bake's cage gets them; GATE
+// COOL's sweep checks every archetype the shed births then passes).
+const COOL_BIRTH = { target: 1.4, Vpull: 32, Vpush: 28, rho: 1.134, lip: 0.015, follow: 0.67 };
+function designCoolBirth(full) {
+  const out = {};
+  if (full.cowlOn != null && !+full.cowlOn) return out;
+  let R = null;
+  try { R = W.CAGE_ENG_SPEC && W.ENG_GEN && W.ENG_GEN.engResolve ? W.ENG_GEN.engResolve(W.CAGE_ENG_SPEC(full)) : null; } catch (e) { R = null; }
+  if (!R || !(R.powerW > 0) || R.arch === 'electric') return out;
+  const turbine = R.arch === 'turbine';
+  const GC = typeof GEN_COOL !== 'undefined' ? GEN_COOL
+    : { cp: 1005, path: { air: { Tlim: 160, eps: 0.30 }, liquid: { Tlim: 110, eps: 0.55 }, turbine: { Tlim: 90, eps: 0.50 } },
+        ivr: 0.8, passages: 3.0, outRatio: 1.3, radMouth: 0.8 };
+  const TH = typeof GEN_ENG_THERMO !== 'undefined' ? GEN_ENG_THERMO
+    : { four: { cool: { air: 0.45, liquid: 0.42 } }, two: { cool: { air: 0.55, liquid: 0.50 } }, turbine: { cool: { air: 0.05, liquid: 0.05 } } };
+  const liquid = !!(R.P && +R.P.liquid), two = !!(R.P && +R.P.twoStroke);
+  const frac = ((TH[turbine ? 'turbine' : two ? 'two' : 'four'] || TH.four).cool || {})[liquid ? 'liquid' : 'air'] || 0.45;
+  const pth = GC.path[turbine ? 'turbine' : liquid ? 'liquid' : 'air'];
+  const need = frac * R.powerW / (GC.cp * pth.eps * (pth.Tlim - 38));          // kg/s at 38 C, full power
+  const T = COOL_BIRTH.target * need, rhs = 1 / (T * T) - 1 / Math.pow(GC.passages * need, 2);
+  const flowIn = rhs > 0 ? 1 / Math.sqrt(rhs) : T * 2;
+  const areaAt = V => flowIn / (GC.ivr * COOL_BIRTH.rho * V);                   // m2 of inlet
+  // a superellipse's area (the cowl's own apertures, cw_*Sq through its sqExp)
+  const sqExp = q => { q = Math.max(0, Math.min(1, +q || 0)); return q < 0.5 ? 1 + q / 0.5 : 2 * Math.pow(5, (q - 0.5) / 0.5); };
+  const sArea = (a, b, n) => { let S = 0; const N = 64;
+    for (let i = 0; i < N; i++) { const t0 = i / N * 2 * Math.PI, t1 = (i + 1) / N * 2 * Math.PI;
+      const p = t => [Math.sign(Math.cos(t)) * Math.pow(Math.abs(Math.cos(t)), 2 / n) * a, Math.sign(Math.sin(t)) * Math.pow(Math.abs(Math.sin(t)), 2 / n) * b];
+      const P0 = p(t0), P1 = p(t1); S += P0[0] * P1[1] - P1[0] * P0[1]; }
+    return Math.abs(S) / 2; };
+  const set = (k, v) => { out[k] = v; full[k] = v; };
+  const g = k => +full[k] || 0;
+  // the cowl's front, round the spinner, opened to `A` m2 (grown, never shrunk; the pair kept)
+  const openFace = A => {
+    const mode = Math.round(g('cw_apMode'));
+    const pairs = mode === 2 || mode === 3 ? 2 * sArea(g('cw_pairW'), g('cw_pairH'), sqExp(full.cw_pairSq)) : 0;
+    const spin = Math.PI * Math.pow(g('cw_spinR'), 2);
+    const n = sqExp(full.cw_apSq != null ? full.cw_apSq : 0.47);
+    const w0 = mode === 1 || mode === 3 ? Math.max(0.02, g('cw_apW')) : 0.1, h0 = mode === 1 || mode === 3 ? Math.max(0.02, g('cw_apH')) : 0.1;
+    const have = (mode === 1 || mode === 3 ? Math.max(0, sArea(w0, h0, n) - spin) : 0) + pairs;
+    if (have >= A) return;
+    if (mode === 0) set('cw_apMode', 1); else if (mode === 2) set('cw_apMode', 3);
+    const want = A - pairs + spin, f = Math.sqrt(want / Math.max(1e-6, sArea(w0, h0, n)));
+    set('cw_apW', +Math.min(0.7, w0 * f).toFixed(3)); set('cw_apH', +Math.min(0.7, h0 * f).toFixed(3));
+  };
+  // the chin scoop into the air, riding the bottom line, its open mouth (about two thirds of it stands out) `A` m2; `how`
+  // 'pull' its mouth to the propeller (a tractor: into the air), 'push' turned round (a pusher), 'aft' the rear cowl's
+  // own (a layout's rear engine)
+  const scoop = (A, how) => {
+    const hOpen = Math.sqrt(A / (COOL_BIRTH.follow * Math.PI * 1.25));
+    const H = Math.min(0.2, hOpen + COOL_BIRTH.lip), Wd = Math.min(0.3, 1.25 * hOpen + COOL_BIRTH.lip);
+    const turned = how === 'aft' ? +full.cw_scoopAft : how === 'push' ? +full.cw_scoopRev : !+full.cw_scoopRev;
+    if (+full.cw_scoopOn > 0 && g('cw_scoopW') >= Wd && g('cw_scoopH') >= H && turned && +full.cw_scoopFollow) return;
+    set('cw_scoopOn', 1); set('cw_scoopFollow', 1); set('cw_scoopAp', Math.max(0.9, g('cw_scoopAp')));
+    if (how === 'aft') set('cw_scoopAft', 1); else if (how === 'push') set('cw_scoopRev', 1); else if (+full.cw_scoopRev) set('cw_scoopRev', 0);
+    set('cw_scoopW', +Math.max(g('cw_scoopW'), Wd).toFixed(3)); set('cw_scoopH', +Math.max(g('cw_scoopH'), H).toFixed(3));
+  };
+  // the wing radiators' mouths (mode 1 a pair, 2 one and an oil cooler), grown to `A` m2 in all (cage metres x planeScale)
+  const radiators = A => {
+    const rm = Math.round(g('radMode')), ps = g('planeScale') > 0 ? g('planeScale') : 1, oilK = g('radOilK') || 0.55;
+    const per = rm === 1 ? 2 : 1 + oilK * oilK, w0 = Math.max(0.05, g('radW')), h0 = Math.max(0.03, g('radH'));
+    const have = per * w0 * h0 * (GC.radMouth || 0.8) * ps * ps;
+    if (have >= A) return;
+    const f = Math.sqrt(A / have);
+    set('radW', +(w0 * f).toFixed(3)); set('radH', +(h0 * f).toFixed(3));
+  };
+  const mK = Math.round(g('engMount')), aim = Math.round(g('engAim'));
+  const pullA = areaAt(COOL_BIRTH.Vpull), pushA = areaAt(COOL_BIRTH.Vpush);
+  if (mK === 8) return out;                                                      // a fin mount: left as drawn
+  if (liquid && Math.round(g('radMode')) > 0) { radiators(pullA); return out; }  // the radiators take the air
+  if (turbine) { scoop(pullA, mK === 1 ? 'push' : 'pull'); return out; }       // the oil cooler's scoop
+  if (mK === 4 || mK === 7) {                                                    // push-pull, tandem: nose pulls, rear pushes
+    openFace(Math.max(pullA, pushA * GC.outRatio)); scoop(pushA, 'aft'); return out;
+  }
+  const pushes = mK === 1 || (mK === 2 && aim !== 1) || ((mK === 3 || mK === 6) && aim === 2);
+  if (!pushes) {
+    openFace(pullA);
+    // a face that cannot hold it: a wing nacelle's (small, round its spinner), a narrow inline's or vee's
+    const narrow = mK === 3 || mK === 5 || mK === 6 || (R.arch === 'inline' || R.arch === 'vee');
+    if (narrow) scoop(pullA, 'pull');
+    return out;
+  }
+  if ((mK === 2 || mK === 3 || mK === 6) && Math.round(g('cw_aftMode')) === 1) {   // a nacelle's tail cone: its inlet
+    if (!+full.cw_inletOn) { set('cw_inletOn', 1); set('cw_inletW', Math.max(0.5, g('cw_inletW'))); set('cw_inletH', Math.max(0.5, g('cw_inletH'))); }
+    return out;
+  }
+  scoop(pushA, 'push'); openFace(pushA * GC.outRatio);
+  return out;
 }
 
 function designBake(sel, over) {
@@ -113756,7 +113953,7 @@ const P={
   // chin scoop
   // ENGINE-COOLING: scoopRev 1 turns the mouth round (faces -z: the flight, on a pusher)
   // ENGINE-COOLING (12 Nov, the user: "let's have at least a top scoop"): scoopTop 1 puts it on the cowl's TOP
-  scoopOn:1, scoopRev:0, scoopTop:0, scoopZ:0, scoopW:0.065, scoopH:0.055, scoopLen:0.22, scoopDrop:0.7,
+  scoopOn:1, scoopRev:0, scoopTop:0, scoopAft:0, scoopZ:0, scoopW:0.065, scoopH:0.055, scoopLen:0.22, scoopDrop:0.7,
   scoopAp:0.68, scoopSq:0.5, scoopRake:0.18,
   scoopLipH:0.011, scoopLipDepth:0.032, scoopDuct:0.125,
   // aft — the fuselage is a given; the cowl inherits its section by default
@@ -115494,7 +115691,7 @@ function coolOpenings(aps){
   const area=(a,b,n)=>{ if(!(a>0&&b>0)) return 0; let s=0; const N=96;
     for(let i=0;i<N;i++){ const p=superPt(i/N*TAU,a,b,n), q=superPt((i+1)/N*TAU,a,b,n); s+=p[0]*q[1]-q[0]*p[1]; }
     return Math.abs(s)/2; };
-  const out={face:0,scoop:0,scoopRev:P.scoopRev?1:0,nacInlet:0,exit:0,gills:0};
+  const out={face:0,scoop:0,scoopAlt:0,scoopRev:P.scoopRev?1:0,nacInlet:0,exit:0,gills:0};
   const L=aps||apertureList();
   L.forEach((o,i)=>{ let A=area(o.w,o.h,o.n);
     if(i===0&&(P.apMode===1||P.apMode===3)) A=Math.max(0,A-Math.PI*Math.pow(Math.max(0,+P.spinR||0),2));
@@ -115506,18 +115703,24 @@ function coolOpenings(aps){
     // a notch, whatever its rows say): the mouth's station and centre as buildScoop draws them (the turned mouth at the
     // firewall end, a top scoop above the spine, a following one on the keel or the deck line), its opening sampled
     // against the cowl's own section there
+    // (`scoopAlt`: the same scoop with its mouth at the OTHER end - what a push-pull's aft cowl wears when its scoop is
+    // turned on its own, cw_scoopAft)
     const ze=zEnd(), top=!!P.scoopTop, zM0=P.cowlLen+P.lidLen*0.35, z1=zM0-(P.scoopZ||0)*(zM0-P.scoopLen);
-    const zm=P.scoopRev?z1-P.scoopLen:z1, sm=sectionAtZ(P.cowlLen*0.5), H=P.scoopH;
-    let cy;
-    if(P.scoopFollow>0){ const sk=sectionAtZ(clamp(zm,0,ze)); cy=top?(sk.cy+sk.bT)-H/3+H:(sk.cy-sk.bB)+H/3-H; }
-    else cy=top?spineY(ze*0.6)+sm.bT*P.scoopDrop+H*P.scoopRake:spineY(ze*0.6)-sm.bB*P.scoopDrop-H*P.scoopRake;
-    const inSkin=zm>=0&&zm<=ze, G=48; let tot=0, open=0;
-    for(let i=0;i<G;i++) for(let j=0;j<G;j++){
-      const u=(i+0.5)/G*2-1, v=(j+0.5)/G*2-1;
-      if(Math.pow(Math.abs(u),nn)+Math.pow(Math.abs(v),nn)>1) continue;
-      tot++; if(!inSkin||sectF(u*aI,cy+v*bI,zm)>=1) open++;
-    }
-    out.scoop=area(aI,bI,nn)*(tot?open/tot:0);
+    const sm=sectionAtZ(P.cowlLen*0.5), H=P.scoopH, A0=area(aI,bI,nn);
+    const openAt=rev=>{
+      const zm=rev?z1-P.scoopLen:z1;
+      let cy;
+      if(P.scoopFollow>0){ const sk=sectionAtZ(clamp(zm,0,ze)); cy=top?(sk.cy+sk.bT)-H/3+H:(sk.cy-sk.bB)+H/3-H; }
+      else cy=top?spineY(ze*0.6)+sm.bT*P.scoopDrop+H*P.scoopRake:spineY(ze*0.6)-sm.bB*P.scoopDrop-H*P.scoopRake;
+      const inSkin=zm>=0&&zm<=ze, G=48; let tot=0, open=0;
+      for(let i=0;i<G;i++) for(let j=0;j<G;j++){
+        const u=(i+0.5)/G*2-1, v=(j+0.5)/G*2-1;
+        if(Math.pow(Math.abs(u),nn)+Math.pow(Math.abs(v),nn)>1) continue;
+        tot++; if(!inSkin||sectF(u*aI,cy+v*bI,zm)>=1) open++;
+      }
+      return A0*(tot?open/tot:0);
+    };
+    out.scoop=openAt(!!P.scoopRev); out.scoopAlt=openAt(!P.scoopRev);
   }
   if(Math.round(P.aftMode)===1&&P.inletOn){
     const s0=sectionAtZ(0);
@@ -115528,11 +115731,37 @@ function coolOpenings(aps){
   }
   if(P.exitGap>0) out.exit=Math.max(0,+P.aftW||0)*P.exitGap;
   if(P.gillOn>0){ const F=gillsFit(); if(F.ok) out.gills=2*Math.max(2,Math.round(P.gillN))*Math.max(0.002,P.gillLip)*F.H*0.8; }
-  for(const k of ['face','scoop','nacInlet','exit','gills']) out[k]=+out[k].toFixed(5);
+  for(const k of ['face','scoop','scoopAlt','nacInlet','exit','gills']) out[k]=+out[k].toFixed(5);
   return out;
 }
 
-const COWL_API = { coolOpenings, gillsFit, buildGills, exitAt, inExCut, TAU, P, MATERIALS, PRESETS, lerp, clamp, smooth, sqExp, superPt, angDiff, SEG, zEnd, lidRadius, spineY, bez, mkCurve, eSqAftTop, eSqAftBot, eDeckH, eKeelH, eWaist, prepareLid, seamInset, sectionAtZ, sectPt, lobeAt, surfPoint, sectF, pierceZ, equalise, prepareMesh, apertureList, fitAperture, apG, buildSurface, aftStart, fwGeom, fwLipProfile, sectNormal2, buildFirewallLip, lipProfile, buildLips, buildDetail, cowlNormalAt, loftRings, fan, buildScoop, buildAft, spinProfile, coneBaseZ, axisXY, bladePlaneZ, coneRadiusAtBlade, buildNose, naca, airfoilLoop, propGeometry, cowlFitEngine, cowlApplyEngine, cowlSizeToEngine };
+// THE HEADS IN THE WIND (ENGINE-COOLING 3, the user 12 Nov: "on the Client Cub the cylinder heads themselves stick out of
+// the cowl ... we should account for them"): the engine's cylinders (_eng_gen engResolve's `place`) as THIS cowl's skin
+// sees them - each cylinder's frontal strip (its base on the case to its head's tip, a head's width across) sampled; a
+// point outside the skin, or ahead of the cowl's end, is in the air (behind the firewall it is in the fuselage).
+// `toCowl(x, y, z)` maps the engine's own frame (z 0 the flange, aft negative) into the cowl's; with none (no cowl at
+// all) every head is out. Returns m2 of frontal: { out, all }; null for an engine with no cylinders.
+function coolHeads(R, toCowl){
+  const L=R&&R.place;
+  if(!L||!L.ang||!L.ang.length||!(L.cylLen>0)||!(L.headR>0)) return null;
+  const ze=toCowl?zEnd():0, NR=12, NT=6;
+  let out=0, all=0;
+  for(let i=0;i<L.ang.length;i++){
+    const a=L.ang[i], s=Math.sin(a), c=Math.cos(a), px=Math.cos(a), py=-Math.sin(a), z=L.zOf(L.stn[i]);
+    const dA=(L.cylLen/NR)*(2*L.headR/NT);
+    for(let u=0;u<NR;u++) for(let v=0;v<NT;v++){
+      const r=L.r0+(u+0.5)/NR*L.cylLen, t=-L.headR+(v+0.5)/NT*2*L.headR;
+      all+=dA;
+      if(!toCowl){ out+=dA; continue; }
+      const q=toCowl(s*r+px*t, c*r+py*t, z);
+      if(q[2]<0) continue;
+      if(q[2]>ze||sectF(q[0],q[1],q[2])>=1) out+=dA;
+    }
+  }
+  return { out:+out.toFixed(5), all:+all.toFixed(5) };
+}
+
+const COWL_API = { coolOpenings, coolHeads, gillsFit, buildGills, exitAt, inExCut, TAU, P, MATERIALS, PRESETS, lerp, clamp, smooth, sqExp, superPt, angDiff, SEG, zEnd, lidRadius, spineY, bez, mkCurve, eSqAftTop, eSqAftBot, eDeckH, eKeelH, eWaist, prepareLid, seamInset, sectionAtZ, sectPt, lobeAt, surfPoint, sectF, pierceZ, equalise, prepareMesh, apertureList, fitAperture, apG, buildSurface, aftStart, fwGeom, fwLipProfile, sectNormal2, buildFirewallLip, lipProfile, buildLips, buildDetail, cowlNormalAt, loftRings, fan, buildScoop, buildAft, spinProfile, coneBaseZ, axisXY, bladePlaneZ, coneRadiusAtBlade, buildNose, naca, airfoilLoop, propGeometry, cowlFitEngine, cowlApplyEngine, cowlSizeToEngine };
 if (typeof module !== 'undefined') module.exports = COWL_API;
 if (typeof window !== 'undefined') window.COWL_GEN = COWL_API;
 </script>
@@ -115744,6 +115973,8 @@ const COWL_ROWS = [
     { k: 'scoopOn', label: 'chin scoop', lo: 0, hi: 1, step: 1 },
     // ENGINE-COOLING (12 Nov): the same scoop on the cowl's top (absent 0: under it, as every scoop was)
     { k: 'scoopTop', label: 'sits', lo: 0, hi: 1, step: 1, names: ['under the cowl (a chin scoop)', 'on top of the cowl'], when: 'P.scoopOn>0' },
+    // ENGINE-COOLING 3: a push-pull's AFT cowl (the nose cowl turned round) with its scoop turned on its own (absent 0)
+    { k: 'scoopAft', label: 'the rear engine\'s scoop (push-pull)', lo: 0, hi: 1, step: 1, names: ['as the nose cowl\'s', 'turned: into the air'], when: 'P.scoopOn>0' },
     // ENGINE-COOLING (12 Nov): the mouth turned round - on a pusher the cowl runs from the firewall to the propeller, so
     // only a turned scoop faces the air (absent 0: every scoop as it was)
     { k: 'scoopRev', label: 'mouth faces', lo: 0, hi: 1, step: 1, names: ['the propeller', 'the firewall (a pusher: into the air)'], when: 'P.scoopOn>0' },
@@ -115940,7 +116171,7 @@ for (const g of ROWS) {
 // G3914: the nacelle inlet's rows too - absent at their defaults (no saved build gains a key)
 const ABSENT_AT = { wAftTop: 1, wAftBot: 1, inletOn: 0, inletW: 0.42, inletH: 0.42, inletLip: 0.014, inletDuct: 0.22, inletY: 0,
   faceRing: 0, waistF: null,
-  exitGap: 0, exitSpan: 140, exitLen: 0.45, exitHold: 0, keelShoulder: null, keelRound: null, deckShoulder: null, deckRound: null, scoopFollow: 0, scoopRev: 0, scoopTop: 0, lobeCount: 0, lobeT2: null, lobeStream: 0, lobeNose: 0.94, lobeTail: 0.04, partLevel: 0, partArc: 0, podFit: 0, lidRW: null, lidRTop: null, lidRBot: null, exRampH: 0.04, exCut: 0, exCutSpan: 50, exCutLen: 0.12, exCutAz: 270,
+  exitGap: 0, exitSpan: 140, exitLen: 0.45, exitHold: 0, keelShoulder: null, keelRound: null, deckShoulder: null, deckRound: null, scoopFollow: 0, scoopRev: 0, scoopTop: 0, scoopAft: 0, lobeCount: 0, lobeT2: null, lobeStream: 0, lobeNose: 0.94, lobeTail: 0.04, partLevel: 0, partArc: 0, podFit: 0, lidRW: null, lidRTop: null, lidRBot: null, exRampH: 0.04, exCut: 0, exCutSpan: 50, exCutLen: 0.12, exCutAz: 270,
   gillOn: 0, gillN: 6, gillZ: 0.35, gillL: 0.22, gillH: 0.12, gillSlant: 25, gillLip: 0.012, gillT: 0.004 };   // PROPER-COWLS: the exit   // PROPER-COWLS: faceRing, waistF (null = follows waist)
 const cowlDef = { cowlOn: 1, fitNose: 2, cowlGap: 0.0 };
 for (const k of SHOWN) if (!(k in ABSENT_AT)) cowlDef['cw_' + k] = CW.P[k];
@@ -116820,6 +117051,8 @@ const COWL_BY_ARCH = {
     cw_lipMode: 1, cw_lipThick: 0.020, cw_lipProtrude: 0.4, cw_lipInset: 0.04,
     cw_lipDepth: 0.10, cw_lipRound: 0.7, cw_ductLen: 0.16,
     cw_scoopOn: 1, cw_scoopZ: 1, cw_scoopDrop: 0.9, cw_scoopSq: 0.55,
+    // ENGINE-COOLING 3: the oil cooler's scoop stands out of the skin (only its open mouth is measured)
+    cw_scoopFollow: 1,
     cw_lobeN: 0,
   },
 };
@@ -116829,8 +117062,9 @@ const COWL_BY_ARCH = {
 // it because it cools a gearbox, not nine cylinders.
 const COWL_PROPS = {
   radial:  { lid: 0.30, lidR: 0.23, ap: 0.58 },
+  // (ENGINE-COOLING 3: the scoop 0.42 x 0.30 -> 0.55 x 0.40 of the barrel - a PT6's oil cooler at a 38 C climb)
   turbine: { lid: 0.30, lidR: 0.23, ap: 0.22,
-             scoopW: 0.42, scoopH: 0.30, scoopLen: 0.30 },
+             scoopW: 0.55, scoopH: 0.40, scoopLen: 0.30 },
 };
 
 // PURE, so the gate can exercise it without a browser. Returns the cage keys
@@ -117246,7 +117480,7 @@ function cowlPlace(ctx, again) {
   const { scene, mesh, P, stat } = ctx;
   dispose(group); group = null;
   // ENGINE-COOLING: what the cowl opens to the air (CW.coolOpenings, below), the join's spec.cooling; no cowl, no openings
-  window.CAGE_COOL_OPEN = null;
+  window.CAGE_COOL_OPEN = null; window.CAGE_COWL_SHELLS = null;
   if (!P.cowlOn) { birthPreset = null; return null; }
 
   LIVE_P = P;
@@ -117399,7 +117633,15 @@ function cowlPlace(ctx, again) {
   // because the cowl module is shared with a bench that may predate it
   if (CW.buildFirewallLip) CW.buildFirewallLip(cowl, M);
   CW.buildLips(cowl, M, aps);
-  CW.buildScoop(cowl, M);
+  // (ENGINE-COOLING 3: the scoop's meshes marked, so a push-pull's aft cowl can wear its own - cw_scoopAft, below;
+  // the same meshes in the same order, a flag on each)
+  const markScoop = (into, rev) => {
+    const sg = new THREE.Group(), r0 = CW.P.scoopRev;
+    if (rev != null) CW.P.scoopRev = rev;
+    try { CW.buildScoop(sg, M); } finally { CW.P.scoopRev = r0; }
+    for (const ch of sg.children.slice()) { ch.userData.coolScoop = 1; into.add(ch); }
+  };
+  markScoop(cowl, null);
   // G94: the fasteners, the parting line and the oil door — the three things
   // that say this panel comes off. Guarded, because the cowl module is shared
   // with a bench that may predate them.
@@ -117442,6 +117684,7 @@ function cowlPlace(ctx, again) {
       }
       const t = new THREE.Mesh(g, M.innerBack);
       t.name = o.name; t.userData.innerTwin = 1;
+      if (o.userData.coolScoop) t.userData.coolScoop = 1;
       o.parent.add(t);
     }
   }
@@ -117477,9 +117720,32 @@ function cowlPlace(ctx, again) {
   // inherited its translation and its π turn. Every unit now has its own
   // group under an identity root.)
   const ex = Math.max(0, P.explodeD || 0) * FS;
+  // ENGINE-COOLING 3: each unit's shell (the engine layer reads the heads against unit 0's), and the area each unit's
+  // openings are worth against unit 0's (a clone scaled to another kind of face scales its openings by sx sy)
+  const shells = [], unitK = [];
   units.forEach((u, k) => {
     const f = u.face;
     const c = k === 0 ? cowl : cowl.clone();
+    shells.push(c); unitK.push({ aft: !!u.aft, k: 1 });
+    // ENGINE-COOLING 3 (the user 12 Nov: "this pusher-puller inline should allow for a scoop on the aft engine as
+    // well"): the aft cowl is the nose cowl turned round, so a scoop facing the flight on the nose faces the rear
+    // propeller there. `scoopAft` 1 turns the AFT cowl's scoop on its own (its mouth at the other end: into the air
+    // on a push-pull's rear engine); the nose cowl keeps its own. Absent / 0: the clone as it was
+    if (k > 0 && u.aft && +CW.P.scoopOn && +CW.P.scoopAft) {
+      for (const ch of c.children.slice()) if (ch.userData && ch.userData.coolScoop) c.remove(ch);
+      const sg = new THREE.Group();
+      markScoop(sg, CW.P.scoopRev ? 0 : 1);
+      for (const o of sg.children.slice()) {
+        c.add(o);
+        if (o.isMesh && o.material === M.skin && o.geometry.attributes.normal) {
+          const g = o.geometry.clone(), pa = g.attributes.position, na = o.geometry.attributes.normal;
+          for (let i = 0; i < pa.count; i++)
+            pa.setXYZ(i, pa.getX(i) - na.getX(i) * INNER_OFF, pa.getY(i) - na.getY(i) * INNER_OFF, pa.getZ(i) - na.getZ(i) * INNER_OFF);
+          const t = new THREE.Mesh(g, M.innerBack); t.name = o.name; t.userData.innerTwin = 1; t.userData.coolScoop = 1; c.add(t);
+        }
+      }
+      unitK[k].scoopTurned = 1;
+    }
     const ug = new THREE.Group();
     ug.name = 'cageLayer:cowl'; ug.userData.xray = XRAY ? 1 : 0;
     ug.add(c);
@@ -117494,6 +117760,7 @@ function cowlPlace(ctx, again) {
       if (k > 0 && u.kind !== units[0].kind && f0.halfW > 0 && f0.halfH > 0 && f.halfW > 0 && f.halfH > 0) {
         const sx = f.halfW / f0.halfW, sy = f.halfH / f0.halfH;
         c.scale.set(sx, sy, Math.sqrt(sx * sy));
+        unitK[k].k = sx * sy;
       }
     }
     // ON THE SKIN, NOT IN IT: `seat` is how far the fuselage skin domes past
@@ -117509,6 +117776,8 @@ function cowlPlace(ctx, again) {
     group.add(ug);
   });
   scene.add(group);
+  window.CAGE_COWL_SHELLS = shells;
+  if (window.CAGE_COOL_OPEN) window.CAGE_COOL_OPEN.units = unitK;
 
   applyRowStates(mode);
   window.CAGE_COWL = { face, len: CW.zEnd(), aps: aps.length, mode,
@@ -119063,7 +119332,7 @@ function engPlace(ctx, prev) {
   // backwards) so the firewall plate stays on the face and the propeller
   // runs behind it. Group k > 0 names its spinner/prop with a '#k' suffix so
   // the join can spin each one about its own hub.
-  const unitOut = [];
+  const unitOut = [], unitG = [];
   const spinGeo = (() => {
     const d2 = Math.max(0.35, Math.min(2, CW.P.detail || 1));
     const NS = Math.max(10, Math.round(16 * d2));
@@ -119148,7 +119417,7 @@ function engPlace(ctx, prev) {
     // wing-box selector cut it in two on a wing mount (the user: "the
     // engine block and prop seem to be attached to the body, while the
     // support is attached to the wing nacelle structure")
-    ug.name = 'edEng' + sfx;
+    ug.name = 'edEng' + sfx; unitG.push(ug);
     // G2790: a layout mixes the nose (the cage's own firewall) with faces
     // off the body (a nacelle, the bulkhead of a push-pull drawn plain):
     // a unit whose face is synthetic when the first unit's is not draws
@@ -119417,6 +119686,23 @@ function engPlace(ctx, prev) {
       }
     }
   }
+  // ENGINE-COOLING 3 (the user 12 Nov: the Client Cub's heads stick out of its cowl - "we should account for them"):
+  // the cylinders as unit 0's DRAWN cowl sees them (COWL_GEN.coolHeads: each one's frontal strip against the shell's
+  // skin), m2 out in the wind and m2 in all; with no cowl every head is out; a cowl not drawn this frame says nothing
+  window.CAGE_COOL_HEADS = null;
+  try {
+    if (CW && CW.coolHeads && R && R.place) {
+      const sh = window.CAGE_COWL_SHELLS, cu = sh && sh[0], eu = unitG[0];
+      const cowled = P.cowlOn == null || +P.cowlOn;
+      if (!cowled) window.CAGE_COOL_HEADS = CW.coolHeads(R, null);
+      else if (cu && eu && cu.parent) {
+        let root = cu; while (root.parent) root = root.parent;
+        root.updateMatrixWorld(true); eu.updateMatrixWorld(true);
+        const M4 = new THREE.Matrix4().copy(cu.matrixWorld).invert().multiply(eu.matrixWorld), v = new THREE.Vector3();
+        window.CAGE_COOL_HEADS = CW.coolHeads(R, (x, y, z) => { v.set(x, y, z).applyMatrix4(M4); return [v.x, v.y, v.z]; });
+      }
+    }
+  } catch (e) { window.CAGE_COOL_HEADS = null; }
   window.CAGE_ENG = { name: PRESET_NAMES[Math.round(P.engPreset)],
                       resolved: R, zFw, exhaustAt,
                       propFitCheck,                                // G477: the disc's clearance, per unit (the join calls it)
@@ -142455,9 +142741,17 @@ function cageJoinSpec(P, M, T) {
   // keeps the per-kW cooling drag (62_gen_aero genCoolOpen 'legacy'). MEASURED, never the player's: certStrip drops it
   {
     const co = typeof window !== 'undefined' ? window.CAGE_COOL_OPEN : null;
+    // ENGINE-COOLING 3: the heads in the wind (the engine layer, CAGE_COOL_HEADS: m2 out of the drawn skin, m2 in all),
+    // the scoop's other end (a push-pull's aft cowl, cw_scoopAft) and each unit's area factor; an uncowled engine
+    // writes its heads alone (all in the wind: the bare engine's own figure)
+    const hd = typeof window !== 'undefined' ? window.CAGE_COOL_HEADS : null;
+    const heads = hd && typeof hd === 'object' ? { headsOut: +hd.out || 0, headsAll: +hd.all || 0 } : { headsOut: null, headsAll: null };
     if (co && typeof co === 'object')
-      spec.cooling = { face: +co.face || 0, scoop: +co.scoop || 0, scoopRev: co.scoopRev ? 1 : 0,
-                       nacInlet: +co.nacInlet || 0, exit: +co.exit || 0, gills: +co.gills || 0 };
+      spec.cooling = Object.assign({ face: +co.face || 0, scoop: +co.scoop || 0, scoopAlt: +co.scoopAlt || 0, scoopRev: co.scoopRev ? 1 : 0,
+                       nacInlet: +co.nacInlet || 0, exit: +co.exit || 0, gills: +co.gills || 0,
+                       units: Array.isArray(co.units) ? co.units.map(u => ({ aft: u.aft ? 1 : 0, k: +u.k || 1, turned: u.scoopTurned ? 1 : 0 })) : null }, heads);
+    else if (hd && typeof hd === 'object' && (P.cowlOn != null && !+P.cowlOn))
+      spec.cooling = Object.assign({ face: 0, scoop: 0, scoopAlt: 0, scoopRev: 0, nacInlet: 0, exit: 0, gills: 0, units: null }, heads);
   }
   // G52: the wing's fore-aft station, from the wing layer's own anchor
   if (typeof M.wingXLE === 'number' && isFinite(M.wingXLE)) {
@@ -199448,7 +199742,9 @@ const PLAQUE_WHY = {
       + 'carries it away. A cowl has to swallow this.' },
   // ENGINE-COOLING (12 Nov): what the drawn openings do with that heat
   'cooling air': { what: 'an engine with no cowl round it: the propeller wash '
-      + 'and the flight blow straight over its fins, nothing to size.' },
+      + 'and the flight blow straight over its fins - the frontal of its '
+      + 'cylinders in the wind, and the air that passes them on a 38 C '
+      + 'climb against the air the engine needs.' },
   'hot-day climb air': { what: 'the air the drawn openings pass on a 38 C day at '
       + 'sea level, climbing at full power, against the air the engine needs to '
       + 'stay under its limit. Under 1 the engine overheats in the climb.',
@@ -216602,7 +216898,7 @@ function editorInit(api) {
       scoopOn: 'scoop', scoopLen: 'scoop', scoopW: 'scoop', scoopH: 'scoop',
       scoopSq: 'scoop', scoopLipH: 'scoop', scoopDrop: 'scoop',
       scoopRake: 'scoop', scoopAp: 'scoop', scoopLipDepth: 'scoop',
-      scoopDuct: 'scoop', scoopRev: 'scoop', scoopTop: 'scoop',
+      scoopDuct: 'scoop', scoopRev: 'scoop', scoopTop: 'scoop', scoopAft: 'scoop',
       oilOn: 'oil', oilZ: 'oil', oilW: 'oil', oilL: 'oil', oilSq: 'oil',
       partOn: 'part', partY: 'part', partW: 'part',
       apMode: 'aps', apW: 'aps', apH: 'aps', apSq: 'aps',
@@ -245776,7 +246072,8 @@ window.FLYDIY_WORLD_COMPOSE = function () {
         (s.engineCooling === 'liquid' ? 'by radiator' : 'by fins'));
       // ENGINE-COOLING (12 Nov): what the drawn openings do with it - the hot-day climb (38 C at sea level, full power)
       const CO = s.cooling;
-      if (CO && CO.kind === 'bare') R('cooling air', 'no cowl: the engine stands in the air');
+      if (CO && CO.kind === 'bare') R('cooling air', 'no cowl: heads in the wind ' + n1(CO.bareA, 3) + ' m2 · ' +
+        (CO.margin != null ? n1(CO.margin, 2) + ' x what a 38 C climb needs' : 'the engine stands in the air'), CO.margin != null && CO.margin < 1 ? 'bad' : '');
       else if (CO && CO.margin != null) {
         R('hot-day climb air', n1(CO.passKgS, 2) + ' / ' + n1(CO.needKgS, 2) + ' kg/s · ' + n1(CO.margin, 2) + ' x what it needs',
           CO.margin < 1 ? 'bad' : '');
