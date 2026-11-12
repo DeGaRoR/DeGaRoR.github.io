@@ -531,3 +531,11 @@ glazing band (bubbles are the drawn windows'); the tail wheel's station. The PC-
 
 Lesson: **a row that moves nothing is often the row of another mode** (the shock rows belong to the link leg, not the
 oleo): read the mode first (`s1Leg`), then the rows. The PC-6: 123 / 175.
+
+### The garage branch and A0's trains (12 Nov)
+
+Garage changes the table needs go on their own branch, `claude/fit-procedure-garage-windows`, for A0 (the coordinator)
+to train in; the drafting branch merges it. A0's rules for it (12 Nov): L39a takes the branch as it stands at Thu 12 Nov
+11:30; L39b (Thu 19:00) is the last feature train before the perf round - push nothing to it after Thu 17:30; later
+garage work waits for the week of 16 Nov, on a NEW branch. Keep it rebased on master (a fast merge), LF line endings
+only. L38c already took it at dc87d793 (rebased since: 31bd4c47).
