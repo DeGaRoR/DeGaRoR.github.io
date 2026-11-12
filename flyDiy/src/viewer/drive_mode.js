@@ -220,12 +220,14 @@
     const T = THREE_, gm = new T.BufferGeometry(); gm.setAttribute('position', new T.BufferAttribute(new Float32Array(25 * 3), 3));
     TW.rope = new T.Line(gm, new T.LineBasicMaterial({ color: 0xf2e6c8 })); TW.rope.frustumCulled = false; scene_.add(TW.rope);
     TW.sim = sim; TW.active = true; TW.why = null; TW.t = 0;
+    // (?towhands=1: the gate's hands fly the glider - a rig's, a player without a stick's; the player flies otherwise)
+    TW.hands = /[?&]towhands=1/.test(location.search || '') ? makeTowHands(sim, { ground: world_.terrainH(cg[0], cg[2]) }) : null;
     poseRig();
     return to;
   };
   // the car sets off: the first step the aeroplane flies with the player's hands on (app.js calls it when the run starts)
   TW.start = () => { if (TW.active && !TW.go) { TW.go = true; TW.D.setDest(TW.to); } };
-  DM.towPre = () => { if (TW.active && TW.line && TW.line.on) TW.line.before(); };
+  DM.towPre = () => { if (!TW.active) return; if (TW.line && TW.line.on) TW.line.before(); if (TW.hands && TW.go) TW.hands(TW.line, 1 / 60); };
   DM.towPost = (dt) => {
     if (!TW.active) return;
     if (TW.line) TW.line.after(dt);

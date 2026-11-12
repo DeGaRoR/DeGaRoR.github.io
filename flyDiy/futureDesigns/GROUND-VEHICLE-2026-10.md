@@ -336,3 +336,52 @@ long way.
 away at HOME -> a back-in U-turn at the road's end on HOME's apron; 4 km on, a new To behind (HOME) -> a nose-in U-turn at
 the r2/r5 junction; then Cedar Harbour again -> a U-turn at r2/r21; ARRIVED 0.65 m from the town hall's stop after 13.7 km
 (21.3 min, 63 km/h at most), the manoeuvres tracked within 3 cm, never STUCK.
+
+---
+
+## 10. TOW-LAUNCH phase 2 (2026-11-12): the roads joined, the runways
+
+**The roads joined in the record** (the user: "join the roads"): `tools/road_join_drawn.js` + `tools/road_join_level.js`
+(then `tools/road_patch.py`, which now carries `tan`). Joins on the DRAWN lines (road_review --join reads the waypoint
+chords: on a spline 8 m off the curve, it dragged r1 21 m and r35 26 m): crossings (a shared waypoint in both), overruns
+(a crossing within 15 m of a free end: the end trimmed back onto it - r3 ran 8.2 m past mk_sa01), T's (an end within 2.5 m
+moved onto the street), ends to ends, gaps to 15 m (one extension waypoint; a spline's old end fixed at its own handle,
+its curve kept exactly). LEVEL: a junction levels its roads to ONE height (27_premises G2950), so a join that moves the
+composed ground more than 1 m within 15 m is refused - 4 pairs meet at different heights (mk_r_airport|r3 5.5 m: the old
+airport road runs beside and below r3; mk_sc41|r3 2.6 m; r24|r2 2.1 m: the car hit the step it made; r47|r46 1.0 m). 50
+junctions; the drawn lines move 1.7 m at most (r4), the HOME road r2 0.16 m.
+
+**The runways** (vehicle_island.js, vehicle-side): each runway a road down its centreline; each taxi route (the
+aeroplane's own, the site's `taxiOut` / `taxiOut1`) a road from the stand to where it meets the runway; the stand LINKED to
+the nearest road over drivable ground (HOME -> r39 68 m); a runway's end on another's pavement joined (02/20 on 13/31, 13.6 m
+off its centreline); every runway end a destination ('Jolene AFB 13/31 · runway 31', the number its end gives). STEEP
+STRETCHES (> 45 % over 6 m) are closed to the router: Fishing Village's only approach, r40, ends in a 5 m bank under the
+strip's terrace (68 %) - its To answers 'none' instead of a car driven into it (a scenery finding). `vehIslandFromWorld`
+is the one recipe (the gate, the page). `vehFaceToward`: a trip sets off facing its route (no U-turn - one is for a new To
+behind). A corner over 45 deg on dense vertices (a junction's turn, r5 -> r40 121 deg) gets real legs before its fillet.
+GATE DRIVE-TRIP rows GRAPH (the record's own junctions), PLAIN, RUNWAY.
+
+## 11. TOW-LAUNCH phase 3 (2026-11-12): the glider auto-tow
+
+`src/vehicle/tow.js` (lazy): the LINE - tension-only, k = EA / L0 (400 m, EA 1 MN: 2.5 kN/m), damping for zeta 0.5 on the
+glider's mass, a weak link (6 kN) - between the car's hitch (its rear bumper) and the glider's nose hook (the most forward
+centre-plane node of the lower half and its neighbours: any build). Through the solver's own `sim.onSubstep` +
+`sim.impulse` (no solver change; the glider study's mechanism); the car's hitch read at the frame's start, extrapolated
+through the frame; the frame's mean pull back to the car as `car.extF` (vehicle.js; unset, the spike's digits). RELEASE:
+the top of the launch (the line slack above 30 m, or its angle no higher than 4 s ago), the car stopped, the weak link,
+the pilot's key. `makeTowHands`: the gate's hands (signs from the study's flown probe).
+
+GATE TOW (core, ~1 min): the motorglider archetype, engine off (sim.setEngine key 'off'), on 400 m behind the Conquer at
+28 m/s down Jolene AFB 13/31: lift-off 14.9 s / 25.9 m/s / 207 m down the runway, released at the top at 275 m, 3.8 kN at
+most; then 15 s of glide; the key at 100 m; a 1.2 kN weak link breaks; +1.0-1.3 ms on the glider's frame.
+
+THE PAGE (the user, 12 Nov: "when you select something without an engine, then by default we are getting in a glider
+tow mode ... we start at the start line with the cable and the car"): app.js `towWanted()` - def.params.nEngines 0 (the
+engineless card, when it lands), the card's `motorOff` (the flag proposed to the Archaeopteryx session), or `?tow=1`.
+Once the flight starts: Skip to line-up's placement (the start line), every engine's key off, by hand (`setManual(true,
+'tow')`), the lazy pack, `DRIVE_MODE.towStart` lays the car 398 m ahead on the centreline and the line; the car sets off 3 s
+into the run; the line drawn sagging; R (or the plate) releases; the words on the flight's notice plate; Restart lays it
+out again. A tow flight flies INLINE (sim_link.js eligible: the line acts in the page's substeps); every other flight keeps
+the worker. `?towhands=1`: the gate's hands fly it (a rig's; a player without a stick's).
+Open: the Archaeopteryx card (its branch rewrites the gear and the core); a glider circuit / landing pattern after the
+release (GLIDE -> FLARE exists); the winch (a fixed drum: the same line with a fixed anchor).
