@@ -110,6 +110,11 @@ ul.plain { margin: 0; padding-left: 1.1em; display: flex; flex-direction: column
   <p class="meta">12 Nov 2026 · for A0 (Performance Coordinator) and the Deform Coordinator · implementation after the perf round (13–14 Nov), on the user's choice</p>
 </header>
 
+<div class="verdict" style="border-left-color:var(--accent)">
+  <h2 style="font-size:1.3rem">Decision (the user, 12 Nov)</h2>
+  <p><b>Option B</b>, with <b>two looks only: acrylic and laminated glass</b>. The polycarbonate look ("plain unreadable") and the tempered look ("not good enough") are dropped. Two sheets, not three. Until a readable polycarbonate look exists, a polycarbonate pane draws the acrylic sheet, and every glass pane draws the laminated one.</p>
+</div>
+
 <div class="verdict">
   <h2 style="font-size:1.3rem">The short answer</h2>
   <ul>
@@ -166,23 +171,12 @@ ul.plain { margin: 0; padding-left: 1.1em; display: flex; flex-direction: column
       <p class="muted">The whole fleet today, list:41 Super Petrel LS included.</p>
     </div>
     <div class="mat">
-      <canvas class="mock" data-opt="B" data-mat="polycarbonate" data-sev="1" data-light="64" data-seed="5" aria-label="Mock-up: polycarbonate dent and crazing"></canvas>
-      <h3>Polycarbonate (Lexan) <span class="chip">glazeMat 1</span></h3>
-      <p>Ductile. On impact it <b>deforms plastically instead of shattering</b>. It dents. Around the dent it <b>stress-whitens</b> to a milky ring and <b>crazes</b>: hundreds of fine micro-cracks across the stress, so they lie in rings round the hit and sparkle together in one direction. A severe hit <b>punctures and tears</b> into a few folded petals, with no long running cracks. Common on ultralights, kit doors and military canopies.</p>
-      <p class="muted">No listed plane uses it yet. The row exists and costs the same weight.</p>
-    </div>
-    <div class="mat">
       <canvas class="mock" data-opt="B" data-mat="laminated" data-sev="1" data-light="64" data-seed="3" aria-label="Mock-up: laminated glass spider web"></canvas>
-      <h3>Laminated glass (windscreen) <span class="chip">glazeMat 2, windscreen pane</span></h3>
+      <h3>Laminated glass <span class="chip">glazeMat 2</span></h3>
       <p>Two glass plies on a plastic interlayer (PVB). A hit gives the familiar <b>spider web</b>: many straight radials, chords between them, a powdered white cone at the centre. The pieces <b>stay stuck to the interlayer</b>, so the pane holds its shape and bulges. Each fragment tilts a little and catches the light differently. Bigger types and old airliner-style screens (list:12 DC-3-alike).</p>
     </div>
-    <div class="mat">
-      <canvas class="mock" data-opt="B" data-mat="tempered" data-sev="1" data-light="64" data-seed="9" aria-label="Mock-up: tempered glass dicing"></canvas>
-      <h3>Tempered glass (side window) <span class="chip">glazeMat 2, side panes</span></h3>
-      <p>Holds or fails whole. When it fails, the <b>whole pane dices</b> into 1–2 cm cubes at once and mostly falls out, leaving a fringe of dice in the frame. Today's Voronoi core is this pattern, put on the wrong material and at the wrong scale.</p>
-    </div>
   </div>
-  <p class="muted" style="font-size:.93rem">The glazeMat 2 split by pane role (windscreen laminated, other panes tempered) is a proposal. It reads the panes' existing material names (<code>windshield</code> against <code>pilotWindow</code> and the rest) and needs no new row.</p>
+  <p class="muted" style="font-size:.93rem">Polycarbonate (dent, whitening, crazing, petal tears) and tempered glass (dicing) were drawn in the first version of this page and dropped by the user's decision. They are left out of the build.</p>
 </section>
 
 <hr>
@@ -196,12 +190,12 @@ ul.plain { margin: 0; padding-left: 1.1em; display: flex; flex-direction: column
       <thead><tr><th>glazeMat</th><th>Material</th><th>Crack look (proposed)</th><th>Fleet today</th></tr></thead>
       <tbody>
         <tr><td class="num">0</td><td>acrylic</td><td>crushed white spot, hackle fringe, branching runners to the frame; broken: hole and loose shards in the frame</td><td>every listed plane (default or explicit)</td></tr>
-        <tr><td class="num">1</td><td>polycarbonate</td><td>dent, stress-whitened ring, crazing rings; broken: a petalled puncture tear</td><td>none yet</td></tr>
-        <tr><td class="num">2</td><td>glass</td><td>windscreen: laminated spider web that holds; side panes: tempered dicing, falls out when broken</td><td>none yet</td></tr>
+        <tr><td class="num">1</td><td>polycarbonate</td><td>the acrylic sheet for now (no polycarbonate look kept)</td><td>none yet</td></tr>
+        <tr><td class="num">2</td><td>glass</td><td>the laminated spider web on every pane; it holds when broken</td><td>none yet</td></tr>
       </tbody>
     </table>
   </div>
-  <p><b>Smallest change:</b> one float uniform for the flown aeroplane's material (<code>uCrackMat</code>, beside <code>uCrackN</code> in <code>aeroSharedU</code>), set at roll-out from <code>spec.cabin.glazingMat</code>. A uniform links no new program. A cast/stretched acrylic sub-row is <em>not</em> worth adding: the only visible difference is runner length, and that can ride severity.</p>
+  <p><b>Smallest change:</b> one float uniform for the flown aeroplane's material (<code>uCrackMat</code>, 0 = the acrylic sheet, 1 = the laminated sheet, beside <code>uCrackN</code> in <code>aeroSharedU</code>), set at roll-out from <code>spec.cabin.glazingMat</code>. A uniform links no new program. A cast/stretched acrylic sub-row is <em>not</em> worth adding: the only visible difference is runner length, and that can ride severity.</p>
 </section>
 
 <hr>
@@ -242,7 +236,7 @@ ul.plain { margin: 0; padding-left: 1.1em; display: flex; flex-direction: column
       </div></div>
     <div class="vrow"><span class="vlab">Material</span>
       <div class="seg" id="segMat" role="group" aria-label="Material">
-        <button id="m-acrylic" data-v="acrylic" aria-pressed="true">Acrylic</button><button id="m-polycarbonate" data-v="polycarbonate">Polycarbonate</button><button id="m-laminated" data-v="laminated">Laminated</button><button id="m-tempered" data-v="tempered">Tempered</button>
+        <button id="m-acrylic" data-v="acrylic" aria-pressed="true">Acrylic</button><button id="m-laminated" data-v="laminated">Laminated</button>
       </div></div>
     <div class="slider"><label class="vlab" for="sev">Severity</label><input id="sev" type="range" min="0.15" max="1" step="0.01" value="1"><output id="sevo" for="sev"></output></div>
     <div class="slider"><label class="vlab" for="lit">Light</label><input id="lit" type="range" min="0" max="180" step="1" value="64"><output id="lito" for="lit"></output></div>
@@ -275,7 +269,7 @@ ul.plain { margin: 0; padding-left: 1.1em; display: flex; flex-direction: column
     <div class="opt">
       <h3>A · Retune the procedural crack</h3>
       <dl class="kv">
-        <dt>Look</dt><dd>Hairlines without the halo, straight with kinks, glint per ray, a small whitened core in place of the honeycomb, no rings on acrylic. Per material through <code>uCrackMat</code>: the polycarbonate dent, whitening and craze rings are analytic. No forks, no thickness.</dd>
+        <dt>Look</dt><dd>Hairlines without the halo, straight with kinks, glint per ray, a small whitened core in place of the honeycomb, no rings on acrylic. Acrylic and laminated through <code>uCrackMat</code>. No forks, no thickness.</dd>
         <dt>Cost</dt><dd>About a third of today's math per fragment (the 34-cell Voronoi goes). No texture. No new program.</dd>
         <dt>Effort</dt><dd>About 1 session: rewrite <code>GLSL_CRACK</code> and its mirror <code>crackJS</code>, re-pin GATE DMGGLASS rows G and R, add the material row to U.</dd>
       </dl>
@@ -283,15 +277,15 @@ ul.plain { margin: 0; padding-left: 1.1em; display: flex; flex-direction: column
     <div class="opt rec">
       <h3>B · Baked crack sheet per material <span class="badge">recommended</span></h3>
       <dl class="kv">
-        <dt>Look</dt><dd>The professional one: forking runners to the frame, the hackle fringe, the crushed white spot, a glint that changes along each crack, a faint dark companion for the 3 mm thickness. Polycarbonate gets its dent, whitened ring and crazing. Glass gets the laminated web or tempered dice.</dd>
-        <dt>Cost</dt><dd>1–2 texture reads and about 40 ALU a fragment, cheaper than today. One RGBA8 sheet of 1024², 4 variants of 512², ≈5.3 MB of GPU memory with mipmaps (512² on the low tier ≈1.3 MB). It loads only at the flown aeroplane's first mark, for its own material. No new program.</dd>
-        <dt>Effort</dt><dd>About 2 sessions: an offline generator (<code>tools/crack_sheet.js</code>, node, seeded, the same growth rules as this page) writing three PNGs; the shader read; a lazy load; GATE DMGGLASS rows for the sheet hash, monotone reveal, the material switch and 0 new programs.</dd>
+        <dt>Look</dt><dd>The professional one: forking runners to the frame, the hackle fringe, the crushed white spot, a glint that changes along each crack, a faint dark companion for the 3 mm thickness. Glass gets the laminated web.</dd>
+        <dt>Cost</dt><dd>1–2 texture reads and about 40 ALU a fragment, cheaper than today. One RGBA8 sheet of 1024² (4 variants of 512²) per material, ≈5.3 MB of GPU memory with mipmaps (512² on the low tier ≈1.3 MB). Two sheets exist; only the flown aeroplane’s one loads. It loads only at the flown aeroplane's first mark, for its own material. No new program.</dd>
+        <dt>Effort</dt><dd>About 2 sessions: an offline generator (<code>tools/crack_sheet.js</code>, node, seeded, the same growth rules as this page) writing two PNGs; the shader read; a lazy load; GATE DMGGLASS rows for the sheet hash, monotone reveal, the material switch and 0 new programs.</dd>
       </dl>
     </div>
     <div class="opt rec">
       <h3>C · B plus the broken pane <span class="badge">then</span></h3>
       <dl class="kv">
-        <dt>Look</dt><dd>At a broken member (severity 1): acrylic punches a jagged hole at the hit, and the shards between the runners stay in the frame, each catching the light a little differently. Polycarbonate tears into petals. Laminated glass holds and bulges. Tempered glass falls out and leaves a fringe. No new bodies and nothing floating. The user asked for fewer pieces and shapes kept.</dd>
+        <dt>Look</dt><dd>At a broken member (severity 1): acrylic punches a jagged hole at the hit, and the shards between the runners stay in the frame, each catching the light a little differently. Laminated glass holds and bulges. No new bodies and nothing floating. The user asked for fewer pieces and shapes kept.</dd>
         <dt>Cost</dt><dd>A shard-id channel (a second 512² R8, ≈0.35 MB). The tint companion pass reads the sheet once to discard the hole too.</dd>
         <dt>Effort</dt><dd>About 1 session after B, with gate rows for the hole seen from both sides and no new bodies or programs.</dd>
       </dl>
@@ -318,7 +312,7 @@ ul.plain { margin: 0; padding-left: 1.1em; display: flex; flex-direction: column
   <div class="eyebrow">7 · How B would work</div>
   <h2>Implementation sketch</h2>
   <ul class="plain">
-    <li><b>The sheet.</b> R: distance to the nearest crack (0–8 mm). G: when that crack arrived as it grew (reveal by severity, taper toward the tips). B: the crack facet's phase (the glint). A: whitening and craze density. Three sheets (acrylic, polycarbonate, glass), each 2×2 variants picked by the mark's seed, and rotated by it too.</li>
+    <li><b>The sheet.</b> R: distance to the nearest crack (0–8 mm). G: when that crack arrived as it grew (reveal by severity, taper toward the tips). B: the crack facet's phase (the glint). A: whitening and craze density. Two sheets (acrylic, laminated glass), each 2×2 variants picked by the mark's seed, and rotated by it too.</li>
     <li><b>The read.</b> The existing mark loop keeps its gating (craft space, 4 cm of the plane, facing the normal) and its tangent frame. It turns <code>q</code> into sheet coordinates (the pattern is about 1 m across, so runners can reach the frame) and reads once (twice for the thickness companion).</li>
     <li><b>The light.</b> As G3623 does: the pane's own irradiance, scattered near-white, plus the roughness bump. The glint multiplies it. A dark companion needs the multiply pass, so it comes in C, where that pass reads the sheet anyway.</li>
     <li><b>The triggers stay G3623's.</b> Members within 0.35 m that set or break, merging, MAX 4, nothing on hard landings. One better trigger for later, flagged to the Deform Coordinator: the contact point on the pane, so a trunk hitting glass between members marks it.</li>
@@ -525,63 +519,6 @@ function drawAcrylic(ctx, g, k, sev, seed, opt) {
   }
 }
 
-// ---------- polycarbonate ----------
-function drawPoly(ctx, g, k, sev, seed, opt) {
-  const R = rng(seed), S = g.S, Rd = 0.03 + 0.07 * sev, ox = g.cx, oy = g.cy;
-  const broken = sev >= 0.95;
-  let hole = null, petals = [];
-  if (opt === 'C' && broken) {
-    hole = new Path2D(); const n = 4 + Math.floor(R() * 2), a0 = R() * TAU, rt = 0.035 + 0.01 * R(), ri = 0.010;
-    for (let i = 0; i < n; i++) {
-      const a = a0 + i * TAU / n + (R() - 0.5) * 0.3, b = a + TAU / n / 2;
-      const tip = [Math.cos(a) * rt, Math.sin(a) * rt], inn = [Math.cos(b) * ri, Math.sin(b) * ri];
-      if (i === 0) hole.moveTo(ox + tip[0] * S, oy + tip[1] * S); else hole.lineTo(ox + tip[0] * S, oy + tip[1] * S);
-      hole.lineTo(ox + inn[0] * S, oy + inn[1] * S);
-      petals.push({ a, b, rt, ri });
-    }
-    hole.closePath();
-  }
-  drawGlassLayer(ctx, g, hole);
-  ctx.save(); clipPane(ctx, g);
-  // the dent: a smooth bowl lit from the light's side
-  const dx = Math.cos(LIGHT + Math.PI), dy = -Math.abs(Math.sin(LIGHT)) * 0.6 - 0.2;
-  const lg = ctx.createLinearGradient(ox + dx * Rd * S, oy + dy * Rd * S, ox - dx * Rd * S, oy - dy * Rd * S);
-  const dep = 0.10 + 0.22 * sev;
-  lg.addColorStop(0, 'rgba(255,255,255,' + dep + ')'); lg.addColorStop(0.5, 'rgba(255,255,255,0)'); lg.addColorStop(1, 'rgba(8,16,26,' + dep * 0.8 + ')');
-  ctx.save(); ctx.beginPath(); ctx.arc(ox, oy, Rd * S, 0, TAU); ctx.clip();
-  ctx.fillStyle = lg; ctx.fillRect(ox - Rd * S, oy - Rd * S, 2 * Rd * S, 2 * Rd * S);
-  ctx.restore();
-  // the stress-whitened ring
-  const wr = ctx.createRadialGradient(ox, oy, Rd * S * 0.35, ox, oy, Rd * S * 1.35);
-  wr.addColorStop(0, 'rgba(236,240,242,0)'); wr.addColorStop(0.55, 'rgba(236,240,242,' + (0.10 + 0.30 * sev) + ')'); wr.addColorStop(1, 'rgba(236,240,242,0)');
-  ctx.fillStyle = wr; ctx.beginPath(); ctx.arc(ox, oy, Rd * S * 1.4, 0, TAU); ctx.fill();
-  // crazing: fine tangential micro-cracks that all face the same way round the ring, so they sparkle together
-  const n = Math.round((opt === 'A' ? 120 : 260) + (opt === 'A' ? 200 : 600) * sev), segs = [];
-  for (let i = 0; i < n; i++) {
-    const a = R() * TAU, r = Rd * (0.45 + Math.pow(R(), 0.7) * 1.6), l = 0.0015 + 0.006 * R();
-    const t = a + Math.PI / 2 + (R() - 0.5) * 0.15, x = Math.cos(a) * r, y = Math.sin(a) * r;
-    const fade = Math.max(0, 1 - Math.abs(r - Rd) / (Rd * 1.2));
-    segs.push({ x0: x - Math.cos(t) * l / 2, y0: y - Math.sin(t) * l / 2, x1: x + Math.cos(t) * l / 2, y1: y + Math.sin(t) * l / 2, w: 0.5, phi: (R() - 0.5) * 0.2, a: t, fade: fade * (0.5 + 0.5 * sev) });
-  }
-  strokeSegs(ctx, g, segs, k, { companion: false, alpha: 1, sharp: 20 });
-  if (broken && opt !== 'C') { // B: a tear started, no hole yet
-    const t = []; const a0 = R() * TAU;
-    for (let i = 0; i < 3; i++) { const a = a0 + i * TAU / 3 + (R() - 0.5) * 0.4, l = 0.015 + 0.012 * R(); t.push({ x0: 0, y0: 0, x1: Math.cos(a) * l, y1: Math.sin(a) * l, w: 1.6, phi: 0.4, a }); }
-    strokeSegs(ctx, g, t, k, { companion: true, alpha: 1 });
-  }
-  ctx.restore();
-  if (hole) {
-    ctx.save(); clipPane(ctx, g);
-    for (const p of petals) { // the petals folded inward: a whitened triangle each side of a tip
-      const tip = [ox + Math.cos(p.a) * p.rt * S, oy + Math.sin(p.a) * p.rt * S];
-      ctx.fillStyle = 'rgba(232,236,238,0.35)';
-      ctx.beginPath(); ctx.moveTo(tip[0], tip[1]); ctx.lineTo(ox + Math.cos(p.a + 0.5) * p.rt * 0.55 * S, oy + Math.sin(p.a + 0.5) * p.rt * 0.55 * S); ctx.lineTo(ox + Math.cos(p.a) * p.rt * 0.35 * S, oy + Math.sin(p.a) * p.rt * 0.35 * S); ctx.closePath(); ctx.fill();
-    }
-    ctx.strokeStyle = 'rgba(238,242,244,0.75)'; ctx.lineWidth = 2.2 * k; ctx.stroke(hole);
-    ctx.restore();
-  }
-}
-
 // ---------- laminated glass ----------
 function drawLaminated(ctx, g, k, sev, seed, opt) {
   const R = rng(seed), S = g.S, reach = 0.08 + 0.30 * sev, NR = 14 + Math.floor(R() * 8), segs = [], rays = [];
@@ -612,34 +549,6 @@ function drawLaminated(ctx, g, k, sev, seed, opt) {
   whiteSpot(ctx, g, core, rc, k, opt === 'A' ? 0 : 320, R, 1);
   strokeSegs(ctx, g, segs, k, { companion: opt !== 'A', alpha: 0.95, sharp: 10 });
   ctx.restore();
-}
-
-// ---------- tempered glass ----------
-function drawTempered(ctx, g, k, sev, seed, opt) {
-  const R = rng(seed), S = g.S;
-  if (sev < 0.6) { drawGlassLayer(ctx, g, null); return 'holds'; }
-  const cell = 0.013, nx = Math.ceil(SPAN / cell) + 2, ny = Math.ceil(SPAN / cell) + 2, P = [];
-  for (let j = 0; j < ny; j++) { P.push([]); for (let i = 0; i < nx; i++) P[j].push([(i - 1 + (R() - 0.5) * 0.8) * cell * S, (j - 1 + (R() - 0.5) * 0.8) * cell * S]); }
-  let hole = null; const fr = 0.035 * S;
-  if (opt === 'C') {
-    hole = new Path2D(); const f = g.frame;
-    hole.moveTo(f[1][0] + fr, -5); hole.lineTo(g.W + 5, -5); hole.lineTo(g.W + 5, g.coamY - fr);
-    hole.quadraticCurveTo(g.W * 0.5, g.coamC - fr, f[2][0] + fr * 0.2, g.coamY - fr * 1.6); hole.closePath();
-  }
-  drawGlassLayer(ctx, g, hole);
-  ctx.save(); clipPane(ctx, g);
-  if (hole) { const p = new Path2D(); p.rect(-5, -5, g.W + 10, g.H + 10); p.addPath(hole); ctx.clip(p, 'evenodd'); }
-  ctx.fillStyle = 'rgba(225,232,236,0.10)'; ctx.fillRect(0, 0, g.W, g.H);
-  ctx.lineCap = 'round';
-  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
-    const p = P[j][i];
-    for (const q of [i + 1 < nx ? P[j][i + 1] : null, j + 1 < ny ? P[j + 1][i] : null]) { if (!q) continue;
-      const a = Math.atan2(q[1] - p[1], q[0] - p[0]), b = opt === 'A' ? 0.35 : glint(a, R() * 2.5, 6);
-      ctx.strokeStyle = 'rgba(240,246,250,' + (0.12 + 0.6 * b) + ')'; ctx.lineWidth = 0.7 * k;
-      ctx.beginPath(); ctx.moveTo(p[0], p[1]); ctx.lineTo(q[0], q[1]); ctx.stroke(); }
-  }
-  ctx.restore();
-  if (hole) { ctx.save(); clipPane(ctx, g); ctx.strokeStyle = 'rgba(235,240,243,0.6)'; ctx.lineWidth = 1.2 * k; ctx.stroke(hole); ctx.restore(); }
 }
 
 // ---------- TODAY: dmg_glass.js crackJS, line for line ----------
@@ -716,9 +625,7 @@ function render(cv, st) {
   let note = '';
   if (st.opt === 'T') drawToday(ctx, g, k, st.sev, st.seed, cssW);
   else if (st.mat === 'acrylic') drawAcrylic(ctx, g, k, st.sev, st.seed, st.opt);
-  else if (st.mat === 'polycarbonate') drawPoly(ctx, g, k, st.sev, st.seed, st.opt);
-  else if (st.mat === 'laminated') drawLaminated(ctx, g, k, st.sev, st.seed, st.opt);
-  else note = drawTempered(ctx, g, k, st.sev, st.seed, st.opt) || '';
+  else drawLaminated(ctx, g, k, st.sev, st.seed, st.opt);
   drawCockpit(ctx, g);
   return note;
 }
@@ -731,7 +638,7 @@ function drawStatics() { for (const cv of statics) { try { render(cv, { opt: cv.
 const V = { opt: 'B', mat: 'acrylic', sev: 1, light: 64, seed: 11 };
 const vc = document.getElementById('vc'), cap = document.getElementById('vcap');
 const OPT = { T: 'Today: the game’s own crack function, the same on every material', A: 'A: the procedural crack retuned', B: 'B: the baked sheet', C: 'C: the sheet plus the broken pane' };
-const MAT = { acrylic: 'acrylic', polycarbonate: 'polycarbonate', laminated: 'laminated glass windscreen', tempered: 'tempered glass side window' };
+const MAT = { acrylic: 'acrylic', laminated: 'laminated glass' };
 function sevName(s) { return s >= 0.95 ? 'broken member' : s >= 0.85 ? 'the 3 % kink' : s >= 0.5 ? 'a hard set' : 'a light set'; }
 let pending = 0;
 function drawViewer() {
@@ -741,7 +648,6 @@ function drawViewer() {
     document.getElementById('sevo').textContent = V.sev.toFixed(2) + ' · ' + sevName(V.sev);
     document.getElementById('lito').textContent = V.light + '°';
     let t = OPT[V.opt] + (V.opt === 'T' ? '.' : ', ' + MAT[V.mat] + '.');
-    if (note === 'holds') t += ' Tempered glass holds or fails whole: nothing shows below a hard hit.';
     if (V.opt === 'C' && V.sev < 0.95) t += ' C differs from B only at a broken member (severity 1).';
     cap.textContent = t;
   });
