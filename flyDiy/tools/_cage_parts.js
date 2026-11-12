@@ -697,6 +697,7 @@ const CAGE_PARTS = [
              at: 'the foot, on the fuselage side' },
     groups: [
       ['foot', ['wgStruts', 'wgStrutZ', 'wgStrutX', 'pilSnap', 'wgStrutPil']],
+      ['options', ['wgStrutSec', 'wgJury']],   // STRUT-OPTIONS
     ] },
 
   // THE WING RADIATORS (27 Oct): a ducted radiator under each wing, or one and an oil cooler - their own layer

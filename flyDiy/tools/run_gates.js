@@ -879,6 +879,7 @@ const GATES = [
   // frame's own strut root snapped to the built skin — and the declared
   // fitting's own dimensions
   { id: 'STRUT', file: '_strut_check.js', tier: 'core' },
+  { id: 'STRUTOPT', file: '_strutopt_check.js', tier: 'core' },   // STRUT-OPTIONS: the strut's section and jury strut
   // THE REFERENCE PLANE (G89-G93): the two in-repo aeroplanes the garage can
   // stand beside your build, held to their PUBLISHED span and length — every
   // measurement taken against a reference is worth exactly what that check is

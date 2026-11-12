@@ -278,6 +278,11 @@ function cageJoinSpec(P, M, T) {
     }, ...(+P.w2On ? [cageJoinPlane2(P, T)] : [])],
     bracing: { type: Math.round(P.wgBrace) ? 'cantilever' : 'strut',
                struts: Math.round(+P.wgStruts) === 1 ? 1 : 2,          // T2.3 (83)
+               // STRUT-OPTIONS (2026-11-10): the lift strut's section and its jury strut, STATED in both states (A3:
+               // null when the row is back at 0, so the garage's merge takes it off; the normaliser deletes the null,
+               // so the resolved spec of a build without them is the bytes it was). A P without the row says nothing
+               ...(P.wgStrutSec != null ? { section: Math.round(+P.wgStrutSec) === 1 ? 'tube' : null } : {}),
+               ...(P.wgJury != null ? { jury: [null, 'wing', 'cabin'][Math.round(+P.wgJury)] || null } : {}),
                // G185: the cabane's drawing style where there is one, and the
                // truss on a biplane. SPEC-FIXPOINT (A3): STATED in every state
                // - the defaults (GEN_FIELDS 'bracing.*') where the aeroplane

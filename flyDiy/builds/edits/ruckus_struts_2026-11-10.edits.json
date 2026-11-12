@@ -1,0 +1,2 @@
+{ "what": "STRUT-OPTIONS (2026-11-10): the Ruckus std with round-tube lift struts and a jury strut back to the cabin (in: builds/candidates/ruckus_std_2026-11-09.json)",
+  "cage": { "wgStrutSec": 1, "wgJury": 2 } }

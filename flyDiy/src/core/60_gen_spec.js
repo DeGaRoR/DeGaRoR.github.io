@@ -3078,7 +3078,36 @@ function genEngPropD0(S, e0, PP0) {
   if (e0 && e0.custom) return (S.prop && S.prop.D > 0) ? S.prop.D : 1.80;
   return PP0.prop.D;
 }
-const GEN_CAGE_ROW_NEUTRAL = { eng_bmepK: 1, eng_massK: 1, eng_gearRatio: 1, eng_rpmMax: 0, eng_cs: 0, s1Stiff: 1, brkHold: 0 };
+// STRUT-OPTIONS (2026-11-10): the wing's lift-strut section (wgStrutSec 0 = profiled) and jury strut (wgJury 0 = none)
+const GEN_CAGE_ROW_NEUTRAL = { eng_bmepK: 1, eng_massK: 1, eng_gearRatio: 1, eng_rpmMax: 0, eng_cs: 0, s1Stiff: 1, brkHold: 0, wgStrutSec: 0, wgJury: 0 };
+// STRUT-OPTIONS (2026-11-10): THE LIFT STRUT'S OPTIONS - the figures the frame (61_gen_frame, the jury strut's members)
+// and the aero (62_gen_aero genStrutOptCdA, the drag of a round strut and of the jury) read. None is read by a build
+// without bracing.section / bracing.jury.
+//   juryAt     the jury's clamp, the fraction of the lift strut's length from its foot ("from the middle of the
+//              truss", the user; the J-3's and PA-18's jury struts clamp near mid-strut, Piper's parts drawings)
+//   juryMassK  the drawn jury member's mass against the wing class's per metre. MEASURED on the Ruckus (fabric on
+//              aluminium): the class bills 0.50 kg/m on its lift strut; a 1 in x .035 4130 jury tube is 0.53 kg/m
+//              (25.4 x 0.89 mm, 7.85 t/m3) and a 25 x 1.2 mm 6061 one 0.24 kg/m - the class's own figure sits in
+//              that band, so 1 (the jury is billed as the lift strut's own tube per metre)
+//   cdStream   a streamline strut's drag coefficient on its frontal thickness: the figure the model already bills
+//              the lift strut and the truss at (62_gen_aero genGearCdA, G185), kept
+//   cdRound    a round tube's, on its diameter: a circular cylinder across the flow below the drag crisis (Re =
+//              V D / nu ~ 3e4-1e5 for a 25-50 mm tube at 15-35 m/s) is Cd 1.0-1.2 (Hoerner, Fluid-Dynamic Drag,
+//              1965, ch. 3 fig. 1 / Table: 1.17 two-dimensional, ~1.0 at a finite length-to-diameter of 20-40); 1.1
+//              taken. The streamline section is ~0.06-0.10 on its thickness (Hoerner ch. 6, strut sections at t/c
+//              0.25-0.33): a round strut of the same frontal is ~11x the drag
+//   tubeD      a round lift strut's diameter: 1.75 in (44.5 mm) 6061-T6, the ultralight class's (the Ruckus's and
+//              the Kolb / Quicksilver lift struts are 1.5-2 in round tube)
+//   juryT      a jury strut's frontal: 1 in (25 mm), round or streamline (the J-3's are small streamline tubes)
+const GEN_STRUT_OPT = { juryAt: 0.5, juryMassK: 1, cdStream: 0.10, cdRound: 1.1, tubeD: 0.045, juryT: 0.025 };
+// the options a spec asks of its lift struts: { round, jury, lift } - `lift` the member option a whole lift strut
+// carries (null when it carries none: the bytes every build had)
+function genStrutOpts(S) {
+  const Bq = (S && S.bracing) || {};
+  const round = Bq.section === 'tube';
+  const jury = Bq.jury === 'wing' || Bq.jury === 'cabin' ? Bq.jury : null;
+  return { round, jury, lift: round ? { strut: 'lift', round: true } : null };
+}
 // the cage without its STOL rows at "off" and its later dials at neutral (the same object when it has none: a hash
 // over it is the old bytes)
 function genStolCageOff(cage) {
@@ -5549,7 +5578,12 @@ function clampSpec(spec) {
   // T2.3 (83): the lift struts drawn per side — the V pair (2, every build
   // before) or a single front strut (1); the truss is the same either way
   S.bracing.struts = Math.round(+S.bracing.struts) === 1 ? 1 : 2;
-  if (+S.bracing.cabPylon === 1) S.bracing.cabPylon = 1; else delete S.bracing.cabPylon;   // HULL-B78: the central pylon (absent = struts)
+  if (+S.bracing.cabPylon === 1) S.bracing.cabPylon = 1; else delete S.bracing.cabPylon;
+  // STRUT-OPTIONS (2026-11-10): the lift strut's section ('tube'; absent = the streamline section every build before
+  // had) and its jury strut ('wing' | 'cabin'; absent = none). Anything else, null included (the join STATES a row back
+  // at its default as null, so the garage's merge can take it off), is deleted: absent is the old bytes
+  if (S.bracing.section !== 'tube') delete S.bracing.section;
+  if (S.bracing.jury !== 'wing' && S.bracing.jury !== 'cabin') delete S.bracing.jury;   // HULL-B78: the central pylon (absent = struts)
   // THE FUEL CAPS ROSE (2026-09-05, TURBOPROP §5, the user's ruling): 140 L
   // here and 400 L per vessel / in total were a light aeroplane's numbers;
   // a Caravan carries 1 250 L. Now 2 000 L total, 1 000 L a vessel. Every
