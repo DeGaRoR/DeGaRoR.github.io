@@ -315254,3 +315254,37 @@ read p99 10.1 mm on them. The real cut (a coarser refine at low chaos / fine row
 - REDS by check name: the full battery (170) on the 9-ref merge: 18 FAIL; 15 standing on L38c (FLIGHTREC GEN DESTTO TREECRASH DMGGEAR DMGINST DMGDRIVE DMGSCAR FRAMECOST ROUNDTRIP LIVERY JOINPARITY SIMWORKER-EDGES NEWPLANE-BUILDS ENGCONFIG); 3 new (STOL, PROCURE from fit-procedure; STAND from the derelict, re-pinned). Re-check without fit-procedure (26 gates, the cage / plane / scenery set): STOL, PROCURE, STAND PASS; GEN JOINPARITY NEWPLANE-BUILDS ENGCONFIG standing.
 - COSTS NAMED: the light timed gate timed out again (exit 124 at the 150 min budget, as L38b) and the re-check could not take the GPU for it (AIRCRAFT-LOOKS' fiche slot) - PERF-FRI's first item, with the boot 134-244 s. GARAGE 4-6 s frames are master's (HOME-DERELICT A/B, both sides). Parked cook re-made (513b956129d7).
 - NOT IN: DIRT-STRIP look-2 (the user's yes/no), scuff-weather + veg-root-key + fiche-pass/fiche-mass (L39b 19:00, the last feature train), engine-lump (held for the crash-integrity study).
+
+
+## FICHE PASS + FICHE PAGES + MASS (AIRCRAFT-LOOKS, Thu 12 Nov, claude/ready/fiche-pass + claude/ready/fiche-mass for L39b)
+
+**The pass (A0's slot 15:15-16:15):** the canon planes' fiches (plane-canon's lists: reproductions, story, originals, wip on master's cards; the test copies not baked) with CUT TAKES + CUT PINNED - every cutaway checked to open. A row without a thumb is keyed `list:<n>`; each `media/fiches/index.json` entry carries `listFile` (its card) and `listRow`.
+- **Canon regs** (the user's yes to all, Q4): `spec.meta.reg` written into 9 cards as one replaced value (LF kept). meta is outside every fingerprint (`bench.js BENCH_COSMETIC`); proven in node before the edit: Rufus's load door 24e2e238 (= `SHIPPED_CERTS`), f2 and cert major unchanged, the same on both career Cessnas.
+- **Diagnostic fiches** (PHYSICS-PAGES' drawn-vs-flown page): ten fiches WITHOUT crew (parked.js `emptyCockpit`'s fields) on `claude/diag-fiches` (master + `reports/evidence/DIAG-FICHES-2026-11-12` only), never in media/. cub160 / pa18f160 are REAL-CHECK records: their cards (cub_chord160, pa18_floats_chord160) are baked.
+
+**The pages (the user's fiche structure):** Main | Cutaway | Mass | Drag | Physics | Electrics | Integrity | Reference | Flight log.
+- `FICHE_BOARD.pages.add({ id, label, mount(sheet, rec, ctx), compose?, hidden?, visible? })`:
+  - slot order main, cutaway, mass, drag, physics, electrics, integrity, reference, log; an unknown id goes at the end;
+  - the same id replaces the page; 'log' is hidden;
+  - only registered, visible pages get a button (`visible(rec, ctx)` per record; a throw = no button); an open page no longer visible falls back to Main.
+- ctx goes whole: `{ spec (the stand's), title, propOff, listFile, listRow, urlOf }`. `garage.js listed()` gives the row a plane was opened from while it is the one on the stand (an edit or another load drops it).
+- Mine: Main (today's fiche), Cutaway (the baked cutaway, large), Mass. PHYSICS-PAGES': Drag, Physics, Electrics, Integrity, Reference (after perf). Flight log: a hidden place.
+
+**Mass (`src/viewer/fiche_mass.js`, from massproto 8b38623d):**
+- The empty plane as a sunburst, with the user's five label rules.
+- The as-flown bar to the maximum, then the seats check: full tanks, then 80 kg a seat.
+- The W&B envelope under a bigger side profile.
+- Categories, A0's default with no core change:
+  - Outfit is one slice; its finer split waits for `parts.outfitKg` (claude/physics-pages 7a4c871c).
+  - The engine splits from the spec rows (engine, installation, propeller, mount).
+  - The gear splits by `GEN_MASS_TRACE` nodes (main, tail or nose wheel, floats).
+- The data keeps massproto data()'s shape, so PHYSICS-PAGES' genFicheMass can replace the 'mass' page by id.
+- The official planes' weights are baked into the index (`data.mass`, node; `fiche_bake.js --mass-only` refills them, no Chrome). A plane on the stand is weighed when its page opens (~0.4 s).
+- The side profile is placed on the frame's node extent (the middle of the drawn length); a fiche does not yet record its side view's x origin.
+
+**Gates:** PLANEFICHE gets the PAGES and MASS rows plus 10 selftest breaks.
+
+**Owed:**
+- The price sunburst (after perf).
+- The side view's x origin recorded at the bake (the profile then lands exactly).
+- The HD fiche copies for the user.
