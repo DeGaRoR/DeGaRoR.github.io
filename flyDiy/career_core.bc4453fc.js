@@ -8361,7 +8361,7 @@ const TECH_TABLE = {
   'susp:bungee': 1, 'susp:spring': 1, 'susp:oleo': 1, 'susp:lever': 2,   // (WILGA-GEAR: the trailing-link oleo leg, the tricycle's stage)
   'fair:glass': 1, 'fair:alloy': 2, 'fair:carbon': 3,
   // ---- canopy / glazing
-  'glaze:acrylic': 1, 'glaze:glass': 1, 'glaze:polycarbonate': 2,
+  'glaze:acrylic': 1, 'glaze:glass': 1, 'glaze:polycarbonate': 2, 'glaze:film': 1,
   'canopy:screen': 1, 'canopy:bubble': 2,
   // ---- energy (the liquid follows the engine; a pack is electric)
   'fuel:avgas100LL': 1, 'fuel:mogas': 1, 'fuel:jetA': 3,
@@ -8509,7 +8509,7 @@ const TECH_ROWS = {
   intCons: ['mat:carbon', 'mat:tubeFabric', 'mat:wood', 'mat:alloy', 'mat:aluTube', 'mat:glass'],
   // (the second plane's row is the wing row's own: its options, the D-tube's with them)
   wgCons: TECH_WING_ROW, w2Cons: TECH_WING_ROW, finCons: TECH_SURF_ROW, stCons: TECH_SURF_ROW,
-  glazeMat: ['glaze:acrylic', 'glaze:polycarbonate', 'glaze:glass'],
+  glazeMat: ['glaze:acrylic', 'glaze:polycarbonate', 'glaze:glass', 'glaze:film'],
   canopy: ['canopy:screen', 'canopy:screen', 'canopy:screen', 'canopy:bubble'],
   fairCons: ['fair:glass', 'fair:carbon', 'fair:alloy'],
   // (ENGINE-CONFIGS-2: 4 push-pull, 5 three, 6 four - several engines, the twin's segment, as techKeysOf reads any
