@@ -66,8 +66,8 @@ const check = (ok, what, detail) => {
   return ok;
 };
 const FX = path.join(T, 'fixtures', 'island_jolene.json');
-const METAL = path.join(T, 'fixtures', 'build_v10_cessnaMetal_2026-09-26.json');
-const BUILDS = [{ key: 'stock', name: 'stock build' }, { key: METAL, name: 'aluminium C172' }];
+const METAL = path.join(T, '..', 'builds', 'cessna172r_2026-11-08.json');   // CANON-C172-GATES (A0 12 Nov): the canon Cessna 172, F-HCSN (builds/cessna172r_2026-11-08.json, plane-canon list:50) - the tour fixture tools/fixtures/build_v10_cessnaMetal_2026-09-26.json is a test copy ("Test copy: aluminium C172 (2026-09-26)"): it never sets a flap (the w8 diag 12 Nov: fast 32-33 m/s at the gate, two go-arounds, a divert; F-HCSN landed first time)
+const BUILDS = [{ key: 'stock', name: 'stock build' }, { key: METAL, name: 'Cessna 172 (F-HCSN)' }];
 // G3074: THE METAL CESSNA BY THE MILL'S HOUSES (house3 / house4) - its rotation swings 2.9 deg right as the nosewheel unloads
 // since JODEL-PITCH G2470 measured the Munk body couple along the body: the wing reads 1.49 m off (the base's 1.5+ was a
 // fictitious couple's margin). The user, 13 Oct, BY NAME: "the 2 first issues are simple margins to recalibrate" - 1.45 m
@@ -314,7 +314,7 @@ for (const seed of [0, 1, 6, 12, 42]) {
   const t0 = Date.now();
   const LB = [{ key: path.join(T, '..', 'builds', 'cub_2026-09-20_corrected.json'), name: "the user's Cub" },
               { key: path.join(T, '..', 'builds', 'jodel_2026-09-20_corrected.json'), name: 'the Jodel' },
-              { key: METAL, name: 'the metal Cessna' }]
+              { key: METAL, name: 'the Cessna 172 (F-HCSN)' }]
     .map(B => { const sp = PT.specOf(B.key).spec; return Object.assign({}, B, { def: C.buildGen(C.genMigrateSpec ? C.genMigrateSpec(sp) : sp) }); });
   // the solid things near every land strip into the world (9, in shard 0, put the mill's: the rest, and every strip's
   // trunks again - intoWorld's trunks are one set)

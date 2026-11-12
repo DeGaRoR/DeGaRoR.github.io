@@ -35,7 +35,7 @@ const BJ = require(path.join(T, '_bake_joined.js'));
 
 const SHOW = process.argv.includes('--show');
 const SELF = process.argv.includes('--selftest');
-const METAL = path.join(T, 'fixtures', 'build_v10_cessnaMetal_2026-09-26.json');
+const METAL = path.join(T, '..', 'builds', 'cessna172r_2026-11-08.json');   // CANON-C172-GATES (A0 12 Nov): the canon Cessna 172, F-HCSN (builds/cessna172r_2026-11-08.json, plane-canon list:50) - the tour fixture tools/fixtures/build_v10_cessnaMetal_2026-09-26.json is a test copy ("Test copy: aluminium C172 (2026-09-26)"): it never sets a flap (the w8 diag 12 Nov: fast 32-33 m/s at the gate, two go-arounds, a divert; F-HCSN landed first time)
 
 let fail = [];
 const check = (ok, label, extra) => { if (!ok) fail.push(label + (extra ? ' - ' + extra : '')); return ok; };
