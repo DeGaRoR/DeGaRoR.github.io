@@ -646,6 +646,16 @@ function genSurfKey(S, which, k) {
   // a resolved spec carries `material`; a raw one only `fuselage.material`
   const fus = S.material || (S.fuselage && S.fuselage.material);
   const D = which === 'wing' ? GEN_SURF_DEFAULT : GEN_SURF_DEFAULT_TAIL;
+  // THE TAIL FOLLOWS A CHOSEN WING (WEIGHT STUDY L2, 12 Nov, the user: "have the tail material just follow the wing
+  // material"): a tail that says nothing is built as the wing when the wing's construction was CHOSEN (wings[0].material
+  // stated); a wing left to the aeroplane leaves the tail to the fuselage as before - the Cub's welded tail under its
+  // wooden wing stays (G213's measured reason). Measured: of the 33 cards only the Archaeopteryx's tail moves; no saved
+  // build in builds/ states a wing over a silent tail.
+  if (!key && which !== 'wing') {
+    const w0 = S.wings && S.wings[0] && S.wings[0].material;
+    const wk = w0 == null ? null : (GEN_SURF_MATERIALS[w0] ? w0 : (GEN_SURF_LEGACY[w0] || null));
+    if (wk) return wk;
+  }
   return key || D[fus] || 'fabric';
 }
 function genSurfMaterial(S, which, k) {

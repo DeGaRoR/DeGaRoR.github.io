@@ -1,0 +1,118 @@
+--- a/flyDiy/src/core/60_gen_spec.js	2026-11-12 19:56:01.236570354 +0000
++++ b/flyDiy/src/core/60_gen_spec.js	2026-11-12 19:56:00.871123675 +0000
+@@ -3348,6 +3348,12 @@
+   // omega scales as sqrt(K / M). A number is that number; 0 = rigid.
+   twinBoomTubeW: 'computed',
+   rodWall:     1.2e-3, // the rod boom's tube wall, m (4130: 1.2 mm on a 113 mm tube)
++  // THE ULTRALIGHT ROD (WEIGHT STUDY L2, 12 Nov, the user: "the boom itself has to be an ultralight rod whose stiffness
++  // would be impacted ... on a heavier plane it should fail"): fuselage.rodLight thins the tube's wall by this factor
++  // (its EI, its GJ and so its bending and twist, and its breaking moment: 30_solver's tube cut, fu x section modulus)
++  // and bills the rod's own members (the fuselage's aft of the cabin box) at it. The rod is not re-sized with the
++  // aeroplane - its wall is its wall - so a heavier tail load breaks it sooner: GATE LIGHTROD
++  rodLightK:   0.4,
+   // G2640 (DESIGN-TRUST): A STRESSED-SKIN BOOM IS A SHELL (61_gen_frame's SHELL
+   // block): a covered lofted boom of one of these constructions flies on the
+   // tube element at its drawn section's stiffness as a thin shell. `t` the
+@@ -5997,6 +6003,8 @@
+   // THE HUB'S REAR SOCKET (61_gen_frame 3c): the rod slots into the wing's centre section - a rod's only, the key only
+   // when on
+   if (!(fu.rodHub === true && fu.boom === 'rod')) delete fu.rodHub;
++  // (WEIGHT STUDY L2: the ultralight rod - GEN_RULES.rodLightK - a rod's only)
++  if (!(fu.rodLight === true && fu.boom === 'rod')) delete fu.rodLight;
+   // THE HANGING NACELLE (the Archaeopteryx study's stage 3, 61_gen_frame 3d): the cabin hangs on ONE structural mast from
+   // the wing's centre section down to the keel - a first plane above the cabin (high or parasol) only; the mast's station
+   // on the root chord (hangAt, its middle) and its chord (hangLen), both fractions of the root chord, only with the key
+--- a/flyDiy/src/core/61_gen_frame.js	2026-11-12 19:56:01.244265724 +0000
++++ b/flyDiy/src/core/61_gen_frame.js	2026-11-12 19:56:00.881104772 +0000
+@@ -105,6 +105,8 @@
+   const CG = KS * ARCH.c * Math.sqrt(S.gear.stiffness == null ? 1 : S.gear.stiffness);
+   const CGB = KS * ARCH.c;
+   const R = GEN_RULES;
++  // THE ULTRALIGHT ROD (WEIGHT STUDY L2, GEN_RULES.rodLightK): its wall and its own members' rate
++  const RLK = S.fuse && S.fuse.rodLight === true && S.fuse.boom === 'rod' ? (R.rodLightK == null ? 0.4 : R.rodLightK) : 1;
+   const D = Math.PI / 180;
+   const nodes = [], beams = [];
+   const degenerate = [];                            // B10: the members B() refused (zero length)
+@@ -227,7 +229,7 @@
+     const rodR = (rod && rod.r > 0) ? rod.r
+       : (+cg.rodD > 0 ? 0.5 * (+cg.rodD) * (+cg.planeScale || 1) : 0);
+     if (!(rodR > 0) || !ph || !(ph.E > 0)) return (rodKv = 1);
+-    const t = R.rodWall == null ? 1.2e-3 : R.rodWall;
++    const t = (R.rodWall == null ? 1.2e-3 : R.rodWall) * RLK;   // (RLK: the ultralight rod's thinner wall)
+     const G = ph.E / 2.6;
+     const GJt = G * 2 * Math.PI * CORE_MATH.pow(rodR, 3) * t;
+     // the mid-boom bay: its section off the station profile, its length
+@@ -456,7 +458,7 @@
+     const aftG = (cls === 'fus' && !mnt && R.fusAftGauge > 0 && S.fuse &&
+                   P[a][0] >= S.fuse.boxRear - 1e-6 && P[b][0] >= S.fuse.boxRear - 1e-6)
+       ? R.fusAftGauge * ((P[a][0] >= aftX0 && P[b][0] >= aftX0 && !nearSpar(P[a][0]) && !nearSpar(P[b][0]))
+-                          ? perimK(0.5 * (P[a][0] + P[b][0])) : 1) : 1;
++                          ? perimK(0.5 * (P[a][0] + P[b][0])) : 1) * RLK : 1;   // (the ultralight rod's own members at its rate)
+     // G2362 (DMG-MOUNTRIG): `opt.ghost` - a member that is BILLED and not built: its mass (and its gauge's record) as the
+     // member would weigh, nothing in the lattice. The nose leg's wires, moved off the flange onto the mount's lower cups,
+     // weigh what they did (so the aeroplane does not move); the new pair is built weightless
+@@ -848,7 +850,7 @@
+       // The mass is billed onto these nodes by the passes still to come
+       // (the tail truss, the fittings): omega is resolved at the end of the
+       // lattice, when the nodes weigh what they weigh.
+-      const tW = R.rodWall == null ? 1.2e-3 : R.rodWall;
++      const tW = (R.rodWall == null ? 1.2e-3 : R.rodWall) * RLK;
+       const GJt = (ph.E / 2.6) * 2 * Math.PI * CORE_MATH.pow(rodR, 3) * tW;
+       const L = Math.max(0.5, fu.tailArm - boxRear);
+       // G350: torsion is the twist constraint's now (GJ, below) — the
+@@ -862,7 +864,7 @@
+     // its root is the bulkhead ring at boxRear (the attachment, the cluster's first ring)
+     let rodDmg = null;
+     if (ph && ph.E > 0 && rodR > 0 && rodRings.length >= 2) {
+-      const tW = R.rodWall == null ? 1.2e-3 : R.rodWall;
++      const tW = (R.rodWall == null ? 1.2e-3 : R.rodWall) * RLK;
+       const ring0 = rodRings[0], last = rodRings[rodRings.length - 1];
+       rodDmg = { kind: 'tube', mat: genPhysKey(ph), E: ph.E, EI: ph.E * Math.PI * CORE_MATH.pow(rodR, 3) * tW,
+                  GJ: (ph.E / 2.6) * 2 * Math.PI * CORE_MATH.pow(rodR, 3) * tW, r: rodR,
+--- a/flyDiy/tools/_cage_join.js	2026-11-12 19:56:01.245743811 +0000
++++ b/flyDiy/tools/_cage_join.js	2026-11-12 19:56:00.893049197 +0000
+@@ -704,6 +704,8 @@
+            : Math.round(+P.boomStyle || 0) === 1 ? 'rod' : 'loft';
+   // THE HUB'S REAR SOCKET (the Archaeopteryx study's stage 2): the rod rooted in the wing's centre section
+   if (fus.boom === 'rod' && +P.rodHub) fus.rodHub = true;
++  // THE ULTRALIGHT ROD (WEIGHT STUDY L2): a thin carbon wall - light, soft, and it breaks on a heavier aeroplane
++  if (fus.boom === 'rod' && +P.rodLight) fus.rodLight = true;
+   // THE HANGING NACELLE (the study's stage 3): the cabin on one structural mast from the wing's centre section to the
+   // keel, its station and chord on the root chord (the hub's: the cabin slides free of it), and where the drawn one stood
+   // (hangX, measured below; the spec drops it all under a wing that is not above the cabin)
+--- a/flyDiy/tools/_cage_page5.js	2026-11-12 19:56:01.247227319 +0000
++++ b/flyDiy/tools/_cage_page5.js	2026-11-12 19:56:00.905042650 +0000
+@@ -1267,6 +1267,11 @@
+       // socket from the rod up to the wing's underside (the engine pylon's hugging blade, _cage_eng)
+       ['rodHub',    'rod rooted in', 0, 1, 1, ['the aft bulkhead', 'the wing (the hub\'s rear socket)'],
+        { when: P => +P.boomStyle === 1 && !+P.boomTwin && +P.wingOn }],
++      // THE ULTRALIGHT ROD (WEIGHT STUDY L2, 12 Nov, the user: "an ultralight rod that would also break somehow, that
++      // would have different stiffness"): a thin carbon wall (GEN_RULES.rodLightK of the standard's) - lighter, softer
++      // (it bends and twists more), and on a heavier aeroplane its tail loads break it (GATE LIGHTROD)
++      ['rodLight',  'rod',           0, 1, 1, ['standard', 'ultralight (thin wall: light, soft - heavier, it breaks)'],
++       { when: P => +P.boomStyle === 1 && !+P.boomTwin, absent: 0 }],
+       // THE HANGING NACELLE (the Archaeopteryx study's stage 3; the user, 11 Nov: "the pylon is structural and should go
+       // down to the bottom of the plane, where the supporting beam will go, making the fuselage as we see it now not the
+       // central piece anymore"): the cabin hung on ONE mast from the wing's centre section through a cut in the roof to
+--- a/flyDiy/tools/_cage_gen.js	2026-11-12 19:56:01.250386434 +0000
++++ b/flyDiy/tools/_cage_gen.js	2026-11-12 19:56:00.912279600 +0000
+@@ -9227,7 +9227,7 @@
+ // stop of 75 deg): rows ABSENT AT THEIR DEFAULT - a file that never set one loads it at the default (the snap on,
+ // the stop at 75), and a save writes the row only when it differs, so no saved build gains a key the game hashes
+ // (HULL-B26: the tip's own shape - length 0 / drop 0 = the kind's own, fullness 1 = the aerofoil)
+-const CAGE_DEFAULT_ABSENT = { finShiftZ: 0, finRudBelow: 0, pilSnap: 1, doorStop: 75, wgStrutPil: 0, wgTipBow: 0, wgTipDroop: 0, wgTipFull: 1,
++const CAGE_DEFAULT_ABSENT = { finShiftZ: 0, finRudBelow: 0, rodLight: 0, pilSnap: 1, doorStop: 75, wgStrutPil: 0, wgTipBow: 0, wgTipDroop: 0, wgTipFull: 1,
+   wgTipSkid: 0, wgTipSkidH: 0.10,   // (TIP-SKID: the wingtip skid, off; its depth)
+   s2Nose: 0,                         // (MONOWHEEL: the third unit's leaf spring at the tail, as ever)
+   s1Sink: 0, s2Sink: 0,              // (MONOWHEEL: no wheel sunk into the body)
+--- a/flyDiy/tools/_cage_parts.js	2026-11-12 19:56:01.255848912 +0000
++++ b/flyDiy/tools/_cage_parts.js	2026-11-12 19:56:00.924909912 +0000
+@@ -564,7 +564,7 @@
+              at: 'aft of the taper; twin, off the wing’s trailing edge' },
+     groups: [
+       // boomStyle -> `design`; these shape the rod once it is chosen
+-      ['rod', ['rodY', 'rodD', 'rodIncl', 'rodHub']],
++      ['rod', ['rodY', 'rodD', 'rodIncl', 'rodHub', 'rodLight']],
+       ['twin booms', ['boomTwin', 'boomX', 'boomDy', 'boomDz']],
+       ['section', ['boomWf', 'boomHf', 'boomWa', 'boomHa', 'boomSquare', 'boomIncl', 'boomCollar']],
+       ['wing end', ['boomNoseLen', 'boomNoseK', 'boomNoseCap']],

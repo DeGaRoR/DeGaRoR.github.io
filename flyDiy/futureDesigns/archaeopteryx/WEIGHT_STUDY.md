@@ -153,17 +153,32 @@ aeroplane. Only the new light rows stop growing at their build weight.
 - **Its test (the user's):** any wing loaded on a soft-shell cabin without the pylon crumbles on the bench; the
   Archaeopteryx's stands.
 
-### 3.4 The rod: a light option
+### 3.4 The rod: its section, in AERO-BODY's rod row (revised 12 Nov)
 
-- Today the rod has **no material row of its own**. It takes the fuselage's material, with a 1.2 mm wall
-  (`GEN_RULES.rodWall`, `60_gen_spec.js:3322`).
-- Proposed: a row on the boom page: "rod: standard / foot-launch".
-  - The light one has a thin wall and a 250 kg build weight, certified the same way as the wing.
-- **How it fails on a heavier aeroplane:** the tail's balancing loads, gusts and rudder grow with the aeroplane.
-  1. The thin rod whips and droops (stiffness capped).
-  2. It folds at its root, where it leaves the pod or the hub (the largest bending moment).
-  3. Or it twists off under hard rudder.
-- **Its test:** the foot-launch rod on the pusher-pod card at about 500 kg breaks under 3.8 g.
+The user (12 Nov): "the boom itself has to be an ultralight rod whose stiffness would be impacted" - independent of the
+wing. A0 (the performance coordinator) then relayed that **AERO-BODY owns a garage rod row: material + wall per build**.
+- The drawn tube is billed at π·d·t·ρ.
+- The tube element's EI and GJ come from the section.
+- Thin-tube buckling caps the limits.
+- Absent, today's rule holds (the fuselage material, 1.2 mm).
+
+**No build weight for the rod: the section is enough.**
+- The rod's bending failure is the solver's tube cut (fu × section modulus): pure physics, never stamped by the
+  certificate.
+- So a thin rod on a heavier plane whips, droops and parts at its root by itself.
+
+**The study's prototype** (wall × 0.4, not built here; `weight_proto/rodlight_prototype.patch`) measured, with the
+stab's load carried through the rod (`cfg.throughBoom`, 65_gen_loadtest):
+
+| card | standard rod cracks at | wall × 0.4 cracks at |
+|---|---|---|
+| ul1 (348 kg) | 4.65 g | 1.64 g |
+| pusher pod (669 kg) | 2.33 g | 0.71 g |
+| Archaeopteryx | never | never (the stab's attachment goes first, ~7.5 g) |
+
+**The open point is the bench's tail load.** It loads the stab at the wing's loading, harsher than a real tail limit
+load: even the standard rod cracks at 2.33 g on the pusher pod. The study's reply to A0 is
+`weight_proto/REPLY_TO_A0_rod.md`; it recommends carbon, 0.8 mm, for the Archaeopteryx.
 
 ### 3.5 Where the pylon architecture is chosen
 
@@ -211,7 +226,8 @@ came from a read that left sections out; the ledger is the reference from here o
 |---|---|---|---|---|---|
 | L0 | v1: moulded carbon wing | | | **169.1** | frozen (v1) |
 | L1 | the foot-launch D-tube wing | -13 to -20 | **-14.1** (wing 47.9 -> 34.7; bracing 7.1 -> 6.9) | **155.0** | **done**, certified 6.28 g |
-| L2 | the tail and the rod follow the wing (light tail, light rod) | ~-8 (tail 8.3 -> ~3; the rod ~-3) | | ~147 | next |
+| L2a | the tail follows a chosen wing (the D-tube tail, certified at its build weight) | ~-5 | **-2.4** (tail 8.3 -> 6.1, the rest the gauge's) | **152.6** | **done** |
+| L2b | the rod: carbon, a thin wall (AERO-BODY's rod row) | ~-3 | the prototype: -2.0 (wall × 0.4) | ~150 | AERO-BODY's |
 | L3 | the fixed items: reclined tub, soft glazing, light controls on the keel tubes, no panel, minimal furnishing, gelcoat | ~-29 (outfit 21.2 -> ~5, furnishing 6 -> 0, paint 5.1 -> 0, panel 2.1 -> 0.3) | | ~118 | |
 | L4 | the soft-shell cabin over the hard keel, mast and struts | ~-10 (of the fuselage's 26.6) | | ~108 | |
 | L5 | a pinned carry-through (six pins, not the cantilever box) | ~-6 (bracing 6.9 -> ~1) | | ~102 | |

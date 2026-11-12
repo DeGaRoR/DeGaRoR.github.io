@@ -102,7 +102,7 @@ const GROUP = ['8 · tail — fin (2D)', [
   // join): mass and price since G116, stiffness and damping since G117 —
   // WYSIWYG, see genLattice's note.
   ['finCons', 'construction',      0, 7, 1,
-   ['as the aeroplane', 'carbon', 'steel tube', 'fabric on wood', 'aluminium', 'aluminium tube', 'glassfibre', 'fabric on aluminium spar'],
+   ['as the wing (else the aeroplane)', 'carbon', 'steel tube', 'fabric on wood', 'aluminium', 'aluminium tube', 'glassfibre', 'fabric on aluminium spar'],
    { when: P => +P.finOn }],
   // THE CUT — the hinge slices between the doubleLoopV guards; the horn
   // line IS the mid row (max-creased under horn mode so it stays exactly
@@ -260,13 +260,15 @@ function tailMat(k, sec, boxPlane) {
   const pk = sec && sec.indexOf('stab') === 0 ? 'stCons' : 'finCons';
   // G213: the tail's own tokens (fabric over a wooden or tubular structure
   // on a wood or tube aeroplane), 'as the aeroplane' through GEN_SURF_DEFAULT
-  const CONS4 = ['carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass', 'fabricAlu'];   // G466: the fifth stop; G2047 the sixth
+  const CONS4 = ['carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass', 'fabricAlu', 'dtube'];   // G466: the fifth stop; G2047 the sixth; the D-tube the eighth (the wing's)
   const FUS4 = ['carbon', 'tubeFabric', 'wood', 'alloy', 'aluTube', 'glass'];
   // the TAIL's default: the fabric over the fuselage's own structure
   const SD = (typeof GEN_SURF_DEFAULT_TAIL !== 'undefined' && GEN_SURF_DEFAULT_TAIL) ||
     { tubeFabric: 'steel', wood: 'fabric', alloy: 'alloy', carbon: 'carbon', aluTube: 'aluFabric', glass: 'glass' };
-  const kc = Math.round(P0[pk] || 0);
+  const kc = Math.round(P0[pk] || 0), kw = Math.round(P0.wgCons || 0);
+  // WEIGHT STUDY L2: a tail left to the aeroplane follows a CHOSEN wing (60_gen_spec genSurfKey), as drawn as flown
   const cons = kc > 0 ? CONS4[kc - 1]
+    : kw > 0 ? CONS4[kw - 1]
     : SD[FUS4[Math.max(0, Math.min(5, Math.round(P0.intCons || 0)))]] ||
       'fabric';
   // the editor's per-part livery, when its UI is on the page; the direct

@@ -314851,3 +314851,17 @@ chantier (stage 4) must bring it forward. Parked: the wheel, the nose skid, a wi
   bracing let go. GATE LIGHTWING: Archaeopteryx 6.75 g (certified), Cub 3.63, C172 2.73, Caravan 1.57 g, springs x0.55,
   the negative control 10.98 g. The fleet: only the Archaeopteryx's hash moved. Found: the card's E-811 (30 kg, electric)
   is fed by a 4 L avgas nose tank and no pack - a stage-1 leftover, L7's to fix.
+- L2a OF THE PATH: THE TAIL FOLLOWS A CHOSEN WING (12 Nov, the user: "have the tail material just follow the wing
+  material ... [the wing] remain something you can place independently"): 60_gen_spec.js genSurfKey - a fin / stab
+  that says nothing takes wings[0].material when the wing's construction was CHOSEN; a wing left to the aeroplane leaves
+  the tail to the fuselage (the Cub's welded tail under its wooden wing: G213's measured reason - a blanket rule moved 8
+  cards). Only the Archaeopteryx moves (fleet hash), no saved build in builds/ affected. A D-tube tail is gauged in its
+  own bucket 'tailB', its springs held like the wing's (KSB), certified at the build weight (66_gen_cert: sec 'tail'
+  when the stab's row carries buildKg); _cage_fin.js draws the tail as flown; the fin / stab rows' first option reads
+  'as the wing (else the aeroplane)'. The Archaeopteryx: tail 8.3 -> 6.1 kg, empty 155.0 -> 152.6 kg.
+  65_gen_loadtest.js cfg.throughBoom (a bench option, off by default): a tail surface's bags carried THROUGH THE ROD -
+  only the cabin (forward of fuse.boxRear + 0.05) on the trestles; the default pins everything but the surface, so the
+  rod carries nothing. Its stab load is the wing's loading (harsh: a standard 4130 rod on the 669 kg pusher pod cracks at
+  2.33 g on it). The light-rod prototype is NOT built here (AERO-BODY / the rod row): weight_proto/rodlight_prototype.patch
+  and the reply to A0, weight_proto/REPLY_TO_A0_rod.md. Gates green: LIGHTWING HUB NACELLE DEFAULT WEIGHT SKINMAT PILLAR
+  CLIP FRAMES FIN JOIN WINGROWS SPECFIX SAVE PARTS DESIGN NEWPLANE BLUEPRINT WINGSTRUCT; TECH and LOAD red the master way.

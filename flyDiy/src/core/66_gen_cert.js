@@ -1034,6 +1034,12 @@ function* genCertifySteps(def, opt) {
       // wing comes with its bracing. (Measured: on the strut-braced Cub the full-strength struts relieved the D-tube's
       // spar and the wing held 6.13 g - the struts are the wing's, not the fuselage's.)
       def.beams.forEach((b, i) => { if (b.sec === 'wings' || b.sec === 'bracing') { Ft[i] *= f; Fc[i] *= f; } });
+    }
+    // ...and the tail built of it (it follows a chosen wing, 60_gen_spec genSurfKey): the same build weight
+    const TR = (typeof genSurfMaterial === 'function') ? genSurfMaterial(S, 'stab') : null;
+    if (TR && TR.buildKg > 0 && W0 > TR.buildKg) {
+      const f = TR.buildKg / W0;
+      def.beams.forEach((b, i) => { if (b.sec === 'tail') { Ft[i] *= f; Fc[i] *= f; } });
     } }
   return { v: GEN_CERT_V, key: genCertKey(def), nb, nN, limit: L, ult: GEN_CERT.ult, neg: -GEN_CERT.neg * L, m: GEN_CERT.m,
            sink, dropNz: drop ? drop.nz : null, flownNz: flown ? flown.nz : null, flownReached: flown ? flown.reached : null,
