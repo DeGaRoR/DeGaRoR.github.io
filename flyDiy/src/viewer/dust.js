@@ -574,13 +574,17 @@
         float ts = -log(1.0 - min(A.a, 0.995));
         // THE QUAD'S EDGE IS NO EDGE (A0, 12 Nov: the Petrel crash's dust "a HARD CIRCULAR EDGE, like a disc cut off"): the
         // zoom crops the baked body, so up to 0.9 of its coverage met the quad's circle (the discard above) - a dense puff
-        // drew the circle. The depth thins to nothing over the outer 45 % of the radius, and the alpha closes over the last
-        // 15 %, whatever the puff's depth
+        // drew the circle. The user, 12 Nov, on the same frames ("the clean, sharp rounded shape"): a crash puff is so dense
+        // that it SATURATES - flat inside, and its outline is then the window's circle whatever the window. So: ONE PUFF
+        // NEVER DRAWS OPAQUE (its centre's depth soft-capped at 1.6: ~0.8 alpha at most, the lobes and holes still read; a
+        // dense cloud is several puffs over each other), and the depth and the alpha both fade from half the radius out,
+        // whatever the depth (measured, a depth-6 puff: alpha 0.81 at the centre, 0.16 at 0.7 r, 0.03 at 0.8 r, 0 at 0.9 r)
         float rr = sqrt(d2);
-        ts *= 1.0 - smoothstep(0.55, 1.0, rr);
-        float tau = 2.0 * vTau * uDens * ts / uTauRef * mix(uGain[int(f0)], uGain[int(f1)], fk);
+        float vT = 1.6 * (1.0 - exp(-vTau / 1.6));
+        ts *= 1.0 - smoothstep(0.45, 1.0, rr);
+        float tau = 2.0 * vT * uDens * ts / uTauRef * mix(uGain[int(f0)], uGain[int(f1)], fk);
         a = 1.0 - exp(-tau);
-        a *= smoothstep(1.0, 0.85, rr);
+        a *= smoothstep(1.0, 0.45, rr);
         a *= smoothstep(-0.05 * vSv, 0.3 * vSv + 0.15, vGd);
         a *= smoothstep(0.0, 0.04, age);
         vec3 lq = vLq, uq = vUq;
