@@ -92,7 +92,13 @@
   "rearWinY": 0.515,
   "rearWinH": 0.628,
   "rearWinW": 1.25,
-  "rearWinR": 0.06
+  "rearWinR": 0.06,
+  "intBulk": 0,
+  "whProfile": 2,
+  "whRim": 1,
+  "whRimD": 0.62,
+  "whWide": 1.1,
+  "whTread": 1
  },
  "wings": {
   "span": 2.2,

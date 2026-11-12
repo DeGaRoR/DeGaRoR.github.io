@@ -1108,6 +1108,8 @@ window.CAGE_PAGE = {
       ['rearWinH', 'rear window height', 0.05, 1.2, 0.005, { when: P => +P.rearWinOn, dim: 'len' }],
       ['rearWinY', 'rear window centre height', -1.0, 1.2, 0.005, { when: P => +P.rearWinOn, dim: 'len' }],
       ['rearWinR', 'rear window corner radius', 0, 0.3, 0.005, { when: P => +P.rearWinOn, dim: 'len' }],
+      ['rearWinN', 'rear windows (one / a pair)', 1, 2, 1, { when: P => +P.rearWinOn }],
+      ['rearWinGap', 'rear pair centre to centre', 0.1, 2.0, 0.005, { when: P => +P.rearWinOn && +P.rearWinN === 2, dim: 'len' }],
       ['paxLenLast', 'rear bay length (own)', 0.3, 3.0, 0.01,
        { when: P => +P.paxCount > 1, dim: 'len' }],   // CAR-3: absent = paxLen
       ['doorPaxN',  'pax doors: bays with one (from the front)', 0, 4, 1,

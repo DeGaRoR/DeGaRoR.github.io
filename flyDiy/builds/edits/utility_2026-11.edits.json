@@ -138,7 +138,14 @@
   "s1LegFair": 0,
   "s2LegFair": 0,
   "frPaxTopY": 1.0,
-  "paxSeatBays": 1
+  "paxSeatBays": 1,
+  "rearWinOn": 1,
+  "rearWinN": 2,
+  "rearWinGap": 0.95,
+  "rearWinW": 0.8,
+  "rearWinY": 0.564,
+  "rearWinH": 0.518,
+  "rearWinR": 0.06
  },
  "fuel": {
   "litres": 80,

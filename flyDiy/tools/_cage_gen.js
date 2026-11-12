@@ -9374,11 +9374,17 @@ function cageSpec(P) {
     // CAR-4 (the user, 12 Nov: "a back window for the UTV, aligned with the main windows"): ONE window cut into the
     // REARMOST wall, looking aft (rearWinOn; W / H / Y / R as a side window's, cage units; absent = none). Kept out of
     // S.windows: the side-view refusal below is for side glass
-    if (+P.rearWinOn > 0)
-      S.rearWin = { shape: Math.round(+P.rearWinShape || 0) === 1 ? 'ellipse' : 'rect', row: 'rear', i: 0, z: 0,
-                    y: +P.rearWinY || 0, w: Math.max(0.05, +P.rearWinW || 0.6), h: Math.max(0.05, +P.rearWinH || 0.3),
-                    r: Math.max(0, +P.rearWinR || 0), rr: null, topK: 1, skew: 0, depth: 0.006,
-                    step: Math.max(0.006, rim * 1.1) };
+    // (CAR-3: rearWinN 2 = a PAIR, side by side, rearWinGap apart centre to centre; absent = one)
+    if (+P.rearWinOn > 0) {
+      const nR = Math.max(1, Math.min(2, Math.round(+P.rearWinN || 1))), gap = Math.max(0, +P.rearWinGap || 0);
+      S.rearWin = [];
+      for (let i = 0; i < nR; i++)
+        S.rearWin.push({ shape: Math.round(+P.rearWinShape || 0) === 1 ? 'ellipse' : 'rect', row: 'rear', i, z: 0,
+                         x: nR === 2 ? (i ? -0.5 : 0.5) * gap : 0,
+                         y: +P.rearWinY || 0, w: Math.max(0.05, +P.rearWinW || 0.6), h: Math.max(0.05, +P.rearWinH || 0.3),
+                         r: Math.max(0, +P.rearWinR || 0), rr: null, topK: 1, skew: 0, depth: 0.006,
+                         step: Math.max(0.006, rim * 1.1) });
+    }
     // THE REFUSAL (the design note: "the second outline crosses the first
     // hole's reveal and the loops go open"): every pair of outlines is
     // tested in the side view (convex, so a separating axis settles it),
@@ -10899,15 +10905,19 @@ const sheetShallow = m => { const o = Object.assign({}, m); for (const k of ['V'
 // CAR-4: the rear window's cut - the knife's own frame (the wells' way, RETRACT G4): n0 straight aft, the outline in
 // the plane of the rearmost skin under it (x lateral, y up); runs after the side windows on the welded surface
 function cageRearCut(s, S, KG) {
-  const w = S && S.rearWin;
-  if (!w || !KG || !KG.knifeCut) return s;
-  let zb = Infinity;
-  for (const p of s.V) if (Math.abs(p[0]) < 0.5 * w.w && Math.abs(p[1] - w.y) < 0.5 * w.h) zb = Math.min(zb, p[2]);
-  if (!isFinite(zb)) return s;
-  if (!s.N) s.N = KG.knifeNormals(s);
-  return KG.knifeCut(s, w, { side: 1, depth: w.depth, paneMat: 'drawnPane', wallMat: 'reveal',
-                             frame: { n0: [0, 0, -1], c0: [0, w.y, zb], t1: [-1, 0, 0], t2: [0, 1, 0] },
-                             only: (f, V) => f.v.every(i => V[i][2] < zb + 0.06) });
+  const L = S && S.rearWin;
+  if (!L || !KG || !KG.knifeCut) return s;
+  for (const w of [].concat(L)) {
+    const cx = w.x || 0;
+    let zb = Infinity;
+    for (const p of s.V) if (Math.abs(p[0] - cx) < 0.5 * w.w && Math.abs(p[1] - w.y) < 0.5 * w.h) zb = Math.min(zb, p[2]);
+    if (!isFinite(zb)) continue;
+    if (!s.N) s.N = KG.knifeNormals(s);
+    s = KG.knifeCut(s, w, { side: 1, depth: w.depth, paneMat: 'drawnPane', wallMat: 'reveal',
+                            frame: { n0: [0, 0, -1], c0: [cx, w.y, zb], t1: [-1, 0, 0], t2: [0, 1, 0] },
+                            only: (f, V) => f.v.every(i => V[i][2] < zb + 0.06) });
+  }
+  return s;
 }
 function cageSheetKept(spec, step, L) {
   const memo = {};
