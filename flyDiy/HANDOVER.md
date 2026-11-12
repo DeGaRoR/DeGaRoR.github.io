@@ -314714,3 +314714,52 @@ TOWN-1 STEP 1, THE COST (HW-COVERAGE, 8 Nov, metla_ab P,B,B,P, Cub, approach 100
 - sea-on: one 2045 ms first-visit task; the Petrel not measured.
 - town-trees: measured on L35d, no measurable cost.
 - **BOOT: the timed gate timed out on its last row (c172 cockpit).** Garage-ready 134-244 s (one boot timeout at 243.7 s) against L38a 150-185 s and L37b 119-149 s, with long tasks up to 32 s. It is mixed with the box's shader-cache misses (worst link 47.8 s), so it is not attributed to an item. First item of the Friday perf round.
+
+## CAR-1 - THE FIRST CAR: A 1930s BOAT-TAIL ROADSTER DRAWN IN THE GARAGE FROM THE TIGER MOTH, DRIVEN ON THE AI CAR'S PHYSICS (12 Nov 2026, cloud - node + quickshot only; branch claude/fly-diy-car-build-uu6e6w off master 1f5b8219)
+
+The user (12 Nov): "build a car in Fly DIY ... one of these 1930 cars ... start from the Flying Moth ... get rid of the
+propeller, get rid of the wings, reuse the mechanics that we have for powering the wheels from the engine, because we
+already have an AI car that reuses this physics ... four wheels and directional wheels ... the front face of these old
+cars ... avoid having to do wheel wells ... no boom at all, an aeropod instead, and that would be the trunk ... quick shot
+rendering of your progress." THE DOCUMENT: futureDesigns/CAR-1-2026-11.md (what landed, the numbers, the 7 garage gaps,
+the next steps).
+
+- **THE CARD `roadster`** (`tools/_cage_design.js`, after the Spitfire WIP, `blocked` as it is - out of the birth list
+  and the flying gates): the Tiger Moth-alike's measured body rows; no wing / fin / stab / blades / cone / tube; rod-and-pod
+  with the AERO AFT as the boat-tail trunk; a 1.2 m bonnet the body's width (`cw_taperW 1.05`) ending in a tall square
+  radiator opening (the cowl's own inlet, `cw_apMode 1`, `cw_apSq 0.9`); the Argus As 10C inverted V8 (`engY 0.05`: its
+  banks inside the bonnet, only the exhaust stubs out of its side); FOUR WHEELS - the mains the rear axle, the THIRD
+  STATION AS A PAIR (`s2X 0.68`: the gear layer already draws any non-tailwheel station off the centreline as a pair, and
+  the stance reads the extreme contacts) - 0.72 m open wheels on spring-blade stubs, no wells, no fairings. The card must
+  carry the Moth's nose-section rows (`aeroWsLen/aeroLen/aeroTip*/aeroDroop`): without them the class's long closed nose
+  cone grows ahead of the firewall and the engine hangs in front of it (the first bake did exactly that).
+- **TWO ROWS, DEFAULT ON (every build unchanged):** `rodOn` (Boom > rod; `S.rod.bare` -> `emitRodFree` returns and
+  `_cage_access.js` rodSite places nothing on the missing tube) and `spinOn` (Engine; the cone's mesh - `propOn` only ever
+  gated the blades).
+- **THE PHYSICS IS THE VEHICLE SHELL (G2940), NOT makeSim** (its ground pass drives nothing and steers one third wheel;
+  the generator always builds wings). `tools/car_sheet.js` MEASURES the drawing into the shell's sheet: the four drawn
+  contacts (CAGE_GEAR.contacts), the body (CAGE_GEAR.AF + the layers inside the track), the mass from the build's own
+  LEDGER less wings / bracing / tail plus a 120 kg CHASSIS (a gap), the CG along the car from the ledger's moments placed
+  by the mains' measured station (zFw = z(rear axle) + gear.x), the engine row's power x 0.85; a tune (drums, leaf springs,
+  cross-plies) scaled to the mass; the drive test. Written: `src/cars/car_roadster.json` (sheet + tune, generated).
+  Measured: wb 2.90 m, track 1.50 m, 691 kg (56 % front), 150 kW at the wheels; 0-100 km/h 7.9 s, 237 km/h at 40 s, 100-0
+  in 50.4 m straight, turning circle 10.0 m both ways, a 0.54 g lane change back to -0.9 deg. **THE FIRST STANCE SPUN**: axles
+  at 3.05 / 0.15 stood it 64 % on its nose (the V8 ahead of the firewall), the driven rear's tyres filled their friction
+  ellipse at a third of the throttle and a 0.9 g lane change went round (heading 0 -> 161 -> -132 deg) while the first LANE
+  row said 'upright' - the row now prints the heading excursion and its end. The front axle under the radiator (3.35 / 0.45)
+  is the period's and holds.
+- **NOT DONE (CAR-1-2026-11.md §2-3):** the drawn front wheels do not yaw (one castor unit per centred station only); no
+  chassis ledger row; the join's aeroplane spec still holds one third wheel; car legs and fenders; side-by-side seats; no
+  drive mode in the page (vehicle.js is still outside the bundle); no GATE CAR yet.
+- Pictures: quickshot (`node tools/quickshot.js --key roadster <out> --views side,q,front,top`).
+- **THE USER'S REVIEW (same day, all card rows; futureDesigns/CAR-1-2026-11.md §1 "The user's review"):** one seat (the
+  Camel's single cockpit; the trunk 1.9 m, the rear axle 0.55); every line straight (one keel / roof / waist width, the
+  nose section's pinch and droop off); the bonnet ONE section to the radiator (it had swelled forward: 1.05 x and a squarer
+  front than the fit's firewall); its widest line at the body's waistline (`cw_waist` 0.05 -> 0.28, which also hid the body
+  showing past it head-on); the waist cut LEVEL (PROPER-COWLS' `partLevel`, at `partY 0.25` - the parameter split ran
+  diagonally once the waist moved); louvres (the side gills) under it; the Argus replaced by the custom engine on its V8
+  layout at a 3.6 L car V8's bore and stroke, 3000 rpm (86 kW, 89 kg by the aero engine model - a gap: no car-engine
+  family; the custom's own defaults are a twin, so the card pins arch / cyl / vee / aim / exhaust); the suspension a
+  wishbone (the swinging link, feet on the body's lower side) with a coil-over up to the body's SIDE (`shockAng 90`,
+  `linkX 0` - the Cub's crossed X had put the tops under the belly). Sheet: 521 kg, 47 % front, 73 kW at the wheels,
+  0-100 km/h 6.5 s, 187 km/h, 100-0 in 48.1 m, circle 9.7 m, the 0.57 g lane change back to -0.9 deg.

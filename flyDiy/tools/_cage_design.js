@@ -2783,6 +2783,97 @@ const ARCHETYPES = [
                     cw_bladeN: 4, cw_material: 0 },
             spec: { prop: { blades: 4, material: 'wood', pitch: 'cruise' },
                     fuel: { litres: 386 } } } },          // 85 imp gal, the two fuselage tanks
+  // CAR-1 (the user, 12 Nov 2026: "build a car in Fly DIY ... one of these 1930 cars ... start from the Flying Moth ...
+  // get rid of the propeller, get rid of the wings, reuse the mechanics that we have for powering the wheels from the
+  // engine ... four wheels and directional wheels ... the front face of these old cars ... avoid having to do wheel wells
+  // ... no boom at all, an aeropod instead, and that would be the trunk"). THE FIRST CAR: the Tiger Moth-alike's body
+  // (its sections and its tandem open cockpits, aeroscreens and all) with no wing, no tail, no propeller and no cone; a
+  // ROD-AND-POD body whose tube is off (rodOn 0) so the pod ends at its bulkhead and the AERO AFT closes it - the
+  // boat-tail trunk; the nose a long bonnet ending in a tall square radiator opening (the cowl's own inlet, squared);
+  // FOUR WHEELS - the mains are the rear axle, the third station is the FRONT AXLE drawn as a pair (s2X off the
+  // centreline), short spring-blade stubs, open wheels (no wells, no fairings); the Argus As 10C, a 1930s inverted V8.
+  // It DRIVES, it does not fly: its physics is the ground vehicle's shell (src/vehicle/vehicle.js, the AI car's - the
+  // driven rear wheels, Ackermann front, tyres, springs), fed from this card by tools/car_sheet.js
+  // (futureDesigns/CAR-1-2026-11.md). Blocked from the birth list and the flying gates.
+  { key: 'roadster', kind: 'fiction', name: 'Boat-tail roadster (car, WIP)', note: '1930s single-seat roadster: the ' +
+      'Moth\'s body on four wheels, a V8 under a long bonnet, an aeropod trunk - drives, does not fly',
+    blocked: 'WIP: a car (CAR-1) - it drives on the ground vehicle\'s physics (tools/car_sheet.js), it does not fly',
+    sel: { class: 'eab', role: 'trainer', seatLayout: 0, paxCount: 0,
+           canopy: 'screen', mirror: 0, intCons: 2, boomStyle: 1, section: 1,
+           wgPos: 3, wgBrace: 1, wgTip: 2, wgFlapType: 0, planes: 'mono',
+           engFamily: 'vee', engModel: 'Argus As 10C', engMount: 'nose',
+           gearLayout: 'tail', suspension: 'bungee', s1Fair: 0,
+           finArch: 'rounded', empennage: 'conv', scheme: 'trim', base: 0xb5342a, trim: 0x20211f },
+    over: { cage: { ...OPEN_TANDEM, paxCount: 0, paxOpen1: 0, pilotRear: 0,   // ONE SEAT (the user, 12 Nov: "do a 1 seater")
+                    // THE BODY: the Tiger Moth-alike's section (its card, MEASURED off the DH.82 reference) HELD STRAIGHT -
+                    // the user (12 Nov): "straighten all the lines you can. The cabin bottom is wavy": one keel, one roof
+                    // and one width from the firewall to the bulkhead (the Moth's frames step them station by station)
+                    halfW: 0.54, roofHalfW: 0.42, roofY: 0.66, keelY: -0.56, waistY: 0.22, floorY: -0.32,
+                    aftRoofY: 0.66, aftKeelY: -0.56, taperW: 1, pilotLen: 1.04, paxLen: 1.06,
+                    frCabTopY: 0.66, frCabBotY: -0.56, frCabWaistW: 0.54, frCabBotW: 0.5, frPaxTopY: 0.66,
+                    frPaxBotY: -0.56, frPaxWaistW: 0.54, frPaxBotW: 0.5, frBoomWaistW: 0.54, frBoomTopW: 0.42,
+                    frBoomBotW: 0.5, boomLen: 3.36, boomMidPinch: 1, boomMidPinchW: 1.55,
+                    tailRoofY: 0.38, tailKeelY: 0.03, tailHalfW: 0.12, cw_keelSweep: 0,
+                    // the nose section between the cockpit and the cowl: the Moth's length (the class's runs a long closed
+                    // cone), its pinch and droop held STRAIGHT (1, 1, 0) - the body meets the bonnet at its own section
+                    aeroWsLen: 0.59, aeroLen: 0.24, aeroTipW: 1, aeroTipH: 1, aeroDroop: 0,
+                    // NOTHING THAT FLIES: no wing, no fin, no stab, no blades, no cone, no tube
+                    wingOn: 0, w2On: 0, finOn: 0, stOn: 0, propOn: 0, spinOn: 0, rodOn: 0,
+                    // THE TRUNK: the pod's aero aft, a long teardrop drooping to a low boat tail
+                    boomStyle: 1, aeroAftOn: 1, aeroAftLen: 1.9, aeroAftTip: 0.35, aeroAftDroop: 0.15,   // (one seat: the trunk longer, past the rear axle)
+                    // THE BONNET AND THE RADIATOR: the user (12 Nov): "ensure that the cowl keeps a constant shape over its
+                    // profile ... a constant cross section until the radiator part" - the barrel end's section IS the
+                    // firewall's (taper 1 x 1, the fitted squareness carried forward, no rise, no sweep, the widest line
+                    // held), the nose bowl short and blunt, carrying the barrel line to the radiator's face; the inlet a
+                    // tall rectangle in it
+                    cw_cowlLen: 1.2, cw_taperW: 1, cw_taperH: 1, cw_lidRise: 0, cw_faceRise: 0, cw_lidMode: 0,
+                    cw_deckSweep: 0, cw_waistSweep: 0, cw_lidLen: 0.06, cw_lidShoulder: 0.92, cw_lidRound: 1,
+                    // one section all along: the top squarer than the fit's (0.68: the body's shoulders, which showed past
+                    // a rounder bonnet head-on), the bottom the fit's (0.564) carried to the front
+                    cw_sqAftTop: 0.68, cw_sqFrontTop: 0.68, cw_lidSqTop: 0.68, cw_sqFrontBot: 0.56, cw_lidSqBot: 0.56,
+                    // THE WAISTLINE (the user, 12 Nov: "get the waistline of the cowl in line with the waistline of the
+                    // car"): the bonnet's widest line at the body's (waistY 0.22 between the keel -0.56 and the roof 0.66
+                    // is 0.28 of the half-height over the middle; the fit had it at 0.05), held to the front
+                    cw_waist: 0.28, cw_waistF: 0.28,
+                    // THE CUT AT THE WAISTLINE, STRAIGHT ("an option so the cut at the bonnet waistline is drawn straight
+                    // and nice"): the split held LEVEL (partLevel, PROPER-COWLS' option) with an even groove, at the
+                    // waistline's height (partY 0.25)
+                    cw_partOn: 1, cw_partLevel: 1, cw_partArc: 1, cw_partY: 0.25,
+                    // THE LOUVRES under the cut, each flank ("shark fins on the cowls"): the side gills, a long panel of
+                    // slanted slots
+                    cw_gillOn: 1, cw_gillN: 14, cw_gillZ: 0.5, cw_gillL: 0.5, cw_gillH: 0.24, cw_gillSlant: 15,
+                    cw_apMode: 1, cw_apW: 0.16, cw_apH: 0.30, cw_apSq: 0.9, cw_apOffY: 0.02,
+                    // THE ENGINE (the user, 12 Nov: "an enormous engine for that car ... an engine that would be more
+                    // appropriate"): the CUSTOM engine on the Argus's V8 layout (90 deg, eight cylinders) at a 1930s car
+                    // V8's size - a 3.6 L flathead's 77.8 x 95.3 mm - turning 3000 rpm: the engine model gives ~86 kW and
+                    // 89 kg (an air-cooled aero model: a cast-iron car V8 of the size is ~65 kW and ~250 kg - a GAP: no
+                    // car-engine family)
+                    engPreset: 41, eng_arch: 3, eng_cyl: 8, eng_vee: 90, eng_inlineAim: 0, eng_exStyle: 2,   // (the Argus's layout dials:
+                    eng_bore: 0.0778, eng_stroke: 0.0953, eng_rpm: 3000, engY: 0.05,                   //  the custom's own defaults are a twin)
+                    // FOUR WHEELS (metres): the rear axle on the mains, the front axle on the third station as a pair;
+                    // 0.72 m wheels on short spring stubs, the body low between them (track 1.5 m, wheelbase 2.8 m). THE
+                    // FRONT AXLE UNDER THE RADIATOR, the rear 0.3 m ahead of the Moth's tail: at 3.05 / 0.15 the car stood
+                    // 64 % on its front wheels, the driven axle's tyres filled their friction ellipse at a third of the
+                    // throttle and a 0.9 g lane change spun it (car_sheet.js LANE); the period's cars put the axle there
+                    // THE SUSPENSION (the user, 12 Nov: "a triangle suspension with shocks"): the swinging link - a
+                    // triangle (the arm and its V strut) on a coil-over shock - at all four, swinging level
+                    s1On: 1, s1Leg: 1, s1Z: 0.55, s1X: 0.75, s1R: 0.36, s1Drop: 0.08, s1Brake: 1, s1Steer: 0,
+                    s2On: 1, s2Leg: 1, s2Z: 3.35, s2X: 0.75, s2R: 0.36, s2Drop: 0.08, s2Brake: 1, s2Steer: 1,
+                    // (the user: "put the shock mount point on the sides of the body, not below ... a proper triangle
+                    // suspension setup, with the shock anchoring higher up"): the wishbone's two feet on the body's lower
+                    // side (linkAng 55, spread 0.5 m), the coil-over's top on the body's SIDE at the same station
+                    // (shockAng 90, the row's limit: the side at mid-height), its foot near the wheel end of the arm, on
+                    // its own side (linkX 0: the Cub's crossed X put the tops under the belly)
+                    s1_shockKind: 0, s2_shockKind: 0, s1_linkSwing: 0, s2_linkSwing: 0, s1_linkPanel: 0, s2_linkPanel: 0,
+                    s1_linkAng: 55, s2_linkAng: 55, s1_linkSpread: 0.5, s2_linkSpread: 0.5, s1_linkX: 0, s2_linkX: 0,
+                    s1_shockAng: 90, s2_shockAng: 90, s1_shockAt: 0.85, s2_shockAt: 0.85, s1_shockZ: 0, s2_shockZ: 0,
+                    s1Fair: 0, s2Fair: 0, whProfile: 2 },
+            spec: { fuel: { litres: 60 },
+                    systems: { fit: 'minimal' }, cabin: { baggage: 40 },
+                    paint: { job: 'full', sweep: 0, base: 0xb5342a, trim: 0x20211f },
+                    finish: { decals: { regOutOn: 0 },
+                      sections: { ...BODY_PAINT(0xb5342a) } },
+                    meta: { reg: 'CAR-1' } } } },
   { key: 'savannah', kind: 'recreation', name: 'Savannah-alike', note: 'STOL microlight, high ' +
       'wing, big flaps, bush role',
     sel: { class: 'ulm', role: 'bush', seatLayout: 1, paxCount: 0,

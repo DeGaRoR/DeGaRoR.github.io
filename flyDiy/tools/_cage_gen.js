@@ -2051,6 +2051,7 @@ function buildCage2(S, step) {
   // fuselage — this component normalizes itself.
   const emitRodFree = () => {
     if (MIR || !S.rod || S.rod.twin || !R.rodSpan) return;
+    if (S.rod.bare) return;                                  // CAR-1: no tube - the pod alone
     const F0 = F.length;
     const rT = R.rodSpan.ring('rodTip', R.rodSpan.zTip);
     const rR = R.rodSpan.ring('rodRoot', R.rodSpan.zRoot + 0.01);
@@ -8439,6 +8440,9 @@ const CAGE_PARAMS = {
   // tightening's aft section; cageLiftLegacy lifts a saved factor.)
   taperOn: 0, taperLen: 0.6, taperPanels: 0,
   boomStyle: 0, rodY: 0, rodD: 0.12, rodIncl: 0,
+  // CAR-1 (the user, 12 Nov: "no boom at all, an aeropod instead, and that would be the trunk"): the rod's TUBE
+  // drawn or not - 0 on a rod-and-pod body leaves the pod ending at its bulkhead (the aero aft closes it), nothing aft
+  rodOn: 1,
   // twin booms (2026-09-04): drawn by the wing layer off the trailing edge.
   // G267: the LOFT — a section (width x height) at each end of the body, a
   // squareness, and a fairing (length, cone -> ogive, cap) at each end.
@@ -9505,7 +9509,8 @@ function cageSpec(P) {
   S.rod = (P.boomStyle || +P.boomTwin)
     ? { r: Math.max(0.015, (P.rodD || 0.12) / 2), y: P.rodY || 0,
         incl: (+P.rodIncl || 0) * Math.PI / 180,            // G267.1, tail up +
-        twin: +P.boomTwin ? 1 : 0 }
+        twin: +P.boomTwin ? 1 : 0,
+        bare: (P.rodOn != null && !+P.rodOn && !+P.boomTwin) ? 1 : 0 }   // CAR-1: the pod with no tube
     : 0;
   // G189: on a rod the taper's truss lives INSIDE the boom's length (see
   // cageResolve), so it cannot be longer than the boom less a hand of bare

@@ -418,7 +418,7 @@ function rodSite(row, P, needs, atSL, atLV, bags) {
   let S, R;
   try { S = CG2.cageSpec(Object.assign({}, P)); R = CG2.cageResolve(S); }
   catch (e) { return null; }
-  if (!S.rod || S.rod.twin || !R || !R.rodSpan) return null;
+  if (!S.rod || S.rod.twin || S.rod.bare || !R || !R.rodSpan) return null;   // (CAR-1: no tube, nothing clamped to it)
   const FS = (CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
   const sp = R.rodSpan, r = S.rod.r, y0 = S.rod.y;
   // the station: tape metres past the bulkhead, along the tube (z runs fwd)
