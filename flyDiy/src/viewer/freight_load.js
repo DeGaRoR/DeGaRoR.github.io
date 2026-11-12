@@ -21,7 +21,8 @@
   let objs = new Map(), bar = null, picked = null, drag = null, msg = '', msgBad = false, M = null, Minv = null;
   let floorY = 0, clipZ = 0, lastRep = null, accepted = false;
   const fmt = n => Math.round(n).toLocaleString('en-GB').replace(/,/g, ' ');
-  const lin = h => { const c = new T.Color(h); if (c.convertSRGBToLinear) c.convertSRGBToLinear(); return c; };
+  // (12 Nov: under r186's managed colour, Color(hex) already decodes - convert only when management is off: once)
+  const lin = h => { const c = new T.Color(h); if (!(T.ColorManagement && T.ColorManagement.enabled) && c.convertSRGBToLinear) c.convertSRGBToLinear(); return c; };
 
   // ---- THE MODELS (FREIGHT-ASSETS' catalogue: the existing props first, the Poly Haven loads, a box where none) ----
   // (mail sacks, kit bags, tent bags, the stretcher: no model yet - FREIGHT-ASSETS' gap list - a plain box in the kind's colour)

@@ -1303,8 +1303,16 @@ function aeroPlaneRepaint(swap, scene) {
 // against the unconverted path AND they are a DIAGNOSTIC palette (magenta
 // waistband, green pillars) rather than a livery. New pickers convert;
 // legacy hexes stay bit-exact until deliberately re-picked.
+//
+// THE r186 CORRECTION (12 Nov, FIT-PROCEDURE; the user on the PC-6: "the colour applied to the fin is not exactly the
+// colour applied to the fuselage"). Everything above is r128's story. Under r186 and the MANAGED ruling
+// (tools/vendor_three.js), `new THREE.Color(hex)` ALREADY decodes the hex as sRGB, so converting again decoded every
+// tint TWICE - darker and redder than picked - while the decal atlas (decoded once since W0.5a) showed the picked
+// colour: the same 0xf5862a measured (242,71,23) as a tint against (237,155,56) as a decal on one panel. Convert here
+// only when colour management is OFF (the GRAPHICS menu's "as authored", flydiy.cm = '0'): once, in either mode.
 function aeroLinear(THREE, hex) {
-  return new THREE.Color(hex).convertSRGBToLinear();
+  const c = new THREE.Color(hex);
+  return THREE.ColorManagement && THREE.ColorManagement.enabled ? c : c.convertSRGBToLinear();
 }
 
 // ---------------------------------------------------------------------------
