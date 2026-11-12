@@ -453,6 +453,54 @@ vec3 dmgCell(vec3 x) {
   }
   return vec3(sqrt(d1), sqrt(d2), id);
 }
+float dmgH2(vec2 p) { vec3 q = fract(vec3(p.xyx) * 0.1031); q += dot(q, q.yzx + 33.33); return fract((q.x + q.y) * q.z); }
+// ROUND-2 PROTOTYPE: the weathering's spots by count (aeroWxSpots), in the slide's own frame
+float dmgSpots(vec2 uv, float cell, float dens, float rad, float seed, float aa) {
+  vec2 c = floor(uv / cell);
+  float r0 = dmgH2(c + seed), r1 = dmgH2(c + seed + 17.3), r2 = dmgH2(c + seed + 41.7);
+  vec2 ctr = (c + 0.5 + 0.6 * (vec2(r1, r2) - 0.5)) * cell;
+  float rr = rad * (0.7 + 0.6 * dmgH2(c + seed + 5.9));
+  return step(r0, dens) * (1.0 - smoothstep(rr - aa, rr + aa, length(uv - ctr)));
+}
+// a stroke by count on a lattice of cells (along, across): one tapered stroke per winning cell, strictly along, the
+// column's along-origin shifted by its own hash (no grid of stroke ends). Area-correct under a pixel (w / aa): a far
+// flank keeps the gouges' share of bare metal as a tone, it does not fade to nothing
+float dmgStroke(vec2 uv, vec2 cell, float dens, float hw, float seed, float aa) {
+  float col = floor(uv.y / cell.y);
+  uv.x += dmgH2(vec2(col, seed)) * cell.x;
+  vec2 c = vec2(floor(uv.x / cell.x), col);
+  if (dmgH2(c + seed) >= dens) return 0.0;
+  vec2 ctr = (c + 0.5 + vec2(0.3, 0.4) * (vec2(dmgH2(c + seed + 17.3), dmgH2(c + seed + 41.7)) - 0.5)) * cell;
+  float hl = cell.x * (0.30 + 0.20 * dmgH2(c + seed + 9.1));
+  float w0 = hw * (0.5 + dmgH2(c + seed + 3.7));
+  vec2 d = uv - ctr;
+  float a = clamp(d.x, -hl, hl);
+  float w = w0 * (1.0 - 0.6 * abs(a) / hl);
+  float r = length(vec2(d.x - a, d.y));
+  return (1.0 - smoothstep(w, w + aa, r)) * min(1.0, w / aa);
+}
+// the scrape's patterns in ONE projection (uv = along / across the slide, metres): x the mottle, y the blotch, z the
+// chips, w the weathering's scratches; gg the gouges, gA the gouges 1.5 mm across (the relief), gH the deep gouges'
+// hash, gS the paint-off field (the blotch and the fine fbm stretched 7x and 11x along the slide: streaks, not blots)
+vec4 dmgScrPat(vec2 uv, vec2 ux, vec2 uy, float wxM, float xtr, out float gg, out float gA, out float gH, out float gS) {
+  float aa = max(length(abs(ux) + abs(uy)), 1e-5) * 0.8;
+  float gm = textureGrad(tDmgG, uv / 0.6, ux / 0.6, uy / 0.6).r;
+  float gb = textureGrad(tDmgG, uv / 1.7 + vec2(0.41, 0.17), ux / 1.7, uy / 1.7).a;
+  vec2 k1 = vec2(1.0 / 2.6, 1.0 / 0.37), k2 = vec2(1.0 / 0.9, 1.0 / 0.08);
+  float sb = textureGrad(tDmgG, uv * k1 + vec2(0.23, 0.61), ux * k1, uy * k1).a;
+  float sm = textureGrad(tDmgG, uv * k2 + vec2(0.71, 0.05), ux * k2, uy * k2).b;
+  gS = 0.6 * sb + 0.4 * sm;
+  float chD = 0.0625 * wxM + 0.55 * xtr, chR = 0.008 + 0.016 * xtr;
+  float ch = clamp(dmgSpots(uv, 0.06, chD, chR, 11.0, aa) + dmgSpots(uv + 0.031, 0.045, chD * 0.8, chR * 0.8, 23.0, aa), 0.0, 1.0);
+  float scC = mix(0.45, 0.18, xtr), scD = 0.6 * wxM + 0.35 * xtr, scW = 0.0007 + 0.0018 * xtr;
+  float scr = dmgStroke(uv, vec2(scC, scC * 0.08), scD, scW, 7.0, aa);
+  float gHW = 0.0012 + 0.0022 * xtr;
+  gg = max(dmgStroke(uv, vec2(0.50, 0.012), 0.25 + 0.65 * xtr, gHW, 3.0, aa),
+           dmgStroke(uv + vec2(0.17, 0.005), vec2(0.80, 0.021), 0.20 + 0.60 * xtr, gHW * 1.5, 19.0, aa));
+  gA = dmgStroke(uv + vec2(0.0, 0.0015), vec2(0.50, 0.012), 0.25 + 0.65 * xtr, gHW, 3.0, aa);
+  gH = step(0.5, dmgH2(floor(uv / vec2(0.5, 0.012)) + 61.0));
+  return vec4(gm, gb, ch, scr);
+}
 `;
   // THE SKIN'S BLOCK (the live AEROSKIN and the baked flown material), before lights_physical_fragment: the albedo, the
   // roughness, the metalness and the normal are all final here, and the clear coat is still to be made
@@ -514,45 +562,79 @@ vec3 dmgCell(vec3 x) {
         col = mix(col, col * 0.8, cr * 0.3 * (1.0 - wr));
         dmgCov = max(dmgCov, max(cr * 0.6, max(dMet * chipOn, dWood * spl)));
       }
-      // ---- SCRAPE -----------------------------------------------------------------------------------------------
+      // ---- SCRAPE, ON THE WEATHERING (ROUND-2 PROTOTYPE, 8 Nov: max weathering, then past it to damaged) --------
       float sc = clamp(dR.y * uDmgK.y, 0.0, 1.0);
       vec3 dD = vDmgD.xyz;
       float dDl = length(dD);
       if (sc > 0.0) {
-        dD = dDl > 0.004 ? dD / dDl : normalize(cross(dN, vec3(0.0, 1.0, 0.0)) + vec3(1e-4, 0.0, 0.0));   // (no way: abrasion only)
-        float sCoh = smoothstep(0.5, 0.85, dDl);          // the coherence along the skin (GATE: a slide 0.8-0.9, a trunk rub 0.4-0.7): streaks only one way
-        vec3 dAc = normalize(cross(dN, dD) + vec3(1e-5));
-        // the scratch read of the weathering, stretched ALONG the slide: across at 1 cm, along at 0.9 m
-        vec2 sUV = vec2(dot(dP, dAc) / 0.010, dot(dP, dD) / 0.9);
-        vec2 sGx = vec2(dot(dPx, dAc) / 0.010, dot(dPx, dD) / 0.9), sGy = vec2(dot(dPy, dAc) / 0.010, dot(dPy, dD) / 0.9);
-        float g1 = textureGrad(tDmgG, sUV * 0.05 + vec2(0.13, 0.57), sGx * 0.05, sGy * 0.05).b;
-        float g2 = textureGrad(tDmgG, sUV * vec2(0.013, 0.02) + vec2(0.71, 0.29), sGx * vec2(0.013, 0.02), sGy * vec2(0.013, 0.02)).r;
-        // (at full scrape about a sixth of the surface is streaked through - the rest abraded, dull. A streak under a
-        // few pixels across fades to the abrasion's tone: thin bright lines whose direction follows a curved skin read
-        // as contour stripes on the real page's cowl - a trunk's rub over the whole nose)
-        float sth = 0.78 - 0.12 * sc, sNear = 1.0 - smoothstep(0.004, 0.009, dFw);
-        float st = smoothstep(sth, sth + 0.05, g1) * smoothstep(0.15, 0.55, sc + 0.4 * g2 - 0.2) * sNear * sCoh;
-        float stDeep = smoothstep(sth + 0.10, sth + 0.14, g1) * st;
+        // THE FRAME (round 3, 8 Nov 22:45: round 2 drew contour bands on the cowl and the wing's lower skin - its slide
+        // direction was laid into the surface PER PIXEL, so the whole frame still turned with the normal). Now FIXED: the
+        // recorded slide's direction as recorded (or the geometry's x), two fixed perpendiculars, and a TRIPLANAR blend
+        // by the normal: a face the slide runs along takes (along, across); a face that looks along the slide takes
+        // (across, across) - no along coordinate there, whose iso-lines on a dome are the rings - and no streaks
+        dD = dDl > 0.004 ? dD / dDl : vec3(1.0, 0.0, 0.0);
+        float sCoh = smoothstep(0.30, 0.75, dDl);         // a slide (0.8-0.9) gouges in full, a rub (0.4-0.7) in part
+        vec3 aR = abs(dD.y) < 0.8 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0);
+        vec3 dA1 = normalize(cross(dD, aR)), dA2 = cross(dD, dA1);
+        float q0 = dot(dN, dD), q1 = dot(dN, dA2), q2 = dot(dN, dA1);   // dA1 lies in the surface where the normal is along dA2
+        q0 *= q0; q0 *= q0; q1 *= q1; q1 *= q1; q2 *= q2; q2 *= q2;
+        float qS = max(q0 + q1 + q2, 1e-6), w0 = q0 / qS, w1 = q1 / qS, w2 = q2 / qS;
+        vec2 uv0 = vec2(dot(dP, dA1), dot(dP, dA2)), ux0 = vec2(dot(dPx, dA1), dot(dPx, dA2)), uy0 = vec2(dot(dPy, dA1), dot(dPy, dA2));
+        vec2 uv1 = vec2(dot(dP, dD), dot(dP, dA1)), uv2 = vec2(uv1.x, dot(dP, dA2));     // metres: along, across
+        vec2 ux1 = vec2(dot(dPx, dD), dot(dPx, dA1)), uy1 = vec2(dot(dPy, dD), dot(dPy, dA1));
+        vec2 ux2 = vec2(ux1.x, dot(dPx, dA2)), uy2 = vec2(uy1.x, dot(dPy, dA2));
+        float wxM = smoothstep(0.0, 0.40, sc);            // the weathering's layers, nothing -> max
+        float xtr = smoothstep(0.30, 1.0, sc);            // past max: the extreme, damaged
+        float gg0, gA0, gH0, gS0, gg1, gA1, gH1, gS1, gg2, gA2, gH2, gS2;
+        vec4 Pt = dmgScrPat(uv0, ux0, uy0, wxM, xtr, gg0, gA0, gH0, gS0) * w0
+                + dmgScrPat(uv1, ux1, uy1, wxM, xtr, gg1, gA1, gH1, gS1) * w1
+                + dmgScrPat(uv2, ux2, uy2, wxM, xtr, gg2, gA2, gH2, gS2) * w2;
+        float gm = Pt.x, gb = Pt.y, ch = Pt.z, scr = Pt.w;
+        float wAl = w1 + w2;                               // the share of the faces the slide runs along (streaks, gouges)
         float soil = dR.w;
-        // the broad abrasion first: dull, paler, the varnish gone
-        float ab = smoothstep(0.1, 0.6, sc);
-        col = mix(col, mix(col, vec3(dot(col, vec3(0.2126, 0.7152, 0.0722))), 0.35) * 1.05, ab * 0.4);
-        rgh = mix(rgh, max(rgh, 0.78), ab);
-        // the streaks: ground through to what is under the paint - on metal the bare alloy (the primer at the streak's
-        // edge); on doped fabric the SILVER coat first (the aluminium-pigmented dope under every colour coat), the raw
-        // weave only in a streak's core; on wood the raw grain
+        float lum = dot(col, vec3(0.2126, 0.7152, 0.0722));
+        // MAX WEATHERING. fade + chalk: the colour washed toward its own grey, paler, the varnish gone
+        col = mix(col, mix(col, vec3(lum), 0.45) * 1.10 + 0.015, wxM * 0.75);
+        rgh = mix(rgh, max(rgh, 0.80), wxM);
+        // dust and dirt over it, mottled (the weathering's dirt colour, never shiny)
+        float dCov = wxM * clamp(0.20 + 0.55 * gm + 0.25 * gb, 0.0, 1.0) * (0.55 + 0.45 * xtr);
+        col = mix(col, uDmgCol[1].rgb, dCov * 0.65);
+        rgh = mix(rgh, max(rgh, uDmgCol[1].w), dCov);
+        met *= 1.0 - dCov * 0.8;
+        // chips by count - at max one 6 cm cell in sixteen with a 6-10 mm chip (the weathering's own full), then denser
+        // and larger until they merge into flaking
+        // (the chips and the weathering's scratches by count: dmgScrPat, ch and scr)
+        // EXTREME: the paint ground off in STREAKS along the slide (the stretched field's high ground), primer on metal,
+        // the silver dope on fabric
+        float gOff = smoothstep(0.66 - 0.34 * xtr, 0.73 - 0.34 * xtr, gS1 * w1 + gS2 * w2 + 0.5 * w0) * xtr * wAl;
+        // ...and THE GOUGES along the slide: two lattices, 1.2 and 2.1 cm across, 0.5 and 0.8 m along (dmgScrPat)
+        float gK = sCoh * smoothstep(0.15, 0.45, sc);
+        float gg = (gg1 * w1 + gg2 * w2) * gK;
+        float gDeep = gg * smoothstep(0.6, 1.0, xtr) * (gH1 * w1 + gH2 * w2);
+        // what shows: metal - bare alloy, a primer ring round the patches; fabric - the silver dope, the raw weave in a
+        // gouge's core; wood - raw grain
         vec3 bare = mix(dSub, vec3(0.42, 0.43, 0.44), dFab);
-        col = mix(col, bare, st + (1.0 - sNear) * 0.15 * ab);
-        col = mix(col, vec3(0.50, 0.45, 0.34), dFab * stDeep);
-        met = mix(met, mix(dSubM, 0.35, dFab) * (1.0 - soil), st);
-        rgh = mix(rgh, mix(dSubR * 0.8, 0.5, dFab), st);
-        rgh = mix(rgh, 0.95, max(dFab * stDeep, soil * st));
-        // ...and the ground in them: soil on soft ground, a green-brown stain from grass, dust on hard ground
-        float stain = soil * smoothstep(0.2, 0.7, sc) * (0.45 + 0.55 * g2);
-        col = mix(col, mix(uDmgCol[1].rgb, uDmgCol[2].rgb, 0.45 + 0.4 * g2), stain * (0.15 + 0.45 * st));
-        rgh = mix(rgh, max(rgh, uDmgCol[1].w), stain);
-        met *= 1.0 - stain;
-        dmgCov = max(dmgCov, max(ab, st));
+        vec3 prim = mix(uDmgCol[0].rgb, vec3(0.42, 0.43, 0.44), dFab + dWood);
+        col = mix(col, prim, gOff * 0.85);
+        rgh = mix(rgh, max(rgh, 0.85), gOff);
+        met = mix(met, 0.0, gOff);
+        float bareCov = clamp(max(max(ch, scr), gg), 0.0, 1.0);
+        col = mix(col, bare, bareCov);
+        met = mix(met, mix(dSubM, 0.30, dFab) * (1.0 - soil), bareCov);
+        rgh = mix(rgh, mix(dSubR * 0.75, 0.55, dFab), bareCov);
+        // a deep gouge: the raw weave through the dope; on metal a dark groove packed with grime, bright lips beside it
+        col = mix(col, mix(uDmgCol[3].rgb * 1.6, vec3(0.50, 0.45, 0.34), dFab + dWood), gDeep * 0.85);
+        rgh = mix(rgh, 0.95, gDeep);
+        met *= 1.0 - gDeep;
+        // the ground packed in the gouges: soil from soft ground, grass juice, dust on hard ground
+        float stain = (0.35 + 0.65 * soil) * smoothstep(0.2, 0.8, sc) * (0.4 + 0.6 * gm);
+        col = mix(col, mix(uDmgCol[1].rgb, uDmgCol[2].rgb, soil * (0.35 + 0.4 * gb)), stain * (0.10 + 0.45 * gg));
+        rgh = mix(rgh, max(rgh, uDmgCol[1].w), stain * 0.7);
+        met *= 1.0 - stain * 0.5;
+        // the relief: a gouge is a groove across the slide (its own stroke profile's gradient, across)
+        vec3 dAt1 = dA1 - dN * dot(dN, dA1), dAt2 = dA2 - dN * dot(dN, dA2);
+        dGrad += (dAt1 * (gg1 - gA1) * w1 + dAt2 * (gg2 - gA2) * w2) * gK / 0.0015 * 0.0004 * xtr;
+        dmgCov = max(dmgCov, max(wxM, bareCov));
       }
       // ---- TORN EDGE --------------------------------------------------------------------------------------------
       float tb = clamp(dR.z * uDmgK.z, 0.0, 1.0);
