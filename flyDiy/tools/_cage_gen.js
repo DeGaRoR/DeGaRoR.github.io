@@ -355,7 +355,7 @@ function cageResolve(S) {
   };
 
   const zPaxB = S.ring.z - S.pilot.len - S.cabinPillarW
-              - S.pax.count * S.pax.len - (S.pax.count - 1) * S.paxPillarW;
+              - cagePaxSum(S) - (S.pax.count - 1) * S.paxPillarW;
   const zPaxA = zPaxB - S.paxPillarW;
   // THE TAPER (G26): a dedicated tightening section between the aft
   // cabin pillar and the boom — the contraction stops living on the
@@ -467,16 +467,21 @@ function cageResolve(S) {
   const taperD0 = TAP ? { Ww: tWw, Wr: Wr * (tWw / W), roofY: S.aft.roofY,
                           ceilY: S.aft.ceilY, floorY: S.aft.floorYA,
                           keelY: S.aft.keelYA } : aftDA;
+  // MATCH TO CABIN SIZE (12 Nov, FIT-PROCEDURE; the user on the PC-6: "an ugly break between the pax section and the
+  // boom ... maybe we need an option to do that automatically, 'Match to cabin size' in the boom section"): with no
+  // taper section the boom root is the cabin's aft frame itself - the passenger frame's section, not the boom frame's
+  // own with the keel lean - so the boom leaves the cabin with no step. Absent / 0: as it always was.
+  const BMATCH = !TAP && !!S.boomMatch;
   // the BOOM FRAME is the boom-root ring: the tightening's aft pair with a
   // taper, the aft ring of the passenger band (pilPaxA) without (T2.1)
-  const taperD = dimF(taperD0, 'boom');
+  const taperD = BMATCH ? dimF(aftDB, 'pax') : dimF(taperD0, 'boom');
   if (HTAP) {
     const htEnd = Math.max(0.5 * (taperD.roofY - taperD.keelY), taperD.Ww, taperD.Wk != null ? taperD.Wk : 0);
     zConeTip = zTaperP - HT_CONE * htEnd;
   }
   // (the cabin's aft pillar's dims - the pax frame's with a taper, the boom frame's without; HULL-B27's taper rings read
   // them before the pillar itself is added)
-  function pilPaxADh() { return TAP ? dimF(cabD, 'pax') : dimF(aftDA, 'boom'); }
+  function pilPaxADh() { return TAP ? dimF(cabD, 'pax') : BMATCH ? dimF(aftDB, 'pax') : dimF(aftDA, 'boom'); }
   const tailDF = dimF(tailD, 'tail');
   if (!MIR && !ROD) {
   add(fullRing('tailCap', zCap, tailDF), { mat: CAGE_MAT.plain });
@@ -582,7 +587,7 @@ function cageResolve(S) {
     // (the afterbody), and a ring stands at the step so the knuckle is exact (buildCage2 adds the step's own pair aft of it)
     const HS = S.hull && S.hull.steps > 0 && S.hull.hs > 0 ? S.hull : null;
     // (the cabin frame, pilCabA, stands where the passenger run ends - zPaxEnd, defined below with the run)
-    const zCabF = zPaxB + S.pax.count * S.pax.len + Math.max(0, S.pax.count - 1) * S.paxPillarW;
+    const zCabF = zPaxB + cagePaxSum(S) + Math.max(0, S.pax.count - 1) * S.paxPillarW;
     const zS = HS ? zCabF - HS.stepAft : null;
     const stepIn = zS != null && zS < zPaxA - 0.05 && zS > zTaperA + 0.05;
     const tS = stepIn ? (zPaxA - zS) / (zPaxA - zTaperA) : null;
@@ -693,7 +698,7 @@ function cageResolve(S) {
   // the roof, the ceiling, the floor and the keel run linearly from one to
   // the other instead of stepping at the last bay. With the taper on, both
   // ends are the cabin section and the blend is a no-op.
-  const zPaxEnd = zPaxB + S.pax.count * S.pax.len
+  const zPaxEnd = zPaxB + cagePaxSum(S)
                 + Math.max(0, S.pax.count - 1) * S.paxPillarW;
   // T2.1: the run goes from the PASSENGER FRAME to the CABIN FRAME (each
   // with its deviation, so a moved frame is reached without a step)
@@ -741,13 +746,13 @@ function cageResolve(S) {
     // inside the bay, so a curve reads on a single bay; the sub-bays carry
     // no guards (full-bay ts), the bay's own material
     if (paxLoops) for (let s = 1; s <= paxLoops; s++) {
-      const zl = z + S.pax.len * s / (paxLoops + 1);
+      const zl = z + cagePaxLen(S, i) * s / (paxLoops + 1);
       add(fullRing('paxLoop' + i + '_' + s, zl, paxD(zl)), { mat: matPaxO(i) });
     }
     // (G3511: an open bay's opening lies in its first sub-bay)
     if (paxLoops) bays[bays.length - 1 - paxLoops] = paxOpen(i)
       ? { mat: CAGE_MAT.plain, openAs: 'pax' + i } : { mat: matPax(i) };
-    z += S.pax.len;
+    z += cagePaxLen(S, i);
     if (i < S.pax.count - 1) {
       add(fullRing('pilPaxM' + i, z, paxD(z)),
           { mat: CAGE_PILLAR('pillarPassenger') });
@@ -2199,7 +2204,10 @@ function buildCage2(S, step) {
           ((D.pilot && mat.glass === 'pilotWindow'
             && (/^pilCab/.test(bayName) || bayName === 'ring'))
            || (D.pax && mat.glass === 'pasengerWindow'
-               && /^pilPax[BM]/.test(bayName)));
+               && /^pilPax[BM]/.test(bayName)
+               // (12 Nov, FIT-PROCEDURE: "pax doors only for the 2 first sections") doors.paxFront = N: only the N
+               // bays nearest the cockpit (bays count from the aft one, 0); absent: every bay, as always
+               && (D.paxFront == null || (parseInt(bayName.slice(7), 10) || 0) >= (S.pax.count || 0) - D.paxFront)));
         if (doorBay && (hi === 'ceil' || hi === 'band' || hi === 'waist'
             || (D.deep && hi === 'floor'))) {
           F[F.length - 1].door = F[F.length - 2].door = 1;
@@ -9285,6 +9293,16 @@ function cageToSpec(P) {
 // pitch. The knife cuts CONVEX outlines (a convex clip is an intersection of half-planes): a quad dragged concave,
 // or crossed into a bow-tie, is REFUSED with its reason - kept in the list, never cut, the sheet watertight - the
 // way an overlapping window is.
+// EACH PASSENGER BAY ITS OWN LENGTH (12 Nov, FIT-PROCEDURE; the user on the PC-6: "we need 3 pax sections, like I drew
+// them ... with dimensions perfectly matching the pax pillars"): paxLen2, paxLen3, ... set bay 2, 3, ...; absent, a bay
+// is paxLen long. With none set S.pax.lens is not written and the run's length is count x len, the very product every
+// build before used (a sum of equal lengths can differ from it in the last bit), so no saved build moves.
+function cagePaxLen(S, i) { return S.pax.lens && S.pax.lens[i] != null ? S.pax.lens[i] : S.pax.len; }
+function cagePaxSum(S) {
+  if (!S.pax.lens) return S.pax.count * S.pax.len;
+  let t = 0; for (let i = 0; i < S.pax.count; i++) t += cagePaxLen(S, i);
+  return t;
+}
 // MORE ROWS OF DRAWN WINDOWS (11 Nov, FIT-PROCEDURE; the user: "maybe we need to have more than 3 possible rows of
 // windows ... that's indeed something which allows to give a lot of personality to a plane"): rows 4-6 on win4*-win6*.
 // Their keys are NOT defaults - no saved file carries them and none is written until a row is used (the panel shows
@@ -9519,8 +9537,13 @@ function cageSpec(P) {
   S.cabinPillarW = P.pillarW > 0 ? P.pillarW : P.cabPillarW;
   S.pax.count = Math.max(0, Math.round(P.paxCount));
   S.pax.len = P.paxLen;
+  // (12 Nov) the bays' own lengths, written only when one is set (cagePaxLen / cagePaxSum)
+  { const L = []; let any = false;
+    for (let i = 1; i < S.pax.count; i++) { const v = P['paxLen' + (i + 1)]; if (v != null && isFinite(+v) && +v > 0) { L[i] = +v; any = true; } }
+    if (any) S.pax.lens = L; }
   S.paxPillarW = P.pillarW > 0 ? P.pillarW : P.paxPillarW;
   S.boom.len = P.boomLen;
+  if (+P.boomMatch > 0) S.boomMatch = 1;          // (12 Nov) the boom root = the cabin's aft frame (written only when on)
   // G26: the dedicated taper section + the rod boom (see CAGE_PARAMS).
   // Presence is EXPLICIT (taperOn); the length only sizes it, clamped
   // away from degenerate.
@@ -9730,6 +9753,7 @@ function cageSpec(P) {
   if (floorUpC > 0) S.win.floorUp = floorUpC;
   S.config.doors = { pilot: P.doorOn ? 1 : 0, pax: P.doorPax ? 1 : 0,
                      deep: P.doorDeep ? 1 : 0 };
+  if (P.doorPaxFront != null && +P.doorPaxFront > 0) S.config.doors.paxFront = Math.round(+P.doorPaxFront);   // (12 Nov)
   S.cut = { on: 1, doors: 1, wins: 1,
             doorGone: P.doorGone ? 1 : 0,
             explode: Math.max(0, P.explodeD || 0) };

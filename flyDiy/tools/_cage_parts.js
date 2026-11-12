@@ -504,7 +504,7 @@ const CAGE_PARTS = [
     place: { count: 'paxCount', type: 'doorPax', len: 'paxLen',
              at: 'aft of the cabin' },
     groups: [
-      ['bays', ['paxCount', 'paxLen', 'paxAbreast']],       // T2.3 (132)
+      ['bays', ['paxCount', 'paxLen', 'paxLen2', 'paxLen3', 'paxLen4', 'paxLen5', 'paxLen6', 'paxAbreast']],       // T2.3 (132)
       // G3573 (DC3-2): the rows of seats in each bay, their pitch, the aisle and the seat's width
       ['seat layout', ['paxRows', 'paxPitch', 'paxAisle', 'paxSeatW']],
       // G180: who sits in each bay is the BAY's own row — click a bay, seat
@@ -523,7 +523,7 @@ const CAGE_PARTS = [
       // (the aft bulkhead's lean = the passenger FRAME's fore/aft rows, T2.1)
       ['glazing', ['winSillPax']],
       // (the drawn windows are their own part under Glazing since T2.2)
-      ['doors', ['doorPax', 'doorSillPax']],
+      ['doors', ['doorPax', 'doorPaxFront', 'doorSillPax']],
       ['pillars', ['paxPillarW'], EXPERT],
     ] },
 
@@ -538,7 +538,7 @@ const CAGE_PARTS = [
              at: 'aft of the last bay; on a rod, the boom’s first stretch' },
     groups: [
       // (taperW = the boom FRAME's widths since T2.1)
-      ['tightening', ['taperOn', 'taperLen', 'taperPanels']],
+      ['tightening', ['taperOn', 'boomMatch', 'taperLen', 'taperPanels']],
     ] },
 
   // G267 (the user: "the tail cone options appear under boom, while it has
@@ -1015,7 +1015,7 @@ const CAGE_PARTS = [
       ['inlet lip', ['cw_lipMode', 'cw_lipThick', 'cw_lipDepth',
                      'cw_lipRound', 'cw_lipProtrude', 'cw_lipInset',
                      'cw_ductLen', 'cw_ductFlare']],
-      ['chin scoop', ['cw_scoopOn', 'cw_scoopFollow', 'cw_scoopZ', 'cw_scoopLen', 'cw_scoopW',
+      ['chin scoop', ['cw_scoopOn', 'cw_scoopFollow', 'cw_scoopHold', 'cw_scoopWFit', 'cw_scoopZ', 'cw_scoopLen', 'cw_scoopW',
                       'cw_scoopH', 'cw_scoopSq', 'cw_scoopDrop',
                       'cw_scoopRake', 'cw_scoopAp', 'cw_scoopLipH',
                       'cw_scoopLipDepth', 'cw_scoopDuct']],
