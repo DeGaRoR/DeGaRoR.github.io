@@ -1501,7 +1501,11 @@ function makePilot(sim, def, world, opts) {
       // FLOWN WITH THE WHOLE STOL TECHNIQUE (the steep power-on slope the aeroplane's own gsMax allows, the aim 10 m in, the
       // stick's whole travel, the brakes at once), devices or none; a long strip gets the easy normal landing. A STOL-device
       // wing keeps STOL-PILOT's rule (short on every land strip that is not soft)
-      const stolL = stolL0 || (shortT && !water && !soft && stolQual && !unpowL);
+      // PILOT-UNIFY: ...ON A TRIKE ONLY. FIT-PROCEDURE's evidence (claude/fit-procedure-strip-evidence 25a25817, the game's flight,
+      // HOME > tw_ski): the STOL technique on a no-device taildragger ground-looped the user's Cub (32.5 deg of bank before the touch,
+      // axis error 50.9 deg) and the archetype Cub (89.9 deg) - REAL-FIGURES 57e18a499's Carbon Cub SS again. A no-device
+      // taildragger flies the feel short field (feelT, below) or, A.tailStop 'law', G1936's short law - never this
+      const stolL = stolL0 || (shortT && !water && !soft && stolQual && !unpowL && trike);
       // THE FEEL ARRIVAL (the user: "your approach in a three-point touchdown ... as slow as you can, obviously full flaps
       // down. You flare, you touch"): a taildragger flying the feel law on the short technique, its wing no STOL wing, flies
       // the HOLD-OFF (idle, the sink held while the speed bleeds) with the stick's whole travel, so the nose comes up to the

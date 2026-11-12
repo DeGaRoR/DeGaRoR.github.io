@@ -6,11 +6,12 @@
 //             Bryce = ham-fist, 72_people's bases): STOL-qualified and glider-rated as the table says (the expert and the
 //             bush pilot: both; the club pilot, the student, the ham-fist: neither)
 //   STRIP     the strip decides, flown the game's way (TOUR's gameHost: the game's day, the shakedown, the line-up skip):
-//             HOME > nv_strip (a short strip) > HOME (a long one). The user's Cub (list:1), the expert: the FEEL short field
-//             at nv_strip (a no-device taildragger, a qualified person), the normal landing at HOME; the bush pilot: the
-//             feel short field; the club pilot (not qualified): G1936's short law, neither STOL nor feel; the Cessna 172
-//             (list:50 F-HCSN, a trike), the expert: the strip-decides STOL technique. Every landing on its To, no ground
-//             loop, no fault
+//             HOME > tw_ski (Skyline Altiport, short) > HOME (long). The user's Cub (list:1) and the archetype cub, the
+//             expert: the FEEL short field at tw_ski (a no-device taildragger, a qualified person), the normal landing at
+//             HOME; the bush pilot: the feel short field; the club pilot (not qualified): G1936's short law, neither STOL
+//             nor feel - each on its To, NO GROUND LOOP (the strip-decides STOL technique ground-looped both Cubs there:
+//             FIT-PROCEDURE 25a25817), no fault. The Cessna 172 (list:50 F-HCSN, a trike), the expert, HOME > nv_strip
+//             (East Point): the strip-decides STOL technique, no ground loop, landed there or a clean divert
 //   GLIDE     the glider rating decides: the motorglider, its motor off 280 m over Jolene, sent to Jolene - the expert
 //             (rated) flies the glider's circuit to its To ('completed'); the club pilot (unrated) has an EMERGENCY
 //             (said so, 'forced-landing') and lands on the field the glide reaches
@@ -55,7 +56,7 @@ SH.makeSimHost = function () { const H = mk0.apply(this, arguments); HOST = H; r
 const TW = TR.tourWorld(C, IN, fs), W = TW.W;
 function tour(file, profile, order) {
   const def = TR.defOf(C, PT, file), legs = [];
-  const R = TR.flyTour(C, W, def, order, { game: { profile, lineup: true }, roundOK: null, tMax: 1800, log: L => {
+  const R = TR.flyTour(C, W, def, order, { game: { profile, lineup: true }, roundOK: 'nv_strip', tMax: 1800, log: L => {
     const A = HOST && HOST.ap && HOST.ap.report && HOST.ap.report.appr;
     legs.push({ L, appr: A ? { technique: A.technique, stol: !!A.stol, feel: !!A.feel } : null });
   } });
@@ -66,17 +67,26 @@ const legLine = x => x.L.from + '>' + x.L.to + ' on ' + x.L.landedOn + (x.appr ?
 const clean = x => x.L.ok && x.L.landedOn === x.L.to && !x.L.groundLoop;
 
 // ---- STRIP ----
+// THE GROUND LOOP IS A FAIL (_tour_lib's rule: the nose over 30 deg off the strip's axis at over 5 m/s on the roll).
+// FIT-PROCEDURE's evidence (claude/fit-procedure-strip-evidence 25a25817): the strip-decides STOL technique ground-looped
+// the user's Cub (50.9 deg) and the archetype cub (89.9 deg) at tw_ski on the game's flight - and no other gate flies
+// that leg. So the taildragger rows fly HOME > tw_ski (Skyline Altiport, short) and must land there; the Cessna 172
+// (list:50, a trike) flies East Point (nv_strip), where a clean divert passes (the user: "if it can land it's good")
+// [what, build, person, order, the plan asked per leg, must land on its To]
 const STRIP = [
-  ['the user\'s Cub, the expert (Stig)', CUB, undefined, ['HOME', 'nv_strip', 'HOME'], [{ technique: 'short', stol: false, feel: true }, { technique: 'normal', stol: false, feel: false }]],
-  ['the user\'s Cub, the bush pilot (Megan)', CUB, 'bush', ['HOME', 'nv_strip'], [{ technique: 'short', stol: false, feel: true }]],
-  ['the user\'s Cub, the club pilot (Brian)', CUB, 'club', ['HOME', 'nv_strip'], [{ technique: 'short', stol: false, feel: false }]],
-  ['the Cessna 172 (list:50), the expert', C172, undefined, ['HOME', 'nv_strip'], [{ technique: 'short', stol: true, feel: false }]],
+  ['the user\'s Cub, the expert (Stig)', CUB, undefined, ['HOME', 'tw_ski', 'HOME'], [{ technique: 'short', stol: false, feel: true }, { technique: 'normal', stol: false, feel: false }], true],
+  ['the archetype cub, the expert', 'cub', undefined, ['HOME', 'tw_ski'], [{ technique: 'short', stol: false, feel: true }], true],
+  ['the user\'s Cub, the bush pilot (Megan)', CUB, 'bush', ['HOME', 'tw_ski'], [{ technique: 'short', stol: false, feel: true }], true],
+  ['the user\'s Cub, the club pilot (Brian)', CUB, 'club', ['HOME', 'tw_ski'], [{ technique: 'short', stol: false, feel: false }], true],
+  ['the Cessna 172 (list:50), the expert', C172, undefined, ['HOME', 'nv_strip'], [{ technique: 'short', stol: true, feel: false }], false],
 ];
-for (const [what, file, prof, order, want] of STRIP) {
+for (const [what, file, prof, order, want, mustLand] of STRIP) {
   if (!go('STRIP')) continue;
   let out;
   try { out = tour(file, prof, order); } catch (e) { row('STRIP', false, what + ': THREW ' + String(e.message).slice(0, 160)); continue; }
-  const ok = out.legs.length === want.length && out.legs.every((x, i) => clean(x) && x.appr && x.appr.technique === want[i].technique && x.appr.stol === want[i].stol && x.appr.feel === want[i].feel);
+  // (a clean divert - declined / held off, no ground loop - passes a row that need not land on its To; its plan is judged)
+  const fine = x => mustLand ? clean(x) : (!x.L.groundLoop && (clean(x) || x.L.declined || x.L.heldOff));
+  const ok = out.legs.length === want.length && out.legs.every((x, i) => fine(x) && x.appr && x.appr.technique === want[i].technique && x.appr.stol === want[i].stol && x.appr.feel === want[i].feel);
   row('STRIP', ok, what + ': ' + out.legs.map(legLine).join(' | ') + ' (asked: ' + want.map(w => w.technique + (w.stol ? '+STOL' : '') + (w.feel ? '+feel' : '')).join(', ') + ')');
 }
 
