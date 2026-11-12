@@ -107,3 +107,16 @@ weight ledgers" are still to come, the shared ground is:
 - STRUT-OPTIONS' tube masses.
 
 Those should be designed together, not twice.
+
+## The canon, settled (12 Nov: the user, via A0, "yes to all" on FLAGSHIP's PLANE CANON)
+
+- **Cub:** list 1's `builds/cub_2026-09-20_corrected.json` is THE reproduction (PLANES `cub`, listRow 1). The J-3 chord
+  card `cub_chord160` is NEXT (listRow 48, hidden in the report until it replaces list 1).
+- **PA-18 floats:** list 25's `builds/pa18_floats_2026-10-23.json` (PLANES `pa18f`, listRow 25). `pa18_floats_chord160`
+  is NEXT (49).
+- **Cessna on floats:** `c172r_wipline2350_stcprop_2026-10-20` is a TEST plane (PLANES `c172rf`: dropped from the report,
+  test: true). The reproduction will be FLAGSHIP's V2 floats draft once the user answers the floats plan.
+
+Report: `reports/REAL-CHECK-2026-11-12.html`. Cub and PA-18 floats re-flown on the list's files on 12 Nov
+(`reports/evidence/REAL-CHECK-2026-11-12/`): Cub 89 (geometry 82, specs 93, performance 92: the 1.70 m chord), PA-18
+floats 70 (76 / 89 / 51). The rest as on 11 Nov.
