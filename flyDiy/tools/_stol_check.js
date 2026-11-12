@@ -322,7 +322,10 @@ console.log('3. THE PHYSICS (the Savannah-alike, as baked)');
   ok(Math.abs((slot.aSt - base.aSt) - deg(C.GEN_SLATS.slot.dAs)) < 2.5, `...its stall attitude moves by its dAs (${(slot.aSt - base.aSt).toFixed(2)} deg, ${deg(C.GEN_SLATS.slot.dAs).toFixed(1)} declared)`);
   ok(r(auto.Vs, base.Vs) < r(slot.Vs, base.Vs), 'the automatic slat out-lifts the fixed slot once it is out (Vs ' + r(auto.Vs, base.Vs).toFixed(3) + ')');
   ok(slot.D2 > base.D2 * 1.02, `the fixed slot pays its gap drag at cruise (D x${r(slot.D2, base.D2).toFixed(3)} at 2 deg)`);
-  ok(auto.D2 < slot.D2 && auto.D2 > base.D2 && auto.D2 < base.D2 * 1.01, `the automatic slat pays only its seam at cruise (D x${r(auto.D2, base.D2).toFixed(4)})`);
+  // AERO-BODY re-pin (PHYSICS_V 8): the seam is the same ~4.2 N (4.10 -> 4.23), the Savannah's own drag at 2 deg falls 2.5 %
+  // with its body measured (411.9 -> 401.4 N), so the ratio 1.0099 (on the edge of 1.01 on master 6b6b12a4c) reads 1.0105:
+  // the bound 1.012 (the fixed slot's 1.09 stays far above it, and auto < slot is held as before)
+  ok(auto.D2 < slot.D2 && auto.D2 > base.D2 && auto.D2 < base.D2 * 1.012, `the automatic slat pays only its seam at cruise (D x${r(auto.D2, base.D2).toFixed(4)})`);
   ok(r(vg.Vs, base.Vs) < 0.98 && r(vg.Vs, base.Vs) > 0.92, `VGs: Vs x${r(vg.Vs, base.Vs).toFixed(3)} (the kit sheets' 3-5 mph on a Cub: 0.92..0.98)`);
   ok(vg.D2 > base.D2 && vg.D2 < base.D2 * 1.02, `...for under 2 % of cruise drag (x${r(vg.D2, base.D2).toFixed(4)})`);
   ok(cuff.Vs <= base.Vs * 1.0001 && cuff.CL8 > base.CL8, `the cuff: no worse a stall (x${r(cuff.Vs, base.Vs).toFixed(3)}) and its nose camber lifts below it`);
