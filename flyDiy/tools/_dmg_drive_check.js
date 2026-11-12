@@ -218,7 +218,11 @@ const rep = msg => console.log('  --    ' + msg);
       // A0's default, the question with the user): the crankcase a lump (GEN_NOSE.lumpZ + pushCg) no longer rings its own mount
       // apart - the Jodel's graze holds its engine where master let it go 0.22 s later. Either is a pass: the strike (a blade
       // off, the imbalance) is asserted; the mount letting go, or holding with the engine shaking, is printed
-      else if (g.thr === 1) yes(g.finite && d.strike === 'separation' && d.bladeLost > 0,'a trunk grazing the tips (3 cm) at full power (' + Math.round(g.rpm0) + ' rpm, tip ' + Math.round((d.strikeAt || {}).tip || 0) + ' m/s): a blade breaks off and the prop turns on short of it - ' + f2(g.imbMax / 1000) + ' kN of imbalance (m e w^2) - ' + (g.mountAt != null ? 'the mount lets go ' + f2(g.mountAt) + ' s later (the engine leaves)' : 'the mount holds, the engine shakes (ENGINE-LUMP)') + ' ' + GAME);
+      else if (g.thr === 1) { yes(g.finite && d.strike === 'separation' && d.bladeLost > 0,'a trunk grazing the tips (3 cm) at full power (' + Math.round(g.rpm0) + ' rpm, tip ' + Math.round((d.strikeAt || {}).tip || 0) + ' m/s): a blade breaks off and the prop turns on short of it - ' + f2(g.imbMax / 1000) + ' kN of imbalance (m e w^2) - ' + (g.mountAt != null ? 'the mount lets go ' + f2(g.mountAt) + ' s later (the engine leaves)' : 'the mount holds, the engine shakes (ENGINE-LUMP)') + ' ' + GAME);
+        // ENGINE-LUMP (13 Nov, the user: "if the prop is going through anything, I do mind"): the prop never turns through
+        // the trunk - after the blade breaks, the trunk reaches no deeper than the bite it lost + the hard 1 cm (+ 1 cm: a
+        // frame's travel before the stop reads), or the prop stops
+        yes(g.finite && g.sepBite != null && g.pastMax <= 0.02, '  ... and the prop never turns through the trunk: after the blade breaks (' + f2((g.sepBite || 0) * 100) + ' cm bite), the deepest past it while it still turns ' + f2(Math.max(0, g.pastMax) * 100) + ' cm' + (g.sepStop ? ' - then the trunk STOPS it' : (g.mountAt != null ? ' - then the engine leaves' : ' - it turns clear')) + ' (2 cm allowed)'); }
       else yes(g.finite && d.strike === 'brush' && g.running[0] && g.mountAt == null, 'the same graze at idle (' + Math.round(g.rpm0) + ' rpm, tip ' + Math.round((d.strikeAt || {}).tip || 0) + ' m/s): \'' + d.strike + '\', the engine runs, the mount holds'); }
     // 4. the gearbox
     for (const g of (S.gear || [])) { const d = g.d[0];

@@ -2088,6 +2088,7 @@ function makeSim(def, world) {
     const dx = p[ia] + t * (p[ib] - p[ia]) - NZ.g[o], dz = p[ia+2] + t * (p[ib+2] - p[ia+2]) - NZ.g[o+2];
     return dx * dx + dz * dz < NZ.g[o+3] * NZ.g[o+3];
   }
+  const GEN_DRIVE_SEP_RIGID = 0.01;   // ENGINE-LUMP: a separated prop's rigid allowance past the bite it lost (m: the hard 1 cm)
   // A STRIKE on engine k: `bite` m into the disc, on a surface 'soft' (the ground), 'water' or 'rigid' (a trunk); the tier
   // only ever rises (genDriveStrikeTier: the bite over R, the tip speed now against the blade's)
   function driveStrike(k, what, bite, surf) {
@@ -2102,8 +2103,14 @@ function makeSim(def, world) {
       // takes the mount. Only a prop that lost its blade TO THE GROUND is stopped by the ground it digs on into (the 172's
       // tip on the turf, full power): a trunk's separation keeps turning when the shake then drops the nose on the turf -
       // run 2's metal Cessna graze; run 3's 'hard ground only' let the 172 on the turf run on again)
-      const sepOnGround = st.strikeAt && st.strikeAt.surf !== 'rigid' && st.strikeAt.surf !== 'water';
-      if (!(cur === 4 && tier === 4 && surf !== 'rigid' && sepOnGround && !e.seized && bite / S.R > stopR0)) return;
+      // ENGINE-LUMP (13 Nov, the user: "if the prop is going through anything, I do mind"): the lump holds the engine on its
+      // mount, so a separated prop keeps turning where before its engine tore off first - it turns on SHORT of what it
+      // struck, by the bite it lost there (strikeAt.bite), never through: anything rigid reaching past that bite by more than
+      // the hard surface's 1 cm (NOSE-STRIKE's allowance) stops it, and so does the ground past its stop whatever took the
+      // blade (before: only after a separation ON the ground - a trunk's separated prop dug on into the turf unseen)
+      const sepBite = st.strikeAt && st.strikeAt.bite > 0 ? st.strikeAt.bite : 0;
+      const past = surf === 'rigid' ? bite > sepBite + GEN_DRIVE_SEP_RIGID : (tier === 4 && bite / S.R > stopR0);
+      if (!(cur === 4 && past && !e.seized)) return;
       st.strikeAt = { t: simT, what, surf, bite, biteR: bite / S.R, tip, rpm: out.rpm[k] || 0, stopAfterSep: true };
       st.imbN = 0;
       if (S.gear > 1 && e.running && thrEffOf(k) > GEN_DRIVE.gear.stopPow) { st.gearbox = 'failed'; DK[k] = 0; }

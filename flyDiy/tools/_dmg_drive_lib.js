@@ -232,7 +232,15 @@ function tipStrike(key, o) {
   const sd = off < -0.3 ? -1 : (off > 0.3 ? 1 : -1), lx = pxv * sd, lz = pzv * sd;
   TH.set('fill:test', [hx + ux * fw + lx * lat, hz + uz * fw + lz * lat, elev - 0.5, rt, elev + 10]);
   const t0 = sim.t, before = sim.out.rpm.slice();
-  let mountAt = null, imbMax = 0, failAt = null, peakEng = 0;
+  let mountAt = null, imbMax = 0, failAt = null, peakEng = 0, sepBite = null, pastMax = 0, sepStop = false;
+  // ENGINE-LUMP (13 Nov, the user: "if the prop is going through anything, I do mind"): after the blade breaks, the deepest
+  // the trunk reaches into the disc PAST the bite the prop lost, while the prop still turns - the solver's own geometry
+  // (propTrunk: the hub's band along the heading, the trunk's circle across it), measured here from the nodes
+  const TX = hx + ux * fw + lx * lat, TZ = hz + uz * fw + lz * lat;
+  const trunkBite = () => { let cx = 0, cz = 0, c2 = 0; E.forEach((i, j) => { if ((EO[j] | 0) === k) { cx += sim.p[i*3]; cz += sim.p[i*3+2]; c2++; } }); cx /= c2; cz /= c2;
+    const a2 = sim.axes(), gx = -a2[0][0], gz = -a2[0][2], gl = Math.hypot(gx, gz) || 1, vx = gx / gl, vz = gz / gl;
+    const dx = TX - cx, dz = TZ - cz, ax2 = dx * vx + dz * vz, e2 = ax2 > hub ? ax2 - hub : ax2 < -hub ? -hub - ax2 : 0, h2 = e2 < rt ? Math.sqrt(rt * rt - e2 * e2) : 0;
+    return R - Math.max(0, Math.hypot(dx - ax2 * vx, dz - ax2 * vz) - h2); };
   const MB = mountBeams(def);
   // G2367 (DMG-BUNDLE-GREEN): the engine LEAVES when its mount's group breaks - or, on DMG-MOUNTRIG's ring, when every
   // member from its own nodes (ENG / CGE) to anything else is broken: the eight isolators tear before the twelve bearers
@@ -245,10 +253,13 @@ function tipStrike(key, o) {
     if (st) { imbMax = Math.max(imbMax, st.imbN || 0); if (st.failed && failAt == null) failAt = sim.t - t0; }
     peakEng = Math.max(peakEng, sim.out.rpmEng[k] || 0);
     if (mountAt == null && ((Dm.groups || []).some(G => /mount$/.test(G.key)) || (tie.length && tie.every(bi => sim.beams[bi].broken)))) mountAt = sim.t - t0;
+    if (st && st.strike === 'separation') { if (sepBite == null) sepBite = (st.strikeAt || {}).bite || 0;
+      if (st.strikeAt && st.strikeAt.stopAfterSep) sepStop = true;
+      if (mountAt == null && (sim.out.rpm[k] || 0) > 30) pastMax = Math.max(pastMax, trunkBite() - sepBite); }
     if (!finite(sim)) break;
   }
   const Dm = sim.damage();
-  return { bite: o.bite, R, thr: o.thr == null ? 1 : o.thr, rpm0: before[k], drive: Dm.drive ? JSON.parse(JSON.stringify(Dm.drive)) : null, imbMax, mountAt, failAt, peakEng,
+  return { bite: o.bite, R, thr: o.thr == null ? 1 : o.thr, rpm0: before[k], drive: Dm.drive ? JSON.parse(JSON.stringify(Dm.drive)) : null, imbMax, mountAt, failAt, peakEng, sepBite, pastMax, sepStop,
     groups: (Dm.groups || []).map(G => G.key), running: sim.eng.map(e => e.running), seized: sim.eng.map(e => !!e.seized), crashed: Dm.crashed, reason: Dm.reason, finite: finite(sim), sim, def };
 }
 
