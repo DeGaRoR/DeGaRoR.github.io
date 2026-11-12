@@ -2847,14 +2847,22 @@ PAGE.post = ctx => {
   if (+P.spareOn && AF && typeof AF.surf === 'function') {
     let src = null, zMin = Infinity;
     const bb = new THREE.Box3(), c = new THREE.Vector3(), sz = new THREE.Vector3();
-    for (const ch of group.children) if (/^edWheel/.test(ch.name)) { bb.setFromObject(ch); bb.getCenter(c); if (c.z < zMin) { zMin = c.z; src = ch; } }
+    // (measured in the GROUP'S OWN frame - the layers' metres, AF's frame: in the page the group hangs under the pitched,
+    // grounded mount, and a world box put the spare where the world and the layer frames part - on the ground)
+    const localBox = o => { const b2 = new THREE.Box3(); o.updateMatrixWorld(true);
+      o.traverse(m => { if (!m.isMesh || !m.geometry) return; if (!m.geometry.boundingBox) m.geometry.computeBoundingBox();
+        const bm = m.geometry.boundingBox.clone(); let n = m; const M = new THREE.Matrix4();
+        while (n && n !== group) { n.updateMatrix(); M.premultiply(n.matrix); n = n.parent; }
+        b2.union(bm.applyMatrix4(M)); });
+      return b2; };
+    for (const ch of group.children) if (/^edWheel/.test(ch.name)) { localBox(ch).getCenter(c); if (c.z < zMin) { zMin = c.z; src = ch; } }
     if (src) {
       const sp = src.clone(true); sp.name = 'edSpare';
-      bb.setFromObject(src); bb.getCenter(c); bb.getSize(sz);
+      const lb = localBox(src); lb.getCenter(c); lb.getSize(sz);
       const z = +P.spareZ, sg = +P.spareSide < 0 ? -1 : 1;
       let half = 0; for (let a = 0; a <= 180; a += 3) { const q = AF.surf(z, a * D2R); if (q && isFinite(q[0])) half = Math.max(half, Math.abs(q[0])); }
       const y = (typeof AF.cyAt === 'function' ? AF.cyAt(z) : c.y) + (+P.spareY || 0);
-      sp.position.set(sg * (half + sz.x / 2 + 0.01) - c.x, y - c.y, z - c.z);
+      sp.position.set(src.position.x + sg * (half + sz.x / 2 + 0.01) - c.x, src.position.y + y - c.y, src.position.z + z - c.z);
       group.add(sp);
     }
   }

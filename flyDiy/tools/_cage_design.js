@@ -2864,9 +2864,9 @@ const ARCHETYPES = [
                     // upright chrome bars with a cross bar over a dark core (grilleOn, new), a filler cap on top (capOn, new)
                     cw_apMode: 1, cw_apW: 0.26, cw_apH: 0.37, cw_apSq: 0.78, cw_apOffY: -0.01,
                     cw_lipMode: 1, cw_lipThick: 0.014, cw_lipDepth: 0.06, cw_lipRound: 0.85, cw_lipProtrude: 1.2, cw_lipInset: 0.025,
-                    cw_grilleOn: 1, cw_grilleN: 9, cw_grilleBar: 0.011, cw_grilleSet: 0.04, cw_grilleHBar: 0,
+                    cw_grilleOn: 1, cw_grilleN: 30, cw_grilleBar: 0.007, cw_grilleSet: 0.04, cw_grilleHBar: 0, cw_grilleRows: 22,
                     // ("a simple grill with a number will do the trick"): nine bars, the race number on a plate over them
-                    cw_grilleNum: 7, cw_grilleNumH: 0.5,
+                    cw_grilleNum: 28, cw_grilleNumH: 0.42,   // (the number painted ON the grille, the user's '28': a sticker on a fine open mesh)
                     // ("little lamps like the ones in the wing of the aircraft, just give them a backface in fuselage
                     // material"): a pair beside the radiator, their shells in the body's livery section
                     cw_lampOn: 1, cw_lampR: 0.085, cw_lampGap: 0.07, cw_lampY: 0.10, cw_lampBack: 0.12,
@@ -2929,7 +2929,7 @@ const ARCHETYPES = [
                     // FIREWALL: the first placement, 2.35 m, landed on the boat tail; the cheat line's band is m2P of its H)
                     paint: { job: 'full', sweep: 0, base: 0x7fa8c9, trim: 0xc96f2a },
                     finish: { decals: {
-                      regL: 0.45, regC: -0.10, regH: 0.30, regCol: 0x20211f, regOutOn: 0,
+                      regL: 0.45, regC: -0.10, regH: 0.26, regCol: 0x20211f, regOutOn: 0,
                       // THE RADIATOR SHELL POLISHED, THE BONNET BLUE (the user, 12 Nov: "the blue up till the end ... restore
                       // the metallic only for the tip, like in the attached picture. Maybe make this part a little less long"):
                       // the bonnet section takes the body's blue (below), the shell - the face back to the panel joint, now at
@@ -2951,7 +2951,7 @@ const ARCHETYPES = [
                       t1H: 0.20, t1L: 1.45, t1C: 0.12, t1Tgt: 0, t1Mode: 0 },
                       sections: { ...Object.fromEntries(Object.keys(BODY_PAINT(0)).map(k => [k, { tint: 0x8fb0d4, metal: 1, rough: 0.32 }])),
                                   cowlSkin: { tint: 0x8fb0d4, metal: 1, rough: 0.32 } } },   // (the bonnet blue to the shell)
-                    meta: { reg: '7' } } } },
+                    meta: { reg: '28' } } } },
   { key: 'savannah', kind: 'recreation', name: 'Savannah-alike', note: 'STOL microlight, high ' +
       'wing, big flaps, bush role',
     sel: { class: 'ulm', role: 'bush', seatLayout: 1, paxCount: 0,

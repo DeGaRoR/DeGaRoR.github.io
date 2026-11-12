@@ -84,7 +84,7 @@ const P={
   // PROPER-COWLS: the nose ring's own half-width / reach up / reach down (null = lidRadius)
   lidRW:null, lidRTop:null, lidRBot:null,
   gillOn:0, gillN:6, gillZ:0.35, gillL:0.22, gillH:0.12, gillSlant:25, gillLip:0.012, gillT:0.004, gillUp:null,   // (CAR-1: null = centred)
-  grilleOn:0, grilleN:9, grilleBar:0.012, grilleSet:0.03, grilleHBar:1, capOn:0, capR:0.032, capBack:0.07, grilleNum:0, grilleNumH:0.5, lampOn:0, lampR:0.085, lampGap:0.06, lampY:0.05, lampBack:0.10,   // CAR-1: the grille, the radiator cap (off)
+  grilleOn:0, grilleN:9, grilleBar:0.012, grilleSet:0.03, grilleHBar:1, capOn:0, capR:0.032, capBack:0.07, grilleNum:0, grilleNumH:0.5, grilleRows:0, lampOn:0, lampR:0.085, lampGap:0.06, lampY:0.05, lampBack:0.10,   // CAR-1: the grille, the radiator cap (off)
   // chin scoop
   scoopOn:1, scoopZ:0, scoopW:0.065, scoopH:0.055, scoopLen:0.22, scoopDrop:0.7,
   scoopAp:0.68, scoopSq:0.5, scoopRake:0.18,
@@ -1172,40 +1172,60 @@ function gillsFit(){
 function buildGrille(group,mats){
   if(!(P.grilleOn>0)) return;
   const aps=apertureList(); if(!aps.length) return;
-  const o=aps[0], N=Math.max(2,Math.round(P.grilleN)), bw=Math.max(0.004,P.grilleBar), set=Math.max(0,P.grilleSet);
+  const o=aps[0], N=Math.max(2,Math.round(P.grilleN)), bw=Math.max(0.003,P.grilleBar), set=Math.max(0,P.grilleSet);
   const zf=pierceZ(o.cx,o.cy); const zF=(zf===null?zEnd():zf)-set;
   const m=mats.steel||mats.skin, depth=Math.max(0.01,bw*1.6);
   const hw=o.w*0.96, hh=o.h*0.96;
+  const NR=Math.max(0,Math.round(P.grilleRows||0));
+  const R=grilleNumRects({cx:o.cx,cy:o.cy,w:hw,h:hh});
+  const plateM=R?new THREE.MeshStandardMaterial({color:0xefe6cf,roughness:0.45,metalness:0.1,side:THREE.DoubleSide}):null;
+  const inkM=R?new THREE.MeshStandardMaterial({color:0x1a1a1a,roughness:0.55,metalness:0.1,side:THREE.DoubleSide}):null;
+  const inR=(x,y,r)=>x>=r[0]&&x<=r[2]&&y>=r[1]&&y<=r[3];
+  const matAt=(x,y)=>!R?m:(R.ink.some(r=>inR(x,y,r))?inkM:inR(x,y,R.plate)?plateM:m);
+  // one bar from a to b (along x or along y), cut where the sticker's edges cross it
+  const bar=(vert,c,a,b,w,dz)=>{
+    const cuts=[a,b];
+    if(R) for(const r of R.ink.concat([R.plate])){ const [lo,hi,u0,u1]=vert?[r[0],r[2],r[1],r[3]]:[r[1],r[3],r[0],r[2]];
+      if(c>=lo&&c<=hi){ if(u0>a&&u0<b) cuts.push(u0); if(u1>a&&u1<b) cuts.push(u1); } }
+    cuts.sort((p,q)=>p-q);
+    for(let k=0;k+1<cuts.length;k++){ const u0=cuts[k],u1=cuts[k+1],L=u1-u0; if(L<1e-4) continue; const um=(u0+u1)/2;
+      const g=vert?new THREE.BoxGeometry(w,L,depth):new THREE.BoxGeometry(L,w,depth*0.8);
+      const q=new THREE.Mesh(g,vert?matAt(c,um):matAt(um,c)); q.position.set(vert?c:um,vert?um:c,zF+dz); q.name='cowlGrille'; group.add(q); }
+  };
+  const halfAt=(t,a,b,nn)=>Math.pow(Math.max(0,1-Math.pow(Math.abs(t/a),nn)),1/nn)*b;   // the opening's half-extent across t
   for(let k=0;k<N;k++){
-    const x=-hw+(k+0.5)*2*hw/N, f=Math.pow(Math.max(0,1-Math.pow(Math.abs(x/hw),o.n)),1/o.n), L=2*hh*f;
-    if(L<0.01) continue;
-    const g=new THREE.BoxGeometry(bw,L,depth); const b=new THREE.Mesh(g,m); b.position.set(o.cx+x,o.cy,zF); b.name='cowlGrille'; group.add(b);
+    const x=-hw+(k+0.5)*2*hw/N, L=halfAt(x,hw,hh,o.n);
+    if(L<0.005) continue;
+    bar(true,o.cx+x,o.cy-L,o.cy+L,bw,0);
   }
-  if(P.grilleHBar>0){ const g=new THREE.BoxGeometry(2*hw,bw*0.8,depth*0.8); const b=new THREE.Mesh(g,m); b.position.set(o.cx,o.cy,zF-depth*0.2); b.name='cowlGrille'; group.add(b); }
-  buildGrilleNumber(group,mats,{cx:o.cx,cy:o.cy,w:hw,h:hh},zF,depth);
+  for(let k=0;k<NR;k++){
+    const y=-hh+(k+0.5)*2*hh/NR, L=halfAt(y,hh,hw,o.n);
+    if(L<0.005) continue;
+    bar(false,o.cy+y,o.cx-L,o.cx+L,bw*0.7,-depth*0.35);
+  }
+  if(P.grilleHBar>0 && !NR){ const g=new THREE.BoxGeometry(2*hw,bw*0.8,depth*0.8); const b=new THREE.Mesh(g,m); b.position.set(o.cx,o.cy,zF-depth*0.2); b.name='cowlGrille'; group.add(b); }
   // the core behind the bars: a dark honeycomb plate, so the opening reads as a radiator, not a hole
   const core=new THREE.Mesh(new THREE.PlaneGeometry(2*hw,2*hh),mats.dark||mats.inner||m);
-  core.position.set(o.cx,o.cy,zF-depth*1.5); core.name='cowlGrille'; group.add(core);
+  core.position.set(o.cx,o.cy,zF-depth*2.5); core.name='cowlGrille'; group.add(core);
 }
-// THE NUMBER ON THE GRILLE (CAR-1, the user: "a simple grill with a number will do the trick"): grilleNum (1-99, 0 =
-// none) on an ivory plate in front of the bars, its digits as SEVEN-SEGMENT bars (no font, no canvas: geometry the
-// headless layers and the join carry like any other), grilleNumH of the opening's height
+// (the user, 12 Nov: "not a big panel in front, because then the engine can't breathe ... like you would apply a sticker
+// to the grill so that we would see [it] only where it intersects the grill ... a finer grill"): THE NUMBER IS PAINT ON
+// THE GRILLE - an ivory plate with black seven-segment digits, laid on the grille's plane, and every bar cut into pieces
+// that take the colour of whatever the sticker is under them: the open grid stays open. grilleNumRects lays it out (the
+// page's frame: +x is the car's LEFT, so seen from ahead +x is the viewer's right)
 const SEG7={0:'abcdef',1:'bc',2:'abged',3:'abgcd',4:'fgbc',5:'afgcd',6:'afgedc',7:'abc',8:'abcdefg',9:'abcfgd'};
-function buildGrilleNumber(group,mats,o,zF,depth){
-  const n=Math.round(P.grilleNum||0); if(!(n>0)) return;
+function grilleNumRects(o){
+  const n=Math.round(P.grilleNum||0); if(!(n>0)) return null;
   const digits=String(Math.min(99,n)).split('').map(Number);
-  const H=2*o.h*clamp(P.grilleNumH,0.2,0.9), dW=H*0.52, gap=H*0.14, W=digits.length*dW+(digits.length-1)*gap;
-  const th=H*0.12, zP=zF+depth*0.9;
-  const plateM=new THREE.MeshStandardMaterial({color:0xefe6cf,roughness:0.5,metalness:0,side:THREE.DoubleSide});
-  const inkM=new THREE.MeshStandardMaterial({color:0x1d1d1d,roughness:0.6,metalness:0,side:THREE.DoubleSide});
-  const plate=new THREE.Mesh(new THREE.BoxGeometry(W+H*0.36,H*1.28,0.006),plateM); plate.position.set(o.cx,o.cy,zP); plate.name='cowlGrilleNum'; group.add(plate);
+  const H=2*o.h*clamp(P.grilleNumH,0.2,0.9), dW=H*0.52, gap=H*0.16, W=digits.length*dW+(digits.length-1)*gap;
+  const th=H*0.15, ink=[];
   digits.forEach((d,i)=>{
-    // (laid out in the GAME's frame - its +x is the car's left, so seen from ahead +x is the viewer's right; quickshot's
-    // front view mirrors it: the number reads backwards there and right in the page)
     const x0=o.cx-W/2+i*(dW+gap)+dW/2, segs=SEG7[d]||'';
     const S={a:[0,H/2-th/2,dW,th],g:[0,0,dW,th],d:[0,-H/2+th/2,dW,th],f:[-dW/2+th/2,H/4,th,H/2],b:[dW/2-th/2,H/4,th,H/2],e:[-dW/2+th/2,-H/4,th,H/2],c:[dW/2-th/2,-H/4,th,H/2]};
-    for(const k of segs){ const [x,y,w,h]=S[k]; const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,0.004),inkM); m.position.set(x0+x,o.cy+y,zP+0.004); m.name='cowlGrilleNum'; group.add(m); }
+    for(const k of segs){ const [x,y,w,h]=S[k]; ink.push([x0+x-w/2,o.cy+y-h/2,x0+x+w/2,o.cy+y+h/2]); }
   });
+  const plate=[o.cx-W/2-H*0.2,o.cy-H*0.66,o.cx+W/2+H*0.2,o.cy+H*0.66];
+  return {ink, plate};
 }
 // THE HEADLAMPS (CAR-1, the user: "little lamps like the ones in the wing of the aircraft, just give them a backface in
 // fuselage material"): lampOn - a pair of proud lamps beside the radiator, each a deep shell (in the BODY's livery

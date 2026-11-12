@@ -314790,3 +314790,6 @@ the next steps).
   (`grilleNum`, seven-segment geometry - quickshot's front view mirrors the page: the page's +x is the car's left), the
   bonnet blue with a polished shorter shell (`cw_seamPos 0.81`), the front axle at the radiator (wb 3.20 m), a spare
   wheel (`spareOn`, gear layer: the rearmost wheel copied onto the flank). All new rows absent = as before.
+- **THE SEVENTH REVIEW**: the race number 28 painted ON a fine open grille (bars cut where the sticker's edges cross them,
+  each piece the colour over it; `grilleRows` new, absent 0) - no panel in the opening; the spare wheel measured in the gear
+  group's own frame (a world box had put it on the ground in the page, under the pitched mount).

@@ -1108,12 +1108,13 @@
    "cw_gillSlant": 0,
    "cw_gillUp": 0.8,
    "cw_grilleOn": 1,
-   "cw_grilleN": 9,
-   "cw_grilleBar": 0.011,
+   "cw_grilleN": 30,
+   "cw_grilleBar": 0.007,
    "cw_grilleSet": 0.04,
    "cw_grilleHBar": 0,
-   "cw_grilleNum": 7,
-   "cw_grilleNumH": 0.5,
+   "cw_grilleRows": 22,
+   "cw_grilleNum": 28,
+   "cw_grilleNumH": 0.42,
    "cw_lampOn": 1,
    "cw_lampR": 0.085,
    "cw_lampGap": 0.07,
@@ -1383,7 +1384,7 @@
    "decals": {
     "regL": 0.45,
     "regC": -0.1,
-    "regH": 0.3,
+    "regH": 0.26,
     "regCol": 2105631,
     "regOutOn": 0,
     "m1On": 1,
@@ -1522,7 +1523,7 @@
    }
   },
   "meta": {
-   "reg": "7",
+   "reg": "28",
    "name": "Garage Special"
   },
   "energy": {

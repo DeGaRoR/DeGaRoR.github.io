@@ -208,6 +208,7 @@ const COWL_ROWS = [
     { k: 'grilleBar', label: 'bar width (m)', lo: 0.004, hi: 0.04, step: 0.001, when: 'P.grilleOn>0' },
     { k: 'grilleSet', label: 'set back from the face (m)', lo: 0, hi: 0.15, step: 0.002, when: 'P.grilleOn>0' },
     { k: 'grilleHBar', label: 'cross bar', lo: 0, hi: 1, step: 1, when: 'P.grilleOn>0' },
+    { k: 'grilleRows', label: 'cross rows (a fine mesh; 0 = none)', lo: 0, hi: 40, step: 1, when: 'P.grilleOn>0' },   // CAR-1
     { k: 'grilleNum', label: 'number on the grille (0 = none)', lo: 0, hi: 99, step: 1, when: 'P.grilleOn>0' },
     { k: 'grilleNumH', label: 'number height (x the opening)', lo: 0.2, hi: 0.9, step: 0.01, when: 'P.grilleOn>0&&P.grilleNum>0' },
     { k: 'capOn', label: 'radiator cap', lo: 0, hi: 1, step: 1 },
