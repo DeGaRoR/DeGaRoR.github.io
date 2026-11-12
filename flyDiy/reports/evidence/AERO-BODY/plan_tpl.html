@@ -86,11 +86,30 @@ code { font-family: var(--f-mono); font-size: 0.85em; }
 
 <div class="wrap">
 <header style="display:grid;gap:10px">
-  <div class="eyebrow">Wingsmith · AERO-BODY · step 1 of 2 · 11 Nov 2026</div>
+  <div class="eyebrow">Wingsmith · AERO-BODY · step 2 built · 12 Nov 2026</div>
   <h1>Aero Body Plan</h1>
   <p class="lede">The physics should fly the body the player sees. Today three official aeroplanes fly a body that is not drawn: two rod booms fly a full fuselage cone, and the Twin flies a 1.07 m cone behind its back cowl. This page shows each one drawn against flown, the model that replaces it, and what moves.</p>
-  <div class="status"><span class="chip">prototype: node only, no game file touched</span><span class="chip">nothing lands before the perf round (13–14 Nov)</span><span class="chip">code from 16 Nov on claude/aero-body-*</span></div>
+  <div class="status"><span class="chip">ruled 12 Nov: all six defaults</span><span class="chip">code: claude/aero-body-1 @ 5cce2de4</span><span class="chip">GATE AEROBODY: PASS</span><span class="chip">lands after the perf round (13–14 Nov)</span></div>
 </header>
+
+<section>
+  <h2>Built: the numbers from the code</h2>
+  <p>Your six defaults are in the code on <code>claude/aero-body-1</code>, with COWL-BILL added at A0's request (the outfit no longer bills a cowl where the editor fits none). Before is master's core, after is the branch's, both through the game's load door. A build the load door has not seen carries no record and flies as on master, def for def to the bit (checked on the Twin, the Chinook and the Cub).</p>
+  <div class="tw"><table class="layers"><thead><tr><th>Plane</th><th>Body CdA m²</th><th>Plaque cruise km/h</th><th>Climb m/s</th><th>Empty kg</th><th>CG x</th><th>Static margin</th><th>Cn_β</th><th>Substeps</th><th>Design check</th></tr></thead><tbody>{{BUILT}}</tbody></table></div>
+  <p>No official plane changes a certificate level. The Super Petrel (a validated reference, not official) moves from fail to warn: its design-corner static margin goes −0.033 → +0.004 and its flare row goes pass → warn. FLAGSHIP re-certifies it with the others.</p>
+</section>
+
+<section>
+  <h2>The rod in twist, checked before touching the structure</h2>
+  <p>You asked to anticipate rigidity and twist under a more accurate model. A node rig on GATE FLEX's own tail-arm method: everything ahead of the drawn pod pinned on every substep, ±150 N up and down at the stab tips. Each cell is the rod's own twist at its last ring, then the stab's roll.</p>
+  <div class="tw"><table class="layers"><thead><tr><th>Plane</th><th>Lattice on the cone (today)</th><th>Lattice moved onto the drawn tube</th><th>On the tube, tube element off</th><th>Substeps (same order)</th></tr></thead><tbody>{{TWIST}}</tbody></table></div>
+  <ul class="list">
+    <li><b>The tube element carries the twist.</b> With it off, every rod plane reads 42–45° of stab roll and members tear, at 200 substeps. It must stay in any rod model.</li>
+    <li><b>Moving the nodes onto the drawn tube</b> is safe for twist with the element on: the rod's own twist stays under 1.1° (2.6° on the Chinook), the stab roll moves −45 % to +16 %, and substeps rise 6–26 %. On the v8 pusher the move goes wrong: its core cabin box runs 0.5 m past the drawn pod, the lattice pinches there, and a member hits 4.2 % strain. The box has to follow the drawing first. This change keeps the nodes where they are (your call 4), so twist is untouched.</li>
+    <li><b>Strength was overstated.</b> The damage model took a tube's torque limit from the material's ultimate shear. A rod of d/t 75–95 buckles first: the Chinook's 89 × 1.2 mm aluminium rod at 90 MPa, about 1 350 N·m, roughly half the limit the damage model used. The rod's limits now take thin-tube torsional buckling (Timoshenko &amp; Gere) and the shell's bending buckling (0.3 E t/r).</li>
+    <li><b>Already soft today:</b> most of the Chinook's 15° stab roll is the stab rolling on its post mounting, not the rod (the rod itself turns 1.8°). That mounting is the tail's own matter, flagged.</li>
+  </ul>
+</section>
 
 <section>
   <h2>What moves on the official planes</h2>
@@ -167,7 +186,7 @@ separation: the first station aft of the widest where −d(r_eq)/dx > tan 20°</
 </section>
 
 <section>
-  <h2>Your calls</h2>
+  <h2>Your calls (ruled 12 Nov: all defaults)</h2>
   <div class="q"><b>1. The drag law for bodies that end in a base.</b><span class="def"><b>Default:</b> B, forebody + base at Cd 0.14. A (Raymer on the drawn length) costs the pods 8–26 km/h of cruise; B-H is a little cleaner than B.</span></div>
   <div class="q"><b>2. A pusher right behind a base: credit its suction?</b><span class="def"><b>Default:</b> no credit and no debit. A pusher's inflow can reattach a steep afterbody, but the same prop then works in the body's wake. I found no source I could check from the cloud that sizes the net, so it stays out until one is named.</span></div>
   <div class="q"><b>3. The rod's cross-flow coefficient.</b><span class="def"><b>Default:</b> 0.31, the body row the twin booms already wear. A round tube in cross-flow is nearer 1.2 (Hoerner); that variant is in each rod table (Cn_β 4–6 % higher than with 0.31).</span></div>

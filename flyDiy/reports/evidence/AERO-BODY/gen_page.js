@@ -110,6 +110,14 @@ const summary = ['chinook', 'rufus', 'twin'].map(k => { const o = L(k), a = o.be
   return `<tr><td><a href="#p-${k}">${NAME[k]}</a></td><td>${f2(a.ST[a.ST.length - 1].x)} → ${f2(o.rec.rod ? o.rec.closeX : o.rec.closeX)} m</td><td>${arrow(a.body, b.body, f3)}</td><td>${arrow(a.Vc, b.Vc, f1)}</td><td>${arrow(a.sm, b.sm, f3)}</td><td>${arrow(a.cnBeta, b.cnBeta, f3)}</td></tr>`; }).join('');
 
 const tpl = fs.readFileSync(D + '/plan_tpl.html', 'utf8');
+// the code as built (claude/aero-body-1): before = master's core, after = the branch's, both through the load door
+const V2 = D + '/../v2/', MV = k => JSON.parse(fs.readFileSync(V2 + 'm_' + k + '.json'));
+const NAME2 = Object.assign({ petrel: 'Super Petrel (reference)' }, NAME);
+const built = ['chinook', 'rufus', 'twin', 'cub', 'jodel', 'c172', 'c172f', 'stolcub', 'pa18f', 'birdman', 'v8pusher', 'v7twin', 'petrel'].map(k => { const o = MV(k), a = o.before, b = o.after;
+  return `<tr><td>${NAME2[k]}</td><td>${arrow(a.body, b.body, f3)}</td><td>${arrow(a.VCruise, b.VCruise, f1)}</td><td>${arrow(a.climb, b.climb, f2)}</td><td>${arrow(a.empty, b.empty, f1)}${b.cowlKg > 0 ? ` <span class="chg">(cowl −${f1(b.cowlKg)})</span>` : ''}</td><td>${arrow(a.cgX, b.cgX, f3)}</td><td>${arrow(a.sm, b.sm, f3)}</td><td>${arrow(a.cnBeta, b.cnBeta, f3)}</td><td>${a.substeps} → ${b.substeps}</td><td>${a.verdict === b.verdict ? `<span class="pill minor">${b.verdict}</span>` : `<span class="pill warn">${a.verdict} → ${b.verdict}</span>`}</td></tr>`; }).join('');
+const TW = k => JSON.parse(fs.readFileSync(D + '/twist_' + k + '.json')).out;
+const twist = ['chinook', 'rufus', 'birdman', 'v8pusher', 'v7twin'].map(k => { const O = TW(k), a = O['cone (today)'], b = O['nodes on the drawn tube'], c = O['on the tube, tube element off'];
+  return `<tr><td>${NAME[k]}</td><td class="num">${f2(Math.abs(a.ringTw))}° / ${f1(a.roll)}°</td><td class="num">${f2(Math.abs(b.ringTw))}° / ${f1(b.roll)}°</td><td class="num">${f1(Math.abs(c.ringTw))}° / ${f1(c.roll)}°</td><td class="num">${a.substeps} / ${b.substeps} / ${c.substeps}</td></tr>`; }).join('');
 const html = tpl.replace('{{SUMMARY}}', summary)
   .replace('{{RODS}}', [
     card('chinook', { tag: 'official · rod · pusher on the wing', layers: 1, lede: 'A short covered pod whose 25 cm panelled taper closes onto an 89 mm tube. Today the physics flies a full-section cone from the box to the tail post.' }),
@@ -117,7 +125,7 @@ const html = tpl.replace('{{SUMMARY}}', summary)
   ].join(''))
   .replace('{{RODS_MORE}}', ['birdman', 'v8pusher', 'v7twin'].map(k => card(k, { tag: { birdman: 'candidate · rod · panelled taper', v8pusher: 'candidate · rod · pusher on the bulkhead, short cabin', v7twin: 'fixture · rod · open frame, wing engines' }[k], layers: 1 })).join(''))
   .replace('{{TWIN}}', card('twin', { tag: 'official · twin booms · back cowl', lede: 'The pod ends on the pusher\'s back cowl (the cowl layer, PROPER-COWLS): 0.99 × 1.29 m at the box to a 0.31 × 0.37 m exit 0.58 m later. Today the tail-arm floor (60_gen_spec.js:6359) stretches the pod to 3.47 m, with the 1.91 m disc turning inside the phantom cone.' }))
-  .replace('{{CONV}}', convRows)
+  .replace('{{CONV}}', convRows).replace('{{BUILT}}', built).replace('{{TWIST}}', twist)
   .replace('{{MODELS}}', ['chinook', 'rufus', 'twin', 'birdman', 'v8pusher', 'v7twin'].map(k => { const B = L(k), A = LA(k), H = LH(k);
     return `<tr><td>${NAME[k]}</td><td>${f3(B.before.body)} · ${f1(B.before.Vc)}</td><td>${f3(A.after.body)} · ${f1(A.after.Vc)}</td><td class="pick">${f3(B.after.body)} · ${f1(B.after.Vc)}</td><td>${f3(H.after.body)} · ${f1(H.after.Vc)}</td></tr>`; }).join(''));
 fs.writeFileSync(D + '/plan.html', html);

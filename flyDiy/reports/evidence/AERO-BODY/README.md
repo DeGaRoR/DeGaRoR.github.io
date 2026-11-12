@@ -22,3 +22,19 @@ the twin booms' own side-force point, a third blob in the solver) and recOf(), w
 fuselage.aeroBody. Model B: separation where -d(r_eq)/dx > tan 20 deg; forebody cdWet x Swet x (1 + 1.5/f^1.5) x boxK
 (Hoerner, Fluid-Dynamic Drag ch. 6); base 0.14 x A (Raymer, Aircraft Design 12.37); rod 0.004 x pi d L. Closed bodies
 (the tail on the body) keep Raymer's 1 + 60/f^3 + f/400 and today's side-force point.
+
+## Step 2 (12 Nov): the code, the twist check
+The user ruled all six defaults. Code: origin/claude/aero-body-1 (5cce2de4). COWL-BILL rides it (A0).
+  built/load.js <k> <file>     the build through the NEW load door (the join writes fuselage.aeroBody) -> built/spec_<k>.json (not committed)
+  built/measure2.js <k>        before = master's core (built/flight_core_master.js: git show origin/master:flyDiy/tools/flight_core.js),
+                               after = the branch's -> built/m_<k>.json (plaque, empty, CG, SM, Cn_beta, substeps, design rows,
+                               the cowl's kilos)
+  built/cmp.js <k>             the branch's core without the record against master's: the def, to the bit (true on twin, chinook, cub)
+  twist.js <k> [F]             THE ROD IN TWIST (the user: "anticipate issue with rigidity and ability to withstand twist with a
+                               more accurate model"): GATE FLEX's tail-arm rig (test_flex.js statTail: pinned per substep), +-F at
+                               the stab tips; the lattice on the cone (today), moved onto the drawn tube, and that with the tube
+                               element off -> twist_<k>.json (the last ring's twist, the post's, the stab's roll, the worst member,
+                               substeps). Findings on plan.html: the tube element carries all of the twist (off: 42-45 deg, 200
+                               substeps); the nodes on the tube are safe with it (+4-16 % roll, +6-20 % substeps) except the v8
+                               pusher, whose core box runs 0.5 m past its drawn pod (a pinch, 4.2 % strain); the tube's torque limit
+                               was its material's - a d/t 75-95 tube buckles at ~half (now capped: Timoshenko & Gere, 0.3 E t/r)
