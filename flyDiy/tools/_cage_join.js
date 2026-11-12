@@ -2168,6 +2168,53 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     VIEW_STATE.forEach((r, i) => { if (was[i] !== null) r.set(was[i]); });
   };
 
+  // THE LIVE CREW'S RECORDS (the loop the snapshot ran inline, G2715: a door of its own) - inv the mount's inverse,
+  // cageM the bake's cage -> model map; `only` a filter on the occupant (CREW-SEATS: a job's passengers re-read after a
+  // stop, on the flown model's own map, without a snapshot)
+  function livePeople(inv, cageM, only) {
+    const people = [];
+    try {
+      const LIVE = ((window.CAGE_CREW && window.CAGE_CREW.live) || []).filter(o => !only || only(o));
+      const MC = new THREE.Matrix4().set(...cageM).multiply(inv);
+      const A4 = new THREE.Matrix4(), G4 = new THREE.Matrix4(),
+            pa = new THREE.Vector3(), pg = new THREE.Vector3(),
+            qa = new THREE.Quaternion(), sa = new THREE.Vector3();
+      for (const occ of LIVE) {
+        const L = occ.live;
+        // G2715 (CREW-SEATS): a job's passenger flies on its rig's pose even before its body lands (buildPeople fetches it)
+        if (!L || !occ.fig || (!occ.char && !L.job)) continue;
+        occ.fig.updateWorldMatrix(true, true);
+        const figM = new THREE.Matrix4().multiplyMatrices(inv, occ.fig.matrixWorld)
+          .toArray();
+        const bones = {};
+        for (const bn in occ.bones) bones[bn] = occ.bones[bn].quaternion.toArray();
+        const jobs = [];
+        for (const j of L.jobs) {
+          if (!j.ctl || !j.ctlObj || !j.poleFig) continue;
+          j.a.updateWorldMatrix(true, false);
+          A4.multiplyMatrices(MC, j.a.matrixWorld);
+          G4.multiplyMatrices(MC, j.ctlObj.matrixWorld);
+          A4.decompose(pa, qa, sa); pg.setFromMatrixPosition(G4);
+          jobs.push({ chain: j.chain, label: j.label, ctl: j.ctl,
+                      p: [pa.x - pg.x, pa.y - pg.y, pa.z - pg.z],
+                      q: qa.toArray(),
+                      grip: j.a.userData.grip ? j.a.userData.grip.toArray() : null,
+                      poleFig: j.poleFig.toArray(),
+                      // G279: where this rig's fist closes, in the hand's frame
+                      fixH: j.fixH ? j.fixH.toArray() : null,
+                      // G468: where this rig's sole sits, in the anchor's frame
+                      fixF: j.fixF ? j.fixF.toArray() : null });
+        }
+        people.push(Object.assign({ key: L.key, role: L.role, idx: L.idx, s: L.s, palm: L.palm, stickFwd: L.stickFwd || 0,
+                      fist: L.fist, anim: L.anim, figM, bones, jobs },
+                    L.job ? { job: true } : {},          // G2715: the accepted load's passenger
+                    // G2797: each hand's own fist and grip, when the hands are set apart
+                    L.fistL != null ? { fistL: L.fistL, fistR: L.fistR,
+                                        palmL: L.palmL, palmR: L.palmR } : {}));
+      }
+    } catch (e) { console.warn('live crew:', e); }
+    return people;
+  }
   // WHICH OBJECT IS THE AEROPLANE (G216). The bake is in this frame, so the
   // payload's origin IS this object's origin — which makes it the only
   // honest craft root for a box projection, in the editor as in flight.
@@ -3203,45 +3250,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     // pivot) with the pole the editor chose, in the fig's frame.
     // (row-major, Matrix4.set's order; figM is toArray's column-major)
     const cageM = [0, BK[1], -BK[0], 0,  0, BK[3], -BK[2], 0,  1, 0, 0, 0,  0, 0, 0, 1];   // G337: rows of the same map
-    const people = [];
-    try {
-      const LIVE = (window.CAGE_CREW && window.CAGE_CREW.live) || [];
-      const MC = new THREE.Matrix4().set(...cageM).multiply(inv);
-      const A4 = new THREE.Matrix4(), G4 = new THREE.Matrix4(),
-            pa = new THREE.Vector3(), pg = new THREE.Vector3(),
-            qa = new THREE.Quaternion(), sa = new THREE.Vector3();
-      for (const occ of LIVE) {
-        const L = occ.live;
-        if (!L || !occ.fig || !occ.char) continue;
-        occ.fig.updateWorldMatrix(true, true);
-        const figM = new THREE.Matrix4().multiplyMatrices(inv, occ.fig.matrixWorld)
-          .toArray();
-        const bones = {};
-        for (const bn in occ.bones) bones[bn] = occ.bones[bn].quaternion.toArray();
-        const jobs = [];
-        for (const j of L.jobs) {
-          if (!j.ctl || !j.ctlObj || !j.poleFig) continue;
-          j.a.updateWorldMatrix(true, false);
-          A4.multiplyMatrices(MC, j.a.matrixWorld);
-          G4.multiplyMatrices(MC, j.ctlObj.matrixWorld);
-          A4.decompose(pa, qa, sa); pg.setFromMatrixPosition(G4);
-          jobs.push({ chain: j.chain, label: j.label, ctl: j.ctl,
-                      p: [pa.x - pg.x, pa.y - pg.y, pa.z - pg.z],
-                      q: qa.toArray(),
-                      grip: j.a.userData.grip ? j.a.userData.grip.toArray() : null,
-                      poleFig: j.poleFig.toArray(),
-                      // G279: where this rig's fist closes, in the hand's frame
-                      fixH: j.fixH ? j.fixH.toArray() : null,
-                      // G468: where this rig's sole sits, in the anchor's frame
-                      fixF: j.fixF ? j.fixF.toArray() : null });
-        }
-        people.push(Object.assign({ key: L.key, role: L.role, idx: L.idx, s: L.s, palm: L.palm, stickFwd: L.stickFwd || 0,
-                      fist: L.fist, anim: L.anim, figM, bones, jobs },
-                    // G2797: each hand's own fist and grip, when the hands are set apart
-                    L.fistL != null ? { fistL: L.fistL, fistR: L.fistR,
-                                        palmL: L.palmL, palmR: L.palmR } : {}));
-      }
-    } catch (e) { console.warn('live crew:', e); }
+    const people = livePeople(inv, cageM);
     // the panel arc (session 4): the positions the light switches were
     // drawn in, which the flight's own switch state starts from
     const lights = {};
@@ -3382,6 +3391,8 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     } catch (e) { gearMech = null; }
     return { cage: true, groups, mats, off, pitch: beta, parts,
              zRoot: 0, surfaces: null, cageM, people, lights, tailRef, mainsRef, footwell, holes,
+             // G2715 (CREW-SEATS): the job the crew layer seated (CAGE_CREW_JOB), as the payload was taken; none, no row
+             ...(window.CAGE_CREW && window.CAGE_CREW.job ? { crewJob: window.CAGE_CREW.job } : {}),
              weather,
              ...(gearSwing ? { gearSwing } : {}),
              ...(gearMech ? { gearMech } : {}),          // RETRACT GM3
@@ -3585,6 +3596,8 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     notes: () => NOTES.slice(),
     snapshot, snapshotSteps, fitReport, viewHold, viewRelease,   // G680: the capture in tasks; the view held for parked.js's batch
     mount: joinMount,                // G216: the craft root, for the editor
+    // G2715 (CREW-SEATS): the live crew's records now, on a given map (app.js fsPeople: a stop's new passengers)
+    livePeople: (cageM, only) => { const m = joinMount(); if (!m) return []; m.updateMatrixWorld(true); return livePeople(new THREE.Matrix4().copy(m.matrixWorld).invert(), cageM, only); },
   };
   // THE BUTTON IS GONE (G65, user: "there's an intermediate step to build...
   // It's one too much"). `build & fly` did three things — export through this
