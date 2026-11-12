@@ -136,8 +136,20 @@ getting ready -> the trees (the fill's queue to empty, its real %) -> 8 frames f
 the size -> the grab; ONE cap, 55 s from the shutter (`SCENE_HQ_CAP_S`): past it the picture is taken as it is and the
 notes say how far it got. The governors held (`GFX.hw.hold`, the auto render scale), the long main-thread tasks measured
 (`notes`), a lost WebGL context cancels. Everything comes back in the shot's `finally`.
-**To do on A0's GPU box:** measure the tree step's time with real trees to 1 km, the frame counts, the longest task,
-and a 3840x2160 picture's memory; then write the numbers here.
+**THE GPU CHECK (A0's box; a LOCAL session; `tools/perf/boxlock.sh take gpu photo-mode-2`, drop after) - ~45 min:**
+1. The flight scene, window size, plain then high quality (the report's `shotMs`, `notes`, `hq`):
+   `node tools/scene_shot.js shots/scenes/flight_home.scene.json --out screenshots/scenes --check --gpu --no-hq`
+   then the same with `--hq` (out to another folder: `--out screenshots/scenes/hq`).
+2. The same at 3840x2160: copy the scene, set `"quality": { "hq": true, "output": [3840, 2160] }`, shoot with `--gpu`.
+   Read: the note on the AA target (it must say the 2x smooths it), no `contextLost`, the picture's size.
+3. Read in each report: `shotMs` (want under 55 000, the cap; the tree step is most of it), the longest main-thread task
+   in `notes` (want under 200 ms; SwiftShader reads 16 s, which is software drawing, not this), any "the cap" note (the
+   trees did not finish: the cap held).
+4. Look at the pictures: the HQ one has the far trees, the sharper shadows, the water's reflection; the plain one the
+   player's settings. And, in the browser by hand: photo mode in flight (the corner camera), the bar on the top row,
+   the shutter, a scene saved and loaded, go to, high quality on with its spinner, Done.
+5. Write the numbers here (this section) and adjust in app.js `photoHqSteps` if the frame counts (8 shaders, 20 clouds)
+   or the tree fill budget (20 ms) want changing.
 
 ## 3. Shooting a scene headless: `tools/scene_shot.js` (P5)
 
