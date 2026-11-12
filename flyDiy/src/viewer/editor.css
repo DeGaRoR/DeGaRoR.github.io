@@ -211,7 +211,7 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
 
 /* the stand's own rules went at G135 with #edStand itself: the aircraft
    select it hosted holds one hidden option now, so the section was dressing
-   an empty box. The FLEET POPUP (#gFleet) answers "which aeroplane" now. */
+   an empty box. The FLEET screen (#flWrap) answers "which aeroplane" now. */
 
 /* ---- the two columns ------------------------------------------------ */
 #edProps { flex:1; min-width:0; display:flex; flex-direction:column; }
@@ -880,13 +880,151 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
 #edFleet #edShelf button:disabled {
   opacity:.4; cursor:default; background:transparent; }
 
-/* ---- THE FLEET POPUP (the load door, 2026-09-01) ---------------------
-   The birth overlay's own look — same scrim, same box, same pill — so the
-   two doors out of "the build on the stand" read as one family. */
-#gFleet { position:fixed; inset:0; z-index:60;
-  background:rgba(12,11,10,.78); display:flex; align-items:center;
-  justify-content:center; }
-#gFleet[hidden] { display:none; }
+/* ---- THE FLEET (fleet_screen.js, the user 13 Nov: "load aircraft" full screen, a tile per aeroplane) -------
+   Opaque over the garage (its render loop held while it is up), the New-aeroplane screen's family: the same ground,
+   the same bar. Desktop: filters on the left, the tiles, the peek (the fiche's cream sheet) on the right. Phone: two
+   tiles across, the filters as a sheet, no peek (the tile's Fiche opens the board). */
+#flWrap { position:fixed; inset:0; z-index:62; display:flex; flex-direction:column;
+  background:var(--ed-board); color:var(--ed-ink); font:400 13px/1.4 'IBM Plex Sans', system-ui, sans-serif;
+  text-transform:none; letter-spacing:normal; }
+#flWrap[hidden] { display:none; }
+#flWrap button, #flWrap select, #flWrap input { font-family:inherit; text-transform:none; letter-spacing:normal; }
+.flBar { display:flex; align-items:center; gap:12px; padding:10px 16px; padding-top:calc(10px + env(safe-area-inset-top, 0px));
+  background:var(--ed-panel); border-bottom:1px solid var(--ed-hair); flex-wrap:wrap; }
+.flTitle { font:500 13px/1 'IBM Plex Sans'; letter-spacing:.16em; }
+.flSeg { display:flex; border:1px solid var(--ed-border); border-radius:6px; overflow:hidden; }
+.flSeg button { background:transparent; border:0; color:var(--ed-dim); font:500 12px/1 'IBM Plex Sans'; padding:8px 12px; cursor:pointer; }
+.flSeg button.on { background:var(--ed-acc-soft); color:var(--ed-ink); }
+.flSeg button b { font:500 11px/1 'IBM Plex Mono', ui-monospace, monospace; color:var(--ed-faint); margin-left:6px; }
+.flSeg button b:empty { display:none; }
+.flSearch { flex:0 1 260px; min-width:120px; background:var(--ed-track); color:var(--ed-ink); border:1px solid var(--ed-border);
+  border-radius:6px; padding:7px 10px; font:400 12px/1 'IBM Plex Sans'; }
+.flSp { flex:1; }
+.flSortL { display:flex; align-items:center; gap:6px; color:var(--ed-faint); font:500 11px/1 'IBM Plex Sans'; }
+.flSort { background:var(--ed-btn-bg); color:var(--ed-ink); border:1px solid var(--ed-btn-bd); border-radius:6px; padding:6px 8px; font:500 12px/1 'IBM Plex Sans'; }
+.flSort option { background:var(--ed-panel); }
+.flBtn { background:var(--ed-btn-bg); color:var(--ed-ink); border:1px solid var(--ed-btn-bd); border-radius:6px;
+  padding:7px 11px; font:600 12px/1 'IBM Plex Sans'; cursor:pointer; white-space:nowrap; }
+.flBtn:hover:not(:disabled) { border-color:rgba(255,255,255,.34); }
+.flBtn:disabled { opacity:.42; cursor:default; }
+.flBtn.flPri { background:var(--ed-acc); color:var(--ed-acc-ink); border-color:var(--ed-acc); }
+.flBtn:focus-visible, .flSeg button:focus-visible, .flCk:focus-visible { outline:2px solid var(--ed-acc); outline-offset:1px; }
+.flFilt { display:none; }
+.flSub { padding:6px 16px; font:400 11.5px/1.4 'IBM Plex Sans'; color:var(--ed-dim); border-bottom:1px solid var(--ed-hair); }
+.flSub.warn { color:var(--ed-warn); }
+.flMain { flex:1; min-height:0; display:grid; grid-template-columns:200px minmax(0,1fr) 320px; }
+.flRail { border-right:1px solid var(--ed-hair); padding:14px; overflow:auto; display:flex; flex-direction:column; gap:18px; }
+.flGrp { display:flex; flex-direction:column; gap:4px; }
+.flGh { font:600 9.5px/1 'IBM Plex Sans'; letter-spacing:.12em; text-transform:uppercase; color:var(--ed-faint); padding-bottom:4px; }
+.flCk { display:flex; align-items:center; gap:8px; width:100%; background:transparent; border:0; padding:5px 2px; cursor:pointer;
+  color:var(--ed-dim); font:400 12px/1.2 'IBM Plex Sans'; text-align:left; }
+.flCk i { width:12px; height:12px; flex:none; border-radius:3px; border:1px solid var(--ed-btn-bd); }
+.flCk.on { color:var(--ed-ink); } .flCk.on i { background:var(--ed-acc); border-color:var(--ed-acc); }
+.flCk.none { opacity:.5; }
+.flCk em { margin-left:auto; font:400 11px/1 'IBM Plex Mono', ui-monospace, monospace; font-style:normal; color:var(--ed-faint); }
+.flGridW { overflow:auto; min-height:0; }
+.flGrid { padding:14px; display:grid; grid-template-columns:repeat(auto-fill, minmax(200px, 1fr)); gap:12px; align-content:start; }
+.flGroupH { grid-column:1 / -1; padding:6px 0 0; }
+.flEmpty { grid-column:1 / -1; color:var(--ed-dim); padding:30px 4px; }
+.flTile { background:var(--ed-panel); border:1px solid var(--ed-border); border-radius:8px; display:flex; flex-direction:column;
+  overflow:hidden; min-width:0; cursor:pointer; }
+.flTile:hover { border-color:rgba(255,255,255,.26); }
+.flTile.sel { border-color:var(--ed-acc); box-shadow:0 0 0 1px var(--ed-acc) inset; }
+.flTile.cur .flPic::after { content:'on the stand'; position:absolute; left:6px; bottom:6px; font:500 9.5px/1 'IBM Plex Sans';
+  color:var(--ed-acc-ink); background:var(--ed-acc); border-radius:4px; padding:3px 5px; }
+.flTile.flCand { border-style:dashed; }       /* CANDIDATE OFFICIAL: built, not validated - a dashed edge says "not signed" */
+.flTile.flAway .flPic img { opacity:.55; }
+.flTile.flBroken .flPic img { opacity:.45; filter:grayscale(1); }
+.flPic { position:relative; aspect-ratio:2 / 1; max-width:100%; background:radial-gradient(ellipse at 50% 45%, #2b2724, #0a0908); }
+.flPic img { width:100%; height:100%; object-fit:contain; display:block; }
+#flWrap .flGlyph { position:absolute; inset:0; display:grid; place-items:center; font:300 34px/1 'IBM Plex Sans'; color:var(--ed-faint); }
+.flNo { position:absolute; left:7px; top:6px; font:500 10px/1 'IBM Plex Mono', ui-monospace, monospace; color:var(--ed-faint); }
+.flPlace { position:absolute; right:6px; top:6px; font:500 10px/1 'IBM Plex Sans'; color:var(--ed-ink); background:rgba(20,18,16,.8);
+  border:1px solid var(--ed-border); border-radius:4px; padding:3px 5px; max-width:70%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.flPlace-in { color:var(--ed-acc); border-color:var(--ed-acc); }
+.flMeta { padding:8px 10px 4px; display:flex; flex-direction:column; gap:4px; min-width:0; }
+.flName { font:600 13px/1.25 'IBM Plex Sans'; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.flRow2 { display:flex; align-items:center; justify-content:space-between; gap:6px; min-width:0; }
+.flReg { font:500 11px/1 'IBM Plex Mono', ui-monospace, monospace; color:var(--ed-dim); white-space:nowrap; }
+.flCls { font:600 9.5px/1 'IBM Plex Sans'; letter-spacing:.1em; text-transform:uppercase; color:var(--ed-faint); white-space:nowrap; }
+.flState { display:inline-flex; align-items:center; gap:5px; font:500 11px/1 'IBM Plex Sans'; color:var(--ed-dim); white-space:nowrap; }
+.flState::before { content:''; width:7px; height:7px; border-radius:50%; background:var(--ed-faint); flex:none; }
+.flState.st-ok::before { background:#a9c39a; } .flState.st-warn::before { background:var(--ed-warn); }
+.flState.st-bad { color:var(--ed-bad); } .flState.st-bad::before { background:var(--ed-bad); }
+.flNote { font:400 10.5px/1.3 'IBM Plex Sans'; color:var(--ed-faint); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.flActs { display:flex; gap:6px; padding:4px 10px 10px; margin-top:auto; }
+.flActs .flPri { flex:1; }
+.flMore { padding:7px 9px; color:var(--ed-dim); }
+.flAsk { padding:6px 10px 10px; display:flex; flex-direction:column; gap:6px; font:400 11.5px/1.35 'IBM Plex Sans'; color:var(--ed-ink);
+  margin-top:auto; border-top:1px solid var(--ed-hair); }
+.flAsk .flActs { padding:0; }
+.flMenu { display:flex; flex-direction:column; gap:5px; padding:6px 10px 10px; margin-top:auto; border-top:1px solid var(--ed-hair); }
+.flMenu .flBtn { text-align:left; }
+/* the list view: the same parts, one row */
+.flGrid.flList { grid-template-columns:1fr; gap:6px; }
+.flList .flTile { flex-direction:row; align-items:center; }
+.flList .flPic { flex:none; width:120px; aspect-ratio:2 / 1; }
+.flList .flMeta { flex:1; padding:6px 12px; }
+.flList .flActs, .flList .flAsk, .flList .flMenu { margin-top:0; padding:6px 10px; border-top:0; flex:none; }
+.flList .flAsk { flex-direction:row; align-items:center; max-width:60%; }
+.flList .flMenu { flex-direction:row; }
+/* the peek: the selected plane on the fiche's cream sheet, its numbers, Fiche and Load */
+.flPeek { border-left:1px solid var(--ed-hair); padding:14px; display:flex; flex-direction:column; gap:12px; overflow:auto; background:var(--ed-panel); }
+.flPeekNone { color:var(--ed-faint); font-size:12px; padding-top:20px; }
+.flSheetPk { position:relative; background:#efe7d6; color:#2a2520; border-radius:6px; padding:8px; aspect-ratio:3 / 2; max-width:100%;
+  display:flex; flex-direction:column; }
+.flSheetPk::after { content:''; position:absolute; inset:4px; border:1px solid #b9ac94; border-radius:4px; pointer-events:none; }
+.flSheetH { display:flex; justify-content:space-between; gap:8px; font:600 9.5px/1.2 'IBM Plex Sans'; letter-spacing:.06em; padding:3px 4px; }
+.flSheetH span:last-child { font-family:'IBM Plex Mono', ui-monospace, monospace; font-weight:500; }
+.flSheetPk img { flex:1; min-height:0; width:100%; object-fit:contain; }
+#flWrap .flSheetPk.empty .flGlyph { position:static; flex:1; color:#b9ac94; }
+.flFacts { display:grid; grid-template-columns:auto 1fr; gap:6px 12px; margin:0; font-size:12px; }
+.flFacts dt { color:var(--ed-faint); }
+.flFacts dd { margin:0; font-family:'IBM Plex Mono', ui-monospace, monospace; color:var(--ed-ink); overflow-wrap:anywhere; }
+.flPeekActs { display:flex; gap:8px; margin-top:auto; }
+.flPeekActs .flBtn { flex:1; padding:10px; }
+/* the phone's filter sheet */
+.flSheet { position:absolute; inset:0; z-index:2; background:rgba(12,11,10,.6); display:flex; align-items:flex-end; }
+.flSheet[hidden] { display:none; }
+.flSheetBox { width:100%; max-height:80%; overflow:auto; background:var(--ed-panel); border-top:1px solid var(--ed-border);
+  border-radius:12px 12px 0 0; padding:14px 16px calc(14px + env(safe-area-inset-bottom, 0px)); display:flex; flex-direction:column; gap:14px; }
+.flSheetBody { display:flex; flex-direction:column; gap:16px; }
+.flSheetFoot { display:flex; gap:8px; }
+.flSheetFoot .flShow { flex:1; padding:12px; }
+#flWrap .flSpin { position:absolute; inset:0; z-index:3; display:grid; place-items:center; background:rgba(12,11,10,.55); }
+#flWrap .flSpin[hidden] { display:none; }
+.flSpinBox { display:flex; align-items:center; gap:10px; background:var(--ed-panel); border:1px solid var(--ed-border); border-radius:8px; padding:12px 16px; }
+.flSpinBox i { width:16px; height:16px; border-radius:50%; border:2px solid var(--ed-btn-bd); border-top-color:var(--ed-acc); animation:flSpin .8s linear infinite; }
+@keyframes flSpin { to { transform:rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .flSpinBox i { animation:none; } }
+/* narrower windows: the peek goes first, then the rail becomes the sheet */
+@media (max-width:1100px) { .flMain { grid-template-columns:200px minmax(0,1fr); } .flPeek { display:none; } }
+@media (max-width:700px) {
+  .flMain { grid-template-columns:minmax(0,1fr); } .flRail { display:none; } .flFilt { display:inline-block; }
+  .flSortL span { display:none; }
+}
+html.phone #flWrap .flMain { grid-template-columns:minmax(0,1fr); }
+html.phone #flWrap .flRail, html.phone #flWrap .flPeek { display:none; }
+html.phone #flWrap .flFilt { display:inline-block; }
+html.phone #flWrap .flSortL span { display:none; }
+@media (max-width:700px) {
+  #flWrap .flBar { gap:8px; padding-left:max(10px, env(safe-area-inset-left, 0px)); padding-right:max(10px, env(safe-area-inset-right, 0px)); }
+  #flWrap .flSeg { order:3; width:100%; } #flWrap .flSeg button { flex:1; }
+  #flWrap .flSearch { order:4; flex:1 1 100%; }
+  #flWrap .flGrid { grid-template-columns:repeat(2, minmax(0,1fr)); gap:8px; padding:10px; }
+  #flWrap .flGrid.flList { grid-template-columns:1fr; }
+  #flWrap .flList .flPic { width:96px; }
+  #flWrap .flMeta { padding:6px 7px 3px; }
+  #flWrap .flName { font-size:12px; }
+  #flWrap .flActs { padding:3px 7px 8px; gap:4px; }
+  #flWrap .flTile .flBtn { padding:9px 6px; font-size:11.5px; }
+}
+html.phone #flWrap .flBar { gap:8px; }
+html.phone #flWrap .flSeg { order:3; width:100%; } html.phone #flWrap .flSeg button { flex:1; padding:10px 6px; }
+html.phone #flWrap .flSearch { order:4; flex:1 1 100%; }
+html.phone #flWrap .flGrid { grid-template-columns:repeat(2, minmax(0,1fr)); gap:8px; padding:10px; }
+html.phone #flWrap .flGrid.flList { grid-template-columns:1fr; }
+html.phone #flWrap .flTile .flBtn { min-height:40px; }
 
 /* DROP-JSON (G2799, the user 18 Oct): 'drop to import' over the workshop
    while a file is dragged onto it - the scenery editor's .pr-drop, the
@@ -900,77 +1038,8 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
 #gDrop b { font:600 15px/1 'IBM Plex Sans'; letter-spacing:.06em; }
 #gDrop span { font:400 12px/1.3 'IBM Plex Sans'; color:var(--ed-dim); }
 
-.gfBox { width:min(560px, 94vw); max-height:82vh; overflow:auto;
-  background:var(--ed-panel); border:1px solid var(--ed-hair);
-  border-radius:10px; padding:18px 20px 16px; }
-
-.gfH { display:flex; align-items:center; justify-content:space-between;
-  gap:10px; }
-.gfH .gfAll { margin-left:auto; margin-right:8px; }
-.gfH > span { font:500 13px/1 'IBM Plex Sans'; letter-spacing:.14em;
-  color:var(--ed-ink); }
-
-.gfSub { font:400 11px/1.4 'IBM Plex Sans'; color:var(--ed-dim);
-  margin:6px 0 2px; }
-.gfSub.warn { color:var(--ed-warn); }
-
-.gfGroupH { font:500 10px/1 'IBM Plex Sans'; letter-spacing:.12em;
-  text-transform:uppercase; color:var(--ed-dim); margin:16px 0 7px;
-  padding-bottom:5px; border-bottom:1px solid var(--ed-hair); }
-
-.gfMine, .gfStock, .gfCand { display:flex; flex-direction:column; gap:4px; }
-/* CANDIDATE OFFICIAL (the user, 2 Nov): built, not validated - a dashed edge says "not signed" */
-.gfCandRow .gfLoad { border-style:dashed; }
-/* G3800 (PLANE_THUMB): the card's side-profile picture (240x120 drawn, nose left, on the dark studio) */
-.gfLoad img.gfThumb, .dfArch img.dfThumb, #npWrap .npTile img.npThumb { width:120px; height:60px; object-fit:contain; flex:none; display:block; border-radius:4px; }
-.gfLoad img.gfThumb { align-self:center; }
-
-.gfRow { display:flex; align-items:stretch; gap:4px; }
-
-.gfLoad { flex:1; min-width:0; display:flex; align-items:baseline; gap:10px;
-  text-align:left; padding:9px 12px; background:var(--ed-btn-bg);
-  border:1px solid var(--ed-btn-bd); border-radius:8px; cursor:pointer;
-  transition:border-color .12s ease; }
-.gfLoad b { font:600 12px/1.2 'IBM Plex Sans'; color:var(--ed-ink);
-  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.gfLoad span { font:400 10.5px/1.3 'IBM Plex Sans'; color:var(--ed-dim);
-  margin-left:auto; white-space:nowrap; }
-.gfLoad:hover { border-color:rgba(255,255,255,.3); }
-.gfRow.cur .gfLoad { border-color:var(--ed-acc); cursor:default; }
-
-.gfDel { flex:0 0 auto; width:34px; background:transparent;
-  border:1px solid var(--ed-btn-bd); border-radius:8px; color:var(--ed-dim);
-  font:400 12px/1 'IBM Plex Sans'; cursor:pointer;
-  transition:border-color .12s ease, color .12s ease; }
-.gfDel:hover { border-color:var(--ed-warn); color:var(--ed-warn); }
-
-/* PREM-S2 (G2230): where each aeroplane stands - "in HOME", "out at w3", "away at Jumbo Mine"; an aeroplane at
-   another base than the garage's is greyed (it can be flown from there); the house button brings it home */
-.gfPlace { font:500 9.5px/1.3 'IBM Plex Sans'; font-style:normal; letter-spacing:.04em; color:var(--ed-dim);
-  border:1px solid var(--ed-hair); border-radius:6px; padding:1px 6px; white-space:nowrap; flex:0 0 auto; }
-.gfPlace-in { color:var(--ed-acc); border-color:var(--ed-acc); }
-.gfRow.gfAway .gfLoad { opacity:.55; }
-.gfRow.gfAway .gfLoad:hover { opacity:.85; }
-.gfRow.gfBroken .gfLoad { opacity:.45; filter:grayscale(1); }   /* WEAR-PRICE: broken and grounded */
-.gfRow.gfBroken .gfLoad span { color:var(--ed-warn); }
-.gfHome { flex:0 0 auto; width:34px; background:transparent;
-  border:1px solid var(--ed-btn-bd); border-radius:8px; color:var(--ed-dim);
-  font:400 13px/1 'IBM Plex Sans'; cursor:pointer; }
-.gfHome:hover { border-color:var(--ed-acc); color:var(--ed-acc); }
-/* PRICE-CAL: the fleet card's Sell - the home button's look, wider for its word; greyed (with its reason) when it
-   cannot be sold now */
-.gfSell { flex:0 0 auto; padding:0 8px; background:transparent;
-  border:1px solid var(--ed-btn-bd); border-radius:8px; color:var(--ed-dim);
-  font:500 10.5px/1 'IBM Plex Sans'; letter-spacing:.03em; cursor:pointer; }
-.gfSell:hover:not(:disabled) { border-color:var(--ed-acc); color:var(--ed-acc); }
-.gfSell:disabled { opacity:.4; cursor:default; }
-
-.gfEmpty { font:400 11px/1.4 'IBM Plex Sans'; color:var(--ed-dim);
-  padding:8px 2px; }
-
-.gfFoot { display:flex; align-items:center; gap:10px; margin-top:16px; }
-.gfHint { font:400 10px/1.3 'IBM Plex Sans'; color:var(--ed-dim);
-  margin-left:auto; }
+/* G3800 (PLANE_THUMB): a card's side-profile picture (240x120 drawn, nose left, on the dark studio) */
+.dfArch img.dfThumb, #npWrap .npTile img.npThumb { width:120px; height:60px; object-fit:contain; flex:none; display:block; border-radius:4px; }
 
 /* ---- THE BENCH pane (G64), until the sheet takes it (G80) ------------ */
 

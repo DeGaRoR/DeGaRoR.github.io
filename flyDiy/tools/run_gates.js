@@ -855,6 +855,10 @@ const GATES = [
   // Generate, always reaches the editor), three fixed joined builds (one per gear kind) + the saved failure
   // fixtures, five seeded random pre-join builds. The once is tools/newplane_validate.js, NOT here.
   { id: 'NEWPLANE', file: '_newplane_check.js', tier: 'core' },
+  // GATE FLEET (the user 13 Nov: 'load aircraft' full screen, a tile per aeroplane with Load and Fiche, ordered and filtered):
+  // fleet_screen.js on a DOM stub - the render held, the tile asks (no browser pop-up), one load behind the spinner, the fiche's
+  // own key, the list's classes in order; and the wiring (garage.js hands the hangar over, no #gFleet); --selftest: 7 reds
+  { id: 'FLEET', file: '_fleet_check.js', argv: ['--selftest'], tier: 'core', wall: 10 },
   // ...its joined builds: one per gear kind + the saved failure fixtures (tools/fixtures/newplane/), ~3 min - full
   { id: 'NEWPLANE-BUILDS', file: '_newplane_check.js', argv: ['--builds'], tier: 'full' },
   // ...and the declared canonical builds actually FLY: designBake -> clamp

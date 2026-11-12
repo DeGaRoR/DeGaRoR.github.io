@@ -147,6 +147,7 @@
       const H = W.FLYDIY_HOLDS ? W.FLYDIY_HOLDS() : null;
       if (H && (!H.inGarage || H.craftAway || H.holdRender || H.rollHold)) return false;
       if (W.NEW_PLANE && W.NEW_PLANE.isOpen && W.NEW_PLANE.isOpen()) return false;
+      if (W.FLEET_SCREEN && W.FLEET_SCREEN.isOpen && W.FLEET_SCREEN.isOpen()) return false;   // (FLEET: the screen covers the stand)
       const aw = document.getElementById('bAward'); if (aw && !aw.hidden) return false;
       const sc = W.CAGE_UI_SCENE; if (!sc || !sc.parent) return false;
       return !document.hidden;

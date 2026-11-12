@@ -19404,7 +19404,8 @@
       (!inGarage && !!flyOpen) || gmVis($('edFly')) || gmVis($('edShelf')) || gmVis($('hsStore')) || gmVis($('bpDesk')) ||
       !!(window.INPUT_PANEL && window.INPUT_PANEL.isOpen && window.INPUT_PANEL.isOpen()) ||
       !!(window.FREIGHT_LOAD && window.FREIGHT_LOAD.isOpen && window.FREIGHT_LOAD.isOpen()) ||
-      !!(window.NEW_PLANE && window.NEW_PLANE.isOpen && window.NEW_PLANE.isOpen());   // (EMPTY-STAND-RELOOK R2: Escape is the chooser's, not a menu nobody sees)
+      !!(window.NEW_PLANE && window.NEW_PLANE.isOpen && window.NEW_PLANE.isOpen()) ||   // (EMPTY-STAND-RELOOK R2: Escape is the chooser's, not a menu nobody sees)
+      !!(window.FLEET_SCREEN && window.FLEET_SCREEN.isOpen && window.FLEET_SCREEN.isOpen());   // (FLEET: and the Fleet screen's)
   };
   function gmHold(on) {   // #bPause's own click, said from here
     running = !on; userPaused = !!on;
@@ -20861,7 +20862,7 @@
     // linked (S3): a frame between the world step and the compile step drew
     // the fresh scene and compiled everything synchronously - 12 s in one
     // task. The `frames` step lifts the hold and waits for two real frames.
-    if (holdRender || uiHold || (window.NEW_PLANE && window.NEW_PLANE.isOpen())) { if (FR) FR.end(false, cg); POSE_LERP.back(); PACE.end(perfNow() - tLoop0, physMs, pc.steps, typeof ts === 'number' ? ts : perfNow(), simwRan >= 0 ? 0 : ran, true); BOOT.frame(); return; }   // (REVEAL: the held frame told, not counted)   // (G1100: the newest step back)
+    if (holdRender || uiHold || (window.NEW_PLANE && window.NEW_PLANE.isOpen()) || (window.FLEET_SCREEN && window.FLEET_SCREEN.isOpen())) { if (FR) FR.end(false, cg); POSE_LERP.back(); PACE.end(perfNow() - tLoop0, physMs, pc.steps, typeof ts === 'number' ? ts : perfNow(), simwRan >= 0 ? 0 : ran, true); BOOT.frame(); return; }   // (REVEAL: the held frame told, not counted)   // (G1100: the newest step back)
     if (window.WORLD_RIG && WORLD_RIG.interior) WORLD_RIG.interior(!inGarage && HEADCAM_ACTIVE);   // A6: the cabin's probe while the eye is in the cockpit
     // THE WATER'S MIRROR (G460.11): the decor captured from the eye mirrored about the water when the eye is low
     // over it (the plane: the water under the eye, else under the CG - a shore eye looking at a lake); the sky

@@ -91,17 +91,22 @@ function sourceRows(S) {
   need('garage', /fetch\(CAND_DIR \+ 'index\.json'\)/, 'the index is fetched from the repo folder');
   need('garage', /const loadCandidate = c => fetch\(CAND_DIR \+ encodeURIComponent\(c\.file\)\)[\s\S]{0,200}?loadSpec\(g\.spec, ''\)/,
     'a candidate opens unnamed, with no plaque and an empty log (loadSpec(spec, ""))');
-  need('garage', /gfGroupH gfCandH">built here, not yet certified/, "the rack's pool group (PLANE-LIST: 'built here, not yet certified')");
-  need('garage', /candidates\(\)\.then\(list =>[\s\S]{0,600}?loadCandidate\(c\)/, "the rack's rows open the candidate");
+  // FLEET (13 Nov): the pool is the Fleet's All planes group 'Candidates: built here, not yet certified', its tiles open it
+  need('fleet', /'Candidates: built here, not yet certified'/, "the Fleet's pool group (PLANE-LIST: 'built here, not yet certified')");
+  need('fleet', /g\.candidates\(\)\.then\(l => \{ cands = l/, 'the Fleet reads the pool through the garage');
+  need('fleet', /if \(t\.kind === 'cand'\) return loadNow\(\(\) => \(g\.openCandidate \? g\.openCandidate\(t\.c\)/, "the Fleet's pool tiles open the candidate");
   need('garage', /what: 'flydiy-fleet'/, 'EXPORT ALL writes one flydiy-fleet file');
   need('garage', /\$\('gExportAll'\)\.addEventListener\('click', exportAllFile\)/, 'the ribbon button is wired');
   need('garage', /candidates, openCandidate: loadCandidate, exportAll: exportAllFile/, 'GARAGE_SPEC carries the pool');
   need('body', /<button id="gExportAll"/, 'the ribbon carries "export all"');
   need('flow', /dfKindH dfCandH[\s\S]{0,900}?g\.openCandidate\(c\)/, "the new-aeroplane cards list the pool and open it");
   // G3800 (PLANE_THUMB, AIRCRAFT-LOOKS's VIGNETTE): every plane card asks for its picture under the build's own key
-  need('garage', /thumbOn\(b, 'mine:' \+ n\)[\s\S]*?thumbOn\(b, 'mine:' \+ n\)[\s\S]*?thumbOn\(b, 'cand:' \+ c\.file\)/,
-    "the rack's rows carry their picture (G3800: 'mine:' slot, 'mine:' buy-in, 'cand:'; PLANE-LIST: no stock shelf)");
-  need('garage', /window\.addEventListener\('plane-thumb', \(\) => \{ if \(fleetEl && !fleetEl\.hidden\) renderFleet\(\); \}\)/, 'the open rack redraws when a picture lands');
+  // FLEET (13 Nov): the hangar's rows name their picture (garage.js fleetModel: 'mine:' slot, 'mine:' buy-in), the pool's
+  // tiles theirs ('cand:' + file), and the screen draws each through PLANE_THUMB and redraws when a picture lands
+  need('garage', /thumb: 'mine:' \+ n,[\s\S]*?thumb: 'mine:' \+ n \}/, "the hangar's rows carry their picture key (G3800: 'mine:' slot, 'mine:' buy-in)");
+  need('fleet', /const key = 'cand:' \+ c\.file[\s\S]{0,200}?thumb: key/, "the pool's tiles carry their picture key ('cand:' + file)");
+  need('fleet', /W\.PLANE_THUMB\.get\(t\.thumb\)/, 'a tile draws its picture through PLANE_THUMB');
+  need('fleet', /W\.addEventListener\('plane-thumb', \(\) => \{ if \(isOpen\(\)\) soon\(\); \}\)/, 'the open Fleet redraws when a picture lands');
   need('flow', /b\.dataset\.thumb = 'cand:' \+ c\.file; dfThumb\(b\)/, "the new-aeroplane candidate cards carry their picture ('cand:' + file)");
   need('np', /b\.dataset\.thumb = 'cand:' \+ c\.file; npThumb\(b\)/, "the chooser's candidate cards carry their picture ('cand:' + file)");
   // CHOOSER-NOTES (the user 4 Nov): a career's player reads no developer's note or file, on any of the three cards
@@ -143,7 +148,7 @@ function sourceRows(S) {
 function sourcesNow() {
   const core = fs.readdirSync(path.join(ROOT, 'src', 'core')).filter(f => /\.js$/.test(f))
     .map(f => fs.readFileSync(path.join(ROOT, 'src', 'core', f), 'utf8')).join('\n');
-  return { garage: read('src/viewer/garage.js'), flow: read('src/viewer/design_flow.js'), np: read('src/viewer/new_plane.js'), map: read('src/viewer/map_menu.js'), body: read('src/viewer/body.html'), core };
+  return { garage: read('src/viewer/garage.js'), fleet: read('src/viewer/fleet_screen.js'), flow: read('src/viewer/design_flow.js'), np: read('src/viewer/new_plane.js'), map: read('src/viewer/map_menu.js'), body: read('src/viewer/body.html'), core };
 }
 
 // ---- every candidate loads, builds and draws ----------------------------------------------------------------------
@@ -196,11 +201,11 @@ if (SELF) {
   red("a career's row keeps the note", () => sourceRows(Object.assign({}, S, { garage: S.garage.replace("note: dev ? c.note : ''", 'note: c.note') })));
   red('a tooltip reads the file', () => sourceRows(Object.assign({}, S, { np: S.np.replace('b.title = c.tip;', 'b.title = c.file;') })));
   red('a map row without its picture', () => sourceRows(Object.assign({}, S, { map: S.map.replace("planeIc('design:' + L.design, ", "planeIc('', ") })));
-  red('the rack group gone', () => sourceRows(Object.assign({}, S, { garage: S.garage.replace('gfGroupH gfCandH">built here, not yet certified', 'gfGroupH">') })));
+  red('the Fleet pool group gone', () => sourceRows(Object.assign({}, S, { fleet: S.fleet.replace("'Candidates: built here, not yet certified'", "''") })));
   red('the core names the pool', () => sourceRows(Object.assign({}, S, { core: S.core + "\nconst X = 'builds/candidates/a.json';" })));
   red('a review plane offered', () => { const o = JSON.parse(P.index); o.planes.push({ file: Object.keys(R.files)[0], name: 'x' }); return reviewRows(R, JSON.stringify(o)); });
   red('a review plane with no REVIEW.md row', () => reviewRows({ files: R.files, md: '' }, P.index));
-  red('a pool row without its picture', () => sourceRows(Object.assign({}, S, { garage: S.garage.replace("thumbOn(b, 'cand:' + c.file)", '') })));   // PLANE-LIST: no stock shelf, its break retired
+  red('a pool tile without its picture', () => sourceRows(Object.assign({}, S, { fleet: S.fleet.replace("thumb: key", 'thumb: null') })));   // PLANE-LIST: no stock shelf, its break retired
   red('no export all button', () => sourceRows(Object.assign({}, S, { body: S.body.replace('<button id="gExportAll"', '<button id="gX"') })));
 }
 

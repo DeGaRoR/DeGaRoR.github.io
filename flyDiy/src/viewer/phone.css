@@ -281,7 +281,7 @@ html.phone:where(:not(.phfly)) #edInfoBody { padding:0 16px 24px; }
 html.phone:where(:not(.phfly)) #edInfo button { min-height:40px; }
 
 /* ---- THE DIALOGS the garage opens (the chooser, the fleet, the welcome) fit the width ---- */
-html.phone:where(:not(.phfly)) :is(#dfBirth, #gFleet) { max-width:100vw; }
+html.phone:where(:not(.phfly)) #dfBirth { max-width:100vw; }
 
 /* ---- G3060 (CARDS-CORNER): THE BENCH'S CARDS (the run, the award) ON THE SHEET, NEVER OVER THE VIEW ----------------
    The desktop puts them in the view's lower-left corner; a phone's view is too small for a corner, so they take the

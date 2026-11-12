@@ -1082,208 +1082,94 @@ function garageInit(api) {
     // Save asks what you have made of it
     if (st) loadSpec(JSON.parse(JSON.stringify(st.spec)), '');
   };
-  let fleetEl = null;
-  // G3800 (PLANE_THUMB, AIRCRAFT-LOOKS's VIGNETTE - the user's side-profile picture on the plane cards): a row's picture
-  // when one exists, under the build's own key ('mine:' + the slot as stored, 'stock:' + its name, 'cand:' + the pool's
-  // file); none = today's row. The rack redraws when a picture lands ('plane-thumb')
-  const thumbOn = (b, key) => {
-    let u = null; try { u = window.PLANE_THUMB && window.PLANE_THUMB.get(key); } catch (e) { u = null; }
-    if (!u || typeof b.prepend !== 'function') return;
-    const im = document.createElement('img'); im.src = u; im.alt = ''; im.className = 'gfThumb'; b.prepend(im);
+  // ---- THE FLEET (the user, 13 Nov: "load aircraft" FULL SCREEN, a tile per aeroplane with its picture, Load and Fiche,
+  // ordered and filtered; the phone too) ------------------------------------------------------------------------------
+  // The popup (#gFleet) went: fleet_screen.js (window.FLEET_SCREEN) draws the screen. This file keeps what it always
+  // owned - the saved builds and every verb on them - and hands them over as DATA (fleetModel) and DOORS (fleetVerbs);
+  // nothing here draws. The confirmations ("fly from there?", Sell, Delete) moved onto the tile itself (the user's rule:
+  // no browser pop-ups over the game); the doors below act, they do not ask.
+  // A SAVE'S CERTIFICATE, as its tile says it (pure: the envelope's plaque, bench.js persist): grounded - the airframe is
+  // damaged; certified - the airworthiness card was shown (masterShown: "a plane having received one does not lose it"),
+  // changed - ...and a row went stale or was suspended since; tested - bench rows, no certificate; none - never tested
+  const slotCert = pq => {
+    if (!pq) return 'none';
+    if (pq.grounded) return 'grounded';
+    const R = pq.results || {}, ids = Object.keys(R);
+    const moved = ids.some(id => R[id] && (R[id].stale || R[id].suspended));
+    if (pq.masterShown) return moved ? 'changed' : 'certified';
+    return ids.length ? 'tested' : 'none';
   };
-  function buildFleet() {
-    if (fleetEl) return;
-    fleetEl = document.createElement('div');
-    fleetEl.id = 'gFleet';
-    fleetEl.hidden = true;
-    fleetEl.innerHTML =
-      '<div class="gfBox">' +
-        '<div class="gfH"><span>THE FLEET</span>' +
-          '<button type="button" class="dfPill gfAll">all planes</button>' +
-          '<button type="button" class="dfPill gfClose">close</button></div>' +
-        '<div class="gfSub"></div>' +
-        '<div class="gfGroupH">your aeroplanes</div>' +
-        '<div class="gfMine"></div>' +
-        // PLANE-LIST (the user 10 Nov: "I do not want to see duplicated planes anymore"): no stock-designs shelf - its six
-        // presets were older copies of the listed planes (piper cub, jodel, jodel D112, cessna 172, chinook, sailplane);
-        // every listed plane is behind "all planes" (stockByName stays: a stock door still opens a test plane for the dev)
-        '<div class="gfGroupH gfCandH">built here, not yet certified</div>' +
-        '<div class="gfCand"></div>' +
-        '<div class="gfFoot">' +
-          '<span class="gfHint">import and export are on the ribbon' +
-            ' \u2014 or drop a .json on the window</span>' +
-        '</div>' +
-      '</div>';
-    fleetEl.querySelector('.gfClose').addEventListener('click', closeFleet);
-    fleetEl.querySelector('.gfAll').addEventListener('click', () => { closeFleet(); if (window.NEW_PLANE) window.NEW_PLANE.open({ all: true }); });
-    if (typeof window.addEventListener === 'function') window.addEventListener('plane-thumb', () => { if (fleetEl && !fleetEl.hidden) renderFleet(); });
-    // the scrim closes it too — backing out of a load door costs one click
-    fleetEl.addEventListener('click', e => {
-      if (e.target === fleetEl) closeFleet(); });
-    // THE TWO JSON DOORS MOVED TO THE RIBBON (2026-09-03). They are VERBS,
-    // and this popup was declared the home of the NOUNS the day it was cut;
-    // filing them here put a verb inside a verb, two clicks deep, which is
-    // exactly the misfiling the ribbon exists to end.
-    // (a build dropped on the open rack: the window's drop below, G2799)
-    document.body.appendChild(fleetEl);
-  }
-  function openFleet() { buildFleet(); renderFleet(); fleetEl.hidden = false; }
-  function closeFleet() { if (fleetEl) fleetEl.hidden = true; }
-  function renderFleet() {
-    if (!fleetEl) return;
-    const mine = fleetEl.querySelector('.gfMine');
-    if (!mine) return;
+  const fleetModel = () => {
     // G3612 (the user 25 Oct, item 39: "a career starts only with its own plane. Any imported plane in the career costs
-    // money"): a career's rack is its own builds (api.ownSlots); the shelf's others are the sandbox's, bought in below
+    // money"): a career's hangar is its own builds (api.ownSlots); the shelf's others are the sandbox's, bought in
     const shelf = slotNames(), names = api.ownSlots ? api.ownSlots(shelf) : shelf;
-    const bring = api.importable ? api.importable(shelf) : [];
     const label = n => (api.slotLabel ? api.slotLabel(n) : n);
-    mine.innerHTML = '';
-    if (!names.length) {
-      const d = document.createElement('div');
-      d.className = 'gfEmpty';
-      d.textContent = LS
-        ? 'no saved aeroplanes yet — Save the build on the stand and it appears here'
-        : 'browser storage is unavailable, so nothing can be saved — the stock designs below still load';
-      mine.appendChild(d);
-    }
-    const rowBtn = (name, meta) => {
-      const b = document.createElement('button');
-      b.type = 'button'; b.className = 'gfLoad';
-      const bb = document.createElement('b'); bb.textContent = name;
-      const sp = document.createElement('span'); sp.textContent = meta;
-      b.appendChild(bb); b.appendChild(sp);
-      return b;
-    };
-    for (const n of names) {
-      const row = document.createElement('div');
-      // PREM-S2 (G2230): WHERE IT STANDS, on its row ("in HOME", "out at w3", "away at Jumbo Mine" - the player's
-      // fleet ledger, app.js -> playerPlace). An aeroplane standing at another base than the garage's is GREYED:
-      // it can be flown from there, and loading it asks "fly from there?" (its roll-out starts where it stands).
-      let P = null;
-      try { P = api.place ? api.place(n) : null; } catch (e) { P = null; }
+    const money = v => (api.money ? api.money(v) : String(v));
+    const rows = names.map(n => {
+      let env = null; try { env = JSON.parse(lsGet(SLOT + n) || 'null'); } catch (e) { env = null; }
+      const fl = (env && env.log && env.log.flights) || [];
+      // PREM-S2 (G2230): WHERE IT STANDS ("in HOME", "out at w3", "away at Jumbo Mine" - app.js playerPlace); an
+      // aeroplane at another base than the garage's is AWAY: it flies from there (its roll-out starts where it stands)
+      let P = null; try { P = api.place ? api.place(n) : null; } catch (e) { P = null; }
       const away = !!(P && P.kind !== 'none' && !P.here);
-      // WEAR-PRICE: BROKEN AND GROUNDED - the row greyed and said so (its repair is on the WEAR tab)
+      // WEAR-PRICE: BROKEN AND GROUNDED (its repair is on the WEAR tab)
       let brk = null; try { brk = api.broken ? api.broken(n) : null; } catch (e) { brk = null; }
-      row.className = 'gfRow' + (n === slotName ? ' cur' : '') + (away ? ' gfAway' : '') + (brk ? ' gfBroken' : '');
-      const meta = (n === slotName ? 'on the stand' : slotMeta(n)) + (brk ? ' · broken, grounded' : '');
-      const b = rowBtn(label(n), meta);   // (G3612: a career's copy shows its design's name)
-      thumbOn(b, 'mine:' + n);
-      if (P && P.text) {
-        const pl = document.createElement('i');
-        pl.className = 'gfPlace gfPlace-' + P.kind; pl.textContent = P.text;
-        if (P.wear >= 0.05) pl.title = 'weathered outside: ' + Math.round(P.wear * 100) + ' %';
-        b.appendChild(pl);
-      }
-      if (away) b.title = 'at ' + P.aero + ' — fly from there?';
-      b.addEventListener('click', () => {
-        if (away && !confirm('“' + n + '” is ' + P.text + ' — fly from there?')) return;
-        closeFleet();
-        if (away && api.flyFrom) { try { api.flyFrom(n); } catch (e) {} }
-        loadSlot(n);
-      });
-      const del = document.createElement('button');
-      del.type = 'button'; del.className = 'gfDel'; del.textContent = '✕';
-      del.title = 'Delete this saved build';
-      del.addEventListener('click', () => {
-        if (!confirm('Delete the saved build "' + n + '"?')) return;
-        lsDel(SLOT + n);
-        try { if (window.PLANE_THUMB) window.PLANE_THUMB.forget(n); } catch (e) {}
-        try { if (window.FICHE_BOARD) window.FICHE_BOARD.forget(n); } catch (e) {}   // (R3: the fiche goes with its plane)
-        if (slotName === n) slotName = '';
-        slotsChanged({ deleted: n });
-        syncRibbon();
-      });
-      row.appendChild(b);
-      // PLANE-RENDERS R3: the fiche's door, on a plane that has one (fiche_board.js; added when the store answers)
-      try { if (window.FICHE_BOARD) window.FICHE_BOARD.rowButton(row, n); } catch (e) {}
-      // "bring it home" (GQ5: free, instant) on an aeroplane standing outside - tied down at a base or away
-      if (P && (P.kind === 'out' || P.kind === 'away') && api.bringHome) {
-        const hb = document.createElement('button');
-        hb.type = 'button'; hb.className = 'gfHome'; hb.textContent = '⌂';
-        hb.title = 'Bring it home (free): back into the hangar it last left, else the main hangar';
-        hb.addEventListener('click', () => { try { api.bringHome(n); } catch (e) {} renderFleet(); });
-        row.appendChild(hb);
-      }
-      // PRICE-CAL: SELL (a career's own airframe) - at its used-market price (its age, never more than it cost you);
-      // greyed with the reason when it cannot be sold now (the tutorial, a route flown on it, a story aeroplane)
-      let sv = null;
-      try { sv = api.saleOf ? api.saleOf(n) : null; } catch (e) { sv = null; }
-      if (sv && api.sell) {
-        const pw = api.money ? api.money(sv.value) : String(sv.value);
-        const sb = document.createElement('button');
-        sb.type = 'button'; sb.className = 'gfSell'; sb.textContent = 'Sell';
-        sb.disabled = !!sv.why || !(sv.value > 0);
-        sb.title = sv.why ? 'Not for sale now: ' + sv.why
-          : 'Sell on the used market for ' + pw + (sv.cap ? ' (capped at what it cost you)' : '');
-        sb.addEventListener('click', () => {
-          if (!confirm('Sell “' + label(n) + '” on the used market for ' + pw + '? It leaves your fleet for good.')) return;
-          let r = null; try { r = api.sell(n); } catch (e) { r = { ok: false, why: String((e && e.message) || e) }; }
-          if (r && !r.ok) { alert(r.why || 'refused'); return; }
-          lsDel(SLOT + n);
-          try { if (window.PLANE_THUMB) window.PLANE_THUMB.forget(n); } catch (e) {}
-          try { if (window.FICHE_BOARD) window.FICHE_BOARD.forget(n); } catch (e) {}   // (R3: the fiche goes with its plane)
-          if (slotName === n) slotName = '';
-          slotsChanged({ deleted: n });
-          syncRibbon();
-        });
-        row.appendChild(sb);
-      }
-      row.appendChild(del);
-      mine.appendChild(row);
-    }
-    if (bring.length && api.importSlot) {
-      const hd = document.createElement('div');
-      hd.className = 'gfEmpty gfBringHd'; hd.textContent = 'from the sandbox — bought into this career:';
-      mine.appendChild(hd);
-      for (const n of bring) {
-        const row = document.createElement('div');
-        row.className = 'gfRow gfBring';
-        let p = null; try { p = api.importPrice ? api.importPrice(n) : null; } catch (e) { p = null; }
-        const pw = p == null ? 'the build does not read' : (api.money ? api.money(p) : String(p));
-        const b = rowBtn(n, 'buy in · ' + pw);
-        thumbOn(b, 'mine:' + n);
-        b.title = 'Bring this sandbox build into the career: a purchase, then it stands in your hangar';
-        b.disabled = p == null;
-        b.addEventListener('click', () => {
-          if (!confirm('Buy “' + n + '” into this career for ' + pw + '?')) return;
-          let r = null; try { r = api.importSlot(n); } catch (e) { r = { ok: false, why: String((e && e.message) || e) }; }
-          if (r && !r.ok) alert(r.why || 'refused');
-          renderFleet();
-        });
-        row.appendChild(b);
-        mine.appendChild(row);
-      }
-    }
-    // CANDIDATE OFFICIAL: the pool's files, drawn when the index answers (the rack is usable before it does)
-    const candBox = fleetEl.querySelector('.gfCand');
-    if (candBox) {
-      candBox.innerHTML = '';
-      candidates().then(list => {
-        candBox.innerHTML = '';
-        for (const c of list) {
-          const row = document.createElement('div');
-          row.className = 'gfRow gfCandRow';
-          const b = rowBtn(c.name || c.file, 'candidate official' + (c.note ? ' · ' + c.note : ''));
-          thumbOn(b, 'cand:' + c.file);
-          b.title = c.tip;
-          b.addEventListener('click', () => { closeFleet(); loadCandidate(c); });
-          row.appendChild(b);
-          candBox.appendChild(row);
-        }
-      });
-    }
-    // the same honesty as the birth flow: loading over an UNSAVED build is
-    // the destructive path, and it says so before it is walked through
-    const sub = fleetEl.querySelector('.gfSub');
-    if (sub) {
-      const un = !slotName;
-      sub.textContent = un
-        ? 'loading replaces the unsaved build on the stand'
-        : 'pick an aeroplane for the stand — “' + slotName + '” keeps its slot';
-      if (sub.classList) sub.classList.toggle('warn', un);
-    }
-  }
+      // PRICE-CAL: SELL (a career's own airframe) at its used-market price, or the reason it cannot be sold now
+      let sv = null; try { sv = api.saleOf ? api.saleOf(n) : null; } catch (e) { sv = null; }
+      const spec = env && env.spec, meta = (spec && spec.meta) || {};
+      return {
+        slot: n, name: label(n), reg: meta.reg || '', cur: n === slotName,
+        meta: n === slotName ? 'on the stand' : slotMeta(n),
+        place: P && P.text ? { text: P.text, kind: P.kind, aero: P.aero || '', wear: +P.wear || 0 } : null,
+        away, broken: !!brk, cert: brk ? 'grounded' : slotCert(env && env.plaque),
+        flights: fl.length, hours: hoursOf(fl), flown: fl.length ? String(fl[fl.length - 1].on || '') : '',
+        sale: sv && api.sell ? { value: sv.value, text: money(sv.value), why: sv.why || '', cap: !!sv.cap,
+                                 ok: !sv.why && sv.value > 0 } : null,
+        home: !!(P && (P.kind === 'out' || P.kind === 'away') && api.bringHome),
+        thumb: 'mine:' + n,
+        // LIVERY MANAGER (AIRCRAFT-LOOKS): a save may hold several liveries; the tile names how many (it shows the worn one)
+        liveries: env && Array.isArray(env.liveries) ? env.liveries.length : 0,
+      };
+    });
+    const bring = (api.importable && api.importSlot ? api.importable(shelf) : []).map(n => {
+      let p = null; try { p = api.importPrice ? api.importPrice(n) : null; } catch (e) { p = null; }
+      return { slot: n, name: n, price: p, text: p == null ? 'the build does not read' : money(p), thumb: 'mine:' + n };
+    });
+    return { rows, bring, stand: slotName, storage: !!LS };
+  };
+  const forgetSlot = n => {
+    lsDel(SLOT + n);
+    try { if (window.PLANE_THUMB) window.PLANE_THUMB.forget(n); } catch (e) {}
+    try { if (window.FICHE_BOARD) window.FICHE_BOARD.forget(n); } catch (e) {}   // (R3: the fiche goes with its plane)
+    if (slotName === n) slotName = '';
+    slotsChanged({ deleted: n });
+    syncRibbon();
+  };
+  const fleetVerbs = {
+    // onto the stand; an aeroplane that is away flies from where it stands (the tile asked first)
+    load: n => {
+      let P = null; try { P = api.place ? api.place(n) : null; } catch (e) { P = null; }
+      if (P && P.kind !== 'none' && !P.here && api.flyFrom) { try { api.flyFrom(n); } catch (e) {} }
+      loadSlot(n);
+    },
+    // "bring it home" (GQ5: free, instant): back into the hangar it last left, else the main hangar
+    home: n => { try { if (api.bringHome) api.bringHome(n); } catch (e) {} },
+    del: n => { forgetSlot(n); return { ok: true }; },
+    sell: n => {
+      let r = null; try { r = api.sell ? api.sell(n) : { ok: false, why: 'no market here' }; }
+      catch (e) { r = { ok: false, why: String((e && e.message) || e) }; }
+      if (r && r.ok === false) return r;
+      forgetSlot(n);
+      return r || { ok: true };
+    },
+    // a sandbox build bought into the career: a purchase, then it stands in your hangar
+    buyIn: n => { let r = null; try { r = api.importSlot(n); } catch (e) { r = { ok: false, why: String((e && e.message) || e) }; }
+                  return r || { ok: true }; },
+    // CANDIDATE OFFICIAL: a pool file onto the stand
+    candidate: c => loadCandidate(c),
+  };
+  const fleetRefresh = () => { try { if (window.FLEET_SCREEN && window.FLEET_SCREEN.refresh) window.FLEET_SCREEN.refresh(); } catch (e) {} };
+  const openFleet = tab => { if (window.FLEET_SCREEN) window.FLEET_SCREEN.open({ tab: tab || 'mine' }); };
   function syncRibbon() {
     // storage unavailable is not an error worth a dialog, but the two save
     // doors should not pretend to work. LOAD stays live either way — the
@@ -1303,7 +1189,7 @@ function garageInit(api) {
       // G3721 (PHONE-GARAGE): the name is a disk icon now (editor.css) - the name rides in its tooltip
       nm.title = (slotName ? '“' + slotName + '”' : 'Not saved yet') + ' — save, save as, new, load, storage, import, export';
     }
-    renderFleet();                    // a no-op until the rack is first built
+    fleetRefresh();                   // the open Fleet screen redraws its hangar (nothing when it is shut)
   }
   const saveAs = name => {
     if (!name) return;
@@ -1386,7 +1272,7 @@ function garageInit(api) {
   if ($('gNew')) $('gNew').addEventListener('click', () => {
     if (window.DESIGN_FLOW) window.DESIGN_FLOW.openBirth();
   });
-  if ($('gLoad')) $('gLoad').addEventListener('click', openFleet);
+  if ($('gLoad')) $('gLoad').addEventListener('click', () => openFleet('mine'));
   if ($('gSave')) $('gSave').addEventListener('click', () =>
     saveAs(slotName || (prompt('Name this aeroplane:', 'My aeroplane') || '').trim()));
   if ($('gSaveAs')) $('gSaveAs').addEventListener('click', () =>
@@ -1546,7 +1432,6 @@ function garageInit(api) {
       if (!/\.json$/i.test(f.name || '') && !/json/.test(f.type || '')) {
         alert('Import refused: ' + f.name + ' is not a .json'); return;
       }
-      closeFleet();
       readFile(f);
     });
   }
@@ -1651,6 +1536,8 @@ function garageInit(api) {
       // CANDIDATE OFFICIAL: the pool's index (a promise of its planes), one onto the stand (unnamed, no plaque), and
       // every saved build in one file - the design flow's new-aeroplane cards read the first two
       planeLists, openListed, officialPool,
+      // THE FLEET (fleet_screen.js): the saved builds as data and their doors
+      fleet: fleetModel, fleetDo: fleetVerbs,
       candidates, openCandidate: loadCandidate, exportAll: exportAllFile,
       load: n => { const t = lsGet(SLOT + n); if (!t) return;
                    const g = unwrap(t); loadSpec(g.spec, n, g.plaque, g.log); },
