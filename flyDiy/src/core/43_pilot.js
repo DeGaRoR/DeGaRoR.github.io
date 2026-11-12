@@ -817,7 +817,7 @@ function makePilot(sim, def, world, opts) {
   let stabT = 0, stabVf = null, stabSf = 0, stabIn = false;   // G2460: the stabilised approach's dwell, its filters, past the gate
   let stabPk = 0, stabWhy = null;                              // G2460: this final's longest dwell and its reason (the tolerated, named)
   let starvedSaid = false, glideTo = null, glideHdg = 0;      // G435: the forced landing
-  let gcirc = null;                                             // TOW-LAUNCH: the glider's circuit (GLIDE)
+  let gcirc = null, glideKind = null, unpowT = 0, powerT = 0;   // TOW-LAUNCH: the glider's circuit (GLIDE); the unpowered watch
   // G381: the arc turn in progress, the latched level altitude before the
   // slope, the flare's own integrator / cap / timescale, a three-point flag
   let finalLevel = null;
@@ -3304,47 +3304,60 @@ function makePilot(sim, def, world, opts) {
     // off by its key (a motor glider flown as one, the tow's motor off) or no engine at all - is flown as the starved one
     // is, from the moment it is in the air: the glide toward the nearest field inside its cone, the flare it knows; said
     // as a glide, and no forced landing stamped on it (a glider's every landing is without power, by design)
-    const glider = onG === 0 && (!sim.eng || !sim.eng.length || sim.eng.every(e => e.key === 'off'));
-    if (((sim.fuel && sim.fuel.starved) || glider) && !starvedSaid) {
+    // TOW-LAUNCH (12 Nov; the user: "it should auto-apply when a plane is losing power ... It should detect anything which
+    // is unpowered for any reason at any time in the flight and swap to this kind of thing ... if this is not planned to be
+    // an unpowered flight, the autopilot should directly look for the closest airport to land"): UNPOWERED FLIGHT, ONE
+    // RULE FOR EVERY CAUSE. In the air, no engine running for 2 s (a failure, a seizure, a drowned or a starved engine, a
+    // key off) - or the tanks dry, or no engine at all - and the pilot GLIDES:
+    //   a GLIDER (every key off by choice: the motor glider flown as one, a tow's motor; or no engine) goes where it was
+    //     sent - the route's To when its cone reaches it, else the nearest field that does;
+    //   any other aeroplane has an EMERGENCY - the NEAREST field its glide reaches, whatever the plan, and no turning back
+    //     under 150 m (the field more than 90 deg off the nose: ahead instead, the forced landing straight on);
+    // both flown in the glider's circuit (gliderCircuitPlan) when a field is in reach, the straight glide otherwise. The
+    // cone is the sheet's L/D (else 15 for a glider, 8 for an aeroplane) over the height ABOVE THE FIELD; the circuit is
+    // judged on the glide flown. The person's margin: the expert 20 m over the glide, every other person 30. Power back
+    // (an engine running 3 s; not a glider's) ends it: the pilot plans on from here
+    const engs = sim.eng || [], starved = !!(sim.fuel && sim.fuel.starved);
+    const noRun = !engs.length || engs.every(e => !e.running), keyedOff = !engs.length || engs.every(e => e.key === 'off');
+    unpowT = onG === 0 && noRun ? unpowT + dt : 0;
+    powerT = engs.some(e => e.running) ? powerT + dt : 0;
+    const glider = onG === 0 && keyedOff && !starved;
+    if (starvedSaid && glideKind === 'emergency' && ap.phase === 'GLIDE' && powerT > 3 && !starved) {
+      starvedSaid = false; gcirc = null; glideTo = null; glideKind = null; committed = false;
+      say('power-back', 'power back at t=' + Math.round(ap.t) + ' s, ' + Math.round(aglG) + ' m up - flying on');
+      ap.report.outcome = null; go('CLIMB');
+    }
+    if ((starved || glider || unpowT > 2) && onG === 0 && !starvedSaid) {
       starvedSaid = true;
-      const what = glider && !(sim.fuel && sim.fuel.starved) ? 'gliding (no engine running)' : sim.fuel.kind === 'battery' ? 'out of charge' : 'out of fuel';
+      glideKind = glider ? 'glider' : 'emergency';
+      const why = engs.find(e => e.seized) ? 'the engine seized' : engs.find(e => e.drown) ? 'the engine drowned' : starved ? (sim.fuel.kind === 'battery' ? 'out of charge' : 'out of fuel') : engs.length && !keyedOff ? 'the engine stopped' : null;
+      const what = glider ? 'gliding (no engine running)' : (why || 'no power');
       const landingPh = ap.phase === 'FLARE' || ap.phase === 'ROLLOUT' || ap.phase === 'STOPPED' || ap.phase === 'ABORT' || ap.phase === 'PUTDOWN';
-      if (onG === 0 && !landingPh && !BX.on) {
-        // the glide cone: the sheet's L/D when it has one, else a modest 8
-        const ld = (SH && SH.LDbest > 0) ? SH.LDbest : 8;
-        let best = null, bestD = Infinity;
-        for (const a of (world && world.aerodromes) || []) {
-          if (typeof stripAllows === 'function' && !stripAllows(gearK, a).ok) continue;   // G1375: never a forced landing on the wrong surface
-          const d = Math.hypot(a.x - cg[0], a.z - cg[2]);
-          if (d < bestD) { bestD = d; best = a; }
-        }
-        let reach = best && bestD < 0.7 * ld * Math.max(0, aglG);
-        // TOW-LAUNCH (12 Nov; the user: "from there it could probably try and land on Jolene, or at least the village
-        // strip"): A GLIDER GOES WHERE IT WAS SENT - the route's To, when its gear may use it and the cone (the sheet's L/D,
-        // else a glider's 15, over the height ABOVE THAT FIELD) reaches it; else the nearest the cone reaches, judged the
-        // same way (off an altiport the ground below is no measure: the field it left is the nearest). The glide is
-        // checked again once it is flown (GLIDE: gliderDivert)
+      if (!landingPh && !BX.on) {
+        const ld = (SH && SH.LDbest > 0) ? SH.LDbest : glider ? 15 : 8;
+        const ok = a => a && !(typeof stripAllows === 'function' && !stripAllows(gearK, a).ok);   // G1375: never on the wrong surface
+        const cone = (a, k) => Math.hypot(a.x - cg[0], a.z - cg[2]) < k * ld * Math.max(0, cg[1] - (a.elev || 0));
+        const to = ap.route && ap.route.to, from = ap.route && ap.route.from;
+        let best = null;
         if (glider) {
-          const ldG = (SH && SH.LDbest > 0) ? SH.LDbest : 15, ok = a => a && !(typeof stripAllows === 'function' && !stripAllows(gearK, a).ok);
-          // (the To on 0.9 of it - set off for the goal, the glide checked as it is flown and a divert if it does not
-          //  make it, as a glider pilot does; the fallback on 0.7: off Skyline Altiport 0.7 x 15 kept the pilot from
-          //  Jolene's 12:1, which the motorglider's flown 14.5 makes)
-          const cone = (a, k) => Math.hypot(a.x - cg[0], a.z - cg[2]) < k * ldG * Math.max(0, cg[1] - (a.elev || 0));
-          const to = ap.route && ap.route.to;
-          const from = ap.route && ap.route.from;
-          if (ok(to) && cone(to, 0.9)) { best = to; reach = true; }
-          else { best = gliderPick(ldG * 0.7, to && to.id, from && to && from.id !== to.id ? from.id : null); reach = !!best; }
-          if (best) bestD = Math.hypot(best.x - cg[0], best.z - cg[2]);
+          // (the To on 0.9 of the cone - set off for the goal, the glide checked as it is flown; the rest on 0.7: off Skyline
+          //  Altiport 0.7 x 15 kept the pilot from Jolene's 12:1, which the motorglider's flown 14.5 makes)
+          best = ok(to) && cone(to, 0.9) ? to : gliderPick(ld * 0.7, to && to.id, from && to && from.id !== to.id ? from.id : null);
+        } else {
+          best = gliderPick(ld * 0.7, null, null);
+          // no turning back low: under 150 m a field behind the wing (90 deg off the nose) is not tried
+          if (best && aglG < 150) { const bx = best.x - cg[0], bz = best.z - cg[2], bl = Math.hypot(bx, bz) || 1;
+            if ((bx * nose[0] + bz * nose[1]) / bl < 0) { say('no-turn-back', Math.round(aglG) + ' m up: ' + (best.name || best.id) + ' lies behind - the forced landing ahead'); best = null; } }
         }
-        glideTo = reach ? best : null;
+        glideTo = best || null;
         glideHdg = Math.atan2(nose[1], nose[0]);
-        // TOW-LAUNCH (the user, 12 Nov: "do the glider circuit"): A GLIDER FLIES A CIRCUIT to the field it reaches - the
-        // landing the arrival would plan there (planArrival: the way into the wind, the aim, the circuit's side), flown
-        // on energy (gliderCircuit, the GLIDE phase): no forced landing's straight line at the field's middle
-        gcirc = glider && glideTo ? gliderCircuitPlan(glideTo) : null;
-        say('out-of-energy', what + ' at t=' + Math.round(ap.t) + ' s, ' + Math.round(aglG) + ' m up — engines stopped; gliding ' +
-            (reach ? 'to ' + (best.name || best.id) + ', ' + Math.round(bestD) + ' m away' + (gcirc ? ' - a glider\'s circuit, ' + (gcirc.side > 0 ? 'left' : 'right') + '-hand, landing ' + gcirc.way : '') : 'straight ahead for a forced landing'));
+        gcirc = glideTo ? gliderCircuitPlan(glideTo) : null;
+        if (gcirc) gcirc.margin = PRF && PRF.name && PRF.name !== 'expert' ? 30 : 20;
+        const bestD = glideTo ? Math.hypot(glideTo.x - cg[0], glideTo.z - cg[2]) : 0;
+        say('out-of-energy', what + ' at t=' + Math.round(ap.t) + ' s, ' + Math.round(aglG) + ' m up — ' + (glider ? 'gliding ' : 'an emergency: gliding ') +
+            (glideTo ? 'to ' + (glideTo.name || glideTo.id) + ', ' + Math.round(bestD) + ' m away' + (gcirc ? ' - a glider\'s circuit, ' + (gcirc.side > 0 ? 'left' : 'right') + '-hand, landing ' + gcirc.way : '') : 'straight ahead for a forced landing'));
         if (!glider) ap.report.outcome = ap.report.outcome || 'forced-landing';
+        sim.ctl.thr = 0;
         committed = true;
         go('GLIDE');
       } else say('out-of-energy', what + ' at t=' + Math.round(ap.t) + ' s — engines stopped');
@@ -3549,7 +3562,7 @@ function makePilot(sim, def, world, opts) {
           // (...and the FLOAT: a clean glider holds off in the ground effect for its approach speed x ~10 s past where its
           //  glide meets the ground - the way the height must cover ends that far short of the aim: 534 m long without it)
           const floatD = 10 * Math.max(ap.VAppr || 0, A.VAppr || 0, 18);
-          const need = d => Math.max(0, d - floatD) / G.E + 20;
+          const need = d => Math.max(0, d - floatD) / G.E + (G.margin || 20);
           const sKey = G.sAim + 0.8 * G.W, cD = G.side * G.W, dMin = 0.8 * G.W + G.W + 2 * Rt;
           const next = st => { if (st !== G.stage) { G.log.push({ t: +ap.t.toFixed(1), stage: st, h: Math.round(h) }); G.stage = st; say('glider-circuit', st + ' at ' + Math.round(h) + ' m over the aim'); } };
           let trk = null, hdg = null, ias = vbg, flap = 0;
