@@ -490,6 +490,21 @@ function iconFront(pos, brace, opt) {
   return { vb: '0 0 68 40', paths };
 }
 
+// STRUT-OPTIONS (2026-11-10): the lift strut's SECTION, cut across (a streamline teardrop, chord fore-and-aft, or a
+// round tube), and its JURY STRUT in front view (the iconFront high wing and its strut, the jury off the strut's
+// middle: up to the wing, or back in to the cabin's top - drawn dashed, it runs aft)
+function iconStrutSec(round) {
+  if (round) return { vb: '0 0 64 40', paths: [{ d: 'M32 9 A11 11 0 1 1 31.99 9 Z' }] };
+  return { vb: '0 0 64 40', paths: [{ d: 'M10 20 Q14 12 26 12 L56 19 L56 21 L26 28 Q14 28 10 20 Z' }] };
+}
+function iconJury(kind) {
+  const f = iconFront('high', 'strut');
+  // the right-hand strut runs (56,15) -> (38,27); its middle (47,21)
+  if (kind === 1) f.paths.push({ d: 'M47 21 L47 15', w: 1 });
+  if (kind === 2) f.paths.push({ d: 'M47 21 L40 13', w: 1 });
+  return f;
+}
+
 // TOP VIEW — seats and bays. THE BODY ELONGATES with the bay count (user,
 // 2026-08-31: "your bay symbol should elongate... not simply subdivise") —
 // each bay is fuselage you pay for, so the silhouette grows a segment per
@@ -1385,6 +1400,26 @@ const DESIGN_ROWS = [
         writes: { cage: { wgBrace: 0 } } },
       { value: 1, label: 'Cantilever', icon: iconFront('low'),
         writes: { cage: { wgBrace: 1 } } },
+    ] },
+
+  // STRUT-OPTIONS (2026-11-10, the user: "an option so that these are simply tubes ... from the middle of the truss,
+  // you got another half one going back towards the cabin"): the lift strut's section and its jury strut
+  { key: 'wgStrutSec', label: 'Strut section', kind: 'discriminator',
+    group: 'wing', status: 'live', twin: ['wgStrutSec'],
+    help: 'a round tube is simpler and ~11x the drag of a streamline strut of the same frontal',
+    read: P => Math.round(P.wgStrutSec || 0),
+    options: [
+      { value: 0, label: 'Profiled', icon: iconStrutSec(0), writes: { cage: { wgStrutSec: 0 } } },
+      { value: 1, label: 'Round tube', icon: iconStrutSec(1), writes: { cage: { wgStrutSec: 1 } } },
+    ] },
+  { key: 'wgJury', label: 'Jury strut', kind: 'discriminator',
+    group: 'wing', status: 'live', twin: ['wgJury'],
+    help: 'a short brace from the lift strut\'s middle: up to the wing (Cub) or back to the cabin (Ruckus)',
+    read: P => Math.round(P.wgJury || 0),
+    options: [
+      { value: 0, label: 'None', icon: iconJury(0), writes: { cage: { wgJury: 0 } } },
+      { value: 1, label: 'Up to the wing', icon: iconJury(1), writes: { cage: { wgJury: 1 } } },
+      { value: 2, label: 'Back to the cabin', icon: iconJury(2), writes: { cage: { wgJury: 2 } } },
     ] },
 
   // G185: THE PLANES. One, two, or a big one over a small one. The option
@@ -3420,6 +3455,9 @@ function designBake(sel, over) {
   const wings = [wing];
   const bracing = { type: Math.round(full.wgBrace) ? 'cantilever' : 'strut',
                     struts: Math.round(+full.wgStruts) === 1 ? 1 : 2 };   // T2.3 (83)
+  // STRUT-OPTIONS (2026-11-10): an archetype's strut section and jury strut (absent at 0: the bytes every card had)
+  if (Math.round(+full.wgStrutSec || 0) === 1) bracing.section = 'tube';
+  if (Math.round(+full.wgJury || 0) > 0) bracing.jury = [null, 'wing', 'cabin'][Math.round(+full.wgJury)] || undefined;
   if (+full.w2On) {
     const w2 = {
       span: +full.w2Span, chord: +full.w2Chord,

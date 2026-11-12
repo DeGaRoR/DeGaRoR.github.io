@@ -3336,6 +3336,9 @@ function makeSim(def, world) {
     };
     blob(def.refs.fusDrag,    GR === null ? P_.fusCdA : GR.cda);   // RETRACT-1: the gear's drag by its position
     blob(def.refs.fusDragAft, P_.fusCdAAft);
+    // STRUT-OPTIONS (2026-11-10): the lift struts' optional drag (a round tube, a jury), one blob a side on the
+    // struts' own nodes (61_gen_frame refs.strutDrag) - absent on every build without the wing's strut rows
+    if (P_.strutCdA && def.refs.strutDrag) for (const ids of def.refs.strutDrag) blob(ids, P_.strutCdA);
     // G461: THE BODY'S OWN PITCHING MOMENT (Munk). A closed body in potential
     // flow feels no lift and a pure couple, 2 q (k2 - k1) Vol per radian of
     // incidence, NOSE-UP with the nose up — destabilising, the term every
