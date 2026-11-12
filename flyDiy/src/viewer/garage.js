@@ -766,7 +766,7 @@ function garageInit(api) {
       listsP.then(l => { if (!l.length) listsP = null; });
     }
     const dev = /dev\.html/.test((window.location && window.location.pathname) || '') || !!(window.WELCOME && window.WELCOME.mode && window.WELCOME.mode.dev);
-    return listsP.then(l => l.filter(p => p && (dev || (PLAYER_CLASSES.includes(p.list) && labOk(p)))).map(p => Object.assign({}, p, { note: dev ? p.note : '', tip: dev ? p.file || '' : '' })));
+    return listsP.then(l => l.filter(p => p && (dev || (PLAYER_CLASSES.includes(p.list) && labOk(p) && !p.rides))).map(p => Object.assign({}, p, { note: dev ? p.note : '', tip: dev ? p.file || '' : '' })));
   };
   const openListed = p => {
     if (p.stock) { loadStock(p.stock); return; }

@@ -18,6 +18,11 @@
 // THE EMPTY STAND (EMPTY-STAND-RELOOK): R1 the view takes the columns' room over the editor's inline --ws-right; R2 the menu
 //   stands aside while the chooser is up, so Escape is the chooser's.
 //
+// THE CANON (the user 12 Nov, yes to all): the reproductions are the planes REAL-FIGURES tests (tools/real_refs.js PLANES, both
+//   ways; the Ruckus files are named as pending until their rows land, never red); every player plane has its own name and registration (the row's reg; the table carries them); no player plane is
+//   called "official" or "Metal"; every test plane's name starts "Test copy: "; a row whose file rides another branch is the
+//   developer's until it lands.
+//
 //   node tools/_planelists_check.js [--selftest]  -> "GATE PLANELISTS: PASS|FAIL"
 'use strict';
 const fs = require('fs'), path = require('path'), vm = require('vm');
@@ -25,40 +30,50 @@ const ROOT = path.join(__dirname, '..');
 const read = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
 const SELF = process.argv.includes('--selftest');
 
-// the player's classes, the user's (10 Nov, relayed by A0; the plane-list page v4): name -> [class, file]
+// the player's classes, the user's (10 Nov, relayed by A0; the plane-list page v4) and the canon's registrations (12 Nov):
+// name -> [class, file, registration]
 const CLASSES = {
-  "Piper Cub": ["reproduction", "builds/cub_2026-09-20_corrected.json"],
-  "Jodel D112": ["reproduction", "builds/jodel_2026-09-20_corrected.json"],
-  "Cessna 172": ["reproduction", "builds/cessna172r_2026-11-08.json"],
-  "PA-18 on floats": ["reproduction", "builds/pa18_floats_2026-10-23.json"],
-  "Carbon Cub SS": ["reproduction", "builds/candidates/carbon_cub_ss.json"],
-  "Chinook": ["reproduction", "builds/chinook_2026-09-21_corrected.json"],
-  "Super Petrel LS": ["reproduction", "builds/candidates/superpetrel_V4_1.json"],
-  "DC-3-alike": ["reproduction", "builds/candidates/dc3_2026-10.json"],
-  "Stearman-alike": ["reproduction", "builds/candidates/stearman_2026-10.json"],
-  "Tiger Moth-alike": ["reproduction", "builds/candidates/tigermoth_2026-10.json"],
-  "Camel-alike": ["reproduction", "builds/candidates/camel_2026-10.json"],
-  "Rufus": ["story", "builds/rufus_2026-10-18_certified.json"],
-  "Client Cub": ["story", "builds/cub_2026-09-20.json"],
-  "Cessna (validated)": ["story", "bugReports/cessnaMetal (1).json"],
-  "Cessna on floats (validated)": ["story", "bugReports/cessnaFloatsWOrks.json"],
-  "Twin busher floats 4b": ["original", "builds/candidates/Twin_busher_floats_4b.json"],
-  "Ultralight twin on floats": ["original", "builds/candidates/build_v7_ultralight_2026-09-05_floats.json"],
-  "STOL Cub": ["original", "builds/candidates/stol_cub_showcase.json"],
-  "pusherLight": ["original", "builds/candidates/build_v8_pusher_2026-09-11.json"],
-  "twinBoomFail": ["original", "builds/candidates/flydiy-build (4).json"],
-  "mosquito": ["original", "builds/candidates/mosquito.json"],
-  "B-ITES": ["original", "builds/candidates/B-ITES.json"],
-  "ugly bi": ["original", "builds/candidates/ugly_bi.json"],
-  "Pawnee": ["wip", "builds/candidates/pawnee (1).json"],
-  "sailPlane": ["wip", "builds/candidates/sailPlane.json"],
-  // (the Ruckus x2 join as reproductions with REAL-FIGURES' ready; the Spitfire and the Skymaster as WIP with the chooser's
-  //  shapes ready; the Cessna 172 on floats V2 when the user answers its plan)
+  "Piper Cub": ["reproduction", "builds/cub_2026-09-20_corrected.json", "F-BCUB"],
+  "Jodel D112": ["reproduction", "builds/jodel_2026-09-20_corrected.json", "F-PJDL"],
+  "Cessna 172": ["reproduction", "builds/cessna172r_2026-11-08.json", "F-HCSN"],
+  "PA-18 on floats": ["reproduction", "builds/pa18_floats_2026-10-23.json", "F-AMOR"],
+  "Carbon Cub SS": ["reproduction", "builds/candidates/carbon_cub_ss.json", "N340SS"],
+  "Chinook": ["reproduction", "builds/chinook_2026-09-21_corrected.json", "C-ICHK"],
+  "Super Petrel LS": ["reproduction", "builds/candidates/superpetrel_V4_1.json", "PU-PTL"],
+  "DC-3-alike": ["reproduction", "builds/candidates/dc3_2026-10.json", "B-DAKO"],
+  "Stearman-alike": ["reproduction", "builds/candidates/stearman_2026-10.json", "40-1749"],
+  "Tiger Moth-alike": ["reproduction", "builds/candidates/tigermoth_2026-10.json", "T7230"],
+  "Camel-alike": ["reproduction", "builds/candidates/camel_2026-10.json", "B6313"],
+  "Rufus": ["story", "builds/rufus_2026-10-18_certified.json", "N47RF"],
+  "Client Cub": ["story", "builds/cub_2026-09-20.json", "N1938J"],
+  "Cessna 172 (career)": ["story", "bugReports/cessnaMetal (1).json", "B-CESS"],
+  "Cessna 172 floats (career)": ["story", "bugReports/cessnaFloatsWOrks.json", "B-CESF"],
+  "Twin busher floats 4b": ["original", "builds/candidates/Twin_busher_floats_4b.json", "F-FORE"],
+  "Ultralight twin on floats": ["original", "builds/candidates/build_v7_ultralight_2026-09-05_floats.json", "F-JTWF"],
+  "STOL Cub": ["original", "builds/candidates/stol_cub_showcase.json", "F-STOL"],
+  "pusherLight": ["original", "builds/candidates/build_v8_pusher_2026-09-11.json", "F-JPSH"],
+  "twinBoomFail": ["original", "builds/candidates/flydiy-build (4).json", "F-WBOO"],
+  "mosquito": ["original", "builds/candidates/mosquito.json", "B-MOSQ"],
+  "B-ITES": ["original", "builds/candidates/B-ITES.json", "B-ITES"],
+  "ugly bi": ["original", "builds/candidates/ugly_bi.json", "U-GLYB"],
+  "Pawnee": ["wip", "builds/candidates/pawnee (1).json", "F-HPAW"],
+  "sailPlane": ["wip", "builds/candidates/sailPlane.json", "F-CSWS"],
+  "Cessna 172 on floats (draft)": ["wip", "builds/cessna172r_floats_2026-11-08.json", "F-HCSF"],
+  // (the Ruckus x2 join as reproductions with REAL-FIGURES' cards - Solo 103 = ruckus_std, Back-Country = ruckus_2026-11-09;
+  //  the Spitfire and the Skymaster as WIP with the chooser's shapes ready)
 };
 const PLAYER = ['reproduction', 'story', 'original', 'wip'], ALL = PLAYER.concat(['next', 'legacy', 'archive']);
 const named = [];
+// REAL-FIGURES' set (tools/real_refs.js PLANES): a known entry is not dropped, a live one is not superseded either
+const RF = require('./real_refs.js').PLANES;
+// planes REAL-FIGURES may test before their rows land (A0 12 Nov: named, never a red train): file -> why
+const PENDING = {
+  'builds/candidates/ruckus_std_2026-11-09.json': 'the Ruckus Solo 103 (the user 12 Nov, Q3): its reproduction row comes with REAL-FIGURES\' cards',
+  'builds/candidates/ruckus_2026-11-09.json': 'the Ruckus Back-Country (Q3): its reproduction row comes with REAL-FIGURES\' cards',
+  'builds/candidates/ruckus_struts_2026-11-10.json': 'the Ruckus struts card (Q3): a test plane row with the cards',
+};
 
-function listRows(lists, index, thumbs, exists, contractFiles) {
+function listRows(lists, index, thumbs, exists, contractFiles, refs = RF) {
   const bad = [];
   let L = null, I = null;
   try { L = JSON.parse(lists); } catch (e) { return ['plane_lists.json does not parse: ' + e.message]; }
@@ -79,8 +94,21 @@ function listRows(lists, index, thumbs, exists, contractFiles) {
   }
   { const seen = {}; for (const p of P) if (p.file) { if (seen[p.file]) bad.push('one plane, one row: ' + p.file + ' on rows ' + seen[p.file] + ' and ' + p.n); seen[p.file] = p.n; } }
   for (let n = 1; n <= 38; n++) if (!nums.has(n)) bad.push('the sheet\'s number ' + n + ' has no row (nothing is deleted)');
-  for (const n of Object.keys(CLASSES)) { const r = P.find(p => p.name === n), [c, f] = CLASSES[n]; if (!r || r.list !== c || r.file !== f) bad.push(c + ': ' + n + ' is not ' + f); }
+  for (const n of Object.keys(CLASSES)) { const r = P.find(p => p.name === n), [c, f, g] = CLASSES[n]; if (!r || r.list !== c || r.file !== f) bad.push(c + ': ' + n + ' is not ' + f); else if (r.reg !== g) bad.push(c + ': ' + n + '\'s registration is not ' + g); }
   for (const r of P.filter(p => PLAYER.includes(p.list))) if (!CLASSES[r.name]) bad.push(r.list + ': ' + r.name + ' is not on the table');
+  // THE CANON (the user 12 Nov, "yes to all"): (a) the reproductions are the planes REAL-FIGURES tests, both ways; (b) one name
+  // and one registration per player plane; (c) "official" and "Metal" are retired as names, a test plane's name says so
+  { const known = Object.values(refs).filter(e => e && e.file && !e.dropped), live = known.filter(e => !e.supersededBy);
+    for (const r of P.filter(p => p.list === 'reproduction')) if (!known.some(e => e.file === r.file)) bad.push('canon: reproduction ' + r.name + ' (' + r.file + ') is not a plane REAL-FIGURES tests');
+    for (const e of live) if (!P.some(p => p.file === e.file && ['reproduction', 'next', 'wip', 'legacy'].includes(p.list))) {
+      if (PENDING[e.file]) named.push('canon: REAL-FIGURES tests ' + e.file + ' - pending: ' + PENDING[e.file]); else bad.push('canon: REAL-FIGURES tests ' + e.file + ', on no row of the list'); }
+    const regs = {};
+    for (const r of P.filter(p => PLAYER.includes(p.list))) {
+      if (typeof r.reg !== 'string' || !r.reg.trim()) { bad.push('canon: ' + r.name + ' has no registration'); continue; }
+      if (regs[r.reg]) bad.push('canon: registration ' + r.reg + ' on ' + regs[r.reg] + ' and ' + r.name); regs[r.reg] = r.name;
+      if (/official|metal/i.test(r.name)) bad.push('canon: a player plane named ' + r.name + ' ("official" and "Metal" are retired)');
+    }
+    for (const r of P.filter(p => p.list === 'legacy')) if (!/^Test copy: /.test(r.name)) bad.push('canon: test plane ' + r.n + ' ' + r.name + ' does not say "Test copy: "'); }
   // the pool agrees: a card the rack offers is a player's plane; a hidden card is a test plane or a next version; the pool's
   // official rows (the chooser's own group) are reproductions, story or originals; a lab row is a lab row on the list
   const pool = 'builds/candidates/', row = f => P.find(q => q.file === pool + f);
@@ -109,6 +137,7 @@ function pageRows(S) {
   need('garage', /const LISTS_FILE = 'builds\/lists\/plane_lists\.json'/, 'the lists are read from the repo file');
   need('garage', /!p\.official && !p\.hide && labOk\(p\) && typeof p\.file === 'string'/, "an official pool row is off the candidate cards (and a lab row, SEA-OFF, and a hidden test plane or next version)");
   need('garage', /const PLAYER_CLASSES = \['reproduction', 'story', 'original', 'wip'\];/, "the player's four classes");
+  need('garage', /\(dev \|\| \(PLAYER_CLASSES\.includes\(p\.list\) && labOk\(p\) && !p\.rides\)\)/, 'a row whose file rides another branch is the dev\'s until it lands (it would not open)');
   if (/gfStock/.test(S.garage)) bad.push("garage: the stock-designs shelf is back (the user 10 Nov: no duplicated planes)");
   need('garage', /\.filter\(p => p && p\.official && labOk\(p\)\)/, 'a lab row is off the official pool (SEA-OFF)');
   need('garage', /planeLists, openListed, officialPool,/, 'GARAGE_SPEC carries the lists');
@@ -124,13 +153,13 @@ function pageRows(S) {
   if (!m) bad.push('garage: planeLists not found');
   else {
     const run = async (pathname, dev) => {
-      const box = { window: { location: { pathname }, WELCOME: { mode: { dev } } }, labOk: q => !q.lab, Object, Array, Promise, fetch: () => Promise.resolve({ ok: true, json: () => Promise.resolve({ planes: [{ list: 'reproduction', name: 'A', note: 'n', file: 'a.json' }, { list: 'legacy', name: 'B', note: 'n', file: 'b.json' }, { list: 'original', name: 'C', lab: true, file: 'c.json' }] }) }) };
+      const box = { window: { location: { pathname }, WELCOME: { mode: { dev } } }, labOk: q => !q.lab, Object, Array, Promise, fetch: () => Promise.resolve({ ok: true, json: () => Promise.resolve({ planes: [{ list: 'reproduction', name: 'A', note: 'n', file: 'a.json' }, { list: 'legacy', name: 'B', note: 'n', file: 'b.json' }, { list: 'original', name: 'C', lab: true, file: 'c.json' }, { list: 'wip', name: 'D', file: 'd.json', rides: 'x' }] }) }) };
       return vm.runInNewContext(m[0] + '\nplaneLists();', box);
     };
     return Promise.all([run('/index.html', false), run('/dev.html', false), run('/index.html', true)]).then(([player, devHtml, devCareer]) => {
-      if (player.length !== 1 || player[0].list !== 'reproduction' || player[0].note || player[0].tip) bad.push('a player must read neither legacy, a lab row nor the notes');
-      if (devHtml.length !== 3 || !devHtml[0].note || !devHtml[0].tip) bad.push('dev.html lost legacy or the notes');
-      if (devCareer.length !== 3) bad.push('the dev career lost legacy');
+      if (player.length !== 1 || player[0].list !== 'reproduction' || player[0].note || player[0].tip) bad.push('a player must read neither legacy, a lab row, a row whose file rides another branch nor the notes');
+      if (devHtml.length !== 4 || !devHtml[0].note || !devHtml[0].tip) bad.push('dev.html lost legacy, a riding row or the notes');
+      if (devCareer.length !== 4) bad.push('the dev career lost legacy or a riding row');
       return stand(S, bad);
     }, e => { bad.push('the filter did not run: ' + e.message); return stand(S, bad); });
   }
@@ -158,7 +187,7 @@ function stand(S, bad) {
   console.log('GATE PLANELISTS - ' + L.length + ' rows: ' + ALL.map(k => k + ' ' + L.filter(p => p.list === k).length).join(', '));
   for (const n of named) console.log('  NAMED ' + n);
   if (SELF) {
-    const red = async (what, r) => { r = await r; console.log('  selftest ' + what + ': ' + (r.length ? 'red (ok)' : 'GREEN - the check is inert')); if (!r.length) bad.push('selftest inert: ' + what); };
+    const red = async (what, r, re) => { r = await r; const hit = re ? r.some(m => re.test(m)) : r.length > 0; console.log('  selftest ' + what + ': ' + (hit ? 'red (ok)' : 'GREEN - the check is inert')); if (!hit) bad.push('selftest inert: ' + what); };
     const edit = fn => { const o = JSON.parse(lists); fn(o); return JSON.stringify(o); };
     const rows = (l, i) => listRows(l, i || index, thumbs, exists, contractFiles);
     await red('a sheet number deleted', rows(edit(o => { o.planes = o.planes.filter(p => p.n !== 31); })));
@@ -171,12 +200,23 @@ function stand(S, bad) {
     await red('the Client Cub row off the story (bare again)', rows(edit(o => { o.planes.find(p => p.n === 26).over.paint = { job: 'bare' }; })));
     await red('a player plane reading review/', rows(edit(o => { o.planes.find(p => p.n === 38).file = 'builds/candidates/review/stol_cub_kit.json'; })));
     await red('a Market file gone', listRows(lists, index, thumbs, f => f !== contractFiles[0] && exists(f), contractFiles));
-    await red('the filter shows internal to a player', pageRows(Object.assign({}, S, { garage: S.garage.replace("(dev || (PLAYER_CLASSES.includes(p.list) && labOk(p)))", 'true') })));
+    await red('the filter shows internal to a player', pageRows(Object.assign({}, S, { garage: S.garage.replace("(dev || (PLAYER_CLASSES.includes(p.list) && labOk(p) && !p.rides))", 'true') })));
     await red('the stock shelf back', pageRows(Object.assign({}, S, { garage: S.garage + '\n<div class="gfStock"></div>' })));
     await red('the rack without its button', pageRows(Object.assign({}, S, { garage: S.garage.replace('gfAll">all planes<', 'gfAll"><') })));
     await red('the chooser without its official group', pageRows(Object.assign({}, S, { np: S.np.replace("poolCards(g0.officialPool, 'official', 'official')", '0') })));
     await red('R1 undone', pageRows(Object.assign({}, S, { css: S.css.replace('--ws-right:0px !important', '--ws-right:0px') })));
     await red('R2 undone', pageRows(Object.assign({}, S, { app: S.app.replace('!!(window.NEW_PLANE && window.NEW_PLANE.isOpen && window.NEW_PLANE.isOpen())', 'false') })));
+    const rf = fn => { const o = Object.assign({}, RF); fn(o); return o; };
+    await red('canon (a): a reproduction REAL-FIGURES does not test', listRows(lists, index, thumbs, exists, contractFiles, rf(o => { o.jodel = Object.assign({}, o.jodel, { dropped: 'selftest' }); })), /^canon: reproduction Jodel/);
+    { const n0 = named.length; const r = await listRows(lists, index, thumbs, exists, contractFiles, rf(o => { o.selftest = { file: 'builds/candidates/ruckus_2026-11-09.json' }; }));
+      const ok = !r.some(m => /ruckus_2026-11-09/.test(m)) && named.slice(n0).some(m => /pending/.test(m)); named.length = n0;
+      console.log('  selftest canon (a): a pending Ruckus is named, not red: ' + (ok ? 'ok' : 'WRONG')); if (!ok) bad.push('selftest: a pending plane turned red or went unnamed'); }
+    await red('canon (a): a plane REAL-FIGURES tests on no row', listRows(lists, index, thumbs, exists, contractFiles, rf(o => { o.selftest = { file: 'builds/selftest_x.json' }; })), /^canon: REAL-FIGURES tests builds\/selftest_x/);
+    await red('canon (b): two player planes, one registration', rows(edit(o => { o.planes.find(p => p.n === 13).reg = 'N340SS'; })), /^canon: registration N340SS/);
+    await red('canon (b): a player plane without its registration', rows(edit(o => { delete o.planes.find(p => p.n === 6).reg; })), /^canon: Twin busher floats 4b has no registration/);
+    await red('canon (c): "Metal" back on a player plane', rows(edit(o => { o.planes.find(p => p.n === 40).name = 'Metal Cessna'; })), /^canon: a player plane named Metal/);
+    await red('canon (c): a test plane not called a test copy', rows(edit(o => { o.planes.find(p => p.n === 5).name = 'B-CESS'; })), /^canon: test plane 5 /);
+    await red('the floats draft shown to a player before its file lands', pageRows(Object.assign({}, S, { garage: S.garage.replace('labOk(p) && !p.rides))', 'labOk(p)))') })), /rides another branch/);
   }
   for (const b of bad) console.log('  FAIL ' + b);
   console.log('GATE PLANELISTS: ' + (bad.length ? 'FAIL' : 'PASS'));
