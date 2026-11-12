@@ -208,6 +208,17 @@ before every battery so stale hand-edits get overwritten, loudly.
   docs/MODEL-IMPORT-PROC.md. Since G184 this is the RIGGED-import record
   (nothing flies an import); `tools/ref_prep.py` + `ref_table.py` is the live
   reference-plane baker.
+- `tools/_derelict_gen.js` (DERELICT_GEN, DERELICT-HANGAR 9 Nov 2026) — the works hangar as the derelict Annette Island
+  WWII hangar and the story's stages back to it (`stage` 0 derelict, 1 made safe, 2 roofed, 3 = HANGAR_GEN 'works
+  hangar'); the works' envelope exactly; HANGAR_GEN's interface (DEF/ROWS/PRESETS/build/applyFinish/CATALOGUE). Its
+  bench `tools/_derelict.html` (the alps sky, the field, a forest, the club next door, a true mirror in the puddles),
+  its stills `tools/derelict_shot.js` (headless SwiftShader -> reports/evidence/DERELICT-HANGAR/), GATE DERELICT
+  `tools/_derelict_check.js`. Design note futureDesigns/DERELICT-HANGAR-2026-11-09.md (structure, stages, budget).
+  THE LARGE HANGAR'S ROOM IS THIS MESH: hangar.js shell 'works' (frame 'steel') stands DERELICT_GEN stage 3's bags in
+  place of the portal shell (?roomderelict=0 the old room); 26_hangar_fit SHELLS.works 'Large hangar', galleries
+  { right 5.5, left 1.0 }, hangarBay (the clear bay, the 33.5 m door centred at room z -2.25), the cozy layout by
+  default; hangarPark / rollanim / the sandbox's stand on the door's line. Its pictures: `tools/large_hangar_shot.js`
+  (the game's own page, the Cub and the DC-3; exposure lifted, the headless path has no grade).
 - `vendor/` — three.js r186 (W0.5a, 2026-09-13), BUILT by `tools/vendor_three.js`
   from `package.json`'s pin (`npm install && node tools/vendor_three.js`): an
   esbuild IIFE with a global `THREE`, a CommonJS export for the node gates,
@@ -313681,6 +313692,30 @@ BATTERY (full log read): 120 PASS / 8 FAIL (L35c 118 / 10).
 RE-GATE after the revert, the parked fleet re-cooked (same): STOL, UISMOKE, UISMOKE-PHONE, DMGMEMBERS, SKINMAT, FIT, CLIP, SAVE, PARTS, TECH, PANEL PASS; GEN back to its one L35c red ("cruise is quiet in wind", Pilot), every build digest master's again.
 No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change: PHYSICS_V 7, GEN_SPEC_V 10, GEN_CERT_V 7, as on master.
 TIMED GATE: light, stale 12 Oct baseline; all 7 rollouts ran. Steady frames p50 33.3 ms on every flown row. L35c's 4.9 s cub taxi freeze @HOME is GONE: no frame over 1 s in any taxi, take-off or flight segment. The one >1 s pair (8.5 s + 4.0 s) is in the cub cockpit's garage stand before the reveal (boot/compile, the cold shader cache, as L35a-c). Reds are the boot and compile rows, as before.
+## DERELICT-HANGAR — A0's list from the user's review (9 Nov 2026, branch claude/derelict-hangar)
+
+The user on the renders: "a pretty nice piece of scenery and storytelling". Four changes, relayed by A0, in this order:
+1. **The DC-3 through the door (a bug, first).** The six front leaves stack INSIDE the 33.5 m opening when open (three
+   tracks a side, ~5.6 m each): the CLEAR opening is ~22 m, yet hangarDoor / hangarPark / rollanim treat 33.5 m as clear,
+   so the DC-3 (span 28.96 m, length 19.7 m, 5.16 m tail-down) "passes" a door it cannot. Fix: a clear opening of at
+   least ~31-32 m and >= 6 m at the fin's line - pocketed leaves (stacked outside the opening, behind the towers / in the
+   facade), or a wider hangar, or a tail notch (WWII practice) - and `door.w` = the CLEAR width everywhere. A gate: the
+   DC-3's span and fin clear the door with margin along its taxi line in (GATE DERELICT + GATE HANGAR's door rows).
+2. **Ambient occlusion baked on a second UV set.** The tiled base materials stay on UV0; a unique, non-overlapping uv1
+   across the whole model carries a baked AO texture multiplied over them (three.js aoMap on uv1). Baked in the pipeline
+   (a ray-cast AO bake in node), a sane texture size for the media budget, the derelict and the restored states their own
+   bakes where their geometry differs.
+3. **Real dimensions.** Research the Annette Island / Metlakatla WWII hangar (Army airfield 1940-42, later USCG Air
+   Station Annette; the hangar to the Coast Guard 1 Apr 1956): archives, Coast Guard aviation history, HABS/HAER, Alaska
+   heritage records, aerial imagery; the user's own Google Maps measurements come through A0. Match the real proportions
+   where they allow the DC-3 (a little larger is OK with the user).
+4. **The HOME layout** (Game owns the placement on the island; this branch the building): two hangars at HOME in the
+   end - this one in the middle, the main place, very visible, space to its right and left; the medium hangar where the
+   player starts with the little clubhouse next to it; the vacant medium-long plot goes. The large hangar stands alone
+   as the centrepiece: its apron and approach designed for a DC-3 taxiing in.
+Pictures for the user after each step. Also open from the user's own thread: stored aeroplanes in the large hangar in
+steps (HANGAR-STORAGE's slots + the packer already check sizes; the career's residents now stand on the door's line) -
+tools/large_hangar_store_shot.js, evidence reports/evidence/DERELICT-HANGAR/store/.
 
 ## COMMS-SECTION - THE AERIALS GET THEIR OWN PART, COMMUNICATIONS, LAID OUT FROM THE RADIOS (8-9 Nov, AVIONICS-PFD-LAND for the user via A0; out of L35d, for L36a)
 
@@ -315194,3 +315229,20 @@ read p99 10.1 mm on them. The real cut (a coarser refine at low chaos / fine row
 - app.js arriveFor(to): the aeroplane's own field (its hangar's base: playerRollHangar -> sheds[id].base) and To is it -> { fieldId, site: null } for the main plot (the field's own stand), { fieldId, site: playerPlotSite(...).site, plotId } for a plot with its own way out; any other To, a rig's spawn -> none. Set before EVERY departFrom (applyRoute, placeLinedUp, nextLeg), cleared at the top of applyRoute, kept on lastStart.arrive.
 - THE PHYSICS WORKER'S PILOT (the default flight) gets it too: sim_link init.place.arrive (from lastStart) and the 'leg' command's arrive (nextLeg's); sim_host sets it before departFrom in place(), its line-up pilot and 'leg' (and keeps it in init.place for a reset).
 - Pilot's island_tour rig stood in for the host part (its preload wraps makePilot); the plumbing's check is one leg HOME, w3, HOME per kind (main plot, HOME.2) ending at its stand.
+## HOME-LAYOUT (9 Nov, Game coordinator for A0; claude/ready/home-layout): HOME'S FINAL LAYOUT - A SCENERY READY
+- The user drew it on the satellite view of the real airport and validated the plan page (v4) on 9 Nov ~20:10: "yes the plan looks good, let's go for it" - "it won't move again".
+- The big derelict hangar (plot HOME.2) at the centre, at the foot of the taxiways' Y, with its OWN stand (22 m out of its door) and its own ways out up both arms. Each hangar has its own stand: playerPlotSite's existing rule (the Ridgeback and Cabin Strip sheds) - the plot only lacked the data.
+- The medium (HOME's club hangar, the start) 25 m to its left, fronts in line; its stand 18 m out and both ways out redrawn down the Y. The clubhouse (s_club) at its far-left front corner, turned 90 deg exactly square to the row (GATE SCENERYED 33), the club's sheds beside it, its terrace on the apron side.
+- Removed: the long club hangar (s_club hangar_long) and its building site (sg_k_hangar, af_wk_*) - the user: "the medium-long hangar ... has no reason to exist". The fire point 15 m left; the loose parked aircraft to the two open parking spots; the freight truck behind the medium; x_club widened to the new footprints. The back road (r39) untouched (11.3 m from the big).
+- HOME.2's works stands at 48 x 52, the largest its envelope offers (GATE GAMEPREM, GATE SITE's flat pad), at the final centre: DERELICT-HANGAR's 50 x 60 shell (DC-3 door >= 32 x 6 m) grows it without moving anything. Owners of HOME.2 keep their own dims.
+- The career track "field" (field:1 "the second hangar's shell, under repair", field:2 "restored") showed the long hangar: its two stages keep their captions and change nothing in the world (76_stages world:false) until DERELICT-HANGAR gives them the derelict's repair.
+- RE-PINNED: GATE SCENERYED 15's stage floor 17 / 5 -> 16 / 4 (the long hangar's kit and site item gone on purpose); GATE STAGES' closed-band case moved from the long hangar to the mine's mill. scenery_ship_afb19.json records every move as field patches (a re-ship applies them again) and holds back the six af_wk_* props the save still carries.
+- A scenery ready: its own TIMED A/B and its own train (the user's 26 Oct rule).
+- GATE TERRAINMATCH "HOME stand" RE-PINNED (A0's call, the two stand rows only): SCENERY - the user's validated layout moved the start's stand 60 m along the row and the row measures within 3 km of the stand: potato 1 197 318 -> 1 207 886 (+0.88 %), gamer 1 942 662 -> 1 957 246 (+0.75 %). The HOME taxi rows went down and keep their pins.
+- MERGED INTO L36d by the user's own call (9 Nov ~21:30 via A0: "can't you merge L36d and f? It buys us 2 hours") - it waives their scenery-own-train rule for this one; L36d's battery judges the heavy gates (TAXICLEAR's shards, DESTTO, TOUR, RWYTREES, PARKED, PROFILE, RADIALDIV, LINEUP, PLAN, ROUTE, STORESPOT, LAZY, ACCEPT) and its timed gate measures the result (no isolated SCENERY / CODE split).
+- REBASED 10 Nov on L37a (master db2298a41): fresh commits, the cooks re-made in order (premises, then city, map, fleet); GATE TERRAINMATCH's two HOME-stand pins carry the user's bumps (+5 624) like every other row.
+## HOME-DERELICT (10 Nov, Game coordinator for A0; local claude/home-derelict): THE DERELICT HANGAR ON HOME'S FINAL LAYOUT - ONE SCENERY READY
+- The user (10 Nov 13:20 via A0): the scenery train carries the NEW DERELICT HANGAR with its stages. claude/derelict-hangar (69a9e0cc8, on L35d) merged onto home-layout (L37a); four small conflicts (71_player_bases HOME.2 the derelict's, 76_stages field rows, 90_node_exports the union, hangar.js roompolish both).
+- THE FOUR PHASES IN THE STORY (the user, "the 4 phases"; A0's yes to the default): the field track 2 -> 3 steps - 0 derelict (no story yet), field:1 made safe (field.03), field:2 roofed (field.04, a new unlock), field:3 restored and the tower lit (field.05). HOME.2 closedTrack [0, 1, 2, 3]; src/missions/builtin.json re-retrofitted (tools/_missions_retrofit.js).
+- THE SIZE: DERELICT_GEN HW 22 x HD 30 (a 44 x 60 m hall) + the ONE-storey lean-to gallery 6 m outside the hall's right wall: 50 x 60 overall, the user's measurements. The door: GATE DERELICT row 9 (the clear width >= 31 m, the DC-3's fin under the head).
+- THE GALLERY FACES THE MEDIUM: HOME.2's ry = PI - hdg puts the derelict's +X (the lean-to) on the medium's side, so the 50 m footprint stood 28 m / 22 m off the plot's centre and 22 m from the medium. HOME.2 and its stand moved 3 m along the row away from the medium (x -134.51 -> -132.25, z 696.43 -> 698.4; stand -100.39, 657.18 -> -98.13, 659.15): the 50 m outline stands exactly where the validated plan drew it, 25 m from the medium. The back road r39: 10.9 m to its centreline, 8.1 m to its edge (5.6 m wide). Parking spot 2 is 84 m along the row from the centre, clear of the DC-3 apron (+-31 m).

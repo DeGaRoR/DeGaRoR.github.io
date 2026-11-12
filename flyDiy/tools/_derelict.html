@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<!--
+  DERELICT BENCH (DERELICT-HANGAR, 9 Nov 2026) - the derelict WWII hangar (tools/_derelict_gen.js) on its plot, lit like
+  a photograph: the captured alps sky (house_tex HOUSE_SKIES) as the environment, the backdrop and the sun; a field, a
+  conifer forest round it, the club hangar next door (the works stands touching the club, HOME.2), a mast behind. The
+  puddles on the slab draw a TRUE MIRROR of the frame (one extra pass of the reflected scene, the sky as a dome so it
+  reflects as geometry) - a bench and stills feature; the game's puddles reflect the environment map (design note Q4).
+  Serve from the repo root and open /flyDiy/tools/_derelict.html. tools/derelict_shot.js drives it headless:
+  window.BENCH.shoot({ stage, cam, mood, wet, decay, w, h }) -> a JPEG data URL.
+  Query: ?stage=0..3&cam=front|far|inside|stage|flank|roof|graffiti&mood=sun|overcast|golden&lod=0..2&mirror=0
+-->
+<meta charset="utf-8">
+<title>flyDiy — derelict hangar bench</title>
+<style>
+  html, body { margin: 0; background: #0f1114; overflow: hidden; color: #dfe6ee; font: 12px/1.4 ui-monospace, Menlo, Consolas, monospace; }
+  canvas { display: block; }
+  #ui { position: absolute; left: 8px; top: 8px; background: rgba(15,17,20,.78); padding: 6px 9px; border-radius: 5px; }
+  #ui select, #ui button { background: #1a1f27; color: #dfe6ee; border: 1px solid #2a313a; border-radius: 4px; font: inherit; }
+  #stat { position: absolute; left: 8px; bottom: 8px; background: rgba(15,17,20,.78); padding: 6px 9px; border-radius: 5px; white-space: pre; }
+</style>
+<canvas id="c"></canvas>
+<div id="ui">
+  stage <select id="stage"></select>
+  view <select id="cam"></select>
+  light <select id="mood"><option>sun</option><option>golden</option><option>overcast</option></select>
+  lod <select id="lod"><option>0</option><option>1</option><option>2</option></select>
+</div>
+<div id="stat"></div>
+<script src="../vendor/three.min.js"></script>
+<script>window.FLYDIY_ASSET_BASE = '../';</script>
+<script src="../src/viewer/assets.js"></script>
+<script src="../src/viewer/matlib.js"></script>
+<script src="../src/viewer/house_tex.js"></script>
+<script src="../src/viewer/ground_tex.js"></script>
+<script src="../src/viewer/sign_tex.js"></script>
+<script src="_house_kit.js"></script>
+<script src="_house_gen.js"></script>
+<script src="../src/viewer/hangar_walls.js"></script>
+<script src="../src/viewer/hangar_floor.js"></script>
+<script src="../src/viewer/hangar_sky.js"></script>
+<script src="../src/viewer/hangar.js"></script>
+<script src="_hangar_gen.js"></script>
+<script src="_derelict_gen.js"></script>
+<script>
+'use strict';
+(() => {
+const DG = window.DERELICT_GEN, HN = window.HANGAR_GEN, HG = window.HOUSE_GEN;
+const $ = id => document.getElementById(id);
+const qs = new URLSearchParams(location.search);
+const D2R = Math.PI / 180;
+let W = +qs.get('w') || innerWidth, H = +qs.get('h') || innerHeight;
+const SH = (THREE_, shape, p, scope) => MATLIB.shared(THREE, shape, p, 'derelict-bench:' + scope);
+
+// ---- renderer --------------------------------------------------------------------------------------------------------------
+const cv = $('c');
+const renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(1); renderer.setSize(W, H, false); cv.style.width = W + 'px'; cv.style.height = H + 'px';
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(50, W / H, 0.1, 3000);
+const LU = Math.PI;
+const sun = new THREE.DirectionalLight(0xffffff, 2.4 * LU);
+sun.castShadow = true; sun.shadow.mapSize.set(4096, 4096); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.03;
+sun.shadow.radius = 3.5;   // (the user: the shadows "really too harsh" - a softer edge, PCF's own filter)
+const sc = sun.shadow.camera; sc.left = -42; sc.right = 42; sc.top = 42; sc.bottom = -42; sc.near = 1; sc.far = 260;
+scene.add(sun, sun.target);
+const fill = new THREE.HemisphereLight(0xbdd2ea, 0x4a4436, 0);
+scene.add(fill);
+const pmrem = new THREE.PMREMGenerator(renderer);
+
+// ---- the sky: the captured alps afternoon (environment + backdrop + the measured sun) ----------------------------------------
+const SKY = HOUSE_SKIES.alps;
+function imgReady(img) { return new Promise(res => { if (img.complete && img.naturalWidth) res(); else img.addEventListener('load', () => res(), { once: true }); }); }
+let ENV = null, BG = null, DOME = null;
+async function loadSky() {
+  await Promise.all([imgReady(SKY.env), imgReady(SKY.bg)]);
+  const img = SKY.env, w = img.naturalWidth, h = img.naturalHeight, c = document.createElement('canvas');
+  c.width = w; c.height = h; const g = c.getContext('2d'); g.drawImage(img, 0, 0);
+  const src = g.getImageData(0, 0, w, h).data, half = THREE.DataUtils.toHalfFloat, out = new Uint16Array(w * h * 4);
+  for (let i = 0; i < w * h; i++) { const e = src[i * 4 + 3], k = e ? Math.pow(2, e - 136) : 0; out[i * 4] = half(src[i * 4] * k); out[i * 4 + 1] = half(src[i * 4 + 1] * k); out[i * 4 + 2] = half(src[i * 4 + 2] * k); out[i * 4 + 3] = half(1); }
+  const t = new THREE.DataTexture(out, w, h, THREE.RGBAFormat, THREE.HalfFloatType);
+  t.mapping = THREE.EquirectangularReflectionMapping; t.minFilter = t.magFilter = THREE.LinearFilter; t.generateMipmaps = false; t.needsUpdate = true;
+  ENV = pmrem.fromEquirectangular(t).texture;
+  BG = new THREE.Texture(SKY.bg); BG.mapping = THREE.EquirectangularReflectionMapping; BG.colorSpace = THREE.SRGBColorSpace; BG.needsUpdate = true;
+  // the dome (for the mirror pass: a reflected sky has to be geometry, a background is drawn along the eye's own ray)
+  const dt = new THREE.Texture(SKY.bg); dt.colorSpace = THREE.SRGBColorSpace; dt.needsUpdate = true;
+  DOME = new THREE.Mesh(new THREE.SphereGeometry(2000, 48, 24), SH(THREE, 'basic', { map: dt, side: THREE.BackSide, fog: false, depthWrite: false }, 'dome'));
+  DOME.renderOrder = -10; DOME.visible = false;
+  scene.add(DOME);
+}
+// the building turns under the photograph's sun (the sky cannot): `yaw` puts the sun where a view wants it
+const WORLD = new THREE.Group(); scene.add(WORLD);
+const MOODS = {
+  sun:      { sunK: 0.9, env: 1.25, bg: 1.0, fog: 0.0011, fogC: 0x9fb0c2, expo: 1.0 },   // (a little more sky in the shade: the shadows were too hard)
+  golden:   { sunK: 0.8, env: 1.05, bg: 0.9, fog: 0.0016, fogC: 0xc9a27a, expo: 1.1, warm: true },
+  overcast: { sunK: 0.08, env: 0.75, bg: 0.6, fog: 0.0035, fogC: 0x8d969c, expo: 1.35, grey: true },
+  night:    { sunK: 0.0, env: 0.018, bg: 0.012, fog: 0.004, fogC: 0x0b0f16, expo: 1.0, night: true },
+};
+function applyMood(name, yawDeg) {
+  const M = MOODS[name] || MOODS.sun;
+  scene.environment = ENV; scene.background = BG;
+  scene.environmentIntensity = M.env; scene.backgroundIntensity = M.bg;
+  if (scene.backgroundRotation) { scene.backgroundRotation.set(0, 0, 0); scene.environmentRotation.set(0, 0, 0); }
+  const d = SKY.sun;
+  sun.color.setRGB(SKY.sunCol[0], SKY.sunCol[1], M.warm ? SKY.sunCol[2] * 0.72 : SKY.sunCol[2]);
+  sun.intensity = Math.max(0.55, Math.min(3.0, SKY.direct * 6.5 + 0.45)) * M.sunK * LU / Math.PI;
+  const sd = new THREE.Vector3(d[0], d[1], d[2]).normalize();
+  sun.position.copy(sd).multiplyScalar(140); sun.target.position.set(0, 0, 0);
+  const sunDown = sun.intensity * Math.max(0, sd.y);
+  renderer.toneMappingExposure = M.expo * (SKY.ev || 1) / (1 + sunDown);
+  scene.fog = M.fog > 0 ? new THREE.FogExp2(M.fogC, M.fog) : null;
+  WORLD.rotation.y = (yawDeg || 0) * D2R;
+  fill.intensity = M.grey ? 0.25 : (M.night ? 0.12 : 0);
+  if (M.night) { fill.color.setRGB(0.35, 0.45, 0.7); fill.groundColor.setRGB(0.05, 0.05, 0.06); sun.color.setRGB(0.55, 0.65, 0.95); sun.intensity = 0.06; renderer.toneMappingExposure = 1.6; }
+  else { fill.color.setHex(0xbdd2ea); fill.groundColor.setHex(0x4a4436); }
+}
+
+// ---- the site: the field, the forest, the club next door, a mast ---------------------------------------------------------------
+function siteTex(set, map, tile, srgb) {
+  const S = (typeof SITE_TEX_SETS !== 'undefined' && SITE_TEX_SETS && SITE_TEX_SETS[set]) || null;
+  if (!S || !S[map]) return null;
+  if (Array.isArray(S[map])) return TEX_FLAT(S[map], srgb ? THREE.SRGBColorSpace : '');
+  const t = new THREE.Texture(S[map]); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; t.repeat.set(1 / tile, 1 / tile);
+  if (srgb) t.colorSpace = THREE.SRGBColorSpace;
+  imgReady(S[map]).then(() => { t.needsUpdate = true; });
+  return t;
+}
+function buildSite(HD) {
+  const grp = new THREE.Group(), HWb = (DG && DG.DEF && DG.DEF.HW) || 20;
+  const geo = new THREE.PlaneGeometry(3000, 3000, 1, 1); geo.rotateX(-Math.PI / 2);
+  const uv = geo.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, (uv.getX(i) - 0.5) * 3000, (uv.getY(i) - 0.5) * 3000);
+  const gm = SH(THREE, 'std', { color: 0xa9b48e, roughness: 1, metalness: 0, map: siteTex('ground003', 'diff', 4, true), normalMap: siteTex('ground003', 'nor', 4), roughnessMap: siteTex('ground003', 'rough', 4) }, 'field');
+  // a summer meadow is ~0.17 linear (the generator's calibration: the scan's mean measured, not a hand gain)
+  if (typeof SITE_TEX_SETS !== 'undefined' && SITE_TEX_SETS && SITE_TEX_SETS.ground003) DG.calibrate(gm, SITE_TEX_SETS.ground003.diff, 0.16, [0.88, 1.06, 0.72]);
+  const ground = new THREE.Mesh(geo, gm); ground.position.y = -0.02; ground.receiveShadow = true; grp.add(ground);
+  // the forest: conifers (a trunk and a cone of crown, instanced) round the plot, the airfield's sector kept open in front
+  const r = (() => { let s = 77; return () => (s = (s * 16807) % 2147483647) / 2147483647; })();
+  const rows = [];
+  for (let i = 0; i < 2600 && rows.length < 1500; i++) {
+    const a = r() * Math.PI * 2, d = 62 + Math.pow(r(), 0.7) * 520, x = Math.sin(a) * d, z = Math.cos(a) * d;
+    if (z > -10 && Math.abs(x) < 110 + z * 0.4 && z < 210) continue;          // the airfield and the apron in front
+    if (x < -(HWb + 8) && x > -(HWb + 62) && z > -25 && z < 50) continue;    // the club next door and its apron
+    const h = 14 + r() * 18 * (0.6 + 0.4 * Math.min(1, d / 200));
+    rows.push([x, z, h, r()]);
+  }
+  // a crown of three tiers (a spruce reads as stacked skirts, not a cone), merged into one geometry
+  const tiers = [[0.0, 0.55, 1.0], [0.3, 0.45, 0.74], [0.56, 0.44, 0.48]].map(([y0, h, rr]) => { const c = new THREE.ConeGeometry(rr, h, 9, 1, true); c.translate(0, y0 + h / 2, 0); return c; });
+  const cone = new THREE.BufferGeometry();
+  { const pos = [], idx = []; let base = 0;
+    for (const t of tiers) { const p = t.attributes.position, ix = t.index; for (let i = 0; i < p.count; i++) pos.push(p.getX(i), p.getY(i), p.getZ(i)); for (let i = 0; i < ix.count; i++) idx.push(ix.getX(i) + base); base += p.count; }
+    cone.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); cone.setIndex(idx); cone.computeVertexNormals(); }
+  const trunk = new THREE.CylinderGeometry(0.5, 0.7, 1, 6); trunk.translate(0, 0.5, 0);
+  const cm = SH(THREE, 'std', { color: 0x1d2a1c, roughness: 1, metalness: 0, side: THREE.DoubleSide }, 'crown');
+  const tm = SH(THREE, 'std', { color: 0x3a3028, roughness: 1, metalness: 0 }, 'trunk');
+  const IC = new THREE.InstancedMesh(cone, cm, rows.length), IT = new THREE.InstancedMesh(trunk, tm, rows.length);
+  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), p = new THREE.Vector3(), s = new THREE.Vector3(), col = new THREE.Color();
+  rows.forEach(([x, z, h, k], i) => {
+    q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), k * 6.28);
+    p.set(x, h * 0.12, z); s.set(h * 0.22, h * 0.9, h * 0.22); IC.setMatrixAt(i, m4.compose(p, q, s));
+    col.setRGB(0.75 + k * 0.4, 0.8 + k * 0.35, 0.75 + k * 0.3); IC.setColorAt(i, col);
+    p.set(x, 0, z); s.set(h * 0.025, h * 0.3, h * 0.025); IT.setMatrixAt(i, m4.compose(p, q, s));
+  });
+  IC.castShadow = IT.castShadow = true; IC.receiveShadow = true; grp.add(IC, IT);
+  // the club hangar next door - apart now (the user via A0: the large hangar is the centrepiece, "with space to its right and
+  // left"), the door fronts in one line
+  if (HN && qs.get('club') !== '0') {
+    const CP = Object.assign({}, HN.DEF, HN.PRESETS['club hangar']);
+    HN.applyFinish(CP);
+    const club = HN.build(CP, 0);
+    const cg = new THREE.Group(); cg.position.set(-(HWb + CP.HW + 14), 0, HD - CP.HD);
+    addBuilt(cg, club, HN.MAT);
+    grp.add(cg);
+  }
+  // a mast behind (photo 2): a lattice of three legs would be lost at that range - a pole, a yard, a guy or two
+  const mm = SH(THREE, 'std', { color: 0x8a8f93, roughness: 0.6, metalness: 0.6 }, 'mast');
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.18, 26, 8), mm); pole.position.set(16, 13, -52); pole.castShadow = true; grp.add(pole);
+  const yard = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 3.2, 6), mm); yard.rotation.z = Math.PI / 2; yard.position.set(16, 24.5, -52); grp.add(yard);
+  return grp;
+}
+
+// ---- the building ---------------------------------------------------------------------------------------------------------------
+function addBuilt(parent, built, MATS) {
+  const out = [];
+  for (const k of built.BAGS) {
+    const b = built.bags[k]; if (!b || !b.tris) continue;
+    const mat = (built.MAT && built.MAT[k]) || (MATS && MATS[k]) || (HG.MAT && HG.MAT[k]);
+    if (!mat) continue;
+    const m = b.mesh(parent, mat);
+    if (!m) continue;
+    m.name = 'bag:' + k;
+    if (k === 'aoskirt') { m.renderOrder = 5; m.castShadow = false; m.receiveShadow = false; }
+    if (k === 'stain' || k === 'water' || k === 'decal') { m.castShadow = false; }
+    if (k === 'stain') m.renderOrder = 3;
+    if (k === 'glass') { m.renderOrder = 6; m.castShadow = false; }
+    if (k === 'weed') { m.castShadow = true; m.customDepthMaterial = depthCut(mat); }
+    out.push(m);
+  }
+  return out;
+}
+let DEPTH_CUT = null;
+function depthCut(mat) {
+  if (!DEPTH_CUT) DEPTH_CUT = SH(THREE, 'depth', { depthPacking: THREE.RGBADepthPacking, map: mat.map, alphaTest: 0.42 }, 'weeddepth');
+  return DEPTH_CUT;
+}
+let ROOT = null, SITE = null, BUILT = null, CUR = '';
+const FIN = DG.makeFinish();
+function buildHangar(o) {
+  const key = JSON.stringify([o.stage, o.lod, o.wet, o.decay, o.seed, o.P || null]);
+  if (key === CUR && ROOT) return BUILT;
+  if (ROOT) { ROOT.traverse(m => { if (m.isMesh && m.geometry) m.geometry.dispose(); }); WORLD.remove(ROOT); }
+  ROOT = new THREE.Group(); ROOT.name = 'derelict';
+  const P = Object.assign({}, DG.DEF, { stage: o.stage, wet: o.wet, decay: o.decay, apron: 1, seed: o.seed || DG.DEF.seed }, o.P || {});
+  DG.applyFinish(P, FIN);
+  const t0 = performance.now();
+  BUILT = DG.build(P, o.lod, FIN);
+  BUILT.ms = performance.now() - t0;
+  BUILT.meshes = addBuilt(ROOT, BUILT, o.stage >= 3 ? (FIN.hn && FIN.hn.MAT) : FIN.MAT);
+  for (const L of ((BUILT.stats.lit && BUILT.stats.lit.lights) || [])) {   // the lamps are real lights (G253: no light without its glass)
+    if (!P.lamps) break;
+    const col = new THREE.Color(L.col[0], L.col[1], L.col[2]);
+    if (L.kind === 'flood') {                                               // a floodlight: a cone forward and down, not a ball of light on its own wall
+      const sp = new THREE.SpotLight(col, L.k * 160, L.range * 1.6, 0.75, 0.55, 2);
+      sp.position.set(L.x, L.y, L.z); sp.target.position.set(L.x + L.nx * 12, L.y + (L.ny || -0.5) * 12, L.z + L.nz * 12);
+      ROOT.add(sp, sp.target);
+    } else { const pl = new THREE.PointLight(col, L.k * 40, L.range * 1.4, 2); pl.position.set(L.x + L.nx * 0.15, L.y, L.z + L.nz * 0.15); ROOT.add(pl); }
+  }
+  WORLD.add(ROOT);
+  CUR = key;
+  hookMirror();
+  return BUILT;
+}
+
+// ---- THE MIRROR (the puddles): the scene reflected about the water's plane into a half-float target, sampled by screen ----
+let MRT = null;
+const MIRROR = { on: qs.get('mirror') !== '0', y: DG.DEF.floorY + 0.006, uniforms: null };
+function hookMirror() {
+  const wm = FIN.MAT && FIN.MAT.water;
+  if (!wm || wm.userData.mirrorHooked) return;
+  wm.userData.mirrorHooked = true;
+  MIRROR.uniforms = { tMirror: { value: null }, uRes: { value: new THREE.Vector2(W, H) }, uMirrorK: { value: 0 } };
+  // THE MIRROR REPLACES THE ENVIRONMENT'S RADIANCE, nothing else: after lights_fragment_maps `radiance` holds what
+  // the environment map returns for the reflected ray; RE_IndirectSpecular then weights it with three's own Fresnel
+  // (the split-sum DFG) and energy. The reflected scene (linear, untonemapped, HDR) is that radiance for a flat mirror,
+  // read at the fragment's own screen position. The bed (the wet slab) is the material's diffuse, untouched.
+  wm.onBeforeCompile = sh => {
+    Object.assign(sh.uniforms, MIRROR.uniforms);
+    sh.fragmentShader = 'uniform sampler2D tMirror; uniform vec2 uRes; uniform float uMirrorK;\n' + sh.fragmentShader.replace('#include <lights_fragment_maps>',
+      '#include <lights_fragment_maps>\n  radiance = mix(radiance, texture2D(tMirror, gl_FragCoord.xy / uRes).rgb, uMirrorK);');
+  };
+  wm.customProgramCacheKey = () => 'derelict-mirror';
+  wm.needsUpdate = true;
+}
+function renderMirror() {
+  if (!MIRROR.on || !MIRROR.uniforms || !BUILT || !BUILT.stats || !(BUILT.stats.puddleArea > 0)) { if (MIRROR.uniforms) MIRROR.uniforms.uMirrorK.value = 0; return; }
+  if (!MRT || MRT.width !== W || MRT.height !== H) { if (MRT) MRT.dispose(); MRT = new THREE.WebGLRenderTarget(W, H, { type: THREE.HalfFloatType, samples: 2 }); }
+  const water = BUILT.meshes.filter(m => /water|stain|aoskirt/.test(m.name));
+  water.forEach(m => { m.visible = false; });
+  const bg = scene.background, fog = scene.fog;
+  scene.background = null; DOME.visible = true; scene.fog = null;
+  WORLD.updateMatrixWorld(true);
+  // reflect: the world about y = Y (a negative determinant: three turns every object's winding itself)
+  const yaw = WORLD.rotation.y;
+  WORLD.scale.y = -1; WORLD.position.y = 2 * MIRROR.y;
+  DOME.scale.y = -1;
+  const tm = renderer.toneMapping; renderer.toneMapping = THREE.NoToneMapping;
+  renderer.shadowMap.autoUpdate = false;                              // the reflection keeps the true world's shadows
+  renderer.setRenderTarget(MRT); renderer.clear(); renderer.render(scene, camera); renderer.setRenderTarget(null);
+  renderer.shadowMap.autoUpdate = true;
+  renderer.toneMapping = tm;
+  WORLD.scale.y = 1; WORLD.position.y = 0; DOME.scale.y = 1; DOME.visible = false;
+  WORLD.rotation.y = yaw;
+  scene.background = bg; scene.fog = fog;
+  water.forEach(m => { m.visible = true; });
+  MIRROR.uniforms.tMirror.value = MRT.texture; MIRROR.uniforms.uRes.value.set(W, H); MIRROR.uniforms.uMirrorK.value = 1;
+}
+
+// ---- the views (in the building's frame: the door +z, x across; turned with the world) ------------------------------------------
+const VIEWS = {
+  // photo 1: from the apron in sun, square to the opening, a little off-centre
+  front:    { eye: [5, 1.65, 64], at: [0, 6.2, 0], fov: 52, yaw: 66, mood: 'sun' },
+  // photo 2: from far across the apron, long lens: the flat block, the header, the towers, the void, the mast, the shed
+  far:      { eye: [-30, 1.7, 182], at: [-9, 11.5, 0], fov: 22, yaw: 60, mood: 'sun', P: { apronL: 150 } },
+  // photo 3: inside looking out after rain: the puddles, the skeleton, the galleries, the forest in the opening
+  inside:   { eye: [3.5, 1.55, -22.5], at: [-1, 4.2, 40], fov: 66, yaw: 30, mood: 'overcast', wet: 0.92 },
+  // the stages: three-quarter from the front-right, high enough to see into the roof
+  stage:    { eye: [52, 17, 68], at: [2, 5, 0], fov: 46, yaw: 0, mood: 'sun' },
+  // details: the window wall of a flank, the roof from below, the graffiti at the white wall's foot
+  flank:    { eye: [40, 2.2, 6], at: [28, 3.6, -4], fov: 50, yaw: -54, mood: 'golden' },
+  roof:     { eye: [2, 1.6, 6], at: [6, 13, -6], fov: 70, yaw: 60, mood: 'sun' },
+  graffiti: { eye: [13.5, 1.5, 3.5], at: [21.5, 1.4, -4], fov: 55, yaw: 126, mood: 'sun' },
+  aerial:   { eye: [-70, 62, 92], at: [2, 2, -2], fov: 40, yaw: 80, mood: 'sun' },
+  barriers: { eye: [11.6, 1.25, 11.2], at: [14.4, 0.5, 16.5], fov: 48, yaw: 126, mood: 'sun' },
+  line:     { eye: [-4.5, 1.4, 37.5], at: [-9, 0.55, 31.7], fov: 50, yaw: 66, mood: 'sun', stage: 1 },
+  night:    { eye: [9, 1.7, 44], at: [0, 2.5, 28], fov: 55, yaw: 66, mood: 'night', stage: 1, P: { lamps: 1 } },
+  puddle:   { eye: [1.5, 1.6, -4], at: [0.5, 0.0, 4.5], fov: 55, yaw: 60, mood: 'sun', wet: 0.85 },
+  restored: { eye: [5, 1.65, 64], at: [0, 6.2, 0], fov: 52, yaw: 66, mood: 'sun', stage: 3, P: { doorOpen: 0.75 } },
+  hall:     { eye: [3.5, 1.65, -25], at: [-1, 5.0, 40], fov: 66, yaw: 60, mood: 'sun', stage: 3, P: { doorOpen: 1 } },
+  office:   { eye: [17.0, 1.7, 39.5], at: [23.6, 1.9, 30.6], fov: 50, yaw: 66, mood: 'sun', stage: 3, P: { doorOpen: 0.6 } },
+  // THE STEPPED PROFILE (the user: "from the front you don't see that part is missing. From the side and above you do"):
+  // three-quarter from the front-right, high; and square to the gallery's side
+  step:     { eye: [66, 15, 60], at: [14, 5, 4], fov: 44, yaw: 0, mood: 'sun' },
+  side:     { eye: [78, 5, -6], at: [22, 6.5, -2], fov: 46, yaw: -40, mood: 'golden' },
+  // THE BACK AND THE LEFT (A0 9 Nov: "the road passes behind ... design the BACK and the sides to be seen too")
+  back:     { eye: [-14, 2.4, -82], at: [4, 5.5, 0], fov: 46, yaw: -150, mood: 'sun' },
+  left:     { eye: [-82, 3.0, 16], at: [-20, 6, -2], fov: 46, yaw: 160, mood: 'sun' },
+  rnight:   { eye: [10, 1.8, 58], at: [1, 4.5, 25], fov: 52, yaw: 66, mood: 'night', stage: 3, P: { lamps: 1, doorOpen: 0.5 } },
+};
+function setView(name, yawOverride) {
+  const v = VIEWS[name] || VIEWS.front;
+  const yaw = (yawOverride !== undefined ? yawOverride : v.yaw) * D2R;
+  const T = p => { const c = Math.cos(yaw), s = Math.sin(yaw); return new THREE.Vector3(p[0] * c + p[2] * s, p[1], -p[0] * s + p[2] * c); };
+  camera.fov = v.fov; camera.aspect = W / H; camera.near = name === 'far' ? 1 : 0.1; camera.updateProjectionMatrix();
+  camera.position.copy(T(v.eye)); camera.lookAt(T(v.at));
+  return v;
+}
+
+// ---- textures: wait until every map in the scene has its pixels -----------------------------------------------------------------
+async function waitMaps(timeout) {
+  const t0 = performance.now();
+  for (;;) {
+    const pend = [];
+    scene.traverse(o => { if (!o.material) return; for (const m of [].concat(o.material)) for (const k of ['map', 'normalMap', 'roughnessMap']) { const t = m[k]; const img = t && t.image; if (img && img.tagName === 'IMG' && !(img.complete && img.naturalWidth)) pend.push(img); } });
+    if (!pend.length || performance.now() - t0 > (timeout || 60000)) return pend.length;
+    await new Promise(r => setTimeout(r, 250));
+  }
+}
+function statLine() {
+  if (!BUILT) return '';
+  const s = BUILT.stats;
+  return `stage ${s.stage} ${s.stageName}  lod ${s.lod === undefined ? '-' : s.lod}  ${s.tris} tris  ${s.draws} draws  build ${BUILT.ms.toFixed(0)} ms` +
+         (s.sheets ? `\nsheets ${s.sheets - s.sheetsGone}/${s.sheets} (bent ${s.sheetsBent}, hung ${s.sheetsHung})  panes ${s.panes} (milky ${s.panesMilky}, shards ${s.shards})  weeds ${s.weeds}  puddles ${Math.round(s.puddleArea)} m2` : '');
+}
+function render() {
+  renderer.render(scene, camera);                                     // (the shadow maps for this frame)
+  renderMirror();
+  renderer.render(scene, camera);
+  $('stat').textContent = statLine() + `\ndraw calls ${renderer.info.render.calls}  tris ${renderer.info.render.triangles}`;
+}
+
+// ---- the API the shot rig drives -----------------------------------------------------------------------------------------------
+const READY = (async () => {
+  await loadSky();
+  SITE = buildSite(DG.DEF.HD); WORLD.add(SITE);
+  return true;
+})();
+async function shoot(o0) {
+  await READY;
+  const o = Object.assign({ stage: 0, cam: 'front', lod: 0, decay: DG.DEF.decay, seed: DG.DEF.seed }, o0 || {});
+  if (o.w && o.h && (o.w !== W || o.h !== H)) { W = o.w; H = o.h; renderer.setSize(W, H, false); cv.style.width = W + 'px'; cv.style.height = H + 'px'; }
+  const v = VIEWS[o.cam] || VIEWS.front;
+  if (o.wet === undefined) o.wet = v.wet !== undefined ? v.wet : DG.DEF.wet;
+  if (o.P === undefined && v.P) o.P = v.P;
+  if (o0 && o0.stage === undefined && v.stage !== undefined) o.stage = v.stage;
+  applyMood(o.mood || v.mood, o.yaw !== undefined ? o.yaw : v.yaw);
+  buildHangar(o);
+  setView(o.cam, o.yaw);
+  let left = await waitMaps(o.timeout || 90000);
+  render(); await new Promise(r => setTimeout(r, 500)); left = await waitMaps(o.timeout || 90000);   // a settle frame: what lands a frame late (the first shot of a run) lands before the kept one
+  renderer.info.reset(); renderer.info.autoReset = false;
+  render(); render();
+  const calls = renderer.info.render.calls; renderer.info.autoReset = true;
+  return { url: cv.toDataURL('image/jpeg', o.q || 0.9), stats: Object.assign({}, BUILT.stats, { ground: undefined, groundAO: undefined, ao: undefined }), pendingMaps: left, calls, line: statLine() };
+}
+window.BENCH = { ready: READY, shoot, VIEWS, build: () => BUILT, renderer, scene, camera };
+
+// ---- interactive -------------------------------------------------------------------------------------------------------------
+DG.STAGES.forEach((n, i) => $('stage').add(new Option(i + ' ' + n, String(i))));
+Object.keys(VIEWS).forEach(k => $('cam').add(new Option(k, k)));
+$('stage').value = qs.get('stage') || '0'; $('cam').value = qs.get('cam') || 'front'; $('mood').value = qs.get('mood') || VIEWS[$('cam').value].mood; $('lod').value = qs.get('lod') || '0';
+const go = () => shoot({ stage: +$('stage').value, cam: $('cam').value, mood: $('mood').value, lod: +$('lod').value });
+for (const id of ['stage', 'cam', 'mood', 'lod']) $(id).addEventListener('change', () => { if (id === 'cam') $('mood').value = VIEWS[$('cam').value].mood; go(); });
+if (!qs.has('shot')) {
+  addEventListener('resize', () => { W = innerWidth; H = innerHeight; renderer.setSize(W, H, false); cv.style.width = W + 'px'; cv.style.height = H + 'px'; camera.aspect = W / H; camera.updateProjectionMatrix(); render(); });
+  go();
+  // a little orbit with the mouse
+  let drag = null;
+  cv.addEventListener('mousedown', e => { drag = [e.clientX, e.clientY]; });
+  addEventListener('mouseup', () => { drag = null; });
+  addEventListener('mousemove', e => { if (!drag) return; const dx = (e.clientX - drag[0]) * 0.005; drag = [e.clientX, e.clientY];
+    const p = camera.position.clone(); const c = Math.cos(dx), s = Math.sin(dx); camera.position.set(p.x * c + p.z * s, p.y, -p.x * s + p.z * c); camera.lookAt(0, 5, 0); render(); });
+}
+})();
+</script>

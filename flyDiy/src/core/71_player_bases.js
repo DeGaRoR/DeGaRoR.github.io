@@ -146,7 +146,16 @@ const BASE_OFFERS = {
     plots: {
       HOME: { shells: ['club', 'works', 'field'], kits: null, pf: 1, starter: true,
               dims: { field: { HW: 9, HD: 10, EAVE: 4.0 } } },
-      'HOME.2': { shells: ['works', 'club', 'field'], kits: ['park'], pf: 1,
+      // DERELICT-HANGAR (the user 9 Nov: "in the story at some point you can buy that one ... it's actually restoring it,
+      // from the state of the actual ... World War II hangar, which is currently derelict"): until it is held, HOME.2
+      // stands the large hangar DERELICT (closedStage 0: DERELICT_GEN's stage, the world's derelictShell); held, it is the
+      // player's - restored unless the story names its stage (dims.stage)
+      // THE STORY'S (A0 9 Nov: "the removed long club hangar was the 'field' career track's payoff ... Your derelict's repair
+      // IS that story"): in a career the unbought building stands at the field track's stage - HOME-DERELICT (the user 10 Nov,
+      // "the 4 phases"): the track has 3 steps, each its own stage - 0 derelict, 1 made safe, 2 roofed, 3 restored; the sandbox
+      // (no story) keeps it derelict
+      'HOME.2': { shells: ['works', 'club', 'field'], kits: ['park'], pf: 1, closedShed: true, closedStage: 0,
+                  closedTrack: { track: 'field', stages: [0, 1, 2, 3] },
                   dims: { field: { HW: 9, HD: 10, EAVE: 4.0 } } },
     },
   },
@@ -251,6 +260,8 @@ function hangarDims(shed) {
   // G3540: a shed's own sign ({ key, w, inside }: HANGAR_GEN signDials - over the door, and on the back wall inside)
   if (d.sign && typeof d.sign.key === 'string' && d.sign.key) out.sign = Object.assign({}, d.sign);
   if (d.ground && typeof d.ground.set === 'string' && d.ground.set) out.ground = Object.assign({}, d.ground);   // G3541/G3542
+  // DERELICT-HANGAR: the large hangar's restoration stage (0 derelict .. 3 restored; the story's to set - absent, restored)
+  if (Number.isFinite(d.stage)) out.stage = Math.max(0, Math.min(3, Math.round(d.stage)));
   return out;
 }
 // THE DOOR, hangar.js's own two lines (GATE GAMEPREM source-scans them so the
@@ -259,9 +270,10 @@ function hangarDims(shed) {
 function hangarDoor(shed) {
   const D = hangarDims(shed);
   const sh = (typeof SHELLS !== 'undefined' && SHELLS[shed && shed.shell]) || SHELLS.club;
-  const timber = sh.frame === 'timber';
-  const D0 = D, HW = D.HW;   // (G3537: hangar.js's own expression, read with the same names)
-  return { w: (D0.door > 0) ? Math.min(D0.door, 2 * HW - 1) : Math.max(6, 2 * HW - 5), h: timber ? D.EAVE - 0.5 : Math.min(6.4, D.EAVE - 1.4) };
+  const timber = sh.frame === 'timber', FRAME = sh.frame;
+  const D0 = D, HW = D.HW;   // (G3537: hangar.js's own expression, read with the same names; DERELICT-HANGAR: the steel frame's door)
+  return { w: (D0.door > 0) ? Math.min(D0.door, 2 * HW - 1) : FRAME === 'steel' ? 0.8 * (2 * HW - 2) - 0.34 : Math.max(6, 2 * HW - 5), h: timber ? D.EAVE - 0.5 : FRAME === 'steel' ? Math.min(7.6, D.EAVE - 1.9) : Math.min(6.4, D.EAVE - 1.4),
+           z: (typeof hangarBay === 'function' && hangarBay(shed && shed.shell, D)) ? hangarBay(shed && shed.shell, D).doorZ : 0 };
 }
 // What the fit-out stands on the floor: every prop and recipe hangarFit
 // PLACED (an unplaced one stands nowhere), as a plan rectangle at its
@@ -332,6 +344,7 @@ function hangarDoorWhy(shed, foot) {
 // aeroplane already parked (the corner points a hand would try first).
 function hangarPark(shed, planes, opts) {
   const D = hangarDims(shed), door = hangarDoor(shed);
+  const BAY = typeof hangarBay === 'function' ? hangarBay((shed && shed.shell) || 'club', D) : null;
   // opts.keep (G2315, the garage's residents): floor already taken - the build stand's aeroplane, { x0, x1, z0, z1 } in
   // the room's frame - packed around like the fit-out
   const obs = hangarObstacles(shed, opts && opts.reg).concat((opts && Array.isArray(opts.keep)) ? opts.keep : []);
@@ -348,13 +361,14 @@ function hangarPark(shed, planes, opts) {
       if (why) { unplaced.push({ name: p.name, why }); continue; }
       // the engine mount's range: the keep-out rectangle inside the walls
       const cxHi = D.HD - p.f.aft - PARK_CLR, cxLo = -D.HD + p.f.fwd + PARK_CLR;
-      const czHi = D.HW - p.f.half - PARK_CLR, czLo = -czHi;
+      // DERELICT-HANGAR: the clear bay and the door's line (the large hangar's gallery and facade; the club: +-HW and 0)
+      const czHi = (BAY ? BAY.z1 : D.HW) - p.f.half - PARK_CLR, czLo = BAY ? BAY.z0 + p.f.half + PARK_CLR : -czHi, zc0 = BAY ? BAY.doorZ : 0;
       let got = null;
-      if (cxHi >= cxLo - 1e-9 && czHi >= -1e-9) {
+      if (cxHi >= cxLo - 1e-9 && czHi >= czLo - 1e-9) {
         const near = obs.concat(rects);
         const xs = new Set(), zs = new Set();
         for (let x = cxHi; x >= cxLo - 1e-9; x -= PARK_STEP) xs.add(+x.toFixed(3));
-        for (let k = 0; k * PARK_STEP <= czHi + 1e-9; k++) { zs.add(+(k * PARK_STEP).toFixed(3)); zs.add(+(-k * PARK_STEP).toFixed(3)); }
+        for (let k = 0; k * PARK_STEP <= Math.max(czHi - zc0, zc0 - czLo) + 1e-9; k++) { zs.add(+(zc0 + k * PARK_STEP).toFixed(3)); zs.add(+(zc0 - k * PARK_STEP).toFixed(3)); }
         xs.add(+cxLo.toFixed(3)); zs.add(+czHi.toFixed(3)); zs.add(+czLo.toFixed(3));
         for (const o of near) {
           xs.add(+(o.x0 - p.f.aft - PARK_CLR).toFixed(3)); xs.add(+(o.x1 + p.f.fwd + PARK_CLR).toFixed(3));
@@ -362,7 +376,7 @@ function hangarPark(shed, planes, opts) {
         }
         const X = Array.from(xs).filter(x => x <= cxHi + 1e-9 && x >= cxLo - 1e-9).sort((a, b) => b - a);
         const Z = Array.from(zs).filter(z => z <= czHi + 1e-9 && z >= czLo - 1e-9)
-          .sort(how === 'centre' ? ((a, b) => (Math.abs(a) - Math.abs(b)) || (b - a)) : ((a, b) => a - b));
+          .sort(how === 'centre' ? ((a, b) => (Math.abs(a - zc0) - Math.abs(b - zc0)) || (b - a)) : ((a, b) => a - b));
         for (const cx of X) {
           const x0 = cx - p.f.fwd - PARK_CLR, x1 = cx + p.f.aft + PARK_CLR;
           const band = near.filter(o => x0 < o.x1 - 1e-9 && x1 > o.x0 + 1e-9);   // what this depth meets
@@ -1332,7 +1346,12 @@ function playerClosedSheds(doc) {
     for (const id of Object.keys(O.plots)) {
       const P = O.plots[id], shell = P.shells && P.shells[0];
       if (!P.closedShed || S[id] || !shell || typeof SHELLS === 'undefined' || !SHELLS[shell]) continue;
-      out.push({ id, base: aero, shell, dims: hangarDims({ shell, dims: Object.assign({}, SHELLS[shell].dims, (P.dims && P.dims[shell]) || {}) }), closed: true });
+      const dims = hangarDims({ shell, dims: Object.assign({}, SHELLS[shell].dims, (P.dims && P.dims[shell]) || {}) });
+      if (Number.isFinite(P.closedStage)) dims.stage = P.closedStage;   // (DERELICT-HANGAR: the plot's building as it stands unbought)
+      // ...and in a career, at its story track's stage (closedTrack: the track's value -> the building's stage)
+      const T = P.closedTrack, tr = (T && typeof stageTracksOf === 'function') ? stageTracksOf(doc) : null;
+      if (T && tr && Array.isArray(T.stages) && T.stages.length) dims.stage = T.stages[Math.max(0, Math.min(T.stages.length - 1, tr[T.track] || 0))];
+      out.push({ id, base: aero, shell, dims, closed: true });
     }
   }
   return out;

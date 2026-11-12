@@ -736,12 +736,33 @@
   function worldShedsFollow() {
     if (!WF) return;
     if (roomId() === 'HOME') { if (WF.setShedDims) WF.setShedDims(worldShed()); }
-    else if (WF.setPlayerSheds) WF.setPlayerSheds(worldSideSheds());
+    else if (WF.setPlayerSheds) { WF.setPlayerSheds(worldSideSheds()); shedTexWarm(); }
+  }
+  // HOME-DERELICT (the freeze A/B, 10 Nov 22:38-23:08: a 4.6-5.8 s TAXI frame 3 of 3 at (-111, 628), the big hangar first in
+  // view, render-side, no long task, no program wait): THE SIDE SHEDS' TEXTURES UPLOADED WHERE THEY STAND UP. Their programs
+  // are linked with the world's (compileSliced walks the scene), but a texture reaches the GPU at its first DRAW - the large
+  // hangar's canvas-made maps (DERELICT_GEN: the cladding, the slab, the stains, the boards) all at once, the first frame it
+  // enters the view. initTexture uploads each one here instead, under the loading screen (the world's build) or in the
+  // garage's quiet (a document change); a texture once uploaded is not uploaded again
+  function shedTexWarm() {
+    if (!WF || !renderer || typeof renderer.initTexture !== 'function') return 0;
+    const seen = new Set(); let n = 0;
+    const warm = t => { if (t && t.isTexture && !seen.has(t)) { seen.add(t); try { renderer.initTexture(t); n++; } catch (e) {} } };
+    try {
+      scene.traverse(o => {
+        if (!o.name || o.name.indexOf('shed:') !== 0) return;
+        o.traverse(m => {
+          const ms = m.material ? (Array.isArray(m.material) ? m.material : [m.material]) : [];
+          for (const mt of ms) { for (const k in mt) warm(mt[k]); if (mt.uniforms) for (const k in mt.uniforms) warm(mt.uniforms[k] && mt.uniforms[k].value); }
+        });
+      });
+    } catch (e) { console.warn('flyDiy: the side sheds\' textures -', e && e.message); }
+    return n;
   }
   function worldBuilt(wf) {
     WF = wf;
     // G2310 (PREM-S3): the side hangars held stand at their plots from the world's first frame (none in the sandbox)
-    try { if (WF && WF.setPlayerSheds) WF.setPlayerSheds(worldSideSheds()); } catch (e) { console.warn('flyDiy: the side hangars could not stand -', e && e.message); }
+    try { if (WF && WF.setPlayerSheds) { WF.setPlayerSheds(worldSideSheds()); shedTexWarm(); } } catch (e) { console.warn('flyDiy: the side hangars could not stand -', e && e.message); }
     if (typeof window !== 'undefined') window.WORLD = WF;   // DEVCAM: the inspector's handle on the world
     // GFX (G286): the saved graphics settings are applied the moment the
     // world exists - before its first chunk of forest is planted
@@ -930,8 +951,9 @@
   // shell's own default is", which is what a fresh profile gets. The envelope
   // the sliders may drag over is the SHELL's (26_hangar_fit.js) — a timber
   // field shed's eave floor is below a steel shed's.
+  // (DERELICT-HANGAR: HOME's main plot caps the depth at its flat pad - siteMaxHD; another plot the shell's own)
   const dimLims = () => (typeof shellLims === 'function')
-    ? shellLims(shedHome().shell)
+    ? shellLims(shedHome().shell, hangarRoom === 'HOME' ? 'HOME' : null)
     : { HW: [7, 24], HD: [6, 20], EAVE: [4.2, 11] };
   let envRT = null, envPM = null;
   // whether the aeroplane contributes to the room's own reflection probe. Off
@@ -1129,7 +1151,11 @@
       // blackout: colour multiplies the albedo map, so the floor comes back
       // with its own texture and its own lamp pools, at the fraction of the
       // radiance a shaded underside can actually see.
-      const gb = (window.LIGHT_RIG ? window.LIGHT_RIG.groundBounce() : 1);
+      // DERELICT-HANGAR (the user 9 Nov: "The bottom of the wing is really dark ... We should avoid having a very dark part
+      // of the scene there"): the large hangar's lamp-lit floor runs far past any wing's shade - a DC-3's polished
+      // underside reads the floor at half its radiance there, not the club's occlusion term
+      const gb0 = (window.LIGHT_RIG ? window.LIGHT_RIG.groundBounce() : 1);
+      const gb = (hangar && hangar.shell === 'works') ? Math.max(gb0, 0.5) : gb0;
       const gWas = [];
       if (gb < 1 && hangar.groundMats) for (const m of hangar.groundMats) {
         if (!m || !m.color) continue;
@@ -1390,9 +1416,11 @@
   const hvC = () => { try { if (/[?&]hvc=door\b/.test(location.search || '') && hangar && hangar.dims && hangar.dims.HD > 3) return [-(hangar.dims.HD - 2.5), 1.7, 0]; } catch (e) {} return HVIEW_C; };
   const HVIEW_NEAR = 3000;            // a flight that ended this near the stand left the world there (m)
   // HVIEW-OFF (8 Nov, the user's verdict on the hangars-matched stills: the captured view is not the look - a generic sky,
-  // no clouds, the apron smeared): OFF by default, the room's own outdoors as until L35a, until the redesign (flydiy-notes/
-  // HANGAR-VIEW-REDESIGN-2026-11-08.md, 'C') replaces it; ?hview=1 turns the capture on (the prototype's stills)
-  const hviewOff = () => { try { return !/[?&]hview=1\b/.test(location.search || ''); } catch (e) { return true; } };
+  // no clouds, the apron smeared) held it off until the redesign (flydiy-notes/HANGAR-VIEW-REDESIGN-2026-11-08.md, 'C': the live
+  // sky, L37a). HVIEW-ON (the user 10 Nov ~20:55 via A0: "When we land the new scenery, we have to regenerate these because all
+  // hangars have moved"): ON by default with the scenery train - the capture is live, keyed on the room's place (hviewKeyNow),
+  // so every moved hangar takes its own view; ?hview=0 turns it off (the room's own outdoors)
+  const hviewOff = () => { try { return /[?&]hview=0\b/.test(location.search || ''); } catch (e) { return true; } };
   function hviewSize() {
     const G = window.GFX; if (G && G.soft && G.soft()) return 0;
     let q = null; try { q = /[?&]hviewn=(\d+)/.exec(location.search || ''); } catch (e) {}   // (the proof rig's resolution A/B)
@@ -1647,9 +1675,14 @@
       residentsSync(bb);
       const ox = (CAREER_DEV && RES && RES.dx) || 0, oz = (CAREER_DEV && RES && RES.dz) || 0;
       if (CAREER_DEV) { hangar.group.position.x = -ox; hangar.group.position.z = -oz; }
+      // DERELICT-HANGAR: the sandbox's stand on the door's line - the large hangar's door is off the axis (its gallery
+      // on the right), so the room moves under the stand by the door's offset and a DC-3 rolls out through the middle
+      // (the career's residents plan carries it in RES.dz: residentsSync0's o0)
+      const sz = (!CAREER_DEV && hangar.door && hangar.door.z) ? hangar.door.z : 0;
+      if (sz) hangar.group.position.z = -sz;
       if (isFinite(bb.min.x) && bb.max.x > bb.min.x)
         hangar.placeMobile({ x0: bb.min.x + ox, x1: bb.max.x + ox,
-                             z0: bb.min.z + oz, z1: bb.max.z + oz });
+                             z0: bb.min.z + oz + sz, z1: bb.max.z + oz + sz });
       // G1714: where the radio stands now - the garage's music leans toward it (boombox.js -> music.js)
       if (window.BOOMBOX && hangar.mobileProp) window.BOOMBOX.placed(hangar.mobileProp('boombox'));
       // the kit moved, so its print on the floor moves with it
@@ -1721,7 +1754,16 @@
     const has = !!(bb && isFinite(bb.min.x) && bb.max.x > bb.min.x);
     // the stand's box, scene frame, and as a footprint about its origin (the model's)
     const sb = has ? { x0: q(bb.min.x), x1: q(bb.max.x), z0: q(bb.min.z), z1: q(bb.max.z) } : null;
-    const footOf = n => parkFoot(playerFootOf(d, n));
+    // THE TURN (the user 9 Nov, on the full hangar: "the aircraft, I believe, should have a random rotation, and if possible
+    // ... made to optimize their positioning against the other planes"): a resident stands turned by its own yaw (a hash
+    // of its name and the try, within RES_YAW either way), packed by the box of the TURNED plan - its place reserved for the
+    // turn. Six tries of yaws; the first that stands every resident wins, else the one that stands most, the straight
+    // pack last (today's) - a turn never costs an aeroplane its place.
+    const RES_YAW = 0.45;
+    const yawOf = (n, t) => { if (!t) return 0; let h = 2166136261; const k = n + '|' + t; for (let i = 0; i < k.length; i++) { h ^= k.charCodeAt(i); h = Math.imul(h, 16777619); } return (((h >>> 0) / 4294967296) * 2 - 1) * RES_YAW; };
+    const turn = (f, a) => { if (!a) return f; const c = Math.cos(a), sn = Math.abs(Math.sin(a));
+      return Object.assign({}, f, { fwd: f.fwd * c + f.half * sn, aft: f.aft * c + f.half * sn, half: f.half * c + Math.max(f.fwd, f.aft) * sn }); };
+    const footOf = (n, a) => turn(parkFoot(playerFootOf(d, n)), a || 0);
     const base = JSON.stringify([names, names.map(n => (d.fleet[n] && d.fleet[n].foot) || null), shed.shell, shed.layout || null, shed.dims || null, shed.kits, shed.omit || null]);
     const sig = base + JSON.stringify(sb);
     if (sig !== RES.sig) {
@@ -1729,43 +1771,56 @@
       const keepAt = o => sb ? [{ x0: sb.x0 + o.x - clr, x1: sb.x1 + o.x + clr, z0: sb.z0 + o.z - clr, z1: sb.z1 + o.z + clr }] : [];
       const obs = () => (RES.obsSig === base ? RES.obs : (RES.obsSig = base, RES.obs = hangarObstacles(shed)));
       const fits = (plan, o) => {
-        const K = keepAt(o), O = obs(), rects = plan.map(p => resRect(footOf(p.name), p.x, p.z, clr));
+        const K = keepAt(o), O = obs(), rects = plan.map(p => resRect(footOf(p.name, p.yaw), p.x, p.z, clr));
         const D = hangarDims(shed);
         return rects.every((r, i) => r.x0 >= -D.HD - 1e-6 && r.x1 <= D.HD + 1e-6 && r.z0 >= -D.HW - 1e-6 && r.z1 <= D.HW + 1e-6 &&
           !K.some(k => resHit(r, k)) && !O.some(b => resHit(r, b)) && rects.every((s, j) => j === i || !resHit(r, s)));
       };
-      let plan = null, how = '', o = { x: 0, z: 0 }, unplaced = [];
+      // DERELICT-HANGAR: the stand stands on the door's line - the large hangar's door is off the axis (its gallery on
+      // the right), so 'where the stand is' starts there, not at the room's centre (the club: 0, as ever)
+      const o0 = { x: 0, z: (hangar && hangar.door && isFinite(hangar.door.z)) ? hangar.door.z : 0 };
+      let plan = null, how = '', o = o0, unplaced = [];
       // 1. kept, or swapped in place
       const sw = RES.swap; RES.swap = null;
       if (RES.base === base || (sw && RES.plan.some(p => p.name === sw.at))) {
-        let cand = RES.plan.map(p => ({ name: p.name, x: p.x, z: p.z }));
-        if (sw) cand = cand.map(p => p.name === sw.at ? { name: sw.in, x: p.x, z: p.z } : p).filter(p => names.includes(p.name));
+        let cand = RES.plan.map(p => ({ name: p.name, x: p.x, z: p.z, yaw: p.yaw || 0 }));
+        if (sw) cand = cand.map(p => p.name === sw.at ? { name: sw.in, x: p.x, z: p.z, yaw: p.yaw } : p).filter(p => names.includes(p.name));
         const same = cand.length === names.length - RES.unplaced.length && cand.every(p => names.includes(p.name));
         if (same && fits(cand, off)) { plan = cand; o = off; unplaced = RES.unplaced.filter(u => names.includes(u.name)); how = sw ? 'swapped in place' : 'kept'; }
       }
-      // 2. round the stand, the room where it stands
-      if (!plan) {
-        const P = names.length ? hangarPark(shed, names.map(n => ({ name: n, foot: footOf(n) })), { keep: keepAt({ x: 0, z: 0 }) }) : { placed: [], unplaced: [] };
-        plan = P.placed.map(p => ({ name: p.name, x: p.x, z: p.z })); unplaced = P.unplaced; how = 'round the stand'; o = { x: 0, z: 0 };
-        // 3. the room moves: the stand packed with them
-        if (unplaced.length && sb) {
+      // 2. round the stand, the room where it stands; 3. the room moves: the stand packed with them - each with the
+      // residents turned (THE TURN's tries), the straight pack last
+      const packWith = t => {
+        const Y = {}; for (const n of names) Y[n] = yawOf(n, t);
+        const P = names.length ? hangarPark(shed, names.map(n => ({ name: n, foot: footOf(n, Y[n]) })), { keep: keepAt(o0) }) : { placed: [], unplaced: [] };
+        let R = { plan: P.placed.map(p => ({ name: p.name, x: p.x, z: p.z, yaw: Y[p.name] })), unplaced: P.unplaced, how: 'round the stand', o: o0 };
+        if (R.unplaced.length && sb) {
           // the stand MUST stand (the packer orders by size: two residents in today's club left the stand out - the 8 Oct
           // slot's club + 1, empty), so: every resident with it, then one at a time - the first set (in the residents'
           // order) that stands the stand and the most of them
           const sf = { half: Math.max(-sb.z0, sb.z1), fwd: Math.max(0.3, -sb.x0), aft: Math.max(0.3, sb.x1) };
           const sets = [names].concat(names.length > 1 ? names.map(n => [n]) : []);
           for (const set of sets) {
-            const Q = hangarPark(shed, [{ name: '\u0000stand', foot: sf }].concat(set.map(n => ({ name: n, foot: footOf(n) }))), {});
+            const Q = hangarPark(shed, [{ name: '\u0000stand', foot: sf }].concat(set.map(n => ({ name: n, foot: footOf(n, Y[n]) }))), {});
             const st = Q.placed.find(p => p.name === '\u0000stand');
             const got = Q.placed.filter(p => p.name !== '\u0000stand');
-            if (st && got.length > plan.length) {
-              plan = got.map(p => ({ name: p.name, x: p.x, z: p.z })); how = 'the room moved';
-              unplaced = names.filter(n => !got.some(p => p.name === n)).map(n => ({ name: n, why: 'no floor left beside the stand' }));
-              o = { x: st.x, z: st.z };        // where the stand's origin stands in the room
+            if (st && got.length > R.plan.length) {
+              R = { plan: got.map(p => ({ name: p.name, x: p.x, z: p.z, yaw: Y[p.name] })), how: 'the room moved', o: { x: st.x, z: st.z },   // (o: where the stand's origin stands in the room)
+                    unplaced: names.filter(n => !got.some(p => p.name === n)).map(n => ({ name: n, why: 'no floor left beside the stand' })) };
             }
-            if (plan.length === names.length) break;
+            if (R.plan.length === names.length) break;
           }
         }
+        return R;
+      };
+      if (!plan) {
+        let best = null;
+        for (const t of [1, 2, 3, 4, 5, 6, 0]) {
+          const R = packWith(t);
+          if (!best || R.plan.length > best.plan.length) best = R;
+          if (R.plan.length === names.length) break;
+        }
+        plan = best.plan; unplaced = best.unplaced; how = best.how + (best.plan.some(p => p.yaw) ? ', turned' : ''); o = best.o;
       }
       RES.base = base; RES.sig = sig; RES.packs = (RES.packs || 0) + (how === 'kept' || how === 'swapped in place' ? 0 : 1);
       RES.how = how; RES.plan = plan; RES.unplaced = unplaced; RES.dx = o.x; RES.dz = o.z;
@@ -1775,7 +1830,7 @@
         const k = 'mine:' + p.name;
         let g = RES.holders.get(k);
         if (!g) { g = window.PARKED.resident(THREE, k, RES.rung); g.userData.resident = p.name; RES.holders.set(k, g); RES.group.add(g); }
-        g.position.set(p.x, 0, p.z); g.rotation.y = Math.PI;            // nose to the door (-x), as the stand
+        g.position.set(p.x, 0, p.z); g.rotation.y = Math.PI + (p.yaw || 0);   // nose to the door (-x), as the stand, turned by its yaw
       }
     }
     // the room (and the residents with it) under the stand: minus the stand's place in the room's frame
@@ -1787,7 +1842,11 @@
       const f = RES.frame;
       if (f && azT === f.az && elT === f.el && distT === f.dist) { const F = garageFraming(); azT = F.az; elT = F.el; distT = F.dist; RES.frame = { az: F.az, el: F.el, dist: F.dist }; }
     }
-    for (const g of RES.holders.values()) if (!g.userData.filled) window.PARKED.residentFill(g);
+    for (const g of RES.holders.values()) if (!g.userData.filled) {
+      const p = window.PARKED.residentFill(g);
+      if (p && p.then) p.then(ok => { if (ok) residentsPrint(); });   // (landed later: its print baked then)
+    }
+    residentsPrint();
     residentsShow();
     RES.ms = performance.now() - t0;
   }
@@ -1825,6 +1884,19 @@
   }
   // shown: the hand's choice while it holds (until the next view), else the view's default - on in the room view
   // (the garage's own framing, 3/4 front, refit), off in the close views (side, plan, nose, interior)
+  // THE RESIDENTS' PRINT ON THE FLOOR (the user 9 Nov: "planes do not seem to cast a shadow onto that ground"): the floor's
+  // contact shadow is the room's baked print of what stands on its shadow layer (hangar.js bakeGroundShadow, layer 3 - the
+  // fit-out's); a resident joins that layer once its airframe has landed, and the print is baked again when the set of
+  // landed residents changes (never on a slider's drag: the same set costs a string compare)
+  function residentsPrint() {
+    if (!RES || !RES.group || !hangar || !hangar.bakeGroundShadow) return;
+    const on = [];
+    for (const [k, g] of RES.holders) if (g.userData.filled) { on.push(k + '@' + g.position.x.toFixed(2) + ',' + g.position.z.toFixed(2) + ',' + g.rotation.y.toFixed(3)); g.traverse(o => { if (o.isMesh) o.layers.enable(3); }); }
+    const sig = on.sort().join('|') + '|' + RES.group.visible;
+    if (sig === RES.printSig) return;
+    RES.printSig = sig;
+    try { hangar.bakeGroundShadow(renderer, hangarScene); } catch (e) {}
+  }
   const residentsOnNow = () => (RES.user !== null ? RES.user : RES.view === 'room');
   function residentsShow() { if (RES && RES.group) RES.group.visible = residentsOnNow(); }
   function residentsView(k) {
@@ -1837,7 +1909,7 @@
   const residentsApi = () => CAREER_DEV ? {
     on: residentsOnNow(), view: RES.view, user: RES.user, rung: RES.rung, ms: +RES.ms.toFixed(2), err: RES.err || null, packs: RES.packs || 0,
     how: RES.how || null, room: { dx: RES.dx || 0, dz: RES.dz || 0 }, lastSwap: RES.lastSwap || null,
-    plan: RES.plan.map(p => ({ name: p.name, x: p.x, z: p.z, filled: !!resHolder(p.name).userData.filled, tris: resHolder(p.name).userData.tris || 0 })),
+    plan: RES.plan.map(p => ({ name: p.name, x: p.x, z: p.z, yaw: +(p.yaw || 0).toFixed(3), filled: !!resHolder(p.name).userData.filled, tris: resHolder(p.name).userData.tris || 0 })),
     unplaced: RES.unplaced.slice(),
   } : null;
   function residentsSet(on) {
@@ -1936,6 +2008,7 @@
       if (shed.shell === k) return k;
       shed.shell = k;
       shed.dims = Object.assign({}, SHELLS[k].dims);
+      { const L = dimLims(); if (shed.dims.HD > L.HD[1]) shed.dims.HD = L.HD[1]; }   // (the site's pad: the large hangar at HOME's main plot)
       playerSave();
       disposeHangar();
       if (inGarage) applyEnv(); else getHangar();
@@ -16338,7 +16411,7 @@
     routeBuild($('bootRoute'), 'rollout');
     // PREM-S2: a change to the hangars held (or the garage's door) re-draws the base line
     window.FLYDIY_PLAYER.onChange = () => { try { routeBuild($('edRoute'), 'garage'); routeBuild($('bootRoute'), 'rollout'); routeSync(); } catch (e) {}
-      try { if (WF && WF.setPlayerSheds) WF.setPlayerSheds(worldSideSheds()); } catch (e) {} roomFollow(); };   // G2310: the side hangars and the room follow the document
+      try { if (WF && WF.setPlayerSheds) { WF.setPlayerSheds(worldSideSheds()); shedTexWarm(); } } catch (e) {} roomFollow(); };   // G2310: the side hangars and the room follow the document
     // G1375: the pickers re-filled for the gear (the garage's build, or the one flying), the route fitted to it first;
     // only when the gear changed - a refill under an open list would close it
     let refGear = gear0;
