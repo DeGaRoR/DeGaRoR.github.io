@@ -332,9 +332,21 @@ function buildTrailerModel(THREE, Tr, o) {
     latchAt(xs - 0.06, bw.y + 0.03, 0, [bw.x - 0.02, bw.y + 0.08, 0]);
   }
 
+  // a SOLID lathe section from an open polyline (r, y): offset t/2 either side along its normal, the two sides joined
+  // into one closed loop - a lathe of it has every face wound outward from the material, whatever side is seen
+  function solidSection(line, t) {
+    const N = line.map((q, i) => {
+      const a = line[Math.max(0, i - 1)], b = line[Math.min(line.length - 1, i + 1)];
+      let dr = b[0] - a[0], dy = b[1] - a[1]; const l = Math.hypot(dr, dy) || 1; dr /= l; dy /= l;
+      return [dy, -dr];   // (the lathe's own outward normal for a segment along (dr, dy))
+    });
+    const A = line.map((q, i) => new T.Vector2(q[0] + N[i][0] * t / 2, q[1] + N[i][1] * t / 2));
+    const B = line.map((q, i) => new T.Vector2(q[0] - N[i][0] * t / 2, q[1] - N[i][1] * t / 2)).reverse();
+    return A.concat(B, [A[0].clone()]);
+  }
   // ---- THE WHEELS: one wheel's parts (its axis +z, the outer face +z), instanced x 5 ----
   const W = { tyre: [], wheel: [], drum: [], chrome: [] };
-  { const r = wheelR, w = 0.185, rr = 0.178, n = S(36);
+  { const r = wheelR, w = 0.185, rr = 0.178, n = S(32);
     // the tyre's section (r, z): bead, sidewall bulge, the shoulder, the tread with three grooves
     const P = [];
     const sec = [[rr, -w * 0.38], [rr + 0.02, -w * 0.46], [0.235, -w * 0.5], [0.262, -w * 0.47], [0.282, -w * 0.4], [0.29, -w * 0.33],
@@ -344,9 +356,12 @@ function buildTrailerModel(THREE, Tr, o) {
     const tg = new T.LatheGeometry(P, n); tg.rotateX(Math.PI / 2); W.tyre.push(tg);
     // the pressed-steel wheel: the rim's flanges and well, the dished disc, its vent holes (dark), five studs' nuts
     const rim = [[rr - 0.004, w * 0.36], [rr + 0.012, w * 0.38], [rr + 0.008, w * 0.33], [rr - 0.006, w * 0.3], [rr - 0.02, w * 0.12], [rr - 0.02, -w * 0.12], [rr - 0.006, -w * 0.3], [rr + 0.008, -w * 0.33], [rr + 0.012, -w * 0.38], [rr - 0.004, -w * 0.36]];
-    const rg = new T.LatheGeometry(rim.map(([R, Z]) => new T.Vector2(R, Z)).reverse(), n); rg.rotateX(Math.PI / 2); W.wheel.push(rg);
+    // (12 Nov, the user: "a normal flip issue on the walls of your rims": the rim and the disc were single sheets - their
+    //  back faces, the rim's well and the flanges' inner walls, were culled: the wheel was see-through between the disc and
+    //  the bead. Each is now a SOLID section 4 mm thick, its two faces wound outward from the metal)
+    const rg = new T.LatheGeometry(solidSection(rim.map(([R, Z]) => [R, Z]).reverse(), 0.004), n); rg.rotateX(Math.PI / 2); W.wheel.push(rg);
     const disc = [[0.035, 0.035], [0.06, 0.036], [0.085, 0.03], [0.12, 0.012], [0.15, 0.0], [rr - 0.02, -0.01]];
-    const dg = new T.LatheGeometry(disc.map(([R, Z]) => new T.Vector2(R, Z)).reverse(), n); dg.rotateX(Math.PI / 2); W.wheel.push(dg);
+    const dg = new T.LatheGeometry(solidSection(disc, 0.004), n); dg.rotateX(Math.PI / 2); W.wheel.push(dg);
     for (let i = 0; i < 5; i++) { const a = i * Math.PI * 2 / 5 + Math.PI / 5;
       const h = new T.CylinderGeometry(0.018, 0.018, 0.004, S(12)); h.scale(1.5, 1, 1); h.rotateX(Math.PI / 2); h.rotateZ(a); h.translate(Math.cos(a) * 0.125, Math.sin(a) * 0.125, 0.011); W.drum.push(h); }
     for (let i = 0; i < 5; i++) { const a = i * Math.PI * 2 / 5, R = 0.056;
