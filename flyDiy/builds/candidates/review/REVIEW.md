@@ -28,3 +28,4 @@ where they were.
 | superpetrel_V2.json | Super Petrel V2: rigid-L mains turned flat into the lower wing's round recess (gearFold 9) | claude/hull-types | an earlier version (see V0) |
 | superpetrel_V3.json | Super Petrel V3: V2 with a clean nose, no flaps, spray strakes, no cabin door - "a very nice little plane" (the user) | claude/hull-types | an earlier version (see V0) |
 | superpetrel_V4.json | Super Petrel V4: V3 with the central faired pylon carrying the upper wing, the engine on an 8 cm pylon on the wing | claude/hull-types | an earlier version (see V0): V4.1 slides the engine into the wing |
+| ruckus_struts_2026-11-10.json | Ruckus (round struts, jury): the standard Ruckus on two round-tube lift struts with jury struts back to the cabin (STRUT-OPTIONS) | claude/strut-options | a TEST plane (A0, 12 Nov): GATE STRUTOPT's ultralight airframe; the Ruckus cards come with claude/ready/ruckus |

@@ -32,7 +32,7 @@ const plain = j => { const s = j.spec || j;
 const load = f => LB.gameSpec((/ruckus_struts/.test(f) ? plain : (j => j))(JSON.parse(fs.readFileSync(path.join(ROOT, f), 'utf8'))));
 const clone = o => JSON.parse(JSON.stringify(o));
 const BUILDS = { cub: 'builds/cub_2026-09-20_corrected.json', cessna: 'builds/cessna172_2026-09-20_corrected.json',
-                 ruckus: 'builds/candidates/ruckus_struts_2026-11-10.json' };
+                 ruckus: 'builds/candidates/review/ruckus_struts_2026-11-10.json' };
 
 function rigidityRank(nodes, beams) {           // GATE GEN's (tools/test_gen.js G4), verbatim
   const n3 = nodes.length * 3;
