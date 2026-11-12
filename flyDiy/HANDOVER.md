@@ -314940,3 +314940,6 @@ the next steps).
   between the bonnet and the windscreen: the A-pillar's foot sat under the bonnet line - wsBaseLift 0.06 levels the deck.
   ctlStick 1 (the yoke) on the van, the UTV and the buggy; hdlOn / wallTrimOn (the roof lining) on the van and the UTV.
   The rear wall's rows grouped in the tree under Structure & skin > 'rear wall (outside)' (rear windows, the relief).
+- **CAR-3, THE REAR DOORS NUDGED (the user: "3 cm up with the door and 3 cm outward with the contour")**: NEW ROWS
+  extDoorTop / extDoorOut (metres, absent 0; the 'rear wall (outside)' group): the outline's top up and its sides out;
+  the hinges follow (they read m.rearDoors). The van: 0.03 / 0.03.

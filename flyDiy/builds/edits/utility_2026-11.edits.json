@@ -161,7 +161,9 @@
   "wsBaseLift": 0.06,
   "ctlStick": 1,
   "hdlOn": 1,
-  "wallTrimOn": 1
+  "wallTrimOn": 1,
+  "extDoorTop": 0.03,
+  "extDoorOut": 0.03
  },
  "fuel": {
   "litres": 80,

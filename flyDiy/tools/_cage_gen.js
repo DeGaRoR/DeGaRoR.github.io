@@ -9376,7 +9376,8 @@ function cageSpec(P) {
     // S.windows: the side-view refusal below is for side glass
     // CAR-4: the bulkhead's bas-relief on the OUTSIDE of the rear wall (extRelief 1 beads / 2 rolled / 3 framed; absent = none)
     if (+P.extRelief > 0) S.extRelief = { kind: Math.max(1, Math.min(4, Math.round(+P.extRelief))),
-                                          h: P.extReliefH != null ? Math.max(0.003, +P.extReliefH) : 0.014, ps: +P.planeScale || 1 };
+                                          h: P.extReliefH != null ? Math.max(0.003, +P.extReliefH) : 0.014, ps: +P.planeScale || 1,
+                                          doorTop: +P.extDoorTop || 0, doorOut: +P.extDoorOut || 0 };
     // (CAR-3: rearWinN 2 = a PAIR, side by side, rearWinGap apart centre to centre; absent = one)
     if (+P.rearWinOn > 0) {
       const nR = Math.max(1, Math.min(2, Math.round(+P.rearWinN || 1))), gap = Math.max(0, +P.rearWinGap || 0);
@@ -11001,7 +11002,9 @@ function cageRearRelief(m, S) {
     let yTop = yT; for (let y = yT; y > yB; y -= 0.005 / ps) { const c = crossAt(1, y); if (c && c[1] - c[0] >= 0.88 * wMax) { yTop = y; break; } }
     let yBot = yB; for (let y = yB; y < yT; y += 0.005 / ps) { const c = crossAt(1, y); if (c && c[1] - c[0] >= 0.88 * wMax) { yBot = y; break; } }
     const ct = crossAt(1, yTop), cb = crossAt(1, yBot);
-    const x0 = Math.max(ct[0], cb[0]) + 0.01 / ps, x1 = Math.min(ct[1], cb[1]) - 0.01 / ps, y0 = yBot + 0.01 / ps, y1 = yTop - 0.01 / ps;
+    // the user's nudges (extDoorTop up, extDoorOut outward each side, metres; absent 0)
+    const dUp = (R.doorTop || 0) / ps, dOut = (R.doorOut || 0) / ps;
+    const x0 = Math.max(ct[0], cb[0]) + 0.01 / ps - dOut, x1 = Math.min(ct[1], cb[1]) - 0.01 / ps + dOut, y0 = yBot + 0.01 / ps, y1 = yTop - 0.01 / ps + dUp;
     const rect = [[x0, y0], [x1, y0], [x1, y1], [x0, y1]], loop = [];
     for (let i = 0; i < 4; i++) { const a = rect[i], c = rect[(i + 1) % 4]; for (let k = 0; k < 16; k++) loop.push([a[0] + (c[0] - a[0]) * k / 16, a[1] + (c[1] - a[1]) * k / 16]); }
     bead(loop, 0.012 / ps, true);

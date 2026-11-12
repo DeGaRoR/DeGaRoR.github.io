@@ -190,6 +190,8 @@ const WHEEL_ROWS = [
   // CAR-4: the bulkhead's bas-relief on the OUTSIDE of the rear wall (absent = none)
   ['extRelief', 'rear wall bas-relief', 0, 4, 1, ['none', 'pressed beads', 'rolled', 'framed panel', 'rear doors (framed, split, hinged)']],
   ['extReliefH', 'rear relief depth (m)', 0.003, 0.03, 0.001, { when: P => +P.extRelief }],
+  ['extDoorTop', 'rear doors: top edge up (m)', -0.2, 0.2, 0.005, { when: P => +P.extRelief === 4 }],
+  ['extDoorOut', 'rear doors: outline outward (m)', -0.2, 0.2, 0.005, { when: P => +P.extRelief === 4 }],
 ];
 
 const PRESETS = {

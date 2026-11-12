@@ -646,7 +646,7 @@ const CAGE_PARTS = [
       // AFT-BULKHEAD (3 Nov): the aft wall's own rows, absent at default
       ['aft wall', ['bhStep', 'bhShelfY', 'bhShelfD', 'bhBevel', 'bhTwoTone', 'bhRelief', 'bhReliefH', 'bhFast', 'bhNet', 'bhLamp', 'bhLampY', 'bhSling']],
       // CAR-3/4: the rear wall seen from OUTSIDE - its cut windows and its bas-relief (rear doors included)
-      ['rear wall (outside)', ['rearWinOn', 'rearWinN', 'rearWinGap', 'rearWinW', 'rearWinH', 'rearWinY', 'rearWinR', 'extRelief', 'extReliefH']],
+      ['rear wall (outside)', ['rearWinOn', 'rearWinN', 'rearWinGap', 'rearWinW', 'rearWinH', 'rearWinY', 'rearWinR', 'extRelief', 'extReliefH', 'extDoorTop', 'extDoorOut']],
       // (the 'cutting' group — `cutParts` — retired 2026-09-14: always on)
     ] },
 
