@@ -23,3 +23,9 @@ const zFw = C2.cageFirewallZ(C2.cageNamedZ(R, FS));
 const cw = k => +(spec.cage['cw_' + k] != null ? spec.cage['cw_' + k] : NaN);
 const cowlLen = cw('cowlLen'), lidLen = cw('lidLen');
 console.log('FIREWALL ' + (zFw - z0).toFixed(3) + ' m; cowl straight ' + cowlLen + ' + front ' + lidLen + ' (cowl rows, metres)');
+// the drawn windows (S.windows: row, index, centre z and width, cage units -> metres from the aft end as the rings)
+if (S.windows && S.windows.length) {
+  const zr = rings.map(r => r.z);
+  console.log('WINDOWS (raw cage z x FS): ' + S.windows.map(w => 'row' + w.row + '#' + w.i +
+    ' z ' + (w.z * FS).toFixed(3) + ' w ' + (w.w * FS).toFixed(3)).join(', ') + '  (rings raw z: ' + zr[0].toFixed(3) + ' .. ' + zr[zr.length - 1].toFixed(3) + ')');
+}
