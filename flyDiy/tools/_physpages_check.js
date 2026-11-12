@@ -147,10 +147,16 @@ function child(k) {
       if (/^<svg viewBox="0 0 1200 800"/.test(out)) continue;   // (no portrait layout yet: the desktop drawing, scaled - the spec's fallback)
       // each text's right edge from its size and anchor (an average advance of 0.5 em: a line that would run past w fails)
       const vb = out.match(/^<svg viewBox="0 0 (\d+) (\d+)"/);
-      const xs = [...out.matchAll(/<text x="(-?[\d.]+)" y="[^"]*" font-size="([\d.]+)"([^>]*)>([^<]*)<\/text>/g)]
+      // a drawing fitted to the column (the kit's C.fit: <g transform="translate(dx dy) scale(s)">) holds its text in its own
+      // units: brought to the page's before measuring
+      const flat = out.replace(/<g transform="translate\((-?[\d.]+) (-?[\d.]+)\) scale\(([\d.]+)\)">([\s\S]*?)<\/g>/g, (all, dx, dy, sc, inner) =>
+        inner.replace(/<text x="(-?[\d.]+)" y="(-?[\d.]+)" font-size="([\d.]+)"/g, (t, x, y, sz) => `<text x="${(+dx + sc * x).toFixed(1)}" y="${(+dy + sc * y).toFixed(1)}" font-size="${(sc * sz).toFixed(2)}"`));
+      const xs = [...flat.matchAll(/<text x="(-?[\d.]+)" y="[^"]*" font-size="([\d.]+)"([^>]*)>([^<]*)<\/text>/g)]
         .map(m => { const x = +m[1], sz = +m[2], a = (m[3].match(/text-anchor="(\w+)"/) || [])[1], L = m[4].replace(/&[a-z]+;/g, 'x').length * sz * 0.5;
-          return a === 'end' ? [x - L, x] : a === 'middle' ? [x - L / 2, x + L / 2] : [x, x + L]; });
-      ok(!!vb && +vb[1] === w && !/NaN|undefined|Infinity/.test(out) && xs.every(([l, r]) => l >= -1 && r <= w + 1), 'PHONE ' + p.id + ' at ' + w + ' px: ' + (out.startsWith('THROW') ? out : 'not ' + w + ' wide, a bad number, or a text past the edge'));
+          return a === 'end' ? [x - L, x, m[4]] : a === 'middle' ? [x - L / 2, x + L / 2, m[4]] : [x, x + L, m[4]]; });
+      const past = xs.find(([l, r]) => l < -1 || r > w + 1);
+      ok(!!vb && +vb[1] === w && !/NaN|undefined|Infinity/.test(out) && !past, 'PHONE ' + p.id + ' at ' + w + ' px: ' + (out.startsWith('THROW') ? out
+         : !vb || +vb[1] !== w ? 'not ' + w + ' wide' : past ? 'a text past the edge: "' + past[2] + '" (' + Math.round(past[0]) + ' to ' + Math.round(past[1]) + ')' : 'a bad number'));
     }
     // REFERENCE: the baked section's scores are real_report's own (scorePlane on the same result), and it draws whole
     { const RB = require(path.join(T, 'fiche_reference_bake.js')), REP = require(path.join(T, 'real_report.js'));

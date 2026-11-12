@@ -165,16 +165,11 @@
   // ===================================================================================================================
   // LOAD TEST + BREAKING POINT
   // ===================================================================================================================
-  function pageLoad(D, o, th, K) {
-    const M = D.model, Ld = D.load, Ds = D.destroy;
-    const out = head(th, K, o, 'Integrity · the certification bench',
-      Ld && Ld.verdict === 'HELD' ? 'Held 5.7 g with nothing bent' : (Ld ? Ld.verdict : 'No load test'),
-      Ld ? Math.round(Ld.W / 9.81) + ' kg in sandbags at 1 g, the plane on its back on trestles · ' + M.beams.length + ' members, each its own spring' : '');
-    if (!Ld || !Ld.shape) return out;
-    // the limit: the bent airframe, coloured by the work (left, top)
+  // INTEGRITY's three drawings into a box (the desktop's, the phone's column): the airframe bent at the limit, coloured by
+  // how hard each member works; the bench carried on until a part lets go; the g ladder. Return what the captions need.
+  function loadLimitPic(M, Ld, th, K, BX, out, fs) {
     const tip = Ld.tipM, Kx = Math.max(5, Math.round(0.11 * Ld.semi / Math.max(1e-4, tip) / 5) * 5);
-    const fv = frontView(M, Ld.shape, Kx, { x: 48, y: 196, w: 700, h: 190 });
-    out.push(K.T(48, 170, 'At the limit load, 3.8 g · bending drawn ×' + Kx, { sz: 14, w: 600, c: th.dim }));
+    const fv = frontView(M, Ld.shape, Kx, BX);
     for (const b of M.beams) if (M.CLS[b[2]] === 'wing' && tagOf(M, b[0]) === 'WF' && tagOf(M, b[1]) === 'WF') out.push(K.L(fv.P(b[0], 0), fv.P(b[1], 0), th.faint, 1.1, '4 5'));
     const order = M.beams.map((b, i) => i).sort((a, b) => Ld.util[a] - Ld.util[b]);
     for (const i of order) { const b = M.beams[i]; if (b[3]) continue; const u = Ld.util[i], wingish = M.CLS[b[2]] === 'wing' || M.CLS[b[2]] === 'wire';
@@ -185,21 +180,63 @@
     { const wf = M.nodes.map((n, i) => i).filter(i => tagOf(M, i) === 'WF'), tj = wf.reduce((a, i) => (M.nodes[i][2] > M.nodes[a][2] ? i : a), wf[0]);
       const pj = fv.P(tj, 0), pb = fv.P(tj, 1);
       out.push(K.L([pj[0] - 16, pj[1]], [pj[0] - 4, pj[1]], th.dim, 1) + K.L([pb[0] - 16, pb[1]], [pb[0] - 4, pb[1]], th.dim, 1) + K.L([pj[0] - 10, pj[1]], [pb[0] - 10, pb[1]], th.dim, 1));
-      out.push(K.T(pj[0] + 6, pj[1] + 22, '+' + r1(tip * 100) + ' cm at the tip', { sz: 15, w: 600 })); }
-    // the breaking point (left, below)
+      out.push(K.T(pj[0] + 6, pj[1] + 22, '+' + r1(tip * 100) + ' cm at the tip', { sz: fs || 15, w: 600 })); }
+    return { Kx };
+  }
+  function loadBreakPic(M, Ds, th, K, BX, out) {
+    let Kb = null;
     if (Ds && Ds.shape) {
       let bt = 0; M.nodes.forEach((n, i) => { if (tagOf(M, i) === 'WF') bt = Math.max(bt, Math.abs(Ds.shape[i][1])); });
-      const Kb = bt > 0.1 * M.semi ? 1 : Math.max(5, Math.round(0.11 * M.semi / Math.max(1e-4, bt) / 5) * 5);
-      const bv = frontView(M, Ds.shape, Kb, { x: 48, y: 470, w: 700, h: 170 });
-      out.push(K.T(48, 446, 'Carried on until a part lets go · ' + (Kb === 1 ? 'drawn true to scale' : 'bending drawn ×' + Kb), { sz: 14, w: 600, c: th.dim }));
+      Kb = bt > 0.1 * M.semi ? 1 : Math.max(5, Math.round(0.11 * M.semi / Math.max(1e-4, bt) / 5) * 5);
+      const bv = frontView(M, Ds.shape, Kb, BX);
       const brk = new Set(Ds.broken), yl = new Set(Ds.yielded);
       M.beams.forEach((b, i) => { if (b[3] || brk.has(i) || yl.has(i)) return; out.push(K.L(bv.P(b[0], 1), bv.P(b[1], 1), th.member, 0.8)); });
       M.beams.forEach((b, i) => { if (b[3] || !yl.has(i)) return; out.push(K.L(bv.P(b[0], 1), bv.P(b[1], 1), th.warn, 1.8)); });
       M.beams.forEach((b, i) => { if (!brk.has(i)) return; out.push(K.L(bv.P(b[0], 1), bv.P(b[1], 1), th.bad, 2.2, '5 4')); });
-      if (Ds.firstBreak) { const b = M.beams[Ds.firstBreak.beam], a = bv.P(b[0], 1), c = bv.P(b[1], 1), m = [(a[0] + c[0]) / 2, (a[1] + c[1]) / 2], left = m[0] < 48 + 350;
+      if (Ds.firstBreak) { const b = M.beams[Ds.firstBreak.beam], a = bv.P(b[0], 1), c = bv.P(b[1], 1), m = [(a[0] + c[0]) / 2, (a[1] + c[1]) / 2], left = m[0] < BX.x + BX.w / 2 && m[0] - 16 - 14 * 13 * 0.56 >= BX.x;   // (the left only where the label fits there)
         out.push(`<circle cx="${m[0].toFixed(1)}" cy="${m[1].toFixed(1)}" r="11" fill="none" stroke="${th.bad}" stroke-width="1.8"/>`);
         out.push(K.T(m[0] + (left ? -16 : 16), m[1] - 14, Ds.firstBreak.how === 'kink' ? 'first to buckle' : 'first to break', { sz: 13, c: th.bad, w: 600, a: left ? 'end' : 'start' })); }
     }
+    return { Kb };
+  }
+  function loadLadder(Ds, th, K, lx0, lx1, ly, out) {
+    // the ladder
+    if (Ds && Ds.brokeAt != null) {
+      const gMax = Math.max(7, Ds.brokeAt * 1.08), gx = g => lx0 + (lx1 - lx0) * g / gMax;
+      out.push(K.L([lx0, ly], [lx1, ly], th.lead, 1));
+      for (let g = 0; g <= gMax; g += (gMax > 10 ? 2 : 1)) out.push(K.L([gx(g), ly - 3], [gx(g), ly + 3], th.faint, 1) + K.T(gx(g), ly + 17, g + ' g', { sz: 11, c: th.faint, a: 'middle' }));
+      // the markers, then their labels stacked: each takes the first height (above the ladder, then below the g numbers)
+      // where its text clears every label already placed - events a tenth of a g apart (a Stearman's bend, break and
+      // let-go) used to print on one another
+      const same = Ds.yieldAt != null && Ds.breakAt != null && Math.abs(Ds.yieldAt - Ds.breakAt) < 0.05;
+      const M = [[3.8, 'limit 3.8', th.dim], [5.7, 'ultimate 5.7', th.dim]];
+      if (!same && Ds.yieldAt != null) M.push([Ds.yieldAt, 'first bend ' + Ds.yieldAt.toFixed(2), th.warn]);
+      if (Ds.breakAt != null && Math.abs(Ds.brokeAt - Ds.breakAt) > 0.05) M.push([Ds.breakAt, 'first ' + (Ds.firstBreak && Ds.firstBreak.how === 'kink' ? 'buckle ' : 'break ') + Ds.breakAt.toFixed(1), th.bad]);
+      M.push([Ds.brokeAt, (same ? 'bends and breaks ' : 'lets go ') + Ds.brokeAt.toFixed(2), th.bad]);
+      const LV = [-24, -42, 38, -60, 56], placed = [];
+      for (const [g, lab, col] of M.sort((a, b) => a[0] - b[0])) {
+        const x = gx(g), w = lab.length * 6.9, x0 = Math.max(lx0, Math.min(lx1 + 40 - w, x - w / 2));
+        let lv = LV.find(dy => placed.every(p => p.dy !== dy || x0 > p.x1 + 8 || x0 + w < p.x0 - 8));
+        if (lv == null) lv = LV[LV.length - 1];
+        placed.push({ dy: lv, x0, x1: x0 + w });
+        const ty = ly + lv, stem = lv < 0 ? [ly - 6, ty + 4] : [ly + 6, ty - 13];
+        out.push(`<circle cx="${x.toFixed(1)}" cy="${ly}" r="4.5" fill="${col}"/>` + K.L([x, stem[0]], [x, stem[1]], col, 1) +
+          K.T(x0, ty, lab, { sz: 12.5, c: col, w: 500 }));
+      }
+    }
+  }
+  function pageLoad(D, o, th, K) {
+    const M = D.model, Ld = D.load, Ds = D.destroy;
+    const out = head(th, K, o, 'Integrity · the certification bench',
+      Ld && Ld.verdict === 'HELD' ? 'Held 5.7 g with nothing bent' : (Ld ? Ld.verdict : 'No load test'),
+      Ld ? Math.round(Ld.W / 9.81) + ' kg in sandbags at 1 g, the plane on its back on trestles · ' + M.beams.length + ' members, each its own spring' : '');
+    if (!Ld || !Ld.shape) return out;
+    // the limit: the bent airframe, coloured by the work (left, top)
+    const tip = Ld.tipM, LP = loadLimitPic(M, Ld, th, K, { x: 48, y: 196, w: 700, h: 190 }, out, 15);
+    out.push(K.T(48, 170, 'At the limit load, 3.8 g · bending drawn ×' + LP.Kx, { sz: 14, w: 600, c: th.dim }));
+    // the breaking point (left, below)
+    if (Ds && Ds.shape) { const BP = loadBreakPic(M, Ds, th, K, { x: 48, y: 470, w: 700, h: 170 }, out);
+      out.push(K.T(48, 446, 'Carried on until a part lets go · ' + (BP.Kb === 1 ? 'drawn true to scale' : 'bending drawn ×' + BP.Kb), { sz: 14, w: 600, c: th.dim })); }
     // the right column: the readings
     const cx = 800, rows = [];
     rows.push(['3.8 g', 'limit load', '+' + r1(tip * 100) + ' cm at the tip']);
@@ -224,30 +261,7 @@
       out.push(K.T(cx, ky + 32, 'idle', { sz: 12, c: th.faint }) + K.T(cx + 320, ky + 32, '40 % of its yield', { sz: 12, c: th.faint, a: 'end' }));
       const k2 = ky + 58; let kx = cx;
       for (const [c, t, d] of [[th.warn, 'bent for good', null], [th.bad, 'broken', '5 4']]) { out.push(K.L([kx, k2 - 4], [kx + 22, k2 - 4], c, 2.2, d) + K.T(kx + 30, k2, t, { sz: 12.5, c: th.dim })); kx += 150; } }
-    // the ladder
-    if (Ds && Ds.brokeAt != null) {
-      const gMax = Math.max(7, Ds.brokeAt * 1.08), lx0 = 48, lx1 = 760, ly = 718, gx = g => lx0 + (lx1 - lx0) * g / gMax;
-      out.push(K.L([lx0, ly], [lx1, ly], th.lead, 1));
-      for (let g = 0; g <= gMax; g += (gMax > 10 ? 2 : 1)) out.push(K.L([gx(g), ly - 3], [gx(g), ly + 3], th.faint, 1) + K.T(gx(g), ly + 17, g + ' g', { sz: 11, c: th.faint, a: 'middle' }));
-      // the markers, then their labels stacked: each takes the first height (above the ladder, then below the g numbers)
-      // where its text clears every label already placed - events a tenth of a g apart (a Stearman's bend, break and
-      // let-go) used to print on one another
-      const same = Ds.yieldAt != null && Ds.breakAt != null && Math.abs(Ds.yieldAt - Ds.breakAt) < 0.05;
-      const M = [[3.8, 'limit 3.8', th.dim], [5.7, 'ultimate 5.7', th.dim]];
-      if (!same && Ds.yieldAt != null) M.push([Ds.yieldAt, 'first bend ' + Ds.yieldAt.toFixed(2), th.warn]);
-      if (Ds.breakAt != null && Math.abs(Ds.brokeAt - Ds.breakAt) > 0.05) M.push([Ds.breakAt, 'first ' + (Ds.firstBreak && Ds.firstBreak.how === 'kink' ? 'buckle ' : 'break ') + Ds.breakAt.toFixed(1), th.bad]);
-      M.push([Ds.brokeAt, (same ? 'bends and breaks ' : 'lets go ') + Ds.brokeAt.toFixed(2), th.bad]);
-      const LV = [-24, -42, 38, -60, 56], placed = [];
-      for (const [g, lab, col] of M.sort((a, b) => a[0] - b[0])) {
-        const x = gx(g), w = lab.length * 6.9, x0 = Math.max(lx0, Math.min(lx1 + 40 - w, x - w / 2));
-        let lv = LV.find(dy => placed.every(p => p.dy !== dy || x0 > p.x1 + 8 || x0 + w < p.x0 - 8));
-        if (lv == null) lv = LV[LV.length - 1];
-        placed.push({ dy: lv, x0, x1: x0 + w });
-        const ty = ly + lv, stem = lv < 0 ? [ly - 6, ty + 4] : [ly + 6, ty - 13];
-        out.push(`<circle cx="${x.toFixed(1)}" cy="${ly}" r="4.5" fill="${col}"/>` + K.L([x, stem[0]], [x, stem[1]], col, 1) +
-          K.T(x0, ty, lab, { sz: 12.5, c: col, w: 500 }));
-      }
-    }
+    loadLadder(Ds, th, K, 48, 760, 718, out);
     return out;
   }
 
@@ -418,16 +432,13 @@
     if (busP) out.push(K.T(x0, busBot + 30, 'Bus bar, ' + busP.breakers + ' breakers and the wire: ' + r1(busP.kg + (wire ? wire.kg : 0)) + ' kg. Loads return through the airframe.', { sz: 11.5, c: th.dim }));
     return out;
   }
-  function pageXray(D, o, th, K) {
-    const M = D.model, E = D.elec, Tk = D.tanks, pic = o.pics && o.pics.plan, Wc = (th.base || th) === THEMES.sheet ? WIRE.sheet : WIRE.dark;
-    const words = E.altA ? (E.elec.alternator === 'gen20' ? 'generator' : 'alternator') : 'battery';
-    const out = head(th, K, o, 'Electrics · and the fuel',
-      E.hasBus ? 'Every light on: ' + r1(E.night.A) + ' A of the ' + (E.altA ? E.altA + ' A ' + words : 'battery') : 'No battery, no lights: hand-propped',
-      E.hasBus && E.dark.min != null ? 'With the ' + words + ' dead at night, the battery lasts ' + r0(E.dark.min) + ' min (the game\'s own bus, run down to 9 V).' : '');
-    if (!pic || !pic.frame) return out;
-    const m = planMap(pic, { x: 40, y: 150, w: 640, h: 500 }), N = m.N, FUEL = CAT.engine;
+  // ELECTRICS' plan into a box: the plane from above (its picture faint), the fuel bay hatched, the wire runs by circuit,
+  // the lamps numbered (bs: the badges' radius), the battery, the bus, the machines. Returns what the rest needs.
+  function xrayPlan(D, o, th, K, pic, box, out, bs) {
+    const M = D.model, E = D.elec, Tk = D.tanks, Wc = (th.base || th) === THEMES.sheet ? WIRE.sheet : WIRE.dark;
+    const m = planMap(pic, box), N = m.N, FUEL = CAT.engine;
     out.push(`<defs><filter id="xg"><feColorMatrix type="saturate" values="0"/></filter><pattern id="xf" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="${FUEL}" stroke-width="2.2"/></pattern></defs>`);
-    out.push(picImg(pic, m, (th.base || th) === THEMES.sheet ? 0.4 : 0.22, 'xg'));
+    out.push(picImg(pic, m, (th.base || th) === THEMES.sheet ? 0.4 : 0.34, 'xg'));
     const wf = M.nodes.filter(n => M.tags[n[4]] === 'WF'), wr = M.nodes.filter(n => M.tags[n[4]] === 'WR');
     const near = (arr, z) => arr.slice().sort((a, b) => Math.abs(a[2] - z) - Math.abs(b[2] - z))[0];
     const semi = M.semi;
@@ -478,9 +489,19 @@
       let num = 0;
       for (const k of ['nav', 'land', 'taxi', 'beacon', 'cabin']) { if (!fit(k)) continue; lampNo[k] = ++num;
         for (const p of lamp[k]) { const q = N(p), dx = k === 'cabin' ? 20 : p[2] > 0.3 ? 17 : p[2] < -0.3 ? -17 : 17, dy = k === 'nav' && Math.abs(p[2]) < 0.3 ? 14 : -15;
-          out.push(badge(K, th, [q[0] + dx, q[1] + dy], num, 9)); } }
-      out.push(...schematic(E, th, K, 730, 150, 600, lampNo));
+          out.push(badge(K, th, [q[0] + dx * bs / 9, q[1] + dy * bs / 9], num, bs)); } }
     }
+    return { fuelP, v0, lampNo, amps };
+  }
+  function pageXray(D, o, th, K) {
+    const M = D.model, E = D.elec, Tk = D.tanks, pic = o.pics && o.pics.plan, Wc = (th.base || th) === THEMES.sheet ? WIRE.sheet : WIRE.dark;
+    const words = E.altA ? (E.elec.alternator === 'gen20' ? 'generator' : 'alternator') : 'battery';
+    const out = head(th, K, o, 'Electrics · and the fuel',
+      E.hasBus ? 'Every light on: ' + r1(E.night.A) + ' A of the ' + (E.altA ? E.altA + ' A ' + words : 'battery') : 'No battery, no lights: hand-propped',
+      E.hasBus && E.dark.min != null ? 'With the ' + words + ' dead at night, the battery lasts ' + r0(E.dark.min) + ' min (the game\'s own bus, run down to 9 V).' : '');
+    if (!pic || !pic.frame) return out;
+    const XP = xrayPlan(D, o, th, K, pic, { x: 40, y: 150, w: 640, h: 500 }, out, 9), fuelP = XP.fuelP, v0 = XP.v0, lampNo = XP.lampNo, amps = XP.amps;
+    if (E.hasBus) out.push(...schematic(E, th, K, 730, 150, 600, lampNo));
     if (fuelP && v0) {
       out.push(badge(K, th, fuelP, 'F', 9));
       out.push(badge(K, th, [52, 668], 'F', 9) + K.T(68, 672, 'Fuel: ' + r0(v0.litres) + ' L' + (v0.bayRes && v0.bayRes.on === 'wing' ? ' (' + r0(v0.litres / 2) + ' L a side)' : ' in the nose') + ', ' + r0(v0.contentsKg) + ' kg; the ' +
@@ -503,6 +524,41 @@
   // ===================================================================================================================
   // WHAT THE SIM FLIES - the plan large on the left (nose up), the side view and the key on the right
   // ===================================================================================================================
+  // the model's three views drawn through the maps V ({ plan, front, side }.f: model point -> page point) at one scale s
+  // (the desktop's three-view and the phone's stacked one share it)
+  function modelDraw(D, o, th, K, V, s, out) {
+    const M = D.model, n = M.nodes, Dp = M.prop.D || 1.8, eng = M.prop.at || [0, 1, 0];
+    const discs = (M.prop.discs && M.prop.discs.length) ? M.prop.discs : [[eng[0], eng[1], 0, 0]];
+    out.push(`<defs><filter id="mg"><feColorMatrix type="saturate" values="0"/></filter><pattern id="mh" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="5" stroke="${CAT.fittings}" stroke-width="1.8"/></pattern></defs>`);
+    // the ghosts: picture pixel = R(rot) proj(p) s + o (fitFrame), so proj(p) = R(-rot)(pixel - o) / s
+    for (const vk of ['plan', 'side', 'front']) { const pc = o.pics && o.pics[vk]; if (!pc || !pc.frame) continue;
+      const O = V[vk].f([0, 0, 0]), f = V[vk].sc / pc.s;
+      out.push(`<image href="${pc.href}" width="${pc.W}" height="${pc.H}" transform="translate(${O[0].toFixed(2)} ${O[1].toFixed(2)}) scale(${f.toFixed(5)}) rotate(${(-(pc.frame.rot || 0)).toFixed(2)}) translate(${-pc.frame.ox} ${-pc.frame.oy})" opacity="${th.ghost}" filter="url(#mg)"/>`); }
+    const quad = (st, P, hatch) => {
+      const F0 = P3(M, st[0]), F1 = P3(M, st[1]), R0 = P3(M, st[2]), R1 = P3(M, st[3]), ch = st[4], cs = hatch ? st[6] : 0;
+      const at = (F, R, t) => { const d = [0, 1, 2].map(q => R[q] - F[q]), Ln = Math.hypot(...d) || 1; return [0, 1, 2].map(q => F[q] + d[q] / Ln * ch * (t - 0.15)); };
+      const hinge = 1 - cs, poly = (pts, attr) => `<path d="M${pts.map(q => q[0].toFixed(1) + ' ' + q[1].toFixed(1)).join(' L')} Z" ${attr}/>`;
+      return poly([at(F0, R0, 0), at(F1, R1, 0), at(F1, R1, hinge), at(F0, R0, hinge)].map(P), K.fillAttr(CAT.structure, (th.base || th) === THEMES.sheet ? 0.32 : 0.18)) +
+        (cs > 0 ? poly([at(F0, R0, hinge), at(F1, R1, hinge), at(F1, R1, 1), at(F0, R0, 1)].map(P), `fill="url(#mh)" stroke="${CAT.fittings}" stroke-width="0.9"`) : '');
+    };
+    const pl = V.plan.f, sd = V.side.f, fr = V.front.f;
+    for (const st of M.strips) if (M.KIND[st[5]] !== 'fin') out.push(quad(st, pl, true));
+    for (const st of M.strips) if (M.KIND[st[5]] === 'fin') out.push(quad(st, sd, true));
+    for (const st of M.strips) out.push(quad(st, fr, false));
+    for (const b of M.beams) { if (b[3]) continue; const A = P3(M, b[0]), B = P3(M, b[1]); out.push(K.L(pl(A), pl(B), th.member, 0.7) + K.L(sd(A), sd(B), th.member, 0.6) + K.L(fr(A), fr(B), th.member, 0.6)); }
+    const ring = (q, rr) => `<circle cx="${q[0].toFixed(1)}" cy="${q[1].toFixed(1)}" r="${rr.toFixed(1)}" fill="${th.ink}" fill-opacity=".1" stroke="${th.ink}" stroke-width="1.3" stroke-dasharray="4 3"/>`;
+    const drag = (p, a) => { const r = Math.sqrt(Math.max(0, a) / Math.PI); out.push(ring(pl(p), r * s) + ring(sd(p), r * s) + ring(fr(p), r * s)); };
+    if (M.drag.fwd) drag(M.drag.fwd, M.drag.cda[0]);
+    if (M.drag.aft) drag(M.drag.aft, (M.drag.cdaAft[1] || 0) * 0.25);
+    for (const q of discs) { const c = fr([q[0], q[1], q[2]]);
+      out.push(K.L(pl([q[0], 0, q[2] - Dp / 2]), pl([q[0], 0, q[2] + Dp / 2]), CAT.engine, 3) + K.L(sd([q[0], q[1] - Dp / 2, 0]), sd([q[0], q[1] + Dp / 2, 0]), CAT.engine, 2.6) +
+        `<circle cx="${c[0].toFixed(1)}" cy="${c[1].toFixed(1)}" r="${(Dp / 2 * s).toFixed(1)}" fill="${CAT.engine}" fill-opacity=".08" stroke="${CAT.engine}" stroke-width="2"/>`); }
+    const box = (q, h) => `<rect x="${(q[0] - h).toFixed(1)}" y="${(q[1] - h).toFixed(1)}" width="${2 * h}" height="${2 * h}" ${K.fillAttr(CAT.gear, 0.95)}/>`;
+    for (const i of M.contacts) { const p = P3(M, i); out.push(box(pl(p), 4.5) + box(sd(p), 4) + box(fr(p), 4)); }
+    if (M.floats) for (const q of byTag(M, 'FLK')) out.push(box(pl(q), 2.5) + box(fr(q), 2.5));
+    const dot = (q, r) => `<circle cx="${q[0].toFixed(1)}" cy="${q[1].toFixed(1)}" r="${r.toFixed(1)}" fill="${th.ink}" fill-opacity=".72"/>`;
+    for (const q of n) if (q[3] > 0.05) { const r = Math.sqrt(q[3]); out.push(dot(pl(q), Math.max(1.1, r * 1.1)) + dot(sd(q), Math.max(0.9, r * 0.85)) + dot(fr(q), Math.max(0.9, r * 0.85))); }
+  }
   function pageModel(D, o, th, K) {
     // THE THREE VIEWS, as large as the sheet allows: from above (nose up) on the left, the side and the front on the right
     // at one scale, one legend row under them. The rendered plane is the grey ghost behind each view (its fitted frame).
@@ -535,35 +591,7 @@
     { const zs2 = [E.plan[0], E.plan[1]], dash = '2 5';
       for (const z of zs2) out.push(K.L([xc + z * s, yP + hP + 6], [xc + z * s, yV - 22], th.member, 0.8, dash));
       for (const y of [E.side[2], E.side[3]]) out.push(K.L([xc + half * s + 8, yV + (y - vTop) * s], [xR - 8, yV + (y - vTop) * s], th.member, 0.8, dash)); }
-    out.push(`<defs><filter id="mg"><feColorMatrix type="saturate" values="0"/></filter><pattern id="mh" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="5" stroke="${CAT.fittings}" stroke-width="1.8"/></pattern></defs>`);
-    // the ghosts: picture pixel = R(rot) proj(p) s + o (fitFrame), so proj(p) = R(-rot)(pixel - o) / s
-    for (const vk of ['plan', 'side', 'front']) { const pc = o.pics && o.pics[vk]; if (!pc || !pc.frame) continue;
-      const O = V[vk].f([0, 0, 0]), f = V[vk].sc / pc.s;
-      out.push(`<image href="${pc.href}" width="${pc.W}" height="${pc.H}" transform="translate(${O[0].toFixed(2)} ${O[1].toFixed(2)}) scale(${f.toFixed(5)}) rotate(${(-(pc.frame.rot || 0)).toFixed(2)}) translate(${-pc.frame.ox} ${-pc.frame.oy})" opacity="${th.ghost}" filter="url(#mg)"/>`); }
-    const quad = (st, P, hatch) => {
-      const F0 = P3(M, st[0]), F1 = P3(M, st[1]), R0 = P3(M, st[2]), R1 = P3(M, st[3]), ch = st[4], cs = hatch ? st[6] : 0;
-      const at = (F, R, t) => { const d = [0, 1, 2].map(q => R[q] - F[q]), Ln = Math.hypot(...d) || 1; return [0, 1, 2].map(q => F[q] + d[q] / Ln * ch * (t - 0.15)); };
-      const hinge = 1 - cs, poly = (pts, attr) => `<path d="M${pts.map(q => q[0].toFixed(1) + ' ' + q[1].toFixed(1)).join(' L')} Z" ${attr}/>`;
-      return poly([at(F0, R0, 0), at(F1, R1, 0), at(F1, R1, hinge), at(F0, R0, hinge)].map(P), K.fillAttr(CAT.structure, (th.base || th) === THEMES.sheet ? 0.32 : 0.18)) +
-        (cs > 0 ? poly([at(F0, R0, hinge), at(F1, R1, hinge), at(F1, R1, 1), at(F0, R0, 1)].map(P), `fill="url(#mh)" stroke="${CAT.fittings}" stroke-width="0.9"`) : '');
-    };
-    const pl = V.plan.f, sd = V.side.f, fr = V.front.f;
-    for (const st of M.strips) if (M.KIND[st[5]] !== 'fin') out.push(quad(st, pl, true));
-    for (const st of M.strips) if (M.KIND[st[5]] === 'fin') out.push(quad(st, sd, true));
-    for (const st of M.strips) out.push(quad(st, fr, false));
-    for (const b of M.beams) { if (b[3]) continue; const A = P3(M, b[0]), B = P3(M, b[1]); out.push(K.L(pl(A), pl(B), th.member, 0.7) + K.L(sd(A), sd(B), th.member, 0.6) + K.L(fr(A), fr(B), th.member, 0.6)); }
-    const ring = (q, rr) => `<circle cx="${q[0].toFixed(1)}" cy="${q[1].toFixed(1)}" r="${rr.toFixed(1)}" fill="${th.ink}" fill-opacity=".1" stroke="${th.ink}" stroke-width="1.3" stroke-dasharray="4 3"/>`;
-    const drag = (p, a) => { const r = Math.sqrt(Math.max(0, a) / Math.PI); out.push(ring(pl(p), r * s) + ring(sd(p), r * s) + ring(fr(p), r * s)); };
-    if (M.drag.fwd) drag(M.drag.fwd, M.drag.cda[0]);
-    if (M.drag.aft) drag(M.drag.aft, (M.drag.cdaAft[1] || 0) * 0.25);
-    for (const q of discs) { const c = fr([q[0], q[1], q[2]]);
-      out.push(K.L(pl([q[0], 0, q[2] - Dp / 2]), pl([q[0], 0, q[2] + Dp / 2]), CAT.engine, 3) + K.L(sd([q[0], q[1] - Dp / 2, 0]), sd([q[0], q[1] + Dp / 2, 0]), CAT.engine, 2.6) +
-        `<circle cx="${c[0].toFixed(1)}" cy="${c[1].toFixed(1)}" r="${(Dp / 2 * s).toFixed(1)}" fill="${CAT.engine}" fill-opacity=".08" stroke="${CAT.engine}" stroke-width="2"/>`); }
-    const box = (q, h) => `<rect x="${(q[0] - h).toFixed(1)}" y="${(q[1] - h).toFixed(1)}" width="${2 * h}" height="${2 * h}" ${K.fillAttr(CAT.gear, 0.95)}/>`;
-    for (const i of M.contacts) { const p = P3(M, i); out.push(box(pl(p), 4.5) + box(sd(p), 4) + box(fr(p), 4)); }
-    if (M.floats) for (const q of byTag(M, 'FLK')) out.push(box(pl(q), 2.5) + box(fr(q), 2.5));
-    const dot = (q, r) => `<circle cx="${q[0].toFixed(1)}" cy="${q[1].toFixed(1)}" r="${r.toFixed(1)}" fill="${th.ink}" fill-opacity=".72"/>`;
-    for (const q of n) if (q[3] > 0.05) { const r = Math.sqrt(q[3]); out.push(dot(pl(q), Math.max(1.1, r * 1.1)) + dot(sd(q), Math.max(0.9, r * 0.85)) + dot(fr(q), Math.max(0.9, r * 0.85))); }
+    modelDraw(D, o, th, K, V, s, out);
     // the legend: a list above the side view, then a scale bar (the three views share it)
     const kg = n.reduce((a, q) => a + q[3], 0);
     let LY = yP + 6;
@@ -903,7 +931,128 @@
       });
     }
   }
-  const PHONE = { drag: phoneDrag, cooling: phoneCooling };
+  function phoneReference(D, o, th, K, C) {
+    const R = D && D.reference;
+    const band = s => s == null ? [th.faint, 'no data'] : s >= 80 ? [(th.base || th) === THEMES.sheet ? '#6f8a3a' : '#a3c96f', 'close'] : s >= 60 ? [th.warn, 'fair'] : [th.bad, 'far'];
+    if (!R) { phoneHead(C, o, 'Reference', 'No real aeroplane to set this one against'); return; }
+    phoneHead(C, o, 'Reference · against the real one · REAL-FIGURES, ' + R.date, 'Against the ' + R.refName);
+    const [gc, gw] = band(R.overall), AX = ['geometry', 'specs', 'performance'], NM = { geometry: 'Geometry', specs: 'Specs', performance: 'Performance' };
+    // the score and the triangle, side by side
+    C.gap(6).figure(150, (x, y, w) => {
+      const s = [K.T(x, y + 52, R.overall == null ? '—' : r0(R.overall), { sz: 48, w: 600, c: gc }), K.T(x, y + 74, '/ 100 · ' + gw, { sz: 13, c: th.dim })];
+      if (R.conf) s.push(K.T(x, y + 92, 'evidence ' + R.conf, { sz: 13, c: th.dim }));
+      const cx = x + w - 78, cy = y + 80, Rr = 50, ang = i => -Math.PI / 2 + i * 2 * Math.PI / 3, pt = (i, v) => [cx + Math.cos(ang(i)) * Rr * v / 100, cy + Math.sin(ang(i)) * Rr * v / 100];
+      for (const lv of [50, 100]) s.push(`<polygon points="${AX.map((a, i) => pt(i, lv).map(v => v.toFixed(1)).join(',')).join(' ')}" fill="none" stroke="${th.rule}" stroke-width="1"/>`);
+      s.push(`<polygon points="${AX.map((a, i) => pt(i, R[a] || 0).map(v => v.toFixed(1)).join(',')).join(' ')}" fill="${gc}" fill-opacity=".28" stroke="${gc}" stroke-width="2"/>`);
+      AX.forEach((a, i) => { const q = pt(i, 122); s.push(K.T(q[0], q[1] + (i === 0 ? -2 : 12), NM[a].slice(0, 4) + '. ' + (R[a] == null ? '—' : r0(R[a])), { sz: 11, a: 'middle', c: band(R[a])[0], w: 600 })); });
+      return s.join('');
+    });
+    for (const a of AX) { const [c, w] = band(R[a]);
+      C.figure(44, (x, y, ww) => K.T(x, y + 18, NM[a], { sz: 15, w: 600 }) + K.T(x + ww, y + 18, (R[a] == null ? '—' : r0(R[a])) + ' / 100', { sz: 15, w: 600, c, a: 'end' }) +
+        `<rect x="${x}" y="${y + 26}" width="${ww}" height="7" rx="3.5" fill="${th.rule}"/><rect x="${x}" y="${y + 26}" width="${(ww * (R[a] || 0) / 100).toFixed(1)}" height="7" rx="3.5" fill="${c}"/>` +
+        K.T(x, y + 44, (R.items[a] || []).length + ' items · ' + w, { sz: 12, c: th.dim })); C.gap(6); }
+    if ((R.refs.performance || []).length || (R.refs.dimensions || []).length) {
+      C.label('References');
+      for (const t of (R.refs.performance || []).slice(0, 4).concat((R.refs.dimensions || []).slice(0, 3))) C.text('· ' + t, { sz: 13, gap: 0 });
+      C.gap(4);
+      if (R.engineNote) C.text('Not like for like: ' + R.engineNote, { sz: 12.5, c: th.warn });
+    }
+    // every item, ours vs real, worst first
+    for (const a of AX) {
+      const items = (R.items[a] || []).slice().sort((p, q) => (p.score == null ? 101 : p.score) - (q.score == null ? 101 : q.score));
+      if (!items.length) continue;
+      C.label(NM[a] + ' · ours vs real');
+      for (const it of items) {
+        const u = REF_UNIT[it.k] || '', e = it.e, c = band(it.score)[0];
+        const cut = (v, nn) => { v = String(v); return v.length > nn ? v.slice(0, nn - 1) + '…' : v; };
+        const ov = typeof it.ours === 'string' ? cut(it.ours, 14) : refVal(it.ours, it.k), rv = typeof it.ref === 'string' ? cut(it.ref, 14) : refVal(it.ref, it.k);
+        const pc = (typeof e === 'number' && isFinite(e)) ? (e >= 0 ? '+' : '−') + Math.abs(Math.round(e * 100)) + ' %' : it.score >= 100 ? 'the same' : 'different';
+        C.figure(38, (x, y, w) => K.T(x, y + 16, (REF_LABEL[it.k] || it.k) + (a === 'performance' && it.src && !/^airframe/.test(it.src) ? ' (handbook)' : ''), { sz: 13.5 }) +
+          K.T(x + w, y + 16, pc, { sz: 13.5, w: 600, c, a: 'end' }) + K.T(x, y + 32, ov + ' vs ' + rv + (u ? ' ' + u : ''), { sz: 12, c: th.dim }));
+      }
+    }
+  }
+  function phoneModel(D, o, th, K, C) {
+    const M = D.model, n = M.nodes, Dp = M.prop.D || 1.8, eng = M.prop.at || [0, 1, 0];
+    const discs = (M.prop.discs && M.prop.discs.length) ? M.prop.discs : [[eng[0], eng[1], 0, 0]];
+    phoneHead(C, o, 'Physics · what the sim flies', n.length + ' masses, ' + M.beams.length + ' members, ' + M.strips.length + ' lifting panels');
+    const VIEW = { plan: p => [p[2], p[0]], side: p => [p[0], -p[1]], front: p => [-p[2], -p[1]] };
+    const ext = vk => { const pts = n.map(q => VIEW[vk](q)), r = Dp / 2;
+      for (const q of discs) for (const d of [[0, -r, -r], [0, r, r], [0, r, -r], [0, -r, r]]) pts.push(VIEW[vk]([q[0], q[1] + d[1], q[2] + d[2]]));
+      const u = pts.map(q => q[0]), v = pts.map(q => q[1]); return [Math.min(...u), Math.max(...u), Math.min(...v), Math.max(...v)]; };
+    const E = { plan: ext('plan'), side: ext('side'), front: ext('front') };
+    const half = Math.max(Math.abs(E.plan[0]), Math.abs(E.plan[1]), Math.abs(E.front[0]), Math.abs(E.front[1]));
+    const lenP = E.plan[3] - E.plan[2], lenS = E.side[1] - E.side[0], hF = E.front[3] - E.front[2], hS = E.side[3] - E.side[2];
+    // one scale: the span across the column (the side view fits under it at the same scale)
+    const s = C.inner / Math.max(2 * half, lenS), GAP = 34, xc = C.x0 + C.inner / 2;
+    const y0 = C.y + 26, yF = y0 + lenP * s + GAP, yS = yF + hF * s + GAP, xS = C.x0 + (C.inner - lenS * s) / 2, H = (yS + hS * s) - C.y + 6;
+    const V = { plan: { sc: s, f: p => [xc + p[2] * s, y0 + (p[0] - E.plan[2]) * s] },
+                front: { sc: s, f: p => [xc - p[2] * s, yF + (-p[1] - E.front[2]) * s] },
+                side: { sc: s, f: p => [xS + (p[0] - E.side[0]) * s, yS + (-p[1] - E.side[2]) * s] } };
+    const lab = (y, t) => K.T(C.x0, y, t, { sz: 11, c: th.faint, w: 600, ls: 1.2 });
+    C.figure(H, () => { const out = [lab(y0 - 10, 'FROM ABOVE'), lab(yF - 12, 'FROM THE FRONT'), lab(yS - 12, 'FROM THE SIDE')]; modelDraw(D, o, th, K, V, s, out); return out.join(''); });
+    const kg = n.reduce((a, q) => a + q[3], 0);
+    C.label('What you see');
+    C.rows([[n.length + ' masses, ' + r0(kg) + ' kg', '', 'a dot\'s size is its weight', th.ink], [M.beams.length + ' members', '', 'springs that bend and break', th.member],
+            [M.strips.length + ' lifting panels', '', 'control surfaces hatched', CAT.structure], ['body drag area', '', 'the dashed circles', th.faint],
+            ['propeller, ' + Dp.toFixed(2) + ' m', '', null, CAT.engine], [M.floats ? 'float keels, wheels' : 'wheels', '', null, CAT.gear],
+            ['the rendered plane', '', 'the grey ghost behind', th.dim]]);
+    C.text('Scale: ' + (s >= 40 ? 2 : 4) + ' m = ' + r0((s >= 40 ? 2 : 4) * s) + ' px on this page.', { sz: 12, c: 'faint' });
+  }
+  function phoneLoad(D, o, th, K, C) {
+    const M = D.model, Ld = D.load, Ds = D.destroy;
+    phoneHead(C, o, 'Integrity · the certification bench', Ld && Ld.verdict === 'HELD' ? 'Held 5.7 g with nothing bent' : (Ld ? Ld.verdict : 'No load test'),
+      Ld ? Math.round(Ld.W / 9.81) + ' kg in sandbags at 1 g, the plane on its back on trestles · ' + M.beams.length + ' members, each its own spring' : '');
+    if (!Ld || !Ld.shape) return;
+    const tip = Ld.tipM;
+    let LP = null;
+    C.label('At the limit load, 3.8 g');
+    C.figure(Math.round(C.inner * 0.3), (x, y, w, h) => { const s = []; LP = loadLimitPic(M, Ld, th, K, { x, y: y + 6, w, h: h - 6 }, s, 12.5); return s.join(''); });
+    C.text('Bending drawn ×' + LP.Kx + '. Colour: how hard each member works.', { sz: 12, c: 'faint' });
+    const rows = [['limit load, 3.8 g', '+' + r1(tip * 100) + ' cm', 'at the tip'], ['ultimate, 5.7 g, held 1.5 s', '+' + r1(Ld.ultTipM * 100) + ' cm', 'at the tip'],
+      ['of its yield force', r0(Ld.worstU * 100) + ' %', 'works hardest: ' + memberName(M, Ld.worst, M.semi) + (Ld.worstComp ? ', squeezed' : ', pulled')]];
+    if (Ds && Ds.brokeAt != null) { const first = Ds.groups[0] ? GRPNAME(Ds.groups[0].key) : '';
+      rows.push(['it breaks', r1(Ds.brokeAt) + ' g', 'the ' + first + ' lets go first']);
+      if (Ds.groups.length > 1) rows.push(['0.3 s later', '', Ds.groups.slice(1).map(gg => GRPNAME(gg.key)).join(', ')]); }
+    C.label('The readings'); C.rows(rows, { sz: 14.5 });
+    C.gap(12).figure(46, (x, y, w) => { const s = [K.T(x, y + 12, 'how hard each member works', { sz: 12, c: th.dim })];
+      for (let i = 0; i < 40; i++) s.push(`<rect x="${(x + i * w / 40).toFixed(1)}" y="${y + 20}" width="${(w / 40 + 0.4).toFixed(1)}" height="8" fill="${K.ramp(i / 39)}"/>`);
+      s.push(K.T(x, y + 44, 'idle', { sz: 11.5, c: th.faint }) + K.T(x + w, y + 44, '40 % of its yield', { sz: 11.5, c: th.faint, a: 'end' }));
+      return s.join(''); });
+    if (Ds && Ds.shape) {
+      let BP = null;
+      C.label('Carried on until a part lets go');
+      C.figure(Math.round(C.inner * 0.32), (x, y, w, h) => { const s = []; BP = loadBreakPic(M, Ds, th, K, { x, y: y + 6, w, h: h - 6 }, s); return s.join(''); });
+      C.chips([[th.warn, 'bent for good'], [th.bad, 'broken'], [th.member, 'unharmed']]);
+      C.text(BP.Kb === 1 ? 'Drawn true to scale.' : 'Bending drawn ×' + BP.Kb + '.', { sz: 12, c: 'faint' });
+    }
+    if (Ds && Ds.brokeAt != null) { C.label('The g it takes'); C.gap(64).figure(54, (x, y) => { const s = []; loadLadder(Ds, th, K, x, C.x1 - 36, y + 8, s); return s.join(''); }); }
+  }
+  function phoneXray(D, o, th, K, C) {
+    const E = D.elec, pic = o.pics && o.pics.plan, Wc = (th.base || th) === THEMES.sheet ? WIRE.sheet : WIRE.dark;
+    const words = E.altA ? (E.elec.alternator === 'gen20' ? 'generator' : 'alternator') : 'battery';
+    phoneHead(C, o, 'Electrics · and the fuel', E.hasBus ? 'Every light on: ' + r1(E.night.A) + ' A of the ' + (E.altA ? E.altA + ' A ' + words : 'battery') : 'No battery, no lights: hand-propped',
+      E.hasBus && E.dark.min != null ? 'With the ' + words + ' dead at night, the battery lasts ' + r0(E.dark.min) + ' min (the game\'s own bus, run down to 9 V).' : '');
+    if (!pic || !pic.frame) return;
+    let XP = null;
+    C.gap(6).figure(Math.round(C.inner * 0.86), (x, y, w, h) => { const s = []; XP = xrayPlan(D, o, th, K, pic, { x: x + 16, y, w: w - 32, h }, s, 7.5);
+      if (XP.fuelP) s.push(badge(K, th, [Math.min(x + w - 8, XP.fuelP[0]), XP.fuelP[1]], 'F', 7.5)); return s.join(''); });
+    if (XP.fuelP && XP.v0) { const v0 = XP.v0;
+      C.text('F · Fuel: ' + r0(v0.litres) + ' L' + (v0.bayRes && v0.bayRes.on === 'wing' ? ' (' + r0(v0.litres / 2) + ' L a side)' : ' in the nose') + ', ' + (v0.bayRes ? v0.bayRes.name.toLowerCase() : 'bay') + ' could take ' + r0(v0.bayRes ? v0.bayRes.litres : 0) + ' L', { sz: 13 }); }
+    if (!E.hasBus) return;
+    C.label('The wiring, as the handbook draws it');
+    C.gap(4).fit(458, 470, () => schematic(E, th, K, 20, 14, 460, XP.lampNo).join(''));   // (20 in: the starter's caption sits left of the diagram's origin)
+    C.label('The power budget at night, amps');
+    const full = Math.max(E.altA, E.night.A) * 1.08, pA = E.loads.filter(l => !l.av).reduce((a, l) => a + l.amps, 0), aA = E.loads.filter(l => l.av).reduce((a, l) => a + l.amps, 0);
+    const segs = []; if (pA) segs.push([pA, Wc.panel, 'instruments']); if (aA) segs.push([aA, Wc.av, 'radios']);
+    for (const k of ['land', 'taxi', 'nav', 'beacon', 'cabin']) if (XP.amps(k)) segs.push([XP.amps(k), Wc.light, k]);
+    C.gap(6).figure(36, (x, y, w) => { const sc = w / full, s = []; let xx = x;
+      for (const [a, col] of segs) { s.push(`<rect x="${xx.toFixed(1)}" y="${y + 6}" width="${Math.max(0, a * sc - 1.5).toFixed(1)}" height="13" rx="2" ${K.fillAttr(col, 0.85)}/>`); xx += a * sc; }
+      if (E.altA) { const ax = x + E.altA * sc; s.push(K.L([ax, y], [ax, y + 28], Wc.charge, 2.4)); }
+      return s.join(''); });
+    C.rows(segs.map(([a, col, nm]) => [nm, r1(a) + ' A', null, col]).concat(E.altA ? [[words + ' makes', E.altA + ' A', null, Wc.charge]] : []), { sz: 13.5 });
+  }
+  const PHONE = { drag: phoneDrag, reference: phoneReference, physics: phoneModel, integrity: phoneLoad, electrics: phoneXray, cooling: phoneCooling };
 
   let svgSeq = 0;
   function svg(page, data, opts) {
