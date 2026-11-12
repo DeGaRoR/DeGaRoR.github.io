@@ -1114,6 +1114,18 @@ function iconSteer(mode) {
 }
 // THE CARCASS in section, as the tyre meets the ground: a standard tyre, the
 // tundra's fat round balloon, a slim one — each round its rim
+// THE BRAKES (GEN_BRAKES): a wheel seen from the side; 0 none drawn, 1 a drum (an inner ring), 2 a disc with one
+// caliper, 3 a disc with two calipers
+function iconBrake(mode) {
+  const ring = r => 'M' + P2(32 - r, 20) + ' a' + r + ' ' + r + ' 0 1 0 ' + (2 * r) + ' 0 a' + r + ' ' + r + ' 0 1 0 ' + (-2 * r) + ' 0 Z';
+  const cal = (x, y) => ({ d: 'M' + P2(x - 3, y - 4) + ' L' + P2(x + 3, y - 4) + ' L' + P2(x + 3, y + 4) + ' L' + P2(x - 3, y + 4) + ' Z', w: 1 });
+  const paths = [{ d: ring(16) }, { d: ring(4) }];
+  if (mode === 1) paths.push({ d: ring(10), w: 1 });
+  if (mode >= 2) { paths.push({ d: ring(9), w: 1 }); paths.push(cal(32, 11)); }
+  if (mode === 3) paths.push(cal(32, 29));
+  return { vb: '0 0 64 40', paths };
+}
+
 function iconCarcass(mode) {
   const ell = (rx, ry) => 'M' + P2(32 - rx, 20) + ' a' + rx + ' ' + ry +
     ' 0 1 0 ' + (2 * rx) + ' 0 a' + rx + ' ' + ry + ' 0 1 0 ' + (-2 * rx) + ' 0 Z';
@@ -2229,8 +2241,10 @@ const DESIGN_ROWS = [
       .map(([label, note, drum], i) => {
         const B = typeof GEN_BRAKES !== 'undefined' ? GEN_BRAKES : (W.GEN_BRAKES || null), k = [null, 'drum', 'disc', 'double'][i];
         const R = B && k ? B[k] : null;
-        return { value: i, label, note: R ? note + ' - ' + R.kg + ' kg, ' + R.perWheelN + ' N a wheel' : note,
-                 writes: { cage: i ? { brkHold: i, whBrake: drum } : { brkHold: 0 } } }; }) },
+        // (a slot tile writes its own row only, GATE DESIGN: the drawn brake stays the gear page's whBrake row)
+        void drum;
+        return { value: i, label, icon: iconBrake(i), note: R ? note + ' - ' + R.kg + ' kg, ' + R.perWheelN + ' N a wheel' : note,
+                 writes: { cage: { brkHold: i } } }; }) },
   { key: 'carcassT', label: 'Tyre carcass', kind: 'discriminator',
     group: 'undercarriage', status: 'live', slot: true, twin: ['whProfile'],
     read: P => Math.round(P.whProfile || 0),
