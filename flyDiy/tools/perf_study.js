@@ -64,6 +64,14 @@ const { D, C } = BJ.loadPanel();
 // study's 4.2 derivation; +-10 %), where the power and the speed are known.
 // ---------------------------------------------------------------------------
 const REAL = {
+  // (12 Nov, FIT-PROCEDURE: the user's PC-6 off the drafting table - "does it fly, and how does it compare to the
+  // official numbers") Pilatus' fact sheet: MTOW 2800, 30.15 m2, stall 58 KEAS flaps up / 52 full, max cruise 125 KTAS,
+  // TO 197 m roll / 440 m over 15 m (STOL); the climb scatters 940-1010 fpm at MTOW (5.0 taken); empty ~1270 kg
+  pc6:       { name: 'Pilatus PC-6/B2-H4 Turbo Porter (PT6A-27, 550 shp)', mtow: 2800, empty: 1270, S: 30.15, b: 15.87, powerKW: 410,
+               Vs1: 107, V75: 213, Vmax: 232, roc: 5.0, TO: 197, TO50: 440, LDG: null, LD: null, engineMatch: true,
+               src: 'Pilatus PC-6 fact sheet / Skybrary PC6T: 2800 kg, 30.15 m2, Vs 58 / Vso 52 KEAS, 125 KTAS, TO 197 m / 440 m over 50 ft',
+               dims: { length: 10.90, height: 3.20, fuelL: 644, seats: 10, engineHP: 550, propD: 2.56,
+                       src: 'type data: 10.90 x 15.87 x 3.20 m, 644 L, 3-blade 2.56 m' } },
   cub:       { name: 'Piper J-3C-65 Cub', mtow: 550, empty: 345, S: 16.6, b: 10.7, powerKW: 48,
                Vs1: 61, V75: 120, Vmax: 140, roc: 2.3, TO: 113, LDG: 88, LD: 9.5, T0: 1200, CdS: 0.75, engineMatch: true,
                src: 'POH J-3C-65: stall 38 mph, cruise 75 mph, Vmax 87 mph, 450 fpm, TO run 370 ft, ldg 290 ft',

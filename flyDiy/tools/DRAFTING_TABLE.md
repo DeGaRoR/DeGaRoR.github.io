@@ -577,3 +577,30 @@ The chin scoop's width 0.95 of the cowl's (it read narrow at its aft end at 0.8)
 - Garage (44ceb38e, for A0): the link leg's `shockKind` 3, a piston (the Wilga strut's shapes, an oleo in the
   physics), and the engine's `stackSplit` (one stack mirrored under the can). The PC-6: piston, `s1_shockAng` 118
   (the tops 7 cm lower), `eng_stackSplit` 1 with `eng_stackDrop` -0.4 (the right one rises, the left one dips).
+
+## ROUND 11 (12 Nov): the stacks settled; a livery; does it fly
+
+- Stacks: the split one mirrors about its OWN root (garage 910398e7, both stem from the same point); the PC-6 at
+  `eng_stackDrop` -0.2, `eng_stackLen` 1.15.
+- THE LIVERY ("Gipfelstürmer", HB-FDY), the existing livery system only; its author script is
+  `tools/drafting/refs/pc6_livery.py` (python3 pc6_livery.py <in> <out>): turquoise body and wing, a mango swoosh with a
+  fat cream keyline (two stacked sweeps, 8 cm apart), a turquoise streak 28 cm under it and parallel (a sweep with its
+  fill cleared on a 4.4 m page so its own line is 7 cm), a star trail, the name on the cowl, the slogan, the Swiss flag
+  on a turquoise fin with an orange rudder, orange stab / elevators / ailerons, the wing registration.
+  LESSONS for any livery (worth a REF_MATCH / livery note):
+  * the side box (Mode 1) frame is the CRAFT's: calibrate it once with text markers (+A at L -4 ...) and a profile still;
+    on the PC-6: spinner L -5.31, firewall -3.15, tail end 4.59; window sills C -0.05, belly -0.83, roof 0.65.
+  * the sweep's bezier is NOT flat at the front - compute the line (curve.py in the round's scratch: the cubic
+    (0,y0) (0.46,y0) (0.60,y1) (1,y1) solved for x) before placing anything between two sweeps.
+  * the sweep's line is 1.6 % of the layer's height: a fat keyline is two stacked sweeps; a parallel streak is the same
+    curve on a taller page (q*H kept) with Clr 1.
+  * a text piece is 24 characters at most ("land shorter" became "land short" - kept, it is the STOL's word).
+  * a section tint and the same colour in a decal do not render alike (the tint reads redder): match by eye.
+  * plane_shot's hero portraits level the model by turning it, and the side-box paint does not follow: the paint slides.
+    Judge a livery on `profile`, `orbit:` and `close:` views only (the camera moves, the model does not).
+- DOES IT FLY: the drafting file is pre-join; `_bake_joined.js` bakeJoined(spec) gives the flown spec. perf_study (the
+  new `pc6` row: Pilatus fact sheet) on it: empty 1297 / 1270 kg, S 30.6 / 30.15, Vs 109 / 107 km/h - all within 2 %;
+  TO roll 238 / 197; flown: the pilot's circuit to a full stop, TO 235 m, climb 8.1 m/s, landing roll 383 m. FAST and
+  STRONG: Vmax 293 / 232, ROC 7.9 / 5.0 - the registry has no PT6A-27 (550 shp), the join flies the PT6A-114A (675
+  hp), and the drag (CdS 1.0 m2) reads low for a strutted box. GARAGE GAPS: a PT6A-27 row; the flown tail envelope
+  (hSpan 1.5-4.5 m, vHeight 0.6-2.2 m) clamps the PC-6's real 5.14 m stab and 2.51 m fin.
