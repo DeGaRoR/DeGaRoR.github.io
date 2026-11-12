@@ -5997,6 +5997,14 @@ function clampSpec(spec) {
   // THE HUB'S REAR SOCKET (61_gen_frame 3c): the rod slots into the wing's centre section - a rod's only, the key only
   // when on
   if (!(fu.rodHub === true && fu.boom === 'rod')) delete fu.rodHub;
+  // THE ROD ROW (WEIGHT STUDY L2b, 12 Nov; the user: "an ultralight rod ... whose stiffness would be impacted"; A0: "the
+  // rod row, material + wall per build"): LATENT - absent, the rod is the fuselage's material at GEN_RULES.rodWall, as
+  // ever. A rod's only: `rodMat` a GEN_MATERIALS key with a phys row, `rodWall` its tube wall in metres, 0.3 - 3 mm
+  if (fu.boom !== 'rod') { delete fu.rodMat; delete fu.rodWall; }
+  else {
+    if (fu.rodMat != null && !(GEN_MATERIALS[fu.rodMat] && GEN_MATERIALS[fu.rodMat].phys)) delete fu.rodMat;
+    if (fu.rodWall != null) { const t = +fu.rodWall; if (Number.isFinite(t) && t > 0) fu.rodWall = genClamp(t, 3e-4, 3e-3); else delete fu.rodWall; }
+  }
   // THE HANGING NACELLE (the Archaeopteryx study's stage 3, 61_gen_frame 3d): the cabin hangs on ONE structural mast from
   // the wing's centre section down to the keel - a first plane above the cabin (high or parasol) only; the mast's station
   // on the root chord (hangAt, its middle) and its chord (hangLen), both fractions of the root chord, only with the key

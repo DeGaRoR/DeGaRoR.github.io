@@ -704,6 +704,12 @@ function cageJoinSpec(P, M, T) {
            : Math.round(+P.boomStyle || 0) === 1 ? 'rod' : 'loft';
   // THE HUB'S REAR SOCKET (the Archaeopteryx study's stage 2): the rod rooted in the wing's centre section
   if (fus.boom === 'rod' && +P.rodHub) fus.rodHub = true;
+  // THE ROD ROW (WEIGHT STUDY L2b): latent - written only when moved off its default (the fuselage's material, 1.2 mm)
+  if (fus.boom === 'rod') {
+    const rm = Math.round(+P.rodMat || 0);
+    if (rm > 0) fus.rodMat = ['carbon', 'tubeFabric', 'aluTube', 'glass'][Math.min(4, rm) - 1];
+    if (P.rodWallMm != null && Number.isFinite(+P.rodWallMm) && Math.abs(+P.rodWallMm - 1.2) > 1e-9) fus.rodWall = +P.rodWallMm / 1000;
+  }
   // THE HANGING NACELLE (the study's stage 3): the cabin on one structural mast from the wing's centre section to the
   // keel, its station and chord on the root chord (the hub's: the cabin slides free of it), and where the drawn one stood
   // (hangX, measured below; the spec drops it all under a wing that is not above the cabin)

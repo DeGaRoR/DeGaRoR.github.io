@@ -1267,6 +1267,14 @@ window.CAGE_PAGE = {
       // socket from the rod up to the wing's underside (the engine pylon's hugging blade, _cage_eng)
       ['rodHub',    'rod rooted in', 0, 1, 1, ['the aft bulkhead', 'the wing (the hub\'s rear socket)'],
        { when: P => +P.boomStyle === 1 && !+P.boomTwin && +P.wingOn }],
+      // THE ROD ROW (WEIGHT STUDY L2b, 12 Nov; the user: "an ultralight rod that would also break somehow, that would have
+      // different stiffness"): the tube's material and wall - its stiffness (EI, GJ) and its breaking moment follow the
+      // section, nothing hidden: a thin rod is light and soft, and on a heavier aeroplane it parts at its root.
+      // Latent: as the fuselage at 1.2 mm writes nothing
+      ['rodMat',    'rod material',  0, 4, 1, ['as the fuselage', 'carbon', 'steel tube (4130)', 'aluminium (6061)', 'glassfibre'],
+       { when: P => +P.boomStyle === 1 && !+P.boomTwin, absent: 0 }],
+      ['rodWallMm', 'rod wall (mm)', 0.3, 3.0, 0.05,
+       { when: P => +P.boomStyle === 1 && !+P.boomTwin, absent: 1.2 }],
       // THE HANGING NACELLE (the Archaeopteryx study's stage 3; the user, 11 Nov: "the pylon is structural and should go
       // down to the bottom of the plane, where the supporting beam will go, making the fuselage as we see it now not the
       // central piece anymore"): the cabin hung on ONE mast from the wing's centre section through a cut in the roof to

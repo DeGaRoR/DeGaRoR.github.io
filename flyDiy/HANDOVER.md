@@ -314865,3 +314865,25 @@ chantier (stage 4) must bring it forward. Parked: the wheel, the nose skid, a wi
   2.33 g on it). The light-rod prototype is NOT built here (AERO-BODY / the rod row): weight_proto/rodlight_prototype.patch
   and the reply to A0, weight_proto/REPLY_TO_A0_rod.md. Gates green: LIGHTWING HUB NACELLE DEFAULT WEIGHT SKINMAT PILLAR
   CLIP FRAMES FIN JOIN WINGROWS SPECFIX SAVE PARTS DESIGN NEWPLANE BLUEPRINT WINGSTRUCT; TECH and LOAD red the master way.
+- L2b: THE ROD ROW - MATERIAL + WALL (12 Nov; the user: "an ultralight rod that would also break somehow, that would
+  have different stiffness"; A0: the rod row is this branch's, in its own commits, for AERO-BODY to merge with its rod
+  physics - the tube billed pi d t rho, the buckling caps, the rod's height). LATENT: absent = the fuselage's material at
+  GEN_RULES.rodWall 1.2 mm, every expression the old one (the fleet's hashes identical; GATE RODROW A).
+  FILES: src/core/60_gen_spec.js (clampSpec: fuselage.rodMat a GEN_MATERIALS key with phys, rodWall 0.3-3 mm, a rod's
+  only); src/core/61_gen_frame.js (RODX / RODM / RODT / RODMK at genLattice's head: rodK's computed factor, the G314 tube
+  element's EI / GJ and its damage section (the solver's tube cut, fu x the section modulus) in the rod's material and
+  wall; the rod's own members - fuselage aft of the box's rear - billed at rho t over the fuselage row's at 1.2 mm and
+  sectioned at t / 1.2 mm in the rod's material); tools/_cage_join.js (rodMat 1-4: carbon, tubeFabric, aluTube, glass;
+  rodWall written only off 1.2 mm); tools/_cage_page5.js (the two rows, boom page, a single rod); tools/_cage_gen.js
+  (CAGE_DEFAULT_ABSENT rodMat 0, rodWallMm 1.2); tools/_cage_parts.js (the rod group); tools/_rodrow_check.js +
+  run_gates.js (GATE RODROW, core). NO BUILD WEIGHT: the tube cut is physics, the certificate never stamps it.
+  MEASURED (the stab's destroy ramp through the boom, cfg.throughBoom; the first break):
+  - the Archaeopteryx HOLDS on carbon 0.8 mm (its pick, 1.2 kg off: 152.6 -> 151.4 kg; not set on the card yet): the
+    stab's attachment kinks first at 7.49 g (1.2 mm: 7.47), no rod crack;
+  - the pusher pod (657 kg) on a 0.5 mm 4130 rod PARTS at its root at 0.76 g, against 2.33 g on its standard 1.2 mm;
+  - at the row's least, 0.3 mm, the pusher pod's rod buckles under its own tail at rest (fus/kink at 0 g) - a clean
+    break, no divergence.
+  SUBSTEPS: the Archaeopteryx 193 (true 200) at every wall (its wing sets them); the pusher pod 70 (1.2 mm), 76 (0.8),
+  86 (0.5), 90 (0.3), 94 (carbon 0.3) - the rod's lighter nodes raise omega; the floatplane 109 / 107 / 106.
+  OWED: a realistic tail limit load for the through-the-boom bench (its stab load is the wing's loading: the standard
+  4130 rod on the pusher pod cracks at 2.33 g) - the twin floatplane's "must hold" end needs it (AERO-BODY measures).

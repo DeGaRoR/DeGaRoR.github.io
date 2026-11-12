@@ -105,6 +105,15 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   const CG = KS * ARCH.c * Math.sqrt(S.gear.stiffness == null ? 1 : S.gear.stiffness);
   const CGB = KS * ARCH.c;
   const R = GEN_RULES;
+  // THE ROD ROW (WEIGHT STUDY L2b, fuselage.rodMat / rodWall - latent): the rod's tube in its own material and wall.
+  // Absent, RODM is the fuselage's row and RODT GEN_RULES.rodWall - every expression below is the old one. RODX: the row
+  // is set; then the rod's own members (the fuselage's aft of the cabin box) are billed and sectioned at the tube's
+  // section (rho t over the fuselage row's at the standard wall) until the tube is billed pi d t rho (AERO-BODY)
+  const ROD0 = R.rodWall == null ? 1.2e-3 : R.rodWall;
+  const RODX = !!(S.fuse && S.fuse.boom === 'rod' && (S.fuse.rodMat || S.fuse.rodWall > 0));
+  const RODM = RODX && S.fuse.rodMat && GEN_MATERIALS[S.fuse.rodMat] && GEN_MATERIALS[S.fuse.rodMat].phys ? GEN_MATERIALS[S.fuse.rodMat] : M;
+  const RODT = RODX && S.fuse.rodWall > 0 ? S.fuse.rodWall : ROD0;
+  const RODMK = RODX && RODM && RODM.phys && M && M.phys ? (RODM.phys.rho * RODT) / (M.phys.rho * ROD0) : 1;
   const D = Math.PI / 180;
   const nodes = [], beams = [];
   const degenerate = [];                            // B10: the members B() refused (zero length)
@@ -222,12 +231,12 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // the tube's radius: the resolved rod record when the join measured one,
     // else the DRAWING's own `rodD` (cage units x planeScale = metres) — a
     // save from before the join wrote `fuse.rod` still knows what it drew
-    const rod = S.fuse.rod, ph = M && M.phys;
+    const rod = S.fuse.rod, ph = RODM && RODM.phys;   // (the rod row's material, else the fuselage's)
     const cg = S.cage || {};
     const rodR = (rod && rod.r > 0) ? rod.r
       : (+cg.rodD > 0 ? 0.5 * (+cg.rodD) * (+cg.planeScale || 1) : 0);
     if (!(rodR > 0) || !ph || !(ph.E > 0)) return (rodKv = 1);
-    const t = R.rodWall == null ? 1.2e-3 : R.rodWall;
+    const t = RODT;   // (the rod row's wall, else GEN_RULES.rodWall)
     const G = ph.E / 2.6;
     const GJt = G * 2 * Math.PI * CORE_MATH.pow(rodR, 3) * t;
     // the mid-boom bay: its section off the station profile, its length
@@ -457,6 +466,8 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
                   P[a][0] >= S.fuse.boxRear - 1e-6 && P[b][0] >= S.fuse.boxRear - 1e-6)
       ? R.fusAftGauge * ((P[a][0] >= aftX0 && P[b][0] >= aftX0 && !nearSpar(P[a][0]) && !nearSpar(P[b][0]))
                           ? perimK(0.5 * (P[a][0] + P[b][0])) : 1) : 1;
+    // (the rod row: a member of the rod's own - the fuselage aft of the cabin box on a rod boom)
+    const rodMem = RODX && cls === 'fus' && !mnt && S.fuse.boxRear != null && P[a][0] >= S.fuse.boxRear - 1e-6 && P[b][0] >= S.fuse.boxRear - 1e-6;
     // G2362 (DMG-MOUNTRIG): `opt.ghost` - a member that is BILLED and not built: its mass (and its gauge's record) as the
     // member would weigh, nothing in the lattice. The nose leg's wires, moved off the flange onto the mount's lower cups,
     // weigh what they did (so the aeroplane does not move); the new pair is built weightless
@@ -498,6 +509,8 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       // heaviest, the Cessna on floats, is 0.50 of its 2 222 kg) nothing is multiplied.
       if (bk && GG && GG.W0 > kneeW) bm.A *= GG.W0 / kneeW;
       bm.mat = genPhysKey(MM.phys);
+      // the rod row: the rod's own member in the rod's material, its section the wall's share of the standard's
+      if (rodMem && RODM && RODM.phys) { bm.A *= RODT / ROD0; bm.mat = genPhysKey(RODM.phys); }
       // G2361 (DMG-MOUNTRIG): a member whose section is its own and not its class row's (the nose mount's bearer, its
       // isolators, the engine's case: GEN_RULES.mountTubeA / mountIsoA / mountCaseA) - weightless ones, so only the
       // damage layer reads it; `iso` an isolator (no Euler: a rubber cup bottoms, it does not buckle)
@@ -556,7 +569,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       const bk = bucketB(bucketOf(cls, mnt), MM);
       const g1 = bk && GG ? GG[bk] : 1;
       const webK = (opt && opt.web && MM.coverGauged) ? (R.boxWebK == null ? 1 : R.boxWebK) : 1;
-      const h0 = 0.5 * L * row(MM.lin, cls, tSecM) * aftG * webK, h = h0 * g1;
+      const h0 = 0.5 * L * row(MM.lin, cls, tSecM) * aftG * webK * (rodMem ? RODMK : 1), h = h0 * g1;   // (the rod row's rho t)
       if (bk && !GG) { const G = gBag(bk); G.m += 2 * h0;
         G.x += h0 * (P[a][0] + P[b][0]); G.y += h0 * (P[a][1] + P[b][1]); G.z += h0 * (P[a][2] + P[b][2]);
         if (!gaugeRef[bk]) gaugeRef[bk] = MM.refGross || 550; }
@@ -831,7 +844,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     } });
     cl.push(TPB, TPT);
     let omega = 0;
-    const ph = M && M.phys, rod = S.fuse.rod, cg = S.cage || {};
+    const ph = RODM && RODM.phys, rod = S.fuse.rod, cg = S.cage || {};   // (the rod row's material, else the fuselage's)
     // (a save that carries neither the rod record nor the row: the cage's
     // own default tube, 0.12 across, in metres)
     const rodR = (rod && rod.r > 0) ? rod.r
@@ -848,7 +861,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       // The mass is billed onto these nodes by the passes still to come
       // (the tail truss, the fittings): omega is resolved at the end of the
       // lattice, when the nodes weigh what they weigh.
-      const tW = R.rodWall == null ? 1.2e-3 : R.rodWall;
+      const tW = RODT;
       const GJt = (ph.E / 2.6) * 2 * Math.PI * CORE_MATH.pow(rodR, 3) * tW;
       const L = Math.max(0.5, fu.tailArm - boxRear);
       // G350: torsion is the twist constraint's now (GJ, below) — the
@@ -862,7 +875,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // its root is the bulkhead ring at boxRear (the attachment, the cluster's first ring)
     let rodDmg = null;
     if (ph && ph.E > 0 && rodR > 0 && rodRings.length >= 2) {
-      const tW = R.rodWall == null ? 1.2e-3 : R.rodWall;
+      const tW = RODT;
       const ring0 = rodRings[0], last = rodRings[rodRings.length - 1];
       rodDmg = { kind: 'tube', mat: genPhysKey(ph), E: ph.E, EI: ph.E * Math.PI * CORE_MATH.pow(rodR, 3) * tW,
                  GJ: (ph.E / 2.6) * 2 * Math.PI * CORE_MATH.pow(rodR, 3) * tW, r: rodR,
