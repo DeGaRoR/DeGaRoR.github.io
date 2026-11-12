@@ -263,6 +263,9 @@ the body aft for exactly this reason.
 | a strut boot where a gear leg passes the skin (the 172's nose strut enters the lower cowl: GATE CLIP declares it, `DECLARED` in tools/_clip_check.js, C172-CLIP 9 Nov) | OPEN: the honest visual fix |
 | a high wing sunk into its pod: the wing rides on the cabin roof, the Archaeopteryx's rod runs at the wing's mid-depth (section 12) | OPEN |
 | a glider's centreline gear: a nose wheel and a main wheel in tandem, a tail skid (the Archaeopteryx; the tricycle's mains follow the CG onto the rod) | OPEN |
+| a window with a kinked bottom edge (the Archaeopteryx's lower aft window, 12 Nov) | added: the free quad's fifth corner, `<row>Q5On` / `Q5Z` / `Q5Y` / `R5` |
+| a rudder carried down over the boom's height, a fin slid along the boom (the Archaeopteryx's) | added: `finRudBelow`, `finShiftZ` |
+| airbrake flaps: the Archaeopteryx's inner-span flaps double as airbrakes (deflecting far, drag over lift); the garage's flap types are all lift flaps | OPEN: plain flaps stand in (wgFlapType 1, the span the real one's) |
 
 ## 8. The Camel log (27 Oct 2026)
 

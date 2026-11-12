@@ -3000,7 +3000,7 @@ const ARCHETYPES = [
     sel: { class: 'ul1', role: 'glider', seatLayout: 0, paxCount: 0,
            canopy: 'screen', mirror: 0, intCons: 0, covering: 'skin',
            boomStyle: 1, section: 3,
-           wgPos: 0, wgBrace: 1, wgTip: 5, wgFlapType: 0,
+           wgPos: 0, wgBrace: 1, wgTip: 5, wgFlapType: 1,
            engFamily: 'electric', engModel: 'pipistrel E-811', engMount: 'pusher',
            gearLayout: 'mono', suspension: 'spring', s1Fair: 0,
            finArch: 'tall', empennage: 'conv', scheme: 'trim', base: 0xefe6cf, trim: 0xc96f2a },
@@ -3141,6 +3141,20 @@ const ARCHETYPES = [
                     // the rudder's foot raked up to its trailing edge as drawn, a crisp corner (finBaseY 0.05 -> 0.2,
                     // finSharpBase), within a pixel of the drawing's diagonal
                     finShiftZ: -0.134, finRudBelow: 1, stSweep: -2, stTipZ: -0.12, stHinge: 0.15, finSharpBase: 3,
+                    // THE PILOT LAID BACK, THE BELLY FLATTER, THE WING'S SURFACES, NO LIGHTS (12 Nov, the user: "the bottom of
+                    // our fuselage is still too rounded ... the pilot barely fits ... You may choose another one, like a
+                    // sports recline ... a much bigger recline ... put the feet much further forward ... into the nose";
+                    // "the flaps, which are, I think, acting as aero brakes ... from the center section to half of the
+                    // wing ... the rest is for the ailerons"; "You can remove the lights in the wings. That thing probably
+                    // has no electrics"): the belly flatter (botRound 1 -> 0.3); the aerobatic recline seat (seatType 7)
+                    // laid back 42 deg on the floor (seatRake, seatH 0), slid forward (seatZ 0.205 -> 0.32) with the
+                    // pedals 1.0 m off its back (pedalZ, pedalH 0.25): the feet in the nose, the head clear of the roof.
+                    // Past ~1.3 m from the cockpit's aft ring the nose's floor falls away and the feet stand through the
+                    // skin, so that is where they stop. Plain flaps from the centre section to mid-span (wgFlapType 1 - the
+                    // garage has no airbrake flap: a GARAGE GAP, REF_MATCH section 7), the ailerons the rest (0.54 / 0.55 meet);
+                    // the lights off (lightOn 0); the windows' joint thin (rimW 0.012 -> 0.008: under ~6 mm the bead draws dotted)
+                    botRound: 0.3, seatType: 7, seatRake: 42, seatTilt: 3, seatH: 0, seatZ: 0.32, pedalZ: 1.0, pedalH: 0.25,
+                    wgFlapType: 1, wgFlapSpan: 0.54, wgAilOn: 1, wgAilSpan: 0.55, lightOn: 0, rimW: 0.008,
                     // THE TWO AFT WINDOWS (12 Nov, the user with a photo of the real aeroplane: "draw these 2 little windows
                     // at the back, with their subtleties (the bottom one has an angle)"): two drawn windows (4b) side by side
                     // on the aft section under the rod, between the pilot's window and the engine's face - the upper a
@@ -3162,12 +3176,14 @@ const ARCHETYPES = [
                     // edge straight within 2 mm from the root to the tip, the trim's line level across fin and rudder
                     },
             // THE LIVERY (12 Nov, the user: "do a little nice livery"): the real aeroplane's gloss white overall, a navy
-            // cheat line with a red keyline along the pod's waist, the registration in navy along the rod
+            // cheat line with a red keyline along the pod's waist, the cheat line lowered to run under every window
+            // (m1C), the registration in navy low on the nose's flank, clear of
+            // the windows' and the cheat line's lines (on the fin it fought the hinge: 12 Nov, the user: "messy where it is")
             spec: { fuel: { litres: 0 },
                     paint: { job: 'full', sweep: 0, base: 0xf3f4f1, trim: 0x17325e },
                     finish: { decals: {
-                      m1On: 1, m1Pat: 0, m1A: 0x17325e, m1B: 0xc8302c, m1D: 0x17325e, m1P: 0.12, m1Q: 0.06,
-                      regTarget: 3, regMode: 1, regL: 1.91, regC: 1.45, regH: 0.12 },
+                      m1On: 1, m1Pat: 0, m1A: 0x17325e, m1B: 0xc8302c, m1D: 0x17325e, m1P: 0.12, m1Q: 0.06, m1C: -0.04,
+                      regTarget: 0, regMode: 0, regL: 0.95, regC: -0.30, regH: 0.12 },
                       sections: { ...BODY_PAINT(0xf3f4f1), wingSkin: { tint: 0xf3f4f1 }, finSkin: { tint: 0xf3f4f1 },
                                   stabSkin: { tint: 0xf3f4f1 }, boomTube: { tint: 0xf3f4f1 }, boomSkin: { tint: 0xf3f4f1 } } },
                     meta: { reg: 'HB-WXA' } } } },

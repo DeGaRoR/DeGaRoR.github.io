@@ -314784,3 +314784,12 @@ chantier (stage 4) must bring it forward. Parked: the wheel, the nose skid, a wi
   split forced to the whole screen (a style setting --ph-vw / --ph-vh to 100vw / 100vh: SHOT_MODE alone leaves the
   sheet's half empty on a phone), the eye by FLIGHT_PROBE.camSet / pan (the garage's world: the fuselage along x, the
   nose toward -x near x -3.6, the tail near +2.4; the span along z). Scratch rig, not committed.
+- THE PILOT, THE BELLY, THE WING'S SURFACES, THE LIGHTS, THE JOINT, THE REGISTRATION (12 Nov, the user's review of
+  the renders): the belly flatter (botRound 0.3); the aerobatic recline seat laid back 42 deg, on the floor, slid
+  forward (seatZ 0.32), the pedals 1.0 m off its back - the feet in the nose, the head clear. LIMIT MET: past ~1.3 m
+  from the cockpit's aft ring (zBack + pedalZ) the nose's floor (floorAt) falls away and the feet stand through the
+  skin; floorY does not move the seat. Plain flaps from the centre section to mid-span (wgFlapSpan 0.54) and the
+  ailerons the rest (wgAilSpan 0.55) - the real one's flaps are airbrakes: a GARAGE GAP (REF_MATCH section 7). The
+  lights off (lightOn 0, no electrics). The windows' joint 0.012 -> 0.008 (under ~6 mm the bead draws dotted on
+  SwiftShader). The cheat line lowered under every window (m1C -0.04); the registration on the nose's lower flank in
+  field mode (it fought the fin's hinge line).
