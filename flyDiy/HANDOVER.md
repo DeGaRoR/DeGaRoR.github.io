@@ -314852,3 +314852,12 @@ the next steps).
   built, not yet used). Sections from the aft end, target / built: bay 2 1.33 / 1.33, bay 1 to 2.30 / 2.30, cabin to the
   windscreen base 3.18 / 3.19, nose to the firewall 3.43 / 3.44, bonnet 0.79 straight + 0.24 face to 4.46 / 4.47; the floor
   raised 0.16 m (keel -0.82), the roof at 2.07 m, the wheels on the drawing's, 1035 kg, still LAUNCHES off paved.
+- **CAR-3, THE USER'S SECTIONS, READ RIGHT (12 Nov, the user's coloured overlay: cowl - nose - cabin with the angled A
+  pillar - pax 1 - pax 2)**: the overlay was registered on a fitting on the rear wall, not the body (0.1 m off) -
+  blueprint_overlay.py now takes the rear-most BODY column (>= 30 % of the fullest column) and the drawing's body rear
+  wall (437 px, not the bumper). The windscreen rows reset to the C172's (wsRun 0.655 = the drawing's A-pillar run,
+  0.59 m) and the cowl face reset clean (no lid rise, lidLen 0.06 at lidShoulder 0.92 - the C172's 0.24 m lid was a
+  dome). Stations from the body's aft end, the user's red lines / built: pax 2 1.25 / 1.251, pax 1 to 2.18 / 2.181, the
+  windscreen top 2.45 / 2.451, the A-pillar foot 3.04 / 3.040, the firewall 3.34 / 3.340, the cowl face 4.38 / 4.37
+  (pilotLen 0.2, paxLen 0.933, paxLenLast 1.29, noseLen 0.333, cw_cowlLen 0.97). The detail (grille, lamps in inlets,
+  windows on the doors, fairings, the front suspension) is next, after the user's look.

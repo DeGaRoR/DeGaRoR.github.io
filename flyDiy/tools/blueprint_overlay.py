@@ -14,7 +14,7 @@
 #
 #   --bp-crop  the drawing's side view, pixels (x0,y0,x1,y1) - the other views on the sheet left out
 #   --bp-mpp   the drawing's metres per pixel (a known length over its pixels, e.g. the wheelbase)
-#   --bp-ref   the drawing's tail x and ground y, pixels (uncropped sheet)
+#   --bp-ref   the drawing's tail x (its BODY's rear wall, not the bumper) and ground y, pixels (uncropped sheet)
 #   --flip     mirror the drawing (when its nose points the other way from the render's)
 import argparse
 from PIL import Image, ImageDraw
@@ -46,7 +46,12 @@ for y in range(R.height):
             xs.append(x); ys.append(y)
         else:
             px[x, y] = (0, 0, 0, 0)
-tailX, groundY = max(xs), max(ys)              # the rear-most and lowest drawn pixels (the nose points left)
+# the rear-most column that is BODY - at least 30 % of the fullest column's drawn height (a fitting or a stub that
+# sticks out of the rear wall is not the tail: CAR-3's overlay was registered on one, 0.1 m off) - and the lowest pixel
+cols = {}
+for x in xs: cols[x] = cols.get(x, 0) + 1
+cmax = max(cols.values())
+tailX, groundY = max(x for x, c in cols.items() if c >= 0.3 * cmax), max(ys)
 
 # the drawing, cropped and scaled to the render's metres per pixel
 B = Image.open(a.bp).convert('RGBA')
