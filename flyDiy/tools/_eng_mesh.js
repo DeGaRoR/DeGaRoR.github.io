@@ -1029,12 +1029,17 @@ const EM = (() => {
         const y3 = dY ? 0.62 * cR - dY * cR : 0.62 * cR, rS = kR === 1 ? 0.24 * cR : 0.24 * cR * kR;
         const squash = fl > 0 ? (i, n) => { const t = Math.max(0, (i / Math.max(1, n - 1) - 0.67) / 0.33);
                                              const e = t * t * (3 - 2 * t); return [1 - fl * e, 1 + 0.6 * fl * e]; } : null;
+        // (12 Nov, FIT-PROCEDURE; the user on the PC-6: "one of the engine's pipes going up and the other one
+        // down") stackSplit: 0 both rooted high (as before), 1 the left stack mirrored low (rooted under the can's
+        // axis, out and aft below it), 2 the right one
+        const split = Math.round(+P.stackSplit || 0);
         for (const [nm, sx] of [['stackL', -1], ['stackR', 1]]) {
           part(nm, 'tube');
+          const sy = (split === 1 && sx < 0) || (split === 2 && sx > 0) ? -1 : 1;
           const path = fillet([
-            [sx * 0.60 * cR, 0.45 * cR, z0],                 // rooted in the can
-            [sx * x2 * cR, 0.62 * cR, z0 - 0.02 * canL],
-            [sx * x3 * cR, y3, z0 - run * canL],             // out, then aft
+            [sx * 0.60 * cR, sy * 0.45 * cR, z0],            // rooted in the can
+            [sx * x2 * cR, sy * 0.62 * cR, z0 - 0.02 * canL],
+            [sx * x3 * cR, sy * y3, z0 - run * canL],        // out, then aft
           ], 0.35 * cR);
           sweep(path, rS, ENGM_MAT.exhaust,
                 squash ? { capA: true, lipB: true, sides: S.pipe, squash } : { capA: true, lipB: true, sides: S.pipe });

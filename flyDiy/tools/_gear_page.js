@@ -87,7 +87,8 @@ const LEG_ROWS = {
     // NEW-SHAPES-1: the old fixed gear's cross axle - one bar wheel to wheel, the bungee at the V's apex, no strut
     ['linkAxle', 'cross axle (one bar)', 0, 1, 1],
     ['linkAxleX', 'cross-bracing wires (X)', 0, 1, 1],
-    ['shockKind', 'shock', 0, 2, 1, ['coil-over', 'bungee', 'rubber stack']],
+    // (12 Nov, FIT-PROCEDURE) 3 the piston - the Wilga's strut (an oleo in the physics)
+    ['shockKind', 'shock', 0, 3, 1, ['coil-over', 'bungee', 'rubber stack', 'piston (oleo strut)']],
     ['shockAt', 'shock on arm', 0.15, 0.95, 0.01],
     ['shockZ', 'shock top z', -0.6, 1.0, 0.01],
     // (12 Nov, FIT-PROCEDURE: to 170 - the PC-6's shock is anchored high on the side, below the windscreen; the

@@ -79,7 +79,8 @@ const engDefaults = () => Object.assign(
     stackStyle: EG.ENG_DEFAULT.stackStyle,
     // (12 Nov, FIT-PROCEDURE) the PT6 stacks' reach, run, thickness, drop and outlet (1/1/1/0/0: as drawn before)
     stackOut: EG.ENG_DEFAULT.stackOut, stackLen: EG.ENG_DEFAULT.stackLen, stackR: EG.ENG_DEFAULT.stackR,
-    stackDrop: EG.ENG_DEFAULT.stackDrop, stackFlat: EG.ENG_DEFAULT.stackFlat },
+    stackDrop: EG.ENG_DEFAULT.stackDrop, stackFlat: EG.ENG_DEFAULT.stackFlat,
+    stackSplit: EG.ENG_DEFAULT.stackSplit },
   JSON.parse(JSON.stringify(EMOD.ENGM_DEFAULT)));
 
 const IN = 0.0254;
@@ -295,6 +296,7 @@ const ENG_GROUPS = [
     ['stackFlat', 'stacks: flat outlet',      0, 0.8, 0.01],
     ['stackR',    'stacks: thickness ×',      0.5, 2.0, 0.01],
     ['stackDrop', 'stacks: outlet drop (case radii)', -1, 2, 0.01],
+    ['stackSplit', 'stacks: one up, one down', 0, 2, 1, ['both up', 'left down', 'right down']],
   ], isTurbine],
   ['electric', [
     ['eStyle',  'style', 'drop', [[0, 'outrunner (RC / FES)'],
