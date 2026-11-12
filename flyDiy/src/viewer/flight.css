@@ -1146,29 +1146,64 @@ body.fl2 .flCornB[hidden], body.shot .flCornB, body.rollShot .flCornB, body.prem
 /* G3648 / G3741 photo mode: nothing on the screen but the camera button - pressed again it takes the picture and the
    interface comes back (Esc: back without one); the back button of the shed's screenshot mode is not needed here */
 body.fl2.mode-fly #shotBack { display:none !important; }
-/* G3742 THE PHOTO BAR: bottom left (never the centre), the garage's plate; the camera's own rows (styled as the flyout's),
-   Done and a round shutter. The flash is a blink of the page, not of the picture */
-#photoBar { position:fixed; left:22px; bottom:22px; z-index:2147481000; width:300px; max-width:calc(100vw - 24px); box-sizing:border-box;
-  max-height:calc(100vh - 44px); display:flex; flex-direction:column; padding:10px 12px 12px; border-radius:10px;
-  background:var(--ed-plate); color:var(--ed-ink); border:1px solid var(--ed-border); box-shadow:0 10px 28px rgba(0,0,0,.45);
-  font:400 12px/1.3 'IBM Plex Sans', sans-serif; }
-#photoBar[hidden] { display:none; }
-#photoBar * { font-style:normal; }
-#photoBar .phHead { display:flex; align-items:baseline; gap:10px; padding:0 2px 8px; border-bottom:1px solid var(--ed-hair); }
-#photoBar .phHead b { font:600 10px/1 'IBM Plex Sans'; letter-spacing:.2em; text-transform:uppercase; color:var(--ed-ink); }
-#photoBar .phHead span { font:500 9px/1 'IBM Plex Sans'; letter-spacing:.16em; text-transform:uppercase; color:var(--ed-faint); }
-#photoBody { flex:1; min-height:0; overflow-y:auto; scrollbar-width:thin; }
-#photoBar .phActs { display:flex; align-items:center; justify-content:space-between; gap:10px; padding-top:10px; border-top:1px solid var(--ed-hair); }
-#photoDone { min-height:44px; padding:0 16px; border-radius:8px; border:1px solid var(--ed-btn-bd); background:var(--ed-btn-bg); color:var(--ed-ink);
-  font:500 12px/1 'IBM Plex Sans'; letter-spacing:.1em; text-transform:uppercase; cursor:pointer; }
-#photoShutter { width:62px; height:62px; padding:0; border-radius:50%; border:3px solid #f4efe6; background:transparent; cursor:pointer;
-  display:grid; place-items:center; }
-#photoShutter i { width:48px; height:48px; border-radius:50%; background:#f4efe6; transition:transform .08s ease; }
-#photoShutter:active i { transform:scale(.88); }
+/* PHOTO-MODE-2 P1 THE PHOTO BAR (photo.js; the design's §1.2, the user 11 Nov: "all the options are on the top bar", the
+   shutter "like the Android shutter ... no frame around it, just a hovering button, half transparent"). The flight
+   interface's own grammar, outside #ui (body.shot hides #ui and #wsUI): the plate at the left of the top row - PHOTO,
+   its meta, the slots as #flBar's .flTopB - Done at the right; a slot's flyout UNDER its slot (#flFly's look); the
+   shutter alone below, bottom centre. The flash is a blink of the page, never in the picture (the grab is the canvas). */
+#photoTop { position:fixed; left:22px; right:22px; top:18px; z-index:2147481000; display:flex; align-items:flex-start; gap:10px;
+  pointer-events:none; font:400 12px/1.3 'IBM Plex Sans', sans-serif; font-variant-numeric:tabular-nums; }
+#photoTop[hidden] { display:none; }
+#photoTop > * { pointer-events:auto; min-width:0; }
+#photoTop * { font-style:normal; }
+#photoPlate { display:flex; flex-direction:column; gap:7px; padding:9px 10px 10px; max-width:100%; box-sizing:border-box;
+  background:var(--ed-plate); border:1px solid var(--ed-border); border-radius:9px;
+  backdrop-filter:blur(16px) saturate(1.15); -webkit-backdrop-filter:blur(16px) saturate(1.15); }
+#photoHead { display:flex; align-items:baseline; justify-content:space-between; gap:18px; padding:0 2px; }
+#photoHead b { font:600 9.5px/1 'IBM Plex Sans'; letter-spacing:.2em; text-transform:uppercase; color:var(--ed-ink); }
+#photoHead span { font:500 9px/1 'IBM Plex Sans'; letter-spacing:.16em; text-transform:uppercase; color:var(--ed-faint); }
+#photoSlots { display:flex; gap:6px; overflow-x:auto; scrollbar-width:none; }
+#photoSlots::-webkit-scrollbar { display:none; }
+#photoTop .phSlot { flex:none; min-width:96px; display:flex; flex-direction:column; justify-content:center; gap:3px; padding:6px 10px;
+  border-radius:7px; background:var(--ed-btn-bg); border:1px solid var(--ed-btn-bd); color:var(--ed-ink); cursor:pointer; text-align:left; }
+#photoTop .phSlot:hover { border-color:rgba(255,255,255,.3); }
+#photoTop .phSlot.open { border-color:var(--ed-acc); }
+#photoTop .phSlot > i { font:500 8.5px/1 'IBM Plex Sans'; letter-spacing:.16em; text-transform:uppercase; color:var(--ed-faint); }
+#photoTop .phSlot > b { font:500 12px/1.2 'IBM Plex Sans'; color:var(--ed-ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:180px; }
+#photoDone { margin-left:auto; flex:none; font:500 12px/1 'IBM Plex Sans'; letter-spacing:.1em; text-transform:uppercase; color:var(--ed-ink);
+  background:var(--ed-plate); border:1px solid var(--ed-btn-bd); padding:13px 18px; border-radius:8px; cursor:pointer; min-height:44px;
+  backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); }
+#photoDone:hover { border-color:rgba(255,255,255,.3); }
+#photoTop :focus-visible, #photoFly :focus-visible, #photoShutter:focus-visible { outline:2px solid var(--ed-acc); outline-offset:2px; }
+#photoFly { position:fixed; z-index:2147481001; box-sizing:border-box; overflow-y:auto; padding:12px 14px 14px;
+  background:var(--ed-plate); border:1px solid var(--ed-border); border-radius:9px; color:var(--ed-ink);
+  font:400 12px/1.3 'IBM Plex Sans', sans-serif; font-variant-numeric:tabular-nums;
+  backdrop-filter:blur(16px) saturate(1.15); -webkit-backdrop-filter:blur(16px) saturate(1.15);
+  scrollbar-width:thin; scrollbar-color:var(--ed-off) transparent; }
+#photoFly[hidden] { display:none; }
+#photoFly * { font-style:normal; }
+#photoFlyHead { font:600 10px/1 'IBM Plex Sans'; letter-spacing:.2em; text-transform:uppercase; color:var(--ed-faint);
+  padding-bottom:9px; margin-bottom:6px; border-bottom:1px solid var(--ed-hair); }
+/* the shutter: a hovering round button, half transparent, no plate and no frame (a phone camera's) */
+#photoShutter { position:fixed; left:50%; bottom:calc(26px + env(safe-area-inset-bottom, 0px)); z-index:2147481000;
+  width:74px; height:74px; margin-left:-37px; padding:0; border:0; border-radius:50%; cursor:pointer;
+  background:rgba(255,255,255,.34); box-shadow:inset 0 0 0 4px rgba(255,255,255,.62), 0 2px 14px rgba(0,0,0,.25);
+  transition:transform .08s ease, background .12s ease; -webkit-tap-highlight-color:transparent; }
+#photoShutter:hover { background:rgba(255,255,255,.44); }
+#photoShutter:active { transform:scale(.9); background:rgba(255,255,255,.55); }
+#photoShutter[hidden] { display:none; }
 #photoFlash { position:fixed; inset:0; z-index:2147480000; background:#fff; opacity:0; pointer-events:none; }
 #photoFlash.on { animation:phFlash .45s ease-out; }
 @keyframes phFlash { 0% { opacity:.7; } 100% { opacity:0; } }
-@media (max-width:760px) { #photoBar { left:12px; bottom:12px; width:auto; right:12px; max-height:46vh; } }
+/* the shed's screenshot mode has its own way back (#shotBack); photo mode's is Done */
+body.photoOn #shotBack { display:none !important; }
+@media (max-width:760px) {
+  #photoTop { left:12px; right:12px; top:12px; }
+  #photoPlate { flex:1; }
+  #photoTop .phSlot { min-width:84px; }
+  #photoDone { padding:13px 12px; }
+}
+@media (prefers-reduced-motion:reduce) { #photoShutter { transition:none; } #photoFlash.on { animation-duration:.2s; } }
 #ui #mmX { position:absolute; top:8px; left:8px; z-index:2; width:32px; height:32px; padding:0; border-radius:16px; cursor:pointer;
   border:1px solid var(--ed-border); background:var(--ed-plate); color:var(--ed-ink); font:500 18px/1 'IBM Plex Sans'; }
 body:not(.fl2) #ui #mmX { display:none; }

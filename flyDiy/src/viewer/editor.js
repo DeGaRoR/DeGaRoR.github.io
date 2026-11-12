@@ -3091,10 +3091,13 @@ function editorInit(api) {
       w3.className = 'edCam';
       const b = document.createElement('button');
       b.className = 'pill';
-      b.textContent = 'screenshot';
-      b.title = 'Hide every panel and mark — the render alone. Esc, or the ' +
-                'faint button top right, brings the interface back.';
-      b.onclick = () => { openFly(null); window.SHOT_MODE.enter(); };
+      // PHOTO-MODE-2 P1: the shed's photo mode - the same top bar and shutter as the flight's (app.js FLYDIY_PHOTO.open);
+      // the render alone (SHOT_MODE.enter) where there is no photo bar
+      const ph = window.FLYDIY_PHOTO && window.FLYDIY_PHOTO.open;
+      b.textContent = ph ? 'photo mode' : 'screenshot';
+      b.title = ph ? 'Photo mode: every panel off, the camera and the light on the top bar, a shutter. Done or Esc brings the interface back.'
+                   : 'Hide every panel and mark — the render alone. Esc, or the faint button top right, brings the interface back.';
+      b.onclick = () => { openFly(null); if (window.FLYDIY_PHOTO && window.FLYDIY_PHOTO.open) window.FLYDIY_PHOTO.open(); else window.SHOT_MODE.enter(); };
       w3.appendChild(b);
       body.appendChild(w3);
     }

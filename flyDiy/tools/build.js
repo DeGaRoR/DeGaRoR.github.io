@@ -707,6 +707,8 @@ const MANIFEST = {
               // G3623 (DMG-GLASS): the impact marks on the glazing (window.DMG_GLASS, pure; app.js glassMarks; the crack block is aeroskin.js's)
               'dmg_glass.js',
               'skin_scuff.js',          // G2000 (DMG-SCUFF): the damage drawn - after skin_break.js, before app.js
+              // PHOTO-MODE-2 P1: the photo bar's UI (window.PHOTO; app.js hands it the camera, the clock, the grab)
+              'photo.js',
               'world_boot.js', 'app.js',
               'dev_panel.js'],   // (the WORLD rail, world_rail.js, rides the world pack above - G582)
   },

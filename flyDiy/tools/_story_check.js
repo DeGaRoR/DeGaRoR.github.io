@@ -264,7 +264,7 @@ async function page() {
   // minimap's button goes the moment the minimap it opens shows (flPanel), not on the half-second tick
   { const ST = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'style.css'), 'utf8'), BJ = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'boot.js'), 'utf8');
     const rule = (ST.match(/:root\.fdBoot :is\(([^)]*)\) \{ visibility:hidden !important; \}/) || [])[1] || '';
-    const held = ['#stTim', '#stCard', '#stSkip', '#mapEntry', '#gmMenu', '#gmPanel', '#frEntry', '#frLoad', '.flCornB', '#photoBar', '#hireScreen'];
+    const held = ['#stTim', '#stCard', '#stSkip', '#mapEntry', '#gmMenu', '#gmPanel', '#frEntry', '#frLoad', '.flCornB', '#photoTop', '#photoFly', '#photoShutter', '#hireScreen'];
     const miss = held.filter(s => !rule.split(/[\s,]+/).includes(s));
     ok(rule && !miss.length && !/#welcome/.test(rule), "STORY-1: Tim's band, the story's cards, the pills, the corner, photo mode and the hire screen are hidden while the loading screen is up (the welcome is not)", miss.join(' '));
     ok(/function hide\(\) \{\n[^\n]*upCls\(false\);/.test(BJ) && /function show\(set, opt\) \{\n[^\n]*\n\s*upCls\(true\);/.test(BJ) && /classList\.toggle\('fdBoot', !!on\)/.test(BJ) && /if \(b0 && !b0\.hidden && [^\n]*upCls\(true\);/.test(BJ),

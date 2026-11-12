@@ -12,8 +12,8 @@ rulings are in its section 6). **Every phase that lands updates this file**: the
 | the scene inside a PNG (one compressed `iTXt` chunk) | **BUILT** (P0) | same |
 | `placePose`: the aeroplane at any heading / pitch / roll, rigid | **BUILT** (P0) | `src/core/39c_placement.js` |
 | the JSON Schema of the scene | **BUILT** | `futureDesigns/photo-mode-2/scene.schema.json` |
-| the photo bar on the flight's top bar, garage + flight, the floating shutter | not yet (P1) | will be `src/viewer/photo.js` |
-| Save / Load a scene in the game, `window.SCENE` | not yet (P2) | photo.js |
+| the photo bar on the top row, garage + flight: camera and light slots, Done, the floating shutter | **BUILT** (P1, 12 Nov) | `src/viewer/photo.js` (the UI), app.js's PHOTO-MODE-2 P1 section (the slots, the bubble, the shutter), GATE PHOTO, UISMOKE rows |
+| the picture slot (size, high quality), Save / Load a scene in the game, `window.SCENE` | not yet (P2; high quality P4) | photo.js |
 | "go to" the start places in photo mode | not yet (P3) | photo.js + `FLYDIY_ROUTE.spawn` |
 | the high-quality shot (spinner, steps, cap 55 s) | not yet (P4, needs the GPU box) | photo.js + `gfx_settings.js` |
 | `tools/scene_shot.js`: a scene file -> a PNG, headless | not yet (P5, needs the GPU box) | tools/ |
@@ -89,16 +89,29 @@ rewrites. Until P2 gives `SCENE.apply`, a page places with `FLIGHT_PROBE.place({
 
 - `shots/scenes/<name>.scene.json`: scenes we keep. GATE SCENE checks every file there, so a broken one is red.
 - Pictures go to `screenshots/` (gitignored), never into the repo.
-- Every picture the game saves (P1 on) carries its scene: `node tools/scene.js get` recovers it.
+- Every picture the game saves (from P2 on) carries its scene: `node tools/scene.js get` recovers it.
 
-## 2. The photo mode in the game (P1-P4; how it will work)
+## 2. The photo mode in the game
 
-On the flight's TOP BAR (the flight interface design, `futureDesigns/design_handoff_flight_interface/`): the PHOTO
-plate at the left with five slots (camera · light · picture · scene · go to), `Done` at the right; the rest of the
-chrome leaves; a round half-transparent shutter floats bottom centre. The same bar in the garage. **Save this scene**
-takes the screen as it is (no posing tools: the user's ruling); **Load** puts it back; **go to** sets the start place
-(`FLYDIY_ROUTE.spawn`) and restarts there. **High quality** is opt-in: a spinner in the middle with the % and one short
-line, at most 55 s (`SCENE_HQ_CAP_S`), the settings back after.
+**Built (P1):**
+- **Open it:** in flight, the corner camera button (top left); in the shed, the camera flyout's `photo mode` pill; from
+  code, `window.FLYDIY_PHOTO.open()`. Every panel goes (body.shot); the flight pauses.
+- **The bar:** the TOP ROW (the flight interface's grammar): a PHOTO plate with one slot per question - `camera` (the
+  views, free with Dev on or in photo mode, the field of view, level, lead; in the shed: the field of view 25-80 and
+  "frame the aeroplane") and `light` (in flight the day panel: the hour, the date - `time` in the career, whose clock is
+  the career's; in the shed: its moods) - each opening its flyout UNDER the slot; `Done` at the right. Esc closes the
+  open flyout first, then photo mode.
+- **The shutter:** the round half-transparent button at the bottom centre. The picture is the NEXT PRESENTED 3D frame
+  (no interface in it), downloaded as `wingsmith-<date>-<time>.png`, with the flash and the sound.
+- **Done** gives back what photo mode changed: the camera's mode and field of view, the pause, the hour (only when the
+  light slot moved it, never the career's), the shed's field of view and mood.
+- **For a rig:** `SHOT_MODE.enter()` is still the render ALONE (no photo bar: it opens only through `FLYDIY_PHOTO.open`).
+  `FLYDIY_PHOTO`: `open()`, `take()` (the shutter), `on()`, `done()`, `slots()` (the slot keys where you are).
+
+**Coming:** the `picture` slot (the size: the window's by default, 1920x1080, 2560x1440, 3840x2160; **high quality**,
+opt-in: a spinner in the middle with the % and one short line, at most 55 s, `SCENE_HQ_CAP_S`), `scene` (Save this
+scene: the screen as it is - no posing tools, the user's ruling; Load; the scene inside every picture), `go to` (the
+start places: `FLYDIY_ROUTE.spawn` + Restart).
 
 ## 3. Shooting a scene headless (P5; how it will work)
 
@@ -118,7 +131,7 @@ pose -> camera -> hold -> the world streamed round the EYE -> checks), shoot, an
   asserts). Copy its order, not its numbers. The hooks: `FLIGHT_PROBE` (app.js: `camSet(az, el, dist)`, `camSettle()`,
   `camMode(m)`, `devFree(x, y, z, yaw, pitch)`, `camGet()`, `pan`, `place`), `SHOT_MODE.enter()` (the interface off),
   `DAY_CLOCK.set({...})` / `.rate(0)`, `GARAGE_SPEC.set(spec)`, `FLYDIY_ROUTE.spawn(id)` (the next roll-out's start),
-  `GFX.get()`, `window.FLYDIY_PHOTO.take()` (today's shutter: a PNG download of the next presented frame).
+  `GFX.get()`, `window.FLYDIY_PHOTO.take()` (the shutter: a PNG download of the next presented frame - the 3D frame alone, whatever is on the page).
 
 The pitfalls every rig has hit (each one cost runs; the files that record them):
 

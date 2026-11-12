@@ -19718,66 +19718,12 @@
     bEye.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-6.4 10-6.4S22 12 22 12s-3.6 6.4-10 6.4S2 12 2 12Z"/><circle cx="12" cy="12" r="2.8"/></svg>';
     bMap.onclick = () => { gmOpen(false); if (!gmMap($('mapEntry') ? 'contracts' : null)) gmTab(); };
     bEye.onclick = () => flCamNext();
-    // G3648 PHOTO MODE (the user 25 Oct: 'a button for photo mode, on the top left, next to the contract access') and G3741
-    // (the user: "clicking on it hides all but the button, reclicking on it automatically screenshot, dl the screenshot in
-    // PNG and re displays the interface"): the first press is the screenshot mode (shotSet) with this button left on the
-    // glass (flight.css); the second takes the next presented frame (photoGrab: the 3D frame alone - the button is not in
-    // it), downloads it as flydiy-<date>-<time>.png and brings the interface back. Esc leaves without a picture; a drag
-    // frames the shot (the camera's, as always)
+    // G3648 PHOTO MODE (the user 25 Oct: 'a button for photo mode, on the top left, next to the contract access'): the
+    // corner camera opens photo mode - since PHOTO-MODE-2 P1 the bar is photo.js's, on the top row, the same in the shed
+    // (below, after this layout: FLYDIY_PHOTO.open)
     const bShot = mk('button', 'flShotB', 'flCornB', '', 'Photo mode: the flight paused, the camera free, a shutter');
-    const photoName = () => { const d = new Date(), p = n => String(n).padStart(2, '0');
-      return 'flydiy-' + d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + '-' + p(d.getHours()) + p(d.getMinutes()) + p(d.getSeconds()) + '.png'; };
-    const photoSave = blob => { if (!blob) return; const a = document.createElement('a'), u = URL.createObjectURL(blob);
-      a.href = u; a.download = photoName(); document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 4000); };
-    const flash = mk('div', 'photoFlash');
-    document.body.appendChild(flash);
-    const photoTake = () => { if (photoGrab) return;
-      try { window.dispatchEvent(new CustomEvent('flydiy:shutter', { detail: { at: Date.now() } })); } catch (e) {}   // G3744: the shutter's sound (audio.js listens)
-      photoGrab = cv => {   // (toBlob copies the frame now, encodes after); the flash is the page's, not the picture's
-        cv.toBlob(photoSave, 'image/png');
-        flash.classList.remove('on'); void flash.offsetWidth; flash.classList.add('on');
-      };
-    };
-    // G3742 THE PHOTO BAR: the flight PAUSED (the player's pause, given back as it was), the CAMERA's own rows (the views -
-    // the free camera among them - the field of view, the level horizon, the lead, the smoothing: FL_BUILD.camera, as the
-    // flyout and the pause menu mount it), a real SHUTTER (as many pictures as you like) and Done. Bottom left, draggable
-    // by its head; the camera and the field of view go back to the flight's when it ends
-    const pBar = mk('div', 'photoBar'); pBar.hidden = true; pBar.setAttribute('role', 'group'); pBar.setAttribute('aria-label', 'photo mode');
-    pBar.innerHTML = '<div class="phHead"><b>Photo</b><span>paused</span></div><div id="photoBody"></div>' +
-      '<div class="phActs"><button type="button" id="photoDone">Done</button><button type="button" id="photoShutter" aria-label="Take the picture" title="Take the picture"><i></i></button></div>';
-    document.body.appendChild(pBar);
-    let photoWas = null;
-    const photoBuild = () => {
-      const body = $('photoBody'), keep = body.scrollTop;
-      while (body.firstChild) body.removeChild(body.firstChild);
-      FL_BUILD.camera(body);
-      if (cam.mode === 'free') flNote(body, 'The free camera: WASD / ZQSD to move, R / F up and down, Shift faster, the wheel its speed, drag to look.');
-      body.scrollTop = keep;
-    };
-    const photoBegin = () => {
-      if (photoOn || inGarage) return;
-      photoOn = true; photoWas = { mode: cam.mode, fov: cam.fov, held: running };
-      if (running) gmHold(true);
-      photoBuild(); pBar.hidden = false;
-      if (window.FLYDIY_DRAG) window.FLYDIY_DRAG.register('#photoBar', 'photo', { handle: '.phHead' });
-    };
-    const photoEnd = () => {
-      if (!photoOn) return;
-      photoOn = false; pBar.hidden = true;
-      const w = photoWas; photoWas = null;
-      if (w) {
-        if (cam.mode !== w.mode) flCamMode(w.mode);
-        if (cam.fov !== w.fov) { cam.fov = w.fov; flSave('Cam', cam); flApplyFov(); }
-        if (w.held && !running && !inGarage) gmHold(false);
-      }
-    };
-    photoHook = on => { if (on) photoBegin(); else photoEnd(); };
-    const hook0 = flPageHook; flPageHook = () => { if (hook0) hook0(); if (photoOn) photoBuild(); };   // (a pick rebuilds it, as the flyout)
-    $('photoShutter').onclick = () => photoTake();
-    $('photoDone').onclick = () => shotSet(false);
     bShot.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 8.2h3.6l1.6-2.4h6.6l1.6 2.4h3.6v10.6H3.5Z"/><circle cx="12" cy="13.2" r="3.4"/></svg>';
-    bShot.onclick = () => { gmOpen(false); shotSet(true); };   // photo mode (photoHook): the bar has the shutter and Done
-    window.FLYDIY_PHOTO = { take: photoTake, name: photoName, on: () => photoOn, done: () => shotSet(false) };
+    bShot.onclick = () => { gmOpen(false); if (window.FLYDIY_PHOTO && window.FLYDIY_PHOTO.open) window.FLYDIY_PHOTO.open(); else shotSet(true); };
     document.body.appendChild(bMap); document.body.appendChild(bShot); document.body.appendChild(bEye);
     // the minimap: a button while it is put away, an x on it to put it away
     const bMm = mk('button', 'flMmB', 'flCornB', '', 'The minimap: show');
@@ -19832,6 +19778,96 @@
     window.addEventListener('resize', () => { try { fit(); } catch (e) {} });
     window.FLYDIY_FL2 = { on: true, tick, fit, ap: apSet };
   } catch (e) { console.warn('flyDiy: the flight layout -', e && e.message); document.body.classList.remove('fl2'); }
+
+  // ---- PHOTO-MODE-2 P1: THE PHOTO BAR (photo.js), IN THE SHED AND IN FLIGHT ------------------------------------------------
+  // (G3741 the shutter, G3742 the bar bottom left, G3744 the sound; futureDesigns/PHOTO-MODE-2-2026-11-11.md §1.) One bar on
+  // the TOP ROW - the plate with its slots (camera, light; the picture's size, the scenes and "go to" come with P2-P4) and
+  // Done at the right - and a round half-transparent shutter floating at the bottom centre. It is OPENED by the photo
+  // buttons (FLYDIY_PHOTO.open: the flight's corner camera, the shed's 'photo' pill); a bare SHOT_MODE.enter() - the
+  // rigs', the screen flyout's 'screenshot' - stays the render alone, without the bar, as it always was.
+  // THE BUBBLE: Done gives back what photo mode changed - the camera's mode and field of view, the pause; the hour when
+  // the light slot moved it (the sandbox: the career's clock is the career's); in the shed its field of view and mood.
+  let photoWant = false, photoWas = null, photoDayTouched = false;
+  const photoName = () => { const d = new Date(), p = n => String(n).padStart(2, '0');
+    return 'wingsmith-' + d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + '-' + p(d.getHours()) + p(d.getMinutes()) + p(d.getSeconds()) + '.png'; };
+  const photoSave = blob => { if (!blob) return; const a = document.createElement('a'), u = URL.createObjectURL(blob);
+    a.href = u; a.download = photoName(); document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 4000); };
+  // the shutter: the sound inside the gesture (G3744), the NEXT PRESENTED frame (photoGrab, the loop's end: the 3D frame
+  // alone - nothing of the page's is in it) copied by toBlob in that same task, the flash the page's
+  function photoTake() {
+    if (photoGrab) return;
+    try { window.dispatchEvent(new CustomEvent('flydiy:shutter', { detail: { at: Date.now() } })); } catch (e) {}
+    photoGrab = cv => { cv.toBlob(photoSave, 'image/png'); if (window.PHOTO) window.PHOTO.flash(); };
+  }
+  const photoDay = () => { try { const D0 = typeof DAY_CLOCK !== 'undefined' ? DAY_CLOCK : null, d = D0 && D0.day && D0.day();
+    return d && !(D0.isCareer && D0.isCareer()) ? { date: d.date, utc: d.utc } : null; } catch (e) { return null; } };
+  const photoGFov = v => { garageFov = Math.max(25, Math.min(80, +v || 46)); prefSet('flydiy.garageFov', String(garageFov));
+    if (inGarage) { camera.fov = garageFov; camera.updateProjectionMatrix(); } return garageFov; };
+  const photoGE = () => window.GARAGE_ENV || null;
+  // the slots for where we are: { k, label, value(), build(body) } - the rows are the flight rail's own builders
+  function photoSlots() {
+    if (inGarage) return [
+      { k: 'camera', label: 'camera', title: 'The camera', value: () => 'orbit \u00b7 ' + Math.round(garageFov) + '\u00b0',
+        build: body => {
+          flRange(body, 'field of view', 25, 80, 1, () => garageFov, v => { photoGFov(v); if (window.PHOTO) window.PHOTO.refresh(); }, v => v.toFixed(0) + '\u00b0');
+          flPills(body, [{ label: 'frame the aeroplane', value: 1 }], () => false, () => garageCamera());
+          flNote(body, 'Drag to turn round the aeroplane, right-drag to slide, the wheel to come closer.');
+        } },
+      { k: 'light', label: 'light', title: 'The shed\u2019s light', value: () => { const G = photoGE(), L = (G && G.moods && G.moods()) || []; return String(L[(G && G.mood && G.mood()) | 0] || 'the shed').toLowerCase(); },
+        build: body => {
+          const G = photoGE(), L = (G && G.moods && G.moods()) || [];
+          if (!L.length) { flNote(body, 'The shed is still being built: its lights come with it.'); return; }
+          flPills(body, L.map((n, i) => ({ label: String(n).toLowerCase(), value: i })), o => (G.mood() | 0) === o.value,
+                  o => { G.setMood(o.value); if (window.PHOTO) window.PHOTO.refresh(); });
+          flNote(body, 'The shed\u2019s own light. The clock moves it on at the next hour; Done puts back the one you had.');
+        } },
+    ];
+    return [
+      { k: 'camera', label: 'camera', title: 'The camera', value: () => cam.mode + ' \u00b7 ' + Math.round(cam.fov) + '\u00b0',
+        build: body => {
+          FL_BUILD.camera(body);
+          if (cam.mode === 'free') flNote(body, 'The free camera: WASD / ZQSD to move, R / F up and down, Shift faster, the wheel its speed, drag to look.');
+        } },
+      { k: 'light', label: (typeof DAY_CLOCK !== 'undefined' && DAY_CLOCK.isCareer && DAY_CLOCK.isCareer()) ? 'time' : 'light', title: 'The light: the hour, the day', value: () => {
+          try { const l = DAY_CLOCK.label(); return l ? l.split(' \u00b7 ')[0] : ''; } catch (e) { return ''; } },
+        build: body => { photoDayTouched = true; FL_BUILD.slot_day(body); } },
+    ];
+  }
+  function photoBegin() {
+    if (photoOn || !window.PHOTO) return;
+    photoOn = true; photoDayTouched = false;
+    if (inGarage) { const G = photoGE(); photoWas = { garage: true, fov: garageFov, mood: G && G.mood ? G.mood() : null }; }
+    else { photoWas = { mode: cam.mode, fov: cam.fov, held: running, day: photoDay() }; if (running) gmHold(true); }
+    window.PHOTO.begin();
+  }
+  function photoEnd() {
+    photoWant = false;
+    if (!photoOn) return;
+    photoOn = false;
+    if (window.PHOTO) window.PHOTO.end();
+    const w = photoWas; photoWas = null;
+    if (!w) return;
+    try {
+      if (w.garage) {
+        if (garageFov !== w.fov) photoGFov(w.fov);
+        const G = photoGE(); if (G && G.setMood && w.mood != null && G.mood() !== w.mood) G.setMood(w.mood);
+      } else {
+        if (cam.mode !== w.mode) flCamMode(w.mode);
+        if (cam.fov !== w.fov) { cam.fov = w.fov; flSave('Cam', cam); flApplyFov(); }
+        const now = photoDay();
+        if (photoDayTouched && w.day && now && (now.date !== w.day.date || Math.abs(now.utc - w.day.utc) > 60)) DAY_CLOCK.set({ date: w.day.date, utc: w.day.utc });
+        if (w.held && !running && !inGarage) gmHold(false);
+      }
+    } catch (e) { console.warn('flyDiy: photo mode, back -', e && e.message); }
+  }
+  function photoOpen() { photoWant = true; if (SHOT.on) photoBegin(); else shotSet(true); }
+  if (window.PHOTO) try {
+    window.PHOTO.init({ slots: photoSlots, take: photoTake, done: () => shotSet(false),
+                        meta: () => (inGarage ? 'the shed' : (running ? '' : 'paused')) });
+    photoHook = on => { if (on) { if (photoWant) photoBegin(); } else photoEnd(); };
+    const hook0 = flPageHook; flPageHook = () => { if (hook0) hook0(); if (photoOn && window.PHOTO) window.PHOTO.refresh(); };   // (a pick rebuilds it, as the flyout)
+  } catch (e) { console.warn('flyDiy: the photo bar -', e && e.message); }
+  window.FLYDIY_PHOTO = { open: photoOpen, take: photoTake, name: photoName, on: () => photoOn, done: () => shotSet(false), slots: () => photoSlots().map(o => o.k) };
 
   // ---- Esc closes; a click on the render closes ---------------------------
   window.addEventListener('keydown', e => {

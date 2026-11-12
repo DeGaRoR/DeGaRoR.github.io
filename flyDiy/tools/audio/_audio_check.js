@@ -674,7 +674,7 @@ function checkWiring(S) {
   // G1730 THE SHUTTER: audio.js listens for photo mode's 'flydiy:shutter' (GAME-MENUS G3744 fires it at the take - the
   // round shutter and FLYDIY_PHOTO.take both); where photo mode exists (app.js photoTake) the event must be fired
   if (S.audio.indexOf("W.addEventListener('flydiy:shutter', () => { shutter(); });") < 0) F.push('audio.js does not listen for photo mode’s flydiy:shutter (G1730)');
-  { const t = S.app.indexOf('const photoTake = () => {');
+  { const t = Math.max(S.app.indexOf('const photoTake = () => {'), S.app.indexOf('function photoTake() {'));   // (PHOTO-MODE-2 P1: a function now)
     if (t >= 0 && S.app.indexOf("'flydiy:shutter'") < 0) F.push('photo mode (app.js photoTake) never fires flydiy:shutter: the shot is silent (G1730 / GAME-MENUS G3744)'); }
   const calls = S.app.split('AUDIO.update(').length - 1;
   if (calls !== 1) F.push('app.js calls AUDIO.update ' + calls + ' times (want 1)');
