@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: eb3f8ac4f1757e2d
+// body-sha256: 71459bbd7a7c0968
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -33289,6 +33289,16 @@ function genSurfKey(S, which, k) {
   // a resolved spec carries `material`; a raw one only `fuselage.material`
   const fus = S.material || (S.fuselage && S.fuselage.material);
   const D = which === 'wing' ? GEN_SURF_DEFAULT : GEN_SURF_DEFAULT_TAIL;
+  // THE TAIL FOLLOWS A CHOSEN WING (WEIGHT STUDY L2, 12 Nov, the user: "have the tail material just follow the wing
+  // material"): a tail that says nothing is built as the wing when the wing's construction was CHOSEN (wings[0].material
+  // stated); a wing left to the aeroplane leaves the tail to the fuselage as before - the Cub's welded tail under its
+  // wooden wing stays (G213's measured reason). Measured: of the 33 cards only the Archaeopteryx's tail moves; no saved
+  // build in builds/ states a wing over a silent tail.
+  if (!key && which !== 'wing') {
+    const w0 = S.wings && S.wings[0] && S.wings[0].material;
+    const wk = w0 == null ? null : (GEN_SURF_MATERIALS[w0] ? w0 : (GEN_SURF_LEGACY[w0] || null));
+    if (wk) return wk;
+  }
   return key || D[fus] || 'fabric';
 }
 function genSurfMaterial(S, which, k) {
@@ -40963,7 +40973,8 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // against its own reference - not the wing bucket the carry-through and the truss classes billed in another material
   // share (they kept the first-billed row's refGross: the D-tube's 190 kg grew the Archaeopteryx's carbon bracing 7.1 ->
   // 12.3 kg). A card without such a row has no 'wingB' and is gauged exactly as before
-  const bucketB = (bk, mat) => bk === 'wing' && mat && mat.buildKg > 0 ? 'wingB' : bk;
+  // (the tail in the D-tube - it follows a chosen wing - likewise: 'tailB')
+  const bucketB = (bk, mat) => (bk === 'wing' || bk === 'tail') && mat && mat.buildKg > 0 ? bk + 'B' : bk;
   const gBag = bk => gauged[bk] || (gauged[bk] = { m: 0, x: 0, y: 0, z: 0 });
   const gauged = { fus: { m: 0, x: 0, y: 0, z: 0 }, wing: { m: 0, x: 0, y: 0, z: 0 },
                    tail: { m: 0, x: 0, y: 0, z: 0 }, gear: { m: 0, x: 0, y: 0, z: 0 } };
@@ -41378,7 +41389,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // weigh what they did (so the aeroplane does not move); the new pair is built weightless
     const ghost = !!(opt && opt.ghost);
     if (!ghost) {
-    const bm = { a, b, k: row(MM.k, cls) * (isG ? kG : (cls === 'wing' && MM.buildKg > 0 ? Math.min(KS, KSB(MM)) : KS)) * kGain * mK * bK * kMul,
+    const bm = { a, b, k: row(MM.k, cls) * (isG ? kG : ((cls === 'wing' || cls === 'tail') && MM.buildKg > 0 ? Math.min(KS, KSB(MM)) : KS)) * kGain * mK * bK * kMul,
                  c: row(MM.c, cls) * (isG ? cG : CS) * Math.sqrt(mK) * Math.sqrt(bK) * Math.sqrt(kMul) * cMul,
                  gear: isG, cls, ext: vis === 'inner' ? false : (!!ext || isG),
                  vis: vis || null, L };
@@ -41595,7 +41606,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
                            coverAt[i] = (coverAt[i] || 0) + area / ids.length; }
     // a load-bearing skin follows the gauge (GEN_MATERIALS.coverGauged);
     // the bucket is the section's: the wings', the tail's, else the body's
-    const bk = SEC === 'wings' ? bucketB('wing', MB) : SEC === 'tail' ? 'tail' : 'fus';
+    const bk = SEC === 'wings' ? bucketB('wing', MB) : SEC === 'tail' ? bucketB('tail', MB) : 'fus';
     // G445.7: THE SKIN AFT OF THE CABIN IS SKIN. The fuselage row's cover
     // (4.5 kg/m2 on alloy) "carries frames, doors, floors and windows" —
     // the cabin's things — and was billed on the bare tail cone at the same
@@ -45141,10 +45152,11 @@ function genDesignGross(S, a, cg) {
   const ref = c => a.parts.gaugeRef[c] || (GEN_MATERIALS[S.material] || {}).refGross || 550;
   // THE BUILD WEIGHT (the foot-launch D-tube, GEN_SURF_MATERIALS.dtube): a wing built for buildKg thins below it but
   // never grows past it
-  const WROW = genSurfMaterial(S, 'wing', 0) || {};
+  const WROW = genSurfMaterial(S, 'wing', 0) || {}, TROW = genSurfMaterial(S, 'stab') || {};
   // ('wingB': the D-tube's own bucket, gauged with the wing's exponent and capped at its build weight)
-  const eOf = c => G.e[c] != null ? G.e[c] : G.e.wing;
-  const hiOf = c => c === 'wingB' && WROW.buildKg > 0 ? Math.min(G.hi, CORE_MATH.pow(WROW.buildKg / ref(c), eOf(c))) : G.hi;
+  const eOf = c => G.e[c] != null ? G.e[c] : G.e[c.replace(/B$/, '')];
+  const rowOf = c => c === 'wingB' ? WROW : c === 'tailB' ? TROW : null;
+  const hiOf = c => { const r = rowOf(c); return r && r.buildKg > 0 ? Math.min(G.hi, CORE_MATH.pow(r.buildKg / ref(c), eOf(c))) : G.hi; };
   const gOf = (c, W) => Math.min(hiOf(c), Math.max(G.lo, CORE_MATH.pow(W / ref(c), eOf(c))));
   // the furnishing (GEN_OUTFIT.furnK, Raymer on W0) is billed in pass 2
   // and belongs to the same fixed point
@@ -51659,8 +51671,12 @@ function makeLoadTest(sim, def, cfg) {
     // clear of the ground so contact never joins in, then bolt the rig down
     for (let i = 0; i < sim.n; i++) sim.p[i*3+1] += GEN_LOAD_LIFT;
     pin.length = 0;
+    // THROUGH THE BOOM (WEIGHT STUDY L2, GATE LIGHTROD): a tail surface's bags carried through the rod - only the cabin
+    // (forward of the box's rear) on the trestles, the rod and the tail free - so the rod takes the tail's load as in
+    // flight; the default pins everything but the surface, as ever
+    const xFree = cfg.throughBoom && def.spec && def.spec.fuse && def.spec.fuse.boxRear != null ? def.spec.fuse.boxRear + 0.05 : Infinity;
     def.nodes.forEach(function (nd, i) {
-      if (!wingTag[nd.tag] && !carriedTag[i])
+      if (!wingTag[nd.tag] && !carriedTag[i] && !(nd.p[0] > xFree))
         pin.push([i, sim.p[i*3], sim.p[i*3+1], sim.p[i*3+2]]);
     });
   }
@@ -52842,6 +52858,12 @@ function* genCertifySteps(def, opt) {
       // wing comes with its bracing. (Measured: on the strut-braced Cub the full-strength struts relieved the D-tube's
       // spar and the wing held 6.13 g - the struts are the wing's, not the fuselage's.)
       def.beams.forEach((b, i) => { if (b.sec === 'wings' || b.sec === 'bracing') { Ft[i] *= f; Fc[i] *= f; } });
+    }
+    // ...and the tail built of it (it follows a chosen wing, 60_gen_spec genSurfKey): the same build weight
+    const TR = (typeof genSurfMaterial === 'function') ? genSurfMaterial(S, 'stab') : null;
+    if (TR && TR.buildKg > 0 && W0 > TR.buildKg) {
+      const f = TR.buildKg / W0;
+      def.beams.forEach((b, i) => { if (b.sec === 'tail') { Ft[i] *= f; Fc[i] *= f; } });
     } }
   return { v: GEN_CERT_V, key: genCertKey(def), nb, nN, limit: L, ult: GEN_CERT.ult, neg: -GEN_CERT.neg * L, m: GEN_CERT.m,
            sink, dropNz: drop ? drop.nz : null, flownNz: flown ? flown.nz : null, flownReached: flown ? flown.reached : null,
