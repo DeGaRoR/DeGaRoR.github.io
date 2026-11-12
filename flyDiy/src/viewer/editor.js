@@ -3771,7 +3771,8 @@ function editorInit(api) {
     //                       first is what makes the hex mean what it says —
     //                       (250,212,130) -> a real amber against the cream.
     const m = new THREE.MeshBasicMaterial({
-      color: new THREE.Color(HI.pin).convertSRGBToLinear(),
+      // (12 Nov: r186's managed colour already decodes the hex - convert only when management is off: once)
+      color: THREE.ColorManagement && THREE.ColorManagement.enabled ? new THREE.Color(HI.pin) : new THREE.Color(HI.pin).convertSRGBToLinear(),
       transparent: true, opacity: 0.95, toneMapped: false,
       depthTest: false, depthWrite: false, fog: false });
     m.onBeforeCompile = sh => {
