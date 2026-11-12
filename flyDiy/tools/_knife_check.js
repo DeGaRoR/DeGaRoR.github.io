@@ -218,6 +218,19 @@ const SKIN_ONLY = { intOn: 0, shoulderOn: 0, doorPanelOn: 0 };
     }
     check(good === 2, 'SHAPES radius R1 ("fwd top") rounds the forward top corner on both flanks (' + out.join(', ') + ')');
   }
+  // A FIFTH CORNER (12 Nov, FIT-PROCEDURE: the PC-6's cockpit window): a free quad with Q5 pushed out of its fwd edge is
+  // a convex pentagon, kept (not refused) and cut watertight; Q5 on but in line with the edge is refused, not cut
+  {
+    const R = G.cageQuadRect(Object.assign({}, PAGE_BASE, { paxWinN: 1 }), 'paxWin');
+    const mid = [(R[3][0] + R[0][0]) / 2 + 0.06, (R[3][1] + R[0][1]) / 2];
+    const P5 = Object.assign({}, PAGE_BASE, SKIN_ONLY, { paxWinN: 1, paxWinShape: 2, paxWinQ5On: 1, paxWinQ5Z: mid[0], paxWinQ5Y: mid[1], paxWinR5: 0.03 });
+    const W5 = G.cageSpec(P5).windows.find(x => x.row === 1), w5 = watertight(sheetOf(P5));
+    check(W5 && W5.q && W5.q.length === 5 && !W5.refused && w5.ok && w5.loops === 2,
+          'SHAPES a five-corner window is a convex pentagon, cut watertight (' + (W5 && W5.q ? W5.q.length : '-') + ' corners, ' + w5.loops + ' loops, refused ' + !!(W5 && W5.refused) + ')');
+    const Pin = Object.assign({}, P5, { paxWinQ5Z: mid[0] - 0.06 });
+    const Win = G.cageSpec(Pin).windows.find(x => x.row === 1);
+    check(Win && /in a line/.test(Win.refused || ''), 'SHAPES a fifth corner in line with its edge is refused (' + (Win && Win.refused) + ')');
+  }
   // the cut: a trapezoid, a parallelogram and a triangle on the page aeroplane, watertight
   for (const [nm, over] of [['trapezoid', { paxWinTopK: 0.55 }], ['parallelogram', { paxWinSkew: 0.12 }],
                             ['triangle', { paxWinTopK: 0, paxWinR: 0.03 }], ['four radii', { paxWinR1: 0.15, paxWinR2: 0, paxWinR3: 0.02, paxWinR4: 0.1 }]]) {
