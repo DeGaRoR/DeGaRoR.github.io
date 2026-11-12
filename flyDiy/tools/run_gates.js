@@ -727,6 +727,9 @@ const GATES = [
   // (untouched preset = the certified row; deviated = modified/custom)
   { id: 'ENGINE', file: '_engcustom_check.js', tier: 'core' },
   { id: 'ENGID', file: '_engid_check.js', tier: 'core' },
+  // ENGINE-DIALS (9 Nov): every registry engine a point on the custom engine's dials, to the bit; every official
+  // propeller on the cowl page's rows; a custom engine inherits nothing from its fallback key
+  { id: 'ENGINEDIALS', file: '_enginedials_check.js', tier: 'core', wall: 3 },
   // 2026-09-03: an "applies once" starter fires on a ROW change, never on a
   // LOAD — the engine preset and the cowl-for-architecture, and the three
   // doors that replace P
@@ -1137,6 +1140,9 @@ const GATES = [
   // each listing stands, buying stations it there, the sandbox unchanged. ~2 s (~4.5 min cold: 33 shakedowns, cached
   // in the OS temp dir by content)
   { id: 'PROCURE', file: '_procure_check.js', tier: 'core', wall: 400 },
+  // ENGINE-DIALS C (9 Nov): the validated builds' snapshots (CONTRACT_DESIGNS, FREIGHT_CARDS, PROCURE eff) are of the
+  // build files as they are - an edit is red until `node tools/snapshots.js --write` follows it
+  { id: 'SNAPSHOTS', file: 'snapshots.js', argv: ['--check'], tier: 'core', wall: 1 },
   // FREIGHT (G2340 FREIGHT-MODEL, futureDesigns/game/FREIGHT-2026-10-07.md): every validated build's hold, doors,
   // seats and plaque re-measured off its mesh = FREIGHT_CARDS (one build twice: deterministic); items with dims,
   // bulk split into bags; the door rule (a door too small refused; the 2.0 m stretcher as the geometry says); the

@@ -314714,3 +314714,221 @@ TOWN-1 STEP 1, THE COST (HW-COVERAGE, 8 Nov, metla_ab P,B,B,P, Cub, approach 100
 - sea-on: one 2045 ms first-visit task; the Petrel not measured.
 - town-trees: measured on L35d, no measurable cost.
 - **BOOT: the timed gate timed out on its last row (c172 cockpit).** Garage-ready 134-244 s (one boot timeout at 243.7 s) against L38a 150-185 s and L37b 119-149 s, with long tasks up to 32 s. It is mixed with the box's shader-cache misses (worst link 47.8 s), so it is not attributed to an item. First item of the Friday perf round.
+## ENGINE-DIALS A - EVERY REGISTRY ENGINE IS A POINT ON THE CUSTOM ENGINE'S DIALS; A CUSTOM ENGINE INHERITS NOTHING FROM THE A-65 (9-11 Nov 2026, cloud, ENGINE-DIALS for A0; claude/ready/engine-dials-a)
+
+BASE: origin/master 603da882 (L38a): REAL-FIGURES-3's bmepK / massK (landed in L37b) and ENGINE-GAP's engFrom path
+are both on it. Rebased on 11 Nov from the first cut on RF3 39dc1313 (A0's ruling, 9 Nov: "build ON bmepK / massK").
+The readies land in order A, B, C.
+
+THE BRIEF'S FINDINGS 1 AND 2 (the hard-coded content audit): registry rows official content flies sat outside the
+dial ranges (the 582's 43 kg, the 915 / 916, the Clerget; no tune or build at all on an electric or a turbine), and a
+custom engine read the A-65's data through its fallback key (engines[].type is 'a65_sensenich74' for every custom
+engine): the drive's cylinders, the default propeller diameter, the economy's price, the tech stage; and it could not
+be a radial (the cooling drag) or constant-speed.
+
+WHAT:
+- tools/_eng_gen.js: REAL-FIGURES-3's tune (bmepK) and build (massK) on all three kinds of engine - an electric's
+  tune is the shear stress over the style's (torque at the same can and mass), a turbine's the core's specific power
+  over the style's; one range for all (ENG_DIAL_RANGE, tune 0.5-2.0, build 0.4-2.2: the registry's extremes, the
+  503's 0.59 to the Verner's 1.80, the Clerget's 0.50 to the 277's 2.06). Each is multiplied LAST, on the power and on
+  the model's whole mass: mid-chain, the 912's power stepped two ulps at a time past 59 600 and no build reached the
+  916's 85.8 kg (the gearbox, jacket and turbo additions left a hole). At 1 every engine is the same double as before.
+- tools/_eng_page.js: the pair on the electric and turbine panels; piston rpm 1000-7500 (was 1800-6500: the
+  Clerget's 1 250, the 503's 6 800); three new rows - the reduction ratio (gearRatio, 1.0-3.5; absent 1, what a geared
+  custom engine flew before), the drive's maximum rpm (rpmMax, 0 = rated: the 582's 6 800), a constant-speed
+  propeller (cs). All absent at their default (CAGE_DEFAULT_ABSENT, GEN_CAGE_ROW_NEUTRAL), claimed by the engine
+  part (_cage_parts.js), hidden under a catalogue engine (geometry, not installation).
+- tools/_cage_eng.js CAGE_ENG_FACTS: the custom row carries the engine's own cylinders (a piston's resolve), layout
+  'radial', cs (a turbine always; a piston by its row), rpmMax; a TURBINE's gear is 1 (its rpm is the propeller's, the
+  registry's convention: n2 / tRpm put a custom PT6's propeller at ~120 rpm).
+- src/core: clampSpec keeps the four new fields (absent otherwise); a custom engine's default propeller is 1.80 m, not
+  the A-65's 1.88 (resolveSpec and the wing's balance rule, genEngPropD0); 33_drive reads a custom engine's own
+  cylinders and maximum, never the fallback key's row; the economy prices a custom engine as its own row (was the
+  A-65's 11 000); the tech stage reads a custom engine's family (fam:piston / electric / turbine; was eng:a65); a
+  custom engine's power cap 1 -> 2 MW (the Merlin 66 is 1.283 MW and is a dial point).
+- 76_procure.js PROCURE_ENG_BASE = applyEngPreset's write with the new rows (RF3's base was red: 18 PROCURE lines).
+- GATE ENGINEDIALS (new, core, ~1 s; tools/_enginedials_check.js + tools/engine_dial_points.json):
+  1 every one of the 44 POWERPLANTS rows has a dial point (a preset to start from + the custom engine's dials), every
+    dial inside its row's range, and the custom engine at it carries the row's mass, power, rpm, gear, aspiration,
+    critical altitude, family, cooling, layout, cs, flat rating and length TO THE BIT (Object.is), again through
+    clampSpec and again through 33_drive (rated, max, gear, cylinders, family, cs, power, torque, its factor, omega).
+    Printed, not compared: where the mass sits (the custom row's own vs GEN_ENG_CG's 1 cm rounding, GATE ENGID's 2 cm)
+    and the price (a garage engine prices on the uncertified curve, G134). `--emit` re-solves the table (1 s): the
+    tune and build by bisection then the neighbouring ulps; where a product chain skips the row's double, the main
+    geometry dial (bore / can / gas generator) walks by single ulps. Two seeds: the 3548 outrunner (no preset: a
+    35 x 48 mm can) and the EMRAX 268 / 228 (rated at 2 400 rpm, drawn at 4 500 / 5 000: a 0.30 / 0.26 m can).
+  2 every propeller official / candidate / validated content flies is on the cowl page's rows (D, blades, material).
+  3 a custom engine inherits nothing: five dial points (the 582, the Verner radial, the R-1830, an EMRAX, a PT6) as
+    custom engines on five fallback keys give one engine, one propeller, one drive, one wing station, one tech stage,
+    one price. (On the base this section fails: the propeller and the drive followed the key.)
+
+DIGESTS, master 603da882 against this ready (node, the load door tools/_load_build.js: each build's flown spec, its
+buildGen def - nodes, beams, strips, refs, params - and genCertKey; 18 builds):
+- IDENTICAL def and certificate key on 16: the Cub (cert af84cf8d), the Jodel (59b49604), the metal Cessna (bd677633),
+  the Cessna on floats (78476d00), the STOL Cub (f801025a; the STOL fixture untouched), the Twin busher floats 4b
+  (21535e6e), the Super Petrel LS (54a231ae), the Chinook, the Rufus, the PA-18 floats, the Camel, the DC-3, cessnaMetal
+  (1), cessnaFloatsWOrks, the twin fixture, flydiy-build (4).
+- The flown SPEC moves on every build by exactly two cage keys: eng_bmepK: 1 and eng_massK: 1 are no longer written
+  (CAGE_DEFAULT_ABSENT) - REAL-FIGURES-3's neutral-row rule (GEN_CAGE_ROW_NEUTRAL) already kept them out of every key.
+- MOVED, as meant: the corrected 172 (internal; a custom engine) - its custom row gains `cyl: 4`, the four it borrowed
+  from the A-65, so its drive is the same (def 1f8d18db -> 13aabf4b, cert bce62d1a -> 4277a11b); the Carbon Cub SS
+  (candidate; bmepK 1.09 / massK 0.88): the pair multiplied last, its power and mass move in the last bits (def
+  446e17d7 -> b5ce0115, cert dd1915de -> 9b614c83). Neither carries a shipped certificate.
+- GATE ENGCONFIG's identity lines (`--pin`; red on master: stale pins) are master's, line for line.
+- No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change.
+
+GATES (node, 11 Nov, this ready against master 603da882, both run here, `run_gates.js --no-build`):
+- The same verdict as master on all 27 run: BUILD, SAVE, PARTS, ENGMESH, ENGID, STARTER, JOIN, PRICE, PROCURE,
+  WEARPRICE, ECON, PLANELISTS, CANDIDATES, HYDRODYN, FLOATS, FLOATKIT, DESIGN, SKINMAT, CONTRACTS, STORY, RPM, GEAR,
+  UISMOKE PASS; red on master and here, line for line: JOINPARITY 1 (the Jodel's node = page), TECH (av.elt:none /
+  fitted without a segment), FREIGHT 1 (ready C's snapshot write fixes it), ENGCONFIG (stale pins + the quad). Plus
+  ENGINEDIALS (new): PASS.
+- The flight gates ran on the stack's top (ready C; see its note). This ready's defs are master's on every validated
+  build (above).
+
+COSTS: none in flight (no validated def moved). GATE ENGINEDIALS ~1 s; `--emit` ~1 s.
+
+DECIDED (A0, 9 Nov):
+- The tune and build multiplied LAST: accepted - identical at 1, and every registry row is reachable exactly. RF3's
+  Carbon Cub SS (a candidate, not validated) moves in the last bits for that reason; no gate on this base pins its row.
+- PRICES, G134's rule: a catalogue engine keeps its registry price; a garage-built dial point is priced on the
+  uncertified market curve, even when it matches a catalogue engine's numbers (the 503's point 8 586 against the row's
+  4 700; the E-811's 17 280 against 28 000).
+- ENGINE-GAP's engFrom path (master): its keyed path now also carries the row's governed propeller (row.cs) and the
+  drive table's maximum (GEN_DRIVE rpmMax) while the custom engine's own cs / rpmMax rows are untouched; cylinders
+  and layout come from the resolve (the same arch).
+
+OPEN (each with the default this ready takes):
+1. A custom engine saved before this ready and never re-joined flies its family's cylinder count in 33_drive (a
+   two-stroke 2, not the A-65's 4): its certificate's drive loads move. None is shipped. Default: no PHYSICS_V bump.
+2. The custom row's `torque` (written since G134) is read by nothing; left.
+
+## ENGINE-DIALS B - THE PROPELLER'S PITCH, A ROW OF ITS OWN; THE FLOAT KIT SETS IT THE SAME WAY (9-11 Nov 2026, cloud, ENGINE-DIALS for A0; claude/ready/engine-dials-b, on engine-dials-a)
+
+THE BRIEF'S FINDING 3: the pitch had no control of its own. The Chinook flies 'auto' (genPropAuto picks the class for
+the measured wing), which the editor could not set; 'seaplane' came only through the Wipline float kit; the design
+tiles wrote spec.prop.pitch as a side effect of a blade choice (wood -> cruise, carbon -> climb).
+
+WHAT:
+- tools/_cage_eng.js: a `pitch` row in the propeller group - automatic (picked for the wing), fine (climb), standard,
+  coarse (cruise), seaplane (the float prop): exactly GEN_PROP_PITCH's classes and 'auto', in the float kit's order
+  (KIT_PITCHES, whose saved fltKitPrevPitch indexes it). The row is a VIEW of spec.prop.pitch and never a cage key
+  (CAGE_VIEW_KEYS: no saved file gains a key, no fingerprint moves): each build the row reads the spec's pitch; a
+  builder's move writes the spec through GARAGE_SPEC.update, the call the design tiles' spec writes and the kit
+  already made (CAGE_PROP_PITCH.set). PAGE.load forgets, so a load never writes a pitch. Claimed by the propeller part
+  (_cage_parts.js, its own 'pitch' group on the trunk - physics, not the expert blade shape).
+- tools/_cage_float.js: the kit's seaplane propeller and its restore set the pitch through that same writer.
+- tech (79b_tech.js): 'pitch:auto' at segment 1 (the table's rule: a propeller is off the shelf); TECH_ROWS reads the
+  row; GATE TECH's pitch options include 'auto' (its option count 119 -> 120).
+- GATE ENGINEDIALS 2 grows: every official / candidate / validated build's pitch is on the row (the Chinook's auto, the
+  float Cessna's seaplane); the row is exactly GEN_PROP_PITCH + auto; the kit's list is the row's, in its order; the
+  kit sets through the row's writer; the writer moves the row and writes spec.prop.pitch.
+
+DIGESTS: no core physics file changes (79b_tech.js is the tech mask). The flown spec, def and certificate key of every
+build are ready A's (the row is never written to the cage and the join does not read it).
+
+GATES (node, 11 Nov, against master 603da882): the same verdict as master on the 27 run (A's list) - TECH red as
+master's, the same av.elt line (its option count 120 for 119: 'auto'); ENGINEDIALS PASS. The flight gates: on the
+stack's top (ENGINE-DIALS C).
+
+UNSEEN: the row in a page (no browser here): UISMOKE runs the built page's script blocks with stubs and passes; the
+write-through needs GARAGE_SPEC, which only the page has (the gate drives it with a stub).
+
+THE PITCH API (A0, 9 Nov: PROP-CLASSES - claude/practical-cerf-7fjpwp, prop materials with a section efficiency, a
+constant-speed class - builds on this row; extend it here, never beside it):
+- STATES: tools/_cage_eng.js `PROP_PITCHES = ['auto', 'climb', 'standard', 'cruise', 'seaplane']` and
+  `PROP_PITCH_LABELS`, one per state, same order. The list is GEN_PROP_PITCH's keys + 'auto' (GATE ENGINEDIALS 2 holds
+  that equality), in the float kit's order (_cage_float.js KIT_PITCHES: a saved fltKitPrevPitch is an index into it).
+  A NEW CLASS: a GEN_PROP_PITCH row (60_gen_spec.js: fm, pd, name) + APPENDED to PROP_PITCHES, PROP_PITCH_LABELS,
+  KIT_PITCHES and TECH_ROWS.propPitch (79b_tech.js, + its TECH_TABLE 'pitch:<key>' segment). Append, never insert:
+  KIT_PITCHES' saved index must keep its meaning. 'auto' picks only among GEN_PROP_AUTO_ORDER (climb / standard /
+  cruise); a class 'auto' may pick goes in there too.
+- THE ROW: `propPitch` in the engine layer's propeller group, a drop over PROP_PITCH_LABELS; claimed by the propeller
+  part's 'pitch' group (_cage_parts.js); a VIEW key (_cage_gen.js CAGE_VIEW_KEYS): never saved in the cage, never in a
+  fingerprint. Its value is the spec's: spec.prop.pitch is the one state, the row mirrors it.
+- THE WRITER (the kit's hook): `window.CAGE_PROP_PITCH = { KEYS, LABELS, set(P, key) }`. set() moves the row and writes
+  spec.prop.pitch through GARAGE_SPEC.update({ prop: { pitch } }) (deferred by a tick, as the design tiles' spec writes
+  are). The float kit calls it (_cage_float.js setPitch(p, P)); anything else that picks a pitch (a tile, a class
+  starter) should too, so the row and the spec cannot disagree.
+- THE SYNC: every build, propPitchSync(P) in the engine layer's PAGE.post - a row the builder moved since the last build
+  goes through set(); otherwise the row takes the spec's pitch. PAGE.load forgets (pitchSeen = null): a load never
+  writes a pitch.
+- THE PHYSICS: unchanged by the row - resolveSpec reads spec.prop.pitch (genPropSynth; 'auto' -> genPropAuto in
+  buildGen). A constant-speed class would also want 33_drive / genShaftRpm's `cs` (today an ENGINE field: the registry's
+  turbines, ready A's custom-engine `cs` row); say which owns it when the class lands.
+
+OPEN (with the default taken):
+1. The design tiles still write a pitch with their blades (wood -> cruise, carbon -> climb). The row now shows it and
+   can change it after. Default: left (the tiles are starters: one click, a sensible propeller).
+
+## ENGINE-DIALS C - THE LATENT PHYSICS FIELDS: A ROW OR A CONSTANT THE JOIN WRITES; THE SNAPSHOTS FOLLOW THE BUILDS; THE REGISTRY'S PROP NUMBERS NAMED (9-11 Nov 2026, cloud, ENGINE-DIALS for A0; claude/ready/engine-dials-c, on engine-dials-b)
+
+THE BRIEF'S FINDINGS 4 AND 5: physics fields no editor row reaches (gear stiffness and camber, the fuselage crown; the
+cowl fields are PROPER-COWLS' one cowl path's - not touched, see OPEN 4); the registry's dead propeller numbers; the
+per-aircraft snapshots in procurement, freight and economy written by hand from a measurement.
+
+WHAT:
+- GEAR STIFFNESS IS A ROW: the mains' `suspension stiffness ×` (s1Stiff, 0.35-3, GEN_FIELDS' clamp; the frame scales
+  the legs' spring by it and their damping by its root), written by the join to spec.gear.stiffness, absent at 1
+  (CAGE_DEFAULT_ABSENT, GEN_CAGE_ROW_NEUTRAL), claimed by the mains' shock group. The audit's "every shipped build at
+  the default" missed one: the DC-3-alike (candidate) flies stiffness 3 (DC3-BUILD set it in the spec) - cageFromSpec
+  now seeds the row from a file's stiffness when its cage has none, so it flies its 3 and the row shows it.
+- CAMBER AND CROWN ARE FIXED CONSTANTS on a cage build: gear.camber (the gear layer draws every wheel upright) and the
+  loft's crownTop / crownSide (the drag build-up's body; the cage IS the body, nothing drawn stands for them). The join
+  writes GEN_DEFAULT's values (_cage_join.js CAGE_JOIN_FIXED: 0, 0.72, 0.07), so a hand-edited file cannot fly a value
+  no row shows. Every shipped build already carries them.
+- THE SNAPSHOTS FOLLOW THE BUILDS: tools/snapshots.js is the one writer of CONTRACT_DESIGNS' numbers (genShakedown, GATE
+  CONTRACTS' measurement), FREIGHT_CARDS (tools/_freight_site.js) and PROCURE's option effects (GATE PROCURE's
+  --emit), off the build files CONTRACT_DESIGNS names, stamped with the files' hash (`// SNAPSHOTS-OF` in
+  72_contract_data.js). GATE SNAPSHOTS (new, core, ms) is red when a validated build changed and its snapshots did not:
+  an edit follows with `node tools/snapshots.js --write` (~10 min: the PROCURE measurement). Written now on master 603da882 (A0
+  9 Nov: "exactly the audit's point") - the drift the finding is about, inside the old gates' 3 %: THE METAL CESSNA
+  883 -> 880 kg, 663 -> 662 empty, take-off 147 -> 144 m; the Cessna floats 1018 -> 1017 kg, 798 -> 799 empty (its
+  take-off already master's 243); four procurement effects of the Cessna (the O-320's empty -77 -> -78, the IO-360's
+  take-off 13 -> 15, the long tank's mass 17 -> 16 and cruise 2 -> 1, three seats' cruise -2 -> -1); its freight card
+  (2 lines - master's one FREIGHT red line, now green). The Cub, the Jodel and the twin: unchanged.
+- THE REGISTRY'S PROPELLER NUMBERS (A0's ruling, 9 Nov): every row's Tstatic / kV2 "flies nothing, kept for the
+  certificate keys" - the comment over POWERPLANTS says so. Each garage build synthesises params.prop, which the solver,
+  the pilot, the drive and the hydro read first (the A-65's pair is GATE GEN's calibration anchor besides), but the
+  resolved spec carries the row (spec.pplant) and genCertKey, the bench's and the parked fleet's fingerprints hash it:
+  deleted, every certificate key moved (measured on the first cut: the STOL Cub f801025a -> 217bc677). They are dropped
+  at the next GEN_CERT_V bump - A0's board item of its own.
+- GATE ENGINEDIALS 4: the stiffness row writes gear.stiffness; the DC-3's 3 loads onto the row; the join's constants are
+  GEN_DEFAULT's and it writes them; every official / candidate / validated build carries a stiffness on the row's range
+  and the constants.
+
+DIGESTS, master 603da882 against this ready (the load door, 18 builds): ready A's - the 16 it left identical stay
+identical (def and certificate key; the flown spec but the two neutral cage keys): the Cub af84cf8d, the STOL Cub
+f801025a, the metal Cessna bd677633, the Cessna floats 78476d00, the twin 4b 21535e6e, the Super Petrel 54a231ae, the
+Chinook 8e50507f, the Rufus 7052bcd0. MOVED: the DC-3-alike's flown spec gains `s1Stiff: 3` in its cage - its def is
+master's (it flies the same 3), its certificate key moves (5b320edf -> bee2ad62; a candidate, no shipped certificate).
+No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change.
+
+GATES (node, 11 Nov, the stack's top = this ready, against master 603da882, `run_gates.js --no-build`):
+- The 27 of A's list: master's verdict on each, line for line - but FREIGHT, red on master (1 line: the Cessna card),
+  green here (the snapshot write). ENGINEDIALS and SNAPSHOTS (new): PASS.
+- THE FLIGHT GATES: STOL (the fixture untouched), GEN shards 0-2, PILOT (3 shards), TAKEOFF, SEAPLANE, ARCHETYPES shards
+  0 / 2 / 3: PASS. TOUR shard 0 (`_tour_check.js --shard=0/4`): PASS - the user's Cub
+  HOME > w3 > tw_ski > mn_strip > nv_strip > w2 > HOME, DONE, 6 legs, 28.6 L left, the mn_strip > nv_strip divert to w3.
+  RED, each master's own, read on master 603da882 the same day: GEN shard 3 "cruise is quiet in wind" (master's standing
+  red; GEN's old clampSpec-envelope red is gone with master's 4bb26b34), ARCHETYPES shard 1 "Chinook-alike: the circuit
+  completes - rejected-takeoff".
+
+COSTS: none in flight. GATE SNAPSHOTS: a hash of five build files (ms). The writer: ~10 min, only when a validated
+build file changes.
+
+OPEN (with the default taken):
+1. GATE SNAPSHOTS turns red on any edit to the five validated build files until `--write` runs (~10 min). Default:
+   that is the rule ("edits follow"); build.js does not run the writer (it would add minutes to every build).
+2. CONTRACT_DESIGNS.c172 is measured off bugReports/cessnaMetal (1).json, not the Official list's
+   builds/cessna172_2026-09-20.json (JOINPARITY's fixture line is the same pair). Default: the table's own file.
+3. Cowl fields (no editor row): PROPER-COWLS' one cowl path (CABIN-CRAFT integrates it) - not touched here, by the
+   user's rule; still so after L36d's PROPER-COWLS. Listed for that path: spec.cowl's six fields - fillet 0.10, taper 0.94, intake 'chin' and halfW / top /
+   bot (null: derived) - no join line writes any of them; every official and candidate file carries GEN_DEFAULT's.
+
+## ENGINE-DIALS C2 (Game, 12 Nov 00:15-01:05; ready claude/ready/engine-dials-c2, replaces engine-dials-c 12600ef78)
+
+- A0 held engine-dials-c out of L38b: BENCH (the story Rufus: the load door builds e5b65f7d, stamped 24e2e238) and POD (c172 def + certificate bytes) red with it, green without.
+- BENCH, a real fault fixed, no re-stamp: the join WROTE gear.stiffness 1, gear.camber 0, fuselage.crownTop 0.72 / crownSide 0.07 into every cage build; the major fingerprint hashes the spec as written, so every aeroplane's certificate would have been superseded on the update (G3780 R3: a game update is not a change to the aeroplane). Now at the default they stay ABSENT (the physics reads GEN_DEFAULT's, the same values; a stiffness off 1 is still written): Rufus is 24e2e238 again, untouched. GATE ENGINEDIALS 4 holds the new rule (absent at the default; the constants equal GEN_DEFAULT; the files scan as before).
+- POD, re-pinned with the reason in _pod_check.js A: only the C172 moved (def 6dd3e32e -> bf8dd73, cert 847af8c1 -> eb68eff5) because its custom engine no longer inherits the A-65 fallback key's propeller row (name, Tstatic, kV2, D 1.88 -> 1.8: numbers that fly nothing). The 300 flown steps are the base's to the bit on all six builds.
+- (A page re-stamp could not have fixed BENCH anyway: the test flight is awarded once and keeps its fingerprint.)

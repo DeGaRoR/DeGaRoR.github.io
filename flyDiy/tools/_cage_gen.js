@@ -9031,7 +9031,8 @@ function cageDefaults() {
 // the G46 visual snapshot froze the EXPLODED aeroplane into the mesh that
 // flies. Declared here rather than guessed, and skipped in both directions.
 // (G63.)
-const CAGE_VIEW_KEYS = { explodeD: 1, gearPos: 1, gearLvPos: 1 };   // (RETRACT: the gear preview's position is how you look at it, never saved; WILGA-GEAR: the trailing-link preview too)
+// (ENGINE-DIALS B: the propeller's pitch row is a view of spec.prop.pitch - _cage_eng.js PROP_PITCHES - never a cage key)
+const CAGE_VIEW_KEYS = { explodeD: 1, gearPos: 1, gearLvPos: 1, propPitch: 1 };   // (RETRACT: the gear preview's position is how you look at it, never saved; WILGA-GEAR: the trailing-link preview too)
 
 // LAYER PARAMETERS RIDE THROUGH. The cage's own parameters are CAGE_PARAMS,
 // but a bench page also carries its layers' (the crew's seats, controls and
@@ -9106,6 +9107,11 @@ function cageFromSpec(spec) {
   // nobody but the pilot. A file with no `dum2On` was at the default, which
   // the section rows' own defaults reproduce. The old key does not survive.
   if (Math.round(P.seatLayout) === 2) P.seatLayout = 0;
+  // ENGINE-DIALS C (9 Nov): THE SUSPENSION'S STIFFNESS BECAME A ROW (s1Stiff -> gear.stiffness). A file that flew a
+  // stiffness the row never held (the DC-3-alike's 3, set in the spec by DC3-BUILD) loads with the row AT that
+  // stiffness, so it flies what it flew and the row shows it; a file at 1 (every other) is the row's absent default
+  if (c && typeof c === 'object' && c.s1Stiff == null && spec && spec.gear && Number.isFinite(+spec.gear.stiffness)
+      && +spec.gear.stiffness !== 1) P.s1Stiff = +spec.gear.stiffness;
   // (3) THE CUT IS NOT A CHOICE (2026-09-14): a file that carries
   // `cutParts 0` — the stock cub and its descendants, through the old
   // template — loads with the cut on, like every other build.
@@ -9219,6 +9225,11 @@ const CAGE_DEFAULT_ABSENT = { pilSnap: 1, doorStop: 75, wgStrutPil: 0, wgTipBow:
   acc_gpsAerial_sL: 0, acc_gpsAerial_lv: 0, acc_eltAerial_sL: 0, acc_eltAerial_lv: 0,
   // C172-CLIP part 2 (9 Nov): the elevators' own end inset (_cage_hinge.js hgOutSt), 0 = the surfaces' hgOut
   hgOutSt: 0,
+  // ENGINE-DIALS (9 Nov): the engine's tune and build (eng_bmepK, eng_massK: 1), the reduction's ratio (1), the maximum
+  // rpm (0 = rated) and the constant-speed propeller (0) - applyEngPreset writes every engine row, so without this a
+  // save would carry them into every cage
+  eng_bmepK: 1, eng_massK: 1, eng_gearRatio: 1, eng_rpmMax: 0, eng_cs: 0,
+  s1Stiff: 1,   // (ENGINE-DIALS C: the mains' suspension stiffness)
   // WILGA-GEAR: the trailing-link leg's rows, per station (the core's GEN_LEVER_ROW_OFF: the same table)
   ...(() => { const d = { lvArm: 0.4, lvAng: 62, lvComp: 12, lvTop: 0.72, lvReach: 0.45, lvStat: 0.07, lvLegW: 0.09, lvRootAng: 80, lvBoot: 0 }, o = {};
     for (const k in d) { o[k] = d[k]; for (const i of [1, 2]) o['s' + i + '_' + k] = d[k]; }   // (the gear page's flat base copy too)

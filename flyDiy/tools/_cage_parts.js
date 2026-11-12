@@ -936,7 +936,9 @@ const CAGE_PARTS = [
                     'eng_stroke', 'eng_rpm', 'eng_stagger']],
       // the blower rows (2026-09-05): what holds the rating, and to where
       ['architecture', ['eng_twoStroke', 'eng_liquid', 'eng_geared',
-                        'eng_blower', 'eng_boost', 'eng_critAlt', 'eng_bmepK', 'eng_massK']],
+                        'eng_blower', 'eng_boost', 'eng_critAlt', 'eng_bmepK', 'eng_massK',
+                        // ENGINE-DIALS A: the gearbox's ratio, the drive's maximum rpm, a governed propeller
+                        'eng_gearRatio', 'eng_rpmMax', 'eng_cs']],
       ['electric', ['eng_eStyle', 'eng_canD', 'eng_canL', 'eng_volts',
                     'eng_eFins', 'eng_escOn']],
       // the turboprop's own keys (2026-09-05, TURBOPROP §3), so no row is
@@ -1043,6 +1045,8 @@ const CAGE_PARTS = [
       // G2770 (the user: "For the nose cone, put blades and design point
       // under expert"): the trunk keeps the blade count, the diameter and
       // the material; the blade's shape and the design point are expert
+      // ENGINE-DIALS B: the pitch (a view of spec.prop.pitch, _cage_eng.js PROP_PITCHES) - physics, on the trunk
+      ['pitch', ['propPitch']],
       ['blades', ['cw_bladeN', 'cw_propD', 'cw_material', 'cw_rootChord',
                   'cw_tipChord', 'cw_chordBulge', 'cw_sweep',
                   'cw_thickRoot', 'cw_thickTip', 'cw_camb', 'cw_tipRound',
@@ -1112,7 +1116,7 @@ const CAGE_PARTS = [
       ['linkage', ['s1_linkAng', 's1_linkSwing', 's1_linkArmW',
                    's1_linkVee', 's1_linkSpread', 's1_linkX',
                    's1_linkPanel', 's1_linkAxle', 's1_linkAxleX']],
-      ['shock', ['s1_shockKind', 's1_shockAt', 's1_shockZ', 's1_shockAng',
+      ['shock', ['s1_shockKind', 's1Stiff', 's1_shockAt', 's1_shockZ', 's1_shockAng',
                  's1_bungeeSpan']],
       ['oleo', ['s1_oleoAng', 's1_oleoDia', 's1_oleoCyl', 's1_oleoScissor',
                 's1_oleoBrace', 's1_oleoBraceZ']],

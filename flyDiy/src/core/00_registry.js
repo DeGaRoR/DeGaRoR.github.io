@@ -393,6 +393,12 @@ function hyp2(x, y) {
 //   critAlt              metres of ISA pressure altitude the blower holds the
 //                        rating to; 0 = ground-boosted, which is the NA law
 // A blown row MUST carry critAlt and no other row may (GATE ATMOS §8).
+// ENGINE-DIALS C (A0's ruling, 9 Nov): EACH ROW'S prop.Tstatic / prop.kV2 FLIES NOTHING, KEPT FOR THE CERTIFICATE
+// KEYS. Every garage build synthesises its own propeller (params.prop, read by the solver, the pilot, the drive and the
+// hydro ahead of the row); the A-65 / Sensenich pair is also GATE GEN's calibration anchor and the shaft law's
+// reference. But the resolved spec carries the row (spec.pplant), and genCertKey, the bench's and the parked fleet's
+// fingerprints hash it: deleting them moved every certificate key (measured: the STOL Cub f801025a -> 217bc677). They
+// are dropped at the next GEN_CERT_V bump (a board item of its own), when every key moves anyway.
 const POWERPLANTS = {
   a65_sensenich74: {
     price: 11000,   // PRICE-CAL: 9000 -> 11000 (shop overhaul $9.5-13k)

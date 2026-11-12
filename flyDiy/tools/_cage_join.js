@@ -91,6 +91,9 @@ const CAGE_JOIN_ENGINES = {
 //                                     safe direction, never an exploit)
 //   6 maple, 7 walnut     -> their own G125 rows
 // APPEND ONLY, in step with MATERIALS; _join_check walks every entry.
+// ENGINE-DIALS C (9 Nov): THE PHYSICS FIELDS A CAGE BUILD HOLDS AT A CONSTANT - nothing the editor draws stands for
+// them, so the join writes GEN_DEFAULT's value rather than leave a latent field (GATE ENGINEDIALS holds the copy equal)
+const CAGE_JOIN_FIXED = { camber: 0, crownTop: 0.72, crownSide: 0.07 };
 const CAGE_JOIN_PROP_MATS = ['wood', 'wood', 'alu', 'carbon', 'carbon',
                              'carbon', 'maple', 'walnut'];
 
@@ -542,6 +545,19 @@ function cageJoinSpec(P, M, T) {
       spec.gear.lever = { piv: r6(avg('piv')), horn: r6(avg('horn')), top: r6(avg('top')), w: +LVj[0].w.toFixed(4),
                           comp: +((R0.ang - R0.comp) * Math.PI / 180).toFixed(6), dSt: +(+R0.dSt).toFixed(4) };
     }
+    // ENGINE-DIALS C (9 Nov): THE SUSPENSION'S STIFFNESS IS THE MAINS' ROW (s1Stiff; GEN_FIELDS clamps 0.35-3): it was a
+    // physics field (61_gen_frame: the legs' spring rate and damping) no row reached - every build flew 1, the row's
+    // default, so every saved build flies as before
+    // ENGINE-DIALS C2 (12 Nov, GATE BENCH's red on the story's Rufus): AT THE DEFAULT THE FIELD STAYS ABSENT. The
+    // physics reads an absent stiffness as GEN_DEFAULT's 1, and the certificate's major fingerprint hashes the spec as
+    // written: a 1 written into every build moved every aeroplane's fingerprint (Rufus 24e2e238 -> e5b65f7d) and would
+    // have superseded every player's certificate on the update - G3780 R3, the user's: "a game update is not a change
+    // to the aeroplane". A stiffness off 1 (the row moved, or the DC-3-alike's 3 seeded by cageFromSpec) is written
+    if (P.s1Stiff != null && +P.s1Stiff !== 1) spec.gear.stiffness = +P.s1Stiff; else delete spec.gear.stiffness;
+    // ...AND THE WHEELS' CAMBER IS A FIXED CONSTANT (0): the gear layer draws every wheel upright, so a lean would fly
+    // what no row shows (CAGE_JOIN_FIXED; every shipped build carries 0). C2: left ABSENT - the physics flies
+    // GEN_DEFAULT's camber, which GATE ENGINEDIALS holds equal to the constant - so no fingerprint moves
+    delete spec.gear.camber;
   }
   const cabin = {};
   // JOINED (2026-09-04): glazing off is an open cockpit — no glass billed.
@@ -704,6 +720,13 @@ function cageJoinSpec(P, M, T) {
   // when it is positive)
   if (typeof M.tailTop === 'number' && isFinite(M.tailTop)) fus.tailTop = M.tailTop;
   if (M.cowlDeck > 0) fus.cowlDeck = M.cowlDeck;
+  // ENGINE-DIALS C (9 Nov): THE LOFT'S CROWN KNOBS ARE FIXED CONSTANTS ON A CAGE BUILD. fuselage.crownTop / crownSide
+  // shape the drag build-up's body (62_gen_aero) and nothing the cage draws - the cage IS the body - so no row can show
+  // them; a cage build flies GEN_DEFAULT's (CAGE_JOIN_FIXED, GATE ENGINEDIALS holds the two equal), as every shipped
+  // build always has, and a hand-edited file cannot fly a value no row shows
+  // (ENGINE-DIALS C2, 12 Nov: left ABSENT rather than written - the physics reads GEN_DEFAULT's, the constants; written,
+  // they moved every cage build's certificate fingerprint on the update, GATE BENCH's Rufus red - see the gear above)
+  delete fus.crownTop; delete fus.crownSide;
   if (Object.keys(fus).length) spec.fuselage = fus;
   // G54.3: the tail surfaces, measured off the placed fin/stab layers.
   // clampSpec's envelope bounds every one; anything unmeasured keeps the
@@ -1123,7 +1146,7 @@ function cageSurfHinge(pts, surf, opts) {
 }
 
 if (typeof module !== 'undefined' && module.exports)
-  module.exports = { cageJoinSpec, cageWingCuts, cageWingStationCut, CAGE_JOIN_ENGINES, CAGE_JOIN_PROP_MATS,
+  module.exports = { cageJoinSpec, cageWingCuts, cageWingStationCut, CAGE_JOIN_ENGINES, CAGE_JOIN_PROP_MATS, CAGE_JOIN_FIXED,
                      VIEW_STATE, VIEW_KEEP, cageSurfHinge, cageSurfLine, cageSurfPlane, cagePartMatch };
 // the pure hinge trio for a page that loads the layer without a mount (the
 // headless poser reads them off the window in the browser bench)
