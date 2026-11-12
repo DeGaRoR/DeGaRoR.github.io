@@ -30,6 +30,7 @@ if (!FIN) { console.error('cage fin layer: _fin_gen.js not loaded'); return; }
 // flat - so how round their edges are is one property of the tail, not two
 // that can disagree. _cage_stab.js reads this same key.
 const finDef = Object.assign({ finOn: 1, finProject: 1, finCut: 0,
+  finShiftZ: 0, finRudBelow: 0,   // (the fin fore / aft on its boom; a rod's rudder down over the rod's height: off)
   finVentralOn: 1, finVentralH: 0.4, finVentralC: 0.6, finVentralZ: 0.08, finVentralTip: 0.35,
   finVentralShape: 0,   // FLOATS-CLASSIC: 0 the swept plate (every build before), 1 the vintage lobe (the EDO plan's)
   finCutGap: 0.012,
@@ -58,6 +59,10 @@ const GROUP = ['8 · tail — fin (2D)', [
    { when: P => +P.finOn }],
   ['finKeel',    'keel extension',    0, 1, 1, ['off', 'on'],
    { when: P => +P.finOn && !+P.boomStyle }],
+  // ...ON A ROD, THE RUDDER DOWN OVER THE ROD (the Archaeopteryx, 12 Nov, the user: "the rudder to go below, covering the
+  // boom's height"): the keel extension of the rudder alone, down to the rod's belly behind the tail post
+  ['finRudBelow', 'rudder', 0, 1, 1, ['over the rod', 'down over the rod\'s height'],
+   { when: P => +P.finOn && +P.boomStyle && !+P.boomTwin }],
   ['finProject', 'root',              0, 1, 1, ['free', 'on the skin'],
    { when: P => +P.finOn }],
   // G295: the fillet where the fin's root meets the deck — a quarter-round
@@ -138,6 +143,8 @@ const GROUP = ['8 · tail — fin (2D)', [
   ], 'open', { when: P => +P.finOn }],
   // the three corners, each free on two axes (+z fwd, +y up, cage units)
   ['corners', [
+    // FIN-SHIFT (the Archaeopteryx, 12 Nov): the whole fin fore / aft on its boom (+ forward) - the hinge onto the boom's end
+    ['finShiftZ', 'whole fin fore / aft (on the boom)', -0.60, 0.60, 0.005],
     ['finTipZ',  'tip fore / aft (sweep)',     -0.60, 0.60, 0.005],
     ['finTipY',  'height (tip up / down)',      -0.80, 0.80, 0.005],
     ['finAftZ',  'top-aft fore / aft', -0.50, 0.30, 0.005],
@@ -571,7 +578,7 @@ PAGE.post = ctx => {
   // (2 Nov, the user: "yes" to the single bare rod too - the same row, the same opt-in)
   const dorsalTube = !!(+P.boomStyle && +P.finDorsalTube);
   const S = FIN.finSpec(P.boomStyle
-    ? Object.assign(Object.create(P), { finKeel: 0, finDorsal: dorsalTube ? 1 : 0 }) : P);
+    ? Object.assign(Object.create(P), { finKeel: +P.finRudBelow && !+P.boomTwin ? 1 : 0, finDorsal: dorsalTube ? 1 : 0 }) : P);
   S.cutPrep = cutMode;              // crease the rails the cut runs along
   // TWIN BOOMS (2026-09-04): the fin rides a BOOM, not the fuselage — its
   // deck is the boom's own top line (a straight tube), its keel the tube's

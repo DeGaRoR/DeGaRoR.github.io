@@ -3004,7 +3004,7 @@ const ARCHETYPES = [
            engFamily: 'electric', engModel: 'pipistrel E-811', engMount: 'pusher',
            gearLayout: 'mono', suspension: 'spring', s1Fair: 0,
            finArch: 'tall', empennage: 'conv', scheme: 'trim', base: 0xefe6cf, trim: 0xc96f2a },
-    over: { cage: { rodY: 0.8129, rodD: 0.27, boomLen: 4.46,
+    over: { cage: { rodY: 0.8129, rodD: 0.27, boomLen: 4.326,
                     // THE REPROJECTION (12 Nov, the user: "time for a reprojection on the blueprints ... the rod's diameter
                     // is a little high ... get the waist up ... our cabin is not long enough ... the angle of the cabin is
                     // much more than ours ... ensure that we have the pillar where it should be ... really at the back of the
@@ -3123,10 +3123,24 @@ const ARCHETYPES = [
                     s2Leg: 3, s2Nose: 1, s2Z: 0.45, s2Steer: 4, s2Fair: 1, s2R: 0.10, s2Drop: 0.05, s2_twLegDrop: 0.055,
                     wgTipSkid: 1,
                     // the tail: the stab's size and station, the fin's outline (fit_tail.js), no dorsal fillet
-                    stSpan: 0.98, stChord: 0.47, stChordTip: 1.2, stZ: 0.4,
+                    stSpan: 0.98, stChord: 0.44, stChordTip: 1.35, stZ: 0.262,
                     finDorsal: 0, finDorsalTube: 0,
-                    finHeight: 1.25, finChord: 1.05, finChordTip: 0.7, finSweep: 3, finHinge: 0.4,
-                    finTipZ: 0, finTipY: -0.3, finAftZ: 0, finAftY: -0.275, finBaseZ: 0, finBaseY: 0.05,
+                    finHeight: 1.25, finChord: 1.05, finChordTip: 0.7, finSweep: 0, finHinge: 0.29,
+                    finTipZ: 0, finTipY: -0.3, finAftZ: -0.12, finAftY: -0.275, finBaseZ: 0, finBaseY: 0.2,
+                    // THE CONTROL SURFACES ON THE DRAWING (12 Nov, the user: "the fin-rudder proportion is still a little
+                    // off, and the length of the beam too, as I assume it stop at the rudder leading edge ... the rudder to
+                    // go below, covering the boom's height ... matching the control surfaces is not [optional]"): the rod
+                    // ends on the hinge (boomLen 4.46 -> 4.326, its end 5.57 m from the nose, the drawing's 5.57), the fin
+                    // slid aft on it (finShiftZ, the new row) with its leading edge upright (finSweep 0: 5.24 vs 5.25), the
+                    // hinge vertical (finHinge 0.29, finAftZ: 5.57 / 5.57), the trailing edge 5.99 / 5.92 (drawing 6.00 /
+                    // 5.94), the rudder down over the rod's height (finRudBelow, the new row: its foot 0.21 m under the
+                    // rod's top, the drawing's 0.20); the stab unswept (stSweep 0) at the drawing's station (stZ, stTipZ,
+                    // stChordTip), then on the PLAN (the user: "also fix the stab shape pls, so it matches well"): the root chord
+                    // 0.47 -> 0.44 and the stab swept 2 deg forward so the trailing edge comes forward to the tip as drawn -
+                    // LE 4.93 -> 5.06 (drawing 4.93 -> 5.07), TE 5.54 -> 5.53 (5.55 -> 5.53), the elevator 0.10 m deep (stHinge)
+                    // the rudder's foot raked up to its trailing edge as drawn, a crisp corner (finBaseY 0.05 -> 0.2,
+                    // finSharpBase), within a pixel of the drawing's diagonal
+                    finShiftZ: -0.134, finRudBelow: 1, stSweep: -2, stTipZ: -0.12, stHinge: 0.15, finSharpBase: 3,
                     finMidY: 0, finUY: -0.4, finLEZ: -0.65, finLEY: -0.09, finShoulderZ: 0,
                     finShoulderY: 0, finTopY: 0, finTERoot: -0.055, finTEU: -0.075, finTEMid: 0.01,
                     finSharpShoulder: 0, finSharpTip: 3, finSharpLE: 3, finSharpAft: 3,

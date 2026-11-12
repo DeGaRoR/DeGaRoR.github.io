@@ -796,7 +796,7 @@ const CAGE_PARTS = [
   { key: 'fin', name: 'Fin & rudder', parent: 'tail', layer: 'fin',
     when: P => +P.finOn, gate: 'finOn',
     place: { on: 'finOn',
-             type: ['finCut', 'finCons', 'finDorsal', 'finDorsalTube', 'finKeel', 'finProject'],
+             type: ['finCut', 'finCons', 'finDorsal', 'finDorsalTube', 'finKeel', 'finRudBelow', 'finProject'],
              len: 'finRootFwd', high: 'finTipY', at: 'on the boom deck' },
     order: ['fitted', 'type', 'g:size', 'size'],
     rename: { size: 'outline points' },
@@ -826,7 +826,7 @@ const CAGE_PARTS = [
       // sharpness are the CAGE's own vertices — the tier a builder reaches
       // last (TAIL-ARCHETYPES §3). The trunk keeps the height and the root
       // length; the macro tier above is what a builder sizes the fin with.
-      ['tip', ['finTipZ', 'finTipY', 'finShoulderZ', 'finShoulderY',
+      ['tip', ['finShiftZ', 'finTipZ', 'finTipY', 'finShoulderZ', 'finShoulderY',
                'finTopY'], EXPERT],
       ['top-aft corner', ['finAftZ', 'finAftY'], EXPERT],
       ['base corner', ['finBaseZ', 'finBaseY'], EXPERT],

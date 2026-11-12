@@ -157,7 +157,9 @@ function buildFin2(S) {
   // Measured on the jodel: its fuselage is a full unit shorter than the
   // template the sketch was drawn on, so without this the fin floats in air
   // behind the aeroplane.
-  const dz = deck ? deck.z0 - D.zCap : 0;
+  // (FIN-SHIFT, 12 Nov, the Archaeopteryx: "the length of the beam ... stops at the rudder leading edge" - S.shiftZ moves
+  // the whole fin fore / aft on its boom, + forward, so the hinge can sit on the boom's end; absent, as ever)
+  const dz = (deck ? deck.z0 - D.zCap : 0) + (S.shiftZ || 0);
   const Z = z => z + dz;
   // tailpost anchor: aft of the hinge the strand continues LEVEL
   const topAt = deck ? z => deck.top(Math.max(z, Z(D.zH1))) : null;
@@ -1156,6 +1158,7 @@ function finSpec(P) {
     sharpLE: g('finSharpLE'),
     height: g('finHeight'), chord: g('finChord'), chordTip: g('finChordTip'),
     sweep: g('finSweep'), hinge: g('finHinge'),
+    ...((P && +P.finShiftZ) ? { shiftZ: +P.finShiftZ } : {}),
     deck: null,
   };
 }
