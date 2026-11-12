@@ -11,6 +11,7 @@
 //   node tools/perf_study.js --md=out.md   -> the table as markdown
 //   node tools/perf_study.js --ledger      -> the ledger row by row + the drag
 //                                            build-up per card (the chantiers' instrument)
+//   node tools/perf_study.js ... --fly --field=short -> the flown pass with the short-field technique (a STOL sheet's)
 //   node tools/perf_study.js --birth       -> the pre-join (birth) spec, as GATE
 //                                            ARCHETYPES flies it; the default is the
 //                                            JOINED spec, as the game flies it (chantier 1)
@@ -64,6 +65,26 @@ const { D, C } = BJ.loadPanel();
 // study's 4.2 derivation; +-10 %), where the power and the speed are known.
 // ---------------------------------------------------------------------------
 const REAL = {
+  // (12 Nov, FIT-PROCEDURE: the user's PC-6 off the drafting table - "does it fly, and how does it compare to the
+  // official numbers") READ FROM THE LOCKED REFERENCE, never retyped: tools/drafting/refs/pc6.json (FOCA TCDS F 56-10,
+  // the Pilatus factsheet, CAA NZ TAR 1/21B/14). What it does not state stays null - no web figure fills a hole:
+  // `empty` is the factsheet's basic operating mass (configuration-dependent); there is no published sea-level level
+  // speed (the factsheet's 232 km/h is max cruise at an unstated altitude - printed apart, with VNE) and no ground
+  // roll (the factsheet gives the distances over 15 m: TO 440, LDG 315, STOL technique, mass unknown)
+  pc6: (() => {
+    const F = JSON.parse(require('fs').readFileSync(path.join(__dirname, 'drafting', 'refs', 'pc6.json'), 'utf8')).figures;
+    const v = k => F[k] ? F[k].v : null;
+    return { name: 'Pilatus PC-6/B2-H4 (PT6A-27, 550 shp) - refs/pc6.json', mtow: v('specs.mtow'), empty: v('specs.basicOperating'),
+             S: v('geometry.wingArea'), b: v('geometry.span'), powerKW: v('specs.power') * 0.7457,
+             Vs1: v('perf.Vs1'), V75: null, Vmax: null, roc: v('perf.roc'), TO: null, TO50: v('perf.TO50'), LDG: null, LD: null,
+             engineMatch: true, cruise: v('perf.cruise'), VNE: v('perf.VNE'), LDG50: v('perf.LDG50'), Vs0: v('perf.Vs0'),
+             src: 'refs/pc6.json: ' + ['specs.mtow', 'perf.Vs1', 'perf.roc', 'perf.TO50'].map(k => k + ' ' + F[k].src).join(', '),
+             dims: { length: v('geometry.length'), height: v('geometry.height'), AR: v('geometry.span') ** 2 / v('geometry.wingArea'),
+                     cRoot: v('geometry.chord'), cTip: v('geometry.chord'), hSpan: v('geometry.stabSpan'), track: v('geometry.track'),
+                     fuelL: v('specs.fuel')[0] * 3.785, seats: v('specs.seats'), engineHP: v('specs.power'), engineKg: v('specs.engineMass'),
+                     propD: (v('geometry.propDia')[0] + v('geometry.propDia')[1]) / 2,
+                     src: 'refs/pc6.json (TCDS / factsheet); height static tail-down, fuel the standard 128 US gal usable' } };
+  })(),
   cub:       { name: 'Piper J-3C-65 Cub', mtow: 550, empty: 345, S: 16.6, b: 10.7, powerKW: 48,
                Vs1: 61, V75: 120, Vmax: 140, roc: 2.3, TO: 113, LDG: 88, LD: 9.5, T0: 1200, CdS: 0.75, engineMatch: true,
                src: 'POH J-3C-65: stall 38 mph, cruise 75 mph, Vmax 87 mph, 450 fpm, TO run 370 ft, ldg 290 ft',
@@ -206,6 +227,8 @@ function measureSpec(spec0, R, name) {
   const sh = C.genShakedown(def, { slim: true });
   // the shakedown's stall is the as-baked one; Vs goes as sqrt(m)
   const Vs = sh.Vs * Math.sqrt(sim.totalM / asBaked);
+  // ...and the landing configuration's (12 Nov: the shakedown's VsFlap, full flap, scaled the same way) - a POH's Vs0
+  const Vs0 = sh.VsFlap != null ? sh.VsFlap * Math.sqrt(sim.totalM / asBaked) : null;
   const rows = sweepAt(def, sim, W, Vs);
   const V75 = levelSpeedAt(rows, 0.75), Vmax = levelSpeedAt(rows, 1.0);
   let roc = 0, Vy = 0, LD = 0; for (const r of rows) { if (r.excess > roc) { roc = r.excess; Vy = r.V; } if (r.LD > LD) LD = r.LD; }
@@ -217,7 +240,7 @@ function measureSpec(spec0, R, name) {
   const drag = { CdS: fit && fit.CdS, kInd: fit && fit.kInd, fusCdA: def.params.fusCdA && def.params.fusCdA[0],
                  gearDCdA: G.gearDCdA, braceDCdA: G.braceDCdA, breakdown: G.drag || null };
   return { name, mass: sim.totalM, asBaked, empty, payload, ballast: kg, S: sh.Sw, b: sh.span, T0, T0W: T0 / W, Vs: Vs * 3.6, V75: V75 && V75 * 3.6, Vmax: Vmax && Vmax * 3.6,
-           roc, Vy: Vy * 3.6, LD, TO: to.sRoll, TO50: to.TORun, powerKW: (def.params.powerW || (PR.powerW || 0)) / 1000, nE, sh, def, spec, drag, ledger: L, joinErrs: [] };
+           roc, Vy: Vy * 3.6, Vs0: Vs0 != null ? Vs0 * 3.6 : null, LD, TO: to.sRoll, TO50: to.TORun, powerKW: (def.params.powerW || (PR.powerW || 0)) / 1000, nE, sh, def, spec, drag, ledger: L, joinErrs: [] };
 }
 
 // THE TYPE SHEET, measured off the def (chantier 3): the extents a builder
@@ -272,8 +295,17 @@ function fly(def, spec, kg) {
   const sim = C.makeSim(def, world); sim.reset(0);
   ballast(sim, kg);
   for (let i = 0; i < 300; i++) sim.step(1 / 60);
-  const ap = C.makePilot(sim, def, world);
-  const rec = { liftRun: null, climb: null, ldg: null, outcome: null, t: 0 };
+  // (12 Nov) --field=short: the tuned (expert) pilot with ONLY the short-field technique on - a STOL type sheet's
+  // distances are flown that way (full flap, 1.20 Vs0, the aim point, the brakes to their short-field limit); default:
+  // the expert as every other card flies
+  const ap = FIELD === 'short' ? C.makePilot(sim, def, world, { profile: { name: 'expert, short field', active: true, technique: { field: 'short' } } })
+                               : C.makePilot(sim, def, world);
+  const rec = { liftRun: null, climb: null, ldg: null, ldg50: null, outcome: null, t: 0 };
+  // THE LANDING OVER 15 m (12 Nov, FIT-PROCEDURE: a type sheet's landing distance is from 50 ft to the stop - the PC-6's
+  // 315 m): the CG's path through FINAL / FLARE / ROLLOUT / STOP, the height over the touchdown's own; the distance is
+  // the ground track from the last point at 15 m over it to the stop
+  const tr = [], cgOf = () => { let x = 0, z = 0, m = 0; for (let i = 0; i < sim.n; i++) { x += sim.p[i * 3] * sim.m[i]; z += sim.p[i * 3 + 2] * sim.m[i]; m += sim.m[i]; } return [x / m, z / m]; };
+  let altTd = null;
   let sRoll = null, climbT0 = null, climbH0 = null, climbSum = 0, climbN = 0, thrCruise = [], vCruise = [];
   for (let s = 0; s < 700 * 60; s++) {
     ap.update(1 / 60); sim.step(1 / 60);
@@ -281,6 +313,10 @@ function fly(def, spec, kg) {
     if (ap.phase === 'LIFTOFF' && rec.liftRun == null && sRoll != null && ap.dbg) rec.liftRun = Math.abs(ap.dbg.s - sRoll);
     if (ap.phase === 'CLIMB') { if (climbT0 == null) { climbT0 = s; climbH0 = sim.out.alt; } else if (s - climbT0 > 120 && s - climbT0 < 1800) { climbSum += sim.out.vs; climbN++; } }
     if (ap.phase === 'DOWNWIND' && s % 60 === 0) { thrCruise.push(sim.ctl.thr); vCruise.push(sim.out.V); }
+    if (['FINAL', 'FLARE', 'ROLLOUT', 'STOP', 'STOPPED'].includes(ap.phase) && s % 2 === 0) {
+      if (altTd == null && (ap.phase === 'ROLLOUT' || ap.phase === 'STOP' || ap.phase === 'STOPPED')) altTd = sim.out.alt;
+      const [x, z] = cgOf(); tr.push({ x, z, alt: sim.out.alt, gnd: altTd != null });
+    }
     if (sim.stats().bad) { rec.outcome = 'nan'; break; }
     if (ap.phase === 'STOPPED' && ap.t > 5) { rec.t = s / 60; break; }
   }
@@ -288,6 +324,11 @@ function fly(def, spec, kg) {
   rec.thrCruise = thrCruise.length ? thrCruise.reduce((x, y) => x + y, 0) / thrCruise.length : null;
   rec.vCruise = vCruise.length ? vCruise.reduce((x, y) => x + y, 0) / vCruise.length * 3.6 : null;
   rec.ldg = ap.report.landing ? ap.report.landing.run : null;
+  if (altTd != null && tr.length) {
+    let a = null; for (const q of tr) { if (q.gnd) break; if (q.alt >= altTd + 15) a = q; }
+    const b = tr[tr.length - 1];
+    if (a) rec.ldg50 = Math.hypot(b.x - a.x, b.z - a.z);
+  }
   rec.outcome = rec.outcome || ap.report.outcome;
   return rec;
 }
@@ -298,6 +339,7 @@ const flyKeys = ((args.find(x => x.startsWith('--fly=')) || '').slice(6)).split(
 const mdOut = (args.find(x => x.startsWith('--md=')) || '').slice(5);
 const only = ((args.find(x => x.startsWith('--only=')) || '').slice(7)).split(',').filter(Boolean);
 const showLedger = args.includes('--ledger');
+const FIELD = (args.find(x => x.startsWith('--field=')) || '').slice(8);   // (12 Nov) 'short': the short-field technique
 const birth = args.includes('--birth');
 const buildFile = (args.find(x => x.startsWith('--build=')) || '').slice(8);
 const vsKey = (args.find(x => x.startsWith('--vs=')) || '').slice(5);
@@ -328,6 +370,8 @@ if (buildFile) {
   const engOK = !!(R.dims && Math.abs(eHP / R.dims.engineHP - 1) < 0.15);
   out('| ' + name + ' | ' + R.name + (engOK ? '' : ' (engine differs)') + ' | ' + cell(m.empty, R.empty) + ' | ' + f(m.asBaked) + ' / ' + f(m.mass) + ' | ' + cell(m.S, R.S, 1) + ' | ' + f(m.T0W, 2) + (R.T0 ? ' / ' + f(R.T0 / (R.mtow * 9.81), 2) : '') +
       ' | ' + cell(m.Vs, R.Vs1) + ' | ' + cell(m.V75, R.V75) + ' | ' + cell(m.Vmax, R.Vmax) + ' | ' + cell(m.roc, R.roc, 1) + ' | ' + cell(m.LD, R.LD, 1) + ' | ' + cell(m.drag.CdS, R.CdS, 2) + ' | ' + cell(m.TO, R.TO) + ' | ' + cell(m.TO50, R.TO50) + ' |');
+  // (12 Nov) the landing configuration and the limit: Vs0 (full flap) against the sheet's, and the top speed against VNE
+  out('  landing config: Vs0 ' + cell(m.Vs0, R.Vs0) + ' km/h' + (R.VNE ? '   |   Vmax at full power ' + f(m.Vmax) + ' km/h ' + (m.Vmax > R.VNE ? 'ABOVE' : 'under') + ' VNE ' + f(R.VNE) : ''));
   results.push({ k: 'build', R: Object.assign({}, R, { engineMatch: engOK }), m });
   // THE DIMENSIONS against the type sheet
   const d = dimsOf(m), rd = R.dims || {};
@@ -399,13 +443,13 @@ if (showLedger) {
 }
 if (flyKeys.length) {
   out('');
-  out('| card (flown, the pilot) | TO run m (ours / real) | climb m/s at VClimb (ours / real ROC) | cruise: V km/h at thr (level) | landing roll m (ours / real) | outcome |');
-  out('|---|---|---|---|---|---|');
+  out('| card (flown, the pilot) | TO run m (ours / real) | climb m/s at VClimb (ours / real ROC) | cruise: V km/h at thr (level) | landing roll m (ours / real) | landing over 15 m (ours / real) | outcome |');
+  out('|---|---|---|---|---|---|---|');
   for (const r of results) {
     if (!flyKeys.includes(r.k)) continue;
     const t0 = Date.now();
     const fl = fly(r.m.def, r.m.spec, r.m.ballast);
-    out('| ' + r.k + ' | ' + cell2(fl.liftRun, r.R.TO) + ' | ' + cell2(fl.climb, r.R.roc, 1) + ' | ' + f(fl.vCruise) + ' at ' + f(fl.thrCruise, 2) + ' | ' + cell2(fl.ldg, r.R.LDG) + ' | ' + fl.outcome + ' (' + f(fl.t) + ' s, ' + ((Date.now() - t0) / 1000).toFixed(0) + ' s wall) |');
+    out('| ' + r.k + ' | ' + cell2(fl.liftRun, r.R.TO) + ' | ' + cell2(fl.climb, r.R.roc, 1) + ' | ' + f(fl.vCruise) + ' at ' + f(fl.thrCruise, 2) + ' | ' + cell2(fl.ldg, r.R.LDG) + ' | ' + cell2(fl.ldg50, r.R.LDG50) + ' | ' + fl.outcome + ' (' + f(fl.t) + ' s, ' + ((Date.now() - t0) / 1000).toFixed(0) + ' s wall) |');
   }
 }
 function cell2(ours, real, d) { return f(ours, d) + ' / ' + f(real, d) + ' (' + pct(ours, real) + ')'; }
