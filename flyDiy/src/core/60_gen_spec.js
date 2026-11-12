@@ -4976,8 +4976,14 @@ function clampWing(w, S, k) {
 // that hid every over-size drawing until 2026-09-07. Metres, and chord
 // FRACTIONS for the controls. Widen here, nowhere else.
 const GEN_TAIL_ENVELOPE = {
-  hSpan: [1.50, 4.50], hChord: [0.40, 1.60],
-  vHeight: [0.60, 2.20], vChord: [0.40, 1.80],
+  // PC6-TAIL (2026-11-12): the stab's span to 6.0 m and the fin's height to 3.0 m (were 4.5 / 2.2). A 2.8 t STOL
+  // utility aeroplane under 18 m of wing - the Pilatus PC-6/B2-H4, a 5.13 m tailplane and a ~2.5 m fin - flew
+  // clamped. Nothing downstream was sized to the old ceiling: the stab truss takes 2..4 bays on any span, the fin the
+  // same up the post, the polars read hSpan^2/Sh and vHeight^2/Sv, mass and inertia are billed per bay off the area,
+  // and the big envelope below already flies an 8 m stab and a 4.3 m fin. A tail inside the old bounds is not touched
+  // (the clamp is the identity there); only a value the old ceiling cut moves.
+  hSpan: [1.50, 6.00], hChord: [0.40, 1.60],
+  vHeight: [0.60, 3.00], vChord: [0.40, 1.80],
   // G3503 (DC3-BUILD): A BIG AEROPLANE'S TAIL (genBig: a wing over 18 m) - the
   // DC-3's 8.2 m x 2.25 m stab and its 3 m fin of 2.9 m chord, with headroom
   // (DC3-EDITABLE: the ~40 m class's - a 12 m x 4 m stab, a 5.5 m fin of 4.5 m chord)

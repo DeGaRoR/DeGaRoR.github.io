@@ -315264,3 +315264,26 @@ read p99 10.1 mm on them. The real cut (a coarser refine at low chaos / fine row
 - VEG-ROOT FIELD BY COLOUR (LOOK-1, the user 11 Nov "by colour per tuft"), claude/ready/veg-root-key e20cb0a11: two fixes. (1) The field's key runs AFTER the root law (three's color_vertex comes before begin_vertex; on master the law overwrote the key, which changed nothing). (2) The key's weight is the TINTED texel mean's r/g, not the raw texture's (1.72), so vColor r/g x w = the tuft's albedo r/g = the ground's own. Band 0.85-1.05: below MID (0.6, 80 %), above HIGH (0.95, 1.3), blended between. Gates COVER TREES FADES PASS; 8f asserts the order and the weight (node reads 1.000: no tint uniforms in node). IN GAME 12 Nov 16:45 (dev.html): live w 1.014; the HOME field around the parked Cub, 18,010 tufts, albedo r/g q05/q25/q50/q75/q95 0.775/1.004/1.247/1.291/1.322, 12.9 % MID, 72.1 % HIGH. CAVEAT: home field only (the cover ring streams around the aircraft). NO PICTURE: the free eye does not stream the world; FLIGHT_PROBE.place leaves the Cub at home on master 5bc7de1c9+, so the keyed / key-off still is OWED to the perf round with place() fixed.
 
 - DIRT-EDGE (DIRT-DUST, the user marked "the clean, sharp rounded shape" on the Petrel crash frames), claude/ready/dirt-edge 6d5524acb: the crash puff's hard circle came from saturation (the zoomed V2 sprite still covered ~0.9 at the quad's discard circle). Every puff: a soft depth cap vT = 1.6 (1 - e^(-vTau/1.6)) (0.25 -> 0.23, 0.5 -> 0.43, 1 -> 0.74, 6 -> 1.56; one puff never opaque, ~0.8 max; overlaps still stack) and the depth + alpha fade from 0.45 r (was the last 15 %). VISIBLE ON ALL DUST, named: take-off / roll dust (0.05-1) a little thinner, most where thickest; each puff reads ~20 % smaller with softer edges. Gates DUST (new: no hard circle; a crash-dense puff is never a flat disc) + ASSETS PASS. NOT GPU-checked (GATE DUST's atlas emulation); the next crash stills show it.
+
+## PC6-TAIL - THE TAIL'S FLOWN ENVELOPE OPENS TO A 6 M STAB AND A 3 M FIN (12 Nov 2026, cloud)
+
+The user's PC-6 off the drafting table (builds/candidates/pc6_drafting_2026-11-11.json, on the fit-procedure branches)
+joined with two ERRS rows: "the drawn hSpan 5.143 m is outside the flown envelope 1.5-4.5 m" and "vHeight 2.512 m ...
+0.6-2.2 m". The real PC-6/B2-H4 has a 5.13 m tailplane and a ~2.5 m fin, so a 2.8 t STOL utility aeroplane under 18 m of
+wing could not fly its own tail (genBig, the DC-3's envelope, only opens past 18 m).
+- **Where:** `GEN_TAIL_ENVELOPE` (60_gen_spec.js, the one home since TAIL CHANTIER 2 P1 / G215): clampSpec cuts to it
+  through GEN_FIELDS 'tail.hSpan' / 'tail.vHeight' (genFieldClamp, resolveSpec's put() too), _cage_join.js reads it for
+  its ERRS row. The 4.5 / 2.2 were G215's light-aeroplane bounds ("clamps speak", not a physics limit); no gate asserts
+  the numbers (SPECFIX B8 reads the envelope itself).
+- **Why it is safe:** nothing downstream was sized to the old ceiling - the stab truss is 2..4 bays on any span
+  (61_gen_frame.js), the polars read hSpan^2/Sh and vHeight^2/Sv (62_gen_aero.js), mass/inertia are billed per bay off
+  the area, and the big envelope already flies an 8 m stab and a 4.3 m fin. Opened to hSpan [1.5, 6.0], vHeight
+  [0.6, 3.0]; the chords and the big envelope are untouched.
+- **Identity:** buildGen hashed (nodes, beams, params, resolved spec) on master's core and the new one over 160 specs
+  (every builds/**.json raw and joined, every archetype's birth and joined card): 159 bit-identical; the one that moves
+  is twinBush's BIRTH spec, whose DERIVED fin (sqrt(Sv x vAR)) was cut at 2.2 and now flies at 2.349 (its joined card
+  and GATE ARCHETYPES --only=twinBush, which flies the drawn tail: PASS, the circuit completes).
+- **The PC-6** (on master, so its engine reads "differs"): joined with 0 ERRS, flown tail 5.143 x 2.486 (was 4.5 x 2.2).
+  perf_study --vs=pc6 --fly before / after: static margin 11 -> 13 %, Cn-beta 0.097 -> 0.107, tail 62 -> 65 kg, flown
+  circuit completed both (TO 216 / 215 m, climb 8.2 / 8.1 m/s, cruise 145 / 148 km/h, landing roll 380 / 405 m).
+  Still open: its height reads 4.11 m against 3.20 (the drawn fin, not the clamp).
