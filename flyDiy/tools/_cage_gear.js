@@ -3483,6 +3483,52 @@ PAGE.post = ctx => {
                ? { top: castorUnitOut.top, ax: castorUnitOut.ax,
                    axle: castorUnitOut.axle,
                    ears: castorUnitOut.ears || null } : null } };
+  // CAR (the user, 12 Nov: "for retractable wheels we have pretty much everything we need. We can cut the fuselage at
+  // the shape of the wheel and do a little wheel well in it"): archOn 1 the rear axle, 2 the front, 3 both - a WHEEL
+  // ARCH round each road wheel of that axle: the side wells' own cut (the knife looking at the flank, _cage_ui wellApply
+  // and quickshot apply CAGE_GEAR.cutsSide) - the wheel's circle plus archGap, open below the body's bottom edge,
+  // recessed inward to a wall archGap inboard of the drawn tyre's inner face. Absent = none.
+  const archK = Math.round(+P.archOn || 0);
+  if (archK && AF && typeof AF.surf === 'function' && contacts && contacts.length) {
+    const gap = +P.archGap > 0 ? +P.archGap : 0.04;
+    const byst = new Map();
+    for (const c of contacts) { if (!byst.has(c.st)) byst.set(c.st, []); byst.get(c.st).push(c); }
+    const axles = [...byst.values()].filter(g => g.length === 2).sort((a, b) => a[0].p[2] - b[0].p[2]);
+    const pick = [];
+    if (axles.length && (archK & 1)) pick.push(axles[0]);
+    if (axles.length > 1 && (archK & 2)) pick.push(axles[axles.length - 1]);
+    // the drawn tyres' boxes, the group's frame (the AF's)
+    const tyreBoxes = [];
+    group.updateMatrixWorld(true);
+    group.traverse(o => { if (!/^edWheel/.test(o.name || '')) return;
+      const b = new THREE.Box3(); const inv = new THREE.Matrix4().copy(group.matrixWorld).invert();
+      o.traverse(m => { if (m.isMesh && m.geometry) { if (!m.geometry.boundingBox) m.geometry.computeBoundingBox();
+        b.union(m.geometry.boundingBox.clone().applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv, m.matrixWorld))); } });
+      if (isFinite(b.min.x)) tyreBoxes.push(b); });
+    const arch = [];
+    for (const ax of pick) for (const c of ax) {
+      const sg = c.p[0] >= 0 ? 1 : -1, R = c.R, zc = c.p[2], yc = c.p[1];
+      let hwT = 0.15 * R;
+      for (const b of tyreBoxes) { const cx = 0.5 * (b.min.x + b.max.x), cz = 0.5 * (b.min.z + b.max.z);
+        if (Math.abs(cx - c.p[0]) < R && Math.abs(cz - zc) < R) hwT = Math.max(0.02, 0.5 * (b.max.x - b.min.x)); }
+      const xIn = Math.abs(c.p[0]) - hwT - gap;
+      let yb = Infinity;
+      for (let a = 0; a <= 180; a += 4) { const q = AF.surf(zc, a * D2R); if (q && isFinite(q[1])) yb = Math.min(yb, q[1]); }
+      if (!isFinite(yb)) continue;
+      const Ra = R + gap, s0 = Math.max(-0.999, Math.min(0.999, (yb - 0.03 - yc) / Ra)), t0 = Math.asin(s0);
+      let o = [];
+      for (let k = 0; k <= 40; k++) { const t = t0 + (Math.PI - 2 * t0) * k / 40;
+        o.push([(zc + Ra * Math.cos(t)) / FS, -sg * (yc + Ra * Math.sin(t)) / FS]); }
+      let a2 = 0; for (let i = 0; i < o.length; i++) { const p0 = o[i], q0 = o[(i + 1) % o.length]; a2 += p0[0] * q0[1] - q0[0] * p0[1]; }
+      if (a2 < 0) o = o.reverse();
+      const fl = -xIn / FS, us = o.map(q => q[0]), vs = o.map(q => q[1]);
+      const u0 = Math.min(...us) - 0.1, v0 = Math.min(...vs) - 0.1, d = Math.max(Math.max(...us) - u0, Math.max(...vs) - v0) + 0.2;
+      arch.push({ units: ['arch' + (sg > 0 ? 'R' : 'L') + Math.round(zc * 100)], side: sg, mode: 'box',
+                  frame: { n0: [sg, 0, 0], c0: [0, 0, 0], t1: [0, 0, 1], t2: [0, -sg, 0] }, outline: o, ceil: fl,
+                  hf: { u0, v0, d, nu: 2, nv: 2, e: [fl, fl, fl, fl] }, arch: 1 });
+    }
+    if (arch.length) window.CAGE_GEAR.cutsSide = (window.CAGE_GEAR.cutsSide || []).concat(arch);
+  }
   if (stat && notes.length) stat.textContent += '  ·  gear: ' + notes.join(' · ');
 };
 })();

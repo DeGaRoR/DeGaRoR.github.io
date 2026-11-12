@@ -1102,6 +1102,7 @@ const CAGE_PARTS = [
     groups: [
       ['this build is a car', ['isCar']],
       ['drive', ['carDrive', 'carChassisKg']],
+      ['wheel arches', ['archOn', 'archGap']],
       ['bumpers and hitch', ['bumpF', 'bumpR', 'bumpY', 'bumpYF', 'bumpGap', 'bumpW', 'bumpH', 'bumpFin', 'bumpGuards', 'bumpStyle', 'hitchOn']],
       ['spare wheel', ['spareOn', 'spareZ', 'spareSide', 'spareY']],
     ] },

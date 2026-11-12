@@ -52,10 +52,10 @@
   "doorPax": 0,
   "s1On": 1,
   "s1Leg": 1,
-  "s1X": 1.05,
+  "s1X": 0.82,
   "s2On": 1,
   "s2Leg": 1,
-  "s2X": 1.05,
+  "s2X": 0.88,
   "whProfile": 3,
   "s1_shockKind": 0,
   "s2_shockKind": 0,
@@ -111,7 +111,7 @@
   "cw_deckH": 1,
   "cw_keelH": 0.79,
   "cw_lidRise": 0,
-  "cw_aftW": 0.99,
+  "cw_aftW": 0.87,
   "cw_aftH": 0.473,
   "cw_sqAftTop": 0.75,
   "cw_sqAftBot": 0.95,
@@ -176,7 +176,10 @@
   "paxSeatType": 5,
   "paxAbreast": 3,
   "paxSeatZ": 0.2,
-  "seatGap": 0.64
+  "seatGap": 0.64,
+  "archOn": 1,
+  "archGap": 0.05,
+  "noseW": 0.8
  },
  "fuel": {
   "litres": 80,

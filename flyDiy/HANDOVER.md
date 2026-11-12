@@ -314964,3 +314964,18 @@ the next steps).
   the van 4WD 280 kg, the UTV 4WD 150 kg). NOT YET: what the GAME does with isCar (the hidden wing and prop still fly) -
   waiting on the TOW-LAUNCH session (its drive mode, claude/tow-launch-phase1) for the seam: a build's sheet + its own
   meshes as the drive mode's rig.
+- **CAR-3, THE INTERIOR, THE WHEEL WELLS, THE NARROWER NOSE (12 Nov; the user: "bigger seats ... 2 rows of seats in the
+  back ... 3 seats in a row ... cut the fuselage at the shape of the wheel and do a little wheel well in it ... at the
+  back I would really like that we try this wheel well thing ... for the nose, just do minor adjustment")**: the seats
+  (e4c37cc1): seatType/paxSeatType 5 (executive), paxAbreast 3, paxSeatBays 2, paxSeatZ 0.2, seatGap 0.64; the rear
+  doors' edges +5 cm out (extDoorOut 0.08), the rear bumper +5 cm up (bumpY 0.05). NEW ROWS archOn (0 none / 1 rear /
+  2 front / 3 both) and archGap (the clearance round the tyre, m; default 0.04), in the Car part's 'wheel arches' group
+  (_gear_page.js). THE CUT (_cage_gear.js, the end of the gear layer): for each picked axle, a side well per wheel
+  through the retractable-gear knife path (window.CAGE_GEAR.cutsSide, mode 'box', applied by _cage_ui.js wellApply
+  and by quickshot) - its outline an arc of radius R + gap round the hub from the body's bottom edge, its floor
+  (ceil) the tyre's inner face less the gap, so the hole is lined and closed, not a see-through slot; absent = no cut.
+  The van: archOn 1, archGap 0.05, the rear track in (s1X 0.82) so the rear tyres sit inside the arches. THE FRONT
+  (minor, as asked): noseW 0.8 and cw_aftW 0.87 (a narrower nose and bonnet, the cowl-nose joint within ~5 mm except
+  the top corner, -107 mm), the front track in (s2X 0.88; tracks 1.76 m front, 1.64 m rear) - the front tyres still
+  stand a little proud of the bonnet, as the user allowed. car_sheet: 1268 kg, 35.5 % front, AUTOTOW still LAUNCHES.
+  STILL OWED: THE GRILLE (above).

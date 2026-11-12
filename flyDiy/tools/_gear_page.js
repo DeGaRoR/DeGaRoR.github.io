@@ -173,6 +173,8 @@ const WHEEL_ROWS = [
   ['isCar', 'this build is a car', 0, 1, 1, ['no (an aeroplane)', 'yes (a car)']],
   ['carDrive', 'driven wheels', 0, 1, 1, ['rear', 'all four (4WD)'], { when: P => +P.isCar }],
   ['carChassisKg', 'chassis mass (frame, axles, transfer case) kg', 0, 600, 5, { when: P => +P.isCar }],
+  ['archOn', 'wheel arches (cut in the body)', 0, 3, 1, ['none', 'rear', 'front', 'rear and front'], { when: P => +P.isCar || +P.archOn }],
+  ['archGap', 'wheel arch clearance (m)', 0.01, 0.15, 0.005, { when: P => +P.archOn }],
   // CAR-1: a spare wheel on the body's flank (absent = none)
   ['spareOn', 'spare wheel on the flank', 0, 1, 1, { when: P => +P.isCar || +P.spareOn }],
   ['spareZ', 'spare wheel station (m, the layers\' z)', -4, 4, 0.01, { when: P => +P.spareOn }],
