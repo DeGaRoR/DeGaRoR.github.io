@@ -147,13 +147,28 @@ function genCertMatTag(spec) {
   const m = spec && (spec.material || (spec.fuselage && spec.fuselage.material));
   return GEN_CERT_MAT_KEYED.indexOf(m) >= 0 && typeof GEN_MATERIALS !== 'undefined' ? '|mat:' + m + JSON.stringify(GEN_MATERIALS[m]) : '';
 }
+// LIVERY-MANAGER (the user 13 Nov: "looks good, let's go with it", Q5): THE KEY IS BLIND TO THE LIVERY, as the plaque
+// has been since A9 (bench.js BENCH_COSMETIC, 66b CERT_COSMETIC; the user 21 Sep: "liveries or paint colours should not
+// lead to a re-certification"). The colours, the finish (sections, decals, texts, glass, wear), the name and the
+// registration (meta) and the file's version are not what genCertify measures, so a livery swap, a new registration or
+// a rename keeps the stored certificate. paint.JOB STAYS IN: the colour coats weigh (GEN_FINISH kgM2, 61_gen_frame
+// "PAINT HAS MASS"), and the certificate's loads see that mass. Once, every stored certificate missed and was computed
+// again on the plane's next roll-out (its own thread, 8-24 s); no version moved. (`name` and `reg` too: genAlias
+// copies meta's two onto the built spec's top level, S.name / S.reg.)
+const GEN_CERT_KEY_LOOK = ['paint', 'finish', 'meta', 'v', 'name', 'reg'];
+function genCertKeySpec(spec) {
+  const c = {};
+  for (const k of Object.keys(spec)) if (GEN_CERT_KEY_LOOK.indexOf(k) < 0) c[k] = spec[k];
+  if (spec.paint && typeof spec.paint === 'object' && spec.paint.job != null) c.paint = { job: spec.paint.job };
+  return c;
+}
 // ---- the build's key: the spec, else the frame's own numbers -----------------------------------------------------
 function genCertKey(def) {
   let h = 0x811c9dc5;
   const mix = s => { for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619) >>> 0; };
   mix('cert' + GEN_CERT_V + JSON.stringify(GEN_CERT) + (typeof PHYSICS_V !== 'undefined' ? PHYSICS_V : ''));
   // (G2827: the cage's STOL rows at "off" are the absent rows - the key every build had before the STOL wing)
-  if (def.spec) mix(JSON.stringify(def.spec, (k, v) => k === 'cage' && typeof genStolCageOff === 'function' ? genStolCageOff(v) : v));
+  if (def.spec) mix(JSON.stringify(genCertKeySpec(def.spec), (k, v) => k === 'cage' && typeof genStolCageOff === 'function' ? genStolCageOff(v) : v));
   if (def.spec) { const mt = genCertMatTag(def.spec); if (mt) mix(mt); }   // (HULL-B50: a carbon / glass frame's rows)
   else {
     for (const nd of def.nodes) mix(nd.p.join(',') + ':' + nd.m);
