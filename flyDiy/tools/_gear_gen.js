@@ -2244,7 +2244,7 @@ function leverBootBuild(bag, F) {
   // radius the slab's, the slab's nose 1.5 mm inside it) from the fitting down to the leg's foot, and trimmed and filleted
   // on the skin by the same rule, into the leg's own paint (F.det.steel)
   let TG = null; const KT = 24;
-  if (STYLE === 2 && F.det && F.det.steel) {
+  if (STYLE === 2 && F.det && F.det.steel && F.skin) {   // (only with the fitted root: the plain root keeps legLever's own tube, as before)
     const hEnd = hOf(F.leg ? F.leg.b : F.piv); TG = [];
     for (let j = 0; j < J && sta[j].y >= hEnd && sta[j].sh === 0; j++) {
       const A = Ay(sta[j].y); TG.push(Array.from({ length: KT }, (_, m) => { const q = 2 * Math.PI * m / KT; return add(A, add(mul(FW, tubeR * Math.cos(q)), mul(LT, tubeR * Math.sin(q)))); }));
