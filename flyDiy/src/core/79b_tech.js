@@ -57,7 +57,7 @@ const TECH_SEGS = {
 //   (the user's Rufus, the story's starter, flies a carbon prop on a wood-and-fabric airframe).
 const TECH_TABLE = {
   // ---- materials
-  'mat:tubeFabric': 1, 'mat:wood': 1, 'mat:alloy': 2, 'mat:aluTube': 2, 'mat:carbon': 3, 'mat:glass': 3,
+  'mat:tubeFabric': 1, 'mat:wood': 1, 'mat:alloy': 2, 'mat:aluTube': 2, 'mat:carbon': 3, 'mat:glass': 3, 'mat:softShell': 1,
   'surf:fabric': 1, 'surf:steel': 1, 'surf:alloy': 2, 'surf:aluFabric': 2, 'surf:carbon': 3, 'surf:glass': 3, 'surf:fabricAlu': 2, 'surf:dtube': 3,
   // ---- engines
   'eng:a65_sensenich74': 1, 'eng:vw2180_wood': 1, 'eng:rotax277_pusher': 1, 'eng:rotax503_wood': 1, 'eng:rotax582_ivo': 1,
@@ -239,7 +239,7 @@ const TECH_SURF_ROW = [null, 'surf:carbon', 'surf:steel', 'surf:fabric', 'surf:a
 // certificate holds only the wing to it (66_gen_cert), so a tail in it would be a light part with no price
 const TECH_WING_ROW = TECH_SURF_ROW.concat(['surf:dtube']);
 const TECH_ROWS = {
-  intCons: ['mat:carbon', 'mat:tubeFabric', 'mat:wood', 'mat:alloy', 'mat:aluTube', 'mat:glass'],
+  intCons: ['mat:carbon', 'mat:tubeFabric', 'mat:wood', 'mat:alloy', 'mat:aluTube', 'mat:glass', 'mat:softShell'],
   // (the second plane's row is the wing row's own: its options, the D-tube's with them)
   wgCons: TECH_WING_ROW, w2Cons: TECH_WING_ROW, finCons: TECH_SURF_ROW, stCons: TECH_SURF_ROW,
   glazeMat: ['glaze:acrylic', 'glaze:polycarbonate', 'glaze:glass', 'glaze:film'],

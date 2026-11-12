@@ -265,15 +265,15 @@ function tailMat(k, sec, boxPlane) {
   // G213: the tail's own tokens (fabric over a wooden or tubular structure
   // on a wood or tube aeroplane), 'as the aeroplane' through GEN_SURF_DEFAULT
   const CONS4 = ['carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass', 'fabricAlu', 'dtube'];   // G466: the fifth stop; G2047 the sixth; the D-tube the eighth (the wing's)
-  const FUS4 = ['carbon', 'tubeFabric', 'wood', 'alloy', 'aluTube', 'glass'];
+  const FUS4 = ['carbon', 'tubeFabric', 'wood', 'alloy', 'aluTube', 'glass', 'softShell'];
   // the TAIL's default: the fabric over the fuselage's own structure
   const SD = (typeof GEN_SURF_DEFAULT_TAIL !== 'undefined' && GEN_SURF_DEFAULT_TAIL) ||
-    { tubeFabric: 'steel', wood: 'fabric', alloy: 'alloy', carbon: 'carbon', aluTube: 'aluFabric', glass: 'glass' };
+    { tubeFabric: 'steel', wood: 'fabric', alloy: 'alloy', carbon: 'carbon', aluTube: 'aluFabric', glass: 'glass', softShell: 'aluFabric' };
   const kc = Math.round(P0[pk] || 0), kw = Math.round(P0.wgCons || 0);
   // WEIGHT STUDY L2: a tail left to the aeroplane follows a CHOSEN wing (60_gen_spec genSurfKey), as drawn as flown
   const cons = kc > 0 ? CONS4[kc - 1]
     : kw > 0 ? CONS4[kw - 1]
-    : SD[FUS4[Math.max(0, Math.min(5, Math.round(P0.intCons || 0)))]] ||
+    : SD[FUS4[Math.max(0, Math.min(6, Math.round(P0.intCons || 0)))]] ||
       'fabric';
   // the editor's per-part livery, when its UI is on the page; the direct
   // factory call below stays as the standalone bench's path

@@ -2411,7 +2411,8 @@ const WB_CP = 1.0, WB_CF = 0.006, WB_CD_TYRE = 1.0, WB_CD_SIDE = 1.2, WB_TYRE_W 
 // `covering: 'open'` (the bare frame) holds no air at all.
 const WB_MAT = { tubeFabric: { air: 0.85, tau: 40, breach: 60e3 }, aluTube: { air: 0.85, tau: 40, breach: 60e3 },
                  wood: { air: 0.85, tau: 150, breach: 120e3 }, alloy: { air: 0.9, tau: 300, breach: 200e3 },
-                 carbon: { air: 0.9, tau: 900, breach: 250e3 }, glass: { air: 0.9, tau: 900, breach: 200e3 } };   // G2047: glass, the carbon's sandwich, a softer skin
+                 carbon: { air: 0.9, tau: 900, breach: 250e3 }, glass: { air: 0.9, tau: 900, breach: 200e3 },
+                 softShell: { air: 0.8, tau: 20, breach: 30e3 } };   // (L4: a tent floods at once; the pole frame holds a little air)   // G2047: glass, the carbon's sandwich, a softer skin
 const WB_WING = { fabric: { air: 0.5, tau: 60 }, steel: { air: 0.5, tau: 60 }, aluFabric: { air: 0.5, tau: 60 }, fabricAlu: { air: 0.5, tau: 60 }, dtube: { air: 0.5, tau: 60 },
                   alloy: { air: 0.9, tau: 600 }, carbon: { air: 0.9, tau: 900 }, glass: { air: 0.9, tau: 900 } };
 const WB_DRAIN = 30;            // s: a slice out of the water drains (its flooding decays) on this time

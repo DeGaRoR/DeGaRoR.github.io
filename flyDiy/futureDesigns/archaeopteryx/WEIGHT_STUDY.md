@@ -229,11 +229,11 @@ came from a read that left sections out; the ledger is the reference from here o
 | L2a | the tail follows a chosen wing (the D-tube tail, certified at its build weight) | ~-5 | **-2.4** (tail 8.3 -> 6.1, the rest the gauge's) | **152.6** | **done** |
 | L2b | the rod: material + wall (the rod row, 530d6dcbe), billed as the real tube pi d t rho (AERO-BODY's 92f8849e) | ~-3 | AERO-BODY measured -12 (the honest tube takes the phantom lattice off) - lands with their branch | ~107 | AERO-BODY's billing |
 | L3 | the fixed items: the reclined tub (3 kg), SOFT FILM glazing (new, 0.7 kg/m2), LIGHT CONTROL RUNS (new, push-pull carbon rods and Dyneema, 0.15 kg/m), the side stick on the keel tube, three instruments | ~-29 expected | **-18.9** (outfit 21.2 -> 8.0, seat 6 -> 3, instruments 2.1 -> 1.3; the lining was already 0; the paint kept - a gelcoat is no lighter; the dashboard kept, 0.2 kg - without it the gauges float: a garage gap) | **133.7** | **done** |
-| L4 | the soft-shell cabin over the hard keel, mast and struts | ~-10 (of the fuselage's 26.6) | | ~108 | |
-| L5 | a pinned carry-through (six pins, not the cantilever box) | ~-6 (bracing 6.9 -> ~1) | | ~102 | |
-| L6 | the light gear (a carbon blade on the monowheel) | ~-3.5 (5.5 -> ~2) | | ~98 | |
+| L4 | THE SOFT SHELL (new, the Construction tile's 7th option): 7075 poles under ripstop, built for 250 kg; the keel tubes and the hub's box hard (carbon), the mast and the motor's mount steel; the rod named carbon | ~-10 (of the fuselage's 26.6) | **-20.5** (fuselage 25.0 -> 4.5) - with L5 and the soft row's own figures, 113.2 -> 94.7 | **~94.7** (with L5) | **done**: parks clean, holds 6.06 g; at the limit sink (0.22 m) nothing breaks, at 0.3 m the nose's poles fold (the carbon pod holds) |
+| L5 | THE HUB: the carry-through is the hub fitting (1.5 kg on the wing's root) and the cantilever box (billed in the fuselage's row: double the D-tube's own) at a quarter | ~-6 (bracing 6.5 -> ~1) | **-3.4** (bracing 6.5 -> 3.1): under a quarter the box's bottom nodes are too light for the 200-substep cap and the card diverged parked (the integrator's floor, not the structure's) | (with L4) | **done** |
+| L6 | THE ULTRALIGHT MONOWHEEL (new, the gear page's s1Ul -> gear.ul, a monowheel only): the bicycle wheel in a sprung fork, its members at 0.3, its nose skid its own (0.4 kg, not a tailwheel's 2.0), built for 250 kg | ~-3.5 (5.5 -> ~2) | **-4.5** (gear 7.5 -> 3.0, from the soft row's; 5.5 -> 3.0 against L7) | **89.9** | **done**: on a Cub it folds at the limit sink, the standard monowheel holds |
 | L7 | the real drive: the e-PPG 12 kW (7 kg) for the E-811 (30 kg), a 2 kWh NMC pack under the floor (17.5 kg), the avgas nose tank gone; AND the motor bolted on the mast in the frame (no 4130 bearers: -3.6) | ~-12 net | **-15.0** (engines 36.0 -> 8.0, the pack +17.5, the bearers -3.6, the rest the gauge) | **118.7** | **done** - climb 1.48 m/s, TO 162 m, L/D 16.2, 13 min at cruise; static margin -0.06 |
-| | **the real aeroplane** | | | **~72** | the remaining ~14 kg: the cabin cage, the mast and the hub, to measure at L4-L5 |
+| | **the real aeroplane** | | | **~72** | after L6 the card is 89.9: the wing 31.5 (real ~?), the pack 17.5, the outfit 7.3, the tail 5.7, the paint 5.1 - and AERO-BODY's honest rod (~-12, to land) puts it near 78 |
 
 **A finding on the way (L7):** the card carries the Velis's E-811 electric motor (30 kg) fed from a 4 L avgas nose
 tank, with no battery. That is a leftover from the stage-1 card. The drive level fixes it.
@@ -268,7 +268,7 @@ tank, with no battery. That is a leftover from the stage-1 card. The drive level
   - it breaks under 3.8 g on the Cub, the C172 and the Caravan, at the root, cleanly (never a divergence);
   - it is lighter than the Archaeopteryx's moulded carbon;
   - every card without it is unchanged (the fleet hash used for v1).
-- **GATE SOFTSHELL:** a wing on a soft-shell cabin without the pylon folds on the bench; the pylon card stands.
+- **GATE SOFTSHELL** (built as **GATE ULTRALIGHT**, L4-L6): the soft-shell Archaeopteryx parks clean, holds the ultimate and the limit sink; without the mast its poles yield under the wing; a Cub and a C172 on the soft shell come down parked; the ultralight monowheel folds on a Cub at the limit sink. (The wing bench is no test of a soft shell: it pins the cabin and loads the struts in tension, where a pole is strong - a pole fails in compression and bending, so the gate parks and drops.)
 - **GATE LIGHTROD:** the foot-launch rod breaks under 3.8 g on the pusher pod at ~500 kg; it holds on the
   Archaeopteryx.
 - **GATE AEROWING:** the aerobatic wing breaks near 15 g and weighs about +60 % in wing structure.

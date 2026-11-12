@@ -428,6 +428,7 @@ function cageJoinSpec(P, M, T) {
     spec.gear = { type: M.gearType };
     if (M.track > 0) spec.gear.track = M.track;
     if (M.mono) spec.gear.mono = true;             // MONOWHEEL: one main on the centreline (no track)
+    if (M.mono && +P.s1Ul) spec.gear.ul = true;   // WEIGHT STUDY L6: the ultralight monowheel (GEN_RULES.ulGear)
     // MONOWHEEL: the mains sunk into the body (their share; the drag counts what stands out)
     if (+P.s1Sink > 0 && +P.s1On) spec.gear.sink = Math.min(0.7, +P.s1Sink);
     if (M.contactR > 0) spec.gear.wheelR = M.contactR;
@@ -712,8 +713,8 @@ function cageJoinSpec(P, M, T) {
   // material it has; the cage default is 0 (composite) and would have
   // put every such build on carbon.
   if (P.intCons != null)
-    fus.material = ['carbon', 'tubeFabric', 'wood', 'alloy', 'aluTube', 'glass'][   // G2047: glassfibre, the sixth stop
-      Math.max(0, Math.min(5, Math.round(+P.intCons || 0)))];
+    fus.material = ['carbon', 'tubeFabric', 'wood', 'alloy', 'aluTube', 'glass', 'softShell'][   // G2047: glassfibre, the sixth stop; L4 the soft shell
+      Math.max(0, Math.min(6, Math.round(+P.intCons || 0)))];
   // G199.5: THE BOOM'S CONSTRUCTION is the cage's own declaration — the frame
   // keys a rod boom's stiffening on it (GEN_RULES.rodBoomK), because the
   // lattice it flies is not the tube it draws. Written on every join: the

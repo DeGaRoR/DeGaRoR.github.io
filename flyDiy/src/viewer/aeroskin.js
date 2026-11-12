@@ -549,6 +549,12 @@ const AERO_BY_CONS = {
                 bead: 'bareAlu', seal: 'rubber', fire: 'fireFoil',
                 edge: 'acrylicEdge', sill: 'sillAlu', doorPad: 'pleatLeather',
                 hdl: 'headliner', wall: 'trimVinyl' },
+  // (WEIGHT STUDY L4) the soft shell: a sewn ripstop skin (the fabric finish) over bare alloy poles
+  softShell:  { skin: 'fabric', rail: 'fabric', pillar: 'fabric',
+                struct: 'bareAlu', panel: 'panelMetal', pad: 'leatherDark',
+                bead: 'bareAlu', seal: 'rubber', fire: 'fireFoil',
+                edge: 'acrylicEdge', sill: 'sillAlu', doorPad: 'pleatLeather',
+                hdl: 'headliner', wall: 'trimVinyl' },
   // THE FLYING SURFACES' OWN CONSTRUCTIONS (G213): fabric over wood, fabric
   // over steel tube — both wear doped fabric; what differs is the structure
   // showing through where a section is left open. Reached only from the

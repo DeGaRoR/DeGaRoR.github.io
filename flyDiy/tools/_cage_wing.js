@@ -621,12 +621,12 @@ function wingMat(cl, plane) {
   // G213: the wing's own tokens in the row's order, and 'as the aeroplane'
   // through GEN_SURF_DEFAULT (fabric on a wood or tube fuselage)
   const CONS4 = ['carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass', 'fabricAlu', 'dtube'];   // G466: the fifth stop; G2047 the sixth; the D-tube the eighth
-  const FUS4 = ['carbon', 'tubeFabric', 'wood', 'alloy', 'aluTube', 'glass'];
+  const FUS4 = ['carbon', 'tubeFabric', 'wood', 'alloy', 'aluTube', 'glass', 'softShell'];
   const SD = (typeof GEN_SURF_DEFAULT !== 'undefined' && GEN_SURF_DEFAULT) ||
-    { tubeFabric: 'fabric', wood: 'fabric', alloy: 'alloy', carbon: 'carbon', aluTube: 'aluFabric', glass: 'glass' };
+    { tubeFabric: 'fabric', wood: 'fabric', alloy: 'alloy', carbon: 'carbon', aluTube: 'aluFabric', glass: 'glass', softShell: 'aluFabric' };
   const kc = Math.round((plane ? P0.w2Cons : P0.wgCons) || 0);
   const cons = kc > 0 ? CONS4[kc - 1]
-    : SD[FUS4[Math.max(0, Math.min(5, Math.round(P0.intCons || 0)))]] ||
+    : SD[FUS4[Math.max(0, Math.min(6, Math.round(P0.intCons || 0)))]] ||
       'fabric';
   // the editor's per-part livery, when its UI is on the page; the direct
   // factory call below stays as the standalone bench's path

@@ -764,7 +764,7 @@ function makeSim(def, world) {
   const PCORE = CMP ? new Float64Array(nb).fill(Infinity) : null;
   function dmgMember(bi, b, R) {
     const Lb = b.L > 0 ? b.L : 0, ph = typeof GEN_MATERIALS !== 'undefined' && GEN_MATERIALS[b.mat] ? GEN_MATERIALS[b.mat].phys : null;
-    const tube = b.cls === 'cabane' || b.cls === 'interplane' || (b.cls === 'fus' && (b.mat === 'tubeFabric' || b.mat === 'aluTube'));
+    const tube = b.cls === 'cabane' || b.cls === 'interplane' || (b.cls === 'fus' && (b.mat === 'tubeFabric' || b.mat === 'aluTube')) || (b.mat === 'softShell' && b.cls !== 'gear');   // (L4: a pole buckles wherever it stands)
     if (tube && !b.tens && !ISO[bi] && !LUMP[bi] && ph && ph.E > 0 && Lb > 0) {   // (G2361: an isolator does not buckle; G2367: nor a lumped fan)
       const fe = Math.PI * Math.PI * ph.E * (b.A * (GEN_CRASH_TUBE_DT * b.A / Math.PI) / 8) / (Lb * Lb);
       if (fe < b.fc0) b.fc0 = fe;

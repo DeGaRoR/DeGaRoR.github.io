@@ -613,6 +613,9 @@ const ICON = {
     { d: 'M8 10 L24 30 M24 30 L40 10 M40 10 L56 30', w: 1 }] },
   conPly: { vb: '0 0 64 40', paths: [{ d: 'M8 8 L56 8 L56 32 L8 32 Z', w: 1 },
     { d: 'M14 8 L14 32 M26 8 L26 32 M38 8 L38 32 M50 8 L50 32', w: 1 }] },
+  // (WEIGHT STUDY L4) the soft shell: a tent's poles bowed under its cloth
+  conSoft: { vb: '0 0 64 40', paths: [{ d: 'M8 32 Q32 2 56 32', w: 1 }, { d: 'M16 32 Q32 12 48 32', w: 1 },
+    { d: 'M8 32 L56 32', w: 1 }, { d: 'M12 26 Q32 10 52 26', w: 0.6 }] },
   conAlu: { vb: '0 0 64 40', paths: [{ d: 'M8 8 L56 8 L56 32 L8 32 Z', w: 1 },
     { d: 'M8 20 L56 20', w: 1 },
     ...[12, 22, 32, 42, 52].map(x => ({ d: 'M' + x + ' 11 a1 1 0 1 0 0.1 0', w: 1 })),
@@ -1299,6 +1302,10 @@ const DESIGN_ROWS = [
       // (GEN_MATERIALS.glass)
       { value: 5, label: 'Glassfibre', icon: ICON.conCompo,
         writes: { cage: { intCons: 5 } } },
+      // WEIGHT STUDY L4: the soft shell - poles under ripstop (GEN_MATERIALS.softShell): a tent of a cabin, built for
+      // ~250 kg; on a hanging nacelle the mast, the keel and the motor's mount stay hard; on anything heavier it folds
+      { value: 6, label: 'Soft shell', icon: ICON.conSoft, note: 'poles + ripstop; ultralight-only - heavier, it folds',
+        writes: { cage: { intCons: 6 } } },
     ] },
 
   { key: 'boomStyle', label: 'Fuselage style', kind: 'discriminator',
@@ -3002,7 +3009,9 @@ const ARCHETYPES = [
   { key: 'archaeopteryx', kind: 'recreation', name: 'Archaeopteryx-alike', note: 'suspended pod, ' +
       'rod on the wing, electric pusher low on the bulkhead',
     sel: { class: 'ul1', role: 'glider', seatLayout: 0, paxCount: 0,
-           canopy: 'screen', mirror: 0, intCons: 0, covering: 'skin',
+           // (WEIGHT STUDY L4: the soft shell - poles + ripstop, GEN_MATERIALS.softShell; the mast, the keel tubes and
+           // the hub's box hard (carbon), the rod named carbon below: the pod 25.0 -> 4.5 kg)
+           canopy: 'screen', mirror: 0, intCons: 6, covering: 'skin',
            boomStyle: 1, section: 3,
            wgPos: 0, wgBrace: 1, wgTip: 5, wgFlapType: 1,
            // (L7 OF THE WEIGHT PATH, 12 Nov: the real drive - the e-PPG 12 kW direct drive, 7 kg, the real one's ~10.5 kW;
@@ -3033,6 +3042,8 @@ const ARCHETYPES = [
                     // Archaeopteryx, but I want to keep track of the path"; WEIGHT_STUDY.md THE PATH): the Wing structure
                     // tile's 9th option - the wing 47.9 -> 34.7 kg, the empty 169.1 -> 155.0 kg, certified (built for 250 kg)
                     wgCons: 8,
+                    // (WEIGHT STUDY L4: the rod's own row named - carbon, as it was - so the soft shell is the pod's alone)
+                    rodMat: 1,
                     // THE DRIVE (the user, 10-11 Nov: the engine "right in the back of the pilot at the bottom", on the aft
                     // bulkhead - "the pillar is where the aft bulkhead is where the engine is"): the pusher on the
                     // bulkhead, no cowl; a shaft aft (cw_noseOff) to the small prop just past the aft pod's tip, its
@@ -3139,7 +3150,7 @@ const ARCHETYPES = [
                     // nose grown down (s2Fair) - its shoe level with the wheel's contact (12 Nov, the user: "the skid so
                     // it's at the same level as the wheel": s2_twLegDrop 0.09 -> 0, within 7 mm), a skid under each wingtip
                     // (wgTipSkid)
-                    pilotLen: 0.52, s1Z: 1.13, s1X: 0, s1AxZ: -0.06, s1R: 0.2, s1Drop: 0.05, s1Root: 1, s1Sink: 0.45,
+                    pilotLen: 0.52, s1Z: 1.13, s1X: 0, s1AxZ: -0.06, s1R: 0.2, s1Drop: 0.05, s1Root: 1, s1Sink: 0.45, s1Ul: 1,   /* (WEIGHT STUDY L6: the ultralight monowheel) */
                     whProfile: 3,
                     s2Leg: 3, s2Nose: 1, s2Z: 0.45, s2Steer: 4, s2Fair: 1, s2R: 0.10, s2Drop: 0.05, s2_twLegDrop: 0.055,
                     wgTipSkid: 1,
@@ -3743,8 +3754,8 @@ function designBake(sel, over) {
   // fuselage's material at all. The mappings are the join's own, verbatim
   // (_cage_join.js fus.material / spec.gear.fairing..twLegFair); the join
   // rewrites them on the very next build in the app.
-  designMerge(out, { fuselage: { material: ['carbon', 'tubeFabric', 'wood', 'alloy', 'aluTube', 'glass'][
-    Math.max(0, Math.min(5, Math.round(+full.intCons || 0)))] } });
+  designMerge(out, { fuselage: { material: ['carbon', 'tubeFabric', 'wood', 'alloy', 'aluTube', 'glass', 'softShell'][
+    Math.max(0, Math.min(6, Math.round(+full.intCons || 0)))] } });
   if (full.canopy != null)
     designMerge(out, { cabin: { canopy: { style: Math.round(+full.canopy) === 3 ? 'bubble' : 'screen' } } });
   designMerge(out, { gear: {

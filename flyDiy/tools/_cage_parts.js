@@ -1114,7 +1114,7 @@ const CAGE_PARTS = [
       // `s1R`/`s2R` (the wheel radii) -> `wheels` (2026-09-03, the user: "the
       // wheel radius for example is under the main gear and not the wheel")
       ['station', ['s1On', 's1Z', 's1X', 's1Leg', 's1Drop', 's1AxZ', 's1Root', 's1Brake',
-                   's1Steer', 's1Sink']],
+                   's1Steer', 's1Sink', 's1Ul']],
       ['fairing', ['s1Fair', 's1FairSkirt', 's1FairTail', 's1FairRake',
                    's1FairW', 's1LegFair']],
       ['blade', ['s1_beamAng', 's1_beamW', 's1_beamT', 's1_beamTaper',

@@ -54,7 +54,7 @@
   const SET_MIN = 0.01;       // a chord shortened past 1 % by its set: buckled (a tube; wood stays straight)
   const KINK_STRETCH = 1.05;  // a kinked member whose ends are pulled past 1.05 x its rest length is drawn torn
   // the materials taken here (30_solver's member `mat`, 60_gen_spec GEN_CRASH keys): 1 steel, 2 alloy tube, 3 wood
-  const MAT = { tubeFabric: 1, aluTube: 2, wood: 3 };
+  const MAT = { tubeFabric: 1, aluTube: 2, wood: 3, softShell: 2 };   // (L4: the soft shell's poles bend as alloy tube)
   // the modes (texel 1's w): whole (0: bent or straight), torn (1), unparted kink (2), wood: splintered (3), greenstick
   // (4), crush (5). Torn and splintered draw CRACKED (both legs, bent) while the ends are within the rest length, as
   // stubs past it

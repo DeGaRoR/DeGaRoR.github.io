@@ -9277,10 +9277,11 @@ const CAGE_HULL_ROWS = ['hullBeta', 'hullBetaBow', 'hullBetaA', 'hullStepZ', 'hu
 // stop of 75 deg): rows ABSENT AT THEIR DEFAULT - a file that never set one loads it at the default (the snap on,
 // the stop at 75), and a save writes the row only when it differs, so no saved build gains a key the game hashes
 // (HULL-B26: the tip's own shape - length 0 / drop 0 = the kind's own, fullness 1 = the aerofoil)
-const CAGE_DEFAULT_ABSENT = { finRudBelow: 0, ctlRuns: 0, rodMat: 0, rodWallMm: 1.2, pilSnap: 1, doorStop: 75, wgStrutPil: 0, wgTipBow: 0, wgTipDroop: 0, wgTipFull: 1,
+const CAGE_DEFAULT_ABSENT = { s1Ul: 0, finRudBelow: 0, ctlRuns: 0, rodMat: 0, rodWallMm: 1.2, pilSnap: 1, doorStop: 75, wgStrutPil: 0, wgTipBow: 0, wgTipDroop: 0, wgTipFull: 1,
   wgTipSkid: 0, wgTipSkidH: 0.10,   // (TIP-SKID: the wingtip skid, off; its depth)
   s2Nose: 0,                         // (MONOWHEEL: the third unit's leaf spring at the tail, as ever)
   s1Sink: 0, s2Sink: 0,              // (MONOWHEEL: no wheel sunk into the body)
+  s1Ul: 0,                           // (WEIGHT STUDY L6: no ultralight monowheel)
   rodHub: 0,                         // (the hub's rear socket: the rod on the aft bulkhead, as ever)
   hangOn: 0, hangAt: 0.50, hangLen: 0.35, hangKeels: 1,   // (the hanging nacelle: the cabin carries the wing, as ever; GEN_HANG's mast)
   bpCabPyAt: 0.40, bpCabPyLen: 0.55, // (the hub's pylon on the chord: HULL-B78's own)
@@ -9890,8 +9891,8 @@ function cageSpec(P) {
     }
   }
   // (G2047: glassfibre, the sixth stop, is built as the composite is - the moulded shell's idiom)
-  const consG = ['carbon', 'tube', 'wood', 'metal', 'metal', 'carbon'][   // (index 4 'metal': the clamp's old reading)
-    Math.max(0, Math.min(5, Math.round(P.intCons || 0)))];
+  const consG = ['carbon', 'tube', 'wood', 'metal', 'metal', 'carbon', 'tube'][   // (index 4 'metal': the clamp's old reading; 6 the soft shell's poles)
+    Math.max(0, Math.min(6, Math.round(P.intCons || 0)))];
   const skinTv = Math.max(0, P.skinT || 0);
   S.interior = { on: P.intOn ? 1 : 0, bulk: P.intBulk ? 1 : 0,
                  fire: P.intFire ? 1 : 0, dash: P.intDash ? 1 : 0,

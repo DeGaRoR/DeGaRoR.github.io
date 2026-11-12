@@ -315621,3 +315621,33 @@ chantier (stage 4) must bring it forward. Parked: the wheel, the nose skid, a wi
   0.58 (the shorter case brought the blades into the aft pod: the join's own check). Flies: climb 1.48 m/s, TO 162 m,
   L/D 16.2, 13 min at cruise, static margin -0.06 (was -0.108). AERO-BODY's honest rod tube (their 92f8849e): ~-12 kg
   more when both land.
+- L4-L6 OF THE PATH: THE SOFT SHELL, THE HUB, THE ULTRALIGHT MONOWHEEL (12 Nov, the user: "Let's keep going with the soft
+  shell, and then you can go L5, L6 in one go ... the gear ... give it the weight you want, provided it remains something
+  unique as a gear type ... it's really like a bicycle wheel ... And the wing attachment ... just giving it some number"):
+  the Archaeopteryx 118.7 -> 89.9 kg empty. GATE ULTRALIGHT (tools/_ultralight_check.js) holds all three.
+  (L4) GEN_MATERIALS.softShell, the Construction tile's 7th option (intCons 6; the join, the panel rows, the cage's
+  consG 'tube', CONS_MAP 'soft', TECH 'mat:softShell' tier 1, the tube shop, WB_MAT, audio 'ultralight', aeroskin fabric
+  over bare poles): 7075 poles (its own phys and GEN_CRASH row) under ripstop 0.15 kg/m2, k an eighth of the 6061 row's;
+  its WING row a pole too (the fuselage's row bills the struts, the carry-through, a cantilever's box: with the 6061
+  figures the soft-shell C172 held 9.7 g); its gear row the carbon row's. BUILT FOR A WEIGHT (buildKg 250) as the
+  D-tube: its own gauge bucket 'fusB' (61_gen_frame bucketB, genDesignGross rowOf), springs capped (KSB, kFloorK 0.5), NO
+  KNEE (gaugeHoldK grew the C172's poles x1.4), certified at buildKg / W0 on its own members (66_gen_cert, by b.mat); a
+  pole buckles wherever it stands (30_solver dmgMember: b.mat 'softShell', gear aside). Its `hard` row (carbon) builds the
+  roles that stay hard: the keel tubes (opt.hard) and, on a hanging nacelle, the 'bracing' section (sec()). The pod
+  25.0 -> 4.5 kg. Parked it stands; at the limit sink (0.22 m drop) nothing breaks (the poles take a set), at 0.3 m the
+  nose's upper longerons fold where the carbon pod holds; without the mast (hangOn 0) the wing sinks on yielding poles;
+  a Cub and a C172 on it come down parked within a second. THE WING BENCH IS NO TEST OF A SOFT SHELL: it pins the cabin
+  and loads the struts in tension, where a pole is strong (the soft-shell Cub "holds 9.96 g" on it and cannot stand).
+  (L5) GEN_HANG.hubKg 1.5 (on the wing's root nodes, 'bracing') and boxK 0.25: on a hanging nacelle (HUBPIN) the
+  cantilever box (billed in the fuselage's row - double the D-tube's own D-box) is built at a quarter of its mass AND
+  springs. bracing 6.5 -> 3.1. Under a quarter the box's bottom nodes (0.03-0.06 kg, nothing but the box on them) put the
+  card - already asking 226 substeps against the 200 cap - into a divergence parked: weightless (0) and 0.15 diverged,
+  0.25 without the hub broke up. THE INTEGRATOR, NOT THE STRUCTURE, SETS L5's FLOOR; the next weight on this card meets
+  the same cap (scratch stiff.js lists the binders).
+  (L6) GEN_RULES.ulGear { linK 0.3, buildKg 250, skidKg 0.4 }, the gear page's s1Ul (a single centreline main only;
+  CAGE_DEFAULT_ABSENT 0) -> gear.ul (clampSpec: on a monowheel only, the key only when on): the gear's members at 0.3 of
+  their section and mass, its nose skid 0.4 kg (the tricycle branch billed a skid as a 2.0 kg tailwheel), certified at
+  250 / W0. gear 7.5 -> 3.0 (5.5 at L7). On a Cub's monowheel it folds at the limit sink; the standard holds.
+  The card: intCons 6, rodMat 1 (carbon, as it was - the soft shell is the pod's alone), s1Ul 1. GEN_CAGE_ROW_NEUTRAL
+  gains this branch's absent-means-default rows (finRudBelow, bpCabPy*, wgTipSkid*, ctlRuns, rodMat, rodWallMm, s1Ul):
+  GATE STOL's join-to-master parity read them as a moved spec on the six saved builds (the merge's only new red).

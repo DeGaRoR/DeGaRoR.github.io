@@ -1040,6 +1040,20 @@ function* genCertifySteps(def, opt) {
     if (TR && TR.buildKg > 0 && W0 > TR.buildKg) {
       const f = TR.buildKg / W0;
       def.beams.forEach((b, i) => { if (b.sec === 'tail') { Ft[i] *= f; Fc[i] *= f; } });
+    }
+    // ...and a FUSELAGE built of a row built for a weight (WEIGHT STUDY L4: the soft shell, GEN_MATERIALS.softShell):
+    // its own members - the poles, wherever they stand: the cabin, the carry-through - the gear's aside (its bracket
+    // is the gear's own cases, gearStamp) and the roles built hard (the keel, the mount: another row's members)
+    const MR = typeof GEN_MATERIALS !== 'undefined' ? GEN_MATERIALS[S.material] : null;
+    if (MR && MR.buildKg > 0 && MR.phys && W0 > MR.buildKg) {
+      const f = MR.buildKg / W0, mk = genPhysKey(MR.phys);
+      def.beams.forEach((b, i) => { if (b.mat === mk && b.cls !== 'gear') { Ft[i] *= f; Fc[i] *= f; } });
+    }
+    // ...and the ultralight monowheel (WEIGHT STUDY L6, GEN_RULES.ulGear): its gear's members, as built for its weight
+    const UG = S.gear && S.gear.mono && S.gear.ul && typeof GEN_RULES !== 'undefined' ? GEN_RULES.ulGear : null;
+    if (UG && UG.buildKg > 0 && W0 > UG.buildKg) {
+      const f = UG.buildKg / W0;
+      def.beams.forEach((b, i) => { if (b.cls === 'gear') { Ft[i] *= f; Fc[i] *= f; } });
     } }
   return { v: GEN_CERT_V, key: genCertKey(def), nb, nN, limit: L, ult: GEN_CERT.ult, neg: -GEN_CERT.neg * L, m: GEN_CERT.m,
            sink, dropNz: drop ? drop.nz : null, flownNz: flown ? flown.nz : null, flownReached: flown ? flown.reached : null,

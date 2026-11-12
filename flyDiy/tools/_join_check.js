@@ -439,11 +439,11 @@ try {
 // billing material follows. The 2026-09-01 audit's headline: an aluminium
 // aeroplane flew tube-and-fabric because nothing wrote this row.
 try {
-  const CONS = ['carbon', 'tubeFabric', 'wood', 'alloy', 'aluTube', 'glass'];   // G466: the fifth stop; G2047 the sixth
+  const CONS = ['carbon', 'tubeFabric', 'wood', 'alloy', 'aluTube', 'glass', 'softShell'];   // G466: the fifth stop; G2047 the sixth; L4 the seventh
   ok(P.intCons == null ? s.fuselage.material === undefined
-       : s.fuselage.material === CONS[Math.max(0, Math.min(5, Math.round(+P.intCons || 0)))],
+       : s.fuselage.material === CONS[Math.max(0, Math.min(6, Math.round(+P.intCons || 0)))],
      'a P without the tile writes no material; with it, the tile\'s (' + s.fuselage.material + ')');
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < CONS.length; i++) {
     const sI = cageJoinSpec(Object.assign({}, P, { intCons: i }), M, T);
     ok(sI.fuselage.material === CONS[i], 'intCons ' + i + ' -> fuselage.material ' + CONS[i]);
     const RI = resolveSpec(JSON.parse(JSON.stringify(sI))).spec;

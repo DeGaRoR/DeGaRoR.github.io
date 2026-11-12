@@ -146,6 +146,11 @@ const station = (i, name) => [name, [
   // square round the tyre (the retract's knife, no well). 0: the leg as ever
   ['s' + i + 'Sink', 'sunk into the body (share of the wheel)', 0, 0.7, 0.01,
    { when: P => +P['s' + i + 'On'] && Math.round(+P['s' + i + 'Leg']) !== 3 && !GEAR_RETRACTABLE(P) }],
+  // WEIGHT STUDY L6 (the user, 12 Nov: "the gear has been specifically developed for that plane ... it's really like a
+  // bicycle wheel. It's like an ultralight wheel"): THE ULTRALIGHT MONOWHEEL - a bicycle wheel in a sprung fork, its
+  // members a third of the leg's (GEN_RULES.ulGear), built for ~250 kg: on anything heavier it folds. A single main only
+  ...(i === 1 ? [['s1Ul', 'ultralight wheel (built for ~250 kg)', 0, 1, 1, ['off', 'on'],
+                  { when: P => +P.s1On && !(+P.s1X > 0.01) && Math.round(+P.s1Leg) !== 3 && !GEAR_RETRACTABLE(P), absent: 0 }]] : []),
   ...(i === 2 ? [['s2Nose', 'spring at', 0, 1, 1, ['the tail', 'the nose (a nose skid)'],
                   { when: P => +P.s2On && Math.round(+P.s2Leg) === 3 && !+P.boomTwin }]] : []),
   // G3503 (DC3-BUILD): the half track to 3.2 m, the wheel to 0.65 m and the leg drop to
