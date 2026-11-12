@@ -1117,6 +1117,12 @@ window.CAGE_PAGE = {
       ['paxCount',  'pax bays',        0, 12, 1],
       ['paxLen',    'bay length',      0.4, 3.0, 0.01,
        { when: P => +P.paxCount > 0, dim: 'len' }],
+      // (12 Nov, FIT-PROCEDURE) each bay its own length: bay 2, 3, ... (counted from the AFT bay, the generator's order:
+      // bay 1 is the one ahead of the boom) follow the bay length until unticked
+      ...[2, 3, 4, 5, 6].map(n => ['paxLen' + n, 'bay ' + n + ' length (counted from the aft bay)', 0.4, 3.0, 0.01,
+        { when: P => +P.paxCount >= n, dim: 'len',
+          follow: () => { const U = window.CAGE_UI; return U && U.P ? +U.P.paxLen : null; },
+          followTitle: 'follows the bay length; untick to give this bay its own' }]),
       // T2.3 (132): the bays' own seating — 'as the cockpit' is every build
       // before (a bay seats the cockpit's row); a single seat behind a
       // side-by-side cockpit, a pair behind a tandem one, or a bench of three
@@ -1134,6 +1140,9 @@ window.CAGE_PAGE = {
       // (the drawn windows moved to '4b · drawn windows', T2.2)
       ['doorPax',   'pax doors',       0, 1, 1,
        { when: P => +P.paxCount > 0 }],
+      // (12 Nov, FIT-PROCEDURE) doors on the front bays only: 0 = every bay (as always)
+      ['doorPaxFront', 'pax doors: front bays only (0 = all)', 0, 12, 1,
+       { when: P => +P.paxCount > 0 && +P.doorPax > 0, absent: 0 }],
       ['doorSillPax','door sill',      0, 0.25, 0.002,
        { when: P => +P.paxCount > 0 && +P.doorPax, dim: 'len' }],
       // G180: WHO SITS IN EACH BAY, bays counted front to back from the
@@ -1237,6 +1246,8 @@ window.CAGE_PAGE = {
       ['boomTailCap', 'tail-end cap', 0, 2, 1, ['point', 'flat', 'round'],
        { when: P => +P.boomTwin }],
       ['taperOn',   'taper section',   0, 1, 1],
+      // (12 Nov, FIT-PROCEDURE: the user, "Match to cabin size" - the boom root is the cabin's aft frame, no step)
+      ['boomMatch', 'match to cabin size', 0, 1, 1, { when: P => !+P.taperOn, absent: 0 }],
       // the `when` rules below are MEASURED, not assumed (P1 probe,
       // 2026-08-26): each hidden row was varied through the full display
       // pipeline in the mode that hides it and the mesh hash did not
