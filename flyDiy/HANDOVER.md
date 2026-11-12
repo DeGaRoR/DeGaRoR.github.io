@@ -315044,3 +315044,18 @@ the next steps).
   the bonnet just behind the face, nose forward, the nose the AMBER lens, the tail chrome, at the headlamps' height less
   blinkY. Static: they do not blink yet (that is the drive mode's, when the car part takes the game's car). The van:
   carTail 1, cw_blinkOn 1, cw_blinkY 0.06 (the liveries inherit them - overlays carry paint / finish / meta only).
+- **CAR-3, THE WIDTH CHECKED, THE WHEEL'S HOLES, THE RETRO CHOSEN (12 Nov)**: THE WIDTH (the user: "isn't this thing
+  really too wide? ... compare the half track"): the van is 1.98 m wide, track 1.76 / 1.64 m (half-track 0.88), wheelbase
+  3.20 m, 2.21 m tall - a Chevy Van G20 is 2.02 m, track ~1.77 / 1.71; a Ford Econoline 2.03 m, ~1.76 - a large American
+  van to the centimetre (a VW T5 is 1.90 / 1.63); kept, reported. THE WHEEL (the user: "a larger tire flank ... the
+  holes ... closer to the center ... in between the outer walls and the inner walls of the rim"): whRimD 0.5 (a taller
+  sidewall); pressedDisc's band now 0.205-0.315 Rh, between the hub boss (0.19) and the rim's well wall (0.335), the
+  holes BETWEEN the bolts (half a pitch off), the dish falling to the well outside them. THE RETRO (the user's pick):
+  the navy up to the bonnet's top (the bonnet all navy), the three stripes 8 cm above it under the sills; the lettering
+  PROJECTED (text pieces t1 'Home Field' in Lobster Two bold italic, cream; t2 'OFFICIAL TOW & UTILITY' in Barlow
+  bold, yellow; the registration regMode 1 on the bonnet's flank, Barlow, cream); THE ROOF (the user: "not a big flat
+  white plane"): a plan-view layer, a navy band edged in orange running nose to tail over the roof. PLAN MODE'S AXES:
+  L is ACROSS (the span) and C fore / aft (C runs as the side box's L), so a band along the roof is turned 90 degrees
+  (Rot 1.5708) with W its length - unturned it ran across the whole width and down the walls. Every section metallic
+  (metal 0.45, rough 0.3), the stripes' layers metallic. THE ALPINE: the sun dropped (the user), the mountains one
+  layer of three ranges, metallic. Roof bas-relief: not yet (the band answers the flat white for now).

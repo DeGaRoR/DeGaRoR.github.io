@@ -360,19 +360,22 @@ function tyreLugs(bag, at3, TT, L, R) {
 // plate with light through it. at / ax are wheel()'s frame; s the face (+1 outboard, -1 inboard), hf its axial station.
 // A closed band from the boss to the well: the annuli and the holed band share their edge samples, so no crack.
 function pressedDisc(bag, at, ax, s, hf, Rh, bead, N) {
-  const rA = Rh * 0.15, rI = Rh * 0.275, rO = Rh * 0.395, rE = Math.max(bead * 0.99, rO * 1.04);
+  // (12 Nov, the user: "the holes ... closer to the center of the wheel so that they do not clip with the walls of the
+  // rim ... in between the outer walls and the inner walls"): the band sits between the hub boss (0.19 Rh) and the
+  // rim's well wall (0.335 Rh), the holes BETWEEN the bolts (offset half a pitch), the dish falling to the well outside
+  const rA = Rh * 0.15, rI = Rh * 0.205, rO = Rh * 0.315, rE = Math.max(bead * 0.99, Rh * 0.40);
   const rH = (rI + rO) / 2, hr = Math.min((rO - rI) * 0.44, Math.PI * rH / N * 0.55);
   const t = Rh * 0.022;                                      // the plate's thickness
   // the dish, in fractions of hf: the boss, the bolt face flat, the slope through the holes, down to the well
-  const XS = [0.15, 0.19, 0.26, 0.29, 0.395, rE / Rh], YS = [0.86, 1.00, 1.00, 0.975, 0.93, 0.74];
+  const XS = [0.15, 0.19, 0.315, 0.335, 0.37, rE / Rh], YS = [0.86, 1.00, 0.985, 0.95, 0.86, 0.74];
   const A = 0.045;                                           // the wave, x hf
   const H = (r, th) => {
     const x = r / Rh; let h = lerpTab(x, XS, YS);
-    if (x > 0.26 && x < 0.41) h -= A * Math.sin(Math.PI * (x - 0.26) / 0.15) * Math.cos(N * th);
+    if (x > 0.195 && x < 0.325) h -= A * Math.sin(Math.PI * (x - 0.195) / 0.13) * Math.cos(N * (th - Math.PI / N));
     return hf * h;
   };
   const V = (r, th, back) => bag.v(at(r, H(r, th) - (back ? s * t : 0), th));
-  const m = 8, q = 4, NT = N * m, TH = j => -Math.PI / N + 2 * Math.PI * j / NT;
+  const m = 8, q = 4, NT = N * m, TH = j => 2 * Math.PI * j / NT;
   // a quad whose (a, b) runs CCW round +ax and (a, d) outward faces -ax: the front (facing s*ax) is turned for s > 0
   const Q = (a, b, c, d, front) => (front === (s > 0)) ? bag.quad(a, d, c, b) : bag.quad(a, b, c, d);
   // the two plain annuli, boss to the holes and the holes to the well
@@ -380,8 +383,8 @@ function pressedDisc(bag, at, ax, s, hf, Rh, bead, N) {
     const G = rs.map(r => { const row = []; for (let j = 0; j < NT; j++) row.push(V(r, TH(j), back)); return row; });
     for (let i = 0; i + 1 < rs.length; i++) for (let j = 0; j < NT; j++) {
       const j2 = (j + 1) % NT; Q(G[i][j], G[i][j2], G[i + 1][j2], G[i + 1][j], !back); } } };
-  annulus([rA, Rh * 0.17, Rh * 0.19, Rh * 0.23, Rh * 0.26, rI]);
-  annulus([rO, Rh * 0.402, Rh * 0.408, rE]);
+  annulus([rA, Rh * 0.17, Rh * 0.19, rI]);
+  annulus([rO, Rh * 0.335, Rh * 0.355, Rh * 0.37, rE]);
   // the holed band, a sector per hole: its rectangle's edge (in r, theta) lofted in to the hole's circle
   const LV = [0, 0.3, 0.65, 1];
   for (let k = 0; k < N; k++) {

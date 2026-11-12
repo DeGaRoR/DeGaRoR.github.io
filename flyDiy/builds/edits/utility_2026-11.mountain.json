@@ -15,52 +15,52 @@
  "finish": {
   "sections": {
    "body": {
-    "metal": 0.15,
-    "rough": 0.42
+    "metal": 0.45,
+    "rough": 0.3
    },
    "ceilingLoop": {
-    "metal": 0.15,
-    "rough": 0.42
+    "metal": 0.45,
+    "rough": 0.3
    },
    "floorLoop": {
-    "metal": 0.15,
-    "rough": 0.42
+    "metal": 0.45,
+    "rough": 0.3
    },
    "pillarCabin": {
-    "metal": 0.15,
-    "rough": 0.42
+    "metal": 0.45,
+    "rough": 0.3
    },
    "pillarFront": {
-    "metal": 0.15,
-    "rough": 0.42
+    "metal": 0.45,
+    "rough": 0.3
    },
    "pillarPassenger": {
-    "metal": 0.15,
-    "rough": 0.42
+    "metal": 0.45,
+    "rough": 0.3
    },
    "pillarTail": {
-    "metal": 0.15,
-    "rough": 0.42
+    "metal": 0.45,
+    "rough": 0.3
    },
    "pillarTaper": {
-    "metal": 0.15,
-    "rough": 0.42
+    "metal": 0.45,
+    "rough": 0.3
    },
    "pillarWindow": {
-    "metal": 0.15,
-    "rough": 0.42
+    "metal": 0.45,
+    "rough": 0.3
    },
    "taper": {
-    "metal": 0.15,
-    "rough": 0.42
+    "metal": 0.45,
+    "rough": 0.3
    },
    "waistband": {
-    "metal": 0.15,
-    "rough": 0.42
+    "metal": 0.45,
+    "rough": 0.3
    },
    "cowlSkin": {
-    "metal": 0.15,
-    "rough": 0.42
+    "metal": 0.45,
+    "rough": 0.3
    },
    "gearLeg": {
     "tint": 3817284
@@ -71,33 +71,23 @@
    "regH": 0.09,
    "regL": 0.35,
    "regC": -0.35,
+   "regCol": 2060152,
    "m1On": 1,
-   "m1Pat": 8,
-   "m1A": 16758531,
-   "m1B": 16763196,
-   "m1D": 16765286,
+   "m1Pat": 13,
+   "m1A": 2062976,
+   "m1B": 4176041,
+   "m1D": 10937296,
+   "m1P": 5,
+   "m1Q": 0.85,
+   "m1R": 3,
+   "m1S": 0.35,
    "m1Tgt": 0,
    "m1Mode": 1,
-   "m1L": -0.58,
-   "m1C": 0.02,
-   "m1W": 0.4,
-   "m1H": 0.4,
-   "m2On": 1,
-   "m2Pat": 13,
-   "m2A": 2062976,
-   "m2B": 4176041,
-   "m2D": 10937296,
-   "m2P": 5,
-   "m2Q": 0.85,
-   "m2R": 3,
-   "m2S": 0.35,
-   "m2Tgt": 0,
-   "m2Mode": 1,
-   "m2L": -2.0,
-   "m2C": -0.32,
-   "m2W": 5.4,
-   "m2H": 0.9,
-   "regCol": 2060152
+   "m1L": -2.0,
+   "m1C": -0.32,
+   "m1W": 5.4,
+   "m1H": 0.9,
+   "m1Metal": 1
   },
   "wear": 0
  }
