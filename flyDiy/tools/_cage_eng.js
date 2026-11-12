@@ -107,10 +107,11 @@ const defaults = { engOn: 1, engPreset: 0, engPower: 0,
                    // inboard, no critical engine), 2 tops outward. The solver
                    // reads nothing from it yet (PROP-EFFECTS-2026-09-05.md).
                    engRotate: 0 };
+const LATENT = EP.LATENT || {};   // (12 Nov: rows absent at their default - no cage default, an `absent` value shown)
 for (const [, rows] of EP.GROUPS)
   for (const r of rows) {
     const [k, , m3, opts] = r;
-    if (SKIP.has(k)) continue;
+    if (SKIP.has(k) || k in LATENT) continue;
     if (m3 === 'drop') {
       VALS[k] = opts.map(o => o[0]);
       const i = VALS[k].indexOf(ED[k]);
@@ -626,7 +627,8 @@ for (const g of EP.GROUPS) {
   for (const it of items) {
     const k = it[0].slice(4);                    // the 'eng_' prefix back off
     const own = ROW_WHEN[k] || null;
-    if (INSTALL_KEYS.has(k)) { if (own) it.push({ when: own }); continue; }
+    if (k in LATENT) { const o = { absent: LATENT[k] }; if (own) o.when = own; it.push(o); if (INSTALL_KEYS.has(k)) continue; }
+    else if (INSTALL_KEYS.has(k)) { if (own) it.push({ when: own }); continue; }
     it.push(own ? { when: P => own(P) && isCustomEng(P) }
                 : { when: isCustomEng });
   }

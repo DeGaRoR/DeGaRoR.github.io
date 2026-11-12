@@ -76,11 +76,7 @@ const engDefaults = () => Object.assign(
     tStyle: EG.ENG_DEFAULT.tStyle, tCanD: EG.ENG_DEFAULT.tCanD,
     tCanL: EG.ENG_DEFAULT.tCanL, gearK: EG.ENG_DEFAULT.gearK,
     flatK: EG.ENG_DEFAULT.flatK, tRpm: EG.ENG_DEFAULT.tRpm,
-    stackStyle: EG.ENG_DEFAULT.stackStyle,
-    // (12 Nov, FIT-PROCEDURE) the PT6 stacks' reach, run, thickness, drop and outlet (1/1/1/0/0: as drawn before)
-    stackOut: EG.ENG_DEFAULT.stackOut, stackLen: EG.ENG_DEFAULT.stackLen, stackR: EG.ENG_DEFAULT.stackR,
-    stackDrop: EG.ENG_DEFAULT.stackDrop, stackFlat: EG.ENG_DEFAULT.stackFlat,
-    stackSplit: EG.ENG_DEFAULT.stackSplit },
+    stackStyle: EG.ENG_DEFAULT.stackStyle },
   JSON.parse(JSON.stringify(EMOD.ENGM_DEFAULT)));
 
 const IN = 0.0254;
@@ -273,6 +269,11 @@ const sFmt = x => x ? x : 'auto';
 const isElec = p => p.arch === 'electric';
 const isTurbine = p => p.arch === 'turbine';
 const isPiston = p => p.arch !== 'electric' && p.arch !== 'turbine';
+// THE LATENT ROWS (12 Nov, FIT-PROCEDURE; A0's L39a rule - "a latent field must be ABSENT at its default"): rows whose
+// key is in NO default dict, so applyEngPreset never writes them and no saved build, preset or join gains a key; the
+// mesh reads an absent key as the drawing before the row existed. These are the values their sliders SHOW while absent
+// (the cage's `absent` row option, the bench page's own state). A key is written only when a page changes it.
+const LATENT = { stackOut: 1, stackLen: 1, stackFlat: 0, stackR: 1, stackDrop: 0, stackSplit: 0 };
 const ENG_GROUPS = [
   // THE TURBOPROP (2026-09-05, TURBOPROP §3): its own keys, so no row is
   // rendered twice; NO aim row — a PT6's two stacks are left and right by
@@ -491,5 +492,5 @@ function presetNames() {
 }
 window.ENG_PAGE = { COL, NEUTRAL, PROPS, engDefaults, PRESETS,
                     GROUPS: ENG_GROUPS, isElec, isPiston, isTurbine,
-                    CUSTOM_ENGINE, PRESETS_AFTER_CUSTOM, presetNames };
+                    CUSTOM_ENGINE, PRESETS_AFTER_CUSTOM, presetNames, LATENT };
 })();
