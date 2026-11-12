@@ -503,3 +503,20 @@ Lessons for the table: **a corner the fitter moves to satisfy a line can make a 
 shoulder stood the LE upright and humped the top): a straight surface is fitted with its shoulder ON the template and
 the line rows scored; and the table's lines are the drawing's, but **the user's eye wins where they differ** - GATE
 DRAFTING now holds the user's 45 deg A-pillar instead of the drawing's windscreen line, and its floor follows (118).
+
+## ROUND 6 (12 Nov): the base geometry to the drawing's own lines; the chin scoop; the doors
+
+| the user | done | rows |
+|---|---|---|
+| "fore of this [the cabin's end], everything at the bottom is straight and horizontal ... aft straight, at an angle ... no break, no curving of the boom, no annular thing" | the pod ring off, the taper section off (the boom longer by its length, the tail held); every frame's bottom set to the drawing's flat line (-0.484 m) - each frame moves its own stretch about 1:1, measured, then set; the boom's root bottom on the straight line to the tail | `boomMidOn` 0, `taperOn` 0, `fr*BotY`, `aftKeelY`, `tailKeelY`, `frPaxTopY` / `aftRoofY` / `tailRoofY` |
+| "3 pax sections, like I drew them ... exactly from and to where I pointed" | the drawing's own pillar lines read off the sheet (column darkness: 3.911, 4.82, 5.58, 6.207); the bays are counted from the AFT one; the cabin 7 cm forward of the nose (the cockpit bay already at 0.02) with the wing, the mains, the tail and the drawn windows held | `paxLen` / `paxLen2` / `paxLen3` (garage: per-bay lengths), `noseLen`, `wgDx`, `s1Z`, `boomLen`, `paxWinZ` / `win3Z` |
+| "your round window is placed too much aft" | the reference's own marks were 0.17 m aft of the circle (re-read off the sheet: 5.761-6.071); the window put on it | `refs/pc6.json` `window.round`, `win2Z` |
+| "an ugly break between the pax section and the boom ... 'Match to cabin size'" | garage: `boomMatch` - with no taper, the boom root is the cabin's aft frame itself | `boomMatch` 1 |
+| "the waistline shows in the boom ... top, waist and bottom widths exactly the same" | the cabin's three widths equal (0.77), the tail section's too | `frTailTopW` = `tailHalfW` = `frTailBotW` 0.204 |
+| the chin scoop "very square and large, runs all along the cowl ... follow the cowl's taper seen from below" | garage: `scoopHold` (the full section held along the length) and `scoopWFit` (the half-width a share of the cowl's own); the scoop straight and level (`scoopFollow` 0, `scoopRake` 0) at the fuselage's bottom (`scoopDrop` 0.9) | `cw_scoop*` |
+| "the bottom of the door further up, 20 cm, the blueprint's line" | the door no longer to the floor; the floor line lowered so its bottom is at -0.27 (20 cm above the keel) | `doorDeep` 0, `floorY` -0.97 |
+| "pax doors only for the 2 first sections" | garage: `doorPaxFront` (doors on the N bays nearest the cockpit) | `doorPax` 1, `doorPaxFront` 2 |
+| "the anchor point of the strut on the wing further aft; control both ends" | they exist: the foot on a picked pillar (`pilSnap`, `wgStrutPil`) and in/out (`wgStrutX`); the wing fittings fore/aft (`wgStrutZ`), clamped by the wing's structural band (the rear fitting not behind the aileron hinge) - at -0.2 it is at the band's limit and on the drawing's strut | `pilSnap` 1, `wgStrutPil` 2, `wgStrutZ` -0.2 |
+
+Gaps still open: the main gear's shock strut up the fuselage side (no leg kind draws it); a bubble for the cabin's own
+glazing band (bubbles are the drawn windows'); the tail wheel's station. The PC-6: 121 / 175, no fold, no inside showing.

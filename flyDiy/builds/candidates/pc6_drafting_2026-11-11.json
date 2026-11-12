@@ -6,9 +6,9 @@
   "cage": {
    "planeScale": 0.745,
    "paxCount": 3,
-   "paxLen": 1.0767,
-   "pilotLen": 0.1,
-   "boomLen": 4.08,
+   "paxLen": 0.742,
+   "pilotLen": 0.023,
+   "boomLen": 5.345,
    "tailLen": 0.169815,
    "cabPillarW": 0.115,
    "paxPillarW": 0.11,
@@ -17,15 +17,15 @@
    "roofHalfW": 0.85,
    "roofY": 0.895,
    "keelY": -1.26,
-   "floorY": -0.49759,
+   "floorY": -0.97,
    "ceilInset": 1,
    "waistY": 0.04,
    "bandH": 0.062549,
-   "aftRoofY": 0.72,
-   "aftKeelY": -1.005,
+   "aftRoofY": 0.755,
+   "aftKeelY": -1.125,
    "tailHalfW": 0.204,
-   "tailRoofY": 0.46,
-   "tailKeelY": -0.46,
+   "tailRoofY": 0.385,
+   "tailKeelY": -0.416,
    "ringPullIn": 0.023043,
    "wsRun": 0.99,
    "wsTopOff": 0.2,
@@ -33,7 +33,7 @@
    "wsCeilBow": 0.57,
    "apilW": 0.92,
    "apilPerp": 1,
-   "noseLen": 0.73,
+   "noseLen": 0.6375,
    "noseW": 0.97,
    "pfW": 0.3,
    "topRound": 0.05,
@@ -47,7 +47,7 @@
    "winSillPax": 0,
    "paxWinN": 1,
    "paxWinShape": 0,
-   "paxWinZ": 1.938,
+   "paxWinZ": 1.8455,
    "paxWinPitch": 1.067,
    "paxWinY": 0.247,
    "paxWinW": 0.917,
@@ -62,7 +62,7 @@
    "paxWinR4": 0.05,
    "win2N": 1,
    "win2Shape": 1,
-   "win2Z": -0.32,
+   "win2Z": -0.1715,
    "win2Pitch": 0.75,
    "win2Y": 0.33,
    "win2W": 0.438,
@@ -77,7 +77,7 @@
    "win2R4": -1,
    "win3N": 1,
    "win3Shape": 0,
-   "win3Z": 0.871,
+   "win3Z": 0.7785,
    "win3Pitch": 0.75,
    "win3Y": 0.247,
    "win3W": 0.917,
@@ -116,10 +116,10 @@
    "aeroTipW": 0.1,
    "aeroTipH": 0.12,
    "rearAperture": 0,
-   "boomMidOn": 1,
+   "boomMidOn": 0,
    "boomMidT": 0.38,
    "boomMidPinch": 0.86,
-   "taperOn": 1,
+   "taperOn": 0,
    "taperLen": 0.55,
    "taperPanels": 0,
    "boomStyle": 0,
@@ -202,14 +202,14 @@
    "frNoseBotW": null,
    "frNoseBotZ": 0,
    "frWinTopY": 0.95,
-   "frWinBotY": -1.19,
+   "frWinBotY": -1.154,
    "frWinTopW": 0.85,
    "frWinWaistW": 0.85,
    "frWinBotW": 0.85,
    "frWinBotZ": 0,
    "frPostTopY": null,
    "frPostWaistY": null,
-   "frPostBotY": null,
+   "frPostBotY": -1.142,
    "frPostTopW": 0.85,
    "frPostWaistW": 0.85,
    "frPostBotW": 0.85,
@@ -218,16 +218,16 @@
    "frPostBotZ": 0,
    "frCabTopY": 0.875,
    "frCabWaistY": null,
-   "frCabBotY": -1.22,
+   "frCabBotY": -1.163,
    "frCabTopW": 0.85,
    "frCabWaistW": 0.85,
    "frCabBotW": 0.85,
    "frCabTopZ": 0,
    "frCabWaistZ": 0,
    "frCabBotZ": 0,
-   "frPaxTopY": 0.784,
+   "frPaxTopY": 0.78,
    "frPaxWaistY": null,
-   "frPaxBotY": -1.049,
+   "frPaxBotY": -1.129,
    "frPaxTopW": 0.77,
    "frPaxWaistW": 0.77,
    "frPaxBotW": 0.77,
@@ -242,8 +242,8 @@
    "frBoomWaistZ": 0,
    "frBoomBotZ": 0,
    "frTailWaistY": null,
-   "frTailTopW": null,
-   "frTailBotW": null,
+   "frTailTopW": 0.204,
+   "frTailBotW": 0.204,
    "frTailTopZ": 0,
    "frTailWaistZ": 0,
    "frTailBotZ": 0,
@@ -273,7 +273,7 @@
    "paneThick": 0.004,
    "doorOn": 1,
    "doorPax": 0,
-   "doorDeep": 1,
+   "doorDeep": 0,
    "doorSill": 0.06,
    "doorSillPax": 0.06,
    "doorDepth": 0.004,
@@ -318,7 +318,7 @@
    "stThick": 0.05,
    "stThickTE": 0.012,
    "stX": 0.05,
-   "stY": 0.94,
+   "stY": 0.9,
    "stZ": -0.152,
    "stCons": 0,
    "stOver": 0,
@@ -408,11 +408,11 @@
    "propR": 0.875,
    "propZ": 2.96,
    "s1On": 1,
-   "s1Z": 2.652,
+   "s1Z": 2.595,
    "s1X": 1.5,
    "s1Leg": 2,
    "s1R": 0.345,
-   "s1Drop": 0.584,
+   "s1Drop": 0.611,
    "s1Brake": 1,
    "s1Steer": 0,
    "s1Fair": 0,
@@ -598,10 +598,10 @@
    "wgStruts": 1,
    "wgBeam": 1,
    "wgPanels": 3,
-   "wgDx": 0.1,
+   "wgDx": 0.038,
    "wgDy": -0.05,
    "wgParaH": 0.45,
-   "wgStrutZ": 0.1,
+   "wgStrutZ": -0.2,
    "wgStrutX": 0,
    "wgFlapType": 2,
    "wgFlapSpan": 0.5,
@@ -898,7 +898,7 @@
    "fltKitPrevN": 0,
    "fltKitPrevMat": 0,
    "fltKitPrevPitch": -1,
-   "cw_scoopOn": 0,
+   "cw_scoopOn": 1,
    "cw_apMode": 0,
    "cw_lobeN": 0,
    "cw_oilOn": 0,
@@ -918,7 +918,24 @@
    "cw_lidShoulder": 0.9,
    "cw_lidRound": 0.6,
    "cw_keelSweep": 0,
-   "cw_lidRBot": 0.15
+   "cw_lidRBot": 0.15,
+   "paxLen2": 0.916,
+   "paxLen3": 1.124,
+   "cw_scoopZ": 0,
+   "cw_scoopLen": 1.93,
+   "cw_scoopW": 0.4,
+   "cw_scoopH": 0.14,
+   "cw_scoopSq": 0.97,
+   "cw_scoopFollow": 0,
+   "cw_scoopRake": 0,
+   "cw_scoopHold": 1,
+   "cw_scoopDrop": 0.9,
+   "cw_scoopAp": 0.8,
+   "boomMatch": 1,
+   "cw_scoopWFit": 0.8,
+   "doorPaxFront": 2,
+   "pilSnap": 1,
+   "wgStrutPil": 2
   },
   "wings": [
    {
@@ -1579,16 +1596,17 @@
     "view": "side",
     "pts": [
      [
-      503.3,
-      176.7
+      490.1,
+      177.3
      ],
      [
-      529.3,
-      203
+      515,
+      202.3
      ]
     ],
     "tf": 0.587,
-    "bf": 0.627
+    "bf": 0.627,
+    "note": "re-read 12 Nov off the sheet (the circle spans a 5.761-6.071, h 0.45-0.76); the first marks sat 0.17 m aft"
    },
    "stab.te": {
     "view": "top",
@@ -1650,16 +1668,7 @@
     "beaver",
     "caravan"
    ],
-   "why": "high wing on struts; the Beaver-alike is the tailwheel bush plane, the Caravan-alike carries the PT6A",
-   "start": "caravan",
-   "sel": {
-    "gearLayout": "tail",
-    "suspension": "oleo",
-    "s1Fair": 0,
-    "wgTip": 0,
-    "role": "bush",
-    "paxCount": 3
-   }
+   "why": "high wing on struts; the Beaver-alike is the tailwheel bush plane, the Caravan-alike carries the PT6A"
   },
   "gaps": [],
   "history": [
@@ -1670,310 +1679,46 @@
     "line": "variant locked; TCDS, factsheet, TAR; the Commons sheet scaled per view; 30 marks read off the sheet"
    },
    {
-    "date": "2026-11-11T18:35",
-    "who": "session",
-    "step": "architecture",
-    "line": "born from the caravan card"
-   },
-   {
-    "date": "2026-11-11T18:36",
-    "who": "session",
-    "step": "wing",
-    "line": "the TCDS: span, the constant 1.9 m chord; the prop 99-101 in {\"wgSpan\":15.87,\"wgChord\":1.9,\"wgChordTip\":1.9,\"wgTipX\":0,\"cw_propD\":2.54}"
-   },
-   {
-    "date": "2026-11-11T18:37",
-    "who": "session",
-    "step": "drive",
-    "line": "the PT6 forward of the firewall: firewall 2.64 m aft of the spinner tip (sheet), cowl face at 0.50 {\"eng_mountGap\":4.85,\"cw_cowlLen\":1.815,\"cw_lidLen\":0.325}"
-   },
-   {
-    "date": "2026-11-11T18:37",
-    "who": "session",
-    "step": "body",
-    "line": "the nose section to the wing LE and the cockpit (sheet); the boom to the tail post {\"noseLen\":0.77,\"boomLen\":4.114}"
-   },
-   {
-    "date": "2026-11-11T18:41",
-    "who": "session",
-    "step": "body",
-    "line": "fit: the body's heights and widths to the profile marks (score 676 -> 165) {\"engY\":-0.12,\"roofY\":0.895,\"keelY\":-1.26,\"aftRoofY\":0.72,\"aftKeelY\":-1.005,\"tailRoofY\":0.46,\"tailKeelY\":-0.46,\"halfW\":0.75,\"tailHalfW\":0.204}"
-   },
-   {
-    "date": "2026-11-11T18:41",
-    "who": "session",
-    "step": "wing",
-    "line": "tail and gear by the probe's slopes: stab span 5.13, fin top, the wheel on the sheet, track 3.00 {\"stSpan\":1.935,\"finHeight\":1.57,\"s1Z\":2.652,\"s1Drop\":0.638,\"s1X\":1.5,\"s1R\":0.326}"
-   },
-   {
-    "date": "2026-11-11T18:42",
-    "who": "session",
-    "step": "wing",
-    "line": "the wheel's bottom, the stab aft (stZ at its limit: a gap), the fin upright, the tail wheel, the wing on the roof {\"s1Drop\":0.846,\"stZ\":-0.6,\"finSweep\":-3,\"s2Z\":-0.192,\"wgDy\":0.08}"
-   },
-   {
-    "date": "2026-11-11T18:43",
-    "who": "session",
-    "step": "wing",
-    "line": "a rectangular stab, a constant-chord wing (the crank at the root chord), 1.1 deg of dihedral off the front view {\"stSweep\":0,\"stChordTip\":1,\"wgCrankChord\":1.9,\"wgDihedral\":1,\"wgDihedralOut\":1}"
-   },
-   {
-    "date": "2026-11-11T18:44",
-    "who": "session",
-    "step": "wing",
-    "line": "the stab's LE and TE (top view), by the probe's slopes {\"stZ\":-0.153,\"stChord\":1.023}"
-   },
-   {
-    "date": "2026-11-11T18:44",
-    "who": "session",
-    "step": "body",
-    "line": "the drawn windows from the sheet's marks: two door windows (rounded tops), the round window {\"paxWinN\":2,\"paxWinShape\":0,\"paxWinZ\":0.871,\"paxWinPitch\":1.067,\"paxWinY\":0.28,\"paxWinW\":0.917,\"paxWinH\":0.483,\"paxWinR\":0.06,\"paxWinR1\":0.22,\"paxWinR2\":0.22,\"win2N\":1,\"win2Shape\":1,\"win2Z\":-0.32,\"win2Y\":0.33,\"win2W\":0.438,\"win2H\":0.438}"
-   },
-   {
-    "date": "2026-11-11T18:46",
-    "who": "session",
-    "step": "wing",
-    "line": "one strut a side (the PC-6's), its foot ahead of the cabin door (sheet) {\"wgStruts\":1,\"wgStrutZ\":0.1}"
-   },
-   {
-    "date": "2026-11-11T18:49",
-    "who": "session",
-    "step": "wing",
-    "line": "fit: the fin's corners to its LE / TE at 2.15 m (the corners at their forward limits: the fin-station gap) {\"finChord\":1.6,\"finSweep\":-8,\"finTipZ\":0.6,\"finAftZ\":0.3,\"finTERoot\":0,\"finLEZ\":-0.1,\"finBaseZ\":0.3}"
-   },
-   {
-    "date": "2026-11-11T18:49",
-    "who": "session",
-    "step": "drive",
-    "line": "the tyre (0.65 m), the wing's drawn chord to the sheet's TE, the elevator's TE {\"s1R\":0.37,\"wgChord\":1.93,\"wgChordTip\":1.93,\"wgCrankChord\":1.93,\"stChord\":1.06}"
-   },
-   {
-    "date": "2026-11-11T18:54",
-    "who": "session",
-    "step": "drive",
-    "line": "the cowl narrowed to the PC-6's nose (taperH held at 1: never the inverted cone), the thrust line back, the tyre, the rudder's chord (the join read 0.05) {\"cw_taperW\":0.7,\"cw_taperH\":1,\"engY\":-0.115,\"s1R\":0.335,\"finHinge\":0.35}"
-   },
-   {
-    "date": "2026-11-11T18:55",
-    "who": "session",
-    "step": "body",
-    "line": "the cabin's aft frame to the 6.63 m profile (top and bottom) {\"frPaxTopY\":0.784,\"frPaxBotY\":-1.049}"
-   },
-   {
-    "date": "2026-11-11T18:56",
-    "who": "session",
-    "step": "drive",
-    "line": "the tail wheel's height and the main wheel's bottom to the sheet {\"s2_twLegDrop\":0.087,\"s1Drop\":0.832}"
-   },
-   {
-    "date": "2026-11-11T21:31",
-    "who": "session",
-    "step": "refs",
-    "line": "traced side.top.nose, side.screen, side.top.aft, side.bottom, top.side.fore, top.side.aft"
-   },
-   {
-    "date": "2026-11-11T21:32",
-    "who": "session",
-    "step": "refs",
-    "line": "traced side.screen, side.top.aft, side.bottom"
-   },
-   {
-    "date": "2026-11-11T21:33",
-    "who": "session",
-    "step": "refs",
-    "line": "traced fin.le, fin.te, dorsal, stab.le, stab.te"
-   },
-   {
-    "date": "2026-11-11T21:35",
-    "who": "session",
-    "step": "refs",
-    "line": "traced "
-   },
-   {
-    "date": "2026-11-11T21:36",
-    "who": "session",
-    "step": "body",
-    "line": "the belly's bump at the wheel: the windscreen frame's raised bottom (the Caravan card's) brought down into the line {\"frWinBotY\":-1.15}"
-   },
-   {
-    "date": "2026-11-11T21:40",
-    "who": "session",
-    "step": "body",
-    "line": "fit: the belly one straight line, cowl to cabin (the door post left to follow: raising it folded the skin) {\"frWinBotY\":-1.19,\"frCabBotY\":-1.22,\"frNoseBotY\":-1.125}"
-   },
-   {
-    "date": "2026-11-11T21:41",
-    "who": "session",
-    "step": "body",
-    "line": "the door windows rounded at the outer top corner, as drawn (the user: 'upside down'); one row each; the garage's R1/R2 'top' round the bottom (flagged) {\"paxWinN\":1,\"paxWinZ\":1.938,\"paxWinY\":0.247,\"paxWinH\":0.55,\"paxWinR\":0.05,\"paxWinR1\":0.05,\"paxWinR2\":0.05,\"paxWinR3\":0.1,\"paxWinR4\":0.3,\"win3N\":1,\"win3Shape\":0,\"win3Z\":0.871,\"win3Y\":0.247,\"win3W\":0.917,\"win3H\":0.55,\"win3R\":0.05,\"win3R1\":0.05,\"win3R2\":0.05,\"win3R3\":0.3,\"win3R4\":0.1}"
-   },
-   {
-    "date": "2026-11-11T21:42",
-    "who": "session",
-    "step": "body",
-    "line": "fit: the cabin's pillars off the door windows, the tail post held {\"pilotLen\":0.3,\"paxLen\":1.01,\"boomLen\":4.08}"
-   },
-   {
-    "date": "2026-11-11T21:43",
-    "who": "session",
-    "step": "body",
-    "line": "fit: the windscreen's line (slope, bows) and the cabin's height {\"frWinTopY\":0.995,\"frCabTopY\":0.875,\"wsRun\":0.67,\"wsTopOff\":0.09,\"wsBaseBow\":0.3,\"wsCeilBow\":0.36,\"wsBaseLift\":0.08}"
-   },
-   {
-    "date": "2026-11-11T21:43",
-    "who": "session",
-    "step": "drive",
-    "line": "a brand new cowl (the user): its shape rows back to the garage's own; length, spinner and propeller kept unset cw_fwLipOn cw_fwLipR cw_fwLipRise cw_fwLipIn cw_aftW cw_aftH cw_taperW cw_taperH cw_lidRise cw_lidShoulder cw_lidRound cw_faceRise cw_deckSweep cw_keelSweep cw_waistSweep cw_lidMode cw_lidR cw_lidGap cw_deckH cw_keelH cw_waist cw_sqAftTop cw_sqAftBot cw_sqFrontTop cw_sqFrontBot cw_lidSqTop cw_lidSqBot cw_detail cw_lobeN cw_lobeAmp cw_lobeT cw_lobeAz cw_lobeSig cw_lobeTSig cw_cutSpan cw_cutAz cw_apMode cw_apW cw_apH cw_apSq cw_apOffX cw_apOffY cw_pairX cw_pairW cw_pairH cw_pairY cw_pairSq cw_lipMode cw_lipThick cw_lipDepth cw_lipRound cw_lipProtrude cw_lipInset cw_ductLen cw_ductFlare cw_scoopOn cw_scoopZ cw_scoopLen cw_scoopW cw_scoopH cw_scoopSq cw_scoopDrop cw_scoopRake cw_scoopAp cw_scoopLipH cw_scoopLipDepth cw_scoopDuct cw_seamOn cw_seamType cw_seamPos cw_seamWidth cw_seamDepth cw_partOn cw_partY cw_partW cw_fastOn cw_fastPitch cw_fastD cw_oilOn cw_oilZ cw_oilW cw_oilL cw_oilSq"
-   },
-   {
-    "date": "2026-11-11T21:43",
-    "who": "session",
-    "step": "drive",
-    "line": "the plain cowl: no scoop, no aperture, no lobes, no oil cooler (the chin ignored for now) {\"cw_scoopOn\":0,\"cw_apMode\":0,\"cw_lobeN\":0,\"cw_oilOn\":0}"
-   },
-   {
-    "date": "2026-11-11T21:46",
-    "who": "session",
-    "step": "drive",
-    "line": "fit: the new cowl's taper to the side and top lines (the top falls to the nose) {\"cw_taperW\":0.57,\"cw_taperH\":0.68,\"cw_lidRise\":0,\"cw_faceRise\":0.058}"
-   },
-   {
-    "date": "2026-11-11T21:50",
-    "who": "session",
-    "step": "wing",
-    "line": "fit: a straight, rectangular stab on the traced LE / TE (the user: 'super straight'), as high as stY goes (0.8: a gap) {\"stY\":0.8,\"stZ\":-0.43,\"stChord\":1.06,\"stChordTip\":1.33,\"stSweep\":-3,\"stTipZ\":-0.125,\"stAftZ\":-0.1,\"stLEZ\":-0.475,\"stSpan\":1.94,\"stShoulderZ\":0.255,\"stShoulderY\":0.15,\"stLEY\":-0.05,\"stSharpShoulder\":0,\"stSharpLE\":3,\"stRootFwd\":0}"
-   },
-   {
-    "date": "2026-11-11T21:56",
-    "who": "session",
-    "step": "wing",
-    "line": "the fin straight and its dorsal straight (the user), placed by geometry with the new rows finZ, finDorsalFwd, finDorsalH {\"finOn\":1,\"finProject\":1,\"finCut\":1,\"finVentralOn\":1,\"finVentralH\":0.4,\"finVentralC\":0.6,\"finVentralZ\":0.08,\"finVentralTip\":0.35,\"finVentralShape\":0,\"finCutGap\":0.012,\"finSolid\":1,\"finThick\":0.06,\"finThickTE\":0.015,\"finFillet\":0.035,\"finCons\":0,\"finDorsalTube\":0,\"finDorsal\":1,\"finRootGuard\":1,\"finKeel\":1,\"finCrA\":0,\"finCrB\":0,\"finTipZ\":0.125,\"finTipY\":-0.45,\"finAftZ\":0,\"finAftY\":-0.425,\"finBaseZ\":0,\"finBaseY\":0.05,\"finMidY\":0.11,\"finUY\":-0.4,\"finRootFwd\":-0.228,\"finLEZ\":-0.65,\"finLEY\":-0.09,\"finShoulderZ\":0.35,\"finShoulderY\":0.28,\"finTopY\":0.015,\"finTERoot\":-0.055,\"finTEU\":-0.075,\"finTEMid\":0.01,\"finSharpTip\":3,\"finSharpAft\":3,\"finSharpBase\":3,\"finSharpShoulder\":0.95,\"finSharpLE\":3,\"finHeight\":1.57,\"finChord\":1,\"finChordTip\":1,\"finSweep\":0,\"finHinge\":0.205,\"finZ\":0.558,\"finDorsalFwd\":0.11,\"finDorsalH\":0.275}"
-   },
-   {
-    "date": "2026-11-11T21:57",
-    "who": "session",
-    "step": "body",
-    "line": "the nose section +0.28 to put back what the windscreen fit's shorter run pulled forward (wing, gear, tail) {\"noseLen\":1.05}"
-   },
-   {
-    "date": "2026-11-11T21:58",
-    "who": "session",
-    "step": "wing",
-    "line": "the stab back to its station (its fit had run on the shifted stations), the fin's top {\"stZ\":-0.152,\"finHeight\":1.55}"
-   },
-   {
-    "date": "2026-11-11T21:58",
-    "who": "session",
-    "step": "wing",
-    "line": "the stab's height on the drawing (the slider's range opened to 1.2) {\"stY\":0.9}"
-   },
-   {
-    "date": "2026-11-11T22:01",
-    "who": "session",
-    "step": "body",
-    "line": "fit: the windscreen on its traced line, the stations held {\"frWinTopY\":1.155,\"wsTopOff\":0.21,\"wsBaseBow\":0.65,\"wsCeilBow\":0.57,\"wsBaseLift\":0.11,\"frNoseTopY\":0.12,\"frWinTopZ\":0.09,\"frWinWaistY\":-1.13}"
-   },
-   {
-    "date": "2026-11-11T22:01",
-    "who": "session",
-    "step": "body",
-    "line": "the windscreen frame's waist pulled to the keel made the cockpit window a long triangle unset frWinWaistY"
-   },
-   {
-    "date": "2026-11-11T22:02",
-    "who": "session",
-    "step": "drive",
-    "line": "the main wheel back on the drawing (the belly frames had moved its root) {\"s1Drop\":0.584,\"s1R\":0.345}"
-   },
-   {
-    "date": "2026-11-11T22:02",
-    "who": "session",
-    "step": "wing",
-    "line": "the stab's top on the drawing {\"stY\":0.94}"
-   },
-   {
-    "date": "2026-11-11T22:13",
-    "who": "session",
-    "step": "refs",
-    "line": "traced front.wall"
-   },
-   {
-    "date": "2026-11-11T22:19",
-    "who": "session",
-    "step": "body",
-    "line": "the square cabin (the user: 'so that you can load square boxes in it'): every cabin frame as wide at its top as at its waist and bottom, the roof flat (topRound 0.05: 0 is the pitched roof's own mode); the aft frame narrows as drawn {\"halfW\":0.85,\"roofHalfW\":0.85,\"frCabTopW\":0.85,\"frCabWaistW\":0.85,\"frCabBotW\":0.85,\"frPaxTopW\":0.77,\"frPaxWaistW\":0.77,\"frPaxBotW\":0.77,\"frPostTopW\":0.85,\"frPostWaistW\":0.85,\"frPostBotW\":0.85,\"frWinTopW\":0.85,\"frWinWaistW\":0.85,\"frWinBotW\":0.85,\"topAngRoof\":88,\"topAngCeil\":70,\"topRound\":0.05}"
-   },
-   {
-    "date": "2026-11-11T22:26",
+    "date": "2026-11-12T00:39",
     "who": "session",
     "step": "fit",
-    "line": "{\"fitNose\":2,\"cw_sqAftTop\":0.9,\"cw_sqAftBot\":0.9,\"cw_spinR\":0.2,\"cw_spinLen\":0.45,\"cw_noseOff\":-0.24}"
+    "line": "{\"wgDx\":0.038,\"s1Z\":2.595}"
    },
    {
-    "date": "2026-11-11T22:28",
+    "date": "2026-11-12T00:40",
     "who": "session",
     "step": "fit",
-    "line": "{\"cw_partLevel\":1}"
+    "line": "round 6: the boom matched to the cabin's size; the tail section's three widths equal (no waistline on the boom) {\"boomMatch\":1,\"frTailTopW\":0.204,\"frTailBotW\":0.204}"
    },
    {
-    "date": "2026-11-11T22:33",
+    "date": "2026-11-12T00:42",
     "who": "session",
     "step": "fit",
-    "line": "fit {\"topRound\":0.09,\"topAngCeil\":40,\"topAngRoof\":90}"
+    "line": "{\"cw_scoopWFit\":0.8}"
    },
    {
-    "date": "2026-11-11T22:35",
+    "date": "2026-11-12T00:43",
     "who": "session",
     "step": "fit",
-    "line": "fit {\"wsTopOff\":0.2,\"wsCeilBow\":0.57,\"wsBaseBow\":0.63,\"wsBaseLift\":0.125}"
+    "line": "round 6: the door's bottom 20 cm up into the fuselage (the blueprint's door line) {\"doorDeep\":0,\"floorY\":-0.97}"
    },
    {
-    "date": "2026-11-11T22:36",
+    "date": "2026-11-12T00:43",
     "who": "session",
     "step": "fit",
-    "line": "{\"wsRun\":0.75,\"noseLen\":0.97}"
+    "line": "round 6: passenger doors on the two front bays {\"doorPax\":1,\"doorPaxFront\":2}"
    },
    {
-    "date": "2026-11-11T22:37",
+    "date": "2026-11-12T00:44",
     "who": "session",
     "step": "fit",
-    "line": "{\"topRound\":0.05,\"topAngCeil\":70,\"topAngRoof\":88}"
+    "line": "round 6: the strut's foot on the B pillar, its wing fittings to the band's aft limit (the drawing's strut station) {\"pilSnap\":1,\"wgStrutPil\":2,\"wgStrutZ\":-0.2}"
    },
    {
-    "date": "2026-11-11T23:27",
+    "date": "2026-11-12T00:48",
     "who": "session",
     "step": "fit",
-    "line": "turbine 0.30 m aft inside the cowl, shaft 0.30 m longer; clean straight nose bowl {\"eng_mountGap\":3.35,\"cw_noseOff\":0.0645,\"cw_lidSqTop\":0.8,\"cw_lidSqBot\":0.8,\"cw_lidShoulder\":0.9,\"cw_lidRound\":0.6,\"cw_keelSweep\":0,\"cw_lidRBot\":0.15}"
-   },
-   {
-    "date": "2026-11-11T23:28",
-    "who": "session",
-    "step": "fit",
-    "line": "the knife's flank fix: the rounded corners named by their own labels {\"paxWinR1\":0.3,\"paxWinR2\":0.1,\"paxWinR3\":0.05,\"paxWinR4\":0.05,\"win3R1\":0.1,\"win3R2\":0.3,\"win3R3\":0.05,\"win3R4\":0.05}"
-   },
-   {
-    "date": "2026-11-11T23:44",
-    "who": "session",
-    "step": "fit",
-    "line": "round 5: wing down (centre section top skin only), A-pillar 45 deg, thin door, sill below the waist, straight tail {\"wgCentre\":2,\"wgDy\":-0.05,\"frWinTopY\":0.95,\"wsRun\":0.99,\"noseLen\":0.73,\"pilotLen\":0.1,\"paxLen\":1.0767,\"winSillPilot\":0.14,\"finShoulderY\":0.0205,\"finShoulderZ\":0.016,\"finTopY\":0,\"finSharpShoulder\":3,\"finTERoot\":0,\"finTEU\":0,\"finTEMid\":0,\"stShoulderY\":0.0205,\"stShoulderZ\":0.016,\"stTopY\":0,\"stSharpShoulder\":3,\"stSweep\":0}"
-   },
-   {
-    "date": "2026-11-11T23:45",
-    "who": "session",
-    "step": "fit",
-    "line": "fit {\"finTipZ\":0.44,\"finShoulderZ\":0.035}"
-   },
-   {
-    "date": "2026-11-11T23:49",
-    "who": "session",
-    "step": "fit",
-    "line": "fit {\"stLEZ\":-0.355,\"stTipZ\":0.335,\"stShoulderZ\":0.075,\"stChordTip\":0.99}"
-   },
-   {
-    "date": "2026-11-11T23:49",
-    "who": "session",
-    "step": "fit",
-    "line": "{\"finTipY\":-0.29,\"finAftY\":-0.29}"
+    "line": "the user: the back doors off for now, the gap not drawn {\"doorPax\":0,\"rimDoor\":0}"
    }
   ],
   "datumLE": 3000,

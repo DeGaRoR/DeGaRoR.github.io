@@ -579,16 +579,17 @@
       "view": "side",
       "pts": [
         [
-          503.3,
-          176.7
+          490.1,
+          177.3
         ],
         [
-          529.3,
-          203
+          515.0,
+          202.3
         ]
       ],
       "tf": 0.587,
-      "bf": 0.627
+      "bf": 0.627,
+      "note": "re-read 12 Nov off the sheet (the circle spans a 5.761-6.071, h 0.45-0.76); the first marks sat 0.17 m aft"
     },
     "stab.te": {
       "view": "top",
