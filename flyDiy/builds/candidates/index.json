@@ -21,6 +21,8 @@
     { "file": "build_v7_ultralight_2026-09-05_floats.json", "name": "Ultralight twin on floats", "note": "the test plane: tools/_load_build.js VALIDATED.twinFloats baked to a file", "from": "tools/fixtures" },
     { "file": "carbon_cub_ss.json", "name": "Carbon Cub SS", "note": "the STOL Cub on the CC340 (engine dials), slats, the stol flap, Oratex on aluminium spars - REAL-FIGURES-3", "from": "REAL-FIGURES-3 (builds/edits/carbon_cub_ss.edits.json)" },
     { "file": "cub_chord160.json", "name": "Piper Cub, J-3 chord", "note": "the official Cub at the J-3's 1.60 m chord (16.5 m2) - REAL-FIGURES-3", "from": "REAL-FIGURES-3 (builds/edits/cub_chord160.edits.json)" },
-    { "file": "pa18_floats_chord160.json", "name": "PA-18 floats, PA-18 chord", "note": "the float Super Cub at the PA-18's 1.60 m chord - REAL-FIGURES-3", "from": "REAL-FIGURES-3 (builds/edits/pa18_floats_chord160.edits.json)" }
+    { "file": "pa18_floats_chord160.json", "name": "PA-18 floats, PA-18 chord", "note": "the float Super Cub at the PA-18's 1.60 m chord - REAL-FIGURES-3", "from": "REAL-FIGURES-3 (builds/edits/pa18_floats_chord160.edits.json)" },
+    {"file": "ruckus_std_2026-11-09.json", "name": "Ruckus Solo 103", "note": "Top Rudder Ruckus as its airframe sheet: the Solo 103 airframe, the Polini Thor 303 from the dials, one 5 gal tank, open frame, slats - derived from Rufus (the story plane untouched)", "from": "RUCKUS (builds/edits/ruckus_std_2026-11-09.edits.json)"},
+    {"file": "ruckus_2026-11-09.json", "name": "Ruckus Back-Country", "note": "the backcountry Ruckus: the Rotax 582, 26-inch bush wheels, Beringer brakes, a locking tailwheel, two tanks", "from": "RUCKUS (builds/edits/ruckus_2026-11-09.edits.json)"}
   ]
 }

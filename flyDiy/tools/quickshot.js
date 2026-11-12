@@ -63,6 +63,8 @@ const SKIP_SHEET = new Set(['tube', 'cloth', 'dash', 'dashFace', 'bulkhead', 'fi
 const GLASS = new Set(['windshield', 'pilotWindow', 'pasengerWindow', 'skyWindows', 'drawnPane']);
 const tris = [];   // [ax,ay,az, bx,by,bz, cx,cy,cz, r,g,b]
 const P = S.P, FS = S.FS;
+const CREW = process.argv.includes('--crew');
+const CG2W = S.W && S.W.CAGE2, SPEC_C = S.spec;   // NOSE-DECK: the cage module and the built cage spec (the editor's own)
 // RETRACT G4: the wells cut into the drawn sheet as the editor cuts its fuselage (_knife_gen knifeWells, the gear
 // layer's CAGE_GEAR.cuts); --nowells draws the sheet whole
 // HULL-B55: --fit prints the gear layer's own fit verdict (foldFit: the rows it reddens and why; CAGE_ROW_BAD)
@@ -79,8 +81,18 @@ const DEC = Object.assign({ regL: 2.10, regC: 0.28, regH: 0.30, regW: 0.96 }, (s
 const inReg = f => { if (!sheet.A || f.v.some(i => !sheet.A[i])) return false;
   let sl = 0, sc = 0; for (const i of f.v) { sl += sheet.A[i][0]; sc += sheet.A[i][1]; } sl = sl / f.v.length * FS; sc = sc / f.v.length * FS;
   return Math.abs(sl - DEC.regL) < DEC.regW / 2 && Math.abs(sc - DEC.regC) < DEC.regH / 2; };
+// AN OPEN FRAME (the user 9 Nov: "quick view renders a back pod and ignores the options"): with skinOn 0 the editor
+// (_cage_ui.js ZERO SKIN, skinCull) draws no covering and no lining - what stands is the glass, the joints and the bare
+// structure (INTSTRUCT: the truss tubes, the rod, the taper panels, the bulkheads, the dash). The same here, the
+// structure drawn in the frame's own colour
+const OPEN = P.skinOn != null && !+P.skinOn;
+const OPEN_KEEP = new Set(['bulkhead', 'bulkTrim', 'baggage', 'firewall', 'fireProof', 'fireSeal', 'dash', 'dashFace', 'tube',
+  'woodFrame', 'aluminium', 'boomTube', 'taperPanel', 'joint', 'doorSeal', 'paneEdge', ...GLASS]);
+// NOSE-DECK (the user 10 Nov): the open frame's kept nose deck, as the editor keeps it (_cage_ui.js deckOf)
+const NOSE_DECK = OPEN && +P.noseDeck && CG2W && CG2W.cageNoseDeck ? CG2W.cageNoseDeck(sheet, SPEC_C) : null;
 for (const f of sheet.F) {
-  if (SKIP_SHEET.has(f.m) || f.v.length < 3) continue;
+  if (f.v.length < 3) continue;
+  if (OPEN ? !(OPEN_KEEP.has(f.m) || (NOSE_DECK && NOSE_DECK(f))) : SKIP_SHEET.has(f.m)) continue;
   const col = MARKS.includes('reg') && inReg(f) ? [245, 245, 245] : GLASS.has(f.m) ? (f.m === 'drawnPane' ? [70, 170, 230] : [60, 110, 160])
     : f.m === 'joint' || f.m === 'paneEdge' || f.m === 'doorSeal' || f.m === 'reveal' ? [40, 40, 44]
     : f.m === 'wheelWell' ? [96, 100, 92]
@@ -150,7 +162,8 @@ S.scene.traverse(o => {
     return;
   }
   if (!o.isMesh || !o.geometry || !o.geometry.attributes || !o.geometry.attributes.position) return;
-  if (o.visible === false || /^edVessel_|^edFuel_|^edCrew/.test(o.name || '')) return;
+  // --crew (the user 10 Nov: "render the seat"): the crew layer's meshes (the seat, the pilot) are drawn too
+  if (o.visible === false || /^edVessel_|^edFuel_/.test(o.name || '') || (!CREW && /^edCrew/.test(o.name || ''))) return;
   let hidden = false; for (let q = o; q; q = q.parent) if (q.visible === false) hidden = true;
   if (hidden) return;
   const m = Array.isArray(o.material) ? o.material[0] : o.material;

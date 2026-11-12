@@ -514,6 +514,10 @@ function cageJoinSpec(P, M, T) {
     spec.gear.twFairTail = +P.s2FairTail || 1;
     spec.gear.fairMat = ['glass', 'carbon', 'alloy'][Math.round(P.fairCons || 0)]
                         || 'glass';
+    // THE BRAKES' HOLD (GEN_BRAKES, the user 9 Nov): the key only when chosen - absent flies as it always did (G3800's
+    // twMode rule), so no saved build moves and no certificate is withdrawn
+    { const bk = [null, 'drum', 'disc', 'double'][Math.round(+P.brkHold || 0)];
+      if (bk) spec.gear.brakes = bk; else delete spec.gear.brakes; }
     // G132: THE DRAWN LEG IS THE SUSPENSION. GEN_SUSPENSION (spring rate,
     // damping, price) read spec.gear.suspension while the mains' shock rows
     // drew coil-over/bungee/oleo from s1_shockKind with nothing between
@@ -1645,9 +1649,17 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         // the built one GROUNDS before the tailwheel and holds the
         // tail up — this row is why the sim's boom follows the built
         // boom.
-        if (zPost != null && zCabA != null && zCabA > zPost + 0.5 &&
+        // PETREL-LS (measured on the Super Petrel V4.2): A ROD BOOM HAS NO TAIL RINGS, so zPost is null and this block -
+        // the shape family and the nine-row profile - never ran on a rod: the build kept whatever an earlier join had
+        // written (the V4.2 flew V4.1's straight taper, 0.94 m wide at 3.3 m where the rod is 0.17 m: a body volume of
+        // 4.0 m3 for the Munk moment - 10 % of the chord off the neutral point - and the frame's boom lattice 0.27 m
+        // over the keel, in the water at rest). On a single rod the run ends at the rod's tip (the aft skin extreme,
+        // where tailArm and the tail datum already end), so the frame's boom is the drawn body: the float, then the tube
+        const zEnd = zPost != null ? zPost
+          : (Math.round(+P.boomStyle || 0) === 1 && !+P.boomTwin && isFinite(AF.z0) ? AF.z0 + 0.02 : null);
+        if (zEnd != null && zCabA != null && zCabA > zEnd + 0.5 &&
             typeof GEN_SHAPES !== 'undefined') {
-          const zMid = (zCabA + zPost) / 2;
+          const zMid = (zCabA + zEnd) / 2;
           const es = [];
           const chan = (v0, vm, v1) => {
             const d = v1 - v0;
@@ -1656,10 +1668,10 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
             if (u > 0.02 && u < 0.98) es.push(Math.log(u) / Math.log(0.5));
           };
           chan(AF.surf(zCabA, 0)[1], AF.surf(zMid, 0)[1],
-               AF.surf(zPost, 0)[1]);                       // belly
+               AF.surf(zEnd, 0)[1]);                       // belly
           chan(AF.surf(zCabA, Math.PI)[1], AF.surf(zMid, Math.PI)[1],
-               AF.surf(zPost, Math.PI)[1]);                 // deck
-          chan(AF.halfWAt(zCabA), AF.halfWAt(zMid), AF.halfWAt(zPost));
+               AF.surf(zEnd, Math.PI)[1]);                 // deck
+          chan(AF.halfWAt(zCabA), AF.halfWAt(zMid), AF.halfWAt(zEnd));
           if (es.length) {
             const e = es.reduce((s, v) => s + v, 0) / es.length;
             let best = null, bd = 1e9;
@@ -1679,7 +1691,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           const NP = 9, prof = [];
           for (let i = 0; i < NP; i++) {
             const t = i / (NP - 1);
-            const z = zCabA + (zPost - zCabA) * t;
+            const z = zCabA + (zEnd - zCabA) * t;
             prof.push({ t: +t.toFixed(4),
               w: AF.halfWAt(z),
               yb: AF.surf(z, 0)[1] - yD,

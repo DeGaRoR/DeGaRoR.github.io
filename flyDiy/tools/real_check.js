@@ -271,6 +271,8 @@ function flight(spec, def, lc, o) {
       //     pressure without sliding the tyres
       if (ap.phase === 'ROLLOUT' && onSurface(sim)) { if (SS.hTD == null) SS.hTD = sim.out.hdg; else { let dh = sim.out.hdg - SS.hTD; dh = Math.atan2(Math.sin(dh), Math.cos(dh)); SS.hSwing = Math.max(SS.hSwing, Math.abs(dh)); } }
       if (ap.phase === 'ROLLOUT' && onSurface(sim)) { if (SS.thTD == null) SS.thTD = sim.out.pitch; SS.thMin = Math.min(SS.thMin, sim.out.pitch);
+        if (process.env.RC_NODES && (s % 10 === 0)) { const low = []; for (let i = 0; i < sim.n; i++) { const y = sim.p[i * 3 + 1] - (sim.r[i] || 0); if (y < 0.08) low.push((def.nodes[i] && def.nodes[i].tag || i) + ':' + y.toFixed(3)); }
+          console.error('NODES', ((s + 1) / 60).toFixed(2), 'V', sim.out.V.toFixed(1), 'Vg', (+sim.out.Vg).toFixed(1), 'pitch', (sim.out.pitch * 57.3).toFixed(1), 'brake', (+sim.ctl.brake).toFixed(2), 'brakeD', (+sim.ctl.brakeD).toFixed(2), 'dr', (+sim.ctl.dr).toFixed(2), 'hdg', (sim.out.hdg * 57.3).toFixed(1), 'beta', (sim.out.beta * 57.3).toFixed(1), 'twAng', JSON.stringify(sim.out.twAng), 'tw', JSON.stringify(sim.out.twState), 'thr', (+sim.ctl.thr).toFixed(2), 'flap', (+sim.ctl.flap).toFixed(2)); }
         if (process.env.RC_TRACE && (s % 15 === 0)) console.error('ROLLOUT', ((s + 1) / 60).toFixed(2), 'V', sim.out.V.toFixed(1), 'pitch', (sim.out.pitch * 57.3).toFixed(1), 'brake', (+sim.ctl.brake).toFixed(2), 'de', (+sim.ctl.de).toFixed(2)); }
       if (o.tech && o.tech.stopShort && ap.phase === 'ROLLOUT' && onSurface(sim)) {
         sim.ctl.de = 1;

@@ -4148,6 +4148,48 @@ const CAGE_ZONE_RINGS = [
   { key: 'tail',  ring: null },        // the flat part at the tail
 ];
 
+// NOSE-DECK: the faces an open frame keeps on top of the nose. The nose zone (CAGE_ZONE_RINGS 'nose': the windscreen
+// base's ring forward to the firewall's, bar to bar) down to its upper side tubes (the user 10 Nov: "draw down back to
+// the tubes") - of the skin ('body') and of
+// the waistband, and the waistband's run under the glass (the windscreen's base frame, DECK_BASE aft of the zone's
+// ring: "connect completely with the windshield"). S is the cage spec (cageSpec). A predicate over the sheet's faces,
+// or null.
+const DECK_BASE = 0.15;
+function cageNoseDeck(sheet, S) {
+  if (!sheet || !sheet.F || !S) return null;
+  const R = cageResolve(S), Z = cageBodyZones(S).find(z => z.key === 'nose');
+  const wf = R.rings.find(r => r.name === 'wsFront'), nr = R.noseRing;
+  if (!Z || !wf || !wf.lv.waist || !nr || !nr.lv || !nr.lv.waist) return null;
+  const z0 = wf.lv.waist.z, y0 = wf.lv.waist.y, z1 = nr.lv.waist.z, y1 = nr.lv.waist.y;
+  // THE BAR (the user 10 Nov: "a triangular gap between the bar and the bottom edge"): the cut is the nose's upper side
+  // tube where the frame publishes it (sheet.members: the highest tube spanning the zone on the side, below the waist),
+  // else the waist line
+  const zLo = Math.min(z0, z1), zHi = Math.max(z0, z1);
+  let bar = null;
+  for (const m of sheet.members || []) {
+    if (m.kind !== 'tube' || !m.a || !m.b) continue;
+    const za = m.a[2], zb = m.b[2];
+    if (Math.min(za, zb) > zLo + 0.06 || Math.max(za, zb) < zHi - 0.06 || Math.abs(za - zb) < 0.3) continue;
+    if (Math.abs(m.a[0]) < 0.15 || Math.abs(m.b[0]) < 0.15) continue;
+    const ym = (m.a[1] + m.b[1]) / 2;
+    if (ym > Math.max(y0, y1) + 0.02) continue;
+    if (!bar || ym > (bar.a[1] + bar.b[1]) / 2) bar = m;
+  }
+  const lineAt = (za, ya, zb, yb) => z => ya + (yb - ya) * Math.max(0, Math.min(1, (z - za) / ((zb - za) || 1)));
+  const cutAt = bar ? lineAt(bar.a[2], bar.a[1], bar.b[2], bar.b[1]) : lineAt(z0, y0, z1, y1);
+  const rBar = bar ? (bar.r || 0.015) : 0.02;
+  const V = sheet.V, keep = new Set();
+  for (const f of sheet.F) {
+    if ((f.m !== 'body' && f.m !== 'waistband') || f.v.length < 3) continue;
+    const c = [0, 0, 0]; for (const i of f.v) for (let k = 0; k < 3; k++) c[k] += V[i][k] / f.v.length;
+    const zMin = f.m === 'waistband' ? Z.z0 - DECK_BASE : Z.z0;
+    if (c[2] < zMin || c[2] > Z.z1) continue;
+    let yHi = -Infinity; for (const i of f.v) if (V[i][1] > yHi) yHi = V[i][1];   // a face that reaches over the bar is kept
+    if (yHi > cutAt(c[2]) + rBar * 0.5) keep.add(f);
+  }
+  return keep.size ? (f => keep.has(f)) : null;
+}
+
 function cageBodyZones(S) {
   const R = cageResolve(S);
   const zOf = name => {
@@ -8648,6 +8690,10 @@ const CAGE_PARAMS = {
   // family (skin, pillars, taper, panels, doors) outright, beyond the
   // alpha slider; glass and all structure stay. Inert in this file.
   skinOn: 1,
+  // NOSE-DECK (the user 10 Nov, the Ruckus: "the only fuselage part is the one on top of the nose where it meets the
+  // windshield"): on an open frame (skinOn 0) the nose zone's top skin is drawn anyway - bar to bar, the firewall's ring
+  // to the windscreen base's, on the computed surface (cageNoseDeck). Display-level like skinOn; absent at 0
+  noseDeck: 0,
   // THE GLAZING SWITCH (2026-09-04): 0 drops every glass face from the drawn
   // (and so the flown) mesh — an open cockpit; display-level like skinOn,
   // JOINED as cabin.glazing so the glass is not billed either
@@ -9174,7 +9220,7 @@ const CAGE_OPEN_ROWS = ['cpOpen', 'paxOpen1', 'paxOpen2', 'paxOpen3', 'paxOpen4'
   'openCut', 'openFore', 'openAft', 'openRim', 'openScreen', 'openScreenH', 'openScreenRake'];
 // G3515: a layer row that is ABSENT at 0 the same way (the rear-pilot seat): a
 // build that never set it keeps every key it had
-const CAGE_ZERO_ABSENT = ['pilotRear', 'hullOn'];
+const CAGE_ZERO_ABSENT = ['pilotRear', 'hullOn', 'noseDeck'];
 // HULL-B1: the boat rows, written only while the hull is on (the CAGE_OPEN_ROWS idiom)
 const CAGE_HULL_ROWS = ['hullBeta', 'hullBetaBow', 'hullBetaA', 'hullStepZ', 'hullHs', 'hullSteps', 'hullStep2Z', 'hullHs2',
   'hullTips', 'hullTipAt', 'hullTipKg', 'hullTipY', 'hullAftDeg', 'hullNoseBase', 'hullTubLen', 'hullTubRise', 'hullTubEnd', 'hullTubH', 'hullDeep', 'hullSpon', 'hullSponKg', 'hullSponY', 'hullSponX', 'hullSponW', 'hullSponC', 'hullSponK', 'hullSponT', 'hullSponTaper', 'hullSponDih',
@@ -11026,7 +11072,7 @@ if (typeof module !== 'undefined')
                      CAGE_UNIT,
                      buildCage2, cageHullLines, cageHullTable, cageHullFit, cageHullFitAll, cageHullSpec, CAGE_HULL_ROWS, cageResolve, cageNamedZ, cageFirewallZ, cageSpec, cageSubdivide, cageRefitArc, cageSubdivideRegion, cageEyeLevel, cageEyeFacia,
                      cageRims, cageInterior, cageCut, cageGlassSill,
-                     cageCanopy, cageShoulder, cageBodyZones, cageFrameZones, cageZoneAt, CAGE_ZONE_RINGS,
+                     cageCanopy, cageShoulder, cageBodyZones, cageNoseDeck, cageFrameZones, cageZoneAt, CAGE_ZONE_RINGS,
                      cageDefaults, cageFromSpec, cageToSpec, cageSheet, cageDoorEdges, cageAftEngineFace,
                      CAGE_GLASS_MATS, cageGlazedM2, cageQuadRect, cageQuadWindow, CAGE_QUAD_KEYS,
                      CAGE_VIEW_KEYS, CAGE_LVI_BASE, cageLvIndex };
@@ -11039,7 +11085,7 @@ if (typeof window !== 'undefined')
                    CAGE_UNIT,
                    buildCage2, cageHullLines, cageHullTable, cageHullFit, cageHullFitAll, cageHullSpec, CAGE_HULL_ROWS, cageResolve, cageNamedZ, cageFirewallZ, cageSpec, cageSubdivide, cageRefitArc, cageSubdivideRegion, cageEyeLevel, cageEyeFacia,
                    cageRims, cageInterior, cageCut, cageGlassSill,
-                   cageCanopy, cageShoulder, cageBodyZones, cageFrameZones, cageZoneAt, CAGE_ZONE_RINGS,
+                   cageCanopy, cageShoulder, cageBodyZones, cageNoseDeck, cageFrameZones, cageZoneAt, CAGE_ZONE_RINGS,
                    cageDefaults, cageFromSpec, cageToSpec, cageSheet, cageDoorEdges, cageAftEngineFace,
                    CAGE_GLASS_MATS, cageGlazedM2, cageQuadRect, cageQuadWindow, CAGE_QUAD_KEYS,
                    CAGE_VIEW_KEYS, CAGE_LVI_BASE, cageLvIndex };

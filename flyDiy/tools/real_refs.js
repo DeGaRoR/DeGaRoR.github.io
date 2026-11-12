@@ -146,6 +146,20 @@ const REFS = {
       TO:    { v: [80, 260 * FT], tol: 0.05, kg: 'unknown', flaps: 0, surface: 'paved', src: 'land run 80 m (Wikipedia), 260 ft (review)' },
       TOW:   { v: [120, 400 * FT], tol: 0.05, kg: 'unknown', surface: 'water', src: 'water run 120 m (Wikipedia), < 400 ft (review)' },
     } },
+  ruckus: {
+    name: 'Top Rudder Ruckus, standard (Polini Thor 303, 37-38 hp)', mtow: 249, empty: 115, fuelL: 19, S: 11.33, powerHP: 37,
+    src: 'B&B Sport Aviation "RUCKUS - Airframe" sheet (pasted by the user 9 Nov): 254 / 550 lb, 17.5 ft, 28.4 ft, 122 ft2, Vs 24.1 mph, Vso 22, cruise 50, Vmax 54 at 37 hp, 650 fpm, L/D 4.6, TO 350 ft, LDG 300 ft, 5 gal',
+    poh: { vr: 28 / 24.1, vy: 30 / 24.1, flapTO: 0, flapLDG: 20, brake: 0.6, note: 'the sheet\'s Vr 28, Vy 30 mph over its 24.1 mph stall; flaperons down for the landing (Vso 22)' },
+    rows: {
+      empty: { v: 115, tol: 0.05, src: '254 lb (the Part 103 airframe)' },
+      Vs1:   { v: 24.1 * MPH, tol: 0.05, kg: 'gross', flaps: 'up', src: 'Vs 24.1 mph' },
+      V75:   { v: 50 * MPH, tol: 0.05, kg: 'unknown', src: 'cruise 50 mph' },
+      Vmax:  { v: 54 * MPH, tol: 0.05, kg: 'gross', src: 'V(Max) 54 mph at 37 hp' },
+      roc:   { v: 650 * FPM, tol: 0.05, kg: 'gross', src: '650 ft/min' },
+      LD:    { v: 4.6, tol: 0.10, kg: 'unknown', src: 'L/D 4.6 at 35 mph (the drag polar CD 0.13 + 0.088 CL^2)' },
+      TO:    { v: 350 * FT, tol: 0.10, kg: 'gross', flaps: 0, surface: 'unknown', src: '350 ft' },
+      LDG:   { v: 300 * FT, tol: 0.10, kg: 'gross', flaps: 0, surface: 'unknown', src: '300 ft' },
+    } },
   // CHINOOK PLUS 2 (582) - an ultralight sheet, flown one-up (perf_study REAL.chinook's ruling)
   chinook: {
     name: 'Chinook Plus 2 (Rotax 582)', mtow: 476, empty: 209, fuelL: 38, S: 14.35,
@@ -282,6 +296,9 @@ const GEO = {
   petrel:   { dims: { span: 8.9, length: 6.25, height: [2.2, 2.33], S: 15.0 },
               specs: { engine: 'Rotax 912 iS', hp: 100, nE: 1, blades: 3, empty: 320, mtow: 600, fuelL: 90, seats: 2 },
               src: 'maker / Wikipedia (perf_study REAL.petrel.dims)' },
+  ruckus:   { dims: { span: 8.66, length: 5.33, S: 11.33 },
+              specs: { engine: 'Polini Thor 303', hp: [37, 38], nE: 1, propD: 1.6, blades: 2, empty: 115, mtow: 249, fuelL: 19, seats: 1 },
+              src: 'B&B Sport Aviation RUCKUS airframe sheet; Polini Thor 303 (polinithor.com: 38 hp at 8000 rpm, 1.6 m)' },
   chinook:  { dims: { span: 9.75, length: 5.38, height: 1.78, S: 14.35, cRoot: 1.47, cTip: 1.47 },
               specs: { engine: 'Rotax 582', hp: 64, nE: 1, propD: 1.73, blades: 3, empty: [172, 209], mtow: 476, fuelL: 38, seats: 2 },
               src: 'ASAP Chinook Plus 2 sheet (perf_study REAL.chinook.dims)' },
@@ -343,6 +360,7 @@ const PLANES = {
               note: 'HYDRO-TRIM\'s stock 172R on the catalogue-exact Wipline 2350s with the STC 82 x 43 prop: the floats Cessna that exists today, until FLAGSHIP\'s rebuild lands' },
   carboncubss: { label: 'Carbon Cub SS (CC340, built to the type)', short: 'Carbon Cub SS', file: 'builds/candidates/carbon_cub_ss.json', ref: 'carboncub',
               note: 'REAL-FIGURES-3, the user 9 Nov: the CC340 built from the engine dials (the O-320 chassis on the CC340 stroke, 340 in3, 2700 rpm, the new tune 1.09 and build 0.88 dials: 180 hp, 120 kg), a 2-blade carbon 2.03 m, VGs only (no slot, droop or drooped tips), the new STOL flap (plain, to 50 deg), a Super Cub-sized tail, 29 in tundras, 91 L in the wing roots, one 7 in glass PFD/MFD with round ASI / ALT / VSI (builds/edits/carbon_cub_ss.edits.json)' },
+  ruckus:   { label: 'Top Rudder Ruckus Solo 103 (candidate, from Rufus)', short: 'Ruckus', file: 'builds/candidates/ruckus_std_2026-11-09.json', ref: 'ruckus', group: 'ultralight' },
   // (the user, 9 Nov: the STOL Cub is a Cub with a kit, not a Carbon Cub - kept, measured, no longer compared: the Carbon
   // Cub SS is the aeroplane that IS a real one)
   stolcub:  { supersededBy: 'carboncubss', label: 'STOL Cub (official)', short: 'STOL Cub', file: 'tools/fixtures/stol_cub_showcase.json', ref: 'carboncub', official: true,

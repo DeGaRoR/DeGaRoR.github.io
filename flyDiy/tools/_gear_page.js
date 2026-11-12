@@ -37,6 +37,9 @@ const DEF = {
   // the wheel
   whProfile: 0, whTread: 0, whRibs: 3, whRim: 0, whBolts: 6, whCap: 1,
   whValve: 1, whBrake: 0,
+  // THE BRAKES' HOLD (GEN_BRAKES, 9 Nov): 0 as it always was (the surface's friction, no mass), 1 heel drums, 2 single-
+  // caliper discs, 3 double-caliper discs - a PHYSICS row: the join writes gear.brakes from it
+  brkHold: 0,
   whSlick: 0,        // G3852: a tundra's tread - 0 the bush lugs, 1 smooth, 2 the bevelled lugs (G3851b)
                      // (a look: the fingerprints skip it, bench.js)
   whBulge: 1,        // sidewall inflation x (G33: the balloon look, on
@@ -145,6 +148,7 @@ const WHEEL_ROWS = [
   ['whCap', 'hub cap', 0, 2, 1, ['none', 'domed', 'flat']],
   ['whValve', 'valve stem', 0, 1, 1],
   ['whBrake', 'brake type', 0, 1, 1, ['disc', 'drum']],
+  ['brkHold', 'brakes (hold, mass)', 0, 3, 1, ['as it was', 'heel drums', 'single-caliper discs', 'double-caliper discs']],
 ];
 
 const PRESETS = {
