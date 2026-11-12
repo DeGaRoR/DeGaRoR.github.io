@@ -1102,8 +1102,8 @@ function iconSteer(mode) {
 function iconCarcass(mode) {
   const ell = (rx, ry) => 'M' + P2(32 - rx, 20) + ' a' + rx + ' ' + ry +
     ' 0 1 0 ' + (2 * rx) + ' 0 a' + rx + ' ' + ry + ' 0 1 0 ' + (-2 * rx) + ' 0 Z';
-  const rx = mode === 1 ? 17 : mode === 2 ? 5 : 9;
-  const ry = mode === 1 ? 17 : 15;
+  const rx = mode === 1 ? 17 : mode === 2 ? 5 : mode === 3 ? 8 : 9;
+  const ry = mode === 1 ? 17 : mode === 3 ? 18 : 15;
   return { vb: '0 0 64 40', paths: [{ d: ell(rx, ry) },
     { d: 'M' + P2(32 - Math.min(rx - 2, 6), 14) + ' L' + P2(32 + Math.min(rx - 2, 6), 14) +
          ' L' + P2(32 + Math.min(rx - 2, 6), 26) + ' L' + P2(32 - Math.min(rx - 2, 6), 26) + ' Z', w: 1 }] };
@@ -2195,6 +2195,9 @@ const DESIGN_ROWS = [
       { value: 1, label: 'Tundra balloon', icon: iconCarcass(1),
         note: 'a fat low-pressure tyre for rough strips', writes: { cage: { whProfile: 1 } } },
       { value: 2, label: 'Slim', icon: iconCarcass(2), writes: { cage: { whProfile: 2 } } },
+      // CAR-3: the 1940s truck's military lug tyre (the van's)
+      { value: 3, label: 'Military lug', icon: iconCarcass(3),
+        note: 'a tall 1940s truck tyre, chevron lugs', writes: { cage: { whProfile: 3 } } },
     ] },
 
   // THE COWL PRESETS (G2760, the user: "we need presets for the cowl shape,
