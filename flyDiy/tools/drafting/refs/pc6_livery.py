@@ -7,8 +7,7 @@ T=0x1fb3c2; O=0xf5862a; C=0xf7f1e3; N=0x163047; Y=0xffc23d; Wh=0xf6f6f1; Om=0xf7
 body=['body','taper','taperPanel','waistband','ceilingLoop','floorLoop','pillarWindow','pillarCabin','pillarPassenger','pillarTail','pillarFront','pillarTaper']
 sec={k:{'tint':T} for k in body}
 sec.update({'cowlSkin':{'tint':T},'spinner':{'tint':O},'wingSkin':{'tint':T},'wingTip':{'tint':O},
- 'finSkin':{'tint':T},'finRud':{'tint':Om},'stabSkin':{'tint':Om},'stabElev':{'tint':Om},'wingAil':{'tint':Om},
- 'strut':{'tint':C},'gearLeg':{'tint':C}})
+ 'finSkin':{'tint':T},'finRud':{'tint':Om},'stabSkin':{'tint':Om},'stabElev':{'tint':Om},'wingAil':{'tint':Om}})   # struts and gear legs: no override - the body's turquoise by the parent chain (r13)
 dec={
  # m1/m2: the swoosh (craft frame; curve.py gives the line along the body) - a cream sweep and, 8 cm under it, the
  # orange one with its thin navy line = a fat cream keyline
