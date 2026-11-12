@@ -93,7 +93,7 @@ function buildTrailerModel(THREE, Tr, o) {
   const tube = (mat, pts, r, n, closed) => put(mat, new T.TubeGeometry(new T.CatmullRomCurve3(pts.map(p => V3(...p))), n || 48, r, S(6), !!closed));
 
   // ---- the layout, from the fit ----
-  const isF = fit.kind === 'floats', Ld = fit.Ld, ballY = 0.48;
+  const isF = fit.kind === 'floats', Ld = fit.Ld, ballY = Tr.ballH ?? 0.48;   // (the coupling at the car's ball height)
   const wheelR = Tr.wheelR, wZ = Tr.wheelZ, ax = Tr.axleDx / 2;
   const railH = 0.125, railB = 0.05, railT = 0.004;
   const railTop = 0.585, railY = railTop - railH / 2;

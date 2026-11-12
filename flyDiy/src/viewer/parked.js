@@ -246,12 +246,24 @@
     };
     // (the join's datums too: a capture's measure leaves the PARKED aeroplane's, and the player's restore would stand its
     // floats on them)
+    // G2715 (CREW-SEATS): A PARKED AEROPLANE IS THE BUILD AS SAVED - the career's crew doors (PILOTS' hired body in the
+    // pilot's seat, the accepted load's seats) stand down while one is held (the hired pilot's body leaked into every capture
+    // before), and come back with the player's aeroplane; a door the career moved meanwhile keeps its own value
+    const crew0 = { pilot: W.FLYDIY_CREW_PILOT, job: W.FLYDIY_CREW_JOB };
+    let crewOut = true;
+    W.FLYDIY_CREW_PILOT = null; W.FLYDIY_CREW_JOB = null;
+    const crewBack = () => {
+      if (!crewOut) return;
+      crewOut = false;
+      if (W.FLYDIY_CREW_PILOT == null) W.FLYDIY_CREW_PILOT = crew0.pilot;
+      if (W.FLYDIY_CREW_JOB == null) W.FLYDIY_CREW_JOB = crew0.job;
+    };
     const unAs = () => { if (asOn && G && doors) { Object.assign(G, doors); W.FLYDIY_CG_MODEL = cg0; W.FLYDIY_MASS_MODEL = mass0; W.CAGE_DATUM = datum0; } asOn = false; };
     if (upd) G.update = () => { refused++; return G.get ? G.get() : null; };
     let viewHeld = !!(J && J.viewHold && J.viewHold());
     // (G999) the view and the spec door back ahead of the release: the player's restore is sliced under the hold
     const releaseView = () => { if (viewHeld && J.viewRelease) J.viewRelease(); viewHeld = false; };
-    const unrefuse = () => { unAs(); if (upd) G.update = upd; };
+    const unrefuse = () => { unAs(); crewBack(); if (upd) G.update = upd; };
     const later = []; let open = true;
     const realST = W.setTimeout;
     // G2220: while a parked aeroplane is held, every step runs with the editor's sit-pitch mount at the identity (the
@@ -270,7 +282,7 @@
       try { return fn(); } finally { W.setTimeout = realST; }
     };
     const release = fn => {
-      W.CAGE_ON_BUILD = onBuild; unAs(); if (upd) G.update = upd;
+      W.CAGE_ON_BUILD = onBuild; unAs(); crewBack(); if (upd) G.update = upd;
       releaseView();
       open = false;
       try { fn(); } finally {

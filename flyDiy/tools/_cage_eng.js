@@ -45,6 +45,37 @@ if (!EM || !EP || !CW || !EP.GROUPS) {
 // one - stands on the pod's face whatever the block rows say
 const cowledPusherRow = P => (P.cowlOn == null || +P.cowlOn) && [1, 4].includes(Math.round(+P.engMount || 0));
 
+// ---- ENGINE-DIALS B (9 Nov, A0's brief: "prop pitch has no control of its own: the Chinook flies the 'auto' pitch,
+// which the editor can't set; the seaplane pitch comes only through the Wipline float kit") ----------------------------
+// THE PITCH ROW covers what the physics supports: every GEN_PROP_PITCH class and 'auto' (genPropAuto picks the class
+// for the measured wing). It is a VIEW of spec.prop.pitch, never a cage key (CAGE_VIEW_KEYS): the row reads the spec's
+// pitch at every build, and a builder's move writes the spec through GARAGE_SPEC.update - the same call the design
+// tiles' spec writes and the float kit make - so no saved file gains a key and a load never re-writes a pitch (PAGE.load
+// forgets). The order is the float kit's (_cage_float.js KIT_PITCHES, its saved fltKitPrevPitch index).
+const PROP_PITCHES = ['auto', 'climb', 'standard', 'cruise', 'seaplane'];
+const PROP_PITCH_LABELS = ['automatic (picked for the wing)', 'fine (climb)', 'standard', 'coarse (cruise)',
+                           'seaplane (the float prop)'];
+let pitchSeen = null;                 // the row's value the last build agreed with the spec on (null: not since a load)
+const specPitchNow = () => { try { const S = window.GARAGE_SPEC && window.GARAGE_SPEC.get(); return (S && S.prop && S.prop.pitch) || null; } catch (e) { return null; } };
+// the one writer: the row and the spec together (the builder's move, the float kit)
+function propPitchSet(P, key) {
+  const i = PROP_PITCHES.indexOf(key);
+  if (i < 0) return;
+  P.propPitch = i; pitchSeen = i;
+  setTimeout(() => { try { if (window.GARAGE_SPEC && window.GARAGE_SPEC.update) window.GARAGE_SPEC.update({ prop: { pitch: key } }); } catch (e) {} }, 0);
+}
+// at each build: a row the builder moved writes the spec; otherwise the row follows the spec
+function propPitchSync(P) {
+  const i = Math.round(+P.propPitch);
+  if (pitchSeen !== null && i !== pitchSeen && PROP_PITCHES[i]) { propPitchSet(P, PROP_PITCHES[i]); return false; }
+  const j = PROP_PITCHES.indexOf(specPitchNow());
+  if (j < 0) return false;
+  const moved = Math.round(+P.propPitch) !== j;
+  P.propPitch = j; pitchSeen = j;
+  return moved;
+}
+if (typeof window !== 'undefined') window.CAGE_PROP_PITCH = { KEYS: PROP_PITCHES, LABELS: PROP_PITCH_LABELS, set: propPitchSet };
+
 // ---- the parameter surface ------------------------------------------------
 // bench keys that do NOT become rows here: the per-element polycounts
 // (ruling), and the plate family (the genuine firewall owns it)
@@ -78,10 +109,11 @@ const defaults = { engOn: 1, engPreset: 0, engPower: 0,
                    // inboard, no critical engine), 2 tops outward. The solver
                    // reads nothing from it yet (PROP-EFFECTS-2026-09-05.md).
                    engRotate: 0 };
+const LATENT = EP.LATENT || {};   // (12 Nov: rows absent at their default - no cage default, an `absent` value shown)
 for (const [, rows] of EP.GROUPS)
   for (const r of rows) {
     const [k, , m3, opts] = r;
-    if (SKIP.has(k)) continue;
+    if (SKIP.has(k) || k in LATENT) continue;
     if (m3 === 'drop') {
       VALS[k] = opts.map(o => o[0]);
       const i = VALS[k].indexOf(ED[k]);
@@ -90,6 +122,7 @@ for (const [, rows] of EP.GROUPS)
     else defaults['eng_' + k] = ED[k];
   }
 defaults.spinMat = 0;                 // G244: the cone follows the blades
+defaults.propPitch = PROP_PITCHES.indexOf('standard');   // ENGINE-DIALS B: GEN_DEFAULT's; the spec's at every build
 PAGE.defaults = Object.assign(defaults, PAGE.defaults || {});
 
 // the effective architecture, for the group `show` predicates and the spec
@@ -156,7 +189,7 @@ const INSTALL_ROWS = new Set([
   // are the first thing changed on a real installation. A turboprop's
   // stacks are the same choice, so `stackStyle` rides here with them.
   'exStyle', 'exDrop', 'exOut', 'exAim', 'exOutX', 'exOutY', 'exOutZ', 'exPair',
-  'stackStyle',
+  'stackStyle', 'stackOut', 'stackLen', 'stackFlat', 'stackR', 'stackDrop', 'stackSplit',
   // THE AIR FILTER, likewise a bolt-on: a canister airbox or a pair of
   // cones, or none at all. (`injected` is NOT here — carburettor or
   // injection is what the O in an O-320 means, and flipping it under a
@@ -267,14 +300,27 @@ window.CAGE_ENG_FACTS = (P) => {
   const facts = {
     mass: R.mass, powerW: R.powerW, rpm: R.rpm,
     // the panel arc: the reduction ratio the tacho law needs (prop = rpm/gear)
-    gear: R.gearRatio > 1 ? +R.gearRatio.toFixed(3)
-        : (spec.geared ? (+spec.gearRatio || 1) : 1),
+    // ENGINE-DIALS: a TURBINE's rpm is already the propeller's (tRpm, the
+    // registry's convention: Np at 100 %, cs), so its gear is 1 - the
+    // resolve's n2 / tRpm here put a custom PT6's propeller at ~120 rpm
+    gear: turb ? 1 : (spec.geared ? (+spec.gearRatio || 1) : 1),
     torque: R.torque != null ? R.torque
       : R.powerW / (2 * Math.PI * Math.max(1, R.rpm) / 60),
     aspiration: elec ? 'electric' : turb ? 'turbine' : (R.aspiration || 'na'),
     family: familyOf(R.arch, spec),
     cooling: coolingOf(R.arch, spec),
   };
+  // ENGINE-DIALS (2026-11-09, A0's brief: "custom engines still inherit A-65
+  // data"): WHAT THE DRIVE, THE DRAG AND THE GOVERNOR READ, off the engine's
+  // own dials and family, never off the registry key the join falls back to
+  // (a custom engine's engines[].type is the A-65's): the cylinders
+  // (33_drive's FAR 23.361 factor), the radial layout (62_gen_aero's cooling
+  // drag), a governed propeller (a turbine always; a piston by its row) and
+  // the drivetrain's maximum rpm (a piston's row; absent = the rated)
+  if (!elec && !turb && R.cyl > 0) facts.cyl = R.cyl;
+  if (R.arch === 'radial') facts.layout = 'radial';
+  if (turb || (!elec && +spec.cs)) facts.cs = true;
+  if (!elec && !turb && +spec.rpmMax > 0) facts.rpmMax = +spec.rpmMax;
   // a turbine's own two numbers ride to the clamp (TURBOPROP §1/§8): the
   // flat-rating margin 05_atmos reads, and the bare length the engine box
   // reads
@@ -308,6 +354,11 @@ window.CAGE_ENG_FACTS = (P) => {
     facts.mass = row.mass * kM;
     facts.rpm = eqF(kN, 1) ? row.rpm : row.rpm * kN;
     if (gearSame) facts.gear = row.gear || 1;
+    // (ENGINE-DIALS: the row's governed propeller and the drive table's maximum ride with it while their own rows are
+    // untouched - the custom engine's cs / rpmMax rows, set, are already in facts)
+    if (row.cs) facts.cs = true;
+    const dRow = typeof GEN_DRIVE !== 'undefined' && GEN_DRIVE.eng ? GEN_DRIVE.eng[CAGE_JOIN_ENGINES[from]] : null;
+    if (!(+spec.rpmMax > 0) && dRow && dRow.rpmMax > 0) facts.rpmMax = dRow.rpmMax;
     if (blowSame) {
       facts.aspiration = row.aspiration || facts.aspiration;
       if (row.critAlt > 0) facts.critAlt = row.critAlt; else delete facts.critAlt;
@@ -578,7 +629,8 @@ for (const g of EP.GROUPS) {
   for (const it of items) {
     const k = it[0].slice(4);                    // the 'eng_' prefix back off
     const own = ROW_WHEN[k] || null;
-    if (INSTALL_KEYS.has(k)) { if (own) it.push({ when: own }); continue; }
+    if (k in LATENT) { const o = { absent: LATENT[k] }; if (own) o.when = own; it.push(o); if (INSTALL_KEYS.has(k)) continue; }
+    else if (INSTALL_KEYS.has(k)) { if (own) it.push({ when: own }); continue; }
     it.push(own ? { when: P => own(P) && isCustomEng(P) }
                 : { when: isCustomEng });
   }
@@ -690,8 +742,10 @@ const ENG_ITEMS = [
     ['spinMat', 'cone material', 0, (CW.MATERIALS || []).length, 1,
      ['as the blades'].concat((CW.MATERIALS || []).map(m => m.name))],
   ]), { when: P => +P.engOn }],
-  ['propeller', grpItems('g_prop'),
-   { when: P => +P.engOn && +P.propOn }],
+  ['propeller', grpItems('g_prop').concat([
+    // ENGINE-DIALS B: THE PITCH, a row of its own (see PROP_PITCHES)
+    ['propPitch', 'pitch', 0, PROP_PITCHES.length - 1, 1, PROP_PITCH_LABELS],
+  ]), { when: P => +P.engOn && +P.propOn }],
 ];
 const host = (PAGE.groupsOverride || []).find(g => g[0] === '2 · engine');
 if (host) host[1].push(...ENG_ITEMS);
@@ -1284,7 +1338,7 @@ function engPresetStarter(P) {
   return PRESET_NAMES[psel] || null;
 }
 const prevLoad = PAGE.load;
-PAGE.load = () => { if (prevLoad) prevLoad(); lastPreset = null; auditPending = true; };
+PAGE.load = () => { if (prevLoad) prevLoad(); lastPreset = null; auditPending = true; pitchSeen = null; };
 if (typeof window !== 'undefined') window.CAGE_ENG_STARTER = engPresetStarter;
 const dispose = o => {
   if (!o) return;
@@ -1353,6 +1407,8 @@ PAGE.post = ctx => {
       sync();
     }
   }
+  // ENGINE-DIALS B: the pitch row and the spec's pitch agree
+  if (propPitchSync(P)) { const UI = window.CAGE_UI; if (UI && UI.syncSliders) UI.syncSliders(); }
   if (prevPost) prevPost(ctx);
   // G2880 (NACELLE-LAG): a unit on the wing (the pylon, the nacelle pair)
   // stands on CAGE_WING, which the wing layer - later in the chain -

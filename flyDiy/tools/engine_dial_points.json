@@ -1,0 +1,455 @@
+{
+ "a65_sensenich74": {
+  "base": "continental A-65",
+  "dials": {
+   "rpm": 2300,
+   "geared": 0,
+   "liquid": 0,
+   "bmepK": 0.9235332466131889,
+   "massK": 1.068109020728893
+  }
+ },
+ "r1830_hs23e50": {
+  "base": "P&W R-1830",
+  "dials": {
+   "rpm": 2700,
+   "geared": 1,
+   "gearRatio": 1.78,
+   "bmepK": 0.8638576153301107,
+   "massK": 1.0586999480577626
+  }
+ },
+ "io360_mccauley": {
+  "base": "lycoming IO-360",
+  "dials": {
+   "rpm": 2700,
+   "geared": 0,
+   "liquid": 0,
+   "bmepK": 1.0272576524858303,
+   "massK": 0.9573708215179291
+  }
+ },
+ "rotax277_pusher": {
+  "base": "rotax 277",
+  "dials": {
+   "rpm": 6250,
+   "geared": 1,
+   "gearRatio": 2.58,
+   "liquid": 0,
+   "bore": 0.07200000000000001,
+   "bmepK": 0.7664840740579753,
+   "massK": 2.0611673456729513
+  }
+ },
+ "vw2180_wood": {
+  "base": "VW 2180",
+  "dials": {
+   "rpm": 3200,
+   "geared": 0,
+   "liquid": 0,
+   "bmepK": 0.7707132937719583,
+   "massK": 1.0931163350669297
+  }
+ },
+ "rotax582_ivo": {
+  "base": "rotax 582",
+  "dials": {
+   "rpm": 6500,
+   "geared": 1,
+   "gearRatio": 2.62,
+   "liquid": 1,
+   "rpmMax": 6800,
+   "bmepK": 0.8032088596829872,
+   "massK": 1.4180167224294213
+  }
+ },
+ "jabiru2200_std": {
+  "base": "jabiru 2200",
+  "dials": {
+   "rpm": 3300,
+   "geared": 0,
+   "liquid": 0,
+   "bore": 0.09750000000000004,
+   "bmepK": 1.0577692949338906,
+   "massK": 0.9837475372340513
+  }
+ },
+ "rotax912_warp": {
+  "base": "rotax 912 (flat)",
+  "dials": {
+   "rpm": 5800,
+   "geared": 1,
+   "gearRatio": 2.27,
+   "liquid": 1,
+   "bore": 0.07949999999999993,
+   "bmepK": 1.0371655816810508,
+   "massK": 1.125413999482435
+  }
+ },
+ "rotax912is_warp": {
+  "base": "rotax 912 iS",
+  "dials": {
+   "rpm": 5800,
+   "geared": 1,
+   "gearRatio": 2.43,
+   "liquid": 1,
+   "bore": 0.08400000000000003,
+   "bmepK": 1.1456840337702119,
+   "massK": 1.1326505694056663
+  }
+ },
+ "o200_eprops": {
+  "base": "continental O-200",
+  "dials": {
+   "rpm": 2750,
+   "geared": 0,
+   "liquid": 0,
+   "bmepK": 1.0089086060958055,
+   "massK": 0.9838574750077987
+  }
+ },
+ "r985_hs2b20": {
+  "base": "P&W R-985",
+  "dials": {
+   "rpm": 2300,
+   "geared": 0,
+   "bmepK": 0.925664809874844,
+   "massK": 0.8037410069908485
+  }
+ },
+ "verner7u_wood": {
+  "base": "Verner Scarlett 7U",
+  "dials": {
+   "rpm": 2400,
+   "geared": 0,
+   "bmepK": 1.8040372664922566,
+   "massK": 1.2580613817373063
+  }
+ },
+ "clerget9b_wood": {
+  "base": "Clerget 9B",
+  "dials": {
+   "rpm": 1250,
+   "geared": 0,
+   "bmepK": 0.5956029891942072,
+   "massK": 0.4955455841136723
+  }
+ },
+ "merlin66_rotol4": {
+  "base": "Rolls-Royce Merlin 66",
+  "dials": {
+   "rpm": 3000,
+   "geared": 1,
+   "gearRatio": 2.096,
+   "liquid": 1,
+   "bmepK": 0.9000067171924125,
+   "massK": 1.0850945994670036
+  }
+ },
+ "rotec3600_std": {
+  "base": "Rotec R3600",
+  "dials": {
+   "rpm": 3600,
+   "geared": 1,
+   "gearRatio": 2,
+   "bmepK": 1.0764252194844717,
+   "massK": 0.9288566739552935
+  }
+ },
+ "mikron3_wood": {
+  "base": "Walter Mikron III",
+  "dials": {
+   "rpm": 2600,
+   "geared": 0,
+   "liquid": 0,
+   "bmepK": 0.9545955501088339,
+   "massK": 1.089816403565027
+  }
+ },
+ "gipsymajor1_wood": {
+  "base": "DH Gipsy Major",
+  "dials": {
+   "rpm": 2350,
+   "geared": 0,
+   "liquid": 0,
+   "bmepK": 0.8513724446270324,
+   "massK": 0.9172575626237629
+  }
+ },
+ "hirth508_wood": {
+  "base": "Hirth HM 508D",
+  "dials": {
+   "rpm": 3000,
+   "geared": 1,
+   "gearRatio": 1.5,
+   "liquid": 0,
+   "bmepK": 1.1046542436822864,
+   "massK": 0.9053292150653841
+  }
+ },
+ "argus10c_wood": {
+  "base": "Argus As 10C",
+  "dials": {
+   "rpm": 2000,
+   "geared": 0,
+   "liquid": 0,
+   "bmepK": 0.8775460521357636,
+   "massK": 0.7998917167420518
+  }
+ },
+ "o320_mccauley": {
+  "base": "lycoming O-320",
+  "dials": {
+   "rpm": 2700,
+   "geared": 0,
+   "liquid": 0,
+   "bmepK": 0.9693909479404081,
+   "massK": 0.941022328580537
+  }
+ },
+ "o540_hartzell": {
+  "base": "lycoming O-540",
+  "dials": {
+   "rpm": 2575,
+   "geared": 0,
+   "liquid": 0,
+   "bmepK": 0.9377949877786889,
+   "massK": 0.8568366876894756
+  }
+ },
+ "io550_hartzell3": {
+  "base": "continental IO-550",
+  "dials": {
+   "rpm": 2700,
+   "geared": 0,
+   "liquid": 0,
+   "bore": 0.13334999999999997,
+   "bmepK": 1.1581200158591538,
+   "massK": 0.9335411953705522
+  }
+ },
+ "io720_hartzell3": {
+  "base": "lycoming IO-720",
+  "dials": {
+   "rpm": 2650,
+   "geared": 0,
+   "liquid": 0,
+   "bmepK": 1.1638010520840596,
+   "massK": 0.9731606118020331
+  }
+ },
+ "rotax915_carbon": {
+  "base": "rotax 915 iS",
+  "dials": {
+   "rpm": 5800,
+   "geared": 1,
+   "gearRatio": 2.54,
+   "liquid": 1,
+   "bmepK": 1.2143515389601873,
+   "massK": 1.3425846193969855
+  }
+ },
+ "rotax916_carbon": {
+  "base": "rotax 916 iS",
+  "dials": {
+   "rpm": 5800,
+   "geared": 1,
+   "gearRatio": 2.54,
+   "liquid": 1,
+   "bore": 0.08400000000000002,
+   "bmepK": 1.2178211147857878,
+   "massK": 1.3713542898126347
+  }
+ },
+ "ranger440_wood": {
+  "base": "Ranger L-440",
+  "dials": {
+   "rpm": 2450,
+   "geared": 0,
+   "liquid": 0,
+   "bmepK": 1.0629796441041939,
+   "massK": 0.9707585046683235
+  }
+ },
+ "w670_hs2b": {
+  "base": "Continental W-670",
+  "dials": {
+   "rpm": 2075,
+   "geared": 0,
+   "bmepK": 0.9027078356797729,
+   "massK": 0.8552814467661933
+  }
+ },
+ "r755_hs2b": {
+  "base": "Jacobs R-755",
+  "dials": {
+   "rpm": 2200,
+   "geared": 0,
+   "bore": 0.13334999999999997,
+   "bmepK": 1.0250797826323585,
+   "massK": 0.8350185487189257
+  }
+ },
+ "m14p_v530": {
+  "base": "Vedeneyev M-14P",
+  "dials": {
+   "rpm": 2900,
+   "geared": 1,
+   "gearRatio": 1.52,
+   "bmepK": 0.8446148237033878,
+   "massK": 0.7738673189614488
+  }
+ },
+ "r1340_hs12d40": {
+  "base": "P&W R-1340",
+  "dials": {
+   "rpm": 2250,
+   "geared": 0,
+   "bmepK": 0.9397594406430341,
+   "massK": 0.8464791389448064
+  }
+ },
+ "rotax503_wood": {
+  "base": "rotax 503",
+  "dials": {
+   "rpm": 6800,
+   "geared": 1,
+   "gearRatio": 2.58,
+   "liquid": 0,
+   "bmepK": 0.5861423350724433,
+   "massK": 1.5047436747036653
+  }
+ },
+ "emrax268_carbon": {
+  "base": "EMRAX 268",
+  "dials": {
+   "canD": 0.3,
+   "rpm": 2400,
+   "geared": 0,
+   "liquid": 0,
+   "bmepK": 1.9243736012295514,
+   "massK": 0.6288579267789611
+  }
+ },
+ "outrunner2212_9x47": {
+  "base": "RC 2212 outrunner",
+  "dials": {
+   "rpm": 9000,
+   "geared": 0,
+   "liquid": 0,
+   "bmepK": 1.0907793499951155,
+   "massK": 1.238842446076026
+  }
+ },
+ "outrunner3548_12x6": {
+  "base": "RC 2212 outrunner",
+  "dials": {
+   "canD": 0.035,
+   "canL": 0.048,
+   "volts": 14.8,
+   "rpm": 11000,
+   "geared": 0,
+   "liquid": 0,
+   "bmepK": 1.355469742368945,
+   "massK": 1.5477570485459065
+  }
+ },
+ "outrunner6374_18x10": {
+  "base": "RC 6374 outrunner",
+  "dials": {
+   "rpm": 6300,
+   "geared": 0,
+   "liquid": 0,
+   "bmepK": 1.302984244773681,
+   "massK": 0.9612593021435211
+  }
+ },
+ "eppg_direct_130": {
+  "base": "e-PPG 12 kW",
+  "dials": {
+   "rpm": 2500,
+   "geared": 0,
+   "liquid": 0,
+   "bmepK": 1.057271629828877,
+   "massK": 0.98692216634587
+  }
+ },
+ "fes_folding_100": {
+  "base": "FES sustainer",
+  "dials": {
+   "rpm": 4500,
+   "geared": 0,
+   "liquid": 0,
+   "bmepK": 1.4882555745380508,
+   "massK": 1.3794073422658688
+  }
+ },
+ "emrax228_3blade": {
+  "base": "EMRAX 228",
+  "dials": {
+   "canD": 0.26,
+   "rpm": 2400,
+   "geared": 0,
+   "liquid": 0,
+   "bmepK": 1.519539600424689,
+   "massK": 0.9300498069901042
+  }
+ },
+ "e811_velis": {
+  "base": "pipistrel E-811",
+  "dials": {
+   "rpm": 2500,
+   "geared": 0,
+   "liquid": 0,
+   "bmepK": 1.3270447426479466,
+   "massK": 1.293832555077828
+  }
+ },
+ "sp260d_class": {
+  "base": "SP260D-class",
+  "dials": {
+   "rpm": 2500,
+   "geared": 0,
+   "liquid": 0,
+   "bmepK": 1.5595015152865628,
+   "massK": 0.8786556169753772
+  }
+ },
+ "pt6a114a_hartzell3": {
+  "base": "P&W PT6A-114A",
+  "dials": {
+   "tRpm": 1900,
+   "tCanD": 0.39999999999999997,
+   "bmepK": 1.0081692105498414,
+   "massK": 1.0839214426945372,
+   "tCanL": 1.1920000000000002
+  }
+ },
+ "pt6a34_hartzell4": {
+  "base": "P&W PT6A-34",
+  "dials": {
+   "tRpm": 2200,
+   "bmepK": 1.001788487547754,
+   "massK": 0.9235060000171579,
+   "tCanL": 1.1263
+  }
+ },
+ "pt6a42_hartzell4": {
+  "base": "P&W PT6A-42",
+  "dials": {
+   "tRpm": 2000,
+   "bmepK": 1.0000645415820788,
+   "massK": 1.0914266678038949,
+   "tCanL": 1.243754
+  }
+ },
+ "pt6a60a_hartzell4": {
+  "base": "P&W PT6A-60A",
+  "dials": {
+   "tRpm": 1700,
+   "bmepK": 1.0000925044360793,
+   "massK": 1.1745475666776206,
+   "tCanL": 1.35122
+  }
+ }
+}

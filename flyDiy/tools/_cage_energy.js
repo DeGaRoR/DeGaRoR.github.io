@@ -831,6 +831,20 @@ function commitSoon() {
 // the crew's vertices in this layer's frame, gathered ONCE per layout — the
 // auto-fit asks the same question a hundred times
 let CREW_PTS = null;
+// G2715 (CREW-SEATS): THE BUILD'S CREW, WHATEVER THE JOB - the tank clears what the build seats: a job's passenger (its
+// meshes under a fig tagged `crewJob`) is not the build's, and what the job left out (CAGE_CREW.ghost: a chair taken
+// out, an occupant the job replaced, posed off the scene) still is. No job on the crew layer: the plain walk, as ever.
+function crewWalk(crew, fn) {
+  const CW = window.CAGE_CREW;
+  if (!CW || !CW.job) { crew.traverse(fn); return; }
+  const isJob = o => { for (let q = o; q && q !== crew; q = q.parent) if (q.userData && q.userData.crewJob) return true; return false; };
+  crew.traverse(o => { if (!isJob(o)) fn(o); });
+  const G = CW.ghost;
+  if (G && G.children.length) {
+    G.matrix.copy(crew.matrixWorld); G.matrixWorldNeedsUpdate = true; G.updateMatrixWorld(true);
+    G.traverse(fn);
+  }
+}
 function crewPoints(scene, inv) {
   if (!scene || !window.THREE) return { buf: new Float64Array(0), n: 0 };
   let crew = null;
@@ -841,7 +855,7 @@ function crewPoints(scene, inv) {
   // G1455 (RELEASE-FAST): the points in one Float64Array, x y z each (the same doubles the little arrays held)
   const V = new THREE.Vector3(), meshes = [];
   let n = 0;
-  crew.traverse(o => {
+  crewWalk(crew, o => {
     // a character's SKINNED mesh holds its bind pose (a T-pose, nowhere near
     // the seat): its posed body is the plain mesh under it (G3700,
     // _cage_char.js pickBody), and that is what the tank clears
@@ -882,7 +896,7 @@ function crewPoints(scene, inv) {
 // where they are, and a few of their vertices (a body re-posed in place moves them).
 function crewSig(crew, inv) {
   let sg = inv ? String(matSig(inv)) : 'x';
-  crew.traverse(o => {
+  crewWalk(crew, o => {
     if (!o.isMesh || o.isSkinnedMesh || !o.geometry) return;
     const pos = o.geometry.getAttribute('position'); if (!pos) return;
     let h = 0;
@@ -2696,7 +2710,9 @@ function drawResults(group, ctx, results) {
           pts.push(new T3.Vector2(MathL.max(0.002, 0.5 * pd.D * MathL.pow(MathL.max(0, s), 0.65)), (u - 0.5) * pd.L));
         }
         const geo = new T3.LatheGeometry(pts, 28);
-        const m = new T3.Mesh(geo, wet ? matWet(bad) : slotMat('shell', bad, i, r.v));
+        // STRUT-POD (A0 11 Nov, the user: the Chinook's strut tanks drew see-through and ignored the livery): a pod is always a shell -
+        // the wet-wing fuel material (matWet, 40 % blue, no shell) is for a wet WING's fuel only; the pod's mass + price keep the wet rows
+        const m = new T3.Mesh(geo, slotMat('shell', bad, i, r.v));
         m.name = 'edVessel_' + i + (pd.sign > 0 ? 'R' : 'L');
         m.quaternion.setFromUnitVectors(new T3.Vector3(0, 1, 0), new T3.Vector3(pd.axis[0], pd.axis[1], pd.axis[2]));
         m.position.set(pd.c[0], pd.c[1], pd.c[2]);

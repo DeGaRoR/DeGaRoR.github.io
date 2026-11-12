@@ -28,7 +28,7 @@ const CAB_NAMES = ['mixed crew (rotate)'].concat(
 // unticked or dragged on the bench (_cage_ui.js: the corner handles); the keys are not defaults, so no file written
 // before them carries them.
 const QUAD_CORNER = ['fwd top', 'aft top', 'aft bottom', 'fwd bottom'];
-const quadRows = pre => [1, 2, 3, 4].flatMap(c => ['Z', 'Y'].map(a => [
+const quadRows4 = pre => [1, 2, 3, 4].flatMap(c => ['Z', 'Y'].map(a => [
   pre + 'Q' + c + a, 'corner · ' + QUAD_CORNER[c - 1] + (a === 'Z' ? ' · station' : ' · height'),
   a === 'Z' ? -6.0 : -1.0, a === 'Z' ? 3.5 : 1.2, 0.005,
   { when: P => +P[pre + 'N'] > 0 && Math.round(+P[pre + 'Shape']) === 2, dim: 'len',
@@ -36,6 +36,53 @@ const quadRows = pre => [1, 2, 3, 4].flatMap(c => ['Z', 'Y'].map(a => [
                     return U && U.P && G2 && G2.cageQuadRect ? G2.cageQuadRect(U.P, pre)[c - 1][a === 'Z' ? 0 : 1] : null; },
     followTitle: 'follows the rectangle (width, height, top width, top shift); untick - or drag its handle on the ' +
                  'bench - to place this corner (tick again: back to the rectangle)' }]));
+// (12 Nov, FIT-PROCEDURE: "the very special pilot window that the PC-6 does have") A FIFTH CORNER, between the fwd-bottom
+// corner and the fwd-top one: on, placed (it shows the middle of that edge until set), its own radius
+const quadRows = pre => quadRows4(pre).concat([
+  [pre + 'Q5On', 'corner 5 (on the fwd edge)', 0, 1, 1,
+   { when: P => +P[pre + 'N'] > 0 && Math.round(+P[pre + 'Shape']) === 2, absent: 0 }],
+  ...['Z', 'Y'].map(a => [pre + 'Q5' + a, 'corner 5 · ' + (a === 'Z' ? 'station' : 'height'),
+    a === 'Z' ? -6.0 : -1.0, a === 'Z' ? 3.5 : 1.2, 0.005,
+    { when: P => +P[pre + 'N'] > 0 && Math.round(+P[pre + 'Shape']) === 2 && +P[pre + 'Q5On'] > 0, dim: 'len',
+      follow: () => { const U = window.CAGE_UI, G2 = window.CAGE2;
+                      if (!(U && U.P && G2 && G2.cageQuadRect)) return null;
+                      const R = G2.cageQuadRect(U.P, pre); return (R[3][a === 'Z' ? 0 : 1] + R[0][a === 'Z' ? 0 : 1]) / 2; },
+      followTitle: 'the middle of the fwd edge until placed (there it lies in line and the window waits - move it out)' }]),
+  [pre + 'R5', 'radius · corner 5', -0.01, 0.45, 0.005,
+   { when: P => +P[pre + 'N'] > 0 && Math.round(+P[pre + 'Shape']) === 2 && +P[pre + 'Q5On'] > 0, dim: 'len',
+     link: { sentinel: -1, from: pre + 'R', test: v => v == null || v < 0 } }],
+]);
+// MORE ROWS (11 Nov, FIT-PROCEDURE; the user: "more than 3 possible rows of windows ... a lot of personality"): rows
+// 4-6 are row 3's controls on win4*-win6*, every key absent until the row is used (_cage_gen.js CAGE_WIN_ABSENT: the
+// value a row shows while absent), so no saved build carries them or moves
+const winRowMore = (n) => {
+  const pre = 'win' + n, A = (window.CAGE2 && window.CAGE2.CAGE_WIN_ABSENT) ||
+    { N: 0, Shape: 0, Z: 1.6, Pitch: 0.75, Y: 0.40, W: 0.40, H: 0.32, R: 0.06, Depth: 0.006, TopK: 1, Skew: 0, R1: -1, R2: -1, R3: -1, R4: -1 };
+  const on = P => +P[pre + 'N'] > 0, ab = k => ({ absent: A[k] });
+  const rad = (k, lab) => [pre + k, 'radius · ' + lab, -0.01, 0.45, 0.005,
+    Object.assign({ when: P => on(P) && +P[pre + 'Shape'] !== 1, dim: 'len', link: { sentinel: -1, from: pre + 'R', test: v => v == null || v < 0 } }, ab(k))];
+  return ['row ' + n, [
+    [pre + 'N', 'windows', 0, 4, 1, Object.assign({
+      note: P => { const R = (window.CAGE_UI && window.CAGE_UI.windowsRefused) || [];
+                   const own = R.filter(w => w.row === n && /^quad:/.test(w.refused || ''));
+                   if (own.length) return own.map(w => 'window ' + (w.i + 1) + ': ' + w.refused.slice(6)).join('; ');
+                   const k = R.filter(w => w.row === n).length;
+                   return k ? k + (k > 1 ? ' overlap earlier windows' : ' overlaps an earlier window') + ' — not cut until moved' : ''; } }, ab('N'))],
+    [pre + 'Shape', 'shape', 0, 2, 1, ['rounded', 'oval', 'quad'], Object.assign({ when: on }, ab('Shape'))],
+    ...quadRows(pre),
+    [pre + 'Z',     'first station',  -6.0, 3.5, 0.01, Object.assign({ when: on, dim: 'len' }, ab('Z'))],
+    [pre + 'Pitch', 'pitch',           0.2, 1.5, 0.01, Object.assign({ when: P => +P[pre + 'N'] > 1, dim: 'len' }, ab('Pitch'))],
+    [pre + 'Y',     'centre height',  -1.0, 1.2, 0.01, Object.assign({ when: on, dim: 'len' }, ab('Y'))],
+    [pre + 'W',     'width',           0.05, 1.5, 0.01, Object.assign({ when: on, dim: 'len' }, ab('W'))],
+    [pre + 'H',     'height',          0.05, 1.0, 0.01, Object.assign({ when: on, dim: 'len' }, ab('H'))],
+    [pre + 'TopK',  'top width ×',     0.0, 2.0, 0.01, Object.assign({ when: P => on(P) && !+P[pre + 'Shape'] }, ab('TopK'))],
+    [pre + 'Skew',  'top shift',      -0.6, 0.6, 0.005, Object.assign({ when: P => on(P) && !+P[pre + 'Shape'], dim: 'len' }, ab('Skew'))],
+    [pre + 'R',     'corner radius',   0.0, 0.45, 0.005, Object.assign({ when: P => on(P) && +P[pre + 'Shape'] !== 1, dim: 'len' }, ab('R'))],
+    rad('R1', 'fwd top'), rad('R2', 'aft top'), rad('R3', 'aft bottom'), rad('R4', 'fwd bottom'),
+    [pre + 'Depth', 'reveal depth',    0.0, 0.03, 0.001, Object.assign({ when: on, dim: 'len' }, ab('Depth'))],
+    [pre + 'Bulge', 'bubble',          0.0, 0.2, 0.005, { when: on, absent: 0, dim: 'len' }],
+  ], {}];
+};
 // AFT-BULKHEAD (3 Nov): the aft wall's rows show with the panel on; the wall's own rows give way to the sling, which
 // is the tube construction's (intCons 1, 'tube' in the generator's consG) and draws no wall
 const bhSling = P => +P.intOn && +P.intBulk && Math.round(+P.intCons || 0) === 1 && !!+P.bhSling;
@@ -563,7 +610,10 @@ window.CAGE_PAGE = {
     ['4 · cabin', [
       ['dimensions', [
         // seating starter select injected below
-        ['pilotLen',  'length',         0.30, 2.00, 0.01, { dim: 'len' }],
+        // (11 Nov, FIT-PROCEDURE: from 0.10 - the pilot door is the quarter bay PLUS this bay, and a long windscreen
+        // run (the PC-6's 45 deg A-pillar) left a door 0.92 m wide, through the first cabin window; the generator
+        // always took any length - only the slider stopped at 0.30)
+        ['pilotLen',  'length',         0.10, 2.00, 0.01, { dim: 'len' }],
         // (halfW / roofHalfW / roofY / keelY are the frames' REFERENCE
         // SECTION since T2.1; the lean rows became the frames' fore/aft)
         ['floorY',    'floor height',  -1.20, 0.00, 0.005, { dim: 'len' }],
@@ -587,6 +637,8 @@ window.CAGE_PAGE = {
         ['skyExt',    'sky extent',     0, 5, 1,
          { when: P => +P.skylight }],
         ['winSillPilot', 'window sill', 0, 0.9, 0.01],
+        // (12 Nov, FIT-PROCEDURE) the pilot's glass a plain panel, to cut a DRAWN window through (4b · drawn windows)
+        ['winPilotPanel', 'pilot window: a panel (draw it as a drawn window)', 0, 1, 1, { absent: 0 }],
         ['canopy',    'canopy',         0, 3, 1, ['closed', 'convertible',
                                                   'open', 'bubble']],
         // THE LABEL IS THE SHAPE, NOT THE MECHANISM (NEW-AIRCRAFT §5.3):
@@ -1079,12 +1131,19 @@ window.CAGE_PAGE = {
         // BUBBLE-WINDOWS (the user 7 Nov): blown out into a blister this far at its centre (0 = the flat pane, set in)
         ['win3Bulge',   'bubble',          0.0, 0.2, 0.005, { when: P => +P.win3N > 0, absent: 0, dim: 'len' }],
       ], {}],
+      winRowMore(4), winRowMore(5), winRowMore(6),
     ]],
     ['5 · passengers', [
       // (G3578: up to twelve - a bay a row or two, the user's DC-3; 5-12 absent at 0, every build before to the bit)
       ['paxCount',  'pax bays',        0, 12, 1],
       ['paxLen',    'bay length',      0.4, 3.0, 0.01,
        { when: P => +P.paxCount > 0, dim: 'len' }],
+      // (12 Nov, FIT-PROCEDURE) each bay its own length: bay 2, 3, ... (counted from the AFT bay, the generator's order:
+      // bay 1 is the one ahead of the boom) follow the bay length until unticked
+      ...[2, 3, 4, 5, 6].map(n => ['paxLen' + n, 'bay ' + n + ' length (counted from the aft bay)', 0.4, 3.0, 0.01,
+        { when: P => +P.paxCount >= n, dim: 'len',
+          follow: () => { const U = window.CAGE_UI; return U && U.P ? +U.P.paxLen : null; },
+          followTitle: 'follows the bay length; untick to give this bay its own' }]),
       // T2.3 (132): the bays' own seating — 'as the cockpit' is every build
       // before (a bay seats the cockpit's row); a single seat behind a
       // side-by-side cockpit, a pair behind a tandem one, or a bench of three
@@ -1110,10 +1169,9 @@ window.CAGE_PAGE = {
       ['rearWinR', 'rear window corner radius', 0, 0.3, 0.005, { when: P => +P.rearWinOn, dim: 'len' }],
       ['rearWinN', 'rear windows (one / a pair)', 1, 2, 1, { when: P => +P.rearWinOn }],
       ['rearWinGap', 'rear pair centre to centre', 0.1, 2.0, 0.005, { when: P => +P.rearWinOn && +P.rearWinN === 2, dim: 'len' }],
-      ['paxLenLast', 'rear bay length (own)', 0.3, 3.0, 0.01,
-       { when: P => +P.paxCount > 1, dim: 'len' }],   // CAR-3: absent = paxLen
-      ['doorPaxN',  'pax doors: bays with one (from the front)', 0, 4, 1,
-       { when: P => +P.paxCount > 0 && +P.doorPax }],
+      // (12 Nov, FIT-PROCEDURE) doors on the front bays only: 0 = every bay (as always)
+      ['doorPaxFront', 'pax doors: front bays only (0 = all)', 0, 12, 1,
+       { when: P => +P.paxCount > 0 && +P.doorPax > 0, absent: 0 }],
       ['doorSillPax','door sill',      0, 0.25, 0.002,
        { when: P => +P.paxCount > 0 && +P.doorPax, dim: 'len' }],
       // G180: WHO SITS IN EACH BAY, bays counted front to back from the
@@ -1224,6 +1282,8 @@ window.CAGE_PAGE = {
       ['boomTailCap', 'tail-end cap', 0, 2, 1, ['point', 'flat', 'round'],
        { when: P => +P.boomTwin }],
       ['taperOn',   'taper section',   0, 1, 1],
+      // (12 Nov, FIT-PROCEDURE: the user, "Match to cabin size" - the boom root is the cabin's aft frame, no step)
+      ['boomMatch', 'match to cabin size', 0, 1, 1, { when: P => !+P.taperOn, absent: 0 }],
       // the `when` rules below are MEASURED, not assumed (P1 probe,
       // 2026-08-26): each hidden row was varied through the full display
       // pipeline in the mode that hides it and the mesh hash did not

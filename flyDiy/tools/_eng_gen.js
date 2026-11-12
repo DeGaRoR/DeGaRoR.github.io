@@ -316,6 +316,18 @@ const ENG_DEFAULT = {
   // 1 is every catalogue engine. The CC340 is 240-250 lb dry, 35 lb under
   // a comparable Lycoming (AVweb, Richmond): 0.88 of the law.
   massK: 1.0,
+  // ENGINE-DIALS (2026-11-09, A0's brief: "every registry engine is a point on
+  // the dials"): THE SAME PAIR ON EVERY KIND OF ENGINE, and wide enough for
+  // the registry's own rows. On an ELECTRIC the tune is the continuous shear
+  // stress over the style's (torque, so power, at the same can and the same
+  // mass) and the build the motor's mass over the torque law; on a TURBINE the
+  // tune is the core's specific power over the style's (rated power at the
+  // same inlet and the same mass) and the build the mass over the core-power
+  // law. The ranges are the registry's extremes with a margin (ENG_DIAL_RANGE:
+  // the tune from the Rotax 503's 0.59 of the two-stroke law to the Verner's
+  // 1.80 of the radial's; the build from the Clerget's 0.50 to the Rotax
+  // 277's 2.06, which carries its gearbox and fan cowl in its 30 kg) and every
+  // row's own point is in tools/_enginedials_check.js (GATE ENGINEDIALS).
   // ELECTRIC (arch 'electric'): the can IS the fiche. Defaults are the
   // registry's own 2212 outrunner — the electric anchor, as the A-65 is
   // the combustion one. rpm rides the shared key (electric default 8500
@@ -336,6 +348,9 @@ const ENG_DEFAULT = {
   flatK: 1.26,             // flat-rating margin, core over rated (05_atmos reads it)
   tRpm: 1900,              // propeller rpm (the gearbox's output)
   stackStyle: 1,           // 1 = the PT6's paired stacks, 0 = bare
+  // (12 Nov, FIT-PROCEDURE) the PT6 stacks' shape rows (stackOut, stackLen, stackFlat, stackR, stackDrop, stackSplit) are
+  // LATENT: ABSENT here and in every dial dict - the mesh reads absent as the old drawing - so no engine, no preset and
+  // no join gains a key (A0, L39a: STOL's MOVED keys, PROCURE's applyEngPreset dicts). Their shown values: _eng_page LATENT
   // installation
   accessories: 1,          // magnetos, pumps, starter, alternator
   exhaust: 1,
@@ -374,15 +389,18 @@ function elecResolve(P, spec) {
   const rotorL = ST.diskL ? ST.diskL * P.canD : ST.kL * P.canL;
   const Vr = Math.PI / 4 * rotorD * rotorD * rotorL;
   const sigma = ST.sigma * (P.liquid ? ELEC_LIQ_K : 1);
-  const torque = 2 * sigma * Vr;                       // Nm, continuous
+  // ENGINE-DIALS: the tune is the shear stress over the style's (a better
+  // magnet set or winding at the same can, so the same mass)
+  const torque0 = 2 * sigma * Vr;
+  const torque = torque0 * engDial(P, 'bmepK');       // Nm, continuous
 
-  // 2. power is rpm
+  // 2. power is rpm (the tune multiplied last, as the piston's)
   const omega = rpm / 60 * 2 * Math.PI;
-  const powerW = torque * omega;                       // continuous
+  const powerW = torque0 * omega * engDial(P, 'bmepK');   // continuous
   const powerPeakW = ELEC_PEAK_K * powerW;             // burst, declared
 
   // 3. mass tracks torque, sub-linearly; the extras declared, never folded
-  const motorMass = ELEC_MASS_K * Math.pow(torque, ELEC_MASS_E);
+  const motorMass = ELEC_MASS_K * Math.pow(torque0, ELEC_MASS_E);
   const escMass = P.escOn ? ELEC_ESC_KGKW * powerW / 1000 : 0;
   let mass = motorMass + escMass;
   // a belt/planetary reduction is rare on electric and light when it
@@ -390,6 +408,7 @@ function elecResolve(P, spec) {
   // constant (which would triple a park-flyer can)
   if (P.geared) mass += 0.22 * motorMass;
   if (P.liquid) mass += 0.06 * motorMass;              // jacket + pump share
+  mass *= engDial(P, 'massK');                          // ENGINE-DIALS: the build, last (as the piston's)
 
   // ---- ENVELOPE + CG ------------------------------------------------------
   // The BARE MOTOR, like the combustion envelope is the bare engine: fins
@@ -474,7 +493,9 @@ function turbResolve(P, spec) {
   // 2-3. the core's power, flat-rated to what the gearbox is sold for
   const powerThermoW = ST.specKW * 1e3 * mdot;
   const flatK = Math.max(1, Math.min(2, +P.flatK || 1));
-  const powerW = powerThermoW / flatK;
+  // ENGINE-DIALS: the tune is the core's specific power over the style's (a
+  // hotter or more efficient core at the same inlet, so the same mass)
+  const powerW = powerThermoW / flatK * engDial(P, 'bmepK');
 
   // 5. the prop turns what the builder dialled; the gearbox makes it so
   const rpm = Math.max(1, +P.tRpm || 1);
@@ -485,6 +506,7 @@ function turbResolve(P, spec) {
   let mass = TURB_MASS_K * Math.pow(powerThermoW / 1000, TURB_MASS_E);
   if (!P.accessories) mass *= 0.93;       // starter-generator, FCU, pumps
   if (!P.exhaust) mass *= 0.985;          // the two stacks
+  mass *= engDial(P, 'massK');            // ENGINE-DIALS: the build, last (as the piston's)
 
   // ---- ENVELOPE + CG ------------------------------------------------------
   const canR = canD / 2;
@@ -537,6 +559,11 @@ function turbResolve(P, spec) {
 // ---------------------------------------------------------------------------
 // RESOLVE — the numbers. Pure; no geometry, no THREE, node-callable.
 // ---------------------------------------------------------------------------
+// THE DIAL PAIR'S ONE RANGE (ENGINE-DIALS): what engResolve clamps to and what
+// every panel row offers (tools/_eng_page.js), on all three kinds of engine
+const ENG_DIAL_RANGE = { bmepK: [0.5, 2.0], massK: [0.4, 2.2] };
+const engDial = (P, k) => Math.max(ENG_DIAL_RANGE[k][0],
+  Math.min(ENG_DIAL_RANGE[k][1], +P[k] || 1));
 function engResolve(spec) {
   const P = Object.assign({}, ENG_DEFAULT, spec || {});
   if (P.arch === 'electric') return elecResolve(P, spec);
@@ -558,9 +585,11 @@ function engResolve(spec) {
   // pressure ratio — the whole of a supercharger, at rated power
   const blown = Math.round(P.blower || 0) > 0;
   const boost = blown ? Math.max(1, Math.min(2.5, +P.boost || 1)) : 1;
-  const bmepK = Math.max(0.85, Math.min(1.2, +P.bmepK || 1));
+  // (ENGINE-DIALS: the tune multiplies the power LAST - the same number as the bmep's, and the one place where every
+  // registry row's figure is a reachable double: mid-chain, the product stepped two ulps at a time past the 912's 59 600)
+  const bmepK = engDial(P, 'bmepK');
   const bmep = A.bmep * bmepK;
-  const powerW = (bmep * boost * 1e5) * Vd * revS / strokeDiv;
+  const powerW = (A.bmep * boost * 1e5) * Vd * revS / strokeDiv * bmepK;
 
   // 3. mass, from swept volume, sub-linearly, with the extras declared.
   // The law was fitted against the registry's DRY ENGINE masses, which are
@@ -568,8 +597,7 @@ function engResolve(spec) {
   // baseline and their flags REMOVE them. Adding them on top of a fit that
   // already contained them is how a model double-counts and reads 12% heavy
   // on every row at once.
-  let mass = ENG_MASS_K * Math.pow(litres, ENG_MASS_E) * (A.kM || 1)
-    * Math.max(0.75, Math.min(1.25, +P.massK || 1));
+  let mass = ENG_MASS_K * Math.pow(litres, ENG_MASS_E) * (A.kM || 1);
   if (!P.accessories) mass *= 0.91;
   if (!P.exhaust) mass *= 0.965;
   if (P.geared) mass += 0.14 * mass + 3.0;    // reduction unit
@@ -580,6 +608,11 @@ function engResolve(spec) {
   // in the rear case, and the big radials the mass law was fitted on already
   // carry one, so it adds the drive alone
   if (blown) mass += Math.round(P.blower) === 1 ? 0.08 * mass + 2.0 : 0.04 * mass;
+  // THE BUILD (REAL-FIGURES-3's massK), multiplied LAST (ENGINE-DIALS, 9 Nov): the engine's mass over the model's -
+  // the law with its declared gearbox, jacket and blower. On the law alone (REAL-FIGURES-3's first cut; the same
+  // number on an engine with none of the three, the CC340) the additions after it left holes: no build at all gave the
+  // Rotax 916's 85.8 kg, the double fell either side of it
+  mass *= engDial(P, 'massK');
 
   // ---- ENVELOPE + CG ------------------------------------------------------
   // The cowl is built around THIS, so it is measured off the same placement
@@ -850,7 +883,7 @@ function engBuild(spec) {
 
 if (typeof module !== 'undefined')
   module.exports = { ENG_ARCH, ENG_AIM, engAimDeg, ELEC_STYLE, TURB_STYLE,
-                     ENG_DEFAULT, ENG_MAT, ENG_UNIT, engResolve, engBuild };
+                     ENG_DEFAULT, ENG_MAT, ENG_UNIT, ENG_DIAL_RANGE, engResolve, engBuild };
 if (typeof window !== 'undefined')
   window.ENG_GEN = { ENG_ARCH, ENG_AIM, engAimDeg, ELEC_STYLE, TURB_STYLE,
-                     ENG_DEFAULT, ENG_MAT, ENG_UNIT, engResolve, engBuild };
+                     ENG_DEFAULT, ENG_MAT, ENG_UNIT, ENG_DIAL_RANGE, engResolve, engBuild };

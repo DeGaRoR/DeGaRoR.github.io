@@ -1,0 +1,21 @@
+{
+ "what": "flydiy-vehicles",
+ "v": 1,
+ "note": "THE VEHICLES (FLAGSHIP's choice (b), 12 Nov, via A0): a car is not a plane - no registration, no class, no REAL-FIGURES check - so the cars live here, not in plane_lists.json or the candidates pool. Moved here at the TOW-LAUNCH x master merge from the car branch's plane-list rows 50/51 and pool entries; the CAR session owns this list (what the garage reads from it is theirs).",
+ "vehicles": [
+  {
+   "name": "Boat-tail roadster (car)",
+   "file": "builds/candidates/roadster_2026-11.json",
+   "thumb": "cand:roadster_2026-11.json",
+   "note": "CAR-1: a 1930s single-seat roadster built in the garage from the Tiger Moth-alike - no wing, a 3.6 L V8, four wheels on wishbones; it DRIVES (the ground vehicle shell, tools/car_sheet.js), it does not fly",
+   "from": "CAR-1 (tools/car_sheet.js --save)"
+  },
+  {
+   "name": "Dune Bug (buggy)",
+   "file": "builds/candidates/buggy_2026-11.json",
+   "thumb": "cand:buggy_2026-11.json",
+   "note": "CAR-2: a dune buggy built from Rufus - its open tube frame is the roll cage, no wing, tail or prop, the Rotax 912 exposed in front, four tundra wheels on wishbones and coil-overs; it DRIVES (tools/car_sheet.js), it does not fly",
+   "from": "CAR-2 (tools/_rejoin_build.js + builds/edits/buggy_2026-11.edits.json)"
+  }
+ ]
+}

@@ -55,6 +55,10 @@ const D = PG.GRASS_SIDES_DEF;
   ok(!wild.cut && (wild.kill || 0) === 0, "3 'sides': wild past the blend", '+' + (H.band + G.mowBand + G.mowBlend + 2) + ' m cut ' + (wild.cut || 0));
   const surf = q(across(S, -4)), soft = q(across(W3, 1));
   ok(surf.kill === 0 && surf.surf === 1 && surf.cut === 1, "3 'sides': the grass strip's running surface is cut grass (surf 1)", 'tw_ski kill ' + surf.kill + ' surf ' + surf.surf);
+  // (DIRT-STRIP 10 Nov, the user: "vegetation grows on the ruts") the trail's wheel lanes bare: a few tufts on a main lane (the fleet's
+  //  mean half-track 1.098 m), fewer than everywhere else, the tail wheel's lane down the middle thinned less, none 5 m out
+  const lane = q(across(S, -S.wid / 2 + 1.098)), mid = q(across(S, -S.wid / 2));
+  ok(lane.kill > 0.7 && lane.surf === 1 && mid.kill > 0 && mid.kill < lane.kill && surf.kill === 0, "3 'sides': the grass strip's trail - its wheel lanes nearly bare, its middle thinned, cut grass beside", 'tw_ski lane ' + lane.kill.toFixed(2) + ', middle ' + mid.kill.toFixed(2) + ', 5 m out ' + surf.kill);
   ok(soft.kill === 0 && soft.cut === 1, "3 'sides': a soft (gravel) strip's torn edge lets the cut grass in past " + G.softClear + ' m', 'w3 +1 m kill ' + soft.kill + ' cut ' + soft.cut);
   PG.grassSides({ stripGrass: 0 }); const bare = q(across(S, -4)); PG.grassSides({ stripGrass: 1 });
   ok(bare.kill === 1 && !bare.surf, "3 'sides' with stripGrass 0: the grass strip's surface bare again (G665's answer)");

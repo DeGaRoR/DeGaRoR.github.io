@@ -158,7 +158,7 @@ var COVER_RING = (() => {
   // value, HIGH the strong one; HIGH on the dead grass and the three flowers that read too bright (fireweed, bunchberry, foam flower),
   // MID on the grasses in the medium tones. Bushes: none (the 17:00 verdict). [strength, the share of the height it fades out by]
   const FIELD_MATS = [];
-  const fieldRG = () => { let r = 0, g = 0; for (const m of FIELD_MATS) { const t = m.userData.texMean; if (t) { r += t[0]; g += t[1]; } } return g > 0 ? Math.max(0.05, r / g) : 1; };   // VEG-ROOT 11 Nov: the field's materials (their texture mean's red-to-green keys the field by colour)
+  // (the key's weight, fieldKeyW, is in the ring: it needs the ring's tintMean)
   const ROOT_LEVEL = { low: [0.5, 0.7], mid: [0.6, 0.8], high: [0.95, 1.3] };   // (22:20, the user: the fade over half the height was what read too light - LOW fades out at 70 %, MID at 80 %, the darkness kept)
   const ROOT_SPECIES = { grass_dry: 'high', flower_fireweed: 'high', flower_bunchberry: 'high', flower_foam: 'high', grass_scan: 'mid', grass_plates: 'mid', grass_reed: 'mid' };
   const ROOT_KIND = { cover: ROOT_LEVEL.low, flower: ROOT_LEVEL.low };
@@ -707,6 +707,10 @@ var COVER_RING = (() => {
       const sat = U.uSat ? U.uSat.value : 1, fl = U.uFlat ? U.uFlat.value : 1, fm = U.uFlatMean ? U.uFlatMean.value : 0.4, L = U.uLight.value;
       return rot.map(v => Math.max(0.02, Math.min(1, (fm + ((y + (v - y) * sat) - fm) * fl) * L)));
     };
+    // VEG-ROOT 12 Nov: the field key's weight - the TINTED texel mean's red-to-green (what each tuft's colour is divided by, above), so
+    // in the vertex vColor r/g x w is the tuft's albedo r/g, the ground's own (grass 0.78, lush 0.55; dry 1.21, grassRock 1.40). The raw
+    // texture mean (r/g 1.72, where the reed's tint takes the sat to 0.24: 1.09) put every tuft at 2.2-2.35 in the 15:04 probe, all HIGH.
+    const fieldKeyW = () => { let r = 0, g = 0; for (const m of FIELD_MATS) { if (!m.userData.texMean) continue; const M = tintMean(m); r += M[0]; g += M[1]; } return g > 0 ? Math.max(0.05, r / g) : 1; };
     let fieldH0 = 1;   // the variants' mean top (model units): the size fade's reference is S.hRef over it
     // one 16 m cell of the field, planted for an eye no nearer than dTier (0: the whole stream). The candidate stream is the
     // cell's own (hashed on it) and draws the same eight numbers for every candidate whatever is kept, so a tier is a PREFIX of
@@ -1212,7 +1216,7 @@ var COVER_RING = (() => {
       const t = now();
       LEAF.fade(S.near, S.reach, S.taper, aglK, FSET);   // (the field: its own set, and its size fade; the first ring: the shared one)
       if (FIELD && LEAF.fadeSize) LEAF.fadeSize(S.sizeFade, S.hRef / Math.max(1e-6, fieldH0), FSET, S.sizeMax);
-      if (FIELD) ROOT_U.value.set(Math.max(0, Math.min(1, +S.root || 0)), Math.max(0.01, +S.rootH || 0.4), fieldH0, S.rootKey ? fieldRG() : 0);   // (w: the field by colour, 11 Nov)   // G2571 (live: a uniform)
+      if (FIELD) ROOT_U.value.set(Math.max(0, Math.min(1, +S.root || 0)), Math.max(0.01, +S.rootH || 0.4), fieldH0, S.rootKey ? fieldKeyW() : 0);   // (w: the field by colour, 11 Nov)   // G2571 (live: a uniform)
       if (LEAF.grow) LEAF.grow(t, null, S.grow);
       { const dt = t - EYE.t;
         if (dt > 0 && dt < 0.5 && isFinite(EYE.x)) { const a = Math.min(1, dt / 0.5); EYE.vx += ((ex - EYE.x) / dt - EYE.vx) * a; EYE.vz += ((ez - EYE.z) / dt - EYE.vz) * a; }

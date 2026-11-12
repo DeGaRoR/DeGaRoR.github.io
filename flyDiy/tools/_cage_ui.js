@@ -81,7 +81,7 @@ const BASE_GROUPS = [
   ['layout', [
     ['paxCount',  'pax bays',      0, 12, 1],
     ['paxLen',    'pax len',       0.4, 3.0, 0.01],
-    ['pilotLen',  'pilot len',     0.3, 2.0, 0.01],
+    ['pilotLen',  'pilot len',     0.1, 2.0, 0.01],      // (11 Nov: from 0.10, as the page's row)
     ['boomLen',   'boom len',      1.0, 6.0, 0.01],
     ['tailLen',   'tail len',      0.05, 0.6, 0.005],
     ['pillarW',   'pillar width',  0.00, 0.30, 0.005],
@@ -2673,7 +2673,7 @@ function previewDraw() {
 // flank's own side plane (x of the handle) - writing the corner's two rows (P[<row>Q<k>Z / Y], cage units), a drag
 // tick at a time (the slider drag's own deferral: DRAG_ON / DRAG_TICK, the settle build on the release). The game's
 // editor (EXT) has no viewport of its own: there the corner rows are the hand.
-const QUAD_ROWS = ['paxWin', 'win2', 'win3'];
+const QUAD_ROWS = ['paxWin', 'win2', 'win3', 'win4', 'win5', 'win6'];   // (11 Nov: six rows)
 function quadHandles(sheet, spec, FS) {
   disposeObj(quadObj); quadObj = null;
   if (EXT || !G.cageQuadWindow || !sheet) return;

@@ -364,7 +364,8 @@ const MANIFEST = {
     // THE FREIGHT LOADS (G2405, tools/load_table.py): the loads + the camp dressing, slim manifests (bins on demand)
     ...(() => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'loads', 'loads_packs.json'), 'utf8')).map(f => ['src/loads', f]); } catch (e) { return []; } })(),
     ...(() => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'totems', 'totems_packs.json'), 'utf8')).map(f => ['src/totems', f]); } catch (e) { return []; } })(),
-    ['tools', '_house_kit.js'], ['tools', '_house_gen.js'], ['tools', '_big_gen.js'], ['tools', '_shed_gen.js'], ['tools', '_hangar_gen.js'], ['tools', '_tower_gen.js'], ['tools', '_tram_gen.js'], ['tools', '_totem_gen.js'],
+    ['tools', '_house_kit.js'], ['tools', '_house_gen.js'], ['tools', '_big_gen.js'], ['tools', '_shed_gen.js'], ['tools', '_hangar_gen.js'], ['tools', '_derelict_gen.js'], ['tools', '_tower_gen.js'],   // (DERELICT-HANGAR: the large hangar's shell, after HANGAR_GEN)
+    ['tools', '_tram_gen.js'], ['tools', '_totem_gen.js'],
     ...(() => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'cabin', 'cabin_packs.json'), 'utf8')).map(f => ['src/cabin', f]); } catch (e) { return []; } })(),
     ['src/viewer', 'cabin_livery.js'], ['src/viewer', 'cabin.js'], ['src/viewer', 'tram_run.js'],
     // powerline.js after tram_run.js (it takes its sag from the tram's rope) and before the renderer

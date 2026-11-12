@@ -97,7 +97,18 @@ const EXT = !!(opts && opts.exterior);
 // bakes are shared, which is the whole reason a second family is a chantier
 // and not a rewrite.
 const SHELL = (opts && opts.shell) || 'club';
-const FRAME = SHELL === 'field' ? 'timber' : 'portal';
+const FRAME = SHELL === 'field' ? 'timber' : (SHELL === 'works' ? 'steel' : 'portal');
+// DERELICT-HANGAR (the user 9 Nov: "use this mesh and appropriate textures to refactor the large hangar inside, so it looks
+// exactly like this one, same mesh even"): the large hangar's room stands the restored WWII hangar itself -
+// DERELICT_GEN stage 3, the same bags the world shows - in place of the portal shell below (its walls, gables, doors,
+// trusses, purlins, deck and roof lights). Everything that is the ROOM stays this file's: the floor, the outdoors, the
+// fit-out, the lamps, the sky, the moods, the parts, the bakes. The exterior build (the world's) keeps its own path for
+// now. ?roomderelict=0 or opts.derelict === false: the portal shell as it was.
+const DGR = (() => {
+  if (FRAME !== 'steel' || EXT || (opts && opts.derelict === false) || typeof window === 'undefined' || !window.DERELICT_GEN) return null;
+  try { if (typeof location !== 'undefined' && /[?&]roomderelict=0/.test(location.search || '')) return null; } catch (e) {}
+  return window.DERELICT_GEN;
+})();
 // G2315 WORKS-COZY: the LAYOUT (26_hangar_fit HANGAR_LAYOUTS) - the kits stood otherwise in their own shell, and the
 // room's warmth (LAYIT: the lamps over the rooms, the filament, the fire, the low pendants). None in the sandbox's club:
 // every branch below on LAYOUT / LAYIT is skipped there, and the room is built call for call as before.
@@ -144,8 +155,14 @@ const RIDGE = D0.RIDGE || (EAVE + 2.6);
 // G3537 (HANGARS-LOOK, the user 25 Oct: "the shed should have a door exactly 10m wide, that was the brief and the constraint
 // on the cabin strip ... a total width of 14m"): a shed's dims may name its door (`door`, metres; at least half a metre of
 // wall each side) - the cabin's 10 m - and every reader takes it from there (71 hangarDoor, HANGAR_GEN shellOf, the room's acoustics)
-const DOOR_W = (D0.door > 0) ? Math.min(D0.door, 2 * HW - 1) : Math.max(6, 2 * HW - 5);
-const DOOR_H = FRAME === 'timber' ? EAVE - 0.5 : Math.min(6.4, EAVE - 1.4);
+// (DERELICT-HANGAR, the user via A0: "the CLEAR opening" - the steel frame's door is what its ten leaves leave open,
+// stacked at the two 1 m piers' jambs: 0.8 of the opening less their gaps, DERELICT_GEN dims' CLEAR)
+const DOOR_W = (D0.door > 0) ? Math.min(D0.door, 2 * HW - 1) : FRAME === 'steel' ? 0.8 * (2 * HW - 2) - 0.34 : Math.max(6, 2 * HW - 5);
+// DERELICT-HANGAR: the large hangar's clear bay and its door's centre (26_hangar_fit hangarBay: the gallery right, the facade left)
+const BAY = (typeof hangarBay === 'function') ? hangarBay(SHELL, { HW, HD, EAVE }) : null, DOOR_Z = BAY ? BAY.doorZ : 0;
+// (DERELICT-HANGAR: the steel frame's head clears the game's DC-3 as built - 7.0 m to the fin's top - with 0.5 m: 7.6 m, 1.9 m
+// under the eave for the header)
+const DOOR_H = FRAME === 'timber' ? EAVE - 0.5 : FRAME === 'steel' ? Math.min(7.6, EAVE - 1.9) : Math.min(6.4, EAVE - 1.4);
 // THE BACK DOORS (G64, user: "I think we'd better add some doors over there and
 // have the wing hang in front of it"). A bi-parting pair: two leaves on ONE
 // track, each sliding to its own side, so unlike the six-leaf front they never
@@ -1056,6 +1073,10 @@ const roofY = z => EAVE + (RIDGE - EAVE) * (1 - Math.abs(z) / HW);
       uv.setXY(i, uv.getX(i) * 2 * HD, uv.getY(i) * 2 * HW);
     uv.needsUpdate = true; }
   f.rotation.x = -Math.PI / 2; f.receiveShadow = true;
+  // (DERELICT-HANGAR: the large hangar stands on its own slab - DERELICT_GEN's, the derelict's grid and concrete made
+  // good - so the room's scanned floor stands down there; the user 9 Nov: "can't we find some tiles that are in-line with
+  // the pre-restoration stage? Same tile size, same material? But renovated")
+  if (DGR) f.visible = false;
   put(f);
   // NO APRON HERE ANY MORE (G123). It used to be a 26 x 30 plane of flat
   // colour laid at y = -0.01, with no map at all — paint on the grass rather
@@ -1080,7 +1101,9 @@ const GY = (SILL + HEAD) / 2, GH = HEAD - SILL;
 // genuinely CUT (G52's rule: an opening is pieces of wall around a hole,
 // never a pane laid on a solid face), because a shed lit only through its
 // door is a cave with a bright end.
-if (FRAME === 'timber') {
+if (DGR) {
+  // (the large hangar's walls are the restored hangar's, stood below)
+} else if (FRAME === 'timber') {
   const WW = 1.1, WH = 0.9, WSILL = 1.45;    // the window, and its sill
   const wxc = HD * 0.30;                     // toward the back, clear of door
   for (const s of [1, -1]) {
@@ -1159,7 +1182,9 @@ for (const s of [1, -1]) {
 // TIMBER (HANGARS S4): solid boards, the person door by the corner, the
 // gable above — and NO back doors. The hung wing wants a big flat plane
 // behind it (G64's whole argument), and a board wall IS one.
-if (FRAME === 'timber') {
+if (DGR) {
+  // (the restored hangar's back: its own opening and leaves)
+} else if (FRAME === 'timber') {
   const MDZ = Math.min(13.5, HW - 1.5);
   const z0 = MDZ - 0.55, z1 = MDZ + 0.55;      // the person-door opening
   put(mbox(0.14, EAVE, z0 + HW, M.wallBack, HD, EAVE / 2, (z0 - HW) / 2));
@@ -1268,7 +1293,14 @@ if (FRAME === 'timber') {
 // than the wall beside its opening has nowhere else to go, so the track
 // cantilevers out and a post props its end. Parked open (interior) the
 // leaf stands clear of the whole opening; the exterior build shuts it.
-if (FRAME === 'timber') {
+if (DGR) {
+  // the restored hangar's own door: its leaves parked at the jambs; the daylight card in ITS opening (off the axis)
+  const day = new THREE.Mesh(new THREE.PlaneGeometry(2 * HW - 1, DOOR_H + 0.6), M.daylight);   // (the whole opening between the piers: the clear width is narrower)
+  day.rotation.y = Math.PI / 2;
+  day.position.set(-HD - 3.0, DOOR_H / 2, DOOR_Z);
+  put(day);
+  M.dayCardMesh = day;
+} else if (FRAME === 'timber') {
   const side = (HW - DOOR_W / 2);
   for (const s of [1, -1])
     put(mbox(0.14, EAVE, side, M.wall, -HD, EAVE / 2,
@@ -2146,6 +2178,7 @@ if (!EXT) {
     const PRE = { field: 'field shed', club: 'club hangar', works: 'works hangar' }[SHELL];
     let off = !!(opts && opts.polish === false);
     try { off = off || (typeof location !== 'undefined' && /[?&]roompolish=0\b/.test(location.search || '')); } catch (e) {}
+    if (DGR) off = true;                                 // (the restored hangar wears its own gutters, signs and services)
     if (HGN && HGN.build && HGN.PRESETS && PRE && !off) {
       try {
         // G3540 v2 (the user 25 Oct: "the hanging wing under construction must never sit in front of it"): the inside sign's
@@ -2263,7 +2296,7 @@ let ROOFLIGHTS = { n: 0, x: () => 0 };
     for (const s of [1, -1])
       put(box(2 * HD, 0.14, 0.14, M.beamMain, 0, EAVE - 0.02, s * (HW - 0.10)));
   }
-  const NT = (EXT || FRAME === 'timber')
+  const NT = (EXT || FRAME === 'timber' || DGR)
     ? 0 : Math.max(4, 1 + Math.round(2 * HD / 4.2));
   for (let i = 0; i < NT; i++) {
     const x = -HD + 0.6 + (2 * HD - 1.2) * i / (NT - 1);
@@ -2298,8 +2331,8 @@ let ROOFLIGHTS = { n: 0, x: () => 0 };
   const lightX = k => -HD + 3.4 + k * (2 * HD - 6.8) / (NLIGHT - 1);
   ROOFLIGHTS = { n: NLIGHT, x: lightX };
   // purlins and the deck underside — the SECONDARY BEAMS (G41)
-  for (const s of [1, -1]) {
-    for (let k = 0; k <= 6 && !EXT; k++) {
+  if (!DGR) for (const s of [1, -1]) {
+    for (let k = 0; k <= 6 && !EXT && !DGR; k++) {
       const f = k / 6, z = s * HW * f, y = EAVE + (RIDGE - EAVE) * (1 - f) - 0.14;
       put(box(2 * HD - 1, 0.14, 0.10, M.beamSec, 0, y, z));
     }
@@ -2334,13 +2367,13 @@ let ROOFLIGHTS = { n: 0, x: () => 0 };
     }
     deck(xc, SX1, LT0, LT1);
   }
-  put(box(2 * HD, 0.3, 0.7, M.beamSec, 0, RIDGE + 0.05, 0));
+  if (!DGR) put(box(2 * HD, 0.3, 0.7, M.beamSec, 0, RIDGE + 0.05, 0));
   // ROOF LIGHTS. Four openings down each slope — the reason the middle of a
   // hangar is not a cave, and the softest light in the scene. Each is a hole in
   // the deck (above), a semi-transparent pane sitting in it, a kerb round its
   // edge and two bars across: the frame is what makes a rooflight read as a
   // fitting rather than as a rectangle of brighter roof.
-  for (const s of [1, -1]) for (let k = 0; k < NLIGHT; k++) {
+  if (!DGR) for (const s of [1, -1]) for (let k = 0; k < NLIGHT; k++) {
     const x = lightX(k);
     const P = (dx, t) => slopeP(s, x + dx, t);
     // the pane, a hair below the deck plane so it never z-fights the kerb
@@ -2417,6 +2450,38 @@ let ROOFLIGHTS = { n: 0, x: () => 0 };
     for (let j = 1; j < 3 && !EXT; j++)           // glazing bars across, shallower than the trimmer
       band(-LHW + 2 * LHW * j / 3 - 0.05, -LHW + 2 * LHW * j / 3 + 0.05, LT0 + KT, LT1 - KT, 0.07);
   }
+}
+
+// ---- DERELICT-HANGAR: THE LARGE HANGAR'S SHELL - the restored WWII hangar, DERELICT_GEN stage 3 ---------------------
+// built in the house frame (the door to +z) and turned under this one (the door at -x: room x = -Z, z = X) by baking
+// the quarter turn into each bag's geometry, so every bag is one plain mesh of G (named: mergeRoom leaves it alone).
+// The leaves parked open, the slab left to this room's own floor, the offices lit (their ceiling panels, the windows'
+// glow): the gallery is lit by its own glow, never by a lamp (the shadow-map budget stays the five fittings').
+let DGR_STATS = null;
+if (DGR) {
+  try {
+    const gal = (typeof SHELLS !== 'undefined' && SHELLS.works && SHELLS.works.galleries) || { right: 1.0, left: 1.0, lean: 6 };
+    const F = DGR.makeFinish('room');
+    const stage = Number.isFinite(+D0.stage) ? Math.max(0, Math.min(3, Math.round(+D0.stage))) : 3;   // (the story's stage; restored)
+    const P = { stage, HW, HD, EAVE, floorY: 0, doorOpen: 1, apron: 0, slab: 1, weeds: stage < 3 ? 1 : 0, barriers: stage < 3 ? 1 : 0, aoGround: 0,
+                room: 1, offices: 1, lamps: 1, backOpen: (() => { try { return typeof location !== 'undefined' && /[?&]roomback=1/.test(location.search || '') ? 1 : 0; } catch (e) { return 0; } })(),   // (?roomback=1: the back leaves open - the A/B for the probe's light)
+                gallery: gal.lean, galleryL: gal.left, pierR: gal.right };
+    DGR.applyFinish(P, F);
+    const b = DGR.build(P, 0, F);
+    for (const k of b.BAGS) {
+      const bag = b.bags[k], mat = b.MAT && b.MAT[k];
+      if (!bag || !bag.tris || !mat) continue;
+      const m = bag.mesh(G, mat);
+      if (!m) continue;
+      m.geometry.rotateY(-Math.PI / 2);
+      m.name = 'room:derelict:' + k;
+      m.castShadow = !/^(glass|lamp|stain|decal|water|weed)$/.test(k); m.receiveShadow = true;
+      if (k === 'glass') m.renderOrder = 6;
+      if (k === 'stain') m.renderOrder = 3;
+    }
+    DGR_STATS = { tris: b.stats.tris, draws: b.stats.draws, door: b.stats.door };
+    if (b.MAT && b.MAT.concFloor) ground(b.MAT.concFloor);   // the slab is the room's ground now: the probe's bounce, the floor print's
+  } catch (e) { if (typeof console !== 'undefined') console.warn('hangar: the large hangar\'s shell -', e && e.message); }
 }
 
 // ===========================================================================
@@ -3169,7 +3234,9 @@ const BG = new THREE.Color(0x14120f);
 const FOG = new THREE.Fog(0x1a1712, 1e9, 2e9);
 // rho 0.0035/m: at the far wall (~35 m) that is 12 % of the light lost, which is a big shed with
 // dust in the air rather than a room full of smoke. base/top are the floor and the roof.
-const ROOM_AIR = { rho: 0.0035, base: -1, top: 11, col: [0.055, 0.050, 0.043] };
+// (DERELICT-HANGAR, the user 9 Nov: "isn't there a little much haze ... a bit is good but that's too much": the large
+// hangar's far wall is ~55 m off, not 35 - half the density there, the same few per cent lost a 35 m room loses at 50 m)
+const ROOM_AIR = { rho: SHELL === 'works' ? 0.0017 : 0.0035, base: -1, top: 11, col: [0.055, 0.050, 0.043] };
 ROOT.add(G);
 
 // THE ROOM HAS TWO LIGHTS AND AN ENVIRONMENT (G62.5, user: "why don't we
@@ -3341,9 +3408,11 @@ kelvinRGB(LAMP.kelvin, LAMP.rgb);
 // G2315: the cozy works hangs its five over the rooms (authored in the works' metres, scaled with the shell like the
 // layout's rows), each at its own height - and each keeps the club's floor light: hk is ITS hang height's inverse square
 // (LAMP_HK's rule, per fitting), read by setMood. The club: the cross at 0.74 of the eave, hk unset (LAMP_HK), as ever.
+// (DERELICT-HANGAR: in the large hangar the layout's fittings hang over the CLEAR BAY - its z mapped as hangarFit maps the rows)
+const ZIN = z => (!BAY ? z : Math.min(z, BAY.z1 - 1.2));   // (over the hall: a fitting authored over the right-hand rooms hangs at the gallery's front)
 const LAMP_AT = LAYIT
   ? LAYIT.lamps.map(([lx, lz, ly]) => { const y = Math.min(ly, EAVE - 1.6);
-      return [lx * HD / 20, lz * HW / 20, y, Math.max(0.1, Math.min(1.6, (y / (7.0 * 0.74)) * (y / (7.0 * 0.74))))]; })
+      return [lx * HD / 20, ZIN(lz * HW / 20), y, Math.max(0.1, Math.min(1.6, (y / (7.0 * 0.74)) * (y / (7.0 * 0.74))))]; })
   : ((opts && Array.isArray(opts.lampXZ) && opts.lampXZ.length === LAMP_XZ.length && opts.lampXZ.every(p => Array.isArray(p) && p.length === 2 && p.every(Number.isFinite)))
       ? opts.lampXZ : LAMP_XZ).map(([ax, az]) => [FX(ax), FZ(az), EAVE * 0.74, 0]);   // G3354: a shed's own cross (opts.lampXZ)
 for (const [x, z, y, hk] of LAMP_AT) {
@@ -3438,11 +3507,29 @@ for (const [x, z, y, hk] of LAMP_AT) {
   lamps.push(L);
   G.add(g);
 }
+// DERELICT-HANGAR: THE LARGE HALL'S FILL (the user 9 Nov: "it's gonna look dark with the five lamps, so I'd rather that you
+// add some"). Six more high-bay fittings over the clear bay - two rows of three either side of the door's line, under the
+// trusses - lit as the five are (the mood's lamp level, the filament's colour, the lamps' switch), but WITHOUT shadow maps:
+// a spot map is a fragment texture unit (G62.10: 5 maps + 1 + 7 samplers = 13 of 16) and the moving aeroplane already has
+// the five over it. Kept apart from `lamps` (lampsAt / setLampsAt are the five's).
+const fill = [];
+if (DGR) for (const fx of [-12.5, 0.5, 12.5]) for (const fz of [-8.5, 8.5]) {
+  const x = fx * HD / 20, z = DOOR_Z + fz, y = Math.min(EAVE - 2.2, 7.3), hook = 1.30;
+  const g = new THREE.Group(); g.position.set(x, y, z);
+  claim(prop('lamp_pendant', x, z, rr(-3, 3), y + hook), 'lamps');
+  const rodH = roofY(z) - (y + hook);
+  g.add(cyl(0.012, 0.012, rodH, M.steelDark, 0, hook + rodH / 2, 0, 6));
+  const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.055, 10, 8), M.bulb); bulb.position.y = 0.12; bulb.castShadow = false; g.add(bulb);
+  const L = new THREE.SpotLight(LAMP.rgb.getHex(), 90, 26, LAMP.angle, 0.5, 2);
+  L.castShadow = false; L.target.position.set(x, 0, z); G.add(L.target);
+  L.position.y = 0.12; L.userData.hk = Math.max(0.1, Math.min(1.6, (y / (7.0 * 0.74)) * (y / (7.0 * 0.74))));
+  g.add(L); fill.push(L); G.add(g);
+}
 // G2315 THE LOW PENDANTS (the cozy works): a shade on its rod and a lit bulb over a table or a bench - no light of their
 // own (the five fittings above light the rooms; a sixth shadow map is past the texture-unit budget the cross was cut
 // to), on the lamps' switch, so they burn and go out with the rig
 if (LAYIT && LAYIT.pendants) for (const [lx, lz, ly] of LAYIT.pendants) {
-  const x = lx * HD / 20, z = lz * HW / 20, y = Math.min(ly, EAVE - 1.6), hook = 1.30;
+  const x = lx * HD / 20, z = ZIN(lz * HW / 20), y = Math.min(ly, EAVE - 1.6), hook = 1.30;
   const g = new THREE.Group(); g.position.set(x, y, z);
   claim(prop('lamp_pendant', x, z, rr(-3, 3), y + hook), 'lamps');
   const rodH = roofY(z) - (y + hook);
@@ -3725,6 +3812,7 @@ function applyMutes(m) {
   if (muted.stove && STOVE.light) STOVE.light.intensity = 0;
   if (muted.lamps) {
     for (const L of lamps) L.intensity = 0;
+    for (const L of fill) L.intensity = 0;      // (the large hall's fill)
     if (WORK.light) WORK.light.intensity = 0;   // G3354
     M.bulb.emissiveIntensity = 0;
   }
@@ -3891,7 +3979,7 @@ const setMood = i => {
   // noon and the aeroplane blown white (the user's 003140, "even after
   // reloading the page"). Inverse-square on the hang height, the club's own
   // eave the identity, so every row's number still means what it measured.
-  for (const L of lamps) {
+  for (const L of lamps.concat(fill)) {          // (the large hall's fill burns with the five)
     L.intensity = m.lamp * LAMP.gain * (L.userData.hk || LAMP_HK);
     L.angle = LAMP.angle;
     L.color.copy(LAMP.rgb);
@@ -4304,7 +4392,8 @@ return {
   doorAxis: -1, floorY: 0,
   // B10 (G1035): the roll-out shot (rollanim.js) reads the opening, moves the
   // aeroplane's print with the aeroplane and hides a mobile prop in its way
-  door: { w: DOOR_W, h: DOOR_H },
+  door: { w: DOOR_W, h: DOOR_H, z: DOOR_Z },   // (DERELICT-HANGAR: z, the door's centre across the room - off the axis in the large hangar)
+  derelict: DGR_STATS,
   craftPrint: () => CS.quad || null, mobileGroup: MOBILE,
   dims: { HW: HW, HD: HD, EAVE: EAVE, RIDGE: RIDGE },
   shell: SHELL, layout: LAYOUT ? opts.layout : null,   // G2315: the layout this room stands in (cozy: the career's works)
@@ -4312,7 +4401,7 @@ return {
   // S2): the editor paints the report, the gate asserts nothing is dropped
   // silently
   kits: KITS.slice(), fitReport: FIT,
-  lights: { key: key, lamps: lamps },
+  lights: { key: key, lamps: lamps, fill: fill },
   lampRig: lampRig, setLampRig: setLampRig, lampRigDefault: lampRigDefault,
   texBudget: texBudget,        // dev: what the room costs in fragment samplers
   census: census,              // dev: meshes and triangles, which ARE draw calls here
