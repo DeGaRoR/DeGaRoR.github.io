@@ -677,7 +677,7 @@ The user: "for all planes that have an ambition of STOL, they will try to push t
 pilots", then: "the pilot should be able to decide what technique to use, at least for the expert and the STOL ...
 based on the length of the runway that they anticipate ... otherwise it's going to be again an option that we're going
 to forget". A first cut (a declared `wgStolFly` row) was dropped for exactly that reason.
-- THE STRIP DECIDES (its own ref, claude/fit-procedure-strip-decides, NOT in this one): a landing the pilot plans
+- THE STRIP DECIDES (this ref, claude/fit-procedure-strip-decides, on top of the fixes): a landing the pilot plans
   short-field (under 450 m or under 1.6 x the sheet's landing run - the existing test) is flown with the WHOLE STOL-PILOT
   technique (aim 10 m in, gsStol, the power-on flare, the stick's whole travel, the brakes at once) by a STOL-qualified
   pilot (the expert, the bush pilot), devices or none. A0 held it from L40a: it moves EVERY canon plane's short-strip

@@ -315308,8 +315308,12 @@ The drafting table's PC-6 (DRAFTING_TABLE.md rounds 12-15) and what it found in 
   The tool for every session: CLAUDE.md's section, tools/drafting/KICKOFF.md (the message to paste with a blueprint).
 - THE LATENT RULE, kept by every new key here (A0's L39a lesson): absent at its default, so no saved build, preset or join
   gains a key. The stack rows of fit-procedure-garage-windows are ENG_PAGE.LATENT for the same reason.
-- NOT in this branch: THE STRIP DECIDES (43_pilot: a short-field landing flown with the whole STOL-PILOT technique by
-  the expert / the bush pilot, devices or none) rides its own ref, claude/fit-procedure-strip-decides - held from L40a
-  by A0: it moves every canon plane's short-strip landings and owes old-vs-new numbers on the canon first.
+- THE STRIP DECIDES THE TECHNIQUE (43_pilot, the landing plan; the user: "the pilot should be able to decide ... based on
+  the length of the runway that they anticipate"): a landing planned short-field (the strip under 450 m or under 1.6 x the
+  sheet's LDGrun - the existing test) is flown with the WHOLE STOL-PILOT technique by a STOL-qualified pilot (stolQual:
+  the expert, the bush pilot), devices or none; a long strip, the normal landing. ITS OWN REF (claude/fit-procedure-strip-decides): it moves every canon
+  plane's short-strip landings, so it lands only with old-vs-new numbers on the canon (A0, L40a). A device wing keeps STOL-PILOT's
+  every-strip rule. The plan's appr.stol is { strip: true } when the strip engaged it (absent otherwise; a device wing's
+  record unchanged). No new key anywhere (a declared-STOL row was tried and dropped: an option nobody would set).
 - NOT in this branch: the colour decode (aeroLinear and the four r128-era sites) and the world's colours ride their own
   ref, claude/fit-procedure-colour, with the PC-6's livery retuned to them - held for the user's look at LOOK-1's stills.

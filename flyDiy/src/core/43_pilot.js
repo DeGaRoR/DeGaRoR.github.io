@@ -1419,10 +1419,18 @@ function makePilot(sim, def, world, opts) {
       // technique below and its STOL parts (the steeper power-on slope, the aim at the threshold, the three-point touchdown on
       // the stick's whole travel, the brakes at once): the landing the devices were bought for. A profile's own field
       // technique still wins (the Student flies a normal approach everywhere, the STOL Cub included)
-      const stolL = !water && !soft && stolOn();   // (the sheet's AND the pilot's qualification)
-      let technique = (short || stolL) ? 'short' : soft ? 'soft' : 'normal';
+      const stolL0 = !water && !soft && stolOn();   // (the sheet's AND the pilot's qualification)
+      let technique = (short || stolL0) ? 'short' : soft ? 'soft' : 'normal';
       if (PRA && PRF.field && !water) technique = PRF.field;   // G1943: a profile's own field technique
       const shortT = technique === 'short';
+      // THE STRIP DECIDES (12 Nov, FIT-PROCEDURE; the user: "the pilot should be able to decide what technique to use, at
+      // least for the expert and the STOL ... automatically switch into the technique or a normal easy landing technique
+      // based on the length of the runway that they anticipate ... otherwise it's going to be again an option that we're
+      // going to forget"): A SHORT FIELD FLOWN SHORT BY A STOL-QUALIFIED PILOT (the expert, the bush pilot - stolQual) IS
+      // FLOWN WITH THE WHOLE STOL TECHNIQUE (the steep power-on slope the aeroplane's own gsMax allows, the aim 10 m in, the
+      // stick's whole travel, the brakes at once), devices or none; a long strip gets the easy normal landing. A STOL-device
+      // wing keeps STOL-PILOT's rule (short on every land strip that is not soft)
+      const stolL = stolL0 || (shortT && !water && !soft && stolQual);
       const stolT = shortT && stolL;
       const Vbase = shortT && VApprShort() ? VApprShort() : (sheetVAppr() ?? A.VAppr);
       // G1936 (PILOT-ONE, the user: "aim for touching down at the beginning of the strip"): the short aim is 10 m
@@ -1441,7 +1449,7 @@ function makePilot(sim, def, world, opts) {
       ap.appr = { technique, Vref: Math.round((Vbase + 0.5 * gust) * 10) / 10, Vbase: Math.round(Vbase * 10) / 10, gust: Math.round(gust * 10) / 10,
                   aimIn: Math.round(aim - sThr), flap: FS0 ? (FS0.ldg ?? 1) : 0, len: to.len, surface: to.surface,
                   runNeed: runNeed != null ? Math.round(runNeed) : null };
-      if (stolT) ap.appr.stol = Object.assign({}, stolSheet());   // STOL-PILOT: the sheet that engaged it (absent on every other plan)
+      if (stolT) ap.appr.stol = stolL0 ? Object.assign({}, stolSheet()) : { strip: true };   // STOL-PILOT: the sheet that engaged it, or the short strip (absent on every other plan)
       ap.report.appr = ap.appr;
       ap.xAim = aim; ap.shortFld = technique === 'short'; ap.VAppr = Vbase + 0.5 * gust;
       if (stolT || ap.stolFld) ap.stolFld = stolT;
