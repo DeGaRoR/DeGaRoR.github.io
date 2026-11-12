@@ -56,6 +56,8 @@ const VALS = {};                 // drop key -> value table (P stores index)
 const defaults = { engOn: 1, engPreset: 0, engPower: 0,
                    engDetail: 0.8, eng_screws: ED.screws ? 1 : 0,
                    engY: 0, propOn: 1,
+                   // CAR-1: the nose cone drawn or not (a car's engine drives its wheels: no cone, no blades)
+                   spinOn: 1,
                    // THE MOUNT (2026-09-04): 0 nose, 1 pusher on the aft
                    // bulkhead, 2 over the wing (one engine, high wing, a pylon
                    // engPylonH tall), 3 a wing pair at engNacAt of the semispan
@@ -681,6 +683,7 @@ const ENG_ITEMS = [
    { when: P => +P.engOn, dim: 'deg' }],
   ...BENCH_SUBS,
   ['propOn',    'propeller',     0, 1, 1, { when: P => +P.engOn }],
+  ['spinOn',    'nose cone',     0, 1, 1, { when: P => +P.engOn }],   // CAR-1
   ['nose cone', grpItems('g_spin').concat([
     // G244: its own material, or the blades' (0). Same table, same index
     // meaning, one entry longer at the front.
@@ -1575,7 +1578,7 @@ function engPlace(ctx, prev) {
     const engMesh = meshFrom(MU);
     ug.add(engMesh);
     const ng = new THREE.Group();
-    ng.add(new THREE.Mesh(spinGeo, propMat('spinner')));
+    if (P.spinOn == null || +P.spinOn) ng.add(new THREE.Mesh(spinGeo, propMat('spinner')));   // CAR-1: the cone may be off
     ng.position.set(0, 0, nOff);             // cone base -> flange + dial
     // G55: NAMED for the join's snapshot (G47.2's prescription) — the parts
     // that turn with the propeller carry their identity at the source

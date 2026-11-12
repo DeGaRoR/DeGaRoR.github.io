@@ -165,6 +165,9 @@ function vehicleDef(sheet, tune) {
     // bumper, back to the rear one, half the body's width
     foot: { front: box.hi[0] - xRef, rear: xRef - box.lo[0], half: halfW },
     ground: sheet.ground || 0,
+    // the tow hitch (CAR-3, the seam agreed with TOW-LAUNCH): the sheet's (a garage car's drawn ball, body frame), else
+    // none - tow.js then takes its own default at the rear
+    hitch: sheet.hitch ? sheet.hitch.slice() : undefined,
   };
 }
 

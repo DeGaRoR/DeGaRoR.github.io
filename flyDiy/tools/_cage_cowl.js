@@ -75,10 +75,12 @@ for (const g of ROWS) {
 // every saved build and move every key the game hashes it by. A build that never moved it carries no key; the row
 // shows its `absent` value, and the generator is handed that value whenever the key is absent (below).
 // G3914: the nacelle inlet's rows too - absent at their defaults (no saved build gains a key)
-const ABSENT_AT = { wAftTop: 1, wAftBot: 1, inletOn: 0, inletW: 0.42, inletH: 0.42, inletLip: 0.014, inletDuct: 0.22, inletY: 0,
+const ABSENT_AT = { apLift: 0, wAftTop: 1, wAftBot: 1, inletOn: 0, inletW: 0.42, inletH: 0.42, inletLip: 0.014, inletDuct: 0.22, inletY: 0,
   faceRing: 0, waistF: null,
   exitGap: 0, exitSpan: 140, exitLen: 0.45, exitHold: 0, keelShoulder: null, keelRound: null, deckShoulder: null, deckRound: null, scoopFollow: 0, lobeCount: 0, lobeT2: null, lobeStream: 0, lobeNose: 0.94, lobeTail: 0.04, partLevel: 0, partArc: 0, podFit: 0, lidRW: null, lidRTop: null, lidRBot: null, exRampH: 0.04, exCut: 0, exCutSpan: 50, exCutLen: 0.12, exCutAz: 270,
-  gillOn: 0, gillN: 6, gillZ: 0.35, gillL: 0.22, gillH: 0.12, gillSlant: 25, gillLip: 0.012, gillT: 0.004 };   // PROPER-COWLS: the exit   // PROPER-COWLS: faceRing, waistF (null = follows waist)
+  gillOn: 0, gillN: 6, gillZ: 0.35, gillL: 0.22, gillH: 0.12, gillSlant: 25, gillLip: 0.012, gillT: 0.004, gillUp: null,
+  grilleOn: 0, grilleN: 9, grilleBar: 0.012, grilleSet: 0.03, grilleHBar: 1, capOn: 0, capR: 0.032, capBack: 0.07,
+  grilleNum: 0, grilleNumH: 0.5, grilleRows: 0, lampOn: 0, lampR: 0.085, lampGap: 0.06, lampY: 0.05, lampBack: 0.10, lampIn: 0 };   // (CAR-1: off)   // (CAR-1: gillUp null = centred)   // PROPER-COWLS: the exit   // PROPER-COWLS: faceRing, waistF (null = follows waist)
 const cowlDef = { cowlOn: 1, fitNose: 2, cowlGap: 0.0 };
 for (const k of SHOWN) if (!(k in ABSENT_AT)) cowlDef['cw_' + k] = CW.P[k];
 PAGE.defaults = Object.assign(cowlDef, PAGE.defaults || {});
@@ -1536,6 +1538,11 @@ function cowlPlace(ctx, again) {
   // with a bench that may predate them.
   if (CW.buildDetail) CW.buildDetail(cowl, M);
   if (CW.buildGills) CW.buildGills(cowl, M);          // PROPER-COWLS: the side gills (off unless gillOn)
+  if (CW.buildGrille) CW.buildGrille(cowl, M);        // CAR-1: the grille (off unless grilleOn)
+  if (CW.buildCap) CW.buildCap(cowl, M);              // CAR-1: the radiator cap (off unless capOn)
+  // CAR-1: the headlamps (off unless lampOn), their shells in the BODY's livery material
+  if (CW.buildLamps) CW.buildLamps(cowl, M, (typeof window !== 'undefined' && window.CAGE_SECMAT)
+    ? window.CAGE_SECMAT('body', { surf: 0, fieldM: 1, side: THREE.DoubleSide, opacity: 1, tint0: 0xc8c8c8 }) : null);
   // THE INSIDE OF THE SHELL (G243.1, the user, with the back faces of the
   // barrel ringed on a screenshot: "I meant the inside faces of the cowl").
   // Every skin mesh gets a TWIN in the interior's material, BackSide, so

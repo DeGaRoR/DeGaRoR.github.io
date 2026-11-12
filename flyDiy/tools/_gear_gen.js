@@ -181,6 +181,10 @@ const TYRE = {
   1: { hw: 0.44, bead: 0.25, bulge: 1.04, bulgeAt: 0.72, crown: 0.10,
        torus: 1, beadW: 0.60, faceW: 0.50 },
   2: { hw: 0.29, bead: 0.46, bulge: 1.00, bulgeAt: 0.84, crown: 0.02 },
+  // CAR-3 (the user, 12 Nov: "proper tires for our van ... a 1940s Power Wagon, American ... its own wheels"): the
+  // military lug tyre - a 9.00-16 on a 16" rim (bead 0.46 of the tyre's radius), taller and narrower than the tundra,
+  // its chevron lugs (MIL_LUG) meeting across the crown
+  3: { hw: 0.27, bead: 0.46, bulge: 1.00, bulgeAt: 0.80, crown: 0.03, torus: 1, beadW: 0.80, faceW: 0.70, mil: 1 },
 };
 // the torus section, [radius, axial] from one bead round the crown to the
 // other: an ellipse whose outer extremity is R and whose inner side passes
@@ -208,8 +212,11 @@ function tyreTorus(R, rb, zb, b, grooveAt) {
 // leaning `lean` rad round the wheel over its run, so a pair reads as a chevron; `w` its width along the circumference
 // and `h` its height off the carcass, both of R. Drawing only.
 const BUSH_LUG = { N: 20, ph0: 0.05, ph1: 1.20, lean: 0.10, w: 0.11, h: 0.016, steps: 6 };
-function bushLugs(T, TT, R, at) {
-  const L = BUSH_LUG, H = R * L.h, sink = R * 0.004;
+// CAR-3: the military (NDT) tread - chevrons: the two halves of a lug start at the crown's centre line together (no
+// half-pitch stagger), lean back hard and run down onto the shoulder
+const MIL_LUG = { N: 16, ph0: 0.0, ph1: 1.0, lean: 0.11, w: 0.16, h: 0.022, steps: 7, stagger: 0 };
+function bushLugs(T, TT, R, at, LL) {
+  const L = LL || BUSH_LUG, H = R * L.h, sink = R * 0.004;
   // the carcass point at section angle ph, `dh` off it along the section's normal, at wheel angle an
   const P = (ph, dh, an) => {
     const nr = TT.b * Math.cos(ph), nz = TT.a * Math.sin(ph), nl = Math.hypot(nr, nz) || 1;
@@ -222,7 +229,7 @@ function bushLugs(T, TT, R, at) {
   const V = p => ({ p, i: T.v(p) });
   for (const s of [-1, 1])
     for (let k = 0; k < L.N; k++) {
-      const an0 = 2 * Math.PI * (k + (s > 0 ? 0.5 : 0)) / L.N;
+      const an0 = 2 * Math.PI * (k + (s > 0 ? (L.stagger == null ? 0.5 : L.stagger) : 0)) / L.N;
       const st = [];
       for (let j = 0; j <= L.steps; j++) {
         const u = j / L.steps, ph = s * (L.ph0 + (L.ph1 - L.ph0) * u);
@@ -355,8 +362,14 @@ function wheel(bags, ctr, axis, R, opt) {
   const pN = Math.round(P.whProfile || 0), slick = Math.round(+P.whSlick || 0);
   const lugV = pN === 1 && (slick === 2 || !!(TYRE_LOOK.on && TYRE_LOOK.lugs));
   const L = TYRE_LOOK.on || lugV ? tyreLook(R, pN, { lugs: lugV }) : null;
-  const prof = L ? Object.assign({}, prof0, { hw: L.wd, bead: L.rimD }) : prof0;
-  const hw = R * prof.hw, bead = R * prof.bead;
+  const prof1 = L ? Object.assign({}, prof0, { hw: L.wd, bead: L.rimD }) : prof0;
+  // CAR-1 (the user, 12 Nov: "can we increase the rim size? I'm OK for a new slider"): THE RIM'S DIAMETER, a fraction of
+  // the wheel's (whRimD; absent = the carcass's own bead, every saved wheel byte for byte) - a car's 18" wire wheel
+  // under a 28" tyre is ~0.64, an aeroplane's 5" hub under a 15" tyre ~0.42. The hub's parts scale with it (Rh below)
+  const rimD = +P.whRimD > 0 ? Math.max(0.25, Math.min(0.85, +P.whRimD)) : null;
+  const prof = rimD ? Object.assign({}, prof1, { bead: rimD }) : prof1;
+  // CAR-1 (the user: "a little bigger and a little narrower"): whWide, the tyre's width x the carcass's (absent = 1)
+  const hw = R * prof.hw * (+P.whWide > 0 ? Math.max(0.5, Math.min(1.5, +P.whWide)) : 1), bead = R * prof.bead;
   const half = hw * 0.70;                    // the crown band
   const beadH = hw * (prof.beadW || 0.90);   // where the tyre meets the rim
   const face = hw * (prof.faceW || 0.74);    // THE RIM IS INSET (user)
@@ -433,7 +446,7 @@ function wheel(bags, ctr, axis, R, opt) {
     revolve(T, ctr, ax, TT.pts.map(([r, z]) => [r, z]), 44);
     wallAt = r => { const u = (r - TT.rc) / TT.a; return Math.abs(u) < 1 ? TT.b * Math.sqrt(1 - u * u) : beadH; };
     if (L && L.tread === 'lugs') tyreLugs(T, (r, z, th) => at(r, z, th), TT, L, R);   // whSlick 2 (G3851b)
-    else if (!slick) bushLugs(T, TT, R, at);
+    else if (!slick) bushLugs(T, TT, R, at, prof.mil ? MIL_LUG : BUSH_LUG);
   } else revolve(T, ctr, ax, flank(-1).concat(crown, flank(1).reverse()), 44);
   if (!prof.torus && !L) for (const s of [-1, 1])
     for (const rr of [0.62, 0.70]) {
@@ -450,7 +463,7 @@ function wheel(bags, ctr, axis, R, opt) {
   // G3851: in the proposal EVERY carcass's hub follows its rim (the rim is a real 4-6" wheel), and the small parts
   // have floors and ceilings in metres, so an 8 cm tailwheel still shows a bolt, a valve and a brake you can read,
   // and a 35" tundra's hub stays a 10" wheel's
-  const Rh = (prof.torus || L) ? R * prof.bead / 0.42 : R;
+  const Rh = (prof.torus || L || rimD) ? R * prof.bead / 0.42 : R;
   const q = (v, lo, hi) => L ? clamp(v, lo, hi) : v;
   const rimK = Math.round(P.whRim == null ? 0 : P.whRim);
   const bolts0 = Math.max(3, Math.round(P.whBolts == null ? 6 : P.whBolts));
@@ -504,6 +517,15 @@ function wheel(bags, ctr, axis, R, opt) {
         sweep(Hb, resample([a0, a1], 4),
               () => secBlade(Rh * 0.10, Rh * 0.030), true, ax);
       }
+    } else if (rimK === 3) {                 // CAR-3: PRESSED STEEL DISC + LOCK RING (a 1940s truck's split-rim wheel)
+      // the dished disc: the hub boss, a stamped stiffening ring, the dish out to the rim's well
+      revolve(Hb, ctr, ax, [[Rh * 0.15, hf * 0.86], [Rh * 0.19, hf * 1.00], [Rh * 0.235, hf * 1.00], [Rh * 0.25, hf * 0.93],
+        [Rh * 0.275, hf * 0.93], [Rh * 0.29, hf * 0.99], [Rh * 0.305, hf * 0.93], [bead * 0.99, hf * 0.70]], 44);
+      // the split lock ring on the outer flange: a rolled band standing proud of the rim's lip
+      revolve(Hb, ctr, ax, [[bead * 1.10, hf * 1.04], [bead * 1.17, hf * 1.06], [bead * 1.18, hf * 1.00],
+        [bead * 1.11, hf * 0.98]], 44, true);
+      // its split: a notch tab across the ring
+      taper(bags.dark, at(bead * 1.10, hf * 1.05, 0.4), at(bead * 1.19, hf * 1.05, 0.4), Rh * 0.010, Rh * 0.010, 6);
     } else {                                 // CAST DISC: solid, dished
       revolve(Hb, ctr, ax, [[Rh * 0.16, hf * 0.80], [Rh * 0.24, hf * 1.00],
         [Rh * 0.32, hf * 0.96], [bead * 0.99, hf * 0.72]], 38);
