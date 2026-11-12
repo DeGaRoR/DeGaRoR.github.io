@@ -18,6 +18,10 @@
 // the thrust line's height over the CG. Master db2298a41 on superpetrel_V4_1: the step 16.2 deg aft (not tail-heavy),
 // the thrust 0.88 m over the CG (nose-down), the tail's underside 0.27 m over the step keel with the hull 0.29 m deep:
 // (a)-(c) FAIL - the tail is drawn too low, not the balance.
+// REAL-FIGURES' superpetrel_V4_2 (practical-cerf-7fjpwp cbb88444b, read 13 Nov on 23ce68c1f): the tail drawn 0.59 m over
+// the keel and the boom swept up 13.4 deg - (a) 0.20 m PASS, (c) 7.8 deg PASS, (d) lift-off 28.7 s PASS; (b) FAIL -0.17 m:
+// node 21, the boom's root 0.65 m aft of the stern, at 6.6 s / 12 kt / pitch 3.6 deg - the hump's squat, not the rotation
+// (--show prints that line). The step sits 26 deg aft of V4.2's CG (the rule 10-15).
 'use strict';
 const path = require('path'), fs = require('fs');
 const FLY = path.join(__dirname, '..');
@@ -62,12 +66,13 @@ function run(o) {
     sim.step(1 / 60); T += 1 / 60;
     const [xA] = sim.axes(), pitch = Math.asin(Math.max(-1, Math.min(1, -xA[1]))) * 180 / Math.PI;
     if (!isFinite(pitch)) { R.finite = false; break; }
-    let tl = Infinity; for (const i of tail) tl = Math.min(tl, p[i * 3 + 1] - world.waterH(p[i * 3], p[i * 3 + 2]));
+    let tl = Infinity, tlI = -1; for (const i of tail) { const h = p[i * 3 + 1] - world.waterH(p[i * 3], p[i * 3 + 2]); if (h < tl) { tl = h; tlI = i; } }
     const wet = sim.hydro.floats.reduce((a, x) => a + x.wet, 0) > 0, v = sim.cgVel(), kt = Math.hypot(v[0], v[2]) / 0.5144;
     if (ap && ap.phase !== last) { R.phases.push(f2(T, 1) + ' ' + ap.phase); last = ap.phase; }
     if (ap && (ap.phase === 'ROLL' || ap.phase === 'LIFTOFF')) ran = true;
     if (!ap) { if (T > o.secs - 0.5) R.tailRest = R.tailRest == null ? tl : Math.min(R.tailRest, tl); continue; }
-    if (ran && R.lift == null && wet) { R.tailRun = Math.min(R.tailRun, tl); R.pitchMax = Math.max(R.pitchMax, pitch); }
+    if (ran && R.lift == null && wet) { if (tl < R.tailRun) R.tailAt = { t: +T.toFixed(1), kt: +kt.toFixed(1), pitch: +pitch.toFixed(1), node: tlI, x: +N[tlI].p[0].toFixed(2), y: +N[tlI].p[1].toFixed(2), phase: ap.phase };
+      R.tailRun = Math.min(R.tailRun, tl); R.pitchMax = Math.max(R.pitchMax, pitch); }
     if (ran && R.kt30 == null && kt >= 30) R.kt30 = T;
     if (!wet && wasWet && ran && R.lift == null) dry = T;
     if (wet && R.lift == null) dry = null;
@@ -78,7 +83,7 @@ function run(o) {
   return R;
 }
 const rest = run({ secs: 20 }), to = run({ pilot: true, secs: 90 });
-if (SHOW) console.log('  the pilot: ' + to.phases.join(' | '));
+if (SHOW) console.log('  the pilot: ' + to.phases.join(' | ')); if (SHOW) console.log('  the tail lowest on the run: ' + JSON.stringify(to.tailAt) + ' (t s, kt, pitch deg, the node and its drawn x aft / y up)');
 verdict(rest.tailRest != null && rest.tailRest >= 0.10, '(a) REST: the tail ' + f2(rest.tailRest) + ' m over the water at rest (>= 0.10)');
 verdict(isFinite(to.tailRun) && to.tailRun > 0, '(b) RUN: the tail\'s lowest on the run ' + f2(to.tailRun) + ' m over the water (> 0: never touches)');
 verdict(to.pitchMax <= boomDeg, '(c) LEVEL: the highest pitch on the water ' + f2(to.pitchMax, 1) + ' deg <= the boom\'s upsweep ' + f2(boomDeg, 1) + ' deg (at most parallel)');
