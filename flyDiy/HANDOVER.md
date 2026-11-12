@@ -315050,3 +315050,28 @@ CODE READY claude/crew-seats-g2715b - gates owed (A0 slot, ~15 min CPU + ~20 min
   except the Tue 14:24 misfire (build + cook, reported at once).
 
 READY for the GAME COORDINATOR
+
+## Train L38c / L38c2 (A0, 12 Nov 2026, 01:15-04:30)
+
+**Landed (7):** gimp-drag ce2b5a8a9 (the phone import card is a draggable card), engine-dials-c2 f09485612, cut-takes 71a3b5360, crew-seats 488c1e3c2, uglyb d4e1deaa3, fit-procedure-garage-windows dc87d793f, strut-pod 83f39e568.
+- engine-dials-c2: the latent fields stay ABSENT at their default, so no fingerprint moves and Rufus is untouched. POD re-pinned in _pod_check.js with ENGINE-DIALS B's reason.
+- cut-takes: the Rufus + metal Cessna cutaways are open. The real cause was app.js applyBuildClip wiping the cut on reference-mounted planes; fixed in plane_fiche.js only.
+- crew-seats: the boarding stalls are MASTER's (51 s while HOLDING) and go to the perf round.
+- uglyb: the user's U-GLYB candidate now takes off (data only).
+- garage windows: the starboard flank cut was upside down for uneven windows; rows 4-6; the pilot bay reaches 0.10 m.
+- strut-pod: the Chinook's strut tanks are drawn as a shell (were the wet-wing see-through material).
+
+**Held:**
+- plane-list-2: its "conflict" in garage.js was A0's CRLF. It returns as plane-list-3 (+ the canon) in L39a.
+- dirt-strip-l38b: ASSETS / LIGHT / NAMES / STAGES / TAXICLEAR / WORLD red. Fixed on dirt-strip-r2 (the Pilot approved the rough-strip U-turn exemption in 25_airfield) -> L39a.
+
+**Train commits:**
+- garage.js + card_drag.js back to LF. A0's temp-tree patch had committed them CRLF, which turned PLANEFICHE's regex red.
+- _cage_join.js: CREW-SEATS' crewJob row moved after `weather` (GATE WEATHER reads "footwell, holes, weather" as one run; key order only).
+- snapshots re-written: GATE SNAPSHOTS, new with engine-dials-c2, found CONTRACT_DESIGNS / FREIGHT_CARDS measured off the pre-liner builds. Cub 476->475 kg / empty 354->352 / toM 156->153 / cost 44683->44388; Jodel 463->462 / 341->340 / cost 45992->45882. FREIGHT is green with them.
+
+**Gates:**
+- Full battery on the 9-item merge, then 27 + 7 + 15 re-check gates on the landed 7.
+- Standing reds (master's, same checks): GEN, TREECRASH, DMGGEAR, DMGDRIVE, DMGINST, DMGSCAR (liner's named edge), FRAMECOST, ROUNDTRIP, LIVERY, JOINPARITY, NEWPLANE-BUILDS, ENGCONFIG, FLIGHTREC, DESTTO, SIMWORKER-EDGES, SCENERYED, NODUMMY, TECH.
+- PAVEMENT's timing row went 102 vs 87 ms under load and passed alone.
+- TIMED GATE: timed out again on its last rows (boot 134-244 s class, shader-cache misses). It is the perf round's first item.
