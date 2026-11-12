@@ -1190,7 +1190,7 @@ const CAGE_PARTS = [
       // the radii, one per station — the wheel's own size, filed with the wheel
       ['size', ['s1R', 's2R']],
       ['carcass', ['whProfile', 'whSlick', 'whBulge', 'whRibs']],
-      ['rim', ['whRim', 'whRimD', 'whBolts', 'whCap', 'whValve', 'whBrake']],
+      ['rim', ['whRim', 'whRimD', 'whWide', 'whBolts', 'whCap', 'whValve', 'whBrake']],
       ['spare wheel', ['spareOn', 'spareZ', 'spareSide', 'spareY']],   // CAR-1
       ['fairing build', ['fairCons']],
     ] },

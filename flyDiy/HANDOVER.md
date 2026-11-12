@@ -314797,3 +314797,6 @@ the next steps).
   else the other turned), no brake, seated 34 mm off the flank over its whole height; a flange-and-stub carrier with a
   chrome hub nut; a leather strap swept round the tyre's crown to a bracket and D-ring, its buckle modelled (frame,
   roller, tongue, keeper, punched tail).
+- **THE NINTH REVIEW**: the spare drawn fresh (GG.wheel, no cap, no brake); its strap holds the whole wheel - bracket, crown,
+  wall, rim, the disc's measured face, a buckle low on the disc, a tab on the central spike under a wing nut; `whWide`
+  (new, absent 1) - 0.80 m wheels at 80 % width; the front mounts behind the polished shell (`s2Z 3.45`, `s2AxZ 0.30`).

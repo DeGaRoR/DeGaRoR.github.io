@@ -2339,113 +2339,128 @@ function spareBuild(group, P, AF) {
       b2.union(bm.applyMatrix4(M)); });
     return b2; };
   const sg = +P.spareSide < 0 ? -1 : 1, z = +P.spareZ;
-  // the source: the rearmost wheel group, of this side if one is there
-  const cands = group.children.filter(ch => /^edWheel/.test(ch.name)).map(ch => ({ ch, b: localBox(ch) }));
-  if (!cands.length) return;
-  const zOf = q => (q.b.min.z + q.b.max.z) / 2, xOf = q => (q.b.min.x + q.b.max.x) / 2;
-  cands.sort((a, b) => zOf(a) - zOf(b));
-  const zR = zOf(cands[0]);
-  const rear = cands.filter(q => Math.abs(zOf(q) - zR) < 0.3);
-  const pick = rear.find(q => Math.sign(xOf(q)) === sg) || rear[0];
-  const flip = Math.sign(xOf(pick)) !== sg;
-  const src = pick.ch;
-  const tyreM = GG.gearMat('tyre'), brakeM = GG.gearMat('brake');
-  const tyreMesh = src.children.find(m => m.material === tyreM) || src.children[0];
-  const tb = localBox(tyreMesh), tc = new THREE.Vector3(); tb.getCenter(tc);
-  const R = (tb.max.y - tb.min.y) / 2, hwT = (tb.max.x - tb.min.x) / 2;
-  const Rr = R * (+P.whRimD > 0 ? Math.min(0.85, +P.whRimD) : 0.5);   // the rim's edge (the strap passes inside it)
+  const R = Math.max(0.1, +P.s1R || 0.3);                  // the road wheels' size
+  const y = (typeof AF.cyAt === 'function' ? AF.cyAt(z) : 0) + (+P.spareY || 0);
+  const root = new THREE.Group(); root.name = 'edSpare';
+  // THE WHEEL, drawn fresh by the road wheels' own builder - no brake, NO HUB CAP (the user: "remove the little hubcap so
+  // that it presents a flatter surface"), built at the origin first to measure its tyre, then seated
+  const wb = { tyre: GG.Bag(), hub: GG.Bag(), brake: GG.Bag(), alloy: GG.Bag(), dark: GG.Bag(), brakefix: GG.Bag(), steel: GG.Bag() };
+  GG.wheel(wb, [0, 0, 0], [sg, 0, 0], R, { brake: false, inboard: sg, P: Object.assign({}, P, { whCap: 0 }) });
+  const wg = new THREE.Group();
+  for (const k of ['tyre', 'hub', 'alloy', 'dark']) if (wb[k] && wb[k].mesh) wb[k].mesh(wg, GG.gearMat(k));
+  root.add(wg);
+  const tb = new THREE.Box3().setFromObject(wg);
+  const hwT = Math.max(Math.abs(tb.min.x), Math.abs(tb.max.x));     // the tyre's half-width (its widest, the bulge)
+  const Rr = R * (+P.whRimD > 0 ? Math.min(0.85, +P.whRimD) : 0.42);
   // the flank: the body's half-width over the tyre's height and length
-  const y = (typeof AF.cyAt === 'function' ? AF.cyAt(z) : tc.y) + (+P.spareY || 0);
   let half = 0;
   for (let zz = z - R; zz <= z + R + 1e-6; zz += R / 6)
     for (let a = 0; a <= 180; a += 2) { const q = AF.surf(zz, a * D2R);
       if (q && isFinite(q[0]) && q[1] >= y - R && q[1] <= y + R) half = Math.max(half, Math.abs(q[0])); }
-  const CARRIER = 0.034;                                  // flange + clearance between the flank and the tyre's inner wall
+  const CARRIER = 0.034;                                   // flange + clearance between the flank and the tyre's inner wall
   const xc = sg * (half + CARRIER + hwT);
-  const root = new THREE.Group(); root.name = 'edSpare';
-  // THE WHEEL: the copy, centred on its tyre, turned if it came from the other side, no brake
-  const piv = new THREE.Group(); piv.position.set(xc, y, z); piv.rotation.y = flip ? Math.PI : 0;
-  const wh = src.clone(true);
-  for (const m of wh.children.slice()) if (m.material === brakeM) wh.remove(m);
-  wh.position.set(src.position.x - tc.x, src.position.y - tc.y, src.position.z - tc.z);
-  piv.add(wh); root.add(piv);
-  // the frame the fittings are drawn in: u outward from the tyre's centre, v up, w along the car
+  wg.position.set(xc, y, z);
+  // the frame the fittings are drawn in: u outward from the wheel's centre, v up, w along the car
   const W = (u, v, w) => new THREE.Vector3(xc + sg * u, y + v, z + w);
-  const chrome = GG.gearMat('chrome'), alloy = GG.gearMat('alloy'), steel = GG.gearMat('steel'), dark = GG.gearMat('dark');
+  const chrome = GG.gearMat('chrome'), alloy = GG.gearMat('alloy'), steel = GG.gearMat('steel');
   const leather = new THREE.MeshStandardMaterial({ color: 0x5a3822, roughness: 0.68, metalness: 0, side: THREE.DoubleSide });
   const leatherEdge = new THREE.MeshStandardMaterial({ color: 0x3a2414, roughness: 0.8, metalness: 0, side: THREE.DoubleSide });
   const add = (geo, mat, pos, rot) => { const m = new THREE.Mesh(geo, mat); if (pos) m.position.copy(pos); if (rot) m.quaternion.copy(rot); root.add(m); return m; };
-  const alongX = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(1, 0, 0));
-  const alongZ = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 1));
-  // ---- THE CARRIER: a domed flange on the flank, four bolts, the stub axle, the hub nut
-  const uFl = -(hwT + CARRIER) + 0.004;                   // the flange's face, just off the skin
+  const qTo = (x, yy, zz) => new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(x, yy, zz).normalize());
+  const alongU = qTo(sg, 0, 0), alongW = qTo(0, 0, 1);
+  // ---- THE CARRIER: a domed flange on the flank, four bolts, the stub axle through the hub - and past it, THE SPIKE
+  const uFl = -(hwT + CARRIER) + 0.004;
   const fl = new THREE.LatheGeometry([new THREE.Vector2(0.0, 0.0), new THREE.Vector2(0.075, 0.0), new THREE.Vector2(0.074, 0.004),
     new THREE.Vector2(0.06, 0.009), new THREE.Vector2(0.035, 0.013), new THREE.Vector2(0.0, 0.014)], 40);
-  add(fl, steel, W(uFl - 0.004, 0, 0), new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(sg, 0, 0)));
+  add(fl, steel, W(uFl - 0.004, 0, 0), alongU);
   for (let k = 0; k < 4; k++) { const a = Math.PI / 4 + k * Math.PI / 2;
-    add(new THREE.CylinderGeometry(0.0065, 0.0065, 0.006, 6), chrome, W(uFl + 0.005, 0.055 * Math.sin(a), 0.055 * Math.cos(a)), alongX); }
-  const uHubOut = hwT * 0.55;                             // the hub's outer face, near enough
-  const stubL = uHubOut - uFl;
-  add(new THREE.CylinderGeometry(0.021, 0.024, stubL, 20), alloy, W(uFl + stubL / 2, 0, 0), alongX);
-  add(new THREE.CylinderGeometry(0.034, 0.034, 0.022, 6), chrome, W(uHubOut + 0.011, 0, 0), alongX);          // the hex nut
-  const dome = new THREE.SphereGeometry(0.027, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2);
-  add(dome, chrome, W(uHubOut + 0.022, 0, 0), new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(sg, 0, 0)));
-  // ---- THE STRAP: a band (width wS, thickness tS) round the tyre's crown section, swept as quads
-  const wS = 0.036, tS = 0.0045, o = 0.004;
-  const sweep = (pts, closed, mat) => {
-    const n = pts.length, P0 = [], N0 = [];
+    add(new THREE.CylinderGeometry(0.0065, 0.0065, 0.006, 6), chrome, W(uFl + 0.005, 0.055 * Math.sin(a), 0.055 * Math.cos(a)), alongU); }
+  // THE DISC'S OWN FACE: its outermost point at every radius, read off the built wheel (hub, rim, spokes - not the tyre),
+  // so the strap and the tab lie ON the disc rather than behind it (an estimate put them behind its boss)
+  const tyreM = GG.gearMat('tyre'), BIN = 0.01, prof = [];
+  wg.traverse(m => { if (!m.isMesh || m.material === tyreM) return; const A = m.geometry.attributes.position;
+    for (let k = 0; k < A.count; k++) { const r = Math.hypot(A.getY(k), A.getZ(k)), u = sg * A.getX(k), b = Math.floor(r / BIN);
+      if (r < Rr + 0.01 && (prof[b] == null || u > prof[b])) prof[b] = u; } });
+  const discU = r => { let u = -1; const b0 = Math.floor(Math.max(0, r - 0.025) / BIN), b1 = Math.floor((r + 0.025) / BIN);
+    for (let b = b0; b <= b1; b++) if (prof[b] != null) u = Math.max(u, prof[b]); return u > -1 ? u : 0.5 * hwT; };
+  const tS = 0.0045, wS = 0.036, off = tS / 2 + 0.0015;
+  const face0 = discU(0.02), spikeEnd = face0 + 0.05;
+  add(new THREE.CylinderGeometry(0.019, 0.022, face0 - uFl, 20), alloy, W((uFl + face0) / 2, 0, 0), alongU);   // the stub
+  add(new THREE.CylinderGeometry(0.011, 0.011, spikeEnd - face0, 16), alloy, W((face0 + spikeEnd) / 2, 0, 0), alongU);   // the spike
+  for (let k = 0; k < 6; k++) add(new THREE.TorusGeometry(0.0112, 0.0012, 6, 16), alloy, W(face0 + 0.024 + k * 0.004, 0, 0),
+    new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), new THREE.Vector3(sg, 0, 0)));        // its thread
+  add(new THREE.SphereGeometry(0.011, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), alloy, W(spikeEnd, 0, 0), alongU);   // the rounded point
+  // the wing nut, clamping the strap's tab on the spike
+  const uN = face0 + tS + 0.011;
+  add(new THREE.CylinderGeometry(0.016, 0.018, 0.014, 16), chrome, W(uN, 0, 0), alongU);
+  for (const s2 of [-1, 1]) {
+    const wing = new THREE.Shape(); wing.moveTo(0, -0.008); wing.lineTo(0.03, -0.006); wing.quadraticCurveTo(0.042, 0.004, 0.03, 0.014); wing.lineTo(0, 0.009); wing.lineTo(0, -0.008);
+    const g = new THREE.ExtrudeGeometry(wing, { depth: 0.004, bevelEnabled: true, bevelThickness: 0.0012, bevelSize: 0.0012, bevelSegments: 2, curveSegments: 10 });
+    const m = add(g, chrome, W(uN + 0.002, 0, 0));
+    m.rotation.set(0, sg > 0 ? -Math.PI / 2 : Math.PI / 2, 0);
+    m.rotateZ(s2 > 0 ? 0 : Math.PI);
+  }
+  // ---- THE STRAP, over the whole wheel: a bracket on the flank, over the tyre's crown following its section, down the
+  // outer wall, on over the rim onto the disc, to the BUCKLE low on the disc; from there the lower strap to a tab on the
+  // spike, the free end through the buckle and down, held by a keeper
+  const vC = (R + Rr) / 2, aU = hwT, aV = (R - Rr) / 2;
+  const onSec = th => [(aU + off) * Math.cos(th), vC + (aV + off) * Math.sin(th)];
+  const sweep = (pts, mat, width) => {
+    const ww = width || wS, n = pts.length, pos = [], idx = [];
     for (let k = 0; k < n; k++) {
-      const a = pts[closed ? (k - 1 + n) % n : Math.max(0, k - 1)], b = pts[closed ? (k + 1) % n : Math.min(n - 1, k + 1)];
+      const a = pts[Math.max(0, k - 1)], b = pts[Math.min(n - 1, k + 1)];
       let tx = b[0] - a[0], ty = b[1] - a[1]; const l = Math.hypot(tx, ty) || 1; tx /= l; ty /= l;
-      N0.push([ty, -tx]); P0.push(pts[k]);
-    }
-    const pos = [], idx = [];
-    const ring = k => { const [u, v] = P0[k], [nu, nv] = N0[k], out = [];
+      const nu = ty, nv = -tx, [u, v] = pts[k];
       for (const [s1, s2] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
-        const q = W(u + nu * s1 * tS / 2, v + nv * s1 * tS / 2, s2 * wS / 2); out.push(q.x, q.y, q.z); }
-      return out; };
-    for (let k = 0; k < n; k++) pos.push(...ring(k));
-    const last = closed ? n : n - 1;
-    for (let k = 0; k < last; k++) { const a = k * 4, b = ((k + 1) % n) * 4;
+        const q = W(u + nu * s1 * tS / 2, v + nv * s1 * tS / 2, s2 * ww / 2); pos.push(q.x, q.y, q.z); }
+    }
+    for (let k = 0; k < n - 1; k++) { const a = k * 4, b = (k + 1) * 4;
       for (let e = 0; e < 4; e++) { const e1 = (e + 1) % 4; idx.push(a + e, b + e, b + e1, a + e, b + e1, a + e1); } }
-    if (!closed) for (const a of [0, (n - 1) * 4]) idx.push(a, a + 1, a + 2, a, a + 2, a + 3);
+    for (const a of [0, (n - 1) * 4]) idx.push(a, a + 1, a + 2, a, a + 2, a + 3);
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx);
     g.computeVertexNormals(); return add(g, mat);
   };
-  // the loop round the section: inner wall up, over the crown, down the outer wall, back inside the rim
-  const u0 = -(hwT + o + tS / 2), u1 = hwT + o + tS / 2, v0 = Rr - o - tS / 2, v1 = R + o + tS / 2, rc = Math.min(0.045, (v1 - v0) / 3, hwT);
-  const loop = [];
-  const corner = (cu, cv, a0) => { for (let k = 0; k <= 8; k++) { const a = a0 + k / 8 * Math.PI / 2; loop.push([cu + rc * Math.cos(a), cv + rc * Math.sin(a)]); } };
-  corner(u1 - rc, v1 - rc, 0); corner(u0 + rc, v1 - rc, Math.PI / 2); corner(u0 + rc, v0 + rc, Math.PI); corner(u1 - rc, v0 + rc, 1.5 * Math.PI);
-  loop.reverse();
-  sweep(loop, true, leather);
-  // the anchor: a short strap from the loop's inner top corner to a bracket on the flank
-  const uB = uFl + 0.002, vB = v1 - 0.06;
-  sweep([[u0, v1 - rc - 0.01], [(u0 + uB) / 2, vB + 0.02], [uB + 0.006, vB]], false, leather);
-  add(new THREE.BoxGeometry(0.008, 0.05, wS + 0.016), steel, W(uB - 0.002, vB, 0));                       // the bracket's plate
-  add(new THREE.TorusGeometry(0.012, 0.0026, 8, 20, Math.PI), chrome, W(uB + 0.006, vB, 0),
-      new THREE.Quaternion().setFromEuler(new THREE.Euler(0, sg > 0 ? -Math.PI / 2 : Math.PI / 2, -Math.PI / 2)));   // its D-ring
-  // ---- THE BUCKLE on the outer wall, a third of the way down from the crown
-  const uK = u1 + tS / 2 + 0.003, vK = v1 - rc - (v1 - v0 - 2 * rc) * 0.33;
-  const fw = wS / 2 + 0.006, fh = 0.017, fr = 0.006, frame = [];
-  for (const [cw, cv, a0] of [[fw - fr, fh - fr, 0], [-(fw - fr), fh - fr, Math.PI / 2], [-(fw - fr), -(fh - fr), Math.PI], [fw - fr, -(fh - fr), 1.5 * Math.PI]])
-    for (let k = 0; k <= 5; k++) { const a = a0 + k / 5 * Math.PI / 2; frame.push(W(uK, vK + cv + fr * Math.sin(a), cw + fr * Math.cos(a))); }
+  // the anchor: a bracket and its D-ring on the flank, level with the tyre's upper inner wall
+  const vA = vC + aV * 0.85, uA = uFl + 0.004;
+  add(new THREE.BoxGeometry(0.008, 0.05, wS + 0.016), steel, W(uA - 0.006, vA, 0));
+  add(new THREE.TorusGeometry(0.012, 0.0026, 8, 20, Math.PI), chrome, W(uA + 0.004, vA, 0),
+      new THREE.Quaternion().setFromEuler(new THREE.Euler(0, sg > 0 ? -Math.PI / 2 : Math.PI / 2, -Math.PI / 2)));
+  // the strap's whole line, top to the spike: the crown arc, then the disc's face down to the centre
+  const line = [[uA + 0.01, vA]];
+  // (the arc ends on the outer wall's lower shoulder - past it the section turns in behind the rim - then steps onto the rim)
+  for (let k = 0; k <= 36; k++) line.push(onSec(0.9 * Math.PI + (-0.3 * Math.PI - 0.9 * Math.PI) * k / 36));
+  const [uS, vS] = onSec(-0.3 * Math.PI), uR = discU(Rr) + off;
+  for (let k = 1; k <= 4; k++) { const t = k / 4; line.push([uS + (uR - uS) * t, vS + (Rr - 0.01 - vS) * t]); }
+  for (let v = Rr - 0.025; v >= 0.03; v -= 0.012) line.push([Math.max(discU(v) + off, 0), v]);
+  // the buckle low on the disc, at vB: the line splits there (upper strap ends at the buckle's roller, the lower begins)
+  const vB = 0.5 * Rr + 0.02;
+  const kB = line.findIndex((p, k) => k > 10 && p[1] <= vB);
+  sweep(line.slice(0, kB + 1), leather);
+  sweep(line.slice(kB + 2), leather);
+  add(new THREE.CylinderGeometry(wS / 2, wS / 2, tS, 28), leather, W(face0 + tS / 2 + 0.0015, 0, 0), alongU);   // the tab round the spike
+  // the buckle: in the strap's plane at the split (t down the strap, n out of the disc, w across)
+  const [ub, vb] = line[kB + 1], tu = 0, tv = -1, nu = 1, nv = 0;
+  const BK = (s, w, h) => W(ub + nu * h + tu * s, vb + nv * h + tv * s, w);
+  const fw = wS / 2 + 0.006, fh = 0.018, fr = 0.006, frame = [];
+  for (const [cw, cs, a0] of [[fw - fr, fh - fr, 0], [-(fw - fr), fh - fr, Math.PI / 2], [-(fw - fr), -(fh - fr), Math.PI], [fw - fr, -(fh - fr), 1.5 * Math.PI]])
+    for (let k = 0; k <= 5; k++) { const a = a0 + k / 5 * Math.PI / 2; frame.push(BK(cs + fr * Math.sin(a), cw + fr * Math.cos(a), tS + 0.002)); }
   add(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(frame, true, 'catmullrom', 0.05), 96, 0.0028, 10, true), chrome);
-  add(new THREE.CylinderGeometry(0.0034, 0.0034, 2 * fw - 0.004, 14), chrome, W(uK + 0.0005, vK + fh, 0), alongZ);       // the roller
-  const tongue = new THREE.CylinderGeometry(0.0017, 0.0017, 2 * fh + 0.004, 10);
-  const tq = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(sg * 0.12, 1, 0).normalize());
-  add(tongue, chrome, W(uK + 0.003, vK, 0), tq);                                                                // the tongue
-  // the tail: the strap's free end through the frame, lying over the band, down the wall, a rounded tip, punched
-  const uT = uK + 0.0025, tail = [], tl = 0.11;
-  for (let k = 0; k <= 10; k++) tail.push([uT, vK - fh - k / 10 * tl]);
-  const tailM = sweep(tail.map(([u, v]) => [u, v]), false, leather);
-  const tip = new THREE.CylinderGeometry(wS / 2, wS / 2, tS, 24, 1, false, 0, Math.PI);
-  add(tip, leather, W(uT, vK - fh - tl, 0), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, -Math.PI / 2)));
-  for (let k = 0; k < 3; k++) add(new THREE.CylinderGeometry(0.0026, 0.0026, tS * 1.4, 10), leatherEdge,
-      W(uT + 0.0004, vK - fh - 0.03 - k * 0.022, 0), alongX);                                                    // the holes
-  // the keeper: a leather band round both layers, just under the buckle
-  const kv = vK - fh - 0.022, kt = 0.0035, ku0 = u1 - tS / 2 - kt, ku1 = uT + tS / 2 + kt, kw = wS / 2 + kt, kp = [];
-  for (const [cu, cw] of [[ku1, kw], [ku1, -kw], [ku0, -kw], [ku0, kw]]) kp.push(W(cu, kv, cw));
+  add(new THREE.CylinderGeometry(0.0034, 0.0034, 2 * fw - 0.004, 14), chrome, BK(-fh, 0, tS + 0.0025), alongW);   // the roller
+  add(new THREE.CylinderGeometry(0.0034, 0.0034, 2 * fw - 0.004, 14), chrome, BK(0, 0, tS + 0.0015), alongW);     // the centre bar
+  const tA = BK(0, 0, tS + 0.004), tB = BK(fh + 0.003, 0, tS + 0.0055);
+  add(new THREE.CylinderGeometry(0.0017, 0.0017, tA.distanceTo(tB), 10), chrome, tA.clone().add(tB).multiplyScalar(0.5),
+      new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), tB.clone().sub(tA).normalize()));   // the tongue
+  // the upper strap's free end: out through the frame, down over the lower strap, punched, a rounded tip
+  const tail = []; for (let k = 0; k <= 8; k++) { const v = vb - fh - 0.004 - k * 0.009; tail.push([discU(v) + off + tS * 1.15, v]); }
+  sweep(tail, leather);
+  const [ue, ve] = tail[tail.length - 1];
+  add(new THREE.CylinderGeometry(wS / 2, wS / 2, tS, 24, 1, false, Math.PI / 2, Math.PI), leather, W(ue, ve, 0), alongU);   // its rounded tip
+  for (let k = 0; k < 3; k++) { const [u, v] = tail[2 + k * 2];
+    add(new THREE.CylinderGeometry(0.0026, 0.0026, tS * 1.7, 10), leatherEdge, W(u, v, 0), alongU); }             // the holes
+  // the keeper, round both layers just under the buckle
+  const kv = vb - fh - 0.02, ku = discU(kv) + off, kt = 0.0035, kp = [];
+  for (const [h, w] of [[tS * 2.2 + kt, wS / 2 + kt], [tS * 2.2 + kt, -(wS / 2 + kt)], [-tS / 2 - kt, -(wS / 2 + kt)], [-tS / 2 - kt, wS / 2 + kt]])
+    kp.push(W(ku + h, kv, w));
   add(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(kp, true, 'catmullrom', 0.2), 40, 0.004, 6, true), leatherEdge);
   for (const m of root.children) if (m.isMesh) m.name = 'edSpareFit';
   group.add(root);

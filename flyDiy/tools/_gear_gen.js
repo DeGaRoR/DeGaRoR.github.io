@@ -361,7 +361,8 @@ function wheel(bags, ctr, axis, R, opt) {
   // under a 28" tyre is ~0.64, an aeroplane's 5" hub under a 15" tyre ~0.42. The hub's parts scale with it (Rh below)
   const rimD = +P.whRimD > 0 ? Math.max(0.25, Math.min(0.85, +P.whRimD)) : null;
   const prof = rimD ? Object.assign({}, prof1, { bead: rimD }) : prof1;
-  const hw = R * prof.hw, bead = R * prof.bead;
+  // CAR-1 (the user: "a little bigger and a little narrower"): whWide, the tyre's width x the carcass's (absent = 1)
+  const hw = R * prof.hw * (+P.whWide > 0 ? Math.max(0.5, Math.min(1.5, +P.whWide)) : 1), bead = R * prof.bead;
   const half = hw * 0.70;                    // the crown band
   const beadH = hw * (prof.beadW || 0.90);   // where the tyre meets the rim
   const face = hw * (prof.faceW || 0.74);    // THE RIM IS INSET (user)

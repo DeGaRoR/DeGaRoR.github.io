@@ -2887,9 +2887,11 @@ const ARCHETYPES = [
                     // throttle and a 0.9 g lane change spun it (car_sheet.js LANE); the period's cars put the axle there
                     // THE SUSPENSION (the user, 12 Nov: "a triangle suspension with shocks"): the swinging link - a
                     // triangle (the arm and its V strut) on a coil-over shock - at all four, swinging level
-                    s1On: 1, s1Leg: 1, s1Z: 0.55, s1X: 0.75, s1R: 0.36, s1Drop: 0.08, s1Brake: 1, s1Steer: 0,
-                    s2On: 1, s2Leg: 1, s2Z: 3.75,   // ("push the wheels max to the front": the axle at the radiator's face)
-                    s2X: 0.75, s2R: 0.36, s2Drop: 0.08, s2Brake: 1, s2Steer: 1,
+                    s1On: 1, s1Leg: 1, s1Z: 0.55, s1X: 0.75, s1R: 0.40, s1Drop: 0.08, s1Brake: 1, s1Steer: 0,
+                    s2On: 1, s2Leg: 1, s2Z: 3.45, s2AxZ: 0.30,   // ("push the wheels max to the front": the axle at the radiator's
+                    // face, 3.75 - its mounts just behind the polished shell, the arm reaching forward: "stay clear with the
+                    // support of the metallic part")
+                    s2X: 0.75, s2R: 0.40, s2Drop: 0.08, s2Brake: 1, s2Steer: 1,
                     // (the user: "put the shock mount point on the sides of the body, not below ... a proper triangle
                     // suspension setup, with the shock anchoring higher up"): the wishbone's two feet on the body's lower
                     // side (linkAng 55, spread 0.5 m), the coil-over's top on the body's SIDE at the same station
@@ -2903,9 +2905,9 @@ const ARCHETYPES = [
                     s1Fair: 0, s2Fair: 0, whProfile: 2,
                     // (the user: "can we increase the rim size?"): spoked, the rim 0.64 of the wheel - an 18" wire wheel in a
                     // 28" tyre (whRimD, the new row)
-                    whRim: 1, whRimD: 0.64,
+                    whRim: 1, whRimD: 0.64, whWide: 0.8,   // ("a little bigger and a little narrower": 0.80 m wheels, 80 % of the slim tyre's width)
                     // ("put a spare wheel on one of the sides, at the back, like the ref picture"): behind the cockpit
-                    spareOn: 1, spareZ: 1.15, spareSide: 1, spareY: 0.11 },   // (its hub on the waistline, as the ref's)
+                    spareOn: 1, spareZ: 1.15, spareSide: 1, spareY: 0.0 },   // (a little lower: its crown under the body's top line)
             // THE TANK (the user, 12 Nov: "Where did you place the tank? Let's do something realistic"): none was
             // drawn - the 60 L rode the ledger at the firewall's station. A 1930s racer carries it in the tail: one
             // box tank in the 'behind the cabin' bay, the boat tail just aft of the seat
