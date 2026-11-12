@@ -314831,3 +314831,14 @@ the next steps).
   as before. The booms are the chassis rails, the stab (squared planform) the bed, the rear wheels on the booms (s2Leg 3),
   the front pair under a short bonnet over the A-65; two seats abreast (halfW 0.92); 4WD, 539 kg, 0-100 7.2 s. It cannot
   launch a glider (39 kW at the wheels: a launch needs ~150 kW, the physics, not the build).
+- **CAR-3, THE USER'S VAN REVIEW (same day: "flat bottom ... a lot wider ... the nose section almost nothing, 10 cm max ...
+  a smaller engine, the bonnet the same width, less length and height ... a flat back like a van")**: every frame's
+  bottom on one keel (keelY / aftKeelY / tailKeelY / fr*BotY -1.0, frNoseBotY -1.22: the floor flat at -0.91 m
+  +- 5 mm); 1.98 m wide (halfW 1.1, roofHalfW 1.05); the roof lowered (roofY 0.9); the nose 0.11 m (noseLen 0.12); the
+  windscreen base brought down onto the bonnet (wsBaseLift -0.35); the back square (aftRoofY / tailRoofY at the roof,
+  tailHalfW = the body - the tail section had dropped to 0.40 m: the "pointy" back); a full-width bonnet (cw_aftW 0.99,
+  0.8 m long, top 0.12 m, its bottom on the floor line) over a 4.0 L V8 (177 kW); the front axle under it (wb 2.50 m).
+  1018 kg, 37 % front, 0-100 5.8 s; AUTOTOW off paved: LAUNCHES (97 km/h held). OPEN: a dark wedge between the bonnet
+  and the driver's door low down (the 0.11 m nose ring and the door's deep cut), the front shock's top showing at the
+  door's front edge, the livery band higher on the bonnet than on the body, a black fitting with a hub on the rear wall
+  (the page's, not the headless scene's).
