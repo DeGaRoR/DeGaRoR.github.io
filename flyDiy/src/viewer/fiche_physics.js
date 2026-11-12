@@ -54,7 +54,7 @@
 
   // ---- the frame fit ----------------------------------------------------------------------------------------------------
   // view 'side': u from x (nose left), v from -y; 'plan': u from z, v from x (nose up) - plane_fiche.js's ortho cameras
-  const proj = (view, p) => (view === 'side' ? [p[0], -p[1]] : [p[2], p[0]]);
+  const proj = (view, p) => (view === 'side' ? [p[0], -p[1]] : view === 'front' ? [-p[2], -p[1]] : [p[2], p[0]]);
   function fitFrame(model, view, alpha, w, h, s) {
     const pts = model.nodes.map(n => proj(view, n));
     let best = null;
@@ -475,56 +475,73 @@
   // WHAT THE SIM FLIES - the plan large on the left (nose up), the side view and the key on the right
   // ===================================================================================================================
   function pageModel(D, o, th, K) {
+    // THE THREE VIEWS, as large as the sheet allows: from above (nose up) on the left, the side and the front on the right
+    // at one scale, one legend row under them. The rendered plane is the grey ghost behind each view (its fitted frame).
     const M = D.model, n = M.nodes;
-    const out = head(th, K, o, 'What the sim flies · the model itself', n.length + ' masses, ' + M.beams.length + ' members, ' + M.strips.length + ' lifting panels',
-      'Everything the simulation computes, and nothing else. The rendered plane is the faint ghost behind it.');
+    const out = head(th, K, o, 'What the sim flies · the model itself', n.length + ' masses, ' + M.beams.length + ' members, ' + M.strips.length + ' lifting panels');
     const Dp = M.prop.D || 1.8, eng = M.prop.at || [0, 1, 0];
     // the discs where the blades are drawn (66c prop.discs); data from before them: one disc at the engine's flange
     const discs = (M.prop.discs && M.prop.discs.length) ? M.prop.discs : [[eng[0], eng[1], 0, 0]];
-    const xs = n.map(q => q[0]), ys = n.map(q => q[1]), zs = n.map(q => q[2]);
-    const xmin = Math.min(...xs, ...discs.map(q => q[0] - 0.3)), xmax = Math.max(...xs, ...discs.map(q => q[0])) + 0.3, zext = Math.max(...zs.map(Math.abs), ...discs.map(q => Math.abs(q[2]) + Dp / 2)) + 0.15;
-    const ymin = Math.min(...ys, ...discs.map(q => q[1] - Dp / 2)) - 0.1, ymax = Math.max(...ys, ...discs.map(q => q[1] + Dp / 2)) + 0.1;
-    // the plan: z across, x down
-    const s = Math.min(712 / (2 * zext), 560 / (xmax - xmin)), PCX = 404, PT = 150 + (560 - (xmax - xmin) * s) / 2 - xmin * s;
-    const pl = p => [PCX + p[2] * s, PT + p[0] * s];
-    // the side: in the right column's top
-    const s2 = Math.min(352 / (xmax - xmin), 150 / (ymax - ymin)), SX = 800 + (352 - (xmax - xmin) * s2) / 2 - xmin * s2, SB = 160 + ymax * s2;
-    const sd = p => [SX + p[0] * s2, SB - p[1] * s2];
+    const VIEW = { plan: p => [p[2], p[0]], side: p => [p[0], -p[1]], front: p => [-p[2], -p[1]] };
+    const ext = vk => { const pts = n.map(q => VIEW[vk](q)), r = Dp / 2;
+      for (const q of discs) for (const d of [[0, -r, -r], [0, r, r], [0, r, -r], [0, -r, r]]) pts.push(VIEW[vk]([q[0], q[1] + d[1], q[2] + d[2]]));
+      const u = pts.map(q => q[0]), v = pts.map(q => q[1]); return [Math.min(...u), Math.max(...u), Math.min(...v), Math.max(...v)]; };
+    const E = { plan: ext('plan'), side: ext('side'), front: ext('front') }, wd = e => e[1] - e[0], ht = e => e[3] - e[2];
+    // the boxes: the plan 600 wide on the left; the right column 470 wide, the side above the front, one scale for both
+    const TOP = 150, BOT = 712, PB = { x: 48, y: TOP, w: 620, h: BOT - TOP }, RX = 700, RW = 452, GAP = 64;
+    const sP = Math.min(PB.w / wd(E.plan), PB.h / ht(E.plan)), hP = ht(E.plan) * sP, yP = PB.y + (PB.h - hP) / 2;
+    const sR = Math.min(RW / wd(E.side), RW / wd(E.front), (BOT - TOP - GAP) / (ht(E.side) + ht(E.front)));
+    const hS = ht(E.side) * sR, hF = ht(E.front) * sR, hB = hS + GAP + hF;
+    // the side and the front as one block, centred on the plan's middle
+    const yS = Math.max(TOP, Math.min(BOT - hB, yP + hP / 2 - hB / 2)), yF = yS + hS + GAP;
+    const mapOf = (vk, sc, x0, y0) => { const e = E[vk]; return { sc, f: p => { const q = VIEW[vk](p); return [x0 + (q[0] - e[0]) * sc, y0 + (q[1] - e[2]) * sc]; } }; };
+    const V = { plan: mapOf('plan', sP, PB.x + (PB.w - wd(E.plan) * sP) / 2, yP),
+                side: mapOf('side', sR, RX + (RW - wd(E.side) * sR) / 2, yS), front: mapOf('front', sR, RX + (RW - wd(E.front) * sR) / 2, yF) };
+    const lab = (x, y, t) => out.push(K.T(x, y, t, { sz: 11, c: th.faint, w: 600, ls: 1.2 }));
+    lab(48, Math.max(TOP - 14, yP - 18), 'FROM ABOVE'); lab(RX, yS - 18, 'FROM THE SIDE'); lab(RX, yF - 18, 'FROM THE FRONT');
     out.push(`<defs><filter id="mg"><feColorMatrix type="saturate" values="0"/></filter><pattern id="mh" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="5" stroke="${CAT.fittings}" stroke-width="1.8"/></pattern></defs>`);
-    const pp = o.pics && o.pics.plan, ps = o.pics && o.pics.side;
-    if (pp && pp.frame) { const f = s / pp.s; out.push(`<image href="${pp.href}" width="${pp.W}" height="${pp.H}" transform="matrix(${f} 0 0 ${f} ${(PCX - f * pp.frame.ox).toFixed(2)} ${(PT - f * pp.frame.oy).toFixed(2)})" opacity="${th.ghost}" filter="url(#mg)"/>`); }
-    if (ps && ps.frame) { const f = s2 / ps.s; out.push(`<image href="${ps.href}" width="${ps.W}" height="${ps.H}" transform="matrix(${f} 0 0 ${f} ${(SX - f * ps.frame.ox).toFixed(2)} ${(SB - f * ps.frame.oy).toFixed(2)})" opacity="${th.ghost}" filter="url(#mg)"/>`); }
-    const quad = (st, P) => {
-      const F0 = P3(M, st[0]), F1 = P3(M, st[1]), R0 = P3(M, st[2]), R1 = P3(M, st[3]), ch = st[4], cs = st[6];
+    // the ghosts: picture pixel = R(rot) proj(p) s + o (fitFrame), so proj(p) = R(-rot)(pixel - o) / s
+    for (const vk of ['plan', 'side', 'front']) { const pc = o.pics && o.pics[vk]; if (!pc || !pc.frame) continue;
+      const O = V[vk].f([0, 0, 0]), f = V[vk].sc / pc.s;
+      out.push(`<image href="${pc.href}" width="${pc.W}" height="${pc.H}" transform="translate(${O[0].toFixed(2)} ${O[1].toFixed(2)}) scale(${f.toFixed(5)}) rotate(${(-(pc.frame.rot || 0)).toFixed(2)}) translate(${-pc.frame.ox} ${-pc.frame.oy})" opacity="${th.ghost}" filter="url(#mg)"/>`); }
+    const quad = (st, P, hatch) => {
+      const F0 = P3(M, st[0]), F1 = P3(M, st[1]), R0 = P3(M, st[2]), R1 = P3(M, st[3]), ch = st[4], cs = hatch ? st[6] : 0;
       const at = (F, R, t) => { const d = [0, 1, 2].map(q => R[q] - F[q]), Ln = Math.hypot(...d) || 1; return [0, 1, 2].map(q => F[q] + d[q] / Ln * ch * (t - 0.15)); };
       const hinge = 1 - cs, poly = (pts, attr) => `<path d="M${pts.map(q => q[0].toFixed(1) + ' ' + q[1].toFixed(1)).join(' L')} Z" ${attr}/>`;
       return poly([at(F0, R0, 0), at(F1, R1, 0), at(F1, R1, hinge), at(F0, R0, hinge)].map(P), K.fillAttr(CAT.structure, th === THEMES.sheet ? 0.32 : 0.18)) +
         (cs > 0 ? poly([at(F0, R0, hinge), at(F1, R1, hinge), at(F1, R1, 1), at(F0, R0, 1)].map(P), `fill="url(#mh)" stroke="${CAT.fittings}" stroke-width="0.9"`) : '');
     };
-    for (const st of M.strips) if (M.KIND[st[5]] !== 'fin') out.push(quad(st, pl));
-    for (const st of M.strips) if (M.KIND[st[5]] === 'fin') out.push(quad(st, sd));
-    for (const b of M.beams) { if (b[3]) continue; const A = P3(M, b[0]), B = P3(M, b[1]); out.push(K.L(pl(A), pl(B), th.member, 0.7) + K.L(sd(A), sd(B), th.member, 0.5)); }
-    const disc = (q, a, k) => `<circle cx="${q[0].toFixed(1)}" cy="${q[1].toFixed(1)}" r="${(Math.sqrt(a / Math.PI) * k).toFixed(1)}" fill="${th.ink}" fill-opacity=".1" stroke="${th.ink}" stroke-width="1.3" stroke-dasharray="4 3"/>`;
-    if (M.drag.fwd) out.push(disc(sd(M.drag.fwd), M.drag.cda[0], s2) + disc(pl(M.drag.fwd), M.drag.cda[0], s));
-    if (M.drag.aft) out.push(disc(sd(M.drag.aft), (M.drag.cdaAft[1] || 0) * 0.25, s2) + disc(pl(M.drag.aft), (M.drag.cdaAft[1] || 0) * 0.25, s));
-    for (const q of discs) out.push(K.L(pl([q[0], 0, q[2] - Dp / 2]), pl([q[0], 0, q[2] + Dp / 2]), CAT.engine, 3) + K.L(sd([q[0], q[1] - Dp / 2, 0]), sd([q[0], q[1] + Dp / 2, 0]), CAT.engine, 2.4));
-    for (const i of M.contacts) { const a = pl(P3(M, i)), b = sd(P3(M, i));
-      out.push(`<rect x="${(a[0] - 4.5).toFixed(1)}" y="${(a[1] - 4.5).toFixed(1)}" width="9" height="9" ${K.fillAttr(CAT.gear, 0.95)}/><rect x="${(b[0] - 3.5).toFixed(1)}" y="${(b[1] - 3.5).toFixed(1)}" width="7" height="7" ${K.fillAttr(CAT.gear, 0.95)}/>`); }
-    if (M.floats) for (const q of byTag(M, 'FLK')) { const a = pl(q); out.push(`<rect x="${(a[0] - 2.5).toFixed(1)}" y="${(a[1] - 2.5).toFixed(1)}" width="5" height="5" ${K.fillAttr(CAT.gear, 0.95)}/>`); }
-    for (const q of n) if (q[3] > 0.05) { const a = pl(q), b = sd(q);
-      out.push(`<circle cx="${a[0].toFixed(1)}" cy="${a[1].toFixed(1)}" r="${Math.max(1.1, Math.sqrt(q[3]) * 1.15).toFixed(1)}" fill="${th.ink}" fill-opacity=".72"/><circle cx="${b[0].toFixed(1)}" cy="${b[1].toFixed(1)}" r="${Math.max(0.8, Math.sqrt(q[3]) * 0.8).toFixed(1)}" fill="${th.ink}" fill-opacity=".72"/>`); }
-    out.push(K.T(800, 150, 'FROM THE SIDE', { sz: 11, c: th.faint, w: 600, ls: 1.2 }));
-    // the key
-    let y = Math.max(SB - ymin * s2 + 46, 352);
-    const nW = M.strips.filter(st => M.KIND[st[5]] === 'wing').length, nC = M.strips.filter(st => st[6] > 0).length, kg = n.reduce((a, q) => a + q[3], 0);
-    const row = (mark, t1, t2) => { out.push(mark(810, y - 5) + K.T(834, y, t1, { sz: 15, w: 500 }) + K.T(834, y + 18, t2, { sz: 13, c: th.dim })); y += 52; };
-    row((x, yy) => `<circle cx="${x}" cy="${yy}" r="6" fill="${th.ink}" fill-opacity=".72"/>`, n.length + ' mass points, ' + r0(kg) + ' kg', 'a dot\'s size is its weight');
-    row((x, yy) => K.L([x - 9, yy], [x + 9, yy], th.ink, 1), M.beams.length + ' members', 'each a spring that can bend or break');
-    row((x, yy) => `<rect x="${x - 9}" y="${yy - 6}" width="18" height="12" ${K.fillAttr(CAT.structure, 0.4)}/>`, nW + ' wing and ' + (M.strips.length - nW) + ' tail panels', 'each with its own lift and drag');
-    row((x, yy) => `<rect x="${x - 9}" y="${yy - 6}" width="18" height="12" fill="url(#mh)" stroke="${CAT.fittings}"/>`, nC + ' with a control surface', 'aileron, flap, elevator, rudder');
-    row((x, yy) => `<circle cx="${x}" cy="${yy}" r="8" fill="${th.ink}" fill-opacity=".1" stroke="${th.ink}" stroke-dasharray="3 2"/>`, 'The body: two drag points', (M.drag.cda[0] || 0).toFixed(2) + ' m² in front, the nose and gear included');
-    row((x, yy) => K.L([x - 9, yy], [x + 9, yy], CAT.engine, 3), 'Propeller: a disc ' + Dp.toFixed(2) + ' m across', 'on an engine of ' + r0(M.engineKg) + ' kg');
-    row((x, yy) => `<rect x="${x - 4.5}" y="${yy - 4.5}" width="9" height="9" ${K.fillAttr(CAT.gear, 0.95)}/>`, M.floats ? 'Float keels and wheels' : 'Wheels', 'where it touches ground or water');
+    const pl = V.plan.f, sd = V.side.f, fr = V.front.f;
+    for (const st of M.strips) if (M.KIND[st[5]] !== 'fin') out.push(quad(st, pl, true));
+    for (const st of M.strips) if (M.KIND[st[5]] === 'fin') out.push(quad(st, sd, true));
+    for (const st of M.strips) out.push(quad(st, fr, false));
+    for (const b of M.beams) { if (b[3]) continue; const A = P3(M, b[0]), B = P3(M, b[1]); out.push(K.L(pl(A), pl(B), th.member, 0.7) + K.L(sd(A), sd(B), th.member, 0.6) + K.L(fr(A), fr(B), th.member, 0.6)); }
+    const ring = (q, rr) => `<circle cx="${q[0].toFixed(1)}" cy="${q[1].toFixed(1)}" r="${rr.toFixed(1)}" fill="${th.ink}" fill-opacity=".1" stroke="${th.ink}" stroke-width="1.3" stroke-dasharray="4 3"/>`;
+    const drag = (p, a) => { const r = Math.sqrt(Math.max(0, a) / Math.PI); out.push(ring(pl(p), r * sP) + ring(sd(p), r * sR) + ring(fr(p), r * sR)); };
+    if (M.drag.fwd) drag(M.drag.fwd, M.drag.cda[0]);
+    if (M.drag.aft) drag(M.drag.aft, (M.drag.cdaAft[1] || 0) * 0.25);
+    for (const q of discs) { const c = fr([q[0], q[1], q[2]]);
+      out.push(K.L(pl([q[0], 0, q[2] - Dp / 2]), pl([q[0], 0, q[2] + Dp / 2]), CAT.engine, 3) + K.L(sd([q[0], q[1] - Dp / 2, 0]), sd([q[0], q[1] + Dp / 2, 0]), CAT.engine, 2.6) +
+        `<circle cx="${c[0].toFixed(1)}" cy="${c[1].toFixed(1)}" r="${(Dp / 2 * sR).toFixed(1)}" fill="${CAT.engine}" fill-opacity=".08" stroke="${CAT.engine}" stroke-width="2"/>`); }
+    const box = (q, h) => `<rect x="${(q[0] - h).toFixed(1)}" y="${(q[1] - h).toFixed(1)}" width="${2 * h}" height="${2 * h}" ${K.fillAttr(CAT.gear, 0.95)}/>`;
+    for (const i of M.contacts) { const p = P3(M, i); out.push(box(pl(p), 4.5) + box(sd(p), 4) + box(fr(p), 4)); }
+    if (M.floats) for (const q of byTag(M, 'FLK')) out.push(box(pl(q), 2.5) + box(fr(q), 2.5));
+    const dot = (q, r) => `<circle cx="${q[0].toFixed(1)}" cy="${q[1].toFixed(1)}" r="${r.toFixed(1)}" fill="${th.ink}" fill-opacity=".72"/>`;
+    for (const q of n) if (q[3] > 0.05) { const r = Math.sqrt(q[3]); out.push(dot(pl(q), Math.max(1.1, r * 1.1)) + dot(sd(q), Math.max(0.9, r * 0.85)) + dot(fr(q), Math.max(0.9, r * 0.85))); }
+    // the legend: one row
+    const kg = n.reduce((a, q) => a + q[3], 0), LY = 742;
+    const KEY = [
+      [x => `<circle cx="${x + 7}" cy="${LY - 4}" r="5" fill="${th.ink}" fill-opacity=".72"/>`, 'mass, size by weight (' + r0(kg) + ' kg)'],
+      [x => K.L([x, LY - 4], [x + 16, LY - 4], th.ink, 1), 'member'],
+      [x => `<rect x="${x}" y="${LY - 10}" width="16" height="12" ${K.fillAttr(CAT.structure, 0.4)}/>`, 'lifting panel'],
+      [x => `<rect x="${x}" y="${LY - 10}" width="16" height="12" fill="url(#mh)" stroke="${CAT.fittings}"/>`, 'control surface'],
+      [x => `<circle cx="${x + 7}" cy="${LY - 4}" r="7" fill="${th.ink}" fill-opacity=".1" stroke="${th.ink}" stroke-dasharray="3 2"/>`, 'body drag area'],
+      [x => K.L([x, LY - 4], [x + 16, LY - 4], CAT.engine, 3), 'propeller ' + Dp.toFixed(2) + ' m'],
+      [x => `<rect x="${x + 3}" y="${LY - 8.5}" width="9" height="9" ${K.fillAttr(CAT.gear, 0.95)}/>`, M.floats ? 'float keel, wheel' : 'wheel'],
+      [x => `<rect x="${x}" y="${LY - 10}" width="16" height="12" rx="3" fill="${th.ink}" fill-opacity="${Math.min(0.35, th.ghost)}"/>`, 'the rendered plane']];
+    // spaced evenly over the sheet's width (the labels' width estimated at 6 px a character)
+    const lw = KEY.map(k => 22 + k[1].length * 6), gap = Math.max(14, (W - 96 - lw.reduce((a, b) => a + b, 0)) / (KEY.length - 1));
+    let x = 48; KEY.forEach(([mk, t], i) => { out.push(mk(x) + K.T(x + 22, LY, t, { sz: 13, c: th.dim })); x += lw[i] + gap; });
     if (o.note) out.push(K.T(48, H - 32, o.note, { sz: 12, c: th.warn }));
     return out;
   }
@@ -567,7 +584,7 @@
   }
   function picsFor(rec, model, inline) {
     const out = {}, s = (rec.data && rec.data.pxPerM) || 0;
-    return Promise.all(['side', 'plan'].map(v => {
+    return Promise.all(['side', 'plan', 'front'].map(v => {
       const b = rec.pics && rec.pics[v]; if (!b || !s) return null;
       return (inline ? dataUri(b) : Promise.resolve(blobUrl(b))).then(href => new Promise(res => {
         const im = new Image(); im.onload = () => frameOf(model, v, im, s).then(fr => { out[v] = { href, W: im.naturalWidth, H: im.naturalHeight, s, frame: fr }; res(); }, () => res());
