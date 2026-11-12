@@ -1914,6 +1914,10 @@ function makePilot(sim, def, world, opts) {
     if (!best) return false;
     ap.path = patternPath(PAT, best.ids, 1.0, [cg[0], cg[2]]);
     if (!ap.path || !ap.path.pts || ap.path.pts.length < 2) { ap.path = null; return false; }
+    // TAXI-HOME STOP: THE STAND IS A STOP - patternPath gives sStop (pathSpeed's 0.5 m/s^2 slow-down to 1.5 m short of the
+    // end, the hold's law) only to a path ending on a hold; the way in ends on the stand, and the Cub reached it at 5.4 m/s,
+    // went STOPPED 0.65 m off and rolled 10.8 m past (Game, the page leg on 39d1fe646, 11 Nov 18:05)
+    ap.path.sStop = ap.path.len;
     ap.pathI = 0; ap.pivAt = null; ap.stopAfterLineup = false; ap.taxiIn = true;
     ap.budget = Math.max(ap.budget || 0, ap.t + 120 + 2 * ap.path.len / Math.max(1, A.taxiV ?? 5));
     say('taxi-in', 'taxiing in to ' + (ap.arrive.plotId ? 'its own stand (' + ap.arrive.plotId + ')' : 'the stand') + ', ' + Math.round(ap.path.len) + ' m');
@@ -3843,7 +3847,15 @@ function makePilot(sim, def, world, opts) {
           if (L.sRem < 2.0 || (L.sRem < 6 && Vg < 0.6)) {
             // G2490: the roll on to the turn's spot done - the turn on the spot, then the path after it
             if (ap.pivAt && ap.pivAt.first === ap.path) { const TP = ap.pivAt; ap.pivAt = null; ap.path = TP.then; ap.pathI = 0; piv = { hdg: TP.hdg, j: 0, t0: ap.t, thr: 0, sg: TP.sg }; pivN++; pivSaid = true; break; }
-            if (ap.taxiIn) { ap.taxiIn = false; ap.path = null; go('STOPPED'); break; }   // TAXI-HOME: at the stand
+            // TAXI-HOME: at the stand. TAXI-HOME STOP: braked to rest there first (the way out's STOP law: power off, brake
+            // 0.7, until under 0.3 m/s) - STOPPED holds 0.25 of brake, and from taxi speed that coasted 10.8 m past the stand
+            if (ap.taxiIn && Vg >= 0.3 && phaseT <= tMax + 30) {
+              engage('TAXI', 'DE', 'SET', { dr: drC, de: A.taxiDe ?? 0.30, thr: 0 });
+              c.brake = 0.7; c.da = groundAil(0, 0.25);
+              setStatus('braking to a standstill at the stand', [cond('ground speed', Vg, 0.3, Vg < 0.3, 'm/s')]);
+              break;
+            }
+            if (ap.taxiIn) { ap.taxiIn = false; ap.path = null; go('STOPPED'); break; }
             go('STOP');
           }
           else if (phaseT > tMax) { say('taxi-timeout', 'the route took ' + Math.round(phaseT) + ' s — stopping where it is'); if (ap.taxiIn) { ap.taxiIn = false; ap.path = null; go('STOPPED'); break; } go('STOP'); }

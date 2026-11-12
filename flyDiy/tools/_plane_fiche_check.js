@@ -77,7 +77,17 @@ async function run(S) {
         iC = fin.indexOf('await P.compileScreen(root, S); tm.backCompileMs'), iH = fin.indexOf('if (held) hold(false);');
       ok(iB > 0 && iR > iB && iV > iR && iC > iV && iH > iC && /if \(held && P\.compileScreen\) \{/.test(fin), 'R3 freeze: the build-back\'s programs are not compiled (sliced, the room put back) before the hold lifts');
     }
-    ok(/const CUT_YAW = 50, CUT_EL = 15;/.test(F) && /shoot\('cutaway', heroCam\(T, Fc, CUT_W \/ CUT_H, CUT_YAW, CUT_EL\)/.test(F), 'RULE the cutaway\'s eye: 50 round, 15 up');
+    ok(/const CUT_YAW = 50, CUT_EL = 15;/.test(F) && /camC = heroCam\(T, Fc, CUT_W \/ CUT_H, CUT_YAW, CUT_EL\)/.test(F) && /shoot\('cutaway', camC, CUT_W, CUT_H/.test(F), 'RULE the cutaway\'s eye: 50 round, 15 up');
+    // CUT TAKES (11 Nov: list:5 / list:7's 10 Nov cutaways came out whole, the cut's programs made inside the picture's draw)
+    {
+      const iP = F.indexOf("let pre = peek(true); await yieldTask('the cutaway, a first small draw');"), iS = F.indexOf("await shoot('cutaway', camC");
+      ok(iP > 0 && iP < iS && F.indexOf("await warm('the cutaway')") < iP, 'CUT TAKES: a small first draw of the cutaway, after its warm, before its picture');
+      ok(/const whole = peek\(false\);/.test(F) && /R\.localClippingEnabled = clip;/.test(F) && /if \(opts\.checkCut != null \? opts\.checkCut : opts\.store === false\) \{/.test(F), 'CUT TAKES: the bake draws it whole too (the clipping off)');
+      ok(/if \(d < CUT_MIN\) throw new Error\('the cutaway: the cut did not take/.test(F) && iS > F.indexOf('the cut did not take'), 'CUT TAKES: an uncut cutaway stops the fiche, before its picture');
+      // CUT PINNED (11 Nov: the Metal Cessna's cut wiped by app.js applyBuildClip - a plane with a reference model mounted)
+      ok(/const pinClip = \(n, planes, inter\) => \{\s*Object\.defineProperty\(n, 'clippingPlanes', \{[^\n]*set: \(\) => \{\} \}\);/.test(F) && !/\bn\.clippingPlanes = \[/.test(F) && (F.match(/pinClip\(n, \[p1/g) || []).length >= 3,
+        'CUT PINNED: the cut\'s copies keep their planes (a write from outside ignored), every clip site through pinClip');
+    }
     ok(/if \(name === 'hero'\) data\.heroWingY = wingLine\(m, w\);/.test(F), 'RULE the cutaway: the hero\'s wing line measured on its picture');
     ok(/const title = titleOf\(name, await baked\(\)/.test(FB) && /nmS = titleOf\(d\.name \|\| name, bakedIdx\)/.test(FB) && /g\.fillText\(titleOf\(d\.name/.test(FB), 'RULE the title: the draw, the board and the share all through titleOf');
     ok(!/flyDiy ·/.test(FB) && /g\.fillText\(sig\(\)/.test(FB) && /sg\.textContent = sig\(\)/.test(FB) && /GAME_NAMES\.game/.test(FB), 'RULE the signature: the game\'s name from its one place, on the board and the share');
@@ -150,7 +160,7 @@ async function run(S) {
       checks++;
       ok(A.titleOf('piperCub', IDX) === 'Piper Cub', 'RULE the title: the official Cub loaded from its file is "Piper Cub", not "piperCub" (' + A.titleOf('piperCub', IDX) + ')');
       ok(A.titleOf('Cubby', IDX) === 'Cubby' && A.titleOf('build', IDX) === 'build', 'RULE the title: a player\'s own name stays; a name two files share maps to neither');
-      const L = (S.LISTS && S.LISTS.planes) || [], off = L.filter(p => p.list === 'official' && p.thumb && IDX[p.thumb]);
+      const L = (S.LISTS && S.LISTS.planes) || [], off = L.filter(p => ['reproduction', 'story', 'original'].includes(p.list) && p.thumb && IDX[p.thumb]);   // PLANE-LIST: the classes with fiches
       ok(off.length >= 5 && off.every(p => typeof IDX[p.thumb].file === 'string'), 'RULE the title: every baked official fiche names its file (' + off.length + ')');
       ok(A.sig() === 'Wingsmith · certified airworthy', 'RULE the signature: "' + A.sig() + '"');
       // the cutaway where it fits: a 20 x 10 area, a solid 6 x 4 cutaway; the hero a block somewhere in it
@@ -172,6 +182,12 @@ async function run(S) {
   const k = [0, 0, 0, 255, 200, 0, 0, 255, 100, 100, 100, 255, 0, 0, 0, 255], wt = [255, 255, 255, 255, 200, 0, 0, 255, 227, 227, 227, 255, 255, 255, 255, 255];
   const m = api._matte(new Uint8Array(k), new Uint8Array(wt), 2, 2);
   ok(m.n === 2, 'the matte: two pixels of aeroplane');
+  if (api._cutDiffers) {   // CUT TAKES: the check's measure
+    const n = 200 * 160, a = new Uint8Array(n * 4), b = new Uint8Array(n * 4);
+    ok(api._cutDiffers(a, b) === 0, 'CUT TAKES: two equal draws read as uncut');
+    for (let i = 0; i < n * 0.05; i++) b[i * 4] = 200;
+    ok(api._cutDiffers(a, b) >= api.CUT_MIN, 'CUT TAKES: a side opened (5% of the pixels) reads as cut');
+  } else ok(false, 'CUT TAKES: no _cutDiffers');
   ok(m.d[4 * 0 + 3] > 120 && m.d[4 * 0 + 3] < 135 && m.d[0] > 190, 'the matte: top-left is the half-covered row-bottom-up pixel, its colour unmixed');
   ok(m.d[4 * 1 + 3] === 0 && m.d[4 * 3 + 3] === 255 && m.d[4 * 3] === 200, 'the matte: the solid pixel whole, the background out');
   let refused = null; try { refused = await api.award('x'); } catch (e) {}
@@ -255,6 +271,9 @@ async function run(S) {
     ['RULE: the hero\'s blades still', 'F', F.replace("if (only.includes('hero')) discs.push(...heroDiscs(T, root));", '')],
     ['RULE: the disc left on for every view', 'F', F.replace('discsOff(discs);   // the other views', '//')],
     ['RULE: the cutaway from the old height', 'F', F.replace('CUT_YAW = 50, CUT_EL = 15', 'CUT_YAW = 50, CUT_EL = 28')],
+    ['CUT TAKES: no first small draw', 'F', F.replace("let pre = peek(true); await yieldTask('the cutaway, a first small draw');", 'let pre = null;')],
+    ['CUT TAKES: an uncut cutaway saved', 'F', F.replace("if (d < CUT_MIN) throw new Error('the cutaway: the cut did not take (", "if (d < CUT_MIN) console.warn('the cutaway: the cut did not take (")],
+    ['CUT PINNED: a write from outside takes', 'F', F.replace("get: () => planes, set: () => {} });", "get: () => planes, set: v => { planes = v; } });")],
     ['RULE: no wing line', 'F', F.replace("if (name === 'hero') data.heroWingY = wingLine(m, w);", '')],
     ['RULE: the wing line from the left band', 'F', F.replace('xa = m.x1 - Math.max(1, Math.round(cw * WING_BAND)) + 1', 'xa = m.x0')],
     ['RULE: the file key as the title', 'FB', FB.replace('const title = titleOf(name, await baked().catch(() => ({})));', 'const title = label(name);')],

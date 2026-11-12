@@ -16,6 +16,13 @@
 //    whole def and of genShakedown's sheet against tools/_pod_base.json (taken from origin/claude/game-integration
 //    fe45b9a's core). `pod: { on: 0 }` builds the same lattice, aero and ledger as no pod. An old spec normalises with
 //    no `pod` key (SAVE: an old spec unchanged).
+//    RE-PINNED 12 Nov (ENGINE-DIALS C2, Game; A0's held L38b): the C172's def 6dd3e32e:163687 -> bf8dd73:163634 and
+//    its certificate bytes 847af8c1:450685 -> eb68eff5:450684, nothing else. Why: the C172 flies a CUSTOM engine on the
+//    A-65 fallback key, and ENGINE-DIALS made a custom engine inherit nothing from that key (GATE ENGINEDIALS 3), so
+//    its resolved spec.pplant.prop no longer carries the A-65's Sensenich row (its name, Tstatic and kV2 gone, D 1.88 ->
+//    1.8 - the row's numbers, which fly nothing: 00_registry's ENGINE-DIALS C note; the flown propeller is params.prop).
+//    Measured: those 4 fields are the def's only difference, and
+//    the 300 flown steps are the base's to the bit on all six builds (sim digests unchanged)
 // B. THE PART on each build (the default pod): its resolved shape inside the body's run, its cargo space (kind 'pod',
 //    box, floor limit, rated load = the limit x the floor, its station, a door that opens onto the box), its ledger
 //    rows (the shell empty weight at its centroid, the price, the load as payload at the hold's centroid), the shell

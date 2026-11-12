@@ -245,5 +245,9 @@ function playerShedDims(doc, id, site) {
   const s = doc && doc.sheds && doc.sheds[id];
   const d = (s && s.dims) || {};
   const h = (site && site.hangar) || {};
-  return { HW: d.HW || h.HW, HD: d.HD || h.HD, EAVE: d.EAVE || h.EAVE };
+  const out = { HW: d.HW || h.HW, HD: d.HD || h.HD, EAVE: d.EAVE || h.EAVE };
+  // DERELICT-HANGAR: a shell with galleries (the large hangar) has its door off the axis - the stand walks out on its line
+  const B = (s && typeof hangarBay === 'function') ? hangarBay(s.shell, out) : null;
+  if (B && B.doorZ) out.doorZ = B.doorZ;
+  return out;
 }

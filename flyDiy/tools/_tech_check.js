@@ -116,7 +116,8 @@ function run(core, edSrc) {
   // ================= 1 THE TABLE =================
   const SOURCES = {
     mat: Object.keys(M.GEN_MATERIALS), surf: Object.keys(M.GEN_SURF_MATERIALS), eng: Object.keys(M.POWERPLANTS),
-    prop: Object.keys(M.GEN_PROP_MATS), pitch: Object.keys(M.GEN_PROP_PITCH), fit: Object.keys(M.GEN_SYSTEMS),
+    prop: Object.keys(M.GEN_PROP_MATS), pitch: Object.keys(M.GEN_PROP_PITCH).concat(['auto']),   // (ENGINE-DIALS B: the pitch row's automatic pick)
+    fit: Object.keys(M.GEN_SYSTEMS),
     gear: M.TECH_GEAR_TYPES, susp: Object.keys(M.GEN_SUSPENSION), fair: Object.keys(core.ctx.GEN_FAIR_MATS || vm.runInContext('GEN_FAIR_MATS', core.ctx)),
     glaze: Object.keys(M.GEN_OUTFIT.glassKgM2By), canopy: M.TECH_CANOPY_STYLES, fuel: Object.keys(M.GEN_FUELS), cell: Object.keys(M.GEN_CELLS),
     cfg: ['twin'], kit: ['stol'],

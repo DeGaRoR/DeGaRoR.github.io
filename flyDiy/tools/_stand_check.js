@@ -107,7 +107,9 @@ console.log('GATE STAND');
     ok(!!o2 && o2.children.length === 1 && o2.children[0].castShadow, '1 castMin 0: every piece casts, as built');
     ok(/const merged = SHELL\.merge \? mergeShell\(shed\.group, SHELL\.castMin\) : null;\s*\n\s*if \(merged\) shed\.group = merged;/.test(RW) &&
        RW.indexOf('const merged = SHELL.merge') < RW.indexOf('lod.addLevel(shed.group, 0)'), '1 standShed merges before the LOD takes the group');
-    ok(/const coarseOf = merged \? shellCoarse\(merged, SHELL\.coarseShare, new Set\(\[wears\(shed\.mats\.wallOut\) \? shed\.mats\.wallOut : shed\.mats\.wall, shed\.mats\.roofOut\]\.filter\(Boolean\)\)\) : null;/.test(RW) && /lod\.addLevel\(coarseOf \|\| coarse, 320\);/.test(RW) &&
+    // L39a (A0 12 Nov): RE-PIN - HOME-DERELICT's large hangar hands its own casting cladding + roof (shed.coarseCast, render_world 6650);
+    // every other shed has none and takes the old wallOut/wall + roofOut set unchanged, which this row still pins
+    ok(/const coarseOf = merged \? shellCoarse\(merged, SHELL\.coarseShare, new Set\(shed\.coarseCast \|\| \[wears\(shed\.mats\.wallOut\) \? shed\.mats\.wallOut : shed\.mats\.wall, shed\.mats\.roofOut\]\.filter\(Boolean\)\)\) : null;/.test(RW) && /lod\.addLevel\(coarseOf \|\| coarse, 320\);/.test(RW) &&
        /this\.levels\[1\]\.distance = Math\.min\(SHELL\.swapM\[1\], Math\.max\(SHELL\.swapM\[0\], R \* F \/ SHELL\.swapPx\)\);/.test(RW),
        '1c standShed: the coarse rung from the merged shell (the box only when it did not merge), its switch by projected size (G1398)');
   }

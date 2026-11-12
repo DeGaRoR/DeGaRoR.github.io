@@ -25,8 +25,13 @@
 // stage text (CONTRACT_TEXT trk.*); world: whether the record changes at this value. The camera target is not written
 // here - it is READ off the record (stageReveal), so a moved building moves its shot.
 const STAGE_REVEALS = {
-  'field:1':    { at: 'HOME',     caption: 'trk.field.1',    world: true },    // the second hangar's plot: the building site
-  'field:2':    { at: 'HOME',     caption: 'trk.field.2',    world: true },    // the second hangar restored (the club's long hangar)
+  // HOME-DERELICT (the user 10 Nov via A0, "the 4 phases"): the old wartime hangar (HOME.2) takes DERELICT_GEN's stages in order -
+  // 0 derelict (no story yet), 1 made safe, 2 roofed, 3 restored (71_player_bases HOME.2 closedTrack). world: false - the record
+  // has no element at these stages (the derelict's stage is the plot's, playerClosedSheds, not the record's: GATE STAGES 5); the
+  // building still changes with the track; the reveal's camera on it is owed (stageElementsAt / stageReveal do not read plots)
+  'field:1':    { at: 'HOME',     caption: 'trk.field.1',    world: false },    // made safe: DERELICT_GEN stage 1
+  'field:2':    { at: 'HOME',     caption: 'trk.field.2',    world: false },    // roofed: stage 2
+  'field:3':    { at: 'HOME',     caption: 'trk.field.3',    world: false },    // restored: stage 3
   'minedock:1': { at: 'mn_strip', caption: 'trk.minedock.1', world: true },    // the mill's (the headframe's) frame going up
   'minedock:2': { at: 'mn_strip', caption: 'trk.minedock.2', world: true },    // the mill and the ore shed
   'minedock:3': { at: 'SEA',      caption: 'trk.minedock.3', world: true },    // the dock's site on the shore

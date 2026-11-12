@@ -334,7 +334,10 @@ const ECON_WEAR = {
 // the resolved spec's engine and prop prices: each engine's row and each prop's (60_ resolveSpec writes prop.price)
 function econPowerPrices(R) {
   const engs = (R && Array.isArray(R.engines) && R.engines.length) ? R.engines : (R && R.engine ? [R.engine] : []);
-  const one = e => { const k = typeof e === 'string' ? e : e && (e.type || e.engine); const P = k && POWERPLANTS[k]; return P ? +P.price || 0 : 0; };
+  // (ENGINE-DIALS: a custom engine is priced as its own row - resolveSpec's market curve - never the registry row of its
+  // fallback key, the A-65's 11 000 for every custom engine)
+  const one = e => { if (e && typeof e === 'object' && e.custom && isFinite(+e.custom.price)) return +e.custom.price;
+                     const k = typeof e === 'string' ? e : e && (e.type || e.engine); const P = k && POWERPLANTS[k]; return P ? +P.price || 0 : 0; };
   const n = Math.max(1, engs.length);
   const eng = engs.map(one);
   return { n, engine: eng.length ? eng : [0], prop: Math.round(+(R && R.prop && R.prop.price) || 0) };
