@@ -314979,3 +314979,16 @@ the next steps).
   the top corner, -107 mm), the front track in (s2X 0.88; tracks 1.76 m front, 1.64 m rear) - the front tyres still
   stand a little proud of the bonnet, as the user allowed. car_sheet: 1268 kg, 35.5 % front, AUTOTOW still LAUNCHES.
   STILL OWED: THE GRILLE (above).
+- **CAR x TOW-LAUNCH, THE MERGE (12 Nov; the user: "you have my go-ahead for merging you two branches ... it keeps the
+  towing part, but ... you keep the whole car part, including the AI and everything that it has done ... keep its car
+  model integrated with our physics ... in case our self-made cars do not look good enough, we default back to these")**:
+  origin/claude/tow-launch-phase1 (40c06bf7) merged into claude/fly-diy-car-build-uu6e6w. THE SPLIT: the CAR-BUILD
+  session owns the car - src/vehicle/vehicle.js, vehicle_drive.js, vehicle_island.js (the AI driver and its roads),
+  src/viewer/drive_mode.js, src/cars/* (the conquer car: the drive mode's default rig, on vehicle.js's physics),
+  tools/drive_shot.js, the road-join tools, GATE VEHICLE and DRIVE-TRIP; TOW-LAUNCH keeps the towing - tow.js,
+  trailer.js, trailer_model.js, the glider launches / circuit / altiport push start (43_pilot.js), GATE TOW, TRAILER.
+  THE CONFLICT: vehicle.js - TOW-LAUNCH's kept (the scratch-slot substep, car.extF); CAR-3's ctl.tow / towEl / towDir
+  dropped, tools/car_sheet.js's TOW and AUTOTOW rows pull through car.extF (same digits: the van holds 97 km/h);
+  vehicleDef gains `hitch` from sheet.hitch (undefined without one - no digit moves). For tow.js (TOW-LAUNCH's):
+  `o.hitch || car.def.hitch || ...` so a garage car's drawn ball is the rope's point. NEXT (CAR): DM.vehicleSource =
+  { sheet, tune, buildRig(THREE) } - the conquer car the default, a garage car (its own meshes, its car_sheet) an option.

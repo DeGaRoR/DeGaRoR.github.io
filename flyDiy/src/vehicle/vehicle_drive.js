@@ -3,7 +3,7 @@
 // the follower that steers it, the U-turn it plans at a roadside apron, the
 // road graph and the destination it re-routes to. Pure: no THREE, no DOM; it
 // drives a makeVehicle (vehicle.js) through its `ctl` and reads its pose.
-// Node only, not in the bundle yet (as vehicle.js).
+// A lazy file of the page since TOW-LAUNCH, as vehicle.js (GROUND-VEHICLE §9).
 //
 // WHAT IT REUSES AND WHAT IT CANNOT (futureDesigns/GROUND-VEHICLE-2026-10.md §3, §4):
 //  - the path's SHAPE is 39_ground_path.js's: samples { x, z, hdg, kap, s }, kap
@@ -37,6 +37,8 @@ const VD_WIN = 1500;          // the road window sampled ahead, m
 const VD_WIN_REPLAN = 400;    // re-plan the window when this much of it is left (and the leg goes on)
 const VD_JOIN = 25;           // a join from the vehicle goes to the first node at least this far ahead
 const VD_UTURN_COST = 80;     // a U-turn's cost in the router, metres of road
+const VD_JUNCTION_EXTRA = 40; // (TOW-LAUNCH) a U-turn in a side street costs this much more than at an apron
+const VD_TURN_CANDIDATES = 12; // the nearest turning places priced by route()
 
 const vdWrap = a => { a = (a + Math.PI) % (2 * Math.PI); if (a < 0) a += 2 * Math.PI; return a - Math.PI; };
 const vdClamp = (x, a, b) => x < a ? a : x > b ? b : x;
@@ -55,6 +57,30 @@ function vehPath(poly, opts) {
   const dev = opts.dev ?? (opts.w ? Math.max(0.5, opts.w / 2 - 1.3) : Infinity);
   const P = [];
   for (const q of poly) { const l = P[P.length - 1]; if (!l || Math.hypot(q[0] - l[0], q[1] - l[1]) > 0.05) P.push([q[0], q[1]]); }
+  // (TOW-LAUNCH) A SHARP CORNER ON DENSE VERTICES: a junction's turn (r5 -> r40, 121 deg) where the island's lines are
+  // sampled a metre apart - its fillet, clamped to half its 1 m legs, was a kink no car follows (it overshot, lost the road,
+  // stuck). At a vertex turning more than 45 deg, the straight approach either side (every vertex within 0.3 m of the line
+  // to the corner, up to 40 m) is ONE leg: its inner vertices dropped, so the fillet has room. A gentle curve has no such
+  // vertex: every other path is sampled as it was, to the bit
+  if (P.length > 3) {
+    const drop = new Uint8Array(P.length);
+    const turn = i => { const ax = P[i][0] - P[i - 1][0], az = P[i][1] - P[i - 1][1], bx = P[i + 1][0] - P[i][0], bz = P[i + 1][1] - P[i][1]; return Math.acos(vdClamp((ax * bx + az * bz) / ((Math.hypot(ax, az) * Math.hypot(bx, bz)) || 1e-12), -1, 1)); };
+    const lineD = (q, a, b) => { const dx = b[0] - a[0], dz = b[1] - a[1], l = Math.hypot(dx, dz) || 1e-12; return Math.abs((q[0] - a[0]) * dz - (q[1] - a[1]) * dx) / l; };
+    for (let i = 1; i < P.length - 1; i++) {
+      if (turn(i) <= Math.PI / 4) continue;
+      for (const sg of [-1, 1]) {
+        let j = i + sg, ok = j;
+        while (j + sg >= 0 && j + sg < P.length && Math.hypot(P[j + sg][0] - P[i][0], P[j + sg][1] - P[i][1]) < 40) {
+          const k = j + sg; let fine = true;
+          for (let m = i + sg; m !== k; m += sg) if (lineD(P[m], P[i], P[k]) > 0.3) { fine = false; break; }
+          if (!fine) break;
+          j = k; ok = j;
+        }
+        for (let m = i + sg; m !== ok; m += sg) drop[m] = 1;
+      }
+    }
+    if (drop.some(Boolean)) { const Q = []; for (let i = 0; i < P.length; i++) if (!drop[i]) Q.push(P[i]); P.length = 0; for (const q of Q) P.push(q); }
+  }
   const pts = [];
   if (P.length < 2) return { pts, len: 0, sStop: null, dir: opts.dir || 1 };
   const n = P.length, tan = new Array(n).fill(0), rad = new Array(n).fill(Infinity), U = [];
@@ -239,6 +265,7 @@ function vehUturnPlan(def, site, opts) {
   const xMin = -(site.back ?? 40), xMax = site.ahead ?? 40, xNow = site.xNow ?? -Infinity;
   const inside = (X, Z, mg) => {
     if (X < xMin + mg || X > xMax - mg) return false;
+    if (site.inside) return site.inside(X, Z, mg);   // (TOW-LAUNCH: a corridor of its own - a junction's road bands)
     if (Math.abs(Z) <= hw - mg) return true;
     const zs = sg * Z;
     return X >= site.a0 + mg && X <= site.a1 - mg && zs >= 0 && zs <= hw + site.depth - mg;
@@ -247,12 +274,23 @@ function vehUturnPlan(def, site, opts) {
   const FP = [];
   for (let a = -F.rear; a <= F.front + 1e-6; a += (F.front + F.rear) / 8) { FP.push([a, F.half]); FP.push([a, -F.half]); }
   FP.push([F.front, 0]); FP.push([-F.rear, 0]);
+  // (TOW-LAUNCH) A CORRIDOR WITH A CLEARANCE (site.clear: a junction's road bands, the hard ground - vehClearGrid): ONE
+  // sweep per candidate at the narrowest margin, the clearance it kept recorded, the margins' preference (the widest
+  // first) applied to that number - the three passes of the apron's search cost 3.5 s where no turn fits. Coarser steps
+  // (0.4 m of travel, the start every 1 m): the corridor is a 0.2 m grid. An apron site keeps the search it had
+  const FAST = typeof site.clear === 'function', MGS = [0.4, 0.25, 0.12];
+  let mc = Infinity;
+  const clr = (X, Z) => Math.min(site.clear(X, Z), X - xMin, xMax - X);
   const sweep = (X0, prims, mg) => {
     let x = X0, z = 0, h = 0;
-    const ok = () => { const c = Math.cos(h), s = Math.sin(h); for (const [a, b] of FP) if (!inside(x + c * a - s * b, z + s * a + c * b, mg)) return false; return true; };
+    mc = Infinity;
+    const ok = FAST
+      ? () => { const c = Math.cos(h), s = Math.sin(h); for (const [a, b] of FP) { const v = clr(x + c * a - s * b, z + s * a + c * b); if (v < mg) return false; if (v < mc) mc = v; } return true; }
+      : () => { const c = Math.cos(h), s = Math.sin(h); for (const [a, b] of FP) if (!inside(x + c * a - s * b, z + s * a + c * b, mg)) return false; return true; };
     if (!ok()) return null;
+    const st = FAST ? 0.4 : 0.2;
     for (const p of prims) {
-      const k = Math.max(1, Math.ceil(p.len / 0.2)), d = p.len / k;
+      const k = Math.max(1, Math.ceil(p.len / st)), d = p.len / k;
       for (let j = 0; j < k; j++) {
         const hm = h + 0.5 * p.kb * p.dir * d;
         x += Math.cos(hm) * p.dir * d; z += Math.sin(hm) * p.dir * d; h += p.kb * p.dir * d;
@@ -266,15 +304,24 @@ function vehUturnPlan(def, site, opts) {
   const consider = (family, X0, prims, mg) => {
     const len = prims.reduce((s, p) => s + p.len, 0), nRev = prims.filter((p, i) => i && p.dir !== prims[i - 1].dir).length;
     const cost = len + 6 * nRev + 0.05 * Math.abs(X0 - Math.max(xNow, site.a0));
+    if (FAST) {
+      if (tiers[0] && cost >= tiers[0].cost) return;
+      const e = sweep(X0, prims, mg);
+      if (!e || Math.abs(e.z) > 0.3 || Math.abs(vdWrap(e.h - Math.PI)) > 0.05) return;
+      const t = mc >= MGS[0] ? 0 : mc >= MGS[1] ? 1 : 2;
+      if (!tiers[t] || cost < tiers[t].cost) tiers[t] = { cost, plan: { family, start: X0, prims, len, margin: MGS[t], clear: +mc.toFixed(3), end: e } };
+      return;
+    }
     if (cost >= best.cost) return;
     const e = sweep(X0, prims, mg);
     if (!e || Math.abs(e.z) > 0.3 || Math.abs(vdWrap(e.h - Math.PI)) > 0.05) return;
     best.cost = cost; best.plan = { family, start: X0, prims, len, margin: mg, end: e };
   };
   const deg = Math.PI / 180;
-  for (const mg of opts.margins || [0.4, 0.25, 0.12]) {
+  const tiers = [null, null, null];
+  for (const mg of FAST ? [MGS[2]] : (opts.margins || MGS)) {
     best.cost = Infinity; best.plan = null;
-    for (let X0 = Math.max(xNow, site.a0 - 6); X0 <= site.a1 + 14; X0 += 0.5) {
+    for (let X0 = Math.max(xNow, site.a0 - 6); X0 <= site.a1 + 14; X0 += FAST ? 1.0 : 0.5) {
       // BACK-IN: reverse (steer toward the apron) by th1, straight back L2, forward out (steer away) to face back
       for (const R1 of Rs) for (let th = 50; th <= 120; th += 5) for (const L2 of [0, 0.5, 1, 1.5, 2, 3, 4]) {
         const t1 = th * deg;
@@ -314,6 +361,7 @@ function vehUturnPlan(def, site, opts) {
     }
     if (best.plan) return best.plan;
   }
+  if (FAST) { const T = tiers[0] || tiers[1] || tiers[2]; return T ? T.plan : null; }
   return null;
 }
 // a site's local pose -> the world
@@ -350,6 +398,7 @@ function vehRoadGraph(spec) {
       }
       V.push({ x: p[0], z: p[1] });
     }
+    const sAt = new Map(); { let ss = 0, pv = null; for (const v of V) { if (pv) ss += Math.hypot(v.x - pv.x, v.z - pv.z); sAt.set(v, ss); pv = v; } }
     let prev = -1;
     for (const v of V) {
       const id = v.place ? nodeAt(v.x, v.z, { place: v.place.id }) : nodeAt(v.x, v.z);
@@ -357,13 +406,71 @@ function vehRoadGraph(spec) {
                                                       { node: id, x: v.x, z: v.z, dx: v.dx, dz: v.dz, w: rd.w || 4 });
       if (prev >= 0 && prev !== id) {
         const e = edges.length, l = Math.hypot(nodes[id].x - nodes[prev].x, nodes[id].z - nodes[prev].z);
-        edges.push({ a: prev, b: id, len: l, road: ri, w: rd.w || 4, r: rd.r });
+        // (TOW-LAUNCH: a stretch the road marks `closed` - too steep to drive, vehicle_island.js - is no way for the router)
+        const sm = sAt.get(v) - l / 2, closed = !!(rd.closed && rd.closed.some(c => sm >= c[0] - 1 && sm <= c[1] + 1));
+        edges.push(Object.assign({ a: prev, b: id, len: l, road: ri, w: rd.w || 4, r: rd.r }, closed ? { closed: true } : {}));
         nodes[prev].adj.push(e); nodes[id].adj.push(e);
       }
       prev = id;
     }
   });
-  return { nodes, edges, places, spec };
+  // (TOW-LAUNCH) THE JUNCTIONS: where three roads or more meet - a place a vehicle may U-turn (a side street), as an apron;
+  // and THE ROADS' ENDS (a dead end, often on an apron, a yard, an airfield's pavement - vehClearGrid reads the hard ground)
+  const turns = {};
+  for (const n of nodes) if (n.adj.length === 1 && n.place == null) turns['end' + n.id] = { id: 'end' + n.id, kind: 'end', node: n.id, x: n.x, z: n.z, name: 'the end of the road' };
+  for (const n of nodes) if (n.adj.length >= 3 && n.place == null) {
+    const rs = []; for (const e of n.adj) { const r = spec.roads[edges[e].road], nm = (r && (r.name || r.road || r.id)) || ('road ' + edges[e].road); if (rs.indexOf(nm) < 0) rs.push(nm); }
+    turns['jn' + n.id] = { id: 'jn' + n.id, kind: 'junction', node: n.id, x: n.x, z: n.z, name: 'the junction (' + rs.join(' / ') + ')' };
+  }
+  return { nodes, edges, places, turns, spec };
+}
+// from node a toward its neighbour b, along the road (through the vertices where only one road goes on) until `dist`
+// metres: the point reached
+function vehWalk(G, a, b, dist) {
+  let prev = a, cur = b, acc = Math.hypot(G.nodes[b].x - G.nodes[a].x, G.nodes[b].z - G.nodes[a].z);
+  while (acc < dist && G.nodes[cur].adj.length === 2) {
+    let nx = -1; for (const e of G.nodes[cur].adj) { const E = G.edges[e], o = E.a === cur ? E.b : E.a; if (o !== prev) nx = o; }
+    if (nx < 0) break;
+    acc += Math.hypot(G.nodes[nx].x - G.nodes[cur].x, G.nodes[nx].z - G.nodes[cur].z); prev = cur; cur = nx;
+  }
+  return [G.nodes[cur].x, G.nodes[cur].z];
+}
+// THE ROADS' BANDS ROUND A POINT (TOW-LAUNCH): the clearance (metres inside the nearest road's edge, the road's half
+// width minus the distance to its centreline; negative off every road) on a 0.2 m grid R metres round (cx, cz). The
+// corridor of a U-turn at a junction: the vehicle's footprint, grown by the planner's margin, must stay on the roads
+function vehClearGrid(G, cx, cz, R, world) {
+  const res = 0.2, n = Math.ceil(2 * R / res), x0 = cx - R, z0 = cz - R, g = new Float32Array(n * n).fill(-9);
+  for (const E of G.edges) {
+    const A = G.nodes[E.a], B = G.nodes[E.b];
+    if (Math.abs(A.x - cx) > R + 20 || Math.abs(A.z - cz) > R + 20) continue;
+    const hw = (E.w || 4) / 2, dx = B.x - A.x, dz = B.z - A.z, l2 = dx * dx + dz * dz || 1e-12;
+    const i0 = Math.max(0, Math.floor((Math.min(A.x, B.x) - hw - x0) / res)), i1 = Math.min(n - 1, Math.ceil((Math.max(A.x, B.x) + hw - x0) / res));
+    const j0 = Math.max(0, Math.floor((Math.min(A.z, B.z) - hw - z0) / res)), j1 = Math.min(n - 1, Math.ceil((Math.max(A.z, B.z) + hw - z0) / res));
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+      const px = x0 + (i + 0.5) * res, pz = z0 + (j + 0.5) * res;
+      let f = ((px - A.x) * dx + (pz - A.z) * dz) / l2; f = f < 0 ? 0 : f > 1 ? 1 : f;
+      const v = hw - Math.hypot(A.x + dx * f - px, A.z + dz * f - pz), k = j * n + i;
+      if (v > g[k]) g[k] = v;
+    }
+  }
+  // THE HARD GROUND (world.surface PAVED / GRAVEL: an airfield's apron, a parking lot, a drawn roadside apron): sampled
+  // at 1 m, its clearance the distance to the nearest sample that is not hard (a two-pass chamfer), less half a sample
+  if (world && typeof world.surface === 'function') {
+    const hs = 1, m = Math.ceil(2 * R / hs) + 1, d = new Float32Array(m * m);
+    for (let j = 0; j < m; j++) for (let i = 0; i < m; i++) { const sc = world.surface(x0 + i * hs, z0 + j * hs); d[j * m + i] = (sc === 5 || sc === 6) ? 1e6 : 0; }
+    const a = hs, b = hs * Math.SQRT2, D = (k, v) => { if (v < d[k]) d[k] = v; };
+    for (let j = 0; j < m; j++) for (let i = 0; i < m; i++) { const k = j * m + i; if (!d[k]) continue;
+      if (i > 0) D(k, d[k - 1] + a); if (j > 0) D(k, d[k - m] + a); if (i > 0 && j > 0) D(k, d[k - m - 1] + b); if (i < m - 1 && j > 0) D(k, d[k - m + 1] + b); }
+    for (let j = m - 1; j >= 0; j--) for (let i = m - 1; i >= 0; i--) { const k = j * m + i; if (!d[k]) continue;
+      if (i < m - 1) D(k, d[k + 1] + a); if (j < m - 1) D(k, d[k + m] + a); if (i < m - 1 && j < m - 1) D(k, d[k + m + 1] + b); if (i > 0 && j < m - 1) D(k, d[k + m - 1] + b); }
+    for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+      const fi = Math.round(((i + 0.5) * res) / hs), fj = Math.round(((j + 0.5) * res) / hs);
+      if (fi < 0 || fj < 0 || fi >= m || fj >= m) continue;
+      const v = d[fj * m + fi] - hs / 2, k = j * n + i;
+      if (v > g[k]) g[k] = Math.min(v, 30);
+    }
+  }
+  return { at: (x, z) => { const i = Math.floor((x - x0) / res), j = Math.floor((z - z0) / res); return i < 0 || j < 0 || i >= n || j >= n ? -9 : g[j * n + i]; }, n, res };
 }
 // how far the road runs STRAIGHT from a point on it (within 0.3 m of its tangent), along its drawn direction (sg +1)
 // or against it: the stretch a U-turn may use (the planner's corridor is that straight road and the apron)
@@ -385,15 +492,23 @@ function vdStraight(pts, v, sg) {
 function vehDijkstra(G, src, blocked) {
   const N = G.nodes.length, dist = new Float64Array(N).fill(Infinity), prev = new Int32Array(N).fill(-1), done = new Uint8Array(N);
   dist[src] = 0;
-  for (;;) {   // a plain O(N^2) scan: road graphs of a few thousand vertices, planned on a request
-    let u = -1, du = Infinity;
-    for (let i = 0; i < N; i++) if (!done[i] && dist[i] < du) { du = dist[i]; u = i; }
-    if (u < 0) break;
+  // (TOW-LAUNCH: a binary heap - the island's roads are ~20 000 vertices, every one a node; the O(N^2) scan of the
+  // spike's few-thousand-vertex roads took seconds there. The same distances; a tie between two equal paths is the
+  // only thing that can differ, and a road graph's lengths are irrational sums)
+  const HK = [], HV = [];
+  const push = (k, v) => { let i = HK.length; HK.push(k); HV.push(v); while (i > 0) { const p = (i - 1) >> 1; if (HK[p] <= HK[i]) break; [HK[p], HK[i]] = [HK[i], HK[p]]; [HV[p], HV[i]] = [HV[i], HV[p]]; i = p; } };
+  const pop = () => { const v = HV[0], lk = HK.pop(), lv = HV.pop(); if (HK.length) { HK[0] = lk; HV[0] = lv; let i = 0; for (;;) { const l = 2 * i + 1, r = l + 1; let m = i; if (l < HK.length && HK[l] < HK[m]) m = l; if (r < HK.length && HK[r] < HK[m]) m = r; if (m === i) break; [HK[m], HK[i]] = [HK[i], HK[m]]; [HV[m], HV[i]] = [HV[i], HV[m]]; i = m; } } return v; };
+  push(0, src);
+  while (HK.length) {
+    const u = pop();
+    if (done[u]) continue;
     done[u] = 1;
+    const du = dist[u];
     for (const e of G.nodes[u].adj) {
       if (blocked && blocked.has(e)) continue;
-      const E = G.edges[e], v = E.a === u ? E.b : E.a, d = du + E.len;
-      if (d < dist[v]) { dist[v] = d; prev[v] = u; }
+      const E = G.edges[e]; if (E.closed) continue;
+      const v = E.a === u ? E.b : E.a, d = du + E.len;
+      if (d < dist[v]) { dist[v] = d; prev[v] = u; push(d, v); }
     }
   }
   return { dist, prev };
@@ -415,6 +530,15 @@ function vehGraphLocate(G, x, z, hdg) {
   return { e: best.e, d: best.d, ahead, behind, dAhead: Math.hypot(N.x - x, N.z - z) };
 }
 
+// (TOW-LAUNCH) WHICH WAY TO STAND: of a heading on the road and its reverse, the one whose straight-on route to the place
+// is shorter - a vehicle placed to set off faces its destination, so a trip needs no U-turn (one is for a new To behind)
+function vehFaceToward(G, x, z, hdg, to) {
+  const P = G.places[to]; if (!P) return hdg;
+  const cost = h => { const L = vehGraphLocate(G, x, z, h); if (L.ahead === P.node) return L.dAhead; const D = vehDijkstra(G, L.ahead, new Set([L.e])); return L.dAhead + D.dist[P.node]; };
+  const a = cost(hdg), b = cost(vdWrap(hdg + Math.PI));
+  return b < a ? vdWrap(hdg + Math.PI) : hdg;
+}
+
 // ---- THE DRIVER ----
 // makeDriver(car, G, tune): the vehicle's autopilot on the road. tune: { vCruise, aLat, aDec, ... } (vehSpeedTarget,
 // vehPedals, vehSteer's), man: the manoeuvre's own { v, L0, Lt, Lmin }
@@ -428,21 +552,61 @@ function makeDriver(car, G, tune) {
   };
   const say = (what, msg) => D.log.push({ t: +car.st.t.toFixed(2), what, msg });
   const pose = () => { const p = car.refPoint(); return { x: p[0], z: p[2], hdg: car.heading() }; };
+  const turnPlace = id => (G.turns && G.turns[id]) || G.places[id];
+  const placeName = id => { const T = turnPlace(id); return (T && T.name) || id; };
+  // (TOW-LAUNCH) A U-TURN AT A JUNCTION: the arrival direction off the road 12 m back, the side streets' sides (not the
+  // one straight on), the corridor the roads' own bands round the junction (vehClearGrid) - the planner's three families
+  // swept in it, each side street tried, the cheapest kept
+  function junctionTurn(T, came) {
+    const J = G.nodes[T.node];
+    const back = vehWalk(G, T.node, came, 12);
+    let ux = J.x - back[0], uz = J.z - back[1]; const ul = Math.hypot(ux, uz) || 1; ux /= ul; uz /= ul;
+    const hdg = Math.atan2(uz, ux);
+    let wArr = 4;
+    for (const e of J.adj) { const E = G.edges[e]; if ((E.a === came || E.b === came)) wArr = E.w; }
+    const sides = new Set();
+    for (const e of J.adj) {
+      const E = G.edges[e], o = E.a === T.node ? E.b : E.a; if (o === came) continue;
+      const q = vehWalk(G, T.node, o, 12); let bx = q[0] - J.x, bz = q[1] - J.z; const bl = Math.hypot(bx, bz) || 1; bx /= bl; bz /= bl;
+      if (ux * bx + uz * bz > 0.85) continue;   // straight on: no room to turn there
+      sides.add(ux * bz - uz * bx >= 0 ? 1 : -1);
+    }
+    if (!sides.size) { sides.add(1); sides.add(-1); }   // a dead end: whichever side the hard ground is
+    const grid = T.grid || (T.grid = vehClearGrid(G, J.x, J.z, 45, car.world));
+    const c = Math.cos(hdg), sn = Math.sin(hdg);
+    const p = pose(), xNow = (p.x - J.x) * ux + (p.z - J.z) * uz;
+    let best = null;
+    for (const side of sides) {
+      const site = { x: J.x, z: J.z, hdg, hw: wArr / 2, side, a0: -12, a1: 12, depth: 20, back: 40, ahead: 40,
+                     xNow: Math.max(xNow, -40 + def.foot.rear + 1),
+                     clear: (X, Z) => grid.at(J.x + c * X - sn * Z, J.z + sn * X + c * Z) };
+      const plan = vehUturnPlan(def, site);
+      if (plan && (!best || plan.len + 6 * plan.prims.length < best.plan.len + 6 * best.plan.prims.length)) best = { site, plan };
+    }
+    return best;
+  }
   // THE ROUTE FROM HERE to a place: straight on, or a U-turn at an apron ahead and back (the cheaper)
+  // (TOW-LAUNCH: and at a JUNCTION - G.turns, vehRoadGraph's nodes where three roads or more meet: the vehicle backs into
+  // the side street and turns, as a driver does where the road has no apron. Jolene's roads carry no roadside apron yet.
+  // The route returns the cheapest and, `alts`, every U-turn it priced, cheapest first: plan() tries them in turn when a
+  // manoeuvre does not fit, and falls back on the drive)
   function route(to) {
     const P = G.places[to]; if (!P) return null;
     const p = pose(), L = vehGraphLocate(G, p.x, p.z, p.hdg);
     const blk = new Set([L.e]);
     const Df = vehDijkstra(G, L.ahead, blk);
-    let bestR = null;
+    let drive = null;
     // the place on the very edge ahead of the vehicle
     if (L.ahead === P.node || Df.dist[P.node] < Infinity) {
       const c = L.dAhead + Df.dist[P.node];
-      bestR = { kind: 'drive', cost: c, nodes: vdPathTo(Df, P.node) };
+      drive = { kind: 'drive', cost: c, nodes: vdPathTo(Df, P.node) };
     }
-    // U-turns: an apron reachable ahead (or the one the vehicle stands at), then back the way it came
-    for (const id in G.places) {
-      const A = G.places[id]; if (A.kind !== 'apron') continue;
+    // U-turns: an apron (or a junction) reachable ahead (or the one the vehicle stands at), then back the way it came
+    const cand = [];
+    const sites = [];
+    for (const id in G.places) if (G.places[id].kind === 'apron') sites.push([id, G.places[id], 0]);
+    for (const id in (G.turns || {})) sites.push([id, G.turns[id], VD_JUNCTION_EXTRA]);
+    for (const [id, A, extra] of sites) {
       let dA, nodesA, came;
       if (A.node === L.behind && Math.hypot(A.x - p.x, A.z - p.z) < 6) {
         // stopped just past it: the vehicle came from A's neighbour BEHIND it (the one most against its heading)
@@ -453,18 +617,28 @@ function makeDriver(car, G, tune) {
       }
       else if (Df.dist[A.node] < Infinity) { dA = L.dAhead + Df.dist[A.node]; nodesA = vdPathTo(Df, A.node); came = nodesA.length > 1 ? nodesA[nodesA.length - 2] : L.behind; }
       else continue;
-      // after the turn the vehicle heads back toward `came`: the edge on the far side of the apron is blocked
-      const back = new Set();
-      for (const e of G.nodes[A.node].adj) { const E = G.edges[e], o = E.a === A.node ? E.b : E.a; if (o !== came) back.add(e); }
-      const Db = vehDijkstra(G, A.node, back);
-      if (!(Db.dist[P.node] < Infinity) && A.node !== P.node) continue;
-      const c = dA + VD_UTURN_COST + Db.dist[P.node];
-      if (!bestR || c < bestR.cost) bestR = { kind: 'uturn', cost: c, nodes: nodesA, apron: id, came };
+      cand.push({ id, A, dA: dA + extra, nodesA, came });
     }
-    return bestR;
+    // the nearest few are priced back to the place (a Dijkstra each: an island has a hundred junctions)
+    cand.sort((a, b) => a.dA - b.dA);
+    const alts = [];
+    for (const C of cand.slice(0, VD_TURN_CANDIDATES)) {
+      if (drive && C.dA + VD_UTURN_COST >= drive.cost) break;
+      // after the turn the vehicle heads back toward `came`: the edges on the far side of the turning place are blocked
+      const back = new Set();
+      for (const e of G.nodes[C.A.node].adj) { const E = G.edges[e], o = E.a === C.A.node ? E.b : E.a; if (o !== C.came) back.add(e); }
+      const Db = vehDijkstra(G, C.A.node, back);
+      if (!(Db.dist[P.node] < Infinity) && C.A.node !== P.node) continue;
+      const c = C.dA + VD_UTURN_COST + Db.dist[P.node];
+      if (!drive || c < drive.cost) alts.push({ kind: 'uturn', cost: c, nodes: C.nodesA, apron: C.id, came: C.came });
+    }
+    alts.sort((a, b) => a.cost - b.cost);
+    if (alts.length) return Object.assign({}, alts[0], { alts: alts.slice(1), drive });
+    return drive;
   }
   // the arrival direction at an apron, the site in its local frame, the manoeuvre planned there
   function uturnAt(apronId, came) {
+    if (G.turns && G.turns[apronId]) return junctionTurn(G.turns[apronId], came);
     const A = G.places[apronId], C = G.nodes[came];
     // the arrival direction: from the node it came from (or the drawn direction's sign) toward the apron
     let ux = A.dx, uz = A.dz;
@@ -541,7 +715,7 @@ function makeDriver(car, G, tune) {
     D.leg = leg; D.path = windowPath(leg); D.i = 0; D.phase = 'DRIVE'; D.Sx = {};
   }
   function plan(to, why) {
-    const R = route(to);
+    let R = route(to);
     if (!R) { say('no-route', 'no road to ' + to); D.phase = 'IDLE'; return 'none'; }
     if (R.kind === 'drive') {
       const P = G.places[to];
@@ -549,14 +723,26 @@ function makeDriver(car, G, tune) {
       say('route', (why || 'route') + ': ' + Math.round(R.cost) + ' m to ' + to);
       return 'replan';
     }
-    const U = uturnAt(R.apron, R.came);
-    if (!U) { say('no-uturn', 'no U-turn fits at ' + R.apron); D.phase = 'IDLE'; return 'none'; }
+    let U = null, Rt = R;
+    for (const cand of [R].concat(R.alts || [])) {
+      U = uturnAt(cand.apron, cand.came); Rt = cand;
+      if (U) break;
+      say('no-uturn', 'no U-turn fits at ' + placeName(cand.apron));
+    }
+    if (!U && R.drive) {
+      const P = G.places[to];
+      startLeg({ poly: legPoly(R.drive.nodes.slice(0, -1), [P.x, P.z]), stop: true, then: 'arrive', w: legW(R.drive.nodes) });
+      say('route', (why || 'route') + ': ' + Math.round(R.drive.cost) + ' m to ' + to + ' (no U-turn fits: on the long way)');
+      return 'replan';
+    }
+    if (!U) { D.phase = 'IDLE'; return 'none'; }
+    R = Rt;
     const s0 = vehSiteToWorld(U.site, U.plan.start, 0, 0);
     D.man = { site: U.site, plan: U.plan, apron: R.apron };
     const atStart = Math.hypot(s0.x - pose().x, s0.z - pose().z) < 1.0 && Math.abs(car.out.u) < 0.3;
-    say('route', (why || 'route') + ': a U-turn (' + U.plan.family + ', margin ' + U.plan.margin + ' m) at ' + R.apron + ', then ' + to);
+    say('route', (why || 'route') + ': a U-turn (' + U.plan.family + ', margin ' + U.plan.margin + ' m) at ' + placeName(R.apron) + ', then ' + to);
     if (atStart) beginManoeuvre();
-    else startLeg({ poly: legPoly(R.nodes.filter(n => n !== G.places[R.apron].node), [s0.x, s0.z]), stop: true, then: 'manoeuvre', w: legW(R.nodes) });
+    else startLeg({ poly: legPoly(R.nodes.filter(n => n !== turnPlace(R.apron).node), [s0.x, s0.z]), stop: true, then: 'manoeuvre', w: legW(R.nodes) });
     return 'uturn';
   }
   function beginManoeuvre() {
@@ -565,7 +751,7 @@ function makeDriver(car, G, tune) {
     const M = vehManoeuvrePaths({ x: s0.x, z: s0.z, hdg: s0.hdg }, U.plan.prims);
     U.paths = M.paths; D.manI = 0; D.phase = 'MANOEUVRE'; D.wait = 0; D.path = U.paths[0]; D.i = 0; D.Sx = {};
     D.stats.uturns++;
-    say('uturn', U.plan.family + ' at ' + U.apron + ': ' + U.paths.length + ' moves, ' + U.plan.len.toFixed(1) + ' m');
+    say('uturn', U.plan.family + ' at ' + placeName(U.apron) + ': ' + U.paths.length + ' moves, ' + U.plan.len.toFixed(1) + ' m');
   }
   // setDest: the flight's To, on the road. 'replan' / 'uturn' (the new To is behind: re-routed via an apron),
   // 'queued' (a manoeuvre runs: planned when it ends), 'same', 'none'
@@ -622,7 +808,7 @@ function makeDriver(car, G, tune) {
       if (man) {
         D.manI++;
         if (D.manI < D.man.paths.length) { D.path = D.man.paths[D.manI]; D.i = 0; D.wait = 0; D.Sx = {}; return; }
-        say('uturn-done', 'facing back at ' + D.man.apron);
+        say('uturn-done', 'facing back at ' + placeName(D.man.apron));
         const q = D.queued || D.to; D.queued = null; D.man = null;
         plan(q, 'after the U-turn');
         return;
@@ -637,5 +823,5 @@ function makeDriver(car, G, tune) {
 
 if (typeof module !== 'undefined') module.exports = {
   VD_DS, VD_WIN, vehPath, vehManoeuvrePaths, vehLocate, vehKapAt, vehSteer, vehProfile, vehSpeedTarget, vehPedals,
-  vehUturnPlan, vehSiteToWorld, vehRoadGraph, vehDijkstra, vehGraphLocate, makeDriver,
+  vehUturnPlan, vehSiteToWorld, vehRoadGraph, vehDijkstra, vehGraphLocate, makeDriver, vehWalk, vehClearGrid, vehFaceToward,
 };

@@ -160,6 +160,10 @@ function driveTest(sheet, tune, log) {
   const def = V.vehicleDef(sheet, tune), DT = 1 / 60, flat = { terrainH: () => 0 };
   const run = (car, s, fn) => { for (let t = 0; t < s; t += DT) { if (fn && fn(t) === false) break; car.step(DT); } };
   const mk = () => { const c = V.makeVehicle(def, flat); c.place(0, 0, 0); run(c, 0.5); return c; };
+  // a rope on the hitch (the vehicle's external pull, car.extF - TOW-LAUNCH's seam): T newtons rising el rad over the
+  // level, back along the launch line (the world's -x, the car placed heading +x); 0 = no rope
+  const hitch = def.hitch || [def.steer.xRef - def.foot.rear, 0.45, 0];
+  const pull = (c, T, el = 0) => { c.extF = T > 0 ? { f: [-T * Math.cos(el), T * Math.sin(el), 0], at: hitch } : null; };
   const R = {};
   { const c = mk(), p0 = c.refPoint(); run(c, 2); const p1 = c.refPoint();
     R.parked = Math.hypot(p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]); R.onGround = c.out.onGround;
@@ -195,7 +199,7 @@ function driveTest(sheet, tune, log) {
   for (const [srf, sName] of [[5, 'paved'], [0, 'grass']]) for (const kN of [3, 4.5, 6]) {
     const w = { terrainH: () => 0, surface: () => srf }, c = V.makeVehicle(def, w); c.place(0, 0, 0); run(c, 0.5);
     c.ctl.thr = 1; let t100 = null;
-    run(c, 30, t => { c.ctl.tow = Math.min(1, t / 2) * kN * 1000; c.ctl.towDir = [-1, 0]; if (t100 == null && c.out.u >= 100 / 3.6) t100 = t; });
+    run(c, 30, t => { pull(c, Math.min(1, t / 2) * kN * 1000); if (t100 == null && c.out.u >= 100 / 3.6) t100 = t; });
     R['tow_' + sName + '_' + kN] = { t100, u30: c.out.u, up: c.axes().up[1] };
   }
   // AN AUTO-TOW (CAR-3): a 450 kg two-seat trainer glider on the rope - on its wheel the rope pulls what the glider
@@ -212,7 +216,7 @@ function driveTest(sheet, tune, log) {
       if (tOff == null) { T = GL.m * Math.max(0, a) + GL.crr[srf] * GL.m * 9.81 + 0.5 * 1.225 * GL.CdA * u * u; if (u >= GL.vOff) tOff = t; }
       else { const k = Math.min(1, (t - tOff) / GL.tClimb); T = (1 - k) * (0.5 * 1.225 * GL.CdA * u * u) + k * GL.kClimb * GL.m * 9.81; el = k * GL.elClimb;
              if (t - tOff > GL.tClimb) uMin = Math.min(uMin, u); if (t - tOff > GL.tClimb + 20) return false; }
-      c.ctl.tow = T; c.ctl.towEl = el; c.ctl.towDir = [-1, 0]; Tmax = Math.max(Tmax, T);
+      pull(c, T, el); Tmax = Math.max(Tmax, T);
     });
     R['auto_' + sName] = { tOff, uMin: uMin < 1e9 ? uMin : null, Tmax, ok: tOff != null && uMin >= 90 / 3.6 };
   }

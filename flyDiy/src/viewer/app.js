@@ -9082,7 +9082,8 @@
   // build cannot offer (flEyeWhy says why, exactly as the pill does)
   function flCamNext() {
     if (inGarage || !FL.ready) return;
-    const ks = FL_CAM.map(c => c.k).filter(k => (k !== 'cockpit' || !flEyeWhy()) && (!FL2 || k === 'chase' || k === 'cockpit'));
+    const ks = driveOn() ? ['chase', 'orbit']   // TOW-LAUNCH: driving, the chase and the free orbit (the cockpit is the aeroplane's)
+      : FL_CAM.map(c => c.k).filter(k => (k !== 'cockpit' || !flEyeWhy()) && (!FL2 || k === 'chase' || k === 'cockpit'));
     flCamMode(ks[(ks.indexOf(cam.mode) + 1) % ks.length]);
     if (flShown.has('camera')) flyOpenSet(flyOpen);
   }
@@ -15516,6 +15517,7 @@
       started = true;
       return;
     }
+    if (inGarage && launchAsk()) return;   // TOW-LAUNCH: a float or hull build - on the water, or from the trailer
     if (inGarage) {
       // ROLL OUT & FLY flies WHAT YOU DESIGNED (G47.1, user: "roll out
       // and fly still gives the old yellow plane"). Since G65 that is not a
@@ -15564,6 +15566,8 @@
     rollInScreen();
   };
   function fullReset() {
+    { const DM = driveOn(); if (DM) { DM.restart(); return; } }   // TOW-LAUNCH: Restart puts the car back where it started
+    { const T = towOn(); if (T) T.towStop(); TOWS.busy = false; TOWS.failed = null; }   // (a tow is laid out again once the flight starts)
     if (inGarage) return enterGarage();   // Reset in the garage means back to the stand
     // PREM-S2: a Restart mid-flight ends that flight for the clock (nothing moves: it restarts where it stands)
     if (started && flSlot && !flEnded) playerFlightEnd('abandoned');
@@ -16108,6 +16112,13 @@
     const gear0 = routeGear(false);
     routeFit(gear0);
     fill($('selDest'), gear0);
+    // TOW-LAUNCH: THE SAME PICKER, THE CAR'S PLACES while driving (the drive mode's choices: the fields on the roads, the town),
+    // the aeroplane's again when it leaves
+    window.FLYDIY_DEST_REFILL = () => {
+      const s = $('selDest'), DM = driveOn();
+      if (DM) { s.innerHTML = ''; for (const c of DM.choices()) { const o = document.createElement('option'); o.value = c.id; o.textContent = c.label; o.disabled = c.ok === false; s.appendChild(o); } s.value = DM.to || ''; }
+      else { fill(s, routeGear(false)); s.value = destId; }
+    };
     // G710: a remembered id the world does not have (another island, a strip deleted) is not a route
     if (![...$('selDest').options].some(o => o.value === destWant)) destId = destWant = 'CIRCUIT';   // (G3078: the world has no such strip)
     $('selDest').value = destId;
@@ -16169,6 +16180,7 @@
     //   window.FLYDIY_PLAN.get()            { to, want, by, live: { from, to } the route the pilot flies now (the
     //                                       worker's under it), diverted, phase, manual }
     function planSet(id, by) {
+    { const DM = driveOn(); if (DM) { const r = DM.setDest(id); flRender(); return r; } }   // TOW-LAUNCH: the To picker sends the car
       // (a caller's id is checked against the world; the player's picks are the pickers' own options, taken as ever)
       if (by !== 'player' && id !== 'CIRCUIT' && !(world && world.aerodromes && world.aerodromes.some(a => a.id === id))) return 'unknown';
       planBy = by || 'api';
@@ -16477,6 +16489,8 @@
     RD[d0.dataset.i] = d0;
   let hudIasGs = null;   // G1016: which speed the readout shows (null: not written yet)
   function hud() {
+    { const DM = driveOn(); if (DM) { DM.hud(); return; } }   // TOW-LAUNCH: the card says the car's numbers
+    towHud();                                                  // (and the glider's tow, its words on the notice plate)
     const o = sim.out, cg = sim.cgPos(), c = sim.ctl, d = flDbg();
     syncSkip();                 // G771: disabled at the hold, rolling, and for good once airborne
     // THE LABEL SAYS IAS, so the number is now an indicated one (G72). It read
@@ -16759,7 +16773,8 @@
     const base = WF && WF.minimap, cv = $('mm');
     if (!base || !cv.getContext || !sim) return;   // G194: a persisted 'large map' drew it at boot, before the sim
     const g = cv.getContext('2d'), W2 = cv.width, mk = W2 / 344;
-    const cg2 = sim.cgPos(), xA = sim.axes()[0];       // nose = -x aft axis
+    const DMm = driveOn();                             // TOW-LAUNCH: driving, the arrow is the car's
+    const cg2 = DMm ? DMm.target() : sim.cgPos(), xA = DMm ? DMm.tailAxis() : sim.axes()[0];       // nose = -x aft axis
     const hdg = Math.atan2(-xA[2], -xA[0]);
     // shared frame: screen = T(W2/2) . R(rot) . S(k) . T(-c) applied to world xz
     const RV = typeof ROUTE_DRAW !== 'undefined' ? ROUTE_DRAW.mapView() : null;   // G2120: the drawing's own view (north up)
@@ -16904,7 +16919,7 @@
     // and the height planned there, MSL and over the ground under it (the active one the live target,
     // ringed). On the ground, the taxi route to the hold. Labels through the ledger, the active first;
     // the others once the map is big or nose-up (at 24 km a circuit is 40 px).
-    drawPlanOnMap(g, PX, PY, mk, W2, labPut);
+    if (DMm) DMm.drawOnMap(g, PX, PY, mk, W2, labPut); else drawPlanOnMap(g, PX, PY, mk, W2, labPut);   // TOW-LAUNCH: the car's road ahead
     // G2120 ROUTE-DRAW: the route being drawn (or armed, not yet flown) over the plan, its points through the same ledger
     if (typeof ROUTE_DRAW !== 'undefined') { ROUTE_DRAW.drawOnMap(g, PX, PY, mk, W2, labPut); ROUTE_DRAW.tick(); }
     // THE ANIMAL HOTSPOTS (G498): where the wildlife lives is a thing a pilot plans a flight
@@ -18968,7 +18983,8 @@
       return;
     }
     flApplyFov();
-    const xA = sim.axes()[0], yU = sim.axes()[1];
+    const DMc = driveOn();   // TOW-LAUNCH: driving, the car's tail and the level up
+    const xA = DMc ? DMc.tailAxis() : sim.axes()[0], yU = DMc ? DMc.upAxis() : sim.axes()[1];
     const hdg = Math.atan2(xA[2], xA[0]);
     if (!Number.isFinite(hdg)) return;   // REVIEW 2026-10-04 (A8): a diverged sim must not poison the eye's filters
     let dh = hdg - flHdg0;
@@ -18989,7 +19005,7 @@
     if (cam.level || cam.mode === 'orbit' || cam.mode === 'tower')
       camera.up.set(0, 1, 0);
     else camera.up.copy(flUp.set(yU[0], yU[1], yU[2]));
-    const D = def.params.viewDist || 12;
+    const D = DMc ? DMc.chaseDist : (def.params.viewDist || 12);
     if (CK && model) CK.cockpitView(cam.mode === 'cockpit', model);   // the panel arc: no pilot in the way
     // C4b: the cabin live at arm's length; THE HYBRID: the whole flown model live where a texel of the bake would show
     // (FLOWN_BAKE.nearT - the close chase), dithered across the band, and always in the cockpit
@@ -19135,6 +19151,7 @@
     } catch (e) { return '—'; }
   };
   const flTrip = () => {
+    { const DM = driveOn(); if (DM) return DM.trip(); }   // TOW-LAUNCH: the car's From -> To
     const d = flS('Dest'), dov = d.options[d.selectedIndex];
     // G3560 (AP-HONEST): a flight the pilot DIVERTED says where it flies now - the picker keeps the player's To
     const R = started && !inGarage && ap && ap.route, dv = R && R.to && R.to.id && apWhyDiverted() ? R.to : null;
@@ -19187,7 +19204,7 @@
     $('flPilotV').textContent = flSel(flS('Pilot')) + (personaChoice !== 'expert' ? ' \u00b7 ' + personaLabel(personaChoice) : '');
     $('flRouteV').textContent = flTrip();
     $('flDayV').textContent = flDay();
-    $('flLineName').textContent = $('acName').textContent;
+    $('flLineName').textContent = driveOn() ? driveOn().name : $('acName').textContent;
     $('flLineTrip').textContent = flTrip();
     $('flLineDay').textContent = flDay();
     $('flHold').textContent = held ? 'held' : (stopped ? 'down' : (manual ? 'flying · by hand' : 'flying'));
@@ -19215,8 +19232,8 @@
     // colour of a button you were about to press anyway.
     const st = (typeof window.BENCH_STATE === 'function') ? window.BENCH_STATE() : null;
     const bad = !!(st && !st.passed) && curKey === 'gen';
-    $('flNotice').hidden = !bad || flFolded;
-    if (bad) $('flNoticeV').textContent = st.any
+    $('flNotice').hidden = (!bad || flFolded) && !$('flNotice').dataset.tow;   // (TOW-LAUNCH: the tow's words keep the plate)
+    if (bad && !$('flNotice').dataset.tow) $('flNoticeV').textContent = st.any
       ? 'the bench has not passed for this build'
       : 'nothing on the bench has been run for this build';
     if (shakeDeferred()) flVs = 0;                                // G1302: re-read post-idle
@@ -19283,10 +19300,11 @@
       !!(window.NEW_PLANE && window.NEW_PLANE.isOpen && window.NEW_PLANE.isOpen());   // (EMPTY-STAND-RELOOK R2: Escape is the chooser's, not a menu nobody sees)
   };
   function gmHold(on) {   // #bPause's own click, said from here
+    { const DM = driveOn(); if (DM) { DM.paused = !!on; userPaused = !!on; return; } }   // TOW-LAUNCH: the car holds, the aeroplane stays held
     running = !on; userPaused = !!on;
     const b = $('bPause'); if (b) { b.textContent = running ? 'Pause' : 'Run'; b.classList.toggle('on', !running); }
   }
-  const gmFlying = () => !inGarage && started;
+  const gmFlying = () => (!inGarage && started) || !!driveOn();   // (TOW-LAUNCH: driving is a run the menu pauses and restarts)
   function gmMainMenu() {
     try { if (window.UPDATE_NOW && window.UPDATE_NOW.saveAll) window.UPDATE_NOW.saveAll(); } catch (e) {}
     try {
@@ -19667,6 +19685,7 @@
     const pg = (keys) => body => { for (const k of keys) { const d = FL_SEC_BY[k], b = flSection(body, k, d.head || d.label, d.sub); if (!b) continue;
       try { (FL_SEC_BUILD[k] || FL_BUILD[k])(b); } catch (e) { flNote(b, 'This section failed to build: ' + (e && e.message)); } } };
     window.FLYDIY_MENU.add({ k: 'restart', label: 'Restart the flight', when: () => gmFlying(), act: () => { gmOpen(false); fullReset(); }, before: 'contracts' });
+    if (window.DRIVE) window.DRIVE.menu();   // TOW-LAUNCH: the menu's Drive row
     window.FLYDIY_MENU.add({ k: 'camera', label: 'Camera', when: () => !inGarage, page: pg(['camera']), before: 'graphics' });
     window.FLYDIY_MENU.add({ k: 'display', label: 'Display', when: () => !inGarage, page: pg(['instruments', 'map', 'trace', 'screen']), before: 'graphics' });
     window.FLYDIY_MENU.add({ k: 'log', label: 'Export my log', sec: '', when: () => !!(window.FLIGHT_REC && window.FLIGHT_REC.save),
@@ -20529,7 +20548,9 @@
         for (let k = 0; k < nStep; k++) {
           if (FR) FR.push(0); script(1 / 60); if (FR) FR.pop();         // G620: the pilot's script (FR.S.script)
           if (k === kPair) POSE_LERP.mark(sim);                          // G1100: the positions before the frame's last 60th
+          const TWm = towOn(); if (TWm) TWm.towPre();                  // TOW-LAUNCH: the line's coupling round the step
           if (FR) FR.push(1); sim.step(1 / 60); if (FR) FR.pop();       // substep rate is a per-aircraft property (G620: FR.S.solver)
+          if (TWm) TWm.towPost(1 / 60);
         }
         if (kPair >= 0) POSE_LERP.took(sim);                             // G1100: ...and after it
       }
@@ -20621,6 +20642,7 @@
     // G1100 (POSE-SMOOTH): FROM HERE TO THE RENDER THE SIM'S POSITIONS ARE THE DRAWN ONES - between the last two steps,
     // at the frame clock's alpha (POSE_LERP above; restored below the render). In the world only, the page's own flight
     // (the worker's view interpolates itself), and a pause holds the alpha it had
+    { const DM = driveOn(); if (DM) DM.frame(pc.steps); else towTick(); }   // TOW-LAUNCH: the drive mode's car (drive_mode.js), the real time's steps; else the glider's tow
     const drawnPose = !inGarage && simwRan < 0 && POSE_LERP.draw(sim, running ? PACE.alpha : null);
     const cgD = drawnPose ? cgFinite(sim.cgPos()) : cg;
     if (drawnPose && running && window.WATER && WATER.setTime) WATER.setTime(sim.t - (1 - POSE_LERP.alpha) * simRate / 60);   // the sea at the drawn pose's time
@@ -20628,6 +20650,7 @@
     // per-frame cg overwrite silently un-centred it), the craft otherwise;
     // the editor's pan offset rides on top (G41)
     if (edSit.visible || STAND_EMPTY) target.copy(edTarget).add(edPan);
+    else if (driveOn()) target.fromArray(driveOn().target());   // TOW-LAUNCH: the chase follows the car
     else target.set(cgD[0], cgD[1], cgD[2]);
     if (edEye) {
       if (!edSit.visible) exitInterior();
@@ -21627,6 +21650,121 @@
     for (const s of plan) p = p ? p.then(() => tripRun(s, t)) : Promise.resolve(tripRun(s, t));
     return screenCan() ? p.then(() => tripClose(t)) : (tripClose(t), undefined);
   });
+  // TOW-LAUNCH: is the drive mode on - its module, or null (a hoisted declaration: the loop and the HUD ask before this
+  // line runs, and the lazy module may never have loaded)
+  function driveOn() { const D = typeof window !== 'undefined' && window.DRIVE_MODE; return D && D.on ? D : null; }
+  // TOW-LAUNCH phase 3: THE GLIDER TOW - the car on the line ahead of an engineless aeroplane (drive_mode.js DM.tow*, tow.js).
+  // towOn(): the tow's module while its car stands / runs, else null. towWanted(): the flight is a tow - the build has no
+  // engine (def.params.nEngines 0: the engineless card), its card's motor is off (genSpec.motorOff), or ?tow=1 (the test)
+  function towOn() { const D = typeof window !== 'undefined' && window.DRIVE_MODE; return D && D.tow && D.tow.active ? D : null; }
+  function towWanted() {
+    if (curKey !== 'gen' || !def) return false;
+    if (def.params && def.params.nEngines === 0) return true;
+    if (genSpec && genSpec.motorOff === true) return true;
+    try { return /[?&]tow(=1|=on|&|$)/.test(location.search); } catch (e) { return false; }
+  }
+  // TOW-LAUNCH phase 4: THE LAUNCH TRAILER - a float or hull build carried down the runway on a trailer behind the car and
+  // flown off it (drive_mode.js DM.trailerStart, trailer.js, trailer_model.js): the menu's "Launch from the trailer" (or
+  // ?trailer=1) - an exception to the floats-start-on-water rule, the player's choice, until "Back to the water".
+  // trailerWanted(): the build floats (its hydro carries a float or a hull) and the trailer is asked for
+  const TRAILER = { want: (() => { try { return /[?&]trailer(=1|=on|&|$)/.test(location.search); } catch (e) { return false; } })() };
+  function trailerAble() { return curKey === 'gen' && !!def && !!(sim && sim.hydro && sim.hydro.floats && sim.hydro.floats.some(f => !f.rec.tip)); }
+  function trailerWanted() { return TRAILER.want && trailerAble(); }
+  // THE ROLL-OUT'S CHOICE (the user, 12 Nov: "easily accessible from the garage. Maybe when you click on rollout, it gives
+  // you the two options"): Roll out on a float or hull build asks - ON THE WATER (the base's water lane, as always) or
+  // FROM THE TRAILER (behind the car on Jolene AFB 13/31) - beside the verb; the pick is the menu row's TRAILER.want, and
+  // the roll-out goes on. Esc or a click elsewhere closes it, rolling nothing out.
+  const LASK = { el: null, go: false };
+  function floatBuild() { const g = genSpec && genSpec.gear; return curKey === 'gen' && !!g && (g.type === 'floats' || g.type === 'hull' || !!g.hull); }
+  function launchAsk() {
+    if (LASK.go || !floatBuild()) return false;
+    if (!LASK.el) {
+      const el = LASK.el = document.createElement('div'); el.id = 'edLaunch'; el.hidden = true; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'Where to start');
+      el.innerHTML = '<div class="lkH">Start from</div>' +
+        '<button type="button" class="verb" data-k="water">On the water<span>the base\'s water lane</span></button>' +
+        '<button type="button" class="verb" data-k="trailer">From the trailer<span>behind the car on Jolene AFB 13/31</span></button>';
+      el.addEventListener('click', e => {
+        const b = e.target.closest('button[data-k]'); if (!b) return;
+        TRAILER.want = b.dataset.k === 'trailer'; TOWS.failed = null; el.hidden = true;
+        LASK.go = true; try { $('bGo').onclick(); } finally { LASK.go = false; }
+      });
+      document.addEventListener('keydown', e => { if (e.key === 'Escape' && LASK.el && !LASK.el.hidden) LASK.el.hidden = true; });
+      document.addEventListener('pointerdown', e => { if (LASK.el && !LASK.el.hidden && !LASK.el.contains(e.target) && e.target.id !== 'edRoll' && e.target.id !== 'bGo') LASK.el.hidden = true; }, true);
+      ($('edActs') || document.body).appendChild(el);
+    }
+    LASK.el.querySelectorAll('button[data-k]').forEach(b => b.classList.toggle('pri', (b.dataset.k === 'trailer') === !!TRAILER.want));
+    LASK.el.hidden = !LASK.el.hidden;   // (a second press of Roll out closes it)
+    return true;
+  }
+  // the tow's start: lined up (the Skip to line-up's own placement - the start line), the motor off, the player's hands, the
+  // car and the line laid out ahead (lazy, with the drive mode's pack); its words on the flight's notice plate
+  const TOWS = { busy: false, failed: null };
+  // THE LAUNCH'S AUTOPILOT (the user, 12 Nov: "the autopilot should be able to fly everything"): with the autopilot on
+  // (the flight not by hand), the launch's own hands - the gates' flown ones, trailer.js makeTrailerHands / tow.js
+  // makeTowHands - fly the roll, the lift-off and the climb off the trailer or up the line, the pilot held off by the
+  // hand's mode while they do; once clear (the trailer: off its bunks and 20 m up; the tow: 2 s after the release) THE
+  // PILOT IS HANDED THE FLIGHT (setManual(false): ap.reEngage at the phase the state reads - CLIMB; a glider's engine is
+  // off, and its own energy watch takes it to GLIDE, toward the nearest field it can reach). By hand, the player flies it.
+  const LAUNCH = { ap: false, handed: false, tOff: null };
+  function launchArm() { LAUNCH.ap = !manual || /[?&]towhands=1/.test(location.search || ''); LAUNCH.handed = false; LAUNCH.tOff = null; return LAUNCH.ap; }
+  function launchHandOver(T) {
+    if (!LAUNCH.ap || LAUNCH.handed || !running) return;
+    const tw = T.tow, cg = sim.cgPos(), agl = cg[1] - groundH(cg[0], cg[2]);
+    let off = false;
+    if (tw.kind === 'trailer') off = tw.launch && tw.launch.phase === 'clear' && agl > 20;
+    else if (tw.line && !tw.line.on) { if (LAUNCH.tOff === null) LAUNCH.tOff = tw.t; off = tw.t - LAUNCH.tOff > 2; }
+    if (!off) return;
+    LAUNCH.handed = true; tw.hands = null;
+    setManual(false, 'launch');
+    console.info('flyDiy launch: the pilot takes it from the launch, ' + Math.round(agl) + ' m up (' + ap.phase + ')');
+  }
+  function towTick() {
+    const T = towOn();
+    if (inGarage || !started || driveOn() || flightOver) { if (T && inGarage) { T.towStop(); TOWS.busy = false; } return; }
+    // (the trailer: the car sets off as the player opens the throttle - or, under ?towhands=1, half a second on)
+    if (T) { T.towDraw(); if (running && !T.tow.go && (T.tow.kind === 'trailer' ? (sim.ctl.thr > 0.5 || (T.tow.hands && T.tow.t > 0.5)) : T.tow.t > 3)) T.tow.start(); launchHandOver(T); return; }
+    if (!TOWS.busy && !TOWS.failed && trailerWanted() && window.FLYDIY_LAZY && sim) {
+      TOWS.busy = true;
+      const cam0 = sim.cgPos(), byAp = launchArm();
+      setManual(true, 'trailer');
+      window.FLYDIY_LAZY(['cars_car', 'cars_lods', 'vehicle', 'vehicle_drive', 'vehicle_island', 'trailer', 'trailer_model', 'drive_mode'])
+        .then(() => window.DRIVE_MODE.trailerStart({ THREE, scene, world, sim, def, hands: byAp }))
+        .then(to => {
+          TOWS.busy = false; if (INP) INP.seed(sim.ctl);
+          airborneSeen = wasAir = false; stillT = 0;
+          const far = Math.hypot(sim.cgPos()[0] - cam0[0], sim.cgPos()[2] - cam0[2]);
+          if (far > 200 && needsRollOutScreen()) rollOutScreen(() => { flRevealStart(); flRender(); }); else flRevealStart();
+          console.info('flyDiy trailer: on the trailer, the car to ' + to);
+        })
+        .catch(e => { TOWS.busy = false; TOWS.failed = (e && e.message) || 'failed'; console.warn('flyDiy: the trailer launch could not start -', TOWS.failed); });
+      return;
+    }
+    if (TOWS.busy || TOWS.failed || !towWanted() || !window.FLYDIY_LAZY || !sim || sim.wheelsOnGround() === 0) return;
+    TOWS.busy = true;
+    if (skipAble()) skipToLineup();
+    if (sim.setEngine && sim.eng) for (let i = 0; i < sim.eng.length; i++) sim.setEngine(i, { key: 'off' });
+    const byAp = launchArm();
+    setManual(true, 'tow');
+    window.FLYDIY_LAZY(['cars_car', 'cars_lods', 'vehicle', 'vehicle_drive', 'vehicle_island', 'tow', 'drive_mode'])
+      .then(() => window.DRIVE_MODE.towStart({ THREE, scene, world, sim, hands: byAp }))
+      .then(to => { TOWS.busy = false; console.info('flyDiy tow: on the line, the car to ' + to); })
+      .catch(e => { TOWS.busy = false; TOWS.failed = (e && e.message) || 'failed'; console.warn('flyDiy: the tow could not start -', TOWS.failed); });
+  }
+  function towHud() {
+    const T = towOn(), tr = T ? T.tow.kind === 'trailer' : trailerWanted();
+    const w = T ? T.towWords() : (TOWS.failed && started && (towWanted() || trailerWanted()) ? 'no ' + (tr ? 'trailer' : 'tow') + ': ' + TOWS.failed : null), n = $('flNotice');
+    if (!n) return;
+    if (w) { n.hidden = false; $('flNoticeK').textContent = tr ? 'trailer launch' : 'glider tow'; $('flNoticeV').textContent = w; n.dataset.tow = '1'; }
+    else if (n.dataset.tow) { delete n.dataset.tow; $('flNoticeK').textContent = 'not certified'; n.hidden = true; flRender(); }
+  }
+  if (typeof window !== 'undefined') {
+    window.FLYDIY_TOW_WANTED = () => towWanted() || trailerWanted();   // (sim_link.js: a tow or a trailer flight flies inline - the line, the cradle act in the page's substeps)
+    // the menu's trailer row (a float or hull build): on the trailer at the runway, or back to the water - each a restart
+    if (window.FLYDIY_MENU) window.FLYDIY_MENU.add({ k: 'trailer', label: () => TRAILER.want ? 'Back to the water' : 'Launch from the trailer',
+      when: () => !inGarage && (trailerAble() || TRAILER.want),
+      act: () => { window.FLYDIY_MENU.close(); TRAILER.want = !TRAILER.want; TOWS.failed = null; fullReset(); }, before: 'contracts' });
+    window.addEventListener('keydown', e => { if (e.code === 'KeyR' && towOn() && cam.mode !== 'free') { towOn().towRelease(); e.preventDefault(); } });
+  }
   // THE SCENERY MODE (the world rail, 2026-09-24; the user: "launch only the graphics parts of the game, at least not
   // the flight simulation ... so we don't need lots of benches anymore"): ?scenery=1 rolls out the moment the boot
   // lifts, then HOLDS the solver (running = false: no step, no pilot, no director), takes the aeroplane off the
@@ -21671,6 +21809,53 @@
       flRailSync(); if (flyOpen) flyOpenSet(flyOpen);
     } };
   if (typeof window !== 'undefined') window.SCENERY = SCENERY;
+  // TOW-LAUNCH phase 1 (2026-11-11): THE DRIVE MODE - the user: "see a car DRIVE, in the game, from HOME to Metlakatla
+  // [Cedar Harbour]", the flight's own UI reused. SCENERY's switch: the solver held (running = false), the aeroplane off
+  // the stage; the car, its graph and its words are drive_mode.js's (lazy, with src/vehicle/ and the car's pack, fetched
+  // on the first ask). The hooks through this file are each `driveOn()`: the loop's step, the target, flCamera's heading
+  // and distance, hud(), drawMap(), flTrip(), planSet() (the To picker), gmHold() (Pause), fullReset() (Restart), the
+  // view key. The menu's "Drive the pickup" / "Back to the aeroplane" row; ?drive=1 drives once the boot lifts.
+  const DRIVE_Q = (() => { try { return /[?&]drive(=1|=on|&|$)/.test(location.search); } catch (e) { return false; } })();
+  const DRIVE = { busy: false,
+    enter(to) {
+      if (driveOn() || DRIVE.busy || !window.FLYDIY_LAZY) return;
+      DRIVE.busy = true;
+      const go = () => {
+        const cg = sim.cgPos();
+        window.FLYDIY_LAZY(['cars_car', 'cars_lods', 'vehicle', 'vehicle_drive', 'vehicle_island', 'drive_mode'])
+          .then(() => window.DRIVE_MODE.enter({ THREE, scene, world, at: [cg[0], cg[1], cg[2]], to }))
+          .then(() => {
+            DRIVE.busy = false; running = false; started = false;
+            if (craft && craft.parent) craft.parent.remove(craft);
+            document.body.classList.add('driveMode');
+            flCamMode('chase');
+            if (window.FLYDIY_DEST_REFILL) window.FLYDIY_DEST_REFILL();
+            flRender(); DRIVE.menu();
+            const R = window.DRIVE_MODE.report();
+            console.info('flyDiy drive: the roads as a graph in ' + Math.round(window.DRIVE_MODE.graphMs) + ' ms; joined vehicle-side', R && R.joins.length, 'drawn crossings / Ts; spans rebuilt', R && R.rebuilt.length);
+          })
+          .catch(e => { DRIVE.busy = false; if (window.DRIVE_MODE && window.DRIVE_MODE.on) window.DRIVE_MODE.leave(); console.warn('flyDiy: the drive mode could not start -', e && e.message); });
+      };
+      if (inGarage) rollOut(go); else go();
+    },
+    leave() {
+      const DM = driveOn(); if (!DM) return;
+      DM.leave(); userPaused = false;
+      document.body.classList.remove('driveMode');
+      if (craft && !craft.parent) scene.add(craft);
+      if (window.FLYDIY_DEST_REFILL) window.FLYDIY_DEST_REFILL();
+      fullReset(); running = true;
+      flCamMode('chase'); flRender(); DRIVE.menu();
+    },
+    // the menu's row: its words say which way it goes
+    menu() {
+      if (!window.FLYDIY_MENU) return;
+      const on = !!driveOn();
+      window.FLYDIY_MENU.add({ k: 'drive', label: on ? 'Back to the aeroplane' : 'Drive the pickup', when: () => !inGarage || on,
+        act: () => { window.FLYDIY_MENU.close(); if (driveOn()) DRIVE.leave(); else DRIVE.enter(); }, before: 'contracts' });
+    } };
+  if (typeof window !== 'undefined') window.DRIVE = DRIVE;
+  DRIVE.menu();
   // G3791 (PHONE-TESTFLIGHT): THE TEST FLIGHT'S START on the phone's flight page - the bench's own (startTestFlight: the
   // card it carried over, the fingerprint it armed, the director), on the pilot's circuit off HOME
   function phoneFlyGo() {
@@ -21680,7 +21865,7 @@
     window.FLYDIY_PHONE_FLY = { started: went, card: c, at: Date.now() };
   }
   const bootOpts = { set: 'garage', landingLabel: 'the last pieces landing',
-    done: () => { tripClose(bootTrip); if (PK_ASYNC() && window.PARKED.async) { window.PARKED.async = false; parkedFlush(); } setupClose(); if (SCENERY_Q) setTimeout(() => SCENERY.enter(), 0);
+    done: () => { tripClose(bootTrip); if (PK_ASYNC() && window.PARKED.async) { window.PARKED.async = false; parkedFlush(); } setupClose(); if (SCENERY_Q) setTimeout(() => SCENERY.enter(), 0); if (DRIVE_Q) setTimeout(() => DRIVE.enter(), 0);
       if (SIMW) SIMW.prewarm(); startLoop();
       if (PHONE_FLY) setTimeout(phoneFlyGo, 0);   // G3791: the phone's test flight rolls out as the screen lifts
       if (CAREER_DEV && STORY_PAGE) storyIntroBoot(); },   // G3380 (STORY-INTRO): a New career's opening, as the screen lifts   // G820 (C1c): the physics worker's world made on its own thread while the player is in the shed
