@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 17c76b14bf39be23
+// body-sha256: 1821f1cf34ba2ea2
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -12001,7 +12001,23 @@ function compose(rec0, world, opts) {
         jAt.push([jid, sj, isEnd]);
         if (!JH.has(jid) || (!isEnd && JH.get(jid).end)) continue;
         const H = JH.get(jid).h;
-        for (let k = 0; k < dense.length; k++) { const d = Math.abs(s[k] - sj); if (d >= 14) continue; const u = d <= 7 ? 0 : (d - 7) / 7, w = u * u * (3 - 2 * u); hs[k] = H + (hs[k] - H) * w; }
+        // (TOW-LAUNCH, 12 Nov: THE EASE AS LONG AS THE CLIMB. Over a fixed 7 m a road leaving its junction 3 m under its own
+        // grade climbed 3 m in 7 m - r40, Fishing Village's approach, a 50-68 % step no car could take (it stopped one dead).
+        // Each side's ease now runs over the length its height difference needs at the road's own steepest (its bed's
+        // grade, its `grade`, else 12 %; a smoothstep's steepest is 1.5 x its mean): never under 7 m, so a junction whose
+        // roads meet near level - every one before - is eased as it was, to the bit)
+        const gJ = BED ? BED.grade : (+r.grade > 0 ? +r.grade : 0.12);
+        const hAt = sv => { let k = 0; while (k + 2 < s.length && s[k + 1] < sv) k++; const L = s[k + 1] - s[k]; return L > 1e-9 ? hs[k] + (hs[k + 1] - hs[k]) * Math.max(0, Math.min(1, (sv - s[k]) / L)) : hs[k]; };
+        // (ONLY where the 7 m ease is a STEP - its steepest, 1.5 dh / 7, over 30 %: a road no car climbs (Fishing Village's
+        //  r40 at r5, 5 m: 107 %). The first cut stretched every ease over the bed's grade - 114 of the 139 junctions
+        //  moved, 0.2-3.7 m (the island gates' triage, 12 Nov); a junction a car takes as it is keeps the 7 m to the bit)
+        // (a stretched ease is an EVEN ramp - linear, its slope the height over the length - and never longer than the road
+        //  leaves it: to the far end's own 7 m level approach)
+        const sEnd = s[s.length - 1];
+        const easeOf = sg => { const far = sj + sg * 14; if (far < 0 || far > sEnd) return 7; const dh = Math.abs(hAt(far) - H); if (1.5 * dh / 7 <= 0.30) return 7;
+          const room = (sg > 0 ? sEnd - sj : sj) - 14; return Math.max(7, Math.min(80, room, dh / gJ)); };
+        const eN = easeOf(-1), eP = easeOf(1);
+        for (let k = 0; k < dense.length; k++) { const dd = s[k] - sj, d = Math.abs(dd), E = dd < 0 ? eN : eP; if (d >= 7 + E) continue; const u = d <= 7 ? 0 : (d - 7) / E, w = E > 7 ? u : u * u * (3 - 2 * u); hs[k] = H + (hs[k] - H) * w; }
       }
       jAt.s = s;
     }
@@ -26829,6 +26845,7 @@ function makePilot(sim, def, world, opts) {
   let stabT = 0, stabVf = null, stabSf = 0, stabIn = false;   // G2460: the stabilised approach's dwell, its filters, past the gate
   let stabPk = 0, stabWhy = null;                              // G2460: this final's longest dwell and its reason (the tolerated, named)
   let starvedSaid = false, glideTo = null, glideHdg = 0;      // G435: the forced landing
+  let gcirc = null;                                             // TOW-LAUNCH: the glider's circuit (GLIDE)
   // G381: the arc turn in progress, the latched level altitude before the
   // slope, the flare's own integrator / cap / timescale, a three-point flag
   let finalLevel = null;
@@ -27367,6 +27384,34 @@ function makePilot(sim, def, world, opts) {
     return { lo, aim };
   };
   const leftOf = (F, cg) => (cg[0] - F.ox) * F.uz - (cg[2] - F.oz) * F.ux;
+  // TOW-LAUNCH (12 Nov): THE GLIDER'S CIRCUIT, its plan. The arrival's own landing at `a` (planArrival: the way the wind and
+  // the strip score, the aim, the circuit's side) and the glider's numbers: a downwind 0.6 the powered one's offset
+  // (220-420 m: a glider flies a tight circuit), the glide ratio the circuit is judged on (0.6 the sheet's best: the turns,
+  // the flap, a margin), the speeds. Its stages are flown in GLIDE (below)
+  // the nearest field a glide of ratio E reaches from here (its height over that field, 30 m over), the gear's surfaces
+  // only; `skip`, `skip2` ids not to take (the field out of reach; the one just left, when the flight was going elsewhere)
+  const gliderPick = (E, skip, skip2) => {
+    const cg = sim.cgPos();
+    let best = null, bestD = Infinity;
+    for (const a of (world && world.aerodromes) || []) {
+      if (a.id === skip || a.id === skip2) continue;
+      if (typeof stripAllows === 'function' && !stripAllows(gearK, a).ok) continue;
+      const d = Math.hypot(a.x - cg[0], a.z - cg[2]);
+      if (d > E * Math.max(0, cg[1] - (a.elev || 0) - 30)) continue;
+      if (d < bestD) { bestD = d; best = a; }
+    }
+    return best;
+  };
+  const gliderCircuitPlan = (a) => {
+    try {
+      const LW = ap.landWayFrom(a, sim.cgPos()[0], sim.cgPos()[2]); if (!LW) return null;
+      const P = planArrival(a, LW.u, a);
+      const S = sheetOf(), LD = S && S.LDbest > 0 ? S.LDbest : 12;
+      const deg = Math.round(((Math.atan2(LW.u[0], -LW.u[1]) * 180 / Math.PI) + 360) % 360);
+      return { F: P.F, sAim: P.sAim, side: P.side || 1, W: clamp(0.6 * (P.W || 500), 220, 420), E: 0.6 * LD, LD, stage: 'key', t0: ap.t,
+               id: a.id, name: a.name || a.id, way: 'heading ' + deg + ' deg', log: [] };
+    } catch (e) { return null; }
+  };
   const alongOf = (F, cg) => (cg[0] - F.ox) * F.ux + (cg[2] - F.oz) * F.uz;
   const legGeom = (L) => {
     const dx = L.B[0] - L.A[0], dz = L.B[1] - L.A[1], len = Math.hypot(dx, dz) || 1e-9;
@@ -29283,9 +29328,14 @@ function makePilot(sim, def, world, opts) {
     // starvation in the flare or on the wheels changes nothing but the note.
     // The emergency's finer judgement (a field chosen, a turn back, the
     // wind) is the pilot track's (PLAYTEST-TRIAGE A8); this is the floor.
-    if (sim.fuel && sim.fuel.starved && !starvedSaid) {
+    // TOW-LAUNCH (12 Nov; the user: "the autopilot should be able to fly everything"): A GLIDER - every engine switched
+    // off by its key (a motor glider flown as one, the tow's motor off) or no engine at all - is flown as the starved one
+    // is, from the moment it is in the air: the glide toward the nearest field inside its cone, the flare it knows; said
+    // as a glide, and no forced landing stamped on it (a glider's every landing is without power, by design)
+    const glider = onG === 0 && (!sim.eng || !sim.eng.length || sim.eng.every(e => e.key === 'off'));
+    if (((sim.fuel && sim.fuel.starved) || glider) && !starvedSaid) {
       starvedSaid = true;
-      const what = sim.fuel.kind === 'battery' ? 'out of charge' : 'out of fuel';
+      const what = glider && !(sim.fuel && sim.fuel.starved) ? 'gliding (no engine running)' : sim.fuel.kind === 'battery' ? 'out of charge' : 'out of fuel';
       const landingPh = ap.phase === 'FLARE' || ap.phase === 'ROLLOUT' || ap.phase === 'STOPPED' || ap.phase === 'ABORT' || ap.phase === 'PUTDOWN';
       if (onG === 0 && !landingPh && !BX.on) {
         // the glide cone: the sheet's L/D when it has one, else a modest 8
@@ -29296,12 +29346,33 @@ function makePilot(sim, def, world, opts) {
           const d = Math.hypot(a.x - cg[0], a.z - cg[2]);
           if (d < bestD) { bestD = d; best = a; }
         }
-        const reach = best && bestD < 0.7 * ld * Math.max(0, aglG);
+        let reach = best && bestD < 0.7 * ld * Math.max(0, aglG);
+        // TOW-LAUNCH (12 Nov; the user: "from there it could probably try and land on Jolene, or at least the village
+        // strip"): A GLIDER GOES WHERE IT WAS SENT - the route's To, when its gear may use it and the cone (the sheet's L/D,
+        // else a glider's 15, over the height ABOVE THAT FIELD) reaches it; else the nearest the cone reaches, judged the
+        // same way (off an altiport the ground below is no measure: the field it left is the nearest). The glide is
+        // checked again once it is flown (GLIDE: gliderDivert)
+        if (glider) {
+          const ldG = (SH && SH.LDbest > 0) ? SH.LDbest : 15, ok = a => a && !(typeof stripAllows === 'function' && !stripAllows(gearK, a).ok);
+          // (the To on 0.9 of it - set off for the goal, the glide checked as it is flown and a divert if it does not
+          //  make it, as a glider pilot does; the fallback on 0.7: off Skyline Altiport 0.7 x 15 kept the pilot from
+          //  Jolene's 12:1, which the motorglider's flown 14.5 makes)
+          const cone = (a, k) => Math.hypot(a.x - cg[0], a.z - cg[2]) < k * ldG * Math.max(0, cg[1] - (a.elev || 0));
+          const to = ap.route && ap.route.to;
+          const from = ap.route && ap.route.from;
+          if (ok(to) && cone(to, 0.9)) { best = to; reach = true; }
+          else { best = gliderPick(ldG * 0.7, to && to.id, from && to && from.id !== to.id ? from.id : null); reach = !!best; }
+          if (best) bestD = Math.hypot(best.x - cg[0], best.z - cg[2]);
+        }
         glideTo = reach ? best : null;
         glideHdg = Math.atan2(nose[1], nose[0]);
+        // TOW-LAUNCH (the user, 12 Nov: "do the glider circuit"): A GLIDER FLIES A CIRCUIT to the field it reaches - the
+        // landing the arrival would plan there (planArrival: the way into the wind, the aim, the circuit's side), flown
+        // on energy (gliderCircuit, the GLIDE phase): no forced landing's straight line at the field's middle
+        gcirc = glider && glideTo ? gliderCircuitPlan(glideTo) : null;
         say('out-of-energy', what + ' at t=' + Math.round(ap.t) + ' s, ' + Math.round(aglG) + ' m up — engines stopped; gliding ' +
-            (reach ? 'to ' + (best.name || best.id) + ', ' + Math.round(bestD) + ' m away' : 'straight ahead for a forced landing'));
-        ap.report.outcome = ap.report.outcome || 'forced-landing';
+            (reach ? 'to ' + (best.name || best.id) + ', ' + Math.round(bestD) + ' m away' + (gcirc ? ' - a glider\'s circuit, ' + (gcirc.side > 0 ? 'left' : 'right') + '-hand, landing ' + gcirc.way : '') : 'straight ahead for a forced landing'));
+        if (!glider) ap.report.outcome = ap.report.outcome || 'forced-landing';
         committed = true;
         go('GLIDE');
       } else say('out-of-energy', what + ' at t=' + Math.round(ap.t) + ' s — engines stopped');
@@ -29480,12 +29551,103 @@ function makePilot(sim, def, world, opts) {
         // speed on the elevator once the (dead) throttle saturates.
         const vbg = Math.max(A.VAppr || 18, (SH && SH.Vbg > 0) ? SH.Vbg : 0) || 20;
         const tec = { vs: -tSinkIdle, alt: null, gs: null, vsUp: null, vsDn: null, ias: vbg, deadThr: true };
+        if (gcirc) {
+          // TOW-LAUNCH: THE GLIDER'S CIRCUIT, flown on energy - no throttle to hold a height, so the PATH is what the height
+          // buys: every stage asks whether the height over the aim covers the way still to fly at the circuit's glide
+          // ratio (G.E) and a margin (30 m: the turns, the flare), and moves the turn that ends it.
+          //   key       to the HIGH KEY - the downwind's start, abeam 0.8 W upwind of the aim, W out on the circuit's side;
+          //             too low to make it (the way to it and the circuit's least after) - DIRECT to a short final
+          //   burn      over the key with height to spare: circles there (the circuit's hand) down to the key's height
+          //   downwind  back along the strip, W out; BASE is turned where the height left just covers the base and the
+          //             final (at the latest 1.5 km past the aim)
+          //   base      square to the centreline; FINAL once within the turn's radius of it
+          //   final     the centreline at the approach speed, the landing flap while high over the glide still to fly
+          //   (the flare is FLARE's, from its height, as for any landing)
+          const G = gcirc, F = G.F, sN = alongOf(F, cg), cN = leftOf(F, cg);
+          const aim = wp(F, G.sAim, 0), h = cg[1] - groundH(aim[0], aim[1]);
+          const Vap = Math.max(ap.VAppr || 0, A.VAppr || 0, 1.25 * ((A.VRot || 18) / 0.99));
+          const Rt = (Math.max(V, 15) ** 2) / (9.81 * Math.tan(0.45));
+          // (the glide ratio the circuit is judged on is the one FLOWN: the sheet's best is a still-air polar, and a card
+          //  without one fell back on 12 - the motorglider, flatter than that, came over the fence 160 m high and landed
+          //  2.2 km in. Measured over 6 s - the ground speed over the sink - and 0.9 of it with 20 m over: a margin for the turns
+          //  and the air; 0.8 and 30 m landed it 860 m past the aim)
+          const Vh = Math.hypot(vcg[0], vcg[2]), sink = Math.max(0.3, -vcg[1]);
+          G.Em = G.Em == null ? Math.min(G.LD, Vh / sink) : G.Em + (Vh / sink - G.Em) * Math.min(1, dt / 6);
+          G.E = clamp(0.9 * G.Em, 4, 35);
+          // (...and the FLOAT: a clean glider holds off in the ground effect for its approach speed x ~10 s past where its
+          //  glide meets the ground - the way the height must cover ends that far short of the aim: 534 m long without it)
+          const floatD = 10 * Math.max(ap.VAppr || 0, A.VAppr || 0, 18);
+          const need = d => Math.max(0, d - floatD) / G.E + 20;
+          const sKey = G.sAim + 0.8 * G.W, cD = G.side * G.W, dMin = 0.8 * G.W + G.W + 2 * Rt;
+          const next = st => { if (st !== G.stage) { G.log.push({ t: +ap.t.toFixed(1), stage: st, h: Math.round(h) }); G.stage = st; say('glider-circuit', st + ' at ' + Math.round(h) + ' m over the aim'); } };
+          let trk = null, hdg = null, ias = vbg, flap = 0;
+          // THE FINAL GLIDE, CHECKED AS FLOWN (gliderDivert): from 12 s in, before the key, the field is still reached
+          // when the height over its aim covers the way to it at the ratio flown; when not, the nearest the flown ratio
+          // reaches is taken (said), else the straight glide of a forced landing
+          if (G.stage === 'key' && ap.t - G.t0 > 12 && h < need(Math.hypot(G.sAim - sN, cN)) - 20) {
+            const alt = gliderPick(G.E, G.id, ap.route && ap.route.from && ap.route.to && ap.route.from.id !== ap.route.to.id ? ap.route.from.id : null);
+            if (alt) { say('glider-divert', G.name + ' is out of reach at the ratio flown (' + G.E.toFixed(1) + ') - diverting to ' + (alt.name || alt.id)); const g2 = gliderCircuitPlan(alt); if (g2) { g2.log = G.log.concat([{ t: +ap.t.toFixed(1), stage: 'divert ' + (alt.name || alt.id), h: Math.round(h) }]); g2.Em = G.Em; gcirc = g2; glideTo = alt; } }
+            else { say('glider-divert', G.name + ' is out of reach and no field is in reach - a forced landing ahead'); gcirc = null; glideTo = null; glideHdg = Math.atan2(vcg[2], vcg[0]); }
+            break;
+          }
+          if (G.stage === 'key') {
+            const K = wp(F, sKey, cD), dK = Math.hypot(K[0] - cg[0], K[1] - cg[2]);
+            if (ap.t - G.t0 > 12 && h < need(dK + dMin) - 40 && h < need(Math.hypot(G.sAim - sN, cN) + Rt)) next('direct');   // (once the glide is measured)
+            else if (dK < Rt + 120) next(h > need(dMin) + 120 ? 'burn' : 'downwind');
+            else trk = K;
+          }
+          if (G.stage === 'burn') {
+            // the orbit about a centre beyond the key, outboard: the tangent read 2 s ahead, the radial error turned in
+            const ox = wp(F, sKey, G.side * (G.W + Rt)), rr = Math.hypot(cg[0] - ox[0], cg[2] - ox[1]) || 1e-9, sg = -G.side;
+            const phA = Math.atan2(cg[2] - ox[1], cg[0] - ox[0]) + sg * 2 * Math.max(Vg, 8) / Rt, rx = CORE_MATH.cos(phA), rz = CORE_MATH.sin(phA), kR = clamp(3 * (rr - Rt) / Rt, -1, 1);
+            hdg = Math.atan2(rx * sg - kR * rz, -rz * sg - kR * rx);
+            if (h <= need(dMin) + 60) next('downwind');
+          }
+          if (G.stage === 'downwind') {
+            trk = wp(F, sN - 500, cD);   // (the downwind line, 500 m ahead - the pursuit holds W out)
+            const dLeft = Math.abs(cN) + Math.max(0, G.sAim - sN) + Rt;
+            if ((sN < G.sAim - 150 && h <= need(dLeft) + 15) || sN < G.sAim - 1500) { G.sB = sN; next('base'); }
+          }
+          if (G.stage === 'base') {
+            trk = wp(F, G.sB + 0.3 * Rt, 0);
+            if (Math.abs(cN) < 1.1 * Rt) next('final');
+          }
+          if (G.stage === 'direct') {
+            // too low for the circuit: onto the centreline 300 m short of the aim (or here, past it), then the final - back
+            // to the key when the glide turns out better than feared (80 m over what the circuit asks)
+            { const K = wp(F, sKey, cD); if (h > need(Math.hypot(K[0] - cg[0], K[1] - cg[2]) + dMin) + 80) next('key'); }
+          }
+          if (G.stage === 'direct') {
+            const sJ = Math.max(G.sAim - 300, Math.min(sN + 2 * Rt, G.sAim + 200));
+            trk = wp(F, sJ, 0);
+            if (Math.abs(cN) < 1.1 * Rt && sN < sJ) next('final');
+          }
+          // (a final far too high - 100 m over the glide still to fly, 400 m out at least: no airbrakes to lose it - goes
+          //  round the circuit again from the key; off Skyline Altiport a direct arrival came over Jolene 156 m high and
+          //  rolled 775 m past the end)
+          if (G.stage === 'final' && h > need(G.sAim - sN) + 100 && sN < G.sAim - 400) next('key');
+          if (G.stage === 'final') {
+            trk = wp(F, Math.max(sN, G.sAim - 300) + 600, 0);
+            ias = Vap;
+            const dAim = G.sAim - sN;
+            flap = (fLDG > 0 && (h > need(dAim) + 10 || aglG < 60)) ? fLDG : 0;
+          }
+          if (trk) engage('TRK', 'TECS', 'TECS', Object.assign(tec, { trk, ias, bank: 0.45 }));
+          else engage('HDG', 'TECS', 'TECS', Object.assign(tec, { hdg, ias, bank: 0.45 }));
+          flapTgt = flap;
+          pubN = 'GLIDER ' + G.stage.toUpperCase(); pubX = aim[0]; pubZ = aim[1];
+          ap.report.glider = { field: G.name, way: G.way, side: G.side > 0 ? 'left' : 'right', W: Math.round(G.W), E: +G.E.toFixed(1), Em: +G.Em.toFixed(1), stages: G.log };
+          setStatus('glider circuit at ' + G.name + ': ' + G.stage, [
+            cond('height over the aim', Math.round(h), Math.round(need(Math.hypot(G.sAim - sN, cN))), h > 0, 'm'),
+            cond('airspeed', V, ias, Math.abs(V - ias) < 2, 'm/s')]);
+        } else {
         if (glideTo) engage('TRK', 'TECS', 'TECS', Object.assign(tec, { trk: [glideTo.x, glideTo.z], bank: 0.35 }));
         else engage('HDG', 'TECS', 'TECS', Object.assign(tec, { hdg: glideHdg, bank: 0.25 }));
         flapTgt = aglG < 60 ? fLDG : 0;
         setStatus('gliding for a forced landing', [
           cond('height', Math.round(aglG), 0, aglG > 0, 'm'),
           cond('airspeed', V, vbg, Math.abs(V - vbg) < 2, 'm/s')]);
+        }
         if (aglG < (A.flareK ?? 1.3) * A.flareAgl) {
           go('FLARE'); thFlare0 = th; SEL.deadThr = false; altG = 0;
           flTau = clamp(A.flareAgl / Math.max(0.5, -vcg[1]), 2.0, 4.5); flThPk = th;
