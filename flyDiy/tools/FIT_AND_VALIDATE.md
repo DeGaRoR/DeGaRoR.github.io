@@ -216,3 +216,38 @@ Every step names its tool; each one's usage is at the top of its file.
   report. Until then, the report marks those results stale.
 - Results flown before the stamps are stamped from the commit they were flown on, as the evidence README states it:
   `node tools/_real_stamp.js --backfill=<dir> --at=<commit>`.
+
+## 13. The Drafting Table, and where this method hands over (12 Nov 2026)
+
+The FIT-PROCEDURE session builds the **Drafting Table**: `drafting.html`, `tools/drafting/`, spec
+`tools/DRAFTING_TABLE.md`, on claude/fit-procedure-drafting-table. It is a light page, usable on a phone and from node,
+that takes a type from its references to a matched, balanced plane file. It covers phases A to C here (references,
+scaling, architecture, sections, wings, light checks) and leaves the flights to REAL-FIGURES.
+
+| | the Drafting Table | REAL-FIGURES (this method) |
+|---|---|---|
+| phases | A references, B geometry, C internals and balance (light checks) | D lattice check, E flights, F report, stamps and gates |
+| where the reference lives | the plane file's `ref` block (`what: 'drafting-ref'`, v 1) | `tools/real_refs.js` REFS rows |
+| the master | its spec, for A to C | this file, for D to F |
+
+Sections 2 to 5 here are lessons the Drafting Table already builds in. Where the two disagree on A to C, its spec wins.
+
+**The interface is the `ref` block. What is not built yet:**
+- `real_check --ref` reading the plane file's own block. The Drafting Table lists it as "small, after it lands on master".
+- The score written back into the block's history.
+
+**When it is built, map the block onto a REFS row like this:**
+
+| `ref` block | REFS row |
+|---|---|
+| `identity.variant` + `identity.engine` | `variant` |
+| `sources: { id: 'text' }` | `sources: { id: { what, quality, read, url or noUrl } }`. The block holds a string: GATE REALREFS will ask for the date read and the quality. |
+| `figures['geometry.*']`, `['specs.*']` | `dims`, `specs` |
+| `figures['perf.Vs1' / 'roc' / 'TO50' / 'LDG50' ...]` with `kg`, `flaps`, `surface` | `rows`, the same condition fields (the block already carries them) |
+| `perf.cruise` | `V75` only when the source states the power. "Max cruise" is not Vmax (section 2). |
+| `perf.Vs0` | not an indicator yet (`_realrefs_lint.js` INDICATORS). Add it there, and in the report's weights, if the stall in landing configuration is to be scored. |
+| no `tol` | the report's uncertainty by indicator (σ). A per-row `tol` only to widen it. |
+
+**The stamp needs no change.** The `ref` block lives in the build file, so the build's blob already covers it: editing
+the reference stales the plane's results, as it should.
+
