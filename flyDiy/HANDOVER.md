@@ -314867,3 +314867,10 @@ the next steps).
   0, the bonnet top 0.352 -> 0.193 (frNoseTopY 0.2, cw_aftH 0.473; its bottom on the floor line), the rear axle 1.02 m
   from the rear wall (s1Z 0.5), the front 0.25 m behind the bonnet face (s2AxZ 1.15). The body's own corner rounding
   (topRound / botRound) left as it was.
+- **CAR-3, THE NEXT ROUND (the user: the waist +12 cm, the nose's sharpness relaxed, no suspension fairings, the front wheel
+  30 cm back, the windows wider and back in line with the drawing, the bonnet face at 70 % of its width)**: waistY 0.258
+  (+0.133 cage = +12 cm), crNoseCap 1.5 / noseTip 0.1 (were 3 / 0.25), s1LegFair / s2LegFair 0, s2AxZ 0.85, cw_taperW 0.7.
+  THE WINDOWS: one row cannot give the drawing's two widths, and the old pair straddled the B pillar and the bay seam - now
+  one window per bay on two rows: row 1 (bay 1) paxWinZ 1.587 / W 0.633, row 2 (bay 2) win2Z 0.438 / W 0.78; a window's z
+  is its FRONT edge (tools/car_stations.js prints them). UTV: the nose and bonnet restored to the matched version (the
+  user), the bed on the Twin busher's straight-stab planform rows.
