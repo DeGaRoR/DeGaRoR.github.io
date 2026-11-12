@@ -499,6 +499,9 @@ window.CAGE_PAGE = {
       ['noseH',     'height ×',         0.05, 1.20, 0.01],
       ['noseDroop', 'droop',          -0.20, 0.60, 0.005],
       ['noseCrown', 'deck crown',      0.00, 1.00, 0.005],
+      // (12 Nov, FIT-PROCEDURE: "the bottom roundness of the nose") the nose ring's bottom corners, chamfered (0) to square
+      // (1) - a square cowl seals onto a square face; the top corners are the deck crease's ('deck crease', crSillNose)
+      ['noseKeelSq', 'bottom squareness',  0.00, 1.00, 0.01, { absent: 0 }],
       ['wsBaseLift','windscreen base lift', 0.00, 0.80, 0.005],
       ['crSillNose','deck crease',     -1, 3, 0.05],
       // THE TIP (user 2026-08-19: "the aero nose remains quite pointy").
