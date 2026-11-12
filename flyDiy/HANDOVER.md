@@ -314783,3 +314783,6 @@ the next steps).
   yardstick updated to the live kit (m1-m5, t1-t6, metal / rough). The list thumbnail baked. Gates on the final card
   (28 + the re-checks): all PASS but **TANKMOUNT (owed: the tail tank 12 mm through the boat tail's skin, whatever its
   size, form or seat - kept, the deck form is the likely cure)** and LIVERY (master's two standing reds, the Cub's strut).
+- **THE FIFTH REVIEW**: the face - the opening fills the off-white shell, a rolled lip as its surround, and two new opt-in
+  cowl parts (`grilleOn` / `capOn`, _cowl_gen.js buildGrille / buildCap, absent = off): chrome bars cut to the opening, a
+  cross bar and a dark core; a radiator cap on the top line. The name in English: "Lady Luck".

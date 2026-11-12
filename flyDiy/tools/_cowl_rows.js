@@ -201,6 +201,17 @@ const COWL_ROWS = [
     { k: 'ductLen', label: 'duct length inside', lo: 0, hi: 0.5, step: 0.005 },
     { k: 'ductFlare', label: 'duct flare', lo: -0.4, hi: 0.4, step: 0.01 },
   ] },
+  // ---- CAR-1: the grille and the radiator cap ----
+  { id: 'g_grille', name: 'Grille & radiator cap', rows: [
+    { k: 'grilleOn', label: 'grille in the inlet', lo: 0, hi: 1, step: 1 },
+    { k: 'grilleN', label: 'bars', lo: 2, hi: 30, step: 1, when: 'P.grilleOn>0' },
+    { k: 'grilleBar', label: 'bar width (m)', lo: 0.004, hi: 0.04, step: 0.001, when: 'P.grilleOn>0' },
+    { k: 'grilleSet', label: 'set back from the face (m)', lo: 0, hi: 0.15, step: 0.002, when: 'P.grilleOn>0' },
+    { k: 'grilleHBar', label: 'cross bar', lo: 0, hi: 1, step: 1, when: 'P.grilleOn>0' },
+    { k: 'capOn', label: 'radiator cap', lo: 0, hi: 1, step: 1 },
+    { k: 'capR', label: 'cap radius (m)', lo: 0.015, hi: 0.08, step: 0.001, when: 'P.capOn>0' },
+    { k: 'capBack', label: 'cap behind the face (m)', lo: 0.01, hi: 0.4, step: 0.005, when: 'P.capOn>0' },
+  ] },
   // ---- Chin scoop ----
   { id: 'g_scoop', name: 'Chin scoop', rows: [
     { k: 'scoopOn', label: 'chin scoop', lo: 0, hi: 1, step: 1 },

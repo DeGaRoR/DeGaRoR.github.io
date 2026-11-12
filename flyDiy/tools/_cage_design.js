@@ -2858,7 +2858,14 @@ const ARCHETYPES = [
                     // (the user: "the side grill higher up, and if you can straight and longer, like the cars of that era"):
                     // upright slots, a long panel, high in the band under the cut (gillUp, gillL / gillN's wider ranges)
                     cw_gillOn: 1, cw_gillN: 22, cw_gillZ: 0.85, cw_gillL: 0.72, cw_gillH: 0.24, cw_gillSlant: 0, cw_gillUp: 0.8,
-                    cw_apMode: 1, cw_apW: 0.16, cw_apH: 0.30, cw_apSq: 0.9, cw_apOffY: 0.02,
+                    // THE FACE (the user, 12 Nov: "the front face ... looks a little goofy. Look at the inlet options,
+                    // especially a lip ... another shape of opening, and the modeling of a grill, and maybe a radiator cap"):
+                    // a tall rounded opening, a ROLLED LIP standing proud round it (the shell's surround), a grille of
+                    // upright chrome bars with a cross bar over a dark core (grilleOn, new), a filler cap on top (capOn, new)
+                    cw_apMode: 1, cw_apW: 0.26, cw_apH: 0.37, cw_apSq: 0.78, cw_apOffY: -0.01,
+                    cw_lipMode: 1, cw_lipThick: 0.014, cw_lipDepth: 0.06, cw_lipRound: 0.85, cw_lipProtrude: 1.2, cw_lipInset: 0.025,
+                    cw_grilleOn: 1, cw_grilleN: 15, cw_grilleBar: 0.011, cw_grilleSet: 0.04, cw_grilleHBar: 1,
+                    cw_capOn: 1, cw_capR: 0.03, cw_capBack: 0.08,
                     // THE ENGINE (the user, 12 Nov: "an enormous engine for that car ... an engine that would be more
                     // appropriate"): the CUSTOM engine on the Argus's V8 layout (90 deg, eight cylinders) at a 1930s car
                     // V8's size - a 3.6 L flathead's 77.8 x 95.3 mm - turning 3000 rpm: the engine model gives ~86 kW and
@@ -2930,8 +2937,8 @@ const ARCHETYPES = [
                       // twin copper pinstripes along the top, bonnet to tail
                       m4On: 1, m4Pat: 1, m4A: 0xb87333, m4B: 0xb87333, m4D: 0xefe6cf, m4Metal: 1,
                       m4Tgt: 0, m4Mode: 2, m4L: 0.9, m4C: 0.0, m4W: 5.0, m4H: 0.30,
-                      // her name, in script, on the tail's flank (LIVERY-TEXT)
-                      t1On: 1, t1Txt: 'La Belle \u00c9toile', t1Face: 'greatvibes', t1B: 0, t1I: 0, t1Col: 0xefe6cf, t1Line: 0xb87333,
+                      // her name, in script, on the tail's flank (LIVERY-TEXT; the user: "it should be american, call it something in english")
+                      t1On: 1, t1Txt: 'Lady Luck', t1Face: 'greatvibes', t1B: 0, t1I: 0, t1Col: 0xefe6cf, t1Line: 0xb87333,
                       t1H: 0.20, t1L: 1.45, t1C: 0.12, t1Tgt: 0, t1Mode: 0 },
                       sections: { ...Object.fromEntries(Object.keys(BODY_PAINT(0)).map(k => [k, { tint: 0x8fb0d4, metal: 1, rough: 0.32 }])),
                                   cowlSkin: { tint: 0xd9dde2, metal: 1, rough: 0.16 } } },

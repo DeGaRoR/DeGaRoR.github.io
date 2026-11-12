@@ -84,6 +84,7 @@ const P={
   // PROPER-COWLS: the nose ring's own half-width / reach up / reach down (null = lidRadius)
   lidRW:null, lidRTop:null, lidRBot:null,
   gillOn:0, gillN:6, gillZ:0.35, gillL:0.22, gillH:0.12, gillSlant:25, gillLip:0.012, gillT:0.004, gillUp:null,   // (CAR-1: null = centred)
+  grilleOn:0, grilleN:9, grilleBar:0.012, grilleSet:0.03, grilleHBar:1, capOn:0, capR:0.032, capBack:0.07,   // CAR-1: the grille, the radiator cap (off)
   // chin scoop
   scoopOn:1, scoopZ:0, scoopW:0.065, scoopH:0.055, scoopLen:0.22, scoopDrop:0.7,
   scoopAp:0.68, scoopSq:0.5, scoopRake:0.18,
@@ -1161,6 +1162,40 @@ function gillsFit(){
   const thc=Math.max(thLo+H/2/rad, Math.min(thHi-H/2/rad, 0.5*(thLo+thHi)));
   return {ok:true, zc, thc, rad, L, H, zLo, zHi, thLo, thHi};
 }
+/* ==================== THE GRILLE AND THE RADIATOR CAP (CAR-1) ====================
+   The user (12 Nov, of the roadster's face): "the modeling of a grill, and maybe a radiator cap. A few little details
+   making it more believable." Both off unless asked (grilleOn / capOn): every cowl drawn before draws as it did.
+   THE GRILLE: grilleN upright bars across each main inlet (apMode 1 / 3), set grilleSet back from the face, each cut to
+   the opening's own superellipse less a hair, grilleBar wide; with grilleHBar a thin cross bar at mid-height - a
+   radiator's shell over its core. THE CAP: a chrome filler cap on the top line, capBack behind the face: a neck, a
+   knurled cap and a little dome, capR its radius. */
+function buildGrille(group,mats){
+  if(!(P.grilleOn>0)) return;
+  const aps=apertureList(); if(!aps.length) return;
+  const o=aps[0], N=Math.max(2,Math.round(P.grilleN)), bw=Math.max(0.004,P.grilleBar), set=Math.max(0,P.grilleSet);
+  const zf=pierceZ(o.cx,o.cy); const zF=(zf===null?zEnd():zf)-set;
+  const m=mats.steel||mats.skin, depth=Math.max(0.01,bw*1.6);
+  const hw=o.w*0.96, hh=o.h*0.96;
+  for(let k=0;k<N;k++){
+    const x=-hw+(k+0.5)*2*hw/N, f=Math.pow(Math.max(0,1-Math.pow(Math.abs(x/hw),o.n)),1/o.n), L=2*hh*f;
+    if(L<0.01) continue;
+    const g=new THREE.BoxGeometry(bw,L,depth); const b=new THREE.Mesh(g,m); b.position.set(o.cx+x,o.cy,zF); b.name='cowlGrille'; group.add(b);
+  }
+  if(P.grilleHBar>0){ const g=new THREE.BoxGeometry(2*hw,bw*0.8,depth*0.8); const b=new THREE.Mesh(g,m); b.position.set(o.cx,o.cy,zF-depth*0.2); b.name='cowlGrille'; group.add(b); }
+  // the core behind the bars: a dark honeycomb plate, so the opening reads as a radiator, not a hole
+  const core=new THREE.Mesh(new THREE.PlaneGeometry(2*hw,2*hh),mats.dark||mats.inner||m);
+  core.position.set(o.cx,o.cy,zF-depth*1.5); core.name='cowlGrille'; group.add(core);
+}
+function buildCap(group,mats){
+  if(!(P.capOn>0)) return;
+  const z=zEnd()-Math.max(0.01,P.capBack);
+  const [x,y]=surfPoint(Math.PI/2,z);
+  const r=Math.max(0.01,P.capR), m=mats.steel||mats.skin;
+  const neck=new THREE.Mesh(new THREE.CylinderGeometry(r*0.7,r*0.8,r*0.6,20),m); neck.position.set(0,y+r*0.25,z);
+  const cap=new THREE.Mesh(new THREE.CylinderGeometry(r,r,r*0.55,24),m); cap.position.set(0,y+r*0.75,z);
+  const dome=new THREE.Mesh(new THREE.SphereGeometry(r*0.85,20,10,0,TAU,0,Math.PI/2),m); dome.position.set(0,y+r*1.0,z);
+  for(const q of [neck,cap,dome]){ q.name='cowlCap'; group.add(q); }
+}
 function buildGills(group,mats){
   if(!(P.gillOn>0)) return;
   const F=gillsFit(); if(!F.ok) return;
@@ -1821,6 +1856,6 @@ function cowlSizeToEngine(env, opt) {
   return r;
 }
 
-const COWL_API = { gillsFit, buildGills, exitAt, inExCut, TAU, P, MATERIALS, PRESETS, lerp, clamp, smooth, sqExp, superPt, angDiff, SEG, zEnd, lidRadius, spineY, bez, mkCurve, eSqAftTop, eSqAftBot, eDeckH, eKeelH, eWaist, prepareLid, seamInset, sectionAtZ, sectPt, lobeAt, surfPoint, sectF, pierceZ, equalise, prepareMesh, apertureList, fitAperture, apG, buildSurface, aftStart, fwGeom, fwLipProfile, sectNormal2, buildFirewallLip, lipProfile, buildLips, buildDetail, cowlNormalAt, loftRings, fan, buildScoop, buildAft, spinProfile, coneBaseZ, axisXY, bladePlaneZ, coneRadiusAtBlade, buildNose, naca, airfoilLoop, propGeometry, cowlFitEngine, cowlApplyEngine, cowlSizeToEngine };
+const COWL_API = { gillsFit, buildGills, buildGrille, buildCap, exitAt, inExCut, TAU, P, MATERIALS, PRESETS, lerp, clamp, smooth, sqExp, superPt, angDiff, SEG, zEnd, lidRadius, spineY, bez, mkCurve, eSqAftTop, eSqAftBot, eDeckH, eKeelH, eWaist, prepareLid, seamInset, sectionAtZ, sectPt, lobeAt, surfPoint, sectF, pierceZ, equalise, prepareMesh, apertureList, fitAperture, apG, buildSurface, aftStart, fwGeom, fwLipProfile, sectNormal2, buildFirewallLip, lipProfile, buildLips, buildDetail, cowlNormalAt, loftRings, fan, buildScoop, buildAft, spinProfile, coneBaseZ, axisXY, bladePlaneZ, coneRadiusAtBlade, buildNose, naca, airfoilLoop, propGeometry, cowlFitEngine, cowlApplyEngine, cowlSizeToEngine };
 if (typeof module !== 'undefined') module.exports = COWL_API;
 if (typeof window !== 'undefined') window.COWL_GEN = COWL_API;
