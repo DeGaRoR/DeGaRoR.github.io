@@ -315075,3 +315075,27 @@ READY for the GAME COORDINATOR
 - Standing reds (master's, same checks): GEN, TREECRASH, DMGGEAR, DMGDRIVE, DMGINST, DMGSCAR (liner's named edge), FRAMECOST, ROUNDTRIP, LIVERY, JOINPARITY, NEWPLANE-BUILDS, ENGCONFIG, FLIGHTREC, DESTTO, SIMWORKER-EDGES, SCENERYED, NODUMMY, TECH.
 - PAVEMENT's timing row went 102 vs 87 ms under load and passed alone.
 - TIMED GATE: timed out again on its last rows (boot 134-244 s class, shader-cache misses). It is the perf round's first item.
+
+## PILOT 12 Nov - TAXI-HOME STOP + the C172 finding + CANON-C172-GATES (prepared)
+
+- TAXI-HOME STOP (claude/ready/strip-lane-stop fefe7ff2c, inside Game's claude/ready/taxi-home 2a02cbf17): the way in ends
+  on a stand, and patternPath gives sStop only to a path ending on a hold - the taxi-in arrived at 5.4 m/s and STOPPED's
+  0.25 brake coasted 10.8 m past. planTaxiIn sets sStop; the path end brakes 0.7, power off, under 0.3 m/s, then STOPPED.
+  Game's page leg (list:40, bugReports/cessnaMetal (1).json): at rest 0.2 m from the stand, Vg 0.01.
+- THE FINDING: EVERY "C172" / "aluminium C172" NUMBER OF THE WEEK CAME FROM THE TOUR FIXTURE
+  tools/fixtures/build_v10_cessnaMetal_2026-09-26.json (island_tour --build c172), not the canon Cessna 172 F-HCSN
+  (builds/cessna172r_2026-11-08.json, plane-canon list:50). The fixture never sets a flap: the w8 diag 12 Nov 11:35
+  (D:/Dev/pilot_runs/c172_appr_diag_20261112) - fixture: flap 0.00 all flight, final V mean 32.2 / max 36.6 m/s, fast at
+  the gate (32.7, 33.2 for 27.1), two go-arounds, a divert to w7, touchdown 29.9 m/s; F-HCSN: flap 0.50 / 1.00, final
+  V mean 26.6, touchdown 23.2 m/s, run 152 m, no go-around (watch row: its approach clearance 5.7 m, not a pin). The
+  "C172 approach fix" is CLOSED with no pilot change; the 29.6-29.9 m/s touchdowns, the w8 / w5 go-arounds and the
+  w3 bounce were the fixture's. PROFILE's KNOWN 2 already called it "flapless and fast".
+- CANON-C172-GATES (claude/canon-c172-gates d85750d7e on L38c2 master 5bc7de1c9, NOT gated, NOT a ready): the pilot
+  gates fly F-HCSN as "C172" - _tour_lib BUILDS.c172 (TOUR; the fixture kept as c172fx, "Test copy: aluminium C172
+  (2026-09-26)"), _taxiclear_lib BUILDS (TAXICLEAR, STAGES), TAXICLEAR, LINEUP, PLAN, APSMOOTH, PILOTCANFLY, RWYTREES,
+  PROFILE, pilot_matrix ACT_KEYS (PILOTACT). Untouched (the file's structure / sound, not the flown C172): JOINPARITY's
+  byte check, HINGE, HONESTY, PARKED, RETRACT, ROLLSND, AUDIO, render_prop. Pins to re-read on the run: TOUR knownRed
+  (the C172's w2 water strike, G1971) and the C172 w3 > tw_ski decline (32.7 m/s, 298 m for 245), PROFILE KNOWN 2
+  (cessnaMetal gave-up, vref-raised: retire if F-HCSN completes), TAXICLEAR wingNeed 1.45 by house3/4 (G3074, the
+  fixture's rotation swing), PILOTACT's C172 activity, STAGES' C172 box. Old / new numbers: the Fri 13 Nov perf-round
+  slot (A0), then the ready.
