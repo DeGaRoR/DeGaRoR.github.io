@@ -336,6 +336,7 @@ const ENG_DEFAULT = {
   flatK: 1.26,             // flat-rating margin, core over rated (05_atmos reads it)
   tRpm: 1900,              // propeller rpm (the gearbox's output)
   stackStyle: 1,           // 1 = the PT6's paired stacks, 0 = bare
+  stackOut: 1, stackLen: 1, stackFlat: 0, stackR: 1, stackDrop: 0,   // (12 Nov) the stacks' reach, run, flattened outlet (1 / 1 / 0: as before)
   // installation
   accessories: 1,          // magnetos, pumps, starter, alternator
   exhaust: 1,

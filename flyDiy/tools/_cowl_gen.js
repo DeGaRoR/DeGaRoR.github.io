@@ -73,7 +73,7 @@ const P={
   // "very often there is a cut in the cowl at the bottom aft part, so that the exhaust can go through ... they make
   // the cowl a bit bigger at the bottom, so that there is a gap there"). All off (0) by default: every cowl drawn
   // before them is drawn to the bit.
-  exitGap:0, exitSpan:140, exitLen:0.45, exitHold:0, keelShoulder:null, keelRound:null, deckShoulder:null, deckRound:null, scoopFollow:0, scoopHold:0, scoopWFit:0, exRampH:0.04, exCut:0, exCutSpan:50, exCutLen:0.12, exCutAz:270,
+  exitGap:0, exitSpan:140, exitLen:0.45, exitHold:0, keelShoulder:null, keelRound:null, deckShoulder:null, deckRound:null, scoopFollow:0, scoopHold:0, scoopWFit:0, scoopTaperH:1, scoopTaperW:1, exRampH:0.04, exCut:0, exCutSpan:50, exCutLen:0.12, exCutAz:270,
   // PROPER-COWLS: the side gills (the Carbon Cub's): off by default
   // PROPER-COWLS: a radial's helmets as the engine draws them - how many (0 = lobeN) and every other one's station (a
   // two-row radial's rear row; null = lobeT)
@@ -1013,7 +1013,10 @@ function buildScoop(group,mats){
     // the cowl when viewed from the bottom ... same taper over the length of the cowl"): scoopWFit > 0, the scoop's
     // half-width is that share of the cowl's bottom half-width at its station; absent / 0 the fixed scoopW (to the bit)
     const wFit=+P.scoopWFit||0, skW=wFit>0?sectionAtZ(clamp(z,0,ze)):null;
-    const a=wFit>0?wFit*skW.a*(skW.wB||1):P.scoopW*lerp(0.5,1,e), b=P.scoopH*lerp(0.30,1,e);
+    // (12 Nov) THE TAPER, mouth -> aft end: the aft end's height and width as a share of the mouth's (1 / absent: none)
+    const tH=P.scoopTaperH==null?1:+P.scoopTaperH, tW=P.scoopTaperW==null?1:+P.scoopTaperW;
+    const a0=wFit>0?wFit*skW.a*(skW.wB||1):P.scoopW*lerp(0.5,1,e), b0=P.scoopH*lerp(0.30,1,e);
+    const a=tW===1?a0:a0*lerp(tW,1,t), b=tH===1?b0:b0*lerp(tH,1,t);
     // V5 scoopFollow: the scoop rides the keel - its top a third of its height inside the skin at every station, so a
     // keel that rounds up into the face carries it (absent / 0: the straight raked line it always was)
     let y=baseY-P.scoopH*P.scoopRake*e;
