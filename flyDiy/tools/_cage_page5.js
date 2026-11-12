@@ -28,7 +28,7 @@ const CAB_NAMES = ['mixed crew (rotate)'].concat(
 // unticked or dragged on the bench (_cage_ui.js: the corner handles); the keys are not defaults, so no file written
 // before them carries them.
 const QUAD_CORNER = ['fwd top', 'aft top', 'aft bottom', 'fwd bottom'];
-const quadRows = pre => [1, 2, 3, 4].flatMap(c => ['Z', 'Y'].map(a => [
+const quadRows4 = pre => [1, 2, 3, 4].flatMap(c => ['Z', 'Y'].map(a => [
   pre + 'Q' + c + a, 'corner · ' + QUAD_CORNER[c - 1] + (a === 'Z' ? ' · station' : ' · height'),
   a === 'Z' ? -6.0 : -1.0, a === 'Z' ? 3.5 : 1.2, 0.005,
   { when: P => +P[pre + 'N'] > 0 && Math.round(+P[pre + 'Shape']) === 2, dim: 'len',
@@ -36,6 +36,22 @@ const quadRows = pre => [1, 2, 3, 4].flatMap(c => ['Z', 'Y'].map(a => [
                     return U && U.P && G2 && G2.cageQuadRect ? G2.cageQuadRect(U.P, pre)[c - 1][a === 'Z' ? 0 : 1] : null; },
     followTitle: 'follows the rectangle (width, height, top width, top shift); untick - or drag its handle on the ' +
                  'bench - to place this corner (tick again: back to the rectangle)' }]));
+// (12 Nov, FIT-PROCEDURE: "the very special pilot window that the PC-6 does have") A FIFTH CORNER, between the fwd-bottom
+// corner and the fwd-top one: on, placed (it shows the middle of that edge until set), its own radius
+const quadRows = pre => quadRows4(pre).concat([
+  [pre + 'Q5On', 'corner 5 (on the fwd edge)', 0, 1, 1,
+   { when: P => +P[pre + 'N'] > 0 && Math.round(+P[pre + 'Shape']) === 2, absent: 0 }],
+  ...['Z', 'Y'].map(a => [pre + 'Q5' + a, 'corner 5 · ' + (a === 'Z' ? 'station' : 'height'),
+    a === 'Z' ? -6.0 : -1.0, a === 'Z' ? 3.5 : 1.2, 0.005,
+    { when: P => +P[pre + 'N'] > 0 && Math.round(+P[pre + 'Shape']) === 2 && +P[pre + 'Q5On'] > 0, dim: 'len',
+      follow: () => { const U = window.CAGE_UI, G2 = window.CAGE2;
+                      if (!(U && U.P && G2 && G2.cageQuadRect)) return null;
+                      const R = G2.cageQuadRect(U.P, pre); return (R[3][a === 'Z' ? 0 : 1] + R[0][a === 'Z' ? 0 : 1]) / 2; },
+      followTitle: 'the middle of the fwd edge until placed (there it lies in line and the window waits - move it out)' }]),
+  [pre + 'R5', 'radius · corner 5', -0.01, 0.45, 0.005,
+   { when: P => +P[pre + 'N'] > 0 && Math.round(+P[pre + 'Shape']) === 2 && +P[pre + 'Q5On'] > 0, dim: 'len',
+     link: { sentinel: -1, from: pre + 'R', test: v => v == null || v < 0 } }],
+]);
 // MORE ROWS (11 Nov, FIT-PROCEDURE; the user: "more than 3 possible rows of windows ... a lot of personality"): rows
 // 4-6 are row 3's controls on win4*-win6*, every key absent until the row is used (_cage_gen.js CAGE_WIN_ABSENT: the
 // value a row shows while absent), so no saved build carries them or moves
@@ -618,6 +634,8 @@ window.CAGE_PAGE = {
         ['skyExt',    'sky extent',     0, 5, 1,
          { when: P => +P.skylight }],
         ['winSillPilot', 'window sill', 0, 0.9, 0.01],
+        // (12 Nov, FIT-PROCEDURE) the pilot's glass a plain panel, to cut a DRAWN window through (4b · drawn windows)
+        ['winPilotPanel', 'pilot window: a panel (draw it as a drawn window)', 0, 1, 1, { absent: 0 }],
         ['canopy',    'canopy',         0, 3, 1, ['closed', 'convertible',
                                                   'open', 'bubble']],
         // THE LABEL IS THE SHAPE, NOT THE MECHANISM (NEW-AIRCRAFT §5.3):

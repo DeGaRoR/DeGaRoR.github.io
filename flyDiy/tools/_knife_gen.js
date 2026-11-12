@@ -119,9 +119,9 @@ function knifeOutline(w) {
     const sk = +w.skew || 0;
     const Wt = W * topK;
     let corners, radii;
-    const rr = Array.isArray(w.rr) && w.rr.length === 4
+    const rr = Array.isArray(w.rr) && w.rr.length >= 4
       ? w.rr.map(v => Math.max(0, +v || 0)) : [w.r, w.r, w.r, w.r].map(v => Math.max(0, +v || 0));
-    if (w.shape === 'quad' && Array.isArray(w.q) && w.q.length === 4) {
+    if (w.shape === 'quad' && Array.isArray(w.q) && w.q.length >= 4) {      // (12 Nov: 4 or 5 corners, a radius each)
       // WINDOWS-FREE: THE FREE QUAD - its four corners as placed (cageQuadWindow: side-view offsets from the
       // window's centre, Q1..Q4 the rectangle's own order), each rounded by its own radius. Wound CCW like every
       // outline here: a quad whose corners were dragged round the other way is turned back, its radii with it

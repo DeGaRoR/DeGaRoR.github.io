@@ -9334,21 +9334,27 @@ function cageQuadWindow(P, pre, i) {
     const qz = P[pre + 'Q' + (k + 1) + 'Z'], qy = P[pre + 'Q' + (k + 1) + 'Y'];
     return [(num(qz) ? +qz : c[0]) + dz, num(qy) ? +qy : c[1]];
   });
-  const cz = abs.reduce((a, c) => a + c[0], 0) / 4, cy = abs.reduce((a, c) => a + c[1], 0) / 4;
+  // A FIFTH CORNER (12 Nov, FIT-PROCEDURE; the user: "ensure the drawn windows allow us to draw the very special pilot
+  // window that the PC-6 does have" - a bottom, an aft edge, a top, and a front that drops along the A-pillar's slant
+  // to a knee, then straight down): Q5, on (Q5On) and placed (Q5Z, Q5Y), sits between the fwd-bottom corner (Q4) and
+  // the fwd-top one (Q1); its own radius R5. Off or unplaced: the four corners, to the bit.
+  if (+P[pre + 'Q5On'] > 0 && num(P[pre + 'Q5Z']) && num(P[pre + 'Q5Y'])) abs.push([+P[pre + 'Q5Z'] + dz, +P[pre + 'Q5Y']]);
+  const nC = abs.length;
+  const cz = abs.reduce((a, c) => a + c[0], 0) / nC, cy = abs.reduce((a, c) => a + c[1], 0) / nC;
   const q = abs.map(c => [c[0] - cz, c[1] - cy]);
   let z0 = Infinity, z1 = -Infinity, y0 = Infinity, y1 = -Infinity;
   for (const c of abs) { z0 = Math.min(z0, c[0]); z1 = Math.max(z1, c[0]); y0 = Math.min(y0, c[1]); y1 = Math.max(y1, c[1]); }
   // CONVEX AND SIMPLE: every turn the same way (either way round - the outline is re-wound), none straight
-  const turn = k => { const a = q[k], b = q[(k + 1) % 4], c = q[(k + 2) % 4];
+  const turn = k => { const a = q[k], b = q[(k + 1) % nC], c = q[(k + 2) % nC];
     return (b[0] - a[0]) * (c[1] - b[1]) - (b[1] - a[1]) * (c[0] - b[0]); };
-  const T = [0, 1, 2, 3].map(turn), big = Math.max(1e-9, (z1 - z0) * (y1 - y0));
+  const T = abs.map((_, k) => turn(k)), big = Math.max(1e-9, (z1 - z0) * (y1 - y0));
   let refused = null;
   if (T.some(t => Math.abs(t) < 1e-4 * big)) refused = 'quad: three corners in a line (no window there)';
   else if (!(T.every(t => t > 0) || T.every(t => t < 0))) {
     // the turn at corner k+1 is T[k]; the corner turning against the others is the one that folds in
-    const pos = T.filter(t => t > 0).length, odd = T.findIndex(t => (t > 0) !== (pos > 2));
-    refused = pos === 2 ? 'quad: two edges cross (a bow-tie) - not cut, the knife cuts convex outlines'
-      : 'quad: corner Q' + ((odd + 1) % 4 + 1) + ' folds in (not convex) - not cut, the knife cuts convex outlines';
+    const pos = T.filter(t => t > 0).length, odd = T.findIndex(t => (t > 0) !== (pos > nC / 2));
+    refused = nC === 4 && pos === 2 ? 'quad: two edges cross (a bow-tie) - not cut, the knife cuts convex outlines'
+      : 'quad: corner Q' + ((odd + 1) % nC + 1) + ' folds in (not convex) - not cut, the knife cuts convex outlines';
   }
   return Object.assign({ shape: 'quad', z: cz, y: cy, q, w: z1 - z0, h: y1 - y0, corners: abs }, refused ? { refused } : {});
 }
@@ -9399,6 +9405,11 @@ function cageSpec(P) {
         // BUBBLE-WINDOWS: the blister's height, absent unless set (an unset row leaves the window as it was)
         if (+Pw[pre + 'Bulge'] > 0) w.bulge = +Pw[pre + 'Bulge'];
         if (quad) Object.assign(w, cageQuadWindow(Pw, pre, i));
+        // (12 Nov) a fifth corner takes its own radius (R5; absent / < 0: the row's)
+        if (quad && w.q && w.q.length === 5) {
+          const v5 = Pw[pre + 'R5'];
+          w.rr = rr.concat([v5 == null || !isFinite(+v5) || +v5 < 0 ? r : +v5]);
+        }
         S.windows.push(w);
       }
     }
@@ -9444,6 +9455,7 @@ function cageSpec(P) {
               ext: Math.max(0, Math.round(P.skyExt != null ? P.skyExt : 5)),
               sillPilot: Math.max(0, P.winSillPilot || 0),
               sillPax: Math.max(0, P.winSillPax || 0) };
+  if (+P.winPilotPanel > 0) S.glaze.pilotPanel = 1;      // (12 Nov) the pilot's glass a panel (written only when on)
   S.crease = { pillar: P.crPillar, sill: P.crSill, band: P.crBand,
                ceil: P.crCeil, frame: P.crFrame, cap: P.crCap,
                keel: P.crKeel == null ? 0 : +P.crKeel,     // G362: absent = round, as every build before G319
@@ -10927,9 +10939,14 @@ function cageSheetKept(spec, step, L) {
     for (let i = 0; i < L; i++) s = cageSubdivide(s);
     if (L > 0) s = cageRefitArc(s);
     const drawn = KG && S.windows && S.windows.length;
-    if (drawn)
+    // THE PILOT'S GLASS AS A PANEL (12 Nov, FIT-PROCEDURE; the user: "make it a full panel where the window part is
+    // actually just a panel and we cut through"): S.glaze.pilotPanel turns the cockpit's glazed band into skin, as
+    // drawn windows already turn the passengers' - so a drawn window can be cut through it, the door keeping its marks
+    // (doors own their windows). Absent: the band glass, as always.
+    const pilotPanel = !!(S.glaze && S.glaze.pilotPanel);
+    if (drawn || pilotPanel)
       s = Object.assign({}, s, { F: s.F.map(f => {
-        if (f.m !== 'pasengerWindow') return f;
+        if (!(drawn && f.m === 'pasengerWindow') && !(pilotPanel && f.m === 'pilotWindow')) return f;
         const g = Object.assign({}, f, { m: 'body' }); delete g.win; return g;
       }) });
     s = cageGlassSill(s, S);
@@ -10972,9 +10989,11 @@ function cageSheet(P, opts) {
   const KG = (typeof KNIFE_GEN !== 'undefined') ? KNIFE_GEN
     : (typeof require === 'function' ? require('./_knife_gen.js') : null);
   const drawn = step === 'crease' && KG && spec.windows && spec.windows.length;
-  if (drawn)
+  // (12 Nov) the pilot's glass a panel - the same as cageSheetKept's (see there)
+  const pilotPanel = step === 'crease' && !!(spec.glaze && spec.glaze.pilotPanel);
+  if (drawn || pilotPanel)
     s = Object.assign({}, s, { F: s.F.map(f => {
-      if (f.m !== 'pasengerWindow') return f;
+      if (!(drawn && f.m === 'pasengerWindow') && !(pilotPanel && f.m === 'pilotWindow')) return f;
       const g = Object.assign({}, f, { m: 'body' }); delete g.win; return g;
     }) });
   if (step === 'crease') {
