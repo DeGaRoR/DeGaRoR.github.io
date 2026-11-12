@@ -314793,3 +314793,7 @@ the next steps).
 - **THE SEVENTH REVIEW**: the race number 28 painted ON a fine open grille (bars cut where the sticker's edges cross them,
   each piece the colour over it; `grilleRows` new, absent 0) - no panel in the opening; the spare wheel measured in the gear
   group's own frame (a world box had put it on the ground in the page, under the pitched mount).
+- **THE EIGHTH REVIEW**: the spare wheel mounted (_cage_gear.js spareBuild): hubcap out (the spare side's own road wheel,
+  else the other turned), no brake, seated 34 mm off the flank over its whole height; a flange-and-stub carrier with a
+  chrome hub nut; a leather strap swept round the tyre's crown to a bracket and D-ring, its buckle modelled (frame,
+  roller, tongue, keeper, punched tail).

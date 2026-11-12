@@ -2321,6 +2321,137 @@ function doorBuild(P, fit, mech, swing, ctx, group, FS, AF, KT, CM) {
 }
 
 // ---- the build ------------------------------------------------------------
+// ---- THE SPARE WHEEL (CAR-1) ---------------------------------------------------------------------------------------
+// The user (12 Nov): "put a spare wheel on one of the sides, at the back, like the ref picture", then "it's in the
+// wrong direction ... do a little mount for it and do a little strap ... very close to the body, so it actually mounts
+// on it ... high quality modeling on the strap and the buckle". spareOn: the rearmost road wheel OF THE SPARE'S OWN SIDE
+// copied (its hubcap faces out, as a road wheel's does; the other side's copy turned about the vertical), its brake
+// left off (a spare has none), its tyre seated a carrier's depth off the flank - the body's half-width taken over the
+// tyre's whole height and length; a carrier (a domed base flange bolted to the flank, a stub axle, a chrome hub nut)
+// and a LEATHER STRAP round the tyre's crown, anchored at a bracket on the body, fastened by a buckle on the outer face
+// (a rounded chrome frame, its roller, the tongue, a leather keeper, the punched tail with a rounded tip). All in the
+// group's own frame (the layers' metres). A picture: not a unit, not a contact; named edSpare.
+function spareBuild(group, P, AF) {
+  const localBox = o => { const b2 = new THREE.Box3(); o.updateMatrixWorld(true);
+    o.traverse(m => { if (!m.isMesh || !m.geometry) return; if (!m.geometry.boundingBox) m.geometry.computeBoundingBox();
+      const bm = m.geometry.boundingBox.clone(); let n = m; const M = new THREE.Matrix4();
+      while (n && n !== group) { n.updateMatrix(); M.premultiply(n.matrix); n = n.parent; }
+      b2.union(bm.applyMatrix4(M)); });
+    return b2; };
+  const sg = +P.spareSide < 0 ? -1 : 1, z = +P.spareZ;
+  // the source: the rearmost wheel group, of this side if one is there
+  const cands = group.children.filter(ch => /^edWheel/.test(ch.name)).map(ch => ({ ch, b: localBox(ch) }));
+  if (!cands.length) return;
+  const zOf = q => (q.b.min.z + q.b.max.z) / 2, xOf = q => (q.b.min.x + q.b.max.x) / 2;
+  cands.sort((a, b) => zOf(a) - zOf(b));
+  const zR = zOf(cands[0]);
+  const rear = cands.filter(q => Math.abs(zOf(q) - zR) < 0.3);
+  const pick = rear.find(q => Math.sign(xOf(q)) === sg) || rear[0];
+  const flip = Math.sign(xOf(pick)) !== sg;
+  const src = pick.ch;
+  const tyreM = GG.gearMat('tyre'), brakeM = GG.gearMat('brake');
+  const tyreMesh = src.children.find(m => m.material === tyreM) || src.children[0];
+  const tb = localBox(tyreMesh), tc = new THREE.Vector3(); tb.getCenter(tc);
+  const R = (tb.max.y - tb.min.y) / 2, hwT = (tb.max.x - tb.min.x) / 2;
+  const Rr = R * (+P.whRimD > 0 ? Math.min(0.85, +P.whRimD) : 0.5);   // the rim's edge (the strap passes inside it)
+  // the flank: the body's half-width over the tyre's height and length
+  const y = (typeof AF.cyAt === 'function' ? AF.cyAt(z) : tc.y) + (+P.spareY || 0);
+  let half = 0;
+  for (let zz = z - R; zz <= z + R + 1e-6; zz += R / 6)
+    for (let a = 0; a <= 180; a += 2) { const q = AF.surf(zz, a * D2R);
+      if (q && isFinite(q[0]) && q[1] >= y - R && q[1] <= y + R) half = Math.max(half, Math.abs(q[0])); }
+  const CARRIER = 0.034;                                  // flange + clearance between the flank and the tyre's inner wall
+  const xc = sg * (half + CARRIER + hwT);
+  const root = new THREE.Group(); root.name = 'edSpare';
+  // THE WHEEL: the copy, centred on its tyre, turned if it came from the other side, no brake
+  const piv = new THREE.Group(); piv.position.set(xc, y, z); piv.rotation.y = flip ? Math.PI : 0;
+  const wh = src.clone(true);
+  for (const m of wh.children.slice()) if (m.material === brakeM) wh.remove(m);
+  wh.position.set(src.position.x - tc.x, src.position.y - tc.y, src.position.z - tc.z);
+  piv.add(wh); root.add(piv);
+  // the frame the fittings are drawn in: u outward from the tyre's centre, v up, w along the car
+  const W = (u, v, w) => new THREE.Vector3(xc + sg * u, y + v, z + w);
+  const chrome = GG.gearMat('chrome'), alloy = GG.gearMat('alloy'), steel = GG.gearMat('steel'), dark = GG.gearMat('dark');
+  const leather = new THREE.MeshStandardMaterial({ color: 0x5a3822, roughness: 0.68, metalness: 0, side: THREE.DoubleSide });
+  const leatherEdge = new THREE.MeshStandardMaterial({ color: 0x3a2414, roughness: 0.8, metalness: 0, side: THREE.DoubleSide });
+  const add = (geo, mat, pos, rot) => { const m = new THREE.Mesh(geo, mat); if (pos) m.position.copy(pos); if (rot) m.quaternion.copy(rot); root.add(m); return m; };
+  const alongX = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(1, 0, 0));
+  const alongZ = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 1));
+  // ---- THE CARRIER: a domed flange on the flank, four bolts, the stub axle, the hub nut
+  const uFl = -(hwT + CARRIER) + 0.004;                   // the flange's face, just off the skin
+  const fl = new THREE.LatheGeometry([new THREE.Vector2(0.0, 0.0), new THREE.Vector2(0.075, 0.0), new THREE.Vector2(0.074, 0.004),
+    new THREE.Vector2(0.06, 0.009), new THREE.Vector2(0.035, 0.013), new THREE.Vector2(0.0, 0.014)], 40);
+  add(fl, steel, W(uFl - 0.004, 0, 0), new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(sg, 0, 0)));
+  for (let k = 0; k < 4; k++) { const a = Math.PI / 4 + k * Math.PI / 2;
+    add(new THREE.CylinderGeometry(0.0065, 0.0065, 0.006, 6), chrome, W(uFl + 0.005, 0.055 * Math.sin(a), 0.055 * Math.cos(a)), alongX); }
+  const uHubOut = hwT * 0.55;                             // the hub's outer face, near enough
+  const stubL = uHubOut - uFl;
+  add(new THREE.CylinderGeometry(0.021, 0.024, stubL, 20), alloy, W(uFl + stubL / 2, 0, 0), alongX);
+  add(new THREE.CylinderGeometry(0.034, 0.034, 0.022, 6), chrome, W(uHubOut + 0.011, 0, 0), alongX);          // the hex nut
+  const dome = new THREE.SphereGeometry(0.027, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2);
+  add(dome, chrome, W(uHubOut + 0.022, 0, 0), new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(sg, 0, 0)));
+  // ---- THE STRAP: a band (width wS, thickness tS) round the tyre's crown section, swept as quads
+  const wS = 0.036, tS = 0.0045, o = 0.004;
+  const sweep = (pts, closed, mat) => {
+    const n = pts.length, P0 = [], N0 = [];
+    for (let k = 0; k < n; k++) {
+      const a = pts[closed ? (k - 1 + n) % n : Math.max(0, k - 1)], b = pts[closed ? (k + 1) % n : Math.min(n - 1, k + 1)];
+      let tx = b[0] - a[0], ty = b[1] - a[1]; const l = Math.hypot(tx, ty) || 1; tx /= l; ty /= l;
+      N0.push([ty, -tx]); P0.push(pts[k]);
+    }
+    const pos = [], idx = [];
+    const ring = k => { const [u, v] = P0[k], [nu, nv] = N0[k], out = [];
+      for (const [s1, s2] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
+        const q = W(u + nu * s1 * tS / 2, v + nv * s1 * tS / 2, s2 * wS / 2); out.push(q.x, q.y, q.z); }
+      return out; };
+    for (let k = 0; k < n; k++) pos.push(...ring(k));
+    const last = closed ? n : n - 1;
+    for (let k = 0; k < last; k++) { const a = k * 4, b = ((k + 1) % n) * 4;
+      for (let e = 0; e < 4; e++) { const e1 = (e + 1) % 4; idx.push(a + e, b + e, b + e1, a + e, b + e1, a + e1); } }
+    if (!closed) for (const a of [0, (n - 1) * 4]) idx.push(a, a + 1, a + 2, a, a + 2, a + 3);
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx);
+    g.computeVertexNormals(); return add(g, mat);
+  };
+  // the loop round the section: inner wall up, over the crown, down the outer wall, back inside the rim
+  const u0 = -(hwT + o + tS / 2), u1 = hwT + o + tS / 2, v0 = Rr - o - tS / 2, v1 = R + o + tS / 2, rc = Math.min(0.045, (v1 - v0) / 3, hwT);
+  const loop = [];
+  const corner = (cu, cv, a0) => { for (let k = 0; k <= 8; k++) { const a = a0 + k / 8 * Math.PI / 2; loop.push([cu + rc * Math.cos(a), cv + rc * Math.sin(a)]); } };
+  corner(u1 - rc, v1 - rc, 0); corner(u0 + rc, v1 - rc, Math.PI / 2); corner(u0 + rc, v0 + rc, Math.PI); corner(u1 - rc, v0 + rc, 1.5 * Math.PI);
+  loop.reverse();
+  sweep(loop, true, leather);
+  // the anchor: a short strap from the loop's inner top corner to a bracket on the flank
+  const uB = uFl + 0.002, vB = v1 - 0.06;
+  sweep([[u0, v1 - rc - 0.01], [(u0 + uB) / 2, vB + 0.02], [uB + 0.006, vB]], false, leather);
+  add(new THREE.BoxGeometry(0.008, 0.05, wS + 0.016), steel, W(uB - 0.002, vB, 0));                       // the bracket's plate
+  add(new THREE.TorusGeometry(0.012, 0.0026, 8, 20, Math.PI), chrome, W(uB + 0.006, vB, 0),
+      new THREE.Quaternion().setFromEuler(new THREE.Euler(0, sg > 0 ? -Math.PI / 2 : Math.PI / 2, -Math.PI / 2)));   // its D-ring
+  // ---- THE BUCKLE on the outer wall, a third of the way down from the crown
+  const uK = u1 + tS / 2 + 0.003, vK = v1 - rc - (v1 - v0 - 2 * rc) * 0.33;
+  const fw = wS / 2 + 0.006, fh = 0.017, fr = 0.006, frame = [];
+  for (const [cw, cv, a0] of [[fw - fr, fh - fr, 0], [-(fw - fr), fh - fr, Math.PI / 2], [-(fw - fr), -(fh - fr), Math.PI], [fw - fr, -(fh - fr), 1.5 * Math.PI]])
+    for (let k = 0; k <= 5; k++) { const a = a0 + k / 5 * Math.PI / 2; frame.push(W(uK, vK + cv + fr * Math.sin(a), cw + fr * Math.cos(a))); }
+  add(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(frame, true, 'catmullrom', 0.05), 96, 0.0028, 10, true), chrome);
+  add(new THREE.CylinderGeometry(0.0034, 0.0034, 2 * fw - 0.004, 14), chrome, W(uK + 0.0005, vK + fh, 0), alongZ);       // the roller
+  const tongue = new THREE.CylinderGeometry(0.0017, 0.0017, 2 * fh + 0.004, 10);
+  const tq = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(sg * 0.12, 1, 0).normalize());
+  add(tongue, chrome, W(uK + 0.003, vK, 0), tq);                                                                // the tongue
+  // the tail: the strap's free end through the frame, lying over the band, down the wall, a rounded tip, punched
+  const uT = uK + 0.0025, tail = [], tl = 0.11;
+  for (let k = 0; k <= 10; k++) tail.push([uT, vK - fh - k / 10 * tl]);
+  const tailM = sweep(tail.map(([u, v]) => [u, v]), false, leather);
+  const tip = new THREE.CylinderGeometry(wS / 2, wS / 2, tS, 24, 1, false, 0, Math.PI);
+  add(tip, leather, W(uT, vK - fh - tl, 0), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, -Math.PI / 2)));
+  for (let k = 0; k < 3; k++) add(new THREE.CylinderGeometry(0.0026, 0.0026, tS * 1.4, 10), leatherEdge,
+      W(uT + 0.0004, vK - fh - 0.03 - k * 0.022, 0), alongX);                                                    // the holes
+  // the keeper: a leather band round both layers, just under the buckle
+  const kv = vK - fh - 0.022, kt = 0.0035, ku0 = u1 - tS / 2 - kt, ku1 = uT + tS / 2 + kt, kw = wS / 2 + kt, kp = [];
+  for (const [cu, cw] of [[ku1, kw], [ku1, -kw], [ku0, -kw], [ku0, kw]]) kp.push(W(cu, kv, cw));
+  add(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(kp, true, 'catmullrom', 0.2), 40, 0.004, 6, true), leatherEdge);
+  for (const m of root.children) if (m.isMesh) m.name = 'edSpareFit';
+  group.add(root);
+  return root;
+}
+
 let group = null;
 
 const dispose = o => {
@@ -2844,28 +2975,7 @@ PAGE.post = ctx => {
   // rearmost drawn road wheel, copied and stood against the body's flank (spareSide 1 right / -1 left) at spareZ (metres,
   // the layers' z), its hub at the body's mid-height plus spareY. A picture only: it is not a unit, not a contact, and
   // it rides the body (named edSpare, not edWheel*). Absent = no spare.
-  if (+P.spareOn && AF && typeof AF.surf === 'function') {
-    let src = null, zMin = Infinity;
-    const bb = new THREE.Box3(), c = new THREE.Vector3(), sz = new THREE.Vector3();
-    // (measured in the GROUP'S OWN frame - the layers' metres, AF's frame: in the page the group hangs under the pitched,
-    // grounded mount, and a world box put the spare where the world and the layer frames part - on the ground)
-    const localBox = o => { const b2 = new THREE.Box3(); o.updateMatrixWorld(true);
-      o.traverse(m => { if (!m.isMesh || !m.geometry) return; if (!m.geometry.boundingBox) m.geometry.computeBoundingBox();
-        const bm = m.geometry.boundingBox.clone(); let n = m; const M = new THREE.Matrix4();
-        while (n && n !== group) { n.updateMatrix(); M.premultiply(n.matrix); n = n.parent; }
-        b2.union(bm.applyMatrix4(M)); });
-      return b2; };
-    for (const ch of group.children) if (/^edWheel/.test(ch.name)) { localBox(ch).getCenter(c); if (c.z < zMin) { zMin = c.z; src = ch; } }
-    if (src) {
-      const sp = src.clone(true); sp.name = 'edSpare';
-      const lb = localBox(src); lb.getCenter(c); lb.getSize(sz);
-      const z = +P.spareZ, sg = +P.spareSide < 0 ? -1 : 1;
-      let half = 0; for (let a = 0; a <= 180; a += 3) { const q = AF.surf(z, a * D2R); if (q && isFinite(q[0])) half = Math.max(half, Math.abs(q[0])); }
-      const y = (typeof AF.cyAt === 'function' ? AF.cyAt(z) : c.y) + (+P.spareY || 0);
-      sp.position.set(src.position.x + sg * (half + sz.x / 2 + 0.01) - c.x, src.position.y + y - c.y, src.position.z + z - c.z);
-      group.add(sp);
-    }
-  }
+  if (+P.spareOn && AF && typeof AF.surf === 'function') spareBuild(group, P, AF);
   // the LEGS take a livery section too (phase C): steel tube by default,
   // following nobody — but a builder can paint a leg without repainting the
   // chrome piston or the tyres, which stay hardware. Only the 'steel' bag
