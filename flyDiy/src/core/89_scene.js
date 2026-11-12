@@ -194,3 +194,36 @@ function scenePngPut(png, bytes, compressed) {
   for (const ch of keep) { if (ch === iend) { out.set(chunk, o); o += chunk.length; } out.set(png.subarray(ch.at, ch.end), o); o += ch.end - ch.at; }
   return out;
 }
+
+// ---- THE POSE READ BACK (P2: "Save this scene" takes the aeroplane as it is) ------------------------------------------
+// The body frame as the solver takes it (30_solver bodyAxes: the firewall ring to the tail post, the up pair), off ANY
+// set of node positions - the live sim's or the build's rest geometry (def.nodes) - made orthonormal and right-handed:
+// x aft, y up, z = x * y (the LEFT side). -> [x, y, z] or null
+function sceneAxesOf(P, refs) {
+  if (!refs || !refs.noseFrame || !refs.tailMid || !refs.upLo || !refs.upHi) return null;
+  const at = i => (P.length && typeof P[0] === 'object') ? P[i].p : [P[i * 3], P[i * 3 + 1], P[i * 3 + 2]];
+  const avg = ids => { const o = [0, 0, 0]; for (const i of ids) { const q = at(i); o[0] += q[0]; o[1] += q[1]; o[2] += q[2]; } return o.map(v => v / ids.length); };
+  const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  const nrm = a => { const L = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / L, a[1] / L, a[2] / L]; };
+  const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+  const x = nrm(sub(avg(refs.tailMid), avg(refs.noseFrame)));
+  const u = sub(avg(refs.upHi), avg(refs.upLo));
+  const y = nrm(sub(u, x.map(v => v * dot(u, x))));
+  return [x, y, cross(x, y)];
+}
+// the aeroplane's pose in placePose's terms (radians; the CG off the masses) from the live nodes against the rest ones:
+// R = B_now * B_rest^T = Ry(pi - hdg) * Rz(-pitch) * Rx(-roll) (placePose's three turns), read back. GATE SCENE holds
+// placePose -> scenePoseOf to 1e-9 over a sweep of poses. -> { cg, hdg, pitch, roll } or null
+function scenePoseOf(p, m, def) {
+  const n = def.nodes.length;
+  const A = sceneAxesOf(p, def.refs), B = sceneAxesOf(def.nodes, def.refs);
+  if (!A || !B) return null;
+  let cx = 0, cy = 0, cz = 0, mt = 0;
+  for (let i = 0; i < n; i++) { const w = m ? m[i] : def.nodes[i].m; cx += p[i * 3] * w; cy += p[i * 3 + 1] * w; cz += p[i * 3 + 2] * w; mt += w; }
+  const R = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+  for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) R[r][c] = A[0][r] * B[0][c] + A[1][r] * B[1][c] + A[2][r] * B[2][c];
+  const a = Math.asin(Math.max(-1, Math.min(1, R[1][0])));
+  const th = Math.atan2(-R[2][0], R[0][0]), b = Math.atan2(-R[1][2], R[1][1]);
+  const wrap = v => { v %= 2 * Math.PI; return v < 0 ? v + 2 * Math.PI : v; };
+  return { cg: [cx / mt, cy / mt, cz / mt], hdg: wrap(Math.PI - th), pitch: -a, roll: -b };
+}

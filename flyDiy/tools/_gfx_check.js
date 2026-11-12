@@ -114,6 +114,29 @@ console.log('GATE GFX');
   ok(G.OPTIONS.find(o => o.k === 'scale').steps.some(st => st.v === 'auto'), 'the auto render scale is in the menu');
   ok(typeof G.autoTier === 'undefined', 'no first-launch tier probe (G551: start in standard, no wait)');
 }
+// 4b. PHOTO-MODE-2 P4: THE TRANSIENT LAYER (GFX.push / pop) - the high-quality picture's settings for a few seconds: the
+// handles take them, the player's choice is NEVER written (the pref, the preset), a pop gives every handle back; a pick
+// by the player while pushed lands under the layer; a preset pick pops first
+{
+  const store = {}, w = boot(store), G = w.GFX;
+  G.set('preset', 'gamer');
+  const pref0 = store['flydiy.gfx'], live0 = JSON.stringify(G.live()), shadow0 = w.rig.shadowMap, log0 = w.log.length;
+  G.push({ shadows: 'ultra', clouds: 'full', density: 200, bands: 'far', notAnOption: 1 }, 'photo');
+  ok(G.pushed() && G.pushed().tag === 'photo' && G.pushed().keys.join() === 'shadows,clouds,density,bands', 'push: the layer is up (an unknown key ignored)');
+  ok(G.live().shadows === 'ultra' && G.live().density === 200 && w.rig.shadowMap === 4096 && w.TREE_FILL.get() === 200 && w.log.length > log0, 'push: the handles take the layer (the 4096 map, the dense fill)');
+  ok(G.get().shadows === 'full' && G.get().density === 128 && G.presetOf() === 'gamer', 'push: GFX.get and the preset are still the player\'s (gamer)');
+  ok(store['flydiy.gfx'] === pref0, 'push: nothing written to the pref');
+  G.set('bloom', 'off');
+  ok(JSON.parse(store['flydiy.gfx']).bloom === 'off' && JSON.parse(store['flydiy.gfx']).shadows === 'full' && JSON.parse(store['flydiy.gfx']).density === 128, 'a pick while pushed is saved with the player\'s own values under the layer');
+  G.set('shadows', 'near');
+  ok(G.live().shadows === 'ultra' && JSON.parse(store['flydiy.gfx']).shadows === 'near', 'a pick of a pushed option lands under the layer (the layer holds until the pop)');
+  ok(G.pop() === true && !G.pushed(), 'pop: the layer is gone');
+  ok(G.live().shadows === 'near' && G.live().density === 128 && G.live().clouds === JSON.parse(live0).clouds && w.TREE_FILL.get() === 128, 'pop: the handles hold the player\'s values again (the pick made under the layer included)');
+  ok(G.pop() === false, 'a second pop does nothing');
+  G.push({ shadows: 'ultra' }, 'a'); G.set('preset', 'ultra');
+  ok(!G.pushed() && G.get().preset === 'ultra', 'a preset pick pops the layer first');
+  void shadow0;
+}
 // 5. no pref, corrupt pref
 {
   const w = boot({});

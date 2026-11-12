@@ -704,7 +704,7 @@ const SIM_LINK = (() => {
       if (!F || F.inline || !F.live || !host) return null;
       const id = ++placeSeq;
       st.placed = (st.placed || 0) + 1;
-      return new Promise(res => { placeWait.set(id, res); post({ cmd: 'place', id, at: o.at || null, by: o.by || null, zeroV: !!o.zeroV, dv: o.dv || null }); });
+      return new Promise(res => { placeWait.set(id, res); post({ cmd: 'place', id, at: o.at || null, by: o.by || null, zeroV: !!o.zeroV, dv: o.dv || null, pose: o.pose || null, seat: !!o.seat }); });   // (pose / seat: PHOTO-MODE-2 P2)
     }
     // the worker's readings for the recorder and rollout_perf (one object, rewritten: nothing allocated a frame)
     // G3322 (FLIGHTREC-DETAIL): `ctl` - the page sim's OWN ctl object (the one this link mirrors the worker's published ctl

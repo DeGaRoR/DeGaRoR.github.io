@@ -1195,6 +1195,34 @@ body.fl2.mode-fly #shotBack { display:none !important; }
 #photoFlash { position:fixed; inset:0; z-index:2147480000; background:#fff; opacity:0; pointer-events:none; }
 #photoFlash.on { animation:phFlash .45s ease-out; }
 @keyframes phFlash { 0% { opacity:.7; } 100% { opacity:0; } }
+/* the scene slot's list (P2): a card a row - the thumbnail, the name and where, load / export / delete */
+#photoBody .phScene { display:grid; grid-template-columns:64px minmax(0, 1fr); gap:4px 10px; align-items:center; padding:8px 0; border-top:1px solid var(--ed-hair); }
+#photoBody .phScene > img { grid-row:span 2; width:64px; height:36px; object-fit:cover; border-radius:4px; background:var(--ed-track); }
+#photoBody .phSceneT { min-width:0; display:flex; flex-direction:column; gap:2px; }
+#photoBody .phSceneT b { font:500 12px/1.2 'IBM Plex Sans'; color:var(--ed-ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+#photoBody .phSceneT span { font:400 10.5px/1.2 'IBM Plex Sans'; color:var(--ed-faint); }
+#photoBody .phSceneA { display:flex; flex-wrap:wrap; gap:5px; }
+#photoBody .phScene > :not(img) { grid-column:2; }
+/* THE SPINNER (P2 / P4): in the middle, over the live picture - a ring that fills with the %, one line, a fainter one; the
+   turning arc is CSS (the compositor's), so it keeps moving through a slow GPU frame. The bar dims and the shutter waits */
+#photoSpin { position:fixed; left:50%; top:50%; transform:translate(-50%, -50%); z-index:2147481002; display:flex; flex-direction:column;
+  align-items:center; gap:12px; color:#f4efe6; text-align:center; pointer-events:none; font:400 12px/1.3 'IBM Plex Sans', sans-serif; }
+#photoSpin[hidden] { display:none; }
+#photoRing { --p:0; position:relative; width:108px; height:108px; border-radius:50%; display:grid; place-items:center; pointer-events:auto;
+  background:conic-gradient(#f4efe6 calc(var(--p) * 360deg), rgba(255,255,255,.18) 0); }
+#photoRing::before { content:''; position:absolute; inset:6px; border-radius:50%; background:rgba(32,29,26,.86); }
+#photoRing::after { content:''; position:absolute; inset:-7px; border-radius:50%; border:3px solid transparent; border-top-color:rgba(255,255,255,.75);
+  animation:phSpin 1.3s linear infinite; }
+#photoRing > b { position:relative; font:600 22px/1 'IBM Plex Sans'; font-variant-numeric:tabular-nums; }
+#photoCancel { position:absolute; top:-4px; right:-4px; z-index:1; width:30px; height:30px; padding:0; border-radius:50%; cursor:pointer;
+  border:1px solid rgba(255,255,255,.25); background:rgba(32,29,26,.94); color:#c0b8ac; font:400 18px/1 'IBM Plex Sans'; }
+#photoCancel:hover { color:#f4efe6; }
+#photoSpin p { margin:0; font:500 15px/1.25 'IBM Plex Sans'; text-shadow:0 1px 8px rgba(0,0,0,.65); }
+#photoSpin small { font:400 12px/1 'IBM Plex Sans'; color:rgba(244,239,230,.78); text-shadow:0 1px 8px rgba(0,0,0,.65); min-height:12px; }
+@keyframes phSpin { to { transform:rotate(360deg); } }
+@media (prefers-reduced-motion:reduce) { #photoRing::after { animation:none; } }
+body.photoBusy #photoTop { opacity:.45; pointer-events:none; }
+body.photoBusy #photoShutter { display:none; }
 /* the shed's screenshot mode has its own way back (#shotBack); photo mode's is Done */
 body.photoOn #shotBack { display:none !important; }
 @media (max-width:760px) {

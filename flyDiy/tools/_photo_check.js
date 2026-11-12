@@ -102,10 +102,25 @@ console.log('1. the bar (photo.js over a small DOM)');
   ok(!$('photoFly').hidden && P.on(), 'a slot whose rows throw does not take the bar down');
   P.flash();
   ok($('photoFlash').classList.contains('on'), 'the flash blinks the page');
+  // P2: THE SPINNER - in the middle, the ring's %, one line, a fainter one; Esc cancels a picture in progress FIRST
+  log.length = 0; boom = false; api.cancel = () => log.push('cancel');
+  P.progress({ pct: 0.64, line: 'Growing the far trees', sub: '14 s \u00b7 at most 55 s' });
+  ok(!$('photoSpin').hidden && P.busy() && D.body.classList.contains('photoBusy') && $('photoRing').children[0].textContent === '64%' && $('photoLine').textContent === 'Growing the far trees',
+     'progress: the spinner shows the %, its line, and the bar waits (body.photoBusy)', $('photoRing').children[0].textContent);
+  ok($('photoFly').hidden, '...and an open flyout closes for it');
+  ok(D.fire('window', 'keydown', { key: 'Escape' }) && log.join() === 'cancel' && P.on(), 'Esc while busy cancels the picture (and only that)');
+  $('photoCancel').click();
+  ok(log.join() === 'cancel,cancel', 'the cross cancels too');
+  P.progress({ pct: null, line: 'Getting the scene ready' });
+  ok($('photoRing').children[0].textContent === '', 'no number until there is one');
+  P.progress(null);
+  ok($('photoSpin').hidden && !P.busy() && !D.body.classList.contains('photoBusy'), 'progress(null): gone, the bar back');
+  P.progress({ pct: 0.1, line: 'x' });
   P.end();
+  ok($('photoSpin').hidden && !D.body.classList.contains('photoBusy'), 'end takes the spinner away too');
   ok($('photoTop').hidden && $('photoShutter').hidden && $('photoFly').hidden && !P.on() && !D.body.classList.contains('photoOn'), 'end hides the bar, the flyout and the shutter');
   ok(!D.fire('window', 'keydown', { key: 'Escape' }), 'after end, Esc is not the bar\'s');
-  ok(['photoTop', 'photoFly', 'photoShutter', 'photoFlash'].every(id => D.body.children.filter(c => c.id === id).length === 1), 'one of each element, at the body (outside #ui and #wsUI, which body.shot hides)');
+  ok(['photoTop', 'photoFly', 'photoShutter', 'photoFlash', 'photoSpin'].every(id => D.body.children.filter(c => c.id === id).length === 1), 'one of each element, at the body (outside #ui and #wsUI, which body.shot hides)');
 }
 
 // ---- 2. the wiring -------------------------------------------------------------------------------------------------------
@@ -121,8 +136,18 @@ console.log('2. the wiring (app.js, editor.js, build.js)');
      'Done gives back the camera\'s mode, its field of view and the pause');
   ok(/if \(photoDayTouched && w\.day && now/.test(sec) && /!\(D0\.isCareer && D0\.isCareer\(\)\)/.test(sec), 'the hour comes back only when the light slot moved it, and never the career\'s');
   ok(/if \(garageFov !== w\.fov\) photoGFov\(w\.fov\);/.test(sec) && /G\.setMood\(w\.mood\)/.test(sec), 'in the shed: the field of view and the mood come back');
-  ok(/function photoTake\(\) \{\n\s*if \(photoGrab\) return;\n\s*try \{ window\.dispatchEvent\(new CustomEvent\('flydiy:shutter'/.test(sec), 'the shutter fires flydiy:shutter first, inside the gesture (G3744)');
-  ok(/photoGrab = cv => \{ cv\.toBlob\(photoSave, 'image\/png'\);/.test(sec), 'the picture is the next presented frame\'s canvas (photoGrab), as before');
+  ok(/function photoTake\(\) \{\n\s*if \(photoGrab \|\| photoBusy\) return;\n\s*try \{ window\.dispatchEvent\(new CustomEvent\('flydiy:shutter'/.test(sec), 'the shutter fires flydiy:shutter first, inside the gesture (G3744)');
+  ok(/if \(window\.PHOTO\) window\.PHOTO\.flash\(\);\n\s*let sc = null; try \{ sc = sceneGet\(/.test(sec), 'P2: the flash at the press (the answer is immediate), the scene taken as it was at the press');
+  ok(/photoShoot\(\{ steps: [^\n]*\)\n\s*\.then\(r => \{[^\n]*return photoEmbed\(r\.blob, sc\); \}\)\.then\(photoSave\)/.test(sec), 'P2: the shot is photoShoot\'s, and the PNG carries its scene (photoEmbed)');
+  // P4: the high-quality steps - the layer pushed and ALWAYS popped (photoShoot's finally), the cap, the governors
+  ok(/finally \{\n\s*if \(o\.steps && o\.steps\.restore\) \{ try \{ o\.steps\.restore\(\);/.test(sec), 'P4: every high-quality setting comes back in the shot\'s finally (a cancel, a throw, a lost context included)');
+  ok(/steps\.restore = \(\) => \{\n\s*try \{ if \(G && G\.pop\) G\.pop\(\); \}/.test(sec) && /if \(G && G\.push\) G\.push\(tier === 'full' \? HQ_FULL : HQ_LIGHT, 'photo'\);/.test(sec), 'P4: the settings through GFX.push / pop (the player\'s never written)');
+  ok(/const HQ_LOD = \[150, 1000, 1000\], HQ_FADE = 60;/.test(sec) && /density: 200, bands: 'far'/.test(sec), 'P4: the night hero\'s reference (density 200, the full tree to 150 m, real trees to 1000 m, fade 60)');
+  ok(/return \(b === 'gamer' \|\| b === 'ultra' \|\| b === 'current'\) \? 'full' : 'light';/.test(sec), 'P4: scaled to the machine (a potato / laptop / retro page keeps its forest)');
+  ok(/const capAt = t0 => t0 \+ SCENE_HQ_CAP_S \* 1000 - 4000;/.test(sec) && /document\.hidden\) dl \+= now - last;/.test(sec), 'P4: one cap from the shutter (SCENE_HQ_CAP_S), a hidden tab\'s time not counted');
+  ok(/canvas\.addEventListener\('webglcontextlost', onLost\)/.test(sec) && /G\.hw\.hold\(true\)/.test(sec) && /aa\.autoScale\(false\)/.test(sec) && /entryTypes: \['longtask'\]/.test(sec), 'P4: a lost context cancels; the governors held; the long tasks measured');
+  ok(/let photoHq = false;/.test(sec) && /prefGet\('flydiy\.photoHq', '0'\) === '1'/.test(sec), 'P4: high quality is OFF by default (opt-in, remembered)');
+  ok(/photoGrab = cv => \{\n\s*try \{\n\s*const bw = cv\.width, bh = cv\.height;/.test(sec), 'the picture is still the next presented frame\'s canvas (photoGrab), cut about its centre');
   ok(/window\.FLYDIY_PHOTO = \{ open: photoOpen, take: photoTake/.test(sec), 'window.FLYDIY_PHOTO.open / take');
   ok(/bShot\.onclick = \(\) => \{ gmOpen\(false\); if \(window\.FLYDIY_PHOTO && window\.FLYDIY_PHOTO\.open\) window\.FLYDIY_PHOTO\.open\(\);/.test(APP), 'the flight\'s corner camera opens photo mode');
   ok(/window\.FLYDIY_PHOTO\.open\(\); else window\.SHOT_MODE\.enter\(\);/.test(ED) && /b\.textContent = ph \? 'photo mode' : 'screenshot';/.test(ED), 'the shed\'s pill opens photo mode (\'photo mode\')');

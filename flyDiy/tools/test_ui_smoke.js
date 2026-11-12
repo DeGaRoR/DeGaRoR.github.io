@@ -793,7 +793,7 @@ try {
   // PHOTO-MODE-2 P1: the photo bar IN FLIGHT (the boot lands in the shed; here the aeroplane flies): it pauses, Done unpauses
   {
     if (sandbox.garageApi && sandbox.garageApi.inGarage()) throw new Error('photo mode: the flight row ran in the shed');
-    const before = els['bPause'].textContent, r = photoChecks('flight', 'camera,light');
+    const before = els['bPause'].textContent, r = photoChecks('flight', 'camera,light,goto,picture,scene');
     if (r.meta === 'the shed') throw new Error('photo mode: the flight row\'s plate says the shed');
     if (before === 'Pause' && r.pauseMid !== 'Run') throw new Error('photo mode did not pause the flight (' + before + ' -> ' + r.pauseMid + ')');
     if (els['bPause'].textContent !== before) throw new Error('photo mode: Done did not give the pause back (' + before + ' -> ' + els['bPause'].textContent + ')');
@@ -1096,7 +1096,7 @@ try {
     throw new Error('the solver stepped in the garage: the loop guard is gone');
   { // PHOTO-MODE-2 P1: the same bar in the shed (its light slot once the room has moods: the phone's shed has none)
     const GE = sandbox.window.GARAGE_ENV, moods = (GE && GE.moods && GE.moods()) || [];
-    photoChecks('the shed', moods.length ? 'camera,light' : 'camera');
+    photoChecks('the shed', moods.length ? 'camera,light,picture,scene' : 'camera,picture,scene');
   }
   // ---- THE LOAD TEST (BUILD -> LOAD TEST -> FLY) ----
   // The rig is the one thing that moves while the aeroplane is on the stand, so

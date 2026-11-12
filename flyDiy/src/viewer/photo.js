@@ -44,8 +44,18 @@
     shut.setAttribute('aria-label', 'Take the picture'); shut.title = 'Take the picture';
     shut.onclick = () => { if (api && api.take) api.take(); };
     const flash = mk('div', 'photoFlash');
-    D.body.appendChild(top); D.body.appendChild(fly); D.body.appendChild(shut); D.body.appendChild(flash);
-    el = { top, plate, meta: hm, row, done, fly, flyHead, body, shut, flash };
+    // THE SPINNER (P2 / P4; the user 11 Nov: "in the middle of the screen ... not really verbose, but it should keep the
+    // person entertained if it has to wait for 20 seconds"): a ring that FILLS with the real %, its number in it, ONE
+    // short line under it, a fainter second line (the time so far against the cap), a cross that cancels
+    const spin = mk('div', 'photoSpin'); spin.hidden = true; spin.setAttribute('role', 'status'); spin.setAttribute('aria-live', 'polite');
+    const ring = mk('div', 'photoRing'), pct = mk('b'), x = mk('button', 'photoCancel');
+    x.textContent = '\u00d7'; x.setAttribute('aria-label', 'Cancel the picture'); x.title = 'Cancel (Esc)';
+    x.onclick = () => { if (api && api.cancel) api.cancel(); };
+    ring.appendChild(pct); ring.appendChild(x);
+    const line = mk('p', 'photoLine'), sub = mk('small', 'photoSub');
+    spin.appendChild(ring); spin.appendChild(line); spin.appendChild(sub);
+    D.body.appendChild(top); D.body.appendChild(fly); D.body.appendChild(shut); D.body.appendChild(flash); D.body.appendChild(spin);
+    el = { top, plate, meta: hm, row, done, fly, flyHead, body, shut, flash, spin, ring, pct, line, sub };
     return el;
   }
 
@@ -116,6 +126,7 @@
     renderTop();
   }
   function end() {
+    if (busy) progress(null);
     on = false; openK = null;
     if (D.body && D.body.classList) D.body.classList.remove('photoOn');
     if (!el) return;
@@ -124,9 +135,26 @@
   // a pick changed the state: the plate's values and the open flyout's rows again
   function refresh() { if (!on || !el) return; renderTop(); if (openK) { fill(); place(); } }
   function flash() { if (!build()) return; const f = el.flash; f.classList.remove('on'); void f.offsetWidth; f.classList.add('on'); }
+  // the progress: null hides it; { pct: 0..1 (null: no number yet), line, sub }. While it shows, the shutter waits and
+  // the bar is dimmed (body.photoBusy); the picture behind keeps drawing
+  let busy = false;
+  function progress(o) {
+    if (!build()) return;
+    busy = !!o;
+    if (D.body && D.body.classList) D.body.classList.toggle('photoBusy', busy);
+    el.spin.hidden = !busy;
+    if (!busy) return;
+    const p = o.pct == null ? null : Math.max(0, Math.min(1, +o.pct || 0));
+    el.ring.style.setProperty ? el.ring.style.setProperty('--p', String(p == null ? 0 : p)) : (el.ring.style['--p'] = String(p || 0));
+    el.pct.textContent = p == null ? '' : Math.round(p * 100) + '%';
+    el.line.textContent = o.line || '';
+    el.sub.textContent = o.sub || '';
+    if (openK) openSlot(null);
+  }
 
   // Esc closes the open flyout first (before shotSet's own Esc, which leaves photo mode): one key, one step back
   W.addEventListener('keydown', e => {
+    if (on && busy && e.key === 'Escape') { if (api && api.cancel) api.cancel(); e.preventDefault(); e.stopImmediatePropagation(); return; }   // Esc cancels a picture in progress, first
     if (on && openK && e.key === 'Escape') { openSlot(null); e.preventDefault(); e.stopImmediatePropagation(); }
   }, true);
   W.addEventListener('resize', () => { if (on) place(); });
@@ -140,7 +168,7 @@
 
   W.PHOTO = {
     init(a) { api = a || null; build(); return W.PHOTO; },
-    begin, end, refresh, flash,
+    begin, end, refresh, flash, progress, busy: () => busy,
     open: k => { if (on) openSlot(k); },
     on: () => on,
     openSlot: () => openK,

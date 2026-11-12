@@ -9019,7 +9019,7 @@
                           // worker the page's sim is a view the next snapshot rewrites. { at: [x, y, z] the CG's place (a
                           // null axis kept) | by: [dx, dy, dz], zeroV, dv: [vx, vy, vz] } -> a promise of the CG
                           place: o => { if (SIMW && !running) SIMW.idle();   // (paused: the worker's clock stops first, as the page's did)
-                                         return (SIMW && SIMW.place(o || {})) || Promise.resolve(SIM_HOST.place(sim, o || {})); },
+                                         return (SIMW && SIMW.place(o || {})) || Promise.resolve(SIM_HOST.place(sim, o || {}, def, { placePose, seatOnGround }, world)); },   // (pose / seat: PHOTO-MODE-2 P2)
                           nav: () => flNav,                                         // G202.1
                           agl: () => hudAgl(),                                      // G700: the height the PFD and the trace read
                           // 2026-09-11: the orbit's state, and a jump to where it
@@ -19794,10 +19794,16 @@
     a.href = u; a.download = photoName(); document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 4000); };
   // the shutter: the sound inside the gesture (G3744), the NEXT PRESENTED frame (photoGrab, the loop's end: the 3D frame
   // alone - nothing of the page's is in it) copied by toBlob in that same task, the flash the page's
+  // (P2: the shot is photoShoot's - the picture slot's size, P4's high-quality steps - and the PNG carries the scene as it
+  // was at the press; the flash is at the press too: the answer is immediate, whatever the shot then takes)
   function photoTake() {
-    if (photoGrab) return;
+    if (photoGrab || photoBusy) return;
     try { window.dispatchEvent(new CustomEvent('flydiy:shutter', { detail: { at: Date.now() } })); } catch (e) {}
-    photoGrab = cv => { cv.toBlob(photoSave, 'image/png'); if (window.PHOTO) window.PHOTO.flash(); };
+    if (window.PHOTO) window.PHOTO.flash();
+    let sc = null; try { sc = sceneGet('picture ' + photoName().replace(/\.png$/, '')); } catch (e) {}
+    photoShoot({ steps: photoHq && typeof photoHqSteps === 'function' ? photoHqSteps() : null, loud: photoHq })
+      .then(r => { if (r.notes.length) console.info('flyDiy: the picture -', r.notes.join('; ')); return photoEmbed(r.blob, sc); }).then(photoSave)
+      .catch(e => { if (!(e && e.cancelled)) console.warn('flyDiy: the picture -', e && e.message); });
   }
   const photoDay = () => { try { const D0 = typeof DAY_CLOCK !== 'undefined' ? DAY_CLOCK : null, d = D0 && D0.day && D0.day();
     return d && !(D0.isCareer && D0.isCareer()) ? { date: d.date, utc: d.utc } : null; } catch (e) { return null; } };
@@ -19822,6 +19828,8 @@
                   o => { G.setMood(o.value); if (window.PHOTO) window.PHOTO.refresh(); });
           flNote(body, 'The shed\u2019s own light. The clock moves it on at the next hour; Done puts back the one you had.');
         } },
+      { k: 'picture', label: 'picture', title: 'The picture', value: () => photoSizeWord() + (photoHq ? ' \u00b7 HQ' : ''), build: body => photoPictureRows(body) },
+      { k: 'scene', label: 'scene', title: 'The scene', value: () => { const n = scenesRead().length; return n ? 'save \u00b7 load (' + n + ')' : 'save \u00b7 load'; }, build: body => photoSceneRows(body) },
     ].filter(o => o.k !== 'light' || ((photoGE() && photoGE().moods && photoGE().moods()) || []).length > 0);
     return [
       { k: 'camera', label: 'camera', title: 'The camera', value: () => cam.mode + ' \u00b7 ' + Math.round(cam.fov) + '\u00b0',
@@ -19832,7 +19840,10 @@
       { k: 'light', label: (typeof DAY_CLOCK !== 'undefined' && DAY_CLOCK.isCareer && DAY_CLOCK.isCareer()) ? 'time' : 'light', title: 'The light: the hour, the day', value: () => {
           try { const l = DAY_CLOCK.label(); return l ? l.split(' \u00b7 ')[0] : ''; } catch (e) { return ''; } },
         build: body => { photoDayTouched = true; FL_BUILD.slot_day(body); } },
-    ];
+      { k: 'goto', label: 'go to', title: 'Go to: the start places', value: () => { try { const id = (window.FLYDIY_ROUTE.get() || {}).spawn || baseAeroId(), a = world.aerodromes.find(x => x.id === id); return a ? (a.name || a.id) : id; } catch (e) { return ''; } }, build: body => photoGoRows(body) },
+      { k: 'picture', label: 'picture', title: 'The picture', value: () => photoSizeWord() + (photoHq ? ' \u00b7 HQ' : ''), build: body => photoPictureRows(body) },
+      { k: 'scene', label: 'scene', title: 'The scene', value: () => { const n = scenesRead().length; return n ? 'save \u00b7 load (' + n + ')' : 'save \u00b7 load'; }, build: body => photoSceneRows(body) },
+    ].filter(o => o.k !== 'goto' || photoGoOk());
   }
   function photoBegin() {
     if (photoOn || !window.PHOTO) return;
@@ -19863,11 +19874,473 @@
   }
   function photoOpen() { photoWant = true; if (SHOT.on) photoBegin(); else shotSet(true); }
   if (window.PHOTO) try {
-    window.PHOTO.init({ slots: photoSlots, take: photoTake, done: () => shotSet(false),
+    window.PHOTO.init({ slots: photoSlots, take: photoTake, done: () => shotSet(false), cancel: () => photoCancel(),
                         meta: () => (inGarage ? 'the shed' : (running ? '' : 'paused')) });
     photoHook = on => { if (on) { if (photoWant) photoBegin(); } else photoEnd(); };
     const hook0 = flPageHook; flPageHook = () => { if (hook0) hook0(); if (photoOn && window.PHOTO) window.PHOTO.refresh(); };   // (a pick rebuilds it, as the flyout)
   } catch (e) { console.warn('flyDiy: the photo bar -', e && e.message); }
+  // ---- PHOTO-MODE-2 P2: THE PICTURE'S SIZE, THE SHOT IN STEPS, THE SCENES -------------------------------------------------
+  // (futureDesigns/PHOTO-MODE-2-2026-11-11.md §2.4-2.5, §3; the how-to tools/PHOTO.md)
+  // THE SHOT: the picture is the game's own frame, the NEXT PRESENTED one (photoGrab at the loop's end), at the size the
+  // picture slot asks (the window's by default - the user, 11 Nov). Another size: the drawing buffer scaled up to cover
+  // it (renderer.setPixelRatio, the CSS box untouched - the screen looks the same, only sharper and slower), a few frames
+  // to settle (the clouds' history, the targets rebuilt), the centre cut out, everything put back. Stepped on presented
+  // frames (photoNext), never one long call; the spinner shows past 0.4 s. Two guards on the size: the GPU's own limits
+  // (MAX_RENDERBUFFER_SIZE / MAX_TEXTURE_SIZE - the picture shrinks, and says so) and the anti-aliasing target's memory
+  // (over 400 MB at that size its samples go for the one shot, the player's choice written back after: 8x MSAA at 2x a
+  // 1080p window is ~1.2 GB). The PNG carries the scene (scenePngPut, deflated: 4-12 KB).
+  const PHOTO_SIZES = [null, [1920, 1080], [2560, 1440], [3840, 2160]];
+  const PHOTO_MB = 400;
+  let photoSize = (() => { try { const v = JSON.parse(prefGet('flydiy.photoSize', 'null')); return Array.isArray(v) && v.length === 2 && v.every(x => Number.isInteger(x) && x >= 64) ? v : null; } catch (e) { return null; } })();
+  let photoFrameN = 0, photoWaiters = [], photoBusy = null;
+  // called at the loop's end on every PRESENTED frame (a held frame - a shader still linking - is not one)
+  function photoFramed() {
+    photoFrameN++;
+    if (photoWaiters.length) { const now = photoWaiters; photoWaiters = []; for (const w of now) { if (photoFrameN >= w.n) w.res(photoFrameN); else photoWaiters.push(w); } }
+  }
+  const photoNext = n => new Promise(res => { photoWaiters.push({ n: photoFrameN + Math.max(1, n | 0), res }); try { if (window.FLYDIY_IDLE) window.FLYDIY_IDLE.wake(); } catch (e) {} });
+  const photoCancelled = () => { const e = new Error('cancelled'); e.cancelled = true; return e; };
+  const photoProgress = o => { if (window.PHOTO && window.PHOTO.progress) window.PHOTO.progress(o); };
+  // the next presented frame, cut to W x H about its centre (the drawing buffer covers it), as a PNG blob
+  function photoGrabAt(W, H) {
+    return new Promise((res, rej) => {
+      photoGrab = cv => {
+        try {
+          const bw = cv.width, bh = cv.height;
+          if (W === bw && H === bh) { cv.toBlob(b => (b ? res(b) : rej(new Error('the canvas gave no picture'))), 'image/png'); return; }
+          const c2 = document.createElement('canvas'); c2.width = W; c2.height = H;
+          c2.getContext('2d').drawImage(cv, Math.max(0, (bw - W) / 2), Math.max(0, (bh - H) / 2), Math.min(W, bw), Math.min(H, bh), 0, 0, W, H);
+          c2.toBlob(b => (b ? res(b) : rej(new Error('the canvas gave no picture'))), 'image/png');
+        } catch (e) { rej(e); }
+      };
+    });
+  }
+  // a small JPEG of the next presented frame (the scene list's card)
+  function photoThumb(w) {
+    return new Promise(res => {
+      photoGrab = cv => { try { const W = w || 256, H = Math.round(W * cv.height / Math.max(1, cv.width)), c2 = document.createElement('canvas');
+        c2.width = W; c2.height = H; c2.getContext('2d').drawImage(cv, 0, 0, W, H); res(c2.toDataURL('image/jpeg', 0.72)); } catch (e) { res(null); } };
+    });
+  }
+  // THE SHOT. o: { output: [w, h] | null, settle: frames, steps: [async fn(ctx)] (P4's high-quality steps) } -> { blob, w, h, ms, notes }
+  async function photoShoot(o) {
+    o = o || {};
+    if (photoBusy) throw new Error('a picture is already being taken');
+    const t0 = performance.now(), notes = [], job = photoBusy = { cancelled: false };
+    let shown = false;
+    const say = (pct, line, sub) => { if (!shown && performance.now() - t0 < 400 && !o.loud) return; shown = true; photoProgress({ pct, line, sub }); };
+    const css = [canvas.clientWidth || window.innerWidth, canvas.clientHeight || window.innerHeight];
+    const pr0 = renderer.getPixelRatio(), db0 = renderer.getDrawingBufferSize(new THREE.Vector2());
+    let out = o.output || photoSize, W = out ? out[0] : db0.x, H = out ? out[1] : db0.y;
+    let k = out ? Math.max(W / css[0], H / css[1]) : pr0;
+    let aaWas = null, aaPref = null;
+    try {
+      const gl = renderer.getContext();
+      const lim = Math.min(gl.getParameter(gl.MAX_RENDERBUFFER_SIZE) || 4096, gl.getParameter(gl.MAX_TEXTURE_SIZE) || 4096);
+      const need = Math.max(css[0], css[1]) * k;
+      if (need > lim) { const f = lim / need; k *= f; W = Math.floor(W * f); H = Math.floor(H * f); notes.push('the GPU draws at most ' + lim + ' px a side: the picture is ' + W + 'x' + H); }
+    } catch (e) {}
+    const big = Math.abs(k - pr0) > 1e-3;
+    try {
+      if (big && aa && aa.tier && aa.setTier) {
+        const S0 = (window.AA_RESOLVE && window.AA_RESOLVE.TIERS && window.AA_RESOLVE.TIERS[aa.tier()]) || null;
+        const per = S0 && S0.samples ? 16 + S0.samples * 16 : 16, mb = css[0] * css[1] * k * k * (S0 && S0.ss ? S0.ss * S0.ss : 1) * per / 1048576;
+        if (mb > PHOTO_MB && aa.tier() !== 'off') { try { aaPref = localStorage.getItem('flydiy.aa2'); } catch (e) {} aaWas = aa.tier(); aa.setTier('off'); notes.push('the anti-aliasing target would be ' + Math.round(mb) + ' MB at this size: the 2x size smooths it instead'); }
+      }
+      if (big) { renderer.setPixelRatio(k); resize(); }
+      const steps = o.steps || [], N = steps.length + 2;
+      for (let i = 0; i < steps.length; i++) {
+        if (job.cancelled) throw photoCancelled();
+        await steps[i]({ say: (p, line, sub) => say((i + Math.max(0, Math.min(1, p || 0))) / N, line, sub), next: photoNext, cancelled: () => job.cancelled, notes, t0 });
+      }
+      if (big) { say((N - 2) / N, 'Sharpening', ''); await photoNext(o.settle != null ? o.settle : 12); }
+      else await photoNext(1);
+      if (job.cancelled) throw photoCancelled();
+      say((N - 1) / N, 'Taking the picture', '');
+      const blob = await photoGrabAt(W, H);
+      const rep = o.steps && o.steps.report ? o.steps.report() : null;
+      if (rep && rep.longTaskMs > 200) notes.push('the longest main-thread task: ' + rep.longTaskMs + ' ms');
+      return { blob, w: W, h: H, ms: Math.round(performance.now() - t0), notes, hq: rep };
+    } finally {
+      if (o.steps && o.steps.restore) { try { o.steps.restore(); } catch (e) { console.warn('flyDiy: the high-quality settings back -', e && e.message); } }
+      if (big) { renderer.setPixelRatio(pr0); resize(); }
+      if (aaWas) { aa.setTier(aaWas); try { if (aaPref != null) localStorage.setItem('flydiy.aa2', aaPref); } catch (e) {} }
+      photoBusy = null;
+      photoProgress(null);
+    }
+  }
+  function photoCancel() { if (photoBusy) photoBusy.cancelled = true; }
+  // the scene into the picture: one iTXt chunk, deflated where the browser can (CompressionStream), plain otherwise
+  async function photoEmbed(blob, scene) {
+    try {
+      if (!scene || typeof scenePngPut !== 'function') return blob;
+      const png = new Uint8Array(await blob.arrayBuffer()), json = JSON.stringify(scene);
+      let bytes = new TextEncoder().encode(json), z = false;
+      if (typeof CompressionStream === 'function') { try { bytes = new Uint8Array(await new Response(new Blob([json]).stream().pipeThrough(new CompressionStream('deflate'))).arrayBuffer()); z = true; } catch (e) { bytes = new TextEncoder().encode(json); } }
+      const outB = scenePngPut(png, bytes, z);
+      return outB ? new Blob([outB], { type: 'image/png' }) : blob;
+    } catch (e) { console.warn('flyDiy: the scene in the picture -', e && e.message); return blob; }
+  }
+  async function photoUnembed(buf) {
+    const g = typeof scenePngGet === 'function' ? scenePngGet(new Uint8Array(buf)) : null;
+    if (!g) return null;
+    if (!g.compressed) return new TextDecoder().decode(g.bytes);
+    return new TextDecoder().decode(await new Response(new Blob([g.bytes]).stream().pipeThrough(new DecompressionStream('deflate'))).arrayBuffer());
+  }
+  const photoDownload = (blob, name) => { const a = document.createElement('a'), u = URL.createObjectURL(blob);
+    a.href = u; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 4000); };
+
+  // ---- THE SCENE: what is on the screen, as a file, and back -------------------------------------------------------------
+  const D2R_ = Math.PI / 180, r6 = v => Math.round(v * 1e6) / 1e6;
+  // until fn() (on presented frames; a cap in wall-clock ms - a real browser's, or the node page's virtual clock)
+  async function photoUntil(fn, maxMs, why) {
+    const t0 = performance.now();
+    for (;;) { let ok = false; try { ok = !!fn(); } catch (e) {} if (ok) return true; if (performance.now() - t0 > (maxMs || 120000)) throw new Error('waited too long for ' + (why || 'the page')); await photoNext(1); }
+  }
+  const sceneTripDone = () => { const T = window.FLYDIY_TRIPS, t = T && T[T.length - 1]; return !t || !!t.done; };
+  // THE SCENE AS IT IS (Save this scene): the camera, the hour and the weather, the build, the aeroplane where it stands
+  function sceneGet(name) {
+    const S = { what: SCENE_WHAT, v: SCENE_V, name: String(name || 'scene').slice(0, 80), made: new Date().toISOString(), game: String(window.FLYDIY_BUILD || ''),
+      site: inGarage ? 'garage' : 'flight', world: { kind: world && world.island ? 'island' : 'analytic', seed: 0 } };
+    const eye = camera.position.toArray(), dir = camera.getWorldDirection(new THREE.Vector3());
+    if (inGarage) {
+      const G = photoGE();
+      S.camera = { anchor: 'world', eye: eye.map(r6), target: target.toArray().map(r6), fov: Math.round(garageFov), mode: 'orbit', orbit: { az: r6(az), el: r6(el), dist: r6(dist), pan: edPan.toArray().map(r6) } };
+      S.garage = { mood: G && G.mood ? G.mood() : 0 };
+    } else {
+      const P = (sim && def && typeof scenePoseOf === 'function') ? scenePoseOf(sim.p, sim.m, def) : null;
+      const cg = P ? P.cg : eye, dT = Math.max(2, Math.hypot(eye[0] - cg[0], eye[1] - cg[1], eye[2] - cg[2]));
+      const tw = [eye[0] + dir.x * dT, eye[1] + dir.y * dT, eye[2] + dir.z * dT];
+      if (P) { const rel = sceneFromWorld(eye, tw, { cg: P.cg, hdg: P.hdg }); S.camera = { anchor: 'plane', eye: rel.eye.map(r6), target: rel.target.map(r6), fov: Math.round(cam.fov), mode: cam.mode, level: !!cam.level }; }
+      else S.camera = { anchor: 'world', eye: eye.map(r6), target: tw.map(r6), fov: Math.round(cam.fov), mode: cam.mode };
+      if (P) {
+        const v = sim.cgVel ? sim.cgVel() : [0, 0, 0], ground = !!(sim.wheelsOnGround && sim.wheelsOnGround() > 0);
+        const c = sim.ctl || {};
+        S.pose = { where: ground ? 'ground' : (sim.hydro && hudAgl() < 1 ? 'water' : 'air'), at: P.cg.map(r6), hdg: r6(P.hdg / D2R_), pitch: r6(P.pitch / D2R_), roll: r6(P.roll / D2R_),
+          speed: r6(Math.hypot(v[0], v[1], v[2])),
+          controls: { elevator: r6(c.de || 0), aileron: r6(c.da || 0), rudder: r6(c.dr || 0), flaps: r6(c.flap || 0), gear: c.gear == null ? 1 : +c.gear, throttle: r6(c.thr || 0) } };
+      }
+    }
+    try {
+      const d = typeof DAY_CLOCK !== 'undefined' && DAY_CLOCK.day ? DAY_CLOCK.day() : null;
+      if (d) {
+        S.time = { date: d.date, utc: r6(d.utc / 3600), frozen: true };
+        const sp = d.spec ? d.spec() : {}, Wx = {};
+        for (const k of ['cloudCover', 'cloudType', 'cloudSeed', 'cloudUpper', 'turbidity', 'wind', 'storm', 'oatC', 'qnhPa', 'dewC']) if (sp[k] != null) Wx[k] = JSON.parse(JSON.stringify(sp[k]));
+        S.weather = Wx;
+      }
+    } catch (e) {}
+    try {
+      const GS = window.GARAGE_SPEC, sp = GS && GS.get ? GS.get() : null;
+      if (sp) S.plane = { ref: (GS.name && GS.name()) ? 'mine:' + GS.name() : 'the build on the stand', build: { what: 'flydiy-build', v: typeof GEN_SPEC_V === 'number' ? GEN_SPEC_V : null, name: (GS.name && GS.name()) || 'my plane', spec: sp } };
+    } catch (e) {}
+    S.quality = { hq: !!photoHq, rung: 'auto', output: photoSize ? photoSize.slice() : null };
+    const r = sceneNormalise(S);
+    return r.ok ? r.scene : S;
+  }
+  // THE CHECKS (§3.3): the eye in the ground, the water or the trees, the aeroplane out of the frame, the loading screen up
+  function sceneCheck() {
+    const W = [];
+    try {
+      if (window.BOOT && window.BOOT.state !== 'gone') W.push('the loading screen is up');
+      if (inGarage || !world) return W;
+      const e = camera.position;
+      if (world.terrainH) { const g = world.terrainH(e.x, e.z); if (e.y < g + 0.5) W.push('the eye is ' + (e.y < g ? (g - e.y).toFixed(1) + ' m under' : (e.y - g).toFixed(2) + ' m over') + ' the ground'); }
+      if (world.waterH) { const w = world.waterH(e.x, e.z); if (Number.isFinite(w) && e.y < w + 0.2) W.push('the eye is under the water'); }
+      if (world.treesNear && world.trees) { for (const i of world.treesNear(e.x, e.z, [])) { const t = world.trees[i]; if (!t) continue; const th = t.h || 12, rC = Math.max(1.5, th * 0.22);
+        if (Math.hypot(e.x - t.x, e.z - t.z) < rC && e.y < (world.terrainH ? world.terrainH(t.x, t.z) : 0) + th) { W.push('the eye is inside a tree'); break; } } }
+      if (sim && sim.cgPos) {
+        const c = sim.cgPos(), v = new THREE.Vector3(c[0], c[1], c[2]), d = v.distanceTo(e);
+        if (d < 1.2) W.push('the eye is ' + d.toFixed(2) + ' m from the mass centre (inside the aeroplane?)');
+        const ndc = v.clone().project(camera);
+        if (!(ndc.z < 1 && Math.abs(ndc.x) <= 1 && Math.abs(ndc.y) <= 1)) W.push('the aeroplane is out of the frame');
+      }
+    } catch (e) { W.push('the checks failed: ' + (e && e.message)); }
+    return W;
+  }
+  // the page is ready for a scene: the loading screen gone, no trip running, 8 presented frames
+  async function sceneReady(maxMs) {
+    await photoUntil(() => window.BOOT && window.BOOT.state === 'gone' && sceneTripDone(), maxMs || 900000, 'the page to load');
+    await photoNext(8);
+    return true;
+  }
+  async function sceneToShed() {
+    if (inGarage) return;
+    const b = $('bHangar2'); if (b && b.onclick) b.onclick();
+    await photoUntil(() => inGarage && sceneTripDone() && window.BOOT.state === 'gone', 600000, 'the shed');
+  }
+  async function sceneToFlight() {
+    if (!inGarage) return;
+    if (GARAGE_ONLY) throw new Error('this page has no world to fly in (the phone garage)');
+    rollOut(() => crowdThen(() => { started = true; }));
+    await photoUntil(() => !inGarage && sceneTripDone() && window.BOOT.state === 'gone', 900000, 'the roll-out');
+    await photoNext(4);
+  }
+  // THE ONE ORDERED LOADER (§3.2): site + build -> time and weather -> pose -> camera -> hold -> the world round the eye -> checks.
+  // The order is the fix for "staged before the roll-out reset": the roll-out is AWAITED to its end before anything is placed.
+  // -> { ok, steps, warnings }. opts.photo (default true): photo mode open after (the bar and the shutter)
+  async function sceneApply(doc, opts) {
+    opts = opts || {};
+    const N = sceneNormalise(doc);
+    if (!N.ok) throw new Error('not a scene: ' + N.errors.join('; '));
+    const S = N.scene, rep = { ok: true, steps: [], warnings: N.warnings.slice() };
+    const step = k => rep.steps.push(k);
+    if (photoOn) { photoWant = false; shotSet(false); }
+    // 1. the site and the build
+    const spec = S.plane && S.plane.build ? (S.plane.build.spec || S.plane.build) : null;
+    let same = true;
+    try { same = !spec || JSON.stringify(spec) === JSON.stringify(window.GARAGE_SPEC.get()); } catch (e) {}
+    const toShed = S.site === 'garage' || !same;
+    if (toShed && !inGarage) { await sceneToShed(); step('to the shed'); }
+    if (!same) { window.GARAGE_SPEC.set(typeof genMigrateSpec === 'function' ? genMigrateSpec(spec) : spec); await photoNext(4); step('the build'); }
+    if (S.site !== 'garage' && inGarage) { await sceneToFlight(); step('the roll-out'); }
+    // 2. the hour and the weather (the career's are the career's)
+    try {
+      const career = typeof DAY_CLOCK !== 'undefined' && DAY_CLOCK.isCareer && DAY_CLOCK.isCareer();
+      if (career && (S.time || S.weather)) rep.warnings.push('the career keeps its own hour and weather');
+      else if (typeof DAY_CLOCK !== 'undefined') {
+        const o = Object.assign({}, S.weather || {});
+        if (S.time) { if (S.time.date) o.date = S.time.date; if (S.time.utc != null) o.utc = S.time.utc * 3600; else if (S.time.localHours != null) o.localHours = S.time.localHours; }
+        if (Object.keys(o).length) { DAY_CLOCK.set(o); step('the hour and the weather'); }
+        if (S.time && S.time.preset && S.time.utc == null && S.time.localHours == null) DAY_CLOCK.preset(S.time.preset);
+      }
+    } catch (e) { rep.warnings.push('the hour / weather: ' + (e && e.message)); }
+    // 3. the aeroplane's pose (held: the flight paused first)
+    let anchor = null;
+    if (!inGarage) {
+      if (running) gmHold(true);
+      if (S.pose && S.pose.at) {
+        const P = S.pose, at = P.at.slice();
+        if (at[1] == null && P.where === 'air' && P.agl != null && world && world.terrainH) at[1] = world.terrainH(at[0], at[2]) + P.agl;
+        const cg = await FLIGHT_PROBE.place({ at, pose: { hdg: (P.hdg || 0) * D2R_, pitch: (P.pitch || 0) * D2R_, roll: (P.roll || 0) * D2R_ }, seat: at[1] == null });
+        if (P.speed && sim.v) { /* the flight's speed along the nose: given back when the flight resumes */
+          await FLIGHT_PROBE.place({ dv: [Math.cos(P.hdg * D2R_) * Math.cos(P.pitch * D2R_) * P.speed, Math.sin(P.pitch * D2R_) * P.speed, Math.sin(P.hdg * D2R_) * Math.cos(P.pitch * D2R_) * P.speed] });
+        }
+        anchor = { cg: cg || sim.cgPos(), hdg: (P.hdg || 0) * D2R_ };
+        step('the pose');
+      } else { const q = scenePoseOf(sim.p, sim.m, def); if (q) anchor = { cg: q.cg, hdg: q.hdg }; }
+    }
+    // 4. the camera
+    if (S.camera) {
+      const C = S.camera;
+      if (inGarage) {
+        if (C.orbit) { az = azT = C.orbit.az; el = elT = C.orbit.el; dist = distT = C.orbit.dist; if (C.orbit.pan) edPan.fromArray(C.orbit.pan); flReveal = 0; }
+        if (C.fov) photoGFov(C.fov);
+        if (S.garage && S.garage.mood != null) { const G = photoGE(); if (G && G.setMood && G.moods && (G.moods() || []).length) G.setMood(S.garage.mood); }
+      } else {
+        const w = sceneToWorld(C, C.anchor === 'world' ? null : anchor);
+        if (w.eye && w.target) {
+          const dx = w.target[0] - w.eye[0], dy = w.target[1] - w.eye[1], dz = w.target[2] - w.eye[2], L = Math.hypot(dx, dy, dz) || 1;
+          if (cam.mode !== 'free') flCamMode('free');
+          devCam.pos.set(w.eye[0], w.eye[1], w.eye[2]); devCam.yaw = Math.atan2(dx / L, -dz / L); devCam.pitch = Math.asin(Math.max(-1, Math.min(1, dy / L))); devCam.last = performance.now();
+        }
+        if (C.fov) { cam.fov = Math.max(28, Math.min(84, C.fov)); flSave('Cam', cam); flApplyFov(); }
+        if (C.roll) rep.warnings.push('the camera\'s roll is not drawn yet (the free camera has none)');
+      }
+      step('the camera');
+    }
+    if (S.quality) { if (S.quality.output !== undefined) photoSizeSet(S.quality.output); if (S.quality.hq != null) photoHqSet(!!S.quality.hq); }
+    // 5. hold, 6. the world round the eye
+    if (opts.photo !== false) photoOpen();
+    await photoNext(opts.settle != null ? opts.settle : 30);
+    // 7. the checks
+    for (const w of sceneCheck()) rep.warnings.push(w);
+    if (S.pose && S.pose.controls) rep.warnings.push('the control surfaces and the prop are drawn as the flight left them (not set from the scene yet)');
+    return rep;
+  }
+  // THE PICTURE WITH ITS SCENE (rigs: SCENE.shoot): -> { png: base64, w, h, ms, notes, warnings }
+  async function sceneShoot(o) {
+    o = o || {};
+    const sc = sceneGet(o.name || 'shot');
+    const r = await photoShoot({ output: o.output !== undefined ? o.output : (sc.quality && sc.quality.output) || null, loud: true, steps: (o.hq != null ? o.hq : photoHq) && typeof photoHqSteps === 'function' ? photoHqSteps() : null });
+    const blob = await photoEmbed(r.blob, sc);
+    const buf = new Uint8Array(await blob.arrayBuffer());
+    let bin = ''; for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode.apply(null, buf.subarray(i, i + 0x8000));
+    return { png: btoa(bin), w: r.w, h: r.h, ms: r.ms, notes: r.notes, warnings: sceneCheck() };
+  }
+  // THE SAVED SCENES, in this browser (flydiy.scenes: [{ name, at, thumb, scene }]); 40 at most, the oldest go
+  const SCENES_KEY = 'flydiy.scenes', SCENES_MAX = 40;
+  const scenesRead = () => { try { const a = JSON.parse(localStorage.getItem(SCENES_KEY) || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } };
+  const scenesWrite = a => { try { localStorage.setItem(SCENES_KEY, JSON.stringify(a.slice(0, SCENES_MAX))); return true; } catch (e) { console.warn('flyDiy: the scenes could not be saved -', e && e.message); return false; } };
+  async function scenesSave(name) {
+    const sc = sceneGet(name), thumb = await photoThumb(256);
+    const a = scenesRead(); a.unshift({ name: sc.name, at: sc.made, thumb, scene: sc });
+    return scenesWrite(a) ? a[0] : null;
+  }
+  const sceneFileName = n => String(n || 'scene').replace(/[^\w.-]+/g, '_').slice(0, 60) + '.scene.json';
+  function scenesExport(i) { const it = scenesRead()[i]; if (it) photoDownload(new Blob([JSON.stringify(it.scene, null, 2)], { type: 'application/json' }), sceneFileName(it.name)); }
+  function scenesRemove(i) { const a = scenesRead(); a.splice(i, 1); scenesWrite(a); }
+  // a file -> the scene in it (a .scene.json, or a picture this game saved) -> added to the list
+  async function scenesImport(file) {
+    const buf = await file.arrayBuffer(), u = new Uint8Array(buf);
+    const text = (u[0] === 137 && u[1] === 80) ? await photoUnembed(buf) : new TextDecoder().decode(u);
+    if (text == null) throw new Error('this picture has no scene in it');
+    const r = sceneNormalise(text);
+    if (!r.ok) throw new Error(r.errors.join('; '));
+    const a = scenesRead(); a.unshift({ name: r.scene.name || file.name, at: new Date().toISOString(), thumb: null, scene: r.scene }); scenesWrite(a);
+    return r.scene;
+  }
+  let photoHq = false;   // P4 (the high-quality shot) - the switch is remembered; the steps are photoHqSteps (P4)
+  try { photoHq = prefGet('flydiy.photoHq', '0') === '1'; } catch (e) {}
+  function photoHqSet(on) { photoHq = !!on; prefSet('flydiy.photoHq', photoHq ? '1' : '0'); return photoHq; }
+  function photoSizeSet(s) { photoSize = Array.isArray(s) && s.length === 2 ? [s[0] | 0, s[1] | 0] : null; prefSet('flydiy.photoSize', JSON.stringify(photoSize)); if (window.PHOTO) window.PHOTO.refresh(); return photoSize; }
+  const photoSizeWord = () => (photoSize ? photoSize[0] + '×' + photoSize[1] : 'window');
+  // the slot's rows: the size; the scenes - save, the list (load / export / delete), import
+  function photoPictureRows(body) {
+    let db = { x: 0, y: 0 }; try { db = renderer.getDrawingBufferSize(new THREE.Vector2()); } catch (e) {}
+    flRow(body, 'size');
+    flPills(body, PHOTO_SIZES.map(s => ({ label: s ? s[0] + '×' + s[1] : 'window (' + db.x + '×' + db.y + ')', value: s })),
+            o => JSON.stringify(o.value) === JSON.stringify(photoSize), o => photoSizeSet(o.value));
+    flNote(body, photoSize ? 'Drawn larger than the screen and cut to ' + photoSize[0] + '×' + photoSize[1] + ' about the centre: the screen shows a little more around it.' : 'The picture is the screen as you see it, without the interface.');
+    if (typeof photoHqSteps === 'function') {
+      flToggle(body, 'high quality', () => photoHq, v => { photoHqSet(v); if (window.PHOTO) window.PHOTO.refresh(); });
+      flNote(body, photoHqNote());
+    }
+  }
+  function photoSceneRows(body) {
+    const nm = document.createElement('input'); nm.type = 'text'; nm.maxLength = 80; nm.placeholder = 'a name';
+    nm.value = 'scene ' + (scenesRead().length + 1);
+    flField(body, 'name', nm);
+    flPills(body, [{ label: 'save this scene', value: 1 }], () => false, () => {
+      scenesSave(nm.value.trim() || 'scene').then(it => { if (window.PHOTO) window.PHOTO.refresh(); if (!it) alert('The scene could not be saved: this browser’s storage is full. Export some and delete them.'); });
+    });
+    const list = scenesRead();
+    if (list.length) flRow(body, 'saved here (' + list.length + ')');
+    list.forEach((it, i) => {
+      const row = document.createElement('div'); row.className = 'phScene';
+      if (it.thumb) { const im = document.createElement('img'); im.src = it.thumb; im.alt = ''; row.appendChild(im); }
+      const t = document.createElement('div'); t.className = 'phSceneT';
+      const b = document.createElement('b'); b.textContent = it.name; const s2 = document.createElement('span');
+      s2.textContent = (it.scene.site === 'garage' ? 'the shed' : 'flight') + ' · ' + String(it.at || '').slice(0, 10);
+      t.appendChild(b); t.appendChild(s2); row.appendChild(t);
+      const acts = document.createElement('div'); acts.className = 'phSceneA';
+      const btn = (w, f, title) => { const x = document.createElement('button'); x.type = 'button'; x.className = 'pill'; x.textContent = w; if (title) x.title = title; x.onclick = f; acts.appendChild(x); };
+      btn('load', () => { sceneApply(it.scene).then(r => { if (r.warnings.length) console.warn('flyDiy: the scene -', r.warnings.join('; ')); }).catch(e => alert('The scene could not be loaded: ' + (e && e.message))); }, 'Put this scene back: the aeroplane, the hour, the camera');
+      btn('export', () => scenesExport(i), 'Download it as a .scene.json file');
+      btn('delete', () => { scenesRemove(i); if (window.PHOTO) window.PHOTO.refresh(); }, 'Remove it from this browser');
+      row.appendChild(acts); body.appendChild(row);
+    });
+    const fi = document.createElement('input'); fi.type = 'file'; fi.accept = '.json,.png,application/json,image/png'; fi.style.display = 'none';
+    fi.onchange = () => { const f = fi.files && fi.files[0]; if (!f) return; scenesImport(f).then(() => { if (window.PHOTO) window.PHOTO.refresh(); }).catch(e => alert('Not a scene: ' + (e && e.message))); };
+    body.appendChild(fi);
+    flPills(body, [{ label: 'import a scene or a picture', value: 1 }], () => false, () => fi.click());
+    flNote(body, 'A scene keeps the camera, the hour and the weather, the aeroplane and where it stands. Every picture you take carries its scene: import the picture to come back to it.');
+  }
+  // ---- PHOTO-MODE-2 P4: THE HIGH-QUALITY PICTURE (opt-in; the design's §2) ---------------------------------------------
+  // The night hero's reference settings (tools/look1_temporal.js: ultra, density 200, the full tree to 150 m, real trees
+  // to 1000 m, fade 60) pushed for ONE picture through GFX.push (the player's settings never written), scaled to the
+  // machine the page was built for (GFX.budget().preset: a potato keeps its forest), then every setting back. Steps on
+  // presented frames, each with its words and its real %, under ONE cap (SCENE_HQ_CAP_S, 55 s from the shutter: past it
+  // the picture is taken with what has loaded, and the notes say how far it got). The governors held meanwhile (the
+  // runtime step-down, the auto render scale); a long main-thread task is measured (PerformanceObserver 'longtask'); a lost
+  // WebGL context cancels the picture cleanly. NOT TUNED ON A GPU YET: the frame counts and the tree wait are the design's,
+  // to be measured on A0's box (tools/PHOTO.md).
+  const HQ_FULL = { shadows: 'ultra', clouds: 'full', water: 'full', mirror: 'live', drawDist: 'full', mist: 'banks', density: 200, bands: 'far' };
+  const HQ_LIGHT = { shadows: 'full', clouds: 'full', drawDist: 'full', mist: 'banks', mirror: 'off' };
+  const HQ_LOD = [150, 1000, 1000], HQ_FADE = 60;
+  function photoHqTier() { try { const b = window.GFX && window.GFX.budget ? window.GFX.budget().preset : 'gamer'; return (b === 'gamer' || b === 'ultra' || b === 'current') ? 'full' : 'light'; } catch (e) { return 'light'; } }
+  function photoHqNote() {
+    return photoHqTier() === 'full'
+      ? 'High quality redraws the picture with the trees to 1 km, the best shadows, the water’s reflections and every cloud pixel: 10 s to a minute. Your settings come back after.'
+      : 'This computer: the best shadows and clouds, the forest as it is. It can take up to a minute. Your settings come back after.';
+  }
+  function photoHqSteps() {
+    const G = window.GFX, TL = window.TREE_LOD, TF = window.TREE_FILL, tier = photoHqTier(), keep = {};
+    let longWorst = 0, obs = null, lost = false;
+    const capAt = t0 => t0 + SCENE_HQ_CAP_S * 1000 - 4000;   // 4 s kept for the size and the grab
+    const sub = ctx => { const s = Math.round((performance.now() - ctx.t0) / 1000); return s >= 8 ? s + ' s · at most ' + SCENE_HQ_CAP_S + ' s' : ''; };
+    const onLost = () => { lost = true; if (photoBusy) photoBusy.cancelled = true; };
+    // until fn() on presented frames, or the cap (a hidden tab's time does not count: the frames stop, and so does the cap)
+    async function waitUntil(ctx, fn, what) {
+      let dl = capAt(ctx.t0), last = performance.now();
+      for (;;) {
+        if (ctx.cancelled()) throw photoCancelled();
+        let done = false; try { done = !!fn(); } catch (e) { done = true; }
+        if (done) return true;
+        const now = performance.now();
+        if (typeof document !== 'undefined' && document.hidden) dl += now - last;
+        last = now;
+        if (now > dl) { ctx.notes.push('the cap (' + SCENE_HQ_CAP_S + ' s): ' + what); return false; }
+        await ctx.next(1);
+      }
+    }
+    const steps = [
+      async ctx => {   // 1. GETTING THE SCENE READY: the governors held, the layer pushed, the far trees asked for
+        ctx.say(0, 'Getting the scene ready', '');
+        try { if (G && G.hw && G.hw.hold) { G.hw.hold(true); keep.hw = true; } } catch (e) {}
+        try { if (aa && aa.autoState && aa.autoState().on && aa.autoScale) { aa.autoScale(false); keep.auto = true; } } catch (e) {}
+        try { if (typeof PerformanceObserver === 'function') { obs = new PerformanceObserver(l => { for (const e of l.getEntries()) longWorst = Math.max(longWorst, e.duration); }); obs.observe({ entryTypes: ['longtask'] }); } } catch (e) { obs = null; }
+        try { canvas.addEventListener('webglcontextlost', onLost); } catch (e) {}
+        if (G && G.push) G.push(tier === 'full' ? HQ_FULL : HQ_LIGHT, 'photo');
+        if (tier === 'full' && TL && TL.set) { keep.lod = TL.get ? TL.get() : null; keep.fade = TL.census ? TL.census().fade : null; TL.set(HQ_LOD.slice()); if (TL.fade) TL.fade(HQ_FADE); }
+        if (TF && TF.budget) { keep.budget = TF.budget(); TF.budget(tier === 'full' ? 20 : 12); }
+        await ctx.next(2);
+      },
+      async ctx => {   // 2. THE TREES: the fill's queue and its stale parts, to empty
+        if (!TF || !TF.stat) return;
+        const left = () => { const st = TF.stat(); return (st.queued || 0) + (TF.stream ? (TF.stream().stale || 0) : 0) + (st.busy ? 1 : 0); };
+        const q0 = Math.max(1, left());
+        await waitUntil(ctx, () => { const n = left(); ctx.say(1 - n / q0, tier === 'full' ? 'Growing the far trees' : 'Finishing the trees', sub(ctx)); return n === 0; },
+                        'the trees ' + Math.round(100 * (1 - left() / q0)) + ' %');
+      },
+      async ctx => {   // 3. THE SHADERS: anything that recompiled (the shadows from off, the ground set) - 8 presented frames
+        for (let i = 0; i < 8; i++) { ctx.say(i / 8, 'Warming up the light', sub(ctx)); await ctx.next(1); if (ctx.cancelled()) throw photoCancelled(); }
+      },
+      async ctx => {   // 4. THE WATER AND THE SKY: the clouds' history after the new size and steps - 20 presented frames
+        for (let i = 0; i < 20; i++) { ctx.say(i / 20, 'Waiting for the clouds to settle', sub(ctx)); await ctx.next(1); if (ctx.cancelled()) throw photoCancelled(); if (performance.now() > capAt(ctx.t0)) { ctx.notes.push('the cap: the clouds ' + Math.round(i * 5) + ' % settled'); break; } }
+      },
+    ];
+    // EVERY SETTING BACK, whatever happened (photoShoot's finally): the layer popped, the bands and their fade, the fill's
+    // budget, the governors, the observers
+    steps.restore = () => {
+      try { if (G && G.pop) G.pop(); } catch (e) {}
+      try { if (keep.lod && TL && TL.set) { TL.set(keep.lod); if (keep.fade != null && TL.fade) TL.fade(keep.fade); } } catch (e) {}
+      try { if (keep.budget != null && TF && TF.budget) TF.budget(keep.budget); } catch (e) {}
+      try { if (keep.hw && G.hw.hold) G.hw.hold(false); } catch (e) {}
+      try { if (keep.auto && aa.autoScale) aa.autoScale(true); } catch (e) {}
+      try { if (obs) obs.disconnect(); } catch (e) {}
+      try { canvas.removeEventListener('webglcontextlost', onLost); } catch (e) {}
+    };
+    steps.report = () => ({ tier, longTaskMs: Math.round(longWorst), contextLost: lost });
+    return steps;
+  }
+  // ---- PHOTO-MODE-2 P3: GO TO - THE START PLACES, IN PHOTO MODE (the user 11 Nov: "at least a teleport to different
+  // places ... the starting place ... maybe inside the photo mode") ------------------------------------------------------
+  // The start place never left the code (FLYDIY_ROUTE.spawn: the next roll-out's start, the perf rigs'); only its picker
+  // did. A pick sets it and restarts the flight there (fullReset: the flight's own Restart - the aeroplane on that
+  // place's stand, a fresh pilot), held, on the chase camera; the start place is kept for the next roll-out too (the
+  // base again: "home"). Only where the gear may stand (stripAllows: floats on water, wheels on land). Not in the
+  // career (its aeroplanes are where the career put them), not on the phone's garage page (no world).
+  const photoGoOk = () => !inGarage && !CAREER_DEV && !GARAGE_ONLY && !!(world && world.aerodromes && window.FLYDIY_ROUTE);
+  function photoGoList() {
+    if (!photoGoOk()) return [];
+    const gear = routeGear(false);
+    return world.aerodromes.filter(a => a && a.id && (typeof stripAllows !== 'function' || stripAllows(gear, a).ok))
+      .map(a => ({ id: a.id, name: a.name || a.id }));
+  }
+  async function photoGoTo(id) {
+    if (!photoGoOk()) throw new Error('no start places here');
+    window.FLYDIY_ROUTE.spawn(id || null);
+    fullReset();
+    await photoNext(3);
+    gmHold(true);
+    if (cam.mode === 'free') flCamMode('chase');
+    if (photoWas) photoWas.held = false;   // (Done leaves the new place held: the flight starts from it with Run)
+    await photoNext(2);
+    if (window.PHOTO) window.PHOTO.refresh();
+    return fromId;
+  }
+  function photoGoRows(body) {
+    const L = photoGoList(), here = (window.FLYDIY_ROUTE.get() || {}).spawn || null, base = baseAeroId();
+    flRow(body, 'start the flight at');
+    flPills(body, L.map(a => ({ label: a.id === base ? a.name + ' (home)' : a.name, value: a.id })),
+            o => o.value === (here || base), o => { photoGoTo(o.value === base ? null : o.value).catch(e => console.warn('flyDiy: go to -', e && e.message)); });
+    flNote(body, 'The aeroplane is put on that place\u2019s stand, held; Done and Run fly from there. The next roll-out starts there too, until you pick home again.');
+  }
+  window.SCENE = { get: sceneGet, apply: sceneApply, check: sceneCheck, ready: sceneReady, shoot: sceneShoot, places: () => photoGoList(), goTo: id => photoGoTo(id),
+                   list: () => scenesRead().map(it => ({ name: it.name, at: it.at, site: it.scene && it.scene.site })),
+                   save: scenesSave, load: i => sceneApply(scenesRead()[i].scene), remove: scenesRemove, importFile: scenesImport,
+                   size: s => (s === undefined ? photoSize : photoSizeSet(s)), hq: v => (v === undefined ? photoHq : photoHqSet(v)) };
   window.FLYDIY_PHOTO = { open: photoOpen, take: photoTake, name: photoName, on: () => photoOn, done: () => shotSet(false), slots: () => photoSlots().map(o => o.k) };
 
   // ---- Esc closes; a click on the render closes ---------------------------
@@ -20978,6 +21451,7 @@
         SKY_GLARE.render(renderer);
       }
     }
+    if (framePresented) photoFramed();   // PHOTO-MODE-2 P2: the shot's steps count presented frames
     if (photoGrab && framePresented) { const g = photoGrab; photoGrab = null; try { g(renderer.domElement); } catch (e) { console.warn('flyDiy: the photo -', e && e.message); } }   // G3741
     POSE_LERP.back();                  // G1100: the newest step's positions back, bit for bit, before anything else reads them
     if (window.AUDIO) AUDIO.update(sim, camera, fdt, def, cam, inGarage, world);   // G1600: the sound's numbers off the newest step (audio.js; nothing before a gesture)

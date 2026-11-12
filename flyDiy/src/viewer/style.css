@@ -39,7 +39,7 @@
      boot.js sets html.fdBoot while the screen is up (show) and clears it as it lifts (hide); hidden, not removed:
      their writers keep running and the reveal shows them as they are. The welcome (90) is not a game layer */
   :root.fdBoot :is(#stTim, #stCard, #stSkip, #mapEntry, #gmMenu, #gmPanel, #frEntry, #frSay, #frLoad, .flCornB,
-    #photoTop, #photoFly, #photoShutter, #hireScreen) { visibility:hidden !important; }
+    #photoTop, #photoFly, #photoShutter, #photoSpin, #hireScreen) { visibility:hidden !important; }
   #boot[hidden] { display:none; }
   #bootShots { position:absolute; inset:0; }
   #bootShots .bs { position:absolute; inset:0; margin:0; opacity:0;

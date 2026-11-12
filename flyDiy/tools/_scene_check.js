@@ -203,6 +203,22 @@ console.log('4. the pose');
   ok(near(vn, 40, 1e-9) && dot(v, noseRigid) / vn > 1 - 1e-9, 'speed 40: every node at 40 m/s along the build\'s nose', vn.toFixed(6) + ' m/s');
   fresh(); for (let i = 0; i < sim.v.length; i++) sim.v[i] = 3; C.placePose(sim, def, { at: [0, 80, 0], hdg: 0.6 });
   ok(sim.v.every(x => x === 0), 'no speed: every velocity zeroed');
+  // P2: THE POSE READ BACK (Save this scene): placePose -> scenePoseOf is the identity, and so is the round trip
+  let worstA = 0, worstC = 0;
+  const angd = (u, v) => Math.abs(Math.atan2(Math.sin(u - v), Math.cos(u - v)));
+  for (const ps of POSES.concat([{ hdg: 5.9, pitch: -0.3, roll: 2.6 }, { hdg: 0.01, pitch: 0.9, roll: -1.4 }])) {
+    fresh(); const at = [-210.5, 120.25, 3305.75]; C.placePose(sim, def, Object.assign({ at }, ps));
+    const q = C.scenePoseOf(sim.p, sim.m, def);
+    worstA = Math.max(worstA, angd(q.hdg, ps.hdg), angd(q.pitch, ps.pitch), angd(q.roll, ps.roll));
+    for (let i = 0; i < 3; i++) worstC = Math.max(worstC, Math.abs(q.cg[i] - at[i]));
+  }
+  ok(worstA < 1e-9 && worstC < 1e-9, 'scenePoseOf reads placePose\'s pose back (heading, pitch, roll, CG) over a sweep', worstA.toExponential(2) + ' rad, ' + worstC.toExponential(2) + ' m');
+  fresh(); C.placeAtAerodrome(sim, { hdg: 2.0, spawn: [40, -30], elev: 0 }); C.seatOnGround(sim, gH, def.refs);
+  const seated = Array.from(sim.p), q2 = C.scenePoseOf(sim.p, sim.m, def);
+  fresh(); C.placePose(sim, def, { at: q2.cg, hdg: q2.hdg, pitch: q2.pitch, roll: q2.roll });
+  let dR = 0; for (let i = 0; i < seated.length; i++) dR = Math.max(dR, Math.abs(sim.p[i] - seated[i]));
+  ok(dR < 1e-9, 'an aeroplane seated by the game, read and put back: every node where it was (Save -> Load)', dR.toExponential(2) + ' m');
+  ok(C.scenePoseOf(sim.p, sim.m, { nodes: def.nodes, refs: {} }) === null, 'no body refs: no pose (never a wrong one)');
 }
 
 // ---- 5. the output size ----------------------------------------------------------------------------------------------

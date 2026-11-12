@@ -432,10 +432,16 @@
   // G1526: the town this page builds - the row, under the budget's cap (potato / laptop) and the software rung (always 'nearby')
   const townAll = () => S.town === 'all' && budget().town !== 'nearby' && !SOFT;
   const budget = () => Object.assign({ preset: BUDGETS[S.build] ? S.build : DEFAULT, terrain: S.terrain }, BUDGETS[S.build] || BUDGETS[DEFAULT]);
-  const save = () => { try { W.localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
+  // PHOTO-MODE-2 P4: A TRANSIENT LAYER (GFX.push / GFX.pop). The high-quality picture pushes settings no preset uses for
+  // a few seconds; the player's own are NEVER written (save writes them from under the layer, presetOf reads them) and a
+  // pop gives every handle back what it had. A set() while pushed is the player's: it lands under the layer.
+  let PUSH = null;   // { tag, was: { k: the player's value } }
+  const base = () => (PUSH ? Object.assign({}, S, PUSH.was) : S);
+  const save = () => { try { W.localStorage.setItem(KEY, JSON.stringify(base())); } catch (e) {} };
   // which preset the current options ARE, or 'custom'
   const presetOf = () => {
-    for (const p in PRESETS) if (OPTIONS.every(o => o.free || PRESETS[p][o.k] === S[o.k])) return p;
+    const B = base();
+    for (const p in PRESETS) if (OPTIONS.every(o => o.free || PRESETS[p][o.k] === B[o.k])) return p;
     return 'custom';
   };
 
@@ -580,6 +586,8 @@
     }
   };
   const set = (k, v) => {
+    if (PUSH && k !== 'preset' && k in PUSH.was) { PUSH.was[k] = v; save(); return S; }   // (P4: under the layer)
+    if (PUSH && k === 'preset') pop();
     if (k === 'preset') { if (!PRESETS[v]) return S; Object.assign(S, PRESETS[v]); S.preset = v; S.build = v; if (!S.fpsOwn) S.fps = FPS_OF(v); }   // G1295: the preset's frame rate, unless the player picked one
     else { S[k] = v; S.preset = presetOf(); if (k === 'fps') S.fpsOwn = true; }
     if (W.FLIGHT_REC && W.FLIGHT_REC.event) W.FLIGHT_REC.event('gfx', null, k + ' = ' + v);   // G620: the flight log's settings events
@@ -894,9 +902,19 @@
   // the colour row must SAY what runs: the page's loader decided it before
   // this script, from the same stored key, so read the truth back
   if (W.THREE && W.THREE.ColorManagement) S.colour = W.THREE.ColorManagement.enabled ? 'managed' : 'linear';
+  function push(o, tag) {
+    if (PUSH) pop();
+    const was = {};
+    for (const k of Object.keys(o || {})) { if (!OPTIONS.some(x => x.k === k)) continue; was[k] = S[k]; S[k] = o[k]; }
+    PUSH = { tag: tag || 'push', was };
+    apply();
+    return PUSH.tag;
+  }
+  function pop() { if (!PUSH) return false; const w = PUSH.was; PUSH = null; Object.assign(S, w); apply(); return true; }
   W.GFX = {
     OPTIONS, PRESETS, PRESET_LABEL, DEFAULT, BANDS, SHADOWS, GROUPS,
-    get: () => Object.assign({}, S),
+    get: () => Object.assign({}, base()),
+    push, pop, pushed: () => (PUSH ? { tag: PUSH.tag, keys: Object.keys(PUSH.was) } : null), live: () => Object.assign({}, S),
     BUDGETS, budget, townAll,   // G1230; G1526 townAll: Metlakatla built (the row under the budget's cap and the software rung): the build budget the world builds to (GFX.budget().mipSkip, .townBoot, ...)
     set, apply, mount, mountWorld, presetOf, frameText,
     hw: HW,   // G1995: the runtime step-down (hw.state(), hw.decide(), hw.reveal(), hw.measure())

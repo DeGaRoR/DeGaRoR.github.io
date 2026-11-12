@@ -113,7 +113,7 @@ function simHostProbe(world, pts, t, H, opts) {
 }
 // the core names the worker's Blob picks out of the imported bundle
 const SIM_HOST_CORE = ['ISLAND_GEN', 'makeWorld', 'buildGen', 'makeSim', 'makePilot', 'PILOT_STYLES',
-                       'navMake', 'NAV_FIXES', 'siteOf', 'placeAtStand', 'placeAtAerodrome', 'seatOnGround', 'placeAtLineup',
+                       'navMake', 'NAV_FIXES', 'siteOf', 'placeAtStand', 'placeAtAerodrome', 'seatOnGround', 'placeAtLineup', 'placePose',
                        'stripSurface', 'stripGear'];
 const SIM_HOST_DT = 1 / 60;
 const SIM_HOST_CATCH = 4;          // steps owed per turn at most (G586's frame owed 4)
@@ -865,8 +865,20 @@ function simHostDefSig(def) {
 // (C3b, 2026-09-30: every view of a hold at the stand, the aeroplane still rolling). The same writes, made on the sim
 // that flies - the page's own inline, the worker's at once between two of its steps: every node shifted so the CG
 // stands at `at` (a null axis kept) or by `by`, the velocities zeroed (`zeroV`) and / or kicked by `dv`. -> the CG
-function simHostPlace(sim, o) {
+// PHOTO-MODE-2 P2 (a scene's aeroplane): `pose: { hdg, pitch, roll }` (radians, placePose's) puts the AS-BUILT geometry at
+// that attitude with its CG at `at` (a null axis: the CG's own) - the velocities zeroed - and `seat` then lets it down onto
+// the ground under it (seatOnGround: the wheels on the ground, 1 cm). It needs the build (def) and the core's two
+// functions (CORE: the worker's bundle; the page's globals) - without them the pose is refused, never half done.
+function simHostPlace(sim, o, def, CORE, world) {
   const p = sim.p, v = sim.v, n = sim.n;
+  if (o.pose) {
+    if (!def || !CORE || typeof CORE.placePose !== 'function') return null;
+    const c = sim.cgPos(), at = o.at ? [0, 1, 2].map(j => (o.at[j] == null ? c[j] : o.at[j])) : c;
+    CORE.placePose(sim, def, { at, hdg: o.pose.hdg, pitch: o.pose.pitch || 0, roll: o.pose.roll || 0 });
+    if (o.seat && world && typeof world.terrainH === 'function' && typeof CORE.seatOnGround === 'function') CORE.seatOnGround(sim, world.terrainH, def.refs);
+    if (o.dv) for (let i = 0; i < n; i++) { v[i * 3] += o.dv[0]; v[i * 3 + 1] += o.dv[1]; v[i * 3 + 2] += o.dv[2]; }
+    return sim.cgPos();
+  }
   let d = o.by || null;
   if (o.at) { const c = sim.cgPos(); d = [0, 1, 2].map(j => (o.at[j] == null ? 0 : o.at[j] - c[j])); }
   if (d) for (let i = 0; i < n; i++) { p[i * 3] += d[0]; p[i * 3 + 1] += d[1]; p[i * 3 + 2] += d[2]; }
@@ -1019,7 +1031,7 @@ function simHostBody(CORE, SH, port) {
         case 'pause': stopClock(); if (H) publish(0, 0); return;
         // G1096: a rig's placement - at once, at this step boundary (lockstep: after every step the page posted; real
         // time: between two turns), the snapshot published, then the word the page's promise waits for
-        case 'place': { const cg = H ? SH.simHostPlace(H.sim, m) : null; if (H) publish(0, 0); post({ kind: 'placed', id: m.id, cg }); return; }
+        case 'place': { const cg = H ? SH.simHostPlace(H.sim, m, H.def, CORE, H.world) : null; if (H) publish(0, 0); post({ kind: 'placed', id: m.id, cg }); return; }
         case 'rate': rate = m.x > 0 ? m.x : 1; if (running) anchor(); return;
         case 'steps': {
           // LOCKSTEP: exactly n steps now, a snapshot after each (`every`) or after the last. `dayBatch` (G815, the
