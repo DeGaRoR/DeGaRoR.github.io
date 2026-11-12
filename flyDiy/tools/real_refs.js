@@ -134,17 +134,21 @@ const REFS = {
   // stall (56 km/h Wikipedia / 37 kt = 68 km/h maker) and quote 1000-1400 fpm: all solo-ish (HULL-B76 found the stall
   // and climb meet at 475 kg, one aboard, half fuel). No flaps on a Petrel.
   petrel: {
-    name: 'Super Petrel LS (Rotax 912 iS)', mtow: 600, empty: 320, fuelL: 90, S: 15.0, powerHP: 100,
-    src: 'maker / Wikipedia EDRA Super Petrel / pilotmix: 320 / 600 kg, stall 56 km/h (Wikipedia) or 37 kt (maker), cruise ~86 kt, VH ~97 kt, climb 1000-1400 fpm, take-off run land 80 m, water 120 m (Wikipedia; a review: water < 400 ft, hard surface 260 ft)',
+    // REPLACED 10 Nov (the user, superpetrelusa.com/specs/specifications - the maker's LS "400 SERIES" page, the 912iS
+    // "Sport" column): the earlier row (Wikipedia 320 kg empty, a 1000-1400 fpm range that mixed the 914 Turbo in) was
+    // wrong on the empty mass by 66 kg and on the climb by the turbo's 400 fpm
+    name: 'Super Petrel LS (Rotax 912 iS, 100 hp)', mtow: 649, empty: 386, fuelL: 91, S: 15.0, powerHP: 100,
+    src: 'Super Petrel USA, LS specifications (superpetrelusa.com/specs/specifications, the 912iS-100 HP column, read 10 Nov 2026): empty 850 lb standard, gross 1,430 lb land / 1,320 lb water, max cruise 100 kt, VNE 113 kt, stall 37 kt, climb 1000 fpm, glide 10:1, take-off ground/water 262/394 ft, landing ground/water 394/328 ft, 24 US gal usable; 20.83 ft long, 8.30 ft high, 29.20 ft span, 161.48 ft2, cabin 46 in',
     poh: { vr: 1.10, vy: 1.35, flapTO: 0, flapLDG: 0, brake: 0.6, note: 'no flaps' },
     rows: {
-      empty: { v: 320, tol: 0.05, src: '320 kg (315 one source, 775 lb a review "as equipped")' },
-      Vs1:   { v: [56, 68], tol: 0.03, kg: 'unknown', flaps: 'up', src: '56 km/h (Wikipedia) to 37 kt (maker)' },
-      V75:   { v: 86 * KT, tol: 0.05, kg: 'unknown', src: 'cruise ~86 kt' },
-      Vmax:  { v: 97 * KT, tol: 0.05, kg: 'unknown', src: 'VH ~97 kt' },
-      roc:   { v: [1000 * FPM, 1400 * FPM], tol: 0.03, kg: 'unknown', src: '1000-1400 fpm' },
-      TO:    { v: [260 * FT, 80], tol: 0.05, kg: 'unknown', flaps: 0, surface: 'paved', src: 'land run 80 m (Wikipedia), 260 ft (review)' },
-      TOW:   { v: [120, 400 * FT], tol: 0.05, kg: 'unknown', flaps: 0, surface: 'water', src: 'water run 120 m (Wikipedia), < 400 ft (review)' },
+      empty: { v: 850 * LB, tol: 0.05, src: 'empty weight (standard) 850 lb - maker sheet' },
+      Vs1:   { v: 37 * KT, tol: 0.05, kg: 'unknown', flaps: 'up', src: 'stall 37 kt - maker sheet (weight not stated)' },
+      Vmax:  { v: 100 * KT, tol: 0.05, kg: 'unknown', src: 'max cruise 100 kt (the 912iS at max continuous) - maker sheet' },
+      roc:   { v: 1000 * FPM, tol: 0.05, kg: 'unknown', src: 'max climb rate 1000 ft/min (912iS; the 914 Turbo is 1400) - maker sheet' },
+      LD:    { v: 10, tol: 0.10, kg: 'unknown', src: 'glide ratio 10:1 - maker sheet' },
+      TO:    { v: 262 * FT, tol: 0.10, kg: 'unknown', flaps: 0, surface: 'paved', src: 'take-off ground 262 ft - maker sheet' },
+      TOW:   { v: 394 * FT, tol: 0.10, kg: 'unknown', flaps: 0, surface: 'water', src: 'take-off water 394 ft - maker sheet' },
+      LDG:   { v: 394 * FT, tol: 0.10, kg: 'unknown', flaps: 0, surface: 'paved', src: 'landing ground 394 ft (water 328 ft) - maker sheet' },
     } },
   // CHINOOK PLUS 2 (582) - an ultralight sheet, flown one-up (perf_study REAL.chinook's ruling)
   chinook: {
@@ -171,15 +175,45 @@ Object.assign(REFS, {
   // DOUGLAS DC-3A (2 x P&W R-1830 1200 hp). Figures vary by variant (DC-3 / DC-3A / C-47 / DC-3C): the DC-3A is taken.
   // The top speed is quoted at altitude (230 mph at 8500 ft); a sea-level figure is not published: the band runs from
   // the 215 mph some sheets quote to the altitude figure. No stall or field figures found that state their conditions.
+  // (REF-DATA 2026-11-09: the research session's rows, claude/ref-data-dc3-tigermoth reports/evidence/REF-DATA-DC3-TIGERMOTH;
+  // its proposed V50 and roc1E indicators are not wired)
   dc3: {
-    name: 'Douglas DC-3A (2 x P&W R-1830 1200 hp)', mtow: 11431, empty: 7650, fuelL: 3111, S: 91.7, powerHP: 2400,
-    src: 'aero-web DC-3C / aeropedia / airlines-inform (search extracts): 95 ft span, 64 ft 5-8 in, 16 ft 11 in, 987 ft2, 16 865 lb empty, 25 200 lb gross (DC-3A), max 215-229 mph, cruise 194-207 mph, ~1100 fpm; THIN on the conditions (altitude, weight)',
-    poh: { vr: 1.15, vy: 1.40, flapTO: 0, flapLDG: 30, brake: 0.6, note: 'a heavy taildragger; flaps up for the take-off (C-47 practice), 1/4-1/2 flap is also used' },
+    name: 'Douglas DC-3A (2 x P&W R-1830-S1C3-G 1200 hp)', mtow: 11431, empty: 7650, fuelL: 3111, S: 91.7, powerHP: 2400,
+    src: 'A-669 via CAA NZ TAR 16/21B/17 [0.9]: 25,200 lb max (26,200 / 26,900 lb under notes 12 / 10, 13); Francillon (Wikipedia) [0.5]: 95 ft, 64 ft 5 in, 987 ft2, 16,865 lb empty, 822 US gal, 230 mph at 8,500 ft, 1,130-1,140 fpm; AOPA Pilot 6/1994 [0.6] (extract): empty as tested 16,822 lb, Vs1 67 KIAS, Vs0 62 KIAS, Vmc 77 KIAS, single-engine 200 fpm, 157 kt at 50 % / 10,000 ft; C-47 manual climb table at 25,000 lb [0.6 pending] (extract): 1,220 fpm METO, 1,410 fpm take-off power, 425 fpm one engine',
+    // Vy: 110 kt IAS (fsvintageair, from the Ozark handbook / T.O. 1C-47 [0.3]) and the Flight International test climb at
+    // 110 kt -> 110 / 67 = 1.64 x Vs1 (the current card has 1.40)
+    poh: { vr: 1.15, vy: 1.60, climbPowerK: 1050 / 1200, flapTO: 0, flapLDG: 30, brake: 0.6, note: 'a heavy taildragger; flaps up for the take-off (C-47 practice), 1/4-1/2 flap is also used; climb at 105-110 kt IAS (Vy 110, Vx 95); the climb row at METO, 1,050 of 1,200 hp (climbPowerK)' },
     rows: {
-      empty: { v: [7650, 8300], tol: 0.03, src: '16 865 lb (DC-3A) to 18 300 lb (DC-3C)' },
-      V75:   { v: [194 * MPH, 207 * MPH], tol: 0.05, kg: 'unknown', src: 'cruise 194-207 mph, altitude unstated (THIN)' },
-      Vmax:  { v: [215 * MPH, 230 * MPH], tol: 0.05, kg: 'gross', src: '215 mph (some sheets) to 230 mph at 8500 ft (THIN: no sea-level figure)' },
-      roc:   { v: [1100 * FPM, 1130 * FPM], tol: 0.05, kg: 'gross', src: '~1100-1130 fpm' },
+      // the DC-3A airline empty weight: two sources 20 kg apart. The old 8,300 kg top was the C-47 / DC-3C (heavier by
+      // 220-600 kg: 17,345 lb DC-3C basic empty, AOPA 2005; 18,135 lb C-47B, Francillon)
+      empty: { v: [7630, 7650], tol: 0.03, src: '16,822 lb as tested (AOPA 1994 [0.6], extract) / 16,865 lb DC-3A (Francillon [0.5]); a C-47 / DC-3C is 7,870-8,230 kg' },
+      Vs1:   { v: 67 * KT, tol: 0.06, kg: 'gross', flaps: 'up', src: '67 KIAS clean (AOPA Pilot 6/1994 spec box, manufacturer data [0.6], extract); IAS, weight not printed (AOPA boxes are at max gross); CL 1.68 at 25,200 lb. A C-47 manual "67 mph TAS" (garbled extract [0.3]) is not taken: CL 2.24 clean' },
+      // Vs0 (not an indicator yet): 62 KIAS landing flap (AOPA 1994 [0.6]) - CL 1.96 at 25,200 lb
+      Vmax:  { v: 230 * MPH, tol: 0.04, kg: 'gross', alt: 8500 * FT, src: '230 mph (200 kt) at 8,500 ft (Francillon DC-3A [0.5]); the C-47B: 224 mph at 10,000 ft at 26,000 lb. No sea-level figure is published: the row carries its altitude. (Wikipedia\'s "223 kt" is a slip for 230 mph)' },
+      // the old V75 row (194-207 mph, altitude unstated) has no source that states a power or an altitude: dropped
+      roc:   { v: [1130 * FPM, 1220 * FPM], tol: 0.05, kg: 'gross', src: '1,130-1,140 fpm at 25,200 lb (Francillon [0.5]); 1,220 fpm at METO 1,050 hp, 25,000 lb, ISA SL (C-47 manual climb table [0.6 pending], extract). At take-off power (1,200 hp, 1-minute limit on A-669): 1,410 fpm. Light: ~1,200 fpm at 8,800 kg, 110 kt, 35 in / 2,350 rpm (Flight International [0.6])' },
+      LD:    { v: 14.7, tol: 0.08, kg: 'unknown', src: '(L/D)max 14.7 with CD0 0.0249 (Loftin, NASA SP-468, as commonly quoted [0.5 pending: the table was not reachable]); consistent with AR 9.14 and e 0.75; CD0 ~0.025 also derived from 230 mph at 8,500 ft on 2 x 1,050 hp' },
+    } },
+
+  // TOP RUDDER RUCKUS, the airframe sheet (B&B Sport Aviation, Top Rudder's dealer, "RUCKUS - Airframe / Performance
+  // Parameters", the user 9 Nov): single place, conventional gear, 254 lb empty, 550 lb gross, 17.5 ft, 28.4 ft, 122 ft2,
+  // +4/-2; Vs 24.1 mph, Vso 22, Vr 28, Vx 27, Vy 30, cruise 50 mph, Vmax 54 mph at 37 hp, climb 650 fpm, L/D 4.6 at 35 mph,
+  // min sink 580 fpm at 27.3 mph, drag polar CD = 0.13 + 0.088 CL^2; take-off 350 ft, landing 300 ft; 5 gal, 2 gal/h;
+  // Vne 100, Va 48 mph. The standard engine the Polini 303 ("stall speeds under 20 mph and a cruise of 50", G. Boney).
+  // No weight or surface is stated for the field lengths: the sheet's own (gross, the strip unknown)
+  ruckus: {
+    name: 'Top Rudder Ruckus, standard (Polini Thor 303, 37-38 hp)', mtow: 249, empty: 115, fuelL: 19, S: 11.33, powerHP: 37,
+    src: 'B&B Sport Aviation "RUCKUS - Airframe" sheet (pasted by the user 9 Nov): 254 / 550 lb, 17.5 ft, 28.4 ft, 122 ft2, Vs 24.1 mph, Vso 22, cruise 50, Vmax 54 at 37 hp, 650 fpm, L/D 4.6, TO 350 ft, LDG 300 ft, 5 gal',
+    poh: { vr: 28 / 24.1, vy: 30 / 24.1, flapTO: 0, flapLDG: 20, brake: 0.6, note: 'the sheet\'s Vr 28, Vy 30 mph over its 24.1 mph stall; flaperons down for the landing (Vso 22)' },
+    rows: {
+      empty: { v: 115, tol: 0.05, src: '254 lb (the Part 103 airframe)' },
+      Vs1:   { v: 24.1 * MPH, tol: 0.05, kg: 'gross', flaps: 'up', src: 'Vs 24.1 mph' },
+      V75:   { v: 50 * MPH, tol: 0.05, kg: 'unknown', src: 'cruise 50 mph' },
+      Vmax:  { v: 54 * MPH, tol: 0.05, kg: 'gross', src: 'V(Max) 54 mph at 37 hp' },
+      roc:   { v: 650 * FPM, tol: 0.05, kg: 'gross', src: '650 ft/min' },
+      LD:    { v: 4.6, tol: 0.10, kg: 'unknown', src: 'L/D 4.6 at 35 mph (the drag polar CD 0.13 + 0.088 CL^2)' },
+      TO:    { v: 350 * FT, tol: 0.10, kg: 'gross', flaps: 0, surface: 'unknown', src: '350 ft' },
+      LDG:   { v: 300 * FT, tol: 0.10, kg: 'gross', flaps: 0, surface: 'unknown', src: '300 ft' },
     } },
   // SOPWITH CAMEL F.1 (Clerget 9B 130 hp). Weights and dimensions agree across sources; the speed is one database's
   // (185 km/h) and the climb is not found stated as a rate: no climb row.
@@ -191,19 +225,20 @@ Object.assign(REFS, {
       empty: { v: 421, tol: 0.03, src: '929 lb' },
       Vmax:  { v: [182, 185], tol: 0.05, kg: 'gross', src: '185 km/h (flugzeuginfo; THIN) / 113 mph' },
     } },
-  // DE HAVILLAND DH.82A TIGER MOTH (Gipsy Major I 130 hp). Shuttleworth / aeropedia agree; the climb and the stall are
-  // perf_study REAL.tigermoth's (type data), THIN.
+  // (REF-DATA 2026-11-09: the research session's rows - the AAIB 1/2019 flight trial the anchor)
   tigermoth: {
-    name: 'de Havilland DH.82A Tiger Moth (Gipsy Major 130 hp)', mtow: 828, empty: 506, fuelL: 86, S: 22.2, powerHP: 130,
-    src: 'Shuttleworth Collection / aeropedia / de Havilland Museum (search extracts): 29 ft 4 in span, 23 ft 11 in, 8 ft 9 in, 239 ft2, 1115 lb empty, 1825 lb gross, max 107-109 mph at SL; climb 635-673 fpm and stall 45 mph from type data (perf_study REAL.tigermoth, THIN)',
-    poh: { vr: 1.10, vy: 1.30, flapTO: 0, flapLDG: 0, brake: 0, note: 'no flaps, no brakes (a tailskid)' },
+    name: 'de Havilland DH.82A Tiger Moth (Gipsy Major I 130 hp)', mtow: 828, empty: 506, fuelL: 86, S: 22.2, powerHP: 130,
+    src: 'AAIB Bulletin 1/2019 G-ADXT flight trial [0.9]: at 1,760 / 1,790 lb, take-off run 300 m, climb 650 / 500 fpm at 66 mph (2,100 / 2,050 rpm), stall 40-45 mph idle (test pilot: 45-49 mph IAS), level at 66 mph with 1,700-1,800 rpm at 2,000 ft DA; Pilot\'s Notes (ABAC c.1950, via RAF Jever [0.6], extract; and quoted by the AAIB): 1,825 lb max (1,770 aerobatic), tare 1,180 lb, stall 40 mph engine off, 2,100 rpm max climb / cruise, 160 mph max; Jackson / Bransom [0.5]: 29 ft 4 in, 23 ft 11 in, 8 ft 9 in, 239 ft2, 1,115 lb empty, 109 mph, 673 fpm, 13,600 ft',
+    poh: { vr: 1.10, vy: 1.40, flapTO: 0, flapLDG: 0, brake: 0, note: 'no flaps, no brakes (a tailskid). Climb at 60 mph (club handling notes) to 66 mph (AAIB trials) = 1.33-1.47 x a 45 mph stall' },
     rows: {
-      empty: { v: 506, tol: 0.03, src: '1115 lb' },
-      Vs1:   { v: 45 * MPH, tol: 0.08, kg: 'unknown', flaps: 'up', src: '45 mph (type data, THIN)' },
-      V75:   { v: [90 * MPH, 93 * MPH], tol: 0.05, kg: 'unknown', src: 'cruise 90-93 mph (type data, THIN)' },
-      Vmax:  { v: [107 * MPH, 109 * MPH], tol: 0.05, kg: 'gross', src: '107 mph (Shuttleworth) / 109 mph at SL (aeropedia)' },
-      roc:   { v: [635 * FPM, 673 * FPM], tol: 0.05, kg: 'gross', src: '635-673 fpm (type data, THIN)' },
-    } },
+      empty: { v: [506, 535], tol: 0.03, src: '1,115 lb basic (Jackson / Bransom [0.5]) to the RAF tare 1,180 lb with service equipment (Pilot\'s Notes via RAF Jever [0.6], extract)' },
+      Vs1:   { v: [40 * MPH, 49 * MPH], tol: 0.03, kg: [798, 812], flaps: 'up', src: 'idle stall 40-45 mph, the test pilot "typically 45-49 mph IAS", at 1,760-1,790 lb (AAIB 1/2019 [0.9]); Pilot\'s Notes "engine off 40 mph (35 kt)" on a period ASI ([1.0] as quoted). 40 mph needs CL 1.87 at gross: the CAS stall is in the upper half of the band' },
+      V75:   { v: [80 * MPH, 93 * MPH], tol: 0.05, kg: 'unknown', src: 'cruise 80-81 mph at 1,900-1,950 rpm (AAIB 9/98 G-BALX [0.9 est.]; IAOPA 2006 70 kt [0.6]; VH-BCI operator sheet 1,950 rpm [0.5]) to 90-93 mph at 2,100 rpm, max cruising (Jackson [0.5]); no source states a % power' },
+      Vmax:  { v: [107 * MPH, 109 * MPH], tol: 0.05, kg: 'gross', src: '109 mph (Jackson / Bransom [0.5]; altitude not confirmed) / 107 mph (Shuttleworth; aero-web DH.82C [0.5])' },
+      roc:   { v: [500 * FPM, 673 * FPM], tol: 0.03, kg: [798, 828], src: '650 fpm (G-ACDI, 2,100 rpm) and 500 fpm (G-ANNG, 2,050 rpm) at 1,760 / 1,790 lb, 66 mph (AAIB 1/2019 [0.9]); ~600 fpm at ~gross (IAOPA 2006 [0.6]); 673 fpm (Jackson / Bransom [0.5])' },
+      TO:    { v: [200, 300], tol: 0.10, kg: [798, 812], flaps: 0, surface: 'grass', src: '300 m full power at 1,760-1,790 lb (AAIB 1/2019 Table 1 [0.9]; surface and wind not stated, UK grass fields); 200 m to "light on the wheels" at 40 KIAS, Old Sarum dry grass, calm, 15 C, QNH 1026 (AAIB 1/2019 p.61 [0.9]) - the lower bound' },
+    },
+  },
   // BOEING-STEARMAN PT-17 (Continental R-670-5 220 hp; the build's W-670 is the same engine's civil designation)
   stearman: {
     name: 'Boeing-Stearman PT-17 (Continental R-670 220 hp)', mtow: 1195, empty: 876, fuelL: 174, S: 27.6, powerHP: 220,
@@ -263,8 +298,14 @@ const GEO = {
   cub:      { dims: { span: 10.74, length: 6.83, height: 2.03, S: 16.6, cRoot: 1.60, cTip: 1.60, hSpan: 2.90, track: 1.83 },
               specs: { engine: 'Continental A-65', hp: 65, nE: 1, propD: 1.83, blades: 2, empty: 345, mtow: 550, fuelL: 45, seats: 2 },
               src: 'J-3 type sheet (perf_study REAL.cub.dims)' },
-  d112:     { dims: { span: 8.20, length: 6.20, height: 2.07, S: 12.7, cRoot: 1.72, cTip: 1.20, hSpan: 2.74 },
-              specs: { engine: 'Continental A-65', hp: 65, nE: 1, propD: 1.83, blades: 2, empty: 320, mtow: 530, fuelL: 45, seats: 2 },
+  // (JODEL-GEO 9 Nov: the length and height as two sources give them - sprinkle.com's registry sheets 6.20 / 1.90, aeropedia
+  // 6.37 / 2.10; the fuel the D.112's single tank ahead of the pilot: 60 L the maker's front tank, 65 L usable in the AAIB's
+  // G-BEZZ report - the old 45 L was a thin catalogue's)
+  ruckus:   { dims: { span: 8.66, length: 5.33, S: 11.33 },
+              specs: { engine: 'Polini Thor 303', hp: [37, 38], nE: 1, propD: 1.6, blades: 2, empty: 115, mtow: 249, fuelL: 19, seats: 1 },
+              src: 'B&B Sport Aviation RUCKUS airframe sheet; Polini Thor 303 (polinithor.com: 38 hp at 8000 rpm, 1.6 m)' },
+  d112:     { dims: { span: 8.20, length: [6.20, 6.37], height: [1.90, 2.10], S: 12.7, cRoot: 1.72, cTip: 1.20, hSpan: 2.74 },
+              specs: { engine: 'Continental A-65', hp: 65, nE: 1, propD: 1.83, blades: 2, empty: 320, mtow: 530, fuelL: [60, 65], seats: 2 },
               src: 'D.112 type sheet; height and stab span off the d112 reference payload (perf_study REAL.d112.dims)' },
   c172r:    { dims: { span: 11.0, length: 8.28, height: 2.72, S: 16.2, cRoot: 1.63, cTip: 1.12, hSpan: 3.40, Sh: [3.30, 3.35], Sv: 1.6, track: 2.53 },
               specs: { engine: 'Lycoming IO-360-L2A', hp: 160, nE: 1, propD: 1.905, blades: 2, empty: [721, 744], mtow: 1111, fuelL: [201, 212], seats: 4 },
@@ -279,9 +320,13 @@ const GEO = {
   pa18f:    { dims: { span: 10.73, S: 16.6, cRoot: 1.60, cTip: 1.60 },
               specs: { engine: 'Lycoming O-320', hp: [150, 160], nE: 1, blades: 2, empty: [500, 530], mtow: 806, fuelL: 136, seats: 2 },
               src: 'PA-18-150 sheet (35 ft 2.5 in, 178.5 ft2, 36 US gal); empty = landplane 930 lb + Wipaire seaplane exchange 182 lb' },
-  petrel:   { dims: { span: 8.9, length: 6.25, height: [2.2, 2.33], S: 15.0 },
-              specs: { engine: 'Rotax 912 iS', hp: 100, nE: 1, blades: 3, empty: 320, mtow: 600, fuelL: 90, seats: 2 },
-              src: 'maker / Wikipedia (perf_study REAL.petrel.dims)' },
+  // (HEIGHT-CONV 9 Nov: the Petrel's 2.2-2.33 m is read gear-UP - on the hull. Measured: standing on its wheels 2.74, level
+  // 2.88, a blade up 2.78, on the hull 2.33 - the one convention that lands on the maker's figure, as an amphibian's drawing has it)
+  petrel:   { dims: { span: 29.20 * FT, length: 20.83 * FT, height: 8.30 * FT, heightAs: 'ground', S: 15.0 },
+              specs: { engine: 'Rotax 912 iS', hp: 100, nE: 1, blades: 3, empty: 850 * LB, mtow: 1430 * LB, fuelL: 24 * 3.785, seats: 2 },
+              // (the user's 3-view, 10 Nov: 253 in long, 356 in span, 96 in high, 117 in stab span - most likely the XP, the
+              // LS's successor: kept out of the scored row)
+              src: 'Super Petrel USA LS specifications (400 series): 20.83 ft, 8.30 ft, 29.20 ft, 161.48 ft2, 24 gal usable' },
   chinook:  { dims: { span: 9.75, length: 5.38, height: 1.78, S: 14.35, cRoot: 1.47, cTip: 1.47 },
               specs: { engine: 'Rotax 582', hp: 64, nE: 1, propD: 1.73, blades: 3, empty: [172, 209], mtow: 476, fuelL: 38, seats: 2 },
               src: 'ASAP Chinook Plus 2 sheet (perf_study REAL.chinook.dims)' },
@@ -294,7 +339,9 @@ const GEO = {
   tigermoth:{ dims: { span: 8.94, length: 7.29, height: 2.68, S: 22.2 },
               specs: { engine: 'de Havilland Gipsy Major', hp: 130, nE: 1, blades: 2, empty: 506, mtow: 828, fuelL: 86, seats: 2 },
               src: 'DH.82A (search extracts above); fuel 19 imp gal (THIN)' },
-  stearman: { dims: { span: 9.80, length: [7.39, 7.54], height: [2.79, 2.95], S: [27.6, 27.7] },
+  // (HEIGHT-CONV 9 Nov: the PT-17's 9 ft 2 in is its LEVEL height - the REF_MATCH model, gear down in flying attitude,
+  // measures 2.79 m tall after scaling by the span (refs/stearman.json's height anchor x 0.998); standing tail down it is 2.59)
+  stearman: { dims: { span: 9.80, length: [7.39, 7.54], height: [2.79, 2.95], heightAs: 'level', S: [27.6, 27.7] },
               specs: { engine: 'Continental R-670 / W-670', hp: 220, nE: 1, blades: 2, empty: [876, 878], mtow: [1195, 1232], fuelL: 174, seats: 2 },
               src: 'PT-17 (search extracts above); fuel 46 US gal (THIN)' },
   carboncub:{ dims: { span: 10.36, S: 16.6 },
@@ -311,38 +358,55 @@ for (const k in GEO) if (REFS[k]) Object.assign(REFS[k], { dims: GEO[k].dims, sp
 // card (designBake -> the load door's birth envelope). `ref`: the REFS row. `water`: it takes off from water.
 // `official`: on builds/lists/plane_lists.json's official list. `engineNote`: when the build's engine is not the type's.
 // ---------------------------------------------------------------------------------------------------------------------
+// THE LIST'S FILES ARE THE REPRODUCTIONS (the user via A0, 12 Nov: "yes to all" on FLAGSHIP's plane canon): the Cub is list 1's
+// cub_2026-09-20_corrected and the PA-18 floats list 25's; the 1.60 m chord cards stay NEXT (rows 48 / 49: `next`, hidden
+// behind the list's file in the report until they replace it).
+// listRow (A0, 11 Nov): the plane list's row n (builds/lists/plane_lists.json) of the same TYPE, so GATE PLANELISTS can
+// check both sides; null = no list row (jodel_geo, the floats Cessnas, the Ruckus). Where the row's file differs from
+// `file` (the Cub 1 / Jodel 2 / PA-18 25 / Petrel 41) or its blob does, see reports/REAL-FIGURES-CANON.md.
 const PLANES = {
-  cub:      { supersededBy: 'cub160', label: 'Piper Cub (official)', file: 'builds/cub_2026-09-20_corrected.json', ref: 'cub', official: true },
+  cub:      { listRow: 1, label: 'Piper Cub (official)', short: 'Piper Cub', file: 'builds/cub_2026-09-20_corrected.json', ref: 'cub', official: true },
   // (the user, 9 Nov: the J-3's chord, 1.60 m; the shipped file is the calibration datum of 105 checks, so the candidate
   // stands in the report in its place until the user promotes it)
-  cub160:   { label: 'Piper Cub, J-3 chord 1.60 m (candidate; the shipped Cub has 1.70)', short: 'Piper Cub', file: 'builds/candidates/cub_chord160.json', ref: 'cub' },
-  jodel:    { label: 'Jodel D112 (official)', file: 'builds/jodel_2026-09-20_corrected.json', ref: 'd112', official: true },
+  cub160:   { listRow: 48, supersededBy: 'cub', next: true, label: 'Piper Cub, J-3 chord 1.60 m (candidate; the shipped Cub has 1.70)', short: 'Piper Cub', file: 'builds/candidates/cub_chord160.json', ref: 'cub' },
+  jodelg:   { listRow: null, label: 'Jodel D112: the D.112 wing, length and 60 L tank (candidate)', short: 'Jodel D112', file: 'builds/candidates/jodel_geo.json', ref: 'd112' },
+  jodel:    { supersededBy: 'jodelg', label: 'Jodel D112 (official)', file: 'builds/jodel_2026-09-20_corrected.json', ref: 'd112', official: true },
   cessna:   { dropped: 'the user 8 Nov: the corrected 172 is the Cessna; B-CESS is dismissed', label: 'Metal Cessna B-CESS (official)', file: 'builds/cessna172_2026-09-20.json', ref: 'c172r', official: true,
               engineNote: 'the build flies an O-540 235 hp (the type: IO-360 160 hp) on an 18.4 m2 wing (16.2): power-bound rows are not like for like', cgSweep: true },
   cessnaF:  { dropped: 'the user 8 Nov: dismissed; a Cessna on Wipline 2350 floats is to be rebuilt from the corrected 172', label: 'Metal Cessna on floats (official)', file: 'builds/cessna172_floats_2026-11.json', ref: 'c172f', official: true, water: true,
               engineNote: 'O-540 235 hp against the 160-180 hp the references cover' },
-  pa18f160: { label: 'PA-18 on floats, chord 1.60 m (candidate; the shipped one has 1.70)', short: 'PA-18 on floats', file: 'builds/candidates/pa18_floats_chord160.json', ref: 'pa18f', water: true,
+  pa18f160: { listRow: 49, supersededBy: 'pa18f', next: true, label: 'PA-18 on floats, chord 1.60 m (candidate; the shipped one has 1.70)', short: 'PA-18 on floats', file: 'builds/candidates/pa18_floats_chord160.json', ref: 'pa18f', water: true,
               engineNote: 'O-320 150 hp against Wipaire\'s 160 hp; EDO-style seaplane floats against Wipline amphibians' },
-  pa18f:    { supersededBy: 'pa18f160', label: 'PA-18 on floats (official)', file: 'builds/pa18_floats_2026-10-23.json', ref: 'pa18f', official: true, water: true,
+  pa18f:    { listRow: 25, label: 'PA-18 on floats (official)', short: 'PA-18 on floats', file: 'builds/pa18_floats_2026-10-23.json', ref: 'pa18f', official: true, water: true,
               engineNote: 'O-320 150 hp against Wipaire\'s 160 hp; EDO-style seaplane floats against Wipline amphibians' },
   petrel:   { label: 'Super Petrel V4.1 (claude/hull-types, 7 Nov)', file: 'builds/candidates/superpetrel_V4_1.json', ref: 'petrel', water: true, land: true, supersededBy: 'petrelL',
               branch: 'claude/hull-types', note: 'not on master: run from a worktree of claude/hull-types (its core, its rows)' },
-  chinook:  { label: 'Chinook (official, out of the battery)', file: 'builds/chinook_2026-09-21_corrected.json', ref: 'chinook', official: true },
+  chinook:  { supersededBy: 'chinookm', label: 'Chinook (official, out of the battery)', file: 'builds/chinook_2026-09-21_corrected.json', ref: 'chinook', official: true },
   // REAL-FIGURES-2 (2026-11-08): the planes with a clear real parent
-  dc3:      { label: 'DC-3-alike (candidate)', file: 'builds/candidates/dc3_2026-10.json', ref: 'dc3', group: 'historical' },
-  stearman: { label: 'Stearman-alike (candidate)', file: 'builds/candidates/stearman_2026-10.json', ref: 'stearman', group: 'biplane' },
-  tigermoth:{ label: 'Tiger Moth-alike (candidate)', file: 'builds/candidates/tigermoth_2026-10.json', ref: 'tigermoth', group: 'biplane' },
-  camel:    { label: 'Camel-alike (candidate)', file: 'builds/candidates/camel_2026-10.json', ref: 'camel', group: 'biplane' },
+  // MASS-SCALE / TAIL-RETRACT (2026-11-09, claude/practical-cerf-7fjpwp): the candidates standing in for their cards
+  ruckus:   { listRow: 53, label: 'Top Rudder Ruckus Solo 103 (from Rufus)', short: 'Ruckus Solo 103', file: 'builds/candidates/ruckus_std_2026-11-09.json', ref: 'ruckus', group: 'ultralight' },
+  ruckusbc: { listRow: 54, label: 'Top Rudder Ruckus Back-Country (from Rufus)', short: 'Ruckus Back-Country', file: 'builds/candidates/ruckus_2026-11-09.json', ref: 'ruckus', group: 'ultralight',
+              note: 'scored against the Ruckus reference (the Solo 103 figures): no Back-Country figures sourced yet' },
+  dc3r:     { listRow: 12, label: 'DC-3-alike: the radial cowl, mains retracting into the nacelles, airliner-furnished, constant-speed (candidate)', short: 'DC-3', file: 'builds/candidates/dc3_2026-10.json', ref: 'dc3', group: 'historical' },
+  chinookm: { listRow: 8, label: 'Chinook, pull-start (no battery, generator or starter; candidate)', short: 'Chinook', file: 'builds/chinook_2026-09-21_corrected.json', ref: 'chinook', group: 'ultralight' },
+  tigermothm:{ listRow: 10, label: 'Tiger Moth-alike, no electrics as built (candidate)', short: 'Tiger Moth', file: 'builds/candidates/tigermoth_2026-10.json', ref: 'tigermoth', group: 'biplane' },
+  camelm:   { listRow: 11, label: 'Camel-alike, no electrics as built (candidate)', short: 'Camel', file: 'builds/candidates/camel_2026-10.json', ref: 'camel', group: 'biplane' },
+  dc3:      { supersededBy: 'dc3r', label: 'DC-3-alike (candidate)', file: 'builds/candidates/dc3_2026-10.json', ref: 'dc3', group: 'historical' },
+  stearman: { listRow: 9, label: 'Stearman-alike (candidate)', file: 'builds/candidates/stearman_2026-10.json', ref: 'stearman', group: 'biplane' },
+  tigermoth:{ supersededBy: 'tigermothm', label: 'Tiger Moth-alike (candidate)', file: 'builds/candidates/tigermoth_2026-10.json', ref: 'tigermoth', group: 'biplane' },
+  camel:    { supersededBy: 'camelm', label: 'Camel-alike (candidate)', file: 'builds/candidates/camel_2026-10.json', ref: 'camel', group: 'biplane' },
   birdman:  { dropped: 'the user 8 Nov: not needed (it is the Chinook as first built)', label: 'Birdman (candidate: the Chinook as found)', file: 'builds/candidates/birdman.json', ref: 'chinook', group: 'ultralight',
               note: 'the user\'s birdman.json before the 21 Sep corrections (the official Chinook is its corrected file)' },
   skymaster:{ dropped: 'the user 8 Nov: not wanted in the set', label: 'Skymaster-alike (archetype card)', card: 'skymaster', ref: 'skymaster', group: 'archetype',
               note: 'an engine-configuration archetype, never hand-authored to the type: a light check' },
-  petrelL:  { label: 'Super Petrel V4.1, land (claude/seaplanes-merge; PROVISIONAL)', file: 'builds/candidates/superpetrel_V4_1.json', ref: 'petrel', land: true,
+  // PETREL-LS (10 Nov): the V4.2, fitted round by round to the maker's three LS drawings (reports/evidence/PETREL-LS-2026-11-10)
+  petrel42: { listRow: 41, label: 'Super Petrel V4.2 (fitted to the maker\'s LS drawings, 10 Nov)', short: 'Super Petrel', file: 'builds/candidates/superpetrel_V4_2.json', ref: 'petrel', water: true, land: true, group: 'seaplane' },
+  petrelL:  { label: 'Super Petrel V4.1, land (claude/seaplanes-merge; PROVISIONAL)', file: 'builds/candidates/superpetrel_V4_1.json', ref: 'petrel', land: true, supersededBy: 'petrel42',
               branch: 'claude/seaplanes-merge', provisional: true, note: 'not flyable on water on that branch yet: land figures only, to redo once it flies' },
-  c172rf:   { label: '172R on Wipline 2350 floats, STC prop (G3390, 20 Oct)', short: '172R on Wipline 2350', file: 'builds/c172r_wipline2350_stcprop_2026-10-20.json', ref: 'c172f', water: true,
+  c172rf:   { listRow: null, dropped: true, test: true, label: '172R on Wipline 2350 floats, STC prop (G3390, 20 Oct)', short: '172R on Wipline 2350', file: 'builds/c172r_wipline2350_stcprop_2026-10-20.json', ref: 'c172f', water: true,
               note: 'HYDRO-TRIM\'s stock 172R on the catalogue-exact Wipline 2350s with the STC 82 x 43 prop: the floats Cessna that exists today, until FLAGSHIP\'s rebuild lands' },
-  carboncubss: { label: 'Carbon Cub SS (CC340, built to the type)', short: 'Carbon Cub SS', file: 'builds/candidates/carbon_cub_ss.json', ref: 'carboncub',
-              note: 'REAL-FIGURES-3, the user 9 Nov: the CC340 built from the engine dials (the O-320 chassis on the CC340 stroke, 340 in3, 2700 rpm, the new tune 1.09 and build 0.88 dials: 180 hp, 120 kg), a 2-blade carbon 2.03 m, VGs only (no slot, droop or drooped tips), the new STOL flap (plain, to 50 deg), a Super Cub-sized tail, 29 in tundras, 91 L in the wing roots, one 7 in glass PFD/MFD with round ASI / ALT / VSI (builds/edits/carbon_cub_ss.edits.json)' },
+  carboncubss: { listRow: 47, label: 'Carbon Cub SS (CC340, built to the type)', short: 'Carbon Cub SS', file: 'builds/candidates/carbon_cub_ss.json', ref: 'carboncub',
+              note: 'REAL-FIGURES-3, the user 9 Nov: the CC340 built from the engine dials (the O-320 chassis on the CC340 stroke, 340 in3, 2700 rpm, the new tune 1.09 and build 0.88 dials: 180 hp, 120 kg), a 2-blade carbon 2.03 m, VGs only (no slot, droop or drooped tips), the new STOL flap (plain, to 50 deg), a Super Cub-sized tail, 29 in tundras, 91 L in the wing roots, one 7 in glass PFD/MFD with round ASI / ALT / VSI (builds/candidates/carbon_cub_ss.edits.json)' },
   // (the user, 9 Nov: the STOL Cub is a Cub with a kit, not a Carbon Cub - kept, measured, no longer compared: the Carbon
   // Cub SS is the aeroplane that IS a real one)
   stolcub:  { supersededBy: 'carboncubss', label: 'STOL Cub (official)', short: 'STOL Cub', file: 'tools/fixtures/stol_cub_showcase.json', ref: 'carboncub', official: true,
@@ -352,7 +416,9 @@ const PLANES = {
   // CESSNA-FINAL (FLAGSHIP, 8 Nov): the corrected 172 + seven build rows - the lowered aft roof, 212 L at the wing root,
   // the DRAWN stab to the 172R's 3.40 m / 3.30 m2 (stSpan 1.19 -> 1.264: the join measures the drawing, spec.tail does not
   // survive a load), 'standard' seats, the 'full' trim (a 172 as delivered), V2-172. No generator change yet (Part 2)
-  c172v2:   { label: 'Cessna 172 V2-172 (land, build rows)', short: 'Cessna 172 V2-172', file: 'builds/cessna172r_2026-11-08.json', ref: 'c172r',
+  c172v2f:  { listRow: null, branch: 'claude/cessna-final', label: 'Cessna 172 V2-172 on Wipline 2350 floats (draft)', short: 'V2-172 floats', file: 'builds/cessna172r_floats_2026-11-08.json', ref: 'c172f', water: true,
+              note: 'CESSNA-FINAL step 4 (draft): the land V2 + the G3390 float rows, the float system at Wipaire\'s 138 kg; flapless at gross (CG 45 % MAC) until A1' },
+  c172v2:   { listRow: 50, label: 'Cessna 172 V2-172 (land, build rows)', short: 'Cessna 172 V2-172', file: 'builds/cessna172r_2026-11-08.json', ref: 'c172r',
               note: 'CESSNA-FINAL step 2: the corrected 172 on build rows only; the empty CG still aft (the aluminium generator\'s A1)' },
 };
 
@@ -425,7 +491,7 @@ const HISTORY = [
 // ---------------------------------------------------------------------------------------------------------------------
 const NOTES = {
   _global: [
-    '<b>The set</b> (every plane with a clear real parent, after the user\'s cut of 8 Nov): the official Cub, Jodel D112, PA-18 on floats and Chinook; <b>the corrected Cessna 172</b> (the Cessna of the set: the metal B-CESS and its float version are dismissed, a Cessna on Wipline 2350 floats is to be rebuilt from the corrected one) and, until then, HYDRO-TRIM\'s 172R on catalogue-exact Wipline 2350s; the candidates DC-3-alike and the three old biplanes (Stearman-, Tiger Moth- and Camel-alikes, the REF_MATCH recreations); the Super Petrel V4.1 (land only, provisional: claude/seaplanes-merge). The Birdman and the Skymaster-alike are out. <b>"Our 3 historical ones"</b> are read as the Cub, the Jodel and the Cessna of the original studies.',
+    '<b>The set</b> (every plane with a clear real parent, after the user\'s cut of 8 Nov): the official Cub, Jodel D112, PA-18 on floats and Chinook; <b>the corrected Cessna 172</b> (the Cessna of the set: the metal B-CESS and its float version are dismissed, a Cessna on Wipline 2350 floats is to be rebuilt from the corrected one) and, until then, HYDRO-TRIM\'s 172R on catalogue-exact Wipline 2350s; the candidates DC-3-alike and the three old biplanes (Stearman-, Tiger Moth- and Camel-alikes, the REF_MATCH recreations); the <b>Super Petrel V4.2</b> (fitted to the maker\'s LS drawings, land and water) and the <b>Top Rudder Ruckus</b> (from Rufus). The Birdman and the Skymaster-alike are out. <b>The canon (the user via A0, 12 Nov, "yes to all")</b>: the Cub and the PA-18 floats are the plane list\'s files (list 1 and 25); their 1.60 m chord cards are NEXT (48 / 49), not shown; the 20 Oct 172R on Wipline floats is a TEST plane (the Cessna-on-floats reproduction will be FLAGSHIP\'s V2 floats draft). <b>Final versions (11 Nov)</b>: every plane is measured on the build file its PLANES row names, all of them committed on claude/practical-cerf-7fjpwp and re-flown on 11 Nov on the core of 2924633a6; the two V2-172 Cessnas keep their 9 Nov run (their files are on claude/alloy-frame). <b>"Our 3 historical ones"</b> are read as the Cub, the Jodel and the Cessna of the original studies.',
     '<b>Geometry is measured on the drawn aeroplane</b> (since 8 Nov): span tip to tip, length spinner to rudder and height standing on the gear at its settled deck angle, off the editor\'s own scene through the load door; the structure\'s figures are shown beside them. A build FILE\'s stations can be stale: the game\'s load door re-measures the tail off the drawing (the Jodel\'s fin sits 0.55 m forward of its file\'s figure, the corrected 172\'s 0.48 m, and the 172\'s stab span reads 3.20 m where its file says 3.41).',
     '<b>Performance</b> is the aeroplane\'s capability (no pilot, or the same pilot on the handbook\'s schedule). What the shipped pilot adds is shown apart: on the landing roll it is most of the error on every plane (REAL-CHECK-2026-11-07 §5).',
   ],
@@ -441,7 +507,8 @@ const NOTES = {
     '<b>The propeller\'s climb-speed efficiency</b> (physics, PHYSICS_V): the 10-20 % climb deficit and the long climb-out.',
     '<b>The pilot\'s climb speed</b> from the measured Vy instead of 1.38 Vs, and a Vx obstacle climb-out (the handbook\'s short-field technique; the sweep has none yet).',
     '<b>The mass model on old construction</b>: the Camel bills 37 % over its empty weight, the DC-3 15-22 % under.',
-    '<b>Redo the Petrel</b> on water once claude/seaplanes-merge flies it.',
+    '<b>The Petrel, phase 2</b>: the hump trim that dips the boom (0.20 m), the roll oscillation on the water at light loads, the pusher-in-wake propeller loss and the tip float / step / pylon drag (the 16 % speed and glide excess), the rotation (lift-off 1.36 Vs), the rudder\'s hinge line, the leading-edge tank bay to the real spar.',
+    '<b>REAL-FIGURES made perennial</b>: each result stamped with its build file\'s hash and the core\'s build so the report flags its own stale rows; GATE REALBAND against a committed baseline; structured reference rows (URL, date read, variant, weight / flap / surface / distance conditions) with a lint; the how-to.',
     '<b>GATE REALBAND</b> on the official planes: the airframe bands and the approach-trim row (REAL-CHECK-2026-11-07 §8).',
   ],
   cub160: ['<b>The Piper Cub with the J-3\'s chord</b> (the user 9 Nov): the shipped Cub\'s wing chord 1.70 -> 1.60 m (the J-3\'s 5 ft 3 in), wing area 17.6 -> 16.5 m² (the J-3\'s 16.6). A candidate (builds/candidates/cub_chord160.json) standing in for the shipped Cub, whose file is the calibration datum of 105 checks: promoting it is the user\'s call.'],
@@ -466,7 +533,14 @@ const NOTES = {
   camel: ['Geometry exact (REF_MATCH). <b>Empty 579 kg against 421 (+37 %)</b>: the frame\'s mass model on a 1917 wire-braced scout. Top speed 5 % under the one (thin) figure. Static margin 1-3 % (the real Camel was famously close to neutral). Only one performance figure is sourced: its performance score rests on it.'],
   dc3: ['Span to the centimetre, 19.60 m long (19.43-19.71), the right engines, propellers and fuel. <b>Empty 6480 kg against 7650-8300 (-15 to -22 %)</b>: the mass model, light on a big all-metal airliner. Cruise and top speed ~13 % under figures quoted at altitude (THIN); the climb inside at gross on the airframe and the handbook schedule, 18 % short under the game\'s pilot.',
         '<b>The balance</b>: the CG at 50 % MAC with a light load (margin 15 %) and 66 % with every seat filled (margin 1 %); at that load the game\'s pilot <b>capsized</b> on the landing. A mass-and-balance item for the DC-3 build before it goes official.'],
+  petrel42: ['<b>Phase 1 closed (10 Nov)</b>: the airframe fitted to the maker\'s three LS drawings (side, top, front) and its physics lattice checked over the drawing: wings, struts, stab, floats and gear within 1-2 cm; the fin\'s taper, its tail post and the raised stab\'s anchoring fixed in the frame. Empty 388 kg against 386; climb and stall inside the load range. <b>Fast</b>: ~214 km/h at max continuous against the 100 kt max cruise, glide 11.6 against 10 - about a third too little parasite drag (no pusher-in-wake propeller loss, no tip float, step or pylon drag). <b>Balance</b>: SM 14 % at gross, 1-2 % solo. <b>Water</b>: the book technique\'s run 123-139 m against 120 m; the game\'s pilot at gross 344 m and a 353 m landing roll; at the light loads the run decays in a roll oscillation at the hump. At the hump the keel trims ~9.5 deg and the boom dips 0.20 m (the rudder 0.11 m) - open, phase 2.'],
   petrelL: ['The same airframe as the 7 Nov run: flown numbers identical to the hull-types run (TO 192 m, climb 2.42 m/s, landing 457 m at 600 kg). Empty 380 kg against 320 (+19 %; the retract gear and the hull bottom), fuel 72 L against 90. Its drawn length is not used (that branch\'s scene reads 12.5 m: something besides the aeroplane), the structure\'s 5.61 m is. <b>PROVISIONAL</b>: land only until it flies off the water. Solo, a 3-4 % static margin.'],
+  dc3r: ['<b>The DC-3 candidate</b> (9 Nov, claude/practical-cerf-7fjpwp): the PROPER-COWLS radial cowl; the nacelles 0.30 m aft (the spinner 2.45 m aft of the nose, the reference model\'s); the mains retracting forward into the nacelles, the wheel stowed half out (TAIL-RETRACT: a taildragger\'s mains, the tailwheel fixed), no doors; airliner seats and full trim; constant-speed propellers. The physics under it: a NACA cowl\'s cooling and the Reynolds number above the calibrated sizes (DRAG-SCALE), the gear\'s own gauge ceiling (MASS-SCALE). The references are the REF-DATA session\'s (the DC-3A type certificate, Francillon, AOPA 1994, a C-47 climb table): Vmax at 8,500 ft, the climb at METO (1,050 of 1,200 hp). Empty 7423 kg against 7630-7650.',
+          'Still open: the transport systems (hydraulics, de-icing, a 24 V twin-generator bus: no rows), the retraction kit at 3.5 % of the gross (~330 kg, likely high for an airliner\'s actuators).'],
+  tigermothm: ['<b>The Tiger Moth with no electrics</b>, as built (hand-swung, magnetos only), on the braced-spar sizing (BIPLANE-SIZING: a wired plane\'s spars bill their braced moment). Empty 520 kg against 506-535 (the REF-DATA range: 1,115 lb basic to the RAF tare). The references are the AAIB 1/2019 flight trial\'s.'],
+  camelm: ['<b>The Camel with no electrics</b> (magnetos only), on the braced-spar sizing: empty 551 kg against 421 - still +31 %. The surplus is the airframe (wings 120, bracing 66, gear 48 kg): a 1917 fighter\'s featherweight build, for which the garage has no construction row yet.'],
+  chinookm: ['<b>The Chinook on a pull start</b> (no battery, generator or starter): empty 215 kg against 172-209. The flights do not complete on this branch (the shipped Chinook\'s neither): no flown rows.'],
+  jodelg: ['<b>The Jodel with the D.112\'s geometry</b> (the user 9 Nov, JODEL-GEO): span 8.20 m tip to tip, 12.76 m² (12.7), chords 1.72 / 1.70 at the crank / 1.20 at the rounded tip, 6.21 m long (the boom 0.36 m longer), and the D.112\'s single tank ahead of the pilot behind the firewall, 62 L (the maker\'s 60 L front tank, the AAIB\'s G-BEZZ 65 L usable; the nose 8 cm longer to hold it). Geometry 66 -> 100; the static margin 5.5 -> 6.8 %, the design check passes. Still heavy at 343 kg (320): the electrics the D.112 never carried - ELEC-SYSTEMS takes them off (321.6 kg, margin 5.5 % with this geometry).'],
 };
 
 module.exports = { REFS, PLANES, HISTORY, NOTES, KT, MPH, FPM, FT, LB };
