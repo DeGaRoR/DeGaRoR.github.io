@@ -121,7 +121,7 @@ function child(k) {
          'DRAW the fit missed a known ' + view + ' frame: ' + JSON.stringify(fr) + ' vs ' + [ox, oy, rot]);
       res[view] = { href: 'data:image/png;base64,', W: w, H: h, s, frame: fr };
     }
-    for (const th of ['sheet']) for (const p of FP.PAGES) {
+    for (const th of ['sheet', 'dark']) for (const p of FP.PAGES) {
       let out = '';
       try { out = FP.svg(p.id, D, { theme: th, name: k, reg: 'F-TEST', pics: res, sig: 'Wingsmith · certified airworthy' }); } catch (e) { out = 'THROW ' + e.message; }
       ok(/^<svg [^>]*viewBox="0 0 1200 800"/.test(out) && out.endsWith('</svg>') && !/NaN|undefined|Infinity/.test(out),
@@ -147,7 +147,7 @@ function child(k) {
       else { const sc = REP.scorePlane(got.o);
         ok(['overall', 'geometry', 'specs', 'performance'].every(a => RF[a] === (sc[a] == null ? null : Math.round(sc[a]))) &&
            ['geometry', 'specs', 'performance'].every(a => RF.items[a].length === (sc.items[a] || []).length), 'REFERENCE the baked scores are not scorePlane\'s');
-        for (const th of ['sheet']) { let out = '';
+        for (const th of ['sheet', 'dark']) { let out = '';
           try { out = FP.svg('reference', Object.assign({}, D, { reference: RF }), { theme: th, name: k, reg: 'F-TEST', sig: 'Wingsmith' }); } catch (e) { out = 'THROW ' + e.message; }
           ok(/^<svg /.test(out) && !/NaN|undefined|Infinity/.test(out) && out.includes('OURS VS REAL'), 'DRAW reference (' + th + ') ' + (out.startsWith('THROW') ? out : 'bad')); } } }
     // ...and the shipped index: every entry under the file it was flown on, its scores in range, the canon's aliases resolving
