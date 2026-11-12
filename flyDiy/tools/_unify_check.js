@@ -1,0 +1,142 @@
+#!/usr/bin/env node
+// GATE UNIFY (PILOT-UNIFY, 13 Nov; the user, 12 Nov: "one coherent pilot ... the modes are not new modes, they are
+// abilities the pilot TRIGGERS ITSELF from its own assessment ... declined into the pilots of the story, their skills
+// decide who can do what"): THE ONE PILOT, ITS ABILITIES AND THEIR TRIGGERS.
+//   TABLE     the five persons (PILOT_PROFILES; the story's Stig = the expert, Megan = bush, Brian = club, Remy = student,
+//             Bryce = ham-fist, 72_people's bases): STOL-qualified and glider-rated as the table says (the expert and the
+//             bush pilot: both; the club pilot, the student, the ham-fist: neither)
+//   STRIP     the strip decides, flown the game's way (TOUR's gameHost: the game's day, the shakedown, the line-up skip):
+//             HOME > nv_strip (a short strip) > HOME (a long one). The user's Cub (list:1), the expert: the FEEL short field
+//             at nv_strip (a no-device taildragger, a qualified person), the normal landing at HOME; the bush pilot: the
+//             feel short field; the club pilot (not qualified): G1936's short law, neither STOL nor feel; the Cessna 172
+//             (list:50 F-HCSN, a trike), the expert: the strip-decides STOL technique. Every landing on its To, no ground
+//             loop, no fault
+//   GLIDE     the glider rating decides: the motorglider, its motor off 280 m over Jolene, sent to Jolene - the expert
+//             (rated) flies the glider's circuit to its To ('completed'); the club pilot (unrated) has an EMERGENCY
+//             (said so, 'forced-landing') and lands on the field the glide reaches
+//   EMERG     every person glides a powered aeroplane that loses its engine: the Cessna 172 (list:50) at 600 m, 2.6 km out
+//             of Jolene for nv_strip - the expert and the student each land on the nearest field the glide reaches,
+//             said as an emergency, nothing broken
+//   ARCH      the Archaeopteryx card (builds/archaeopteryx_2026-11-10.json, when the tree has it - else said as owed):
+//             the expert, motor off 360 m over Jolene, the glider's circuit, on the runway
+// run_gates shards it (--shard=i/N); one row by hand: ONLY=<row id> node tools/_unify_check.js
+'use strict';
+const fs = require('fs'), path = require('path');
+const T = __dirname, ROOT = path.join(T, '..');
+const PT = require(path.join(T, 'pilot_trace.js')); PT.loadPanel();
+const C = require(path.join(T, 'flight_core.js'));
+const IN = require(path.join(T, 'island_node.js'));
+const TR = require(path.join(T, '_tour_lib.js'));
+const DS = require(path.join(T, '_cage_design.js'));
+const SHD = require(path.join(T, '_shard.js'));
+const SH = require(path.join(ROOT, 'src', 'viewer', 'sim_host.js'));
+const go = id => SHD.take() && (!process.env.ONLY || process.env.ONLY === id);
+let fails = 0;
+const row = (id, ok, msg) => { console.log((ok ? 'ok   ' : 'FAIL ') + id.padEnd(7) + ' ' + msg); if (!ok) fails++; };
+const f = (x, n = 1) => x == null ? '-' : (+x).toFixed(n);
+const CUB = path.join(ROOT, 'builds', 'cub_2026-09-20_corrected.json');
+const C172 = path.join(ROOT, 'builds', 'cessna172r_2026-11-08.json');
+const ARCHF = path.join(ROOT, 'builds', 'archaeopteryx_2026-11-10.json');
+
+// ---- TABLE (pure) ----
+{
+  const want = { expert: [true, true], bush: [true, true], club: [false, false], student: [false, false], hamfist: [false, false] };
+  const story = { expert: 'Stig', bush: 'Megan', club: 'Brian', student: 'Remy', hamfist: 'Bryce' };
+  for (const n of Object.keys(want)) {
+    const P = C.pilotProfile(n), q = n === 'expert' ? [true, true] : [!!P.stol, !!P.glider];   // (the expert: no profile hook - qualified in all)
+    row('TABLE', q[0] === want[n][0] && q[1] === want[n][1], story[n] + ' (' + n + '): STOL ' + (q[0] ? 'yes' : 'no') + ', glider ' + (q[1] ? 'yes' : 'no'));
+  }
+}
+
+// ---- the game's flight with a person: the host captured to read its pilot's plan per leg ----
+let HOST = null;
+const mk0 = SH.makeSimHost;
+SH.makeSimHost = function () { const H = mk0.apply(this, arguments); HOST = H; return H; };
+const TW = TR.tourWorld(C, IN, fs), W = TW.W;
+function tour(file, profile, order) {
+  const def = TR.defOf(C, PT, file), legs = [];
+  const R = TR.flyTour(C, W, def, order, { game: { profile, lineup: true }, roundOK: null, tMax: 1800, log: L => {
+    const A = HOST && HOST.ap && HOST.ap.report && HOST.ap.report.appr;
+    legs.push({ L, appr: A ? { technique: A.technique, stol: !!A.stol, feel: !!A.feel } : null });
+  } });
+  return { R, legs };
+}
+const legLine = x => x.L.from + '>' + x.L.to + ' on ' + x.L.landedOn + (x.appr ? ' [' + x.appr.technique + (x.appr.stol ? ', STOL' : '') + (x.appr.feel ? ', feel' : '') + ']' : '') +
+  (x.L.faults.length ? ' FAULTS ' + x.L.faults.map(q => q.k).join(',') : '') + (x.L.groundLoop ? ' ground-loop' : '');
+const clean = x => x.L.ok && x.L.landedOn === x.L.to && !x.L.groundLoop;
+
+// ---- STRIP ----
+const STRIP = [
+  ['the user\'s Cub, the expert (Stig)', CUB, undefined, ['HOME', 'nv_strip', 'HOME'], [{ technique: 'short', stol: false, feel: true }, { technique: 'normal', stol: false, feel: false }]],
+  ['the user\'s Cub, the bush pilot (Megan)', CUB, 'bush', ['HOME', 'nv_strip'], [{ technique: 'short', stol: false, feel: true }]],
+  ['the user\'s Cub, the club pilot (Brian)', CUB, 'club', ['HOME', 'nv_strip'], [{ technique: 'short', stol: false, feel: false }]],
+  ['the Cessna 172 (list:50), the expert', C172, undefined, ['HOME', 'nv_strip'], [{ technique: 'short', stol: true, feel: false }]],
+];
+for (const [what, file, prof, order, want] of STRIP) {
+  if (!go('STRIP')) continue;
+  let out;
+  try { out = tour(file, prof, order); } catch (e) { row('STRIP', false, what + ': THREW ' + String(e.message).slice(0, 160)); continue; }
+  const ok = out.legs.length === want.length && out.legs.every((x, i) => clean(x) && x.appr && x.appr.technique === want[i].technique && x.appr.stol === want[i].stol && x.appr.feel === want[i].feel);
+  row('STRIP', ok, what + ': ' + out.legs.map(legLine).join(' | ') + ' (asked: ' + want.map(w => w.technique + (w.stol ? '+STOL' : '') + (w.feel ? '+feel' : '')).join(', ') + ')');
+}
+
+// ---- in the air (GATE GLIDE's way): settled at a's line-up, moved to (x, z) h m up, heading hdg at V ----
+const AD = id => W.aerodromes.find(a => a.id === id);
+function airborne(def, a, x, z, h, hdg, V, keyOff) {
+  const sim = C.makeSim(def, W); sim.reset(0);
+  C.placeAtLineup(sim, a, { x: a.x, z: a.z, hdg }, W, def.refs); for (let i = 0; i < 60; i++) sim.step(1 / 60);
+  const P = Float64Array.from(sim.p), cg = sim.cgPos(), y = W.terrainH(x, z) + h;
+  sim.reset(0);
+  const fx = Math.cos(hdg), fz = Math.sin(hdg);
+  for (let i = 0; i < sim.n; i++) {
+    sim.p[i * 3] = P[i * 3] - cg[0] + x; sim.p[i * 3 + 1] = P[i * 3 + 1] - cg[1] + y; sim.p[i * 3 + 2] = P[i * 3 + 2] - cg[2] + z;
+    sim.v[i * 3] = fx * V; sim.v[i * 3 + 1] = 0; sim.v[i * 3 + 2] = fz * V;
+  }
+  for (let i = 0; i < sim.eng.length; i++) sim.setEngine(i, keyOff ? { key: 'off' } : { key: 'both', running: true });
+  return sim;
+}
+function fly(def, sim, from, to, T, profile, fail) {
+  const ap = C.makePilot(sim, def, W, profile ? { profile } : undefined); ap.setRoute(from, to); ap.reEngage({ phase: 'CLIMB' });
+  let bad = false;
+  for (let fr = 0; fr < 60 * T; fr++) {
+    if (fail && fr === fail.at * 60) fail.fn(sim);
+    ap.update(1 / 60); sim.step(1 / 60);
+    if (sim.stats().bad) { bad = true; break; }
+    if (ap.phase === 'STOPPED') break;
+  }
+  const said = (ap.report.verdicts || []).find(v => v.code === 'out-of-energy');
+  return { ap, bad, G: ap.report.glider, L: ap.report.landing, out: ap.report.outcome, said: said ? String(said.msg || said.text || said.note || JSON.stringify(said)).slice(0, 140) : null, broken: sim.damage ? sim.damage().broken.length : 0 };
+}
+const onRwy = R => !R.bad && R.L && R.L.onStrip && Math.abs(R.L.offCentre) < 20 && R.L.stopLeft > 0 && R.broken === 0;
+const glideLine = R => (R.G ? R.G.field + ' (' + R.G.side + '-hand)' : 'no circuit') + '; ' + (R.L ? (R.L.onStrip ? 'on the runway' : 'OFF it') + ' ' + f(Math.abs(R.L.offCentre)) + ' m off, sink ' + f(R.L.sink, 2) : 'NO LANDING') +
+  ', ' + R.out + (R.said ? ' - "' + R.said + '"' : '') + (R.broken ? ', ' + R.broken + ' broken' : '');
+const archDef = key => { const A = DS.ARCHETYPES.find(x => x.key === key); return C.buildGen(DS.designBake(A.sel, A.over)); };
+const H = AD('HOME');
+
+// ---- GLIDE: the rating decides ----
+for (const [who, prof] of [['the expert (rated)', undefined], ['the club pilot (unrated)', 'club']]) {
+  if (!go('GLIDE')) continue;
+  const def = archDef('motorglider'), R = fly(def, airborne(def, H, H.x, H.z, 280, H.hdg, 27, true), H, H, 600, prof);
+  const ok = onRwy(R) && (prof ? R.out === 'forced-landing' && !!R.said : R.out === 'completed' && !!R.G);
+  row('GLIDE', ok, 'the motorglider, motor off 280 m over Jolene, sent to Jolene, ' + who + ': ' + glideLine(R));
+}
+// ---- EMERG: every person glides a powered aeroplane that loses its engine ----
+{
+  const To = AD('nv_strip'), hd = Math.atan2(To.z - H.z, To.x - H.x), sx = H.x + Math.cos(hd) * 2600, sz = H.z + Math.sin(hd) * 2600;
+  for (const [who, prof] of [['the expert', undefined], ['the student', 'student']]) {
+    if (!go('EMERG')) continue;
+    const def = TR.defOf(C, PT, C172), sim = airborne(def, H, sx, sz, 600, hd, 50, false);
+    const R = fly(def, sim, H, To, 700, prof, { at: 10, fn: s2 => { for (let i = 0; i < s2.eng.length; i++) s2.setEngine(i, { running: false }); } });
+    row('EMERG', onRwy(R) && !!R.said && R.out === 'forced-landing', 'the Cessna 172 (list:50) 2.6 km out for ' + To.name + ', the engine stops at 600 m, ' + who + ': ' + glideLine(R));
+  }
+}
+// ---- ARCH: the Archaeopteryx card ----
+if (go('ARCH')) {
+  if (!fs.existsSync(ARCHF)) console.log('owed   ARCH    builds/archaeopteryx_2026-11-10.json is not on this tree (its branch: claude/archaeopteryx-sailplane-study-q8tzz2)');
+  else {
+    const def = TR.defOf(C, PT, ARCHF), R = fly(def, airborne(def, H, H.x, H.z, 360, H.hdg, 25, true), H, H, 600);
+    row('ARCH', onRwy(R) && R.out === 'completed' && !!R.G, 'the Archaeopteryx card, motor off 360 m over Jolene, the expert: ' + glideLine(R));
+  }
+}
+console.log('GATE UNIFY: ' + (fails ? 'FAIL' : 'PASS'));
+process.exit(fails ? 1 : 0);

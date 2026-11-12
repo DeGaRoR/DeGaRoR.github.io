@@ -1532,6 +1532,7 @@ function makePilot(sim, def, world, opts) {
                   aimIn: Math.round(aim - sThr), flap: FS0 ? (FS0.ldg ?? 1) : 0, len: to.len, surface: to.surface,
                   runNeed: runNeed != null ? Math.round(runNeed) : null };
       if (stolT) ap.appr.stol = stolL0 ? Object.assign({}, stolSheet()) : { strip: true };   // STOL-PILOT: the sheet that engaged it, or the short strip (absent on every other plan)
+      if (feelT) ap.appr.feel = true;   // PILOT-UNIFY: the feel short field flown (absent on every other plan)
       ap.report.appr = ap.appr;
       ap.xAim = aim; ap.shortFld = technique === 'short'; ap.VAppr = Vbase + 0.5 * gust;
       if (stolT || ap.stolFld) ap.stolFld = stolT;

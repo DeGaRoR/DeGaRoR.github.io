@@ -181,6 +181,10 @@ const GATES = [
   // circuit at Jolene, Skyline Altiport > Jolene (the route's To first), a To out of reach (the nearest field), and the
   // C172-alike's engine failures (300 m, 1000 m, the tanks dry: the nearest field its glide reaches, the circuit, landed)
   { id: 'GLIDE', file: '_glide_check.js', tier: 'core', shards: 4, timeout: 3600_000, wall: 900 },
+  // PILOT-UNIFY (13 Nov, the user: one coherent pilot, abilities it triggers itself, declined into the story's persons): the
+  // ability table, the strip deciding the technique (feel / STOL / the short law by person and airframe), the glider rating
+  // deciding glide-to-goal or emergency, every person gliding an engine failure, the Archaeopteryx card when the tree has it
+  { id: 'UNIFY', file: '_unify_check.js', tier: 'core', shards: 4, timeout: 3600_000, wall: 1200 },
   // G2500 CESSNA-VREF: the metal Cessna as the game loads it into Tamgas Hill's 520 m in the game's flight, damage on -
   // stopped on the strip, or the strip refused with its reason said and the diversion landed; the C172 file build the control
   { id: 'CESSNAVREF', file: '_cessnavref_check.js', tier: 'full', shards: 2, timeout: 2400_000, wall: 700 },
