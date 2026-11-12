@@ -110,7 +110,7 @@ function makeTowHands(sim, o) {
     // the pitch: on the ground the elevator neutral to 15 m/s (the tail lifts with the speed), then the flying attitude;
     // in the air up by the height made - the auto-tow's steep climb under the line's pull
     if (onG && V < 15) sim.ctl.de = 0;
-    else { const want = onG ? 6 : (tow && !tow.on) ? (o.glidePitch ?? 0) : Math.min(maxP, 6 + Math.max(0, agl) * 0.45); sim.ctl.de = cl(0.05 * (want - pitch), 0.7); }   // (released: the glide's attitude)
+    else { const want = onG ? 6 : (!tow || !tow.on) ? (o.glidePitch ?? 0) : Math.min(maxP, 6 + Math.max(0, agl) * 0.45); sim.ctl.de = cl(0.05 * (want - pitch), 0.7); }   // (released - or no line at all, a push start down a slope: the glide's attitude)
     sim.ctl.da = cl(-0.03 * bankR + 0.02 * headL, 0.7);
     sim.ctl.dr = cl(-0.04 * headL, 0.7);
     sim.ctl.thr = 0;

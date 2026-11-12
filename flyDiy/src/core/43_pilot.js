@@ -1360,6 +1360,20 @@ function makePilot(sim, def, world, opts) {
   // the strip score, the aim, the circuit's side) and the glider's numbers: a downwind 0.6 the powered one's offset
   // (220-420 m: a glider flies a tight circuit), the glide ratio the circuit is judged on (0.6 the sheet's best: the turns,
   // the flap, a margin), the speeds. Its stages are flown in GLIDE (below)
+  // the nearest field a glide of ratio E reaches from here (its height over that field, 30 m over), the gear's surfaces
+  // only; `skip`, `skip2` ids not to take (the field out of reach; the one just left, when the flight was going elsewhere)
+  const gliderPick = (E, skip, skip2) => {
+    const cg = sim.cgPos();
+    let best = null, bestD = Infinity;
+    for (const a of (world && world.aerodromes) || []) {
+      if (a.id === skip || a.id === skip2) continue;
+      if (typeof stripAllows === 'function' && !stripAllows(gearK, a).ok) continue;
+      const d = Math.hypot(a.x - cg[0], a.z - cg[2]);
+      if (d > E * Math.max(0, cg[1] - (a.elev || 0) - 30)) continue;
+      if (d < bestD) { bestD = d; best = a; }
+    }
+    return best;
+  };
   const gliderCircuitPlan = (a) => {
     try {
       const LW = ap.landWayFrom(a, sim.cgPos()[0], sim.cgPos()[2]); if (!LW) return null;
@@ -1367,7 +1381,7 @@ function makePilot(sim, def, world, opts) {
       const S = sheetOf(), LD = S && S.LDbest > 0 ? S.LDbest : 12;
       const deg = Math.round(((Math.atan2(LW.u[0], -LW.u[1]) * 180 / Math.PI) + 360) % 360);
       return { F: P.F, sAim: P.sAim, side: P.side || 1, W: clamp(0.6 * (P.W || 500), 220, 420), E: 0.6 * LD, LD, stage: 'key', t0: ap.t,
-               name: a.name || a.id, way: 'heading ' + deg + ' deg', log: [] };
+               id: a.id, name: a.name || a.id, way: 'heading ' + deg + ' deg', log: [] };
     } catch (e) { return null; }
   };
   const alongOf = (F, cg) => (cg[0] - F.ox) * F.ux + (cg[2] - F.oz) * F.uz;
@@ -3304,7 +3318,21 @@ function makePilot(sim, def, world, opts) {
           const d = Math.hypot(a.x - cg[0], a.z - cg[2]);
           if (d < bestD) { bestD = d; best = a; }
         }
-        const reach = best && bestD < 0.7 * ld * Math.max(0, aglG);
+        let reach = best && bestD < 0.7 * ld * Math.max(0, aglG);
+        // TOW-LAUNCH (12 Nov; the user: "from there it could probably try and land on Jolene, or at least the village
+        // strip"): A GLIDER GOES WHERE IT WAS SENT - the route's To, when its gear may use it and the cone (the sheet's L/D,
+        // else a glider's 15, over the height ABOVE THAT FIELD) reaches it; else the nearest the cone reaches, judged the
+        // same way (off an altiport the ground below is no measure: the field it left is the nearest). The glide is
+        // checked again once it is flown (GLIDE: gliderDivert)
+        if (glider) {
+          const ldG = (SH && SH.LDbest > 0) ? SH.LDbest : 15, ok = a => a && !(typeof stripAllows === 'function' && !stripAllows(gearK, a).ok);
+          const cone = a => Math.hypot(a.x - cg[0], a.z - cg[2]) < 0.7 * ldG * Math.max(0, cg[1] - (a.elev || 0));
+          const to = ap.route && ap.route.to;
+          const from = ap.route && ap.route.from;
+          if (ok(to) && cone(to)) { best = to; reach = true; }
+          else { best = gliderPick(ldG * 0.7, to && to.id, from && to && from.id !== to.id ? from.id : null); reach = !!best; }
+          if (best) bestD = Math.hypot(best.x - cg[0], best.z - cg[2]);
+        }
         glideTo = reach ? best : null;
         glideHdg = Math.atan2(nose[1], nose[0]);
         // TOW-LAUNCH (the user, 12 Nov: "do the glider circuit"): A GLIDER FLIES A CIRCUIT to the field it reaches - the
@@ -3522,6 +3550,15 @@ function makePilot(sim, def, world, opts) {
           const sKey = G.sAim + 0.8 * G.W, cD = G.side * G.W, dMin = 0.8 * G.W + G.W + 2 * Rt;
           const next = st => { if (st !== G.stage) { G.log.push({ t: +ap.t.toFixed(1), stage: st, h: Math.round(h) }); G.stage = st; say('glider-circuit', st + ' at ' + Math.round(h) + ' m over the aim'); } };
           let trk = null, hdg = null, ias = vbg, flap = 0;
+          // THE FINAL GLIDE, CHECKED AS FLOWN (gliderDivert): from 12 s in, before the key, the field is still reached
+          // when the height over its aim covers the way to it at the ratio flown; when not, the nearest the flown ratio
+          // reaches is taken (said), else the straight glide of a forced landing
+          if (G.stage === 'key' && ap.t - G.t0 > 12 && h < need(Math.hypot(G.sAim - sN, cN)) - 20) {
+            const alt = gliderPick(G.E, G.id, ap.route && ap.route.from && ap.route.to && ap.route.from.id !== ap.route.to.id ? ap.route.from.id : null);
+            if (alt) { say('glider-divert', G.name + ' is out of reach at the ratio flown (' + G.E.toFixed(1) + ') - diverting to ' + (alt.name || alt.id)); const g2 = gliderCircuitPlan(alt); if (g2) { g2.log = G.log.concat([{ t: +ap.t.toFixed(1), stage: 'divert ' + (alt.name || alt.id), h: Math.round(h) }]); g2.Em = G.Em; gcirc = g2; glideTo = alt; } }
+            else { say('glider-divert', G.name + ' is out of reach and no field is in reach - a forced landing ahead'); gcirc = null; glideTo = null; glideHdg = Math.atan2(vcg[2], vcg[0]); }
+            break;
+          }
           if (G.stage === 'key') {
             const K = wp(F, sKey, cD), dK = Math.hypot(K[0] - cg[0], K[1] - cg[2]);
             if (h < need(dK + dMin) - 40 && h < need(Math.hypot(G.sAim - sN, cN) + Rt)) next('direct');
