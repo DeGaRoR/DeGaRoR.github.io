@@ -8,18 +8,17 @@ rulings are in its section 6). **Every phase that lands updates this file**: the
 
 | piece | status | where |
 |---|---|---|
-| the scene file (format, checks, the plane-anchored camera, the picture's size) | **BUILT** (P0, 11 Nov) | `src/core/89_scene.js`, `tools/scene.js`, GATE SCENE |
-| the scene inside a PNG (one compressed `iTXt` chunk) | **BUILT** (P0) | same |
-| `placePose`: the aeroplane at any heading / pitch / roll, rigid | **BUILT** (P0) | `src/core/39c_placement.js` |
-| the JSON Schema of the scene | **BUILT** | `futureDesigns/photo-mode-2/scene.schema.json` |
-| the photo bar on the top row, garage + flight: camera and light slots, Done, the floating shutter | **BUILT** (P1, 12 Nov) | `src/viewer/photo.js` (the UI), app.js's PHOTO-MODE-2 P1 section (the slots, the bubble, the shutter), GATE PHOTO, UISMOKE rows |
-| the picture slot (size, high quality), Save / Load a scene in the game, `window.SCENE` | not yet (P2; high quality P4) | photo.js |
-| "go to" the start places in photo mode | not yet (P3) | photo.js + `FLYDIY_ROUTE.spawn` |
-| the high-quality shot (spinner, steps, cap 55 s) | not yet (P4, needs the GPU box) | photo.js + `gfx_settings.js` |
-| `tools/scene_shot.js`: a scene file -> a PNG, headless | not yet (P5, needs the GPU box) | tools/ |
-
-Until P2 and P5 land, a picture of the running game is made the old way (section 4), and the scene file is what you
-WRITE DOWN for it, so the same picture can be made again by the tool when it exists.
+| the scene file (format, checks, the plane-anchored camera, the picture's size, the pose read back) | **BUILT** (P0 11 Nov, P2 12 Nov) | `src/core/89_scene.js`, `tools/scene.js`, GATE SCENE |
+| the scene inside a PNG (one compressed `iTXt` chunk) | **BUILT** (P0); every picture the game saves carries one (P2) | same; app.js `photoEmbed` |
+| `placePose`: the aeroplane at any heading / pitch / roll, rigid; `FLIGHT_PROBE.place({ at, pose, seat })` on the sim that flies (the page's or the physics worker's) | **BUILT** (P0, P2) | `src/core/39c_placement.js`, `src/viewer/sim_host.js` / `sim_link.js` |
+| the photo bar on the top row, shed + flight: camera, light, picture, scene, go to; Done; the floating shutter; the spinner | **BUILT** (P1-P4, 12 Nov) | `src/viewer/photo.js` (the UI), app.js's PHOTO-MODE-2 sections, GATE PHOTO, UISMOKE rows |
+| the picture's size (window by default, 1920x1080, 2560x1440, 3840x2160) | **BUILT** (P2) | app.js `photoShoot` |
+| scenes in the game: save this scene, the list (load / export / delete), import a `.scene.json` or a picture; `window.SCENE` | **BUILT** (P2) | app.js `sceneGet` / `sceneApply` / ..., GATE SCENEPAGE (the page in node) |
+| go to: the start places in photo mode | **BUILT** (P3) | app.js `photoGoTo`, GATE SCENEPAGE |
+| the high-quality picture (opt-in; the night hero's settings scaled to the machine, 55 s cap) | **BUILT, NOT TUNED ON A GPU** (P4) | app.js `photoHqSteps`, `gfx_settings.js` `GFX.push / pop` (GATE GFX) |
+| `tools/scene_shot.js`: a scene file -> a PNG + a report, headless | **BUILT** (P5); shed scenes run in the cloud, world scenes want the GPU box | tools/ |
+| the control surfaces and the prop set from a scene | NOT YET (drawn as the flight left them; the loader says so) | - |
+| the camera's roll | NOT YET (the free camera has none; the loader says so) | - |
 
 ## 1. The scene file
 
@@ -83,7 +82,8 @@ C.seatOnGround(sim, world.terrainH, def.refs);                        // on the 
 ```
 
 In a page, **never write `sim.p` by hand**: under the physics worker the page's sim is a view the next snapshot
-rewrites. Until P2 gives `SCENE.apply`, a page places with `FLIGHT_PROBE.place({ at, zeroV: true })` (translation only).
+rewrites. Use `SCENE.apply(scene)`, or `FLIGHT_PROBE.place({ at: [x, y | null, z], pose: { hdg, pitch, roll }, seat })`
+(radians; `seat`: let it down onto the ground under it) - it runs on the sim that flies and answers a promise of the CG.
 
 ### 1.3 Where scenes live
 
@@ -93,37 +93,68 @@ rewrites. Until P2 gives `SCENE.apply`, a page places with `FLIGHT_PROBE.place({
 
 ## 2. The photo mode in the game
 
-**Built (P1):**
 - **Open it:** in flight, the corner camera button (top left); in the shed, the camera flyout's `photo mode` pill; from
   code, `window.FLYDIY_PHOTO.open()`. Every panel goes (body.shot); the flight pauses.
-- **The bar:** the TOP ROW (the flight interface's grammar): a PHOTO plate with one slot per question - `camera` (the
-  views, free with Dev on or in photo mode, the field of view, level, lead; in the shed: the field of view 25-80 and
-  "frame the aeroplane") and `light` (in flight the day panel: the hour, the date - `time` in the career, whose clock is
-  the career's; in the shed: its moods) - each opening its flyout UNDER the slot; `Done` at the right. Esc closes the
-  open flyout first, then photo mode.
-- **The shutter:** the round half-transparent button at the bottom centre. The picture is the NEXT PRESENTED 3D frame
-  (no interface in it), downloaded as `wingsmith-<date>-<time>.png`, with the flash and the sound.
+- **The bar** is the TOP ROW (the flight interface's grammar): the PHOTO plate with one slot per question, each opening
+  its flyout UNDER the slot, and `Done` at the right. Esc closes the open flyout first, then photo mode.
+  - `camera`: the views (free with Dev on or in photo mode), the field of view, level, lead; the shed: the field of view
+    25-80, "frame the aeroplane".
+  - `light`: in flight the day panel (the hour, the date; `time` in the career, whose clock is the career's); the shed:
+    its moods (only when the room has them).
+  - `go to` (flight, not the career): the island's aerodromes and strips this gear may use; a pick restarts the flight on
+    that place's stand, held. The next roll-out starts there too, until `home` is picked.
+  - `picture`: the size (the window's by default) and **high quality** (OFF by default, remembered).
+  - `scene`: save this scene (a name, then save: the screen as it is - no posing tools), the scenes saved in this browser
+    (load / export / delete), import a `.scene.json` or a picture this game saved.
+- **The shutter:** the round half-transparent button at the bottom centre. Flash and sound at the press; the picture is
+  the 3D frame alone, at the picture slot's size, downloaded as `wingsmith-<date>-<time>.png` WITH its scene inside.
+- **The spinner** (a picture that takes longer than 0.4 s, and every high-quality one): in the middle, a ring that fills
+  with the real %, one short line per step, the time so far after 8 s; ✕ or Esc cancels and puts everything back.
 - **Done** gives back what photo mode changed: the camera's mode and field of view, the pause, the hour (only when the
-  light slot moved it, never the career's), the shed's field of view and mood.
-- **For a rig:** `SHOT_MODE.enter()` is still the render ALONE (no photo bar: it opens only through `FLYDIY_PHOTO.open`).
-  `FLYDIY_PHOTO`: `open()`, `take()` (the shutter), `on()`, `done()`, `slots()` (the slot keys where you are).
+  light slot moved it, never the career's), the shed's field of view and mood. A loaded scene or a "go to" stays.
+- **For a rig:** `SHOT_MODE.enter()` is still the render ALONE (no photo bar). `FLYDIY_PHOTO`: `open()`, `take()`,
+  `on()`, `done()`, `slots()`. `window.SCENE`:
 
-**Coming:** the `picture` slot (the size: the window's by default, 1920x1080, 2560x1440, 3840x2160; **high quality**,
-opt-in: a spinner in the middle with the % and one short line, at most 55 s, `SCENE_HQ_CAP_S`), `scene` (Save this
-scene: the screen as it is - no posing tools, the user's ruling; Load; the scene inside every picture), `go to` (the
-start places: `FLYDIY_ROUTE.spawn` + Restart).
+| call | what it does |
+|---|---|
+| `SCENE.ready(maxMs)` | -> Promise: the loading screen gone, no trip running, 8 presented frames |
+| `SCENE.get(name)` | -> the scene on the screen now (what "save this scene" stores) |
+| `SCENE.apply(scene, { photo: true, settle: 30 })` | -> Promise<{ ok, steps, warnings }>: the ONE ordered loader - the site and the build (to the shed and a roll-out when they differ, AWAITED), the hour and the weather, the pose, the camera (the free camera at the exact eye), photo mode open, the world settled round the eye, the checks |
+| `SCENE.check()` | -> warnings: the eye under the ground / water / in a tree, the aeroplane out of the frame or the eye inside it, the loading screen up |
+| `SCENE.shoot({ output, hq, name })` | -> Promise<{ png (base64, the scene inside), w, h, ms, notes, warnings }> |
+| `SCENE.save(name)`, `SCENE.list()`, `SCENE.load(i)`, `SCENE.remove(i)`, `SCENE.importFile(file)` | the scenes saved in this browser (`flydiy.scenes`, 40 at most) |
+| `SCENE.size([w, h] or null)`, `SCENE.hq(bool)` | the picture slot's two settings |
+| `SCENE.places()`, `SCENE.goTo(id or null)` | go to (null: home) |
 
-## 3. Shooting a scene headless (P5; how it will work)
+### 2.1 The high-quality picture (P4) - built, not yet tuned on a GPU
+
+Opt-in. For ONE picture: `GFX.push` (a transient layer - the player's settings are never written) of the night hero's
+reference (ultra rows, density 200, `TREE_LOD` [150, 1000, 1000] fade 60, live mirror, full clouds) on a gamer / ultra
+/ current page; on potato / laptop / retro only the shadows, clouds and mist (their forest is their budget's). Steps:
+getting ready -> the trees (the fill's queue to empty, its real %) -> 8 frames for the shaders -> 20 for the clouds ->
+the size -> the grab; ONE cap, 55 s from the shutter (`SCENE_HQ_CAP_S`): past it the picture is taken as it is and the
+notes say how far it got. The governors held (`GFX.hw.hold`, the auto render scale), the long main-thread tasks measured
+(`notes`), a lost WebGL context cancels. Everything comes back in the shot's `finally`.
+**To do on A0's GPU box:** measure the tree step's time with real trees to 1 km, the frame counts, the longest task,
+and a 3840x2160 picture's memory; then write the numbers here.
+
+## 3. Shooting a scene headless: `tools/scene_shot.js` (P5)
 
 ```bash
-node tools/scene_shot.js shots/scenes/my.scene.json screenshots/scenes/my.png --gpu   # not built yet
+node tools/scene_shot.js shots/scenes/my.scene.json --out screenshots/scenes --check        # the cloud (SwiftShader)
+node tools/scene_shot.js shots/scenes/my.scene.json --out screenshots/scenes --check --gpu  # A0's box, a LOCAL session
+node tools/scene_shot.js --capture shots/scenes/new.scene.json [--rollout] --name "..."      # the page's scene, to edit
 ```
 
-It will wait for the page (`SCENE.ready()`), apply the scene in its fixed order (site -> build -> time and weather ->
-pose -> camera -> hold -> the world streamed round the EYE -> checks), shoot, and write the PNG with a
-`.report.json`; any check warning fails the run.
+It serves the tree, opens the page (`?intro=0&idle=0&welcome=0&mode=sandbox`; a shed scene in the cloud on the phone's
+garage page, the fastest boot), awaits `SCENE.ready()`, `SCENE.apply(scene)` and `SCENE.shoot()`, and writes `<name>.png`
+(the scene inside) and `<name>.report.json` (the loader's steps and warnings, the shot's ms and notes, the boot's
+seconds, `hiddenDiff`: the share of pixels that change with the aeroplane hidden - under 0.2 % is "the aeroplane is not
+in the picture"). Any warning fails the run (exit 1) unless `--draft` (the controls / prop note does not count).
+Measured in the cloud (12 Nov, SwiftShader, 1280x720): a shed scene on the phone page - boot 33 s, the shot 18 s, 102 s in
+all; the picture right (the Cub under the shed's lamp), its scene inside.
 
-## 4. Until then: a picture of the running game, by hand
+## 4. By hand, and what every rig before this one tripped on
 
 - **A picture of a build alone, in seconds, no browser**: `node tools/quickshot.js` (`tools/QUICKSHOT.md`). Use it for
   shapes, not for looks.
@@ -151,6 +182,8 @@ The pitfalls every rig has hit (each one cost runs; the files that record them):
 ## 5. Handing this to a new session
 
 Paste: "Make a picture of Wingsmith with the photo tool. Read `flyDiy/tools/PHOTO.md` first (its status table says
-what exists). Write the scene as `flyDiy/shots/scenes/<name>.scene.json`, check it with `node flyDiy/tools/scene.js check`,
-and shoot it the way section 3 (or, until P5, section 4) says. World pictures need a LOCAL session and a GPU box slot
-from A0." Attach the build file if the picture is of a build that is not in the repo.
+what exists). Start from `node flyDiy/tools/scene_shot.js --capture` or from a scene the user saved in the game (the
+scene slot's export, or any picture the game took: `node flyDiy/tools/scene.js get picture.png`), keep it as
+`flyDiy/shots/scenes/<name>.scene.json`, check it with `node flyDiy/tools/scene.js check`, and shoot it with
+`node flyDiy/tools/scene_shot.js <it> --check` (section 3). World pictures need a LOCAL session and a GPU box slot from
+A0 (`--gpu`)." Attach the build file if the picture is of a build that is not in the repo.

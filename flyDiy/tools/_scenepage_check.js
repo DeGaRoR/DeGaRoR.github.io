@@ -85,6 +85,23 @@ async function child() {
     R[where + 'Warn'] = rep.warnings;
     void c;
   }
+  // P3: GO TO - the start places (FLYDIY_ROUTE.spawn + the flight's Restart), held, and home again
+  {
+    const L = S.places(), home = (W.FLYDIY_ROUTE.get() || {}).base;
+    const other = L.find(a => a.id !== home && a.id !== 'HOME');
+    row(L.length > 1 && !!other, 'go to: the start places this gear may use', L.length + ' (' + L.slice(0, 4).map(a => a.id).join(', ') + ' ...)');
+    if (other) {
+      const fid = await answer(S.goTo(other.id));
+      if (P.settleWorkers) await P.settleWorkers();
+      await P.frames(3);
+      const a = FP.world().aerodromes.find(x => x.id === other.id), c = sim().cgPos();
+      const d = a && a.spawn ? Math.hypot(c[0] - a.spawn[0], c[2] - a.spawn[1]) : NaN;
+      row(fid === other.id && (W.FLYDIY_ROUTE.get() || {}).spawn === other.id && d < 400, 'go to ' + other.id + ': the flight starts there (the aeroplane on its stand)', fid + ', ' + d.toFixed(0) + ' m from its spawn');
+      row(W.document.getElementById('bPause').textContent === 'Run', 'go to: held after the teleport', W.document.getElementById('bPause').textContent);
+      await answer(S.goTo(null));
+      row(!(W.FLYDIY_ROUTE.get() || {}).spawn, 'go to home: the start place is the base again', JSON.stringify((W.FLYDIY_ROUTE.get() || {}).spawn));
+    }
+  }
   // the scene list (this browser's): save, list, remove
   const saved = await answer(S.save('gate'));
   row(saved && S.list().length === 1 && S.list()[0].name === 'gate', 'SCENE.save keeps it in this browser (flydiy.scenes)', S.list().length);

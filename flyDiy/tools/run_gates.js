@@ -495,7 +495,8 @@ const GATES = [
   // G286: the graphics settings menu - presets, the pref, the handles
   { id: 'GFX', file: '_gfx_check.js', tier: 'core' },
   { id: 'SCENE', file: '_scene_check.js', tier: 'core', wall: 10 },
-  { id: 'PHOTO', file: '_photo_check.js', tier: 'core', wall: 5 },   // PHOTO-MODE-2 P1: the photo bar (photo.js over a small DOM), its wiring (open only when asked, the bubble) and its look (the top row, the floating shutter)   // PHOTO-MODE-2 P0: the scene file (89_scene.js) + its schema's enums, the scene in the PNG, placePose rigid and signed
+  { id: 'PHOTO', file: '_photo_check.js', tier: 'core', wall: 5 },
+  { id: 'SCENEPAGE', file: '_scenepage_check.js', tier: 'full', wall: 900 },   // PHOTO-MODE-2 P2: the page in node (inline + the physics worker): a scene saved, everything moved, the scene loaded back - the shed's orbit, the aeroplane on the ground and banked in the air (1e-5 m / deg), the eye (1e-3 m)   // PHOTO-MODE-2 P1: the photo bar (photo.js over a small DOM), its wiring (open only when asked, the bubble) and its look (the top row, the floating shutter)   // PHOTO-MODE-2 P0: the scene file (89_scene.js) + its schema's enums, the scene in the PNG, placePose rigid and signed
   // G3880-G3884 (GAME-MENUS): the browser's Back asks first - the guard armed at the first input, Back -> the box (the sim held),
   // Stay keeps the flight, Leave leaves, the tab's beforeunload; and NEVER on a rig (WELCOME.RIG, ?nogate, ?backguard=0, a frame)
   { id: 'BACKGUARD', file: '_backguard_check.js', tier: 'core' },
