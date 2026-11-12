@@ -2581,7 +2581,10 @@ PAGE.post = ctx => {
   const boomMount = (st, sgn) => {
     if (!TBg || st.leg !== 3) return null;
     if (IVg) return tipMount(st, sgn);
-    const x0 = sgn * TBg.x;
+    // CAR-4 (the user, 12 Nov: "back wheels track should be equal to the front wheel track"): twBoomOut sets the boom
+    // wheels that far OUTBOARD of the booms (metres; absent 0 = under the boom, as before) - a UTV's rear track off rails
+    // that sit inboard
+    const x0 = sgn * (TBg.x + Math.max(0, +P.twBoomOut || 0));
     const provider = (zOff, dx) => {
       const z = st.z + (zOff || 0);
       return { p: [x0 + (dx || 0), TBg.yBot(z), z], n: [0, -1, 0], fore: [0, 0, 1], side: [1, 0, 0] };

@@ -38,7 +38,7 @@
   "stSharpAft": 3,
   "stSharpBase": 3,
   "stSharpLE": 3,
-  "stTipZ": -0.005,
+  "stTipZ": 0.6,
   "stTipY": -0.33,
   "stAftZ": 0,
   "stAftY": -0.3,
@@ -84,7 +84,10 @@
   "frPostBotY": -0.92,
   "frCabBotY": -0.92,
   "stRootFwd": -0.205,
-  "stSharpShoulder": 3
+  "stSharpShoulder": 3,
+  "twBoomOut": 0.26,
+  "stOver": 0.13,
+  "frWinBotY": -0.92
  },
  "wings": {
   "span": 2.2,

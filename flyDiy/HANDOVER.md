@@ -314874,3 +314874,9 @@ the next steps).
   one window per bay on two rows: row 1 (bay 1) paxWinZ 1.587 / W 0.633, row 2 (bay 2) win2Z 0.438 / W 0.78; a window's z
   is its FRONT edge (tools/car_stations.js prints them). UTV: the nose and bonnet restored to the matched version (the
   user), the bed on the Twin busher's straight-stab planform rows.
+- **CAR-4, THE UTV ROUND (the user: the rear track equal to the front's, the front the reference; the bed square, as wide as
+  the cab, overhanging the booms; the cab's bottom flat)**: NEW ROW twBoomOut (_cage_gear.js boomMount, _gear_page.js,
+  _cage_parts.js): the twin booms' wheels that far outboard of the booms (absent 0 = under the boom) - 0.26 m, both tracks
+  1.44 m; the bed stOver 0.13 m past the booms (its edge at the cab's 0.62 m half-width) and stTipZ 0.6 (the tip's leading
+  edge forward: the bed's sides straight, no flare toward the cab); frWinBotY -0.92 (the cab's floor flat at -0.63 m to
+  the nose, the nose itself the user's chosen one). 536 kg, 71 % front, 0-100 7.0 s. Gates PARTS / CAGEFIT / DESIGN PASS.

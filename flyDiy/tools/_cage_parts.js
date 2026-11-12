@@ -1193,6 +1193,7 @@ const CAGE_PARTS = [
       ['carcass', ['whProfile', 'whSlick', 'whBulge', 'whRibs']],
       ['rim', ['whRim', 'whRimD', 'whWide', 'whBolts', 'whCap', 'whValve', 'whBrake']],
       ['spare wheel', ['spareOn', 'spareZ', 'spareSide', 'spareY']],   // CAR-1
+      ['boom wheels outboard', ['twBoomOut']],   // CAR-4
       ['fairing build', ['fairCons']],
     ] },
 
