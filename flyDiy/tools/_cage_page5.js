@@ -1309,6 +1309,14 @@ window.CAGE_PAGE = {
       // boom and boom rod options, compared to the body")
       ['rodIncl',   'rod inclination (tail up)', -12, 12, 0.1,
        { when: P => +P.boomStyle === 1 && !+P.boomTwin }],
+      // THE ROD ROW (WEIGHT STUDY L2b, 12 Nov; the user: "an ultralight rod that would also break somehow, that would have
+      // different stiffness"): the tube's material and wall - its stiffness (EI, GJ), its breaking moment and its mass
+      // (pi d t rho, AERO-BODY) follow the section, nothing hidden: a thin rod is light and soft, and on a heavier
+      // aeroplane it parts at its root. Latent: as the fuselage at 1.2 mm writes nothing
+      ['rodMat',    'rod material',  0, 4, 1, ['as the fuselage', 'carbon', 'steel tube (4130)', 'aluminium (6061)', 'glassfibre'],
+       { when: P => +P.boomStyle === 1 && !+P.boomTwin, absent: 0 }],
+      ['rodWallMm', 'rod wall (mm)', 0.3, 3.0, 0.05,
+       { when: P => +P.boomStyle === 1 && !+P.boomTwin, absent: 1.2 }],
       ['boomLen',   'length',          1.0, 6.0, 0.01, { dim: 'len' }],
       // (aft roof/keel = the boom frame; the cone's section = the tail
       // frame, both in 0 · frames since T2.1)

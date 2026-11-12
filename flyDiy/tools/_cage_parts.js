@@ -565,7 +565,7 @@ const CAGE_PARTS = [
              at: 'aft of the taper; twin, off the wing’s trailing edge' },
     groups: [
       // boomStyle -> `design`; these shape the rod once it is chosen
-      ['rod', ['rodY', 'rodD', 'rodIncl']],
+      ['rod', ['rodY', 'rodD', 'rodIncl', 'rodMat', 'rodWallMm']],
       ['twin booms', ['boomTwin', 'boomX', 'boomDy', 'boomDz']],
       ['section', ['boomWf', 'boomHf', 'boomWa', 'boomHa', 'boomSquare', 'boomIncl', 'boomCollar']],
       ['wing end', ['boomNoseLen', 'boomNoseK', 'boomNoseCap']],

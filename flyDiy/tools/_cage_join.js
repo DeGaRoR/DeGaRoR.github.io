@@ -704,6 +704,13 @@ function cageJoinSpec(P, M, T) {
   // cage IS the declaration, a save predating the field takes it on load.
   fus.boom = (+P.boomTwin || Math.round(+P.boomStyle || 0) === 2) ? 'twin'
            : Math.round(+P.boomStyle || 0) === 1 ? 'rod' : 'loft';
+  // THE ROD ROW (WEIGHT STUDY L2b, the Archaeopteryx session's): latent - written only when moved off its default (the
+  // fuselage's material, 1.2 mm)
+  if (fus.boom === 'rod') {
+    const rm = Math.round(+P.rodMat || 0);
+    if (rm > 0) fus.rodMat = ['carbon', 'tubeFabric', 'aluTube', 'glass'][Math.min(4, rm) - 1];
+    if (P.rodWallMm != null && Number.isFinite(+P.rodWallMm) && Math.abs(+P.rodWallMm - 1.2) > 1e-9) fus.rodWall = +P.rodWallMm / 1000;
+  }
   if (M.tailArm > 0) fus.tailArm = M.tailArm;
   if (M.postGap > 0) fus.postGap = M.postGap;
   // G54: the boom's path between the measured endpoints. clampSpec

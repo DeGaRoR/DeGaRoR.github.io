@@ -5929,6 +5929,15 @@ function clampSpec(spec) {
   S.cargo.kg = genClamp(S.cargo.kg || 0, 0, 400);
   fu.tailBays = genClamp(fu.tailBays | 0, 3, 6);
   fu.boom = (fu.boom === 'rod' || fu.boom === 'loft' || fu.boom === 'twin') ? fu.boom : null;
+  // THE ROD ROW (WEIGHT STUDY L2b, 12 Nov; the user: "an ultralight rod ... whose stiffness would be impacted"; A0: "the
+  // rod row, material + wall per build"): LATENT - absent, the rod is the fuselage's material at GEN_RULES.rodWall, as
+  // ever. A rod's only: `rodMat` a GEN_MATERIALS key with a phys row, `rodWall` its tube wall in metres, 0.3 - 3 mm
+  // (the Archaeopteryx session's row, merged on AERO-BODY: the tube's billing, the buckling caps and EI / GJ read it)
+  if (fu.boom !== 'rod') { delete fu.rodMat; delete fu.rodWall; }
+  else {
+    if (fu.rodMat != null && !(GEN_MATERIALS[fu.rodMat] && GEN_MATERIALS[fu.rodMat].phys)) delete fu.rodMat;
+    if (fu.rodWall != null) { const t = +fu.rodWall; if (Number.isFinite(t) && t > 0) fu.rodWall = genClamp(t, 3e-4, 3e-3); else delete fu.rodWall; }
+  }
   fu.postGap = genClamp(fu.postGap, 0.35, 1.10);
   fu.crownTop = genClamp(fu.crownTop, 0, 1);
   fu.crownSide = genClamp(fu.crownSide, 0, 0.6);

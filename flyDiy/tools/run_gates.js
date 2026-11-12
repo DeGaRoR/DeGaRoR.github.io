@@ -723,6 +723,10 @@ const GATES = [
   // a blunt end carries its base row, a rod is its drawn tube, no lattice past a twin-boom pod, no cowl billed where none
   // is fitted (COWL-BILL); the negative control (the Chinook and the Twin without the record) must fail. ~90 s cold
   { id: 'AEROBODY', file: '_aerobody_check.js', tier: 'core', wall: 150 },
+  // WEIGHT STUDY L2b (2026-11-12, the Archaeopteryx session's, merged on AERO-BODY): the rod row - the rod's material and
+  // wall, latent; its stiffness, its breaking and its mass follow the section (the solver's tube cut): the Archaeopteryx
+  // holds on carbon 0.8 mm, a 0.5 mm rod on the pusher pod parts at its root
+  { id: 'RODROW', file: '_rodrow_check.js', tier: 'core', wall: 300 },
   // CREW-LOAD-BACKOFF (GPS-STALL, 2 Nov): a character that fails to load rebuilds the aeroplane ONCE (G1985's settle) and
   // then retries on a clock (2, 4 ... 60 s), not on every build - the old loop rebuilt it every ~280 ms in flight. The
   // page's crew + character layers headless, the user's Cub, an asset door that fails / lands late; a mutant self-test. ~20 s
