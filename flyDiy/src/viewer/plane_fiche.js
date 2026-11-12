@@ -30,6 +30,7 @@
   // THE CUTAWAY'S EYE (the user 9 Nov, on the Cub's fiche: "lower the camera angle so it reads wider"; the board puts it
   // where it fits - fiche_board.js cutFit): 50 degrees round from the nose, 15 above (was 28)
   const CUT_YAW = 50, CUT_EL = 15;
+  const CUT_PW = 200, CUT_PH = 160, CUT_MIN = 0.01;   // CUT TAKES: the small check draws (the cutaway's aspect), the share of their pixels the cut must change
   // THE HERO'S WING LINE (the same ruling): the lowest row of the hero's silhouette in its right-hand band (the far wing's tip
   // on a three-quarter from below), 0 at the top of the cropped picture, 1 at its foot - the board drops the cutaway below it
   const WING_BAND = 0.12;
@@ -140,6 +141,16 @@
   }
   // ---- the cutaway's state: the see-inside build, the near half clipped on clones (a cached material is the next build's) ------
   // THE CLONE TRAP (proved 4 Nov, the twin's white wing): Material.clone() drops onBeforeCompile, how the finishes and liveries reach the shader
+  // CUT PINNED (11 Nov, the Metal Cessna list:5 on the box, 22:14: at its cutaway's draws its 51 cut materials were on the
+  // plane but NOT ONE carried a plane - Rufus's 37 did): a plane with a REFERENCE MOUNTED (the Cessna's ref model) has its
+  // build materials' clipping written by app.js applyBuildClip - `m.clippingPlanes = buildClip` (null when no split is
+  // asked) on EVERY material under the stand, at every applyVis - and the warm's frames ran it, so the cut was wiped before
+  // the first draw (the 10 Nov cutaways "came out whole", CUT TAKES caught it at 0.00 %). The cut's own copies keep their
+  // planes: a write from outside is ignored (the copies are the fiche's alone, dropped at cutOff)
+  const pinClip = (n, planes, inter) => {
+    Object.defineProperty(n, 'clippingPlanes', { configurable: true, enumerable: true, get: () => planes, set: () => {} });
+    n.clipIntersection = inter;
+  };
   const dup = m => {
     const u = m.userData; m.userData = {}; const c = m.clone(); m.userData = u; c.userData = u;
     c.onBeforeCompile = m.onBeforeCompile; c.customProgramCacheKey = m.customProgramCacheKey;
@@ -198,7 +209,7 @@
     // (LINER-BACK: a lined skin is FrontSide and its liner BackSide on the SAME faces - forced DoubleSide they fight at one
     // depth; every other material opens DoubleSide as before)
     const keepSide = m => (m.side === T.FrontSide || m.side === T.BackSide) && m.userData && m.userData.exactSide ? m.side : T.DoubleSide;
-    const halve = m => { const n = dup(m); st.clones.push(n); n.clippingPlanes = [p1]; n.clipIntersection = false; n.side = keepSide(m); n.needsUpdate = true; return n; };
+    const halve = m => { const n = dup(m); st.clones.push(n); pinClip(n, [p1], false); n.side = keepSide(m); n.needsUpdate = true; return n; };
     root.traverseVisible(o => {
       if (!o.isMesh) return;
       swap(o, mt => {
@@ -207,7 +218,7 @@
         n = dup(mt); made.set(mt, n); st.clones.push(n);
         const glass = (mt.transmission || 0) > 0 || /glass|glaz|perspex|plexi|screen/i.test(mt.name || '');
         if (glass) n.opacity = 0.3; else { n.opacity = 1; n.transparent = false; n.depthWrite = true; innerFace(n, mt); }
-        n.clippingPlanes = [p1, p2]; n.clipIntersection = true; n.side = keepSide(mt); n.needsUpdate = true;
+        pinClip(n, [p1, p2], true); n.side = keepSide(mt); n.needsUpdate = true;
         return n;
       });
     });
@@ -351,11 +362,15 @@
       const out = ms.map((m, i) => {
         if ((nm[i] !== 'taperPanel' && nm[i] !== 'boomTube') || !m) return m;
         ch = true; const n = dup(m); st.clones.push(n);
-        n.clippingPlanes = [p1, p2]; n.clipIntersection = true; n.side = T.DoubleSide; n.needsUpdate = true;
+        pinClip(n, [p1, p2], true); n.side = T.DoubleSide; n.needsUpdate = true;
         return n;
       });
       if (ch) { st.mats.push([o, o.material]); o.material = arr ? out : out[0]; }
     });
+  }
+  function cutDiffers(a, b) {   // CUT TAKES: the share of two small draws' pixels that differ (a cut opens a side: several %)
+    let n = 0; for (let i = 0; i < a.length; i += 4) if (Math.abs(a[i] - b[i]) + Math.abs(a[i + 1] - b[i + 1]) + Math.abs(a[i + 2] - b[i + 2]) > 24) n++;
+    return n / (a.length / 4);
   }
   function cutOff(st) {
     for (const [o, v] of (st.vis || []).reverse()) o.visible = v;
@@ -508,8 +523,30 @@
             if (t && (!t.image || t.version === 0 || (t.image.complete === false))) late.add(m.name || m.type); } });
           tm.cutLateMaps = late.size; if (late.size) tm.cutLateMapNames = Array.from(late).slice(0, 20);
         }
-        const Fc = frameOf(T, root);
-        await shoot('cutaway', heroCam(T, Fc, CUT_W / CUT_H, CUT_YAW, CUT_EL), CUT_W, CUT_H, false, CUT_STUDIO, Fc);
+        const Fc = frameOf(T, root), camC = heroCam(T, Fc, CUT_W / CUT_H, CUT_YAW, CUT_EL);
+        // CUT TAKES (11 Nov: the 10 Nov cutaways of list:5 and list:7 came out whole - each the first plane of the run to need
+        // some of the cut's programs, made inside the picture's own draw (the Cessna 9 in one 14.5 s task), and in that draw no
+        // clipping took, not even the near wing's halving; the same cards cut right once the programs were there): a small
+        // draw first, so any program still missing is made there and not in the picture; and where the fiche is not stored
+        // (the bake, the tools: opts.checkCut, by default store false) the same small draw with the clipping off must differ
+        // from it - else once more after two frames, else the fiche stops instead of saving an uncut cutaway
+        const peek = clip => {
+          place(Fc, false, CUT_STUDIO); camC.layers.mask = cam0.layers.mask; if (typeof UI_LAYER !== 'undefined' && UI_LAYER.blind) UI_LAYER.blind(camC);
+          camC.updateMatrixWorld(true); camC.updateProjectionMatrix();
+          rt.viewport.set(0, 0, CUT_PW, CUT_PH); rt.scissor.set(0, 0, CUT_PW, CUT_PH); rt.scissorTest = true;
+          R.localClippingEnabled = clip; S.background = black; R.setRenderTarget(rt); R.render(S, camC);
+          const b = new Uint8Array(CUT_PW * CUT_PH * 4); R.readRenderTargetPixels(rt, 0, 0, CUT_PW, CUT_PH, b);
+          R.setRenderTarget(rt0); S.background = bg0; R.localClippingEnabled = true; return b;
+        };
+        let pre = peek(true); await yieldTask('the cutaway, a first small draw');
+        if (opts.checkCut != null ? opts.checkCut : opts.store === false) {
+          const whole = peek(false); await yieldTask('the cutaway, whole');
+          let d = cutDiffers(pre, whole);
+          if (d < CUT_MIN) { await frames(2); pre = peek(true); await yieldTask('the cutaway, again'); d = cutDiffers(pre, whole); }
+          tm.cutDiff = +d.toFixed(4);
+          if (d < CUT_MIN) throw new Error('the cutaway: the cut did not take (' + (d * 100).toFixed(2) + '% of its pixels changed)');
+        }
+        await shoot('cutaway', camC, CUT_W, CUT_H, false, CUT_STUDIO, Fc);
       }
     } finally {
       room.forEach((l, i) => { l.intensity = roomI[i]; });
@@ -536,7 +573,7 @@
     return { name: opts.name || (spec.meta && spec.meta.name) || '', at: Date.now(), fp: fpNow(), hash: hashOf(spec), data, pics };
   }
   const api = {
-    VIEWS, CUT_YAW, CUT_EL, lastTime: null, _matte: matte, _hashOf: hashOf, _wingLine: wingLine,
+    VIEWS, CUT_YAW, CUT_EL, lastTime: null, _matte: matte, _cutDiffers: cutDiffers, CUT_MIN, _hashOf: hashOf, _wingLine: wingLine,
     // one at a time: a second ask waits for the first
     generate(opts) {
       const o = opts || {};

@@ -314932,3 +314932,25 @@ OPEN (with the default taken):
 - BENCH, a real fault fixed, no re-stamp: the join WROTE gear.stiffness 1, gear.camber 0, fuselage.crownTop 0.72 / crownSide 0.07 into every cage build; the major fingerprint hashes the spec as written, so every aeroplane's certificate would have been superseded on the update (G3780 R3: a game update is not a change to the aeroplane). Now at the default they stay ABSENT (the physics reads GEN_DEFAULT's, the same values; a stiffness off 1 is still written): Rufus is 24e2e238 again, untouched. GATE ENGINEDIALS 4 holds the new rule (absent at the default; the constants equal GEN_DEFAULT; the files scan as before).
 - POD, re-pinned with the reason in _pod_check.js A: only the C172 moved (def 6dd3e32e -> bf8dd73, cert 847af8c1 -> eb68eff5) because its custom engine no longer inherits the A-65 fallback key's propeller row (name, Tstatic, kV2, D 1.88 -> 1.8: numbers that fly nothing). The 300 flown steps are the base's to the bit on all six builds.
 - (A page re-stamp could not have fixed BENCH anyway: the test flight is awarded once and keeps its fingerprint.)
+
+
+## PLANE-RENDERS CUT TAKES + CUT PINNED (AIRCRAFT-LOOKS, Wed 11 Nov, claude/ready/cut-takes on 0c90344f8)
+
+The user, 11 Nov: the Rufus and Metal Cessna fiches show no inside of their wings. Both cutaways now open.
+
+**Two causes, two fixes (plane_fiche.js):**
+- **CUT TAKES (Rufus).** The 10 Nov cutaways were drawn while the cut's programs were still being made inside the picture's own draw, and in that draw no clipping took.
+  - The fix: a small first draw before the picture.
+  - Where the fiche is not stored (the bake: `opts.checkCut`, by default `store === false`), the same small draw with the clipping off must differ by `CUT_MIN` (1 %) of its pixels. Else it tries once more after two frames, else the fiche stops with "the cutaway: the cut did not take" instead of saving an uncut cutaway.
+  - The game's award pays only the small draw.
+- **CUT PINNED (the Metal Cessna).** Found on the box at 22:14: at the Cessna's cutaway draws, its cut materials were on the plane but none carried a clipping plane (Rufus's 37 did).
+  - The cause: a plane with a reference model mounted has every build material's clipping written by app.js `applyBuildClip` (`m.clippingPlanes = buildClip`, null without a split) at each `applyVis`. The warm's frames ran it and wiped the cut.
+  - The fix: the cut's own copies pin their planes (`pinClip`: a write from outside is ignored; the copies are dropped at `cutOff`).
+  - app.js is not touched. Any other code that makes its own clipped copies of build materials on a ref-mounted plane meets the same writer.
+
+**Baked:** list:7 Rufus and list:5 Metal Cessna, all six views each. The numbers moved slightly with the current build (Cessna TORun 222 -> 225 m).
+- The bake-only check draw (clipping off) is the worst task: about 6 s on the Cessna, 1.1 s on Rufus. It is never run in the game.
+
+**Gates:** PLANEFICHE (3 CUT TAKES rows, the CUT PINNED row, a `_cutDiffers` unit check; selftest 46 of 46), MEDIA, PLANETHUMB: PASS at --jobs=1.
+
+**Owed:** the full 20-row fiche pass on the new list (about 30 min of GPU, A0 places it). The other official cutaways were baked before both fixes. Any plane with a reference model mounted may have the same wiped cut; CUT TAKES now stops the bake on it instead of saving it.
