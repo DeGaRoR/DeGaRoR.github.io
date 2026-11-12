@@ -1378,6 +1378,9 @@ function makePilot(sim, def, world, opts) {
     try {
       const LW = ap.landWayFrom(a, sim.cgPos()[0], sim.cgPos()[2]); if (!LW) return null;
       const P = planArrival(a, LW.u, a);
+      // (a field other than the route's To is now where the flight ends: the To follows it - the landing is judged, the
+      //  taxi-in planned and the arrival said at the field it lands on, not at one 24 km away)
+      if (ap.route && ap.route.to && ap.route.to.id !== a.id) { say('glider-divert', 'landing at ' + (a.name || a.id) + ' instead of ' + (ap.route.to.name || ap.route.to.id)); ap.route.to = a; }
       const S = sheetOf(), LD = S && S.LDbest > 0 ? S.LDbest : 12;
       const deg = Math.round(((Math.atan2(LW.u[0], -LW.u[1]) * 180 / Math.PI) + 360) % 360);
       return { F: P.F, sAim: P.sAim, side: P.side || 1, W: clamp(0.6 * (P.W || 500), 220, 420), E: 0.6 * LD, LD, stage: 'key', t0: ap.t,
@@ -3560,12 +3563,20 @@ function makePilot(sim, def, world, opts) {
           //  without one fell back on 12 - the motorglider, flatter than that, came over the fence 160 m high and landed
           //  2.2 km in. Measured over 6 s - the ground speed over the sink - and 0.9 of it with 20 m over: a margin for the turns
           //  and the air; 0.8 and 30 m landed it 860 m past the aim)
-          const Vh = Math.hypot(vcg[0], vcg[2]), sink = Math.max(0.3, -vcg[1]);
+          // (the sink is the ENERGY's - the height's plus the speed's, V V'/g: an engine stopped at cruise slows to the glide
+          //  speed, trading its speed for height, and the height's sink alone read the C172-alike's glide as 15 where it
+          //  flies 9 - the 300 m failure came in 25 m short)
+          const Vh = Math.hypot(vcg[0], vcg[2]), Vt = Math.hypot(vcg[0], vcg[1], vcg[2]);
+          const Vd = G.Vt == null || !(dt > 0) ? 0 : (Vt - G.Vt) / dt; G.Vt = Vt;
+          G.Vd = G.Vd == null ? Vd : G.Vd + (Vd - G.Vd) * Math.min(1, dt / 1.5);
+          const sink = Math.max(0.3, -vcg[1] - Vt * G.Vd / 9.81);
           G.Em = G.Em == null ? Math.min(G.LD, Vh / sink) : G.Em + (Vh / sink - G.Em) * Math.min(1, dt / 6);
           G.E = clamp(0.9 * G.Em, 4, 35);
           // (...and the FLOAT: a clean glider holds off in the ground effect for its approach speed x ~10 s past where its
           //  glide meets the ground - the way the height must cover ends that far short of the aim: 534 m long without it)
-          const floatD = 10 * Math.max(ap.VAppr || 0, A.VAppr || 0, 18);
+          //  - a clean glider's: the float bleeds the approach speed at g/E, so a draggy one floats less: x E/14, the
+          //  motorglider's ratio; the C172-alike gliding at 6.5 floated 280 m in the plan and came in 16 m short)
+          const floatD = 10 * Math.max(ap.VAppr || 0, A.VAppr || 0, 18) * clamp(G.E / 14, 0.3, 1);
           const need = d => Math.max(0, d - floatD) / G.E + (G.margin || 20);
           const sKey = G.sAim + 0.8 * G.W, cD = G.side * G.W, dMin = 0.8 * G.W + G.W + 2 * Rt;
           const next = st => { if (st !== G.stage) { G.log.push({ t: +ap.t.toFixed(1), stage: st, h: Math.round(h) }); G.stage = st; say('glider-circuit', st + ' at ' + Math.round(h) + ' m over the aim'); } };
@@ -3590,7 +3601,9 @@ function makePilot(sim, def, world, opts) {
             const ox = wp(F, sKey, G.side * (G.W + Rt)), rr = Math.hypot(cg[0] - ox[0], cg[2] - ox[1]) || 1e-9, sg = -G.side;
             const phA = Math.atan2(cg[2] - ox[1], cg[0] - ox[0]) + sg * 2 * Math.max(Vg, 8) / Rt, rx = CORE_MATH.cos(phA), rz = CORE_MATH.sin(phA), kR = clamp(3 * (rr - Rt) / Rt, -1, 1);
             hdg = Math.atan2(rx * sg - kR * rz, -rz * sg - kR * rx);
-            if (h <= need(dMin) + 60) next('downwind');
+            // (out of the orbit the turn onto the downwind is up to half a circle more: pi Rt at the ratio - 22 m for the
+            //  motorglider, 100 m for the C172-alike, which left its burn at 898 m over Cannery and arrived 15 m short)
+            if (h <= need(dMin + Math.PI * Rt) + 60) next('downwind');
           }
           if (G.stage === 'downwind') {
             trk = wp(F, sN - 500, cD);   // (the downwind line, 500 m ahead - the pursuit holds W out)
@@ -3616,10 +3629,15 @@ function makePilot(sim, def, world, opts) {
           //  rolled 775 m past the end)
           if (G.stage === 'final' && h > need(G.sAim - sN) + 100 && sN < G.sAim - 400) next('key');
           if (G.stage === 'final') {
-            trk = wp(F, Math.max(sN, G.sAim - 300) + 600, 0);
+            // (the centreline pursued 3 s ahead, 150 m at the least: 600 m ahead the C172-alike - 30 m/s, a 400 m final -
+            //  was still 45 m off it at the touchdown)
+            trk = wp(F, Math.max(sN, G.sAim - 300) + Math.max(150, 3 * V), 0);
             ias = Vap;
             const dAim = G.sAim - sN;
-            flap = (fLDG > 0 && (h > need(dAim) + 10 || aglG < 60)) ? fLDG : 0;
+            // (the landing flap once the aim is made WITH it - the glide at 0.6 of the ratio: flown from 60 m whatever the
+            //  height, it cut the C172-alike's glide 500 m out and it came down 127 m short; taken only in the last 25 m,
+            //  the flare met it and it touched at 3.7 m/s)
+            flap = (fLDG > 0 && h > Math.max(0, dAim - floatD) / (0.6 * G.E) + 5) ? fLDG : 0;
           }
           if (trk) engage('TRK', 'TECS', 'TECS', Object.assign(tec, { trk, ias, bank: 0.45 }));
           else engage('HDG', 'TECS', 'TECS', Object.assign(tec, { hdg, ias, bank: 0.45 }));
