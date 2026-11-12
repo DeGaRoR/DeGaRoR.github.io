@@ -3391,9 +3391,10 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     } catch (e) { gearMech = null; }
     return { cage: true, groups, mats, off, pitch: beta, parts,
              zRoot: 0, surfaces: null, cageM, people, lights, tailRef, mainsRef, footwell, holes,
-             // G2715 (CREW-SEATS): the job the crew layer seated (CAGE_CREW_JOB), as the payload was taken; none, no row
-             ...(window.CAGE_CREW && window.CAGE_CREW.job ? { crewJob: window.CAGE_CREW.job } : {}),
              weather,
+             // G2715 (CREW-SEATS): the job the crew layer seated (CAGE_CREW_JOB), as the payload was taken; none, no row
+             // (after `weather`: GATE WEATHER reads "footwell, holes, weather" as one run - A0 L38c2)
+             ...(window.CAGE_CREW && window.CAGE_CREW.job ? { crewJob: window.CAGE_CREW.job } : {}),
              ...(gearSwing ? { gearSwing } : {}),
              ...(gearMech ? { gearMech } : {}),          // RETRACT GM3
              debris,                     // G1860: the static merge's non-member parts ([tag, bucket, v0, v1])
