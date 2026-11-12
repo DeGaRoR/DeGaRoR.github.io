@@ -3,6 +3,17 @@
 12 Nov 2026. For A0 (Performance Coordinator) and the Deform Coordinator. Implementation comes after the perf round
 (13–14 Nov), on the user's choice.
 
+## DECISION (the user, 12 Nov)
+**Option B, with two looks only: acrylic and laminated glass.** The polycarbonate look ("plain unreadable") and the
+tempered look ("not good enough") are dropped and not built. Two sheets, not three:
+- `glazeMat` 0 acrylic → the acrylic sheet;
+- `glazeMat` 1 polycarbonate → the acrylic sheet for now (no polycarbonate look kept; no listed plane uses it);
+- `glazeMat` 2 glass → the laminated sheet on every pane (no tempered split).
+
+`uCrackMat`: 0 = acrylic sheet, 1 = laminated sheet. C (the broken pane) stays the follow-up, for these two looks
+only: the acrylic hole with shards held in the frame, and laminated glass that holds. Sections 2-5 below are the
+study as written; where they describe polycarbonate or tempered looks, the decision above overrides them.
+
 - The page, with pictures inline (mock-ups drawn live, the real stills, a viewer): https://claude.ai/artifact/68UDJfb7MQRDhC7QdkF1QC
 - Its source: `futureDesigns/canopy-cracks/canopy_cracks.html` (self-contained, opens in a browser)
 
@@ -65,7 +76,7 @@ The costs are estimates from reading the shader. The perf round should time toda
 windscreen in view.
 
 **B, the sheet:** R the distance to the crack (0–8 mm), G the arrival order (reveals by severity and tapers the tips), B
-the facet phase (glint), A the whitening and crazing. Three sheets (acrylic, PC, glass), each holding 2×2 variants
+the facet phase (glint), A the whitening and crazing. Two sheets (acrylic, laminated glass; the decision), each holding 2×2 variants
 picked and rotated by the mark's seed. A node generator `tools/crack_sheet.js` (seeded) writes them. G3623's
 triggers, gating, tangent frame, irradiance scatter and roughness bump stay. GATE DMGGLASS gains rows for the sheet
 hash, monotone reveal, the material switch and 0 new programs.
