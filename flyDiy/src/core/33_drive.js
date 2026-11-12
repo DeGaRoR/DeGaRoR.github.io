@@ -114,7 +114,9 @@ function genDriveSpec(def) {
   // ENGINE-DIALS (2026-11-09): A CUSTOM ENGINE READS NOTHING OFF THE TABLE'S ROW - its powerplant key is the join's
   // fallback (the A-65's: four cylinders), never its engine; its own row carries its cylinders and its maximum
   const custom = !!(def && def.spec && Array.isArray(def.spec.engines) && def.spec.engines[0] && def.spec.engines[0].custom);
-  const row = custom ? {} : (GEN_DRIVE.eng[P.powerplant] || {});
+  // (a key the table does not know reads the same engine's row: 00_registry genEngineRowKey - a runtime copy of the
+  // 582's row keeps its 6 800 rpm maximum and its two cylinders, not the 6 500 rated as its limit)
+  const row = custom ? {} : (GEN_DRIVE.eng[genEngineRowKey(GEN_DRIVE.eng, P.powerplant, PP && PP.engine)] || {});
   const rated = E.rpm > 0 ? E.rpm : 2300, gear = E.gear > 0 ? E.gear : 1;
   const cyl = (custom && E.cyl > 0 ? E.cyl : row.cyl) || (E.layout === 'radial' ? 7 : GEN_DRIVE.famCyl[E.family] || 4);
   const D = PR.D > 0 ? PR.D : 1.8, R = D / 2;
