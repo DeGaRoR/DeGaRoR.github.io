@@ -9374,6 +9374,9 @@ function cageSpec(P) {
     // CAR-4 (the user, 12 Nov: "a back window for the UTV, aligned with the main windows"): ONE window cut into the
     // REARMOST wall, looking aft (rearWinOn; W / H / Y / R as a side window's, cage units; absent = none). Kept out of
     // S.windows: the side-view refusal below is for side glass
+    // CAR-4: the bulkhead's bas-relief on the OUTSIDE of the rear wall (extRelief 1 beads / 2 rolled / 3 framed; absent = none)
+    if (+P.extRelief > 0) S.extRelief = { kind: Math.max(1, Math.min(3, Math.round(+P.extRelief))),
+                                          h: P.extReliefH != null ? Math.max(0.003, +P.extReliefH) : 0.014, ps: +P.planeScale || 1 };
     // (CAR-3: rearWinN 2 = a PAIR, side by side, rearWinGap apart centre to centre; absent = one)
     if (+P.rearWinOn > 0) {
       const nR = Math.max(1, Math.min(2, Math.round(+P.rearWinN || 1))), gap = Math.max(0, +P.rearWinGap || 0);
@@ -10919,6 +10922,85 @@ function cageRearCut(s, S, KG) {
   }
   return s;
 }
+// CAR-4 (the user, 12 Nov: "build the ability of printing the bas-relief on the visible backside"): S.extRelief - the
+// aft bulkhead's three reliefs (bulkWall's pressed beads, rolled upholstery, framed panel) on the OUTSIDE of the rear
+// wall: raised beads proud of it toward the back, clipped to the wall's outline (its aft-facing faces' hull, inset) and
+// stepping round the rear windows (S.rearWin). Faces join the sheet tagged with the rear wall's own material, so they
+// take its paint. Cage units (metres / planeScale).
+function cageRearRelief(m, S) {
+  const R = S && S.extRelief;
+  if (!R || !m || !m.V || !m.F) return m;
+  const { V, F } = m, ps = R.ps || 1, hR = R.h / ps;
+  let zb = Infinity;
+  for (const p of V) zb = Math.min(zb, p[2]);
+  // the rear wall: the faces flat at the back, facing aft
+  const pts = [], mats = {};
+  const NOTSKIN = new Set(['joint', 'reveal', 'drawnPane', 'paneEdge', 'doorSeal', 'fireSeal', 'shoulder', 'rim']);
+  const nzOf = f => { let nx = 0, ny = 0, nz = 0; for (let k = 0; k < f.v.length; k++) { const a = V[f.v[k]], b = V[f.v[(k + 1) % f.v.length]];
+    nx += (a[1] - b[1]) * (a[2] + b[2]); ny += (a[2] - b[2]) * (a[0] + b[0]); nz += (a[0] - b[0]) * (a[1] + b[1]); } return nz / (Math.hypot(nx, ny, nz) || 1); };
+  const cand = F.filter(f => f.v && f.v.length >= 3 && !f.knife && !NOTSKIN.has(f.m) && f.v.every(i => V[i][2] < zb + 0.01));
+  // the outward skin: of the two orientations at the back (the skin facing aft, a liner facing the cabin), the one
+  // whose faces point away from the body's middle
+  const nzs = cand.map(nzOf), aft = cand.filter((f, i) => nzs[i] < -0.5), fwd = cand.filter((f, i) => nzs[i] > 0.5);
+  const skin = aft.length >= fwd.length ? aft : fwd;
+  for (const f of skin) { mats[f.m] = (mats[f.m] || 0) + 1; for (const i of f.v) pts.push([V[i][0], V[i][1]]); }
+  if (pts.length < 6) return m;
+  const mat = Object.keys(mats).sort((a, b) => mats[b] - mats[a])[0];
+  // its hull (monotone chain), inset about the centroid
+  pts.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const cr = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const lo = [], up = [];
+  for (const p of pts) { while (lo.length >= 2 && cr(lo[lo.length - 2], lo[lo.length - 1], p) <= 0) lo.pop(); lo.push(p); }
+  for (let i = pts.length - 1; i >= 0; i--) { const p = pts[i]; while (up.length >= 2 && cr(up[up.length - 2], up[up.length - 1], p) <= 0) up.pop(); up.push(p); }
+  const hull = lo.slice(0, -1).concat(up.slice(0, -1));
+  const cx0 = hull.reduce((s, p) => s + p[0], 0) / hull.length, cy0 = hull.reduce((s, p) => s + p[1], 0) / hull.length;
+  const ins = k => hull.map(p => [cx0 + (p[0] - cx0) * k, cy0 + (p[1] - cy0) * k]);
+  const poly = ins(0.9);
+  const crossAt = (axis, v) => { const h = []; for (let i = 0; i < poly.length; i++) { const a = poly[i], c = poly[(i + 1) % poly.length];
+    if ((a[axis] - v) * (c[axis] - v) <= 0 && a[axis] !== c[axis]) h.push(a[1 - axis] + (c[1 - axis] - a[1 - axis]) * (v - a[axis]) / (c[axis] - a[axis])); }
+    return h.length >= 2 ? [Math.min(...h), Math.max(...h)] : null; };
+  const Mg = 0.035 / ps, wins = [].concat(S.rearWin || []).map(w => [(w.x || 0) - w.w / 2 - Mg, (w.x || 0) + w.w / 2 + Mg, w.y - w.h / 2 - Mg, w.y + w.h / 2 + Mg]);
+  // a span along one axis (at a cross position) less the windows' intervals; vertical = the span runs in y at a fixed x
+  const cut = (lo0, hi0, at, vertical) => { let segs = [[lo0, hi0]];
+    for (const r of wins) { const [a0, a1, b0, b1] = vertical ? r : [r[2], r[3], r[0], r[1]];
+      if (at < a0 || at > a1) continue; const nx = [];
+      for (const [s0, s1] of segs) { if (s1 <= b0 || s0 >= b1) nx.push([s0, s1]); else { if (s0 < b0) nx.push([s0, b0]); if (s1 > b1) nx.push([b1, s1]); } }
+      segs = nx; }
+    return segs.filter(([s0, s1]) => s1 - s0 > 0.08 / ps); };
+  const OFF = [-1, -0.55, 0, 0.55, 1], HT = [0, 0.72, 1, 0.72, 0], zW = zb - 0.0015 / ps;
+  const add = [];
+  const bead = (path, w, closed) => {
+    let st = [];
+    if (closed) st = path.map(p => ({ p, f: 1 }));
+    else { const a = path[0], c = path[1], L = Math.hypot(c[0] - a[0], c[1] - a[1]), tp = Math.min(w * 1.4, L / 3);
+      for (const [sd, f] of [[0, 0], [tp * 0.5, 0.7], [tp, 1], [L - tp, 1], [L - tp * 0.5, 0.7], [L, 0]])
+        st.push({ p: [a[0] + (c[0] - a[0]) * sd / L, a[1] + (c[1] - a[1]) * sd / L], f }); }
+    const n = st.length, rows = st.map((q, i) => {
+      const pv = st[closed ? (i + n - 1) % n : Math.max(0, i - 1)].p, nx = st[closed ? (i + 1) % n : Math.min(n - 1, i + 1)].p;
+      const tx = nx[0] - pv[0], ty = nx[1] - pv[1], l = Math.hypot(tx, ty) || 1, ux = ty / l, uy = -tx / l, wf = q.f > 0 ? 1 : 0.5;
+      return OFF.map((o, k) => V.push([q.p[0] + ux * o * w * wf, q.p[1] + uy * o * w * wf, zW - HT[k] * hR * q.f]) - 1); });
+    for (let i = 0; i < n - (closed ? 0 : 1); i++) { const ra = rows[i], rb = rows[(i + 1) % n];
+      for (let k = 0; k < OFF.length - 1; k++) add.push({ v: [ra[k], rb[k], rb[k + 1], ra[k + 1]], m: mat, extRelief: 1 }); }
+  };
+  const xs = poly.map(p => p[0]), ys = poly.map(p => p[1]);
+  const xL = Math.min(...xs), xR = Math.max(...xs), yB = Math.min(...ys), yT = Math.max(...ys);
+  if (R.kind === 1) {                       // pressed beads: vertical swages
+    const nB = Math.max(3, Math.round((xR - xL) / (0.11 / ps)));
+    for (let i = 1; i < nB; i++) { const x = xL + (xR - xL) * i / nB, v = crossAt(0, x); if (!v) continue;
+      for (const [a, b] of cut(v[0] + 0.03 / ps, v[1] - 0.03 / ps, x, true)) bead([[x, a], [x, b]], 0.017 / ps); }
+  } else if (R.kind === 2) {                // rolled: horizontal rolls, touching
+    const w = 0.034 / ps, nR = Math.floor((yT - yB) / (2 * w));
+    for (let j = 0; j < nR; j++) { const y = yB + w + 2 * w * j, a = crossAt(1, y - w), b = crossAt(1, y + w); if (!a || !b) continue;
+      for (const [l, r] of cut(Math.max(a[0], b[0]) + 0.02 / ps, Math.min(a[1], b[1]) - 0.02 / ps, y, false)) bead([[l, y], [r, y]], w); }
+  } else {                                  // framed: a moulding round the wall and round each window
+    bead(ins(0.86), 0.014 / ps, true);
+    for (const r of wins) { const q = 0.02 / ps, rr = [[r[0] - q, r[2] - q], [r[1] + q, r[2] - q], [r[1] + q, r[3] + q], [r[0] - q, r[3] + q]], loop = [];
+      for (let i = 0; i < 4; i++) { const a = rr[i], c = rr[(i + 1) % 4]; for (let k = 0; k < 8; k++) loop.push([a[0] + (c[0] - a[0]) * k / 8, a[1] + (c[1] - a[1]) * k / 8]); }
+      bead(loop, 0.012 / ps, true); }
+  }
+  if (add.length) m.F = F.concat(add);
+  return m;
+}
 function cageSheetKept(spec, step, L) {
   const memo = {};
   const KG = (typeof KNIFE_GEN !== 'undefined') ? KNIFE_GEN
@@ -10950,7 +11032,7 @@ function cageSheetKept(spec, step, L) {
     return { m, s };
   });
   const R = sheetStage('R', spec, memo, A, '', S => cageRims(sheetShallow(A.s), S));
-  const I = sheetStage('I', spec, memo, R, '', S => cageInterior(sheetShallow(R), S));
+  const I = sheetStage('I', spec, memo, R, '', S => cageRearRelief(cageInterior(sheetShallow(R), S), S));
   const s = sheetStage('S', spec, memo, I, '', S => cageShoulder(I, S));
   return { spec, cage: A.m, mesh: s, sheet: s };
 }
@@ -11028,7 +11110,7 @@ function cageSheet(P, opts) {
     s = cageCanopy(s, spec);
     s = cageOpenings(s, spec);                    // G3511: the coaming, the screens
     s = cageRims(s, spec);
-    s = cageInterior(s, spec);
+    s = cageRearRelief(cageInterior(s, spec), spec);   // CAR-4: the rear wall's outside relief after the interior
     // THE SHOULDER (G325) reads the dash's aft plane off the built dash
     // faces, so it runs after the interior; its door segments carry the
     // door's cutOff and are undone with it below

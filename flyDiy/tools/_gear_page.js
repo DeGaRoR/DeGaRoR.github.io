@@ -186,6 +186,9 @@ const WHEEL_ROWS = [
   ['bumpFin', 'bumper finish', 0, 1, 1, ['chrome', 'black'], { when: P => +P.bumpF || +P.bumpR }],
   ['bumpGuards', 'bumper overriders', 0, 1, 1, { when: P => +P.bumpF || +P.bumpR }],
   ['hitchOn', 'tow hitch (rear)', 0, 1, 1, { when: P => +P.bumpR }],
+  // CAR-4: the bulkhead's bas-relief on the OUTSIDE of the rear wall (absent = none)
+  ['extRelief', 'rear wall bas-relief', 0, 3, 1, ['none', 'pressed beads', 'rolled', 'framed panel']],
+  ['extReliefH', 'rear relief depth (m)', 0.003, 0.03, 0.001, { when: P => +P.extRelief }],
 ];
 
 const PRESETS = {

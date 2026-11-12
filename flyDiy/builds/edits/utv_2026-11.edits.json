@@ -98,7 +98,9 @@
   "whRim": 1,
   "whRimD": 0.62,
   "whWide": 1.1,
-  "whTread": 1
+  "whTread": 1,
+  "extRelief": 1,
+  "extReliefH": 0.016
  },
  "wings": {
   "span": 2.2,

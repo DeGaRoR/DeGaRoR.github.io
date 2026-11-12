@@ -154,7 +154,10 @@
   "bumpW": 0.92,
   "bumpH": 0.18,
   "bumpFin": 0,
-  "bumpGuards": 1
+  "bumpGuards": 1,
+  "extRelief": 1,
+  "extReliefH": 0.016,
+  "intBulk": 0
  },
  "fuel": {
   "litres": 80,

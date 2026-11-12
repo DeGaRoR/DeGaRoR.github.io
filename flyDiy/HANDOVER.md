@@ -314923,3 +314923,10 @@ the next steps).
   lidLen) - a scene lookup of the cowl group missed it in the page. THE TUG'S BALLAST: the 4WD splits the drive equally per
   wheel (no differential), so a front-heavy tug spins its light rears on the climb - 150 kg in the load bay (spec.cargo,
   _rejoin_build.js now carries E.cargo): 1249 kg, 36 % front, AUTOTOW LAUNCHES (97 km/h held).
+- **CAR-4, THE REAR WALL'S BAS-RELIEF ON THE OUTSIDE (the user: "build the ability of printing the bas-relief on the
+  visible backside")**: NEW ROWS extRelief (1 pressed beads / 2 rolled / 3 framed panel, the aft bulkhead's own three) and
+  extReliefH (_cage_gen.js cageRearRelief, after cageInterior in both sheet paths; rows in _gear_page.js, claimed in
+  _cage_parts.js; absent = none): raised beads on the rear wall's outside, clipped to its outline (the hull of its
+  aft-facing skin faces, inset), stepping round the rear windows, the faces tagged with the wall's own skin material so the
+  sheet paints them (a gear-layer mesh drew white: the section material is not reachable there). Both cars: beads, 16 mm.
+  The UTV's take its 'cloth' (the Cub's fabric skin) and read darker than the wood grain. The wagon's aft bulkhead off too.
