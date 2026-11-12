@@ -314880,3 +314880,11 @@ the next steps).
   1.44 m; the bed stOver 0.13 m past the booms (its edge at the cab's 0.62 m half-width) and stTipZ 0.6 (the tip's leading
   edge forward: the bed's sides straight, no flare toward the cab); frWinBotY -0.92 (the cab's floor flat at -0.63 m to
   the nose, the nose itself the user's chosen one). 536 kg, 71 % front, 0-100 7.0 s. Gates PARTS / CAGEFIT / DESIGN PASS.
+- **CAR-3, THE NEXT ROUND (the user: the windscreen run -5 cm, the cabin +5 cm, the pilot window sill -10 cm, the bonnet
+  face's top -10 cm; both rendered; the suspension anchors placed clean)**: wsRun 0.60, pilotLen 0.70, frPostWaistY /
+  frCabWaistY 0.147 (the cab frames' waist -0.111 cage = -10 cm; the bays keep waistY 0.258), the bonnet's front top
+  -10 cm by a height taper (cw_taperH 0.894, cw_faceRise -0.15 - deckH lowers the whole lid, deckSweep only the last
+  0.2 m). THE SUSPENSION: the front legs hung 0.85 m behind their axle (a long diagonal link) - mounted at s2Z 3.1 (the
+  last station where the floor is flat: at 3.2 the nose's underside rises and the wheel lifted 0.44 m, 2 wheels on the
+  ground), s2AxZ 0.6; the shock tops at 45-50 deg round the section (s1_ / s2_shockAng; at 90 they climbed the door and
+  broke through the bonnet line), the front's 15 cm aft (s2_shockZ -0.15). 1025 kg, 46 % front, LAUNCHES off paved.
