@@ -8,7 +8,7 @@
 //                   a copy of builds/candidates/review/Twin_busher_floats_2.json): unstable (pitch.sm fails, safe tier),
 //                   the step AHEAD of the CG (aid.step fails, safe: it refuses - D1), the floats under
 //                   1.8 x, the prop near the flaps down; the first key issue is the margin and its remedy is sized by the
-//                   rebuilt levers (the wing aft 0.4-0.8 m: the user moved it 0.45 m and swept the tips); the floats
+//                   rebuilt levers (the wing aft 0.35-0.8 m: the user moved it 0.45 m and swept the tips); the floats
 //                   moved by the aid's own number land the step inside its band
 //   CORNERS         the aids' loading corners (the ledger's arithmetic) against genShakedown's envelope (four rebuilds)
 //                   on the Cub: every corner's CG within 3 % of the chord
@@ -50,7 +50,11 @@ const T2 = C.genCertTiers(all2);
 ok(T2.safe === 'fail' && ['pitch.sm', 'aid.step', 'aid.reserve', 'aid.prop'].every(id => T2.safeFail.some(r => r.id === id)) && T2.comm === 'fail', `tiers: airworthiness ${T2.safe} (${T2.safeFail.map(r => r.id).join(', ')}), commercial ${T2.comm}`);
 const K = C.genKeyIssues(def2, sh2, A2, { spec: J2 });
 const k0 = K[0] || {}, mW = /wing aft ~([\d.]+) m/.exec(k0.remedy || '');
-ok(k0.id === 'pitch.sm' && mW && +mW[1] > 0.4 && +mW[1] < 0.8, `key issue 1: ${k0.title} -> ${k0.remedy}`);
+// AERO-BODY re-pin (PHYSICS_V 8): the pod now closes at its drawn end - the phantom fuselage behind it is gone (-8.4 kg,
+// the aft cross-flow 1.31 -> 0.19 m2, the booms' own 0.93 m2), so the NP moves 0.068 m aft and the margin -0.162 -> -0.108:
+// the remedy 0.547 -> 0.404 m, written '~0.4'. The band was 0.4-0.8 around the user's 0.45 m; it is 0.35-0.8 (the user's
+// move still covers the model's need; above 0.8 or under 0.35 is still a wrong-sized remedy)
+ok(k0.id === 'pitch.sm' && mW && +mW[1] >= 0.35 && +mW[1] < 0.8, `key issue 1: ${k0.title} -> ${k0.remedy}`);
 ok(K.length >= 3 && K.length <= 5 && K.some(k => k.id === 'aid.step'), 'key issues: ' + K.map(k => k.id).join(', '));
 {
   const S = JSON.parse(JSON.stringify(J2)); S.gear.floats.x += A2.floats.moveX;

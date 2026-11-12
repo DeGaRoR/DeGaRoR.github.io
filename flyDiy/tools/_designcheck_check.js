@@ -78,13 +78,18 @@ if (!ONLY_SIM) {
   }
   // G3271 (RUFUS-CERT): the user's Rufus as built (tools/fixtures/repro/rufus_2026-10-18.json, a copy of their
   // inbox file) - flown power off with the stick on its stop it settles at 1.16 Vs and never stalls; ctl.elevator
-  // passed it, ctl.flare must not, and must read within 0.08 of the flown 1.16
+  // passed it, ctl.flare must not, and must read within 0.08 of the flown 1.16 (1.135 on PHYSICS_V 8: AERO-BODY)
   console.log('THE USER\'S RUFUS (nose-heavy: the elevator runs out before the stall) - ctl.flare catches it');
   {
     const { dc } = check(joined('tools/fixtures/repro/rufus_2026-10-18.json'), null, true);
     const r = row(dc, 'ctl.flare');
-    ok(r.level !== 'pass' && !!r.fix && Math.abs(r.value - 1.16) <= 0.08,
-       `rufus: ctl.flare ${r.level} (${r.value} x Vs; flown 1.16) -> ${r.fix || 'no fix'}`);
+    // AERO-BODY re-pin (PHYSICS_V 8): the Rufus is less nose-heavy - its CG 0.662 -> 0.691 m: the rod weighs its drawn tube
+    // (+0.019 m, -0.4 kg: the tube's mass sits further aft than the lattice it replaces) and COWL-BILL takes the cowl it
+    // does not wear off its nose (cage.cowlOn 0: +0.010 m, -4.5 kg). The row 1.09 -> 1.07, the stick-on-its-stop flight 2.1 % slower on the same probe
+    // (tools/_aerobody_flare_probe.js: 1.266 -> 1.239 Vs). The flown reference moves with it, 1.16 -> 1.135; the 0.08 holds
+    const FLOWN = 1.135;
+    ok(r.level !== 'pass' && !!r.fix && Math.abs(r.value - FLOWN) <= 0.08,
+       `rufus: ctl.flare ${r.level} (${r.value} x Vs; flown ${FLOWN}) -> ${r.fix || 'no fix'}`);
   }
 
   console.log('DOCTORED - each defect fails on its own row, with a fix');

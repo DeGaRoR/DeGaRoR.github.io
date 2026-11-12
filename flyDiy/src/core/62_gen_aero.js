@@ -594,7 +594,7 @@ function genAeroBody(S) {
     const A = T.map(r => genEll(2 * r.w, r.yt - r.yb)), rq = A.map(a => Math.sqrt(a / Math.PI));
     if (!AB.tailOnBody) {
       let iM = 0; for (let i = 1; i < A.length; i++) if (A[i] > A[iM]) iM = i;
-      const tS = Math.tan(B.thetaSep * Math.PI / 180);
+      const aS = B.thetaSep * Math.PI / 180, tS = CORE_MATH.sin(aS) / CORE_MATH.cos(aS);   // (CORE_MATH: the page's tan is not node's)
       for (let i = iM + 1; i < T.length; i++)
         if (-(rq[i] - rq[i - 1]) / Math.max(1e-6, T[i].x - T[i - 1].x) > tS) { iS = i - 1; break; }
       fore = genFusSwet(S, T.slice(0, iS + 1));
