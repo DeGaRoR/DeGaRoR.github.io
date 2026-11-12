@@ -3172,7 +3172,17 @@ const ARCHETYPES = [
                     // skin, so that is where they stop. Plain flaps from the centre section to mid-span (wgFlapType 1 - the
                     // garage has no airbrake flap: a GARAGE GAP, REF_MATCH section 7), the ailerons the rest (0.54 / 0.55 meet);
                     // the lights off (lightOn 0); the windows' joint thin (rimW 0.012 -> 0.008: under ~6 mm the bead draws dotted)
-                    botRound: 0.3, seatType: 7, seatRake: 42, seatTilt: 3, seatH: 0, seatZ: 0.32, pedalZ: 1.0, pedalH: 0.25,
+                    botRound: 0.3, seatType: 11, seatRake: 42, seatTilt: 3, seatH: 0, seatZ: 0.32, pedalZ: 1.0, pedalH: 0.25,
+                    // L3 OF THE WEIGHT PATH - THE FIXED ITEMS (12 Nov, the user: "we have already very light seats ... the
+                    // controls ... should be fitted in the tubes ... no central levers. There should be no dashboard ...
+                    // an even lighter glazing option, like soft glazing"; WEIGHT_STUDY.md THE PATH): the reclined tub
+                    // (seatType 11, 3.0 kg, the aerobatic recline's 6.0), the soft film glazing (glazeMat 3, 0.7 kg/m2),
+                    // the light control runs (ctlRuns 1: push-pull carbon rods and Dyneema, 0.15 kg/m of reach), the stick
+                    // at the side, on the right keel tube (ctlStick 2, stickX 0.1 inboard: at its default the side
+                    // stick's console stood through this narrow pod's skin) and three instruments (spec.systems.items:
+                    // airspeed, altimeter, vario). The DASHBOARD STAYS (0.2 kg): without it the instruments float in the
+                    // air - a GARAGE GAP, an instrument mount with no dashboard (the real one's varios on the shoulders)
+                    glazeMat: 3, ctlRuns: 1, ctlStick: 2, stickX: 0.1,   // (and seatType 11, above)
                     wgFlapType: 1, wgFlapSpan: 0.54, wgAilOn: 1, wgAilSpan: 0.55, lightOn: 0, rimW: 0.008,
                     // THE TWO AFT WINDOWS (12 Nov, the user with a photo of the real aeroplane: "draw these 2 little windows
                     // at the back, with their subtleties (the bottom one has an angle)"): two drawn windows (4b) side by side
@@ -3199,6 +3209,7 @@ const ARCHETYPES = [
             // overall, no cheat line, the registration in navy low on the nose's flank, clear of
             // the windows' and the cheat line's lines (on the fin it fought the hinge: 12 Nov, the user: "messy where it is")
             spec: { fuel: { litres: 0 },
+                    systems: { fit: 'minimal', items: ['asi', 'alt', 'vsi'] },   // (L3: airspeed, altimeter, vario)
                     paint: { job: 'full', sweep: 0, base: 0xf3f4f1, trim: 0x17325e },
                     finish: { decals: {
                       regTarget: 0, regMode: 0, regL: 0.95, regC: -0.30, regH: 0.12 },

@@ -228,7 +228,7 @@ came from a read that left sections out; the ledger is the reference from here o
 | L1 | the foot-launch D-tube wing | -13 to -20 | **-14.1** (wing 47.9 -> 34.7; bracing 7.1 -> 6.9) | **155.0** | **done**, certified 6.28 g |
 | L2a | the tail follows a chosen wing (the D-tube tail, certified at its build weight) | ~-5 | **-2.4** (tail 8.3 -> 6.1, the rest the gauge's) | **152.6** | **done** |
 | L2b | the rod: carbon, a thin wall (AERO-BODY's rod row) | ~-3 | the prototype: -2.0 (wall × 0.4) | ~150 | AERO-BODY's |
-| L3 | the fixed items: reclined tub, soft glazing, light controls on the keel tubes, no panel, minimal furnishing, gelcoat | ~-29 (outfit 21.2 -> ~5, furnishing 6 -> 0, paint 5.1 -> 0, panel 2.1 -> 0.3) | | ~118 | |
+| L3 | the fixed items: the reclined tub (3 kg), SOFT FILM glazing (new, 0.7 kg/m2), LIGHT CONTROL RUNS (new, push-pull carbon rods and Dyneema, 0.15 kg/m), the side stick on the keel tube, three instruments | ~-29 expected | **-18.9** (outfit 21.2 -> 8.0, seat 6 -> 3, instruments 2.1 -> 1.3; the lining was already 0; the paint kept - a gelcoat is no lighter; the dashboard kept, 0.2 kg - without it the gauges float: a garage gap) | **133.7** | **done** |
 | L4 | the soft-shell cabin over the hard keel, mast and struts | ~-10 (of the fuselage's 26.6) | | ~108 | |
 | L5 | a pinned carry-through (six pins, not the cantilever box) | ~-6 (bracing 6.9 -> ~1) | | ~102 | |
 | L6 | the light gear (a carbon blade on the monowheel) | ~-3.5 (5.5 -> ~2) | | ~98 | |

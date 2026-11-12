@@ -314887,3 +314887,14 @@ chantier (stage 4) must bring it forward. Parked: the wheel, the nose skid, a wi
   86 (0.5), 90 (0.3), 94 (carbon 0.3) - the rod's lighter nodes raise omega; the floatplane 109 / 107 / 106.
   OWED: a realistic tail limit load for the through-the-boom bench (its stab load is the wing's loading: the standard
   4130 rod on the pusher pod cracks at 2.33 g) - the twin floatplane's "must hold" end needs it (AERO-BODY measures).
+- L3 OF THE PATH: THE FIXED ITEMS (12 Nov, the user: "Go L3"): the Archaeopteryx 152.6 -> 133.7 kg empty. NEW, latent:
+  SOFT FILM GLAZING - cabin.glazingMat 'film' (the glazeMat row's 4th option; GEN_OUTFIT.glassKgM2By.film 0.7 kg/m2,
+  aeroskin GLASS_MATS.film a faint haze, tech 'glaze:film' stage 1; clampSpec, the join, _cage_gen, _cage_ui lists);
+  LIGHT CONTROL RUNS - cabin.ctlRuns 'light' (the crew page's ctlRuns row, CAGE_DEFAULT_ABSENT 0; GEN_OUTFIT.ctlKgMLight
+  0.15 kg/m of reach against 0.62; 61_gen_frame's controls bill; clampSpec keeps 'light' only). THE CARD: seatType 11 (the
+  reclined tub, 3.0 kg), glazeMat 3, ctlRuns 1, ctlStick 2 with stickX 0.1 (at its default the side stick's console box
+  stood through the narrow pod's skin), spec.systems.items airspeed / altimeter / vario. KEPT: the dashboard (0.2 kg -
+  with intDash 0 the instruments float in the air: a GARAGE GAP, an instrument mount with no dashboard); the paint (a
+  gelcoat is no lighter than paint). The fleet: only the Archaeopteryx moves. Gates green: MONOWHEEL HUB NACELLE
+  LIGHTWING RODROW DEFAULT WEIGHT CABIN SEATS DMGGLASS PILLAR CLIP FRAMES JOIN SPECFIX CREWLOAD SAVE PARTS DESIGN
+  NEWPLANE; TECH red the master way ("every option of every covered table has a segment": av.elt none / fitted).

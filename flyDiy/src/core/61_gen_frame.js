@@ -3870,7 +3870,8 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // THE CONTROLS, from the reach: out to the tips and back to the tail.
     // Dual controls are a second stick and a second set of pedals.
     const reach = S.geom.semi + S.fuse.tailArm;
-    const ctlM = O.ctlKgM * reach + (seats > 1 ? O.ctlDualKg : 0);
+    // (WEIGHT STUDY L3: light runs - push-pull carbon rods and Dyneema on the keel tubes - when the outfit says so)
+    const ctlM = (cb.ctlRuns === 'light' && O.ctlKgMLight > 0 ? O.ctlKgMLight : O.ctlKgM) * reach + (seats > 1 ? O.ctlDualKg : 0);
     // THE GLAZING: the windscreen and the side windows, over the cabin.
     // ...an OPEN FRAME (PERF STUDY chantier 1) has a windscreen and no side
     // windows — there is no side to put them in

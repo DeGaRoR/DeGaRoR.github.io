@@ -4438,6 +4438,9 @@ const GLASS_MATS = {
   acrylic: {},
   polycarbonate: { tint: 0xd6c9a4, opacity: 0.34, rough: 0.32, ccR: 0.36, touch: 0.8, grime: 0.3, refl: 0.8 },
   glass: { tint: 0xa9cfc4, rough: 0.05, ccR: 0.06, fresnel: 1.26 },
+  // SOFT GLAZING (WEIGHT STUDY L3): a stretched film - thin and clear, a faint haze, a soft limb, more of the frame's
+  // grime and handling on it
+  film: { tint: 0xeef3f4, opacity: 0.24, rough: 0.2, ccR: 0.22, touch: 0.6, grime: 0.2, refl: 0.85 },
 };
 const aeroGlassMat = m => GLASS_MATS[m] || GLASS_MATS.acrylic;
 

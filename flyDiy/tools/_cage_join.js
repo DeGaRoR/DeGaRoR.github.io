@@ -589,7 +589,9 @@ function cageJoinSpec(P, M, T) {
   // T2.2: the glazing MATERIAL (the cage's one row) and the glazed AREA the
   // editor measured off its built sheet (CAGE_UI.glazedM2, m2 after the scale)
   if (P.glazeMat != null)
-    cabin.glazingMat = ['acrylic', 'polycarbonate', 'glass'][Math.max(0, Math.min(2, Math.round(+P.glazeMat)))];
+    cabin.glazingMat = ['acrylic', 'polycarbonate', 'glass', 'film'][Math.max(0, Math.min(3, Math.round(+P.glazeMat)))];   // (film: WEIGHT STUDY L3)
+  // WEIGHT STUDY L3: the light control runs (latent - the row at 0 writes nothing)
+  if (+P.ctlRuns) cabin.ctlRuns = 'light';
   {
     const UI = typeof window !== 'undefined' ? window.CAGE_UI : null;   // headless joins measure no sheet
     if (UI && UI.glazedM2 > 0) cabin.glazedM2 = +UI.glazedM2.toFixed(3);

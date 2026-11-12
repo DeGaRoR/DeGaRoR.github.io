@@ -1917,7 +1917,10 @@ const GEN_OUTFIT = {
   // polycarbonate (Lexan, 1.20 g/cc against acrylic's 1.19) weighs the same
   // at the same gauge; tempered GLASS at 3 mm is 2.5 g/cc — 7.5 kg/m2, twice
   // the acrylic, which is why light aeroplanes do not carry it
-  glassKgM2By: { acrylic: 3.6, polycarbonate: 3.6, glass: 7.5 },
+  // ...and SOFT GLAZING (WEIGHT STUDY L3, 12 Nov, the user: "maybe we can have an even lighter glazing option, like
+  // soft glazing"): a 0.5 mm PET / PETG film stretched on the frame, ~0.7 kg/m2 with its edge tape - a fifth of the
+  // sheet; it hazes, wrinkles and cracks sooner (aeroskin GLASS_MATS.film), the foot-launch gliders' and the trikes'
+  glassKgM2By: { acrylic: 3.6, polycarbonate: 3.6, glass: 7.5, film: 0.7 },
   // EXHAUST scales with the power it has to carry away: an A-65's two short
   // stacks are about 3 kg on 48.5 kW, and a collector ring on a big radial is
   // heavier per kW because it is longer as well as fatter.
@@ -1932,6 +1935,10 @@ const GEN_OUTFIT = {
   // driver is the reach — semi-span plus tail arm — and dual controls cost a
   // second stick and a second set of pedals.
   ctlKgM: 0.62, ctlDualKg: 3.4,
+  // LIGHT CONTROL RUNS (WEIGHT STUDY L3, 12 Nov, the user: "they should be fitted in the tubes ... no central levers"):
+  // push-pull carbon rods and Dyneema lines on the keel tubes, small bellcranks, no torque tube -
+  // cabin.ctlRuns 'light' (latent: absent, the 0.62 above)
+  ctlKgMLight: 0.15,
   // FURNISHING (PERF STUDY chantier 1, 2026-09-15): what a cabin is lined
   // with — side panels, floor, trim, headliner, soundproofing, carpet, the
   // heater and its ducting — by the fit's tier, as a fraction of Raymer's
@@ -5656,7 +5663,9 @@ function clampSpec(spec) {
   }
   cb.baggage = genClamp(cb.baggage, 0, 60);
   if (!['glass', 'none'].includes(cb.glazing)) cb.glazing = 'glass';
-  if (!['acrylic', 'polycarbonate', 'glass'].includes(cb.glazingMat)) cb.glazingMat = 'acrylic';
+  if (!['acrylic', 'polycarbonate', 'glass', 'film'].includes(cb.glazingMat)) cb.glazingMat = 'acrylic';
+  // (WEIGHT STUDY L3: the light control runs, GEN_OUTFIT.ctlKgMLight - latent, 'light' the only stated value)
+  if (cb.ctlRuns != null && cb.ctlRuns !== 'light') delete cb.ctlRuns;
   cb.glazedM2 = (typeof cb.glazedM2 === 'number' && isFinite(cb.glazedM2) && cb.glazedM2 >= 0)
     ? genClamp(cb.glazedM2, 0, 40) : null;
   // G3516 (NEW-SHAPES-1): an OPEN COCKPIT'S SCREENS, m2 as the join measured them (cabin.glazing 'none' because every

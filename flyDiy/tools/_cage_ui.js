@@ -802,7 +802,7 @@ const matOf = name => {
       // way of LOOKING at the build and must be able to see through it
       // T2.2: the glazing material's base numbers (aeroskin GLASS_MATS),
       // the builder's dials and the pane's own tint well on top
-      const GM = A.aeroGlassMat ? A.aeroGlassMat(['acrylic', 'polycarbonate', 'glass'][Math.round(+P.glazeMat || 0)]) : {};
+      const GM = A.aeroGlassMat ? A.aeroGlassMat(['acrylic', 'polycarbonate', 'glass', 'film'][Math.round(+P.glazeMat || 0)]) : {};
       // the material under the dials the builder MOVED (a dial at its
       // default is the material's to set)
       const dial = {};

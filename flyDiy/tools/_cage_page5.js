@@ -596,7 +596,7 @@ window.CAGE_PAGE = {
          { when: P => Math.round(+P.canopy || 0) !== 3 }],
         // T2.2: the glazing MATERIAL, one for the whole aeroplane (the look
         // and the ledger read it; the join carries it as cabin.glazingMat)
-        ['glazeMat',  'glazing material', 0, 2, 1, ['acrylic', 'polycarbonate', 'glass']],
+        ['glazeMat',  'glazing material', 0, 3, 1, ['acrylic', 'polycarbonate', 'glass', 'soft film (WEIGHT STUDY: a fifth of the sheet)']],
         ['skylight',  'skylight',       0, 1, 1],
         ['skyExt',    'sky extent',     0, 5, 1,
          { when: P => +P.skylight }],
@@ -850,6 +850,9 @@ window.CAGE_PAGE = {
       // the auto-laced place: +x pilot's left, +y up, +z toward the
       // nose. 0 = as laced.
       ['controls', [
+        // WEIGHT STUDY L3 (12 Nov, the user: "they should be fitted in the tubes ... no central levers"): the runs' kind -
+        // the billed rate per metre of reach (GEN_OUTFIT.ctlKgM / ctlKgMLight); latent at 0
+        ['ctlRuns',   'control runs',   0, 1, 1, ['cables and torque tubes', 'light: push-pull carbon rods, Dyneema'], { absent: 0 }],
         ['ctlStick',  'pitch/roll',     0, 3, 1, ['stick between legs',
                                                   'yoke', 'side stick R',
                                                   'none']],
