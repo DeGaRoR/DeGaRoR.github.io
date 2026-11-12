@@ -1727,25 +1727,28 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
       // ground's own green split into dark moss / crowberry, dry ochre sedge, rust bearberry, pale lichen specks and bare earth
       // scuffs (3-8 m patches, 0.4-1.2 m breakup), stronger toward the trail, so the tracks sit IN the tundra
       const vec3 LW = vec3(0.2126, 0.7152, 0.0722); float lum = dot(col, LW);
-      float m1 = pvNoise(uvS / 3.1 + seed * 1.7 + 41.0), m2 = pvNoise(uvS / 1.2 + 43.0), m3 = pvNoise(uvS / 0.45 + 47.0), m4 = pvNoise(uvS / 7.5 + seed + 53.0);
+      // (06:10 stills: multiples of the lawn stayed lawn, and one octave through sharp steps drew squares) - an ABSOLUTE tundra
+      // palette near the island's own grey-green, rotated fbm, soft steps
+      const mat2 RT = mat2(0.8, -0.6, 0.6, 0.8); vec2 q = RT * uvS, q2 = RT * q;
+      float m1 = pvFbm(q / 3.1 + seed * 1.7 + 41.0), m2 = pvFbm(q2 / 1.2 + 43.0), m3 = pvFbm(q / 0.45 + 47.0), m4 = pvFbm(q2 / 7.5 + seed + 53.0);
       float near = 1.0 - smoothstep(0.0, max(halfW, 4.0) + 0.6 * shW, abs(v) + 2.5 * (m4 - 0.5));   // the mosaic strongest at the trail
-      vec3 tun = mix(col * vec3(0.66, 0.74, 0.5), col * vec3(1.12, 1.02, 0.7), smoothstep(0.35, 0.72, m1));
-      tun = mix(tun, col * vec3(0.92, 0.64, 0.5), smoothstep(0.6, 0.8, m4) * 0.75);
-      tun = mix(tun, vec3(lum * 1.2) * vec3(0.94, 0.98, 0.88), smoothstep(0.74, 0.88, m3) * 0.45);
+      vec3 tun = mix(vec3(0.072, 0.086, 0.046), vec3(0.165, 0.15, 0.085), smoothstep(0.4, 0.62, m1));   // moss / crowberry -> dry sedge
+      tun = mix(tun, vec3(0.13, 0.075, 0.048), smoothstep(0.52, 0.66, m4) * 0.7);                         // rust bearberry
+      tun = mix(tun, vec3(0.24, 0.245, 0.2), smoothstep(0.62, 0.74, m3) * 0.2);                           // lichen
       vec3 earthT = vec3(0.115, 0.09, 0.064) * (0.8 + 0.4 * m3);
-      tun = mix(tun, earthT, smoothstep(0.72, 0.86, m2 * 0.6 + m3 * 0.4) * (0.25 + 0.45 * near));
-      tun *= 0.86 + 0.28 * m3;
-      float tunK = 0.55 + 0.45 * near;
+      tun = mix(tun, earthT, smoothstep(0.56, 0.7, m2 * 0.6 + m3 * 0.4) * (0.2 + 0.5 * near));
+      tun = mix(tun, col * 0.55, 0.12) * (0.8 + 0.4 * m3);
+      float tunK = 0.85 + 0.15 * near;
       col = mix(col, tun, tunK); rough = max(rough, 0.85);
       if (soil > 0.004) {
         // the ruts IN EARTH, not paint: an absolute dark earth albedo, half the set's own contrast kept (the old per-pixel match to
         // the lawn's brightness made them pale and flat), the bare soil feathering into the plants through the 0.45 m breakup
         Smp f = pvSet(4, uvS); float sk = soil * (1.0 - trail) * smoothstep(0.15, 0.55, soil + 0.5 * (m3 - 0.5));
-        vec3 dirt = f.c.rgb * sqrt(0.105 / max(dot(f.c.rgb, LW), 0.02)) * vec3(1.08, 0.94, 0.74);   // its lum = sqrt(0.105 x its own)
+        vec3 dirt = f.c.rgb * sqrt(0.06 / max(dot(f.c.rgb, LW), 0.02)) * vec3(1.1, 0.93, 0.7);   // its lum = sqrt(0.105 x its own)
         col = mix(col, dirt, sk); nT = mix(nT, f.n.xyz, sk * 0.7); rough = mix(rough, f.n.a, sk);
         Smp g = pvSet(1, uvS);
-        vec3 grit = g.c.rgb * sqrt(0.13 / max(dot(g.c.rgb, LW), 0.02)) * vec3(1.04, 0.95, 0.8) * (0.88 + 0.24 * edgeN);
-        grit = mix(grit, dirt, 0.35);   // packed earth with grit in it, not a gravel road
+        vec3 grit = g.c.rgb * sqrt(0.07 / max(dot(g.c.rgb, LW), 0.02)) * vec3(1.08, 0.94, 0.74) * (0.88 + 0.24 * edgeN);
+        grit = mix(grit, dirt, 0.5);   // packed earth with grit in it, not a gravel road
         col = mix(col, grit, trail); nT = mix(nT, g.n.xyz, trail); rough = mix(rough, g.n.a, trail);
         vec2 pc = floor(uvS / 0.22), ph = pvHash2(pc + seed * 3.1);
         if (ph.x < 0.4 * trail) { vec2 pq = (pc + 0.25 + 0.5 * pvHash2(pc + seed * 5.7 + 11.0)) * 0.22 - uvS; float pr = 0.01 + 0.015 * ph.y;
