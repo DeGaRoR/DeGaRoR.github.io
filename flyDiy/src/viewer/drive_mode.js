@@ -104,9 +104,11 @@
     if (rig && rig.g.parent) rig.g.parent.remove(rig.g);
     rig = makeRig(); scene_.add(rig.g);
     DM.on = true; DM.paused = false;
-    const to0 = ctx.to && G.places[ctx.to] ? ctx.to : (G.places[TOWN.id] ? TOWN.id : start.id);
+    // (CAR, 13 Nov: with no To asked and no town at this budget the car waits at its start for the player's pick - it
+    // drove to its own stand, round the block, before)
+    const to0 = ctx.to && G.places[ctx.to] ? ctx.to : (G.places[TOWN.id] ? TOWN.id : null);
     place(start, to0);
-    DM.setDest(to0);
+    if (to0) DM.setDest(to0);
     return true;
   };
   // (the car stands facing the way its route leaves: a trip sets off without a U-turn - vehFaceToward)
@@ -160,6 +162,9 @@
     poseRig();
   };
   DM.target = () => { const c = car.toWorld(def.cg); return [c[0], c[1] + 0.6, c[2]]; };
+  // (CAR, 13 Nov: a probe for the page rigs - the rig's meshes, its place in the world, the camera's target)
+  DM.rigInfo = () => { if (!rig) return null; let n = 0; rig.g.traverse(o => { if (o.isMesh) n++; }); const e = rig.g.matrix.elements;
+    return { meshes: n, wheels: rig.wheels.length, inScene: !!rig.g.parent, at: [e[12], e[13], e[14]].map(v => +v.toFixed(2)), target: DM.target().map(v => +v.toFixed(2)), cg: def && def.cg, garageCar: !!(srcNow && srcNow.buildRig) }; };
   DM.tailAxis = () => { const f = car.axes().fwd; return [-f[0], -f[1], -f[2]]; };
   DM.upAxis = () => [0, 1, 0];
 
@@ -181,7 +186,7 @@
     if (ph === 'MANOEUVRE' && M) return { phase: 'U-TURN', line: 'U-turn (' + M.plan.family + '): move ' + (D.manI + 1) + ' of ' + M.paths.length + (M.paths[D.manI] && M.paths[D.manI].dir < 0 ? ', reversing' : ', forward') + ' - then ' + to, left: null };
     if (ph === 'ARRIVED') return { phase: 'ARRIVED', line: 'arrived at ' + to + ' - pick a new To to drive on', left: 0 };
     if (ph === 'STUCK') return { phase: 'STUCK', line: 'stuck: not moving for 20 s on the throttle - Restart, or a new To', left: null };
-    const lg = D && D.log.length ? D.log[D.log.length - 1].msg : 'parked';
+    const lg = D && D.log.length ? D.log[D.log.length - 1].msg : 'parked at ' + placeName(DM.from) + ' - pick a destination (the To)';
     return { phase: 'PARKED', line: lg, left: null };
   };
   DM.trip = () => placeName(DM.from) + ' → ' + placeName(DM.to);

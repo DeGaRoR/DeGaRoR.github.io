@@ -53,6 +53,9 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     return { name: DRIVE_MODE.name, garageCar: !!V, mass: S && S.estimates.mass_kg, wb: S && S.wheelbase, track: S && S.track, drive: S && S.drive,
              to: DRIVE_MODE.to, from: DRIVE_MODE.from, choices: DRIVE_MODE.choices().map(c => c.label).slice(0, 12), words: DRIVE_MODE.words() }; });
   console.log(JSON.stringify(info));
+  const diag = await page.evaluate(() => ({ rig: DRIVE_MODE.rigInfo ? DRIVE_MODE.rigInfo() : null, body: document.body.className,
+    cam: window.CAMERA ? [CAMERA.position.x, CAMERA.position.y, CAMERA.position.z].map(v => +v.toFixed(1)) : null }));
+  console.log('diag', JSON.stringify(diag));
   const shots = (TIMES || '0,20,60').split(',').map(Number);
   let done = 0;
   for (const t of shots) {
