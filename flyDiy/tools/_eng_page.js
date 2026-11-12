@@ -72,7 +72,10 @@ const engDefaults = () => Object.assign(
     tStyle: EG.ENG_DEFAULT.tStyle, tCanD: EG.ENG_DEFAULT.tCanD,
     tCanL: EG.ENG_DEFAULT.tCanL, gearK: EG.ENG_DEFAULT.gearK,
     flatK: EG.ENG_DEFAULT.flatK, tRpm: EG.ENG_DEFAULT.tRpm,
-    stackStyle: EG.ENG_DEFAULT.stackStyle },
+    stackStyle: EG.ENG_DEFAULT.stackStyle,
+    // (12 Nov, FIT-PROCEDURE) the PT6 stacks' reach, run, thickness, drop and outlet (1/1/1/0/0: as drawn before)
+    stackOut: EG.ENG_DEFAULT.stackOut, stackLen: EG.ENG_DEFAULT.stackLen, stackR: EG.ENG_DEFAULT.stackR,
+    stackDrop: EG.ENG_DEFAULT.stackDrop, stackFlat: EG.ENG_DEFAULT.stackFlat },
   JSON.parse(JSON.stringify(EMOD.ENGM_DEFAULT)));
 
 const IN = 0.0254;
@@ -278,6 +281,12 @@ const ENG_GROUPS = [
     ['tRpm',    'prop rpm',                1500, 2700, 10],
     ['stackStyle', 'exhaust', 'drop', [[1, 'paired stacks (PT6)'],
                                        [0, 'none (bare)']]],
+    // (12 Nov, FIT-PROCEDURE) the stacks' reach out, run aft and flattened outlet (1 / 1 / 0: as drawn before)
+    ['stackOut',  'stacks: reach out ×',      0.6, 2.5, 0.01],
+    ['stackLen',  'stacks: run aft ×',        0.5, 2.5, 0.01],
+    ['stackFlat', 'stacks: flat outlet',      0, 0.8, 0.01],
+    ['stackR',    'stacks: thickness ×',      0.5, 2.0, 0.01],
+    ['stackDrop', 'stacks: outlet drop (case radii)', -1, 2, 0.01],
   ], isTurbine],
   ['electric', [
     ['eStyle',  'style', 'drop', [[0, 'outrunner (RC / FES)'],
