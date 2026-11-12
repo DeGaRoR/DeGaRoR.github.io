@@ -3378,7 +3378,9 @@ function designFull(sel, over) {
 //   a liquid engine with wing radiators (radMode): the radiators' mouths, the nose left as drawn
 // Untouched: no cowl, an electric engine, a fin mount. Returns the rows it changed (the bake's cage gets them; GATE
 // COOL's sweep checks every archetype the shed births then passes).
-const COOL_BIRTH = { target: 1.4, Vpull: 32, Vpush: 28, rho: 1.134, lip: 0.015, follow: 0.67 };
+// (the climb's inlet speed grows with the engine: a light aeroplane's 32 m/s at 100 kW, a fighter's twice it - a fixed
+// light-aeroplane speed sized the Spitfire-alike's radiators three times too big; Vy x the slipstream, roughly kW^0.3)
+const COOL_BIRTH = { target: 1.4, V100: 32, Vexp: 0.3, Vmin: 28, Vmax: 75, push: 0.88, rho: 1.134, lip: 0.015, follow: 0.67 };
 function designCoolBirth(full) {
   const out = {};
   if (full.cowlOn != null && !+full.cowlOn) return out;
@@ -3407,6 +3409,14 @@ function designCoolBirth(full) {
     return Math.abs(S) / 2; };
   const set = (k, v) => { out[k] = v; full[k] = v; };
   const g = k => +full[k] || 0;
+  // the cowl's front as drawn (its central opening net of the spinner, its pair), m2 - an estimate: the cowl fits an
+  // opening to its face when it draws it
+  const faceHave = () => {
+    const mode = Math.round(g('cw_apMode'));
+    const pairs = mode === 2 || mode === 3 ? 2 * sArea(g('cw_pairW'), g('cw_pairH'), sqExp(full.cw_pairSq)) : 0;
+    const n = sqExp(full.cw_apSq != null ? full.cw_apSq : 0.47);
+    return (mode === 1 || mode === 3 ? Math.max(0, sArea(Math.max(0.02, g('cw_apW')), Math.max(0.02, g('cw_apH')), n) - Math.PI * Math.pow(g('cw_spinR'), 2)) : 0) + pairs;
+  };
   // the cowl's front, round the spinner, opened to `A` m2 (grown, never shrunk; the pair kept)
   const openFace = A => {
     const mode = Math.round(g('cw_apMode'));
@@ -3414,7 +3424,7 @@ function designCoolBirth(full) {
     const spin = Math.PI * Math.pow(g('cw_spinR'), 2);
     const n = sqExp(full.cw_apSq != null ? full.cw_apSq : 0.47);
     const w0 = mode === 1 || mode === 3 ? Math.max(0.02, g('cw_apW')) : 0.1, h0 = mode === 1 || mode === 3 ? Math.max(0.02, g('cw_apH')) : 0.1;
-    const have = (mode === 1 || mode === 3 ? Math.max(0, sArea(w0, h0, n) - spin) : 0) + pairs;
+    const have = faceHave();
     if (have >= A) return;
     if (mode === 0) set('cw_apMode', 1); else if (mode === 2) set('cw_apMode', 3);
     const want = A - pairs + spin, f = Math.sqrt(want / Math.max(1e-6, sArea(w0, h0, n)));
@@ -3442,9 +3452,10 @@ function designCoolBirth(full) {
     set('radW', +(w0 * f).toFixed(3)); set('radH', +(h0 * f).toFixed(3));
   };
   const mK = Math.round(g('engMount')), aim = Math.round(g('engAim'));
-  const pullA = areaAt(COOL_BIRTH.Vpull), pushA = areaAt(COOL_BIRTH.Vpush);
+  const Vp = Math.max(COOL_BIRTH.Vmin, Math.min(COOL_BIRTH.Vmax, COOL_BIRTH.V100 * Math.pow(R.powerW / 1e5, COOL_BIRTH.Vexp)));
+  const pullA = areaAt(Vp), pushA = areaAt(COOL_BIRTH.push * Vp);
   if (mK === 8) return out;                                                      // a fin mount: left as drawn
-  if (liquid && Math.round(g('radMode')) > 0) { radiators(pullA); return out; }  // the radiators take the air
+  if (liquid && Math.round(g('radMode')) > 0) { radiators(Math.max(0, pullA - faceHave())); return out; }   // the radiators: what the nose leaves
   if (turbine) { scoop(pullA, mK === 1 ? 'push' : 'pull'); return out; }       // the oil cooler's scoop
   if (mK === 4 || mK === 7) {                                                    // push-pull, tandem: nose pulls, rear pushes
     openFace(Math.max(pullA, pushA * GC.outRatio)); scoop(pushA, 'aft'); return out;

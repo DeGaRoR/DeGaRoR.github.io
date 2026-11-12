@@ -464,3 +464,79 @@ The proposal, for the user's ruling:
 2. re-sweep;
 3. open the wing twins' nacelle faces and re-draw whatever still fails among the official cards and the archetypes;
 4. then rule the rows real, with `sign.rules` for kept signatures.
+
+## 12. THE THIRD LANDING: THE ROWS RULED (12 Nov; the user: "you can just add a rule and regenerate them ... the client cub, you have the cylinder heads themselves sticking out of the cowl ... check Rufus ... the twin engine on floats ... recalibrate ... coefficients around the opening ... pusher-puller inline should allow for a scoop on the aft engine")
+
+**What the user asked, and what was found:**
+
+- **The Client Cub (list:26, official, was 0.97).** Its heads do poke through its cowl. The generator's covers-the-sides test
+  read its own loft, not the drawing. The heads are now MEASURED against the drawn skin: the engine layer maps each
+  cylinder's frontal strip into the cowl's frame (`COWL_GEN.coolHeads`, `spec.cooling.headsOut / headsAll`). The Client
+  Cub has 0.046 m2 of heads in the wind and passes at 2.77 with its card unchanged.
+  A proper Cub-style CUT round each head is a garage gap: the cowl has a sector "horseshoe" (the Camel's), not head
+  cut-outs. It is proposed, not built.
+- **Rufus (list:7, no cowl).** It gets its own figure now: 0.097 m2 of cylinders in the wind, 2.54 x what a 38 C climb
+  needs. An electric motor in the open air passes without a figure.
+- **The Tiger Moth-alike candidate (list:10).** The same measurement found its cylinders INSIDE its drawn cowl, where the
+  generator's loft had said 0.099 m2 out. With a 0.007 m2 front it fails at 0.17. It is a reference-fitted card, left as
+  drawn.
+- **The Ultralight twin on floats (list:27).** Its chin scoops were counted (0.014 m2 each, facing the flight). They were
+  mostly buried in the nacelles (0.16 m tall). Riding the bottom line at 0.14 x 0.11 takes it from 0.62 to 1.50.
+- **A FACING ERROR, found on the way.** The lowered bottom's crescent and the gills' hoods open towards the cowl's FIREWALL
+  end. On a pusher, whose cowl is turned round, that end faces the flight, so they are inlets there. A pusher's way out
+  is its face, round the spinner. The second landing's Twin busher "exit gap" (0.22, outside the row's 0-0.08 range)
+  was therefore an inlet. The Twin busher is redrawn: no exit gap, and the face round the spinner opened (0.2 m
+  half-sizes) as the way out, behind the turned scoop. It passes at 1.35.
+
+**The recalibration, on the opening's own coefficients (the user's words).** Three resistances in series replace one
+inlet ratio (kappa 0.45):
+
+    mdot = 1 / sqrt(1/(ivr rho V A_in)^2 + 1/(passages x need)^2 + 1/(ivr rho V A_out / 1.3)^2)
+
+- `ivr` 0.8 is the inlet's best velocity ratio: a small inlet runs near it.
+- `passages` 3.0 is the engine's own fins and baffles, at its hot climb: a big inlet spills past them.
+
+The reference cowls now read: the Cub 2.08, the V2-172 2.11, the Jodel 2.85. The rv archetype goes from 0.57 to 3.21;
+its heads stick out too. The drag is unchanged wherever the outlet is sized for you: it is the needed air's momentum,
+the same expression.
+
+**The Super Petrel goes back to the user's drawing (0.42 of the nacelle).** Under the series law and the pusher's
+suction it passes at 1.48; the second landing's 0.47 was not needed.
+
+**The push-pull.** Every engine on the body is judged, and the worst answers. The rear engine wears the nose cowl turned
+round, so the new row `cw_scoopAft` ("the rear engine's scoop: as the nose cowl's / turned: into the air") turns the
+aft cowl's scoop on its own. The cowl layer rebuilds that scoop on the aft clone, and the measurement carries the
+scoop's other end (`scoopAlt`) and each unit's area factor. The Skymaster-alike: nose 3.03, rear 2.78.
+
+**The archetypes (the user: "add a rule and regenerate them").** `_cage_design.js designCoolBirth` opens each archetype
+at birth to 1.4 x its engine's need at a climb speed that grows with its power (32 m/s at 100 kW, x kW^0.3, 28-75 m/s).
+It never shrinks what a card draws:
+- a puller opens its front round the spinner, plus a chin scoop where the face cannot hold it (wing nacelles, inline
+  and vee engines);
+- a pusher gets its scoop turned and riding the bottom line, and its face opened as the way out;
+- a nacelle cone opens its inlet;
+- a layout's rear engine gets `scoopAft`;
+- a liquid engine with wing radiators gets bigger radiators (net of the nose). The Spitfire-alike's grow to 0.57 x
+  0.33 m, a Spitfire IX's own;
+- a turbine gets its oil cooler's scoop. The turbine cowl style's scoop now stands out of the skin, at 0.55 x 0.40 of
+  the barrel.
+
+All 32 archetypes pass.
+
+**THE RULING.** Both rows are real (no longer `proposed`); the `proposed` door stays in genCertTiers for the next new
+check. Every official card passes; the STOL Cub warns at 1.08 (the user: "we really don't care about that one").
+A certificate already signed keeps its stored bench check until the aeroplane changes or the bench runs again (R3:
+nothing here bumps GEN_SPEC_V or PHYSICS_V).
+
+Still failing (not official):
+- list:10 Tiger Moth-alike, 0.17;
+- list:22/31 twinBoomFail;
+- list:28 Single-seat ultralight, 0.6;
+- list:33-36 the older Twin busher reviews.
+
+**Open.**
+1. The Cub-style head cut-outs (a garage gap).
+2. The power pull-back over the oil's red line (default 4): not built. It changes how an overheating aeroplane flies,
+   and no official card overheats now.
+3. Cowl flaps (v2).
+4. A NACA flush inlet.

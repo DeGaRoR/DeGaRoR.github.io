@@ -173,7 +173,7 @@ console.log('DRAG (the momentum figure)');
   ok(cdKW / cdMom > 3, 'a Merlin-class engine: per kW ' + r3(cdKW) + ' m2 against ' + r3(cdMom) + ' by momentum (the law it replaces, x' + r2(cdKW / cdMom) + ')');
 }
 
-console.log('CERTIFICATE (proposed rows, the fingerprint)');
+console.log('CERTIFICATE (the ruled rows, the proposed door, the fingerprint)');
 {
   const T = C.genCertTiers([{ id: 'cool.climb', tier: 'safe', proposed: true, level: 'fail' }, { id: 'pitch.sm', level: 'pass' }]);
   ok(T.safe === 'warn' && T.comm === 'warn' && !T.safeFail.length && !T.commFail.length, 'a proposed fail: a warning on both certificates (' + T.safe + ' / ' + T.comm + ')');
@@ -184,7 +184,40 @@ console.log('CERTIFICATE (proposed rows, the fingerprint)');
   const B = require('../src/viewer/bench.js');
   ok(B.BENCH_COSMETIC.indexOf('cooling') >= 0, "the bench's old f2 body leaves it out too");
   ok(C.GEN_CERT_TIER['cool.climb'] === 'safe' && C.GEN_CERT_TIER['cool.taxi'] === 'comm', 'the tiers: climb safe, ground commercial');
-  ok(C.genCoolRows(C172.def).every(r => r.proposed), 'both rows land proposed');
+  ok(C.genCoolRows(C172.def).every(r => !r.proposed), 'both rows are ruled (the user, 12 Nov): no longer proposed');
+  const BUo = card('builds/candidates/Twin_busher_floats_4b.json', j => { Object.assign(j.spec.cage, BU_OLD); return j; });
+  const Tb = C.genCertTiers(C.genCoolRows(BUo.def));
+  ok(Tb.safe === 'fail' && Tb.safeFail.some(r => r.id === 'cool.climb'), 'the Twin busher\'s old drawing: the hot climb now withholds the airworthiness certificate (' + Tb.safe + ')');
+}
+
+console.log('THE BIRTH (_cage_design designCoolBirth: an archetype born with the openings its engine needs)');
+{
+  const BJ = require('./_bake_joined.js'), { D } = BJ.loadPanel();
+  const bake = k => { const a = D.ARCHETYPES.find(x => x.key === k); return D.designFull(a.sel, a.over).full; };
+  const cub = bake('cub');
+  ok(Math.round(cub.cw_apMode) === 2 && !+cub.cw_scoopFollow, 'cub: its front already holds it - left as its card draws it (the rule never shrinks, never adds)');
+  const fp = bake('floatplane');
+  ok(+fp.cw_scoopOn && +fp.cw_scoopFollow && !+fp.cw_scoopRev && fp.cw_scoopW > 0.1, 'floatplane (wing nacelles): a chin scoop into the air on each nacelle (' + fp.cw_scoopW + ' x ' + fp.cw_scoopH + ')');
+  const sk = bake('skymaster');
+  ok(+sk.cw_scoopAft && +sk.cw_scoopFollow && Math.round(sk.cw_apMode) >= 1, 'skymaster (push-pull): the nose\'s front opened, the rear engine\'s own scoop turned into the air');
+  const sp = bake('spitfire');
+  ok(Math.round(sp.radMode) > 0 && sp.radW > 0, 'spitfire (liquid, wing radiators): the radiators take the air (' + sp.radW + ' x ' + sp.radH + ')');
+  const cv = bake('caravan');
+  ok(+cv.cw_scoopOn && +cv.cw_scoopFollow, 'caravan (turbine): the oil cooler\'s scoop stands out of the skin');
+}
+
+console.log('THE PUSH-PULL (every engine on the body judged; the rear one through its own turned scoop)');
+{
+  const BJ = require('./_bake_joined.js'), { D } = BJ.loadPanel();
+  const a = D.ARCHETYPES.find(x => x.key === 'skymaster'), s0 = D.designBake(a.sel, a.over);
+  const sp = LB.gameSpecFull({ v: s0.v, birth: 1, spec: s0 }).spec, def = C.buildGen(sp), K = coolOf(def);
+  const U = sp.cooling && sp.cooling.units;
+  ok(Array.isArray(K.engines) && K.engines.length === 2 && K.engines[1].pushes, 'two engines judged, the rear one a pusher (' + (K.engines || []).map(e => r2(e.margin)).join(' / ') + ')');
+  ok(U && U[1] && U[1].aft === 1 && U[1].turned === 1, 'the rear cowl is the nose cowl turned round, its scoop turned on its own');
+  const r1 = C.genCoolOpen(def.spec, 1);
+  ok(r1.parts.some(q => q.what === 'the scoop' && q.faces === 'fwd'), 'the rear engine\'s scoop faces the flight (' + r1.parts.map(q => q.what + ' ' + q.faces).join(', ') + ')');
+  const row = rowOf(def, 'cool.climb');
+  ok(row && row.level === 'pass', 'the row: the worst engine passes (' + (row && row.value) + ')');
 }
 
 console.log('THE SCOOP (turned round)');
@@ -231,36 +264,6 @@ console.log('THE SCOOP (turned round)');
   delete CW.P.scoopTop;
   ok(shot(0).bytes === a.bytes, 'scoopTop absent = 0: the chin scoop, bit for bit');
 }
-console.log('THE BIRTH (_cage_design designCoolBirth: an archetype born with the openings its engine needs)');
-{
-  const BJ = require('./_bake_joined.js'), { D } = BJ.loadPanel();
-  const bake = k => { const a = D.ARCHETYPES.find(x => x.key === k); return D.designFull(a.sel, a.over).full; };
-  const cub = bake('cub');
-  ok(Math.round(cub.cw_apMode) === 2 && !+cub.cw_scoopFollow, 'cub: its front already holds it - left as its card draws it (the rule never shrinks, never adds)');
-  const fp = bake('floatplane');
-  ok(+fp.cw_scoopOn && +fp.cw_scoopFollow && !+fp.cw_scoopRev && fp.cw_scoopW > 0.1, 'floatplane (wing nacelles): a chin scoop into the air on each nacelle (' + fp.cw_scoopW + ' x ' + fp.cw_scoopH + ')');
-  const sk = bake('skymaster');
-  ok(+sk.cw_scoopAft && +sk.cw_scoopFollow && Math.round(sk.cw_apMode) >= 1, 'skymaster (push-pull): the nose\'s front opened, the rear engine\'s own scoop turned into the air');
-  const sp = bake('spitfire');
-  ok(Math.round(sp.radMode) > 0 && sp.radW > 0, 'spitfire (liquid, wing radiators): the radiators take the air (' + sp.radW + ' x ' + sp.radH + ')');
-  const cv = bake('caravan');
-  ok(+cv.cw_scoopOn && +cv.cw_scoopFollow, 'caravan (turbine): the oil cooler\'s scoop stands out of the skin');
-}
-
-console.log('THE PUSH-PULL (every engine on the body judged; the rear one through its own turned scoop)');
-{
-  const BJ = require('./_bake_joined.js'), { D } = BJ.loadPanel();
-  const a = D.ARCHETYPES.find(x => x.key === 'skymaster'), s0 = D.designBake(a.sel, a.over);
-  const sp = LB.gameSpecFull({ v: s0.v, birth: 1, spec: s0 }).spec, def = C.buildGen(sp), K = coolOf(def);
-  const U = sp.cooling && sp.cooling.units;
-  ok(Array.isArray(K.engines) && K.engines.length === 2 && K.engines[1].pushes, 'two engines judged, the rear one a pusher (' + (K.engines || []).map(e => r2(e.margin)).join(' / ') + ')');
-  ok(U && U[1] && U[1].aft === 1 && U[1].turned === 1, 'the rear cowl is the nose cowl turned round, its scoop turned on its own');
-  const r1 = C.genCoolOpen(def.spec, 1);
-  ok(r1.parts.some(q => q.what === 'the scoop' && q.faces === 'fwd'), 'the rear engine\'s scoop faces the flight (' + r1.parts.map(q => q.what + ' ' + q.faces).join(', ') + ')');
-  const row = rowOf(def, 'cool.climb');
-  ok(row && row.level === 'pass', 'the row: the worst engine passes (' + (row && row.value) + ')');
-}
-
 console.log('THE NEEDLE (the oil temperature now, display only)');
 {
   const ISA = C.ATMOS_ISA, HOT = C.makeAtmos({ dISA: 23 });
