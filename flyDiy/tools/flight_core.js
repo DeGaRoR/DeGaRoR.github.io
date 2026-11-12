@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 2326d7ac1ea01bf4
+// body-sha256: ab8d72162ca11741
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -34560,7 +34560,10 @@ const GEN_OUTFIT = {
   // polycarbonate (Lexan, 1.20 g/cc against acrylic's 1.19) weighs the same
   // at the same gauge; tempered GLASS at 3 mm is 2.5 g/cc — 7.5 kg/m2, twice
   // the acrylic, which is why light aeroplanes do not carry it
-  glassKgM2By: { acrylic: 3.6, polycarbonate: 3.6, glass: 7.5 },
+  // ...and SOFT GLAZING (WEIGHT STUDY L3, 12 Nov, the user: "maybe we can have an even lighter glazing option, like
+  // soft glazing"): a 0.5 mm PET / PETG film stretched on the frame, ~0.7 kg/m2 with its edge tape - a fifth of the
+  // sheet; it hazes, wrinkles and cracks sooner (aeroskin GLASS_MATS.film), the foot-launch gliders' and the trikes'
+  glassKgM2By: { acrylic: 3.6, polycarbonate: 3.6, glass: 7.5, film: 0.7 },
   // EXHAUST scales with the power it has to carry away: an A-65's two short
   // stacks are about 3 kg on 48.5 kW, and a collector ring on a big radial is
   // heavier per kW because it is longer as well as fatter.
@@ -34575,6 +34578,10 @@ const GEN_OUTFIT = {
   // driver is the reach — semi-span plus tail arm — and dual controls cost a
   // second stick and a second set of pedals.
   ctlKgM: 0.62, ctlDualKg: 3.4,
+  // LIGHT CONTROL RUNS (WEIGHT STUDY L3, 12 Nov, the user: "they should be fitted in the tubes ... no central levers"):
+  // push-pull carbon rods and Dyneema lines on the keel tubes, small bellcranks, no torque tube -
+  // cabin.ctlRuns 'light' (latent: absent, the 0.62 above)
+  ctlKgMLight: 0.15,
   // FURNISHING (PERF STUDY chantier 1, 2026-09-15): what a cabin is lined
   // with — side panels, floor, trim, headliner, soundproofing, carpet, the
   // heater and its ducting — by the fit's tier, as a fraction of Raymer's
@@ -38299,7 +38306,9 @@ function clampSpec(spec) {
   }
   cb.baggage = genClamp(cb.baggage, 0, 60);
   if (!['glass', 'none'].includes(cb.glazing)) cb.glazing = 'glass';
-  if (!['acrylic', 'polycarbonate', 'glass'].includes(cb.glazingMat)) cb.glazingMat = 'acrylic';
+  if (!['acrylic', 'polycarbonate', 'glass', 'film'].includes(cb.glazingMat)) cb.glazingMat = 'acrylic';
+  // (WEIGHT STUDY L3: the light control runs, GEN_OUTFIT.ctlKgMLight - latent, 'light' the only stated value)
+  if (cb.ctlRuns != null && cb.ctlRuns !== 'light') delete cb.ctlRuns;
   cb.glazedM2 = (typeof cb.glazedM2 === 'number' && isFinite(cb.glazedM2) && cb.glazedM2 >= 0)
     ? genClamp(cb.glazedM2, 0, 40) : null;
   // G3516 (NEW-SHAPES-1): an OPEN COCKPIT'S SCREENS, m2 as the join measured them (cabin.glazing 'none' because every
@@ -44805,7 +44814,8 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // THE CONTROLS, from the reach: out to the tips and back to the tail.
     // Dual controls are a second stick and a second set of pedals.
     const reach = S.geom.semi + S.fuse.tailArm;
-    const ctlM = O.ctlKgM * reach + (seats > 1 ? O.ctlDualKg : 0);
+    // (WEIGHT STUDY L3: light runs - push-pull carbon rods and Dyneema on the keel tubes - when the outfit says so)
+    const ctlM = (cb.ctlRuns === 'light' && O.ctlKgMLight > 0 ? O.ctlKgMLight : O.ctlKgM) * reach + (seats > 1 ? O.ctlDualKg : 0);
     // THE GLAZING: the windscreen and the side windows, over the cabin.
     // ...an OPEN FRAME (PERF STUDY chantier 1) has a windscreen and no side
     // windows — there is no side to put them in
@@ -64606,7 +64616,7 @@ const TECH_TABLE = {
   'susp:bungee': 1, 'susp:spring': 1, 'susp:oleo': 1, 'susp:lever': 2,   // (WILGA-GEAR: the trailing-link oleo leg, the tricycle's stage)
   'fair:glass': 1, 'fair:alloy': 2, 'fair:carbon': 3,
   // ---- canopy / glazing
-  'glaze:acrylic': 1, 'glaze:glass': 1, 'glaze:polycarbonate': 2,
+  'glaze:acrylic': 1, 'glaze:glass': 1, 'glaze:polycarbonate': 2, 'glaze:film': 1,
   'canopy:screen': 1, 'canopy:bubble': 2,
   // ---- energy (the liquid follows the engine; a pack is electric)
   'fuel:avgas100LL': 1, 'fuel:mogas': 1, 'fuel:jetA': 3,
@@ -64754,7 +64764,7 @@ const TECH_ROWS = {
   intCons: ['mat:carbon', 'mat:tubeFabric', 'mat:wood', 'mat:alloy', 'mat:aluTube', 'mat:glass'],
   // (the second plane's row is the wing row's own: its options, the D-tube's with them)
   wgCons: TECH_WING_ROW, w2Cons: TECH_WING_ROW, finCons: TECH_SURF_ROW, stCons: TECH_SURF_ROW,
-  glazeMat: ['glaze:acrylic', 'glaze:polycarbonate', 'glaze:glass'],
+  glazeMat: ['glaze:acrylic', 'glaze:polycarbonate', 'glaze:glass', 'glaze:film'],
   canopy: ['canopy:screen', 'canopy:screen', 'canopy:screen', 'canopy:bubble'],
   fairCons: ['fair:glass', 'fair:carbon', 'fair:alloy'],
   // (ENGINE-CONFIGS-2: 4 push-pull, 5 three, 6 four - several engines, the twin's segment, as techKeysOf reads any
