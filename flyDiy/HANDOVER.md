@@ -315009,3 +315009,11 @@ the next steps).
   were (pairY 0.193 - the pair rides the main inlet's axis), grilleRows 11 (the bars' pitch kept). No code change: the
   aperture fit (sectF at cowlLen) holds it - a try that measured the fit at the dropped face shrank everything and was
   reverted.
+- **CAR-3, THE VAN'S WHEELS AGAIN (12 Nov; the user: "too round ... get the geometry of the roadster wheels, and then
+  design a rim that looks less vintage ... a basic rim ... a little wavy ... with holes ... probably aluminium ... on a
+  quite fat wheel")**: whRim 4 'pressed, round holes' (_gear_gen.js pressedDisc; _gear_page.js names): a dished plate
+  from the hub boss to the rim's well with N round holes (N = whBolts, 4..10) on a band at 0.275-0.395 Rh, pressed
+  proud between them and dimpled round each (a cos(N th) wave, 4.5 % of the face), 2.2 % Rh thick with a wall round
+  every hole (a closed plate - the gear's materials are FrontSide); the annuli and the holed band share their edge
+  samples (no cracks); in the hub's light alloy. The van: whProfile 2 (the roadster's slim carcass), whWide 1.4 (fat),
+  whRimD 0.6, whRim 4, whBolts 6, whCap 1 (domed); its sheet rewritten (same 1268 kg, still LAUNCHES).

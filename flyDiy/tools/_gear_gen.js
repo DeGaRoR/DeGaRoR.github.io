@@ -353,6 +353,57 @@ function tyreLugs(bag, at3, TT, L, R) {
       }
     }
 }
+// CAR-3 (the user, 12 Nov, of the van: "design a rim that looks less vintage ... this basic rim ... a little wavy there
+// with holes in that, in probably aluminium ... on a quite fat wheel"): whRim 4, THE PRESSED WHEEL - a dished disc from
+// the hub boss to the rim's well with a ring of N round holes (N = the bolts, 4..10), the disc between them pressed
+// proud and dimpled round each hole (the wave), a real thickness and a wall round every hole, so it reads as a solid
+// plate with light through it. at / ax are wheel()'s frame; s the face (+1 outboard, -1 inboard), hf its axial station.
+// A closed band from the boss to the well: the annuli and the holed band share their edge samples, so no crack.
+function pressedDisc(bag, at, ax, s, hf, Rh, bead, N) {
+  const rA = Rh * 0.15, rI = Rh * 0.275, rO = Rh * 0.395, rE = Math.max(bead * 0.99, rO * 1.04);
+  const rH = (rI + rO) / 2, hr = Math.min((rO - rI) * 0.44, Math.PI * rH / N * 0.55);
+  const t = Rh * 0.022;                                      // the plate's thickness
+  // the dish, in fractions of hf: the boss, the bolt face flat, the slope through the holes, down to the well
+  const XS = [0.15, 0.19, 0.26, 0.29, 0.395, rE / Rh], YS = [0.86, 1.00, 1.00, 0.975, 0.93, 0.74];
+  const A = 0.045;                                           // the wave, x hf
+  const H = (r, th) => {
+    const x = r / Rh; let h = lerpTab(x, XS, YS);
+    if (x > 0.26 && x < 0.41) h -= A * Math.sin(Math.PI * (x - 0.26) / 0.15) * Math.cos(N * th);
+    return hf * h;
+  };
+  const V = (r, th, back) => bag.v(at(r, H(r, th) - (back ? s * t : 0), th));
+  const m = 8, q = 4, NT = N * m, TH = j => -Math.PI / N + 2 * Math.PI * j / NT;
+  // a quad whose (a, b) runs CCW round +ax and (a, d) outward faces -ax: the front (facing s*ax) is turned for s > 0
+  const Q = (a, b, c, d, front) => (front === (s > 0)) ? bag.quad(a, d, c, b) : bag.quad(a, b, c, d);
+  // the two plain annuli, boss to the holes and the holes to the well
+  const annulus = rs => { for (const back of [false, true]) {
+    const G = rs.map(r => { const row = []; for (let j = 0; j < NT; j++) row.push(V(r, TH(j), back)); return row; });
+    for (let i = 0; i + 1 < rs.length; i++) for (let j = 0; j < NT; j++) {
+      const j2 = (j + 1) % NT; Q(G[i][j], G[i][j2], G[i + 1][j2], G[i + 1][j], !back); } } };
+  annulus([rA, Rh * 0.17, Rh * 0.19, Rh * 0.23, Rh * 0.26, rI]);
+  annulus([rO, Rh * 0.402, Rh * 0.408, rE]);
+  // the holed band, a sector per hole: its rectangle's edge (in r, theta) lofted in to the hole's circle
+  const LV = [0, 0.3, 0.65, 1];
+  for (let k = 0; k < N; k++) {
+    const th0 = TH(k * m), th1 = TH((k + 1) * m), thc = (th0 + th1) / 2, per = [];
+    for (let i = 0; i < m; i++) per.push([rI, th0 + (th1 - th0) * i / m]);
+    for (let i = 0; i < q; i++) per.push([rI + (rO - rI) * i / q, th1]);
+    for (let i = 0; i < m; i++) per.push([rO, th1 - (th1 - th0) * i / m]);
+    for (let i = 0; i < q; i++) per.push([rO - (rO - rI) * i / q, th0]);
+    const hole = per.map(([r, th]) => { const f = Math.atan2(rH * (th - thc), r - rH); return [rH + hr * Math.cos(f), thc + hr * Math.sin(f) / rH]; });
+    const M = per.length;
+    const ring = (l, back) => per.map(([r, th], p) => V(hole[p][0] + (r - hole[p][0]) * LV[l], hole[p][1] + (th - hole[p][1]) * LV[l], back));
+    for (const back of [false, true]) {
+      const G = LV.map((_, l) => ring(l, back));
+      for (let l = 0; l + 1 < LV.length; l++) for (let p = 0; p < M; p++) {
+        const p2 = (p + 1) % M; Q(G[l][p], G[l][p2], G[l + 1][p2], G[l + 1][p], !back); }
+    }
+    // the hole's wall, front ring to back ring, facing into the hole
+    const F = ring(0, false), B = ring(0, true);
+    for (let p = 0; p < M; p++) { const p2 = (p + 1) % M;
+      if (s > 0) bag.quad(F[p], F[p2], B[p2], B[p]); else bag.quad(F[p], B[p], B[p2], F[p2]); }
+  }
+}
 function wheel(bags, ctr, axis, R, opt) {
   opt = opt || {};
   const P = opt.P || {};
@@ -526,6 +577,8 @@ function wheel(bags, ctr, axis, R, opt) {
         [bead * 1.11, hf * 0.98]], 44, true);
       // its split: a notch tab across the ring
       taper(bags.dark, at(bead * 1.10, hf * 1.05, 0.4), at(bead * 1.19, hf * 1.05, 0.4), Rh * 0.010, Rh * 0.010, 6);
+    } else if (rimK === 4) {                 // CAR-3: A PRESSED WHEEL, ROUND HOLES (a plain modern wheel)
+      pressedDisc(Hb, at, ax, s, hf, Rh, bead, Math.max(4, Math.min(10, bolts)));
     } else {                                 // CAST DISC: solid, dished
       revolve(Hb, ctr, ax, [[Rh * 0.16, hf * 0.80], [Rh * 0.24, hf * 1.00],
         [Rh * 0.32, hf * 0.96], [bead * 0.99, hf * 0.72]], 38);

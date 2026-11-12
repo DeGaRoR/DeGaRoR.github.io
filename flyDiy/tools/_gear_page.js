@@ -162,7 +162,7 @@ const WHEEL_ROWS = [
   ['whSlick', 'tundra tread', 0, 2, 1, ['bush lugs', 'smooth', 'bevelled lugs'], { when: P => Math.round(+P.whProfile || 0) === 1 }],
   ['whBulge', 'sidewall bulge ×', 0.85, 1.40, 0.01],
   ['whRibs', 'ribs', 1, 5, 1],
-  ['whRim', 'rim', 0, 3, 1, ['cast disc', 'spoked', 'lightened', 'steel disc + lock ring']],
+  ['whRim', 'rim', 0, 4, 1, ['cast disc', 'spoked', 'lightened', 'steel disc + lock ring', 'pressed, round holes']],
   ['whRimD', 'rim diameter (× the wheel\'s; 0 = the carcass\'s own)', 0, 0.85, 0.01],   // CAR-1
   ['whWide', 'tyre width (× the carcass\'s; 0 = its own)', 0, 1.5, 0.01],   // CAR-1
   ['whBolts', 'rim bolts', 3, 10, 1],
