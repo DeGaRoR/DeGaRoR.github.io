@@ -3027,7 +3027,7 @@ const ARCHETYPES = [
                     // bulkhead - "the pillar is where the aft bulkhead is where the engine is"): the pusher on the
                     // bulkhead, no cowl; a shaft aft (cw_noseOff) to the small prop just past the aft pod's tip, its
                     // disc 0.24 m off the ground and ~0.19 m under the rod (engY)
-                    engY: -0.343, cw_propD: 0.95, cw_noseOff: 0.41, cowlOn: 0,
+                    cw_propD: 0.95, cowlOn: 0,     // (engY, cw_noseOff: A SMALL ENGINE, below)
                     // THE DRIVE PARED DOWN (12 Nov, the user: "limit the engine mount to the minimum ... the nose cone
                     // slimmer, the prop blades with a lower chord and the whole assembly in carbon fiber, including the
                     // shaft"): the mount at the engine bench's least (stand-off 0.4 of the case, tubes x0.5, no diagonals);
@@ -3039,7 +3039,18 @@ const ARCHETYPES = [
                     // the ground and the rod's underside (engY -0.38 -> -0.318: 0.60 m either way), so a bigger prop
                     // ("a slightly bigger propeller"): 0.75 -> 0.95 m, 12 cm clear of the rod and of the ground
                     eng_mount: 0,
-                    cw_spinR: 0.06, cw_rootChord: 0.10, cw_tipChord: 0.035, cw_material: 3, spinMat: 0,
+                    cw_material: 3, spinMat: 0,     // (the cone and the chords: A SMALL ENGINE, below)
+                    // A SMALL ENGINE, A SMALL PROP (12 Nov, the user: "the rod is much smaller. The nose cone is much smaller,
+                    // it's actually not even a cone ... the chord of the blades is even smaller. This is really a small
+                    // engine ... adapt the length so that there is no clipping ... move it up a notch ... Make all the nose
+                    // cones and the blades and everything thinner"): the cone at the row's least and short and round - a
+                    // hub, not a cone (cw_spinR 0.04, cw_spinLen 0.25 -> 0.07, cw_spinRound 1) - and the shaft it grows
+                    // back to the engine with it (its radius is a third of the cone's: 20 -> 14 mm); the blades narrower and
+                    // thinner (chord 0.07 / 0.03, t/c 0.12 / 0.06, the shank 45 -> 20 mm, the cuff 0.10); the thrust line
+                    // up a notch (engY -0.343 -> -0.29, ~4 cm); the shaft 0.41 -> 0.50 m so the blades, now further
+                    // forward on the short hub, clear the aft pod's tip (0.46 still cut it: the join's own check)
+                    engY: -0.29, cw_noseOff: 0.50, cw_spinR: 0.04, cw_spinLen: 0.07, cw_spinRound: 1, cw_bladeStation: 0.45,
+                    cw_rootChord: 0.07, cw_tipChord: 0.03, cw_thickRoot: 0.12, cw_thickTip: 0.06, cw_shankR: 0.02, cw_cuff: 0.1,
                     // THE AFT POD: THE AERO AFT OVER THE PUSHER (11 Nov, the user: "try again with the aero aft instead of
                     // the cowl ... the real thing is straight tapers; the cowl looks odd and bulby"). aeroAftOver is a row
                     // of this branch (_cage_gen.js, _cage_cowl.js): the aero aft drawn over a pusher's bulkhead, the engine
@@ -3175,14 +3186,13 @@ const ARCHETYPES = [
                     // (finShoulderZ / Y 0, finTipZ 0, finMidY 0), the top flat (finTopY 0), its corners crisp - the leading
                     // edge straight within 2 mm from the root to the tip, the trim's line level across fin and rudder
                     },
-            // THE LIVERY (12 Nov, the user: "do a little nice livery"): the real aeroplane's gloss white overall, a navy
-            // cheat line with a red keyline along the pod's waist, the cheat line lowered to run under every window
-            // (m1C), the registration in navy low on the nose's flank, clear of
+            // THE LIVERY (12 Nov, the user: "do a little nice livery"; then "keep it white ... I can't really judge the
+            // volumes ... get rid of the livery. You may keep the registration"): the real aeroplane's gloss white
+            // overall, no cheat line, the registration in navy low on the nose's flank, clear of
             // the windows' and the cheat line's lines (on the fin it fought the hinge: 12 Nov, the user: "messy where it is")
             spec: { fuel: { litres: 0 },
                     paint: { job: 'full', sweep: 0, base: 0xf3f4f1, trim: 0x17325e },
                     finish: { decals: {
-                      m1On: 1, m1Pat: 0, m1A: 0x17325e, m1B: 0xc8302c, m1D: 0x17325e, m1P: 0.12, m1Q: 0.06, m1C: -0.04,
                       regTarget: 0, regMode: 0, regL: 0.95, regC: -0.30, regH: 0.12 },
                       sections: { ...BODY_PAINT(0xf3f4f1), wingSkin: { tint: 0xf3f4f1 }, finSkin: { tint: 0xf3f4f1 },
                                   stabSkin: { tint: 0xf3f4f1 }, boomTube: { tint: 0xf3f4f1 }, boomSkin: { tint: 0xf3f4f1 } } },

@@ -314793,3 +314793,10 @@ chantier (stage 4) must bring it forward. Parked: the wheel, the nose skid, a wi
   lights off (lightOn 0, no electrics). The windows' joint 0.012 -> 0.008 (under ~6 mm the bead draws dotted on
   SwiftShader). The cheat line lowered under every window (m1C -0.04); the registration on the nose's lower flank in
   field mode (it fought the fin's hinge line).
+- A SMALL ENGINE, AND WHITE (12 Nov, the user: "the rod is much smaller. The nose cone is much smaller, it's actually not
+  even a cone ... the chord of the blades is even smaller ... adapt the length so that there is no clipping ... move it
+  up a notch ... get rid of the livery. You may keep the registration"): the cone at the row's least, short and round
+  (a hub); the shaft the cone grows back to the engine is a third of its radius (_cage_eng.js G244: max(0.012,
+  spinR x 0.34)), so it thins with it (20 -> 14 mm); blades 0.07 / 0.03 m of chord, t/c 0.12 / 0.06, shank 20 mm;
+  engY -0.343 -> -0.29; the shaft 0.41 -> 0.50 m - a shorter cone puts the blade plane further forward, and at 0.46 the
+  join still reported "prop: through the body" (the aft pod's tip). The cheat line gone; the registration kept.
