@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 87b7ad6fb75bb79a
+// body-sha256: ecd9bb7f0116265c
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -47197,7 +47197,12 @@ function genParams(S, fr, strips) {
     ClMax3Dx = ClMax3D + gainS / G.Sw;
   }
   const Vs = Math.sqrt(2 * mass * 9.81 / (RHO * G.Sw * ClMax3Dx));
-  const cda = genFusCdA(S, fr, { Vs });
+  // ENGINE-COOLING: the cooling drag's climb and cruise speeds hang off the CLEAN wing's Vs - a slat or a VG kit is the
+  // wing's, it does not redraw the cowl (the outlet "sized for you" is the engine's, sized on the aeroplane's own clean
+  // climb; GATE STOL: the auto slat pays only its seam, the body's axial term is the clean one). The margin rows read the
+  // climb the aeroplane flies (def.params.ap)
+  const VsClean = ClMax3Dx === ClMax3D ? Vs : Math.sqrt(2 * mass * 9.81 / (RHO * G.Sw * ClMax3D));
+  const cda = genFusCdA(S, fr, { Vs: VsClean });
   // G115: the undercarriage and bracing join the drag build-up. PERF STUDY
   // chantier 2 (2026-09-15): ADDED AS THEY ARE — the body row is a wetted
   // build-up now and contains no reference gear to subtract from; the delta
