@@ -146,3 +146,26 @@ the load door. The new tiles in DESIGN draw: the gate's findings are the base's 
 sweeps (ARCHETYPES, PILOTMATRIX, SEAPLANE, HOTHIGH) and the rest of core (ENGCONFIG pins, a known red, among them).
 None of them can see a build without the new rows any differently, because the 36 shipped frames are identical through
 the load door. A jury or tube build is held by STRUTOPT, not by any of them.
+
+## READY onto PHYS-SCALE (REAL-FIGURES, 12 Nov) — claude/ready/strut-options
+
+The user, 12 Nov: "stack the Ruckus after the struts and physics branches". The order of landing:
+
+1. claude/ready/phys-scale (c06ca6cf4);
+2. this branch;
+3. claude/ready/ruckus.
+
+- **What:** STRUT-OPTIONS' four source commits (0e934785d, d81397c51, c609825f8, 1811515db), resolved against
+  PHYS-SCALE:
+  - GEN_CAGE_ROW_NEUTRAL adds wgStrutSec / wgJury (brkHold arrives with the Ruckus branch);
+  - 62_gen_aero takes genStrutOptCdA only (TAIL-RETRACT's genGearCdAMains is its own READY);
+  - the exports.
+- **The struts card is a TEST plane** (A0, 12 Nov): `builds/candidates/review/ruckus_struts_2026-11-10.json`, with its
+  REVIEW.md row. GATE STRUTOPT reads it set back to plain struts, since the standard Ruckus arrives with the next branch.
+- **Gates, the same set on PHYS-SCALE c06ca6cf4 and on this branch, both run 12 Nov:** green on both:
+  - STRESS, TAKEOFF, BIPLANE, BUILD, SKINMAT, FIN, JOIN, GEOPARITY, PARTS, DESIGN, CANDIDATES, PROCURE, PLANELISTS
+    (fixed by the review/ move);
+  - STRUTOPT (this branch only).
+
+  Red on both, already PHYS-SCALE's: GEN (cruise is quiet in wind), JOINPARITY (the Jodel), LOAD (every airframe
+  survived the ultimate load). Nothing new.
