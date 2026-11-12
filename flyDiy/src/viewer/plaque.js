@@ -155,6 +155,26 @@ const PLAQUE_WHY = {
       + 'with no wind. A headwind eats it; keep a reserve.' },
   'cooling duty': { what: 'the heat the engine sheds at full power and what '
       + 'carries it away. A cowl has to swallow this.' },
+  // ENGINE-COOLING (12 Nov): what the drawn openings do with that heat
+  'cooling air': { what: 'an engine with no cowl round it: the propeller wash '
+      + 'and the flight blow straight over its fins, nothing to size.' },
+  'hot-day climb air': { what: 'the air the drawn openings pass on a 38 C day at '
+      + 'sea level, climbing at full power, against the air the engine needs to '
+      + 'stay under its limit. Under 1 the engine overheats in the climb.',
+    fix: 'enlarge the inlet the air comes in by (the cowl face, the scoop, the '
+      + 'nacelle mouth) and give it a way out (the exit gap, the gills). On a '
+      + 'pusher, turn the scoop to face the flight.' },
+  'cooling openings': { what: 'the inlet area that faces the flight, the bare '
+      + 'cylinder heads standing in the air, what the climb needs, and the '
+      + 'outlet; an outlet not drawn is sized for you.',
+    fix: 'the outlet should be a little larger than the inlet (about 1.3x): the '
+      + 'heated air leaves wider than it came in.' },
+  'cooling drag': { what: 'the drag of the air pushed through the cowl and the '
+      + 'radiators (counted in the drag figures above), and how the openings '
+      + 'cool the engine on the ground, at taxi, where only the propeller blows.',
+    fix: 'a bigger inlet costs drag in the cruise; an inlet sized to need, not '
+      + 'over it, is the cheapest. On the ground, a pusher\'s inlets only get '
+      + 'the propeller\'s inflow.' },
   // balance
   'CG': { what: 'where the centre of gravity sits along the aeroplane, '
       + 'measured from the datum, as drawn.' },
