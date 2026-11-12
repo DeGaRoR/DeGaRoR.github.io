@@ -314930,3 +314930,13 @@ the next steps).
   aft-facing skin faces, inset), stepping round the rear windows, the faces tagged with the wall's own skin material so the
   sheet paints them (a gear-layer mesh drew white: the section material is not reachable there). Both cars: beads, 16 mm.
   The UTV's take its 'cloth' (the Cub's fabric skin) and read darker than the wood grain. The wagon's aft bulkhead off too.
+- **CAR-3/4, THE DOORS, THE LIGHT BUMPER, THE ROUND'S FIXES (12 Nov)**: extRelief 4 'rear doors' (_cage_gen.js
+  cageRearRelief): a square-cornered frame up into the roof's rounding (to 88 % of the wall's width, as wide as the wall
+  is there), the split down the middle, published on the sheet as m.rearDoors; _cage_gear.js rearDoorHardware hangs the
+  garage's own butt hinges (HINGE_GEN.buttHinge, the cabin doors') two per door on the outer edges and a T-handle with its
+  escutcheon at the split - a picture, the doors do not swing yet (a real cut door needs the rear wall's faces split
+  along the outline: owed). bumpStyle 1 'light tube' (a round section, no overriders or step, round arms, a 50 mm
+  receiver) - the UTV's, black, at the booms' tail ends (on twin booms the rear bumper rides CAGE_BOOMS.zTip). THE PINCH
+  between the bonnet and the windscreen: the A-pillar's foot sat under the bonnet line - wsBaseLift 0.06 levels the deck.
+  ctlStick 1 (the yoke) on the van, the UTV and the buggy; hdlOn / wallTrimOn (the roof lining) on the van and the UTV.
+  The rear wall's rows grouped in the tree under Structure & skin > 'rear wall (outside)' (rear windows, the relief).

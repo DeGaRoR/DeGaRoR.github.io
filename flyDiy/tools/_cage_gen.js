@@ -9375,7 +9375,7 @@ function cageSpec(P) {
     // REARMOST wall, looking aft (rearWinOn; W / H / Y / R as a side window's, cage units; absent = none). Kept out of
     // S.windows: the side-view refusal below is for side glass
     // CAR-4: the bulkhead's bas-relief on the OUTSIDE of the rear wall (extRelief 1 beads / 2 rolled / 3 framed; absent = none)
-    if (+P.extRelief > 0) S.extRelief = { kind: Math.max(1, Math.min(3, Math.round(+P.extRelief))),
+    if (+P.extRelief > 0) S.extRelief = { kind: Math.max(1, Math.min(4, Math.round(+P.extRelief))),
                                           h: P.extReliefH != null ? Math.max(0.003, +P.extReliefH) : 0.014, ps: +P.planeScale || 1 };
     // (CAR-3: rearWinN 2 = a PAIR, side by side, rearWinGap apart centre to centre; absent = one)
     if (+P.rearWinOn > 0) {
@@ -10992,6 +10992,22 @@ function cageRearRelief(m, S) {
     const w = 0.034 / ps, nR = Math.floor((yT - yB) / (2 * w));
     for (let j = 0; j < nR; j++) { const y = yB + w + 2 * w * j, a = crossAt(1, y - w), b = crossAt(1, y + w); if (!a || !b) continue;
       for (const [l, r] of cut(Math.max(a[0], b[0]) + 0.02 / ps, Math.min(a[1], b[1]) - 0.02 / ps, y, false)) bead([[l, y], [r, y]], w); }
+  } else if (R.kind === 4) {                // REAR DOORS (CAR-3, the user: "the top square ... a separation in the middle ...
+    // the existing hinges"): a square-cornered frame up into the roof's rounding, the split down the middle (no window
+    // mouldings - "the thing just circling the windows can go"); the doors' rectangle is published on the sheet (m.rearDoors, cage units) for the gear layer's hinges
+    const wMax = Math.max(...[0.3, 0.5, 0.7].map(t => { const c = crossAt(1, yB + (yT - yB) * t); return c ? c[1] - c[0] : 0; }));
+    // (the user: "it stops like mid-window, so that one has to go full up"): the frame runs up into the roof's rounding,
+    // to where the wall is still 88 % of its width, and is as wide as the wall is THERE - square corners, inside the wall
+    let yTop = yT; for (let y = yT; y > yB; y -= 0.005 / ps) { const c = crossAt(1, y); if (c && c[1] - c[0] >= 0.88 * wMax) { yTop = y; break; } }
+    let yBot = yB; for (let y = yB; y < yT; y += 0.005 / ps) { const c = crossAt(1, y); if (c && c[1] - c[0] >= 0.88 * wMax) { yBot = y; break; } }
+    const ct = crossAt(1, yTop), cb = crossAt(1, yBot);
+    const x0 = Math.max(ct[0], cb[0]) + 0.01 / ps, x1 = Math.min(ct[1], cb[1]) - 0.01 / ps, y0 = yBot + 0.01 / ps, y1 = yTop - 0.01 / ps;
+    const rect = [[x0, y0], [x1, y0], [x1, y1], [x0, y1]], loop = [];
+    for (let i = 0; i < 4; i++) { const a = rect[i], c = rect[(i + 1) % 4]; for (let k = 0; k < 16; k++) loop.push([a[0] + (c[0] - a[0]) * k / 16, a[1] + (c[1] - a[1]) * k / 16]); }
+    bead(loop, 0.012 / ps, true);
+    const xm = 0.5 * (x0 + x1);
+    bead([[xm, y0 + 0.004 / ps], [xm, y1 - 0.004 / ps]], 0.009 / ps);
+    m.rearDoors = { x0, x1, xm, y0, y1, z: zb };
   } else {                                  // framed: a moulding round the wall and round each window
     bead(ins(0.86), 0.014 / ps, true);
     for (const r of wins) { const q = 0.02 / ps, rr = [[r[0] - q, r[2] - q], [r[1] + q, r[2] - q], [r[1] + q, r[3] + q], [r[0] - q, r[3] + q]], loop = [];

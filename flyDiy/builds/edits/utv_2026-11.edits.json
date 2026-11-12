@@ -100,7 +100,17 @@
   "whWide": 1.1,
   "whTread": 1,
   "extRelief": 1,
-  "extReliefH": 0.016
+  "extReliefH": 0.016,
+  "bumpR": 1,
+  "bumpStyle": 1,
+  "bumpH": 0.06,
+  "bumpFin": 1,
+  "hitchOn": 1,
+  "bumpY": 0.05,
+  "bumpW": 0.95,
+  "ctlStick": 1,
+  "hdlOn": 1,
+  "wallTrimOn": 1
  },
  "wings": {
   "span": 2.2,

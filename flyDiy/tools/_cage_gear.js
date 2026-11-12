@@ -2342,15 +2342,20 @@ function doorBuild(P, fit, mech, swing, ctx, group, FS, AF, KT, CM) {
 // (x the body's half-width), bumpH the blade's height, bumpFin 0 chrome / 1 black, bumpGuards 0/1, hitchOn (rear).
 function bumperBuild(group, P, AF, scene, front) {
   const sZ = front ? 1 : -1;                               // outward along the car
-  const H = Math.max(0.06, +P.bumpH || 0.15), D = Math.max(0.05, 0.45 * H), gap = +P.bumpGap >= 0 ? +P.bumpGap : 0.07;
+  const LIGHT = Math.round(+P.bumpStyle || 0) === 1;      // CAR-4: a light tubular bumper (a UTV's), a smaller hitch
+  const H = LIGHT ? Math.max(0.04, +P.bumpH || 0.06) : Math.max(0.06, +P.bumpH || 0.15), D = LIGHT ? H : Math.max(0.05, 0.45 * H), gap = +P.bumpGap >= 0 ? +P.bumpGap : 0.07;
   let zFace = front ? AF.z1 : AF.z0;
   // the bonnet's face from its own rows (metres off the firewall, the airframe's forward end) - a scene lookup found a
   // stale cowl group in the page and lost the front bumper
   if (front && +P.engOn !== 0 && +P.cw_cowlLen > 0) zFace = AF.z1 + (+P.cw_cowlLen) + Math.max(0, +P.cw_lidLen || 0);
-  const zIn = zFace + sZ * gap;                            // the beam's inner (body-side) face
   const zRef = front ? AF.z1 - 0.05 : AF.z0 + 0.05;
   let bot = Infinity, half = 0;
   for (let a = 0; a <= 180; a += 3) { const q = AF.surf(zRef, a * D2R); if (q && isFinite(q[1])) { bot = Math.min(bot, q[1]); half = Math.max(half, Math.abs(q[0])); } }
+  // CAR-4: on TWIN BOOMS the back of the vehicle is the booms' tail ends (the UTV's chassis rails, its bed over them):
+  // the rear bumper rides there, its height off the booms' underside
+  const TB = window.CAGE_BOOMS;
+  if (!front && TB && TB.yBot && isFinite(TB.zTip) && TB.zTip < zFace) { zFace = TB.zTip; bot = TB.yBot(TB.zTip + 0.05); }
+  const zIn = zFace + sZ * gap;                            // the beam's inner (body-side) face
   const yB = bot + (+P.bumpY || 0);
   const rw = 0.12, A = 75 * D2R, X = Math.max(0.2, half * (+P.bumpW > 0 ? +P.bumpW : 0.92) - rw * Math.sin(A));
   const fin = Math.round(+P.bumpFin || 0) === 1 ? GG.gearMat('dark') : GG.gearMat('chrome');
@@ -2367,11 +2372,14 @@ function bumperBuild(group, P, AF, scene, front) {
   // the return flange inside - a closed loop ----
   const prof = [];
   const lip = 0.012;
+  if (LIGHT) for (let k = 0; k < 20; k++) { const a = -Math.PI / 2 + 2 * Math.PI * k / 20; prof.push([D / 2 + D / 2 * Math.cos(a), D / 2 * Math.sin(a)]); }
+  else {
   prof.push([0.004, -H / 2 + lip]);
   for (let k = 0; k <= 5; k++) { const a = Math.PI * (1 + k / 10); prof.push([0.018 + lip * Math.cos(a) * -1 + 0.0, -H / 2 + lip + lip * Math.sin(a)]); }
   for (let k = 0; k <= 14; k++) { const t = k / 14; prof.push([D * (0.62 + 0.38 * Math.sin(Math.PI * t)), -H / 2 + 0.004 + (H - 0.008) * t]); }
   for (let k = 0; k <= 5; k++) { const a = Math.PI * (k / 10); prof.push([0.018 + lip * Math.cos(a), H / 2 - lip + lip * Math.sin(a)]); }
   prof.push([0.004, H / 2 - lip]);
+  }
   const NPf = prof.length;
   const pos = [], idx = [];
   for (let i = 0; i < path.length; i++) {
@@ -2393,7 +2401,7 @@ function bumperBuild(group, P, AF, scene, front) {
   const beam = new THREE.Mesh(bg, fin); beam.name = 'edBumperBeam'; root.add(beam);
   const zOut = zIn + sZ * D;                               // the face's crown
   // ---- the overriders: teardrop guards standing proud of the face ----
-  if (+P.bumpGuards !== 0) {
+  if (+P.bumpGuards !== 0 && !LIGHT) {
     const g = [];
     // a stubby rounded guard: an elongated dome, full width over most of its height, rounded ends (never a point)
     const Rg = 0.034, Hg = H * 1.45;
@@ -2405,15 +2413,16 @@ function bumperBuild(group, P, AF, scene, front) {
   const armL = gap + 0.30, armZ = zIn - sZ * armL / 2;
   for (const sx of [-1, 1]) {
     const xa = sx * X * 0.55;
-    add(new THREE.BoxGeometry(0.045, 0.07, armL), steel, xa, yB, armZ).name = 'edBumperArm';
+    add(LIGHT ? new THREE.CylinderGeometry(0.016, 0.016, armL, 12) : new THREE.BoxGeometry(0.045, 0.07, armL), steel, xa, yB, armZ,
+        LIGHT ? new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 1)) : null).name = 'edBumperArm';
     add(new THREE.BoxGeometry(0.010, 0.05, armL * 0.5), steel, xa + sx * 0.0275, yB - 0.01, zIn - sZ * armL * 0.3).name = 'edBumperArm';
     for (const dy of [-0.018, 0.018]) add(new THREE.CylinderGeometry(0.009, 0.009, 0.008, 6), chrome, xa, yB + dy, zIn - sZ * 0.004, new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 1)));
   }
   // ---- the rear: the rubber step pad and THE HITCH ----
   if (!front) {
-    for (let k = -4; k <= 4; k++) add(new THREE.BoxGeometry(0.30, 0.006, 0.010), dark, 0, yB + H / 2 + 0.003, zIn - sZ * (D * 0.5 + k * 0.006)).name = 'edBumperStep';
+    if (!LIGHT) for (let k = -4; k <= 4; k++) add(new THREE.BoxGeometry(0.30, 0.006, 0.010), dark, 0, yB + H / 2 + 0.003, zIn - sZ * (D * 0.5 + k * 0.006)).name = 'edBumperStep';
     if (+P.hitchOn !== 0) {
-      const S = 0.065, Tn = 0.006, yR = yB - H / 2 - S / 2 - 0.01, L = 0.34, zc = zOut - sZ * (L / 2 - 0.05);
+      const S = LIGHT ? 0.05 : 0.065, Tn = LIGHT ? 0.005 : 0.006, yR = yB - H / 2 - S / 2 - 0.01, L = LIGHT ? 0.26 : 0.34, zc = zOut - sZ * (L / 2 - 0.05);
       const R = new THREE.Group(); R.name = 'edHitch'; root.add(R);
       const box = (w, h, d, mat, x, y, z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); m.position.set(x, y, z); R.add(m); return m; };
       // the receiver tube: four walls
@@ -2446,6 +2455,39 @@ function bumperBuild(group, P, AF, scene, front) {
       window.CAGE_GEAR_HITCH = [0, ball.position.y, zBall];
     }
   }
+  group.add(root);
+}
+// CAR-3 (the user: "two opening doors on the back ... use the existing hinges"): the rear doors the sheet drew
+// (extRelief 4, m.rearDoors - cage units) take the garage's own butt hinges (HINGE_GEN.buttHinge, the cabin doors'),
+// two on each door's outer edge, and a T-handle with its escutcheon at the split. A picture: the doors do not swing yet.
+function rearDoorHardware(group, P, mesh) {
+  const RD = mesh && mesh.rearDoors, HG = window.HINGE_GEN, K = window.GEAR_KIT;
+  if (!RD || !HG || !HG.buttHinge || !K || !K.Bag) return;
+  const C2 = window.CAGE2, FS = ((C2 && C2.CAGE_UNIT) || 1) * (+P.planeScale || 1);
+  const HCd = window.GEN_HINGE || { pinR: 0.0045, strapT: 0.0022, strapW: 0.018, strapReach: 0.06, gap: 0.004 };
+  const sz = Math.max(0.6, +P.hgSize || 1.4);
+  const S = { r: (HCd.pinR || 0.0045) * 2.1 * sz, t: (HCd.strapT || 0.0022) * Math.sqrt(sz), w: (HCd.strapW || 0.018) * sz,
+              reach: 0.045, pinR: (HCd.pinR || 0.0045) * sz, gap: HCd.gap || 0.004 };
+  const zF = RD.z * FS - S.r, yA = RD.y0 * FS, yB2 = RD.y1 * FS, len = 0.11;
+  const bF = K.Bag(), bM = K.Bag();
+  for (const [xe, into] of [[RD.x0 * FS + 0.01, 1], [RD.x1 * FS - 0.01, -1]])
+    for (const t of [0.2, 0.8]) {
+      const p = [xe, yA + (yB2 - yA) * t, zF], x = [into, 0, 0], y = [0, 0, -1];
+      const z = [x[1] * y[2] - x[2] * y[1], x[2] * y[0] - x[0] * y[2], x[0] * y[1] - x[1] * y[0]];
+      HG.buttHinge(bF, bM, { p, x, y, z }, S, len);
+    }
+  const root = new THREE.Group(); root.name = 'edRearDoors';
+  const chrome = GG.gearMat('chrome');
+  for (const b of [bF, bM]) if (b.mesh) b.mesh(root, chrome);
+  // the handle: an escutcheon plate on the right-hand door, a T lever across the split's side
+  const xh = RD.xm * FS - 0.06, yh = yA + (yB2 - yA) * 0.42, zh = RD.z * FS;
+  const plate = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.11, 0.006), chrome); plate.position.set(xh, yh, zh - 0.004); root.add(plate);
+  const boss = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.013, 0.022, 16), chrome);
+  boss.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, -1)); boss.position.set(xh, yh + 0.02, zh - 0.018); root.add(boss);
+  const lever = new THREE.Mesh(new THREE.CylinderGeometry(0.007, 0.007, 0.11, 12), chrome);
+  lever.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(1, 0, 0)); lever.position.set(xh - 0.03, yh + 0.02, zh - 0.03); root.add(lever);
+  const key = new THREE.Mesh(new THREE.CylinderGeometry(0.007, 0.007, 0.004, 16), GG.gearMat('dark'));
+  key.quaternion.copy(boss.quaternion); key.position.set(xh, yh - 0.035, zh - 0.008); root.add(key);
   group.add(root);
 }
 function spareBuild(group, P, AF) {
@@ -3115,6 +3157,7 @@ PAGE.post = ctx => {
   if (AF && typeof AF.surf === 'function') {
     if (+P.bumpF) bumperBuild(group, P, AF, scene, true);
     if (+P.bumpR) bumperBuild(group, P, AF, scene, false);
+    if (Math.round(+P.extRelief || 0) === 4) rearDoorHardware(group, P, mesh);
   }
   // the LEGS take a livery section too (phase C): steel tube by default,
   // following nobody — but a builder can paint a leg without repainting the

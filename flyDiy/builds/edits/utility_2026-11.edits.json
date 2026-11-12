@@ -155,9 +155,13 @@
   "bumpH": 0.18,
   "bumpFin": 0,
   "bumpGuards": 1,
-  "extRelief": 1,
-  "extReliefH": 0.016,
-  "intBulk": 0
+  "extRelief": 4,
+  "extReliefH": 0.014,
+  "intBulk": 0,
+  "wsBaseLift": 0.06,
+  "ctlStick": 1,
+  "hdlOn": 1,
+  "wallTrimOn": 1
  },
  "fuel": {
   "litres": 80,
