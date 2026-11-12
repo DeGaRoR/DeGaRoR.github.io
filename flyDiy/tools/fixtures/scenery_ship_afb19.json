@@ -146,7 +146,30 @@
    "yaw": -1.637
   },
   "w3": {
-   "name": "Ridgeback Strip"
+   "name": "Fishing Village Strip",
+   "micro": {
+    "chaos": 0.2,
+    "seed": 3
+   }
+  },
+  "w4": {
+   "name": "Mountainside Strip"
+  },
+  "w5": {
+   "name": "Cannery Runway"
+  },
+  "w6": {
+   "name": "Old Community Runway"
+  },
+  "w7": {
+   "name": "New Community Runway"
+  },
+  "w8": {
+   "name": "Hiking Strip",
+   "micro": {
+    "chaos": 0.4,
+    "seed": 13
+   }
   },
   "SEA": {
    "name": "Greywater Dock"
@@ -198,5 +221,6 @@
    }
   }
  },
- "itemPatchesWhy": "SCENERY-PLACE (the user, 3 Nov ~20:55 via A0: 'there is a sign at the old mine, next to the parking spot. It's in the way, remove it. It does not collide, but goes through'): the air taxi office's board stood on its posts by the path 10.8 m from mn_strip's stand - inside a parked aeroplane's wing; its P.signAt 0 puts it over the door. Applied after the ship - a re-ship must apply it again"
+ "itemPatchesWhy": "SCENERY-PLACE (the user, 3 Nov ~20:55 via A0: 'there is a sign at the old mine, next to the parking spot. It's in the way, remove it. It does not collide, but goes through'): the air taxi office's board stood on its posts by the path 10.8 m from mn_strip's stand - inside a parked aeroplane's wing; its P.signAt 0 puts it over the door. Applied after the ship - a re-ship must apply it again",
+ "fieldPatchesWhyStrips": "DIRT-STRIP (L37a strip-names + chaos-on, 10 Nov; A0, SCENERYED row 15): the six unpaved strips w3-w8 carry the names the user gave them on the strip map (9 Nov) - w3 was Ridgeback Strip here - and w3/w8 the bumps the Pilot vetted (micro chaos 0.2 seed 3, 0.4 seed 13); the save keeps its own strip 9-13 names, byte for byte"
 }

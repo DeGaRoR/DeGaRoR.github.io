@@ -499,20 +499,57 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     if (rockParts) return rockParts;
     if (typeof treeList !== 'function' || typeof treeBuild !== 'function') return (rockParts = []);
     const out = [];
+    // THE FOOT (DIRT-STRIP, the user 9 Nov 21:15: "all rocks need to be ... a third buried ... a little dark gradient at the
+    // base where they are buried, black towards transparent at the top ... a cheap simulation of ambient occlusion"): each
+    // part's copy carries aRockH, its height in the subject's own box (0 its floor, 1 its top); a stone stands `bury` of its
+    // height in the ground (standRocks) and its colour runs from 0.3 at that line to itself 0.22 of its height above. The
+    // stones' record is their own (scope 'stripstone'): the cliffs keep theirs, without the attribute
+    const bury = 0.33;
+    const foot = function (sh) {   // (String.fromCharCode(10): the line break, as the cover ring's cut writes it)
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>' + String.fromCharCode(10) + 'attribute float aRockH;' + String.fromCharCode(10) + 'varying float vRockH;')
+        .replace('#include <begin_vertex>', '#include <begin_vertex>' + String.fromCharCode(10) + 'vRockH = aRockH;');
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>' + String.fromCharCode(10) + 'varying float vRockH;')
+        .replace('#include <map_fragment>', '#include <map_fragment>' + String.fromCharCode(10) + 'diffuseColor.rgb *= mix(0.3, 1.0, smoothstep(' + bury.toFixed(2) + ', ' + (bury + 0.22).toFixed(2) + ', vRockH));');
+    };
+    foot.toString = () => 'dirtstrip.rockfoot.' + bury;
+    const footed = m => { m.onBeforeCompile = foot; return m; };   // (the game's ATMO wraps it, its key the hook's text)
     for (const e of treeList('rock')) {
       let b = null; try { const ladder = e.sub.rungs || []; b = treeBuild(THREE, e.key, Math.max(0, ladder.length - 1), 'rungs'); } catch (err) { continue; }
       if (!b || !b.parts.length) continue;
       const bb = e.sub.bb || [-0.5, 0, -0.5, 0.5, 1, 0.5];
-      out.push({ key: e.key, bb, parts: b.parts.map(q => ({ geo: q.geo, mat: MATLIB.shared(THREE, 'std', { map: q.mat.map || null, roughness: 1, metalness: 0 }) })) });
+      out.push({ key: e.key, bb, parts: b.parts.map(q => {
+        const geo = q.geo.clone(), P = geo.attributes.position, H = new Array(P.count), h0 = Math.max(1e-3, bb[4] - bb[1]);
+        for (let i = 0; i < P.count; i++) H[i] = (P.getY(i) - bb[1]) / h0;
+        geo.setAttribute('aRockH', new THREE.Float32BufferAttribute(H, 1));   // (three's own typed array: GATE MATLIB's realm)
+        return { geo, mat: footed(MATLIB.shared(THREE, 'std', { map: q.mat.map || null, roughness: 1, metalness: 0 }, 'stripstone')) };
+      }) });
+    }
+    out.bury = bury; out.footed = footed;
+    // THE RING ON THE GROUND (the user, 9 Nov 21:50: "a little dark edge on the ground where the stones lie ... retrofit that
+    // for the ones on the border of the runway"): a disc draped on the ground under each stone, black, opaque to its foot and
+    // gone at 1.6 x its half-width - the ground's own share of the occlusion (the foot on the stone is the stone's share)
+    {
+      const N = 64, d = new Uint8Array(N * N * 4);
+      for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+        const r = Math.hypot((x + 0.5) / N * 2 - 1, (y + 0.5) / N * 2 - 1), s = Math.min(1, Math.max(0, (r - 0.5) / 0.5));
+        const a = r >= 1 ? 0 : Math.pow(1 - s * s * (3 - 2 * s), 1.5), k = (y * N + x) * 4;
+        d[k] = d[k + 1] = d[k + 2] = Math.round(255 * a); d[k + 3] = 255;
+      }
+      const tex = new THREE.DataTexture(d, N, N, THREE.RGBAFormat, THREE.UnsignedByteType); tex.needsUpdate = true;
+      out.ring = MATLIB.make(THREE, 'basic', { color: 0x000000, alphaMap: tex, transparent: true, opacity: 0.5, depthWrite: false, // pre-ok: a black shade ring under the stones (alpha only), writes no light
+        polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 });
+      out.ring.name = 'rocks:ring';
     }
     return (rockParts = out);
   };
   const standRocks = (field, o, keep) => {
     const parts = rockPartsOf(); if (!parts.length) return;
+    const groundH = world.stoneH ? (x, z) => world.terrainH(x, z) - world.stoneH(x, z) : world.terrainH;   // (DIRT-STRIP: the drawn ground, not a stone's body)
     const PO = world.premises && world.premises.overlay, pavedNear = PO && PO.pavedNear ? PO.pavedNear : null;   // G1003
     let seed = (o.seed * 7919 + 17) >>> 0; const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
     const rr = (a, b) => a + (b - a) * rnd();
     const band = Math.max(o.band, 0.6), N = Math.min(3000, Math.round(o.len * 1.4));
+    const padL = typeof STRIP_MICRO !== 'undefined' && STRIP_MICRO.padOf ? STRIP_MICRO.padOf(o.id) : 0;
     const rows = [];
     for (let i = 0; i < N * 3 && rows.length < N; i++) {
       const u = rr(-2, o.len + 2), v = (rnd() < 0.5 ? -1 : 1) * rr(o.wid / 2 + 0.2, o.wid / 2 + band + 1.5);
@@ -523,6 +560,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // the ground under the DEM lake's plane
       { const wy = waterDrawY(w[0], w[1]); if (wy !== null && Number.isFinite(wy) && wy > world.terrainH(w[0], w[1]) - 0.05) continue; }
       if (rnd() > 0.35 + 0.65 * Math.min(1, d / band)) continue;
+      // (DIRT-STRIP, the Pilot 10 Nov: a bumpy strip's turnaround pads - the C172's U-turn swings 0.3 m past the edge there) no border
+      // stone within 1.2 m of the edge along a pad (the stones are drawn only; nothing felt, but no wheel should run through one)
+      if (padL > 0 && d < 1.2 && (u < padL || u > o.len - padL)) continue;
       const size = rr(0.07, 0.3) * (rnd() < 0.05 ? 2.5 : 1);
       // G1003 (A6-GROUND, the playtest: "rocks and debris lie on the taxiway and runway"): not on ANOTHER pavement, nor
       // within its own size + 0.5 m of one - a crossing strip, a taxiway, an apron butting on this band (Jolene's 24 m
@@ -530,7 +570,12 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       if (pavedNear && pavedNear(w[0], w[1], size + 0.5, o.id)) continue;
       rows.push([w[0], w[1], rr(0, 6.3), size, Math.floor(rnd() * parts.length)]);
     }
+    // (DIRT-STRIP) a bumpy strip's own stones on it, [x, z, size] (STRIP_MICRO.rocksOf: toward its edges, none in a rut)
+    if (o.extra) for (const e of o.extra) { if (pavedNear && pavedNear(e[0], e[1], e[2] + 0.5, o.id)) continue; rows.push([e[0], e[1], rr(0, 6.3), e[2], Math.floor(rnd() * parts.length), e[3]]); }   // (e[3]: its width, the body's 2R)   // (G1003: not on a crossing pavement)
     const mtx = new THREE.Matrix4(), q = new THREE.Quaternion(), p = new THREE.Vector3(), sv = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
+    // a field stone (r[5]: 2R) is drawn as wide as its body - the part's footprint stretched to it, its height r[3] - so
+    // the wheels' paraboloid (26b stoneUV) lies inside the drawn stone
+    const svOf = (P, r, sc) => r[5] ? sv.set(r[5] / Math.max(0.05, P.bb[3] - P.bb[0]), sc, r[5] / Math.max(0.05, P.bb[5] - P.bb[2])) : sv.set(sc, sc, sc);
     // IN CELLS, CULLED, AND GONE UNDER A PIXEL (PERF 2026-09-23). The strip's stones were one
     // InstancedMesh a part a strip with frustumCulled off - every stone of every strip in the main
     // pass and in BOTH shadow passes, whatever the eye saw: 57 draws and 14 M triangles a frame on
@@ -547,11 +592,30 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     const ROCK_CELL = 400, cellsOf = new Map();
     for (const r of rows) { const k = Math.floor(r[0] / ROCK_CELL) + ',' + Math.floor(r[1] / ROCK_CELL); let a = cellsOf.get(k); if (!a) cellsOf.set(k, a = []); a.push(r); }
     for (const cellRows of cellsOf.values()) {
-      const yOf = r => { const P = parts[r[4]], h0 = Math.max(0.05, P.bb[4] - P.bb[1]), sc = r[3] / h0; return world.terrainH(r[0], r[1]) - P.bb[1] * sc - r[3] * 0.15; };
+      const yOf = r => { const P = parts[r[4]], h0 = Math.max(0.05, P.bb[4] - P.bb[1]), sc = r[3] / h0; return groundH(r[0], r[1]) - P.bb[1] * sc - r[3] * (parts.bury || 0.15); };   // a third in the ground (the user, 9 Nov)
       let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity, y0 = Infinity, y1 = -Infinity, big = 0;
       const ys = cellRows.map(r => { const y = yOf(r); x0 = Math.min(x0, r[0]); x1 = Math.max(x1, r[0]); z0 = Math.min(z0, r[1]); z1 = Math.max(z1, r[1]); y0 = Math.min(y0, y); y1 = Math.max(y1, y); big = Math.max(big, r[3]); return y; });
       const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, cz = (z0 + z1) / 2, reach = Math.hypot(x1 - x0, y1 - y0, z1 - z0) / 2;
       const grp = new THREE.Group();
+      // the rings (THE RING ON THE GROUND, rockPartsOf): one mesh a cell, each a 3 x 3 grid draped on terrainH, 2 cm over it,
+      // drawn after the strips (their renderOrder ~2: the pavement is a blended draw)
+      if (parts.ring) {
+        const pos = [], uv = [], idx = [];
+        cellRows.forEach(r => {
+          const P = parts[r[4]], h0 = Math.max(0.05, P.bb[4] - P.bb[1]), sc = r[3] / h0;
+          const R = 1.6 * (r[5] ? r[5] / 2 : Math.max(P.bb[3] - P.bb[0], P.bb[5] - P.bb[2]) / 2 * sc), b = pos.length / 3;
+          for (let j = 0; j < 3; j++) for (let i = 0; i < 3; i++) {
+            const x = r[0] + (i - 1) * R, z = r[1] + (j - 1) * R;
+            pos.push(x - cx, groundH(x, z) + 0.02 - cy, z - cz); uv.push(i / 2, j / 2);
+          }
+          for (let j = 0; j < 2; j++) for (let i = 0; i < 2; i++) { const a = b + j * 3 + i; idx.push(a, a + 3, a + 1, a + 1, a + 3, a + 4); }
+        });
+        const g = new THREE.BufferGeometry();
+        g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx);
+        g.computeBoundingSphere();
+        const ringM = new THREE.Mesh(g, parts.ring); ringM.renderOrder = 3; ringM.name = 'rocks:ring:' + o.id; ringM.castShadow = false; ringM.receiveShadow = false;
+        grp.add(ringM);
+      }
       // NO SHADOW UNDER HALF A METRE (G667, the playtest's cut list): a 7-30 cm stone's shadow is a few texels
       // of either map, and every stone was a caster in both - the ones of 0.5 m and more (the 5 % drawn 2.5x,
       // about 2 % of them) keep theirs, in a mesh of their own
@@ -559,7 +623,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         const bat = new Map();   // (material, casts) -> { mat, cast, geos: Set, list: [[geo, matrix]] }
         cellRows.forEach((r, ri) => {
           const P = parts[r[4]], h0 = Math.max(0.05, P.bb[4] - P.bb[1]), sc = r[3] / h0, cast = r[3] >= 0.5;
-          q.setFromAxisAngle(up, r[2]); p.set(r[0] - cx, ys[ri] - cy, r[1] - cz); sv.set(sc, sc, sc); mtx.compose(p, q, sv);
+          q.setFromAxisAngle(up, r[2]); p.set(r[0] - cx, ys[ri] - cy, r[1] - cz); svOf(P, r, sc); mtx.compose(p, q, sv);
           for (const part of P.parts) {
             const k = part.mat.uuid + (cast ? '|c' : '|n');
             let B = bat.get(k); if (!B) bat.set(k, B = { mat: part.mat, cast, geos: [], list: [] });
@@ -570,7 +634,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         const made = [];
         for (const B of bat.values()) {
           let nv = 0, ni = 0; for (const g of B.geos) { nv += g.attributes.position.count; ni += g.index ? g.index.count : 0; }
-          const bm = new THREE.BatchedMesh(B.list.length, nv, ni, MATLIB.variant(THREE, B.mat, 'batch'));
+          const bm = new THREE.BatchedMesh(B.list.length, nv, ni, parts.footed ? parts.footed(MATLIB.variant(THREE, B.mat, 'batch')) : MATLIB.variant(THREE, B.mat, 'batch'));
           const ids = new Map(B.geos.map(g => [g, bm.addGeometry(g)]));
           for (const [g, m4] of B.list) bm.setMatrixAt(bm.addInstance(ids.get(g)), m4);
           bm.perObjectFrustumCulled = true; bm.sortObjects = false;   // three's per-stone culling, each camera; opaque, no sort
@@ -586,7 +650,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         const idx = []; cellRows.forEach((r, i) => { if (r[4] === pi && (r[3] >= 0.5) === bigSet) idx.push(i); }); if (!idx.length) continue;
         for (const part of P.parts) {
           const im = new THREE.InstancedMesh(part.geo, part.mat, idx.length);
-          idx.forEach((ri, i) => { const r = cellRows[ri], sc = r[3] / h0; q.setFromAxisAngle(up, r[2]); p.set(r[0] - cx, ys[ri] - cy, r[1] - cz); sv.set(sc, sc, sc); im.setMatrixAt(i, mtx.compose(p, q, sv)); });
+          idx.forEach((ri, i) => { const r = cellRows[ri], sc = r[3] / h0; q.setFromAxisAngle(up, r[2]); p.set(r[0] - cx, ys[ri] - cy, r[1] - cz); svOf(P, r, sc); im.setMatrixAt(i, mtx.compose(p, q, sv)); });
           im.instanceMatrix.needsUpdate = true; im.castShadow = bigSet; im.receiveShadow = true; im.name = 'rocks:' + o.id;
           if (THREE.Sphere) im.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 0, 0), reach + 3 * Math.max(0.5, big));
           else im.frustumCulled = false;
@@ -7369,10 +7433,11 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         const shW = PAV.shoulderFor(RS.band, RS.recipe);
         // G660: on the premises' patch the ground is sunk under the strip's opaque interior, and the strip is
         // drawn at terrainH there (the wheels' surface); elsewhere (the analytic world's ground) it keeps its lift
-        const sd = { len: a.len, wid: a.wid, hdg: a.hdg, cx: a.x, cz: a.z, shoulderW: shW, cls: RS.cls, seed: pavSeed(a.id), heightAt: world.terrainH, lift: 0.07, resU: 6, resV: 3,
+        const sd = { len: a.len, wid: a.wid, hdg: a.hdg, cx: a.x, cz: a.z, shoulderW: shW, cls: RS.cls, seed: pavSeed(a.id), heightAt: world.stoneH && typeof STRIP_MICRO !== 'undefined' && STRIP_MICRO.has(a.id) ? (x, z) => world.terrainH(x, z) - world.stoneH(x, z) : world.terrainH, lift: 0.07, resU: 6, resV: 3,
           sinkD0: onPatch && a.premises && premisesR.pavedAt ? PAV.opaqueDepth(RS.cls, a.wid / 2, RS.recipe, 'strip') : null,
           liftAt: onPatch && a.premises && premisesR.pavedAt && PAV.liftOver ? PAV.liftOver(premisesR.pavedAt, a.id) : null,   // G2115: no lift over another pavement
-          refineMin: typeof STRIP_MICRO !== 'undefined' && STRIP_MICRO.has(a.id) ? STRIP_MICRO.REFINE_MIN : 0 };   // DIRT-STRIP: a bumpy strip's rows down to its bumps
+          refineMin: typeof STRIP_MICRO !== 'undefined' && STRIP_MICRO.has(a.id) ? STRIP_MICRO.REFINE_MIN : 0,
+          refineMinV: typeof STRIP_MICRO !== 'undefined' && STRIP_MICRO.has(a.id) ? STRIP_MICRO.REFINE_MIN_V : 0 };   // (and 5 cm across: the ruts' walls)   // DIRT-STRIP: a bumpy strip's rows down to its bumps
         const pgeo = PAV.stripGeometry(THREE, sd);
         const lib = pavLib(PAV.keysFor([RS.cls]));
         const marks = RS.marks === 'none' ? { rects: [], segs: [] } : PAV.marksOf(siteRunway(a), sitePaintStrip);
@@ -7389,7 +7454,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         scene.add(keep(pm));
         geo.dispose();
         const F = PAV.field(sd);
-        rocksWhenReady(() => standRocks(F, { id: a.id, seed: pavSeed(a.id) * 37, len: a.len, wid: a.wid, band: RS.band, toWorld: F.frame.toWorld }, keep));
+        // (DIRT-STRIP) a bumpy strip's stones on it: the field's [u, v, R] (its v the ribbon's flipped), a stone R wide stands 1.1 R tall
+        const extra = typeof STRIP_MICRO !== 'undefined' && STRIP_MICRO.rocksOf ? STRIP_MICRO.rocksOf(a.id).map(r => { const w = F.frame.toWorld(r[0], -r[1]); return [w[0], w[1], 1.1 * r[2], 2 * r[2]]; }) : null;
+        rocksWhenReady(() => standRocks(F, { id: a.id, seed: pavSeed(a.id) * 37, len: a.len, wid: a.wid, band: RS.band, toWorld: F.frame.toWorld, extra }, keep));
       } else if (LK && (a.look === 'none' || LK.set)) {
         const lookTex = LK.set ? mkLook(LK.set, a.len, a.wid) : null;
         if (lookTex) {

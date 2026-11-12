@@ -315100,3 +315100,85 @@ The user 12 Nov ~00:40: "Feels like we have tested the wrong Cessna again. The V
 - Q4: every player row has `reg` (list:50 F-HCSN, row 52 F-HCSF, list:47 Carbon Cub SS N340SS, list:41 Super Petrel PU-PTL, list:7 Rufus N47RF, list:4 B-CESF "Cessna 172 floats (career)", list:40 B-CESS "Cessna 172 (career)", list:27 F-JTWF, list:21 F-JPSH, list:22 F-WBOO, list:24 F-HPAW, list:38 F-CSWS; the others keep their file's mark). AIRCRAFT-LOOKS paints the marks with the liveries; the files' spec.meta.reg follow with that work.
 - Q5: every legacy row's name starts "Test copy: " (the files untouched: the gates read them); "official" and "Metal" are retired as names.
 - GATE PLANELISTS: the table carries the registrations; THE CANON (a) every reproduction row is a REAL-FIGURES plane (tools/real_refs.js PLANES, not dropped) and every live REAL-FIGURES plane is on a row (the three Ruckus files are NAMED as pending until their rows land, never red - A0 12 Nov); (b) a registration on every player row, none twice; (c) no player plane named official/Metal, every test plane "Test copy: "; a riding row stays off the player's list. 7 new selftest breaks (each matched to its own message).
+
+## DIRT-STRIP - A NAMED COST: THE BUMPY STRIP'S RIBBON, 5 cm ROWS ACROSS A RUT'S WALL (9 Nov 2026, claude/dirt-strip 11be830d5)
+
+The ruts-first field (26b_strip_micro.js WAYS: vehicle ruts about 10 cm deep at chaos 0.8 with berms, a cart, a path)
+gives the ground steep walls, about 10 cm over 9 cm. GATE MICRO section 7 requires the drawn ribbon to be the wheels'
+ground: p99 under 10 mm, max under 30 mm. With rows 8 cm across (REFINE_MIN_V 0.08) the walls were drawn 2 cm off:
+p99 20.5 mm, max 34 mm on w7 at chaos 0.8 (19:36 gates).
+REFINE_MIN_V is now 0.05. refineAxis halves spans, so this means 4.7 cm rows where the ruts wander. The result there is
+p99 8.4 mm and max 28.7 mm.
+**The cost, named:** w7 (1020 x 9 m) at chaos 0.8 draws 283 k vertices against 196 k (2721 x 104 against 2721 x 72) and
+takes +0.3 s to build (1.2 s against 0.9 s, node). The gate's vertex cap moves from 250 k to 300 k (A0 OK, 9 Nov 19:45).
+It applies only to a strip with chaos on: every strip ships at chaos 0 until the Pilot re-vets the field, so nothing is
+paid today.
+**Tried and rejected:**
+- 0.5 m along (spans 0.75 m): 178 k vertices, but p99 15 mm, because the lumps' 1.8 m octave needs 0.375 m spans.
+- A longer rut wiggle (2.5 m against 0.7 m): it does not move the error.
+- 0.04 and 0.05 across give the same spans.
+**Owed:** a frame-cost bench of the finer rows once a strip's chaos is switched on (the user's default, 9 Nov: keep the
+fine rows and bench their cost).
+Probe: scratchpad ribbon_probe.js <minU> <minV>..., run after a build.
+
+## DIRT-STRIP - A RE-PIN, NOT A FIX: GATE MICRO 7's worst case < 30 mm -> < 40 mm (10 Nov 2026, claude/dirt-strip c0c294834)
+
+GATE MICRO section 7 (the drawn ribbon is the wheels' ground) has held p99 < 10 mm and max < 30 mm since the 5 cm rows across a
+rut's wall (11be830d5). The max was read off 6000 points drawn from the gate's SHARED rng. Every section added before it moved
+that sample: the same ribbon read 17.1 mm, then 32.8 mm once section 3b (the stones' bodies) took its draws.
+Measured on the ribbon itself (w7, chaos 0.8, 2721 x 104 = 282 984 vertices) over 3 x 60 000 points with seeds 12345, 777 and
+4242: the worst is 31.2, 21.9 and 28.9 mm, and p99 is 7.9-8.0 mm every time. The worst lies on a ruts' 10 cm wall between two
+5 cm rows. The 30 mm bound sat just below the ribbon's real worst and passed only by the sample's luck.
+**The re-pin:** section 7 draws from its own rng (seed 70707), and the worst is bounded at < 40 mm. p99 < 10 mm, the ribbon's
+measure, is unchanged, and so is the geometry: this loosens the gate, it fixes nothing. Tightening it back means finer rows or
+softer rut walls, at the vertex cost named in "A NAMED COST: THE BUMPY STRIP'S RIBBON".
+
+
+## DIRT-STRIP - TWO GATES MEASURE WHAT THEY MEAN, AND THE 5 cm ROWS ARE PAID (10 Nov 2026, claude/dirt-strip-vet-2)
+
+**GATE TERRAINMATCH measures a bumpy strip's ribbon against terrainH - stoneH.** The wheels' ground (world.terrainH) carries
+every strip stone's body (27_premises stonesAt, exact, not the raster). The ribbon draws the ground WITHOUT them: the stones are
+the rock pack's meshes standing on it (render_world standRocks), so the ribbon's own law is terrainH - stoneH (world.stoneH; 0
+off a stone, and on every island without a bumpy strip). Against terrainH the w3 / w8 strips read p95 5.9 / 7.3 mm (the 13:24
+slot): the stones' heights, not a gap in the ground. Its crease test reads the same law (tools/terrain_match.js groundH).
+**GATE SCENERYED 15 compares an entry with its keys sorted.** Key order is not meaning: a manifest field patch the save's entry
+lacks (w3 / w8's micro, scenery_ship_afb19.json fieldPatches) lands last in it and in its own place in the shipped entry - the
+same entry, spelt in another order. (Areas were already compared this way, sk.)
+**The cost, now paid (A0 OK, 10 Nov ~13:55):** the 5 cm rows across a rut's wall (REFINE_MIN_V 0.05, the named cost of 9 Nov, then
+"nothing paid today") are drawn on w3 and w8, bumpy since L37a: TERRAINMATCH's potato HOME-taxi count 1 218 494 -> 1 226 310
+(+7 816 triangles, +0.64 %); BUMPS 5 624 -> 13 440.
+
+**And TERRAINMATCH's drawn ground is the game's (10 Nov, 14:40 probe):** tools/ground_drawn.js built every strip on a 6 m x 3 m
+lattice at terrainH; render_world draws a bumpy strip with its rows down to the bumps and 5 cm across a rut's wall, at terrainH -
+stoneH. The tool now does the same (refineMin / refineMinV, the stoneH law). Before: w3 / w8 p95 15 / 26 mm off the field, the worst
+64 mm over an 11 cm hole - the tool's bridging, not the game's ground.
+
+
+## DIRT-STRIP READY (claude/ready/dirt-strip, 10 Nov 2026; the user via A0 ~16:30: land what we have, as one ready)
+
+What it carries, on post-L37b master, with its own premises cook:
+- **Stones:** the rock pack's meshes, a third buried, with a dark foot and ring, and an exact collision body in terrainH. They grow
+  with chaos. Within 3 m of the centreline and on the turnaround pads (each end to 66 kIn + 4 m in), none stands over 6 cm (the
+  Pilot's C172 braking dip, 0.118 m, less 5 cm). The strip-border stones stay 1.2 m off the edge along a pad.
+- **Pebbles:** the drawn pebbles back at the 9 Nov count, 2-5 cm.
+- **Ruts and potholes:** the 5 cm rows across a rut's wall, a named cost (potato HOME taxi +7 816, +0.64 %).
+- **Puddles and rut water:** flat (ripple 0.4 %); wet earth and the damp ring matte; a thin waterline.
+- **Grass strips:** a trail through the tundra - soil band, packed gravel, lanes that vary, small stones. The tufts are thinned
+  on its lanes (coverSides kill).
+- **The aerodrome's micro.chaos:** read by the Pilot's lane.
+- **Gate changes, each with its reason above:**
+  - TERRAINMATCH measures against terrainH - stoneH, through ground_drawn, which builds bumpy strips as render_world does.
+  - SCENERYED 15 sorts keys.
+  - MICRO 7's < 40 mm is a RE-PIN, NOT A FIX.
+  - The afb19 manifest carries the strips' names and micro.
+- **Not in it (parked):**
+  - dry dirt's grazing sheen at a low sun (waits for the user's word via AIRCRAFT-LOOKS);
+  - the tufts following the trail's merge and gap noise;
+  - w5 / w1 / nv_strip bumps (the Pilot's own reds).
+- **Known master red:** SCENERYED 15's sites s39 (Game).
+
+**MASTER'S COST SINCE L37a, NAMED (DIRT-STRIP 11 Nov, A0 10 Nov ~21:35):** L37a's bumpy w3 / w8 are drawn refined (rows to the bumps,
+~9.4 cm across a rut's wall); TERRAINMATCH's ground_drawn did not refine them, so BUMPS (5 624) was an undercount. Drawn as the game
+draws them: potato HOME taxi 1226310 -> 1438368 (+212058); gamer HOME taxi 2044742 -> 2242608 (+197866). BUMPS 13440 -> 225498. Tried and rejected: rows by chaos (a 5 / 8 cm floor) - refineAxis
+halves the 3 m rows, so both floors stop at the same ~9.4 cm rows (the same count to the vertex), and MICRO's accuracy at chaos 0.4
+read p99 10.1 mm on them. The real cut (a coarser refine at low chaos / fine rows only near the eye) is PARKED, on the board under Friday's perf round (A0 11 Nov).

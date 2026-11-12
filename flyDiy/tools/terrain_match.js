@@ -36,6 +36,10 @@ const GD = (() => { const a = process.argv; a.push('--none'); try { return requi
 const C = require(path.join(T, 'flight_core.js'));
 const PAV = require(path.join(ROOT, 'src', 'viewer', 'pavement.js'));
 const W = GD.W, O = W.premises.overlay, I = W.island;
+// THE DRAWN GROUND'S OWN LAW ON A BUMPY STRIP (DIRT-STRIP, 10 Nov): the wheels' ground (terrainH) carries each strip stone's body;
+// the ribbon draws the ground without them (the stones are the rock pack's meshes standing on it: render_world standRocks) -
+// so the drawn ground is measured against terrainH - stoneH (0 off a stone, and everywhere on an island without a bumpy strip)
+const groundH = (x, z) => W.terrainH(x, z) - (W.stoneH ? W.stoneH(x, z) : 0);
 const RW = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_world.js'), 'utf8');
 const GFX = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'gfx_settings.js'), 'utf8');
 const INNER = +(/INNER = (\d+);/.exec(RW) || [])[1];
@@ -146,8 +150,8 @@ function causeOf(x, z, d) {
   // through it can meet it on both sides
   // (a crease or a step within the tier's cell: the second difference over its half-step (0.25 m) past 10 mm - a slope that
   // turns by 0.08 or more inside 0.5 m: no 0.5 m chord meets it to a centimetre)
-  { const H0 = W.terrainH(x, z); let k2 = 0;
-    for (const h of [GT.S.patch.step / 2, GT.S.patch.step]) for (const [dx, dz] of [[h, 0], [0, h], [h, h], [h, -h]]) k2 = Math.max(k2, Math.abs(W.terrainH(x + dx, z + dz) - 2 * H0 + W.terrainH(x - dx, z - dz)) * (h > GT.S.patch.step / 2 ? 0.5 : 1));
+  { const H0 = groundH(x, z); let k2 = 0;
+    for (const h of [GT.S.patch.step / 2, GT.S.patch.step]) for (const [dx, dz] of [[h, 0], [0, h], [h, h], [h, -h]]) k2 = Math.max(k2, Math.abs(groundH(x + dx, z + dz) - 2 * H0 + groundH(x - dx, z - dz)) * (h > GT.S.patch.step / 2 ? 0.5 : 1));
     if (k2 > 0.01) return 'terrainH creased or stepped within the tier\'s cell (a cut\'s bank, a DEM seam, the coast)'; }
   if (/rim$/.test(d.kind)) return 'pavement rim (the side\'s lift, G1001)';
   if (d.kind === 'far terrain') return 'far terrain (the raw DEM / its cut at the patch\'s border)';
@@ -205,8 +209,8 @@ for (const S of sites) {
     // (and a road's square END, past which pavedAt reports nothing: within liftIn of a paved point - G1542's last 2 m take
     // the edge's 7 cm there, the patch's cell carrying it a little way out)
     const q = S.kind !== 'rim' ? (O.pavedAt(x, z, PT.sideR1) || ([[liftIn, 0], [-liftIn, 0], [0, liftIn], [0, -liftIn]].some(([dx, dz]) => { const r = O.pavedAt(x + dx, z + dz); return r && r.kind === 'road'; }) ? { dPre: 0 } : null)) : null;
-    if (q && q.dPre < liftIn) { const v = 1000 * (d.y - W.terrainH(x, z)); E.e.push(v); if (!E.worst || Math.abs(v) > Math.abs(E.worst.v)) E.worst = { v, x, z, kind: d.kind }; continue; }
-    const v = 1000 * (d.y - W.terrainH(x, z)); e.push(v); kinds[d.kind] = (kinds[d.kind] || 0) + 1;
+    if (q && q.dPre < liftIn) { const v = 1000 * (d.y - groundH(x, z)); E.e.push(v); if (!E.worst || Math.abs(v) > Math.abs(E.worst.v)) E.worst = { v, x, z, kind: d.kind }; continue; }
+    const v = 1000 * (d.y - groundH(x, z)); e.push(v); kinds[d.kind] = (kinds[d.kind] || 0) + 1;
     if (!worst || Math.abs(v) > Math.abs(worst.v)) worst = { v, x, z, kind: d.kind };
     let crease = false;
     if (Math.abs(v) > TOL) { const k = causeOf(x, z, d); crease = /creased or stepped/.test(k); const q = causes[k] = causes[k] || { n: 0, worst: 0 }; q.n++; if (Math.abs(v) > Math.abs(q.worst)) q.worst = v; }
