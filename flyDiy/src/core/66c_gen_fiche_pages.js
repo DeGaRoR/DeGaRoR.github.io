@@ -224,10 +224,51 @@ function genFicheTanks(def) {
   }) };
 }
 
+// THE COOLING (the user, 12 Nov: "a page for the engine cooling ... something nice that shows cooling ... a balance ...
+// on the plane"): ENGINE-COOLING's model as it judges the aeroplane - genCooling's three cases (the 38 C climb, the taxi,
+// the cruise: the heat, the air it needs, the air the drawn openings pass, the margin, what limits the flow, the opening
+// that would pass), its cooling drag, and the oil needle (genCoolOilC) at each case - plus where the cowl and the engine
+// stand, to draw the air through them. Nothing restated: each case's conditions are GEN_COOL's own (hot / taxi /
+// cruisePower) at the aeroplane's own climb and cruise speeds (def.params.ap), as genCoolSummary reads them.
+function genFicheCooling(def) {
+  if (typeof genCooling !== 'function' || typeof GEN_COOL === 'undefined') return null;
+  const S = def.spec || {}, ap = (def.params && def.params.ap) || {}, K = GEN_COOL;
+  const C = genCooling(S, { VClimb: ap.VClimb, VCruise: ap.VCruise });
+  const R = v => (typeof v === 'number' && isFinite(v)) ? genFicheR(v, 4) : (v === Infinity ? 'inf' : null);
+  const VC = ap.VClimb > 0 ? ap.VClimb : 30, VCr = ap.VCruise > 0 ? ap.VCruise : VC * 1.24;
+  const HOT = makeAtmos({ dISA: K.hot.dISA });
+  const AT = { hot: { air: HOT, h: K.hot.h, pFrac: 1, Veas: VC, ground: false },
+               taxi: { air: HOT, h: K.hot.h, pFrac: K.taxi.power, Veas: 0, ground: true },
+               cruise: { air: ATMOS_ISA, h: 0, pFrac: K.cruisePower, Veas: VCr, ground: false } };
+  const cases = {};
+  for (const k of ['taxi', 'hot', 'cruise']) {
+    const c = C[k]; if (!c) continue;
+    const oil = typeof genCoolOilC === 'function' ? genCoolOilC(S, AT[k]) : null;
+    cases[k] = { Q: R(c.Q), need: R(c.need), pass: R(c.pass), flow: R(c.flow), bare: R(c.bare), margin: R(c.margin), Vin: R(c.Vin),
+                 dT: R(c.dT), oatC: R(c.oatC), limit: c.limit, inNeed: R(c.inNeed), inPass: R(c.inPass), outNeed: R(c.outNeed),
+                 outPass: R(c.outPass), oilC: oil ? R(oil.oilC) : null, V: R(AT[k].Veas), pFrac: AT[k].pFrac };
+  }
+  // where the air goes: the body engine the answer is about, its cowl (len along x from the face to its firewall end; top /
+  // bot about the engine's axis), the engine box, the propeller's disc
+  const EA = S.engAt || [], e = EA[C.k > 0 ? C.k : 0] || EA[0] || {}, cw = S.cowl || {}, E = S.engBox || {};
+  const len = cw.len > 0 ? cw.len : 0.7, face = C.pushes ? e.x + 0.1 : e.x - 0.1;
+  const PP = S.pplant || POWERPLANTS[((S.engines && S.engines[0]) || {}).type] || {}, eng = (PP && PP.engine) || {};
+  const ST0 = def.parts && def.parts.ST && def.parts.ST[0];
+  return { v: 1, kind: C.kind, path: C.path, pushes: !!C.pushes, coolKW: R(C.coolKW), kW: R((eng.powerW || 0) / 1000),
+           layout: eng.layout || null, nEng: C.nEng || 1,
+           parts: (C.parts || []).map(p => ({ what: p.what, A: R(p.A), faces: p.faces })),
+           inA: R(C.inA), outA: R(C.outA), bareA: R(C.bareA), radA: R(C.radA), exitSized: !!C.exitSized, duct: !!C.duct,
+           cdA: R(C.cdA), meredithN: R(C.meredithN || 0), cases,
+           lines: { pass: K.pass, warn: K.warn, oilRed: K.oilRed, hotOat: R(cases.hot ? cases.hot.oatC : null) },
+           geom: { x: R(e.x), y: R(e.y), face: R(face), fw: R(C.pushes ? face - len : face + len), top: R(cw.top), bot: R(cw.bot),
+                   halfH: R(E.halfH), cylZ: R(E.cylZ), cylR: R(E.cylR), D: R((S.prop && S.prop.D) || 0),
+                   fus: ST0 ? { yb: R(ST0.yb), yt: R(ST0.yt) } : null } };
+}
+
 function genFichePages(def, opts) {
   const o = opts || {};
   return { v: GEN_FICHE_PAGES_V, model: genFicheModel(def, o),
            load: o.load === false ? null : genFicheLoad(def),
            destroy: o.destroy === false ? null : genFicheDestroy(def, o),
-           drag: genFicheDrag(def), elec: genFicheElec(def), tanks: genFicheTanks(def) };
+           drag: genFicheDrag(def), elec: genFicheElec(def), tanks: genFicheTanks(def), cooling: genFicheCooling(def) };
 }
