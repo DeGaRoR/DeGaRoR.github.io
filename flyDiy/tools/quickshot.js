@@ -20,6 +20,9 @@
 //                                (gearPos): the gear layer folds each unit by its chain, as the flown aeroplane does; the
 //                                build must retract (--over '{"gearRetract":1}' on a low-wing tricycle; the fold:
 //                                gearFold / gearFoldNose / the custom rows, gearRetFrac)
+//   node tools/quickshot.js --scene <a.scene.json> <out-prefix> [--views scene,side]   (PHOTO-MODE-2 P5) the scene's
+//                              aeroplane (plane.build, inline) seen from the scene camera's direction (view `scene`, the
+//                              default) - a 3 s draft of a picture before the real one (tools/scene_shot.js); drawn level
 //   A build is a saved file ({spec} or a bare spec); --key births an archetype card the way the shed does
 //   (designBake + the load door, the cowl fitted once) and draws that.
 'use strict';
@@ -28,13 +31,30 @@ const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 ? argv[i + 1] : d; };
 const pos = argv.filter((a, i) => !a.startsWith('--') && !(i > 0 && argv[i - 1].startsWith('--')));
 const KEY = opt('key', null);
-const FILE = KEY ? null : pos[0], OUT = KEY ? pos[0] : pos[1];
+// --scene: the scene's build (inline) as the file, and the scene camera's direction as the view `scene`
+const SCENE_F = opt('scene', null);
+let SCENE_DIR = null, SCENE_BUILD = null;
+if (SCENE_F) {
+  const sc = JSON.parse(fs.readFileSync(SCENE_F, 'utf8'));
+  const b = sc.plane && sc.plane.build;
+  if (!b) { console.error('quickshot: the scene carries no build (plane.build)'); process.exit(2); }
+  SCENE_BUILD = path.join(require('os').tmpdir(), 'quickshot_scene_' + process.pid + '.json');
+  fs.writeFileSync(SCENE_BUILD, JSON.stringify(b));
+  const c = sc.camera || {};
+  if (c.eye && c.target && c.anchor !== 'world') {
+    // the heading frame (x forward, y up, z right) -> the cage's (z forward, x starboard, y up): the yaw from starboard toward the nose (q's), the pitch from above
+    const dx = c.eye[0] - c.target[0], dy = c.eye[1] - c.target[1], dz = c.eye[2] - c.target[2], L = Math.hypot(dx, dy, dz) || 1;
+    SCENE_DIR = { yaw: Math.atan2(dx, dz), pitch: Math.asin(Math.max(-1, Math.min(1, dy / L))) };
+  } else SCENE_DIR = { yaw: 0.65, pitch: 0.38 };
+}
+const FILE = KEY ? null : (SCENE_BUILD || pos[0]), OUT = (KEY || SCENE_BUILD) ? pos[0] : pos[1];
+if (SCENE_BUILD) process.on('exit', () => { try { fs.unlinkSync(SCENE_BUILD); } catch (e) {} });
 if (!OUT || (!FILE && !KEY)) { console.error('usage: node tools/quickshot.js <build.json | --key <archetype>> <out-prefix> [--views side,top,front,q] [--over JSON] [--crop z0,z1,y0,y1] [--w px] [--marks ...]'); process.exit(2); }
 const ROOT = path.resolve(__dirname, '..');
 const over = JSON.parse(opt('over', '{}'));
 const GEARPOS = opt('gear', null);                    // RETRACT-1 / G1: the gear's preview position (the gearPos row)
 if (GEARPOS != null) over.gearPos = Math.max(0, Math.min(1, +GEARPOS));
-const VIEWS = opt('views', 'side,top').split(',');
+const VIEWS = opt('views', SCENE_F ? 'scene' : 'side,top').split(',');
 const WPX = +opt('w', 1400);
 const MARKS = opt('marks', '');
 const FLAT = argv.includes('--flat');                 // GR: the old flat facets (the default shades smoothly)
@@ -188,8 +208,15 @@ function view(name) {
     top: { u: p => -p[2], w: p => -p[0], d: p => p[1] },                  // from above, the nose to the left
     front: { u: p => -p[0], w: p => p[1], d: p => p[2] },                // head-on, starboard on the left
     bottom: { u: p => -p[2], w: p => p[0], d: p => -p[1] },              // RETRACT G4: from below, the nose to the left
-    q: {}, qb: {}, qr: {}, qp: {},                                         // set below
+    q: {}, qb: {}, qr: {}, qp: {}, scene: {},                              // set below
   }[name];
+  if (name === 'scene') {   // PHOTO-MODE-2: the scene camera's direction (--scene), q's own projection
+    const cy = Math.cos(SCENE_DIR.yaw), sy = Math.sin(SCENE_DIR.yaw), cp = Math.cos(SCENE_DIR.pitch), sp = Math.sin(SCENE_DIR.pitch);
+    V.u = p => -p[2] * cy + p[0] * sy;
+    const dd = p => p[0] * cy + p[2] * sy;
+    V.w = p => p[1] * cp - dd(p) * sp;
+    V.d = p => dd(p) * cp + p[1] * sp;
+  }
   // (11 Nov, FIT-PROCEDURE: "do some 3/4 views of the latest model") qr = a three-quarter from BEHIND, starboard,
   // above; qp = from ahead, PORT, above - the q view's yaw turned round
   if (name === 'qr' || name === 'qp') {

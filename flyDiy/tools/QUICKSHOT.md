@@ -44,3 +44,7 @@ What it is and is not:
 - Use it to see shapes and positions while you work; use the bench for the final look.
 
 Matching a build to a reference model is a separate guide: `tools/REF_MATCH.md`.
+
+**A scene's draft (PHOTO-MODE-2, 12 Nov):** `node tools/quickshot.js --scene shots/scenes/flight_home.scene.json /tmp/x`
+draws the scene's aeroplane (its `plane.build`, inline) from the scene camera's direction (view `scene`, the default with
+`--scene`; the aeroplane level - the scene's attitude is not drawn). The real picture: `tools/scene_shot.js`, `tools/PHOTO.md`.

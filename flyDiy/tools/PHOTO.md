@@ -158,7 +158,8 @@ all; the picture right (the Cub under the shed's lamp), its scene inside.
 ## 4. By hand, and what every rig before this one tripped on
 
 - **A picture of a build alone, in seconds, no browser**: `node tools/quickshot.js` (`tools/QUICKSHOT.md`). Use it for
-  shapes, not for looks.
+  shapes, not for looks. `node tools/quickshot.js --scene my.scene.json /tmp/draft` draws the scene's aeroplane from the
+  scene camera's direction (level, ~6 s): the framing's draft before the real picture.
 - **In a page**: `tools/plane_shot.js` is the reference rig (the garage, the build through `#gFile`, the camera, the
   asserts). Copy its order, not its numbers. The hooks: `FLIGHT_PROBE` (app.js: `camSet(az, el, dist)`, `camSettle()`,
   `camMode(m)`, `devFree(x, y, z, yaw, pitch)`, `camGet()`, `pan`, `place`), `SHOT_MODE.enter()` (the interface off),
