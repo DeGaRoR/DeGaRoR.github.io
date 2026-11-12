@@ -28,7 +28,7 @@ It can land alone. On origin/master 79724e428, all 21 PLANES rows of master's re
   Then run `node tools/_realrefs_lint.js`. LEGACY lists the reference keys made before 12 Nov: add any master key it
   does not hold.
 - **realband_baseline.json:** do NOT carry this branch's. Write it on the landing tree, after its core is built:
-  `node tools/_realband_check.js --write`. The baseline is the core's numbers.
+  `node tools/_realband_check.js --write --reason="..."` (required). The baseline is the core's numbers.
 - **Evidence stamps:** results without a stamp read "unstamped" in the report, which is honest.
   `node tools/_real_stamp.js --backfill=<dir> --at=<commit>` stamps a folder whose README names the commit it was flown
   on.

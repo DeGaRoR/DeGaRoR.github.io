@@ -6,13 +6,14 @@
 //
 // RED when a plane's number moves past its tolerance, when a live plane has no baseline row, or when a baseline row is
 // no longer live. A move is either a mistake or a change someone meant (a physics change, a refit of a card): then accept
-// it with --write, and re-fly the full set for the report (`node tools/real_check.js --all`, then real_report), because
+// it with --write --reason="<why>" (the reason is required: A0, 12 Nov - a physics change's owner re-writes the baseline
+// and says which change moved it; every write is kept in the file's `history`), and re-fly the full set for the report (`node tools/real_check.js --all`, then real_report), because
 // every flown result of the moved planes is now stale (the report says so: tools/_real_stamp.js).
 // Each red line says whether the plane's build file changed (the aeroplane moved) or only the core (the physics moved).
 // Not red: the evidence's freshness (re-flying the full set takes hours); it is printed as a note.
 //
 //   node tools/_realband_check.js [--selftest] [--jobs=2]   -> "GATE REALBAND: PASS|FAIL"
-//   node tools/_realband_check.js --write                   accept the current numbers as the baseline
+//   node tools/_realband_check.js --write --reason="AERO-BODY: PHYSICS_V 8, the body's drag"   accept the current numbers
 'use strict';
 const fs = require('fs'), path = require('path'), os = require('os'), { spawn } = require('child_process');
 const T = __dirname, ROOT = path.join(T, '..');
@@ -86,10 +87,16 @@ function runQuick(keys, jobs) {
 }
 
 (async () => {
+  const reason = opt('reason', '').trim();
+  if (has('write') && !reason) { console.log('--write needs --reason="<the change that moved the numbers, or why the set changed>"'); process.exit(2); }
   const keys = ST.liveKeys(PLANES), t0 = Date.now();
   const { out: now, errs } = await runQuick(keys, +opt('jobs', 2));
   if (has('write')) {
-    const o = { _note: 'GATE REALBAND baseline: real_check --quick of the live set (tools/_realband_check.js --write). Written ' + new Date().toISOString().slice(0, 10) + '.', planes: now };
+    const old = fs.existsSync(BASE) ? JSON.parse(fs.readFileSync(BASE, 'utf8')) : {};
+    const movedKeys = Object.keys(now).filter(k => !old.planes || !old.planes[k] || compare({ [k]: now[k] }, { [k]: old.planes[k] }).length);
+    const core = (Object.values(now)[0] || {}).stamp ? Object.values(now)[0].stamp.core : null;
+    const history = (old.history || []).concat([{ date: new Date().toISOString().slice(0, 10), reason, core, moved: movedKeys }]);
+    const o = { _note: 'GATE REALBAND baseline: real_check --quick of the live set (tools/_realband_check.js --write --reason=...). Every write is in history.', history, planes: now };
     fs.writeFileSync(BASE, JSON.stringify(o, null, 1) + '\n');
     console.log('wrote ' + path.relative(process.cwd(), BASE) + ': ' + Object.keys(now).length + ' planes' + (errs.length ? '; NOT taken (failed): ' + errs.join('; ') : ''));
     process.exit(errs.length ? 1 : 0);

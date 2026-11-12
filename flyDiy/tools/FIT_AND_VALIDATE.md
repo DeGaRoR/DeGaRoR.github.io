@@ -207,12 +207,13 @@ Every step names its tool; each one's usage is at the top of its file.
    min, and about 2 h for an amphibian. Every result is stamped with what it was flown on.
 6. **The report:** `node tools/real_report.js`. Its freshness block lists every result that is not on the current tree.
    Re-fly those before quoting their numbers (`node tools/_real_stamp.js` lists them too).
-7. **The baseline:** `node tools/_realband_check.js --write` takes the new plane into GATE REALBAND. Commit it with the
+7. **The baseline:** `node tools/_realband_check.js --write --reason="<plane> enters the live set"` takes the new plane
+   into GATE REALBAND (the reason is required; every write is kept in the baseline's `history`). Commit it with the
    build, the PLANES row, the evidence and the report.
 
 **When the core or a card moves on purpose** (a physics change, a refit):
 - GATE REALBAND goes red and names the planes, the numbers and the cause (the build file or the core).
-- Accept the move with `--write`, then re-fly the moved planes (`real_check --all` for the live set) and regenerate the
+- Accept the move with `--write --reason="<the change>"`, then re-fly the moved planes (`real_check --all` for the live set) and regenerate the
   report. Until then, the report marks those results stale.
 - Results flown before the stamps are stamped from the commit they were flown on, as the evidence README states it:
   `node tools/_real_stamp.js --backfill=<dir> --at=<commit>`.
