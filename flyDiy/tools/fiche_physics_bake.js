@@ -29,9 +29,12 @@ if (argv[0] === '--one') {
 // not only the official list: the strip shows the physics sections on every baked fiche (12 Nov, 24 of them)
 const IX = JSON.parse(fs.readFileSync(path.join(OUT, 'index.json'), 'utf8')).fiches || {};
 const only = opt('only', '') ? opt('only').split(',') : null;
-const rows = Object.entries(IX).map(([k, f]) => ({ thumb: k, dir: ((f.pics && f.pics.side) || '').split('/')[0], file: f.listFile }))
+// (an index from before the fiche pass carries no listFile: the official list's row of the same key gives the file)
+const LROWS = (() => { try { return JSON.parse(fs.readFileSync(path.join(FLY, 'builds', 'lists', 'plane_lists.json'), 'utf8')).planes || []; } catch (e) { return []; } })();
+const fileOf = (k, f) => f.listFile || ((LROWS.find(p => p.thumb === k && p.file) || {}).file);
+const rows = Object.entries(IX).map(([k, f]) => ({ thumb: k, dir: ((f.pics && f.pics.side) || '').split('/')[0], file: fileOf(k, f) }))
   .filter(r => r.dir && r.file && fs.existsSync(path.join(FLY, r.file)) && (!only || only.includes(r.thumb)));
-for (const [k, f] of Object.entries(IX)) if (!rows.find(r => r.thumb === k) && (!only || only.includes(k))) console.log(k.padEnd(40), 'SKIPPED: no build file (' + (f.listFile || 'none') + ')');
+for (const [k, f] of Object.entries(IX)) if (!rows.find(r => r.thumb === k) && (!only || only.includes(k))) console.log(k.padEnd(40), 'SKIPPED: no build file (' + (fileOf(k, f) || 'none') + ')');
 if (argv.includes('--dry')) { for (const r of rows) console.log(r.thumb.padEnd(40), r.dir.padEnd(36), r.file); process.exit(0); }
 const jobs = +opt('jobs', '3');
 let next = 0, bad = 0;
