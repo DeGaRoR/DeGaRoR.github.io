@@ -630,3 +630,29 @@ comparison may use; a figure it does not state is not compared (printed "-"), ne
 - Garage gaps (REF_MATCH section 7): a PT6A-27 registry row (550 shp, 149 kg, HC-B3TN-3D 2.54 m); a runtime-added
   powerplant flies no thrust (benches cannot try an engine); 6-series sections; the flown tail envelope (hSpan <= 4.5,
   vHeight <= 2.2 clamps the 5.13 m stab and the 2.51 m fin); the bench has no Vs0 and no landing-over-15 m.
+
+## ROUND 14 (12 Nov): the colour fix, the PC-6's own engine, the bench's landing
+
+The user: "do the color fix and create your engine and do all the other fixes that you have seen". On a new branch for
+A0, `claude/fit-procedure-fixes` (off the garage branch's tip; the 11:30 train keeps the garage branch alone):
+- THE COLOUR: r186's MANAGED Color(hex) already decodes sRGB; aeroskin.js aeroLinear decoded again (every section tint
+  twice: the PC-6's rudder redder than its decal-painted fuselage, measured (242,71,23) against (237,155,56) for one
+  hex). Fixed there and at the four other sites of the r128 pattern (freight_load, freight_strap, editor's pin,
+  render_world's C): convert only when management is OFF. GATE SKINMAT holds it on the real vendor build, both modes
+  (negative-verified: the old code fails 'decodes TWICE').
+- THE ENGINE: `pt6a27_hartzell3`, off refs/pc6.json - 550 shp (TCDS), 680 thermodynamic (flatK 1.236), 149 kg, the
+  HC-B3TN-3D 2.54 m (genPropSynth alu/standard: T0 6432 N), 2 200 rpm, P&WC's 2026 flat rate ($372-450k -> 410k);
+  the garage preset 'P&W PT6A-27' at saved index 46 (after the custom engine: no index moves), its can FITTED to the
+  rating (0.3592 m -> 410.1 kW at 1.236, ruling 2). On the PC-6 the smaller engine moves the spinner 11 cm aft and
+  deforms the fitted nose: `eng_mountGap` 3.35 -> 3.96 keeps the propeller-to-firewall distance - 135 / 175 again,
+  every measure within 2 mm.
+- FLOWN on the -27 (engine-matched now): the pilot's circuit completes; Vs1 107 / 107, Vs0 93 / 96 (-3 %), climb 6.0
+  probe / 6.1 flown vs 5.13 (+17-19 %), TO over 15 m 382 / 440 (-13 %), Vmax 271 under VNE 280.
+- THE LANDING, diagnosed (a second-by-second log): the default test pilot flies a NORMAL approach on the bench's long
+  runway - 1.20 Vs0, 75 % flap, a 3.4 deg path, then 9 s rolling with no brake and the brakes capped at 30 %: roll
+  379 m, 657 m over 15 m. The short-field technique (perf_study --field=short: the expert with technique.field 'short')
+  brakes fully from the touch: roll 175 m, 434 m over 15 m vs 315 (+38 %) - the rest is the approach ANGLE (3.4 deg
+  where a STOL approach is ~6: 15 m / tan 6 = 143 m + 175 = 318). The aeroplane's stall and roll are right; what is
+  left is the pilot's approach - not changed today (it moves every card's gates).
+- The bench (perf_study) gained: Vs0 (the shakedown's VsFlap at the sheet's mass), the landing over 15 m (the flown
+  path from 15 m over the touchdown to the stop), --field=short, and the line 'Vmax ... ABOVE/under VNE'.
