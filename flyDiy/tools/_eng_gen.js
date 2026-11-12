@@ -348,6 +348,9 @@ const ENG_DEFAULT = {
   flatK: 1.26,             // flat-rating margin, core over rated (05_atmos reads it)
   tRpm: 1900,              // propeller rpm (the gearbox's output)
   stackStyle: 1,           // 1 = the PT6's paired stacks, 0 = bare
+  // (12 Nov, FIT-PROCEDURE) the PT6 stacks' shape rows (stackOut, stackLen, stackFlat, stackR, stackDrop, stackSplit) are
+  // LATENT: ABSENT here and in every dial dict - the mesh reads absent as the old drawing - so no engine, no preset and
+  // no join gains a key (A0, L39a: STOL's MOVED keys, PROCURE's applyEngPreset dicts). Their shown values: _eng_page LATENT
   // installation
   accessories: 1,          // magnetos, pumps, starter, alternator
   exhaust: 1,

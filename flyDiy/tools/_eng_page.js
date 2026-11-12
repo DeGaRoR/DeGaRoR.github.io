@@ -269,6 +269,11 @@ const sFmt = x => x ? x : 'auto';
 const isElec = p => p.arch === 'electric';
 const isTurbine = p => p.arch === 'turbine';
 const isPiston = p => p.arch !== 'electric' && p.arch !== 'turbine';
+// THE LATENT ROWS (12 Nov, FIT-PROCEDURE; A0's L39a rule - "a latent field must be ABSENT at its default"): rows whose
+// key is in NO default dict, so applyEngPreset never writes them and no saved build, preset or join gains a key; the
+// mesh reads an absent key as the drawing before the row existed. These are the values their sliders SHOW while absent
+// (the cage's `absent` row option, the bench page's own state). A key is written only when a page changes it.
+const LATENT = { stackOut: 1, stackLen: 1, stackFlat: 0, stackR: 1, stackDrop: 0, stackSplit: 0 };
 const ENG_GROUPS = [
   // THE TURBOPROP (2026-09-05, TURBOPROP §3): its own keys, so no row is
   // rendered twice; NO aim row — a PT6's two stacks are left and right by
@@ -286,6 +291,13 @@ const ENG_GROUPS = [
     ['massK',   'build (mass / law)', 0.4, 2.2, 0.001, x => x.toFixed(3)],
     ['stackStyle', 'exhaust', 'drop', [[1, 'paired stacks (PT6)'],
                                        [0, 'none (bare)']]],
+    // (12 Nov, FIT-PROCEDURE) the stacks' reach out, run aft and flattened outlet (1 / 1 / 0: as drawn before)
+    ['stackOut',  'stacks: reach out ×',      0.6, 2.5, 0.01],
+    ['stackLen',  'stacks: run aft ×',        0.5, 2.5, 0.01],
+    ['stackFlat', 'stacks: flat outlet',      0, 0.8, 0.01],
+    ['stackR',    'stacks: thickness ×',      0.5, 2.0, 0.01],
+    ['stackDrop', 'stacks: outlet drop (case radii)', -1, 2, 0.01],
+    ['stackSplit', 'stacks: one up, one down', 0, 2, 1, ['both up', 'left down', 'right down']],
   ], isTurbine],
   ['electric', [
     ['eStyle',  'style', 'drop', [[0, 'outrunner (RC / FES)'],
@@ -480,5 +492,5 @@ function presetNames() {
 }
 window.ENG_PAGE = { COL, NEUTRAL, PROPS, engDefaults, PRESETS,
                     GROUPS: ENG_GROUPS, isElec, isPiston, isTurbine,
-                    CUSTOM_ENGINE, PRESETS_AFTER_CUSTOM, presetNames };
+                    CUSTOM_ENGINE, PRESETS_AFTER_CUSTOM, presetNames, LATENT };
 })();
