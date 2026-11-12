@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 444b64b9098a2b87
+// body-sha256: bd11a0c5cdd5daac
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -34761,6 +34761,11 @@ const GEN_DRAG = {
 //   outRatio  the drawn outlet that passes the inlet's flow (the heated air is thinner: the classic 1.3 x)
 //   slip      the slipstream's share at a nose inlet (behind the propeller's roots), of the actuator disc's velocity
 //             ratio; a pusher's own inlets on the ground get `pushInflow` of the disc's static velocity (the prop sucks)
+//   suck      IN FLIGHT a pusher's prop sucks on the cowl's OUTLET, just ahead of the disc (the user 12 Nov, the Super
+//             Petrel: "it has quite a large opening"): the static pressure there falls by rho/2 ((V + v)^2 - V^2) of
+//             the disc's induced velocity v, so the pressure that drives the air through the engine grows and the flow
+//             with its root: V_in = V sqrt(1 + suck (f^2 - 1)), f = (V + v) / V the actuator disc's ratio; `suck` the
+//             share of v at the outlet (the hub's inner disc, like `slip`)
 //   hot       FAR 23.1043's climb cooling day: 38 C (100 F) at sea level, ISA + 23, full power at Vy
 //   taxi      the hot strip: 5 m/s, 20 % power, the slipstream does the work
 //   meredith  the heat added in a radiator DUCT is a little ramjet: thrust power ~ k M^2 Q (Meredith, RAE 1935); none on
@@ -34776,7 +34781,7 @@ const GEN_COOL = {
   kappa: 0.45, kappaBare: 0.5,
   r: { cowl: 0.70, duct: 0.80 },
   outRatio: 1.3,
-  slip: 0.6, etaClimb: 0.65, FM: 0.7, pushInflow: 0.25,
+  slip: 0.6, etaClimb: 0.65, FM: 0.7, pushInflow: 0.25, suck: 0.6,
   hot: { dISA: 23, h: 0 },
   taxi: { V: 5, power: 0.2 },
   cruisePower: 0.75,
@@ -45784,7 +45789,8 @@ function genCooling(S, o) {
   const r = duct ? K.r.duct : K.r.cowl;
   const dT = Tamb => K.path[path].eps * (K.path[path].Tlim - Tamb);
   // the inlet's speed: the true airspeed plus the slipstream's share (a nose inlet behind the roots), from the actuator
-  // disc at the thrust eta x P / V; a pusher's inlets are ahead of it (the ground's inflow aside)
+  // disc at the thrust eta x P / V; a pusher's inlets are ahead of it, but its prop SUCKS on the outlet (GEN_COOL.suck:
+  // the pressure the air is driven by grows, the flow with its root); the ground keeps its own inflow law
   const slip = (Pw, V, rho) => {
     const T = K.etaClimb * Pw / Math.max(1, V);
     return (1 + Math.sqrt(1 + 2 * T / (rho * Adisc * V * V))) / 2;
@@ -45801,7 +45807,7 @@ function genCooling(S, o) {
       Vin = K.taxi.V + (op.pushes ? K.pushInflow : K.slip) * vd;
     } else {
       const V = Veas / Math.sqrt(sig), f = slip(pr * kW * 1000, V, rho);
-      Vin = V * (op.pushes ? 1 : 1 + K.slip * (f - 1));
+      Vin = V * (op.pushes ? Math.sqrt(1 + K.suck * (f * f - 1)) : 1 + K.slip * (f - 1));
     }
     const capIn = K.kappa * rho * Vin * out.inA;
     const capOut = op.exitSized ? Infinity : K.kappa * rho * Vin * op.outA / K.outRatio;
@@ -51013,17 +51019,20 @@ function genCoolRows(def) {
   const fwd = C.parts.filter(p => p.faces === 'fwd').map(p => p.what), aftIn = C.parts.filter(p => p.faces === 'aft' && /front|scoop|inlet/.test(p.what));
   let why, fix = '';
   const air = r2(H.need) + ' kg/s of air at ' + Math.round(H.oatC) + ' C to carry ' + Math.round(H.Q) + ' kW';
+  // a scoop drawn but buried in the skin: its rows say a mouth, the drawing has none (the cowl measures what is open)
+  const cg = S.cage || {}, buried = +cg.cw_scoopOn > 0 && S.cooling && !(+S.cooling.scoop > 0);
+  const buriedNote = buried ? ' (the scoop is drawn inside the cowl\'s skin: none of its mouth faces the air - let it ride the bottom line or drop it further)' : '';
   if (!(C.inA > 0) && !(C.bareA > 0)) {
     why = 'no opening faces the air' + (C.pushes && aftIn.length ? ': this cowl\'s openings face the propeller, which on a pusher is backwards' : '') +
-          ' - in a hot climb the engine gets none of the ' + air;
+          ' - in a hot climb the engine gets none of the ' + air + buriedNote;
     // ...and the air needs a way out: a pusher's aft face round the spinner is its outlet, often a sliver
     const outFix = !C.exitSized && C.outA < outNeed ? '; and give the air a way out: about ' + outNeed + ' m2 of outlet (now ' + r3(C.outA) +
                    ') - lower the cowl\'s bottom (exit gap) or add gills' : '';
-    fix = (C.pushes ? 'turn the scoop round (cowl page, chin scoop: mouth faces the firewall) and size its mouth to about ' + need + ' m2 (about ' + mouth(need) + ')'
+    fix = (C.pushes ? 'turn the scoop round (cowl page, chin scoop: mouth faces the firewall), let it stand out of the skin (rides the bottom line, or sits on top of the cowl) and size its mouth to about ' + need + ' m2 (about ' + mouth(need) + ')'
                     : 'open the cowl\'s front (inlets) or fit a scoop: about ' + need + ' m2 in all (about ' + mouth(need) + ')') + outFix;
   } else {
     const by = H.limit === 'outlet' ? 'the outlet' : 'the inlets';
-    why = by + ' pass ' + r2(m) + ' of the ' + air + (C.bareA > 0 ? ' (the cylinder heads in the wind count)' : '') +
+    why = by + ' pass ' + r2(m) + ' of the ' + air + buriedNote + (C.bareA > 0 ? ' (the cylinder heads in the wind count)' : '') +
           (fwd.length ? '; in: ' + fwd.join(', ') + ', ' + have + ' m2' : '') + (C.exitSized ? '' : '; out: ' + r3(C.outA) + ' m2');
     if (lvl !== 'pass') {
       if (H.limit === 'outlet') fix = (C.inA >= need ? 'the inlet is big enough but the air cannot leave: ' : 'the air cannot leave: ') +
