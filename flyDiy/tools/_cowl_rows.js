@@ -221,6 +221,8 @@ const COWL_ROWS = [
     { k: 'lampY', label: 'lamp height over the axis (m)', lo: -0.4, hi: 0.4, step: 0.005, when: 'P.lampOn>0' },
     { k: 'lampBack', label: 'lamp behind the face (m)', lo: 0, hi: 0.6, step: 0.005, when: 'P.lampOn>0' },
     { k: 'lampIn', label: 'lamps in the side inlets', lo: 0, hi: 1, step: 1, when: 'P.lampOn>0' },   // CAR-3
+    { k: 'blinkOn', label: 'blinkers (wingtip teardrops) on the bonnet\'s sides', lo: 0, hi: 1, step: 1 },   // CAR-3
+    { k: 'blinkY', label: 'blinkers under the headlamps (m)', lo: -0.3, hi: 0.4, step: 0.005, when: 'P.blinkOn>0' },
   ] },
   // ---- Chin scoop ----
   { id: 'g_scoop', name: 'Chin scoop', rows: [

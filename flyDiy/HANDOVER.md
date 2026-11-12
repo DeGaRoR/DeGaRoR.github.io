@@ -315032,3 +315032,15 @@ the next steps).
   builds/cessna172r_2026-11-08.json out.json builds/edits/utility_2026-11.edits.json,builds/edits/utility_2026-11.retro.json
   NOTE: GATE LIVERY is red on the cub's strut ("resolves to its painted pin trim - got castAlu", 2 of 328) - red at
   0c90344f (master's train L38b, before any car work), not ours; reported, not fixed here.
+- **CAR-3, TAIL LAMPS AND BLINKERS (12 Nov; the user: "the TOW session has ... a trailer ... some tail lights. So maybe
+  you can also inherit them ... and use the little lights that we have at the wingtips there to do some blinkers")**:
+  NEW ROW carTail (Car part, 'lamps'; _gear_page.js; absent = none): _cage_gear.js carTailLamps - the trailer's
+  combination lamp (trailer_model.js: black housing, stop/tail red, amber indicator, white reverse) upright on each
+  rounded rear corner, facing back and out along the corner's 45-degree line (found from the airframe's sections ahead of
+  the wall: where the half-width grows as fast as the body runs forward), its foot 5 cm over the rear bumper; a sharp
+  corner takes it on the wall's face. Lenses: emissive MeshStandard (userData.aeroskin), no light source (GATE LIGHT
+  green). NEW ROWS cw_blinkOn / cw_blinkY (the cowl's 'Grille, radiator cap, lamps' group; _cowl_gen.js buildBlinkers;
+  ABSENT_AT 0): the wingtip light's teardrop (the cage light layer's pod: quarter ellipse, fine tail) on each side of
+  the bonnet just behind the face, nose forward, the nose the AMBER lens, the tail chrome, at the headlamps' height less
+  blinkY. Static: they do not blink yet (that is the drive mode's, when the car part takes the game's car). The van:
+  carTail 1, cw_blinkOn 1, cw_blinkY 0.06 (the liveries inherit them - overlays carry paint / finish / meta only).

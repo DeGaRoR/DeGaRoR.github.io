@@ -194,7 +194,10 @@
   "cw_lampIn": 1,
   "cw_lampBack": 0.03,
   "cw_ductLen": 0.05,
-  "cw_apLift": 0.207
+  "cw_apLift": 0.207,
+  "carTail": 1,
+  "cw_blinkOn": 1,
+  "cw_blinkY": 0.06
  },
  "fuel": {
   "litres": 80,

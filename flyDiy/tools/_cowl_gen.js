@@ -84,7 +84,7 @@ const P={
   // PROPER-COWLS: the nose ring's own half-width / reach up / reach down (null = lidRadius)
   lidRW:null, lidRTop:null, lidRBot:null,
   gillOn:0, gillN:6, gillZ:0.35, gillL:0.22, gillH:0.12, gillSlant:25, gillLip:0.012, gillT:0.004, gillUp:null,   // (CAR-1: null = centred)
-  grilleOn:0, grilleN:9, grilleBar:0.012, grilleSet:0.03, grilleHBar:1, capOn:0, capR:0.032, capBack:0.07, grilleNum:0, grilleNumH:0.5, grilleRows:0, lampOn:0, lampR:0.085, lampGap:0.06, lampY:0.05, lampBack:0.10, lampIn:0,   // CAR-1: the grille, the radiator cap (off)
+  grilleOn:0, grilleN:9, grilleBar:0.012, grilleSet:0.03, grilleHBar:1, capOn:0, capR:0.032, capBack:0.07, grilleNum:0, grilleNumH:0.5, grilleRows:0, lampOn:0, lampR:0.085, lampGap:0.06, lampY:0.05, lampBack:0.10, lampIn:0, blinkOn:0, blinkY:0,   // CAR-1: the grille, the radiator cap (off)
   // chin scoop
   scoopOn:1, scoopZ:0, scoopW:0.065, scoopH:0.055, scoopLen:0.22, scoopDrop:0.7,
   scoopAp:0.68, scoopSq:0.5, scoopRake:0.18,
@@ -1266,6 +1266,39 @@ function buildLamps(group,mats,shellM){
     st.position.copy(a.clone().add(b).multiplyScalar(0.5)); st.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),b.clone().sub(a).normalize()); st.name='cowlLamp'; group.add(st);
   }
 }
+// CAR-3 (the user, 12 Nov: "use the little lights that we have at the wingtips there to do some blinkers"): blinkOn - a
+// wingtip light's teardrop (the cage light layer's pod: a quarter ellipse to the shoulder, a fine tail) on each side of
+// the bonnet just behind the face, its nose forward and AMBER (the lens IS the pod's nose, as on a wingtip), its tail
+// chrome; at the headlamps' height (lampIn: the inlets' centre, else lampY over the axis) less blinkY. Absent = none.
+function buildBlinkers(group,mats){
+  if(!(P.blinkOn>0)) return;
+  const ze=zEnd(), len=0.13, wide=0.05, high=0.032, NOSE=0.34;
+  const pr=(P.lampIn>0&&(P.apMode===2||P.apMode===3))?apertureList().slice(P.apMode===3?1:0):null;
+  const yT=(pr&&pr.length===2?pr[0].cy:spineY(ze)+P.lampY)-(P.blinkY||0);
+  const zc=ze-0.05-len*(1-NOSE)*0.15;                         // the widest station, the nose just short of the face
+  const lens=new THREE.MeshStandardMaterial({color:new THREE.Color(0xff9a1a).multiplyScalar(0.45),emissive:0xff8a12,emissiveIntensity:0.6,roughness:0.2,metalness:0,side:THREE.DoubleSide});
+  lens.userData.aeroskin=1;
+  const tailM=mats.steel||mats.skin;
+  const f=u=>u<=NOSE?Math.sqrt(Math.max(0,1-Math.pow((NOSE-u)/NOSE,2))):Math.pow(Math.max(0,(1-u)/(1-NOSE)),0.72);
+  for(const sg of [1,-1]){
+    // the bonnet's side at that height: the section's own point, scanned over the near half
+    let best=null;
+    for(let k=-40;k<=40;k++){ const th=(sg>0?0:Math.PI)+k/40*Math.PI/2*(sg>0?1:-1), q=surfPoint(th,zc);
+      if(best==null||Math.abs(q[1]-yT)<Math.abs(best[1]-yT)) best=q; }
+    const cx=best[0], cy=best[1];
+    for(const [u0,u1,m] of [[0,NOSE,lens],[NOSE,1,tailM]]){
+      const pos=[], idx=[], R2=10, S2=14;
+      for(let j=0;j<=R2;j++){ const uu=0.5*(1-Math.cos(Math.PI*j/R2)), u=u0+(u1-u0)*uu, k=Math.max(f(u),1e-3), t=(u-NOSE)*len;
+        for(let i=0;i<S2;i++){ const th=2*Math.PI*i/S2;
+          // along -z (nose forward), up = out of the side (x), the width up the bonnet (y); half the pod sunk in the skin
+          pos.push(cx+sg*(Math.sin(th)*high*k), cy+Math.cos(th)*wide/2*k, zc-t); } }
+      for(let j=0;j<R2;j++) for(let i=0;i<S2;i++){ const i2=(i+1)%S2, a0=j*S2+i, a1=j*S2+i2, b0=(j+1)*S2+i, b1=(j+1)*S2+i2;
+        if(sg>0) idx.push(a0,b0,a1,a1,b0,b1); else idx.push(a0,a1,b0,a1,b1,b0); }
+      const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.setIndex(idx); g.computeVertexNormals();
+      const mm=new THREE.Mesh(g,m); mm.name='cowlLamp'; group.add(mm);
+    }
+  }
+}
 function buildCap(group,mats){
   if(!(P.capOn>0)) return;
   const z=zEnd()-Math.max(0.01,P.capBack);
@@ -1936,6 +1969,6 @@ function cowlSizeToEngine(env, opt) {
   return r;
 }
 
-const COWL_API = { gillsFit, buildGills, buildGrille, buildCap, buildLamps, exitAt, inExCut, TAU, P, MATERIALS, PRESETS, lerp, clamp, smooth, sqExp, superPt, angDiff, SEG, zEnd, lidRadius, spineY, bez, mkCurve, eSqAftTop, eSqAftBot, eDeckH, eKeelH, eWaist, prepareLid, seamInset, sectionAtZ, sectPt, lobeAt, surfPoint, sectF, pierceZ, equalise, prepareMesh, apertureList, fitAperture, apG, buildSurface, aftStart, fwGeom, fwLipProfile, sectNormal2, buildFirewallLip, lipProfile, buildLips, buildDetail, cowlNormalAt, loftRings, fan, buildScoop, buildAft, spinProfile, coneBaseZ, axisXY, bladePlaneZ, coneRadiusAtBlade, buildNose, naca, airfoilLoop, propGeometry, cowlFitEngine, cowlApplyEngine, cowlSizeToEngine };
+const COWL_API = { gillsFit, buildGills, buildGrille, buildCap, buildLamps, buildBlinkers, exitAt, inExCut, TAU, P, MATERIALS, PRESETS, lerp, clamp, smooth, sqExp, superPt, angDiff, SEG, zEnd, lidRadius, spineY, bez, mkCurve, eSqAftTop, eSqAftBot, eDeckH, eKeelH, eWaist, prepareLid, seamInset, sectionAtZ, sectPt, lobeAt, surfPoint, sectF, pierceZ, equalise, prepareMesh, apertureList, fitAperture, apG, buildSurface, aftStart, fwGeom, fwLipProfile, sectNormal2, buildFirewallLip, lipProfile, buildLips, buildDetail, cowlNormalAt, loftRings, fan, buildScoop, buildAft, spinProfile, coneBaseZ, axisXY, bladePlaneZ, coneRadiusAtBlade, buildNose, naca, airfoilLoop, propGeometry, cowlFitEngine, cowlApplyEngine, cowlSizeToEngine };
 if (typeof module !== 'undefined') module.exports = COWL_API;
 if (typeof window !== 'undefined') window.COWL_GEN = COWL_API;

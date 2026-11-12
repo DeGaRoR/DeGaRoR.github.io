@@ -2491,6 +2491,56 @@ function rearDoorHardware(group, P, mesh) {
   key.quaternion.copy(boss.quaternion); key.position.set(xh, yh - 0.035, zh - 0.008); root.add(key);
   group.add(root);
 }
+// CAR-3 (the user, 12 Nov: "the TOW session has also developed a trailer, and for this trailer it has developed some tail
+// lights ... inherit them"): carTail - the trailer's combination lamp (src/vehicle/trailer_model.js: a black housing,
+// stop / tail red, the amber indicator, the white reverse) stood upright on each of the rear wall's rounded corners,
+// facing back and out along the corner's own 45-degree line (the airframe's sections just ahead of the wall: where the
+// half-width grows as fast as the body runs forward), its foot 5 cm over the rear bumper. A sharp corner (no 45-degree
+// run inside 25 cm) takes it on the wall's face, 6 cm in from the side. Absent = none.
+const CAR_LENS = {};
+function carLensMat(col, em) {
+  const k = col + '|' + em; if (CAR_LENS[k]) return CAR_LENS[k];
+  const m = new THREE.MeshStandardMaterial({ color: col, emissive: em, emissiveIntensity: 1, roughness: 0.22, metalness: 0.05 });
+  m.userData.aeroskin = 1;                                   // a lens is never the grey understudy
+  return (CAR_LENS[k] = m);
+}
+function carTailLamps(group, P, AF) {
+  const z0 = AF.z0, H = 0.27, W = 0.075;
+  const halfX = (y, z) => { let best = null; for (let d = 0; d < 180; d++) { const a = AF.surf(z, d * Math.PI / 180), b = AF.surf(z, (d + 1) * Math.PI / 180);
+    if (a && b && (a[1] - y) * (b[1] - y) <= 0 && a[1] !== b[1]) { const t = (y - a[1]) / (b[1] - a[1]), x = Math.abs(a[0] + (b[0] - a[0]) * t); if (best == null || x > best) best = x; } } return best; };
+  // the lamp's foot: the rear bumper's top (bumperBuild's own height) + 5 cm, else a fifth of the way up the wall
+  let bot = Infinity, top = -Infinity;
+  for (let a = 0; a <= 180; a += 3) { const q = AF.surf(z0 + 0.05, a * D2R); if (q && isFinite(q[1])) { bot = Math.min(bot, q[1]); top = Math.max(top, q[1]); } }
+  if (!isFinite(bot)) return;
+  const yFoot = +P.bumpR ? bot + (+P.bumpY || 0) + Math.max(0.06, +P.bumpH || 0.15) / 2 + 0.05 : bot + 0.2 * (top - bot);
+  const yc = yFoot + H / 2;
+  // the corner's 45-degree station: d ahead of the wall where d(half)/dd falls to 1
+  let dc = null, xc = null;
+  for (let d = 0.004; d < 0.25; d += 0.004) {
+    const h0 = halfX(yc, z0 + d), h1 = halfX(yc, z0 + d + 0.004);
+    if (h0 == null || h1 == null) continue;
+    if ((h1 - h0) / 0.004 <= 1) { dc = d; xc = h0; break; }
+  }
+  const root = new THREE.Group(); root.name = 'edTailLamps';
+  const black = GG.gearMat('dark'), chrome = GG.gearMat('chrome');
+  const red = carLensMat(0xb3141c, 0x5a0408), amber = carLensMat(0xe08a1e, 0x4a2404), white = carLensMat(0xf2f0e8, 0x2a2a26);
+  for (const sg of [-1, 1]) {
+    let pos, nrm;
+    if (dc != null) { pos = new THREE.Vector3(sg * xc, yc, z0 + dc); nrm = new THREE.Vector3(sg, 0, -1).normalize(); }
+    else { const h = halfX(yc, z0 + 0.01); if (h == null) continue; pos = new THREE.Vector3(sg * (h - 0.06), yc, z0); nrm = new THREE.Vector3(0, 0, -1); }
+    const lamp = new THREE.Group();
+    const add = (w, h, d, mat, y, out) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); m.position.set(0, y, out); lamp.add(m); };
+    add(W + 0.016, H + 0.016, 0.022, black, 0, 0.002);            // the housing, half in the skin
+    add(W + 0.006, H + 0.006, 0.006, chrome, 0, 0.012);          // the bezel
+    add(W, H * 0.58, 0.01, red, H * 0.21, 0.016);                // stop / tail
+    add(W, H * 0.24, 0.01, amber, -H * 0.2, 0.016);              // the indicator
+    add(W, H * 0.14, 0.01, white, -H * 0.415, 0.016);            // reverse
+    lamp.position.copy(pos);
+    lamp.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), nrm);
+    root.add(lamp);
+  }
+  group.add(root);
+}
 function spareBuild(group, P, AF) {
   const localBox = o => { const b2 = new THREE.Box3(); o.updateMatrixWorld(true);
     o.traverse(m => { if (!m.isMesh || !m.geometry) return; if (!m.geometry.boundingBox) m.geometry.computeBoundingBox();
@@ -3159,6 +3209,7 @@ PAGE.post = ctx => {
     if (+P.bumpF) bumperBuild(group, P, AF, scene, true);
     if (+P.bumpR) bumperBuild(group, P, AF, scene, false);
     if (Math.round(+P.extRelief || 0) === 4) rearDoorHardware(group, P, mesh);
+    if (+P.carTail) carTailLamps(group, P, AF);
   }
   // the LEGS take a livery section too (phase C): steel tube by default,
   // following nobody — but a builder can paint a leg without repainting the
