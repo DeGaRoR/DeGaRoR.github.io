@@ -114,7 +114,7 @@ async function shootOne(file, outPng) {
   R.pageErrors = P.errors.slice(0, 10);
   R.totalS = Math.round((Date.now() - t0) / 1000);
   await P.close();
-  const real = (R.warnings || []).filter(w => !/control surfaces and the prop/.test(w));
+  const real = (R.warnings || []).filter(w => !/the prop is drawn as the flight left it/.test(w));
   if (real.length && !flag('draft')) bad++;
   fs.writeFileSync(outPng.replace(/\.png$/i, '') + '.report.json', JSON.stringify(R, null, 2) + '\n');
   console.log((bad ? 'FAIL ' : 'ok   ') + file + ' -> ' + (R.png || '(no picture)') + (R.w ? ' ' + R.w + 'x' + R.h : '') + ', ' + R.totalS + ' s' + (R.error ? ' - ' + R.error : '') + (real.length ? ' - ' + real.join('; ') : ''));

@@ -186,6 +186,7 @@
     } };
   if (typeof window !== 'undefined') window.PREMISES_EDITOR = PREM;
   const SHOT = { on: false };             // G255: screenshot mode (see shotSet)
+  let photoCtl = null;    // PHOTO-MODE-2 P2: a loaded scene's control surfaces (poseModel snaps the drawn linkage to them while held; cleared when the flight runs)
   const $ = id => document.getElementById(id);
 
   const canvas = $('c');
@@ -4504,7 +4505,9 @@
     // 1/60 moved the control surfaces at half their speed. A rig and the old clock read 1/60, as before.
     // (G2111: a catch-up pose - craftInShed / craftInWorld showing the hidden model - reuses this frame's linkage: the step
     // is stateful and runs once a frame)
-    const link = catchUp && model._lastLink ? model._lastLink : model.link.step(sim.ctl, frameDt());
+    // (PHOTO-MODE-2 P2: a loaded scene's control surfaces, drawn AT them while the flight is held - photoCtl, cleared when it runs)
+    if (photoCtl && running) photoCtl = null;
+    const link = catchUp && model._lastLink ? model._lastLink : (photoCtl && model.link.snap ? model.link.snap(photoCtl) : model.link.step(sim.ctl, frameDt()));
     model._lastLink = link;
     // G2111 (GARAGE-LAPTOP): NOT DRAWN, NOT DEFORMED. In the shed the editor's cage stands and the flown model hides behind it
     // (applyStand: model.grp.visible false), yet the control check's sweep moved its controls every frame and the skin was
@@ -20117,6 +20120,8 @@
           await FLIGHT_PROBE.place({ dv: [Math.cos(P.hdg * D2R_) * Math.cos(P.pitch * D2R_) * P.speed, Math.sin(P.pitch * D2R_) * P.speed, Math.sin(P.hdg * D2R_) * Math.cos(P.pitch * D2R_) * P.speed] });
         }
         anchor = { cg: cg || sim.cgPos(), hdg: (P.hdg || 0) * D2R_ };
+        if (P.controls) { const K = P.controls; photoCtl = { de: K.elevator || 0, da: K.aileron || 0, dr: K.rudder || 0, flap: K.flaps || 0, thr: K.throttle || 0, eng: sim.ctl && sim.ctl.eng };
+          step('the controls'); }
         step('the pose');
       } else { const q = scenePoseOf(sim.p, sim.m, def); if (q) anchor = { cg: q.cg, hdg: q.hdg }; }
     }
@@ -20145,7 +20150,7 @@
     await photoNext(opts.settle != null ? opts.settle : 30);
     // 7. the checks
     for (const w of sceneCheck()) rep.warnings.push(w);
-    if (S.pose && S.pose.controls) rep.warnings.push('the control surfaces and the prop are drawn as the flight left them (not set from the scene yet)');
+    if (S.pose && S.pose.prop) rep.warnings.push('the prop is drawn as the flight left it (not set from the scene yet)');
     return rep;
   }
   // THE PICTURE WITH ITS SCENE (rigs: SCENE.shoot): -> { png: base64, w, h, ms, notes, warnings }

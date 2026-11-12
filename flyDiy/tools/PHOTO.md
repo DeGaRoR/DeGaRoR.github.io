@@ -17,7 +17,8 @@ rulings are in its section 6). **Every phase that lands updates this file**: the
 | go to: the start places in photo mode | **BUILT** (P3) | app.js `photoGoTo`, GATE SCENEPAGE |
 | the high-quality picture (opt-in; the night hero's settings scaled to the machine, 55 s cap) | **BUILT, NOT TUNED ON A GPU** (P4) | app.js `photoHqSteps`, `gfx_settings.js` `GFX.push / pop` (GATE GFX) |
 | `tools/scene_shot.js`: a scene file -> a PNG + a report, headless | **BUILT** (P5); shed scenes run in the cloud, world scenes want the GPU box | tools/ |
-| the control surfaces and the prop set from a scene | NOT YET (drawn as the flight left them; the loader says so) | - |
+| the control surfaces drawn from a scene (held: the linkage snapped to them; cleared when the flight runs) | **BUILT** (P2) | app.js `photoCtl`, GATE SCENEPAGE |
+| the prop set from a scene | NOT YET (drawn as the flight left it; the loader says so) | - |
 | the camera's roll | NOT YET (the free camera has none; the loader says so) | - |
 
 ## 1. The scene file

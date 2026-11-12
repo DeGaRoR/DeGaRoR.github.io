@@ -74,6 +74,7 @@ async function child() {
     await answer(FP.place({ by: [300, 40, 200], zeroV: true }));
     if (P.settleWorkers) await P.settleWorkers();
     FP.camMode('chase'); await P.frames(5);
+    if (where === 'air') { sc.pose.controls = Object.assign({}, sc.pose.controls, { aileron: 0.5, elevator: -0.25 }); }   // (the drawn surfaces from the scene)
     const rep = await answer(S.apply(sc, { photo: false, settle: 6 }));
     if (P.settleWorkers) await P.settleWorkers();
     await P.frames(3);
@@ -81,6 +82,7 @@ async function child() {
     const e1 = eyeOf(), de = Math.hypot(e1[0] - eye0[0], e1[1] - eye0[1], e1[2] - eye0[2]);
     row(de < 1e-3, where + ': the eye back where it was', de.toExponential(2) + ' m');
     row(FP.camModeNow() === 'free', where + ': on the free camera (the exact eye)', FP.camModeNow());
+    if (where === 'air') { const L = FP.model() && FP.model()._lastLink; row(L && Math.abs(L.da - 0.5) < 1e-9 && Math.abs(L.de + 0.25) < 1e-9, 'air: the control surfaces drawn AT the scene\'s (aileron 0.5, elevator -0.25) while held', L ? L.da + ', ' + L.de : 'no link'); }
     row(rep.steps.includes('the pose') && rep.steps.includes('the camera') && !rep.steps.includes('the roll-out'), where + ': the loader\'s steps', rep.steps.join(', '));
     R[where + 'Warn'] = rep.warnings;
     void c;
