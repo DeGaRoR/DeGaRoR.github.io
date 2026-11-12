@@ -9301,7 +9301,13 @@ function cageQuadRect(P, pre) {
   const sk = +P[pre + 'Skew'] || 0, Wt = W * topK;
   return [[z + sk + Wt / 2, y + H / 2], [z + sk - Wt / 2, y + H / 2], [z - W / 2, y - H / 2], [z + W / 2, y - H / 2]];
 }
-const CAGE_QUAD_KEYS = pre => [1, 2, 3, 4].flatMap(c => [pre + 'Q' + c + 'Z', pre + 'Q' + c + 'Y']);
+const CAGE_QUAD_KEYS = pre => [1, 2, 3, 4, 5].flatMap(c => [pre + 'Q' + c + 'Z', pre + 'Q' + c + 'Y']);
+// THE KINK (ARCHAEOPTERYX, 12 Nov, the user on the real aeroplane's two aft windows: "the bottom one has an angle"):
+// a FIFTH corner, Q5, on the bottom edge between Q3 (aft bottom) and Q4 (fwd bottom) - its station and height rows,
+// absent until `<row>Q5On` is ticked, then following the bottom edge's middle until moved (a corner in line with its
+// neighbours is no corner: dropped, the quad as it was). Still convex or refused, like every outline the knife cuts.
+// `ids` names each corner's rows in the outline's order (Q1 Q2 Q3 Q5 Q4), for the bench's handles.
+const cageQuadKink = (P, pre) => !!+P[pre + 'Q5On'];
 function cageQuadWindow(P, pre, i) {
   const R0 = cageQuadRect(P, pre), dz = i * +P[pre + 'Pitch'];
   const num = v => v != null && v !== '' && isFinite(+v);
@@ -9309,23 +9315,33 @@ function cageQuadWindow(P, pre, i) {
     const qz = P[pre + 'Q' + (k + 1) + 'Z'], qy = P[pre + 'Q' + (k + 1) + 'Y'];
     return [(num(qz) ? +qz : c[0]) + dz, num(qy) ? +qy : c[1]];
   });
-  const cz = abs.reduce((a, c) => a + c[0], 0) / 4, cy = abs.reduce((a, c) => a + c[1], 0) / 4;
+  const ids = [1, 2, 3, 4];
+  if (cageQuadKink(P, pre)) {
+    const qz = P[pre + 'Q5Z'], qy = P[pre + 'Q5Y'], A = abs[2], B = abs[3];
+    const k5 = [num(qz) ? +qz + dz : (A[0] + B[0]) / 2, num(qy) ? +qy : (A[1] + B[1]) / 2];
+    const crs = (B[0] - A[0]) * (k5[1] - A[1]) - (B[1] - A[1]) * (k5[0] - A[0]);
+    const L2 = (B[0] - A[0]) ** 2 + (B[1] - A[1]) ** 2;
+    if (Math.abs(crs) > 1e-4 * Math.max(1e-9, L2)) { abs.splice(3, 0, k5); ids.splice(3, 0, 5); }
+  }
+  const n = abs.length;
+  const cz = abs.reduce((a, c) => a + c[0], 0) / n, cy = abs.reduce((a, c) => a + c[1], 0) / n;
   const q = abs.map(c => [c[0] - cz, c[1] - cy]);
   let z0 = Infinity, z1 = -Infinity, y0 = Infinity, y1 = -Infinity;
   for (const c of abs) { z0 = Math.min(z0, c[0]); z1 = Math.max(z1, c[0]); y0 = Math.min(y0, c[1]); y1 = Math.max(y1, c[1]); }
   // CONVEX AND SIMPLE: every turn the same way (either way round - the outline is re-wound), none straight
-  const turn = k => { const a = q[k], b = q[(k + 1) % 4], c = q[(k + 2) % 4];
+  const turn = k => { const a = q[k], b = q[(k + 1) % n], c = q[(k + 2) % n];
     return (b[0] - a[0]) * (c[1] - b[1]) - (b[1] - a[1]) * (c[0] - b[0]); };
-  const T = [0, 1, 2, 3].map(turn), big = Math.max(1e-9, (z1 - z0) * (y1 - y0));
+  const T = q.map((_, k) => turn(k)), big = Math.max(1e-9, (z1 - z0) * (y1 - y0));
   let refused = null;
   if (T.some(t => Math.abs(t) < 1e-4 * big)) refused = 'quad: three corners in a line (no window there)';
   else if (!(T.every(t => t > 0) || T.every(t => t < 0))) {
     // the turn at corner k+1 is T[k]; the corner turning against the others is the one that folds in
-    const pos = T.filter(t => t > 0).length, odd = T.findIndex(t => (t > 0) !== (pos > 2));
-    refused = pos === 2 ? 'quad: two edges cross (a bow-tie) - not cut, the knife cuts convex outlines'
-      : 'quad: corner Q' + ((odd + 1) % 4 + 1) + ' folds in (not convex) - not cut, the knife cuts convex outlines';
+    const pos = T.filter(t => t > 0).length, odd = T.findIndex(t => (t > 0) !== (pos > n / 2));
+    refused = (n === 4 && pos === 2) ? 'quad: two edges cross (a bow-tie) - not cut, the knife cuts convex outlines'
+      : 'quad: corner Q' + ids[(odd + 1) % n] + ' folds in (not convex) - not cut, the knife cuts convex outlines';
   }
-  return Object.assign({ shape: 'quad', z: cz, y: cy, q, w: z1 - z0, h: y1 - y0, corners: abs }, refused ? { refused } : {});
+  return Object.assign({ shape: 'quad', z: cz, y: cy, q, w: z1 - z0, h: y1 - y0, corners: abs },
+    n > 4 ? { ids } : {}, refused ? { refused } : {});
 }
 
 function cageSpec(P) {
@@ -9373,6 +9389,8 @@ function cageSpec(P) {
         // BUBBLE-WINDOWS: the blister's height, absent unless set (an unset row leaves the window as it was)
         if (+P[pre + 'Bulge'] > 0) w.bulge = +P[pre + 'Bulge'];
         if (quad) Object.assign(w, cageQuadWindow(P, pre, i));
+        // THE KINK's own rounding (absent: the row's corner radius)
+        if (quad && w.ids) { const v = P[pre + 'R5']; w.r5 = v == null || !isFinite(+v) || +v < 0 ? r : +v; }
         S.windows.push(w);
       }
     }

@@ -35,7 +35,24 @@ const quadRows = pre => [1, 2, 3, 4].flatMap(c => ['Z', 'Y'].map(a => [
     follow: () => { const U = window.CAGE_UI, G2 = window.CAGE2;
                     return U && U.P && G2 && G2.cageQuadRect ? G2.cageQuadRect(U.P, pre)[c - 1][a === 'Z' ? 0 : 1] : null; },
     followTitle: 'follows the rectangle (width, height, top width, top shift); untick - or drag its handle on the ' +
-                 'bench - to place this corner (tick again: back to the rectangle)' }]));
+                 'bench - to place this corner (tick again: back to the rectangle)' }])).concat([
+  // THE KINK (ARCHAEOPTERYX, 12 Nov, the user on the real aeroplane's aft windows: "the bottom one has an angle"): a
+  // fifth corner on the bottom edge (between the aft and the fwd bottom corners), off until ticked, then following
+  // the bottom edge's middle until moved; its own rounding (absent: the row's corner radius)
+  [pre + 'Q5On', 'corner · bottom kink', 0, 1, 1,
+   { when: P => +P[pre + 'N'] > 0 && Math.round(+P[pre + 'Shape']) === 2, absent: 0 }],
+  ...['Z', 'Y'].map(a => [pre + 'Q5' + a, 'corner · bottom kink' + (a === 'Z' ? ' · station' : ' · height'),
+    a === 'Z' ? -6.0 : -1.0, a === 'Z' ? 3.5 : 1.2, 0.005,
+    { when: P => +P[pre + 'N'] > 0 && Math.round(+P[pre + 'Shape']) === 2 && +P[pre + 'Q5On'], dim: 'len',
+      follow: () => { const U = window.CAGE_UI, G2 = window.CAGE2;
+                      if (!(U && U.P && G2 && G2.cageQuadWindow)) return null;
+                      const c = G2.cageQuadWindow(Object.assign({}, U.P, { [pre + 'Q5On']: 0 }), pre, 0).corners;
+                      return (c[2][a === 'Z' ? 0 : 1] + c[3][a === 'Z' ? 0 : 1]) / 2; },
+      followTitle: 'follows the bottom edge\'s middle (no kink); untick - or drag its handle on the bench - to ' +
+                   'place it' }]),
+  [pre + 'R5', 'radius · bottom kink', -0.01, 0.45, 0.005,
+   { when: P => +P[pre + 'N'] > 0 && Math.round(+P[pre + 'Shape']) === 2 && +P[pre + 'Q5On'], dim: 'len',
+     link: { sentinel: -1, from: pre + 'R', test: v => v == null || v < 0 } }]]);
 // AFT-BULKHEAD (3 Nov): the aft wall's rows show with the panel on; the wall's own rows give way to the sling, which
 // is the tube construction's (intCons 1, 'tube' in the generator's consG) and draws no wall
 const bhSling = P => +P.intOn && +P.intBulk && Math.round(+P.intCons || 0) === 1 && !!+P.bhSling;

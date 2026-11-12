@@ -2681,7 +2681,7 @@ function quadHandles(sheet, spec, FS) {
       const m = new THREE.Mesh(new THREE.SphereGeometry(0.02 / FS, 12, 8),
         new THREE.MeshBasicMaterial({ color: col, depthTest: false, transparent: true, opacity: 0.95 }));
       m.position.set(x, c[1], c[0]); m.renderOrder = 7;
-      m.userData = { quadPre: pre, quadC: k + 1, quadX: x };
+      m.userData = { quadPre: pre, quadC: q.ids ? q.ids[k] : k + 1, quadX: x };   // THE KINK: Q5 sits 4th
       quadObj.add(m); pts.push(x, c[1], c[0]);
     });
     pts.push(pts[0], pts[1], pts[2]);

@@ -3141,6 +3141,18 @@ const ARCHETYPES = [
                     // the rudder's foot raked up to its trailing edge as drawn, a crisp corner (finBaseY 0.05 -> 0.2,
                     // finSharpBase), within a pixel of the drawing's diagonal
                     finShiftZ: -0.134, finRudBelow: 1, stSweep: -2, stTipZ: -0.12, stHinge: 0.15, finSharpBase: 3,
+                    // THE TWO AFT WINDOWS (12 Nov, the user with a photo of the real aeroplane: "draw these 2 little windows
+                    // at the back, with their subtleties (the bottom one has an angle)"): two drawn windows (4b) side by side
+                    // on the aft section under the rod, between the pilot's window and the engine's face - the upper a
+                    // free quad (its corners placed in the side view, so they land as drawn on the tapering skin), the
+                    // lower the same with the new fifth corner (win2Q5On, THE KINK): its bottom edge level aft, then
+                    // rising forward from 65 % of its length as on the photo; the proportions read off the photo
+                    paxWinN: 1, paxWinShape: 2, paxWinZ: 1.56, paxWinPitch: 0.5, paxWinY: 0.52, paxWinW: 1.06, paxWinH: 0.26,
+                    paxWinR: 0.02, paxWinQ1Z: 2.089, paxWinQ1Y: 0.647, paxWinQ2Z: 1.033, paxWinQ2Y: 0.647,
+                    paxWinQ3Z: 1.033, paxWinQ3Y: 0.392, paxWinQ4Z: 2.089, paxWinQ4Y: 0.392,
+                    win2N: 1, win2Shape: 2, win2Z: 1.56, win2Pitch: 0.5, win2Y: 0.24, win2W: 1.08, win2H: 0.23, win2R: 0.02,
+                    win2Q1Z: 2.102, win2Q1Y: 0.345, win2Q2Z: 1.021, win2Q2Y: 0.345, win2Q3Z: 1.021, win2Q3Y: 0.125,
+                    win2Q4Z: 2.102, win2Q4Y: 0.212, win2Q5On: 1, win2Q5Z: 1.398, win2Q5Y: 0.116,
                     finMidY: 0, finUY: -0.4, finLEZ: -0.65, finLEY: -0.09, finShoulderZ: 0,
                     finShoulderY: 0, finTopY: 0, finTERoot: -0.055, finTEU: -0.075, finTEMid: 0.01,
                     finSharpShoulder: 0, finSharpTip: 3, finSharpLE: 3, finSharpAft: 3,
@@ -3149,7 +3161,16 @@ const ARCHETYPES = [
                     // (finShoulderZ / Y 0, finTipZ 0, finMidY 0), the top flat (finTopY 0), its corners crisp - the leading
                     // edge straight within 2 mm from the root to the tip, the trim's line level across fin and rudder
                     },
-            spec: { fuel: { litres: 0 } } } },
+            // THE LIVERY (12 Nov, the user: "do a little nice livery"): the real aeroplane's gloss white overall, a navy
+            // cheat line with a red keyline along the pod's waist, the registration in navy along the rod
+            spec: { fuel: { litres: 0 },
+                    paint: { job: 'full', sweep: 0, base: 0xf3f4f1, trim: 0x17325e },
+                    finish: { decals: {
+                      m1On: 1, m1Pat: 0, m1A: 0x17325e, m1B: 0xc8302c, m1D: 0x17325e, m1P: 0.12, m1Q: 0.06,
+                      regTarget: 3, regMode: 1, regL: 1.91, regC: 1.45, regH: 0.12 },
+                      sections: { ...BODY_PAINT(0xf3f4f1), wingSkin: { tint: 0xf3f4f1 }, finSkin: { tint: 0xf3f4f1 },
+                                  stabSkin: { tint: 0xf3f4f1 }, boomTube: { tint: 0xf3f4f1 }, boomSkin: { tint: 0xf3f4f1 } } },
+                    meta: { reg: 'HB-WXA' } } } },
   // 2026-09-04 (the user): "We need a twin engine aircraft archetype, maybe
   // a couple of them. I'm thinking a luxury, small tourer, like the Diamond
   // DA62 or the Beechcraft Baron, and a larger plane (maybe our first)".

@@ -314758,3 +314758,29 @@ chantier (stage 4) must bring it forward. Parked: the wheel, the nose skid, a wi
   (GEN_HANG.tubeKgM 0.5 kg/m each, keelIn 0.85 of the half-width). The drawing: two 50 mm carbon tubes, straight and
   level at the sill, from where each meets the nose's skin to the mast's front, a cross tube at each end. The card on
   twin tubes. GATE NACELLE's keel checks are the single beam's: to update with the twin's when the build is validated.
+
+## CONTROL SURFACES, AFT WINDOWS, LIVERY (12 Nov 2026; NOT YET GATED - the user validates the build first)
+- THE TAIL ON THE DRAWING (the user: "the fin-rudder proportion is still a little off, and the length of the beam too ...
+  the rudder to go below, covering the boom's height ... matching the control surfaces is not [optional]"; then "also
+  fix the stab shape"). Two new fin rows: `finShiftZ` (the whole fin fore / aft on the boom, _fin_gen.js `shiftZ`) and
+  `finRudBelow` (the rudder down over the rod's height: drives finKeel on a single rod). The card: the rod ends on the
+  hinge (boomLen 4.326, 5.57 m from the nose as drawn), the hinge vertical, the rudder's foot raked (finBaseY 0.2,
+  finSharpBase 3); the stab unswept-to-2-deg-forward with a 0.44 root chord. Side IoU 0.860, plan 0.920; the stab LE
+  4.93 -> 5.06 (drawing 4.93 -> 5.07), TE 5.54 -> 5.53 (5.55 -> 5.53). Scratch measurers: tailm.js / stabm.js.
+- THE KINK - A FIFTH CORNER ON THE FREE QUAD WINDOW (the real aeroplane's two aft windows, "the bottom one has an
+  angle": its bottom edge level aft, rising forward from 65 % of its length). Rows `<row>Q5On`, `<row>Q5Z/Y`
+  (following the bottom edge's middle until moved), `<row>R5` (its rounding, linked to the row's radius), on each of
+  the three drawn-window rows. cageQuadWindow inserts it between Q3 and Q4 (a corner in line with its neighbours is
+  dropped), the convexity check runs on n corners, `ids` maps outline order to row numbers for the bench's handles
+  (Q1 Q2 Q3 Q5 Q4); the knife takes 4 or 5 corners. GATE QUADWIN / PARTS to run on it when the build is validated.
+- THE TWO AFT WINDOWS: rows 1 and 2 of the drawn windows (4b) as free quads on the aft section under the rod, between
+  the pilot's window and the engine's face; proportions read off the photo. Quads, not the rounded rectangle: a quad's
+  corners land where placed in the side view, the rectangle is cut face-on and tilts on the tapering skin.
+- THE LIVERY: gloss white overall (paint full, body / wing / tail / rod sections tinted), a slim navy cheat line with
+  a red keyline (m1, cheat line, P 0.12, Q 0.06), the registration HB-WXA in navy on the fin (box side view, body &
+  tail: regL / regC are CRAFT-SPACE metres from the craft's origin - near the wing - not from the nose; the rod takes
+  no marking by design, aeroDecOk).
+- THE PHONE RENDER: the phone garage (?profile=phone, phone_still.js's boot) with SHOT_MODE entered and the view's
+  split forced to the whole screen (a style setting --ph-vw / --ph-vh to 100vw / 100vh: SHOT_MODE alone leaves the
+  sheet's half empty on a phone), the eye by FLIGHT_PROBE.camSet / pan (the garage's world: the fuselage along x, the
+  nose toward -x near x -3.6, the tail near +2.4; the span along z). Scratch rig, not committed.

@@ -107,11 +107,13 @@ function knifeOutline(w) {
     let corners, radii;
     const rr = Array.isArray(w.rr) && w.rr.length === 4
       ? w.rr.map(v => Math.max(0, +v || 0)) : [w.r, w.r, w.r, w.r].map(v => Math.max(0, +v || 0));
-    if (w.shape === 'quad' && Array.isArray(w.q) && w.q.length === 4) {
+    if (w.shape === 'quad' && Array.isArray(w.q) && (w.q.length === 4 || w.q.length === 5)) {
       // WINDOWS-FREE: THE FREE QUAD - its four corners as placed (cageQuadWindow: side-view offsets from the
       // window's centre, Q1..Q4 the rectangle's own order), each rounded by its own radius. Wound CCW like every
-      // outline here: a quad whose corners were dragged round the other way is turned back, its radii with it
-      corners = w.q.map(c => [c[0], c[1]]); radii = rr;
+      // outline here: a quad whose corners were dragged round the other way is turned back, its radii with it.
+      // THE KINK (12 Nov): a fifth corner on the bottom edge, between Q3 and Q4 (cageQuadWindow), rounded by r5
+      corners = w.q.map(c => [c[0], c[1]]);
+      radii = w.q.length === 5 ? [rr[0], rr[1], rr[2], Math.max(0, +(w.r5 != null ? w.r5 : w.r) || 0), rr[3]] : rr;
       let a2 = 0;
       for (let i = 0; i < 4; i++) { const p = corners[i], q = corners[(i + 1) % 4]; a2 += p[0] * q[1] - q[0] * p[1]; }
       if (a2 < 0) { corners.reverse(); radii = radii.slice().reverse(); }
