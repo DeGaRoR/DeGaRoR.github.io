@@ -315298,3 +315298,14 @@ read p99 10.1 mm on them. The real cut (a coarser refine at low chaos / fine row
 - The price sunburst (after perf).
 - The side view's x origin recorded at the bake (the profile then lands exactly).
 - The HD fiche copies for the user.
+
+CANON REGS r2 (AIRCRAFT-LOOKS, Thu 12 Nov eve, A0 accepted the R3 call; for L40a). L39b dropped fiche-pass + fiche-mass:
+the reg commit turned STOL, POD and SNAPSHOTS red (floats, Rufus). Cause: genCertKey (core 66_gen_cert.js) hashes the
+whole def.spec, meta included; the first proof checked the load door, f2, the cert major and the bench fp, not genCertKey.
+By the user's R3 rule (a reg that moves a stamped hash on a certified file stops), builds/rufus_2026-10-18_certified.json
+and bugReports/cessnaFloatsWOrks.json KEEP F-PGAR; the canon table (plane_lists.json rows 7 and 4) still names N47RF and
+B-CESF, so on those two the table and the painted plane differ until the question below is answered. The other 7 cards
+(cessna172r_2026-11-08 + 6 candidates) carry the canon regs: no pinned stamp moves, but their genCertKey does - A STORED
+CERTIFICATE OF ONE OF THOSE 7 CARDS RE-CERTIFIES ONCE. After perf, for the user: take meta out of genCertKey (a renamed
+plane keeps its certificate)? It re-keys every card once (every stored certificate re-certifies) and needs a version gate.
+The fiches list:7 and design:c172f were baked with N47RF / B-CESF painted: re-bake in A0's slot Fri 13 Nov 13:00-13:30.
