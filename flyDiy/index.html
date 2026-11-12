@@ -40,7 +40,7 @@
      determinate bar, one ticker of what is landing. The Ken Burns drift is a
      CSS animation on a will-change layer: the compositor keeps it moving
      while a build step blocks the main thread, which is the one signal of
-     life a blocked page can give. z 70: above #dfBirth / #gFleet / #ctlPanel
+     life a blocked page can give. z 70: above #dfBirth / #flWrap / #ctlPanel
      (60) - nothing opens over the loading screen. */
   #boot { position:fixed; inset:0; z-index:70; background:#1a1815; color:#f4efe6;
     font-family:'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
@@ -593,7 +593,7 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
 
 /* the stand's own rules went at G135 with #edStand itself: the aircraft
    select it hosted holds one hidden option now, so the section was dressing
-   an empty box. The FLEET POPUP (#gFleet) answers "which aeroplane" now. */
+   an empty box. The FLEET screen (#flWrap) answers "which aeroplane" now. */
 
 /* ---- the two columns ------------------------------------------------ */
 #edProps { flex:1; min-width:0; display:flex; flex-direction:column; }
@@ -1262,13 +1262,151 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
 #edFleet #edShelf button:disabled {
   opacity:.4; cursor:default; background:transparent; }
 
-/* ---- THE FLEET POPUP (the load door, 2026-09-01) ---------------------
-   The birth overlay's own look — same scrim, same box, same pill — so the
-   two doors out of "the build on the stand" read as one family. */
-#gFleet { position:fixed; inset:0; z-index:60;
-  background:rgba(12,11,10,.78); display:flex; align-items:center;
-  justify-content:center; }
-#gFleet[hidden] { display:none; }
+/* ---- THE FLEET (fleet_screen.js, the user 13 Nov: "load aircraft" full screen, a tile per aeroplane) -------
+   Opaque over the garage (its render loop held while it is up), the New-aeroplane screen's family: the same ground,
+   the same bar. Desktop: filters on the left, the tiles, the peek (the fiche's cream sheet) on the right. Phone: two
+   tiles across, the filters as a sheet, no peek (the tile's Fiche opens the board). */
+#flWrap { position:fixed; inset:0; z-index:62; display:flex; flex-direction:column;
+  background:var(--ed-board); color:var(--ed-ink); font:400 13px/1.4 'IBM Plex Sans', system-ui, sans-serif;
+  text-transform:none; letter-spacing:normal; }
+#flWrap[hidden] { display:none; }
+#flWrap button, #flWrap select, #flWrap input { font-family:inherit; text-transform:none; letter-spacing:normal; }
+.flBar { display:flex; align-items:center; gap:12px; padding:10px 16px; padding-top:calc(10px + env(safe-area-inset-top, 0px));
+  background:var(--ed-panel); border-bottom:1px solid var(--ed-hair); flex-wrap:wrap; }
+.flTitle { font:500 13px/1 'IBM Plex Sans'; letter-spacing:.16em; }
+.flSeg { display:flex; border:1px solid var(--ed-border); border-radius:6px; overflow:hidden; }
+.flSeg button { background:transparent; border:0; color:var(--ed-dim); font:500 12px/1 'IBM Plex Sans'; padding:8px 12px; cursor:pointer; }
+.flSeg button.on { background:var(--ed-acc-soft); color:var(--ed-ink); }
+.flSeg button b { font:500 11px/1 'IBM Plex Mono', ui-monospace, monospace; color:var(--ed-faint); margin-left:6px; }
+.flSeg button b:empty { display:none; }
+.flSearch { flex:0 1 260px; min-width:120px; background:var(--ed-track); color:var(--ed-ink); border:1px solid var(--ed-border);
+  border-radius:6px; padding:7px 10px; font:400 12px/1 'IBM Plex Sans'; }
+.flSp { flex:1; }
+.flSortL { display:flex; align-items:center; gap:6px; color:var(--ed-faint); font:500 11px/1 'IBM Plex Sans'; }
+.flSort { background:var(--ed-btn-bg); color:var(--ed-ink); border:1px solid var(--ed-btn-bd); border-radius:6px; padding:6px 8px; font:500 12px/1 'IBM Plex Sans'; }
+.flSort option { background:var(--ed-panel); }
+.flBtn { background:var(--ed-btn-bg); color:var(--ed-ink); border:1px solid var(--ed-btn-bd); border-radius:6px;
+  padding:7px 11px; font:600 12px/1 'IBM Plex Sans'; cursor:pointer; white-space:nowrap; }
+.flBtn:hover:not(:disabled) { border-color:rgba(255,255,255,.34); }
+.flBtn:disabled { opacity:.42; cursor:default; }
+.flBtn.flPri { background:var(--ed-acc); color:var(--ed-acc-ink); border-color:var(--ed-acc); }
+.flBtn:focus-visible, .flSeg button:focus-visible, .flCk:focus-visible { outline:2px solid var(--ed-acc); outline-offset:1px; }
+.flFilt { display:none; }
+.flSub { padding:6px 16px; font:400 11.5px/1.4 'IBM Plex Sans'; color:var(--ed-dim); border-bottom:1px solid var(--ed-hair); }
+.flSub.warn { color:var(--ed-warn); }
+.flMain { flex:1; min-height:0; display:grid; grid-template-columns:200px minmax(0,1fr) 320px; }
+.flRail { border-right:1px solid var(--ed-hair); padding:14px; overflow:auto; display:flex; flex-direction:column; gap:18px; }
+.flGrp { display:flex; flex-direction:column; gap:4px; }
+.flGh { font:600 9.5px/1 'IBM Plex Sans'; letter-spacing:.12em; text-transform:uppercase; color:var(--ed-faint); padding-bottom:4px; }
+.flCk { display:flex; align-items:center; gap:8px; width:100%; background:transparent; border:0; padding:5px 2px; cursor:pointer;
+  color:var(--ed-dim); font:400 12px/1.2 'IBM Plex Sans'; text-align:left; }
+.flCk i { width:12px; height:12px; flex:none; border-radius:3px; border:1px solid var(--ed-btn-bd); }
+.flCk.on { color:var(--ed-ink); } .flCk.on i { background:var(--ed-acc); border-color:var(--ed-acc); }
+.flCk.none { opacity:.5; }
+.flCk em { margin-left:auto; font:400 11px/1 'IBM Plex Mono', ui-monospace, monospace; font-style:normal; color:var(--ed-faint); }
+.flGridW { overflow:auto; min-height:0; }
+.flGrid { padding:14px; display:grid; grid-template-columns:repeat(auto-fill, minmax(200px, 1fr)); gap:12px; align-content:start; }
+.flGroupH { grid-column:1 / -1; padding:6px 0 0; }
+.flEmpty { grid-column:1 / -1; color:var(--ed-dim); padding:30px 4px; }
+.flTile { background:var(--ed-panel); border:1px solid var(--ed-border); border-radius:8px; display:flex; flex-direction:column;
+  overflow:hidden; min-width:0; cursor:pointer; }
+.flTile:hover { border-color:rgba(255,255,255,.26); }
+.flTile.sel { border-color:var(--ed-acc); box-shadow:0 0 0 1px var(--ed-acc) inset; }
+.flTile.cur .flPic::after { content:'on the stand'; position:absolute; left:6px; bottom:6px; font:500 9.5px/1 'IBM Plex Sans';
+  color:var(--ed-acc-ink); background:var(--ed-acc); border-radius:4px; padding:3px 5px; }
+.flTile.flCand { border-style:dashed; }       /* CANDIDATE OFFICIAL: built, not validated - a dashed edge says "not signed" */
+.flTile.flAway .flPic img { opacity:.55; }
+.flTile.flBroken .flPic img { opacity:.45; filter:grayscale(1); }
+.flPic { position:relative; aspect-ratio:2 / 1; max-width:100%; background:radial-gradient(ellipse at 50% 45%, #2b2724, #0a0908); }
+.flPic img { width:100%; height:100%; object-fit:contain; display:block; }
+#flWrap .flGlyph { position:absolute; inset:0; display:grid; place-items:center; font:300 34px/1 'IBM Plex Sans'; color:var(--ed-faint); }
+.flNo { position:absolute; left:7px; top:6px; font:500 10px/1 'IBM Plex Mono', ui-monospace, monospace; color:var(--ed-faint); }
+.flPlace { position:absolute; right:6px; top:6px; font:500 10px/1 'IBM Plex Sans'; color:var(--ed-ink); background:rgba(20,18,16,.8);
+  border:1px solid var(--ed-border); border-radius:4px; padding:3px 5px; max-width:70%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.flPlace-in { color:var(--ed-acc); border-color:var(--ed-acc); }
+.flMeta { padding:8px 10px 4px; display:flex; flex-direction:column; gap:4px; min-width:0; }
+.flName { font:600 13px/1.25 'IBM Plex Sans'; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.flRow2 { display:flex; align-items:center; justify-content:space-between; gap:6px; min-width:0; }
+.flReg { font:500 11px/1 'IBM Plex Mono', ui-monospace, monospace; color:var(--ed-dim); white-space:nowrap; }
+.flCls { font:600 9.5px/1 'IBM Plex Sans'; letter-spacing:.1em; text-transform:uppercase; color:var(--ed-faint); white-space:nowrap; }
+.flState { display:inline-flex; align-items:center; gap:5px; font:500 11px/1 'IBM Plex Sans'; color:var(--ed-dim); white-space:nowrap; }
+.flState::before { content:''; width:7px; height:7px; border-radius:50%; background:var(--ed-faint); flex:none; }
+.flState.st-ok::before { background:#a9c39a; } .flState.st-warn::before { background:var(--ed-warn); }
+.flState.st-bad { color:var(--ed-bad); } .flState.st-bad::before { background:var(--ed-bad); }
+.flNote { font:400 10.5px/1.3 'IBM Plex Sans'; color:var(--ed-faint); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.flActs { display:flex; gap:6px; padding:4px 10px 10px; margin-top:auto; }
+.flActs .flPri { flex:1; }
+.flMore { padding:7px 9px; color:var(--ed-dim); }
+.flAsk { padding:6px 10px 10px; display:flex; flex-direction:column; gap:6px; font:400 11.5px/1.35 'IBM Plex Sans'; color:var(--ed-ink);
+  margin-top:auto; border-top:1px solid var(--ed-hair); }
+.flAsk .flActs { padding:0; }
+.flMenu { display:flex; flex-direction:column; gap:5px; padding:6px 10px 10px; margin-top:auto; border-top:1px solid var(--ed-hair); }
+.flMenu .flBtn { text-align:left; }
+/* the list view: the same parts, one row */
+.flGrid.flList { grid-template-columns:1fr; gap:6px; }
+.flList .flTile { flex-direction:row; align-items:center; }
+.flList .flPic { flex:none; width:120px; aspect-ratio:2 / 1; }
+.flList .flMeta { flex:1; padding:6px 12px; }
+.flList .flActs, .flList .flAsk, .flList .flMenu { margin-top:0; padding:6px 10px; border-top:0; flex:none; }
+.flList .flAsk { flex-direction:row; align-items:center; max-width:60%; }
+.flList .flMenu { flex-direction:row; }
+/* the peek: the selected plane on the fiche's cream sheet, its numbers, Fiche and Load */
+.flPeek { border-left:1px solid var(--ed-hair); padding:14px; display:flex; flex-direction:column; gap:12px; overflow:auto; background:var(--ed-panel); }
+.flPeekNone { color:var(--ed-faint); font-size:12px; padding-top:20px; }
+.flSheetPk { position:relative; background:#efe7d6; color:#2a2520; border-radius:6px; padding:8px; aspect-ratio:3 / 2; max-width:100%;
+  display:flex; flex-direction:column; }
+.flSheetPk::after { content:''; position:absolute; inset:4px; border:1px solid #b9ac94; border-radius:4px; pointer-events:none; }
+.flSheetH { display:flex; justify-content:space-between; gap:8px; font:600 9.5px/1.2 'IBM Plex Sans'; letter-spacing:.06em; padding:3px 4px; }
+.flSheetH span:last-child { font-family:'IBM Plex Mono', ui-monospace, monospace; font-weight:500; }
+.flSheetPk img { flex:1; min-height:0; width:100%; object-fit:contain; }
+#flWrap .flSheetPk.empty .flGlyph { position:static; flex:1; color:#b9ac94; }
+.flFacts { display:grid; grid-template-columns:auto 1fr; gap:6px 12px; margin:0; font-size:12px; }
+.flFacts dt { color:var(--ed-faint); }
+.flFacts dd { margin:0; font-family:'IBM Plex Mono', ui-monospace, monospace; color:var(--ed-ink); overflow-wrap:anywhere; }
+.flPeekActs { display:flex; gap:8px; margin-top:auto; }
+.flPeekActs .flBtn { flex:1; padding:10px; }
+/* the phone's filter sheet */
+.flSheet { position:absolute; inset:0; z-index:2; background:rgba(12,11,10,.6); display:flex; align-items:flex-end; }
+.flSheet[hidden] { display:none; }
+.flSheetBox { width:100%; max-height:80%; overflow:auto; background:var(--ed-panel); border-top:1px solid var(--ed-border);
+  border-radius:12px 12px 0 0; padding:14px 16px calc(14px + env(safe-area-inset-bottom, 0px)); display:flex; flex-direction:column; gap:14px; }
+.flSheetBody { display:flex; flex-direction:column; gap:16px; }
+.flSheetFoot { display:flex; gap:8px; }
+.flSheetFoot .flShow { flex:1; padding:12px; }
+#flWrap .flSpin { position:absolute; inset:0; z-index:3; display:grid; place-items:center; background:rgba(12,11,10,.55); }
+#flWrap .flSpin[hidden] { display:none; }
+.flSpinBox { display:flex; align-items:center; gap:10px; background:var(--ed-panel); border:1px solid var(--ed-border); border-radius:8px; padding:12px 16px; }
+.flSpinBox i { width:16px; height:16px; border-radius:50%; border:2px solid var(--ed-btn-bd); border-top-color:var(--ed-acc); animation:flSpin .8s linear infinite; }
+@keyframes flSpin { to { transform:rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .flSpinBox i { animation:none; } }
+/* narrower windows: the peek goes first, then the rail becomes the sheet */
+@media (max-width:1100px) { .flMain { grid-template-columns:200px minmax(0,1fr); } .flPeek { display:none; } }
+@media (max-width:700px) {
+  .flMain { grid-template-columns:minmax(0,1fr); } .flRail { display:none; } .flFilt { display:inline-block; }
+  .flSortL span { display:none; }
+}
+html.phone #flWrap .flMain { grid-template-columns:minmax(0,1fr); }
+html.phone #flWrap .flRail, html.phone #flWrap .flPeek { display:none; }
+html.phone #flWrap .flFilt { display:inline-block; }
+html.phone #flWrap .flSortL span { display:none; }
+@media (max-width:700px) {
+  #flWrap .flBar { gap:8px; padding-left:max(10px, env(safe-area-inset-left, 0px)); padding-right:max(10px, env(safe-area-inset-right, 0px)); }
+  #flWrap .flSeg { order:3; width:100%; } #flWrap .flSeg button { flex:1; }
+  #flWrap .flSearch { order:4; flex:1 1 100%; }
+  #flWrap .flGrid { grid-template-columns:repeat(2, minmax(0,1fr)); gap:8px; padding:10px; }
+  #flWrap .flGrid.flList { grid-template-columns:1fr; }
+  #flWrap .flList .flPic { width:96px; }
+  #flWrap .flMeta { padding:6px 7px 3px; }
+  #flWrap .flName { font-size:12px; }
+  #flWrap .flActs { padding:3px 7px 8px; gap:4px; }
+  #flWrap .flTile .flBtn { padding:9px 6px; font-size:11.5px; }
+}
+html.phone #flWrap .flBar { gap:8px; }
+html.phone #flWrap .flSeg { order:3; width:100%; } html.phone #flWrap .flSeg button { flex:1; padding:10px 6px; }
+html.phone #flWrap .flSearch { order:4; flex:1 1 100%; }
+html.phone #flWrap .flGrid { grid-template-columns:repeat(2, minmax(0,1fr)); gap:8px; padding:10px; }
+html.phone #flWrap .flGrid.flList { grid-template-columns:1fr; }
+html.phone #flWrap .flTile .flBtn { min-height:40px; }
 
 /* DROP-JSON (G2799, the user 18 Oct): 'drop to import' over the workshop
    while a file is dragged onto it - the scenery editor's .pr-drop, the
@@ -1282,77 +1420,8 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
 #gDrop b { font:600 15px/1 'IBM Plex Sans'; letter-spacing:.06em; }
 #gDrop span { font:400 12px/1.3 'IBM Plex Sans'; color:var(--ed-dim); }
 
-.gfBox { width:min(560px, 94vw); max-height:82vh; overflow:auto;
-  background:var(--ed-panel); border:1px solid var(--ed-hair);
-  border-radius:10px; padding:18px 20px 16px; }
-
-.gfH { display:flex; align-items:center; justify-content:space-between;
-  gap:10px; }
-.gfH .gfAll { margin-left:auto; margin-right:8px; }
-.gfH > span { font:500 13px/1 'IBM Plex Sans'; letter-spacing:.14em;
-  color:var(--ed-ink); }
-
-.gfSub { font:400 11px/1.4 'IBM Plex Sans'; color:var(--ed-dim);
-  margin:6px 0 2px; }
-.gfSub.warn { color:var(--ed-warn); }
-
-.gfGroupH { font:500 10px/1 'IBM Plex Sans'; letter-spacing:.12em;
-  text-transform:uppercase; color:var(--ed-dim); margin:16px 0 7px;
-  padding-bottom:5px; border-bottom:1px solid var(--ed-hair); }
-
-.gfMine, .gfStock, .gfCand { display:flex; flex-direction:column; gap:4px; }
-/* CANDIDATE OFFICIAL (the user, 2 Nov): built, not validated - a dashed edge says "not signed" */
-.gfCandRow .gfLoad { border-style:dashed; }
-/* G3800 (PLANE_THUMB): the card's side-profile picture (240x120 drawn, nose left, on the dark studio) */
-.gfLoad img.gfThumb, .dfArch img.dfThumb, #npWrap .npTile img.npThumb { width:120px; height:60px; object-fit:contain; flex:none; display:block; border-radius:4px; }
-.gfLoad img.gfThumb { align-self:center; }
-
-.gfRow { display:flex; align-items:stretch; gap:4px; }
-
-.gfLoad { flex:1; min-width:0; display:flex; align-items:baseline; gap:10px;
-  text-align:left; padding:9px 12px; background:var(--ed-btn-bg);
-  border:1px solid var(--ed-btn-bd); border-radius:8px; cursor:pointer;
-  transition:border-color .12s ease; }
-.gfLoad b { font:600 12px/1.2 'IBM Plex Sans'; color:var(--ed-ink);
-  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.gfLoad span { font:400 10.5px/1.3 'IBM Plex Sans'; color:var(--ed-dim);
-  margin-left:auto; white-space:nowrap; }
-.gfLoad:hover { border-color:rgba(255,255,255,.3); }
-.gfRow.cur .gfLoad { border-color:var(--ed-acc); cursor:default; }
-
-.gfDel { flex:0 0 auto; width:34px; background:transparent;
-  border:1px solid var(--ed-btn-bd); border-radius:8px; color:var(--ed-dim);
-  font:400 12px/1 'IBM Plex Sans'; cursor:pointer;
-  transition:border-color .12s ease, color .12s ease; }
-.gfDel:hover { border-color:var(--ed-warn); color:var(--ed-warn); }
-
-/* PREM-S2 (G2230): where each aeroplane stands - "in HOME", "out at w3", "away at Jumbo Mine"; an aeroplane at
-   another base than the garage's is greyed (it can be flown from there); the house button brings it home */
-.gfPlace { font:500 9.5px/1.3 'IBM Plex Sans'; font-style:normal; letter-spacing:.04em; color:var(--ed-dim);
-  border:1px solid var(--ed-hair); border-radius:6px; padding:1px 6px; white-space:nowrap; flex:0 0 auto; }
-.gfPlace-in { color:var(--ed-acc); border-color:var(--ed-acc); }
-.gfRow.gfAway .gfLoad { opacity:.55; }
-.gfRow.gfAway .gfLoad:hover { opacity:.85; }
-.gfRow.gfBroken .gfLoad { opacity:.45; filter:grayscale(1); }   /* WEAR-PRICE: broken and grounded */
-.gfRow.gfBroken .gfLoad span { color:var(--ed-warn); }
-.gfHome { flex:0 0 auto; width:34px; background:transparent;
-  border:1px solid var(--ed-btn-bd); border-radius:8px; color:var(--ed-dim);
-  font:400 13px/1 'IBM Plex Sans'; cursor:pointer; }
-.gfHome:hover { border-color:var(--ed-acc); color:var(--ed-acc); }
-/* PRICE-CAL: the fleet card's Sell - the home button's look, wider for its word; greyed (with its reason) when it
-   cannot be sold now */
-.gfSell { flex:0 0 auto; padding:0 8px; background:transparent;
-  border:1px solid var(--ed-btn-bd); border-radius:8px; color:var(--ed-dim);
-  font:500 10.5px/1 'IBM Plex Sans'; letter-spacing:.03em; cursor:pointer; }
-.gfSell:hover:not(:disabled) { border-color:var(--ed-acc); color:var(--ed-acc); }
-.gfSell:disabled { opacity:.4; cursor:default; }
-
-.gfEmpty { font:400 11px/1.4 'IBM Plex Sans'; color:var(--ed-dim);
-  padding:8px 2px; }
-
-.gfFoot { display:flex; align-items:center; gap:10px; margin-top:16px; }
-.gfHint { font:400 10px/1.3 'IBM Plex Sans'; color:var(--ed-dim);
-  margin-left:auto; }
+/* G3800 (PLANE_THUMB): a card's side-profile picture (240x120 drawn, nose left, on the dark studio) */
+.dfArch img.dfThumb, #npWrap .npTile img.npThumb { width:120px; height:60px; object-fit:contain; flex:none; display:block; border-radius:4px; }
 
 /* ---- THE BENCH pane (G64), until the sheet takes it (G80) ------------ */
 
@@ -4597,7 +4666,7 @@ html.phone:where(:not(.phfly)) #edInfoBody { padding:0 16px 24px; }
 html.phone:where(:not(.phfly)) #edInfo button { min-height:40px; }
 
 /* ---- THE DIALOGS the garage opens (the chooser, the fleet, the welcome) fit the width ---- */
-html.phone:where(:not(.phfly)) :is(#dfBirth, #gFleet) { max-width:100vw; }
+html.phone:where(:not(.phfly)) #dfBirth { max-width:100vw; }
 
 /* ---- G3060 (CARDS-CORNER): THE BENCH'S CARDS (the run, the award) ON THE SHEET, NEVER OVER THE VIEW ----------------
    The desktop puts them in the view's lower-left corner; a phone's view is too small for a corner, so they take the
@@ -4713,7 +4782,7 @@ html.phone #npWrap .npBtn { flex:1; min-width:0; padding:0 8px; }
     </div>
   </aside>
 </div>
-<script>window.FLYDIY_BUILD='e4db3663b937';window.FLYDIY_BUILD_DATE='2026-11-12T20:32:25.726Z';</script>
+<script>window.FLYDIY_BUILD='d62883e70c44';window.FLYDIY_BUILD_DATE='2026-11-12T22:54:25.156Z';</script>
 <script>
 // ===========================================================================
 // THE NAMES (G3240 NAMES, 2026-10-22; GAME-PLAN-2026-10-15 §R and §13). The user, 15 Oct: "Everything should have a
@@ -67934,7 +68003,7 @@ if (typeof module !== 'undefined' && typeof require === 'function' && typeof __f
 })();
 </script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='22f5c8c8d1d9';window.FLYDIY_BUILD='e4db3663b937';window.FLYDIY_AUDIO_SRC={"engine_worklet":"src/viewer/audio/engine_worklet.js?v=26807db6","prop_worklet":"src/viewer/audio/prop_worklet.js?v=48283511","airframe_worklet":"src/viewer/audio/airframe_worklet.js?v=1e68b31b"};window.FLYDIY_MUSIC=[{"id":"fma238392","file":"media/audio/music/holiznacc0_yet_again.ae80f04f.mp3","title":"Yet Again","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/yet-again-lofi-peaceful/","station":"lofi","contexts":["garage","welcome"],"lufs":-16,"durationS":135.9},{"id":"fma275835","file":"media/audio/music/holiznacc0_break_from_reality.6cd41edd.mp3","title":"Break From Reality","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/break-from-reality-lofi-peaceful-mp3/","station":"lofi","contexts":["garage","welcome","cruise"],"lufs":-16,"durationS":207},{"id":"fma275843","file":"media/audio/music/holiznacc0_the_best_of_times.4c1984ae.mp3","title":"The Best Of Times","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/the-best-of-times-lofi-relaxing-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":168},{"id":"fma267057","file":"media/audio/music/holiznacc0_faded_in_the_sunlight.4ce1349b.mp3","title":"Faded in the Sunlight","artist":"HoliznaCC0","album":"Summer Air ( Lo-fi )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/summer-air-lo-fi/faded-in-the-sunlight/","station":"lofi","contexts":["garage","welcome"],"lufs":-17.2,"durationS":178.2},{"id":"fma265836","file":"media/audio/music/holiznacc0_peaceful_drift.55118944.mp3","title":"Peaceful Drift","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/peaceful-drift-lofi-nostalgic-calm/","station":"lofi","contexts":["garage"],"lufs":-17.4,"durationS":128.3},{"id":"fma265847","file":"media/audio/music/holiznacc0_ease_into_night.32448511.mp3","title":"Ease into Night","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ease-into-night-lofi-relax-chill/","station":"lofi","contexts":["garage"],"lufs":-17.9,"durationS":151.8},{"id":"fma268742","file":"media/audio/music/holiznacc0_washed_up.eca2e877.mp3","title":"Washed Up","artist":"HoliznaCC0","album":"OCEAN MEMORY ( Lo-fi Chill )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/ocean-memory-lo-fi-chill/washed-up/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":234.6},{"id":"fma275832","file":"media/audio/music/holiznacc0_down_time.c1f35243.mp3","title":"Down Time","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/down-time-lofi-peaceful-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":130.3},{"id":"fma275836","file":"media/audio/music/holiznacc0_ocean_breeze.1c28251e.mp3","title":"Ocean Breeze","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ocean-breeze-lofi-ukulele-peaceful-mp3/","station":"lofi","contexts":["garage","cruise"],"lufs":-16,"durationS":197.6},{"id":"fma164357","file":"media/audio/music/loyalty_freak_music_traveling_in_your_mind.993d471f.mp3","title":"Traveling in your mind","artist":"Loyalty Freak Music","album":"TO CHILL AND STAY AWAKE","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/TO_CHILL_AND_STAY_AWAKE/Loyalty_Freak_Music_-_TO_CHILL_AND_STAY_AWAKE_-_05_Traveling_in_your_mind/","station":"lofi","contexts":["cruise","welcome","garage"],"lufs":-18.2,"durationS":236.6},{"id":"fma171982","file":"media/audio/music/loyalty_freak_music_beach.b048753f.mp3","title":"Beach","artist":"Loyalty Freak Music","album":"MELODIES WITH A BEAT","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/MELODIES_WITH_A_BEAT/Loyalty_Freak_Music_-_MELODIES_WITH_A_BEAT_-_08_Beach/","station":"lofi","contexts":["garage"],"lufs":-17.3,"durationS":161},{"id":"fma279362","file":"media/audio/music/holiznacc0_kodama.566d47aa.mp3","title":"Kodama","artist":"HoliznaCC0","album":"Nature Spirit","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/nature-spirit/kodama/","station":"jazz","contexts":["garage"],"lufs":-18.7,"durationS":150.7},{"id":"fma278622","file":"media/audio/music/ketsa_as_above_so_below.89e379ac.mp3","title":"As Above So Below","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/as-above-so-below-1/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":233.4},{"id":"fma279012","file":"media/audio/music/ketsa_time_runs_like_the_thames.6ff984d7.mp3","title":"Time Runs Like The Thames","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/vintage-modernity/time-runs-like-the-thames/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":274},{"id":"fmaia_shreveport_stomp","file":"media/audio/music/jelly_roll_morton_shreveport_stomp.e54398f1.mp3","title":"Shreveport Stomp","artist":"Jelly Roll Morton","album":"1924","licence":"Public domain","source":"https://archive.org/details/shreveport-stomp-jelly-roll-morton-1924","station":"jazz","contexts":["garage"],"lufs":-21,"durationS":171},{"id":"fmaia_wolverine_blues","file":"media/audio/music/benson_orchestra_of_chicago_jelly_roll_morton_wolverine_blues.1d938bf6.mp3","title":"Wolverine Blues","artist":"Benson Orchestra of Chicago (Jelly Roll Morton)","album":"1923, Library of Congress National Jukebox","licence":"Public domain","source":"https://archive.org/details/loc-jukebox-67806-wolverine-blues","station":"jazz","contexts":["garage"],"lufs":-17.5,"durationS":184.8},{"id":"fma278664","file":"media/audio/music/tommaso_croce_generic_sloppy_dub.9cc4f5ec.mp3","title":"Generic Sloppy Dub","artist":"Tommaso Croce","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Dilating_Times/backwards/generic-sloppy-dub/","station":"dubambient","contexts":["garage","cruise"],"lufs":-17.4,"durationS":316.7},{"id":"fma278757","file":"media/audio/music/1000_handz_greenery.6b82d1b4.mp3","title":"Greenery","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/greenery/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":209.4},{"id":"fma278845","file":"media/audio/music/guided_levitation_return_to_our_home.763873e2.mp3","title":"Return To Our Home","artist":"Guided Levitation","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/guided-levitation/eternal/return-to-our-home/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":430.2},{"id":"fma279307","file":"media/audio/music/matthew_c_wright_calming_royalty_free_piano_a_season_of_change.1228ba10.mp3","title":"Calming Royalty Free Piano - \"A Season of Change\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/calming-royalty-free-piano-a-season-of-change/","station":"classical","contexts":["garage","welcome"],"lufs":-17.6,"durationS":151},{"id":"fma279308","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_autumn_sunshine.cfc128af.mp3","title":"Gentle Royalty Free Piano - \"Autumn Sunshine\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-autumn-sunshine/","station":"classical","contexts":["garage","welcome"],"lufs":-18.7,"durationS":186.2},{"id":"fma279304","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_rustling.3ea1a7a8.mp3","title":"Gentle Royalty Free Piano - \"Rustling\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-rustling/","station":"classical","contexts":["garage","welcome"],"lufs":-17,"durationS":161.1},{"id":"fmaia_goldberg_14","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_13.e46289fd.mp3","title":"Goldberg Variations, BWV 988: Variatio 13","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":254.5},{"id":"fmaia_goldberg_20","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_19.024a83f6.mp3","title":"Goldberg Variations, BWV 988: Variatio 19","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.2,"durationS":85},{"id":"fmaia_goldberg_25","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_24_canone_a.38d27e77.mp3","title":"Goldberg Variations, BWV 988: Variatio 24, Canone all'Ottava","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.4,"durationS":165.5},{"id":"fmaia_goldberg_27","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_26.cb2b4f50.mp3","title":"Goldberg Variations, BWV 988: Variatio 26","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16,"durationS":122.8},{"id":"fmaia_goldberg_31","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria_da_capo.b65c85c5.mp3","title":"Goldberg Variations, BWV 988: Aria da capo","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":170.1},{"id":"fmaia_goldberg_01","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria.8a525c07.mp3","title":"Goldberg Variations, BWV 988: Aria","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-19.6,"durationS":299.5},{"id":"fma278391","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_i_m_callin_late.73576f4b.mp3","title":"Peaceful Royalty Free Guitar - \"I'm Callin' Late\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-im-callin-late/","station":"roots","contexts":["garage","cruise"],"lufs":-19.2,"durationS":138.8},{"id":"fma279039","file":"media/audio/music/mr_smith_ranchero.03b7fda8.mp3","title":"Ranchero","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/synchromatic/ranchero/","station":"roots","contexts":["garage","cruise"],"lufs":-16.5,"durationS":114.2},{"id":"fma278388","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_a_cloudy_life.5400048e.mp3","title":"Calming Royalty Free Guitar - \"A Cloudy Life\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-a-cloudy-life/","station":"roots","contexts":["garage"],"lufs":-19,"durationS":170.8},{"id":"fma237449","file":"media/audio/music/mr_smith_ships.d2277b62.mp3","title":"Ships","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/ships/","station":"roots","contexts":["garage","cruise"],"lufs":-16.6,"durationS":82.1},{"id":"fma248055","file":"media/audio/music/mr_smith_quidi_vidi.94325e9a.mp3","title":"Quidi Vidi","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/quidi-vidi/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.9},{"id":"fma248226","file":"media/audio/music/mr_smith_in_the_mist.4ca7d4da.mp3","title":"In the Mist","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/in-the-mist/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":54.7},{"id":"fma256748","file":"media/audio/music/maarten_schellekens_whispers_of_the_glen.a0af8efe.mp3","title":"Whispers of the Glen","artist":"Maarten Schellekens","album":null,"licence":"CC0","source":"https://freemusicarchive.org/music/maarten-schellekens/public-domain-1/whispers-of-the-glen/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":161.6},{"id":"fma273704p1","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_1.cc7cdbdd.mp3","title":"Ghostman Blues, part 1","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":161},{"id":"fma273704p3","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_3.0ee810e4.mp3","title":"Ghostman Blues, part 3","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16.1,"durationS":178.9},{"id":"fma271999p2","file":"media/audio/music/daniel_william_lawrence_a_land_of_corn_and_wine_part_2.1a3e2a6e.mp3","title":"A Land of Corn and Wine, part 2","artist":"Daniel William Lawrence","album":"A Land of Corn and Wine","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/a-land-of-corn-and-wine/a-land-of-corn-and-wine-traditional-instrumental-blues-full-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":355.7},{"id":"fma277192","file":"media/audio/music/ketsa_time_falls_like_autumn_leaves.0b326725.mp3","title":"Time falls like Autumn Leaves","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/time-falls-like-autumn-leaves/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":159.7},{"id":"fma279132","file":"media/audio/music/1000_handz_neighbor.194f378e.mp3","title":"Neighbor","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/neighbor/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":129.9},{"id":"fma279302","file":"media/audio/music/1000_handz_busted_tape.8ac88609.mp3","title":"Busted Tape","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/busted-tape/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":66},{"id":"fma277908","file":"media/audio/music/pamela_yuen_beloved.95635664.mp3","title":"Beloved","artist":"Pamela Yuen","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/pamela-yuen/ambient-music-1/beloved-1/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":211.7},{"id":"fma233918","file":"media/audio/music/mr_smith_the_newfie.010088ef.mp3","title":"The Newfie","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/the-newfie/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":87.3},{"id":"fma237242","file":"media/audio/music/mr_smith_da_rock.f15eeafe.mp3","title":"Da Rock","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/da-rock/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":119},{"id":"fma237915","file":"media/audio/music/mr_smith_nfld.ba344a97.mp3","title":"NFLD","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/nfld/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":105.5},{"id":"fma246044","file":"media/audio/music/mr_smith_the_newfie_pt_2.6d0e2be2.mp3","title":"The Newfie Pt 2","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/the-newfie-pt-2/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":85.4},{"id":"fma250186","file":"media/audio/music/mr_smith_sun_glitter.0a050709.mp3","title":"Sun Glitter","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/sun-glitter/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.5},{"id":"fma252236","file":"media/audio/music/mr_smith_birchy_nap.e91e17e6.mp3","title":"Birchy Nap","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/birchy-nap/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":55.2},{"id":"fma278389","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_brown_hair_and_chacos.53071383.mp3","title":"Quiet Royalty Free Guitar - \"Brown Hair and Chacos\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-brown-hair-and-chacos/","station":"roots","contexts":["garage","cruise"],"lufs":-18.5,"durationS":151},{"id":"fma278390","file":"media/audio/music/matthew_c_wright_slow_royalty_free_guitar_how_about_forever.19ea0bdb.mp3","title":"Slow Royalty Free Guitar - \"How About Forever\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/slow-royalty-free-guitar-how-about-forever/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":189.2},{"id":"fma278392","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_just_a_flight_away.b39b38a7.mp3","title":"Relaxing Royalty Free Guitar - \"Just a Flight Away\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-just-a-flight-away/","station":"roots","contexts":["garage","cruise"],"lufs":-17.9,"durationS":124.3},{"id":"fma278394","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_montana.ac8ceebf.mp3","title":"Peaceful Royalty Free Guitar - \"Montana\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-montana/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":156},{"id":"fma278395","file":"media/audio/music/matthew_c_wright_soothing_royalty_free_guitar_old_steel.a75dce3f.mp3","title":"Soothing Royalty Free Guitar - \"Old Steel\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/soothing-royalty-free-guitar-old-steel/","station":"roots","contexts":["garage","cruise"],"lufs":-20.6,"durationS":131.9},{"id":"fma278396","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_so_proud_of_you.dd50ab59.mp3","title":"Relaxing Royalty Free Guitar - \"So Proud of You\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-so-proud-of-you/","station":"roots","contexts":["garage","cruise"],"lufs":-19.5,"durationS":205.4},{"id":"fma278397","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_this_here_house.560c1a4a.mp3","title":"Quiet Royalty Free Guitar - \"This Here House\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-this-here-house/","station":"roots","contexts":["garage","cruise"],"lufs":-22,"durationS":157},{"id":"fma278398","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_time_to_let_go.c14ebc99.mp3","title":"Calming Royalty Free Guitar - \"Time to Let Go\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-time-to-let-go/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":178.8},{"id":"fma278399","file":"media/audio/music/matthew_c_wright_simple_royalty_free_guitar_village_on_the_lake.b92784aa.mp3","title":"Simple Royalty Free Guitar - \"Village on the Lake\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/simple-royalty-free-guitar-village-on-the-lake/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":130.3}];window.FLYDIY_AUDIO_MEDIA={"amb.forest.day":["media/audio/sfx/amb_forest_day_288899.157bf96e.mp3"],"amb.forest.night":["media/audio/sfx/amb_forest_night_333221.3df54da1.mp3"],"amb.wind.light":["media/audio/sfx/amb_wind_light_160469.4d45c6a1.mp3"],"amb.wind.clear":["media/audio/sfx/amb_wind_clear_156414.f23315bb.mp3"],"amb.wind.mountain":["media/audio/sfx/amb_wind_mountain_165526.140f3920.mp3"],"amb.wind.storm":["media/audio/sfx/amb_wind_storm_157280.9fdd2a2c.mp3"],"amb.shore.surf":["media/audio/sfx/amb_shore_surf_155641.27350310.mp3"],"amb.shore.rocks":["media/audio/sfx/amb_shore_rocks_155895.6ee71344.mp3"],"amb.lake.near":["media/audio/sfx/amb_lake_near_135046.22d12339.mp3"],"amb.lake.lap":["media/audio/sfx/amb_lake_lap_428088.0018a69a.mp3"],"amb.stream":["media/audio/sfx/amb_stream_264180.4ff25da2.mp3"],"amb.harbour":["media/audio/sfx/amb_harbour_339440.fc5b7cd1.mp3"],"amb.village":["media/audio/sfx/amb_village_435819.20299c23.mp3"],"amb.airfield":["media/audio/sfx/amb_airfield_319102.6b4237cf.mp3"],"amb.hangar":["media/audio/sfx/amb_hangar_427861.f9afe454.mp3"],"amb.rain.roof":["media/audio/sfx/amb_rain_roof_329578.c0aba715.mp3"],"amb.frogs.night":["media/audio/sfx/amb_frogs_night_135561.9aa1f6e9.mp3"],"amb.loons":["media/audio/sfx/amb_loons_39339.7d136ae5.mp3"],"amb.meadow":["media/audio/sfx/amb_meadow_639459.3facef88.mp3"],"bird.eagle":["media/audio/sfx/bird_eagle_381200.1d11590c.mp3","media/audio/sfx/bird_eagle_392212.13114290.mp3","media/audio/sfx/bird_eagle_nps-golden-eagle.ca760fa8.mp3"],"bird.gull":["media/audio/sfx/bird_gull_166710.bb2f19eb.mp3","media/audio/sfx/bird_gull_263786.51e3ecb8.mp3","media/audio/sfx/bird_gull_73497.919ce49c.mp3"],"bird.crow":["media/audio/sfx/bird_crow_182090.1a94cd39.mp3","media/audio/sfx/bird_crow_361470.92582da1.mp3","media/audio/sfx/bird_crow_75162.543a2c22.mp3","media/audio/sfx/bird_crow_nps-raven.8c13e1ca.mp3"],"bird.owl":["media/audio/sfx/bird_owl_465697.2ee834d0.mp3","media/audio/sfx/bird_owl_479588.817cca9b.mp3","media/audio/sfx/bird_owl_558396.fc398755.mp3"],"dog":["media/audio/sfx/dog_160366.86fe02dc.mp3"],"gnd.gravel":["media/audio/sfx/gnd_gravel_251661.0e48f11b.mp3"],"mech.creak":["media/audio/sfx/mech_creak_119468.101f6d88.mp3","media/audio/sfx/mech_creak_238289.6d8b72b3.mp3"],"mech.door":["media/audio/sfx/mech_door_345066.66dbaf6d.mp3"],"mech.switch":["media/audio/sfx/mech_switch_361371.9ced067b.mp3","media/audio/sfx/mech_switch_423957.6b08a0c1.mp3"],"water.drip":["media/audio/sfx/water_drip_166986.f81c294b.mp3"],"ui.click":["media/audio/sfx/ui_click_528561.bdd8b52e.mp3"],"vehicle.pickup":["media/audio/sfx/vehicle_pickup_450227.be208f91.mp3"],"amb.rain.outside":["media/audio/sfx/amb_rain_outside_523391.da71d15a.mp3"],"amb.birds.open":["media/audio/sfx/amb_birds_open_456766.c24bacac.mp3"],"amb.lake.shore":["media/audio/sfx/amb_lake_shore_352356.21fc75ef.mp3"],"amb.sea.open":["media/audio/sfx/amb_sea_open_460061.6c0c2f0e.mp3"],"bird.loon":["media/audio/sfx/bird_loon_39339.3c306d67.mp3","media/audio/sfx/bird_loon_nps-loon.ebce31d5.mp3","media/audio/sfx/bird_loon_nps-loon.c47baae3.mp3"],"tram.bell":["media/audio/sfx/tram_bell_497561.9e7279e8.mp3"],"tram.hum":["media/audio/sfx/tram_hum_442493.2b3fe7d3.mp3"],"boat.idle":["media/audio/sfx/boat_idle_637743.0d3d93e0.mp3"],"animal.bear":["media/audio/sfx/animal_bear_nps-grizzly-vocal.def683e6.mp3","media/audio/sfx/animal_bear_nps-grizzly-vocal.98163160.mp3","media/audio/sfx/animal_bear_nps-grizzly-roar.02f72aba.mp3"],"animal.elk":["media/audio/sfx/animal_elk_nps-elk-bugle-1.10ba252d.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.d2390a80.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.c7320d85.mp3"],"animal.deer":["media/audio/sfx/animal_deer_351113.97a7d90b.mp3","media/audio/sfx/animal_deer_351113.5b6da753.mp3"],"animal.whale.blow":["media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.58dfd4e5.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.d2504229.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.7663f71d.mp3"],"animal.orca.blow":["media/audio/sfx/animal_orca_blow_nps-porpoise.b8a0c8fc.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.5d0de2ec.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.45872e4e.mp3"],"bird.thrush":["media/audio/sfx/bird_thrush_nps-varied-thrush.603dc854.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dc4d4664.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dba365b7.mp3"],"mill.stamp":["media/audio/sfx/mill_stamp_322871.33f9ef7a.mp3"]};window.FLYDIY_VOICE={"voice":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"voices":{"norman":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"john":{"name":"john","id":"en_US-john-medium","who":"male, US","role":"Chief Walt Brennan (the interview)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/john/medium","dataset":"LibriVox readings by one reader, ~12.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"fine-tuned (600 epochs) from en_US-kristin-medium, itself trained from scratch on public-domain LibriVox","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"kristin":{"name":"kristin","id":"en_US-kristin-medium","who":"female, US","role":"Officer Dana Hale (recorded messages)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/kristin/medium","dataset":"LibriVox readings by one reader, ~11.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (2000 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"libritts":{"name":"libritts","id":"en_US-libritts-high","who":"US, 904 speakers (LibriTTS)","role":"the residents who phone in","quality":"high","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/libritts/high","dataset":"LibriTTS train-clean-360 (Zen et al. 2019; from LibriSpeech, from LibriVox)","datasetLicence":"CC BY 4.0","datasetUrl":"http://www.openslr.org/60/","lineage":"trained from scratch on train-clean-360","credit":"LibriTTS corpus by Heiga Zen et al. (Google), CC BY 4.0, http://www.openslr.org/60/","render":{"lufs":-20,"kbps":48,"takes":"whole"}}},"script":{"file":"media/audio/voice/radio_script.96bc74e6.json","items":352,"seconds":2085.9,"bytes":12743609}}</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='22f5c8c8d1d9';window.FLYDIY_BUILD='d62883e70c44';window.FLYDIY_AUDIO_SRC={"engine_worklet":"src/viewer/audio/engine_worklet.js?v=26807db6","prop_worklet":"src/viewer/audio/prop_worklet.js?v=48283511","airframe_worklet":"src/viewer/audio/airframe_worklet.js?v=1e68b31b"};window.FLYDIY_MUSIC=[{"id":"fma238392","file":"media/audio/music/holiznacc0_yet_again.ae80f04f.mp3","title":"Yet Again","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/yet-again-lofi-peaceful/","station":"lofi","contexts":["garage","welcome"],"lufs":-16,"durationS":135.9},{"id":"fma275835","file":"media/audio/music/holiznacc0_break_from_reality.6cd41edd.mp3","title":"Break From Reality","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/break-from-reality-lofi-peaceful-mp3/","station":"lofi","contexts":["garage","welcome","cruise"],"lufs":-16,"durationS":207},{"id":"fma275843","file":"media/audio/music/holiznacc0_the_best_of_times.4c1984ae.mp3","title":"The Best Of Times","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/the-best-of-times-lofi-relaxing-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":168},{"id":"fma267057","file":"media/audio/music/holiznacc0_faded_in_the_sunlight.4ce1349b.mp3","title":"Faded in the Sunlight","artist":"HoliznaCC0","album":"Summer Air ( Lo-fi )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/summer-air-lo-fi/faded-in-the-sunlight/","station":"lofi","contexts":["garage","welcome"],"lufs":-17.2,"durationS":178.2},{"id":"fma265836","file":"media/audio/music/holiznacc0_peaceful_drift.55118944.mp3","title":"Peaceful Drift","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/peaceful-drift-lofi-nostalgic-calm/","station":"lofi","contexts":["garage"],"lufs":-17.4,"durationS":128.3},{"id":"fma265847","file":"media/audio/music/holiznacc0_ease_into_night.32448511.mp3","title":"Ease into Night","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ease-into-night-lofi-relax-chill/","station":"lofi","contexts":["garage"],"lufs":-17.9,"durationS":151.8},{"id":"fma268742","file":"media/audio/music/holiznacc0_washed_up.eca2e877.mp3","title":"Washed Up","artist":"HoliznaCC0","album":"OCEAN MEMORY ( Lo-fi Chill )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/ocean-memory-lo-fi-chill/washed-up/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":234.6},{"id":"fma275832","file":"media/audio/music/holiznacc0_down_time.c1f35243.mp3","title":"Down Time","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/down-time-lofi-peaceful-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":130.3},{"id":"fma275836","file":"media/audio/music/holiznacc0_ocean_breeze.1c28251e.mp3","title":"Ocean Breeze","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ocean-breeze-lofi-ukulele-peaceful-mp3/","station":"lofi","contexts":["garage","cruise"],"lufs":-16,"durationS":197.6},{"id":"fma164357","file":"media/audio/music/loyalty_freak_music_traveling_in_your_mind.993d471f.mp3","title":"Traveling in your mind","artist":"Loyalty Freak Music","album":"TO CHILL AND STAY AWAKE","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/TO_CHILL_AND_STAY_AWAKE/Loyalty_Freak_Music_-_TO_CHILL_AND_STAY_AWAKE_-_05_Traveling_in_your_mind/","station":"lofi","contexts":["cruise","welcome","garage"],"lufs":-18.2,"durationS":236.6},{"id":"fma171982","file":"media/audio/music/loyalty_freak_music_beach.b048753f.mp3","title":"Beach","artist":"Loyalty Freak Music","album":"MELODIES WITH A BEAT","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/MELODIES_WITH_A_BEAT/Loyalty_Freak_Music_-_MELODIES_WITH_A_BEAT_-_08_Beach/","station":"lofi","contexts":["garage"],"lufs":-17.3,"durationS":161},{"id":"fma279362","file":"media/audio/music/holiznacc0_kodama.566d47aa.mp3","title":"Kodama","artist":"HoliznaCC0","album":"Nature Spirit","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/nature-spirit/kodama/","station":"jazz","contexts":["garage"],"lufs":-18.7,"durationS":150.7},{"id":"fma278622","file":"media/audio/music/ketsa_as_above_so_below.89e379ac.mp3","title":"As Above So Below","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/as-above-so-below-1/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":233.4},{"id":"fma279012","file":"media/audio/music/ketsa_time_runs_like_the_thames.6ff984d7.mp3","title":"Time Runs Like The Thames","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/vintage-modernity/time-runs-like-the-thames/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":274},{"id":"fmaia_shreveport_stomp","file":"media/audio/music/jelly_roll_morton_shreveport_stomp.e54398f1.mp3","title":"Shreveport Stomp","artist":"Jelly Roll Morton","album":"1924","licence":"Public domain","source":"https://archive.org/details/shreveport-stomp-jelly-roll-morton-1924","station":"jazz","contexts":["garage"],"lufs":-21,"durationS":171},{"id":"fmaia_wolverine_blues","file":"media/audio/music/benson_orchestra_of_chicago_jelly_roll_morton_wolverine_blues.1d938bf6.mp3","title":"Wolverine Blues","artist":"Benson Orchestra of Chicago (Jelly Roll Morton)","album":"1923, Library of Congress National Jukebox","licence":"Public domain","source":"https://archive.org/details/loc-jukebox-67806-wolverine-blues","station":"jazz","contexts":["garage"],"lufs":-17.5,"durationS":184.8},{"id":"fma278664","file":"media/audio/music/tommaso_croce_generic_sloppy_dub.9cc4f5ec.mp3","title":"Generic Sloppy Dub","artist":"Tommaso Croce","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Dilating_Times/backwards/generic-sloppy-dub/","station":"dubambient","contexts":["garage","cruise"],"lufs":-17.4,"durationS":316.7},{"id":"fma278757","file":"media/audio/music/1000_handz_greenery.6b82d1b4.mp3","title":"Greenery","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/greenery/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":209.4},{"id":"fma278845","file":"media/audio/music/guided_levitation_return_to_our_home.763873e2.mp3","title":"Return To Our Home","artist":"Guided Levitation","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/guided-levitation/eternal/return-to-our-home/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":430.2},{"id":"fma279307","file":"media/audio/music/matthew_c_wright_calming_royalty_free_piano_a_season_of_change.1228ba10.mp3","title":"Calming Royalty Free Piano - \"A Season of Change\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/calming-royalty-free-piano-a-season-of-change/","station":"classical","contexts":["garage","welcome"],"lufs":-17.6,"durationS":151},{"id":"fma279308","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_autumn_sunshine.cfc128af.mp3","title":"Gentle Royalty Free Piano - \"Autumn Sunshine\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-autumn-sunshine/","station":"classical","contexts":["garage","welcome"],"lufs":-18.7,"durationS":186.2},{"id":"fma279304","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_rustling.3ea1a7a8.mp3","title":"Gentle Royalty Free Piano - \"Rustling\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-rustling/","station":"classical","contexts":["garage","welcome"],"lufs":-17,"durationS":161.1},{"id":"fmaia_goldberg_14","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_13.e46289fd.mp3","title":"Goldberg Variations, BWV 988: Variatio 13","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":254.5},{"id":"fmaia_goldberg_20","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_19.024a83f6.mp3","title":"Goldberg Variations, BWV 988: Variatio 19","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.2,"durationS":85},{"id":"fmaia_goldberg_25","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_24_canone_a.38d27e77.mp3","title":"Goldberg Variations, BWV 988: Variatio 24, Canone all'Ottava","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.4,"durationS":165.5},{"id":"fmaia_goldberg_27","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_26.cb2b4f50.mp3","title":"Goldberg Variations, BWV 988: Variatio 26","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16,"durationS":122.8},{"id":"fmaia_goldberg_31","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria_da_capo.b65c85c5.mp3","title":"Goldberg Variations, BWV 988: Aria da capo","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":170.1},{"id":"fmaia_goldberg_01","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria.8a525c07.mp3","title":"Goldberg Variations, BWV 988: Aria","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-19.6,"durationS":299.5},{"id":"fma278391","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_i_m_callin_late.73576f4b.mp3","title":"Peaceful Royalty Free Guitar - \"I'm Callin' Late\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-im-callin-late/","station":"roots","contexts":["garage","cruise"],"lufs":-19.2,"durationS":138.8},{"id":"fma279039","file":"media/audio/music/mr_smith_ranchero.03b7fda8.mp3","title":"Ranchero","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/synchromatic/ranchero/","station":"roots","contexts":["garage","cruise"],"lufs":-16.5,"durationS":114.2},{"id":"fma278388","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_a_cloudy_life.5400048e.mp3","title":"Calming Royalty Free Guitar - \"A Cloudy Life\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-a-cloudy-life/","station":"roots","contexts":["garage"],"lufs":-19,"durationS":170.8},{"id":"fma237449","file":"media/audio/music/mr_smith_ships.d2277b62.mp3","title":"Ships","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/ships/","station":"roots","contexts":["garage","cruise"],"lufs":-16.6,"durationS":82.1},{"id":"fma248055","file":"media/audio/music/mr_smith_quidi_vidi.94325e9a.mp3","title":"Quidi Vidi","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/quidi-vidi/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.9},{"id":"fma248226","file":"media/audio/music/mr_smith_in_the_mist.4ca7d4da.mp3","title":"In the Mist","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/in-the-mist/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":54.7},{"id":"fma256748","file":"media/audio/music/maarten_schellekens_whispers_of_the_glen.a0af8efe.mp3","title":"Whispers of the Glen","artist":"Maarten Schellekens","album":null,"licence":"CC0","source":"https://freemusicarchive.org/music/maarten-schellekens/public-domain-1/whispers-of-the-glen/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":161.6},{"id":"fma273704p1","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_1.cc7cdbdd.mp3","title":"Ghostman Blues, part 1","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":161},{"id":"fma273704p3","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_3.0ee810e4.mp3","title":"Ghostman Blues, part 3","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16.1,"durationS":178.9},{"id":"fma271999p2","file":"media/audio/music/daniel_william_lawrence_a_land_of_corn_and_wine_part_2.1a3e2a6e.mp3","title":"A Land of Corn and Wine, part 2","artist":"Daniel William Lawrence","album":"A Land of Corn and Wine","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/a-land-of-corn-and-wine/a-land-of-corn-and-wine-traditional-instrumental-blues-full-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":355.7},{"id":"fma277192","file":"media/audio/music/ketsa_time_falls_like_autumn_leaves.0b326725.mp3","title":"Time falls like Autumn Leaves","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/time-falls-like-autumn-leaves/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":159.7},{"id":"fma279132","file":"media/audio/music/1000_handz_neighbor.194f378e.mp3","title":"Neighbor","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/neighbor/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":129.9},{"id":"fma279302","file":"media/audio/music/1000_handz_busted_tape.8ac88609.mp3","title":"Busted Tape","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/busted-tape/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":66},{"id":"fma277908","file":"media/audio/music/pamela_yuen_beloved.95635664.mp3","title":"Beloved","artist":"Pamela Yuen","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/pamela-yuen/ambient-music-1/beloved-1/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":211.7},{"id":"fma233918","file":"media/audio/music/mr_smith_the_newfie.010088ef.mp3","title":"The Newfie","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/the-newfie/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":87.3},{"id":"fma237242","file":"media/audio/music/mr_smith_da_rock.f15eeafe.mp3","title":"Da Rock","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/da-rock/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":119},{"id":"fma237915","file":"media/audio/music/mr_smith_nfld.ba344a97.mp3","title":"NFLD","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/nfld/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":105.5},{"id":"fma246044","file":"media/audio/music/mr_smith_the_newfie_pt_2.6d0e2be2.mp3","title":"The Newfie Pt 2","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/the-newfie-pt-2/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":85.4},{"id":"fma250186","file":"media/audio/music/mr_smith_sun_glitter.0a050709.mp3","title":"Sun Glitter","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/sun-glitter/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.5},{"id":"fma252236","file":"media/audio/music/mr_smith_birchy_nap.e91e17e6.mp3","title":"Birchy Nap","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/birchy-nap/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":55.2},{"id":"fma278389","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_brown_hair_and_chacos.53071383.mp3","title":"Quiet Royalty Free Guitar - \"Brown Hair and Chacos\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-brown-hair-and-chacos/","station":"roots","contexts":["garage","cruise"],"lufs":-18.5,"durationS":151},{"id":"fma278390","file":"media/audio/music/matthew_c_wright_slow_royalty_free_guitar_how_about_forever.19ea0bdb.mp3","title":"Slow Royalty Free Guitar - \"How About Forever\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/slow-royalty-free-guitar-how-about-forever/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":189.2},{"id":"fma278392","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_just_a_flight_away.b39b38a7.mp3","title":"Relaxing Royalty Free Guitar - \"Just a Flight Away\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-just-a-flight-away/","station":"roots","contexts":["garage","cruise"],"lufs":-17.9,"durationS":124.3},{"id":"fma278394","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_montana.ac8ceebf.mp3","title":"Peaceful Royalty Free Guitar - \"Montana\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-montana/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":156},{"id":"fma278395","file":"media/audio/music/matthew_c_wright_soothing_royalty_free_guitar_old_steel.a75dce3f.mp3","title":"Soothing Royalty Free Guitar - \"Old Steel\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/soothing-royalty-free-guitar-old-steel/","station":"roots","contexts":["garage","cruise"],"lufs":-20.6,"durationS":131.9},{"id":"fma278396","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_so_proud_of_you.dd50ab59.mp3","title":"Relaxing Royalty Free Guitar - \"So Proud of You\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-so-proud-of-you/","station":"roots","contexts":["garage","cruise"],"lufs":-19.5,"durationS":205.4},{"id":"fma278397","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_this_here_house.560c1a4a.mp3","title":"Quiet Royalty Free Guitar - \"This Here House\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-this-here-house/","station":"roots","contexts":["garage","cruise"],"lufs":-22,"durationS":157},{"id":"fma278398","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_time_to_let_go.c14ebc99.mp3","title":"Calming Royalty Free Guitar - \"Time to Let Go\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-time-to-let-go/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":178.8},{"id":"fma278399","file":"media/audio/music/matthew_c_wright_simple_royalty_free_guitar_village_on_the_lake.b92784aa.mp3","title":"Simple Royalty Free Guitar - \"Village on the Lake\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/simple-royalty-free-guitar-village-on-the-lake/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":130.3}];window.FLYDIY_AUDIO_MEDIA={"amb.forest.day":["media/audio/sfx/amb_forest_day_288899.157bf96e.mp3"],"amb.forest.night":["media/audio/sfx/amb_forest_night_333221.3df54da1.mp3"],"amb.wind.light":["media/audio/sfx/amb_wind_light_160469.4d45c6a1.mp3"],"amb.wind.clear":["media/audio/sfx/amb_wind_clear_156414.f23315bb.mp3"],"amb.wind.mountain":["media/audio/sfx/amb_wind_mountain_165526.140f3920.mp3"],"amb.wind.storm":["media/audio/sfx/amb_wind_storm_157280.9fdd2a2c.mp3"],"amb.shore.surf":["media/audio/sfx/amb_shore_surf_155641.27350310.mp3"],"amb.shore.rocks":["media/audio/sfx/amb_shore_rocks_155895.6ee71344.mp3"],"amb.lake.near":["media/audio/sfx/amb_lake_near_135046.22d12339.mp3"],"amb.lake.lap":["media/audio/sfx/amb_lake_lap_428088.0018a69a.mp3"],"amb.stream":["media/audio/sfx/amb_stream_264180.4ff25da2.mp3"],"amb.harbour":["media/audio/sfx/amb_harbour_339440.fc5b7cd1.mp3"],"amb.village":["media/audio/sfx/amb_village_435819.20299c23.mp3"],"amb.airfield":["media/audio/sfx/amb_airfield_319102.6b4237cf.mp3"],"amb.hangar":["media/audio/sfx/amb_hangar_427861.f9afe454.mp3"],"amb.rain.roof":["media/audio/sfx/amb_rain_roof_329578.c0aba715.mp3"],"amb.frogs.night":["media/audio/sfx/amb_frogs_night_135561.9aa1f6e9.mp3"],"amb.loons":["media/audio/sfx/amb_loons_39339.7d136ae5.mp3"],"amb.meadow":["media/audio/sfx/amb_meadow_639459.3facef88.mp3"],"bird.eagle":["media/audio/sfx/bird_eagle_381200.1d11590c.mp3","media/audio/sfx/bird_eagle_392212.13114290.mp3","media/audio/sfx/bird_eagle_nps-golden-eagle.ca760fa8.mp3"],"bird.gull":["media/audio/sfx/bird_gull_166710.bb2f19eb.mp3","media/audio/sfx/bird_gull_263786.51e3ecb8.mp3","media/audio/sfx/bird_gull_73497.919ce49c.mp3"],"bird.crow":["media/audio/sfx/bird_crow_182090.1a94cd39.mp3","media/audio/sfx/bird_crow_361470.92582da1.mp3","media/audio/sfx/bird_crow_75162.543a2c22.mp3","media/audio/sfx/bird_crow_nps-raven.8c13e1ca.mp3"],"bird.owl":["media/audio/sfx/bird_owl_465697.2ee834d0.mp3","media/audio/sfx/bird_owl_479588.817cca9b.mp3","media/audio/sfx/bird_owl_558396.fc398755.mp3"],"dog":["media/audio/sfx/dog_160366.86fe02dc.mp3"],"gnd.gravel":["media/audio/sfx/gnd_gravel_251661.0e48f11b.mp3"],"mech.creak":["media/audio/sfx/mech_creak_119468.101f6d88.mp3","media/audio/sfx/mech_creak_238289.6d8b72b3.mp3"],"mech.door":["media/audio/sfx/mech_door_345066.66dbaf6d.mp3"],"mech.switch":["media/audio/sfx/mech_switch_361371.9ced067b.mp3","media/audio/sfx/mech_switch_423957.6b08a0c1.mp3"],"water.drip":["media/audio/sfx/water_drip_166986.f81c294b.mp3"],"ui.click":["media/audio/sfx/ui_click_528561.bdd8b52e.mp3"],"vehicle.pickup":["media/audio/sfx/vehicle_pickup_450227.be208f91.mp3"],"amb.rain.outside":["media/audio/sfx/amb_rain_outside_523391.da71d15a.mp3"],"amb.birds.open":["media/audio/sfx/amb_birds_open_456766.c24bacac.mp3"],"amb.lake.shore":["media/audio/sfx/amb_lake_shore_352356.21fc75ef.mp3"],"amb.sea.open":["media/audio/sfx/amb_sea_open_460061.6c0c2f0e.mp3"],"bird.loon":["media/audio/sfx/bird_loon_39339.3c306d67.mp3","media/audio/sfx/bird_loon_nps-loon.ebce31d5.mp3","media/audio/sfx/bird_loon_nps-loon.c47baae3.mp3"],"tram.bell":["media/audio/sfx/tram_bell_497561.9e7279e8.mp3"],"tram.hum":["media/audio/sfx/tram_hum_442493.2b3fe7d3.mp3"],"boat.idle":["media/audio/sfx/boat_idle_637743.0d3d93e0.mp3"],"animal.bear":["media/audio/sfx/animal_bear_nps-grizzly-vocal.def683e6.mp3","media/audio/sfx/animal_bear_nps-grizzly-vocal.98163160.mp3","media/audio/sfx/animal_bear_nps-grizzly-roar.02f72aba.mp3"],"animal.elk":["media/audio/sfx/animal_elk_nps-elk-bugle-1.10ba252d.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.d2390a80.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.c7320d85.mp3"],"animal.deer":["media/audio/sfx/animal_deer_351113.97a7d90b.mp3","media/audio/sfx/animal_deer_351113.5b6da753.mp3"],"animal.whale.blow":["media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.58dfd4e5.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.d2504229.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.7663f71d.mp3"],"animal.orca.blow":["media/audio/sfx/animal_orca_blow_nps-porpoise.b8a0c8fc.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.5d0de2ec.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.45872e4e.mp3"],"bird.thrush":["media/audio/sfx/bird_thrush_nps-varied-thrush.603dc854.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dc4d4664.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dba365b7.mp3"],"mill.stamp":["media/audio/sfx/mill_stamp_322871.33f9ef7a.mp3"]};window.FLYDIY_VOICE={"voice":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"voices":{"norman":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"john":{"name":"john","id":"en_US-john-medium","who":"male, US","role":"Chief Walt Brennan (the interview)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/john/medium","dataset":"LibriVox readings by one reader, ~12.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"fine-tuned (600 epochs) from en_US-kristin-medium, itself trained from scratch on public-domain LibriVox","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"kristin":{"name":"kristin","id":"en_US-kristin-medium","who":"female, US","role":"Officer Dana Hale (recorded messages)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/kristin/medium","dataset":"LibriVox readings by one reader, ~11.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (2000 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"libritts":{"name":"libritts","id":"en_US-libritts-high","who":"US, 904 speakers (LibriTTS)","role":"the residents who phone in","quality":"high","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/libritts/high","dataset":"LibriTTS train-clean-360 (Zen et al. 2019; from LibriSpeech, from LibriVox)","datasetLicence":"CC BY 4.0","datasetUrl":"http://www.openslr.org/60/","lineage":"trained from scratch on train-clean-360","credit":"LibriTTS corpus by Heiga Zen et al. (Google), CC BY 4.0, http://www.openslr.org/60/","render":{"lufs":-20,"kbps":48,"takes":"whole"}}},"script":{"file":"media/audio/voice/radio_script.96bc74e6.json","items":352,"seconds":2085.9,"bytes":12743609}}</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=d854feec"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=52c3ced6"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3678040d"></script>
@@ -197468,208 +197537,94 @@ function garageInit(api) {
     // Save asks what you have made of it
     if (st) loadSpec(JSON.parse(JSON.stringify(st.spec)), '');
   };
-  let fleetEl = null;
-  // G3800 (PLANE_THUMB, AIRCRAFT-LOOKS's VIGNETTE - the user's side-profile picture on the plane cards): a row's picture
-  // when one exists, under the build's own key ('mine:' + the slot as stored, 'stock:' + its name, 'cand:' + the pool's
-  // file); none = today's row. The rack redraws when a picture lands ('plane-thumb')
-  const thumbOn = (b, key) => {
-    let u = null; try { u = window.PLANE_THUMB && window.PLANE_THUMB.get(key); } catch (e) { u = null; }
-    if (!u || typeof b.prepend !== 'function') return;
-    const im = document.createElement('img'); im.src = u; im.alt = ''; im.className = 'gfThumb'; b.prepend(im);
+  // ---- THE FLEET (the user, 13 Nov: "load aircraft" FULL SCREEN, a tile per aeroplane with its picture, Load and Fiche,
+  // ordered and filtered; the phone too) ------------------------------------------------------------------------------
+  // The popup (#gFleet) went: fleet_screen.js (window.FLEET_SCREEN) draws the screen. This file keeps what it always
+  // owned - the saved builds and every verb on them - and hands them over as DATA (fleetModel) and DOORS (fleetVerbs);
+  // nothing here draws. The confirmations ("fly from there?", Sell, Delete) moved onto the tile itself (the user's rule:
+  // no browser pop-ups over the game); the doors below act, they do not ask.
+  // A SAVE'S CERTIFICATE, as its tile says it (pure: the envelope's plaque, bench.js persist): grounded - the airframe is
+  // damaged; certified - the airworthiness card was shown (masterShown: "a plane having received one does not lose it"),
+  // changed - ...and a row went stale or was suspended since; tested - bench rows, no certificate; none - never tested
+  const slotCert = pq => {
+    if (!pq) return 'none';
+    if (pq.grounded) return 'grounded';
+    const R = pq.results || {}, ids = Object.keys(R);
+    const moved = ids.some(id => R[id] && (R[id].stale || R[id].suspended));
+    if (pq.masterShown) return moved ? 'changed' : 'certified';
+    return ids.length ? 'tested' : 'none';
   };
-  function buildFleet() {
-    if (fleetEl) return;
-    fleetEl = document.createElement('div');
-    fleetEl.id = 'gFleet';
-    fleetEl.hidden = true;
-    fleetEl.innerHTML =
-      '<div class="gfBox">' +
-        '<div class="gfH"><span>THE FLEET</span>' +
-          '<button type="button" class="dfPill gfAll">all planes</button>' +
-          '<button type="button" class="dfPill gfClose">close</button></div>' +
-        '<div class="gfSub"></div>' +
-        '<div class="gfGroupH">your aeroplanes</div>' +
-        '<div class="gfMine"></div>' +
-        // PLANE-LIST (the user 10 Nov: "I do not want to see duplicated planes anymore"): no stock-designs shelf - its six
-        // presets were older copies of the listed planes (piper cub, jodel, jodel D112, cessna 172, chinook, sailplane);
-        // every listed plane is behind "all planes" (stockByName stays: a stock door still opens a test plane for the dev)
-        '<div class="gfGroupH gfCandH">built here, not yet certified</div>' +
-        '<div class="gfCand"></div>' +
-        '<div class="gfFoot">' +
-          '<span class="gfHint">import and export are on the ribbon' +
-            ' \u2014 or drop a .json on the window</span>' +
-        '</div>' +
-      '</div>';
-    fleetEl.querySelector('.gfClose').addEventListener('click', closeFleet);
-    fleetEl.querySelector('.gfAll').addEventListener('click', () => { closeFleet(); if (window.NEW_PLANE) window.NEW_PLANE.open({ all: true }); });
-    if (typeof window.addEventListener === 'function') window.addEventListener('plane-thumb', () => { if (fleetEl && !fleetEl.hidden) renderFleet(); });
-    // the scrim closes it too — backing out of a load door costs one click
-    fleetEl.addEventListener('click', e => {
-      if (e.target === fleetEl) closeFleet(); });
-    // THE TWO JSON DOORS MOVED TO THE RIBBON (2026-09-03). They are VERBS,
-    // and this popup was declared the home of the NOUNS the day it was cut;
-    // filing them here put a verb inside a verb, two clicks deep, which is
-    // exactly the misfiling the ribbon exists to end.
-    // (a build dropped on the open rack: the window's drop below, G2799)
-    document.body.appendChild(fleetEl);
-  }
-  function openFleet() { buildFleet(); renderFleet(); fleetEl.hidden = false; }
-  function closeFleet() { if (fleetEl) fleetEl.hidden = true; }
-  function renderFleet() {
-    if (!fleetEl) return;
-    const mine = fleetEl.querySelector('.gfMine');
-    if (!mine) return;
+  const fleetModel = () => {
     // G3612 (the user 25 Oct, item 39: "a career starts only with its own plane. Any imported plane in the career costs
-    // money"): a career's rack is its own builds (api.ownSlots); the shelf's others are the sandbox's, bought in below
+    // money"): a career's hangar is its own builds (api.ownSlots); the shelf's others are the sandbox's, bought in
     const shelf = slotNames(), names = api.ownSlots ? api.ownSlots(shelf) : shelf;
-    const bring = api.importable ? api.importable(shelf) : [];
     const label = n => (api.slotLabel ? api.slotLabel(n) : n);
-    mine.innerHTML = '';
-    if (!names.length) {
-      const d = document.createElement('div');
-      d.className = 'gfEmpty';
-      d.textContent = LS
-        ? 'no saved aeroplanes yet — Save the build on the stand and it appears here'
-        : 'browser storage is unavailable, so nothing can be saved — the stock designs below still load';
-      mine.appendChild(d);
-    }
-    const rowBtn = (name, meta) => {
-      const b = document.createElement('button');
-      b.type = 'button'; b.className = 'gfLoad';
-      const bb = document.createElement('b'); bb.textContent = name;
-      const sp = document.createElement('span'); sp.textContent = meta;
-      b.appendChild(bb); b.appendChild(sp);
-      return b;
-    };
-    for (const n of names) {
-      const row = document.createElement('div');
-      // PREM-S2 (G2230): WHERE IT STANDS, on its row ("in HOME", "out at w3", "away at Jumbo Mine" - the player's
-      // fleet ledger, app.js -> playerPlace). An aeroplane standing at another base than the garage's is GREYED:
-      // it can be flown from there, and loading it asks "fly from there?" (its roll-out starts where it stands).
-      let P = null;
-      try { P = api.place ? api.place(n) : null; } catch (e) { P = null; }
+    const money = v => (api.money ? api.money(v) : String(v));
+    const rows = names.map(n => {
+      let env = null; try { env = JSON.parse(lsGet(SLOT + n) || 'null'); } catch (e) { env = null; }
+      const fl = (env && env.log && env.log.flights) || [];
+      // PREM-S2 (G2230): WHERE IT STANDS ("in HOME", "out at w3", "away at Jumbo Mine" - app.js playerPlace); an
+      // aeroplane at another base than the garage's is AWAY: it flies from there (its roll-out starts where it stands)
+      let P = null; try { P = api.place ? api.place(n) : null; } catch (e) { P = null; }
       const away = !!(P && P.kind !== 'none' && !P.here);
-      // WEAR-PRICE: BROKEN AND GROUNDED - the row greyed and said so (its repair is on the WEAR tab)
+      // WEAR-PRICE: BROKEN AND GROUNDED (its repair is on the WEAR tab)
       let brk = null; try { brk = api.broken ? api.broken(n) : null; } catch (e) { brk = null; }
-      row.className = 'gfRow' + (n === slotName ? ' cur' : '') + (away ? ' gfAway' : '') + (brk ? ' gfBroken' : '');
-      const meta = (n === slotName ? 'on the stand' : slotMeta(n)) + (brk ? ' · broken, grounded' : '');
-      const b = rowBtn(label(n), meta);   // (G3612: a career's copy shows its design's name)
-      thumbOn(b, 'mine:' + n);
-      if (P && P.text) {
-        const pl = document.createElement('i');
-        pl.className = 'gfPlace gfPlace-' + P.kind; pl.textContent = P.text;
-        if (P.wear >= 0.05) pl.title = 'weathered outside: ' + Math.round(P.wear * 100) + ' %';
-        b.appendChild(pl);
-      }
-      if (away) b.title = 'at ' + P.aero + ' — fly from there?';
-      b.addEventListener('click', () => {
-        if (away && !confirm('“' + n + '” is ' + P.text + ' — fly from there?')) return;
-        closeFleet();
-        if (away && api.flyFrom) { try { api.flyFrom(n); } catch (e) {} }
-        loadSlot(n);
-      });
-      const del = document.createElement('button');
-      del.type = 'button'; del.className = 'gfDel'; del.textContent = '✕';
-      del.title = 'Delete this saved build';
-      del.addEventListener('click', () => {
-        if (!confirm('Delete the saved build "' + n + '"?')) return;
-        lsDel(SLOT + n);
-        try { if (window.PLANE_THUMB) window.PLANE_THUMB.forget(n); } catch (e) {}
-        try { if (window.FICHE_BOARD) window.FICHE_BOARD.forget(n); } catch (e) {}   // (R3: the fiche goes with its plane)
-        if (slotName === n) slotName = '';
-        slotsChanged({ deleted: n });
-        syncRibbon();
-      });
-      row.appendChild(b);
-      // PLANE-RENDERS R3: the fiche's door, on a plane that has one (fiche_board.js; added when the store answers)
-      try { if (window.FICHE_BOARD) window.FICHE_BOARD.rowButton(row, n); } catch (e) {}
-      // "bring it home" (GQ5: free, instant) on an aeroplane standing outside - tied down at a base or away
-      if (P && (P.kind === 'out' || P.kind === 'away') && api.bringHome) {
-        const hb = document.createElement('button');
-        hb.type = 'button'; hb.className = 'gfHome'; hb.textContent = '⌂';
-        hb.title = 'Bring it home (free): back into the hangar it last left, else the main hangar';
-        hb.addEventListener('click', () => { try { api.bringHome(n); } catch (e) {} renderFleet(); });
-        row.appendChild(hb);
-      }
-      // PRICE-CAL: SELL (a career's own airframe) - at its used-market price (its age, never more than it cost you);
-      // greyed with the reason when it cannot be sold now (the tutorial, a route flown on it, a story aeroplane)
-      let sv = null;
-      try { sv = api.saleOf ? api.saleOf(n) : null; } catch (e) { sv = null; }
-      if (sv && api.sell) {
-        const pw = api.money ? api.money(sv.value) : String(sv.value);
-        const sb = document.createElement('button');
-        sb.type = 'button'; sb.className = 'gfSell'; sb.textContent = 'Sell';
-        sb.disabled = !!sv.why || !(sv.value > 0);
-        sb.title = sv.why ? 'Not for sale now: ' + sv.why
-          : 'Sell on the used market for ' + pw + (sv.cap ? ' (capped at what it cost you)' : '');
-        sb.addEventListener('click', () => {
-          if (!confirm('Sell “' + label(n) + '” on the used market for ' + pw + '? It leaves your fleet for good.')) return;
-          let r = null; try { r = api.sell(n); } catch (e) { r = { ok: false, why: String((e && e.message) || e) }; }
-          if (r && !r.ok) { alert(r.why || 'refused'); return; }
-          lsDel(SLOT + n);
-          try { if (window.PLANE_THUMB) window.PLANE_THUMB.forget(n); } catch (e) {}
-          try { if (window.FICHE_BOARD) window.FICHE_BOARD.forget(n); } catch (e) {}   // (R3: the fiche goes with its plane)
-          if (slotName === n) slotName = '';
-          slotsChanged({ deleted: n });
-          syncRibbon();
-        });
-        row.appendChild(sb);
-      }
-      row.appendChild(del);
-      mine.appendChild(row);
-    }
-    if (bring.length && api.importSlot) {
-      const hd = document.createElement('div');
-      hd.className = 'gfEmpty gfBringHd'; hd.textContent = 'from the sandbox — bought into this career:';
-      mine.appendChild(hd);
-      for (const n of bring) {
-        const row = document.createElement('div');
-        row.className = 'gfRow gfBring';
-        let p = null; try { p = api.importPrice ? api.importPrice(n) : null; } catch (e) { p = null; }
-        const pw = p == null ? 'the build does not read' : (api.money ? api.money(p) : String(p));
-        const b = rowBtn(n, 'buy in · ' + pw);
-        thumbOn(b, 'mine:' + n);
-        b.title = 'Bring this sandbox build into the career: a purchase, then it stands in your hangar';
-        b.disabled = p == null;
-        b.addEventListener('click', () => {
-          if (!confirm('Buy “' + n + '” into this career for ' + pw + '?')) return;
-          let r = null; try { r = api.importSlot(n); } catch (e) { r = { ok: false, why: String((e && e.message) || e) }; }
-          if (r && !r.ok) alert(r.why || 'refused');
-          renderFleet();
-        });
-        row.appendChild(b);
-        mine.appendChild(row);
-      }
-    }
-    // CANDIDATE OFFICIAL: the pool's files, drawn when the index answers (the rack is usable before it does)
-    const candBox = fleetEl.querySelector('.gfCand');
-    if (candBox) {
-      candBox.innerHTML = '';
-      candidates().then(list => {
-        candBox.innerHTML = '';
-        for (const c of list) {
-          const row = document.createElement('div');
-          row.className = 'gfRow gfCandRow';
-          const b = rowBtn(c.name || c.file, 'candidate official' + (c.note ? ' · ' + c.note : ''));
-          thumbOn(b, 'cand:' + c.file);
-          b.title = c.tip;
-          b.addEventListener('click', () => { closeFleet(); loadCandidate(c); });
-          row.appendChild(b);
-          candBox.appendChild(row);
-        }
-      });
-    }
-    // the same honesty as the birth flow: loading over an UNSAVED build is
-    // the destructive path, and it says so before it is walked through
-    const sub = fleetEl.querySelector('.gfSub');
-    if (sub) {
-      const un = !slotName;
-      sub.textContent = un
-        ? 'loading replaces the unsaved build on the stand'
-        : 'pick an aeroplane for the stand — “' + slotName + '” keeps its slot';
-      if (sub.classList) sub.classList.toggle('warn', un);
-    }
-  }
+      // PRICE-CAL: SELL (a career's own airframe) at its used-market price, or the reason it cannot be sold now
+      let sv = null; try { sv = api.saleOf ? api.saleOf(n) : null; } catch (e) { sv = null; }
+      const spec = env && env.spec, meta = (spec && spec.meta) || {};
+      return {
+        slot: n, name: label(n), reg: meta.reg || '', cur: n === slotName,
+        meta: n === slotName ? 'on the stand' : slotMeta(n),
+        place: P && P.text ? { text: P.text, kind: P.kind, aero: P.aero || '', wear: +P.wear || 0 } : null,
+        away, broken: !!brk, cert: brk ? 'grounded' : slotCert(env && env.plaque),
+        flights: fl.length, hours: hoursOf(fl), flown: fl.length ? String(fl[fl.length - 1].on || '') : '',
+        sale: sv && api.sell ? { value: sv.value, text: money(sv.value), why: sv.why || '', cap: !!sv.cap,
+                                 ok: !sv.why && sv.value > 0 } : null,
+        home: !!(P && (P.kind === 'out' || P.kind === 'away') && api.bringHome),
+        thumb: 'mine:' + n,
+        // LIVERY MANAGER (AIRCRAFT-LOOKS): a save may hold several liveries; the tile names how many (it shows the worn one)
+        liveries: env && Array.isArray(env.liveries) ? env.liveries.length : 0,
+      };
+    });
+    const bring = (api.importable && api.importSlot ? api.importable(shelf) : []).map(n => {
+      let p = null; try { p = api.importPrice ? api.importPrice(n) : null; } catch (e) { p = null; }
+      return { slot: n, name: n, price: p, text: p == null ? 'the build does not read' : money(p), thumb: 'mine:' + n };
+    });
+    return { rows, bring, stand: slotName, storage: !!LS };
+  };
+  const forgetSlot = n => {
+    lsDel(SLOT + n);
+    try { if (window.PLANE_THUMB) window.PLANE_THUMB.forget(n); } catch (e) {}
+    try { if (window.FICHE_BOARD) window.FICHE_BOARD.forget(n); } catch (e) {}   // (R3: the fiche goes with its plane)
+    if (slotName === n) slotName = '';
+    slotsChanged({ deleted: n });
+    syncRibbon();
+  };
+  const fleetVerbs = {
+    // onto the stand; an aeroplane that is away flies from where it stands (the tile asked first)
+    load: n => {
+      let P = null; try { P = api.place ? api.place(n) : null; } catch (e) { P = null; }
+      if (P && P.kind !== 'none' && !P.here && api.flyFrom) { try { api.flyFrom(n); } catch (e) {} }
+      loadSlot(n);
+    },
+    // "bring it home" (GQ5: free, instant): back into the hangar it last left, else the main hangar
+    home: n => { try { if (api.bringHome) api.bringHome(n); } catch (e) {} },
+    del: n => { forgetSlot(n); return { ok: true }; },
+    sell: n => {
+      let r = null; try { r = api.sell ? api.sell(n) : { ok: false, why: 'no market here' }; }
+      catch (e) { r = { ok: false, why: String((e && e.message) || e) }; }
+      if (r && r.ok === false) return r;
+      forgetSlot(n);
+      return r || { ok: true };
+    },
+    // a sandbox build bought into the career: a purchase, then it stands in your hangar
+    buyIn: n => { let r = null; try { r = api.importSlot(n); } catch (e) { r = { ok: false, why: String((e && e.message) || e) }; }
+                  return r || { ok: true }; },
+    // CANDIDATE OFFICIAL: a pool file onto the stand
+    candidate: c => loadCandidate(c),
+  };
+  const fleetRefresh = () => { try { if (window.FLEET_SCREEN && window.FLEET_SCREEN.refresh) window.FLEET_SCREEN.refresh(); } catch (e) {} };
+  const openFleet = tab => { if (window.FLEET_SCREEN) window.FLEET_SCREEN.open({ tab: tab || 'mine' }); };
   function syncRibbon() {
     // storage unavailable is not an error worth a dialog, but the two save
     // doors should not pretend to work. LOAD stays live either way — the
@@ -197689,7 +197644,7 @@ function garageInit(api) {
       // G3721 (PHONE-GARAGE): the name is a disk icon now (editor.css) - the name rides in its tooltip
       nm.title = (slotName ? '“' + slotName + '”' : 'Not saved yet') + ' — save, save as, new, load, storage, import, export';
     }
-    renderFleet();                    // a no-op until the rack is first built
+    fleetRefresh();                   // the open Fleet screen redraws its hangar (nothing when it is shut)
   }
   const saveAs = name => {
     if (!name) return;
@@ -197772,7 +197727,7 @@ function garageInit(api) {
   if ($('gNew')) $('gNew').addEventListener('click', () => {
     if (window.DESIGN_FLOW) window.DESIGN_FLOW.openBirth();
   });
-  if ($('gLoad')) $('gLoad').addEventListener('click', openFleet);
+  if ($('gLoad')) $('gLoad').addEventListener('click', () => openFleet('mine'));
   if ($('gSave')) $('gSave').addEventListener('click', () =>
     saveAs(slotName || (prompt('Name this aeroplane:', 'My aeroplane') || '').trim()));
   if ($('gSaveAs')) $('gSaveAs').addEventListener('click', () =>
@@ -197932,7 +197887,6 @@ function garageInit(api) {
       if (!/\.json$/i.test(f.name || '') && !/json/.test(f.type || '')) {
         alert('Import refused: ' + f.name + ' is not a .json'); return;
       }
-      closeFleet();
       readFile(f);
     });
   }
@@ -198037,6 +197991,8 @@ function garageInit(api) {
       // CANDIDATE OFFICIAL: the pool's index (a promise of its planes), one onto the stand (unnamed, no plaque), and
       // every saved build in one file - the design flow's new-aeroplane cards read the first two
       planeLists, openListed, officialPool,
+      // THE FLEET (fleet_screen.js): the saved builds as data and their doors
+      fleet: fleetModel, fleetDo: fleetVerbs,
       candidates, openCandidate: loadCandidate, exportAll: exportAllFile,
       load: n => { const t = lsGet(SLOT + n); if (!t) return;
                    const g = unwrap(t); loadSpec(g.spec, n, g.plaque, g.log); },
@@ -199041,6 +198997,7 @@ function garageInit(api) {
       const H = W.FLYDIY_HOLDS ? W.FLYDIY_HOLDS() : null;
       if (H && (!H.inGarage || H.craftAway || H.holdRender || H.rollHold)) return false;
       if (W.NEW_PLANE && W.NEW_PLANE.isOpen && W.NEW_PLANE.isOpen()) return false;
+      if (W.FLEET_SCREEN && W.FLEET_SCREEN.isOpen && W.FLEET_SCREEN.isOpen()) return false;   // (FLEET: the screen covers the stand)
       const aw = document.getElementById('bAward'); if (aw && !aw.hidden) return false;
       const sc = W.CAGE_UI_SCENE; if (!sc || !sc.parent) return false;
       return !document.hidden;
@@ -209769,10 +209726,12 @@ function hold(on) { try { if (window.FLYDIY_UI_HOLD) window.FLYDIY_UI_HOLD(!!on)
 function open(opts) {
   if (!NG() || !D()) return false;
   if (busy) return false;
+  // ALL PLANES moved to the Fleet screen (FLEET, the user 13 Nov: one full-screen place to pick a plane): this door forwards
+  if (opts && opts.all) return !!(window.FLEET_SCREEN && window.FLEET_SCREEN.open({ tab: 'all' }));
   if (!el) build();
-  choices = {}; page = opts && opts.all ? 'all' : 'start'; stepI = 0; regText = '';
+  choices = {}; page = 'start'; stepI = 0; regText = '';
   offer = (opts && opts.offer) || null;
-  el.querySelector('.npTitle').textContent = page === 'all' ? 'ALL PLANES' : offer ? 'CHOOSE AN AEROPLANE' : 'NEW AEROPLANE';
+  el.querySelector('.npTitle').textContent = offer ? 'CHOOSE AN AEROPLANE' : 'NEW AEROPLANE';
   el.hidden = false;
   document.documentElement.classList.add('npOpen');
   document.documentElement.classList.toggle('npOffer', !!offer);
@@ -209842,7 +209801,7 @@ function skip() {
   advance();
 }
 function next() {
-  if (busy || page === 'all') return;
+  if (busy) return;
   if (page === 'start') { page = 'step'; stepI = 0; render(); return; }
   if (page === 'step') { skip(); return; }
   if (page === 'summary') generate();
@@ -209870,20 +209829,18 @@ function render() {
   const body = el.querySelector('.npBody');
   const dots = el.querySelector('.npDots');
   const st = steps();
-  dots.innerHTML = page === 'all' ? '' : st.map((s, i) => '<i class="' + (page === 'step' && i === stepI ? 'on' : stepDone(s) ? 'done' : '') +
+  dots.innerHTML = st.map((s, i) => '<i class="' + (page === 'step' && i === stepI ? 'on' : stepDone(s) ? 'done' : '') +
     '" title="' + esc(s.title) + '"></i>').join('') + '<i class="sum' + (page === 'summary' ? ' on' : '') + '" title="summary"></i>';
   const fb = el.querySelector('.npBack'), fs = el.querySelector('.npSkip'), fn = el.querySelector('.npNext');
   const hint = el.querySelector('.npHint');
   fb.disabled = page === 'start';
   fs.hidden = page !== 'step';
-  fb.hidden = fn.hidden = page === 'all';
   fn.textContent = page === 'summary' ? 'generate' : page === 'start' ? 'start ›' : 'next ›';
   fn.classList.toggle('npGo', page === 'summary');
   hint.textContent = page === 'step' ? 'step ' + (stepI + 1) + ' of ' + st.length + ' · skip takes the usual choice' : '';
   body.innerHTML = '';
   body.scrollTop = 0;
-  if (page === 'all') renderAll(body);
-  else if (page === 'start') renderStart(body);
+  if (page === 'start') renderStart(body);
   else if (page === 'step') renderStep(body, st[stepI]);
   else renderSummary(body);
 }
@@ -210003,46 +209960,8 @@ function renderStart(body) {
   }
 }
 
-// ALL PLANES (PLANE-LISTS, the user 4 Nov): every aeroplane we have, read-only: the lists (GARAGE_SPEC.planeLists: internal is the
-// dev's), a tile each with its side profile when one is baked, a name alone when not. A press loads it through the garage's own
-// door (GARAGE_SPEC.openListed) and hands over like a candidate; nothing is built or loaded before the press
-const LIST_CLASSES = [['reproduction', 'reproductions', 'reproduction'], ['story', 'story', 'story'], ['original', 'originals', 'original'],
-  ['wip', 'work in progress', 'work in progress'], ['next', 'next versions', 'next version'], ['legacy', 'test planes (legacy)', 'test plane'],
-  ['archive', 'archive', 'archived']];
-const FICHE_CLASSES = ['reproduction', 'story', 'original'];
-function renderAll(body) {
-  let warn = '';
-  try { warn = GS().name() ? '' : 'loading one replaces the unsaved build on the stand'; } catch (e) {}
-  body.insertAdjacentHTML('beforeend', '<div class="npStepH"><b>Every aeroplane we have</b><span>a press puts it on the stand, unsaved' +
-    '</span></div>' + (warn ? '<div class="npLead"><em class="npWarn">' + esc(warn) + '</em></div>' : ''));
-  const g0 = GS();
-  if (!g0 || !g0.planeLists || !g0.openListed) return;
-  const host = document.createElement('div');
-  body.appendChild(host);
-  g0.planeLists().then(list => {
-    if (page !== 'all' || !isOpen()) return;
-    // PLANE-LIST (the user 10 Nov): the classes, each its heading and its word; the last three reach the developer only
-    for (const [key, head, word] of LIST_CLASSES) {
-      const rows = list.filter(p => p.list === key);
-      if (!rows.length) continue;
-      host.insertAdjacentHTML('beforeend', '<div class="npSecH">' + esc(head) + '</div>');
-      const grid = document.createElement('div');
-      grid.className = 'npGrid npSmall';
-      for (const p of rows) {
-        const b = document.createElement('button');
-        b.type = 'button'; b.className = 'npTile'; b.dataset.list = key;
-        b.innerHTML = '<b>' + esc(p.name) + '</b><small>' + esc(word + (p.note ? ' — ' + p.note : '')) + '</small>';
-        b.title = p.tip || '';
-        if (p.thumb) { b.dataset.thumb = p.thumb; npThumb(b); }
-        // PLANE-RENDERS R3: an official plane ships with its fiche - its door in the tile's corner (fiche_board.js; none when not baked)
-        if (FICHE_CLASSES.includes(key) && p.thumb && window.FICHE_BOARD) { try { window.FICHE_BOARD.tileDoor(b, p.thumb); } catch (e) {} }
-        b.addEventListener('click', () => withSpinner(() => { LOG.generated++; g0.openListed(p); }));
-        grid.appendChild(b);
-      }
-      host.appendChild(grid);
-    }
-  }, () => {});
-}
+// ALL PLANES (PLANE-LISTS, the user 4 Nov) lived here until the Fleet screen took it (fleet_screen.js, 13 Nov): the list's
+// classes as tiles, each its picture, Load and Fiche - open({ all: true }) forwards there
 
 function renderStep(body, s) {
   const g = NG();
@@ -210155,6 +210074,471 @@ function generateCard(a) {
 
 window.NEW_PLANE = { open, close, isOpen, LOG, _state: () => ({ page, stepI, choices: Object.assign({}, choices), busy }),
                      _pick: pick, _next: next, _skip: skip, _back: back };
+})();
+</script>
+<script type="text/x-flydiy">
+// FLEET_SCREEN — the full-screen fleet (FLEET, the user 12-13 Nov 2026).
+//
+// "Load aircraft" should be FULL SCREEN, not pop-up menus on top of the main UI. Every aircraft is a TILE with a little
+// picture, a LOAD button and a FICHE button. The list can be ORDERED and FILTERED ... even the phone should show tiles
+// and have a full-screen picker where you can check the fiche. (The design page, 13 Nov: the user took every default.)
+//
+// TWO TABS: YOUR HANGAR (the saved builds - a career's own airframes - garage.js GARAGE_SPEC.fleet()) and ALL PLANES
+// (the plane list's player classes, builds/lists/plane_lists.json through GARAGE_SPEC.planeLists, and the candidate
+// pool). It replaces the LOAD popup (#gFleet) and the New-aeroplane screen's "all planes" page.
+// THE CONTRACT:
+//   1 CHOOSING COSTS NOTHING. The screen is opaque and holds the garage's render loop (FLYDIY_UI_HOLD, as NEW_PLANE
+//     does) for as long as it is up; a click selects, sorts or filters this screen's own DOM. Nothing is built or loaded
+//     before Load.
+//   2 ONE SOURCE EACH. Names, classes and registrations are the list's; pictures PLANE_THUMB's; the fiche FICHE_BOARD's
+//     (AIRCRAFT-LOOKS': the board opens over this screen, never a second copy here); the hangar's rows and their verbs
+//     garage.js's. This file declares no plane and no number.
+//   3 NO BROWSER POP-UPS. "Fly from there?", Sell, Delete and Buy in ask on the tile itself, one line, Cancel or Yes.
+//   4 A LOAD IS ONE PRESS, BEHIND A SPINNER (the user's rule: spinner + yield, never a freeze), then the screen closes.
+// The desktop peek (the right column) shows the selected plane's hero on the fiche's cream sheet and its numbers from
+// its baked fiche; the phone has no peek - its tile's Fiche opens the board. Filters and sort are remembered per tab on
+// this device (flydiy.fleet.ui). GATE FLEET checks the screen and its doors (tools/_fleet_check.js).
+'use strict';
+(function () {
+  const W = typeof window !== 'undefined' ? window : null;
+  if (!W) return;
+  const GS = () => W.GARAGE_SPEC || null;
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  const PREF = 'flydiy.fleet.ui';
+  // the list's classes, in the list's order; the last three reach the developer only (GARAGE_SPEC.planeLists filters)
+  const CLASSES = [['reproduction', 'Reproductions'], ['story', 'Story'], ['original', 'Originals'], ['wip', 'Work in progress'],
+    ['cand', 'Candidates'], ['next', 'Next versions'], ['legacy', 'Test planes'], ['archive', 'Archive']];
+  const CLASS_WORD = { reproduction: 'Reproduction', story: 'Story', original: 'Original', wip: 'Work in progress', cand: 'Candidate',
+    next: 'Next version', legacy: 'Test plane', archive: 'Archived' };
+  const CERT = [['certified', 'Certified', 'ok'], ['changed', 'Changed since cert', 'warn'], ['tested', 'Tested', ''],
+    ['none', 'No certificate', ''], ['grounded', 'Broken, grounded', 'bad']];
+  const CERT_OF = {}; for (const c of CERT) CERT_OF[c[0]] = c;
+  const SORTS = {
+    mine: [['flown', 'Last flown'], ['name', 'Name'], ['place', 'Where it stands'], ['state', 'Certificate'], ['price', 'Price']],
+    all: [['class', 'By class'], ['name', 'Name'], ['number', 'List number']],
+  };
+  const LOG = { opened: 0, renders: 0, loads: 0, asked: 0 };
+
+  let el = null, tab = 'mine', sel = { mine: null, all: null }, busy = false, sheet = false;
+  let ask = null;            // { k, text, yes, go } - the one tile asking a question
+  let menu = null;           // the key of the tile whose ⋯ is open
+  let model = null;          // GARAGE_SPEC.fleet(), read on open and on refresh
+  let lists = null, cands = null, listsAsked = false;
+  let fiches = null, ficheAsked = false, mineFiches = null;
+
+  // ---- what is remembered (per device; a missing or blocked store is today's defaults) ----------------------------
+  const ui = (() => {
+    const d = { tab: 'mine', view: 'tiles', mine: { sort: 'flown', q: '', off: [] }, all: { sort: 'class', q: '', off: [], fiche: false } };
+    try { const j = JSON.parse(W.localStorage.getItem(PREF) || 'null'); if (j && typeof j === 'object') {
+      if (j.view === 'list' || j.view === 'tiles') d.view = j.view;
+      if (j.tab === 'all' || j.tab === 'mine') d.tab = j.tab;
+      for (const t of ['mine', 'all']) if (j[t]) {
+        if (SORTS[t].some(s => s[0] === j[t].sort)) d[t].sort = j[t].sort;
+        if (Array.isArray(j[t].off)) d[t].off = j[t].off.filter(x => typeof x === 'string');
+        if (t === 'all') d.all.fiche = !!j.all.fiche;
+      }
+    } } catch (e) {}
+    return d;
+  })();
+  const keep = () => { try { W.localStorage.setItem(PREF, JSON.stringify({ tab: ui.tab, view: ui.view,
+    mine: { sort: ui.mine.sort, off: ui.mine.off }, all: { sort: ui.all.sort, off: ui.all.off, fiche: ui.all.fiche } })); } catch (e) {} };
+  const phone = () => { try { return document.documentElement.classList.contains('phone') || (W.matchMedia && W.matchMedia('(max-width: 700px)').matches); } catch (e) { return false; } };
+
+  // ---- the data, as tiles ----------------------------------------------------------------------------------------
+  function readModel() {
+    try { model = GS() && GS().fleet ? GS().fleet() : null; } catch (e) { model = null; }
+    if (!model) model = { rows: [], bring: [], stand: '', storage: false };
+    return model;
+  }
+  function askLists() {
+    if (listsAsked) return; listsAsked = true;
+    const g = GS(); if (!g) return;
+    const redraw = () => { if (isOpen()) render(); };
+    if (g.planeLists) g.planeLists().then(l => { lists = l || []; redraw(); }, () => { lists = []; redraw(); });
+    else lists = [];
+    if (g.candidates) g.candidates().then(l => { cands = l || []; redraw(); }, () => { cands = []; redraw(); });
+    else cands = [];
+  }
+  // the fiches: the official planes' baked index (media/fiches/index.json, keyed by the list's picture key or list:N;
+  // a newer bake also names its row: listRow) and the player's own (PLANE_FICHE.names)
+  function askFiches() {
+    if (ficheAsked) return; ficheAsked = true;
+    if (typeof fetch === 'function') fetch('media/fiches/index.json').then(r => (r.ok ? r.json() : null)).then(j => { fiches = (j && j.fiches) || {}; if (isOpen()) render(); }, () => { fiches = {}; });
+    try { if (W.PLANE_FICHE && W.PLANE_FICHE.names) W.PLANE_FICHE.names().then(a => { mineFiches = new Set(a || []); if (isOpen()) render(); }, () => {}); } catch (e) {}
+  }
+  const listKey = p => p.thumb || 'list:' + p.n;
+  function bakedOf(key, n) {
+    if (!fiches) return null;
+    if (fiches[key]) return { key, rec: fiches[key] };
+    if (n != null) for (const k in fiches) if (fiches[k] && fiches[k].listRow === n) return { key: k, rec: fiches[k] };
+    return null;
+  }
+  function tilesMine() {
+    const m = model || readModel(), out = [];
+    for (const r of m.rows) out.push({ k: 'mine:' + r.slot, kind: 'mine', r, name: r.name, reg: r.reg, thumb: r.thumb,
+      state: r.cert, fiche: mineFiches && mineFiches.has(r.slot) ? r.slot : null });
+    for (const b of m.bring) out.push({ k: 'bring:' + b.slot, kind: 'bring', r: b, name: b.name, reg: '', thumb: b.thumb, state: null, fiche: null });
+    return out;
+  }
+  function tilesAll() {
+    const out = [];
+    for (const p of lists || []) {
+      const fk = bakedOf(listKey(p), p.n);
+      out.push({ k: 'list:' + p.n, kind: 'list', p, n: p.n, name: p.name, reg: p.reg || '', thumb: p.thumb || null, cls: p.list,
+        fiche: fk ? fk.key : null, baked: fk ? fk.rec : null });
+    }
+    for (const c of cands || []) {
+      const key = 'cand:' + c.file, fk = bakedOf(key, null);
+      out.push({ k: key, kind: 'cand', c, name: c.name || c.file, reg: '', thumb: key, cls: 'cand', note: c.note || '',
+        fiche: fk ? fk.key : null, baked: fk ? fk.rec : null });
+    }
+    return out;
+  }
+  const matchQ = (t, q) => !q || (t.name + ' ' + (t.reg || '') + ' ' + (t.r && t.r.slot || '')).toLowerCase().indexOf(q.toLowerCase()) >= 0;
+  const facetOf = t => (tab === 'mine' ? (t.kind === 'bring' ? 'bring' : t.state) : t.cls);
+  function shown() {
+    const all = tab === 'mine' ? tilesMine() : tilesAll(), U = ui[tab];
+    return all.filter(t => matchQ(t, U.q) && U.off.indexOf(facetOf(t)) < 0 && (tab !== 'all' || !U.fiche || t.fiche));
+  }
+  const clsIdx = c => { const i = CLASSES.findIndex(x => x[0] === c); return i < 0 ? 99 : i; };
+  const certIdx = c => { const i = CERT.findIndex(x => x[0] === c); return i < 0 ? 99 : i; };
+  const byName = (a, b) => a.name.localeCompare(b.name);
+  function sorted(ts) {
+    const s = ui[tab].sort, a = ts.slice();
+    if (tab === 'mine') {
+      // the bought-in shelf stays last whatever the sort
+      const k = t => (t.kind === 'bring' ? 1 : 0);
+      if (s === 'flown') a.sort((x, y) => k(x) - k(y) || String(y.r.flown || '').localeCompare(String(x.r.flown || '')) || byName(x, y));
+      else if (s === 'place') a.sort((x, y) => k(x) - k(y) || (x.r.away === y.r.away ? 0 : x.r.away ? 1 : -1) ||
+        String(x.r.place ? x.r.place.text : '').localeCompare(String(y.r.place ? y.r.place.text : '')) || byName(x, y));
+      else if (s === 'state') a.sort((x, y) => k(x) - k(y) || certIdx(x.state) - certIdx(y.state) || byName(x, y));
+      else if (s === 'price') a.sort((x, y) => k(x) - k(y) || ((y.r.sale ? y.r.sale.value : -1) - (x.r.sale ? x.r.sale.value : -1)) || byName(x, y));
+      else a.sort((x, y) => k(x) - k(y) || byName(x, y));
+    } else {
+      if (s === 'name') a.sort(byName);
+      else if (s === 'number') a.sort((x, y) => (x.n == null ? 1e9 : x.n) - (y.n == null ? 1e9 : y.n) || byName(x, y));
+      else a.sort((x, y) => clsIdx(x.cls) - clsIdx(y.cls) || (x.n == null ? 1e9 : x.n) - (y.n == null ? 1e9 : y.n) || byName(x, y));
+    }
+    return a;
+  }
+  // the headings the sort draws: All planes by class -> one per class; Your hangar -> the bought-in shelf apart
+  function headOf(t) {
+    if (tab === 'mine') return t.kind === 'bring' ? 'From the sandbox: buy into this career' : 'Your aeroplanes';
+    if (ui.all.sort !== 'class') return '';
+    const c = CLASSES.find(x => x[0] === t.cls);
+    return c ? (t.cls === 'cand' ? 'Candidates: built here, not yet certified' : c[1]) : '';
+  }
+
+  // ---- drawing ---------------------------------------------------------------------------------------------------
+  function build() {
+    el = document.createElement('div');
+    el.id = 'flWrap';
+    el.hidden = true;
+    el.setAttribute('role', 'dialog');
+    el.setAttribute('aria-label', 'Fleet');
+    el.innerHTML =
+      '<div class="flBar">' +
+        '<span class="flTitle">FLEET</span>' +
+        '<div class="flSeg" role="tablist"><button type="button" role="tab" data-tab="mine">Your hangar<b></b></button>' +
+          '<button type="button" role="tab" data-tab="all">All planes<b></b></button></div>' +
+        '<input class="flSearch" type="search" placeholder="Search name or registration" aria-label="Search the fleet">' +
+        '<span class="flSp"></span>' +
+        '<label class="flSortL"><span>Sort</span><select class="flSort" aria-label="Sort"></select></label>' +
+        '<button type="button" class="flBtn flView" title="Tiles or list"></button>' +
+        '<button type="button" class="flBtn flFilt">Filters</button>' +
+        '<button type="button" class="flBtn flClose">Close</button>' +
+      '</div>' +
+      '<div class="flSub"></div>' +
+      '<div class="flMain"><div class="flRail"></div><div class="flGridW"><div class="flGrid"></div></div><div class="flPeek"></div></div>' +
+      '<div class="flSheet" hidden><div class="flSheetBox"><div class="flSheetBody"></div>' +
+        '<div class="flSheetFoot"><button type="button" class="flBtn flClear">Clear</button><button type="button" class="flBtn flPri flShow">Show</button></div></div></div>' +
+      '<div class="flSpin" hidden><div class="flSpinBox"><i></i><span>loading the aeroplane…</span></div></div>';
+    el.querySelector('.flClose').addEventListener('click', close);
+    for (const b of el.querySelectorAll('.flSeg button')) b.addEventListener('click', () => setTab(b.dataset.tab));
+    const q = el.querySelector('.flSearch');
+    q.addEventListener('input', () => { ui[tab].q = q.value; render(); });
+    el.querySelector('.flSort').addEventListener('change', e => { ui[tab].sort = e.target.value; keep(); render(); });
+    el.querySelector('.flView').addEventListener('click', () => { ui.view = ui.view === 'list' ? 'tiles' : 'list'; keep(); render(); });
+    el.querySelector('.flFilt').addEventListener('click', () => { sheet = true; render(); });
+    el.querySelector('.flShow').addEventListener('click', () => { sheet = false; render(); });
+    el.querySelector('.flClear').addEventListener('click', () => { ui[tab].off = []; if (tab === 'all') ui.all.fiche = false; keep(); render(); });
+    el.querySelector('.flSheet').addEventListener('click', e => { if (e.target.classList && e.target.classList.contains('flSheet')) { sheet = false; render(); } });
+    // the grid's clicks, delegated: one listener, whatever the redraws
+    el.querySelector('.flGrid').addEventListener('click', onGrid);
+    el.querySelector('.flGrid').addEventListener('dblclick', e => { const t = tileOf(e.target); if (t && !e.target.closest('button')) primary(t); });
+    el.querySelector('.flPeek').addEventListener('click', onGrid);
+    el.querySelector('.flRail').addEventListener('click', onFacet);
+    el.querySelector('.flSheetBody').addEventListener('click', onFacet);
+    // Escape closes (a question first, then the sheet, then the screen); nothing behind it takes keys while it is up
+    W.addEventListener('keydown', e => {
+      if (!isOpen() || busy) return;
+      if (e.key === 'Escape') { e.stopPropagation(); e.preventDefault(); if (ask || menu) { ask = null; menu = null; render(); } else if (sheet) { sheet = false; render(); } else close(); }
+    }, true);
+    W.addEventListener('plane-thumb', () => { if (isOpen()) soon(); });
+    W.addEventListener('plane-fiche', () => { ficheAsked = false; if (isOpen()) { askFiches(); soon(); } });
+    document.body.appendChild(el);
+  }
+  let soonT = 0;
+  const soon = () => { if (soonT) return; soonT = setTimeout(() => { soonT = 0; if (isOpen()) render(); }, 120); };
+
+  const tileOf = n => { const e = n && n.closest ? n.closest('[data-k]') : null; return e ? find(e.dataset.k) : null; };
+  let last = [];
+  const find = k => last.find(t => t.k === k) || null;
+
+  function picUrl(t, hero) {
+    let u = null;
+    try { if (W.PLANE_THUMB && t.thumb) u = (hero && t.kind !== 'mine' && W.PLANE_THUMB.hero ? W.PLANE_THUMB.hero(t.thumb) : null) || W.PLANE_THUMB.get(t.thumb); } catch (e) { u = null; }
+    return u;
+  }
+  function stateHtml(t) {
+    if (t.kind === 'bring') return '<span class="flState">buy in · ' + esc(t.r.text) + '</span>';
+    if (t.kind === 'mine') { const c = CERT_OF[t.state] || CERT_OF.none; return '<span class="flState ' + (c[2] ? 'st-' + c[2] : '') + '">' + esc(c[1]) + '</span>'; }
+    return '<span class="flCls">' + esc(CLASS_WORD[t.cls] || t.cls || '') + '</span>';
+  }
+  function tileHtml(t) {
+    const r = t.r || {}, u = picUrl(t, false), selK = sel[tab];
+    const cls = ['flTile', t.kind === 'cand' ? 'flCand' : '', r.cur ? 'cur' : '', r.away ? 'flAway' : '', r.broken ? 'flBroken' : '', selK === t.k ? 'sel' : ''].filter(Boolean).join(' ');
+    let h = '<div class="' + cls + '" data-k="' + esc(t.k) + '">';
+    h += '<div class="flPic">' + (u ? '<img alt="" src="' + esc(u) + '">' : '<span class="flGlyph">' + esc((t.name || '?').slice(0, 1)) + '</span>') +
+      (t.n != null ? '<span class="flNo">#' + esc(t.n) + '</span>' : '') +
+      (r.place ? '<span class="flPlace flPlace-' + esc(r.place.kind) + '"' + (r.place.wear >= 0.05 ? ' title="weathered outside: ' + Math.round(r.place.wear * 100) + ' %"' : '') + '>' + esc(r.place.text) + '</span>' : '') + '</div>';
+    h += '<div class="flMeta"><b class="flName" title="' + esc(t.name) + '">' + esc(t.name) + '</b>' +
+      '<div class="flRow2"><span class="flReg">' + esc(t.reg || '') + '</span>' + stateHtml(t) + '</div>' +
+      (t.kind === 'mine' && (r.meta || r.liveries > 1) ? '<span class="flNote">' + esc([r.meta, r.liveries > 1 ? r.liveries + ' liveries' : ''].filter(Boolean).join(' · ')) + '</span>' : '') +
+      (t.kind === 'cand' && t.note ? '<span class="flNote">' + esc(t.note) + '</span>' : '') + '</div>';
+    if (ask && ask.k === t.k) {
+      h += '<div class="flAsk"><span>' + esc(ask.text) + '</span><div class="flActs">' +
+        (ask.go ? '<button type="button" class="flBtn" data-a="no">Cancel</button><button type="button" class="flBtn flPri" data-a="yes">' + esc(ask.yes) + '</button>'
+                : '<button type="button" class="flBtn flPri" data-a="no">OK</button>') + '</div></div>';
+    } else if (menu === t.k) {
+      h += '<div class="flMenu">' + moreRows(t).map(m => '<button type="button" class="flBtn" data-a="' + m.a + '"' + (m.off ? ' disabled title="' + esc(m.off) + '"' : '') + '>' + esc(m.label) + '</button>').join('') +
+        '<button type="button" class="flBtn" data-a="shut">Back</button></div>';
+    } else {
+      const load = t.kind === 'bring' ? '<button type="button" class="flBtn flPri" data-a="buy"' + (r.price == null ? ' disabled' : '') + '>Buy in</button>'
+        : r.cur ? '<button type="button" class="flBtn flPri" data-a="load" disabled>On the stand</button>'
+        : '<button type="button" class="flBtn flPri" data-a="load"' + (r.away ? ' title="at ' + esc(r.place && r.place.aero) + ': fly from there?"' : '') + '>Load</button>';
+      h += '<div class="flActs">' + load +
+        (t.kind === 'bring' ? '' : '<button type="button" class="flBtn" data-a="fiche"' + (t.fiche ? '' : ' disabled title="No fiche yet: it is drawn at its airworthiness certificate"') + '>Fiche</button>') +
+        (moreRows(t).length ? '<button type="button" class="flBtn flMore" data-a="more" aria-label="More">⋯</button>' : '') + '</div>';
+    }
+    return h + '</div>';
+  }
+  function moreRows(t) {
+    if (t.kind !== 'mine') return [];
+    const r = t.r, out = [];
+    if (r.home) out.push({ a: 'home', label: 'Bring home' });
+    if (r.sale) out.push({ a: 'sell', label: 'Sell · ' + r.sale.text, off: r.sale.ok ? '' : 'Not for sale now: ' + (r.sale.why || 'no price') });
+    out.push({ a: 'del', label: 'Delete' });
+    return out;
+  }
+  function facetsHtml() {
+    const U = ui[tab], all = tab === 'mine' ? tilesMine() : tilesAll(), cnt = {};
+    for (const t of all) if (matchQ(t, U.q)) { const f = facetOf(t); cnt[f] = (cnt[f] || 0) + 1; }
+    const ck = (key, label, n, on) => '<button type="button" class="flCk' + (on ? ' on' : '') + (n ? '' : ' none') + '" data-f="' + esc(key) + '"><i></i><span>' + esc(label) + '</span><em>' + (n || 0) + '</em></button>';
+    let h = '';
+    if (tab === 'mine') {
+      h += '<div class="flGrp"><span class="flGh">Certificate</span>';
+      for (const c of CERT) if (cnt[c[0]] || U.off.indexOf(c[0]) >= 0) h += ck(c[0], c[1], cnt[c[0]], U.off.indexOf(c[0]) < 0);
+      h += '</div>';
+      if (cnt.bring || U.off.indexOf('bring') >= 0) h += '<div class="flGrp"><span class="flGh">Owned</span>' + ck('bring', 'Sandbox builds to buy in', cnt.bring, U.off.indexOf('bring') < 0) + '</div>';
+    } else {
+      h += '<div class="flGrp"><span class="flGh">Class</span>';
+      for (const c of CLASSES) if (cnt[c[0]] || U.off.indexOf(c[0]) >= 0) h += ck(c[0], c[1], cnt[c[0]], U.off.indexOf(c[0]) < 0);
+      h += '</div><div class="flGrp"><span class="flGh">Fiche</span>' + ck('#fiche', 'Has a fiche', all.filter(t => t.fiche && matchQ(t, U.q)).length, U.fiche) + '</div>';
+    }
+    if (tab === 'all' && phone()) h += '<div class="flGrp"><span class="flGh">Sort</span>' + SORTS.all.map(s => '<button type="button" class="flCk flSortCk' + (ui.all.sort === s[0] ? ' on' : '') + '" data-sort="' + s[0] + '"><i></i><span>' + esc(s[1]) + '</span></button>').join('') + '</div>';
+    return h;
+  }
+  function onFacet(e) {
+    const b = e.target.closest && e.target.closest('button'); if (!b) return;
+    if (b.dataset.sort) { ui[tab].sort = b.dataset.sort; keep(); render(); return; }
+    const f = b.dataset.f; if (!f) return;
+    const U = ui[tab];
+    if (f === '#fiche') U.fiche = !U.fiche;
+    else { const i = U.off.indexOf(f); if (i >= 0) U.off.splice(i, 1); else U.off.push(f); }
+    keep(); render();
+  }
+  function peekHtml() {
+    const t = find(sel[tab]);
+    if (!t || phone()) return '<div class="flPeekNone">Select a plane to see its fiche here.</div>';
+    const u = picUrl(t, true), r = t.r || {}, d = (t.baked && t.baked.data) || null;
+    let h = '<div class="flSheetPk' + (u ? '' : ' empty') + '"><div class="flSheetH"><span>' + esc(String(t.name).toUpperCase()) + '</span><span>' + esc(t.reg || '') + '</span></div>' +
+      (u ? '<img alt="" src="' + esc(u) + '">' : '<span class="flGlyph">' + esc((t.name || '?').slice(0, 1)) + '</span>') + '</div>';
+    const rows = [];
+    if (t.kind === 'mine') {
+      const c = CERT_OF[t.state] || CERT_OF.none;
+      rows.push(['Certificate', c[1]]);
+      if (r.place) rows.push(['Stands', r.place.text]);
+      if (r.flights) rows.push(['Flown', r.flights + (r.flights === 1 ? ' flight' : ' flights') + (r.hours >= 0.005 ? ' · ' + r.hours.toFixed(1) + ' h' : '')]);
+      if (r.flown) rows.push(['Last flight', r.flown]);
+      if (r.sale) rows.push(['Used price', r.sale.text]);
+    } else {
+      rows.push(['Class', (CLASS_WORD[t.cls] || t.cls) + (t.n != null ? ' · #' + t.n : '')]);
+      if (d) {
+        const s = d.specs || {}, D = d.dims || {};
+        if (s.engine || d.engine) rows.push(['Engine', s.engine || d.engine]);
+        if (d.seats != null) rows.push(['Seats', d.seats + (d.gear ? ' · ' + d.gear : '')]);
+        if (D.span) rows.push(['Span', (+D.span).toFixed(2) + ' m']);
+        if (s.empty) rows.push(['Empty', Math.round(s.empty) + ' kg']);
+        if (s.TORun != null) rows.push(['Take-off run', Math.round(s.TORun) + ' m' + (d.sea ? ' on water' : '')]);
+      } else if (t.kind === 'cand' && t.note) rows.push(['Note', t.note]);
+    }
+    h += '<dl class="flFacts">' + rows.map(x => '<dt>' + esc(x[0]) + '</dt><dd>' + esc(x[1]) + '</dd>').join('') + '</dl>';
+    h += '<div class="flPeekActs" data-k="' + esc(t.k) + '"><button type="button" class="flBtn" data-a="fiche"' + (t.fiche ? '' : ' disabled title="No fiche yet"') + '>Open fiche</button>' +
+      (t.kind === 'bring' ? '<button type="button" class="flBtn flPri" data-a="buy">Buy in</button>'
+        : '<button type="button" class="flBtn flPri" data-a="load"' + (r.cur ? ' disabled' : '') + '>' + (r.cur ? 'On the stand' : 'Load') + '</button>') + '</div>';
+    return h;
+  }
+  function render() {
+    if (!el) return;
+    LOG.renders++;
+    readModelOnce();
+    const ts = sorted(shown()); last = (tab === 'mine' ? tilesMine() : tilesAll());
+    if (sel[tab] && !last.some(t => t.k === sel[tab])) sel[tab] = null;
+    if (!sel[tab] && ts.length && !phone()) sel[tab] = ts[0].k;
+    // the bar
+    for (const b of el.querySelectorAll('.flSeg button')) {
+      const on = b.dataset.tab === tab; b.classList.toggle('on', on); b.setAttribute('aria-selected', on ? 'true' : 'false');
+      const n = b.dataset.tab === 'mine' ? (model ? model.rows.length : 0) : (lists ? lists.length + (cands ? cands.length : 0) : 0);
+      b.querySelector('b').textContent = n ? String(n) : '';
+    }
+    const q = el.querySelector('.flSearch'); if (q.value !== ui[tab].q) q.value = ui[tab].q;
+    const so = el.querySelector('.flSort');
+    so.innerHTML = SORTS[tab].filter(s => tab !== 'mine' || s[0] !== 'price' || (model && model.rows.some(r => r.sale)))
+      .map(s => '<option value="' + s[0] + '"' + (ui[tab].sort === s[0] ? ' selected' : '') + '>' + esc(s[1]) + '</option>').join('');
+    el.querySelector('.flView').textContent = ui.view === 'list' ? '▤ List' : '▦ Tiles';
+    const nOff = ui[tab].off.length + (tab === 'all' && ui.all.fiche ? 1 : 0);
+    el.querySelector('.flFilt').textContent = 'Filters' + (nOff ? ' · ' + nOff : '');
+    // the honesty line (the birth flow's): loading over an UNSAVED build is the destructive path, and it says so first
+    const sub = el.querySelector('.flSub'), un = !(model && model.stand);
+    sub.textContent = un ? 'Loading replaces the unsaved build on the stand' : 'Pick an aeroplane for the stand: “' + model.stand + '” keeps its slot';
+    sub.classList.toggle('warn', un);
+    // the rail, the grid, the peek
+    el.querySelector('.flRail').innerHTML = facetsHtml();
+    const grid = el.querySelector('.flGrid');
+    grid.classList.toggle('flList', ui.view === 'list');
+    let h = '', head = null;
+    for (const t of ts) {
+      const hd = headOf(t);
+      if (hd && hd !== head) { h += '<div class="flGh flGroupH">' + esc(hd) + '</div>'; head = hd; }
+      h += tileHtml(t);
+    }
+    if (!ts.length) h = '<div class="flEmpty">' + esc(emptyLine()) + '</div>';
+    grid.innerHTML = h;
+    el.querySelector('.flPeek').innerHTML = peekHtml();
+    const sh = el.querySelector('.flSheet'); sh.hidden = !sheet;
+    if (sheet) { el.querySelector('.flSheetBody').innerHTML = facetsHtml(); el.querySelector('.flShow').textContent = 'Show ' + ts.length + (ts.length === 1 ? ' plane' : ' planes'); }
+  }
+  let modelFresh = false;
+  const readModelOnce = () => { if (!modelFresh) { readModel(); modelFresh = true; } };
+  function emptyLine() {
+    if (tab === 'all' && !lists) return 'Reading the plane list…';
+    if (ui[tab].q || ui[tab].off.length || (tab === 'all' && ui.all.fiche)) return 'Nothing matches: clear the search or the filters.';
+    if (tab === 'mine') return model && model.storage === false
+      ? 'Browser storage is unavailable, so nothing can be saved. All planes still load.'
+      : 'No saved aeroplanes yet. Save the build on the stand and it appears here.';
+    return 'No planes listed.';
+  }
+
+  // ---- the verbs -------------------------------------------------------------------------------------------------
+  function onGrid(e) {
+    const b = e.target.closest && e.target.closest('button');
+    const holder = e.target.closest && e.target.closest('[data-k]');
+    const t = holder ? find(holder.dataset.k) : null;
+    if (!t) return;
+    if (!b) {   // a click on the tile selects it (the peek follows); on the phone the picture opens the fiche
+      if (phone()) { if (e.target.closest('.flPic') && t.fiche) fiche(t); return; }
+      if (sel[tab] !== t.k) { sel[tab] = t.k; render(); }
+      return;
+    }
+    if (b.disabled) return;
+    const a = b.dataset.a;
+    if (a === 'load') primary(t);
+    else if (a === 'buy') buyIn(t);
+    else if (a === 'fiche') fiche(t);
+    else if (a === 'more') { menu = t.k; ask = null; render(); }
+    else if (a === 'shut') { menu = null; render(); }
+    else if (a === 'home') { menu = null; GS().fleetDo.home(t.r.slot); refresh(); }
+    else if (a === 'sell') askOn(t, 'Sell “' + t.name + '” on the used market for ' + t.r.sale.text + '? It leaves your fleet for good.', 'Sell', () => result(t, GS().fleetDo.sell(t.r.slot)));
+    else if (a === 'del') askOn(t, 'Delete the saved build “' + t.r.slot + '”? It cannot be undone.', 'Delete', () => result(t, GS().fleetDo.del(t.r.slot)));
+    else if (a === 'no') { ask = null; render(); }
+    else if (a === 'yes') { const go = ask && ask.go; ask = null; if (go) go(); else render(); }
+  }
+  const buyIn = t => askOn(t, 'Buy “' + t.name + '” into this career for ' + t.r.text + '?', 'Buy', () => result(t, GS().fleetDo.buyIn(t.r.slot)));
+  function askOn(t, text, yes, go) { LOG.asked++; menu = null; ask = { k: t.k, text, yes, go }; if (sel[tab] !== t.k && !phone()) sel[tab] = t.k; render(); }
+  function result(t, r) {
+    if (r && r.ok === false) { ask = { k: t.k, text: r.why || 'Refused.', go: null }; render(); return; }
+    refresh();
+  }
+  function primary(t) {
+    const g = GS(); if (!g || busy) return;
+    if (t.kind === 'bring') { if (t.r.price != null) buyIn(t); return; }
+    if (t.kind === 'mine') {
+      if (t.r.cur) return;
+      if (t.r.away) return askOn(t, '“' + t.name + '” is ' + t.r.place.text + '. Fly from there?', 'Fly from there', () => loadNow(() => g.fleetDo.load(t.r.slot)));
+      return loadNow(() => g.fleetDo.load(t.r.slot));
+    }
+    if (t.kind === 'cand') return loadNow(() => (g.openCandidate ? g.openCandidate(t.c) : g.fleetDo.candidate(t.c)));
+    if (t.kind === 'list') return loadNow(() => g.openListed(t.p));
+  }
+  // ONE PRESS, BEHIND A SPINNER: painted first (two frames), then the load, then the screen closes; the load's own
+  // failures say so through their own doors (garage.js), and the screen closes either way
+  function loadNow(fn) {
+    if (busy) return;
+    busy = true; LOG.loads++;
+    const sp = el.querySelector('.flSpin'); sp.hidden = false;
+    const go = () => setTimeout(() => {
+      try { fn(); } catch (e) { console.warn('flyDiy (fleet): the load failed -', e && e.message); }
+      busy = false; sp.hidden = true; close();
+    }, 0);
+    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(() => requestAnimationFrame(go)); else go();
+  }
+  function fiche(t) {
+    if (!t.fiche || !W.FICHE_BOARD || !W.FICHE_BOARD.show) return;
+    try { W.FICHE_BOARD.show(t.fiche); } catch (e) { console.warn('flyDiy (fleet): the fiche -', e && e.message); }
+  }
+  function setTab(t) {
+    if (t !== 'mine' && t !== 'all') return;
+    tab = ui.tab = t; ask = null; menu = null; keep();
+    if (t === 'all') askLists();
+    render();
+    try { el.querySelector('.flGridW').scrollTop = 0; } catch (e) {}
+  }
+
+  // ---- the doors -------------------------------------------------------------------------------------------------
+  function hold(on) { try { if (W.FLYDIY_UI_HOLD) W.FLYDIY_UI_HOLD(!!on); } catch (e) {} }
+  function open(opts) {
+    if (!GS()) return false;
+    if (!el) build();
+    const t = opts && (opts.tab === 'all' || opts.tab === 'mine') ? opts.tab : ui.tab;
+    tab = ui.tab = t; ask = null; menu = null; sheet = false; busy = false; modelFresh = false;
+    el.hidden = false;
+    document.documentElement.classList.add('flOpen');
+    LOG.opened++;
+    hold(true);
+    askLists(); askFiches();
+    render();
+    return true;
+  }
+  function close() {
+    if (!el || el.hidden) return;
+    el.hidden = true; ask = null; menu = null; sheet = false;
+    document.documentElement.classList.remove('flOpen');
+    hold(false);
+  }
+  const isOpen = () => !!(el && !el.hidden);
+  // garage.js: a save, a delete, an import, a sale - the hangar is read again
+  function refresh() { modelFresh = false; if (isOpen()) render(); }
+
+  W.FLEET_SCREEN = { open, close, isOpen, refresh, LOG,
+    _state: () => ({ tab, sel: Object.assign({}, sel), ask: ask && { k: ask.k, text: ask.text }, menu, ui: JSON.parse(JSON.stringify(ui)), busy }),
+    _tiles: () => sorted(shown()).map(t => ({ k: t.k, kind: t.kind, name: t.name, reg: t.reg, state: t.state || null, cls: t.cls || null, fiche: t.fiche || null })),
+    // GATE FLEET's hands (tools/_fleet_check.js): a press on a tile's button (or on the tile: a = null), a filter, the tab, the search,
+    // the sort - through the same handlers the clicks reach
+    _act: (k, a, pic) => onGrid({ target: { closest: s => (s === 'button' ? (a ? { dataset: { a }, disabled: false } : null) : s === '[data-k]' ? { dataset: { k } } : s === '.flPic' ? (pic ? {} : null) : null) } }),
+    _facet: f => onFacet({ target: { closest: () => ({ dataset: { f } }) } }),
+    _tab: t => setTab(t), _query: q => { ui[tab].q = q; render(); }, _sort: s => { ui[tab].sort = s; keep(); render(); },
+    _html: () => (el ? el.querySelector('.flGrid').innerHTML : ''), _peek: () => (el ? el.querySelector('.flPeek').innerHTML : '') };
 })();
 </script>
 <script type="text/x-flydiy">
@@ -253250,7 +253634,8 @@ window.FLYDIY_WORLD_COMPOSE = function () {
       (!inGarage && !!flyOpen) || gmVis($('edFly')) || gmVis($('edShelf')) || gmVis($('hsStore')) || gmVis($('bpDesk')) ||
       !!(window.INPUT_PANEL && window.INPUT_PANEL.isOpen && window.INPUT_PANEL.isOpen()) ||
       !!(window.FREIGHT_LOAD && window.FREIGHT_LOAD.isOpen && window.FREIGHT_LOAD.isOpen()) ||
-      !!(window.NEW_PLANE && window.NEW_PLANE.isOpen && window.NEW_PLANE.isOpen());   // (EMPTY-STAND-RELOOK R2: Escape is the chooser's, not a menu nobody sees)
+      !!(window.NEW_PLANE && window.NEW_PLANE.isOpen && window.NEW_PLANE.isOpen()) ||   // (EMPTY-STAND-RELOOK R2: Escape is the chooser's, not a menu nobody sees)
+      !!(window.FLEET_SCREEN && window.FLEET_SCREEN.isOpen && window.FLEET_SCREEN.isOpen());   // (FLEET: and the Fleet screen's)
   };
   function gmHold(on) {   // #bPause's own click, said from here
     running = !on; userPaused = !!on;
@@ -254707,7 +255092,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     // linked (S3): a frame between the world step and the compile step drew
     // the fresh scene and compiled everything synchronously - 12 s in one
     // task. The `frames` step lifts the hold and waits for two real frames.
-    if (holdRender || uiHold || (window.NEW_PLANE && window.NEW_PLANE.isOpen())) { if (FR) FR.end(false, cg); POSE_LERP.back(); PACE.end(perfNow() - tLoop0, physMs, pc.steps, typeof ts === 'number' ? ts : perfNow(), simwRan >= 0 ? 0 : ran, true); BOOT.frame(); return; }   // (REVEAL: the held frame told, not counted)   // (G1100: the newest step back)
+    if (holdRender || uiHold || (window.NEW_PLANE && window.NEW_PLANE.isOpen()) || (window.FLEET_SCREEN && window.FLEET_SCREEN.isOpen())) { if (FR) FR.end(false, cg); POSE_LERP.back(); PACE.end(perfNow() - tLoop0, physMs, pc.steps, typeof ts === 'number' ? ts : perfNow(), simwRan >= 0 ? 0 : ran, true); BOOT.frame(); return; }   // (REVEAL: the held frame told, not counted)   // (G1100: the newest step back)
     if (window.WORLD_RIG && WORLD_RIG.interior) WORLD_RIG.interior(!inGarage && HEADCAM_ACTIVE);   // A6: the cabin's probe while the eye is in the cockpit
     // THE WATER'S MIRROR (G460.11): the decor captured from the eye mirrored about the water when the eye is low
     // over it (the plane: the water under the eye, else under the CG - a shore eye looking at a lake); the sky
