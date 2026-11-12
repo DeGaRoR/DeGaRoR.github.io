@@ -194,6 +194,9 @@ const MANIFEST = {
     // THE FICHE'S PHYSICS PAGES (PHYSICS-PAGES): readouts of the load test, the bench to destruction, the drag build-up,
     // the electrics and the tanks for the fiche's pages - no physics of its own; after the certificate it reads
     '66c_gen_fiche_pages.js',
+    // THE LIVERIES (LIVERY-MANAGER, the user 13 Nov): a plane's saved liveries - what one holds (paint but its job,
+    // finish but its wear), wearing one, the library's operations, what the save's envelope carries; pure
+    '66c_livery.js',
     // THE PLAYER (HANGARS S1): the player's property as one document — its
     // own version and migrator walk beside the spec's (G105: state that is
     // not the aeroplane costs no spec version). References 26_'s default kit
