@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 7b27971990e5a87f
+// body-sha256: a7c720b1682287e5
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -35434,7 +35434,11 @@ const GEN_TIP_SHAPE = { bow: [0.15, 0.80], droop: [0, 0.45], full: [1, 2.6], phi
 const GEN_HANG = { at: 0.50, len: 0.35, tc: 0.12, kgM: 2.4, lv: 0.30,
   // THE KEEL BEAM (61_gen_frame 3e): the cabin's floor beam to the mast's foot - its depth (m) and its mass a metre, a
   // carbon box ~80 x 60 mm, ~1.2 kg/m INFERRED
-  keelD: 0.08, keelKgM: 1.2 };
+  keelD: 0.08, keelKgM: 1.2,
+  // ...or TWO (the user, 12 Nov: "in the real plane, it's actually 2 of them and the pilot fits between, mounted at the
+  // level of the bottom of the pilot window"): carbon tubes ~50 mm, ~0.5 kg/m each INFERRED, at keelK of the cabin's
+  // height when the join measured none, inset keelIn of the half-width
+  tubeKgM: 0.5, keelK: 0.33, keelIn: 0.85 };
 const GEN_TIP_SKID = { h: [0.02, 0.30], h0: 0.10, xc: [0.15, 0.75], xs: 0.45, bow: 0.6, r: 0.008, cd: 1.2, kg: 0.30, each: 90 };
 // ...its STATION (m from the centreline): `bow` of the way out along a tip's bow (a rounded, clipped, Hoerner or
 // elliptic tip: the bow's own outer reach would otherwise touch the ground first, the wing tilted on a single main), at
@@ -38616,7 +38620,11 @@ function clampSpec(spec) {
     // (hangX: the drawn mast's front and back stations, the join's measure - the frame stands it there)
     const hx = fu.hangX, hxOk = Array.isArray(hx) && hx.length === 2 && hx.every(Number.isFinite) && hx[1] - hx[0] > 0.05 && hx[1] - hx[0] < 2;
     if (!(fu.hang === true && hxOk)) delete fu.hangX;
-    if (!(fu.hang === true && (posH === 'high' || posH === 'parasol'))) { delete fu.hang; delete fu.hangAt; delete fu.hangLen; delete fu.hangX; }
+    // (hangKeel 2: the twin keel tubes either side of the pilot, at hangKeelK of the cabin's height - absent, the single
+    // box on the centreline)
+    if (!(fu.hang === true && +fu.hangKeel === 2)) { delete fu.hangKeel; delete fu.hangKeelK; }
+    else { fu.hangKeel = 2; const kk = +fu.hangKeelK; if (fu.hangKeelK != null && Number.isFinite(kk)) fu.hangKeelK = genClamp(kk, 0.05, 0.95); else delete fu.hangKeelK; }
+    if (!(fu.hang === true && (posH === 'high' || posH === 'parasol'))) { delete fu.hang; delete fu.hangAt; delete fu.hangLen; delete fu.hangX; delete fu.hangKeel; delete fu.hangKeelK; }
     else for (const [k, lo, hi] of [['hangAt', 0.10, 0.95], ['hangLen', 0.10, 0.60]]) {
       const v = +fu[k];
       if (fu[k] != null && Number.isFinite(v)) fu[k] = genClamp(v, lo, hi); else delete fu[k];
@@ -42686,7 +42694,36 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // tied to its ring's bottom corners, its aft end clamped on the mast's foot (both chords on the mast's two lowest
   // levels' forward corners). Weightless members, the beam billed a metre (keelKgM); fuselage class; inside the skin
   let keelRef = null;
-  if (mastRef) {
+  // THE TWIN KEEL (fuselage.hangKeel 2): two tubes either side of the pilot at the window's sill (hangKeelK of the cabin's
+  // height, the join's measure), straight from the nose's ring to the mast - each station tied to its ring's two corners
+  // on its side, the pair laddered across, each tube's end on the mast's level at its height (its forward corners and
+  // the level over and under). The controls will mount on them
+  if (mastRef && S.fuse && +S.fuse.hangKeel === 2) {
+    const H0 = typeof GEN_HANG !== 'undefined' ? GEN_HANG : { tubeKgM: 0.5, keelK: 0.33, keelIn: 0.85 };
+    const k = S.fuse.hangKeelK != null ? +S.fuse.hangKeelK : H0.keelK, kin = H0.keelIn || 0.85, xa = mastRef.x[0];
+    const st = []; for (let i = 0; i < F.length; i++) if (ST[i].x < xa - 0.05) st.push(i);
+    if (st.length) {
+      const M = (a, b) => B(a, b, 'fus', false, 'inner', undefined, { noMass: true });
+      const L = [], R = [];
+      for (const i of st) {
+        const at = (lo, hi) => P[lo].map((v, c) => v + (P[hi][c] - v) * k);
+        const pl = at(F[i].BL, F[i].TL), pr = at(F[i].BR, F[i].TR);
+        const l = N(ST[i].x, pl[1], pl[2] * kin, 'KEELL'), r = N(ST[i].x, pr[1], pr[2] * kin, 'KEELR');
+        L.push(l); R.push(r); M(l, r);
+        M(l, F[i].BL); M(l, F[i].TL); M(r, F[i].BR); M(r, F[i].TR); M(l, F[i].BR); M(r, F[i].BL);
+      }
+      for (let q = 0; q + 1 < L.length; q++) { M(L[q], L[q + 1]); M(R[q], R[q + 1]); M(q % 2 ? L[q] : R[q], q % 2 ? R[q + 1] : L[q + 1]); }
+      // the ends on the mast: its level nearest the tubes' height, and the levels round it
+      const lvN = Math.round(mastRef.nodes.length / 4) - 1, yE = P[L[L.length - 1]][1];
+      const lvAt = l => mastRef.nodes.slice(4 * l, 4 * l + 4);
+      let best = 0, bd = Infinity; for (let l = 0; l <= lvN; l++) { const d = Math.abs(P[lvAt(l)[0]][1] - yE); if (d < bd) { bd = d; best = l; } }
+      for (const l of [best - 1, best, best + 1]) if (l >= 0 && l <= lvN) { const [aL, aR] = lvAt(l); M(L[L.length - 1], aL); M(R[R.length - 1], aR); M(L[L.length - 1], aR); M(R[R.length - 1], aL); }
+      const len = xa - ST[st[0]].x, kg = 2 * (H0.tubeKgM || 0.5) * len;
+      for (const n of L.concat(R)) pt(n, kg / (L.length + R.length));
+      keelRef = { twin: 1, left: L, right: R, x: [ST[st[0]].x, xa], len, kg, rings: st, k };
+    }
+  }
+  if (mastRef && !keelRef) {
     const H0 = typeof GEN_HANG !== 'undefined' ? GEN_HANG : { keelD: 0.08, keelKgM: 1.2 };
     const xa = mastRef.x[0], kd = H0.keelD || 0.08, KB = [], KT = [];
     const keelY = i => 0.5 * (P[F[i].BL][1] + P[F[i].BR][1]);
