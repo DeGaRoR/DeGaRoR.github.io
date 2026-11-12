@@ -1099,6 +1099,12 @@ window.CAGE_PAGE = {
       // (the drawn windows moved to '4b · drawn windows', T2.2)
       ['doorPax',   'pax doors',       0, 1, 1,
        { when: P => +P.paxCount > 0 }],
+      // CAR-4: a window in the rearmost wall, looking aft (absent = none); its sizes as a side window's
+      ['rearWinOn', 'rear window', 0, 1, 1],
+      ['rearWinW', 'rear window width', 0.1, 2.0, 0.005, { when: P => +P.rearWinOn, dim: 'len' }],
+      ['rearWinH', 'rear window height', 0.05, 1.2, 0.005, { when: P => +P.rearWinOn, dim: 'len' }],
+      ['rearWinY', 'rear window centre height', -1.0, 1.2, 0.005, { when: P => +P.rearWinOn, dim: 'len' }],
+      ['rearWinR', 'rear window corner radius', 0, 0.3, 0.005, { when: P => +P.rearWinOn, dim: 'len' }],
       ['paxLenLast', 'rear bay length (own)', 0.3, 3.0, 0.01,
        { when: P => +P.paxCount > 1, dim: 'len' }],   // CAR-3: absent = paxLen
       ['doorPaxN',  'pax doors: bays with one (from the front)', 0, 4, 1,

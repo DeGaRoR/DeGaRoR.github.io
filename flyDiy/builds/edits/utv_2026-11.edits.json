@@ -87,7 +87,12 @@
   "stSharpShoulder": 3,
   "twBoomOut": 0.26,
   "stOver": 0.13,
-  "frWinBotY": -0.92
+  "frWinBotY": -0.92,
+  "rearWinOn": 1,
+  "rearWinY": 0.515,
+  "rearWinH": 0.628,
+  "rearWinW": 1.25,
+  "rearWinR": 0.06
  },
  "wings": {
   "span": 2.2,

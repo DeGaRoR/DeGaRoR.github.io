@@ -314888,3 +314888,12 @@ the next steps).
   last station where the floor is flat: at 3.2 the nose's underside rises and the wheel lifted 0.44 m, 2 wheels on the
   ground), s2AxZ 0.6; the shock tops at 45-50 deg round the section (s1_ / s2_shockAng; at 90 they climbed the door and
   broke through the bonnet line), the front's 15 cm aft (s2_shockZ -0.15). 1025 kg, 46 % front, LAUNCHES off paved.
+- **CAR-4, THE UTV'S REAR WINDOW (the user: "a back window ... aligned with the main windows")**: NEW ROWS rearWinOn / W /
+  H / Y / R (_cage_gen.js cageSpec S.rearWin, cageRearCut in both sheet paths after the side windows; _cage_page5.js,
+  _cage_parts.js; absent = none): the knife's own frame (the wells' API: n0 straight aft, the outline in the rearmost
+  wall's plane) and a NEW knife option `only(f, V)` (_knife_gen.js: an excluded face is never cut; absent = all facing
+  faces) - without it the aft projection opened every aft-facing face along the body. The UTV's: y 0.201-0.829 cage = the
+  side glass's sill and head exactly, 1.25 wide, r 0.06. Gates KNIFE / PARTS / CAGEFIT / DESIGN / COWL PASS. Behind the
+  glass stands the interior aft bulkhead (intBulk 1, 6 cm inside) - the window reads dark.
+- **CAN THE UTV TOW**: on the ground yes (a glider on its wheel: lift-off speed in 6.8 s on paved), a launch no - 39 kW at
+  the wheels holds 3 kN at 44 km/h at most; an auto-tow climb needs ~5 kN at ~95 km/h (~150 kW). The wagon is the tug.
