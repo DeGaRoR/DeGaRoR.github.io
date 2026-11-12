@@ -1486,7 +1486,11 @@ function makePilot(sim, def, world, opts) {
       // technique below and its STOL parts (the steeper power-on slope, the aim at the threshold, the three-point touchdown on
       // the stick's whole travel, the brakes at once): the landing the devices were bought for. A profile's own field
       // technique still wins (the Student flies a normal approach everywhere, the STOL Cub included)
-      const stolL0 = !water && !soft && stolOn();   // (the sheet's AND the pilot's qualification)
+      // PILOT-UNIFY: THE STOL TECHNIQUE NEEDS POWER (the flare held on the throttle, the steep power-on slope): a landing without
+      // it (the glide - an engine failure, the tanks dry, a glider: starvedSaid) is flown on the short law / the feel arrival.
+      // GATE GLIDE's emergencies at Cannery (216 m) touched at 3.05-3.28 m/s on the strip-decides STOL plan with no engine
+      const unpowL = !!starvedSaid;
+      const stolL0 = !water && !soft && stolOn() && !unpowL;   // (the sheet's AND the pilot's qualification)
       let technique = (short || stolL0) ? 'short' : soft ? 'soft' : 'normal';
       if (PRA && PRF.field && !water) technique = PRF.field;   // G1943: a profile's own field technique
       const shortT = technique === 'short';
@@ -1497,7 +1501,7 @@ function makePilot(sim, def, world, opts) {
       // FLOWN WITH THE WHOLE STOL TECHNIQUE (the steep power-on slope the aeroplane's own gsMax allows, the aim 10 m in, the
       // stick's whole travel, the brakes at once), devices or none; a long strip gets the easy normal landing. A STOL-device
       // wing keeps STOL-PILOT's rule (short on every land strip that is not soft)
-      const stolL = stolL0 || (shortT && !water && !soft && stolQual);
+      const stolL = stolL0 || (shortT && !water && !soft && stolQual && !unpowL);
       // THE FEEL ARRIVAL (the user: "your approach in a three-point touchdown ... as slow as you can, obviously full flaps
       // down. You flare, you touch"): a taildragger flying the feel law on the short technique, its wing no STOL wing, flies
       // the HOLD-OFF (idle, the sink held while the speed bleeds) with the stick's whole travel, so the nose comes up to the
