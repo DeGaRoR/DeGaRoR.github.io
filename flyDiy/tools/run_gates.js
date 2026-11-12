@@ -537,7 +537,7 @@ const GATES = [
   { id: 'PLANELISTS', file: '_planelists_check.js', argv: ['--selftest'], tier: 'core', wall: 3 },
   // REALBAND (REAL-FIGURES made perennial, 12 Nov): the live set of tools/real_refs.js PLANES (the planes the REAL-CHECK
   // report stands behind) still flies its quick band - the airframe at MIN / TYP / MTOW, the shape, the empty mass - against
-  // tools/realband_baseline.json. A meant move (physics, a refit) is accepted with `node tools/_realband_check.js --write`,
+  // tools/realband_baseline.json. A meant move (physics, a refit) is accepted with `node tools/_realband_check.js --write --reason="..."`,
   // then the set re-flown for the report. Two children (weight 2), ~4 min
   // REALREFS: every reference figure states what it is, its conditions (weight, flaps, surface) and - for a reference made
   // from 12 Nov - its trail (variant, sources with url / date read / quality, each row's source); every PLANES row resolves.
