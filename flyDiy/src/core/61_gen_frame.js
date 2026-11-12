@@ -545,7 +545,10 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       const bk = bucketOf(cls, mnt);
       const g1 = bk && GG ? GG[bk] : 1;
       const webK = (opt && opt.web && MM.coverGauged) ? (R.boxWebK == null ? 1 : R.boxWebK) : 1;
-      const h0 = 0.5 * L * row(MM.lin, cls, tSecM) * aftG * webK, h = h0 * g1;
+      // BIPLANE-SIZING (2026-11-09): a member's own MASS factor (opt.massK: a braced spar's relief, a truss plane's box
+      // stand-in) - the mass and the bill only; its stiffness, damping and section are the member's as before
+      const mKm = (opt && opt.massK > 0) ? opt.massK : 1;
+      const h0 = 0.5 * L * row(MM.lin, cls, tSecM) * aftG * webK * mKm, h = h0 * g1;
       if (bk && !GG) { const G = gauged[bk]; G.m += 2 * h0;
         G.x += h0 * (P[a][0] + P[b][0]); G.y += h0 * (P[a][1] + P[b][1]); G.z += h0 * (P[a][2] + P[b][2]);
         if (!gaugeRef[bk]) gaugeRef[bk] = MM.refGross || 550; }
@@ -1129,6 +1132,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     const cH = w.position === 'parasol' ? (w.cabaneH == null ? 0.55 : w.cabaneH) : 0;
     return cab.h * POSk + (cH > 0 ? cH : R.wingStandoff * (POSk >= 0.75 ? 1 : POSk <= 0.25 ? -1 : 0));
   };
+  const sparKs = [];            // BIPLANE-SIZING: each plane's braced-spar mass factor (parts.sparK)
   const buildPlane = (k) => {
   sec('wings');
   curPlane = k;
@@ -1193,6 +1197,37 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // cantilever depth and cantilever cap stiffness; a lighter braced-spar
   // row (spruce I-beam sized for the braced case) is owed.
 
+  // BIPLANE-SIZING (2026-11-09, the user: "go ahead with the biplane wing sizing pass"; the owed braced-spar row above).
+  // THE BRACED SPAR'S MASS. The wing class's linear density was fitted on the Cub's spar: a strut monoplane carrying the
+  // whole lift, its worst moment the overhang's (0.45 of the semispan, w a^2 / 2 = 0.101 w s^2). A wired plane carries its
+  // SHARE of the lift (its area's) and its worst moment is the larger of its own overhang beyond the interplane station
+  // (a^2 / 2) and its bay between the root and that station (b^2 / 8, the wires and the strut its supports). Its spar caps
+  // bill (that moment over the Cub-like monoplane's) ^ 2/3 - a section of similar shape sized to its moment - between
+  // GEN_RULES.trussSparK's floor and 1. The stiffness stays the cantilever lattice's (GATE BIPLANE flies it).
+  // ...AND ITS BOX IS A STAND-IN: the cantilever box below gives the planar two-spar wing the depth its real spar has
+  // inside its own section - the lower caps and the webs are not a second spar - and its lower plan diagonals repeat the
+  // drag bracing the upper plane's diagonals already bill. On a CLOTH wing (a skinned wing's webs are its skin, boxWebK)
+  // the box's members bill GEN_RULES.trussBoxK of their density: the compression ribs' and the fittings' share.
+  const TRK = R.trussSparK || [0.35, 1];
+  let sparK = 1;
+  if (trussHere) {
+    const Sw0 = (S.geom.planes || []).reduce((t, p) => t + (p.Sw || 0), 0);
+    const phi = Sw0 > 0 && G.Sw > 0 ? G.Sw / Sw0 : 0.5;
+    const s0 = G.semi, a = Math.max(0, s0 - zIP), b = Math.max(0, zIP - zRoot);
+    const Mk = phi * Math.max(a * a / 2, b * b / 8), Mref = 0.10125 * s0 * s0;
+    sparK = Math.min(TRK[1], Math.max(TRK[0], CORE_MATH.pow(Mk / Mref, 2 / 3)));
+  }
+  const SPAR = sparK < 1 ? { massK: sparK } : undefined;
+  // UL-WING (the user 9 Nov: "we overestimate the wing weight by a factor 2 ... that's the kind of wing we should support
+  // easy"): a surface row may say how much of a member's density its STAND-INS bill - the strut fan's hidden members (the
+  // two drawn lift struts stay whole) and the wing plan's drag diagonals and rib members (a real tube-and-cable wing's are
+  // compression tubes and drag wires, not spar caps). `standInK` on the row; absent = 1, every row but the ultralight's
+  const MWk = genSurfMaterial(S, 'wing', k), SIK = MWk && MWk.standInK > 0 && MWk.standInK < 1 ? MWk.standInK : 1;
+  const STAND = SIK < 1 ? { massK: SIK } : undefined;
+  const boxCloth = trussHere && !(GEN_SURF_MATERIALS && genSurfMaterial(S, 'wing', k).coverGauged);
+  const boxK = R.trussBoxK == null ? 1 : R.trussBoxK;
+  const TBOX = boxCloth && boxK !== 1 ? { massK: boxK } : undefined, TWEB = boxCloth && boxK !== 1 ? { web: true, massK: boxK } : null;
+  sparKs[k] = sparK;
   // is this the UPPER plane of the pair (the box caps go on the far side)
   const upperHere = !S.biplane || S.wings.length < 2
     || (k === 0 ? yOfPlane(S.wings[0]) >= yOfPlane(S.wings[1])
@@ -1366,10 +1401,10 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     const WR = zs.map(z => N(xRat(z), yF(z) - sparSpacing * Math.tan(incAt(z)), s * z, 'WR'));
     const cF = [rootF, ...WF], cR = [rootR, ...WR];
     for (let i = 0; i < zs.length; i++) {
-      B(cF[i], cF[i + 1], 'wing'); B(cR[i], cR[i + 1], 'wing');
-      B(cF[i + 1], cR[i + 1], 'wing');                       // rib
+      B(cF[i], cF[i + 1], 'wing', 0, 0, 0, SPAR); B(cR[i], cR[i + 1], 'wing', 0, 0, 0, SPAR);   // the spars (BIPLANE-SIZING)
+      B(cF[i + 1], cR[i + 1], 'wing', 0, 0, 0, STAND);         // rib (UL-WING: a stand-in's share on the ultralight row)
       // rule 4 again: the wing plan bay is a quad and gets its diagonals
-      B(cF[i], cR[i + 1], 'wing'); B(cR[i], cF[i + 1], 'wing');
+      B(cF[i], cR[i + 1], 'wing', 0, 0, 0, STAND); B(cR[i], cF[i + 1], 'wing', 0, 0, 0, STAND);
       const zi = i === 0 ? zRoot : zs[i - 1], zo = zs[i];
       cover(1.9 * (zo - zi) * 0.5 * (chordAt(zi) + chordAt(zo)),
             [cF[i], cF[i + 1], cR[i], cR[i + 1]]);
@@ -1440,7 +1475,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
         ? (iStrut === 0 ? [] : [WF[0], WR[0]])
         : [WF[0], WR[0], WF[WF.length - 1], WR[WR.length - 1]];
       for (const t of ends)
-        B(strutRoot, t, 'wing');
+        B(strutRoot, t, 'wing', 0, 0, 0, STAND);                // (UL-WING: the fan, a stand-in)
       // ...AND EVERY STATION IN BETWEEN (2026-08-11, GATE FLEX matrix).
       // The four lines above reach exactly three stations: 0, mid=1 and the
       // last. `wing.panels` is a PLAYER SLIDER clamped 2..5, so at 4 panels the
@@ -1477,7 +1512,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
         // G140: the crank station already carries the REAL struts — a fan
         // pair on top would be the panels-2 double-stiffness case, chosen
         if (zCrank && i === iStrut) continue;
-        B(strutRoot, WF[i], 'wing'); B(strutRoot, WR[i], 'wing');
+        B(strutRoot, WF[i], 'wing', 0, 0, 0, STAND); B(strutRoot, WR[i], 'wing', 0, 0, 0, STAND);
       }
       // G140: THE OUTER PANEL OF A CRANKED STRUTTED WING IS A BOX — the
       // C172's construction: strut to the crank joint, cantilever box from
@@ -1541,15 +1576,18 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
         cFB.push(mkLower(cF[i], z, xFat(z), sparFront));
         cRB.push(mkLower(cR[i], z, xRat(z), sparRear));
         // station cell: webs down from each cap, lower rib, and its diagonals
-        B(cF[i], cFB[i], 'wing', 0, 0, 0, WEB); B(cR[i], cRB[i], 'wing', 0, 0, 0, WEB);
-        B(cFB[i], cRB[i], 'wing', 0, 0, 0, WEB);
-        B(cF[i], cRB[i], 'wing', 0, 0, 0, WEB); B(cR[i], cFB[i], 'wing', 0, 0, 0, WEB);
+        // (BIPLANE-SIZING: on a wired cloth plane the box is the spar's own depth - TWEB / TBOX bill trussBoxK)
+        const WB_ = TWEB || WEB;
+        B(cF[i], cFB[i], 'wing', 0, 0, 0, WB_); B(cR[i], cRB[i], 'wing', 0, 0, 0, WB_);
+        B(cFB[i], cRB[i], 'wing', 0, 0, 0, WB_);
+        B(cF[i], cRB[i], 'wing', 0, 0, 0, WB_); B(cR[i], cFB[i], 'wing', 0, 0, 0, WB_);
       }
       for (let i = 0; i < zs.length; i++) {
-        B(cFB[i], cFB[i+1], 'wing'); B(cRB[i], cRB[i+1], 'wing');   // lower caps
-        B(cFB[i], cRB[i+1], 'wing', 0, 0, 0, WEB); B(cRB[i], cFB[i+1], 'wing', 0, 0, 0, WEB);   // lower plan
-        B(cF[i], cFB[i+1], 'wing', 0, 0, 0, WEB); B(cFB[i], cF[i+1], 'wing', 0, 0, 0, WEB);     // front web
-        B(cR[i], cRB[i+1], 'wing', 0, 0, 0, WEB); B(cRB[i], cR[i+1], 'wing', 0, 0, 0, WEB);     // rear web
+        const WB_ = TWEB || WEB;
+        B(cFB[i], cFB[i+1], 'wing', 0, 0, 0, TBOX); B(cRB[i], cRB[i+1], 'wing', 0, 0, 0, TBOX);   // lower caps
+        B(cFB[i], cRB[i+1], 'wing', 0, 0, 0, WB_); B(cRB[i], cFB[i+1], 'wing', 0, 0, 0, WB_);   // lower plan
+        B(cF[i], cFB[i+1], 'wing', 0, 0, 0, WB_); B(cFB[i], cF[i+1], 'wing', 0, 0, 0, WB_);     // front web
+        B(cR[i], cRB[i+1], 'wing', 0, 0, 0, WB_); B(cRB[i], cR[i+1], 'wing', 0, 0, 0, WB_);     // rear web
       }
       // and the box has to carry through the fuselage too, or the whole
       // bending moment still arrives at a point (rule 3)
@@ -2757,7 +2795,8 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // THE BRAKES (GEN_BRAKES): the pair's mass on the mains, its price with the wheels; absent: nothing (as it was)
   const BRK = genBrakeOf(S), mBrk = BRK ? 0.5 * BRK.kg : 0;
   if (BRK) spend(BRK.price);
-  pt(GAL, R.wheelKg(S.gear.wheelR) + mFairMain + mBrk); pt(GAR, R.wheelKg(S.gear.wheelR) + mFairMain + mBrk);
+  const whProf = Math.round(+((S.cage && S.cage.whProfile) || 0));    // (BUSH-WHEELS: the carcass's own law)
+  pt(GAL, R.wheelKg(S.gear.wheelR, whProf) + mFairMain + mBrk); pt(GAR, R.wheelKg(S.gear.wheelR, whProf) + mFairMain + mBrk);
 
   // The third wheel. `refs.tw` is whichever it is — the solver steers that node
   // and the sign of twSteer says which end it lives at.
@@ -3988,7 +4027,8 @@ function genDesignGross(S, a, cg) {
     ? Math.min(GEN_RULES.cargoKgMax, 2 * (cb.halfW || 0.5) * (cb.h || 1) * fu.cargoLen * GEN_RULES.cargoKgM3) : 0;
   const Mfix = cg[3] - payload - Ms + seats * GEN_RULES.occupantKg + fuelFull + (S.baggage || 0) + freight;
   const ref = c => a.parts.gaugeRef[c] || (GEN_MATERIALS[S.material] || {}).refGross || 550;
-  const gOf = (c, W) => Math.min(G.hi, Math.max(G.lo, CORE_MATH.pow(W / ref(c), G.e[c])));
+  const hiOf = c => (G.hiBy && G.hiBy[c]) || G.hi;      // MASS-SCALE: a class's own ceiling (the gear's)
+  const gOf = (c, W) => Math.min(hiOf(c), Math.max(G.lo, CORE_MATH.pow(W / ref(c), G.e[c])));
   // the furnishing (GEN_OUTFIT.furnK, Raymer on W0) is billed in pass 2
   // and belongs to the same fixed point
   const O = GEN_OUTFIT, fK = genFurnK(S);            // (G2806: the chosen trim, else the tier's)
@@ -3999,7 +4039,7 @@ function genDesignGross(S, a, cg) {
     for (const c in GD) { if (!(GD[c].m > 0)) continue; const g = gOf(c, W);
       f += GD[c].m * g;
       const raw = CORE_MATH.pow(W / ref(c), G.e[c]);
-      if (raw > G.lo && raw < G.hi) df += GD[c].m * G.e[c] * g / W; }
+      if (raw > G.lo && raw < hiOf(c)) df += GD[c].m * G.e[c] * g / W; }
     W = Math.max(Mfix, W - f / df);
   }
   const gauge = { W0: W }, dm = {}; let mAdd = furnOf(W), xAdd = 0, yAdd = 0, zAdd = 0;
