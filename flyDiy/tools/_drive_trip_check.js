@@ -17,7 +17,7 @@
 //          planned) - printed, bounded loosely (a shared machine)
 //   PLAIN  the trip as the page sets it off: the car facing its route (vehFaceToward) - no U-turn
 //   RUNWAY (phase 2) road -> stand -> taxi route -> runway 31 at Jolene AFB, the 2325 m of 13/31, onto 02/20, the body on
-//          hard ground; Fishing Village's bank closed (its To 'none', not a stuck car)
+//          hard ground; Fishing Village and back (its approach r40 an even ramp since the composer's junction ease)
 //   TOWNOFF the town not built (the laptop / potato budgets, software rendering - G590, G1526; ON by default): Cedar
 //          Harbour unreachable, said so in the To picker
 //   PAGE   the drive mode's wiring by its source: the lazy pack, nothing in MANIFEST.core, app.js's hooks
@@ -157,26 +157,27 @@ const turns = D.log.filter(l => l.what === 'uturn').map(l => l.msg.replace(/: .*
 {
   const car1 = V.makeVehicle(V.vehicleDef(SHEET), W), legs = [];
   let soft = 0, vmax = 0;
-  const leg = (from, to) => {
+  const leg = (from, to, onHard) => {   // (onHard: the airfield legs - every corner of the body on PAVED / GRAVEL)
     const P = G.places[from];
     if (!P || !G.places[to]) { legs.push(from + ' -> ' + to + ': no such place'); return false; }
     car1.place(P.x, P.z, Dr.vehFaceToward(G, P.x, P.z, Math.atan2(P.dz, P.dx), to)); for (let i = 0; i < 30; i++) car1.step(1 / 60);
     const D1 = Dr.makeDriver(car1, G, { vCruise: 20 }), a1 = D1.setDest(to);
     let t = 0, nx = 0;
     while (t < 900 && !['ARRIVED', 'STUCK', 'IDLE'].includes(D1.phase)) { D1.step(1 / 60); car1.step(1 / 60); t += 1 / 60; vmax = Math.max(vmax, car1.out.u);
-      if (t >= nx) { nx = t + 0.25; for (const c of car1.footprint()) { const sf = W.surface(c[0], c[1]); if (sf !== 5 && sf !== 6) soft++; } } }
+      if (onHard !== false && t >= nx) { nx = t + 0.25; for (const c of car1.footprint()) { const sf = W.surface(c[0], c[1]); if (sf !== 5 && sf !== 6) soft++; } } }
     const e = car1.refPoint(), Q = G.places[to], dE = Math.hypot(e[0] - Q.x, e[2] - Q.z);
     legs.push(G.places[from].name + ' -> ' + Q.name + ': ' + a1 + ', ' + D1.phase + ' ' + f(t, 0) + ' s, ' + f(dE, 2) + ' m off, ' + D1.stats.uturns + ' U-turns, x-track ' + f(D1.stats.xtMax, 2) + ' m');
     return a1 === 'replan' && D1.phase === 'ARRIVED' && dE < 1 && D1.stats.uturns === 0;
   };
   const ok1 = leg('HOME', 'rwy:HOME:1'), ok2 = leg('rwy:HOME:1', 'rwy:HOME:0'), ok3 = leg('rwy:HOME:0', 'rwy:w2:1');
-  // Fishing Village: the To answered 'none' (the car stays parked), r40's bank closed
-  const P = G.places.HOME, car2 = V.makeVehicle(V.vehicleDef(SHEET), W); car2.place(P.x, P.z, Math.atan2(P.dz, P.dx)); for (let i = 0; i < 30; i++) car2.step(1 / 60);
-  const fv = Dr.makeDriver(car2, G, { vCruise: 20 }).setDest('rwy:w3:0'), r40 = (I.report.closed || []).find(c => c.road === 'r40');
+  // Fishing Village (12 Nov, the user: "just join it"): its approach r40 met the strip's terrace at a 5 m step (68 %) - the
+  // composer eased a road off its junction over a fixed 7 m; the ease is as long as the climb now (27_premises), r40 as drawn
+  // is an even ramp: driven there and back
+  const ok4 = leg('HOME', 'rwy:w3:0', false), ok5 = leg('rwy:w3:0', 'HOME', false), r40 = (I.report.closed || []).find(c => c.road === 'r40');
   const rn = (I.report.runways || []).map(r => r.name), lk = (I.report.links || []).filter(l => l.ok).map(l => l.id + ' -> ' + l.to + ' ' + l.m + ' m');
-  row('RUNWAY', ok1 && ok2 && ok3 && soft === 0 && fv === 'none' && !!r40,
-    legs.join('; ') + '; ' + f(vmax * 3.6, 0) + ' km/h at most, body corners off hard ground: ' + soft + ' samples. Runway ends as places: ' + rn.length + ' (' + rn.slice(0, 4).join(', ') + ' ...); stands linked: ' + lk.join(', ') +
-    '. Fishing Village Strip: setDest ' + fv + ' - its approach r40 ' + (r40 ? 'closed at s ' + r40.at.map(c => c[0] + '-' + c[1] + ' m').join(', ') + ' (a 5 m bank onto the strip\'s terrace)' : 'NOT closed') + '; the steep stretches closed island-wide: ' + (I.report.closed || []).length + ' roads');
+  row('RUNWAY', ok1 && ok2 && ok3 && ok4 && ok5 && soft === 0 && !r40,
+    legs.join('; ') + '; ' + f(vmax * 3.6, 0) + ' km/h at most, body corners off hard ground on the airfield legs: ' + soft + ' samples. Runway ends as places: ' + rn.length + ' (' + rn.slice(0, 4).join(', ') + ' ...); stands linked: ' + lk.join(', ') +
+    '. Fishing Village\'s approach r40: ' + (r40 ? 'CLOSED at ' + JSON.stringify(r40.at) : 'open (an even ramp onto the strip)') + '; the steep stretches closed island-wide: ' + (I.report.closed || []).length + ' roads');
 }
 // ---- TOWNOFF: the page's default world - the town switched off (G590: 27_premises TOWN_OFF, world_boot.js's TOWN; the GRAPHICS
 // 'town' row or ?town=1 turns it on) takes Cedar Harbour's streets with it: the car's places are HOME's network's only, and
