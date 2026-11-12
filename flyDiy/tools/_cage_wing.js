@@ -1261,12 +1261,13 @@ function hangMastDraw(ctx) {
       if (pts.length) {
         const flAt = z => { if (z >= pts[0][0]) return pts[0][1]; for (let i = 1; i < pts.length; i++) if (z >= pts[i][0]) {
           const a = pts[i - 1], b = pts[i]; return b[1] + (a[1] - b[1]) * (z - b[0]) / ((a[0] - b[0]) || 1); } return pts[pts.length - 1][1]; };
-        // ON THE MAST'S FOOT: the beam ends on it - over a sunk wheel's tyre (which stands taller than the floor and longer
-        // than the mast) it climbs from a hand ahead of the tyre to the mast's foot, a knee
-        const zW = yFoot != null ? zc + sunkR + 0.20 : zF, yE = yFoot != null ? yFoot + 0.04 - KEEL_D + KEEL_DN : null;
-        const zs = pts.map(p => p[0]).filter(z => z > zW + 0.02).filter((z, i, A) => i === 0 || A[i - 1] - z > 0.02).concat(yE != null ? [zW, zF] : [zF]);
+        // STRAIGHT (12 Nov, the user: "make it straight ... it's not that much of a problem if it goes between the wheels,
+        // between the legs of the pilot"): one straight beam from the cabin's first floor station, on its floor, to the
+        // mast's foot (on a sunk wheel's fork: its top a finger into the foot) - through the tyre if it must
+        const z0 = pts[0][0], y0 = flAt(z0), yE = yFoot != null ? yFoot + 0.04 - KEEL_D + KEEL_DN : flAt(zF);
+        const zs = [z0, zF];
         const kb = GK.Bag(), hw = 0.5 * KEEL_W, up = KEEL_D - KEEL_DN;
-        const yAt = z => yE != null && z < zW ? flAt(zW) + (yE - flAt(zW)) * (zW - z) / ((zW - zF) || 1) : flAt(z);
+        const yAt = z => y0 + (yE - y0) * (z0 - z) / ((z0 - zF) || 1);
         const sec = z => { const y = yAt(z); return [[-hw, y - KEEL_DN, z], [hw, y - KEEL_DN, z], [hw, y + up, z], [-hw, y + up, z]].map(q => kb.v(q)); };
         const S = zs.map(sec);
         for (let i = 0; i + 1 < S.length; i++) for (let k = 0; k < 4; k++) {

@@ -314711,3 +314711,19 @@ The user: "the keel beam should probably be paired with the fuselage, as they wi
 - GATE NACELLE B2 (the keel beam's frame) and D (its drawing: at every cabin station its underside the ring's floor
   less 2 cm). FRAMES' corpus: the Archaeopteryx card and builds/archaeopteryx_2026-11-10.json re-recorded (their aft
   section's rows), nothing else.
+
+## PILLAR ON THE CG - THE MAST AT THE CG, THE ENGINE BOLTED ON IT, THE KEEL STRAIGHT (12 Nov 2026; the study's stage 3)
+
+The user: "make [the keel beam] straight ... put the pillar just on the CG ... to get the engine a little further
+forward ... on the real thing it really bolts into it ... center the engine vertically ... a slightly bigger propeller".
+- The keel beam drawn STRAIGHT: from the cabin's first floor station, on its floor, to the mast's foot (4 cm into it) -
+  through the sunk wheel's tyre if it must (the user: "it's not that much of a problem").
+- A CARD'S OWN ENGINE-BENCH ROWS WIN over the preset it picked (_cage_design designFull): the Archaeopteryx's E-811 preset
+  was applied after the card and overwrote its mount rows - last session's "engine mount at its minimum" never reached
+  the build. Only a card that both picks a preset and states engine rows moves (this one).
+- The card: the mast's middle on the loaded CG (genShakedown: 1.37 m behind the nose, hangAt 0.50; it was 1.79) - the
+  cabin to its least (pilotLen 0.42), the rod as much longer (boomLen 5.26), the aft section 1.33 m (its tip 6 cm ahead
+  of the prop); the static margin -4 % -> +11 %. The engine with no mount (eng_mount 0, stand-off 0.4) on the mast's back
+  face; the thrust line midway between the ground and the rod's underside (engY -0.318: 0.60 m either way); the prop
+  0.75 -> 0.95 m (12 cm clear of each). The wheel 6 cm aft of the mast's middle, under its chord (s1AxZ -0.06): at the
+  CG exactly it rocked back onto the tail post; so it parks on the wheel, the nose skid and a wingtip skid.

@@ -189,7 +189,8 @@ gear. With that:
      free of it and ahead of it (as the photo), the wheel hung from its foot, the pusher on its back face; the wing no
      longer tied into the cabin's rings.
      **THE KEEL BEAM DONE 12 Nov** (HANDOVER "KEEL"): the cabin's floor line as a beam from the nose to the mast's foot,
-     its stations the cabin's own (no length of its own).
+     its stations the cabin's own (no length of its own); straight, 12 Nov, the mast on the CG and the engine bolted
+     on it (HANDOVER "PILLAR ON THE CG").
    - the role materials;
    - the tent row;
    - the A-pillars on to the hub;

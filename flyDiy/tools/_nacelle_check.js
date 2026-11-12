@@ -87,8 +87,8 @@ for (const [lab, d, dOff] of [['high wing', d1, d0], ['parasol', dP, dP0]]) {
   const ax = d.refs.mains[0], hx = d.spec.fuse.hangX;
   const legs = d.beams.filter(q => q.a === ax || q.b === ax).map(q => q.a === ax ? q.b : q.a);
   ok(d.refs.mains.length === 1 && M && Array.isArray(hx) && Math.abs(M.x[0] - hx[0]) < 1e-9 && Math.abs(M.x[1] - hx[1]) < 1e-9
-     && Math.abs(P[ax][0] - 0.5 * (M.x[0] + M.x[1])) < 0.01 && legs.length >= 4 && legs.every(n => M.nodes.includes(n)),
-     `B ${lab}: the mast where the drawn one stands (${M ? M.x.map(r3).join(' - ') : '-'} m), the wheel under its middle (${r3(P[ax][0])}), its ${legs.length} members all on the mast`);
+     && P[ax][0] > M.x[0] && P[ax][0] < M.x[1] && legs.length >= 4 && legs.every(n => M.nodes.includes(n)),
+     `B ${lab}: the mast where the drawn one stands (${M ? M.x.map(r3).join(' - ') : '-'} m), the wheel under its chord (${r3(P[ax][0])}), its ${legs.length} members all on the mast`);
 }
 
 console.log('B2. THE KEEL BEAM');
@@ -137,7 +137,7 @@ console.log('D. THE DRAWING');
     const cuts = ((S.W.CAGE_GEAR && S.W.CAGE_GEAR.cuts) || []).filter(c => c.top);
     const m = cuts.length ? KG.knifeWells(S.built.sheet, cuts) : null, st = m ? m.knifeStats.find(x => x.loops != null) : null;
     return { mast, cuts: cuts.length, loops: st ? st.loops : 0, cab: S.W.CAGE_BRACE ? S.W.CAGE_BRACE.cabane : null, AF: S.W.CAGE_GEAR && S.W.CAGE_GEAR.AF,
-             eng: HG && EF && isFinite(EF.z) ? EF.z - HG.zR : null, zc: HG ? HG.zc : null, rodLow,
+             eng: HG && EF && isFinite(EF.z) ? EF.z - HG.zR : null, zc: HG ? HG.zc : null, chord: HG ? HG.zF - HG.zR : null, rodLow,
              wheel: HG && c1 ? c1.p[2] - HG.zc : null, foot: HG ? HG.yFoot - HG.yK : null };
   };
   const H = look(scene(s1)), Pp = look(scene(sP)), O = look(scene(s0)), OP = look(scene(sP0));
@@ -145,19 +145,20 @@ console.log('D. THE DRAWING');
   const sunk = +s1.cage.s1Sink > 0 ? 2 * (+s1.cage.s1R) * (+s1.cage.s1Sink) + 0.02 : 0;
   const reach = L => L.mast && L.AF && Math.abs(L.mast.min.y - (L.AF.keelAt(0.5 * (L.mast.min.z + L.mast.max.z)) + sunk)) < 0.07;
   const L2 = look(scene(born({ hangOn: 1, pilotLen: +s1.cage.pilotLen - 0.2 })));
-  ok(H.eng != null && H.eng > -0.002 && H.eng < 0.02 && H.wheel != null && Math.abs(H.wheel) < 0.005 && L2.zc != null && Math.abs(L2.zc - H.zc) < 0.005,
-     `D the pusher on the mast's back face (${H.eng != null ? (1000 * H.eng).toFixed(1) : '-'} mm), the wheel's fitting its middle (${H.wheel != null ? (1000 * H.wheel).toFixed(1) : '-'} mm); a cabin 0.2 m shorter leaves the mast where it stands (${L2.zc != null ? (1000 * (L2.zc - H.zc)).toFixed(1) : '-'} mm)`);
+  ok(H.eng != null && H.eng > -0.002 && H.eng < 0.02 && H.wheel != null && Math.abs(H.wheel - (+s1.cage.s1AxZ || 0)) < 0.005 && Math.abs(H.wheel) < 0.5 * H.chord && L2.zc != null && Math.abs(L2.zc - H.zc) < 0.005,
+     `D the pusher on the mast's back face (${H.eng != null ? (1000 * H.eng).toFixed(1) : '-'} mm), the wheel at its middle and the row's offset, under its chord (${H.wheel != null ? (1000 * H.wheel).toFixed(1) : '-'} mm, the chord ${(1000 * H.chord).toFixed(0)}); a cabin 0.2 m shorter leaves the mast where it stands (${L2.zc != null ? (1000 * (L2.zc - H.zc)).toFixed(1) : '-'} mm)`);
   ok(H.rodLow === 0, `D the sunk wheel's square cut leaves the rod over it whole (${H.rodLow} rod faces below the rod)`);
-  // the keel beam drawn: the cabin's floor line, from its first floor station to the mast's foot - at every cabin station
-  // along its floor run its underside is that ring's floor less 2 cm (the beam IS the floor line: the cabin moves it)
+  // the keel beam drawn STRAIGHT (12 Nov, the user: "make it straight"): from the cabin's first floor station, on its
+  // floor, to the mast's foot, a finger into it - two stations and nothing between
   { const S1 = scene(s1), HG = S1.W.CAGE_HANG; let K = null, V = null;
     S1.scene.traverse(o => { if (o.name === 'hangKeel') { K = o.userData.keel; const pa = o.geometry.attributes.position; V = []; for (let i = 0; i < pa.count; i++) V.push([pa.getX(i), pa.getY(i), pa.getZ(i)]); } });
     const CG2 = S1.W.CAGE2, RR = CG2.cageResolve(CG2.cageSpec(S1.P)), FS = S1.FS;
-    let n = 0, worst = 0;
-    for (const r of RR.rings) { const f = r.lv && r.lv.floor; if (!f || !V) continue; const z = f.z * FS; if (!(z <= K.z0 + 1e-6 && z > HG.zc + 0.45)) continue;
-      const at = V.filter(v => Math.abs(v[2] - z) < 1e-4); if (!at.length) continue; n++; worst = Math.max(worst, Math.abs(Math.min(...at.map(v => v[1])) - (f.y * FS - 0.02))); }
-    ok(K && HG && Math.abs(K.z1 - HG.zF) < 1e-6 && n >= 3 && worst < 1e-3,
-       `D the keel beam drawn from the cabin's first floor station (${K ? r3(K.z0) : '-'} m) to the mast's foot (${K ? r3(K.z1) : '-'}): at ${n} cabin stations its underside the ring's floor less 2 cm (worst ${(1000 * worst).toFixed(2)} mm)`); }
+    const fl = RR.rings.map(r => r.lv && r.lv.floor).filter(f => f && Math.abs(f.z * FS - (K ? K.z0 : NaN)) < 1e-6)[0];
+    const zs = V ? [...new Set(V.map(v => v[2].toFixed(5)))] : [];
+    const top = V ? Math.max(...V.filter(v => Math.abs(v[2] - K.z1) < 1e-6).map(v => v[1])) : NaN;
+    const bot0 = V ? Math.min(...V.filter(v => Math.abs(v[2] - K.z0) < 1e-6).map(v => v[1])) : NaN;
+    ok(K && HG && zs.length === 2 && Math.abs(K.z1 - HG.zF) < 1e-6 && fl && Math.abs(bot0 - (fl.y * FS - 0.02)) < 1e-3 && Math.abs(top - (HG.yFoot + 0.04)) < 1e-3,
+       `D the keel beam drawn straight (${zs.length} stations) from the cabin's first floor station (${K ? r3(K.z0) : '-'} m, on its floor) to the mast's foot (${K ? r3(K.z1) : '-'} m, ${r3(top - HG.yFoot)} into it)`); }
   ok(H.mast && reach(H) && H.cuts === 0 && Math.abs(H.foot - sunk) < 0.005,
      `D high wing: the mast drawn from the wheel's fork (${H.mast ? r3(H.mast.min.y) : '-'} m, ${r3(H.foot)} over the keel) up into the wing (${H.mast ? r3(H.mast.max.y) : '-'}), no roof to cut (${H.cuts})`);
   ok(Pp.mast && !Pp.cab, `D parasol: the mast drawn (${Pp.mast ? r3(Pp.mast.min.y) + ' to ' + r3(Pp.mast.max.y) + ' m' : '-'}), no cabane strut (${Pp.cab})`);

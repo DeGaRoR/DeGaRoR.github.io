@@ -3004,7 +3004,7 @@ const ARCHETYPES = [
            engFamily: 'electric', engModel: 'pipistrel E-811', engMount: 'pusher',
            gearLayout: 'mono', suspension: 'spring', s1Fair: 0,
            finArch: 'tall', empennage: 'conv', scheme: 'trim', base: 0xefe6cf, trim: 0xc96f2a },
-    over: { cage: { rodY: 0.7979, rodD: 0.30, boomLen: 4.93,
+    over: { cage: { rodY: 0.7979, rodD: 0.30, boomLen: 5.26,
                     // THE HUB (the study's stage 2, 11 Nov): the rod slots into the wing's centre section, the top skin
                     // raised over it in a Gaussian hump, the rod's crown at the wing's highest point - rodY is the hump's
                     // own fit on this wing (_cage_wing.js hubHump), a ring with screws where the rod leaves the TE
@@ -3013,13 +3013,18 @@ const ARCHETYPES = [
                     // bulkhead - "the pillar is where the aft bulkhead is where the engine is"): the pusher on the
                     // bulkhead, no cowl; a shaft aft (cw_noseOff) to the small prop just past the aft pod's tip, its
                     // disc 0.24 m off the ground and ~0.19 m under the rod (engY)
-                    engY: -0.38, cw_propD: 0.75, cw_noseOff: 0.50, cowlOn: 0,
+                    engY: -0.318, cw_propD: 0.95, cw_noseOff: 0.50, cowlOn: 0,
                     // THE DRIVE PARED DOWN (12 Nov, the user: "limit the engine mount to the minimum ... the nose cone
                     // slimmer, the prop blades with a lower chord and the whole assembly in carbon fiber, including the
                     // shaft"): the mount at the engine bench's least (stand-off 0.4 of the case, tubes x0.5, no diagonals);
                     // the cone 6 cm in radius (10.1), the blades 0.10 / 0.035 m of chord (0.165 / 0.05); blades, cone and
                     // shaft carbon / epoxy (the cone and its shaft are one part, worn as the blades: spinMat 0)
                     eng_mountGap: 0.4, eng_mountR: 0.5, eng_mountX: 0,
+                    // ...AND NO MOUNT AT ALL (12 Nov, the user: "on the real thing it really bolts into it, so we don't even
+                    // have the support there"): the engine bolted on the mast's back face; the thrust line midway between
+                    // the ground and the rod's underside (engY -0.38 -> -0.318: 0.60 m either way), so a bigger prop
+                    // ("a slightly bigger propeller"): 0.75 -> 0.95 m, 12 cm clear of the rod and of the ground
+                    eng_mount: 0,
                     cw_spinR: 0.06, cw_rootChord: 0.10, cw_tipChord: 0.035, cw_material: 3, spinMat: 0,
                     // THE AFT POD: THE AERO AFT OVER THE PUSHER (11 Nov, the user: "try again with the aero aft instead of
                     // the cowl ... the real thing is straight tapers; the cowl looks odd and bulby"). aeroAftOver is a row
@@ -3029,7 +3034,7 @@ const ARCHETYPES = [
                     // to a 4 cm edge (aeroAftTip 0.85 - 0.5 bows in, 1.0 sags), its tip 0.75 of the height raised to the rod
                     // (aeroAftDroop -0.2): the bottom line climbs 0.25 m to the tip, near straight (the fin shape climbs
                     // dead straight, but from the pillar and 0.5 m: too steep)
-                    aeroAftOver: 1, aeroAftOn: 1, aeroAftShape: 1, aeroAftLen: 1.5, aeroAftTip: 0.85, aeroAftEdge: 0.75,
+                    aeroAftOver: 1, aeroAftOn: 1, aeroAftShape: 1, aeroAftLen: 1.33, aeroAftTip: 0.85, aeroAftEdge: 0.75,
                     aeroAftDroop: -0.2,
                     // THE HANGING NACELLE (the study's stage 3; the user's photo of the real one, 11 Nov: the cabin, then the
                     // aft section with "the pillar and the wheel ... at the back of the cabin pillar"): one mast from the hub
@@ -3038,7 +3043,14 @@ const ARCHETYPES = [
                     // The cabin slides free of it: pulled 0.30 m forward (pilotLen 1.05 -> 0.75, the rod as much longer,
                     // boomLen 4.63 -> 4.93, the aft section 1.2 -> 1.5 so its tip stays where it was)
                     // (12 Nov, the user: "make the main pillar 40% less wide": 0.30 -> 0.18 of the chord, 0.21 m)
-                    hangOn: 1, hangAt: 0.85, hangLen: 0.18,
+                    // ON THE CG (12 Nov, the user: "compute the CG already and put the pillar just on the CG ... to get the
+                    // engine a little further forward"): the mast's middle on the loaded CG (genShakedown, 1.38 m behind the
+                    // nose, 0.50 of the root chord; it was 1.79) - the cabin brought forward with it to its least, the
+                    // Chinook's own (pilotLen 0.42), the rod as much longer (boomLen 5.26), the aft section 1.33 m (its
+                    // tip 7 cm ahead of the prop); the cabin's aft pillar bolts onto the mast's front (its depth of
+                    // overlap). The static margin -4 % -> +11 %. The wheel 6 cm aft of the mast's middle (s1AxZ, under its
+                    // chord): at the CG exactly it rocked back onto the tail post; 6 cm aft it parks on the nose skid
+                    hangOn: 1, hangAt: 0.50, hangLen: 0.18,
                     // the wing: LE 1.08 / TE 2.30 behind the nose at the root, chord 1.19 -> 1.09 at the crank -> 0.56
                     wgSpan: 13.0, wgChord: 1.19, wgCrankAt: 0.48, wgCrankChord: 1.09, wgCrankX: 0.08,
                     wgChordTip: 0.56, wgTipX: 0.52, wgDihedral: 1, wgDihedralOut: 1, wgDx: 0,
@@ -3082,7 +3094,7 @@ const ARCHETYPES = [
                     // nose grown down (s2Fair) - its shoe level with the wheel's contact (12 Nov, the user: "the skid so
                     // it's at the same level as the wheel": s2_twLegDrop 0.09 -> 0, within 7 mm), a skid under each wingtip
                     // (wgTipSkid)
-                    pilotLen: 0.75, s1Z: 1.13, s1X: 0, s1AxZ: 0, s1R: 0.2, s1Drop: 0.05, s1Root: 1, s1Sink: 0.45,
+                    pilotLen: 0.42, s1Z: 1.13, s1X: 0, s1AxZ: -0.06, s1R: 0.2, s1Drop: 0.05, s1Root: 1, s1Sink: 0.45,
                     whProfile: 3,
                     s2Leg: 3, s2Nose: 1, s2Z: 0.45, s2Steer: 4, s2Fair: 1, s2R: 0.10, s2Drop: 0.05, s2_twLegDrop: 0,
                     wgTipSkid: 1,
@@ -3481,6 +3493,9 @@ function designFull(sel, over) {
   if (!stock && 'engPreset' in cage && W.CAGE_ENG_APPLY_PRESET) {
     const nm = designPresetNames()[Math.round(cage.engPreset)];
     if (nm) W.CAGE_ENG_APPLY_PRESET(full, nm);
+    // (12 Nov: A CARD'S OWN ENGINE-BENCH ROWS WIN over the preset it picked - the Archaeopteryx's mount pared to nothing
+    // on its E-811 was overwritten here, the preset applied after the card; a card without such rows is untouched)
+    if (over && over.cage) for (const k in over.cage) if (/^eng_/.test(k) && typeof over.cage[k] !== 'function') full[k] = cage[k] = over.cage[k];
   }
   return { full, cage, spec };
 }
