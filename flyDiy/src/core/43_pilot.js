@@ -188,13 +188,13 @@ const PILOT_PROFILES = {
   expert:  { name: 'expert', label: 'Expert', desc: 'the pilot as tuned: no delay, steady hands, the technique each strip asks',
              active: false },
   club:    { name: 'club pilot', label: 'Club', desc: 'a weekend pilot: a beat late, gentle hands, shallow turns, a slightly late flare',
-             active: true, skill: { reaction: 0.25, smooth: 0.8, hamFist: 0.005 }, quirks: { flareK: 0.95, gearForget: 0.01 }, limits: { bankK: 0.9, comfortG: 1.3 }, technique: { stol: false } },
+             active: true, skill: { reaction: 0.25, smooth: 0.8, hamFist: 0.005 }, quirks: { flareK: 0.95, gearForget: 0.01 }, limits: { bankK: 0.9, comfortG: 1.3 }, technique: { stol: false, glider: false } },
   student: { name: 'student', label: 'Student', desc: 'twenty hours in: slow to react, gentle turns, over-rotates, flares late, a normal approach everywhere',
-             active: true, skill: { reaction: 0.35, smooth: 0.7, hamFist: 0.015 }, quirks: { overRotate: 0.035, flareK: 0.8, decisionK: 0.5, gearForget: 0.02 }, limits: { bankK: 0.7, comfortG: 1.15 }, technique: { field: 'normal', stol: false } },
+             active: true, skill: { reaction: 0.35, smooth: 0.7, hamFist: 0.015 }, quirks: { overRotate: 0.035, flareK: 0.8, decisionK: 0.5, gearForget: 0.02 }, limits: { bankK: 0.7, comfortG: 1.15 }, technique: { field: 'normal', stol: false, glider: false } },
   bush:    { name: 'bush pilot', label: 'Bush', desc: 'lands in clearings: quick, steeper turns, the short-field technique and a slip on every final',
              active: true, skill: { reaction: 0.15, smooth: 1.1, hamFist: 0.003 }, quirks: { gearForget: 0.005 }, limits: { bankK: 1.15, comfortG: 1.6 }, technique: { field: 'short', slip: true } },
   hamfist: { name: 'ham-fist', label: 'Ham-fist', desc: 'big snatchy inputs: the stick never still, a little over-rotation - safe, never smooth',
-             active: true, skill: { reaction: 0.2, smooth: 1.6, hamFist: 0.05 }, quirks: { overRotate: 0.02, decisionK: 2, gearForget: 0.01 }, technique: { stol: false } },
+             active: true, skill: { reaction: 0.2, smooth: 1.6, hamFist: 0.05 }, quirks: { overRotate: 0.02, decisionK: 2, gearForget: 0.01 }, technique: { stol: false, glider: false } },
 };
 // G2085 (PILOT-PERSONA): THE CUSTOM PERSON'S KNOBS - every hook as a slider (the menu's advanced fold, a saved player's
 // `pilot.custom`), with the range a person can be set to. pilotProfile CLAMPS an object profile to these, so a saved
@@ -223,6 +223,12 @@ const PILOT_PROFILE_KNOBS = [
   // (every knob's default is the expert's value); the club pilot, the student and the ham-fist are not qualified, the bush
   // pilot is; a hired pilot earns it growing toward a qualified ceiling (76_pilots: a bool takes the ceiling's at half way)
   { sec: 'technique', k: 'stol', label: 'STOL qualified', kind: 'bool', d: true, desc: 'flies a STOL wing\'s own technique (the slow steep approach, the flare on power, the brakes at once)' },
+  // PILOT-UNIFY (the user, 12 Nov: "one coherent pilot ... declined into the pilots of the story, their skills decide who can
+  // do what"): THE GLIDER RATING. A glider's flight (no engine, or every key off by choice) is normal flight to its goal for
+  // a rated person; for anyone else an unpowered aeroplane is an EMERGENCY (the nearest field the glide reaches). The
+  // expert and the bush pilot are rated; the club pilot, the student and the ham-fist are not (a hired pilot earns it
+  // growing toward a rated ceiling, as the STOL qualification)
+  { sec: 'technique', k: 'glider', label: 'glider rated', kind: 'bool', d: true, desc: 'flies a glider to its goal (unrated: any flight without power is an emergency landing)' },
 ];
 // RETRACT-1: THE FORGOTTEN GEAR'S DIE - approach k of the person drawn from `seed` (makePilot's opts.seed, 1935 unset):
 // a hash in [0, 1), pure and deterministic (every flight of a profile is the same flight; GATE RETRACT reads it)
@@ -242,7 +248,7 @@ function pilotProfile(p) {
            gearForget: g('quirks', 'gearForget', 0),
            bankK: g('limits', 'bankK', 1), comfortG: g('limits', 'comfortG', null),
            field: g('technique', 'field', null), slip: !!g('technique', 'slip', false), stepHold: !!g('technique', 'stepHold', false),
-           stol: !!g('technique', 'stol', true) };
+           stol: !!g('technique', 'stol', true), glider: !!g('technique', 'glider', true) };
   // G2085: an OBJECT profile (the custom person, a saved player, a link) is clamped to the knobs' ranges - a named
   // profile is the table's own and passes as written (the expert's bypass is untouched)
   if (typeof p !== 'string') {
@@ -566,9 +572,12 @@ function makePilot(sim, def, world, opts) {
   // flies in the player's place: always the most competent) and a profile carrying it (PILOT_PROFILE_KNOBS `stol`: the bush
   // pilot; not the club pilot, the student, the ham-fist). An unqualified pilot flies a STOL build as any other
   const stolQual = !PRA || !!PRF.stol;
+  const gliderQual = !PRA || !!PRF.glider;   // PILOT-UNIFY: the glider rating (the expert's, the bush pilot's)
   const stolOn = () => stolQual && !!(stolSheet() && stolSheet().on);
   // THE FEEL STOP's gate: a taildragger on wheels, the short-field technique, the law asked for
-  const feelOn = () => A.tailStop === 'feel' && !trike && !sim.hydro && !!ap.appr && ap.appr.technique === 'short';
+  // PILOT-UNIFY: the feel stop follows the feel arrival (ap.feelFld, planned in planArrival); A.tailStop 'law' turns both off
+  const feelLaw = () => (A.tailStop ?? 'feel') === 'feel';
+  const feelOn = () => feelLaw() && !!ap.feelFld && !trike && !sim.hydro && !!ap.appr && ap.appr.technique === 'short';
   let vAppr;                                  // G1302: the approach speed, the sheet's once first read
   const ap = {
     phase: 'ROLL', t: 0, hCruise: A.hCruise, VClimb: A.VClimb,
@@ -1499,7 +1508,8 @@ function makePilot(sim, def, world, opts) {
       // no-device taildragger with the feel law on flies the FEEL ARRIVAL (the STOL flare's power rolled the slow Carbon Cub
       // SS into the 100 deg ground loop above); else the strip decides (stolL). With the feel law off (the default) this is
       // the strip-decides rule to the bit
-      const feelT = shortT && !stolL0 && !water && !trike && (A.tailStop === 'feel' || A.tailArrive === 'three');
+      // PILOT-UNIFY: THE DEFAULT for that row, flown by a STOL-qualified person (an unqualified one keeps G1936's short law)
+      const feelT = shortT && !stolL0 && !water && !trike && stolQual && (feelLaw() || A.tailArrive === 'three');
       const stolT = shortT && stolL && !feelT;
       const Vbase = shortT && VApprShort() ? VApprShort() : (sheetVAppr() ?? A.VAppr);
       // G1936 (PILOT-ONE, the user: "aim for touching down at the beginning of the strip"): the short aim is 10 m
@@ -3374,7 +3384,7 @@ function makePilot(sim, def, world, opts) {
     const noRun = !engs.length || engs.every(e => !e.running), keyedOff = !engs.length || engs.every(e => e.key === 'off');
     unpowT = onG === 0 && noRun ? unpowT + dt : 0;
     powerT = engs.some(e => e.running) ? powerT + dt : 0;
-    const glider = onG === 0 && keyedOff && !starved;
+    const glider = onG === 0 && keyedOff && !starved && gliderQual;   // (PILOT-UNIFY: an unrated person's glide is an emergency)
     if (starvedSaid && glideKind === 'emergency' && ap.phase === 'GLIDE' && powerT > 3 && !starved) {
       starvedSaid = false; gcirc = null; glideTo = null; glideKind = null; committed = false;
       say('power-back', 'power back at t=' + Math.round(ap.t) + ' s, ' + Math.round(aglG) + ' m up - flying on');
