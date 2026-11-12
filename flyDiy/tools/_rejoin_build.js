@@ -43,6 +43,7 @@ if (editsFile) {
   if (E.finish) spec.finish = E.finish;
   if (E.energy) spec.energy = E.energy;
   if (E.fuel) spec.fuel = E.fuel;
+  if (E.cargo) spec.cargo = E.cargo;   // CAR-3: a load (the tug's ballast)
   if (E.prop) Object.assign(spec.prop, E.prop);
   if (E.wings) Object.assign(spec.wings[0], E.wings);
   if (E.meta) Object.assign(spec.meta, E.meta);

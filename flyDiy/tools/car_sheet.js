@@ -118,6 +118,9 @@ function sheetFromBake(bj, C, opts) {
     wheels, wheelbase: +(zFront - zRear).toFixed(4),
     track: { front: +(FR.p[0] - FL.p[0]).toFixed(4), rear: +(RR.p[0] - RL.p[0]).toFixed(4) },
     ground: 0,
+    // the tow hitch (CAR-3): the drawn ball's centre (_cage_gear.js bumperBuild, window.CAGE_GEAR_HITCH), else none
+    // (the vehicle shell then takes the rear bumper's centre)
+    hitch: (W.CAGE_GEAR_HITCH ? [+W.CAGE_GEAR_HITCH[2].toFixed(4), +(W.CAGE_GEAR_HITCH[1] - ground).toFixed(4), +W.CAGE_GEAR_HITCH[0].toFixed(4)] : undefined),
     box: { lo: lo.map(v => +v.toFixed(3)), hi: hi.map(v => +v.toFixed(3)) },
     collision: { boxes: [{ name: 'body', lo: [lo[0], Math.max(lo[1], 0.12), lo[2]].map(v => +v.toFixed(3)),
                                          hi: hi.map(v => +v.toFixed(3)) }] },

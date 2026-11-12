@@ -176,6 +176,16 @@ const WHEEL_ROWS = [
   ['spareY', 'spare wheel up / down (m)', -0.4, 0.4, 0.005, { when: P => +P.spareOn }],
   // CAR-4: the twin booms' wheels outboard of the booms (m; absent 0 = under the boom)
   ['twBoomOut', 'boom wheels outboard of the booms (m)', 0, 0.8, 0.005, { when: P => +P.boomTwin }],
+  // CAR-3/4: the bumpers and the hitch (absent = none)
+  ['bumpF', 'front bumper', 0, 1, 1],
+  ['bumpR', 'rear bumper', 0, 1, 1],
+  ['bumpY', 'bumper height over the body\'s bottom (m)', -0.4, 0.5, 0.005, { when: P => +P.bumpF || +P.bumpR }],
+  ['bumpGap', 'bumper off the face (m)', 0, 0.3, 0.005, { when: P => +P.bumpF || +P.bumpR }],
+  ['bumpW', 'bumper span (x the body)', 0.4, 1.3, 0.01, { when: P => +P.bumpF || +P.bumpR }],
+  ['bumpH', 'bumper blade height (m)', 0.06, 0.3, 0.005, { when: P => +P.bumpF || +P.bumpR }],
+  ['bumpFin', 'bumper finish', 0, 1, 1, ['chrome', 'black'], { when: P => +P.bumpF || +P.bumpR }],
+  ['bumpGuards', 'bumper overriders', 0, 1, 1, { when: P => +P.bumpF || +P.bumpR }],
+  ['hitchOn', 'tow hitch (rear)', 0, 1, 1, { when: P => +P.bumpR }],
 ];
 
 const PRESETS = {

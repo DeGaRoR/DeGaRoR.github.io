@@ -145,7 +145,16 @@
   "rearWinW": 0.8,
   "rearWinY": 0.564,
   "rearWinH": 0.518,
-  "rearWinR": 0.06
+  "rearWinR": 0.06,
+  "bumpF": 1,
+  "bumpR": 1,
+  "hitchOn": 1,
+  "bumpY": 0.0,
+  "bumpGap": 0.07,
+  "bumpW": 0.92,
+  "bumpH": 0.18,
+  "bumpFin": 0,
+  "bumpGuards": 1
  },
  "fuel": {
   "litres": 80,
@@ -307,5 +316,9 @@
    "bezel": "plastic",
    "sw": "toggle"
   }
+ },
+ "cargo": {
+  "len": 1.0,
+  "kg": 150
  }
 }

@@ -314910,3 +314910,16 @@ the next steps).
   (aftCabin -> nose bay), and the C172's avionics (the roadster's car systems). Found with a probe through _load_build.js
   (the page's own scene): the seats are not in the headless scene. 1012 kg, 53 % front; AUTOTOW off paved now holds 79
   km/h (short of the 90 pass mark: the tank's move took weight off the rear - ballast in the load bay is the cure to try).
+- **CAR-3/4, THE BACKS (the user: "the backside is what we're gonna see for all tows ... give that a little bit of love")**:
+  rearWinN / rearWinGap (a PAIR of rear windows; absent = one) - the wagon's two in the side glass's band (0.305-0.823
+  cage), 0.80 wide, 0.95 apart. The UTV: intBulk 0 (its window looks into the cab) and the roadster's wheel model (whProfile
+  2 slim, whRim 1 spoked, whRimD 0.62, whWide 1.1, its tread kept). NEW ASSEMBLY bumpF / bumpR (+ bumpY / bumpGap / bumpW /
+  bumpH / bumpFin / bumpGuards / hitchOn; _cage_gear.js bumperBuild, _gear_page.js, _cage_parts.js; absent = none): a
+  1940s blade (convex face between rolled lips, swept along the width, the ends wrapping 75 deg back round the corners),
+  teardrop overriders, bracket arms with gussets and bolts; the rear one a ribbed step pad and THE HITCH - a square
+  receiver tube with its collar and cross plate, the drawbar, the drop plate and shelf, a 50 mm ball on its neck and nut,
+  the cross pin with head and clip ring, two safety-chain loops. The ball's centre is window.CAGE_GEAR_HITCH; car_sheet
+  writes it as sheet.hitch (the rope pulls there). The front bumper's station is the bonnet's own rows (AF.z1 + cowlLen +
+  lidLen) - a scene lookup of the cowl group missed it in the page. THE TUG'S BALLAST: the 4WD splits the drive equally per
+  wheel (no differential), so a front-heavy tug spins its light rears on the climb - 150 kg in the load bay (spec.cargo,
+  _rejoin_build.js now carries E.cargo): 1249 kg, 36 % front, AUTOTOW LAUNCHES (97 km/h held).

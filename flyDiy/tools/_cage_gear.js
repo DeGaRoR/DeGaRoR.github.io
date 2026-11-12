@@ -2331,6 +2331,123 @@ function doorBuild(P, fit, mech, swing, ctx, group, FS, AF, KT, CM) {
 // and a LEATHER STRAP round the tyre's crown, anchored at a bracket on the body, fastened by a buckle on the outer face
 // (a rounded chrome frame, its roller, the tongue, a leather keeper, the punched tail with a rounded tip). All in the
 // group's own frame (the layers' metres). A picture: not a unit, not a contact; named edSpare.
+// CAR-3/CAR-4 (the user, 12 Nov: "back and front bumpers ... don't just slap a bar in front of it ... a nice assembly,
+// professional quality modeling ... a back bumper plus the hitch for the tow"): bumpF / bumpR draw a BUMPER ahead of the
+// bonnet's face / behind the rear wall - a 1940s blade (a convex face between rolled lips, swept along the body's width,
+// its ends wrapping back round the corners), two teardrop overriders, two bracket arms back to the frame with their
+// bolts; the rear one carries a ribbed rubber step pad and THE HITCH under its centre: a square receiver tube with its
+// cross plate, the drawbar, the drop plate, a 50 mm ball on its nut, the cross pin and its clip, two safety-chain loops.
+// The ball's centre is published (window.CAGE_GEAR_HITCH, the layers' metres) - the drive test's rope pulls there.
+// Rows (absent = no bumper): bumpY the beam's centre over the body's bottom line, bumpGap off the face, bumpW the span
+// (x the body's half-width), bumpH the blade's height, bumpFin 0 chrome / 1 black, bumpGuards 0/1, hitchOn (rear).
+function bumperBuild(group, P, AF, scene, front) {
+  const sZ = front ? 1 : -1;                               // outward along the car
+  const H = Math.max(0.06, +P.bumpH || 0.15), D = Math.max(0.05, 0.45 * H), gap = +P.bumpGap >= 0 ? +P.bumpGap : 0.07;
+  let zFace = front ? AF.z1 : AF.z0;
+  // the bonnet's face from its own rows (metres off the firewall, the airframe's forward end) - a scene lookup found a
+  // stale cowl group in the page and lost the front bumper
+  if (front && +P.engOn !== 0 && +P.cw_cowlLen > 0) zFace = AF.z1 + (+P.cw_cowlLen) + Math.max(0, +P.cw_lidLen || 0);
+  const zIn = zFace + sZ * gap;                            // the beam's inner (body-side) face
+  const zRef = front ? AF.z1 - 0.05 : AF.z0 + 0.05;
+  let bot = Infinity, half = 0;
+  for (let a = 0; a <= 180; a += 3) { const q = AF.surf(zRef, a * D2R); if (q && isFinite(q[1])) { bot = Math.min(bot, q[1]); half = Math.max(half, Math.abs(q[0])); } }
+  const yB = bot + (+P.bumpY || 0);
+  const rw = 0.12, A = 75 * D2R, X = Math.max(0.2, half * (+P.bumpW > 0 ? +P.bumpW : 0.92) - rw * Math.sin(A));
+  const fin = Math.round(+P.bumpFin || 0) === 1 ? GG.gearMat('dark') : GG.gearMat('chrome');
+  const steel = GG.gearMat('steel'), dark = GG.gearMat('dark'), chrome = GG.gearMat('chrome');
+  const root = new THREE.Group(); root.name = front ? 'edBumperF' : 'edBumperR';
+  const add = (geo, mat, x, y, z, q) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); if (q) m.quaternion.copy(q); root.add(m); return m; };
+  // ---- the path: left tip -> left wrap -> the straight -> right wrap -> right tip (x, z), in the beam's inner face ----
+  const path = [];
+  const NA = 10, NS = 24;
+  for (let k = NA; k >= 1; k--) { const a = A * k / NA; path.push([-X - rw * Math.sin(a), zIn - sZ * rw * (1 - Math.cos(a))]); }
+  for (let k = 0; k <= NS; k++) path.push([-X + 2 * X * k / NS, zIn]);
+  for (let k = 1; k <= NA; k++) { const a = A * k / NA; path.push([X + rw * Math.sin(a), zIn - sZ * rw * (1 - Math.cos(a))]); }
+  // ---- the profile (d out from the inner face, h up): the rolled lower lip, the convex face, the rolled upper lip,
+  // the return flange inside - a closed loop ----
+  const prof = [];
+  const lip = 0.012;
+  prof.push([0.004, -H / 2 + lip]);
+  for (let k = 0; k <= 5; k++) { const a = Math.PI * (1 + k / 10); prof.push([0.018 + lip * Math.cos(a) * -1 + 0.0, -H / 2 + lip + lip * Math.sin(a)]); }
+  for (let k = 0; k <= 14; k++) { const t = k / 14; prof.push([D * (0.62 + 0.38 * Math.sin(Math.PI * t)), -H / 2 + 0.004 + (H - 0.008) * t]); }
+  for (let k = 0; k <= 5; k++) { const a = Math.PI * (k / 10); prof.push([0.018 + lip * Math.cos(a), H / 2 - lip + lip * Math.sin(a)]); }
+  prof.push([0.004, H / 2 - lip]);
+  const NPf = prof.length;
+  const pos = [], idx = [];
+  for (let i = 0; i < path.length; i++) {
+    const a = path[Math.max(0, i - 1)], b = path[Math.min(path.length - 1, i + 1)];
+    let tx = b[0] - a[0], tz = b[1] - a[1]; const tl = Math.hypot(tx, tz) || 1; tx /= tl; tz /= tl;
+    const nx = -sZ * tz, nz = sZ * tx;
+    for (const [d, h] of prof) pos.push(path[i][0] + nx * d, yB + h, path[i][1] + nz * d);
+  }
+  for (let i = 0; i + 1 < path.length; i++) for (let j = 0; j < NPf; j++) {
+    const j2 = (j + 1) % NPf, A0 = i * NPf + j, B0 = i * NPf + j2, C0 = (i + 1) * NPf + j, D0 = (i + 1) * NPf + j2;
+    if (sZ > 0) idx.push(A0, C0, B0, B0, C0, D0); else idx.push(A0, B0, C0, B0, D0, C0);
+  }
+  // the end caps
+  for (const i of [0, path.length - 1]) { const c = pos.length / 3; let cx = 0, cy = 0, cz = 0;
+    for (let j = 0; j < NPf; j++) { cx += pos[3 * (i * NPf + j)]; cy += pos[3 * (i * NPf + j) + 1]; cz += pos[3 * (i * NPf + j) + 2]; }
+    pos.push(cx / NPf, cy / NPf, cz / NPf);
+    for (let j = 0; j < NPf; j++) { const j2 = (j + 1) % NPf; if ((i === 0) === (sZ > 0)) idx.push(c, i * NPf + j2, i * NPf + j); else idx.push(c, i * NPf + j, i * NPf + j2); } }
+  const bg = new THREE.BufferGeometry(); bg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); bg.setIndex(idx); bg.computeVertexNormals();
+  const beam = new THREE.Mesh(bg, fin); beam.name = 'edBumperBeam'; root.add(beam);
+  const zOut = zIn + sZ * D;                               // the face's crown
+  // ---- the overriders: teardrop guards standing proud of the face ----
+  if (+P.bumpGuards !== 0) {
+    const g = [];
+    // a stubby rounded guard: an elongated dome, full width over most of its height, rounded ends (never a point)
+    const Rg = 0.034, Hg = H * 1.45;
+    for (let k = 0; k <= 18; k++) { const t = k / 18, u = 2 * t - 1; g.push(new THREE.Vector2(Rg * Math.pow(Math.max(0, 1 - Math.pow(Math.abs(u), 4)), 0.25) + 0.0003, u * Hg / 2)); }
+    const gg = new THREE.LatheGeometry(g, 28);
+    for (const sx of [-1, 1]) { const m = add(gg, fin, sx * X * 0.62, yB + H * 0.12, zOut - sZ * 0.01); m.scale.set(1, 1, 0.8); m.name = 'edBumperGuard'; }
+  }
+  // ---- the bracket arms: flat bar from the beam's back to the frame, a gusset, two bolt heads at each end ----
+  const armL = gap + 0.30, armZ = zIn - sZ * armL / 2;
+  for (const sx of [-1, 1]) {
+    const xa = sx * X * 0.55;
+    add(new THREE.BoxGeometry(0.045, 0.07, armL), steel, xa, yB, armZ).name = 'edBumperArm';
+    add(new THREE.BoxGeometry(0.010, 0.05, armL * 0.5), steel, xa + sx * 0.0275, yB - 0.01, zIn - sZ * armL * 0.3).name = 'edBumperArm';
+    for (const dy of [-0.018, 0.018]) add(new THREE.CylinderGeometry(0.009, 0.009, 0.008, 6), chrome, xa, yB + dy, zIn - sZ * 0.004, new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 1)));
+  }
+  // ---- the rear: the rubber step pad and THE HITCH ----
+  if (!front) {
+    for (let k = -4; k <= 4; k++) add(new THREE.BoxGeometry(0.30, 0.006, 0.010), dark, 0, yB + H / 2 + 0.003, zIn - sZ * (D * 0.5 + k * 0.006)).name = 'edBumperStep';
+    if (+P.hitchOn !== 0) {
+      const S = 0.065, Tn = 0.006, yR = yB - H / 2 - S / 2 - 0.01, L = 0.34, zc = zOut - sZ * (L / 2 - 0.05);
+      const R = new THREE.Group(); R.name = 'edHitch'; root.add(R);
+      const box = (w, h, d, mat, x, y, z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); m.position.set(x, y, z); R.add(m); return m; };
+      // the receiver tube: four walls
+      box(S, Tn, L, steel, 0, yR + S / 2 - Tn / 2, zc); box(S, Tn, L, steel, 0, yR - S / 2 + Tn / 2, zc);
+      box(Tn, S, L, steel, S / 2 - Tn / 2, yR, zc); box(Tn, S, L, steel, -S / 2 + Tn / 2, yR, zc);
+      // the collar at the mouth, the cross plate welded to the bumper's arms
+      box(S + 0.016, S + 0.016, 0.02, steel, 0, yR, zOut + sZ * 0.04);
+      box(X * 1.1, 0.05, 0.008, steel, 0, yR + S / 2 + 0.025, zIn - sZ * 0.06);
+      // the drawbar in the receiver, out past the mouth, and the drop plate
+      const zD = zOut + sZ * 0.05, bL = 0.15;
+      box(0.050, 0.050, bL, steel, 0, yR, zD + sZ * (bL / 2 - 0.06));
+      const zP = zD + sZ * (bL - 0.06);
+      box(0.10, 0.12, 0.018, steel, 0, yR + 0.02, zP);
+      // the ball: its nut, its neck, the 50 mm ball
+      const up = new THREE.Vector3(0, 1, 0);
+      const zBall = zP + sZ * 0.045, yTop = yR + 0.02 + 0.06;
+      const m1 = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.024, 0.018, 6), chrome); m1.position.set(0, yTop - 0.016 - 0.009, zBall); R.add(m1);   // under the shelf the ball's shank bolts through
+      const plate2 = box(0.10, 0.016, 0.10, steel, 0, yTop - 0.008, zP + sZ * 0.04);
+      const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.018, 0.03, 20), chrome); neck.position.set(0, yTop + 0.015, zBall); R.add(neck);
+      const ball = new THREE.Mesh(new THREE.SphereGeometry(0.025, 28, 18), chrome); ball.position.set(0, yTop + 0.03 + 0.022, zBall); R.add(ball);
+      // the cross pin through the receiver, its head and clip ring
+      const across = new THREE.Quaternion().setFromUnitVectors(up, new THREE.Vector3(1, 0, 0));
+      const zPin = zOut + sZ * 0.0;
+      const pin = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, S + 0.05, 12), chrome); pin.quaternion.copy(across); pin.position.set(0, yR, zPin); R.add(pin);
+      const head = new THREE.Mesh(new THREE.CylinderGeometry(0.013, 0.013, 0.008, 16), chrome); head.quaternion.copy(across); head.position.set(-(S / 2 + 0.025), yR, zPin); R.add(head);
+      const clip = new THREE.Mesh(new THREE.TorusGeometry(0.014, 0.0025, 8, 20), chrome); clip.position.set(S / 2 + 0.03, yR, zPin); clip.rotation.y = Math.PI / 2; R.add(clip);
+      // the safety-chain loops, welded either side of the mouth
+      for (const sx of [-1, 1]) { const lp = new THREE.Mesh(new THREE.TorusGeometry(0.016, 0.004, 8, 20), steel); lp.position.set(sx * (S / 2 + 0.02), yR - S / 2 + 0.004, zOut + sZ * 0.03); lp.rotation.x = Math.PI / 2; R.add(lp); }
+      for (const o of R.children) o.name = o.name || 'edHitch';
+      window.CAGE_GEAR_HITCH = [0, ball.position.y, zBall];
+    }
+  }
+  group.add(root);
+}
 function spareBuild(group, P, AF) {
   const localBox = o => { const b2 = new THREE.Box3(); o.updateMatrixWorld(true);
     o.traverse(m => { if (!m.isMesh || !m.geometry) return; if (!m.geometry.boundingBox) m.geometry.computeBoundingBox();
@@ -2994,6 +3111,11 @@ PAGE.post = ctx => {
   // the layers' z), its hub at the body's mid-height plus spareY. A picture only: it is not a unit, not a contact, and
   // it rides the body (named edSpare, not edWheel*). Absent = no spare.
   if (+P.spareOn && AF && typeof AF.surf === 'function') spareBuild(group, P, AF);
+  if (typeof window !== 'undefined') window.CAGE_GEAR_HITCH = null;
+  if (AF && typeof AF.surf === 'function') {
+    if (+P.bumpF) bumperBuild(group, P, AF, scene, true);
+    if (+P.bumpR) bumperBuild(group, P, AF, scene, false);
+  }
   // the LEGS take a livery section too (phase C): steel tube by default,
   // following nobody — but a builder can paint a leg without repainting the
   // chrome piston or the tyres, which stay hardware. Only the 'steel' bag
