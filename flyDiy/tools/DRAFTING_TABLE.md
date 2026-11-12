@@ -564,3 +564,16 @@ body's 5 cm aft of it (a new instrument, worth keeping: a radial gap hides WHICH
 `frNoseTopW` / `frNoseBotW` were NOT the answer: on the nose frame they scale the face (and the sealed cowl with it).
 The crown stays (0.16): at 0 the windscreen base folds. Result: the two sections within 1 cm on every side; 125 / 175.
 The chin scoop's width 0.95 of the cowl's (it read narrow at its aft end at 0.8).
+
+## ROUND 10 (12 Nov): the window retraced, a piston shock, the cabin dead square, the stacks split
+
+- The cockpit window had traced the DOOR's outline (the drawing has both). The user traced the glass in blue; the
+  five corners now follow it, the front-top edge parallel to the A-pillar (h = 0.565 + (a - 3.218), 0.11 inboard).
+  Lesson: on a drawing with a door and a window in the same bay, ask which line is the glass before tracing.
+- The front view showed the roof and the passenger bays narrower than the cabin: `frPax*W` were 0.77 against 0.85
+  (the boom, matched to the aft bay, followed), and `topRound` 0.05 rounded the roof's edges. Now 0.85 everywhere
+  and `topRound` 0.02 - at 0 the skin folds at the windscreen top (3.62 m aft, 1.07 up). 134 / 175.
+  The half-widths-at-heights instrument (round 9) read the roof too: run it over the cabin and bays, not just the joint.
+- Garage (44ceb38e, for A0): the link leg's `shockKind` 3, a piston (the Wilga strut's shapes, an oleo in the
+  physics), and the engine's `stackSplit` (one stack mirrored under the can). The PC-6: piston, `s1_shockAng` 118
+  (the tops 7 cm lower), `eng_stackSplit` 1 with `eng_stackDrop` -0.4 (the right one rises, the left one dips).
