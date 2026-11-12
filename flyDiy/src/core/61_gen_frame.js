@@ -1795,7 +1795,36 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // tied to its ring's bottom corners, its aft end clamped on the mast's foot (both chords on the mast's two lowest
   // levels' forward corners). Weightless members, the beam billed a metre (keelKgM); fuselage class; inside the skin
   let keelRef = null;
-  if (mastRef) {
+  // THE TWIN KEEL (fuselage.hangKeel 2): two tubes either side of the pilot at the window's sill (hangKeelK of the cabin's
+  // height, the join's measure), straight from the nose's ring to the mast - each station tied to its ring's two corners
+  // on its side, the pair laddered across, each tube's end on the mast's level at its height (its forward corners and
+  // the level over and under). The controls will mount on them
+  if (mastRef && S.fuse && +S.fuse.hangKeel === 2) {
+    const H0 = typeof GEN_HANG !== 'undefined' ? GEN_HANG : { tubeKgM: 0.5, keelK: 0.33, keelIn: 0.85 };
+    const k = S.fuse.hangKeelK != null ? +S.fuse.hangKeelK : H0.keelK, kin = H0.keelIn || 0.85, xa = mastRef.x[0];
+    const st = []; for (let i = 0; i < F.length; i++) if (ST[i].x < xa - 0.05) st.push(i);
+    if (st.length) {
+      const M = (a, b) => B(a, b, 'fus', false, 'inner', undefined, { noMass: true });
+      const L = [], R = [];
+      for (const i of st) {
+        const at = (lo, hi) => P[lo].map((v, c) => v + (P[hi][c] - v) * k);
+        const pl = at(F[i].BL, F[i].TL), pr = at(F[i].BR, F[i].TR);
+        const l = N(ST[i].x, pl[1], pl[2] * kin, 'KEELL'), r = N(ST[i].x, pr[1], pr[2] * kin, 'KEELR');
+        L.push(l); R.push(r); M(l, r);
+        M(l, F[i].BL); M(l, F[i].TL); M(r, F[i].BR); M(r, F[i].TR); M(l, F[i].BR); M(r, F[i].BL);
+      }
+      for (let q = 0; q + 1 < L.length; q++) { M(L[q], L[q + 1]); M(R[q], R[q + 1]); M(q % 2 ? L[q] : R[q], q % 2 ? R[q + 1] : L[q + 1]); }
+      // the ends on the mast: its level nearest the tubes' height, and the levels round it
+      const lvN = Math.round(mastRef.nodes.length / 4) - 1, yE = P[L[L.length - 1]][1];
+      const lvAt = l => mastRef.nodes.slice(4 * l, 4 * l + 4);
+      let best = 0, bd = Infinity; for (let l = 0; l <= lvN; l++) { const d = Math.abs(P[lvAt(l)[0]][1] - yE); if (d < bd) { bd = d; best = l; } }
+      for (const l of [best - 1, best, best + 1]) if (l >= 0 && l <= lvN) { const [aL, aR] = lvAt(l); M(L[L.length - 1], aL); M(R[R.length - 1], aR); M(L[L.length - 1], aR); M(R[R.length - 1], aL); }
+      const len = xa - ST[st[0]].x, kg = 2 * (H0.tubeKgM || 0.5) * len;
+      for (const n of L.concat(R)) pt(n, kg / (L.length + R.length));
+      keelRef = { twin: 1, left: L, right: R, x: [ST[st[0]].x, xa], len, kg, rings: st, k };
+    }
+  }
+  if (mastRef && !keelRef) {
     const H0 = typeof GEN_HANG !== 'undefined' ? GEN_HANG : { keelD: 0.08, keelKgM: 1.2 };
     const xa = mastRef.x[0], kd = H0.keelD || 0.08, KB = [], KT = [];
     const keelY = i => 0.5 * (P[F[i].BL][1] + P[F[i].BR][1]);

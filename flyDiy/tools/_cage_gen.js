@@ -8449,7 +8449,7 @@ const CAGE_PARAMS = {
   // tightening's aft section; cageLiftLegacy lifts a saved factor.)
   taperOn: 0, taperLen: 0.6, taperPanels: 0,
   boomStyle: 0, rodY: 0, rodD: 0.12, rodIncl: 0,
-  hangOn: 0, hangAt: 0.50, hangLen: 0.35,   // (the hanging nacelle, the Archaeopteryx study's stage 3: off; GEN_HANG's mast)
+  hangOn: 0, hangAt: 0.50, hangLen: 0.35, hangKeels: 1,   // (the hanging nacelle, the Archaeopteryx study's stage 3: off; GEN_HANG's mast)
   // twin booms (2026-09-04): drawn by the wing layer off the trailing edge.
   // G267: the LOFT — a section (width x height) at each end of the body, a
   // squareness, and a fairing (length, cone -> ogive, cap) at each end.
@@ -9232,7 +9232,7 @@ const CAGE_DEFAULT_ABSENT = { pilSnap: 1, doorStop: 75, wgStrutPil: 0, wgTipBow:
   s2Nose: 0,                         // (MONOWHEEL: the third unit's leaf spring at the tail, as ever)
   s1Sink: 0, s2Sink: 0,              // (MONOWHEEL: no wheel sunk into the body)
   rodHub: 0,                         // (the hub's rear socket: the rod on the aft bulkhead, as ever)
-  hangOn: 0, hangAt: 0.50, hangLen: 0.35,   // (the hanging nacelle: the cabin carries the wing, as ever; GEN_HANG's mast)
+  hangOn: 0, hangAt: 0.50, hangLen: 0.35, hangKeels: 1,   // (the hanging nacelle: the cabin carries the wing, as ever; GEN_HANG's mast)
   bpCabPyAt: 0.40, bpCabPyLen: 0.55, // (the hub's pylon on the chord: HULL-B78's own)
   hullFlute: 0, hullFluteN: 2, hullFluteAt: 0.55, hullFluteBow: 0.85, hullFluteAft: 0, hullStrakes: 0, hullStrakeW: 0.05, hullStrakeLen: 0.8, hullRocker: 0, hullSkirt: 0, hullTipPlane: 0,   // (HULL-B39, B43, B44, B45)
   // COMMS-SECTION ready 2 (9 Nov): the GPS puck's and the ELT whip's nudges - every older row's are written at 0 in

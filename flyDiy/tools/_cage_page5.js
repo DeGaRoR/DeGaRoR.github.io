@@ -1260,6 +1260,10 @@ window.CAGE_PAGE = {
        { when: P => +P.wingOn && (Math.round(+P.wgPos || 0) === 0 || Math.round(+P.wgPos || 0) === 3) }],
       ['hangAt',    'mast station on the chord (its middle)', 0.10, 0.95, 0.01,
        { when: P => +P.hangOn && +P.wingOn }],
+      // THE KEEL (the user, 12 Nov: "it's actually 2 of them and the pilot fits between, mounted at the level of the bottom
+      // of the pilot window ... offer both options ... tubes when there are 2, and a square section for a single one")
+      ['hangKeels', 'keel beam', 1, 2, 1, ['single (a square box on the centreline)', 'twin tubes (either side of the pilot, at the sill)'],
+       { when: P => +P.hangOn && +P.wingOn }],
       ['hangLen',   'mast chord (of the chord)', 0.10, 0.60, 0.01,
        { when: P => +P.hangOn && +P.wingOn }],
       ['boomLen',   'length',          1.0, 6.0, 0.01, { dim: 'len' }],

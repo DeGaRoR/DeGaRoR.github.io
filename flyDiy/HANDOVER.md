@@ -314741,3 +314741,20 @@ IoU side 0.805 -> 0.832, plan 0.902 -> 0.908. The card: rodD 0.27 (rodY 0.8129, 
 4.46, engY -0.343 (the thrust line midway again). The keel beam drawn level at its anchor on the mast's foot, the nose
 hung on it. THE CG went aft with the cabin: 73 % of the root chord, the static margin -14 % (it was +11 %): the masses'
 chantier (stage 4) must bring it forward. Parked: the wheel, the nose skid, a wingtip skid.
+
+## CABIN, FIN, TWIN KEEL (12 Nov 2026; NOT YET GATED - the user validates the build first)
+
+- The cabin 10 cm less deep (the user: "chop off 10 cm ... to match the drawing"): keelY / floorY / aftKeelY and the
+  windscreen frame's bottom (frWinBotY) up 0.134; noseDroop 0.15; the bottom on the drawing's from 0.75 to 2.25 m (side
+  IoU 0.847); the nose skid's shoe level with the wheel again (s2_twLegDrop 0.055).
+- The fin squared (the user's red lines): the shoulder straight under the tip on the mid row (finShoulderZ / Y 0,
+  finTipZ 0, finMidY 0), the top flat (finTopY 0), crisp corners, the shoulder's crease off - the LE straight within
+  2 mm, the trim's line level across fin and rudder.
+- THE TWIN KEEL (the user: "2 of them and the pilot fits between, mounted at the level of the bottom of the pilot window
+  ... tubes when there are 2, and a square section for a single one ... they anchor on the nose part, they're straight"):
+  the row hangKeels (Fuselage > hanging nacelle: single box / twin tubes); fuselage.hangKeel 2 and hangKeelK (the
+  sill's height in the cabin, the join's measure off the cabin ring's waist). The frame (3e): a tube a side at that
+  height, tied to its ring's corners on its side, laddered across, ends on the mast's levels at its height
+  (GEN_HANG.tubeKgM 0.5 kg/m each, keelIn 0.85 of the half-width). The drawing: two 50 mm carbon tubes, straight and
+  level at the sill, from where each meets the nose's skin to the mast's front, a cross tube at each end. The card on
+  twin tubes. GATE NACELLE's keel checks are the single beam's: to update with the twin's when the build is validated.

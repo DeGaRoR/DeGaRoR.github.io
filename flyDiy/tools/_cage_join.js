@@ -710,6 +710,12 @@ function cageJoinSpec(P, M, T) {
   if (+P.hangOn && P.wingOn) {
     fus.hang = true;
     if (P.hangAt != null) fus.hangAt = +P.hangAt;
+    // the twin keel tubes, at the window's sill: its height in the cabin's (the cabin ring's waist over its keel and roof)
+    if (Math.round(+P.hangKeels || 1) === 2) {
+      fus.hangKeel = 2;
+      try { const C2 = window.CAGE2, RR = C2.cageResolve(C2.cageSpec(P)), r = RR.rings.find(q => q.name === 'ring'), lv = r && r.lv;
+        if (lv && lv.waist && lv.keel && lv.roof && lv.roof.y > lv.keel.y) fus.hangKeelK = Math.round((lv.waist.y - lv.keel.y) / (lv.roof.y - lv.keel.y) * 1e4) / 1e4; } catch (e) {}
+    }
     if (Array.isArray(M.hangX)) fus.hangX = M.hangX.slice();
     if (P.hangLen != null) fus.hangLen = +P.hangLen;
   }

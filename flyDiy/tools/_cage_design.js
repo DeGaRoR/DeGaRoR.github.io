@@ -3065,6 +3065,9 @@ const ARCHETYPES = [
                     // tip 7 cm ahead of the prop); the cabin's aft pillar bolts onto the mast's front (its depth of
                     // overlap). The static margin -4 % -> +11 %. The wheel 6 cm aft of the mast's middle (s1AxZ, under its
                     // chord): at the CG exactly it rocked back onto the tail post; 6 cm aft it parks on the nose skid
+                    // the keel as the real one's (12 Nov, the user: "it's actually 2 of them and the pilot fits between, mounted
+                    // at the level of the bottom of the pilot window"): twin carbon tubes at the sill, nose to mast
+                    hangKeels: 2,
                     hangOn: 1, hangAt: 0.86, hangLen: 0.18,
                     // the wing: LE 1.08 / TE 2.30 behind the nose at the root, chord 1.19 -> 1.09 at the crank -> 0.56
                     wgSpan: 13.0, wgChord: 1.19, wgCrankAt: 0.48, wgCrankChord: 1.09, wgCrankX: 0.08,
@@ -3075,9 +3078,9 @@ const ARCHETYPES = [
                     // builds/chinook_2026-09-21_corrected.json verbatim (its planeScale is this card's 0.745 and its
                     // pod is this one's size, 0.72 x 1.14 m: no scaling), the pax bay off (sel paxCount 0); the
                     // covering and the material stay this card's.
-                    halfW: 0.48, roofHalfW: 0.195, keelY: -0.71, floorY: -0.58, ceilInset: 0.2, waistY: -0.2,
+                    halfW: 0.48, roofHalfW: 0.195, keelY: -0.576, floorY: -0.446, ceilInset: 0.2, waistY: -0.2,
                     bandH: 0.052, ringPullIn: 0, wsRun: 1.75, wsBaseBow: 0.48, wsCeilBow: 0.115, wsBaseLift: 0,
-                    noseLen: 0.61, noseW: 0.8, noseH: 0.06, noseCrown: 0, noseDroop: 0.08,
+                    noseLen: 0.61, noseW: 0.8, noseH: 0.06, noseCrown: 0, noseDroop: 0.15,
                     topRound: 0, topAngCeil: 52, crSill: 3, crCeil: 3, crFrontCap: 0.65, crKeel: 3, crSillNose: 3,
                     cowlLoops: 2,
                     // no taper section (11 Nov, the user: "remove the taper section"): the rod straight off the aft pillar
@@ -3101,7 +3104,13 @@ const ARCHETYPES = [
                     // aft of the cabin ... the section should remain straight"): with no taper section the aft rows act
                     // at the pillar, and the original card's aftKeelY (-0.765) / aftRoofY (0.78) stood off the Chinook
                     // cabin's keelY / roofY - the last ring dipped 4 cm. Equal now
-                    aftKeelY: -0.71, aftRoofY: 0.815,
+                    aftKeelY: -0.576, aftRoofY: 0.815,
+                    // THE CABIN 10 CM LESS DEEP (12 Nov, the user: "our cabin is still a little too high, let's chop off 10
+                    // cm out of it, to match the drawing"): its bottom up 0.10 m (keelY, floorY, aftKeelY and the windscreen
+                    // frame's bottom frWinBotY up 0.134), the nose a touch more droop (noseDroop 0.08 -> 0.15: its tip on the
+                    // drawing's), the wing, the rod and the window's sill where the drawing has them; the bottom now on the
+                    // drawing's from 0.75 to 2.25 m (side IoU 0.832 -> 0.847). The wheel and the skid rise with it
+                    frWinBotY: -0.538,
                     // ...THEN ON ONE WHEEL (the study's stage 1, 11 Nov, the user's photo of the real one: "for gliders,
                     // we need to allow super light wheels ... sunk wheels"): the Undercarriage tile's Monowheel - the main
                     // on the centreline under the mast (below), a bicycle wheel (whProfile 3, 0.20 m) half sunk
@@ -3111,16 +3120,21 @@ const ARCHETYPES = [
                     // (wgTipSkid)
                     pilotLen: 0.52, s1Z: 1.13, s1X: 0, s1AxZ: -0.06, s1R: 0.2, s1Drop: 0.05, s1Root: 1, s1Sink: 0.45,
                     whProfile: 3,
-                    s2Leg: 3, s2Nose: 1, s2Z: 0.45, s2Steer: 4, s2Fair: 1, s2R: 0.10, s2Drop: 0.05, s2_twLegDrop: 0,
+                    s2Leg: 3, s2Nose: 1, s2Z: 0.45, s2Steer: 4, s2Fair: 1, s2R: 0.10, s2Drop: 0.05, s2_twLegDrop: 0.055,
                     wgTipSkid: 1,
                     // the tail: the stab's size and station, the fin's outline (fit_tail.js), no dorsal fillet
                     stSpan: 0.98, stChord: 0.47, stChordTip: 1.2, stZ: 0.4,
                     finDorsal: 0, finDorsalTube: 0,
                     finHeight: 1.25, finChord: 1.05, finChordTip: 0.7, finSweep: 3, finHinge: 0.4,
-                    finTipZ: -0.2, finTipY: -0.3, finAftZ: 0, finAftY: -0.275, finBaseZ: 0, finBaseY: 0.05,
-                    finMidY: 0.11, finUY: -0.4, finLEZ: -0.65, finLEY: -0.09, finShoulderZ: 0.35,
-                    finShoulderY: 0.28, finTopY: 0.015, finTERoot: -0.055, finTEU: -0.075, finTEMid: 0.01,
-                    finSharpShoulder: 0.95 },
+                    finTipZ: 0, finTipY: -0.3, finAftZ: 0, finAftY: -0.275, finBaseZ: 0, finBaseY: 0.05,
+                    finMidY: 0, finUY: -0.4, finLEZ: -0.65, finLEY: -0.09, finShoulderZ: 0,
+                    finShoulderY: 0, finTopY: 0, finTERoot: -0.055, finTEU: -0.075, finTEMid: 0.01,
+                    finSharpShoulder: 0, finSharpTip: 3, finSharpLE: 3, finSharpAft: 3,
+                    // THE FIN SQUARED (12 Nov, the user, drawing it in red: "fix the inelegant shape up top of the fin. Make
+                    // everything perfectly straight over there"): the shoulder straight under the tip on the mid row
+                    // (finShoulderZ / Y 0, finTipZ 0, finMidY 0), the top flat (finTopY 0), its corners crisp - the leading
+                    // edge straight within 2 mm from the root to the tip, the trim's line level across fin and rudder
+                    },
             spec: { fuel: { litres: 0 } } } },
   // 2026-09-04 (the user): "We need a twin engine aircraft archetype, maybe
   // a couple of them. I'm thinking a luxury, small tourer, like the Diamond

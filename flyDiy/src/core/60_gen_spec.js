@@ -2791,7 +2791,11 @@ const GEN_TIP_SHAPE = { bow: [0.15, 0.80], droop: [0, 0.45], full: [1, 2.6], phi
 const GEN_HANG = { at: 0.50, len: 0.35, tc: 0.12, kgM: 2.4, lv: 0.30,
   // THE KEEL BEAM (61_gen_frame 3e): the cabin's floor beam to the mast's foot - its depth (m) and its mass a metre, a
   // carbon box ~80 x 60 mm, ~1.2 kg/m INFERRED
-  keelD: 0.08, keelKgM: 1.2 };
+  keelD: 0.08, keelKgM: 1.2,
+  // ...or TWO (the user, 12 Nov: "in the real plane, it's actually 2 of them and the pilot fits between, mounted at the
+  // level of the bottom of the pilot window"): carbon tubes ~50 mm, ~0.5 kg/m each INFERRED, at keelK of the cabin's
+  // height when the join measured none, inset keelIn of the half-width
+  tubeKgM: 0.5, keelK: 0.33, keelIn: 0.85 };
 const GEN_TIP_SKID = { h: [0.02, 0.30], h0: 0.10, xc: [0.15, 0.75], xs: 0.45, bow: 0.6, r: 0.008, cd: 1.2, kg: 0.30, each: 90 };
 // ...its STATION (m from the centreline): `bow` of the way out along a tip's bow (a rounded, clipped, Hoerner or
 // elliptic tip: the bow's own outer reach would otherwise touch the ground first, the wing tilted on a single main), at
@@ -5973,7 +5977,11 @@ function clampSpec(spec) {
     // (hangX: the drawn mast's front and back stations, the join's measure - the frame stands it there)
     const hx = fu.hangX, hxOk = Array.isArray(hx) && hx.length === 2 && hx.every(Number.isFinite) && hx[1] - hx[0] > 0.05 && hx[1] - hx[0] < 2;
     if (!(fu.hang === true && hxOk)) delete fu.hangX;
-    if (!(fu.hang === true && (posH === 'high' || posH === 'parasol'))) { delete fu.hang; delete fu.hangAt; delete fu.hangLen; delete fu.hangX; }
+    // (hangKeel 2: the twin keel tubes either side of the pilot, at hangKeelK of the cabin's height - absent, the single
+    // box on the centreline)
+    if (!(fu.hang === true && +fu.hangKeel === 2)) { delete fu.hangKeel; delete fu.hangKeelK; }
+    else { fu.hangKeel = 2; const kk = +fu.hangKeelK; if (fu.hangKeelK != null && Number.isFinite(kk)) fu.hangKeelK = genClamp(kk, 0.05, 0.95); else delete fu.hangKeelK; }
+    if (!(fu.hang === true && (posH === 'high' || posH === 'parasol'))) { delete fu.hang; delete fu.hangAt; delete fu.hangLen; delete fu.hangX; delete fu.hangKeel; delete fu.hangKeelK; }
     else for (const [k, lo, hi] of [['hangAt', 0.10, 0.95], ['hangLen', 0.10, 0.60]]) {
       const v = +fu[k];
       if (fu[k] != null && Number.isFinite(v)) fu[k] = genClamp(v, lo, hi); else delete fu[k];

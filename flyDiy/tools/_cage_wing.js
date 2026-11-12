@@ -1203,6 +1203,7 @@ function cabPylonDraw(ctx) {
 // sheet with them after the chain. The mast's paint is the body's
 const HANG_CLR = 0.008;
 const KEEL_W = 0.06, KEEL_D = 0.08, KEEL_DN = 0.02;      // the keel beam's drawn box: GEN_HANG.keelD deep, 2 cm of it under the floor
+const KEEL_R = 0.025, KEEL_IN = 0.85;                       // the twin keel's tubes: 50 mm, at GEN_HANG.keelIn of the half-width
 let hangGroup = null;
 function hangMastDraw(ctx) {
   const { scene, P } = ctx;
@@ -1254,7 +1255,27 @@ function hangMastDraw(ctx) {
     // cabin's own floor line, on the centreline, from its first station with a floor to the mast's front face - no length
     // of its own; a carbon box KEEL_W wide and the frame's depth, most of it over the floor (the spine the seat and the
     // pedals bolt on), a hand under it
-    try {
+    // THE TWIN KEEL (hangKeels 2; the user, 12 Nov: "2 of them and the pilot fits between, mounted at the level of the bottom
+    // of the pilot window ... tubes ... they anchor on the nose part, they're straight"): two carbon tubes at the window's
+    // sill (the cabin ring's waist), KEEL_IN of the cabin's half-width out, straight and level from where each meets the
+    // nose's skin to the mast's front face
+    if (Math.round(+P.hangKeels || 1) === 2) try {
+      const RR = CG2.cageResolve(CG2.cageSpec(P)), rg = RR.rings.find(q => q.name === 'ring'), zF = zc + 0.5 * Lp;
+      const ys = rg && rg.lv && rg.lv.waist ? rg.lv.waist.y * FS : null, zr = rg && rg.lv && rg.lv.waist ? rg.lv.waist.z * FS : null;
+      if (ys != null) {
+        const xk = KEEL_IN * AF.halfWAt(zr);
+        // forward until the nose closes in on the tubes: their anchor
+        let zN = zr; for (let z = zr; z < AF.z1 - 0.02; z += 0.01) { if (AF.halfWAt(z) < xk + KEEL_R + 0.01) break; zN = z; }
+        const tb = GK.Bag();
+        for (const s of [-1, 1]) GK.taper(tb, [s * xk, ys, zN], [s * xk, ys, zF], KEEL_R, KEEL_R, 16);
+        // and a cross tube at each end: through the mast's front at the aft end (the tubes' anchor on the mast, the frame's
+        // ties), across the nose at the fore end
+        for (const z of [zF + KEEL_R, zN - KEEL_R]) GK.taper(tb, [-xk - KEEL_R, ys, z], [xk + KEEL_R, ys, z], KEEL_R, KEEL_R, 16);
+        const tm = tb.mesh(hangGroup, GG.gearMat ? GG.gearMat('dark') : MAT.liftstrut);
+        if (tm) { tm.name = 'hangKeel'; tm.userData.keel = { twin: 1, z0: zN, z1: zF, y: ys, x: xk }; }
+      }
+    } catch (e) { console.error('keel tubes:', e); }
+    else try {
       const RR = CG2.cageResolve(CG2.cageSpec(P)), zF = zc + 0.5 * Lp, pts = [];
       for (const r of RR.rings) { const f = r.lv && r.lv.floor; if (f && isFinite(f.y) && isFinite(f.z) && f.z * FS > zF + 0.01) pts.push([f.z * FS, f.y * FS]); }
       pts.sort((a, b) => b[0] - a[0]);
