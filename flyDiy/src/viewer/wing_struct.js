@@ -79,6 +79,12 @@
     glass:     { name: 'moulded: glass spar caps on a foam-cored web, rear web, few ribs', spar: 'ibeam', sparW: 0.030,
                  sparC: 'glass', webC: 'foam', rear: 'web', rearW: 0.010, rearC: 'foam', rib: 'sparse', ribC: 'foam',
                  cap: 0.012, nose: null, wires: false, le: null, te: 'glass', rootC: 'foam' },
+    // THE FOOT-LAUNCH D-TUBE (WEIGHT STUDY): one carbon spar closing a moulded D-box leading edge, light carbon ribs aft
+    // under a taut film, no rear spar to speak of (the Swift's, the Archaeopteryx's)
+    dtube:     { name: 'foot-launch D-tube: a carbon D-box leading edge on one spar, light ribs, film aft', spar: 'ibeam',
+                 sparW: 0.022, sparC: 'carbon', webC: 'foam', rear: 'web', rearW: 0.006, rearC: 'carbon', rib: 'sparse',
+                 ribC: 'carbon', cap: 0.008, nose: 'sheet', noseC: 'carbon', noseRibs: true, wires: false, le: null,
+                 te: 'carbon', rootC: 'foam' },
   };
   const G = typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : {});
   const libOf = lib => ({

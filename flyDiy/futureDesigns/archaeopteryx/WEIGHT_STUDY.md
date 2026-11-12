@@ -12,6 +12,11 @@ The user then set the design rule (revision 2):
 
 Revision 1's ratings, categories and max weight are dropped. This file replaces them.
 
+**Status (12 Nov): the foot-launch D-tube wing and GATE LIGHTWING are BUILT** (the Wing structure tile's 9th option;
+the row `GEN_SURF_MATERIALS.dtube`; the certificate's build weight). The real code reproduces the prototype: the
+Archaeopteryx 6.28 g on a 34.9 kg wing (certified); a Cub 3.70 g, a C172 2.71 g, a Caravan 1.62 g; without its build
+weight the C172 holds 10.98 g (the exploit, the gate's negative control). No card uses it yet.
+
 ## 0. The answer in one paragraph
 
 A construction carries a hidden **build weight**, the aeroplane it was designed for (the foot-launch wing: about

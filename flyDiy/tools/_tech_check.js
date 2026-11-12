@@ -153,8 +153,10 @@ function run(core, edSrc) {
     const m = /const mk = \(\{([^}]*)\}\)\[Math\.round\(P\.engMount/.exec(JS); if (!m) return null;
     const out = []; for (const [, k, v] of m[1].matchAll(/(\d+):\s*'([^']+)'/g)) out[+k] = v; return out; })();
   ok(J(M.TECH_ROWS.intCons) === J(intJoin.map(m => 'mat:' + m)), 'intCons: the join\'s fuselage materials, in its order', J(intJoin));
-  ok(J(M.TECH_SURF_ROW) === J([null].concat(cons4.map(m => 'surf:' + m))) && /material: Math\.round\(P\.wgCons\) > 0/.test(JS) && /\['carbon', 'steel', 'fabric',\s*'alloy', 'aluFabric', 'glass', 'fabricAlu'\]\[Math\.round\(P\.wgCons\) - 1\]/.test(JS),
-     'the surfaces\' rows (wg / w2 / fin / stab): "as the aeroplane", then the join\'s CONS4', J(cons4));
+  ok(J(M.TECH_SURF_ROW) === J([null].concat(cons4.map(m => 'surf:' + m))) && /material: Math\.round\(P\.wgCons\) > 0/.test(JS) && /\['carbon', 'steel', 'fabric',\s*'alloy', 'aluFabric', 'glass', 'fabricAlu', 'dtube'\]\[Math\.round\(P\.wgCons\) - 1\]/.test(JS),
+     'the surfaces\' rows (fin / stab): "as the aeroplane", then the join\'s CONS4', J(cons4));
+  // WEIGHT STUDY (12 Nov): the wings' rows alone have the ninth stop, the foot-launch D-tube (the join's wing list)
+  ok(J(M.TECH_ROWS.wgCons) === J(M.TECH_SURF_ROW.concat(['surf:dtube'])), 'wgCons: the surfaces\' stops and the foot-launch D-tube (the wing only)');
   ok(J(M.TECH_ROWS.glazeMat) === J(glz.map(m => 'glaze:' + m)) && J(M.TECH_ROWS.fairCons) === J(fair.map(m => 'fair:' + m)), 'glazeMat and fairCons: the join\'s lists');
   ok(/Math\.round\(\+P\.canopy\) === 3 \? 'bubble' : 'screen'/.test(JS) && M.TECH_ROWS.canopy.every((k, i) => k === (i === 3 ? 'canopy:bubble' : 'canopy:screen')), 'canopy: the fourth tile is the bubble (the join\'s rule)');
   ok(mounts && mounts[3] === 'wing' && M.TECH_ROWS.engMount[3] === 'cfg:twin' && M.TECH_ROWS.engMount.slice(0, 3).every(k => k === null), 'engMount: the wing nacelles (the fourth) are the twin');
@@ -284,12 +286,14 @@ function run(core, edSrc) {
   // the design tiles, through the real design table
   const tileGreys = (key) => PANEL.DES.rowOptions(PANEL.DES.DESIGN_ROWS.find(r => r.key === key)).filter(o => !o.inactive)
     .filter(o => !!E.TM.tileWhy(PANEL.DES.DESIGN_ROWS.find(r => r.key === key), o)).map(o => o.value);
-  const TILE_EXPECT = { intCons: [0, 3, 4, 5], engFamily: ['electric', 'turbine'], engCount: [2, 'pushPull', 'tandem', 3, 4], gearLayout: ['trike', 'hull'], canopy: ['bubble'], suspension: ['lever'], covering: [], planes: [] };
+  const TILE_EXPECT = { intCons: [0, 3, 4, 5], engFamily: ['electric', 'turbine'], engCount: [2, 'pushPull', 'tandem', 3, 4], gearLayout: ['trike', 'mono', 'hull'], canopy: ['bubble'], suspension: ['lever'], covering: [], planes: [] };
+  // (MONOWHEEL re-pin, the Archaeopteryx study's stage 1: the Monowheel tile writes the tricycle's gear type with
+  // gear.mono, so it is gear:tricycle at stage 2 and greys with the tricycle - by design: a nose unit and a main)
   // (WILGA-GEAR re-pin: the suspension tile's new option, the trailing-link oleo (Wilga type), is susp:lever at stage 2 - the
   // tricycle's - so it greys at segment 1 by design; the three older springings stay free. HANDOVER WILGA-GEAR)
   const tb = Object.keys(TILE_EXPECT).filter(k => J(tileGreys(k)) !== J(TILE_EXPECT[k]));
   // (ENGINE-CONFIGS-2: the push-pull, the three and the four are several engines - greyed with the twin)
-  ok(!tb.length, 'the design tiles at segment 1: construction (composite, aluminium, aluminium tube, glassfibre), electric and turbine, the twin (and the push-pull, the three, the four), the tricycle, the boat hull (HULL-B1: segment 2), the bubble, the trailing-link oleo (WILGA-GEAR) - and nothing else',
+  ok(!tb.length, 'the design tiles at segment 1: construction (composite, aluminium, aluminium tube, glassfibre), electric and turbine, the twin (and the push-pull, the three, the four), the tricycle (and the monowheel), the boat hull (HULL-B1: segment 2), the bubble, the trailing-link oleo (WILGA-GEAR) - and nothing else',
      tb.map(k => k + ' ' + J(tileGreys(k))).join('; ') || null);
   const trike = PANEL.DES.rowOptions(PANEL.DES.DESIGN_ROWS.find(r => r.key === 'gearLayout')).find(o => o.value === 'trike');
   ok(E.TM.tileWhy(PANEL.DES.DESIGN_ROWS.find(r => r.key === 'gearLayout'), trike) === 'Machine shop: Sheets and bolts', 'a tile\'s reason is the segment it needs', E.TM.tileWhy(PANEL.DES.DESIGN_ROWS.find(r => r.key === 'gearLayout'), trike));

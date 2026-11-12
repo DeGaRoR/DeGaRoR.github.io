@@ -314824,3 +314824,19 @@ chantier (stage 4) must bring it forward. Parked: the wheel, the nose skid, a wi
   DIVERGED the sim: a stiffness floor is owed. Where the pylon goes: the chooser's "Boom architecture" step and the
   editor's "Fuselage style" (both appended). Fixed items ~29 kg (reclined tub seat, soft glazing, light controls on the
   keel tubes, no panel, minimal furnishing, gelcoat).
+- THE FOOT-LAUNCH D-TUBE WING, BUILT (12 Nov, the user: "go ahead with the foot-launch wing and its gate first";
+  WEIGHT_STUDY.md phase 1). GEN_SURF_MATERIALS.dtube (60_gen_spec.js): carbon's phys, members x0.3 of the moulded row,
+  cover 0.6 kg/m2, springs x0.5, refGross 190, BUILT FOR `buildKg` 250 - its gauge capped at (buildKg/refGross)^e
+  (61_gen_frame.js genDesignGross hiOf), no section floor (`noFloor`), kScale capped at its build weight (KSB), and
+  CERTIFIED as if its aeroplane weighed buildKg (66_gen_cert.js: the wings section's limit loads x buildKg / W0 when
+  W0 is over it). The Wing structure tile's 9th option (wgCons 8, appended: _cage_design.js, _cage_wing.js row 0..8,
+  _cage_join.js, the wing's CONS4); the build grammar, the wing-structure drawing, the tech table (TECH_WING_ROW: the
+  wings' rows only - the tail stays at 8, the certificate holds only the wing to its build weight), water and shop
+  rows. GATE LIGHTWING (tools/_lightwing_check.js, core): the Archaeopteryx's wing 47.9 -> 34.9 kg, BROKE AT 6.28 g
+  (certified); Cub 3.70 g, C172 2.71 g, Caravan 1.62 g, at the wing root; springs x0.55 of moulded carbon on the
+  C172; NEGATIVE CONTROL: without buildKg the C172's D-tube wing holds 10.98 g (the exploit) before the sim diverges
+  (WEIGHT_STUDY gap 3: a soft wing past its strength can take the integrator - the control reads the load held, not the
+  ending). No card uses it yet (the fleet's hashes identical to v1). Gates run green: LIGHTWING WINGROWS DESIGN SKINMAT
+  JOIN PARTS SAVE WEIGHT FRAMES WINGSTRUCT NEWPLANE DEFAULT SPECFIX BUILD. TECH: its MONOWHEEL re-pin fixed here (the
+  Monowheel tile is gear:tricycle at segment 1 - missed at v1); still red the master way (av.elt has no segment). LOAD
+  red the master way (the GEN glass cantilever at 149 % of yield, identical numbers on 6f1497d72).

@@ -234,6 +234,7 @@ function iconCons(key) {
   if (key === 'aluFabric') { tube(17); tube(37); }
   if (key === 'glass') p.push({ d: 'M4 22 Q8 12 22 11 Q44 11 60 21 L58 21 Q44 13 22 13 Q10 14 6 22 Z' });
   if (key === 'fabricAlu') { spar(17, 2); spar(37, 2); p.push({ d: 'M4 22 Q8 12 22 11 L22 13 Q10 14 6 22 Z' }); }   // metal spars, the leading-edge sheet
+  if (key === 'dtube') { spar(21, 2); p.push({ d: 'M4 22 Q8 12 22 11 L22 13 Q10 14 6 22 Z' }); p.push({ d: 'M22 11.6 Q44 11.4 60 21 L59.4 21.2 Q44 12.4 22 12.4 Z' }); }   // the D-box closed by one spar, a thin film aft
   return { vb: '0 0 64 34', paths: p };
 }
 
@@ -1485,7 +1486,10 @@ const DESIGN_ROWS = [
     options: () => [['auto', 'As the aeroplane', 'follows the fuselage'], ['carbon', 'Carbon', 'moulded'],
                     ['steel', 'Steel tube', 'fabric over welded tube'], ['fabric', 'Wood + fabric', 'spruce spars, ply leading edge'],
                     ['alloy', 'Aluminium', 'stressed skin'], ['aluFabric', 'Aluminium tube', 'Dacron over 6061 tube'],
-                    ['glass', 'Glassfibre', 'moulded'], ['fabricAlu', 'Aluminium spar + fabric', 'the PA-18\'s and the Carbon Cub\'s']]
+                    ['glass', 'Glassfibre', 'moulded'], ['fabricAlu', 'Aluminium spar + fabric', 'the PA-18\'s and the Carbon Cub\'s'],
+                    // WEIGHT STUDY (12 Nov): APPENDED (the index is the saved value) - light, soft, built for ~250 kg: on a
+                    // heavier aeroplane it breaks (GATE LIGHTWING)
+                    ['dtube', 'Foot-launch D-tube', 'hang-glider light; built for ~250 kg - heavier, it breaks']]
       .map(([k, label, note], i) => ({ value: i, label, note, icon: iconCons(k), writes: { cage: { wgCons: i } } })) },
 
   // ---- G2820: THE STOL WING (60_gen_spec GEN_SLATS / GEN_STOL) ----------
@@ -3650,8 +3654,8 @@ function designBake(sel, over) {
   // The MW5-alike's sailcloth on tubes was billed as a ply D-box (0.80
   // kg/m2 against 0.42) until the card could say `steel`.
   if (Math.round(+full.wgCons || 0) > 0)
-    wing.material = ['carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass', 'fabricAlu'][   // G466: the fifth stop; G2047 the sixth; the aluminium spar the seventh
-      Math.min(6, Math.round(+full.wgCons) - 1)];
+    wing.material = ['carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass', 'fabricAlu', 'dtube'][   // G466: the fifth stop; G2047 the sixth; the aluminium spar the seventh; the foot-launch D-tube the eighth
+      Math.min(7, Math.round(+full.wgCons) - 1)];
   const wings = [wing];
   const bracing = { type: Math.round(full.wgBrace) ? 'cantilever' : 'strut',
                     struts: Math.round(+full.wgStruts) === 1 ? 1 : 2 };   // T2.3 (83)

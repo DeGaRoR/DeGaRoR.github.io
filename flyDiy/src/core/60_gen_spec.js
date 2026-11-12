@@ -600,6 +600,22 @@ const GEN_SURF_MATERIALS = {
   // the fuselage rows' (GEN_MATERIALS.glass)
   glass:  Object.assign({}, GEN_MATERIALS.glass,  { shop: 'composite', cover: 2.0,
             tail: { cover: 0.70, section: 0.10 } }),
+  // THE FOOT-LAUNCH D-TUBE (WEIGHT STUDY, 12 Nov; the user: "offer the ultralight options, but with the cost in terms of
+  // rigidity ... if I put such a lightweight wing on another plane, it should probably break"): the Archaeopteryx's,
+  // the Swift's, the Atos's wing - a carbon D-box leading edge, carbon ribs, a film / fabric aft. Carbon's phys, its
+  // members at 0.3 of the moulded row's rate and its cover at 0.6 kg/m2 (1.6), its springs at half. BUILT FOR A WEIGHT:
+  // `buildKg` is the aeroplane it was designed for, and three things follow (the frame, the certificate):
+  //   - its gauge thins below it but never grows past it ((buildKg / refGross)^e caps GEN_GAUGE.hi);
+  //   - its members' section has no floor (`noFloor`: the section is what was paid for), its springs no gain past it;
+  //   - it is CERTIFIED as if its aeroplane weighed buildKg (66_gen_cert: its members' limit loads x min(1, buildKg /
+  //     W0)), so on a heavier aeroplane it breaks where its physics says. Measured (weight_proto/, the garage's destroy
+  //     bench): the Archaeopteryx 6.3 g (certified), a Cub 3.7 g, a C172 2.7 g, a Caravan 1.6 g - the spar folding at
+  //     its root. Without the certificate's part, a 31 kg wing on the C172 held 6 g: the exploit GATE LIGHTWING keeps shut.
+  dtube:  Object.assign({}, GEN_MATERIALS.carbon, { name: 'foot-launch D-tube', shop: 'composite', cover: 0.6,
+            lin: Object.assign({}, GEN_MATERIALS.carbon.lin, { wing: GEN_MATERIALS.carbon.lin.wing * 0.3 }),
+            k: Object.assign({}, GEN_MATERIALS.carbon.k, { wing: GEN_MATERIALS.carbon.k.wing * 0.5 }),
+            refGross: 190, buildKg: 250, noFloor: true,
+            tail: { cover: 0.70, section: 0.10 } }),
 };
 // what a surface that says nothing is built of, by the fuselage it hangs on.
 // THE WING: fabric over a wooden structure on both a wood and a tube
@@ -807,6 +823,8 @@ GEN_BUILD_GRAMMAR.fabricAlu = Object.assign({}, GEN_BUILD_GRAMMAR.tubeFabric,
                                             { name: 'aluminium spar + fabric', alias: 'tubeFabric' });
 // G2047: a glass moulding reads as the carbon one - no fasteners, no seams, the mould's parting line
 GEN_BUILD_GRAMMAR.glass = Object.assign({}, GEN_BUILD_GRAMMAR.carbon, { name: 'glass + epoxy', alias: 'carbon' });
+// the foot-launch D-tube: its moulded D-box is what shows (the film aft is taut, no rib print at this scale)
+GEN_BUILD_GRAMMAR.dtube = Object.assign({}, GEN_BUILD_GRAMMAR.carbon, { name: 'foot-launch D-tube', alias: 'carbon' });
 
 
 // ===========================================================================
@@ -5131,7 +5149,7 @@ const GEN_FIELDS = {
                                          v: ['tail.Sh', 'tail.Sv', 'tail.boomX', 'tail.boomLen', 'tail.boomR', 'tail.boomX0',
                                              'tail.boomTaper', 'tail.boomOval', 'tail.boomIncl', 'tail.boomDy', 'tail.stabY'],
                                          twinBoom: ['tail.vAngle', 'tail.Svt'] } } },
-  'wings[].material':  { def: undefined, rule: 'input', join: { states: [null, 'carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass', 'fabricAlu'] } },
+  'wings[].material':  { def: undefined, rule: 'input', join: { states: [null, 'carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass', 'fabricAlu', 'dtube'] } },
   'tail.finMaterial':  { def: undefined, rule: 'input', join: { states: [null, 'carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass', 'fabricAlu'] } },
   'tail.stabMaterial': { def: undefined, rule: 'input', join: { states: [null, 'carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass', 'fabricAlu'] } },
   'bracing.cabane':       { def: 'N', rule: 'input', join: { states: ['N', 'V'] } },

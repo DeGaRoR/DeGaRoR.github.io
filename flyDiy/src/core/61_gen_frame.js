@@ -65,6 +65,8 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   };
   let MB = M;                                   // what the open section BILLS
   const KS = kScale || 1;                       // structure sized for the mass
+  // ...but a wing BUILT FOR a weight (the foot-launch D-tube) is no stiffer than at that weight: kScale's own law at buildKg
+  const KSB = MW => Math.min(4, Math.max(0.45, CORE_MATH.pow(MW.buildKg / ((M && M.refMass) || 390), 0.85)));
   const ARCH = GEN_SUSPENSION[S.gear.suspension] || GEN_SUSPENSION.bungee;
   const SUS = (S.gear.stiffness == null ? 1 : S.gear.stiffness) * ARCH.k;
   // Damping does NOT scale with stiffness the way stiffness does. Critical
@@ -451,7 +453,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // weigh what they did (so the aeroplane does not move); the new pair is built weightless
     const ghost = !!(opt && opt.ghost);
     if (!ghost) {
-    const bm = { a, b, k: row(MM.k, cls) * (isG ? kG : KS) * kGain * mK * bK * kMul,
+    const bm = { a, b, k: row(MM.k, cls) * (isG ? kG : (cls === 'wing' && MM.buildKg > 0 ? Math.min(KS, KSB(MM)) : KS)) * kGain * mK * bK * kMul,
                  c: row(MM.c, cls) * (isG ? cG : CS) * Math.sqrt(mK) * Math.sqrt(bK) * Math.sqrt(kMul) * cMul,
                  gear: isG, cls, ext: vis === 'inner' ? false : (!!ext || isG),
                  vis: vis || null, L };
@@ -474,7 +476,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       // aft taper, the gauge under 1 - has the rest of its strength in the skin, which the lattice bills under
       // `cover`, not `lin`. Measured: on the metal Cessna its own billed area put a wing member at 133 % of yield
       // at the 3.8 g limit (a 172's wing holds it), the class's at 52 % - the load test's own figure.
-      bm.A = lin > 0 && MM.phys ? Math.max(lin * aftG * webK * g1, lin) / MM.phys.rho : 0;
+      bm.A = lin > 0 && MM.phys ? Math.max(lin * aftG * webK * g1, MM.noFloor ? 0 : lin) / MM.phys.rho : 0;   // (noFloor: the foot-launch D-tube - its section is what was paid for)
       // G3505 (DC3-BUILD, 2026-10-23): AN AIRLINER'S MEMBERS HOLD ITS STRESS. The gauge above is Raymer's mass rule,
       // sub-linear in the gross (fus 0.30, wing 0.49, tail 0.41, gear 0.75, capped at 3) - right for what the structure
       // WEIGHS, and on the fleet the members' strength is calibrated with it. But one lattice member stands for what an
@@ -4212,7 +4214,11 @@ function genDesignGross(S, a, cg) {
     ? Math.min(GEN_RULES.cargoKgMax, 2 * (cb.halfW || 0.5) * (cb.h || 1) * fu.cargoLen * GEN_RULES.cargoKgM3) : 0;
   const Mfix = cg[3] - payload - Ms + seats * GEN_RULES.occupantKg + fuelFull + (S.baggage || 0) + freight;
   const ref = c => a.parts.gaugeRef[c] || (GEN_MATERIALS[S.material] || {}).refGross || 550;
-  const gOf = (c, W) => Math.min(G.hi, Math.max(G.lo, CORE_MATH.pow(W / ref(c), G.e[c])));
+  // THE BUILD WEIGHT (the foot-launch D-tube, GEN_SURF_MATERIALS.dtube): a wing built for buildKg thins below it but
+  // never grows past it
+  const WROW = genSurfMaterial(S, 'wing', 0) || {};
+  const hiOf = c => c === 'wing' && WROW.buildKg > 0 ? Math.min(G.hi, CORE_MATH.pow(WROW.buildKg / ref(c), G.e[c])) : G.hi;
+  const gOf = (c, W) => Math.min(hiOf(c), Math.max(G.lo, CORE_MATH.pow(W / ref(c), G.e[c])));
   // the furnishing (GEN_OUTFIT.furnK, Raymer on W0) is billed in pass 2
   // and belongs to the same fixed point
   const O = GEN_OUTFIT, fK = genFurnK(S);            // (G2806: the chosen trim, else the tier's)
@@ -4223,7 +4229,7 @@ function genDesignGross(S, a, cg) {
     for (const c in GD) { if (!(GD[c].m > 0)) continue; const g = gOf(c, W);
       f += GD[c].m * g;
       const raw = CORE_MATH.pow(W / ref(c), G.e[c]);
-      if (raw > G.lo && raw < G.hi) df += GD[c].m * G.e[c] * g / W; }
+      if (raw > G.lo && raw < hiOf(c)) df += GD[c].m * G.e[c] * g / W; }
     W = Math.max(Mfix, W - f / df);
   }
   const gauge = { W0: W }, dm = {}; let mAdd = furnOf(W), xAdd = 0, yAdd = 0, zAdd = 0;
