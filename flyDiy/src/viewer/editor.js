@@ -3653,15 +3653,15 @@ function editorInit(api) {
       return fn(R.rodSpan, S.rod, S.taper || null).map(p => [p[0] * FS, p[1] * FS, p[2] * FS]);
     };
     PIN_ROW.rodY = { layer: 'root',
-      fn: rod((sp, r) => [[0, r.y, sp.zRoot], [0, r.y, sp.zTip]]) };
+      fn: rod((sp, r) => [[0, r.y, sp.zAx != null ? sp.zAx : sp.zRoot], [0, r.y, sp.zTip]]) };   // (PETREL-LS: rodY is read at the axis's anchor)
     PIN_ROW.rodD = { layer: 'root',
-      fn: rod((sp, r) => [[0, r.y + r.r, sp.zRoot], [0, r.y - r.r, sp.zRoot],
+      fn: rod((sp, r) => [[0, r.y + r.r, sp.zAx != null ? sp.zAx : sp.zRoot], [0, r.y - r.r, sp.zAx != null ? sp.zAx : sp.zRoot],
                           [0, r.y + r.r, sp.zTip], [0, r.y - r.r, sp.zTip]]) };
     // the taper's welded collar: taperLen aft of the bulkhead on a rod, the
     // taper pillar's station on a lofted boom
     PIN_ROW.taperLen = { layer: 'root',
-      fn: rod((sp, r, t) => t ? [[0, r.y + r.r, sp.zRoot - t.len],
-                                 [0, r.y - r.r, sp.zRoot - t.len]] : []) };
+      fn: rod((sp, r, t) => t ? [[0, r.y + r.r, (sp.zAx != null ? sp.zAx : sp.zRoot) - t.len],
+                                 [0, r.y - r.r, (sp.zAx != null ? sp.zAx : sp.zRoot) - t.len]] : []) };
     // the cowl, by the feature each row shapes. `C` is COWL_GEN.
     const ring = (zf, n) => C => {
       const out = [], z = zf(C), N = n || 16;

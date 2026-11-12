@@ -169,7 +169,12 @@ S.scene.traverse(o => {
   if (hidden) return;
   const m = Array.isArray(o.material) ? o.material[0] : o.material;
   let col = m && m.color ? [m.color.r * 255, m.color.g * 255, m.color.b * 255].map(Math.round) : [180, 180, 180];
-  if (/^edAcc_/.test(o.name || '') || (o.parent && /access/.test(o.parent.name || ''))) col = [220, 40, 40];
+  if ((/^edAcc_/.test(o.name || '') || (o.parent && /access/.test(o.parent.name || ''))) && o.name !== 'edRodSocket') col = [220, 40, 40];   // (PETREL-LS: the rod's socket is skin, not a fitting)
+  // PETREL-LS: a livery section's explicit tint (spec.finish.sections) on the parts the headless page draws in its flat
+  // palette - the pylon fairing ('pylon', else the engine mount's)
+  { const SEC = (spec.finish && spec.finish.sections) || {}, chain = o.name === 'engPylon' ? ['pylon', 'engMount'] : null;
+    const t = chain && chain.map(k => SEC[k] && SEC[k].tint).find(x => x != null);
+    if (t != null) col = [(t >> 16) & 255, (t >> 8) & 255, t & 255]; }
   if (m && m.transparent && m.opacity < 0.3) return;
   const pos = o.geometry.attributes.position, idx = o.geometry.index;
   const n = idx ? idx.count : pos.count;

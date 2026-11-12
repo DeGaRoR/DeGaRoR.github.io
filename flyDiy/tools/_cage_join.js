@@ -1561,7 +1561,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           const TB = C2.cageHullTable(C2.cageHullLines({ ...P }), FSh);
           if (TB && fwOk) {
             M.hull = { sta: TB.sta, x: zFw - TB.zStep * FSh, y: TB.yStep * FSh - yD, steps: TB.steps,
-                       tips: { on: +P.hullTips ? 1 : 0, at: +P.hullTipAt, kg: +P.hullTipKg, y: +P.hullTipY, mode: Math.round(+P.hullTips) === 2 ? 'wing' : Math.round(+P.hullTips) === 3 ? 'outrigger' : null,
+                       tips: { on: +P.hullTips ? 1 : 0, at: +P.hullTipAt, kg: +P.hullTipKg, y: +P.hullTipY, ...(+P.hullTipLen > 0 ? { len: +P.hullTipLen } : {}), mode: Math.round(+P.hullTips) === 2 ? 'wing' : Math.round(+P.hullTips) === 3 ? 'outrigger' : null,
                               ...(Math.round(+P.hullTipPlane || 0) === 1 && +P.w2On ? { plane: 1 } : {}) },   // (HULL-B45)
                        ...(+P.hullSpon ? { spon: { on: 1, mode: Math.round(+P.hullSpon) === 1 ? 'stub' : Math.round(+P.hullSpon) === 3 ? 'root' : 'float', kg: +P.hullSponKg, y: +P.hullSponY, x: +P.hullSponX, w: +P.hullSponW,
                                                    c: +P.hullSponC, k: +P.hullSponK, t: +P.hullSponT } } : {}) };
@@ -1812,9 +1812,13 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           // THE TAPER (P4): tip chord over root chord, read as the 75 %
           // slice over the 25 % — the trapezoid the frame's truss stands on
           // (a rounded planform has no single taper; this is its straight fit)
+          // (FIN-TAPER, 10 Nov: the 75 %/25 % chord RATIO is not the tip/root taper - a straight planform through those
+          // two chords has root c25 + (c25 - c75)/2 and tip c75 - (c25 - c75)/2, so tip/root = (3r - 1)/(3 - r).
+          // The ratio flew the Petrel's 0.23 fin as 0.53: a parallel box leaning aft, its swept root missing)
+          const lamOf = r => Math.max(0.05, Math.min(1, (3 * r - 1) / (3 - r)));
           const taperOf = m => {
             const a = m.chordAt(0.25 * m.span), b = m.chordAt(0.75 * m.span);
-            return a > 1e-6 ? Math.max(0.05, Math.min(1, b / a)) : 1;
+            return a > 1e-6 ? lamOf(b / a) : 1;
           };
           // THE FIN'S TAPER IS ITS PLANFORM ABOVE THE DECK (NEW-PLANE, the user 3 Nov: "make the join measure the fin
           // above the deck"). The drawn sheet runs down the tail post to the keel, so its 25 % slice sat at the tail
@@ -1838,7 +1842,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
             const above = m.span - t0;
             if (!isFinite(t0) || t0 <= 0 || above < 0.25 * m.span) return taperOf(m);
             const a = m.chordAt(t0 + 0.25 * above), b = m.chordAt(t0 + 0.75 * above);
-            return a > 1e-6 ? Math.max(0.05, Math.min(1, b / a)) : taperOf(m);
+            return a > 1e-6 ? lamOf(b / a) : taperOf(m);
           };
           if (stabM && stabM.areaTail > 0) {
             if (isV) M.Svt = 2 * stabM.areaTail;

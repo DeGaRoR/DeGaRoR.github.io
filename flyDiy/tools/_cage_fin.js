@@ -837,12 +837,17 @@ PAGE.post = ctx => {
       // the gear's saddle (the tailwheel's, drawn first — build order) at
       // the same station is SHARED: the fin bolts its plate onto that collar
       const GS = (window.CAGE_GEAR && window.CAGE_GEAR.saddles) || [];
+      // PETREL-LS (the user: the clips "weren't really following the diameter of the rod"): on a single bare rod the
+      // collar is the ROD's - never under its own radius (0.5 rodD) - and stands wholly on the straight tube, a
+      // collar's half-width plus the end's rounding (a radius) inside the tip, not over the rounded end
+      const rodHalf = !TB && +P.boomStyle === 1 && +P.rodD > 0 ? 0.5 * +P.rodD : 0;
+      const zMin = deck0.z0 + Math.max(0.03, rodHalf > 0 ? rodHalf + (0.5 * 0.09 + 0.01) / FS : 0);
       for (const zc of stations) {
-        let z = Math.max(deck0.z0 + 0.03, zc);
+        let z = Math.max(zMin, zc);
         const near = GS.find(g => Math.abs(g.z - z * FS) < 0.12);
         if (near) z = near.z / FS;
         const yT = deck0.top(z), yB = deck0.bot(z);
-        const r = 0.5 * (yT - yB) * FS;
+        const r = Math.max(0.5 * (yT - yB), rodHalf) * FS;
         if (!(r > 0.01)) continue;
         const Wp = Math.max(r * 2 + 0.02, (P.finThick || 0.06) * FS + 0.04), Lp = 0.09;
         // (HULL-B37: about the tube's own axis - an inclined rod's collar square to the tube, not to the ground)

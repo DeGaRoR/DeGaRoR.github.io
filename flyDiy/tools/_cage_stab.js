@@ -261,8 +261,11 @@ PAGE.post = ctx => {
   const rod = !!(RF && !TB && +P.boomStyle && deck && mount <= 1);
   let rodSeat = null;
   if (rod) {
-    const zH = FIN.FIN_DEFAULT.zH1 + dzS;
-    const yT = deck.top(zH), yB = deck.bot(zH);
+    // PETREL-LS: the rod's own radius, the collar wholly on the straight tube (as the fin's, _cage_fin.js)
+    const rodHalf = +P.rodD > 0 ? 0.5 * +P.rodD : 0;
+    const zH = Math.max(FIN.FIN_DEFAULT.zH1 + dzS, deck.z0 != null && rodHalf > 0 ? deck.z0 + rodHalf + 0.055 / FSd : -Infinity);
+    const yC = 0.5 * (deck.top(zH) + deck.bot(zH)), hr = Math.max(0.5 * (deck.top(zH) - deck.bot(zH)), rodHalf);
+    const yT = yC + hr, yB = yC - hr;
     const plateTop = yT + RF.SADDLE.hS / FSd;              // cage units
     const half = 0.5 * (P.stThick || 0.05);
     const under = yRef + (P.stY || 0) - half;              // the stab's underside

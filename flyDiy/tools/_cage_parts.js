@@ -290,7 +290,7 @@ const CAGE_PARTS = [
       // HULL-B1: the boat hull's own rows (the shared ones are the frames above)
       ['boat hull', ['hullOn', 'hullBeta', 'hullBetaBow', 'hullBetaA', 'hullSteps', 'hullStepZ', 'hullHs',
                      'hullFlute', 'hullFluteN', 'hullFluteAt', 'hullFluteBow', 'hullFluteAft', 'hullStrakes', 'hullStrakeW', 'hullStrakeLen', 'hullRocker', 'hullSkirt',
-                     'hullStep2Z', 'hullHs2', 'hullTips', 'hullTipAt', 'hullTipPlane', 'hullTipKg', 'hullTipY', 'hullAftDeg', 'hullNoseBase', 'hullTubLen', 'hullTubRise', 'hullTubEnd', 'hullTubH', 'hullSpon', 'hullSponX', 'hullSponW', 'hullSponKg', 'hullSponY', 'hullSponC', 'hullSponK', 'hullSponT', 'hullSponTaper', 'hullSponDih']],
+                     'hullStep2Z', 'hullHs2', 'hullTips', 'hullTipAt', 'hullTipPlane', 'hullTipLen', 'hullTipKg', 'hullTipY', 'hullAftDeg', 'hullNoseBase', 'hullTubLen', 'hullTubRise', 'hullTubEnd', 'hullTubH', 'hullSpon', 'hullSponX', 'hullSponW', 'hullSponKg', 'hullSponY', 'hullSponC', 'hullSponK', 'hullSponT', 'hullSponTaper', 'hullSponDih']],
       ['section angles', ['topAngCeil', 'topAngRoof'], EXPERT],
       ['creases', ['crPillar', 'crBand', 'crCap', 'crFrame'], EXPERT],
       ['compensation', ['topComp'], EXPERT],
@@ -527,7 +527,7 @@ const CAGE_PARTS = [
       ['pillars', ['paxPillarW'], EXPERT],
     ] },
 
-  { key: 'taper', name: 'Taper section', parent: 'fuselage', layer: 'cage',
+  { key: 'taper', name: 'Taper section (a hull\'s aft float)', parent: 'fuselage', layer: 'cage',
     when: P => +P.taperOn, gate: 'taperOn',
     sections: ['taper', 'pillarTaper', 'taperPanel'],
     zone: 'taper',
@@ -538,7 +538,7 @@ const CAGE_PARTS = [
              at: 'aft of the last bay; on a rod, the boom’s first stretch' },
     groups: [
       // (taperW = the boom FRAME's widths since T2.1)
-      ['tightening', ['taperOn', 'boomMatch', 'taperLen', 'taperPanels']],
+      ['tightening', ['taperOn', 'boomMatch', 'taperLen', 'taperPanels', 'hullTailCut']],   // (PETREL-LS: the float's tail cut, on a hull)
     ] },
 
   // G267 (the user: "the tail cone options appear under boom, while it has
@@ -565,7 +565,7 @@ const CAGE_PARTS = [
              at: 'aft of the taper; twin, off the wing’s trailing edge' },
     groups: [
       // boomStyle -> `design`; these shape the rod once it is chosen
-      ['rod', ['rodY', 'rodD', 'rodIncl']],
+      ['rod', ['rodY', 'rodD', 'rodIncl', 'rodRootAft', 'rodSocket', 'rodSocketLen', 'rodSocketWall', 'rodSocketGap']],
       ['twin booms', ['boomTwin', 'boomX', 'boomDy', 'boomDz']],
       ['section', ['boomWf', 'boomHf', 'boomWa', 'boomHa', 'boomSquare', 'boomIncl', 'boomCollar']],
       ['wing end', ['boomNoseLen', 'boomNoseK', 'boomNoseCap']],
@@ -729,7 +729,7 @@ const CAGE_PARTS = [
     place: { type: 'bpCabane', fore: 'bpStrutZ', out: 'bpStrutX',
              at: 'the foot, on the deck' },
     groups: [
-      ['cabane', ['bpCabPylon', 'bpCabane', 'bpCabDraw', 'bpStrutK']],
+      ['cabane', ['bpCabPylon', 'bpPylonZ', 'bpPylonLen', 'bpCabane', 'bpCabDraw', 'bpStrutK']],
       ['foot', ['bpStrutZ', 'bpStrutX']],
     ] },
 
@@ -921,7 +921,7 @@ const CAGE_PARTS = [
     // are painted, and the user asked for the block and the covers by name.
     // Without this claim the three sections land in the root's 'unclaimed'
     // bucket, which is a home but not an ANSWER.
-    sections: ['engBlock', 'engJug', 'engCover', 'engMount'],
+    sections: ['engBlock', 'engJug', 'engCover', 'engMount', 'pylon'],   // (PETREL-LS: the faired pylons' own livery section)
     groups: [
       // (G2760: what the trunk leaves here is the thrust line and the mount's
       // own dials — no second 'fitted' heading under the trunk's)
@@ -1026,9 +1026,9 @@ const CAGE_PARTS = [
       ['fasteners', ['cw_fastOn', 'cw_fastPitch', 'cw_fastD']],
       ['oil door', ['cw_oilOn', 'cw_oilZ', 'cw_oilW', 'cw_oilL', 'cw_oilSq']],
       // the bench's nacelle termination, back (2026-09-04)
-      ['nacelle', ['cw_aftMode', 'cw_podFit', 'cw_tailLen', 'cw_tailDrop']],
+      ['nacelle', ['cw_aftMode', 'cw_podFit', 'cw_tailLen', 'cw_tailDrop', 'cw_tailHold']],
       // G3914: the pusher nacelle's air inlet (in the tail cone's tip)
-      ['nacelle inlet', ['cw_inletOn', 'cw_inletW', 'cw_inletH', 'cw_inletLip', 'cw_inletDuct', 'cw_inletY']],
+      ['nacelle inlet', ['cw_inletOn', 'cw_inletW', 'cw_inletH', 'cw_inletLip', 'cw_inletBand', 'cw_inletDuct', 'cw_inletY']],
       ['firewall lip', ['cw_fwLipOn', 'cw_fwLipR', 'cw_fwLipRise',
                         'cw_fwLipIn'], EXPERT],
     ] },

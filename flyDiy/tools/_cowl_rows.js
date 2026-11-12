@@ -308,15 +308,17 @@ const COWL_ROWS = [
     // PROPER-COWLS: a free pod houses its engine - the mount sized to the pod, no plate (absent 0: the saved plate)
     { k: 'podFit', label: 'pod houses the engine (no plate)', lo: 0, hi: 1, step: 1, when: 'P.aftMode>0' },
     { k: 'stubLen', label: 'Fuselage stub length', lo: 0.2, hi: 2, step: 0.02, when: 'P.aftMode===0' },
-    { k: 'tailLen', label: 'tail cone length', lo: 0.4, hi: 4, step: 0.02, when: 'P.aftMode===1' },   // DC3-EDITABLE: the DC-3's nacelle cone, 3.35
+    { k: 'tailLen', label: 'tail cone length', lo: 0.1, hi: 4, step: 0.02, when: 'P.aftMode===1' },   // (PETREL-LS: lo 0.4 -> 0.1, a short nacelle nose)   // DC3-EDITABLE: the DC-3's nacelle cone, 3.35
     // Advanced
     { k: 'tailDrop', label: 'tail cone droop', lo: -0.2, hi: 0.2, step: 0.005, when: 'P.aftMode===1' },
+    { k: 'tailHold', label: 'tail cone height held (side view: 0 a cone, 1 level)', lo: 0, hi: 1, step: 0.01, when: 'P.aftMode===1' },   // PETREL-LS
     { k: 'pylon', label: 'Pylon + wing stub', lo: 0, hi: 1, step: 1, when: 'P.aftMode===1' },
     // G3914: the nacelle's air inlet, in the tail cone's tip (on a pusher, the nacelle's nose)
     { k: 'inletOn', label: 'air inlet (in the tail cone)', lo: 0, hi: 1, step: 1, names: ['none', 'inlet'], when: 'P.aftMode===1' },
     { k: 'inletW', label: 'inlet width (of the section)', lo: 0.12, hi: 0.85, step: 0.01, when: 'P.aftMode===1&&P.inletOn' },
     { k: 'inletH', label: 'inlet height (of the section)', lo: 0.12, hi: 0.85, step: 0.01, when: 'P.aftMode===1&&P.inletOn' },
     { k: 'inletLip', label: 'inlet lip', lo: 0.002, hi: 0.05, step: 0.001, when: 'P.aftMode===1&&P.inletOn' },
+    { k: 'inletBand', label: 'inlet band, even all round (m; 0 = the width / height above)', lo: 0, hi: 0.2, step: 0.002, when: 'P.aftMode===1&&P.inletOn' },   // PETREL-LS
     { k: 'inletDuct', label: 'inlet duct depth', lo: 0.02, hi: 0.6, step: 0.01, when: 'P.aftMode===1&&P.inletOn' },
     { k: 'inletY', label: 'inlet up / down (of the height)', lo: -0.5, hi: 0.5, step: 0.01, when: 'P.aftMode===1&&P.inletOn' },
   ] },

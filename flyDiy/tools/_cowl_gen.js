@@ -93,11 +93,18 @@ const P={
   // podPlate); absent at 0 in the garage, so a saved pod keeps the plate it was drawn with
   podFit:1,
   aftMode:0, stubLen:0.5, tailLen:1.5, tailDrop:0.02, pylon:1,
+  // PETREL-LS (the user, 10 Nov: "keep [the nacelle] very linear ... so it does not taper on side view ... don't change
+  // the taper seen from the top"): the share of the cone's HEIGHT held along it - 0 a cone (every build before), 1 level
+  // in side view (the width alone closes, a vertical edge at the tip)
+  tailHold:0,
   // G3914: THE NACELLE'S AIR INLET (the user, 4 Nov: "a nacelle on a pusher should be allowed an air inlet ... a set
   // of controls for the inlet"): an opening in the tail cone's tip - on a pusher the cone is the nacelle's NOSE, into
   // the air - its width / height as fractions of the nacelle's section, the lip's roll, the duct's depth, its centre
   // up / down. Off by default (every cowl as it was)
   inletOn:0, inletW:0.42, inletH:0.42, inletLip:0.014, inletDuct:0.22, inletY:0,
+  // PETREL-LS (the user, 10 Nov: "a proper lip ... a band around it of equivalent distance relative to the border"): the
+  // band's width, m - 0 = the opening a fraction of the section (inletW / inletH, every build before)
+  inletBand:0,
   inheritStub:1, stubSqTop:0.81, stubSqBot:0.79, stubDeckH:0.99, stubWaist:0.34, stubKeelH:0.98,
   // propeller
   bladeN:2, propD:1.91, rootChord:0.165, tipChord:0.05, chordBulge:0.18,
@@ -1571,7 +1578,10 @@ function buildAft(group,mats){
     // a rolled lip turns in to the opening, a duct runs back into the nacelle and ends on a dark face
     const NS=22,rings=[];
     const IW=P.inletOn?clamp(P.inletW,0.12,0.85):0, IH=P.inletOn?clamp(P.inletH,0.12,0.85):0;
-    const kc=Math.max(IW,IH), eCut=P.inletOn?Math.pow(Math.max(0,1-kc*kc),1/2.2):1;
+    // (PETREL-LS: a cone holding its height - tailHold - closes in width only, so it is cut where its WIDTH reaches the
+    // opening's; the lip below rolls in from the held height)
+    const holdT=clamp(+P.tailHold||0,0,1), kyOf=k=>holdT>0?1-(1-k)*(1-holdT):k;
+    const kc=holdT>0?IW:Math.max(IW,IH), eCut=P.inletOn?Math.pow(Math.max(0,1-kc*kc),1/2.2):1;
     const secAt=(e,k,ky)=>({a:Math.max(s0.a*k,0.012),bT:Math.max(s0.bT*(ky==null?k:ky),0.012),
       bB:Math.max(s0.bB*(ky==null?k:ky),0.012),nT:lerp(s0.nT,2,e),nB:lerp(s0.nB,2,e),
       yw:s0.yw*k*(1-e),
@@ -1580,7 +1590,7 @@ function buildAft(group,mats){
     const ringOf=(sect,y0,z)=>AZ.map(th=>{const [x,y]=sectPt(th,sect);return new THREE.Vector3(x,y0+y,z);});
     for(let i=0;i<NS;i++){
       const e=eCut*smooth(i/(NS-1)), k=Math.sqrt(Math.max(0,1-Math.pow(e,2.2)));
-      rings.push(ringOf(secAt(e,k),s0.cy-P.tailDrop*e,-e*P.tailLen));
+      rings.push(ringOf(secAt(e,k,holdT>0?kyOf(k):null),s0.cy-P.tailDrop*e,-e*P.tailLen));   // (PETREL-LS: the height held)
     }
     if(!P.inletOn){
       group.add(new THREE.Mesh(loftRings(rings.slice().reverse(),null),mats.skin));
@@ -1589,10 +1599,16 @@ function buildAft(group,mats){
       // its centre `inletY` x the section's height up), then the duct back into the nacelle
       const zc=-eCut*P.tailLen, yc=s0.cy-P.tailDrop*eCut+P.inletY*s0.bT, lip=Math.max(0.002,P.inletLip);
       const kOut=Math.sqrt(Math.max(0,1-Math.pow(eCut,2.2)));
-      const inner=secAt(eCut,IW,IH);
+      // PETREL-LS: a BAND of even width - the opening is the cut ring's own section drawn in by `inletBand` all round
+      // (the same azimuths, so the lip's loops run parallel to the edge); else a fraction of the section, as before
+      const band=Math.max(0,+P.inletBand||0), outer=secAt(eCut,kOut,holdT>0?kyOf(kOut):null);
+      const inner=band>0?{...outer,a:Math.max(0.01,outer.a-band),bT:Math.max(0.01,outer.bT-band),bB:Math.max(0.01,outer.bB-band),
+                           yw:outer.yw*Math.max(0.01,outer.a-band)/Math.max(1e-6,outer.a)}:secAt(eCut,IW,IH);
       const mid={...inner,a:inner.a+lip*0.9,bT:inner.bT+lip*0.9,bB:inner.bB+lip*0.9};
+      const roll=band>0?{...outer,a:0.5*(outer.a+inner.a)+lip*0.5,bT:0.5*(outer.bT+inner.bT)+lip*0.5,bB:0.5*(outer.bB+inner.bB)+lip*0.5}
+                       :secAt(eCut,(kOut+IW)/2+lip/s0.a*0.5,(kyOf(kOut)+IH)/2+lip/s0.bT*0.5);
       const lipRings=[rings[rings.length-1],
-        ringOf(secAt(eCut,(kOut+IW)/2+lip/s0.a*0.5,(kOut+IH)/2+lip/s0.bT*0.5),(s0.cy-P.tailDrop*eCut+yc)/2,zc-lip*0.9),
+        ringOf(roll,(s0.cy-P.tailDrop*eCut+yc)/2,zc-lip*0.9),
         ringOf(mid,yc,zc-lip*1.2),
         ringOf(inner,yc,zc-lip*0.4),
         ringOf(inner,yc,zc+lip*0.6)];

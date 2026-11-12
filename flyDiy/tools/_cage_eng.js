@@ -1119,12 +1119,17 @@ function drawPylonMount(group, f, P, GK, aft, C) {
   pylonMeshes(group, fair, jb);
 }
 // the body in the cowl's section (the nacelle's paint), the joint in the rubber seal's
-function pylonMeshes(group, fair, jb) {
+function pylonMeshes(group, fair, jb, blendTop) {
   const SM = typeof window !== 'undefined' && window.CAGE_SECMAT;
-  const m = fair.mesh(group, (SM && SM('cowl', { surf: 0, fieldM: 1 })) || matOf('emMount'));
+  // (PETREL-LS: the fairing's own livery section, 'pylon' - following the engine mount's when unset, as matOf did)
+  const A = AKM(), pm = SM && SM('pylon', { fin: A && A.aeroHardFinish && A.aeroHardFinish('eng', 'emMount'),
+                                          tint0: EP.COL.emMount || EP.NEUTRAL, surf: 0, fieldM: 1, side: THREE.DoubleSide });
+  const m = fair.mesh(group, pm || (SM && SM('cowl', { surf: 0, fieldM: 1 })) || matOf('emMount'));
   if (m) m.name = 'engPylon';
-  const j = jb.mesh(group, matOf('emPuck'));
-  if (j) j.name = 'engPylonJoint';
+  // (PETREL-LS, the user: "very strange shading at the bottom of the engine nacelle"): a FAIRED cabane pylon is not an
+  // engine mount on rubber - its joints are the fairing's own skin, not the black puck band
+  const j = jb.mesh(group, blendTop && m ? m.material : matOf('emPuck'));
+  if (j) j.name = blendTop ? 'engPylon' : 'engPylonJoint';
 }
 // HULL-B14: THE SINGLE BLADE - one symmetric wing-section post on the mount's centreline, 12 % thick
 // (HULL-B38: a vertical prism under the plate - its chord the mean of the feet's spread and the plate's - hugging what
@@ -1138,9 +1143,11 @@ function drawPylonBlade(group, f, P, GK, aft, C) {
   const c = blend ? Lp + 0.06 : 0.5 * (Math.abs(ft.zF - ft.zR) + 0.10 + Lp + 0.06);
   const C2 = C || { cowl: false, cast: () => null }, fair = GK.Bag(), jb = GK.Bag(), O = [ox, yF + 0.5 * H, zc];
   pylonHug(fair, jb, C2, { O, ax: [0, 1, 0], eu: [1, 0, 0], ew: [0, 0, 1], out: e => pylonOutline('foil', c, 0.12, 0, e),
-    fB: blend ? Math.min(PYLON_FIL_B, 0.35 * H) : 0, fT: blend ? Math.min(PYLON_FIL_T, 0.25 * H) : 0,
+    // (PETREL-LS, the user's 'strange shading at the bottom of the engine nacelle': under a nacelle the cabane pylon's top
+    // flare was squeezed between the nacelle's flat belly and its sides into a twisted band - it meets a nacelle plain)
+    fB: blend ? Math.min(PYLON_FIL_B, 0.35 * H) : 0, fT: blend && !(f.kind === 'cabPylon' && C2.cowl) ? Math.min(PYLON_FIL_T, 0.25 * H) : 0,
     dn: ['body', 'wing'], up: C2.cowl ? ['wing', 'cowl'] : ['wing'], top0: y0 - O[1], bot0: yF - O[1], topJoint: C2.cowl });
-  pylonMeshes(group, fair, jb);
+  pylonMeshes(group, fair, jb, f.kind === 'cabPylon');
 }
 const matOf = name => {
   const A = AKM();
@@ -1711,12 +1718,18 @@ function engPlace(ctx, prev) {
       const AFp = GGn && GGn.cageAirframe ? GGn.cageAirframe(ctx.mesh, FS) : null;
       if (le && GK && W.underAt && AFp) {
         const top = z => { try { const zc = Math.min(AFp.z1 - 1e-3, Math.max(AFp.z0 + 1e-3, z)); const y = AFp.surf(zc, Math.PI)[1]; return isFinite(y) ? y : null; } catch (e) { return null; } };
-        const Lp = Math.max(0.30, 0.55 * ch), zc = le.z - 0.40 * ch, u = W.underAt(0, zc), yb = top(zc);
+        const Lp = +P.bpPylonLen > 0 ? +P.bpPylonLen : Math.max(0.30, 0.55 * ch), zc = le.z - 0.40 * ch + (+P.bpPylonZ || 0), u = W.underAt(0, zc), yb = top(zc);   // (PETREL-LS: the rows)
         if (u && yb != null && u.y > yb + 0.05) {
           const f = { kind: 'cabPylon', x: 0, z: zc - (Lp / 2 - 0.05), yc: u.y + 0.01, halfH: 0, chord: Lp / 0.42,
                       foot: { x: 0.06, y: yb, zF: zc + Lp / 2, zR: zc - Lp / 2, yF: top(zc + Lp / 2), yR: top(zc - Lp / 2) } };
+          // PETREL-LS (the user, 10 Nov: "a wing pylon... restricted to wing size, and as such it should be ... in case
+          // there is a central nacelle, then this thing can be extended further to cover the central nacelle"): THE RULE.
+          // The cabane pylon joins what is over it on the CENTRELINE only - the first plane's centre section and, when
+          // the engine hangs there, the central nacelle (the cowl layer). pylonHug fits its chord to the run with a
+          // surface over it, so the rows bpPylonZ / bpPylonLen may carry it aft along a central nacelle past the wing,
+          // and are cut back where neither is over it; a wing nacelle (outboard of the caster's +-0.4 m) never counts
           drawPylonBlade(group, f, Object.assign({}, P, { engPylonFair: 3 }), GK, false,
-                         pylonCaster(ctx, FS, [-1.0, 1.0, zc - 1.2, zc + 1.2]));
+                         pylonCaster(ctx, FS, [-0.4, 0.4, zc - Math.max(1.2, Lp), zc + Math.max(1.2, Lp)]));
         }
       }
     }

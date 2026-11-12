@@ -5082,7 +5082,7 @@ const GEN_TAIL_ENVELOPE = {
   // stock); the thin-airfoil tau formula holds to 0.70
   elevChord: [0.15, 0.65], rudChord: [0.15, 0.65],
   // P4: the trapezoid the truss stands on — tip over root chord
-  hTaper: [0.35, 1.0], vTaper: [0.35, 1.0],
+  hTaper: [0.15, 1.0], vTaper: [0.15, 1.0],
 };
 
 // THE FIELD REGISTRY (SPEC-FIXPOINT G1550-G1559, the 2026-10-04 review's E3).
@@ -6016,7 +6016,7 @@ function clampSpec(spec) {
   S.cargo.kg = genClamp(S.cargo.kg || 0, 0, 400);
   fu.tailBays = genClamp(fu.tailBays | 0, 3, 6);
   fu.boom = (fu.boom === 'rod' || fu.boom === 'loft' || fu.boom === 'twin') ? fu.boom : null;
-  fu.postGap = genClamp(fu.postGap, 0.35, 1.10);
+  fu.postGap = genClamp(fu.postGap, 0.05, 1.10);
   fu.crownTop = genClamp(fu.crownTop, 0, 1);
   fu.crownSide = genClamp(fu.crownSide, 0, 0.6);
   // The TAIL-END SECTION. These were in the spec from the start but had no
