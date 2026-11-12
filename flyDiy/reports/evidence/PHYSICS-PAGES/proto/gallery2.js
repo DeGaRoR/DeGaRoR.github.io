@@ -18,12 +18,15 @@ let figs = '';
 { const RP = require('./refpage2.js'), RR = require('/workspace/pp-wt/flyDiy/tools/real_refs.js');
   const KS = ['c172v2', 'carboncubss', 'cub160', 'jodel', 'pa18f160', 'chinook', 'c172rf', 'dc3', 'stearman', 'tigermoth', 'camel', 'petrelL'];
   let opts = '', ff = '';
-  KS.forEach((k, i) => { const P = RR.PLANES[k] || {}, t = (P.short || P.label || k).split(' (')[0], sv = RP.page(k, t); if (!sv) return;
+  // drawn by the game's own module (fiche_physics.js pageReference) from the bake's own data (fiche_reference_bake.js referenceOf)
+  const RB = require('/workspace/pp-wt/flyDiy/tools/fiche_reference_bake.js');
+  KS.forEach((k, i) => { const P = RR.PLANES[k] || {}, t = (P.short || P.label || k).split(' (')[0], RF = RB.referenceOf(k); if (!RF) return;
+    const sv = FP.svg('reference', { reference: RF }, { theme: 'sheet', name: t, sig: 'Wingsmith' });
     opts += `<option value="${k}">${t}</option>`; ff += `<figure class="rfig" data-r="${k}"${i ? ' hidden' : ''}><div class="scroll">${sv}</div></figure>`; });
-  window_ref = `<section class="page" id="reference"><div class="head"><h2>Reference <span class="tag">prototype</span></h2><p class="what">A plane against the real one it stands for, scored as REAL-FIGURES scores it. The global score sits top right. The triangle shows geometry, specs and performance, each section with its score below. Then every item's discrepancy, ours against the book, coloured by its score.</p><label class="pick">Plane <select id="refpick">${opts}</select></label></div>${ff}</section>`; }
+  window_ref = `<section class="page" id="reference"><div class="head"><h2>Reference</h2><label class="pick">Plane <select id="refpick">${opts}</select></label></div>${ff}</section>`; }
 // MASS & BALANCE: prototypes for AIRCRAFT-LOOKS' page (theirs to build in the game): the sunburst the user picked, the treemap beside it
 { const MP = require('./massproto.js');
-  figs += `<section class="page" id="mass"><div class="head"><h2>Mass &amp; balance <span class="tag">prototype for AIRCRAFT-LOOKS</span></h2><p class="what">Where every kilogram is. The circle is the empty plane: categories on the inner ring, every part on the outer ring, called out with straight leaders all around it. The bar below adds what the plane carries (crew, fuel, cargo, hatched) up to the maximum take-off weight; under it, the seats check: full tanks, then one person after another, green while under the maximum. Beside it is the weight-and-balance envelope a handbook draws: the CG's good range (the game's own margin bands) up to the maximum take-off weight, the loading walked from empty, and the fuel burnt back out. </p></div>`;
+  figs += `<section class="page" id="mass"><div class="head"><h2>Mass <span class="tag">prototype; AIRCRAFT-LOOKS' page</span></h2></div>`;
   // its own picker: the Ruckus (validated) and the V2-172 (the official Cessna for comparisons) drawn on the editor's own
   // silhouette, the Cub and the Twin on their fiche pictures
   const MK = [['ruckus', 'Top Rudder Ruckus'], ['c172v2', 'Cessna 172 V2-172'], ['cub', 'Piper Cub'], ['twin', 'Twin busher']];
@@ -31,8 +34,8 @@ let figs = '';
   MK.forEach(([k, t], i) => { const Dm = MP.data(k); if (k === 'c172v2') Dm.name = t;
     mo += `<option value="${k}">${t}</option>`; mf += `<figure class="mfig" data-m="${k}"${i ? ' hidden' : ''}><div class="scroll">${MP.page(Dm, 'sunburst')}</div></figure>`; });
   figs = figs.replace('</p></div>', '</p><label class="pick">Plane <select id="masspick">' + mo + '</select></label></div>') + mf + `</section>`; }
-for (const p of FP.PAGES) {
-  figs += `<section class="page" id="${p.id}"><div class="head"><h2>${p.name}</h2><p class="what">${WHAT[p.id]}</p></div>`;
+for (const p of FP.PAGES.filter(q => q.id !== 'reference')) {
+  figs += `<section class="page" id="${p.id}"><div class="head"><h2>${p.name}</h2></div>`;
   for (const k of KEYS) for (const th of ['sheet', 'screen'])
     figs += `<figure class="fig" data-k="${k}" data-th="${th}"${k === 'cub' && th === 'sheet' ? '' : ' hidden'}><div class="scroll">${FP.svg(p.id, R[k].D, { theme: th, name: R[k].name, reg: R[k].reg, pics: R[k].pics, sig: 'Wingsmith · certified airworthy' })}</div><figcaption>Swipe sideways for the rest of the page.</figcaption></figure>`;
   figs += `</section>`;
@@ -96,9 +99,9 @@ code { font:400 12.5px/1.4 var(--mono); color:var(--ed-acc); }
 </div>
 <section class="panel">
   <h2>Where they live, and how you get there</h2>
-  <p class="what">Today the fiche opens three ways, and all three open the same cream board: the note after a certificate ("Certified, the fiche of … is ready · open"), the small <b>fiche</b> button on a plane's row in the garage's fleet list, and the <b>fiche</b> corner on the official tiles of the All planes screen. The board's <b>share</b> button makes one 2400 × 1600 cream picture.</p>
+  
   <div class="flow">
-    <div><i>1 · on the board</i><b>A page switch</b><span>Fiche · Mass &amp; price · Load test · Drag · X-ray · The model, along the board's top. AIRCRAFT-LOOKS adds the switch on Thursday; these four pages join it.</span></div>
+    <div><i>1 · on the board</i><b>One strip of pages</b><span>Main · Cutaway (3/4, large) · Mass · Drag · Physics · Electrics · Integrity · Reference, then a Flight log when there is one. Main, Cutaway and Mass are AIRCRAFT-LOOKS'; each of the others plugs into its page registry with one line.</span></div>
     <div><i>2 · printable</i><b>Share prints the page you see</b><span>The same 2400 × 1600 cream picture as the fiche, one per page, so each prints as a sheet.</span></div>
     <div><i>3 · official planes</i><b>Ready at once</b><span>Their page data ships baked beside their fiche pictures, no wait.</span></div>
     <div><i>4 · your planes</i><b>Worked out on demand</b><span>Opened on a certified plane on the stand, the bench works its pages out in the background, from 15 s to a minute.</span></div>
