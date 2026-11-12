@@ -188,6 +188,8 @@ gear. With that:
      **THE MAST DONE 11 Nov** (HANDOVER "NACELLE", GATE NACELLE): one structural mast from the hub to the keel, the cabin
      free of it and ahead of it (as the photo), the wheel hung from its foot, the pusher on its back face; the wing no
      longer tied into the cabin's rings.
+     **THE KEEL BEAM DONE 12 Nov** (HANDOVER "KEEL"): the cabin's floor line as a beam from the nose to the mast's foot,
+     its stations the cabin's own (no length of its own).
    - the role materials;
    - the tent row;
    - the A-pillars on to the hub;

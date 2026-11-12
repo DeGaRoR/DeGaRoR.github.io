@@ -1202,6 +1202,7 @@ function cabPylonDraw(ctx) {
 // _knife_gen knifeWells), handed on with the gear's cuts (CAGE_GEAR.cuts) - the editor and quickshot cut the drawn
 // sheet with them after the chain. The mast's paint is the body's
 const HANG_CLR = 0.008;
+const KEEL_W = 0.06, KEEL_D = 0.08, KEEL_DN = 0.02;      // the keel beam's drawn box: GEN_HANG.keelD deep, 2 cm of it under the floor
 let hangGroup = null;
 function hangMastDraw(ctx) {
   const { scene, P } = ctx;
@@ -1222,7 +1223,7 @@ function hangMastDraw(ctx) {
     // whole cabin should be able to move relative to the pillar ... the cabin in front of the pillar"; the wing's fore /
     // aft row moves the hub, the mast with it)
     const at = P.hangAt != null ? +P.hangAt : 0.50, lenK = P.hangLen != null ? +P.hangLen : 0.35;
-    const Lp = Math.max(0.20, lenK * ch), zc = le.z - at * ch;
+    const Lp = Math.max(0.10, lenK * ch), zc = le.z - at * ch;
     if (!(zc > AF.z0 + 0.02 && zc < AF.z1 - 0.02)) return;
     const u = W.underAt(0, zc), yK = AF.keelAt(zc), yR = AF.surf(zc, Math.PI)[1];
     if (!(u && isFinite(yK) && isFinite(yR) && u.y > yK + 0.2)) return;
@@ -1249,6 +1250,34 @@ function hangMastDraw(ctx) {
     if (m) m.name = 'hangMast';
     const j = jb.mesh(hangGroup, GG.gearMat ? GG.gearMat('dark') : MAT.liftstrut);
     if (j) j.name = 'hangMastJoint';
+    // THE KEEL BEAM (61_gen_frame 3e; the user, 12 Nov: "this keel beam is actually the cabin floor and length"): the
+    // cabin's own floor line, on the centreline, from its first station with a floor to the mast's front face - no length
+    // of its own; a carbon box KEEL_W wide and the frame's depth, most of it over the floor (the spine the seat and the
+    // pedals bolt on), a hand under it
+    try {
+      const RR = CG2.cageResolve(CG2.cageSpec(P)), zF = zc + 0.5 * Lp, pts = [];
+      for (const r of RR.rings) { const f = r.lv && r.lv.floor; if (f && isFinite(f.y) && isFinite(f.z) && f.z * FS > zF + 0.01) pts.push([f.z * FS, f.y * FS]); }
+      pts.sort((a, b) => b[0] - a[0]);
+      if (pts.length) {
+        const flAt = z => { if (z >= pts[0][0]) return pts[0][1]; for (let i = 1; i < pts.length; i++) if (z >= pts[i][0]) {
+          const a = pts[i - 1], b = pts[i]; return b[1] + (a[1] - b[1]) * (z - b[0]) / ((a[0] - b[0]) || 1); } return pts[pts.length - 1][1]; };
+        // ON THE MAST'S FOOT: the beam ends on it - over a sunk wheel's tyre (which stands taller than the floor and longer
+        // than the mast) it climbs from a hand ahead of the tyre to the mast's foot, a knee
+        const zW = yFoot != null ? zc + sunkR + 0.20 : zF, yE = yFoot != null ? yFoot + 0.04 - KEEL_D + KEEL_DN : null;
+        const zs = pts.map(p => p[0]).filter(z => z > zW + 0.02).filter((z, i, A) => i === 0 || A[i - 1] - z > 0.02).concat(yE != null ? [zW, zF] : [zF]);
+        const kb = GK.Bag(), hw = 0.5 * KEEL_W, up = KEEL_D - KEEL_DN;
+        const yAt = z => yE != null && z < zW ? flAt(zW) + (yE - flAt(zW)) * (zW - z) / ((zW - zF) || 1) : flAt(z);
+        const sec = z => { const y = yAt(z); return [[-hw, y - KEEL_DN, z], [hw, y - KEEL_DN, z], [hw, y + up, z], [-hw, y + up, z]].map(q => kb.v(q)); };
+        const S = zs.map(sec);
+        for (let i = 0; i + 1 < S.length; i++) for (let k = 0; k < 4; k++) {
+          const a = S[i][k], b = S[i][(k + 1) % 4], c = S[i + 1][(k + 1) % 4], d = S[i + 1][k];
+          kb.quad(a, b, c, d); kb.quad(d, c, b, a);
+        }
+        for (const E of [S[0], S[S.length - 1]]) { kb.quad(E[0], E[1], E[2], E[3]); kb.quad(E[3], E[2], E[1], E[0]); }
+        const km = kb.mesh(hangGroup, GG.gearMat ? GG.gearMat('dark') : MAT.liftstrut);
+        if (km) { km.name = 'hangKeel'; km.userData.keel = { z0: zs[0], z1: zF }; }
+      }
+    } catch (e) { console.error('keel beam:', e); }
     scene.add(hangGroup);
     // (for the gear layer, after this one: a monowheel hangs from the mast's foot)
     window.CAGE_HANG = { zc, zF: zc + 0.5 * Lp, zR: zc - 0.5 * Lp, yK, yFoot: yFoot != null ? yFoot : yK };

@@ -686,6 +686,17 @@ function cageResolve(S) {
         const d = crownAt(v, 0) + (crownAt(v, 1) - crownAt(v, 0)) * f - L.y;
         L.y += d; if (L.yC != null) L.yC += d;
       }
+      // ...AND UNDER A ROD IT RUNS ALONG THE ROD'S UNDERSIDE (12 Nov, the user: "the aft aeropod should start at the
+      // bottom of the rod, so it does not intersect it"): the crown no higher than the rod's lowest line (its axis, its
+      // inclination, less its radius), the shoulder band under it kept its depth
+      if (AA.over && ROD && !ROD.twin && f > 0) {
+        const rb = ROD.y + Math.tan(ROD.incl || 0) * (zRodRoot - zz) - ROD.r - 0.002, Lr = Rg.lv.roof, Lc = Rg.lv.ceil;
+        if (Lr && Lr.y > rb) {
+          const dc = Lc ? Lr.y - Lc.y : 0, d = rb - Lr.y;
+          Lr.y += d; if (Lr.yC != null) Lr.yC += d;
+          if (Lc) { const d2 = (rb - dc) - Lc.y; Lc.y += d2; if (Lc.yC != null) Lc.yC += d2; }
+        }
+      }
       return Rg;
     };
     add(ringAft('aeroAftTip', zTipA), null);

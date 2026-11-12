@@ -58,7 +58,7 @@ ok(s1.fuselage.hang === true && !('hang' in s0.fuselage) && d1.spec.fuse.hang ==
 { const cs = (f, pos) => { const x = JSON.parse(JSON.stringify(C.GEN_DEFAULT)); Object.assign(x.fuselage, f); if (pos) x.wings[0].position = pos; return C.clampSpec(x).fuselage; };
   const lo = cs({ hang: true, hangAt: 0.5, hangLen: 0.5, hangX: [1, 1.3] }, 'low'), off = cs({ hang: false, hangAt: 0.5, hangLen: 0.5 }), cl = cs({ hang: true, hangAt: 2, hangLen: 0.01, hangX: [1.3, 1] }, 'parasol');
   ok(!('hang' in lo) && !('hangAt' in lo) && !('hangLen' in lo) && !('hangX' in lo) && !('hang' in off) && !('hangAt' in off) && !('hangLen' in off)
-     && cl.hang === true && cl.hangAt === 0.95 && cl.hangLen === 0.2 && !('hangX' in cl),
+     && cl.hang === true && cl.hangAt === 0.95 && cl.hangLen === 0.1 && !('hangX' in cl),
      `A gone under a low wing and when off; clamped on a parasol (${cl.hangAt}, ${cl.hangLen}), a backwards hangX dropped`); }
 
 console.log('B. THE FRAME');
@@ -90,6 +90,15 @@ for (const [lab, d, dOff] of [['high wing', d1, d0], ['parasol', dP, dP0]]) {
      && Math.abs(P[ax][0] - 0.5 * (M.x[0] + M.x[1])) < 0.01 && legs.length >= 4 && legs.every(n => M.nodes.includes(n)),
      `B ${lab}: the mast where the drawn one stands (${M ? M.x.map(r3).join(' - ') : '-'} m), the wheel under its middle (${r3(P[ax][0])}), its ${legs.length} members all on the mast`);
 }
+
+console.log('B2. THE KEEL BEAM');
+{ const d = d1, K = d.refs.keel, M = d.refs.mast, tied = (a, b) => d.beams.some(q => (q.a === a && q.b === b) || (q.a === b && q.b === a));
+  const ring = t => d.nodes.findIndex(n => n.tag === t);
+  const ok1 = K && M && Math.abs(K.x[1] - M.x[0]) < 1e-9 && K.rings[0] === 0 && K.rings.every((i, k) => ['BL', 'BR'].every(s => tied(K.bottom[k], ring('S' + i + s)) && tied(K.top[k], ring('S' + i + s))));
+  const lb = K ? K.bottom[K.bottom.length - 1] : -1, ok2 = K && M && [M.foot[0], M.foot[1]].every(q => tied(lb, q));
+  ok(ok1 && ok2 && Math.abs(K.kg - C.GEN_HANG.keelKgM * K.len) < 1e-6,
+     `B2 the keel beam from the nose's ring to the mast's front (${K ? K.x.map(r3).join(' - ') : '-'} m, ${K ? K.bottom.length : 0} stations, ${K ? K.kg.toFixed(2) : '-'} kg), every station on its ring's bottom corners, its end on the mast's foot`);
+  ok(!d0.refs.keel, 'B2 none without the hanging nacelle'); }
 
 console.log('C. THE AEROPLANE STANDS');
 { const flat = { terrainH: () => 0, waterH: () => -1e9, surface: () => 0, trees: [], treesNear: (x, z, q) => { q.length = 0; return q; } };
@@ -139,6 +148,16 @@ console.log('D. THE DRAWING');
   ok(H.eng != null && H.eng > -0.002 && H.eng < 0.02 && H.wheel != null && Math.abs(H.wheel) < 0.005 && L2.zc != null && Math.abs(L2.zc - H.zc) < 0.005,
      `D the pusher on the mast's back face (${H.eng != null ? (1000 * H.eng).toFixed(1) : '-'} mm), the wheel's fitting its middle (${H.wheel != null ? (1000 * H.wheel).toFixed(1) : '-'} mm); a cabin 0.2 m shorter leaves the mast where it stands (${L2.zc != null ? (1000 * (L2.zc - H.zc)).toFixed(1) : '-'} mm)`);
   ok(H.rodLow === 0, `D the sunk wheel's square cut leaves the rod over it whole (${H.rodLow} rod faces below the rod)`);
+  // the keel beam drawn: the cabin's floor line, from its first floor station to the mast's foot - at every cabin station
+  // along its floor run its underside is that ring's floor less 2 cm (the beam IS the floor line: the cabin moves it)
+  { const S1 = scene(s1), HG = S1.W.CAGE_HANG; let K = null, V = null;
+    S1.scene.traverse(o => { if (o.name === 'hangKeel') { K = o.userData.keel; const pa = o.geometry.attributes.position; V = []; for (let i = 0; i < pa.count; i++) V.push([pa.getX(i), pa.getY(i), pa.getZ(i)]); } });
+    const CG2 = S1.W.CAGE2, RR = CG2.cageResolve(CG2.cageSpec(S1.P)), FS = S1.FS;
+    let n = 0, worst = 0;
+    for (const r of RR.rings) { const f = r.lv && r.lv.floor; if (!f || !V) continue; const z = f.z * FS; if (!(z <= K.z0 + 1e-6 && z > HG.zc + 0.45)) continue;
+      const at = V.filter(v => Math.abs(v[2] - z) < 1e-4); if (!at.length) continue; n++; worst = Math.max(worst, Math.abs(Math.min(...at.map(v => v[1])) - (f.y * FS - 0.02))); }
+    ok(K && HG && Math.abs(K.z1 - HG.zF) < 1e-6 && n >= 3 && worst < 1e-3,
+       `D the keel beam drawn from the cabin's first floor station (${K ? r3(K.z0) : '-'} m) to the mast's foot (${K ? r3(K.z1) : '-'}): at ${n} cabin stations its underside the ring's floor less 2 cm (worst ${(1000 * worst).toFixed(2)} mm)`); }
   ok(H.mast && reach(H) && H.cuts === 0 && Math.abs(H.foot - sunk) < 0.005,
      `D high wing: the mast drawn from the wheel's fork (${H.mast ? r3(H.mast.min.y) : '-'} m, ${r3(H.foot)} over the keel) up into the wing (${H.mast ? r3(H.mast.max.y) : '-'}), no roof to cut (${H.cuts})`);
   ok(Pp.mast && !Pp.cab, `D parasol: the mast drawn (${Pp.mast ? r3(Pp.mast.min.y) + ' to ' + r3(Pp.mast.max.y) + ' m' : '-'}), no cabane strut (${Pp.cab})`);

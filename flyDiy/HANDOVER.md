@@ -314690,3 +314690,24 @@ the engine anchors on the pillar".
   flange shows through the aft section's side; TAXICLEAR's footprint row for the card (5.5 m half) is under its 6.5 m
   semispan since the card was fitted to its drawing (before this session); the keel beam, the role materials and the
   tent, the A-pillars to the hub, the load rig hanging the nacelle are the stage's next pieces.
+
+## KEEL - THE HANGING NACELLE'S KEEL BEAM, AND THE CARD'S DRIVE PARED DOWN (12 Nov 2026; the study's stage 3)
+
+The user: "the keel beam should probably be paired with the fuselage, as they will both host the seat and the pedals
+... changing the length of 1 would change the other ... this keel beam is actually the cabin floor and length".
+- **The frame** (61_gen_frame 3e, refs.keel): on a hanging nacelle a two-chord truss on the centreline at the keel
+  (GEN_HANG.keelD 0.08 m deep, keelKgM 1.2 kg/m INFERRED), at the cabin's own ring stations from the nose's ring to the
+  mast's front - no length of its own - each station tied to its ring's bottom corners, its aft end clamped on the
+  mast's two lowest levels.
+- **The drawing** (_cage_wing hangMastDraw, mesh hangKeel): the cabin's own floor line (the rings' floor level, 6 cm
+  over it and 2 cm under), from its first floor station to the mast's front face; over a sunk wheel's tyre (taller than
+  the floor, longer than the mast) it climbs to the mast's foot from a hand ahead of the tyre - a knee.
+- **The aft section under the rod** (aeroAftOver; the user: "the aft aeropod should start at the bottom of the rod"):
+  its crown no higher than the rod's lowest line, its shoulder band kept.
+- **The card**: the mast 40 % narrower (hangLen 0.18; the row reaches 0.10 now); the engine mount at the bench's least
+  (eng_mountGap 0.4, eng_mountR 0.5, eng_mountX 0); the cone 6 cm in radius, the blades 0.10 / 0.035 m of chord; blades,
+  cone and shaft carbon (cw_material 3; the shaft is the cone's part, spinMat 0); the nose skid's shoe level with the
+  wheel's contact (s2_twLegDrop 0, within 7 mm).
+- GATE NACELLE B2 (the keel beam's frame) and D (its drawing: at every cabin station its underside the ring's floor
+  less 2 cm). FRAMES' corpus: the Archaeopteryx card and builds/archaeopteryx_2026-11-10.json re-recorded (their aft
+  section's rows), nothing else.

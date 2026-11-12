@@ -2788,7 +2788,10 @@ const GEN_TIP_SHAPE = { bow: [0.15, 0.80], droop: [0, 0.45], full: [1, 2.6], phi
 // (len) as fractions of the root chord when the spec leaves them out (the hub's: the cabin slides free of it); tc its section's thickness over chord (the drawn
 // blade's 12 %, _cage_eng pylonOutline); kgM its mass a metre - a carbon blade, spar and fairing, ~2.4 kg/m INFERRED (a
 // sailplane's fin post class); lv the lattice's bay height (m)
-const GEN_HANG = { at: 0.50, len: 0.35, tc: 0.12, kgM: 2.4, lv: 0.30 };
+const GEN_HANG = { at: 0.50, len: 0.35, tc: 0.12, kgM: 2.4, lv: 0.30,
+  // THE KEEL BEAM (61_gen_frame 3e): the cabin's floor beam to the mast's foot - its depth (m) and its mass a metre, a
+  // carbon box ~80 x 60 mm, ~1.2 kg/m INFERRED
+  keelD: 0.08, keelKgM: 1.2 };
 const GEN_TIP_SKID = { h: [0.02, 0.30], h0: 0.10, xc: [0.15, 0.75], xs: 0.45, bow: 0.6, r: 0.008, cd: 1.2, kg: 0.30, each: 90 };
 // ...its STATION (m from the centreline): `bow` of the way out along a tip's bow (a rounded, clipped, Hoerner or
 // elliptic tip: the bow's own outer reach would otherwise touch the ground first, the wing tilted on a single main), at
@@ -5971,7 +5974,7 @@ function clampSpec(spec) {
     const hx = fu.hangX, hxOk = Array.isArray(hx) && hx.length === 2 && hx.every(Number.isFinite) && hx[1] - hx[0] > 0.05 && hx[1] - hx[0] < 2;
     if (!(fu.hang === true && hxOk)) delete fu.hangX;
     if (!(fu.hang === true && (posH === 'high' || posH === 'parasol'))) { delete fu.hang; delete fu.hangAt; delete fu.hangLen; delete fu.hangX; }
-    else for (const [k, lo, hi] of [['hangAt', 0.10, 0.95], ['hangLen', 0.20, 0.60]]) {
+    else for (const [k, lo, hi] of [['hangAt', 0.10, 0.95], ['hangLen', 0.10, 0.60]]) {
       const v = +fu[k];
       if (fu[k] != null && Number.isFinite(v)) fu[k] = genClamp(v, lo, hi); else delete fu[k];
     }

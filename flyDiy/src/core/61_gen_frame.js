@@ -1735,7 +1735,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   if (S.fuse && S.fuse.hang && wf.L && wf.R && S.wings && S.wings[0]) {
     const w0 = S.wings[0], H0 = typeof GEN_HANG !== 'undefined' ? GEN_HANG : { at: 0.5, len: 0.35, tc: 0.12, kgM: 2.4, lv: 0.3 };
     const at = S.fuse.hangAt != null ? +S.fuse.hangAt : H0.at, len = S.fuse.hangLen != null ? +S.fuse.hangLen : H0.len;
-    let ph = 0.5 * Math.max(0.20, len * w0.chord);
+    let ph = 0.5 * Math.max(0.10, len * w0.chord);
     // (where the join measured the drawn mast - hangX, its front and back - else at its station on the root chord)
     const HX = Array.isArray(S.fuse.hangX) ? S.fuse.hangX : null, xc0 = w0.xLE + at * w0.chord;
     const xa = HX ? HX[0] : xc0 - ph, xb = HX ? HX[1] : xc0 + ph, xc = 0.5 * (xa + xb);
@@ -1783,6 +1783,38 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       const kg = H0.kgM * Hm;
       for (const n of MAST) pt(n, kg / MAST.length);
       mastRef = { nodes: MAST.slice(), head: lv[nL].slice(), foot: lv[0].slice(), x: [xa, xb], hw, h: Hm, kg, rings };
+    }
+  }
+
+  // ---- 3e. THE KEEL BEAM (the study's stage 3; the user, 12 Nov: "the keel beam should probably be paired with the
+  // fuselage, as they will both host the seat and the pedals ... changing the length of 1 would change the other ... this
+  // keel beam is actually the cabin floor and length") ----
+  // On a hanging nacelle the cabin's floor IS a beam: on the centreline at the keel, from the nose's ring to the mast's
+  // foot - the cabin's own stations (no length of its own: the cabin's rings make it, the mast ends it), a two-chord truss
+  // (GEN_HANG.keelD deep: a bottom chord on the keel line, a top chord over it, a post and a diagonal a bay), each station
+  // tied to its ring's bottom corners, its aft end clamped on the mast's foot (both chords on the mast's two lowest
+  // levels' forward corners). Weightless members, the beam billed a metre (keelKgM); fuselage class; inside the skin
+  let keelRef = null;
+  if (mastRef) {
+    const H0 = typeof GEN_HANG !== 'undefined' ? GEN_HANG : { keelD: 0.08, keelKgM: 1.2 };
+    const xa = mastRef.x[0], kd = H0.keelD || 0.08, KB = [], KT = [];
+    const keelY = i => 0.5 * (P[F[i].BL][1] + P[F[i].BR][1]);
+    const st = []; for (let i = 0; i < F.length; i++) if (ST[i].x < xa - 0.05) st.push(i);
+    if (st.length) {
+      const M = (a, b) => B(a, b, 'fus', false, 'inner', undefined, { noMass: true });
+      for (const i of st) {
+        const b = N(ST[i].x, keelY(i), 0, 'KEELB'), t = N(ST[i].x, keelY(i) + kd, 0, 'KEELT');
+        KB.push(b); KT.push(t);
+        M(b, t); M(b, F[i].BL); M(b, F[i].BR); M(t, F[i].BL); M(t, F[i].BR);
+      }
+      // the last bay to the mast's foot: its forward corners, the two lowest levels
+      const f0 = mastRef.foot, f1 = mastRef.nodes.slice(4, 8);
+      for (let k = 0; k < KB.length - 1; k++) { M(KB[k], KB[k + 1]); M(KT[k], KT[k + 1]); M(k % 2 ? KB[k] : KT[k], k % 2 ? KT[k + 1] : KB[k + 1]); }
+      const lb = KB[KB.length - 1], lt = KT[KT.length - 1];
+      for (const q of [f0[0], f0[1], f1[0], f1[1]]) { M(lb, q); M(lt, q); }
+      const len = xa - ST[st[0]].x, kg = (H0.keelKgM || 1.2) * len;
+      for (const n of KB.concat(KT)) pt(n, kg / (KB.length + KT.length));
+      keelRef = { bottom: KB, top: KT, x: [ST[st[0]].x, xa], len, kg, rings: st };
     }
   }
 
@@ -3979,6 +4011,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     ...(TW2 >= 0 ? { tw2: TW2 } : {}),               // G3800: a twin boom's second tail contact (the key only then)
     ...(SKIDS.length ? { skids: SKIDS } : {}),       // TIP-SKID: the wingtip skids' shoes (the key only then)
     ...(mastRef ? { mast: mastRef } : {}),          // THE HANGING NACELLE: the mast (3d; the key only then)
+    ...(keelRef ? { keel: keelRef } : {}),          // ...and its keel beam (3e)
     // THE DRAWING'S DATUM IS THE WING CARRY-THROUGH (G179.3, the user: "we
     // have to treat the whole wing consistently, and get rid of that
     // different treatment for the central part"). The centre section is

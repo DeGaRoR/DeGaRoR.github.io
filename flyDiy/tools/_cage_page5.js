@@ -1260,7 +1260,7 @@ window.CAGE_PAGE = {
        { when: P => +P.wingOn && (Math.round(+P.wgPos || 0) === 0 || Math.round(+P.wgPos || 0) === 3) }],
       ['hangAt',    'mast station on the chord (its middle)', 0.10, 0.95, 0.01,
        { when: P => +P.hangOn && +P.wingOn }],
-      ['hangLen',   'mast chord (of the chord)', 0.20, 0.60, 0.01,
+      ['hangLen',   'mast chord (of the chord)', 0.10, 0.60, 0.01,
        { when: P => +P.hangOn && +P.wingOn }],
       ['boomLen',   'length',          1.0, 6.0, 0.01, { dim: 'len' }],
       // (aft roof/keel = the boom frame; the cone's section = the tail

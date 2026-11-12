@@ -3014,6 +3014,13 @@ const ARCHETYPES = [
                     // bulkhead, no cowl; a shaft aft (cw_noseOff) to the small prop just past the aft pod's tip, its
                     // disc 0.24 m off the ground and ~0.19 m under the rod (engY)
                     engY: -0.38, cw_propD: 0.75, cw_noseOff: 0.50, cowlOn: 0,
+                    // THE DRIVE PARED DOWN (12 Nov, the user: "limit the engine mount to the minimum ... the nose cone
+                    // slimmer, the prop blades with a lower chord and the whole assembly in carbon fiber, including the
+                    // shaft"): the mount at the engine bench's least (stand-off 0.4 of the case, tubes x0.5, no diagonals);
+                    // the cone 6 cm in radius (10.1), the blades 0.10 / 0.035 m of chord (0.165 / 0.05); blades, cone and
+                    // shaft carbon / epoxy (the cone and its shaft are one part, worn as the blades: spinMat 0)
+                    eng_mountGap: 0.4, eng_mountR: 0.5, eng_mountX: 0,
+                    cw_spinR: 0.06, cw_rootChord: 0.10, cw_tipChord: 0.035, cw_material: 3, spinMat: 0,
                     // THE AFT POD: THE AERO AFT OVER THE PUSHER (11 Nov, the user: "try again with the aero aft instead of
                     // the cowl ... the real thing is straight tapers; the cowl looks odd and bulby"). aeroAftOver is a row
                     // of this branch (_cage_gen.js, _cage_cowl.js): the aero aft drawn over a pusher's bulkhead, the engine
@@ -3030,7 +3037,8 @@ const ARCHETYPES = [
                     // about the CG; 0.30 of the chord, 0.36 m), the wheel hung from its foot, the pusher on its back face.
                     // The cabin slides free of it: pulled 0.30 m forward (pilotLen 1.05 -> 0.75, the rod as much longer,
                     // boomLen 4.63 -> 4.93, the aft section 1.2 -> 1.5 so its tip stays where it was)
-                    hangOn: 1, hangAt: 0.85, hangLen: 0.30,
+                    // (12 Nov, the user: "make the main pillar 40% less wide": 0.30 -> 0.18 of the chord, 0.21 m)
+                    hangOn: 1, hangAt: 0.85, hangLen: 0.18,
                     // the wing: LE 1.08 / TE 2.30 behind the nose at the root, chord 1.19 -> 1.09 at the crank -> 0.56
                     wgSpan: 13.0, wgChord: 1.19, wgCrankAt: 0.48, wgCrankChord: 1.09, wgCrankX: 0.08,
                     wgChordTip: 0.56, wgTipX: 0.52, wgDihedral: 1, wgDihedralOut: 1, wgDx: 0,
@@ -3071,10 +3079,12 @@ const ARCHETYPES = [
                     // we need to allow super light wheels ... sunk wheels"): the Undercarriage tile's Monowheel - the main
                     // on the centreline under the mast (below), a bicycle wheel (whProfile 3, 0.20 m) half sunk
                     // through a square cut in the skin (s1Sink), the nose unit a skid 0.45 m behind the nose faired as the
-                    // nose grown down (s2Fair), a skid under each wingtip (wgTipSkid)
+                    // nose grown down (s2Fair) - its shoe level with the wheel's contact (12 Nov, the user: "the skid so
+                    // it's at the same level as the wheel": s2_twLegDrop 0.09 -> 0, within 7 mm), a skid under each wingtip
+                    // (wgTipSkid)
                     pilotLen: 0.75, s1Z: 1.13, s1X: 0, s1AxZ: 0, s1R: 0.2, s1Drop: 0.05, s1Root: 1, s1Sink: 0.45,
                     whProfile: 3,
-                    s2Leg: 3, s2Nose: 1, s2Z: 0.45, s2Steer: 4, s2Fair: 1, s2R: 0.10, s2Drop: 0.05, s2_twLegDrop: 0.09,
+                    s2Leg: 3, s2Nose: 1, s2Z: 0.45, s2Steer: 4, s2Fair: 1, s2R: 0.10, s2Drop: 0.05, s2_twLegDrop: 0,
                     wgTipSkid: 1,
                     // the tail: the stab's size and station, the fin's outline (fit_tail.js), no dorsal fillet
                     stSpan: 0.98, stChord: 0.47, stChordTip: 1.2, stZ: 0.4,
