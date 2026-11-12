@@ -315350,3 +315350,39 @@ given back) and in the shed; the bare SHOT_MODE has no bar. _story_check (the he
 Done top right, the shutter bottom centre; two Esc -> back to the shed. The flight's bar is NOT seen yet (a desktop
 boot in SwiftShader rolls out a world): a LOCAL look is wanted.
 **Next:** P2 (the picture slot's size, the scene slot: save / load, the scene in the PNG), P3 (go to). PHOTO.md's table.
+
+## PHOTO-MODE-2 P2-P5 - THE PICTURE'S SIZE, THE SCENES, GO TO, THE HIGH-QUALITY PICTURE, THE HEADLESS RIG (12 Nov 2026, cloud; branch claude/optimistic-dirac-1zu6u1)
+
+The user (12 Nov): "please try to progress until you have a finished product, because I'm not necessarily on top of the
+session all the time". The how-to is `tools/PHOTO.md` (its status table first); the design `futureDesigns/PHOTO-MODE-2-2026-11-11.md`.
+
+- **The core.** `89_scene.js` + `sceneAxesOf` / `scenePoseOf` (the pose read back off any node set against def.nodes:
+  R = B_now B_rest^T = Ry(pi - hdg) Rz(-pitch) Rx(-roll), placePose's own turns; GATE SCENE: placePose -> scenePoseOf to
+  1e-9, a game-seated aeroplane read and put back to 1e-9 m). `simHostPlace` takes `pose` (+ `seat`) on the page's sim and
+  the worker's (SIM_HOST_CORE carries placePose; sim_link forwards pose / seat); `FLIGHT_PROBE.place` passes def + core.
+- **app.js, the photo sections.** P2: `photoShoot` (the shot on PRESENTED frames - photoFramed() at the loop's end
+  counts them; another size = setPixelRatio(k) + resize(), settle 12 frames, the centre cut out, all back in `finally`;
+  the GPU's limits shrink it; over 400 MB of AA target the tier goes 'off' for the shot and the player's flydiy.aa2 is
+  written back), `photoEmbed` (the scene in the PNG, CompressionStream deflate), the scene slot and `window.SCENE`
+  (sceneGet / sceneApply - THE ordered loader: to the shed and a roll-out AWAITED when the site or the build differ, the
+  hour and weather (not the career's), the pose through FLIGHT_PROBE.place with the saved speed along the nose, the
+  camera = the free camera at the exact eye / the shed's orbit, photo mode, 30 frames, sceneCheck). P3: go to
+  (`photoGoTo`: FLYDIY_ROUTE.spawn + fullReset, held; not in the career / GARAGE_ONLY). P4: `photoHqSteps` (GFX.push of
+  HQ_FULL / HQ_LIGHT by GFX.budget().preset, TREE_LOD [150, 1000, 1000] fade 60, the fill budget 20 ms, the tree wait on
+  TREE_FILL.stat() + stream().stale with its %, 8 + 20 frames, one cap SCENE_HQ_CAP_S = 55 s, hw.hold, autoScale off,
+  longtask observer, webglcontextlost cancels, restore in photoShoot's finally). High quality is OFF by default.
+- **gfx_settings.js:** `GFX.push(o, tag)` / `GFX.pop()` / `GFX.pushed()` / `GFX.live()` - a transient layer: save() and
+  presetOf() read the player's values from under it, a pick of a pushed key lands under it, a preset pick pops first.
+- **photo.js:** the spinner (`PHOTO.progress({ pct, line, sub })`: the ring that fills, its %, one line, a fainter one, the
+  cross; body.photoBusy dims the bar, hides the shutter; Esc cancels first while busy).
+- **tools:** `scene_shot.js` (P5: a scene -> PNG + report; `--check` the hidden-build diff - the flight's craft AND the
+  shed's CAGE_UI_SCENE; `--capture`); `shots/scenes/shed_cub.scene.json` (the first kept scene; GATE SCENE checks the folder).
+- **Gates.** GATE SCENE, GATE GFX (push / pop rows, mutation-checked), GATE PHOTO (the spinner, the P2-P4 wiring), UISMOKE
+  (flight: camera, light, goto, picture, scene; the shed: camera, picture, scene - its light only with moods), NEW GATE
+  SCENEPAGE (full tier, ~5 min a mode: the page in node, inline and the worker - the shed's orbit back; a ground and a
+  banked-air scene saved, everything moved, loaded back to 1e-13 m / 1e-12 deg, the eye to 2e-6 m; go to and home).
+- **Seen in the cloud (SwiftShader, 1280x720):** scene_shot.js on the shed scene: boot 33 s (the phone page), the shot 18 s,
+  102 s in all; the Cub under the shed's lamp, the scene inside the PNG, 3.2 % of the pixels change with the build hidden.
+- **NOT DONE / NOT SEEN:** P4 tuned on a GPU (the tree step with real trees to 1 km, the frame counts, the longest task,
+  a 3840x2160 picture's memory) - a LOCAL session with A0's box slot; the control surfaces / prop and the camera's roll
+  set from a scene (the loader says so); QuickShot `--scene` and moving the old *_shot.js rigs onto scene files (optional).
