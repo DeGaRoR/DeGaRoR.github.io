@@ -3271,9 +3271,14 @@ function makePilot(sim, def, world, opts) {
     // starvation in the flare or on the wheels changes nothing but the note.
     // The emergency's finer judgement (a field chosen, a turn back, the
     // wind) is the pilot track's (PLAYTEST-TRIAGE A8); this is the floor.
-    if (sim.fuel && sim.fuel.starved && !starvedSaid) {
+    // TOW-LAUNCH (12 Nov; the user: "the autopilot should be able to fly everything"): A GLIDER - every engine switched
+    // off by its key (a motor glider flown as one, the tow's motor off) or no engine at all - is flown as the starved one
+    // is, from the moment it is in the air: the glide toward the nearest field inside its cone, the flare it knows; said
+    // as a glide, and no forced landing stamped on it (a glider's every landing is without power, by design)
+    const glider = onG === 0 && (!sim.eng || !sim.eng.length || sim.eng.every(e => e.key === 'off'));
+    if (((sim.fuel && sim.fuel.starved) || glider) && !starvedSaid) {
       starvedSaid = true;
-      const what = sim.fuel.kind === 'battery' ? 'out of charge' : 'out of fuel';
+      const what = glider && !(sim.fuel && sim.fuel.starved) ? 'gliding (no engine running)' : sim.fuel.kind === 'battery' ? 'out of charge' : 'out of fuel';
       const landingPh = ap.phase === 'FLARE' || ap.phase === 'ROLLOUT' || ap.phase === 'STOPPED' || ap.phase === 'ABORT' || ap.phase === 'PUTDOWN';
       if (onG === 0 && !landingPh && !BX.on) {
         // the glide cone: the sheet's L/D when it has one, else a modest 8
@@ -3289,7 +3294,7 @@ function makePilot(sim, def, world, opts) {
         glideHdg = Math.atan2(nose[1], nose[0]);
         say('out-of-energy', what + ' at t=' + Math.round(ap.t) + ' s, ' + Math.round(aglG) + ' m up — engines stopped; gliding ' +
             (reach ? 'to ' + (best.name || best.id) + ', ' + Math.round(bestD) + ' m away' : 'straight ahead for a forced landing'));
-        ap.report.outcome = ap.report.outcome || 'forced-landing';
+        if (!glider) ap.report.outcome = ap.report.outcome || 'forced-landing';
         committed = true;
         go('GLIDE');
       } else say('out-of-energy', what + ' at t=' + Math.round(ap.t) + ' s — engines stopped');

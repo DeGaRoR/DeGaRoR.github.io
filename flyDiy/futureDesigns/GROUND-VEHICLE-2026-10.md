@@ -455,3 +455,23 @@ the game's joined build: a shear, 20 members broken. The seat's frame is now mad
 any member broken and JOINED seats the game's own build. (The flying boat's axes were skewed too: its launch improved.)
 Open: the pilot's ROLL on a cradle (the autopilot's take-off from the trailer); landing back on the trailer (out of
 scope); the trailer at the other aerodromes' strips (the runway nearest is taken; HOME's first).
+
+### 12.1 The roll-out's choice and the autopilot (12 Nov)
+The user: "it should be easily accessible from the garage. Maybe when you click on rollout, it gives you the two
+options", and "the autopilot should be able to fly everything".
+- ROLL OUT on a float or hull build opens a small chooser over the verb (#edLaunch): ON THE WATER (the base's water
+  lane, as always) or FROM THE TRAILER (behind the car on 13/31); the pick is TRAILER.want, the roll-out goes on. The
+  menu row stays for the flight.
+- THE LAUNCH'S AUTOPILOT (app.js LAUNCH): with the autopilot on, the launch's own hands (trailer.js / tow.js, the gates'
+  flown ones) fly the roll, the lift-off and the climb off the bunks or up the line, the pilot held off by the hand's
+  mode; once clear (the trailer: off its bunks and 20 m up; the tow: 2 s after the release) setManual(false) hands the
+  flight to THE PILOT (ap.reEngage at CLIMB). By hand, the player flies it as before.
+- 43_pilot.js (a core change, meant): A GLIDER - every engine's key off, or none - is flown as a starved aeroplane is,
+  from the moment it is airborne: GLIDE to the nearest field inside its cone, the flare it knows; no forced landing
+  stamped. Measured: the motorglider released at 275 m glides home and lands, CLIMB -> GLIDE -> FLARE -> ROLLOUT ->
+  STOPPED, sink 0.3 m/s - but 170-200 m BESIDE 13/31 (the glide aims at the field's point, not into a circuit: a
+  glider's circuit and its approach are the next piece). The floatplane off the trailer: the pilot from 18 s / 20 m,
+  CLIMB -> ENROUTE, and it plans its landing on water (floats: water only).
+- GATES: TRAILER AUTOPILOT, TOW AUTOPILOT (the handover, the game's pilot flying on); TRAILER PAGE (the chooser, the
+  hands, the handover). ENGCONFIG's reds (the quad never wings-level, three saved cards differ, the Chinook's hash) are
+  identical on the commit before the pilot change - not this one's.

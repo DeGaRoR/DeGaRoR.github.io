@@ -259,7 +259,8 @@
     TW.rope = new T.Line(gm, new T.LineBasicMaterial({ color: 0xf2e6c8 })); TW.rope.frustumCulled = false; scene_.add(TW.rope);
     TW.sim = sim; TW.active = true; TW.why = null; TW.t = 0;
     // (?towhands=1: the gate's hands fly the glider - a rig's, a player without a stick's; the player flies otherwise)
-    TW.hands = /[?&]towhands=1/.test(location.search || '') ? makeTowHands(sim, { ground: world_.terrainH(cg[0], cg[2]) }) : null;
+    // (ctx.hands: the autopilot flies the launch - app.js's LAUNCH; ?towhands=1 the rig's)
+    TW.hands = ctx.hands || /[?&]towhands=1/.test(location.search || '') ? makeTowHands(sim, { ground: world_.terrainH(cg[0], cg[2]) }) : null;
     poseRig();
     return to;
   };
@@ -307,7 +308,7 @@
     TW.model = buildTrailerModel(THREE_, L.trailer); scene_.add(TW.model.group);
     if (!rig) { rig = buildRig(); } if (!rig.g.parent) scene_.add(rig.g);
     TW.hitch = buildTowHitch(THREE_); TW.hitch.position.set(L.trailer.ball[0], L.trailer.ball[1], L.trailer.ball[2]); rig.g.add(TW.hitch);
-    TW.hands = /[?&]towhands=1/.test(location.search || '') ? makeTrailerHands(sim, L) : null;
+    TW.hands = ctx.hands || /[?&]towhands=1/.test(location.search || '') ? makeTrailerHands(sim, L) : null;
     TW.active = true;
     TW.model.update(L.trailer, true); poseRig();
     return to;
@@ -346,7 +347,8 @@
   DM.towWords = () => {
     if (TW.active && TW.kind === 'trailer') {
       const L = TW.launch, C = L.cradle, kmh = v => Math.round(v * 3.6) + ' km/h';
-      if (!TW.go) return 'on the trailer behind the car - open the throttle: the car sets off (' + kmh(L.vCar) + '), pull at ' + kmh(L.vRot * 1.05);
+      if (!TW.go) return TW.hands ? 'on the trailer behind the car - the autopilot flies the launch, the car sets off now' : 'on the trailer behind the car - open the throttle: the car sets off (' + kmh(L.vCar) + '), pull at ' + kmh(L.vRot * 1.05);
+      if (TW.hands && L.phase === 'loaded') return 'the autopilot on the trailer at ' + kmh(Math.abs(TW.car.out.u)) + ': the cradle carries ' + Math.round(C.loadAvg * 100) + ' %, it pulls at ' + kmh(L.vRot * 1.05);
       if (L.phase === 'loaded') return 'on the trailer at ' + kmh(Math.abs(TW.car.out.u)) + ': the cradle carries ' + Math.round(C.loadAvg * 100) + ' % - pull at ' + kmh(L.vRot * 1.05);
       if (L.phase === 'opened') return 'the latch open (' + C.opened + ') - fly it off the bunks';
       if (L.phase === 'clear') return 'off the trailer - the car slows down and stops';

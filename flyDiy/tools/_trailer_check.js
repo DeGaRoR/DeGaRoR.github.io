@@ -14,6 +14,7 @@
 //   HULL    the flying boat's: a keel and its chines on the bunks; the same launch
 //   HOLD    the floatplane at idle, the car short of its rotation speed: no lift-off - the car gives up 20 s on and
 //           stops, the plane still on its bunks (the bunks and the latch hold it through the run and the braking)
+//   AUTOPILOT the launch's hands, then the game's pilot re-engaged at CLIMB flies on (the page's handover)
 //   JOINED  the floatplane as the game loads it (the garage's chain) seated: nothing breaks (the seat's frame square)
 //   PERF    the cradle's cost on the aeroplane's frame; the trailer's own a frame
 //   MODEL   the trailer's model in node (three.js): its triangles, draw calls, materials, its size; the build's time
@@ -138,6 +139,28 @@ let FL = null;
   const d = sim.damage();
   row('JOINED', d.broken.length === 0 && !sim.stats().bad && Math.abs(L.cradle.loadAvg - 1) < 0.06 && keelMin > -0.04, 'the floatplane as the game loads it (the garage\'s chain), 3 s on its bunks: ' + d.broken.length + ' members broken' + (d.firstBreak ? ' (first: beam ' + d.firstBreak.beam + ', ' + d.firstBreak.cls + ', ' + d.firstBreak.how + ')' : '') + ', the bunks carry ' + f(L.cradle.loadAvg * 100, 0) + ' %, give ' + f(-keelMin * 100, 1) + ' cm');
 }
+// ---- AUTOPILOT: the page's way (app.js LAUNCH) - the launch's hands to clear of the bunks and 20 m up, then THE PILOT
+//      (makePilot, the game's) re-engaged at CLIMB flies on: the user, 12 Nov, "the autopilot should be able to fly
+//      everything" ----
+{
+  const R = rig('floats'), { sim, car, L } = R;
+  const ap = C.makePilot(sim, DEF.floats, W); ap.setRoute(aH, aH);
+  const D = Dr.makeDriver(car, G, { vCruise: L.vCar }), hands = TRL.makeTrailerHands(sim, L);
+  let handed = null, bad = false, aglEnd = 0;
+  for (let fr = 0; fr < 60 * 90; fr++) {
+    const t = fr / 60; if (fr === 60) D.setDest('rwy:HOME:1');
+    const cg = sim.cgPos(), agl = cg[1] - W.terrainH(cg[0], cg[2]);
+    if (!handed && L.phase === 'clear' && agl > 20) { handed = { t, agl }; ap.reEngage({ phase: 'CLIMB' }); }
+    if (handed) ap.update(1 / 60); else if (fr >= 60) hands();
+    L.before(); sim.step(1 / 60); L.after(1 / 60); if (fr >= 60) D.step(1 / 60); L.carCtl(car); car.step(1 / 60); L.carAfter(1 / 60);
+    if (sim.stats().bad) { bad = true; break; }
+    aglEnd = agl;
+  }
+  const phases = (ap.report.phases || []).map(q => q.phase), water = (ap.report.verdicts || []).find(v => v.code === 'wrong-surface');
+  row('AUTOPILOT', !bad && handed && handed.t < 30 && sim.damage().broken.length === 0 && aglEnd > 150 && !/STOPPED|ABORT/.test(ap.phase),
+    'the floatplane launched by the autopilot: the launch\'s hands to ' + (handed ? f(handed.t) + ' s, ' + f(handed.agl, 0) + ' m up' : 'NEVER CLEAR') + ', then the pilot: ' + phases.join(' -> ') + ', ' + f(aglEnd, 0) + ' m up 90 s on' +
+    (water ? '; it plans its landing on water (' + water.note + ')' : ''));
+}
 // ---- PERF: the aeroplane's frame on the trailer (the cradle) against standing on the runway ----
 {
   const R = rig('floats'); const { sim, L, car } = R;
@@ -200,12 +223,14 @@ const TM = require(path.join(ROOT, 'src/vehicle/trailer_model.js'));
   function finish() {
     const APP = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8'), B = require('./build.js'), lazy = B.MANIFEST.lazy.map(([d, f2]) => d + '/' + f2);
     const hooks = { wanted: /function trailerWanted\(\)/.test(APP), menu: /'Launch from the trailer'/.test(APP), inline: /FLYDIY_TOW_WANTED = \(\) => towWanted\(\) \|\| trailerWanted\(\)/.test(APP),
-      lazy: /'trailer', 'trailer_model', 'drive_mode'/.test(APP), start: /DRIVE_MODE\.trailerStart\(/.test(APP), plate: /'trailer launch'/.test(APP) };
+      lazy: /'trailer', 'trailer_model', 'drive_mode'/.test(APP), start: /DRIVE_MODE\.trailerStart\(/.test(APP), plate: /'trailer launch'/.test(APP),
+      // (12 Nov: the roll-out's choice in the garage; the launch's autopilot and its handover to the pilot)
+      chooser: /if \(inGarage && launchAsk\(\)\) return;/.test(APP) && /From the trailer<span>/.test(APP), apHands: /hands: byAp/.test(APP), handover: /setManual\(false, 'launch'\)/.test(APP) };
     const miss = Object.keys(hooks).filter(k => !hooks[k]);
     const okL = lazy.includes('src/vehicle/trailer.js') && lazy.includes('src/vehicle/trailer_model.js') && !B.MANIFEST.core.some(n => /trailer/.test(n));
     row('PAGE', !errs.length && did.join(',') === 'drive,tow,trailer,drawn' && !miss.length && okL,
       'drive_mode.js in node on the island: ' + (did.join(', ') || 'nothing') + (errs.length ? ' - THREW: ' + errs.join('; ') : '') + '; app.js ' + (Object.keys(hooks).length - miss.length) + ' of ' + Object.keys(hooks).length +
-      ' (the menu row, ?trailer=1, inline, the lazy fetch, the plate)' + (miss.length ? ' MISSING: ' + miss.join(', ') : '') + '; trailer.js, trailer_model.js lazy' + (okL ? '' : ' - NOT'));
+      ' (the menu row, ?trailer=1, inline, the lazy fetch, the plate, the roll-out\'s choice, the autopilot\'s launch and handover)' + (miss.length ? ' MISSING: ' + miss.join(', ') : '') + '; trailer.js, trailer_model.js lazy' + (okL ? '' : ' - NOT'));
     console.log('GATE TRAILER: ' + (fails ? 'FAIL' : 'PASS'));
     process.exit(fails ? 1 : 0);
   }

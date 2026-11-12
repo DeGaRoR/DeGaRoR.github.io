@@ -9,6 +9,7 @@
 //   GLIDE   after the release the glider flies on: 15 s, wings level, the speed held
 //   RELEASE the pilot's key at 100 m: the line off at once, the car's pull gone
 //   WEAK    a weak link of 1.2 kN: it breaks in the roll's snatch, said so - never a glider dragged past its link
+//   AUTOPILOT the hands up the line, then the game's pilot re-engaged 2 s after the release glides on (the page's handover)
 //   PERF    the line's cost a frame (the aeroplane's frame with it against without it)
 // ~2 min. node tools/_tow_check.js
 'use strict';
@@ -51,12 +52,16 @@ function launch(o) {
   const D = Dr.makeDriver(car, G, { vCruise: o.Vtow }); const a0 = D.setDest('rwy:HOME:1');
   const tow = o.noLine ? null : TW.makeTowLine(sim, car, { L0: o.L0, weak: o.weak, hook, groundAt: (x, z) => W.terrainH(x, z) });
   const hands = TW.makeTowHands(sim, { ground: W.terrainH(hp[0], hp[1]) });
+  const ap = o.pilot ? C.makePilot(sim, def, W) : null; if (ap) ap.setRoute(aH, aH);
+  let handed = null;
   const R = { nose: -xA[0] * dx - xA[2] * dz, mass: sim.totalM, hook: hook.length, a0, lift: null, rel: null, relT: null, relH: null, relV: null, maxH: 0, bad: false, soft: 0,
               after: [], ms: 0, n: 0, car, tow, D };
   const dt = 1 / 60;
   for (let fr = 0, t = 0; fr < o.T * 60; fr++, t = fr * dt) {
     if (tow) tow.before();
-    hands(tow, dt);
+    // (o.pilot: the page's autopilot - the hands to 2 s after the release, then the game's pilot re-engaged)
+    if (ap && !handed && tow && !tow.on && R.relT !== null && t - R.relT > 2) { handed = t; ap.reEngage({ phase: 'CLIMB' }); R.handed = { t, phase0: ap.phase }; }
+    if (handed) ap.update(dt); else hands(tow, dt);
     const a = process.hrtime.bigint(); sim.step(dt); R.ms += Number(process.hrtime.bigint() - a) / 1e6; R.n++;
     if (tow) tow.after(dt);
     D.step(dt); car.step(dt);
@@ -66,9 +71,10 @@ function launch(o) {
     if (R.lift === null && !sim.wheelsOnGround()) R.lift = { t, V: Vg, x: Math.hypot(cg[0] - P0.x, cg[2] - P0.z) };
     if (tow && o.releaseAt && tow.on && agl >= o.releaseAt) tow.release();
     if (tow && !tow.on && R.rel === null) { R.rel = tow.released; R.relT = t; R.relH = agl; R.relV = Vg; R.carU = car.out.u; R.extAfter = car.extF; }
-    if (R.rel !== null) { const zR = sim.axes()[2]; R.after.push([t - R.relT, Vg, Math.abs(Math.asin(Math.max(-1, Math.min(1, zR[1]))) * 57.3), agl]); if (t - R.relT >= 15) break; }
+    if (R.rel !== null) { const zR = sim.axes()[2]; R.after.push([t - R.relT, Vg, Math.abs(Math.asin(Math.max(-1, Math.min(1, zR[1]))) * 57.3), agl]); if (t - R.relT >= (o.after || 15)) break; }
     if (fr % 15 === 0) for (const c of car.footprint()) { const sf = W.surface(c[0], c[1]); if (sf !== 5 && sf !== 6) R.soft++; }
   }
+  if (ap) { R.ap = ap; R.phases = (ap.report.phases || []).map(q => q.phase); }
   return R;
 }
 
@@ -93,6 +99,14 @@ const L = launch({});
 {
   const R = launch({ weak: 1200, T: 60 });
   row('WEAK', /weak link/.test(R.rel || '') && R.relH < 20 && !R.bad, 'a 1.2 kN weak link: ' + (R.rel || 'NOT BROKEN') + ' at ' + (R.relT != null ? f(R.relT) + ' s, ' + f(R.relH) + ' m up' : '-') + ' - the glider let go, never dragged past its link');
+}
+// ---- AUTOPILOT: the page's way (app.js LAUNCH) - the hands up the line, then THE PILOT re-engaged 2 s after the release:
+//      the motor off, its own energy watch takes it to GLIDE toward the nearest field it can reach ----
+{
+  const R = launch({ pilot: true, after: 40, T: 200 }), last = R.after[R.after.length - 1] || [0, 0, 0, 0];
+  const ok = !R.bad && R.handed && R.phases.includes('GLIDE') && last[3] > 50 && last[1] > 18 && last[0] >= 39;
+  row('AUTOPILOT', ok, 'the glider launched by the autopilot: released at ' + (R.relH != null ? f(R.relH, 0) + ' m' : '-') + ', the pilot from ' + (R.handed ? f(R.handed.t, 0) + ' s' : 'NEVER') + ': ' + (R.phases || []).join(' -> ') +
+    '; 40 s after the release ' + f(last[3], 0) + ' m up at ' + f(last[1]) + ' m/s' + (R.ap && R.ap.report.outcome ? ' (' + R.ap.report.outcome + ')' : ''));
 }
 // ---- PERF: the aeroplane's frame with the line and without ----
 {

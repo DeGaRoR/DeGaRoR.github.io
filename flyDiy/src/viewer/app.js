@@ -15517,6 +15517,7 @@
       started = true;
       return;
     }
+    if (inGarage && launchAsk()) return;   // TOW-LAUNCH: a float or hull build - on the water, or from the trailer
     if (inGarage) {
       // ROLL OUT & FLY flies WHAT YOU DESIGNED (G47.1, user: "roll out
       // and fly still gives the old yellow plane"). Since G65 that is not a
@@ -21669,20 +21670,65 @@
   const TRAILER = { want: (() => { try { return /[?&]trailer(=1|=on|&|$)/.test(location.search); } catch (e) { return false; } })() };
   function trailerAble() { return curKey === 'gen' && !!def && !!(sim && sim.hydro && sim.hydro.floats && sim.hydro.floats.some(f => !f.rec.tip)); }
   function trailerWanted() { return TRAILER.want && trailerAble(); }
+  // THE ROLL-OUT'S CHOICE (the user, 12 Nov: "easily accessible from the garage. Maybe when you click on rollout, it gives
+  // you the two options"): Roll out on a float or hull build asks - ON THE WATER (the base's water lane, as always) or
+  // FROM THE TRAILER (behind the car on Jolene AFB 13/31) - beside the verb; the pick is the menu row's TRAILER.want, and
+  // the roll-out goes on. Esc or a click elsewhere closes it, rolling nothing out.
+  const LASK = { el: null, go: false };
+  function floatBuild() { const g = genSpec && genSpec.gear; return curKey === 'gen' && !!g && (g.type === 'floats' || g.type === 'hull' || !!g.hull); }
+  function launchAsk() {
+    if (LASK.go || !floatBuild()) return false;
+    if (!LASK.el) {
+      const el = LASK.el = document.createElement('div'); el.id = 'edLaunch'; el.hidden = true; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'Where to start');
+      el.innerHTML = '<div class="lkH">Start from</div>' +
+        '<button type="button" class="verb" data-k="water">On the water<span>the base\'s water lane</span></button>' +
+        '<button type="button" class="verb" data-k="trailer">From the trailer<span>behind the car on Jolene AFB 13/31</span></button>';
+      el.addEventListener('click', e => {
+        const b = e.target.closest('button[data-k]'); if (!b) return;
+        TRAILER.want = b.dataset.k === 'trailer'; TOWS.failed = null; el.hidden = true;
+        LASK.go = true; try { $('bGo').onclick(); } finally { LASK.go = false; }
+      });
+      document.addEventListener('keydown', e => { if (e.key === 'Escape' && LASK.el && !LASK.el.hidden) LASK.el.hidden = true; });
+      document.addEventListener('pointerdown', e => { if (LASK.el && !LASK.el.hidden && !LASK.el.contains(e.target) && e.target.id !== 'edRoll' && e.target.id !== 'bGo') LASK.el.hidden = true; }, true);
+      ($('edActs') || document.body).appendChild(el);
+    }
+    LASK.el.querySelectorAll('button[data-k]').forEach(b => b.classList.toggle('pri', (b.dataset.k === 'trailer') === !!TRAILER.want));
+    LASK.el.hidden = !LASK.el.hidden;   // (a second press of Roll out closes it)
+    return true;
+  }
   // the tow's start: lined up (the Skip to line-up's own placement - the start line), the motor off, the player's hands, the
   // car and the line laid out ahead (lazy, with the drive mode's pack); its words on the flight's notice plate
   const TOWS = { busy: false, failed: null };
+  // THE LAUNCH'S AUTOPILOT (the user, 12 Nov: "the autopilot should be able to fly everything"): with the autopilot on
+  // (the flight not by hand), the launch's own hands - the gates' flown ones, trailer.js makeTrailerHands / tow.js
+  // makeTowHands - fly the roll, the lift-off and the climb off the trailer or up the line, the pilot held off by the
+  // hand's mode while they do; once clear (the trailer: off its bunks and 20 m up; the tow: 2 s after the release) THE
+  // PILOT IS HANDED THE FLIGHT (setManual(false): ap.reEngage at the phase the state reads - CLIMB; a glider's engine is
+  // off, and its own energy watch takes it to GLIDE, toward the nearest field it can reach). By hand, the player flies it.
+  const LAUNCH = { ap: false, handed: false, tOff: null };
+  function launchArm() { LAUNCH.ap = !manual || /[?&]towhands=1/.test(location.search || ''); LAUNCH.handed = false; LAUNCH.tOff = null; return LAUNCH.ap; }
+  function launchHandOver(T) {
+    if (!LAUNCH.ap || LAUNCH.handed || !running) return;
+    const tw = T.tow, cg = sim.cgPos(), agl = cg[1] - groundH(cg[0], cg[2]);
+    let off = false;
+    if (tw.kind === 'trailer') off = tw.launch && tw.launch.phase === 'clear' && agl > 20;
+    else if (tw.line && !tw.line.on) { if (LAUNCH.tOff === null) LAUNCH.tOff = tw.t; off = tw.t - LAUNCH.tOff > 2; }
+    if (!off) return;
+    LAUNCH.handed = true; tw.hands = null;
+    setManual(false, 'launch');
+    console.info('flyDiy launch: the pilot takes it from the launch, ' + Math.round(agl) + ' m up (' + ap.phase + ')');
+  }
   function towTick() {
     const T = towOn();
     if (inGarage || !started || driveOn() || flightOver) { if (T && inGarage) { T.towStop(); TOWS.busy = false; } return; }
     // (the trailer: the car sets off as the player opens the throttle - or, under ?towhands=1, half a second on)
-    if (T) { T.towDraw(); if (running && !T.tow.go && (T.tow.kind === 'trailer' ? (sim.ctl.thr > 0.5 || (T.tow.hands && T.tow.t > 0.5)) : T.tow.t > 3)) T.tow.start(); return; }
+    if (T) { T.towDraw(); if (running && !T.tow.go && (T.tow.kind === 'trailer' ? (sim.ctl.thr > 0.5 || (T.tow.hands && T.tow.t > 0.5)) : T.tow.t > 3)) T.tow.start(); launchHandOver(T); return; }
     if (!TOWS.busy && !TOWS.failed && trailerWanted() && window.FLYDIY_LAZY && sim) {
       TOWS.busy = true;
-      const cam0 = sim.cgPos();
+      const cam0 = sim.cgPos(), byAp = launchArm();
       setManual(true, 'trailer');
       window.FLYDIY_LAZY(['cars_car', 'cars_lods', 'vehicle', 'vehicle_drive', 'vehicle_island', 'trailer', 'trailer_model', 'drive_mode'])
-        .then(() => window.DRIVE_MODE.trailerStart({ THREE, scene, world, sim, def }))
+        .then(() => window.DRIVE_MODE.trailerStart({ THREE, scene, world, sim, def, hands: byAp }))
         .then(to => {
           TOWS.busy = false; if (INP) INP.seed(sim.ctl);
           airborneSeen = wasAir = false; stillT = 0;
@@ -21697,9 +21743,10 @@
     TOWS.busy = true;
     if (skipAble()) skipToLineup();
     if (sim.setEngine && sim.eng) for (let i = 0; i < sim.eng.length; i++) sim.setEngine(i, { key: 'off' });
+    const byAp = launchArm();
     setManual(true, 'tow');
     window.FLYDIY_LAZY(['cars_car', 'cars_lods', 'vehicle', 'vehicle_drive', 'vehicle_island', 'tow', 'drive_mode'])
-      .then(() => window.DRIVE_MODE.towStart({ THREE, scene, world, sim }))
+      .then(() => window.DRIVE_MODE.towStart({ THREE, scene, world, sim, hands: byAp }))
       .then(to => { TOWS.busy = false; console.info('flyDiy tow: on the line, the car to ' + to); })
       .catch(e => { TOWS.busy = false; TOWS.failed = (e && e.message) || 'failed'; console.warn('flyDiy: the tow could not start -', TOWS.failed); });
   }
