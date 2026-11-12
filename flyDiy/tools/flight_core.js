@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 4f37d489a8ddcd6c
+// body-sha256: 134e53f2ef21def7
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -50943,15 +50943,15 @@ const GEN_CERT_TIER = { 'pitch.sm': 'safe', 'pitch.Vh': 'comm', 'pitch.short': '
   'ctl.aileron': 'safe', 'ctl.droop': 'safe', 'ctl.rudder': 'safe',
   'aid.step': 'safe', 'aid.reserve': 'safe', 'aid.prop': 'safe', 'aid.range': 'comm', 'aid.thrust': 'comm', 'aid.stance': 'comm',
   'aid.doors': 'comm',
-  // ENGINE-COOLING (12 Nov; the user: defaults OK): the hot-day climb is a safety row, the ground a commercial one - both
-  // land PROPOSED (64c genCoolRows)
+  // ENGINE-COOLING (12 Nov; the user: defaults OK): the hot-day climb is a safety row, the ground a commercial one -
+  // landed PROPOSED, ruled the same day (64c genCoolRows)
   'cool.climb': 'safe', 'cool.taxi': 'comm' };
 function genCertTierOf(id) { return GEN_CERT_TIER[id] || 'safe'; }
 // a row list -> the two certificates' verdicts: the airworthiness one fails only on a safe, non-proposed fail; every
 // other non-pass is a warning on it; the commercial one fails on any fail (the safe tier's included: an aeroplane
 // that is not safe is not commercial either) - except a PROPOSED row's (ENGINE-COOLING, 12 Nov): a new check awaiting
 // the user's ruling is a warning on BOTH certificates, so a game update never withdraws one (R3: the bench re-signs at
-// every roll-out). The first proposed rows are the cooling rows; none was proposed before them
+// every roll-out). The first proposed rows were the cooling rows (ruled 12 Nov); none is proposed now
 function genCertTiers(rows) {
   const R = (rows || []).map(r => Object.assign({}, r, { tier: r.tier || genCertTierOf(r.id) }));
   const safeFail = R.filter(r => r.tier === 'safe' && r.level === 'fail' && !r.proposed);
@@ -51067,8 +51067,10 @@ function genAidWaterline(F, massKg, rho) {
   return 0.5 * (lo + hi);
 }
 
-// THE COOLING ROWS (ENGINE-COOLING; 62_gen_aero genCooling). Two rows, PROPOSED (64b GEN_CERT_TIER's door: a new check
-// is a warning until the user rules - and it withdraws neither certificate meanwhile, genCertTiers):
+// THE COOLING ROWS (ENGINE-COOLING; 62_gen_aero genCooling). Two rows, RULED (the user 12 Nov: "we can make the row,
+// but we have to modify the twin busher and the superpetrel at once" - done, and every official card and every
+// archetype the shed births passes; they landed PROPOSED first, 64b genCertTiers' door). A certificate already signed
+// keeps its stored bench check until the aeroplane changes or the bench runs again (R3: no version bump):
 //   cool.climb  safe   the hot-day climb (FAR 23.1043: 38 C at sea level, full power at Vy): fail under 1.00 x the air
 //                      the engine needs, warn under 1.15
 //   cool.taxi   comm   the hot strip at taxi power: a warning under 1.00 (it runs hot waiting at the hold)
@@ -51086,11 +51088,11 @@ function genCoolRows(def) {
   // ENGINE-COOLING 3 (the user: "check Rufus ... completely open engines, what kind of figure we get"): a bare engine's
   // own figure - its cylinders' frontal in the wind
   if (C.kind === 'bare' && (C.path === 'electric' || C.path === 'turbine'))
-    return [{ id: 'cool.climb', group: 'power', tier: 'safe', proposed: true, label: 'Engine cooling, hot-day climb', value: null, unit: '',
+    return [{ id: 'cool.climb', group: 'power', tier: 'safe', label: 'Engine cooling, hot-day climb', value: null, unit: '',
               level: 'pass', limit: lim, why: 'no cowl: an ' + (C.path === 'electric' ? 'electric motor' : 'engine') + ' in the open air cools itself', fix: '' }];
   if (C.kind === 'bare') {
     const bl = lvlOf(m);
-    return [{ id: 'cool.climb', group: 'power', tier: 'safe', proposed: true, label: 'Engine cooling, hot-day climb', value: r2(m),
+    return [{ id: 'cool.climb', group: 'power', tier: 'safe', label: 'Engine cooling, hot-day climb', value: r2(m),
               unit: 'x the air needed', level: bl, limit: lim,
               why: 'no cowl: ' + r3(C.bareA) + ' m2 of cylinders in the wind pass ' + r2(m) + ' x the ' + r2(H.need) + ' kg/s the engine needs at ' + Math.round(H.oatC) + ' C',
               fix: bl === 'pass' ? '' : 'a bare engine this hot needs a cowl with an inlet (or a bigger engine is the wrong fix: it heats more)' }];
@@ -51135,10 +51137,10 @@ function genCoolRows(def) {
     }
   }
   if (who) { why = who + why + ' (the other engine ' + C.engines.filter(e => e.k !== C.k).map(e => r2(e.margin) + ' x').join(', ') + ')'; if (fix) fix = who + fix; }
-  const rows = [{ id: 'cool.climb', group: 'power', tier: 'safe', proposed: true, label: 'Engine cooling, hot-day climb',
+  const rows = [{ id: 'cool.climb', group: 'power', tier: 'safe', label: 'Engine cooling, hot-day climb',
                   value: r2(m), unit: 'x the air needed', level: lvl, limit: lim, why, fix }];
   const tl = T.margin < K.pass ? 'warn' : 'pass';
-  rows.push({ id: 'cool.taxi', group: 'power', tier: 'comm', proposed: true, label: 'Engine cooling on the ground (hot strip, taxi)',
+  rows.push({ id: 'cool.taxi', group: 'power', tier: 'comm', label: 'Engine cooling on the ground (hot strip, taxi)',
               value: r2(T.margin), unit: 'x the air needed', level: tl,
               limit: 'the hot strip (38 C), 5 m/s at 20 % power, the slipstream doing the work: a warning under ' + K.pass.toFixed(2),
               why: (C.pushes ? 'a pusher\'s inlets get only the propeller\'s inflow on the ground' : 'the slipstream alone') + ': ' + r2(T.margin) + ' x the ' + r2(T.need) + ' kg/s needed',
