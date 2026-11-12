@@ -38,7 +38,7 @@ let figs = '';
   figs = figs.replace('</p></div>', '</p><label class="pick">Plane <select id="masspick">' + mo + '</select></label></div>') + mf + `</section>`; }
 for (const p of FP.PAGES.filter(q => q.id !== 'reference')) {
   figs += `<section class="page" id="${p.id}"><div class="head"><h2>${p.name}</h2></div>`;
-  for (const k of KEYS) for (const th of ['sheet', 'screen'])
+  for (const k of KEYS) for (const th of ['sheet'])
     figs += `<figure class="fig" data-k="${k}" data-th="${th}"${k === 'cub' && th === 'sheet' ? '' : ' hidden'}><div class="scroll">${FP.svg(p.id, R[k].D, { theme: th, name: R[k].name, reg: R[k].reg, pics: R[k].pics, sig: 'Wingsmith · certified airworthy' })}</div><figcaption>Swipe sideways for the rest of the page.</figcaption></figure>`;
   figs += `</section>`;
 }
@@ -96,7 +96,7 @@ code { font:400 12.5px/1.4 var(--mono); color:var(--ed-acc); }
 <div class="bar">
   <div class="seg" role="group" aria-label="Plane">${KEYS.map(k => `<button type="button" id="pick-${k}" data-k="${k}" aria-pressed="${k === 'cub'}">${SHORT[k]}</button>`).join('')}</div>
   <span class="sp"></span>
-  <div class="seg" role="group" aria-label="Look"><button type="button" id="th-sheet" data-th="sheet" aria-pressed="true">Cream sheet</button><button type="button" id="th-screen" data-th="screen" aria-pressed="false">Screen</button></div>
+  
   <button type="button" id="zoom" aria-pressed="false">Larger</button>
 </div>
 <section class="panel">
