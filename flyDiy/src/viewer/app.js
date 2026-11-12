@@ -15641,6 +15641,7 @@
       return;
     }
     if (inGarage && launchAsk()) return;   // TOW-LAUNCH: a float or hull build - on the water, or from the trailer
+    if (inGarage && carBuild()) { DRIVE.enter(); return; }   // CAR: a car rolls out to DRIVE (its own sheet and meshes)
     if (inGarage) {
       // ROLL OUT & FLY flies WHAT YOU DESIGNED (G47.1, user: "roll out
       // and fly still gives the old yellow plane"). Since G65 that is not a
@@ -21940,14 +21941,21 @@
   // and distance, hud(), drawMap(), flTrip(), planSet() (the To picker), gmHold() (Pause), fullReset() (Restart), the
   // view key. The menu's "Drive the pickup" / "Back to the aeroplane" row; ?drive=1 drives once the boot lifts.
   const DRIVE_Q = (() => { try { return /[?&]drive(=1|=on|&|$)/.test(location.search); } catch (e) { return false; } })();
-  const DRIVE = { busy: false,
+  // CAR (13 Nov; the user's must-land list: "put the car in the garage, roll out, pick a destination, drive there"): a
+  // garage build whose car switch is on (window.VEHICLE_KIND, garage.js) rolls out to DRIVE, not to fly - measured on the
+  // stand first (src/vehicle/car_sheet_core.js carFromGarage: its sheet, its tune, a rig of its own meshes), then rolled
+  // out, then handed to the drive mode as its vehicle (DRIVE_MODE.vehicleSource); any other build drives the pickup
+  function carBuild() { try { return curKey === 'gen' && !!genSpec && typeof window.VEHICLE_KIND === 'function' && window.VEHICLE_KIND(genSpec) === 'car'; } catch (e) { return false; } }
+  const DRIVE = { busy: false, car: null,
     enter(to) {
       if (driveOn() || DRIVE.busy || !window.FLYDIY_LAZY) return;
       DRIVE.busy = true;
+      const isCar = carBuild();
       const go = () => {
         const cg = sim.cgPos();
         window.FLYDIY_LAZY(['cars_car', 'cars_lods', 'vehicle', 'vehicle_drive', 'vehicle_island', 'drive_mode'])
-          .then(() => window.DRIVE_MODE.enter({ THREE, scene, world, at: [cg[0], cg[1], cg[2]], to }))
+          .then(() => { window.DRIVE_MODE.vehicleSource = isCar ? DRIVE.car : null;
+            return window.DRIVE_MODE.enter({ THREE, scene, world, at: [cg[0], cg[1], cg[2]], to, vehicle: isCar ? DRIVE.car : null }); })
           .then(() => {
             DRIVE.busy = false; running = false; started = false;
             if (craft && craft.parent) craft.parent.remove(craft);
@@ -21960,6 +21968,13 @@
           })
           .catch(e => { DRIVE.busy = false; if (window.DRIVE_MODE && window.DRIVE_MODE.on) window.DRIVE_MODE.leave(); console.warn('flyDiy: the drive mode could not start -', e && e.message); });
       };
+      if (inGarage && isCar) {
+        // measured on the stand, before the roll-out takes the garage away
+        window.FLYDIY_LAZY(['vehicle', 'car_sheet_core'])
+          .then(() => { DRIVE.car = window.CAR_SHEET.carFromGarage(window); rollOut(go); })
+          .catch(e => { DRIVE.busy = false; DRIVE.car = null; alert('This car cannot drive yet: ' + ((e && e.message) || e)); });
+        return;
+      }
       if (inGarage) rollOut(go); else go();
     },
     leave() {
@@ -21975,7 +21990,8 @@
     menu() {
       if (!window.FLYDIY_MENU) return;
       const on = !!driveOn();
-      window.FLYDIY_MENU.add({ k: 'drive', label: on ? 'Back to the aeroplane' : 'Drive the pickup', when: () => !inGarage || on,
+      const nm = DRIVE.car && carBuild() ? DRIVE.car.name : 'the pickup';
+      window.FLYDIY_MENU.add({ k: 'drive', label: on ? 'Back to the aeroplane' : 'Drive ' + nm, when: () => !inGarage || on,
         act: () => { window.FLYDIY_MENU.close(); if (driveOn()) DRIVE.leave(); else DRIVE.enter(); }, before: 'contracts' });
     } };
   if (typeof window !== 'undefined') window.DRIVE = DRIVE;

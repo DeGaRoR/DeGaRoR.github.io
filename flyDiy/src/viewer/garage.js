@@ -30,6 +30,16 @@
 // (0 = leading edge) and v = span fraction (0 root, 1 tip).
 // ============================================================
 
+// CAR (13 Nov, the Fleet's contract with the game coordinator): THE KIND OF A BUILD - 'car' when the garage's car switch
+// is ON (spec.cage.isCar 1: an explicit row, "no (an aeroplane)" is 0) or the build carries the first cars' legacy
+// spec.meta.car; 'plane' otherwise ('trailer' later). One rule, read by the Fleet's filters and the roll-out
+function vehicleKind(spec) {
+  if (!spec || typeof spec !== 'object') return 'plane';
+  if (spec.cage && +spec.cage.isCar === 1) return 'car';
+  if (spec.meta && spec.meta.car) return 'car';
+  return 'plane';
+}
+if (typeof window !== 'undefined') window.VEHICLE_KIND = vehicleKind;
 const GEN_TEX = 1024;                     // paint sheet, up from 512
 const GEN_RIBS = 13;                      // rib tapes across the semispan
 
@@ -768,6 +778,20 @@ function garageInit(api) {
     const dev = /dev\.html/.test((window.location && window.location.pathname) || '') || !!(window.WELCOME && window.WELCOME.mode && window.WELCOME.mode.dev);
     return listsP.then(l => l.filter(p => p && (dev || (PLAYER_CLASSES.includes(p.list) && labOk(p) && !p.rides))).map(p => Object.assign({}, p, { note: dev ? p.note : '', tip: dev ? p.file || '' : '' })));
   };
+  // CAR (13 Nov; the user's must-land list: "a ROBUST car detection: a vehicle kind on the save/spec, not a guess from its
+  // shape ... cars live in builds/lists/vehicles.json ... put apart in the fleet manager"): THE VEHICLES LIST (FLAGSHIP's
+  // file; the CAR session's to read). A row is { kind ('car' when absent), name, file, thumb?, note? }; it opens through
+  // openListed like a plane row. The kind of a BUILD is window.VEHICLE_KIND below (the Fleet's contract)
+  const VEHICLES_FILE = 'builds/lists/vehicles.json';
+  let vehP = null;
+  const vehicleList = () => {
+    if (!vehP) {
+      vehP = (typeof fetch === 'function' ? fetch(VEHICLES_FILE).then(r => (r.ok ? r.json() : null)) : Promise.resolve(null))
+        .then(j => (j && Array.isArray(j.vehicles) ? j.vehicles.filter(v => v && typeof v.file === 'string').map(v => Object.assign({ kind: 'car' }, v)) : []), () => []);
+      vehP.then(l => { if (!l.length) vehP = null; });
+    }
+    return vehP;
+  };
   const openListed = p => {
     if (p.stock) { loadStock(p.stock); return; }
     if (p.gen) { loadSpec(api.defaults(), ''); return; }
@@ -1109,6 +1133,9 @@ function garageInit(api) {
         // every listed plane is behind "all planes" (stockByName stays: a stock door still opens a test plane for the dev)
         '<div class="gfGroupH gfCandH">built here, not yet certified</div>' +
         '<div class="gfCand"></div>' +
+        // CAR: the vehicles (builds/lists/vehicles.json) - cars, not planes: their own group, never among the planes
+        '<div class="gfGroupH gfVehH">vehicles (cars)</div>' +
+        '<div class="gfVeh"></div>' +
         '<div class="gfFoot">' +
           '<span class="gfHint">import and export are on the ribbon' +
             ' \u2014 or drop a .json on the window</span>' +
@@ -1270,6 +1297,24 @@ function garageInit(api) {
           b.addEventListener('click', () => { closeFleet(); loadCandidate(c); });
           row.appendChild(b);
           candBox.appendChild(row);
+        }
+      });
+    }
+    // CAR: the vehicles list, drawn when it answers
+    const vehBox = fleetEl.querySelector('.gfVeh');
+    if (vehBox) {
+      vehBox.innerHTML = '';
+      vehicleList().then(list => {
+        vehBox.innerHTML = '';
+        for (const v of list) {
+          const row = document.createElement('div');
+          row.className = 'gfRow gfVehRow';
+          const b = rowBtn(v.name || v.file, v.kind);
+          if (v.thumb) thumbOn(b, v.thumb);
+          b.title = v.file;
+          b.addEventListener('click', () => { closeFleet(); openListed(v); });
+          row.appendChild(b);
+          vehBox.appendChild(row);
         }
       });
     }
@@ -1650,7 +1695,7 @@ function garageInit(api) {
       touch, commit, onCommit, exportFile,
       // CANDIDATE OFFICIAL: the pool's index (a promise of its planes), one onto the stand (unnamed, no plaque), and
       // every saved build in one file - the design flow's new-aeroplane cards read the first two
-      planeLists, openListed, officialPool,
+      planeLists, openListed, officialPool, vehicleList,
       candidates, openCandidate: loadCandidate, exportAll: exportAllFile,
       load: n => { const t = lsGet(SLOT + n); if (!t) return;
                    const g = unwrap(t); loadSpec(g.spec, n, g.plaque, g.log); },

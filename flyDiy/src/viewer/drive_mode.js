@@ -21,6 +21,10 @@
   'use strict';
   const SHEET_URL = 'src/cars/car_conquer.json';
   const TOWN = { id: 'mk_hall', site: 'mk_hall' };   // Cedar Harbour: its Town Hall's site (the map's label)
+  // CAR (13 Nov; the user's must-land list: "a few CAR-ONLY destinations"): the record's named sites a car drives to -
+  // the town's diner, store and dock, the hilltop coffee, the cannery (vehicle_island.js h.sites: kept when a road passes
+  // within 80 m); with the town and the aerodromes on land. The runway ends are the tow's (not in the To list)
+  const CAR_SITES = ['mk_cafe_als', 'mk_store_acc', 'mk_mp_west', 'mk_coffee', 'mk_mw_cannery'];
   const DM = window.DRIVE_MODE = {
     on: false, paused: false, name: "Conquer '89 pickup", chaseDist: 10, to: null, from: null, ms: 0,
   };
@@ -65,17 +69,31 @@
   }
   const placeName = id => (G && G.places[id] && G.places[id].name) || id;
 
+  // ---- THE VEHICLE (CAR, 13 Nov - the seam agreed with TOW-LAUNCH: DM.vehicleSource = { name, sheet, tune, buildRig(THREE,
+  // def) }): a garage car rolled out (app.js: window.CAR_SHEET.carFromGarage - its measured sheet, its tune, a rig of its
+  // OWN meshes) drives, tows and pulls the trailer; with none, the Conquer pickup (its sheet, its pack's meshes) as before.
+  // A change of vehicle drops the rig (the next entry builds the new one) ----
+  let conquer = null, srcNow = undefined;
+  async function vehicleUp(ctx) {
+    const V = (ctx && ctx.vehicle) || DM.vehicleSource || null;
+    if (V !== srcNow) { if (rig && rig.g.parent) rig.g.parent.remove(rig.g); rig = null; srcNow = V; def = null; }
+    if (V && V.sheet) { sheet = V.sheet; def = def || vehicleDef(sheet, V.tune); DM.name = V.name || 'the car'; return; }
+    if (!conquer) { const r = await fetch(SHEET_URL); if (!r.ok) throw new Error('the car sheet: ' + r.status); conquer = await r.json(); }
+    sheet = conquer; def = def || vehicleDef(sheet); DM.name = "Conquer '89 pickup";
+  }
+  const makeRig = () => (srcNow && srcNow.buildRig ? srcNow.buildRig(THREE_, def) : buildRig());
+
   // ---- THE GRAPH: the island's roads (vehicle_island.js) and the places a vehicle can be sent to ----
   // (the graph: vehicle_island.js vehIslandFromWorld - the gate's recipe: the roads, the runways and their taxi routes, the
   //  stands' links, the steep stretches closed; buildGraph was this file's own until phase 2)
   DM.enter = async function (ctx) {
     THREE_ = ctx.THREE; scene_ = ctx.scene; world_ = ctx.world;
-    if (!sheet) { const r = await fetch(SHEET_URL); if (!r.ok) throw new Error('the car sheet: ' + r.status); sheet = await r.json(); }
-    def = vehicleDef(sheet);
+    await vehicleUp(ctx);
     const t0 = performance.now();
     const at = ctx.at || [0, 0, 0];
     const I = vehIslandFromWorld(world_, { siteOf: typeof siteOf === 'function' ? siteOf : null, fieldName: typeof fieldName === 'function' ? fieldName : null,
-      town: { id: TOWN.id, site: TOWN.site, name: (typeof GAME_NAMES !== 'undefined' && GAME_NAMES.town) || 'the town' }, from: [at[0], at[2]] });
+      town: { id: TOWN.id, site: TOWN.site, name: (typeof GAME_NAMES !== 'undefined' && GAME_NAMES.town) || 'the town' }, from: [at[0], at[2]],
+      sites: CAR_SITES, landOnly: true });
     if (!I) throw new Error('no roads in this world (the premises carry the road graph)');
     rep = I.report;
     G = vehRoadGraph(I.spec);
@@ -83,7 +101,8 @@
     start = placeNear(at[0], at[2], 1e9);
     if (!start) throw new Error('no place on the roads');
     car = makeVehicle(def, world_);
-    rig = buildRig(); scene_.add(rig.g);
+    if (rig && rig.g.parent) rig.g.parent.remove(rig.g);
+    rig = makeRig(); scene_.add(rig.g);
     DM.on = true; DM.paused = false;
     const to0 = ctx.to && G.places[ctx.to] ? ctx.to : (G.places[TOWN.id] ? TOWN.id : start.id);
     place(start, to0);
@@ -121,7 +140,7 @@
     // (a place the car cannot reach from where it stands - a closed steep stretch, a network of its own - greyed, saying so)
     let reach = null;
     try { const p = car.refPoint(), Lc = vehGraphLocate(G, p[0], p[2], car.heading()), D1 = vehDijkstra(G, Lc.ahead, null), D2 = vehDijkstra(G, Lc.behind, null); reach = n => D1.dist[n] < Infinity || D2.dist[n] < Infinity; } catch (e) {}
-    const L = Object.values(G.places).filter(p => p.kind === 'stop').sort((a, b) => a.name.localeCompare(b.name))
+    const L = Object.values(G.places).filter(p => p.kind === 'stop' && (p.what !== 'runway' || (DM.tow && DM.tow.active))).sort((a, b) => a.name.localeCompare(b.name))
       .map(p => (!reach || reach(p.node) ? { id: p.id, label: p.name, ok: true } : { id: p.id, label: p.name + ' - no drivable road there', ok: false }));
     if (!G.places[TOWN.id] && window.FLYDIY_TOWN && !window.FLYDIY_TOWN.all)
       L.push({ id: TOWN.id, label: ((typeof GAME_NAMES !== 'undefined' && GAME_NAMES.town) || 'the town') + ' - not built at this graphics budget', ok: false });
@@ -234,8 +253,7 @@
   DM.towStart = async function (ctx) {
     TW.kind = 'line';
     THREE_ = ctx.THREE; scene_ = ctx.scene; world_ = ctx.world;
-    if (!sheet) { const r = await fetch(SHEET_URL); if (!r.ok) throw new Error('the car sheet: ' + r.status); sheet = await r.json(); }
-    def = def || vehicleDef(sheet);
+    await vehicleUp(ctx);
     const sim = ctx.sim, cg = sim.cgPos();
     if (!G) {
       const I = vehIslandFromWorld(world_, { siteOf: typeof siteOf === 'function' ? siteOf : null, fieldName: typeof fieldName === 'function' ? fieldName : null, town: null, from: [cg[0], cg[2]] });
@@ -254,7 +272,7 @@
     car = car1;                                   // (the rig poses `car`: the tow's car is the one drawn)
     TW.car = car1; TW.D = makeDriver(car1, G, { vCruise: TW.Vtow }); TW.to = to; TW.go = false;
     TW.line = makeTowLine(sim, car1, { L0: TW.L0, hook, groundAt: (x, z) => world_.terrainH(x, z) });
-    if (!rig) { rig = buildRig(); } if (!rig.g.parent) scene_.add(rig.g);
+    if (!rig) { rig = makeRig(); } if (!rig.g.parent) scene_.add(rig.g);
     const T = THREE_, gm = new T.BufferGeometry(); gm.setAttribute('position', new T.BufferAttribute(new Float32Array(25 * 3), 3));
     TW.rope = new T.Line(gm, new T.LineBasicMaterial({ color: 0xf2e6c8 })); TW.rope.frustumCulled = false; scene_.add(TW.rope);
     TW.sim = sim; TW.active = true; TW.why = null; TW.t = 0;
@@ -274,8 +292,7 @@
   //      (GATE TRAILER's PERF), the trailer's pose and loads ~2 us, the car 0.1 ms, the model's 14 draw calls ----
   DM.trailerStart = async function (ctx) {
     THREE_ = ctx.THREE; scene_ = ctx.scene; world_ = ctx.world;
-    if (!sheet) { const r = await fetch(SHEET_URL); if (!r.ok) throw new Error('the car sheet: ' + r.status); sheet = await r.json(); }
-    def = def || vehicleDef(sheet);
+    await vehicleUp(ctx);
     const sim = ctx.sim, cg0 = sim.cgPos();
     if (!G) {
       const I = vehIslandFromWorld(world_, { siteOf: typeof siteOf === 'function' ? siteOf : null, fieldName: typeof fieldName === 'function' ? fieldName : null, town: null, from: [cg0[0], cg0[2]] });
@@ -306,7 +323,7 @@
     TW.kind = 'trailer'; TW.launch = L; TW.car = car1; TW.to = to; TW.go = false; TW.why = null; TW.t = 0; TW.sim = sim;
     TW.D = makeDriver(car1, G, { vCruise: L.vCar });
     TW.model = buildTrailerModel(THREE_, L.trailer); scene_.add(TW.model.group);
-    if (!rig) { rig = buildRig(); } if (!rig.g.parent) scene_.add(rig.g);
+    if (!rig) { rig = makeRig(); } if (!rig.g.parent) scene_.add(rig.g);
     TW.hitch = buildTowHitch(THREE_); TW.hitch.position.set(L.trailer.ball[0], L.trailer.ball[1], L.trailer.ball[2]); rig.g.add(TW.hitch);
     TW.hands = ctx.hands || /[?&]towhands=1/.test(location.search || '') ? makeTrailerHands(sim, L) : null;
     TW.active = true;

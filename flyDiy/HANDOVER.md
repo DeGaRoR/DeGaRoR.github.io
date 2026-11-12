@@ -315609,3 +315609,35 @@ the next steps).
   (Rot 1.5708) with W its length - unturned it ran across the whole width and down the walls. Every section metallic
   (metal 0.45, rough 0.3), the stripes' layers metallic. THE ALPINE: the sun dropped (the user), the mountains one
   layer of three ranges, metallic. Roof bas-relief: not yet (the band answers the flat white for now).
+- **CAR, THE MUST-LAND (13 Nov; A0's list via TOW-LAUNCH, the user: "put the car in the garage, roll out, pick a
+  destination, drive there ... a few CAR-ONLY destinations ... a ROBUST car detection ... the car AI drives it there";
+  the user kept the WHOLE car part here, the AI included)**:
+  - THE MERGE: claude/tow-launch-onmaster (00b8f7d1f: origin/master 23ce68c1f + the tow branch) merged in - master's
+    per-bay rows (paxLen2..6, doorPaxFront) in place of paxLenLast / doorPaxN (the van: paxLen 1.29, paxLen2 0.933,
+    the same car: 1268 kg); the cars moved by FLAGSHIP out of the plane lists / the pool into builds/lists/vehicles.json.
+  - GATE DRIVE-TRIP went red on the re-bake (master's HOME-DERELICT moved HOME's stand onto a square junction):
+    (1) THE LEAD-IN (vehicle_drive.js legPoly): a leg leaving 20-120 deg off the car's heading starts with a point
+    straight ahead as far as the corner's fillet needs (1.15 rMin tan(th/2) + 2, at most 15 m) - from rest the car swung
+    3.69 m wide joining a route 67 deg off (limit 2.5); now 1.57 m. (2) VI_STOP_IN 12 (vehicle_island.js, was 6): a
+    place's stop 12 m in from its road's end - coming round HOME's square corner the car could not line up in 6 m and
+    stopped 3.2 m off (limit 1 m). The driver's stats keep xtAt (where the worst cross-track was).
+  - THE KIND: window.VEHICLE_KIND(spec) (garage.js) - 'car' when spec.cage.isCar is 1 (an explicit row; 0 is "no (an
+    aeroplane)") or the legacy spec.meta.car; 'plane' otherwise (the Fleet's contract with the game coordinator).
+  - THE VEHICLES LIST: garage.js vehicleList() (builds/lists/vehicles.json, a row's kind 'car' when absent; on the API
+    for the Fleet) and the garage fleet's own 'vehicles (cars)' group (openListed). The list now names the van in its
+    three liveries and the UTV: builds/vehicles/*.json (rejoined from builds/edits/ - the van's overlays as before).
+  - THE CAR SHEET IN THE PAGE: src/vehicle/car_sheet_core.js (lazy, window.CAR_SHEET; tools/car_sheet.js requires it -
+    the same digits): sheetFromBake / tuneFor moved out of the tool, measured in the craft root's frame in the page, and
+    carFromGarage(window) -> { name, sheet, tune, buildRig(THREE, def) }: the RIG OF THE CAR'S OWN MESHES (the garage's
+    drawing cloned - shared geometry and materials - re-framed by a ROTATION, y +90 deg: car_sheet's axis swap is a
+    mirror; a physics wheel at sheet z takes the garage unit at x = -z, the car being symmetric).
+  - THE ROLL-OUT: a car build's Roll out (app.js carBuild()) is DRIVE.enter(): measured on the stand first
+    (carFromGarage), then rolled out, then DRIVE_MODE.enter({ vehicle }) - drive_mode.js vehicleUp(): the vehicle source
+    (ctx.vehicle or DM.vehicleSource - the seam agreed with TOW-LAUNCH) for the drive, the tow and the trailer alike, the
+    Conquer pickup without one; the menu's row reads "Drive <the car>". tools/car_drive_shot.js: the whole flow in the
+    real page (import -> VEHICLE_KIND -> roll out -> drive -> stills).
+  - THE CAR'S DESTINATIONS: vehicle_island.js h.landOnly (no water aerodromes) and h.sites (CAR-ONLY places: the
+    record's named sites, kept when a road passes within 80 m); drive_mode.js CAR_SITES: Dockside Diner, Harbour General
+    Store, Cedar Harbour dock, Hilltop Coffee, Jolene Island Packing (all reached from HOME, ~12 km); the runway ends
+    out of the To list unless a tow is on; the fields with no road (the strips the roads never reach) were already
+    dropped, the unreachable greyed.

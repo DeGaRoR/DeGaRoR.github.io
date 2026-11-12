@@ -918,7 +918,8 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
   text-transform:uppercase; color:var(--ed-dim); margin:16px 0 7px;
   padding-bottom:5px; border-bottom:1px solid var(--ed-hair); }
 
-.gfMine, .gfStock, .gfCand { display:flex; flex-direction:column; gap:4px; }
+.gfMine, .gfStock, .gfCand, .gfVeh { display:flex; flex-direction:column; gap:4px; }
+.gfVehRow .gfLoad { border-style:dashed; }
 /* CANDIDATE OFFICIAL (the user, 2 Nov): built, not validated - a dashed edge says "not signed" */
 .gfCandRow .gfLoad { border-style:dashed; }
 /* G3800 (PLANE_THUMB): the card's side-profile picture (240x120 drawn, nose left, on the dark studio) */
