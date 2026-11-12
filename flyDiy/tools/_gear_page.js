@@ -89,7 +89,9 @@ const LEG_ROWS = {
     ['linkAxleX', 'cross-bracing wires (X)', 0, 1, 1],
     // (12 Nov, FIT-PROCEDURE) 3 the piston - the Wilga's strut (an oleo in the physics)
     ['shockKind', 'shock', 0, 3, 1, ['coil-over', 'bungee', 'rubber stack', 'piston (oleo strut)']],
-    ['shockAt', 'shock on arm', 0.15, 0.95, 0.01],
+    // (12 Nov, FIT-PROCEDURE; the user on the PC-6: the shock's foot must meet the V where the tubes do) up to 1.0:
+    // the foot ON the axle knuckle; every saved build stays put (the row stopped at 0.95)
+    ['shockAt', 'shock on arm (1 = at the axle)', 0.15, 1.00, 0.01],
     ['shockZ', 'shock top z', -0.6, 1.0, 0.01],
     // (12 Nov, FIT-PROCEDURE: to 170 - the PC-6's shock is anchored high on the side, below the windscreen; the
     // fitting is a ray from the section's centre, 0 the keel, so past 90 it climbs the flank; a range widening)

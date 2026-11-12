@@ -1560,7 +1560,7 @@ function legLink(bags, AF, P, st, sgn) {
   // described; if the real J-3 fitting is same-side, flip this back.
   const xTop = cen ? 0 : (P.linkX > 0.5 ? -sgn : sgn);
   const sTop = fitOn(AF, st, st.z + P.shockZ, xTop * P.shockAng * D2R, mdx);
-  const foot = lerp3(vee ? pF : pivot, axleIn, clamp(P.shockAt, 0.15, 0.95));
+  const foot = lerp3(vee ? pF : pivot, axleIn, clamp(P.shockAt, 0.15, 1.00));   // (12 Nov: 1.00 = on the knuckle)
   // THE STRUT CLEARS THE BELLY BY STANDING OFF IT (G363, the user's rule for
   // the skin: it is not changed to suit a fitting — G319 flattened the belly
   // for this strut and squared every saved aeroplane; G362 put the round
