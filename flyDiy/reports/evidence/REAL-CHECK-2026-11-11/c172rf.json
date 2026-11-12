@@ -641,5 +641,23 @@
    ]
   }
  ],
- "wall": 1553.678
+ "wall": 1553.678,
+ "stamp": {
+  "build": {
+   "file": "builds/c172r_wipline2350_stcprop_2026-10-20.json",
+   "blob": "ac171eed3df9b50662fac76e43ea946b2852d6c9"
+  },
+  "core": "d0af9a5bd665064a",
+  "harness": "f7aefd78314490ce7ee3bb970b3a46ac8329304f",
+  "ref": {
+   "key": "c172f",
+   "hash": "cb7b8e33f9f167bb"
+  },
+  "plane": {
+   "key": "c172rf",
+   "hash": "031eb8e0a68045ce"
+  },
+  "at": "2026-11-11T13:22:11+00:00",
+  "backfilled": "dc6b3e550"
+ }
 }

@@ -1173,5 +1173,23 @@
    ]
   }
  ],
- "wall": 407.224
+ "wall": 407.224,
+ "stamp": {
+  "build": {
+   "file": "builds/chinook_2026-09-21_corrected.json",
+   "blob": "ccb461685c62616f8a895cd9fb70a3ad6e876601"
+  },
+  "core": "d0af9a5bd665064a",
+  "harness": "f7aefd78314490ce7ee3bb970b3a46ac8329304f",
+  "ref": {
+   "key": "chinook",
+   "hash": "691a93c9985508e6"
+  },
+  "plane": {
+   "key": "chinookm",
+   "hash": "39c718676a6c0e13"
+  },
+  "at": "2026-11-11T13:22:11+00:00",
+  "backfilled": "dc6b3e550"
+ }
 }

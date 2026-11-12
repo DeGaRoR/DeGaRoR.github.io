@@ -657,5 +657,23 @@
    ]
   }
  ],
- "wall": 565.401
+ "wall": 565.401,
+ "stamp": {
+  "build": {
+   "file": "builds/pa18_floats_2026-10-23.json",
+   "blob": "e26c73535d82d96d830acc93bd7aa2e7f857677e"
+  },
+  "core": "d0af9a5bd665064a",
+  "harness": "f7aefd78314490ce7ee3bb970b3a46ac8329304f",
+  "ref": {
+   "key": "pa18f",
+   "hash": "cb45b31bd14c5edb"
+  },
+  "plane": {
+   "key": "pa18f",
+   "hash": "5695b95f0209f5b7"
+  },
+  "at": "2026-11-12T03:12:10+00:00",
+  "backfilled": "c6eedb0b1"
+ }
 }

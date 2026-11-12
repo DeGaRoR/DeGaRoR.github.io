@@ -1002,5 +1002,23 @@
    ]
   }
  ],
- "wall": 3454.251
+ "wall": 3454.251,
+ "stamp": {
+  "build": {
+   "file": "builds/candidates/tigermoth_2026-10.json",
+   "blob": "08c6b9bbf88aedef7161a1e22f21e8f674e45957"
+  },
+  "core": "d0af9a5bd665064a",
+  "harness": "f7aefd78314490ce7ee3bb970b3a46ac8329304f",
+  "ref": {
+   "key": "tigermoth",
+   "hash": "436eafdbf19fecf8"
+  },
+  "plane": {
+   "key": "tigermothm",
+   "hash": "c6cde7a0683413d3"
+  },
+  "at": "2026-11-11T13:22:11+00:00",
+  "backfilled": "dc6b3e550"
+ }
 }

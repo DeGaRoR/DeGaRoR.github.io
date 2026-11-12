@@ -1194,5 +1194,23 @@
    ]
   }
  ],
- "wall": 3210.126
+ "wall": 3210.126,
+ "stamp": {
+  "build": {
+   "file": "builds/candidates/jodel_geo.json",
+   "blob": "3591c61756298a02ed16156082afc00c80375ae0"
+  },
+  "core": "d0af9a5bd665064a",
+  "harness": "f7aefd78314490ce7ee3bb970b3a46ac8329304f",
+  "ref": {
+   "key": "d112",
+   "hash": "b1caf26d8066d1ff"
+  },
+  "plane": {
+   "key": "jodelg",
+   "hash": "9ada28b12c968129"
+  },
+  "at": "2026-11-11T13:22:11+00:00",
+  "backfilled": "dc6b3e550"
+ }
 }

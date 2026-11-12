@@ -480,7 +480,7 @@ function runPlane(key, P) {
   const def0 = C.buildGen(spec);
   const F = loadFacts(def0);
   const CS = cases(def0, F, R, P, P.cgSweep || has('cg'));
-  const out = { key, label: P.label, file: P.file, ref: P.ref, refName: R.name, official: !!P.official, engineNote: P.engineNote || null,
+  const out = { key, stamp: require(path.join(T, '_real_stamp.js')).stampOf(key, P, R, { core: CORE_PATH }), label: P.label, file: P.file, ref: P.ref, refName: R.name, official: !!P.official, engineNote: P.engineNote || null,
                 provisional: !!P.provisional, note: P.note || null, group: P.group || null, card: P.card || null,
                 shape: measureShape(spec, def0, P.file ? JSON.parse(fs.readFileSync(path.join(ROOT, P.file), 'utf8')).spec || JSON.parse(fs.readFileSync(path.join(ROOT, P.file), 'utf8')) : null),
                 joinErrors: errors, facts: { empty: F.empty, baked: F.mass, fuelKg: F.fuelKg, seats: F.nSeats, occupied: F.occB, baggage: F.baggage,
@@ -745,7 +745,9 @@ function main() {
   const keys = args.filter(a => !a.startsWith('--'));
   const t0 = Date.now();
   if (has('all') || keys.length > 1) {
-    const list = has('all') ? Object.keys(PLANES).filter(k => !PLANES[k].branch || has('branch')) : keys;
+    // --all: the live set - not the rows taken out (dropped), replaced (supersededBy) or waiting (next); --every flies them too
+    const inSet = k => has('every') || !(PLANES[k].dropped || PLANES[k].supersededBy || PLANES[k].next);
+    const list = has('all') ? Object.keys(PLANES).filter(k => (!PLANES[k].branch || has('branch')) && inSet(k)) : keys;
     const jobs = +opt('jobs', 4), { spawn } = require('child_process');
     const dir = opt('dir', path.join(T, 'perf', 'real_check'));
     fs.mkdirSync(dir, { recursive: true });

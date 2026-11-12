@@ -1195,5 +1195,23 @@
    ]
   }
  ],
- "wall": 1024.81
+ "wall": 1024.81,
+ "stamp": {
+  "build": {
+   "file": "builds/cub_2026-09-20_corrected.json",
+   "blob": "ba66a5a8e968ae23b28c001ad866d4a82e8e8b62"
+  },
+  "core": "d0af9a5bd665064a",
+  "harness": "f7aefd78314490ce7ee3bb970b3a46ac8329304f",
+  "ref": {
+   "key": "cub",
+   "hash": "2f3f8f058c6b1285"
+  },
+  "plane": {
+   "key": "cub",
+   "hash": "4a8bb19d4a5e3ef4"
+  },
+  "at": "2026-11-12T03:12:10+00:00",
+  "backfilled": "c6eedb0b1"
+ }
 }

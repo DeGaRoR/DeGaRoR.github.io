@@ -56,6 +56,17 @@ const RC = require(path.join(T, 'real_check.js'));
 const RR = require(path.join(T, 'real_refs.js'));
 const { REFS, PLANES, HISTORY } = RR;
 const NOTES = RR.NOTES || {};
+// REAL-STAMP: each result says what it was flown on (build blob, core, PLANES and REFS rows); the report checks it against
+// the files as they are now and marks a plane whose numbers come from another aeroplane, core or reference
+const ST = require(path.join(T, '_real_stamp.js'));
+const FRESH = { fresh: ['good', 'fresh'], rescored: ['warn', 'references edited'], stale: ['bad', 'stale'], unstamped: ['warn', 'unstamped'] };
+const freshChip = c => '<span class="chip ' + FRESH[c.state][0] + '" title="' + esc(c.why.join('; ')) + '">' + FRESH[c.state][1] + '</span>';
+function freshBlock(list) {
+  const bad = list.filter(p => p.fresh.state !== 'fresh');
+  if (!bad.length) return '<p class="muted"><b>Every result is fresh:</b> flown on the build file, core and reference rows the tree holds now (real_check stamps; <code>node tools/_real_stamp.js</code>).</p>';
+  return '<div class="card"><p><b>' + bad.length + ' of ' + list.length + ' results are not on the current tree</b> (real_check stamps; <code>node tools/_real_stamp.js</code> lists them). Re-fly them before quoting their numbers.</p><ul>' +
+    bad.map(p => '<li>' + esc(p.short) + ' ' + freshChip(p.fresh) + ': ' + esc(p.fresh.why.join('; ')) + '</li>').join('') + '</ul></div>';
+}
 function inputDirs() {
   const given = opt('in', '');
   if (given) return given.split(',').map(d => path.resolve(d));
@@ -526,7 +537,10 @@ function planeSection(p) {
   }
   if (o.pilotShare) { const ps = o.pilotShare;
     h += '<p><b>The pilot\'s share</b> (the game\'s pilot minus the best schedule, at ' + esc(ps.load) + '): take-off roll ' + sgn(ps.TO) + ' m, to 50 ft ' + sgn(ps.TO50) + ' m, climb ' + sgn(ps.climb, 2) + ' m/s, landing roll ' + sgn(ps.LDG) + ' m.</p>'; }
-  h += '<p class="muted">Source: <code>' + esc(o._src || '') + '</code>' + (o.wall ? ' · ' + f(o.wall / 60) + ' min to measure' : '') + '</p>';
+  const sp = o.stamp && o.stamp.build;
+  h += '<p class="muted">Source: <code>' + esc(o._src || '') + '</code>' + (o.wall ? ' · ' + f(o.wall / 60) + ' min to measure' : '') +
+    (sp ? ' · flown on <code>' + esc(sp.file) + '</code> blob ' + esc(String(sp.blob).slice(0, 9)) + ', core ' + esc(o.stamp.core || '?') + (o.stamp.backfilled ? ' (stamped from ' + esc(o.stamp.backfilled) + ')' : '') : '') +
+    ' · ' + freshChip(p.fresh) + (p.fresh.why.length && p.fresh.state !== 'unstamped' ? ' ' + esc(p.fresh.why.join('; ')) : '') + '</p>';
   return h + '</section>';
 }
 const sgn = (v, d = 0) => num(v) ? (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(d) : '—';
@@ -550,7 +564,7 @@ function historySection() {
 function main() {
   const res = loadResults();
   const order = Object.keys(PLANES).filter(k => res[k] && !PLANES[k].dropped && !(PLANES[k].supersededBy && res[PLANES[k].supersededBy])).concat(Object.keys(res).filter(k => !PLANES[k]));
-  const list = order.map(k => { const o = res[k], P = PLANES[k] || {}; return { key: k, o, label: P.label || o.label || k, short: P.short || (P.label || o.label || k).replace(/\s*\(.*\)\s*$/, ''), light: k === 'skymaster' || !!P.light, sc: scorePlane(o) }; });
+  const list = order.map(k => { const o = res[k], P = PLANES[k] || {}; return { key: k, o, label: P.label || o.label || k, short: P.short || (P.label || o.label || k).replace(/\s*\(.*\)\s*$/, ''), light: k === 'skymaster' || !!P.light, sc: scorePlane(o), fresh: PLANES[k] ? ST.check(o, PLANES[k], REFS[PLANES[k].ref]) : { state: 'unstamped', why: ['no PLANES row'] } }; });
   const date = opt('date', new Date().toISOString().slice(0, 10));
   const title = opt('title', 'Real Check');
   for (const p of list) p.partial = p.sc.geometry == null || p.sc.specs == null || p.sc.performance == null;
@@ -559,6 +573,7 @@ function main() {
   let html = '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + esc(title) + '</title><style>' + CSS + '</style></head><body><div class="wrap">';
   html += '<header><div class="muted">flyDiy · ' + esc(date) + (sha ? ' · tree ' + esc(sha) : '') + '</div><h1>' + esc(title) + ': the planes against their real parents</h1>' +
     '<p class="lede">' + list.length + ' planes, each measured at three loads (one light pilot, solo with half fuel, the type\'s gross) and compared with its real parent\'s published figures, each read at the conditions it was stated at. Scored on three axes: <b>geometry</b> (do we reproduce the shape), <b>specs</b> (did we pick the right engine, propeller and weights), <b>performance</b> (does it fly like the real one).</p></header>';
+  html += freshBlock(list);
   html += '<h2 id="global">The global view</h2>' + conclusion(list) + notesBlock('_global');
   const dropped = Object.keys(PLANES).filter(k => PLANES[k].dropped && res[k]);
   html += '<h4>Accuracy, every plane on every axis</h4>' + heatmap(list) + (dropped.length ? '<p class="muted">Taken out of the set: ' + dropped.map(k => esc(PLANES[k].label) + ' (' + esc(PLANES[k].dropped) + ')').join('; ') + '.</p>' : '');
@@ -579,6 +594,7 @@ function main() {
   const out = opt('out', path.join(ROOT, 'reports', 'REAL-CHECK-' + date + '.html'));
   fs.writeFileSync(out, html);
   console.log('wrote ' + path.relative(process.cwd(), out) + ' (' + (html.length / 1024).toFixed(0) + ' KB, ' + list.length + ' planes)');
+  for (const p of list.filter(p => p.fresh.state !== 'fresh')) console.log('  NOT FRESH ' + p.key + ': ' + p.fresh.state + ' - ' + p.fresh.why.join('; '));
   for (const p of sorted) console.log('  ' + p.short.padEnd(34) + ' G ' + f(p.sc.geometry).padStart(3) + '  S ' + f(p.sc.specs).padStart(3) + '  P ' + f(p.sc.performance).padStart(3) + '  = ' + f(p.sc.overall));
 }
 if (require.main === module) main();

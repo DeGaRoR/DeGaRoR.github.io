@@ -703,5 +703,23 @@
    ]
   }
  ],
- "wall": 2820.889
+ "wall": 2820.889,
+ "stamp": {
+  "build": {
+   "file": "builds/candidates/camel_2026-10.json",
+   "blob": "70abe61f919da341987c94b4b44ea645ad09f594"
+  },
+  "core": "d0af9a5bd665064a",
+  "harness": "f7aefd78314490ce7ee3bb970b3a46ac8329304f",
+  "ref": {
+   "key": "camel",
+   "hash": "515ed16510ce6549"
+  },
+  "plane": {
+   "key": "camelm",
+   "hash": "35ed4e54230a2ad3"
+  },
+  "at": "2026-11-11T13:22:11+00:00",
+  "backfilled": "dc6b3e550"
+ }
 }

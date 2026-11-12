@@ -1308,5 +1308,23 @@
    ]
   }
  ],
- "wall": 7524.05
+ "wall": 7524.05,
+ "stamp": {
+  "build": {
+   "file": "builds/candidates/superpetrel_V4_2.json",
+   "blob": "9e95f67c31e6c4c5bc9b77c245d367d6d4deae87"
+  },
+  "core": "d0af9a5bd665064a",
+  "harness": "f7aefd78314490ce7ee3bb970b3a46ac8329304f",
+  "ref": {
+   "key": "petrel",
+   "hash": "9b69d3757beda7b5"
+  },
+  "plane": {
+   "key": "petrel42",
+   "hash": "7e6b1108fee95da7"
+  },
+  "at": "2026-11-11T13:22:11+00:00",
+  "backfilled": "dc6b3e550"
+ }
 }
