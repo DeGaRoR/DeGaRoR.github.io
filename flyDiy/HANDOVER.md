@@ -315182,3 +315182,9 @@ What it carries, on post-L37b master, with its own premises cook:
 draws them: potato HOME taxi 1226310 -> 1438368 (+212058); gamer HOME taxi 2044742 -> 2242608 (+197866). BUMPS 13440 -> 225498. Tried and rejected: rows by chaos (a 5 / 8 cm floor) - refineAxis
 halves the 3 m rows, so both floors stop at the same ~9.4 cm rows (the same count to the vertex), and MICRO's accuracy at chaos 0.4
 read p99 10.1 mm on them. The real cut (a coarser refine at low chaos / fine rows only near the eye) is PARKED, on the board under Friday's perf round (A0 11 Nov).
+
+## PLAY-PLAN (Game, ready claude/ready/play-plan, 12 Nov)
+
+- The user 10 Nov ~20:55 via A0: "play the plan" - remove the dead method (no visible row exists), keep ?plan=1.
+- day_clock.js: DAY_CLOCK.plan(on) removed (no caller in src or tools); the ?plan=1 read at the clock's start stays, with a line saying so.
+- Gates: BUILT, CLOCK, WEATHERPLAN, HONESTY, HANGAR (the files that read day_clock.js; no Chrome). Reds: named in the push line if any.
