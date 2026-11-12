@@ -3004,7 +3004,21 @@ const ARCHETYPES = [
            engFamily: 'electric', engModel: 'pipistrel E-811', engMount: 'pusher',
            gearLayout: 'mono', suspension: 'spring', s1Fair: 0,
            finArch: 'tall', empennage: 'conv', scheme: 'trim', base: 0xefe6cf, trim: 0xc96f2a },
-    over: { cage: { rodY: 0.7979, rodD: 0.30, boomLen: 5.26,
+    over: { cage: { rodY: 0.8129, rodD: 0.27, boomLen: 4.46,
+                    // THE REPROJECTION (12 Nov, the user: "time for a reprojection on the blueprints ... the rod's diameter
+                    // is a little high ... get the waist up ... our cabin is not long enough ... the angle of the cabin is
+                    // much more than ours ... ensure that we have the pillar where it should be ... really at the back of the
+                    // wing"; tools/ref_match/blueprint.py on refs/archaeopteryx_bp, our parts drawn over the drawing): the rod
+                    // 0.20 m (rodD 0.30 -> 0.27; rodY the hump's refit); the waist up (waistY -0.4 -> -0.2: the side window's
+                    // sill 0.38 m over the keel, the drawing's ~0.35); more nose and a longer windscreen run (noseLen 0.38 ->
+                    // 0.61, wsRun 1.28 -> 1.75: the window's front edge from 0.61 m aft of the nose at its sill to 1.71 at
+                    // the wing, the drawing's 0.57 / 1.72 - 31 deg, it was 42); the cabin's aft frame at 2.07 m (pilotLen
+                    // 0.52; the drawing's window ends at 2.07); the wing put back on the drawing (wgDx 0.5: LE 1.08, TE 2.26);
+                    // the mast at the back of the wing (hangAt 0.86: 2.00 - 2.21 m), the cabin's aft frame on it; the aft
+                    // section to 2.97 m (aeroAftLen 1.0; the drawing's aft face 3.0), the shaft 0.41 (the prop just past its
+                    // tip); the tail where it was (boomLen 4.46). IoU side 0.805 -> 0.831, plan 0.902 -> 0.908, the length
+                    // 6.01 as the drawing's. THE CG goes aft with the cabin: 73 % of the root chord, the static margin -14 %
+                    // - the masses' chantier (stage 4: the 54 kg, the battery beside the pilot) brings it forward
                     // THE HUB (the study's stage 2, 11 Nov): the rod slots into the wing's centre section, the top skin
                     // raised over it in a Gaussian hump, the rod's crown at the wing's highest point - rodY is the hump's
                     // own fit on this wing (_cage_wing.js hubHump), a ring with screws where the rod leaves the TE
@@ -3013,7 +3027,7 @@ const ARCHETYPES = [
                     // bulkhead - "the pillar is where the aft bulkhead is where the engine is"): the pusher on the
                     // bulkhead, no cowl; a shaft aft (cw_noseOff) to the small prop just past the aft pod's tip, its
                     // disc 0.24 m off the ground and ~0.19 m under the rod (engY)
-                    engY: -0.318, cw_propD: 0.95, cw_noseOff: 0.50, cowlOn: 0,
+                    engY: -0.343, cw_propD: 0.95, cw_noseOff: 0.41, cowlOn: 0,
                     // THE DRIVE PARED DOWN (12 Nov, the user: "limit the engine mount to the minimum ... the nose cone
                     // slimmer, the prop blades with a lower chord and the whole assembly in carbon fiber, including the
                     // shaft"): the mount at the engine bench's least (stand-off 0.4 of the case, tubes x0.5, no diagonals);
@@ -3034,7 +3048,7 @@ const ARCHETYPES = [
                     // to a 4 cm edge (aeroAftTip 0.85 - 0.5 bows in, 1.0 sags), its tip 0.75 of the height raised to the rod
                     // (aeroAftDroop -0.2): the bottom line climbs 0.25 m to the tip, near straight (the fin shape climbs
                     // dead straight, but from the pillar and 0.5 m: too steep)
-                    aeroAftOver: 1, aeroAftOn: 1, aeroAftShape: 1, aeroAftLen: 1.33, aeroAftTip: 0.85, aeroAftEdge: 0.75,
+                    aeroAftOver: 1, aeroAftOn: 1, aeroAftShape: 1, aeroAftLen: 1.0, aeroAftTip: 0.85, aeroAftEdge: 0.75,
                     aeroAftDroop: -0.2,
                     // THE HANGING NACELLE (the study's stage 3; the user's photo of the real one, 11 Nov: the cabin, then the
                     // aft section with "the pillar and the wheel ... at the back of the cabin pillar"): one mast from the hub
@@ -3043,26 +3057,27 @@ const ARCHETYPES = [
                     // The cabin slides free of it: pulled 0.30 m forward (pilotLen 1.05 -> 0.75, the rod as much longer,
                     // boomLen 4.63 -> 4.93, the aft section 1.2 -> 1.5 so its tip stays where it was)
                     // (12 Nov, the user: "make the main pillar 40% less wide": 0.30 -> 0.18 of the chord, 0.21 m)
-                    // ON THE CG (12 Nov, the user: "compute the CG already and put the pillar just on the CG ... to get the
+                    // (SUPERSEDED by THE REPROJECTION above: the mast at the back of the wing, as drawn - what follows was the
+                    // first placement) ON THE CG (12 Nov, the user: "compute the CG already and put the pillar just on the CG ... to get the
                     // engine a little further forward"): the mast's middle on the loaded CG (genShakedown, 1.38 m behind the
                     // nose, 0.50 of the root chord; it was 1.79) - the cabin brought forward with it to its least, the
                     // Chinook's own (pilotLen 0.42), the rod as much longer (boomLen 5.26), the aft section 1.33 m (its
                     // tip 7 cm ahead of the prop); the cabin's aft pillar bolts onto the mast's front (its depth of
                     // overlap). The static margin -4 % -> +11 %. The wheel 6 cm aft of the mast's middle (s1AxZ, under its
                     // chord): at the CG exactly it rocked back onto the tail post; 6 cm aft it parks on the nose skid
-                    hangOn: 1, hangAt: 0.50, hangLen: 0.18,
+                    hangOn: 1, hangAt: 0.86, hangLen: 0.18,
                     // the wing: LE 1.08 / TE 2.30 behind the nose at the root, chord 1.19 -> 1.09 at the crank -> 0.56
                     wgSpan: 13.0, wgChord: 1.19, wgCrankAt: 0.48, wgCrankChord: 1.09, wgCrankX: 0.08,
-                    wgChordTip: 0.56, wgTipX: 0.52, wgDihedral: 1, wgDihedralOut: 1, wgDx: 0,
+                    wgChordTip: 0.56, wgTipX: 0.52, wgDihedral: 1, wgDihedralOut: 1, wgDx: 0.5,
                     // THE CABIN IS THE CHINOOK'S (the user, 10 Nov: "take the setting of the Birdman Chinook for the
                     // cabin only ... the architecture, and in particular the very low waistline ... a pax out; you
                     // are not allowed to modify how it looks, you are just allowed to scale it"): the shape rows of
                     // builds/chinook_2026-09-21_corrected.json verbatim (its planeScale is this card's 0.745 and its
                     // pod is this one's size, 0.72 x 1.14 m: no scaling), the pax bay off (sel paxCount 0); the
                     // covering and the material stay this card's.
-                    halfW: 0.48, roofHalfW: 0.195, keelY: -0.71, floorY: -0.58, ceilInset: 0.2, waistY: -0.4,
-                    bandH: 0.052, ringPullIn: 0, wsRun: 1.28, wsBaseBow: 0.48, wsCeilBow: 0.115, wsBaseLift: 0,
-                    noseLen: 0.38, noseW: 0.8, noseH: 0.06, noseCrown: 0, noseDroop: 0.08,
+                    halfW: 0.48, roofHalfW: 0.195, keelY: -0.71, floorY: -0.58, ceilInset: 0.2, waistY: -0.2,
+                    bandH: 0.052, ringPullIn: 0, wsRun: 1.75, wsBaseBow: 0.48, wsCeilBow: 0.115, wsBaseLift: 0,
+                    noseLen: 0.61, noseW: 0.8, noseH: 0.06, noseCrown: 0, noseDroop: 0.08,
                     topRound: 0, topAngCeil: 52, crSill: 3, crCeil: 3, crFrontCap: 0.65, crKeel: 3, crSillNose: 3,
                     cowlLoops: 2,
                     // no taper section (11 Nov, the user: "remove the taper section"): the rod straight off the aft pillar
@@ -3094,7 +3109,7 @@ const ARCHETYPES = [
                     // nose grown down (s2Fair) - its shoe level with the wheel's contact (12 Nov, the user: "the skid so
                     // it's at the same level as the wheel": s2_twLegDrop 0.09 -> 0, within 7 mm), a skid under each wingtip
                     // (wgTipSkid)
-                    pilotLen: 0.42, s1Z: 1.13, s1X: 0, s1AxZ: -0.06, s1R: 0.2, s1Drop: 0.05, s1Root: 1, s1Sink: 0.45,
+                    pilotLen: 0.52, s1Z: 1.13, s1X: 0, s1AxZ: -0.06, s1R: 0.2, s1Drop: 0.05, s1Root: 1, s1Sink: 0.45,
                     whProfile: 3,
                     s2Leg: 3, s2Nose: 1, s2Z: 0.45, s2Steer: 4, s2Fair: 1, s2R: 0.10, s2Drop: 0.05, s2_twLegDrop: 0,
                     wgTipSkid: 1,

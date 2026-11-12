@@ -314727,3 +314727,17 @@ forward ... on the real thing it really bolts into it ... center the engine vert
   face; the thrust line midway between the ground and the rod's underside (engY -0.318: 0.60 m either way); the prop
   0.75 -> 0.95 m (12 cm clear of each). The wheel 6 cm aft of the mast's middle, under its chord (s1AxZ -0.06): at the
   CG exactly it rocked back onto the tail post; so it parks on the wheel, the nose skid and a wingtip skid.
+
+## REPROJECTION - THE CARD BACK ON THE DRAWING, THE MAST AT THE BACK OF THE WING (12 Nov 2026; NOT YET GATED - the user
+validates the build first)
+
+The user: "time for a reprojection on the blueprints ... the rod's diameter is a little high ... get the waist up ... our
+cabin is not long enough ... the angle of the cabin is much more than ours ... the pillar ... really at the back of the
+wing". Our parts drawn over the drawing (outline, glazing, mast, keel, wheel, the cabin's aft frame; scratch tools, the
+side view at 5x): the window's front edge 0.61 / 1.71 m aft of the nose (sill / wing; the drawing's 0.57 / 1.72), its aft
+edge 2.07 (2.07), the wing LE / TE 1.08 / 2.26 (1.08 / 2.30), the aft section's face 2.97 (3.0), the length 6.01 (6.01);
+IoU side 0.805 -> 0.832, plan 0.902 -> 0.908. The card: rodD 0.27 (rodY 0.8129, the hump's refit), waistY -0.2, noseLen
+0.61, wsRun 1.75, pilotLen 0.52, wgDx 0.5, hangAt 0.86 (the mast 2.00 - 2.21 m), aeroAftLen 1.0, cw_noseOff 0.41, boomLen
+4.46, engY -0.343 (the thrust line midway again). The keel beam drawn level at its anchor on the mast's foot, the nose
+hung on it. THE CG went aft with the cabin: 73 % of the root chord, the static margin -14 % (it was +11 %): the masses'
+chantier (stage 4) must bring it forward. Parked: the wheel, the nose skid, a wingtip skid.
