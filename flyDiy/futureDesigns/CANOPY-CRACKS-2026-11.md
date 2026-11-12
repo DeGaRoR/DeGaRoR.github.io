@@ -14,6 +14,18 @@ tempered look ("not good enough") are dropped and not built. Two sheets, not thr
 only: the acrylic hole with shards held in the frame, and laminated glass that holds. Sections 2-5 below are the
 study as written; where they describe polycarbonate or tempered looks, the decision above overrides them.
 
+## BUILT (the user, 12 Nov: "just go, perf is delayed and yours is a clean replace") - G3916
+Option B replaces the G3623 procedural star outright:
+- `tools/crack_sheet_bake.js` bakes the two sheets (1024², 0.9 m round the hit, RGBA = distance / arrival / facet
+  phase / whitened core) into `media/tex/crack/` with the table `src/viewer/crack_sheet.js` (≈390 KB a PNG).
+- `dmg_glass.js` `GLSL_CRACK` is one `textureLod` read plus about 30 ALU (it was ~70 hash calls); `crackJS` mirrors it.
+- `aeroskin.js` adds `tCrack` (a no-crack stand-in texel until the sheet is in) and `uCrackMat` to the shared block, and
+  passes the eye to the glint. No new program.
+- `app.js` `glassSheet` fetches and uploads the flown aeroplane's sheet at the flight's start (the glazing capture), never
+  at the crash. `FLYDIY_GLASS_TEST(sev, at, look)` takes a look by hand.
+- GATE DMGGLASS: the new mask rules (U), the shipped sheets (K), the mirror with the sheet bound (G), and the stand-in
+  showing nothing (R).
+
 - The page, with pictures inline (mock-ups drawn live, the real stills, a viewer): https://claude.ai/artifact/68UDJfb7MQRDhC7QdkF1QC
 - Its source: `futureDesigns/canopy-cracks/canopy_cracks.html` (self-contained, opens in a browser)
 

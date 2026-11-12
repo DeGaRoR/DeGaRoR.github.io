@@ -6798,8 +6798,9 @@
   // damage event (the broken list or the sets moved) the marks are made again from them and packed into the shared
   // uniforms; a heal, a new flight or another aeroplane lets them go. Nothing runs while damage is off or nothing broke
   // but one compare a frame; the capture is once a flight (a few thousand points). window.FLYDIY_GLASS: the page checks'
-  // read; window.FLYDIY_GLASS_TEST(sev, at): a mark placed by hand (at: a pane point index, 'view' the glazing's point
-  // nearest the middle of the view, or by default the windscreen's middle)
+  // read; window.FLYDIY_GLASS_TEST(sev, at, look): a mark placed by hand (at: a pane point index, 'view' the glazing's point
+  // nearest the middle of the view, or by default the windscreen's middle; look: 'acrylic' | 'laminated', the sheet by
+  // hand - CANOPY-CRACKS - else the aeroplane's own)
   const GLM = { model: null, P: null, M: null, marks: [], key: '', test: false };
   function glassPanes(U) {
     const inv = U.uCraftInv.value, M4 = new THREE.Matrix4(), N3 = new THREE.Matrix3(), v = new THREE.Vector3(), nv = new THREE.Vector3();
@@ -6837,6 +6838,29 @@
     return DMG_GLASS.members(GLM.P, mids);
   }
   function glassClear(U) { GLM.marks = []; GLM.key = ''; GLM.test = false; if (U) DMG_GLASS.pack(U, []); window.FLYDIY_GLASS = null; }
+  // CANOPY-CRACKS (12 Nov, the user's option B): THE FLOWN AEROPLANE'S CRACK SHEET - its glazing's look (dmg_glass.js sheetOf:
+  // glass -> the laminated sheet, acrylic and polycarbonate -> the acrylic one), baked once (tools/crack_sheet_bake.js, the
+  // table crack_sheet.js). Fetched once a look at the flight's start, when the glazing is captured, and uploaded as it lands -
+  // never at the crash. tCrack keeps aeroskin's no-crack texel until this sheet is in (an empty sampler would read as a
+  // crack everywhere a mark reaches); a sampler swap links no program
+  const CRK = { tex: {}, ready: {}, want: null };
+  function glassSheet(U, look) {   // (look: FLYDIY_GLASS_TEST's third argument, 'acrylic' | 'laminated' - a sheet by hand)
+    if (typeof CRACK_SHEET === 'undefined' || !CRACK_SHEET || !U.tCrack) return;
+    const gm = def && def.spec && def.spec.cabin && def.spec.cabin.glazingMat, sh = CRACK_SHEET[look] ? look : DMG_GLASS.sheetOf(gm);
+    CRK.want = sh; U.uCrackMat.value = DMG_GLASS.matIndex(sh);
+    if (CRK.ready[sh]) { U.tCrack.value = CRK.tex[sh]; return; }
+    if (CRK.tex[sh]) return;   // (on its way)
+    const t = CRK.tex[sh] = new THREE.Texture();
+    t.flipY = false; t.generateMipmaps = true; t.colorSpace = THREE.NoColorSpace;
+    t.minFilter = THREE.LinearMipmapLinearFilter; t.magFilter = THREE.LinearFilter; t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
+    const im = new Image(); im.decoding = 'async';
+    im.onload = () => {
+      t.image = im; t.needsUpdate = true; CRK.ready[sh] = true;
+      try { if (renderer.initTexture) renderer.initTexture(t); } catch (e) {}
+      if (CRK.want === sh) U.tCrack.value = t;
+    };
+    im.src = (typeof FLYDIY_ASSET_BASE !== 'undefined' ? FLYDIY_ASSET_BASE : '') + CRACK_SHEET[sh];
+  }
   function glassMarks() {
     if (typeof DMG_GLASS === 'undefined' || !window.AEROSKIN || !AEROSKIN.aeroSharedU || !model || !sim || !def) return;
     const U = AEROSKIN.aeroSharedU(THREE);
@@ -6846,7 +6870,7 @@
     const damaged = D.br.length > 0 || D.sS !== '0:0';                  // (sim_host simDmgSigs: sS = yields:dents)
     if (!damaged) {
       if (GLM.marks.length && !GLM.test) glassClear(U);                    // healed: the panes whole again
-      if (!GLM.P) { GLM.P = glassPanes(U); GLM.M = GLM.P ? glassMembers(U) : []; }   // the capture, at rest
+      if (!GLM.P) { GLM.P = glassPanes(U); GLM.M = GLM.P ? glassMembers(U) : []; if (GLM.P) glassSheet(U); }   // the capture, at rest (+ the crack sheet)
       return;
     }
     if (!GLM.P || !GLM.M || !GLM.M.length) return;
@@ -6854,13 +6878,14 @@
     GLM.marks = DMG_GLASS.impacts(GLM.P, GLM.M, D, GLM.test ? [] : GLM.marks); GLM.test = false;
     DMG_GLASS.pack(U, GLM.marks);
     window.FLYDIY_GLASS = { marks: GLM.marks.map(m => ({ p: m.p.map(x => +x.toFixed(3)), sev: +m.sev.toFixed(2), pane: m.pane, member: m.bi })),
-                            panes: GLM.P.panes, points: GLM.P.n, members: GLM.M.length };
+                            panes: GLM.P.panes, points: GLM.P.n, members: GLM.M.length, sheet: CRK.want, sheetIn: !!CRK.ready[CRK.want] };
   }
-  window.FLYDIY_GLASS_TEST = (sev, at) => {
+  window.FLYDIY_GLASS_TEST = (sev, at, look) => {
     if (typeof DMG_GLASS === 'undefined' || !model) return null;
     const U = AEROSKIN.aeroSharedU(THREE);
     if (sev == null) { glassClear(U); return 0; }
     if (!GLM.P) GLM.P = glassPanes(U); const P = GLM.P; if (!P) return null;
+    glassSheet(U, look);   // CANOPY-CRACKS: the flown aeroplane's sheet, or the look asked (a test mark shows once it is in, a frame or two on a first fetch)
     let k = at;
     if (k === 'view') {   // (28 Oct) the glazing's point nearest the middle of the view - the windscreen's middle is off the
       // left seat's view on the metal Cessna: the camera's eye and forward taken into craft space, the point most ahead
@@ -6877,7 +6902,7 @@
     const nl = Math.hypot(P.nrm[k * 3], P.nrm[k * 3 + 1], P.nrm[k * 3 + 2]) || 1;
     GLM.marks = [{ p: [P.pts[k * 3], P.pts[k * 3 + 1], P.pts[k * 3 + 2]], n: [P.nrm[k * 3] / nl, P.nrm[k * 3 + 1] / nl, P.nrm[k * 3 + 2] / nl], sev: +sev, seed: 4242 + k, pane: P.pane[k], bi: -1 }];
     GLM.test = true; DMG_GLASS.pack(U, GLM.marks);
-    return { at: k, p: GLM.marks[0].p, n: GLM.marks[0].n, panes: P.panes, points: P.n };
+    return { at: k, p: GLM.marks[0].p, n: GLM.marks[0].n, panes: P.panes, points: P.n, sheet: CRK.want, sheetIn: !!CRK.ready[CRK.want] };
   };
   function scarsClear() {
     GROUND_SCAR.clear(scarMesh);
