@@ -8124,12 +8124,14 @@ function storyNewCareer(doc, o) {
   return { ok: true, doc: d, effects: r.effects, cabin: s.cabin, why: null };
 }
 // THE CLIENT'S CUB AS IT ARRIVES (T2): the validated Cub unfinished - its flaps off, the minimal panel (no battery, so no
-// lights), bare metal - on the same engine. Every item of T2's checklist is open on it (GATE STORY holds that).
+// lights), in its own battered white and blue (the user 4 Nov, CLIENT-CUB-LOOK) - on the same engine. Every item of T2's
+// checklist is open on it (GATE STORY holds that), and nothing else of the file is touched (GATE STORY: window, cowl, paint, wear).
 function storyClientSpec(cub) {
   const s = stClone(cub || {});
   s.controls = Object.assign({}, s.controls || {}, { flap: { type: 'none', span: 0, chord: 0 } });
   s.systems = { fit: 'minimal' };
-  s.paint = Object.assign({}, s.paint || {}, { job: 'bare' });
+  // PLANE-LIST (the user 10 Nov): the Client Cub is handed over in its own battered white and blue (CLIENT-CUB-LOOK, N1938J) -
+  // a 'bare' job hid that livery; a fresh paint job stays the player's later work (STORY_CHECKS.paint)
   s.meta = Object.assign({}, s.meta || {}, { name: STORY_SLOTS.client });
   return s;
 }
