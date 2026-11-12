@@ -1,0 +1,55 @@
+-- HEAVY: 12 kW e-PPG + 400 kg cargo + 60 kg baggage --
+   (flown in another shard)
+-- STANCE: a 6 cm tail-wheel leg, spawned the way the game spawns --
+   stance -11.2 deg | with: dot 0.91 strain 0.021 | level drop: dot 0.31 strain 0.255
+  ok     stance: the airframe was pitched onto its third wheel
+  ok     stance: the short leg keeps its direction
+  ok     stance: the short leg stays under a fifth of strain
+  ok     stance: the level drop is worse than the stance on the same build
+-- HOVER: rotax582 + 360 kg cargo --
+   (flown in another shard)
+-- CARD: the stock build, asked for 70 m and 25 m/s --
+   0s card-clamped — speed 25.0 m/s asked, 25.5 m/s flown (92 km/h) — not slower than the approach, not absurd
+  ok     card: the carded circuit completes
+  ok     card: the ask is on the report, unclamped
+  ok     card: held the asked altitude (78 m of 70)
+  ok     card: held the asked speed (25.5 m/s of 25)
+-- FAST: the stock build, asked for 50 m/s it does not have --
+   (flown in another shard)
+-- GOOD + AGAIN: the stock garage build lands, turns around on the strip, takes off again --
+   (flown in another shard)
+-- WIND: 3 m/s along the strip, planned from the spawn — lands into it --
+   189.8s vx-climb — ground ahead above the aeroplane — climbing at Vx 24.3 m/s until clear
+   landed along [1,0] in 567 s
+  ok     wind: the windy circuit completes
+  ok     wind: the landing is INTO the wind
+  ok     wind: touched within 200 m of the aim (48 m)
+-- TRIKE: the stock build on a nosewheel --
+   (flown in another shard)
+-- TRIKE-XWIND: the user's pusher across 2 m/s --
+   (flown in another shard)
+-- FLAPS + STATUS: the ultralight fixture from the stand --
+   51.9s vx-climb — ground ahead above the aeroplane — climbing at Vx 18.6 m/s until clear
+   flap at the flare 1.00 | roll status: accelerating to rotation speed [RWY PITCH SET]
+  ok     flaps: the flapped build completes from the stand
+  ok     flaps: the flare flies the build's own landing flap (1.00 of 1.00)
+  ok     status: the roll says its goal and its conditions (airspeed, runway left)
+  ok     status: the AFCS modes are annunciated
+-- BOX: the modes as a device, over the pilot and over a hand --
+   (flown in another shard)
+-- LAND-WAY: the landing way the pilot would plan from here --
+   (flown in another shard)
+-- STOL: the short-field law flown - the showcase STOL Cub's circuit off HOME --
+   stock Cub (GATE STOL's baseline lap): lift-off run 104.2 m, landing 95 m
+   STOL Cub:   completed, lift-off run 43.6 m, landing {"run":30,"sink":1.33,"V":11.5,"offCentre":0,"pastAim":16,"k":1,"three":true,"onStrip":true,"tdIn":26,"stopLeft":1044}, appr {"tq":"short","Vref":14.5,"aimIn":10,"gs":0.12,"stol":true}, dep {"technique":"short","Vx":16.9,"runNeed":58,"len":1100,"surface":0,"stol":true}
+  ok     STOL: the showcase flies the STOL law - the plan says so, landed first time
+  ok     STOL: the approach slope 6.8 deg (gsStol 0.12 = 6.8 deg)
+  ok     STOL: a three-point touch at the stall (11.5 m/s for a Vs0 of 12.09, three true) and not hard (1.33 m/s, 1.6 at most)
+  ok     STOL: the landing roll 30 m, at most 0.60 x the stock Cub's 95 m
+  ok     STOL: on the aim (16 m past it, 30 m at most)
+  ok     STOL: the lift-off run 43.6 m under 0.6 x the stock Cub's 104.2
+   [STOL part: 78 s wall]
+-- STOL-QUAL: who flies the STOL law - a STOL sheet and a STOL-qualified pilot --
+   (flown in another shard)
+GATE PILOT: PASS
+SHARD 2/3: 4 of 13 heavy jobs

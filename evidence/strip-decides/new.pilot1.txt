@@ -1,0 +1,67 @@
+-- HEAVY: 12 kW e-PPG + 400 kg cargo + 60 kg baggage --
+   (flown in another shard)
+-- STANCE: a 6 cm tail-wheel leg, spawned the way the game spawns --
+   stance -11.2 deg | with: dot 0.91 strain 0.021 | level drop: dot 0.31 strain 0.255
+  ok     stance: the airframe was pitched onto its third wheel
+  ok     stance: the short leg keeps its direction
+  ok     stance: the short leg stays under a fifth of strain
+  ok     stance: the level drop is worse than the stance on the same build
+-- HOVER: rotax582 + 360 kg cargo --
+   41.5s rejected-takeoff — nose-over: 12 deg nose-down on the wheels at V=21.2 — the thrust line is pushing the nose into the ground (a high pusher, the mains under the CG)
+  ok     hover: no NaN
+  ok     hover: put back down = a rejected takeoff
+  ok     hover: the wont-climb (or rejected-takeoff) verdict is on the record
+  ok     hover: down and stopped inside 150 s — the donor hangs here forever
+-- CARD: the stock build, asked for 70 m and 25 m/s --
+   (flown in another shard)
+-- FAST: the stock build, asked for 50 m/s it does not have --
+   (flown in another shard)
+-- GOOD + AGAIN: the stock garage build lands, turns around on the strip, takes off again --
+  ok     good: no NaN
+  ok     good: full stop inside 440 s
+  ok     good: outcome is completed
+  ok     good: no rejection and no giving up on a sound aeroplane
+  ok     good: the landing run came back (241 m)
+  ok     good: touched within 200 m of the aim (67 m)
+  ok     good: a landing, not an arrival (0.55 m/s)
+   76.9s vx-climb — ground ahead above the aeroplane — climbing at Vx 24.3 m/s until clear
+   second leg: TAXI STOP HOLD ROLL LIFTOFF CLIMB CROSSWIND DOWNWIND BASE FINAL FLARE ROLLOUT STOPPED | completed at 455 s
+  ok     again: a second leg was flown from the stopped pose
+  ok     again: it taxied (the turn-around) to a hold before rolling
+  ok     again: the second circuit completes inside 560 s
+  ok     again: no rejection and no lost taxi on the turn-around
+-- WIND: 3 m/s along the strip, planned from the spawn — lands into it --
+   (flown in another shard)
+-- TRIKE: the stock build on a nosewheel --
+   (flown in another shard)
+-- TRIKE-XWIND: the user's pusher across 2 m/s --
+   roll: pursuit 3.0 deg, 0 rudder reversals, bank 1.4 deg on the ground, lift-off -0.4 m off the centreline after 110 m of a 112 m sheet
+  ok     trike-xwind: the pusher completes its circuit across the wind
+  ok     trike-xwind: the roll holds its pursuit line (3.0 deg, bound 12)
+  ok     trike-xwind: no rudder limit cycle on the roll (0 reversals past 0.2, bound 4)
+  ok     trike-xwind: wings level on three wheels (1.4 deg of bank on the ground, bound 5)
+  ok     trike-xwind: lifts off near the centreline (-0.4 m, bound 5)
+  ok     trike-xwind: rotates, not floats (110 of 112 m sheet, bound 1.6x)
+-- FLAPS + STATUS: the ultralight fixture from the stand --
+   (flown in another shard)
+-- BOX: the modes as a device, over the pilot and over a hand --
+   (flown in another shard)
+-- LAND-WAY: the landing way the pilot would plan from here --
+   calm: from the +hdg end 1 (wind 0.0), from the -hdg end -1 (wind 0.0)
+   wind along hdg: from the +hdg end -1 (wind 8.0), from the -hdg end -1 (wind 8.0)
+   wind against hdg: from the +hdg end 1 (wind 8.0), from the -hdg end 1 (wind 8.0)
+  ok     LAND-WAY: landWayFrom answers { u (unit), way +-1 along the runway heading, why } from both ends
+  ok     LAND-WAY: asking changes nothing (dirWhy, phase, verdicts as they were)
+  ok     LAND-WAY: 8 m/s down the runway - both ends answer into the wind
+  ok     LAND-WAY: no aerodrome or no point - null
+   finalFrom calm: way 1 aim -125,0 (-395 m along from the centre) aimY 1 gs 5.1 % | way -1 aim -915,0 (-395 m along from the centre) aimY 1 gs 5.1 %
+   finalFrom wind along hdg: way -1 aim -915,0 (-395 m along from the centre) aimY 1 gs 5.1 % | way -1 aim -915,0 (-395 m along from the centre) aimY 1 gs 5.1 %
+  ok     FINAL-FROM: { u, way, why, aim, aimY, gs, dIaf } - the way landWayFrom gives, a finite aim, a slope in 2-30 %, the IAF out
+  ok     FINAL-FROM: the aim is on the centreline through the field, inside the strip
+  ok     FINAL-FROM: asking plans nothing (frame, aim, slope, plan, approach as they were; nothing said)
+-- STOL: the short-field law flown - the showcase STOL Cub's circuit off HOME --
+   (flown in another shard)
+-- STOL-QUAL: who flies the STOL law - a STOL sheet and a STOL-qualified pilot --
+   (flown in another shard)
+GATE PILOT: PASS
+SHARD 1/3: 4 of 13 heavy jobs

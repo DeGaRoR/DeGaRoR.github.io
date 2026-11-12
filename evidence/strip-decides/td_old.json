@@ -1,0 +1,450 @@
+[
+ {
+  "key": "/workspace/fx/flyDiy/builds/cub_2026-09-20_corrected.json",
+  "done": true,
+  "legs": [
+   {
+    "from": "HOME",
+    "to": "nv_strip",
+    "landedOn": "w3",
+    "heldOff": "w3",
+    "declined": null,
+    "divertedTo": "w3",
+    "warnings": [
+     "go-around at 948.7 s",
+     "go-around at 1313.5 s",
+     "divert at 1313.5 s"
+    ],
+    "faults": [
+     "diverted: stopped at w3, not nv_strip"
+    ],
+    "landing": {
+     "run": 110,
+     "sink": 0.77,
+     "V": 16.7,
+     "offCentre": 0,
+     "pastAim": 19,
+     "k": 1,
+     "three": false,
+     "onStrip": true,
+     "tdIn": 84,
+     "stopLeft": 349
+    },
+    "td": {
+     "bank": 0,
+     "V": 15.9,
+     "sink": 0.8,
+     "phase": "FLARE",
+     "on": "w3",
+     "preBankMax": 0.2
+    },
+    "rollBankMax": 0.8,
+    "driftMax": 1.2,
+    "axisMax": 0.7,
+    "goArounds": 2
+   },
+   {
+    "from": "w3",
+    "to": "HOME",
+    "landedOn": "HOME",
+    "heldOff": null,
+    "declined": null,
+    "divertedTo": null,
+    "warnings": [],
+    "faults": [],
+    "landing": {
+     "run": 174,
+     "sink": 0.74,
+     "V": 17,
+     "offCentre": 0.4,
+     "pastAim": 40,
+     "k": 0,
+     "three": false,
+     "onStrip": true,
+     "tdIn": 554,
+     "stopLeft": 1597
+    },
+    "td": {
+     "bank": 0.6,
+     "V": 18.3,
+     "sink": 0.7,
+     "phase": "FLARE",
+     "on": "HOME",
+     "preBankMax": 0.7
+    },
+    "rollBankMax": 1.5,
+    "driftMax": 11.7,
+    "axisMax": 9.2,
+    "goArounds": 0
+   },
+   {
+    "from": "HOME",
+    "to": "tw_ski",
+    "landedOn": "tw_ski",
+    "heldOff": null,
+    "declined": null,
+    "divertedTo": null,
+    "warnings": [],
+    "faults": [],
+    "landing": {
+     "run": 67,
+     "sink": -0.08,
+     "V": 13.5,
+     "offCentre": 1,
+     "pastAim": 68,
+     "k": 1,
+     "three": true,
+     "onStrip": true,
+     "tdIn": 91,
+     "stopLeft": 221
+    },
+    "td": {
+     "bank": 0.8,
+     "V": 17.3,
+     "sink": -0.1,
+     "phase": "FLARE",
+     "on": "tw_ski",
+     "preBankMax": 1.1
+    },
+    "rollBankMax": 1.3,
+    "driftMax": 8,
+    "axisMax": 7.5,
+    "goArounds": 0
+   },
+   {
+    "from": "tw_ski",
+    "to": "HOME",
+    "landedOn": "HOME",
+    "heldOff": null,
+    "declined": null,
+    "divertedTo": null,
+    "warnings": [],
+    "faults": [],
+    "landing": {
+     "run": 178,
+     "sink": 0.93,
+     "V": 17.2,
+     "offCentre": 0.3,
+     "pastAim": 23,
+     "k": 0,
+     "three": true,
+     "onStrip": true,
+     "tdIn": 537,
+     "stopLeft": 1611
+    },
+    "td": {
+     "bank": 0.7,
+     "V": 18.5,
+     "sink": 0.9,
+     "phase": "FLARE",
+     "on": "HOME",
+     "preBankMax": 0.7
+    },
+    "rollBankMax": 1.4,
+    "driftMax": 10.8,
+    "axisMax": 8.2,
+    "goArounds": 0
+   }
+  ],
+  "wall": 1286
+ },
+ {
+  "key": "cub",
+  "done": true,
+  "legs": [
+   {
+    "from": "HOME",
+    "to": "nv_strip",
+    "landedOn": "w3",
+    "heldOff": "w3",
+    "declined": null,
+    "divertedTo": "w3",
+    "warnings": [
+     "go-around at 941.9 s",
+     "go-around at 1294.9 s",
+     "divert at 1294.9 s"
+    ],
+    "faults": [
+     "diverted: stopped at w3, not nv_strip"
+    ],
+    "landing": {
+     "run": 112,
+     "sink": 0.81,
+     "V": 16.9,
+     "offCentre": 0,
+     "pastAim": 19,
+     "k": 1,
+     "three": false,
+     "onStrip": true,
+     "tdIn": 84,
+     "stopLeft": 347
+    },
+    "td": {
+     "bank": 0.2,
+     "V": 16,
+     "sink": 0.8,
+     "phase": "FLARE",
+     "on": "w3",
+     "preBankMax": 0.3
+    },
+    "rollBankMax": 0.7,
+    "driftMax": 2.1,
+    "axisMax": 1.1,
+    "goArounds": 2
+   },
+   {
+    "from": "w3",
+    "to": "HOME",
+    "landedOn": "HOME",
+    "heldOff": null,
+    "declined": null,
+    "divertedTo": null,
+    "warnings": [],
+    "faults": [],
+    "landing": {
+     "run": 176,
+     "sink": 0.87,
+     "V": 16.9,
+     "offCentre": 0.4,
+     "pastAim": 35,
+     "k": 0,
+     "three": false,
+     "onStrip": true,
+     "tdIn": 549,
+     "stopLeft": 1600
+    },
+    "td": {
+     "bank": 0.6,
+     "V": 18.4,
+     "sink": 0.9,
+     "phase": "FLARE",
+     "on": "HOME",
+     "preBankMax": 0.7
+    },
+    "rollBankMax": 1.6,
+    "driftMax": 11.7,
+    "axisMax": 8.8,
+    "goArounds": 0
+   },
+   {
+    "from": "HOME",
+    "to": "tw_ski",
+    "landedOn": "tw_ski",
+    "heldOff": null,
+    "declined": null,
+    "divertedTo": null,
+    "warnings": [],
+    "faults": [],
+    "landing": {
+     "run": 71,
+     "sink": -0.33,
+     "V": 14,
+     "offCentre": 0.8,
+     "pastAim": 62,
+     "k": 1,
+     "three": true,
+     "onStrip": true,
+     "tdIn": 85,
+     "stopLeft": 223
+    },
+    "td": {
+     "bank": 0.8,
+     "V": 17.9,
+     "sink": -0.3,
+     "phase": "FLARE",
+     "on": "tw_ski",
+     "preBankMax": 1
+    },
+    "rollBankMax": 1.3,
+    "driftMax": 6.6,
+    "axisMax": 6.2,
+    "goArounds": 0
+   },
+   {
+    "from": "tw_ski",
+    "to": "HOME",
+    "landedOn": "HOME",
+    "heldOff": null,
+    "declined": null,
+    "divertedTo": null,
+    "warnings": [],
+    "faults": [],
+    "landing": {
+     "run": 181,
+     "sink": 0.99,
+     "V": 17.3,
+     "offCentre": 0.4,
+     "pastAim": 15,
+     "k": 0,
+     "three": true,
+     "onStrip": true,
+     "tdIn": 529,
+     "stopLeft": 1615
+    },
+    "td": {
+     "bank": 0.7,
+     "V": 18.6,
+     "sink": 1,
+     "phase": "FLARE",
+     "on": "HOME",
+     "preBankMax": 0.7
+    },
+    "rollBankMax": 1.6,
+    "driftMax": 10.6,
+    "axisMax": 8.9,
+    "goArounds": 0
+   }
+  ],
+  "wall": 1264
+ },
+ {
+  "key": "pietenpol",
+  "done": false,
+  "legs": [
+   {
+    "from": "HOME",
+    "to": "nv_strip",
+    "landedOn": null,
+    "heldOff": null,
+    "declined": null,
+    "divertedTo": null,
+    "warnings": [],
+    "faults": [
+     "declined: the take-off was declined"
+    ],
+    "landing": null,
+    "td": null,
+    "rollBankMax": 0,
+    "driftMax": 0,
+    "axisMax": 0,
+    "goArounds": 0
+   }
+  ],
+  "wall": 4
+ },
+ {
+  "key": "tigermoth",
+  "done": false,
+  "legs": [
+   {
+    "from": "HOME",
+    "to": "nv_strip",
+    "landedOn": null,
+    "heldOff": null,
+    "declined": null,
+    "divertedTo": null,
+    "warnings": [],
+    "faults": [
+     "declined: the take-off was declined"
+    ],
+    "landing": null,
+    "td": null,
+    "rollBankMax": 0,
+    "driftMax": 0,
+    "axisMax": 0,
+    "goArounds": 0
+   }
+  ],
+  "wall": 6
+ },
+ {
+  "key": "stearman",
+  "done": false,
+  "legs": [
+   {
+    "from": "HOME",
+    "to": "nv_strip",
+    "landedOn": null,
+    "heldOff": null,
+    "declined": null,
+    "divertedTo": null,
+    "warnings": [],
+    "faults": [
+     "declined: the take-off was declined"
+    ],
+    "landing": null,
+    "td": null,
+    "rollBankMax": 0,
+    "driftMax": 0,
+    "axisMax": 0,
+    "goArounds": 0
+   }
+  ],
+  "wall": 5
+ },
+ {
+  "key": "camel",
+  "done": false,
+  "legs": [
+   {
+    "from": "HOME",
+    "to": "nv_strip",
+    "landedOn": null,
+    "heldOff": null,
+    "declined": null,
+    "divertedTo": null,
+    "warnings": [],
+    "faults": [
+     "declined: the take-off was declined"
+    ],
+    "landing": null,
+    "td": null,
+    "rollBankMax": 0,
+    "driftMax": 0,
+    "axisMax": 0,
+    "goArounds": 0
+   }
+  ],
+  "wall": 5
+ },
+ {
+  "key": "pittsAlike",
+  "done": false,
+  "legs": [
+   {
+    "from": "HOME",
+    "to": "nv_strip",
+    "landedOn": null,
+    "heldOff": null,
+    "declined": null,
+    "divertedTo": null,
+    "warnings": [],
+    "faults": [
+     "declined: the take-off was declined"
+    ],
+    "landing": null,
+    "td": null,
+    "rollBankMax": 0,
+    "driftMax": 0,
+    "axisMax": 0,
+    "goArounds": 0
+   }
+  ],
+  "wall": 4
+ },
+ {
+  "key": "sesqui",
+  "done": false,
+  "legs": [
+   {
+    "from": "HOME",
+    "to": "nv_strip",
+    "landedOn": null,
+    "heldOff": null,
+    "declined": null,
+    "divertedTo": null,
+    "warnings": [],
+    "faults": [
+     "declined: the take-off was declined"
+    ],
+    "landing": null,
+    "td": null,
+    "rollBankMax": 0,
+    "driftMax": 0,
+    "axisMax": 0,
+    "goArounds": 0
+   }
+  ],
+  "wall": 5
+ }
+]

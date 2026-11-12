@@ -1,0 +1,385 @@
+[
+ {
+  "key": "/workspace/sd/flyDiy/builds/cub_2026-09-20_corrected.json",
+  "done": false,
+  "legs": [
+   {
+    "from": "HOME",
+    "to": "nv_strip",
+    "landedOn": "w3",
+    "heldOff": "w3",
+    "declined": null,
+    "divertedTo": "w3",
+    "warnings": [
+     "go-around at 948.7 s",
+     "go-around at 1313.5 s",
+     "divert at 1313.5 s"
+    ],
+    "faults": [
+     "diverted: stopped at w3, not nv_strip"
+    ],
+    "landing": {
+     "run": 110,
+     "sink": 0.77,
+     "V": 16.7,
+     "offCentre": 0,
+     "pastAim": 19,
+     "k": 1,
+     "three": false,
+     "onStrip": true,
+     "tdIn": 84,
+     "stopLeft": 349
+    },
+    "td": {
+     "bank": 0,
+     "V": 15.9,
+     "sink": 0.8,
+     "phase": "FLARE",
+     "on": "w3",
+     "preBankMax": 0.2
+    },
+    "rollBankMax": 0.8,
+    "driftMax": 1.2,
+    "axisMax": 0.7,
+    "goArounds": 2
+   },
+   {
+    "from": "w3",
+    "to": "HOME",
+    "landedOn": "HOME",
+    "heldOff": null,
+    "declined": null,
+    "divertedTo": null,
+    "warnings": [],
+    "faults": [],
+    "landing": {
+     "run": 174,
+     "sink": 0.74,
+     "V": 17,
+     "offCentre": 0.4,
+     "pastAim": 40,
+     "k": 0,
+     "three": false,
+     "onStrip": true,
+     "tdIn": 554,
+     "stopLeft": 1597
+    },
+    "td": {
+     "bank": 0.6,
+     "V": 18.3,
+     "sink": 0.7,
+     "phase": "FLARE",
+     "on": "HOME",
+     "preBankMax": 0.7
+    },
+    "rollBankMax": 1.5,
+    "driftMax": 11.7,
+    "axisMax": 9.2,
+    "goArounds": 0
+   },
+   {
+    "from": "HOME",
+    "to": "tw_ski",
+    "landedOn": "tw_ski",
+    "heldOff": null,
+    "declined": null,
+    "divertedTo": null,
+    "warnings": [],
+    "faults": [
+     "ground-loop: the nose 30.2 deg off the landing roll on tw_ski at 19.6 m/s",
+     "off-strip: the landing roll left tw_ski's box",
+     "crash: the damage ended the flight: a fus member broke",
+     "yield: 3297 member(s) yielded (first: {\"beam\":46,\"cls\":\"fus\",\"t\":2957.482667289686})",
+     "break: 3 member(s) broke",
+     "prop-strike: the propeller struck (ground, t 2957.6)",
+     "dent: the airframe dented"
+    ],
+    "landing": null,
+    "td": {
+     "bank": -20.9,
+     "V": 20.4,
+     "sink": 0.3,
+     "phase": "FLARE",
+     "on": "tw_ski",
+     "preBankMax": 32.5
+    },
+    "rollBankMax": 65.8,
+    "driftMax": 39.3,
+    "axisMax": 50.9,
+    "goArounds": 0
+   }
+  ],
+  "wall": 1026
+ },
+ {
+  "key": "cub",
+  "done": false,
+  "legs": [
+   {
+    "from": "HOME",
+    "to": "nv_strip",
+    "landedOn": "w3",
+    "heldOff": "w3",
+    "declined": null,
+    "divertedTo": "w3",
+    "warnings": [
+     "go-around at 941.9 s",
+     "go-around at 1294.9 s",
+     "divert at 1294.9 s"
+    ],
+    "faults": [
+     "diverted: stopped at w3, not nv_strip"
+    ],
+    "landing": {
+     "run": 112,
+     "sink": 0.81,
+     "V": 16.9,
+     "offCentre": 0,
+     "pastAim": 19,
+     "k": 1,
+     "three": false,
+     "onStrip": true,
+     "tdIn": 84,
+     "stopLeft": 347
+    },
+    "td": {
+     "bank": 0.2,
+     "V": 16,
+     "sink": 0.8,
+     "phase": "FLARE",
+     "on": "w3",
+     "preBankMax": 0.3
+    },
+    "rollBankMax": 0.7,
+    "driftMax": 2.1,
+    "axisMax": 1.1,
+    "goArounds": 2
+   },
+   {
+    "from": "w3",
+    "to": "HOME",
+    "landedOn": "HOME",
+    "heldOff": null,
+    "declined": null,
+    "divertedTo": null,
+    "warnings": [],
+    "faults": [],
+    "landing": {
+     "run": 176,
+     "sink": 0.87,
+     "V": 16.9,
+     "offCentre": 0.4,
+     "pastAim": 35,
+     "k": 0,
+     "three": false,
+     "onStrip": true,
+     "tdIn": 549,
+     "stopLeft": 1600
+    },
+    "td": {
+     "bank": 0.6,
+     "V": 18.4,
+     "sink": 0.9,
+     "phase": "FLARE",
+     "on": "HOME",
+     "preBankMax": 0.7
+    },
+    "rollBankMax": 1.6,
+    "driftMax": 11.7,
+    "axisMax": 8.8,
+    "goArounds": 0
+   },
+   {
+    "from": "HOME",
+    "to": "tw_ski",
+    "landedOn": "tw_ski",
+    "heldOff": null,
+    "declined": null,
+    "divertedTo": null,
+    "warnings": [],
+    "faults": [
+     "ground-loop: the nose 30.8 deg off the landing roll on tw_ski at 14.8 m/s",
+     "off-strip: the landing roll left tw_ski's box",
+     "yield: 1485 member(s) yielded (first: {\"beam\":57,\"cls\":\"fus\",\"t\":2961.9515561825337})",
+     "prop-strike: the propeller struck (ground, t 2961.9)",
+     "dent: the airframe dented"
+    ],
+    "landing": {
+     "run": 27,
+     "sink": 2.87,
+     "V": 13.6,
+     "offCentre": 2.6,
+     "pastAim": 128,
+     "k": 1,
+     "three": true,
+     "onStrip": false,
+     "tdIn": 138,
+     "stopLeft": 216
+    },
+    "td": {
+     "bank": 23.3,
+     "V": 16.7,
+     "sink": 2.9,
+     "phase": "FLARE",
+     "on": "tw_ski",
+     "preBankMax": 23.3
+    },
+    "rollBankMax": 34.4,
+    "driftMax": 99.9,
+    "axisMax": 89.9,
+    "goArounds": 0
+   }
+  ],
+  "wall": 1040
+ },
+ {
+  "key": "pietenpol",
+  "done": false,
+  "legs": [
+   {
+    "from": "HOME",
+    "to": "nv_strip",
+    "landedOn": null,
+    "heldOff": null,
+    "declined": null,
+    "divertedTo": null,
+    "warnings": [],
+    "faults": [
+     "declined: the take-off was declined"
+    ],
+    "landing": null,
+    "td": null,
+    "rollBankMax": 0,
+    "driftMax": 0,
+    "axisMax": 0,
+    "goArounds": 0
+   }
+  ],
+  "wall": 6
+ },
+ {
+  "key": "tigermoth",
+  "done": false,
+  "legs": [
+   {
+    "from": "HOME",
+    "to": "nv_strip",
+    "landedOn": null,
+    "heldOff": null,
+    "declined": null,
+    "divertedTo": null,
+    "warnings": [],
+    "faults": [
+     "declined: the take-off was declined"
+    ],
+    "landing": null,
+    "td": null,
+    "rollBankMax": 0,
+    "driftMax": 0,
+    "axisMax": 0,
+    "goArounds": 0
+   }
+  ],
+  "wall": 9
+ },
+ {
+  "key": "stearman",
+  "done": false,
+  "legs": [
+   {
+    "from": "HOME",
+    "to": "nv_strip",
+    "landedOn": null,
+    "heldOff": null,
+    "declined": null,
+    "divertedTo": null,
+    "warnings": [],
+    "faults": [
+     "declined: the take-off was declined"
+    ],
+    "landing": null,
+    "td": null,
+    "rollBankMax": 0,
+    "driftMax": 0,
+    "axisMax": 0,
+    "goArounds": 0
+   }
+  ],
+  "wall": 8
+ },
+ {
+  "key": "camel",
+  "done": false,
+  "legs": [
+   {
+    "from": "HOME",
+    "to": "nv_strip",
+    "landedOn": null,
+    "heldOff": null,
+    "declined": null,
+    "divertedTo": null,
+    "warnings": [],
+    "faults": [
+     "declined: the take-off was declined"
+    ],
+    "landing": null,
+    "td": null,
+    "rollBankMax": 0,
+    "driftMax": 0,
+    "axisMax": 0,
+    "goArounds": 0
+   }
+  ],
+  "wall": 6
+ },
+ {
+  "key": "pittsAlike",
+  "done": false,
+  "legs": [
+   {
+    "from": "HOME",
+    "to": "nv_strip",
+    "landedOn": null,
+    "heldOff": null,
+    "declined": null,
+    "divertedTo": null,
+    "warnings": [],
+    "faults": [
+     "declined: the take-off was declined"
+    ],
+    "landing": null,
+    "td": null,
+    "rollBankMax": 0,
+    "driftMax": 0,
+    "axisMax": 0,
+    "goArounds": 0
+   }
+  ],
+  "wall": 8
+ },
+ {
+  "key": "sesqui",
+  "done": false,
+  "legs": [
+   {
+    "from": "HOME",
+    "to": "nv_strip",
+    "landedOn": null,
+    "heldOff": null,
+    "declined": null,
+    "divertedTo": null,
+    "warnings": [],
+    "faults": [
+     "declined: the take-off was declined"
+    ],
+    "landing": null,
+    "td": null,
+    "rollBankMax": 0,
+    "driftMax": 0,
+    "axisMax": 0,
+    "goArounds": 0
+   }
+  ],
+  "wall": 6
+ }
+]

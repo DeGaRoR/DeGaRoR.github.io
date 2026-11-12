@@ -1,0 +1,183 @@
+1. OFF IS THE BITS (32 cards against fixtures/stol_baseline.json.gz)
+  ok   every card builds, flies 4 s and draws to the bit master 6b6b12a4c did
+  ok   the fixture holds the six validated builds as the game ships them (cub jodel metal floats twinFloats rufus)
+  ok   the wing layer's PAGE.defaults are the STOL rows' "off" (wgSlat 0, wgSlatSpan 1, wgVG 0, wgFence 0, wgCuff 0, wgCuffSpan 0.4, wgDroop 0, wgFowlerGrow 0)
+  ok   the hull-types rows' "off" here is the core's (genStolCageOff drops all 12)
+  ok   the neutral engine dials here are the core's (genStolCageOff drops all 6)
+  ok   cub (builds/cub_2026-09-20_corrected.json): joined here to master's spec + the STOL rows at their defaults (the join states stol: null; the bench / parked / certificate-store / procurement keys the same), def =, 4 s =, drawing =, design check + sheet = (warn Vref 67.17 km/h, Vs0 51.67, TO 153 m)
+  ok   jodel (builds/jodel_2026-09-20_corrected.json): joined here to master's spec + the STOL rows at their defaults (the join states stol: null; the bench / parked / certificate-store / procurement keys the same), def =, 4 s =, drawing =, design check + sheet = (warn Vref 80.17 km/h, Vs0 61.67, TO 211 m)
+  ok   metal (bugReports/cessnaMetal (1).json): joined here to master's spec + the STOL rows at their defaults (the join states stol: null; the bench / parked / certificate-store / procurement keys the same), def =, 4 s =, drawing =, design check + sheet = (warn Vref 103.64 km/h, Vs0 79.72, TO 147 m)
+  ok   floats (bugReports/cessnaFloatsWOrks.json): joined here to master's spec + the STOL rows at their defaults (the join states stol: null; the bench / parked / certificate-store / procurement keys the same), def =, 4 s =, drawing =, design check + sheet = (pass Vref 113.79 km/h, Vs0 87.53, TO 205 m)
+  ok   twinFloats (tools/fixtures/build_v7_ultralight_2026-09-05.json (+ its float patch)): joined here to master's spec + the STOL rows at their defaults (the join states stol: null; the bench / parked / certificate-store / procurement keys the same), def =, 4 s =, drawing =, design check + sheet = (warn Vref 66.04 km/h, Vs0 50.80, TO 53 m)
+  ok   rufus (builds/rufus_2026-10-18_certified.json): joined here to master's spec + the STOL rows at their defaults (the join states stol: null; the bench / parked / certificate-store / procurement keys the same), def =, 4 s =, drawing =, design check + sheet = (pass Vref 68.98 km/h, Vs0 53.06, TO 77 m)
+  ok   a stol record of null is the absent key (strips, params, drawing; gone from the resolved spec)
+  ok   a stol record of {} is the absent key (strips, params, drawing; gone from the resolved spec)
+  ok   a stol record of every device 0 is the absent key (strips, params, drawing; gone from the resolved spec)
+  ok   the certificate fingerprint: stol null === absent (no certificate withdrawn)
+  ok   ...and a slat IS a different aeroplane
+  ok   the procurement fingerprint: the same rule
+  ok   the merge takes a device back off (the join states null, A3) and the aeroplane is the old one
+2. THE SPEC
+  ok   the tips are APPENDED (every saved wgTip index keeps its meaning): square clipped rounded elliptic hoerner winglet endplate drooped upturned
+  ok   GEN_SLATS: none, slot, auto (the cage index)
+  ok   genStolOf clamps every field and drops what it does not know: {"slat":"slot","slatSpan":1,"vg":1,"fences":2,"cuff":1,"cuffSpan":0.2,"droop":0.5,"grow":1}
+  ok   an unknown slat or a non-object is "off"
+  ok   genStolCage: a P without the rows says nothing (undefined)
+  ok   ...the default rows say null (STATED, A3)
+  ok   ...and a set of rows the record: {"slat":"auto","slatSpan":0.6,"vg":1,"fences":1,"droop":0.25,"grow":1}
+  ok   the droop row: index 0 / 1 / 2 -> droop 0 / 0.25 / 0.50 of a plain flap's travel (10.0 / 20.0 deg)
+  ok   the join: no rows -> no key; default rows -> null; a slat -> the record
+  ok   genStolLocked: nothing locked without a shop; the pack named when it is missing; ungated options never lock
+  ok   the Leading-edge tiles: greyed without the pack, live with it, live with no shop at all
+  ok   design row wgSlat: every tile has its drawing
+  ok   design row wgVG: every tile has its drawing
+  ok   design row wgFence: every tile has its drawing
+  ok   design row wgCuff: every tile has its drawing
+  ok   design row wgDroop: every tile has its drawing
+  ok   design row wgFowlerGrow: every tile has its drawing
+  ok   the wgSlat tiles are the row's twin and write it alone, every value (0 1 2)
+  ok   the wgVG tiles are the row's twin and write it alone, every value (0 1)
+  ok   the wgFence tiles are the row's twin and write it alone, every value (0 1 2)
+  ok   the wgCuff tiles are the row's twin and write it alone, every value (0 1)
+  ok   the wgDroop tiles are the row's twin and write it alone, every value (0 1 2)
+  ok   the wgFowlerGrow tiles are the row's twin and write it alone, every value (0 1)
+  ok   the Wing tips row offers Endplate and Drooped, in table order (and the lab upturned tip hidden with the switch off)
+3. THE PHYSICS (the Savannah-alike, as baked)
+       clean      CLmax 1.56 at 18.00 deg, Vs 70.0 km/h, D(2 deg) 411.9 N, D(12 deg) 991.3 N
+       slot       CLmax 2.04 at 25.75 deg, Vs 62.1 km/h, D(2 deg) 450.2 N, D(12 deg) 1026.3 N
+       auto slat  CLmax 2.15 at 27.50 deg, Vs 60.8 km/h, D(2 deg) 416.0 N, D(12 deg) 992.4 N
+       VGs        CLmax 1.72 at 20.50 deg, Vs 66.7 km/h, D(2 deg) 417.0 N, D(12 deg) 996.0 N
+       cuff       CLmax 1.58 at 18.00 deg, Vs 69.9 km/h, D(2 deg) 419.1 N, D(12 deg) 1010.3 N
+       fences x2  CLmax 1.59 at 19.25 deg, Vs 69.4 km/h, D(2 deg) 420.9 N, D(12 deg) 999.7 N
+       endplate   CLmax 1.56 at 17.50 deg, Vs 70.4 km/h, D(2 deg) 426.3 N, D(12 deg) 987.5 N
+       (square)   CLmax 1.56 at 18.00 deg, Vs 70.0 km/h, D(2 deg) 411.9 N, D(12 deg) 991.3 N
+  ok   the fixed slot: Vs x0.887 (in 0.80..0.92 - the 701 / Storch class)
+  ok   ...its stall attitude moves by its dAs (7.75 deg, 8.0 declared)
+  ok   the automatic slat out-lifts the fixed slot once it is out (Vs 0.868)
+  ok   the fixed slot pays its gap drag at cruise (D x1.093 at 2 deg)
+  ok   the automatic slat pays only its seam at cruise (D x1.0099)
+  ok   VGs: Vs x0.953 (the kit sheets' 3-5 mph on a Cub: 0.92..0.98)
+  ok   ...for under 2 % of cruise drag (x1.0124)
+  ok   the cuff: no worse a stall (x0.997) and its nose camber lifts below it
+  ok   fences price their area (CdA 0.0161 m2)
+  ok   the endplate: span efficiency up (eAR 16.17 vs square 14.94), its plates priced (CdA 0.0305 m2)
+  ok   ...and at climb alpha the endplate wing is the cheaper one (D(12) 987.5 vs 991.3 N)
+  ok   slot: the analytic stall moves with the measured one (analytic/measured 1.006 vs 1.022 clean)
+  ok   auto: the analytic stall moves with the measured one (analytic/measured 1.006 vs 1.022 clean)
+  ok   VGs: the analytic stall moves with the measured one (analytic/measured 1.014 vs 1.022 clean)
+  ok   the automatic slat's strips carry its gain as `sa` (deploys), not as a fixed dAs
+  ok   droop and growth do nothing flaps-up (clean CLmax and drag the same bits)
+  ok   drooped ailerons: + 0.095 CLmax flaps-down, and their drag
+  ok   Fowler growth: the same CLmax to within 8 % (2.14 vs 2.17 - the stand-in dCl was fitted to it) on a steeper lift curve, the grown chord's (0.0807 vs 0.0772 /deg)
+  ok   growth swaps the Fowler's stand-in camber for the slotted row's and grows the flapped strips only
+  ok   everything at once is capped (the stall moves 12.25 deg, cap 12.6)
+3b. TODAY'S PHYSICS (G2822): the stall angle as flown, the design check, the ladder, the damage layer
+  ok   no STOL strip: the wing's stall angle is the section's own, the same bits
+  ok   the fixed slot's wing stalls 6.92 deg later, area-weighted (8.02 on the slatted strips)
+  ok   fixed slot: CLmax +31 % (published 25..45), the stall 7.8 deg later (6..11), Vs x0.887
+  ok   automatic slat: CLmax +38 % (published 25..50), the stall 9.5 deg later (6..12), Vs x0.868
+  ok   VGs: CLmax +10 % (published 6..18), the stall 2.5 deg later (1..4), Vs x0.953
+  ok   ctl.flare: the slatted wing's stall is further from the stop (1.05 x Vs pass, clean 1 pass)
+  ok   no drooped aileron, no ctl.droop row
+       drooped 10 deg: 0.83 x the undrooped roll, warn - full aileron at 92.88 km/h, full flap: 83 % of the undrooped roll moment, pb/2V 0.226 (the cruise roll damping)
+       drooped 20 deg: 0.71 x the undrooped roll, warn - full aileron at 92.88 km/h, full flap: 71 % of the undrooped roll moment, pb/2V 0.194 (the cruise roll damping)
+  ok   drooping ailerons keep 83 % / 71 % of their roll at 10 / 20 deg (>= 60 %, less the further they droop)
+  ok   Vref 80.7 km/h on the slot (clean 90.6), 1.30 x the measured Vs0
+  ok   the touchdown attitude 15.05 deg is solved under the slatted wing's own cap (21.71)
+  ok   damage ON; the body's axial CdA is the clean one (0.4933 m2) and the fences + endplates' 0.0467 m2 ride the strips (0.0467)
+  ok   an endplate alone: its plate's drag on each tip strip, no stall-angle term
+  ok   the right wing let go (18 members, 2 break groups): every right STOL strip parts with it, every left one stays on the core
+  ok   the devices' drawing (4280 vertices) hangs on wing nodes, one side each (0 astray): it comes off with its wing
+  ok   Fowler growth: the flapped lift slope x1.049 on the reference area, the grown area's c'/c x1.053 (within 10 %)
+4. THE DRAWING
+  ok   the fixed slot stands proud of the leading edge (588 vertices)
+  ok   ...over its own span: inboard edge at 2.30 m, half the 4.60 m semispan
+  ok   the VG row: 70 vanes, each a two-faced blade
+  ok   ...standing on the upper skin
+  ok   two fences a side, drawn at the strips' stations (1.74, 2.85 m)
+  ok   the endplate stands at the tip, outboard of the skin
+  ok   ...a plate 0.88 m tall, above and below the chord
+  ok   the drooped tip bends down (0.183 m below the Hoerner tip at the very end)
+  ok   drooping ailerons ride the flap lever (drive2 flap, 14.0 deg at full flap, the flap's own sense each side)
+5. THE BENCH (the makers' figures; Vs km/h, rolls m; measured / published (gap))
+   ICP Savannah S (Rotax 912, 100 hp) at 600 kg, devices {"slat":"slot"} (lands flapless - the trim solver's verdict)
+     Vs1 clean  without   77.4 ( +49 %)   with   67.7 ( +30 %)   sheet 52
+     Vs0 flaps  without   65.6 ( +46 %)   with   59.3 ( +32 %)   sheet 45
+     TO roll    without  163.0 (+172 %)   with  164.0 (+173 %)   sheet 60
+     LDG roll~  without   94.9 ( +36 %)   with   72.7 (  +4 %)   sheet 70
+     src: ICP data (perf_study REAL.savannah): Vs 52 km/h clean / 45 flaps, TO run 60 m, landing 70 m at 600 kg; the family flies a slatted wing (the classic) or a VG wing (the VG / S) - measured here with the fixed slot
+  ok   savannah Vs1: the devices move it toward the sheet (gap 49 -> 30 %) and not 15 % past it
+  ok   savannah Vs0: the devices move it toward the sheet (gap 46 -> 32 %) and not 15 % past it
+  ok   savannah LDG: the devices move it toward the sheet (gap 36 -> 4 %) and not 15 % past it
+  ok   savannah: the take-off roll is not lengthened past the devices' drag (163 -> 164 m)
+   Piper PA-18-150 Super Cub at 794 kg, devices {"vg":1} (lands flapless - the trim solver's verdict)
+     Vs1 clean  without   75.2 (  -1 %)   with   71.1 (  -6 %)   sheet 76
+     Vs0 flaps  without   66.5 (  -4 %)   with   63.4 (  -8 %)   sheet 69
+     TO roll    without  110.0 ( +80 %)   with  108.0 ( +77 %)   sheet 61
+     LDG roll~  without   89.8 ( -16 %)   with   80.3 ( -25 %)   sheet 107
+     src: POH PA-18-150: stall 47 mph flaps up / 43 mph flaps 50 deg at 1750 lb, ground roll 200 ft, landing roll 350 ft; the usual Micro VG kit
+  ok   supercub: the kit buys 4.1 km/h of clean stall (its claim: 3-8)
+  ok   supercub: the stock aeroplane is the POH's (Vs1 -1 %)
+  ok   supercub: the take-off roll is not lengthened past the devices' drag (110 -> 108 m)
+   Just Aircraft Highlander (Rotax 912 ULS) at 599 kg, devices {"vg":1,"droop":0.35}
+     Vs1 clean  without   64.9 (     -)   with   61.4 (     -)   sheet -
+     Vs0 flaps  without   56.7 ( +26 %)   with   53.2 ( +18 %)   sheet 45
+     TO roll    without  102.0 (+240 %)   with   97.0 (+223 %)   sheet 30
+     LDG roll~  without   51.0 ( +11 %)   with   44.8 (  -3 %)   sheet 46
+     src: Just Aircraft: stall 28 mph (flaps; no clean figure published), take-off 100 ft, landing 150 ft at 1320 lb; VGs and drooping ailerons stand in for its STOL kit
+  ok   highlander Vs0: the devices move it toward the sheet (gap 26 -> 18 %) and not 15 % past it
+  ok   highlander LDG: the devices move it toward the sheet (gap 11 -> 3 %) and not 15 % past it
+  ok   highlander: the take-off roll is not lengthened past the devices' drag (102 -> 97 m)
+6. THE USER'S CUB WITH A STOL KIT (tools/fixtures/stol_cub_kit.json, flown)
+  ok   the editor's rows (wgSlat 1, wgVG 1, wgTip 7, wgDroop 1) join to the kit: {"slat":"slot","slatSpan":1,"vg":1,"droop":0.25}, tip drooped
+  ok   the game's snapshot: both ailerons ride the flap lever, 10.0 deg, each with its own side's flap sense
+     stock / kit             Vs1 km/h      Vs0 km/h      Vref km/h     TO (plaque) m   lift-off run m   landing roll m   lands
+     stock (master's lap)     57.5          51.7          67.2          153            104.2             95.0           flaps
+     STOL kit (flown here)    48.3  -16 %   42.5  -18 %   65.9   -2 %   118  -23 %     101.8   -2 %      78.0  -18 %    flaps   [completed, 388 s, 154 s wall]
+     the kit's design check: pitch.sm 0.027 (warn), ctl.elevator 0.078, ctl.flare 1.18 (warn), ctl.aileron 0.417, ctl.droop 0.99, ctl.rudder 11.64
+  ok   the kit's clean stall 16 % lower (the slot's -12..-17 % and the VGs' -6..-8 %, not simply added: 12..25 %)
+  ok   the elevator holds 55.8 km/h at the touchdown (the slatted stall 42.5; ctl.flare 1.18 warn): the ladder's Vs0 is the held 50.7, flaps down
+  ok   an approach no faster than the stock one: Vref 65.9 km/h (stock 67.2; R/STOL claims 15-25 mph slower - on this Cub the elevator decides)
+  ok   the kit's drooped ailerons keep their roll on the approach: 0.99 x, pass
+  ok   the pilot flies the kit's whole circuit: completed
+  ok   a shorter lift-off run (101.8 vs 104.2 m)
+  ok   the landing roll held to the stock one's neighbourhood (78 vs 95 m, <= +25 %: the touchdown is the elevator's, not the wing's)
+7. THE WEIGHTS AND PRICES (GEN_STOL.cost, the ledger's 'stol' row)
+  ok   no device, no row: the plain Savannah-alike's ledger has no 'stol'
+  ok   a fixed slot bills 5.52 kg and 1288 at its catalogue line (1.2 kg / 280 per metre)
+  ok   the automatic slat over the same span weighs and costs its tracks: 8.28 kg, 1932
+  ok   a VG row is grams and a kit price: 0.63 kg, 1100
+  ok   two fences a side: 1 kg, 360
+  ok   the droop's mixer and rods: 3 kg, 900
+  ok   the two tips bill their own: endplates 3 kg, drooped tips 1.2 kg
+  ok   the slat's mass on the front spar (x 0.71 m), the droop's on the rear (x 1.43 m)
+  ok   a full kit (full-span slot, VGs, droop, drooped tips): 15.9 kg, 5176 on a 60979 airframe
+8. THE SHOWCASE STOL CUB (tools/fixtures/stol_cub_showcase.json)
+  ok   the editor's rows join to the showcase: rotax915_carbon, wheel radius 0.390 m, {"slat":"slot","slatSpan":1,"vg":1,"droop":0.25}, tip drooped
+  ok   the bigger tail: elevator chord 0.66 (stock 0.41), stab span 3.54 m (stock 2.84)
+  ok   the take-off run halved and more: plaque 62 m (stock 153)
+  ok   the clean stall 50.3 km/h (stock 57.5)
+  ok   the elevator holds the slatted stall in the flare on its own tank: the ladder's Vs0 43.5 km/h, the wing's 43.5, flaps down
+       on the stock's tank ({"litres":45,"tank":"nose"}) the elevator holds 49.4 km/h, the wing's 44.3
+  ok   a slower approach: Vref 64.2 km/h (stock 67.2)
+  ok   the kit is billed: 17.8 kg, 5596
+  ok   the design check: warn (ctl.flare 1.11, roll.spiral 16.09)
+9. THE STOL LAW AT THE TOUCH (the showcase: bush calm, expert in gusts, expert across 2 m/s)
+     bush   {"outcome":"completed","ga":0,"appr":{"technique":"short","gust":0,"Vref":14.5,"stol":true},"landing":{"run":29,"sink":1.33,"V":11.5,"offCentre":0,"pastAim":16,"k":1,"three":true,"onStrip":true,"tdIn":26,"stopLeft":1045},"touches":1,"td":{"bank":-1.2,"sink":1.33,"V":11.5}}
+     gust   {"outcome":"completed","ga":0,"appr":{"technique":"short","gust":1.2,"Vref":15.1,"stol":true},"landing":{"run":29,"sink":1.44,"V":12.1,"offCentre":1.1,"pastAim":21,"k":1,"three":false,"onStrip":true,"tdIn":31,"stopLeft":1040},"touches":1,"td":{"bank":-1.6,"sink":1.44,"V":12.1}}
+     xwind  {"outcome":"completed","ga":0,"appr":{"technique":"short","gust":0,"Vref":14.5,"stol":true},"landing":{"run":28,"sink":1.34,"V":11.6,"offCentre":0.2,"pastAim":17,"k":1,"three":true,"onStrip":true,"tdIn":27,"stopLeft":1046},"touches":1,"td":{"bank":-1,"sink":1.34,"V":11.6}}
+  ok   bush: the STOL law flew it and landed first time (completed)
+  ok   bush (calm): three-point, one touch, 1.33 m/s at 11.5 m/s (three true, 1 touch(es)); roll 29 m
+  ok   gust: the STOL law flew it and landed first time (completed)
+  ok   gust: the day reads 1.2 m/s of gust - over stolGustMax 0.75, the gusty branch armed
+  ok   gust: one touch (1), bank -1.6 deg at the touch (< 5), 1.44 m/s (<= 1.6) at 12.1 m/s; roll 29 m
+  ok   xwind: the STOL law flew it and landed first time (completed)
+  ok   xwind 2 m/s: one touch (1), bank -1 deg at the touch (< 5), 1.34 m/s (<= 1.6) at 11.6 m/s; roll 28 m
+     [section 9: 174 s wall]
+SELFTEST (each break must be caught)
+  ok   selftest: an empty stol key on one strip moves the def hash
+  ok   selftest: an inserted tip is caught by the append rule
+  ok   selftest: a slot with no dAs fails the Vs band
+  ok   selftest: a null stol hashed raw differs from the absent key (what bench.js strips)
+(133 checks)
+GATE STOL: PASS

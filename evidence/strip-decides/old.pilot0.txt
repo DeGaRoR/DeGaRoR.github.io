@@ -1,0 +1,65 @@
+-- HEAVY: 12 kW e-PPG + 400 kg cargo + 60 kg baggage --
+   8s rejected-takeoff — not accelerating (0.00 m/s^2 at V=0.2) — thrust is going nowhere
+  ok     heavy: no NaN
+  ok     heavy: the takeoff is REJECTED
+  ok     heavy: rejected and stopped inside 60 s
+  ok     heavy: never airborne (agl max 0.0 m)
+  ok     heavy: the verdict says why, on the record
+-- STANCE: a 6 cm tail-wheel leg, spawned the way the game spawns --
+   stance -11.2 deg | with: dot 0.91 strain 0.021 | level drop: dot 0.31 strain 0.255
+  ok     stance: the airframe was pitched onto its third wheel
+  ok     stance: the short leg keeps its direction
+  ok     stance: the short leg stays under a fifth of strain
+  ok     stance: the level drop is worse than the stance on the same build
+-- HOVER: rotax582 + 360 kg cargo --
+   (flown in another shard)
+-- CARD: the stock build, asked for 70 m and 25 m/s --
+   (flown in another shard)
+-- FAST: the stock build, asked for 50 m/s it does not have --
+   148.3s cant-hold-speed — full throttle holds 147 of the 180 km/h asked
+  ok     fast: the pilot still completes, flying what it CAN
+  ok     fast: an impossible speed ask is SAID, not silently missed
+  ok     fast: the flown speed is the aeroplane's truth (41.3 m/s of 50 asked)
+-- GOOD + AGAIN: the stock garage build lands, turns around on the strip, takes off again --
+   (flown in another shard)
+-- WIND: 3 m/s along the strip, planned from the spawn — lands into it --
+   (flown in another shard)
+-- TRIKE: the stock build on a nosewheel --
+   lift-off run 142 m of a 150 m sheet
+  ok     trike: the tricycle completes its circuit
+  ok     trike: lifts off inside 1.5x the sheet run (142 of 150 m)
+  ok     trike: a landing, not an arrival (0.45 m/s)
+-- TRIKE-XWIND: the user's pusher across 2 m/s --
+   (flown in another shard)
+-- FLAPS + STATUS: the ultralight fixture from the stand --
+   (flown in another shard)
+-- BOX: the modes as a device, over the pilot and over a hand --
+   alt 0.7 m, hdg 0.0 deg, ias 0.0 m/s, vs 0.03 m/s | hand da 0.05, alt 4.8 m | nav xtk 3 m, 2032 m nearer | completed at 582 s
+  ok     box: no NaN
+  ok     box: the phase and the status say the box is flying
+  ok     box: ALT holds the selected altitude (0.7 m off)
+  ok     box: HDG holds the selected heading (0.0 deg off)
+  ok     box: SPD holds the selected airspeed (0.0 m/s off)
+  ok     box: VS holds the selected vertical speed (0.03 m/s off)
+  ok     box: an axis released to the hand is left untouched (da 0.05)
+  ok     box: ALT still holds while the hand rolls (4.8 m)
+  ok     box: NAV direct-to converges on the course (xtk 3 m)
+  ok     box: NAV closes on the waypoint (2032 m nearer)
+  ok     box: the pilot resumes on disengage and lands
+-- LAND-WAY: the landing way the pilot would plan from here --
+   (flown in another shard)
+-- STOL: the short-field law flown - the showcase STOL Cub's circuit off HOME --
+   (flown in another shard)
+-- STOL-QUAL: who flies the STOL law - a STOL sheet and a STOL-qualified pilot --
+   showcase {"on":true,"ratio":0.848,"Vs0":12.09,"VsPlain0":14.26} | kit {"on":false,"ratio":1.017,"Vs0":14.09,"VsPlain0":13.85}
+  ok     STOL: the showcase STOL Cub qualifies (its Vs0 0.848 x its wing without the devices)
+  ok     STOL: the kit Cub does not (the elevator-held Vs0, 1.017 x - its tail cannot use the slot)
+   validated: cub null, jodel null, metal null, floats null, twinFloats null, petrel null, rufus null, c172 null
+  ok     STOL: no validated build (cub, jodel, metal, floats, twinFloats, petrel, rufus, c172) carries a STOL device - the law is never even probed
+   qualified: expert true, bush true, club false, student false, hamfist false | custom true, custom with the knob off false
+  ok     STOL: the qualification - the expert and the bush pilot fly the law; the club pilot, the student, the ham-fist do not; the knob decides a custom person
+   the shakedown's stolGain {"gain":0.8476823670882592,"VsPlain0":14.261980692488853}, the first ap.stol read with it 0 ms
+  ok     STOL: the gain rides the shakedown and the sheet (the first read 0 ms: no probe sims at the roll's start)
+   [STOL-QUAL part: 23 s wall]
+GATE PILOT: PASS
+SHARD 0/3: 5 of 13 heavy jobs

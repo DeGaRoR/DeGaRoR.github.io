@@ -1,0 +1,29 @@
+GATE PROFILE - the climb on speed, the planned vertical profile, the rough perception of obstacles
+1 THE CLIMB (HOME, calm; off the wheels to 15 m, then from 15 m to the end of CLIMB)
+  PASS  1 jodel: off the wheels to the screen height (15 m) never under 1.1 Vs - min 1.23 Vs (22.4 m/s)
+  PASS  1 jodel: the climb (from 15 m) never under 1.3 Vs in the flap flown - min 1.42 Vs (26.7 m/s, CLIMB 40.6 s), Vs 18.9, Vy 26.3
+  PASS  1 jodel: the attitude never over the type's cap - max 10.1 deg, cap 18.8
+  PASS  1 jodel: the settled climb attitude inside 2..16 deg - 9.7 deg at 28.9 m/s
+  PASS  1 cub: off the wheels to the screen height (15 m) never under 1.1 Vs - min 1.2 Vs (18.5 m/s)
+  PASS  1 cub: the climb (from 15 m) never under 1.3 Vs in the flap flown - min 1.35 Vs (20.8 m/s, CLIMB 24.3 s), Vs 16, Vy 22.5
+  PASS  1 cub: the attitude never over the type's cap - max 7.1 deg, cap 14.8
+  PASS  1 cub: the settled climb attitude inside 2..16 deg - 5.4 deg at 24.7 m/s
+  PASS  1 cessnaMetal: off the wheels to the screen height (15 m) never under 1.1 Vs - min 1.36 Vs (30.1 m/s)
+  PASS  1 cessnaMetal: the climb (from 15 m) never under 1.3 Vs in the flap flown - min 1.53 Vs (33.9 m/s, CLIMB 39.6 s), Vs 22.1, Vy 30.9
+  PASS  1 cessnaMetal: the attitude never over the type's cap - max 15.6 deg, cap 20.3
+  PASS  1 cessnaMetal: the settled climb attitude inside 2..16 deg - 14.6 deg at 33.9 m/s
+2 THE MOUNTAIN TRIP (Jolene, HOME -> Jumbo Mine, 17 km over the 631 m ridge)
+  PASS  2 cessnaMetal: a planned profile on the enroute leg - cruise 724 m, top of climb 2588 m, top of descent 15531 m of 17821 m, plan clears 130 m
+  PASS  2 cessnaMetal: altitude reversals in the cruise near zero - 1 in 420 s (0.14 / min); the reactive guard fired 0x
+  PASS  2 cessnaMetal: the terrain under the aeroplane >= the plan's clearance from the top of climb to the top of descent - 166 m (hClear 130)
+  PASS  2 cessnaMetal: ... and >= the arrival's 2 hSafe after it - 553 m (40)
+  PASS  2 cessnaMetal: landed at Jumbo Mine - completed
+  PASS  2 jodel: a planned profile on the enroute leg - cruise 715 m, top of climb 5795 m, top of descent 15885 m of 17983 m, plan clears 122 m
+  PASS  2 jodel: altitude reversals in the cruise near zero - 1 in 547 s (0.11 / min); the reactive guard fired 0x
+  PASS  2 jodel: the terrain under the aeroplane >= the plan's clearance from the top of climb to the top of descent - 242 m (hClear 130)
+  PASS  2 jodel: ... and >= the arrival's 2 hSafe after it - 181 m (40)
+3 AN APPROACH OVER TREES (Jolene 'today', East Point Clearing, the Cub's circuit to a stop)
+  PASS  3 the Cub flies East Point's circuit to a stop and touches no tree - STOPPED at 256 s, 0 contacts, nearest node to a cylinder 61.4 m; 0 go-arounds; vx-climb@36.7
+  PASS  3 on final the lowest node >= 10 m over every tree top within 15 m of the track - 67.3 m (611 m before the threshold); the approach {"technique":"short","gs":0.105,"reqGs":0.119,"aimIn":10,"displaced":null}
+(918 s)
+GATE PROFILE: PASS

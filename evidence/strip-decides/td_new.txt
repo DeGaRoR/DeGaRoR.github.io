@@ -1,0 +1,12 @@
+/workspace/sd/flyDiy/builds/cub_2026-09-20_corrected.json HOME>nv_strip      on w3        GA 2 td {"bank":0,"V":15.9,"sink":0.8,"phase":"FLARE","on":"w3","preBankMax":0.2} rollBank 0.8 drift 1.2 axis 0.7 | diverted: stopped at w3, not nv_strip
+/workspace/sd/flyDiy/builds/cub_2026-09-20_corrected.json w3>HOME            on HOME      GA 0 td {"bank":0.6,"V":18.3,"sink":0.7,"phase":"FLARE","on":"HOME","preBankMax":0.7} rollBank 1.5 drift 11.7 axis 9.2 | 
+/workspace/sd/flyDiy/builds/cub_2026-09-20_corrected.json HOME>tw_ski        on tw_ski    GA 0 td {"bank":-20.9,"V":20.4,"sink":0.3,"phase":"FLARE","on":"tw_ski","preBankMax":32.5} rollBank 65.8 drift 39.3 axis 50.9 | ground-loop: the nose 30.2 deg off the landing roll on tw_ski at 19.6 m/s; off-strip: the landing roll left tw_ski's box; crash: the damage ended the flight: a 
+cub            HOME>nv_strip      on w3        GA 2 td {"bank":0.2,"V":16,"sink":0.8,"phase":"FLARE","on":"w3","preBankMax":0.3} rollBank 0.7 drift 2.1 axis 1.1 | diverted: stopped at w3, not nv_strip
+cub            w3>HOME            on HOME      GA 0 td {"bank":0.6,"V":18.4,"sink":0.9,"phase":"FLARE","on":"HOME","preBankMax":0.7} rollBank 1.6 drift 11.7 axis 8.8 | 
+cub            HOME>tw_ski        on tw_ski    GA 0 td {"bank":23.3,"V":16.7,"sink":2.9,"phase":"FLARE","on":"tw_ski","preBankMax":23.3} rollBank 34.4 drift 99.9 axis 89.9 | ground-loop: the nose 30.8 deg off the landing roll on tw_ski at 14.8 m/s; off-strip: the landing roll left tw_ski's box; yield: 1485 member(s) yielded (first: 
+pietenpol      HOME>nv_strip      on null      GA 0 td null rollBank 0 drift 0 axis 0 | declined: the take-off was declined
+tigermoth      HOME>nv_strip      on null      GA 0 td null rollBank 0 drift 0 axis 0 | declined: the take-off was declined
+stearman       HOME>nv_strip      on null      GA 0 td null rollBank 0 drift 0 axis 0 | declined: the take-off was declined
+camel          HOME>nv_strip      on null      GA 0 td null rollBank 0 drift 0 axis 0 | declined: the take-off was declined
+pittsAlike     HOME>nv_strip      on null      GA 0 td null rollBank 0 drift 0 axis 0 | declined: the take-off was declined
+sesqui         HOME>nv_strip      on null      GA 0 td null rollBank 0 drift 0 axis 0 | declined: the take-off was declined
