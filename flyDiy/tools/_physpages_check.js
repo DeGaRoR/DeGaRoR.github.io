@@ -137,6 +137,12 @@ function child(k) {
         for (const th of ['sheet', 'screen']) { let out = '';
           try { out = FP.svg('reference', Object.assign({}, D, { reference: RF }), { theme: th, name: k, reg: 'F-TEST', sig: 'Wingsmith' }); } catch (e) { out = 'THROW ' + e.message; }
           ok(/^<svg /.test(out) && !/NaN|undefined|Infinity/.test(out) && out.includes('OURS VS REAL'), 'DRAW reference (' + th + ') ' + (out.startsWith('THROW') ? out : 'bad')); } } }
+    // ...and the shipped index: every entry under the file it was flown on, its scores in range, the canon's aliases resolving
+    { const IX = path.join(FLY, 'media', 'fiches', 'references.json');
+      if (!fs.existsSync(IX)) notes.push('REFERENCE no media/fiches/references.json');
+      else { const J = JSON.parse(fs.readFileSync(IX, 'utf8')), E = Object.entries(J.byFile || {});
+        ok(E.length > 0 && E.every(([f, R]) => R.file === f && [R.overall, R.geometry, R.specs, R.performance].every(v => v == null || (v >= 0 && v <= 100)))
+           && Object.values(J.alias || {}).every(f => J.byFile[f]), 'REFERENCE the index (references.json) is not keyed by its files or carries a bad score'); } }
   }
   return { k, checks, fails, notes, kb: Math.round(JSON.stringify(D).length / 1024) };
 }

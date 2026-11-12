@@ -645,22 +645,38 @@
     : (typeof b === 'string' ? fetch(b).then(r => r.blob()) : Promise.resolve(b)).then(x => new Promise(res => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.readAsDataURL(x); }));
   function dataFor(rec, opts) {
     const o = opts || {}, key = rec.name;
-    if (rec.physics) return Promise.resolve(Object.assign({ reference: rec.reference || null }, rec.physics));
+    if (rec.physics) return refsLoad().then(() => Object.assign({ reference: rec.reference || refOf(rec, o) }, rec.physics));
     if (cache[key]) return cache[key];
     if (rec.baked && rec.pics && typeof rec.pics.side === 'string') {
-      const url = rec.pics.side.replace(/[^/]*$/, 'physics.json'), uref = rec.pics.side.replace(/[^/]*$/, 'reference.json');
-      const get = u => fetch(u).then(r => (r.ok ? r.json() : null)).catch(() => null);
-      // the Reference section's data beside it (tools/fiche_reference_bake.js), when REAL-FIGURES flew this very card
-      return (cache[key] = Promise.all([get(url), get(uref)]).then(([D, R]) => (D ? Object.assign(D, { reference: R || null }) : null)));
+      const url = rec.pics.side.replace(/[^/]*$/, 'physics.json');
+      return (cache[key] = Promise.all([fetch(url).then(r => (r.ok ? r.json() : null)).catch(() => null), refsLoad()])
+        .then(([D]) => (D ? Object.assign(D, { reference: refOf(rec, o) }) : null)));
     }
     const spec = o.spec || null, BW = root && root.BENCH_WORKER;
     if (!spec || !BW || typeof BW.start !== 'function') return Promise.resolve(null);
-    return (cache[key] = new Promise(res => {
+    return (cache[key] = Promise.all([new Promise(res => {
       let w = null;
       w = BW.start(m => { if (m && m.kind === 'fiche') { res(m.data || null); if (w) w.kill(); } }, () => res(null));
       // o.propOff: the drawn hubs (64c genAidPropOff of the editor's CAGE_ENG) when the plane is the one on the stand
       if (!w || !w.post({ kind: 'fiche', seq: 1, spec: JSON.parse(JSON.stringify(spec)), propOff: o.propOff || null })) { if (w) w.kill(); res(null); }
-    }));
+    }), refsLoad()]).then(([D]) => (D ? Object.assign(D, { reference: refOf(rec, o) }) : null)));
+  }
+  // THE REFERENCES (tools/fiche_reference_bake.js -> media/fiches/references.json): REAL-FIGURES' latest report, one entry
+  // per build file it flew, loaded once. A fiche record finds its entry by the file its list row names (the board's
+  // ctx.file or the record's own), or by a canon alias ('list:50'); none -> no Reference page (visible(rec) false).
+  let REFS = null, refsP = null;
+  const refsUrl = () => (root && root.FICHE_REFS_URL) || 'media/fiches/references.json';
+  function refsLoad() {
+    if (refsP) return refsP;
+    if (typeof fetch !== 'function') return (refsP = Promise.resolve(null));
+    return (refsP = fetch(refsUrl()).then(r => (r.ok ? r.json() : null)).catch(() => null).then(j => (REFS = j)));
+  }
+  function refOf(rec, ctx) {
+    if (!REFS || !rec) return null;
+    const c = ctx || {}, cand = [c.file, rec.listFile, rec.row && rec.row.file, rec.file, rec.key, rec.id, rec.thumb, rec.name];
+    for (const k of cand) { if (!k || typeof k !== 'string') continue;
+      const f = REFS.byFile[k] ? k : (REFS.alias && REFS.alias[k]); if (f && REFS.byFile[f]) return REFS.byFile[f]; }
+    return null;
   }
   function picsFor(rec, model, inline) {
     const out = {}, s = (rec.data && rec.data.pxPerM) || 0;
@@ -701,13 +717,16 @@
   function register() {
     const FB = root && root.FICHE_BOARD;
     if (registered || !FB || !FB.pages || typeof FB.pages.add !== 'function') return false;
-    for (const p of PAGES) FB.pages.add({ id: p.id, label: p.name,
+    refsLoad();
+    for (const p of PAGES) FB.pages.add(Object.assign({ id: p.id, label: p.name,
       mount: (sheet, rec, ctx) => mount(sheet, rec, p.id, ctx || {}),
-      compose: (rec, ctx) => compose(rec, p.id, ctx || {}) });
+      compose: (rec, ctx) => compose(rec, p.id, ctx || {}) },
+      // Reference only where REAL-FIGURES flew this very card (the registry's visible(rec), run as each fiche opens)
+      p.id === 'reference' ? { visible: rec => !!refOf(rec) } : {}));
     return (registered = true);
   }
   if (root && !register() && typeof root.addEventListener === 'function') root.addEventListener('load', register);
-  const API = { PAGES, THEMES, CAT, svg, fitFrame, frameOf, GRPNAME, memberName, W, H, mount, compose, dataFor, register };
+  const API = { PAGES, THEMES, CAT, svg, fitFrame, frameOf, GRPNAME, memberName, W, H, mount, compose, dataFor, register, refsLoad, refOf };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   if (root) root.FICHE_PHYSICS = API;
 })(typeof window !== 'undefined' ? window : null);
