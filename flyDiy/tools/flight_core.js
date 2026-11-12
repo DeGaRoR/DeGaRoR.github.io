@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 17c76b14bf39be23
+// body-sha256: ca920eb7879a2f36
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -12001,7 +12001,20 @@ function compose(rec0, world, opts) {
         jAt.push([jid, sj, isEnd]);
         if (!JH.has(jid) || (!isEnd && JH.get(jid).end)) continue;
         const H = JH.get(jid).h;
-        for (let k = 0; k < dense.length; k++) { const d = Math.abs(s[k] - sj); if (d >= 14) continue; const u = d <= 7 ? 0 : (d - 7) / 7, w = u * u * (3 - 2 * u); hs[k] = H + (hs[k] - H) * w; }
+        // (TOW-LAUNCH, 12 Nov: THE EASE AS LONG AS THE CLIMB. Over a fixed 7 m a road leaving its junction 3 m under its own
+        // grade climbed 3 m in 7 m - r40, Fishing Village's approach, a 50-68 % step no car could take (it stopped one dead).
+        // Each side's ease now runs over the length its height difference needs at the road's own steepest (its bed's
+        // grade, its `grade`, else 12 %; a smoothstep's steepest is 1.5 x its mean): never under 7 m, so a junction whose
+        // roads meet near level - every one before - is eased as it was, to the bit)
+        const gJ = BED ? BED.grade : (+r.grade > 0 ? +r.grade : 0.12);
+        const hAt = sv => { let k = 0; while (k + 2 < s.length && s[k + 1] < sv) k++; const L = s[k + 1] - s[k]; return L > 1e-9 ? hs[k] + (hs[k + 1] - hs[k]) * Math.max(0, Math.min(1, (sv - s[k]) / L)) : hs[k]; };
+        // (a stretched ease is an EVEN ramp - linear, its slope the height over the length - and never longer than the road
+        //  leaves it: to the far end's own 7 m level approach)
+        const sEnd = s[s.length - 1];
+        const easeOf = sg => { const far = sj + sg * 14; if (far < 0 || far > sEnd) return 7; const dh = Math.abs(hAt(far) - H); if (dh / gJ <= 7 / 1.5) return 7;
+          const room = (sg > 0 ? sEnd - sj : sj) - 14; return Math.max(7, Math.min(80, room, dh / gJ)); };
+        const eN = easeOf(-1), eP = easeOf(1);
+        for (let k = 0; k < dense.length; k++) { const dd = s[k] - sj, d = Math.abs(dd), E = dd < 0 ? eN : eP; if (d >= 7 + E) continue; const u = d <= 7 ? 0 : (d - 7) / E, w = E > 7 ? u : u * u * (3 - 2 * u); hs[k] = H + (hs[k] - H) * w; }
       }
       jAt.s = s;
     }
