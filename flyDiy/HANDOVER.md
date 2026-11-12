@@ -315188,3 +315188,9 @@ read p99 10.1 mm on them. The real cut (a coarser refine at low chaos / fine row
 - The user 10 Nov ~20:55 via A0: "play the plan" - remove the dead method (no visible row exists), keep ?plan=1.
 - day_clock.js: DAY_CLOCK.plan(on) removed (no caller in src or tools); the ?plan=1 read at the clock's start stays, with a line saying so.
 - Gates: BUILT, CLOCK, WEATHERPLAN, HONESTY, HANGAR (the files that read day_clock.js; no Chrome). Reds: named in the push line if any.
+
+## TAXI-HOME, the page's half (11 Nov, Game coordinator; claude/ready/taxi-home, stacked on Pilot's claude/ready/strip-lane 03f6d6405)
+- The user (10 Nov ~20:55 via A0, a priority): "important to the story: we have taxi to the runway, but not from the runway". The pilot's half (43_pilot ap.setArriveSite / planTaxiIn, opt-in) is Pilot's; this is the page's and the worker's.
+- app.js arriveFor(to): the aeroplane's own field (its hangar's base: playerRollHangar -> sheds[id].base) and To is it -> { fieldId, site: null } for the main plot (the field's own stand), { fieldId, site: playerPlotSite(...).site, plotId } for a plot with its own way out; any other To, a rig's spawn -> none. Set before EVERY departFrom (applyRoute, placeLinedUp, nextLeg), cleared at the top of applyRoute, kept on lastStart.arrive.
+- THE PHYSICS WORKER'S PILOT (the default flight) gets it too: sim_link init.place.arrive (from lastStart) and the 'leg' command's arrive (nextLeg's); sim_host sets it before departFrom in place(), its line-up pilot and 'leg' (and keeps it in init.place for a reset).
+- Pilot's island_tour rig stood in for the host part (its preload wraps makePilot); the plumbing's check is one leg HOME, w3, HOME per kind (main plot, HOME.2) ending at its stand.

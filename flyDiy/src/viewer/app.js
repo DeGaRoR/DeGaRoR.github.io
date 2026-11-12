@@ -7024,7 +7024,26 @@
       patVisK = -1; patLegsRef = null;
     } catch (e) { console.error('pattern overlay:', e); patVis = null; }
   }
+  // TAXI-HOME (the user 10 Nov ~20:55 via A0, a priority: "important to the story: we have taxi to the runway, but not from the
+  // runway"): THE ARRIVAL'S OWN STAND, the page's half (the pilot's: 43_pilot ap.setArriveSite / planTaxiIn). Landed and stopped
+  // on the strip of the aeroplane's OWN field, the pilot taxis in to its stand: the field's own (its main plot: site null) or
+  // its plot's own (a plot with its own way out: playerPlotSite(...).site). Any other To: none (the stop on the strip, as
+  // before). The pilot's switch is opt-in, so this is set before EVERY departFrom and cleared at the top of every applyRoute;
+  // lastStart carries it to the physics worker's pilot (sim_link init.place.arrive, the 'leg' command)
+  function arriveFor(to) {
+    try {
+      if (!to || !to.id || spawnId) return null;
+      const rh = rollHangarId(), sheds = (playerLoad() || {}).sheds || {}, sh = rh ? sheds[rh] : null;
+      const home = sh ? (sh.base || (rh === 'HOME' ? 'HOME' : null)) : null;
+      if (!home || to.id !== home) return null;
+      const st0 = typeof siteOf === 'function' ? siteOf(home) : null;
+      const ps = (st0 && typeof playerPlotSite === 'function') ? playerPlotSite(st0, rh, sh) : null;
+      return (ps && ps.own) ? { fieldId: home, site: ps.site, plotId: rh } : { fieldId: home, site: null, plotId: null };
+    } catch (e) { return null; }
+  }
+  function arriveSet(q, A) { if (q && typeof q.setArriveSite === 'function') q.setArriveSite(A ? A.fieldId : null, A ? A.site : null, A ? A.plotId : null); }
   function applyRoute() {
+    arriveSet(ap, null);   // TAXI-HOME: every route starts with no arrival stand
     // the build being placed decides; in the shed (a stale def under the bench's new build) the pickers keep the
     // player's choice and only this placement is fitted
     const gearNow = routeGear(false);
@@ -7101,8 +7120,9 @@
     // G771: how this flight began - the skip reads it (the stand it would taxi from, the site it plans on)
     const walked = (st && typeof standFor === 'function' && shedD) ? standFor(st, shedD, stGround) : (st && st.stand);
     lastStart = { from, to, stSite: (st && walked && walked !== st.stand) ? Object.assign({}, st, { stand: walked }) : st,
-                  stand: walked || null, taxi: !!stand, skipped: false };
+                  stand: walked || null, taxi: !!stand, skipped: false, arrive: arriveFor(to) };
     skipAir = false;
+    arriveSet(ap, lastStart.arrive);   // TAXI-HOME
     if (stand) {
       placeAtStand(sim, from, stand);
       if (stGround && typeof seatOnGround === 'function') seatOnGround(sim, stGround, def.refs);   // G700: the wheels on the ground under them
@@ -7147,6 +7167,7 @@
     if (sim.setEngine && sim.eng) for (let i = 0; i < sim.eng.length; i++) sim.setEngine(i, { key: 'both', running: true });
     ap = mkPilot(curKey);
     ap.setRoute(S.from, S.to);
+    arriveSet(ap, S.arrive);   // TAXI-HOME
     ap.departFrom(S.from, S.to, S.stSite, { atHold: pose });
     S.skipped = true; S.pose = pose;
     return true;
@@ -16350,9 +16371,10 @@
       if (cur && cur.id) fromId = cur.id;
       telBase += ap.t;                 // new AP restarts its clock at 0
       ap = mkPilot(curKey, { leg: true });
+      const legArrive = arriveFor(to); arriveSet(ap, legArrive);   // TAXI-HOME
       ap.departFrom(cur, to);
       destPend = false;
-      if (SIMW) SIMW.leg(cur.id, to === cur ? 'CIRCUIT' : to.id);   // G820 (C1c): the worker's pilot made anew at the same step boundary
+      if (SIMW) SIMW.leg(cur.id, to === cur ? 'CIRCUIT' : to.id, legArrive);   // G820 (C1c): the worker's pilot made anew at the same step boundary
       // G700: a new leg is a new flight for the book and the hand's ending (the leg after a W14 chain never logged)
       flightLogged = false; airborneSeen = wasAir = false; stillT = 0;
       flEnded = false; flLastEnd = null;   // PREM-S2: a new leg ends (and moves the airframe) on its own
