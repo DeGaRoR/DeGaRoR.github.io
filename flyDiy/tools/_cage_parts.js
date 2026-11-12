@@ -1196,7 +1196,7 @@ const CAGE_PARTS = [
       ['rim', ['whRim', 'whRimD', 'whWide', 'whBolts', 'whCap', 'whValve', 'whBrake']],
       ['spare wheel', ['spareOn', 'spareZ', 'spareSide', 'spareY']],   // CAR-1
       ['boom wheels outboard', ['twBoomOut']],   // CAR-4
-      ['bumpers and hitch', ['bumpF', 'bumpR', 'bumpY', 'bumpGap', 'bumpW', 'bumpH', 'bumpFin', 'bumpGuards', 'bumpStyle', 'hitchOn']],   // CAR-3/4
+      ['bumpers and hitch', ['bumpF', 'bumpR', 'bumpY', 'bumpYF', 'bumpGap', 'bumpW', 'bumpH', 'bumpFin', 'bumpGuards', 'bumpStyle', 'hitchOn']],   // CAR-3/4
       ['fairing build', ['fairCons']],
     ] },
 

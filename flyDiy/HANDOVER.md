@@ -314943,3 +314943,11 @@ the next steps).
 - **CAR-3, THE REAR DOORS NUDGED (the user: "3 cm up with the door and 3 cm outward with the contour")**: NEW ROWS
   extDoorTop / extDoorOut (metres, absent 0; the 'rear wall (outside)' group): the outline's top up and its sides out;
   the hinges follow (they read m.rearDoors). The van: 0.03 / 0.03.
+- **CAR-3, THE VAN'S OWN WHEELS AND FRONT (12 Nov)**: whProfile 3 'military lug (1940s)' (_gear_gen.js TYRE[3]: a
+  9.00-16 on a 16" rim - a torus taller and narrower than the tundra; MIL_LUG chevrons, the two halves meeting across the
+  crown: bushLugs takes a lug table and a `stagger`) and whRim 3 'steel disc + lock ring' (a dished pressed disc with a
+  stamped ring, the split lock ring on the flange with its notch); both on the usual wheel rows, absent = as before. The
+  van: whProfile 3, whRim 3, 8 nuts, a domed cap, whRimD 0.50. The bonnet's bottom line 10 cm up (cw_keelH 0.79) and the
+  front bumper up over it (NEW ROW bumpYF, the front's own height; absent = bumpY): 0.12.
+  OWED (the user): THE GRILLE - a wide horizontal grid over the top half of the bonnet face, not as wide as the car; two
+  side inlets with a lip each, the headlamps in them (cw_lampIn, built, unused yet).

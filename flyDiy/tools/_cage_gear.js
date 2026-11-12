@@ -2356,7 +2356,8 @@ function bumperBuild(group, P, AF, scene, front) {
   const TB = window.CAGE_BOOMS;
   if (!front && TB && TB.yBot && isFinite(TB.zTip) && TB.zTip < zFace) { zFace = TB.zTip; bot = TB.yBot(TB.zTip + 0.05); }
   const zIn = zFace + sZ * gap;                            // the beam's inner (body-side) face
-  const yB = bot + (+P.bumpY || 0);
+  // (CAR-3: bumpYF, the FRONT bumper's own height - absent = bumpY, the pair's)
+  const yB = bot + (front && P.bumpYF != null ? +P.bumpYF : (+P.bumpY || 0));
   const rw = 0.12, A = 75 * D2R, X = Math.max(0.2, half * (+P.bumpW > 0 ? +P.bumpW : 0.92) - rw * Math.sin(A));
   const fin = Math.round(+P.bumpFin || 0) === 1 ? GG.gearMat('dark') : GG.gearMat('chrome');
   const steel = GG.gearMat('steel'), dark = GG.gearMat('dark'), chrome = GG.gearMat('chrome');

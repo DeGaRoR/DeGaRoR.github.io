@@ -155,14 +155,14 @@ const TW_STEERS = ['steerable', 'steerable', 'lockable', 'fixed', 'skid'];
 // entirely; the port-the-full-surface rule again). Lifted verbatim from
 // the bench's own group + the new sidewall bulge.
 const WHEEL_ROWS = [
-  ['whProfile', 'carcass', 0, 2, 1, ['standard', 'tundra balloon', 'slim']],
+  ['whProfile', 'carcass', 0, 3, 1, ['standard', 'tundra balloon', 'slim', 'military lug (1940s)']],
   // G3852: the 'tread' row (ribbed / smooth / blocked) is gone - each carcass draws its own; whTread stays in DEF
   // and in every file as loaded (a hashed cage row); the tundra keeps a choice of its own (the user: "a Tundra tyre
   // with no pattern"), shown only on that carcass
   ['whSlick', 'tundra tread', 0, 2, 1, ['bush lugs', 'smooth', 'bevelled lugs'], { when: P => Math.round(+P.whProfile || 0) === 1 }],
   ['whBulge', 'sidewall bulge ×', 0.85, 1.40, 0.01],
   ['whRibs', 'ribs', 1, 5, 1],
-  ['whRim', 'rim', 0, 2, 1, ['cast disc', 'spoked', 'lightened']],
+  ['whRim', 'rim', 0, 3, 1, ['cast disc', 'spoked', 'lightened', 'steel disc + lock ring']],
   ['whRimD', 'rim diameter (× the wheel\'s; 0 = the carcass\'s own)', 0, 0.85, 0.01],   // CAR-1
   ['whWide', 'tyre width (× the carcass\'s; 0 = its own)', 0, 1.5, 0.01],   // CAR-1
   ['whBolts', 'rim bolts', 3, 10, 1],
@@ -180,6 +180,7 @@ const WHEEL_ROWS = [
   ['bumpF', 'front bumper', 0, 1, 1],
   ['bumpR', 'rear bumper', 0, 1, 1],
   ['bumpY', 'bumper height over the body\'s bottom (m)', -0.4, 0.5, 0.005, { when: P => +P.bumpF || +P.bumpR }],
+  ['bumpYF', 'front bumper height, its own (m)', -0.4, 0.6, 0.005, { when: P => +P.bumpF }],
   ['bumpGap', 'bumper off the face (m)', 0, 0.3, 0.005, { when: P => +P.bumpF || +P.bumpR }],
   ['bumpW', 'bumper span (x the body)', 0.4, 1.3, 0.01, { when: P => +P.bumpF || +P.bumpR }],
   ['bumpH', 'bumper blade height (m)', 0.06, 0.3, 0.005, { when: P => +P.bumpF || +P.bumpR }],
