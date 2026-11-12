@@ -105,8 +105,11 @@
     const out = [];
     for (const p of lists || []) {
       const fk = bakedOf(listKey(p), p.n);
+      // CHOOSER-ALIKES (FLAGSHIP): a SHAPE row (a design card, no file) the build cannot make here says why, greyed (NEW_PLANE.shapeWhy:
+      // null = it builds; its Load goes through openListed -> NEW_PLANE.openShape like any row)
+      let why = null; try { why = p.shape && W.NEW_PLANE && W.NEW_PLANE.shapeWhy ? W.NEW_PLANE.shapeWhy(p.shape) : null; } catch (e) { why = null; }
       out.push({ k: 'list:' + p.n, kind: 'list', p, n: p.n, name: p.name, reg: p.reg || '', thumb: p.thumb || null, cls: p.list,
-        fiche: fk ? fk.key : null, baked: fk ? fk.rec : null });
+        fiche: fk ? fk.key : null, baked: fk ? fk.rec : null, why: why || null });
     }
     for (const c of cands || []) {
       const key = 'cand:' + c.file, fk = bakedOf(key, null);
@@ -218,7 +221,7 @@
   }
   function tileHtml(t) {
     const r = t.r || {}, u = picUrl(t, false), selK = sel[tab];
-    const cls = ['flTile', t.kind === 'cand' ? 'flCand' : '', r.cur ? 'cur' : '', r.away ? 'flAway' : '', r.broken ? 'flBroken' : '', selK === t.k ? 'sel' : ''].filter(Boolean).join(' ');
+    const cls = ['flTile', t.kind === 'cand' ? 'flCand' : '', r.cur ? 'cur' : '', r.away ? 'flAway' : '', r.broken ? 'flBroken' : '', t.why ? 'flBlocked' : '', selK === t.k ? 'sel' : ''].filter(Boolean).join(' ');
     let h = '<div class="' + cls + '" data-k="' + esc(t.k) + '">';
     h += '<div class="flPic">' + (u ? '<img alt="" src="' + esc(u) + '">' : '<span class="flGlyph">' + esc((t.name || '?').slice(0, 1)) + '</span>') +
       (t.n != null ? '<span class="flNo">#' + esc(t.n) + '</span>' : '') +
@@ -226,7 +229,8 @@
     h += '<div class="flMeta"><b class="flName" title="' + esc(t.name) + '">' + esc(t.name) + '</b>' +
       '<div class="flRow2"><span class="flReg">' + esc(t.reg || '') + '</span>' + stateHtml(t) + '</div>' +
       (t.kind === 'mine' && (r.meta || r.liveries > 1) ? '<span class="flNote">' + esc([r.meta, r.liveries > 1 ? r.liveries + ' liveries' : ''].filter(Boolean).join(' · ')) + '</span>' : '') +
-      (t.kind === 'cand' && t.note ? '<span class="flNote">' + esc(t.note) + '</span>' : '') + '</div>';
+      (t.kind === 'cand' && t.note ? '<span class="flNote">' + esc(t.note) + '</span>' : '') +
+      (t.why ? '<span class="flNote flWhy">' + esc(t.why) + '</span>' : '') + '</div>';
     if (ask && ask.k === t.k) {
       h += '<div class="flAsk"><span>' + esc(ask.text) + '</span><div class="flActs">' +
         (ask.go ? '<button type="button" class="flBtn" data-a="no">Cancel</button><button type="button" class="flBtn flPri" data-a="yes">' + esc(ask.yes) + '</button>'
@@ -237,6 +241,7 @@
     } else {
       const load = t.kind === 'bring' ? '<button type="button" class="flBtn flPri" data-a="buy"' + (r.price == null ? ' disabled' : '') + '>Buy in</button>'
         : r.cur ? '<button type="button" class="flBtn flPri" data-a="load" disabled>On the stand</button>'
+        : t.why ? '<button type="button" class="flBtn flPri" data-a="load" disabled title="' + esc(t.why) + '">Load</button>'
         : '<button type="button" class="flBtn flPri" data-a="load"' + (r.away ? ' title="at ' + esc(r.place && r.place.aero) + ': fly from there?"' : '') + '>Load</button>';
       h += '<div class="flActs">' + load +
         (t.kind === 'bring' ? '' : '<button type="button" class="flBtn" data-a="fiche"' + (t.fiche ? '' : ' disabled title="No fiche yet: it is drawn at its airworthiness certificate"') + '>Fiche</button>') +
@@ -400,7 +405,7 @@
       return loadNow(() => g.fleetDo.load(t.r.slot));
     }
     if (t.kind === 'cand') return loadNow(() => (g.openCandidate ? g.openCandidate(t.c) : g.fleetDo.candidate(t.c)));
-    if (t.kind === 'list') return loadNow(() => g.openListed(t.p));
+    if (t.kind === 'list') { if (t.why) return; return loadNow(() => g.openListed(t.p)); }
   }
   // ONE PRESS, BEHIND A SPINNER: painted first (two frames), then the load, then the screen closes; the load's own
   // failures say so through their own doors (garage.js), and the screen closes either way

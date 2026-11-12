@@ -935,6 +935,8 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
 .flTile.flCand { border-style:dashed; }       /* CANDIDATE OFFICIAL: built, not validated - a dashed edge says "not signed" */
 .flTile.flAway .flPic img { opacity:.55; }
 .flTile.flBroken .flPic img { opacity:.45; filter:grayscale(1); }
+.flTile.flBlocked .flPic img { opacity:.4; }      /* CHOOSER-ALIKES: a design card this build cannot make (its reason on the tile) */
+.flWhy { color:var(--ed-warn); white-space:normal; }
 .flPic { position:relative; aspect-ratio:2 / 1; max-width:100%; background:radial-gradient(ellipse at 50% 45%, #2b2724, #0a0908); }
 .flPic img { width:100%; height:100%; object-fit:contain; display:block; }
 #flWrap .flGlyph { position:absolute; inset:0; display:grid; place-items:center; font:300 34px/1 'IBM Plex Sans'; color:var(--ed-faint); }

@@ -70,7 +70,8 @@ async function flow(fleetSrc) {
     ] });
   const LISTS = [{ n: 6, list: 'original', name: 'Twin busher floats 4b', reg: 'F-FORE', file: 'builds/candidates/Twin_busher_floats_4b.json', thumb: 'cand:Twin_busher_floats_4b.json' },
                  { n: 1, list: 'reproduction', name: 'Piper Cub', reg: 'F-BCUB', file: 'builds/cub.json', thumb: 'design:cub' },
-                 { n: 7, list: 'story', name: 'Rufus', reg: 'N47RF', file: 'builds/rufus.json' }];
+                 { n: 7, list: 'story', name: 'Rufus', reg: 'N47RF', file: 'builds/rufus.json' },
+                 { n: 55, list: 'wip', name: 'Spitfire', shape: 'spitfire', thumb: 'arch:spitfire' }];
   const CANDS = [{ file: 'c.json', name: 'Cand C', note: 'a note', tip: 't' }];
   const FICHES = { 'design:cub': { name: 'Piper Cub', data: { seats: 2, gear: 'taildragger', dims: { span: 10.7 }, specs: { engine: 'Continental A-65', empty: 354.8, TORun: 157 } } }, 'list:7': { name: 'Rufus', data: {} } };
   const W = {
@@ -81,6 +82,7 @@ async function flow(fleetSrc) {
     PLANE_THUMB: { get: k => (k === 'design:cub' || k === 'mine:Cub' ? 'media/thumbs/' + k.replace(':', '_') + '.webp' : null), hero: k => (k === 'design:cub' ? 'media/heroes/design_cub.webp' : null) },
     PLANE_FICHE: { names: () => Promise.resolve(['Cub']) },
     FICHE_BOARD: { show: k => calls.show.push(k) },
+    NEW_PLANE: { shapeWhy: k => (k === 'spitfire' ? 'elliptic wing not in this build' : null) },
     GARAGE_SPEC: {
       fleet: () => { calls.fleet++; return MODEL(); },
       fleetDo: { load: n => calls.load.push(n), sell: n => { calls.sell.push(n); return sellAnswer; }, del: n => { calls.del.push(n); return { ok: true }; },
@@ -151,11 +153,14 @@ async function flow(fleetSrc) {
   F._query('');
   // ---- All planes ----
   F._tab('all'); await tick(); await tick();
-  t(names() === 'Piper Cub,Rufus,Twin busher floats 4b,Cand C', "All planes in the list's class order, the candidates last: " + names());
+  t(names() === 'Piper Cub,Rufus,Twin busher floats 4b,Spitfire,Cand C', "All planes in the list's class order, the candidates last: " + names());
   const H = F._html();
   t(H.indexOf('>Reproductions<') >= 0 && H.indexOf('>Reproductions<') < H.indexOf('>Story<') && H.indexOf('>Originals<') < H.indexOf('Candidates: built here, not yet certified'), 'the class headings, in order');
   t(/#1</.test(tile('list:1')) && /F-BCUB/.test(tile('list:1')) && /media\/thumbs\/design_cub\.webp/.test(tile('list:1')), 'a list tile: its number, its registration, its picture');
   t(!calls.listed.length && !calls.cand.length, 'nothing loaded before Load');
+  t(/flBlocked/.test(tile('list:55')) && /elliptic wing not in this build/.test(tile('list:55')) && /data-a="load" disabled/.test(tile('list:55')), 'a shape row the build cannot make: greyed, its reason on the tile, no Load');
+  F._act('list:55', 'load'); await settle();
+  t(!calls.listed.length && F.isOpen(), 'a blocked shape row loads nothing');
   F._act('list:1', 'fiche'); F._act('list:7', 'fiche');
   t(calls.show.slice(-2).join() === 'design:cub,list:7', "Fiche opens FICHE_BOARD with the list's key (the picture key, else list:N): " + calls.show.slice(-2).join());
   t(/data-a="fiche"[^>]*disabled/.test(tile('cand:c.json')), 'no baked fiche: the button is disabled');
