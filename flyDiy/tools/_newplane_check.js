@@ -274,6 +274,39 @@ async function flowCheck(np) {
     delete store.planeLists; delete store.openListed; delete W.PLANE_THUMB;
     UI.LOG.generated = 0; cnt.view = null;
   }
+  // THE REAL PLANES BEHIND THE SHAPES (PLANE-LIST Q5, the user 10 Nov): a shape whose type has a real plane opens that plane
+  // through the garage's list door, nothing built; on All planes a shape row is built from its shape, a blocked one greyed
+  {
+    const opened = [], spec0 = store.spec, n0 = { bake: cnt.bake, set: cnt.set, get: cnt.get };
+    store.planeLists = () => Promise.resolve([{ n: 1, list: 'reproduction', name: 'Real Cub', file: 'c.json', alike: 'cub', thumb: 'cand:a.json' },
+      { n: 55, list: 'wip', name: 'Spit', shape: 'spitfire' }, { n: 56, list: 'wip', name: 'Sky', shape: 'skymaster' }]);
+    store.openListed = p => { opened.push(p.name); };
+    const tiles = () => tilesIn(doc.body.children.find(c => c.id === 'npWrap').querySelector('.npBody'));
+    UI.open(); await new Promise(r => setTimeout(r, 0));
+    const realT = tiles().filter(b => b.dataset.real);
+    t(realT.length === 1 && realT[0].dataset.real === '1' && /Real Cub/.test(realT[0].innerHTML) && /the real plane/.test(realT[0].innerHTML) && realT[0].dataset.thumb === 'cand:a.json',
+      'the chooser: the Cub-alike tile is the real Cub, its name and its picture (Q5)');
+    t(tiles().some(b => b.dataset.thumb === 'arch:tigermoth' && !b.dataset.real), 'the chooser: a shape whose plane is not on the lists stays a shape');
+    if (realT.length) realT[0].click();
+    for (let i = 0; i < 200 && UI.isOpen(); i++) await new Promise(r => setTimeout(r, 5));
+    t(opened.join() === 'Real Cub' && !UI.isOpen() && cnt.bake === n0.bake && cnt.set === n0.set, 'the chooser: the Cub-alike opens the real Cub through the list door, nothing built (Q5)');
+    UI.open({ all: true }); await new Promise(r => setTimeout(r, 0));
+    const sh = tiles().filter(b => b.dataset.shape), spit = sh.find(b => b.dataset.shape === 'spitfire'), sky = sh.find(b => b.dataset.shape === 'skymaster');
+    t(sh.length === 2 && spit && spit.disabled && /npWhy/.test(spit.innerHTML) && sky && !sky.disabled, 'All planes: a shape row is its shape, the Spitfire greyed with its reason, the Skymaster open');
+    if (sky) sky.click();
+    for (let i = 0; i < 400 && UI.isOpen(); i++) await new Promise(r => setTimeout(r, 5));
+    t(!UI.isOpen() && cnt.bake === n0.bake + 1 && cnt.set === n0.set + 1 && opened.length === 1, 'All planes: the Skymaster row builds its shape once (the authored door), never the list door');
+    { const n1 = { bake: cnt.bake, set: cnt.set };
+      t(typeof UI.shapeWhy('spitfire') === 'string' && UI.shapeWhy('skymaster') === null && UI.shapeWhy('nope') === 'not in this build' && cnt.bake === n1.bake, 'the shape query: the reason or null, nothing built (the FLEET greys with it)');
+      const w1 = UI.openShape('spitfire');
+      t(typeof w1 === 'string' && w1.length > 0 && cnt.bake === n1.bake && cnt.set === n1.set, 'the shape door: a blocked shape answers its reason, nothing built');
+      const w2 = UI.openShape('skymaster');
+      t(w2 === null && cnt.bake === n1.bake + 1 && cnt.set === n1.set + 1 && !UI.isOpen(), 'the shape door: the Skymaster built once with the panel closed (the FLEET screen\'s door)'); }
+    if (UI.isOpen()) UI.close();
+    delete store.planeLists; delete store.openListed;
+    store.spec = spec0; cnt.bake = n0.bake; cnt.set = n0.set; cnt.get = n0.get;
+    UI.LOG.generated = 0; cnt.view = null;
+  }
   // the walk: start, then every step's first offered tile, row by row
   UI.open();
   const body = doc.body.children.find(c => c.id === 'npWrap') || doc.body.children[doc.body.children.length - 1];
