@@ -9,7 +9,9 @@
 //
 // THE ACCEPTANCE (A0 + the user, 10 Nov):
 //   (a) REST     at rest on the water (throttle shut, 20 s), the tail's lowest point is >= 0.10 m over the water
-//   (b) RUN      the pilot's take-off from SEA: the tail never touches the water from the start of the run to lift-off
+//   (b) RUN      the pilot's take-off from SEA: the fin, the rudder and the tailplane never touch the water from the start
+//                of the run to lift-off (13 Nov, A0 + REAL-FIGURES: was "the tail" - the boom root dips over the hump)
+//   (b2) BOOM    the boom's lowest on that run >= -0.40 m (the hump's squat at the maker's root, bounded coarse)
 //   (c) LEVEL    the highest pitch on the water is <= the boom's own upsweep (the line from the lowest point just aft of
 //                the hull's stern to the tail post): "the boom at most parallel to the water"
 //   (d) AWAY     the run reaches 30 kt and lifts off (dry 2 s) inside 90 s
@@ -33,6 +35,7 @@ const spec = LB.gameSpec(j.spec || j);
 const f2 = (v, n = 2) => (typeof v === 'number' && isFinite(v)) ? v.toFixed(n) : String(v);
 const mkDef = () => C.buildGen(C.genMigrateSpec(JSON.parse(JSON.stringify(spec))));
 let fails = 0;
+const BOOM_DIP = -0.40;   // (b2): V4.2 dips -0.17 / -0.22 m over the hump (REAL-FIGURES: the maker's root, the squat) - twice that fails
 const verdict = (ok, line) => { if (!ok) fails++; console.log((ok ? 'PASS ' : 'FAIL ') + line); };
 
 // ---- the geometry ----
@@ -43,6 +46,15 @@ const hull = sim0.hydro.floats.find(f => f.rec && f.rec.hull);
 if (!hull) { console.log('FAIL the card has no hull (a hull amphibian is what this reads)\nGATE PETRELTRIM: FAIL'); process.exit(1); }
 const step = hull.rec.pos, xStern = step[0] + hull.F.xStern;
 const tail = N.map((nd, i) => i).filter(i => N[i].p[0] > xStern + 0.3);
+// THE TAIL SURFACES (A0 + REAL-FIGURES 13 Nov: the gate is the fin and the rudder; the boom's root is where the maker
+// draws it): every fin's VF/VR/VX/VX2 rows and its tip, the tail post (TPB/TPT), the tailplane (HF/HR/HB). The rest of
+// the tail set is the BOOM - its root dips over the hump: a named row with a coarse bound, not the gate's row (b).
+const TP = def0.parts || {}, TT = TP.TAIL || {}, surf = new Set();
+for (const fn of (TT.fins || [])) { for (const k of ['VF', 'VR', 'VX', 'VX2']) for (const i of (fn[k] || [])) surf.add(i); if (fn.FIN != null) surf.add(fn.FIN); }
+for (const k of ['HF', 'HR', 'HB']) for (const sd of ['L', 'R']) for (const i of ((TT[k] || {})[sd] || [])) surf.add(i);
+for (const k of ['TPB', 'TPT', 'FIN', 'FIN2']) if (TP[k] != null && TP[k] >= 0 && N[TP[k]]) surf.add(TP[k]);
+const surfs = [...surf], boom = tail.filter(i => !surf.has(i));
+if (!surfs.length) { console.log('FAIL the card names no fin, rudder or tailplane nodes (parts.TAIL)\nGATE PETRELTRIM: FAIL'); process.exit(1); }
 const near = N.map((nd, i) => i).filter(i => N[i].p[0] > xStern && N[i].p[0] <= xStern + 0.8);
 const lowNear = near.length ? near.reduce((a, i) => N[i].p[1] < N[a].p[1] ? i : a, near[0]) : null;
 const post = def0.parts.TPB != null && N[def0.parts.TPB] ? def0.parts.TPB : tail.reduce((a, i) => N[i].p[0] > N[a].p[0] ? i : a, tail[0]);
@@ -59,7 +71,7 @@ function run(o) {
   const d = mkDef(), world = C.makeWorld(), sea = world.aerodromes.find(a => a.id === 'SEA');
   const sim = C.makeSim(d, world); sim.reset(0); C.placeAtAerodrome(sim, sea);
   const ap = o.pilot ? C.makePilot(sim, d, world) : null; if (ap) ap.setRoute(sea, sea);
-  const p = sim.p, R = { tailRest: null, tailRun: Infinity, pitchMax: -99, kt30: null, lift: null, phases: [] };
+  const p = sim.p, R = { tailRest: null, tailRun: Infinity, surfRun: Infinity, boomRun: Infinity, pitchMax: -99, kt30: null, lift: null, phases: [] };
   let T = 0, wasWet = true, dry = null, ran = false, last = '';
   for (let s = 0; s < o.secs * 60; s++) {
     if (ap) ap.update(1 / 60); else { sim.ctl.thr = 0; sim.ctl.de = 0; }
@@ -72,7 +84,11 @@ function run(o) {
     if (ap && (ap.phase === 'ROLL' || ap.phase === 'LIFTOFF')) ran = true;
     if (!ap) { if (T > o.secs - 0.5) R.tailRest = R.tailRest == null ? tl : Math.min(R.tailRest, tl); continue; }
     if (ran && R.lift == null && wet) { if (tl < R.tailRun) R.tailAt = { t: +T.toFixed(1), kt: +kt.toFixed(1), pitch: +pitch.toFixed(1), node: tlI, x: +N[tlI].p[0].toFixed(2), y: +N[tlI].p[1].toFixed(2), phase: ap.phase };
-      R.tailRun = Math.min(R.tailRun, tl); R.pitchMax = Math.max(R.pitchMax, pitch); }
+      R.tailRun = Math.min(R.tailRun, tl);
+      for (const i of surfs) { const h = p[i * 3 + 1] - world.waterH(p[i * 3], p[i * 3 + 2]);
+        if (h < R.surfRun) { R.surfRun = h; R.surfAt = { t: +T.toFixed(1), kt: +kt.toFixed(1), pitch: +pitch.toFixed(1), node: i, x: +N[i].p[0].toFixed(2), y: +N[i].p[1].toFixed(2) }; } }
+      for (const i of boom) R.boomRun = Math.min(R.boomRun, p[i * 3 + 1] - world.waterH(p[i * 3], p[i * 3 + 2]));
+      R.pitchMax = Math.max(R.pitchMax, pitch); }
     if (ran && R.kt30 == null && kt >= 30) R.kt30 = T;
     if (!wet && wasWet && ran && R.lift == null) dry = T;
     if (wet && R.lift == null) dry = null;
@@ -84,8 +100,10 @@ function run(o) {
 }
 const rest = run({ secs: 20 }), to = run({ pilot: true, secs: 90 });
 if (SHOW) console.log('  the pilot: ' + to.phases.join(' | ')); if (SHOW) console.log('  the tail lowest on the run: ' + JSON.stringify(to.tailAt) + ' (t s, kt, pitch deg, the node and its drawn x aft / y up)');
+if (SHOW) console.log('  the fin, rudder, tailplane lowest: ' + JSON.stringify(to.surfAt) + '; their drawn lowest ' + f2(Math.min(...surfs.map(i => N[i].p[1]))) + ' m over the step keel');
 verdict(rest.tailRest != null && rest.tailRest >= 0.10, '(a) REST: the tail ' + f2(rest.tailRest) + ' m over the water at rest (>= 0.10)');
-verdict(isFinite(to.tailRun) && to.tailRun > 0, '(b) RUN: the tail\'s lowest on the run ' + f2(to.tailRun) + ' m over the water (> 0: never touches)');
+verdict(isFinite(to.surfRun) && to.surfRun > 0, '(b) RUN: the fin, rudder and tailplane lowest on the run ' + f2(to.surfRun) + ' m over the water (> 0: never touch)');
+verdict(isFinite(to.boomRun) && to.boomRun >= BOOM_DIP, '(b2) BOOM ROOT: the boom\'s lowest on the run ' + f2(to.boomRun) + ' m over the water (>= ' + BOOM_DIP + ': the hump\'s squat, a coarse bound)');
 verdict(to.pitchMax <= boomDeg, '(c) LEVEL: the highest pitch on the water ' + f2(to.pitchMax, 1) + ' deg <= the boom\'s upsweep ' + f2(boomDeg, 1) + ' deg (at most parallel)');
 verdict(to.kt30 != null && to.lift != null, '(d) AWAY: 30 kt at ' + f2(to.kt30, 1) + ' s, lift-off at ' + f2(to.lift, 1) + ' s (inside 90 s)');
 console.log('GATE PETRELTRIM: ' + (fails ? 'FAIL' : 'PASS'));
