@@ -1,0 +1,766 @@
+<title>Canopy Cracks</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column (~46rem) with full-width figures; the mock-ups are cockpit views drawn live on canvas. */
+:root {
+  --bg: #eef1f3;
+  --surface: #ffffff;
+  --ink: #17212b;
+  --muted: #566370;
+  --rule: #d2d9df;
+  --accent: #1d6f78;      /* canopy-edge teal */
+  --rec: #a85a14;         /* recommended */
+  --rec-soft: #f6e7d6;
+  --accent-soft: #dcecee;
+  --display: "Barlow Semi Condensed", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+  --body: "Source Sans 3", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #10161b; --surface: #172028; --ink: #e2e8ed; --muted: #95a3af; --rule: #2a3742;
+  --accent: #62b9c1; --rec: #e39a56; --rec-soft: #33251a; --accent-soft: #15303a; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #10161b; --surface: #172028; --ink: #e2e8ed; --muted: #95a3af; --rule: #2a3742;
+  --accent: #62b9c1; --rec: #e39a56; --rec-soft: #33251a; --accent-soft: #15303a; color-scheme: dark }
+
+body { background: var(--bg); color: var(--ink); font: 400 17px/1.55 var(--body); }
+.wrap { max-width: 46rem; margin: 0 auto; padding-block: 28px 64px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; flex-direction: column; gap: 28px; }
+h1, h2, h3 { font-family: var(--display); text-wrap: balance; margin: 0; line-height: 1.12; }
+h1 { font-size: clamp(2.2rem, 7vw, 3.3rem); font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: 1.65rem; font-weight: 600; }
+h3 { font-size: 1.2rem; font-weight: 600; }
+p { margin: 0; }
+section { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.eyebrow { font: 500 0.78rem/1.3 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+.meta { font: 400 0.85rem/1.5 var(--mono); color: var(--muted); }
+.lede { font-size: 1.12rem; color: var(--ink); }
+.muted { color: var(--muted); }
+code, .mono { font-family: var(--mono); font-size: 0.86em; }
+a { color: var(--accent); }
+a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+hr { border: 0; border-top: 1px solid var(--rule); margin: 0; }
+
+.verdict { background: var(--surface); border: 1px solid var(--rule); border-left: 4px solid var(--rec); padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; }
+.verdict ul { margin: 0; padding-left: 1.1em; display: flex; flex-direction: column; gap: 6px; }
+
+figure { margin: 0; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+figcaption { font-size: 0.88rem; color: var(--muted); line-height: 1.45; }
+figcaption b { color: var(--ink); font-weight: 600; }
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.grid4 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+@media (min-width: 640px) { .grid4.wide { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.shot { position: relative; }
+.shot img, .shot canvas, canvas.mock { width: 100%; aspect-ratio: 1 / 1; display: block; border-radius: 3px; background: #6e8fae; max-width: 100%; }
+.tag { position: absolute; left: 6px; top: 6px; font: 500 0.7rem/1 var(--mono); letter-spacing: 0.04em; background: rgba(10,16,22,0.72); color: #f2f5f7; padding: 4px 6px; border-radius: 2px; }
+.tag.rec { background: rgba(150,78,14,0.92); }
+.pin { position: absolute; width: 22px; height: 22px; border-radius: 50%; background: #c2410c; color: #fff; font: 600 0.72rem/22px var(--mono); text-align: center; box-shadow: 0 0 0 2px rgba(255,255,255,0.85); }
+
+ol.diag { margin: 0; padding-left: 1.4em; display: flex; flex-direction: column; gap: 8px; }
+ol.diag li::marker { font-family: var(--mono); color: #c2410c; font-weight: 600; }
+
+.mats { display: grid; grid-template-columns: 1fr; gap: 14px; }
+@media (min-width: 640px) { .mats { grid-template-columns: 1fr 1fr; } }
+.mat { background: var(--surface); border: 1px solid var(--rule); padding: 12px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.mat p { font-size: 0.95rem; }
+.chip { display: inline-block; font: 500 0.72rem/1 var(--mono); padding: 4px 6px; border-radius: 2px; background: var(--accent-soft); color: var(--accent); }
+
+.tablewrap { overflow-x: auto; border: 1px solid var(--rule); background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 0.92rem; min-width: 34rem; }
+th, td { text-align: left; vertical-align: top; padding: 9px 10px; border-bottom: 1px solid var(--rule); }
+th { font: 600 0.78rem/1.3 var(--mono); letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); background: var(--bg); }
+tr:last-child td { border-bottom: 0; }
+td.num { font-variant-numeric: tabular-nums; font-family: var(--mono); font-size: 0.84rem; white-space: nowrap; }
+tr.rec td { background: var(--rec-soft); }
+
+/* the viewer */
+.viewer { background: var(--surface); border: 1px solid var(--rule); padding: 12px; display: flex; flex-direction: column; gap: 12px; }
+.vrow { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.vlab { font: 500 0.72rem/1 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); min-width: 5.5em; }
+.seg button { font: 500 0.86rem/1 var(--body); padding: 8px 11px; border: 1px solid var(--rule); background: var(--bg); color: var(--ink); border-radius: 3px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+.slider { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.slider input { flex: 1 1 12rem; accent-color: var(--accent); }
+.slider output { font: 500 0.82rem/1 var(--mono); color: var(--ink); min-width: 9em; }
+#vcap { font-size: 0.92rem; color: var(--ink); }
+.btn { font: 500 0.86rem/1 var(--body); padding: 8px 11px; border: 1px solid var(--accent); background: transparent; color: var(--accent); border-radius: 3px; cursor: pointer; }
+
+.opts { display: grid; grid-template-columns: 1fr; gap: 12px; }
+.opt { background: var(--surface); border: 1px solid var(--rule); padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
+.opt.rec { border-color: var(--rec); box-shadow: inset 4px 0 0 var(--rec); }
+.opt h3 { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.opt .badge { font: 600 0.7rem/1 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--rec); }
+.kv { display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; font-size: 0.93rem; }
+.kv dt { font: 500 0.75rem/1.6 var(--mono); text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+.kv dd { margin: 0; min-width: 0; }
+ul.plain { margin: 0; padding-left: 1.1em; display: flex; flex-direction: column; gap: 6px; }
+.src li { font-size: 0.9rem; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+
+<header style="display:flex;flex-direction:column;gap:10px">
+  <div class="eyebrow">Wingsmith · DMG-LOOKS study · no code</div>
+  <h1>Canopy cracks</h1>
+  <p class="lede">How to draw a broken windscreen or canopy that reads like a real one, per glazing material, on a phone budget.</p>
+  <p class="meta">12 Nov 2026 · for A0 (Performance Coordinator) and the Deform Coordinator · implementation after the perf round (13–14 Nov), on the user's choice</p>
+</header>
+
+<div class="verdict">
+  <h2 style="font-size:1.3rem">The short answer</h2>
+  <ul>
+    <li><b>Why it looks childish:</b> every crack is the same thick, wobbly, glowing chalk line, and the pattern is a spider web (radials + rings + a honeycomb). That web belongs to laminated car windscreens. Acrylic cracks in a few straight, forking hairlines that glint only where they catch the light. Polycarbonate barely cracks at all.</li>
+    <li><b>The garage already has the material row:</b> <code>glazeMat</code> (acrylic / polycarbonate / glass, carried as <code>cabin.glazingMat</code>). The crack shader ignores it. No new row is needed.</li>
+    <li><b>Recommended: Option B</b>, a baked crack sheet per material (one texture, distance-field lines), read by the glass shader that already draws the marks. It looks better and costs less per pixel than today's procedural star. Then <b>Option C</b> for broken marks: a hole and shards held in the frame, with no new bodies and nothing floating.</li>
+  </ul>
+</div>
+
+<section id="today">
+  <div class="eyebrow">1 · The current drawing</div>
+  <h2>What the game draws today</h2>
+  <p>Since G3623 (27 Oct) a frame member that yields or breaks near a pane puts a star on it. The star is drawn by the glass's own shader (<code>dmg_glass.js</code> <code>GLSL_CRACK</code>, spliced into <code>aeroskin.js</code> <code>AEROGLASS_HOOK</code>), for every aeroplane alike. These are the gate's own stills at full severity, from the seat:</p>
+  <div class="pair">
+    <figure>
+      <div class="shot"><img src="data:image/jpeg;base64,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" alt="In-game still: Cub windscreen with a white star of wobbly cracks, rings and a honeycomb core">
+        <span class="pin" style="left:62%;top:6%">1</span>
+        <span class="pin" style="left:6%;top:24%">2</span>
+        <span class="pin" style="left:80%;top:30%">3</span>
+        <span class="pin" style="left:40%;top:40%">4</span>
+      </div>
+      <figcaption><b>The page’s default Cub</b> (the gate’s build), mark 1 (<code>reports/evidence/DMG-GLASS/cub_mark1_crop.png</code>)</figcaption>
+    </figure>
+    <figure>
+      <div class="shot"><img src="data:image/jpeg;base64,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" alt="In-game still: metal Cessna windscreen with the same star, a honeycomb net filling the middle">
+        <span class="pin" style="left:44%;top:24%">4</span>
+        <span class="pin" style="left:2%;top:18%">1</span>
+      </div>
+      <figcaption><b>list:40 Cessna 172 (career)</b> (the gate's "metal Cessna"), mark 1 in view</figcaption>
+    </figure>
+  </div>
+  <h3>Why it reads like a child's drawing</h3>
+  <ol class="diag">
+    <li><b>A chalk stroke, not a hairline.</b> Each ray carries a haze band of 0.55 out to six times its width or two pixels (<code>haze = 0.55·(1 − sm(w, max(6w, 2px), d))</code>). From the seat the lines come out 3–5 px wide and evenly glowing, like a marker pen. A real crack is a hairline that is invisible along most of its length.</li>
+    <li><b>Hand tremor.</b> The ray angle wobbles with two noise octaves (<code>0.10·fbm(9r) + 0.12·fbm(2.3r)</code>). Brittle cracks run straight and turn at sharp kinks. They also fork, which the angular-cell method cannot do.</li>
+    <li><b>Same brightness everywhere.</b> Every ray adds the pane's irradiance at the same 0.85 from centre to tip. Real cracks are small mirrors inside the sheet: a few segments flash where they face the light, the rest are faint, and some read darker than the sky. An additive pane can only brighten, so the dark side is missing.</li>
+    <li><b>A spider web and a honeycomb.</b> The concentric arcs and the Voronoi net (<code>dgVor</code> at 60 cells per metre) are the cartoon cues for "broken glass". Rings belong to <em>laminated</em> glass, held by its plastic interlayer. A uniform net of cells is <em>tempered</em> glass dicing. Neither happens on a 3 mm acrylic sheet.</li>
+    <li><b>Wrong scale and count.</b> 5–9 rays spread over up to 36 cm, all starting at one point and tapering the same way, make a symmetrical asterisk. Real acrylic has a small crushed white spot, many short cracks around it and a few long runners that carry on to the frame.</li>
+    <li><b>One look for every material.</b> The polycarbonate row exists in the garage, but its pane breaks exactly like acrylic.</li>
+  </ol>
+</section>
+
+<hr>
+
+<section id="materials">
+  <div class="eyebrow">2 · Real materials</div>
+  <h2>What light-aircraft transparencies actually do</h2>
+  <p>The pictures below are drawn by this page with the proposed look (Option B, full severity). They are mock-ups, not game stills.</p>
+  <div class="mats">
+    <div class="mat">
+      <canvas class="mock" data-opt="B" data-mat="acrylic" data-sev="1" data-light="64" data-seed="11" aria-label="Mock-up: acrylic cracks"></canvas>
+      <h3>Acrylic (Perspex, Plexiglas) <span class="chip">glazeMat 0</span></h3>
+      <p>Brittle and glassy. A hit leaves a small crushed, whitened spot, a fringe of short cracks, and a few long <b>running cracks</b> that branch and carry on until they reach a frame, a hole or an edge. Shards are sharp and can come out (the 2010 Jersey bird strike: the windscreen "shattered on impact", the pilot cut by the pieces). The S-76 N748P bird strike shattered both cast-acrylic windshield halves. Rings are rare and short. <b>Cast</b> sheet is the more brittle; <b>stretched</b> (biaxially oriented) sheet resists running cracks, so they stay shorter. The maintenance answer to a crack is a stop-drill hole at its tip (FAA AC 43.13-1B, Fig. 3-21), which shows how readily acrylic cracks run.</p>
+      <p class="muted">The whole fleet today, list:41 Super Petrel LS included.</p>
+    </div>
+    <div class="mat">
+      <canvas class="mock" data-opt="B" data-mat="polycarbonate" data-sev="1" data-light="64" data-seed="5" aria-label="Mock-up: polycarbonate dent and crazing"></canvas>
+      <h3>Polycarbonate (Lexan) <span class="chip">glazeMat 1</span></h3>
+      <p>Ductile. On impact it <b>deforms plastically instead of shattering</b>. It dents. Around the dent it <b>stress-whitens</b> to a milky ring and <b>crazes</b>: hundreds of fine micro-cracks across the stress, so they lie in rings round the hit and sparkle together in one direction. A severe hit <b>punctures and tears</b> into a few folded petals, with no long running cracks. Common on ultralights, kit doors and military canopies.</p>
+      <p class="muted">No listed plane uses it yet. The row exists and costs the same weight.</p>
+    </div>
+    <div class="mat">
+      <canvas class="mock" data-opt="B" data-mat="laminated" data-sev="1" data-light="64" data-seed="3" aria-label="Mock-up: laminated glass spider web"></canvas>
+      <h3>Laminated glass (windscreen) <span class="chip">glazeMat 2, windscreen pane</span></h3>
+      <p>Two glass plies on a plastic interlayer (PVB). A hit gives the familiar <b>spider web</b>: many straight radials, chords between them, a powdered white cone at the centre. The pieces <b>stay stuck to the interlayer</b>, so the pane holds its shape and bulges. Each fragment tilts a little and catches the light differently. Bigger types and old airliner-style screens (list:12 DC-3-alike).</p>
+    </div>
+    <div class="mat">
+      <canvas class="mock" data-opt="B" data-mat="tempered" data-sev="1" data-light="64" data-seed="9" aria-label="Mock-up: tempered glass dicing"></canvas>
+      <h3>Tempered glass (side window) <span class="chip">glazeMat 2, side panes</span></h3>
+      <p>Holds or fails whole. When it fails, the <b>whole pane dices</b> into 1–2 cm cubes at once and mostly falls out, leaving a fringe of dice in the frame. Today's Voronoi core is this pattern, put on the wrong material and at the wrong scale.</p>
+    </div>
+  </div>
+  <p class="muted" style="font-size:.93rem">The glazeMat 2 split by pane role (windscreen laminated, other panes tempered) is a proposal. It reads the panes' existing material names (<code>windshield</code> against <code>pilotWindow</code> and the rest) and needs no new row.</p>
+</section>
+
+<hr>
+
+<section id="row">
+  <div class="eyebrow">3 · The garage row</div>
+  <h2>The material is already on the card</h2>
+  <p>The cage page's glazing group (<code>_cage_parts.js</code>: <code>glazeOn</code>, <code>glazeMat</code>) writes <code>cabin.glazingMat</code> through <code>_cage_join.js</code>. The weight (<code>GEN_OUTFIT.glassKgM2By</code>), the tech tree (<code>79b_tech.js</code> <code>glaze:*</code>) and the clear-pane look (<code>aeroskin.js</code> <code>GLASS_MATS</code>: polycarbonate warmer, hazier, more scratched) already read it. The crack is the one consumer that does not.</p>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>glazeMat</th><th>Material</th><th>Crack look (proposed)</th><th>Fleet today</th></tr></thead>
+      <tbody>
+        <tr><td class="num">0</td><td>acrylic</td><td>crushed white spot, hackle fringe, branching runners to the frame; broken: hole and loose shards in the frame</td><td>every listed plane (default or explicit)</td></tr>
+        <tr><td class="num">1</td><td>polycarbonate</td><td>dent, stress-whitened ring, crazing rings; broken: a petalled puncture tear</td><td>none yet</td></tr>
+        <tr><td class="num">2</td><td>glass</td><td>windscreen: laminated spider web that holds; side panes: tempered dicing, falls out when broken</td><td>none yet</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p><b>Smallest change:</b> one float uniform for the flown aeroplane's material (<code>uCrackMat</code>, beside <code>uCrackN</code> in <code>aeroSharedU</code>), set at roll-out from <code>spec.cabin.glazingMat</code>. A uniform links no new program. A cast/stretched acrylic sub-row is <em>not</em> worth adding: the only visible difference is runner length, and that can ride severity.</p>
+</section>
+
+<hr>
+
+<section id="techniques">
+  <div class="eyebrow">4 · Techniques</div>
+  <h2>How games and the literature draw broken glazing</h2>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Technique</th><th>What it buys</th><th>Phone cost</th><th>Here</th></tr></thead>
+      <tbody>
+        <tr><td>Procedural cracks in the shader (today)</td><td>No memory, any size</td><td>High per pixel: about 70 hash calls a fragment inside the star (3 rays × fbm, arcs, a 34-cell Voronoi), over up to 4 marks, on a windscreen that fills much of the cockpit view. Forking is very hard.</td><td>Keep only as a fallback</td></tr>
+        <tr><td>Crack decal atlas (texture)</td><td>Any shape: forks, hackle, kinks. Authored or generated offline. Mipmaps make far lines fade correctly.</td><td>1–2 texture reads. One texture in memory.</td><td>Yes (B)</td></tr>
+        <tr><td>Distance-field lines (Green, Valve, SIGGRAPH 2007)</td><td>Crisp hairlines at any zoom from a modest texture. The width is chosen in the shader, so cracks can taper.</td><td>A few ALU on top of the read</td><td>Yes, the atlas's encoding</td></tr>
+        <tr><td>Glint per crack facet</td><td>Cracks show by reflection: a few segments flash, most are faint, and the pattern moves with the light</td><td>A cosine and a power</td><td>Yes (A, B)</td></tr>
+        <tr><td>Stress-whitening and crazing</td><td>The milky crushed spot (acrylic) or ring (polycarbonate). Crazing as many fine reflective lines.</td><td>Cheap with a texture channel</td><td>Yes</td></tr>
+        <tr><td>Thickness parallax</td><td>A 3 mm sheet: a crack's top and bottom edges part with the view angle, a thin dark companion beside the bright line</td><td>A second read, offset</td><td>Yes (B)</td></tr>
+        <tr><td>Normal-mapped crazing</td><td>Reflections break along the cracks</td><td>A normal read</td><td>Use the roughness bump G3623 already does. No normal writes (the user's smooth-shading rule).</td></tr>
+        <tr><td>Screen-space refraction along cracks</td><td>The world behind shifts across a crack</td><td>Needs a copy of the frame. Too dear on weak machines.</td><td>No</td></tr>
+        <tr><td>Pre-fractured or runtime Voronoi shard meshes</td><td>True 3D pieces</td><td>Draw calls, physics bodies. Floating pieces and torn triangles are the risk the user named.</td><td>No. A hole by discard plus shards that stay in the frame (C) gives the read.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<hr>
+
+<section id="compare">
+  <div class="eyebrow">5 · The options, side by side</div>
+  <h2>Compare them on one pane</h2>
+  <p>A cockpit view about 75 cm across, the pane about 70 cm from the eye, the frame post on the left and the coaming below. "Today" is today's crack function run per pixel, line for line from <code>crackJS</code>, so it is the game's own pattern on this page's sky. Move the light to see the glint.</p>
+  <div class="viewer">
+    <canvas id="vc" class="mock" aria-label="Interactive mock-up of the crack options"></canvas>
+    <p id="vcap" aria-live="polite"></p>
+    <div class="vrow"><span class="vlab">Option</span>
+      <div class="seg" id="segOpt" role="group" aria-label="Option">
+        <button id="o-T" data-v="T">Today</button><button id="o-A" data-v="A">A</button><button id="o-B" data-v="B" aria-pressed="true">B</button><button id="o-C" data-v="C">C</button>
+      </div></div>
+    <div class="vrow"><span class="vlab">Material</span>
+      <div class="seg" id="segMat" role="group" aria-label="Material">
+        <button id="m-acrylic" data-v="acrylic" aria-pressed="true">Acrylic</button><button id="m-polycarbonate" data-v="polycarbonate">Polycarbonate</button><button id="m-laminated" data-v="laminated">Laminated</button><button id="m-tempered" data-v="tempered">Tempered</button>
+      </div></div>
+    <div class="slider"><label class="vlab" for="sev">Severity</label><input id="sev" type="range" min="0.15" max="1" step="0.01" value="1"><output id="sevo" for="sev"></output></div>
+    <div class="slider"><label class="vlab" for="lit">Light</label><input id="lit" type="range" min="0" max="180" step="1" value="64"><output id="lito" for="lit"></output></div>
+    <div class="vrow"><button class="btn" id="reseed">Another crack</button></div>
+  </div>
+
+  <h3>Acrylic at full severity, all four</h3>
+  <div class="grid4 wide">
+    <figure><div class="shot"><canvas class="mock" data-opt="T" data-mat="acrylic" data-sev="1" data-light="64" data-seed="11"></canvas><span class="tag">Today</span></div><figcaption>The game's star, any material</figcaption></figure>
+    <figure><div class="shot"><canvas class="mock" data-opt="A" data-mat="acrylic" data-sev="1" data-light="64" data-seed="11"></canvas><span class="tag">A · retune</span></div><figcaption>Straight kinked hairlines, glint per ray, white core</figcaption></figure>
+    <figure><div class="shot"><canvas class="mock" data-opt="B" data-mat="acrylic" data-sev="1" data-light="64" data-seed="11"></canvas><span class="tag rec">B · sheet</span></div><figcaption>Forks, hackle, segment glint, thickness</figcaption></figure>
+    <figure><div class="shot"><canvas class="mock" data-opt="C" data-mat="acrylic" data-sev="1" data-light="64" data-seed="11"></canvas><span class="tag rec">C · broken</span></div><figcaption>B plus a hole and shards held in the frame</figcaption></figure>
+  </div>
+  <h3>Severity on Option B (acrylic)</h3>
+  <div class="grid4 wide">
+    <figure><div class="shot"><canvas class="mock" data-opt="B" data-mat="acrylic" data-sev="0.15" data-light="64" data-seed="11"></canvas><span class="tag">0.15 · first set</span></div></figure>
+    <figure><div class="shot"><canvas class="mock" data-opt="B" data-mat="acrylic" data-sev="0.45" data-light="64" data-seed="11"></canvas><span class="tag">0.45</span></div></figure>
+    <figure><div class="shot"><canvas class="mock" data-opt="B" data-mat="acrylic" data-sev="0.85" data-light="64" data-seed="11"></canvas><span class="tag">0.85 · the kink</span></div></figure>
+    <figure><div class="shot"><canvas class="mock" data-opt="B" data-mat="acrylic" data-sev="1" data-light="64" data-seed="11"></canvas><span class="tag">1 · broken</span></div></figure>
+  </div>
+  <p class="muted" style="font-size:.93rem">The same sheet serves every severity: each crack pixel stores when it arrived as the crack grew, and the shader shows what arrived before the mark's severity. Low severity is the short core cracks, high severity the full runners. Tips arrive last, so the same number tapers them.</p>
+</section>
+
+<hr>
+
+<section id="options">
+  <div class="eyebrow">6 · Proposal</div>
+  <h2>Three options</h2>
+  <div class="opts">
+    <div class="opt">
+      <h3>A · Retune the procedural crack</h3>
+      <dl class="kv">
+        <dt>Look</dt><dd>Hairlines without the halo, straight with kinks, glint per ray, a small whitened core in place of the honeycomb, no rings on acrylic. Per material through <code>uCrackMat</code>: the polycarbonate dent, whitening and craze rings are analytic. No forks, no thickness.</dd>
+        <dt>Cost</dt><dd>About a third of today's math per fragment (the 34-cell Voronoi goes). No texture. No new program.</dd>
+        <dt>Effort</dt><dd>About 1 session: rewrite <code>GLSL_CRACK</code> and its mirror <code>crackJS</code>, re-pin GATE DMGGLASS rows G and R, add the material row to U.</dd>
+      </dl>
+    </div>
+    <div class="opt rec">
+      <h3>B · Baked crack sheet per material <span class="badge">recommended</span></h3>
+      <dl class="kv">
+        <dt>Look</dt><dd>The professional one: forking runners to the frame, the hackle fringe, the crushed white spot, a glint that changes along each crack, a faint dark companion for the 3 mm thickness. Polycarbonate gets its dent, whitened ring and crazing. Glass gets the laminated web or tempered dice.</dd>
+        <dt>Cost</dt><dd>1–2 texture reads and about 40 ALU a fragment, cheaper than today. One RGBA8 sheet of 1024², 4 variants of 512², ≈5.3 MB of GPU memory with mipmaps (512² on the low tier ≈1.3 MB). It loads only at the flown aeroplane's first mark, for its own material. No new program.</dd>
+        <dt>Effort</dt><dd>About 2 sessions: an offline generator (<code>tools/crack_sheet.js</code>, node, seeded, the same growth rules as this page) writing three PNGs; the shader read; a lazy load; GATE DMGGLASS rows for the sheet hash, monotone reveal, the material switch and 0 new programs.</dd>
+      </dl>
+    </div>
+    <div class="opt rec">
+      <h3>C · B plus the broken pane <span class="badge">then</span></h3>
+      <dl class="kv">
+        <dt>Look</dt><dd>At a broken member (severity 1): acrylic punches a jagged hole at the hit, and the shards between the runners stay in the frame, each catching the light a little differently. Polycarbonate tears into petals. Laminated glass holds and bulges. Tempered glass falls out and leaves a fringe. No new bodies and nothing floating. The user asked for fewer pieces and shapes kept.</dd>
+        <dt>Cost</dt><dd>A shard-id channel (a second 512² R8, ≈0.35 MB). The tint companion pass reads the sheet once to discard the hole too.</dd>
+        <dt>Effort</dt><dd>About 1 session after B, with gate rows for the hole seen from both sides and no new bodies or programs.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th></th><th>Look</th><th>Per-pixel cost</th><th>Memory</th><th>Sessions</th></tr></thead>
+      <tbody>
+        <tr><td>Today</td><td>Childish (the user)</td><td class="num">~70 hashes</td><td class="num">0</td><td class="num">–</td></tr>
+        <tr><td>A</td><td>Clean but schematic</td><td class="num">~⅓ of today</td><td class="num">0</td><td class="num">1</td></tr>
+        <tr class="rec"><td>B</td><td>Real per material</td><td class="num">1–2 reads + ~40 ALU</td><td class="num">1.3–5.3 MB</td><td class="num">2</td></tr>
+        <tr class="rec"><td>C (on B)</td><td>Plus the broken pane</td><td class="num">+1 read on the tint pass</td><td class="num">+0.35 MB</td><td class="num">+1</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="muted" style="font-size:.93rem">Costs are estimates from reading the shader, not measurements. The perf round should time today's crack against B's read on the weak-machine bench with a full windscreen in view.</p>
+</section>
+
+<hr>
+
+<section id="sketch">
+  <div class="eyebrow">7 · How B would work</div>
+  <h2>Implementation sketch</h2>
+  <ul class="plain">
+    <li><b>The sheet.</b> R: distance to the nearest crack (0–8 mm). G: when that crack arrived as it grew (reveal by severity, taper toward the tips). B: the crack facet's phase (the glint). A: whitening and craze density. Three sheets (acrylic, polycarbonate, glass), each 2×2 variants picked by the mark's seed, and rotated by it too.</li>
+    <li><b>The read.</b> The existing mark loop keeps its gating (craft space, 4 cm of the plane, facing the normal) and its tangent frame. It turns <code>q</code> into sheet coordinates (the pattern is about 1 m across, so runners can reach the frame) and reads once (twice for the thickness companion).</li>
+    <li><b>The light.</b> As G3623 does: the pane's own irradiance, scattered near-white, plus the roughness bump. The glint multiplies it. A dark companion needs the multiply pass, so it comes in C, where that pass reads the sheet anyway.</li>
+    <li><b>The triggers stay G3623's.</b> Members within 0.35 m that set or break, merging, MAX 4, nothing on hard landings. One better trigger for later, flagged to the Deform Coordinator: the contact point on the pane, so a trunk hitting glass between members marks it.</li>
+    <li><b>Smooth shading holds.</b> No geometry and no normal writes. The hole in C is a discard in both glass passes.</li>
+  </ul>
+</section>
+
+<hr>
+
+<section id="sources" class="src">
+  <div class="eyebrow">Sources</div>
+  <ul class="plain">
+    <li>FAA AC 43.13-1B, ch. 3, transparent plastics (crazing, stop-drilling, Fig. 3-21): <a href="https://www.faa.gov/documentLibrary/media/Advisory_Circular/AC_43.13-1B_Table_of_Contents.pdf">table of contents</a>, <a href="https://www.faa.gov/airports/resources/advisory_circulars/index.cfm/go/document.information/documentNumber/43.13-1B">document page</a></li>
+    <li>Acrylic against polycarbonate: <a href="https://cdn.shopify.com/s/files/1/1339/4265/files/Mitsubishi_Chemical_Report_-_PMMA_vs_PC.pdf">Mitsubishi Chemical, PMMA vs PC</a>; <a href="https://lairdplastics.com/resources/polycarbonate-vs-acrylic-the-complete-industrial-comparison/">Laird Plastics comparison</a>; <a href="https://plaskolite.com/blog/detail/a-compare-and-contrast-of-acrylic-vs.-polycarbonate-in-ballistics-grade-materials">Plaskolite on ballistic grades</a>; <a href="https://www.k-online.com/en/media_news/k-mag/plastics-in-practice/plastics-garden-hail-polycarbonate">K-online on PC deforming instead of shattering</a></li>
+    <li>Bird strikes on acrylic: <a href="https://www.gov.je:443/News/2010/pages/aircraftbirdstrike.aspx">States of Jersey, 5 July 2010</a>; <a href="https://www.faa.gov/lessons_learned/rotorcraft/accidents/N748P">FAA lessons learned, S-76C++ N748P</a> (cast acrylic windshield shattered); <a href="https://flightsafety.org/asw-article/windshield-weakness/">Flight Safety Foundation, "Windshield weakness"</a>; <a href="https://assets.publishing.service.gov.uk/media/5f58d53bd3bf7f723f8f5672/Bell_429_M-YMCM_06-19.pdf">AAIB, Bell 429 M-YMCM</a>; <a href="https://aviation-safety.net/wikibase/358476">ASN, Aero Commander 100 N4066X</a>. The reports' photos are in those documents and are not copied here.</li>
+    <li>Glass fracture patterns: <a href="https://en.wikipedia.org/wiki/Laminated_glass">laminated glass (spider web, interlayer holds)</a>; <a href="https://en.wikipedia.org/wiki/Tempered_glass">tempered glass (dicing)</a>; <a href="https://en.wikipedia.org/wiki/Fractography">fractography (mirror, mist, hackle)</a></li>
+    <li>Techniques: <a href="https://steamcdn-a.akamaihd.net/apps/valve/2007/SIGGRAPH2007_AlphaTestedMagnification.pdf">C. Green, Improved Alpha-Tested Magnification for Vector Textures (Valve, 2007)</a>; <a href="https://perso.liris.cnrs.fr/egalin/Articles/2005-cracks.pdf">Desbenoit, Galin, Akkouche, Modeling cracks and fractures (2005)</a>; <a href="https://godotshaders.com/shader/impact-glass-shader/">Godot impact-glass shader (Voronoi, a counter-example)</a>; <a href="https://www.texturecan.com/details/19/">a PBR broken-glass texture set (reference only)</a></li>
+    <li>In the repo: <code>flyDiy/src/viewer/dmg_glass.js</code>, <code>aeroskin.js</code> (<code>AEROGLASS_HOOK</code>, <code>GLASS_MATS</code>), <code>tools/_dmg_glass_check.js</code>, HANDOVER G3623, the stills in <code>reports/evidence/DMG-GLASS/</code>.</li>
+  </ul>
+</section>
+
+</div>
+
+<script>
+(function () {
+'use strict';
+const TAU = Math.PI * 2, SPAN = 0.75; // metres across the view
+
+// ---------- rng ----------
+function rng(seed) { let a = (seed * 2654435761) >>> 0 || 1; return function () { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+const gauss = R => (R() + R() + R() - 1.5) * 1.15;
+
+// ---------- the scene (a cockpit view; theme-independent: it depicts a place) ----------
+function geom(W, H) {
+  const g = { W, H, S: W / SPAN, cx: W * 0.52, cy: H * 0.40 };
+  g.frame = [[W * 0.015, 0], [W * 0.085, 0], [W * 0.155, H], [W * 0.065, H]];
+  g.coamY = H * 0.93; g.coamC = H * 0.80;
+  const pane = new Path2D();
+  pane.moveTo(W * 0.085, 0); pane.lineTo(W + 2, 0); pane.lineTo(W + 2, g.coamY);
+  pane.quadraticCurveTo(W * 0.5, g.coamC, -2, g.coamY); pane.lineTo(-2, 0); pane.closePath();
+  const right = new Path2D(); right.moveTo(W * 0.085, 0); right.lineTo(W + 2, 0); right.lineTo(W + 2, H); right.lineTo(W * 0.155, H); right.closePath();
+  g.pane = pane; g.right = right;
+  return g;
+}
+function clipPane(ctx, g) { ctx.clip(g.pane); ctx.clip(g.right); }
+function drawWorld(ctx, g, light) {
+  const { W, H } = g, hz = H * 0.66;
+  let gr = ctx.createLinearGradient(0, 0, 0, hz);
+  gr.addColorStop(0, '#2f5f98'); gr.addColorStop(0.6, '#6f9cc6'); gr.addColorStop(1, '#c4d6e3');
+  ctx.fillStyle = gr; ctx.fillRect(0, 0, W, hz + 1);
+  const sx = W * (0.08 + 0.84 * (1 - light / 180));
+  const sg = ctx.createRadialGradient(sx, H * 0.05, 0, sx, H * 0.05, W * 0.45);
+  sg.addColorStop(0, 'rgba(255,250,235,0.85)'); sg.addColorStop(0.12, 'rgba(255,248,230,0.35)'); sg.addColorStop(1, 'rgba(255,248,230,0)');
+  ctx.fillStyle = sg; ctx.fillRect(0, 0, W, hz);
+  const R = rng(4242);
+  ctx.fillStyle = '#7c8c97'; ctx.beginPath(); ctx.moveTo(0, hz);
+  for (let x = 0; x <= W; x += W / 24) ctx.lineTo(x, hz - H * (0.03 + 0.03 * Math.sin(x / W * 5.3) + 0.012 * R())); ctx.lineTo(W, hz); ctx.fill();
+  gr = ctx.createLinearGradient(0, hz, 0, H); gr.addColorStop(0, '#6f8053'); gr.addColorStop(1, '#4b5a35');
+  ctx.fillStyle = gr; ctx.fillRect(0, hz, W, H - hz);
+  ctx.fillStyle = '#26402a';
+  for (let i = 0; i < 70; i++) { const x = R() * W, r = W * (0.008 + 0.018 * R()); ctx.beginPath(); ctx.ellipse(x, hz - r * 0.9, r * 0.75, r * 1.6, 0, 0, TAU); ctx.fill(); }
+  ctx.fillStyle = '#9a9887'; ctx.beginPath(); ctx.moveTo(W * 0.46, H); ctx.lineTo(W * 0.505, hz); ctx.lineTo(W * 0.515, hz); ctx.lineTo(W * 0.68, H); ctx.fill();
+}
+function drawGlassLayer(ctx, g, holePath) {
+  ctx.save(); clipPane(ctx, g);
+  if (holePath) { const p = new Path2D(); p.rect(-5, -5, g.W + 10, g.H + 10); p.addPath(holePath); ctx.clip(p, 'evenodd'); }
+  ctx.fillStyle = 'rgba(170,200,212,0.10)'; ctx.fillRect(0, 0, g.W, g.H);
+  const lg = ctx.createLinearGradient(g.W * 0.2, 0, g.W * 0.75, g.H);
+  lg.addColorStop(0.30, 'rgba(255,255,255,0)'); lg.addColorStop(0.42, 'rgba(255,255,255,0.10)'); lg.addColorStop(0.50, 'rgba(255,255,255,0.03)'); lg.addColorStop(0.60, 'rgba(255,255,255,0)');
+  ctx.fillStyle = lg; ctx.fillRect(0, 0, g.W, g.H);
+  ctx.restore();
+}
+function drawCockpit(ctx, g) {
+  const { W, H } = g, f = g.frame;
+  ctx.fillStyle = '#25292e'; ctx.beginPath(); ctx.moveTo(f[0][0], f[0][1]); for (const p of f) ctx.lineTo(p[0], p[1]); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.lineWidth = Math.max(1, W / 300); ctx.beginPath(); ctx.moveTo(f[1][0], f[1][1]); ctx.lineTo(f[2][0], f[2][1]); ctx.stroke();
+  ctx.fillStyle = '#1b1d20'; ctx.beginPath(); ctx.moveTo(-2, H); ctx.lineTo(-2, g.coamY); ctx.quadraticCurveTo(W * 0.5, g.coamC, W + 2, g.coamY); ctx.lineTo(W + 2, H); ctx.fill();
+  ctx.strokeStyle = '#c9b98a'; ctx.lineWidth = W / 90; ctx.beginPath(); ctx.moveTo(-2, g.coamY + W / 80); ctx.quadraticCurveTo(W * 0.5, g.coamC + W / 80, W + 2, g.coamY + W / 80); ctx.stroke();
+}
+
+// ---------- glint: a crack is a small mirror in the sheet ----------
+let LIGHT = 64 * Math.PI / 180;
+function glint(a, phi, sharp) { const c = Math.abs(Math.sin(a - LIGHT + phi)); return 0.10 + 0.90 * Math.pow(c, sharp || 12); }
+
+function strokeSegs(ctx, g, segs, k, o) {
+  const S = g.S, ox = g.cx, oy = g.cy;
+  ctx.lineCap = 'round';
+  if (o.companion) {
+    for (const s of segs) {
+      const b = glint(s.a, s.phi, o.sharp);
+      ctx.strokeStyle = 'rgba(8,18,28,' + (0.30 * (1 - b) * o.alpha).toFixed(3) + ')';
+      ctx.lineWidth = Math.max(0.6, s.w * 0.9) * k;
+      ctx.beginPath(); ctx.moveTo(ox + s.x0 * S + 0.9 * k, oy + s.y0 * S + 0.7 * k); ctx.lineTo(ox + s.x1 * S + 0.9 * k, oy + s.y1 * S + 0.7 * k); ctx.stroke();
+    }
+  }
+  for (const s of segs) {
+    const b = o.flat ? 0.55 : glint(s.a, s.phi, o.sharp);
+    ctx.strokeStyle = 'rgba(242,247,251,' + (b * o.alpha * (s.fade == null ? 1 : s.fade)).toFixed(3) + ')';
+    ctx.lineWidth = Math.max(0.5, s.w) * k;
+    ctx.beginPath(); ctx.moveTo(ox + s.x0 * S, oy + s.y0 * S); ctx.lineTo(ox + s.x1 * S, oy + s.y1 * S); ctx.stroke();
+  }
+}
+function whiteSpot(ctx, g, poly, rc, k, speckle, R, strength) {
+  const S = g.S, ox = g.cx, oy = g.cy;
+  const rg = ctx.createRadialGradient(ox, oy, 0, ox, oy, rc * S * 1.25);
+  rg.addColorStop(0, 'rgba(244,246,247,' + (0.85 * strength) + ')'); rg.addColorStop(0.6, 'rgba(236,240,242,' + (0.55 * strength) + ')'); rg.addColorStop(1, 'rgba(236,240,242,0)');
+  ctx.fillStyle = rg; ctx.beginPath(); poly.forEach((p, i) => i ? ctx.lineTo(ox + p[0] * S, oy + p[1] * S) : ctx.moveTo(ox + p[0] * S, oy + p[1] * S)); ctx.closePath(); ctx.fill();
+  if (speckle) { for (let i = 0; i < speckle; i++) { const a = R() * TAU, r = Math.sqrt(R()) * rc * 1.6; ctx.fillStyle = 'rgba(250,252,253,' + (0.15 + 0.5 * R()) * (1 - r / (rc * 1.6)) + ')'; ctx.fillRect(ox + Math.cos(a) * r * S, oy + Math.sin(a) * r * S, k * (0.6 + R()), k * (0.6 + R())); } }
+}
+
+// ---------- acrylic ----------
+function genAcrylic(seed, sev, o) {
+  const R = rng(seed);
+  const reach = 0.07 + 0.46 * sev, rc = 0.006 + 0.020 * sev;
+  const NR = 4 + Math.round(sev * 4) + (R() < 0.5 ? 0 : 1);
+  const segs = [], mains = [], a0 = R() * TAU;
+  function grow(x, y, ang, len, depth, phi, w0, main) {
+    const pts = [[x, y]]; let t = 0;
+    while (t < len) {
+      const sl = 0.010 + R() * 0.022;
+      ang += gauss(R) * 0.03;
+      if (R() < (o.kinks == null ? 0.13 : o.kinks)) ang += (R() < 0.5 ? -1 : 1) * (0.10 + R() * 0.24);
+      const nx = x + Math.cos(ang) * sl, ny = y + Math.sin(ang) * sl;
+      if (o.segPhi) phi += gauss(R) * 0.35;
+      segs.push({ x0: x, y0: y, x1: nx, y1: ny, w: w0 * (1 - 0.72 * t / len) + 0.25, phi, a: ang });
+      x = nx; y = ny; t += sl; pts.push([x, y]);
+      if (o.branch && depth < 2 && R() < 0.12 * sev * (1 - t / len)) {
+        const sgn = R() < 0.5 ? -1 : 1;
+        grow(x, y, ang + sgn * (0.22 + R() * 0.35), (len - t) * (0.3 + R() * 0.5), depth + 1, phi + R() * 1.5, w0 * 0.7, false);
+      }
+    }
+    if (main) mains.push({ a: main, pts });
+  }
+  for (let i = 0; i < NR; i++) {
+    const ang = a0 + i * TAU / NR + (R() - 0.5) * 0.6 * TAU / NR;
+    const len = reach * (0.45 + 0.55 * R());
+    grow(Math.cos(ang) * rc * 0.7, Math.sin(ang) * rc * 0.7, ang, len, 0, R() * 3, 1.25, ((ang % TAU) + TAU) % TAU || 1e-6);
+  }
+  if (o.hackle) {
+    const n = Math.round(8 + 26 * sev);
+    for (let i = 0; i < n; i++) { const a = R() * TAU, r0 = rc * (0.6 + 0.7 * R()), l = 0.003 + 0.016 * R() * (0.4 + sev), an = a + (R() - 0.5) * 0.6;
+      segs.push({ x0: Math.cos(a) * r0, y0: Math.sin(a) * r0, x1: Math.cos(a) * r0 + Math.cos(an) * l, y1: Math.sin(a) * r0 + Math.sin(an) * l, w: 0.55, phi: R() * 3, a: an }); }
+  }
+  if (o.arcs && sev >= 0.85) {
+    mains.sort((p, q) => p.a - q.a);
+    const nA = 2 + Math.floor(R() * 2);
+    for (let j = 0; j < nA; j++) {
+      const i = Math.floor(R() * mains.length), m1 = mains[i], m2 = mains[(i + 1) % mains.length], rr = 0.022 + 0.045 * R();
+      const p1 = atRadius(m1.pts, rr), p2 = atRadius(m2.pts, rr * (0.9 + 0.2 * R()));
+      if (!p1 || !p2) continue;
+      const mx = (p1[0] + p2[0]) / 2, my = (p1[1] + p2[1]) / 2, ml = Math.hypot(mx, my) || 1, bow = 0.12 * Math.hypot(p1[0] - p2[0], p1[1] - p2[1]);
+      const c = [mx + mx / ml * bow, my + my / ml * bow];
+      segs.push({ x0: p1[0], y0: p1[1], x1: c[0], y1: c[1], w: 0.6, phi: R() * 3, a: Math.atan2(c[1] - p1[1], c[0] - p1[0]) });
+      segs.push({ x0: c[0], y0: c[1], x1: p2[0], y1: p2[1], w: 0.6, phi: R() * 3, a: Math.atan2(p2[1] - c[1], p2[0] - c[0]) });
+    }
+  }
+  const core = []; const m = 9 + Math.floor(R() * 5);
+  for (let i = 0; i < m; i++) { const a = i / m * TAU, r = rc * (0.6 + 0.6 * R()); core.push([Math.cos(a) * r, Math.sin(a) * r]); }
+  mains.sort((p, q) => p.a - q.a);
+  return { segs, mains, core, rc, R };
+}
+function atRadius(pts, r) { for (const p of pts) if (Math.hypot(p[0], p[1]) >= r) return p; return null; }
+
+function drawAcrylic(ctx, g, k, sev, seed, opt) {
+  const o = opt === 'A' ? { branch: false, hackle: false, segPhi: false, kinks: 0.10 } : { branch: true, hackle: true, segPhi: true, arcs: true };
+  const A = genAcrylic(seed, sev, o), S = g.S;
+  let hole = null;
+  if (opt === 'C' && sev >= 0.95) {
+    const R = rng(seed + 77); hole = new Path2D(); let first = true;
+    for (const mn of A.mains) {
+      const p = atRadius(mn.pts, 0.028 + 0.03 * R()) || mn.pts[mn.pts.length - 1];
+      const x = g.cx + p[0] * S, y = g.cy + p[1] * S;
+      if (first) { hole.moveTo(x, y); first = false; } else hole.lineTo(x, y);
+      const a = Math.atan2(p[1], p[0]) + 0.5 * TAU / A.mains.length, r = 0.018 + 0.014 * R();
+      hole.lineTo(g.cx + Math.cos(a) * r * S, g.cy + Math.sin(a) * r * S);
+    }
+    hole.closePath();
+  }
+  drawGlassLayer(ctx, g, hole);
+  ctx.save(); clipPane(ctx, g);
+  if (hole) { const p = new Path2D(); p.rect(-5, -5, g.W + 10, g.H + 10); p.addPath(hole); ctx.clip(p, 'evenodd'); }
+  if (opt === 'C') {
+    const R = rng(seed + 31), Rs = 0.09 + 0.08 * sev;
+    for (let i = 0; i < A.mains.length; i++) {
+      const m1 = A.mains[i].pts, m2 = A.mains[(i + 1) % A.mains.length].pts;
+      ctx.beginPath(); ctx.moveTo(g.cx, g.cy);
+      for (const p of m1) { if (Math.hypot(p[0], p[1]) > Rs) break; ctx.lineTo(g.cx + p[0] * S, g.cy + p[1] * S); }
+      const r2 = []; for (const p of m2) { if (Math.hypot(p[0], p[1]) > Rs) break; r2.push(p); }
+      for (let j = r2.length - 1; j >= 0; j--) ctx.lineTo(g.cx + r2[j][0] * S, g.cy + r2[j][1] * S);
+      ctx.closePath();
+      const v = R();
+      ctx.fillStyle = v < 0.5 ? 'rgba(255,255,255,' + (0.04 + 0.12 * R()) + ')' : 'rgba(10,25,40,' + (0.03 + 0.08 * R()) + ')';
+      ctx.fill();
+    }
+  }
+  whiteSpot(ctx, g, A.core, A.rc, k, opt === 'A' ? 0 : 160, A.R, opt === 'A' ? 0.7 : 0.9);
+  strokeSegs(ctx, g, A.segs, k, { companion: opt !== 'A', alpha: 1 });
+  ctx.restore();
+  if (hole) {
+    ctx.save(); clipPane(ctx, g);
+    ctx.strokeStyle = 'rgba(240,245,248,0.85)'; ctx.lineWidth = 1.3 * k; ctx.stroke(hole);
+    ctx.strokeStyle = 'rgba(230,236,240,0.28)'; ctx.lineWidth = 4.5 * k; ctx.stroke(hole);
+    ctx.restore();
+  }
+}
+
+// ---------- polycarbonate ----------
+function drawPoly(ctx, g, k, sev, seed, opt) {
+  const R = rng(seed), S = g.S, Rd = 0.03 + 0.07 * sev, ox = g.cx, oy = g.cy;
+  const broken = sev >= 0.95;
+  let hole = null, petals = [];
+  if (opt === 'C' && broken) {
+    hole = new Path2D(); const n = 4 + Math.floor(R() * 2), a0 = R() * TAU, rt = 0.035 + 0.01 * R(), ri = 0.010;
+    for (let i = 0; i < n; i++) {
+      const a = a0 + i * TAU / n + (R() - 0.5) * 0.3, b = a + TAU / n / 2;
+      const tip = [Math.cos(a) * rt, Math.sin(a) * rt], inn = [Math.cos(b) * ri, Math.sin(b) * ri];
+      if (i === 0) hole.moveTo(ox + tip[0] * S, oy + tip[1] * S); else hole.lineTo(ox + tip[0] * S, oy + tip[1] * S);
+      hole.lineTo(ox + inn[0] * S, oy + inn[1] * S);
+      petals.push({ a, b, rt, ri });
+    }
+    hole.closePath();
+  }
+  drawGlassLayer(ctx, g, hole);
+  ctx.save(); clipPane(ctx, g);
+  // the dent: a smooth bowl lit from the light's side
+  const dx = Math.cos(LIGHT + Math.PI), dy = -Math.abs(Math.sin(LIGHT)) * 0.6 - 0.2;
+  const lg = ctx.createLinearGradient(ox + dx * Rd * S, oy + dy * Rd * S, ox - dx * Rd * S, oy - dy * Rd * S);
+  const dep = 0.10 + 0.22 * sev;
+  lg.addColorStop(0, 'rgba(255,255,255,' + dep + ')'); lg.addColorStop(0.5, 'rgba(255,255,255,0)'); lg.addColorStop(1, 'rgba(8,16,26,' + dep * 0.8 + ')');
+  ctx.save(); ctx.beginPath(); ctx.arc(ox, oy, Rd * S, 0, TAU); ctx.clip();
+  ctx.fillStyle = lg; ctx.fillRect(ox - Rd * S, oy - Rd * S, 2 * Rd * S, 2 * Rd * S);
+  ctx.restore();
+  // the stress-whitened ring
+  const wr = ctx.createRadialGradient(ox, oy, Rd * S * 0.35, ox, oy, Rd * S * 1.35);
+  wr.addColorStop(0, 'rgba(236,240,242,0)'); wr.addColorStop(0.55, 'rgba(236,240,242,' + (0.10 + 0.30 * sev) + ')'); wr.addColorStop(1, 'rgba(236,240,242,0)');
+  ctx.fillStyle = wr; ctx.beginPath(); ctx.arc(ox, oy, Rd * S * 1.4, 0, TAU); ctx.fill();
+  // crazing: fine tangential micro-cracks that all face the same way round the ring, so they sparkle together
+  const n = Math.round((opt === 'A' ? 120 : 260) + (opt === 'A' ? 200 : 600) * sev), segs = [];
+  for (let i = 0; i < n; i++) {
+    const a = R() * TAU, r = Rd * (0.45 + Math.pow(R(), 0.7) * 1.6), l = 0.0015 + 0.006 * R();
+    const t = a + Math.PI / 2 + (R() - 0.5) * 0.15, x = Math.cos(a) * r, y = Math.sin(a) * r;
+    const fade = Math.max(0, 1 - Math.abs(r - Rd) / (Rd * 1.2));
+    segs.push({ x0: x - Math.cos(t) * l / 2, y0: y - Math.sin(t) * l / 2, x1: x + Math.cos(t) * l / 2, y1: y + Math.sin(t) * l / 2, w: 0.5, phi: (R() - 0.5) * 0.2, a: t, fade: fade * (0.5 + 0.5 * sev) });
+  }
+  strokeSegs(ctx, g, segs, k, { companion: false, alpha: 1, sharp: 20 });
+  if (broken && opt !== 'C') { // B: a tear started, no hole yet
+    const t = []; const a0 = R() * TAU;
+    for (let i = 0; i < 3; i++) { const a = a0 + i * TAU / 3 + (R() - 0.5) * 0.4, l = 0.015 + 0.012 * R(); t.push({ x0: 0, y0: 0, x1: Math.cos(a) * l, y1: Math.sin(a) * l, w: 1.6, phi: 0.4, a }); }
+    strokeSegs(ctx, g, t, k, { companion: true, alpha: 1 });
+  }
+  ctx.restore();
+  if (hole) {
+    ctx.save(); clipPane(ctx, g);
+    for (const p of petals) { // the petals folded inward: a whitened triangle each side of a tip
+      const tip = [ox + Math.cos(p.a) * p.rt * S, oy + Math.sin(p.a) * p.rt * S];
+      ctx.fillStyle = 'rgba(232,236,238,0.35)';
+      ctx.beginPath(); ctx.moveTo(tip[0], tip[1]); ctx.lineTo(ox + Math.cos(p.a + 0.5) * p.rt * 0.55 * S, oy + Math.sin(p.a + 0.5) * p.rt * 0.55 * S); ctx.lineTo(ox + Math.cos(p.a) * p.rt * 0.35 * S, oy + Math.sin(p.a) * p.rt * 0.35 * S); ctx.closePath(); ctx.fill();
+    }
+    ctx.strokeStyle = 'rgba(238,242,244,0.75)'; ctx.lineWidth = 2.2 * k; ctx.stroke(hole);
+    ctx.restore();
+  }
+}
+
+// ---------- laminated glass ----------
+function drawLaminated(ctx, g, k, sev, seed, opt) {
+  const R = rng(seed), S = g.S, reach = 0.08 + 0.30 * sev, NR = 14 + Math.floor(R() * 8), segs = [], rays = [];
+  const a0 = R() * TAU, segPhi = opt !== 'A';
+  for (let i = 0; i < NR; i++) {
+    let ang = a0 + i * TAU / NR + (R() - 0.5) * 0.35 * TAU / NR, x = 0, y = 0, t = 0, phi = R() * 3; const len = reach * (0.55 + 0.45 * R()), pts = [[0, 0]];
+    while (t < len) { const sl = 0.012 + R() * 0.02; ang += gauss(R) * 0.015; if (R() < 0.05) ang += (R() - 0.5) * 0.3; const nx = x + Math.cos(ang) * sl, ny = y + Math.sin(ang) * sl; if (segPhi) phi += gauss(R) * 0.3;
+      segs.push({ x0: x, y0: y, x1: nx, y1: ny, w: 1.0 * (1 - 0.6 * t / len) + 0.3, phi, a: ang }); x = nx; y = ny; t += sl; pts.push([x, y]); }
+    rays.push(pts);
+  }
+  let r = 0.012;
+  while (r < reach * 0.95) {
+    r *= 1.22 + R() * 0.32;
+    for (let i = 0; i < NR; i++) { if (R() > 0.72) continue;
+      const p1 = atRadius(rays[i], r * (0.93 + 0.14 * R())), p2 = atRadius(rays[(i + 1) % NR], r * (0.93 + 0.14 * R()));
+      if (!p1 || !p2) continue;
+      segs.push({ x0: p1[0], y0: p1[1], x1: p2[0], y1: p2[1], w: 0.6, phi: R() * 3, a: Math.atan2(p2[1] - p1[1], p2[0] - p1[0]) }); }
+  }
+  drawGlassLayer(ctx, g, null);
+  ctx.save(); clipPane(ctx, g);
+  if (opt === 'C') { // the fragments stay on the interlayer, each tilted a little
+    for (let i = 0; i < NR; i++) { const m1 = rays[i], m2 = rays[(i + 1) % NR], Rs = reach * 0.6;
+      ctx.beginPath(); ctx.moveTo(g.cx, g.cy); for (const p of m1) { if (Math.hypot(p[0], p[1]) > Rs) break; ctx.lineTo(g.cx + p[0] * S, g.cy + p[1] * S); }
+      const q = m2.filter(p => Math.hypot(p[0], p[1]) <= Rs); for (let j = q.length - 1; j >= 0; j--) ctx.lineTo(g.cx + q[j][0] * S, g.cy + q[j][1] * S); ctx.closePath();
+      ctx.fillStyle = R() < 0.5 ? 'rgba(255,255,255,' + (0.03 + 0.09 * R()) + ')' : 'rgba(10,25,40,' + (0.02 + 0.06 * R()) + ')'; ctx.fill(); }
+  }
+  const core = []; const rc = 0.010 + 0.016 * sev; for (let i = 0; i < 12; i++) { const a = i / 12 * TAU; core.push([Math.cos(a) * rc * (0.8 + 0.4 * R()), Math.sin(a) * rc * (0.8 + 0.4 * R())]); }
+  whiteSpot(ctx, g, core, rc, k, opt === 'A' ? 0 : 320, R, 1);
+  strokeSegs(ctx, g, segs, k, { companion: opt !== 'A', alpha: 0.95, sharp: 10 });
+  ctx.restore();
+}
+
+// ---------- tempered glass ----------
+function drawTempered(ctx, g, k, sev, seed, opt) {
+  const R = rng(seed), S = g.S;
+  if (sev < 0.6) { drawGlassLayer(ctx, g, null); return 'holds'; }
+  const cell = 0.013, nx = Math.ceil(SPAN / cell) + 2, ny = Math.ceil(SPAN / cell) + 2, P = [];
+  for (let j = 0; j < ny; j++) { P.push([]); for (let i = 0; i < nx; i++) P[j].push([(i - 1 + (R() - 0.5) * 0.8) * cell * S, (j - 1 + (R() - 0.5) * 0.8) * cell * S]); }
+  let hole = null; const fr = 0.035 * S;
+  if (opt === 'C') {
+    hole = new Path2D(); const f = g.frame;
+    hole.moveTo(f[1][0] + fr, -5); hole.lineTo(g.W + 5, -5); hole.lineTo(g.W + 5, g.coamY - fr);
+    hole.quadraticCurveTo(g.W * 0.5, g.coamC - fr, f[2][0] + fr * 0.2, g.coamY - fr * 1.6); hole.closePath();
+  }
+  drawGlassLayer(ctx, g, hole);
+  ctx.save(); clipPane(ctx, g);
+  if (hole) { const p = new Path2D(); p.rect(-5, -5, g.W + 10, g.H + 10); p.addPath(hole); ctx.clip(p, 'evenodd'); }
+  ctx.fillStyle = 'rgba(225,232,236,0.10)'; ctx.fillRect(0, 0, g.W, g.H);
+  ctx.lineCap = 'round';
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+    const p = P[j][i];
+    for (const q of [i + 1 < nx ? P[j][i + 1] : null, j + 1 < ny ? P[j + 1][i] : null]) { if (!q) continue;
+      const a = Math.atan2(q[1] - p[1], q[0] - p[0]), b = opt === 'A' ? 0.35 : glint(a, R() * 2.5, 6);
+      ctx.strokeStyle = 'rgba(240,246,250,' + (0.12 + 0.6 * b) + ')'; ctx.lineWidth = 0.7 * k;
+      ctx.beginPath(); ctx.moveTo(p[0], p[1]); ctx.lineTo(q[0], q[1]); ctx.stroke(); }
+  }
+  ctx.restore();
+  if (hole) { ctx.save(); clipPane(ctx, g); ctx.strokeStyle = 'rgba(235,240,243,0.6)'; ctx.lineWidth = 1.2 * k; ctx.stroke(hole); ctx.restore(); }
+}
+
+// ---------- TODAY: dmg_glass.js crackJS, line for line ----------
+const T = (function () {
+  function u32(x) { return x >>> 0; }
+  function h1(i, seed) { let x = u32(Math.imul(i | 0, 0x27d4eb2d) ^ Math.imul(seed | 0, 0x165667b1)); x ^= x >>> 15; x = u32(Math.imul(x, 0x85ebca6b)); x ^= x >>> 13; x = u32(Math.imul(x, 0xc2b2ae35)); x ^= x >>> 16; return u32(x) / 4294967296; }
+  function h2(i, j, seed) { return h1(Math.imul(i | 0, 73856093) ^ Math.imul(j | 0, 19349663), seed); }
+  function v1(x, seed) { const fi = Math.floor(x), i = fi, f = x - fi, s = f * f * (3 - 2 * f), a = h1(i, seed); return a + (h1(i + 1, seed) - a) * s; }
+  function fbm1(x, seed) { let s = 0, a = 0.5, f = 1, n = 0; for (let o = 0; o < 3; o++) { s += a * (v1(x * f, seed + o * 31) * 2 - 1); n += a; a *= 0.5; f *= 2.03; } return s / n; }
+  function sm(a, b, x) { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); }
+  function lineCov(dist, w, pw) { const we = Math.max(w, pw); return (1 - sm(we * 0.5, we, dist)) * (w / we); }
+  function vorEdge(x, y, seed) {
+    const ix = Math.floor(x), iy = Math.floor(y); let md = 9, mx = 0, my = 0;
+    for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) { const px = i + h2(ix + i, iy + j, seed), py = j + h2(ix + i, iy + j, seed + 1), dx = px - (x - ix), dy = py - (y - iy), d = dx * dx + dy * dy; if (d < md) { md = d; mx = dx; my = dy; } }
+    let e = 9;
+    for (let j = -2; j <= 2; j++) for (let i = -2; i <= 2; i++) { const px = i + h2(ix + i, iy + j, seed), py = j + h2(ix + i, iy + j, seed + 1), dx = px - (x - ix), dy = py - (y - iy), qx = dx - mx, qy = dy - my, ql = qx * qx + qy * qy;
+      if (ql > 1e-5) e = Math.min(e, ((mx + dx) * 0.5 * qx + (my + dy) * 0.5 * qy) / Math.sqrt(ql)); }
+    return e;
+  }
+  function crackJS(px2, py2, sev, seed, px) {
+    const reach = 0.06 + 0.30 * sev, r = Math.hypot(px2, py2) + 1e-6;
+    if (r > reach * 1.05) return [0, 0];
+    let th = Math.atan2(py2, px2); if (th < 0) th += TAU;
+    const NR = 5 + Math.floor(h1(1, seed) * 5), cell = th / TAU * NR, c0 = Math.floor(cell);
+    let line = 0, haze = 0;
+    for (let o = -1; o <= 1; o++) {
+      let k = c0 + o; if (k < 0) k += NR; if (k >= NR) k -= NR;
+      const base = (k + 0.5 + 0.7 * (h1(k, seed + 3) - 0.5)) / NR * TAU;
+      const ang = base + 0.10 * fbm1(r * 9 + k * 7.1, seed + 5) + 0.12 * fbm1(r * 2.3 + k, seed + 6) * Math.min(1, r / 0.1);
+      let d = th - ang; d -= TAU * Math.round(d / TAU);
+      const len = reach * (0.45 + 0.55 * h1(k, seed + 9)), dist = Math.abs(d) * r;
+      const w = 0.0009 * (1 - Math.min(1, r / len)) + 0.00025;
+      if (r < len) { line = Math.max(line, lineCov(dist, w, px)); haze = Math.max(haze, 0.55 * (1 - sm(w, Math.max(w * 6, px * 2), dist))); }
+    }
+    if (sev >= 0.5) {
+      const NG = 1 + Math.floor(h1(2, seed) * 3);
+      for (let j = 0; j < 3; j++) { if (j >= NG) break;
+        const Rr = (0.03 + 0.02 * h1(j, seed + 13)) * Math.pow(2, j) * (0.6 + sev);
+        if (h2(c0, j, seed + 17) > 0.55 || Rr > reach) continue;
+        const Rw = Rr * (1 + 0.08 * fbm1(th * 5 + j, seed + 19)), dist = Math.abs(r - Rw);
+        line = Math.max(line, lineCov(dist, 0.0004, px)); haze = Math.max(haze, 0.45 * (1 - sm(0.001, Math.max(0.004, px * 2), dist))); }
+    }
+    if (sev >= 0.85) {
+      const cz = 0.9 * (1 - sm(0.02, 0.06 + 0.06 * sev, r));
+      if (cz > 0) { const e = vorEdge(px2 * 60, py2 * 60, seed + 23); haze = Math.max(haze, cz * (1 - sm(0.02, 0.07, e)) * 0.8); }
+    }
+    return [line, haze];
+  }
+  return { crackJS };
+})();
+function drawToday(ctx, g, k, sev, seed, cssW) {
+  drawGlassLayer(ctx, g, null);
+  // per pixel at the CSS resolution (a screen pixel's metres, as the shader's fwidth), then scaled up
+  const w = Math.max(120, Math.round(cssW)), h = w, off = document.createElement('canvas'); off.width = w; off.height = h;
+  const oc = off.getContext('2d'), img = oc.createImageData(w, h), d = img.data, px = SPAN / w, cx = 0.52 * w, cy = 0.40 * h;
+  const s = 7919 + (seed % 97) * 131;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const c = T.crackJS((x + 0.5 - cx) * px, (y + 0.5 - cy) * px, sev, s, px), v = 0.85 * c[0] + 0.30 * c[1];
+    if (v <= 0) continue;
+    const i = (y * w + x) * 4; d[i] = 237; d[i + 1] = 242; d[i + 2] = 247; d[i + 3] = Math.min(255, v * 255 * 0.95);
+  }
+  oc.putImageData(img, 0, 0);
+  ctx.save(); clipPane(ctx, g); ctx.globalCompositeOperation = 'lighter'; ctx.imageSmoothingEnabled = true; ctx.drawImage(off, 0, 0, g.W, g.H); ctx.restore();
+}
+
+// ---------- one render ----------
+function render(cv, st) {
+  const cssW = cv.clientWidth || 300, k = Math.min(2, window.devicePixelRatio || 1), W = Math.round(cssW * k);
+  if (cv.width !== W) { cv.width = W; cv.height = W; }
+  const ctx = cv.getContext('2d'), g = geom(W, W);
+  LIGHT = st.light * Math.PI / 180;
+  ctx.clearRect(0, 0, W, W);
+  drawWorld(ctx, g, st.light);
+  let note = '';
+  if (st.opt === 'T') drawToday(ctx, g, k, st.sev, st.seed, cssW);
+  else if (st.mat === 'acrylic') drawAcrylic(ctx, g, k, st.sev, st.seed, st.opt);
+  else if (st.mat === 'polycarbonate') drawPoly(ctx, g, k, st.sev, st.seed, st.opt);
+  else if (st.mat === 'laminated') drawLaminated(ctx, g, k, st.sev, st.seed, st.opt);
+  else note = drawTempered(ctx, g, k, st.sev, st.seed, st.opt) || '';
+  drawCockpit(ctx, g);
+  return note;
+}
+
+// ---------- static figures ----------
+const statics = Array.from(document.querySelectorAll('canvas.mock[data-opt]'));
+function drawStatics() { for (const cv of statics) { try { render(cv, { opt: cv.dataset.opt, mat: cv.dataset.mat, sev: +cv.dataset.sev, light: +cv.dataset.light, seed: +cv.dataset.seed }); } catch (e) { console.error(e); } } }
+
+// ---------- the viewer ----------
+const V = { opt: 'B', mat: 'acrylic', sev: 1, light: 64, seed: 11 };
+const vc = document.getElementById('vc'), cap = document.getElementById('vcap');
+const OPT = { T: 'Today: the game’s own crack function, the same on every material', A: 'A: the procedural crack retuned', B: 'B: the baked sheet', C: 'C: the sheet plus the broken pane' };
+const MAT = { acrylic: 'acrylic', polycarbonate: 'polycarbonate', laminated: 'laminated glass windscreen', tempered: 'tempered glass side window' };
+function sevName(s) { return s >= 0.95 ? 'broken member' : s >= 0.85 ? 'the 3 % kink' : s >= 0.5 ? 'a hard set' : 'a light set'; }
+let pending = 0;
+function drawViewer() {
+  cancelAnimationFrame(pending);
+  pending = requestAnimationFrame(() => {
+    const note = render(vc, V);
+    document.getElementById('sevo').textContent = V.sev.toFixed(2) + ' · ' + sevName(V.sev);
+    document.getElementById('lito').textContent = V.light + '°';
+    let t = OPT[V.opt] + (V.opt === 'T' ? '.' : ', ' + MAT[V.mat] + '.');
+    if (note === 'holds') t += ' Tempered glass holds or fails whole: nothing shows below a hard hit.';
+    if (V.opt === 'C' && V.sev < 0.95) t += ' C differs from B only at a broken member (severity 1).';
+    cap.textContent = t;
+  });
+}
+function bindSeg(id, key) {
+  const el = document.getElementById(id);
+  el.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return;
+    V[key] = b.dataset.v; el.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b ? 'true' : 'false')); drawViewer(); });
+  el.querySelectorAll('button').forEach(x => { if (!x.hasAttribute('aria-pressed')) x.setAttribute('aria-pressed', 'false'); });
+}
+bindSeg('segOpt', 'opt'); bindSeg('segMat', 'mat');
+document.getElementById('sev').addEventListener('input', e => { V.sev = +e.target.value; drawViewer(); });
+document.getElementById('lit').addEventListener('input', e => { V.light = +e.target.value; drawViewer(); });
+document.getElementById('reseed').addEventListener('click', () => { V.seed = 1 + Math.floor(Math.random() * 9999); drawViewer(); });
+V.sev = +document.getElementById('sev').value; V.light = +document.getElementById('lit').value;
+
+function all() { drawStatics(); drawViewer(); }
+let rz = 0, lastW = window.innerWidth;
+window.addEventListener('resize', () => { if (window.innerWidth === lastW) return; lastW = window.innerWidth; clearTimeout(rz); rz = setTimeout(all, 200); });
+all();
+})();
+</script>
