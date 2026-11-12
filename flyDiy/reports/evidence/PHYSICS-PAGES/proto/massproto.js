@@ -48,7 +48,9 @@ function split(def, rows, C) {
       const eng = n * ((PP && PP.engine && PP.engine.mass) || 0), inst = n * (S.engInstallM || 0), prop = n * ((S.prop && S.prop.mass) || 0);
       it.push(['Engine', 'engine', eng], ['Engine installation', 'engine', inst], ['Propeller', 'engine', prop], ['Engine mount', 'engine', r.kg - eng - inst - prop]); }
     else if (r.key === 'outfit' && def.parts.outfitKg) { const O = def.parts.outfitKg;
-      it.push(['Cowl', 'engine', O.cowl], ['Exhaust', 'engine', O.exhaust], ['Fuel lines', 'engine', O.plumbing], ['Flight controls', 'systems', O.controls],
+      // the editor's cowl switch (cage.cowlOn, the one the drag reads) off, and a cowl billed all the same: COWL-BILL, reported
+      const noCowl = S.cage && S.cage.cowlOn != null && !+S.cage.cowlOn;
+      it.push([noCowl ? 'Cowl, billed but not fitted' : 'Cowl', 'engine', O.cowl], ['Exhaust', 'engine', O.exhaust], ['Fuel lines', 'engine', O.plumbing], ['Flight controls', 'systems', O.controls],
               ['Panel board', 'systems', O.panel], ['Windows & screen', 'structure', O.glazing]); }
     else if (r.key === 'gear' && def.parts.ledger.gear.nodeM) {
       const n = def.nodes, mains = [].concat(def.refs.mains || []), tw = def.refs.tw;
