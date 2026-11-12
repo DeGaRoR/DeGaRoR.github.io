@@ -976,7 +976,7 @@ const GEN_ENG_CG = {
   outrunner2212_9x47: 0.02, outrunner6374_18x10: 0.06, eppg_direct_130: 0.13,
   fes_folding_100: 0.12, emrax228_3blade: 0.12, e811_velis: 0.19,
   sp260d_class: 0.31, emrax268_carbon: 0.14,
-  pt6a114a_hartzell3: 0.63, pt6a34_hartzell4: 0.65, pt6a42_hartzell4: 0.71, pt6a27_hartzell3: 0.65,   // (the -27: the -34's frame)
+  pt6a114a_hartzell3: 0.63, pt6a34_hartzell4: 0.65, pt6a42_hartzell4: 0.71, pt6a27_hartzell3: 0.61,   // (the -27: measured on its preset, 0.606 - GATE ENGID's bench)
   pt6a60a_hartzell4: 0.78,
   outrunner3548_12x6: null,
 };
