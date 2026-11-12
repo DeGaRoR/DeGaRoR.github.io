@@ -501,7 +501,7 @@ const CAGE_PARTS = [
     place: { count: 'paxCount', type: 'doorPax', len: 'paxLen',
              at: 'aft of the cabin' },
     groups: [
-      ['bays', ['paxCount', 'paxLen', 'paxLenLast', 'paxAbreast']],
+      ['bays', ['paxCount', 'paxLen', 'paxLenLast', 'paxSeatBays', 'paxAbreast']],
       ['rear window', ['rearWinOn', 'rearWinW', 'rearWinH', 'rearWinY', 'rearWinR']],   // CAR-4   // paxLenLast: CAR-3       // T2.3 (132)
       // G3573 (DC3-2): the rows of seats in each bay, their pitch, the aisle and the seat's width
       ['seat layout', ['paxRows', 'paxPitch', 'paxAisle', 'paxSeatW']],

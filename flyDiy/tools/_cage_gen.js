@@ -6846,7 +6846,7 @@ function cageInterior(m, S) {
     // gear's V-panel idiom: inset from the member centrelines so the
     // tubes still read at the edges, lifted outward by the tube
     // radius, thin box.
-    if (S.rod && !S.rod.twin) (() => {
+    if (S.rod && !S.rod.twin && !S.rod.bare) (() => {   // CAR-3: no tube, no socket on the aft face either
       const rr = S.rod.r;
       // G267.1: the rod's axis at a station — level at the bulkhead, rising
       // tan(incl) per metre aft; every fitting sits on the axis where it is

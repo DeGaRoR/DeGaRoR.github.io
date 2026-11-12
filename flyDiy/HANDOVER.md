@@ -314897,3 +314897,16 @@ the next steps).
   glass stands the interior aft bulkhead (intBulk 1, 6 cm inside) - the window reads dark.
 - **CAN THE UTV TOW**: on the ground yes (a glider on its wheel: lift-off speed in 6.8 s on paved), a launch no - 39 kW at
   the wheels holds 3 kN at 44 km/h at most; an auto-tow climb needs ~5 kN at ~95 km/h (~150 kW). The wagon is the tug.
+- **CAR-3, THE RESET (the user: "come back to really simpler settings ... keep the pillars and the global proportions")**:
+  the wagon's edits rebuilt from 165 rows to the essentials (the old set kept in the session's scratch, not the repo):
+  the pillars (pilotLen, paxLen, paxLenLast, noseLen, wsRun), the proportions (planeScale, halfW, roofHalfW, roofY), ONE
+  floor (every frame's bottom -0.82: -0.745 m end to end), ONE roof (frPaxTopY / aftRoofY / tailRoofY = roofY: level at
+  0.914 m, it had fallen 12 cm aft), ONE waist (waistY 0.147 - the per-frame waists were the kinked sill), the
+  windscreen flat (crowns / bows 0), noseKeelSq 1 (cherry-picked from FIT-PROCEDURE f04a18ef: the nose's bottom corners
+  square - the bonnet meets it within 16 mm on the sides and bottom), no drawn windows, no passenger doors, the bonnet /
+  engine / wheels / legs as they were. THE THINGS THROUGH THE BACK: the rod's bolted socket (drawn with the rod off -
+  _cage_gen.js now skips it when S.rod.bare), the rear bay's two seats (their reclined backs 12 cm through the wall - NEW
+  ROW paxSeatBays, _cage_crew.js: only the first N bays from the front carry seats, absent = all; the wagon's 1), the tank
+  (aftCabin -> nose bay), and the C172's avionics (the roadster's car systems). Found with a probe through _load_build.js
+  (the page's own scene): the seats are not in the headless scene. 1012 kg, 53 % front; AUTOTOW off paved now holds 79
+  km/h (short of the 90 pass mark: the tank's move took weight off the rear - ballast in the load bay is the cure to try).

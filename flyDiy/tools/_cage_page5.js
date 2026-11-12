@@ -1128,6 +1128,7 @@ window.CAGE_PAGE = {
       ['paxOpen4',  'bay 4 open at the top', 0, 1, 1, ['closed', 'open'], { when: P => +P.paxCount >= 4 }],
       // (G3573: a COUNT, 0-48 - rows x the row's seats - filled from the bay's first row (by its aft ring) forward, each row from the aisle out; the old
       // dropdown's 0-3 are the same numbers)
+      ['paxSeatBays', 'bays with seats (from the front)', 0, 4, 1, { when: P => +P.paxCount > 0 }],   // CAR-3: absent = all
       ['paxOcc1',   'bay 1 seated',    0, 48, 1,
        { when: P => +P.crewOn && +P.paxCount >= 1 }],
       ['paxOcc2',   'bay 2 seated',    0, 48, 1,
