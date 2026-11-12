@@ -525,7 +525,7 @@ function cageJoinSpec(P, M, T) {
     const s1leg = spec.gear.retract ? 2 : Math.round(P.s1Leg);
     spec.gear.suspension =
       s1leg === 0 ? 'spring' : s1leg === 2 ? 'oleo' : s1leg === 4 ? 'lever' :
-      ['spring', 'bungee', 'oleo'][Math.round(P.s1_shockKind)] || 'bungee';
+      ['spring', 'bungee', 'oleo', 'oleo'][Math.round(P.s1_shockKind)] || 'bungee';   // (12 Nov: 3, the piston, an oleo)
     // (WILGA-GEAR: the trailing link wears no wheel fairing - the gear layer draws none, clampSpec says so too)
     if (spec.gear.suspension === 'lever') spec.gear.fairing = 'none';
     // WILGA-GEAR: THE TRAILING-LINK LEG AS DRAWN reaches the physics - the gear layer's records (CAGE_GEAR.lever: the
