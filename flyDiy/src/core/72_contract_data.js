@@ -67,14 +67,14 @@ const CONTRACT_FIELDS = {
 //   tankL      the vessel's litres (energyL); power the energy kind (fuel | electric)
 // What a design CAN DO is judged from these alone (contractCanDo, 73_): the load against the cabin, the loaded
 // take-off distance against both strips, the gear against both surfaces, the range against the leg.
-// SNAPSHOTS-OF 214354eac37666e3 (tools/snapshots.js: CONTRACT_DESIGNS, FREIGHT_CARDS and PROCURE eff measured off these build files)
+// SNAPSHOTS-OF c40b4c6033f2330f (tools/snapshots.js: CONTRACT_DESIGNS, FREIGHT_CARDS and PROCURE eff measured off these build files)
 const CONTRACT_DESIGNS = {
   cub:    { id: 'cub',    label: 'Cub',             build: 'builds/cub_2026-09-20_corrected.json',
-            gear: 'wheels', seats: 2, bagKg: 10, massKg: 476, emptyKg: 354, toM: 156,
-            cruiseKmh: 113, rangeKm: 376, spanM: 10.7, cost: 44683, tankL: 47.7, power: 'fuel' },
+            gear: 'wheels', seats: 2, bagKg: 10, massKg: 475, emptyKg: 352, toM: 153,
+            cruiseKmh: 113, rangeKm: 376, spanM: 10.7, cost: 44388, tankL: 47.7, power: 'fuel' },
   jodel:  { id: 'jodel',  label: 'Jodel',           build: 'builds/jodel_2026-09-20_corrected.json',
-            gear: 'wheels', seats: 2, bagKg: 10, massKg: 463, emptyKg: 341, toM: 205,
-            cruiseKmh: 127, rangeKm: 422, spanM: 8.3, cost: 45992, tankL: 47.7, power: 'fuel' },
+            gear: 'wheels', seats: 2, bagKg: 10, massKg: 462, emptyKg: 340, toM: 205,
+            cruiseKmh: 127, rangeKm: 422, spanM: 8.3, cost: 45882, tankL: 47.7, power: 'fuel' },
   c172:   { id: 'c172',   label: 'metal Cessna',    build: 'bugReports/cessnaMetal (1).json',
             gear: 'wheels', seats: 4, bagKg: 40, massKg: 880, emptyKg: 662, toM: 144,
             cruiseKmh: 177, rangeKm: 91, spanM: 11, cost: 137572, tankL: 26.5, power: 'fuel' },
