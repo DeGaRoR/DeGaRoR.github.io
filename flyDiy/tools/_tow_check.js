@@ -106,7 +106,7 @@ const L = launch({});
   const APP = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8'), LINK = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'sim_link.js'), 'utf8'), DM = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'drive_mode.js'), 'utf8');
   const hooks = { wanted: /def\.params\.nEngines === 0/.test(APP) && /genSpec\.motorOff === true/.test(APP), lineup: /if \(skipAble\(\)\) skipToLineup\(\);/.test(APP),
     motorOff: /setEngine\(i, \{ key: 'off' \}\)/.test(APP), hands: /setManual\(true, 'tow'\)/.test(APP), step: /TWm\.towPre\(\)/.test(APP) && /TWm\.towPost\(1 \/ 60\)/.test(APP),
-    inline: /FLYDIY_TOW_WANTED\(\)\) return 'the glider tow/.test(LINK), release: /e\.code === 'KeyR' && towOn\(\)/.test(APP), plate: /flNoticeK'\)\.textContent = 'glider tow'/.test(APP),
+    inline: /FLYDIY_TOW_WANTED\(\)\) return 'the glider tow/.test(LINK), release: /e\.code === 'KeyR' && towOn\(\)/.test(APP), plate: /flNoticeK'\)\.textContent = tr \? 'trailer launch' : 'glider tow'/.test(APP),
     restart: /T\.towStop\(\); TOWS\.busy = false/.test(APP), module: /DM\.towStart = async function/.test(DM) };
   const miss = Object.keys(hooks).filter(k => !hooks[k]);
   row('PAGE', lazy.includes('src/vehicle/tow.js') && !B.MANIFEST.core.some(n => /tow|vehicle/.test(n)) && !miss.length,

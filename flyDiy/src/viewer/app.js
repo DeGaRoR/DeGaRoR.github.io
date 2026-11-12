@@ -21662,13 +21662,37 @@
     if (genSpec && genSpec.motorOff === true) return true;
     try { return /[?&]tow(=1|=on|&|$)/.test(location.search); } catch (e) { return false; }
   }
+  // TOW-LAUNCH phase 4: THE LAUNCH TRAILER - a float or hull build carried down the runway on a trailer behind the car and
+  // flown off it (drive_mode.js DM.trailerStart, trailer.js, trailer_model.js): the menu's "Launch from the trailer" (or
+  // ?trailer=1) - an exception to the floats-start-on-water rule, the player's choice, until "Back to the water".
+  // trailerWanted(): the build floats (its hydro carries a float or a hull) and the trailer is asked for
+  const TRAILER = { want: (() => { try { return /[?&]trailer(=1|=on|&|$)/.test(location.search); } catch (e) { return false; } })() };
+  function trailerAble() { return curKey === 'gen' && !!def && !!(sim && sim.hydro && sim.hydro.floats && sim.hydro.floats.some(f => !f.rec.tip)); }
+  function trailerWanted() { return TRAILER.want && trailerAble(); }
   // the tow's start: lined up (the Skip to line-up's own placement - the start line), the motor off, the player's hands, the
   // car and the line laid out ahead (lazy, with the drive mode's pack); its words on the flight's notice plate
   const TOWS = { busy: false, failed: null };
   function towTick() {
     const T = towOn();
     if (inGarage || !started || driveOn() || flightOver) { if (T && inGarage) { T.towStop(); TOWS.busy = false; } return; }
-    if (T) { T.towDraw(); if (running && !T.tow.go && T.tow.t > 3) T.tow.start(); return; }
+    // (the trailer: the car sets off as the player opens the throttle - or, under ?towhands=1, three seconds on)
+    if (T) { T.towDraw(); if (running && !T.tow.go && (T.tow.kind === 'trailer' ? (sim.ctl.thr > 0.5 || (T.tow.hands && T.tow.t > 3)) : T.tow.t > 3)) T.tow.start(); if (T.tow.kind === 'trailer') T.tow.t += 0; return; }
+    if (!TOWS.busy && !TOWS.failed && trailerWanted() && window.FLYDIY_LAZY && sim) {
+      TOWS.busy = true;
+      const cam0 = sim.cgPos();
+      setManual(true, 'trailer');
+      window.FLYDIY_LAZY(['cars_car', 'cars_lods', 'vehicle', 'vehicle_drive', 'vehicle_island', 'trailer', 'trailer_model', 'drive_mode'])
+        .then(() => window.DRIVE_MODE.trailerStart({ THREE, scene, world, sim, def }))
+        .then(to => {
+          TOWS.busy = false; if (INP) INP.seed(sim.ctl);
+          airborneSeen = wasAir = false; stillT = 0;
+          const far = Math.hypot(sim.cgPos()[0] - cam0[0], sim.cgPos()[2] - cam0[2]);
+          if (far > 200 && needsRollOutScreen()) rollOutScreen(() => { flRevealStart(); flRender(); }); else flRevealStart();
+          console.info('flyDiy trailer: on the trailer, the car to ' + to);
+        })
+        .catch(e => { TOWS.busy = false; TOWS.failed = (e && e.message) || 'failed'; console.warn('flyDiy: the trailer launch could not start -', TOWS.failed); });
+      return;
+    }
     if (TOWS.busy || TOWS.failed || !towWanted() || !window.FLYDIY_LAZY || !sim || sim.wheelsOnGround() === 0) return;
     TOWS.busy = true;
     if (skipAble()) skipToLineup();
@@ -21680,13 +21704,18 @@
       .catch(e => { TOWS.busy = false; TOWS.failed = (e && e.message) || 'failed'; console.warn('flyDiy: the tow could not start -', TOWS.failed); });
   }
   function towHud() {
-    const T = towOn(), w = T ? T.towWords() : (TOWS.failed && started && towWanted() ? 'no tow: ' + TOWS.failed : null), n = $('flNotice');
+    const T = towOn(), tr = T ? T.tow.kind === 'trailer' : trailerWanted();
+    const w = T ? T.towWords() : (TOWS.failed && started && (towWanted() || trailerWanted()) ? 'no ' + (tr ? 'trailer' : 'tow') + ': ' + TOWS.failed : null), n = $('flNotice');
     if (!n) return;
-    if (w) { n.hidden = false; $('flNoticeK').textContent = 'glider tow'; $('flNoticeV').textContent = w; n.dataset.tow = '1'; }
+    if (w) { n.hidden = false; $('flNoticeK').textContent = tr ? 'trailer launch' : 'glider tow'; $('flNoticeV').textContent = w; n.dataset.tow = '1'; }
     else if (n.dataset.tow) { delete n.dataset.tow; $('flNoticeK').textContent = 'not certified'; n.hidden = true; flRender(); }
   }
   if (typeof window !== 'undefined') {
-    window.FLYDIY_TOW_WANTED = () => towWanted();   // (sim_link.js: a tow flight flies inline - the line acts in the page's substeps)
+    window.FLYDIY_TOW_WANTED = () => towWanted() || trailerWanted();   // (sim_link.js: a tow or a trailer flight flies inline - the line, the cradle act in the page's substeps)
+    // the menu's trailer row (a float or hull build): on the trailer at the runway, or back to the water - each a restart
+    if (window.FLYDIY_MENU) window.FLYDIY_MENU.add({ k: 'trailer', label: () => TRAILER.want ? 'Back to the water' : 'Launch from the trailer',
+      when: () => !inGarage && (trailerAble() || TRAILER.want),
+      act: () => { window.FLYDIY_MENU.close(); TRAILER.want = !TRAILER.want; TOWS.failed = null; fullReset(); }, before: 'contracts' });
     window.addEventListener('keydown', e => { if (e.code === 'KeyR' && towOn() && cam.mode !== 'free') { towOn().towRelease(); e.preventDefault(); } });
   }
   // THE SCENERY MODE (the world rail, 2026-09-24; the user: "launch only the graphics parts of the game, at least not

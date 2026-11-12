@@ -385,3 +385,68 @@ out again. A tow flight flies INLINE (sim_link.js eligible: the line acts in the
 the worker. `?towhands=1`: the gate's hands fly it (a rig's; a player without a stick's).
 Open: the Archaeopteryx card (its branch rewrites the gear and the core); a glider circuit / landing pattern after the
 release (GLIDE -> FLARE exists); the winch (a fixed drum: the same line with a fixed anchor).
+
+## 12. TOW-LAUNCH phase 4 (2026-11-12): the launch trailer
+
+The brief: "FLOATPLANES / BOATPLANES launched FROM A TRAILER pulled by the car down a runway", "the up-only cradle under
+the floats or hull, the latch, the take-off on a runway (an exception to the floats-need-water rule)"; the user (12 Nov):
+"include the modeling of an appropriate trailer; professional quality modeling".
+
+`src/vehicle/trailer.js` (lazy, pure): the glider study's probe_trailer made a module, on the tow line's mechanism
+(`sim.onSubstep` + `sim.impulse`: no solver change, no moving ground - the solver's static ground is untouched).
+- THE FIT (`trailerFit`): pads on the build's own keel nodes - each float's two lowest keel stations (the hydro's rec.K,
+  fore and aft of the step), or a hull's keel (two, the rollers) and its frames' bottom corners fore and aft (four, the
+  bunks; the wing-tip floats ride clear). CHOSEN on the build's frame, READ on the cradle's: the cradle holds it 6 deg
+  nose-up (a launch dolly's attitude: on a level cradle the wing sat at 1 deg and 1.45 VRot lifted a quarter of the
+  weight - measured), the CG 0.25 m ahead of the axles (the tongue), the drawbar long enough for the nose to clear the ball
+  by 1.4 m (4.2 m at least).
+- THE TRAILER (`makeTrailer`): kinematic behind the car's ball (the tractrix of a two-wheeled trailer: its tyres do not
+  slip), on the ground under its wheels; 420 kg; its loads back to the car each frame as `car.extF` from its own
+  equations (along: m a = H + R - Crr N; up and sideways: the moments about the axles) - the cradle's reaction summed over
+  the aeroplane's substeps.
+- THE CRADLE (`makeCradle`): each pad a spring-damper (1.5 cm under its share) that PUSHES UP ONLY and holds in the
+  bunk's plane by its carpet (mu 0.6), the bow pad a stop forward; THE LATCH shut holds it fore and aft and sideways
+  (a 7 kN strap, its load the net over 0.1 s) and OPENS when the bunks carry under 10 % of the weight for 0.25 s (the
+  study's rule: the wing carries it); the bunks stay under it (an aborted run keeps the plane on its trailer).
+- THE RUN (`makeTrailerLaunch`): loaded -> opened -> clear (the keel 5 m over the bunks: the car eases off and stops) or
+  abort (no lift-off 20 s at the car's speed: it stops, the plane on its bunks). The car's speed 1.6 VRot (genAP's).
+- `makeTrailerHands`: the gate's hands - the power in as the speed comes (a pylon's thrust line tips a boat onto its bow
+  at full power from rest: measured -36 deg), the cradle's attitude held, the pull at 1.05 VRot, off the bunks the
+  attitude by the speed (level in ground effect to 1.3 Vs, then the climb's).
+
+`src/vehicle/trailer_model.js` (lazy): THE TRAILER DRAWN, fitted to the same fit - a hot-dip galvanised tandem-axle
+launch trailer: C-channel rails (125 x 50 x 4, open inward) under the floats (either side of a hull's keel) and cross
+members, an A-frame of 100 x 50 box with a centre tongue, gussets, a cast ball coupling drawn from its side profile (its
+lever, grip, lock, a breakaway ring), two safety chains drooped to the ball, the jockey wheel stowed on its clamp, the
+lighting cable clipped along the left rail to its plug; two rubber-torsion axles on U-bolted brackets, trailing arms,
+four 185R14C tyres (three grooves) on pressed-steel 5-stud wheels (vent holes, nuts, chrome caps, drums), a spare under
+the rear, tandem mudguards with rolled lips, tread tops, stays and rubber flaps; a light board with two combination
+lamps, triangle reflectors, a blank plate board and its lamp, amber side and white front reflectors. THE CRADLE: per
+float two carpeted timber bunks at the float's deadrise on swivel brackets and posts off saddle plates, a bow stop post
+(a rubber V-block, its brace) carrying the latch (the release hook, its red lever) and the yellow strap to the bow eye -
+drawn while the latch is shut; a hull: keel rollers on their brackets, two chine bunks, a winch post (V-roller, drum,
+gear case, crank). The car's half (`buildTowHitch`): the ball mount in the pickup's receiver. 33k triangles, 16-17 draw
+calls (one mesh a material, the wheels 4 InstancedMesh x 5), built in 25-65 ms; a frame's update: one matrix, 20
+instance matrices.
+
+GATE TRAILER (core, ~2 min): FIT (4 pads on the two float keels, 100 % on the bunks at rest, 2.6 cm at the most loaded,
+the ball 872 N - 9.6 % of the train, the nose 2.0 m behind the ball), FLOATS (the Twin-582 floatplane: the latch opens
+10 s on at 22.9 m/s - 1.3 VRot - 131 m down 13/31, off the bunks at 13 s, 222 m up at 48 s; the car stopped 386 m down,
+the ball 1.5 kN at most), HULL (the classic-V flying boat off the Cessna-on-floats build, fixture
+trailer_hull_classic_pylon.json: open at 34 m/s, 381 m down; 63 m up), HOLD (idle, the car under VRot: abandoned 20 s on
+and stopped, the plane on its bunks, the latch shut), PERF (the cradle: no measurable cost on the floatplane's frame -
+10.1 ms on the trailer against 10.6 standing on its floats on the runway; the trailer 10 us), MODEL (the counts above, in
+node with three.js r186), PAGE (drive_mode.js RUN in node on the island: the drive mode, the glider tow and the trailer
+started, stepped, drawn, worded and stopped; app.js's wiring).
+
+THE PAGE: the menu's "Launch from the trailer" on a float or hull build (or `?trailer=1`) - a restart that lays the
+car at the end of the runway nearest the aeroplane (Jolene's 13/31 from HOME's waters), the plane settled on its keels
+behind it and seated, the trailer drawn, the car's ball mount on its rig; by hand (`setManual(true, 'trailer')`); the
+car sets off as the player opens the throttle; the words on the notice plate ("trailer launch": the speed, the cradle's
+share, "pull at"); "Back to the water" undoes it. INLINE (the cradle acts in the page's substeps, sim_link.js's eligible).
+`?towhands=1`: the gate's hands fly it.
+FOUND ON THE WAY: phase 2's graph rewrite of drive_mode.js had deleted buildRig / poseRig / placeNear / placeName - the
+page's drive and tow modes threw on entry; restored, and PAGE now runs the modes in node so a missing function fails a
+gate, not the player.
+Open: the pilot's ROLL on a cradle (the autopilot's take-off from the trailer); landing back on the trailer (out of
+scope); the trailer at the other aerodromes' strips (the runway nearest is taken; HOME's first).

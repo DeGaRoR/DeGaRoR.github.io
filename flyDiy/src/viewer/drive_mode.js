@@ -28,6 +28,43 @@
   let start = null, odo = 0, last = null, track = [], hudSaved = null;
   const $ = id => document.getElementById(id);
 
+  // ---- THE RIG: the body (and its lamps, all in the body's frame), four wheels in the body's frame ----
+  // (restored 12 Nov: phase 2's graph rewrite took these four with buildGraph - the page's drive and tow modes threw on
+  //  entry; GATE TRAILER's PAGE row now loads this file in node and calls them)
+  function buildRig() {
+    const T = THREE_, g = new T.Group(); g.name = 'drive:car'; g.matrixAutoUpdate = false;
+    const pm = k => (typeof propMesh === 'function' ? propMesh(T, k) : new T.Group());
+    g.add(pm('car_conquer_body'));
+    const lamps = {};
+    for (const k of ['head', 'brake', 'reverse']) { const L = sheet.lamps && sheet.lamps[k]; if (!L || !L.prop) continue; lamps[k] = pm(L.prop); g.add(lamps[k]); }
+    const wheels = def.wheels.map(w => {
+      const W = sheet.wheels[w.id], o = new T.Group(); o.rotation.order = 'YXZ';
+      o.add(pm(W.prop || (W.side === 'left' ? 'car_conquer_wheel_l' : 'car_conquer_wheel_r')));
+      g.add(o); return o;
+    });
+    return { g, wheels, lamps, M: new T.Matrix4(), a: new T.Vector3(), b: new T.Vector3(), c: new T.Vector3() };
+  }
+  function poseRig() {
+    if (!rig || !car) return;
+    const A = car.axes(), o = car.toWorld([0, 0, 0]);
+    rig.a.set(A.fwd[0], A.fwd[1], A.fwd[2]); rig.b.set(A.up[0], A.up[1], A.up[2]); rig.c.set(A.right[0], A.right[1], A.right[2]);
+    rig.g.matrix.makeBasis(rig.a, rig.b, rig.c).setPosition(o[0], o[1], o[2]); rig.g.matrixWorldNeedsUpdate = true;
+    def.wheels.forEach((w, i) => {
+      const S = car.wheels[i], o2 = rig.wheels[i];
+      o2.position.set(w.at[0], w.at[1] + w.bump - S.s, w.at[2]);
+      o2.rotation.y = -S.delta; o2.rotation.z = -S.spin;   // + steer = right (toward +z); rolling forward = the top going forward
+    });
+    if (rig.lamps.brake) rig.lamps.brake.visible = car.ctl.brake > 0.05;
+    if (rig.lamps.reverse) rig.lamps.reverse.visible = car.ctl.gear < 0;
+  }
+  // the place nearest a point (the From the top bar says)
+  function placeNear(x, z, maxD) {
+    let best = null, bd = maxD || 400;
+    for (const id in G.places) { const p = G.places[id]; const d = Math.hypot(p.x - x, p.z - z); if (d < bd) { bd = d; best = p; } }
+    return best;
+  }
+  const placeName = id => (G && G.places[id] && G.places[id].name) || id;
+
   // ---- THE GRAPH: the island's roads (vehicle_island.js) and the places a vehicle can be sent to ----
   // (the graph: vehicle_island.js vehIslandFromWorld - the gate's recipe: the roads, the runways and their taxi routes, the
   //  stands' links, the steep stretches closed; buildGraph was this file's own until phase 2)
@@ -193,8 +230,9 @@
   //      towStart(ctx) once the glider is lined up; towPre() / towPost(dt) round every 1/60 s step of the aeroplane (the
   //      line's coupling); towDraw() a frame; towStop(). The flight is inline then (sim_link.js: the line acts in the
   //      solver's substeps) - its cost: GATE TOW's +1.0 ms on the glider's frame, the car's 0.1 ms ----
-  const TW = DM.tow = { active: false, line: null, car: null, D: null, rig: null, rope: null, L0: 400, Vtow: 28, why: null };
+  const TW = DM.tow = { active: false, kind: null, line: null, car: null, D: null, rig: null, rope: null, L0: 400, Vtow: 28, why: null, launch: null, model: null, hitch: null };
   DM.towStart = async function (ctx) {
+    TW.kind = 'line';
     THREE_ = ctx.THREE; scene_ = ctx.scene; world_ = ctx.world;
     if (!sheet) { const r = await fetch(SHEET_URL); if (!r.ok) throw new Error('the car sheet: ' + r.status); sheet = await r.json(); }
     def = def || vehicleDef(sheet);
@@ -227,9 +265,62 @@
   };
   // the car sets off: the first step the aeroplane flies with the player's hands on (app.js calls it when the run starts)
   TW.start = () => { if (TW.active && !TW.go) { TW.go = true; TW.D.setDest(TW.to); } };
-  DM.towPre = () => { if (!TW.active) return; if (TW.line && TW.line.on) TW.line.before(); if (TW.hands && TW.go) TW.hands(TW.line, 1 / 60); };
+  // ---- THE LAUNCH TRAILER (TOW-LAUNCH phase 4): a float or hull build on the trailer behind the car, at the end of the
+  //      runway nearest it (the user's default: Jolene AFB 13/31), the car to the far end. trailer.js's rig (the fit, the
+  //      trailer behind the ball, the cradle on the keel nodes, the latch); trailer_model.js's trailer drawn; the car's ball
+  //      mount on its rig. The same hooks as the line's (towPre / towPost / towDraw / towWords / towStop): app.js's TOW
+  //      switch calls trailerStart instead of towStart. Its costs a frame: the cradle's pads in the solver's substeps
+  //      (GATE TRAILER's PERF), the trailer's pose and loads ~2 us, the car 0.1 ms, the model's 14 draw calls ----
+  DM.trailerStart = async function (ctx) {
+    THREE_ = ctx.THREE; scene_ = ctx.scene; world_ = ctx.world;
+    if (!sheet) { const r = await fetch(SHEET_URL); if (!r.ok) throw new Error('the car sheet: ' + r.status); sheet = await r.json(); }
+    def = def || vehicleDef(sheet);
+    const sim = ctx.sim, cg0 = sim.cgPos();
+    if (!G) {
+      const I = vehIslandFromWorld(world_, { siteOf: typeof siteOf === 'function' ? siteOf : null, fieldName: typeof fieldName === 'function' ? fieldName : null, town: null, from: [cg0[0], cg0[2]] });
+      if (!I) throw new Error('no roads in this world');
+      rep = I.report; G = vehRoadGraph(I.spec);
+    }
+    // the runway: the end nearest the aeroplane (a paved one first), the far end its destination
+    let P0 = null, bd = Infinity;
+    for (const id in G.places) { const P = G.places[id]; if (P.what !== 'runway') continue; const d = Math.hypot(P.x - cg0[0], P.z - cg0[2]) * (/:HOME:/.test(id) ? 0.5 : 1); if (d < bd) { bd = d; P0 = P; } }
+    if (!P0) throw new Error('no runway on this island');
+    const to = P0.id.replace(/:(\d)$/, (m, k) => ':' + (1 - +k)), P1 = G.places[to];
+    if (!P1) throw new Error('the runway\'s far end: ' + to);
+    const l = Math.hypot(P1.x - P0.x, P1.z - P0.z), dx = (P1.x - P0.x) / l, dz = (P1.z - P0.z) / l, hdg = Math.atan2(dz, dx);
+    const car1 = makeVehicle(def, world_);
+    car1.place(P0.x + dx * 14, P0.z + dz * 14, hdg); for (let i = 0; i < 30; i++) car1.step(1 / 60);
+    // the aeroplane onto the runway behind it (settled on its keels: the fit reads the build standing), then seated
+    const aero = (world_.aerodromes || []).find(a => P0.id.split(':')[1] === a.id) || null;
+    sim.reset(0); if (typeof sim.stance === 'function') sim.stance();
+    placeAtLineup(sim, aero, { x: P0.x - dx * 6, z: P0.z - dz * 6, hdg }, world_, ctx.def.refs);
+    for (let i = 0; i < 90; i++) sim.step(1 / 60);
+    if (sim.setEngine && sim.eng) for (let i = 0; i < sim.eng.length; i++) sim.setEngine(i, { key: 'both', running: true });
+    car = car1;
+    const L = makeTrailerLaunch(sim, car1, world_, { def: ctx.def });
+    TW.kind = 'trailer'; TW.launch = L; TW.car = car1; TW.to = to; TW.go = false; TW.why = null; TW.t = 0; TW.sim = sim;
+    TW.D = makeDriver(car1, G, { vCruise: L.vCar });
+    TW.model = buildTrailerModel(THREE_, L.trailer); scene_.add(TW.model.group);
+    if (!rig) { rig = buildRig(); } if (!rig.g.parent) scene_.add(rig.g);
+    TW.hitch = buildTowHitch(THREE_); TW.hitch.position.set(L.trailer.ball[0], L.trailer.ball[1], L.trailer.ball[2]); rig.g.add(TW.hitch);
+    TW.hands = /[?&]towhands=1/.test(location.search || '') ? makeTrailerHands(sim, L) : null;
+    TW.active = true;
+    TW.model.update(L.trailer, true); poseRig();
+    return to;
+  };
+  DM.towPre = () => {
+    if (!TW.active) return;
+    if (TW.kind === 'trailer') { TW.launch.before(); if (TW.hands && TW.go) TW.hands(); return; }
+    if (TW.line && TW.line.on) TW.line.before(); if (TW.hands && TW.go) TW.hands(TW.line, 1 / 60);
+  };
   DM.towPost = (dt) => {
     if (!TW.active) return;
+    if (TW.kind === 'trailer') {
+      const L = TW.launch; L.after(dt);
+      if (TW.go) TW.D.step(dt); else { TW.car.ctl.thr = 0; TW.car.ctl.brake = 1; }
+      L.carCtl(TW.car); TW.car.step(dt); L.carAfter(dt); TW.t += dt;
+      return;
+    }
     if (TW.line) TW.line.after(dt);
     if (TW.go) TW.D.step(dt); else { TW.car.ctl.thr = 0; TW.car.ctl.brake = 1; }
     TW.car.step(dt); TW.t += dt;
@@ -238,6 +329,7 @@
   DM.towDraw = () => {
     if (!TW.active) return;
     poseRig();
+    if (TW.kind === 'trailer') { TW.model.update(TW.launch.trailer, TW.launch.cradle.latched); return; }
     const A = TW.rope.geometry.attributes.position, L = TW.line;
     if (!L || !L.on) { TW.rope.visible = false; return; }
     TW.rope.visible = true;
@@ -248,16 +340,27 @@
     A.needsUpdate = true;
   };
   DM.towWords = () => {
+    if (TW.active && TW.kind === 'trailer') {
+      const L = TW.launch, C = L.cradle, kmh = v => Math.round(v * 3.6) + ' km/h';
+      if (!TW.go) return 'on the trailer behind the car - open the throttle: the car sets off (' + kmh(L.vCar) + '), pull at ' + kmh(L.vRot * 1.05);
+      if (L.phase === 'loaded') return 'on the trailer at ' + kmh(Math.abs(TW.car.out.u)) + ': the cradle carries ' + Math.round(C.loadAvg * 100) + ' % - pull at ' + kmh(L.vRot * 1.05);
+      if (L.phase === 'opened') return 'the latch open (' + C.opened + ') - fly it off the bunks';
+      if (L.phase === 'clear') return 'off the trailer - the car slows down and stops';
+      return L.why || 'the launch abandoned';
+    }
     const L = TW.line; if (!TW.active || !L) return null;
     if (!L.on) return 'off the line: ' + L.released;
     if (!TW.go) return 'on the line behind the car, ' + Math.round(L.L0) + ' m - the car sets off when you fly';
     return 'on tow: ' + (L.T / 1000).toFixed(1) + ' kN, the line ' + Math.max(0, L.angle).toFixed(0) + '\u00b0 up, the car ' + Math.round(TW.car.out.u * 3.6) + ' km/h - R to release';
   };
   DM.towStop = () => {
+    if (TW.launch) TW.launch.detach();
+    if (TW.model && TW.model.group.parent) TW.model.group.parent.remove(TW.model.group);
+    if (TW.hitch && TW.hitch.parent) TW.hitch.parent.remove(TW.hitch);
     if (TW.line) TW.line.detach();
     if (TW.rope && TW.rope.parent) TW.rope.parent.remove(TW.rope);
     if (rig && rig.g.parent && !DM.on) rig.g.parent.remove(rig.g);
-    Object.assign(TW, { active: false, line: null, car: null, D: null, rope: null, go: false });
+    Object.assign(TW, { active: false, line: null, car: null, D: null, rope: null, go: false, kind: null, launch: null, model: null, hitch: null });
   };
   // the graph's report (the joins made vehicle-side, the spans rebuilt): the console and the dev's handle
   DM.report = () => rep;

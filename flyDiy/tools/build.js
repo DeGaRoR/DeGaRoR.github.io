@@ -437,7 +437,7 @@ const MANIFEST = {
          // page's half (drive_mode.js) - fetched when the player asks to drive (the menu's Drive row, ?drive=1), never before:
          // the aeroplane's core and the first load carry none of it
          ['src/cars', 'cars_car.js'], ['src/cars', 'cars_lods.js'],
-         ['src/vehicle', 'vehicle.js'], ['src/vehicle', 'vehicle_drive.js'], ['src/vehicle', 'vehicle_island.js'], ['src/vehicle', 'tow.js'],
+         ['src/vehicle', 'vehicle.js'], ['src/vehicle', 'vehicle_drive.js'], ['src/vehicle', 'vehicle_island.js'], ['src/vehicle', 'tow.js'], ['src/vehicle', 'trailer.js'], ['src/vehicle', 'trailer_model.js'],
          ['src/viewer', 'drive_mode.js']].filter(([d, f]) => fs.existsSync(path.join(ROOT, d, f))),
   // THE SOUND'S MODULES (G1600, SOUND-2026-10-04 §2.1): src/viewer/audio/'s AudioWorklet modules. The audio thread loads
   // a module BY URL (ctx.audioWorklet.addModule), so they are never inlined and never a <script> tag: each is served as
