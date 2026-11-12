@@ -657,7 +657,7 @@ const MANIFEST = {
     // first open, so its position only has to precede the two callers.
     // new_plane.js before design_flow.js (NEW-PLANE): the full-screen new-aeroplane chooser (window.NEW_PLANE) -
     // design_flow's openBirth hands the NEW button to it
-              'new_plane.js', 'design_flow.js', 'balance.js', 'pattern_vis.js',
+              'new_plane.js', 'design_flow.js', 'livery_ui.js', 'balance.js', 'pattern_vis.js',
     // route_lazy.js before app.js (G3070 ROUTE-LAZY over G2120 ROUTE-DRAW): window.ROUTE_DRAW, the drawn route's door -
     // app.js attaches it and calls it as it called the drawing; the drawing itself (route_draw.js: the map's draw mode,
     // its gestures, the panel, the profile strip) is MANIFEST.routeDraw, its own file beside the page, run on first

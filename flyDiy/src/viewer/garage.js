@@ -614,7 +614,10 @@ function garageInit(api) {
   // the build, its plaque or its logbook is not finite (JSON would write it as a null where a number stood)
   // (`loose`: the export and json() - a file the user takes away is written whatever it holds, as before)
   const envJSON = (v, what, loose) => (!loose && typeof jsonFinite === 'function' ? jsonFinite(v, what) : JSON.stringify(v));
-  const envelope = (name, s, pq, lg, loose) => envJSON({
+  // LIVERY-MANAGER (the user 13 Nov): THE LIVERIES RIDE THE ENVELOPE TOO, beside the spec as the plaque and the log
+  // (G63) - `liveries` (the plane's saved liveries, 66c_livery.js) and `livery` (the id it wears; spec.paint /
+  // spec.finish ARE that livery). Absent unless the plane has some: a build with only its own livery writes today's bytes.
+  const envelope = (name, s, pq, lg, loose, lv = livs) => envJSON({
     what: 'flydiy-build', v: (typeof GEN_SPEC_V === 'number' ? GEN_SPEC_V : null),
     // NULL when the build has no slot yet, never a placeholder: the working
     // build used to be written under the literal name 'working', so a user
@@ -623,6 +626,7 @@ function garageInit(api) {
     name: name || null, spec: s,
     plaque: pq || null, log: lg || newLog(),
     // LIVERY-5 (4 Nov): no `images` any more - a livery is recipes, never pixels (the user: "nothing rasterized")
+    ...(lv ? { liveries: lv.liveries, livery: lv.livery } : {}),
   }, name ? 'the build ' + name : 'the working build', loose);
   // Accepts an envelope OR a bare spec, because a spec pasted out of a console
   // is a perfectly good thing to want to load.
@@ -631,6 +635,7 @@ function garageInit(api) {
     if (o && o.spec && typeof o.spec === 'object')
       return { name: o.name, spec: o.spec, plaque: o.plaque || null,
                log: o.log || newLog(),
+               liveries: o.liveries || null, livery: o.livery || null,   // LIVERY-MANAGER
                images: null };   // LIVERY-5: an old save's image pages are read and dropped
     if (o && (o.wings || o.fuselage || o.cabin || o.cage))
       return { name: null, spec: o, plaque: null, log: newLog(), images: null };
@@ -748,7 +753,7 @@ function garageInit(api) {
     .then(j => ((j && j.planes) || []).filter(p => p && p.official && labOk(p)).map(c => Object.assign(candRow(c), { tip: 'official' })), () => []);
   const loadCandidate = c => fetch(CAND_DIR + encodeURIComponent(c.file))
     .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
-    .then(t => { const g = unwrap(t); loadSpec(g.spec, ''); })
+    .then(t => { const g = unwrap(t); loadSpec(g.spec, '', null, null, null, lvOf(g)); })
     .catch(e => alert('That candidate could not be loaded: ' + c.file + ' (' + ((e && e.message) || e) + ')'));
   // PLANE-LISTS (the user 4 Nov, off the all-planes sheet: "so we have an exhaustive list"): builds/lists/plane_lists.json, every
   // aeroplane we have. PLANE-LIST (the user 10 Nov, the classes): REPRODUCTIONS (the types REAL-FIGURES tests against the real
@@ -783,6 +788,9 @@ function garageInit(api) {
   let listedRow = null;
   let slotName = '';
   let plaque = null, log = newLog();
+  // LIVERY-MANAGER: the build's saved liveries, { liveries, livery } or null (a hand-edited list is cleaned on use)
+  let livs = null;
+  const lvOf = g => (g && Array.isArray(g.liveries) && g.liveries.length ? { liveries: g.liveries, livery: g.livery || null } : null);
   // RESTORE THE WORKING BUILD. A reload used to be destructive — the spec lived
   // only in this closure and nothing wrote it anywhere — which is exactly how a
   // build gets lost. Anything unreadable is ignored rather than thrown: a
@@ -791,7 +799,7 @@ function garageInit(api) {
     const wip = lsGet(WIP);
     if (wip) try {
       const got = unwrap(wip);
-      spec = got.spec; plaque = got.plaque; log = got.log;
+      spec = got.spec; plaque = got.plaque; log = got.log; livs = lvOf(got);
       wipImages = null;                    // LIVERY-5: an old save's image pages are dropped
       try { if (typeof genNormaliseSpec === 'function') spec = genNormaliseSpec(spec); }
       catch (e) {}
@@ -917,11 +925,12 @@ function garageInit(api) {
     try { return (typeof genNormaliseSpec === 'function') ? genNormaliseSpec(s) : s; }
     catch (e) { return s; }
   };
-  function loadSpec(s, name, pq, lg, im) {
+  function loadSpec(s, name, pq, lg, im, lv) {
     spec = whole(s);
     slotName = name || '';
     plaque = pq || null;
     log = lg || newLog();
+    livs = lv || null;               // LIVERY-MANAGER: this build's liveries, or none (never the previous plane's)
     // the image pages this build was saved with, or none: a load that only
     // brought pixels in when the file had some would leave the previous
     // aeroplane's picture on the next one's wing
@@ -1073,7 +1082,7 @@ function garageInit(api) {
     try { const g = unwrap(txt); let sp = g.spec;
           const now = window.FLYDIY_CAREER && window.FLYDIY_CAREER.agingOf ? window.FLYDIY_CAREER.agingOf(n) : null;
           if (now && typeof econAgingSpec === 'function') sp = econAgingSpec(sp, now);
-          loadSpec(sp, n, g.plaque, g.log, g.images); }
+          loadSpec(sp, n, g.plaque, g.log, g.images, lvOf(g)); }
     catch (e) { alert('That saved build could not be read: ' + e.message); return; }
     // G3800: a save from before the cards had pictures gets its side profile the first time it stands (nothing when the
     // stored picture is this build's)
@@ -1406,7 +1415,7 @@ function garageInit(api) {
           return void alert('That is an "export all" file of ' + o.builds.length + ' aeroplanes - import opens one build (export one from its slot).');
         const got = unwrap(String(r.result));
         loadSpec(got.spec, got.name || String(f.name || 'pasted').replace(/\.json$/i, ''),
-                 got.plaque, got.log, got.images);
+                 got.plaque, got.log, got.images, lvOf(got));
         slotsChanged({ imported: got.name || null });
       } catch (e) { alert('That file is not a ' + ((typeof GAME_NAMES !== 'undefined' && GAME_NAMES.game) || 'the game') + ' build: ' + e.message); }
     };
@@ -1643,6 +1652,15 @@ function garageInit(api) {
       // routing it through `rebuild` would tear down and re-derive the whole
       // aeroplane every time a test wrote down what it found.
       plaque: v => (v === undefined ? plaque : (plaque = v, writeWip(), plaque)),
+      // LIVERY-MANAGER: the build's saved liveries ({ liveries, livery } or null), read and written by the Finish tab's
+      // picker (livery_ui.js); a write is kept at once (the working build), the slot on the next Save
+      liveries: v => (v === undefined ? livs : (livs = v || null, writeWip(), livs)),
+      // ...and another saved build's, for the picker's "Copy from": its saved liveries, else the one it wears ({ name,
+      // liveries: [...], livery }); null when the slot is gone or unreadable
+      slotLiveries: n => { const t = lsGet(SLOT + n); if (!t) return null;
+                           try { const g = unwrap(t), L = lvOf(g);
+                                 return L ? { name: n, liveries: L.liveries, livery: L.livery } : { name: n, liveries: null, livery: null, spec: whole(g.spec) }; }
+                           catch (e) { return null; } },
       // note fires for every bench test AND from logFlight (which pushes its
       // flight row first), so the logbook redraws itself on both
       note: row => { log.tests.push(row); writeWip(); renderLog(); },
@@ -1656,7 +1674,7 @@ function garageInit(api) {
       planeLists, openListed, officialPool, listed: () => (listedRow && listedRow.spec === spec ? { file: listedRow.file, row: listedRow.row } : null),
       candidates, openCandidate: loadCandidate, exportAll: exportAllFile,
       load: n => { const t = lsGet(SLOT + n); if (!t) return;
-                   const g = unwrap(t); loadSpec(g.spec, n, g.plaque, g.log); },
+                   const g = unwrap(t); loadSpec(g.spec, n, g.plaque, g.log, null, lvOf(g)); },
     };
   } catch (e) {}
 
