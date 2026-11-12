@@ -9,15 +9,23 @@
 //      runs glassMarks after the pose (uCraftInv this frame's) and exposes FLYDIY_GLASS / FLYDIY_GLASS_TEST.
 //   U  THE RULES (pure): no mark under SET_LIGHT (an elastic flex, a hard landing), the full star at SET_HARD, broken = 1;
 //      marks never move nor shrink; marks on one pane within MERGE are one; at most MAX, the strongest; pack() fills the
-//      uniforms and clears the rest; the mask is 0 past its reach, a light star has no arcs and no crazed core, a broken
-//      member's has the core; a line under a pixel fades (its share of the pixel), it never fattens.
+//      uniforms and clears the rest. THE MASK (CANOPY-CRACKS, 12 Nov: read from the baked sheet): 0 past SHEET_R and with
+//      no sheet; the reveal grows with the severity (never less at more) and a light set is a small star; the whitened core
+//      shrinks with the severity; a hairline (the lit share of the disc small); far off a crack holds only its share of
+//      the pixel (SHARE_M / px), it never fattens; the glint moves with the eye; the two looks differ; the look a glazing
+//      takes (sheetOf: glass -> laminated; acrylic, polycarbonate, none -> acrylic).
+//   K  THE SHEETS (CANOPY-CRACKS): src/viewer/crack_sheet.js is this bake's (its sig = tools/crack_sheet_bake.js sigOf -
+//      a stale sheet after a change to the baker or to dmg_glass.js's SHEET_* is red), its N / span / dmax are dmg_glass.js's,
+//      each PNG decodes to the bake byte for byte and weighs under 600 KB.
 //   G  THE MIRROR (headless Chromium, WebGL2 on SwiftShader - NOT RUN without it, said so, never a pass): GLSL_CRACK run
-//      in a real GLSL ES 3.00 compiler (transform feedback) on 24000 samples against crackJS: |d| > 0.05 on under 0.3 %.
+//      in a real GLSL ES 3.00 compiler (transform feedback) with the acrylic sheet bound, on 40000 samples against crackJS
+//      at the sheet's own level: |d| > 0.05 on under 0.5 %.
 //   R  THE PAGE'S MATERIAL (the same Chromium): the real aeroGlass (vendor three r186 + aeroskin.js) on a 1 m pane under a
-//      sun: links; with no mark the picture is the same bits before and after a mark came and went; a broken member's mark
-//      brightens 1500 px or more and darkens none (the glass only adds light); a mark 5 cm off the pane's plane, or facing
-//      away from it, changes not one pixel; a mark costs no program (renderer.info.programs the same). --png <file> keeps
-//      the marked picture.
+//      sun: links; with no mark the picture is the same bits before and after a mark came and went; with the stand-in texel
+//      bound (no sheet yet) a mark changes not one pixel; with the sheet a broken member's mark brightens 2000 px or more and
+//      darkens none (the glass only adds light); a mark 5 cm off the pane's plane, or facing away from it, changes not one
+//      pixel; a mark costs no program (renderer.info.programs the same), nor does the sheet's swap. --png <file> keeps the
+//      marked picture.
 //   B  FROM BEHIND (A0's page run, 28 Oct: "FLYDIY_GLASS_TEST returns a mark, NOTHING shows in the cockpit view" - the flown
 //      panes are single sheets wound outward: from the seat every triangle faces away, and a FrontSide pane was never
 //      drawn there): aeroGlass is DoubleSide; seen from behind, a pane with no mark in use changes no pixel against the
@@ -61,6 +69,7 @@ if (argv[0] === '--build') {
   const WS = require('./_dmg_wall_study.js'), S = require('./_dmg_scar_lib.js');
   const SH = require(path.join(ROOT, 'src', 'viewer', 'sim_host.js')), SV = require(path.join(ROOT, 'src', 'viewer', 'sim_view.js'));
   const t0 = Date.now(), P0 = WS.prepare(k), def = P0.def;
+  const sheet = DG.sheetOf(def.spec && def.spec.cabin && def.spec.cabin.glazingMat), SHEET = require('./crack_sheet_bake.js').bake(sheet), MAT = DG.matIndex(sheet);
   // the panes: each glass group's vertices (at most ~1500 a pane, as app.js glassPanes samples), area-weighted normals
   const pts = [], nrm = [], pane = [], secs = []; let id = 0;
   for (const g of P0.groups) {
@@ -84,7 +93,7 @@ if (argv[0] === '--build') {
   const mids = [];
   def.beams.forEach((b, bi) => { if (b.cls === 'gear' || b.cls === 'wire') return; mids.push({ bi, mid: [0, 1, 2].map(j => (P0.rest[b.a * 3 + j] + P0.rest[b.b * 3 + j]) / 2) }); });
   const M = P.n ? DG.members(P, mids, rNear) : [];
-  const out = { key: k, panes: secs, points: P.n, members: M.length, prepMs: Date.now() - t0, cases: {} };
+  const out = { key: k, sheet, panes: secs, points: P.n, members: M.length, prepMs: Date.now() - t0, cases: {} };
   const core = def.refs && def.refs.noseFrame ? def.refs.noseFrame[0] : 0;
   const fly = (c) => {
     let hop = null, st = null, marks = [], key = '', events = 0, moved = 0, lastEv = -1;
@@ -103,7 +112,7 @@ if (argv[0] === '--build') {
       }
       if (marks.length) lastEv = sim.t;
     } });
-    const drawn = marks.map(m => { const s = DG.shadeJS(marks, m.p, m.n, 0.002); return Math.max(s[0], s[1]); });
+    const drawn = marks.map(m => { const s = DG.shadeJS(marks, m.p, m.n, 0.002, null, SHEET, MAT); return Math.max(s[0], s[1]); });
     const reach = marks.map(m => { const mm = mids.find(x => x.bi === m.bi); return mm ? Math.hypot(mm.mid[0] - m.p[0], mm.mid[1] - m.p[1], mm.mid[2] - m.p[2]) : Infinity; });
     return { crashed: !!r.crashed, breaks: r.breaks || 0, events, moved, wallMs: Date.now() - tA,
       marks: marks.map((m, i) => ({ p: m.p.map(x => +x.toFixed(4)), n: m.n.map(x => +x.toFixed(3)), sev: +m.sev.toFixed(3), seed: m.seed, pane: m.pane, sec: secs[m.pane], bi: m.bi, cls: def.beams[m.bi].cls, d: +reach[i].toFixed(3), drawn: +drawn[i].toFixed(3) })) };
@@ -149,17 +158,19 @@ function rowS() {
   const app = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');
   const chk = {
     copy: !!c && c.text === asBlock(),
-    pars: /AERO_GLASS_CRACK_PARS/.test(hook) && /uniform float uCrackN;/.test(src) && /uniform vec4 uCrackP\[4\];/.test(src) && /uniform vec4 uCrackQ\[4\];/.test(src),
-    call: /dgCrack\(/.test(hook) && /roughnessFactor \+= 0\.6 \* aeroCrack\.x/.test(hook),
+    pars: /AERO_GLASS_CRACK_PARS/.test(hook) && /uniform float uCrackN;/.test(src) && /uniform vec4 uCrackP\[4\];/.test(src) && /uniform vec4 uCrackQ\[4\];/.test(src)
+      && /uniform sampler2D tCrack;/.test(src) && /uniform float uCrackMat;/.test(src),
+    call: /dgCrack\([^;]*dgPx, vec2\(dot\(dgE, dgT1\), dot\(dgE, dgT2\)\)\)/.test(hook) && /roughnessFactor \+= 0\.6 \* aeroCrack\.x/.test(hook),
     scatter: /aeroCrk/.test(hook) && /\+ aeroSpec \+ aeroCrk : aeroCrk, 1\.0\)/.test(hook) && /if \(!gl_FrontFacing && uCrackN < 0\.5\) discard;/.test(hook),
     loads,
-    uniforms: /uCrackN: \{ value: 0 \}/.test(shared) && new RegExp('uCrackP: \\{ value: Array\\.from\\(\\{ length: ' + DG.MAX + ' \\}').test(shared) && new RegExp('uCrackQ: \\{ value: Array\\.from\\(\\{ length: ' + DG.MAX + ' \\}').test(shared),
+    uniforms: /uCrackN: \{ value: 0 \}/.test(shared) && /tCrack: \{ value: aeroCrackNone\(THREE\) \}/.test(shared) && /uCrackMat: \{ value: 0 \}/.test(shared) && new RegExp('uCrackP: \\{ value: Array\\.from\\(\\{ length: ' + DG.MAX + ' \\}').test(shared) && new RegExp('uCrackQ: \\{ value: Array\\.from\\(\\{ length: ' + DG.MAX + ' \\}').test(shared),
     gates: hook.indexOf('abs(dot(dgD, dgN)) > ' + DG.GATE_DN) >= 0 && hook.indexOf('dot(dgNf, dgN) < ' + DG.GATE_FACE) >= 0 && hook.indexOf('i < ' + DG.MAX + ';') >= 0,
-    manifest: vw.indexOf('dmg_glass.js') >= 0 && vw.indexOf('dmg_glass.js') < vw.indexOf('app.js'),
+    manifest: vw.indexOf('dmg_glass.js') >= 0 && vw.indexOf('dmg_glass.js') < vw.indexOf('app.js') && vw.indexOf('crack_sheet.js') >= 0 && vw.indexOf('crack_sheet.js') < vw.indexOf('app.js'),
+    sheet: /function glassSheet\(U\)/.test(app) && /if \(GLM\.P\) glassSheet\(U\);/.test(app) && /if \(CRK\.want === sh\) U\.tCrack\.value = t;/.test(app),
     app: /if \(!inGarage\) glassMarks\(\);/.test(app) && /window\.FLYDIY_GLASS_TEST = /.test(app) && app.indexOf('glassMarks();') > app.indexOf('function poseModel('),
   };
   const bad = Object.keys(chk).filter(x => !chk[x]);
-  row('S', !bad.length, 'the source: the GLSL copy = GLSL_CRACK, the hook splices / calls / scatters, the uniforms, the manifest, app.js' + (bad.length ? ' - FAILED: ' + bad.join(', ') : ''));
+  row('S', !bad.length, 'the source: the GLSL copy = GLSL_CRACK, the hook splices / calls / scatters, the uniforms (+ tCrack, uCrackMat), the manifest (+ crack_sheet.js), app.js (+ the sheet bound once it is in)' + (bad.length ? ' - FAILED: ' + bad.join(', ') : ''));
 }
 
 // ---- U: the rules, pure ----
@@ -190,19 +201,64 @@ function rowU() {
   DG.pack(U, mk3);
   if (U.uCrackN.value !== 3 || U.uCrackP.value[0].v[3] !== 1 || U.uCrackP.value[3].v.join() !== '0,0,0,0' || U.uCrackQ.value[3].v.join() !== '0,0,1,0') f.push('pack');
   DG.pack(U, []); if (U.uCrackN.value !== 0) f.push('pack: clear');
-  // the mask
-  const ring = (sev, seed, r, px) => { let L = 0, H = 0; for (let i = 0; i < 720; i++) { const a = i / 720 * Math.PI * 2, c = DG.crackJS(r * Math.cos(a), r * Math.sin(a), sev, seed, px); L = Math.max(L, c[0]); H = Math.max(H, c[1]); } return [L, H]; };
-  for (const sev of [0.2, 0.6, 1]) { const reach = 0.06 + 0.3 * sev; if (ring(sev, 7919, reach * 1.06, 0.001).some(x => x > 0)) f.push('the mask past its reach (sev ' + sev + ')'); }
-  // the crazed core from 0.85 (a broken member's star) and not under it: the haze round the centre (3-4.5 cm out) just over
-  // the threshold against just under it - the same rays, the core alone between them
-  const hz = sev => { let h = 0; for (const r of [0.03, 0.045]) for (let i = 0; i < 400; i++) { const a = i / 400 * Math.PI * 2; h += DG.crackJS(r * Math.cos(a), r * Math.sin(a), sev, 7919, 0.001)[1]; } return h / 800; };
-  const core = hz(0.86) - hz(0.84), noCore = hz(0.84) - hz(0.82);
-  if (!(core > 0.04 && Math.abs(noCore) < 0.01)) f.push('the crazed core (' + core.toFixed(3) + ' over 0.85, ' + noCore.toFixed(3) + ' under)');
-  // a line under a pixel: its peak dims with the pixel (never brighter than its share w / px), and widens no more than a pixel
-  const peak = px => { let L = 0; for (let i = 0; i < 3600; i++) { const a = i / 3600 * Math.PI * 2; L = Math.max(L, DG.crackJS(0.05 * Math.cos(a), 0.05 * Math.sin(a), 1, 7919, px)[0]); } return L; };
-  const p1 = peak(0.0005), p2 = peak(0.004), p3 = peak(0.016);
-  if (!(p1 > 0.9 && p2 < p1 && p3 < p2 && p3 <= 0.00115 / 0.016 * 1.02)) f.push('the sub-pixel fade (' + [p1, p2, p3].map(x => x.toFixed(3)).join(' > ') + ')');
-  row('U', !f.length, 'the rules: thresholds, merge, never moved, MAX, pack, the mask (reach, core, sub-pixel fade)' + (f.length ? ' - FAILED: ' + f.join('; ') : ''));
+  // THE MASK (CANOPY-CRACKS): read from the baked sheet. Samples on a polar grid round the hit, the eye straight out
+  const BK = require('./crack_sheet_bake.js'), SA = BK.bake('acrylic'), SL = BK.bake('laminated');
+  const grid = (S, mat, sev, px, vt, fn) => { for (let ir = 1; ir <= 120; ir++) { const r = ir / 120 * DG.SHEET_R * 0.995; const na = Math.max(24, Math.round(r / 0.0006));
+      for (let ia = 0; ia < na; ia++) { const a = ia / na * Math.PI * 2; fn(r, DG.crackJS(r * Math.cos(a), r * Math.sin(a), sev, 7919, px, vt || [0, 0], S, mat), a); } } };
+  { let past = 0; for (let i = 0; i < 720; i++) { const a = i / 720 * Math.PI * 2, c = DG.crackJS((DG.SHEET_R + 0.002) * Math.cos(a), (DG.SHEET_R + 0.002) * Math.sin(a), 1, 7919, 0.0005, [0, 0], SA, 0); past += c[0] + c[1]; }
+    const none = DG.crackJS(0.01, 0, 1, 7919, 0.0005, [0, 0], null, 0); if (past > 0 || none[0] + none[1] > 0) f.push('the mask past SHEET_R or with no sheet'); }
+  // the reveal: lit samples grow with the severity, a light set's star small, the full one reaching far
+  const reveal = {}; for (const sev of [0.15, 0.5, 0.85, 1]) { let n = 0, rMax = 0; grid(SA, 0, sev, 0.0006, [0, 0], (r, c) => { if (c[0] > 0.05) { n++; rMax = Math.max(rMax, r); } }); reveal[sev] = { n, rMax }; }
+  if (!(reveal[0.15].n < reveal[0.5].n && reveal[0.5].n < reveal[0.85].n && reveal[0.85].n <= reveal[1].n)) f.push('the reveal does not grow (' + [0.15, 0.5, 0.85, 1].map(k => reveal[k].n).join(' < ') + ')');
+  if (!(reveal[0.15].rMax < 0.16 && reveal[1].rMax > 0.3)) f.push('a light set\'s star ' + reveal[0.15].rMax.toFixed(3) + ' m (< 0.16), the full one ' + reveal[1].rMax.toFixed(3) + ' m (> 0.3)');
+  { let mono = 0; grid(SA, 0, 0.6, 0.0006, [0, 0], (r, c, a) => { const c2 = DG.crackJS(r * Math.cos(a), r * Math.sin(a), 0.7, 7919, 0.0006, [0, 0], SA, 0); if (c2[0] < c[0] - 1e-6) mono++; });
+    if (mono) f.push('more severity showed less on ' + mono + ' samples'); }
+  // the whitened core: there at the hit, wider at full severity
+  const coreAt = (sev, r) => { let h = 0; for (let i = 0; i < 360; i++) { const a = i / 360 * Math.PI * 2; h += DG.crackJS(r * Math.cos(a), r * Math.sin(a), sev, 7919, 0.0006, [0, 0], SA, 0)[1]; } return h / 360; };
+  if (!(coreAt(1, 0.004) > 0.4 && coreAt(1, 0.015) > coreAt(0.15, 0.015) + 0.1 && coreAt(0.15, 0.015) < 0.02)) f.push('the core (' + [coreAt(1, 0.004), coreAt(1, 0.015), coreAt(0.15, 0.015)].map(x => x.toFixed(3)).join(', ') + ')');
+  // a hairline: at a cockpit pixel (0.8 mm) the lit share of the disc out to 0.3 m stays small (the G3623 star's chalk did not)
+  { let lit = 0, all = 0; grid(SA, 0, 1, 0.0008, [0, 0], (r, c) => { if (r > 0.05 && r < 0.3) { all++; if (c[0] > 0.05) lit++; } }); const sh = lit / all;
+    if (!(sh > 0.003 && sh < 0.05)) f.push('the lit share ' + (100 * sh).toFixed(2) + ' % (0.3-5 %)'); }
+  // far off: a crack holds no more than its share of the pixel; near, it reaches full
+  const peak = px => { let L = 0; for (const vx of [-0.6, -0.3, 0, 0.3, 0.6]) grid(SA, 0, 1, px, [vx, 0.2], (r, c) => { if (r > 0.04) L = Math.max(L, c[0]); }); return L; };
+  const p1 = peak(0.0005), p3 = peak(0.006);
+  if (!(p1 > 0.8 && p3 <= DG.SHARE_M / 0.006 * 1.02)) f.push('the far share (' + p1.toFixed(3) + ' near, ' + p3.toFixed(3) + ' far, cap ' + (DG.SHARE_M / 0.006).toFixed(3) + ')');
+  // the glint moves with the eye: a point on a line flashes for some eyes and is faint for others
+  { let best = null; grid(SA, 0, 1, 0.0005, [0, 0], (r, c, a) => { if (!best && r > 0.06 && c[0] > 0) { const t = DG.crackJS(r * Math.cos(a), r * Math.sin(a), 1, 7919, 0.0005, [0, 0], SA, 0); if (t[0] > 0.1) best = [r, a]; } });
+    let lo = 9, hi = 0; if (best) for (let k = 0; k < 40; k++) { const v = DG.crackJS(best[0] * Math.cos(best[1]), best[0] * Math.sin(best[1]), 1, 7919, 0.0005, [Math.cos(k) * 0.5, Math.sin(k * 1.7) * 0.5], SA, 0)[0]; lo = Math.min(lo, v); hi = Math.max(hi, v); }
+    if (!best || !(hi > 3 * lo && hi > 0.5)) f.push('the glint (' + lo.toFixed(3) + ' .. ' + hi.toFixed(3) + ')'); }
+  // the two looks differ; the look a glazing takes
+  { let diff = 0; grid(SA, 0, 1, 0.0006, [0, 0], (r, c, a) => { const l = DG.crackJS(r * Math.cos(a), r * Math.sin(a), 1, 7919, 0.0006, [0, 0], SL, 1); if ((c[0] > 0.3) !== (l[0] > 0.3)) diff++; });
+    if (diff < 500) f.push('acrylic and laminated read the same (' + diff + ' samples differ)'); }
+  if (DG.sheetOf('glass') !== 'laminated' || DG.sheetOf('acrylic') !== 'acrylic' || DG.sheetOf('polycarbonate') !== 'acrylic' || DG.sheetOf(undefined) !== 'acrylic' || DG.matIndex('laminated') !== 1 || DG.matIndex('acrylic') !== 0) f.push('sheetOf / matIndex');
+  row('U', !f.length, 'the rules: thresholds, merge, never moved, MAX, pack; the mask off the sheet (reach, reveal ' + [0.15, 0.5, 0.85, 1].map(k => reveal[k].n).join(' < ') + ' lit, star ' + reveal[0.15].rMax.toFixed(2) + ' -> ' + reveal[1].rMax.toFixed(2) + ' m, the core, a hairline, the far share, the glint, two looks, sheetOf)' + (f.length ? ' - FAILED: ' + f.join('; ') : ''));
+}
+
+// ---- K: the shipped sheets (CANOPY-CRACKS) ----
+function pngRGBA(buf) {   // the baker's own PNGs: 8-bit RGBA, every row filter 0 (a row of any other filter is reported)
+  let o = 8, W = 0, H = 0; const id = [];
+  while (o < buf.length) { const n = buf.readUInt32BE(o), t = buf.toString('ascii', o + 4, o + 8), d = buf.subarray(o + 8, o + 8 + n);
+    if (t === 'IHDR') { W = d.readUInt32BE(0); H = d.readUInt32BE(4); if (d[8] !== 8 || d[9] !== 6) return null; } else if (t === 'IDAT') id.push(d); o += 12 + n; }
+  const raw = require('zlib').inflateSync(Buffer.concat(id)), out = new Uint8Array(W * H * 4);
+  for (let y = 0; y < H; y++) { if (raw[y * (W * 4 + 1)] !== 0) return null; out.set(raw.subarray(y * (W * 4 + 1) + 1, (y + 1) * (W * 4 + 1)), y * W * 4); }
+  return { W, H, data: out };
+}
+function rowK() {
+  const f = [];
+  let T = null; try { delete require.cache[require.resolve('../src/viewer/crack_sheet.js')]; T = require('../src/viewer/crack_sheet.js'); } catch (e) { f.push('no src/viewer/crack_sheet.js'); }
+  const BK = require('./crack_sheet_bake.js');
+  if (T) {
+    if (T.sig !== BK.sigOf()) f.push('stale: the table\'s sig ' + T.sig + ' is not this bake\'s ' + BK.sigOf() + ' (re-run node tools/crack_sheet_bake.js)');
+    if (T.N !== DG.SHEET_N || T.span !== DG.SHEET_SPAN || T.dmax !== DG.SHEET_DMAX) f.push('N / span / dmax are not dmg_glass.js\'s');
+    for (const m of DG.SHEET_MATS) {
+      const p = T[m] && path.join(ROOT, T[m]);
+      if (!p || !fs.existsSync(p)) { f.push(m + ': no file ' + T[m]); continue; }
+      const buf = fs.readFileSync(p), img = pngRGBA(buf), b = BK.bake(m).data;
+      if (!img || img.W !== DG.SHEET_N || img.H !== DG.SHEET_N || Buffer.compare(Buffer.from(img.data), Buffer.from(b)) !== 0) f.push(m + ': the PNG is not the bake');
+      if (buf.length > 600 * 1024) f.push(m + ': ' + (buf.length / 1024).toFixed(0) + ' KB (> 600)');
+    }
+  }
+  row('K', !f.length, 'the sheets: crack_sheet.js is this bake (sig ' + (T && T.sig) + '), ' + DG.SHEET_MATS.map(m => m + ' ' + (T && T[m] && fs.existsSync(path.join(ROOT, T[m])) ? (fs.statSync(path.join(ROOT, T[m])).size / 1024).toFixed(0) + ' KB' : '-')).join(', ') + ', each the bake byte for byte' + (f.length ? ' - FAILED: ' + f.join('; ') : ''));
 }
 
 // ---- G + R: Chromium ----
@@ -217,28 +273,34 @@ async function rowsGR() {
   if (!br) { console.log('  --   G     the mirror: NOT RUN (no Chromium)'); console.log('  --   R     the page\'s material: NOT RUN (no Chromium)'); return; }
   try {
     // G: the mirror
-    const N = 24000, inp = [], seeds = [];
+    const N = 40000, inp = [], aux = [], seeds = [], SA = require('./crack_sheet_bake.js').bake('acrylic');
     let s = 12345; const rnd = () => ((s = (Math.imul(s, 1103515245) + 12345) | 0) >>> 0) / 4294967296;
     for (let i = 0; i < N; i++) {
-      const sev = [0.2, 0.45, 0.6, 0.8, 0.9, 1][Math.floor(rnd() * 6)], reach = 0.06 + 0.3 * sev;
-      const r = reach * 1.1 * Math.sqrt(rnd()), a = rnd() * Math.PI * 2, px = 0.0004 + 0.006 * rnd();
-      inp.push(r * Math.cos(a), r * Math.sin(a), sev, px); seeds.push(7919 + Math.floor(rnd() * 1200) * 131);
+      const sev = [0.15, 0.3, 0.5, 0.7, 0.85, 1][Math.floor(rnd() * 6)];
+      const r = (rnd() < 0.25 ? 0.05 : DG.SHEET_R * 1.02) * Math.sqrt(rnd()), a = rnd() * Math.PI * 2, px = 0.0002 + 0.00064 * rnd();   // (px under a texel: level 0)
+      inp.push(r * Math.cos(a), r * Math.sin(a), sev, px); aux.push(rnd() * 2 - 1, rnd() * 2 - 1, rnd() < 0.5 ? 0 : 1); seeds.push(7919 + Math.floor(rnd() * 1200) * 131);
     }
     const pg = await br.newPage();
-    const res = await pg.evaluate(([glsl, inp, seeds]) => {
+    const res = await pg.evaluate(([glsl, inp, aux, seeds, b64, NS]) => {
       const cv = document.createElement('canvas'), gl = cv.getContext('webgl2'); if (!gl) return { err: 'no webgl2' };
-      const vs = '#version 300 es\nprecision highp float;\nprecision highp int;\nin vec4 aQ;\nin float aSeed;\nout vec2 vOut;\n' + glsl + '\nvoid main() { vOut = dgCrack(aQ.xy, aQ.z, int(aSeed), aQ.w); gl_Position = vec4(0.0); }\n';
+      const vs = '#version 300 es\nprecision highp float;\nprecision highp int;\nprecision highp sampler2D;\nuniform sampler2D tCrack;\nfloat uCrackMat;\nin vec4 aQ;\nin vec3 aV;\nin float aSeed;\nout vec2 vOut;\n' + glsl +
+        '\nvoid main() { uCrackMat = aV.z; vOut = dgCrack(aQ.xy, aQ.z, int(aSeed), aQ.w, aV.xy); gl_Position = vec4(0.0); }\n';
       const fs = '#version 300 es\nprecision highp float;\nout vec4 o;\nvoid main() { o = vec4(0.0); }\n';
       const sh = (t, src) => { const x = gl.createShader(t); gl.shaderSource(x, src); gl.compileShader(x); return gl.getShaderParameter(x, gl.COMPILE_STATUS) ? x : { err: gl.getShaderInfoLog(x) }; };
       const v = sh(gl.VERTEX_SHADER, vs), f = sh(gl.FRAGMENT_SHADER, fs); if (v.err) return { err: v.err }; if (f.err) return { err: f.err };
       const pr = gl.createProgram(); gl.attachShader(pr, v); gl.attachShader(pr, f);
       gl.transformFeedbackVaryings(pr, ['vOut'], gl.INTERLEAVED_ATTRIBS); gl.linkProgram(pr); if (!gl.getProgramParameter(pr, gl.LINK_STATUS)) return { err: gl.getProgramInfoLog(pr) };
       gl.useProgram(pr);
-      const n = seeds.length, bq = gl.createBuffer(), bs = gl.createBuffer(), bo = gl.createBuffer();
-      gl.bindBuffer(gl.ARRAY_BUFFER, bq); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(inp), gl.STATIC_DRAW);
-      const lq = gl.getAttribLocation(pr, 'aQ'); gl.enableVertexAttribArray(lq); gl.vertexAttribPointer(lq, 4, gl.FLOAT, false, 0, 0);
-      gl.bindBuffer(gl.ARRAY_BUFFER, bs); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(seeds), gl.STATIC_DRAW);
-      const ls = gl.getAttribLocation(pr, 'aSeed'); gl.enableVertexAttribArray(ls); gl.vertexAttribPointer(ls, 1, gl.FLOAT, false, 0, 0);
+      // the sheet, as the page binds it: RGBA8, mipmapped, linear-mipmap-linear, clamped, row 0 at v 0
+      const bin = atob(b64), px = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) px[i] = bin.charCodeAt(i);
+      const tx = gl.createTexture(); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tx);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, NS, NS, 0, gl.RGBA, gl.UNSIGNED_BYTE, px); gl.generateMipmap(gl.TEXTURE_2D);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.uniform1i(gl.getUniformLocation(pr, 'tCrack'), 0);
+      const n = seeds.length, bq = gl.createBuffer(), bv = gl.createBuffer(), bs = gl.createBuffer(), bo = gl.createBuffer();
+      const attr = (b, name, data, k) => { gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(data), gl.STATIC_DRAW); const l = gl.getAttribLocation(pr, name); gl.enableVertexAttribArray(l); gl.vertexAttribPointer(l, k, gl.FLOAT, false, 0, 0); };
+      attr(bq, 'aQ', inp, 4); attr(bv, 'aV', aux, 3); attr(bs, 'aSeed', seeds, 1);
       gl.bindBuffer(gl.ARRAY_BUFFER, null);
       gl.bindBuffer(gl.TRANSFORM_FEEDBACK_BUFFER, bo); gl.bufferData(gl.TRANSFORM_FEEDBACK_BUFFER, n * 8, gl.STATIC_READ);
       const tf = gl.createTransformFeedback(); gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, tf); gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, bo);
@@ -246,18 +308,18 @@ async function rowsGR() {
       gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, null);
       const outF = new Float32Array(n * 2); gl.bindBuffer(gl.TRANSFORM_FEEDBACK_BUFFER, bo); gl.getBufferSubData(gl.TRANSFORM_FEEDBACK_BUFFER, 0, outF);
       return { out: Array.from(outF), err: gl.getError() || null };
-    }, [DG.GLSL_CRACK, inp, seeds]);
+    }, [DG.GLSL_CRACK, inp, aux, seeds, Buffer.from(SA.data).toString('base64'), DG.SHEET_N]);
     if (res.err && !res.out) row('G', false, 'the mirror: the GLSL did not build - ' + String(res.err).slice(0, 300));
     else {
-      const f32 = new Float32Array(inp);
+      const f32 = new Float32Array(inp), a32 = new Float32Array(aux);
       let bad = 0, worst = 0, nz = 0, both = 0;
       for (let i = 0; i < seeds.length; i++) {
-        const c = DG.crackJS(f32[i * 4], f32[i * 4 + 1], f32[i * 4 + 2], seeds[i], f32[i * 4 + 3]);
+        const c = DG.crackJS(f32[i * 4], f32[i * 4 + 1], f32[i * 4 + 2], seeds[i], f32[i * 4 + 3], [a32[i * 3], a32[i * 3 + 1]], SA, a32[i * 3 + 2]);
         const d = Math.max(Math.abs(c[0] - res.out[i * 2]), Math.abs(c[1] - res.out[i * 2 + 1]));
         if (d > 0.05) bad++; worst = Math.max(worst, d);
         if (c[0] > 0.05 || c[1] > 0.05) { nz++; if (res.out[i * 2] > 0.05 || res.out[i * 2 + 1] > 0.05) both++; }
       }
-      row('G', bad / seeds.length < 0.003 && nz > 500, 'the mirror: GLSL_CRACK in WebGL2 vs crackJS on ' + seeds.length + ' samples - |d| > 0.05 on ' + bad + ' (' + (100 * bad / seeds.length).toFixed(2) + ' %, under 0.3 %), worst ' + worst.toFixed(3) + '; the crack where JS has it ' + both + ' / ' + nz);
+      row('G', bad / seeds.length < 0.005 && nz > 500 && both >= nz * 0.98, 'the mirror: GLSL_CRACK in WebGL2 (the acrylic sheet bound, mipmapped as the page does) vs crackJS on ' + seeds.length + ' samples - |d| > 0.05 on ' + bad + ' (' + (100 * bad / seeds.length).toFixed(2) + ' %, under 0.5 %), worst ' + worst.toFixed(3) + '; the crack where JS has it ' + both + ' / ' + nz);
     }
     await pg.close();
     // R: the page's material
@@ -265,7 +327,7 @@ async function rowsGR() {
     const errs = []; pg2.on('console', m => { if (m.type() === 'error' || m.type() === 'warning') errs.push(m.text().slice(0, 300)); }); pg2.on('pageerror', e => errs.push('pageerror: ' + e.message));
     await pg2.setContent('<canvas id=c width=256 height=256></canvas>');
     for (const f of ['vendor/three.min.js', 'src/viewer/dmg_glass.js', 'src/viewer/aeroweather.js', 'src/viewer/aeroskin.js']) await pg2.addScriptTag({ content: fs.readFileSync(path.join(ROOT, f), 'utf8') });
-    const R = await pg2.evaluate(() => {
+    const R = await pg2.evaluate(([b64, NS]) => {
       const W = 256, cv = document.getElementById('c');
       const Rn = new THREE.WebGLRenderer({ canvas: cv, antialias: false, preserveDrawingBuffer: true });
       Rn.setSize(W, W, false); Rn.setClearColor(0x000000, 1);
@@ -281,8 +343,14 @@ async function rowsGR() {
       const shot = () => { Rn.render(sc, cam); gl.readPixels(0, 0, W, W, gl.RGBA, gl.UNSIGNED_BYTE, px); return Array.from(px); };
       const cmp = (a, b) => { let br = 0, dk = 0, ch = 0; for (let i = 0; i < W * W; i++) { const la = a[i * 4] + a[i * 4 + 1] + a[i * 4 + 2], lb = b[i * 4] + b[i * 4 + 1] + b[i * 4 + 2]; if (la !== lb || a[i * 4 + 3] !== b[i * 4 + 3]) ch++; if (lb > la + 6) br++; if (lb < la - 1) dk++; } return { br, dk, ch }; };
       const mk = (p, nn, sev) => [{ p, n: nn, sev, seed: 7919 }];
-      const u0 = U.uCrackN.value === 0 && U.uCrackP.value.length === DMG_GLASS.MAX && U.uCrackQ.value.length === DMG_GLASS.MAX;
+      const u0 = U.uCrackN.value === 0 && U.uCrackP.value.length === DMG_GLASS.MAX && U.uCrackQ.value.length === DMG_GLASS.MAX && !!U.tCrack && !!U.tCrack.value && U.uCrackMat.value === 0;
       DMG_GLASS.pack(U, []); const a = shot(), progA = Rn.info.programs.length, ok = !!(Rn.info.programs.length && gl.getError() === 0);
+      // CANOPY-CRACKS: the stand-in texel (no sheet yet, as on a first fetch): a mark changes not one pixel
+      DMG_GLASS.pack(U, mk([0.05, 0.02, 0], [0, 0, 1], 1)); const none = shot(); DMG_GLASS.pack(U, []);
+      // ...then the sheet, as app.js glassSheet binds it (RGBA8, mipmapped, flipY off, clamped)
+      const bin = atob(b64), sd = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) sd[i] = bin.charCodeAt(i);
+      const tS = new THREE.DataTexture(sd, NS, NS, THREE.RGBAFormat); tS.flipY = false; tS.generateMipmaps = true; tS.minFilter = THREE.LinearMipmapLinearFilter; tS.magFilter = THREE.LinearFilter; tS.needsUpdate = true;
+      U.tCrack.value = tS; const a1 = shot(), progS = Rn.info.programs.length;
       DMG_GLASS.pack(U, mk([0.05, 0.02, 0], [0, 0, 1], 1)); const c = shot(), img = cv.toDataURL('image/png'), progC = Rn.info.programs.length;
       DMG_GLASS.pack(U, mk([0.05, 0.02, 0.05], [0, 0, 1], 1)); const off = shot();
       DMG_GLASS.pack(U, mk([0.05, 0.02, 0], [0, 0, -1], 1)); const away = shot();
@@ -320,12 +388,12 @@ async function rowsGR() {
       DMG_GLASS.pack(U, []);
       const flat0 = m.flatShading; m.flatShading = true; m.needsUpdate = true; const sF = shot2(); m.flatShading = flat0; m.needsUpdate = true;
       const N = { flatShading: flat0, off: steps(s0), on: steps(s1), flat: steps(sF), markCh: cmp(s0, s1).ch, imgN };
-      return { ok, u0, progA, progC, Bk, mark: cmp(a, c), off: cmp(a, off), away: cmp(a, away), light: cmp(a, light), back: cmp(a, a2), img, N };
-    });
+      return { ok, u0, progA, progC, progS, Bk, none: cmp(a, none).ch, swap: cmp(a, a1).ch, mark: cmp(a, c), off: cmp(a, off), away: cmp(a, away), light: cmp(a, light), back: cmp(a, a2), img, N };
+    }, [Buffer.from(require('./crack_sheet_bake.js').bake('acrylic').data).toString('base64'), DG.SHEET_N]);
     if (opt('png')) fs.writeFileSync(opt('png'), Buffer.from(R.img.split(',')[1], 'base64'));
-    const ok = R.ok && R.u0 && !errs.length && R.progA === R.progC && R.mark.br >= 1500 && R.mark.dk === 0 && R.off.ch === 0 && R.away.ch === 0 && R.back.ch === 0 && R.light.br > 50 && R.light.br < R.mark.br;
-    row('R', ok, 'the page\'s material (the real aeroGlass, three r186): links' + (R.u0 ? '' : ' - the shared block has no uCrack* of MAX') + (errs.length ? ' - ERRORS: ' + errs.slice(0, 2).join(' | ') : '') + '; programs ' + R.progA + ' -> ' + R.progC +
-      '; a broken member\'s mark brightens ' + R.mark.br + ' px (>= 1500), darkens ' + R.mark.dk + '; a light one ' + R.light.br + ' px; 5 cm off the plane ' + R.off.ch + ' px changed, facing away ' + R.away.ch + ', cleared ' + R.back.ch);
+    const ok = R.ok && R.u0 && !errs.length && R.progA === R.progC && R.progS === R.progA && R.none === 0 && R.swap === 0 && R.mark.br >= 2000 && R.mark.dk === 0 && R.off.ch === 0 && R.away.ch === 0 && R.back.ch === 0 && R.light.br > 20 && R.light.br < R.mark.br;
+    row('R', ok, 'the page\'s material (the real aeroGlass, three r186): links' + (R.u0 ? '' : ' - the shared block has no uCrack* of MAX / tCrack / uCrackMat') + (errs.length ? ' - ERRORS: ' + errs.slice(0, 2).join(' | ') : '') + '; programs ' + R.progA + ' -> ' + R.progS + ' (the sheet bound) -> ' + R.progC +
+      '; the stand-in texel: a mark changes ' + R.none + ' px; the sheet bound, no mark: ' + R.swap + ' px; a broken member\'s mark brightens ' + R.mark.br + ' px (>= 2000), darkens ' + R.mark.dk + '; a light one ' + R.light.br + ' px; 5 cm off the plane ' + R.off.ch + ' px changed, facing away ' + R.away.ch + ', cleared ' + R.back.ch);
     { const B = R.Bk; if (opt('png')) fs.writeFileSync(opt('png').replace(/\.png$/, '_behind.png'), Buffer.from(B.imgB.split(',')[1], 'base64'));
       row('B', B.side === 2 && B.intact === 0 && B.mark.br >= 1000 && B.mark.dk === 0, 'from behind (the seat\'s side: a flown pane\'s triangles all face away from the cockpit eye): aeroGlass DoubleSide (' + B.side + '); no mark ' + B.intact + ' px changed against the pane hidden (0: its back faces draw nothing); a broken member\'s mark brightens ' + B.mark.br + ' px (>= 1000), darkens ' + B.mark.dk); }
     { const N = R.N, src = fs.readFileSync(AS_FILE, 'utf8'), blk = (src.match(/if \(uCrackN > 0\.5\) \{[\s\S]*?roughnessFactor \+= 0\.6 \* aeroCrack\.x[^\n]*/) || [''])[0];
@@ -373,8 +441,8 @@ function rowsT() {
 
 (async () => {
   const t0 = Date.now();
-  console.log('GATE DMGGLASS (G3623): the impact mark on the glazing' + (SELF ? ' - SELFTEST (sabotaged: S and T must go red)' : ''));
-  rowS(); rowU();
+  console.log('GATE DMGGLASS (G3623 + CANOPY-CRACKS): the impact mark on the glazing, read from the crack sheet' + (SELF ? ' - SELFTEST (sabotaged: S and T must go red)' : ''));
+  rowS(); rowU(); rowK();
   const pT = rowsT();
   await rowsGR();
   await pT;

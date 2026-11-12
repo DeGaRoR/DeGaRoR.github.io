@@ -4,9 +4,10 @@
 // the airframe hit it, drawn by the glass's own shader (aeroskin.js AEROGLASS_HOOK, the crack block) - so it shades as
 // the glass does: under the same light, on the same pane, with the same reflection taken off where it is crazed.
 //
-// THE MATERIAL (study DMG-LOOKS §2.5, crack_proto.js): light aircraft glazing is cast or stretched ACRYLIC - brittle
-// (notched Charpy ~2 kJ/m2), it cracks in a few long RADIAL lines with concentric ARCS and a CRAZED white core round
-// the hit, and its cracks SCATTER light: on the real thing they read silver-white against the sky, never dark. The
+// THE MATERIAL (CANOPY-CRACKS, 12 Nov, replacing the DMG-LOOKS §2.5 star): light aircraft glazing is cast or stretched
+// ACRYLIC - brittle: a small crushed, whitened spot, a fringe of short cracks and a few long straight runners that fork
+// and run on to the frame; a LAMINATED glass screen cracks in a spider web that holds. Both are baked sheets now (the
+// crack sheet below). Cracks SCATTER light: on the real thing they read silver-white against the sky, never dark. The
 // glass here is an ADD pass (blend ONE, ONE: it can only add light), which is exactly that: the crack's lines and its
 // haze add the light the pane receives (its irradiance) as a near-white diffuse scatter, and roughen the clear coat
 // there so the reflection breaks up along them. No hole is cut (the pane cannot remove what is behind it; a pane that
@@ -88,97 +89,96 @@
     return n;
   }
 
-  // ---- THE CRACK MASK, the shader's mirror (GLSL_CRACK) line for line: p2 the fragment's place on the pane round the
-  // mark (m, in the mark's tangent plane), sev 0..1, seed, px the metres a pixel spans there (the shader's fwidth: a
-  // line narrower than a pixel is drawn a pixel wide at its own share of the pixel - it fades, never fattens) ->
-  // [line, haze], each 0..1 ----
+  // ---- THE CRACK SHEET (CANOPY-CRACKS, 12 Nov: the user's option B, two looks): the crack is no longer drawn here - it is
+  // READ from a sheet baked once (tools/crack_sheet_bake.js -> media/tex/crack/, the table src/viewer/crack_sheet.js):
+  // R the distance to the nearest crack, G when it arrived as the crack grew, B its facet's phase, A the whitened core.
+  // One sheet a look: 'acrylic' (glazeMat acrylic, and polycarbonate until it has a look of its own) and 'laminated'
+  // (glazeMat glass, every pane); the flown aeroplane's one is bound to tCrack, uCrackMat says which (0 / 1). The G3623
+  // procedural star (fbm-wobbled rays with a 6x haze, rings, a Voronoi honeycomb) is gone: it read "like children drawings"
+  // (the user, 12 Nov) - the study is futureDesigns/CANOPY-CRACKS-2026-11.md.
+  const SHEET_MATS = ['acrylic', 'laminated'];
+  const SHEET_N = 1024;                 // texels a side (one pattern, rotated and mirrored by the mark's seed)
+  const SHEET_SPAN = 0.9;               // m the sheet spans round the hit (0.88 mm a texel)
+  const SHEET_R = 0.44;                 // m: nothing past this from the hit (the sheet's edge)
+  const SHEET_DMAX = 0.008;             // m: R's full scale
+  const SHEET_TEXEL = SHEET_SPAN / SHEET_N;
+  const SHEET_BIAS = 0.3 * SHEET_TEXEL; // m off the read distance: a line between two texels reads near 0, not half a texel
+  const SHARE_M = 0.0012;               // m: a crack's apparent width (its facet seen through 3 mm of sheet): a pixel wider
+                                        // than this holds only its share - far off, a crack fades as a real one does
+  const sheetOf = glazingMat => glazingMat === 'glass' ? 'laminated' : 'acrylic';
+  const matIndex = sheet => sheet === 'laminated' ? 1 : 0;
+  // ---- the hash the shader keeps (the seed's rotation and mirror), and the line's coverage ----
   function u32(x) { return x >>> 0; }
   function h1(i, seed) { let x = u32(Math.imul(i | 0, 0x27d4eb2d) ^ Math.imul(seed | 0, 0x165667b1)); x ^= x >>> 15; x = u32(Math.imul(x, 0x85ebca6b)); x ^= x >>> 13; x = u32(Math.imul(x, 0xc2b2ae35)); x ^= x >>> 16; return u32(x) / 4294967296; }
-  function h2(i, j, seed) { return h1(Math.imul(i | 0, 73856093) ^ Math.imul(j | 0, 19349663), seed); }
-  function v1(x, seed) { const fi = Math.floor(x), i = fi, f = x - fi, s = f * f * (3 - 2 * f), a = h1(i, seed); return a + (h1(i + 1, seed) - a) * s; }
-  function fbm1(x, seed) { let s = 0, a = 0.5, f = 1, n = 0; for (let o = 0; o < 3; o++) { s += a * (v1(x * f, seed + o * 31) * 2 - 1); n += a; a *= 0.5; f *= 2.03; } return s / n; }
   function sm(a, b, x) { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); }
   // a thin line's coverage: its own half-width w, drawn at least a pixel wide (pw) and dimmed to its share
   function lineCov(dist, w, pw) { const we = Math.max(w, pw); return (1 - sm(we * 0.5, we, dist)) * (w / we); }
-  function vorEdge(x, y, seed) {
-    const ix = Math.floor(x), iy = Math.floor(y); let md = 9, mx = 0, my = 0;
-    for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) { const px = i + h2(ix + i, iy + j, seed), py = j + h2(ix + i, iy + j, seed + 1), dx = px - (x - ix), dy = py - (y - iy), d = dx * dx + dy * dy; if (d < md) { md = d; mx = dx; my = dy; } }
-    let e = 9;
-    for (let j = -2; j <= 2; j++) for (let i = -2; i <= 2; i++) { const px = i + h2(ix + i, iy + j, seed), py = j + h2(ix + i, iy + j, seed + 1), dx = px - (x - ix), dy = py - (y - iy), qx = dx - mx, qy = dy - my, ql = qx * qx + qy * qy;
-      if (ql > 1e-5) e = Math.min(e, ((mx + dx) * 0.5 * qx + (my + dy) * 0.5 * qy) / Math.sqrt(ql)); }
-    return e;
+  // ---- the sheet read, as the GPU does it (GATE DMGGLASS G holds the two equal): S = { N, data: RGBA8 rows, v = 0 first },
+  // its mips box-averaged on first use (the page's generateMipmaps); clamp to edge; bilinear, linear between levels ----
+  function mipsOf(S) {
+    if (S.mips) return S.mips;
+    const L = [{ n: S.N, d: Float32Array.from(S.data, x => x / 255) }];
+    while (L[L.length - 1].n > 1) { const a = L[L.length - 1], n = a.n >> 1, d = new Float32Array(n * n * 4);
+      for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) for (let c = 0; c < 4; c++) { const at = (x, y) => a.d[((y) * a.n + x) * 4 + c];
+        d[(j * n + i) * 4 + c] = (at(2 * i, 2 * j) + at(2 * i + 1, 2 * j) + at(2 * i, 2 * j + 1) + at(2 * i + 1, 2 * j + 1)) / 4; }
+      L.push({ n, d }); }
+    return (S.mips = L);
   }
-  function crackJS(px2, py2, sev, seed, px) {
-    const reach = 0.06 + 0.30 * sev, r = Math.hypot(px2, py2) + 1e-6;
-    if (r > reach * 1.05) return [0, 0];
-    let th = Math.atan2(py2, px2); if (th < 0) th += TAU;
-    const NR = 5 + Math.floor(h1(1, seed) * 5), cell = th / TAU * NR, c0 = Math.floor(cell);
-    let line = 0, haze = 0;
-    for (let o = -1; o <= 1; o++) {
-      let k = c0 + o; if (k < 0) k += NR; if (k >= NR) k -= NR;   // (no %: GLSL ES leaves it undefined below 0)
-      const base = (k + 0.5 + 0.7 * (h1(k, seed + 3) - 0.5)) / NR * TAU;
-      const ang = base + 0.10 * fbm1(r * 9 + k * 7.1, seed + 5) + 0.12 * fbm1(r * 2.3 + k, seed + 6) * Math.min(1, r / 0.1);
-      let d = th - ang; d -= TAU * Math.round(d / TAU);
-      const len = reach * (0.45 + 0.55 * h1(k, seed + 9)), dist = Math.abs(d) * r;
-      const w = 0.0009 * (1 - Math.min(1, r / len)) + 0.00025;
-      if (r < len) { line = Math.max(line, lineCov(dist, w, px)); haze = Math.max(haze, 0.55 * (1 - sm(w, Math.max(w * 6, px * 2), dist))); }
-    }
-    if (sev >= 0.5) {
-      const NG = 1 + Math.floor(h1(2, seed) * 3);
-      for (let j = 0; j < 3; j++) { if (j >= NG) break;
-        const R = (0.03 + 0.02 * h1(j, seed + 13)) * Math.pow(2, j) * (0.6 + sev);
-        if (h2(c0, j, seed + 17) > 0.55 || R > reach) continue;
-        const Rw = R * (1 + 0.08 * fbm1(th * 5 + j, seed + 19)), dist = Math.abs(r - Rw);
-        line = Math.max(line, lineCov(dist, 0.0004, px)); haze = Math.max(haze, 0.45 * (1 - sm(0.001, Math.max(0.004, px * 2), dist))); }
-    }
-    if (sev >= 0.85) {
-      const cz = 0.9 * (1 - sm(0.02, 0.06 + 0.06 * sev, r));
-      if (cz > 0) { const e = vorEdge(px2 * 60, py2 * 60, seed + 23); haze = Math.max(haze, cz * (1 - sm(0.02, 0.07, e)) * 0.8); }
-    }
-    return [line, haze];
+  function bilin(M, u, v) {
+    const n = M.n, x = u * n - 0.5, y = v * n - 0.5, x0 = Math.floor(x), y0 = Math.floor(y), fx = x - x0, fy = y - y0, o = [0, 0, 0, 0];
+    const cl = k => Math.min(n - 1, Math.max(0, k));
+    for (let c = 0; c < 4; c++) { const at = (i, j) => M.d[(cl(j) * n + cl(i)) * 4 + c];
+      o[c] = (at(x0, y0) * (1 - fx) + at(x0 + 1, y0) * fx) * (1 - fy) + (at(x0, y0 + 1) * (1 - fx) + at(x0 + 1, y0 + 1) * fx) * fy; }
+    return o;
   }
-  // the same in GLSL - aeroskin.js splices AERO_GLASS_CRACK_FS (its copy of this text: GATE DMGGLASS holds them equal)
+  function sampleLod(S, u, v, lod) {
+    const L = mipsOf(S), l = Math.min(L.length - 1, Math.max(0, lod)), l0 = Math.floor(l), f = l - l0;
+    const a = bilin(L[l0], u, v); if (f <= 0 || l0 + 1 >= L.length) return a;
+    const b = bilin(L[l0 + 1], u, v); return a.map((x, c) => x + (b[c] - x) * f);
+  }
+  // ---- THE CRACK MASK, the shader's mirror (GLSL_CRACK) line for line: q the fragment's place on the pane round the mark
+  // (m, in the mark's tangent plane), sev 0..1, seed, px the metres a pixel spans there (the shader's fwidth), vt the eye's
+  // direction in the mark's tangent frame (the glint), S the sheet, mat 0 acrylic / 1 laminated -> [line, haze], each 0..1
+  // (haze: the whitened core). The line is a hairline of ~2 px at its root, ~1 px at its tips, wherever the eye is ----
+  function crackJS(qx, qy, sev, seed, px, vt, S, mat) {
+    const r = Math.hypot(qx, qy);
+    if (r > SHEET_R || !S) return [0, 0];
+    const a = TAU * h1(1, seed), ca = Math.cos(a), sa = Math.sin(a);
+    let p0 = ca * qx - sa * qy; const p1 = sa * qx + ca * qy;
+    if (h1(2, seed) < 0.5) p0 = -p0;
+    const t = sampleLod(S, p0 / SHEET_SPAN + 0.5, p1 / SHEET_SPAN + 0.5, Math.max(0, Math.log2(px / SHEET_TEXEL)));
+    const d = Math.max(0, t[0] * SHEET_DMAX - SHEET_BIAS);
+    const vis = Math.min(1, Math.max(0, (sev - t[1]) * 40 + 1));
+    const tap = Math.min(1, Math.max(0, t[1] / Math.max(sev, 0.05)));
+    const gl = 0.12 + 0.88 * Math.pow(Math.abs(Math.sin(TAU * t[2] + 5 * vt[0] + 3 * vt[1])), 10);
+    const line = lineCov(d, px * (1.3 + (0.55 - 1.3) * tap), px) * vis * gl * Math.min(1, SHARE_M / px);
+    const rc = mat > 0.5 ? 0.010 + 0.016 * sev : 0.006 + 0.020 * sev;
+    const wh = t[3] * (1 - sm(0.7 * rc, 1.6 * rc, r));
+    return [line, wh];
+  }
+  // the same in GLSL - aeroskin.js splices AERO_GLASS_CRACK_FS (its copy of this text: GATE DMGGLASS holds them equal). It
+  // reads tCrack and uCrackMat (aeroskin.js AERO_GLASS_CRACK_PARS declares them); textureLod with the pixel's own level, so
+  // the read is the same inside the marks' loop as outside it (no implicit derivatives in non-uniform flow)
+  const gf = x => { const t = String(x); return /[.e]/.test(t) ? t : t + '.0'; };
   const GLSL_CRACK = [
     'float dgU1(int i, int seed) { uint x = (uint(i) * 0x27d4eb2du) ^ (uint(seed) * 0x165667b1u); x ^= x >> 15u; x *= 0x85ebca6bu; x ^= x >> 13u; x *= 0xc2b2ae35u; x ^= x >> 16u; return float(x) / 4294967296.0; }',
-    'float dgU2(int i, int j, int seed) { return dgU1(int(uint(i) * 73856093u ^ uint(j) * 19349663u), seed); }',
-    'float dgV1(float x, int seed) { float fi = floor(x); int i = int(fi); float f = x - fi; float s = f * f * (3.0 - 2.0 * f); float a = dgU1(i, seed); return a + (dgU1(i + 1, seed) - a) * s; }',
-    'float dgFbm(float x, int seed) { float s = 0.0, a = 0.5, f = 1.0, n = 0.0; for (int o = 0; o < 3; o++) { s += a * (dgV1(x * f, seed + o * 31) * 2.0 - 1.0); n += a; a *= 0.5; f *= 2.03; } return s / n; }',
     'float dgSm(float a, float b, float x) { float t = clamp((x - a) / (b - a), 0.0, 1.0); return t * t * (3.0 - 2.0 * t); }',
     'float dgLine(float dist, float w, float pw) { float we = max(w, pw); return (1.0 - dgSm(we * 0.5, we, dist)) * (w / we); }',
-    'float dgVor(vec2 p, int seed) { vec2 fl = floor(p); int ix = int(fl.x), iy = int(fl.y); float md = 9.0, mx = 0.0, my = 0.0;',
-    '  for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) { float px = float(i) + dgU2(ix + i, iy + j, seed), py = float(j) + dgU2(ix + i, iy + j, seed + 1); float dx = px - (p.x - fl.x), dy = py - (p.y - fl.y), d = dx * dx + dy * dy; if (d < md) { md = d; mx = dx; my = dy; } }',
-    '  float e = 9.0;',
-    '  for (int j = -2; j <= 2; j++) for (int i = -2; i <= 2; i++) { float px = float(i) + dgU2(ix + i, iy + j, seed), py = float(j) + dgU2(ix + i, iy + j, seed + 1); float dx = px - (p.x - fl.x), dy = py - (p.y - fl.y), qx = dx - mx, qy = dy - my, ql = qx * qx + qy * qy;',
-    '    if (ql > 1e-5) e = min(e, ((mx + dx) * 0.5 * qx + (my + dy) * 0.5 * qy) / sqrt(ql)); }',
-    '  return e; }',
-    'vec2 dgCrack(vec2 q, float sev, int seed, float px) {',
-    '  float reach = 0.06 + 0.30 * sev, r = length(q) + 1e-6;',
-    '  if (r > reach * 1.05) return vec2(0.0);',
-    '  float th = atan(q.y, q.x); if (th < 0.0) th += 6.2831853;',
-    '  int NR = 5 + int(floor(dgU1(1, seed) * 5.0)); float cell = th / 6.2831853 * float(NR); int c0 = int(floor(cell));',
-    '  float line = 0.0, haze = 0.0;',
-    '  for (int o = -1; o <= 1; o++) {',
-    '    int k = c0 + o; if (k < 0) k += NR; if (k >= NR) k -= NR;',
-    '    float base = (float(k) + 0.5 + 0.7 * (dgU1(k, seed + 3) - 0.5)) / float(NR) * 6.2831853;',
-    '    float ang = base + 0.10 * dgFbm(r * 9.0 + float(k) * 7.1, seed + 5) + 0.12 * dgFbm(r * 2.3 + float(k), seed + 6) * min(1.0, r / 0.1);',
-    '    float d = th - ang; d -= 6.2831853 * floor(d / 6.2831853 + 0.5);',
-    '    float len = reach * (0.45 + 0.55 * dgU1(k, seed + 9)), dist = abs(d) * r;',
-    '    float w = 0.0009 * (1.0 - min(1.0, r / len)) + 0.00025;',
-    '    if (r < len) { line = max(line, dgLine(dist, w, px)); haze = max(haze, 0.55 * (1.0 - dgSm(w, max(w * 6.0, px * 2.0), dist))); }',
-    '  }',
-    '  if (sev >= 0.5) {',
-    '    int NG = 1 + int(floor(dgU1(2, seed) * 3.0));',
-    '    for (int j = 0; j < 3; j++) { if (j >= NG) break;',
-    '      float R = (0.03 + 0.02 * dgU1(j, seed + 13)) * pow(2.0, float(j)) * (0.6 + sev);',
-    '      if (dgU2(c0, j, seed + 17) > 0.55 || R > reach) continue;',
-    '      float Rw = R * (1.0 + 0.08 * dgFbm(th * 5.0 + float(j), seed + 19)), dist = abs(r - Rw);',
-    '      line = max(line, dgLine(dist, 0.0004, px)); haze = max(haze, 0.45 * (1.0 - dgSm(0.001, max(0.004, px * 2.0), dist))); }',
-    '  }',
-    '  if (sev >= 0.85) {',
-    '    float cz = 0.9 * (1.0 - dgSm(0.02, 0.06 + 0.06 * sev, r));',
-    '    if (cz > 0.0) { float e = dgVor(q * 60.0, seed + 23); haze = max(haze, cz * (1.0 - dgSm(0.02, 0.07, e)) * 0.8); }',
-    '  }',
-    '  return vec2(line, haze);',
+    'vec2 dgCrack(vec2 q, float sev, int seed, float px, vec2 vt) {',
+    '  float r = length(q);',
+    '  if (r > ' + gf(SHEET_R) + ') return vec2(0.0);',
+    '  float a = 6.2831853 * dgU1(1, seed), ca = cos(a), sa = sin(a);',
+    '  vec2 p = vec2(ca * q.x - sa * q.y, sa * q.x + ca * q.y);',
+    '  if (dgU1(2, seed) < 0.5) p.x = -p.x;',
+    '  vec4 t = textureLod(tCrack, p / ' + gf(SHEET_SPAN) + ' + 0.5, max(0.0, log2(px / ' + gf(SHEET_TEXEL) + ')));',
+    '  float d = max(0.0, t.r * ' + gf(SHEET_DMAX) + ' - ' + gf(SHEET_BIAS) + ');',
+    '  float vis = clamp((sev - t.g) * 40.0 + 1.0, 0.0, 1.0);',
+    '  float tap = clamp(t.g / max(sev, 0.05), 0.0, 1.0);',
+    '  float gl = 0.12 + 0.88 * pow(abs(sin(6.2831853 * t.b + 5.0 * vt.x + 3.0 * vt.y)), 10.0);',
+    '  float line = dgLine(d, px * mix(1.3, 0.55, tap), px) * vis * gl * min(1.0, ' + gf(SHARE_M) + ' / px);',
+    '  float rc = uCrackMat > 0.5 ? 0.010 + 0.016 * sev : 0.006 + 0.020 * sev;',
+    '  float wh = t.a * (1.0 - dgSm(0.7 * rc, 1.6 * rc, r));',
+    '  return vec2(line, wh);',
     '}',
   ].join('\n');
   // the mark's tangent frame (JS = the shader's): t1 = normalize(cross(n, a)), a = z unless n is near z (then x); t2 = cross(n, t1)
@@ -190,18 +190,22 @@
   }
   // a fragment's mark (the shader's loop over the marks, mirrored): x its craft place, nf its normal, px; -> [line, haze]
   const GATE_DN = 0.04, GATE_FACE = 0.5;
-  function shadeJS(marks, x, nf, px) {
+  // eye: the eye's place in the same frame (the glint; default: 1 m out along the mark's normal), S the sheet, mat 0 / 1
+  function shadeJS(marks, x, nf, px, eye, S, mat) {
     let line = 0, haze = 0;
     for (const m of (marks || []).slice(0, MAX)) {
       const d = [x[0] - m.p[0], x[1] - m.p[1], x[2] - m.p[2]], dn = d[0] * m.n[0] + d[1] * m.n[1] + d[2] * m.n[2];
       const fl = Math.hypot(...nf) || 1, face = (nf[0] * m.n[0] + nf[1] * m.n[1] + nf[2] * m.n[2]) / fl;
       if (Math.abs(dn) > GATE_DN || face < GATE_FACE) continue;
       const [t1, t2] = frame(m.n), q = [d[0] * t1[0] + d[1] * t1[1] + d[2] * t1[2], d[0] * t2[0] + d[1] * t2[1] + d[2] * t2[2]];
-      const c = crackJS(q[0], q[1], m.sev, m.seed, px); line = Math.max(line, c[0]); haze = Math.max(haze, c[1]);
+      const e = eye || [m.p[0] + m.n[0], m.p[1] + m.n[1], m.p[2] + m.n[2]], v = [e[0] - x[0], e[1] - x[1], e[2] - x[2]], vl = Math.hypot(...v) || 1;
+      const vt = [(v[0] * t1[0] + v[1] * t1[1] + v[2] * t1[2]) / vl, (v[0] * t2[0] + v[1] * t2[1] + v[2] * t2[2]) / vl];
+      const c = crackJS(q[0], q[1], m.sev, m.seed, px, vt, S, mat || 0); line = Math.max(line, c[0]); haze = Math.max(haze, c[1]);
     }
     return [line, haze];
   }
-  const API = { R_NEAR, SET_LIGHT, SET_HARD, MERGE, MAX, GATE_DN, GATE_FACE, severity, members, nearest, impacts, pack, crackJS, shadeJS, frame, GLSL_CRACK };
+  const API = { R_NEAR, SET_LIGHT, SET_HARD, MERGE, MAX, GATE_DN, GATE_FACE, SHEET_MATS, SHEET_N, SHEET_SPAN, SHEET_R, SHEET_DMAX, SHEET_TEXEL, SHEET_BIAS, SHARE_M,
+    sheetOf, matIndex, severity, members, nearest, impacts, pack, crackJS, shadeJS, frame, sampleLod, GLSL_CRACK };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   if (typeof window !== 'undefined') window.DMG_GLASS = API;
 })();
