@@ -315264,3 +315264,66 @@ read p99 10.1 mm on them. The real cut (a coarser refine at low chaos / fine row
 - VEG-ROOT FIELD BY COLOUR (LOOK-1, the user 11 Nov "by colour per tuft"), claude/ready/veg-root-key e20cb0a11: two fixes. (1) The field's key runs AFTER the root law (three's color_vertex comes before begin_vertex; on master the law overwrote the key, which changed nothing). (2) The key's weight is the TINTED texel mean's r/g, not the raw texture's (1.72), so vColor r/g x w = the tuft's albedo r/g = the ground's own. Band 0.85-1.05: below MID (0.6, 80 %), above HIGH (0.95, 1.3), blended between. Gates COVER TREES FADES PASS; 8f asserts the order and the weight (node reads 1.000: no tint uniforms in node). IN GAME 12 Nov 16:45 (dev.html): live w 1.014; the HOME field around the parked Cub, 18,010 tufts, albedo r/g q05/q25/q50/q75/q95 0.775/1.004/1.247/1.291/1.322, 12.9 % MID, 72.1 % HIGH. CAVEAT: home field only (the cover ring streams around the aircraft). NO PICTURE: the free eye does not stream the world; FLIGHT_PROBE.place leaves the Cub at home on master 5bc7de1c9+, so the keyed / key-off still is OWED to the perf round with place() fixed.
 
 - DIRT-EDGE (DIRT-DUST, the user marked "the clean, sharp rounded shape" on the Petrel crash frames), claude/ready/dirt-edge 6d5524acb: the crash puff's hard circle came from saturation (the zoomed V2 sprite still covered ~0.9 at the quad's discard circle). Every puff: a soft depth cap vT = 1.6 (1 - e^(-vTau/1.6)) (0.25 -> 0.23, 0.5 -> 0.43, 1 -> 0.74, 6 -> 1.56; one puff never opaque, ~0.8 max; overlaps still stack) and the depth + alpha fade from 0.45 r (was the last 15 %). VISIBLE ON ALL DUST, named: take-off / roll dust (0.05-1) a little thinner, most where thickest; each puff reads ~20 % smaller with softer edges. Gates DUST (new: no hard circle; a crash-dense puff is never a flat disc) + ASSETS PASS. NOT GPU-checked (GATE DUST's atlas emulation); the next crash stills show it.
+
+## REAL-FIGURES PERENNIAL - STAMPS, GATE REALBAND, GATE REALREFS, THE HOW-TO (2026-11-12, REAL-FIGURES, cloud; branch claude/real-perennial, tools only, onto L39b 23ce68c1f)
+
+The REAL-CHECK report can no longer quietly show a number flown on another aeroplane, core or reference, and a new
+reference cannot go in without its conditions and its sources. No core change. The how-to: tools/FIT_AND_VALIDATE.md
+section 12 (the method brief, new on master; section 13 is the hand-over to the FIT-PROCEDURE session's Drafting Table).
+
+**THE RULE FOR EVERY PHYSICS CHANGE FROM NOW ON (A0, 12 Nov).** GATE REALBAND holds the core's numbers. A change that
+moves them goes red on REALBAND by design. Its owner:
+1. reads the red lines (which plane, which number, build or core);
+2. accepts them with `node tools/_realband_check.js --write --reason="<the change, e.g. AERO-BODY: PHYSICS_V 8, the body's drag>"`.
+   The reason is required; every write is kept in tools/realband_baseline.json `history`;
+3. commits the baseline with the change. The report's flown results of the moved planes are now stale (it says so);
+   REAL-FIGURES re-flies them.
+
+Known to come: AERO-BODY (PHYSICS_V 8), the Archaeopteryx rod row, TOW-LAUNCH's slope fix.
+
+- STAMPS (tools/_real_stamp.js). Every real_check result carries `stamp`:
+  - the build file's git blob;
+  - the core's body-sha256;
+  - real_check.js's blob;
+  - a hash of the PLANES row, without its labels;
+  - a hash of the REFS row, without its trail (src, sources, notes, a row's flaps; a range read in order).
+
+  `check()` gives one of four states:
+  - fresh;
+  - stale: the build, core or PLANES row moved, so re-fly;
+  - rescored: only the reference moved;
+  - unstamped.
+
+  real_report prints a freshness block at the top and a chip on each plane. `node tools/_real_stamp.js` lists every
+  result's state. `--backfill=<dir> --at=<commit>` stamps an older folder from the files at the commit it was flown on.
+  Master's evidence (REAL-CHECK-2026-11-07 to -09) is unstamped: the core has moved since, so re-fly before quoting it.
+- THE LIVE SET (_real_stamp.liveKeys): the PLANES rows that are not dropped, supersededBy, next or `branch:`.
+  `real_check --all` flies only those (`--every` / `--branch` for the rest). On master today: cub160 jodel pa18f160
+  chinook dc3 stearman tigermoth camel c172rf carboncubss c172v2.
+- GATE REALBAND (tools/_realband_check.js, core, weight 2, ~2-4 min): `real_check --quick` of the live set against
+  tools/realband_baseline.json (written on this tree). It compares, per load MIN / TYP / MTOW:
+  - mass, Vs, V75, Vmax, climb, L/D;
+  - grass take-off;
+  - CG and margin;
+  - plus the shape and the empty mass.
+
+  A move past its tolerance (1 % on a speed, 0.5 point on a CG) is red, naming whether the build file or the core
+  moved. A new live plane, or one leaving the set, is red until `--write --reason`. The note line says how fresh the
+  report's evidence is (not red).
+- GATE REALREFS (tools/_realrefs_lint.js, core, 0.1 s). Every reference row must give:
+  - its indicator, v, tol and src;
+  - its conditions, stated even when unknown: kg on every performance row, flaps on the stall and the distances,
+    surface on the distances (a water row: water).
+
+  A reference made from now on must also carry `variant`, `sources` ({what, quality, read, url | noUrl}) and each row's
+  `from`. The 13 references on master are LEGACY: listed in the lint, and printed as a note until each is sourced.
+  Every PLANES row must resolve. Fixed in real_refs.js (conditions only, no figure changed):
+  - 8 distance rows that did not state their flaps: 7 now 'unknown', the Petrel's water take-off 0 (no flaps on the type);
+  - the Carbon Cub's V75 range and the Petrel's land take-off range, written high-to-low, now in order (the scores read
+    them min / max: unchanged).
+- real_report grades a sourced row's confidence by its sources' quality (poh 1, maker / typeSheet 0.9, review 0.6,
+  encyclopedia / ruling 0.5, thin 0.3), else by its src text as before.
+- TOOLS:
+  - tools/lattice_overlay.js (+ .py, needs python3 + Pillow): the flown nodes, beams and strips over quickshot's
+    pictures, on the game's load path, with the join's datum. ~15 s;
+  - tools/fleet_scan.js: every build's mass, margin, CG / NP and tail taper per tree, then `--diff=base,new`.
