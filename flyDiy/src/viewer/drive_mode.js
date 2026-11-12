@@ -29,64 +29,17 @@
   const $ = id => document.getElementById(id);
 
   // ---- THE GRAPH: the island's roads (vehicle_island.js) and the places a vehicle can be sent to ----
-  function buildGraph(world) {
-    const P = world.premises, O = P && P.overlay;
-    if (!O || typeof O.roadGraph !== 'function') return null;
-    const RG = O.roadGraph();
-    const aero = (world.aerodromes || []).filter(a => a.kind !== 'meadow').map(a => {
-      const s = typeof siteOf === 'function' ? siteOf(a.id) : null;
-      return { id: a.id, name: typeof fieldName === 'function' ? fieldName(a.id, a.name) : a.name, x: a.x, z: a.z, stand: s && s.stand };
-    });
-    const sites = [];
-    const hall = ((P.rec && P.rec.layers && P.rec.layers.sites) || []).find(s => s.id === TOWN.site);
-    if (hall && hall.at) sites.push({ id: TOWN.id, name: (typeof GAME_NAMES !== 'undefined' && GAME_NAMES.town) || 'the town', x: hall.at.x, z: hall.at.z, kind: 'town' });
-    return { aero, sites, RG, O, rec: P.rec };
-  }
-  // ---- THE RIG: the body (and its lamps, all in the body's frame), four wheels in the body's frame ----
-  function buildRig() {
-    const T = THREE_, g = new T.Group(); g.name = 'drive:car'; g.matrixAutoUpdate = false;
-    const pm = k => (typeof propMesh === 'function' ? propMesh(T, k) : new T.Group());
-    g.add(pm('car_conquer_body'));
-    const lamps = {};
-    for (const k of ['head', 'brake', 'reverse']) { const L = sheet.lamps && sheet.lamps[k]; if (!L || !L.prop) continue; lamps[k] = pm(L.prop); g.add(lamps[k]); }
-    const wheels = def.wheels.map(w => {
-      const W = sheet.wheels[w.id], o = new T.Group(); o.rotation.order = 'YXZ';
-      o.add(pm(W.prop || (W.side === 'left' ? 'car_conquer_wheel_l' : 'car_conquer_wheel_r')));
-      g.add(o); return o;
-    });
-    return { g, wheels, lamps, M: new T.Matrix4(), a: new T.Vector3(), b: new T.Vector3(), c: new T.Vector3() };
-  }
-  function poseRig() {
-    if (!rig || !car) return;
-    const A = car.axes(), o = car.toWorld([0, 0, 0]);
-    rig.a.set(A.fwd[0], A.fwd[1], A.fwd[2]); rig.b.set(A.up[0], A.up[1], A.up[2]); rig.c.set(A.right[0], A.right[1], A.right[2]);
-    rig.g.matrix.makeBasis(rig.a, rig.b, rig.c).setPosition(o[0], o[1], o[2]); rig.g.matrixWorldNeedsUpdate = true;
-    def.wheels.forEach((w, i) => {
-      const S = car.wheels[i], o2 = rig.wheels[i];
-      o2.position.set(w.at[0], w.at[1] + w.bump - S.s, w.at[2]);
-      o2.rotation.y = -S.delta; o2.rotation.z = -S.spin;   // + steer = right (toward +z); rolling forward = the top going forward
-    });
-    if (rig.lamps.brake) rig.lamps.brake.visible = car.ctl.brake > 0.05;
-    if (rig.lamps.reverse) rig.lamps.reverse.visible = car.ctl.gear < 0;
-  }
-  // the place nearest a point (the From the top bar says)
-  function placeNear(x, z, maxD) {
-    let best = null, bd = maxD || 400;
-    for (const id in G.places) { const p = G.places[id]; const d = Math.hypot(p.x - x, p.z - z); if (d < bd) { bd = d; best = p; } }
-    return best;
-  }
-  const placeName = id => (G && G.places[id] && G.places[id].name) || id;
-
-  // ---- ENTER / LEAVE (app.js's DRIVE object calls them) ----
-  // ctx: { THREE, scene, world, at: [x, y, z] (where the aeroplane is: the car starts at the nearest place), to? }
+  // (the graph: vehicle_island.js vehIslandFromWorld - the gate's recipe: the roads, the runways and their taxi routes, the
+  //  stands' links, the steep stretches closed; buildGraph was this file's own until phase 2)
   DM.enter = async function (ctx) {
     THREE_ = ctx.THREE; scene_ = ctx.scene; world_ = ctx.world;
     if (!sheet) { const r = await fetch(SHEET_URL); if (!r.ok) throw new Error('the car sheet: ' + r.status); sheet = await r.json(); }
     def = vehicleDef(sheet);
     const t0 = performance.now();
-    const B = buildGraph(world_); if (!B) throw new Error('no roads in this world (the premises carry the road graph)');
     const at = ctx.at || [0, 0, 0];
-    const I = vehIslandSpec(B.RG, { rec: B.rec, toWorld: (x, z) => B.O.frame.toWorld(x, z), aerodromes: B.aero, sites: B.sites, from: [at[0], at[2]] });
+    const I = vehIslandFromWorld(world_, { siteOf: typeof siteOf === 'function' ? siteOf : null, fieldName: typeof fieldName === 'function' ? fieldName : null,
+      town: { id: TOWN.id, site: TOWN.site, name: (typeof GAME_NAMES !== 'undefined' && GAME_NAMES.town) || 'the town' }, from: [at[0], at[2]] });
+    if (!I) throw new Error('no roads in this world (the premises carry the road graph)');
     rep = I.report;
     G = vehRoadGraph(I.spec);
     DM.graphMs = performance.now() - t0;
@@ -95,12 +48,15 @@
     car = makeVehicle(def, world_);
     rig = buildRig(); scene_.add(rig.g);
     DM.on = true; DM.paused = false;
-    place(start);
-    DM.setDest(ctx.to && G.places[ctx.to] ? ctx.to : (G.places[TOWN.id] ? TOWN.id : start.id));
+    const to0 = ctx.to && G.places[ctx.to] ? ctx.to : (G.places[TOWN.id] ? TOWN.id : start.id);
+    place(start, to0);
+    DM.setDest(to0);
     return true;
   };
-  function place(P) {
-    car.place(P.x, P.z, Math.atan2(P.dz, P.dx));
+  // (the car stands facing the way its route leaves: a trip sets off without a U-turn - vehFaceToward)
+  function place(P, to) {
+    const h0 = Math.atan2(P.dz, P.dx);
+    car.place(P.x, P.z, to ? vehFaceToward(G, P.x, P.z, h0, to) : h0);
     for (let i = 0; i < 30; i++) car.step(1 / 60);
     D = makeDriver(car, G, { vCruise: 20 });
     odo = 0; last = car.refPoint(); track = [[last[0], last[2]]];
@@ -111,7 +67,7 @@
     if (rig && rig.g.parent) rig.g.parent.remove(rig.g);
     DM.on = false; hudRestore();
   };
-  DM.restart = function () { const to = DM.to; place(start); DM.setDest(to); };
+  DM.restart = function () { const to = DM.to; place(start, to); DM.setDest(to); };
   DM.setDest = function (id) {
     if (!D || !G.places[id]) return 'none';
     const p = car.refPoint(), here = placeNear(p[0], p[2], 150);
@@ -121,13 +77,17 @@
     if (r !== 'none') DM.to = id;
     return r;
   };
-  // (the town switched off - G590, world_boot.js's TOWN: the GRAPHICS 'town' row, ?town=1 - takes Cedar Harbour's streets
-  // with it: its place is listed, greyed, saying so, rather than missing)
+  // (the town is ON by default; it is not built at the laptop / potato budgets nor under software rendering (G590, G1526:
+  // gfx_settings townAll, world_boot.js's TOWN) and its streets go with it - its place is then listed, greyed, saying so)
   DM.choices = () => {
     if (!G) return [];
-    const L = Object.values(G.places).filter(p => p.kind === 'stop').sort((a, b) => a.name.localeCompare(b.name)).map(p => ({ id: p.id, label: p.name, ok: true }));
+    // (a place the car cannot reach from where it stands - a closed steep stretch, a network of its own - greyed, saying so)
+    let reach = null;
+    try { const p = car.refPoint(), Lc = vehGraphLocate(G, p[0], p[2], car.heading()), D1 = vehDijkstra(G, Lc.ahead, null), D2 = vehDijkstra(G, Lc.behind, null); reach = n => D1.dist[n] < Infinity || D2.dist[n] < Infinity; } catch (e) {}
+    const L = Object.values(G.places).filter(p => p.kind === 'stop').sort((a, b) => a.name.localeCompare(b.name))
+      .map(p => (!reach || reach(p.node) ? { id: p.id, label: p.name, ok: true } : { id: p.id, label: p.name + ' - no drivable road there', ok: false }));
     if (!G.places[TOWN.id] && window.FLYDIY_TOWN && !window.FLYDIY_TOWN.all)
-      L.push({ id: TOWN.id, label: ((typeof GAME_NAMES !== 'undefined' && GAME_NAMES.town) || 'the town') + ' - the town is off (Graphics: Town, all)', ok: false });
+      L.push({ id: TOWN.id, label: ((typeof GAME_NAMES !== 'undefined' && GAME_NAMES.town) || 'the town') + ' - not built at this graphics budget', ok: false });
     return L;
   };
 

@@ -57,6 +57,30 @@ function vehPath(poly, opts) {
   const dev = opts.dev ?? (opts.w ? Math.max(0.5, opts.w / 2 - 1.3) : Infinity);
   const P = [];
   for (const q of poly) { const l = P[P.length - 1]; if (!l || Math.hypot(q[0] - l[0], q[1] - l[1]) > 0.05) P.push([q[0], q[1]]); }
+  // (TOW-LAUNCH) A SHARP CORNER ON DENSE VERTICES: a junction's turn (r5 -> r40, 121 deg) where the island's lines are
+  // sampled a metre apart - its fillet, clamped to half its 1 m legs, was a kink no car follows (it overshot, lost the road,
+  // stuck). At a vertex turning more than 45 deg, the straight approach either side (every vertex within 0.3 m of the line
+  // to the corner, up to 40 m) is ONE leg: its inner vertices dropped, so the fillet has room. A gentle curve has no such
+  // vertex: every other path is sampled as it was, to the bit
+  if (P.length > 3) {
+    const drop = new Uint8Array(P.length);
+    const turn = i => { const ax = P[i][0] - P[i - 1][0], az = P[i][1] - P[i - 1][1], bx = P[i + 1][0] - P[i][0], bz = P[i + 1][1] - P[i][1]; return Math.acos(vdClamp((ax * bx + az * bz) / ((Math.hypot(ax, az) * Math.hypot(bx, bz)) || 1e-12), -1, 1)); };
+    const lineD = (q, a, b) => { const dx = b[0] - a[0], dz = b[1] - a[1], l = Math.hypot(dx, dz) || 1e-12; return Math.abs((q[0] - a[0]) * dz - (q[1] - a[1]) * dx) / l; };
+    for (let i = 1; i < P.length - 1; i++) {
+      if (turn(i) <= Math.PI / 4) continue;
+      for (const sg of [-1, 1]) {
+        let j = i + sg, ok = j;
+        while (j + sg >= 0 && j + sg < P.length && Math.hypot(P[j + sg][0] - P[i][0], P[j + sg][1] - P[i][1]) < 40) {
+          const k = j + sg; let fine = true;
+          for (let m = i + sg; m !== k; m += sg) if (lineD(P[m], P[i], P[k]) > 0.3) { fine = false; break; }
+          if (!fine) break;
+          j = k; ok = j;
+        }
+        for (let m = i + sg; m !== ok; m += sg) drop[m] = 1;
+      }
+    }
+    if (drop.some(Boolean)) { const Q = []; for (let i = 0; i < P.length; i++) if (!drop[i]) Q.push(P[i]); P.length = 0; for (const q of Q) P.push(q); }
+  }
   const pts = [];
   if (P.length < 2) return { pts, len: 0, sStop: null, dir: opts.dir || 1 };
   const n = P.length, tan = new Array(n).fill(0), rad = new Array(n).fill(Infinity), U = [];
@@ -374,6 +398,7 @@ function vehRoadGraph(spec) {
       }
       V.push({ x: p[0], z: p[1] });
     }
+    const sAt = new Map(); { let ss = 0, pv = null; for (const v of V) { if (pv) ss += Math.hypot(v.x - pv.x, v.z - pv.z); sAt.set(v, ss); pv = v; } }
     let prev = -1;
     for (const v of V) {
       const id = v.place ? nodeAt(v.x, v.z, { place: v.place.id }) : nodeAt(v.x, v.z);
@@ -381,7 +406,9 @@ function vehRoadGraph(spec) {
                                                       { node: id, x: v.x, z: v.z, dx: v.dx, dz: v.dz, w: rd.w || 4 });
       if (prev >= 0 && prev !== id) {
         const e = edges.length, l = Math.hypot(nodes[id].x - nodes[prev].x, nodes[id].z - nodes[prev].z);
-        edges.push({ a: prev, b: id, len: l, road: ri, w: rd.w || 4, r: rd.r });
+        // (TOW-LAUNCH: a stretch the road marks `closed` - too steep to drive, vehicle_island.js - is no way for the router)
+        const sm = sAt.get(v) - l / 2, closed = !!(rd.closed && rd.closed.some(c => sm >= c[0] - 1 && sm <= c[1] + 1));
+        edges.push(Object.assign({ a: prev, b: id, len: l, road: ri, w: rd.w || 4, r: rd.r }, closed ? { closed: true } : {}));
         nodes[prev].adj.push(e); nodes[id].adj.push(e);
       }
       prev = id;
@@ -479,7 +506,8 @@ function vehDijkstra(G, src, blocked) {
     const du = dist[u];
     for (const e of G.nodes[u].adj) {
       if (blocked && blocked.has(e)) continue;
-      const E = G.edges[e], v = E.a === u ? E.b : E.a, d = du + E.len;
+      const E = G.edges[e]; if (E.closed) continue;
+      const v = E.a === u ? E.b : E.a, d = du + E.len;
       if (d < dist[v]) { dist[v] = d; prev[v] = u; push(d, v); }
     }
   }
@@ -500,6 +528,15 @@ function vehGraphLocate(G, x, z, hdg) {
   const ahead = fwd ? E.b : E.a, behind = fwd ? E.a : E.b;
   const N = G.nodes[ahead];
   return { e: best.e, d: best.d, ahead, behind, dAhead: Math.hypot(N.x - x, N.z - z) };
+}
+
+// (TOW-LAUNCH) WHICH WAY TO STAND: of a heading on the road and its reverse, the one whose straight-on route to the place
+// is shorter - a vehicle placed to set off faces its destination, so a trip needs no U-turn (one is for a new To behind)
+function vehFaceToward(G, x, z, hdg, to) {
+  const P = G.places[to]; if (!P) return hdg;
+  const cost = h => { const L = vehGraphLocate(G, x, z, h); if (L.ahead === P.node) return L.dAhead; const D = vehDijkstra(G, L.ahead, new Set([L.e])); return L.dAhead + D.dist[P.node]; };
+  const a = cost(hdg), b = cost(vdWrap(hdg + Math.PI));
+  return b < a ? vdWrap(hdg + Math.PI) : hdg;
 }
 
 // ---- THE DRIVER ----
@@ -786,5 +823,5 @@ function makeDriver(car, G, tune) {
 
 if (typeof module !== 'undefined') module.exports = {
   VD_DS, VD_WIN, vehPath, vehManoeuvrePaths, vehLocate, vehKapAt, vehSteer, vehProfile, vehSpeedTarget, vehPedals,
-  vehUturnPlan, vehSiteToWorld, vehRoadGraph, vehDijkstra, vehGraphLocate, makeDriver, vehWalk, vehClearGrid,
+  vehUturnPlan, vehSiteToWorld, vehRoadGraph, vehDijkstra, vehGraphLocate, makeDriver, vehWalk, vehClearGrid, vehFaceToward,
 };

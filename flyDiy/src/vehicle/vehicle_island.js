@@ -67,6 +67,46 @@ function vehIslandSpec(RG, opts) {
     E.push({ id: e.id, road: e.road, a: e.a, b: e.b, w: e.w || 4, cls: e.cls, surface: e.surface, pts: P, ins: [] });
   }
   // the degree of each premises node (a free end has 1)
+  // 1b. THE AIRFIELDS (TOW-LAUNCH phase 2, 12 Nov: "cars on RUNWAYS, including going FROM A ROAD ONTO A RUNWAY (an apron or a
+  //     taxiway as the link)"). Vehicle-side, no scenery: each runway (opts.runways: { id, name, x, z, hdg, len, wid, surface,
+  //     stand?, taxiOut?, taxiOut1? } - the aerodrome and its site, 25_airfield) is a road down its CENTRELINE, end to end;
+  //     each of its taxi routes (the aeroplane's own: the stand to the runway) a road from the stand along it, its end joined
+  //     where it meets the centreline (the T's below); the stand LINKED to the nearest road over drivable ground (opts.ground
+  //     (x, z) -> true: grass, gravel, paved, sand - no water, rock, forest) within opts.linkMax (300 m). Every runway end a
+  //     destination: '<field> · runway <n>' (the number its end gives an aeroplane rolling from it, off the name's pair)
+  const AF = [], links = [];
+  const mkRoad = (id, pts, w, cls, surface) => { E.push({ id, road: id, a: id + ':a', b: id + ':b', w, cls, surface, pts: pts.map(q => [q[0], q[1]]), ins: [] }); return E[E.length - 1]; };
+  for (const R of opts.runways || []) {
+    if (!(R.len > 0) || !(R.wid > 0)) continue;
+    const d = [Math.cos(R.hdg), Math.sin(R.hdg)], hl = R.len / 2, e0 = [R.x - d[0] * hl, R.z - d[1] * hl], e1 = [R.x + d[0] * hl, R.z + d[1] * hl];
+    const n = Math.max(2, Math.ceil(R.len / 25)), pts = [];
+    for (let i = 0; i <= n; i++) pts.push([e0[0] + (e1[0] - e0[0]) * i / n, e0[1] + (e1[1] - e0[1]) * i / n]);
+    const rw = mkRoad('rwy:' + R.id, pts, R.wid, 'runway', R.surface);
+    const taxis = [];
+    for (const [k, T] of [['0', R.taxiOut], ['1', R.taxiOut1]]) {
+      if (!Array.isArray(T) || !T.length) continue;
+      const P = (R.stand ? [[R.stand.x, R.stand.z]] : []).concat(T.map(q => [q[0], q[1]]));
+      if (P.length >= 2) taxis.push(mkRoad('taxi:' + R.id + ':' + k, P, opts.taxiW || 12, 'taxiway', 5));
+    }
+    AF.push({ R, d, e0, e1, rw, taxis });
+  }
+  // the stands' links: the nearest point of a road that is not an airfield's own, the straight way there all drivable
+  const linkMax = opts.linkMax ?? 300, ground = opts.ground || (() => true);
+  for (const A of AF) {
+    const S = A.R.stand; if (!S || !A.taxis.length) continue;
+    let best = null;
+    for (const e of E) { if (e.cls === 'runway' || e.cls === 'taxiway' || e.cls === 'link') continue;
+      for (let k = 0; k + 1 < e.pts.length; k++) { const F = viSegFoot([S.x, S.z], e.pts[k], e.pts[k + 1]); if (F.d <= linkMax && (!best || F.d < best.F.d)) best = { e, k, F }; } }
+    if (!best) { links.push({ id: A.R.id, ok: false, why: 'no road within ' + linkMax + ' m' }); continue; }
+    const L = best.F.d, nS = Math.max(1, Math.ceil(L / 2)); let ok = true;
+    for (let i = 0; i <= nS && ok; i++) ok = !!ground(S.x + (best.F.x - S.x) * i / nS, S.z + (best.F.z - S.z) * i / nS);
+    if (!ok) { links.push({ id: A.R.id, ok: false, why: 'the way to ' + best.e.road + ' (' + L.toFixed(0) + ' m) is not drivable ground' }); continue; }
+    const P = [+best.F.x.toFixed(3), +best.F.z.toFixed(3)];
+    if (best.F.t > 1e-6 && best.F.t < 1 - 1e-6) best.e.ins.push({ k: best.k, t: best.F.t, p: P });
+    else { const q = best.F.t <= 1e-6 ? best.e.pts[best.k] : best.e.pts[best.k + 1]; P[0] = q[0]; P[1] = q[1]; }
+    if (L > 0.5) mkRoad('link:' + A.R.id, [[S.x, S.z], P], 8, 'link', 5);
+    links.push({ id: A.R.id, ok: true, to: best.e.road, m: +L.toFixed(1) });
+  }
   const deg = new Map(); for (const e of E) { deg.set(e.a, (deg.get(e.a) || 0) + 1); deg.set(e.b, (deg.get(e.b) || 0) + 1); }
   // 2. the segment grid
   const grid = new Map(), key = (i, j) => i + ',' + j;
@@ -99,11 +139,13 @@ function vehIslandSpec(RG, opts) {
     const nid = end ? e.b : e.a; if (deg.get(nid) !== 1) continue;
     const p = end ? e.pts[e.pts.length - 1] : e.pts[0];
     let best = null;
-    const L = grid.get(key(Math.floor(p[0] / CELL), Math.floor(p[1] / CELL))) || [];
+    const L = []; for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) { const c = grid.get(key(Math.floor(p[0] / CELL) + di, Math.floor(p[1] / CELL) + dj)); if (c) for (const v of c) L.push(v); }   // (the 3 x 3 cells: a target across a cell's edge)
     for (let q = 0; q < L.length; q += 2) {
       const f = E[L[q]]; if (f === e || f.road === e.road) continue;
       const m = L[q + 1], F = viSegFoot(p, f.pts[m], f.pts[m + 1]);
-      if (F.d <= tTol && (!best || F.d < best.F.d)) best = { f, m, F };
+      // (a runway's end on another runway's pavement - 02/20's north end 13.6 m off 13/31's centreline: the half width)
+      const tol = e.cls === 'runway' && f.cls === 'runway' ? Math.max(tTol, f.w / 2) : tTol;
+      if (F.d <= tol && (!best || F.d < best.F.d)) best = { f, m, F };
     }
     if (!best) continue;
     const P = [+best.F.x.toFixed(3), +best.F.z.toFixed(3)];
@@ -119,6 +161,30 @@ function vehIslandSpec(RG, opts) {
     e.pts.forEach((q, k) => { out.push(q); const l = byK.get(k); if (l) l.sort((u, v) => u.t - v.t).forEach(I => out.push(I.p)); });
     return { id: e.id, road: e.road, pts: out, w: e.w, surface: e.surface, cls: e.cls };
   });
+  // 5b. THE STEEP STRETCHES (TOW-LAUNCH phase 2): where the ground along a road climbs more than opts.maxGrade (0.45) over
+  //     6 m, that stretch is CLOSED to the router (`closed`: [[s0, s1], ...] metres along the road) - r40, the Fishing
+  //     Village strip's approach, meets the strip's terrace at a 5 m bank (68 %): driven into, it stopped the car dead. Only
+  //     with opts.height (x, z) -> the composed ground; a road's grade elsewhere is the driver's (vehProfile) as ever
+  const closedRep = [];
+  if (typeof opts.height === 'function') {
+    const gmax = opts.maxGrade ?? 0.45;
+    for (const r of roads) {
+      const S = [];   // samples every 2 m: [s, x, z, h]
+      let s0 = 0;
+      for (let k = 0; k + 1 < r.pts.length; k++) {
+        const a = r.pts[k], b = r.pts[k + 1], l = Math.hypot(b[0] - a[0], b[1] - a[1]), n = Math.max(1, Math.ceil(l / 2));
+        for (let i = k ? 1 : 0; i <= n; i++) { const x = a[0] + (b[0] - a[0]) * i / n, z = a[1] + (b[1] - a[1]) * i / n; S.push([s0 + l * i / n, x, z, opts.height(x, z)]); }
+        s0 += l;
+      }
+      const cl = [];
+      for (let i = 0, j = 0; i < S.length; i++) {
+        while (j < S.length && S[j][0] - S[i][0] < 6) j++;
+        if (j >= S.length) break;
+        if (Math.abs(S[j][3] - S[i][3]) / (S[j][0] - S[i][0]) > gmax) { const L = cl[cl.length - 1]; if (L && S[i][0] <= L[1] + 2) L[1] = S[j][0]; else cl.push([S[i][0], S[j][0]]); }
+      }
+      if (cl.length) { r.closed = cl.map(c => [+c[0].toFixed(1), +c[1].toFixed(1)]); closedRep.push({ road: r.road, at: r.closed }); }
+    }
+  }
   // 6. the components (by shared coordinates, as vehRoadGraph merges: 0.5 m)
   const ck = q => Math.round(q[0] * 2) + ',' + Math.round(q[1] * 2);
   const par = roads.map((r, i) => i), find = i => { while (par[i] !== i) { par[i] = par[par[i]]; i = par[i]; } return i; };
@@ -149,8 +215,46 @@ function vehIslandSpec(RG, opts) {
     places.push({ id: T.id, name: T.name, road: n.ri, s, kind: 'stop', side: 1, target: [T.x, T.z], off: +n.d.toFixed(1), what: T.kind });
     placeRep.push({ id: T.id, name: T.name, ok: true, off: +n.d.toFixed(0), road: roads[n.ri].road });
   }
+  // the runway ends: '<field> · runway <n>', 40 m in from each end (the threshold's piano keys), on the runway's road
+  const rwyPlaces = [];
+  for (const A of AF) {
+    const ri = roads.findIndex(r => r.id === A.rw.id); if (ri < 0 || (comp != null && compOf[ri] !== comp)) continue;
+    let L = 0; for (let k = 1; k < roads[ri].pts.length; k++) L += Math.hypot(roads[ri].pts[k][0] - roads[ri].pts[k - 1][0], roads[ri].pts[k][1] - roads[ri].pts[k - 1][1]);
+    const brg = (Math.atan2(A.d[0], -A.d[1]) * 180 / Math.PI + 360) % 360, num = b => { let v = Math.round(b / 10) % 36; return v === 0 ? 36 : v; };
+    const m = /(\d{1,2})[LRC]?\s*\/\s*(\d{1,2})[LRC]?/.exec(A.R.name || ''), n0 = num(brg), n1 = num(brg + 180);
+    let w0 = String(n0).padStart(2, '0'), w1 = String(n1).padStart(2, '0');
+    if (m) { const a = +m[1], b = +m[2], da = Math.min(Math.abs(a - n0), 36 - Math.abs(a - n0)), db = Math.min(Math.abs(b - n0), 36 - Math.abs(b - n0)); w0 = da <= db ? m[1] : m[2]; w1 = da <= db ? m[2] : m[1]; }
+    const inset = Math.min(40, L / 4), base = A.R.name || A.R.id;
+    for (const [end, s_, w] of [[0, inset, w0], [1, L - inset, w1]]) {
+      const id = 'rwy:' + A.R.id + ':' + end;
+      places.push({ id, name: base + ' · runway ' + w, road: ri, s: s_, kind: 'stop', side: 1, what: 'runway', field: A.R.id, end });
+      rwyPlaces.push({ id, name: base + ' · runway ' + w });
+    }
+  }
   const comps = new Map(); roads.forEach((r, i) => { const c = compOf[i]; let o = comps.get(c); if (!o) comps.set(c, o = { roads: new Set(), len: 0 }); o.roads.add(r.road); for (let k = 1; k < r.pts.length; k++) o.len += Math.hypot(r.pts[k][0] - r.pts[k - 1][0], r.pts[k][1] - r.pts[k - 1][1]); });
-  return { spec: { roads, places }, report: { joins, skipped, rebuilt, places: placeRep, comp, comps: Array.from(comps.entries()).map(([c, o]) => ({ c, roads: o.roads.size, km: +(o.len / 1000).toFixed(2) })).sort((p, q) => q.km - p.km) } };
+  return { spec: { roads, places }, report: { joins, skipped, rebuilt, links, closed: closedRep, runways: rwyPlaces, places: placeRep, comp, comps: Array.from(comps.entries()).map(([c, o]) => ({ c, roads: o.roads.size, km: +(o.len / 1000).toFixed(2) })).sort((p, q) => q.km - p.km) } };
 }
 
-if (typeof module !== 'undefined') module.exports = { vehIslandSpec, viCross, viSegFoot };
+// THE ONE RECIPE (the gate, the page): a world (makeWorld with premises) -> the island's spec, its runways and taxi routes, the
+// fields and the town, the ground the stands' links may cross, the height the steep stretches are read off.
+// h: { siteOf, fieldName (the core's), town: { id, site, name } (the town hall's site id), from: [x, z] (where the vehicle
+// starts: the places on its network) }
+const VI_DRIVABLE = { 0: 1, 5: 1, 6: 1, 7: 1 };   // the world's SURFACE: grass, paved, gravel, sand (not rock, scree, forest, water)
+function vehIslandFromWorld(world, h) {
+  const P = world.premises, O = P && P.overlay;
+  if (!O || typeof O.roadGraph !== 'function') return null;
+  const site = id => (typeof h.siteOf === 'function' ? h.siteOf(id) : null) || {};
+  const nm = (id, n) => (typeof h.fieldName === 'function' ? h.fieldName(id, n) : n);
+  const aero = (world.aerodromes || []).filter(a => a.kind !== 'meadow').map(a => ({ id: a.id, name: nm(a.id, a.name), x: a.x, z: a.z, stand: site(a.id).stand }));
+  const runways = (world.aerodromes || []).filter(a => a.kind === 'strip' && a.surface !== 4 && a.len > 0)
+    .map(a => { const s = site(a.id); return { id: a.id, name: nm(a.id, a.name), x: a.x, z: a.z, hdg: a.hdg, len: a.len, wid: a.wid, surface: a.surface, stand: s.stand, taxiOut: s.taxiOut, taxiOut1: s.taxiOut1 }; });
+  const sites = [];
+  const T = h.town; if (T) { const hall = ((P.rec && P.rec.layers && P.rec.layers.sites) || []).find(s => s.id === T.site); if (hall && hall.at) sites.push({ id: T.id, name: T.name, x: hall.at.x, z: hall.at.z, kind: 'town' }); }
+  const RG = O.roadGraph();
+  const I = vehIslandSpec(RG, { rec: P.rec, toWorld: (x, z) => O.frame.toWorld(x, z), aerodromes: aero, sites, from: h.from, runways,
+    ground: (x, z) => !!VI_DRIVABLE[world.surface(x, z)], height: (x, z) => world.terrainH(x, z), joinCrossings: h.joinCrossings, tTol: h.tTol });
+  I.RG = RG; I.aero = aero;
+  return I;
+}
+
+if (typeof module !== 'undefined') module.exports = { vehIslandSpec, vehIslandFromWorld, viCross, viSegFoot };

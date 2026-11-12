@@ -15,7 +15,11 @@
 //          the footprint against the roads' bands and the hard ground), never STUCK
 //   PERF   the physics' cost a 60 Hz frame (car.step: 4 substeps), the driver's (D.step), setDest's (a route + a U-turn
 //          planned) - printed, bounded loosely (a shared machine)
-//   TOWNOFF the page's default world (the town switched off, G590): Cedar Harbour unreachable, said so in the To picker
+//   PLAIN  the trip as the page sets it off: the car facing its route (vehFaceToward) - no U-turn
+//   RUNWAY (phase 2) road -> stand -> taxi route -> runway 31 at Jolene AFB, the 2325 m of 13/31, onto 02/20, the body on
+//          hard ground; Fishing Village's bank closed (its To 'none', not a stuck car)
+//   TOWNOFF the town not built (the laptop / potato budgets, software rendering - G590, G1526; ON by default): Cedar
+//          Harbour unreachable, said so in the To picker
 //   PAGE   the drive mode's wiring by its source: the lazy pack, nothing in MANIFEST.core, app.js's hooks
 // ~25 s (the island composed: 5 s). node tools/_drive_trip_check.js [--track out.json]
 'use strict';
@@ -41,26 +45,43 @@ const O = W.premises.overlay, REC = W.premises.rec;
 const hall = (REC.layers.sites || []).find(s => s.id === 'mk_hall');
 Object.assign(TOWN, { x: hall.at.x, z: hall.at.z });
 const t0 = Date.now();
-const RG = O.roadGraph();
-const aero = W.aerodromes.map(a => { const s = C.siteOf(a.id); return { id: a.id, name: C.fieldName(a.id, a.name), x: a.x, z: a.z, stand: s && s.stand }; });
+const HOME_STAND = C.siteOf('HOME').stand;
+// (phase 2: the one recipe the page uses - the runways and their taxi routes, the stands' links, the steep stretches closed)
+const H = { siteOf: C.siteOf, fieldName: C.fieldName, town: { id: 'mk_hall', site: 'mk_hall', name: TOWN.name }, from: [HOME_STAND.x, HOME_STAND.z] };
+const I = VI.vehIslandFromWorld(W, H), RG = I.RG, aero = I.aero;
 const home = aero.find(a => a.id === 'HOME');
-const I = VI.vehIslandSpec(RG, { rec: REC, toWorld: (x, z) => O.frame.toWorld(x, z), aerodromes: aero, sites: [TOWN], from: [home.stand.x, home.stand.z] });
 const G = Dr.vehRoadGraph(I.spec);
 const tGraph = Date.now() - t0;
 
 // ---- GRAPH ----
+// (12 Nov, the user: "join the roads" - the island record carries the junctions now, tools/road_join_drawn.js: HOME's road
+// r3 meets the town's mk_sa01 at a junction. The proof is the graph WITHOUT the vehicle's own joins: one network)
 {
-  const R = I.report, x = R.joins.find(j => j.kind === 'crossing' && ((j.a === 'r3' && j.b === 'mk_sa01') || (j.a === 'mk_sa01' && j.b === 'r3')));
-  const pl = R.places.filter(p => p.ok).map(p => p.id);
-  const ok = !!x && R.rebuilt.length > 0 && R.rebuilt.every(r => !r.chord) && !!G.places.HOME && !!G.places.mk_hall &&
+  const R = I.report, pl = R.places.filter(p => p.ok).map(p => p.id);
+  const I0 = VI.vehIslandFromWorld(W, Object.assign({}, H, { joinCrossings: false, tTol: 0 }));
+  const same = I0.spec.places.some(p => p.id === 'mk_hall') && I0.spec.places.some(p => p.id === 'HOME');
+  const j3 = (REC.layers.roads.find(r => r.id === 'r3') || {}).nodes || [], s01 = (REC.layers.roads.find(r => r.id === 'mk_sa01') || {}).nodes || [];
+  const shared = j3.filter(j => j && s01.includes(j));
+  const ok = same && shared.length > 0 && R.rebuilt.every(r => !r.chord) && !!G.places.HOME && !!G.places.mk_hall &&
     G.places.mk_hall.off < 40 && R.comps[0].km > 60 && Object.keys(G.turns).length > 50;
-  row('GRAPH', ok, 'premises ' + RG.nodes.length + ' nodes / ' + RG.edges.length + ' spans -> ' + G.nodes.length + ' vertices / ' + G.edges.length + ' edges in ' + tGraph + ' ms; joined vehicle-side: ' +
-    R.joins.filter(j => j.kind === 'crossing').length + ' drawn crossings (r3 x mk_sa01 at ' + (x ? f(x.x, 1) + ', ' + f(x.z, 1) : 'MISSING') + '), ' + R.joins.filter(j => j.kind === 'tee').length + ' drawn T\'s; ' +
+  row('GRAPH', ok, 'premises ' + RG.nodes.length + ' nodes / ' + RG.edges.length + ' spans -> ' + G.nodes.length + ' vertices / ' + G.edges.length + ' edges in ' + tGraph + ' ms; ' +
+    'HOME and Cedar Harbour on one network by the record\'s own junctions (r3 x mk_sa01: ' + (shared.join(', ') || 'NONE') + ', the vehicle\'s joins off: ' + (same ? 'one network' : 'TWO') + '); ' +
+    'still joined vehicle-side: ' + R.joins.length + ' (drawn crossings / T\'s the record leaves); ' +
     R.rebuilt.length + ' spans rebuilt off their waypoints (the premises graph\'s straight-street bug); the largest network ' + R.comps[0].km + ' km (' + R.comps[0].roads + ' roads), next ' +
-    R.comps.slice(1, 3).map(c => c.km + ' km').join(', ') + '; ' + Object.keys(G.turns).length + ' turning places (junctions, road ends), 0 drawn aprons; destinations ' + pl.join(', ') +
+    R.comps.slice(1, 3).map(c => c.km + ' km').join(', ') + '; ' + Object.keys(G.turns).length + ' turning places (junctions, road ends); destinations ' + pl.join(', ') +
     ' (Cedar Harbour ' + (G.places.mk_hall ? f(G.places.mk_hall.off, 0) : '-') + ' m off the hall)');
 }
-
+// ---- PLAIN: the trip as the page sets it off - the car stood facing its route (vehFaceToward): no U-turn at all ----
+{
+  const car0 = V.makeVehicle(V.vehicleDef(SHEET), W), P = G.places.HOME;
+  car0.place(P.x, P.z, Dr.vehFaceToward(G, P.x, P.z, Math.atan2(P.dz, P.dx), 'mk_hall'));
+  for (let i = 0; i < 30; i++) car0.step(1 / 60);
+  const D0 = Dr.makeDriver(car0, G, { vCruise: 20 }), a0 = D0.setDest('mk_hall');
+  let t = 0; while (t < 2400 && !['ARRIVED', 'STUCK', 'IDLE'].includes(D0.phase)) { D0.step(1 / 60); car0.step(1 / 60); t += 1 / 60; }
+  const e = car0.refPoint(), dE = Math.hypot(e[0] - G.places.mk_hall.x, e[2] - G.places.mk_hall.z);
+  row('PLAIN', a0 === 'replan' && D0.phase === 'ARRIVED' && D0.stats.uturns === 0 && dE < 1, 'HOME -> ' + TOWN.name + ' set off facing the route: setDest ' + a0 + ', ' + D0.phase + ' in ' + f(t / 60, 1) + ' min, ' +
+    D0.stats.uturns + ' U-turns (a U-turn is for a new To behind - the TRIP row), ' + f(dE, 2) + ' m from the stop');
+}
 // the roads' bands (and the hard ground) for the body-on-the-road check: an edge grid
 const CELL = 32, EG = new Map(), ek = (i, j) => i + ',' + j;
 G.edges.forEach((E, ei) => { const A = G.nodes[E.a], B = G.nodes[E.b], hw = E.w / 2 + 1;
@@ -91,11 +112,14 @@ const D = Dr.makeDriver(car, G, { vCruise: 20 });
 const DT = 1 / 60, perf = { car: 0, drv: 0, n: 0, dest: [] };
 const timed = fn => { const a = process.hrtime.bigint(); const r = fn(); perf.dest.push(Number(process.hrtime.bigint() - a) / 1e6); return r; };
 const answers = [timed(() => D.setDest('mk_hall'))];
-let t = 0, odo = 0, last = car.refPoint(), pen = 0, vmax = 0, offMax = 0, offN = 0, offAt = null, nextChk = 0, did = 0;
+let u1 = 0, odo1 = 0, t = 0, odo = 0, last = car.refPoint(), pen = 0, vmax = 0, offMax = 0, offN = 0, offAt = null, nextChk = 0, did = 0;
 const track = [];
 while (t < 3600 && !['ARRIVED', 'STUCK', 'IDLE'].includes(D.phase)) {
-  if (did === 0 && odo > 4000) { did = 1; answers.push(timed(() => D.setDest('HOME'))); }
-  if (did === 1 && D.phase === 'DRIVE' && D.stats.uturns >= 2 && odo > 5200) { did = 2; answers.push(timed(() => D.setDest('mk_hall'))); }
+  // (the start's answer is the island's: facing away from the town at HOME's stand the car may U-turn, or go round by the
+  //  taxi route and the runway - 'uturn' or 'replan'. Then the two re-routes BEHIND it, each a U-turn by construction)
+  if (did === 0 && odo > 4000) { did = 1; u1 = D.stats.uturns; answers.push(timed(() => D.setDest('HOME'))); }
+  if (did === 1 && D.phase === 'DRIVE' && D.stats.uturns > u1 && odo > odo1 + 1200) { did = 2; answers.push(timed(() => D.setDest('mk_hall'))); }
+  if (did === 1 && !odo1 && D.phase === 'DRIVE' && D.stats.uturns > u1) odo1 = odo;
   let a = process.hrtime.bigint(); D.step(DT); perf.drv += Number(process.hrtime.bigint() - a);
   a = process.hrtime.bigint(); car.step(DT); perf.car += Number(process.hrtime.bigint() - a); perf.n++;
   t += DT;
@@ -112,7 +136,7 @@ const end = car.refPoint(), Pm = G.places.mk_hall, dEnd = Math.hypot(end[0] - Pm
 const turns = D.log.filter(l => l.what === 'uturn').map(l => l.msg.replace(/: .*/, ''));
 {
   const rms = Math.sqrt(D.stats.xtSq / Math.max(1, D.stats.xtN));
-  const ok = D.phase === 'ARRIVED' && dEnd < 1 && answers.join() === 'uturn,uturn,uturn' && D.stats.uturns === 3 && odo > 12000 &&
+  const ok = D.phase === 'ARRIVED' && dEnd < 1 && /^(uturn|replan),uturn,uturn$/.test(answers.join()) && D.stats.uturns >= 2 && odo > 10000 &&
     D.stats.xtMax < 2.5 && rms < 0.3 && D.stats.manXt < 0.15 && pen < 0.02 && offMax < 0.6 && !D.log.some(l => l.what === 'stuck');
   row('TRIP', ok, 'HOME -> ' + TOWN.name + ': ' + D.phase + ' in ' + f(t / 60, 1) + ' min, ' + f(odo / 1000, 2) + ' km, ' + f(vmax * 3.6, 0) + ' km/h at most, ' + f(dEnd, 2) + ' m from the stop; setDest ' +
     answers.join(' / ') + '; U-turns: ' + turns.join(', ') + ' (tracked within ' + f(D.stats.manXt * 100, 0) + ' cm); ' + D.stats.windows + ' windows; cross-track ' + f(D.stats.xtMax) + ' m max (the town\'s 90 deg corners), ' +
@@ -124,6 +148,35 @@ const turns = D.log.filter(l => l.what === 'uturn').map(l => l.msg.replace(/: .*
   const car_ms = perf.car / perf.n / 1e6, drv_ms = perf.drv / perf.n / 1e6, dmax = Math.max(...perf.dest);
   row('PERF', car_ms < 2.5 && drv_ms < 1 && dmax < 3000, 'a 60 Hz frame: the physics ' + f(car_ms, 3) + ' ms (4 substeps), the driver ' + f(drv_ms, 3) + ' ms (' + perf.n + ' frames); setDest ' +
     perf.dest.map(x => f(x, 0) + ' ms').join(' / ') + ' (a route + a U-turn planned)');
+}
+// ---- RUNWAY (phase 2: "cars on RUNWAYS, including going FROM A ROAD ONTO A RUNWAY (an apron or a taxiway as the link)") ----
+// HOME's stand -> runway 31's end (the road, the stand's link, the aeroplane's taxi route, onto the runway), the length of
+// 13/31 to runway 13's end, onto 02/20 (its end on 13/31's pavement); every corner of the body on PAVED / GRAVEL every
+// quarter second. And Fishing Village: its approach r40 meets the strip at a bank, closed - the answer is 'none', never a
+// car driven into it
+{
+  const car1 = V.makeVehicle(V.vehicleDef(SHEET), W), legs = [];
+  let soft = 0, vmax = 0;
+  const leg = (from, to) => {
+    const P = G.places[from];
+    if (!P || !G.places[to]) { legs.push(from + ' -> ' + to + ': no such place'); return false; }
+    car1.place(P.x, P.z, Dr.vehFaceToward(G, P.x, P.z, Math.atan2(P.dz, P.dx), to)); for (let i = 0; i < 30; i++) car1.step(1 / 60);
+    const D1 = Dr.makeDriver(car1, G, { vCruise: 20 }), a1 = D1.setDest(to);
+    let t = 0, nx = 0;
+    while (t < 900 && !['ARRIVED', 'STUCK', 'IDLE'].includes(D1.phase)) { D1.step(1 / 60); car1.step(1 / 60); t += 1 / 60; vmax = Math.max(vmax, car1.out.u);
+      if (t >= nx) { nx = t + 0.25; for (const c of car1.footprint()) { const sf = W.surface(c[0], c[1]); if (sf !== 5 && sf !== 6) soft++; } } }
+    const e = car1.refPoint(), Q = G.places[to], dE = Math.hypot(e[0] - Q.x, e[2] - Q.z);
+    legs.push(G.places[from].name + ' -> ' + Q.name + ': ' + a1 + ', ' + D1.phase + ' ' + f(t, 0) + ' s, ' + f(dE, 2) + ' m off, ' + D1.stats.uturns + ' U-turns, x-track ' + f(D1.stats.xtMax, 2) + ' m');
+    return a1 === 'replan' && D1.phase === 'ARRIVED' && dE < 1 && D1.stats.uturns === 0;
+  };
+  const ok1 = leg('HOME', 'rwy:HOME:1'), ok2 = leg('rwy:HOME:1', 'rwy:HOME:0'), ok3 = leg('rwy:HOME:0', 'rwy:w2:1');
+  // Fishing Village: the To answered 'none' (the car stays parked), r40's bank closed
+  const P = G.places.HOME, car2 = V.makeVehicle(V.vehicleDef(SHEET), W); car2.place(P.x, P.z, Math.atan2(P.dz, P.dx)); for (let i = 0; i < 30; i++) car2.step(1 / 60);
+  const fv = Dr.makeDriver(car2, G, { vCruise: 20 }).setDest('rwy:w3:0'), r40 = (I.report.closed || []).find(c => c.road === 'r40');
+  const rn = (I.report.runways || []).map(r => r.name), lk = (I.report.links || []).filter(l => l.ok).map(l => l.id + ' -> ' + l.to + ' ' + l.m + ' m');
+  row('RUNWAY', ok1 && ok2 && ok3 && soft === 0 && fv === 'none' && !!r40,
+    legs.join('; ') + '; ' + f(vmax * 3.6, 0) + ' km/h at most, body corners off hard ground: ' + soft + ' samples. Runway ends as places: ' + rn.length + ' (' + rn.slice(0, 4).join(', ') + ' ...); stands linked: ' + lk.join(', ') +
+    '. Fishing Village Strip: setDest ' + fv + ' - its approach r40 ' + (r40 ? 'closed at s ' + r40.at.map(c => c[0] + '-' + c[1] + ' m').join(', ') + ' (a 5 m bank onto the strip\'s terrace)' : 'NOT closed') + '; the steep stretches closed island-wide: ' + (I.report.closed || []).length + ' roads');
 }
 // ---- TOWNOFF: the page's default world - the town switched off (G590: 27_premises TOWN_OFF, world_boot.js's TOWN; the GRAPHICS
 // 'town' row or ?town=1 turns it on) takes Cedar Harbour's streets with it: the car's places are HOME's network's only, and
@@ -137,8 +190,8 @@ const turns = D.log.filter(l => l.what === 'uturn').map(l => l.msg.replace(/: .*
   const I2 = VI.vehIslandSpec(O2.roadGraph(), { rec: W2.premises.rec, toWorld: (x, z) => O2.frame.toWorld(x, z), aerodromes: aero2, sites: [], from: [h2.stand.x, h2.stand.z] });
   const ids = I2.spec.places.map(p => p.id).sort();
   const DMsrc = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'drive_mode.js'), 'utf8');
-  row('TOWNOFF', !ids.includes('mk_hall') && !ids.includes('mk_sea') && ids.includes('HOME') && /the town is off/.test(DMsrc),
-    'the town off (' + Dp.n + ' entries dropped): the car\'s places ' + ids.join(', ') + ' - Cedar Harbour unreachable, the To picker lists it greyed ("the town is off"); the drive there needs Graphics: Town all (or ?town=1)');
+  row('TOWNOFF', !ids.includes('mk_hall') && !ids.includes('mk_sea') && ids.includes('HOME') && /not built at this graphics budget/.test(DMsrc),
+    'the town not built (laptop / potato budget, software rendering; ' + Dp.n + ' entries dropped): the car\'s places ' + ids.join(', ') + ' - Cedar Harbour unreachable, the To picker lists it greyed ("not built at this graphics budget"); the town is on by default');
 }
 // ---- PAGE: the drive mode's wiring, by its source (the browser rig is tools/drive_shot.js) ----
 {
