@@ -315004,3 +315004,8 @@ the next steps).
   lip (lipMode 1), the grille five horizontal rows on two uprights set 2 cm back (grilleN 2, grilleRows 5, grilleBar
   0.014), ductLen 0.05; the pair round (pairSq 0.5 - 0 is a diamond), pairX 0.47, r 0.105, level with the grille
   (pairY 0), the headlamps in them (lampOn, lampIn, lampBack 0.03). A radiator cap tried and left off (a dark knob).
+- **CAR-3, THE GRILLE TALLER (12 Nov; the user: "make the grill taller ... to the bottom of the green line")**: the top
+  kept, the bottom down to the livery's green band: apH 0.273 (0.55 m tall), apLift 0.207, the lamps kept where they
+  were (pairY 0.193 - the pair rides the main inlet's axis), grilleRows 11 (the bars' pitch kept). No code change: the
+  aperture fit (sectF at cowlLen) holds it - a try that measured the fit at the dropped face shrank everything and was
+  reverted.
