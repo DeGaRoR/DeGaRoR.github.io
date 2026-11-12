@@ -286,14 +286,18 @@ function fieldRing(opts) {   // (opts: { codeAt, mixAt } - a world of the caller
       rnd(); const a0 = uR(), x0 = a0 ? a0.value.x : NaN;
       Fd.CR.set({ root: 0.5 }); rnd(); const x1 = uR() ? uR().value.x : NaN;
       Fd.CR.set({ root: 0.6 }); rnd(); const x2 = uR() ? uR().value.x : NaN;
+      // (12 Nov: the key's weight is the TINTED mean's r/g - the reed's real texel mean, r/g 1.72, tinted to sat 0.24: ~1.09, never the raw 1.72)
+      const tm0 = reed && reed.userData.texMean; if (reed) reed.userData.texMean = [0.15, 0.087, 0.029]; rnd(); const kw = uR() ? uR().value.w : NaN;
+      if (reed) { if (tm0) reed.userData.texMean = tm0; else delete reed.userData.texMean; } rnd();
+      const kwOk = kw > 0.9 && kw < 1.3 && Math.abs(kw - 0.15 / 0.087) > 0.3;
       let others = 0, othersOk = 0; Bt.R.render(Bt.scene, Bt.camera);
       Bt.CR.root.traverse(o => { if (!(o.isInstancedMesh || o.isBatchedMesh) || !o.material || !o.material.userData.fade || o.userData.coverKind === 'cover') return;
         const p = Bt.R.properties.get(o.material); others++; const k = o.userData.coverKind, u = p && p.uniforms && p.uniforms.uRoot;
         if (u && u !== a0 && ((k === 'rock' || k === 'debris' || k === 'shrub') ? u.value.x === 0 : true)) othersOk++; });
       const fsOk = Fd.B.links.some(l => l.fs && l.fs.indexOf('diffuseColor.rgb *= min(vRoot, 1.0);') >= 0 && l.vs && l.vs.indexOf('vRoot = 1.0 - uRoot.x + uRoot.x * position.y') >= 0 && l.vs.indexOf('if (uRoot.w > 0.0) { float _rk = smoothstep(') > l.vs.indexOf('vRoot = 1.0 - uRoot.x + uRoot.x * position.y'));   // (12 Nov: the key AFTER the law, or the law overwrites it)
-      ok(a0 && Math.abs(x0 - 0.6) < 1e-6 && x1 === 0.5 && Math.abs(x2 - 0.6) < 1e-6 && others > 0 && othersOk === others && fsOk,
+      ok(a0 && Math.abs(x0 - 0.6) < 1e-6 && x1 === 0.5 && Math.abs(x2 - 0.6) < 1e-6 && others > 0 && othersOk === others && fsOk && kwOk,
          '8f the root gradient: the reed reads the field\'s uRoot (0.6 -> 0.5 -> 0.6 live), every other faded material its own (rocks and bushes identity - the user 10 Nov: no shade on bushes), the vertex law in the program with the field keyed by colour',
-         'x ' + [x0, x1, x2].join(' -> ') + ', ' + othersOk + ' of ' + others + ' others right'); }
+         'x ' + [x0, x1, x2].join(' -> ') + ', ' + othersOk + ' of ' + others + ' others right, key weight ' + (+kw).toFixed(3)); }
   }
 }
 
