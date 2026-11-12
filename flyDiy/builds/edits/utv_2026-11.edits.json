@@ -110,7 +110,10 @@
   "bumpW": 0.95,
   "ctlStick": 1,
   "hdlOn": 1,
-  "wallTrimOn": 1
+  "wallTrimOn": 1,
+  "isCar": 1,
+  "carDrive": 1,
+  "carChassisKg": 150
  },
  "wings": {
   "span": 2.2,
@@ -120,11 +123,7 @@
  },
  "meta": {
   "name": "Ranch Hand",
-  "reg": "RH 2",
-  "car": {
-   "drive": "4wd",
-   "chassisKg": 150
-  }
+  "reg": "RH 2"
  },
  "paint": {
   "job": "full",

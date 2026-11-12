@@ -2910,7 +2910,7 @@ const ARCHETYPES = [
                     // 28" tyre (whRimD, the new row)
                     whRim: 1, whRimD: 0.64, whWide: 0.8,   // ("a little bigger and a little narrower": 0.80 m wheels, 80 % of the slim tyre's width)
                     // ("put a spare wheel on one of the sides, at the back, like the ref picture"): behind the cockpit
-                    spareOn: 1, spareZ: 1.15, spareSide: 1, spareY: 0.0 },   // (a little lower: its crown under the body's top line)
+                    isCar: 1, carDrive: 0, spareOn: 1, spareZ: 1.15, spareSide: 1, spareY: 0.0 },   // (a little lower: its crown under the body's top line)
             // THE TANK (the user, 12 Nov: "Where did you place the tank? Let's do something realistic"): none was
             // drawn - the 60 L rode the ledger at the firewall's station. A 1930s racer carries it in the tail: one
             // box tank in the 'behind the cabin' bay, the boat tail just aft of the seat

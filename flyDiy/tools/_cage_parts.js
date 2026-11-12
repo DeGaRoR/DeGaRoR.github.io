@@ -1094,6 +1094,17 @@ const CAGE_PARTS = [
   // kit shared between them.
   // =========================================================================
   { key: 'gear', name: 'Running gear', parent: null, layer: 'gear' },
+  // CAR (the user, 12 Nov: "mark them as cars ... an option so that we can mark it as car as a player ... a new car
+  // section ... with all the controls which are very specific to cars"): the switch, always shown; the rest of the
+  // part's rows show with it on. What a car only is lives here; what a plane can use too (rear windows, the outside
+  // relief, wingless booms, the tyres and rims) stays with its own part
+  { key: 'car', name: 'Car', parent: null, layer: 'gear',
+    groups: [
+      ['this build is a car', ['isCar']],
+      ['drive', ['carDrive', 'carChassisKg']],
+      ['bumpers and hitch', ['bumpF', 'bumpR', 'bumpY', 'bumpYF', 'bumpGap', 'bumpW', 'bumpH', 'bumpFin', 'bumpGuards', 'bumpStyle', 'hitchOn']],
+      ['spare wheel', ['spareOn', 'spareZ', 'spareSide', 'spareY']],
+    ] },
 
   { key: 'mains', name: 'Main gear', parent: 'gear', layer: 'gear',
     // S1 (G451.1): one gear kind — a float build has no wheel stations (a
@@ -1194,9 +1205,7 @@ const CAGE_PARTS = [
       ['size', ['s1R', 's2R']],
       ['carcass', ['whProfile', 'whSlick', 'whBulge', 'whRibs']],
       ['rim', ['whRim', 'whRimD', 'whWide', 'whBolts', 'whCap', 'whValve', 'whBrake']],
-      ['spare wheel', ['spareOn', 'spareZ', 'spareSide', 'spareY']],   // CAR-1
       ['boom wheels outboard', ['twBoomOut']],   // CAR-4
-      ['bumpers and hitch', ['bumpF', 'bumpR', 'bumpY', 'bumpYF', 'bumpGap', 'bumpW', 'bumpH', 'bumpFin', 'bumpGuards', 'bumpStyle', 'hitchOn']],   // CAR-3/4
       ['fairing build', ['fairCons']],
     ] },
 

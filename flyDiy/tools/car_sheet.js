@@ -45,7 +45,14 @@ const DRIVELINE = { eta: 0.85, note: 'a manual gearbox and a live rear axle: ~85
 // rear-drive light car): drive '4wd' (a transfer case: all four wheels driven, ~80 % at the wheels), chassisKg (a
 // utility's ladder frame, two live axles and the transfer case weigh ~250-300 kg, not a 1930s roadster's 120)
 const DRIVELINE_4WD = { eta: 0.80, note: 'a manual gearbox, a transfer case and two live axles: ~80 % of the crank power at the wheels' };
-const carRows = spec => Object.assign({ drive: 'rwd', chassisKg: CHASSIS.kg }, (spec && spec.meta && spec.meta.car) || {});
+// (12 Nov: the garage's Car part - isCar, carDrive 0 rear / 1 all four, carChassisKg - over the older spec.meta.car)
+const carRows = spec => {
+  const r = Object.assign({ drive: 'rwd', chassisKg: CHASSIS.kg }, (spec && spec.meta && spec.meta.car) || {});
+  const c = (spec && spec.cage) || {};
+  if (c.carDrive != null) r.drive = +c.carDrive === 1 ? '4wd' : 'rwd';
+  if (+c.carChassisKg > 0) r.chassisKg = +c.carChassisKg;
+  return r;
+};
 
 function sheetFromBake(bj, C, opts) {
   opts = opts || {};

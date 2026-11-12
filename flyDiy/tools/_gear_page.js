@@ -169,16 +169,20 @@ const WHEEL_ROWS = [
   ['whCap', 'hub cap', 0, 2, 1, ['none', 'domed', 'flat']],
   ['whValve', 'valve stem', 0, 1, 1],
   ['whBrake', 'brake type', 0, 1, 1, ['disc', 'drum']],
+  // CAR (12 Nov): THE CAR SWITCH and the car-only rows (absent = an aeroplane; nothing changes for one)
+  ['isCar', 'this build is a car', 0, 1, 1, ['no (an aeroplane)', 'yes (a car)']],
+  ['carDrive', 'driven wheels', 0, 1, 1, ['rear', 'all four (4WD)'], { when: P => +P.isCar }],
+  ['carChassisKg', 'chassis mass (frame, axles, transfer case) kg', 0, 600, 5, { when: P => +P.isCar }],
   // CAR-1: a spare wheel on the body's flank (absent = none)
-  ['spareOn', 'spare wheel on the flank', 0, 1, 1],
+  ['spareOn', 'spare wheel on the flank', 0, 1, 1, { when: P => +P.isCar || +P.spareOn }],
   ['spareZ', 'spare wheel station (m, the layers\' z)', -4, 4, 0.01, { when: P => +P.spareOn }],
   ['spareSide', 'spare wheel side', -1, 1, 2, ['left', 'right'], { when: P => +P.spareOn }],
   ['spareY', 'spare wheel up / down (m)', -0.4, 0.4, 0.005, { when: P => +P.spareOn }],
   // CAR-4: the twin booms' wheels outboard of the booms (m; absent 0 = under the boom)
   ['twBoomOut', 'boom wheels outboard of the booms (m)', 0, 0.8, 0.005, { when: P => +P.boomTwin }],
   // CAR-3/4: the bumpers and the hitch (absent = none)
-  ['bumpF', 'front bumper', 0, 1, 1],
-  ['bumpR', 'rear bumper', 0, 1, 1],
+  ['bumpF', 'front bumper', 0, 1, 1, { when: P => +P.isCar || +P.bumpF }],
+  ['bumpR', 'rear bumper', 0, 1, 1, { when: P => +P.isCar || +P.bumpR }],
   ['bumpY', 'bumper height over the body\'s bottom (m)', -0.4, 0.5, 0.005, { when: P => +P.bumpF || +P.bumpR }],
   ['bumpYF', 'front bumper height, its own (m)', -0.4, 0.6, 0.005, { when: P => +P.bumpF }],
   ['bumpGap', 'bumper off the face (m)', 0, 0.3, 0.005, { when: P => +P.bumpF || +P.bumpR }],

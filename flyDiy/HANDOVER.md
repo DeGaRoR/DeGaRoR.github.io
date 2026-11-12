@@ -314951,3 +314951,16 @@ the next steps).
   front bumper up over it (NEW ROW bumpYF, the front's own height; absent = bumpY): 0.12.
   OWED (the user): THE GRILLE - a wide horizontal grid over the top half of the bonnet face, not as wide as the car; two
   side inlets with a lip each, the headlamps in them (cw_lampIn, built, unused yet).
+- **CAR, THE CAR FLAG AND THE CAR PART (12 Nov; the user: "mark them as cars ... an option ... as a player ... a new car
+  section ... the controls very specific to cars")**: NEW ROWS isCar (always shown: "this build is a car"), carDrive (0
+  rear / 1 all four), carChassisKg (_gear_page.js; absent = an aeroplane, nothing changes); a top-level part 'Car'
+  (_cage_parts.js) holds them with the bumpers and hitch and the spare wheel (moved out of 'Wheels & tyres'; their
+  switches show with isCar or once set). tools/car_sheet.js reads carDrive / carChassisKg over the older spec.meta.car.
+  THE AUDIT - kept GENERAL (a plane can use them): rearWin* (rear windows), extRelief* / extDoor* (the rear wall's outside
+  relief and rear doors), boomBodyZ/Y (twin booms without a wing), twBoomOut, paxLenLast, doorPaxN, paxSeatBays,
+  cw_lampIn, whProfile 3 / whRim 3 (the military tyre, the steel disc), noseKeelSq; CAR-ONLY (the Car part): isCar,
+  carDrive, carChassisKg, bump*, hitchOn, spare*; and outside the garage, tools/car_sheet.js's tune (brakes, springs,
+  tyres, the driveline) and the vehicle shell's tow line. All four cars carry isCar 1 (the roadster's card, the buggy,
+  the van 4WD 280 kg, the UTV 4WD 150 kg). NOT YET: what the GAME does with isCar (the hidden wing and prop still fly) -
+  waiting on the TOW-LAUNCH session (its drive mode, claude/tow-launch-phase1) for the seam: a build's sheet + its own
+  meshes as the drive mode's rig.

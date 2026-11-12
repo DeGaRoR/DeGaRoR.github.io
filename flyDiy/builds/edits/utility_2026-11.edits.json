@@ -168,7 +168,10 @@
   "whBolts": 8,
   "whCap": 1,
   "whRimD": 0.5,
-  "bumpYF": 0.12
+  "bumpYF": 0.12,
+  "isCar": 1,
+  "carDrive": 1,
+  "carChassisKg": 280
  },
  "fuel": {
   "litres": 80,
@@ -176,11 +179,7 @@
  },
  "meta": {
   "name": "Field Wagon",
-  "reg": "TOW 1",
-  "car": {
-   "drive": "4wd",
-   "chassisKg": 280
-  }
+  "reg": "TOW 1"
  },
  "energy": {
   "kind": "fuel",
