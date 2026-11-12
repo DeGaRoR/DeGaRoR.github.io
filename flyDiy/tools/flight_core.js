@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 836972b9e585b4c6
+// body-sha256: eb3f8ac4f1757e2d
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -33257,7 +33257,7 @@ const GEN_SURF_MATERIALS = {
   dtube:  Object.assign({}, GEN_MATERIALS.carbon, { name: 'foot-launch D-tube', shop: 'composite', cover: 0.6,
             lin: Object.assign({}, GEN_MATERIALS.carbon.lin, { wing: GEN_MATERIALS.carbon.lin.wing * 0.3 }),
             k: Object.assign({}, GEN_MATERIALS.carbon.k, { wing: GEN_MATERIALS.carbon.k.wing * 0.5 }),
-            refGross: 190, buildKg: 250, noFloor: true,
+            refGross: 190, buildKg: 250, noFloor: true, kFloorK: 0.7,
             tail: { cover: 0.70, section: 0.10 } }),
 };
 // what a surface that says nothing is built of, by the fuselage it hangs on.
@@ -40959,6 +40959,12 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   const bucketOf = (cls, mnt) => mnt ? null
     : (cls === 'wing' || cls === 'cabane' || cls === 'interplane' || cls === 'wire') ? 'wing'
     : cls === 'tail' ? 'tail' : cls === 'gear' ? 'gear' : 'fus';
+  // THE FOOT-LAUNCH D-TUBE (WEIGHT STUDY): a wing row BUILT FOR A WEIGHT (`buildKg`) is gauged in its OWN bucket, 'wingB',
+  // against its own reference - not the wing bucket the carry-through and the truss classes billed in another material
+  // share (they kept the first-billed row's refGross: the D-tube's 190 kg grew the Archaeopteryx's carbon bracing 7.1 ->
+  // 12.3 kg). A card without such a row has no 'wingB' and is gauged exactly as before
+  const bucketB = (bk, mat) => bk === 'wing' && mat && mat.buildKg > 0 ? 'wingB' : bk;
+  const gBag = bk => gauged[bk] || (gauged[bk] = { m: 0, x: 0, y: 0, z: 0 });
   const gauged = { fus: { m: 0, x: 0, y: 0, z: 0 }, wing: { m: 0, x: 0, y: 0, z: 0 },
                    tail: { m: 0, x: 0, y: 0, z: 0 }, gear: { m: 0, x: 0, y: 0, z: 0 } };
   // ...and the reference gross each bucket is gauged against: the BILLING
@@ -40982,8 +40988,10 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   };
   let MB = M;                                   // what the open section BILLS
   const KS = kScale || 1;                       // structure sized for the mass
-  // ...but a wing BUILT FOR a weight (the foot-launch D-tube) is no stiffer than at that weight: kScale's own law at buildKg
-  const KSB = MW => Math.min(4, Math.max(0.45, CORE_MATH.pow(MW.buildKg / ((M && M.refMass) || 390), 0.85)));
+  // ...but a wing BUILT FOR a weight (the foot-launch D-tube) is no stiffer than at that weight: kScale's own law at buildKg,
+  // floored at the row's kFloorK of the aeroplane's own (what the integrator holds: at kScale's bare 0.45 the D-tube on
+  // a 1.6 t Caravan took the solver with it once its bracing let go - GATE LIGHTWING; at 0.7 it breaks cleanly)
+  const KSB = MW => Math.max(KS * (MW.kFloorK || 0), Math.min(4, Math.max(0.45, CORE_MATH.pow(MW.buildKg / ((M && M.refMass) || 390), 0.85))));
   const ARCH = GEN_SUSPENSION[S.gear.suspension] || GEN_SUSPENSION.bungee;
   const SUS = (S.gear.stiffness == null ? 1 : S.gear.stiffness) * ARCH.k;
   // Damping does NOT scale with stiffness the way stiffness does. Critical
@@ -41385,7 +41393,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // judges a class by, per member) and the material it is made of (the GEN_MATERIALS key whose `phys`
     // it reads; GEN_CRASH carries that material's ultimate and its elongation). Read by nothing else.
     {
-      const bk = bucketOf(cls, mnt), g1 = bk && GG ? GG[bk] : 1;
+      const bk = bucketB(bucketOf(cls, mnt), MM), g1 = bk && GG ? GG[bk] : 1;
       const webK = (opt && opt.web && MM.coverGauged) ? (R.boxWebK == null ? 1 : R.boxWebK) : 1;
       const lin = row(MM.lin, cls, tSecM);
       // ...but never under its CLASS's section (lin / rho of the row, ungauged: exactly what the load test judges a
@@ -41461,11 +41469,11 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       // THE GAUGE (PERF STUDY chantier 1): the row at its size for this
       // aeroplane's design gross. Pass 1 bills at 1 and records what would
       // follow the gauge; pass 2 bills at the solved factor.
-      const bk = bucketOf(cls, mnt);
+      const bk = bucketB(bucketOf(cls, mnt), MM);
       const g1 = bk && GG ? GG[bk] : 1;
       const webK = (opt && opt.web && MM.coverGauged) ? (R.boxWebK == null ? 1 : R.boxWebK) : 1;
       const h0 = 0.5 * L * row(MM.lin, cls, tSecM) * aftG * webK, h = h0 * g1;
-      if (bk && !GG) { const G = gauged[bk]; G.m += 2 * h0;
+      if (bk && !GG) { const G = gBag(bk); G.m += 2 * h0;
         G.x += h0 * (P[a][0] + P[b][0]); G.y += h0 * (P[a][1] + P[b][1]); G.z += h0 * (P[a][2] + P[b][2]);
         if (!gaugeRef[bk]) gaugeRef[bk] = MM.refGross || 550; }
       nodes[a].m += h; nodes[b].m += h;
@@ -41587,7 +41595,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
                            coverAt[i] = (coverAt[i] || 0) + area / ids.length; }
     // a load-bearing skin follows the gauge (GEN_MATERIALS.coverGauged);
     // the bucket is the section's: the wings', the tail's, else the body's
-    const bk = SEC === 'wings' ? 'wing' : SEC === 'tail' ? 'tail' : 'fus';
+    const bk = SEC === 'wings' ? bucketB('wing', MB) : SEC === 'tail' ? 'tail' : 'fus';
     // G445.7: THE SKIN AFT OF THE CABIN IS SKIN. The fuselage row's cover
     // (4.5 kg/m2 on alloy) "carries frames, doors, floors and windows" —
     // the cabin's things — and was billed on the bare tail cone at the same
@@ -41604,7 +41612,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     if (SEC === 'tail' && MB.tail && MB.tail.cover != null) kA *= MB.tail.cover;
     const m0 = area * MB.cover * kA, gm = MB.coverGauged ? (GG ? GG[bk] : 1) : 1, m = m0 * gm;
     const per = m / ids.length;
-    if (MB.coverGauged && !GG) { const G = gauged[bk]; G.m += m0; const p0 = m0 / ids.length;
+    if (MB.coverGauged && !GG) { const G = gBag(bk); G.m += m0; const p0 = m0 / ids.length;
       for (const i of ids) { G.x += p0 * P[i][0]; G.y += p0 * P[i][1]; G.z += p0 * P[i][2]; }
       if (!gaugeRef[bk]) gaugeRef[bk] = MB.refGross || 550; }
     for (const i of ids) nodes[i].m += per;
@@ -45134,8 +45142,10 @@ function genDesignGross(S, a, cg) {
   // THE BUILD WEIGHT (the foot-launch D-tube, GEN_SURF_MATERIALS.dtube): a wing built for buildKg thins below it but
   // never grows past it
   const WROW = genSurfMaterial(S, 'wing', 0) || {};
-  const hiOf = c => c === 'wing' && WROW.buildKg > 0 ? Math.min(G.hi, CORE_MATH.pow(WROW.buildKg / ref(c), G.e[c])) : G.hi;
-  const gOf = (c, W) => Math.min(hiOf(c), Math.max(G.lo, CORE_MATH.pow(W / ref(c), G.e[c])));
+  // ('wingB': the D-tube's own bucket, gauged with the wing's exponent and capped at its build weight)
+  const eOf = c => G.e[c] != null ? G.e[c] : G.e.wing;
+  const hiOf = c => c === 'wingB' && WROW.buildKg > 0 ? Math.min(G.hi, CORE_MATH.pow(WROW.buildKg / ref(c), eOf(c))) : G.hi;
+  const gOf = (c, W) => Math.min(hiOf(c), Math.max(G.lo, CORE_MATH.pow(W / ref(c), eOf(c))));
   // the furnishing (GEN_OUTFIT.furnK, Raymer on W0) is billed in pass 2
   // and belongs to the same fixed point
   const O = GEN_OUTFIT, fK = genFurnK(S);            // (G2806: the chosen trim, else the tier's)
@@ -45145,8 +45155,8 @@ function genDesignGross(S, a, cg) {
     let f = Mfix + furnOf(W) - W, df = -1 + (furnOf(W) > 0 ? fK * O.furnKgPerKg : 0);
     for (const c in GD) { if (!(GD[c].m > 0)) continue; const g = gOf(c, W);
       f += GD[c].m * g;
-      const raw = CORE_MATH.pow(W / ref(c), G.e[c]);
-      if (raw > G.lo && raw < hiOf(c)) df += GD[c].m * G.e[c] * g / W; }
+      const raw = CORE_MATH.pow(W / ref(c), eOf(c));
+      if (raw > G.lo && raw < hiOf(c)) df += GD[c].m * eOf(c) * g / W; }
     W = Math.max(Mfix, W - f / df);
   }
   const gauge = { W0: W }, dm = {}; let mAdd = furnOf(W), xAdd = 0, yAdd = 0, zAdd = 0;
@@ -52820,14 +52830,18 @@ function* genCertifySteps(def, opt) {
   const tD = (typeof performance !== 'undefined' ? performance : Date).now();
   const { Ft, Fc, byT, byC, names } = genCertCombine(def, cases);
   // THE BUILD WEIGHT (WEIGHT STUDY, 12 Nov): a wing built for a weight (GEN_SURF_MATERIALS.dtube.buildKg) is certified
-  // as if its aeroplane weighed that - its members' limit loads (and so their fittings') x min(1, buildKg / W0). The
+  // as if its aeroplane weighed that - its members' and its bracing's limit loads (and so their fittings') x min(1,
+  // buildKg / W0). The
   // certificate otherwise sizes every member to THIS aeroplane's own loads, and a light wing on a heavy aeroplane held 6 g
   // (weight_proto/, run 1): with this, it breaks where its physics says (a C172 2.7 g)
   { const S = def.spec || {}, WR = (typeof genSurfMaterial === 'function' && S.wings) ? genSurfMaterial(S, 'wing', 0) : null;
     const W0 = def.parts && def.parts.gauge && def.parts.gauge.W0;
     if (WR && WR.buildKg > 0 && W0 > WR.buildKg) {
       const f = WR.buildKg / W0;
-      def.beams.forEach((b, i) => { if (b.sec === 'wings') { Ft[i] *= f; Fc[i] *= f; } });
+      // the wing's own structure AND what carries it - its struts and its carry-through (the 'bracing' section): a light
+      // wing comes with its bracing. (Measured: on the strut-braced Cub the full-strength struts relieved the D-tube's
+      // spar and the wing held 6.13 g - the struts are the wing's, not the fuselage's.)
+      def.beams.forEach((b, i) => { if (b.sec === 'wings' || b.sec === 'bracing') { Ft[i] *= f; Fc[i] *= f; } });
     } }
   return { v: GEN_CERT_V, key: genCertKey(def), nb, nN, limit: L, ult: GEN_CERT.ult, neg: -GEN_CERT.neg * L, m: GEN_CERT.m,
            sink, dropNz: drop ? drop.nz : null, flownNz: flown ? flown.nz : null, flownReached: flown ? flown.reached : null,
