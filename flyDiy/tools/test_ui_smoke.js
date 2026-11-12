@@ -764,8 +764,41 @@ try {
       throw new Error('style.css: no static highlight for #bootFly.pulse under prefers-reduced-motion');
     console.log('the Fly button: no pulse untouched; touched, it pulses (an outline while it loads, lit when ready); reduced motion: a still ring');
   }
+  // ---- PHOTO-MODE-2 P1: THE PHOTO BAR (its checks; run in flight below and in the shed) -----------------------------------------------------------------------
+  // the rigs' bare SHOT_MODE.enter() is the render alone (no bar); FLYDIY_PHOTO.open() opens the bar, pauses, and its
+  // slots build on the flight rail's own rows; Done (api.done) gives back the camera and the pause
+  const photoChecks = (where, want) => {
+    const W = sandbox.window, P = W.FLYDIY_PHOTO, A = photoRec.api;
+    if (!P || typeof P.open !== 'function' || !A) throw new Error('photo mode: FLYDIY_PHOTO.open / PHOTO.init missing (PHOTO-MODE-2 P1)');
+    photoRec.log.length = 0;
+    W.SHOT_MODE.enter();
+    if (photoRec.log.includes('begin') || !W.SHOT_MODE.on) throw new Error(where + ': a bare SHOT_MODE.enter() opened the photo bar (the rigs\' render alone)');
+    W.SHOT_MODE.exit();
+    P.open();
+    if (!photoRec.log.includes('begin') || !P.on() || !W.SHOT_MODE.on) throw new Error(where + ': FLYDIY_PHOTO.open() did not open the bar (' + photoRec.log.join(',') + ')');
+    const S = A.slots(), keys = S.map(o => o.k).join(',');
+    if (keys !== want) throw new Error(where + ': the slots are ' + keys + ', want ' + want);
+    for (const o of S) {
+      const v = o.value(); if (typeof v !== 'string' || !v) throw new Error(where + ': slot ' + o.k + ' has no value (' + v + ')');
+      o.build(el('photoBody'));
+    }
+    const meta = A.meta(), pauseMid = els['bPause'] ? els['bPause'].textContent : null;
+    A.done();
+    if (!photoRec.log.includes('end') || P.on() || W.SHOT_MODE.on) throw new Error(where + ': Done did not close photo mode (' + photoRec.log.join(',') + ')');
+    console.log('photo mode (' + where + '): the bare screenshot mode has no bar; open -> the bar (' + keys + ', "' + meta + '"), every slot builds, Done closes');
+    return { meta, pauseMid };
+  };
   handlers['bGo'] && handlers['bGo']();
   frames(120);
+  // PHOTO-MODE-2 P1: the photo bar IN FLIGHT (the boot lands in the shed; here the aeroplane flies): it pauses, Done unpauses
+  {
+    if (sandbox.garageApi && sandbox.garageApi.inGarage()) throw new Error('photo mode: the flight row ran in the shed');
+    const before = els['bPause'].textContent, r = photoChecks('flight', 'camera,light');
+    if (r.meta === 'the shed') throw new Error('photo mode: the flight row\'s plate says the shed');
+    if (before === 'Pause' && r.pauseMid !== 'Run') throw new Error('photo mode did not pause the flight (' + before + ' -> ' + r.pauseMid + ')');
+    if (els['bPause'].textContent !== before) throw new Error('photo mode: Done did not give the pause back (' + before + ' -> ' + els['bPause'].textContent + ')');
+    console.log('photo mode in flight: paused while open ("' + r.meta + '"), the pause given back by Done (' + before + ')');
+  }
   // ---- THE PILOT IS YOU (G200) ----
   // Hand the aeroplane over, hold a key, read the elevator, hand it back.
   // The probe is the door the capture rig uses; the same three handles here.
@@ -1049,34 +1082,6 @@ try {
   for (const id of ['bSkin', 'bSkin', 'bSkin', 'bPause', 'bPause',
                     'bEdit', 'bReset'])
     handlers[id] && handlers[id]({ target: els[id] });
-  // ---- PHOTO-MODE-2 P1: THE PHOTO BAR, IN FLIGHT -----------------------------------------------------------------------
-  // the rigs' bare SHOT_MODE.enter() is the render alone (no bar); FLYDIY_PHOTO.open() opens the bar, pauses, and its
-  // slots build on the flight rail's own rows; Done (api.done) gives back the camera and the pause
-  const photoChecks = (where, want) => {
-    const W = sandbox.window, P = W.FLYDIY_PHOTO, A = photoRec.api;
-    if (!P || typeof P.open !== 'function' || !A) throw new Error('photo mode: FLYDIY_PHOTO.open / PHOTO.init missing (PHOTO-MODE-2 P1)');
-    photoRec.log.length = 0;
-    W.SHOT_MODE.enter();
-    if (photoRec.log.includes('begin') || !W.SHOT_MODE.on) throw new Error(where + ': a bare SHOT_MODE.enter() opened the photo bar (the rigs\' render alone)');
-    W.SHOT_MODE.exit();
-    P.open();
-    if (!photoRec.log.includes('begin') || !P.on() || !W.SHOT_MODE.on) throw new Error(where + ': FLYDIY_PHOTO.open() did not open the bar (' + photoRec.log.join(',') + ')');
-    const S = A.slots(), keys = S.map(o => o.k).join(',');
-    if (keys !== want) throw new Error(where + ': the slots are ' + keys + ', want ' + want);
-    for (const o of S) {
-      const v = o.value(); if (typeof v !== 'string' || !v) throw new Error(where + ': slot ' + o.k + ' has no value (' + v + ')');
-      o.build(el('photoBody'));
-    }
-    const meta = A.meta();
-    A.done();
-    if (!photoRec.log.includes('end') || P.on() || W.SHOT_MODE.on) throw new Error(where + ': Done did not close photo mode (' + photoRec.log.join(',') + ')');
-    console.log('photo mode (' + where + '): the bare screenshot mode has no bar; open -> the bar (' + keys + ', "' + meta + '"), every slot builds, Done closes');
-  };
-  {
-    const runningBefore = handlers['bPause'] ? els['bPause'].textContent : null;
-    photoChecks('flight', 'camera,light');
-    if (runningBefore != null && els['bPause'].textContent !== runningBefore) throw new Error('photo mode: Done did not give the pause back (' + runningBefore + ' -> ' + els['bPause'].textContent + ')');
-  }
   // ---- THE GARAGE (G3.2): selecting the generated build stops the solver ----
   // The observable is the phase rail. script() is what writes HOLDING there,
   // and in the garage script() must not run at all — so if the `!inGarage`
@@ -1089,7 +1094,10 @@ try {
   frames(240);
   if (els['phName'].textContent !== 'GARAGE')
     throw new Error('the solver stepped in the garage: the loop guard is gone');
-  photoChecks('the shed', 'camera,light');   // PHOTO-MODE-2 P1: the same bar in the shed
+  { // PHOTO-MODE-2 P1: the same bar in the shed (its light slot once the room has moods: the phone's shed has none)
+    const GE = sandbox.window.GARAGE_ENV, moods = (GE && GE.moods && GE.moods()) || [];
+    photoChecks('the shed', moods.length ? 'camera,light' : 'camera');
+  }
   // ---- THE LOAD TEST (BUILD -> LOAD TEST -> FLY) ----
   // The rig is the one thing that moves while the aeroplane is on the stand, so
   // it needs the opposite assertion to the one above: frames must now CHANGE

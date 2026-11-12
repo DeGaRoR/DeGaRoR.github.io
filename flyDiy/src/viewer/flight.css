@@ -1169,7 +1169,7 @@ body.fl2.mode-fly #shotBack { display:none !important; }
 #photoTop .phSlot:hover { border-color:rgba(255,255,255,.3); }
 #photoTop .phSlot.open { border-color:var(--ed-acc); }
 #photoTop .phSlot > i { font:500 8.5px/1 'IBM Plex Sans'; letter-spacing:.16em; text-transform:uppercase; color:var(--ed-faint); }
-#photoTop .phSlot > b { font:500 12px/1.2 'IBM Plex Sans'; color:var(--ed-ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:180px; }
+#photoTop .phSlot > b { font:500 12px/1.2 'IBM Plex Sans'; letter-spacing:0; text-transform:none; color:var(--ed-ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:180px; }
 #photoDone { margin-left:auto; flex:none; font:500 12px/1 'IBM Plex Sans'; letter-spacing:.1em; text-transform:uppercase; color:var(--ed-ink);
   background:var(--ed-plate); border:1px solid var(--ed-btn-bd); padding:13px 18px; border-radius:8px; cursor:pointer; min-height:44px;
   backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); }

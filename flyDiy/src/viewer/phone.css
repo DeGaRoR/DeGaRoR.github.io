@@ -313,3 +313,7 @@ html.phone #npWrap .npTile svg { width:60px; height:36px; }
 html.phone #npWrap .npFoot { padding:8px 10px; gap:6px; }
 html.phone #npWrap .npHint { display:none; }
 html.phone #npWrap .npBtn { flex:1; min-width:0; padding:0 8px; }
+/* PHOTO-MODE-2 P1: the render alone (body.shot - the screenshot mode and photo mode) takes the WHOLE screen, not the view's
+   share of the split: the controls' half is hidden then, and was left as an empty pale half beside the picture */
+html.phone:where(:not(.phfly)) body.shot.mode-ws #c { width:100vw !important; height:100vh !important; height:100dvh !important; }
+html.phone:where(:not(.phfly)) body.shot #phDiv, html.phone:where(:not(.phfly)) body.shot #phTabs { display:none !important; }

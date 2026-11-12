@@ -19806,6 +19806,7 @@
   const photoGE = () => window.GARAGE_ENV || null;
   // the slots for where we are: { k, label, value(), build(body) } - the rows are the flight rail's own builders
   function photoSlots() {
+    // (the shed's light slot only once the room has its moods: the phone's shed is built without them)
     if (inGarage) return [
       { k: 'camera', label: 'camera', title: 'The camera', value: () => 'orbit \u00b7 ' + Math.round(garageFov) + '\u00b0',
         build: body => {
@@ -19821,7 +19822,7 @@
                   o => { G.setMood(o.value); if (window.PHOTO) window.PHOTO.refresh(); });
           flNote(body, 'The shed\u2019s own light. The clock moves it on at the next hour; Done puts back the one you had.');
         } },
-    ];
+    ].filter(o => o.k !== 'light' || ((photoGE() && photoGE().moods && photoGE().moods()) || []).length > 0);
     return [
       { k: 'camera', label: 'camera', title: 'The camera', value: () => cam.mode + ' \u00b7 ' + Math.round(cam.fov) + '\u00b0',
         build: body => {
