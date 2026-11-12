@@ -1929,7 +1929,26 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
         if (e.mount === 'wing' && e.side > 0) continue; // the pair's mirror
       } else if (e.mount === 'wing' && i > 0) continue;      // the pair's mirror
       const iE = LAYF ? i : 0;                         // this entry's engine index
-      if (e.mount === 'pusher') {
+      if (e.mount === 'pusher' && mastRef && mastRef.nodes.length >= 8) {
+        // THE PUSHER BOLTED ON THE MAST (WEIGHT STUDY L7, 12 Nov, the user: "You might also save on engine mount ...
+        // the heavy truss mount should just go also in the 3d model"; the hanging nacelle's: "the engine bolts directly
+        // on the pillar's back face, with no mount"): on a hanging nacelle the mast's back face IS the mount - the pair
+        // tied to the back-face nodes (bL, bR) of the two mast levels nearest its height, a short bolted plate, no
+        // 4130 bearers to bill (weightless ties: the mast is billed once, GEN_HANG.kgM). Its mass hangs on the mast
+        const [PL, PR] = NM(e.x, e.y, 0.55 * cab.halfW, 'ENG');
+        const MN = mastRef.nodes, nLv = Math.floor(MN.length / 4);
+        let l0 = 0, bd = Infinity;
+        for (let l = 0; l < nLv; l++) { const d = Math.abs(P[MN[4 * l + 2]][1] - e.y); if (d < bd) { bd = d; l0 = l; } }
+        const l1 = l0 + 1 < nLv && (l0 === 0 || Math.abs(P[MN[4 * (l0 + 1) + 2]][1] - e.y) < Math.abs(P[MN[4 * (l0 - 1) + 2]][1] - e.y)) ? l0 + 1 : l0 - 1;
+        const back = [MN[4 * l0 + 2], MN[4 * l0 + 3], MN[4 * l1 + 2], MN[4 * l1 + 3]];
+        const BT = (a, b) => B(a, b, 'fus', false, 'inner', true, { noMass: true });
+        BT(PL, PR);
+        BT(PL, back[0]); BT(PL, back[1]); BT(PL, back[2]); BT(PL, back[3]);
+        BT(PR, back[1]); BT(PR, back[0]); BT(PR, back[3]); BT(PR, back[2]);
+        hangEngine(e, [PL, PR], back, 0, engDryM, S.prop.mass);
+        engNodes.push(PL, PR); engIdx.push(iE, iE);
+        if (LAYF) engCowl.push([PL, PR]);
+      } else if (e.mount === 'pusher') {
         const [PL, PR] = NM(e.x, e.y, 0.55 * cab.halfW, 'ENG');
         const rg = F[iRing(e.x)];
         BM(PL, PR);

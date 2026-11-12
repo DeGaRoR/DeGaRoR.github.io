@@ -315610,3 +315610,14 @@ chantier (stage 4) must bring it forward. Parked: the wheel, the nose skid, a wi
   gelcoat is no lighter than paint). The fleet: only the Archaeopteryx moves. Gates green: MONOWHEEL HUB NACELLE
   LIGHTWING RODROW DEFAULT WEIGHT CABIN SEATS DMGGLASS PILLAR CLIP FRAMES JOIN SPECFIX CREWLOAD SAVE PARTS DESIGN
   NEWPLANE; TECH red the master way ("every option of every covered table has a segment": av.elt none / fitted).
+- L7 OF THE PATH: THE REAL DRIVE AND NO MOUNT (12 Nov, the user: "Let's go next weight level. You might also save on
+  engine mount and stuff like that. Maybe the heavy truss mount should just go also in the 3d model"): the Archaeopteryx
+  133.7 -> 118.7 kg empty. (1) 61_gen_frame.js 2b: on a hanging nacelle (mastRef) the PUSHER BOLTS ON THE MAST - its
+  pair tied (weightless, mnt) to the back-face nodes of the two mast levels nearest its height, the engine hung on them;
+  the nine 4130 bearers to the cabin ring's corners (BM, billed) are gone (-3.6 kg; the drawing had none already,
+  eng_mount 0). Every card without a hanging nacelle builds the old mount, to the bit. (2) The card: engModel 'e-PPG 12
+  kW' (7 kg, 12 kW; was the E-811, 30 kg, 57.6 kW), spec.energy a 2 kWh NMC pack under the floor (17.5 kg; the nose bay
+  holds 1.2 kWh), fuel 0 (the avgas nose tank under an electric motor, a stage-1 leftover, gone), cw_noseOff 0.50 ->
+  0.58 (the shorter case brought the blades into the aft pod: the join's own check). Flies: climb 1.48 m/s, TO 162 m,
+  L/D 16.2, 13 min at cruise, static margin -0.06 (was -0.108). AERO-BODY's honest rod tube (their 92f8849e): ~-12 kg
+  more when both land.

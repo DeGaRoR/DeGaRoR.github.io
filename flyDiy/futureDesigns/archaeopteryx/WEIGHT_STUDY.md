@@ -227,12 +227,12 @@ came from a read that left sections out; the ledger is the reference from here o
 | L0 | v1: moulded carbon wing | | | **169.1** | frozen (v1) |
 | L1 | the foot-launch D-tube wing | -13 to -20 | **-14.1** (wing 47.9 -> 34.7; bracing 7.1 -> 6.9) | **155.0** | **done**, certified 6.28 g |
 | L2a | the tail follows a chosen wing (the D-tube tail, certified at its build weight) | ~-5 | **-2.4** (tail 8.3 -> 6.1, the rest the gauge's) | **152.6** | **done** |
-| L2b | the rod: carbon, a thin wall (AERO-BODY's rod row) | ~-3 | the prototype: -2.0 (wall × 0.4) | ~150 | AERO-BODY's |
+| L2b | the rod: material + wall (the rod row, 530d6dcbe), billed as the real tube pi d t rho (AERO-BODY's 92f8849e) | ~-3 | AERO-BODY measured -12 (the honest tube takes the phantom lattice off) - lands with their branch | ~107 | AERO-BODY's billing |
 | L3 | the fixed items: the reclined tub (3 kg), SOFT FILM glazing (new, 0.7 kg/m2), LIGHT CONTROL RUNS (new, push-pull carbon rods and Dyneema, 0.15 kg/m), the side stick on the keel tube, three instruments | ~-29 expected | **-18.9** (outfit 21.2 -> 8.0, seat 6 -> 3, instruments 2.1 -> 1.3; the lining was already 0; the paint kept - a gelcoat is no lighter; the dashboard kept, 0.2 kg - without it the gauges float: a garage gap) | **133.7** | **done** |
 | L4 | the soft-shell cabin over the hard keel, mast and struts | ~-10 (of the fuselage's 26.6) | | ~108 | |
 | L5 | a pinned carry-through (six pins, not the cantilever box) | ~-6 (bracing 6.9 -> ~1) | | ~102 | |
 | L6 | the light gear (a carbon blade on the monowheel) | ~-3.5 (5.5 -> ~2) | | ~98 | |
-| L7 | the real drive: a ~10 kW motor (the e-PPG 12 kW row, 7 kg) and a ~2 kWh pack, the avgas nose tank gone | ~-12 net (engines 36 -> ~13, the tank -2.8, the pack +~14) | | **~86** | |
+| L7 | the real drive: the e-PPG 12 kW (7 kg) for the E-811 (30 kg), a 2 kWh NMC pack under the floor (17.5 kg), the avgas nose tank gone; AND the motor bolted on the mast in the frame (no 4130 bearers: -3.6) | ~-12 net | **-15.0** (engines 36.0 -> 8.0, the pack +17.5, the bearers -3.6, the rest the gauge) | **118.7** | **done** - climb 1.48 m/s, TO 162 m, L/D 16.2, 13 min at cruise; static margin -0.06 |
 | | **the real aeroplane** | | | **~72** | the remaining ~14 kg: the cabin cage, the mast and the hub, to measure at L4-L5 |
 
 **A finding on the way (L7):** the card carries the Velis's E-811 electric motor (30 kg) fed from a 4 L avgas nose
