@@ -550,3 +550,17 @@ a FIFTH corner (`Q5On`, `Q5Z`, `Q5Y`, radius `R5`) between the fwd-bottom and fw
 the sheet's overlay (the first try traced the sliding vent inside it - check the drawing's OUTER line): a vertical
 front, the top along the A-pillar, a big arc from the aft-top corner down to the bottom (`win4R3` 0.45), on row 4, cut
 through the door. The PC-6: 125 / 175.
+
+## ROUND 9 (12 Nov): the firewall joint, exact
+
+The user: "you're really trying to have something which is round and too small fit into the cowl ... the firewall
+would need to fit perfectly with the cowl". Measured as half-widths at heights, the cowl's aft section against the
+body's 5 cm aft of it (a new instrument, worth keeping: a radial gap hides WHICH corner is off): the cowl a box
+(0.57 m), the body a rounded octagon - 0.17-0.33 at the bottom, 0.20-0.44 at the top. Three causes:
+- the nose ring's KEEL point stood 0.21 inboard of its floor point (a bottom chamfer no row reached) -> garage
+  `noseKeelSq` (98d5e781), 1;
+- the deck and keel lines unsharpened -> `crSillNose` 3, `crKeel` 3 (the existing creases);
+- the cowl's aft section a superellipse 0.9 -> `cw_sqAftTop` / `cw_sqAftBot` 1.
+`frNoseTopW` / `frNoseBotW` were NOT the answer: on the nose frame they scale the face (and the sealed cowl with it).
+The crown stays (0.16): at 0 the windscreen base folds. Result: the two sections within 1 cm on every side; 125 / 175.
+The chin scoop's width 0.95 of the cowl's (it read narrow at its aft end at 0.8).

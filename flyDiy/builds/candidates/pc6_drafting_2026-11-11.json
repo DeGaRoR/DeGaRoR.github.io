@@ -99,7 +99,7 @@
    "crCap": 3,
    "crFrontCap": 0.3,
    "crNoseCap": 3,
-   "crKeel": 0,
+   "crKeel": 3,
    "botRound": 0,
    "noseCrown": 0.16,
    "noseH": 1.07,
@@ -171,7 +171,7 @@
    "cowlEaseBot": -1,
    "aftCowlEaseBot": -1,
    "noseJointOn": 1,
-   "crSillNose": -1,
+   "crSillNose": 3,
    "aftCrSillNose": -1,
    "ringCowl1W": 0,
    "ringCowl2W": -0.02,
@@ -910,8 +910,8 @@
    "finDorsalFwd": 0.11,
    "finDorsalH": 0.275,
    "frWinTopZ": 0.09,
-   "cw_sqAftTop": 0.9,
-   "cw_sqAftBot": 0.9,
+   "cw_sqAftTop": 1,
+   "cw_sqAftBot": 1,
    "cw_partLevel": 1,
    "cw_lidSqTop": 0.8,
    "cw_lidSqBot": 0.8,
@@ -932,7 +932,7 @@
    "cw_scoopDrop": 0.9,
    "cw_scoopAp": 0.8,
    "boomMatch": 1,
-   "cw_scoopWFit": 0.8,
+   "cw_scoopWFit": 0.95,
    "doorPaxFront": 2,
    "pilSnap": 1,
    "wgStrutPil": 2,
@@ -964,7 +964,8 @@
    "win4R2": 0.1,
    "win4R3": 0.45,
    "win4R4": 0.08,
-   "win4R5": 0.04
+   "win4R5": 0.04,
+   "noseKeelSq": 1
   },
   "wings": [
    {
@@ -1766,6 +1767,18 @@
     "who": "session",
     "step": "fit",
     "line": "the user: the PC-6's own cockpit window, drawn - the pilot's glass a panel, a five-corner drawn window cut through the door {\"winPilotPanel\":1,\"win4N\":1,\"win4Shape\":2,\"win4Z\":3,\"win4Y\":0.1,\"win4W\":0.6,\"win4H\":1,\"win4R\":0.04,\"win4Q1Z\":2.778,\"win4Q1Y\":0.674,\"win4Q2Z\":2.647,\"win4Q2Y\":0.525,\"win4Q3Z\":2.844,\"win4Q3Y\":-0.436,\"win4Q4Z\":3.341,\"win4Q4Y\":-0.667,\"win4Q5On\":1,\"win4Q5Z\":3.341,\"win4Q5Y\":0.294,\"win4R2\":0.1,\"win4R3\":0.45,\"win4R4\":0.08,\"win4R5\":0.04}"
+   },
+   {
+    "date": "2026-11-12T02:04",
+    "who": "session",
+    "step": "fit",
+    "line": "the user: the nose section fitted to the cowl at the firewall - its bottom squared (noseKeelSq, a new row), its corner creases sharp, the cowl's aft section square {\"noseKeelSq\":1,\"crSillNose\":3,\"crKeel\":3,\"cw_sqAftTop\":1,\"cw_sqAftBot\":1}"
+   },
+   {
+    "date": "2026-11-12T02:05",
+    "who": "session",
+    "step": "fit",
+    "line": "{\"cw_scoopWFit\":0.95}"
    }
   ],
   "datumLE": 3000,
