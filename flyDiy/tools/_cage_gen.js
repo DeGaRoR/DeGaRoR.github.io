@@ -7739,6 +7739,28 @@ function cageInterior(m, S) {
       for (const f of F) if (SIDEG.has(f.m)) for (const vi of f.v) zA = Math.min(zA, V[vi][2]);
       if (!(zA < 1e8)) zA = zCab0;
     }
+    // THE PADDED HEADLINER (CAR-3, 13 Nov; the user: "a real liner engulfs the pillar structure, and adds 5-10 cm of
+    // depth ... model the roof liner, because this one does nothing"): hdlDepth > 0 - the cabin's ceiling skin (its
+    // inward normal at least 0.8 down, between zA and the windscreen) extruded INTO the cabin as a closed slab hdlDepth
+    // deep, starting on the shell's inner face (the composite's skin liner, skinT), in the headliner's material - the
+    // roof's hoops and the pillars' heads inside it, its edge a padded step down to the wall trim. Absent / 0 = the
+    // recoloured skin liner, as before
+    if (I.hdl && I.hdlD > 0) {
+      const GLH = new Set(['windshield', 'pilotWindow', 'pasengerWindow', 'drawnPane', 'skyWindows', 'joint', 'doorSeal']);
+      const t0 = I.pillars ? (I.skinT > 0 ? I.skinT : (I.shellT || 0.035) * 0.35) : 0;
+      const sel = [];
+      F.forEach((f, i) => {
+        if (f.v.length !== 4 || GLH.has(f.m) || f.paneEdge || f.capFace || f.doorKey) return;
+        const p = f.v.map(k => V[k]);
+        const u = [p[2][0]-p[0][0], p[2][1]-p[0][1], p[2][2]-p[0][2]], w = [p[3][0]-p[1][0], p[3][1]-p[1][1], p[3][2]-p[1][2]];
+        const nx = u[1]*w[2]-u[2]*w[1], ny = u[2]*w[0]-u[0]*w[2], nz = u[0]*w[1]-u[1]*w[0];
+        const cz = (p[0][2] + p[1][2] + p[2][2] + p[3][2]) / 4, cy = (p[0][1] + p[1][1] + p[2][1] + p[3][1]) / 4;
+        // the skin's outward normal points UP on the roof: the cabin sees it from below
+        if (cz < zA || cz >= zNose0 || cy < S.bandY) return;
+        if (ny / (Math.hypot(nx, ny, nz) || 1) >= 0.8) sel.push(i);
+      });
+      if (sel.length) liner(sel, t0 + I.hdlD, () => 'headliner', t0);
+    }
     for (const f of add) {
       if (!f.lin || !LINM.has(f.m) || f.v.length !== 4) continue;
       const p = f.v.map(i => V[i]);
@@ -9886,6 +9908,7 @@ function cageSpec(P) {
                  shellT: Math.max(0.005, P.shellT || 0.035),
                  // CABIN-INTERIOR (T1/T2): the headliner / the upper wall trim - keys only when on (absent rows)
                  ...(+P.hdlOn ? { hdl: 1 } : {}), ...(+P.wallTrimOn ? { wall: 1 } : {}),
+                 ...(+P.hdlOn && +P.hdlDepth > 0 ? { hdlD: +P.hdlDepth } : {}),   // CAR-3: the padded headliner's depth
                  dashBack: P.dashBack,
                  dashLip: P.dashLip != null ? P.dashLip : P.dashInset,
                  dashDepth: P.dashDepth, dashCrease: P.dashCrease,

@@ -1297,7 +1297,7 @@ const CAGE_PARTS = [
     when: P => +P.intOn,
     place: { on: 'hdlOn', at: 'the cabin ceiling and its walls above the sill' },
     groups: [
-      ['headliner', ['hdlOn', 'wallTrimOn', 'ohConsoleOn']],
+      ['headliner', ['hdlOn', 'hdlDepth', 'wallTrimOn', 'ohConsoleOn']],
     ] },
 
   { key: 'crew', name: 'Crew', parent: 'fit', layer: 'crew',

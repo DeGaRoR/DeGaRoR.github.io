@@ -787,6 +787,7 @@ window.CAGE_PAGE = {
       // NOT IN THE DEFAULTS TABLE (G3570, as floorUp): a build that never turns one on saves no key and draws as before
       ['headliner', [
         ['hdlOn',       'headliner',        0, 1, 1, { when: P => +P.intOn, absent: 0 }],
+        ['hdlDepth',    'headliner depth (padded, m; 0 = the skin)', 0, 0.15, 0.005, { when: P => +P.intOn && +P.hdlOn, absent: 0, dim: 'len' }],   // CAR-3
         ['wallTrimOn',  'upper wall trim',  0, 1, 1, { when: P => +P.intOn, absent: 0 }],
         ['ohConsoleOn', 'overhead console', 0, 1, 1,
          { when: P => +P.crewOn && Math.round(+P.canopy || 0) === 0, absent: 0 }],
