@@ -4686,7 +4686,8 @@ function aeroGlassTint(THREE, o) {
     m.blending = THREE.CustomBlending; m.blendEquation = THREE.AddEquation;
     m.blendSrc = THREE.ZeroFactor; m.blendDst = THREE.SrcColorFactor;
     m.uniforms = { uTint: uTint, uA: uA, uFres: uFres };
-    m.userData.aeroskin = 1; m.userData.aeroFinish = 'glassTint'; m.userData.env0 = 0;
+    if (o.exactSide) m.userData.exactSide = 1;   // (LINER-BACK: a one-sided half of a skin/liner pair)
+   m.userData.aeroskin = 1; m.userData.aeroFinish = 'glassTint'; m.userData.env0 = 0;
     AERO_BUILT.push(m);
     return m;
   }
@@ -4917,7 +4918,7 @@ function aeroMaterial(THREE, o) {
   // while the wing and the flown payload are already metric and hand over 1.
   // Pooled on a key that ignored it, whichever asked first won and the other
   // got its neighbour's scale — the tail came out with the wing's, silently.
-  const key = [o.finish, o.tint, 'L' + o.tintLin, o.surf ? 1 : 0, o.side || 0,
+  const key = [o.finish, o.tint, 'L' + o.tintLin, o.surf ? 1 : 0, o.exactSide ? 'x' + o.side : (o.side || 0),
                o.opacity != null ? o.opacity : 1,
                o.struct ? (o.grm || '') : '', 'w' + (+o.wing || 0),
                o.boxDet ? 'B' + (+o.boxPlane || 0) : '',
@@ -5027,7 +5028,10 @@ function aeroMaterial(THREE, o) {
     metalness: row.metal + (0.85 - row.metal) *
       Math.max(0, Math.min(1, +(o.metalK || 0))),
     envMapIntensity: 1.0,
-    side: o.side || THREE.DoubleSide,
+    // o.exactSide (LINER-BACK, 9 Nov): THREE.FrontSide is ZERO, so `o.side || DoubleSide` turned a FrontSide request
+    // into DoubleSide (_cage_cowl.js says so too). The lined skin must be FrontSide, its liner BackSide on the same
+    // faces, or the two fight at one depth; every other caller keeps the old fallthrough (their draws unchanged).
+    side: o.exactSide ? o.side : (o.side || THREE.DoubleSide),
     transparent: op < 1,
     opacity: op,
     depthWrite: op >= 1,

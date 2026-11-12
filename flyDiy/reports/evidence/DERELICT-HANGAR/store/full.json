@@ -1,0 +1,97 @@
+{
+ "set": {
+  "shell": "works",
+  "slots": {
+   "inside": 8
+  },
+  "fleet": [
+   "Jolene Cub:inside@HOME",
+   "Spare Cub:inside@HOME",
+   "Club Cub:inside@HOME",
+   "Old Jodel:inside@HOME",
+   "Red Jodel:inside@HOME",
+   "Blue Jodel:inside@HOME"
+  ]
+ },
+ "stands": [
+  {
+   "stand": "jodel",
+   "residents": {
+    "on": true,
+    "view": "room",
+    "user": null,
+    "rung": 1,
+    "ms": 0.1,
+    "err": null,
+    "packs": 3,
+    "how": "the room moved",
+    "room": {
+     "dx": -15.5,
+     "dz": 7.4
+    },
+    "lastSwap": null,
+    "plan": [
+     {
+      "name": "Club Cub",
+      "x": 12.6,
+      "z": -0.8,
+      "filled": true,
+      "tris": 21402
+     },
+     {
+      "name": "Jolene Cub",
+      "x": 5.2,
+      "z": -12.6,
+      "filled": true,
+      "tris": 21402
+     },
+     {
+      "name": "Spare Cub",
+      "x": 2.9,
+      "z": -0.8,
+      "filled": true,
+      "tris": 21664
+     },
+     {
+      "name": "Blue Jodel",
+      "x": -5.8,
+      "z": -2.25,
+      "filled": true,
+      "tris": 19263
+     },
+     {
+      "name": "Old Jodel",
+      "x": -5.8,
+      "z": 7.55,
+      "filled": true,
+      "tris": 19263
+     },
+     {
+      "name": "Red Jodel",
+      "x": -14.5,
+      "z": -2.25,
+      "filled": true,
+      "tris": 19533
+     }
+    ],
+    "unplaced": []
+   },
+   "room": {
+    "shell": "works",
+    "door": {
+     "w": 33.5,
+     "h": 6.4,
+     "z": -2.25
+    },
+    "group": [
+     15.5,
+     0.03,
+     -7.4
+    ]
+   },
+   "page": "full_jodel_page.jpg",
+   "hall": "full_jodel_hall.jpg"
+  }
+ ],
+ "errors": []
+}

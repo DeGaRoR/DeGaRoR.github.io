@@ -4672,6 +4672,7 @@ function make(THREE, scene, world, rec0, opts) {
   // ---- the trees: the payload's rungs in a THREE.LOD, a cone until it lands -----------------
   const TREE_DEPTH = new Map();
   const TREE_GONE = 900;          // a record tree's cull distance (m)
+  let townHanded = null;          // TOWN-1: the forest's fill (TREE_FILL) while it draws the record trees
   const stubGeo = new THREE.ConeGeometry(2.2, 9, 7); stubGeo.translate(0, 6.5, 0);
   const stubTrunk = new THREE.CylinderGeometry(0.25, 0.35, 2.4, 6); stubTrunk.translate(0, 1.2, 0);
   const stubMat = new THREE.MeshStandardMaterial({ color: 0x2f6b3a, roughness: 0.95 }), trunkMat = new THREE.MeshStandardMaterial({ color: 0x4a3524, roughness: 0.95 });
@@ -4710,6 +4711,26 @@ function make(THREE, scene, world, rec0, opts) {
     // InstancedMesh per rung part, the cell a THREE.LOD on the same bands and cull as a tree had (the rung is the
     // cell's, from its centre - +-45 m on a band edge). The rungs' shared geometry and materials are the ones the
     // cover ring already instances. The bench keeps a LOD a tree (the editor's own path).
+    // TOWN-1 (2026-11-07, the user: "priority on the trees, because that's for me a bug, really"): THE TOWN'S TREES JOIN
+    // THE FOREST. The cells below popped a whole 64 m cell's trees a rung at once (the rung read from the cell's centre),
+    // had no impostor and no fade, and ended at TREE_GONE (900 m), where the island's trees stand to 9 km. In the game
+    // the list now goes to the forest's fill (render_world TREE_FILL.town): each tree walked into its fill chunk as one
+    // more record - the island's rungs, fades, impostors and reach. The trunks stay here (hitTrees above). The cells stay
+    // as the fallback (no fill, the pack not in) and the before: ?towntrees=0
+    const TF = (o.game && ready && typeof window !== 'undefined' && window.TREE_FILL && window.TREE_FILL.town
+      && !(typeof location !== 'undefined' && /[?&]towntrees=0(&|$)/.test(location.search || ''))) ? window.TREE_FILL : null;
+    if (TF) {
+      const list = [];
+      for (const t of O.records.trees) {
+        if (!t.key || t.key === 'stub|tree') continue;
+        const w = F.toWorld(t.x, t.z);
+        list.push({ key: t.key, x: w[0], y: t.y, z: w[1], yaw: t.yaw + F.yaw, size: t.size, sink: t.sink || 0 });
+      }
+      const r = TF.town(list); townHanded = TF;
+      stats.trees = O.records.trees.length; stats.treeTris = 0; stats.treeCells = 0; stats.townFill = r;
+      return;
+    }
+    if (townHanded) { townHanded.town([]); townHanded = null; }   // (the forest gives them back: the cells draw them)
     if (o.game && ready) {
       const CELL = 64, cells = new Map(), mtx = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), pos = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
       for (const t of O.records.trees) {
@@ -5037,6 +5058,7 @@ function make(THREE, scene, world, rec0, opts) {
     return best;
   }
   function dispose() {
+    if (townHanded) { try { townHanded.town([]); } catch (e) {} townHanded = null; }   // TOWN-1: the town's trees leave the forest with it
     RC.map.clear();   // (G3002: the kept roads go with the rest)
     if (LIFE) LIFE.dispose();
     if (ANIM) { ANIM.dispose(); ANIM = null; }

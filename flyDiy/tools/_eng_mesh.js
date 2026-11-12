@@ -432,18 +432,24 @@ const EM = (() => {
       const sect = sectOf(Math.max(...path.map((_, i) => rr(i))), opt.sides);
       const rings = [];
       let lastN = nv;
+      // (12 Nov, FIT-PROCEDURE) opt.squash(i) -> [ku, kw]: the section an ellipse, its axes along the transported
+      // normal and binormal scaled (a flattened stack outlet); absent, the round tube it always was
+      const SQ = typeof opt.squash === 'function' ? opt.squash : null;
+      let sqLast = null;
       for (let i = 0; i < N; i++) {
         if (i) lastN = nrm(sub(lastN, mul(T[i], dot(lastN, T[i]))));
         const bw = nrm(crs(T[i], lastN));
-        rings.push(ring(path[i], lastN, bw, rr(i), sect));
-        if (i === N - 1) nv = { n: lastN, b: bw };            // kept for the lip
+        const k = SQ ? SQ(i, N) : null;
+        rings.push(k ? ring(path[i], mul(lastN, k[0]), mul(bw, k[1]), rr(i), sect) : ring(path[i], lastN, bw, rr(i), sect));
+        if (i === N - 1) { nv = { n: lastN, b: bw }; sqLast = k; }          // kept for the lip
       }
       for (let i = 0; i + 1 < N; i++) band(rings[i], rings[i + 1], m);
       if (opt.capA) capFan(rings[0], path[0], m, true);
       if (opt.capB) capFan(rings[N - 1], path[N - 1], m, false);
       if (opt.lipB) {          // an OPEN pipe end: rim turned inward, then closed
         const last = rings[rings.length - 1];
-        const inner = ring(path[N - 1], nv.n, nv.b, rr(N - 1) * 0.72, last.length);
+        const inner = sqLast ? ring(path[N - 1], mul(nv.n, sqLast[0]), mul(nv.b, sqLast[1]), rr(N - 1) * 0.72, last.length)
+                             : ring(path[N - 1], nv.n, nv.b, rr(N - 1) * 0.72, last.length);
         band(last, inner, m);
         capFan(inner, path[N - 1], m, false);
       }
@@ -1010,15 +1016,34 @@ const EM = (() => {
       if (Math.round(P.stackStyle === undefined ? 1 : P.stackStyle) !== 0 &&
           (P.exhaust === undefined || P.exhaust)) {
         const z0 = zCF - 0.10 * canL;
+        // (12 Nov, FIT-PROCEDURE; the user on the PC-6: "these pipes going out of the turboprop, which are very
+        // recognizable ... have them stick a bit more, and ... flat at the end, like the real thing"): stackOut
+        // scales the reach out of the can, stackLen the run aft, stackFlat flattens the outlet over the last
+        // third (vertically, the width growing to keep its area). 1 / 1 / 0, or absent: the stacks as they were.
+        const kO = P.stackOut == null ? 1 : +P.stackOut, kL = P.stackLen == null ? 1 : +P.stackLen;
+        const fl = Math.max(0, Math.min(0.8, +P.stackFlat || 0));
+        const x2 = kO === 1 ? 1.30 : 0.60 + 0.70 * kO, x3 = kO === 1 ? 1.75 : 0.60 + 1.15 * kO;
+        const run = kL === 1 ? 0.30 : 0.30 * kL;
+        // ...and its thickness (stackR x) and the outlet's drop below the root (stackDrop, case radii) - 1 / 0, as before
+        const kR = P.stackR == null ? 1 : +P.stackR, dY = +P.stackDrop || 0;
+        const y3 = dY ? 0.62 * cR - dY * cR : 0.62 * cR, rS = kR === 1 ? 0.24 * cR : 0.24 * cR * kR;
+        const squash = fl > 0 ? (i, n) => { const t = Math.max(0, (i / Math.max(1, n - 1) - 0.67) / 0.33);
+                                             const e = t * t * (3 - 2 * t); return [1 - fl * e, 1 + 0.6 * fl * e]; } : null;
+        // (12 Nov, FIT-PROCEDURE; the user on the PC-6: "one of the engine's pipes going up and the other one
+        // down" - and then "the one going down [must] stem from the middle of the cowl" as the other does)
+        // stackSplit: 0 both rise from the root (as before), 1 the left stack mirrored about its own root's height
+        // (rooted where the other is, out and aft BELOW it), 2 the right one
+        const split = Math.round(+P.stackSplit || 0), yR = 0.45 * cR;
         for (const [nm, sx] of [['stackL', -1], ['stackR', 1]]) {
           part(nm, 'tube');
+          const dn = (split === 1 && sx < 0) || (split === 2 && sx > 0), yy = y => dn ? 2 * yR - y : y;
           const path = fillet([
-            [sx * 0.60 * cR, 0.45 * cR, z0],                 // rooted in the can
-            [sx * 1.30 * cR, 0.62 * cR, z0 - 0.02 * canL],
-            [sx * 1.75 * cR, 0.62 * cR, z0 - 0.30 * canL],   // out, then aft
+            [sx * 0.60 * cR, yR, z0],                        // rooted in the can
+            [sx * x2 * cR, yy(0.62 * cR), z0 - 0.02 * canL],
+            [sx * x3 * cR, yy(y3), z0 - run * canL],         // out, then aft
           ], 0.35 * cR);
-          sweep(path, 0.24 * cR, ENGM_MAT.exhaust,
-                { capA: true, lipB: true, sides: S.pipe });
+          sweep(path, rS, ENGM_MAT.exhaust,
+                squash ? { capA: true, lipB: true, sides: S.pipe, squash } : { capA: true, lipB: true, sides: S.pipe });
         }
       }
 

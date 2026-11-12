@@ -18,7 +18,7 @@ const fs = require('fs'), path = require('path');
 const ROOT = path.join(__dirname, '..'), src = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
 const DUST = require('../src/viewer/dust.js');
 global.MATLIB = require('../src/viewer/matlib.js');   // the batch's material comes from the library (AS4a), as in the page
-let fails = 0, checks = 0;
+let fails = 0, checks = 0; let THREE_OK = null;
 const ok = m => { checks++; console.log('  ok   ' + m); }, fail = m => { checks++; fails++; console.log('  FAIL ' + m); };
 const yes = (c, m) => (c ? ok : fail)(m);
 const T0 = Date.now();
@@ -132,7 +132,8 @@ console.log('4. the pools');
     const r = run(takeoff, { T: 40, tier });
     yes(!r.over && r.maxP <= r.sys.P.n && r.maxG <= r.sys.G.n, tier + ': never past the pools (' + r.maxP + '/' + r.sys.P.n + ' puffs, ' + r.maxG + '/' + r.sys.G.n + ' grit)');
   }
-  yes(dry.merged > 20 && dry.maxP < 0.75 * dry.sys.P.n, 'old puffs merge: a 60 s take-off peaks at ' + dry.maxP + ' live puffs (' + dry.merged + ' merges)');
+  // (11 Nov: the user's "too few emitted puffs" - half the spacing, twice the puffs: the peak's bar 0.75 -> 0.8 of the pool)
+  yes(dry.merged > 20 && dry.maxP < 0.8 * dry.sys.P.n, 'old puffs merge: a 60 s take-off peaks at ' + dry.maxP + ' live puffs (' + dry.merged + ' merges)');
   { let w = 0; for (let i = 0; i < dry.sys.P.n; i++) if (dry.sys.P.age[i] >= 0) w = Math.max(w, dry.sys.P.r[i]);
     yes(w < dry.sys.tier.mergeMax + 15, 'a trail stays a trail: the widest puff at 60 s is ' + w.toFixed(0) + ' m (no merge past ' + dry.sys.tier.mergeMax + ' m)'); }
   { const ph = run(takeoff, { T: 40, tier: 'phone' });
@@ -143,6 +144,7 @@ console.log('4. the pools');
 console.log('5. the draw');
 {
   let THREE = null; try { THREE = require('../vendor/three.min.js'); } catch (e) { THREE = null; }
+  THREE_OK = THREE && THREE.InstancedBufferGeometry ? THREE : null;
   if (!THREE || !THREE.InstancedBufferGeometry) fail('the vendored three loads in node');
   else {
     const r = run(takeoff, { T: 25 }), D = DUST.make(THREE, r.sys);
@@ -162,6 +164,104 @@ console.log('5. the draw');
     const E = DUST.make(THREE, DUST.makeSystem('gamer'));
     yes(E.sync(cam, null) === 0 && !E.mesh.visible, 'nothing alive: nothing drawn (the mesh hidden)');
     const bt = DUST.billow(64); yes(bt.data.length === 64 * 64 * 4 && bt.data.some(v => v > 200) && bt.data.some(v => v < 60), 'the billow texture is made in code (no file)');
+    // the ground's colour (the user, 10 Nov): the batch takes a class's colour from its drawn surface
+    const dirtGround = [0.170, 0.111, 0.074];   // the dirt strip's drawn surface (PAVEMENT.surfaceColor('dirt'), 10 Nov)
+    yes(D.setGround(0, dirtGround) && Math.abs(D.material.uniforms.uCol.value[0].x - DUST.albedoFrom(dirtGround)[0]) < 1e-6 && !D.setGround(0, null),
+      'the batch takes its ground colour (setGround; no colour: the row kept)');
+    D.dispose(); E.dispose();
+  }
+}
+
+console.log('5b. the look (the user, 10 Nov: "the color of the dirt cloud is not well matched to the ground at all ... and maybe a lower cloud density")');
+{
+  const lum = c => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2], LK = DUST.LOOK;
+  const ground = [0.170, 0.111, 0.074], d = DUST.albedoFrom(ground);   // the dirt strip as drawn (PAVEMENT.surfaceColor('dirt'))
+  yes(d && Math.abs(d[0] / d[2] - ground[0] / ground[2]) < 1e-6 && Math.abs(d[1] / d[2] - ground[1] / ground[2]) < 1e-6,
+    'the dust is its ground hue (' + d.map(v => v.toFixed(3)).join(', ') + ' off the strip ' + ground.join(', ') + ')');
+  yes(lum(d) > lum(ground) && lum(d) < 1.5 * lum(ground), 'a shade lighter than its ground, never a pale tan (luminance ' + lum(d).toFixed(3) + ' vs the ground ' + lum(ground).toFixed(3) + ')');
+  yes(lum(d) < 0.6 * lum(DUST.CLS.dirt.col), 'on the dark strip it is darker than the 9 Nov fixed tan (' + lum(d).toFixed(3) + ' vs ' + lum(DUST.CLS.dirt.col).toFixed(3) + ')');
+  const pale = DUST.albedoFrom([0.9, 0.85, 0.8]), black = DUST.albedoFrom([0.01, 0.008, 0.006]);
+  yes(lum(pale) <= LK.lumMax + 1e-9 && lum(black) >= LK.lumMin - 1e-9, 'held to a soil range (' + LK.lumMin + ' .. ' + LK.lumMax + ')');
+  // the backlit peak at a low sun: the forward lobe's excess (ph - 1) over the lit side, times the albedo - the 9 Nov puff
+  // at the 4x cap and the tan vs today's
+  const peak = (alb, cap) => lum(alb) * (1 + (cap - 1));
+  const was = peak(DUST.CLS.dirt.col, 4.0), now = peak(d, LK.fwdMax);
+  yes(now < 0.3 * was, 'backlit at a low sun it glows, never blows out: the peak ' + (now / was * 100).toFixed(0) + ' % of the 9 Nov puff (forward cap ' + LK.fwdMax + ', was 4)');
+  yes(LK.dens > 0.3 && LK.dens < 1, 'a lower drawn density (' + LK.dens + ' of the 9 Nov optical depth)');
+  const f = DUST.GLSL.frag;
+  yes(/vTau \* dens \* 2\.0 \* uDens/.test(f) && /min\(uFwdMax,/.test(f), 'the shader draws them (uDens on the optical depth, uFwdMax on the lobe)');
+  const app = src('src/viewer/app.js'), pv = src('src/viewer/pavement.js');
+  yes(/PAVEMENT\.surfaceColor && F\.draw\.setGround && DUST\.LOOK\.ground/.test(app) && /function surfaceColor\(cls\)/.test(pv) && /groundColor, surfaceColor,/.test(pv),
+    'the page hands the drawn surface colour (PAVEMENT.surfaceColor -> the batch setGround)');
+}
+
+console.log('5c. V2 (the user, 10 Nov: "vortices ... zones where they are more and less dense ... the sprites ... really old school")');
+{
+  // the eddies: divergence-free in the plane (the cloud folds, never collapses or explodes), of the set speed
+  const o = [0, 0, 0], h = 0.35 * DUST.L.eddyL; let worst = 0, umax = 0;   // (the field's own difference step)
+  for (let k = 0; k < 40; k++) {
+    const x = (k * 37.3) % 400, z = (k * 91.7) % 400, t = k * 3.1;
+    const ux1 = DUST.eddyAt(x + h, z, t, 1, o)[0], ux0 = DUST.eddyAt(x - h, z, t, 1, o)[0];
+    const uz1 = DUST.eddyAt(x, z + h, t, 1, o)[1], uz0 = DUST.eddyAt(x, z - h, t, 1, o)[1];
+    const div = (ux1 - ux0) / (2 * h) + (uz1 - uz0) / (2 * h), u = DUST.eddyAt(x, z, t, 1, o);
+    worst = Math.max(worst, Math.abs(div)); umax = Math.max(umax, Math.hypot(u[0], u[1]));
+  }
+  yes(worst < 2e-3 && umax > 0.3 && umax < 3, 'the eddies fold the cloud: divergence ' + worst.toExponential(1) + ' /s, speed up to ' + umax.toFixed(2) + ' x the set (curl noise)');
+  // the six-way bake: a body that fills its frame, lobes lit on the sun's side, a rim when backlit, thinning with age
+  const t0 = Date.now(), S = DUST.sixWay(), ms = Date.now() - t0;
+  const frame = (f, fn) => { const tc = f % S.C, tr = Math.floor(f / S.C); let v = 0, n = 0;
+    for (let y = 0; y < S.PX; y++) for (let x = 0; x < S.PX; x++) { const o4 = ((tr * S.PX + y) * S.W + tc * S.PX + x) * 4; const r = fn(o4, x, y); if (r != null) { v += r; n++; } } return n ? v / n : 0; };
+  const cov0 = frame(0, o4 => S.A[o4 + 3] / 255), covN = frame(S.F - 1, o4 => S.A[o4 + 3] / 255);
+  yes(cov0 > 0.15 && covN < cov0 && S.tauC[S.F - 1] < 0.5 * S.tauC[0], 'the puff thins over its life (coverage ' + cov0.toFixed(2) + ' -> ' + covN.toFixed(2) + ', centre depth ' + S.tauC[0].toFixed(1) + ' -> ' + S.tauC[S.F - 1].toFixed(1) + ')');
+  // lit from above vs below over the dense pixels: the sun's side brighter (internal shadow)
+  // internal shadow: a pixel lit from one side vs the other differs (the lobe's lit face and its shaded face)
+  const sx = frame(0, o4 => S.A[o4 + 3] > 200 ? Math.abs(S.A[o4] - S.B[o4]) : null), sy = frame(0, o4 => S.A[o4 + 3] > 200 ? Math.abs(S.A[o4 + 1] - S.B[o4 + 1]) : null);
+  yes(sx / 255 > 0.12 && sy / 255 > 0.12, 'the lobes shade themselves: a pixel lit from one side vs the other differs by ' + (sx / 255).toFixed(2) + ' (x), ' + (sy / 255).toFixed(2) + ' (y)');
+  // the rim: backlit, the thin edge passes more light than the dense core
+  const rim = frame(0, o4 => S.A[o4 + 3] > 20 && S.A[o4 + 3] < 120 ? S.A[o4 + 2] : null), core = frame(0, o4 => S.A[o4 + 3] > 240 ? S.A[o4 + 2] : null);
+  yes(rim > 1.5 * core, 'backlit, the edges glow and the core is dark (rim ' + (rim / 255).toFixed(2) + ' vs core ' + (core / 255).toFixed(2) + ')');
+  console.log('       the bake: ' + S.W + 'x' + S.H + ' x2 atlases, ' + S.F + ' frames, ' + ms + ' ms in node - the page never pays it: shipped');
+  // THE SHIPPED ATLAS (tools/dust_atlas_bake.js): the table is this bake's (a stale atlas after a sixWay change is red),
+  // its two images are on disk, and the build loads the table before dust.js
+  let ATL = null; try { ATL = require('../src/viewer/dust_atlas.js'); } catch (e) {}
+  const BK = require('./dust_atlas_bake.js'), bsrc = src('tools/build.js');
+  yes(ATL && ATL.sig === BK.sigOf(S) && fs.existsSync(path.join(ROOT, ATL.A)) && fs.existsSync(path.join(ROOT, ATL.B)) && ATL.F === S.F && Math.abs(ATL.tauRef - S.tauRef) < 1e-3,
+    'the page loads the atlas baked, never bakes it (dust_atlas.js sig ' + (ATL && ATL.sig) + ' = this bake ' + BK.sigOf(S) + '; re-run tools/dust_atlas_bake.js after a sixWay change)');
+  // NO HARD CIRCLE (A0, 12 Nov, the Petrel crash stills): the zoomed atlas still covers the quad's circle - the shader
+  // must close the depth and the alpha before it, at any puff depth
+  let edgeCov = 0;
+  for (let k = 0; k < 360; k++) { const t = k * Math.PI / 180, ux = Math.round((Math.cos(t) * 0.5 * S.zoom + 0.5) * (S.PX - 1)), uy = Math.round((Math.sin(t) * 0.5 * S.zoom + 0.5) * (S.PX - 1)); edgeCov = Math.max(edgeCov, S.A[(uy * S.W + ux) * 4 + 3] / 255); }
+  const fr = DUST.GLSL.frag;
+  yes(/float vT = 1\.6 \* \(1\.0 - exp\(-vTau \/ 1\.6\)\)/.test(fr) && /ts \*= 1\.0 - smoothstep\(0\.45, 1\.0, rr\)/.test(fr) && /a \*= smoothstep\(1\.0, 0\.45, rr\)/.test(fr),
+    'no hard circle: the baked body still covers ' + edgeCov.toFixed(2) + ' at the quad edge, so the shader soft-caps the puff depth (1.6) and fades depth and alpha from 0.45 r');
+  // the user's frames (12 Nov): a crash-dense puff, emulated by the shader's law on frame 0 - never opaque, no rim
+  const ss = (lo, hi, x) => { const t = Math.max(0, Math.min(1, (x - lo) / (hi - lo))); return t * t * (3 - 2 * t); };
+  const ringA = (vTau, r) => { let a = 0; for (let q = 0; q < 64; q++) { const t = q / 64 * 2 * Math.PI, x = Math.cos(t) * r, y = Math.sin(t) * r;
+    const ux = Math.min(S.PX - 1, Math.max(0, Math.round((x * 0.5 * S.zoom + 0.5) * (S.PX - 1)))), uy = Math.min(S.PX - 1, Math.max(0, Math.round((y * 0.5 * S.zoom + 0.5) * (S.PX - 1))));
+    let ts = -Math.log(1 - Math.min(S.A[(uy * S.W + ux) * 4 + 3] / 255, 0.995)) * (1 - ss(0.45, 1, r)); const vT = 1.6 * (1 - Math.exp(-vTau / 1.6));
+    a += (1 - Math.exp(-2 * vT * DUST.LOOK.dens * ts / S.tauRef * S.gain[0])) * ss(1, 0.45, r); } return a / 64; };
+  const c6 = ringA(6, 0), e6 = ringA(6, 0.8);
+  yes(c6 < 0.9 && e6 < 0.1, 'a crash-dense puff (centre depth 6) is never a flat disc: alpha ' + c6.toFixed(2) + ' at the centre, ' + e6.toFixed(2) + ' at 0.8 r');
+  yes(bsrc.indexOf("'dust_atlas.js'") > 0 && bsrc.indexOf("'dust_atlas.js'") < bsrc.indexOf("'dust.js'"), 'the build loads the atlas table before dust.js');
+  if (THREE_OK) {
+    // the cloud's own shadow: of two puffs on the sun's line, the far one (from the sun) is darker
+    const sys = DUST.makeSystem('gamer');
+    DUST.emitPuff(sys, 0, 2, 0, 0, 0, 0, 6, 40, 0, 0); DUST.emitPuff(sys, 30, 2, 0, 0, 0, 0, 6, 40, 0, 0);
+    const env = { groundH: () => 0, wind: () => [0, 0, 0], cls: () => 0, wet: () => 0 };
+    DUST.step(sys, 0.5, env);
+    const D = DUST.make(THREE_OK, sys), cam = new THREE_OK.PerspectiveCamera(50, 1.6, 0.3, 5000); cam.position.set(15, 5, 80); cam.lookAt(15, 2, 0); cam.updateMatrixWorld();
+    D.sync(cam, { sun: [1, 0.05, 0] });
+    const C = D.mesh.geometry.attributes.iC.array, P = D.mesh.geometry.attributes.iPos.array, n = D.mesh.geometry.instanceCount;
+    let near = 1, far = 1; for (let w = 0; w < n; w++) { if (P[w * 3] > 15) near = C[w * 2]; else far = C[w * 2]; }
+    yes(far < 0.8 * near, 'the cloud shades itself: the puff behind another from the sun gets ' + (far * 100).toFixed(0) + ' % of the sun, the front one ' + (near * 100).toFixed(0) + ' %');
+    // its cost: a full gamer pool
+    const big = DUST.makeSystem('gamer');
+    for (let k = 0; k < big.P.n; k++) DUST.emitPuff(big, (k % 24) * 9, 2, Math.floor(k / 24) * 9, 0, 0, 0, 5, 20, 0, 0);
+    DUST.step(big, 0.1, env);
+    const E = DUST.make(THREE_OK, big), ts = [];
+    for (let k = 0; k < 30; k++) { const a = process.hrtime.bigint(); E.sync(cam, { sun: [0.3, 0.4, -1] }); ts.push(Number(process.hrtime.bigint() - a) / 1e6); }
+    ts.sort((a, b) => a - b);
+    yes(ts[15] < 3, 'the draw\'s sync with the shadow, a full gamer pool (' + big.P.live + ' puffs): median ' + ts[15].toFixed(2) + ' ms (node)');
     D.dispose(); E.dispose();
   }
 }

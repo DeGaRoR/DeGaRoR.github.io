@@ -736,12 +736,33 @@
   function worldShedsFollow() {
     if (!WF) return;
     if (roomId() === 'HOME') { if (WF.setShedDims) WF.setShedDims(worldShed()); }
-    else if (WF.setPlayerSheds) WF.setPlayerSheds(worldSideSheds());
+    else if (WF.setPlayerSheds) { WF.setPlayerSheds(worldSideSheds()); shedTexWarm(); }
+  }
+  // HOME-DERELICT (the freeze A/B, 10 Nov 22:38-23:08: a 4.6-5.8 s TAXI frame 3 of 3 at (-111, 628), the big hangar first in
+  // view, render-side, no long task, no program wait): THE SIDE SHEDS' TEXTURES UPLOADED WHERE THEY STAND UP. Their programs
+  // are linked with the world's (compileSliced walks the scene), but a texture reaches the GPU at its first DRAW - the large
+  // hangar's canvas-made maps (DERELICT_GEN: the cladding, the slab, the stains, the boards) all at once, the first frame it
+  // enters the view. initTexture uploads each one here instead, under the loading screen (the world's build) or in the
+  // garage's quiet (a document change); a texture once uploaded is not uploaded again
+  function shedTexWarm() {
+    if (!WF || !renderer || typeof renderer.initTexture !== 'function') return 0;
+    const seen = new Set(); let n = 0;
+    const warm = t => { if (t && t.isTexture && !seen.has(t)) { seen.add(t); try { renderer.initTexture(t); n++; } catch (e) {} } };
+    try {
+      scene.traverse(o => {
+        if (!o.name || o.name.indexOf('shed:') !== 0) return;
+        o.traverse(m => {
+          const ms = m.material ? (Array.isArray(m.material) ? m.material : [m.material]) : [];
+          for (const mt of ms) { for (const k in mt) warm(mt[k]); if (mt.uniforms) for (const k in mt.uniforms) warm(mt.uniforms[k] && mt.uniforms[k].value); }
+        });
+      });
+    } catch (e) { console.warn('flyDiy: the side sheds\' textures -', e && e.message); }
+    return n;
   }
   function worldBuilt(wf) {
     WF = wf;
     // G2310 (PREM-S3): the side hangars held stand at their plots from the world's first frame (none in the sandbox)
-    try { if (WF && WF.setPlayerSheds) WF.setPlayerSheds(worldSideSheds()); } catch (e) { console.warn('flyDiy: the side hangars could not stand -', e && e.message); }
+    try { if (WF && WF.setPlayerSheds) { WF.setPlayerSheds(worldSideSheds()); shedTexWarm(); } } catch (e) { console.warn('flyDiy: the side hangars could not stand -', e && e.message); }
     if (typeof window !== 'undefined') window.WORLD = WF;   // DEVCAM: the inspector's handle on the world
     // GFX (G286): the saved graphics settings are applied the moment the
     // world exists - before its first chunk of forest is planted
@@ -930,8 +951,9 @@
   // shell's own default is", which is what a fresh profile gets. The envelope
   // the sliders may drag over is the SHELL's (26_hangar_fit.js) — a timber
   // field shed's eave floor is below a steel shed's.
+  // (DERELICT-HANGAR: HOME's main plot caps the depth at its flat pad - siteMaxHD; another plot the shell's own)
   const dimLims = () => (typeof shellLims === 'function')
-    ? shellLims(shedHome().shell)
+    ? shellLims(shedHome().shell, hangarRoom === 'HOME' ? 'HOME' : null)
     : { HW: [7, 24], HD: [6, 20], EAVE: [4.2, 11] };
   let envRT = null, envPM = null;
   // whether the aeroplane contributes to the room's own reflection probe. Off
@@ -1129,7 +1151,11 @@
       // blackout: colour multiplies the albedo map, so the floor comes back
       // with its own texture and its own lamp pools, at the fraction of the
       // radiance a shaded underside can actually see.
-      const gb = (window.LIGHT_RIG ? window.LIGHT_RIG.groundBounce() : 1);
+      // DERELICT-HANGAR (the user 9 Nov: "The bottom of the wing is really dark ... We should avoid having a very dark part
+      // of the scene there"): the large hangar's lamp-lit floor runs far past any wing's shade - a DC-3's polished
+      // underside reads the floor at half its radiance there, not the club's occlusion term
+      const gb0 = (window.LIGHT_RIG ? window.LIGHT_RIG.groundBounce() : 1);
+      const gb = (hangar && hangar.shell === 'works') ? Math.max(gb0, 0.5) : gb0;
       const gWas = [];
       if (gb < 1 && hangar.groundMats) for (const m of hangar.groundMats) {
         if (!m || !m.color) continue;
@@ -1390,9 +1416,11 @@
   const hvC = () => { try { if (/[?&]hvc=door\b/.test(location.search || '') && hangar && hangar.dims && hangar.dims.HD > 3) return [-(hangar.dims.HD - 2.5), 1.7, 0]; } catch (e) {} return HVIEW_C; };
   const HVIEW_NEAR = 3000;            // a flight that ended this near the stand left the world there (m)
   // HVIEW-OFF (8 Nov, the user's verdict on the hangars-matched stills: the captured view is not the look - a generic sky,
-  // no clouds, the apron smeared): OFF by default, the room's own outdoors as until L35a, until the redesign (flydiy-notes/
-  // HANGAR-VIEW-REDESIGN-2026-11-08.md, 'C') replaces it; ?hview=1 turns the capture on (the prototype's stills)
-  const hviewOff = () => { try { return !/[?&]hview=1\b/.test(location.search || ''); } catch (e) { return true; } };
+  // no clouds, the apron smeared) held it off until the redesign (flydiy-notes/HANGAR-VIEW-REDESIGN-2026-11-08.md, 'C': the live
+  // sky, L37a). HVIEW-ON (the user 10 Nov ~20:55 via A0: "When we land the new scenery, we have to regenerate these because all
+  // hangars have moved"): ON by default with the scenery train - the capture is live, keyed on the room's place (hviewKeyNow),
+  // so every moved hangar takes its own view; ?hview=0 turns it off (the room's own outdoors)
+  const hviewOff = () => { try { return /[?&]hview=0\b/.test(location.search || ''); } catch (e) { return true; } };
   function hviewSize() {
     const G = window.GFX; if (G && G.soft && G.soft()) return 0;
     let q = null; try { q = /[?&]hviewn=(\d+)/.exec(location.search || ''); } catch (e) {}   // (the proof rig's resolution A/B)
@@ -1647,9 +1675,14 @@
       residentsSync(bb);
       const ox = (CAREER_DEV && RES && RES.dx) || 0, oz = (CAREER_DEV && RES && RES.dz) || 0;
       if (CAREER_DEV) { hangar.group.position.x = -ox; hangar.group.position.z = -oz; }
+      // DERELICT-HANGAR: the sandbox's stand on the door's line - the large hangar's door is off the axis (its gallery
+      // on the right), so the room moves under the stand by the door's offset and a DC-3 rolls out through the middle
+      // (the career's residents plan carries it in RES.dz: residentsSync0's o0)
+      const sz = (!CAREER_DEV && hangar.door && hangar.door.z) ? hangar.door.z : 0;
+      if (sz) hangar.group.position.z = -sz;
       if (isFinite(bb.min.x) && bb.max.x > bb.min.x)
         hangar.placeMobile({ x0: bb.min.x + ox, x1: bb.max.x + ox,
-                             z0: bb.min.z + oz, z1: bb.max.z + oz });
+                             z0: bb.min.z + oz + sz, z1: bb.max.z + oz + sz });
       // G1714: where the radio stands now - the garage's music leans toward it (boombox.js -> music.js)
       if (window.BOOMBOX && hangar.mobileProp) window.BOOMBOX.placed(hangar.mobileProp('boombox'));
       // the kit moved, so its print on the floor moves with it
@@ -1721,7 +1754,16 @@
     const has = !!(bb && isFinite(bb.min.x) && bb.max.x > bb.min.x);
     // the stand's box, scene frame, and as a footprint about its origin (the model's)
     const sb = has ? { x0: q(bb.min.x), x1: q(bb.max.x), z0: q(bb.min.z), z1: q(bb.max.z) } : null;
-    const footOf = n => parkFoot(playerFootOf(d, n));
+    // THE TURN (the user 9 Nov, on the full hangar: "the aircraft, I believe, should have a random rotation, and if possible
+    // ... made to optimize their positioning against the other planes"): a resident stands turned by its own yaw (a hash
+    // of its name and the try, within RES_YAW either way), packed by the box of the TURNED plan - its place reserved for the
+    // turn. Six tries of yaws; the first that stands every resident wins, else the one that stands most, the straight
+    // pack last (today's) - a turn never costs an aeroplane its place.
+    const RES_YAW = 0.45;
+    const yawOf = (n, t) => { if (!t) return 0; let h = 2166136261; const k = n + '|' + t; for (let i = 0; i < k.length; i++) { h ^= k.charCodeAt(i); h = Math.imul(h, 16777619); } return (((h >>> 0) / 4294967296) * 2 - 1) * RES_YAW; };
+    const turn = (f, a) => { if (!a) return f; const c = Math.cos(a), sn = Math.abs(Math.sin(a));
+      return Object.assign({}, f, { fwd: f.fwd * c + f.half * sn, aft: f.aft * c + f.half * sn, half: f.half * c + Math.max(f.fwd, f.aft) * sn }); };
+    const footOf = (n, a) => turn(parkFoot(playerFootOf(d, n)), a || 0);
     const base = JSON.stringify([names, names.map(n => (d.fleet[n] && d.fleet[n].foot) || null), shed.shell, shed.layout || null, shed.dims || null, shed.kits, shed.omit || null]);
     const sig = base + JSON.stringify(sb);
     if (sig !== RES.sig) {
@@ -1729,43 +1771,56 @@
       const keepAt = o => sb ? [{ x0: sb.x0 + o.x - clr, x1: sb.x1 + o.x + clr, z0: sb.z0 + o.z - clr, z1: sb.z1 + o.z + clr }] : [];
       const obs = () => (RES.obsSig === base ? RES.obs : (RES.obsSig = base, RES.obs = hangarObstacles(shed)));
       const fits = (plan, o) => {
-        const K = keepAt(o), O = obs(), rects = plan.map(p => resRect(footOf(p.name), p.x, p.z, clr));
+        const K = keepAt(o), O = obs(), rects = plan.map(p => resRect(footOf(p.name, p.yaw), p.x, p.z, clr));
         const D = hangarDims(shed);
         return rects.every((r, i) => r.x0 >= -D.HD - 1e-6 && r.x1 <= D.HD + 1e-6 && r.z0 >= -D.HW - 1e-6 && r.z1 <= D.HW + 1e-6 &&
           !K.some(k => resHit(r, k)) && !O.some(b => resHit(r, b)) && rects.every((s, j) => j === i || !resHit(r, s)));
       };
-      let plan = null, how = '', o = { x: 0, z: 0 }, unplaced = [];
+      // DERELICT-HANGAR: the stand stands on the door's line - the large hangar's door is off the axis (its gallery on
+      // the right), so 'where the stand is' starts there, not at the room's centre (the club: 0, as ever)
+      const o0 = { x: 0, z: (hangar && hangar.door && isFinite(hangar.door.z)) ? hangar.door.z : 0 };
+      let plan = null, how = '', o = o0, unplaced = [];
       // 1. kept, or swapped in place
       const sw = RES.swap; RES.swap = null;
       if (RES.base === base || (sw && RES.plan.some(p => p.name === sw.at))) {
-        let cand = RES.plan.map(p => ({ name: p.name, x: p.x, z: p.z }));
-        if (sw) cand = cand.map(p => p.name === sw.at ? { name: sw.in, x: p.x, z: p.z } : p).filter(p => names.includes(p.name));
+        let cand = RES.plan.map(p => ({ name: p.name, x: p.x, z: p.z, yaw: p.yaw || 0 }));
+        if (sw) cand = cand.map(p => p.name === sw.at ? { name: sw.in, x: p.x, z: p.z, yaw: p.yaw } : p).filter(p => names.includes(p.name));
         const same = cand.length === names.length - RES.unplaced.length && cand.every(p => names.includes(p.name));
         if (same && fits(cand, off)) { plan = cand; o = off; unplaced = RES.unplaced.filter(u => names.includes(u.name)); how = sw ? 'swapped in place' : 'kept'; }
       }
-      // 2. round the stand, the room where it stands
-      if (!plan) {
-        const P = names.length ? hangarPark(shed, names.map(n => ({ name: n, foot: footOf(n) })), { keep: keepAt({ x: 0, z: 0 }) }) : { placed: [], unplaced: [] };
-        plan = P.placed.map(p => ({ name: p.name, x: p.x, z: p.z })); unplaced = P.unplaced; how = 'round the stand'; o = { x: 0, z: 0 };
-        // 3. the room moves: the stand packed with them
-        if (unplaced.length && sb) {
+      // 2. round the stand, the room where it stands; 3. the room moves: the stand packed with them - each with the
+      // residents turned (THE TURN's tries), the straight pack last
+      const packWith = t => {
+        const Y = {}; for (const n of names) Y[n] = yawOf(n, t);
+        const P = names.length ? hangarPark(shed, names.map(n => ({ name: n, foot: footOf(n, Y[n]) })), { keep: keepAt(o0) }) : { placed: [], unplaced: [] };
+        let R = { plan: P.placed.map(p => ({ name: p.name, x: p.x, z: p.z, yaw: Y[p.name] })), unplaced: P.unplaced, how: 'round the stand', o: o0 };
+        if (R.unplaced.length && sb) {
           // the stand MUST stand (the packer orders by size: two residents in today's club left the stand out - the 8 Oct
           // slot's club + 1, empty), so: every resident with it, then one at a time - the first set (in the residents'
           // order) that stands the stand and the most of them
           const sf = { half: Math.max(-sb.z0, sb.z1), fwd: Math.max(0.3, -sb.x0), aft: Math.max(0.3, sb.x1) };
           const sets = [names].concat(names.length > 1 ? names.map(n => [n]) : []);
           for (const set of sets) {
-            const Q = hangarPark(shed, [{ name: '\u0000stand', foot: sf }].concat(set.map(n => ({ name: n, foot: footOf(n) }))), {});
+            const Q = hangarPark(shed, [{ name: '\u0000stand', foot: sf }].concat(set.map(n => ({ name: n, foot: footOf(n, Y[n]) }))), {});
             const st = Q.placed.find(p => p.name === '\u0000stand');
             const got = Q.placed.filter(p => p.name !== '\u0000stand');
-            if (st && got.length > plan.length) {
-              plan = got.map(p => ({ name: p.name, x: p.x, z: p.z })); how = 'the room moved';
-              unplaced = names.filter(n => !got.some(p => p.name === n)).map(n => ({ name: n, why: 'no floor left beside the stand' }));
-              o = { x: st.x, z: st.z };        // where the stand's origin stands in the room
+            if (st && got.length > R.plan.length) {
+              R = { plan: got.map(p => ({ name: p.name, x: p.x, z: p.z, yaw: Y[p.name] })), how: 'the room moved', o: { x: st.x, z: st.z },   // (o: where the stand's origin stands in the room)
+                    unplaced: names.filter(n => !got.some(p => p.name === n)).map(n => ({ name: n, why: 'no floor left beside the stand' })) };
             }
-            if (plan.length === names.length) break;
+            if (R.plan.length === names.length) break;
           }
         }
+        return R;
+      };
+      if (!plan) {
+        let best = null;
+        for (const t of [1, 2, 3, 4, 5, 6, 0]) {
+          const R = packWith(t);
+          if (!best || R.plan.length > best.plan.length) best = R;
+          if (R.plan.length === names.length) break;
+        }
+        plan = best.plan; unplaced = best.unplaced; how = best.how + (best.plan.some(p => p.yaw) ? ', turned' : ''); o = best.o;
       }
       RES.base = base; RES.sig = sig; RES.packs = (RES.packs || 0) + (how === 'kept' || how === 'swapped in place' ? 0 : 1);
       RES.how = how; RES.plan = plan; RES.unplaced = unplaced; RES.dx = o.x; RES.dz = o.z;
@@ -1775,7 +1830,7 @@
         const k = 'mine:' + p.name;
         let g = RES.holders.get(k);
         if (!g) { g = window.PARKED.resident(THREE, k, RES.rung); g.userData.resident = p.name; RES.holders.set(k, g); RES.group.add(g); }
-        g.position.set(p.x, 0, p.z); g.rotation.y = Math.PI;            // nose to the door (-x), as the stand
+        g.position.set(p.x, 0, p.z); g.rotation.y = Math.PI + (p.yaw || 0);   // nose to the door (-x), as the stand, turned by its yaw
       }
     }
     // the room (and the residents with it) under the stand: minus the stand's place in the room's frame
@@ -1787,7 +1842,11 @@
       const f = RES.frame;
       if (f && azT === f.az && elT === f.el && distT === f.dist) { const F = garageFraming(); azT = F.az; elT = F.el; distT = F.dist; RES.frame = { az: F.az, el: F.el, dist: F.dist }; }
     }
-    for (const g of RES.holders.values()) if (!g.userData.filled) window.PARKED.residentFill(g);
+    for (const g of RES.holders.values()) if (!g.userData.filled) {
+      const p = window.PARKED.residentFill(g);
+      if (p && p.then) p.then(ok => { if (ok) residentsPrint(); });   // (landed later: its print baked then)
+    }
+    residentsPrint();
     residentsShow();
     RES.ms = performance.now() - t0;
   }
@@ -1825,6 +1884,19 @@
   }
   // shown: the hand's choice while it holds (until the next view), else the view's default - on in the room view
   // (the garage's own framing, 3/4 front, refit), off in the close views (side, plan, nose, interior)
+  // THE RESIDENTS' PRINT ON THE FLOOR (the user 9 Nov: "planes do not seem to cast a shadow onto that ground"): the floor's
+  // contact shadow is the room's baked print of what stands on its shadow layer (hangar.js bakeGroundShadow, layer 3 - the
+  // fit-out's); a resident joins that layer once its airframe has landed, and the print is baked again when the set of
+  // landed residents changes (never on a slider's drag: the same set costs a string compare)
+  function residentsPrint() {
+    if (!RES || !RES.group || !hangar || !hangar.bakeGroundShadow) return;
+    const on = [];
+    for (const [k, g] of RES.holders) if (g.userData.filled) { on.push(k + '@' + g.position.x.toFixed(2) + ',' + g.position.z.toFixed(2) + ',' + g.rotation.y.toFixed(3)); g.traverse(o => { if (o.isMesh) o.layers.enable(3); }); }
+    const sig = on.sort().join('|') + '|' + RES.group.visible;
+    if (sig === RES.printSig) return;
+    RES.printSig = sig;
+    try { hangar.bakeGroundShadow(renderer, hangarScene); } catch (e) {}
+  }
   const residentsOnNow = () => (RES.user !== null ? RES.user : RES.view === 'room');
   function residentsShow() { if (RES && RES.group) RES.group.visible = residentsOnNow(); }
   function residentsView(k) {
@@ -1837,7 +1909,7 @@
   const residentsApi = () => CAREER_DEV ? {
     on: residentsOnNow(), view: RES.view, user: RES.user, rung: RES.rung, ms: +RES.ms.toFixed(2), err: RES.err || null, packs: RES.packs || 0,
     how: RES.how || null, room: { dx: RES.dx || 0, dz: RES.dz || 0 }, lastSwap: RES.lastSwap || null,
-    plan: RES.plan.map(p => ({ name: p.name, x: p.x, z: p.z, filled: !!resHolder(p.name).userData.filled, tris: resHolder(p.name).userData.tris || 0 })),
+    plan: RES.plan.map(p => ({ name: p.name, x: p.x, z: p.z, yaw: +(p.yaw || 0).toFixed(3), filled: !!resHolder(p.name).userData.filled, tris: resHolder(p.name).userData.tris || 0 })),
     unplaced: RES.unplaced.slice(),
   } : null;
   function residentsSet(on) {
@@ -1936,6 +2008,7 @@
       if (shed.shell === k) return k;
       shed.shell = k;
       shed.dims = Object.assign({}, SHELLS[k].dims);
+      { const L = dimLims(); if (shed.dims.HD > L.HD[1]) shed.dims.HD = L.HD[1]; }   // (the site's pad: the large hangar at HOME's main plot)
       playerSave();
       disposeHangar();
       if (inGarage) applyEnv(); else getHangar();
@@ -2847,7 +2920,8 @@
               memF: m.memF || null,                   // G214
               metalK: m.metalK || 0,                  // G215
               ribM: m.ribM, wearK: m.wearK, wearM: m.wearM,
-              side: THREE.DoubleSide }));      // G2004: scuffMat - the material itself with the damage layer off
+              // LINER-BACK (9 Nov): the group's side (_cage_join.js sd) - a lined skin face its front, the liner its back
+              side: m.sd === 'b' ? THREE.BackSide : m.sd === 'f' ? THREE.FrontSide : THREE.DoubleSide, exactSide: m.sd ? 1 : 0 }));      // G2004: scuffMat - the material itself with the damage layer off
       }
       // ...AND SO ARE THE TANKS AND THE PACKS (2026-09-04, user: "the fuel
       // tank material does not seem to make it in game — red in the editor,
@@ -2924,7 +2998,7 @@
       // Transparency used to be inferred from `opacity` alone, so a material
       // whose texture carried the alpha (the registration sheet) rendered fully
       // opaque and its clear pixels came out BLACK.
-      const common = { side: THREE.DoubleSide, transparent: op < 1, opacity: op,
+      const common = { side: m.sd === 'b' ? THREE.BackSide : m.sd === 'f' ? THREE.FrontSide : THREE.DoubleSide, transparent: op < 1, opacity: op,   // (LINER-BACK)
         depthWrite: op >= 1,
         ...(m.alphaTest ? { alphaTest: m.alphaTest } : {}),
         roughness: m.rough !== undefined ? m.rough : s.r,
@@ -5559,13 +5633,18 @@
     brkRecOrder(groups, D, K, o);
     const tm = performance.now(); let tRec = 0, tEv = 0, bud = inhOn ? 0 : BRK_BIND, recLeft = REC_BUDGET;
     BRK.recPending = false;
+    let sdNow = groups.some(g => g[0].brkR && brkSd(g[0]));   // (LINER-BACK: a side bucket already made: the rest come now)
     for (const [own, , pa, base, off, fab] of groups) {
       const geo = K.geoOf.get(pa);
       if (!geo || !geo.index) continue;
       const t0 = performance.now();
       // (G1869: the records made REC_BUDGET vertices a frame - the weld and the nearest node over the whole snapshot at once
       // was a 95 ms frame at the first break; a group without its record yet keeps the cage's own pose a frame or two)
-      if (!own.brkR && brkFast() && recLeft <= 0) { BRK.recPending = true; continue; }
+      // (LINER-BACK, CABIN-CRAFT's audit 5: the lined skins and their back faces are made ALL IN ONE FRAME, or none - a
+      // pair split across frames was two bindings, the back face's nearest-node while its skin inherited. COST: that
+      // frame makes every '|f' / '|b' record past REC_BUDGET - the cabin's lined panels, named in the ready)
+      if (!own.brkR && brkFast() && recLeft <= 0 && !(brkSd(own) && sdNow)) { BRK.recPending = true; continue; }
+      if (!own.brkR && brkSd(own)) sdNow = true;
       if (!own.brkR) {
         recLeft -= pa.count;
         brkDetach(pa, geo, base);                          // G1858.2: the snapshot never ridden
@@ -5700,8 +5779,20 @@
     const mt = model.mats && model.mats[own.name], sec = mt && mt.sec, role = sec ? (AEROSKIN.AERO_ROLE[sec] || '') : '';
     const rg = lay.get(own.name) || [], layer = new Array(nv).fill('');
     for (const r of rg) for (let v = r[2]; v < r[3] && v < nv; v++) { layer[v] = r[0]; obj[v] = r[4]; }
-    for (let v = 0; v < nv; v++) cv[v] = SKIN_BREAK.inhClass(sec, role, layer[v]);
+    for (let v = 0; v < nv; v++) cv[v] = SKIN_BREAK.inhClass(sec, role, layer[v], brkSd(own));
     return layer;
+  }
+  // LINER-BACK (9 Nov): a named bucket's side - 'b' the liner drawn as the skin's own back face, 'f' the skin it lines
+  // (_cage_join.js sd on the payload's material; its key ends '|b' / '|f')
+  function brkSd(own) { if (!own || !own.name) return '';
+    const mt = model.mats && model.mats[own.name]; if (mt && mt.sd) return mt.sd;
+    const m = /\|([bf])$/.exec(own.name); return m ? m[1] : ''; }
+  // LINER-BACK: each back-face record takes the tear rule of the skin record most of its triangles sit on (E.tw)
+  function brkBackTear(L) {
+    for (const E of L) { if (!E.back || !E.tw) continue; const cnt = new Map(), tw = E.tw; let best = -1, bn = 0;
+      for (let t = 0; t < tw.length; t += 2) { const r = tw[t]; if (r < 0) continue; const k = (cnt.get(r) || 0) + 1; cnt.set(r, k); if (k > bn) { bn = k; best = r; } }
+      if (best < 0) continue; const C = L[best].R, R = E.R;
+      R.noTear = !!C.noTear; R.tubeTear = !!C.tubeTear; R.sheetTear = !!C.sheetTear; R.shellTear = !!C.shellTear; R.backOf = L[best].name; }
   }
   function brkInhStep(groups) {
     const K = model.brk, SB = SKIN_BREAK;
@@ -5745,6 +5836,10 @@
         R.noTear = has(SB.INH.tube) || (has(SB.INH.rigid) && !has(SB.INH.cover)) || (has(SB.INH.cover) && !fabric);
         R.tubeTear = has(SB.INH.tube) && !has(SB.INH.cover); R.sheetTear = has(SB.INH.cover) && !fabric;   // (G1859.3: a tube tears at 1.2 x + 3 mm, never drawn longer)
         R.shellTear = R.sheetTear && brkComposite();   // (G2047: a composite covering cracks at 5 % + 1 cm)
+        // (LINER-BACK, CABIN-CRAFT's audit 2: a back face tears by ITS SKIN's rule - the default 15 % + 1 cm tore the
+        // cloth / toele inside a metal or composite skin that held: a hole from inside, the outside whole. No tear of its
+        // own until the binding knows its skin triangles; then the rule of the skin most of them are on, brkBackTear)
+        if (brkSd(own) === 'b') { E.back = true; R.noTear = true; R.tubeTear = R.sheetTear = R.shellTear = false; }
         R.inhRec = true; E.name = own.name || kind || ''; L.push(E);   // (the name: the rigs' tear accounting)
       }
       K.inhL = L; K.inhSt = {}; K.inhGone = -1;
@@ -5752,7 +5847,7 @@
     }
     if (K.inhSt.done) return;
     const r = K.inhIt.next();
-    if (r.done) { for (const E of K.inhL) { E.R.vB = -1; } }       // (every record's event made again on the binding)
+    if (r.done) { for (const E of K.inhL) { E.R.vB = -1; } brkBackTear(K.inhL); }       // (every record's event made again on the binding)
   }
 
   // G1858 (DMG-WALL): THE INSIDE WALL CUT AT THE DAMAGE (skin_break.js cutWall: the user's fallback - the lining poked
@@ -5763,10 +5858,11 @@
   // (tools/dmg_wall_census.js). Measured: it takes the lining's leaks but not the window beads' (most of the black), so
   // it is the FALLBACK - it runs only on the old binding (?wallbind=0); the inherited one (G1855-G1857) keeps the
   // lining whole on its covering
-  // G3770-G3773 (DMG-LOOKS, dmg_members.js says what and why): ?dmglook=1 (window.FLYDIY_DMGLOOK = true, read at load) -
-  // the wreck's frame members drawn by material: the parting rule (skin_break.js R.look) and the member pool, parked with
-  // the world (worldSettle) and drawn once something is broken. OFF by default: nothing here runs, nothing is made
-  try { if (/[?&]dmglook=1(&|$)/.test(location.search || '')) window.FLYDIY_DMGLOOK = true; } catch (e) {}
+  // G3770-G3773 (DMG-LOOKS, dmg_members.js says what and why): the wreck's frame members drawn by material: the parting
+  // rule (skin_break.js R.look) and the member pool, parked with the world (worldSettle) and drawn once something is
+  // broken. G3774 (the user, 10 Nov: "absolutely no reason not to"): ON BY DEFAULT - ?dmglook=0 (or window.FLYDIY_DMGLOOK
+  // = false before load) is the old drawing, the A/B; read at load
+  try { if (/[?&]dmglook=0(&|$)/.test(location.search || '')) window.FLYDIY_DMGLOOK = false; else if (window.FLYDIY_DMGLOOK !== false) window.FLYDIY_DMGLOOK = true; } catch (e) {}
   const lookOn = () => window.FLYDIY_DMGLOOK === true && typeof DMG_MEMBERS !== 'undefined' && !!window.SKIN_BREAK;
   if (lookOn()) SKIN_BREAK.OPT.looks = true;
   const LOOK = { P: null, vB: -1, M: null, mFor: null, plans: 0, ms: 0, msMax: 0, mMs: 0, slots: 0, pools: null, poolsFor: null, lateLink: 0,
@@ -5859,10 +5955,12 @@
     // the old binding's records: the lining's sections (G1858)
     const recs = [];
     for (const [own] of groups) { const R = own.brkR; if (!R) continue;
-      if (R.wallIn == null) { const mt = own.name && model.mats ? model.mats[own.name] : null; R.wallIn = !!(mt && mt.sec && WALL_ROLES.has(AEROSKIN.AERO_ROLE[mt.sec])); }
+      if (R.wallIn == null) { const mt = own.name && model.mats ? model.mats[own.name] : null; R.wallIn = !!(mt && mt.sec && WALL_ROLES.has(AEROSKIN.AERO_ROLE[mt.sec])) && brkSd(own) !== 'b'; }
       if (R.wallIn) recs.push(R); }
     // the inherited binding's: every record with wall places (the lining, the beads, the glazing - G1858.3)
-    const inh = mode === 'inh' || wasMode === 'inh' ? (K.inhL || []).filter(E => E.cv.indexOf(SKIN_BREAK.INH.wall) >= 0) : [];
+    // (LINER-BACK, CABIN-CRAFT's audit 4: a back face is never cut - it lies ON its skin and cannot poke through; cut, the
+    // crushed bay was a hole the cabin saw out of)
+    const inh = mode === 'inh' || wasMode === 'inh' ? (K.inhL || []).filter(E => !E.back && E.cv.indexOf(SKIN_BREAK.INH.wall) >= 0) : [];
     if (mode !== wasMode && wasMode !== 'off') {         // the mode changed (or switched off): the cut triangles back as they were
       const back = (wasMode === 'inh' ? inh.map(E => E.R) : recs);
       for (const R of back) { if (!R.dead || !R.idx0) continue; let n = 0;
@@ -6342,12 +6440,15 @@
   // rebuild them."): THE CREW IS NEVER DRAWN OUTSIDE THE WRECK. Whenever a figure could leave the cabin - the wreck broke
   // up (the core's brokeUp: the body frame parted; the worker's verdict under it) or the cabin round the eye is crushed
   // (G1863's own test, read here in every view, at most every 0.1 s) - the crew's meshes are hidden until the heal gives
-  // them back (Fly again, the shed). The crash card's words stay as they were. window.FLYDIY_CREW_SHOW = true: as it was
+  // them back (Fly again, the shed). The crash card's words stay as they were. window.FLYDIY_CREW_SHOW = true: as it was.
+  // CREW-OFF-CRASH (12 Nov): any crash the core calls one (its `crashed`) hides them too, not only a break-up / crushed cabin
   function wreckCrew(D) {
     const ppl = model && model.people;
     if (!ppl || !ppl.length || window.FLYDIY_CREW_SHOW) return;
     if (!WK.crewOff) {
-      let off = !!(flDmg && flDmg.brokeUp) || !!WK.eyeCut;
+      // (CREW-OFF-CRASH, the user 12 Nov on the Petrel's field crash, crew and seats out under the broken belly: "we said we'd
+      // remove the people in the crashes" - the hull stayed one piece and the cabin's eye test never fired: ANY crash now)
+      let off = !!(flDmg && (flDmg.brokeUp || flDmg.crashed)) || !!WK.eyeCut;
       if (!off && WK.cab && sim.t - (WK.crewT == null ? -1 : WK.crewT) >= 0.1) { WK.crewT = sim.t; off = !!window.WRECK_DEBRIS.crushed(WK.cab, sim.p, D.pc).crushed; }
       if (!off) return;
       WK.crewOff = true;
@@ -6672,11 +6773,18 @@
   // compile links its program: none links in a crash) and the cover ring's cull (cover_ring.js scar: the grass out of
   // the footprint, the shrubs and the debris out of the sweep too). The shed, a reset or a new flight lets it go: the
   // decal's buffers freed, the ring's cells under it planted again whole. Damage off: never a read (one compare a frame)
-  let scarMesh = null;
+  let scarMesh = null, scarLiveMesh = null;   // (SCAR-LIVE: the trail while it slides - ground_scar.js makeLive)
   const SCARS = { st: null, vS: -1, on: false, last: null };
   const scarPageOn = () => (typeof FLYDIY_DAMAGE === 'boolean' ? FLYDIY_DAMAGE : (typeof GEN_DAMAGE_DEFAULT !== 'undefined' && GEN_DAMAGE_DEFAULT === true));
   function groundScars() {
     const D = !inGarage && sim && world && scarPageOn() ? dmgNow() : null;
+    // SCAR-LIVE: the strokes since the last frame laid now (the seal or a reset first lets the trail go); a frame's work
+    // is bounded by the hop (liveFrame strokes)
+    if (scarLiveMesh && D && D.liveQ) {
+      if (D.liveClr) { GROUND_SCAR.liveClear(scarLiveMesh); D.liveClr = false; }
+      if (D.liveQ.length) { GROUND_SCAR.liveAdd(scarLiveMesh, D.liveQ, world); D.liveQ.length = 0; }
+      window.FLYDIY_SCAR_LIVE = scarLiveMesh.userData.live;   // (GATE DMGSCAR's read: n, used, adds, strokes, ms, msMax)
+    }
     if (!(D && D.scar && D.scar.length)) { if (SCARS.on) scarsClear(); return; }
     if (SCARS.st === D && SCARS.vS === D.vS) return;
     SCARS.st = D; SCARS.vS = D.vS; SCARS.on = true;
@@ -6776,6 +6884,7 @@
   };
   function scarsClear() {
     GROUND_SCAR.clear(scarMesh);
+    if (scarLiveMesh) GROUND_SCAR.liveClear(scarLiveMesh);   // SCAR-LIVE
     const ring = window.TREE_FILL && TREE_FILL.cover ? TREE_FILL.cover() : null;
     if (ring && ring.scar) ring.scar(null);
     SCARS.st = null; SCARS.vS = -1; SCARS.on = false; window.FLYDIY_SCAR = null;
@@ -6991,7 +7100,26 @@
       patVisK = -1; patLegsRef = null;
     } catch (e) { console.error('pattern overlay:', e); patVis = null; }
   }
+  // TAXI-HOME (the user 10 Nov ~20:55 via A0, a priority: "important to the story: we have taxi to the runway, but not from the
+  // runway"): THE ARRIVAL'S OWN STAND, the page's half (the pilot's: 43_pilot ap.setArriveSite / planTaxiIn). Landed and stopped
+  // on the strip of the aeroplane's OWN field, the pilot taxis in to its stand: the field's own (its main plot: site null) or
+  // its plot's own (a plot with its own way out: playerPlotSite(...).site). Any other To: none (the stop on the strip, as
+  // before). The pilot's switch is opt-in, so this is set before EVERY departFrom and cleared at the top of every applyRoute;
+  // lastStart carries it to the physics worker's pilot (sim_link init.place.arrive, the 'leg' command)
+  function arriveFor(to) {
+    try {
+      if (!to || !to.id || spawnId) return null;
+      const rh = rollHangarId(), sheds = (playerLoad() || {}).sheds || {}, sh = rh ? sheds[rh] : null;
+      const home = sh ? (sh.base || (rh === 'HOME' ? 'HOME' : null)) : null;
+      if (!home || to.id !== home) return null;
+      const st0 = typeof siteOf === 'function' ? siteOf(home) : null;
+      const ps = (st0 && typeof playerPlotSite === 'function') ? playerPlotSite(st0, rh, sh) : null;
+      return (ps && ps.own) ? { fieldId: home, site: ps.site, plotId: rh } : { fieldId: home, site: null, plotId: null };
+    } catch (e) { return null; }
+  }
+  function arriveSet(q, A) { if (q && typeof q.setArriveSite === 'function') q.setArriveSite(A ? A.fieldId : null, A ? A.site : null, A ? A.plotId : null); }
   function applyRoute() {
+    arriveSet(ap, null);   // TAXI-HOME: every route starts with no arrival stand
     // the build being placed decides; in the shed (a stale def under the bench's new build) the pickers keep the
     // player's choice and only this placement is fitted
     const gearNow = routeGear(false);
@@ -7068,8 +7196,9 @@
     // G771: how this flight began - the skip reads it (the stand it would taxi from, the site it plans on)
     const walked = (st && typeof standFor === 'function' && shedD) ? standFor(st, shedD, stGround) : (st && st.stand);
     lastStart = { from, to, stSite: (st && walked && walked !== st.stand) ? Object.assign({}, st, { stand: walked }) : st,
-                  stand: walked || null, taxi: !!stand, skipped: false };
+                  stand: walked || null, taxi: !!stand, skipped: false, arrive: arriveFor(to) };
     skipAir = false;
+    arriveSet(ap, lastStart.arrive);   // TAXI-HOME
     if (stand) {
       placeAtStand(sim, from, stand);
       if (stGround && typeof seatOnGround === 'function') seatOnGround(sim, stGround, def.refs);   // G700: the wheels on the ground under them
@@ -7114,6 +7243,7 @@
     if (sim.setEngine && sim.eng) for (let i = 0; i < sim.eng.length; i++) sim.setEngine(i, { key: 'both', running: true });
     ap = mkPilot(curKey);
     ap.setRoute(S.from, S.to);
+    arriveSet(ap, S.arrive);   // TAXI-HOME
     ap.departFrom(S.from, S.to, S.stSite, { atHold: pose });
     S.skipped = true; S.pose = pose;
     return true;
@@ -7688,6 +7818,7 @@
   let dustFx = null;
   const DUST_SURF = ['grass', 'dirt', 'gravel', 'dirt', -1, 'paved', 'gravel', 'sand'];   // the SURFACE enum -> a dust class (rock / forest floor read dirt; water none)
   const DUST_CLS = { dirt: 0, sand: 1, gravel: 2, grass: 3, paved: 4, concrete: 4, asphalt: 4 };
+  const DUST_GROUND = ['dirt', 'sand', 'gravel', 'dirt', null];   // a dust class -> the pavement surface whose colour it takes
   // THE SOIL'S WATER, ONCE A FRAME, FOR EVERYONE WHO SHOWS IT (DIRT-STRIP's ask, 9 Nov): SOIL_WET off the day, handed to the
   // pavement (PAVEMENT.setSoilWet: one shared uniform - the strip's damp tint and its drawn puddles) and to the dust (the same
   // R: the water drawn is the water splashed in). Runs with the dust off too (?dust=0 is the dust's lever, not the puddles').
@@ -7772,6 +7903,9 @@
     if (WF && WF.sun && WF.hemi) { const sd = WF.KEY_SKY || WF.SUN_SKY || WF.sun.position; L.sun[0] = sd.x; L.sun[1] = sd.y; L.sun[2] = sd.z;
       L.sunCol.copy(WF.sun.color).multiplyScalar(WF.sun.intensity); L.skyCol.copy(WF.hemi.color).multiplyScalar(WF.hemi.intensity);
       L.gndCol.copy(WF.hemi.groundColor || WF.hemi.color).multiplyScalar(WF.hemi.intensity * 0.5); }
+    // the dust is its ground's colour (the user, 10 Nov): the drawn surface of each class (a grass strip's dust is the soil
+    // under it: dirt's), memoised in the pavement - five map reads a frame while a cloud lives
+    if (typeof PAVEMENT !== 'undefined' && PAVEMENT.surfaceColor && F.draw.setGround && DUST.LOOK.ground) for (let ci = 0; ci < DUST_GROUND.length; ci++) if (DUST_GROUND[ci]) F.draw.setGround(ci, PAVEMENT.surfaceColor(DUST_GROUND[ci]));
     camera.updateMatrixWorld();
     F.draw.sync(camera, L);
     F.ms = performance.now() - t0;
@@ -11565,6 +11699,7 @@
     ['parts60', '60 kg of crated parts', { kg: 60 }, 'goods.parts', 0],
     ['mail60p', '60 kg of mail + a passenger', { kg: 60 }, 'goods.mail', 1],
     ['bags20p3', '20 kg of bags + three passengers', { kg: 20 }, 'goods.mail', 3],   // G3619: the queue's rig (a C172)
+    ['parts40p2', '40 kg of crated parts + two passengers', { kg: 40 }, 'goods.parts', 2],   // G2715: CREW-SEATS' A/B (a C172, seat 3 out)
     ['tools80', '80 kg of tools', { kg: 80 }, 'goods.tools', 0],
     ['supplies90', '90 kg of supplies (sacks)', { kg: 90 }, 'goods.supplies', 0],
     ['samples100', '100 kg of ore samples', { kg: 100 }, 'goods.samples', 0],
@@ -11754,7 +11889,7 @@
   // the build leaves empty is seated (the build's pilot's posed record moved to that seat, another character). With no
   // accepted load nothing here runs past a null check: no group, no draw, no program, the sim never asked.
   const FST = { sim: null, applied: '', R: null, A: null, drawKey: '', built: null, stand: null, flight: null, busy: false,
-                zDef: null, zFw: null, hidden: [], pax: [], paxKey: '', standM: null, flags: [], warnEl: null, chairs: [] };
+                zDef: null, zFw: null, hidden: [], pax: [], paxKey: '', standM: null, flags: [], warnEl: null };
   const fsSlot = () => (inGarage ? slotOnStand() : (flSlot || slotOnStand()));
   const fsYD = () => { const D = window.CAGE_DATUM; return D && D.fwOk && isFinite(D.yD) ? D.yD : null; };
   function fsAccepted() {
@@ -11797,8 +11932,9 @@
   // THE RIGS' LOAD (?freight=1&strapload=<test>[:<design>], the sandbox only): the hold named (the validated design's
   // card; the stand's build is not replaced), the test load as the packer proposes it, accepted - no view, no click, so
   // a census (FRAMECOST_QUERY) or a timed A/B runs "no load" (strapload=none:cub) against "loaded" by the URL alone
-  const FS_RIG = (() => { try { const m = /[?&]strapload=([a-z0-9]+)(?::([a-z0-9]+))?(&|$)/i.exec(window.location.search || ''); return FREIGHT_DEV && m ? { test: m[1], design: m[2] || null, done: false } : null; } catch (e) { return null; } })();
-  function fsRigLoad(test, design) {
+  const FS_RIG = (() => { try { const m = /[?&]strapload=([a-z0-9]+)(?::([a-z0-9]+))?(?::([0-9,]+))?(&|$)/i.exec(window.location.search || ''); return FREIGHT_DEV && m ? { test: m[1], design: m[2] || null, out: m[3] ? m[3].split(',').map(Number) : [], done: false } : null; } catch (e) { return null; } })();
+  // (G2715: `out` - the seats the rig takes out, ?strapload=<test>:<design>:<i,j>; only an empty seat goes, 77_'s rule)
+  function fsRigLoad(test, design, out) {
     if (!FREIGHT_DEV) return null;
     if (design && FREIGHT_CARDS[design]) frStandDesign = design;
     const card = frCard();
@@ -11807,11 +11943,11 @@
     const T = FR_TESTS.find(t => t[0] === test);
     if (!T) return null;
     const items = T[2] ? freightItems(T[2], T[3]) : [freightItem({ id: 'drum.1', kind: 'drum', kg: 165, dims: [0.64, 0.64, 0.93] })];
-    frSandboxRec = freightLoadRecord(card, freightLoadNew(card, items, { pax: T[4] }), { slot: slotOnStand() });
+    frSandboxRec = freightLoadRecord(card, freightLoadNew(card, items, { pax: T[4], seatsOut: Array.isArray(out) ? out : [] }), { slot: slotOnStand() });
     fsSync();
-    return { items: frSandboxRec.items.length, kg: frSandboxRec.kg, card: card.id };
+    return { items: frSandboxRec.items.length, kg: frSandboxRec.kg, card: card.id, seatsOut: frSandboxRec.seatsOut || [] };
   }
-  const fsRigDue = () => { if (FS_RIG && !FS_RIG.done && curKey === 'gen' && def) { FS_RIG.done = true; FS_RIG.got = fsRigLoad(FS_RIG.test, FS_RIG.design); } };
+  const fsRigDue = () => { if (FS_RIG && !FS_RIG.done && curKey === 'gen' && def) { FS_RIG.done = true; FS_RIG.got = fsRigLoad(FS_RIG.test, FS_RIG.design, FS_RIG.out); } };
   function fsFlightStart() { try { fsRigDue(); fsApply(); fsSync(); } catch (e) { console.warn('flyDiy (freight strap): the load could not be put aboard -', e && e.message); } }
   function fsGarage() {
     try {
@@ -11848,58 +11984,80 @@
     if (FST.built && window.FREIGHT_STRAP_VIEW) window.FREIGHT_STRAP_VIEW.dispose(FST.built.grp);
     FST.built = null;
   }
-  // the seats in flight: a figure the job does not seat hidden, a passenger the build does not seat drawn
-  // (work only when the model or the seats change: the 700 ms tick re-asserts the hidden figures and nothing else)
-  function fsPeople() {
-    const R = FST.R, M = model, grp = M && M.grp;
-    // G3619: a job's seat the build already fills (a C172's co-pilot, a pilot's body) takes a drawn passenger too -
-    // the build's figure hidden there, so only the job's people queue (pilots and the reserved never do)
-    const jobOwn = s => s.job && s.build && s.i > 0;
-    const hide = R && grp ? R.seats.filter(s => (s.build && !s.job) || jobOwn(s)).map(s => s.i) : [];
-    const want = R && grp ? R.seats.filter(s => (s.job && !s.build) || jobOwn(s)).map(s => s.i) : [];
-    const key = (grp ? grp.uuid : '') + '|' + hide.join(',') + '|' + want.join(',');
-    if (key === FST.paxKey) { for (const o of FST.hidden) if (o.visible) o.visible = false; return; }
-    FST.paxKey = key;
+  // G2715 (CREW-SEATS): THE JOB'S SEATS ARE THE CREW LAYER'S (CAGE_CREW_JOB) - every seat the accepted load fills beside
+  // the pilot takes the job's passenger (G3619's people: the client, then the pool - their bodies the crowd's cast), the
+  // build's occupant it does not carry leaves, the chairs it took out go; the crew layer seats them in its own passenger
+  // pose (the stand) and the join carries them into the flight as LIVE people (the roll-out's snapshot: model.data.crewJob)
+  // - the flown mesh, its bake and the spec stay the build's. While the loading view is open it owns the chairs (its
+  // seat toggles): none out. Nothing accepted: null - the build's crew, exactly as before (the door never moves).
+  function fsCrewWant() {
+    if (!FREIGHT_PAGE || typeof freightStrapSeats !== 'function') return null;
+    const got = fsAccepted();
+    if (!got || !def || !def.spec) return null;
+    const seats = freightStrapSeats(def.spec, got.A.pax | 0);
+    const pax = seats.filter(s => s.job && s.i > 0).map(s => s.i);
+    const empty = seats.filter(s => s.build && !s.job && s.i > 0).map(s => s.i);
+    const loading = !!(window.FREIGHT_LOAD && window.FREIGHT_LOAD.isOpen && window.FREIGHT_LOAD.isOpen());
+    const out = loading ? [] : (Array.isArray(got.A.seatsOut) ? got.A.seatsOut.slice() : []);
+    if (!pax.length && !empty.length && !out.length) return null;
+    const used = new Set([window.FLYDIY_CREW_PILOT, window.CAGE_CHAR && window.CAGE_CHAR.RACER].filter(Boolean));
+    const keys = pax.length ? crowdPax(pax.length, used, got.A.contract) : null;
+    if (pax.length && !keys && CRW.on && !CRW.prep) crowdPrep().catch(() => {});   // (the cast's manifests; the door follows)
+    return { pax: pax.map((i, n) => ({ i, key: (keys && keys[n]) || null })), empty, out };
+  }
+  // the door set (the shed's tick: on the debounce; the roll-out: `now`, its snapshot follows in this task)
+  function fsCrewSync(now) {
+    if (!FREIGHT_PAGE || typeof window.CAGE_CREW_JOB !== 'function') return false;
+    return window.CAGE_CREW_JOB(fsCrewWant(), !!now);
+  }
+  // THE SEATS IN FLIGHT. The snapshot's job flies as it was seated. A STOP changes the job under way (a leg's passengers
+  // delivered, the next leg's aboard): the crew layer is re-seated NOW (the door, now) and the flown model follows its
+  // seats - a passenger of the snapshot's job the new one does not carry hidden, the new job's passengers built from the
+  // crew layer's own records (CAGE_JOIN.livePeople on the model's map: the editor's pose, not a copy of the pilot's), the
+  // build's live occupant the new job leaves out hidden. Compared by SEATS, never by bodies (a body is the shed's pick).
+  // A chair stays as the roll-out left it (taken out in the hangar, put back in the hangar), and so does a build's
+  // occupant the snapshot's job left ashore. Work only when the model or the seats change; the 700 ms tick re-asserts.
+  const fsSeatSets = j => ({ pax: j ? (j.pax || []).map(q => q.i) : [], empty: j ? (j.empty || []).slice() : [] });
+  function fsPeopleReset() {
     for (const o of FST.hidden) o.visible = true;
     FST.hidden = [];
     for (const P of FST.pax) { P.P.dead = true; if (P.P.inst && window.CAGE_CHAR) window.CAGE_CHAR.dispose(P.P.inst); if (P.frame && P.frame.parent) P.frame.parent.remove(P.frame); }
     FST.pax = [];
-    if (!grp) return;
+  }
+  function fsPeople() {
+    const M = model, grp = M && M.grp;
+    if (inGarage || !grp || !M.data || !M.data.cageM) return;
+    let snap = null;
+    try { snap = M.data.crewJob ? JSON.parse(M.data.crewJob) : null; } catch (e) { snap = null; }
+    const A = fsSeatSets(snap), want = fsCrewWant(), B = fsSeatSets(want);
+    const gone = A.pax.filter(i => !B.pax.includes(i)), add = B.pax.filter(i => !A.pax.includes(i));
+    const hide = gone.concat(B.empty.filter(i => !A.empty.includes(i) && !A.pax.includes(i)));
+    const key = grp.uuid + '|' + hide.join(',') + '|' + add.join(',');
+    if (key === FST.paxKey) { for (const o of FST.hidden) if (o.visible) o.visible = false; return; }
+    FST.paxKey = key;
+    fsPeopleReset();
+    if (!hide.length && !add.length) return;
     for (const i of hide) { const o = grp.getObjectByName('flCrew' + (i + 1)); if (o) { o.visible = false; FST.hidden.push(o); } }
-    const recs = M.data && M.data.people, got = fsAccepted(), CC = window.CAGE_CHAR;
-    if (!want.length || !recs || !recs.length || !got || !got.card.seats || !CC) return;
-    // a passenger the build does not seat: the build's pilot's posed record moved to that seat (card -> the cage sheet:
-    // x = card z, z = zFw - card x), another character, at that character's own scale, no hands on the controls
-    const base = recs.find(r => r.idx === 1) || recs[0];
-    const s0 = got.card.seats.find(s => s.i === (base.idx || 1) - 1) || got.card.seats[0];
-    const used = new Set(recs.map(r => r.key));
-    // G2970 (CHARACTERS): the crowd's cast first, once its manifests are in (crowdPrep), then the crew's own
-    const cast = window.CROWD && window.CROWD.castKeys ? window.CROWD.castKeys() : [];
-    const others = [...new Set(cast.concat((CC.list ? CC.list() : []).map(c => c && c.key)))].filter(k => k && !used.has(k));
-    const drawn = crowdPax(want.length, used);
-    want.forEach((i, n) => {
-      const s = got.card.seats.find(q => q.i === i);
-      if (!s) return;
-      const key2 = (drawn ? drawn[n % drawn.length] : others[n % Math.max(1, others.length)]) || base.key;
-      const figM = base.figM.slice();
-      let k = 1; try { const a = CC.rig(base.key), b = CC.rig(key2); if (a && b && a.height > 0 && b.height > 0) k = a.height / b.height; } catch (e) {}
-      for (const j of [0, 1, 2, 4, 5, 6, 8, 9, 10]) figM[j] *= k;
-      figM[12] += s.z - s0.z; figM[14] -= s.x - s0.x;
-      const rec = Object.assign({}, base, { key: key2, idx: 100 + i, figM, jobs: [], anim: null });
+    const J = window.CAGE_JOIN;
+    if (!add.length || !J || typeof J.livePeople !== 'function') return;
+    fsCrewSync(true);
+    const want2 = new Set(add);
+    const recs = J.livePeople(M.data.cageM, o => !!(o.live && o.live.job && want2.has((o.live.idx | 0) - 1)));
+    for (const rec of recs) {
       const before = grp.children.length;
       const ps = buildPeople({ cage: M.data.cage, people: [rec], cageM: M.data.cageM }, grp, []);
       const frame = grp.children.length > before ? grp.children[grp.children.length - 1] : null;
-      if (ps && ps[0]) FST.pax.push({ P: ps[0], frame, seat: i });
-    });
+      if (ps && ps[0]) FST.pax.push({ P: ps[0], frame, seat: (rec.idx | 0) - 1 });
+    }
   }
   // G3619 (PEOPLE, the user 25 Oct): WHO the job's passengers are - the job's own client first (FLYDIY_PEOPLE.client of the
   // contract's provider), then the passenger pool drawn by the contract's id (the same job, the same faces on a reload);
   // only people whose body the crowd's cast holds (CROWD.castKeys: a body not baked yet is skipped), never a reserved
   // person or a pilot (the pool holds neither). -> body keys, or null without the seam / the cast (the cast order then)
-  function crowdPax(n, used) {
+  function crowdPax(n, used, cid) {
     const FP = window.FLYDIY_PEOPLE, cast = window.CROWD && window.CROWD.castKeys ? window.CROWD.castKeys() : [];
     if (!FP || typeof FP.pool !== 'function' || !cast.length || !(n > 0)) return null;
-    const has = new Set(cast), out = [], id = (FST.A && FST.A.contract) || null;
+    const has = new Set(cast), out = [], id = cid || (FST.A && FST.A.contract) || null;
     const take = pid => { const k = FP.char(pid); if (k && has.has(k) && !(used && used.has(k)) && !out.includes(k)) out.push(k); };
     let rec = null;
     try { rec = id && CAREER_DEV && typeof careerContract === 'function' ? careerContract(playerLoad(), id) : null; } catch (e) {}
@@ -11942,7 +12100,7 @@
     if (CRW.prep) return CRW.prep;
     return (CRW.prep = Promise.resolve(window.FLYDIY_LAZY ? window.FLYDIY_LAZY('crowd') : null)
       .then(() => (window.CROWD ? window.CROWD.prepare() : []))
-      .then(ks => { if (ks && ks.length && FST.R && FST.pax.length) { FST.paxKey = null; fsPeople(); } return ks; },
+      .then(ks => { if (ks && ks.length && inGarage) try { fsCrewSync(); } catch (e) {} return ks; },   // (G2715: the job's people, by body)
             e => { CRW.prep = null; throw e; }));
   }
   // the figures to walk: { seat, key, meshes() } (meshes() late-bound: a live passenger's character lands async)
@@ -12088,17 +12246,8 @@
   function crowdThen(fn) { if (CRW.on && (CRW.pending || (CRW.M && CRW.M.busy()))) CRW.after = fn; else fn(); }
   if (typeof window !== 'undefined') window.FLYDIY_CROWD = () => ({ on: CRW.on, pending: CRW.pending, waiting: !!CRW.after,
     seats: [...CRW.seats.keys()], stats: CRW.M ? Object.assign({}, CRW.M.stats) : null, fadeMs: CRW.fadeMs, warmMs: CRW.warmMs });
-  // G2404 (SEATS-OUT): THE CHAIRS THE ACCEPTED LOAD TOOK OUT, on the stand, for as long as it rides; delivered, they are back.
-  // The seat's identity group goes (the join's snapshot asks each MESH for its own `visible`, so no bake changes); a cage
-  // rebuild makes new groups, the tick hides them again; the loading view owns them while it is open. In flight the chair
-  // is baked into the flown mesh and still draws (owed: the flown model has no seats of its own).
-  function fsChairs(got, loading) {
-    if (loading || !inGarage) return;
-    const want = got && Array.isArray(got.A.seatsOut) ? got.A.seatsOut : [];
-    if (!want.length && !FST.chairs.length) return;
-    for (const i of new Set(FST.chairs.concat(want))) { const o = edSitP.getObjectByName('edSeat' + (i + 1)); if (o) o.visible = !want.includes(i); }
-    FST.chairs = want.slice();
-  }
+  // G2404 (SEATS-OUT) -> G2715 (CREW-SEATS): the chairs the accepted load took out are the crew layer's to leave out
+  // (fsCrewWant's `out`): built off the layer, absent on the stand and from the join's snapshot, so from the flown mesh.
   // THE DRAWING'S SYNC (the 700 ms entry tick, an accept, a roll-out, a stop): build the group when the load changes,
   // hang it where it is seen
   function fsSync() {
@@ -12142,8 +12291,8 @@
         model.grp.add(FST.flight);
       }
     }
+    if (inGarage) fsCrewSync();   // G2715 (CREW-SEATS): the shed's crew seats the job
     fsPeople();
-    fsChairs(got, loading);
     fsWarnSync();
   }
   if (FREIGHT_PAGE) setInterval(() => { try { if (inGarage) fsRigDue(); fsSync(); } catch (e) {} }, 700);
@@ -12171,8 +12320,10 @@
     state: () => ({ applied: !!FST.applied, adds: FST.R ? FST.R.adds.length : 0, kg: FST.R ? FST.R.kg : 0, dm: FST.R ? FST.R.dm : 0,
                     simFreight: sim && sim.freight ? (sim.freight() || []).length : null, totalM: sim ? sim.totalM : null,
                     drawn: FST.built ? FST.built.info : null, stand: !!(FST.stand && FST.stand.parent), flight: !!(FST.flight && FST.flight.parent === (model && model.grp)),
-                    seats: FST.R ? FST.R.seats : null, chairs: FST.chairs.slice(), hidden: FST.hidden.length, pax: FST.pax.length, yD: fsYD(),
-                    rig: FS_RIG ? { test: FS_RIG.test, design: FS_RIG.design, got: FS_RIG.got || null } : null }),
+                    seats: FST.R ? FST.R.seats : null, chairs: window.FLYDIY_CREW_JOB ? window.FLYDIY_CREW_JOB.out.slice() : [], hidden: FST.hidden.length, pax: FST.pax.length, yD: fsYD(),
+                    crew: { door: window.FLYDIY_CREW_JOB || null, flown: (model && model.data && model.data.crewJob) || null,
+                            live: model && model.data && model.data.people ? model.data.people.filter(r => r.job).map(r => ({ seat: (r.idx | 0) - 1, key: r.key })) : [] },
+                    rig: FS_RIG ? { test: FS_RIG.test, design: FS_RIG.design, out: FS_RIG.out, got: FS_RIG.got || null } : null }),
     stop: fsStop,
     rigLoad: fsRigLoad,
     cutaway: fsCutaway,
@@ -13374,7 +13525,10 @@
   function placeIndicators() {
     const d = standOffset();
     // G255: a screenshot has no marks; G1115: nor the roll-out shot (the CG post and its labels rode out on the aeroplane)
-    gGrp.visible = !!d && !SHOT.on && !(typeof ROLLANIM !== 'undefined' && ROLLANIM.busy && ROLLANIM.busy()) && !window.__frLoading   // G2345: not under the loading view (its own CG bar)
+    // AIDS-GARAGE (10 Nov, A0 on the SEAPLANES stills: the floats aid's "floats N x the weight / move the floats" rode on
+    // the aeroplane in flight): standOffset() is [0,0,0] whenever the cage view is off - an array, so truthy - and this
+    // group hangs on the CRAFT, so outside the shed the posts and the aids flew along. They are the garage's: in it only
+    gGrp.visible = inGarage && !!d && !SHOT.on && !(typeof ROLLANIM !== 'undefined' && ROLLANIM.busy && ROLLANIM.busy()) && !window.__frLoading   // G2345: not under the loading view (its own CG bar)
       && !stMarksOff;   // G3357: not on the story's paint-only stage (T0)
     if (d) gGrp.position.set(d[0], d[1], d[2]);
   }
@@ -14316,6 +14470,8 @@
     if (CAREER_DEV && routesRollRefused()) return;   // G3260 (ROUTES): a plane on a route never rolls out
     if (CAREER_DEV) { careerSignNow(); careerCertWarn(); }   // CERT-GATES: the bench signs; an uncertified job is said
     certKick();                        // G1831: the certificate's thread starts with the roll-out
+    // G2715 (CREW-SEATS): the job's seats on the crew layer NOW (a rig's load first), so the snapshot below takes them
+    if (FREIGHT_PAGE && inGarage) try { fsRigDue(); fsCrewSync(true); } catch (e) { console.warn('flyDiy (crew seats):', e && e.message); }
     const reveal = () => { flRevealStart(); if (after) after(); };
     rollHold = false;   // G690: a screen cut short (a roll-in over it) must not hold the next flight
     if (!screenCan()) {
@@ -14403,6 +14559,7 @@
     // they fly to the strip bolted to the wing.
     rigLift = 0; clearLoadViz();
     inGarage = false; rolledOut = true;
+    if (typeof placeIndicators === 'function') placeIndicators();   // AIDS-GARAGE: the shed's marks stay in the shed
     playerFlightStart();               // PREM-S2: the airframe this flight flies, measured as it rolls out
     fsFlightStart();                   // G2400 (FREIGHT-STRAP): the accepted load aboard (the masses before the reset below)
     crowdStart();                      // G2970 (CHARACTERS): whoever is aboard walks out to the door first
@@ -14486,13 +14643,18 @@
   // getUniforms: 0.5-1.9 s of the roll-out's 'frames' task, run to run) on programs a catch-up compile had started and
   // not yet linked - two depth programs of the shadow pass, measured. This polls every program the renderer holds
   // (KHR_parallel_shader_compile: isReady never blocks) until all are linked, `capMs` at most, before the frame is drawn.
+  // PACE-REVEAL (BOOT-PROGRAMS, the 10 Nov A/B: under ?pace=auto one cold load drew a 26.2 s frame IN FLIGHT): with the links
+  // paced, the ground's heaviest (the pavement's 34 s) starts later, so the 30 s cap ran out and the first draw that met it
+  // waited in getProgramInfoLog. Paced, the wait also counts what compileSliced has still to key (its live jobs: a job no
+  // tick has touched for 5 s is gone - an abandoned pass never holds a reveal) and the cap is PACE_CAP: the screen stays
+  // up, with its shader count, until all of it has linked
   const programsReady = capMs => (typeof renderer.compileAsync !== 'function' || !renderer.info || !renderer.info.programs) ? null
     : new Promise(res => {
-      const t0 = performance.now();
+      const t0 = performance.now(), cap = PACE_N ? Math.max(capMs, PACE_CAP) : capMs;
       const poll = () => {
-        let ok = true;
-        for (const pr of renderer.info.programs) if (pr.isReady && !pr.isReady()) { ok = false; break; }
-        if (ok || performance.now() - t0 > capMs) res(); else setTimeout(poll, 10);
+        let ok = !(PACE_N && pacedLeft() > 0);
+        if (ok) for (const pr of renderer.info.programs) if (pr.isReady && !pr.isReady()) { ok = false; break; }
+        if (ok || performance.now() - t0 > cap) res(); else setTimeout(poll, 10);
       };
       poll();
     });
@@ -14542,6 +14704,8 @@
     return v;
   });
   const buildKey = () => { if (!tripSync) tripSync = tripExport(); return tripSync ? tripSync.key : null; };
+  // G2715 (CREW-SEATS): the snapshot's key = the build's + the job the crew layer seats (none: the build's key alone)
+  const snapKey = k => (k != null && window.FLYDIY_CREW_JOB ? k + '|crew ' + JSON.stringify(window.FLYDIY_CREW_JOB) : k);
   // THE STAND, off the route's inputs (applyRoute's own reading, the sim untouched): where the boot grows the ring and
   // the town before the aeroplane has left the shed, and the world's key after
   // G2630: the last finite CG the frame drew (a NaN pose keeps it; the stand, else the origin, before any)
@@ -15089,7 +15253,9 @@
         contactMesh = CONTACT_SHADOW.make(THREE); scene.add(contactMesh); }
       // G2359 (DMG-SCAR): the scar's decal, parked in the world before its compile (its program linked with the world's)
       if (!scarMesh && typeof GROUND_SCAR !== 'undefined' && scarPageOn()) { scarMesh = GROUND_SCAR.make(THREE); scene.add(scarMesh); }
-      // G3770 (DMG-LOOKS): the model's tube pools, parked likewise (?dmglook=1 only; their slot textures allocated now)
+      // SCAR-LIVE: the trail's mesh beside it, on the same material (the same program: linked by the same compile)
+      if (scarMesh && !scarLiveMesh && GROUND_SCAR.makeLive) { scarLiveMesh = GROUND_SCAR.makeLive(THREE, scarMesh); scene.add(scarLiveMesh); }
+      // G3770 (DMG-LOOKS): the model's tube pools, parked likewise (DMG-LOOKS on - the default since G3774, ?dmglook=0 off; their slot textures allocated now)
       if (scarPageOn()) lookPools(false);
       // DIRT-DUST: the dust's batch, parked likewise (hidden; its one program linked by the roll-out's compile)
       if (!dustFx) dustMake();
@@ -15107,7 +15273,8 @@
   }
   const TRIP_STEPS = [
     // ---- THE AIRCRAFT: from the shed, the build committed (G680's sync, cut in its three) and its programs
-    { id: 'snapshot', part: 'craft', label: 'committing your build', w: 8, key: buildKey,
+    // G2715 (CREW-SEATS): ...and on the crew the job seats (CAGE_CREW_JOB): a load's passengers are the snapshot's people
+    { id: 'snapshot', part: 'craft', label: 'committing your build', w: 8, key: () => snapKey(buildKey()),
       fn: () => runGen(syncSnapshotSteps(tripSync), 'snapshot', 'committing your build') },
     // C4a (G870) / C4b (G875): THE FLOWN BAKE (flown_bake.js) - the snapshot's exterior and cabin baked into their atlases,
     // or read from the IndexedDB cache. G1027: the landed interface, FLOWN_BAKE.step({ payload, spec, phase, rebuild }) ->
@@ -15806,7 +15973,7 @@
     try {
       if (x.failed) return ['export failed: ' + x.failed];
       (window.GARAGE_SPEC.update || window.GARAGE_SPEC.set)(x.spec);
-      tripKeys.snapshot = tripKeys.spec = x.key;
+      tripKeys.snapshot = snapKey(x.key); tripKeys.spec = x.key;   // (G2715: the snapshot took the crew's job too)
       if (!inTrip) delete tripKeys.bake;   // a sync outside the steps (the bench's test, a load) baked nothing: the next roll-out bakes
       return (window.CAGE_JOIN.errors && window.CAGE_JOIN.errors()) || [];
     } catch (e) {
@@ -16251,7 +16418,7 @@
     routeBuild($('bootRoute'), 'rollout');
     // PREM-S2: a change to the hangars held (or the garage's door) re-draws the base line
     window.FLYDIY_PLAYER.onChange = () => { try { routeBuild($('edRoute'), 'garage'); routeBuild($('bootRoute'), 'rollout'); routeSync(); } catch (e) {}
-      try { if (WF && WF.setPlayerSheds) WF.setPlayerSheds(worldSideSheds()); } catch (e) {} roomFollow(); };   // G2310: the side hangars and the room follow the document
+      try { if (WF && WF.setPlayerSheds) { WF.setPlayerSheds(worldSideSheds()); shedTexWarm(); } } catch (e) {} roomFollow(); };   // G2310: the side hangars and the room follow the document
     // G1375: the pickers re-filled for the gear (the garage's build, or the one flying), the route fitted to it first;
     // only when the gear changed - a refill under an open list would close it
     let refGear = gear0;
@@ -16284,9 +16451,10 @@
       if (cur && cur.id) fromId = cur.id;
       telBase += ap.t;                 // new AP restarts its clock at 0
       ap = mkPilot(curKey, { leg: true });
+      const legArrive = arriveFor(to); arriveSet(ap, legArrive);   // TAXI-HOME
       ap.departFrom(cur, to);
       destPend = false;
-      if (SIMW) SIMW.leg(cur.id, to === cur ? 'CIRCUIT' : to.id);   // G820 (C1c): the worker's pilot made anew at the same step boundary
+      if (SIMW) SIMW.leg(cur.id, to === cur ? 'CIRCUIT' : to.id, legArrive);   // G820 (C1c): the worker's pilot made anew at the same step boundary
       // G700: a new leg is a new flight for the book and the hand's ending (the leg after a W14 chain never logged)
       flightLogged = false; airborneSeen = wasAir = false; stillT = 0;
       flEnded = false; flLastEnd = null;   // PREM-S2: a new leg ends (and moves the airframe) on its own
@@ -21009,7 +21177,7 @@
   // G1340 THE DRAW GUARD (shader_warm.js PROG_WARM.guard): in the world, a draw of a material with no program yet is held
   // a frame or a few while its program links on the driver's threads, never compiled and waited for inside the frame
   drawGuard = (typeof PROG_WARM !== 'undefined' && PROG_WARM.guard && typeof renderer.compileAsync === 'function' && !(typeof location !== 'undefined' && /[?&]guard=0(&|$)/.test(location.search)))
-    ? PROG_WARM.guard(THREE, renderer, { on: () => !inGarage && !holdRender && !!WF && !!(aa && aa.target && aa.target()), scenes: () => [scene] }) : null;
+    ? PROG_WARM.guard(THREE, renderer, { on: () => !inGarage && !holdRender && !!WF && !!(aa && aa.target && aa.target()), scenes: () => [scene], pace: () => PACE_N ? PACE_N - linkingNow() : Infinity }) : null;
   // (the guard holds only behind the AA target: the scene pass draws there and a held frame is not resolved - aa.hold -
   // so the canvas keeps the last whole frame; with no target the scene draws onto the canvas and nothing is held)
   if (drawGuard && aa && aa.hold) aa.hold(() => drawGuard.heldNow > 0);
@@ -21134,6 +21302,30 @@
   // its lights stood where the frame will find them) and put back before it returns: the stand-ins are gathered and
   // each task's compile made INSIDE it, so the dress never outlives a task - no frame, no other step's compile ever
   // meets it, and the step can run beside the others (its links on the driver's threads) instead of holding the draw
+  // BOOT-PROGRAMS (A0 9 Nov, HWCOV; the user yes 17:05): THE LINKS PACED. A cold first visit sent its ~600 programs to the
+  // driver as fast as the slices could key them: 85 links in one second, 288 in 15 s, the ground's heavy programs (link
+  // waits of 33, 17, 15, 14 s) queued among ~30 others (evidence 2026-11-09/hwcov/boot_programs: 353 D3D compiles, 90 s).
+  // ?pace=N: at most N programs linking (three's isReady: KHR_parallel_shader_compile's COMPLETION_STATUS, no wait) when a
+  // slice keys more, and the ground's family (the island's splats, the premises' patches: groundFamily) keyed first.
+  // 0 = as before (the default until the cold A/B). (var and declarations: the guard and early callers read these before
+  // this line has run - no TDZ; an unset PACE_N paces nothing)
+  // ?pace=auto: half the machine's threads, 2 to 8 (the driver's compile workers scale with the cores; a phone gets 2-4)
+  var PACE_N = (() => { const m = typeof location !== 'undefined' && /[?&]pace=(\d+|auto)/.exec(location.search || ''); 
+    if (m && m[1] !== 'auto') return +m[1];   // PACE-ON (the user, 11 Nov ~16:00: "Ship it on, the drawbacks are not severe"): auto is the DEFAULT, ?pace=0 the opt-out
+    const hc = (typeof navigator !== 'undefined' && navigator.hardwareConcurrency) || 4; return Math.max(2, Math.min(8, Math.floor(hc / 2))); })();
+  // PACE-REVEAL: compileSliced's live paced jobs { left: reps not keyed yet, t: its last tick } and the reveal's cap when paced
+  var PACED_JOBS = new Set(), PACE_CAP = 120000;
+  function pacedLeft() { const now = performance.now(); let n = 0;
+    for (const j of PACED_JOBS) { if (j.left <= 0 || now - j.t > 5000) PACED_JOBS.delete(j); else n += j.left; }
+    return n; }
+  function linkingNow() {
+    const L = renderer.info && renderer.info.programs; if (!L) return 0;
+    let n = 0; for (const p of L) if (p && p.isReady && !p.isReady()) n++;
+    return n;
+  }
+  // (the naming run, 10 Nov: the four heaviest cold links were the pavement's 34 s, the island ground's 17 and 14 s, the
+  // premises' patch 13 s - the ground's family and the pavement's heavyLink)
+  function heavyFirst(m) { return (m && (m.groundFamily || m.heavyLink)) ? 0 : 1; }
   // PLANE-RENDERS R3 (8 Nov, the twin's first fiche on the box: ONE 9.7 s task inside its sliced compile): the group grows on
   // cached programs (a stand-in whose key three already holds: ~0.1 ms) and then meets a run of NEW ones - the studio's
   // lights re-key every lit program of the plane - 64 new sources in one task. `gmax` caps the group for a path whose sets
@@ -21156,6 +21348,8 @@
         seen.add(k); reps.push([o, m]); mats.add(m);
       }
     }));
+    let job = null;
+    if (PACE_N) { reps.sort((a, b) => heavyFirst(a[1]) - heavyFirst(b[1])); job = { left: reps.length, t: performance.now() }; PACED_JOBS.add(job); }   // (stable: the scene's order within each)
     const litScene = lit || sc;
     let i = 0, G = 1;                     // a NEW AEROSKIN program's source alone is ~0.1-0.3 s: start at one, grow on the cheap ones
     // G1085: a dressed compile runs beside the steps (the one loading's early starts) over sets that mix programs the
@@ -21164,16 +21358,17 @@
     const GMAX = gmax || (dress ? 16 : 64);
     return new Promise(res => {
       const tick = () => {
-        const t0 = performance.now();
+        const t0 = performance.now(); if (job) job.t = t0;
         D(() => {
           const prev = renderer.getRenderTarget(), fog = litScene.fog;
           try {
             if (fogless) litScene.fog = null;
             renderer.setRenderTarget(target, 0);
             while (i < reps.length && performance.now() - t0 < 30) {
-              const grp = new THREE.Group(), n = Math.min(G, reps.length - i), t1 = performance.now();
+              const room = PACE_N ? PACE_N - linkingNow() : Infinity; if (room <= 0) break;   // BOOT-PROGRAMS: the driver full
+              const grp = new THREE.Group(), n = Math.min(G, reps.length - i, room), t1 = performance.now();
               for (let k = 0; k < n; k++) { const [o, m] = reps[i + k]; grp.add(PROG_WARM.standIn(o, m)); }
-              i += n;
+              i += n; if (job) job.left = reps.length - i;
               try { renderer.compile(grp, camera, litScene); } catch (e) { console.warn('compile slice:', e && e.message); }
               grp.clear();
               const dt = performance.now() - t1;
@@ -21181,7 +21376,7 @@
             }
           } finally { renderer.setRenderTarget(prev); if (fogless) litScene.fog = fog; }
         });
-        if (i < reps.length) { setTimeout(tick, 0); return; }
+        if (i < reps.length) { setTimeout(tick, PACE_N && linkingNow() >= PACE_N ? 25 : 0); return; }
         // the link: compileAsync's own poll - over EVERY program of the material (G992: compileAsync reads only its
         // currentProgram, the last one keyed; a material met as two object kinds, or lit and fogless, has one program
         // per key, and the ones still linking made the settings screen's first frame wait 1.1 s in getProgramInfoLog)

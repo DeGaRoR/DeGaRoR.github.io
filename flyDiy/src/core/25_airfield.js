@@ -510,6 +510,18 @@ function sitePaintStrip(q, R, RW, RH, marks) {
 }
 
 // is (x, z) on the flat pad, where y = 0 is exact?
+// the shallowest cap a pad may set: a DC-3 (its tail 17.6 m aft of the stand at the hall's centre) with 2 m behind it
+const SITE_HD_MIN = 20;
+// the deepest shed (HD) a site's hangar plot holds on the flat pad: HOME's (the pad is HOME's alone; another site: no cap)
+function siteMaxHD(site) {
+  const s = typeof site === 'string' ? siteOf(site) : site, h = s && s.hangar;
+  if (!h || s !== AIRFIELD_SITES.HOME) return Infinity;
+  // (only where the pad frames the plot: the user 9 Nov caught a 24 m hall with a DC-3 through its back wall - the page's
+  // HOME record is not the static one, the cap came out under the shell's floor and the room clamped to its shortest.
+  // A cap that would leave less than SITE_HD_MIN is not this pad's: no cap)
+  const c = Math.floor(AIRFIELD_PAD.zAbs - Math.abs(h.z));
+  return c >= SITE_HD_MIN ? c : Infinity;
+}
 function siteOnPad(x, z) {
   return x >= AIRFIELD_PAD.x0 && x <= AIRFIELD_PAD.x1 &&
          Math.abs(z) <= AIRFIELD_PAD.zAbs;
@@ -559,16 +571,18 @@ function siteHangarBox(H) {
 function standFor(site, dims, groundAt) {
   if (!site || !site.stand) return site ? site.stand : null;
   const h = site.hangar, st = site.stand;
-  if (!h || !dims || !(dims.HD > h.HD)) return st;
+  const lz = (dims && Number.isFinite(+dims.doorZ)) ? +dims.doorZ : 0;   // DERELICT-HANGAR: the door off the axis (the large hangar)
+  if (!h || !dims || (!(dims.HD > h.HD) && !lz)) return st;
   const dx = -CORE_MATH.cos(h.ry), dz = CORE_MATH.sin(h.ry);
-  let d = dims.HD - h.HD;
+  let d = Math.max(0, dims.HD - h.HD);
   if (site.apron) {   // stay 2 m inside the apron's far edge along the walk
     const ap = site.apron, EDGE = 2;
     const lim = dx < -1e-6 ? (st.x - (ap.x0 + EDGE)) / -dx : dx > 1e-6 ? ((ap.x1 - EDGE) - st.x) / dx : Infinity;
     const limz = dz < -1e-6 ? (st.z - (ap.z0 + EDGE)) / -dz : dz > 1e-6 ? ((ap.z1 - EDGE) - st.z) / dz : Infinity;
     d = Math.max(0, Math.min(d, lim, limz));
   }
-  const x = +(st.x + dx * d).toFixed(3), z = +(st.z + dz * d).toFixed(3);
+  // the door's line: the shed's local z (its width) is (sin ry, cos ry) in the world
+  const x = +(st.x + dx * d + CORE_MATH.sin(h.ry) * lz).toFixed(3), z = +(st.z + dz * d + CORE_MATH.cos(h.ry) * lz).toFixed(3);
   const g = typeof groundAt === 'function' ? +groundAt(x, z) : NaN;
   const elev = Number.isFinite(g) ? +g.toFixed(2) : st.elev;
   return elev !== undefined ? { x, z, hdg: st.hdg, walked: +d.toFixed(3), elev } : { x, z, hdg: st.hdg, walked: +d.toFixed(3) };
@@ -608,6 +622,7 @@ function standFor(site, dims, groundAt) {
 // null = the aircraft's own slope; a number is the editor's future
 // declaration, flown if shallower than the aircraft's.
 const GP_FILLET = 12, GP_HOLD_IN = 110, GP_LANE = 12, GP_UTURN_R = 12;
+const GP_LANE_ROUGH = 1.0;   // STRIP-LANE: a rough strip's backtrack lane, m off its centreline (sitePattern)
 
 // ---- THE PARKED AEROPLANES, AND THE WAY OUT ROUND THEM (G710) ----------------
 // The Jolene playtest: "the autopilot gets a collision with the wing of the cub when getting out of the
@@ -745,7 +760,14 @@ function sitePattern(aero, site, opts) {
     const side = (tx - R.cx) * n[0] + (tz - R.cz) * n[1];
     laneSg = side > 0 ? -1 : 1;
   }
-  const lane = Math.min(GP_LANE, R.half - 2.5);
+  // STRIP-LANE (Pilot, 10 Nov; the DIRT-STRIP re-vet): A ROUGH STRIP IS BACKTRACKED DOWN ITS MIDDLE. half - 2.5 m keeps a
+  // runway's lane clear of its edge lights; on a bush strip the edge is where the stones are (DIRT-STRIP 26b_strip_micro:
+  // rocks x edge^2, the rolled centre band kept clear) - the Jodel's w3 backtrack at v 6.5 m (2.5 m from the edge, ~8 m/s)
+  // struck one with its propeller. A strip whose aerodrome carries `micro` (chaos > 0) gets the lane GP_LANE_ROUGH off the
+  // centreline and its U-turn made there, inside the band (the follower pivots what the wheels cannot steer, as at HOME);
+  // a strip without - every strip but the bumpy ones - keeps its lane to the bit
+  const rough = !!(aero && aero.micro && +aero.micro.chaos > 0);
+  const lane = rough ? Math.min(GP_LANE_ROUGH, R.half - 2.5) : Math.min(GP_LANE, R.half - 2.5);
   const ends = [R.end0, R.end1];
   // A SHORT STRIP'S NODES (G527): the hold 110 m in and the U-turn 27-90 m in are a long runway's - on a
   // 150 m bush strip hold0 stood 35 m PAST the middle, 40 m of run ahead, and the pilot replanned the
@@ -753,7 +775,10 @@ function sitePattern(aero, site, opts) {
   // quarter in) so 75 % of the strip is ahead - the pilot asks 70 % of a short field (43_pilot: need);
   // every strip of 300 m and more keeps its numbers to the bit
   const lenR = Math.hypot(R.end1.x - R.end0.x, R.end1.z - R.end0.z);
-  const kIn = lenR < 300 ? Math.max(0.3, 0.25 * lenR / GP_HOLD_IN) : 1;
+  // SHORT-HOLD (Pilot, 10 Nov SET2): ...AND FROM 300 m TO 380 m THE HOLD LEAVES THE PILOT'S 70 % + 4 m AHEAD. The generic
+  // hold 110 m in left w6 (311.5 m) 201.5 m ahead against the hold's 0.7 x 311.5 = 218 m: the Cub and the Jodel replanned
+  // three times and gave up on the ground (w5, 310 m, the same). Strips of 380 m and more keep 110 m to the bit
+  const kIn = lenR < 300 ? Math.max(0.3, 0.25 * lenR / GP_HOLD_IN) : Math.min(1, (0.3 * lenR - 4) / GP_HOLD_IN);
   const holds = [];
   for (const T of [0, 1]) {
     const dir = T === 0 ? d : [-d[0], -d[1]];
@@ -926,7 +951,14 @@ function sitePatternIssues(pat, aero, site, Rmin, patternPath) {
     // cannot be blamed for its U-turn: the lane is the strip's, the follower
     // slows for the bend it gets, and only a site's own corners are held to
     // the radius
-    const wideEnough = R.half - 2.5 >= Rmin;
+    // ... and a ROUGH strip (aero.micro, chaos > 0) turns round on purpose inside its rolled band, GP_LANE_ROUGH off the
+    // centreline (STRIP-LANE, sitePattern): the follower pivots that U-turn as at HOME, so its corner is the strip's too
+    // (DIRT-STRIP 12 Nov: w3 with its micro read back[0] 2.0 m under the 6.0 m - STAGES / TAXICLEAR / WORLD, held out of L38c)
+    // THE PILOT'S CALL (12 Nov, its yes in writing): nobody steers that U-turn - a taildragger pivots on the centreline
+    // (STRIP-LANE 2), a tricycle turns in the turnaround pad and rejoins inside it (planDeparture trikePad, '@u0'); the 1 m
+    // lane is what cured the Jodel's w3 stone strike, so the U-turn is not reshaped
+    const rough = !!(aero && aero.micro && +aero.micro.chaos > 0);
+    const wideEnough = R.half - 2.5 >= Rmin && !rough;
     if (Rmin > 0 && wideEnough && P.rMin < 1.05 * Rmin)
       out.push(what + ' has a ' + P.rMin.toFixed(1) + ' m corner, under the aeroplane’s ' + Rmin.toFixed(1) + ' m');
     for (const q of P.pts) {

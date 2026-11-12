@@ -236,7 +236,7 @@ function run(mut) {
     const lims = {};
     for (const k of Object.keys(CORE.SHELLS)) {
       if (CORE.SHELLS[k].status !== 'live') continue;
-      const L = CORE.SHELLS[k].lims;
+      const L = CORE.shellLims(k, 'HOME');   // (the shell's envelope as HOME's main plot holds it: the pad caps the depth)
       for (const d of ['HW', 'HD'])
         lims[d] = lims[d]
           ? [Math.min(lims[d][0], L[d][0]), Math.max(lims[d][1], L[d][1])]

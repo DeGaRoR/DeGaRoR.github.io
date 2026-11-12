@@ -27,6 +27,11 @@
 //   (DAY_CLOCK.preset), hand flying on, the parking brake (P) and full throttle (Home) as the keys a player presses: 14 s
 //   of run-up shot backlit (the eye on the sun's far side) and from the side, then idle (End) and the cloud left hanging
 //   at +10 s. --cls none --soil none there: the strip's own class, the weather's own soil (or --soil 0.02 for a dry day).
+//   (9 Nov slot: the place did NOT move the aeroplane - it stayed on HOME's apron, the worker's pose kept; use --from.)
+//   --from <aerodrome id> [--dest <id>|CIRCUIT]: THE TAKE-OFF FROM ANOTHER FIELD, the game's own way (rollout_perf's
+//   --from): the route pref { v: 2, base: 'HOME', to, spawn } is written before the page's first script, so the roll-out
+//   starts on that field's stand and the pilot taxis out and takes off there - on a loose strip, its own surface
+//   (pair with --cls none). The take-off arm's timing and stills, unchanged.
 // What A0 sends back: the PNGs and <out>_<arm>.json for each arm (dust on / off, gamer / laptop).
 'use strict';
 const { spawn } = require('child_process');
@@ -47,10 +52,12 @@ const AIR_MAX = +opt('airmax', 90000);
 const OUT = opt('out', 'D:/Dev/flydiy-notes/evidence-2026-10-18/2026-11-09/dust/dust');   // (pictures never go in git: the notes' evidence folder)
 const RUNUP = opt('runup', null);
 const HOUR = opt('hour', 'golden');
-const q = [DUST_ON ? null : 'dust=0', GFX ? 'gfx=' + GFX : null].filter(Boolean).join('&');
+const FROM = opt('from', null), DEST = opt('dest', 'CIRCUIT');   // (--from: the take-off at another field, the route pref's spawn)
+const LOOK0 = opt('look', '1') === '0', V2OFF = opt('v2', '1') === '0';   // --v2 0: ?dustv2=0 (the colour tune alone)      // --look 0: the 9 Nov dust look (?dustlook=0), the before of a before/after
+const q = [DUST_ON ? null : 'dust=0', GFX ? 'gfx=' + GFX : null, LOOK0 ? 'dustlook=0' : null, V2OFF ? 'dustv2=0' : null].filter(Boolean).join('&');
 const URL0 = opt('url', 'http://localhost:8450/flyDiy/dev.html');
 const URL = q ? URL0 + (URL0.includes('?') ? '&' : '?') + q : URL0;
-const ARM = (DUST_ON ? 'dust' : 'nodust') + '_' + (GFX || 'default') + (RUNUP ? '_runup_' + RUNUP : '');
+const ARM = (DUST_ON ? 'dust' : 'nodust') + (LOOK0 ? '_look0' : V2OFF ? '_v1' : '') + '_' + (GFX || 'default') + (RUNUP ? '_runup_' + RUNUP : '') + (FROM ? '_from_' + FROM : '');
 const PORT = 9400 + (process.pid % 500);
 const CHROME = [opt('chrome', null), 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
   'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe', '/usr/bin/google-chrome',
@@ -134,12 +141,12 @@ async function runup(ev, cmd, shot, rec) {
     const cmd = (method, params) => new Promise(r => { const i = ++id; waits.set(i, r); ws.send(JSON.stringify({ id: i, method, params: params || {} })); });
     const ev = async expr => { const r = await cmd('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true });
       if (!r.result || r.result.exceptionDetails) throw new Error('page: ' + JSON.stringify(r.result && r.result.exceptionDetails && ((r.result.exceptionDetails.exception && r.result.exceptionDetails.exception.description) || r.result.exceptionDetails.text))); return r.result.result.value; };
-    const shot = async v => { if (!STILLS) return; const s = await cmd('Page.captureScreenshot', { format: 'png' });
+    let shot = async v => { if (!STILLS) return; const s = await cmd('Page.captureScreenshot', { format: 'png' });
       fs.mkdirSync(path.dirname(OUT), { recursive: true });
       const f = OUT + '_' + ARM + '_' + v + '.png'; fs.writeFileSync(f, Buffer.from(s.result.data, 'base64')); say('wrote ' + f); };
     await cmd('Page.enable'); await cmd('Runtime.enable');
     await cmd('Emulation.setDeviceMetricsOverride', { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
-    await cmd('Page.addScriptToEvaluateOnNewDocument', { source: 'try{localStorage.clear();}catch(e){}' });
+    await cmd('Page.addScriptToEvaluateOnNewDocument', { source: 'try{localStorage.clear();' + (FROM ? 'localStorage.setItem("flydiy.route",' + JSON.stringify(JSON.stringify({ v: 2, base: 'HOME', to: DEST, spawn: FROM !== 'HOME' ? FROM : undefined })) + ');' : '') + '}catch(e){}' });
     await cmd('Page.navigate', { url: URL });
     const ready = '(window.BOOT && BOOT.state === "gone" && window.GARAGE_SPEC && window.FLIGHT_PROBE && !(window.CAGE_CREW_PENDING && CAGE_CREW_PENDING()))';
     let up = false;
@@ -172,16 +179,30 @@ async function runup(ev, cmd, shot, rec) {
     if (RUNUP) { await runup(ev, cmd, shot, rec); ws.close(); return; }
     // THE TAKE-OFF, sampled: the frame record from 5 s before the roll to 25 s after the lift-off
     const t0 = Date.now(); let last = null, liftT = 0, rollT = 0, sMid = false, shots = new Set();
+    // THE EYES FROM THE RUN'S OWN DIRECTION (9 Nov: fixed world azimuths put the eye in the trees of a narrow strip): hd = the
+    // ground track's azimuth in the orbit camera's frame (x = cos az, z = sin az); behind = hd + PI, ahead = hd
+    // (10 Nov: FLIGHT_PROBE.sim().cgPos() did not move over the nv_strip roll - hd 0, the eyes back on fixed azimuths. The
+    // dust's own wheel record is the flown aeroplane - the trail lay where it went - so the track comes from the mains there,
+    // the probe's CG the fallback; null when neither moved 0.5 m)
+    const HD = "(async()=>{const W=()=>{try{const w=window.DUST_FX&&DUST_FX.fx&&DUST_FX.fx.st.wheels[0];if(w)return [w.x,w.z]}catch(e){}const c=FLIGHT_PROBE.sim().cgPos();return [c[0],c[2]]};const a=W();await new Promise(r=>setTimeout(r,600));const b=W();const dx=b[0]-a[0],dz=b[1]-a[1];return dx*dx+dz*dz>0.25?Math.atan2(dz,dx):null})()";
+    let hd = null;
+    // THE ORBIT, AND WHERE IT LOOKS (10 Nov: the nv_strip stills had the dust in frame and no aeroplane): camSet drives the
+    // orbit only - force it, and record at each shot the mode, the orbit and the CG, so a still that misses says why
+    try { await ev("(FLIGHT_PROBE.camMode&&FLIGHT_PROBE.camModeNow&&FLIGHT_PROBE.camModeNow()!=='orbit'&&FLIGHT_PROBE.camMode('orbit'),1)"); } catch (e) {}
+    rec.probe = {};
+    const PROBE = "(()=>{const s=FLIGHT_PROBE.sim(),c=FLIGHT_PROBE.cam();return {mode:FLIGHT_PROBE.camModeNow&&FLIGHT_PROBE.camModeNow(),cg:s&&s.cgPos?s.cgPos().map(v=>+v.toFixed(1)):null,az:+c.az.toFixed(2),el:+c.el.toFixed(2),dist:+c.dist.toFixed(1)}})()";
+    const shot0 = shot;
+    shot = async v => { try { rec.probe[v] = await ev(PROBE); say(ARM + ' ' + v + ' ' + JSON.stringify(rec.probe[v])); } catch (e) {} return shot0(v); };
     await ev('(window.__dustS.on=true,window.__dustS.t.length=0,1)');
     rec.trace = [];
     while (Date.now() - t0 < AIR_MAX) {
       const s = await ev("(()=>{const ap=FLIGHT_PROBE.ap(),sim=FLIGHT_PROBE.sim();return {ph:ap.phase,ias:sim&&sim.out?(sim.out.ias!=null?sim.out.ias:sim.out.V):null}})()");
       if (s.ph !== last) { rec.trace.push([((Date.now() - t0) / 1000).toFixed(1), s.ph, s.ias]); last = s.ph; say(ARM + ' ' + s.ph + ' ias=' + s.ias); }
-      if (s.ph === 'ROLL' && !rollT) { rollT = Date.now(); if (!shots.has('roll')) { shots.add('roll'); await ev('FLIGHT_PROBE.camSet(0.9,0.12,16),1'); await sleep(1500); await shot('roll'); } }
-      if (rollT && !liftT && !sMid && s.ias > 12) { sMid = true; await ev('FLIGHT_PROBE.camSet(' + (Math.PI / 2) + ',0.08,26),1'); await sleep(600); await shot('run'); }
-      if (s.ph === 'LIFTOFF' && !liftT) { liftT = Date.now(); await ev('FLIGHT_PROBE.camSet(1.2,0.1,24),1'); await shot('liftoff'); }
-      if (liftT && Date.now() - liftT > 8000 && !shots.has('back8')) { shots.add('back8'); await ev('FLIGHT_PROBE.camSet(' + (Math.PI - 0.25) + ',0.12,45),1'); await sleep(800); await shot('back8'); }
-      if (liftT && Date.now() - liftT > 20000 && !shots.has('back20')) { shots.add('back20'); await ev('FLIGHT_PROBE.camSet(' + (Math.PI - 0.15) + ',0.1,90),1'); await sleep(800); await shot('back20'); }
+      if (s.ph === 'ROLL' && !rollT) { rollT = Date.now(); await sleep(1200); hd = await ev(HD); rec.hd = hd; if (!shots.has('roll')) { shots.add('roll'); await ev('FLIGHT_PROBE.camSet(' + ((hd != null ? hd : 0) + Math.PI + 0.35) + ',0.22,22),1'); await sleep(1200); await shot('roll'); } }
+      if (rollT && !liftT && !sMid && s.ias > 12) { sMid = true; if (hd == null) { hd = await ev(HD); rec.hd = hd; } await ev('FLIGHT_PROBE.camSet(' + ((hd != null ? hd : 0) + Math.PI / 2) + ',0.40,28),1'); await sleep(600); await shot('run'); }
+      if (s.ph === 'LIFTOFF' && !liftT) { liftT = Date.now(); await ev('FLIGHT_PROBE.camSet(' + ((hd != null ? hd : 0) + Math.PI + 0.25) + ',0.25,30),1'); await shot('liftoff'); }
+      if (liftT && Date.now() - liftT > 8000 && !shots.has('back8')) { shots.add('back8'); await ev('FLIGHT_PROBE.camSet(' + ((hd != null ? hd : 0) + 0.2) + ',0.30,60),1'); await sleep(800); await shot('back8'); }
+      if (liftT && Date.now() - liftT > 20000 && !shots.has('back20')) { shots.add('back20'); await ev('FLIGHT_PROBE.camSet(' + ((hd != null ? hd : 0) + 0.15) + ',0.35,120),1'); await sleep(800); await shot('back20'); }
       if (liftT && Date.now() - liftT > 25000) break;
       await sleep(100);
     }

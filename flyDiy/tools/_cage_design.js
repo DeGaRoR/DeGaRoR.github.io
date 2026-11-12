@@ -3150,7 +3150,7 @@ const ARCHETYPES = [
                     // off, and the length of the beam too, as I assume it stop at the rudder leading edge ... the rudder to
                     // go below, covering the boom's height ... matching the control surfaces is not [optional]"): the rod
                     // ends on the hinge (boomLen 4.46 -> 4.326, its end 5.57 m from the nose, the drawing's 5.57), the fin
-                    // slid aft on it (finShiftZ, the new row) with its leading edge upright (finSweep 0: 5.24 vs 5.25), the
+                    // slid aft on it (finZ, the fin's station row - master's DRAFTING TABLE; this branch's finShiftZ merged into it) with its leading edge upright (finSweep 0: 5.24 vs 5.25), the
                     // hinge vertical (finHinge 0.29, finAftZ: 5.57 / 5.57), the trailing edge 5.99 / 5.92 (drawing 6.00 /
                     // 5.94), the rudder down over the rod's height (finRudBelow, the new row: its foot 0.21 m under the
                     // rod's top, the drawing's 0.20); the stab unswept (stSweep 0) at the drawing's station (stZ, stTipZ,
@@ -3159,7 +3159,7 @@ const ARCHETYPES = [
                     // LE 4.93 -> 5.06 (drawing 4.93 -> 5.07), TE 5.54 -> 5.53 (5.55 -> 5.53), the elevator 0.10 m deep (stHinge)
                     // the rudder's foot raked up to its trailing edge as drawn, a crisp corner (finBaseY 0.05 -> 0.2,
                     // finSharpBase), within a pixel of the drawing's diagonal
-                    finShiftZ: -0.134, finRudBelow: 1, stSweep: -2, stTipZ: -0.12, stHinge: 0.15, finSharpBase: 3,
+                    finZ: -0.134, finRudBelow: 1, stSweep: -2, stTipZ: -0.12, stHinge: 0.15, finSharpBase: 3,
                     // THE PILOT LAID BACK, THE BELLY FLATTER, THE WING'S SURFACES, NO LIGHTS (12 Nov, the user: "the bottom of
                     // our fuselage is still too rounded ... the pilot barely fits ... You may choose another one, like a
                     // sports recline ... a much bigger recline ... put the feet much further forward ... into the nose";
@@ -3193,9 +3193,12 @@ const ARCHETYPES = [
                     paxWinN: 1, paxWinShape: 2, paxWinZ: 1.56, paxWinPitch: 0.5, paxWinY: 0.52, paxWinW: 1.06, paxWinH: 0.26,
                     paxWinR: 0.02, paxWinQ1Z: 2.089, paxWinQ1Y: 0.647, paxWinQ2Z: 1.033, paxWinQ2Y: 0.647,
                     paxWinQ3Z: 1.033, paxWinQ3Y: 0.392, paxWinQ4Z: 2.089, paxWinQ4Y: 0.392,
+                    // (the merge with master's fifth corner, FIT-PROCEDURE: master's Q5 sits between Q4 and Q1, so the
+                    // same pentagon is written round from its top-aft corner - Q1 top-aft, Q2 bottom-aft, Q3 the kink,
+                    // Q4 bottom-fwd, Q5 top-fwd: the outline and its winding unchanged)
                     win2N: 1, win2Shape: 2, win2Z: 1.56, win2Pitch: 0.5, win2Y: 0.24, win2W: 1.08, win2H: 0.23, win2R: 0.02,
-                    win2Q1Z: 2.102, win2Q1Y: 0.345, win2Q2Z: 1.021, win2Q2Y: 0.345, win2Q3Z: 1.021, win2Q3Y: 0.125,
-                    win2Q4Z: 2.102, win2Q4Y: 0.212, win2Q5On: 1, win2Q5Z: 1.398, win2Q5Y: 0.116,
+                    win2Q1Z: 1.021, win2Q1Y: 0.345, win2Q2Z: 1.021, win2Q2Y: 0.125, win2Q3Z: 1.398, win2Q3Y: 0.116,
+                    win2Q4Z: 2.102, win2Q4Y: 0.212, win2Q5On: 1, win2Q5Z: 2.102, win2Q5Y: 0.345,
                     finMidY: 0, finUY: -0.4, finLEZ: -0.65, finLEY: -0.09, finShoulderZ: 0,
                     finShoulderY: 0, finTopY: 0, finTERoot: -0.055, finTEU: -0.075, finTEMid: 0.01,
                     finSharpShoulder: 0, finSharpTip: 3, finSharpLE: 3, finSharpAft: 3,

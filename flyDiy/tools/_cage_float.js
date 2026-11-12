@@ -268,7 +268,10 @@ Object.assign(PAGE.defaults, { fltKit: 0, fltKitPrevD: 0, fltKitPrevN: 0, fltKit
 const seaProps = () => (typeof GEN_SEAPLANE_PROPS !== 'undefined' ? GEN_SEAPLANE_PROPS : (window.GEN_SEAPLANE_PROPS || {}));
 const kitModel = P => (+P.gearFloats ? PRESET_NAMES[Math.round(P.fltPreset)] || null : null);
 const specPitch = () => { try { const S = window.GARAGE_SPEC && window.GARAGE_SPEC.get(); return (S && S.prop && S.prop.pitch) || null; } catch (e) { return null; } };
-const setPitch = p => { if (!p) return; setTimeout(() => { try { if (window.GARAGE_SPEC && window.GARAGE_SPEC.update) window.GARAGE_SPEC.update({ prop: { pitch: p } }); } catch (e) {} }, 0); };
+// (ENGINE-DIALS B: the kit sets the propeller's pitch ROW, the same writer a builder's move on it uses - _cage_eng.js
+// CAGE_PROP_PITCH - which writes the spec; with no engine layer on the page, the spec as before)
+const setPitch = (p, P) => { if (!p) return; const PR = window.CAGE_PROP_PITCH; if (PR && PR.set && P) { PR.set(P, p); return; }
+  setTimeout(() => { try { if (window.GARAGE_SPEC && window.GARAGE_SPEC.update) window.GARAGE_SPEC.update({ prop: { pitch: p } }); } catch (e) {} }, 0); };
 let lastKit = null;
 // -> null (nothing changed) or { kind: 'fit' | 'restore' | 'floats' | 'off', model, row, prev }; writes the rows
 function floatKitStep(P) {
@@ -282,14 +285,14 @@ function floatKitStep(P) {
     Object.assign(P, { fltKitPrevD: prev.D, fltKitPrevN: prev.N, fltKitPrevMat: Math.round(P.cw_material),
                        fltKitPrevPitch: KIT_PITCHES.indexOf(prev.pitch) });
     Object.assign(P, { cw_propD: row.D, cw_bladeN: row.blades, cw_material: Math.max(0, KIT_MATS.indexOf(row.material)), fltKit: 1 });
-    setPitch(row.pitch);
+    setPitch(row.pitch, P);
     return { kind: 'fit', model, row, prev };
   }
   if (!row && +P.fltKit) {
     const back = { D: +P.fltKitPrevD, N: +P.fltKitPrevN, pitch: KIT_PITCHES[+P.fltKitPrevPitch] || null };
     if (back.D > 0) Object.assign(P, { cw_propD: back.D, cw_bladeN: back.N, cw_material: +P.fltKitPrevMat });
     P.fltKit = 0;
-    setPitch(back.pitch);
+    setPitch(back.pitch, P);
     return { kind: 'restore', model, row: null, prev: back };
   }
   return { kind: +P.gearFloats ? 'floats' : 'off', model, row: null, prev };

@@ -89,7 +89,8 @@ const GROUP = ['8b · tail — stab & elevator', [
     ['stIvReach', 'V from the booms · reach outboard', 0.20, 2.00, 0.01,
      { when: P => !!+P.boomTwin && Math.round(+P.stMount || 0) === 4 && Math.round(+P.stIvDir || 0) % 2 === 1, dim: 'len' }],
     ['stX', 'in / out (root half-track)', 0, 0.30, 0.005],
-    ['stY', 'up / down (from the seat)', -0.20, 0.80, 0.005],
+    // (DRAFTING TABLE, 11 Nov: the PC-6's stab sits 0.9 over its seat - the range was the slider's alone, 0.8)
+    ['stY', 'up / down (from the seat)', -0.20, 1.20, 0.005],
     ['stZ', 'fore / aft',       -0.60, 0.60, 0.005],
     ['stCant', 'cant (V-tail) °', 0, 55, 0.5],
   ], 'open', { when: P => +P.stOn }],

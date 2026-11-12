@@ -251,6 +251,10 @@ html.phone:where(:not(.phfly)) #phDiv { position:fixed; z-index:48; touch-action
   display:flex; align-items:center; justify-content:center; }
 html.phone:where(:not(.phfly)) #phDiv::before { content:''; flex:none; width:40px; height:4px; border-radius:2px; background:rgba(255,248,236,.28); }
 html.phone:where(:not(.phfly)) #phDiv.on::before { background:var(--ed-acc); }
+/* HOTFIX 4 (the user, 11 Nov 11:45: phone import still dead): the divider's 44 px band (z 48) lay over the save menu (#edShelf
+   inside #edView, z 42) - IMPORT sat on the band and every tap went to the divider. While that menu is open the divider
+   takes no touch and hides; it comes back when the menu closes */
+html.phone:has(#edShelf:not([hidden])) #phDiv { pointer-events:none; opacity:0; }
 html.phone:where(:not(.phfly)) #phGhost { position:fixed; z-index:49; pointer-events:none; left:0; top:0; width:100vw; height:2px; background:var(--ed-acc);
   box-shadow:0 0 0 1px rgba(0,0,0,.4); }
 html.phone:where(:not(.phfly)) #phGhost[hidden] { display:none; }

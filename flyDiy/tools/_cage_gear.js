@@ -49,6 +49,9 @@ Object.assign(gearDef, {
   // tail. Measured back to 16.2 deg, inside the 15-18 window, at 2.00.
   s1On: 1, s1Z: 2.00, s1X: 0.80, s1Leg: 1, s1R: 0.20, s1Drop: 0.45,
   s1Brake: 1, s1Steer: 0, s1Fair: 0,
+  // ENGINE-DIALS C (9 Nov): the mains' spring rate over the suspension kind's (GEN_SUSPENSION), spec.gear.stiffness -
+  // a physics field no row reached (every build flew 1); absent at 1 (CAGE_DEFAULT_ABSENT)
+  s1Stiff: 1,
   // G26.4 (user): a TAILWHEEL station follows the tail — when the leg
   // is a tailwheel, station z is measured FORWARD OF THE AFT EXTREMITY
   // (AF.z0, which tracks the boom/rod length by construction), so
@@ -163,6 +166,10 @@ const station = (i, name) => [name, [
    { when: P => +P['s' + i + 'On'] && Math.round(P['s' + i + 'Leg']) !== 3,
      dim: 'm' }],
   ['s' + i + 'Brake', 'brake',        0, 1, 1, sOn(i)],
+  // ENGINE-DIALS C: the suspension's stiffness, the mains' only (the physics has one suspension arch: G132) - a stiffer
+  // or softer bungee pack, spring blade or oleo charge than the kind's own rate; the frame scales the legs' k by it and
+  // their damping by its root (61_gen_frame SUS / CG)
+  ...(i === 1 ? [['s1Stiff', 'suspension stiffness ×', 0.35, 3.0, 0.01, sOn(1)]] : []),
   // (G3575, the user 26 Oct: "remove fixed" - on the THIRD wheel: it flew as 'linked' anyway; the mains keep their 'fixed',
   // their own and only value. A saved third wheel at 0 still flies linked, as it always did)
   // G3800: the third wheel's own four kinds (GP.TW_STEERS; 0 an old save's, shown and flown as 1)
@@ -1440,8 +1447,11 @@ const RETRACT_LAB = () => {
     if (typeof window.FLYDIY_RETRACT_LAB === 'boolean') return window.FLYDIY_RETRACT_LAB;
     // no page (node: the gates, the tools) - no player to hide it from: the lab's rows are all there
     if (typeof location === 'undefined') return true;
-    if (/[?&]retract=lab\b/.test(location.search || '')) return true;
-    return !!(window.localStorage && window.localStorage.getItem('flydiy.flDev') === '1');
+    // SEA-ON (10 Nov, the user: "I need to see these things and play with it; I'm still the sole player"): the hulls
+    // and the retractable gear are ON by default in the player's garage too. ?retract=off is the way back (a session's
+    // look at the old garage); ?retract=lab and the dev toggle still say on
+    if (/[?&]retract=off\b/.test(location.search || '')) return false;
+    return true;
   } catch (e) { return true; }
 };
 window.CAGE_RETRACT_LAB = RETRACT_LAB;

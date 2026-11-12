@@ -157,9 +157,10 @@ function buildFin2(S) {
   // Measured on the jodel: its fuselage is a full unit shorter than the
   // template the sketch was drawn on, so without this the fin floats in air
   // behind the aeroplane.
-  // (FIN-SHIFT, 12 Nov, the Archaeopteryx: "the length of the beam ... stops at the rudder leading edge" - S.shiftZ moves
-  // the whole fin fore / aft on its boom, + forward, so the hinge can sit on the boom's end; absent, as ever)
-  const dz = (deck ? deck.z0 - D.zCap : 0) + (S.shiftZ || 0);
+  // FIN STATION (DRAFTING TABLE, 11 Nov: the PC-6's rudder ends ahead of its tail cone, the DC-3's hinge stands 0.5 m
+  // ahead of its post - REF_MATCH section 7): S.zShift moves the whole fin along its deck, + forward, cage units. Set by
+  // the fin layer alone (the stab's spec never carries it); absent = 0 = every saved fin to the bit.
+  const dz = (deck ? deck.z0 - D.zCap : 0) + (+S.zShift || 0);
   const Z = z => z + dz;
   // tailpost anchor: aft of the hinge the strand continues LEVEL
   const topAt = deck ? z => deck.top(Math.max(z, Z(D.zH1))) : null;
@@ -185,17 +186,25 @@ function buildFin2(S) {
   // whole surface is not the control): rootFwd moves the drawn front
   // column, clamped between the dorsal's B column (dorsal on) or the
   // dorsal-tip station (off) and the hinge
+  // THE DORSAL'S SHAPE (DRAFTING TABLE, 11 Nov: the PC-6's straight dorsal runs 1.9 m ahead of its fin's leading edge
+  // and meets it high): S.dorsalFwd moves the dorsal's forward tip (column A) forward and its A/B column with it in
+  // proportion; S.dorsalH raises the leading edge where the dorsal meets the fin (column C), and either one makes the
+  // dorsal STRAIGHT from its tip to that junction (B on the line). Set by the fin layer alone; absent = the sketch's.
+  const dFwd = dorsal ? (+S.dorsalFwd || 0) : 0, dH = dorsal ? (+S.dorsalH || 0) : 0;
+  const zA_ = D.zA + dFwd, zB_ = D.zB + dFwd * (D.zB - D.zC) / (D.zA - D.zC);
   const zCc = clampSay('root length', D.zC + (S.rootFwd || 0),
-                       D.zH1 + 0.15, dorsal ? D.zB - 0.05 : D.zA);
+                       D.zH1 + 0.15, dorsal ? zB_ - 0.05 : D.zA);
 
   // root rows per column: on the deck keeping the sketch's gaps, or the
   // fiche's absolute sketch values when no deck is given
   const lo = {}, hi = {}, le = {};
-  for (const [c, z] of [['A', D.zA], ['B', D.zB], ['C', zCc]]) {
+  for (const [c, z] of [['A', zA_], ['B', zB_], ['C', zCc]]) {
     lo[c] = deck ? topAt(Z(z)) : D.lo[c];
     hi[c] = lo[c] + (D.hi[c] - D.lo[c]);
     le[c] = lo[c] + (D.le[c] - D.lo[c]);
   }
+  if (dH) le.C += dH;
+  if (dFwd || dH) le.B = le.A + (le.C - le.A) * (zB_ - zA_) / ((zCc - zA_) || 1e-9);
   const loH = deck ? topAt(Z(D.zH1)) : D.lo.H;
   const hiH = loH + (D.hi.H - D.lo.H);
   const kY = deck ? botAt(Z(D.zH1)) + D.offKeel : D.yKeel;
@@ -314,10 +323,10 @@ function buildFin2(S) {
   const V = [], IX = {};
   const P = (name, y, z) => { IX[name] = V.length; V.push([0, y, Z(z)]); };
   if (dorsal) {
-    P('leA', le.A, D.zA);               // 321
-    P('loA', lo.A, D.zA);               // 322
-    P('leB', le.B, D.zB);               // 323
-    P('loB', lo.B, D.zB);               // 324
+    P('leA', le.A, zA_);               // 321
+    P('loA', lo.A, zA_);               // 322
+    P('leB', le.B, zB_);               // 323
+    P('loB', lo.B, zB_);               // 324
   }
   P('midH2', yMid, D.zH2);              // 325
   P('midH1', yMid, D.zH1);              // 326
@@ -337,8 +346,8 @@ function buildFin2(S) {
     P('kTE', baY, teZ(baY));            // 334 — the base corner
   }
   if (dorsal && guard) {
-    P('hiA', hi.A, D.zA);               // 335
-    P('hiB', hi.B, D.zB);               // 336
+    P('hiA', hi.A, zA_);               // 335
+    P('hiB', hi.B, zB_);               // 336
   }
   P('shoulder', shoulderY, shoulderZ);  // 337
   if (guard) P('hiC', hi.C, zCc);       // 338
@@ -1158,7 +1167,6 @@ function finSpec(P) {
     sharpLE: g('finSharpLE'),
     height: g('finHeight'), chord: g('finChord'), chordTip: g('finChordTip'),
     sweep: g('finSweep'), hinge: g('finHinge'),
-    ...((P && +P.finShiftZ) ? { shiftZ: +P.finShiftZ } : {}),
     deck: null,
   };
 }

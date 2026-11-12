@@ -547,8 +547,8 @@ const GATES = [
   // G3800 (the user's VIGNETTE): plane_thumb.js - the wiring (build order, the save / load / delete hooks, storeCard, the
   // shelves' redraw), the per-name cache by the build's hash, the baked index fetched once, draw() with no page. ~1 s
   { id: 'PLANETHUMB', file: '_plane_thumb_check.js', tier: 'core', wall: 2 },
-  // PLANE-LISTS (the user 4 Nov: "so we have an exhaustive list"): builds/lists/plane_lists.json, official / candidates / internal,
-  // nothing deleted; the pool agrees, the Market's files stay; the All planes screen's source rows, internal for the dev only;
+  // PLANE-LISTS (the user 4 Nov: "so we have an exhaustive list"): builds/lists/plane_lists.json; PLANE-LIST (the user 10 Nov):
+  // the classes (reproduction / story / original / wip for the player, next / legacy / archive for the dev), one row per plane, nothing deleted; the pool agrees, the Market's files stay; the All planes screen's source rows, internal for the dev only;
   // the empty stand's R1 and R2 (EMPTY-STAND-RELOOK). ~1 s
   { id: 'PLANELISTS', file: '_planelists_check.js', argv: ['--selftest'], tier: 'core', wall: 3 },
   // G3526-G3529 (GAME-MENUS, the user 25 Oct: "any card you show in game should be draggable"): card_drag.js - the census
@@ -738,11 +738,18 @@ const GATES = [
   // then retries on a clock (2, 4 ... 60 s), not on every build - the old loop rebuilt it every ~280 ms in flight. The
   // page's crew + character layers headless, the user's Cub, an asset door that fails / lands late; a mutant self-test. ~20 s
   { id: 'CREWLOAD', file: '_crewload_check.js', tier: 'core', wall: 25 },
+  // CREW-SEATS (G2715, the game): the crew layer seats an accepted job (its passengers live, the chairs it took out and
+  // the build's occupants it leaves ashore off the layer) - the stand, the snapshot and the flown mesh follow, the spec
+  // stays the build's. The page's load chain on the metal Cessna, four jobs, a probe; ~1-2 min
+  { id: 'CREWSEATS', file: '_crewseats_check.js', tier: 'core', wall: 300 },
   // G134: the custom engine — thermo laws over the registry, the clamp
   // door, and the row reaching the frame; ENGID is the identity ruling
   // (untouched preset = the certified row; deviated = modified/custom)
   { id: 'ENGINE', file: '_engcustom_check.js', tier: 'core' },
   { id: 'ENGID', file: '_engid_check.js', tier: 'core' },
+  // ENGINE-DIALS (9 Nov): every registry engine a point on the custom engine's dials, to the bit; every official
+  // propeller on the cowl page's rows; a custom engine inherits nothing from its fallback key
+  { id: 'ENGINEDIALS', file: '_enginedials_check.js', tier: 'core', wall: 3 },
   // 2026-09-03: an "applies once" starter fires on a ROW change, never on a
   // LOAD — the engine preset and the cowl-for-architecture, and the three
   // doors that replace P
@@ -1153,6 +1160,9 @@ const GATES = [
   // each listing stands, buying stations it there, the sandbox unchanged. ~2 s (~4.5 min cold: 33 shakedowns, cached
   // in the OS temp dir by content)
   { id: 'PROCURE', file: '_procure_check.js', tier: 'core', wall: 400 },
+  // ENGINE-DIALS C (9 Nov): the validated builds' snapshots (CONTRACT_DESIGNS, FREIGHT_CARDS, PROCURE eff) are of the
+  // build files as they are - an edit is red until `node tools/snapshots.js --write` follows it
+  { id: 'SNAPSHOTS', file: 'snapshots.js', argv: ['--check'], tier: 'core', wall: 1 },
   // FREIGHT (G2340 FREIGHT-MODEL, futureDesigns/game/FREIGHT-2026-10-07.md): every validated build's hold, doors,
   // seats and plaque re-measured off its mesh = FREIGHT_CARDS (one build twice: deterministic); items with dims,
   // bulk split into bags; the door rule (a door too small refused; the 2.0 m stretcher as the geometry says); the
@@ -1177,6 +1187,10 @@ const GATES = [
   // no negative geometry (the instrumented stub caught the glazing band and
   // the stem course inside-out at the old slider floor).
   { id: 'HANGAR', file: '_hangar_check.js', tier: 'core' },
+  // THE DERELICT HANGAR (DERELICT-HANGAR, 9 Nov 2026): the works hangar as the derelict WWII hangar and the story's
+  // stages back to the works - the envelope is the works', every stage x lod inside its budget, place-keyed randomness,
+  // stage 3 IS the works build (futureDesigns/DERELICT-HANGAR-2026-11-09.md).
+  { id: 'DERELICT', file: '_derelict_check.js', tier: 'core' },
   // THE ENERGY MODULE (G97-G101): fourteen aeroplanes frozen as numbers —
   // cg0, every node mass and position, the ledger's empty/payload split and
   // the fitting list — BEFORE `spec.fuel` grows into a section with a v5->v6

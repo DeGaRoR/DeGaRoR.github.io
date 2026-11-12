@@ -104,6 +104,16 @@ const SCAR = {
                               //    sealed again once, where the pieces finally lie
   // G2381: a scuff on hard ground at least this wide (rubber and metal, streaks the decal draws)
   wScuff: 0.4,                // m GAME
+  // SCAR-LIVE (9 Nov; the user, watching crash tests: "the marks the crash leaves on the ground are generated after the
+  // fact, with significant delay. They should really happen in real time, as the plane scratches the surface"): the
+  // seal above is the scar's SHAPE (the joined furrows, the craters that stopped, the depth from the whole work), made
+  // when the event ends - the wreck at rest, ~4 s after the verdict. Until then the page drew nothing. Now every slide
+  // point a contact lays (SCAR.step apart) is also a live STROKE in a ring (scarLive: x0 z0 x1 z1 w s kind a), a blow
+  // past eBlow a dab, a prop strike its slot; the page lays each within a frame or two (ground_scar.js liveAdd) and the
+  // seal's decal replaces the trail in the frame it comes. A stroke waits while its event is not ARMED (pub: what the page
+  // may read) and is dropped if the event closes unarmed - a brush leaves nothing, as before. Nothing is written to the
+  // physics. liveCap the ring, liveFrame the most the hop carries a frame
+  liveCap: 4096, liveFrame: 64,
 };
 SCAR.eBlow = Math.round(Math.PI * SCAR.qB * CORE_MATH.pow(3 * SCAR.sod, 3) / 6);   // 970 J: a bowl deeper than the sod
 // the ground's class under a point: 0 turf, 1 bare, 2 hard, -1 water (world.SURFACE: GRASS 0, ROCK 1, SCREE 2,
@@ -128,6 +138,7 @@ function scarMake(def, nE) {
   for (let b = 0; b < nb; b++) { ba[b] = def.beams[b].a; bb[b] = def.beams[b].b; }
   for (let i = 0; i < n; i++) nr[i] = def.nodes[i].r || 0;
   return { n, ns, w, ba, bb, nr, tPrev: -1, last: null, rest: null, acc: new Float64Array(ns * 8), touched: new Int32Array(ns), nt: 0,
+           live: { b: new Float32Array(SCAR.liveCap * 8), cap: SCAR.liveCap, n: 0, pub: 0, cut: 0, g: 1 },   // SCAR-LIVE
            trk: new Array(ns).fill(null), segs: [], strikes: [], ev: { open: false, armed: false, E: 0, t0: 0, tLast: 0, sw: [], ww: [] }, overSealed: false,
            out: { v: 0, prims: [] }, hits: 0, frames: 0, ms: 0, seals: 0 };
 }
@@ -156,11 +167,21 @@ function scarStrike(R, k, x, z, ex, ez, b, Rp, t) {
   R.strikes.push({ k, x, z, ex, ez, b, c });
   if (!E.open) { E.open = true; E.t0 = t; }
   E.tLast = t; E.armed = true;
+  scarLive(R, x - ex * c / 2, z - ez * c / 2, x + ex * c / 2, z + ez * c / 2, SCAR.blade * 2, 0, 2, 1);   // SCAR-LIVE (s: the slot is soil's)
+  R.live.pub = R.live.n;
+}
+// SCAR-LIVE: a stroke into the ring - (x0, z0) to (x1, z1), w wide, on ground class s (0 turf, 1 bare, 2 hard), kind 0 a
+// slide's step, 1 a blow's dab (w its radius), 2 a prop's slot; a its strength. Published at once if the event is armed
+function scarLive(R, x0, z0, x1, z1, w, s, kind, a) {
+  const L = R.live, o = (L.n % L.cap) * 8, b = L.b;
+  b[o] = x0; b[o + 1] = z0; b[o + 2] = x1; b[o + 3] = z1; b[o + 4] = w; b[o + 5] = s; b[o + 6] = kind; b[o + 7] = a;
+  L.n++; if (R.ev.armed) L.pub = L.n;
 }
 function scarReset(R) {
   R.acc.fill(0); R.nt = 0; R.trk.fill(null); R.segs.length = 0; R.strikes.length = 0;
   const E = R.ev; E.open = false; E.armed = false; E.E = 0; E.sw.length = 0; E.ww.length = 0; R.overSealed = false; R.rest = null; R.carry = null; R.carrySegs = null;
   if (R.out.prims.length || R.out.v) { R.out.v++; R.out.prims = []; }   // a new version, empty: the page lets its scar go
+  { const L = R.live; L.n = 0; L.pub = 0; L.cut = 0; L.g++; }   // SCAR-LIVE: a new generation (the page drops its trail)
 }
 // once a frame, on a frame with a contact or an event open, or a sealed scar waiting for the wreck's rest (30_solver step,
 // after dmgOver)
@@ -170,7 +191,10 @@ function scarFrame(R, p, m, world, t, D, v) {
   const A = R.acc, n = R.n, E = R.ev;
   let fw = 0;
   const add = (T, x, z) => { T.L += Math.hypot(x - T.lx, z - T.lz); T.lx = x; T.lz = z;
-    const k = T.pts.length; if (Math.hypot(x - T.pts[k - 2], z - T.pts[k - 1]) >= SCAR.step) T.pts.push(x, z); };
+    const k = T.pts.length; if (Math.hypot(x - T.pts[k - 2], z - T.pts[k - 1]) >= SCAR.step) {
+      // SCAR-LIVE: the step just laid is a stroke (none over the water)
+      const s = scarSurf(world, x, z); if (s >= 0) scarLive(R, T.pts[k - 2], T.pts[k - 1], x, z, T.w, s, 0, 1);
+      T.pts.push(x, z); } };
   const dtF = R.tPrev >= 0 && t - R.tPrev > 0 && t - R.tPrev < 0.1 ? t - R.tPrev : 1 / 60; R.tPrev = t;
   for (let q = 0; q < R.nt; q++) {
     const i = R.touched[q], o = i * 8, Wn = A[o + 1], Wf = A[o + 2], Fm = A[o + 3], x0 = A[o + 4], z0 = A[o + 5], x1 = A[o + 6], z1 = A[o + 7];
@@ -189,6 +213,9 @@ function scarFrame(R, p, m, world, t, D, v) {
       if (ul > 1e-3) { T.v = ul / dtt; T.ux = ux / ul; T.uz = uz / ul; if (!T.u0) T.u0 = [T.ux, T.uz]; } }
     T.Wf += Wf; T.t1 = t; if (Fm > T.Fm) T.Fm = Fm;
     if (t - T.t0 <= SCAR.impS) T.imp += Wn;
+    // SCAR-LIVE: a blow past eBlow is a dab where it struck, its bowl's footprint (the seal decides whether it stays a crater)
+    if (!T.dab && T.imp >= SCAR.eBlow) { T.dab = true; const s = scarSurf(world, x1, z1);
+      if (s >= 0) { const rb = Math.cbrt(6 * T.imp / SCAR.qB / Math.PI), r = Math.min(SCAR.rMax, Math.max(SCAR.rMin, SCAR.rim * rb)); scarLive(R, x1, z1, x1, z1, r, s, 1, 1); } }
     fw += Wn + Wf;
   }
   R.nt = 0;
@@ -198,6 +225,7 @@ function scarFrame(R, p, m, world, t, D, v) {
   if (E.open) E.E += fw;
   if (!E.open) { if (R.rest !== null) scarRest(R, p, v, world, t, D); return; }   // (a wreck at rest still touches)
   if (!E.armed && (D.breaks > 0 || D.crashed || E.E > SCAR.eArm)) E.armed = true;
+  if (E.armed) R.live.pub = R.live.n;                // SCAR-LIVE: the strokes waiting for the arming go to the page
   // the sweep: the CG's track while the wreck touches, a point a metre; the low nodes' reach across it
   if (t - E.tLast < 0.05) {
     let cx = 0, cz = 0, M = 0; for (let i = 0; i < n; i++) { cx += m[i] * p[i * 3]; cz += m[i] * p[i * 3 + 2]; M += m[i]; }
@@ -219,6 +247,9 @@ function scarFrame(R, p, m, world, t, D, v) {
   if ((D.over && !R.overSealed) || t - E.tLast > SCAR.quiet) {
     if (D.over) R.overSealed = true;
     if (E.armed) { scarSeal(R, world, p, D, t); R.rest = { t0: t, tc: t }; }
+    // SCAR-LIVE: sealed, the decal covers every stroke so far (cut: the hop skips those not sent yet); closed unarmed (a
+    // brush), its waiting strokes are dropped
+    if (E.armed) R.live.cut = R.live.n; else R.live.n = R.live.pub;
     // (G2378: a chain still moving at the seal - the D.over seal comes 4 s after the crash, a part may still slide - is
     // CARRIED into the next event, its slides kept: the next seal replaces its prims with the whole chain's)
     const keep = R.carrySegs || []; R.carrySegs = null;

@@ -28,14 +28,65 @@ const ORDER = opt('order', 'A,B,B,A').split(','), WANT = opt('builds', 'cub,meta
 const SEC = { taxi: +opt('taxi', 15), pass: +opt('pass', 15) }, LONG = +opt('long', 80), PROF = opt('cpuprof', null);
 const OUT = path.resolve(opt('out', path.join(__dirname, 'metla_ab_' + Date.now() + '.json')));
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+// a probe read that may time out on a cold page (b.ev resolves "__timeout"): null, never a throw (Mon 9 Nov: leg 4 died on it)
+const jp = s => { if (s === "__timeout") return null; try { return JSON.parse(s); } catch (e) { return null; } };
 const BASE = 'http://localhost:' + PORT + '/flyDiy/index.html';
-const SIDE = { A: 'town=0', B: 'town=1', T: 'town=1', C: 'town=0' };   // G1435: T = the town on, --toggle run at the taxi's middle (its rows apart)   // G1408: the town is ON by default - A says off explicitly
+const SIDE = { A: 'town=0', B: 'town=1', M: 'town=1', T: 'town=1', C: 'town=0', P: 'town=1&towntrees=0' };   // TOWN-1: P = the town on, its trees its own (the before); M = B's flags on a master tree (a run per tree, same --udd)   // G1435: T = the town on, --toggle run at the taxi's middle (its rows apart)   // G1408: the town is ON by default - A says off explicitly
 // G1435: the user's custom near-ultra (flydiy-flightlog-20261003T165355-7u7a header.gfx; tools/perf/shader_guard.js USER_GFX)
 const USER_GFX = { preset: 'custom', pv: 6, fps: 'auto', ground: 'full', scale: 1, cover: 'full', scenery: 'full', drawDist: 'vis', terrain: 1, aa: 'full', density: 200,
   bands: 'mid', shadows: 'full', canopy: 'on', rails: 'on', poles: 'on', glare: 'on', sway: 'on', mist: 'land', clouds: 'full', water: 'full', mirror: 'live', lighting: 'sunset',
   tone: 'cineon', exposure: 1, colour: 'managed', bloom: 'soft', look: 'off', lens: 'off', rays: 'on', ao: 'off', eye: 'on', compositing: 'linear', town: 'nearby' };
 const GFX = opt('gfx', null) === 'user' ? USER_GFX : opt('gfx', null) ? JSON.parse(fs.readFileSync(opt('gfx'), 'utf8')) : null;
 const APPROACH = { sec: +opt('approach', 0), x: +String(opt('approach-at', '-2900,-8400')).split(',')[0], z: +String(opt('approach-at', '-2900,-8400')).split(',')[1], from: +opt('approach-from', 8000) };
+// TOWN-1 (2026-11-07): --shots <dir>: the town's trees in stills - in the approach (the chase view at 3.4, 1.8 and 0.5 km out
+// with --approach-from 4000, --approach 100) and, the flight held, the free camera on the town's tree centroid from inside,
+// its edge, 400 m and 1.3 km out (the aeroplane and the UI hidden), named <side>_<build>_<view>.jpg
+const SHOTS = opt('shots', null);
+// TOWN-1 (A0 8 Nov: "name the +142 calls - which cells and materials"): --census (on with --shots) wraps the renderer's
+// renderBufferDirect over a scene and over each still view and counts the draws per frame by key: the scene's top group |
+// the nearest named object | the fill chunk + series | the material | the geometry's index count | the pass (main, shadow,
+// a render target). Untimed runs only (a Map write per draw). tools/perf/census_diff.js subtracts one side from another.
+const CENSUS = !!SHOTS || argv.includes('--census');
+const CEN_ON = "(() => { const R = FLIGHT_PROBE.renderer(), C = window.__CEN || (window.__CEN = {}); C.m = new Map(); C.f = 0; C.on = true;"
+  + " if (!C.orig) { C.orig = R.renderBufferDirect; R.renderBufferDirect = function (cam, scene, geo, mat, obj, grp) { const C = window.__CEN; if (C.on) { try {"
+  + " let t = obj; while (t.parent && !t.parent.isScene) t = t.parent; let n = obj; while (n && !n.name) n = n.parent;"
+  + " const e = obj.matrixWorld.elements, fill = obj.userData && obj.userData.fill ? 'fill s' + obj.userData.ser + ' c' + Math.floor(e[12] / 1000) + ',' + Math.floor(e[14] / 1000) : '';"
+  + " const sh = mat.isMeshDepthMaterial || mat.isMeshDistanceMaterial || mat === obj.customDepthMaterial || mat === obj.customDistanceMaterial, rt = R.getRenderTarget();"
+  + " const k = (t === obj ? '-' : (t.name || t.type)) + '|' + (n ? n.name : '') + '|' + fill + '|' + (mat.name || mat.type) + '|' + (geo.index ? geo.index.count : geo.attributes.position ? geo.attributes.position.count : 0) + (obj.isInstancedMesh ? 'i' : '') + '|' + (sh ? 'shadow' : rt ? 'rt' : 'main');"
+  + " C.m.set(k, (C.m.get(k) || 0) + 1); } catch (x) {} } return C.orig.apply(this, arguments); }; }"
+  + " if (!C.rorig) { C.rorig = R.render; R.render = function (sc, cam) { const C = window.__CEN; if (C.on && cam === FLIGHT_PROBE.camera()) C.f++; return C.rorig.apply(this, arguments); }; } C.t = 0; const tick = () => { if (!C.on) return; C.t++; requestAnimationFrame(tick); }; requestAnimationFrame(tick); return 1; })()";
+const CEN_OFF = "(() => { const C = window.__CEN; if (!C) return 'null'; C.on = false; const f = Math.max(1, C.f), a = [...C.m].map(([k, v]) => [k, +(v / f).toFixed(2)]).sort((p, q) => q[1] - p[1]);"
+  + " return JSON.stringify({ frames: C.f, ticks: C.t, perFrame: +a.reduce((s, x) => s + x[1], 0).toFixed(1), keys: a.slice(0, 600) }); })()";
+// TOWN-1 8 Nov: the B page of the 17:45 run drew ~13 calls a frame with its world loaded and the aeroplane intact (sky
+// only, chase and free views): the render state at each check - the camera's frustum terms and the draws per main render
+// over 1.5 s - and a side under 60 draws is BLANK (logged, marked on the row, never a cost)
+const RSTATE = "(async () => { const R = FLIGHT_PROBE.renderer(), cam = FLIGHT_PROBE.camera(); let n = 0, f = 0; const o = R.renderBufferDirect, r0 = R.render;"
+  + " const mine = function () { n++; return o.apply(this, arguments); }, mineR = function (sc, c) { if (c === cam) { f++; window.__RS_SCENE = sc; } return r0.apply(this, arguments); };"
+  + " R.renderBufferDirect = mine; R.render = mineR; await new Promise(r => setTimeout(r, 1500)); if (R.renderBufferDirect === mine) R.renderBufferDirect = o; if (R.render === mineR) R.render = r0;"
+  + " const fin = m => m.elements.every(Number.isFinite), p = cam.position;"
+  + " return JSON.stringify({ draws: f ? +(n / f).toFixed(1) : null, renders: f, cam: { fov: cam.fov, near: cam.near, far: cam.far, aspect: +(+cam.aspect).toFixed(3), layers: cam.layers.mask, proj: fin(cam.projectionMatrix), world: fin(cam.matrixWorld), pos: [p.x, p.y, p.z].map(Math.round) } }); })()";
+// A0 8 Nov: a BLANK side may be a game bug, not the rig - at that moment the camera AND the scene graph: the scene the main
+// camera renders (the world's or another), its top children (visible, layers, size), and the meshes through each of
+// three's gates (visible chain, layers, the bounds' centre in the view, a NaN bound) - the camera's own matrices, no THREE
+const BLANKDUMP = "(() => { const cam = FLIGHT_PROBE.camera(), R = FLIGHT_PROBE.renderer(); let S = FLIGHT_PROBE.craft() && FLIGHT_PROBE.craft().parent; while (S && S.parent) S = S.parent; const M = window.__RS_SCENE || S;"
+  + " const fin = m => m.elements.every(Number.isFinite), v = cam.position.clone(), n = { meshes: 0, visible: 0, layers: 0, noCull: 0, inView: 0, nanBound: 0, noBound: 0 }, inView = {}, nan = [];"
+  + " cam.updateMatrixWorld(); M.traverse(o => { if (!o.isMesh && !o.isPoints && !o.isLine && !o.isSprite) return; n.meshes++; for (let t = o; t; t = t.parent) if (!t.visible) return; n.visible++; if (!o.layers.test(cam.layers)) return; n.layers++;"
+  + " let t = o; while (t.parent && t.parent !== M) t = t.parent; const top = t.name || t.type; if (o.frustumCulled === false) { n.noCull++; return; }"
+  + " const bs = o.boundingSphere || (o.geometry && (o.geometry.boundingSphere || (o.geometry.computeBoundingSphere && (o.geometry.computeBoundingSphere(), o.geometry.boundingSphere)))); if (!bs) { n.noBound++; return; }"
+  + " if (!Number.isFinite(bs.radius) || !Number.isFinite(bs.center.x)) { n.nanBound++; if (nan.length < 8) nan.push(top + '/' + (o.name || o.type)); return; }"
+  + " v.copy(bs.center).applyMatrix4(o.matrixWorld).applyMatrix4(cam.matrixWorldInverse).applyMatrix4(cam.projectionMatrix); if (Math.abs(v.x) <= 1.2 && Math.abs(v.y) <= 1.2 && v.z >= -1 && v.z <= 1) { n.inView++; inView[top] = (inView[top] || 0) + 1; } });"
+  + " const p = cam.position;"
+  + " return JSON.stringify({ scene: { name: M.name || M.type, isWorld: M === S, visible: M.visible, layers: M.layers.mask, kids: M.children.length, override: !!M.overrideMaterial, bg: M.background ? (M.background.isColor ? 'color' : M.background.isTexture ? 'texture' : 'other') : null },"
+  + " cam: { type: cam.type, parent: cam.parent ? (cam.parent.name || cam.parent.type) : null, fov: cam.fov, near: cam.near, far: cam.far, aspect: cam.aspect, zoom: cam.zoom, layers: cam.layers.mask, proj: fin(cam.projectionMatrix), world: fin(cam.matrixWorld), inv: fin(cam.matrixWorldInverse), pos: [p.x, p.y, p.z].map(Math.round), up: [cam.up.x, cam.up.y, cam.up.z] },"
+  + " renderer: { autoClear: R.autoClear, rt: !!R.getRenderTarget(), lost: R.getContext().isContextLost(), shadows: R.shadowMap.enabled }, gates: n, inView, nan,"
+  + " tops: M.children.slice(0, 40).map(o => (o.name || o.type) + (o.visible ? '' : ' HIDDEN') + (o.layers.mask !== 1 ? ' L' + o.layers.mask : '') + ' ' + o.children.length) }); })()";
+const cenTop = c => { if (!c || !c.keys) return String(c); const g = {}; for (const [k, v] of c.keys) { const p = k.split('|'), kk = p[0] + '|' + p[5]; g[kk] = (g[kk] || 0) + v; }
+  return c.frames + ' fr, ' + c.perFrame + ' draws/frame: ' + Object.entries(g).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([k, v]) => k + ' ' + v.toFixed(1)).join(', '); };
+// TOWN-1 (2026-11-08, A0: "no wreck"): the rig's taxi + 60 m pass at HOME left the Cub a wreck ("short of Jolene 13/31",
+// broke up) before the approach, on both sides. --approach-first: the approach right after the roll-out (the aeroplane as it
+// rolled out), then the pass, no taxi; --pass-h <m>: the pass's height over HOME's ground (master_bench's 60 by default).
+// Every scene logs the aeroplane's state before and after it (intact: no ending latched, the structure's own summary).
+const APP_FIRST = argv.includes('--approach-first'), PASS_H = +opt('pass-h', 60);
 const FRAMES = argv.includes('--frames') || !!PROF, TOGGLE = opt('toggle', null) ? fs.readFileSync(opt('toggle'), 'utf8') : null;
 let FD = null; try { FD = require('../frame_dist.js'); } catch (e) {}
 // every recorder row in [t0, t1], columnar
@@ -67,12 +118,15 @@ const CHECK = `JSON.stringify((() => { const P = WORLD && WORLD.premises; const 
   let b = await MB.browser(UDD);
   const R = { date: new Date().toISOString(), order: ORDER, builds: WANT, udd: UDD, fresh, gfx: GFX ? (GFX.preset || 'file') : 'default', rows: [] };
   const log = s => console.log('  ' + s);
+  const shot = async (side, bk, n) => { if (!SHOTS) return; fs.mkdirSync(SHOTS, { recursive: true });
+    const r = await b.cmd('Page.captureScreenshot', { format: 'jpeg', quality: 88 }); const f = path.join(SHOTS, side + '_' + bk + '_' + n + '.jpg');
+    fs.writeFileSync(f, Buffer.from(r.result.data, 'base64')); log('still ' + path.basename(f)); };
   const now = () => b.ev('performance.now()');
   const pull = async () => JSON.parse(await b.ev('JSON.stringify({ fr: __MB.fr.slice(-30000), lt: __MB.lt, sc: __MB.sc || [] })', 20000));
   const trip = async () => {   // the roll-out: press, wait for the trip's done and the screen gone
     const n0 = await b.ev(MB.A.trips), t0 = await now(), w0 = Date.now(); await b.ev(MB.A.rollOut);
     let d = null; const tEnd = Date.now() + 300000;
-    while (Date.now() < tEnd) { d = JSON.parse(await b.ev(MB.A.lastTrip, 30000)); if (d.n > n0 && d.kind === 'rollout' && d.done && d.boot === 'gone') break; d = null; await sleep(150); }
+    while (Date.now() < tEnd) { const raw = await b.ev(MB.A.lastTrip, 30000); if (raw === "__timeout") { log("trip: the page busy over 30 s (a cold load), still waiting"); await sleep(500); continue; } d = JSON.parse(raw); if (d.n > n0 && d.kind === 'rollout' && d.done && d.boot === 'gone') break; d = null; await sleep(150); }
     const t1 = await now(), fr = await pull();
     return { ms: d ? d.ms : null, wall: +((Date.now() - w0) / 1000).toFixed(1), frames: MB.stat(fr.fr, fr.lt, t0, t1, fr.sc) };
   };
@@ -116,19 +170,74 @@ const CHECK = `JSON.stringify((() => { const P = WORLD && WORLD.premises; const 
     const row = { side, build: bk, garage: l.sec, rollout: tr.wall, firstFlight: +(l.sec + tr.wall).toFixed(1), rollFrames: tr.frames, links: lk, hwGarage: hwG };
     log('garage ' + l.sec + ' s, roll-out ' + tr.wall + ' s, first flight ' + row.firstFlight + ' s (links ' + lk.n + ', worst ' + lk.worstS + ' s, ' + lk.over5s + ' > 5 s)' + (hwG ? ', houses: built ' + hwG.built + ' hits ' + hwG.hits + ' misses ' + hwG.misses + ' gen ' + hwG.genMs + ' ms' : ''));
     await b.ev(MB.A.cam('chase'));
-    row.taxi = await scene('taxi', SEC.taxi, PROF && 'taxi'.includes(PROF), side === 'T' || side === 'C');
-    const ph = await b.ev(MB.A.pass(home, 42), 20000).catch(e => 'error ' + e.message); await sleep(3000);
-    row.pass = await scene('pass', SEC.pass, PROF && 'pass'.includes(PROF)); row.pass.pilot = ph;
+    const state = async () => jp(await b.ev("JSON.stringify((() => { const P = FLIGHT_PROBE; let st = null; try { st = P.structural ? P.structural() : null; } catch (e) {}"
+      + " return { over: !!(P.over && P.over()), phase: P.ap ? P.ap().phase : null, crash: !!(P.damage && P.damage()), st: st ? JSON.stringify(st).slice(0, 160) : null }; })())").catch(() => 'null'));
+    const intact = async (s, when) => { const x = await state(); if (x) { x.render = jp(await b.ev(RSTATE, 10000).catch(() => 'null')); if (x.render && x.render.draws != null && x.render.draws < 60) { log('  BLANK RENDER ' + when + ' ' + (s ? s.scene : '') + ': ' + JSON.stringify(x.render)); (row.blank || (row.blank = [])).push(when + (s ? ' ' + s.scene : '')); x.blankDump = jp(await b.ev(BLANKDUMP, 20000).catch(e => JSON.stringify('error ' + e.message))); log('  BLANK DUMP ' + JSON.stringify(x.blankDump)); } } if (s) (s.state || (s.state = {}))[when] = x; log('  aeroplane ' + when + ' ' + (s ? s.scene : '') + ': ' + JSON.stringify(x)); return x; };
+    const passH = () => { const p = MB.A.pass(home, 42), q = p.replace(') + 60, z]', ') + ' + PASS_H + ', z]'); if (PASS_H !== 60 && q === p) throw new Error('--pass-h: master_bench pass changed'); return q; };
+    const doTaxi = async () => { const x = await intact(null, 'before'); row.taxi = await scene('taxi', SEC.taxi, PROF && 'taxi'.includes(PROF), side === 'T' || side === 'C'); row.taxi.state = { before: x }; await intact(row.taxi, 'after'); };
+    const doPass = async () => { if (APP_FIRST) { await b.ev(passH(), 20000).catch(() => 0); await sleep(12000); }   // (approach-first: HOME is ~9 km off; a first placement streams it, the measured one 12 s on)
+      const x = await intact(null, 'before'); const ph = await b.ev(passH(), 20000).catch(e => 'error ' + e.message); await sleep(3000);
+      row.pass = await scene('pass', SEC.pass, PROF && 'pass'.includes(PROF)); row.pass.pilot = ph; row.pass.state = { before: x }; await intact(row.pass, 'after'); };
+    const doApproach = async () => {
     // G2063 (TOWN-GEO): --approach <sec> [--approach-at x,z] [--approach-from m]: the aeroplane put `from` metres (8000) from a
     // point (Metlakatla's middle) at 300 m over it, flying at it - the town's deferred patch and roads build on the way in
-    if (APPROACH.sec > 0) {
+    if (APPROACH.sec > 0) { const x0 = await intact(null, 'before');
       const ap = await b.ev(`(async () => { const W = FLIGHT_PROBE.world(), tx = ${APPROACH.x}, tz = ${APPROACH.z}, d = ${APPROACH.from}, hx = (tx - ${home ? home.x : 0}), hz = (tz - ${home ? home.z : 0}), l = Math.hypot(hx, hz) || 1;
         const x = tx - hx / l * d, z = tz - hz / l * d, h = W.terrainH ? W.terrainH(x, z) : 0;
         await FLIGHT_PROBE.place({ at: [x, Math.max(h, 0) + 300, z], zeroV: true, dv: [hx / l * 45, 0, hz / l * 45] }); FLIGHT_PROBE.setManual(true); FLIGHT_PROBE.setManual(false);
-        const P = WORLD.premises; return JSON.stringify({ at: [Math.round(x), Math.round(z)], pending: P && P.geoPending ? P.geoPending() : null, dist: P && P.geoDist ? Math.round(P.geoDist(x, z)) : null }); })()`, 20000).catch(e => 'error ' + e.message);
+        await new Promise(r => setTimeout(r, 600)); const ph0 = FLIGHT_PROBE.ap().phase;   // TOWN-1 8 Nov: the pilot left in TAXI 300 m up flew both sides into the ground
+        if (ph0 === 'TAXI' || ph0 === 'DEPART' || ph0 === 'HOLD') { FLIGHT_PROBE.setManual(true); await new Promise(r => setTimeout(r, 200)); FLIGHT_PROBE.setManual(false); }
+        const P = WORLD.premises, cg = FLIGHT_PROBE.sim().cgPos(); return JSON.stringify({ at: [Math.round(x), Math.round(z)], y: Math.round(cg[1]), h: Math.round(h), ph0, phase: FLIGHT_PROBE.ap().phase, onG: FLIGHT_PROBE.sim().wheelsOnGround(), pending: P && P.geoPending ? P.geoPending() : null, dist: P && P.geoDist ? Math.round(P.geoDist(x, z)) : null }); })()`, 20000).catch(e => 'error ' + e.message);
       await sleep(2000);
+      // TOWN-1: the chase view's stills on the way in, timed off the placement (45 m/s), while the scene measures
+      const sh = SHOTS ? [600, 1200, 1800, 2400, 3500].filter(m => m < APPROACH.from).map(m => sleep(Math.max(0, (APPROACH.from - m) / 45 - 2) * 1000).then(() => shot(side, bk, 'in' + m))) : [];
+      if (CENSUS) await b.ev(CEN_ON).catch(() => 0);
       row.approach = await scene('approach', APPROACH.sec, PROF && 'approach'.includes(PROF)); row.approach.placed = ap;
+      if (CENSUS) { row.approach.census = jp(await b.ev(CEN_OFF, 20000).catch(() => 'null')); log('approach census ' + cenTop(row.approach.census)); }
+      await Promise.all(sh);
       row.approach.geo = JSON.parse(await b.ev("JSON.stringify((() => { const P = WORLD.premises; return P ? { pending: P.geoPending ? P.geoPending() : null, townGeo: P.stats.townGeo || null } : null; })())").catch(() => 'null'));
+      row.approach.state = Object.assign({ before: x0 }, row.approach.state || {}); await intact(row.approach, 'after');
+    }
+    };
+    if (APP_FIRST) { await doApproach(); await doPass(); } else { await doTaxi(); await doPass(); await doApproach(); }
+    // TOWN-1: the town's trees up close, composed (2026-11-08, A0: "close before/after stills ... at the town edge where the old
+    // 64 m cells popped"): the flight held, the aeroplane and the page's UI hidden, the free camera (FLIGHT_PROBE.devFree) on the
+    // line from the town's tree centroid toward the way in (HOME): inside the town, at its edge, 400 m out and 1.3 km out (past
+    // the old 900 m cull), each looking at the centroid. The orbit of 7 Nov shot the wreck of the rig's pass (both sides).
+    if (SHOTS) {
+      const at = JSON.parse(await b.ev(`(async () => { const W = FLIGHT_PROBE.world(), P = [window.WORLD && WORLD.premises, W.premises].find(p => p && p.overlay && p.overlay.records && p.overlay.frame), O = P && P.overlay, T = O && O.records && O.records.trees;
+        if (!T || !O.frame) return 'null'; const pts = [];
+        for (const t of T) { if (!t.key || t.key === 'stub|tree') continue; pts.push(O.frame.toWorld(t.x, t.z)); }
+        if (!pts.length) return 'null';
+        const cx = pts.reduce((s, p) => s + p[0], 0) / pts.length, cz = pts.reduce((s, p) => s + p[1], 0) / pts.length;
+        const ds = pts.map(p => Math.hypot(p[0] - cx, p[1] - cz)).sort((x, y) => x - y), R = ds[Math.floor(ds.length * 0.85)];
+        const cc = new Map(); for (const q of pts) { const k = Math.floor(q[0] / 64) + ',' + Math.floor(q[1] / 64); cc.set(k, (cc.get(k) || 0) + 1); }
+        let bk = null, bn = 0; for (const [k, v] of cc) if (v > bn) { bn = v; bk = k; } const [bi, bj] = bk.split(',').map(Number);
+        const p = document.getElementById('bPause'); if (p && /pause/i.test(p.textContent)) p.click();
+        return JSON.stringify({ cx: Math.round(cx), cz: Math.round(cz), R: Math.round(R), dx: Math.round((bi + 0.5) * 64), dz: Math.round((bj + 0.5) * 64), dn: bn, trees: pts.length, fill: window.TREE_FILL && TREE_FILL.townStat ? TREE_FILL.townStat() : null, prem: P.stats ? { trees: P.stats.trees, cells: P.stats.treeCells, fill: P.stats.townFill } : null }); })()`, 20000).catch(e => JSON.stringify('error ' + e.message)));
+      log('parked ' + JSON.stringify(at));
+      if (at && at.cx !== undefined) {
+        const hx = (home ? home.x : 0) - at.cx, hz = (home ? home.z : 0) - at.cz, hl = Math.hypot(hx, hz) || 1, ux = hx / hl, uz = hz / hl;
+        await b.ev("(() => { const c = FLIGHT_PROBE.craft && FLIGHT_PROBE.craft(); if (c) c.visible = false; document.body.style.visibility = 'hidden'; const cv = document.getElementById('c'); if (cv) cv.style.visibility = 'visible'; return 1; })()");
+        for (const [n, tx, tz, back, up, lift] of [['cell60', at.dx, at.dz, 60, 14, 4], ['cell130', at.dx, at.dz, 130, 24, 4], ['cell250', at.dx, at.dz, 250, 32, 6], ['cellover', at.dx, at.dz, 90, 35, 0],
+          ['inside', at.cx, at.cz, at.R * 0.45, 22, 6], ['edge', at.cx, at.cz, at.R + 40, 16, 6], ['out400', at.cx, at.cz, at.R + 400, 60, 6], ['out1300', at.cx, at.cz, at.R + 1300, 130, 6]]) {
+          const v = await b.ev(`(() => { const W = FLIGHT_PROBE.world(), ex = ${tx} + ${ux} * ${back}, ez = ${tz} + ${uz} * ${back};
+            const gy = Math.max(W.terrainH ? W.terrainH(ex, ez) : 0, W.waterH ? W.waterH(ex, ez) : -1e9, 0), ey = gy + ${up}, ty = Math.max(W.terrainH ? W.terrainH(${tx}, ${tz}) : 0, 0) + ${lift};
+            const dx = ${tx} - ex, dz = ${tz} - ez; FLIGHT_PROBE.devFree(ex, ey, ez, Math.atan2(dx, -dz), Math.atan2(ty - ey, Math.hypot(dx, dz)));
+            return JSON.stringify({ eye: [Math.round(ex), Math.round(ey), Math.round(ez)], agl: ${up}, toCentre: Math.round(Math.hypot(dx, dz)) }); })()`).catch(e => 'error ' + e.message);
+          await b.ev('new Promise(r => { let n = 0; const t = () => (++n < 90 ? requestAnimationFrame(t) : r(1)); requestAnimationFrame(t); })', 30000).catch(() => 0);
+          if (CENSUS) await b.ev(CEN_ON).catch(() => 0); await sleep(6000); const vc = CENSUS ? jp(await b.ev(CEN_OFF, 20000).catch(() => 'null')) : null; if (vc) { (row.views || (row.views = {}))[n] = vc; log('view ' + n + ' draws ' + cenTop(vc)); }
+          // the draw census of the view: the meshes drawn (an instanced one with instances), by the scene's top group, and the
+          // frame's calls (the shadow passes in it) - where the fill's town chunks spend their calls
+          const cen = await b.ev(`(() => { const R = FLIGHT_PROBE.renderer(), sc = FLIGHT_PROBE.craft() && FLIGHT_PROBE.craft().parent; let S = sc; while (S && S.parent) S = S.parent;
+            const g = {}; if (S) S.traverseVisible(o => { if (!o.isMesh || (o.isInstancedMesh && !o.count)) return; let t = o; while (t.parent && t.parent !== S) t = t.parent;
+              const k = t.name || t.type; const e = g[k] || (g[k] = [0, 0]); e[0]++; e[1] += o.isInstancedMesh ? o.count : 1; });
+            return JSON.stringify({ calls: R.info.render.calls, tris: R.info.render.triangles, groups: Object.fromEntries(Object.entries(g).sort((a, b) => b[1][0] - a[1][0]).slice(0, 10)) }); })()`).catch(e => 'error ' + e.message);
+          log('view ' + n + ' ' + v + '  census ' + cen); await shot(side, bk, n);
+        }
+        await b.ev("(() => { const c = FLIGHT_PROBE.craft && FLIGHT_PROBE.craft(); if (c) c.visible = true; document.body.style.visibility = ''; FLIGHT_PROBE.camMode('chase'); return 1; })()");
+      }
+      row.parked = at;
     }
     row.check = JSON.parse(await b.ev(CHECK, 20000).catch(() => 'null'));
     row.exceptions = b.exc.slice(e0);
@@ -148,14 +257,14 @@ const CHECK = `JSON.stringify((() => { const P = WORLD && WORLD.premises; const 
   // the table: per side and build, the medians of its runs
   const med = a => { const s = a.filter(x => x != null).sort((p, q) => p - q); return s.length ? (s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2) : null; };
   console.log('\nside build  | garage  first-flight | TAXI fps uneven p99 worst task | PASS fps uneven p99 worst task (each: the runs\' median; worst = the max)');
-  for (const bk of WANT) for (const side of ['A', 'B']) { const rs = R.rows.filter(r => r.side === side && r.build === bk); if (!rs.length) continue;
+  for (const bk of WANT) for (const side of ['A', 'B', 'M', 'P']) { const rs = R.rows.filter(r => r.side === side && r.build === bk); if (!rs.length) continue;
     const g = (k, s) => rs.map(r => r[s] && r[s].st ? r[s].st[k] : null), mx = a => Math.max(...a.filter(x => x != null));
     console.log([side, bk.padEnd(5), med(rs.map(r => r.garage)), med(rs.map(r => r.firstFlight)), '|', med(g('fps', 'taxi')), med(g('uneven', 'taxi')), med(g('p99', 'taxi')), mx(g('worst', 'taxi')), mx(g('taskWorst', 'taxi')),
       '|', med(g('fps', 'pass')), med(g('uneven', 'pass')), med(g('p99', 'pass')), mx(g('worst', 'pass')), mx(g('taskWorst', 'pass'))].join(' ')); }
   // G1435: per row, the frames' read (each half when toggled): the cap's share, the unevenness at 30 alone, the ladder
   if (FRAMES) { console.log('\nrow | scene half | uneven (all) | uneven@30 | caps | ladder (x16.7 ms) | p99 | even-frame / long-frame work, gpu, calls');
     R.rows.forEach((r, i) => { for (const s of [r.taxi, r.pass, r.approach].filter(Boolean)) for (const [k, h] of Object.entries(s.halves || {})) {
-      const B2 = h.by || {}; console.log([i + ':' + r.side, r.build, s.scene, k, s.st ? s.st.uneven : '-', h.uneven30, JSON.stringify(h.caps), JSON.stringify(h.ladder), h.dist ? h.dist.p99 : '-',
+      const B2 = h.by || {}; console.log([i + ':' + r.side + (r.blank ? ' BLANK' : ''), r.build, s.scene, k, s.st ? s.st.uneven : '-', h.uneven30, JSON.stringify(h.caps), JSON.stringify(h.ladder), h.dist ? h.dist.p99 : '-',
         (B2.even ? B2.even.work + '/' + B2.even.gpu + '/' + B2.even.calls : '-') + ' | ' + (B2.long ? B2.long.n + 'fr ' + B2.long.work + '/' + B2.long.gpu + '/' + B2.long.calls : '-')].join(' ')); } }); }
   console.log('\n  -> ' + OUT);
   process.exit(0);

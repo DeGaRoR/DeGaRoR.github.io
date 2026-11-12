@@ -15,9 +15,10 @@ import json, os, sys
 P = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fixtures', 'island_jolene.json')
 PLOTS = {
   # the works next door at HOME: north of the apron, its door to the stand's lane; its way joins HOME's taxiOut
-  'HOME': [{ 'id': 'HOME.2', 'x': -118.0, 'z': 780.0, 'hdg': -1.9635,
-             'stand': { 'x': -130.2, 'z': 750.4, 'hdg': None },
-             'taxiOut': [[-126.0, 730.0], [-130.0, 705.0], [-138.0, 690.0], [-137.5, 664.0], [-132.0, 648.0], [-133.0, 590.0], [-120.0, 500.0], [-92.0, 442.0]] }],
+  'HOME': [{ 'id': 'HOME.2', 'x': -132.25, 'z': 698.4, 'hdg': -0.8552,   # HOME-LAYOUT (the user, 9 Nov): the big hangar at the centre, at the foot of the taxiways' Y
+             'stand': { 'x': -98.13, 'z': 659.15, 'hdg': None },   # its own stand, 22 m out of its door (each hangar its own stand)
+             'taxiOut': [[-115.82, 613.96], [-142.55, 563.38], [-143.88, 389.2], [-128.23, 371.19]],   # down the NE arm (the field's own order: taxiOut NE, taxiOut1 east - GATE TAXICLEAR 12)
+             'taxiOut1': [[-68.24, 665.92], [-40, 676], [1.61, 682.64], [175.8, 635.49]] }],
   # Tamgas Hill: west of the hut, the door to the strip; its way to the strip's own last point on the centreline
   'w3': [{ 'id': 'w3', 'x': -749.07, 'z': -2345.14, 'hdg': -0.7854,
            'stand': { 'x': -735.0, 'z': -2359.35, 'hdg': None },

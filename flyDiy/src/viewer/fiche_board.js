@@ -9,7 +9,7 @@
 //               (an unsaved plane's fiche waits for its first Save - garage.js calls saved(name)). Then ONE draw, under a
 //               corner line ("Drawing the fiche - hero, 1 of 6"), and a corner note that opens the board.
 //               Never at a save, never on a load: a fiche is drawn at its certificate or by its Update button.
-//   THE BOARD   #pfBoard: cream, the hero on top, the cutaway alone at the top right, a strip cycling side / front / top with
+//   THE BOARD   #pfBoard: cream, the hero on top, the cutaway where it fits (cutFit), a strip cycling side / front / top with
 //               its dimension lines, the measured numbers (the plaque's call). Draggable (card_drag.js, by its header).
 //               Out of date: "changed since its certificate" / "repainted since" - the fiche stays (the user: "a plane having
 //               received one does not lose it"); Update redraws it when the plane on the stand holds its certificate now.
@@ -26,8 +26,8 @@
 //               - THE TITLE is the plane's own display name, never a file key: a plane loaded from an official file carries
 //                 that file's internal name as its save's ("piperCub"); the baked index names each official file
 //                 (fiche_bake.js: `file`), and titleOf() gives the list's name for it ("Piper Cub")
-//               - THE CUTAWAY sits under the hero's right wing (cutPlace: below the hero's measured wing line,
-//                 plane_fiche.js data.heroWingY), on the board and in the shared picture
+//               - THE CUTAWAY goes where it fits (the user 10 Nov): cutFit puts it where its pixels cover the fewest of
+//                 the hero's (a near tie: right, then top; smaller when it must), on the board and in the shared picture
 //               - THE SIGNATURE is the game's name (GAME_NAMES.game, 01_names.js - one place) + " · certified airworthy"
 //               - A FRAME: a thin, quiet line with rounded corners round the whole sheet, in its own palette, on the board
 //                 and in the shared picture
@@ -102,13 +102,42 @@
     for (const key in B || {}) { const b = B[key]; if (b && b.file && b.file === k) return b.name || k; }
     return k;
   }
-  // THE CUTAWAY UNDER THE HERO'S WING (pure: the gate's): the hero drawn heroH tall, its wing line wingY (0..1 of its
-  // height; null on an old fiche: WING_Y0), the cutaway cutH tall -> its top, from the hero picture's top: GAP below the wing line
-  const WING_Y0 = 0.28, GAP = 0.04;
-  function cutPlace(wingY, heroH, cutH) {
-    const wy = wingY != null && isFinite(wingY) ? Math.max(0, Math.min(1, +wingY)) : WING_Y0;
-    const under = (wy + GAP) * heroH;
-    return { top: Math.round(under), wingPx: Math.round(wy * heroH), foot: Math.round(under + cutH) };
+  // THE CUTAWAY WHERE IT FITS (the user 10 Nov: "let the fiche creator put the cutaway where it wants on the fiche"; it was
+  // held under the hero's wing line). Pure, the gate's: hero = { w, h, a } the hero's alpha on a grid of cells over the
+  // free area (row-major, 0..1), cut = { w, h, a } the cutaway's alpha on the same cells -> { x, y, over } in cells: the spot
+  // where the cutaway's pixels cover the fewest of the hero's; a near tie goes to the right, then the top
+  function cutSpot(hero, cut) {
+    let best = null;
+    for (let y = 0; y + cut.h <= hero.h; y++) for (let x = 0; x + cut.w <= hero.w; x++) {
+      let o = 0;
+      for (let j = 0; j < cut.h; j++) { const hr = (y + j) * hero.w + x, cr = j * cut.w; for (let i = 0; i < cut.w; i++) o += hero.a[hr + i] * cut.a[cr + i]; }
+      const cost = o + 0.01 * ((hero.w - cut.w - x) + y);
+      if (!best || cost < best.cost) best = { x, y, over: o, cost };
+    }
+    return best || { x: Math.max(0, hero.w - cut.w), y: 0, over: 0, cost: 0 };
+  }
+  // an image's alpha on cells: drawn at (x, y, w, h) inside an area areaW x areaH, the cell `cell` px -> { w, h, a }
+  function alphaGrid(im, x, y, w, h, areaW, areaH, cell) {
+    const gw = Math.max(1, Math.ceil(areaW / cell)), gh = Math.max(1, Math.ceil(areaH / cell));
+    const cv = document.createElement('canvas'); cv.width = gw; cv.height = gh;
+    const g = cv.getContext('2d', { willReadFrequently: true }); g.clearRect(0, 0, gw, gh);
+    if (im) g.drawImage(im, x / cell, y / cell, w / cell, h / cell);
+    const px = g.getImageData(0, 0, gw, gh).data, a = new Float32Array(gw * gh);
+    for (let i = 0; i < a.length; i++) a[i] = px[i * 4 + 3] / 255;
+    return { w: gw, h: gh, a };
+  }
+  // the cutaway's spot in an area (px): its size cw x ch, tried smaller (0.85, 0.72) when it would cover more than 3% of itself
+  // with the hero -> { x, y, w, h } px
+  function cutFit(heroIm, hr, cutIm, cw, ch, areaW, areaH, cell) {
+    const H = alphaGrid(heroIm, hr.x, hr.y, hr.w, hr.h, areaW, areaH, cell);
+    let best = null;
+    for (const k of [1, 0.85, 0.72]) {
+      const w = cw * k, h = ch * k, C = alphaGrid(cutIm, 0, 0, w, h, w, h, cell);
+      const s = cutSpot(H, C), tot = C.a.reduce((p, v) => p + v, 0) || 1, r = { x: s.x * cell, y: s.y * cell, w, h, part: s.over / tot };
+      if (!best || r.part < best.part - 0.005) best = r;
+      if (r.part <= 0.03) break;
+    }
+    return best;
   }
   const standName = () => { try { return W.GARAGE_SPEC && W.GARAGE_SPEC.name ? W.GARAGE_SPEC.name() || '' : ''; } catch (e) { return ''; } };
   const certNow = () => { try { const s = W.BENCH_STATE ? W.BENCH_STATE() : null; return !!(s && s.passed); } catch (e) { return false; } };
@@ -243,9 +272,13 @@
       const hero = $('img', 'pfHero'); hero.alt = ''; hero.src = urlOf(r.pics.hero); top.appendChild(hero);
       if (r.pics.cutaway) {
         const c = $('img', 'pfCut'); c.alt = ''; c.src = urlOf(r.pics.cutaway); top.appendChild(c);
-        const fit = () => { if (!hero.naturalWidth || !c.naturalWidth) return;
-          const p = cutPlace(d.heroWingY, hero.offsetHeight, c.offsetHeight);
-          c.style.top = p.top + 'px'; top.style.minHeight = Math.max(hero.offsetHeight, p.foot) + 'px'; };
+        const fit = () => { if (!hero.naturalWidth || !c.naturalWidth || !top.clientWidth) return;
+          c.style.width = ''; c.style.left = ''; c.style.right = ''; c.style.top = '';
+          const aw = top.clientWidth, hh = hero.offsetHeight, cw = c.offsetWidth, ch = c.offsetHeight;
+          const p = cutFit(hero, { x: 0, y: 0, w: hero.offsetWidth, h: hh }, c, cw, ch, aw, Math.max(hh, ch), Math.max(4, Math.round(aw / 80)));
+          if (!p) return;
+          c.style.right = 'auto'; c.style.left = Math.round(p.x) + 'px'; c.style.top = Math.round(p.y) + 'px'; c.style.width = Math.round(p.w) + 'px';
+          top.style.minHeight = Math.round(Math.max(hh, p.y + p.h)) + 'px'; };
         hero.onload = c.onload = fit; fit();
       }
       const strip = $('div', 'pfStrip'), views = STRIP.filter(v => r.pics[v[0]]);
@@ -280,12 +313,12 @@
     const fit = (im, x, y, w, h, top) => { const s = Math.min(w / im.width, h / im.height); const dw = im.width * s, dh = im.height * s;
       const r0 = { x: x + (w - dw) / 2, y: top ? y : y + (h - dh) / 2, w: dw, h: dh }; g.drawImage(im, r0.x, r0.y, dw, dh); return r0; };
     const P = r.pics;
-    let hr = null;
-    if (P.hero) hr = fit(await bitmap(P.hero), 60, 60, 1500, 1000);
-    if (P.cutaway) {   // under the hero's wing line (cutPlace), its box as wide as before
-      const im = await bitmap(P.cutaway), s = Math.min(780 / im.width, 620 / im.height), ch = im.height * s;
-      const pl = hr ? cutPlace(d.heroWingY, hr.h, ch) : { top: 0 };
-      fit(im, 1560, Math.min(1110 - ch, (hr ? hr.y : 60) + pl.top), 780, ch, true);
+    let hr = null, heroBm = null;
+    if (P.hero) { heroBm = await bitmap(P.hero); hr = fit(heroBm, 60, 60, 1500, 1000); }
+    if (P.cutaway) {   // where it fits (cutFit) in the top band, x 60..2340, y 60..1110, its box as large as before
+      const im = await bitmap(P.cutaway), s = Math.min(780 / im.width, 620 / im.height), cw = im.width * s, ch = im.height * s;
+      const p = cutFit(heroBm, hr ? { x: hr.x - 60, y: hr.y - 60, w: hr.w, h: hr.h } : { x: 0, y: 0, w: 0, h: 0 }, im, cw, ch, 2280, 1050, 20);
+      if (p) g.drawImage(im, 60 + p.x, 60 + p.y, p.w, p.h);
     }
     const strip = ['side', 'front', 'plan'].filter(v => P[v]);
     for (let i = 0; i < strip.length; i++) fit(await bitmap(P[strip[i]]), 1000 + i * 460, 1130, 420, 400);
@@ -325,5 +358,5 @@
     const a = document.createElement('a'), u = URL.createObjectURL(blob); a.href = u; a.download = fname; document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(u), 4000);
   }
-  W.FICHE_BOARD = { certified, saved, show, close, rowButton, tileDoor, forget, compose, drawFor, titleOf, cutPlace, sig, get pending() { return pending; }, get drawing() { return drawing; } };
+  W.FICHE_BOARD = { certified, saved, show, close, rowButton, tileDoor, forget, compose, drawFor, titleOf, cutSpot, sig, get pending() { return pending; }, get drawing() { return drawing; } };
 })();

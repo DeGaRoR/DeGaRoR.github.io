@@ -74,6 +74,7 @@ const TECH_TABLE = {
   'prop:wood': 1, 'prop:maple': 1, 'prop:walnut': 1, 'prop:alu': 1, 'prop:carbon': 1,
   'pitch:climb': 1, 'pitch:standard': 1, 'pitch:cruise': 1,
   'pitch:seaplane': 1,   // (G3445 FLOAT-KIT, 22 Oct: the float prop's fine pitch, added after the table - off the shelf as every pitch, and floats are 1)
+  'pitch:auto': 1,   // (ENGINE-DIALS B: the pitch row's automatic pick - off the shelf, as every pitch)
   // ---- systems / avionics
   'fit:minimal': 1, 'fit:basic': 1, 'fit:custom': 1, 'fit:ifr': 2,
   'elec.battery:none': 1, 'elec.battery:lead': 1, 'elec.battery:lithium': 3,
@@ -140,7 +141,11 @@ function techKeysOfSpec(spec) {
   for (const w of (Array.isArray(S.wings) ? S.wings : [])) { const m = w && surf(w.material); if (m) add('surf:' + m); }
   for (const f of ['finMaterial', 'stabMaterial']) { const m = S.tail && surf(S.tail[f]); if (m) add('surf:' + m); }
   const E = Array.isArray(S.engines) && S.engines.length ? S.engines : (D.engines || []);
-  for (const e of E) if (e && e.type) add('eng:' + e.type);
+  // (ENGINE-DIALS: a custom engine is its FAMILY's - the shop that can build that kind of engine - never the registry row
+  // of the join's fallback key, the A-65's, which put a custom turbine in the first segment)
+  const famOf = cu => { const f = cu.family || (cu.aspiration === 'electric' ? 'electric' : cu.aspiration === 'turbine' ? 'turbine' : 'four');
+                        return Object.keys(TECH_FAMILIES).find(g => TECH_FAMILIES[g].includes(f)) || 'piston'; };
+  for (const e of E) if (e && e.custom && typeof e.custom === 'object') add('fam:' + famOf(e.custom)); else if (e && e.type) add('eng:' + e.type);
   if (E.length > 1) add('cfg:twin');
   const pr = S.prop || {};
   add('prop:' + (pr.material || 'wood'));
@@ -247,6 +252,8 @@ const TECH_ROWS = {
   // WILGA-GEAR: the mains' leg row - only the trailing-link option is gated (the other four keep their reading by the
   // spec's suspension, unchanged)
   s1Leg: [null, null, null, null, 'susp:lever'],
+  // ENGINE-DIALS B: the propeller's pitch row (_cage_eng.js PROP_PITCHES, in its order)
+  propPitch: ['pitch:auto', 'pitch:climb', 'pitch:standard', 'pitch:cruise', 'pitch:seaplane'],
 };
 // a row's keys, per option index; ctx: { names (the row's own option names), engines (CAGE_JOIN_ENGINES), propMats
 // (CAGE_JOIN_PROP_MATS) } -> [key | null] or null (a row the mask does not read)

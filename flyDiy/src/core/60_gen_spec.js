@@ -3090,7 +3090,15 @@ const GEN_STOL_ROW_OFF = { wgSlat: 0, wgSlatSpan: 1.0, wgVG: 0, wgFence: 0, wgCu
 // THE NEUTRAL ROWS OF LATER DIALS (REAL-FIGURES-3, 2026-11-09), by the same rule: the engine's tune and build
 // (tools/_eng_gen.js bmepK / massK) at 1 are every engine as it was, and the join writes them into every cage - so at
 // 1 they are absent from every key the STOL rows are absent from, and no certificate is withdrawn by a dial nobody moved
-const GEN_CAGE_ROW_NEUTRAL = { eng_bmepK: 1, eng_massK: 1 };
+// (ENGINE-DIALS, 9 Nov: the reduction's ratio, the maximum rpm and the constant-speed propeller by the same rule)
+// ENGINE-DIALS (2026-11-09): THE PROPELLER DIAMETER THE WING'S BALANCE RULE ASSUMES FOR A NOSE ENGINE - the registry
+// row's own for a registry engine (every build before, byte for byte), and for a CUSTOM engine its own disc (the
+// spec's D, else the generic 1.80 m) - never the A-65's 1.88 it borrowed through the fallback key
+function genEngPropD0(S, e0, PP0) {
+  if (e0 && e0.custom) return (S.prop && S.prop.D > 0) ? S.prop.D : 1.80;
+  return PP0.prop.D;
+}
+const GEN_CAGE_ROW_NEUTRAL = { eng_bmepK: 1, eng_massK: 1, eng_gearRatio: 1, eng_rpmMax: 0, eng_cs: 0, s1Stiff: 1 };
 // the cage without its STOL rows at "off" and its later dials at neutral (the same object when it has none: a hash
 // over it is the old bytes)
 function genStolCageOff(cage) {
@@ -5508,7 +5516,8 @@ function clampSpec(spec) {
       cu.name = typeof cu.name === 'string' && cu.name
         ? cu.name.slice(0, 48) : 'custom engine';
       cu.mass = genClamp(cu.mass, 0.05, 900);
-      cu.powerW = genClamp(cu.powerW, 100, 1000000);
+      // (ENGINE-DIALS: 1 MW -> 2 MW - the registry's Merlin 66 is 1.283 MW, and every registry row is a custom point)
+      cu.powerW = genClamp(cu.powerW, 100, 2000000);
       cu.rpm = genClamp(cu.rpm == null ? 2300 : cu.rpm, 400, 14000);
       // the panel arc: a reduction unit between crank and prop (prop = rpm /
       // gear); 1 = direct drive. Read by genShaftRpm, never by the thrust law.
@@ -5520,6 +5529,14 @@ function clampSpec(spec) {
         ? cu.family : (cu.aspiration === 'electric' ? 'electric'
                        : cu.aspiration === 'turbine' ? 'turbine' : 'four');
       cu.cooling = cu.cooling === 'liquid' ? 'liquid' : 'air';
+      // ENGINE-DIALS (2026-11-09): THE FIELDS A CUSTOM ENGINE USED TO BORROW FROM THE A-65 (its engines[].type is the
+      // A-65's: the join's fallback key), now its own, each absent unless its dial says so: the cylinders (33_drive's
+      // FAR 23.361 factor; a piston's resolve), the radial layout (the drag build-up's cooling term), a governed
+      // propeller (a turbine; a piston's row) and the drivetrain's maximum rpm (33_drive's overspeed bands)
+      if (Number.isFinite(+cu.cyl) && Math.round(+cu.cyl) >= 1) cu.cyl = Math.min(28, Math.round(+cu.cyl)); else delete cu.cyl;
+      if (cu.layout !== 'radial') delete cu.layout;
+      if (cu.cs === true || cu.cs === 1) cu.cs = true; else delete cu.cs;
+      if (Number.isFinite(+cu.rpmMax) && +cu.rpmMax > 0) cu.rpmMax = genClamp(+cu.rpmMax, cu.rpm, 14000); else delete cu.rpmMax;
       // WHERE ITS MASS SITS (the cgFwd half-session, 2026-09-05): the CG aft
       // of the prop flange, the bench's own cgZ for a drawn engine; null lets
       // the registry table (GEN_ENG_CG) answer, or the old mount-node lump
@@ -6299,7 +6316,7 @@ function resolveSpec(spec) {
     const PP0 = POWERPLANTS[S.engine] || POWERPLANTS.a65_sensenich74;
     const e0 = S.engines[0];
     const mE = (e0.custom && e0.custom.mass) || PP0.engine.mass;
-    const engX0 = -(0.18 + 0.32 * PP0.prop.D / 2);
+    const engX0 = -(0.18 + 0.32 * genEngPropD0(S, e0, PP0) / 2);
     const xAC = w.xLE + 0.25 * w.chord;
     const xOf = e => e.x != null ? e.x
       : e.mount === 'pusher' ? S.cab.noseGap + S.cab.len + S.fuse.cargoLen + 0.30
@@ -6315,7 +6332,7 @@ function resolveSpec(spec) {
     const e = S.engines[0], m = e.mount;
     const PP0 = POWERPLANTS[S.engine] || POWERPLANTS.a65_sensenich74;
     const mE = (e.custom && e.custom.mass) || PP0.engine.mass;
-    const engX0 = -(0.18 + 0.32 * PP0.prop.D / 2);
+    const engX0 = -(0.18 + 0.32 * genEngPropD0(S, e, PP0) / 2);
     const xE = e.x != null ? e.x
              : m === 'pusher' ? S.cab.noseGap + S.cab.len + S.fuse.cargoLen + 0.30
              : m === 'wingTop' ? w.xLE + 0.30 * w.chord : w.xLE + 0.05;
@@ -6638,8 +6655,10 @@ function resolveSpec(spec) {
   // the preset survives as the prop-diameter default and the legacy lookup
   // key (params.powerplant), so nothing built before this line moves.
   const CU = S.engines[0] && S.engines[0].custom;
+  // (ENGINE-DIALS: a custom row's default propeller is the generic 1.80 m, never the registry row's it fell back to -
+  // the A-65's 1.88 for every custom engine; a drawn build always states its own D, so only a bare spec reads it)
   const PP = CU
-    ? { price: CU.price, engine: CU, prop: REG ? REG.prop : { D: 1.80 } }
+    ? { price: CU.price, engine: CU, prop: { D: 1.80 } }
     : REG;
   S.pplant = PP;
   // WHERE THE ENGINE'S MASS SITS (2026-09-05, the cgFwd half-session): the CG

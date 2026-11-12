@@ -194,6 +194,7 @@ var DAY_CLOCK = (function () {
         w.setDay(wx);
       }
       // ?plan=1 (WEATHER-SEASON): the sandbox plays the career's weather plan (the season's crafted days by the date)
+      // (PLAY-PLAN, the user 10 Nov: the menu row was gone and its plan(on) switch with it - ?plan=1 is the one way in)
       if (W && W.location && /[?&]plan=1\b/.test(W.location.search)) w.setDay({ plan: { id: 'season' } });
       if (W) W.addEventListener('pagehide', save);
     },
@@ -270,8 +271,6 @@ var DAY_CLOCK = (function () {
       } else if (was && world && day) world.setDay({ plan: null });
       return !!careerHook;
     },
-    // the sandbox's "play the plan" (GAME-MENUS' row; ?plan=1): on / off; the career's is always on
-    plan(on) { if (!world || !day || careerHook) return !!(day && day.plan); world.setDay({ plan: on ? { id: 'season' } : null }); save(); return !!day.plan; },
     isCareer: () => !!careerHook,
     get jumps() { return jumps; },
     get lastJump() { return lastJump; },

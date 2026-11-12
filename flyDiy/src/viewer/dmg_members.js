@@ -1,4 +1,4 @@
-// G3770-G3773 (DMG-LOOKS, ?dmglook=1 - OFF by default): THE STRUCTURE BY MATERIAL. The user, 25 Oct: "the tubular cage,
+// G3770-G3773 (DMG-LOOKS - ON by default since G3774, the user 10 Nov; ?dmglook=0 off): THE STRUCTURE BY MATERIAL. The user, 25 Oct: "the tubular cage,
 // the wooden pillars, the metal frames ... the metal should bend, wood should break like wood" - and "beware of
 // performance". The study (futureDesigns/DMG-LOOKS-STUDY-2026-10.md section 10, brief 2) measured why the wreck cannot
 // show it today: every broken member is drawn split at exactly half its length, its ends flat; and the drawn member has

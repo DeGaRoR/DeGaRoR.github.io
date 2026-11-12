@@ -168,6 +168,8 @@ const RW = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_world.js'), 
     const u = GT.sinkU(cx, cz, S.half, R);
     ok(u[2] === S.half - R && u[3] === GT.S.drop && 2 * R + GT.S.ramp < S.half, '...the layer\'s uniform sinks its vertices more than a cell inside (their triangles within 2 cells: the band) - the core starts after the ramp', JSON.stringify(u));
     const tris = (N - 1) * (N - 1) * 2; ok(tris === 8192, '...one draw of ' + tris + ' triangles');
+    { const nor = r.value.geometry.getAttribute('normal').array; let bad = 0; for (let k = 0; k < nor.length; k += 3) { const l = Math.hypot(nor[k], nor[k + 1], nor[k + 2]); if (!(Math.abs(l - 1) < 1e-3 && nor[k + 1] > 0)) bad++; }
+      ok(bad === 0, '...every normal of the tier finite, unit and up (11 Nov, the black bars: its +z edge row was NaN)', bad + ' bad of ' + nor.length / 3); }
   }
   ok(/uniform vec4 uTier;/.test(RW) && /if \(max\(tD\.x, tD\.y\) < uTier\.z\) \{ transformed\.y -= uTier\.w; vWPi\.y -= uTier\.w; \}/.test(RW), 'render_world: the ground hook sinks a vertex under the tier by uTier (a vertex test: no discard, early-Z kept)');
   ok(/uTier: \{ value: new THREE\.Vector4\(0, 0, 0, 0\) \}/.test(RW) && /sh\.uniforms\.uTier = TIER_U\.fine;/.test(RW) && /tierU: TIER_U\.patch/.test(RW) && /if \(o\.tierU && !tier\) sh\.uniforms\.uTier = o\.tierU;/.test(RP), '...off for every ground program (the ring, the far terrain) but the patch\'s (opts.tierU) and the fine tiles\' (TIER_U.fine)');
@@ -195,8 +197,19 @@ const RW = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_world.js'), 
   // THE USER'S BUMPS (DIRT-STRIP chaos-on, 10 Nov; A0 approved as the named cost): w3 and w8 bumpy (chaos 0.20 / 0.40) draw their
   // ribbons refined to the bumps' scale (26b REFINE_MIN / REFINE_MIN_V) - the HOME-taxi view's pavement + patch measured 1 212 870 ->
   // 1 218 494 (+5 624, +0.46 %) on master e789e77cb; allowed on both views (HANDOVER: DIRT-STRIP, the bumps' cost)
-  const BUMPS = 5624; for (const k in PAV0) PAV0[k] += BUMPS;
+  // + THE 5 cm ROWS ACROSS A RUT'S WALL, now paid on w3/w8 (DIRT-STRIP 10 Nov, A0 OK 13:55: HANDOVER "the 5 cm rows" named "nothing paid
+  //  today" while every strip was flat): potato HOME taxi 1 218 494 -> 1 226 310 (+7 816, +0.64 %) on claude/dirt-strip-vet-2
+  // + THE REFINED BUMPY STRIPS AS THE GAME DRAWS THEM (DIRT-STRIP 11 Nov; A0 10 Nov ~21:35 "name it"): ground_drawn now builds w3 / w8
+  //  as render_world does - L37a's real cost on master, measured: potato HOME taxi 1226310 -> 1438368 (+212058); gamer HOME taxi 2044742 -> 2242608 (+197866) (the rows by chaos saved
+  //  nothing: refineAxis lands 5 and 8 cm floors on the same ~9.4 cm rows)
+  const BUMPS = 225498; for (const k in PAV0) PAV0[k] += BUMPS;
   const BASE = { potato: { 'HOME stand': (PATCH0 || {})['HOME stand'] + PAV0['HOME stand'], 'HOME taxi': (PATCH0 || {})['HOME taxi'] + PAV0['HOME taxi'] }, gamer: { 'HOME stand': 1222208 + PAV0['HOME stand'], 'HOME taxi': 1304000 + PAV0['HOME taxi'] } };
+  // RE-TAKEN 9 Nov (HOME-LAYOUT, A0's call), THE TWO "HOME stand" ROWS ONLY: SCENERY - the user's validated HOME layout moved the
+  // start's stand (the medium hangar's) 60 m along the row, and this row measures within 3 km OF THE STAND: the same eye 60 m
+  // west, +10 568 (potato, +0.88 %) / +14 584 (gamer, +0.75 %) triangles, measured on L36d (before the bumps). The HOME taxi rows
+  // went down and keep their pins. Rebased on L37a: the user's bumps (BUMPS above) ride on top, as on every other row
+  if (POT === 6) BASE.potato['HOME stand'] = 1207886 + BUMPS;
+  BASE.gamer['HOME stand'] = 1957246 + BUMPS;
   const C = require(path.join(T, 'flight_core.js')), home = C.siteOf('HOME'), tp = home.taxiOut, m = tp[Math.floor(tp.length / 2)];
   const views = { 'HOME stand': [home.stand.x, home.stand.z], 'HOME taxi': m };
   const pav = {}; for (const [k, [x, z]] of Object.entries(views)) { let t = 0; for (const M of GD.MESHES) { const cx = (M.box[0] + M.box[2]) / 2, cz = (M.box[1] + M.box[3]) / 2; if (Math.hypot(cx - x, cz - z) < 3000) t += M.idx.length / 3; } pav[k] = t; }

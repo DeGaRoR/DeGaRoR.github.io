@@ -291,7 +291,7 @@ async function browser(udd) {
   const links = async (t0, t1) => { const ln = JSON.parse(await ev('JSON.stringify((window.__MB.ln || []).filter(e => e[0] >= ' + (t0 || 0) + ' && e[0] <= ' + (t1 || 1e12) + ').map(e => [Math.round(e[0]), Math.round(e[1])]))'));
     const ms = ln.map(e => e[1]).filter(x => x >= 0);
     return { n: ln.length, pending: ln.filter(e => e[1] < 0).length, sumS: +(ms.reduce((a, x) => a + x, 0) / 1000).toFixed(1), worstS: ms.length ? +(Math.max(...ms) / 1000).toFixed(1) : 0, over5s: ms.filter(x => x > 5000).length }; };
-  const close = async () => { try { await cmd('Browser.close'); } catch (e) {} await sleep(1500); try { if (process.platform === 'win32') execSync('taskkill /PID ' + ch.pid + ' /T /F', { stdio: 'ignore' }); else ch.kill(); } catch (e) {} };
+  const close = async () => { try { await cmd('Browser.close'); } catch (e) {} await sleep(+process.env.MB_CLOSE_WAIT || 1500); /* MB_CLOSE_WAIT: ms for a graceful close (the disk caches written) before the kill */ try { if (process.platform === 'win32') execSync('taskkill /PID ' + ch.pid + ' /T /F', { stdio: 'ignore' }); else ch.kill(); } catch (e) {} };
   return { ev, load, close, exc, cmd, links, udd };
 }
 

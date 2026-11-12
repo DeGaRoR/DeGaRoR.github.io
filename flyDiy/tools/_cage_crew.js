@@ -650,9 +650,9 @@ function buildPedals(g, A, P, sx) {
     const onFire = A.zFire != null && A.zFire > zA + 0.08;
     const zC = onFire ? A.zFire - 0.008 : zA + 0.24;
     const belly = A.bellyAt ? A.bellyAt(xp, zC) : null;
-    // 18 mm over the belly: the block's own half-height and the skin's
-    // liner (the cabin's inner face is ~4 mm inside the outer skin)
-    const yC = Math.max(A.floorAt(zC), belly != null ? belly + 0.018 : -Infinity);
+    // 15.5 mm over the belly: the block's own half-height (14 mm) and a hairline (LINER-BACK 9 Nov: the liner is the
+    // skin's back face now - the 4 mm it used to add lifted the block off the floor of the nose)
+    const yC = Math.max(A.floorAt(zC), belly != null ? belly + 0.0155 : -Infinity);
     const e0 = [xp + eye[0], yA + eye[1], zA + eye[2]], e1 = [xp, yC + 0.010, zC];
     // the cable follows the belly where the belly rises above its chord (a
     // convex-up run under the pedals to a fairlead at the nose): four legs,
@@ -1691,7 +1691,9 @@ if (typeof window !== 'undefined') window.CAGE_CREW_FLOOR = {
   },
 };
 const FLOOR_T = 0.012;
-const FLOOR_MARGIN = 0.004;                 // the board's edge stands this far inside the wall (G354)
+const FLOOR_MARGIN = 0.0015;                // the board's edge stands this far inside the wall (G354; LINER-BACK 9 Nov: was 4 mm,
+                                            // buried in the 6-14 mm lining - the lining is now the skin's back face, so 4 mm
+                                            // showed as a slot along both edges; 1.5 mm = the hairline every lining kept)
 let FLOOR_THRU = [];                        // [{x, z, r}] a control passing through, metres
 const floorThru = (x, z, r) => { FLOOR_THRU.push({ x, z, r }); };
 const FLOOR_WALL = /^(body|floorLoop|waistband|ceilingLoop|pillar)/;
@@ -2938,6 +2940,14 @@ function seatPlaces(A, P) {
 
 // ---- THE BUILD HOOK -------------------------------------------------------
 let group = null;
+// G2715 (CREW-SEATS): THE BUILD'S OWN CREW THE JOB LEFT OUT - a chair taken out, an occupant the job does not carry -
+// built as ever and kept OFF the scene (never drawn, never in the join's snapshot), published as CAGE_CREW.ghost for
+// the energy layer's tank fit alone, which clears the build's crew whatever the job (the spec is the build's)
+let ghost = null;
+const ghostOf = () => {
+  if (!ghost) { ghost = new THREE.Group(); ghost.name = 'crewGhost'; ghost.matrixAutoUpdate = false; }
+  return ghost;
+};
 // characters on the wire (G204): one fetch per key, the build re-runs on
 // landing; a texture landing only needs a redraw (the bench draws on demand)
 const CHAR_WAIT = {};
@@ -2973,6 +2983,32 @@ window.CAGE_CREW_PILOT = key => {
   charRebuild();
   return true;
 };
+// G2715 (CREW-SEATS): THE JOB'S DOOR ONTO THE SEATS (app.js's FREIGHT-STRAP block, an accepted load only) -
+// { pax: [{ i, key }] the job's passengers (seat i, a body key, null = one off the cabin's cycle), empty: [i] the build's
+// occupants the job leaves out, out: [i] the chairs the load took out }. The seats' list (seatsAt: filled, kg) stays the
+// BUILD's: the join bills the build, FREIGHT-STRAP the job (78_ freightStrapAdds, the chairs by freightStrapChairKg).
+// null = the build's own crew, exactly as before. `now`: the rebuild in this task (the roll-out's snapshot follows at
+// once), else on the debounce. A change rebuilds, a repeat is free.
+const crewJobOf = j => {
+  if (!j || typeof j !== 'object') return null;
+  const ints = a => [...new Set((Array.isArray(a) ? a : []).map(v => Math.round(+v)).filter(v => v >= 0))].sort((a, b) => a - b);
+  const pax = [];
+  for (const q of Array.isArray(j.pax) ? j.pax : []) {
+    const i = Math.round(+(q && q.i));
+    if (i >= 0 && !pax.some(p => p.i === i)) pax.push({ i, key: (q && typeof q.key === 'string' && q.key) || null });
+  }
+  pax.sort((a, b) => a.i - b.i);
+  const out = { pax, empty: ints(j.empty).filter(i => !pax.some(p => p.i === i)), out: ints(j.out).filter(i => !pax.some(p => p.i === i)) };
+  return (out.pax.length || out.empty.length || out.out.length) ? out : null;
+};
+window.CAGE_CREW_JOB = (job, now) => {
+  const j = crewJobOf(job), k = j ? JSON.stringify(j) : null;
+  const was = window.FLYDIY_CREW_JOB ? JSON.stringify(window.FLYDIY_CREW_JOB) : null;
+  if (was === k) return false;
+  window.FLYDIY_CREW_JOB = j;
+  if (now) charRebuildNow(); else charRebuild();
+  return true;
+};
 const charRebuild = () => {
   if (charRebuildT) clearTimeout(charRebuildT);
   else if (window.BOOT) window.BOOT.expect('crewBuild');   // the loading screen waits for the rebuild this arms
@@ -2981,6 +3017,11 @@ const charRebuild = () => {
     try { if (window.CAGE_UI && window.CAGE_UI.build) window.CAGE_UI.build(); }
     finally { if (window.BOOT) window.BOOT.landed('crewBuild'); }
   }, 60);
+};
+// (G2715) the armed rebuild, now: the snapshot that follows reads this crew
+const charRebuildNow = () => {
+  if (charRebuildT) { clearTimeout(charRebuildT); charRebuildT = 0; if (window.BOOT) window.BOOT.landed('crewBuild'); }
+  if (window.CAGE_UI && window.CAGE_UI.build) window.CAGE_UI.build();
 };
 // THE CREW IS PENDING while a character is on the wire or its rebuild is
 // armed (G1985, JOIN-PARITY): the seat holds an undressed chain (or a
@@ -3049,6 +3090,10 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
     scene.remove(group);
     group = null;
   }
+  if (ghost) {                         // G2715: the build's own crew the last job left out, likewise
+    ghost.traverse(c => { if (c.geometry && !c.isSkinnedMesh) c.geometry.dispose(); });
+    ghost = null;
+  }
   if (!P.crewOn) {
     if (typeof window !== 'undefined') window.CAGE_CREW_EYE = null;
     footwellSet(null);
@@ -3080,10 +3125,16 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
   // G180: the COCKPIT's seats (pilot and co-pilot) are the pilot seat rows'
   // and every PASSENGER BAY's seat is the passenger rows' — the user: "the
   // passenger seats have controls separate from the pilot seats"
+  // G2715 (CREW-SEATS): the job's seats (CAGE_CREW_JOB), read once a build; null = the build's own crew. A CHAIR THE
+  // LOAD TOOK OUT is built OFF the layer (its numbers - pan height, mass - are the seat's all the same: the list the join
+  // reads stays the build's) and never joins it: not on the stand, not in the join's snapshot, so not in the flown mesh
+  // - it stands in the ghost (above), where only the tank fit sees it
+  const JOB = crewJobOf(window.FLYDIY_CREW_JOB);
   const seats = places.map((pl, i) => {
     const sg = new THREE.Group();
     sg.name = 'edSeat' + (i + 1);
-    group.add(sg);
+    const out = !!(JOB && JOB.out.includes(i) && !pl.pilot);
+    (out ? ghostOf() : group).add(sg);
     const SP = pl.section ? sp2 : sp1;
     return Object.assign({}, pl, { SP },
       buildSeat(sg, A, P, pl.x, pl.zBack, sbs, SP, pl));
@@ -3272,8 +3323,19 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
   const regStr = String((S0 && (S0.reg || (S0.meta && S0.meta.reg))) || '');
   let cyc = 0;
   for (let i = 0; i < regStr.length; i++) cyc = (cyc * 31 + regStr.charCodeAt(i)) >>> 0;
-  const charAt = i => {
-    const C = window.CAGE_CHAR, c = CH_LIST[i];
+  const charAt = i => charOf(CH_LIST[i]);
+  // G2715 (CREW-SEATS): a body BY ITS KEY - the cabin's list, or a cast member in the registry without an order (the
+  // crowd's, CHARACTERS G2970: the job's passengers are its people); the same rig, fetch and rebuild as by the list
+  const charByKey = k => {
+    if (!k) return null;
+    const i = keyIdx(k);
+    if (i >= 0) return charAt(i);
+    let rig = null;   // (a key the registry does not know is never fetched: no failed load, no retry clock)
+    try { rig = window.CAGE_CHAR ? window.CAGE_CHAR.rig(k) : null; } catch (e) { rig = null; }
+    return rig ? charOf({ key: k, label: k }) : null;
+  };
+  function charOf(c) {
+    const C = window.CAGE_CHAR;
     if (!C || !c) return null;
     let rig = null;
     try { rig = C.rig(c.key); } catch (e) { console.warn(e.message); return null; }
@@ -3291,7 +3353,7 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
       });
     }
     return { key: c.key, label: c.label, rig, ready };
-  };
+  }
   // role: 'pilot' | 'cop' | 'pax' — the racer (or the hired pilot), the
   // co-pilot's select, or the cycle; null = no character (no registry, or
   // a mixed seat with the list run out): the seat is billed, no body drawn
@@ -3303,6 +3365,9 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
     const i = cycle[cyc % cycle.length]; cyc++;
     return charAt(i);
   };
+  // G2715: a job's passenger - the body the job names, else one off the cycle at the seat's own offset (the cycle is
+  // never advanced: the build's own occupants keep their faces whatever the job)
+  const jobChar = (q, idx) => charByKey(q && q.key) || (cycle.length ? charAt(cycle[(cyc + idx) % cycle.length]) : null);
   const dressed = (occ, CH, role, idx) => {
     if (CH && CH.ready) {
       const inst = window.CAGE_CHAR.instance(CH.key);
@@ -3480,14 +3545,19 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
         fistOpts(P, occ));
     }
   };
-  const markLive = (occ, CH, role, idx, s, jobs, ctx) => {
-    if (!occ.char || LIVE_POLICY === 'none') return occ;
-    if (LIVE_POLICY !== 'all' && !jobs.some(j => j.ctl)) return occ;
-    for (const m of occ.char.meshes) m.userData.live = true;
+  // G2715 (CREW-SEATS): A JOB'S PASSENGER IS ALWAYS LIVE (`job`): it crosses the join as a `people` record - never
+  // baked, so the flown mesh and its bake are the build's whatever the job - and the flown side dresses it (a body
+  // still on the wire here flies all the same: the record is the rig's pose, buildPeople fetches the body)
+  const markLive = (occ, CH, role, idx, s, jobs, ctx, job) => {
+    if (!job && (!occ.char || LIVE_POLICY === 'none')) return occ;
+    if (!job && LIVE_POLICY !== 'all' && !jobs.some(j => j.ctl)) return occ;
+    if (occ.char) for (const m of occ.char.meshes) m.userData.live = true;
     occ.live = { key: CH.key, role, idx: idx || 1, s, palm: ctx.palm, stickFwd: ctx.stickFwd || 0,
                  fist: P.pilFist == null ? 0.5 : +P.pilFist,
-                 anim: occ.animSpec || null,
+                 anim: occ.animSpec || (job ? { key: 'sitidle', mode: 'body', amp: P.paxIdle == null ? 1 : +P.paxIdle,
+                                                phase: (idx || 1) * 1.7 } : null),   // (G2715: dressed's clip, body on the wire)
                  jobs: jobs.filter(j => j.ctl) };
+    if (job) occ.live.job = true;
     // G2797: the two hands, only when set apart (one hand = the record as ever);
     // G3700 HANDS: or when a grip solved a hand's curl, which the flown dress wears
     if (+P.pilHandsApart || occ.fistSolved) {
@@ -3498,10 +3568,11 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
     LIVE_CREW.push(occ);
     return occ;
   };
-  const seatOccupant = (seat, ST, idx, pose) => {
+  // job (G2715): a job's passenger { i, key } - the passenger's role and pose, no controls to hold, the job's body, live
+  const seatOccupant = (seat, ST, idx, pose, job) => {
     const stick = ST && ST.stick, thr = ST && ST.thr, pedals = ST && ST.pedals;
-    const role = idx === 1 ? 'pilot' : seat.section ? 'pax' : 'cop';
-    const CH = charFor(role);
+    const role = job ? 'pax' : idx === 1 ? 'pilot' : seat.section ? 'pax' : 'cop';
+    const CH = job ? jobChar(job, idx) : charFor(role);
     // no character, no body (the join still bills the seat); one is drawn
     // at its own height: the scale every seat number below multiplies is 1
     if (!CH) return null;
@@ -3637,7 +3708,7 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
     // THE BODY AS POSED (G3700): the click, the selection outline's pick and
     // the tank's crew clearance read the character's own skinned vertices
     if (occ.char && window.CAGE_CHAR.pickBody) window.CAGE_CHAR.pickBody(occ.char);
-    return markLive(occ, CH, role, idx, s, jobs, ctx);
+    return markLive(occ, CH, role, idx, s, jobs, ctx, job);
   };
   // THE ANCHORS GO OUT WITH IT (G96). The lighting layer needs exactly what
   // this layer spent its life working out — where the floor is, where the
@@ -3674,12 +3745,32 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
   // join bills exactly the bodies drawn here — what you see is what weighs.
   // The cockpit's second occupant flies from its own station in the pilot's
   // pose; a bay's occupants rest their hands in the passenger pose.
+  // G2715 (CREW-SEATS): THE JOB'S PEOPLE. A seat the accepted load fills takes the job's passenger (its body, the
+  // passenger's pose, hands resting, LIVE: flown by the join's `people`), whether the build seats someone there or not;
+  // the build's occupant it replaces, or one the job does not carry, is seated as ever and goes to the ghost (the tank
+  // fit's, never drawn nor flown). A job's passenger's meshes are tagged `crewJob`: the tank fit never clears them.
+  const toGhost = o => {
+    ghostOf().add(o.fig);
+    const k = LIVE_CREW.indexOf(o);
+    if (k >= 0) LIVE_CREW.splice(k, 1);
+    if (o.char && window.CAGE_CHAR.unanimate) window.CAGE_CHAR.unanimate(o.char);
+  };
   for (let si = 0; si < seats.length; si++) {
-    if (seats[si] === pilot || !seats[si].filled) continue;
-    const o = seatOccupant(seats[si], stn[si], si + 1,
-                           (seats[si].section || !stn[si]) ? POSE_PAX : POSE_PILOT);   // (G3515: no station, no stick to hold)
-    if (o) occs.push(o);
+    if (seats[si] === pilot) continue;
+    const jp = JOB ? JOB.pax.find(q => q.i === si) || null : null;
+    if (seats[si].filled) {
+      const o = seatOccupant(seats[si], stn[si], si + 1,
+                             (seats[si].section || !stn[si]) ? POSE_PAX : POSE_PILOT);   // (G3515: no station, no stick to hold)
+      if (o && JOB && (jp || JOB.empty.includes(si))) toGhost(o);
+      else if (o) occs.push(o);
+    }
+    if (jp) {
+      const o = seatOccupant(seats[si], null, si + 1, POSE_PAX, jp);
+      if (o) { o.fig.userData.crewJob = true; occs.push(o); }
+    }
   }
+  DBG.ghost = ghost;
+  DBG.job = JOB ? JSON.stringify(JOB) : null;
   {
     const aboard = seats.filter(s2 => s2.filled).length;
     notes.push('aboard ' + aboard + '/' + seats.length);

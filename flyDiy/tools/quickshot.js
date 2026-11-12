@@ -6,8 +6,9 @@
 //
 //   node tools/quickshot.js <build.json | --key <archetype>> <out-prefix> [options]
 //     --views side,top,front,q   which pictures (default side,top); q = a three-quarter from ahead, starboard, above;
-//                                bottom = from below, qb = a three-quarter from ahead, starboard, below (RETRACT G4),
-//                                qr = a three-quarter from BEHIND, starboard, above
+//                                bottom = from below, qb = a three-quarter from ahead, starboard, below (RETRACT G4);
+//                                qr = from behind, starboard, above; qp = from ahead, port, above;
+//                                qrb = from behind, starboard, below (the Archaeopteryx study)
 //     --flat                     flat facets (the default: smooth shading, the meshes' own vertex normals)
 //     --nowells / --noedges      the retractable gear's wells: drawn whole, uncut / the reserved boxes' edges not drawn
 //     --focus gear               frame the picture on the gear (and the wing's wells), not the whole aeroplane
@@ -214,8 +215,17 @@ function view(name) {
     top: { u: p => -p[2], w: p => -p[0], d: p => p[1] },                  // from above, the nose to the left
     front: { u: p => -p[0], w: p => p[1], d: p => p[2] },                // head-on, starboard on the left
     bottom: { u: p => -p[2], w: p => p[0], d: p => -p[1] },              // RETRACT G4: from below, the nose to the left
-    q: {}, qb: {}, qr: {}, qrb: {},                                        // set below
+    q: {}, qb: {}, qr: {}, qp: {}, qrb: {},                                         // set below
   }[name];
+  // (11 Nov, FIT-PROCEDURE: "do some 3/4 views of the latest model") qr = a three-quarter from BEHIND, starboard,
+  // above; qp = from ahead, PORT, above - the q view's yaw turned round
+  if (name === 'qr' || name === 'qp') {
+    const yaw = name === 'qr' ? -0.65 : Math.PI - 0.65, cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(0.38), sp = Math.sin(0.38);
+    V.u = p => -p[2] * cy + p[0] * sy;
+    const dd = p => p[0] * cy + p[2] * sy;
+    V.w = p => p[1] * cp - dd(p) * sp;
+    V.d = p => dd(p) * cp + p[1] * sp;
+  }
   if (name === 'qb') {  // RETRACT G4: a three-quarter from ahead, starboard, BELOW (the wells): yaw 37 deg, pitch -28 deg
     const cy = Math.cos(0.65), sy = Math.sin(0.65), cp = Math.cos(-0.49), sp = Math.sin(-0.49);
     V.u = p => -p[2] * cy + p[0] * sy;

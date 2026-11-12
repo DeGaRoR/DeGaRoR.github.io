@@ -289,7 +289,74 @@ var GROUND_SCAR = (() => {
     mesh.visible = false;
     const st = mesh.userData.stat; st.tris = 0; st.verts = 0; st.bytes = 0; st.prims = 0;
   }
-  const api = { S, make, build, clear, soil };
+  // ---- SCAR-LIVE (9 Nov): THE TRAIL WHILE IT SLIDES -------------------------------------------------------------
+  // A second mesh on the decal's own MATERIAL OBJECT (the same program: nothing links in a crash) and its attribute set,
+  // made with it in worldSettle: preallocated DynamicDraw buffers for S.liveCap strokes, 9 vertices a stroke (3 rows
+  // along it x 3 columns across: the edges' alpha 0, so the strokes of a slide join into one soft ribbon; a dab's ring
+  // of 8 round its middle at 0). liveAdd writes only the new strokes' slots and uploads only their range; the draw range
+  // grows; a full ring wraps over its oldest. liveClear: the trail gone (the seal's decal replaces it, or a reset).
+  // Cost: the buffers 1.8 MB (made only with damage on); a frame at most the hop's liveFrame strokes (64: 576 vertices,
+  // 576 terrainH reads)
+  S.liveCap = 4096;
+  function makeLive(THREE, base) {
+    const cap = S.liveCap, V = 9, g = new THREE.BufferGeometry();
+    const mk = n => { const a = new THREE.BufferAttribute(new Float32Array(cap * V * n), n); a.setUsage(THREE.DynamicDrawUsage); return a; };
+    g.setAttribute('position', mk(3)); g.setAttribute('normal', mk(3)); g.setAttribute('uv', mk(2)); g.setAttribute('color', mk(4));
+    const ix = new Uint32Array(cap * 24); let w = 0;
+    for (let s = 0; s < cap; s++) { const b0 = s * V;
+      for (let r = 0; r < 2; r++) for (let c = 0; c < 2; c++) { const a = b0 + r * 3 + c, b = a + 1, d = a + 3, e = d + 1;
+        ix[w++] = a; ix[w++] = b; ix[w++] = d; ix[w++] = b; ix[w++] = e; ix[w++] = d; } }
+    g.setIndex(new THREE.BufferAttribute(ix, 1)); g.setDrawRange(0, 0); g.name = 'scar:live';
+    const mesh = new THREE.Mesh(g, base.material);
+    mesh.name = 'scar:live'; mesh.visible = false; mesh.renderOrder = S.order; mesh.matrixAutoUpdate = false; mesh.frustumCulled = false;
+    mesh.castShadow = false; mesh.receiveShadow = true;
+    mesh.userData.live = { n: 0, used: 0, adds: 0, strokes: 0, ms: 0, msMax: 0 };
+    return mesh;
+  }
+  // q: the strokes, 8 numbers each (x0 z0 x1 z1 w s kind a - 34_scar.js scarLive)
+  function liveAdd(mesh, q, world) {
+    if (!mesh || !q.length || !world || typeof world.terrainH !== 'function') return 0;
+    const t0 = (typeof performance !== 'undefined' ? performance : Date).now();
+    const L = mesh.userData.live, g = mesh.geometry, cap = S.liveCap, A = g.attributes;
+    const P = A.position.array, N = A.normal.array, U = A.uv.array, C = A.color.array, gH = world.terrainH;
+    const k = Math.min(cap, Math.floor(q.length / 8)), s0 = L.n % cap;
+    for (let j = 0; j < k; j++) {
+      const o = j * 8, x0 = q[o], z0 = q[o + 1], x1 = q[o + 2], z1 = q[o + 3], s = q[o + 5], kind = q[o + 6], st = q[o + 7] || 1;
+      const hard = s === 2, lift = hard ? S.liftHard : S.lift;
+      let tx = x1 - x0, tz = z1 - z0; const tl = Math.hypot(tx, tz); if (tl > 1e-6) { tx /= tl; tz /= tl; } else { tx = 1; tz = 0; }
+      // the half-width across: a slide's contact (a scuff at least half of wScuff), a dab its radius
+      const hw = kind === 1 ? q[o + 4] : Math.max(hard ? 0.2 : 0.1, q[o + 4] / 2), al = kind === 1 ? q[o + 4] : 0;
+      const col = hard ? SCUFF : kind === 1 ? DEEP : mixC(DEEP, FLOOR, 0.35);
+      const slot = (L.n + j) % cap, vb = slot * 9;
+      for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) {
+        const f = r / 2, u = c - 1;
+        const x = (kind === 1 ? x0 + tx * al * (r - 1) : x0 + (x1 - x0) * f) - tz * hw * u, z = (kind === 1 ? z0 + tz * al * (r - 1) : z0 + (z1 - z0) * f) + tx * hw * u;
+        const v = vb + r * 3 + c, a = (u === 0 && (kind !== 1 || r === 1)) ? (hard ? S.scuffA : 0.9) * Math.min(1, st) : 0;
+        P[v * 3] = x; P[v * 3 + 1] = gH(x, z) + lift; P[v * 3 + 2] = z;
+        N[v * 3] = 0; N[v * 3 + 1] = 1; N[v * 3 + 2] = 0;
+        U[v * 2] = x / TEX_M; U[v * 2 + 1] = z / TEX_M;
+        C[v * 4] = col[0]; C[v * 4 + 1] = col[1]; C[v * 4 + 2] = col[2]; C[v * 4 + 3] = a;
+      }
+    }
+    // the upload: the new slots' range (two ranges when the ring wrapped)
+    const runs = s0 + k <= cap ? [[s0, k]] : [[s0, cap - s0], [0, s0 + k - cap]];
+    for (const [nm, isz] of [['position', 3], ['normal', 3], ['uv', 2], ['color', 4]]) {
+      const at = A[nm];
+      if (at.clearUpdateRanges) { at.clearUpdateRanges(); for (const [a, n] of runs) at.addUpdateRange(a * 9 * isz, n * 9 * isz); }
+      else at.updateRange = { offset: s0 * 9 * isz, count: (runs.length > 1 ? cap : k) * 9 * isz };
+      at.needsUpdate = true;
+    }
+    L.n += k; L.used = Math.min(L.n, cap); g.setDrawRange(0, L.used * 24); mesh.visible = true;
+    L.adds++; L.strokes += k;
+    const ms = (typeof performance !== 'undefined' ? performance : Date).now() - t0; L.ms += ms; if (ms > L.msMax) L.msMax = ms;
+    return k;
+  }
+  function liveClear(mesh) {
+    if (!mesh) return;
+    const L = mesh.userData.live; L.n = 0; L.used = 0;
+    mesh.geometry.setDrawRange(0, 0); mesh.visible = false;
+  }
+  const api = { S, make, build, clear, soil, makeLive, liveAdd, liveClear };
   if (typeof window !== 'undefined') window.GROUND_SCAR = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   return api;
