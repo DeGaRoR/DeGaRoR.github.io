@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 0444df0485d6e141
+// body-sha256: bb6ce91aadc4e24b
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -8936,7 +8936,7 @@ function hangarWants(S) {
     else if (m === 'tubeFabric') want.add('tube');
     else if (m === 'alloy' || m === 'fabricAlu') want.add('metal');   // (the aluminium spar under fabric: metal ribs)
     else if (m === 'carbon' || m === 'glass' || m === 'dtube') want.add('composite');   // G2047: glass is moulded in the same shop
-    else if (m === 'aluTube' || m === 'aluFabric') want.add('tube');   // G466: bolted tube wants the tube shop
+    else if (m === 'aluTube' || m === 'aluFabric' || m === 'softShell') want.add('tube');   // (L4: poles and a sewn skin: the tube shop)   // G466: bolted tube wants the tube shop
     // G213: the surfaces' own tokens — fabric over wood wants the wood shop,
     // fabric over tube the tube shop
     else if (m === 'fabric') want.add('wood');
@@ -16213,7 +16213,7 @@ function makeSim(def, world) {
   const PCORE = CMP ? new Float64Array(nb).fill(Infinity) : null;
   function dmgMember(bi, b, R) {
     const Lb = b.L > 0 ? b.L : 0, ph = typeof GEN_MATERIALS !== 'undefined' && GEN_MATERIALS[b.mat] ? GEN_MATERIALS[b.mat].phys : null;
-    const tube = b.cls === 'cabane' || b.cls === 'interplane' || (b.cls === 'fus' && (b.mat === 'tubeFabric' || b.mat === 'aluTube'));
+    const tube = b.cls === 'cabane' || b.cls === 'interplane' || (b.cls === 'fus' && (b.mat === 'tubeFabric' || b.mat === 'aluTube')) || (b.mat === 'softShell' && b.cls !== 'gear');   // (L4: a pole buckles wherever it stands)
     if (tube && !b.tens && !ISO[bi] && !LUMP[bi] && ph && ph.E > 0 && Lb > 0) {   // (G2361: an isolator does not buckle; G2367: nor a lumped fan)
       const fe = Math.PI * Math.PI * ph.E * (b.A * (GEN_CRASH_TUBE_DT * b.A / Math.PI) / 8) / (Lb * Lb);
       if (fe < b.fc0) b.fc0 = fe;
@@ -22470,7 +22470,8 @@ const WB_CP = 1.0, WB_CF = 0.006, WB_CD_TYRE = 1.0, WB_CD_SIDE = 1.2, WB_TYRE_W 
 // `covering: 'open'` (the bare frame) holds no air at all.
 const WB_MAT = { tubeFabric: { air: 0.85, tau: 40, breach: 60e3 }, aluTube: { air: 0.85, tau: 40, breach: 60e3 },
                  wood: { air: 0.85, tau: 150, breach: 120e3 }, alloy: { air: 0.9, tau: 300, breach: 200e3 },
-                 carbon: { air: 0.9, tau: 900, breach: 250e3 }, glass: { air: 0.9, tau: 900, breach: 200e3 } };   // G2047: glass, the carbon's sandwich, a softer skin
+                 carbon: { air: 0.9, tau: 900, breach: 250e3 }, glass: { air: 0.9, tau: 900, breach: 200e3 },
+                 softShell: { air: 0.8, tau: 20, breach: 30e3 } };   // (L4: a tent floods at once; the pole frame holds a little air)   // G2047: glass, the carbon's sandwich, a softer skin
 const WB_WING = { fabric: { air: 0.5, tau: 60 }, steel: { air: 0.5, tau: 60 }, aluFabric: { air: 0.5, tau: 60 }, fabricAlu: { air: 0.5, tau: 60 }, dtube: { air: 0.5, tau: 60 },
                   alloy: { air: 0.9, tau: 600 }, carbon: { air: 0.9, tau: 900 }, glass: { air: 0.9, tau: 900 } };
 const WB_DRAIN = 30;            // s: a slice out of the water drains (its flooding decays) on this time
@@ -33413,6 +33414,55 @@ const GEN_MATERIALS = {
     price: 110,
     cd0: 0.0004, clmaxK: 1.05,
   },
+  // THE SOFT SHELL (WEIGHT STUDY L4, the user 12 Nov: "a cabin ... tent-like material ... very, very low stiffness ...
+  // load any wing on top of it ... it should crumble"; "the soft material, yeah, we put it everywhere"). A TENT: thin
+  // 7075 poles under a ripstop skin, the pod's shape and nothing more - a cabin that keeps the wind off and carries
+  // nothing it was not built for. AS RECALLED, not opened here (A0 opens the sources):
+  //   phys    7075-T6 drawn tube (the tent pole's alloy: 7001 / 7075, Easton / DAC) E 71.7 GPa, rho 2810, sigY 503 MPa
+  //           (MIL-HDBK-5 / MMPDS 7075-T6 tube) - its OWN row so the damage model, the bench and the certificate know a
+  //           pole from the bolted 6061 of the aluTube row (GEN_CRASH.softShell; Euler on, 30_solver dmgMember).
+  //   lin     fus 0.07: an 11 mm x 0.6 mm pole is ~0.055 kg/m, a ferrule and a sleeve a metre on top - a SIXTH of the
+  //           bolted ultralight's 0.42 (whose members are 1.75 in tube); the lattice's member count is the frame's, so
+  //           the per-metre is what a pole frame of that many bays weighs (a pod's ~4 kg of poles).
+  //   cover   0.15: 70 den ripstop / silnylon (~70 g/m2) with its taped seams, sleeves and zips doubled - the tent's
+  //           own figure (a 2-person tent's fly ~0.12-0.18 kg/m2 finished). Not gauged: cloth is cloth at any gross.
+  //   k, c    an EIGHTH of the bolted 6061 row's fuselage (6e4 against 4.8e5): a pole frame is held by its tension and
+  //           its sleeves, not by triangulated joints - it sways; the damping by root(k m) at its mass (lin x0.17).
+  //           THE WING ROW IS A POLE TOO: the fuselage's row bills the wing-class members the aeroplane builds of
+  //           itself - the struts, the carry-through, a cantilever's box (the 'bracing' section) - so on a soft shell
+  //           they are poles (lin 0.07, k a third of the 6061 row's, c by root(k m)). Measured: with the 6061 row's
+  //           wing figures (0.40 kg/m of 7075) the soft-shell C172 held 9.7 g on the wing bench, past its alloy self
+  //           (6.1) - the certificate never stamps a member under its floor share of its physics, so only the section
+  //           can make it weak. (The wing's own surface is its own part: the default aluFabric, GEN_SURF_DEFAULT.)
+  //           The GEAR row is the carbon row's (the sprung fork of the composite pod it replaces): the gear is its own
+  //           part, and a pod's construction does not move it (the 6061 row's bungee gear put the Archaeopteryx's
+  //           7.5 kg against its 5.5, and its springs a fifth as stiff).
+  //   refMass the carbon row's (the moulded pod it replaces on the Archaeopteryx, so kScale - the wing's and the tail's
+  //           springs - reads the same); refGross 250: a foot-launch-class pod.
+  //   buildKg BUILT FOR A WEIGHT, as the foot-launch D-tube (GEN_SURF_MATERIALS.dtube): its gauge never grows past it
+  //           ('fusB', 61_gen_frame genDesignGross), its springs no gain past it (KSB), and it is CERTIFIED as if its
+  //           aeroplane weighed buildKg (66_gen_cert: its members' limit loads x min(1, buildKg / W0)) - so a tent on a
+  //           Cessna sags and comes down at rest, and nothing makes a light pod free (GATE SOFTSHELL).
+  //   hard    THE ROLES THAT STAY HARD: on a hanging nacelle the cabin is not what flies - the mast (cabane class: steel,
+  //           as every truss; the motor's mount on it: a mount, steel), the keel tubes the seat and the pack hang from,
+  //           and the wing's box and carry-through on the hub (the 'bracing' section) are built of this row - carbon
+  //           tube, the frame a modern soft pod hangs from; the pod's skin and its poles are the tent. A wing on a soft
+  //           shell WITHOUT the mast stands on the poles, and they fold.
+  //   price   the cheapest: a sewn skin over poles.
+  softShell: {
+    name: 'poles + ripstop',
+    phys: { E: 71.7e9, rho: 2810, sigY: 503e6 },
+    lin:   { fus: 0.07, wing: 0.07, gear: 0.38 },
+    cover: 0.15,
+    k:     { fus: 6.0e4, wing: 1.0e5, gear: 8.53e4 },
+    c:     { fus: 12,    wing: 76,    gear: 933 },
+    refMass: 420,
+    refGross: 250, coverGauged: false,
+    buildKg: 250, kFloorK: 0.5, hard: 'carbon',
+    cdWet: 0.0140,                      // cloth between poles: it sags, the doped-fabric figure and a little
+    price: 22,
+    cd0: 0.0024, clmaxK: 1.00,
+  },
 };
 // G2047 (DMG-COMPOSITE): a moulded composite (carbon or glass): no laced rings, no screwed panels, bonded joints
 function genComposite(m) { return m === 'carbon' || m === 'glass'; }
@@ -33557,6 +33607,9 @@ const GEN_CRASH = {
                 scat: 0.10, fitE: 0.5, tauC: 0.9e6, cC: 0.0095, tS: 0.0006 },
   glass:      { ty: 300e6, tu: 300e6,           etu: 0,    cy: 180e6, ecu: 0,    thf: 0,
                 scat: 0.10, fitE: 0.5, tauC: 0.9e6, cC: 0.0095, tS: 0.0008 },
+  // (WEIGHT STUDY L4: the soft shell's 7075-T6 poles, MMPDS as recalled - 503 / 572 MPa, 11 % elongation; a pole FOLDS
+  //  a long way before it tears: thf 1.0)
+  softShell:  { ty: 503e6, tu: 572e6,           etu: 0.11, cy: 503e6, ecu: 0.03, thf: 1.0 },
   fabric:     { cover: true, tuN_m: 14e3, etu: 0.15 },   // reported only (above)
 };
 // the GEN_MATERIALS key a phys row is (surface rows share their structure's phys object)
@@ -33693,9 +33746,11 @@ const GEN_SURF_MATERIALS = {
 // stiffness (k.fus 8.0e5 -> 4.15e5) and the stab rolled 3.7 deg against the
 // mains through a taxi, over GATE TAKEOFF's 3.5 deg bar set with the tube.
 const GEN_SURF_DEFAULT = { tubeFabric: 'fabric', wood: 'fabric',
-                           alloy: 'alloy', carbon: 'carbon', aluTube: 'aluFabric', glass: 'glass' };
+                           alloy: 'alloy', carbon: 'carbon', aluTube: 'aluFabric', glass: 'glass',
+  softShell: 'aluFabric' };   // (L4: a tent's wing and tail are the ultralight's sail)
 const GEN_SURF_DEFAULT_TAIL = { tubeFabric: 'steel', wood: 'fabric',
-                                alloy: 'alloy', carbon: 'carbon', aluTube: 'aluFabric', glass: 'glass' };
+                                alloy: 'alloy', carbon: 'carbon', aluTube: 'aluFabric', glass: 'glass',
+  softShell: 'aluFabric' };   // (L4: a tent's wing and tail are the ultralight's sail)
 // the tokens a saved spec may still carry from before G213, read as what
 // they always meant on a flying surface: a "wood" wing was fabric over
 // wood, a "tubeFabric" wing was fabric over tube
@@ -33900,6 +33955,8 @@ GEN_BUILD_GRAMMAR.fabricAlu = Object.assign({}, GEN_BUILD_GRAMMAR.tubeFabric,
 GEN_BUILD_GRAMMAR.glass = Object.assign({}, GEN_BUILD_GRAMMAR.carbon, { name: 'glass + epoxy', alias: 'carbon' });
 // the foot-launch D-tube: its moulded D-box is what shows (the film aft is taut, no rib print at this scale)
 GEN_BUILD_GRAMMAR.dtube = Object.assign({}, GEN_BUILD_GRAMMAR.carbon, { name: 'foot-launch D-tube', alias: 'carbon' });
+// (L4) the soft shell: a sewn skin over poles reads as the sail over its tube
+GEN_BUILD_GRAMMAR.softShell = Object.assign({}, GEN_BUILD_GRAMMAR.tubeFabric, { name: 'poles + ripstop', alias: 'tubeFabric' });
 
 
 // ===========================================================================
@@ -34126,7 +34183,7 @@ const GEN_ACCESS = {
     at: R => R.booms ? { sL: R.booms.len * 0.78, lv: 'flank' }
                      : { sL: R.tailArm * 0.62, lv: 'keel' },
     snap: 'bay', side: R => R.booms ? 'both' : 'centre',
-    form: R => (R.material === 'tubeFabric' || R.material === 'aluTube') ? 'ringLace' : 'plateOval',
+    form: R => (R.material === 'tubeFabric' || R.material === 'aluTube' || R.material === 'softShell') ? 'ringLace' : 'plateOval',
     size: { w: 0.130, h: 0.130 },
   },
   inspBelly: {
@@ -34135,7 +34192,7 @@ const GEN_ACCESS = {
     need: R => genComposite(R.material) ? 0 : 1,
     at: R => ({ sL: R.cabinAft * 0.72, lv: 0.55 }),
     snap: 'bay', side: 'centre',
-    form: R => (R.material === 'tubeFabric' || R.material === 'aluTube') ? 'ringLace' : 'plateOval',
+    form: R => (R.material === 'tubeFabric' || R.material === 'aluTube' || R.material === 'softShell') ? 'ringLace' : 'plateOval',
     size: { w: 0.200, h: 0.150 },
   },
   inspAileron: {
@@ -34976,7 +35033,7 @@ function genFurnK(S) {
 //   glass   3 mm acrylic, which is what a light aeroplane's screen is
 const GEN_OUTFIT = {
   panelKgM2: 6.0,
-  cowlKgM2:  { tubeFabric: 2.4, wood: 2.4, alloy: 3.2, carbon: 2.0, aluTube: 1.6, glass: 2.4 },
+  cowlKgM2:  { tubeFabric: 2.4, wood: 2.4, alloy: 3.2, carbon: 2.0, aluTube: 1.6, glass: 2.4, softShell: 1.6 },
   glassKgM2: 3.6,
   // THE GLAZING MATERIAL (T2.2, 2026-09-22): acrylic is the 3 mm sheet above;
   // polycarbonate (Lexan, 1.20 g/cc against acrylic's 1.19) weighs the same
@@ -35895,7 +35952,17 @@ const GEN_HANG = { at: 0.50, len: 0.35, tc: 0.12, kgM: 2.4, lv: 0.30,
   // ...or TWO (the user, 12 Nov: "in the real plane, it's actually 2 of them and the pilot fits between, mounted at the
   // level of the bottom of the pilot window"): carbon tubes ~50 mm, ~0.5 kg/m each INFERRED, at keelK of the cabin's
   // height when the join measured none, inset keelIn of the half-width
-  tubeKgM: 0.5, keelK: 0.33, keelIn: 0.85 };
+  tubeKgM: 0.5, keelK: 0.33, keelIn: 0.85,
+  // THE HUB (WEIGHT STUDY L5, the user 12 Nov: "the wing attachment ... just giving it some number"): the wing goes on
+  // the mast's head in one piece - a machined fitting, its pins and the mast's head plate, ~1.5 kg INFERRED (a hang
+  // glider's keel-to-hang-block hardware is ~0.5 kg; this one takes a 13 m wing and a 200 kg aeroplane), billed on the
+  // wing's root nodes (where it is) as the carry-through ('bracing'). And THE BOX: a cantilever wing's 'bracing' lattice
+  // is its torsion box billed in the fuselage's row (6.5 kg of carbon on the Archaeopteryx) - on a hub that box is the
+  // wing's own (the D-tube's D-box, billed in 'wings'), so it is built at boxK of its mass AND its springs (dampers by
+  // the root: the integrator's ratio held). boxK is the integrator's floor, not the structure's: the box's bottom
+  // nodes carry nothing but the box, and under a quarter (0.15, 0.10) the card at the 200-substep cap diverged parked
+  // (measured 12 Nov, scratch soft.js / stiff.js); at a quarter, with the hub on the root, it holds 5.9 g on the bench
+  hubKg: 1.5, boxK: 0.25 };
 const GEN_TIP_SKID = { h: [0.02, 0.30], h0: 0.10, xc: [0.15, 0.75], xs: 0.45, bow: 0.6, r: 0.008, cd: 1.2, kg: 0.30, each: 90 };
 // ...its STATION (m from the centreline): `bow` of the way out along a tip's bow (a rounded, clipped, Hoerner or
 // elliptic tip: the bow's own outer reach would otherwise touch the ground first, the wing tilted on a single main), at
@@ -36163,7 +36230,12 @@ function genEngPropD0(S, e0, PP0) {
   if (e0 && e0.custom) return (S.prop && S.prop.D > 0) ? S.prop.D : 1.80;
   return PP0.prop.D;
 }
-const GEN_CAGE_ROW_NEUTRAL = { eng_bmepK: 1, eng_massK: 1, eng_gearRatio: 1, eng_rpmMax: 0, eng_cs: 0, s1Stiff: 1 };
+// (the Archaeopteryx branch's rows, each absent = this value = every build before it: the fin's rudder below the
+//  stab, the hub's pylon, the wingtip skid, the light control runs, the rod's own material and wall, the ultralight
+//  monowheel - GATE STOL's join-to-master parity on the saved builds read them as a moved spec)
+const GEN_CAGE_ROW_NEUTRAL = { eng_bmepK: 1, eng_massK: 1, eng_gearRatio: 1, eng_rpmMax: 0, eng_cs: 0, s1Stiff: 1,
+                               finRudBelow: 0, bpCabPyAt: 0.4, bpCabPyLen: 0.55, wgTipSkid: 0, wgTipSkidH: 0.1,
+                               ctlRuns: 0, rodMat: 0, rodWallMm: 1.2, s1Ul: 0 };
 // the cage without its STOL rows at "off" and its later dials at neutral (the same object when it has none: a hash
 // over it is the old bytes)
 function genStolCageOff(cage) {
@@ -36727,6 +36799,17 @@ const GEN_RULES = {
   // BICYCLE WHEEL (the cage's whProfile 3) - a wire-spoked rim, a narrow tube tyre and a small hub: a 16" wheel (R 0.25)
   // with its tyre and tube ~1.3 kg (a 20" ~1.6), INFERRED from bicycle catalogue weights; no brake drum of its own
   wheelCycleKg: R => 1.3 * CORE_MATH.pow(Math.max(0.03, R) / 0.25, 1.5),
+  // THE ULTRALIGHT MONOWHEEL (WEIGHT STUDY L6, the user 12 Nov: "the gear has been specifically developed for that plane
+  // ... give it the weight you want, provided it remains something unique as a gear type ... it's really like a
+  // bicycle wheel. It's like an ultralight wheel"): gear.ul, on a monowheel only - the bicycle wheel (wheelCycleKg) in a
+  // sprung fork that bolts to the pod's hard points, the pod's box carrying it. Its members (the fork, its legs and
+  // braces in the lattice) are the gear row's at linK of their section and mass (a bicycle fork ~0.6 kg against a
+  // light aeroplane's spring leg ~3 kg; INFERRED), their springs as built (the ground handling is the card's); and it
+  // is BUILT FOR A WEIGHT as the D-tube and the soft shell: certified as if its aeroplane weighed buildKg (66_gen_cert),
+  // so on anything heavier it folds where it lands. Its NOSE SKID (the third unit as a skid ahead, twMode 'skid') is its
+  // own too: a rubber-sprung shoe on a short leaf, skidKg (a glider's nose skid ~0.3-0.5 kg, INFERRED) - not the
+  // tailwheel assembly's law the tricycle branch bills a skid by (2.0 kg at R 0.10)
+  ulGear: { linK: 0.3, buildKg: 250, skidKg: 0.4 },
   // RETRACT-1: THE RETRACTION KIT by the design gross - the actuators, the pack, the locks, the beefier trunnions. The real
   // pairs (RETRACT-STUDY §1.9): a 177 to a 177RG +66 kg (a bigger engine in it), a 172 to a 172RG ~+80 kg (engine and
   // prop in it), the gear itself 2.5-5 % of the gross; 3.5 % of the gross, 12 kg at the least. [TUNE] on a reference retract
@@ -38856,7 +38939,8 @@ function clampSpec(spec) {
   if (S.gear.mono === true && (S.gear.type === 'taildragger' || S.gear.type === 'tricycle')) {
     delete S.gear.retract;
     if (S.gear.suspension === 'lever') S.gear.suspension = 'oleo';
-  } else delete S.gear.mono;
+    if (S.gear.ul !== true) delete S.gear.ul;     // (L6: the ultralight monowheel, GEN_RULES.ulGear - the key only when on)
+  } else { delete S.gear.mono; delete S.gear.ul; }
   // MONOWHEEL: THE SUNK MAINS - the share of the wheel's diameter inside the body (the cage's s1Sink, the join's); the
   // drag counts the rest, no leg in the stream. Absent at 0
   if (+S.gear.sink > 0) S.gear.sink = genClamp(+S.gear.sink, 0, 0.7); else delete S.gear.sink;
@@ -41432,7 +41516,10 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // share (they kept the first-billed row's refGross: the D-tube's 190 kg grew the Archaeopteryx's carbon bracing 7.1 ->
   // 12.3 kg). A card without such a row has no 'wingB' and is gauged exactly as before
   // (the tail in the D-tube - it follows a chosen wing - likewise: 'tailB')
-  const bucketB = (bk, mat) => (bk === 'wing' || bk === 'tail') && mat && mat.buildKg > 0 ? bk + 'B' : bk;
+  // (WEIGHT STUDY L4: the SOFT SHELL - a fuselage row built for a weight, GEN_MATERIALS.softShell - likewise: 'fusB')
+  // (its wing-class members - a carry-through billed in the fuselage's row - stay in the shared 'wing' bucket: 'wingB' is
+  //  a SURFACE row's)
+  const bucketB = (bk, mat) => mat && mat.buildKg > 0 && ((bk === 'fus' && mat === M) || ((bk === 'wing' || bk === 'tail') && mat !== M)) ? bk + 'B' : bk;
   const gBag = bk => gauged[bk] || (gauged[bk] = { m: 0, x: 0, y: 0, z: 0 });
   const gauged = { fus: { m: 0, x: 0, y: 0, z: 0 }, wing: { m: 0, x: 0, y: 0, z: 0 },
                    tail: { m: 0, x: 0, y: 0, z: 0 }, gear: { m: 0, x: 0, y: 0, z: 0 } };
@@ -41456,6 +41543,12 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     tail:  genSurfMaterial(S, 'stab'),
   };
   let MB = M;                                   // what the open section BILLS
+  // WEIGHT STUDY L5: a HANGING NACELLE's wing sits on a hub (the mast's head): its carry-through is the hub fitting
+  // (GEN_HANG.hubKg, billed in 3d) and its 'bracing' box the wing's own, built at GEN_HANG.boxK of its mass and springs
+  const HUBPIN = !!(S.fuse && S.fuse.hang && S.wings && S.wings[0]);
+  const HUBF = typeof GEN_HANG !== 'undefined' && GEN_HANG.boxK > 0 ? GEN_HANG.boxK : 1;
+  // WEIGHT STUDY L6: THE ULTRALIGHT MONOWHEEL (gear.ul, on a monowheel only): its members at GEN_RULES.ulGear.linK
+  const GUL = S.gear && S.gear.mono && S.gear.ul && GEN_RULES.ulGear && GEN_RULES.ulGear.linK > 0 ? GEN_RULES.ulGear : null;
   const KS = kScale || 1;                       // structure sized for the mass
   // ...but a wing BUILT FOR a weight (the foot-launch D-tube) is no stiffer than at that weight: kScale's own law at buildKg,
   // floored at the row's kFloorK of the aeroplane's own (what the integrator holds: at kScale's bare 0.45 the D-tube on
@@ -41737,7 +41830,8 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   };
   const boxRearJ = S.fuse ? S.fuse.boxRear : -1;
   // G3505: the gauge's knee for strength (GEN_RULES.gaugeHoldK x the airframe material's design gross); Infinity = off
-  const kneeW = R.gaugeHoldK > 0 ? R.gaugeHoldK * (((GEN_MATERIALS[S.material] || {}).refGross) || 550) : Infinity;
+  // (WEIGHT STUDY L4: an airframe BUILT FOR a weight - the soft shell - has no knee: its sections never grow past it)
+  const kneeW = R.gaugeHoldK > 0 && !(M && M.buildKg > 0) ? R.gaugeHoldK * (((GEN_MATERIALS[S.material] || {}).refGross) || 550) : Infinity;
   const B = (a, b, cls, ext, vis, mnt, opt) => {
     const L = Math.hypot(P[b][0]-P[a][0], P[b][1]-P[a][1], P[b][2]-P[a][2]);
     // A MEMBER BETWEEN TWO POINTS THAT ARE ONE POINT IS REFUSED (REVIEW
@@ -41748,6 +41842,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // coincides with another is the call site's to alias.
     if (!(L >= 1e-6) || a === b) { degenerate.push([a, b, cls]); return; }
     const isG = cls === 'gear';
+    const ulG = isG && GUL ? GUL.linK : 1;            // (L6: the ultralight monowheel's members, GEN_RULES.ulGear)
     // GEN_RULES.wingK: the wing class is x19 softer than the cap its own mass
     // already buys. See the constant for the measurements and the substep
     // trade. Damping is NOT scaled with it — a stiffer structure at the same c
@@ -41808,7 +41903,11 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // x10 is x1.5 over carbon's own row and the rig is quiet.
     // G185: the truss classes are steel on every airframe too
     const steel = mnt || cls === 'cabane' || cls === 'interplane' || cls === 'wire';
-    const MM = steel ? (GEN_MATERIALS.tubeFabric || MB) : MB;
+    // WEIGHT STUDY L4: A ROLE THAT STAYS HARD (`opt.hard`: the hanging nacelle's keel tubes and the motor's mount on the
+    // mast) on a row that names one (GEN_MATERIALS.softShell.hard: the tent's poles are the pod, its frame is tube).
+    // A row without `hard` - every row before the soft shell - builds the member of itself, as before
+    const HARD = !steel && opt && opt.hard && MB && MB.hard ? GEN_MATERIALS[MB.hard] : null;
+    const MM = steel ? (GEN_MATERIALS.tubeFabric || MB) : (HARD || MB);
     const mK = mnt ? (R.mountK == null ? 1 : R.mountK) : 1;
     // G199.5: a ROD boom's bays are a tube, not a lattice — GEN_RULES.rodBoomK
     // on every fuselage-class member aft of the cabin box (the post, the
@@ -41858,8 +41957,9 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // weigh what they did (so the aeroplane does not move); the new pair is built weightless
     const ghost = !!(opt && opt.ghost);
     if (!ghost) {
-    const bm = { a, b, k: row(MM.k, cls) * (isG ? kG : ((cls === 'wing' || cls === 'tail') && MM.buildKg > 0 ? Math.min(KS, KSB(MM)) : KS)) * kGain * mK * bK * kMul,
-                 c: row(MM.c, cls) * (isG ? cG : CS) * Math.sqrt(mK) * Math.sqrt(bK) * Math.sqrt(kMul) * cMul,
+    const hubK = HUBPIN && SEC === 'bracing' && !isG ? HUBF : 1;   // (L5: the hub's box, below)
+    const bm = { a, b, k: hubK * row(MM.k, cls) * (isG ? kG : ((cls === 'wing' || cls === 'tail' || MM === M) && MM.buildKg > 0 ? Math.min(KS, KSB(MM)) : KS)) * kGain * mK * bK * kMul,
+                 c: Math.sqrt(hubK) * row(MM.c, cls) * (isG ? cG : CS) * Math.sqrt(mK) * Math.sqrt(bK) * Math.sqrt(kMul) * cMul,
                  gear: isG, cls, ext: vis === 'inner' ? false : (!!ext || isG),
                  vis: vis || null, L };
     if (opt && opt.tens) bm.tens = true;
@@ -41893,6 +41993,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       // so its stress holds; the mass, the bill and k stay the gauge's. At or below the knee (every saved build: the
       // heaviest, the Cessna on floats, is 0.50 of its 2 222 kg) nothing is multiplied.
       if (bk && GG && GG.W0 > kneeW) bm.A *= GG.W0 / kneeW;
+      if (ulG !== 1) bm.A *= ulG;
       bm.mat = genPhysKey(MM.phys);
       // the rod row: the rod's own member in the rod's material, its section the wall's share of the standard's
       if (rodMem && RODM && RODM.phys) { bm.A *= RODT / ROD0; bm.mat = genPhysKey(RODM.phys); }
@@ -41954,7 +42055,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       const bk = bucketB(bucketOf(cls, mnt), MM);
       const g1 = bk && GG ? GG[bk] : 1;
       const webK = (opt && opt.web && MM.coverGauged) ? (R.boxWebK == null ? 1 : R.boxWebK) : 1;
-      const h0 = 0.5 * L * row(MM.lin, cls, tSecM) * aftG * webK * (rodMem ? RODMK : 1), h = h0 * g1;   // (the rod row's rho t)
+      const h0 = 0.5 * L * row(MM.lin, cls, tSecM) * aftG * webK * (rodMem ? RODMK : 1) * (HUBPIN && SEC === 'bracing' && !isG ? HUBF : 1) * ulG, h = h0 * g1;   // (the rod row's rho t)
       if (bk && !GG) { const G = gBag(bk); G.m += 2 * h0;
         G.x += h0 * (P[a][0] + P[b][0]); G.y += h0 * (P[a][1] + P[b][1]); G.z += h0 * (P[a][2] + P[b][2]);
         if (!gaugeRef[bk]) gaugeRef[bk] = MM.refGross || 550; }
@@ -42057,7 +42158,9 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     }
   };
   const secOpen = () => { secSnap = nodes.map(n => n.m); };
-  const sec = s => { secClose(); SEC = s; MB = MSEC[s] || M; secOpen(); };
+  // (WEIGHT STUDY L4: on a hanging nacelle the wing's box and its carry-through are the HARD row's when the fuselage's
+  //  names one - a soft shell carries no wing; without the mast, they are the poles)
+  const sec = s => { secClose(); SEC = s; MB = MSEC[s] || (s === 'bracing' && HUBPIN && M && M.hard && GEN_MATERIALS[M.hard] ? GEN_MATERIALS[M.hard] : M); secOpen(); };
   secOpen();                                        // the fuselage section is open from the first node
   const spend = c => bill(0, c);
   // EVERY SQUARE METRE THE AEROPLANE IS COVERED IN, kept as it is billed. The
@@ -43191,6 +43294,9 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       for (const l of [0, 1]) for (const t of lv[l]) for (const i of rings) { M(t, F[i].BL); M(t, F[i].BR); }
       const kg = H0.kgM * Hm;
       for (const n of MAST) pt(n, kg / MAST.length);
+      // (L5) the hub: the wing's one fitting on the mast's head - on the wing's root nodes, where it is (the stiffest
+      // springs of the aeroplane, the root's across the hub, end there) - billed as the carry-through ('bracing')
+      if (HUBPIN && H0.hubKg > 0) { const s0 = SEC; sec('bracing'); for (const h of hub) pt(h, H0.hubKg / hub.length); sec(s0); }
       mastRef = { nodes: MAST.slice(), head: lv[nL].slice(), foot: lv[0].slice(), x: [xa, xb], hw, h: Hm, kg, rings };
     }
   }
@@ -43213,7 +43319,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     const k = S.fuse.hangKeelK != null ? +S.fuse.hangKeelK : H0.keelK, kin = H0.keelIn || 0.85, xa = mastRef.x[0];
     const st = []; for (let i = 0; i < F.length; i++) if (ST[i].x < xa - 0.05) st.push(i);
     if (st.length) {
-      const M = (a, b) => B(a, b, 'fus', false, 'inner', undefined, { noMass: true });
+      const M = (a, b) => B(a, b, 'fus', false, 'inner', undefined, { noMass: true, hard: true });   // (L4: a role that stays hard)
       const L = [], R = [];
       for (const i of st) {
         const at = (lo, hi) => P[lo].map((v, c) => v + (P[hi][c] - v) * k);
@@ -43239,7 +43345,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     const keelY = i => 0.5 * (P[F[i].BL][1] + P[F[i].BR][1]);
     const st = []; for (let i = 0; i < F.length; i++) if (ST[i].x < xa - 0.05) st.push(i);
     if (st.length) {
-      const M = (a, b) => B(a, b, 'fus', false, 'inner', undefined, { noMass: true });
+      const M = (a, b) => B(a, b, 'fus', false, 'inner', undefined, { noMass: true, hard: true });   // (L4: a role that stays hard)
       for (const i of st) {
         const b = N(ST[i].x, keelY(i), 0, 'KEELB'), t = N(ST[i].x, keelY(i) + kd, 0, 'KEELT');
         KB.push(b); KT.push(t);
@@ -44420,7 +44526,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     } else { B(TW, twUpL, 'gear', false, 'wire'); B(TW, twUpR, 'gear', false, 'wire'); }
     B(TW, F[Math.min(1, F.length-1)].BL, 'gear', false, 'wire');
     B(TW, F[Math.min(1, F.length-1)].BR, 'gear', false, 'wire');
-    pt(TW, (CYCLE && !SKID ? R.wheelCycleKg(S.gear.twR) : R.wheelTwKg(S.gear.twR)) + mFairTw);        // the nosewheel with its fork, by size (a bicycle wheel's own)
+    pt(TW, (GUL && SKID && GUL.skidKg > 0 ? GUL.skidKg : CYCLE && !SKID ? R.wheelCycleKg(S.gear.twR) : R.wheelTwKg(S.gear.twR)) + mFairTw);   // (L6: the ultralight monowheel's nose skid, its own)        // the nosewheel with its fork, by size (a bicycle wheel's own)
     // RETRACT-1: THE RETRACTION KIT, billed where it hangs - two thirds on the mains' axles (their actuators, locks
     // and trunnions), a third on the nose leg's (the pack sits by the firewall, the nose leg's anchors); priced once
     if (S.gear.retract) {
@@ -45646,7 +45752,7 @@ function genDesignGross(S, a, cg) {
   const WROW = genSurfMaterial(S, 'wing', 0) || {}, TROW = genSurfMaterial(S, 'stab') || {};
   // ('wingB': the D-tube's own bucket, gauged with the wing's exponent and capped at its build weight)
   const eOf = c => G.e[c] != null ? G.e[c] : G.e[c.replace(/B$/, '')];
-  const rowOf = c => c === 'wingB' ? WROW : c === 'tailB' ? TROW : null;
+  const rowOf = c => c === 'wingB' ? WROW : c === 'tailB' ? TROW : c === 'fusB' ? (GEN_MATERIALS[S.material] || null) : null;   // (L4: the soft shell's)
   const hiOf = c => { const r = rowOf(c); return r && r.buildKg > 0 ? Math.min(G.hi, CORE_MATH.pow(r.buildKg / ref(c), eOf(c))) : G.hi; };
   const gOf = (c, W) => Math.min(hiOf(c), Math.max(G.lo, CORE_MATH.pow(W / ref(c), eOf(c))));
   // the furnishing (GEN_OUTFIT.furnK, Raymer on W0) is billed in pass 2
@@ -53360,6 +53466,20 @@ function* genCertifySteps(def, opt) {
     if (TR && TR.buildKg > 0 && W0 > TR.buildKg) {
       const f = TR.buildKg / W0;
       def.beams.forEach((b, i) => { if (b.sec === 'tail') { Ft[i] *= f; Fc[i] *= f; } });
+    }
+    // ...and a FUSELAGE built of a row built for a weight (WEIGHT STUDY L4: the soft shell, GEN_MATERIALS.softShell):
+    // its own members - the poles, wherever they stand: the cabin, the carry-through - the gear's aside (its bracket
+    // is the gear's own cases, gearStamp) and the roles built hard (the keel, the mount: another row's members)
+    const MR = typeof GEN_MATERIALS !== 'undefined' ? GEN_MATERIALS[S.material] : null;
+    if (MR && MR.buildKg > 0 && MR.phys && W0 > MR.buildKg) {
+      const f = MR.buildKg / W0, mk = genPhysKey(MR.phys);
+      def.beams.forEach((b, i) => { if (b.mat === mk && b.cls !== 'gear') { Ft[i] *= f; Fc[i] *= f; } });
+    }
+    // ...and the ultralight monowheel (WEIGHT STUDY L6, GEN_RULES.ulGear): its gear's members, as built for its weight
+    const UG = S.gear && S.gear.mono && S.gear.ul && typeof GEN_RULES !== 'undefined' ? GEN_RULES.ulGear : null;
+    if (UG && UG.buildKg > 0 && W0 > UG.buildKg) {
+      const f = UG.buildKg / W0;
+      def.beams.forEach((b, i) => { if (b.cls === 'gear') { Ft[i] *= f; Fc[i] *= f; } });
     } }
   return { v: GEN_CERT_V, key: genCertKey(def), nb, nN, limit: L, ult: GEN_CERT.ult, neg: -GEN_CERT.neg * L, m: GEN_CERT.m,
            sink, dropNz: drop ? drop.nz : null, flownNz: flown ? flown.nz : null, flownReached: flown ? flown.reached : null,
@@ -65088,7 +65208,7 @@ const TECH_SEGS = {
 //   (the user's Rufus, the story's starter, flies a carbon prop on a wood-and-fabric airframe).
 const TECH_TABLE = {
   // ---- materials
-  'mat:tubeFabric': 1, 'mat:wood': 1, 'mat:alloy': 2, 'mat:aluTube': 2, 'mat:carbon': 3, 'mat:glass': 3,
+  'mat:tubeFabric': 1, 'mat:wood': 1, 'mat:alloy': 2, 'mat:aluTube': 2, 'mat:carbon': 3, 'mat:glass': 3, 'mat:softShell': 1,
   'surf:fabric': 1, 'surf:steel': 1, 'surf:alloy': 2, 'surf:aluFabric': 2, 'surf:carbon': 3, 'surf:glass': 3, 'surf:fabricAlu': 2, 'surf:dtube': 3,
   // ---- engines
   'eng:a65_sensenich74': 1, 'eng:vw2180_wood': 1, 'eng:rotax277_pusher': 1, 'eng:rotax503_wood': 1, 'eng:rotax582_ivo': 1,
@@ -65270,7 +65390,7 @@ const TECH_SURF_ROW = [null, 'surf:carbon', 'surf:steel', 'surf:fabric', 'surf:a
 // certificate holds only the wing to it (66_gen_cert), so a tail in it would be a light part with no price
 const TECH_WING_ROW = TECH_SURF_ROW.concat(['surf:dtube']);
 const TECH_ROWS = {
-  intCons: ['mat:carbon', 'mat:tubeFabric', 'mat:wood', 'mat:alloy', 'mat:aluTube', 'mat:glass'],
+  intCons: ['mat:carbon', 'mat:tubeFabric', 'mat:wood', 'mat:alloy', 'mat:aluTube', 'mat:glass', 'mat:softShell'],
   // (the second plane's row is the wing row's own: its options, the D-tube's with them)
   wgCons: TECH_WING_ROW, w2Cons: TECH_WING_ROW, finCons: TECH_SURF_ROW, stCons: TECH_SURF_ROW,
   glazeMat: ['glaze:acrylic', 'glaze:polycarbonate', 'glaze:glass', 'glaze:film'],
