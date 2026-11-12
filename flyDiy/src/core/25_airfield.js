@@ -940,6 +940,9 @@ function sitePatternIssues(pat, aero, site, Rmin, patternPath) {
     // ... and a ROUGH strip (aero.micro, chaos > 0) turns round on purpose inside its rolled band, GP_LANE_ROUGH off the
     // centreline (STRIP-LANE, sitePattern): the follower pivots that U-turn as at HOME, so its corner is the strip's too
     // (DIRT-STRIP 12 Nov: w3 with its micro read back[0] 2.0 m under the 6.0 m - STAGES / TAXICLEAR / WORLD, held out of L38c)
+    // THE PILOT'S CALL (12 Nov, its yes in writing): nobody steers that U-turn - a taildragger pivots on the centreline
+    // (STRIP-LANE 2), a tricycle turns in the turnaround pad and rejoins inside it (planDeparture trikePad, '@u0'); the 1 m
+    // lane is what cured the Jodel's w3 stone strike, so the U-turn is not reshaped
     const rough = !!(aero && aero.micro && +aero.micro.chaos > 0);
     const wideEnough = R.half - 2.5 >= Rmin && !rough;
     if (Rmin > 0 && wideEnough && P.rMin < 1.05 * Rmin)
