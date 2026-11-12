@@ -2804,7 +2804,8 @@ const ARCHETYPES = [
            engFamily: 'vee', engModel: 'Argus As 10C', engMount: 'nose',
            gearLayout: 'tail', suspension: 'bungee', s1Fair: 0,
            finArch: 'rounded', empennage: 'conv', scheme: 'trim', base: 0x7fa8c9, trim: 0xc96f2a },
-    over: { cage: { ...OPEN_TANDEM, paxCount: 0, paxOpen1: 0, pilotRear: 0,   // ONE SEAT (the user, 12 Nov: "do a 1 seater")
+    over: { cage: { ...OPEN_TANDEM, paxCount: 0, paxOpen1: 0, pilotRear: 0, cabOcc: 1,   // ONE SEAT ("do a 1 seater"), the driver in
+                    // it (OPEN_TANDEM's cabOcc 0 is the Moth's empty front seat)
                     // THE BODY: the Tiger Moth-alike's section (its card, MEASURED off the DH.82 reference) HELD STRAIGHT -
                     // the user (12 Nov): "straighten all the lines you can. The cabin bottom is wavy": one keel, one roof
                     // and one width from the firewall to the bulkhead (the Moth's frames step them station by station)
@@ -2854,7 +2855,9 @@ const ARCHETYPES = [
                     cw_partOn: 1, cw_partLevel: 1, cw_partArc: 1, cw_partY: 0,
                     // THE LOUVRES under the cut, each flank ("shark fins on the cowls"): the side gills, a long panel of
                     // slanted slots
-                    cw_gillOn: 1, cw_gillN: 14, cw_gillZ: 0.5, cw_gillL: 0.5, cw_gillH: 0.24, cw_gillSlant: 15,
+                    // (the user: "the side grill higher up, and if you can straight and longer, like the cars of that era"):
+                    // upright slots, a long panel, high in the band under the cut (gillUp, gillL / gillN's wider ranges)
+                    cw_gillOn: 1, cw_gillN: 22, cw_gillZ: 0.85, cw_gillL: 0.72, cw_gillH: 0.24, cw_gillSlant: 0, cw_gillUp: 0.8,
                     cw_apMode: 1, cw_apW: 0.16, cw_apH: 0.30, cw_apSq: 0.9, cw_apOffY: 0.02,
                     // THE ENGINE (the user, 12 Nov: "an enormous engine for that car ... an engine that would be more
                     // appropriate"): the CUSTOM engine on the Argus's V8 layout (90 deg, eight cylinders) at a 1930s car
@@ -2880,6 +2883,8 @@ const ARCHETYPES = [
                     s1_shockKind: 0, s2_shockKind: 0, s1_linkSwing: 0, s2_linkSwing: 0, s1_linkPanel: 0, s2_linkPanel: 0,
                     s1_linkAng: 55, s2_linkAng: 55, s1_linkSpread: 0.5, s2_linkSpread: 0.5, s1_linkX: 0, s2_linkX: 0,
                     s1_shockAng: 90, s2_shockAng: 90, s1_shockAt: 0.85, s2_shockAt: 0.85, s1_shockZ: 0, s2_shockZ: 0,
+                    // THE CONTROLS ("give it a yoke for now"): the yoke stands in for the steering wheel; the pedals stay
+                    ctlStick: 1,
                     s1Fair: 0, s2Fair: 0, whProfile: 2,
                     // (the user: "can we increase the rim size?"): spoked, the rim 0.64 of the wheel - an 18" wire wheel in a
                     // 28" tyre (whRimD, the new row)
@@ -2887,20 +2892,47 @@ const ARCHETYPES = [
             // THE TANK (the user, 12 Nov: "Where did you place the tank? Let's do something realistic"): none was
             // drawn - the 60 L rode the ledger at the firewall's station. A 1930s racer carries it in the tail: one
             // box tank in the 'behind the cabin' bay, the boat tail just aft of the seat
-            tanks: [{ bay: 'aftCabin', capacity: 60, rot: 0, form: 'box' }],
-            spec: { fuel: { litres: 60 },
-                    systems: { fit: 'minimal' }, cabin: { baggage: 40 },
+            // (50 L: the 60 L box, refitted to 57 L, stood 12 mm into the skin - GATE TANKMOUNT)
+            tanks: [{ bay: 'aftCabin', capacity: 50, rot: 0, form: 'box' }],
+            spec: { fuel: { litres: 50 },
+                    // THE DASH (the user, 12 Nov: "make a dashboard that makes sense for a car out of what we have"): a custom
+                    // fit, centred, metric - the speedometer (the airspeed dial's face reads km/h; a car's would read the
+                    // wheels - a gap), the tachometer, oil pressure and temperature, the fuel gauge, the volt / ammeter, the
+                    // clock; a battery, a generator and a starter, no vacuum, no radios
+                    systems: { fit: 'custom', units: 'metric', side: 'centre',
+                               items: ['asi', 'tacho', 'oilP', 'oilT', 'fuel', 'volts', 'clock'],
+                               elec: { battery: 'lead', alternator: 'gen20', starter: 'yes', vac: 'none' },
+                               avionics: { com: 'none', xpdr: 'none', nav: 'none', gps: 'none' } },
+                    cabin: { baggage: 40 },
                     // THE LIVERY (the user, 12 Nov: "a nice livery ... some metallic shades in there please, and not too
-                    // dark"): a light METALLIC STEEL-BLUE body, the bonnet POLISHED ALUMINIUM, a METALLIC COPPER cheat line
+                    // dark"): a light METALLIC STEEL-BLUE body (half metal: a full metal mirrors the dark studio navy - the first
+                    // phone render), the bonnet POLISHED ALUMINIUM, a METALLIC COPPER cheat line
                     // along the waistline (on the bonnet's level cut and on along the body), an ivory racing roundel ringed
-                    // in copper on the flank behind the bonnet, its number in black
+                    // in copper on the flank behind the bonnet, its number in black. (The markings' stations run aft from the
+                    // FIREWALL: the first placement, 2.35 m, landed on the boat tail; the cheat line's band is m2P of its H)
                     paint: { job: 'full', sweep: 0, base: 0x7fa8c9, trim: 0xc96f2a },
                     finish: { decals: {
-                      regL: 2.35, regC: 0.06, regH: 0.30, regCol: 0x20211f, regOutOn: 0,
-                      m1On: 1, m1Pat: 8, m1A: 0xefe6cf, m1B: 0xb87333, m1D: 0xefe6cf, m1P: 1, m1Q: 0.86, m1R: 0.78,
-                      m1Tgt: 0, m1Mode: 1, m1L: 2.35, m1C: 0.06, m1W: 0.56, m1H: 0.56,
+                      regL: 0.45, regC: -0.10, regH: 0.30, regCol: 0x20211f, regOutOn: 0,
+                      // THE BONNET'S TIP OFF-WHITE (the user, 12 Nov: "color this tip, with a livery if required, with an
+                      // off white" - the radiator shell, its face back to the bonnet's panel joint): a solid marking in SIDE
+                      // projection - the craft's own (along, up) frame, along = aft from the craft root (the garage's -z):
+                      // the joint at z 3.48 to past the face at 3.85; a side projection paints every point inside the
+                      // window, the face and the top included. (A field marking cannot reach the bonnet: it has no surface
+                      // field - the first band, at the field's stations, painted the rear body)
+                      m1On: 1, m1Pat: 0, m1A: 0xf1ece0, m1B: 0xf1ece0, m1D: 0xf1ece0, m1P: 1, m1Q: 0, m1Metal: 0,
+                      m1Tgt: 0, m1Mode: 1, m1L: -3.70, m1C: 0.04, m1W: 0.46, m1H: 1.4,
+                      // the copper cheat line at the waistline, the radiator nose to the boat tail
                       m2On: 1, m2Pat: 0, m2A: 0xb87333, m2B: 0xb87333, m2D: 0xb87333, m2Metal: 1,
-                      m2Tgt: 0, m2Mode: 1, m2L: 2.2, m2C: 0.0, m2W: 6.0, m2H: 0.05 },
+                      m2Tgt: 0, m2Mode: 1, m2L: 0.9, m2C: 0.0, m2W: 5.0, m2H: 0.07, m2P: 0.6, m2Q: 0.25,
+                      // the racing roundel behind the number
+                      m3On: 1, m3Pat: 8, m3A: 0xb87333, m3B: 0xefe6cf, m3D: 0xefe6cf, m3P: 1, m3Q: 0.9, m3R: 0.333,
+                      m3Tgt: 0, m3Mode: 0, m3L: 0.45, m3C: -0.10, m3W: 0.56, m3H: 0.56,
+                      // twin copper pinstripes along the top, bonnet to tail
+                      m4On: 1, m4Pat: 1, m4A: 0xb87333, m4B: 0xb87333, m4D: 0xefe6cf, m4Metal: 1,
+                      m4Tgt: 0, m4Mode: 2, m4L: 0.9, m4C: 0.0, m4W: 5.0, m4H: 0.30,
+                      // her name, in script, on the tail's flank (LIVERY-TEXT)
+                      t1On: 1, t1Txt: 'La Belle \u00c9toile', t1Face: 'greatvibes', t1B: 0, t1I: 0, t1Col: 0xefe6cf, t1Line: 0xb87333,
+                      t1H: 0.20, t1L: 1.45, t1C: 0.12, t1Tgt: 0, t1Mode: 0 },
                       sections: { ...Object.fromEntries(Object.keys(BODY_PAINT(0)).map(k => [k, { tint: 0x8fb0d4, metal: 1, rough: 0.32 }])),
                                   cowlSkin: { tint: 0xd9dde2, metal: 1, rough: 0.16 } } },
                     meta: { reg: '7' } } } },

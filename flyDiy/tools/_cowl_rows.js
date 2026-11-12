@@ -76,9 +76,10 @@ const COWL_ROWS = [
   // ---- PROPER-COWLS: the side gills (the Carbon Cub's) ----
   { id: 'g_gill', name: 'Side gills', rows: [
     { k: 'gillOn', label: 'side gills (a raised panel of slanted slots, each flank)', lo: 0, hi: 1, step: 1 },
-    { k: 'gillN', label: 'slots', lo: 2, hi: 12, step: 1, when: 'P.gillOn>0' },
+    { k: 'gillN', label: 'slots', lo: 2, hi: 40, step: 1, when: 'P.gillOn>0' },   // (CAR-1: 12 -> 40, a car bonnet's louvres)
     { k: 'gillZ', label: 'station (in the clear band, aft → forward)', lo: 0, hi: 1, step: 0.01, when: 'P.gillOn>0' },
-    { k: 'gillL', label: 'panel length (m)', lo: 0.06, hi: 0.5, step: 0.005, when: 'P.gillOn>0' },
+    { k: 'gillL', label: 'panel length (m)', lo: 0.06, hi: 1.2, step: 0.005, when: 'P.gillOn>0' },   // (CAR-1: 0.5 -> 1.2)
+    { k: 'gillUp', label: 'height in the clear band (foot → under the split)', lo: 0, hi: 1, step: 0.01, when: 'P.gillOn>0' },   // CAR-1
     { k: 'gillH', label: 'panel height (m)', lo: 0.04, hi: 0.3, step: 0.005, when: 'P.gillOn>0' },
     { k: 'gillSlant', label: 'slant (deg, the top leaning aft)', lo: -45, hi: 45, step: 1, when: 'P.gillOn>0' },
     { k: 'gillLip', label: 'hood height (m)', lo: 0.003, hi: 0.03, step: 0.0005, when: 'P.gillOn>0' },

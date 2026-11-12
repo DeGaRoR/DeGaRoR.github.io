@@ -83,7 +83,7 @@ const P={
   lobeStream:0, lobeNose:0.94, lobeTail:0.04,
   // PROPER-COWLS: the nose ring's own half-width / reach up / reach down (null = lidRadius)
   lidRW:null, lidRTop:null, lidRBot:null,
-  gillOn:0, gillN:6, gillZ:0.35, gillL:0.22, gillH:0.12, gillSlant:25, gillLip:0.012, gillT:0.004,
+  gillOn:0, gillN:6, gillZ:0.35, gillL:0.22, gillH:0.12, gillSlant:25, gillLip:0.012, gillT:0.004, gillUp:null,   // (CAR-1: null = centred)
   // chin scoop
   scoopOn:1, scoopZ:0, scoopW:0.065, scoopH:0.055, scoopLen:0.22, scoopDrop:0.7,
   scoopAp:0.68, scoopSq:0.5, scoopRake:0.18,
@@ -1130,14 +1130,34 @@ function gillsFit(){
   const zm=0.5*(zLo+zHi);
   const arcPer=(th)=>{const e=0.01,a=surfPoint(th-e,zm),b=surfPoint(th+e,zm);return Math.hypot(b[0]-a[0],b[1]-a[1])/(2*e);};
   const rad=Math.max(0.05,arcPer(-0.6));
-  let thHi=thSplit-(r+0.016)/rad;
+  let thHi=thSplit-(r+0.016)/rad;   // (CAR-1: gillUp re-reads it in metres below)
   let thLo=-80*DEG;
   if(P.exCut>0){ const lo=(P.exCutAz-360)*DEG+P.exCutSpan*DEG/2; thLo=Math.max(thLo, lo+0.02/rad); }   // the right side's view of it
   if(P.scoopOn) thLo=Math.max(thLo, -Math.PI/2+(P.scoopW+0.02)/rad);
-  const L=Math.min(P.gillL, zHi-zLo), H=Math.min(P.gillH, (thHi-thLo)*rad);
+  // (CAR-1: with gillUp the band's TRUE arc caps the height - (thHi-thLo) x rad under-reads a squarish flank; absent, as before)
+  const bandArc=()=>{let a=0,p=surfPoint(thLo,zm);for(let k=1;k<=24;k++){const q=surfPoint(thLo+(thHi-thLo)*k/24,zm);a+=Math.hypot(q[0]-p[0],q[1]-p[1]);p=q;}return a;};
+  const L=Math.min(P.gillL, zHi-zLo), H=Math.min(P.gillH, (P.gillUp!=null && isFinite(+P.gillUp)) ? bandArc()-0.02 : (thHi-thLo)*rad);
   if(!(L>=0.06 && H>=0.04)) return {ok:false, why:'no room on the lower flank ('+(Math.max(0,zHi-zLo)*100).toFixed(0)+' x '+(Math.max(0,(thHi-thLo)*rad)*100).toFixed(0)+' cm clear)'};
   // the centre: the station asked, kept inside; round, low in the clear band (the gills sit under the heads)
   const zc=clamp(zLo+clamp(P.gillZ,0,1)*(zHi-zLo), zLo+L/2, zHi-L/2);
+  // CAR-1 (the user, 12 Nov: "the side grill higher up ... straight and longer, like the cars of that era"): gillUp, where
+  // in the clear band the panel stands (0 its foot on the band's bottom, 1 its head under the split; absent = centred,
+  // every saved cowl as it was)
+  // (the band is reckoned in the section's angle, which a squarish section crowds at its lower corner: "centred in
+  // the band" sat a third of a metre under the waist. gillUp is a HEIGHT - the centre's y between the band's foot and
+  // the split, the arc rate measured where it lands, the panel kept inside the band)
+  if(P.gillUp!=null && isFinite(+P.gillUp)){
+    // (the band's top: the split's own height less the camloc's clearance IN METRES - the angle margin above, at the
+    // crowded rate, stopped it a third of a metre under the cut on a flat flank)
+    const yA=surfPoint(thLo,zm)[1], yB=surfPoint(thSplit,zm)[1]-(r+0.016);
+    { let lo=thLo, hi=thSplit; for(let k=0;k<40;k++){ const m=0.5*(lo+hi); if(surfPoint(m,zm)[1]>yB) hi=m; else lo=m; } thHi=0.5*(lo+hi); }
+    const yc=yA+clamp(+P.gillUp,0,1)*(yB-yA);
+    let lo=thLo, hi=thHi; for(let k=0;k<40;k++){ const m=0.5*(lo+hi); if(surfPoint(m,zm)[1]>yc) hi=m; else lo=m; }
+    const radC=Math.max(0.05,arcPer(0.5*(lo+hi)));
+    const H2=Math.min(P.gillH, bandArc()-0.02);
+    const thc=clamp(0.5*(lo+hi), thLo+H2/2/radC, thHi-H2/2/radC);
+    return {ok:true, zc, thc, rad:radC, L, H:H2, zLo, zHi, thLo, thHi};
+  }
   const thc=Math.max(thLo+H/2/rad, Math.min(thHi-H/2/rad, 0.5*(thLo+thHi)));
   return {ok:true, zc, thc, rad, L, H, zLo, zHi, thLo, thHi};
 }

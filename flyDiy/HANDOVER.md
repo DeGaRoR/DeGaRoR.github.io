@@ -314770,3 +314770,16 @@ the next steps).
   the head lobes off; `frWinBotY` -0.494 -> -0.481 (the bottom's 1 cm step at the front pillar - NOT the keel's reference:
   -0.56 dropped it 5.5 cm) and `crPillar` / `crFrame` 0 (the ring creases' folds). After: bottom -0.415 +- 0.001 m, top
   0.499, the bonnet 0.398 wide all along.
+- **THE THIRD REVIEW** (CAR-1-2026-11.md "The third review"): `whRimD` (new row, absent = as before; card 0.64 spoked);
+  a tail tank ('behind the cabin' bay; 42 % front); the livery in livery rows only (metallic blue body, polished bonnet,
+  copper cheat line and pinstripes, roundel 7, "La Belle Étoile" in Great Vibes) - the markings run aft from the
+  FIREWALL; the bonnet takes no marking at its stations (a gap: the nose is not its own section); the driver seated
+  (`cabOcc 1`); `gillUp` (new cowl row, absent = as before) places the louvres by height - the band was reckoned in a
+  crowded angle; a car dash (custom fit, metric, centred) and the yoke; saved as builds/candidates/roadster_2026-11.json
+  (`car_sheet.js --save`) with rows in the pool index and the plane lists (candidates, n 50). Phone renders by
+  tools/plane_shot.js. Car: 540 kg, 42 % front, 0-100 6.0 s, lane change back to -1.1 deg.
+- **THE FOURTH REVIEW**: the bonnet's tip off-white - a SIDE-projected marking; side / plan markings live in the craft's
+  frame (along = aft from the craft root, the garage's -z), not the field's (aft from the firewall). GATE DESIGN's livery
+  yardstick updated to the live kit (m1-m5, t1-t6, metal / rough). The list thumbnail baked. Gates on the final card
+  (28 + the re-checks): all PASS but **TANKMOUNT (owed: the tail tank 12 mm through the boat tail's skin, whatever its
+  size, form or seat - kept, the deck form is the likely cure)** and LIVERY (master's two standing reds, the Cub's strut).
