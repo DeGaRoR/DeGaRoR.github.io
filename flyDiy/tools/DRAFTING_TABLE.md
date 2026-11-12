@@ -520,3 +520,14 @@ DRAFTING now holds the user's 45 deg A-pillar instead of the drawing's windscree
 
 Gaps still open: the main gear's shock strut up the fuselage side (no leg kind draws it); a bubble for the cabin's own
 glazing band (bubbles are the drawn windows'); the tail wheel's station. The PC-6: 121 / 175, no fold, no inside showing.
+
+## ROUND 7 (12 Nov): the chin scoop's taper and station, the PT6 stacks, the Cub-style main gear
+
+| the user | done | rows |
+|---|---|---|
+| the chin scoop "would need a taper ... more options ... goes a little too far forward" | garage: `scoopTaperH` / `scoopTaperW`, the aft end's height / width as a share of the mouth's (1 / absent: none); the mouth back to the drawing's (0.88 m behind the spinner tip): the scoop ends at the firewall (`scoopZ` 1) and is shorter by the difference | `cw_scoopLen` 1.756, `cw_scoopZ` 1, `cw_scoopTaperH` 0.85 |
+| "these pipes going out of the turboprop ... stick a bit more ... flat at the end ... an option in the engine generator" | the PT6's stacks were hard-coded: five installation rows (_eng_page.js turbine group; _cage_eng.js INSTALL_ROWS, never the maker's): reach out, run aft, thickness, outlet drop, flattened outlet (the tube sweep's section an ellipse over the last third); 1 / 1 / 1 / 0 / 0 draw them bit for bit as before | `eng_stackOut` 2.2, `eng_stackLen` 1.4, `eng_stackR` 1.5, `eng_stackDrop` 0.6, `eng_stackFlat` 0.55 |
+| the gear "like the Cub ... two leg supports ... a little triangle, and on top the shock ... anchored much further up, almost below the windshield" | it was the OLEO leg (`s1Leg` 2) - whose shock rows do nothing; the LINK leg (1) with the V (`linkVee`), the shocks on their own side (`linkX` 0 - the Cub's crossed X off), the shock's top fitting at 125 deg round the section from the keel (up the flank, under the wing); the slider to 170 (garage, a range); the wheel back on its mark through the axle's offset | `s1Leg` 1, `s1_linkVee` 1, `s1_linkX` 0, `s1_shockKind` 0, `s1_shockAng` 125, `s1_shockZ` 0.1, `s1AxZ` -0.19 |
+
+Lesson: **a row that moves nothing is often the row of another mode** (the shock rows belong to the link leg, not the
+oleo): read the mode first (`s1Leg`), then the rows. The PC-6: 123 / 175.
