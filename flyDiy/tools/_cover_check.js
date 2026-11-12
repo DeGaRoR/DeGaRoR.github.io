@@ -290,7 +290,7 @@ function fieldRing(opts) {   // (opts: { codeAt, mixAt } - a world of the caller
       Bt.CR.root.traverse(o => { if (!(o.isInstancedMesh || o.isBatchedMesh) || !o.material || !o.material.userData.fade || o.userData.coverKind === 'cover') return;
         const p = Bt.R.properties.get(o.material); others++; const k = o.userData.coverKind, u = p && p.uniforms && p.uniforms.uRoot;
         if (u && u !== a0 && ((k === 'rock' || k === 'debris' || k === 'shrub') ? u.value.x === 0 : true)) othersOk++; });
-      const fsOk = Fd.B.links.some(l => l.fs && l.fs.indexOf('diffuseColor.rgb *= min(vRoot, 1.0);') >= 0 && l.vs && l.vs.indexOf('vRoot = 1.0 - uRoot.x + uRoot.x * position.y') >= 0 && l.vs.indexOf('if (uRoot.w > 0.0) { float _rk = smoothstep(') >= 0);
+      const fsOk = Fd.B.links.some(l => l.fs && l.fs.indexOf('diffuseColor.rgb *= min(vRoot, 1.0);') >= 0 && l.vs && l.vs.indexOf('vRoot = 1.0 - uRoot.x + uRoot.x * position.y') >= 0 && l.vs.indexOf('if (uRoot.w > 0.0) { float _rk = smoothstep(') > l.vs.indexOf('vRoot = 1.0 - uRoot.x + uRoot.x * position.y'));   // (12 Nov: the key AFTER the law, or the law overwrites it)
       ok(a0 && Math.abs(x0 - 0.6) < 1e-6 && x1 === 0.5 && Math.abs(x2 - 0.6) < 1e-6 && others > 0 && othersOk === others && fsOk,
          '8f the root gradient: the reed reads the field\'s uRoot (0.6 -> 0.5 -> 0.6 live), every other faded material its own (rocks and bushes identity - the user 10 Nov: no shade on bushes), the vertex law in the program with the field keyed by colour',
          'x ' + [x0, x1, x2].join(' -> ') + ', ' + othersOk + ' of ' + others + ' others right'); }
