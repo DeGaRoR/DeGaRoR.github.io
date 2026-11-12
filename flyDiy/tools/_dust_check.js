@@ -227,6 +227,21 @@ console.log('5c. V2 (the user, 10 Nov: "vortices ... zones where they are more a
   const BK = require('./dust_atlas_bake.js'), bsrc = src('tools/build.js');
   yes(ATL && ATL.sig === BK.sigOf(S) && fs.existsSync(path.join(ROOT, ATL.A)) && fs.existsSync(path.join(ROOT, ATL.B)) && ATL.F === S.F && Math.abs(ATL.tauRef - S.tauRef) < 1e-3,
     'the page loads the atlas baked, never bakes it (dust_atlas.js sig ' + (ATL && ATL.sig) + ' = this bake ' + BK.sigOf(S) + '; re-run tools/dust_atlas_bake.js after a sixWay change)');
+  // NO HARD CIRCLE (A0, 12 Nov, the Petrel crash stills): the zoomed atlas still covers the quad's circle - the shader
+  // must close the depth and the alpha before it, at any puff depth
+  let edgeCov = 0;
+  for (let k = 0; k < 360; k++) { const t = k * Math.PI / 180, ux = Math.round((Math.cos(t) * 0.5 * S.zoom + 0.5) * (S.PX - 1)), uy = Math.round((Math.sin(t) * 0.5 * S.zoom + 0.5) * (S.PX - 1)); edgeCov = Math.max(edgeCov, S.A[(uy * S.W + ux) * 4 + 3] / 255); }
+  const fr = DUST.GLSL.frag;
+  yes(/float vT = 1\.6 \* \(1\.0 - exp\(-vTau \/ 1\.6\)\)/.test(fr) && /ts \*= 1\.0 - smoothstep\(0\.45, 1\.0, rr\)/.test(fr) && /a \*= smoothstep\(1\.0, 0\.45, rr\)/.test(fr),
+    'no hard circle: the baked body still covers ' + edgeCov.toFixed(2) + ' at the quad edge, so the shader soft-caps the puff depth (1.6) and fades depth and alpha from 0.45 r');
+  // the user's frames (12 Nov): a crash-dense puff, emulated by the shader's law on frame 0 - never opaque, no rim
+  const ss = (lo, hi, x) => { const t = Math.max(0, Math.min(1, (x - lo) / (hi - lo))); return t * t * (3 - 2 * t); };
+  const ringA = (vTau, r) => { let a = 0; for (let q = 0; q < 64; q++) { const t = q / 64 * 2 * Math.PI, x = Math.cos(t) * r, y = Math.sin(t) * r;
+    const ux = Math.min(S.PX - 1, Math.max(0, Math.round((x * 0.5 * S.zoom + 0.5) * (S.PX - 1)))), uy = Math.min(S.PX - 1, Math.max(0, Math.round((y * 0.5 * S.zoom + 0.5) * (S.PX - 1))));
+    let ts = -Math.log(1 - Math.min(S.A[(uy * S.W + ux) * 4 + 3] / 255, 0.995)) * (1 - ss(0.45, 1, r)); const vT = 1.6 * (1 - Math.exp(-vTau / 1.6));
+    a += (1 - Math.exp(-2 * vT * DUST.LOOK.dens * ts / S.tauRef * S.gain[0])) * ss(1, 0.45, r); } return a / 64; };
+  const c6 = ringA(6, 0), e6 = ringA(6, 0.8);
+  yes(c6 < 0.9 && e6 < 0.1, 'a crash-dense puff (centre depth 6) is never a flat disc: alpha ' + c6.toFixed(2) + ' at the centre, ' + e6.toFixed(2) + ' at 0.8 r');
   yes(bsrc.indexOf("'dust_atlas.js'") > 0 && bsrc.indexOf("'dust_atlas.js'") < bsrc.indexOf("'dust.js'"), 'the build loads the atlas table before dust.js');
   if (THREE_OK) {
     // the cloud's own shadow: of two puffs on the sun's line, the far one (from the sun) is darker
