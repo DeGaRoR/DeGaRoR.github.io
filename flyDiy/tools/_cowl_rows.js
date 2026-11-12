@@ -200,9 +200,11 @@ const COWL_ROWS = [
     { k: 'ductLen', label: 'duct length inside', lo: 0, hi: 0.5, step: 0.005 },
     { k: 'ductFlare', label: 'duct flare', lo: -0.4, hi: 0.4, step: 0.01 },
   ] },
-  // ---- Chin scoop ----
+  // ---- Chin scoop (or a top one) ----
   { id: 'g_scoop', name: 'Chin scoop', rows: [
     { k: 'scoopOn', label: 'chin scoop', lo: 0, hi: 1, step: 1 },
+    // ENGINE-COOLING (12 Nov): the same scoop on the cowl's top (absent 0: under it, as every scoop was)
+    { k: 'scoopTop', label: 'sits', lo: 0, hi: 1, step: 1, names: ['under the cowl (a chin scoop)', 'on top of the cowl'], when: 'P.scoopOn>0' },
     // ENGINE-COOLING (12 Nov): the mouth turned round - on a pusher the cowl runs from the firewall to the propeller, so
     // only a turned scoop faces the air (absent 0: every scoop as it was)
     { k: 'scoopRev', label: 'mouth faces', lo: 0, hi: 1, step: 1, names: ['the propeller', 'the firewall (a pusher: into the air)'], when: 'P.scoopOn>0' },
@@ -216,7 +218,7 @@ const COWL_ROWS = [
     { k: 'scoopW', label: 'half-width', lo: 0.03, hi: 0.3, step: 0.005, when: 'P.scoopOn>0' },
     { k: 'scoopH', label: 'half-height', lo: 0.02, hi: 0.2, step: 0.002, when: 'P.scoopOn>0' },
     { k: 'scoopSq', label: 'angularity (round → box)', lo: 0, hi: 1, step: 0.01, when: 'P.scoopOn>0' },
-    { k: 'scoopDrop', label: 'drop below the axis', lo: 0.2, hi: 1.2, step: 0.02, when: 'P.scoopOn>0' },
+    { k: 'scoopDrop', label: 'distance from the axis', lo: 0.2, hi: 1.2, step: 0.02, when: 'P.scoopOn>0' },
     { k: 'scoopRake', label: 'mouth rake', lo: 0, hi: 1.2, step: 0.02, when: 'P.scoopOn>0' },
     { k: 'scoopAp', label: 'mouth opening', lo: 0.2, hi: 0.95, step: 0.02, when: 'P.scoopOn>0' },
     { k: 'scoopLipH', label: 'lip height', lo: 0.002, hi: 0.05, step: 0.001, when: 'P.scoopOn>0' },

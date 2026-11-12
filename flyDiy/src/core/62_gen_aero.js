@@ -685,7 +685,8 @@ function genCooling(S, o) {
   const r = duct ? K.r.duct : K.r.cowl;
   const dT = Tamb => K.path[path].eps * (K.path[path].Tlim - Tamb);
   // the inlet's speed: the true airspeed plus the slipstream's share (a nose inlet behind the roots), from the actuator
-  // disc at the thrust eta x P / V; a pusher's inlets are ahead of it (the ground's inflow aside)
+  // disc at the thrust eta x P / V; a pusher's inlets are ahead of it, but its prop SUCKS on the outlet (GEN_COOL.suck:
+  // the pressure the air is driven by grows, the flow with its root); the ground keeps its own inflow law
   const slip = (Pw, V, rho) => {
     const T = K.etaClimb * Pw / Math.max(1, V);
     return (1 + Math.sqrt(1 + 2 * T / (rho * Adisc * V * V))) / 2;
@@ -702,7 +703,7 @@ function genCooling(S, o) {
       Vin = K.taxi.V + (op.pushes ? K.pushInflow : K.slip) * vd;
     } else {
       const V = Veas / Math.sqrt(sig), f = slip(pr * kW * 1000, V, rho);
-      Vin = V * (op.pushes ? 1 : 1 + K.slip * (f - 1));
+      Vin = V * (op.pushes ? Math.sqrt(1 + K.suck * (f * f - 1)) : 1 + K.slip * (f - 1));
     }
     const capIn = K.kappa * rho * Vin * out.inA;
     const capOut = op.exitSized ? Infinity : K.kappa * rho * Vin * op.outA / K.outRatio;

@@ -86,7 +86,8 @@ const P={
   gillOn:0, gillN:6, gillZ:0.35, gillL:0.22, gillH:0.12, gillSlant:25, gillLip:0.012, gillT:0.004,
   // chin scoop
   // ENGINE-COOLING: scoopRev 1 turns the mouth round (faces -z: the flight, on a pusher)
-  scoopOn:1, scoopRev:0, scoopZ:0, scoopW:0.065, scoopH:0.055, scoopLen:0.22, scoopDrop:0.7,
+  // ENGINE-COOLING (12 Nov, the user: "let's have at least a top scoop"): scoopTop 1 puts it on the cowl's TOP
+  scoopOn:1, scoopRev:0, scoopTop:0, scoopZ:0, scoopW:0.065, scoopH:0.055, scoopLen:0.22, scoopDrop:0.7,
   scoopAp:0.68, scoopSq:0.5, scoopRake:0.18,
   scoopLipH:0.011, scoopLipDepth:0.032, scoopDuct:0.125,
   // aft — the fuselage is a given; the cowl inherits its section by default
@@ -996,7 +997,13 @@ function buildScoop(group,mats){
   if(!P.scoopOn) return;
   const d=clamp(P.detail,0.35,2), ze=zEnd(), rings=[], inside=[];
   const NS=Math.max(9,Math.round(14*d)), SS=Math.max(18,Math.round(32*d));
-  const baseY=spineY(ze*0.6)-sectionAtZ(P.cowlLen*0.5).bB*P.scoopDrop, yC=[];
+  // ENGINE-COOLING (12 Nov): THE TOP SCOOP (scoopTop 1): the same scoop mirrored onto the cowl's top - its axis
+  // `scoopDrop` x the top half-height ABOVE the spine, the rake lifting the mouth away from the skin, riding the deck line
+  // when it follows; a pusher whose chin breathes spray (a float, a hull) or a keel full of gear takes its air there.
+  // Absent / 0: the chin scoop, bit for bit
+  const top=!!P.scoopTop;
+  const baseY=top?spineY(ze*0.6)+sectionAtZ(P.cowlLen*0.5).bT*P.scoopDrop
+                 :spineY(ze*0.6)-sectionAtZ(P.cowlLen*0.5).bB*P.scoopDrop, yC=[];
   // THE STATION (2026-09-05): scoopZ slides the mouth from the lid (0, the
   // line every cowl before it was drawn from — byte-identical there) back to
   // the firewall (1), where a reverse-flow turbine takes its air
@@ -1014,8 +1021,8 @@ function buildScoop(group,mats){
     const z=rev?lerp(z1,z0,t):lerp(z0,z1,t);
     // V5 scoopFollow: the scoop rides the keel - its top a third of its height inside the skin at every station, so a
     // keel that rounds up into the face carries it (absent / 0: the straight raked line it always was)
-    let y=baseY-P.scoopH*P.scoopRake*e;
-    if(P.scoopFollow>0){ const sk=sectionAtZ(clamp(z,0,ze)); y=(sk.cy-sk.bB)+b/3-b; }
+    let y=top?baseY+P.scoopH*P.scoopRake*e:baseY-P.scoopH*P.scoopRake*e;
+    if(P.scoopFollow>0){ const sk=sectionAtZ(clamp(z,0,ze)); y=top?(sk.cy+sk.bT)-b/3+b:(sk.cy-sk.bB)+b/3-b; }
     yC.push(y);
     const ring=[],ins=[];
     for(let j=0;j<SS;j++){
@@ -1039,7 +1046,7 @@ function buildScoop(group,mats){
   /* Mouth lip: same cross-section idea as the aperture lip — a rounded edge of
      real thickness, then a converging throat, then a duct. Offsets are applied
      to the actual mouth ring, so it still works where the scoop was trimmed. */
-  const cyF=P.scoopFollow>0?yC[NS-1]:baseY-P.scoopH*P.scoopRake, mouth=rings[NS-1];
+  const cyF=P.scoopFollow>0?yC[NS-1]:top?baseY+P.scoopH*P.scoopRake:baseY-P.scoopH*P.scoopRake, mouth=rings[NS-1];
   const off=(d,dz)=>mouth.map(v=>{
     const dx=v.x, dy=v.y-cyF, r=Math.hypot(dx,dy)||1e-6, f=Math.max(0.06,(r-d)/r);
     return new THREE.Vector3(dx*f, cyF+dy*f, v.z+sg*dz);
@@ -1825,7 +1832,23 @@ function coolOpenings(aps){
     out.face+=A; });
   if(P.scoopOn){
     const th0=Math.max(0.002,P.scoopLipH), inset=Math.max(0,(1-clamp(P.scoopAp,0.05,0.99))*P.scoopH-th0);
-    out.scoop=area(Math.max(0,P.scoopW-th0-inset),Math.max(0,P.scoopH-th0-inset),sqExp(P.scoopSq));
+    const aI=Math.max(0,P.scoopW-th0-inset), bI=Math.max(0,P.scoopH-th0-inset), nn=sqExp(P.scoopSq);
+    // ONLY THE PART OF THE MOUTH OUTSIDE THE SKIN is open to the air (the user 12 Nov: a scoop drawn into a deep cowl is
+    // a notch, whatever its rows say): the mouth's station and centre as buildScoop draws them (the turned mouth at the
+    // firewall end, a top scoop above the spine, a following one on the keel or the deck line), its opening sampled
+    // against the cowl's own section there
+    const ze=zEnd(), top=!!P.scoopTop, zM0=P.cowlLen+P.lidLen*0.35, z1=zM0-(P.scoopZ||0)*(zM0-P.scoopLen);
+    const zm=P.scoopRev?z1-P.scoopLen:z1, sm=sectionAtZ(P.cowlLen*0.5), H=P.scoopH;
+    let cy;
+    if(P.scoopFollow>0){ const sk=sectionAtZ(clamp(zm,0,ze)); cy=top?(sk.cy+sk.bT)-H/3+H:(sk.cy-sk.bB)+H/3-H; }
+    else cy=top?spineY(ze*0.6)+sm.bT*P.scoopDrop+H*P.scoopRake:spineY(ze*0.6)-sm.bB*P.scoopDrop-H*P.scoopRake;
+    const inSkin=zm>=0&&zm<=ze, G=48; let tot=0, open=0;
+    for(let i=0;i<G;i++) for(let j=0;j<G;j++){
+      const u=(i+0.5)/G*2-1, v=(j+0.5)/G*2-1;
+      if(Math.pow(Math.abs(u),nn)+Math.pow(Math.abs(v),nn)>1) continue;
+      tot++; if(!inSkin||sectF(u*aI,cy+v*bI,zm)>=1) open++;
+    }
+    out.scoop=area(aI,bI,nn)*(tot?open/tot:0);
   }
   if(Math.round(P.aftMode)===1&&P.inletOn){
     const s0=sectionAtZ(0);

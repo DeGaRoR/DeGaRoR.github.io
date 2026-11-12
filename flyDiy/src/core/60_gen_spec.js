@@ -1980,6 +1980,11 @@ const GEN_DRAG = {
 //   outRatio  the drawn outlet that passes the inlet's flow (the heated air is thinner: the classic 1.3 x)
 //   slip      the slipstream's share at a nose inlet (behind the propeller's roots), of the actuator disc's velocity
 //             ratio; a pusher's own inlets on the ground get `pushInflow` of the disc's static velocity (the prop sucks)
+//   suck      IN FLIGHT a pusher's prop sucks on the cowl's OUTLET, just ahead of the disc (the user 12 Nov, the Super
+//             Petrel: "it has quite a large opening"): the static pressure there falls by rho/2 ((V + v)^2 - V^2) of
+//             the disc's induced velocity v, so the pressure that drives the air through the engine grows and the flow
+//             with its root: V_in = V sqrt(1 + suck (f^2 - 1)), f = (V + v) / V the actuator disc's ratio; `suck` the
+//             share of v at the outlet (the hub's inner disc, like `slip`)
 //   hot       FAR 23.1043's climb cooling day: 38 C (100 F) at sea level, ISA + 23, full power at Vy
 //   taxi      the hot strip: 5 m/s, 20 % power, the slipstream does the work
 //   meredith  the heat added in a radiator DUCT is a little ramjet: thrust power ~ k M^2 Q (Meredith, RAE 1935); none on
@@ -1995,7 +2000,7 @@ const GEN_COOL = {
   kappa: 0.45, kappaBare: 0.5,
   r: { cowl: 0.70, duct: 0.80 },
   outRatio: 1.3,
-  slip: 0.6, etaClimb: 0.65, FM: 0.7, pushInflow: 0.25,
+  slip: 0.6, etaClimb: 0.65, FM: 0.7, pushInflow: 0.25, suck: 0.6,
   hot: { dISA: 23, h: 0 },
   taxi: { V: 5, power: 0.2 },
   cruisePower: 0.75,

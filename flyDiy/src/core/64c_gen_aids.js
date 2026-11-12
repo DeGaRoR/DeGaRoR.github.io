@@ -132,17 +132,20 @@ function genCoolRows(def) {
   const fwd = C.parts.filter(p => p.faces === 'fwd').map(p => p.what), aftIn = C.parts.filter(p => p.faces === 'aft' && /front|scoop|inlet/.test(p.what));
   let why, fix = '';
   const air = r2(H.need) + ' kg/s of air at ' + Math.round(H.oatC) + ' C to carry ' + Math.round(H.Q) + ' kW';
+  // a scoop drawn but buried in the skin: its rows say a mouth, the drawing has none (the cowl measures what is open)
+  const cg = S.cage || {}, buried = +cg.cw_scoopOn > 0 && S.cooling && !(+S.cooling.scoop > 0);
+  const buriedNote = buried ? ' (the scoop is drawn inside the cowl\'s skin: none of its mouth faces the air - let it ride the bottom line or drop it further)' : '';
   if (!(C.inA > 0) && !(C.bareA > 0)) {
     why = 'no opening faces the air' + (C.pushes && aftIn.length ? ': this cowl\'s openings face the propeller, which on a pusher is backwards' : '') +
-          ' - in a hot climb the engine gets none of the ' + air;
+          ' - in a hot climb the engine gets none of the ' + air + buriedNote;
     // ...and the air needs a way out: a pusher's aft face round the spinner is its outlet, often a sliver
     const outFix = !C.exitSized && C.outA < outNeed ? '; and give the air a way out: about ' + outNeed + ' m2 of outlet (now ' + r3(C.outA) +
                    ') - lower the cowl\'s bottom (exit gap) or add gills' : '';
-    fix = (C.pushes ? 'turn the scoop round (cowl page, chin scoop: mouth faces the firewall) and size its mouth to about ' + need + ' m2 (about ' + mouth(need) + ')'
+    fix = (C.pushes ? 'turn the scoop round (cowl page, chin scoop: mouth faces the firewall), let it stand out of the skin (rides the bottom line, or sits on top of the cowl) and size its mouth to about ' + need + ' m2 (about ' + mouth(need) + ')'
                     : 'open the cowl\'s front (inlets) or fit a scoop: about ' + need + ' m2 in all (about ' + mouth(need) + ')') + outFix;
   } else {
     const by = H.limit === 'outlet' ? 'the outlet' : 'the inlets';
-    why = by + ' pass ' + r2(m) + ' of the ' + air + (C.bareA > 0 ? ' (the cylinder heads in the wind count)' : '') +
+    why = by + ' pass ' + r2(m) + ' of the ' + air + buriedNote + (C.bareA > 0 ? ' (the cylinder heads in the wind count)' : '') +
           (fwd.length ? '; in: ' + fwd.join(', ') + ', ' + have + ' m2' : '') + (C.exitSized ? '' : '; out: ' + r3(C.outA) + ' m2');
     if (lvl !== 'pass') {
       if (H.limit === 'outlet') fix = (C.inA >= need ? 'the inlet is big enough but the air cannot leave: ' : 'the air cannot leave: ') +
