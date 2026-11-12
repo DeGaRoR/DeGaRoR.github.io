@@ -315017,3 +315017,18 @@ the next steps).
   every hole (a closed plate - the gear's materials are FrontSide); the annuli and the holed band share their edge
   samples (no cracks); in the hub's light alloy. The van: whProfile 2 (the roadster's slim carcass), whWide 1.4 (fat),
   whRimD 0.6, whRim 4, whBolts 6, whCap 1 (domed); its sheet rewritten (same 1268 kg, still LAUNCHES).
+- **CAR-3, TWO LIVERIES AND A MOUNTAINS PATTERN (12 Nov; the user, with two reference vans: "do a livery, or maybe a
+  couple ... two of these trucks hanging out as utilities ... adding shapes to the livery editor, particularly the
+  mountain shapes ... and a retro one ... vanilla ... colors which are a little happier")**: NEW KIT PATTERN 'mountains'
+  (aeroskin.js AERO_KIT, LAST - index 13, a saved layer's pattern is its index): one to three seeded ranges rising from
+  the layer's bottom edge, far (D) tallest and drawn first, middle (B), near (A); knobs peaks 2-16, height (of the
+  depth), ranges 1-3, roughness (crags); rounded tops (quadratics through the midpoints); above the ridges the page is
+  empty. LIVERY OVERLAYS: tools/_rejoin_build.js takes edits.json,overlay.json,... (cage and meta merged key by key,
+  every other block replaced; one file = as before). builds/edits/utility_2026-11.mountain.json ("Field Wagon Alpine",
+  TOW 2: warm white, a sunset - roundel, sunflower - behind mint / turquoise / deep-teal ranges, satin paint) and
+  .retro.json ("Field Wagon Retro", TOW 3: cream over navy - a 'bands' layer of one - with yellow / orange / red belt
+  stripes - 'bands' lying, three); both side-box layers 5.4 m long from L -2.0 (the side box's L runs aft as it rises:
+  -4.7 is the bumper, +0.7 the tail), so they wrap the rear doors too. Rejoin: node tools/_rejoin_build.js
+  builds/cessna172r_2026-11-08.json out.json builds/edits/utility_2026-11.edits.json,builds/edits/utility_2026-11.retro.json
+  NOTE: GATE LIVERY is red on the cub's strut ("resolves to its painted pin trim - got castAlu", 2 of 328) - red at
+  0c90344f (master's train L38b, before any car work), not ours; reported, not fixed here.

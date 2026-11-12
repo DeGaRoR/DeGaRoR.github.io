@@ -1,0 +1,106 @@
+{
+ "_what": "CAR-3 livery overlay (the user, 12 Nov: the retro van reference, 'vanilla'): rejoin as builds/edits/utility_2026-11.edits.json,builds/edits/utility_2026-11.retro.json",
+ "meta": {
+  "name": "Field Wagon Retro",
+  "reg": "TOW 3"
+ },
+ "paint": {
+  "job": "full",
+  "sweep": 0,
+  "base": 15983812,
+  "trim": 1914199,
+  "gloss": 0.5,
+  "regX": 0.3
+ },
+ "finish": {
+  "sections": {
+   "body": {
+    "metal": 0.15,
+    "rough": 0.42
+   },
+   "ceilingLoop": {
+    "metal": 0.15,
+    "rough": 0.42
+   },
+   "floorLoop": {
+    "metal": 0.15,
+    "rough": 0.42
+   },
+   "pillarCabin": {
+    "metal": 0.15,
+    "rough": 0.42
+   },
+   "pillarFront": {
+    "metal": 0.15,
+    "rough": 0.42
+   },
+   "pillarPassenger": {
+    "metal": 0.15,
+    "rough": 0.42
+   },
+   "pillarTail": {
+    "metal": 0.15,
+    "rough": 0.42
+   },
+   "pillarTaper": {
+    "metal": 0.15,
+    "rough": 0.42
+   },
+   "pillarWindow": {
+    "metal": 0.15,
+    "rough": 0.42
+   },
+   "taper": {
+    "metal": 0.15,
+    "rough": 0.42
+   },
+   "waistband": {
+    "metal": 0.15,
+    "rough": 0.42
+   },
+   "cowlSkin": {
+    "metal": 0.15,
+    "rough": 0.42
+   },
+   "gearLeg": {
+    "tint": 3817284
+   }
+  },
+  "decals": {
+   "regOutOn": 0,
+   "regH": 0.09,
+   "regL": 0.35,
+   "regC": -0.35,
+   "m1On": 1,
+   "m1Pat": 9,
+   "m1A": 1914199,
+   "m1B": 1914199,
+   "m1D": 1914199,
+   "m1P": 1,
+   "m1Q": 1,
+   "m1R": 1,
+   "m1Tgt": 0,
+   "m1Mode": 1,
+   "m1L": -2.0,
+   "m1C": -0.45,
+   "m1W": 5.4,
+   "m1H": 0.62,
+   "m2On": 1,
+   "m2Pat": 9,
+   "m2A": 15906354,
+   "m2B": 15234090,
+   "m2D": 13120811,
+   "m2P": 3,
+   "m2Q": 3,
+   "m2R": 1,
+   "m2Tgt": 0,
+   "m2Mode": 1,
+   "m2L": -2.0,
+   "m2C": -0.07,
+   "m2W": 5.4,
+   "m2H": 0.15,
+   "regCol": 15983812
+  },
+  "wear": 0
+ }
+}

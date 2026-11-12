@@ -2749,6 +2749,59 @@ const AERO_KIT = [
         g.globalCompositeOperation = 'source-over';
       }
     } },
+  // ---- CAR-3 (12 Nov, the user: "adding shapes to the livery editor, particularly the mountain shapes ... with colors
+  // which are a little happier"): MOUNTAINS - one to three ranges rising from the layer's bottom edge, the far one
+  // tallest and drawn first, each ridge a run of peaks and saddles (seeded: the same every time), rounded at the tops,
+  // with finer crags as the roughness rises. A: the near range, B: the middle, D: the far. Above the ridges the page is
+  // left empty, so the paint shows. LAST IN THE LIST: a saved layer's pattern is its index.
+  { name: 'mountains', cn: ['near range', 'middle range', 'far range'],
+    help: 'layered mountain ranges rising from the layer’s bottom edge - the near range lowest, the far one tallest ' +
+          '(1 to 3 ranges). Peaks count along the layer; height is the far range’s, of the layer’s depth; roughness ' +
+          'adds crags to the ridges. Above the ridges the paint shows',
+    k: [{ n: 'peaks', lo: 2, hi: 16, st: 1, def: 5 },
+        { n: 'height (of the depth)', lo: 0.2, hi: 1, st: 0.01, def: 0.8 },
+        { n: 'ranges', lo: 1, hi: 3, st: 1, def: 3 },
+        { n: 'roughness', lo: 0, hi: 1, st: 0.01, def: 0.35 }],
+    draw(g, P, o) {
+      const n = Math.max(2, Math.round(o.p)), H = Math.max(0.05, Math.min(1, o.q || 0.8));
+      const nr = Math.max(1, Math.min(3, Math.round(o.r || 3))), rough = Math.max(0, Math.min(1, o.s || 0));
+      // a hash, not Math.random: the same layer draws the same ridge on every page and every reload
+      const rnd = (i, j, k) => { const x = Math.sin(i * 127.1 + j * 311.7 + k * 74.7) * 43758.5453; return x - Math.floor(x); };
+      const cols = [o.d, o.b, o.a].slice(3 - nr);            // far first; one range = the near colour alone
+      const tops = [1, 0.72, 0.46].slice(3 - nr);
+      for (let j = 0; j < nr; j++) {
+        const top = H * tops[j], np = n + j * 2, base = top * 0.42, span = top - base;
+        // the ridge: a saddle, a peak, a saddle ... from overhang to overhang
+        const pts = [];
+        for (let i = -1; i <= np; i++) {
+          const xp = (i + 0.5 + (rnd(i, j, 1) - 0.5) * 0.5) / np, xs = (i + 1 + (rnd(i, j, 2) - 0.5) * 0.3) / np;
+          pts.push([xp, base + span * (0.55 + 0.45 * rnd(i, j, 3))]);
+          pts.push([xs, base + span * (0.05 + 0.3 * rnd(i, j, 4))]);
+        }
+        // the crags: each slope split, its points pushed up or down by the roughness
+        const fine = [];
+        for (let i = 0; i + 1 < pts.length; i++) {
+          const [x0, y0] = pts[i], [x1, y1] = pts[i + 1];
+          fine.push([x0, y0]);
+          if (rough > 0) for (let k = 1; k < 4; k++) {
+            const t = k / 4;
+            fine.push([x0 + (x1 - x0) * t, y0 + (y1 - y0) * t + (rnd(i, j, 10 + k) - 0.5) * rough * span * 0.35]);
+          }
+        }
+        fine.push(pts[pts.length - 1]);
+        const X = q => q[0] * P, Y = q => P - q[1] * P;
+        g.beginPath(); g.moveTo(-2, P + 4); g.lineTo(X(fine[0]), Y(fine[0]));
+        // rounded tops: a quadratic through the midpoints, each point its control (sharper as the points crowd)
+        for (let i = 1; i + 1 < fine.length; i++) {
+          const mx = (X(fine[i]) + X(fine[i + 1])) / 2, my = (Y(fine[i]) + Y(fine[i + 1])) / 2;
+          g.quadraticCurveTo(X(fine[i]), Y(fine[i]), mx, my);
+        }
+        const last = fine[fine.length - 1];
+        g.lineTo(X(last), Y(last)); g.lineTo(P + 2, P + 4); g.closePath();
+        aeroKitInk(g, cols[j]); g.fill();
+      }
+      g.globalCompositeOperation = 'source-over';
+    } },
 ];
 
 // ---- LIVERY-5: the pattern generator's lattice and shapes ----------------------------------------------------------

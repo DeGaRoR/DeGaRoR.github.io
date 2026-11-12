@@ -3,7 +3,7 @@
 // not own): the recipe every corrected study build was made with (C172 §4,
 // the Cub, the Jodel, the Chinook).
 //
-//   node tools/_rejoin_build.js in.json out.json [edits.json]
+//   node tools/_rejoin_build.js in.json out.json [edits.json[,overlay.json ...]]
 //
 // edits.json: { cage: { dial: value, ... }, enginePreset: <a preset NAME in
 // the engine layer's list>, engines, energy, fuel, prop, wings, meta, systems } — each
@@ -19,7 +19,14 @@ const [inFile, outFile, editsFile] = process.argv.slice(2);
 const raw = JSON.parse(fs.readFileSync(inFile, 'utf8'));
 const spec = JSON.parse(JSON.stringify(raw.spec));
 if (editsFile) {
-  const E = JSON.parse(fs.readFileSync(editsFile, 'utf8'));
+  // CAR-3 (12 Nov): edits.json may be a comma-separated list - a build's edit set and then OVERLAYS (a livery: its
+  // paint, finish, meta), read in order: the cage dials and the meta merged key by key, every other block replaced by
+  // the later file's. One file is exactly as before
+  const E = {};
+  for (const f of editsFile.split(',')) {
+    const e = JSON.parse(fs.readFileSync(f, 'utf8'));
+    for (const k in e) E[k] = (k === 'cage' || k === 'meta') ? Object.assign(E[k] || {}, e[k]) : e[k];
+  }
   for (const k in E.cage || {}) spec.cage[k] = E.cage[k];
   if (E.enginePreset) {
     const keep = E.cage && E.cage.engPreset;
