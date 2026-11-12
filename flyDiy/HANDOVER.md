@@ -314992,3 +314992,15 @@ the next steps).
   vehicleDef gains `hitch` from sheet.hitch (undefined without one - no digit moves). For tow.js (TOW-LAUNCH's):
   `o.hitch || car.def.hitch || ...` so a garage car's drawn ball is the rope's point. NEXT (CAR): DM.vehicleSource =
   { sheet, tune, buildRig(THREE) } - the conquer car the default, a garage car (its own meshes, its car_sheet) an option.
+- **CAR-3, THE VAN'S FACE (12 Nov; the user: "go do something elegant in the front of the van" - the grille owed since:
+  "a wide horizontal grid on the top half of the bonnet face, not as wide as the car, two side inlets with lips holding
+  the headlamps")**: NEW ROW cw_apLift 'inlets up / down (the engine stays)' (_cowl_rows.js, 'inlets' group;
+  _cowl_gen.js apertureList; ABSENT_AT 0 = as before): it lifts the main inlet and the pair ALONE - apOffY also moves the
+  spinner's and the engine's axis (axisXY, _cage_eng.js), so a grille raised with it put the engine through the bonnet
+  top (seen as two dark marks on the lid). The lamp seated in an inlet (lampIn) now turns its bowl BACK into the face as
+  a chrome reflector, the glass bulging forward of the rim (it turned forward over the lens and read as a white ball;
+  only lampIn changes - the proud lamps on stalks draw as before). The van: apMode 3, the main inlet 0.64 x 0.16 m
+  (apW 0.32, apH 0.08, apSq 0.75), apLift 0.40 (the top half of the face, the engine where it was: apOffY 0), a rolled
+  lip (lipMode 1), the grille five horizontal rows on two uprights set 2 cm back (grilleN 2, grilleRows 5, grilleBar
+  0.014), ductLen 0.05; the pair round (pairSq 0.5 - 0 is a diamond), pairX 0.47, r 0.105, level with the grille
+  (pairY 0), the headlamps in them (lampOn, lampIn, lampBack 0.03). A radiator cap tried and left off (a dark knob).

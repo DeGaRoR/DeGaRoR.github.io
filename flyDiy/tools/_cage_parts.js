@@ -1010,7 +1010,7 @@ const CAGE_PARTS = [
                             'cw_lobeAz', 'cw_lobeSig', 'cw_lobeTSig', 'cw_lobeT2', 'cw_lobeCount', 'cw_lobeStream', 'cw_lobeNose', 'cw_lobeTail',
                             'cw_cutSpan', 'cw_cutAz']],
       ['inlets', ['cw_apMode', 'cw_apW', 'cw_apH', 'cw_apSq',
-                  'cw_apOffX', 'cw_apOffY', 'cw_pairX', 'cw_pairW',
+                  'cw_apOffX', 'cw_apOffY', 'cw_apLift', 'cw_pairX', 'cw_pairW',
                   'cw_pairH', 'cw_pairY', 'cw_pairSq']],
       ['inlet lip', ['cw_lipMode', 'cw_lipThick', 'cw_lipDepth',
                      'cw_lipRound', 'cw_lipProtrude', 'cw_lipInset',

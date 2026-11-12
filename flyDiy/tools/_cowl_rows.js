@@ -184,6 +184,7 @@ const COWL_ROWS = [
     { k: 'apSq', label: 'squareness (round → rect)', lo: 0, hi: 1, step: 0.01, when: 'P.apMode===1||P.apMode===3' },
     { k: 'apOffX', label: 'off the axis, sideways', lo: -0.3, hi: 0.3, step: 0.002, when: 'P.apMode===1||P.apMode===3' },
     { k: 'apOffY', label: 'off the axis, up / down', lo: -0.3, hi: 0.3, step: 0.002, when: 'P.apMode===1||P.apMode===3' },
+    { k: 'apLift', label: 'inlets up / down (the engine stays)', lo: -0.3, hi: 0.6, step: 0.005, when: 'P.apMode>0' },   // CAR-3
     { k: 'pairX', label: 'pair: spacing from the axis', lo: 0.03, hi: 0.55, step: 0.005, when: 'P.apMode>=2' },
     { k: 'pairW', label: 'pair: half-width', lo: 0.012, hi: 0.3, step: 0.002, when: 'P.apMode>=2' },
     { k: 'pairH', label: 'pair: half-height', lo: 0.012, hi: 0.3, step: 0.002, when: 'P.apMode>=2' },

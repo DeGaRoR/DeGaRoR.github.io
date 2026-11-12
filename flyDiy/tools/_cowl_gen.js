@@ -58,7 +58,7 @@ const P={
   // apertures cut into the surface
   detail:1.0,
   seamOn:1, seamType:1, seamPos:0.745, seamWidth:0.005, seamDepth:0.0022,
-  apMode:3, apW:0.112, apH:0.106, apSq:0.47, apOffX:0, apOffY:0,
+  apMode:3, apW:0.112, apH:0.106, apSq:0.47, apOffX:0, apOffY:0, apLift:0,
   pairX:0.2, pairY:0.012, pairW:0.08, pairH:0.048, pairSq:0.625,
   // lip
   lipMode:0, lipThick:0.009, lipProtrude:0.5, lipInset:0.028, lipDepth:0.055,
@@ -627,7 +627,10 @@ function prepareMesh(){
 
 /* apertures, fitted so they always stay inside the barrel-end section */
 function apertureList(){
-  const list=[], ax={x:P.apOffX,y:spineY(zEnd())+P.apOffY};
+  // CAR-3 (the user, 12 Nov: "a wide horizontal grid on the top half of the bonnet face"): apLift lifts the INLETS
+  // alone - the main one and the pair - while apOffY (the spinner's and the engine's axis, axisXY) stays: a car's
+  // grille high on a tall face without its engine through the bonnet; absent 0 = as before
+  const list=[], ax={x:P.apOffX,y:spineY(zEnd())+P.apOffY+(P.apLift||0)};
   if(P.apMode===1||P.apMode===3) list.push({cx:ax.x,cy:ax.y,w:P.apW,h:P.apH,n:sqExp(P.apSq)});
   if(P.apMode===2||P.apMode===3)
     for(const s of [1,-1]) list.push({cx:ax.x+s*P.pairX,cy:ax.y+P.pairY,w:P.pairW,h:P.pairH,n:sqExp(P.pairSq)});
@@ -1247,7 +1250,9 @@ function buildLamps(group,mats,shellM){
     if(pairs&&pairs.length===2){ const o=pairs[sg>0?0:1]; x=o.cx; yc=o.cy; rr=0.86*Math.min(o.w,o.h); zz=ze-Math.max(0,P.lampBack); }
     if(pairs){ const r=rr, cy=yc, z=zz;
       const prof=[]; for(let k=0;k<=10;k++){ const t=k/10; prof.push(new THREE.Vector2(r*Math.sin(t*Math.PI/2)*1.0+0.0005, -r*1.1*Math.cos(t*Math.PI/2))); }
-      const sh=new THREE.Mesh(new THREE.LatheGeometry(prof,28),shell); sh.rotation.x=-Math.PI/2; sh.position.set(x,cy,z); sh.name='cowlLamp'; group.add(sh);
+      // seated in the inlet the bowl runs BACK into the face (a chrome reflector) and the glass bulges forward of the
+      // rim - not the proud lamp's shell, which turned forward over the lens and read as a white ball (12 Nov)
+      const sh=new THREE.Mesh(new THREE.LatheGeometry(prof,28),chrome); sh.rotation.x=Math.PI/2; sh.position.set(x,cy,z); sh.name='cowlLamp'; group.add(sh);
       const rim=new THREE.Mesh(new THREE.TorusGeometry(r*1.02,r*0.09,10,32),chrome); rim.position.set(x,cy,z+0.002); rim.name='cowlLamp'; group.add(rim);
       const ln=new THREE.Mesh(new THREE.SphereGeometry(r*0.98,28,10,0,TAU,0,Math.PI*0.22),lens); ln.rotation.x=Math.PI/2; ln.position.set(x,cy,z-r*0.75); ln.name='cowlLamp'; group.add(ln);
       continue; }
