@@ -25,7 +25,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   const BUD = (typeof window !== 'undefined' && window.GFX && typeof window.GFX.budget === 'function') ? window.GFX.budget() : null;
   const BUILT = { done: false, q: [] };
   const afterBuild = fn => { if (BUILT.done) fn(); else BUILT.q.push(fn); };
-  const C = h => new THREE.Color(h).convertSRGBToLinear();
+  // (12 Nov, FIT-PROCEDURE: under r186's MANAGED colour, Color(hex) already decodes sRGB - the second conversion drew
+  // every world colour twice decoded; convert only when management is off, the 'as authored' step: once in either mode)
+  const C = h => { const c = new THREE.Color(h); return THREE.ColorManagement && THREE.ColorManagement.enabled ? c : c.convertSRGBToLinear(); };
   const HAZE = 0xe8bd8d, SUNC = 0xffd39a;
   const SUN = new THREE.Vector3(0.80, 0.185, 0.57).normalize();
   // THE DAY'S SUN (SKY S2, 2026-09-14). `SUN` is what every SHADOW pass reads
