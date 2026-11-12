@@ -40,7 +40,9 @@ function makeTowLine(sim, car, o) {
   const L0 = o.L0 || 400, k = (o.EA || 1e6) / L0;
   const mG = sim.totalM || 300, c = 2 * (o.zeta ?? 0.5) * Math.sqrt(k * mG);
   const weak = o.weak || 6000, relDeg = o.relDeg ?? 65;
-  const hitchB = o.hitch || [car.def.steer.xRef - car.def.foot.rear, 0.5, 0];   // (the reference point's body x less the rear overhang)
+  // (the car's drawn tow ball when its sheet has one - vehicleDef's def.hitch, the CAR session's garage cars; else the
+  //  reference point's body x less the rear overhang, 0.5 m up: the conquer's)
+  const hitchB = o.hitch || car.def.hitch || [car.def.steer.xRef - car.def.foot.rear, 0.5, 0];
   const T = { on: true, released: null, L: 0, T: 0, Tmax: 0, angle: 0, slack: 0, hook, hitch: hitchB, L0, k, c, weak,
               Fcar: [0, 0, 0], frameN: 0, carP: [0, 0, 0], carV: [0, 0, 0], tRel: null };
   const prevHook = sim.onSubstep;   // (no chaining in the solver's setter: one reader; the line is it while attached)

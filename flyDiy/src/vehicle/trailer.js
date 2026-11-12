@@ -114,13 +114,14 @@ function trailerFit(sim, o) {
 // spacing, 0.86 m), wheelR (0.292), wheelZ (half the track) }
 function makeTrailer(car, world, fit, o) {
   o = o || {};
-  const ball = o.ball || [car.def.steer.xRef - car.def.foot.rear - 0.08, 0.48, 0];
+  // (the car's drawn tow ball when its sheet has one - def.hitch; else behind the conquer's bumper, 0.48 m up)
+  const ball = o.ball || car.def.hitch || [car.def.steer.xRef - car.def.foot.rear - 0.08, 0.48, 0];
   const m = o.mass ?? 420, cgX = o.cgX ?? 0.6, Crr = o.Crr ?? 0.015, Ld = fit.Ld;
   const axleDx = o.axleDx ?? 0.86, wheelR = o.wheelR ?? 0.292;
   const half = fit.floats ? Math.max(...fit.floats.map(f => Math.abs(f.z))) : Math.max(0.6, (fit.hull ? fit.hull.B : 1.2) / 2);
   const wheelZ = o.wheelZ ?? Math.max(0.95, half + 0.27);
   const H = (x, z) => world.terrainH(x, z);
-  const T = { m, cgX, Ld, ball, axleDx, wheelR, wheelZ, A: [0, 0, 0], f: [1, 0, 0], u: [0, 1, 0], r: [0, 0, 1], vA: [0, 0, 0], aF: 0,
+  const T = { m, cgX, Ld, ball, ballH: ball[1], axleDx, wheelR, wheelZ, A: [0, 0, 0], f: [1, 0, 0], u: [0, 1, 0], r: [0, 0, 1], vA: [0, 0, 0], aF: 0,
               Hb: [0, 0, 0], N: 0, spin: 0, hitchV: [0, 0, 0], fit };
   // the pose from the ball's place and the axles' (the tractrix: the axles' centre is drawn along the drawbar)
   function pose(P) {
@@ -130,8 +131,8 @@ function makeTrailer(car, world, fit, o) {
     const g0 = (gL + gR) / 2;
     T.A = [ax, g0, az];
     // the axes: forward to the ball (it sets the pitch), right across the wheels (the roll)
-    // (the ball 0.48 m over the ground the axles stand on: the frame level; the car's squat or a crest pitches it)
-    let f = [P[0] - ax, P[1] - 0.48 - g0, P[2] - az];
+    // (the ball at its own height over the ground the axles stand on: the frame level; the car's squat or a crest pitches it)
+    let f = [P[0] - ax, P[1] - T.ballH - g0, P[2] - az];
     const fl = Math.hypot(f[0], f[1], f[2]); f = [f[0] / fl, f[1] / fl, f[2] / fl];
     let r = [-dz, (gR - gL) / (2 * wheelZ), dx]; const rl = Math.hypot(r[0], r[1], r[2]); r = [r[0] / rl, r[1] / rl, r[2] / rl];
     let u = [r[1] * f[2] - r[2] * f[1], r[2] * f[0] - r[0] * f[2], r[0] * f[1] - r[1] * f[0]]; const ul = Math.hypot(u[0], u[1], u[2]); u = [u[0] / ul, u[1] / ul, u[2] / ul];
