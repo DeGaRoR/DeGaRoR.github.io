@@ -21675,8 +21675,8 @@
   function towTick() {
     const T = towOn();
     if (inGarage || !started || driveOn() || flightOver) { if (T && inGarage) { T.towStop(); TOWS.busy = false; } return; }
-    // (the trailer: the car sets off as the player opens the throttle - or, under ?towhands=1, three seconds on)
-    if (T) { T.towDraw(); if (running && !T.tow.go && (T.tow.kind === 'trailer' ? (sim.ctl.thr > 0.5 || (T.tow.hands && T.tow.t > 3)) : T.tow.t > 3)) T.tow.start(); if (T.tow.kind === 'trailer') T.tow.t += 0; return; }
+    // (the trailer: the car sets off as the player opens the throttle - or, under ?towhands=1, half a second on)
+    if (T) { T.towDraw(); if (running && !T.tow.go && (T.tow.kind === 'trailer' ? (sim.ctl.thr > 0.5 || (T.tow.hands && T.tow.t > 0.5)) : T.tow.t > 3)) T.tow.start(); return; }
     if (!TOWS.busy && !TOWS.failed && trailerWanted() && window.FLYDIY_LAZY && sim) {
       TOWS.busy = true;
       const cam0 = sim.cgPos();

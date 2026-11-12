@@ -281,9 +281,13 @@
       if (!I) throw new Error('no roads in this world');
       rep = I.report; G = vehRoadGraph(I.spec);
     }
-    // the runway: the end nearest the aeroplane (a paved one first), the far end its destination
+    // the runway: HOME's (Jolene AFB 13/31 - the user's choice, 12 Nov: "no grass strip"), its end nearest the aeroplane;
+    // an island without one, the nearest runway end; the far end the car's destination
     let P0 = null, bd = Infinity;
-    for (const id in G.places) { const P = G.places[id]; if (P.what !== 'runway') continue; const d = Math.hypot(P.x - cg0[0], P.z - cg0[2]) * (/:HOME:/.test(id) ? 0.5 : 1); if (d < bd) { bd = d; P0 = P; } }
+    for (const pass of [/:HOME:/, /./]) {
+      for (const id in G.places) { const P = G.places[id]; if (P.what !== 'runway' || !pass.test(id)) continue; const d = Math.hypot(P.x - cg0[0], P.z - cg0[2]); if (d < bd) { bd = d; P0 = P; } }
+      if (P0) break;
+    }
     if (!P0) throw new Error('no runway on this island');
     const to = P0.id.replace(/:(\d)$/, (m, k) => ':' + (1 - +k)), P1 = G.places[to];
     if (!P1) throw new Error('the runway\'s far end: ' + to);

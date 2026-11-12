@@ -1680,8 +1680,10 @@ if (SELFTEST) {
     //  waypoints corners and moves the plots - that is no counterfactual for 'without the junctions')
     // (TOW-LAUNCH, 12 Nov: re-taken - the joins moved some town streets' free ends onto the streets they meet (T's, at most 2.1 m:
     //  mk_sa04, mk_sa08, mk_sc37, mk_sc45, mk_sc47, mk_sc50) and extended a few by their gap (mk_sc63, mk_r_walden): the plots
-    //  sown along them move with them. Was 5a61e780db99fc4b, 398 plots)
-    check(hp === '037fdb092a92c16a', '21d the junctions sow the same ' + JSON.parse(kp).length + ' plots as the town had without them (re-taken for the joins: TOW-LAUNCH 12 Nov)', hp);
+    //  sown along them move with them. Was 5a61e780db99fc4b, 398 plots. Re-taken again the same day: two of those joins were
+    //  redundant junctions half a metre from the streets' own (mk_sc44 at mk_j100, mk_sc64 at mk_j119 - their overruns, which
+    //  doubled the street back, out) and mk_r_walden's crossing on r1 went in a slot early - fixed; 037fdb092a92c16a, 399)
+    check(hp === '6cff23b2a640e5c8', '21d the junctions sow the same ' + JSON.parse(kp).length + ' plots as the town had without them (re-taken for the joins: TOW-LAUNCH 12 Nov)', hp);
     check(!PG.issues(J).some(t => /junction|roadside/.test(t)), '21d no junction issue', PG.issues(J).filter(t => /junction|roadside/.test(t)).slice(0, 3).join('; '));
   }
 }
