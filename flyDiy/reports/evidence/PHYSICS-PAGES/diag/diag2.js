@@ -193,4 +193,4 @@ function draw(rec, A) {
     out.push(`<g transform="translate(${kx},${ky})">${mark}</g>` + T(kx + 22, ky, t, { sz: 12, c: TH.dim })); kx += 34 + t.length * 6.4; }
   return `<svg viewBox="0 0 1200 900" xmlns="http://www.w3.org/2000/svg" font-family="'IBM Plex Sans', system-ui, sans-serif">${out.join('')}</svg>`;
 }
-module.exports = { analyse, draw };
+module.exports = { analyse, draw, png, unRle };

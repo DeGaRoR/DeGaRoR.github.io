@@ -23,12 +23,14 @@ let figs = '';
   window_ref = `<section class="page" id="reference"><div class="head"><h2>Reference <span class="tag">prototype</span></h2><p class="what">A plane against the real one it stands for, scored as REAL-FIGURES scores it. The global score sits top right. The triangle shows geometry, specs and performance, each section with its score below. Then every item's discrepancy, ours against the book, coloured by its score.</p><label class="pick">Plane <select id="refpick">${opts}</select></label></div>${ff}</section>`; }
 // MASS & BALANCE: prototypes for AIRCRAFT-LOOKS' page (theirs to build in the game): the sunburst the user picked, the treemap beside it
 { const MP = require('./massproto.js');
-  figs += `<section class="page" id="mass"><div class="head"><h2>Mass &amp; balance <span class="tag">prototype for AIRCRAFT-LOOKS</span></h2><p class="what">Where every kilogram is. The circle is the empty plane: categories on the inner ring, every part on the outer ring, called out with straight leaders all around it. The bar below adds what the plane carries (crew, fuel, cargo, hatched) up to the maximum take-off weight. Beside it is the weight-and-balance envelope a handbook draws: the CG's good range (the game's own margin bands) up to the maximum take-off weight, the loading walked from empty, and the fuel burnt back out. </p></div>`;
-  for (const k of KEYS) { const Dm = MP.data(k);
-    figs += `<figure class="fig" data-k="${k}" data-th="sheet"${k === 'cub' ? '' : ' hidden'}><div class="scroll">${MP.page(Dm, 'sunburst')}</div></figure>`;
-    figs += `<figure class="fig" data-k="${k}" data-th="screen" hidden><div class="scroll">${MP.page(Dm, 'sunburst')}</div></figure>`;
-  }
-  figs += `</section>`; }
+  figs += `<section class="page" id="mass"><div class="head"><h2>Mass &amp; balance <span class="tag">prototype for AIRCRAFT-LOOKS</span></h2><p class="what">Where every kilogram is. The circle is the empty plane: categories on the inner ring, every part on the outer ring, called out with straight leaders all around it. The bar below adds what the plane carries (crew, fuel, cargo, hatched) up to the maximum take-off weight; under it, the seats check: full tanks, then one person after another, green while under the maximum. Beside it is the weight-and-balance envelope a handbook draws: the CG's good range (the game's own margin bands) up to the maximum take-off weight, the loading walked from empty, and the fuel burnt back out. </p></div>`;
+  // its own picker: the Ruckus (validated) and the V2-172 (the official Cessna for comparisons) drawn on the editor's own
+  // silhouette, the Cub and the Twin on their fiche pictures
+  const MK = [['ruckus', 'Top Rudder Ruckus'], ['c172v2', 'Cessna 172 V2-172'], ['cub', 'Piper Cub'], ['twin', 'Twin busher']];
+  let mo = '', mf = '';
+  MK.forEach(([k, t], i) => { const Dm = MP.data(k); if (k === 'c172v2') Dm.name = t;
+    mo += `<option value="${k}">${t}</option>`; mf += `<figure class="mfig" data-m="${k}"${i ? ' hidden' : ''}><div class="scroll">${MP.page(Dm, 'sunburst')}</div></figure>`; });
+  figs = figs.replace('</p></div>', '</p><label class="pick">Plane <select id="masspick">' + mo + '</select></label></div>') + mf + `</section>`; }
 for (const p of FP.PAGES) {
   figs += `<section class="page" id="${p.id}"><div class="head"><h2>${p.name}</h2><p class="what">${WHAT[p.id]}</p></div>`;
   for (const k of KEYS) for (const th of ['sheet', 'screen'])
@@ -132,6 +134,7 @@ ${window_ref}
   if (window.innerWidth < 600) zoom(true);
   try { var s = JSON.parse(localStorage.getItem('pp2') || 'null'); if (s && s.k && s.th) st = s; } catch (e) {}
   paint();
+  var mp = document.getElementById('masspick'); if (mp) mp.addEventListener('change', function () { document.querySelectorAll('.mfig').forEach(function (f) { f.hidden = f.dataset.m !== mp.value; }); });
   var rp = document.getElementById('refpick'); if (rp) rp.addEventListener('change', function () { document.querySelectorAll('.rfig').forEach(function (f) { f.hidden = f.dataset.r !== rp.value; }); });
 })();
 </script>
