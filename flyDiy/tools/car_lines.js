@@ -3,7 +3,7 @@
 // profile breaks (a frame's step at a pillar, a waist that slopes, a bonnet that swells), in millimetres rather than by
 // eye on a picture. Found the roadster's: the windscreen frame's 1 cm step in the bottom line, the birth fit's sloping
 // bonnet waist, the head lobes' 2.5 cm swell (futureDesigns/CAR-1-2026-11.md "The second review").
-//   node tools/car_lines.js --key roadster [--over '{"row":v}']   the body (CAGE_GEAR.AF: top, bottom, widest half-width
+//   node tools/car_lines.js --key roadster | --build <file.json> [--over '{"row":v}']   the body (CAGE_GEAR.AF: top, bottom, widest half-width
 //                                                                  and its height, every 0.1 m) and the cowl's vertices
 //                                                                  binned by station; then both sections at the joint,
 //                                                                  height by height (half-widths and their difference)
@@ -12,12 +12,19 @@
 const path = require('path');
 const T = __dirname;
 const argv = process.argv.slice(2), opt = k => { const i = argv.indexOf('--' + k); return i >= 0 ? argv[i + 1] : null; };
-const KEY = opt('key'); if (!KEY) { console.error('usage: node tools/car_lines.js --key <card> [--over JSON]'); process.exit(2); }
+const KEY = opt('key'), FILE = opt('build');
+if (!KEY && !FILE) { console.error('usage: node tools/car_lines.js --key <card> | --build <file.json> [--over JSON]'); process.exit(2); }
 const BJ = require(path.join(T, '_bake_joined.js')), SH = require(path.join(T, '_scene_headless.js'));
 const { D } = BJ.loadPanel();
-const a = D.ARCHETYPES.find(x => x.key === KEY); if (!a) { console.error('no card ' + KEY); process.exit(2); }
-const o = JSON.parse(JSON.stringify(a.over || {})); o.cage = Object.assign({}, o.cage, JSON.parse(opt('over') || '{}'));
-const spec = D.designBake(a.sel, o);
+let spec;
+if (FILE) {   // CAR-3: a saved build (the C172 base of the utility car), its cage rows overridden
+  spec = JSON.parse(require('fs').readFileSync(FILE, 'utf8')).spec;
+  Object.assign(spec.cage, JSON.parse(opt('over') || '{}'));
+} else {
+  const a = D.ARCHETYPES.find(x => x.key === KEY); if (!a) { console.error('no card ' + KEY); process.exit(2); }
+  const o = JSON.parse(JSON.stringify(a.over || {})); o.cage = Object.assign({}, o.cage, JSON.parse(opt('over') || '{}'));
+  spec = D.designBake(a.sel, o);
+}
 const S = SH.sceneBuild(spec, { garage: spec }), AF = S.W.CAGE_GEAR.AF, THREE = S.W.THREE;
 const f3 = v => v.toFixed(3).padStart(7);
 console.log('BODY    z      top     bot   halfW  y(widest)   (airframe z ' + AF.z0.toFixed(2) + ' .. ' + AF.z1.toFixed(2) + ')');

@@ -164,6 +164,8 @@ function vehicleDef(sheet, tune) {
     // bumper, back to the rear one, half the body's width
     foot: { front: box.hi[0] - xRef, rear: xRef - box.lo[0], half: halfW },
     ground: sheet.ground || 0,
+    // the tow hitch (CAR-3): the sheet's, else the rear bumper's centre at 0.45 m
+    hitch: (sheet.hitch || [box.lo[0], 0.45, 0]).slice(),
   };
 }
 
@@ -177,7 +179,7 @@ function makeVehicle(def, world, opts) {
   const NE = 0.35;                                // the terrain normal's finite-difference step, m
   const ITER = 8;
   const st = { x: [0, 0, 0], v: [0, 0, 0], q: [1, 0, 0, 0], w: [0, 0, 0], t: 0 };
-  const ctl = { thr: 0, brake: 0, steer: 0, gear: 1, hand: 0 };   // steer: -1..1 of the bicycle's dMax, + right
+  const ctl = { thr: 0, brake: 0, steer: 0, gear: 1, hand: 0, tow: 0, towEl: 0, towDir: null };   // tow: N on the hitch (CAR-3)   // steer: -1..1 of the bicycle's dMax, + right
   const wh = def.wheels.map(w => ({ s: w.bump, delta: 0, spin: 0, on: false, Fn: 0, Fd: 0, lamL: 0, lamT: 0, vl: 0, slipT: 0 }));
   let delta = 0;                                  // the bicycle angle actually at the wheels (slewed)
   const out = { u: 0, V: 0, hdg: 0, onGround: 0, Fdrive: 0, aLong: 0, aLat: 0, proxyHit: false };
@@ -241,6 +243,14 @@ function makeVehicle(def, world, opts) {
     // the air
     const V = vLen(st.v);
     if (V > 0.01 && def.aero.CdA > 0) { const k = -0.5 * VEH_RHO * def.aero.CdA * V; F[0] += k * st.v[0]; F[1] += k * st.v[1]; F[2] += k * st.v[2]; }
+    // A TOW LINE (CAR-3): ctl.tow newtons on the hitch (def.hitch, body), the rope rising ctl.towEl rad over the level,
+    // toward ctl.towDir (a world [x, z], the way to the glider or the trailer - a rope on a launch line pulls toward
+    // the glider, which keeps the car straight) or, without one, straight aft of the chassis; 0 (the default) = no rope
+    if (ctl.tow > 0) { const c = Math.cos(ctl.towEl || 0), s = Math.sin(ctl.towEl || 0), L = ctl.tow;
+      let hx = -ex[0], hz = -ex[2];
+      if (ctl.towDir) { hx = ctl.towDir[0]; hz = ctl.towDir[1]; }
+      const hn = Math.hypot(hx, hz) || 1;
+      addF(rel(R, def.hitch), [L * c * hx / hn, L * s, L * c * hz / hn]); }
     // the steering slews toward the asked bicycle angle
     const dT = Math.max(-1, Math.min(1, ctl.steer)) * def.steer.dMax, dStep = def.steer.rate * dt;
     delta += Math.max(-dStep, Math.min(dStep, dT - delta));

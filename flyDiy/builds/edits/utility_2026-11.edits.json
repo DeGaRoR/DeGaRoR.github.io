@@ -1,0 +1,235 @@
+{
+ "_what": "CAR-3 (the user 12 Nov: 'a car that looks more or less like a car ... able to pull the glider ... a real cabin, at least 2 seats side by side ... a windscreen ... a utility vehicle'): the C172-alike's cabin - two doors, 2+2 side by side, the windscreen - with no wing, tail or prop, a short tail, a bonnet matched to the body's section (tools/car_lines.js --build), a radiator grille and lamps, a 5.4 L V8, four wheels on wishbones outside the body; it drives (tools/car_sheet.js), it does not fly",
+ "cage": {
+  "wingOn": 0,
+  "finOn": 0,
+  "stOn": 0,
+  "propOn": 0,
+  "spinOn": 0,
+  "rodOn": 0,
+  "aeroAftOn": 1,
+  "taperOn": 0,
+  "s1On": 1,
+  "s1Leg": 1,
+  "s1X": 0.9,
+  "s2On": 1,
+  "s2Leg": 1,
+  "s2X": 0.9,
+  "whProfile": 1,
+  "s1_shockKind": 0,
+  "s2_shockKind": 0,
+  "s1_linkSwing": 0,
+  "s2_linkSwing": 0,
+  "s1_linkPanel": 0,
+  "s2_linkPanel": 0,
+  "s1_linkAng": 55,
+  "s2_linkAng": 55,
+  "s1_linkSpread": 0.5,
+  "s2_linkSpread": 0.5,
+  "s1_linkX": 0,
+  "s2_linkX": 0,
+  "s1_shockAng": 90,
+  "s2_shockAng": 90,
+  "s1_shockAt": 0.85,
+  "s2_shockAt": 0.85,
+  "s1_shockZ": 0,
+  "s2_shockZ": 0,
+  "s1Fair": 0,
+  "s2Fair": 0,
+  "s2Steer": 1,
+  "boomStyle": 1,
+  "aeroAftLen": 0.3,
+  "aeroAftTip": 0.85,
+  "aeroAftDroop": 0.0,
+  "s1Z": 0.8,
+  "s2Z": 2.85,
+  "s1R": 0.38,
+  "s2R": 0.38,
+  "s1Drop": 0.0,
+  "s2Drop": 0.0,
+  "aeroTipW": 1,
+  "aeroTipH": 1,
+  "cw_apMode": 1,
+  "cw_apW": 0.3,
+  "cw_apH": 0.26,
+  "cw_apSq": 0.8,
+  "cw_apOffY": -0.02,
+  "cw_lipMode": 1,
+  "cw_lipThick": 0.014,
+  "cw_lipDepth": 0.06,
+  "cw_lipRound": 0.85,
+  "cw_lipProtrude": 1.2,
+  "cw_lipInset": 0.025,
+  "cw_grilleOn": 1,
+  "cw_grilleN": 24,
+  "cw_grilleBar": 0.007,
+  "cw_grilleSet": 0.04,
+  "cw_grilleHBar": 0,
+  "cw_grilleRows": 14,
+  "cw_grilleNum": 0,
+  "cw_lampOn": 1,
+  "cw_lampR": 0.075,
+  "cw_lampGap": 0.06,
+  "cw_lampY": 0.0,
+  "cw_lampBack": 0.1,
+  "cw_scoopOn": 0,
+  "cw_lobeN": 0,
+  "whWide": 0.85,
+  "cw_lidMode": 0,
+  "cw_taperW": 1,
+  "cw_taperH": 1,
+  "cw_cowlLen": 1.0,
+  "cw_deckSweep": 0,
+  "cw_keelSweep": 0,
+  "cw_waistSweep": 0,
+  "cw_sqFrontTop": 0.15,
+  "cw_sqFrontBot": 0.7,
+  "cw_faceRise": 0,
+  "paxWinN": 1,
+  "cw_deckH": 1,
+  "cw_keelH": 1,
+  "cw_lidRise": 0,
+  "cw_aftW": 0.477,
+  "cw_aftH": 0.486,
+  "cw_sqAftTop": 0.15,
+  "cw_sqAftBot": 0.7,
+  "eng_arch": 3,
+  "eng_cyl": 8,
+  "eng_vee": 90,
+  "eng_inlineAim": 0,
+  "eng_exStyle": 2,
+  "eng_bore": 0.1,
+  "eng_stroke": 0.0953,
+  "eng_rpm": 4400,
+  "engPreset": 41,
+  "cw_spinR": 0.0,
+  "s2AxZ": 0.45
+ },
+ "fuel": {
+  "litres": 80,
+  "tank": "nose"
+ },
+ "meta": {
+  "name": "Field Wagon",
+  "reg": "",
+  "car": {
+   "drive": "4wd",
+   "chassisKg": 280
+  }
+ },
+ "energy": {
+  "kind": "fuel",
+  "fuel": "avgas100LL",
+  "cell": "lifepo4",
+  "kWh": 0,
+  "vessel": null,
+  "finish": null,
+  "hue": 0,
+  "tint": null,
+  "vessels": [
+   {
+    "bay": "aftCabin",
+    "capacity": 80,
+    "along": null,
+    "lv": null,
+    "rot": 0,
+    "form": "box",
+    "finish": null,
+    "hue": null,
+    "tint": null,
+    "dims": null
+   }
+  ]
+ },
+ "paint": {
+  "job": "full",
+  "sweep": 0,
+  "base": 15722191,
+  "trim": 2902587,
+  "gloss": 0.5,
+  "regX": 0.3
+ },
+ "finish": {
+  "sections": {
+   "body": {
+    "metal": 0.6,
+    "rough": 0.38
+   },
+   "ceilingLoop": {
+    "metal": 0.6,
+    "rough": 0.38
+   },
+   "floorLoop": {
+    "metal": 0.6,
+    "rough": 0.38
+   },
+   "pillarCabin": {
+    "metal": 0.6,
+    "rough": 0.38
+   },
+   "pillarFront": {
+    "metal": 0.6,
+    "rough": 0.38
+   },
+   "pillarPassenger": {
+    "metal": 0.6,
+    "rough": 0.38
+   },
+   "pillarTail": {
+    "metal": 0.6,
+    "rough": 0.38
+   },
+   "pillarTaper": {
+    "metal": 0.6,
+    "rough": 0.38
+   },
+   "pillarWindow": {
+    "metal": 0.6,
+    "rough": 0.38
+   },
+   "taper": {
+    "metal": 0.6,
+    "rough": 0.38
+   },
+   "waistband": {
+    "metal": 0.6,
+    "rough": 0.38
+   },
+   "cowlSkin": {
+    "metal": 0.6,
+    "rough": 0.38
+   },
+   "gearLeg": {
+    "tint": 3817284
+   }
+  },
+  "decals": {
+   "m1On": 1,
+   "m1Pat": 0,
+   "m1A": 8231546,
+   "m1B": 8231546,
+   "m1D": 8231546,
+   "m1Metal": 1,
+   "m1Tgt": 0,
+   "m1Mode": 1,
+   "m1L": -2.1,
+   "m1C": -0.36,
+   "m1W": 4.6,
+   "m1H": 0.78,
+   "m2On": 1,
+   "m2Pat": 0,
+   "m2A": 11875370,
+   "m2B": 11875370,
+   "m2D": 11875370,
+   "m2Metal": 1,
+   "m2Tgt": 0,
+   "m2Mode": 1,
+   "m2L": -2.1,
+   "m2C": 0.05,
+   "m2W": 4.6,
+   "m2H": 0.035,
+   "regOutOn": 0
+  },
+  "wear": 0
+ }
+}

@@ -41,13 +41,18 @@ const NOT_A_CAR = ['wings', 'bracing', 'tail'];
 const CHASSIS = { kg: 120, note: 'GAP: a ladder frame, two beam axles, the steering box and the differential - ' +
                   'no garage row (a 1930s light car\'s, ~110-140 kg); placed at the wheelbase\'s middle, axle height' };
 const DRIVELINE = { eta: 0.85, note: 'a manual gearbox and a live rear axle: ~85 % of the crank power at the wheels' };
+// THE CAR'S OWN ROWS (CAR-3): what the drawing cannot say, carried by the build in spec.meta.car (absent = CAR-1's
+// rear-drive light car): drive '4wd' (a transfer case: all four wheels driven, ~80 % at the wheels), chassisKg (a
+// utility's ladder frame, two live axles and the transfer case weigh ~250-300 kg, not a 1930s roadster's 120)
+const DRIVELINE_4WD = { eta: 0.80, note: 'a manual gearbox, a transfer case and two live axles: ~80 % of the crank power at the wheels' };
+const carRows = spec => Object.assign({ drive: 'rwd', chassisKg: CHASSIS.kg }, (spec && spec.meta && spec.meta.car) || {});
 
 function sheetFromBake(bj, C, opts) {
   opts = opts || {};
   const W = bj.W, G = W.CAGE_GEAR;
   if (!G || !G.contacts || G.contacts.length !== 4) throw new Error('car_sheet: the drawing has ' +
     (G && G.contacts ? G.contacts.length : 0) + ' wheel contacts, a car needs 4 (the mains + the third station as a pair: s2X > 0)');
-  const spec = bj.spec;
+  const spec = bj.spec, CR = carRows(spec), chKg = CR.chassisKg, awd = CR.drive === '4wd';
   // ---- THE WHEELS: front = the two most forward contacts ----
   const cs = G.contacts.slice().sort((a, b) => b.p[2] - a.p[2]);
   const front = cs.slice(0, 2), rear = cs.slice(2);
@@ -85,12 +90,12 @@ function sheetFromBake(bj, C, opts) {
   const zFw = zRear + g.x;                          // the firewall's station on the drawing (gear.x is the mains' aft of it)
   const xLedger = mx / m;                           // the ledger's CG, aft of the firewall
   const zCh = (zRear + zFront) / 2;
-  const mTot = m + CHASSIS.kg;
-  const zCg = ((zFw - xLedger) * m + zCh * CHASSIS.kg) / mTot;
+  const mTot = m + chKg;
+  const zCg = ((zFw - xLedger) * m + zCh * chKg) / mTot;
   // the CG's height: the body's (no ledger row carries it) - 40 % of the drawn body's height over the ground, the
   // chassis at the axles' height; an ESTIMATE, as the conquer's is
   const rAx = (FL.p[1] + RL.p[1]) / 2 - ground;
-  const yCg = (0.40 * hi[1] * m + rAx * CHASSIS.kg) / mTot;
+  const yCg = (0.40 * hi[1] * m + rAx * chKg) / mTot;
   // a uniform box of the body's size (car_prep.py's rule)
   const Lx = hi[0] - lo[0], Ly = hi[1] - Math.max(0, lo[1]), Lz = hi[2] - lo[2];
   const I = [mTot * (Ly * Ly + Lz * Lz) / 12, mTot * (Lx * Lx + Lz * Lz) / 12, mTot * (Lx * Lx + Ly * Ly) / 12];
@@ -112,8 +117,9 @@ function sheetFromBake(bj, C, opts) {
     collision: { boxes: [{ name: 'body', lo: [lo[0], Math.max(lo[1], 0.12), lo[2]].map(v => +v.toFixed(3)),
                                          hi: hi.map(v => +v.toFixed(3)) }] },
     estimates: { mass_kg: +mTot.toFixed(1), cg: [+zCg.toFixed(4), +yCg.toFixed(4), 0], inertia_kgm2: I.map(v => +v.toFixed(1)),
-                 ledger: items, chassis: CHASSIS, firewall_z: +zFw.toFixed(4) },
-    engine: { type: CU ? 'custom' : (E.type || null), name: engName, powerW, mass: CU ? CU.mass : (PP.engine && PP.engine.mass), driveline: DRIVELINE },
+                 ledger: items, chassis: Object.assign({}, CHASSIS, { kg: chKg }), firewall_z: +zFw.toFixed(4) },
+    engine: { type: CU ? 'custom' : (E.type || null), name: engName, powerW, mass: CU ? CU.mass : (PP.engine && PP.engine.mass), driveline: awd ? DRIVELINE_4WD : DRIVELINE },
+    drive: awd ? '4wd' : 'rwd',
   };
   return sheet;
 }
@@ -121,9 +127,9 @@ function sheetFromBake(bj, C, opts) {
 // THE TUNE: the powertrain from the engine row, the rest a 1930s light car's (drums, beam axles on leaf springs,
 // cross-ply tyres), scaled to the mass - authored, as the conquer's is (vehicle.js VEH_TUNES)
 function tuneFor(sheet) {
-  const m = sheet.estimates.mass_kg, gW = m * 9.81, P = sheet.engine.powerW * DRIVELINE.eta;
+  const m = sheet.estimates.mass_kg, gW = m * 9.81, P = sheet.engine.powerW * sheet.engine.driveline.eta;
   return {
-    drive: { wheels: ['RL', 'RR'], P: Math.round(P), F0: Math.round(0.75 * gW), Frev: Math.round(0.45 * gW), vRev: 6.0,
+    drive: { wheels: sheet.drive === '4wd' ? ['FL', 'FR', 'RL', 'RR'] : ['RL', 'RR'], P: Math.round(P), F0: Math.round(0.75 * gW), Frev: Math.round(0.45 * gW), vRev: 6.0,
              engBrake: Math.round(0.03 * gW), tc: 0.85 },
     brake: { F: Math.round(0.80 * gW), front: 0.60, abs: 0.80, hand: ['RL', 'RR'], handF: Math.round(0.25 * gW) },
     steer: { wheels: ['FL', 'FR'], innerDeg: 36, ackermann: 1.0, rate: 0.9 },
@@ -166,6 +172,35 @@ function driveTest(sheet, tune, log) {
       upMin = Math.min(upMin, c.axes().up[1]); hMax = Math.max(hMax, Math.abs(c.heading())); });
     R['lane' + amp] = { g: aMax / 9.81, up: upMin, hMax: hMax * 180 / Math.PI, hEnd: c.heading() * 180 / Math.PI, u: c.out.u };
   }
+  // THE TOW (CAR-3, the user: "able to pull the glider"): a rope on the hitch pulling aft at a steady tension (ramped in
+  // over 2 s) from a standing start, full throttle, on the paved strip and on grass (VEH_SURF: mu 0.90 / 0.55) - the
+  // time to 100 km/h (a glider's auto-tow launch speed) and the speed it holds at 30 s. A glider's auto-tow / winch
+  // pulls ~1.0-1.3 x its weight on the climb: 4-5 kN for a 350-400 kg two-seater. The rope runs back along the launch
+  // line (the world's -x, the car placed heading +x)
+  for (const [srf, sName] of [[5, 'paved'], [0, 'grass']]) for (const kN of [3, 4.5, 6]) {
+    const w = { terrainH: () => 0, surface: () => srf }, c = V.makeVehicle(def, w); c.place(0, 0, 0); run(c, 0.5);
+    c.ctl.thr = 1; let t100 = null;
+    run(c, 30, t => { c.ctl.tow = Math.min(1, t / 2) * kN * 1000; c.ctl.towDir = [-1, 0]; if (t100 == null && c.out.u >= 100 / 3.6) t100 = t; });
+    R['tow_' + sName + '_' + kN] = { t100, u30: c.out.u, up: c.axes().up[1] };
+  }
+  // AN AUTO-TOW (CAR-3): a 450 kg two-seat trainer glider on the rope - on its wheel the rope pulls what the glider
+  // needs (m a + its rolling and air drag; the rope taut, the glider at the car's speed), it lifts off at 70 km/h and
+  // over 6 s the rope comes up to 1.2 x its weight at 25 deg (the climb); the run passes if the car reaches 70 km/h
+  // and then holds 90 km/h or more through 20 s of climb
+  const GL = { m: 450, crr: { 5: 0.02, 0: 0.06 }, CdA: 0.25, vOff: 70 / 3.6, kClimb: 1.2, elClimb: 25 * Math.PI / 180, tClimb: 6 };
+  for (const [srf, sName] of [[5, 'paved'], [0, 'grass']]) {
+    const w = { terrainH: () => 0, surface: () => srf }, c = V.makeVehicle(def, w); c.place(0, 0, 0); run(c, 0.5);
+    c.ctl.thr = 1; let tOff = null, uMin = 1e9, Tmax = 0, uPrev = c.out.u;
+    run(c, 60, t => {
+      const u = c.out.u, a = (u - uPrev) * 60; uPrev = u;
+      let T, el = 0;
+      if (tOff == null) { T = GL.m * Math.max(0, a) + GL.crr[srf] * GL.m * 9.81 + 0.5 * 1.225 * GL.CdA * u * u; if (u >= GL.vOff) tOff = t; }
+      else { const k = Math.min(1, (t - tOff) / GL.tClimb); T = (1 - k) * (0.5 * 1.225 * GL.CdA * u * u) + k * GL.kClimb * GL.m * 9.81; el = k * GL.elClimb;
+             if (t - tOff > GL.tClimb) uMin = Math.min(uMin, u); if (t - tOff > GL.tClimb + 20) return false; }
+      c.ctl.tow = T; c.ctl.towEl = el; c.ctl.towDir = [-1, 0]; Tmax = Math.max(Tmax, T);
+    });
+    R['auto_' + sName] = { tOff, uMin: uMin < 1e9 ? uMin : null, Tmax, ok: tOff != null && uMin >= 90 / 3.6 };
+  }
   if (log) {
     const f = (x, n = 2) => (x == null ? '-' : (+x).toFixed(n));
     log('DEF      wb ' + f(def.wb) + ' m, track ' + f(def.track) + ' m, r ' + f(def.wheels[0].r) + ' m, ' + f(def.mass, 0) + ' kg (' +
@@ -178,6 +213,12 @@ function driveTest(sheet, tune, log) {
     for (const amp of [0.06, 0.12]) { const L = R['lane' + amp];
       log('LANE     60 km/h, a sine of ' + amp + ' lock: ' + f(L.g) + ' g peak, heading out to ' + f(L.hMax, 1) + ' deg and back to ' +
           f(L.hEnd, 1) + ' deg, ' + f(L.u * 3.6, 0) + ' km/h after, upright ' + f(L.up, 3) + (Math.abs(L.hEnd) > 10 ? '  << SPUN / DID NOT RECOVER' : '')); }
+    for (const sName of ['paved', 'grass']) log('TOW      ' + sName.padEnd(5) + ' ' + [3, 4.5, 6].map(kN => { const T = R['tow_' + sName + '_' + kN];
+      return kN + ' kN: 100 km/h ' + (T.t100 == null ? 'NEVER' : 'in ' + f(T.t100, 1) + ' s') + ', ' + f(T.u30 * 3.6, 0) + ' km/h at 30 s'; }).join(' | ') + '  (negative: the rope drags it back)');
+    for (const sName of ['paved', 'grass']) { const A = R['auto_' + sName];
+      log('AUTOTOW  ' + sName.padEnd(5) + ' a 450 kg glider: ' + (A.tOff == null ? 'NEVER reached the 70 km/h lift-off' :
+          'lift-off speed at ' + f(A.tOff, 1) + ' s, then the climb (' + f(A.Tmax / 1000, 1) + ' kN at 25 deg) held at ' +
+          f(A.uMin * 3.6, 0) + ' km/h or more') + (A.ok ? '  - LAUNCHES' : '  - DOES NOT LAUNCH')); }
   }
   return { def, R };
 }
@@ -209,10 +250,10 @@ if (require.main === module) {
   console.log('SHEET    ' + sheet.car + ': wheelbase ' + sheet.wheelbase + ' m, track ' + sheet.track.front + ' / ' + sheet.track.rear +
               ' m, wheels r ' + sheet.wheels.FL.radius + ' m; body ' + (sheet.box.hi[0] - sheet.box.lo[0]).toFixed(2) + ' x ' +
               (sheet.box.hi[2] - sheet.box.lo[2]).toFixed(2) + ' x ' + sheet.box.hi[1].toFixed(2) + ' m (L x W x H)');
-  console.log('MASS     ' + E.mass_kg + ' kg = ' + E.ledger.map(([k, v]) => k + ' ' + v).join(' + ') + ' + chassis ' + CHASSIS.kg +
+  console.log('MASS     ' + E.mass_kg + ' kg = ' + E.ledger.map(([k, v]) => k + ' ' + v).join(' + ') + ' + chassis ' + E.chassis.kg +
               '; CG x ' + E.cg[0] + ' (rear axle ' + sheet.wheels.RL.centre[0] + ', front ' + sheet.wheels.FL.centre[0] + '), y ' + E.cg[1]);
   console.log('ENGINE   ' + sheet.engine.name + ' (' + sheet.engine.type + '): ' + (sheet.engine.powerW / 1000).toFixed(0) + ' kW, ' +
-              (tune.drive.P / 1000).toFixed(0) + ' kW at the rear wheels');
+              (tune.drive.P / 1000).toFixed(0) + ' kW at the ' + (sheet.drive === '4wd' ? 'four' : 'rear') + ' wheels');
   if (out) { fs.writeFileSync(path.resolve(out), JSON.stringify(Object.assign({}, sheet, { tune }), null, 1) + '\n'); console.log('wrote ' + out); }
   if (!argv.includes('--no-drive')) driveTest(sheet, tune, console.log);
 }
