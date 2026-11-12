@@ -584,6 +584,9 @@ const GATES = [
   // back) — B's finish, every section's material and the marking block equal
   // a clean load of B; the pool key covers every dial
   { id: 'LIVERY', file: '_livery_check.js', tier: 'core' },
+  // LIVERY-MANAGER (the user 13 Nov): a plane's saved liveries - the cert key blind to them and seeing the paint job, a swap
+  // never moving the airframe or its masses, the library's operations, the envelope latent. ~10 s
+  { id: 'LIVERYSET', file: '_liveryset_check.js', argv: ['--selftest'], tier: 'core', wall: 30 },
   // LIVERY-TEXT (9 Nov): six text pieces a plane in six faces fetched on first use - the slots, the pages, the stand-in
   // and the arrival, no synthesised style, the official builds unchanged, the files and their licences
   { id: 'LIVERYTEXT', file: '_livery_text_check.js', tier: 'core' },

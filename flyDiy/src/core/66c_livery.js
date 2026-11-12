@@ -4,7 +4,7 @@
 //
 // A LIVERY IS WHAT A SPRAY GUN AND A SIGN-WRITER CHANGE, AND NOTHING THAT WEIGHS OR AGES:
 //   paint    base, trim, sweep, gloss, regX (where the registration sits) - every paint key BUT `job`
-//   finish   sections (tint, fin, metal, tile, rough, nrm), decals (kit layers m1-m5, text pieces t1-t6, the
+//   finish   sections (tint, fin, metal, tile, rough, nrm - but each section's wearM), decals (kit layers m1-m5, text pieces t1-t6, the
 //            registration's look reg* / wreg*), glass - every finish key BUT `wear` and `weather`
 // NOT the livery's: meta (the name and the REGISTRATION are the plane's: one registration a plane, PLANELISTS canon (b)),
 // paint.job (the colour coats WEIGH, GEN_FINISH kgM2: a swap never changes the flight), finish.wear / finish.weather
@@ -20,6 +20,7 @@
 // ===========================================================================
 const LIVERY_NOT_PAINT = ['job'];
 const LIVERY_NOT_FINISH = ['wear', 'weather'];
+const LIVERY_NOT_SECTION = ['wearM'];  // a section's own wear (_cage_ui.js secWear): the airframe's condition, kept
 const LIVERY_MAX = 24;                 // a plane's library (each a few kB of JSON - recipes, never pixels)
 const LIVERY_NAME_MAX = 40;
 const lvClone = o => (o == null ? o : JSON.parse(JSON.stringify(o)));
@@ -32,6 +33,14 @@ function liveryOf(spec) {
   if (F) {
     f = {};
     for (const k of Object.keys(F)) if (LIVERY_NOT_FINISH.indexOf(k) < 0) f[k] = lvClone(F[k]);
+    if (f.sections && typeof f.sections === 'object') {
+      for (const s of Object.keys(f.sections)) {
+        const e = f.sections[s];
+        if (e && typeof e === 'object') for (const k of LIVERY_NOT_SECTION) delete e[k];
+        if (!e || typeof e !== 'object' || !Object.keys(e).length) delete f.sections[s];
+      }
+      if (!Object.keys(f.sections).length) delete f.sections;
+    }
     if (!Object.keys(f).length) f = null;
   }
   return { paint: p, finish: f };
@@ -47,6 +56,14 @@ function liveryApply(spec, lv) {
   const F0 = spec && spec.finish && typeof spec.finish === 'object' && !Array.isArray(spec.finish) ? spec.finish : null;
   const f = lv && lv.finish && typeof lv.finish === 'object' ? lvClone(lv.finish) : {};
   for (const k of LIVERY_NOT_FINISH) { delete f[k]; if (F0 && F0[k] !== undefined) f[k] = lvClone(F0[k]); }
+  // each section's own wear stays the plane's (the livery's sections carry none)
+  if (f.sections) for (const s of Object.keys(f.sections)) if (f.sections[s]) for (const k of LIVERY_NOT_SECTION) delete f.sections[s][k];
+  const S0 = F0 && F0.sections && typeof F0.sections === 'object' ? F0.sections : null;
+  if (S0) for (const s of Object.keys(S0)) for (const k of LIVERY_NOT_SECTION) {
+    if (!S0[s] || S0[s][k] === undefined) continue;
+    if (!f.sections) f.sections = {};
+    f.sections[s] = Object.assign({}, f.sections[s] || {}, { [k]: lvClone(S0[s][k]) });
+  }
   s.finish = Object.keys(f).length ? f : null;                    // null: the factory finish
   return s;
 }
@@ -56,8 +73,23 @@ function lvCanon(o) {
   if (o && typeof o === 'object') return '{' + Object.keys(o).sort().filter(k => o[k] !== undefined).map(k => JSON.stringify(k) + ':' + lvCanon(o[k])).join(',') + '}';
   return JSON.stringify(o === undefined ? null : o);
 }
+// THE MEASURED ROWS are not a choice, so "modified?" never reads them (the stored livery keeps them, and the page
+// measures them again on whatever plane wears it): the registration's width while it is locked to its letters
+// (_cage_ui.js: regW = regH x the text's aspect, the font as this browser draws it) and a FITTED kit layer's box (mNFit:
+// its L / C / W / H measured off the plane's own outline)
+function lvComparable(lv) {
+  const f = lv && lv.finish && lv.finish.decals ? lvClone(lv.finish) : (lv && lv.finish) || null;
+  if (f && f.decals) {
+    const d = f.decals;
+    if (d.regLock === undefined || d.regLock) delete d.regW;
+    for (let i = 1; i <= 9; i++) if (d['m' + i + 'Fit']) for (const k of ['L', 'C', 'W', 'H']) delete d['m' + i + k];
+  }
+  return { paint: (lv && lv.paint) || {}, finish: f };
+}
 function liverySame(a, b) {
-  return !!a && !!b && lvCanon(a.paint || {}) === lvCanon(b.paint || {}) && lvCanon(a.finish || null) === lvCanon(b.finish || null);
+  if (!a || !b) return false;
+  const A = lvComparable(a), B = lvComparable(b);
+  return lvCanon(A.paint) === lvCanon(B.paint) && lvCanon(A.finish) === lvCanon(B.finish);
 }
 function liveryName(n, fallback) {
   const s = typeof n === 'string' ? n.replace(/\s+/g, ' ').trim().slice(0, LIVERY_NAME_MAX) : '';
