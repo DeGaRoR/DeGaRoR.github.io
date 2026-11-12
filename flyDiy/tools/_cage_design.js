@@ -1114,6 +1114,32 @@ function iconSteer(mode) {
 }
 // THE CARCASS in section, as the tyre meets the ground: a standard tyre, the
 // tundra's fat round balloon, a slim one — each round its rim
+// THE BRAKES (GEN_BRAKES): a wheel seen from the side; 0 none drawn, 1 a drum (an inner ring), 2 a disc with one
+// caliper, 3 a disc with two calipers
+function iconBrake(mode) {
+  const ring = r => 'M' + P2(32 - r, 20) + ' a' + r + ' ' + r + ' 0 1 0 ' + (2 * r) + ' 0 a' + r + ' ' + r + ' 0 1 0 ' + (-2 * r) + ' 0 Z';
+  const cal = (x, y) => ({ d: 'M' + P2(x - 3, y - 4) + ' L' + P2(x + 3, y - 4) + ' L' + P2(x + 3, y + 4) + ' L' + P2(x - 3, y + 4) + ' Z', w: 1 });
+  const paths = [{ d: ring(16) }, { d: ring(4) }];
+  if (mode === 1) paths.push({ d: ring(10), w: 1 });
+  if (mode >= 2) { paths.push({ d: ring(9), w: 1 }); paths.push(cal(32, 11)); }
+  if (mode === 3) paths.push(cal(32, 29));
+  return { vb: '0 0 64 40', paths };
+}
+
+// THE PROPELLER'S PITCH (PROP-CLASSES): the blade's section across the disc (the flight path left to right), its
+// angle to the plane of rotation - fine flat, coarse steep; auto with a double-headed arc, the seaplane's fine blade
+// with a water line, the constant-speed hub with its governor ring
+function iconPitch(v) {
+  const ang = { climb: 18, standard: 32, cruise: 48, auto: 32, seaplane: 18, cs: 32 }[v] || 32;
+  const a = ang * Math.PI / 180, L = 14, cx = 32, cy = 20;
+  const dx = Math.cos(a) * L, dy = Math.sin(a) * L;
+  const paths = [{ d: 'M' + P2(cx - dx, cy + dy) + ' L' + P2(cx + dx, cy - dy) }, { d: 'M' + P2(cx, 4) + ' L' + P2(cx, 36), w: 1 }];
+  if (v === 'auto') paths.push({ d: 'M' + P2(cx + 12, 30) + ' A14 14 0 0 0 ' + P2(cx + 12, 10), w: 1 });
+  if (v === 'seaplane') paths.push({ d: 'M' + P2(6, 34) + ' L' + P2(58, 34), w: 1 });
+  if (v === 'cs') paths.push({ d: 'M' + P2(cx - 6, cy) + ' a6 6 0 1 0 12 0 a6 6 0 1 0 -12 0 Z', w: 1 });
+  return { vb: '0 0 64 40', paths };
+}
+
 function iconCarcass(mode) {
   const ell = (rx, ry) => 'M' + P2(32 - rx, 20) + ' a' + rx + ' ' + ry +
     ' 0 1 0 ' + (2 * rx) + ' 0 a' + rx + ' ' + ry + ' 0 1 0 ' + (-2 * rx) + ' 0 Z';
@@ -1802,17 +1828,17 @@ const DESIGN_ROWS = [
     help: 'how coarse the blades are set: fine pulls hard standing and climbing, coarse keeps pulling at speed',
     read: (P, S) => (S && S.prop && S.prop.pitch) || 'standard',
     options: [
-      { value: 'climb', label: 'Fine (climb)', note: 'the most pull standing and in the climb; runs out of thrust early, the cruise suffers',
+      { value: 'climb', icon: iconPitch('climb'), label: 'Fine (climb)', note: 'the most pull standing and in the climb; runs out of thrust early, the cruise suffers',
         writes: { spec: { prop: { pitch: 'climb' } } } },
-      { value: 'standard', label: 'Standard', note: 'the all-rounder most aeroplanes leave the factory with',
+      { value: 'standard', icon: iconPitch('standard'), label: 'Standard', note: 'the all-rounder most aeroplanes leave the factory with',
         writes: { spec: { prop: { pitch: 'standard' } } } },
-      { value: 'cruise', label: 'Coarse (cruise)', note: 'keeps pulling at speed; a longer take-off and a flatter climb',
+      { value: 'cruise', icon: iconPitch('cruise'), label: 'Coarse (cruise)', note: 'keeps pulling at speed; a longer take-off and a flatter climb',
         writes: { spec: { prop: { pitch: 'cruise' } } } },
-      { value: 'auto', label: 'Auto', note: 'the finest setting that still pulls at this wing\'s cruise - picked for you',
+      { value: 'auto', icon: iconPitch('auto'), label: 'Auto', note: 'the finest setting that still pulls at this wing\'s cruise - picked for you',
         writes: { spec: { prop: { pitch: 'auto' } } } },
-      { value: 'seaplane', label: 'Seaplane', note: 'a fine prop that reaches full rpm standing: what gets a floatplane off the water',
+      { value: 'seaplane', icon: iconPitch('seaplane'), label: 'Seaplane', note: 'a fine prop that reaches full rpm standing: what gets a floatplane off the water',
         writes: { spec: { prop: { pitch: 'seaplane' } } } },
-      { value: 'cs', label: 'Constant speed', note: 'fine standing, coarse at speed, the governor holds the rpm - +9 kg and the hub\'s price',
+      { value: 'cs', icon: iconPitch('cs'), label: 'Constant speed', note: 'fine standing, coarse at speed, the governor holds the rpm - +9 kg and the hub\'s price',
         writes: { spec: { prop: { pitch: 'cs' } } } },
     ] },
 
@@ -2252,8 +2278,10 @@ const DESIGN_ROWS = [
       .map(([label, note, drum], i) => {
         const B = typeof GEN_BRAKES !== 'undefined' ? GEN_BRAKES : (W.GEN_BRAKES || null), k = [null, 'drum', 'disc', 'double'][i];
         const R = B && k ? B[k] : null;
-        return { value: i, label, note: R ? note + ' - ' + R.kg + ' kg, ' + R.perWheelN + ' N a wheel' : note,
-                 writes: { cage: i ? { brkHold: i, whBrake: drum } : { brkHold: 0 } } }; }) },
+        // (a slot tile writes its own row only, GATE DESIGN: the drawn brake stays the gear page's whBrake row)
+        void drum;
+        return { value: i, label, icon: iconBrake(i), note: R ? note + ' - ' + R.kg + ' kg, ' + R.perWheelN + ' N a wheel' : note,
+                 writes: { cage: { brkHold: i } } }; }) },
   { key: 'carcassT', label: 'Tyre carcass', kind: 'discriminator',
     group: 'undercarriage', status: 'live', slot: true, twin: ['whProfile'],
     read: P => Math.round(P.whProfile || 0),
