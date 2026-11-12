@@ -1022,14 +1022,18 @@ function* genCertifySteps(def, opt) {
   const tD = (typeof performance !== 'undefined' ? performance : Date).now();
   const { Ft, Fc, byT, byC, names } = genCertCombine(def, cases);
   // THE BUILD WEIGHT (WEIGHT STUDY, 12 Nov): a wing built for a weight (GEN_SURF_MATERIALS.dtube.buildKg) is certified
-  // as if its aeroplane weighed that - its members' limit loads (and so their fittings') x min(1, buildKg / W0). The
+  // as if its aeroplane weighed that - its members' and its bracing's limit loads (and so their fittings') x min(1,
+  // buildKg / W0). The
   // certificate otherwise sizes every member to THIS aeroplane's own loads, and a light wing on a heavy aeroplane held 6 g
   // (weight_proto/, run 1): with this, it breaks where its physics says (a C172 2.7 g)
   { const S = def.spec || {}, WR = (typeof genSurfMaterial === 'function' && S.wings) ? genSurfMaterial(S, 'wing', 0) : null;
     const W0 = def.parts && def.parts.gauge && def.parts.gauge.W0;
     if (WR && WR.buildKg > 0 && W0 > WR.buildKg) {
       const f = WR.buildKg / W0;
-      def.beams.forEach((b, i) => { if (b.sec === 'wings') { Ft[i] *= f; Fc[i] *= f; } });
+      // the wing's own structure AND what carries it - its struts and its carry-through (the 'bracing' section): a light
+      // wing comes with its bracing. (Measured: on the strut-braced Cub the full-strength struts relieved the D-tube's
+      // spar and the wing held 6.13 g - the struts are the wing's, not the fuselage's.)
+      def.beams.forEach((b, i) => { if (b.sec === 'wings' || b.sec === 'bracing') { Ft[i] *= f; Fc[i] *= f; } });
     } }
   return { v: GEN_CERT_V, key: genCertKey(def), nb, nN, limit: L, ult: GEN_CERT.ult, neg: -GEN_CERT.neg * L, m: GEN_CERT.m,
            sink, dropNz: drop ? drop.nz : null, flownNz: flown ? flown.nz : null, flownReached: flown ? flown.reached : null,

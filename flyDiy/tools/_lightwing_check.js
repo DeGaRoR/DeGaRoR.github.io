@@ -14,7 +14,9 @@
 //   A. THE ROW AND THE TILE: the Wing structure tile's 9th option (wgCons 8, appended) writes wings[].material 'dtube'
 //      through the join; the row is built for a weight, carbon's phys, no floor.
 //   B. LIGHT: on the Archaeopteryx the D-tube wing is lighter than its moulded carbon (by more than 10 kg), its gauge
-//      at or under its cap ((buildKg / refGross)^e).
+//      (its own bucket, 'wingB') at or under its cap ((buildKg / refGross)^e), and the aeroplane's EMPTY mass falls by
+//      at least as much - the carry-through billed in another material keeps its own gauge (it grew 7.1 -> 12.3 kg when
+//      the D-tube's reference leaked into the shared wing bucket).
 //   C. CERTIFIED WHERE IT BELONGS: on the Archaeopteryx it holds the ultimate (5.7 g) and lets go past it.
 //   D. IT BREAKS ON HEAVIER AEROPLANES: a Cub, a C172, a Caravan with it break UNDER the 3.8 g limit, at the wing,
 //      cleanly (a break, never a divergence), the heavier the sooner.
@@ -55,22 +57,24 @@ const bench = sp => {
   for (let f = 0; f < 60 * 120 && !rig.state.done; f++) { rig.step(1 / 60); if (Number.isFinite(rig.state.n) && rig.state.brokeAt == null) nMax = Math.max(nMax, rig.state.n); }
   const st = rig.state;
   const finite = sim.nodes ? sim.nodes.every(n => n.p.every(Number.isFinite)) : true;
-  return { def: def0, W0: def0.parts.gauge.W0, wing: def0.parts.ledger.wings.mass, gauge: def0.parts.gauge.wing,
+  let empty = 0; for (const k in def0.parts.ledger) if (!def0.parts.ledger[k].payload) empty += def0.parts.ledger[k].mass;
+  return { def: def0, W0: def0.parts.gauge.W0, empty, wing: def0.parts.ledger.wings.mass, gauge: def0.parts.gauge.wingB != null ? def0.parts.gauge.wingB : def0.parts.gauge.wing,
            verdict: st.verdict, at: st.brokeAt, key: st.brokeKey || '', finite, nMax };
 };
 const r2 = v => v == null ? '-' : (+v).toFixed(2);
 const ROW = C.GEN_SURF_MATERIALS.dtube;
 
 console.log('A. THE ROW AND THE TILE');
-{ const sp = born('archaeopteryx', null, { wgCons: 8 });
+{ const sp = born('archaeopteryx', null, { wgCons: 8 });   // (the card's own row since 12 Nov)
   ok(ROW && ROW.buildKg > 0 && ROW.noFloor === true && ROW.phys === C.GEN_MATERIALS.carbon.phys && sp.wings[0].material === 'dtube',
      `A the Wing structure tile's 9th option (wgCons 8) writes '${sp.wings[0].material}'; the row is built for ${ROW && ROW.buildKg} kg, carbon's phys, no floor`); }
 
 console.log('B. LIGHT');
-const own = bench(born('archaeopteryx')), arch = bench(born('archaeopteryx', 'dtube'));
+// (the card flies the D-tube since 12 Nov: its moulded carbon is the comparison, named)
+const own = bench(born('archaeopteryx', 'carbon')), arch = bench(born('archaeopteryx', 'dtube'));
 const cap = Math.pow(ROW.buildKg / ROW.refGross, C.GEN_GAUGE.e.wing);
-ok(own.wing - arch.wing > 10 && arch.gauge <= cap + 1e-9,
-   `B the Archaeopteryx's wing ${r2(own.wing)} kg moulded -> ${r2(arch.wing)} kg D-tube; its gauge ${r2(arch.gauge)} under its cap ${r2(cap)}`);
+ok(own.wing - arch.wing > 10 && arch.gauge <= cap + 1e-9 && own.empty - arch.empty > 10,
+   `B the Archaeopteryx's wing ${r2(own.wing)} kg moulded -> ${r2(arch.wing)} kg D-tube, its empty ${r2(own.empty)} -> ${r2(arch.empty)} kg; its gauge ${r2(arch.gauge)} under its cap ${r2(cap)}`);
 
 console.log('C. CERTIFIED WHERE IT BELONGS');
 ok(/^BROKE AT/.test(arch.verdict) && arch.at >= ULT && arch.finite,

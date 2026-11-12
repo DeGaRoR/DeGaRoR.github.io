@@ -314840,3 +314840,14 @@ chantier (stage 4) must bring it forward. Parked: the wheel, the nose skid, a wi
   JOIN PARTS SAVE WEIGHT FRAMES WINGSTRUCT NEWPLANE DEFAULT SPECFIX BUILD. TECH: its MONOWHEEL re-pin fixed here (the
   Monowheel tile is gear:tricycle at segment 1 - missed at v1); still red the master way (av.elt has no segment). LOAD
   red the master way (the GEN glass cantilever at 149 % of yield, identical numbers on 6f1497d72).
+- L1 OF THE PATH: THE ARCHAEOPTERYX ON THE D-TUBE (12 Nov, the user: "I'm definitely okay to change the wing ... but I
+  want to keep track of the path"): the card's wgCons 8 - empty 169.1 -> 155.0 kg (the ledger's non-payload sections;
+  an earlier "154 kg" was a partial read). WEIGHT_STUDY.md section 4 is now THE PATH (levels L0-L7, expected against
+  measured, target ~72 kg, projected ~86 at L7). Three corrections on the way: (1) the D-tube is gauged in its OWN
+  bucket 'wingB' (61_gen_frame.js bucketB / gBag; eOf / hiOf in genDesignGross) - in the shared wing bucket its 190 kg
+  reference grew the carbon carry-through 7.1 -> 12.3 kg; (2) the certificate's build weight scales the wing's BRACING
+  too (66_gen_cert.js: sec 'wings' or 'bracing') - full-strength struts held the D-tube on the Cub to 6.13 g; (3) the
+  D-tube's stiffness floor `kFloorK` 0.7 of the aeroplane's kScale - at kScale's bare 0.45 the Caravan diverged once its
+  bracing let go. GATE LIGHTWING: Archaeopteryx 6.75 g (certified), Cub 3.63, C172 2.73, Caravan 1.57 g, springs x0.55,
+  the negative control 10.98 g. The fleet: only the Archaeopteryx's hash moved. Found: the card's E-811 (30 kg, electric)
+  is fed by a 4 L avgas nose tank and no pack - a stage-1 leftover, L7's to fix.

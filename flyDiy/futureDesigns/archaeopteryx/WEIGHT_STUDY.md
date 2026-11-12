@@ -13,9 +13,17 @@ The user then set the design rule (revision 2):
 Revision 1's ratings, categories and max weight are dropped. This file replaces them.
 
 **Status (12 Nov): the foot-launch D-tube wing and GATE LIGHTWING are BUILT** (the Wing structure tile's 9th option;
-the row `GEN_SURF_MATERIALS.dtube`; the certificate's build weight). The real code reproduces the prototype: the
-Archaeopteryx 6.28 g on a 34.9 kg wing (certified); a Cub 3.70 g, a C172 2.71 g, a Caravan 1.62 g; without its build
-weight the C172 holds 10.98 g (the exploit, the gate's negative control). No card uses it yet.
+the row `GEN_SURF_MATERIALS.dtube`; the certificate's build weight). Measured by the gate:
+- the Archaeopteryx certifies at 6.75 g on a 34.7 kg wing;
+- a Cub breaks at 3.63 g, a C172 at 2.73 g, a Caravan at 1.57 g, all at the root;
+- without its build weight the C172 holds 10.98 g (the exploit, the gate's negative control).
+
+Three things the build added to the prototype:
+- the D-tube is sized in its own group (`wingB`), so the carry-through billed in carbon keeps its own size;
+- its bracing (struts, carry-through) is certified at its build weight too: on the strut-braced Cub, full-strength
+  struts held the light wing to 6.13 g;
+- its stiffness never drops under 0.7 of the aeroplane's own (`kFloorK`): at 0.45 the Caravan blew the simulator up. **The Archaeopteryx flies it** (L1 of THE
+PATH, §4: empty 169.1 -> 155.0 kg); no other card uses it.
 
 ## 0. The answer in one paragraph
 
@@ -188,21 +196,31 @@ The Archaeopteryx then becomes reachable from the chooser (out of GATE NEWPLANE'
 | paint | 5.1 kg (full white) | gelcoat, part of the moulding (white, no paint bill) | ~5 kg |
 | **total** | | | **~29 kg** |
 
-## 4. The Archaeopteryx's path
+## 4. THE PATH (tracked: expected against measured)
 
-From v1's 154 kg empty:
+Every level is measured on the card with the same tool: the ledger's non-payload sections, the card born as the shed
+births it. That is everything except the pilot, fuel and cargo. **v1's empty is 169.1 kg.** An earlier "154 kg"
+came from a read that left sections out; the ledger is the reference from here on.
 
-| step | saves | after |
-|---|---|---|
-| the foot-launch wing (measured, before calibration) | 13 | 141 |
-| its calibration toward ~2 kg/m² | ~7 | 134 |
-| the fixed items (§3.6) | ~29 | 105 |
-| the soft shell over the hard keel / mast / struts | ~10 | 95 |
-| the foot-launch tail and rod | ~6 | 89 |
-| the electric drive at its real size (the E-811's 30 kg against ~5 kg + the pack) | ~10-15 | **~75-80** |
+**The target:** the real aeroplane is ~72 kg (54 kg as a glider, parachute included, plus ~18 kg of electric drive;
+`STUDY.md` §2).
 
-The real one is ~72 kg with its drive. The last kilograms are the hub fittings and the fuselage cladding, measured
-once the rows exist.
+**The levels:**
+
+| level | what | expected | measured | empty after | status |
+|---|---|---|---|---|---|
+| L0 | v1: moulded carbon wing | | | **169.1** | frozen (v1) |
+| L1 | the foot-launch D-tube wing | -13 to -20 | **-14.1** (wing 47.9 -> 34.7; bracing 7.1 -> 6.9) | **155.0** | **done**, certified 6.28 g |
+| L2 | the tail and the rod follow the wing (light tail, light rod) | ~-8 (tail 8.3 -> ~3; the rod ~-3) | | ~147 | next |
+| L3 | the fixed items: reclined tub, soft glazing, light controls on the keel tubes, no panel, minimal furnishing, gelcoat | ~-29 (outfit 21.2 -> ~5, furnishing 6 -> 0, paint 5.1 -> 0, panel 2.1 -> 0.3) | | ~118 | |
+| L4 | the soft-shell cabin over the hard keel, mast and struts | ~-10 (of the fuselage's 26.6) | | ~108 | |
+| L5 | a pinned carry-through (six pins, not the cantilever box) | ~-6 (bracing 6.9 -> ~1) | | ~102 | |
+| L6 | the light gear (a carbon blade on the monowheel) | ~-3.5 (5.5 -> ~2) | | ~98 | |
+| L7 | the real drive: a ~10 kW motor (the e-PPG 12 kW row, 7 kg) and a ~2 kWh pack, the avgas nose tank gone | ~-12 net (engines 36 -> ~13, the tank -2.8, the pack +~14) | | **~86** | |
+| | **the real aeroplane** | | | **~72** | the remaining ~14 kg: the cabin cage, the mast and the hub, to measure at L4-L5 |
+
+**A finding on the way (L7):** the card carries the Velis's E-811 electric motor (30 kg) fed from a 4 L avgas nose
+tank, with no battery. That is a leftover from the stage-1 card. The drive level fixes it.
 
 ## 5. The gaps found
 

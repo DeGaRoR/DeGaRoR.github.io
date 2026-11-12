@@ -3027,6 +3027,10 @@ const ARCHETYPES = [
                     // raised over it in a Gaussian hump, the rod's crown at the wing's highest point - rodY is the hump's
                     // own fit on this wing (_cage_wing.js hubHump), a ring with screws where the rod leaves the TE
                     rodHub: 1,
+                    // THE FOOT-LAUNCH D-TUBE WING (12 Nov, the user: "I'm definitely okay to change the wing of the
+                    // Archaeopteryx, but I want to keep track of the path"; WEIGHT_STUDY.md THE PATH): the Wing structure
+                    // tile's 9th option - the wing 47.9 -> 34.7 kg, the empty 169.1 -> 155.0 kg, certified (built for 250 kg)
+                    wgCons: 8,
                     // THE DRIVE (the user, 10-11 Nov: the engine "right in the back of the pilot at the bottom", on the aft
                     // bulkhead - "the pillar is where the aft bulkhead is where the engine is"): the pusher on the
                     // bulkhead, no cowl; a shaft aft (cw_noseOff) to the small prop just past the aft pod's tip, its

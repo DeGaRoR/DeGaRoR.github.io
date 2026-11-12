@@ -614,7 +614,7 @@ const GEN_SURF_MATERIALS = {
   dtube:  Object.assign({}, GEN_MATERIALS.carbon, { name: 'foot-launch D-tube', shop: 'composite', cover: 0.6,
             lin: Object.assign({}, GEN_MATERIALS.carbon.lin, { wing: GEN_MATERIALS.carbon.lin.wing * 0.3 }),
             k: Object.assign({}, GEN_MATERIALS.carbon.k, { wing: GEN_MATERIALS.carbon.k.wing * 0.5 }),
-            refGross: 190, buildKg: 250, noFloor: true,
+            refGross: 190, buildKg: 250, noFloor: true, kFloorK: 0.7,
             tail: { cover: 0.70, section: 0.10 } }),
 };
 // what a surface that says nothing is built of, by the fuselage it hangs on.
