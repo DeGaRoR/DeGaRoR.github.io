@@ -166,7 +166,7 @@ function rowS() {
     uniforms: /uCrackN: \{ value: 0 \}/.test(shared) && /tCrack: \{ value: aeroCrackNone\(THREE\) \}/.test(shared) && /uCrackMat: \{ value: 0 \}/.test(shared) && new RegExp('uCrackP: \\{ value: Array\\.from\\(\\{ length: ' + DG.MAX + ' \\}').test(shared) && new RegExp('uCrackQ: \\{ value: Array\\.from\\(\\{ length: ' + DG.MAX + ' \\}').test(shared),
     gates: hook.indexOf('abs(dot(dgD, dgN)) > ' + DG.GATE_DN) >= 0 && hook.indexOf('dot(dgNf, dgN) < ' + DG.GATE_FACE) >= 0 && hook.indexOf('i < ' + DG.MAX + ';') >= 0,
     manifest: vw.indexOf('dmg_glass.js') >= 0 && vw.indexOf('dmg_glass.js') < vw.indexOf('app.js') && vw.indexOf('crack_sheet.js') >= 0 && vw.indexOf('crack_sheet.js') < vw.indexOf('app.js'),
-    sheet: /function glassSheet\(U\)/.test(app) && /if \(GLM\.P\) glassSheet\(U\);/.test(app) && /if \(CRK\.want === sh\) U\.tCrack\.value = t;/.test(app),
+    sheet: /function glassSheet\(U, look\)/.test(app) && /if \(GLM\.P\) glassSheet\(U\);/.test(app) && /if \(CRK\.want === sh\) U\.tCrack\.value = t;/.test(app),
     app: /if \(!inGarage\) glassMarks\(\);/.test(app) && /window\.FLYDIY_GLASS_TEST = /.test(app) && app.indexOf('glassMarks();') > app.indexOf('function poseModel('),
   };
   const bad = Object.keys(chk).filter(x => !chk[x]);
