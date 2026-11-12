@@ -36,6 +36,37 @@ const quadRows = pre => [1, 2, 3, 4].flatMap(c => ['Z', 'Y'].map(a => [
                     return U && U.P && G2 && G2.cageQuadRect ? G2.cageQuadRect(U.P, pre)[c - 1][a === 'Z' ? 0 : 1] : null; },
     followTitle: 'follows the rectangle (width, height, top width, top shift); untick - or drag its handle on the ' +
                  'bench - to place this corner (tick again: back to the rectangle)' }]));
+// MORE ROWS (11 Nov, FIT-PROCEDURE; the user: "more than 3 possible rows of windows ... a lot of personality"): rows
+// 4-6 are row 3's controls on win4*-win6*, every key absent until the row is used (_cage_gen.js CAGE_WIN_ABSENT: the
+// value a row shows while absent), so no saved build carries them or moves
+const winRowMore = (n) => {
+  const pre = 'win' + n, A = (window.CAGE2 && window.CAGE2.CAGE_WIN_ABSENT) ||
+    { N: 0, Shape: 0, Z: 1.6, Pitch: 0.75, Y: 0.40, W: 0.40, H: 0.32, R: 0.06, Depth: 0.006, TopK: 1, Skew: 0, R1: -1, R2: -1, R3: -1, R4: -1 };
+  const on = P => +P[pre + 'N'] > 0, ab = k => ({ absent: A[k] });
+  const rad = (k, lab) => [pre + k, 'radius · ' + lab, -0.01, 0.45, 0.005,
+    Object.assign({ when: P => on(P) && +P[pre + 'Shape'] !== 1, dim: 'len', link: { sentinel: -1, from: pre + 'R', test: v => v == null || v < 0 } }, ab(k))];
+  return ['row ' + n, [
+    [pre + 'N', 'windows', 0, 4, 1, Object.assign({
+      note: P => { const R = (window.CAGE_UI && window.CAGE_UI.windowsRefused) || [];
+                   const own = R.filter(w => w.row === n && /^quad:/.test(w.refused || ''));
+                   if (own.length) return own.map(w => 'window ' + (w.i + 1) + ': ' + w.refused.slice(6)).join('; ');
+                   const k = R.filter(w => w.row === n).length;
+                   return k ? k + (k > 1 ? ' overlap earlier windows' : ' overlaps an earlier window') + ' — not cut until moved' : ''; } }, ab('N'))],
+    [pre + 'Shape', 'shape', 0, 2, 1, ['rounded', 'oval', 'quad'], Object.assign({ when: on }, ab('Shape'))],
+    ...quadRows(pre),
+    [pre + 'Z',     'first station',  -6.0, 3.5, 0.01, Object.assign({ when: on, dim: 'len' }, ab('Z'))],
+    [pre + 'Pitch', 'pitch',           0.2, 1.5, 0.01, Object.assign({ when: P => +P[pre + 'N'] > 1, dim: 'len' }, ab('Pitch'))],
+    [pre + 'Y',     'centre height',  -1.0, 1.2, 0.01, Object.assign({ when: on, dim: 'len' }, ab('Y'))],
+    [pre + 'W',     'width',           0.05, 1.5, 0.01, Object.assign({ when: on, dim: 'len' }, ab('W'))],
+    [pre + 'H',     'height',          0.05, 1.0, 0.01, Object.assign({ when: on, dim: 'len' }, ab('H'))],
+    [pre + 'TopK',  'top width ×',     0.0, 2.0, 0.01, Object.assign({ when: P => on(P) && !+P[pre + 'Shape'] }, ab('TopK'))],
+    [pre + 'Skew',  'top shift',      -0.6, 0.6, 0.005, Object.assign({ when: P => on(P) && !+P[pre + 'Shape'], dim: 'len' }, ab('Skew'))],
+    [pre + 'R',     'corner radius',   0.0, 0.45, 0.005, Object.assign({ when: P => on(P) && +P[pre + 'Shape'] !== 1, dim: 'len' }, ab('R'))],
+    rad('R1', 'fwd top'), rad('R2', 'aft top'), rad('R3', 'aft bottom'), rad('R4', 'fwd bottom'),
+    [pre + 'Depth', 'reveal depth',    0.0, 0.03, 0.001, Object.assign({ when: on, dim: 'len' }, ab('Depth'))],
+    [pre + 'Bulge', 'bubble',          0.0, 0.2, 0.005, { when: on, absent: 0, dim: 'len' }],
+  ], {}];
+};
 // AFT-BULKHEAD (3 Nov): the aft wall's rows show with the panel on; the wall's own rows give way to the sling, which
 // is the tube construction's (intCons 1, 'tube' in the generator's consG) and draws no wall
 const bhSling = P => +P.intOn && +P.intBulk && Math.round(+P.intCons || 0) === 1 && !!+P.bhSling;
@@ -560,7 +591,10 @@ window.CAGE_PAGE = {
     ['4 · cabin', [
       ['dimensions', [
         // seating starter select injected below
-        ['pilotLen',  'length',         0.30, 2.00, 0.01, { dim: 'len' }],
+        // (11 Nov, FIT-PROCEDURE: from 0.10 - the pilot door is the quarter bay PLUS this bay, and a long windscreen
+        // run (the PC-6's 45 deg A-pillar) left a door 0.92 m wide, through the first cabin window; the generator
+        // always took any length - only the slider stopped at 0.30)
+        ['pilotLen',  'length',         0.10, 2.00, 0.01, { dim: 'len' }],
         // (halfW / roofHalfW / roofY / keelY are the frames' REFERENCE
         // SECTION since T2.1; the lean rows became the frames' fore/aft)
         ['floorY',    'floor height',  -1.20, 0.00, 0.005, { dim: 'len' }],
@@ -1076,6 +1110,7 @@ window.CAGE_PAGE = {
         // BUBBLE-WINDOWS (the user 7 Nov): blown out into a blister this far at its centre (0 = the flat pane, set in)
         ['win3Bulge',   'bubble',          0.0, 0.2, 0.005, { when: P => +P.win3N > 0, absent: 0, dim: 'len' }],
       ], {}],
+      winRowMore(4), winRowMore(5), winRowMore(6),
     ]],
     ['5 · passengers', [
       // (G3578: up to twelve - a bay a row or two, the user's DC-3; 5-12 absent at 0, every build before to the bit)

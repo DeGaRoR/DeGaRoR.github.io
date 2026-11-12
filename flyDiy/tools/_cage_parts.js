@@ -423,6 +423,9 @@ const CAGE_PARTS = [
       ['row 3', ['win3N', 'win3Shape', 'win3Z', 'win3Pitch', 'win3Y', 'win3W', 'win3H',
                  'win3TopK', 'win3Skew', 'win3R', 'win3R1', 'win3R2', 'win3R3', 'win3R4', 'win3Depth', 'win3Bulge',
                  'win3Q1Z', 'win3Q1Y', 'win3Q2Z', 'win3Q2Y', 'win3Q3Z', 'win3Q3Y', 'win3Q4Z', 'win3Q4Y']],
+      // (11 Nov: rows 4-6, win4*-win6*, row 3's controls)
+      ...[4, 5, 6].map(n => ['row ' + n, ['N', 'Shape', 'Z', 'Pitch', 'Y', 'W', 'H', 'TopK', 'Skew', 'R', 'R1', 'R2', 'R3', 'R4',
+        'Depth', 'Bulge', 'Q1Z', 'Q1Y', 'Q2Z', 'Q2Y', 'Q3Z', 'Q3Y', 'Q4Z', 'Q4Y'].map(k => 'win' + n + k)]),
     ] },
 
   { key: 'pilotWindow', name: 'pilot window', parent: 'glazing', layer: 'cage',
