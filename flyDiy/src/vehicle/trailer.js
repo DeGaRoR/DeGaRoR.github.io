@@ -39,7 +39,14 @@ const TR_G = 9.81;
 // (pitchDeg: the cradle's attitude - the build's frame turned nose-up by it about its CG before it is read)
 function trailerKeel(sim, pitchDeg, P0) {
   const n = sim.n, p = P0 || sim.p, A = sim.axes(), cg = sim.cgPos();
-  const F = [-A[0][0], -A[0][1], -A[0][2]], U = A[1], R = A[2];
+  // (an ORTHONORMAL frame: the solver's axes are read off the nose/tail and the up nodes and need not be square - the
+  //  page's joined floatplane's were not, and a seat projected onto them sheared the airframe: 20 members broke in the
+  //  first step on its bunks. Forward as read, up made square to it, right their cross)
+  const nz = v => { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
+  const F = nz([-A[0][0], -A[0][1], -A[0][2]]), ud = A[1][0] * F[0] + A[1][1] * F[1] + A[1][2] * F[2];
+  const U = nz([A[1][0] - ud * F[0], A[1][1] - ud * F[1], A[1][2] - ud * F[2]]);
+  let R = [F[1] * U[2] - F[2] * U[1], F[2] * U[0] - F[0] * U[2], F[0] * U[1] - F[1] * U[0]];
+  if (R[0] * A[2][0] + R[1] * A[2][1] + R[2] * A[2][2] < 0) R = [-R[0], -R[1], -R[2]];
   const th = (pitchDeg || 0) * Math.PI / 180, ct = Math.cos(th), st = Math.sin(th);
   const loc0 = i => { const dx = p[i * 3] - cg[0], dy = p[i * 3 + 1] - cg[1], dz = p[i * 3 + 2] - cg[2];
     return [dx * F[0] + dy * F[1] + dz * F[2], dx * U[0] + dy * U[1] + dz * U[2], dx * R[0] + dy * R[1] + dz * R[2]]; };

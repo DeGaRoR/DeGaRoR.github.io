@@ -433,7 +433,8 @@ GATE TRAILER (core, ~2 min): FIT (4 pads on the two float keels, 100 % on the bu
 the ball 872 N - 9.6 % of the train, the nose 2.0 m behind the ball), FLOATS (the Twin-582 floatplane: the latch opens
 10 s on at 22.9 m/s - 1.3 VRot - 131 m down 13/31, off the bunks at 13 s, 222 m up at 48 s; the car stopped 386 m down,
 the ball 1.5 kN at most), HULL (the classic-V flying boat off the Cessna-on-floats build, fixture
-trailer_hull_classic_pylon.json: open at 34 m/s, 381 m down; 63 m up), HOLD (idle, the car under VRot: abandoned 20 s on
+trailer_hull_classic_pylon.json: open at 26.8 m/s, 183 m down; 232 m up), JOINED (the floatplane as the game loads it,
+through the garage's chain: nothing broken on its bunks), HOLD (idle, the car under VRot: abandoned 20 s on
 and stopped, the plane on its bunks, the latch shut), PERF (the cradle: no measurable cost on the floatplane's frame -
 10.1 ms on the trailer against 10.6 standing on its floats on the runway; the trailer 10 us), MODEL (the counts above, in
 node with three.js r186), PAGE (drive_mode.js RUN in node on the island: the drive mode, the glider tow and the trailer
@@ -448,5 +449,9 @@ share, "pull at"); "Back to the water" undoes it. INLINE (the cradle acts in the
 FOUND ON THE WAY: phase 2's graph rewrite of drive_mode.js had deleted buildRig / poseRig / placeNear / placeName - the
 page's drive and tow modes threw on entry; restored, and PAGE now runs the modes in node so a missing function fails a
 gate, not the player.
+FOUND BY THE PAGE RIG (12 Nov): in the game the floatplane broke up on its bunks in the first step ("the fuselage parted")
+- the seat projected the build onto the solver's axes, which are read off the nose / tail / up nodes and are NOT square on
+the game's joined build: a shear, 20 members broken. The seat's frame is now made orthonormal; the launch rows fail on
+any member broken and JOINED seats the game's own build. (The flying boat's axes were skewed too: its launch improved.)
 Open: the pilot's ROLL on a cradle (the autopilot's take-off from the trailer); landing back on the trailer (out of
 scope); the trailer at the other aerodromes' strips (the runway nearest is taken; HOME's first).

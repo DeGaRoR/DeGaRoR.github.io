@@ -14,6 +14,7 @@
 //   HULL    the flying boat's: a keel and its chines on the bunks; the same launch
 //   HOLD    the floatplane at idle, the car short of its rotation speed: no lift-off - the car gives up 20 s on and
 //           stops, the plane still on its bunks (the bunks and the latch hold it through the run and the braking)
+//   JOINED  the floatplane as the game loads it (the garage's chain) seated: nothing breaks (the seat's frame square)
 //   PERF    the cradle's cost on the aeroplane's frame; the trailer's own a frame
 //   MODEL   the trailer's model in node (three.js): its triangles, draw calls, materials, its size; the build's time
 //   PAGE    drive_mode.js run in node on the island (three.js, the lazy modules as the page loads them): the drive
@@ -83,6 +84,7 @@ function run(which, o) {
     if (fr % 15 === 0) for (const c of car.footprint()) { const sf = W.surface(c[0], c[1]); if (sf !== 5 && sf !== 6) out.soft++; }
   }
   out.loadEnd = L.cradle.loadAvg; out.keelEnd = L.keelUp; out.carEnd = car.out.u;
+  { const d = sim.damage(); out.broken = d.broken.length; out.firstBreak = d.firstBreak; }
   { const cp = car.refPoint(); out.carX = (cp[0] - P0.x) * dx + (cp[2] - P0.z) * dz; }
   return out;
 }
@@ -103,7 +105,7 @@ let FL = null;
 {
   const R = FL = run('floats', { T: 50 });
   const o = R.open, ok = !R.bad && o && /wing carries it/.test(o.why || '') && o.V > 1.0 * o.vRot && o.V < 1.7 * o.vRot && o.x < 450 && R.clear && R.maxH > 100 &&
-    Math.abs(R.carEnd) < 0.5 && R.soft === 0 && R.ballMax < 5000 && R.carX < dl - 50;
+    Math.abs(R.carEnd) < 0.5 && R.soft === 0 && R.ballMax < 5000 && R.carX < dl - 50 && R.broken === 0;
   row('FLOATS', ok, 'the floatplane down 13/31 behind the Conquer (to ' + Math.round(R.R.L.vCar * 3.6) + ' km/h, 1.6 VRot): the latch open ' + (o ? f(o.t) + ' s on at ' + f(o.V) + ' m/s (' + f(o.V / o.vRot, 2) + ' VRot), ' + f(o.x, 0) + ' m down the runway - ' + o.why : 'NEVER') +
     '; off the bunks ' + (R.clear ? f(R.clear.t) + ' s' : 'NEVER') + '; ' + f(R.maxH, 0) + ' m up at 48 s; the car stopped ' + f(R.carX, 0) + ' m down the runway (of ' + f(dl, 0) + '), on it (' + R.soft + ' samples off), the ball ' + f(R.ballMax / 1000, 2) + ' kN at most');
 }
@@ -111,16 +113,30 @@ let FL = null;
 {
   const R = run('hull', { T: 55 }), o = R.open, fit = R.R.L.fit;
   const nK = fit.pads.filter(p => p.kind === 'keel').length, nC = fit.pads.filter(p => p.kind === 'chine').length;
-  const ok = !R.bad && fit.kind === 'hull' && nK === 2 && nC === 4 && o && /wing carries it/.test(o.why || '') && o.x < 900 && R.clear && R.maxH > 30 && Math.abs(R.carEnd) < 0.5 && R.soft === 0 && R.carX < dl - 50;
+  const ok = !R.bad && fit.kind === 'hull' && nK === 2 && nC === 4 && o && /wing carries it/.test(o.why || '') && o.x < 900 && R.clear && R.maxH > 30 && Math.abs(R.carEnd) < 0.5 && R.soft === 0 && R.carX < dl - 50 && R.broken === 0;
   row('HULL', ok, 'the classic-V flying boat (' + f(R.R.sim.totalM, 0) + ' kg, a pylon O-540): ' + nK + ' keel pads (rollers), ' + nC + ' chine pads (bunks); the latch open ' + (o ? f(o.t) + ' s on at ' + f(o.V) + ' m/s (' + f(o.V / o.vRot, 2) + ' VRot), ' + f(o.x, 0) + ' m down' : 'NEVER') +
     '; off the bunks ' + (R.clear ? f(R.clear.t) + ' s' : 'NEVER') + ', ' + f(R.maxH, 0) + ' m up; the car stopped ' + f(R.carX, 0) + ' m down the runway (' + R.soft + ' samples off)');
 }
 // ---- HOLD ----
 {
   const R = run('floats', { T: 70, idle: true, launch: { vCar: 15 } });
-  const ok = !R.bad && R.abort && !R.open && R.keelMax < 0.03 && Math.abs(R.loadEnd - 1) < 0.08 && Math.abs(R.carEnd) < 0.3 && R.soft === 0;
+  const ok = !R.bad && R.abort && !R.open && R.keelMax < 0.03 && Math.abs(R.loadEnd - 1) < 0.08 && Math.abs(R.carEnd) < 0.3 && R.soft === 0 && R.broken === 0;
   row('HOLD', ok, 'the floatplane at idle, the car at 54 km/h (under its 1.05 VRot): ' + (R.abort ? 'the run abandoned ' + f(R.abort.t, 0) + ' s on - ' + R.abort.why : 'NOT abandoned') + '; the latch ' + (R.open ? 'OPENED' : 'shut') +
     '; the keel ' + f(R.keelMax * 100, 1) + ' cm over its bunks at most; at the end the car at ' + f(R.carEnd, 2) + ' m/s, the bunks carrying ' + f(R.loadEnd * 100, 0) + ' %');
+}
+// ---- JOINED: the floatplane as the GAME loads it (the garage's chain, _load_build.js gameSpecFull: the join measured) -
+//      the page's build, not the card's: its solver axes are not square (the seat once sheared it - 20 members broken in
+//      the page's first step on the bunks, found by the page rig, 12 Nov) ----
+{
+  const LB = require('./_load_build.js');
+  const sp = LB.gameSpecFull({ spec: DS.designBake(A.sel, A.over) }).spec;
+  DEF.joined = C.buildGen(C.genMigrateSpec(sp));
+  const R = rig('joined'), { sim, car, L } = R;
+  sim.stance && sim.stance();
+  let keelMin = 0;
+  for (let i = 0; i < 180; i++) { L.before(); sim.step(1 / 60); L.after(1 / 60); car.ctl.brake = 1; car.step(1 / 60); L.carAfter(1 / 60); keelMin = Math.min(keelMin, L.keelUp); }
+  const d = sim.damage();
+  row('JOINED', d.broken.length === 0 && !sim.stats().bad && Math.abs(L.cradle.loadAvg - 1) < 0.06 && keelMin > -0.04, 'the floatplane as the game loads it (the garage\'s chain), 3 s on its bunks: ' + d.broken.length + ' members broken' + (d.firstBreak ? ' (first: beam ' + d.firstBreak.beam + ', ' + d.firstBreak.cls + ', ' + d.firstBreak.how + ')' : '') + ', the bunks carry ' + f(L.cradle.loadAvg * 100, 0) + ' %, give ' + f(-keelMin * 100, 1) + ' cm');
 }
 // ---- PERF: the aeroplane's frame on the trailer (the cradle) against standing on the runway ----
 {
