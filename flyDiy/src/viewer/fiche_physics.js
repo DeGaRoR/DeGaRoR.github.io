@@ -503,6 +503,41 @@
   // ===================================================================================================================
   // WHAT THE SIM FLIES - the plan large on the left (nose up), the side view and the key on the right
   // ===================================================================================================================
+  // the model's three views drawn through the maps V ({ plan, front, side }.f: model point -> page point) at one scale s
+  // (the desktop's three-view and the phone's stacked one share it)
+  function modelDraw(D, o, th, K, V, s, out) {
+    const M = D.model, n = M.nodes, Dp = M.prop.D || 1.8, eng = M.prop.at || [0, 1, 0];
+    const discs = (M.prop.discs && M.prop.discs.length) ? M.prop.discs : [[eng[0], eng[1], 0, 0]];
+    out.push(`<defs><filter id="mg"><feColorMatrix type="saturate" values="0"/></filter><pattern id="mh" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="5" stroke="${CAT.fittings}" stroke-width="1.8"/></pattern></defs>`);
+    // the ghosts: picture pixel = R(rot) proj(p) s + o (fitFrame), so proj(p) = R(-rot)(pixel - o) / s
+    for (const vk of ['plan', 'side', 'front']) { const pc = o.pics && o.pics[vk]; if (!pc || !pc.frame) continue;
+      const O = V[vk].f([0, 0, 0]), f = V[vk].sc / pc.s;
+      out.push(`<image href="${pc.href}" width="${pc.W}" height="${pc.H}" transform="translate(${O[0].toFixed(2)} ${O[1].toFixed(2)}) scale(${f.toFixed(5)}) rotate(${(-(pc.frame.rot || 0)).toFixed(2)}) translate(${-pc.frame.ox} ${-pc.frame.oy})" opacity="${th.ghost}" filter="url(#mg)"/>`); }
+    const quad = (st, P, hatch) => {
+      const F0 = P3(M, st[0]), F1 = P3(M, st[1]), R0 = P3(M, st[2]), R1 = P3(M, st[3]), ch = st[4], cs = hatch ? st[6] : 0;
+      const at = (F, R, t) => { const d = [0, 1, 2].map(q => R[q] - F[q]), Ln = Math.hypot(...d) || 1; return [0, 1, 2].map(q => F[q] + d[q] / Ln * ch * (t - 0.15)); };
+      const hinge = 1 - cs, poly = (pts, attr) => `<path d="M${pts.map(q => q[0].toFixed(1) + ' ' + q[1].toFixed(1)).join(' L')} Z" ${attr}/>`;
+      return poly([at(F0, R0, 0), at(F1, R1, 0), at(F1, R1, hinge), at(F0, R0, hinge)].map(P), K.fillAttr(CAT.structure, (th.base || th) === THEMES.sheet ? 0.32 : 0.18)) +
+        (cs > 0 ? poly([at(F0, R0, hinge), at(F1, R1, hinge), at(F1, R1, 1), at(F0, R0, 1)].map(P), `fill="url(#mh)" stroke="${CAT.fittings}" stroke-width="0.9"`) : '');
+    };
+    const pl = V.plan.f, sd = V.side.f, fr = V.front.f;
+    for (const st of M.strips) if (M.KIND[st[5]] !== 'fin') out.push(quad(st, pl, true));
+    for (const st of M.strips) if (M.KIND[st[5]] === 'fin') out.push(quad(st, sd, true));
+    for (const st of M.strips) out.push(quad(st, fr, false));
+    for (const b of M.beams) { if (b[3]) continue; const A = P3(M, b[0]), B = P3(M, b[1]); out.push(K.L(pl(A), pl(B), th.member, 0.7) + K.L(sd(A), sd(B), th.member, 0.6) + K.L(fr(A), fr(B), th.member, 0.6)); }
+    const ring = (q, rr) => `<circle cx="${q[0].toFixed(1)}" cy="${q[1].toFixed(1)}" r="${rr.toFixed(1)}" fill="${th.ink}" fill-opacity=".1" stroke="${th.ink}" stroke-width="1.3" stroke-dasharray="4 3"/>`;
+    const drag = (p, a) => { const r = Math.sqrt(Math.max(0, a) / Math.PI); out.push(ring(pl(p), r * s) + ring(sd(p), r * s) + ring(fr(p), r * s)); };
+    if (M.drag.fwd) drag(M.drag.fwd, M.drag.cda[0]);
+    if (M.drag.aft) drag(M.drag.aft, (M.drag.cdaAft[1] || 0) * 0.25);
+    for (const q of discs) { const c = fr([q[0], q[1], q[2]]);
+      out.push(K.L(pl([q[0], 0, q[2] - Dp / 2]), pl([q[0], 0, q[2] + Dp / 2]), CAT.engine, 3) + K.L(sd([q[0], q[1] - Dp / 2, 0]), sd([q[0], q[1] + Dp / 2, 0]), CAT.engine, 2.6) +
+        `<circle cx="${c[0].toFixed(1)}" cy="${c[1].toFixed(1)}" r="${(Dp / 2 * s).toFixed(1)}" fill="${CAT.engine}" fill-opacity=".08" stroke="${CAT.engine}" stroke-width="2"/>`); }
+    const box = (q, h) => `<rect x="${(q[0] - h).toFixed(1)}" y="${(q[1] - h).toFixed(1)}" width="${2 * h}" height="${2 * h}" ${K.fillAttr(CAT.gear, 0.95)}/>`;
+    for (const i of M.contacts) { const p = P3(M, i); out.push(box(pl(p), 4.5) + box(sd(p), 4) + box(fr(p), 4)); }
+    if (M.floats) for (const q of byTag(M, 'FLK')) out.push(box(pl(q), 2.5) + box(fr(q), 2.5));
+    const dot = (q, r) => `<circle cx="${q[0].toFixed(1)}" cy="${q[1].toFixed(1)}" r="${r.toFixed(1)}" fill="${th.ink}" fill-opacity=".72"/>`;
+    for (const q of n) if (q[3] > 0.05) { const r = Math.sqrt(q[3]); out.push(dot(pl(q), Math.max(1.1, r * 1.1)) + dot(sd(q), Math.max(0.9, r * 0.85)) + dot(fr(q), Math.max(0.9, r * 0.85))); }
+  }
   function pageModel(D, o, th, K) {
     // THE THREE VIEWS, as large as the sheet allows: from above (nose up) on the left, the side and the front on the right
     // at one scale, one legend row under them. The rendered plane is the grey ghost behind each view (its fitted frame).
@@ -535,35 +570,7 @@
     { const zs2 = [E.plan[0], E.plan[1]], dash = '2 5';
       for (const z of zs2) out.push(K.L([xc + z * s, yP + hP + 6], [xc + z * s, yV - 22], th.member, 0.8, dash));
       for (const y of [E.side[2], E.side[3]]) out.push(K.L([xc + half * s + 8, yV + (y - vTop) * s], [xR - 8, yV + (y - vTop) * s], th.member, 0.8, dash)); }
-    out.push(`<defs><filter id="mg"><feColorMatrix type="saturate" values="0"/></filter><pattern id="mh" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="5" stroke="${CAT.fittings}" stroke-width="1.8"/></pattern></defs>`);
-    // the ghosts: picture pixel = R(rot) proj(p) s + o (fitFrame), so proj(p) = R(-rot)(pixel - o) / s
-    for (const vk of ['plan', 'side', 'front']) { const pc = o.pics && o.pics[vk]; if (!pc || !pc.frame) continue;
-      const O = V[vk].f([0, 0, 0]), f = V[vk].sc / pc.s;
-      out.push(`<image href="${pc.href}" width="${pc.W}" height="${pc.H}" transform="translate(${O[0].toFixed(2)} ${O[1].toFixed(2)}) scale(${f.toFixed(5)}) rotate(${(-(pc.frame.rot || 0)).toFixed(2)}) translate(${-pc.frame.ox} ${-pc.frame.oy})" opacity="${th.ghost}" filter="url(#mg)"/>`); }
-    const quad = (st, P, hatch) => {
-      const F0 = P3(M, st[0]), F1 = P3(M, st[1]), R0 = P3(M, st[2]), R1 = P3(M, st[3]), ch = st[4], cs = hatch ? st[6] : 0;
-      const at = (F, R, t) => { const d = [0, 1, 2].map(q => R[q] - F[q]), Ln = Math.hypot(...d) || 1; return [0, 1, 2].map(q => F[q] + d[q] / Ln * ch * (t - 0.15)); };
-      const hinge = 1 - cs, poly = (pts, attr) => `<path d="M${pts.map(q => q[0].toFixed(1) + ' ' + q[1].toFixed(1)).join(' L')} Z" ${attr}/>`;
-      return poly([at(F0, R0, 0), at(F1, R1, 0), at(F1, R1, hinge), at(F0, R0, hinge)].map(P), K.fillAttr(CAT.structure, (th.base || th) === THEMES.sheet ? 0.32 : 0.18)) +
-        (cs > 0 ? poly([at(F0, R0, hinge), at(F1, R1, hinge), at(F1, R1, 1), at(F0, R0, 1)].map(P), `fill="url(#mh)" stroke="${CAT.fittings}" stroke-width="0.9"`) : '');
-    };
-    const pl = V.plan.f, sd = V.side.f, fr = V.front.f;
-    for (const st of M.strips) if (M.KIND[st[5]] !== 'fin') out.push(quad(st, pl, true));
-    for (const st of M.strips) if (M.KIND[st[5]] === 'fin') out.push(quad(st, sd, true));
-    for (const st of M.strips) out.push(quad(st, fr, false));
-    for (const b of M.beams) { if (b[3]) continue; const A = P3(M, b[0]), B = P3(M, b[1]); out.push(K.L(pl(A), pl(B), th.member, 0.7) + K.L(sd(A), sd(B), th.member, 0.6) + K.L(fr(A), fr(B), th.member, 0.6)); }
-    const ring = (q, rr) => `<circle cx="${q[0].toFixed(1)}" cy="${q[1].toFixed(1)}" r="${rr.toFixed(1)}" fill="${th.ink}" fill-opacity=".1" stroke="${th.ink}" stroke-width="1.3" stroke-dasharray="4 3"/>`;
-    const drag = (p, a) => { const r = Math.sqrt(Math.max(0, a) / Math.PI); out.push(ring(pl(p), r * s) + ring(sd(p), r * s) + ring(fr(p), r * s)); };
-    if (M.drag.fwd) drag(M.drag.fwd, M.drag.cda[0]);
-    if (M.drag.aft) drag(M.drag.aft, (M.drag.cdaAft[1] || 0) * 0.25);
-    for (const q of discs) { const c = fr([q[0], q[1], q[2]]);
-      out.push(K.L(pl([q[0], 0, q[2] - Dp / 2]), pl([q[0], 0, q[2] + Dp / 2]), CAT.engine, 3) + K.L(sd([q[0], q[1] - Dp / 2, 0]), sd([q[0], q[1] + Dp / 2, 0]), CAT.engine, 2.6) +
-        `<circle cx="${c[0].toFixed(1)}" cy="${c[1].toFixed(1)}" r="${(Dp / 2 * s).toFixed(1)}" fill="${CAT.engine}" fill-opacity=".08" stroke="${CAT.engine}" stroke-width="2"/>`); }
-    const box = (q, h) => `<rect x="${(q[0] - h).toFixed(1)}" y="${(q[1] - h).toFixed(1)}" width="${2 * h}" height="${2 * h}" ${K.fillAttr(CAT.gear, 0.95)}/>`;
-    for (const i of M.contacts) { const p = P3(M, i); out.push(box(pl(p), 4.5) + box(sd(p), 4) + box(fr(p), 4)); }
-    if (M.floats) for (const q of byTag(M, 'FLK')) out.push(box(pl(q), 2.5) + box(fr(q), 2.5));
-    const dot = (q, r) => `<circle cx="${q[0].toFixed(1)}" cy="${q[1].toFixed(1)}" r="${r.toFixed(1)}" fill="${th.ink}" fill-opacity=".72"/>`;
-    for (const q of n) if (q[3] > 0.05) { const r = Math.sqrt(q[3]); out.push(dot(pl(q), Math.max(1.1, r * 1.1)) + dot(sd(q), Math.max(0.9, r * 0.85)) + dot(fr(q), Math.max(0.9, r * 0.85))); }
+    modelDraw(D, o, th, K, V, s, out);
     // the legend: a list above the side view, then a scale bar (the three views share it)
     const kg = n.reduce((a, q) => a + q[3], 0);
     let LY = yP + 6;
@@ -695,7 +702,75 @@
     C.text(Dg.floats ? '* the core charges the floats as the wheeled gear they replace: the hulls have no air drag of their own yet'
       : 'Each km/h: the cruise worked out again with only that part\'s drag taken off. They do not add up.', { sz: 12, c: Dg.floats ? th.warn : 'faint' });
   }
-  const PHONE = { drag: phoneDrag };
+  function phoneReference(D, o, th, K, C) {
+    const R = D && D.reference;
+    const band = s => s == null ? [th.faint, 'no data'] : s >= 80 ? [(th.base || th) === THEMES.sheet ? '#6f8a3a' : '#a3c96f', 'close'] : s >= 60 ? [th.warn, 'fair'] : [th.bad, 'far'];
+    if (!R) { phoneHead(C, o, 'Reference', 'No real aeroplane to set this one against'); return; }
+    phoneHead(C, o, 'Reference · against the real one · REAL-FIGURES, ' + R.date, 'Against the ' + R.refName);
+    const [gc, gw] = band(R.overall), AX = ['geometry', 'specs', 'performance'], NM = { geometry: 'Geometry', specs: 'Specs', performance: 'Performance' };
+    // the score and the triangle, side by side
+    C.gap(6).figure(150, (x, y, w) => {
+      const s = [K.T(x, y + 52, R.overall == null ? '—' : r0(R.overall), { sz: 48, w: 600, c: gc }), K.T(x, y + 74, '/ 100 · ' + gw, { sz: 13, c: th.dim })];
+      if (R.conf) s.push(K.T(x, y + 92, 'evidence ' + R.conf, { sz: 13, c: th.dim }));
+      const cx = x + w - 78, cy = y + 80, Rr = 50, ang = i => -Math.PI / 2 + i * 2 * Math.PI / 3, pt = (i, v) => [cx + Math.cos(ang(i)) * Rr * v / 100, cy + Math.sin(ang(i)) * Rr * v / 100];
+      for (const lv of [50, 100]) s.push(`<polygon points="${AX.map((a, i) => pt(i, lv).map(v => v.toFixed(1)).join(',')).join(' ')}" fill="none" stroke="${th.rule}" stroke-width="1"/>`);
+      s.push(`<polygon points="${AX.map((a, i) => pt(i, R[a] || 0).map(v => v.toFixed(1)).join(',')).join(' ')}" fill="${gc}" fill-opacity=".28" stroke="${gc}" stroke-width="2"/>`);
+      AX.forEach((a, i) => { const q = pt(i, 122); s.push(K.T(q[0], q[1] + (i === 0 ? -2 : 12), NM[a].slice(0, 4) + '. ' + (R[a] == null ? '—' : r0(R[a])), { sz: 11, a: 'middle', c: band(R[a])[0], w: 600 })); });
+      return s.join('');
+    });
+    for (const a of AX) { const [c, w] = band(R[a]);
+      C.figure(44, (x, y, ww) => K.T(x, y + 18, NM[a], { sz: 15, w: 600 }) + K.T(x + ww, y + 18, (R[a] == null ? '—' : r0(R[a])) + ' / 100', { sz: 15, w: 600, c, a: 'end' }) +
+        `<rect x="${x}" y="${y + 26}" width="${ww}" height="7" rx="3.5" fill="${th.rule}"/><rect x="${x}" y="${y + 26}" width="${(ww * (R[a] || 0) / 100).toFixed(1)}" height="7" rx="3.5" fill="${c}"/>` +
+        K.T(x, y + 44, (R.items[a] || []).length + ' items · ' + w, { sz: 12, c: th.dim })); C.gap(6); }
+    if ((R.refs.performance || []).length || (R.refs.dimensions || []).length) {
+      C.label('References');
+      for (const t of (R.refs.performance || []).slice(0, 4).concat((R.refs.dimensions || []).slice(0, 3))) C.text('· ' + t, { sz: 13, gap: 0 });
+      C.gap(4);
+      if (R.engineNote) C.text('Not like for like: ' + R.engineNote, { sz: 12.5, c: th.warn });
+    }
+    // every item, ours vs real, worst first
+    for (const a of AX) {
+      const items = (R.items[a] || []).slice().sort((p, q) => (p.score == null ? 101 : p.score) - (q.score == null ? 101 : q.score));
+      if (!items.length) continue;
+      C.label(NM[a] + ' · ours vs real');
+      for (const it of items) {
+        const u = REF_UNIT[it.k] || '', e = it.e, c = band(it.score)[0];
+        const cut = (v, nn) => { v = String(v); return v.length > nn ? v.slice(0, nn - 1) + '…' : v; };
+        const ov = typeof it.ours === 'string' ? cut(it.ours, 14) : refVal(it.ours, it.k), rv = typeof it.ref === 'string' ? cut(it.ref, 14) : refVal(it.ref, it.k);
+        const pc = (typeof e === 'number' && isFinite(e)) ? (e >= 0 ? '+' : '−') + Math.abs(Math.round(e * 100)) + ' %' : it.score >= 100 ? 'the same' : 'different';
+        C.figure(38, (x, y, w) => K.T(x, y + 16, (REF_LABEL[it.k] || it.k) + (a === 'performance' && it.src && !/^airframe/.test(it.src) ? ' (handbook)' : ''), { sz: 13.5 }) +
+          K.T(x + w, y + 16, pc, { sz: 13.5, w: 600, c, a: 'end' }) + K.T(x, y + 32, ov + ' vs ' + rv + (u ? ' ' + u : ''), { sz: 12, c: th.dim }));
+      }
+    }
+  }
+  function phoneModel(D, o, th, K, C) {
+    const M = D.model, n = M.nodes, Dp = M.prop.D || 1.8, eng = M.prop.at || [0, 1, 0];
+    const discs = (M.prop.discs && M.prop.discs.length) ? M.prop.discs : [[eng[0], eng[1], 0, 0]];
+    phoneHead(C, o, 'Physics · what the sim flies', n.length + ' masses, ' + M.beams.length + ' members, ' + M.strips.length + ' lifting panels');
+    const VIEW = { plan: p => [p[2], p[0]], side: p => [p[0], -p[1]], front: p => [-p[2], -p[1]] };
+    const ext = vk => { const pts = n.map(q => VIEW[vk](q)), r = Dp / 2;
+      for (const q of discs) for (const d of [[0, -r, -r], [0, r, r], [0, r, -r], [0, -r, r]]) pts.push(VIEW[vk]([q[0], q[1] + d[1], q[2] + d[2]]));
+      const u = pts.map(q => q[0]), v = pts.map(q => q[1]); return [Math.min(...u), Math.max(...u), Math.min(...v), Math.max(...v)]; };
+    const E = { plan: ext('plan'), side: ext('side'), front: ext('front') };
+    const half = Math.max(Math.abs(E.plan[0]), Math.abs(E.plan[1]), Math.abs(E.front[0]), Math.abs(E.front[1]));
+    const lenP = E.plan[3] - E.plan[2], lenS = E.side[1] - E.side[0], hF = E.front[3] - E.front[2], hS = E.side[3] - E.side[2];
+    // one scale: the span across the column (the side view fits under it at the same scale)
+    const s = C.inner / Math.max(2 * half, lenS), GAP = 34, xc = C.x0 + C.inner / 2;
+    const y0 = C.y + 26, yF = y0 + lenP * s + GAP, yS = yF + hF * s + GAP, xS = C.x0 + (C.inner - lenS * s) / 2, H = (yS + hS * s) - C.y + 6;
+    const V = { plan: { sc: s, f: p => [xc + p[2] * s, y0 + (p[0] - E.plan[2]) * s] },
+                front: { sc: s, f: p => [xc - p[2] * s, yF + (-p[1] - E.front[2]) * s] },
+                side: { sc: s, f: p => [xS + (p[0] - E.side[0]) * s, yS + (-p[1] - E.side[2]) * s] } };
+    const lab = (y, t) => K.T(C.x0, y, t, { sz: 11, c: th.faint, w: 600, ls: 1.2 });
+    C.figure(H, () => { const out = [lab(y0 - 10, 'FROM ABOVE'), lab(yF - 12, 'FROM THE FRONT'), lab(yS - 12, 'FROM THE SIDE')]; modelDraw(D, o, th, K, V, s, out); return out.join(''); });
+    const kg = n.reduce((a, q) => a + q[3], 0);
+    C.label('What you see');
+    C.rows([[n.length + ' masses, ' + r0(kg) + ' kg', '', 'a dot\'s size is its weight', th.ink], [M.beams.length + ' members', '', 'springs that bend and break', th.member],
+            [M.strips.length + ' lifting panels', '', 'control surfaces hatched', CAT.structure], ['body drag area', '', 'the dashed circles', th.faint],
+            ['propeller, ' + Dp.toFixed(2) + ' m', '', null, CAT.engine], [M.floats ? 'float keels, wheels' : 'wheels', '', null, CAT.gear],
+            ['the rendered plane', '', 'the grey ghost behind', th.dim]]);
+    C.text('Scale: ' + (s >= 40 ? 2 : 4) + ' m = ' + r0((s >= 40 ? 2 : 4) * s) + ' px on this page.', { sz: 12, c: 'faint' });
+  }
+  const PHONE = { drag: phoneDrag, reference: phoneReference, physics: phoneModel };
 
   let svgSeq = 0;
   function svg(page, data, opts) {
