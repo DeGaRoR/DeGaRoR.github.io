@@ -315099,3 +315099,7 @@ READY for the GAME COORDINATOR
   (cessnaMetal gave-up, vref-raised: retire if F-HCSN completes), TAXICLEAR wingNeed 1.45 by house3/4 (G3074, the
   fixture's rotation swing), PILOTACT's C172 activity, STAGES' C172 box. Old / new numbers: the Fri 13 Nov perf-round
   slot (A0), then the ready.
+- CORRECTION (Game, 12 Nov eve): the TAXI-HOME page leg of 10:55 flew list:1, the validated Cub
+  (builds/cub_2026-09-20_corrected.json, tour_real's default build), NOT list:40 the career Cessna as written above.
+  The result stands: at rest 0.2 m from the stand, Vg 0.01. Game flies HOME.2's own stand (setArriveSite) with list:1 on
+  Fri 13 Nov 12:00-13:00.
