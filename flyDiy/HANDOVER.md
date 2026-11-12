@@ -315386,3 +315386,17 @@ session all the time". The how-to is `tools/PHOTO.md` (its status table first); 
 - **NOT DONE / NOT SEEN:** P4 tuned on a GPU (the tree step with real trees to 1 km, the frame counts, the longest task,
   a 3840x2160 picture's memory) - a LOCAL session with A0's box slot; the control surfaces / prop and the camera's roll
   set from a scene (the loader says so); QuickShot `--scene` and moving the old *_shot.js rigs onto scene files (optional).
+
+### PHOTO-MODE-2 - READY FOR A0 (12 Nov 23:35 UTC): rebased on master 23ce68c1f (L39b), gated, pushed
+
+A0 asked (cross-session, 12 Nov ~23:05) for a rebase onto 23ce68c1f, the gates and a clean branch; this cloud session
+cannot message A0's local session back (refused: a cloud session may not reach the owner's computer), so the answer is here.
+- **Branch** `claude/optimistic-dirac-1zu6u1`: 15 commits on 23ce68c1f (the source replayed, ONE "(built)" commit on top,
+  then a doc commit). Conflicts met and resolved: `src/core/90_node_exports.js` (master's export line + the scene /
+  placePose names), `tools/quickshot.js` (master's qr / qp views + the `--scene` view), HANDOVER (both appended).
+- **BATTERY (on the rebased tree, 23:12-23:33): PASS 14 / 14** - PHOTO, SCENE, SCENEPAGE (618 s, inline + simw), GFX,
+  UISMOKE, UISMOKE-PHONE, UISMOKE-PHONEFLY, UILAYER, STORY, AUDIO, SIMWORKER, SIMWORKER-PLACE (1281 s: simHostPlace /
+  sim_link's place took a `pose` / `seat` option), BUILT, BUILD. Not run: the rest of the core and the full tiers.
+- **The GPU slot (Sat 09:15-10:00):** `tools/PHOTO.md` §2.1 is the check, step by step (the flight scene plain / high
+  quality / 4K, what to read in each report, the by-hand look at the bar). The high-quality picture is BUILT, NOT TUNED.
+- No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change (placePose is a new placement; the solver is untouched).
