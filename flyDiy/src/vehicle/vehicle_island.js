@@ -206,12 +206,15 @@ function vehIslandSpec(RG, opts) {
   const maxOff = opts.maxOff ?? 600;
   const targets = [];
   for (const a of opts.aerodromes || []) targets.push({ id: a.id, name: a.name || a.id, x: a.stand ? a.stand.x : a.x, z: a.stand ? a.stand.z : a.z, kind: 'field' });
-  for (const s of opts.sites || []) targets.push({ id: s.id, name: s.name || s.id, x: s.x, z: s.z, kind: s.kind || 'site' });
+  for (const s of opts.sites || []) targets.push({ id: s.id, name: s.name || s.id, x: s.x, z: s.z, kind: s.kind || 'site', max: s.max });
   for (const T of targets) {
     const n = nearest(T.x, T.z, comp);
-    if (!n || n.d > maxOff) { placeRep.push({ id: T.id, name: T.name, ok: false, off: n ? +n.d.toFixed(0) : null }); continue; }
-    // a stop at least 6 m in from a road's end (the stop is ON the road, its end may be a dead end)
-    const s = Math.max(Math.min(6, n.len / 2), Math.min(n.s, n.len - Math.min(6, n.len / 2)));
+    if (!n || n.d > (T.max != null ? T.max : maxOff)) { placeRep.push({ id: T.id, name: T.name, ok: false, off: n ? +n.d.toFixed(0) : null }); continue; }
+    // a stop at least VI_STOP_IN in from a road's end (the stop is ON the road, its end may be a dead end - or a square
+    // junction: CAR, 13 Nov - master's HOME-DERELICT put HOME's stand on one, 6 m in, and a car coming round the corner
+    // could not line up in 6 m: it stopped 3.2 m off, still turning; 12 m holds a 90-degree fillet at 1.15 rMin and the
+    // straightening after it), never past the road's middle
+    const s = Math.max(Math.min(VI_STOP_IN, n.len / 2), Math.min(n.s, n.len - Math.min(VI_STOP_IN, n.len / 2)));
     places.push({ id: T.id, name: T.name, road: n.ri, s, kind: 'stop', side: 1, target: [T.x, T.z], off: +n.d.toFixed(1), what: T.kind });
     placeRep.push({ id: T.id, name: T.name, ok: true, off: +n.d.toFixed(0), road: roads[n.ri].road });
   }
@@ -239,16 +242,23 @@ function vehIslandSpec(RG, opts) {
 // fields and the town, the ground the stands' links may cross, the height the steep stretches are read off.
 // h: { siteOf, fieldName (the core's), town: { id, site, name } (the town hall's site id), from: [x, z] (where the vehicle
 // starts: the places on its network) }
+const VI_STOP_IN = 12;   // a place's stop, metres in from its road's end (was 6)
 const VI_DRIVABLE = { 0: 1, 5: 1, 6: 1, 7: 1 };   // the world's SURFACE: grass, paved, gravel, sand (not rock, scree, forest, water)
 function vehIslandFromWorld(world, h) {
   const P = world.premises, O = P && P.overlay;
   if (!O || typeof O.roadGraph !== 'function') return null;
   const site = id => (typeof h.siteOf === 'function' ? h.siteOf(id) : null) || {};
   const nm = (id, n) => (typeof h.fieldName === 'function' ? h.fieldName(id, n) : n);
-  const aero = (world.aerodromes || []).filter(a => a.kind !== 'meadow').map(a => ({ id: a.id, name: nm(a.id, a.name), x: a.x, z: a.z, stand: site(a.id).stand }));
+  // CAR (13 Nov; the user: "the list of reachable destinations differs for a car (roads; no runway-only fields; no water)"):
+  // h.landOnly drops the water aerodromes (a seaplane base is no car's destination); h.sites: the CAR-ONLY places, the
+  // record's named sites by id ([{ id, max }]: kept when a road passes within `max` m, 80 by default - a site the town
+  // budget left without its streets is no place to send a car)
+  const aero = (world.aerodromes || []).filter(a => a.kind !== 'meadow' && !(h.landOnly && a.kind === 'water')).map(a => ({ id: a.id, name: nm(a.id, a.name), x: a.x, z: a.z, stand: site(a.id).stand }));
   const runways = (world.aerodromes || []).filter(a => a.kind === 'strip' && a.surface !== 4 && a.len > 0)
     .map(a => { const s = site(a.id); return { id: a.id, name: nm(a.id, a.name), x: a.x, z: a.z, hdg: a.hdg, len: a.len, wid: a.wid, surface: a.surface, stand: s.stand, taxiOut: s.taxiOut, taxiOut1: s.taxiOut1 }; });
   const sites = [];
+  for (const q of h.sites || []) { const S = ((P.rec && P.rec.layers && P.rec.layers.sites) || []).find(s => s.id === (q.id || q));
+    if (S && S.at) sites.push({ id: S.id, name: S.name || S.id, x: S.at.x, z: S.at.z, kind: 'site', max: q.max != null ? q.max : 80 }); }
   const T = h.town; if (T) { const hall = ((P.rec && P.rec.layers && P.rec.layers.sites) || []).find(s => s.id === T.site); if (hall && hall.at) sites.push({ id: T.id, name: T.name, x: hall.at.x, z: hall.at.z, kind: 'town' }); }
   const RG = O.roadGraph();
   const I = vehIslandSpec(RG, { rec: P.rec, toWorld: (x, z) => O.frame.toWorld(x, z), aerodromes: aero, sites, from: h.from, runways,

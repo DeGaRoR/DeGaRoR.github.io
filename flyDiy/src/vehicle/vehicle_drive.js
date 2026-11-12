@@ -665,6 +665,19 @@ function makeDriver(car, G, tune) {
       if (!started && (ahead < VD_JOIN || Math.hypot(N.x - p.x, N.z - p.z) < VD_JOIN)) continue;
       started = true; poly.push([N.x, N.z]);
     }
+    // THE LEAD-IN (CAR, 13 Nov: master's HOME-DERELICT moved HOME's stand onto a junction - the route leaves 67 deg off the
+    // way the car stands, and from rest it swung 3.7 m wide joining it): when the leg's first run is well off the car's
+    // heading, a point straight ahead first, as far as the corner's fillet needs (vehPath rounds it at 1.15 rMin), so the
+    // path under the wheels begins the way the car points and turns onto the route on an arc it can drive. A small
+    // misalignment (< 20 deg) or one a U-turn answers (> 120 deg) is left as before
+    if (poly.length >= 2) {
+      const q = poly[1], dx = q[0] - p.x, dz = q[1] - p.z, L = Math.hypot(dx, dz);
+      const th = L > 1e-6 ? Math.acos(vdClamp((dx * fx + dz * fz) / L, -1, 1)) : 0;
+      if (th > 20 * Math.PI / 180 && th < 120 * Math.PI / 180) {
+        const lin = Math.min(15, 1.15 * def.rMin * Math.tan(th / 2) + 2);
+        if (L > 2.5 * lin) poly.splice(1, 0, [p.x + fx * lin, p.z + fz * lin]);
+      }
+    }
     if (endPt) {
       // the end point lies on the last edge: drop the nodes past it along the leg
       while (poly.length > 1) {
@@ -773,7 +786,7 @@ function makeDriver(car, G, tune) {
     const psiT = dir > 0 ? p.hdg : vdWrap(p.hdg + Math.PI);
     const man = D.phase === 'MANOEUVRE', T = man ? Object.assign({}, tune, manT) : tune;
     // the measured errors (the gate's)
-    if (!man) { const a = Math.abs(loc.ey); D.stats.xtMax = Math.max(D.stats.xtMax, a); D.stats.xtSq += a * a; D.stats.xtN++; }
+    if (!man) { const a = Math.abs(loc.ey); if (a > D.stats.xtMax) D.stats.xtAt = [+p.x.toFixed(1), +p.z.toFixed(1), +u.toFixed(2), D.i]; D.stats.xtMax = Math.max(D.stats.xtMax, a); D.stats.xtSq += a * a; D.stats.xtN++; }   // (xtAt: where the worst was - the gate prints it)
     else D.stats.manXt = Math.max(D.stats.manXt, Math.abs(loc.ey));
     // a manoeuvre's move begins at rest, in its gear, the wheels steered to its first arc (dry steering)
     if (man && D.wait >= 0) {
