@@ -315318,3 +315318,35 @@ a LOCAL session and a GPU box slot from A0.
   NEW `tools/PHOTO.md` (the status table, the scene file field by field, the conventions, the pitfalls, a hand-off
   paragraph), NEW `tools/scene.js` (check / new / put / get - the core's own functions), the root CLAUDE.md points
   there. GATE SCENE 1b runs the command line. EVERY phase that lands updates PHOTO.md's status table.
+
+## PHOTO-MODE-2 P1 - THE PHOTO BAR ON THE TOP ROW, IN THE SHED AND IN FLIGHT (12 Nov 2026, cloud; branch claude/optimistic-dirac-1zu6u1, rebased on L38b)
+
+The user (11 Nov, on the design page): "all the options are on the top bar", the shutter "like the Android shutter ...
+no frame around it, just a hovering button, half transparent"; then "yes, start P1 now".
+
+**Files.** NEW `src/viewer/photo.js` (window.PHOTO; MANIFEST viewer scripts before app.js): the UI only - #photoTop (the
+plate: PHOTO + meta + one .phSlot per api slot; Done at the right), #photoFly (the slot's flyout UNDER its slot; its body
+is #photoBody, which flight.css already styles as #flFlyBody), #photoShutter (bottom centre, round, rgba(255,255,255,.34),
+no border), #photoFlash. Esc closes the open flyout first (window capture, ahead of shotSet's Esc), a click on the picture
+closes it. app.js: the old G3742 bottom-left #photoBar block is GONE from the FL2 layout block (only the corner button
+#flShotB stays there); a top-level "PHOTO-MODE-2 P1" section after the layout: photoSlots() (the shed: camera = the
+field of view 25-80 + "frame the aeroplane", light = GARAGE_ENV moods, only when the room has moods; flight: camera =
+FL_BUILD.camera, light = FL_BUILD.slot_day - "time" in the career), photoBegin / photoEnd (THE BUBBLE: camera mode +
+fov + pause; the hour only if the light slot was opened and it moved, never the career's; the shed's fov + mood),
+photoTake (unchanged path: flydiy:shutter in the gesture, photoGrab -> toBlob, now `wingsmith-<date>.png`).
+**The open door:** `FLYDIY_PHOTO.open()` (the corner camera, the shed's camera-flyout pill, now 'photo mode') sets
+photoWant; photoHook opens the bar only then. A bare `SHOT_MODE.enter()` - every rig, the flight's "screenshot" pill -
+is the render alone, as it always was (the G3742 bar used to come up on it in flight).
+CSS: flight.css (the old #photoBar rules replaced), editor.css (#photoTop, #photoFly in the Bone token list), style.css
+(the fdBoot hold: #photoTop, #photoFly, #photoShutter), phone.css (body.shot on the phone: the canvas takes the WHOLE
+screen and #phDiv / #phTabs go - it kept the view's half of the split, an empty pale half beside the picture).
+**Gates.** NEW GATE PHOTO (`tools/_photo_check.js`, core, <1 s): photo.js over a small DOM (begin / slots / flyout under
+its slot / switch / close / Esc stops at the flyout / click-away / refresh / take / Done / a throwing slot / end),
+the wiring (regexes on app.js / editor.js / build.js) and the look (the CSS); mutation-checked (two broken behaviours ->
+2 FAIL). UISMOKE: a recording window.PHOTO stand-in; rows in FLIGHT (after the roll-out: paused while open, the pause
+given back) and in the shed; the bare SHOT_MODE has no bar. _story_check (the held list) and _audio_check (it looked for
+`const photoTake = () => {` and would have skipped silently) follow.
+**Seen (SwiftShader, the phone profile at 1280x720, the shed):** the plate top left with its slot, the flyout under it,
+Done top right, the shutter bottom centre; two Esc -> back to the shed. The flight's bar is NOT seen yet (a desktop
+boot in SwiftShader rolls out a world): a LOCAL look is wanted.
+**Next:** P2 (the picture slot's size, the scene slot: save / load, the scene in the PNG), P3 (go to). PHOTO.md's table.
