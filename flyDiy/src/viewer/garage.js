@@ -1432,8 +1432,8 @@ function garageInit(api) {
   const impOpen = () => {
     if (!impCard && document.createElement && document.body) {
       impCard = document.createElement('div'); impCard.id = 'gImpCard';
-      impCard.setAttribute('style', 'position:fixed;z-index:9000;top:calc(env(safe-area-inset-top,0px) + 10px);left:10px;right:10px;' +
-        'max-width:460px;margin:0 auto;padding:14px;background:rgba(32,29,26,.97);color:#f4efe6;border:1px solid rgba(255,248,236,.18);' +
+      impCard.setAttribute('style', 'position:fixed;z-index:9000;top:calc(env(safe-area-inset-top,0px) + 10px);left:10px;' +
+        'width:min(460px, calc(100vw - 20px));box-sizing:border-box;padding:14px;background:rgba(32,29,26,.97);color:#f4efe6;border:1px solid rgba(255,248,236,.18);' +
         "border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.5);font:14px/1.4 'IBM Plex Sans',system-ui,sans-serif");
       impCard.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">' +
         '<b style="font-weight:600;letter-spacing:.04em">Import an aeroplane</b>' +
