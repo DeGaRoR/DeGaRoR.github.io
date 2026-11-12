@@ -572,8 +572,15 @@
         vec4 B = mix(texture2D(uSixB, tileUv(u01, f0)), texture2D(uSixB, tileUv(u01, f1)), fk);
         // the column's optical depth from the baked coverage, scaled to this puff's (its centre's, the frame's reference)
         float ts = -log(1.0 - min(A.a, 0.995));
+        // THE QUAD'S EDGE IS NO EDGE (A0, 12 Nov: the Petrel crash's dust "a HARD CIRCULAR EDGE, like a disc cut off"): the
+        // zoom crops the baked body, so up to 0.9 of its coverage met the quad's circle (the discard above) - a dense puff
+        // drew the circle. The depth thins to nothing over the outer 45 % of the radius, and the alpha closes over the last
+        // 15 %, whatever the puff's depth
+        float rr = sqrt(d2);
+        ts *= 1.0 - smoothstep(0.55, 1.0, rr);
         float tau = 2.0 * vTau * uDens * ts / uTauRef * mix(uGain[int(f0)], uGain[int(f1)], fk);
         a = 1.0 - exp(-tau);
+        a *= smoothstep(1.0, 0.85, rr);
         a *= smoothstep(-0.05 * vSv, 0.3 * vSv + 0.15, vGd);
         a *= smoothstep(0.0, 0.04, age);
         vec3 lq = vLq, uq = vUq;

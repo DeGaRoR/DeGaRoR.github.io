@@ -227,6 +227,13 @@ console.log('5c. V2 (the user, 10 Nov: "vortices ... zones where they are more a
   const BK = require('./dust_atlas_bake.js'), bsrc = src('tools/build.js');
   yes(ATL && ATL.sig === BK.sigOf(S) && fs.existsSync(path.join(ROOT, ATL.A)) && fs.existsSync(path.join(ROOT, ATL.B)) && ATL.F === S.F && Math.abs(ATL.tauRef - S.tauRef) < 1e-3,
     'the page loads the atlas baked, never bakes it (dust_atlas.js sig ' + (ATL && ATL.sig) + ' = this bake ' + BK.sigOf(S) + '; re-run tools/dust_atlas_bake.js after a sixWay change)');
+  // NO HARD CIRCLE (A0, 12 Nov, the Petrel crash stills): the zoomed atlas still covers the quad's circle - the shader
+  // must close the depth and the alpha before it, at any puff depth
+  let edgeCov = 0;
+  for (let k = 0; k < 360; k++) { const t = k * Math.PI / 180, ux = Math.round((Math.cos(t) * 0.5 * S.zoom + 0.5) * (S.PX - 1)), uy = Math.round((Math.sin(t) * 0.5 * S.zoom + 0.5) * (S.PX - 1)); edgeCov = Math.max(edgeCov, S.A[(uy * S.W + ux) * 4 + 3] / 255); }
+  const fr = DUST.GLSL.frag;
+  yes(/ts \*= 1\.0 - smoothstep\(0\.55, 1\.0, rr\)/.test(fr) && /a \*= smoothstep\(1\.0, 0\.85, rr\)/.test(fr),
+    'no hard circle: the baked body still covers ' + edgeCov.toFixed(2) + ' at the quad edge, so the shader closes the depth (from 0.55 r) and the alpha (from 0.85 r) before it');
   yes(bsrc.indexOf("'dust_atlas.js'") > 0 && bsrc.indexOf("'dust_atlas.js'") < bsrc.indexOf("'dust.js'"), 'the build loads the atlas table before dust.js');
   if (THREE_OK) {
     // the cloud's own shadow: of two puffs on the sun's line, the far one (from the sun) is darker
