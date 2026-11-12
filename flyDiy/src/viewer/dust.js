@@ -404,7 +404,8 @@
           w.vz * (0.25 + 0.35 * sp) + (rnd() - 0.5) * 1.2, kind === 2 ? 0.015 + 0.02 * rnd() : 0.006 + 0.012 * rnd(), ci);
       }
       // a PUDDLE: the tyre parts the water - brown water thrown out both sides and up
-      if (pud > 0.01 && V > 2) { const n = Math.min(12, V * 0.6 * Math.min(1, pud / 0.04)) * dt * 3; for (let j = 0; j < n; j++) splashDrop(sys, w, V, ci); }
+      // (DIRT-STRIP 13 Nov: ~1 drop a frame read as no spray at all) ~160 drops a second a wheel at 6 m/s in 2 cm, by rate
+      if (pud > 0.01 && V > 2) { const r = 160 * Math.min(1.5, V / 6) * Math.min(1, pud / 0.02) * K * dt; let n = Math.floor(r); if (rnd() < r - n) n++; for (let j = 0; j < n; j++) splashDrop(sys, w, V, ci); }
     }
     // ---- the props: the slipstream's wall jet ----
     const PR = st.props || [];
@@ -419,7 +420,7 @@
   }
   function splashDrop(sys, w, V, ci) {
     const ux = w.vx / V, uz = w.vz / V, side = rnd() < 0.5 ? -1 : 1, so = (0.15 + 0.25 * rnd()) * V;
-    emitGrit(sys, 2, w.x, w.y + 0.05, w.z, w.vx * 0.3 - uz * side * so, (0.15 + 0.2 * rnd()) * V, w.vz * 0.3 + ux * side * so, 0.008 + 0.015 * rnd(), ci);
+    emitGrit(sys, 2, w.x, w.y + 0.05, w.z, w.vx * 0.3 - uz * side * so, (0.15 + 0.2 * rnd()) * V, w.vz * 0.3 + ux * side * so, rnd() < 0.15 ? 0.02 + 0.015 * rnd() : 0.006 + 0.012 * rnd(), ci);
   }
   // THE PROP'S JET: a round jet from the disc down the thrust axis (aft), radius R + s tan(8 deg), speed wash R / r(s)
   // (a round jet's momentum held); where its lower edge meets the ground (s_hit) the wall jet scours if it is over the

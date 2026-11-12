@@ -1651,8 +1651,10 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
         col = mix(col, mix(col * 0.35, murk, 0.55 + 0.45 * dz), pudA);
         // (11 Nov stills: a film under ~3 mm took the mirror with the ground's grain still in its normal - a glitter, neither wet earth
         //  nor flat water) the mirror and the level normal come in only as the water deepens: pudA cubed
-        float pdk = pudA * pudA * pudA;
-        rough = mix(rough, 0.015, pdk);
+        // (13 Nov stills: pale, hard-edged ribbons - the mirror began at 3 mm, a bright sky line at every film's edge) the mirror
+        // comes in over 2-20 mm of depth, the shallow edge dark muddy water, and it is murky water's 0.05, not glass
+        float pdk = pudA * pudA * pudA * smoothstep(0.002, 0.02, pw.x);
+        rough = mix(rough, 0.05, pdk);
       }
     }
     // ---- the normal into the world, the roughness, the alpha
@@ -1718,7 +1720,9 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
       float wv = pvNoise(vec2(u / 45.0, seed + 21.0)) * 0.65 + pvNoise(vec2(u / 140.0, seed + 23.0)) * 0.35;
       float gap = smoothstep(0.62, 0.8, pvNoise(vec2(u / 9.0, seed + 29.0)));
       float merge = smoothstep(0.62, 0.82, wv) * exp(-v * v / 3.2);
-      float trS = clamp(rut * 1.3 + wheel + tread * 0.6, 0.0, 1.0) + 0.45 * (wv - 0.5) + 0.6 * merge - 0.35 * gap + 0.35 * (edgeN - 0.5);
+      // (13 Nov, Skyline up close: "too many even stripes" - each single pass's line crossed the thresholds) the trail is the worn
+      // LANES (wheel: the passes' density across), the single passes a faint share
+      float trS = clamp(wheel * 1.2 + rut * 0.3 + tread * 0.15, 0.0, 1.0) + 0.45 * (wv - 0.5) + 0.6 * merge - 0.35 * gap + 0.35 * (edgeN - 0.5);
       float soil = smoothstep(0.3, 0.58, trS), trail = smoothstep(0.55, 0.85, trS);
       // THE TUNDRA ROUND IT (the user 12 Nov, Skyline: "the transparent surrounding don't work. Nothing blends, it's really just
       // slapped there ... convincing surrounding in the greenery setting, but well done, not lawn grass, then integrate with the
