@@ -315430,3 +315430,49 @@ has the whole of it.
   - Cowl flaps; a NACA flush inlet.
   - The parked re-cook (the Twin busher's, the Ultralight twin's and the archetypes' drawn cowls changed; A0's GPU).
   - A0 not told from here (the cross-session send is refused).
+
+## ENGINE-COOLING 4 - on L39b; the scoops are inlets; the Tiger Moth's front; the gills; STOL re-captured (12-13 Nov 2026, claude/festive-faraday-w3w40x)
+
+- **Merged master L39b (23ce68c1f)**, not rebased: a force-push is refused in this session, and A0 accepted either. The
+  four files resolved against fit-procedure:
+  - _cowl_gen buildScoop takes the held section (scoopHold), the cowl-fitted width (scoopWFit) and the taper, plus the
+    turned mouth's z.
+  - coolOpenings measures a cowl-fitted mouth's own width.
+  - _cage_cowl ABSENT_AT and _cage_parts carry both sides' scoop rows.
+  - 90_node_exports takes both lists.
+  - The Ultralight twin's card did not conflict on master: master never touched it.
+  - THE LATENT RULE: cw_scoopRev / cw_scoopTop / cw_scoopAft sit in _cowl_gen's P and _cage_cowl's ABSENT_AT at 0,
+    exactly as fit-procedure's scoopHold / scoopWFit / scoopTaper* do. PROCURE, JOIN and the STOL fixture's spec diff
+    show no cage row moving on a build that does not set them.
+- **The user, on the quickshots:** "most of them have no length and look like a disc"; "for the moth, a proper cowl front
+  opening rather than this scoop"; "we have coded shark fins recently, do we account for that?"
+  - designCoolBirth: a scoop the rule sizes is 3.2 x its height long (within the barrel), with its full section held
+    over the front third.
+  - A narrow inline's or vee's nose gets a tall front slot (2.2 x as tall as wide) and no scoop. The Tiger Moth is at
+    1.58, ul1 at 1.37.
+  - A wing nacelle keeps its chin scoop whatever the engine. All 32 archetypes pass.
+  - The shark fins are the side gills (PROPER-COWLS): measured, an outlet on a tractor and an inlet on a pusher.
+    genCoolOpen now lets only the lowered bottom (the exit gap) draw and cap a tractor's way out. Gills and aft openings
+    add to the exit sized for you; a few small gills used to become the only outlet. No saved card draws gills yet.
+- **The clean wing's Vs.** The cooling drag's climb and cruise speeds hang off the clean wing's Vs, so a slat or a VG kit
+  does not redraw the cowl. GATE STOL: the auto slat pays only its seam again (it was x1.0119).
+  - _stol_check's axial check is now NET of the cooling term: the kit's mass and the endplate's span move the clean
+    climb, and the cooling term with it (0.01016 vs 0.00999 m2). The fences' and endplates' drag still rides the strips.
+- **GATE STOL's baseline RE-CAPTURED on this branch** (_stol_samebits --capture, root = this tree). Diffed against a
+  capture of master 23ce68c1f itself, card by card:
+  - Every validated build moves its def / 4 s / design check / lap, and its joined spec only by `cooling` (Rufus: def
+    and lap; it has no cowl).
+  - Every card moves its def (the drag's `coolBy`) and, cowled, its 4 s, and its spec only by `cooling`, plus the birth
+    rule's opening rows on: tigermoth, pittsAlike, caravan, rv, spitfire (radW/H), floatplane, ttail, vtail, da62,
+    twinBush, skymaster, p38, pushPull, trimotor, fourEngine.
+  - Nothing else differs from master's own capture: the eng_bmepK / eng_massK and engines.custom.cyl differences
+    against the old 6b6b12a4c capture are master's.
+- **Gates on the tip (792e9169) against master 23ce68c1f, side by side** (A0's list + STOL + PROCURE):
+  - Pass on both sides: BENCH, CAGEFIT, CERTGATES, ENGDRAWN, ENGINEDIALS, JOIN, KNIFE, PROCURE, SNAPSHOTS, STOL, STORY,
+    UISMOKE. COOL passes (master has no COOL).
+  - ENGCONFIG fails on both sides, on the same rows: the Chinook's flown digest (master's red), the quad flights, the
+    three cards. The Chinook's def pin differs by ENGINE-COOLING 2's re-pin.
+  - The --all delivery verdict was not run in this container.
+- **Riding** L40a (Fri 13 Nov 19:00; ref by 18:30 Paris); L39c was cancelled. PHYSICS-PAGES' cooling page
+  (claude/physics-pages-cooling) builds on dea18da3 and wants this branch's final sha. The parked re-cook (the Twin
+  busher 4b, the Ultralight twin, the archetypes' cowls) is the train's.
