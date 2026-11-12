@@ -154,7 +154,7 @@ const INSTALL_ROWS = new Set([
   // are the first thing changed on a real installation. A turboprop's
   // stacks are the same choice, so `stackStyle` rides here with them.
   'exStyle', 'exDrop', 'exOut', 'exAim', 'exOutX', 'exOutY', 'exOutZ', 'exPair',
-  'stackStyle',
+  'stackStyle', 'stackOut', 'stackLen', 'stackFlat', 'stackR', 'stackDrop',
   // THE AIR FILTER, likewise a bolt-on: a canister airbox or a pair of
   // cones, or none at all. (`injected` is NOT here — carburettor or
   // injection is what the O in an O-320 means, and flipping it under a
