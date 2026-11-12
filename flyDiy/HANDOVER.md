@@ -314765,3 +314765,47 @@ remedy walks it to a pass), list:7 Rufus bare. Cooling drag CdA: Cub 0.0087 -> 0
   or tune them; (2) the power pull-back over the red line - it changes how the official list:6 flies, so it lands with
   (1); (3) sign.rules for kept signatures; (4) cowl flaps (v2), scoop azimuth and NACA inlets. A0 not told: the
   cross-session send was refused (untrusted device). No PHYSICS_V, GEN_SPEC_V or GEN_CERT_V change.
+
+## ENGINE-COOLING 2 - the pusher's suction, the top scoop, the open mouth; list:6 and list:41 cooled (12 Nov 2026, claude/festive-faraday-w3w40x)
+
+The user, after the first landing: "we can make the row, but we have to modify the twin busher and the superpetrel at
+once ... let's have at least a top scoop ... the superpetrel, it has quite a large opening now. Let's fix that."
+futureDesigns/ENGINE-COOLING-2026-11.md §11 has the whole of it.
+
+- **The suction (GEN_COOL.suck 0.6, 62 genCooling).** In flight a pusher's prop lowers the static pressure at the
+  cowl's outlet, just ahead of the disc. The air through the engine grows by the root law:
+  V_in = V sqrt(1 + suck (f^2 - 1)), f the actuator disc's ratio. The ground keeps its pushInflow. Tractors are
+  untouched. This is what "the Petrel's large opening" was missing: its throat was measured right (0.038 m2, the
+  drawn hole); the model did not credit the pusher's own pull.
+- **The top scoop (cw_scoopTop).** The chin scoop mirrored above the spine, with its row in the cowl's scoop group, its
+  ABSENT_AT entry, the parts list and the editor's highlight. Absent means bit for bit (GATE COOL).
+- **The open mouth (_cowl_gen coolOpenings).** Only the part of a scoop's mouth outside the cowl's skin is counted,
+  sampled against the cowl's section at the mouth's station. A scoop drawn into a deep cowl is a notch; the row says
+  so, and the pusher remedy says to stand the scoop out of the skin. This moves a few scoops in the sweep: the caravan
+  archetype 0.32 -> 0.05, the twin-boom pushers' small chin scoops down.
+- **The cards.** list:6 Twin busher floats 4b: the chin scoop turned to face the flight (cw_scoopRev 1), riding the
+  bottom line (cw_scoopFollow 1), half-sizes 0.20 x 0.15, opening 0.9, exit gap 0.22. The hot climb goes 0 -> 1.22,
+  the oil 168 -> 108 C, the cooling drag 0.018 -> 0.021 m2. list:41 Super Petrel LS: nacelle inlet 0.42 -> 0.47
+  (0.048 m2), the hot climb 0.81 -> 1.20 (0.96 from the suction alone), the drag unchanged. Neither card carries a
+  plaque. The Petrel is in LB.VALIDATED: its parity capture (JOINPARITY's page fixture) predates this; JOINPARITY's
+  only red is the standing Jodel mass, the same on the base.
+- **The rows stay PROPOSED.** Sweeping every listed card and every archetype finds more fails than the two planes:
+  - official: list:13 STOL Cub 0.65, list:26 Client Cub 0.97;
+  - archetypes: rv 0.57, spitfire 0.39, caravan 0.05, beaver 0.66, sesqui, ul1, motorglider, ttail, vtail just
+    under 1;
+  - the wing twins (da62, twinBush, p38, fourEngine, floatplane) at 0, their nacelle cowls drawn closed.
+
+  The rv's numbers also say `kappa` is too harsh on small pressure-cowl inlets. The proposal is in the design note §11:
+  calibrate on an RV-class cowl, open the twins' faces, re-draw what still fails, then rule the rows real (with
+  sign.rules).
+- **ENGCONFIG re-pinned** (its IDENTITY table, with a note). Every def digest moved: the drag's `coolBy`, the
+  shakedown's `cooling`. The flown digests moved for the measured cowls only (Cub, Jodel, ultralight fixture, metal
+  Cessna, Cessna on floats), the first landing's meant drag. The Chinook keeps its old flown pin: it fails the same
+  way on the base 594a1a05 (master's red).
+- **Gates.** Each was run on the branch and on its base side by side: COWL, PARTS, DESIGN, KNIFE, SAVE, HULL,
+  PLANELISTS, BENCH, AIDS, STORY, DRAG, PANEL, PROCURE, ACCEPT, UISMOKE, COOL, ENERGY, PODEDITOR, QUADWIN and FRAMES
+  pass. DESIGNCHECK, NODUMMY, DMGCERTCOST and JOINPARITY fail identically on the base. ENGCONFIG after the re-pin
+  fails only where the base does: the Chinook, the quad flights, the three cards. The --all delivery verdict was not
+  run in this container.
+- **Open.** A parked re-cook (the Twin busher's and the Petrel's drawn cowls changed; the cook wants a GPU, A0's
+  train). A0 is still not told: the cross-session send is refused here.
