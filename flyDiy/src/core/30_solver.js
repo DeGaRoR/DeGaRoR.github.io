@@ -1094,8 +1094,12 @@ function makeSim(def, world) {
       const s = hyp3(def.nodes[S.lat[1]].p[0] - def.nodes[S.lat[0]].p[0], def.nodes[S.lat[1]].p[1] - def.nodes[S.lat[0]].p[1], def.nodes[S.lat[1]].p[2] - def.nodes[S.lat[0]].p[2]);
       lim = { Mu: fu * S.Acap * S.d, Mv: fu * S.Acap * s, T: fu / SQ3 * S.Acap * s, yb: ty / fu, yt: ty / fu };
     } else if (S.kind === 'tube' && fu) {
-      const Mb = fu * sh * S.EI / (S.E * S.r);
-      lim = { Mu: Mb, Mv: Mb, T: fu / SQ3 * S.GJ / (G * S.r), yb: ty / (fu * sh), yt: ty / fu };
+      // AERO-BODY: a thin tube's buckling (61_gen_frame rodDmg.tauB / sigB) caps the material's limits; absent: as before
+      const fb = S.sigB > 0 && S.sigB < fu * sh ? S.sigB : fu * sh, tb = S.tauB > 0 && S.tauB < fu / SQ3 ? S.tauB : fu / SQ3;
+      const Mb = fb * S.EI / (S.E * S.r);
+      lim = (S.sigB > 0 || S.tauB > 0)
+        ? { Mu: Mb, Mv: Mb, T: tb * S.GJ / (G * S.r), yb: Math.min(1, ty / fb), yt: Math.min(1, ty / (tb * SQ3)) }
+        : { Mu: Mb, Mv: Mb, T: fu / SQ3 * S.GJ / (G * S.r), yb: ty / (fu * sh), yt: ty / fu };
     } else if (S.kind === 'oval' && fu) {
       // G2640: a thin SKIN fails by local buckling long before its material's ultimate (S.sigB, 61_gen_frame's SHELL:
       // ~0.3 E t / R); absent (the twin boom's tube) the material's, as ever
@@ -3359,6 +3363,8 @@ function makeSim(def, world) {
     };
     blob(def.refs.fusDrag,    GR === null ? P_.fusCdA : GR.cda);   // RETRACT-1: the gear's drag by its position
     blob(def.refs.fusDragAft, P_.fusCdAAft);
+    // AERO-BODY: the twin booms' side and vertical cross-flow on the booms (62_gen_aero genFusCdA boomCdAAft; absent: none)
+    if (def.refs.boomDrag && P_.boomCdAAft) blob(def.refs.boomDrag, P_.boomCdAAft);
     // G461: THE BODY'S OWN PITCHING MOMENT (Munk). A closed body in potential
     // flow feels no lift and a pure couple, 2 q (k2 - k1) Vol per radian of
     // incidence, NOSE-UP with the nose up — destabilising, the term every

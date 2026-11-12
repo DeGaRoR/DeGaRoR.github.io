@@ -201,6 +201,14 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // flow. What would end the approximation is the `tube` ELEMENT TYPE (the
   // solver has no rotational DOF at all), in the debt register, owed.
   let rodKv = null;
+  // AERO-BODY: THE ROD WEIGHS ITS DRAWN TUBE. Behind the drawn pod (fuselage.aeroBody.closeX) a rod build's lattice
+  // stands on the cone's stations for the solver (the tube element, G314 / G350, holds it at the tube's EI and GJ - the
+  // twist is ALL the tube's: with it off every rod build reads 40-45 deg of stab roll under +-150 N), but it is not what
+  // is built: its members and panels there bill nothing, and the tube's own mass (pi d t rho L, GEN_RULES.rodWall, the
+  // material's density) is billed on the rings below. Only with the record (a save the load door has not seen: as before)
+  const rodAB = S.fuse.boom === 'rod' && S.fuse.aeroBody && S.fuse.aeroBody.rod ? S.fuse.aeroBody : null;
+  const rodTube = (a, b, cls, mnt) => !!(rodAB && cls === 'fus' && !mnt &&
+    Math.min(P[a][0], P[b][0]) >= rodAB.closeX - 1e-6);
   // G314: with the rod on the tube element the factor is the cluster's
   const ROD_TUBE = S.fuse.boom === 'rod' && !(R.rodBoomTube === 0 || R.rodBoomTube === false);
   const rodK = () => {
@@ -545,7 +553,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       const bk = bucketOf(cls, mnt);
       const g1 = bk && GG ? GG[bk] : 1;
       const webK = (opt && opt.web && MM.coverGauged) ? (R.boxWebK == null ? 1 : R.boxWebK) : 1;
-      const h0 = 0.5 * L * row(MM.lin, cls, tSecM) * aftG * webK, h = h0 * g1;
+      const h0 = 0.5 * L * row(MM.lin, cls, tSecM) * aftG * webK * (rodTube(a, b, cls, mnt) ? 0 : 1), h = h0 * g1;
       if (bk && !GG) { const G = gauged[bk]; G.m += 2 * h0;
         G.x += h0 * (P[a][0] + P[b][0]); G.y += h0 * (P[a][1] + P[b][1]); G.z += h0 * (P[a][2] + P[b][2]);
         if (!gaugeRef[bk]) gaugeRef[bk] = MM.refGross || 550; }
@@ -787,7 +795,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     B(a.BL, b.BR, 'fus'); B(a.BR, b.BL, 'fus');     // rule 4, bottom panel
     // covering, four panels per bay, onto the bay's own corners
     const s0 = ST[i], s1 = ST[i + 1];
-    if (fusCovered) {
+    if (fusCovered && !(rodAB && s0.x >= rodAB.closeX - 1e-6)) {     // AERO-BODY: no panels on a rod
       cover(genQuadArea(P, a.TL, a.TR, b.TR, b.TL), [a.TL, a.TR, b.TR, b.TL]);
       cover(genQuadArea(P, a.BL, a.BR, b.BR, b.BL), [a.BL, a.BR, b.BR, b.BL]);
       cover(genQuadArea(P, a.TL, a.BL, b.BL, b.TL), [a.TL, a.BL, b.BL, b.TL]);
@@ -804,7 +812,19 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   B(last.BL, TPB, 'fus'); B(last.BR, TPB, 'fus');
   B(last.TL, TPT, 'fus'); B(last.TR, TPT, 'fus');
   B(last.TL, TPB, 'fus'); B(last.TR, TPB, 'fus');
-  if (fusCovered)
+  // AERO-BODY: the rod's tube, billed bay by bay on its rings (half a bay to each end, a quarter to each corner) and the
+  // last bay to the post
+  if (rodAB && MB && MB.phys && MB.phys.rho > 0) {
+    const kgM = Math.PI * rodAB.rod.d * (R.rodWall == null ? 1.2e-3 : R.rodWall) * MB.phys.rho;
+    const put = (ids, m) => { for (const i of ids) nodes[i].m += m / ids.length; bill(m, m * MB.price); };
+    for (let i = 0; i < ST.length; i++) {
+      const x0 = ST[i].x, x1 = i + 1 < ST.length ? ST[i + 1].x : fu.postX;
+      if (x0 < rodAB.closeX - 1e-6) continue;
+      const m = kgM * Math.max(0, x1 - x0), A = [F[i].BL, F[i].BR, F[i].TL, F[i].TR];
+      put(A, 0.5 * m); put(i + 1 < ST.length ? [F[i + 1].BL, F[i + 1].BR, F[i + 1].TL, F[i + 1].TR] : [TPB, TPT], 0.5 * m);
+    }
+  }
+  if (fusCovered && !(rodAB && lastST.x >= rodAB.closeX - 1e-6))
     cover(genQuadArea(P, last.TL, last.BL, TPB, TPT)
         + genQuadArea(P, last.TR, last.BR, TPB, TPT), [last.TL, last.TR, TPB, TPT]);
   // G314: THE ROD IS A TUBE — its aft bays one cluster, from the bulkhead
@@ -857,6 +877,13 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
                  GJ: (ph.E / 2.6) * 2 * Math.PI * CORE_MATH.pow(rodR, 3) * tW, r: rodR,
                  part: cl.filter(q => ring0.indexOf(q) < 0), root: ring0.slice(), ax: [ring0[0], last[0]], lat: [ring0[0], ring0[1]],
                  station: dmgStation(rodRings, fu.postX), eta: 0.7 };
+      // AERO-BODY: A THIN TUBE BUCKLES BEFORE IT YIELDS. The limits read the material's ultimate; a rod of d/t 75-95
+      // buckles in torsion at about half its ultimate shear on aluminium (the Chinook's 89 x 1.2 mm: 90 MPa) - the
+      // long-tube law, Timoshenko & Gere: tau_cr = 0.272 E / (1 - nu^2)^0.75 (t / r)^1.5 - and in bending at the
+      // shell's 0.3 E t / r (the stressed-skin boom's sigB, G2640). Only with the drawn body measured (as before without)
+      if (rodAB) { const nu = 0.33;
+        rodDmg.tauB = 0.272 * ph.E / CORE_MATH.pow(1 - nu * nu, 0.75) * CORE_MATH.pow(tW / rodR, 1.5);
+        rodDmg.sigB = 0.3 * ph.E * tW / rodR; }
     }
     if (cl.length >= 6) clusters.push({ cls: 'rod', tag: 'ROD', omega, nodes: cl,
                                         rings: rodRings, gj: rodGJ, dmg: rodDmg });
@@ -3589,7 +3616,11 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // ...and only when there IS one (PERF STUDY chantier 1): the open-frame
     // MW5-alike billed a cowl it does not wear — `cowl.on` false is the
     // access table's own reading of a cowl-less aeroplane
-    if (S.cowl && S.cowl.halfW > 0 && S.cowl.on !== false) {
+    // COWL-BILL (A0 for the user, 12 Nov: "Ruckus is billed a cowl that it does not have"): the editor's own switch
+    // (cage.cowlOn) is what says so - the drag build-up's rule (62_gen_aero genFusCdA) and the access table's; the join
+    // never writes cowl.on and resolveSpec sizes the cowl off the nose whatever is drawn. Absent: `cowl.on`, as before
+    const cowlFitted = S.cage && S.cage.cowlOn != null ? !!+S.cage.cowlOn : (S.cowl && S.cowl.on !== false);
+    if (S.cowl && S.cowl.halfW > 0 && cowlFitted) {
       const cw = S.cowl.halfW, ch = (S.cowl.top || 0) + (S.cowl.bot || 0);
       // ellipse perimeter, Ramanujan's first approximation
       const a2 = cw, b2 = 0.5 * ch;
@@ -3811,7 +3842,24 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     tailMid: [TPB, TPT],
     upLo: [F[0].BL, F[0].BR], upHi: [F[0].TL, F[0].TR],
     fusDrag: [F[iCabR].BL, F[iCabR].BR, F[iCabR].TL, F[iCabR].TR],
-    fusDragAft: [F[F.length-2].BL, F[F.length-2].BR, F[F.length-2].TL, F[F.length-2].TR],
+    fusDragAft: (() => {
+      // AERO-BODY: on a drawn pod (fuselage.aeroBody, not a conventional body) the aft side force acts at the drawn aft
+      // area's centroid (62_gen_aero genAeroBody aftX) - the ring nearest it aft of the cabin; otherwise the ring before
+      // the last, the calibration's
+      const AB = S.fuse.aeroBody && !S.fuse.aeroBody.tailOnBody && typeof genAeroBody === 'function' ? genAeroBody(S) : null;
+      let k = F.length - 2;
+      if (AB) { const cr = S.cab.noseGap + S.cab.len; let bd = 1e9;
+        for (let i = 1; i < ST.length; i++) { if (ST[i].x <= cr + 1e-6) continue; const d = Math.abs(ST[i].x - AB.aftX); if (d < bd) { bd = d; k = i; } } }
+      return [F[k].BL, F[k].BR, F[k].TL, F[k].TR];
+    })(),
+    // AERO-BODY: the twin booms' own side-force point (the solver's third blob): each boom's top and inner node at the
+    // station nearest the booms' middle - only with the drawn body measured (genFusCdA writes the row then)
+    ...(S.fuse.aeroBody && BOOMS && BOOMS.L && BOOMS.R && Array.isArray(BOOMS.xs) ? (() => {
+      const xm = BOOMS.x0 + 0.5 * BOOMS.len; let k = 0;
+      BOOMS.xs.forEach((x, i) => { if (Math.abs(x - xm) < Math.abs(BOOMS.xs[k] - xm)) k = i; });
+      const l = BOOMS.L[k], r = BOOMS.R[k];
+      return l && r && [l.T, l.I, r.T, r.I].every(i => i >= 0) ? { boomDrag: [l.T, l.I, r.T, r.I] } : {};
+    })() : {}),
     engine: engNodes, engineOf: engIdx, mains: [GAL, GAR], tw: TW, fin: FIN, fin2: FIN2,
     ...(TW2 >= 0 ? { tw2: TW2 } : {}),               // G3800: a twin boom's second tail contact (the key only then)
     // THE DRAWING'S DATUM IS THE WING CARRY-THROUGH (G179.3, the user: "we

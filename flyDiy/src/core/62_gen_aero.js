@@ -572,6 +572,51 @@ function genFusSwet(S, ST) {
   return { swet, L: (ST[ST.length - 1].x - ST[0].x) + cowlL, frontal, vol };
 }
 
+// AERO-BODY (2026-11-12): THE DRAWN BODY, from the join's measure (fuselage.aeroBody, 60_gen_spec clampSpec). Returns
+// the body row's pieces and the side areas, or null without the record (the frame's stations fly, as before).
+//   rows       the drawn skin and cowls, nose -> closure; genFusSwet walks them as it walks the frame's stations
+//   closed     a body that closes smoothly with its tail on it (every conventional fuselage): Raymer's form factor on its
+//              drawn length, today's law, and the frame's side areas (the cross-flow rows were calibrated on them)
+//   based      anything else - a short cabin, a pod onto a rod, a back cowl: a FOREBODY to where the closure first runs
+//              steeper than GEN_DRAG.body.thetaSep (or to its drawn end) at Hoerner's 1 + 1.5 / f^1.5, and a BASE there
+//   rod        a tube of its drawn diameter: friction on pi d L; its side area d L joins the aft row
+// The side areas are the drawn ones: forward of the cabin's rear ring (from the firewall, as the frame's were), and aft of
+// it to the closure plus the rod; `aftX` is where the aft row acts (its centroid), the frame's blob ring nearest it.
+const genEll = (w, h) => Math.PI / 4 * w * h;            // a section's area off its full width and height
+function genAeroBody(S) {
+  const AB = S.fuse && S.fuse.aeroBody;
+  if (!AB || !Array.isArray(AB.rows) || AB.rows.length < 3) return null;
+  const B = GEN_DRAG.body, T = AB.rows;
+  const cl = S.cowl && S.cowl.len; if (S.cowl) S.cowl.len = 0;          // the nose is in the rows: the drawn cowl
+  let full, fore, iS = T.length - 1;
+  try {
+    full = genFusSwet(S, T);
+    const A = T.map(r => genEll(2 * r.w, r.yt - r.yb)), rq = A.map(a => Math.sqrt(a / Math.PI));
+    if (!AB.tailOnBody) {
+      let iM = 0; for (let i = 1; i < A.length; i++) if (A[i] > A[iM]) iM = i;
+      const tS = Math.tan(B.thetaSep * Math.PI / 180);
+      for (let i = iM + 1; i < T.length; i++)
+        if (-(rq[i] - rq[i - 1]) / Math.max(1e-6, T[i].x - T[i - 1].x) > tS) { iS = i - 1; break; }
+      fore = genFusSwet(S, T.slice(0, iS + 1));
+      fore.Ab = Math.max(0, A[iS] - (AB.rod ? genEll(AB.rod.d, AB.rod.d) : 0));
+      if (iS === T.length - 1 && !AB.base) fore.Ab = 0;                  // drawn closed to its end: no base
+    }
+  } finally { if (S.cowl) S.cowl.len = cl; }
+  const rod = AB.rod ? { d: AB.rod.d, L: AB.rod.x1 - AB.rod.x0, x0: AB.rod.x0, x1: AB.rod.x1 } : null;
+  // the side areas off the drawn rows (projected depth x length), split at the cabin's rear ring
+  const cabR = S.cab.noseGap + S.cab.len, xc = AB.closeX;
+  const side = (a, b) => { let Ar = 0, Mx = 0;
+    for (let i = 0; i < T.length - 1; i++) { const p = T[i], q = T[i + 1], x0 = Math.max(a, p.x), x1 = Math.min(b, q.x); if (!(x1 > x0)) continue;
+      const h = x => (p.yt - p.yb) + ((q.yt - q.yb) - (p.yt - p.yb)) * (x - p.x) / Math.max(1e-9, q.x - p.x);
+      const s0 = 0.5 * (h(x0) + h(x1)) * (x1 - x0); Ar += s0; Mx += s0 * 0.5 * (x0 + x1); }
+    return { A: Ar, Mx }; };
+  const fw = side(0, Math.min(cabR, xc)), af = side(Math.min(cabR, xc), xc);
+  let aft = af.A, mx = af.Mx;
+  if (rod) { aft += rod.d * rod.L; mx += rod.d * rod.L * 0.5 * (rod.x0 + rod.x1); }
+  return { closed: !!AB.tailOnBody, full, fore, xSep: T[iS].x, rod, rodCdA: rod ? B.cfRod * Math.PI * rod.d * rod.L : 0,
+           sFwd: fw.A, sAft: aft, aftX: aft > 1e-6 ? mx / aft : xc };
+}
+
 // Body-axis CdA for the two fuselage blobs. Coefficients calibrated so the
 // Cub's own geometry reproduces its hand-tuned [0.55, 0.8, 0.8] / [0, 0.5, 0.5]:
 // 0.57 on forward side area, 0.31 aft (the aft body is tapered and cleaner,
@@ -621,15 +666,30 @@ function genFusCdA(S, fr) {
     if (i < iCR) sFwd += A; else sAft += A;
   }
   const D = GEN_DRAG, M = GEN_MATERIALS[S.material] || GEN_MATERIALS.tubeFabric;
-  const wet = genFusSwet(S, ST);
+  // AERO-BODY: the drawn body when the join measured it (genAeroBody), the frame's stations otherwise
+  const AB = genAeroBody(S);
+  const wet = AB ? AB.full : genFusSwet(S, ST);
   const dEq = Math.sqrt(4 * Math.max(1e-6, wet.frontal) / Math.PI);
-  const f = Math.max(2, wet.L / Math.max(0.1, dEq));
-  const FF = 1 + 60 / (f * f * f) + f / 400;
   const fu = S.fuse || {};
   const crown = 0.5 * ((fu.crownTop == null ? 0.72 : fu.crownTop) +
                        Math.min(1, (fu.crownSide == null ? 0.07 : fu.crownSide) / 0.6));
   const boxK = 1 + D.boxK * (1 - crown);
-  const body = wet.swet * (M.cdWet || D.cdWetDefault) * FF * boxK;
+  const cdW = M.cdWet || D.cdWetDefault;
+  let f, FF, body, base = 0, Ab = 0, rodD = 0;
+  if (AB && !AB.closed) {
+    // a forebody and a base (Hoerner): the forebody's own fineness, against the body's greatest section
+    f = Math.max(1, AB.fore.L / Math.max(0.1, dEq));
+    FF = 1 + 1.5 / CORE_MATH.pow(f, 1.5);
+    Ab = AB.fore.Ab; base = D.body.cdBase * Ab;
+    body = AB.fore.swet * cdW * FF * boxK + base;
+  } else {
+    f = Math.max(2, wet.L / Math.max(0.1, dEq));
+    FF = 1 + 60 / (f * f * f) + f / 400;
+    body = wet.swet * cdW * FF * boxK;
+  }
+  if (AB && AB.rod) { rodD = AB.rodCdA; body += rodD; }
+  // the drawn side areas (a closed body keeps the frame's: the rows were calibrated on them)
+  if (AB && !AB.closed) { sFwd = AB.sFwd; sAft = AB.sAft; }
   // the cooling, by the engine and its cowl
   const EN = (S.engines && S.engines[0]) || {};
   const PP = S.pplant || POWERPLANTS[EN.type] || POWERPLANTS.a65_sensenich74;
@@ -674,7 +734,11 @@ function genFusCdA(S, fr) {
     fusCdA: [body + cool + heads + screen + junct + exh, 0.57 * sFwd, 0.57 * sFwd],
     fusCdAAft: [0, 0.31 * sAft, 0.31 * sAft],
     drag: { swet: wet.swet, L: wet.L, frontal: wet.frontal, vol: wet.vol, f, FF, boxK, cdWet: M.cdWet || D.cdWetDefault,
-            body, cool, heads, screen, junct, exh },
+            body, cool, heads, screen, junct, exh,
+            // AERO-BODY: the drawn body's pieces (the keys only with the record): the base and its area, the rod's row,
+            // the separation station, where the aft side force acts
+            ...(AB ? { aeroBody: AB.closed ? 'closed' : 'based', base, baseA: Ab, rod: rodD,
+                       xSep: AB.closed ? null : AB.xSep, aftX: AB.closed ? null : AB.aftX, foreSwet: AB.closed ? null : AB.fore.swet } : {}) },
   };
   // AN OPEN FRAME (2026-09-04): the truss uncovered, the occupants in the
   // wind. Priced as a DELTA on the covered figure — the gear model's own rule
@@ -694,8 +758,13 @@ function genFusCdA(S, fr) {
   if (tb && tb.type === 'twinBoom' && tb.boomLen > 0) {
     const rb = Math.max(0.04, tb.boomR || 0.09), Lb = tb.boomLen;
     out.fusCdA[0] += 2 * (0.30 * Math.PI * rb * rb + 0.004 * 2 * Math.PI * rb * Lb);
+    // AERO-BODY: with the drawn body measured the booms' side force acts ON THE BOOMS (their own row, the solver's third
+    // blob at the booms' middle, 61_gen_frame refs.boomDrag), not on the pod's last ring
+    if (AB && fr.refs && fr.refs.boomDrag) { const v = 0.31 * 2 * (2 * rb * Lb); out.boomCdAAft = [0, v, v]; }
+    else {
     out.fusCdAAft[1] += 0.31 * 2 * (2 * rb * Lb);
     out.fusCdAAft[2] += 0.31 * 2 * (2 * rb * Lb);
+    }
   }
   return out;
 }
@@ -1655,7 +1724,8 @@ function genParams(S, fr, strips) {
   }
   // PRICE-CAL step 2: an old airframe's drag (60_gen_spec GEN_AGING; absent spec.aging: x1, as before)
   const AGd = genAgingOf(S).dragK;
-  if (AGd !== 1) { cda.fusCdA[0] *= AGd; cda.fusCdA[1] *= AGd; cda.fusCdA[2] *= AGd; for (const k of [0, 1, 2]) if (cda.fusCdAAft && cda.fusCdAAft[k]) cda.fusCdAAft[k] *= AGd; }
+  if (AGd !== 1) { cda.fusCdA[0] *= AGd; cda.fusCdA[1] *= AGd; cda.fusCdA[2] *= AGd; for (const k of [0, 1, 2]) if (cda.fusCdAAft && cda.fusCdAAft[k]) cda.fusCdAAft[k] *= AGd;
+                   if (cda.boomCdAAft) for (const k of [0, 1, 2]) cda.boomCdAAft[k] *= AGd; }
   cda.drag.axial = cda.fusCdA[0];
   // Control effectiveness from surface chord. The reference pairs are the
   // fleet's own calibrated numbers at the default chord fractions, so a stock
@@ -1753,6 +1823,7 @@ function genParams(S, fr, strips) {
     flaps,
     stabTrim: 0, sparSpacing: fr.parts.sparSpacing,
     fusCdA: cda.fusCdA, fusCdAAft: cda.fusCdAAft,
+    ...(cda.boomCdAAft ? { boomCdAAft: cda.boomCdAAft } : {}),   // AERO-BODY: the booms' own row (61_gen_frame refs.boomDrag)
     // G461 (the 172's neutral point): THE BODY'S OWN PITCHING MOMENT and the
     // TAIL'S DYNAMIC-PRESSURE EFFICIENCY, the two textbook terms the probe
     // had no word for. A body in potential flow carries a destabilising

@@ -1963,6 +1963,13 @@ const GEN_DRAG = {
   junct: { wing: 0.006, lowBare: 1.5, strutHigh: 0.7, tail: 0.003 },
   // an exhaust stack in the wind
   exhStack: 0.003,
+  // AERO-BODY (2026-11-12, the user: "the physics flies the body the player sees"): THE DRAWN BODY'S OWN DRAG, read by
+  // genFusCdA off fuselage.aeroBody (the join's measure of the drawn skin and cowls). A body that ends in a base or a
+  // closure steeper than `thetaSep` (deg; Hoerner, Fluid-Dynamic Drag ch. 3, boattails separate past 15-20 deg) is a
+  // FOREBODY to the separation - its friction x (1 + 1.5 / f^1.5), Hoerner's streamline-body law without its afterbody
+  // term (ch. 6) - and a BASE, the section there at `cdBase` (Raymer, Aircraft Design 12.37: 0.139 + 0.419 (M - 0.161)^2,
+  // 0.14 at these Mach numbers). A rod or a boom is a tube: `cfRod` on its wetted surface (the twin booms' own 0.004)
+  body: { thetaSep: 20, cdBase: 0.14, cfRod: 0.004 },
 };
 
 const GEN_GAUGE = {
@@ -3712,7 +3719,14 @@ const GEN_MIGRATE_CAGE_DEFAULTS = { boomLen: 3.983966, taperLen: 0.6 };
 //      wheel's springs in series with its tyre and its breakout past the pawl's arc, the lockable / fixed / skid kinds,
 //      a twin boom's wheel a boom - so a certificate's ground cases (the taxi, the roll-out, the drops onto the tail)
 //      move; the plaque's probes in the air do not
-const PHYSICS_V = 7;
+//   8  2026-11-12, AERO-BODY: the body the physics flies is the DRAWN one (fuselage.aeroBody, the join's measure): its
+//      drag off the drawn skin and cowls with a base where it ends blunt, the rod a tube of its drawn diameter, no
+//      conventional tail-arm floor on a pod (the twin boom's phantom cone gone), the aft side force at the drawn aft area
+//      and the twin booms' at the booms, the rod billed as its tube and its twist limit the thin tube's buckling - the
+//      plaque, the AP's speeds and the certificate of every pod build move; a body without the record flies as before.
+//      COWL-BILL rides it: the outfit bills a cowl only where the editor fits one (cage.cowlOn, the drag's rule) - the
+//      cowl-less cards (Rufus, Chinook, Ruckus, the Stearman, ...) lose 3-8 kg of a cowl they never had
+const PHYSICS_V = 8;
 
 // { fromVersion: spec => spec } — each entry lifts a spec one version. May
 // mutate and return its argument. Runs BEFORE normalisation, on the raw shape
@@ -5983,6 +5997,34 @@ function clampSpec(spec) {
     }
     fu.profile = P2.length >= 2 ? P2 : null;
   } else fu.profile = null;
+  // AERO-BODY: the join's measure of the DRAWN body (tools/_cage_join.js aeroBodyOf): rows nose -> closure (x from the
+  // firewall, half width, floor and deck in the keel datum), the closure's station, the base the drawing ends on (full
+  // width and height, null = closed), the rod behind it (its drawn diameter), and whether the tail sits on the body (a
+  // conventional fuselage: its own drag law and side-force point, the calibration's). Anything degenerate: the key goes
+  // (the frame's stations fly, as before the record existed)
+  if (fu.aeroBody === null) delete fu.aeroBody;
+  if (fu.aeroBody != null) {
+    const A = fu.aeroBody, rows = [];
+    let ok = genIsPlain(A) && Array.isArray(A.rows);
+    if (ok) {
+      let xPrev = -1e9;
+      for (const r of A.rows) {
+        if (!r || ![r.x, r.w, r.yb, r.yt].every(Number.isFinite)) continue;
+        if (r.x <= xPrev + 1e-4) continue;
+        const yb = genClamp(r.yb, -2, 6);
+        rows.push({ x: genClamp(r.x, -6, 30), w: genClamp(r.w, 0, 3), yb, yt: genClamp(r.yt, yb, 8) });
+        xPrev = r.x;
+        if (rows.length >= 160) break;
+      }
+      ok = rows.length >= 3 && Number.isFinite(A.closeX) && rows[rows.length - 1].x - rows[0].x > 0.5;
+    }
+    if (ok) {
+      const base = genIsPlain(A.base) && A.base.w > 0 && A.base.h > 0 ? { w: genClamp(A.base.w, 0, 6), h: genClamp(A.base.h, 0, 8) } : null;
+      const rod = genIsPlain(A.rod) && [A.rod.x0, A.rod.x1, A.rod.d].every(Number.isFinite) && A.rod.x1 > A.rod.x0 && A.rod.d > 0
+        ? { x0: A.rod.x0, x1: A.rod.x1, d: genClamp(A.rod.d, 0.01, 0.6) } : null;
+      fu.aeroBody = { rows, closeX: genClamp(A.closeX, rows[0].x, rows[rows.length - 1].x + 0.05), base, rod, tailOnBody: !!A.tailOnBody };
+    } else delete fu.aeroBody;
+  }
   cb.halfW = genFieldClamp('cabin.halfW', cb.halfW, S);
   cb.h = genFieldClamp('cabin.h', cb.h, S);
   cb.len = genFieldClamp('cabin.len', cb.len, S);
@@ -6373,7 +6415,16 @@ function resolveSpec(spec) {
   //    fuselage aft of the cabin, so the tail has to start behind it.
   S.fuse.boxRear = S.cab.noseGap + S.cab.len + S.fuse.cargoLen;
   put(S.fuse, 'tailArm', xAC + GEN_RULES.tailArmC * w.chord, 'fuse.tailArm');
-  S.fuse.tailArm = Math.max(S.fuse.tailArm, S.fuse.boxRear + 0.9 * w.chord);
+  // AERO-BODY: the floor is a CONVENTIONAL tail's (the tail on the fuselage needs its arm). A pod's body ends where the
+  // pod is drawn: on twin booms the lattice ends at the drawn pod (fuselage.aeroBody.closeX, the back cowl's exit
+  // included), on a rod the joined tail arm IS the rod. Without the join's measure (a save the load door has not seen,
+  // GEN_DEFAULT) the floor stands as it always did - the bytes it was
+  {
+    const AB = S.fuse.aeroBody, boomed = S.fuse.boom === 'rod' || S.fuse.boom === 'twin' || S.tail.type === 'twinBoom';
+    if (AB && boomed) S.fuse.tailArm = (S.fuse.boom === 'rod' && S.tail.type !== 'twinBoom')
+      ? S.fuse.tailArm : Math.max(S.fuse.tailArm, Math.min(AB.closeX, S.fuse.boxRear + 0.9 * w.chord));
+    else S.fuse.tailArm = Math.max(S.fuse.tailArm, S.fuse.boxRear + 0.9 * w.chord);
+  }
   const post = S.fuse.tailArm + S.fuse.postGap;
   S.fuse.postX = post;
 

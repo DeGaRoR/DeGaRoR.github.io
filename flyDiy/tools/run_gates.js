@@ -718,6 +718,11 @@ const GATES = [
   // builds (tools/fixtures/join_parity_page.json, tools/join_parity_page.js), def to def to 1e-9; the file as written
   // differs; the chain is pure; a save is a fixed point; every loader of a validated build goes through it. ~40 s cold.
   { id: 'JOINPARITY', file: '_joinparity_check.js', tier: 'core', wall: 60 },
+  // AERO-BODY (2026-11-12, the user: "the physics flies the body the player sees"): every official plane through the load
+  // door, the drawing's extents off a page-context probe (_aerobody_probe.js): the flown body is the drawn one within 2 %,
+  // a blunt end carries its base row, a rod is its drawn tube, no lattice past a twin-boom pod, no cowl billed where none
+  // is fitted (COWL-BILL); the negative control (the Chinook and the Twin without the record) must fail. ~90 s cold
+  { id: 'AEROBODY', file: '_aerobody_check.js', tier: 'core', wall: 150 },
   // CREW-LOAD-BACKOFF (GPS-STALL, 2 Nov): a character that fails to load rebuilds the aeroplane ONCE (G1985's settle) and
   // then retries on a clock (2, 4 ... 60 s), not on every build - the old loop rebuilt it every ~280 ms in flight. The
   // page's crew + character layers headless, the user's Cub, an asset door that fails / lands late; a mutant self-test. ~20 s

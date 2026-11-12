@@ -727,6 +727,8 @@ function cageJoinSpec(P, M, T) {
   // (ENGINE-DIALS C2, 12 Nov: left ABSENT rather than written - the physics reads GEN_DEFAULT's, the constants; written,
   // they moved every cage build's certificate fingerprint on the update, GATE BENCH's Rufus red - see the gear above)
   delete fus.crownTop; delete fus.crownSide;
+  // AERO-BODY: stated on every join (null clears an older record: the merge keeps a key the join leaves out)
+  fus.aeroBody = M.aeroBody || null;
   if (Object.keys(fus).length) spec.fuselage = fus;
   // G54.3: the tail surfaces, measured off the placed fin/stab layers.
   // clampSpec's envelope bounds every one; anything unmeasured keeps the
@@ -1311,6 +1313,109 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     });
     return n >= 4 ? { z0, z1, n } : null;
   };
+  // AERO-BODY (2026-11-12, the user: "the physics flies the body the player sees"): A LAYER'S SILHOUETTE, column by
+  // column along z - its triangles cut at each station, the extremes of the cut (top, bottom, |x|) in the mount frame.
+  // Faces, not vertices (a cowl's lip rings and lid hold a station's vertices only partly). Returns [{ z, hw, y0, y1 }]
+  const layerColumns = (layerName, dz) => {
+    const mnt = edMount();
+    if (!mnt || typeof THREE === 'undefined') return [];
+    mnt.updateMatrixWorld(true);
+    const inv = new THREE.Matrix4().copy(mnt.matrixWorld).invert();
+    const tmp = new THREE.Matrix4(), v = new THREE.Vector3();
+    let grp = null;
+    mnt.traverse(o => { if (!grp && o.name === layerName) grp = o; });
+    if (!grp) return [];
+    const T = []; let z0 = 1e9, z1 = -1e9;
+    grp.traverse(o => {
+      if (!o.isMesh || !o.visible || !o.geometry) return;
+      if (o.userData && (o.userData.edHi || o.userData.edHw)) return;
+      const g = o.geometry, p = g.attributes.position;
+      if (!p) return;
+      tmp.multiplyMatrices(inv, o.matrixWorld);
+      const V = new Float64Array(p.count * 3);
+      for (let i = 0; i < p.count; i++) { v.set(p.getX(i), p.getY(i), p.getZ(i)).applyMatrix4(tmp); V[3 * i] = v.x; V[3 * i + 1] = v.y; V[3 * i + 2] = v.z; }
+      const ix = g.index ? g.index.array : null, nT = ix ? ix.length / 3 : p.count / 3;
+      for (let t = 0; t < nT; t++) { const q = [0, 1, 2].map(e => ix ? ix[3 * t + e] : 3 * t + e);
+        const P3 = q.map(k => [V[3 * k], V[3 * k + 1], V[3 * k + 2]]); T.push(P3);
+        for (const r of P3) { if (r[2] < z0) z0 = r[2]; if (r[2] > z1) z1 = r[2]; } }
+    });
+    if (!T.length) return [];
+    const n = Math.ceil((z1 - z0) / dz) + 1, top = new Array(n).fill(-1e9), bot = new Array(n).fill(1e9), hw = new Array(n).fill(0);
+    for (const P3 of T) {
+      const zl = Math.min(P3[0][2], P3[1][2], P3[2][2]), zh = Math.max(P3[0][2], P3[1][2], P3[2][2]);
+      for (let c = Math.max(0, Math.floor((zl - z0) / dz)); c <= Math.min(n - 1, Math.ceil((zh - z0) / dz)); c++) {
+        const z = z0 + c * dz;
+        for (let e = 0; e < 3; e++) { const A = P3[e], B2 = P3[(e + 1) % 3];
+          if ((A[2] - z) * (B2[2] - z) > 0 || A[2] === B2[2]) continue;
+          const u = (z - A[2]) / (B2[2] - A[2]), x = A[0] + (B2[0] - A[0]) * u, y = A[1] + (B2[1] - A[1]) * u;
+          if (y > top[c]) top[c] = y; if (y < bot[c]) bot[c] = y; if (Math.abs(x) > hw[c]) hw[c] = Math.abs(x); }
+      }
+    }
+    const out = [];
+    for (let c = 0; c < n; c++) if (top[c] > -1e8) out.push({ z: z0 + c * dz, hw: hw[c], y0: bot[c], y1: top[c] });
+    return out;
+  };
+  // AERO-BODY: THE DRAWN BODY, nose to closure, in the frame's datums (x = zFw - z from the firewall, y over the keel):
+  // the drawn skin (the gear layer's sampler of the cage, AF - the rod included, the cowls not) and the cowl layer's
+  // silhouette (PROPER-COWLS' mesh: the nose cowl ahead of the skin, a pusher's back cowl behind it). Where it is no
+  // bigger than the drawn rod it is the rod; an unpanelled taper is the rod's truss, not a body (the user: "a tube of its
+  // real diameter, nothing more"). The record the core flies (60_gen_spec clampSpec, 62_gen_aero genAeroBody):
+  //   rows [{ x, w (half), yb, yt }], closeX, base { w, h } (the section the drawing ends on; null = closed),
+  //   rod { x0, x1, d } (null = none), tailOnBody (a conventional fuselage: the tail on the body, closed)
+  const aeroBodyOf = (AF, zFw, yD, P) => {
+    if (!AF || !isFinite(AF.z0) || !isFinite(AF.z1) || typeof AF.halfWAt !== 'function') return null;
+    const NS = 120, af = [];
+    for (let i = 0; i <= NS; i++) {
+      const z = AF.z1 + (AF.z0 - AF.z1) * i / NS;
+      let w, yb, yt;
+      try { w = AF.halfWAt(z); yb = AF.surf(z, 0)[1] - yD; yt = AF.surf(z, Math.PI)[1] - yD; } catch (e) { continue; }
+      if (![w, yb, yt].every(isFinite) || !(w > 0.004) || !(yt - yb > 0.004)) continue;
+      af.push({ x: zFw - z, w, yb, yt });
+    }
+    af.sort((a, b) => a.x - b.x);
+    if (af.length < 4) return null;
+    const cw = window.CAGE_COWL, aftCowl = !!(cw && cw.units && cw.units[0] && cw.units[0].aft);
+    const cols = layerColumns('cageLayer:cowl', 0.01)
+      .map(c => ({ x: zFw - c.z, w: c.hw, yb: c.y0 - yD, yt: c.y1 - yD }))
+      .filter(r => r.w > 0.004 && r.yt - r.yb > 0.004).sort((a, b) => a.x - b.x);
+    const ps = +P.planeScale || 1, rodB = Math.round(+P.boomStyle || 0) === 1 && !+P.boomTwin, twin = !!+P.boomTwin;
+    const d = rodB ? (+P.rodD > 0 ? +P.rodD : 0.12) * ps : 0;
+    let rows = af, rod = null, base = null, closeX = af[af.length - 1].x;
+    if (rodB) {
+      const isRod = r => 2 * r.w < 1.6 * d && r.yt - r.yb < 1.6 * d;
+      const hMax = Math.max(...af.map(r => r.yt - r.yb));
+      let iEnd = af.findIndex((r, i) => i > 2 && isRod(r));
+      if (+P.taperOn && !+P.taperPanels) {
+        const iMax = af.findIndex(r => r.yt - r.yb >= 0.97 * hMax);
+        const iT = af.findIndex((r, i) => i > iMax && r.yt - r.yb < 0.97 * hMax);
+        if (iT > 0 && (iEnd < 0 || iT < iEnd)) iEnd = iT;
+      }
+      if (iEnd > 2) {
+        rows = af.slice(0, iEnd); const last = rows[rows.length - 1];
+        closeX = last.x; rod = { x0: closeX, x1: af[af.length - 1].x, d };
+        base = { w: 2 * last.w, h: last.yt - last.yb };
+      }
+    } else if (twin) { const last = af[af.length - 1]; base = { w: 2 * last.w, h: last.yt - last.yb }; }
+    if (cols.length) {
+      if (aftCowl) {
+        const tail = cols.filter(r => r.x > closeX - 0.02);
+        if (tail.length) {
+          rows = rows.filter(r => r.x < tail[0].x - 1e-6).concat(tail);
+          closeX = rows[rows.length - 1].x; const ex = rows[rows.length - 1];
+          base = { w: 2 * ex.w, h: ex.yt - ex.yb };
+          if (rod) rod.x0 = Math.max(rod.x0, closeX);
+        }
+      } else {
+        const head = cols.filter(r => r.x < rows[0].x + 0.02);
+        if (head.length) rows = head.concat(rows.filter(r => r.x > head[head.length - 1].x + 1e-6));
+      }
+    }
+    const T = [];
+    for (const r of rows) if (!T.length || r.x - T[T.length - 1].x >= 0.039 || r === rows[rows.length - 1])
+      T.push({ x: +r.x.toFixed(4), w: +r.w.toFixed(4), yb: +r.yb.toFixed(4), yt: +r.yt.toFixed(4) });
+    const rnd = o => { if (!o) return null; const q = {}; for (const k in o) q[k] = +o[k].toFixed(4); return q; };
+    return { rows: T, closeX: +closeX.toFixed(4), base: rnd(base), rod: rnd(rod), tailOnBody: !rodB && !twin };
+  };
   // WHAT THE MEASUREMENT COULD NOT TAKE (G64). One list, refilled by every
   // measure(), read by the engineering bench. A join that cannot measure the
   // build must not hand back a plausible aeroplane in silence — that is a
@@ -1436,6 +1541,8 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       // frame), and needs the firewall and keel datums to bring it into the
       // cage's frame: cage z = zFw - x, cage y = y + yD
       window.CAGE_DATUM = { zFw, yD, fwOk };
+      // AERO-BODY: the drawn body, measured (null when it cannot be: the key then clears the record)
+      if (fwOk) { try { M.aeroBody = aeroBodyOf(AF, zFw, yD, P); } catch (e) { M.aeroBody = null; NOTES.push('aero body: not measured (' + e.message + ')'); } }
       // G266.1: the wing's height — the wing layer maps the frame's root
       // front-spar node onto its anchor (deck / waist / belly band, plus
       // the up/down nudge); read it back in the frame's own y
