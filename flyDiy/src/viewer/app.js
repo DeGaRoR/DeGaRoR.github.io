@@ -6440,12 +6440,15 @@
   // rebuild them."): THE CREW IS NEVER DRAWN OUTSIDE THE WRECK. Whenever a figure could leave the cabin - the wreck broke
   // up (the core's brokeUp: the body frame parted; the worker's verdict under it) or the cabin round the eye is crushed
   // (G1863's own test, read here in every view, at most every 0.1 s) - the crew's meshes are hidden until the heal gives
-  // them back (Fly again, the shed). The crash card's words stay as they were. window.FLYDIY_CREW_SHOW = true: as it was
+  // them back (Fly again, the shed). The crash card's words stay as they were. window.FLYDIY_CREW_SHOW = true: as it was.
+  // CREW-OFF-CRASH (12 Nov): any crash the core calls one (its `crashed`) hides them too, not only a break-up / crushed cabin
   function wreckCrew(D) {
     const ppl = model && model.people;
     if (!ppl || !ppl.length || window.FLYDIY_CREW_SHOW) return;
     if (!WK.crewOff) {
-      let off = !!(flDmg && flDmg.brokeUp) || !!WK.eyeCut;
+      // (CREW-OFF-CRASH, the user 12 Nov on the Petrel's field crash, crew and seats out under the broken belly: "we said we'd
+      // remove the people in the crashes" - the hull stayed one piece and the cabin's eye test never fired: ANY crash now)
+      let off = !!(flDmg && (flDmg.brokeUp || flDmg.crashed)) || !!WK.eyeCut;
       if (!off && WK.cab && sim.t - (WK.crewT == null ? -1 : WK.crewT) >= 0.1) { WK.crewT = sim.t; off = !!window.WRECK_DEBRIS.crushed(WK.cab, sim.p, D.pc).crushed; }
       if (!off) return;
       WK.crewOff = true;
