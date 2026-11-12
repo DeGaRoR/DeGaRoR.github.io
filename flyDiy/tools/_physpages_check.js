@@ -127,6 +127,14 @@ function child(k) {
       ok(/^<svg [^>]*viewBox="0 0 1200 800"/.test(out) && out.endsWith('</svg>') && !/NaN|undefined|Infinity/.test(out),
          'DRAW ' + p.id + ' (' + th + ') ' + (out.startsWith('THROW') ? out : 'carries a bad number or is not one svg'));
     }
+    // THE PHONE (AIRCRAFT-LOOKS' spec, 13 Nov): a section with its portrait layout draws exactly w wide at 320 / 360 / 480,
+    // on the dark sheet, with no bad number and no text starting past the right edge
+    for (const p of FP.PAGES) for (const w of [320, 360, 480]) {
+      let out = ''; try { out = FP.svg(p.id, D, { name: k, reg: 'F-TEST', pics: res, sig: 'Wingsmith', layout: { screen: 'phone', theme: 'dark', w, h: null } }); } catch (e) { out = 'THROW ' + e.message; }
+      if (/^<svg viewBox="0 0 1200 800"/.test(out)) continue;   // (no portrait layout yet: the desktop drawing, scaled - the spec's fallback)
+      const vb = out.match(/^<svg viewBox="0 0 (\d+) (\d+)"/), xs = [...out.matchAll(/<text x="(-?[\d.]+)"/g)].map(m => +m[1]);
+      ok(!!vb && +vb[1] === w && !/NaN|undefined|Infinity/.test(out) && xs.every(x => x >= 0 && x <= w), 'PHONE ' + p.id + ' at ' + w + ' px: ' + (out.startsWith('THROW') ? out : 'not ' + w + ' wide, a bad number, or a text past the edge'));
+    }
     // REFERENCE: the baked section's scores are real_report's own (scorePlane on the same result), and it draws whole
     { const RB = require(path.join(T, 'fiche_reference_bake.js')), REP = require(path.join(T, 'real_report.js'));
       const RF = RB.referenceOf('jodel'), got = RB.resultOf('jodel');

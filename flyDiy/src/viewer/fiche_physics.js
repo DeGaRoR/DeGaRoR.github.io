@@ -268,10 +268,9 @@
     return { N, f, ox, oy, k: pic.s * f };
   }
   const picImg = (pic, m, op, filt) => `<image href="${pic.href}" x="${m.ox.toFixed(1)}" y="${m.oy.toFixed(1)}" width="${(pic.W * m.f).toFixed(1)}" height="${(pic.H * m.f).toFixed(1)}" opacity="${op}"${filt ? ` filter="url(#${filt})"` : ''}/>`;
-  function pageDrag(D, o, th, K) {
-    const M = D.model, Dg = D.drag, pic = o.pics && o.pics.side;
-    const items = [];
-    const at = {};
+  // where each drag group sits on the side picture (shared by the desktop and the phone)
+  function dragAt(D) {
+    const M = D.model, Dg = D.drag, at = {};
     { const fus = M.nodes.filter(n => /^S[2-4][TB]/.test(M.tags[n[4]])); at.fuselage = mean(fus);
       at.cooling = mean(byTag(M, 'CGE').concat(byTag(M, 'ENGL'))); at.screen = mean(byTag(M, 'S0TL').concat(byTag(M, 'S1TL')));
       const wr = M.nodes.filter(n => M.tags[n[4]] === 'WF').sort((a, b) => Math.abs(a[2]) - Math.abs(b[2]))[0]; if (wr) at.junct = [wr[0] + 0.25, wr[1] - 0.05, 0];
@@ -280,8 +279,15 @@
       const st = M.beams.filter(b => isStrut(M, b)); if (st.length) at.struts = mean(st.flatMap(b => [P3(M, b[0]), P3(M, b[1])]));
       const wi = M.beams.filter(b => M.CLS[b[2]] === 'wire'); if (wi.length) at.wires = mean(wi.flatMap(b => [P3(M, b[0]), P3(M, b[1])]));
       at.nacelles = mean(byTag(M, 'ENGL').concat(byTag(M, 'ENGR'))); }
+    return at;
+  }
+  const dragName = Dg => g => g === 'third' && Dg.gearType === 'tricycle' ? 'Nose wheel' : g === 'third' && Dg.floats ? 'Third wheel*' : g === 'mainGear' && Dg.floats ? 'Floats*' : DRAGROW[g][0];
+  function pageDrag(D, o, th, K) {
+    const M = D.model, Dg = D.drag, pic = o.pics && o.pics.side;
+    const items = [];
+    const at = dragAt(D);
     const big = Object.keys(Dg.groups).filter(g => g !== 'fuselage' && DRAGROW[g]).sort((a, b) => Dg.groups[b].dV - Dg.groups[a].dV)[0];
-    const nm = g => g === 'third' && Dg.gearType === 'tricycle' ? 'Nose wheel' : g === 'third' && Dg.floats ? 'Third wheel*' : g === 'mainGear' && Dg.floats ? 'Floats*' : DRAGROW[g][0];
+    const nm = dragName(Dg);
     const out = head(th, K, o, 'Drag · where the speed goes', 'Your ' + nm(big).replace('*', '').toLowerCase() + ' cost ' + r0(Dg.groups[big].dV * 3.6) + ' km/h',
       'Cruise ' + r0(Dg.Vc * 3.6) + ' km/h · each disc a flat plate of the same drag, to scale');
     if (pic && pic.frame) {
@@ -643,15 +649,70 @@
     return out;
   }
 
+  // ===================================================================================================================
+  // THE PHONE (AIRCRAFT-LOOKS' spec, 13 Nov): ctx.layout.screen 'phone' - one column, w wide (320-480, design 360), as tall
+  // as it needs, on the black sheet, drawn with the shared kit (fiche_kit.js FICHE_KIT). A section without its phone
+  // layout yet draws its desktop sheet scaled to w (the spec's fallback).
+  // ===================================================================================================================
+  const KIT = () => (root && root.FICHE_KIT) || (typeof require === 'function' ? require('./fiche_kit.js') : null);
+  const kitPalette = (th, o) => ({ paper: th.bg, ink: th.ink, dim: th.dim, faint: th.faint, line: th.hair,
+                                   acc: (o.tokens && o.tokens.acc) || ((th.base || th) === THEMES.sheet ? '#b5652e' : '#e0915a'), dark: (th.base || th) !== THEMES.sheet });
+  function phoneHead(C, o, eyebrowText, title, sub) {
+    const nm = (o.name || '') + (o.reg ? '  ' + o.reg : '');
+    if (nm) C.text(nm, { sz: 13, w8: 600, gap: 2 });
+    C.eyebrow(eyebrowText); C.title(title);
+    if (sub) C.text(sub, { sz: 13.5, c: 'dim' });
+  }
+  function phoneDrag(D, o, th, K, C) {
+    const M = D.model, Dg = D.drag, pic = o.pics && o.pics.side, at = dragAt(D), nm = dragName(Dg);
+    const rows = Object.keys(Dg.groups).filter(g => DRAGROW[g]).sort((a, b) => Dg.groups[b].dV - Dg.groups[a].dV);
+    const big = rows.filter(g => g !== 'fuselage')[0] || rows[0];
+    phoneHead(C, o, 'Drag · where the speed goes', 'Your ' + nm(big).replace('*', '').toLowerCase() + ' cost ' + r0(Dg.groups[big].dV * 3.6) + ' km/h',
+      'Cruise ' + r0(Dg.Vc * 3.6) + ' km/h · each disc a flat plate of the same drag, to scale');
+    // the plane, its discs numbered as the list below ranks them
+    if (pic && pic.frame) C.gap(8).figure(C.inner * 0.46, (x, y, w, h) => {
+      const m = sideMap(pic, { x, y, w, h }), s = [picImg(pic, m, (th.base || th) === THEMES.sheet ? 1 : 0.92)], its = [];
+      rows.forEach((g, i) => { if (!at[g]) return; const q = m.N(at[g]); its.push({ q, r: Math.max(2.5, Math.sqrt(Dg.groups[g].cda / Math.PI) * m.k), col: CAT[DRAGROW[g][1]], n: i + 1 }); });
+      for (const it of its.slice().sort((a, b) => b.r - a.r)) s.push(`<circle cx="${it.q[0].toFixed(1)}" cy="${it.q[1].toFixed(1)}" r="${it.r.toFixed(1)}" ${K.fillAttr(it.col)}/>`);
+      // the badges off their discs, pushed apart where parts crowd (a leader back to the disc when moved)
+      const put = [];
+      for (const it of its) { let bx = Math.min(x + w - 9, it.q[0] + it.r * 0.7 + 7), by = Math.max(y + 9, it.q[1] - it.r * 0.7 - 7), k2 = 0;
+        while (put.some(p => Math.hypot(p[0] - bx, p[1] - by) < 16.5) && k2++ < 12) { if (k2 % 2) by -= 16; else bx += 16; if (by < y + 9) { by = y + 9; bx += 16; } bx = Math.min(x + w - 9, bx); }
+        put.push([bx, by]);
+        if (k2) s.push(K.L([it.q[0], it.q[1]], [bx, by], th.lead, 0.8));
+        s.push(badge(K, th, [bx, by], it.n, 7.5)); }
+      return s.join('');
+    });
+    C.label('What each part costs at cruise');
+    C.rows(rows.map((g, i) => [(i + 1) + '  ' + nm(g), '−' + r1(Dg.groups[g].dV * 3.6) + ' km/h', Dg.groups[g].cda.toFixed(3) + ' m² of flat plate', CAT[DRAGROW[g][1]]]));
+    const tot = Dg.axial + Dg.surf;
+    C.label('All of the drag at cruise: ' + tot.toFixed(2) + ' m²');
+    C.gap(6).figure(14, (x, y, w) => { let xx = x; const s = [];
+      const seg = (v, col, op) => { const ww = w * v / tot; s.push(`<rect x="${xx.toFixed(1)}" y="${y}" width="${Math.max(0, ww - 1).toFixed(1)}" height="12" rx="2" ${K.fillAttr(col, op)}/>`); xx += ww; };
+      seg(Dg.surf, th.faint, 0.3); for (const g of rows.slice().sort((a, b) => Dg.groups[b].cda - Dg.groups[a].cda)) seg(Dg.groups[g].cda, CAT[DRAGROW[g][1]]);
+      return s.join(''); });
+    C.text('The grey: the wings and the tail, lifting, ' + r0(100 * Dg.surf / tot) + ' %.', { sz: 12.5, c: 'dim' });
+    C.text(Dg.floats ? '* the core charges the floats as the wheeled gear they replace: the hulls have no air drag of their own yet'
+      : 'Each km/h: the cruise worked out again with only that part\'s drag taken off. They do not add up.', { sz: 12, c: Dg.floats ? th.warn : 'faint' });
+  }
+  const PHONE = { drag: phoneDrag };
+
   let svgSeq = 0;
   function svg(page, data, opts) {
     const o = opts || {}, th = themeOf(o), K = kit(th);
+    const L = o.layout || {}, phone = L.screen === 'phone' || (!L.screen && o.screen === 'phone');
     // (the first prototypes' ids stay understood: load, xray, model)
     const f = { integrity: pageLoad, load: pageLoad, drag: pageDrag, electrics: pageXray, xray: pageXray, physics: pageModel, model: pageModel, reference: pageReference }[page];
     if (!f) throw new Error('no physics page ' + page);
     // the ids a page defines (patterns, filters, its clip) made the drawing's own: several pages share one document
     const uid = 'fp' + (++svgSeq) + '_';
-    const ALIAS = { load: 'integrity', xray: 'electrics', model: 'physics' };
+    const ALIAS = { load: 'integrity', xray: 'electrics', model: 'physics' }, pid = ALIAS[page] || page, Kt = phone ? KIT() : null;
+    if (phone && Kt && PHONE[pid]) {
+      const C = Kt.column({ w: L.w > 0 ? L.w : 360, palette: kitPalette(th, o) });
+      PHONE[pid](data, o, th, K, C);
+      return C.svg((PAGES.find(p => p.id === pid) || {}).name + (o.name ? ' of the ' + o.name : ''), { sig: o.sig })
+        .replace(/id="([a-z]{2})"/g, 'id="' + uid + '$1"').replace(/url\(#([a-z]{2})\)/g, 'url(#' + uid + '$1)');
+    }
     return wrap(f(data, o, th, K), (PAGES.find(p => p.id === (ALIAS[page] || page)) || {}).name + (o.name ? ' of the ' + o.name : ''))
       .replace(/id="([a-z]{2})"/g, 'id="' + uid + '$1"').replace(/url\(#([a-z]{2})\)/g, 'url(#' + uid + '$1)');
   }

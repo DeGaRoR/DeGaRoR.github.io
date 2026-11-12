@@ -8,7 +8,8 @@
 const fs = require('fs'), path = require('path'), http = require('http');
 const FLY = path.join(__dirname, '..');
 const argv = process.argv.slice(2), opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 && argv[i + 1] ? argv[i + 1] : d; };
-const theme = opt('theme', 'sheet'), pages = opt('pages', 'drag,physics,electrics,integrity,reference').split(','), out = path.resolve(opt('out', path.join(FLY, 'screenshots', 'physics_pages')));
+const phone = +opt('phone', 0) || 0;   // --phone <w>: the phone's portrait column, w CSS px wide, on the black sheet
+const theme = phone ? 'dark' : opt('theme', 'sheet'), pages = opt('pages', 'drag,physics,electrics,integrity,reference').split(','), out = path.resolve(opt('out', path.join(FLY, 'screenshots', 'physics_pages')));
 const IX = JSON.parse(fs.readFileSync(path.join(FLY, 'media', 'fiches', 'index.json'), 'utf8')).fiches;
 const only = opt('only', '') ? opt('only').split(',') : null;
 const keys = Object.keys(IX).filter(k => (!only || only.includes(k)) && fs.existsSync(path.join(FLY, 'media', 'fiches', path.dirname(IX[k].pics.side || 'x/x'), 'physics.json')));
@@ -16,20 +17,20 @@ let pw = null; try { pw = require('playwright'); } catch (e) { console.error('ph
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json', '.webp': 'image/webp', '.png': 'image/png' };
 const srv = http.createServer((q, r) => {
   const u = decodeURIComponent(q.url.split('?')[0]);
-  if (u === '/_shot.html') { r.writeHead(200, { 'content-type': 'text/html' }); r.end('<!doctype html><meta charset="utf-8"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap"><body style="margin:0"><div id="el" style="width:1200px"></div><script src="/src/viewer/fiche_physics.js"></script>'); return; }
+  if (u === '/_shot.html') { r.writeHead(200, { 'content-type': 'text/html' }); r.end('<!doctype html><meta charset="utf-8"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap"><body style="margin:0"><div id="el" style="width:' + (phone || 1200) + 'px"></div><script src="/src/viewer/fiche_kit.js"></script><script src="/src/viewer/fiche_physics.js"></script>'); return; }
   const f = path.join(FLY, u); if (!f.startsWith(FLY) || !fs.existsSync(f)) { r.writeHead(404); r.end(); return; }
   r.writeHead(200, { 'content-type': TYPES[path.extname(f)] || 'application/octet-stream' }); fs.createReadStream(f).pipe(r);
 });
 srv.listen(0, '127.0.0.1', async () => {
   const port = srv.address().port; fs.mkdirSync(out, { recursive: true });
-  const b = await pw.chromium.launch(), p = await b.newPage({ viewport: { width: 1200, height: 800 }, deviceScaleFactor: 2 });
+  const b = await pw.chromium.launch(), p = await b.newPage({ viewport: { width: phone || 1200, height: 800 }, deviceScaleFactor: 2 });
   await p.goto(`http://127.0.0.1:${port}/_shot.html`); await p.waitForTimeout(600);
   let n = 0;
   for (const k of keys) for (const pg of pages) {
-    const ok = await p.evaluate(async ([k, pg, th, rec]) => FICHE_PHYSICS.mount(document.getElementById('el'), rec, pg, { theme: th, title: rec.title }),
-      [k, pg, theme, { name: k, baked: true, title: IX[k].name, data: IX[k].data, pics: Object.fromEntries(Object.entries(IX[k].pics).map(([v, f]) => [v, '/media/fiches/' + f])) }]);
+    const ok = await p.evaluate(async ([k, pg, th, ph, rec]) => FICHE_PHYSICS.mount(document.getElementById('el'), rec, pg, { theme: th, title: rec.title, layout: ph ? { screen: 'phone', theme: 'dark', w: ph, h: null } : null }),
+      [k, pg, theme, phone, { name: k, baked: true, title: IX[k].name, data: IX[k].data, pics: Object.fromEntries(Object.entries(IX[k].pics).map(([v, f]) => [v, '/media/fiches/' + f])) }]);
     if (!ok) { console.log('no data:', k); continue; }
-    const f = path.join(out, k.replace(/[^\w.-]+/g, '_') + '_' + pg + (theme === 'dark' ? '_dark' : '') + '.png');
+    const f = path.join(out, k.replace(/[^\w.-]+/g, '_') + '_' + pg + (phone ? '_phone' + phone : theme === 'dark' ? '_dark' : '') + '.png');
     await (await p.$('#el svg')).screenshot({ path: f }); n++;
   }
   await b.close(); srv.close();
