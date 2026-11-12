@@ -564,6 +564,7 @@ const CAGE_PARTS = [
       // boomStyle -> `design`; these shape the rod once it is chosen
       ['rod', ['rodOn', 'rodY', 'rodD', 'rodIncl']],
       ['twin booms', ['boomTwin', 'boomX', 'boomDy', 'boomDz']],
+      ['booms on the body (no wing)', ['boomBodyZ', 'boomBodyY']],   // CAR-4
       ['section', ['boomWf', 'boomHf', 'boomWa', 'boomHa', 'boomSquare', 'boomIncl', 'boomCollar']],
       ['wing end', ['boomNoseLen', 'boomNoseK', 'boomNoseCap']],
       ['tail end', ['boomTailLen', 'boomTailK', 'boomTailCap']],

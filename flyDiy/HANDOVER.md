@@ -314809,3 +314809,25 @@ the next steps).
   pool index, plane lists n 51, thumb cand_buggy_2026-11.webp); sheet src/cars/car_buggy.json: wb 1.86 m, 415 kg, 47 %
   front, 51 kW at the wheels, 0-100 5.9 s, 166 km/h, braking 0.79 g, lane change back to -0.5 / -0.9 deg. Leftovers: the
   aero-tail stub behind the seat reads as a black hub; the interior view (`i`) finds no dash framing on this pod.
+- **CAR-3 - THE FIELD WAGON, A GLIDER TUG FROM THE C172 (12 Nov; the user: "a car that looks more or less like a car ... able
+  to pull the glider ... a real cabin ... a utility vehicle"; then the Dodge Power Wagon carryall as the reference, "two
+  passenger sections", "the outline projection", "the cowl ... a square base")**: builds/edits/utility_2026-11.edits.json
+  over builds/cessna172r_2026-11-08.json (tools/_rejoin_build.js). The pilot section and TWO passenger bays (paxCount 2,
+  a door and a window each), ending flat at the aft bulkhead, the roof level to the end; matched to the user's three-view
+  with tools/outline.js (the target traced off the drawing, scaled on the 126 in wheelbase): planeScale 0.90, wheelbase
+  3.20 m, 0.45 m tyres, front axle under the hood (s2AxZ 1.3), the cab widened (halfW 1.0), the nose ring squared
+  (noseCrown 0.1, frNoseTopW/BotW, frNoseTopY 0.37) and the bonnet a square section fitted to it (car_lines --build: within
+  ~4 cm), the windscreen stood up (wsRun 0.5). A 6.0 L custom V8, 4WD (spec.meta.car), 1080 kg: 0-100 5.0 s, and
+  AUTOTOW: a 450 kg glider LAUNCHES off the paved strip (the climb at 5.3 kN held at 112 km/h); not off grass (mu 0.55:
+  ~1.5 t would). Leftovers: the front legs reach 0.8 m from the firewall (a diagonal strut in view: legs mount on the
+  body only - a gap), a black fitting on the rear wall. Not yet in the pool (the build regenerates from its edits).
+- **CAR-3 TOOLS**: src/vehicle/vehicle.js a TOW LINE (ctl.tow N, towEl, towDir; absent = no rope - GATE VEHICLE PASS);
+  tools/car_sheet.js 4WD and the chassis mass from spec.meta.car ({drive:'4wd', chassisKg}), TOW and AUTOTOW rows, the
+  ledger's datum on the MAINS' station (not the rear axle - CAR-4's mains are its front pair); tools/car_lines.js --build.
+- **CAR-4 - THE RANCH HAND, A UTV FROM THE CUB (the user: "use the double boom to emulate a chassis ... the stabilizer ...
+  a bed ... a tiny engine")**: builds/edits/utv_2026-11.edits.json over builds/cub_2026-09-20_corrected.json. NEW ROWS
+  boomBodyZ / boomBodyY (_cage_wing.js drawBooms, the boom drawing lifted out of wingPost; _cage_page5.js, _cage_parts.js):
+  twin booms with the WING OFF root on the body (the core holds a wing to 6.5 m span, so it cannot be buried); absent =
+  as before. The booms are the chassis rails, the stab (squared planform) the bed, the rear wheels on the booms (s2Leg 3),
+  the front pair under a short bonnet over the A-65; two seats abreast (halfW 0.92); 4WD, 539 kg, 0-100 7.2 s. It cannot
+  launch a glider (39 kW at the wheels: a launch needs ~150 kW, the physics, not the build).

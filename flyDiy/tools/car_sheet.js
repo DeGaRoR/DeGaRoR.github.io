@@ -87,7 +87,12 @@ function sheetFromBake(bj, C, opts) {
     m += L[k].mass; mx += L[k].mx || 0; items.push([k, +L[k].mass.toFixed(1)]); }
   const g = spec.gear || {};
   if (!(typeof g.x === 'number')) throw new Error('car_sheet: the join measured no mains station (gear.x)');
-  const zFw = zRear + g.x;                          // the firewall's station on the drawing (gear.x is the mains' aft of it)
+  // the ledger's datum on the drawing: the MAINS' station + gear.x (the join's mains aft of it) - CAR-4: the mains are
+  // the first station drawn (s1), not always the rear axle (a UTV's mains are its FRONT pair, the boom wheels its rear;
+  // the rear axle's station put the UTV's CG on its rear axle)
+  const mains = G.contacts.filter(c => c.st && c.st === G.contacts[0].st);
+  const zMains = mains.length === 2 ? (mains[0].p[2] + mains[1].p[2]) / 2 : zRear;
+  const zFw = zMains + g.x;
   const xLedger = mx / m;                           // the ledger's CG, aft of the firewall
   const zCh = (zRear + zFront) / 2;
   const mTot = m + chKg;

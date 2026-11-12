@@ -161,6 +161,7 @@
    "note": "a manual gearbox and a live rear axle: ~85 % of the crank power at the wheels"
   }
  },
+ "drive": "rwd",
  "tune": {
   "drive": {
    "wheels": [

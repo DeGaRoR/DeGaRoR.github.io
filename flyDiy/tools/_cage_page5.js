@@ -1172,6 +1172,12 @@ window.CAGE_PAGE = {
       // holds the root to BOOM_REACH ahead of the wing's own leading edge at the boom's station (_cage_wing.js)
       ['boomDz',    'fore / aft (from the trailing edge)', -3.5, 1.0, 0.005,
        { when: P => +P.boomTwin, dim: 'len' }],
+      // CAR-4 (the user, 12 Nov: "use the double boom to emulate a chassis"): with the WING OFF the booms root on the
+      // body - the station (cage z, metres, forward positive) and the axis height; absent = no booms without a wing
+      ['boomBodyZ', 'root station on the body (no wing)', -2.0, 6.0, 0.005,
+       { when: P => +P.boomTwin && !+P.wingOn, dim: 'len' }],
+      ['boomBodyY', 'root height on the body (no wing)', -1.2, 1.0, 0.005,
+       { when: P => +P.boomTwin && !+P.wingOn, dim: 'len' }],
       // G267: THE LOFT (the user: "their vertical and horizontal thickness
       // at fore and aft ends", "their profile (square, round)", each end
       // "profiled ... from ogival to conical" with "the type of cap")
