@@ -170,3 +170,19 @@ plus the bus parts. It replaced 1.2 kg + 0.15 kg per powered item. **PHYSICS_V 7
   revert cancel). LINER-BACK (claude/liner-back 729f49f04, aiming at L37b) edits `outfit.trim` on the one-line Cub and
   Jodel cards; nothing here conflicts with it as text. Its measures with the liner: Cub 354.77 -> 353.35 kg (+2.4 %;
   ~+2.9 % with this branch's cable runs), Jodel 343.63 -> 342.45 kg (+7.0 %; JODEL-GEO then carries the electrics-off edit).
+
+## For A0 - L40a (12 Nov; your ask: rebase onto 23ce68c1f, latent keys, gated by check name vs master)
+This session cannot message a session on the user's computer, so the answer is here. **Target: L40a** (Fri 13 Nov 19:00).
+1. **A MERGE, not a rebase.** The branch is pushed and this session may not force-push. `506644a4` merges `23ce68c1f`
+   (L39b); the tree is what a rebase gives. Conflicts resolved:
+   - `90_node_exports.js`: master's list plus `GEN_ELEC_SETS, GEN_ELEC_AS_BUILT, genElecSetOf, genHarnessKg`;
+   - `HANDOVER.md`: master's new sections first, then ELEC-SYSTEMS';
+   - the built files: rebuilt in `31b21ffe` and `8a472890`.
+   ELEC, PANEL and TECH pass on the merged tree. Squash on landing if you need linear history.
+2. **Not everything is latent, by the user's ruling.** Latent (absent = as before): the new catalogue rows, the engine's
+   suggested sets, the tiles, the alarms and the warnings. NOT latent: the user's "go cable runs" (9 Nov). The harness is
+   billed by its runs on every build with a bus, so masses move 1.5-1.8 kg (the Chinook +3.1), `PHYSICS_V` 7 -> 8, and
+   every certificate key moves. Master is still at 7. PROP-CLASSES (claude/practical-cerf-7fjpwp) also takes 8:
+   whichever lands second takes 9. A latent-only L40 means the harness rule behind a flag, defaulting to the old rule.
+   That would undo the user's ruling, so it is the user's call, not mine.
+3. **The gate table by check name, master 23ce68c1f against this branch:** below, when the run finishes.
