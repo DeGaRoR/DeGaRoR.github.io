@@ -314842,3 +314842,13 @@ the next steps).
   and the driver's door low down (the 0.11 m nose ring and the door's deep cut), the front shock's top showing at the
   door's front edge, the livery band higher on the bonnet than on the body, a black fitting with a hub on the rear wall
   (the page's, not the headless scene's).
+- **CAR-3, MATCHED TO THE POWER WAGON BY SECTIONS (the user: "project to scale ... match the sections and global dimensions
+  before the detail"; the scale from the user's 4.72 m length and 2.07 m height = 0.01044 m/px - the drawing's wheelbase
+  then reads 2.90 m, not the 114 in quoted; the user marked six sections on the overlay)**: NEW TOOLS tools/blueprint_overlay.py
+  (the quickshot side view, semi-transparent, over the scaled drawing, registered on the tail and the ground, a 0.5 m
+  grid) and tools/car_stations.js (the build's section stations in metres off the cage's rings). NEW ROWS paxLenLast (the
+  REARMOST bay's own length - the bays are laid from the aft end; absent = paxLen) and doorPaxN (doors on the first N
+  bays from the FRONT; absent = all); cw_lampIn (lamps seated in the face's side inlets, apMode 2/3; absent = on stalks -
+  built, not yet used). Sections from the aft end, target / built: bay 2 1.33 / 1.33, bay 1 to 2.30 / 2.30, cabin to the
+  windscreen base 3.18 / 3.19, nose to the firewall 3.43 / 3.44, bonnet 0.79 straight + 0.24 face to 4.46 / 4.47; the floor
+  raised 0.16 m (keel -0.82), the roof at 2.07 m, the wheels on the drawing's, 1035 kg, still LAUNCHES off paved.

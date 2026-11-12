@@ -501,7 +501,7 @@ const CAGE_PARTS = [
     place: { count: 'paxCount', type: 'doorPax', len: 'paxLen',
              at: 'aft of the cabin' },
     groups: [
-      ['bays', ['paxCount', 'paxLen', 'paxAbreast']],       // T2.3 (132)
+      ['bays', ['paxCount', 'paxLen', 'paxLenLast', 'paxAbreast']],   // paxLenLast: CAR-3       // T2.3 (132)
       // G3573 (DC3-2): the rows of seats in each bay, their pitch, the aisle and the seat's width
       ['seat layout', ['paxRows', 'paxPitch', 'paxAisle', 'paxSeatW']],
       // G180: who sits in each bay is the BAY's own row — click a bay, seat
@@ -520,7 +520,7 @@ const CAGE_PARTS = [
       // (the aft bulkhead's lean = the passenger FRAME's fore/aft rows, T2.1)
       ['glazing', ['winSillPax']],
       // (the drawn windows are their own part under Glazing since T2.2)
-      ['doors', ['doorPax', 'doorSillPax']],
+      ['doors', ['doorPax', 'doorPaxN', 'doorSillPax']],   // doorPaxN: CAR-3   // doorPaxN: CAR-3
       ['pillars', ['paxPillarW'], EXPERT],
     ] },
 
@@ -995,7 +995,7 @@ const CAGE_PARTS = [
                                    'cw_wAftTop', 'cw_wAftBot', 'cw_waistF']],   // CABIN-CRAFT: the width by level; PROPER-COWLS: the front's waist
       ['side gills', ['cw_gillOn', 'cw_gillN', 'cw_gillZ', 'cw_gillL', 'cw_gillUp', 'cw_gillH', 'cw_gillSlant', 'cw_gillLip', 'cw_gillT']],   // PROPER-COWLS
       ['grille & radiator cap', ['cw_grilleOn', 'cw_grilleN', 'cw_grilleBar', 'cw_grilleSet', 'cw_grilleHBar', 'cw_grilleRows', 'cw_grilleNum', 'cw_grilleNumH', 'cw_capOn', 'cw_capR', 'cw_capBack',
-                                 'cw_lampOn', 'cw_lampR', 'cw_lampGap', 'cw_lampY', 'cw_lampBack']],   // CAR-1
+                                 'cw_lampOn', 'cw_lampR', 'cw_lampGap', 'cw_lampY', 'cw_lampBack', 'cw_lampIn']],   // CAR-1
       ['air and exhaust exit', ['cw_exitGap', 'cw_exitHold', 'cw_exitLen', 'cw_exCut', 'cw_exRampH', 'cw_exCutSpan', 'cw_exCutLen', 'cw_exCutAz']],   // PROPER-COWLS
       ['nose bowl', ['cw_lidLen', 'cw_lidShoulder', 'cw_lidRound',
                      'cw_faceRise', 'cw_faceRing', 'cw_deckSweep', 'cw_keelSweep', 'cw_keelShoulder', 'cw_keelRound', 'cw_deckShoulder', 'cw_deckRound',

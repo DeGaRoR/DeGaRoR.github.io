@@ -1099,6 +1099,10 @@ window.CAGE_PAGE = {
       // (the drawn windows moved to '4b · drawn windows', T2.2)
       ['doorPax',   'pax doors',       0, 1, 1,
        { when: P => +P.paxCount > 0 }],
+      ['paxLenLast', 'rear bay length (own)', 0.3, 3.0, 0.01,
+       { when: P => +P.paxCount > 1, dim: 'len' }],   // CAR-3: absent = paxLen
+      ['doorPaxN',  'pax doors: bays with one (from the front)', 0, 4, 1,
+       { when: P => +P.paxCount > 0 && +P.doorPax }],
       ['doorSillPax','door sill',      0, 0.25, 0.002,
        { when: P => +P.paxCount > 0 && +P.doorPax, dim: 'len' }],
       // G180: WHO SITS IN EACH BAY, bays counted front to back from the

@@ -84,7 +84,7 @@ const P={
   // PROPER-COWLS: the nose ring's own half-width / reach up / reach down (null = lidRadius)
   lidRW:null, lidRTop:null, lidRBot:null,
   gillOn:0, gillN:6, gillZ:0.35, gillL:0.22, gillH:0.12, gillSlant:25, gillLip:0.012, gillT:0.004, gillUp:null,   // (CAR-1: null = centred)
-  grilleOn:0, grilleN:9, grilleBar:0.012, grilleSet:0.03, grilleHBar:1, capOn:0, capR:0.032, capBack:0.07, grilleNum:0, grilleNumH:0.5, grilleRows:0, lampOn:0, lampR:0.085, lampGap:0.06, lampY:0.05, lampBack:0.10,   // CAR-1: the grille, the radiator cap (off)
+  grilleOn:0, grilleN:9, grilleBar:0.012, grilleSet:0.03, grilleHBar:1, capOn:0, capR:0.032, capBack:0.07, grilleNum:0, grilleNumH:0.5, grilleRows:0, lampOn:0, lampR:0.085, lampGap:0.06, lampY:0.05, lampBack:0.10, lampIn:0,   // CAR-1: the grille, the radiator cap (off)
   // chin scoop
   scoopOn:1, scoopZ:0, scoopW:0.065, scoopH:0.055, scoopLen:0.22, scoopDrop:0.7,
   scoopAp:0.68, scoopSq:0.5, scoopRake:0.18,
@@ -1238,8 +1238,19 @@ function buildLamps(group,mats,shellM){
   const chrome=mats.steel||mats.skin, shell=shellM||mats.skin;
   const lens=new THREE.MeshStandardMaterial({color:0xfff4dc,emissive:0xfff1d6,emissiveIntensity:0.55,roughness:0.08,metalness:0,side:THREE.DoubleSide});
   lens.userData.aeroskin=1;
+  // CAR-3 (the user, 12 Nov: "two additional openings on the sides in which you're gonna stick the headlamps"):
+  // lampIn 1 seats each lamp IN the face's side aperture (apMode 2 / 3: the fitted pair), lampBack behind the face,
+  // its radius the aperture's - no stalk; absent = on the stalks off the shell's side, as before
+  const pairs=(P.lampIn>0&&(P.apMode===2||P.apMode===3))?apertureList().slice(P.apMode===3?1:0):null;
   for(const sg of [1,-1]){
-    const x=sg*(half+P.lampGap+r);
+    let x=sg*(half+P.lampGap+r), yc=cy, rr=r, zz=z;
+    if(pairs&&pairs.length===2){ const o=pairs[sg>0?0:1]; x=o.cx; yc=o.cy; rr=0.86*Math.min(o.w,o.h); zz=ze-Math.max(0,P.lampBack); }
+    if(pairs){ const r=rr, cy=yc, z=zz;
+      const prof=[]; for(let k=0;k<=10;k++){ const t=k/10; prof.push(new THREE.Vector2(r*Math.sin(t*Math.PI/2)*1.0+0.0005, -r*1.1*Math.cos(t*Math.PI/2))); }
+      const sh=new THREE.Mesh(new THREE.LatheGeometry(prof,28),shell); sh.rotation.x=-Math.PI/2; sh.position.set(x,cy,z); sh.name='cowlLamp'; group.add(sh);
+      const rim=new THREE.Mesh(new THREE.TorusGeometry(r*1.02,r*0.09,10,32),chrome); rim.position.set(x,cy,z+0.002); rim.name='cowlLamp'; group.add(rim);
+      const ln=new THREE.Mesh(new THREE.SphereGeometry(r*0.98,28,10,0,TAU,0,Math.PI*0.22),lens); ln.rotation.x=Math.PI/2; ln.position.set(x,cy,z-r*0.75); ln.name='cowlLamp'; group.add(ln);
+      continue; }
     const prof=[]; for(let k=0;k<=10;k++){ const t=k/10; prof.push(new THREE.Vector2(r*Math.sin(t*Math.PI/2)*1.0+0.0005, -r*1.1*Math.cos(t*Math.PI/2))); }
     const sh=new THREE.Mesh(new THREE.LatheGeometry(prof,28),shell); sh.rotation.x=-Math.PI/2; sh.position.set(x,cy,z); sh.name='cowlLamp'; group.add(sh);
     const rim=new THREE.Mesh(new THREE.TorusGeometry(r*1.02,r*0.09,10,32),chrome); rim.position.set(x,cy,z+0.002); rim.name='cowlLamp'; group.add(rim);

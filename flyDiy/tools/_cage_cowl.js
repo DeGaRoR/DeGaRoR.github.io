@@ -80,7 +80,7 @@ const ABSENT_AT = { wAftTop: 1, wAftBot: 1, inletOn: 0, inletW: 0.42, inletH: 0.
   exitGap: 0, exitSpan: 140, exitLen: 0.45, exitHold: 0, keelShoulder: null, keelRound: null, deckShoulder: null, deckRound: null, scoopFollow: 0, lobeCount: 0, lobeT2: null, lobeStream: 0, lobeNose: 0.94, lobeTail: 0.04, partLevel: 0, partArc: 0, podFit: 0, lidRW: null, lidRTop: null, lidRBot: null, exRampH: 0.04, exCut: 0, exCutSpan: 50, exCutLen: 0.12, exCutAz: 270,
   gillOn: 0, gillN: 6, gillZ: 0.35, gillL: 0.22, gillH: 0.12, gillSlant: 25, gillLip: 0.012, gillT: 0.004, gillUp: null,
   grilleOn: 0, grilleN: 9, grilleBar: 0.012, grilleSet: 0.03, grilleHBar: 1, capOn: 0, capR: 0.032, capBack: 0.07,
-  grilleNum: 0, grilleNumH: 0.5, grilleRows: 0, lampOn: 0, lampR: 0.085, lampGap: 0.06, lampY: 0.05, lampBack: 0.10 };   // (CAR-1: off)   // (CAR-1: gillUp null = centred)   // PROPER-COWLS: the exit   // PROPER-COWLS: faceRing, waistF (null = follows waist)
+  grilleNum: 0, grilleNumH: 0.5, grilleRows: 0, lampOn: 0, lampR: 0.085, lampGap: 0.06, lampY: 0.05, lampBack: 0.10, lampIn: 0 };   // (CAR-1: off)   // (CAR-1: gillUp null = centred)   // PROPER-COWLS: the exit   // PROPER-COWLS: faceRing, waistF (null = follows waist)
 const cowlDef = { cowlOn: 1, fitNose: 2, cowlGap: 0.0 };
 for (const k of SHOWN) if (!(k in ABSENT_AT)) cowlDef['cw_' + k] = CW.P[k];
 PAGE.defaults = Object.assign(cowlDef, PAGE.defaults || {});
