@@ -346,6 +346,12 @@ const vsKey = (args.find(x => x.startsWith('--vs=')) || '').slice(5);
 const engineKey = (args.find(x => x.startsWith('--engine=')) || '').slice(9);
 const keys = buildFile ? [] : (only.length ? only : Object.keys(REAL)).filter(k => D.ARCHETYPES.some(a => a.key === k));
 const f = (v, d = 0) => v == null || !isFinite(v) ? '—' : (+v).toFixed(d);
+// TAKE-OFF AND LANDING ARE TECHNIQUE (12 Nov, the user: "relax the expected accuracy on takeoff and landing, because indeed
+// it depends a lot on the technique ... plus or minus 10% should be considered a win"): a distance within +-10 % of the
+// sheet is MARKED as a match (the ✓) and leaves the ranked discrepancies; every other indicator keeps its own reading
+const DIST_TOL = 0.10;
+const distOk = (ours, real) => ours != null && real != null && isFinite(ours) && real > 0 && Math.abs(ours / real - 1) <= DIST_TOL;
+const cellD = (ours, real) => f(ours) + ' / ' + f(real) + ' (' + pct(ours, real) + (distOk(ours, real) ? ' ✓' : '') + ')';
 const pct = (ours, real) => (ours == null || real == null || !isFinite(ours)) ? '—' : ((ours / real - 1) * 100).toFixed(0) + ' %';
 const lines = [];
 const out = s => { console.log(s); lines.push(s); };
@@ -369,7 +375,7 @@ if (buildFile) {
   const eHP = m.def.params.engine ? m.def.params.engine.powerW / 745.7 : 0;
   const engOK = !!(R.dims && Math.abs(eHP / R.dims.engineHP - 1) < 0.15);
   out('| ' + name + ' | ' + R.name + (engOK ? '' : ' (engine differs)') + ' | ' + cell(m.empty, R.empty) + ' | ' + f(m.asBaked) + ' / ' + f(m.mass) + ' | ' + cell(m.S, R.S, 1) + ' | ' + f(m.T0W, 2) + (R.T0 ? ' / ' + f(R.T0 / (R.mtow * 9.81), 2) : '') +
-      ' | ' + cell(m.Vs, R.Vs1) + ' | ' + cell(m.V75, R.V75) + ' | ' + cell(m.Vmax, R.Vmax) + ' | ' + cell(m.roc, R.roc, 1) + ' | ' + cell(m.LD, R.LD, 1) + ' | ' + cell(m.drag.CdS, R.CdS, 2) + ' | ' + cell(m.TO, R.TO) + ' | ' + cell(m.TO50, R.TO50) + ' |');
+      ' | ' + cell(m.Vs, R.Vs1) + ' | ' + cell(m.V75, R.V75) + ' | ' + cell(m.Vmax, R.Vmax) + ' | ' + cell(m.roc, R.roc, 1) + ' | ' + cell(m.LD, R.LD, 1) + ' | ' + cell(m.drag.CdS, R.CdS, 2) + ' | ' + cellD(m.TO, R.TO) + ' | ' + cellD(m.TO50, R.TO50) + ' |');
   // (12 Nov) the landing configuration and the limit: Vs0 (full flap) against the sheet's, and the top speed against VNE
   out('  landing config: Vs0 ' + cell(m.Vs0, R.Vs0) + ' km/h' + (R.VNE ? '   |   Vmax at full power ' + f(m.Vmax) + ' km/h ' + (m.Vmax > R.VNE ? 'ABOVE' : 'under') + ' VNE ' + f(R.VNE) : ''));
   results.push({ k: 'build', R: Object.assign({}, R, { engineMatch: engOK }), m });
@@ -415,7 +421,7 @@ for (const k of keys) {
   const pw = R.engineMatch ? '' : ' (engine differs)';
   const cell = (ours, real, d) => f(ours, d) + ' / ' + f(real, d) + ' (' + pct(ours, real) + ')';
   out('| ' + k + ' | ' + R.name + pw + ' | ' + cell(m.empty, R.empty) + ' | ' + f(m.asBaked) + ' / ' + f(m.mass) + ' | ' + cell(m.S, R.S, 1) + ' | ' + f(m.T0W, 2) + (R.T0 ? ' / ' + f(R.T0 / (R.mtow * 9.81), 2) : '') +
-      ' | ' + cell(m.Vs, R.Vs1) + ' | ' + cell(m.V75, R.V75) + ' | ' + cell(m.Vmax, R.Vmax) + ' | ' + cell(m.roc, R.roc, 1) + ' | ' + cell(m.LD, R.LD, 1) + ' | ' + cell(m.drag.CdS, R.CdS, 2) + ' | ' + cell(m.TO, R.TO) + ' | ' + cell(m.TO50, R.TO50) + ' |');
+      ' | ' + cell(m.Vs, R.Vs1) + ' | ' + cell(m.V75, R.V75) + ' | ' + cell(m.Vmax, R.Vmax) + ' | ' + cell(m.roc, R.roc, 1) + ' | ' + cell(m.LD, R.LD, 1) + ' | ' + cell(m.drag.CdS, R.CdS, 2) + ' | ' + cellD(m.TO, R.TO) + ' | ' + cellD(m.TO50, R.TO50) + ' |');
   results.push({ k, R, m });
 }
 // --ledger (chantier 0): what the ledger bills, row by row, and the drag
@@ -449,7 +455,7 @@ if (flyKeys.length) {
     if (!flyKeys.includes(r.k)) continue;
     const t0 = Date.now();
     const fl = fly(r.m.def, r.m.spec, r.m.ballast);
-    out('| ' + r.k + ' | ' + cell2(fl.liftRun, r.R.TO) + ' | ' + cell2(fl.climb, r.R.roc, 1) + ' | ' + f(fl.vCruise) + ' at ' + f(fl.thrCruise, 2) + ' | ' + cell2(fl.ldg, r.R.LDG) + ' | ' + cell2(fl.ldg50, r.R.LDG50) + ' | ' + fl.outcome + ' (' + f(fl.t) + ' s, ' + ((Date.now() - t0) / 1000).toFixed(0) + ' s wall) |');
+    out('| ' + r.k + ' | ' + cellD(fl.liftRun, r.R.TO) + ' | ' + cell2(fl.climb, r.R.roc, 1) + ' | ' + f(fl.vCruise) + ' at ' + f(fl.thrCruise, 2) + ' | ' + cellD(fl.ldg, r.R.LDG) + ' | ' + cellD(fl.ldg50, r.R.LDG50) + ' | ' + fl.outcome + ' (' + f(fl.t) + ' s, ' + ((Date.now() - t0) / 1000).toFixed(0) + ' s wall) |');
   }
 }
 function cell2(ours, real, d) { return f(ours, d) + ' / ' + f(real, d) + ' (' + pct(ours, real) + ')'; }
@@ -461,7 +467,7 @@ for (const r of results) {
   const R = r.R, m = r.m;
   const add = (what, ours, real) => { if (ours != null && real != null && isFinite(ours)) disc.push({ card: r.k, what, ours, real, d: ours / real - 1 }); };
   add('empty', m.empty, R.empty); add('Vs', m.Vs, R.Vs1); add('L/D', m.LD, R.LD); add('S', m.S, R.S); add('CdS', m.drag.CdS, R.CdS);
-  if (R.engineMatch) { add('V75', m.V75, R.V75); add('Vmax', m.Vmax, R.Vmax); add('ROC', m.roc, R.roc); add('TO roll', m.TO, R.TO); add('TO 50ft', m.TO50, R.TO50); if (R.T0) add('T0', m.T0, R.T0); }
+  if (R.engineMatch) { add('V75', m.V75, R.V75); add('Vmax', m.Vmax, R.Vmax); add('ROC', m.roc, R.roc); if (!distOk(m.TO, R.TO)) add('TO roll', m.TO, R.TO); if (!distOk(m.TO50, R.TO50)) add('TO 50ft', m.TO50, R.TO50); if (R.T0) add('T0', m.T0, R.T0); }   // (12 Nov: a distance within +-10 % is a match)
 }
 disc.sort((a, b) => Math.abs(b.d) - Math.abs(a.d));
 for (const x of disc.slice(0, 40)) out('  ' + (x.d > 0 ? '+' : '') + (x.d * 100).toFixed(0).padStart(4) + ' %  ' + x.card.padEnd(10) + x.what.padEnd(7) + ' ours ' + f(x.ours, 1) + '  real ' + f(x.real, 1));

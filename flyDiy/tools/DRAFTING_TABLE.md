@@ -670,3 +670,26 @@ A0, `claude/fit-procedure-fixes` (off the garage branch's tip; the 11:30 train k
   applyEngPreset dicts). Now LATENT (ENG_PAGE.LATENT, absent at default; ENGID asserts it). Re-pushed e964d3bc for L39b.
 - DELIVERY on claude/fit-procedure-fixes: the drafting table (drafting.html, tools/drafting, this file), the PC-6 on its
   PT6A-27 (catalogue 46, eng_mountGap 3.96: 135 / 175), the bench's pc6 row; the welcome menu's 'New reference plane'.
+
+## ROUND 15 (12 Nov): take-off and landing are judged at +-10 %; the strip-decides pilot on its own ref
+
+The user: "for all planes that have an ambition of STOL, they will try to push the official figures ... quite aggressive
+pilots", then: "the pilot should be able to decide what technique to use, at least for the expert and the STOL ...
+based on the length of the runway that they anticipate ... otherwise it's going to be again an option that we're going
+to forget". A first cut (a declared `wgStolFly` row) was dropped for exactly that reason.
+- THE STRIP DECIDES (its own ref, claude/fit-procedure-strip-decides, NOT in this one): a landing the pilot plans
+  short-field (under 450 m or under 1.6 x the sheet's landing run - the existing test) is flown with the WHOLE STOL-PILOT
+  technique (aim 10 m in, gsStol, the power-on flare, the stick's whole travel, the brakes at once) by a STOL-qualified
+  pilot (the expert, the bush pilot), devices or none. A0 held it from L40a: it moves EVERY canon plane's short-strip
+  landings (East Point 150 m, tw_ski 245 m ...), and validated planes do not move without numbers. It rides L40b/L40c
+  only with old-vs-new on the canon (PILOT, STOL, ACCEPT, PROFILE, PILOTACT, TOUR) and go-around / divert counts not
+  worse; else the backlog. The user's intent stands; the evidence is what is owed.
+- The PC-6 on a strip it plans short (perf_study --field=short), the expert: WITHOUT the strip rule (this ref) 452 m
+  over 15 m against the factsheet's 315 (+44 %), roll 181 m; WITH it 334 m (+6 %: a match), roll 124 m, 6 deg, the
+  brakes from the touch (-4.2 m/s2). The PC-6's STOL comes from its wing and flaps, not from devices, so on master's
+  rule its pilot never flies STOL.
+- perf_study: a take-off or landing distance within +-10 % of the sheet is marked a match (the tick) and leaves the
+  ranked discrepancies (DIST_TOL) - a REPORT on all cards, never a gate tolerance; GATE STOL's published-figures bench
+  already reads its sheets at +-10 %.
+- THE TOOL FOR EVERY SESSION: CLAUDE.md now points at this file; tools/drafting/KICKOFF.md is the message to paste with
+  a new plane's blueprint; GATE DRAFTING (tools/drafting/dt_check.js, 4 s) joins the core battery.

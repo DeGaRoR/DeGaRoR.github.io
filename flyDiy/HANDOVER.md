@@ -315287,3 +315287,29 @@ wing could not fly its own tail (genBig, the DC-3's envelope, only opens past 18
   perf_study --vs=pc6 --fly before / after: static margin 11 -> 13 %, Cn-beta 0.097 -> 0.107, tail 62 -> 65 kg, flown
   circuit completed both (TO 216 / 215 m, climb 8.2 / 8.1 m/s, cruise 145 / 148 km/h, landing roll 380 / 405 m).
   Still open: its height reads 4.11 m against 3.20 (the drawn fin, not the clamp).
+
+
+## FIT-PROCEDURE FIXES (12 Nov, FIT-PROCEDURE for A0; branch claude/fit-procedure-fixes, after fit-procedure-garage-windows)
+
+The drafting table's PC-6 (DRAFTING_TABLE.md rounds 12-15) and what it found in the garage and the core:
+- THE PT6A-27 (`pt6a27_hartzell3`): 550 shp / 680 thermodynamic (flatK 1.236), 149 kg, HC-B3TN-3D 2.54 m (genPropSynth
+  alu / standard), 2 200 rpm, P&WC 2026 flat rate; GEN_ENG_CG 0.61 as ENGID's bench measures it; its dial point emitted.
+  Garage preset 'P&W PT6A-27' AFTER the custom engine (saved index 46: no index moves), its can fitted to the rating.
+- genEngineRowKey (00_registry, 33_drive): a registry row the per-key tables (GEN_ENG_CG, GEN_DRIVE.eng) do not know
+  reads its twin's entry, else a CG estimated from the measured rows - a runtime-added row used to hang its engine on the
+  front mount nodes, strike its propeller in the settle and fly zero thrust. All 44 existing rows bit-identical.
+- PC6-TAIL (its own entry above): the flown tail envelope 1.5-6.0 / 0.6-3.0 m.
+- plane_shot: the portraits set the craft frame of the root they draw (a rig-only slide of side / plan-box liveries).
+- PERF_STUDY'S +-10 % IS A REPORT, ALL CARDS - NOT A GATE TOLERANCE: a take-off or landing distance within +-10 % of the
+  reference row is printed as a match (the tick) and left out of the ranked discrepancies (DIST_TOL). No gate reads it.
+  perf_study also gained Vs0, the landing over 15 m, --field=short and 'Vmax ... under/ABOVE VNE', and the pc6 row that
+  reads tools/drafting/refs/pc6.json (null where the reference is silent).
+- GATE DRAFTING (tools/drafting/dt_check.js, core, 4 s): the drafting table's own checks and the PC-6 on its reference.
+  The tool for every session: CLAUDE.md's section, tools/drafting/KICKOFF.md (the message to paste with a blueprint).
+- THE LATENT RULE, kept by every new key here (A0's L39a lesson): absent at its default, so no saved build, preset or join
+  gains a key. The stack rows of fit-procedure-garage-windows are ENG_PAGE.LATENT for the same reason.
+- NOT in this branch: THE STRIP DECIDES (43_pilot: a short-field landing flown with the whole STOL-PILOT technique by
+  the expert / the bush pilot, devices or none) rides its own ref, claude/fit-procedure-strip-decides - held from L40a
+  by A0: it moves every canon plane's short-strip landings and owes old-vs-new numbers on the canon first.
+- NOT in this branch: the colour decode (aeroLinear and the four r128-era sites) and the world's colours ride their own
+  ref, claude/fit-procedure-colour, with the PC-6's livery retuned to them - held for the user's look at LOOK-1's stills.
