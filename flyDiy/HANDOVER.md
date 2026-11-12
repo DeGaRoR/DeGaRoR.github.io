@@ -315264,3 +315264,37 @@ read p99 10.1 mm on them. The real cut (a coarser refine at low chaos / fine row
 - VEG-ROOT FIELD BY COLOUR (LOOK-1, the user 11 Nov "by colour per tuft"), claude/ready/veg-root-key e20cb0a11: two fixes. (1) The field's key runs AFTER the root law (three's color_vertex comes before begin_vertex; on master the law overwrote the key, which changed nothing). (2) The key's weight is the TINTED texel mean's r/g, not the raw texture's (1.72), so vColor r/g x w = the tuft's albedo r/g = the ground's own. Band 0.85-1.05: below MID (0.6, 80 %), above HIGH (0.95, 1.3), blended between. Gates COVER TREES FADES PASS; 8f asserts the order and the weight (node reads 1.000: no tint uniforms in node). IN GAME 12 Nov 16:45 (dev.html): live w 1.014; the HOME field around the parked Cub, 18,010 tufts, albedo r/g q05/q25/q50/q75/q95 0.775/1.004/1.247/1.291/1.322, 12.9 % MID, 72.1 % HIGH. CAVEAT: home field only (the cover ring streams around the aircraft). NO PICTURE: the free eye does not stream the world; FLIGHT_PROBE.place leaves the Cub at home on master 5bc7de1c9+, so the keyed / key-off still is OWED to the perf round with place() fixed.
 
 - DIRT-EDGE (DIRT-DUST, the user marked "the clean, sharp rounded shape" on the Petrel crash frames), claude/ready/dirt-edge 6d5524acb: the crash puff's hard circle came from saturation (the zoomed V2 sprite still covered ~0.9 at the quad's discard circle). Every puff: a soft depth cap vT = 1.6 (1 - e^(-vTau/1.6)) (0.25 -> 0.23, 0.5 -> 0.43, 1 -> 0.74, 6 -> 1.56; one puff never opaque, ~0.8 max; overlaps still stack) and the depth + alpha fade from 0.45 r (was the last 15 %). VISIBLE ON ALL DUST, named: take-off / roll dust (0.05-1) a little thinner, most where thickest; each puff reads ~20 % smaller with softer edges. Gates DUST (new: no hard circle; a crash-dense puff is never a flat disc) + ASSETS PASS. NOT GPU-checked (GATE DUST's atlas emulation); the next crash stills show it.
+
+
+## FICHE PASS + FICHE PAGES + MASS (AIRCRAFT-LOOKS, Thu 12 Nov, claude/ready/fiche-pass + claude/ready/fiche-mass for L39b)
+
+**The pass (A0's slot 15:15-16:15):** the canon planes' fiches (plane-canon's lists: reproductions, story, originals, wip on master's cards; the test copies not baked) with CUT TAKES + CUT PINNED - every cutaway checked to open. A row without a thumb is keyed `list:<n>`; each `media/fiches/index.json` entry carries `listFile` (its card) and `listRow`.
+- **Canon regs** (the user's yes to all, Q4): `spec.meta.reg` written into 9 cards as one replaced value (LF kept). meta is outside every fingerprint (`bench.js BENCH_COSMETIC`); proven in node before the edit: Rufus's load door 24e2e238 (= `SHIPPED_CERTS`), f2 and cert major unchanged, the same on both career Cessnas.
+- **Diagnostic fiches** (PHYSICS-PAGES' drawn-vs-flown page): ten fiches WITHOUT crew (parked.js `emptyCockpit`'s fields) on `claude/diag-fiches` (master + `reports/evidence/DIAG-FICHES-2026-11-12` only), never in media/. cub160 / pa18f160 are REAL-CHECK records: their cards (cub_chord160, pa18_floats_chord160) are baked.
+
+**The pages (the user's fiche structure):** Main | Cutaway | Mass | Drag | Physics | Electrics | Integrity | Reference | Flight log.
+- `FICHE_BOARD.pages.add({ id, label, mount(sheet, rec, ctx), compose?, hidden?, visible? })`:
+  - slot order main, cutaway, mass, drag, physics, electrics, integrity, reference, log; an unknown id goes at the end;
+  - the same id replaces the page; 'log' is hidden;
+  - only registered, visible pages get a button (`visible(rec, ctx)` per record; a throw = no button); an open page no longer visible falls back to Main.
+- ctx goes whole: `{ spec (the stand's), title, propOff, listFile, listRow, urlOf }`. `garage.js listed()` gives the row a plane was opened from while it is the one on the stand (an edit or another load drops it).
+- Mine: Main (today's fiche), Cutaway (the baked cutaway, large), Mass. PHYSICS-PAGES': Drag, Physics, Electrics, Integrity, Reference (after perf). Flight log: a hidden place.
+
+**Mass (`src/viewer/fiche_mass.js`, from massproto 8b38623d):**
+- The empty plane as a sunburst, with the user's five label rules.
+- The as-flown bar to the maximum, then the seats check: full tanks, then 80 kg a seat.
+- The W&B envelope under a bigger side profile.
+- Categories, A0's default with no core change:
+  - Outfit is one slice; its finer split waits for `parts.outfitKg` (claude/physics-pages 7a4c871c).
+  - The engine splits from the spec rows (engine, installation, propeller, mount).
+  - The gear splits by `GEN_MASS_TRACE` nodes (main, tail or nose wheel, floats).
+- The data keeps massproto data()'s shape, so PHYSICS-PAGES' genFicheMass can replace the 'mass' page by id.
+- The official planes' weights are baked into the index (`data.mass`, node; `fiche_bake.js --mass-only` refills them, no Chrome). A plane on the stand is weighed when its page opens (~0.4 s).
+- The side profile is placed on the frame's node extent (the middle of the drawn length); a fiche does not yet record its side view's x origin.
+
+**Gates:** PLANEFICHE gets the PAGES and MASS rows plus 10 selftest breaks.
+
+**Owed:**
+- The price sunburst (after perf).
+- The side view's x origin recorded at the bake (the profile then lands exactly).
+- The HD fiche copies for the user.
