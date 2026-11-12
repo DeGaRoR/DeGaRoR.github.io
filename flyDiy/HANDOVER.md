@@ -314800,3 +314800,12 @@ the next steps).
 - **THE NINTH REVIEW**: the spare drawn fresh (GG.wheel, no cap, no brake); its strap holds the whole wheel - bracket, crown,
   wall, rim, the disc's measured face, a buckle low on the disc, a tab on the central spike under a wing nut; `whWide`
   (new, absent 1) - 0.80 m wheels at 80 % width; the front mounts behind the polished shell (`s2Z 3.45`, `s2AxZ 0.30`).
+- **CAR-2 - A DUNE BUGGY FROM RUFUS (12 Nov, the user: "another style of car ... a buggy from Rufus?")**: no new code; a
+  rejoin of builds/rufus_2026-10-18_certified.json with builds/edits/buggy_2026-11.edits.json (tools/_rejoin_build.js):
+  wing, fin, stab, prop, spinner and rod off, the boom style 1 pod with a short aero tail, the Rotax 912 kept EXPOSED IN
+  FRONT (`engMount 0`: the pusher mount left the engine floating behind the pod), four tundra wheels on swinging-link
+  wishbones and coil-overs (rear s1Z 1.62, front s2Z 2.78 + s2AxZ 0.5, track 1.64 m, r 0.36-0.38). In the page Rufus's
+  open tube frame (`skinOn 0`) IS the roll cage. Saved as builds/candidates/buggy_2026-11.json ("Dune Bug", reg 7; the
+  pool index, plane lists n 51, thumb cand_buggy_2026-11.webp); sheet src/cars/car_buggy.json: wb 1.86 m, 415 kg, 47 %
+  front, 51 kW at the wheels, 0-100 5.9 s, 166 km/h, braking 0.79 g, lane change back to -0.5 / -0.9 deg. Leftovers: the
+  aero-tail stub behind the seat reads as a black hub; the interior view (`i`) finds no dash framing on this pod.
