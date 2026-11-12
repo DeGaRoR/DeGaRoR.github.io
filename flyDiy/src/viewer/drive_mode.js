@@ -187,6 +187,76 @@
     poseRig();
     return { phase: D.phase, odo: Math.round(odo), t: +car.st.t.toFixed(1) };
   };
+  // ---- THE GLIDER TOW (TOW-LAUNCH phase 3): the car as the GLIDER'S TOW, not the player's vehicle - the flight's UI
+  //      stays the aeroplane's; the car and the line are actors (tow.js). The user: "when you select something without an
+  //      engine ... we start at the start line with the cable and the car". app.js's TOW switch calls these:
+  //      towStart(ctx) once the glider is lined up; towPre() / towPost(dt) round every 1/60 s step of the aeroplane (the
+  //      line's coupling); towDraw() a frame; towStop(). The flight is inline then (sim_link.js: the line acts in the
+  //      solver's substeps) - its cost: GATE TOW's +1.0 ms on the glider's frame, the car's 0.1 ms ----
+  const TW = DM.tow = { active: false, line: null, car: null, D: null, rig: null, rope: null, L0: 400, Vtow: 28, why: null };
+  DM.towStart = async function (ctx) {
+    THREE_ = ctx.THREE; scene_ = ctx.scene; world_ = ctx.world;
+    if (!sheet) { const r = await fetch(SHEET_URL); if (!r.ok) throw new Error('the car sheet: ' + r.status); sheet = await r.json(); }
+    def = def || vehicleDef(sheet);
+    const sim = ctx.sim, cg = sim.cgPos();
+    if (!G) {
+      const I = vehIslandFromWorld(world_, { siteOf: typeof siteOf === 'function' ? siteOf : null, fieldName: typeof fieldName === 'function' ? fieldName : null, town: null, from: [cg[0], cg[2]] });
+      if (!I) throw new Error('no roads in this world');
+      rep = I.report; G = vehRoadGraph(I.spec);
+    }
+    // the runway the glider stands on, and its end AHEAD of the nose: the car's destination
+    const xA = sim.axes()[0], fx = -xA[0], fz = -xA[2], fl = Math.hypot(fx, fz) || 1, dx = fx / fl, dz = fz / fl;
+    let to = null, best = -Infinity;
+    for (const id in G.places) { const P = G.places[id]; if (P.what !== 'runway') continue; const a = (P.x - cg[0]) * dx + (P.z - cg[2]) * dz, side = Math.abs(-(P.x - cg[0]) * dz + (P.z - cg[2]) * dx);
+      if (a > TW.L0 + 200 && side < 60 && a > best) { best = a; to = id; } }
+    if (!to) throw new Error('no runway end ahead of the glider (' + TW.L0 + ' m of line and the car\'s run needed)');
+    const hook = towHookNodes(sim); let hx = 0, hz = 0; for (const i of hook) { hx += sim.p[i * 3] / hook.length; hz += sim.p[i * 3 + 2] / hook.length; }
+    const car1 = makeVehicle(def, world_), rear = def.foot.rear;
+    car1.place(hx + dx * (TW.L0 - 2 + rear), hz + dz * (TW.L0 - 2 + rear), Math.atan2(dz, dx)); for (let i = 0; i < 30; i++) car1.step(1 / 60);
+    car = car1;                                   // (the rig poses `car`: the tow's car is the one drawn)
+    TW.car = car1; TW.D = makeDriver(car1, G, { vCruise: TW.Vtow }); TW.to = to; TW.go = false;
+    TW.line = makeTowLine(sim, car1, { L0: TW.L0, hook, groundAt: (x, z) => world_.terrainH(x, z) });
+    if (!rig) { rig = buildRig(); } if (!rig.g.parent) scene_.add(rig.g);
+    const T = THREE_, gm = new T.BufferGeometry(); gm.setAttribute('position', new T.BufferAttribute(new Float32Array(25 * 3), 3));
+    TW.rope = new T.Line(gm, new T.LineBasicMaterial({ color: 0xf2e6c8 })); TW.rope.frustumCulled = false; scene_.add(TW.rope);
+    TW.sim = sim; TW.active = true; TW.why = null; TW.t = 0;
+    poseRig();
+    return to;
+  };
+  // the car sets off: the first step the aeroplane flies with the player's hands on (app.js calls it when the run starts)
+  TW.start = () => { if (TW.active && !TW.go) { TW.go = true; TW.D.setDest(TW.to); } };
+  DM.towPre = () => { if (TW.active && TW.line && TW.line.on) TW.line.before(); };
+  DM.towPost = (dt) => {
+    if (!TW.active) return;
+    if (TW.line) TW.line.after(dt);
+    if (TW.go) TW.D.step(dt); else { TW.car.ctl.thr = 0; TW.car.ctl.brake = 1; }
+    TW.car.step(dt); TW.t += dt;
+  };
+  DM.towRelease = () => { if (TW.line && TW.line.on) TW.line.release(); };
+  DM.towDraw = () => {
+    if (!TW.active) return;
+    poseRig();
+    const A = TW.rope.geometry.attributes.position, L = TW.line;
+    if (!L || !L.on) { TW.rope.visible = false; return; }
+    TW.rope.visible = true;
+    const P = TW.car.toWorld(L.hitch), sim = TW.sim; let hx = 0, hy = 0, hz = 0; for (const i of L.hook) { hx += sim.p[i * 3] / L.hook.length; hy += sim.p[i * 3 + 1] / L.hook.length; hz += sim.p[i * 3 + 2] / L.hook.length; }
+    // a sag the line's own weight gives it, less as it pulls (a few metres slack, a few decimetres taut)
+    const sag = Math.max(0.3, 6 * (1 - Math.min(1, L.T / 1500)));
+    for (let k = 0; k <= 24; k++) { const u = k / 24; A.setXYZ(k, hx + (P[0] - hx) * u, hy + (P[1] - hy) * u - sag * 4 * u * (1 - u), hz + (P[2] - hz) * u); }
+    A.needsUpdate = true;
+  };
+  DM.towWords = () => {
+    const L = TW.line; if (!TW.active || !L) return null;
+    if (!L.on) return 'off the line: ' + L.released;
+    if (!TW.go) return 'on the line behind the car, ' + Math.round(L.L0) + ' m - the car sets off when you fly';
+    return 'on tow: ' + (L.T / 1000).toFixed(1) + ' kN, the line ' + Math.max(0, L.angle).toFixed(0) + '\u00b0 up, the car ' + Math.round(TW.car.out.u * 3.6) + ' km/h - R to release';
+  };
+  DM.towStop = () => {
+    if (TW.line) TW.line.detach();
+    if (TW.rope && TW.rope.parent) TW.rope.parent.remove(TW.rope);
+    if (rig && rig.g.parent && !DM.on) rig.g.parent.remove(rig.g);
+    Object.assign(TW, { active: false, line: null, car: null, D: null, rope: null, go: false });
+  };
   // the graph's report (the joins made vehicle-side, the spans rebuilt): the console and the dev's handle
   DM.report = () => rep;
   DM.car = () => car;

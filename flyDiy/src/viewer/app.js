@@ -15566,6 +15566,7 @@
   };
   function fullReset() {
     { const DM = driveOn(); if (DM) { DM.restart(); return; } }   // TOW-LAUNCH: Restart puts the car back where it started
+    { const T = towOn(); if (T) T.towStop(); TOWS.busy = false; TOWS.failed = null; }   // (a tow is laid out again once the flight starts)
     if (inGarage) return enterGarage();   // Reset in the garage means back to the stand
     // PREM-S2: a Restart mid-flight ends that flight for the clock (nothing moves: it restarts where it stands)
     if (started && flSlot && !flEnded) playerFlightEnd('abandoned');
@@ -16488,6 +16489,7 @@
   let hudIasGs = null;   // G1016: which speed the readout shows (null: not written yet)
   function hud() {
     { const DM = driveOn(); if (DM) { DM.hud(); return; } }   // TOW-LAUNCH: the card says the car's numbers
+    towHud();                                                  // (and the glider's tow, its words on the notice plate)
     const o = sim.out, cg = sim.cgPos(), c = sim.ctl, d = flDbg();
     syncSkip();                 // G771: disabled at the hold, rolling, and for good once airborne
     // THE LABEL SAYS IAS, so the number is now an indicated one (G72). It read
@@ -19229,8 +19231,8 @@
     // colour of a button you were about to press anyway.
     const st = (typeof window.BENCH_STATE === 'function') ? window.BENCH_STATE() : null;
     const bad = !!(st && !st.passed) && curKey === 'gen';
-    $('flNotice').hidden = !bad || flFolded;
-    if (bad) $('flNoticeV').textContent = st.any
+    $('flNotice').hidden = (!bad || flFolded) && !$('flNotice').dataset.tow;   // (TOW-LAUNCH: the tow's words keep the plate)
+    if (bad && !$('flNotice').dataset.tow) $('flNoticeV').textContent = st.any
       ? 'the bench has not passed for this build'
       : 'nothing on the bench has been run for this build';
     if (shakeDeferred()) flVs = 0;                                // G1302: re-read post-idle
@@ -20545,7 +20547,9 @@
         for (let k = 0; k < nStep; k++) {
           if (FR) FR.push(0); script(1 / 60); if (FR) FR.pop();         // G620: the pilot's script (FR.S.script)
           if (k === kPair) POSE_LERP.mark(sim);                          // G1100: the positions before the frame's last 60th
+          const TWm = towOn(); if (TWm) TWm.towPre();                  // TOW-LAUNCH: the line's coupling round the step
           if (FR) FR.push(1); sim.step(1 / 60); if (FR) FR.pop();       // substep rate is a per-aircraft property (G620: FR.S.solver)
+          if (TWm) TWm.towPost(1 / 60);
         }
         if (kPair >= 0) POSE_LERP.took(sim);                             // G1100: ...and after it
       }
@@ -20637,7 +20641,7 @@
     // G1100 (POSE-SMOOTH): FROM HERE TO THE RENDER THE SIM'S POSITIONS ARE THE DRAWN ONES - between the last two steps,
     // at the frame clock's alpha (POSE_LERP above; restored below the render). In the world only, the page's own flight
     // (the worker's view interpolates itself), and a pause holds the alpha it had
-    { const DM = driveOn(); if (DM) DM.frame(pc.steps); }   // TOW-LAUNCH: the drive mode's car (drive_mode.js), the real time's steps
+    { const DM = driveOn(); if (DM) DM.frame(pc.steps); else towTick(); }   // TOW-LAUNCH: the drive mode's car (drive_mode.js), the real time's steps; else the glider's tow
     const drawnPose = !inGarage && simwRan < 0 && POSE_LERP.draw(sim, running ? PACE.alpha : null);
     const cgD = drawnPose ? cgFinite(sim.cgPos()) : cg;
     if (drawnPose && running && window.WATER && WATER.setTime) WATER.setTime(sim.t - (1 - POSE_LERP.alpha) * simRate / 60);   // the sea at the drawn pose's time
@@ -21648,6 +21652,43 @@
   // TOW-LAUNCH: is the drive mode on - its module, or null (a hoisted declaration: the loop and the HUD ask before this
   // line runs, and the lazy module may never have loaded)
   function driveOn() { const D = typeof window !== 'undefined' && window.DRIVE_MODE; return D && D.on ? D : null; }
+  // TOW-LAUNCH phase 3: THE GLIDER TOW - the car on the line ahead of an engineless aeroplane (drive_mode.js DM.tow*, tow.js).
+  // towOn(): the tow's module while its car stands / runs, else null. towWanted(): the flight is a tow - the build has no
+  // engine (def.params.nEngines 0: the engineless card), its card's motor is off (genSpec.motorOff), or ?tow=1 (the test)
+  function towOn() { const D = typeof window !== 'undefined' && window.DRIVE_MODE; return D && D.tow && D.tow.active ? D : null; }
+  function towWanted() {
+    if (curKey !== 'gen' || !def) return false;
+    if (def.params && def.params.nEngines === 0) return true;
+    if (genSpec && genSpec.motorOff === true) return true;
+    try { return /[?&]tow(=1|=on|&|$)/.test(location.search); } catch (e) { return false; }
+  }
+  // the tow's start: lined up (the Skip to line-up's own placement - the start line), the motor off, the player's hands, the
+  // car and the line laid out ahead (lazy, with the drive mode's pack); its words on the flight's notice plate
+  const TOWS = { busy: false, failed: null };
+  function towTick() {
+    const T = towOn();
+    if (inGarage || !started || driveOn() || flightOver) { if (T && inGarage) { T.towStop(); TOWS.busy = false; } return; }
+    if (T) { T.towDraw(); if (running && !T.tow.go && T.tow.t > 3) T.tow.start(); return; }
+    if (TOWS.busy || TOWS.failed || !towWanted() || !window.FLYDIY_LAZY || !sim || sim.wheelsOnGround() === 0) return;
+    TOWS.busy = true;
+    if (skipAble()) skipToLineup();
+    if (sim.setEngine && sim.eng) for (let i = 0; i < sim.eng.length; i++) sim.setEngine(i, { key: 'off' });
+    setManual(true, 'tow');
+    window.FLYDIY_LAZY(['cars_car', 'cars_lods', 'vehicle', 'vehicle_drive', 'vehicle_island', 'tow', 'drive_mode'])
+      .then(() => window.DRIVE_MODE.towStart({ THREE, scene, world, sim }))
+      .then(to => { TOWS.busy = false; console.info('flyDiy tow: on the line, the car to ' + to); })
+      .catch(e => { TOWS.busy = false; TOWS.failed = (e && e.message) || 'failed'; console.warn('flyDiy: the tow could not start -', TOWS.failed); });
+  }
+  function towHud() {
+    const T = towOn(), w = T ? T.towWords() : (TOWS.failed && started && towWanted() ? 'no tow: ' + TOWS.failed : null), n = $('flNotice');
+    if (!n) return;
+    if (w) { n.hidden = false; $('flNoticeK').textContent = 'glider tow'; $('flNoticeV').textContent = w; n.dataset.tow = '1'; }
+    else if (n.dataset.tow) { delete n.dataset.tow; $('flNoticeK').textContent = 'not certified'; n.hidden = true; flRender(); }
+  }
+  if (typeof window !== 'undefined') {
+    window.FLYDIY_TOW_WANTED = () => towWanted();   // (sim_link.js: a tow flight flies inline - the line acts in the page's substeps)
+    window.addEventListener('keydown', e => { if (e.code === 'KeyR' && towOn() && cam.mode !== 'free') { towOn().towRelease(); e.preventDefault(); } });
+  }
   // THE SCENERY MODE (the world rail, 2026-09-24; the user: "launch only the graphics parts of the game, at least not
   // the flight simulation ... so we don't need lots of benches anymore"): ?scenery=1 rolls out the moment the boot
   // lifts, then HOLDS the solver (running = false: no step, no pilot, no director), takes the aeroplane off the

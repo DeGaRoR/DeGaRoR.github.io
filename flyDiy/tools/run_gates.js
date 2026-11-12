@@ -216,6 +216,10 @@ const GATES = [
   // driver's (drawn crossings joined vehicle-side, no scenery edited), facing away at the start, two re-routes behind,
   // three U-turns at a road's end and at junctions (no drawn apron on Jolene), the body on the road; ~20 s
   { id: 'DRIVE-TRIP', file: '_drive_trip_check.js', tier: 'core', wall: 25 },
+  // TOW-LAUNCH phase 3: THE GLIDER AUTO-TOW - the motorglider (engine off) on 400 m of line behind the Conquer down Jolene
+  // AFB's 13/31 (src/vehicle/tow.js: the line through sim.onSubstep + sim.impulse, no solver change): lift-off, the climb,
+  // the release at the top, the glide; the pilot's key; a weak link that breaks; the line's cost a frame; ~1 min
+  { id: 'TOW', file: '_tow_check.js', tier: 'core', wall: 70 },
   // G770: the player's default is the Cub (the artifact's own garage bridge, against the design rows),
   // GEN_DEFAULT is still the old stock every gate flies, and the browser rigs carry the old stock's pin
   { id: 'DEFAULT', file: '_default_check.js', tier: 'core' },

@@ -181,6 +181,7 @@ function makeVehicle(def, world, opts) {
   const ctl = { thr: 0, brake: 0, steer: 0, gear: 1, hand: 0 };   // steer: -1..1 of the bicycle's dMax, + right
   const wh = def.wheels.map(w => ({ s: w.bump, delta: 0, spin: 0, on: false, Fn: 0, Fd: 0, lamL: 0, lamT: 0, vl: 0, slipT: 0 }));
   let delta = 0;                                  // the bicycle angle actually at the wheels (slewed)
+  let ext = null;                                 // (TOW-LAUNCH) an external pull, car.extF
   const out = { u: 0, V: 0, hdg: 0, onGround: 0, Fdrive: 0, aLong: 0, aLat: 0, proxyHit: false };
   // body point (chassis frame) -> world, and its offset from the CG in the world
   const rel = (R, pb) => mulRv(R, [pb[0] - cgB[0], pb[1] - cgB[1], pb[2] - cgB[2]]);
@@ -349,6 +350,9 @@ function makeVehicle(def, world, opts) {
       const kf = sp > 1e-6 ? Math.min(0.5 * Fn / sp, m / dt / nP) : 0;
       addFs(SA[0], SA[1], SA[2], -kf * vp0, Fn, -kf * vp2);
     }
+    // (TOW-LAUNCH phase 3) AN EXTERNAL PULL: `car.extF` = { f: [x, y, z] N world, at: [x, y, z] body point } - the tow line's
+    // mean pull on the hitch (tow.js); unset, nothing here (the spike's digits)
+    if (ext !== null) { relInto(R, ext.at[0], ext.at[1], ext.at[2], SA); addFs(SA[0], SA[1], SA[2], ext.f[0], ext.f[1], ext.f[2]); }
     // the velocities step on the explicit forces (the gyroscopic term included)
     {
       const w = st.w, v = st.v; IwInto(R, SW); mulInto(SW, w[0], w[1], w[2], SA);
@@ -455,6 +459,7 @@ function makeVehicle(def, world, opts) {
   function snap() { return JSON.parse(JSON.stringify({ st, ctl, wh, delta })); }
   function unsnap(S) { Object.assign(st, JSON.parse(JSON.stringify(S.st))); Object.assign(ctl, S.ctl); S.wh.forEach((w, i) => Object.assign(wh[i], w)); delta = S.delta; }
   return { def, world, st, ctl, out, wheels: wh, step, place, toWorld, refPoint, axes, footprint, snap, unsnap,
+           get extF() { return ext; }, set extF(e) { ext = e && e.f && e.at ? e : null; },
            heading: () => { const A = axes(); return Math.atan2(A.fwd[2], A.fwd[0]); },
            speed: () => vDot(st.v, axes().fwd), wheelDelta: d => def.wheels.map(w => wheelDelta(w, d)) };
 }
