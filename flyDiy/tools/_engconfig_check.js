@@ -251,6 +251,9 @@ const VAL_FILES = new Set(Object.values(LB.VALIDATED).map(v => v.build).concat([
 // a measured cowl's drag did - the Cub, the Jodel, the ultralight fixture, the metal Cessna, the Cessna on floats. The
 // C172, the twin-boom, the twin, the pusher, Rufus and the stock singles fly the digest they flew. The Chinook keeps its
 // old flown pin: it fails the same way on the base (167a99... flown there too), master's red, not this chantier's.
+// ENGINE-COOLING 3 (12 Nov): the metal Cessna and the Cessna on floats re-pinned (def and flown): the cylinder heads are
+// now measured against the DRAWN cowl (spec.cooling.headsOut) - 0.011 m2 of theirs poke through, and the heads' air is
+// netted out of the cowl's cooling drag; every other row equal on the base e0d2bd18.
 const PIN = {
   'builds/cub_2026-09-20_corrected.json': '3648bf163799cae9 811852016151aab6',
   'builds/jodel_2026-09-20_corrected.json': '071aec8b30f75954 91de808589c2b7bd',
@@ -260,8 +263,8 @@ const PIN = {
   'tools/fixtures/build_v8_twin-boom_2026-09-11.json': 'fe78edfd3ef1fea5 77b62ab7c4146aaa',
   'tools/fixtures/build_v7_twin_2026-09-04.json': '9ea1934fc404b8fc 221d6c2405b15e1e',
   'tools/fixtures/build_v8_pusher_2026-09-11.json': '888ebfdf96341e38 1e888903ddfb652c',
-  'bugReports/cessnaMetal (1).json': '908d17b83d059e27 aad710256cff945a',
-  'bugReports/cessnaFloatsWOrks.json': 'd6a4664ef91d1302 5efbf2328eb3e929',   // FLOAT-DECK 10 Nov: the def moves (a float build rests at deck 0), the flown steps do not
+  'bugReports/cessnaMetal (1).json': '7de0372430b4c28c 0188260fec73712c',
+  'bugReports/cessnaFloatsWOrks.json': 'ec60bc853a4a12a8 55bf1eec20118296',   // FLOAT-DECK 10 Nov: the def moves (a float build rests at deck 0), the flown steps do not
   'tools/fixtures/repro/rufus_2026-10-18_certified.json': '5ef573483ffd5d4d 210d8b580d8fe556',
   'stock nose': 'e959f1716ede56c4 31cce33943cc578a',
   'stock pusher': 'd4a273f9985f43a7 5613f19c025bd3cf',
