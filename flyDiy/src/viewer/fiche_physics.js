@@ -51,7 +51,18 @@
             ramp: [[0, [74, 69, 64]], [0.25, [151, 144, 127]], [0.5, [216, 160, 122]], [1, [232, 112, 72]]], bad: '#ec6f49', warn: '#e0a070',
             frame: true },
   };
-  const themeOf = o => (o && (o.theme === 'dark' || o.theme === 'phone' || o.screen === 'phone')) ? THEMES.dark : THEMES.sheet;
+  // the theme: the registry's ctx.layout ({ screen, theme: 'cream' | 'dark', w, h }, AIRCRAFT-LOOKS 13 Nov), else the older
+  // flat fields; then the sheet's own CSS tokens over the base palette when the board hands them (o.tokens, read at mount:
+  // --fi-paper, --fi-ink, --fi-dim, --fi-line) - the board's colours, never a cream of ours where it has one
+  const themeOf = o => {
+    const L = (o && o.layout) || {}, t = L.theme || (o && o.theme), sc = L.screen || (o && o.screen);
+    const base = (t === 'dark' || t === 'phone' || (!t && sc === 'phone')) ? THEMES.dark : THEMES.sheet, T = o && o.tokens;
+    if (!T) return base;
+    const th = Object.assign({}, base);
+    if (T.paper) th.bg = T.paper; if (T.ink) th.ink = T.ink; if (T.dim) { th.dim = T.dim; th.faint = T.dim; } if (T.line) { th.hair = T.line; th.rule = T.line; }
+    th.base = base;
+    return th;
+  };
   const W = 1200, H = 800;
   const r1 = x => (Math.round(x * 10) / 10).toFixed(1), r0 = x => String(Math.round(x));
   const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -275,7 +286,7 @@
       'Cruise ' + r0(Dg.Vc * 3.6) + ' km/h · each disc a flat plate of the same drag, to scale');
     if (pic && pic.frame) {
       const m = sideMap(pic, { x: 48, y: 210, w: 690, h: 330 });
-      out.push(picImg(pic, m, th === THEMES.sheet ? 1 : 0.92));
+      out.push(picImg(pic, m, (th.base || th) === THEMES.sheet ? 1 : 0.92));
       for (const g in Dg.groups) { if (!at[g] || !DRAGROW[g]) continue; const q = m.N(at[g]), cda = Dg.groups[g].cda;
         items.push({ g, q, rad: Math.sqrt(cda / Math.PI) * m.k, cda, dV: Dg.groups[g].dV * 3.6, name: nm(g), col: CAT[DRAGROW[g][1]] }); }
       for (const it of items.slice().sort((a, b) => b.rad - a.rad))
@@ -286,7 +297,7 @@
         for (let it = 0; it < 80; it++) { for (let i = 1; i < s.length; i++) if (s[i].x - s[i - 1].x < 142) { const c = (s[i].x + s[i - 1].x) / 2; s[i - 1].x = c - 71; s[i].x = c + 71; }
           for (const q of s) q.x = Math.max(120, Math.min(670, q.x)); }
         for (const i of s) { out.push(K.L([i.q[0], i.q[1] + dir * Math.max(3, i.rad)], [i.x, dir < 0 ? y + 8 : y - 30], th.lead, 0.8));
-          out.push(K.T(i.x, y, i.name, { sz: 14, a: 'middle', w: 500 }) + K.T(i.x, y + 17, '−' + r1(i.dV) + ' km/h', { sz: 13.5, a: 'middle', c: th === THEMES.sheet ? th.ink : i.col, w: 600 })); } };
+          out.push(K.T(i.x, y, i.name, { sz: 14, a: 'middle', w: 500 }) + K.T(i.x, y + 17, '−' + r1(i.dV) + ' km/h', { sz: 13.5, a: 'middle', c: (th.base || th) === THEMES.sheet ? th.ink : i.col, w: 600 })); } };
       band(items.filter(i => i.q[1] < midY - 4), 186, -1); band(items.filter(i => i.q[1] >= midY - 4), 592, 1);
     }
     // the right column: ranked, each with its colour chip and name (colour never the only cue)
@@ -340,7 +351,7 @@
     batt: (x, y, c) => [0, 1].map(i => `<path d="M${x - 9 + i * 10} ${y - 10} L${x - 9 + i * 10} ${y + 10} M${x - 5 + i * 10} ${y - 5} L${x - 5 + i * 10} ${y + 5}" stroke="${c}" stroke-width="2"/>`).join(''),
   };
   function schematic(E, th, K, x0, y0, y1, lampNo) {
-    const out = [], Wc = th === THEMES.sheet ? WIRE.sheet : WIRE.dark, BX = x0 + 118, ink = th.ink, bg = th.bg;
+    const out = [], Wc = (th.base || th) === THEMES.sheet ? WIRE.sheet : WIRE.dark, BX = x0 + 118, ink = th.ink, bg = th.bg;
     const words = E.altA ? (E.elec.alternator === 'gen20' ? 'generator' : 'alternator') : '';
     const part = k => E.parts.find(p => p.key === k);
     const bat = part('battery'), alt = part('alternator'), st = part('starter'), busP = part('bus'), wire = part('wire');
@@ -402,7 +413,7 @@
     return out;
   }
   function pageXray(D, o, th, K) {
-    const M = D.model, E = D.elec, Tk = D.tanks, pic = o.pics && o.pics.plan, Wc = th === THEMES.sheet ? WIRE.sheet : WIRE.dark;
+    const M = D.model, E = D.elec, Tk = D.tanks, pic = o.pics && o.pics.plan, Wc = (th.base || th) === THEMES.sheet ? WIRE.sheet : WIRE.dark;
     const words = E.altA ? (E.elec.alternator === 'gen20' ? 'generator' : 'alternator') : 'battery';
     const out = head(th, K, o, 'Electrics · and the fuel',
       E.hasBus ? 'Every light on: ' + r1(E.night.A) + ' A of the ' + (E.altA ? E.altA + ' A ' + words : 'battery') : 'No battery, no lights: hand-propped',
@@ -410,7 +421,7 @@
     if (!pic || !pic.frame) return out;
     const m = planMap(pic, { x: 40, y: 150, w: 640, h: 500 }), N = m.N, FUEL = CAT.engine;
     out.push(`<defs><filter id="xg"><feColorMatrix type="saturate" values="0"/></filter><pattern id="xf" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="${FUEL}" stroke-width="2.2"/></pattern></defs>`);
-    out.push(picImg(pic, m, th === THEMES.sheet ? 0.4 : 0.22, 'xg'));
+    out.push(picImg(pic, m, (th.base || th) === THEMES.sheet ? 0.4 : 0.22, 'xg'));
     const wf = M.nodes.filter(n => M.tags[n[4]] === 'WF'), wr = M.nodes.filter(n => M.tags[n[4]] === 'WR');
     const near = (arr, z) => arr.slice().sort((a, b) => Math.abs(a[2] - z) - Math.abs(b[2] - z))[0];
     const semi = M.semi;
@@ -527,7 +538,7 @@
       const F0 = P3(M, st[0]), F1 = P3(M, st[1]), R0 = P3(M, st[2]), R1 = P3(M, st[3]), ch = st[4], cs = hatch ? st[6] : 0;
       const at = (F, R, t) => { const d = [0, 1, 2].map(q => R[q] - F[q]), Ln = Math.hypot(...d) || 1; return [0, 1, 2].map(q => F[q] + d[q] / Ln * ch * (t - 0.15)); };
       const hinge = 1 - cs, poly = (pts, attr) => `<path d="M${pts.map(q => q[0].toFixed(1) + ' ' + q[1].toFixed(1)).join(' L')} Z" ${attr}/>`;
-      return poly([at(F0, R0, 0), at(F1, R1, 0), at(F1, R1, hinge), at(F0, R0, hinge)].map(P), K.fillAttr(CAT.structure, th === THEMES.sheet ? 0.32 : 0.18)) +
+      return poly([at(F0, R0, 0), at(F1, R1, 0), at(F1, R1, hinge), at(F0, R0, hinge)].map(P), K.fillAttr(CAT.structure, (th.base || th) === THEMES.sheet ? 0.32 : 0.18)) +
         (cs > 0 ? poly([at(F0, R0, hinge), at(F1, R1, hinge), at(F1, R1, 1), at(F0, R0, 1)].map(P), `fill="url(#mh)" stroke="${CAT.fittings}" stroke-width="0.9"`) : '');
     };
     const pl = V.plan.f, sd = V.side.f, fr = V.front.f;
@@ -703,6 +714,12 @@
   // a page's data: Reference needs only the references' index (never the physics: a baked fiche without its physics.json,
   // or a plane off the stand, still shows its reference - the live test of 12 Nov); the others the physics data
   const dataOf = (rec, page, o) => page === 'reference' ? refsLoad().then(() => { const R = refOf(rec, o); return R ? { reference: R } : null; }) : dataFor(rec, o);
+  // the board's sheet tokens, as the element sees them (AIRCRAFT-LOOKS: --fi-ink, --fi-dim, --fi-paper, --fi-line, --fi-acc)
+  function tokensOf(el) {
+    try { const cs = root.getComputedStyle(el), v = k => (cs.getPropertyValue(k) || '').trim() || null;
+      const T = { paper: v('--fi-paper'), ink: v('--fi-ink'), dim: v('--fi-dim'), line: v('--fi-line'), acc: v('--fi-acc') };
+      return (T.paper || T.ink) ? T : null; } catch (e) { return null; }
+  }
   // draw `page` of `rec` into `el` (theme 'sheet' on the board); resolves false when there is no data
   function mount(el, rec, page, opts) {
     const o = opts || {};
@@ -710,7 +727,7 @@
     return dataOf(rec, page, o).then(D => {
       if (!D) { el.textContent = 'Put this aeroplane on the stand to draw its physics pages.'; return false; }
       return (D.model ? picsFor(rec, D.model, false) : Promise.resolve({})).then(pics => {
-        el.innerHTML = svg(page, D, { theme: o.theme, screen: o.screen, name: o.title || (rec.data && rec.data.name) || rec.name, reg: rec.data && rec.data.reg, pics, sig: sigOf() });
+        el.innerHTML = svg(page, D, { theme: o.theme, screen: o.screen, layout: o.layout, tokens: tokensOf(el), name: o.title || (rec.data && rec.data.name) || rec.name, reg: rec.data && rec.data.reg, pics, sig: sigOf() });
         const sv = el.querySelector('svg'); if (sv) { sv.style.width = '100%'; sv.style.height = 'auto'; sv.style.display = 'block'; }
         return true;
       });
@@ -721,7 +738,7 @@
     const o = opts || {};
     return dataOf(rec, page, o).then(D => { if (!D) return null;
       return (D.model ? picsFor(rec, D.model, true) : Promise.resolve({})).then(pics => new Promise((res, rej) => {
-        const text = svg(page, D, { theme: o.theme, screen: o.screen, name: o.title || (rec.data && rec.data.name) || rec.name, reg: rec.data && rec.data.reg, pics, sig: sigOf() });
+        const text = svg(page, D, { theme: o.theme, screen: o.screen, layout: o.layout, tokens: o.tokens || (root && root.document ? tokensOf(root.document.querySelector('#pfBoard .pfSheet') || root.document.documentElement) : null), name: o.title || (rec.data && rec.data.name) || rec.name, reg: rec.data && rec.data.reg, pics, sig: sigOf() });
         const im = new Image(), url = URL.createObjectURL(new Blob([text], { type: 'image/svg+xml' }));
         im.onload = () => { const c = document.createElement('canvas'); c.width = 2 * W; c.height = 2 * H; c.getContext('2d').drawImage(im, 0, 0, 2 * W, 2 * H); URL.revokeObjectURL(url); c.toBlob(res, 'image/png'); };
         im.onerror = e => { URL.revokeObjectURL(url); rej(e); }; im.src = url; })); });
