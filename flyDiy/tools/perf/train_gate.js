@@ -72,7 +72,12 @@ const BASELINE = path.resolve(opt('baseline', path.join(__dirname, 'train_gate_b
 // ---- the steps: [id, part, what, args, expected seconds] -----------------------------------------------------------------
 // expected seconds (the box, RTX 3080, warm): a Chrome start + warm load to the garage ~50 s, the roll-out ~5 s, the close
 // ~8 s; garage_lag ~1.6 s an evaluation (the change + 700 ms of quiet) and ~60 s a load; master_bench from its own --plan
-const EST = { chrome: 8, warmLoad: 50, rollout: 5, glEval: 1.6, coldLoad: 150, bench: { light: 300, full: 330 } };
+// A0 12 Nov (the user: "fix the failing speed test"): the warm load is MEASURED now, not the 50 s of the design - the trains
+// L38c..L39b read 150-205 s a warm load (links ~610, GPU cache ~20 MB, 50-60 links over 5 s); with 50 s the bench's limit
+// (3 x 300 s) killed master_bench in its water leg (L38b, L39b) and every --plan read a quarter of the real run (~60 min).
+// The bench pays two warm loads (the Cub, the floats) on top of its own 300 s. Only the time limits and the plan move;
+// no row, rule or baseline does. The load itself is the perf round's (PERF-SUN: boot / link waits)
+const EST = { chrome: 8, warmLoad: 180, rollout: 5, glEval: 1.6, coldLoad: 240, bench: { light: 300, full: 330 } };
 function steps(dir, port, udd) {
   const S = [];
   const P = (n) => String(port + n);
@@ -108,7 +113,7 @@ function steps(dir, port, udd) {
     args: ['tools/master_bench.js', '--port', P(2), '--udd', path.join(udd, 'p'), '--builds', 'cub', '--only', 'loads,garage,taxi,water', '--places', 'HOME,' + REMOTE,
       '--water-builds', 'floats', '--no-water-pass', '--cockpit', '0', '--taxi', String(M.taxi), '--water', String(M.water), '--garage', String(M.garage),
       '--out', path.join(dir, 'master_bench.json')].concat(M.cold ? [] : ['--no-cold']).concat(opt('fallback', null) ? ['--fallback', opt('fallback')] : []),
-    sec: EST.bench[MODE] + (M.cold ? EST.coldLoad : 0) });
+    sec: EST.bench[MODE] + 2 * EST.warmLoad + (M.cold ? EST.coldLoad : 0) });
   if (opt('fallback', null)) for (const s of S) if (s.id !== 'master_bench') s.args.push('--fallback', opt('fallback'));
   // the bench first: its discarded warm-up load warms the fresh profile for the Cub (the rollout's metal warm-up follows)
   return S.filter(s => s.part === 'bench').concat(S.filter(s => s.part !== 'bench'));
