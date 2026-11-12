@@ -76,3 +76,34 @@ files, and the chord-160 cards stay "next" (48 / 49).
 On master the cards would load with those rows ignored: no nose deck, profiled struts with no jury, and the old
 brakes. That is not the aeroplane the user approved. A claude/ready/ruckus therefore has to stack on, or carry,
 STRUT-OPTIONS and the brakes. The order is the user's / A0's call.
+
+**(c, continued) What the Ruckus weighs, and which core changes it was weighed on** (12 Nov). The same file,
+`ruckus_std_2026-11-09.json`, measured with the same ledger script on both cores:
+
+| section | origin/master 1f5b82195 | practical-cerf 7328d17a5 | difference | the change behind it (practical-cerf only) |
+|---|---|---|---|---|
+| bracing | 18.00 | 11.46 | -6.54 | STRUT-OPTIONS 0e934785d: the card's round-tube struts and jury (`wgStrutSec`, `wgJury`, which master ignores) |
+| wings | 27.49 | 22.09 | -5.40 | UL-WING e449077fb: the ultralight wing's stand-ins bill as tubes and wires (the user: "we overestimate the wing weight by a factor 2") |
+| stol | 18.59 | 13.39 | -5.20 | SLAT-KG 24f7ce231: the slat's mass by its section |
+| fuselage | 24.54 | 20.28 | -4.26 | no change of its own: inferred to be the gauge, which sizes the structure to the design gross (270 -> 249 kg). Not isolated by a test |
+| tail | 7.24 | 7.04 | -0.20 | the same gauge |
+| gear | 23.85 | 24.61 | +0.76 | MASS-SCALE 5be057892 (the gear's own gauge ceiling) and BUSH-WHEELS 24f7ce231 |
+| **empty** | **176.3** | **155.5** | **-20.8** | the real Ruckus: 115 kg (254 lb). Both cores are well over it, and the wing and fuselage are the open mass findings |
+
+So a claude/ready/ruckus that reports 155.5 kg must carry:
+- STRUT-OPTIONS, which has its own READY on claude/strut-options;
+- UL-WING and SLAT-KG / BUSH-WHEELS (practical-cerf; the reverted real-figures-3 lineage);
+- MASS-SCALE (in PHYS-SCALE's READY, the other REAL-FIGURES session);
+- and, for the shape: NOSE-DECK and the brakes' hold.
+
+Otherwise it re-reports on master's 176.3 kg, with the struts profiled and no jury. That is not the approved card.
+
+**Overlap with the Archaeopteryx work** (claude/archaeopteryx-sailplane-study-q8tzz2 as pushed): none in code. It adds
+new parts with their own masses (the monowheel and bicycle wheel, the tip skids, the hanging pylon's GEN_HANG). It does
+not touch the wing's, the struts' or the slat's billing, the material table, or the gauge. If its "light materials and
+weight ledgers" are still to come, the shared ground is:
+- UL-WING (63_gen_wing: how an open ultralight wing bills its tubes, wires and fabric);
+- the `fabricAlu` construction and the aluminium spar under fabric (REAL-FIGURES-3, GEN_MATERIALS / GEN_BUILD_GRAMMAR);
+- STRUT-OPTIONS' tube masses.
+
+Those should be designed together, not twice.
