@@ -10,6 +10,7 @@
 //   RELEASE the pilot's key at 100 m: the line off at once, the car's pull gone
 //   WEAK    a weak link of 1.2 kN: it breaks in the roll's snatch, said so - never a glider dragged past its link
 //   AUTOPILOT the hands up the line, then the game's pilot re-engaged 2 s after the release glides on (the page's handover)
+//   CIRCUIT the glider's circuit to a landing on the runway: the motorglider and the Archaeopteryx card, motors off
 //   PERF    the line's cost a frame (the aeroplane's frame with it against without it)
 // ~2 min. node tools/_tow_check.js
 'use strict';
@@ -31,7 +32,7 @@ const st = C.siteOf('HOME').stand;
 const I = VI.vehIslandFromWorld(W, { siteOf: C.siteOf, fieldName: C.fieldName, town: null, from: [st.x, st.z] });
 const G = Dr.vehRoadGraph(I.spec);
 const A = DS.ARCHETYPES.find(x => x.key === 'motorglider');
-const def = C.buildGen(DS.designBake(A.sel, A.over));
+const DEF0 = C.buildGen(DS.designBake(A.sel, A.over));
 const aH = W.aerodromes.find(a => a.id === 'HOME');
 const P0 = G.places['rwy:HOME:0'], P1 = G.places['rwy:HOME:1'];
 const dl = Math.hypot(P1.x - P0.x, P1.z - P0.z), dx = (P1.x - P0.x) / dl, dz = (P1.z - P0.z) / dl;
@@ -39,6 +40,7 @@ const dl = Math.hypot(P1.x - P0.x, P1.z - P0.z), dx = (P1.x - P0.x) / dl, dz = (
 // one launch: the glider lined up on runway 13's end, the car L0 ahead; opts: { L0, Vtow, weak, releaseAt (m), T (s), noLine }
 function launch(o) {
   o = Object.assign({ L0: 400, Vtow: 28, T: 150 }, o || {});
+  const def = o.key ? C.buildGen(DS.designBake(DS.ARCHETYPES.find(x => x.key === o.key).sel, DS.ARCHETYPES.find(x => x.key === o.key).over)) : DEF0;
   const sim = C.makeSim(def, W); sim.reset(0);
   let hdg = Math.atan2(dz, dx);
   C.placeAtLineup(sim, aH, { x: P0.x, z: P0.z, hdg }, W, def.refs); for (let i = 0; i < 120; i++) sim.step(1 / 60);
@@ -107,6 +109,18 @@ const L = launch({});
   const ok = !R.bad && R.handed && R.phases.includes('GLIDE') && last[3] > 50 && last[1] > 18 && last[0] >= 39;
   row('AUTOPILOT', ok, 'the glider launched by the autopilot: released at ' + (R.relH != null ? f(R.relH, 0) + ' m' : '-') + ', the pilot from ' + (R.handed ? f(R.handed.t, 0) + ' s' : 'NEVER') + ': ' + (R.phases || []).join(' -> ') +
     '; 40 s after the release ' + f(last[3], 0) + ' m up at ' + f(last[1]) + ' m/s' + (R.ap && R.ap.report.outcome ? ' (' + R.ap.report.outcome + ')' : ''));
+}
+// ---- CIRCUIT: THE GLIDER'S CIRCUIT (43_pilot GLIDE, the user 12 Nov: "do the glider circuit") - released, the pilot
+//      flies a glider's circuit at the field it reaches (the arrival's landing there: its way, its side, its aim) on
+//      energy - the high key, height burnt in circles over it, the downwind, the base turned where the height left just
+//      covers the way at the glide ratio flown, the final - and lands ON the runway. The motorglider (motor off) and the
+//      user's e-glider, the ARCHAEOPTERYX card as it stands (its motor off) ----
+for (const key of ['motorglider', 'archaeopteryx']) {
+  const R = launch({ key, pilot: true, after: 420, T: 640 }), ap = R.ap, Gd = ap && ap.report.glider, Ld = ap && ap.report.landing;
+  const st = Gd ? Gd.stages.map(q => q.stage) : [];
+  const ok = !R.bad && st.includes('downwind') && st.includes('base') && st.includes('final') && R.phases.includes('STOPPED') && Ld && Ld.onStrip && Math.abs(Ld.offCentre) < 20 && Ld.stopLeft > 0 && Ld.sink < 1.5 && ap.report.outcome === 'completed';
+  row('CIRCUIT', ok, key + ': released at ' + (R.relH != null ? f(R.relH, 0) + ' m' : '-') + '; ' + (Gd ? Gd.side + '-hand at ' + Gd.field + ', ' + Gd.way + ', downwind ' + Gd.W + ' m out, glide ratio flown ' + Gd.Em + ': ' + Gd.stages.map(q => q.stage + ' ' + q.h + ' m').join(', ') : 'NO CIRCUIT') +
+    '; ' + (Ld ? 'landed ' + (Ld.onStrip ? 'on the runway' : 'OFF it') + ', ' + f(Ld.tdIn, 0) + ' m in (' + f(Ld.pastAim, 0) + ' past the aim), ' + f(Math.abs(Ld.offCentre), 1) + ' m off the centreline, sink ' + f(Ld.sink, 2) + ' m/s, ' + f(Ld.stopLeft, 0) + ' m left' : 'NO LANDING') + ' (' + (ap ? ap.report.outcome : '-') + ')');
 }
 // ---- PERF: the aeroplane's frame with the line and without ----
 {

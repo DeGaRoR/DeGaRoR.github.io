@@ -475,3 +475,20 @@ options", and "the autopilot should be able to fly everything".
 - GATES: TRAILER AUTOPILOT, TOW AUTOPILOT (the handover, the game's pilot flying on); TRAILER PAGE (the chooser, the
   hands, the handover). ENGCONFIG's reds (the quad never wings-level, three saved cards differ, the Chinook's hash) are
   identical on the commit before the pilot change - not this one's.
+
+### 12.2 The glider's circuit (12 Nov)
+The user: "do the glider circuit next ... test it with the e-glider with the engine removed". 43_pilot.js GLIDE, for a
+glider (every engine's key off, or none) that reaches a field: the arrival's own landing there (planArrival via
+landWayFrom: the way, the aim, the circuit's side) flown on energy (gliderCircuitPlan + the GLIDE stages):
+- key (the downwind's start, 0.8 W upwind of the aim, W out; W = 0.6 the powered offset, 220-420 m) -> burn (circles
+  outboard of it while the height is over the key's) -> downwind -> base (turned where the height over the aim just covers
+  base + final at the glide ratio FLOWN: ground speed over sink, 6 s, x 0.9, + 20 m, the flare's float of 10 s at the
+  approach speed taken off) -> final (the centreline at the approach speed, the landing flap while high) -> FLARE as any
+  landing. Too low for the key: direct, onto a short final. Far from any field: the straight glide as before.
+- Tuning measured on the motorglider: the sheet's fallback 12 x 0.6 brought it 160 m high and 2.2 km in; flown ratio x 0.8
+  + 30 m: 860 m past the aim; x 0.9 + 20 m: 530; with the float: 377 m past the aim.
+- GATE TOW CIRCUIT: the motorglider (released 275 m: burn, downwind 134 m, base 78, final 48; on the runway 890 m in,
+  9.8 m off the centreline, sink 0.37 m/s, 1118 m left) and the Archaeopteryx card as it stands, motor off (364 m:
+  on the runway 794 m in, 8.5 m off, 1343 m left).
+- Open: the aim is still 280-380 m short of where it touches (no airbrakes in the model; a slip on the glider's final
+  would trim it); a wind's drift on the downwind; a circuit joined from far (the key's approach is a straight line).
