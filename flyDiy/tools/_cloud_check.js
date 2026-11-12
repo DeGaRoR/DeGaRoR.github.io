@@ -136,7 +136,9 @@ console.log('6. the splice rules');
   yes(/if \(o\.decorate\) o\.decorate\(es\);/.test(at) && /\(\(o\.dirty && o\.dirty\(\)\) \|\| \(o\.cap && capMoved\(\)\)\)\) return probe\.bake\(day\);/.test(at),
       'ATMO.makeProbe takes the decorator and the dirty test (with the live cap beside it - the ground under the craft, 2026-09-22)');
   yes(/hemiBoost: RIG\.hemi \/ 0\.274 \* \(typeof CLOUDS !== 'undefined' && CLOUDS\.hemiUnder \? CLOUDS\.hemiUnder\(cT\) : 1\)/.test(rw3) && /cloudT: cT/.test(rw3), 'the hemisphere rises under the cloud at the eye and whitens (sky_light cloudT)');
-  yes(/if \(o\.keyGain != null && !isMoon\) I \*= o\.keyGain;/.test(src('viewer/sky_light.js')) && /keyGain: cloudT/.test(src('viewer/hangar.js')) && /CLOUDS\.domeMesh\(SHED_FRAME_YAW, 598, 24, \{ depthTest: true \}\)/.test(src('viewer/hangar.js')) && /depthTest: !!\(opts && opts\.depthTest\)/.test(cj), 'the shed sees the layer on its backdrop, depth-tested behind its walls (G436.2), and its key takes the column (the dome keeps its scale)');
+  // RE-PINNED 10 Nov (HANGAR-VIEW C, L36d's CLOUD red): the shed's cloud dome turns with the room's real yaw (frameYaw, the world's
+  // at the shed) instead of the one fixed SHED_FRAME_YAW - still depth-tested behind the walls, the row's claim
+  yes(/if \(o\.keyGain != null && !isMoon\) I \*= o\.keyGain;/.test(src('viewer/sky_light.js')) && /keyGain: cloudT/.test(src('viewer/hangar.js')) && /CLOUDS\.domeMesh\((?:SHED_FRAME_YAW|frameYaw), 598, 24, \{ depthTest: true \}\)/.test(src('viewer/hangar.js')) && /depthTest: !!\(opts && opts\.depthTest\)/.test(cj), 'the shed sees the layer on its backdrop, depth-tested behind its walls (G436.2), and its key takes the column (the dome keeps its scale)');
   const idx = rw3.indexOf('CLOUDS.update(day, camera, world)'), gate = rw3.indexOf('if (day.version === dayVer && Math.abs(el - dayEl) < 0.02');
   yes(idx > 0 && gate > 0 && idx < gate, 'the clouds update every frame, before the sun-move gate (the drift, the eye, the shadow\'s scalars)');
   // C4: the veil, the in-cloud slab, the weather on the rails

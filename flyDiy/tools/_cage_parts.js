@@ -315,7 +315,7 @@ const CAGE_PARTS = [
       // (the nose frame has no waist: its width is the deck's half-width)
       ['nose frame', ['frNoseTopY', 'frNoseTopW', 'frNoseBotY', 'noseLen']],
       ['nose frame, detail', ['frNoseBotW', 'frNoseBotZ'], EXPERT],
-      ['shape', ['noseW', 'noseH', 'noseDroop', 'noseCrown',
+      ['shape', ['noseW', 'noseH', 'noseDroop', 'noseCrown', 'noseKeelSq',
                  'wsBaseLift', 'crSillNose']],
       ['tip', ['noseTip', 'noseTipV', 'crNoseCap', 'crFrontCap']],
       // WHAT THE FRONT IS (2026-09-11, the user: the aero-nose choice
@@ -416,19 +416,22 @@ const CAGE_PARTS = [
       ['row 1', ['paxWinN', 'paxWinShape', 'paxWinZ', 'paxWinPitch', 'paxWinY', 'paxWinW',
                  'paxWinH', 'paxWinTopK', 'paxWinSkew', 'paxWinR', 'paxWinR1', 'paxWinR2',
                  'paxWinR3', 'paxWinR4', 'paxWinDepth', 'paxWinBulge',
-                 'paxWinQ1Z', 'paxWinQ1Y', 'paxWinQ2Z', 'paxWinQ2Y', 'paxWinQ3Z', 'paxWinQ3Y', 'paxWinQ4Z', 'paxWinQ4Y']],
+                 'paxWinQ1Z', 'paxWinQ1Y', 'paxWinQ2Z', 'paxWinQ2Y', 'paxWinQ3Z', 'paxWinQ3Y', 'paxWinQ4Z', 'paxWinQ4Y', 'paxWinQ5On', 'paxWinQ5Z', 'paxWinQ5Y', 'paxWinR5']],
       ['row 2', ['win2N', 'win2Shape', 'win2Z', 'win2Pitch', 'win2Y', 'win2W', 'win2H',
                  'win2TopK', 'win2Skew', 'win2R', 'win2R1', 'win2R2', 'win2R3', 'win2R4', 'win2Depth', 'win2Bulge',
-                 'win2Q1Z', 'win2Q1Y', 'win2Q2Z', 'win2Q2Y', 'win2Q3Z', 'win2Q3Y', 'win2Q4Z', 'win2Q4Y']],
+                 'win2Q1Z', 'win2Q1Y', 'win2Q2Z', 'win2Q2Y', 'win2Q3Z', 'win2Q3Y', 'win2Q4Z', 'win2Q4Y', 'win2Q5On', 'win2Q5Z', 'win2Q5Y', 'win2R5']],
       ['row 3', ['win3N', 'win3Shape', 'win3Z', 'win3Pitch', 'win3Y', 'win3W', 'win3H',
                  'win3TopK', 'win3Skew', 'win3R', 'win3R1', 'win3R2', 'win3R3', 'win3R4', 'win3Depth', 'win3Bulge',
-                 'win3Q1Z', 'win3Q1Y', 'win3Q2Z', 'win3Q2Y', 'win3Q3Z', 'win3Q3Y', 'win3Q4Z', 'win3Q4Y']],
+                 'win3Q1Z', 'win3Q1Y', 'win3Q2Z', 'win3Q2Y', 'win3Q3Z', 'win3Q3Y', 'win3Q4Z', 'win3Q4Y', 'win3Q5On', 'win3Q5Z', 'win3Q5Y', 'win3R5']],
+      // (11 Nov: rows 4-6, win4*-win6*, row 3's controls)
+      ...[4, 5, 6].map(n => ['row ' + n, ['N', 'Shape', 'Z', 'Pitch', 'Y', 'W', 'H', 'TopK', 'Skew', 'R', 'R1', 'R2', 'R3', 'R4',
+        'Depth', 'Bulge', 'Q1Z', 'Q1Y', 'Q2Z', 'Q2Y', 'Q3Z', 'Q3Y', 'Q4Z', 'Q4Y', 'Q5On', 'Q5Z', 'Q5Y', 'R5'].map(k => 'win' + n + k)]),
     ] },
 
   { key: 'pilotWindow', name: 'pilot window', parent: 'glazing', layer: 'cage',
     sections: ['pilotWindow', 'pillarWindow'],
     place: { up: 'winSillPilot', at: 'in the cabin side' },
-    groups: [['glazing', ['winSillPilot']]] },
+    groups: [['glazing', ['winSillPilot', 'winPilotPanel']]] },
 
   { key: 'skylight', name: 'skylight', parent: 'glazing', layer: 'cage',
     sections: ['skyWindows'],
@@ -501,7 +504,7 @@ const CAGE_PARTS = [
     place: { count: 'paxCount', type: 'doorPax', len: 'paxLen',
              at: 'aft of the cabin' },
     groups: [
-      ['bays', ['paxCount', 'paxLen', 'paxAbreast']],       // T2.3 (132)
+      ['bays', ['paxCount', 'paxLen', 'paxLen2', 'paxLen3', 'paxLen4', 'paxLen5', 'paxLen6', 'paxAbreast']],       // T2.3 (132)
       // G3573 (DC3-2): the rows of seats in each bay, their pitch, the aisle and the seat's width
       ['seat layout', ['paxRows', 'paxPitch', 'paxAisle', 'paxSeatW']],
       // G180: who sits in each bay is the BAY's own row — click a bay, seat
@@ -520,7 +523,7 @@ const CAGE_PARTS = [
       // (the aft bulkhead's lean = the passenger FRAME's fore/aft rows, T2.1)
       ['glazing', ['winSillPax']],
       // (the drawn windows are their own part under Glazing since T2.2)
-      ['doors', ['doorPax', 'doorSillPax']],
+      ['doors', ['doorPax', 'doorPaxFront', 'doorSillPax']],
       ['pillars', ['paxPillarW'], EXPERT],
     ] },
 
@@ -535,7 +538,7 @@ const CAGE_PARTS = [
              at: 'aft of the last bay; on a rod, the boom’s first stretch' },
     groups: [
       // (taperW = the boom FRAME's widths since T2.1)
-      ['tightening', ['taperOn', 'taperLen', 'taperPanels']],
+      ['tightening', ['taperOn', 'boomMatch', 'taperLen', 'taperPanels']],
     ] },
 
   // G267 (the user: "the tail cone options appear under boom, while it has
@@ -818,7 +821,7 @@ const CAGE_PARTS = [
       // forward the root starts).
       // THE MACRO TIER (TAIL CHANTIER 2 P3): what a builder sizes the fin
       // with — the wing's words over the drawn outline
-      ['size', ['finHeight', 'finChord', 'finChordTip', 'finSweep', 'finHinge']],
+      ['size', ['finHeight', 'finChord', 'finChordTip', 'finSweep', 'finHinge', 'finZ', 'finDorsalFwd', 'finDorsalH']],
       // EXPERT (TAIL CHANTIER 2 P2): the outline's corners, rows, edges and
       // sharpness are the CAGE's own vertices — the tier a builder reaches
       // last (TAIL-ARCHETYPES §3). The trunk keeps the height and the root
@@ -886,7 +889,7 @@ const CAGE_PARTS = [
     groups: [
       ['fitted', ['hgOn']],
       ['type', ['hgFamily', 'hgCount']],
-      ['position', ['hgOut', 'hgHornAt']],
+      ['position', ['hgOut', 'hgOutSt', 'hgHornAt']],   // hgOutSt: the elevators' own end inset (C172-CLIP)
       ['size', ['hgHornLen', 'hgSize']],
       ['linkage', ['hgHorn', 'hgLink']],
       ['fairings', ['hgFair']],
@@ -936,13 +939,15 @@ const CAGE_PARTS = [
                     'eng_stroke', 'eng_rpm', 'eng_stagger']],
       // the blower rows (2026-09-05): what holds the rating, and to where
       ['architecture', ['eng_twoStroke', 'eng_liquid', 'eng_geared',
-                        'eng_blower', 'eng_boost', 'eng_critAlt']],
+                        'eng_blower', 'eng_boost', 'eng_critAlt', 'eng_bmepK', 'eng_massK',
+                        // ENGINE-DIALS A: the gearbox's ratio, the drive's maximum rpm, a governed propeller
+                        'eng_gearRatio', 'eng_rpmMax', 'eng_cs']],
       ['electric', ['eng_eStyle', 'eng_canD', 'eng_canL', 'eng_volts',
                     'eng_eFins', 'eng_escOn']],
       // the turboprop's own keys (2026-09-05, TURBOPROP §3), so no row is
       // rendered twice
       ['turbine', ['eng_tStyle', 'eng_tCanD', 'eng_tCanL', 'eng_gearK',
-                   'eng_flatK', 'eng_tRpm', 'eng_stackStyle']],
+                   'eng_flatK', 'eng_tRpm', 'eng_stackStyle', 'eng_stackOut', 'eng_stackLen', 'eng_stackFlat', 'eng_stackR', 'eng_stackDrop', 'eng_stackSplit']],
       ['cylinder dress', ['eng_finN', 'eng_finR', 'eng_headFins',
                           'eng_rockerW', 'eng_rockerH', 'eng_rockerR',
                           'eng_rockerBoss', 'eng_rockerBossW',
@@ -991,16 +996,18 @@ const CAGE_PARTS = [
       ['fitted', ['cowlOn', 'fitNose', 'cowlGap']],
       ['section at the firewall', ['cw_waist', 'cw_deckH', 'cw_keelH',
                                    'cw_sqAftTop', 'cw_sqAftBot',
-                                   'cw_wAftTop', 'cw_wAftBot']],   // CABIN-CRAFT: the width by level
+                                   'cw_wAftTop', 'cw_wAftBot', 'cw_waistF']],   // CABIN-CRAFT: the width by level; PROPER-COWLS: the front's waist
+      ['side gills', ['cw_gillOn', 'cw_gillN', 'cw_gillZ', 'cw_gillL', 'cw_gillH', 'cw_gillSlant', 'cw_gillLip', 'cw_gillT']],   // PROPER-COWLS
+      ['air and exhaust exit', ['cw_exitGap', 'cw_exitHold', 'cw_exitLen', 'cw_exCut', 'cw_exRampH', 'cw_exCutSpan', 'cw_exCutLen', 'cw_exCutAz']],   // PROPER-COWLS
       ['nose bowl', ['cw_lidLen', 'cw_lidShoulder', 'cw_lidRound',
-                     'cw_faceRise', 'cw_deckSweep', 'cw_keelSweep',
-                     'cw_waistSweep', 'cw_lidMode', 'cw_lidR', 'cw_lidGap']],
+                     'cw_faceRise', 'cw_faceRing', 'cw_deckSweep', 'cw_keelSweep', 'cw_keelShoulder', 'cw_keelRound', 'cw_deckShoulder', 'cw_deckRound',
+                     'cw_waistSweep', 'cw_lidMode', 'cw_lidR', 'cw_lidGap', 'cw_lidRW', 'cw_lidRTop', 'cw_lidRBot']],
       ['barrel', ['cw_cowlLen', 'cw_aftW', 'cw_aftH', 'cw_taperW',
                   'cw_taperH', 'cw_lidRise']],
       ['section at the barrel end', ['cw_sqFrontTop', 'cw_sqFrontBot']],
       ['section at the nose ring', ['cw_lidSqTop', 'cw_lidSqBot']],
       ['cheeks & cut-out', ['cw_lobeN', 'cw_lobeAmp', 'cw_lobeT',
-                            'cw_lobeAz', 'cw_lobeSig', 'cw_lobeTSig',
+                            'cw_lobeAz', 'cw_lobeSig', 'cw_lobeTSig', 'cw_lobeT2', 'cw_lobeCount', 'cw_lobeStream', 'cw_lobeNose', 'cw_lobeTail',
                             'cw_cutSpan', 'cw_cutAz']],
       ['inlets', ['cw_apMode', 'cw_apW', 'cw_apH', 'cw_apSq',
                   'cw_apOffX', 'cw_apOffY', 'cw_pairX', 'cw_pairW',
@@ -1008,17 +1015,17 @@ const CAGE_PARTS = [
       ['inlet lip', ['cw_lipMode', 'cw_lipThick', 'cw_lipDepth',
                      'cw_lipRound', 'cw_lipProtrude', 'cw_lipInset',
                      'cw_ductLen', 'cw_ductFlare']],
-      ['chin scoop', ['cw_scoopOn', 'cw_scoopZ', 'cw_scoopLen', 'cw_scoopW',
+      ['chin scoop', ['cw_scoopOn', 'cw_scoopFollow', 'cw_scoopHold', 'cw_scoopWFit', 'cw_scoopTaperH', 'cw_scoopTaperW', 'cw_scoopZ', 'cw_scoopLen', 'cw_scoopW',
                       'cw_scoopH', 'cw_scoopSq', 'cw_scoopDrop',
                       'cw_scoopRake', 'cw_scoopAp', 'cw_scoopLipH',
                       'cw_scoopLipDepth', 'cw_scoopDuct']],
       ['panel joint', ['cw_seamOn', 'cw_seamType', 'cw_seamPos',
                        'cw_seamWidth', 'cw_seamDepth']],
-      ['split line', ['cw_partOn', 'cw_partY', 'cw_partW']],
+      ['split line', ['cw_partOn', 'cw_partY', 'cw_partW', 'cw_partLevel', 'cw_partArc']],
       ['fasteners', ['cw_fastOn', 'cw_fastPitch', 'cw_fastD']],
       ['oil door', ['cw_oilOn', 'cw_oilZ', 'cw_oilW', 'cw_oilL', 'cw_oilSq']],
       // the bench's nacelle termination, back (2026-09-04)
-      ['nacelle', ['cw_aftMode', 'cw_tailLen', 'cw_tailDrop']],
+      ['nacelle', ['cw_aftMode', 'cw_podFit', 'cw_tailLen', 'cw_tailDrop']],
       // G3914: the pusher nacelle's air inlet (in the tail cone's tip)
       ['nacelle inlet', ['cw_inletOn', 'cw_inletW', 'cw_inletH', 'cw_inletLip', 'cw_inletDuct', 'cw_inletY']],
       ['firewall lip', ['cw_fwLipOn', 'cw_fwLipR', 'cw_fwLipRise',
@@ -1041,6 +1048,8 @@ const CAGE_PARTS = [
       // G2770 (the user: "For the nose cone, put blades and design point
       // under expert"): the trunk keeps the blade count, the diameter and
       // the material; the blade's shape and the design point are expert
+      // ENGINE-DIALS B: the pitch (a view of spec.prop.pitch, _cage_eng.js PROP_PITCHES) - physics, on the trunk
+      ['pitch', ['propPitch']],
       ['blades', ['cw_bladeN', 'cw_propD', 'cw_material', 'cw_rootChord',
                   'cw_tipChord', 'cw_chordBulge', 'cw_sweep',
                   'cw_thickRoot', 'cw_thickTip', 'cw_camb', 'cw_tipRound',
@@ -1110,13 +1119,16 @@ const CAGE_PARTS = [
       ['linkage', ['s1_linkAng', 's1_linkSwing', 's1_linkArmW',
                    's1_linkVee', 's1_linkSpread', 's1_linkX',
                    's1_linkPanel', 's1_linkAxle', 's1_linkAxleX']],
-      ['shock', ['s1_shockKind', 's1_shockAt', 's1_shockZ', 's1_shockAng',
+      ['shock', ['s1_shockKind', 's1Stiff', 's1_shockAt', 's1_shockZ', 's1_shockAng',
                  's1_bungeeSpan']],
       ['oleo', ['s1_oleoAng', 's1_oleoDia', 's1_oleoCyl', 's1_oleoScissor',
                 's1_oleoBrace', 's1_oleoBraceZ']],
       ['castor', ['s1_twSpringLen', 's1_twSpringDrop', 's1_twSpringW',
                   's1_twSpringT', 's1_twLeaves', 's1_twRake', 's1_twTrail',
                   's1_twLegDrop', 's1_twSteer', 's1_twSteerVis']],
+      // WILGA-GEAR: the trailing-link leg (the Wilga's) and its preview
+      ['trailing link', ['s1_lvArm', 's1_lvAng', 's1_lvComp', 's1_lvTop', 's1_lvReach', 's1_lvStat', 's1_lvLegW', 's1_lvRootAng', 's1_lvBoot',
+                         'gearLvPos']],
       // RETRACT-1: the retractable gear (a tricycle's; the mains are what it is mostly about)
       ['retraction', ['gearRetract', 'gearRetT', 'gearRetAct', 'gearPos', 'gearRetFrac', 'gearWellCut', 'gearLegDoor', 'gearDoors', 'gearNacFit', 'gearNacPod', 'gearShort', 'gearShortNose', 'gearKneeDoor']],
       // G1: the fold - the mains' preset or custom turns, the nose's
@@ -1169,6 +1181,8 @@ const CAGE_PARTS = [
       ['castor', ['s2_twSpringLen', 's2_twSpringDrop', 's2_twSpringW',
                   's2_twSpringT', 's2_twLeaves', 's2_twRake', 's2_twTrail',
                   's2_twLegDrop', 's2_twSteer', 's2_twSteerVis']],
+      // WILGA-GEAR: the station's copy of the trailing-link rows (the leg row offers the kind on the mains only)
+      ['trailing link', ['s2_lvArm', 's2_lvAng', 's2_lvComp', 's2_lvTop', 's2_lvReach', 's2_lvStat', 's2_lvLegW', 's2_lvRootAng', 's2_lvBoot']],
     ] },
 
   // 2026-09-04 (the user: "the wheel is a child of suspension"): under the mains

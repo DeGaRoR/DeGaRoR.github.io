@@ -555,6 +555,17 @@ const GEN_SURF_MATERIALS = {
             c: GEN_MATERIALS.tubeFabric.c,
             cover: 0.42, price: 42, cd0: 0.0022, clmaxK: 1.00, shop: 'tube',
             refGross: 550, coverGauged: false },
+  // THE ALUMINIUM SPAR UNDER FABRIC (REAL-FIGURES-3, the user 9 Nov): the PA-18's wing and the Carbon Cub's -
+  // extruded aluminium spars, stamped aluminium ribs, an aluminium leading edge, fabric over all. The members are
+  // the alloy row's (2024 extrusions), the cloth carries no torsion (the fabric row's wing k), and the cover is the
+  // cloth plus the leading edge's sheet and the lighter metal ribs: between the tube row's 0.42 and the wooden
+  // row's 0.80 (whose ribs are spruce and whose D-box is ply). Built in the metal shop
+  fabricAlu: { name: 'aluminium spar + fabric', phys: GEN_MATERIALS.alloy.phys,
+            lin: GEN_MATERIALS.alloy.lin,
+            k: { fus: GEN_MATERIALS.alloy.k.fus, wing: 1.0e6, gear: GEN_MATERIALS.alloy.k.gear },
+            c: { fus: GEN_MATERIALS.alloy.c.fus, wing: 700, gear: GEN_MATERIALS.alloy.c.gear },
+            cover: 0.55, price: 55, cd0: 0.0022, clmaxK: 1.00, shop: 'metal',
+            refGross: 794, coverGauged: false },
   // G466: the ultralight's wing and tail — two 6061 tube spars, formed
   // ribs, drag cables, Dacron sewn on (see GEN_MATERIALS.aluTube)
   aluFabric: { name: '6061 tube + Dacron', phys: GEN_MATERIALS.aluTube.phys,
@@ -790,6 +801,10 @@ GEN_BUILD_GRAMMAR.aluTube   = Object.assign({}, GEN_BUILD_GRAMMAR.tubeFabric,
                                             { name: '6061 tube + Dacron', alias: 'tubeFabric' });
 GEN_BUILD_GRAMMAR.aluFabric = Object.assign({}, GEN_BUILD_GRAMMAR.tubeFabric,
                                             { name: '6061 tube + Dacron', alias: 'tubeFabric' });
+// (REAL-FIGURES-3's aluminium spar under fabric: what prints through the cloth is the ribs, so the fabric grammar
+// under its own name - GATE SKINMAT holds every construction to a grammar row)
+GEN_BUILD_GRAMMAR.fabricAlu = Object.assign({}, GEN_BUILD_GRAMMAR.tubeFabric,
+                                            { name: 'aluminium spar + fabric', alias: 'tubeFabric' });
 // G2047: a glass moulding reads as the carbon one - no fasteners, no seams, the mould's parting line
 GEN_BUILD_GRAMMAR.glass = Object.assign({}, GEN_BUILD_GRAMMAR.carbon, { name: 'glass + epoxy', alias: 'carbon' });
 
@@ -1581,6 +1596,14 @@ const GEN_FLAPS = {
   // flap a transport lands on steeply. Last in the table so every saved row's
   // index (the editor's wgFlapType) is the one it was. Drawn as a plain hinge.
   split:   { name: 'Split flap',   dCl: 0.90, cd: 0.110, rate: 0.20 },
+  // THE STOL FLAP (REAL-FIGURES-3, the Carbon Cub SS, 2026-11-09): a big PLAIN
+  // hinge that runs to 50 deg - the Carbon Cub SS's (15/30/50, Plane & Pilot;
+  // a 2012 SS's listing), and the PA-18's own. The slotted row above was
+  // tunnel-calibrated against the PA-18's POH Vs ratio, and the PA-18's flap is
+  // this one, so the lift is that calibration's; the drag is a plain flap's
+  // past 40 deg, between the slotted row's and the split's. Last in the table
+  // so every saved wgFlapType keeps its index.
+  stol:    { name: 'STOL flap (50 deg)', dCl: 1.60, cd: 0.090, rate: 0.16 },
 };
 
 // ===========================================================================
@@ -1617,7 +1640,7 @@ const GEN_TRAVEL = {                       // degrees, each way
 // the flap's own travel is the type's, where the type has an opinion: a
 // Fowler runs out further than it turns down, and a split flap goes further
 // than either. Absent = the table's own number.
-const GEN_FLAP_TRAVEL = { fowler: 35, slotted: 40, plain: 40, split: 45 };   // (G3506: the DC-3's 45 deg)
+const GEN_FLAP_TRAVEL = { fowler: 35, slotted: 40, plain: 40, split: 45, stol: 50 };   // (G3506: the DC-3's 45 deg)
 
 // travel in RADIANS for one surface key, which is what every caller wants
 function genTravel(which, flapType) {
@@ -2518,6 +2541,12 @@ const GEN_SUSPENSION = {
   bungee: { name: 'Bungee cord',  k: 1.00, c: 1.00, price: 250 },
   spring: { name: 'Spring steel', k: 2.20, c: 1.20, price: 2200 },   // PRICE-CAL: 900 -> 2 200 (Grove-class legs, $2.0-2.5k)
   oleo:   { name: 'Oleo strut',   k: 3.50, c: 2.60, price: 2600 },
+  // WILGA-GEAR (futureDesigns/WILGA-GEAR-STUDY-2026-11.md): THE TRAILING-LINK LEG WITH ITS OLEO-PNEUMATIC STRUT (the
+  // PZL-104 Wilga's kind). Its spring and its damper are NOT these multipliers: the strut is its own law (62c GEAR_LEVER,
+  // 30_solver's oleo pass) and the leg's members are its bracing - k / c here are the bracing's, the oleo row's (a fixed
+  // steel leg and a forged arm are as stiff as an oleo's barrel). Price: two struts at the oleo row's set price plus the
+  // forged arms, pivots and bearings - DERIVED (the study's §6), a Wilga main leg's own price is not published
+  lever:  { name: 'Trailing-link oleo (Wilga type)', k: 3.50, c: 2.60, price: 5400 },
 };
 
 // FAIRING LAYUP (G133). Mass and price factors on the fairing set — the
@@ -3130,7 +3159,20 @@ const GEN_STOL_ROWS = ['wgSlat', 'wgSlatSpan', 'wgVG', 'wgFence', 'wgCuff', 'wgC
 // parked bakes are keyed by it - a miss drew the fleet live, 139 draws for 2, GATE FRAMECOST), the procurement's -
 // must not see them: the build is the one it was before the STOL wing existed.
 const GEN_STOL_ROW_OFF = { wgSlat: 0, wgSlatSpan: 1.0, wgVG: 0, wgFence: 0, wgCuff: 0, wgCuffSpan: 0.40, wgDroop: 0, wgFowlerGrow: 0 };
-// the cage without its STOL rows at "off" (the same object when it has none: a hash over it is the old bytes)
+// THE NEUTRAL ROWS OF LATER DIALS (REAL-FIGURES-3, 2026-11-09), by the same rule: the engine's tune and build
+// (tools/_eng_gen.js bmepK / massK) at 1 are every engine as it was, and the join writes them into every cage - so at
+// 1 they are absent from every key the STOL rows are absent from, and no certificate is withdrawn by a dial nobody moved
+// (ENGINE-DIALS, 9 Nov: the reduction's ratio, the maximum rpm and the constant-speed propeller by the same rule)
+// ENGINE-DIALS (2026-11-09): THE PROPELLER DIAMETER THE WING'S BALANCE RULE ASSUMES FOR A NOSE ENGINE - the registry
+// row's own for a registry engine (every build before, byte for byte), and for a CUSTOM engine its own disc (the
+// spec's D, else the generic 1.80 m) - never the A-65's 1.88 it borrowed through the fallback key
+function genEngPropD0(S, e0, PP0) {
+  if (e0 && e0.custom) return (S.prop && S.prop.D > 0) ? S.prop.D : 1.80;
+  return PP0.prop.D;
+}
+const GEN_CAGE_ROW_NEUTRAL = { eng_bmepK: 1, eng_massK: 1, eng_gearRatio: 1, eng_rpmMax: 0, eng_cs: 0, s1Stiff: 1 };
+// the cage without its STOL rows at "off" and its later dials at neutral (the same object when it has none: a hash
+// over it is the old bytes)
 function genStolCageOff(cage) {
   if (!cage || typeof cage !== 'object') return cage;
   let out = null;
@@ -3143,12 +3185,22 @@ function genStolCageOff(cage) {
   // SEAPLANES-LAND (HULL rows): the hull-types branch's new cage rows, at the value every build before them meant, the
   // same rule - absent IS that value, so they withdraw no certificate, re-key no cache, move no procured fingerprint
   for (const k in GEN_HULL_ROW_OFF) if (k in cage && cage[k] === GEN_HULL_ROW_OFF[k]) { out = out || Object.assign({}, cage); delete out[k]; }
+  // WILGA-GEAR: the trailing-link leg's rows at their defaults (absent IS the default) and its preview (state, never the
+  // aeroplane) - no certificate withdrawn, no cache re-keyed, no procured fingerprint moved
+  for (const k in GEN_LEVER_ROW_OFF) if (k in cage && cage[k] === GEN_LEVER_ROW_OFF[k]) { out = out || Object.assign({}, cage); delete out[k]; }
+  if ('gearLvPos' in cage) { out = out || Object.assign({}, cage); delete out.gearLvPos; }
+  for (const k in GEN_CAGE_ROW_NEUTRAL) if (k in cage && cage[k] === GEN_CAGE_ROW_NEUTRAL[k]) { out = out || Object.assign({}, cage); delete out[k]; }
   return out || cage;
 }
 // SEAPLANES-LAND: the hull-types rows' "off" (tools/_cage_brace.js, _cage_eng.js PAGE.defaults: the value the draw and the
 // join read when the key is absent)
 const GEN_HULL_ROW_OFF = { bpStrutK: 1, bpCabDraw: 1, bpCabPylon: 0, engPylonFair: 0, engPylonForm: 0, engPylonAt: 0, engPylonAft: 0.15,
                            engPylonFwd: 0, engFinAt: 0.55, engFinFwd: 0, engNacOver: 0, engNacLift: 0 };
+// WILGA-GEAR: the trailing-link leg's rows per station (tools/_gear_page.js LEG_ROWS[4]) at the value a build without them
+// draws (_cage_gen CAGE_DEFAULT_ABSENT holds the same)
+const GEN_LEVER_ROW_OFF = (() => { const d = { lvArm: 0.4, lvAng: 62, lvComp: 12, lvTop: 0.72, lvReach: 0.45, lvStat: 0.07, lvLegW: 0.09, lvRootAng: 80, lvBoot: 0 }, o = {};
+  for (const k in d) { o[k] = d[k]; for (const i of [1, 2]) o['s' + i + '_' + k] = d[k]; }   // (the flat base copy too)
+  return o; })();
 // RETRACT-1 / G1: the gear layer's retraction rows (tools/_cage_gear.js), dropped by genStolCageOff when the gear is fixed
 const GEN_RETRACT_ROWS = ['gearRetract', 'gearRetT', 'gearRetAct', 'gearRetFrac', 'gearFold', 'gearFoldNose', 'gearPos',
                           'gm1Ax', 'gm1Ang', 'gm2Ax', 'gm2Ang', 'gmTwist', 'gn1Ax', 'gn1Ang', 'gn2Ax', 'gn2Ang', 'gnTwist', 'gearWellCut', 'gearDoors', 'gearLegDoor', 'gearNacFit', 'gearNacPod', 'gearShort', 'gearShortNose', 'gearKneeDoor'];
@@ -3682,6 +3734,29 @@ const GEN_RULES = {
   // pairs (RETRACT-STUDY §1.9): a 177 to a 177RG +66 kg (a bigger engine in it), a 172 to a 172RG ~+80 kg (engine and
   // prop in it), the gear itself 2.5-5 % of the gross; 3.5 % of the gross, 12 kg at the least. [TUNE] on a reference retract
   retractKg:   gross => Math.max(12, 0.035 * (gross || 0)),
+  // WILGA-GEAR: THE TRAILING-LINK LEG (GEAR_LEVER, 62c). The reference geometry is the PZL-104 Wilga 80's, measured off the
+  // Aerofly FS4 Wilga 80 (K. Kaniewski; 3D R. Pearsons: its pivot, axle and strut eyes - the study's §2, [A1]) and held
+  // against the EASA TCDS (prop 2650 mm), the published track and wheelbase and the 500 x 200 tyre; the strut's charge
+  // and its orifice are DERIVED by the study's §4 rules (the maintenance manual's figures are not public). Frame axes
+  // (x aft, y up, q outboard), metres and degrees, the axle at the origin and the strut at FULL EXTENSION:
+  //   arm       pivot to axle (0.400, measured)                 ang   the arm below horizontal at full extension (62)
+  //   comp      the arm below horizontal at full stroke (12)     hornK / hornDeg  the strut's lower eye on the arm:
+  //             0.959 of the arm from the pivot, 12.3 deg above the arm's line (measured)
+  //   qPiv / qHorn  the pivot's centre and the horn inboard of the axle (0.268 / 0.173, measured: the arm runs inside the
+  //             wheel)            w   the pivot bearing's half-width (0.06)
+  //   top       the strut's upper eye up the leg from the pivot (0.18, DERIVED: the measured eye toggles the strut 50 mm
+  //             in; this keeps the measured horn and a working 115 mm stroke)
+  //   legDir    the leg's direction up from the pivot (aft, up, inboard) when nothing drew it (DERIVED from the photos)
+  //   dSt       the static deflection at the design gross, the CHARGE (0.070 m of wheel travel: DERIVED, §4.2)
+  //   dPiston   the strut's piston (0.045, from the photographs against the 200 mm tyre); rp, n, p2k, nFull, cd, nLim,
+  //             rb, zl, ff, vf, stopK: gearOleoDesign's rules (§4)
+  //   kgArm / kgStrut / kgLeg  the forged arm with its pivot and bearings, the strut, the upper leg's fittings (DERIVED:
+  //             the study's §6, inside the 4-6 % of gross a fixed gear weighs)
+  //   kMul / cMul  the leg's and the arm's members at kMul x the gear class's k and cMul x its damper: steel
+  //             structure, not a spring (the strut is the spring and its orifice the damper)
+  lever: { arm: 0.400, ang: 62, comp: 12, hornK: 0.959, hornDeg: 12.3, qPiv: 0.268, qHorn: 0.173, w: 0.06, top: 0.18,
+           legDir: [0.640, 0.577, -0.514], dSt: 0.070, dPiston: 0.045, rp: 3.0, n: 1.3, p2k: 2.2, nFull: 3.0, cd: 0.5,
+           nLim: 2.67, rb: 4, zl: 0.15, ff: 0.05, vf: 0.005, stopK: 3, kgArm: 4.5, kgStrut: 3.2, kgLeg: 2.5, kMul: 20, cMul: 0.1 },
   // THE BOX'S WEBS ON A SKINNED WING (chantier 1, see 61_gen_frame's
   // bracing section): the fraction of the cap's linear density a web, rib
   // post or shear diagonal of the torsion-box lattice bills when the
@@ -5159,9 +5234,9 @@ const GEN_FIELDS = {
                                          v: ['tail.Sh', 'tail.Sv', 'tail.boomX', 'tail.boomLen', 'tail.boomR', 'tail.boomX0',
                                              'tail.boomTaper', 'tail.boomOval', 'tail.boomIncl', 'tail.boomDy', 'tail.stabY'],
                                          twinBoom: ['tail.vAngle', 'tail.Svt'] } } },
-  'wings[].material':  { def: undefined, rule: 'input', join: { states: [null, 'carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass'] } },
-  'tail.finMaterial':  { def: undefined, rule: 'input', join: { states: [null, 'carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass'] } },
-  'tail.stabMaterial': { def: undefined, rule: 'input', join: { states: [null, 'carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass'] } },
+  'wings[].material':  { def: undefined, rule: 'input', join: { states: [null, 'carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass', 'fabricAlu'] } },
+  'tail.finMaterial':  { def: undefined, rule: 'input', join: { states: [null, 'carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass', 'fabricAlu'] } },
+  'tail.stabMaterial': { def: undefined, rule: 'input', join: { states: [null, 'carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass', 'fabricAlu'] } },
   'bracing.cabane':       { def: 'N', rule: 'input', join: { states: ['N', 'V'] } },
   'bracing.interplane':   { def: 'none', rule: 'input', join: { states: ['none', 'N', 'I'] } },
   'bracing.interplaneAt': { def: 0.62, clamp: [0.30, 0.95], rule: 'input', join: { states: [0.62] } },
@@ -5501,7 +5576,8 @@ function clampSpec(spec) {
       cu.name = typeof cu.name === 'string' && cu.name
         ? cu.name.slice(0, 48) : 'custom engine';
       cu.mass = genClamp(cu.mass, 0.05, 900);
-      cu.powerW = genClamp(cu.powerW, 100, 1000000);
+      // (ENGINE-DIALS: 1 MW -> 2 MW - the registry's Merlin 66 is 1.283 MW, and every registry row is a custom point)
+      cu.powerW = genClamp(cu.powerW, 100, 2000000);
       cu.rpm = genClamp(cu.rpm == null ? 2300 : cu.rpm, 400, 14000);
       // the panel arc: a reduction unit between crank and prop (prop = rpm /
       // gear); 1 = direct drive. Read by genShaftRpm, never by the thrust law.
@@ -5513,6 +5589,14 @@ function clampSpec(spec) {
         ? cu.family : (cu.aspiration === 'electric' ? 'electric'
                        : cu.aspiration === 'turbine' ? 'turbine' : 'four');
       cu.cooling = cu.cooling === 'liquid' ? 'liquid' : 'air';
+      // ENGINE-DIALS (2026-11-09): THE FIELDS A CUSTOM ENGINE USED TO BORROW FROM THE A-65 (its engines[].type is the
+      // A-65's: the join's fallback key), now its own, each absent unless its dial says so: the cylinders (33_drive's
+      // FAR 23.361 factor; a piston's resolve), the radial layout (the drag build-up's cooling term), a governed
+      // propeller (a turbine; a piston's row) and the drivetrain's maximum rpm (33_drive's overspeed bands)
+      if (Number.isFinite(+cu.cyl) && Math.round(+cu.cyl) >= 1) cu.cyl = Math.min(28, Math.round(+cu.cyl)); else delete cu.cyl;
+      if (cu.layout !== 'radial') delete cu.layout;
+      if (cu.cs === true || cu.cs === 1) cu.cs = true; else delete cu.cs;
+      if (Number.isFinite(+cu.rpmMax) && +cu.rpmMax > 0) cu.rpmMax = genClamp(+cu.rpmMax, cu.rpm, 14000); else delete cu.rpmMax;
       // WHERE ITS MASS SITS (the cgFwd half-session, 2026-09-05): the CG aft
       // of the prop flange, the bench's own cgZ for a drawn engine; null lets
       // the registry table (GEN_ENG_CG) answer, or the old mount-node lump
@@ -5868,6 +5952,30 @@ function clampSpec(spec) {
     S.gear.fairing = S.gear.twFairing = 'none'; S.gear.legFair = S.gear.twLegFair = 'none';
   } else { delete S.gear.retract; delete S.gear.wells; }
   if (!GEN_SUSPENSION[S.gear.suspension]) S.gear.suspension = 'bungee';
+  // WILGA-GEAR: THE TRAILING-LINK LEG'S DRAWN GEOMETRY (the join's measurement of the drawn leg, frame axes relative to
+  // the axle at full extension - GEN_RULES.lever says which) rides only a lever suspension on wheels; absent, the frame
+  // builds the reference leg (GEN_RULES.lever). A build that never chose it carries no key (to the bit)
+  if (S.gear.suspension === 'lever' && (S.gear.type === 'taildragger' || S.gear.type === 'tricycle') && !S.gear.retract) {
+    const v = S.gear.lever;
+    if (v && typeof v === 'object') {
+      const pt = (a, lo, hi) => Array.isArray(a) && a.length === 3 && a.every(c => isFinite(+c)) ? a.map(c => genClamp(+c, lo, hi)) : null;
+      const o = {};
+      for (const k of ['piv', 'horn', 'top']) { const q = pt(v[k], -2, 2); if (q) o[k] = q; }
+      if (!(o.piv && o.horn && o.top)) delete S.gear.lever;
+      else {
+        o.w = genClamp(+v.w || GEN_RULES.lever.w, 0.02, 0.2);
+        o.comp = genClamp(isFinite(+v.comp) ? +v.comp : (GEN_RULES.lever.ang - GEN_RULES.lever.comp) * Math.PI / 180, 0.1, 1.5);
+        if (v.dSt != null) o.dSt = genClamp(+v.dSt || GEN_RULES.lever.dSt, 0.02, 0.4);
+        S.gear.lever = o;
+      }
+    } else delete S.gear.lever;
+    // the trailing link wears no wheel fairing (its wheel swings on the arm under the leg's boot; the user, 9 Nov): the
+    // drag, the mass and the price follow the drawing - the leg-fairing row is its fairing
+    S.gear.fairing = 'none';
+  } else {
+    delete S.gear.lever;
+    if (S.gear.suspension === 'lever') S.gear.suspension = 'oleo';   // (a retracting gear or floats: no trailing link)
+  }
   // WHEEL FAIRINGS, off by default. `spat` is the shell over the wheel alone;
   // `full` carries it up the leg as well. The drag model this comment once
   // said "may arrive" arrived at G115 (genGearCdA prices these fields), the
@@ -6216,7 +6324,7 @@ function resolveSpec(spec) {
     const PP0 = POWERPLANTS[S.engine] || POWERPLANTS.a65_sensenich74;
     const e0 = S.engines[0];
     const mE = (e0.custom && e0.custom.mass) || PP0.engine.mass;
-    const engX0 = -(0.18 + 0.32 * PP0.prop.D / 2);
+    const engX0 = -(0.18 + 0.32 * genEngPropD0(S, e0, PP0) / 2);
     const xAC = w.xLE + 0.25 * w.chord;
     const xOf = e => e.x != null ? e.x
       : e.mount === 'pusher' ? S.cab.noseGap + S.cab.len + S.fuse.cargoLen + 0.30
@@ -6232,7 +6340,7 @@ function resolveSpec(spec) {
     const e = S.engines[0], m = e.mount;
     const PP0 = POWERPLANTS[S.engine] || POWERPLANTS.a65_sensenich74;
     const mE = (e.custom && e.custom.mass) || PP0.engine.mass;
-    const engX0 = -(0.18 + 0.32 * PP0.prop.D / 2);
+    const engX0 = -(0.18 + 0.32 * genEngPropD0(S, e, PP0) / 2);
     const xE = e.x != null ? e.x
              : m === 'pusher' ? S.cab.noseGap + S.cab.len + S.fuse.cargoLen + 0.30
              : m === 'wingTop' ? w.xLE + 0.30 * w.chord : w.xLE + 0.05;
@@ -6555,8 +6663,10 @@ function resolveSpec(spec) {
   // the preset survives as the prop-diameter default and the legacy lookup
   // key (params.powerplant), so nothing built before this line moves.
   const CU = S.engines[0] && S.engines[0].custom;
+  // (ENGINE-DIALS: a custom row's default propeller is the generic 1.80 m, never the registry row's it fell back to -
+  // the A-65's 1.88 for every custom engine; a drawn build always states its own D, so only a bare spec reads it)
   const PP = CU
-    ? { price: CU.price, engine: CU, prop: REG ? REG.prop : { D: 1.80 } }
+    ? { price: CU.price, engine: CU, prop: { D: 1.80 } }
     : REG;
   S.pplant = PP;
   // WHERE THE ENGINE'S MASS SITS (2026-09-05, the cgFwd half-session): the CG

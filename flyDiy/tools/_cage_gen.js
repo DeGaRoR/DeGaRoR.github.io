@@ -355,7 +355,7 @@ function cageResolve(S) {
   };
 
   const zPaxB = S.ring.z - S.pilot.len - S.cabinPillarW
-              - S.pax.count * S.pax.len - (S.pax.count - 1) * S.paxPillarW;
+              - cagePaxSum(S) - (S.pax.count - 1) * S.paxPillarW;
   const zPaxA = zPaxB - S.paxPillarW;
   // THE TAPER (G26): a dedicated tightening section between the aft
   // cabin pillar and the boom — the contraction stops living on the
@@ -467,16 +467,21 @@ function cageResolve(S) {
   const taperD0 = TAP ? { Ww: tWw, Wr: Wr * (tWw / W), roofY: S.aft.roofY,
                           ceilY: S.aft.ceilY, floorY: S.aft.floorYA,
                           keelY: S.aft.keelYA } : aftDA;
+  // MATCH TO CABIN SIZE (12 Nov, FIT-PROCEDURE; the user on the PC-6: "an ugly break between the pax section and the
+  // boom ... maybe we need an option to do that automatically, 'Match to cabin size' in the boom section"): with no
+  // taper section the boom root is the cabin's aft frame itself - the passenger frame's section, not the boom frame's
+  // own with the keel lean - so the boom leaves the cabin with no step. Absent / 0: as it always was.
+  const BMATCH = !TAP && !!S.boomMatch;
   // the BOOM FRAME is the boom-root ring: the tightening's aft pair with a
   // taper, the aft ring of the passenger band (pilPaxA) without (T2.1)
-  const taperD = dimF(taperD0, 'boom');
+  const taperD = BMATCH ? dimF(aftDB, 'pax') : dimF(taperD0, 'boom');
   if (HTAP) {
     const htEnd = Math.max(0.5 * (taperD.roofY - taperD.keelY), taperD.Ww, taperD.Wk != null ? taperD.Wk : 0);
     zConeTip = zTaperP - HT_CONE * htEnd;
   }
   // (the cabin's aft pillar's dims - the pax frame's with a taper, the boom frame's without; HULL-B27's taper rings read
   // them before the pillar itself is added)
-  function pilPaxADh() { return TAP ? dimF(cabD, 'pax') : dimF(aftDA, 'boom'); }
+  function pilPaxADh() { return TAP ? dimF(cabD, 'pax') : BMATCH ? dimF(aftDB, 'pax') : dimF(aftDA, 'boom'); }
   const tailDF = dimF(tailD, 'tail');
   if (!MIR && !ROD) {
   add(fullRing('tailCap', zCap, tailDF), { mat: CAGE_MAT.plain });
@@ -582,7 +587,7 @@ function cageResolve(S) {
     // (the afterbody), and a ring stands at the step so the knuckle is exact (buildCage2 adds the step's own pair aft of it)
     const HS = S.hull && S.hull.steps > 0 && S.hull.hs > 0 ? S.hull : null;
     // (the cabin frame, pilCabA, stands where the passenger run ends - zPaxEnd, defined below with the run)
-    const zCabF = zPaxB + S.pax.count * S.pax.len + Math.max(0, S.pax.count - 1) * S.paxPillarW;
+    const zCabF = zPaxB + cagePaxSum(S) + Math.max(0, S.pax.count - 1) * S.paxPillarW;
     const zS = HS ? zCabF - HS.stepAft : null;
     const stepIn = zS != null && zS < zPaxA - 0.05 && zS > zTaperA + 0.05;
     const tS = stepIn ? (zPaxA - zS) / (zPaxA - zTaperA) : null;
@@ -693,7 +698,7 @@ function cageResolve(S) {
   // the roof, the ceiling, the floor and the keel run linearly from one to
   // the other instead of stepping at the last bay. With the taper on, both
   // ends are the cabin section and the blend is a no-op.
-  const zPaxEnd = zPaxB + S.pax.count * S.pax.len
+  const zPaxEnd = zPaxB + cagePaxSum(S)
                 + Math.max(0, S.pax.count - 1) * S.paxPillarW;
   // T2.1: the run goes from the PASSENGER FRAME to the CABIN FRAME (each
   // with its deviation, so a moved frame is reached without a step)
@@ -741,13 +746,13 @@ function cageResolve(S) {
     // inside the bay, so a curve reads on a single bay; the sub-bays carry
     // no guards (full-bay ts), the bay's own material
     if (paxLoops) for (let s = 1; s <= paxLoops; s++) {
-      const zl = z + S.pax.len * s / (paxLoops + 1);
+      const zl = z + cagePaxLen(S, i) * s / (paxLoops + 1);
       add(fullRing('paxLoop' + i + '_' + s, zl, paxD(zl)), { mat: matPaxO(i) });
     }
     // (G3511: an open bay's opening lies in its first sub-bay)
     if (paxLoops) bays[bays.length - 1 - paxLoops] = paxOpen(i)
       ? { mat: CAGE_MAT.plain, openAs: 'pax' + i } : { mat: matPax(i) };
-    z += S.pax.len;
+    z += cagePaxLen(S, i);
     if (i < S.pax.count - 1) {
       add(fullRing('pilPaxM' + i, z, paxD(z)),
           { mat: CAGE_PILLAR('pillarPassenger') });
@@ -1107,7 +1112,7 @@ function cageResolve(S) {
   // buildCage2 are the keepers; the seam they expose stays the contract
   // for whatever the bubble becomes.)
 
-  return { rings, bays, chain, noseTwin, noseRing, mirrorZ,
+  return { rings, bays, chain, noseTwin, noseRing, mirrorZ, noseBody: !!S.noseBody,
            rodSpan: ROD ? { zRoot: zRodRoot, zTip: zCap, ring: rodRing } : null };
 }
 
@@ -2199,7 +2204,10 @@ function buildCage2(S, step) {
           ((D.pilot && mat.glass === 'pilotWindow'
             && (/^pilCab/.test(bayName) || bayName === 'ring'))
            || (D.pax && mat.glass === 'pasengerWindow'
-               && /^pilPax[BM]/.test(bayName)));
+               && /^pilPax[BM]/.test(bayName)
+               // (12 Nov, FIT-PROCEDURE: "pax doors only for the 2 first sections") doors.paxFront = N: only the N
+               // bays nearest the cockpit (bays count from the aft one, 0); absent: every bay, as always
+               && (D.paxFront == null || (parseInt(bayName.slice(7), 10) || 0) >= (S.pax.count || 0) - D.paxFront)));
         if (doorBay && (hi === 'ceil' || hi === 'band' || hi === 'waist'
             || (D.deep && hi === 'floor'))) {
           F[F.length - 1].door = F[F.length - 2].door = 1;
@@ -4807,8 +4815,9 @@ function cageInterior(m, S) {
     const bz = Math.max(-1, Math.min(1, +I.bulkZ || 0));
     const room = Math.max(0, PW * 0.5 - 0.005 - 0.010);
     const SETB = 0.010 + bz * room;
-    const INS = (I.pillars && cons !== 'tube' ? (I.shellT || 0.035) : 0)
-              + 0.008;
+    // LINER-BACK: without pillars the plate's rim met the lining (cloth 6 mm, ply 14 mm) at 8 mm; the lining is now the
+    // skin's back face, so the rim comes to 2.5 mm off the skin (with pillars: inside the posts, as before)
+    const INS = I.pillars && cons !== 'tube' ? (I.shellT || 0.035) + 0.008 : 0.0025;
     let bcx = 0, bcy = 0;
     for (const v of ring) { bcx += V[v][0]; bcy += V[v][1]; }
     bcx /= ring.length; bcy /= ring.length;
@@ -4889,6 +4898,30 @@ function cageInterior(m, S) {
   // baseT (optional): the extrusion STARTS at baseT below the skin
   // instead of at the skin — the composite's second-stage extrusions
   // ("from this surface, extrude further") begin on the shell's face
+  // THE SKIN'S OWN BACK FACE (LINER-BACK, the user 9 Nov via Deform: "IRL they are 2 faces of the same object ...
+  // could we consider a single surface with direct materials on both sides, hence deleting the possibility of
+  // clipping itself" - the black cloth showed through the Cub's lower cabin sides in whole triangles). A liner that
+  // only copies the skin's shape (the cloth, the plywood and toele panels, the door panels) is no longer an offset
+  // closed solid: each selected skin face is drawn ONCE MORE, the same polygon in the same order (so the same
+  // triangulation, the skin's own diagonal), on exact copies of the skin's vertex positions, in the liner's material,
+  // flagged `back` (drawn BackSide only); the skin face it lines is flagged `backed` (drawn FrontSide only). Nothing
+  // coplanar ever draws from the same side, so nothing can clip or fight. COPIES, not the skin's indices: the editor
+  // draws the cage as one indexed geometry, and a shared vertex would hand the liner the skin's surface field (the
+  // field is per-material pure, _surf_check) - the cloth would wear the exterior's tapes. No edge thickness at the
+  // tears and the door cuts (the user's no). Posts, the composite monocoque and its bands stay solids.
+  const BACKED = new Set();
+  const linerBack = (sel, matF) => {
+    const cp = new Map();
+    const cpOf = vi => { if (!cp.has(vi)) cp.set(vi, V.push(V[vi].slice()) - 1); return cp.get(vi); };
+    for (const fi of sel) {
+      const f = F[fi];
+      if (BACKED.has(f)) continue;
+      const fb = { v: f.v.map(cpOf), m: matF(f), att: 1, back: 1 };
+      if (I.hdl || I.wall) fb.lin = 1;                 // CABIN-INTERIOR: the cabin's visible face (split below)
+      add.push(fb);
+      BACKED.add(f);
+    }
+  };
   const liner = (sel, t, matF, baseT) => {
     if (!sel.length) return;
     const vN = new Map();
@@ -5130,13 +5163,13 @@ function cageInterior(m, S) {
     // sheet lining's depth — a deeper lining cannot graze the skin on
     // tight curvature. Pillars/posts/frames stay on shellT.
     const tSk = I.skinT > 0 ? I.skinT : 0;
-    liner(selPan, tSk || t0 * 0.4, () => 'plywood');
+    linerBack(selPan, () => 'plywood');             // LINER-BACK (was liner(selPan, tSk || t0 * 0.4, ...))
     liner(selPil, t0 * 1.6, () => 'woodFrame');
     // the TOELE (user): the metal skin's interior is metal too — thin
     // sheet, same continuous-lining idiom. Own material name so the
     // viewer can fade interior SKIN apart from metal STRUCTURE
     // (aluminium = frames/stringers/angles).
-    liner(selPanM, tSk || 0.008, () => 'toele');
+    linerBack(selPanM, () => 'toele');              // LINER-BACK (was liner(selPanM, tSk || 0.008, ...))
     // the DOOR PANEL is plywood like the tub (user): inner liner +
     // edge walls over the door's own faces, glass excluded (the pane
     // keeps its seal and its view). Rides the exploded part.
@@ -5148,8 +5181,8 @@ function cageInterior(m, S) {
       if (c === 'wood') selDoor.push(i);
       else if (c === 'metal') selDoorM.push(i);
     });
-    liner(selDoor, tSk || t0 * 0.4, () => 'plywood');
-    liner(selDoorM, tSk || 0.008, () => 'toele');
+    linerBack(selDoor, () => 'plywood');            // LINER-BACK
+    linerBack(selDoorM, () => 'toele');
     // WOODEN BEAMS — TRUE SQUARE prisms (user ruling, second ask: the
     // chamfered octagon still read "rounded" at every level). Every
     // face carries its OWN four vertices, so the smooth-normal pass
@@ -5741,7 +5774,7 @@ function cageInterior(m, S) {
           }
           const mx = [(V[v][0]+V[bp][0])/2, (V[v][1]+V[bp][1])/2,
                       (V[v][2]+V[bp][2])/2];
-          ringO.push(secIn(mx, 0.009));
+          ringO.push(secIn(mx, 0.0025));   // LINER-BACK: just under the skin (the toele is its back face; was 0.009 under an 8 mm toele)
           ringI.push(secIn(mx, DEEP));
         }
         // a FULLY metal ring closes (user: the frames gapped at the
@@ -6283,7 +6316,9 @@ function cageInterior(m, S) {
       // it neither floats off it nor grows through it. Reading the
       // lining's own thickness rather than repeating a constant is
       // what keeps that true when `skinT` moves.
-      const plyT = tSk || t0 * 0.4;
+      // LINER-BACK (9 Nov, the user's yes): the ply is now the skin's own back face, zero thick - the former and the
+      // longeron stop on the skin, a hairline in (LIN_EPS, as the posts), and skinT no longer moves them (was tSk || t0*0.4)
+      const plyT = 0.0015;
       const topCh = [[], []], botCh = [[], []];
       // ROD MODE (G26): no boom skin to slice and the rod IS the
       // structure — the station machinery idles (empty chains no-op
@@ -6331,7 +6366,7 @@ function cageInterior(m, S) {
           const ring0 = pts.map(p => {
             const dx = cx - p[0], dy = cy2 - p[1];
             const l = Math.hypot(dx, dy) || 1;
-            return [p[0] + dx/l*0.009, p[1] + dy/l*0.009, zk];
+            return [p[0] + dx/l*0.0025, p[1] + dy/l*0.0025, zk];   // LINER-BACK (was 0.009: under the 8 mm toele)
           });
           if (k >= 1 && k <= NFr) {
             // SAME LOOK AS THE CABIN PILLAR FRAMES (user): the boom's
@@ -6343,7 +6378,7 @@ function cageInterior(m, S) {
             const ringH = ring0.map(p => {
               const dx = cx - p[0], dy = cy2 - p[1];
               const l = Math.hypot(dx, dy) || 1;
-              const d = Math.min(DEEP2 - 0.009, l * 0.6);
+              const d = Math.min(DEEP2 - 0.0025, l * 0.6);   // (the inner rail stays DEEP2 off the skin)
               return [p[0] + dx/l*d, p[1] + dy/l*d, zk];
             });
             punched(ring0, ringH, true, 'aluminium', 0.006, 0.014);
@@ -6672,7 +6707,7 @@ function cageInterior(m, S) {
                 const t = (bT.zm - A[2]) / dz;
                 const ep = [A[0] + (A[0] - B[0]) * t,
                             A[1] + (A[1] - B[1]) * t, bT.zm];
-                arr.unshift({ p: landSec(ep, 0.009) || ep,
+                arr.unshift({ p: landSec(ep, 0.0025) || ep,   // LINER-BACK (was 0.009)
                               d: arr[0].d });
                 return;
               }
@@ -6790,7 +6825,7 @@ function cageInterior(m, S) {
         if (c === 'tube' || (c === 'wood' && !covered.has(i)))
           selC.push(i);
       });
-      liner(selC, (I.skinT > 0 ? I.skinT : 0.006), () => 'cloth');
+      linerBack(selC, () => 'cloth');               // LINER-BACK (was liner(selC, skinT || 0.006, ...): the Cub's poke-through)
     })();
     }
     // ---- G26: POD-AND-ROD FITTINGS + THE TIGHTENING TRUSS -------------------
@@ -7709,7 +7744,8 @@ function cageInterior(m, S) {
       const u = [p[2][0]-p[0][0], p[2][1]-p[0][1], p[2][2]-p[0][2]];
       const w = [p[3][0]-p[1][0], p[3][1]-p[1][1], p[3][2]-p[1][2]];
       const nx = u[1]*w[2]-u[2]*w[1], ny = u[2]*w[0]-u[0]*w[2], nz = u[0]*w[1]-u[1]*w[0];
-      const ly = ny / (Math.hypot(nx, ny, nz) || 1);
+      // (LINER-BACK: a back face keeps the skin's winding - its normal is the skin's outward one; the cabin sees -n)
+      const ly = (f.back ? -ny : ny) / (Math.hypot(nx, ny, nz) || 1);
       const cy = (p[0][1] + p[1][1] + p[2][1] + p[3][1]) / 4, cz = (p[0][2] + p[1][2] + p[2][2] + p[3][2]) / 4;
       if (cz < zA || cz >= zNose0) continue;
       if (I.hdl && ly <= -0.8) f.m = 'headliner';
@@ -7723,7 +7759,8 @@ function cageInterior(m, S) {
     for (const vi of f.v) cz += V[vi][2] / f.v.length;
     return cz < zPax0;
   });
-  m.F = FK.concat(add);
+  // LINER-BACK: the skin faces a back face lines draw their front only (a copy: the input faces are not ours)
+  m.F = (BACKED.size ? FK.map(f => BACKED.has(f) ? Object.assign({}, f, { backed: 1 }) : f) : FK).concat(add);
   m.members = MEMB;
   if (typeof window !== 'undefined') window.CAGE_MEMBERS = MEMB;
   return m;
@@ -8822,6 +8859,13 @@ function cageFrameTable(P, S, F, A) {
   // moved them; the deck lift rides S.nose.lift into noseLv) ----
   const dn = S.frames.nose.d;
   S.nose.lift = dn.topY;
+  // THE NOSE'S BOTTOM SQUARENESS (12 Nov, FIT-PROCEDURE; the user: "the problem is the rounding of the nose section ...
+  // these are pretty difficult parameters to access ... surfaced as being simply the roundness of the nose and the
+  // bottom roundness of the nose"): the nose ring's keel point stands 0.21 inboard of its floor point - a chamfer at
+  // every bottom corner that no frame row reaches (botW moves both). noseKeelSq 0..1 brings the keel point out under
+  // the floor one (1: a square bottom corner, the box a square cowl seals onto). Absent / 0: the chamfer, to the bit.
+  { const sq = Math.max(0, Math.min(1, +P.noseKeelSq || 0));
+    if (sq > 0) for (const n of [S.nose.ring, S.nose.twin]) n.keel.x += (n.floor.x - n.keel.x) * sq; }
   if (dn.topW || dn.botY || dn.botW || dn.botZ)
     for (const n of [S.nose.ring, S.nose.twin]) {
       n.deck.x += dn.topW;
@@ -9002,7 +9046,8 @@ function cageDefaults() {
 // the G46 visual snapshot froze the EXPLODED aeroplane into the mesh that
 // flies. Declared here rather than guessed, and skipped in both directions.
 // (G63.)
-const CAGE_VIEW_KEYS = { explodeD: 1, gearPos: 1 };   // (RETRACT: the gear preview's position is how you look at it, never saved)
+// (ENGINE-DIALS B: the propeller's pitch row is a view of spec.prop.pitch - _cage_eng.js PROP_PITCHES - never a cage key)
+const CAGE_VIEW_KEYS = { explodeD: 1, gearPos: 1, gearLvPos: 1, propPitch: 1 };   // (RETRACT: the gear preview's position is how you look at it, never saved; WILGA-GEAR: the trailing-link preview too)
 
 // LAYER PARAMETERS RIDE THROUGH. The cage's own parameters are CAGE_PARAMS,
 // but a bench page also carries its layers' (the crew's seats, controls and
@@ -9077,6 +9122,11 @@ function cageFromSpec(spec) {
   // nobody but the pilot. A file with no `dum2On` was at the default, which
   // the section rows' own defaults reproduce. The old key does not survive.
   if (Math.round(P.seatLayout) === 2) P.seatLayout = 0;
+  // ENGINE-DIALS C (9 Nov): THE SUSPENSION'S STIFFNESS BECAME A ROW (s1Stiff -> gear.stiffness). A file that flew a
+  // stiffness the row never held (the DC-3-alike's 3, set in the spec by DC3-BUILD) loads with the row AT that
+  // stiffness, so it flies what it flew and the row shows it; a file at 1 (every other) is the row's absent default
+  if (c && typeof c === 'object' && c.s1Stiff == null && spec && spec.gear && Number.isFinite(+spec.gear.stiffness)
+      && +spec.gear.stiffness !== 1) P.s1Stiff = +spec.gear.stiffness;
   // (3) THE CUT IS NOT A CHOICE (2026-09-14): a file that carries
   // `cutParts 0` — the stock cub and its descendants, through the old
   // template — loads with the cut on, like every other build.
@@ -9187,7 +9237,18 @@ const CAGE_DEFAULT_ABSENT = { pilSnap: 1, doorStop: 75, wgStrutPil: 0, wgTipBow:
   hullFlute: 0, hullFluteN: 2, hullFluteAt: 0.55, hullFluteBow: 0.85, hullFluteAft: 0, hullStrakes: 0, hullStrakeW: 0.05, hullStrakeLen: 0.8, hullRocker: 0, hullSkirt: 0, hullTipPlane: 0,   // (HULL-B39, B43, B44, B45)
   // COMMS-SECTION ready 2 (9 Nov): the GPS puck's and the ELT whip's nudges - every older row's are written at 0 in
   // every save; these two rows' are absent at 0, so no saved build gains a key (L35d's STOL lesson)
-  acc_gpsAerial_sL: 0, acc_gpsAerial_lv: 0, acc_eltAerial_sL: 0, acc_eltAerial_lv: 0 };
+  acc_gpsAerial_sL: 0, acc_gpsAerial_lv: 0, acc_eltAerial_sL: 0, acc_eltAerial_lv: 0,
+  // C172-CLIP part 2 (9 Nov): the elevators' own end inset (_cage_hinge.js hgOutSt), 0 = the surfaces' hgOut
+  hgOutSt: 0,
+  // ENGINE-DIALS (9 Nov): the engine's tune and build (eng_bmepK, eng_massK: 1), the reduction's ratio (1), the maximum
+  // rpm (0 = rated) and the constant-speed propeller (0) - applyEngPreset writes every engine row, so without this a
+  // save would carry them into every cage
+  eng_bmepK: 1, eng_massK: 1, eng_gearRatio: 1, eng_rpmMax: 0, eng_cs: 0,
+  s1Stiff: 1,   // (ENGINE-DIALS C: the mains' suspension stiffness)
+  // WILGA-GEAR: the trailing-link leg's rows, per station (the core's GEN_LEVER_ROW_OFF: the same table)
+  ...(() => { const d = { lvArm: 0.4, lvAng: 62, lvComp: 12, lvTop: 0.72, lvReach: 0.45, lvStat: 0.07, lvLegW: 0.09, lvRootAng: 80, lvBoot: 0 }, o = {};
+    for (const k in d) { o[k] = d[k]; for (const i of [1, 2]) o['s' + i + '_' + k] = d[k]; }   // (the gear page's flat base copy too)
+    return o; })() };
 // RETRACT (G3511's rule): THE RETRACTABLE GEAR'S ROWS ARE ABSENT WHILE THE GEAR IS FIXED - a build that never chose
 // retraction keeps every key it had - and the preview's position (gearPos) is never saved: it is where the editor's
 // slider was, not the aeroplane (the core's genStolCageOff drops the same from every fingerprint, belt and braces)
@@ -9225,6 +9286,7 @@ function cageToSpec(P) {
     // whose two switches agree saves - and joins, and hashes - to master's bits
     if (k === 'accBeacon' && Math.round(+P[k]) === Math.round(P.accAerials == null ? 1 : +P.accAerials)) continue;
     if (k === 'gearPos' || (!(+P.gearRetract) && CAGE_RETRACT_ROWS.includes(k))) continue;   // RETRACT
+    if (k === 'gearLvPos') continue;                         // WILGA-GEAR: the trailing-link preview is the editor's, not the aeroplane
     out[k] = P[k]; n++;
   }
   return n ? out : null;
@@ -9238,7 +9300,33 @@ function cageToSpec(P) {
 // pitch. The knife cuts CONVEX outlines (a convex clip is an intersection of half-planes): a quad dragged concave,
 // or crossed into a bow-tie, is REFUSED with its reason - kept in the list, never cut, the sheet watertight - the
 // way an overlapping window is.
+// EACH PASSENGER BAY ITS OWN LENGTH (12 Nov, FIT-PROCEDURE; the user on the PC-6: "we need 3 pax sections, like I drew
+// them ... with dimensions perfectly matching the pax pillars"): paxLen2, paxLen3, ... set bay 2, 3, ...; absent, a bay
+// is paxLen long. With none set S.pax.lens is not written and the run's length is count x len, the very product every
+// build before used (a sum of equal lengths can differ from it in the last bit), so no saved build moves.
+function cagePaxLen(S, i) { return S.pax.lens && S.pax.lens[i] != null ? S.pax.lens[i] : S.pax.len; }
+function cagePaxSum(S) {
+  if (!S.pax.lens) return S.pax.count * S.pax.len;
+  let t = 0; for (let i = 0; i < S.pax.count; i++) t += cagePaxLen(S, i);
+  return t;
+}
+// MORE ROWS OF DRAWN WINDOWS (11 Nov, FIT-PROCEDURE; the user: "maybe we need to have more than 3 possible rows of
+// windows ... that's indeed something which allows to give a lot of personality to a plane"): rows 4-6 on win4*-win6*.
+// Their keys are NOT defaults - no saved file carries them and none is written until a row is used (the panel shows
+// CAGE_WIN_ABSENT, the row's own values, while absent) - so every build before reads to the bit; an unused row costs
+// one skipped turn of the loop.
+const CAGE_WIN_ROWS = [[1, 'paxWin'], [2, 'win2'], [3, 'win3'], [4, 'win4'], [5, 'win5'], [6, 'win6']];
+const CAGE_WIN_ABSENT = { N: 0, Shape: 0, Z: 1.6, Pitch: 0.75, Y: 0.40, W: 0.40, H: 0.32, R: 0.06, Depth: 0.006,
+                          TopK: 1, Skew: 0, R1: -1, R2: -1, R3: -1, R4: -1 };
+// a row's keys with its absent values filled (rows 4-6 only: rows 1-3 have CAGE_DEFAULT's); P itself when nothing is missing
+function cageWinRow(P, pre) {
+  if (pre === 'paxWin' || pre === 'win2' || pre === 'win3') return P;
+  let Q = null;
+  for (const k in CAGE_WIN_ABSENT) if (P[pre + k] == null) { Q = Q || Object.assign({}, P); Q[pre + k] = CAGE_WIN_ABSENT[k]; }
+  return Q || P;
+}
 function cageQuadRect(P, pre) {
+  P = cageWinRow(P, pre);
   const z = +P[pre + 'Z'], y = +P[pre + 'Y'], W = Math.max(0.02, +P[pre + 'W']), H = Math.max(0.02, +P[pre + 'H']);
   const topK = P[pre + 'TopK'] == null ? 1 : Math.max(0, +P[pre + 'TopK']);
   const sk = +P[pre + 'Skew'] || 0, Wt = W * topK;
@@ -9246,27 +9334,34 @@ function cageQuadRect(P, pre) {
 }
 const CAGE_QUAD_KEYS = pre => [1, 2, 3, 4].flatMap(c => [pre + 'Q' + c + 'Z', pre + 'Q' + c + 'Y']);
 function cageQuadWindow(P, pre, i) {
+  P = cageWinRow(P, pre);
   const R0 = cageQuadRect(P, pre), dz = i * +P[pre + 'Pitch'];
   const num = v => v != null && v !== '' && isFinite(+v);
   const abs = R0.map((c, k) => {
     const qz = P[pre + 'Q' + (k + 1) + 'Z'], qy = P[pre + 'Q' + (k + 1) + 'Y'];
     return [(num(qz) ? +qz : c[0]) + dz, num(qy) ? +qy : c[1]];
   });
-  const cz = abs.reduce((a, c) => a + c[0], 0) / 4, cy = abs.reduce((a, c) => a + c[1], 0) / 4;
+  // A FIFTH CORNER (12 Nov, FIT-PROCEDURE; the user: "ensure the drawn windows allow us to draw the very special pilot
+  // window that the PC-6 does have" - a bottom, an aft edge, a top, and a front that drops along the A-pillar's slant
+  // to a knee, then straight down): Q5, on (Q5On) and placed (Q5Z, Q5Y), sits between the fwd-bottom corner (Q4) and
+  // the fwd-top one (Q1); its own radius R5. Off or unplaced: the four corners, to the bit.
+  if (+P[pre + 'Q5On'] > 0 && num(P[pre + 'Q5Z']) && num(P[pre + 'Q5Y'])) abs.push([+P[pre + 'Q5Z'] + dz, +P[pre + 'Q5Y']]);
+  const nC = abs.length;
+  const cz = abs.reduce((a, c) => a + c[0], 0) / nC, cy = abs.reduce((a, c) => a + c[1], 0) / nC;
   const q = abs.map(c => [c[0] - cz, c[1] - cy]);
   let z0 = Infinity, z1 = -Infinity, y0 = Infinity, y1 = -Infinity;
   for (const c of abs) { z0 = Math.min(z0, c[0]); z1 = Math.max(z1, c[0]); y0 = Math.min(y0, c[1]); y1 = Math.max(y1, c[1]); }
   // CONVEX AND SIMPLE: every turn the same way (either way round - the outline is re-wound), none straight
-  const turn = k => { const a = q[k], b = q[(k + 1) % 4], c = q[(k + 2) % 4];
+  const turn = k => { const a = q[k], b = q[(k + 1) % nC], c = q[(k + 2) % nC];
     return (b[0] - a[0]) * (c[1] - b[1]) - (b[1] - a[1]) * (c[0] - b[0]); };
-  const T = [0, 1, 2, 3].map(turn), big = Math.max(1e-9, (z1 - z0) * (y1 - y0));
+  const T = abs.map((_, k) => turn(k)), big = Math.max(1e-9, (z1 - z0) * (y1 - y0));
   let refused = null;
   if (T.some(t => Math.abs(t) < 1e-4 * big)) refused = 'quad: three corners in a line (no window there)';
   else if (!(T.every(t => t > 0) || T.every(t => t < 0))) {
     // the turn at corner k+1 is T[k]; the corner turning against the others is the one that folds in
-    const pos = T.filter(t => t > 0).length, odd = T.findIndex(t => (t > 0) !== (pos > 2));
-    refused = pos === 2 ? 'quad: two edges cross (a bow-tie) - not cut, the knife cuts convex outlines'
-      : 'quad: corner Q' + ((odd + 1) % 4 + 1) + ' folds in (not convex) - not cut, the knife cuts convex outlines';
+    const pos = T.filter(t => t > 0).length, odd = T.findIndex(t => (t > 0) !== (pos > nC / 2));
+    refused = nC === 4 && pos === 2 ? 'quad: two edges cross (a bow-tie) - not cut, the knife cuts convex outlines'
+      : 'quad: corner Q' + ((odd + 1) % nC + 1) + ' folds in (not convex) - not cut, the knife cuts convex outlines';
   }
   return Object.assign({ shape: 'quad', z: cz, y: cy, q, w: z1 - z0, h: y1 - y0, corners: abs }, refused ? { refused } : {});
 }
@@ -9295,27 +9390,33 @@ function cageSpec(P) {
   S.windows = [];
   {
     const rim = +P.rimW > 0 ? +P.rimW : 0.012;
-    // T2.2: three rows — row 1 on the paxWin* keys, rows 2-3 on win2*/win3*
-    for (const [row, pre] of [[1, 'paxWin'], [2, 'win2'], [3, 'win3']]) {
-      const n = Math.max(0, Math.min(4, Math.round(+P[pre + 'N'] || 0)));
-      if (!n) continue;
-      const r = Math.max(0, +P[pre + 'R'] || 0);
+    // T2.2: three rows — row 1 on the paxWin* keys, rows 2-3 on win2*/win3* (11 Nov: six, rows 4-6 on win4*-win6*)
+    for (const [row, pre] of CAGE_WIN_ROWS) {
+      if (!(Math.round(+P[pre + 'N'] || 0) > 0)) continue;
+      const Pw = cageWinRow(P, pre);
+      const n = Math.max(0, Math.min(4, Math.round(+Pw[pre + 'N'] || 0)));
+      const r = Math.max(0, +Pw[pre + 'R'] || 0);
       const rr = [1, 2, 3, 4].map(k => {
-        const v = P[pre + 'R' + k];
+        const v = Pw[pre + 'R' + k];
         return v == null || !isFinite(+v) || +v < 0 ? r : +v;
       });
-      const topK = P[pre + 'TopK'] == null ? 1 : Math.max(0, +P[pre + 'TopK']);
-      const skew = +P[pre + 'Skew'] || 0;
-      const quad = Math.round(+P[pre + 'Shape'] || 0) === 2;
+      const topK = Pw[pre + 'TopK'] == null ? 1 : Math.max(0, +Pw[pre + 'TopK']);
+      const skew = +Pw[pre + 'Skew'] || 0;
+      const quad = Math.round(+Pw[pre + 'Shape'] || 0) === 2;
       for (let i = 0; i < n; i++) {
-        const w = { shape: +P[pre + 'Shape'] ? 'ellipse' : 'rect', row, i,
-                    z: +P[pre + 'Z'] + i * +P[pre + 'Pitch'], y: +P[pre + 'Y'],
-                    w: +P[pre + 'W'], h: +P[pre + 'H'], r, rr, topK, skew,
-                    depth: Math.max(0, +P[pre + 'Depth'] || 0),
+        const w = { shape: +Pw[pre + 'Shape'] ? 'ellipse' : 'rect', row, i,
+                    z: +Pw[pre + 'Z'] + i * +Pw[pre + 'Pitch'], y: +Pw[pre + 'Y'],
+                    w: +Pw[pre + 'W'], h: +Pw[pre + 'H'], r, rr, topK, skew,
+                    depth: Math.max(0, +Pw[pre + 'Depth'] || 0),
                     step: Math.max(0.006, rim * 1.1) };
         // BUBBLE-WINDOWS: the blister's height, absent unless set (an unset row leaves the window as it was)
-        if (+P[pre + 'Bulge'] > 0) w.bulge = +P[pre + 'Bulge'];
-        if (quad) Object.assign(w, cageQuadWindow(P, pre, i));
+        if (+Pw[pre + 'Bulge'] > 0) w.bulge = +Pw[pre + 'Bulge'];
+        if (quad) Object.assign(w, cageQuadWindow(Pw, pre, i));
+        // (12 Nov) a fifth corner takes its own radius (R5; absent / < 0: the row's)
+        if (quad && w.q && w.q.length === 5) {
+          const v5 = Pw[pre + 'R5'];
+          w.rr = rr.concat([v5 == null || !isFinite(+v5) || +v5 < 0 ? r : +v5]);
+        }
         S.windows.push(w);
       }
     }
@@ -9361,6 +9462,7 @@ function cageSpec(P) {
               ext: Math.max(0, Math.round(P.skyExt != null ? P.skyExt : 5)),
               sillPilot: Math.max(0, P.winSillPilot || 0),
               sillPax: Math.max(0, P.winSillPax || 0) };
+  if (+P.winPilotPanel > 0) S.glaze.pilotPanel = 1;      // (12 Nov) the pilot's glass a panel (written only when on)
   S.crease = { pillar: P.crPillar, sill: P.crSill, band: P.crBand,
                ceil: P.crCeil, frame: P.crFrame, cap: P.crCap,
                keel: P.crKeel == null ? 0 : +P.crKeel,     // G362: absent = round, as every build before G319
@@ -9454,8 +9556,13 @@ function cageSpec(P) {
   S.cabinPillarW = P.pillarW > 0 ? P.pillarW : P.cabPillarW;
   S.pax.count = Math.max(0, Math.round(P.paxCount));
   S.pax.len = P.paxLen;
+  // (12 Nov) the bays' own lengths, written only when one is set (cagePaxLen / cagePaxSum)
+  { const L = []; let any = false;
+    for (let i = 1; i < S.pax.count; i++) { const v = P['paxLen' + (i + 1)]; if (v != null && isFinite(+v) && +v > 0) { L[i] = +v; any = true; } }
+    if (any) S.pax.lens = L; }
   S.paxPillarW = P.pillarW > 0 ? P.pillarW : P.paxPillarW;
   S.boom.len = P.boomLen;
+  if (+P.boomMatch > 0) S.boomMatch = 1;          // (12 Nov) the boom root = the cabin's aft frame (written only when on)
   // G26: the dedicated taper section + the rod boom (see CAGE_PARAMS).
   // Presence is EXPLICIT (taperOn); the length only sizes it, clamped
   // away from degenerate.
@@ -9665,6 +9772,7 @@ function cageSpec(P) {
   if (floorUpC > 0) S.win.floorUp = floorUpC;
   S.config.doors = { pilot: P.doorOn ? 1 : 0, pax: P.doorPax ? 1 : 0,
                      deep: P.doorDeep ? 1 : 0 };
+  if (P.doorPaxFront != null && +P.doorPaxFront > 0) S.config.doors.paxFront = Math.round(+P.doorPaxFront);   // (12 Nov)
   S.cut = { on: 1, doors: 1, wins: 1,
             doorGone: P.doorGone ? 1 : 0,
             explode: Math.max(0, P.explodeD || 0) };
@@ -9806,6 +9914,12 @@ function cageSpec(P) {
                               dy: (+P.thrY || 0) / ps, dx: (+P.thrX || 0) / ps,
                               len: (P.thrLen != null ? +P.thrLen : 0.16) / ps };
   }
+  // CESSNA-FINAL A1 (the user 8 Nov: "the nose section is there exactly for that reason"): THE NOSE SECTION IS BODY.
+  // The engine's firewall plate stands on the nose ring's face (the cowl's noseFace); with `noseBody` on, that ring
+  // is the firewall (cageFirewallZ below) and the section behind it - the firewall to the windscreen base, a 172's
+  // footwell and pedal floor - is fuselage: the join's datum, the frame's first ring, the body's billing start there.
+  // Absent / 0: G49's rule (the firewall is the windscreen base), every saved build to the bit
+  S.noseBody = +P.noseBody > 0 ? 1 : 0;
   return S;
 }
 
@@ -10832,9 +10946,14 @@ function cageSheetKept(spec, step, L) {
     for (let i = 0; i < L; i++) s = cageSubdivide(s);
     if (L > 0) s = cageRefitArc(s);
     const drawn = KG && S.windows && S.windows.length;
-    if (drawn)
+    // THE PILOT'S GLASS AS A PANEL (12 Nov, FIT-PROCEDURE; the user: "make it a full panel where the window part is
+    // actually just a panel and we cut through"): S.glaze.pilotPanel turns the cockpit's glazed band into skin, as
+    // drawn windows already turn the passengers' - so a drawn window can be cut through it, the door keeping its marks
+    // (doors own their windows). Absent: the band glass, as always.
+    const pilotPanel = !!(S.glaze && S.glaze.pilotPanel);
+    if (drawn || pilotPanel)
       s = Object.assign({}, s, { F: s.F.map(f => {
-        if (f.m !== 'pasengerWindow') return f;
+        if (!(drawn && f.m === 'pasengerWindow') && !(pilotPanel && f.m === 'pilotWindow')) return f;
         const g = Object.assign({}, f, { m: 'body' }); delete g.win; return g;
       }) });
     s = cageGlassSill(s, S);
@@ -10877,9 +10996,11 @@ function cageSheet(P, opts) {
   const KG = (typeof KNIFE_GEN !== 'undefined') ? KNIFE_GEN
     : (typeof require === 'function' ? require('./_knife_gen.js') : null);
   const drawn = step === 'crease' && KG && spec.windows && spec.windows.length;
-  if (drawn)
+  // (12 Nov) the pilot's glass a panel - the same as cageSheetKept's (see there)
+  const pilotPanel = step === 'crease' && !!(spec.glaze && spec.glaze.pilotPanel);
+  if (drawn || pilotPanel)
     s = Object.assign({}, s, { F: s.F.map(f => {
-      if (f.m !== 'pasengerWindow') return f;
+      if (!(drawn && f.m === 'pasengerWindow') && !(pilotPanel && f.m === 'pilotWindow')) return f;
       const g = Object.assign({}, f, { m: 'body' }); delete g.win; return g;
     }) });
   if (step === 'crease') {
@@ -10992,13 +11113,19 @@ function cageGlazedM2(s, FS) {
 // same station to keep the drawn wing inside the flown one's envelope.
 function cageNamedZ(R, FS) {
   return name => {
-    const r = R && R.rings && R.rings.find(q => q.name === name);
+    // CESSNA-FINAL A1: 'noseFw' - the nose ring (the engine's firewall face), named only on a build whose nose
+    // section is body (`noseBody`); on any other it does not exist, so the chain below falls to wsFront as ever
+    const r = name === 'noseFw' ? (R && R.noseBody ? R.noseRing : null)
+            : R && R.rings && R.rings.find(q => q.name === name);
     const l = r && r.lv && (r.lv.waist || r.lv.keel);
     return l && isFinite(l.z) ? l.z * FS : null;
   };
 }
+// THE ONE HOME OF THE FIREWALL'S STATION (G3050): the join's datum, the wing layer, the tank bays, the pillar and the
+// freight sites. CESSNA-FINAL A1: 'noseFw' first - present only with `noseBody` on - then G49's windscreen base
+const CAGE_FIREWALL_CHAIN = ['noseFw', 'wsFront', 'wsAft', 'aeroWsA', 'ring'];
 function cageFirewallZ(zOf) {
-  for (const n of ['wsFront', 'wsAft', 'aeroWsA', 'ring']) { const z = zOf(n); if (z != null) return z; }
+  for (const n of CAGE_FIREWALL_CHAIN) { const z = zOf(n); if (z != null) return z; }
   return null;
 }
 
@@ -11013,7 +11140,7 @@ if (typeof module !== 'undefined')
                      cageRims, cageInterior, cageCut, cageGlassSill,
                      cageCanopy, cageShoulder, cageBodyZones, cageFrameZones, cageZoneAt, CAGE_ZONE_RINGS,
                      cageDefaults, cageFromSpec, cageToSpec, cageSheet, cageDoorEdges, cageAftEngineFace,
-                     CAGE_GLASS_MATS, cageGlazedM2, cageQuadRect, cageQuadWindow, CAGE_QUAD_KEYS,
+                     CAGE_GLASS_MATS, cageGlazedM2, cageQuadRect, cageQuadWindow, CAGE_QUAD_KEYS, CAGE_WIN_ROWS, CAGE_WIN_ABSENT, cageWinRow,
                      CAGE_VIEW_KEYS, CAGE_LVI_BASE, cageLvIndex };
 if (typeof window !== 'undefined')
   window.CAGE2 = { CAGE_DEFAULT, CAGE_PARAMS, CAGE_MAT, CAGE_AFT_SUB,
@@ -11026,5 +11153,5 @@ if (typeof window !== 'undefined')
                    cageRims, cageInterior, cageCut, cageGlassSill,
                    cageCanopy, cageShoulder, cageBodyZones, cageFrameZones, cageZoneAt, CAGE_ZONE_RINGS,
                    cageDefaults, cageFromSpec, cageToSpec, cageSheet, cageDoorEdges, cageAftEngineFace,
-                   CAGE_GLASS_MATS, cageGlazedM2, cageQuadRect, cageQuadWindow, CAGE_QUAD_KEYS,
+                   CAGE_GLASS_MATS, cageGlazedM2, cageQuadRect, cageQuadWindow, CAGE_QUAD_KEYS, CAGE_WIN_ROWS, CAGE_WIN_ABSENT, cageWinRow,
                    CAGE_VIEW_KEYS, CAGE_LVI_BASE, cageLvIndex };

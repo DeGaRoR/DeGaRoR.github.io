@@ -200,7 +200,7 @@ if (SELF) {
     ['the table names the real town', () => check(sub('src/core/01_names.js', "town:     'Cedar Harbour',", "town:     'Metlakatla',"), { core: Object.assign({}, C, { GAME_NAMES: Object.assign({}, C.GAME_NAMES, { town: 'Metlakatla' }) }) })],
     ['the record\'s site back to a real organisation', () => check(sub('tools/fixtures/island_jolene.json', '"name": "Harbour Credit Union"', '"name": "Tongass Federal Credit Union"'))],
     ['a card names the real island', () => check(sub('src/viewer/boot_cards.js', "its names are the game's own.", "it is Annette Island."))],
-    ['the built page carries a real name', () => check(sub('index.html', 'Ridgeback Strip', 'Tamgas Hill Strip'))],
+    ['the built page carries a real name', () => check(sub('index.html', 'Fishing Village Strip', 'Tamgas Hill Strip'))],
     ['the map pack says the old dock', () => check(sub('src/viewer/map_pack.js', '"name":"Greywater Dock"', '"name":"Annette Dock"'))],
     ['the override undone (a saved record shows its old name)', () => check(F0, { runwayAerodrome: (r, Fr, e, fl, h) => Object.assign(C.PREMISES_GEN.runwayAerodrome(r, Fr, e, fl, h), { name: r.name }) })],
     ['a stale hold (the sign fixed, the hold left)', () => check(sub('src/viewer/sign_tex.js', 'Tongass Marine Supply', 'Harbour Marine Supply'))],

@@ -53,6 +53,40 @@ var WEATHER_UI = (function () {
       day: { wind: { kts: 35, dirDeg: 245, gust: 0.5, refH: 10, terrain: 1, aloftK: 1.3, veerDeg: 20 },
              oatC: 9, qnhPa: 99200, dewC: 7, diurnalC: null, lapse: null, mixH: null, inversion: null, storm: null } },
   ];
+  // THE SEASON'S DAYS AND ITS MOMENTS (FOREST-MIST, 10 Nov; the user: "presets in the weather settings allowing me to
+  // quickly reach typical weather or days, including the authored ones, so I can trigger them for screenshots"): the
+  // sandbox plays the career's plan (WEATHER-SEASON, 07d_weather_plan.js) on a chosen crafted day - the plan on, the
+  // date of that day in the clock's own year - and a MOMENT is a day and the hour that shows it best (the forest mist's
+  // season table, reports/evidence/FOREST-MIST/season_table.txt, says when each one carries its weather).
+  const MOMENTS = [
+    { k: 'vfog',   label: 'valley fog, dawn',      block: 'late',  id: 'valley-fog-autumn',  h: 6.5,  title: 'Valley fog, late summer, at 06:30: every valley full, the ridges standing out of it; gone by 11' },
+    { k: 'mfog',   label: 'morning fog',           block: 'high',  id: 'morning-fog',        h: 7,    title: 'Morning fog on the sound at 07:00: the sound and the valleys filled after the clear night' },
+    { k: 'sfog',   label: 'sea fog',               block: 'high',  id: 'sea-fog',            h: 8,    title: 'The sea fog bank at 08:00, lying on the water and the seaplane bases' },
+    { k: 'storm',  label: 'the storm',             block: 'high',  id: 'the-storm',          h: 14,   title: 'The storm at 14:00: the front through, the cloud down on the hills' },
+    { k: 'after',  label: 'after the storm',       block: 'late',  id: 'first-autumn-storm', h: 19,   title: 'The first autumn storm at 19:00: the rain gone, the wet forest steaming' },
+    { k: 'drizzle',label: 'drizzle on the hills',  block: 'late',  id: 'grey-drizzle',       h: 12,   title: 'Grey drizzle at noon: a low stratus ceiling, the hilltops in the cloud' },
+    { k: 'thermal',label: 'thermal day',           block: 'high',  id: 'thermal-day',        h: 14,   title: 'The thermal day at 14:00: a cumulus over every thermal under a 1900 m lid' },
+    { k: 'golden', label: 'golden evening',        block: 'high',  id: 'golden-evening',     h: 20.5, title: 'The golden evening at 20:30: the wind gone, the water glass, the sun setting gold' },
+    { k: 'aurora', label: 'aurora night',          block: 'late',  id: 'aurora-night',       h: 23,   title: 'Cold, clear, the aurora an hour after dusk' },
+  ];
+  const plan = () => (typeof WEATHER_PLAN !== 'undefined' && typeof SOLAR !== 'undefined' && WEATHER_PLAN.BLOCKS) ? WEATHER_PLAN : null;
+  // the crafted days, in the season's order: { block, idx, id, name, date } in the year y
+  function seasonDays(y) {
+    const P = plan(); if (!P) return [];
+    const out = [];
+    for (const B of P.BLOCKS) {
+      const j0 = SOLAR.jdn(y, +B.day1.slice(0, 2), +B.day1.slice(3, 5));
+      (B.days || []).forEach((D, i) => { const c = SOLAR.civil(j0 + i);
+        out.push({ block: B.id, idx: i, id: D.id, name: D.name, story: D.story, date: c.y + '-' + String(c.m).padStart(2, '0') + '-' + String(c.d).padStart(2, '0') }); });
+    }
+    return out;
+  }
+  // a crafted day (and an hour, or the clock's own) as one set: the plan on, the date, the local hour
+  function playDay(CK, d, sd, h) {
+    if (!CK || !sd) return;
+    const hNow = d && d.localSeconds != null ? d.localSeconds / 3600 : 12;
+    CK.set({ plan: { id: 'season' }, date: sd.date, localHours: h != null ? h : hNow, rate: 0 });
+  }
   // `stormIn` on a preset is "this many seconds from now" — resolved against
   // the clock at the moment it is picked, never stored.
   function dayOf(p, dayNow) {
@@ -111,6 +145,24 @@ var WEATHER_UI = (function () {
       refresh();
     };
 
+    // ---- the season's days and its moments (the plan, on a chosen day) ------------
+    {
+      const y = d.date ? +String(d.date).slice(0, 4) : 2026, days = seasonDays(y);
+      if (days.length) {
+        head('the season');
+        const cur = d.plan ? days.find(x => x.id === d.plan.id) : null;
+        H.pills(host, MOMENTS.map(m => ({ label: m.label, value: m.k, title: m.title })),
+          o => { const m = MOMENTS.find(x => x.k === o.value); return !!(cur && m && cur.id === m.id); },
+          o => { const m = MOMENTS.find(x => x.k === o.value); playDay(CK, d, days.find(x => x.id === m.id), m.h); refresh(); });
+        H.select(host, 'crafted day', [{ label: d.plan ? '(the plan: ' + (cur ? cur.name : d.plan.id) + ')' : '(the sandbox\'s own weather)', value: '' }]
+          .concat(days.map(x => ({ label: x.block + ' ' + String(x.idx + 1).padStart(2) + ' · ' + x.name + ' (' + x.date.slice(5) + ')', value: x.id }))),
+          () => '', v => { if (v) { playDay(CK, d, days.find(x => x.id === v), null); refresh(); } });
+        H.note(host, d.plan ? 'Playing the season\'s plan: the weather is the crafted day\'s, hour by hour. ' + (cur && cur.story ? cur.story : '') +
+                              ' A preset below leaves the plan.' :
+                              'A MOMENT plays one of the season\'s crafted days at the hour that shows it best (the plan takes the weather over); ' +
+                              'a CRAFTED DAY keeps your hour. The rows below set the sandbox\'s own weather instead.');
+      }
+    }
     // ---- the preset, through #selCond, which stays the keeper ------------------
     head('the day');
     const sel = condSel();
@@ -120,6 +172,7 @@ var WEATHER_UI = (function () {
         if (sel && Array.from(sel.options).some(x => x.value === o.value)) {
           sel.value = o.value; sel.dispatchEvent(new Event('change'));      // the keeper applies it
         } else CK.set(dayOf(PRESETS.find(p => p.k === o.value), d));
+        if (d.plan) CK.set({ plan: null });   // a preset is the sandbox's own weather: it leaves the plan
         refresh();
       });
 
@@ -302,7 +355,7 @@ var WEATHER_UI = (function () {
                : (day.stormSpec ? 'in ' + dur(day.stormSpec.at - day.utc) : 'none'),
     };
   }
-  const API = { PRESETS, presetOf, dayOf, mount, lines, frontLine, cardinal, wOf };
+  const API = { PRESETS, MOMENTS, seasonDays, playDay, presetOf, dayOf, mount, lines, frontLine, cardinal, wOf };
   if (typeof window !== 'undefined') window.WEATHER_UI = API;
   return API;
 })();

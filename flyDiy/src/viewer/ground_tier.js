@@ -66,7 +66,10 @@
     const bAt = (i, j) => base[(j + B) * NB + i + B];
     const nrmAt = (i, j) => {
       let gx, gz;
-      if (onGrid) { gx = (bAt(i + kb, j) - bAt(i - kb, j)) / (2 * spec.nR); gz = (bAt(i, j + kb) - bAt(i, j - kb)) / (2 * spec.nR); }
+      // (BLACK BARS, 11 Nov: the layer's normal is read at its vertices, and on the square's far edges `tri` takes the one a
+      // cell past it, at weight 0 - off the base's border bAt read undefined and NaN * 0 is NaN: the patch tier's whole +z edge
+      // row had NaN normals, a black strip 0.5 m wide and 32 m long by the parked aeroplane. Off the grid: the base itself.)
+      if (onGrid && i >= 0 && i < N && j >= 0 && j < N) { gx = (bAt(i + kb, j) - bAt(i - kb, j)) / (2 * spec.nR); gz = (bAt(i, j + kb) - bAt(i, j - kb)) / (2 * spec.nR); }
       else { const x = x0 + i * st, z = z0 + j * st, R = spec.nR; gx = (spec.base(x + R, z) - spec.base(x - R, z)) / (2 * R); gz = (spec.base(x, z + R) - spec.base(x, z - R)) / (2 * R); }
       const l = Math.hypot(gx, 1, gz); return [-gx / l, 1 / l, -gz / l];
     };

@@ -1,16 +1,16 @@
 {
  "what": "join-parity-page",
- "at": "2026-11-04T16:45:01.730Z",
+ "at": "2026-11-10T13:57:17.370Z",
  "door": "load (GARAGE_SPEC.set)",
- "chainSig": "f8ee9f73002f14a32cab08d1fae72d2171dacf9f",
+ "chainSig": "2bb8a847d807f9b12ee49057734ff671e8326c3a",
  "builds": {
   "cub": {
    "file": "builds/cub_2026-09-20_corrected.json",
    "page": {
     "n": 97,
     "nb": 404,
-    "mass": 477.3945726423762,
-    "build": "8d87987922dc"
+    "mass": 475.74760786056004,
+    "build": "11193a934954"
    },
    "spec": {
     "cage": {
@@ -631,6 +631,9 @@
      "bpInterZ": 0,
      "bpWires": 1,
      "bpWireD": 5,
+     "bpStrutK": 1,
+     "bpCabDraw": 1,
+     "bpCabPylon": 0,
      "wingOn": 1,
      "wgSpan": 10.7,
      "wgChord": 1.7,
@@ -724,6 +727,15 @@
      "engNacAt": 0.35,
      "engNacAt2": 0.62,
      "engPylonH": 0.3,
+     "engPylonFair": 0,
+     "engPylonForm": 0,
+     "engPylonAt": 0,
+     "engPylonAft": 0.15,
+     "engPylonFwd": 0,
+     "engFinAt": 0.55,
+     "engFinFwd": 0,
+     "engNacOver": 0,
+     "engNacLift": 0,
      "engBlockZ": 0,
      "engBlockY": 0,
      "engAim": 0,
@@ -1027,6 +1039,7 @@
      "fltStrutR": 0.018,
      "fltWires": 1,
      "fltStrutAng": 55,
+     "fltFrontRing": 0,
      "fltSpread": 1,
      "fltBoard": 0,
      "fltKit": 0,
@@ -1373,6 +1386,7 @@
       "plan": null,
       "planAxis": null,
       "beam": "on",
+      "tipShape": null,
       "stol": null,
       "material": null
      }
@@ -1518,13 +1532,9 @@
      "decals": {
       "regH": 0.2,
       "regL": 3.66,
-      "regC": -0.18,
+      "regC": 0.012,
       "regCol": 1315860,
-      "regOutOn": 0,
       "regW": 1.1577380952380953,
-      "imgW": 0.15,
-      "imgH": 0.15,
-      "wimL": 0.65,
       "m1Pat": 3,
       "m1A": 1315860,
       "m1B": 16765568,
@@ -1555,19 +1565,36 @@
       {
        "bay": "nose",
        "capacity": 45,
-       "along": null,
-       "lv": 0.9,
+       "along": -0.17,
+       "lv": 0.5999,
        "rot": 0,
-       "form": "box",
-       "dims": null,
+       "form": "deck",
+       "dims": {
+        "L": 0.275,
+        "W": 0.606,
+        "H": 0.354,
+        "profile": [
+         1,
+         0.987,
+         0.974,
+         0.948,
+         0.915,
+         0.878,
+         0.83,
+         0.691,
+         0.685
+        ]
+       },
        "finish": null,
        "hue": null,
-       "tint": null
+       "tint": null,
+       "fit": "auto"
       }
      ]
     },
     "outfit": {
-     "seats": "sling"
+     "seats": "sling",
+     "trim": "bare"
     }
    }
   },
@@ -1576,8 +1603,8 @@
    "page": {
     "n": 115,
     "nb": 502,
-    "mass": 464.1822693117153,
-    "build": "8d87987922dc"
+    "mass": 468.23848175197276,
+    "build": "11193a934954"
    },
    "spec": {
     "cage": {
@@ -2198,6 +2225,9 @@
      "bpInterZ": 0,
      "bpWires": 1,
      "bpWireD": 5,
+     "bpStrutK": 1,
+     "bpCabDraw": 1,
+     "bpCabPylon": 0,
      "wingOn": 1,
      "wgSpan": 8.3,
      "wgChord": 1.8,
@@ -2291,6 +2321,15 @@
      "engNacAt": 0.35,
      "engNacAt2": 0.62,
      "engPylonH": 0.3,
+     "engPylonFair": 0,
+     "engPylonForm": 0,
+     "engPylonAt": 0,
+     "engPylonAft": 0.15,
+     "engPylonFwd": 0,
+     "engFinAt": 0.55,
+     "engFinFwd": 0,
+     "engNacOver": 0,
+     "engNacLift": 0,
      "engBlockZ": 0,
      "engBlockY": 0,
      "engAim": 0,
@@ -2594,6 +2633,7 @@
      "fltStrutR": 0.018,
      "fltWires": 1,
      "fltStrutAng": 55,
+     "fltFrontRing": 0,
      "fltSpread": 1,
      "fltBoard": 0,
      "fltKit": 0,
@@ -2745,7 +2785,7 @@
      "kg": 0
     },
     "fuel": {
-     "litres": 45,
+     "litres": 50,
      "tank": "nose"
     },
     "systems": {
@@ -2935,6 +2975,7 @@
       "plan": null,
       "planAxis": null,
       "beam": "on",
+      "tipShape": null,
       "stol": null,
       "material": null
      }
@@ -3091,12 +3132,7 @@
       "regL": 2.5,
       "regC": 0.3,
       "regCol": 8134444,
-      "regOutOn": 0,
       "regW": 1.6207056561638329,
-      "imgW": 0.15,
-      "imgH": 0.15,
-      "wimL": 0.65,
-      "wimH": 2,
       "m1On": 1,
       "m1Pat": 2,
       "m1A": 8134444,
@@ -3123,20 +3159,37 @@
      "vessels": [
       {
        "bay": "nose",
-       "capacity": 45,
-       "along": null,
-       "lv": 0.9,
+       "capacity": 50,
+       "along": -0.2569,
+       "lv": 0.6466,
        "rot": 0,
-       "form": "box",
-       "dims": null,
+       "form": "deck",
+       "dims": {
+        "L": 0.313,
+        "W": 0.825,
+        "H": 0.269,
+        "profile": [
+         1,
+         0.985,
+         0.97,
+         0.943,
+         0.905,
+         0.866,
+         0.679,
+         0.618,
+         0.52
+        ]
+       },
        "finish": null,
        "hue": null,
-       "tint": null
+       "tint": null,
+       "fit": "auto"
       }
      ]
     },
     "outfit": {
-     "seats": "sling"
+     "seats": "sling",
+     "trim": "light"
     }
    }
   },

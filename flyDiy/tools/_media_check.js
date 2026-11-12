@@ -175,7 +175,10 @@ const check = (ok, msg) => { if (!ok) fail.push(msg); return !!ok; };
 // MASTER-GREEN (A0 8 Nov, the user: "decide"): 5.0 -> 5.5. Red on master L35a 1bcd01d3e at 5.18 MiB gz - the cost, named: a
 // player's first load (and every reload past the service worker's cache) is 5.18 MiB on the wire today. All code, no page-size
 // work (the user's 14 Oct rule); the per-train STEP row stays the heavy-move tripwire.
-const WIRE_BUDGET_MIB = 5.5;   // was 5.0 (A0 2 Nov)   // was 4.6 (the user, 13 Oct ~13:10: "yes, raise the budget to 4.6 MiB"). - by-name asks only when ONE train adds > 50 KB gz (the per-train STEP row). Earlier acceptances:   // (T41b x SCENERY-SHIP, measured 4.2091: master 4.0530 (its own, accepted) + train 41's +160 KB (accepted))
+// L37b (A0 10 Nov, under the user's 8 Nov "decide" and the 14 Oct no-page-size-work rule): 5.5 -> 6.0. Red at 5.54 MiB gz
+// with L37b's code (forest mist, the season presets, the fiche, star sky, livery text, wing structure, Wilga gear): all code,
+// nothing inlined by mistake (data: 118 KB, the same fonts). The cost, named: a first load is ~5.5 MiB on the wire today.
+const WIRE_BUDGET_MIB = 6.0;   // was 5.5 (A0 8 Nov)   // was 5.0 (A0 2 Nov)   // was 4.6 (the user, 13 Oct ~13:10: "yes, raise the budget to 4.6 MiB"). - by-name asks only when ONE train adds > 50 KB gz (the per-train STEP row). Earlier acceptances:   // (T41b x SCENERY-SHIP, measured 4.2091: master 4.0530 (its own, accepted) + train 41's +160 KB (accepted))
 // STEP: how much index.html (CRs removed) may grow over the build before it, MiB.
 // "The build before" is git's: if the built page differs from HEAD's, HEAD (and
 // its parents, when HEAD is a merge); if it IS HEAD's, the parents of the commit
@@ -190,6 +193,8 @@ const STEP_ACCEPTED = [
     fromBytes: 12210701, upToBytes: 12660032 },
   { name: 'train 41: the damage layer, user-accepted 12 Oct by name ("(a) now") - +467 KB raw (+160 KB gz) over master (09683cb08, SCENERY-SHIP); owed back by G3020 / G3021',
     fromBytes: 12709352, upToBytes: 13200000 },
+  { name: 'train L37b: forest mist + the season presets, the R3 fiche + its water runs, star sky, livery text, wing structure, Wilga gear, root darkening - user-accepted 10 Nov by name ("yes to defaults", the 0.30 MiB step asked at ~22:35; their 14 Oct no-page-size-work rule) - +308.8 KB raw over the merged HEAD',
+    fromBytes: 16988608, upToBytes: 17350000 },
 ];
 // index.html's allowed data: payload: the four woff2 fonts (~121 KB base64)
 // plus the two svg select arrows. Anything past this is base64 creeping back.
@@ -218,7 +223,8 @@ function manifestFiles() {
              'ktx2_twins.js',   // AS3 (G916): the KTX2 twins of the plain maps (tools/ktx2_twins.js, media/tex/ktx2/<family>/)
              'cabin_livery.js',   // the tram cabin's liveries (G343)
              'blueprint_library.js',   // the blueprint library's sheets (G573.2, media/blueprints/)
-             'map_pack.js']   // the island map's projection, its bake and the user's painting (G2250 / G2324, media/map/)
+             'map_pack.js',
+             'dust_atlas.js']   // DIRT-DUST V2 (11 Nov): the dust puff's six-way atlas (tools/dust_atlas_bake.js, media/tex/dust/)   // the island map's projection, its bake and the user's painting (G2250 / G2324, media/map/)
     .map(f => path.join(ROOT, 'src', 'viewer', f));
   const packs = JSON.parse(fs.readFileSync(
     path.join(ROOT, 'src', 'props', 'props_packs.json'), 'utf8'))
@@ -349,10 +355,13 @@ function manifestFiles() {
   // THE PEOPLE (G3615 / G3620): tools/portrait_prep.py owns media/people; its generated tables name each file BARE
   // (72_people.js prefixes PEOPLE_FACE_DIR), so collectRefs reads them through BARE_DIRS below
   const people = ['72_people_faces.js', '72_people_bgs.js'].map(f => path.join(ROOT, 'src', 'core', f)).filter(f => fs.existsSync(f));
-  return v.concat(packs, pier, totems, panelhw, cabin, loads, scenery, cars, camp, infra, models, chars, animals, trees, shots, worlds, townkit, sound, maps, people);
+  // LIVERY-TEXT (9 Nov): the livery's faces - aeroskin.js's AERO_TXT_FACES names each style's file and the family's
+  // licence (tools/livery_fonts_prep.js owns media/fonts)
+  const faces = [path.join(ROOT, 'src', 'viewer', 'aeroskin.js')];
+  return v.concat(packs, pier, totems, panelhw, cabin, loads, scenery, cars, camp, infra, models, chars, animals, trees, shots, worlds, townkit, sound, maps, people, faces);
 }
 
-const REF_RE = /media\/[A-Za-z0-9_\-./]+?\.(?:jpg|png|webp|bin|ktx2|mp3|ogg|json)/g;   // webp: LOADING S4's texture prep; ktx2: AS3's (G916); mp3: the sound (G1636); json: Radio Jolene's broadcast script (G1701); ogg: the story's opening (G3380)
+const REF_RE = /media\/[A-Za-z0-9_\-./]+?\.(?:jpg|png|webp|bin|ktx2|mp3|ogg|json|woff2|woff|txt)/g;   // webp: LOADING S4's texture prep; ktx2: AS3's (G916); mp3: the sound (G1636); json: Radio Jolene's broadcast script (G1701); ogg: the story's opening (G3380); woff2/woff/txt: LIVERY-TEXT's faces and their licences
 
 // the manifests that name their files bare, under one media directory (the generated table: '<key>': '<file>')
 const BARE_DIRS = { '72_people_faces.js': 'media/people/', '72_people_bgs.js': 'media/people/' };
@@ -530,6 +539,15 @@ const present = walkMedia(MEDIA);
     let J = null; try { J = JSON.parse(fs.readFileSync(path.join(ROOT, rel), 'utf8')); } catch (e) {}
     check(!!(J && J[dir] && typeof J[dir] === 'object'), `${rel} is a plane-picture index ({${dir}: {key: file}})`);
     if (fetched) for (const f of Object.values((J && J[dir]) || {})) { const r = 'media/' + dir + '/' + f; if (!refs.has(r)) refs.set(r, rel); } } }
+// PLANE-RENDERS R3: media/fiches/index.json, the official planes' baked fiches (tools/fiche_bake.js { fiches: { key: { pics: { view:
+// file } } } }), fetched by fiche_board.js the same way; its pictures are named by it
+{ const FB = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'fiche_board.js'), 'utf8'), rel = 'media/fiches/index.json';
+  if (present.includes(rel)) {
+    const fetched = FB.includes("'media/fiches/'") && /fetch\(BAKED \+ 'index\.json'\)/.test(FB);
+    if (fetched && !refs.has(rel)) refs.set(rel, 'src/viewer/fiche_board.js');
+    let J = null; try { J = JSON.parse(fs.readFileSync(path.join(ROOT, rel), 'utf8')); } catch (e) {}
+    check(!!(J && J.fiches && typeof J.fiches === 'object'), `${rel} is a fiche index ({fiches: {key: {pics}}})`);
+    if (fetched) for (const b of Object.values((J && J.fiches) || {})) for (const f of Object.values((b && b.pics) || {})) { const r = 'media/fiches/' + f; if (!refs.has(r)) refs.set(r, rel); } } }
 checkStore(refs, present);
 // MEDIA ACCEPTED BY NAME (a media file the user accepted by its size; the gate holds it to that size - a re-encode that
 // grows it is a new ask, not a silent pass)

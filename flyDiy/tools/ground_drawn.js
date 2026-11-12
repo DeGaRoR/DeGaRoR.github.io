@@ -44,6 +44,7 @@ const TWD = (() => { const m = /const TW_DRAW_DROP = ([\d.]+);/.exec(fs.readFile
 const PT = require(path.join(T, 'pilot_trace.js'));
 PT.loadPanel();
 const C = require(path.join(T, 'flight_core.js'));
+const SMg = C.STRIP_MICRO || null;   // (DIRT-STRIP: the bumpy strips render_world refines)
 const THREE = require(path.join(ROOT, 'vendor', 'three.min.js'));
 const PAV = require(path.join(ROOT, 'src', 'viewer', 'pavement.js'));
 const IN = require(path.join(T, 'island_node.js'));
@@ -122,8 +123,12 @@ function meshAt(M, x, z) {
     if (!LKp || !LKp.cls) continue;
     const RS = PAV.resolve(a.premises ? a : null, a.premises ? rec : null, LKp);
     indexMesh('strip:' + a.id, 'strip:' + RS.cls, 1.99, PAV.stripGeometry(THREE, { len: a.len, wid: a.wid, hdg: a.hdg, cx: a.x, cz: a.z, shoulderW: PAV.shoulderFor(RS.band, RS.recipe), cls: RS.cls, seed: 1,
-      heightAt: W.terrainH, lift: 0.07, resU: 6, resV: 3, sinkD0: a.premises && O.pavedAt ? PAV.opaqueDepth(RS.cls, a.wid / 2, RS.recipe, 'strip') : null,
-      liftAt: a.premises && O.pavedAt && PAV.liftOver ? PAV.liftOver(O.pavedAt, a.id) : null }));
+      // (DIRT-STRIP 10 Nov: a bumpy strip as render_world draws it - its rows down to the bumps and 5 cm across a rut's wall,
+      //  at terrainH less the stones' bodies (the rock meshes stand there); without them the 6 m x 3 m lattice bridged the ruts
+      //  and potholes: w3 / w8 p95 15 / 26 mm off the field, the worst 64 mm over an 11 cm hole)
+      heightAt: W.stoneH && SMg && SMg.has(a.id) ? (x, z) => W.terrainH(x, z) - W.stoneH(x, z) : W.terrainH, lift: 0.07, resU: 6, resV: 3, sinkD0: a.premises && O.pavedAt ? PAV.opaqueDepth(RS.cls, a.wid / 2, RS.recipe, 'strip') : null,
+      liftAt: a.premises && O.pavedAt && PAV.liftOver ? PAV.liftOver(O.pavedAt, a.id) : null,
+      refineMin: SMg && SMg.has(a.id) ? SMg.REFINE_MIN : 0, refineMinV: SMg && SMg.has(a.id) ? SMg.REFINE_MIN_V : 0 }));
   }
 }
 // THE DRAWN GROUND at (x, z): { y, kind, fu, fv (the position in the cell of the lattice on top) }

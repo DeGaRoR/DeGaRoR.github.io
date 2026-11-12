@@ -49,7 +49,11 @@
   const day = iso => { const m = /^(\d{4})-(\d\d)-(\d\d)/.exec(String(iso || '')); return m ? (+m[3]) + ' ' + MON[+m[2] - 1] + ' ' + m[1] : ''; };
   const short = b => (b ? String(b).slice(0, 8) : 'unbuilt');
   // 'build 1a2b3c4d · 4 Oct 2026' - the page's own build (never the server's)
-  const stamp = () => 'build ' + short(S.build) + (S.date ? ' · ' + day(S.date) : '');
+  // the user, 11 Nov: the time too, so two builds of one day tell apart (the phone's own clock: local hh:mm)
+  const hm = iso => { if (!/T\d\d:\d\d/.test(String(iso || ''))) return ''; const m2 = /T(\d\d):(\d\d)/.exec(String(iso)); let d = null; try { d = new W.Date(iso); } catch (e) { d = null; }
+    if (!d || !isFinite(d.getTime())) return ' ' + m2[1] + ':' + m2[2] + ' UTC';
+    const p2 = n => (n < 10 ? '0' : '') + n; return ' ' + p2(d.getHours()) + ':' + p2(d.getMinutes()); };
+  const stamp = () => 'build ' + short(S.build) + (S.date ? ' · ' + day(S.date) + hm(S.date) : '');
 
   // ---- the URL -----------------------------------------------------------------------------------------------------
   // the update's address: the same page, every parameter and the hash kept, ?v=<server build> set (replaced if there)
@@ -245,7 +249,7 @@ html.updNowUp #bootPanel { bottom:84px; }
   function cleanReload(opts) {
     if (S.going) return Promise.resolve(null);
     const mb = W.STORAGE && W.STORAGE.state && W.STORAGE.state.cachedMB;
-    const ask = 'Clean download and reload?\n\nEverything flyDiy keeps on this device is deleted and downloads again: the island, the aircraft media, the music' +
+    const ask = 'Clean download and reload?\n\nEverything ' + ((typeof GAME_NAMES !== 'undefined' && GAME_NAMES.game) || 'the game') + ' keeps on this device is deleted and downloads again: the island, the aircraft media, the music' +
       (mb > 0 ? ' (about ' + Math.round(mb) + ' MB)' : '') + '.\nYour aeroplanes, careers and settings are kept.';
     const yes = (opts && opts.confirm === false) || (typeof W.confirm === 'function' ? !!W.confirm(ask) : true);
     if (!yes) return Promise.resolve(false);

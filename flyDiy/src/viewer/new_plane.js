@@ -283,6 +283,10 @@ function renderStart(body) {
 // ALL PLANES (PLANE-LISTS, the user 4 Nov): every aeroplane we have, read-only: the lists (GARAGE_SPEC.planeLists: internal is the
 // dev's), a tile each with its side profile when one is baked, a name alone when not. A press loads it through the garage's own
 // door (GARAGE_SPEC.openListed) and hands over like a candidate; nothing is built or loaded before the press
+const LIST_CLASSES = [['reproduction', 'reproductions', 'reproduction'], ['story', 'story', 'story'], ['original', 'originals', 'original'],
+  ['wip', 'work in progress', 'work in progress'], ['next', 'next versions', 'next version'], ['legacy', 'test planes (legacy)', 'test plane'],
+  ['archive', 'archive', 'archived']];
+const FICHE_CLASSES = ['reproduction', 'story', 'original'];
 function renderAll(body) {
   let warn = '';
   try { warn = GS().name() ? '' : 'loading one replaces the unsaved build on the stand'; } catch (e) {}
@@ -294,10 +298,11 @@ function renderAll(body) {
   body.appendChild(host);
   g0.planeLists().then(list => {
     if (page !== 'all' || !isOpen()) return;
-    for (const [key, word] of [['official', 'official'], ['candidates', 'candidate'], ['internal', 'internal testing']]) {
+    // PLANE-LIST (the user 10 Nov): the classes, each its heading and its word; the last three reach the developer only
+    for (const [key, head, word] of LIST_CLASSES) {
       const rows = list.filter(p => p.list === key);
       if (!rows.length) continue;
-      host.insertAdjacentHTML('beforeend', '<div class="npSecH">' + esc(key === 'internal' ? 'internal testing' : key) + '</div>');
+      host.insertAdjacentHTML('beforeend', '<div class="npSecH">' + esc(head) + '</div>');
       const grid = document.createElement('div');
       grid.className = 'npGrid npSmall';
       for (const p of rows) {
@@ -306,6 +311,8 @@ function renderAll(body) {
         b.innerHTML = '<b>' + esc(p.name) + '</b><small>' + esc(word + (p.note ? ' — ' + p.note : '')) + '</small>';
         b.title = p.tip || '';
         if (p.thumb) { b.dataset.thumb = p.thumb; npThumb(b); }
+        // PLANE-RENDERS R3: an official plane ships with its fiche - its door in the tile's corner (fiche_board.js; none when not baked)
+        if (FICHE_CLASSES.includes(key) && p.thumb && window.FICHE_BOARD) { try { window.FICHE_BOARD.tileDoor(b, p.thumb); } catch (e) {} }
         b.addEventListener('click', () => withSpinner(() => { LOG.generated++; g0.openListed(p); }));
         grid.appendChild(b);
       }

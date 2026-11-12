@@ -1601,7 +1601,9 @@ function aeroDetailTex(THREE, key) {
 // nothing rasterized"); their two pages carry kit layers 4 and 5. Every one of these is an unrolled iteration of a
 // texture fetch in the fragment shader, so the array is sized to what the
 // panel can actually turn on and not to a round number.
-const AERO_MAXD = 9;             // G208: +1, the certification stickers' strip; A9: +1, the master; LIVERY-5: 5 kit layers
+// LIVERY-TEXT (9 Nov, the user: several pieces of text a plane - a name, a slogan): +6, one slot a text piece. The
+// loop breaks at uDecN (a uniform), so a plane wearing fewer pays for the slots it uses, not for fifteen.
+const AERO_MAXD = 15;            // G208: +1, the certification stickers' strip; A9: +1, the master; LIVERY-5: 5 kit layers; LIVERY-TEXT: 6 text pieces
 const AERO_ATLAS_N = 4;              // 4x4 pages
 // 1024 -> 4096 (G207, the user: "the current decals are too low resolution,
 // the pixels are clearly visible"). A page was 256 px, stretched over a
@@ -1707,6 +1709,110 @@ const AERO_DEC_FONTS = [
   { name: 'sans light', css: '400 96px "IBM Plex Sans", ui-sans-serif, sans-serif',
     track: 6 },
 ];
+// ---- LIVERY-TEXT (9 Nov): THE FACES A TEXT PIECE MAY WEAR ----------------------------------------------------------
+// The user: several pieces a plane, "pick the fonts on their looks with a short why", "a very elegant handwritten one",
+// real bold and italic where the face ships them, fonts from github.com/google/fonts only, each licence kept and
+// credited (CREDITS.md, media/fonts/OFL-*.txt). Picked through a copy of the path below (the face study:
+// flydiy-notes/evidence-2026-10-18/livery-text-2026-11-09), on the phone's 512 px page and the desktop's 1024.
+//
+// NOT IN THE PAGE: media/fonts/<stem>.<h8>.woff2|woff, one file a style, fetched the first time a piece asks for it
+// (sw.js keeps media/ cache-first, the name is the content); until it has arrived a piece is drawn in IBM Plex Sans,
+// then drawn again (aeroTxtArrived). Barlow, Jost and Great Vibes are CUT to Latin, Latin-1 and Latin Extended-A
+// (12-29 KB a style); Alfa Slab One, Lobster Two and Stardos Stencil carry a Reserved Font Name, which a cut may not
+// keep (OFL 3), so they ship WHOLE, their bytes untouched in a WOFF 1.0 (21-91 KB a style) - tools/livery_fonts_prep.js.
+//
+// A STYLE THE FACE DOES NOT SHIP IS NOT ASKED FOR: canvas would synthesise it (a smeared bold, a sheared italic), so
+// `b` / `it` say what exists and aeroTxtStyle only ever names a real file. The slant is the builder's own shear, apart.
+// `miss` = the letters the face lacks (the cut's own census): the browser draws those from IBM Plex Sans, and the panel
+// says so. Plex Sans and Plex Mono are the page's own (vendor/fonts, inlined): no file to fetch, and no italic.
+const AERO_TXT_FALLBACK = '"IBM Plex Sans", ui-sans-serif, sans-serif';
+const AERO_TXT_FACES = [
+  { key: 'barlow', ofl: 'media/fonts/OFL-barlowcondensed.txt', name: 'Barlow Condensed', fam: 'LT Barlow Condensed', r: 600, b: 700, it: true, track: 2,
+    why: 'the airfield sign: tall and narrow, a long name fits; its bold italic is the racing look',
+    files: { '600': 'media/fonts/barlow-condensed-600.85df76c1.woff2', '600i': 'media/fonts/barlow-condensed-600-italic.c8d60bac.woff2',
+             '700': 'media/fonts/barlow-condensed-700.67219bf2.woff2', '700i': 'media/fonts/barlow-condensed-700-italic.fb39eb17.woff2' },
+    miss: 'ĔĕĬĲĸĿŉŎſ' },
+  { key: 'jost', ofl: 'media/fonts/OFL-jost.txt', name: 'Jost', fam: 'LT Jost', r: 500, b: 700, it: true, track: 3,
+    why: 'the 1930s poster sans: round, clean, of the period',
+    files: { '500': 'media/fonts/jost-500.77d6fb38.woff2', '500i': 'media/fonts/jost-500-italic.50c88745.woff2',
+             '700': 'media/fonts/jost-700.ba69a796.woff2', '700i': 'media/fonts/jost-700-italic.e8c84b83.woff2' },
+    miss: 'ſ' },
+  { key: 'lobster2', ofl: 'media/fonts/OFL-lobstertwo.txt', name: 'Lobster Two', fam: 'LT Lobster Two', r: 400, b: 700, it: true, track: 0,
+    why: 'the sign painter\'s bold script: a name on the cowl',
+    files: { '400': 'media/fonts/lobster-two-400.1a128147.woff', '400i': 'media/fonts/lobster-two-400-italic.6b95c5b6.woff',
+             '700': 'media/fonts/lobster-two-700.809cc3a9.woff', '700i': 'media/fonts/lobster-two-700-italic.356b1a2d.woff' },
+    miss: '¯ĀāĂăĊċĎďĐĒēĔĕĖėĚěĜĝĠġĢģĤĥĦħĨĩĪīĬĭĮįİĴĵĶķĸĹĺĻļĽľĿŀŅņŇňŉŊŋŌōŎŏŔŕŖŗŘřŜŝŞşŢţŤťŦŧŨũŪūŬŭŮůŲųŴŵŶŷſ' },
+  { key: 'greatvibes', ofl: 'media/fonts/OFL-greatvibes.txt', name: 'Great Vibes', fam: 'LT Great Vibes', r: 400, b: 0, it: false, track: 0,
+    why: 'the elegant hand: large and short - a name; its fine strokes go first at a distance',
+    files: { '400': 'media/fonts/great-vibes-400.7644eb75.woff2' },
+    miss: 'ŉſ' },
+  { key: 'stardos', ofl: 'media/fonts/OFL-stardosstencil.txt', name: 'Stardos Stencil', fam: 'LT Stardos Stencil', r: 400, b: 700, it: false, track: 4,
+    why: 'the stencil: military and working markings',
+    files: { '400': 'media/fonts/stardos-stencil-400.0aada258.woff', '700': 'media/fonts/stardos-stencil-700.fe037887.woff' },
+    miss: 'ĀāĂăĄąĆćĈĉĊċČčĎďĐđĒēĔĕĖėĘęĚěĜĝĞğĠġĢģĤĥĦĪīĬĭĮįİĶĸĹĺĻļĽľŅņŇňŉŊŋŌōŎŏŐőŕŚśŜŝŞşŢţŤťŦŧŨũŪūŬŭŮůŰűŲųŴŵŶŷŹźŻżſ' },
+  { key: 'alfa', ofl: 'media/fonts/OFL-alfaslabone.txt', name: 'Alfa Slab One', fam: 'LT Alfa Slab One', r: 400, b: 0, it: false, track: 3,
+    why: 'the heavy slab: the boldest here, it reads furthest',
+    files: { '400': 'media/fonts/alfa-slab-one-400.25afe043.woff' },
+    miss: 'ſ' },
+  { key: 'plexsans', name: 'IBM Plex Sans', fam: 'IBM Plex Sans', r: 400, b: 700, it: false, track: 4,
+    why: 'the game\'s own face: plain and clear', files: null, miss: '' },
+  { key: 'plexmono', name: 'IBM Plex Mono', fam: 'IBM Plex Mono', r: 400, b: 600, it: false, track: 8,
+    why: 'the registration\'s face: a legal marking, even letters', files: null, miss: '' },
+];
+// the registration's four old rows as faces (regFont 0-3): what a registration wears until its builder picks a face
+const AERO_DEC_FONT_FACE = [{ face: 'plexmono', b: 1 }, { face: 'plexmono', b: 0 }, { face: 'plexsans', b: 1 }, { face: 'plexsans', b: 0 }];
+const aeroTxtFace = k => AERO_TXT_FACES.find(f => f.key === k) || AERO_TXT_FACES[0];
+// the style asked for that the face SHIPS: bold where a bold exists, italic where an italic does - never synthesised
+function aeroTxtStyle(F, b, i) {
+  const w = (b && F.b) ? F.b : F.r, it = !!(i && F.it);
+  return { w, it, st: w + (it ? 'i' : '') };
+}
+const AERO_FONT_STATE = {};   // 'face:style' -> 'loading' | 'ok' | 'fail' (a file that will not come: Plex Sans for good)
+function aeroTxtState(F, s) { return F.files ? (AERO_FONT_STATE[F.key + ':' + s.st] || 'new') : 'ok'; }
+function aeroTxtLoad(F, s) {
+  const k = F.key + ':' + s.st, url = F.files && F.files[s.st];
+  if (!url || AERO_FONT_STATE[k]) return;
+  if (typeof FontFace === 'undefined' || typeof document === 'undefined' || !document.fonts) { AERO_FONT_STATE[k] = 'fail'; return; }
+  AERO_FONT_STATE[k] = 'loading';
+  let ff = null;
+  try { ff = new FontFace(F.fam, 'url(' + url + ')', { weight: String(s.w), style: s.it ? 'italic' : 'normal' }); }
+  catch (e) { AERO_FONT_STATE[k] = 'fail'; return; }
+  ff.load().then(f => { document.fonts.add(f); AERO_FONT_STATE[k] = 'ok'; aeroTxtArrived(); },
+                 e => { AERO_FONT_STATE[k] = 'fail'; console.warn('flyDiy (livery face):', url, e && e.message); });
+}
+// what a text page is drawn with: { css, track, sl }. `font` is the registration's old row index (a number: exactly
+// the old drawing) or a piece's { face, b, i, sl }
+function aeroTxtFont(font) {
+  if (font == null || typeof font !== 'object') {
+    const F = AERO_DEC_FONTS[Math.max(0, Math.min(AERO_DEC_FONTS.length - 1, Math.round(+font || 0)))];
+    return { css: F.css, track: F.track, sl: 0, key: String(Math.round(+font || 0)) };
+  }
+  const F = aeroTxtFace(font.face), s = aeroTxtStyle(F, font.b, font.i), st = aeroTxtState(F, s);
+  if (st === 'new') aeroTxtLoad(F, s);
+  const ready = aeroTxtState(F, s) === 'ok';
+  const sl = Math.max(-0.45, Math.min(0.45, +font.sl || 0));
+  const css = ready ? (s.it ? 'italic ' : '') + s.w + ' 96px "' + F.fam + '", ' + AERO_TXT_FALLBACK
+                    : (s.w >= 600 ? 700 : 400) + ' 96px ' + AERO_TXT_FALLBACK;   // (the stand-in while the file comes)
+  return { css, track: ready ? F.track : 4, sl, key: F.key + ':' + s.st + ':' + (ready ? 1 : 0) + ':' + sl.toFixed(3) };
+}
+// A FACE ARRIVED: the pages that asked for it are drawn again (their sig names the load state), and the last list the
+// placement made is made again - a face's aspect is not its stand-in's, so the sizes move with it. Once per batch.
+let AERO_LAST_FOR = null, AERO_LAST_LIST = null, aeroTxtSoon = null;
+function aeroTxtArrived() {
+  if (aeroTxtSoon) return;
+  aeroTxtSoon = setTimeout(() => {
+    aeroTxtSoon = null;
+    try {
+      const L = AERO_LAST_FOR;
+      if (L && AERO_LAST_LIST && AERO_LAST_LIST === L.list) {
+        const r = aeroDecalsFor(L.THREE, L.D, L.opts);
+        aeroSetDecals(L.THREE, r.list);
+      }
+      if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function' && typeof CustomEvent !== 'undefined')
+        window.dispatchEvent(new CustomEvent('aero-face'));   // (the editor's rows: the width a lock derives)
+    } catch (e) { console.warn('flyDiy (livery face):', e && e.message); }
+  }, 0);
+}
 // ---- THE DISTANCE FIELD (G212) ---------------------------------------------
 // Felzenszwalb & Huttenlocher's exact Euclidean distance transform, separable
 // and O(n) per row: squared distance from every pixel to the nearest SET
@@ -1775,7 +1881,9 @@ function aeroAtlasRepaint() {
 function aeroDecalText(THREE, page, text, colHex, outHex, font) {
   const t = aeroAtlas(THREE), S = AERO_ATLAS_PX, N = AERO_ATLAS_N;
   const P = S / N, px = (page % N) * P, py = Math.floor(page / N) * P;
-  const sig = [text, colHex, outHex, font, P].join('|');
+  // LIVERY-TEXT: the face as drawn (its load state in the key: the stand-in's page is drawn again when the face arrives)
+  const F = aeroTxtFont(font);
+  const sig = [text, colHex, outHex, F.key, P].join('|');
   if (AERO_TEXT_SIG[page] === sig && AERO_TEXT_ASPECT[page]) {
     AERO_TEXT_FIT = AERO_TEXT_ASPECT[page].fit;
     return AERO_TEXT_ASPECT[page].aspect;
@@ -1789,23 +1897,23 @@ function aeroDecalText(THREE, page, text, colHex, outHex, font) {
   g.textAlign = 'center'; g.textBaseline = 'middle';
   // the default is still a monospaced legal marking rather than a logotype,
   // which is garage.js's own reasoning; the choice is the builder's now
-  const F = AERO_DEC_FONTS[Math.max(0, Math.min(AERO_DEC_FONTS.length - 1,
-    Math.round(+font || 0)))];
   g.font = F.css;
   if ('letterSpacing' in g) g.letterSpacing = F.track + 'px';
   const mt = g.measureText(text || '');
-  const w = Math.max(1, mt.width);
   // TO FILL THE PAGE, up or down (G207): the marking's size in metres is the
   // placement's, so the page is only the glyph box and the glyphs may as well
   // use all of it — capped by the line's own height so two letters do not
   // climb out of the box
   const fh = Math.max(1, (mt.actualBoundingBoxAscent || 0) +
                          (mt.actualBoundingBoxDescent || 0) || 96);
+  // LIVERY-TEXT: THE SLANT is a shear about the line's middle, so the box grows by the slant times the height
+  const w = Math.max(1, mt.width) + Math.abs(F.sl) * fh;
   const sc = Math.min((P * 0.86) / w, (P * 0.86) / fh);
   // WHAT THE GLYPHS OCCUPY OF THE PAGE, for the placement: the marking's
   // height in metres is the GLYPHS' height (G207), not the page's
   AERO_TEXT_FIT = { w: (w * sc) / P, h: (fh * sc) / P };
   g.scale(sc, sc);
+  if (F.sl) g.transform(1, 0, -F.sl, 1, 0, 0);   // (canvas y runs down: a positive slant leans the tops forward of the reading)
   const hex = v => '#' + ((v == null ? 0x1b3a5c : v) >>> 0).toString(16)
                           .padStart(6, '0');
   const R = AERO_SDF_SPREAD(P);
@@ -1839,6 +1947,7 @@ function aeroDecalText(THREE, page, text, colHex, outHex, font) {
     m.font = F.css;
     if ('letterSpacing' in m) m.letterSpacing = F.track + 'px';
     m.scale(sc, sc);
+    if (F.sl) m.transform(1, 0, -F.sl, 1, 0, 0);
     m.fillStyle = '#fff'; m.strokeStyle = '#fff'; m.lineJoin = 'round';
     if (outHex != null) {
       m.lineWidth = 14 * (P / AERO_PAGE_REF) / sc;
@@ -2118,6 +2227,11 @@ const AERO_DEC_DEF = {
   regMetal: 0,                    // G215: metal flake in the marking
   regW: 0.96, regLock: 1,         // locked: width follows height at the aspect
   regFont: 0,                     // an index into AERO_DEC_FONTS
+  // LIVERY-TEXT (9 Nov, the user: "registration is just a dedicated text field"): the registration takes a text piece's
+  // controls - a face of AERO_TXT_FACES (null: the old row regFont, drawn exactly as before), bold, italic, the slant,
+  // an outline (null: none - a new key: LIVERY-5 retired the old keyline, whose rows stay unread) and the side it is on
+  // (0 both, 1 the left (port), 2 the right (starboard))
+  regFace: null, regB: 1, regI: 0, regSl: 0, regLine: null, regSide: 0,
   // G2829 (STOL-WING-2, the user 27 Oct: "put a large registration on the wing top as well"): THE SAME MARKING A
   // SECOND TIME, on the wing - the registration's own page (its text, colour, font), its own height and place, read
   // in the plan view; off unless a build asks
@@ -2158,6 +2272,26 @@ const AERO_DEC_ON = [
   { stab: 1 },                        // 7 the stabiliser
 ];
 const AERO_DEC_MODES = ['field', 'side', 'plan'];
+// ---- LIVERY-TEXT (9 Nov): THE TEXT PIECES ----------------------------------------------------------------------------
+// The user's answers (9 Nov, via A0): up to six pieces besides the registration; one line, 24 characters; no curve;
+// the livery layer's placement (where it goes, how it is projected, station, height on side, turn); both sides reading
+// right, or one side only; an outline offered, off; real bold and italic where the face has them, and a slant. Each
+// piece is a distance-field page of its own (8-13: the atlas's free row and a half) drawn by aeroDecalText, the
+// registration's own path - so it is as sharp as the registration at any size. Off and empty by default: an aeroplane
+// nobody lettered, and every official one, wears what it always wore.
+const AERO_TXT_N = 6, AERO_TXT_MAX = 24;
+const AERO_TXT_PAGES = [8, 9, 10, 11, 12, 13];
+const AERO_TXT_LDEF = {
+  On: 0, Txt: '', Face: 'barlow', B: 1, I: 0, Sl: 0,
+  Col: null,                // null follows the paint's trim, as the registration's ink
+  Line: null,               // the outline's colour; null = none
+  H: 0.25,                  // the letters' height, metres
+  L: 1.2, C: 0.0, Rot: 0, Tgt: 0, Mode: 0, Side: 0, Metal: 0,
+};
+const AERO_TXT_FIELDS = Object.keys(AERO_TXT_LDEF);
+for (let i = 1; i <= AERO_TXT_N; i++) for (const k of AERO_TXT_FIELDS) AERO_DEC_DEF['t' + i + k] = AERO_TXT_LDEF[k];
+// a piece's text as drawn: one line, 24 characters, nothing that is not a letter on a page
+const aeroTxtClean = s => String(s == null ? '' : s).replace(/[\u0000-\u001f\u007f]/g, ' ').slice(0, AERO_TXT_MAX);
 
 // ===========================================================================
 // THE MARKING KIT (G162) — READY-TO-APPLY LIVERY, DRAWN FROM A RECIPE
@@ -2695,7 +2829,7 @@ const AERO_FLAGS = [
   { n: 'USA', r: 1.9, hw: Array.from({ length: 13 }, (_, i) => [i & 1 ? '#ffffff' : '#b22234', 1]),
     canton: ['#3c3b6e', 0.76 / 1.9, 7 / 13], stars: ['#ffffff', 'usa'] },
   { n: 'UK', r: 2, bg: '#012169', saltire: [['#ffffff', 0.2], ['#c8102e', 0.0667]], cross: ['#ffffff', 1 / 3, 9], cross2: ['#c8102e', 1 / 5] },
-  { n: 'Alaska', r: 1.41, bg: '#0f204b', stars: ['#ffb612', 'alaska'] },
+  { n: 'Big Dipper', r: 1.41, bg: '#0f204b', stars: ['#ffb612', 'alaska'] },   // (the shown name a fictional one - GATE NAMES; the row's place, which a save keeps, and its star pattern unchanged)
   { n: 'Ukraine', h: ['#0057b7', '#ffd700'] },
   { n: 'Estonia', r: 11 / 7, h: ['#0072ce', '#000000', '#ffffff'] },
   { n: 'Lithuania', r: 5 / 3, h: ['#fdb913', '#006a44', '#c1272d'] },
@@ -2742,7 +2876,7 @@ function aeroFlagDraw(g, F, X, Y, W, H) {
       const cw = F.canton[1] * W, ch = F.canton[2] * H, R = 0.0616 * H / 2 * 1.0;
       for (let row = 0; row < 9; row++) { const n = row & 1 ? 5 : 6;
         for (let i = 0; i < n; i++) aeroStar5(g, X + cw * ((row & 1 ? 2 : 1) + 2 * i) / 12, Y + ch * (row + 1) / 10, R); }
-    } else {                       // Alaska: the Big Dipper and Polaris (hoist to the left)
+    } else {                       // the Big Dipper and Polaris (hoist to the left)
       const S = [[0.07, 0.69], [0.19, 0.72], [0.29, 0.63], [0.37, 0.53], [0.49, 0.58], [0.53, 0.43], [0.43, 0.37], [0.85, 0.18]];
       S.forEach(([x, y], i) => aeroStar5(g, X + x * W, Y + y * H, (i === 7 ? 0.09 : 0.065) * H));
     }
@@ -2870,12 +3004,18 @@ function aeroDecalsFor(THREE, D, opts) {
   const trim = opts.trim != null ? opts.trim : 0x1b3a5c;
   const onOf = t => AERO_DEC_ON[Math.max(0, Math.min(AERO_DEC_ON.length - 1, +t || 0))];
   const modeOf = m => AERO_DEC_MODES[Math.max(0, Math.min(2, +m || 0))];
+  // LIVERY-TEXT: the registration is a text piece with a fixed role - a face picked (regFace), a slant or an italic
+  // draws it through the pieces' path; untouched, the old row (regFont) draws it exactly as before
+  const rf = AERO_DEC_FONT_FACE[Math.max(0, Math.min(3, Math.round(+D.regFont || 0)))];
+  const regFontArg = (D.regFace || +D.regSl || +D.regI)
+    ? { face: D.regFace || rf.face, b: D.regFace ? +D.regB : rf.b, i: +D.regI || 0, sl: +D.regSl || 0 } : D.regFont;
   const aspect = aeroDecalText(THREE, 0, opts.reg || D.reg || 'F-PGAR',
                    D.regCol != null ? D.regCol : trim,
-                   // LIVERY-5: NO KEYLINE, ever (G214's optional outline, defaulted on, is gone - the user: "it looks
-                   // bad in every circumstance"); the underlay and the field are the ink's own colour
-                   null,
-                   D.regFont) || 3.2;
+                   // LIVERY-5: NO KEYLINE by default (G214's outline, defaulted on, is gone - the user: "it looks bad in
+                   // every circumstance"); LIVERY-TEXT offers one again, off (regLine; the old regOut rows stay unread)
+                   D.regLine != null ? D.regLine : null,
+                   regFontArg) || 3.2;
+  const regFit = AERO_TEXT_FIT;   // (read now: the pieces' pages below set AERO_TEXT_FIT again)
   // LOCKED means the width is DERIVED, and it has to be derived here rather
   // than read off the spec: `regW` is only meaningful when the lock is off, and
   // a saved build that was locked carries whatever width the last font happened
@@ -2887,7 +3027,7 @@ function aeroDecalsFor(THREE, D, opts) {
   // a quarter of it, so a 300 mm marking drew 80 mm letters. The page rect is
   // the glyph box divided by what the glyphs occupy of it, and the sliders
   // mean what they say.
-  const fit = AERO_TEXT_FIT || { w: 0.86, h: 0.27 };
+  const fit = regFit || { w: 0.86, h: 0.27 };
   const pw = w / Math.max(0.05, fit.w), ph = D.regH / Math.max(0.05, fit.h);
   // THE KIT GOES ON FIRST because the shader mixes the list IN ORDER: a kit
   // layer is paint, and a registration painted under its own cheat line is a
@@ -2897,9 +3037,24 @@ function aeroDecalsFor(THREE, D, opts) {
   // LAST kit layer, never a registration or a certificate (9 slots hold the worst case today: 5 + 2 + 2)
   const kit = [], list = [];
   for (const L of aeroKitLayers(D)) { aeroKitDraw(THREE, L); kit.push(L.place); }
+  // LIVERY-TEXT: THE PIECES, over the kit (letters are read, paint is under them) and under the registration; each its
+  // own page, its height the letters' and its width the face's (no stretch: the user asked for the livery's placement)
+  for (let i = 1; i <= AERO_TXT_N; i++) {
+    const q = 't' + i, txt = aeroTxtClean(D[q + 'Txt']);
+    if (!+D[q + 'On'] || !txt.trim()) continue;
+    const page = AERO_TXT_PAGES[i - 1];
+    const asp = aeroDecalText(THREE, page, txt, D[q + 'Col'] != null ? D[q + 'Col'] : trim,
+                              D[q + 'Line'] != null ? D[q + 'Line'] : null,
+                              { face: D[q + 'Face'], b: +D[q + 'B'] || 0, i: +D[q + 'I'] || 0, sl: +D[q + 'Sl'] || 0 }) || 3;
+    const tf = (AERO_TEXT_ASPECT[page] && AERO_TEXT_ASPECT[page].fit) || AERO_TEXT_FIT;
+    const h = Math.max(0.02, +D[q + 'H'] || AERO_TXT_LDEF.H);
+    list.push({ page, sL: +D[q + 'L'] || 0, sC: +D[q + 'C'] || 0, w: h * asp / Math.max(0.05, tf.w), h: h / Math.max(0.05, tf.h),
+                rot: +D[q + 'Rot'] || 0, rough: -0.06, sdf: 1, metal: +D[q + 'Metal'] || 0,
+                on: onOf(D[q + 'Tgt']), mode: modeOf(D[q + 'Mode']), one: Math.max(0, Math.min(2, Math.round(+D[q + 'Side'] || 0))) });
+  }
   list.push({ page: 0, sL: D.regL, sC: D.regC, w: pw, h: ph,
                   rot: D.regRot, rough: -0.06, sdf: 1, metal: +D.regMetal || 0,
-                  on: onOf(D.regTarget), mode: modeOf(D.regMode) });
+                  on: onOf(D.regTarget), mode: modeOf(D.regMode), one: Math.max(0, Math.min(2, Math.round(+D.regSide || 0))) });
   if (D.wregOn) {
     const ww = D.wregH * Math.max(1.2, aspect);
     list.push({ page: 0, sL: D.wregL, sC: D.wregC, w: ww / Math.max(0.05, fit.w), h: D.wregH / Math.max(0.05, fit.h),
@@ -2914,7 +3069,9 @@ function aeroDecalsFor(THREE, D, opts) {
             ? window.AERO_EXTRA_DECALS(THREE, D) : null;
     if (X) for (const p of X) list.push(p);
   } catch (e) {}
-  return { list: kit.slice(0, Math.max(0, AERO_MAXD - list.length)).concat(list), aspect };
+  const out = { list: kit.slice(0, Math.max(0, AERO_MAXD - list.length)).concat(list), aspect };
+  AERO_LAST_FOR = { THREE, D, opts, list: out.list };   // (a face that arrives later makes this list again: aeroTxtArrived)
+  return out;
 }
 
 // THE GLAZING A SPEC ASKS FOR (G216). `finish.glass` holds DEVIATIONS from
@@ -2968,6 +3125,7 @@ function aeroSetDecals(THREE, list) {
   const U = aeroDecUniforms(THREE);
   const n = Math.min(AERO_MAXD, (list || []).length);
   U.uDecN.value = n;
+  AERO_LAST_LIST = list || null;
   for (let i = 0; i < n; i++) {
     const d = list[i], r = aeroPageRect(d.page || 0);
     U.uDecA.value[i].set(d.sL || 0, d.sC || 0,
@@ -2980,8 +3138,8 @@ function aeroSetDecals(THREE, list) {
       on.body ? 1 : 0, on.wing ? 1 : 0, on.tail ? 1 : 0);
     U.uDecE.value[i].set(d.sdf ? 1 : 0,
       Math.max(0, Math.min(1, +d.metal || 0)),
-      d.one ? 1 : 0,
-      (on.stab != null ? on.stab : on.tail) ? 1 : 0);   // y: metallic (G215)  z: one side only  w: the stabiliser (class 3)
+      d.one === true ? 1 : Math.max(0, Math.min(2, Math.round(+d.one || 0))),   // LIVERY-TEXT: 2 = the other side
+      (on.stab != null ? on.stab : on.tail) ? 1 : 0);   // y: metallic (G215)  z: one side only (1 +x, 2 -x)  w: the stabiliser (class 3)
   }
 }
 
@@ -3143,7 +3301,7 @@ function aeroFastTex(THREE, gk, G) {
 }
 
 const AERO_PARS_FS = `
-#define AERO_MAXD 9
+#define AERO_MAXD 15
 uniform sampler2D tDetail;
 uniform sampler2D tFast;
 uniform vec4 uG0;   // x framePitch  y stringerPitch  z panelAlong  w panelAround
@@ -3859,7 +4017,10 @@ const AERO_ALBEDO_FS = `
     // is the centreline fin's own half thickness, so a fin ON the centreline
     // is not cut in half by a rounding error.
     float aOne = uDecE[di].z;
-    float aSide = step(-0.02, aeroA.x) * step(0.0, vCraftNrm.x);
+    // LIVERY-TEXT (9 Nov, the user: "both sides reading right, plus a one-side switch"): 1 is the +x side (the
+    // stickers' own, the cage's port), 2 the -x side - the same two tests, the sign turned
+    float aSg = (aOne > 1.5) ? -1.0 : 1.0;
+    float aSide = step(-0.02, aeroA.x * aSg) * step(0.0, vCraftNrm.x * aSg);
     // (uDecE.x marks the letters: the one sdf page. uDecOk 0.5, a float: paint yes, letters no)
     float w = ib.x * ib.y * uDecC[di].z * onMe
             * (1.0 - uDecE[di].x * step(uDecOk, 0.75))
@@ -4522,7 +4683,8 @@ function aeroGlassTint(THREE, o) {
     m.blending = THREE.CustomBlending; m.blendEquation = THREE.AddEquation;
     m.blendSrc = THREE.ZeroFactor; m.blendDst = THREE.SrcColorFactor;
     m.uniforms = { uTint: uTint, uA: uA, uFres: uFres };
-    m.userData.aeroskin = 1; m.userData.aeroFinish = 'glassTint'; m.userData.env0 = 0;
+    if (o.exactSide) m.userData.exactSide = 1;   // (LINER-BACK: a one-sided half of a skin/liner pair)
+   m.userData.aeroskin = 1; m.userData.aeroFinish = 'glassTint'; m.userData.env0 = 0;
     AERO_BUILT.push(m);
     return m;
   }
@@ -4753,7 +4915,7 @@ function aeroMaterial(THREE, o) {
   // while the wing and the flown payload are already metric and hand over 1.
   // Pooled on a key that ignored it, whichever asked first won and the other
   // got its neighbour's scale — the tail came out with the wing's, silently.
-  const key = [o.finish, o.tint, 'L' + o.tintLin, o.surf ? 1 : 0, o.side || 0,
+  const key = [o.finish, o.tint, 'L' + o.tintLin, o.surf ? 1 : 0, o.exactSide ? 'x' + o.side : (o.side || 0),
                o.opacity != null ? o.opacity : 1,
                o.struct ? (o.grm || '') : '', 'w' + (+o.wing || 0),
                o.boxDet ? 'B' + (+o.boxPlane || 0) : '',
@@ -4863,7 +5025,10 @@ function aeroMaterial(THREE, o) {
     metalness: row.metal + (0.85 - row.metal) *
       Math.max(0, Math.min(1, +(o.metalK || 0))),
     envMapIntensity: 1.0,
-    side: o.side || THREE.DoubleSide,
+    // o.exactSide (LINER-BACK, 9 Nov): THREE.FrontSide is ZERO, so `o.side || DoubleSide` turned a FrontSide request
+    // into DoubleSide (_cage_cowl.js says so too). The lined skin must be FrontSide, its liner BackSide on the same
+    // faces, or the two fight at one depth; every other caller keeps the old fallthrough (their draws unchanged).
+    side: o.exactSide ? o.side : (o.side || THREE.DoubleSide),
     transparent: op < 1,
     opacity: op,
     depthWrite: op >= 1,
@@ -5434,6 +5599,7 @@ if (typeof window !== 'undefined')
                       aeroDecalText,
                       aeroAtlas, aeroPageRect, AERO_MAXD, AERO_ATLAS_N,
                       AERO_DEC_FONTS,
+                      AERO_TXT_FACES, AERO_TXT_N, AERO_TXT_MAX, AERO_TXT_PAGES, AERO_TXT_LDEF, AERO_TXT_FIELDS, aeroTxtClean, aeroTxtStyle, aeroTxtFont,   // LIVERY-TEXT
                       AERO_KIT, AERO_KIT_LAYERS, AERO_KIT_PAGE0, AERO_KIT_PAGES, AERO_FLAGS,
                       AERO_KIT_LDEF, AERO_KIT_FIELDS,
                       aeroKitKnob, aeroKitLayers, aeroKitDraw, aeroKitArgs, AERO_KIT_CLEAR,
@@ -5451,6 +5617,7 @@ if (typeof module !== 'undefined')
                      AERO_GLASS, AERO_SKIN_ROLES, aeroFinishFor, aeroIsSkin, GLASS_MATS, aeroGlassMat,
                      aeroLinear, AERO_TEX, AERO_MAXD, AERO_ATLAS_N,
                      aeroPageRect, AERO_DEC_FONTS,
+                     AERO_TXT_FACES, AERO_TXT_N, AERO_TXT_MAX, AERO_TXT_PAGES, AERO_TXT_LDEF, AERO_TXT_FIELDS, aeroTxtClean, aeroTxtStyle, aeroTxtFont,   // LIVERY-TEXT
                      AERO_HARD, AERO_PROP_FIN, AERO_WEAR_K, aeroHardFinish,
                      // AERO_DEC_DEF is exported to node so a gate can prove the
                      // MERGE without a canvas: `finish.decals` holds deviations,

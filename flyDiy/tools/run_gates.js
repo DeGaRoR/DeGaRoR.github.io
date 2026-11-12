@@ -121,6 +121,7 @@ const GATES = [
   // SKY S3: the atmosphere's model against its numpy mirror, the calibration, the schedule
   { id: 'FOG', file: 'test_fog.js', tier: 'core' },
   { id: 'ATMO', file: '_atmo_check.js', tier: 'core' },
+  { id: 'FMIST', file: '_fmist_check.js', tier: 'core' },   // FOREST-MIST (2026-11-10): off is identical, the map, the weather's law, the row
   { id: 'CLOUD', file: '_cloud_check.js', tier: 'core' },
   { id: 'GE', file: 'test_ground_effect.js', tier: 'core' },
   { id: 'FLAPS', file: 'test_flaps.js', tier: 'core' },
@@ -340,6 +341,10 @@ const GATES = [
   // 2/3 of the certified yield) and §7.4's gear rows (the ground loop, the porpoise, the float dig-in). Three at once
   { id: 'DMGGEAR', file: '_dmg_gear_check.js', tier: 'core', weight: 3, wall: 1800 },
   { id: 'GEARFALL', file: '_gear_fall_check.js', tier: 'core', weight: 1, wall: 120 },
+  // WILGA-GEAR (futureDesigns/WILGA-GEAR-STUDY-2026-11.md): the trailing-link oleo leg - the researched geometry, the
+  // static deflection at gross, a 23.725-style limit drop with no bottoming and the reserve drop, no pogo, the trailing
+  // arc, a broken leg drops, the drawn leg = the physics leg through the game's load chain, nothing else moved
+  { id: 'WILGAGEAR', file: '_wilga_gear_check.js', tier: 'core', weight: 1, wall: 150 },
   // G1890-G1892 (DMG-CERTCOST): the certificate's cost - its frames (exact) and its node time per build against a budget,
   // the target (~5 s) and what is left printed; its envelope against the UNCUT certificate (the stored reference while it
   // is still this physics' answer, else computed again) to the bit; the store (IndexedDB) - a record's checks, the round
@@ -401,6 +406,10 @@ const GATES = [
   // at power and its imbalance tearing the mount), the 582's gearbox, FAR 23.361 / .363 / .371 on the mount's certificate,
   // and the negatives (the circuit, a 3.8 g pull, the brakes: nothing). Three children at once
   { id: 'DMGDRIVE', file: '_dmg_drive_check.js', tier: 'core', weight: 3, wall: 1500 },
+  // NOSE-STRIKE (9 Nov, the user's report): the held brake's nose-over on the Cub and the STOL strikes the prop and reads
+  // DAMAGED (DMG.noseAt names the prop for Pilot), the strike allowance by surface (10 cm grass / trees, 1 cm hard), parked
+  // builds and the stick-back / nosewheel negatives untouched. One process
+  { id: 'DMGNOSEOVER', file: '_dmg_noseover_check.js', tier: 'core', weight: 1, wall: 300 },
   // G1818-G1819 (DMG-SKINGPU): the wreck's skin ridden on the GPU - the shader's JS mirror on the packed data against the
   // CPU's riding (0.1 mm in the world, 1 deg) on the crash cases, the tear on read-back places against the full tear, and
   // the page's code: the GPU path only past the damage guard, no material or program touched. Three at once
@@ -511,6 +520,7 @@ const GATES = [
   // shotPose); 19 mutations
   { id: 'ROLLSND', file: '_rollsnd_check.js', tier: 'core', wall: 180 },
   { id: 'PWA', file: '_pwa_check.js', tier: 'core', wall: 5 },   // G3910 (PHONE-1b): the installed app - the manifest and its icons, the pages' link, the worker never answering the page, force sync (check / clean download: only flydiy* caches and this folder's worker, never localStorage), the menu rows, the installed-mode CSS
+  { id: 'WINGSMITH', file: '_wingsmith_check.js', argv: ['--selftest'], tier: 'core', wall: 5 },   // WINGSMITH (9 Nov): the game's player-facing name from GAME_NAMES.game alone; the saves, the install's id and the storage keys untouched
   { id: 'UPDATE', file: '_update_check.js', tier: 'core', wall: 5 },   // UPDATE-NOW G1535-G1539: the "Update" pill on a differing version.json, nothing on the same build or a failed fetch, the cache-busting URL (params kept, stripped after load), the autosave before the navigation, the media worker's sweep across an update
   { id: 'UILAYER', file: '_ui_layer_check.js', tier: 'core', wall: 10 },   // G1370: the in-world helpers on the UI layer; the verbs off for the roll-out shot
   // CARDS-CORNER G3060-G3069 (the user, 12 Oct: "the certifications, the end of the flight, the crash, all of them should
@@ -521,8 +531,8 @@ const GATES = [
   // G3800 (the user's VIGNETTE): plane_thumb.js - the wiring (build order, the save / load / delete hooks, storeCard, the
   // shelves' redraw), the per-name cache by the build's hash, the baked index fetched once, draw() with no page. ~1 s
   { id: 'PLANETHUMB', file: '_plane_thumb_check.js', tier: 'core', wall: 2 },
-  // PLANE-LISTS (the user 4 Nov: "so we have an exhaustive list"): builds/lists/plane_lists.json, official / candidates / internal,
-  // nothing deleted; the pool agrees, the Market's files stay; the All planes screen's source rows, internal for the dev only;
+  // PLANE-LISTS (the user 4 Nov: "so we have an exhaustive list"): builds/lists/plane_lists.json; PLANE-LIST (the user 10 Nov):
+  // the classes (reproduction / story / original / wip for the player, next / legacy / archive for the dev), one row per plane, nothing deleted; the pool agrees, the Market's files stay; the All planes screen's source rows, internal for the dev only;
   // the empty stand's R1 and R2 (EMPTY-STAND-RELOOK). ~1 s
   { id: 'PLANELISTS', file: '_planelists_check.js', argv: ['--selftest'], tier: 'core', wall: 3 },
   // G3526-G3529 (GAME-MENUS, the user 25 Oct: "any card you show in game should be draggable"): card_drag.js - the census
@@ -574,6 +584,9 @@ const GATES = [
   // back) — B's finish, every section's material and the marking block equal
   // a clean load of B; the pool key covers every dial
   { id: 'LIVERY', file: '_livery_check.js', tier: 'core' },
+  // LIVERY-TEXT (9 Nov): six text pieces a plane in six faces fetched on first use - the slots, the pages, the stand-in
+  // and the arrival, no synthesised style, the official builds unchanged, the files and their licences
+  { id: 'LIVERYTEXT', file: '_livery_text_check.js', tier: 'core' },
   // THE WEATHERING (G345): the module's GLSL rules, its tables, its load order
   { id: 'WEATHER', file: '_weather_check.js', tier: 'core' },
   // THE SURFACE FIELD (G66): the coordinate AEROSKIN tiles and structures on
@@ -709,11 +722,18 @@ const GATES = [
   // then retries on a clock (2, 4 ... 60 s), not on every build - the old loop rebuilt it every ~280 ms in flight. The
   // page's crew + character layers headless, the user's Cub, an asset door that fails / lands late; a mutant self-test. ~20 s
   { id: 'CREWLOAD', file: '_crewload_check.js', tier: 'core', wall: 25 },
+  // CREW-SEATS (G2715, the game): the crew layer seats an accepted job (its passengers live, the chairs it took out and
+  // the build's occupants it leaves ashore off the layer) - the stand, the snapshot and the flown mesh follow, the spec
+  // stays the build's. The page's load chain on the metal Cessna, four jobs, a probe; ~1-2 min
+  { id: 'CREWSEATS', file: '_crewseats_check.js', tier: 'core', wall: 300 },
   // G134: the custom engine — thermo laws over the registry, the clamp
   // door, and the row reaching the frame; ENGID is the identity ruling
   // (untouched preset = the certified row; deviated = modified/custom)
   { id: 'ENGINE', file: '_engcustom_check.js', tier: 'core' },
   { id: 'ENGID', file: '_engid_check.js', tier: 'core' },
+  // ENGINE-DIALS (9 Nov): every registry engine a point on the custom engine's dials, to the bit; every official
+  // propeller on the cowl page's rows; a custom engine inherits nothing from its fallback key
+  { id: 'ENGINEDIALS', file: '_enginedials_check.js', tier: 'core', wall: 3 },
   // 2026-09-03: an "applies once" starter fires on a ROW change, never on a
   // LOAD — the engine preset and the cowl-for-architecture, and the three
   // doors that replace P
@@ -988,6 +1008,10 @@ const GATES = [
   { id: 'FLOATLETTERS', file: '_float_letters_check.js', tier: 'core', wall: 2 },
   // AIRCRAFT-BOARD (the user 4 Nov: the fiche, awarded on passed certification): plane_fiche.js's views, award, matte, clone, target. ~1 s
   { id: 'PLANEFICHE', file: '_plane_fiche_check.js', argv: ['--selftest'], tier: 'core', wall: 2 },
+  // WING-STRUCTURE (the user 9 Nov: the cutaway's missing wing, its structure in its place): wing_struct.js on the validated
+  // aeroplanes - the spars on their nodes and the printed rails, the ribs at the field's stations, the wires on the
+  // solver's members, the stringers at the grammar's pitch, the budget, inside the covering, no physics. ~10 s
+  { id: 'WINGSTRUCT', file: '_wingstruct_check.js', argv: ['--selftest'], tier: 'core', wall: 60 },
   { id: 'FLOATSCLASSIC-WATER', file: '_floatsclassic_check.js', argv: ['--only=water'], tier: 'full', wall: 400 },
   // THE PILOT ON THE WATER (H4, G393): the sea lane's circuit, a crosswind
   // take-off, an idle taxi on the water rudder — three flights (~8 min)
@@ -1120,6 +1144,9 @@ const GATES = [
   // each listing stands, buying stations it there, the sandbox unchanged. ~2 s (~4.5 min cold: 33 shakedowns, cached
   // in the OS temp dir by content)
   { id: 'PROCURE', file: '_procure_check.js', tier: 'core', wall: 400 },
+  // ENGINE-DIALS C (9 Nov): the validated builds' snapshots (CONTRACT_DESIGNS, FREIGHT_CARDS, PROCURE eff) are of the
+  // build files as they are - an edit is red until `node tools/snapshots.js --write` follows it
+  { id: 'SNAPSHOTS', file: 'snapshots.js', argv: ['--check'], tier: 'core', wall: 1 },
   // FREIGHT (G2340 FREIGHT-MODEL, futureDesigns/game/FREIGHT-2026-10-07.md): every validated build's hold, doors,
   // seats and plaque re-measured off its mesh = FREIGHT_CARDS (one build twice: deterministic); items with dims,
   // bulk split into bags; the door rule (a door too small refused; the 2.0 m stretcher as the geometry says); the
@@ -1144,6 +1171,10 @@ const GATES = [
   // no negative geometry (the instrumented stub caught the glazing band and
   // the stem course inside-out at the old slider floor).
   { id: 'HANGAR', file: '_hangar_check.js', tier: 'core' },
+  // THE DERELICT HANGAR (DERELICT-HANGAR, 9 Nov 2026): the works hangar as the derelict WWII hangar and the story's
+  // stages back to the works - the envelope is the works', every stage x lod inside its budget, place-keyed randomness,
+  // stage 3 IS the works build (futureDesigns/DERELICT-HANGAR-2026-11-09.md).
+  { id: 'DERELICT', file: '_derelict_check.js', tier: 'core' },
   // THE ENERGY MODULE (G97-G101): fourteen aeroplanes frozen as numbers —
   // cg0, every node mass and position, the ledger's empty/payload split and
   // the fitting list — BEFORE `spec.fuel` grows into a section with a v5->v6

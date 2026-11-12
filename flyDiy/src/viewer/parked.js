@@ -246,12 +246,24 @@
     };
     // (the join's datums too: a capture's measure leaves the PARKED aeroplane's, and the player's restore would stand its
     // floats on them)
+    // G2715 (CREW-SEATS): A PARKED AEROPLANE IS THE BUILD AS SAVED - the career's crew doors (PILOTS' hired body in the
+    // pilot's seat, the accepted load's seats) stand down while one is held (the hired pilot's body leaked into every capture
+    // before), and come back with the player's aeroplane; a door the career moved meanwhile keeps its own value
+    const crew0 = { pilot: W.FLYDIY_CREW_PILOT, job: W.FLYDIY_CREW_JOB };
+    let crewOut = true;
+    W.FLYDIY_CREW_PILOT = null; W.FLYDIY_CREW_JOB = null;
+    const crewBack = () => {
+      if (!crewOut) return;
+      crewOut = false;
+      if (W.FLYDIY_CREW_PILOT == null) W.FLYDIY_CREW_PILOT = crew0.pilot;
+      if (W.FLYDIY_CREW_JOB == null) W.FLYDIY_CREW_JOB = crew0.job;
+    };
     const unAs = () => { if (asOn && G && doors) { Object.assign(G, doors); W.FLYDIY_CG_MODEL = cg0; W.FLYDIY_MASS_MODEL = mass0; W.CAGE_DATUM = datum0; } asOn = false; };
     if (upd) G.update = () => { refused++; return G.get ? G.get() : null; };
     let viewHeld = !!(J && J.viewHold && J.viewHold());
     // (G999) the view and the spec door back ahead of the release: the player's restore is sliced under the hold
     const releaseView = () => { if (viewHeld && J.viewRelease) J.viewRelease(); viewHeld = false; };
-    const unrefuse = () => { unAs(); if (upd) G.update = upd; };
+    const unrefuse = () => { unAs(); crewBack(); if (upd) G.update = upd; };
     const later = []; let open = true;
     const realST = W.setTimeout;
     // G2220: while a parked aeroplane is held, every step runs with the editor's sit-pitch mount at the identity (the
@@ -270,7 +282,7 @@
       try { return fn(); } finally { W.setTimeout = realST; }
     };
     const release = fn => {
-      W.CAGE_ON_BUILD = onBuild; unAs(); if (upd) G.update = upd;
+      W.CAGE_ON_BUILD = onBuild; unAs(); crewBack(); if (upd) G.update = upd;
       releaseView();
       open = false;
       try { fn(); } finally {
@@ -653,16 +665,20 @@
     const A = W.AEROSKIN, vis = rec.vis, mats = vis.mats, cache = {};
     const onBlock = m => dupe(m, block);
     const spec = rec.spec;
-    const matFor = function (mn) {
-      if (cache[mn]) return cache[mn];
+    // LINER-BACK (9 Nov): the group's side - the liner (sd 'b') its back always; a lined skin (sd 'f') its front only on
+    // the level that draws the cabin (full), two-sided on the levels that leave the cabin out (nothing behind it there)
+    const matFor = function (mn, full) {
       const m = mats[mn] || { color: 0x808080 };
+      const ck = mn + (m.sd === 'f' && full ? '|F' : '');
+      if (cache[ck]) return cache[ck];
+      const side = m.sd === 'b' ? THREE.BackSide : m.sd === 'f' && full ? THREE.FrontSide : THREE.DoubleSide;
       const op = m.opacity !== undefined ? m.opacity : 1;
       if (A && m.fin) {
         if (m.fin === 'glass') {
           const g = A.aeroGlass(THREE, Object.assign(A.aeroGlassSpec ? A.aeroGlassSpec(spec) : {},
             { tintLin: m.color, opacity: op, ext: m.gext, fieldM: m.fieldM || 1,
               wear: m.wearM != null ? m.wearM : 1, screen: m.sec === 'windshield' ? 1 : 0 }));
-          return cache[mn] = onBlock(g);
+          return cache[ck] = onBlock(g);
         }
         const s = A.aeroMaterial(THREE, { finish: m.fin, tintLin: m.color,
           grm: m.grm || '', struct: m.grm ? 1 : 0, opacity: op, fieldM: m.fieldM || 1,
@@ -671,16 +687,16 @@
           wing: m.wing || 0, tileK: m.tileK, roughK: m.roughK, nrmK: m.nrmK,
           ccK: m.ccK, fieldK: m.fieldK, fieldLK: m.fieldLK, inside: m.inside || 0,
           decals: m.noDec ? 0 : m.noLet ? 0.5 : 1, memF: m.memF || null, metalK: m.metalK || 0,
-          ribM: m.ribM, wearK: m.wearK, wearM: m.wearM, side: THREE.DoubleSide });
-        return cache[mn] = onBlock(s);
+          ribM: m.ribM, wearK: m.wearK, wearM: m.wearM, side: side, exactSide: side !== THREE.DoubleSide ? 1 : 0 });
+        return cache[ck] = onBlock(s);
       }
-      if (m.panel && rec.panel && rec.panel[m.panel]) return cache[mn] = rec.panel[m.panel];
+      if (m.panel && rec.panel && rec.panel[m.panel]) return cache[ck] = rec.panel[m.panel];
       if (m.propMat && typeof W.propBuild === 'function') {
         try {
           const [pk, pm] = m.propMat.split('|');
           const b = W.propBuild(THREE, pk);
           const i = b.prop.parts.findIndex(q => q.mat === pm);
-          if (i >= 0) return cache[mn] = b.mats[i];
+          if (i >= 0) return cache[ck] = b.mats[i];
         } catch (e) {}
       }
       if ((m.lamp || m.lampCup) && W.CAGE_LIGHT) {
@@ -688,19 +704,19 @@
                   : m.lampCup && W.CAGE_LIGHT.cupMat ? W.CAGE_LIGHT.cupMat(1.0, m.lampCol, true, m.lampCup, m.lampK) : null;
         if (src) { const lm = src.clone(); lm.userData = Object.assign({}, src.userData); lm.emissiveIntensity = 0;  // pre-ok: 0: no emission
                    const hook = hookOf(src); if (hook) lm.onBeforeCompile = hook;   // clone() drops it too
-                   return cache[mn] = lm; }
+                   return cache[ck] = lm; }
       }
       if (m.ves && W.CAGE_ENERGY && W.CAGE_ENERGY.material)
-        return cache[mn] = W.CAGE_ENERGY.material({ set: m.ves, tint: m.color, hueRad: m.vesHue || 0, hueOn: !!m.vesHueOn });
+        return cache[ck] = W.CAGE_ENERGY.material({ set: m.ves, tint: m.color, hueRad: m.vesHue || 0, hueOn: !!m.vesHueOn });
       const std = new THREE.MeshStandardMaterial({
-        color: m.color !== undefined ? m.color : 0xaad4ea, side: THREE.DoubleSide,
+        color: m.color !== undefined ? m.color : 0xaad4ea, side,
         transparent: op < 1, opacity: op, depthWrite: op >= 1,
         ...(m.alphaTest ? { alphaTest: m.alphaTest } : {}),
         roughness: m.rough !== undefined ? m.rough : 0.72, metalness: m.metal !== undefined ? m.metal : 0 });
       // a plain inside bucket takes the cabin's darkness through the small hook —
       // its own instance already, so the block goes straight on
       if (m.inside && A && A.aeroCabinHook) { A.aeroCabinHook(THREE, std, 1); if (block) std.userData.aeroD = block; }
-      return cache[mn] = std;
+      return cache[ck] = std;
     };
     matFor.block = block;
     // THE PANE'S MULTIPLY PASS (aeroskin.js's glass family: a pane is a
@@ -742,7 +758,7 @@
       const m = vis.mats[k];
       if (!full && isInterior(m)) return;
       const geo = geos.get(g) || (geos.set(g, geoOf(THREE, g)), geos.get(g));
-      const mesh = new THREE.Mesh(geo, matFor(k));
+      const mesh = new THREE.Mesh(geo, matFor(k, full));
       const clear = isClear(m);
       mesh.renderOrder = clear ? 10 : 0;
       mesh.castShadow = !clear; mesh.receiveShadow = true;

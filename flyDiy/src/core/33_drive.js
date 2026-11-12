@@ -65,7 +65,16 @@ const GEN_DRIVE = {
   // a bent prop's thrust; the vibration of each tier
   // (turf: a disc on soft ground mows the grass's top `turf` m before its tips meet the soil - not a strike; the metal
   // Cessna's disc sits 1.1 cm into the ground settled on its nosewheel, 4.2 cm in the spawn's settle, HANDOVER G1824)
-  strike: { turf: 0.05, brush: 0.04, stop: { soft: 0.15, water: 0.25, rigid: 0.04 }, sep: { wood: 120, maple: 120, walnut: 120, carbon: 120, alu: 200 },
+  // NOSE-STRIKE (9 Nov, the user: "10 cm on grass and trees ... 1 cm over hard ground, so there's a little margin for
+  // error"): the allowance is the SURFACE's (20_world SURFACE order: GRASS, ROCK, SCREE, FOREST_FLOOR, WATER, PAVED,
+  // GRAVEL, SAND) - 10 cm on the soft ground (grass, the forest floor, sand), 5 cm on the loose (scree, gravel), 1 cm on
+  // the hard (rock, paved); the water has its own test (none); off the map's surfaces (-1) the grass's (`turf`)
+  turfS: [0.10, 0.01, 0.05, 0.10, 0, 0.01, 0.05, 0.10],
+  // TAXI-STRIKE (9 Nov, Deform's 172 diag: full power, the nose pushed down at 3.5 m/s on HOME's runway - the disc bit the
+  // paving, graded a 'soft' separation (tip 236 > 200 m/s, bite under 15 % R), and the engine ran on at 2370 rpm into the
+  // runway until the mount tore off): 'hard' is the ground the turf table calls hard (rock, paving) - past the brush the
+  // prop STOPS there, as on a trunk (Lycoming SB 533: a strike at power on a hard surface is a sudden stoppage)
+  strike: { turf: 0.10, brush: 0.04, stop: { soft: 0.15, water: 0.25, rigid: 0.04, hard: 0.04 }, sep: { wood: 120, maple: 120, walnut: 120, carbon: 120, alu: 200 },
             sepWater: 1.6,   // the water gives more than the soil: a blade breaks there only past 1.6 x its tip speed (an
                              // ordinary bow-in at 0.2 throttle dipped the twin's carbon tips 4.6 % of R at 128 m/s)
             bentK: 0.6, vib: { brush: 0.1, bent: 0.6, stoppage: 0, separation: 1 },
@@ -102,15 +111,18 @@ function genDriveTorqueFactor(cyl, family) {
 function genDriveSpec(def) {
   const P = (def && def.params) || {}, PP = typeof POWERPLANTS !== 'undefined' ? POWERPLANTS[P.powerplant] : null;
   const E = P.engine || (PP && PP.engine) || {}, PR = P.prop || (PP && PP.prop) || {}, SP = (def && def.spec && def.spec.prop) || {};
-  const row = GEN_DRIVE.eng[P.powerplant] || {};
+  // ENGINE-DIALS (2026-11-09): A CUSTOM ENGINE READS NOTHING OFF THE TABLE'S ROW - its powerplant key is the join's
+  // fallback (the A-65's: four cylinders), never its engine; its own row carries its cylinders and its maximum
+  const custom = !!(def && def.spec && Array.isArray(def.spec.engines) && def.spec.engines[0] && def.spec.engines[0].custom);
+  const row = custom ? {} : (GEN_DRIVE.eng[P.powerplant] || {});
   const rated = E.rpm > 0 ? E.rpm : 2300, gear = E.gear > 0 ? E.gear : 1;
-  const cyl = row.cyl || (E.layout === 'radial' ? 7 : GEN_DRIVE.famCyl[E.family] || 4);
+  const cyl = (custom && E.cyl > 0 ? E.cyl : row.cyl) || (E.layout === 'radial' ? 7 : GEN_DRIVE.famCyl[E.family] || 4);
   const D = PR.D > 0 ? PR.D : 1.8, R = D / 2;
   const mass = SP.mass > 0 ? SP.mass : (2 * 2.4 * CORE_MATH.pow(D / 1.88, 2.5));
   const blades = SP.blades > 0 ? SP.blades : 2, mat = SP.material || 'wood';
   const omegaR = 2 * Math.PI * (rated / gear) / 60;
   const Q = (E.powerW || 0) / (2 * Math.PI * rated / 60);       // the engine's mean torque at rated (N m, crank)
-  return { rated, rpmMax: row.rpmMax || rated, gear, cyl, family: E.family || 'four', cs: !!E.cs, powerW: E.powerW || 0,
+  return { rated, rpmMax: (custom && E.rpmMax > 0 ? E.rpmMax : row.rpmMax) || rated, gear, cyl, family: E.family || 'four', cs: !!E.cs, powerW: E.powerW || 0,
            Q, Qprop: Q * gear, tqK: genDriveTorqueFactor(cyl, E.family), D, R, mass, blades, mat, omegaR,
            I: GEN_DRIVE.Ik * mass * R * R, sepTip: GEN_DRIVE.strike.sep[mat] || GEN_DRIVE.strike.sep.wood,
            hub: GEN_NOSE.hub[mat] != null ? GEN_NOSE.hub[mat] : GEN_NOSE.hub.wood,   // G2035: the hub's depth (the disc's band)
@@ -154,11 +166,20 @@ function genDriveOverspeed(st, ratio, dt) {
   if (lvl >= 2) st.teardown = true;
   return failed;
 }
-// THE STRIKE'S TIER from the bite (m), the disc's radius, the surface ('soft' | 'water' | 'rigid') and the tip speed at
+// THE STRIKE'S TIER from the bite (m), the disc's radius, the surface ('soft' | 'hard' | 'water' | 'rigid') and the tip speed at
 // contact (m/s) against the blade's own (genDriveSpec sepTip): 1 brush, 2 bent, 3 stoppage, 4 separation
 const GEN_DRIVE_STRIKE = [null, 'brush', 'bent', 'stoppage', 'separation'];
 // (G2036: `eR` the turning prop's energy over a brittle blade's rupture work, 0.5 I w^2 / Ub - given for a brittle blade on
 // a rigid obstacle, where it grades past the brush alone: >= 1 the blade breaks (separation), < 1 the prop stops whole)
+// NOSE-STRIKE: the allowance on a surface code (20_world SURFACE; -1 or unknown: the grass's)
+function genDriveTurf(s) {
+  const T = GEN_DRIVE.turfS;
+  return s >= 0 && s < T.length ? T[s] : GEN_DRIVE.strike.turf;
+}
+// TAXI-STRIKE: the strike's surface on a surface code - 'hard' where the turf table gives the hard ground's allowance
+// (rock, paving: 1 cm), else 'soft'
+function genDriveGround(s) { return s >= 0 && s < GEN_DRIVE.turfS.length && GEN_DRIVE.turfS[s] > 0 && GEN_DRIVE.turfS[s] <= 0.01 ? 'hard' : 'soft'; }
+
 function genDriveStrikeTier(bite, R, surf, tip, sepTip, eR) {
   const S = GEN_DRIVE.strike, r = bite / (R || 1);
   if (!(r > 0)) return 0;

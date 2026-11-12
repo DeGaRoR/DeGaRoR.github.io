@@ -190,6 +190,13 @@ console.log('1. OFF IS THE BITS (' + Object.keys(CARDS).length + ' cards against
         ok(Object.keys(C.genStolCageOff(Object.assign({}, HULL_ROW_OFF))).length === 0,
            'the hull-types rows\' "off" here is the core\'s (genStolCageOff drops all ' + Object.keys(HULL_ROW_OFF).length + ')');
       for (const r of Object.keys(HULL_ROW_OFF)) if (J2.cage && J2.cage[r] === HULL_ROW_OFF[r]) delete J2.cage[r];
+      // REAL-FIGURES-3: the engine's tune and build dials (eng_bmepK, eng_massK) the load door writes at their neutral 1
+      // (the core's GEN_CAGE_ROW_NEUTRAL, which genStolCageOff drops) go as the STOL and hull rows go
+      const NEU = C.GEN_CAGE_ROW_NEUTRAL || {};
+      if (k === Object.keys(BUILDS)[0])
+        ok(Object.keys(NEU).length > 0 && Object.keys(C.genStolCageOff(Object.assign({}, NEU))).length === 0,
+           'the neutral engine dials here are the core\'s (genStolCageOff drops all ' + Object.keys(NEU).length + ')');
+      for (const r of Object.keys(NEU)) if (J2.cage && J2.cage[r] === NEU[r]) delete J2.cage[r];
       const sameSpec = atDef && JSON.stringify(J2) === JSON.stringify(B.spec);
       // G2827: EVERY key the game hashes a build by is master's - the certificate (against the page's defaults), the
       // parked fleet's bakes (no defaults: parked.js fleetSig), the certificate store's (genCertKey), the procurement's
@@ -741,7 +748,10 @@ if (!BENCH_ONLY) {
     ok(!gO.landsFlapless && v0 <= gO.VsFlap * 1.01 && mO.Vs0 === v0,
        `the elevator holds the slatted stall in the flare on its own tank: the ladder's Vs0 ${kmh(v0)} km/h, the wing's ${kmh(gO.VsFlap)}, flaps down`);
     console.log(`       on the stock's tank (${JSON.stringify(J.fuel)}) the elevator holds ${kmh(gK.VsFlapAP === undefined ? gK.VsFlap : gK.VsFlapAP)} km/h, the wing's ${kmh(gK.VsFlap)}`);
-    ok(mK.Vref <= 0.92 * mS.Vref, `a slower approach: Vref ${kmh(mK.Vref)} km/h (stock ${kmh(mS.Vref)})`);
+    // G2811 + G2813 (rule b, the check updated for a meant change): THE STOCK NOW LANDS ON ITS NOTCH. Measured against a
+    // flapless stock (74.8 km/h, 0.92 asked); the landing notch flies the stock Cub's approach at 67.2 km/h, the kit's 64.0:
+    // still slower, by 0.952 - asked 0.96
+    ok(mK.Vref <= 0.96 * mS.Vref, `a slower approach: Vref ${kmh(mK.Vref)} km/h (stock ${kmh(mS.Vref)})`);
     const L = dK.parts.ledger;
     ok(L.stol && L.stol.mass > 5, `the kit is billed: ${L.stol && L.stol.mass.toFixed(1)} kg, ${L.stol && Math.round(L.stol.cost)}`);
     const dc = (shK.design && shK.design.rows) || [];

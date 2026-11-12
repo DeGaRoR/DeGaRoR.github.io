@@ -75,7 +75,10 @@ for (const g of ROWS) {
 // every saved build and move every key the game hashes it by. A build that never moved it carries no key; the row
 // shows its `absent` value, and the generator is handed that value whenever the key is absent (below).
 // G3914: the nacelle inlet's rows too - absent at their defaults (no saved build gains a key)
-const ABSENT_AT = { wAftTop: 1, wAftBot: 1, inletOn: 0, inletW: 0.42, inletH: 0.42, inletLip: 0.014, inletDuct: 0.22, inletY: 0 };
+const ABSENT_AT = { wAftTop: 1, wAftBot: 1, inletOn: 0, inletW: 0.42, inletH: 0.42, inletLip: 0.014, inletDuct: 0.22, inletY: 0,
+  faceRing: 0, waistF: null,
+  exitGap: 0, exitSpan: 140, exitLen: 0.45, exitHold: 0, keelShoulder: null, keelRound: null, deckShoulder: null, deckRound: null, scoopFollow: 0, scoopHold: 0, scoopWFit: 0, scoopTaperH: 1, scoopTaperW: 1, lobeCount: 0, lobeT2: null, lobeStream: 0, lobeNose: 0.94, lobeTail: 0.04, partLevel: 0, partArc: 0, podFit: 0, lidRW: null, lidRTop: null, lidRBot: null, exRampH: 0.04, exCut: 0, exCutSpan: 50, exCutLen: 0.12, exCutAz: 270,
+  gillOn: 0, gillN: 6, gillZ: 0.35, gillL: 0.22, gillH: 0.12, gillSlant: 25, gillLip: 0.012, gillT: 0.004 };   // PROPER-COWLS: the exit   // PROPER-COWLS: faceRing, waistF (null = follows waist)
 const cowlDef = { cowlOn: 1, fitNose: 2, cowlGap: 0.0 };
 for (const k of SHOWN) if (!(k in ABSENT_AT)) cowlDef['cw_' + k] = CW.P[k];
 PAGE.defaults = Object.assign(cowlDef, PAGE.defaults || {});
@@ -109,7 +112,16 @@ const groupItems = g => g.rows
     const w = r.when ? panelWhen(r.when) : null;
     const o = {};
     if (w) o.when = w;
-    if (r.k in ABSENT_AT) o.absent = ABSENT_AT[r.k];      // CABIN-CRAFT
+    if (r.k in ABSENT_AT && ABSENT_AT[r.k] != null) o.absent = ABSENT_AT[r.k];      // CABIN-CRAFT
+    // PROPER-COWLS: the front's waist FOLLOWS the firewall's (the follow box, ticked while the key is absent)
+    if (r.k === 'waistF') o.follow = () => (LIVE_P && LIVE_P.cw_waist != null ? +LIVE_P.cw_waist : null);
+    if (r.k === 'lidRW' || r.k === 'lidRTop' || r.k === 'lidRBot')
+      o.follow = () => (LIVE_P ? (+LIVE_P.cw_lidMode === 1 ? +LIVE_P.cw_spinR + +LIVE_P.cw_lidGap : +LIVE_P.cw_lidR) : null);
+    if (r.k === 'lobeT2') o.follow = () => (LIVE_P && LIVE_P.cw_lobeT != null ? +LIVE_P.cw_lobeT : null);
+    if (r.k === 'keelShoulder') o.follow = () => (LIVE_P && LIVE_P.cw_lidShoulder != null ? +LIVE_P.cw_lidShoulder : null);
+    if (r.k === 'keelRound') o.follow = () => (LIVE_P && LIVE_P.cw_lidRound != null ? +LIVE_P.cw_lidRound : null);
+    if (r.k === 'deckShoulder') o.follow = () => (LIVE_P && LIVE_P.cw_lidShoulder != null ? +LIVE_P.cw_lidShoulder : null);
+    if (r.k === 'deckRound') o.follow = () => (LIVE_P && LIVE_P.cw_lidRound != null ? +LIVE_P.cw_lidRound : null);
     if (Object.keys(o).length) it.push(o);
     return it;
   });
@@ -526,6 +538,21 @@ function nacGearFit(mesh, FS, P, W, face) {
 }
 const cowledPusher = P => P && (P.cowlOn == null || +P.cowlOn) &&
   [1, 4].includes(Math.round(+P.engMount || 0));
+// PROPER-COWLS (2026-11-08): A POD'S PLATE IS THE POD'S SIZE. Off the body the engine draws its own mount plate on the
+// synthetic face, at a fixed size (0.16 x 0.14 over the wing, 0.20 x the wing's depth on a nacelle) - and a pod drawn
+// tight round its engine (a cowl on, free - fitNose 0 - closed by the tail cone, aftMode 1) showed that plate's
+// corners and the mount's spread through its sides. Such a pod hands the face its own half-width and half-height; any
+// other cowl, and every cowl-less engine, keeps the fixed plate it always had.
+const podPlate = (P, face) => {
+  // (absent cw_podFit = 0, ABSENT_AT: a saved pod keeps the fixed plate it was drawn with - Q1, saved draws never move)
+  if (!P || !(+P.cw_podFit) || !(+P.cowlOn) || Math.round(+P.fitNose || 0) !== 0 || Math.round(+P.cw_aftMode || 0) !== 1) return face;
+  const w = +P.cw_aftW, h = +P.cw_aftH;
+  // ...AND NO PLATE AT ALL (the user, 9 Nov: "there seem to be a flat plate between the cowl and the nacelle, it should
+  // not be there, at all"): the pod is the engine's housing; a rectangle the pod's half-sizes stood out of its rounded,
+  // uneven section at the corners and the top. `podSized` tells the engine layer to draw no plate (the mount's spread
+  // still reads the size, inside the pod).
+  return (w > 0 && h > 0) ? Object.assign(face, { halfW: w, halfH: h, podSized: true }) : face;
+};
 function engineFaces(mesh, FS, P) {
   const mount = Math.round((P && P.engMount) || 0);
   if (mount >= 4 && mount <= 7) {
@@ -641,18 +668,18 @@ function engineFaces(mesh, FS, P) {
       const pf = Math.max(-0.6, Math.min(0.8, +P.engPylonFwd || 0));
       const zF = zP + 0.10 + pf, zR = zP - 0.45 + pf, yR = topAt(zP), yP = pf ? topAt(zP + pf) : yR, yFF = topAt(zF), yFR = topAt(zR);
       if (yR == null) return [];
-      return [{ face: { z: zP, yc: yR + hp + by, x: 0, halfW: 0.16, halfH: 0.14, uv: null, waist: 0,
+      return [{ face: podPlate(P, { z: zP, yc: yR + hp + by, x: 0, halfW: 0.16, halfH: 0.14, uv: null, waist: 0,
                         synthetic: 1, yBase: yR, chord: 0.9, onRoof: true, aftRoof: true, pylonFwd: pf,
-                        foot: { x: 0.10, y: yP != null ? yP : yR, zF, zR, yF: yFF != null ? yFF : yR, yR: yFR != null ? yFR : yR } },
+                        foot: { x: 0.10, y: yP != null ? yP : yR, zF, zR, yF: yFF != null ? yFF : yR, yR: yFR != null ? yFR : yR } }),
                 aft, kind: 'wingTop' }];
     }
-    return [{ face: { z: le.z - 0.30 * ch + bz, yc: le.yTop + hp + by, x: 0,
+    return [{ face: podPlate(P, { z: le.z - 0.30 * ch + bz, yc: le.yTop + hp + by, x: 0,
                       halfW: 0.16, halfH: 0.14, uv: null, waist: 0,
                       synthetic: 1, yBase: onRoof ? le.yBot : le.yTop, chord: ch, onRoof,
                       // G3913: THE MOUNT'S FEET (the engine layer draws the pylon's bars to them): the front and rear
                       // spars' stations at the root (a quarter and two thirds of the chord), on the wing's top skin
                       // either side - the frame braces the pylon's pair to both roots' spars (61_gen_frame)
-                      foot: { x: footX, y: le.yTop, zF: le.z - 0.20 * ch, zR: le.z - 0.62 * ch } },
+                      foot: { x: footX, y: le.yTop, zF: le.z - 0.20 * ch, zR: le.z - 0.62 * ch } }),
               aft, kind: 'wingTop' }];
   }
   if (mount === 3) {
@@ -721,7 +748,8 @@ function engineFaces(mesh, FS, P) {
                      uv: null, waist: 0, synthetic: 1 };
       const gf = aft ? null : nacGearFit(mesh, FS, P, W, face);
       if (gf) Object.assign(face, { yc: face.yc + gf.dy, halfW: gf.halfW, halfH: gf.halfH, gearFit: gf });
-      out.push({ face, aft, kind: 'nacelle' });
+      // PROPER-COWLS: a pod's own size, unless the nacelle is fitted round its gear (HULL's gearFit wins)
+      out.push({ face: gf ? face : podPlate(P, face), aft, kind: 'nacelle' });
     }
     return out;
   }
@@ -1507,6 +1535,7 @@ function cowlPlace(ctx, again) {
   // that say this panel comes off. Guarded, because the cowl module is shared
   // with a bench that may predate them.
   if (CW.buildDetail) CW.buildDetail(cowl, M);
+  if (CW.buildGills) CW.buildGills(cowl, M);          // PROPER-COWLS: the side gills (off unless gillOn)
   // THE INSIDE OF THE SHELL (G243.1, the user, with the back faces of the
   // barrel ringed on a screenshot: "I meant the inside faces of the cowl").
   // Every skin mesh gets a TWIN in the interior's material, BackSide, so

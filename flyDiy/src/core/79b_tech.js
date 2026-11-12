@@ -58,7 +58,7 @@ const TECH_SEGS = {
 const TECH_TABLE = {
   // ---- materials
   'mat:tubeFabric': 1, 'mat:wood': 1, 'mat:alloy': 2, 'mat:aluTube': 2, 'mat:carbon': 3, 'mat:glass': 3,
-  'surf:fabric': 1, 'surf:steel': 1, 'surf:alloy': 2, 'surf:aluFabric': 2, 'surf:carbon': 3, 'surf:glass': 3,
+  'surf:fabric': 1, 'surf:steel': 1, 'surf:alloy': 2, 'surf:aluFabric': 2, 'surf:carbon': 3, 'surf:glass': 3, 'surf:fabricAlu': 2,
   // ---- engines
   'eng:a65_sensenich74': 1, 'eng:vw2180_wood': 1, 'eng:rotax277_pusher': 1, 'eng:rotax503_wood': 1, 'eng:rotax582_ivo': 1,
   'eng:jabiru2200_std': 1, 'eng:rotax912_warp': 1, 'eng:o200_eprops': 1, 'eng:mikron3_wood': 1, 'eng:gipsymajor1_wood': 1,
@@ -74,6 +74,7 @@ const TECH_TABLE = {
   'prop:wood': 1, 'prop:maple': 1, 'prop:walnut': 1, 'prop:alu': 1, 'prop:carbon': 1,
   'pitch:climb': 1, 'pitch:standard': 1, 'pitch:cruise': 1,
   'pitch:seaplane': 1,   // (G3445 FLOAT-KIT, 22 Oct: the float prop's fine pitch, added after the table - off the shelf as every pitch, and floats are 1)
+  'pitch:auto': 1,   // (ENGINE-DIALS B: the pitch row's automatic pick - off the shelf, as every pitch)
   // ---- systems / avionics
   'fit:minimal': 1, 'fit:basic': 1, 'fit:custom': 1, 'fit:ifr': 2,
   'elec.battery:none': 1, 'elec.battery:lead': 1, 'elec.battery:lithium': 3,
@@ -94,7 +95,7 @@ const TECH_TABLE = {
   'av.gps:none': 1, 'av.gps:portable': 3, 'av.gps:panel': 3, 'av.gps:glass': 3, 'av.gps:flat': 3, 'av.gps:flatPair': 3,   // G2815
   // ---- gear
   'gear:taildragger': 1, 'gear:floats': 1, 'gear:tricycle': 2, 'gear:hull': 2,
-  'susp:bungee': 1, 'susp:spring': 1, 'susp:oleo': 1,
+  'susp:bungee': 1, 'susp:spring': 1, 'susp:oleo': 1, 'susp:lever': 2,   // (WILGA-GEAR: the trailing-link oleo leg, the tricycle's stage)
   'fair:glass': 1, 'fair:alloy': 2, 'fair:carbon': 3,
   // ---- canopy / glazing
   'glaze:acrylic': 1, 'glaze:glass': 1, 'glaze:polycarbonate': 2,
@@ -148,7 +149,11 @@ function techKeysOfSpec(spec) {
   for (const w of (Array.isArray(S.wings) ? S.wings : [])) { const m = w && surf(w.material); if (m) add('surf:' + m); }
   for (const f of ['finMaterial', 'stabMaterial']) { const m = S.tail && surf(S.tail[f]); if (m) add('surf:' + m); }
   const E = Array.isArray(S.engines) && S.engines.length ? S.engines : (D.engines || []);
-  for (const e of E) if (e && e.type) add('eng:' + e.type);
+  // (ENGINE-DIALS: a custom engine is its FAMILY's - the shop that can build that kind of engine - never the registry row
+  // of the join's fallback key, the A-65's, which put a custom turbine in the first segment)
+  const famOf = cu => { const f = cu.family || (cu.aspiration === 'electric' ? 'electric' : cu.aspiration === 'turbine' ? 'turbine' : 'four');
+                        return Object.keys(TECH_FAMILIES).find(g => TECH_FAMILIES[g].includes(f)) || 'piston'; };
+  for (const e of E) if (e && e.custom && typeof e.custom === 'object') add('fam:' + famOf(e.custom)); else if (e && e.type) add('eng:' + e.type);
   if (E.length > 1) add('cfg:twin');
   const pr = S.prop || {};
   add('prop:' + (pr.material || 'wood'));
@@ -237,7 +242,7 @@ function careerTechUnlock(doc, seg) {
 // (_cage_join.js: intCons' order, the surfaces' CONS4 after 'as the aeroplane', glazeMat, the canopy tile, fairCons, the
 // nacelle mount, the powertrain). Two rows read the page's tables, handed in by the editor: `engPreset` (the row's
 // names through CAGE_JOIN_ENGINES) and `cw_material` (CAGE_JOIN_PROP_MATS). GATE TECH holds every list to the join.
-const TECH_SURF_ROW = [null, 'surf:carbon', 'surf:steel', 'surf:fabric', 'surf:alloy', 'surf:aluFabric', 'surf:glass'];
+const TECH_SURF_ROW = [null, 'surf:carbon', 'surf:steel', 'surf:fabric', 'surf:alloy', 'surf:aluFabric', 'surf:glass', 'surf:fabricAlu'];
 const TECH_ROWS = {
   intCons: ['mat:carbon', 'mat:tubeFabric', 'mat:wood', 'mat:alloy', 'mat:aluTube', 'mat:glass'],
   wgCons: TECH_SURF_ROW, w2Cons: TECH_SURF_ROW, finCons: TECH_SURF_ROW, stCons: TECH_SURF_ROW,
@@ -248,6 +253,11 @@ const TECH_ROWS = {
   // spec with more than one engine)
   engMount: [null, null, null, 'cfg:twin', 'cfg:twin', 'cfg:twin', 'cfg:twin', 'cfg:twin', null],   // (HULL-B22: 8 the fin)   // (HULL-B15: 7 the tandem)
   engPower: ['fam:piston', 'fam:electric', 'fam:turbine'],
+  // WILGA-GEAR: the mains' leg row - only the trailing-link option is gated (the other four keep their reading by the
+  // spec's suspension, unchanged)
+  s1Leg: [null, null, null, null, 'susp:lever'],
+  // ENGINE-DIALS B: the propeller's pitch row (_cage_eng.js PROP_PITCHES, in its order)
+  propPitch: ['pitch:auto', 'pitch:climb', 'pitch:standard', 'pitch:cruise', 'pitch:seaplane'],
 };
 // a row's keys, per option index; ctx: { names (the row's own option names), engines (CAGE_JOIN_ENGINES), propMats
 // (CAGE_JOIN_PROP_MATS) } -> [key | null] or null (a row the mask does not read)
@@ -264,6 +274,7 @@ function techKeysOfPatch(p) {
   const out = [];
   if (!p || typeof p !== 'object') return out;
   if (p.gear && TECH_GEAR_TYPES.includes(p.gear.type)) out.push('gear:' + p.gear.type);
+  if (p.gear && p.gear.suspension === 'lever') out.push('susp:lever');                // WILGA-GEAR (the design tile's option)
   if (p.systems && p.systems.fit) out.push('fit:' + p.systems.fit);
   if (Array.isArray(p.engines)) { for (const e of p.engines) if (e && e.type) out.push('eng:' + e.type); if (p.engines.length > 1) out.push('cfg:twin'); }
   if (p.fuselage && p.fuselage.material) out.push('mat:' + p.fuselage.material);

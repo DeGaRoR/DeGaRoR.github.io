@@ -29,7 +29,7 @@
 // (`userData.partOf`) and the join bakes them into it, so nothing on the
 // twin's tail parts from its fin, stab or boom under the anchor throw.
 //
-// ECONOMY: four builds (stock, rod boom, twin boom, stock+IFR wing tank),
+// ECONOMY: six builds (stock, rod boom, twin boom, stock+IFR wing tank, stock+panel, the corrected C172),
 // one headless scene each, trees built once per skin and rebuilt only for a
 // skin that moved in the pose. Timing is printed, never a verdict.
 //
@@ -42,6 +42,7 @@
 const path = require('path');
 const fs = require('fs');
 const SH = require('./_scene_headless.js');
+const LB = require('./_load_build.js');
 const MQ = require('./_mesh_query.js');
 const PH = require('./_pose_headless.js');
 
@@ -350,13 +351,30 @@ const BUILDS = [
   { name: 'stock+ifr', garage: IFR, over: { ...KEEL } },
   // G3xx: the door inner panel on — the wall controls must stand off it
   { name: 'stock+panel', over: { doorPanelOn: 1, ...KEEL } },
+  // C172-CLIP (9 Nov 2026, AVIONICS-PFD-LAND via A0): THE Cessna, the corrected 172, through the load door. Given as
+  // BOTH spec and garage: the spec alone draws its body without GARAGE_SPEC (its radio aerials drop), the garage alone
+  // draws the stock body. When the V2-172 (builds/cessna172r_2026-11-08.json) is official, this entry swaps to it.
+  { name: 'c172', file: 'builds/cessna172_2026-09-20_corrected.json' },
 ];
+for (const B of BUILDS) if (B.file) { B.spec = B.garage = LB.loadBuild(B.file).spec; }
+
+// DECLARED GAPS (C172-CLIP, A0 9 Nov 2026): a crossing the aeroplane really has and the drawing cannot yet show
+// properly. Each entry is EXACT - one build, one fitting, one skin (every pose), a depth it may not exceed and its
+// written reason, said in HANDOVER. It prints GAP with the reason and is not counted; deeper than its depth, or any
+// fitting not listed, is red as before. The honest fix of each is a garage row (REF_MATCH.md section 7).
+const DECLARED = {
+  'c172|edLegT [gear]|INTO fuselage': { mm: 20.0,
+    why: 'the 172\'s nose strut enters the lower cowl, as on the type; physics-bound (only s2AxZ, the nosewheel\'s station, ' +
+         'clears it); the honest fix is a strut boot where a leg passes the skin (garage gap)' },
+};
+const declKey = f => f.build + '|' + f.label + '|' + (f.cross ? 'INSIDE ' : 'INTO ') + f.skin;
 
 function fmt(f) {
   return (f.declared ? 'GAP  ' : 'FAIL ') + f.build + '/' + f.pose + ': ' + f.label + ' ' + mm(f.depth) +
     (f.cross ? ' INSIDE ' : ' INTO ') + f.skin + ' (allow ' + mm(f.allow) + '), ' +
     (f.frac * 100).toFixed(0) + '% of ' + f.nv + ' v buried, at (' + f.at.map(v => v.toFixed(2)).join(', ') + ')' +
-    (f.pose !== 'rest' ? (f.moved === f.skinMoved ? '' : (f.moved ? ' — the fitting moves, the skin does not' : ' — the skin moves, the fitting stays')) : '');
+    (f.pose !== 'rest' ? (f.moved === f.skinMoved ? '' : (f.moved ? ' — the fitting moves, the skin does not' : ' — the skin moves, the fitting stays')) : '') +
+    (f.declared ? ' — DECLARED: ' + f.declared : '');
 }
 
 const keyOf = f => f.build + '|' + f.pose + '|' + f.label + '|' + (f.cross ? 'INSIDE ' : 'INTO ') + f.skin;
@@ -382,6 +400,8 @@ function main() {
     const fs2 = [...byKey.values()].sort((a, b) => b.depth - a.depth);
     let nRed = 0, nKnown = 0, nGap = 0;
     for (const f of fs2) {
+      const dc = DECLARED[declKey(f)];
+      if (dc && f.depth <= dc.mm / 1000 + RATCHET) f.declared = dc.why;
       const k = keyOf(f), b = base[k];
       f.known = b != null && f.depth <= b / 1000 + RATCHET;
       if (f.declared) nGap++; else if (f.known) nKnown++; else nRed++;

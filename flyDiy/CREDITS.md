@@ -1502,3 +1502,28 @@ Radio Jolene's talk (`media/audio/voice/`, 352 takes, 35 minutes), rendered offl
 - `chinook2s.cec14f3e.png` — a three-view of the Birdman Chinook 2S. **Source and licence unknown**: supplied by the
   user to refine the shed's Chinook (G573.1). Marked `release: false` in the library; GATE BLUEPRINT lists it on every
   run. **Delete the image, its library row and this line before a release.**
+
+## Livery lettering faces (`media/fonts/`, fetched on first use)
+
+Six typefaces for the text pieces of a livery (LIVERY-TEXT, 9 Nov 2026), all from github.com/google/fonts and all
+under the **SIL Open Font License 1.1**; each family's licence is kept verbatim beside its files
+(`media/fonts/OFL-<family>.txt`).
+
+- **Barlow Condensed** (SemiBold, Bold and their italics) — Copyright 2017 The Barlow Project Authors
+  (https://github.com/jpt/barlow).
+- **Jost** (Medium, Bold and their italics, cut from the variable font) — Copyright 2020 The Jost Project Authors
+  (https://github.com/indestructible-type).
+- **Great Vibes** — Copyright 2015 The Great Vibes Pro Project Authors (https://github.com/googlefonts/great-vibes).
+- **Lobster Two** (Regular, Bold and their italics) — Copyright (c) 2011, Pablo Impallari (www.impallari.com),
+  Copyright (c) 2011, Igino Marini (www.ikern.com), with Reserved Font Names "Lobster" and "Lobster Two".
+- **Stardos Stencil** (Regular, Bold) — Copyright (c) 2011 by vernon adams, with Reserved Font Names "Stardos" and
+  "Stardos Stencil".
+- **Alfa Slab One** — Copyright 2016 The Alfa Slab One Project Authors (http://www.jmsole.cl), with Reserved Font
+  Name "Alfa Slab".
+
+Modifications, as the licence asks to be stated: Barlow Condensed, Jost and Great Vibes are **subset** (Basic Latin,
+Latin-1, Latin Extended-A, common punctuation; hinting removed; Jost instanced at 500 and 700) and converted to WOFF2
+by `fontTools` (the cutter is kept in the project notes beside the faces' study). The three families with a Reserved
+Font Name are **not modified**: their original files ship whole, only wrapped as WOFF 1.0 by
+`tools/livery_fonts_prep.js`, which proves every table unwraps to the original bytes. The IBM Plex faces the game
+already uses (`vendor/fonts/`) are also OFL 1.1, Copyright IBM Corp.

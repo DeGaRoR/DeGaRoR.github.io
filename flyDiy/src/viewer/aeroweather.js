@@ -111,7 +111,7 @@ const AERO_WX_GLOSS_OK = ['tar'];
 // THE KNOBS the shader reads as two vec4s (all in the lab)
 const AERO_WX_KNOB = {
   dustFlat:  0.60,   // uWxR.x  how far dust fills the microsurface (normal -> smooth)
-  ccRough:   0.50,   // uWxR.y  clear-coat roughness a full cover adds
+  ccRough:   0.85,   // uWxR.y  clear-coat roughness a full cover adds (DIRT-MATTE 9 Nov: 0.50 left a glossy lobe on dusty varnish at a low sun)
   kappaMax:  40.0,   // uWxR.z  1/m: curvature at which concave/convex saturate (40: a wing tip's gentle round is not an edge)
   bugTile:   0.30,   // uWxR.w  m, the insects' cell tile
   fineTile:  0.35,   // uWxG.x  m, the fine mottle / cells
@@ -774,6 +774,7 @@ uniform vec4 uSpiral;   // x on  y hand  z pitch m/turn  w width at the base
 uniform vec4 uSpiralC;  // linear rgb, strength
 uniform float uWxTurn;  // per material: 0 fixed, 1 a blade, 2 the spinner
 float aeroWxPeel = 0.0; // G345.2: how much of the clear coat has peeled here
+float aeroWxDirt = 0.0; // DIRT-MATTE: the dirt's own cover, chips taken out (a chip is the substrate, it keeps its shine)
 uniform vec4 uWxSub;    // substrate rgb, metal   (per material)
 uniform vec4 uWxSub2;   // substrate rough, rust, chip, hands
 
@@ -1199,8 +1200,14 @@ const AERO_WX_SURF_FS = `
     // patches and merely dull between them — no fetch, the grammar's own
     // noise, evaluated in the part's frame
     float wxRV = 0.80 + 0.36 * clamp(aeroMusgrave(wxUV / 0.55) * 0.5 + 0.5, 0.0, 1.0);
-    roughnessFactor = mix(roughnessFactor, max(roughnessFactor, flo * wxRV), cov);
+    // THE DIRT MATTES BEFORE IT COLOURS (DIRT-MATTE, the user 9 Nov: "the dirt is still too shiny. It looks flat
+    // when viewed in low angle with the sun, while it should show higher roughness exactly in these circumstances"):
+    // a film of dust breaks the microsurface long before it hides the paint, so the roughness rides the cover's
+    // square root - a layer at half strength is half dirt-coloured and ~70 % of the way to the dirt's matte
+    float wxMat = sqrt(clamp(cov, 0.0, 1.0));
+    roughnessFactor = mix(roughnessFactor, max(roughnessFactor, flo * wxRV), wxMat);
     metalnessFactor *= 1.0 - cov;
+    aeroWxDirt = wxMat;
     normal = normalize(mix(normal, nonPerturbedNormal, uWxR.x * dustCov));
     aeroWxCov = max(cov, 0.6 * wxHands);
     // ---- THE CLEAR COAT PEELS (G345.2) ----------------------------------
@@ -1265,6 +1272,7 @@ const AERO_WX_SURF_FS = `
       diffuseColor.rgb = mix(diffuseColor.rgb, sub, ch);
       metalnessFactor = mix(metalnessFactor, subMet, ch);
       roughnessFactor = mix(roughnessFactor, subRgh, ch);
+      aeroWxDirt *= 1.0 - ch;   // a chip is not dirt: its bare alloy keeps its grazing shine
       // the bleed is a STREAK, not a tint: the stretched read squared so it
       // runs in rivulets, and strong enough to matte the tube where it runs
       float wxBleed = wx_rust * uWxSub2.y * (1.0 - wxUp) * (1.0 - wxRot) * pow(gSd, 1.2) * (0.3 + 0.7 * wxConvex + 0.5 * wxCav) * 1.3;
@@ -1324,8 +1332,18 @@ const AERO_WX_CC_FS = `
   // varnish off — which is how rust came to read as a glossy stain
   material.clearcoat *= 1.0 - aeroWxCov;
   material.clearcoat *= 1.0 - aeroWxPeel;
-  material.clearcoatRoughness = min(1.0, max(material.clearcoatRoughness, aeroWxCov * uWxR.y));
+  // DIRT-MATTE: the varnish's mirror goes with the dirt's square root too (a clear coat keeps a mirror at
+  // grazing, Fresnel to 1 - with a low sun that WAS the flat shine on half-dirty paint), and what is left of it
+  // is scuffed rough by the same film
+  material.clearcoat *= 1.0 - aeroWxDirt;
+  material.clearcoatRoughness = min(1.0, max(material.clearcoatRoughness, max(aeroWxCov, aeroWxDirt) * uWxR.y));
 #endif
+  // DIRT-MATTE, THE BASE LOBE (Standard and Physical alike): a dusty surface has no grazing mirror - its grains
+  // shadow each other, so the Fresnel rise to white at a low sun is taken down with the dirt, and the
+  // head-on specular a little; the paint and the bare metal keep their own (aeroWxDirt is 0 off the dirt and
+  // on a chip; the glass never writes it). Constants of the dirt, not of a material: no uniform, no program key
+  material.specularF90 = mix(material.specularF90, 0.15, aeroWxDirt);
+  material.specularColor *= 1.0 - 0.5 * aeroWxDirt;
 `;
 
 // THE GLASS, under the rulings: roughness and the clear coat, nothing on the

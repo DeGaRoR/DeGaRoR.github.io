@@ -432,18 +432,24 @@ const EM = (() => {
       const sect = sectOf(Math.max(...path.map((_, i) => rr(i))), opt.sides);
       const rings = [];
       let lastN = nv;
+      // (12 Nov, FIT-PROCEDURE) opt.squash(i) -> [ku, kw]: the section an ellipse, its axes along the transported
+      // normal and binormal scaled (a flattened stack outlet); absent, the round tube it always was
+      const SQ = typeof opt.squash === 'function' ? opt.squash : null;
+      let sqLast = null;
       for (let i = 0; i < N; i++) {
         if (i) lastN = nrm(sub(lastN, mul(T[i], dot(lastN, T[i]))));
         const bw = nrm(crs(T[i], lastN));
-        rings.push(ring(path[i], lastN, bw, rr(i), sect));
-        if (i === N - 1) nv = { n: lastN, b: bw };            // kept for the lip
+        const k = SQ ? SQ(i, N) : null;
+        rings.push(k ? ring(path[i], mul(lastN, k[0]), mul(bw, k[1]), rr(i), sect) : ring(path[i], lastN, bw, rr(i), sect));
+        if (i === N - 1) { nv = { n: lastN, b: bw }; sqLast = k; }          // kept for the lip
       }
       for (let i = 0; i + 1 < N; i++) band(rings[i], rings[i + 1], m);
       if (opt.capA) capFan(rings[0], path[0], m, true);
       if (opt.capB) capFan(rings[N - 1], path[N - 1], m, false);
       if (opt.lipB) {          // an OPEN pipe end: rim turned inward, then closed
         const last = rings[rings.length - 1];
-        const inner = ring(path[N - 1], nv.n, nv.b, rr(N - 1) * 0.72, last.length);
+        const inner = sqLast ? ring(path[N - 1], mul(nv.n, sqLast[0]), mul(nv.b, sqLast[1]), rr(N - 1) * 0.72, last.length)
+                             : ring(path[N - 1], nv.n, nv.b, rr(N - 1) * 0.72, last.length);
         band(last, inner, m);
         capFan(inner, path[N - 1], m, false);
       }
@@ -1010,15 +1016,34 @@ const EM = (() => {
       if (Math.round(P.stackStyle === undefined ? 1 : P.stackStyle) !== 0 &&
           (P.exhaust === undefined || P.exhaust)) {
         const z0 = zCF - 0.10 * canL;
+        // (12 Nov, FIT-PROCEDURE; the user on the PC-6: "these pipes going out of the turboprop, which are very
+        // recognizable ... have them stick a bit more, and ... flat at the end, like the real thing"): stackOut
+        // scales the reach out of the can, stackLen the run aft, stackFlat flattens the outlet over the last
+        // third (vertically, the width growing to keep its area). 1 / 1 / 0, or absent: the stacks as they were.
+        const kO = P.stackOut == null ? 1 : +P.stackOut, kL = P.stackLen == null ? 1 : +P.stackLen;
+        const fl = Math.max(0, Math.min(0.8, +P.stackFlat || 0));
+        const x2 = kO === 1 ? 1.30 : 0.60 + 0.70 * kO, x3 = kO === 1 ? 1.75 : 0.60 + 1.15 * kO;
+        const run = kL === 1 ? 0.30 : 0.30 * kL;
+        // ...and its thickness (stackR x) and the outlet's drop below the root (stackDrop, case radii) - 1 / 0, as before
+        const kR = P.stackR == null ? 1 : +P.stackR, dY = +P.stackDrop || 0;
+        const y3 = dY ? 0.62 * cR - dY * cR : 0.62 * cR, rS = kR === 1 ? 0.24 * cR : 0.24 * cR * kR;
+        const squash = fl > 0 ? (i, n) => { const t = Math.max(0, (i / Math.max(1, n - 1) - 0.67) / 0.33);
+                                             const e = t * t * (3 - 2 * t); return [1 - fl * e, 1 + 0.6 * fl * e]; } : null;
+        // (12 Nov, FIT-PROCEDURE; the user on the PC-6: "one of the engine's pipes going up and the other one
+        // down" - and then "the one going down [must] stem from the middle of the cowl" as the other does)
+        // stackSplit: 0 both rise from the root (as before), 1 the left stack mirrored about its own root's height
+        // (rooted where the other is, out and aft BELOW it), 2 the right one
+        const split = Math.round(+P.stackSplit || 0), yR = 0.45 * cR;
         for (const [nm, sx] of [['stackL', -1], ['stackR', 1]]) {
           part(nm, 'tube');
+          const dn = (split === 1 && sx < 0) || (split === 2 && sx > 0), yy = y => dn ? 2 * yR - y : y;
           const path = fillet([
-            [sx * 0.60 * cR, 0.45 * cR, z0],                 // rooted in the can
-            [sx * 1.30 * cR, 0.62 * cR, z0 - 0.02 * canL],
-            [sx * 1.75 * cR, 0.62 * cR, z0 - 0.30 * canL],   // out, then aft
+            [sx * 0.60 * cR, yR, z0],                        // rooted in the can
+            [sx * x2 * cR, yy(0.62 * cR), z0 - 0.02 * canL],
+            [sx * x3 * cR, yy(y3), z0 - run * canL],         // out, then aft
           ], 0.35 * cR);
-          sweep(path, 0.24 * cR, ENGM_MAT.exhaust,
-                { capA: true, lipB: true, sides: S.pipe });
+          sweep(path, rS, ENGM_MAT.exhaust,
+                squash ? { capA: true, lipB: true, sides: S.pipe, squash } : { capA: true, lipB: true, sides: S.pipe });
         }
       }
 
@@ -1518,6 +1543,7 @@ const EM = (() => {
       // arteries must come out of this bit-identical to the ones it replaces.
       const snap0 = v => (Math.abs(v) < 1e-9 ? 0 : v);
       const uOut = radial ? dir : [snap0(dir[0]), snap0(dir[1]), 0];
+      const invFour = inline && !P.twoStroke && uOut[1] < -0.5;
       const route = (o, p, dz) => [uOut[0] * o + e2[0] * (p || 0),
                                    uOut[1] * o + e2[1] * (p || 0),
                                    z + (dz || 0)];
@@ -1552,7 +1578,11 @@ const EM = (() => {
           plugB: P.twoStroke
             ? route(rockerOut + 0.17 * b, -0.30 * b, -0.16 * b)
             : route(finTop + 0.42 * b, -0.91 * b, -0.14 * b),
-          intakeP: route(finTop + 0.30 * b, -0.52 * b, 0.34 * b),
+          // THE INVERTED FOUR-STROKE IN-LINE BREATHES FROM THE OTHER SIDE
+          // (PROPER-COWLS, the user's Tiger Moth photographs, 8 Nov 2026):
+          // a Gipsy Major's intake and exhaust leave opposite flanks of the
+          // heads - the manifold along one, the exhaust along the other.
+          intakeP: route(finTop + 0.30 * b, (invFour ? 0.52 : -0.52) * b, 0.34 * b),
           exhaustP: route(finTop + 0.30 * b, -0.52 * b, -0.34 * b),
         };
       }
@@ -1666,17 +1696,32 @@ const EM = (() => {
     // up through the crankcase.
     const iS = (cyls.length && cyls[0].uOut[1] < -0.5) ? 1 : -1;
     const indY = iS * (cR + L.sump);           // the induction face
+    // ...BUT NOT ON A REAL ONE (PROPER-COWLS, 8 Nov 2026, the user's Tiger
+    // Moth photographs: "there's nothing on top of that engine"). A Gipsy
+    // Major is DRY-SUMPED (its oil tank is on the fuselage, "OIL CAP 2.1
+    // GALLS") and its crankcase top is bare metal under the bonnet. Its
+    // carburettor hangs at the BACK of the bank and feeds a manifold that
+    // runs along the heads' flank, opposite the exhaust. So on an inverted
+    // FOUR-STROKE in-line: no sump, no carb on top - the rail along the heads
+    // (`sideInd`), the carb on the rail's aft end, hanging (cS, the way the
+    // carb hangs, is the upright engine's). The two-stroke keeps G164's.
+    const sideInd = inline && iS > 0 && !P.twoStroke;
+    const cS = sideInd ? -1 : iS;
+    const railR = 1.06 * b * Math.max(P.finR / 2, L.headR / b, 0.62) + 0.30 * b;
+    const railY = sideInd ? cyls[0].intakeP[1] + 0.30 * b : 0;
+    const zBankAft = L.zOf(L.stn[cyls.length - 1]) - 0.5 * L.pitch;
 
     const carb = {
-      pos: [0, indY + iS * 0.42 * b, (zBack + L.zOf(L.nSt - 1)) / 2],
+      pos: sideInd ? [railR, railY - 0.48 * b, zBankAft - 0.30 * b]
+                   : [0, indY + iS * 0.42 * b, (zBack + L.zOf(L.nSt - 1)) / 2],
       r: 0.30 * b, h: 0.62 * b,
     };
     // the fuel line lands on an INLET BOSS on the float bowl's flank, and
     // the throttle on an arm that actually reaches the barrel — both were
     // floating in air before (G24.4 fitment scrutiny, caught by eye where
     // the AABB test could not)
-    carb.bowlIn = add(carb.pos, [0.44 * b, iS * 0.48 * b, 0]);
-    carb.arm = add(carb.pos, [-0.44 * b, -iS * 0.10 * b, 0]);
+    carb.bowlIn = add(carb.pos, [0.44 * b, cS * 0.48 * b, 0]);
+    carb.arm = add(carb.pos, [-0.44 * b, -cS * 0.10 * b, 0]);
     // TWIN TOP CARBS + CONE FILTERS (G25.1, the 912 review): the under-slung
     // canister gives way to two carburettors riding the case top aft, each
     // breathing through a conical filter — flat four-stroke carb engines
@@ -1709,10 +1754,10 @@ const EM = (() => {
     // fractions) — the no-clip lever the review asked for.
     const fuelFw = [Math.sign(carb.bowlIn[0] || 1) * 0.36 * P.fwW * cR / 2 +
                     P.fuelX * P.fwW / 2,
-                    iS * 0.30 * P.fwH * cR / 2 + P.fuelY * P.fwH / 2, zFw];
+                    cS * 0.30 * P.fwH * cR / 2 + P.fuelY * P.fwH / 2, zFw];
     const thrFw = [Math.sign(carb.arm[0] || -1) * 0.36 * P.fwW * cR / 2 +
                    P.thrX * P.fwW / 2,
-                   iS * 0.30 * P.fwH * cR / 2 + P.thrY * P.fwH / 2, zFw];
+                   cS * 0.30 * P.fwH * cR / 2 + P.thrY * P.fwH / 2, zFw];
 
     const ports = { magL: magL.pos, magR: magR.pos, carbIn: carb.bowlIn,
                     carbArm: carb.arm, fuelFw, thrFw, lugs, fwPts,
@@ -1891,7 +1936,7 @@ const EM = (() => {
 
     // ---- sump: the wet belly the carb hangs from (a radial has none:
     // dry sump, remote tank) --------------------------------------------
-    if (L.sump > 1e-6 && !radial) {
+    if (L.sump > 1e-6 && !radial && !sideInd) {
       part('sump');
       const xw = cR * 0.80, zA = zNose - 0.02 * cR, zB = zTail + 0.02 * cR;
       const sh = polyShape([[-xw, iS * cR * 0.48], [xw, iS * cR * 0.48],
@@ -2141,6 +2186,16 @@ const EM = (() => {
         }
     }
 
+    // ---- THE SIDE MANIFOLD (an inverted four-stroke in-line, `sideInd`): a
+    // rail along the heads' intake flank from the carb's riser at the back of
+    // the bank to the front cylinder's runner; each runner leaves it -------
+    if (sideInd && P.intake && P.carbOn) {
+      part('manifold', 'tube');
+      const zF = Math.max(...cyls.map(c => c.z)) + 0.20 * b + 0.22 * b;
+      const path = resample([[railR, railY, carb.pos[2]], [railR, railY, zF]]);
+      sweep(path, 0.20 * b, ENGM_MAT.intake, { capA: true, capB: true, sides: S.pipe });
+    }
+
     // =======================================================================
     // CYLINDERS — barrel + fins + head + rocker cover + pushrod tubes,
     // one builder, mirrored by `sx`.
@@ -2313,6 +2368,8 @@ const EM = (() => {
           // and comes round the flank like an in-line's (2026-09-05)
           : vee
           ? [c.sx * 0.42 * cR, indY - iS * 0.10 * b, c.z + 0.20 * b]
+          : sideInd
+          ? [railR, railY, c.z + 0.20 * b]
           : inline
           ? [0, indY - iS * 0.10 * b, c.z + 0.20 * b]
           : c.route(0.42 * cR, sumpY + 0.10 * b, 0.20 * b);
@@ -2336,6 +2393,8 @@ const EM = (() => {
              [c.sx * (c.finTop + 0.05 * b + trk), -0.92 * b, c.z + 0.50 * b]]
           : vee
           ? [[c.sx * (cR + 0.45 * b), (indY + c.intakeP[1]) / 2, c.z + 0.30 * b]]
+          : sideInd
+          ? []
           : inline
           // A SINGLE BANK'S RUNNER COMES ROUND THE BARREL (G165). On a boxer
           // the plenum and the head port both lie in the induction plane, so
@@ -2366,7 +2425,7 @@ const EM = (() => {
         sweep(pathX, rr2, ENGM_MAT.intake,
               { capA: true, capB: true, sides: S.pipe });
         artery('intake' + c.i,
-               twin ? ('twinCarb' + (c.sx < 0 ? 'L' : 'R')) : 'sump',
+               twin ? ('twinCarb' + (c.sx < 0 ? 'L' : 'R')) : sideInd ? 'manifold' : 'sump',
                'head' + c.i, { a0: A, a1: c.intakeP });
         // FLANGED at both ends (G24.11, enlarged G25.1): a tapered boss at
         // the plenum, a flared collar seated on the head port
@@ -2821,7 +2880,8 @@ const EM = (() => {
       // on a radial there is no sump box: the riser reaches on up to the
       // round case bottom
       const rEx = radial ? L.sump : 0;
-      lathe(add(carb.pos, [0, -iS * carb.h / 2, 0]), [0, iS, 0],
+      // (the side carb's riser is the manifold's: it reaches up into the rail)
+      lathe(add(carb.pos, [0, -cS * carb.h / 2, 0]), [0, cS, 0],
             { u: [1, 0, 0], w: [0, 0, 1] }, inj ? [
         // fuel injection: a SERVO body — no float bowl (exclusive, G24.13)
         { t: -0.17 * b - rEx, r: 0.26 * b }, { t: -0.02 * b, r: 0.26 * b },
@@ -2839,22 +2899,23 @@ const EM = (() => {
       part('carbInlet', 'tube');
       // the boss the fuel line lands on — bowl wall or servo body
       lathe([carb.pos[0] + (inj ? 0.24 : 0.30) * b,
-             carb.pos[1] + iS * 0.48 * b, carb.pos[2]],
+             carb.pos[1] + cS * 0.48 * b, carb.pos[2]],
             [1, 0, 0], { u: [0, 1, 0], w: [0, 0, 1] }, [
         { t: 0, r: 0.055 * b }, { t: (inj ? 0.20 : 0.14) * b, r: 0.055 * b },
       ], ENGM_MAT.carb, false, true, S.detail);
       part('carbArm', 'tube');
       // rooted IN the barrel, reaching past the attach point — it floated
-      sweep(resample([add(carb.pos, [-0.26 * b, -iS * 0.10 * b, 0]),
-                      add(carb.pos, [-0.52 * b, -iS * 0.10 * b, 0])]),
+      sweep(resample([add(carb.pos, [-0.26 * b, -cS * 0.10 * b, 0]),
+                      add(carb.pos, [-0.52 * b, -cS * 0.10 * b, 0])]),
             0.03 * b, ENGM_MAT.carb,
             { capA: true, capB: true, sides: S.detail });
-      if (P.airbox) {
+      // the side carb breathes through the cowl's own louvre: no airbox
+      if (P.airbox && !sideInd) {
         // AIRBOX v2 (G24.11): the old drum poked INTO the block and was a
         // bare cylinder. Now: a ribbed filter canister BELOW the sump,
         // domed front with a centre bolt, rear plate, and the horn into
         // the carb throat — registered as an artery so fitment holds it.
-        const ax = [carb.pos[0], carb.pos[1] + iS * 0.06 * b,
+        const ax = [carb.pos[0], carb.pos[1] + cS * 0.06 * b,
                     carb.pos[2] + 1.05 * b];
         // THE FILTER ELEMENT IS EXPOSED (G24.12, user: it is what shows
         // through the nose cowl IRL): chromed end caps, and between them
@@ -2892,9 +2953,9 @@ const EM = (() => {
           bolt(mad(ax, Z, 0.50 * b), Z, 0.028 * b, ENGM_MAT.flange);
         }
         part('airHorn', 'tube');
-        const hPort = add(carb.pos, [0, -iS * 0.03 * b, 0.24 * b]);
+        const hPort = add(carb.pos, [0, -cS * 0.03 * b, 0.24 * b]);
         const path = fillet([mad(ax, Z, -0.14 * b),
-                             [ax[0], ax[1] - iS * 0.02 * b,
+                             [ax[0], ax[1] - cS * 0.02 * b,
                               (ax[2] + carb.pos[2]) / 2],
                              hPort], 0.30 * b);
         // buried at both mouths (G25.1 fit pass) — declared ends stay on
@@ -2931,7 +2992,7 @@ const EM = (() => {
       // is above the case", measured off the same placement rule.
       const radTop = inline
         ? Math.max(cR, R.env.y1,
-                   iS > 0 ? carb.pos[1] + carb.h + 0.34 * b : 0)
+                   iS > 0 && !sideInd ? carb.pos[1] + carb.h + 0.34 * b : 0)
         : cR;
       const rC = [P.radX * cR,
                   below ? -(cR + L.sump) + P.radY * cR - rH / 2
@@ -3113,10 +3174,10 @@ const EM = (() => {
       const pf = routeSafe(smooth([
         fuelFw,
         [fuelFw[0] * 0.55 + carb.bowlIn[0] * 0.30,
-         0.55 * fuelFw[1] + 0.45 * carb.bowlIn[1] + iS * 0.10 * cR,
+         0.55 * fuelFw[1] + 0.45 * carb.bowlIn[1] + cS * 0.10 * cR,
          zFw + 0.35 * (carb.bowlIn[2] - zFw)],
         [carb.bowlIn[0] + Math.sign(carb.bowlIn[0] || 1) * 0.28 * b,
-         carb.bowlIn[1] + iS * 0.20 * b, carb.bowlIn[2] - 0.3 * b],
+         carb.bowlIn[1] + cS * 0.20 * b, carb.bowlIn[2] - 0.3 * b],
         carb.bowlIn,
       ]), 0.05 * b + 0.015 * cR, true);
       artery('fuel', 'firewall', 'carb',
@@ -3126,9 +3187,9 @@ const EM = (() => {
       const pt = routeSafe(smooth([
         thrFw,
         [thrFw[0] * 0.9,
-         0.55 * thrFw[1] + 0.45 * carb.arm[1] + iS * 0.10 * cR,
+         0.55 * thrFw[1] + 0.45 * carb.arm[1] + cS * 0.10 * cR,
          zFw + 0.4 * (carb.arm[2] - zFw)],
-        [carb.arm[0] - 0.16 * b, carb.arm[1] - iS * 0.05 * b, carb.arm[2] - 0.25 * b],
+        [carb.arm[0] - 0.16 * b, carb.arm[1] - cS * 0.05 * b, carb.arm[2] - 0.25 * b],
         carb.arm,
       ]), 0.04 * b + 0.012 * cR, true);
       artery('throttle', 'firewall', 'carbArm',

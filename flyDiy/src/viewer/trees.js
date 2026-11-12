@@ -518,26 +518,39 @@
   // after the colour is read, the alpha then set to 1 (an opaque material ignores it; nothing else reads it). The
   // same stream, the same thresholds: the thinning is the instanced draw's, instance for instance.
   const BATCH_RAND_VS = '#ifdef USE_BATCHING\n  float _bRand = 0.5;\n  #ifdef USE_BATCHING_COLOR\n  _bRand = vColor.a; vColor.a = 1.0;\n  #endif\n#endif';
+  // THE FIELD BY COLOUR (VEG-ROOT, the user 11 Nov: "by colour per tuft"): uRoot.w > 0 is the texture mean's red-to-green; times the
+  // tuft's own colour's (the ground's tint) it is the albedo's - green (~0.75) keeps the material's strength and share (MID), brown
+  // or yellow (>= 1.05) takes HIGH (0.95, 1.3: the strong look); between, blended. After the colour, so vColor is the tuft's.
+  const ROOT_KEY_HI = [0.95, 1.3], ROOT_KEY_RG = [0.85, 1.05];
+  const ROOT_KEY_VS = '#if defined( USE_COLOR ) || defined( USE_INSTANCING_COLOR ) || defined( USE_BATCHING_COLOR )\n' +
+    'if (uRoot.w > 0.0) { float _rk = smoothstep(' + ROOT_KEY_RG[0].toFixed(3) + ', ' + ROOT_KEY_RG[1].toFixed(3) + ', vColor.r / max(vColor.g, 1e-4) * uRoot.w);\n' +
+    '  float _rx = mix(uRoot.x, ' + ROOT_KEY_HI[0].toFixed(3) + ', _rk), _ry = mix(uRoot.y, ' + ROOT_KEY_HI[1].toFixed(3) + ', _rk);\n' +
+    '  vRoot = 1.0 - _rx + _rx * position.y / max(uRoot.z * _ry, 1e-4); }\n#endif';
   // THE ROOT GRADIENT (GRASS-DENSE G2571; the user, 12 Oct: "Apply a gradient from dark at the bottom to transparent at the top (or
   // black to white in multiply mode). That will greatly help anchor the grass"): a material's own uRoot (x strength 0..1, y the
   // height it fades out by as a share of the reference top, z that top in the model's units), after the tint: the diffuse
   // x mix(1 - x, 1, smoothstep(0, y, height / z)) - black at the root to white by y. The reed's material carries it (cover_ring.js:
   // the grass field's dials, the first ring's patches the same material); every other faded material reads U_ROOT_OFF. x 0: the
   // branch is not taken, the picture is today's to the byte. One uniform and one varying - no new program
+  // VEG-ROOT (LOOK-1, 9 Nov 2026; the user: "apply it to every single grass in the game ... even the bushes ... even the flowers",
+  // not the trees; "optimize the shader a lot from the start ... it has to cost us nothing"): the factor is the VERTEX's now -
+  // vRoot = 1 - x + x * height / (top * share), linear in the model's height, so it interpolates exactly - and the fragment
+  // does one min and one multiply, no branch, no smoothstep (x 0: vRoot is 1.0 exactly, today's picture to the byte). The same
+  // uniform, the same programs (cache keys 'fade' / 'fade-leaf' / 'fade-rockcut'), no texture, no buffer: position.y is there.
   const U_ROOT_OFF = { value: (typeof THREE !== 'undefined' && THREE.Vector4) ? new THREE.Vector4(0, 0.4, 1, 0) : { x: 0, y: 0.4, z: 1, w: 0 } };
-  const ROOT_FS = 'if (uRoot.x > 0.0) diffuseColor.rgb *= mix(1.0 - uRoot.x, 1.0, smoothstep(0.0, max(uRoot.y, 1e-3), vRootY));';
+  const ROOT_FS = 'diffuseColor.rgb *= min(vRoot, 1.0);';
   const fadeInject = (sh, set, mat) => {
     const F = set || FADE_GLOBAL;
     sh.uniforms.uRoot = (mat && mat.userData.uRoot) || U_ROOT_OFF;
     { let fs = sh.fragmentShader.replace('#include <map_fragment>', '#include <map_fragment>\n' + ROOT_FS);
-      fs = declOnce(fs, 'varying float vRootY;'); sh.fragmentShader = declOnce(fs, 'uniform vec4 uRoot;'); }
+      sh.fragmentShader = declOnce(fs, 'varying float vRoot;'); }
     sh.uniforms.uFadeNear = F.near; sh.uniforms.uFadeReach = F.reach; sh.uniforms.uFadeTaper = F.taper; sh.uniforms.uFadeAgl = F.agl;
     sh.uniforms.uFadeSize = F.size; sh.uniforms.uFadeHRef = F.href; sh.uniforms.uFadeSizeMax = F.smax;
     sh.uniforms.uFadeBand = U_FADE_BAND; sh.uniforms.uFadeNow = U_FADE_NOW; sh.uniforms.uFadeGrow = U_FADE_GROW;
     sh.uniforms.uUp = sh.uniforms.uUp || { value: 0 };
     sh.uniforms.uWind = U_WIND;
     let vs = sh.vertexShader
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvRootY = position.y / max(uRoot.z, 1e-3);')   // G2571: the model's height, before any bend
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvRoot = 1.0 - uRoot.x + uRoot.x * position.y / max(uRoot.z * uRoot.y, 1e-4);\n' + ROOT_KEY_VS)   // G2571: the model's height, before any bend (12 Nov: the field's key AFTER the law - three's color_vertex comes before begin_vertex, so placed at color_vertex the law overwrote it and the key changed nothing; vColor is set by then)
       .replace('#include <color_vertex>', '#include <color_vertex>\n' + BATCH_RAND_VS)
       .replace('#include <project_vertex>', FADE_VS + '\n#include <project_vertex>\n' + FADE_CUT_VS)
       .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\n' + UP_VS);
@@ -545,7 +558,7 @@
     // carries, and its NORMAL is not touched (see UP_VS)
     vs = swayOnce(vs, 'aRand * 6.2831');
     vs = declOnce(vs, 'uniform vec4 uWind;');
-    vs = declOnce(vs, 'uniform vec4 uRoot; varying float vRootY;');
+    vs = declOnce(vs, 'uniform vec4 uRoot; varying float vRoot;');
     vs = declOnce(vs, 'uniform float uFadeNear, uFadeReach, uFadeTaper, uFadeAgl, uUp, uFadeBand, uFadeNow, uFadeGrow, uFadeSize, uFadeHRef, uFadeSizeMax;');
     vs = declOnce(vs, '#ifdef USE_INSTANCING\nattribute float aBorn;\n#endif');
     // in a batch `aRand` names the value taken from the colour's alpha (BATCH_RAND_VS), declared in main before its first read

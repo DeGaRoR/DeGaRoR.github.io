@@ -63,7 +63,10 @@ const fresh = (name) => {
                         'fwOn', 'fwW', 'fwH', 'ruler']);
   const missing = [];
   for (const [, rows] of window.ENG_PAGE.GROUPS)
-    for (const r of rows) if (!SKIP.has(r[0]) && D[r[0]] === undefined) missing.push(r[0]);
+    for (const r of rows) if (!SKIP.has(r[0]) && !(r[0] in (window.ENG_PAGE.LATENT || {})) && D[r[0]] === undefined) missing.push(r[0]);
+  // (12 Nov) ...except the LATENT rows, absent at their default BY DESIGN (A0's L39a rule): never written by a preset,
+  // so a preset cannot carry one into the next engine either - and none of them is in any default dict
+  ok(Object.keys(window.ENG_PAGE.LATENT || {}).every(k => D[k] === undefined), 'the LATENT rows are in no default dict');
   ok(missing.length === 0, 'every panel row key has a default in engDefaults()' +
      (missing.length ? ' — MISSING: ' + missing.join(', ') : ''));
   // and the behaviour: a 915 iS then a 582 leaves an untouched 582
@@ -346,7 +349,7 @@ ok(NAMES[0] === 'continental A-65' && NAMES[17] === 'lycoming O-320' && NAMES[18
     // (d) and the block is not on offer
     for (const k of ['bore', 'stroke', 'cyl', 'rpm', 'finN', 'finR', 'rodPos',
                      'twoStroke', 'liquid', 'geared', 'blower', 'boost',
-                     'critAlt', 'injected', 'stagger'])
+                     'critAlt', 'injected', 'stagger', 'bmepK', 'massK'])
       ok(!shown.has(k), `and hides '${k}' — that would be another engine`);
     const P2 = fresh('rotax 912 (flat)'); P2.engPreset = CUSTOM;
     const all = shownOf(P2);

@@ -2669,8 +2669,58 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // ...and a 'hull' whose lines never reached the spec (an archetype's birth spec, pre-join) flies on the floats the
   // gross sizes, the seaplane it can be without its drawing - never on wheels it does not have
   const WHEELS = S.gear.type !== 'floats' && S.gear.type !== 'hull';
+  // WILGA-GEAR: THE TRAILING-LINK LEG (62c GEAR_LEVER; the study futureDesigns/WILGA-GEAR-STUDY-2026-11.md) - on a
+  // lever build the mains are not the six-member tripod below: each leg is its own truss, the points the drawn leg's
+  const LEVER = WHEELS && S.gear.suspension === 'lever' && !S.gear.retract;
+  let LEVREC = null;
   if (WHEELS) {
   [GAL, GAR] = NM(gx, gy, 0.5 * tr, 'AXLE', S.gear.contactR);
+  if (LEVER) {
+    // THE LEG, per side, at full extension (the strut's L0 is its length as built): the pivot as two bearing nodes on
+    // its axis (PI inboard, PO outboard), the strut's eyes (H on the arm, U on the leg). The ARM is the rigid triangle
+    // axle - PI - PO with the horn H on it: the axle turns about the pivot's axis and nothing else. The LEG is PI, PO
+    // and U each held by three members to the body (the forward belly, the aft belly and the ring's top corner - rule
+    // 10: never three on the belly plane) and to each other. The STRUT is not a member: 30_solver's oleo pass pushes
+    // U and H apart by GEAR_LEVER's law (its spring is the gas, its damper the orifice). Every node is tagged AXLE*,
+    // so the damage layer reads them as the leg's part: a joint member letting go DROPS the leg and its wheel whole.
+    // No axle bar: the Wilga's legs are independent cantilevers.
+    const LR = R.lever, LG = S.gear.lever || gearLeverRef(LR);
+    LEVREC = { sides: [], geom: LG };
+    for (const [ax, sd, nm] of [[GAL, -1, 'L'], [GAR, 1, 'R']]) {
+      const A = P[ax], at = v => [A[0] + v[0], A[1] + v[1], A[2] + sd * v[2]];
+      const c = at(LG.piv), w = LG.w;
+      const PI = N(c[0], c[1], c[2] - sd * w, 'AXLEPI' + nm), PO = N(c[0], c[1], c[2] + sd * w, 'AXLEPO' + nm);
+      const hp = at(LG.horn), tp = at(LG.top);
+      const H = N(hp[0], hp[1], hp[2], 'AXLEH' + nm), U = N(tp[0], tp[1], tp[2], 'AXLEU' + nm);
+      const fw = sd < 0 ? fwdL : fwdR, af = sd < 0 ? AA.BL : AA.BR, tp0 = sd < 0 ? F[iFwd].TL : F[iFwd].TR;
+      // (the leg and the arm are STEEL STRUCTURE, not a spring: gear-class members at LR.kMul x the class's k - the
+      // floats' rigging rule, G396.2; without it the fixed leg was a 1.2e5 N/m spring and folded under its own strut)
+      // (...and damped as steel, not as a suspension: the class's damper scaled by LR.cMul - the engine mount's rule,
+      // G2361 - else its dampers on 2-5 kg nodes ask 200 substeps where the springs ask ~50)
+      const KL = { kMul: LR.kMul, cMul: LR.cMul };
+      for (const q of [PI, PO, U]) { B(q, fw, 'gear', false, undefined, undefined, KL); B(q, af, 'gear', false, undefined, undefined, KL); B(q, tp0, 'gear', false, 'inner', undefined, KL); }
+      B(PI, PO, 'gear', false, undefined, undefined, KL); B(U, PI, 'gear', false, undefined, undefined, KL); B(U, PO, 'gear', false, undefined, undefined, KL);
+      // THE ARM: the axle and the horn on the pivot's two ends. The horn stands 12 deg off the arm's line, 8 cm off the
+      // plane of the axle and the pivot's ends - three anchors it can REFLECT through (rule 10): measured, the spawn's
+      // settle snapped it to its mirror and the strut read half its stroke for a 70 deg swing. The arm's rigid cluster
+      // (below) holds it - a proper rotation has no mirror - so the members are the arm's mass and its damage joints
+      B(ax, PI, 'gear', false, undefined, undefined, KL); B(ax, PO, 'gear', false, undefined, undefined, KL);
+      B(H, PI, 'gear', false, undefined, undefined, KL); B(H, PO, 'gear', false, undefined, undefined, KL); B(H, ax, 'gear', false, undefined, undefined, KL);
+      // the leg's own hardware where it hangs (GEN_RULES.lever: the arm and its bearings, the strut, the fittings)
+      pt(ax, 0.5 * LR.kgArm); pt(PI, 0.15 * LR.kgArm); pt(PO, 0.15 * LR.kgArm); pt(H, 0.2 * LR.kgArm + 0.5 * LR.kgStrut);
+      pt(U, 0.5 * LR.kgStrut + LR.kgLeg);
+      // THE ARM IS FORGED, NOT A TRUSS: on a 0.12 m bearing base its members let the axle bend 16 mm away under the static
+      // load and ~0.1 m in a limit drop (GATE WILGAGEAR 5 / 7 measured it). A rigid cluster (G294's shape matching - a
+      // projection, no frequency, no substep cost) holds the axle, the pivot's ends and the horn in their shape (and the
+      // horn off its mirror); the members inside still run (the mass, the damage layer's joints)
+      clusters.push({ cls: 'lever', tag: 'LEV' + nm, nodes: [ax, PI, PO, H] });
+      // ...and the leg's FOOT is a forging too (the knuckle that carries the pivot's cylinder and the strut's bracket): the
+      // strut's upper eye held to the pivot's axis, so the stroke is the arm's angle's (the kinematics') under a drop's
+      // 40 kN as at rest
+      clusters.push({ cls: 'lever', tag: 'LEG' + nm, nodes: [PI, PO, U] });
+      LEVREC.sides.push({ side: nm, axle: ax, pi: PI, po: PO, h: H, u: U });
+    }
+  } else
   B(GAL, GAR, 'gear');
   // What each of those six members IS, now that `vis` can say so. The forward
   // pair is the SUSPENSION LEG — bungee cord, spring steel or oleo, drawn as
@@ -2680,10 +2730,12 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // they made the undercarriage read as a cage, and an X of bracing wires under
   // the belly is both what a tube-and-fabric aeroplane actually has and the
   // same load path. Nothing here changes k, c or mass.
+  if (!LEVER) {
   B(GAL, fwdL, 'gear', false, 'leg'); B(GAL, AA.BL, 'gear');
   B(GAL, fwdR, 'gear', false, 'wire');
   B(GAR, fwdR, 'gear', false, 'leg'); B(GAR, AA.BR, 'gear');
   B(GAR, fwdL, 'gear', false, 'wire');
+  }
   // RULE 10 FOR THE MAINS (G53). Every one of the six members above lands on a
   // BELLY node, and the belly is a near-horizontal plane — so the axle is held
   // by three anchors it can REFLECT THROUGH. That is a snap-through, and it is
@@ -2697,8 +2749,10 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // A near-vertical member up to the ring's TOP corner is also what a
   // bungee-sprung light aeroplane actually has, and like the tailwheel's it is
   // INTERNAL: under the covering it should not be visible.
+  if (!LEVER) {
   B(GAL, F[iFwd].TL, 'gear', false, 'inner');
   B(GAR, F[iFwd].TR, 'gear', false, 'inner');
+  }
   // wheels by their size (PERF STUDY chantier 1, GEN_RULES.wheelKg) + fairings
   pt(GAL, R.wheelKg(S.gear.wheelR) + mFairMain); pt(GAR, R.wheelKg(S.gear.wheelR) + mFairMain);
 
@@ -3498,7 +3552,15 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // person plus the seat they arrived with. GATE BUILD caught it, which is
     // exactly what that check is for: an occupant weighs 80 kg and nothing
     // else may ride in on the same number.
-    const seats = Math.max(1, seatRows.length);
+    // A4 (CESSNA-FINAL, 8 Nov): ...AND EVERY SEAT THE CAGE DRAWS, once the cabin's seats are the SEAT LIBRARY's.
+    // `seating` names the FAMILY (the join: "it still sizes a cabin the join did not measure"); the drawn count is
+    // `cabin.seatsX`'s, one station per seat. Counted off the family, a four-seat 172 ('side2' by its bay count) billed
+    // its two front seats and the rear pair weighed nothing. A cabin whose drawn seats carry their own masses
+    // (`cabin.seatsKg`: the join writes it only when a drawn seat weighs other than the outfit's row - SEATS,
+    // 2026-11-02) bills every one of them, seat for seat. A cabin on the old row (no seatsKg: every save drawn on the
+    // tube & sling) keeps the family's count, to the bit - the validated Cub and Jodel among them (the Jodel's
+    // drawn second sling is not billed: named in CESSNA-FINAL-PLAN, not changed here)
+    const seats = (Array.isArray(cb.seatsKg) && seatsX && seatsX.length === cb.seatsKg.length) ? seatsX.length : Math.max(1, seatRows.length);
     const EN = (S.engines && S.engines[0]) || {};
     const PPn = S.pplant || POWERPLANTS[EN.type] || POWERPLANTS.a65_sensenich74;
     const kW = ((PPn.engine && PPn.engine.powerW) || 0) / 1000;
@@ -3787,6 +3849,34 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // repaint (the paint alone) and a recover (the cloth and its paint) off the airframe actually built (76_ econRestoreCost)
   parts.cover = { paintA: coverA, clothA: clothAll };
   if (podR) parts.pod = podR;   // G2410: the resolved belly pod (absent with none: the parts keep their bytes)
+  // WILGA-GEAR: THE STRUTS, each designed for this aeroplane (62c gearOleoDesign: the charge for the static deflection
+  // at the design gross, the second stage, the orifice for the limit sink) - on the final masses: the wheel's static
+  // load is the gross's share the mains carry at the built CG (the third wheel's lever arm), split per side. The
+  // solver reads parts.lever (its oleo pass) and so does the flown drawing (absent on every other build: no key)
+  if (LEVREC) {
+    let Mx = 0, Mt = 0;
+    for (const nd of nodes) { Mx += nd.m * nd.p[0]; Mt += nd.m; }
+    const xc = Mx / Math.max(1e-9, Mt), xm = 0.5 * (P[GAL][0] + P[GAR][0]), xt = TW >= 0 ? P[TW][0] : xm;
+    const share = Math.abs(xt - xm) > 0.2 ? Math.max(0.5, Math.min(1, (xt - xc) / (xt - xm))) : 1;
+    const Wg = Math.max(Mt, gross || 0) * 9.81, W = 0.5 * share * Wg;
+    // the FAR 23.473(d) limit sink of this aeroplane (4.4 (W/S)^0.25 ft/s, 7-10 ft/s) - the orifice's design point
+    const WS = (Wg / 4.4482) / (Math.max(1, (S.geom && S.geom.Sw) || 15) * 10.7639);
+    const sink = 0.3048 * Math.max(7, Math.min(10, 4.4 * CORE_MATH.pow(Math.max(1e-6, WS), 0.25)));
+    const D = Object.assign({}, R.lever, S.gear.lever && S.gear.lever.dSt != null ? { dSt: S.gear.lever.dSt } : {});
+    LEVREC.W = W; LEVREC.share = share; LEVREC.sink = sink;
+    // ...on the PARKED attitude: the ground line under the mains' and the third wheel's contacts (a taildragger sits
+    // nose-up, so the world's up leans aft in the body's frame and the arm's lift reads along it)
+    const yT = TW >= 0 ? P[TW][1] - (nodes[TW].r || 0) : null, yM = 0.5 * (P[GAL][1] + P[GAR][1]) - (S.gear.contactR || 0);
+    const deck = (TW >= 0 && Math.abs(xt - xm) > 0.2) ? Math.atan2(yT - yM, xt - xm) : 0;
+    const upP = [-CORE_MATH.sin(deck), CORE_MATH.cos(deck), 0];
+    LEVREC.deck = deck;
+    for (const sd of LEVREC.sides) {
+      const L = gearLeverInit({ piv: [0.5 * (P[sd.pi][0] + P[sd.po][0]), 0.5 * (P[sd.pi][1] + P[sd.po][1]), 0.5 * (P[sd.pi][2] + P[sd.po][2])],
+                                ax: [0, 0, 1], w: LEVREC.geom.w, axle: P[sd.axle].slice(), horn: P[sd.h].slice(), top: P[sd.u].slice() }, upP);
+      sd.O = gearOleoDesign(L, LEVREC.geom.comp, W, sink, D);
+    }
+    parts.lever = LEVREC;
+  }
   // G2678: the flown pod's own nodes and members (the damage hook's data: HANDOVER G2675-G2679)
   if (podM) parts.podFrame = podM;
   // G314: a cluster that declared a stiffness and its calibration pair gets

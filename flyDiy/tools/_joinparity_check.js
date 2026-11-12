@@ -139,9 +139,16 @@ if (PAGE) {
   const vy = d => { const v = tag(d, 'VSNL'), b = tag(d, 'S0BL'); return v && b ? v.p[1] - b.p[1] : null; };
   const cRaw = C.buildGen(rawSpec('cub')), cPage = C.buildGen(clone(PAGE.builds.cub.spec));
   const M = d => d.nodes.reduce((s, n) => s + n.m, 0);
-  ok(vy(cPage) != null && vy(cPage) < 0.2 && vy(cRaw) > 0.5 && Math.abs(M(cRaw) - M(cPage)) > 5,
+  // G2814 (TANK-SPLIT, rule b - the finding moved with a meant change): since TANK-FIT (3 Nov, the user's "Yes": the saves'
+  // nose tanks take the auto shape) the game no longer drops the Cub's tank 0.7 m under the file's station - it shapes a
+  // deck to the nose (44 L) where the file holds its 45 L box at the same station. The old path is still not the game's:
+  // the file as written flies the box, the game the deck, and the masses differ (476.19 / 476.45 kg on 8 Nov)
+  const vf = sp => ((sp.energy || {}).vessels || [])[0] || {};
+  const cRawS = rawSpec('cub'), cPageS = PAGE.builds.cub.spec;
+  const shaped = vf(cPageS).form === 'deck' && vf(cRawS).form !== 'deck' && Math.abs(M(cRaw) - M(cPage)) > 0.1;
+  ok(shaped || (vy(cPage) != null && vy(cPage) < 0.2 && vy(cRaw) > 0.5 && Math.abs(M(cRaw) - M(cPage)) > 5),
     'Cub: the nose tank\'s nodes as written ' + vy(cRaw).toFixed(3) + ' m over the firewall\'s foot, in the game ' + vy(cPage).toFixed(3) +
-    '; ' + M(cRaw).toFixed(2) + ' kg as written, ' + M(cPage).toFixed(2) + ' in the game (the tank ' +
+    '; ' + M(cRaw).toFixed(2) + ' kg as written (' + (vf(cRawS).form || 'box') + '), ' + M(cPage).toFixed(2) + ' in the game (' + (vf(cPageS).form || 'box') + ', the tank ' +
     PAGE.builds.cub.spec.energy.vessels.map(v => v.capacity + ' L').join(', ') + ')');
 }
 
@@ -199,6 +206,9 @@ const DOORS = {
     // (G2799, the census of 20 Oct: the tour flown in the real page from the WIP slot, the storage screen's shelf, the
     // garage's clock bake under _page_node with the file as its autosave - the page's own chain each time)
     'tour_real', 'storage_shot', '_clockbake_check',
+    // (PLANE-RENDERS 10 Nov: LISTS-SHOT pictures every plane list; its three validated files are seeded into the real page's
+    // storage shelf (localStorage flydiy.build.<name>), as storage_shot's - the page's own load chain; never flown)
+    'lists_shot',
     // (COWL-RES G3713/G3716: the eye variants' stills and the entry/exit probe hand the file to the real page's
     // GARAGE_SPEC.set - the page's own load chain - and judge what it draws)
     'cowl_res_stills', 'cowl_res_probe',
@@ -209,7 +219,11 @@ const DOORS = {
     'avionics_pfd_stills',
     // (DIRT-STRIP 9 Nov: the strip stills hand the Cub's file to the real page as its autosave (flydiy.wip) - the page's
     // own load chain)
-    'dirt_strip_stills'],
+    'dirt_strip_stills',
+    // (G2818 MASTER-GREEN, the census of 8 Nov: the real page with the file as its autosave (flydiy.wip) - soft_still /
+    // live_driver for DMG-GLASS's and DMG-SCUFF's stills, TERRAIN-MATCH's headless still; LIVERY-5's fleet Import on the real
+    // dev.html; FLOAT-DUP's GARAGE_SPEC.set in Chrome, as cowl_res_probe)
+    'dmg_glass_stills', 'dmg_scuff_evidence', 'terrain_still', 'livery5_shot', '_floatdup_check'],
   // through a loader that is itself on the chain: pilot_trace.js specOf (a .json key; pilot_matrix.js flies its cells
   // through it), _treecrash_lib.js defOf
   viaPilotTrace: ['_pilotact_check', '_plan_check', '_rwytrees_check', '_taxiclear_check', 'pilot_matrix',
@@ -220,21 +234,38 @@ const DOORS = {
     'altiport_trace', '_altiport_check', 'floats_probe', 'tour_real_node', '_profile_check'],
   viaTreecrash: ['_dmg_instruments_check', '_destto_check',
     // (G2799: ROUTE's flights, L.defOf)
-    '_route_check'],
+    '_route_check',
+    // (G2818: ENGINE-TORQUE's gate flies L.BUILDS = LB.VALIDATED through L.defOf, its twinFloatsLand row too)
+    '_engtorque_check'],
+  // THROUGH tools/_tour_lib.js's defOf (G2818, the census of 8 Nov: = LB.gameSpec, the load door): PILOT-CANFLY's gate calls
+  // TR.defOf; APSMOOTH hands the file to ap_smooth_probe / ap_lineup_probe, which call it
+  viaTourLib: ['_canfly_check', '_apsmooth_check'],
   // never flies it: the stock designs' source (_cage_page5 rows were imported from these files), a comment, a paint
   // round trip at the spec level
   spec: ['_cage_page5', '_cage_stab', '_livery_check',
     // (G2799, the census of 20 Oct) GEOM-FIXES's wing rows (the join's export and resolveSpec, spec-level); GARAGE-SHEET's
     // worker against the main thread on the SAME spec, to the bit - a parity of two threads, not the game's aeroplane
-    '_wingrows_check', '_sheetworker_check'],
+    '_wingrows_check', '_sheetworker_check',
+    // (G2818: CERT-GATES's procurement fingerprint and save hook, on the spec - never built)
+    '_certgates_check',
+    // (G2818: PLANE-LISTS lists the files (the chooser's rows, the client's storyClientSpec) - never builds them; QUADWIN's
+    // old-window reference is the Cub's file through the cage generator's own geometry (cageFromSpec), never flown)
+    '_planelists_check', '_quadwin_check'],
   // THE DRAWING, NOT THE FLIGHT (G2799, DASH-REDESIGN's): the file seeds the editor's own layers headless
   // (_scene_headless.js sceneBuild, the load door's seeding) and what is judged is what they draw - the dash, a tank
   // through it, the stills; its physics rows bake the joined card (_bake_joined.js)
-  scene: ['dash_stills', '_dash_check'],
+  scene: ['dash_stills', '_dash_check',
+    // (G2818: FITTINGS-MANUAL seeds SH.sceneBuild headless with the file and judges the drawn triangles - never flown)
+    '_fit_manual_check'],
   // a JOIN UNDER TEST (the fixpoint of the join's own merge; the drawn ground against the flown): tools/_bake_joined.js
   join: ['_specfix_check', 'ground_drawn', 'ground_gap',
     // (G2799, the census of 20 Oct: DESIGN-CHECK, GEOPARITY and NACELLE-LAG fly the joined bake, _bake_joined.js)
-    '_designcheck_check', '_geoparity_check', '_naclag_check'],
+    '_designcheck_check', '_geoparity_check', '_naclag_check',
+    // (G2818, the census of 8 Nov: DESIGN-AIDS's rows on the joined bake as _designcheck_check's, and the bake's own engine
+    // record (W.CAGE_ENG, propOff) the load door does not return; TERRAIN-MATCH's settle of the joined bake, ground_gap's BJ)
+    '_aids_check', 'terrain_match',
+    // (G2818: GATE TERRAINMATCH runs terrain_match.js above; it names the Cub's file in its header only)
+    '_terrainmatch_check'],
   // THE LEGACY LIST (train 41, the user 8 Oct: 'let's not have different ways to build things, it's unmaintainable'):
   // the tools that predate JOIN-PARITY and read a validated file raw. Named, SHRINK-ONLY (owner Deform): at most these 19,
   // and an entry that no longer reads a validated file raw (moved to tools/_load_build.js, or gone) must be struck off.
@@ -265,6 +296,7 @@ for (const f of files) {
   const door = declared.get(base);
   if (door === 'viaPilotTrace' && !/pilot_trace|pilot_matrix|PT\.specOf|specOf/.test(src)) { rogue.push(f + ' (declared via pilot_trace, does not call it)'); continue; }
   if (door === 'viaTreecrash' && !/_treecrash_lib/.test(src)) { rogue.push(f + ' (declared via _treecrash_lib, does not load it)'); continue; }
+  if (door === 'viaTourLib' && !/TR\.defOf|_tour_lib|ap_smooth_probe|ap_lineup_probe/.test(src)) { rogue.push(f + ' (declared via _tour_lib, does not use it)'); continue; }
   if (!door) rogue.push(f);
 }
 { const stale = DOORS.legacy.filter(n => { const p = path.join(T, n + '.js'); if (!fs.existsSync(p)) return true; const src = fs.readFileSync(p, 'utf8'); return !RX.test(src) || /_load_build/.test(src); });
@@ -273,7 +305,7 @@ ok(DOORS.incoming.length <= INCOMING_MAX, 'the incoming list only shrinks: ' + D
 for (const n of DOORS.incoming) { const p2 = path.join(T, n + '.js'); const raw = fs.existsSync(p2) && RX.test(fs.readFileSync(p2, 'utf8')) && !/_load_build/.test(fs.readFileSync(p2, 'utf8'));
   console.log((raw ? '  OPEN ' : '  ok   ') + n + '.js ' + (raw ? 'reads a validated build raw [owner ' + INCOMING_OWNER[n] + ', opened 2026-10-11: through tools/_load_build.js, then strike it off]' : 'no longer raw: strike it off the incoming list')); }
 ok(!rogue.length, 'no tool flies a validated build raw' + (rogue.length ? ': ' + rogue.join(', ') : ' (' + Object.values(DOORS).flat().length + ' declared doors)'));
-for (const via of ['pilot_trace.js', '_treecrash_lib.js'])
+for (const via of ['pilot_trace.js', '_treecrash_lib.js', '_tour_lib.js'])
   ok(/_load_build/.test(fs.readFileSync(path.join(T, via), 'utf8')), via + ' loads saved builds through tools/_load_build.js');
 
 if (SHOW && PAGE) for (const k of KEYS) {

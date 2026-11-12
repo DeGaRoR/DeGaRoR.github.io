@@ -96,8 +96,8 @@ const GROUP = ['8 · tail — fin (2D)', [
   // bottom-out, and the STRUCTURE itself (`tail.finMaterial` through the
   // join): mass and price since G116, stiffness and damping since G117 —
   // WYSIWYG, see genLattice's note.
-  ['finCons', 'construction',      0, 6, 1,
-   ['as the aeroplane', 'carbon', 'steel tube', 'fabric on wood', 'aluminium', 'aluminium tube', 'glassfibre'],
+  ['finCons', 'construction',      0, 7, 1,
+   ['as the aeroplane', 'carbon', 'steel tube', 'fabric on wood', 'aluminium', 'aluminium tube', 'glassfibre', 'fabric on aluminium spar'],
    { when: P => +P.finOn }],
   // THE CUT — the hinge slices between the doubleLoopV guards; the horn
   // line IS the mid row (max-creased under horn mode so it stays exactly
@@ -131,6 +131,11 @@ const GROUP = ['8 · tail — fin (2D)', [
   ['size', [
     // DC3-EDITABLE: a big aeroplane's fin (GEN_TAIL_ENVELOPE.big's 5.5 m)
     ['finHeight',   'height (× the drawn)',           0.50, 2.50, 0.01],
+    // FIN STATION (DRAFTING TABLE, 11 Nov): the fin along its deck - a fin whose rudder ends ahead of the tail cone
+    ['finZ',        'fore / aft (on the deck, + forward)', -0.60, 2.00, 0.005, { absent: 0 }],
+    // THE DORSAL'S SHAPE (DRAFTING TABLE, 11 Nov): a straight dorsal of any length, meeting the fin at any height
+    ['finDorsalFwd', 'dorsal reach (forward)',              0.00, 3.00, 0.01, { absent: 0, when: P => +P.finDorsal }],
+    ['finDorsalH',   'dorsal height at the fin',           -0.30, 1.50, 0.005, { absent: 0, when: P => +P.finDorsal }],
     ['finChord',    'chord (× the drawn, about the hinge)', 0.50, 2.20, 0.01],
     ['finChordTip', 'tip chord (of the root)',        0.30, 1.50, 0.01],
     ['finSweep',    'sweep (deg, the post rakes)',    -10, 45, 0.5],
@@ -253,7 +258,7 @@ function tailMat(k, sec, boxPlane) {
   const pk = sec && sec.indexOf('stab') === 0 ? 'stCons' : 'finCons';
   // G213: the tail's own tokens (fabric over a wooden or tubular structure
   // on a wood or tube aeroplane), 'as the aeroplane' through GEN_SURF_DEFAULT
-  const CONS4 = ['carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass'];   // G466: the fifth stop; G2047 the sixth
+  const CONS4 = ['carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass', 'fabricAlu'];   // G466: the fifth stop; G2047 the sixth
   const FUS4 = ['carbon', 'tubeFabric', 'wood', 'alloy', 'aluTube', 'glass'];
   // the TAIL's default: the fabric over the fuselage's own structure
   const SD = (typeof GEN_SURF_DEFAULT_TAIL !== 'undefined' && GEN_SURF_DEFAULT_TAIL) ||
@@ -573,6 +578,11 @@ PAGE.post = ctx => {
   const S = FIN.finSpec(P.boomStyle
     ? Object.assign(Object.create(P), { finKeel: 0, finDorsal: dorsalTube ? 1 : 0 }) : P);
   S.cutPrep = cutMode;              // crease the rails the cut runs along
+  // FIN STATION (DRAFTING TABLE): the whole fin along its deck, + forward (_fin_gen buildFin2's dz); absent = 0
+  if (+P.finZ) S.zShift = +P.finZ;
+  // THE DORSAL'S SHAPE (DRAFTING TABLE): its forward reach and its height at the fin (_fin_gen buildFin2); absent = 0
+  if (+P.finDorsalFwd) S.dorsalFwd = +P.finDorsalFwd;
+  if (+P.finDorsalH) S.dorsalH = +P.finDorsalH;
   // TWIN BOOMS (2026-09-04): the fin rides a BOOM, not the fuselage — its
   // deck is the boom's own top line (a straight tube), its keel the tube's
   // belly, its tail cap the boom's tip; built once, drawn at ±boomX

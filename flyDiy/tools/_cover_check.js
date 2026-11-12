@@ -278,20 +278,26 @@ function fieldRing(opts) {   // (opts: { codeAt, mixAt } - a world of the caller
     const L = Fd.ctx.TREE_LEAF, fs = Fd.CR.fadeSet ? Fd.CR.fadeSet() : null;
     const Fx = fs ? fadeCheck(Fd, fs, L.fadeSize(null, null, fs)[0], L.fadeSize(null, null, fs)[1], L.fadeSize(null, null, fs)[2]) : { meshes: 0, cut: 0, bad: 1 };
     ok(Fx.meshes > 0 && Fx.bad === 0, '8e the field\'s truncation leaves out only tufts its own fade (and size fade) collapses', Fx.cut + ' left out, ' + Fx.bad + ' that would draw');
-    // (f) THE ROOT GRADIENT (G2571): the reed's compiled program reads the ring's own uRoot - identity by default, live A -> B -> A
-    // (0 -> 0.5 -> 0) - and every other faded material of the first ring (rocks, debris, shrubs) carries an identity uRoot of its own,
+    // (f) THE ROOT GRADIENT (G2571; VEG-ROOT 9 Nov: ON by default, every small plant): the reed's compiled program reads the ring's own
+    // uRoot - the cover's row (0.6, MID) by default, live A -> B -> A (0.6 -> 0.5 -> 0.6) - and every other faded material of the first ring
+    // carries a uRoot of its own: rocks, debris and bushes the identity (no shade on bushes), a grass or flower its level's row (never the reed's object),
     // so a cache-hit program never keeps another material's state (the cached-program uniforms trap); the law after the map's tint
     { const reed = meshes[0] && meshes[0].material, rnd = () => { Fd.CR.update(); Fd.R.render(Fd.scene, Fd.camera); }, uR = () => { const p = Fd.R.properties.get(reed); return p && p.uniforms && p.uniforms.uRoot; };
       rnd(); const a0 = uR(), x0 = a0 ? a0.value.x : NaN;
       Fd.CR.set({ root: 0.5 }); rnd(); const x1 = uR() ? uR().value.x : NaN;
-      Fd.CR.set({ root: 0 }); rnd(); const x2 = uR() ? uR().value.x : NaN;
+      Fd.CR.set({ root: 0.6 }); rnd(); const x2 = uR() ? uR().value.x : NaN;
+      // (12 Nov: the key's weight is the TINTED mean's r/g - the reed's real texel mean, r/g 1.72, tinted to sat 0.24: ~1.09, never the raw 1.72)
+      const tm0 = reed && reed.userData.texMean; if (reed) reed.userData.texMean = [0.15, 0.087, 0.029]; rnd(); const kw = uR() ? uR().value.w : NaN;
+      if (reed) { if (tm0) reed.userData.texMean = tm0; else delete reed.userData.texMean; } rnd();
+      const kwOk = kw > 0.9 && kw < 1.3 && Math.abs(kw - 0.15 / 0.087) > 0.3;
       let others = 0, othersOk = 0; Bt.R.render(Bt.scene, Bt.camera);
       Bt.CR.root.traverse(o => { if (!(o.isInstancedMesh || o.isBatchedMesh) || !o.material || !o.material.userData.fade || o.userData.coverKind === 'cover') return;
-        const p = Bt.R.properties.get(o.material); others++; if (p && p.uniforms && p.uniforms.uRoot && p.uniforms.uRoot.value.x === 0 && p.uniforms.uRoot !== a0) othersOk++; });
-      const fsOk = Fd.B.links.some(l => l.fs && l.fs.indexOf('if (uRoot.x > 0.0) diffuseColor.rgb *= mix(1.0 - uRoot.x, 1.0,') >= 0);
-      ok(a0 && x0 === 0 && x1 === 0.5 && x2 === 0 && others > 0 && othersOk === others && fsOk,
-         '8f the root gradient: the reed reads the field\'s uRoot (0 -> 0.5 -> 0 live), every other faded material its own identity, the law in the program',
-         'x ' + [x0, x1, x2].join(' -> ') + ', ' + othersOk + ' of ' + others + ' others identity'); }
+        const p = Bt.R.properties.get(o.material); others++; const k = o.userData.coverKind, u = p && p.uniforms && p.uniforms.uRoot;
+        if (u && u !== a0 && ((k === 'rock' || k === 'debris' || k === 'shrub') ? u.value.x === 0 : true)) othersOk++; });
+      const fsOk = Fd.B.links.some(l => l.fs && l.fs.indexOf('diffuseColor.rgb *= min(vRoot, 1.0);') >= 0 && l.vs && l.vs.indexOf('vRoot = 1.0 - uRoot.x + uRoot.x * position.y') >= 0 && l.vs.indexOf('if (uRoot.w > 0.0) { float _rk = smoothstep(') > l.vs.indexOf('vRoot = 1.0 - uRoot.x + uRoot.x * position.y'));   // (12 Nov: the key AFTER the law, or the law overwrites it)
+      ok(a0 && Math.abs(x0 - 0.6) < 1e-6 && x1 === 0.5 && Math.abs(x2 - 0.6) < 1e-6 && others > 0 && othersOk === others && fsOk && kwOk,
+         '8f the root gradient: the reed reads the field\'s uRoot (0.6 -> 0.5 -> 0.6 live), every other faded material its own (rocks and bushes identity - the user 10 Nov: no shade on bushes), the vertex law in the program with the field keyed by colour',
+         'x ' + [x0, x1, x2].join(' -> ') + ', ' + othersOk + ' of ' + others + ' others right, key weight ' + (+kw).toFixed(3)); }
   }
 }
 

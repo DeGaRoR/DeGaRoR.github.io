@@ -1,7 +1,7 @@
 {
   "id": "./",
-  "name": "flyDiy - Garage Flight Sim",
-  "short_name": "flyDiy",
+  "name": "Wingsmith",
+  "short_name": "Wingsmith",
   "description": "Design, build and fly your own light aeroplane.",
   "start_url": "./",
   "scope": "./",

@@ -29,7 +29,7 @@
 // in metres, for the atlas and for the panel's thumbnails alike.
 //
 // THE MASTER (A9, 2026-09-21, the user: "we need like a master sticker").
-// One larger roundel — AIRWORTHY round the top, FLYDIY · CERTIFIED round
+// One larger roundel — AIRWORTHY round the top, WINGSMITH · CERTIFIED (the game's name, GAME_NAMES.game) round
 // the bottom, a pair of wings, the registration and the day the last
 // gating certificate landed — worn when the whole certificate is held
 // (BENCH_STATE().passed: the bench check, the wing loading and the test
@@ -50,7 +50,8 @@ const STICKER_META = {
   xwind:  { title: 'CROSSWIND',        emblem: 'windsock' },
   hydro:  { title: 'HYDROPLANE',       emblem: 'float' },      // S1 (G451.1): the seaplane's own
 };
-const STICKER_MASTER = { title: 'AIRWORTHY', ring: 'FLYDIY · CERTIFIED', emblem: 'wings', d: 0.25 };
+// WINGSMITH (9 Nov): the ring carries the game's name (01_names.js GAME_NAMES.game), upper case
+const STICKER_MASTER = { title: 'AIRWORTHY', ring: (typeof GAME_NAMES !== 'undefined' && GAME_NAMES.game ? String(GAME_NAMES.game).toUpperCase() + ' · ' : '') + 'CERTIFIED', emblem: 'wings', d: 0.25 };
 const STICKER_MASTER_PAGE = 7;
 const STICKER_INK = '#1f3552', STICKER_GROUND = '#f1e7d0', STICKER_RIM = '#d9c9a5';
 // the strip on the fuselage: field frame, metres aft of the firewall and
@@ -232,7 +233,7 @@ function stickerRoundel(g, cx, cy, r, o) {
     g.textAlign = 'center'; g.textBaseline = 'middle';
     stickerArcText(g, String(o.title || ''), r * 0.77, -Math.PI / 2, fs, true);
     g.font = '500 ' + (fs * 0.82) + 'px "IBM Plex Sans", sans-serif';
-    stickerArcText(g, String(o.ring || 'FLYDIY · ENGINEERING BENCH'), r * 0.77, Math.PI / 2, fs * 0.82, false);
+    stickerArcText(g, String(o.ring || ((typeof GAME_NAMES !== 'undefined' && GAME_NAMES.game ? String(GAME_NAMES.game).toUpperCase() + ' · ' : '') + 'ENGINEERING BENCH')), r * 0.77, Math.PI / 2, fs * 0.82, false);
     if (o.sub) {
       // the master's registration, above the date
       g.font = '700 ' + (r * 0.15) + 'px "IBM Plex Mono", monospace';

@@ -49,6 +49,9 @@ Object.assign(gearDef, {
   // tail. Measured back to 16.2 deg, inside the 15-18 window, at 2.00.
   s1On: 1, s1Z: 2.00, s1X: 0.80, s1Leg: 1, s1R: 0.20, s1Drop: 0.45,
   s1Brake: 1, s1Steer: 0, s1Fair: 0,
+  // ENGINE-DIALS C (9 Nov): the mains' spring rate over the suspension kind's (GEN_SUSPENSION), spec.gear.stiffness -
+  // a physics field no row reached (every build flew 1); absent at 1 (CAGE_DEFAULT_ABSENT)
+  s1Stiff: 1,
   // G26.4 (user): a TAILWHEEL station follows the tail — when the leg
   // is a tailwheel, station z is measured FORWARD OF THE AFT EXTREMITY
   // (AF.z0, which tracks the boom/rod length by construction), so
@@ -70,6 +73,7 @@ Object.assign(gearDef, {
   gm1Ax: 0, gm1Ang: 90, gm2Ax: 1, gm2Ang: 0, gmTwist: 0,
   gn1Ax: 1, gn1Ang: 90, gn2Ax: 0, gn2Ang: 0, gnTwist: 0,
   shockKind: 1, linkSwing: -42,
+  gearLvPos: 0,            // WILGA-GEAR: the trailing-link leg's preview (0 extended .. 1 full stroke; a view, never saved)
   cgZ: 1.17, cgY: 0.05, propR: 0.875, propZ: 2.96,
 });
 // the page's own defaults still win — this only fills what it did not say
@@ -92,6 +96,8 @@ const legRowWhen = (i, key, kind) => {
     return P => kw(P) && +P['s' + i + '_shockKind'] === 1;
   if (key === 'oleoBraceZ')
     return P => kw(P) && +P['s' + i + '_oleoBrace'];
+  if (key === 'lvBoot')                                   // (WILGA-GEAR: the leg fairing's shape, with the leg fairing)
+    return P => kw(P) && Math.round(+P['s' + i + 'LegFair'] || 0) > 0;
   return kw;
 };
 const legRows = i => {
@@ -118,7 +124,9 @@ const sOnM = i => ({ when: P => +P['s' + i + 'On'], dim: 'm' });
 // RETRACT-1 (the user, 3 Nov: "wheels with fairings - a strange choice for retractable wheels"): a retracting gear
 // wears no spat, no trouser and no leg shroud - its doors will be its fairing (step 4) - so the fairing rows step aside
 const noRet = P => !GEAR_RETRACTABLE(P);
-const fairOn = i => ({ when: P => +P['s' + i + 'On'] && noRet(P)
+// WILGA-GEAR: and so do the WHEEL's on the trailing link (the mains' leg 4: the leg-fairing row is its fairing)
+const noLever = (P, i) => !(i === 1 && Math.round(+P['s' + i + 'Leg'] || 0) === 4);
+const fairOn = i => ({ when: P => +P['s' + i + 'On'] && noRet(P) && noLever(P, i)
                              && Math.round(P['s' + i + 'Fair'] || 0) > 0 });
 // any fairing anywhere — the build-material row prices the whole set
 const fairAny = P =>
@@ -135,7 +143,7 @@ const station = (i, name) => [name, [
   // DC3-EDITABLE: to the big box's 8 m track (4 m), 0.90 m wheel and 1.80 m leg (gear.legDrop's clampBig)
   ['s' + i + 'X',     'in / out (half track)',   0, 4.0, 0.01, sOnM(i)],
   // RETRACT GM1: a retracting gear's legs are oleos on trunnions, whatever this row holds (it is kept for the gear down)
-  ['s' + i + 'Leg',   'leg',          0, 3, 1, GP.LEGS, Object.assign({}, sOn(i), {
+  ['s' + i + 'Leg',   'leg',          0, i === 1 ? 4 : 3, 1, GP.LEGS, Object.assign({}, sOn(i), {   // (WILGA-GEAR: 4 the mains')
     note: P => GEAR_RETRACTABLE(P) && Math.round(+P['s' + i + 'Leg']) !== 2 ? 'retractable: drawn and flown as an oleo on a trunnion' : '' })],
   ['s' + i + 'R',     i === 2 ? 'third wheel radius' : 'main wheel radius', 0.05, 0.90, 0.005, sOnM(i)],
   ['s' + i + 'Drop',  'up / down (leg drop)',     0.05, 1.80, 0.01, sOnM(i)],
@@ -148,6 +156,10 @@ const station = (i, name) => [name, [
    { when: P => +P['s' + i + 'On'] && Math.round(P['s' + i + 'Leg']) !== 3,
      dim: 'm' }],
   ['s' + i + 'Brake', 'brake',        0, 1, 1, sOn(i)],
+  // ENGINE-DIALS C: the suspension's stiffness, the mains' only (the physics has one suspension arch: G132) - a stiffer
+  // or softer bungee pack, spring blade or oleo charge than the kind's own rate; the frame scales the legs' k by it and
+  // their damping by its root (61_gen_frame SUS / CG)
+  ...(i === 1 ? [['s1Stiff', 'suspension stiffness ×', 0.35, 3.0, 0.01, sOn(1)]] : []),
   // (G3575, the user 26 Oct: "remove fixed" - on the THIRD wheel: it flew as 'linked' anyway; the mains keep their 'fixed',
   // their own and only value. A saved third wheel at 0 still flies linked, as it always did)
   // G3800: the third wheel's own four kinds (GP.TW_STEERS; 0 an old save's, shown and flown as 1)
@@ -156,7 +168,7 @@ const station = (i, name) => [name, [
   // G133: the castor exclusion is GONE — legTailwheel draws its own shell
   // now, so the switch that was two lies (G121.2) is two truths everywhere
   ['s' + i + 'Fair',  'fairing',      0, 2, 1, ['none', 'spat', 'trousers'],
-   { when: P => +P['s' + i + 'On'] && noRet(P) }],
+   { when: P => +P['s' + i + 'On'] && noRet(P) && noLever(P, i) }],
   // ...and the shape is an instrument (G133): skirt around the mode's own
   // base, tail run-out to a droplet, rake for a taildragger's flying
   // attitude, width for a fat tyre. Rows exist only where a shell does.
@@ -170,7 +182,7 @@ const station = (i, name) => [name, [
   // (its spring shroud is the trouser state's own).
   ['s' + i + 'LegFair', 'leg fairing', 0, 1, 1, ['bare', 'streamlined'],
    { when: P => +P['s' + i + 'On'] && noRet(P)
-             && Math.round(P['s' + i + 'Fair'] || 0) < 2
+             && (Math.round(P['s' + i + 'Fair'] || 0) < 2 || !noLever(P, i))
              && !(i === 2 && Math.round(P.s2Leg) === 3) }],
   ...legRows(i),
 ]];
@@ -638,6 +650,22 @@ function nacAt(x, z, wingOnly) {
   for (const N of NACS) if ((!wingOnly || N.kind !== 'cowl') && z >= N.z0 && z <= N.z1 && Math.abs(x - N.xc) <= N.AF.halfWAt(z)) return N;
   return null;
 }
+// WELL-CLAMP (the user 9 Nov): a well's ceiling stands WELL_SKIN under the skin over it - the skin and its stringer (the
+// 8 mm the nacelle's well kept before) and room. THE UPPER SKIN OVER A PLAN PLACE in a section table's own frame (x off
+// its centre line): the top half of its section (surf's angle PI the top, PI/2 the side - nacIn's convention) sampled
+// from the top out and read at |x|; null where the section is narrower than |x| there
+const WELL_SKIN = 0.015;
+function skinTopAt(A, x, z) {
+  const ax = Math.abs(x), K = 24;
+  let prev = null;
+  for (let i = 0; i <= K; i++) {
+    const s = A.surf(z, Math.PI - 0.5 * Math.PI * i / K), q = [Math.abs(s[0]), s[1]];
+    if (i === 0 && ax <= q[0]) return q[1];
+    if (prev && ax >= prev[0] && ax <= q[0]) return prev[1] + (q[0] > prev[0] ? (ax - prev[0]) / (q[0] - prev[0]) : 0) * (q[1] - prev[1]);
+    prev = q;
+  }
+  return null;
+}
 // GR: THE GEAR NACELLE (the F27's, the Dash 8's, the An-24's: a high wing's engine nacelle carried on down and aft as
 // the mains' bay). A nacelle that cannot take the folded leg - too short both ways from the pin (a high wing's leg is a
 // long one) or too shallow for the wheel - is GROWN by the gear layer: a fairing under the wing, the engine nacelle's
@@ -988,12 +1016,21 @@ function foldFit(P, swing, AF, W, MX) {
     if (lFold(P)) lSlots(out.cutsSide, units, bodyIn, MX);
     // GR: THE NACELLES' WELLS - the units' swept points inside a nacelle, cut from below into its skin (the wing's way)
     out.cutsNac = NACS.length ? wellMerge(wellRaw(units, nacIn, MX), mode) : [];
-    // (a nacelle well's ceiling held 8 mm under the nacelle's top: a wheel taller than the nacelle never opens its top)
+    // (a nacelle well's ceiling held under the nacelle's top: a wheel taller than the nacelle never opens its top)
+    // WELL-CLAMP (REAL-FIGURES' TAIL-RETRACT finding, the user 9 Nov: "the well depth clamped to the skin's inner face
+    // minus 15 mm, the wheel left proud"): the ceiling was the CENTRE LINE's top less 8 mm for every cell, and a round
+    // nacelle's top falls off its centre line - on a shallow one the cells beside it opened the upper skin (a sliver).
+    // Each cell now stands WELL_SKIN under the skin over that very cell (skinTopAt); how far the stowed wheel stands
+    // above its clamped ceiling is the fit's note (wellClamp: the gearWellCut row's "well clamped: wheel N cm proud")
+    let proud = 0;
     for (const c of out.cutsNac) { const H = c.hf;
       for (let j = 0; j < H.nz; j++) for (let i = 0; i < H.nx; i++) {
         const x = H.x0 + i * H.d, z = H.z0 + j * H.d, N = nacAt(x, z);
-        if (N) H.y[j * H.nx + i] = Math.min(H.y[j * H.nx + i], N.AF.surf(z, Math.PI)[1] - 0.008);
+        if (!N) continue;
+        const t = skinTopAt(N.AF, x - N.xc, z), lim = (t != null ? t : N.AF.surf(z, Math.PI)[1]) - WELL_SKIN, k = j * H.nx + i;
+        if (H.y[k] > lim) { proud = Math.max(proud, H.y[k] - FIT.clear - lim); H.y[k] = lim; }
       } }
+    if (proud >= 0.005) out.wellClamp = { cm: +(proud * 100).toFixed(1) };
     // G5: THE WING'S CUTS - where the units go into the wing (its skins), and where they go into the body (a low wing's
     // centre section runs through a belly well), merged where they meet: the wing layer's skin is cut by these
     // (the wing's sweep takes the leg's AXIS, not its tube: a wing's rest slot sits in its lower skin by the trunnion,
@@ -1371,8 +1408,10 @@ function wellHitsTank(w, r) {
 // THE RED ROWS (_cage_ui.js applyRowVis reads this after every build): row key -> the reason, or null when it fits
 window.CAGE_ROW_BAD = () => {
   const G = window.CAGE_GEAR, fit = G && G.fit;
-  if (!fit) return null;
-  const rows = Object.assign({}, fit.rows);
+  // WILGA-GEAR: a trailing-link leg whose tyre enters the body at full stroke turns its drop and its full-stroke rows red
+  const lvBad = G && G.leverBad;
+  if (!fit) return lvBad && Object.keys(lvBad).length ? Object.assign({}, lvBad) : null;
+  const rows = Object.assign({}, fit.rows, lvBad || {});
   for (const h of fitTanks(fit)) {
     const why = UNIT_WORD[h.unit] + ' meets a tank (' + ((h.tank.bay && (h.tank.bay.name || h.tank.bay.key)) || h.tank.on) + ')';
     for (const k of FIT_ROWS[h.unit].fold.concat([FIT_ROWS[h.unit].st + 'Z', 'gearRetFrac'])) if (!rows[k]) rows[k] = why;
@@ -1398,8 +1437,11 @@ const RETRACT_LAB = () => {
     if (typeof window.FLYDIY_RETRACT_LAB === 'boolean') return window.FLYDIY_RETRACT_LAB;
     // no page (node: the gates, the tools) - no player to hide it from: the lab's rows are all there
     if (typeof location === 'undefined') return true;
-    if (/[?&]retract=lab\b/.test(location.search || '')) return true;
-    return !!(window.localStorage && window.localStorage.getItem('flydiy.flDev') === '1');
+    // SEA-ON (10 Nov, the user: "I need to see these things and play with it; I'm still the sole player"): the hulls
+    // and the retractable gear are ON by default in the player's garage too. ?retract=off is the way back (a session's
+    // look at the old garage); ?retract=lab and the dev toggle still say on
+    if (/[?&]retract=off\b/.test(location.search || '')) return false;
+    return true;
   } catch (e) { return true; }
 };
 window.CAGE_RETRACT_LAB = RETRACT_LAB;
@@ -1444,6 +1486,8 @@ const GROUP = ['9 · undercarriage', [
     // vertical, aft on lateral), plus the wheel's own twist about its leg (to lie flatter); the mains' rows are the
     // port unit's, the starboard mirrors them. The fraction stops the whole chain part way (the wheel in its inset)
     ['gearPos', 'gear position (preview: 1 down, 0 up)', 0, 1, 0.01, { when: P => +P.gearRetract }],
+    // WILGA-GEAR: the trailing-link leg's compression, previewed (0 extended, as in flight .. 1 full stroke)
+    ['gearLvPos', 'trailing-link preview (0 extended .. 1 full stroke)', 0, 1, 0.01, { when: P => Math.round(+P.s1Leg) === 4 && +P.s1On }],
     ['gearFold', 'mains fold', 0, FOLD_KEYS.length - 1, 1, FOLD_KEYS.map(k => FOLD_LABELS[k]), { when: P => RETRACT_LAB() && +P.gearRetract }],
     ['gm1Ax', 'mains turn 1: axis', 0, 2, 1, FOLD_AX_LABELS, { when: P => RETRACT_LAB() && +P.gearRetract && foldCustom(P) }],
     ['gm1Ang', 'mains turn 1: angle °', -180, 180, 1, { when: P => RETRACT_LAB() && +P.gearRetract && foldCustom(P) }],
@@ -1459,7 +1503,9 @@ const GROUP = ['9 · undercarriage', [
     ['gearRetFrac', 'retracts (fraction of the fold)', 0.3, 1, 0.05, { when: P => RETRACT_LAB() && +P.gearRetract }],
     // G4 (RETRACT-STUDY §8.10): THE WELL'S OUTLINE, always cut exactly into the skin - the swept unit's own plan hull,
     // or a rounded box round it (the fallback the user asked to keep: "so we have a fallback in case we struggle")
-    ['gearWellCut', 'well outline', 0, 1, 1, ['exact (the swept unit\'s hull)', 'box (a rounded rectangle)'], { when: P => RETRACT_LAB() && +P.gearRetract }],
+    ['gearWellCut', 'well outline', 0, 1, 1, ['exact (the swept unit\'s hull)', 'box (a rounded rectangle)'], { when: P => RETRACT_LAB() && +P.gearRetract,
+     // WELL-CLAMP: a nacelle well held under its skin with the stowed wheel above it - how far, the fit's own number
+     note: () => { const F = window.CAGE_GEAR && window.CAGE_GEAR.fit; return F && F.wellClamp ? 'well clamped: wheel ' + F.wellClamp.cm + ' cm proud' : ''; } }],
     // G6 (§8.13): THE DOORS - the exact outline's skin rides on the leg (the leg door) and what is left is the well's
     // door(s); the box's are its door(s) alone: one, or two split along the well (the user: "One, or 2, slitting in
     // the middle")
@@ -1497,7 +1543,9 @@ const GROUP = ['9 · undercarriage', [
 // appended group has to go into THAT array; otherwise the base append list.
 (PAGE.groupsOverride || (PAGE.groups = PAGE.groups || [])).push(GROUP);
 window.CAGE_GEAR_FOLD = { FOLD_PRESETS, FOLD_KEYS, FOLD_NOSE_KEYS, foldOf, foldChain, foldPose,   // G1: the one fold
-                          wellHitsTank };                                                       // G3: the reservation
+                          wellHitsTank,                                                         // G3: the reservation
+                          // WELL-CLAMP: the skin over a plan place and this build's nacelle there (GATE RETRACT 20)
+                          skinTopAt, WELL_SKIN, nacAt: (x, z) => nacAt(x, z) };
 
 // ---- GM2 (RETRACT-STUDY §8.11): THE ACTUATION - a brace and an actuator per unit, drawn at rest, posed by the core --
 // The record GEAR_MECH poses (src/core/62c_gear_mech.js): the units' chains (rigid: the leg, the wheel, the castor),
@@ -2365,6 +2413,9 @@ PAGE.post = ctx => {
   const stations = GP.gearStations(P);
   // RETRACT-1: a retracting gear is drawn bare (no spat, no trouser, no leg shroud: noRet above)
   if (GEAR_RETRACTABLE(P)) for (const st of stations) { st.fair = 0; st.legFair = 0; }
+  // WILGA-GEAR (the user, 9 Nov: "allow only a fairing for the leg, not the wheel on this suspension type"): the trailing
+  // link's wheel swings on its arm under the boot - it wears no spat and no trousers (the leg-fairing row is its fairing)
+  for (const st of stations) if (st.leg === 4 && !st.single) st.fair = 0;
   // G3800 (TAILWHEELS, the user 3 Nov: "one wheel per boom, same settings for the twin planes"): on TWIN BOOMS the
   // tailwheel is a pair, one under each boom's tail end (CAGE_BOOMS, the wing layer's; tail-relative to the boom's own
   // end as it is to the pod's on a single body), the same row for both
@@ -2722,9 +2773,12 @@ PAGE.post = ctx => {
                     retMounts.push({ key: st.single ? 'T' : (sgn > 0 ? 'L' : 'R'), wing: !!m, depth: 2 * st.ret.in, z: st.z }); }
         if (st.leg === 0) r = GG.legBeam(lb, AFx, st.P, st, sgn);
         else if (st.leg === 1) r = GG.legLink(lb, AFx, st.P, st, sgn);
+        // WILGA-GEAR: the trailing-link leg - its arm and the strut's two halves in their own bags (each posed apart)
+        else if (st.leg === 4 && !st.single && GG.legLever) { lb.lever = { arm: allBags(), cyl: allBags(), rod: allBags() }; r = GG.legLever(lb, AFx, st.P, st, sgn); }
         else r = GG.legOleo(lb, AFx, st.P, st, sgn);
         rOleo = r; retLow = st.ret ? st.ret.low || null : null; retSc = st.ret ? st.ret.scissor || null : null;
         if (retLow && wu.proxy) wu.proxy.brakefix = retLow.brakefix;      // (the caliper rides the piston with its wheel)
+        if (lb.lever && wu.proxy) wu.proxy.brakefix = lb.lever.arm.brakefix;   // (WILGA-GEAR: and the trailing arm's)
         // G133: spats ride their UNITS now, not the static shared bags —
         // a nose spat sits on its fork, a main spat on its own leg, so
         // the flown aeroplane carries them with the moving parts
@@ -2766,7 +2820,8 @@ PAGE.post = ctx => {
                       legR: (+(st.P && st.P.oleoDia) || 0.06) / 2 + 0.02,   // GR: the leg's radius and its links' room (the wells)
                       // GR: the strut as drawn (the shortening's axis and length), the piston's bags and the scissor
                       strut: rOleo && rOleo.strutDir || null, strutL: rOleo && rOleo.strutL || 0, cylF: rOleo && rOleo.cylF || 0.55,
-                      low: retLow, scissor: retSc });
+                      low: retLow, scissor: retSc,
+                      lever: r.lever ? Object.assign({}, r.lever, { bags: lb.lever }) : null });   // WILGA-GEAR
       contacts.push({ st, sgn, p: r.axle, R: st.R });
     }
   }
@@ -2778,9 +2833,11 @@ PAGE.post = ctx => {
     || GG.gearMat('fair');
   // ...and only when there ARE spats: the section registry lists what this
   // build actually drew, and an empty bag draws nothing
-  for (const k in bags)
-    bags[k].mesh(group, k === 'fair' && bags[k].tris ? spatM()
-                                                     : GG.gearMat(k));
+  for (const k in bags) {
+    const mb = bags[k].mesh(group, k === 'fair' && bags[k].tris ? spatM()
+                                                                : GG.gearMat(k));
+    if (mb && k === 'fair') mb.userData.gearFair = 1;   // WING-STRUCTURE: the fiche's cutaway shows the gear bare (metadata only)
+  }
   // G58.2/.3: bake each unit into its own NAMED group — the join's
   // snapshot picks these up by name, exactly as it does the prop's
   for (const wb of wheelUnits) {
@@ -2813,19 +2870,35 @@ PAGE.post = ctx => {
     const lg = new THREE.Group();
     lg.name = 'edLeg' + lu.kind;
     for (const k in lu.bags) {
+      if (k === 'lever') continue;                       // (WILGA-GEAR: the moving parts' own bags, meshed below)
       const mf = lu.bags[k].mesh(lg, legM(k, lu.bags[k]));
+      if (k === 'fair' && mf) mf.userData.fair = 1;      // (WILGA-GEAR: GATE WILGAGEAR finds the fairings by it)
+      if (mf && k === 'fair') mf.userData.gearFair = 1;   // (a spat or a leg shroud: WING-STRUCTURE's cutaway leaves it out)
       if (k === 'fair' && mf && exG > 0) {
         const sx = lu.axle ? Math.sign(lu.axle[0]) : 0;
         if (sx) mf.position.x += sx * exG; else mf.position.z += 0.6 * exG;
       }
     }
     group.add(lg);
+    // WILGA-GEAR: THE TRAILING-LINK LEG'S MOVING PARTS, each its own named group (the arm with its horn and axle stub,
+    // the strut's cylinder, its rod) - the preview row below and the flight (app.js, from the physics nodes) pose them
+    if (lu.lever && lu.lever.bags) for (const [nm, key] of [['edLvArm', 'arm'], ['edLvCyl', 'cyl'], ['edLvRod', 'rod']]) {
+      const gp = new THREE.Group(); gp.name = nm + lu.kind;
+      const B = lu.lever.bags[key];
+      for (const k in B) if (B[k].tris) { const m = B[k].mesh(gp, legM(k, B[k])); if (k === 'fair' && m) m.userData.fair = 1; }
+      group.add(gp);
+    }
   }
+  // WILGA-GEAR: the legs' records (the drawing's frame, metres) - the join writes spec.gear.lever from them
+  const leverOut = legUnits.filter(u => u.lever).map(u => ({ kind: u.kind, piv: u.lever.piv, ax: u.lever.ax, w: u.lever.w,
+    axle: u.lever.axle, horn: u.lever.horn, top: u.lever.top, root: u.lever.root, rows: u.lever.rows,
+    ...(u.lever.boot ? { boot: u.lever.boot } : {}) }));                    // (the fairing's own figures: GATE WILGAGEAR 7b)
   if (castorUnitOut) {
     const cgp = new THREE.Group();
     cgp.name = 'edCastorT';
     for (const k in castorUnitOut.bags) {
       const mf = castorUnitOut.bags[k].mesh(cgp, legM(k, castorUnitOut.bags[k]));
+      if (mf && k === 'fair') mf.userData.gearFair = 1;
       if (k === 'fair' && mf && exG > 0) mf.position.z += 0.6 * exG;   // G316
     }
     group.add(cgp);
@@ -3029,7 +3102,49 @@ PAGE.post = ctx => {
       });
     }
   }
+  // WILGA-GEAR: THE PREVIEW ROW (gearLvPos 0 extended .. 1 full stroke - the editor's slider, never saved): the arm, the
+  // strut's halves and the wheel posed by the core's GEAR_LEVER (62c), the very arithmetic the flight poses them by
+  const lvPos = Math.max(0, Math.min(1, +P.gearLvPos || 0)), GLv = (typeof GEAR_LEVER !== 'undefined') ? GEAR_LEVER : window.GEAR_LEVER;
+  if (lvPos > 0 && leverOut.length && GLv) for (const u of leverOut) {
+    const L = GLv.gearLeverInit({ piv: u.piv, ax: u.ax, w: u.w, axle: u.axle, horn: u.horn, top: u.top });
+    const comp = (u.rows.ang - u.rows.comp) * Math.PI / 180, q = GLv.gearLeverAt(L, lvPos * comp);
+    const pa = [u.piv[0] + u.ax[0], u.piv[1] + u.ax[1], u.piv[2] + u.ax[2]];
+    const T = { edLvArm: GLv.gearNodeFrame([u.piv, u.axle, pa], [u.piv, q.axle, pa]),
+                edLvCyl: GLv.gearNodeFrame([u.top, u.horn, [u.top[0] + u.ax[0], u.top[1] + u.ax[1], u.top[2] + u.ax[2]]],
+                                           [u.top, q.horn, [u.top[0] + u.ax[0], u.top[1] + u.ax[1], u.top[2] + u.ax[2]]]),
+                edLvRod: GLv.gearNodeFrame([u.horn, u.top, [u.horn[0] + u.ax[0], u.horn[1] + u.ax[1], u.horn[2] + u.ax[2]]],
+                                           [q.horn, u.top, [q.horn[0] + u.ax[0], q.horn[1] + u.ax[1], q.horn[2] + u.ax[2]]]) };
+    T.edWheel = T.edLvArm;
+    group.traverse(o => {
+      if (!o.name || o.name.slice(-1) !== u.kind) return;
+      const t = T[o.name.slice(0, -1)];
+      if (!t) return;
+      o.matrix.set(t[0], t[1], t[2], t[3], t[4], t[5], t[6], t[7], t[8], t[9], t[10], t[11], 0, 0, 0, 1);
+      o.matrix.decompose(o.position, o.quaternion, o.scale);
+    });
+  }
+  // WILGA-GEAR: DOES THE TYRE CLEAR THE BODY AT FULL STROKE (the arm at its full-stroke angle, the tyre's inner face and its
+  // upper half sampled, each point against the body's section at its station - clearBody's radial test): if not, the drop
+  // and the full-stroke angle go red (CAGE_ROW_BAD) - a side view's overlap is not a hit, the wheel is outboard of the body
+  let leverBad = null;
+  if (leverOut.length && GLv && AF && typeof AF.surf === 'function' && typeof AF.cyAt === 'function') for (const u of leverOut) {
+    const L = GLv.gearLeverInit({ piv: u.piv, ax: u.ax, w: u.w, axle: u.axle, horn: u.horn, top: u.top });
+    const q = GLv.gearLeverAt(L, (u.rows.ang - u.rows.comp) * Math.PI / 180), st = contacts.find(c => Math.sign(c.p[0]) === Math.sign(u.axle[0]));
+    const R = st ? st.R : 0.2, sg = Math.sign(u.axle[0]) || 1;
+    let hit = false;
+    for (let k = 0; k <= 12 && !hit; k++) {
+      const a = Math.PI * k / 12, p = [q.axle[0] - sg * 0.45 * R, q.axle[1] + R * Math.sin(a), q.axle[2] + R * Math.cos(a)];
+      const cy = AF.cyAt(p[2]), dx = p[0], dy = p[1] - cy, rp = Math.hypot(dx, dy);
+      if (rp < 1e-6) { hit = true; break; }
+      const sf = AF.surf(p[2], Math.atan2(dx, -dy));
+      if (sf && isFinite(sf[0]) && rp < Math.hypot(sf[0], sf[1] - cy) + 0.02) hit = true;
+    }
+    if (hit) { const why = 'at full stroke the tyre meets the body (a longer leg, or less swing)';
+      leverBad = Object.assign(leverBad || {}, { s1Drop: why, s1_lvComp: why }); }
+  }
   window.CAGE_GEAR = { AF, contacts, pitch, gy, saddles: saddlesOut,
+    ...(leverOut.length ? { lever: leverOut } : {}),                // WILGA-GEAR: the trailing-link legs as drawn
+    ...(leverBad ? { leverBad } : {}),
     ...(swing ? { swing } : {}),
     ...(fit ? { fit } : {}),            // G2: does the fold fit (foldFit; the rows it turns red: CAGE_ROW_BAD)
     ...(mech ? { mech: mech.R, mechInfo: mech.info } : {}),   // GM2/GM3: the mechanism's record (gearMechPose) and its numbers

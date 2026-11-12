@@ -133,7 +133,9 @@ function worker() {
   const tmplKeys = m ? m[1].split(',').map(s => s.split(':')[0].trim()).filter(Boolean) : [];
   const packet = I => { const h = {}; for (const k of tmplKeys) h[k] = null; h.eng = null; I.write(h); const p = Object.assign({}, h, { eng: null }); return p; };
   const R = { tmplKeys, hostKeys: null, cases: [] };
-  const specOf = f => { const j = JSON.parse(fs.readFileSync(path.join(ROOT, f), 'utf8')); return C.genMigrateSpec(j.spec || j); };
+  // G2818 (MASTER-GREEN, GATE JOINPARITY's census): the build as the game flies it (tools/_load_build.js; FLYDIY_RAW_BUILDS=1 as written)
+  const specOf = f => { if (process.env.FLYDIY_RAW_BUILDS === '1') { const j = JSON.parse(fs.readFileSync(path.join(ROOT, f), 'utf8')); return C.genMigrateSpec(j.spec || j); }
+    return C.genMigrateSpec(require('./_load_build.js').loadBuild(f).spec); };
   const run = (label, spec, place, script, nSteps) => {
     const H = SH.makeSimHost(C, { world: {}, spec, place, pilot: { kind: 'auto' }, day: false });
     R.hostKeys = H.HAND_KEYS || null;

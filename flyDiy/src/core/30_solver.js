@@ -147,6 +147,11 @@ function makeSim(def, world) {
   // real wing's strain under the same load (sK = k / kTrue; 1, exactly, on every other beam)
   const beams = def.beams.map(b => ({ ...b, L0: 0, strain: 0, sK: b.kTrue != null ? b.k / b.kTrue : 1, kF: b.k, cF: b.c }));
   let subN = P_.substeps ?? 24;
+  // WILGA-GEAR: THE OLEO STRUTS of a trailing-link leg (61_gen_frame parts.lever: per side the strut's eyes - U on the
+  // leg, H on the arm - and its law, 62c GEAR_LEVER). Not members: the oleo pass below pushes the eyes apart by the gas
+  // and the orifice. null on every other build - one compare a substep, nothing else (no beam changes shape)
+  const OLEO = (def.parts && def.parts.lever && def.parts.lever.sides)
+    ? def.parts.lever.sides.map(q => ({ a: q.u, b: q.h, O: q.O, s: 0, sd: 0, F: 0, sMax: 0, fMax: 0 })) : null;
   // THE TUBE (G294): RIGID CLUSTERS, shape-matched every substep. A group of
   // nodes (a twin boom's) is pulled onto the best-fit rigid transform of
   // its rest shape — Müller's shape matching: the mass-weighted centre,
@@ -949,7 +954,8 @@ function makeSim(def, world) {
   }
   function gearStamp(bi, b, Ft, Fc, m, K) {
     const G = K.leg, Fw = G.floorW * CERT_W, ft = Math.max(Ft, Fw), fc = Math.max(Fc, Fw);
-    const A = CERT_NOSE >= 0 && (b.a === CERT_NOSE || b.b === CERT_NOSE) ? G.nose : (G[CERT_ARCH] || G.bungee);
+    // (WILGA-GEAR: a trailing-link leg's members are a steel leg and a forged arm behind an oleo - the oleo's travel)
+    const A = CERT_NOSE >= 0 && (b.a === CERT_NOSE || b.b === CERT_NOSE) ? G.nose : (G[CERT_ARCH] || (CERT_ARCH === 'lever' ? G.oleo : G.bungee));
     b.fu = 1.5 * m * ft * K.uFit; b.fy0 = b.fu; b.etu = 0;
     if (!b.tens) {
       if (CERT_FLT[bi]) b.fc0 = 1.5 * m * fc * K.uMember;
@@ -969,7 +975,8 @@ function makeSim(def, world) {
   // DMG-D4b (train 41; the user: "it hilariously certifies a crashed plane... that rule really has to account for aircraft
   // integrity"): THE AEROPLANE'S INTEGRITY, ONE FIELD the flight certificate and the career read. damaged: a primary member
   // broken (the nose crushed round a trunk is a dent - G1470's noseB - not a break) or a part parted (a cluster cut, G1840);
-  // a set within the envelope, a prop strike alone, a dent: not damaged. broken: the primary members broken; separated: the
+  // a set within the envelope, a dent: not damaged; NOSE-STRIKE (9 Nov, the user): a prop strike alone IS damaged (the prop
+  // repaired or inspected, a teardown owed: Lycoming SB 533). broken: the primary members broken; separated: the
   // parts parted (their tags); why: the first, in plain words (the card's). Non-enumerable: the damage object's copies and
   // hashes see nothing new. Under the physics worker the worker publishes it (sim_host meta.struct) and the page's mirror
   // reads it there (sim_link) - the page's own core is never stepped (its damage() holds no break at all)
@@ -989,12 +996,12 @@ function makeSim(def, world) {
     if (PODS !== null && typeof genPodDamage === 'function' && (DMG.pod.tFirst >= 0 || DMG.breaks > 0)) {
       if (podC === null || podCn !== DMG.pod.n || podCb !== DMG.breaks || podCy !== DMG.yields) { podC = genPodDamage(def, DMG); podCn = DMG.pod.n; podCb = DMG.breaks; podCy = DMG.yields; }
       const pod = podC, podBad = pod.state === 'holed' || pod.state === 'crushed' || pod.state === 'torn off';
-      const damaged = broken > 0 || separated.length > 0 || DMG.wires > 0 || podBad;
+      const damaged = broken > 0 || separated.length > 0 || DMG.wires > 0 || DMG.propStrike || podBad;
       return { damaged, broken, separated, pod,
-               why: !damaged ? null : (podBad && (!fp || PODM.has(fp.beam))) ? pod.say : fp ? (STRUCT_WORDS[fp.cls] || 'the structure') + ' broke' : separated.length ? 'a part came off' : 'a bracing wire snapped' };
+               why: !damaged ? null : (podBad && (!fp || PODM.has(fp.beam))) ? pod.say : fp ? (STRUCT_WORDS[fp.cls] || 'the structure') + ' broke' : separated.length ? 'a part came off' : DMG.wires > 0 ? 'a bracing wire snapped' : 'the propeller struck: a teardown before the next flight' };
     }
-    const damaged = broken > 0 || separated.length > 0 || DMG.wires > 0;
-    return { damaged, broken, separated, why: !damaged ? null : fp ? (STRUCT_WORDS[fp.cls] || 'the structure') + ' broke' : separated.length ? 'a part came off' : 'a bracing wire snapped' };
+    const damaged = broken > 0 || separated.length > 0 || DMG.wires > 0 || DMG.propStrike;
+    return { damaged, broken, separated, why: !damaged ? null : fp ? (STRUCT_WORDS[fp.cls] || 'the structure') + ' broke' : separated.length ? 'a part came off' : DMG.wires > 0 ? 'a bracing wire snapped' : 'the propeller struck: a teardown before the next flight' };
   } });
   // ---- DMG-D3 CLUSTERS (G1840-G1842): A CLUSTER IS ONE BREAKABLE PART (DEFORM-AND-BREAK §4.7 (i)) ----
   // A shape-matched cluster (the fin, the rod, a twin boom, a float) holds its shape by projection, so the members
@@ -1345,7 +1352,7 @@ function makeSim(def, world) {
     clDirty = false; stripDead.fill(0); for (let si = 0; si < SW.length; si++) SW[si] = def.strips[si].w;
     DMG.brokeUp = null; DMG.stripsSplit = 0; DMG.stripsDropped = 0;
     DMG.yields = 0; DMG.breaks = 0; DMG.work = 0; DMG.broken.length = 0; DMG.firstBreak = null; DMG.firstYield = null;
-    DMG.crashed = false; DMG.over = false; DMG.reason = null; DMG.at = null; DMG.dented = false; DMG.propStrike = false; DMG.propAt = null;
+    DMG.crashed = false; DMG.over = false; DMG.reason = null; DMG.at = null; DMG.dented = false; DMG.propStrike = false; DMG.propAt = null; DMG.noseAt = null;
     DMG.rest = null; DMG.restFrom = null; DMG.fall = false;
     DMG.gPeak = 0; DMG.setMax = 0; DMG.orphans.length = 0; DMG.members = 0; DMG.dents = 0; DMG.primary = 0; DMG.firstPrimary = null; DMG.holed = 0; DMG.wires = 0; gF = 0; cIx = cIy = cIz = 0;
     for (const b of beams) b.yielded = false;
@@ -1757,7 +1764,14 @@ function makeSim(def, world) {
     const e = eng[k]; if (!e || e.seized) return;
     e.seized = true; e.running = false; e.crank = 0;
     DMG.propStrike = true; if (!DMG.propAt) DMG.propAt = { eng: k, what, t: simT };
+    if (!DMG.noseAt) noseAt('prop', surf || 'soft', bite || 0, 3);   // NOSE-STRIKE (no drivetrain: a strike stops it)
   }
+  // NOSE-STRIKE (9 Nov): the first nose contact - { t, what: 'prop' | the nose's layer ('spinner', 'cowl', ...), surf,
+  // bite (m), tier (GEN_DRIVE_STRIKE's index, 0 inside the allowance) }. NOT ENUMERABLE (as DMG.structural): the damage
+  // object's copies, digests and the worker's publish see nothing new; node's rigs (tools/_accept_detect.js) read it
+  let noseAtV = null;
+  Object.defineProperty(DMG, 'noseAt', { configurable: true, enumerable: false, get: () => noseAtV, set: v => { noseAtV = v; } });
+  function noseAt(what, surf, bite, tier) { noseAtV = { t: simT, what, surf, bite: +bite || 0, tier: tier | 0 }; }
   // G2105 (WATER-DAMP): THE PROP IN THE WATER. The prop strike existed only on the ground (noseGnd, the trunk): a ditched
   // aeroplane whose disc went under kept its full thrust if the power was left on (729 N at 0.6 throttle on the user's
   // Cub, measured by WATER-LOOK) - the "engine still running" the user saw rock the wreck. Water is 800 times the air: a
@@ -2007,9 +2021,11 @@ function makeSim(def, world) {
       if (!(F > 0)) continue;
       if (F > st.crushF) st.crushF = F;
       st.crush = NZ.c[k]; st.crushOf = N.Dc; st.crushOn = onT ? 'trunk' : 'ground';
+      if (!DMG.noseAt) noseAt(genNoseLayer(N, NZ.c[k]) || 'spinner', onT ? 'rigid' : 'soft', NZ.c[k], 0);   // NOSE-STRIKE
       // the crush past the spinner reaches the propeller: a prop still turning stops on it (DMG-DRIVE grades the strike:
       // a stoppage, or a separation at a tip faster than its blade takes)
-      if (NZ.c[k] > N.layers[0].d1 - 1e-9 && N.layers[0].cone && !eng[k].seized && st.strike !== 'stoppage' && st.strike !== 'separation')
+      // (TAXI-STRIKE: a prop that only lost a tip and runs on is stopped by its hub in the ground all the same)
+      if (NZ.c[k] > N.layers[0].d1 - 1e-9 && N.layers[0].cone && !eng[k].seized && st.strike !== 'stoppage' && (st.strike !== 'separation' || !onT))
         propStrike(k, onT ? 'trunk' : 'ground', DRV.sp.R, onT ? 'rigid' : 'soft');
       let fx = F * nx, fy = F * ny, fz = F * nz;
       if (!onT) {                                    // the nose scraping the ground
@@ -2061,12 +2077,28 @@ function makeSim(def, world) {
     const e = eng[k], st = DRV.st[k], S = DRV.sp; if (!e || !st) return;
     const tip = Math.PI * S.D * (out.rpm[k] || 0) / 60, w = 2 * Math.PI * (out.rpm[k] || 0) / 60;
     const tier = genDriveStrikeTier(bite, S.R, surf, tip, S.sepTip, S.Ub > 0 && surf === 'rigid' ? 0.5 * S.I * w * w / S.Ub : null);   // G2036
-    if (tier <= GEN_DRIVE_STRIKE.indexOf(st.strike)) return;
+    const cur = GEN_DRIVE_STRIKE.indexOf(st.strike), stopR0 = GEN_DRIVE.strike.stop[surf] != null ? GEN_DRIVE.strike.stop[surf] : GEN_DRIVE.strike.stop.soft;
+    // (TAXI-STRIKE: the tier only rises - but a separated prop still running is STOPPED by a later bite past its surface's
+    // stop: the 172's lost tip at 2370 rpm dug on into the runway, full power, until its mount tore off)
+    if (tier <= cur) {
+      // (GATE DMGDRIVE, G2036: a TRUNK's graze at power breaks a blade and the prop turns on short of it - the imbalance
+      // takes the mount. Only a prop that lost its blade TO THE GROUND is stopped by the ground it digs on into (the 172's
+      // tip on the turf, full power): a trunk's separation keeps turning when the shake then drops the nose on the turf -
+      // run 2's metal Cessna graze; run 3's 'hard ground only' let the 172 on the turf run on again)
+      const sepOnGround = st.strikeAt && st.strikeAt.surf !== 'rigid' && st.strikeAt.surf !== 'water';
+      if (!(cur === 4 && tier === 4 && surf !== 'rigid' && sepOnGround && !e.seized && bite / S.R > stopR0)) return;
+      st.strikeAt = { t: simT, what, surf, bite, biteR: bite / S.R, tip, rpm: out.rpm[k] || 0, stopAfterSep: true };
+      st.imbN = 0;
+      if (S.gear > 1 && e.running && thrEffOf(k) > GEN_DRIVE.gear.stopPow) { st.gearbox = 'failed'; DK[k] = 0; }
+      else { e.seized = true; e.running = false; e.crank = 0; st.failed = true; st.why = st.strike; DK[k] = 0; }
+      return;
+    }
     const first = !st.strike;
     st.strike = GEN_DRIVE_STRIKE[tier]; st.teardown = true;
     st.strikeAt = { t: simT, what, surf, bite, biteR: bite / S.R, tip, rpm: out.rpm[k] || 0 };
     if (first) st.internal = dmgRnd(nb + k, 17) < GEN_DRIVE.internalP;   // the teardown's finding (seeded: the build's own)
     DMG.propStrike = true; if (!DMG.propAt) DMG.propAt = { eng: k, what, t: simT };
+    if (!DMG.noseAt) noseAt('prop', surf, bite, tier); else if (tier > DMG.noseAt.tier) DMG.noseAt.tier = tier;   // NOSE-STRIKE
     const stopR = GEN_DRIVE.strike.stop[surf] != null ? GEN_DRIVE.strike.stop[surf] : GEN_DRIVE.strike.stop.soft;
     const stops = tier === 3 || (tier === 4 && bite / S.R > stopR) || e.seized;
     if (S.gear > 1 && tier >= 2 && st.gearbox !== 'failed') st.gearbox = 'damaged';
@@ -2118,22 +2150,29 @@ function makeSim(def, world) {
       // the disc's lowest point: down, in the disc's plane
       const dx = (-xAft[0]) * ay / dl, dy = (-1 + ay * ay) / dl, dz = (-xAft[2]) * ay / dl;
       for (let k = 0; k < nE0; k++) {
-        const st = DRV.st[k]; if (st.strike === 'separation') continue;
+        // (TAXI-STRIKE: a disc that lost a tip still turns and still digs - only a stopped one is done with)
+        const st = DRV.st[k]; if (st.strike === 'separation' && eng[k].seized) continue;
         let cx = 0, cy = 0, cz = 0, c = 0;
         for (let j = 0; j < ENG_N.length; j++) if ((ENG_K[j] | 0) === k) { const q = ENG_N[j] * 3; cx += p[q]; cy += p[q+1]; cz += p[q+2]; c++; }
         if (!c) continue;
         cx /= c; cy /= c; cz /= c;
         const lx = cx + Rp * dx, ly = cy + Rp * dy, lz = cz + Rp * dz, g = world.terrainH(lx, lz);
         if (NOSE) { NZ.gy[k] = g; NZ.gs[k] = 1; }  // G2013: the nose's ground reference (its arming)
-        let pen = g - ly - GEN_DRIVE.strike.turf, surf = 'soft', gap = ly - g;
+        // NOSE-STRIKE (9 Nov): the allowance is the surface's under the disc's lowest point (genDriveTurf: 10 cm soft,
+        // 5 cm loose, 1 cm hard); before, 5 cm everywhere - a paved strip's tip touch was no strike
+        const sc = typeof world.surface === 'function' ? world.surface(lx, lz) : -1, turf = genDriveTurf(sc);
+        let pen = g - ly - turf, surf = genDriveGround(sc), gap = ly - g;   // (TAXI-STRIKE: 'hard' on rock and paving)
         if (ly - g < 30 && typeof world.waterH === 'function') { const w = world.waterH(lx, lz); if (w > -1e8 && w > g) { gap = ly - w; if (w - ly > 0) { pen = w - ly; surf = 'water'; } } }
         if (gap < st.gapMin) st.gapMin = gap;        // the disc's least clearance over the surface (the turf's top not counted)
+        // NOSE-STRIKE: the FIRST NOSE CONTACT (DMG.noseAt), recorded even inside the allowance (a tip in the grass's top):
+        // Pilot's NODE-ACCEPT noseOver reads it, so the detector and the damage see the one event
+        if (gap < 0 && !DMG.noseAt) noseAt('prop', surf, -gap / dl, 0);
         if (pen > 0) propStrike(k, surf === 'water' ? 'water' : 'ground', pen / dl, surf);   // (what it struck: the water is no ground - GATE WATERDAMP 4 reads it)
         // G2357 (DMG-SCAR): the slot a turning prop chops in the ground when the strike stops it or tears a blade off (the
         // grade DMG-DRIVE just gave it; a brush or a bent blade on an airframe that is otherwise whole leaves the turf to hide it)
         if (SCR !== null && pen > 0 && surf === 'soft' && (st.strike === 'stoppage' || st.strike === 'separation') && (out.rpm[k] || 0) > 30) {
           const hl = Math.hypot(xAft[0], xAft[2]) || 1;
-          scarStrike(SCR, k, lx, lz, xAft[2] / hl, -xAft[0] / hl, (pen + GEN_DRIVE.strike.turf) / dl, Rp, simT);
+          scarStrike(SCR, k, lx, lz, xAft[2] / hl, -xAft[0] / hl, (pen + turf) / dl, Rp, simT);
         }
       }
     }
@@ -3825,6 +3864,47 @@ function makeSim(def, world) {
       }
     }
   }
+  // WILGA-GEAR: each strut's stroke s (its length as built less its length now, + compressed), closing speed sd and
+  // force F (+ pushes the eyes apart) by GEAR_LEVER's law, its damper semi-implicit on the eyes' reduced mass
+  function oleoPass(dt) {
+    for (let k = 0; k < OLEO.length; k++) {
+      const Q = OLEO[k], a3 = Q.a * 3, b3 = Q.b * 3;
+      let dx = p[b3] - p[a3], dy = p[b3 + 1] - p[a3 + 1], dz = p[b3 + 2] - p[a3 + 2];
+      const L = hyp3(dx, dy, dz) || 1e-9;
+      dx /= L; dy /= L; dz /= L;
+      const sd = -((v[b3] - v[a3]) * dx + (v[b3 + 1] - v[a3 + 1]) * dy + (v[b3 + 2] - v[a3 + 2]) * dz);
+      const s = Q.O.Lx - L, ma = m[Q.a], mb = m[Q.b];
+      const F = gearOleoF(Q.O, s, sd, dt, ma * mb / (ma + mb));
+      f[a3] -= F * dx; f[a3 + 1] -= F * dy; f[a3 + 2] -= F * dz;
+      f[b3] += F * dx; f[b3 + 1] += F * dy; f[b3 + 2] += F * dz;
+      Q.s = s; Q.sd = sd; Q.F = F;
+      if (s > Q.sMax) Q.sMax = s;
+      if (F > Q.fMax) Q.fMax = F;
+    }
+  }
+  // WILGA-GEAR: THE BOTTOM STOP, AS A CONSTRAINT (after the step's integration, as the clusters' projection is): a strut
+  // past its stroke S has its eyes put back to S along their line, mass-weighted (the pair's centre unmoved), and their
+  // closing speed taken out (inelastic, momentum kept) - the load then goes into the steel leg and arm, as on the real
+  // gear. A spring stop the integrator could carry let a reserve-energy drop push the strut 47 mm past S and the arm
+  // over its toggle (the arm flipped, the aeroplane on its pivots)
+  function oleoStop() {
+    for (let k = 0; k < OLEO.length; k++) {
+      const Q = OLEO[k], a3 = Q.a * 3, b3 = Q.b * 3;
+      let dx = p[b3] - p[a3], dy = p[b3 + 1] - p[a3 + 1], dz = p[b3 + 2] - p[a3 + 2];
+      const L = hyp3(dx, dy, dz) || 1e-9, ex = (Q.O.Lx - Q.O.S) - L;
+      if (!(ex > 0)) continue;
+      dx /= L; dy /= L; dz /= L;
+      const ma = m[Q.a], mb = m[Q.b], wa = mb / (ma + mb), wb = ma / (ma + mb);
+      p[a3] -= dx * ex * wa; p[a3 + 1] -= dy * ex * wa; p[a3 + 2] -= dz * ex * wa;
+      p[b3] += dx * ex * wb; p[b3 + 1] += dy * ex * wb; p[b3 + 2] += dz * ex * wb;
+      const vc = (v[b3] - v[a3]) * dx + (v[b3 + 1] - v[a3 + 1]) * dy + (v[b3 + 2] - v[a3 + 2]) * dz;
+      if (vc < 0) {
+        v[a3] += dx * vc * wa; v[a3 + 1] += dy * vc * wa; v[a3 + 2] += dz * vc * wa;
+        v[b3] -= dx * vc * wb; v[b3 + 1] -= dy * vc * wb; v[b3 + 2] -= dz * vc * wb;
+      }
+      Q.bottomed = (Q.bottomed || 0) + 1;
+    }
+  }
   function substep(dt) {
     for (let i = 0; i < n; i++) { f[i*3]=0; f[i*3+1]=G*m[i]; f[i*3+2]=0; }
     aeroPass(false);
@@ -3847,6 +3927,7 @@ function makeSim(def, world) {
       f[a3]+=Fb*dx; f[a3+1]+=Fb*dy; f[a3+2]+=Fb*dz;
       f[b3]-=Fb*dx; f[b3+1]-=Fb*dy; f[b3+2]-=Fb*dz;
     }
+    if (OLEO !== null) oleoPass(dt);                 // WILGA-GEAR: the trailing-link legs' struts
     if (postLive) {                                  // G1898.4: one compare a substep for both (none: nothing to do)
       if (nFlr) floorPass();                         // G1813: the kinked members' floors
       if (nTieL) tiePass();                          // G2040 (DMG-FABRIC): the covering's ties
@@ -4036,6 +4117,7 @@ function makeSim(def, world) {
     // G348: a fresh reset's clusters take their rest from THIS pose (placed)
     if (clusterFresh) { for (const C of clusters) clusterRest(C); clusterFresh = false; }
     integrate(dt);
+    if (OLEO !== null) oleoStop();                   // WILGA-GEAR: a bottomed strut stops on steel
     // G294 / G350: the tube holds its shape, and its twist; G1470: a cluster a member broke inside lets go, one a
     // member took a set inside holds its NEW shape (its rest re-taken here, after the substep that bent it)
     for (const C of clusters) { if (C.off) continue; shapeMatch(C, dt); twistHold(C, dt); }
@@ -4377,6 +4459,10 @@ function makeSim(def, world) {
            gear: () => (GR === null ? null : { pos: GR.pos, locked: GR.pos > 0.98, up: GR.pos < 0.02, moving: GR.moving,
                                               wow: GR.wow, power: GR.power, emerg: GR.emerg, handle: ctl.gear === 0 ? 0 : 1,
                                               time: RET.time, act: RET.act, emergKind: RET.emerg }),
+           // WILGA-GEAR: the trailing-link legs' struts - null on every other build; per side { s (m, + compressed), sd
+           // (m/s), F (N), S (the stroke), sMax / fMax since the last oleoPeak(true) }
+           oleo: () => (OLEO === null ? null : OLEO.map(Q => ({ s: Q.s, sd: Q.sd, F: Q.F, S: Q.O.S, sMax: Q.sMax, fMax: Q.fMax, bottomed: Q.bottomed || 0 }))),
+           oleoPeak: clear => { if (OLEO !== null && clear) for (const Q of OLEO) { Q.sMax = Q.s; Q.fMax = Q.F; Q.bottomed = 0; } },
            gearPower: on => { if (GR !== null) GR.power = !!on; },
            gearEmergency: () => { if (GR !== null) { GR.emerg = true; ctl.gear = 1; } } };
   return sim;

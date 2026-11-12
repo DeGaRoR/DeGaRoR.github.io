@@ -672,7 +672,10 @@ if (plots.length) {
       if (k === 'P') { if (c.P) for (const pk of Object.keys(q.P || {})) if (eq(c.P[pk], q.P[pk])) { if (x.P && pk in x.P) c.P[pk] = x.P[pk]; else delete c.P[pk]; } continue; }
       if (eq(c[k], q[k])) { if (x[k] === undefined) delete c[k]; else c[k] = JSON.parse(JSON.stringify(x[k])); } }
     return c; };
-  const same = (L, x, y) => L === 'areas' ? canA(unC(x)) === canA(unC(y)) : unC(svItems(x, y)) === unC(devary(y, x));
+  // (DIRT-STRIP 10 Nov: an entry compared by its keys, sorted - a field patch the save's entry lacks (w3's micro) lands last
+  //  in it and in its place in the shipped one: the same entry, another key order)
+  const ord = s => JSON.stringify(sk(JSON.parse(s)));
+  const same = (L, x, y) => L === 'areas' ? canA(unC(x)) === canA(unC(y)) : ord(unC(svItems(x, y))) === ord(unC(devary(y, x)));
   // (JOLENE-FOLD) an area the save folded from STAGED v1 entries (the sandbox's view carries no stage, so they fold; the shipped
   //  record's staged entries do not - sg_x_mill, sg_x_lodge): its entries against those sources, stage aside
   const fromStaged = e => !!(e.src && Object.keys(e.src).length) && Object.entries(e.src).every(([k, s]) => (A.layers[k] || []).some(q => q.id === s[0] && q.stage));
@@ -688,7 +691,9 @@ if (plots.length) {
   check(!bad.length, '15 the shipped record is the save entry by entry (held back: ' + (M.except.join(', ') || 'none') + ')', bad.slice(0, 6).join('; '));
   const FX = JSON.parse(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')), FL = (FX.premises || FX).layers;
   let nSt = 0, nIt = 0; for (const L of Object.keys(FL)) for (const e of FL[L] || []) { if (e && e.stage) nSt++; if (e && Array.isArray(e.items)) for (const it of e.items) if (it && it.stage) nIt++; }
-  check(nSt >= 17 && nIt >= 5, '15 every stage the shipped record had is still on it (' + nSt + ' entries, ' + nIt + ' site items) - a save never carries them');
+  // RE-PINNED 9 Nov (HOME-LAYOUT, the user: the club's long hangar "has no reason to exist"): its construction kit sg_k_hangar and
+  // its site item s_club hangar_long left the record on purpose - 17 / 5 -> 16 / 4
+  check(nSt >= 16 && nIt >= 4,'15 every stage the shipped record had is still on it (' + nSt + ' entries, ' + nIt + ' site items) - a save never carries them');
   console.log('     15 the user\'s ' + M.save + ' shipped: ' + B.layers.roads.length + ' roads in the save; the removals the save makes and the user has not confirmed (kept): ' + (pending.join(', ') || 'none'));
 }
 

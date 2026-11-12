@@ -35,7 +35,11 @@ async function run(src, files) {
   // THE SCREEN VARIANT (PLANE-RENDERS R1, 7 Nov): the garage's programs are keyed for the anti-aliasing target, the thumb
   // draws to the screen - a second program per material, 4.2-5.5 s inside a fresh profile's first draw. The probe compiles
   // for the screen (null target) through the sliced compile, and saved() warms before it draws
-  ok(/compileScreen: \(sc, lit\) => compileSliced\(sc, null, lit\)/.test(A), 'app.js FLIGHT_PROBE.compileScreen: compileSliced to the screen (a null target)');
+  ok(/compileScreen: \(sc, lit\) => compileSliced\(sc, null, lit[,)]/.test(A), 'app.js FLIGHT_PROBE.compileScreen: compileSliced to the screen (a null target)');
+  // R3 8 Nov (the twin's first fiche: one 9.7 s task in this compile - a group grown on cached programs met 64 new ones):
+  // the screen path caps its group at 2, and compileSliced honours the cap
+  ok(/compileScreen: \(sc, lit\) => compileSliced\(sc, null, lit, false, null, 2\)/.test(A) && /const GMAX = gmax \|\| /.test(A),
+     'app.js compileScreen caps the sliced compile group at 2 (compileSliced gmax)');
   ok(/warm\(\)\.then\(\(\) => whenStill\(\(\) => \{/.test(src) && /P\.compileScreen\(root, S\)/.test(src), 'plane_thumb.js saved(): warm() (P.compileScreen) before the draw');
   const order = ['garage.js', 'plane_thumb.js', 'storage_ui.js'].map(f => B.indexOf("'" + f + "'"));
   ok(order.every(i => i > 0) && order[0] < order[1] && order[1] < order[2] && order[1] < B.indexOf("'app.js'"), 'build.js: plane_thumb.js between garage.js and storage_ui.js, before app.js');

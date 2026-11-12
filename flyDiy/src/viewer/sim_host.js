@@ -317,6 +317,21 @@ function simDmgHop(sim, hop, coreNode, win) {
   if (!sg) return null;
   const clk = typeof performance !== 'undefined' ? performance : Date, t0 = clk.now();
   let out = null;
+  // SCAR-LIVE: the live strokes since the last read, at most liveFrame a frame (lg the ring's generation: a new one, the
+  // page drops its trail; a seal in this payload covers the strokes before its cut - skipped)
+  { const SC = sim.damageScar ? sim.damageScar() : null, LV = SC && SC.live;
+    if (LV) {
+      // (the first read takes the generation silently - GATE DMGSKIN: a calm flight sends no payload, no key; only a NEW
+      // generation, a reset, tells the page to drop its trail)
+      if (hop.lG === undefined) { hop.lG = LV.g; hop.lS = LV.pub; }
+      else if (hop.lG !== LV.g) { hop.lG = LV.g; hop.lS = 0; out = { lg: LV.g }; }
+      if (sg[2] !== hop.sC && LV.cut > hop.lS) hop.lS = LV.cut;
+      if (LV.pub - hop.lS > LV.cap) hop.lS = LV.pub - LV.cap;
+      const k = Math.min(typeof SCAR !== 'undefined' && SCAR.liveFrame ? SCAR.liveFrame : 64, LV.pub - hop.lS);
+      if (k > 0) { const a = new Array(k * 8);
+        for (let j = 0; j < k; j++) { const o = ((hop.lS + j) % LV.cap) * 8; for (let q = 0; q < 8; q++) a[j * 8 + q] = LV.b[o + q]; }
+        out = Object.assign(out || {}, { lg: LV.g, ls: a }); hop.lS += k; }
+    } }
   if (sg[2] !== hop.sC) {           // G2357: the scar alone (its own payload: the page's grass and decal, once an event)
     hop.sC = sg[2];
     out = { sC: sg[2], sc: sim.damage().scar.prims.slice() };
@@ -475,6 +490,8 @@ function makeSimHost(CORE, init, keptWorld) {
     }
   }
   // app.js applyRoute; `stand`: true = the site's own, an object = the page's (standFor, the player's door), false = the spawn
+  // TAXI-HOME (app.js arriveFor): the arrival's own stand, set on the host's pilot before its departFrom as the page sets its own
+  const arriveOn = (q, A) => { if (q && typeof q.setArriveSite === 'function') q.setArriveSite(A ? A.fieldId : null, A ? A.site : null, A ? A.plotId : null); };
   function place() {
     const PL = init.place || {}, ap = H.ap;
     const from = aeroById(PL.from || 'HOME');
@@ -498,6 +515,7 @@ function makeSimHost(CORE, init, keptWorld) {
       // app.js applyRoute (G700): the wheels on the ground under the walked stand
       if (PL.seat && typeof CORE.seatOnGround === 'function') CORE.seatOnGround(sim, (x, z) => world.terrainH(x, z), def.refs);
       ap.setRoute(from, to);
+      arriveOn(ap, PL.arrive);   // TAXI-HOME
       ap.departFrom(from, to, stSite);
     } else {
       CORE.placeAtAerodrome(sim, from);
@@ -523,6 +541,7 @@ function makeSimHost(CORE, init, keptWorld) {
     if (sim.setEngine && sim.eng) for (let i = 0; i < sim.eng.length; i++) sim.setEngine(i, { key: 'both', running: true });
     H.ap = mkPilot();
     H.ap.setRoute(from, to);
+    arriveOn(H.ap, (init.place || {}).arrive);   // TAXI-HOME
     H.ap.departFrom(from, to, stSite, { atHold: pose });
     H.lineup = pose;
     return true;
@@ -672,8 +691,9 @@ function makeSimHost(CORE, init, keptWorld) {
         const cur = aeroById(c.from), to = (c.to == null || c.to === 'CIRCUIT') ? cur : aeroById(c.to);
         if (H.accept) { H.accept.abort(ap, 'a new leg began'); H.accept = null; }   // G2273: the leg belonged to that pilot
         H.ap = mkPilot();
+        arriveOn(H.ap, c.arrive || null);   // TAXI-HOME: the leg's To decides (the page's arriveFor)
         H.ap.departFrom(cur, to);
-        H.legFrom = c.from; if (init.place) init.place = Object.assign({}, init.place, { to: c.to });
+        H.legFrom = c.from; if (init.place) init.place = Object.assign({}, init.place, { to: c.to, arrive: c.arrive || null });   // (TAXI-HOME: the leg's arrival with it)
         H.apGen++;
         H.end = { air: false, wasAir: false, still: 0, over: H.end.over };
         break;

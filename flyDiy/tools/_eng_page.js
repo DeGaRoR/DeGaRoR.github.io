@@ -63,6 +63,11 @@ const engDefaults = () => Object.assign(
     // §0 now asserts the invariant for every panel row.
     blower: EG.ENG_DEFAULT.blower, boost: EG.ENG_DEFAULT.boost,
     critAlt: EG.ENG_DEFAULT.critAlt, vee: EG.ENG_DEFAULT.vee,
+    bmepK: EG.ENG_DEFAULT.bmepK, massK: EG.ENG_DEFAULT.massK,
+    // ENGINE-DIALS (2026-11-09): the reduction's ratio (1 = what a geared
+    // custom engine flew before the row: the crank's speed at the prop), the
+    // maximum rpm (0 = the rated) and the constant-speed propeller (off)
+    gearRatio: 1, rpmMax: 0, cs: 0,
     // the electric fiche (G25) rides the same dict
     eStyle: EG.ENG_DEFAULT.eStyle, canD: EG.ENG_DEFAULT.canD,
     canL: EG.ENG_DEFAULT.canL, volts: EG.ENG_DEFAULT.volts,
@@ -104,10 +109,12 @@ const PRESETS = {
   // no airbox, because a radial breathes through its rear spider. The firewall
   // is sized from the engine the resolve actually builds — 0.59 m and 0.63 m
   // across the heads, measured, not guessed.
-  'Verner Scarlett 7U': { arch: 'radial', cyl: 7, exStyle: 2,
+  // SINGLE-ROW RADIALS SAY SO (PROPER-COWLS, 8 Nov 2026): the mesh's radialRows defaults to 2, so a radial preset
+  // naming no rows was DRAWN two-row (the M-14P as 5 + 4 at 36 deg). Every radial here but the R-1830 is one row.
+  'Verner Scarlett 7U': { arch: 'radial', radialRows: 1, cyl: 7, exStyle: 2,
     bore: 0.080, stroke: 0.064, rpm: 2350, finR: 1.3,
     fwW: 0.66, fwH: 0.66, carbOn: 0, airbox: 0, plumb: 0 },
-  'Rotec R3600': { arch: 'radial', cyl: 9, exStyle: 2,
+  'Rotec R3600': { arch: 'radial', radialRows: 1, cyl: 9, exStyle: 2,
     bore: 0.088, stroke: 0.066, rpm: 2500, finR: 1.3,
     fwW: 0.72, fwH: 0.72, carbOn: 0, airbox: 0, plumb: 0 },
   // THE AMATEUR IN-LINES (G165). Both INVERTED, which is what an aero
@@ -149,16 +156,16 @@ const PRESETS = {
     critAlt: 4600 },
   'Ranger L-440': { arch: 'inline', cyl: 6, twoStroke: 0, inlineAim: 0,
     bore: 4.125 * IN, stroke: 5.5 * IN, rpm: 2450, exStyle: 2 },
-  'Continental W-670': { arch: 'radial', cyl: 7, exStyle: 2,
+  'Continental W-670': { arch: 'radial', radialRows: 1, cyl: 7, exStyle: 2,
     bore: 5.125 * IN, stroke: 4.625 * IN, rpm: 2075, finR: 1.4,
     fwW: 1.05, fwH: 1.05, carbOn: 0, airbox: 0, plumb: 0 },
-  'Jacobs R-755': { arch: 'radial', cyl: 7, exStyle: 2,
+  'Jacobs R-755': { arch: 'radial', radialRows: 1, cyl: 7, exStyle: 2,
     bore: 5.25 * IN, stroke: 5.0 * IN, rpm: 2200, finR: 1.4,
     fwW: 1.10, fwH: 1.10, carbOn: 0, airbox: 0, plumb: 0 },
-  'Vedeneyev M-14P': { arch: 'radial', cyl: 9, exStyle: 2, blower: 2,
+  'Vedeneyev M-14P': { arch: 'radial', radialRows: 1, cyl: 9, exStyle: 2, blower: 2,
     boost: 1.35, critAlt: 500, bore: 0.105, stroke: 0.130, rpm: 2900,
     finR: 1.4, fwW: 1.00, fwH: 1.00, carbOn: 0, airbox: 0, plumb: 0 },
-  'P&W R-1340': { arch: 'radial', cyl: 9, exStyle: 2, blower: 2,
+  'P&W R-1340': { arch: 'radial', radialRows: 1, cyl: 9, exStyle: 2, blower: 2,
     boost: 1.20, critAlt: 300, bore: 5.75 * IN, stroke: 5.75 * IN,
     rpm: 2250, finR: 1.4, fwW: 1.25, fwH: 1.25, carbOn: 0, airbox: 0,
     plumb: 0 },
@@ -167,7 +174,7 @@ const PRESETS = {
   // SUPERCHARGED since the blower model (2026-09-05): boost is the published
   // take-off manifold pressure over ambient (36.5 inHg -> 1.22), the ceiling
   // its 5 000 ft rating; the R-1830's 48 inHg is 1.60 to 4 900 ft
-  'P&W R-985': { arch: 'radial', cyl: 9, exStyle: 2, blower: 2, boost: 1.22,
+  'P&W R-985': { arch: 'radial', radialRows: 1, cyl: 9, exStyle: 2, blower: 2, boost: 1.22,
     critAlt: 1500,
     bore: 5.1875 * IN, stroke: 5.1875 * IN, rpm: 2300, finR: 1.4,
     fwW: 1.10, fwH: 1.10, carbOn: 0, airbox: 0, plumb: 0 },
@@ -230,7 +237,7 @@ const PRESETS = {
   // PRESETS_AFTER_CUSTOM below, so presetNames() lists it after the custom engine and no saved index moves.
   // NEW-SHAPES-1: THE CLERGET 9B, the Camel's rotary - nine cylinders of 120 x 160 mm (16.3 L), ~1.0 m across the
   // heads; no carburettor and no airbox (a rotary breathes through its hollow crankshaft), long finned barrels
-  'Clerget 9B': { arch: 'radial', cyl: 9, exStyle: 2,
+  'Clerget 9B': { arch: 'radial', radialRows: 1, cyl: 9, exStyle: 2,
     bore: 0.120, stroke: 0.160, rpm: 1250, finR: 1.25,
     fwW: 1.00, fwH: 1.00, carbOn: 0, airbox: 0, plumb: 0,
     mountGap: 0.40 },   // a rotary sits close on its bearer plate: the cylinders inside a short cowl, not ahead of it
@@ -262,6 +269,11 @@ const sFmt = x => x ? x : 'auto';
 const isElec = p => p.arch === 'electric';
 const isTurbine = p => p.arch === 'turbine';
 const isPiston = p => p.arch !== 'electric' && p.arch !== 'turbine';
+// THE LATENT ROWS (12 Nov, FIT-PROCEDURE; A0's L39a rule - "a latent field must be ABSENT at its default"): rows whose
+// key is in NO default dict, so applyEngPreset never writes them and no saved build, preset or join gains a key; the
+// mesh reads an absent key as the drawing before the row existed. These are the values their sliders SHOW while absent
+// (the cage's `absent` row option, the bench page's own state). A key is written only when a page changes it.
+const LATENT = { stackOut: 1, stackLen: 1, stackFlat: 0, stackR: 1, stackDrop: 0, stackSplit: 0 };
 const ENG_GROUPS = [
   // THE TURBOPROP (2026-09-05, TURBOPROP §3): its own keys, so no row is
   // rendered twice; NO aim row — a PT6's two stacks are left and right by
@@ -273,8 +285,19 @@ const ENG_GROUPS = [
     ['gearK',   'gearbox dia / can',       0.9, 1.5, 0.01],
     ['flatK',   'flat rating (core / rated)', 1.0, 1.6, 0.01],
     ['tRpm',    'prop rpm',                1500, 2700, 10],
+    // ENGINE-DIALS: the same tune and build as the piston's (_eng_gen.js
+    // ENG_DIAL_RANGE): the core's specific power, the mass over the law
+    ['bmepK',   'tune (power / law)', 0.5, 2.0, 0.001, x => x.toFixed(3)],
+    ['massK',   'build (mass / law)', 0.4, 2.2, 0.001, x => x.toFixed(3)],
     ['stackStyle', 'exhaust', 'drop', [[1, 'paired stacks (PT6)'],
                                        [0, 'none (bare)']]],
+    // (12 Nov, FIT-PROCEDURE) the stacks' reach out, run aft and flattened outlet (1 / 1 / 0: as drawn before)
+    ['stackOut',  'stacks: reach out ×',      0.6, 2.5, 0.01],
+    ['stackLen',  'stacks: run aft ×',        0.5, 2.5, 0.01],
+    ['stackFlat', 'stacks: flat outlet',      0, 0.8, 0.01],
+    ['stackR',    'stacks: thickness ×',      0.5, 2.0, 0.01],
+    ['stackDrop', 'stacks: outlet drop (case radii)', -1, 2, 0.01],
+    ['stackSplit', 'stacks: one up, one down', 0, 2, 1, ['both up', 'left down', 'right down']],
   ], isTurbine],
   ['electric', [
     ['eStyle',  'style', 'drop', [[0, 'outrunner (RC / FES)'],
@@ -290,6 +313,11 @@ const ENG_GROUPS = [
     ['plumb',   'DC pair',       'check'],
     ['liquid',  'liquid cooled', 'check'],
     ['geared',  'reduction drive', 'check'],
+    ['gearRatio', 'reduction ratio (motor / prop)', 1.0, 3.5, 0.001, x => x.toFixed(3)],
+    // ENGINE-DIALS: the tune is the shear stress over the style's, the build
+    // the motor's mass over the torque law
+    ['bmepK',   'tune (torque / law)', 0.5, 2.0, 0.001, x => x.toFixed(3)],
+    ['massK',   'build (mass / law)', 0.4, 2.2, 0.001, x => x.toFixed(3)],
   ], isElec],
   ['polycount', [
     ['quality',    'density',      0.3, 2, 0.02],
@@ -333,19 +361,39 @@ const ENG_GROUPS = [
     ['vee',     'V angle deg', 45, 120, 1, x => x.toFixed(0)],
     ['bore',    'bore mm',   0.05, 0.16, 0.001, mm],
     ['stroke',  'stroke mm', 0.04, 0.16, 0.001, mm],   // (to 0.16: the Merlin's 152.4)
-    ['rpm',     'rpm',       1800, 6500, 50],
+    // (ENGINE-DIALS: 1000-7500, was 1800-6500 - the Clerget's 1 250 and the
+    // Rotax 503's 6 800 are registry rows)
+    ['rpm',     'rpm',       1000, 7500, 50],
     ['stagger', 'stagger',   0, 0.5, 0.01],
   ], isPiston],
   ['architecture', [
     ['twoStroke', 'two-stroke',    'check'],
     ['liquid',    'liquid cooled', 'check'],
     ['geared',    'gearbox',       'check'],
+    // ENGINE-DIALS: the gearbox's ratio (crank over prop: the 912's 2.27, the
+    // 582's 2.62, the Twin Wasp's 16:9) - absent 1, what a geared custom
+    // engine flew before the row; read only with the gearbox on (the row
+    // stands beside it: a `when` on the gearbox made it a switch GATE PARTS'
+    // reach probe cannot turn on from the stock aeroplane)
+    ['gearRatio', 'reduction ratio (crank / prop)', 1.0, 3.5, 0.001, x => x.toFixed(3)],
+    // the drivetrain's maximum (33_drive overspeed bands): 0 = the rated rpm;
+    // the 582's 6 800 over its 6 500 rated
+    ['rpmMax',  'max rpm, 5 min (0 = rated)', 0, 9000, 50, x => x > 0 ? x.toFixed(0) : 'rated'],
+    // a governed propeller (the panel arc's cs: the shaft held at rated)
+    ['cs',      'constant-speed propeller', 'check'],
     // THE BLOWER (2026-09-05): what holds the rating up to `critAlt`
     ['blower',  'induction',  'drop', [[0, 'naturally aspirated'],
                                        [1, 'turbocharger'],
                                        [2, 'supercharger']]],
     ['boost',   'boost (MAP / ambient)', 1.0, 2.5, 0.01, x => x.toFixed(2)],
     ['critAlt', 'critical altitude m', 0, 9000, 50, x => x.toFixed(0)],
+    // THE TUNE (2026-11-09): rated bmep over the layout's own — the CC340's
+    // 180 hp on 340 in3 is 1.09 of a boxer's 9.8 bar
+    // (ENGINE-DIALS: widened to _eng_gen.js ENG_DIAL_RANGE, the registry's
+    // own extremes; the step to 0.001 so a row's point is on the dial)
+    ['bmepK',   'tune (bmep / layout)', 0.5, 2.0, 0.001, x => x.toFixed(3)],
+    // and its build: mass over the swept-volume law (the CC340's 0.88)
+    ['massK',   'build (mass / law)', 0.4, 2.2, 0.001, x => x.toFixed(3)],
   ], isPiston],
   ['cylinder dress', [
     ['finN',     'barrel fins', 4, 18, 1],
@@ -444,5 +492,5 @@ function presetNames() {
 }
 window.ENG_PAGE = { COL, NEUTRAL, PROPS, engDefaults, PRESETS,
                     GROUPS: ENG_GROUPS, isElec, isPiston, isTurbine,
-                    CUSTOM_ENGINE, PRESETS_AFTER_CUSTOM, presetNames };
+                    CUSTOM_ENGINE, PRESETS_AFTER_CUSTOM, presetNames, LATENT };
 })();

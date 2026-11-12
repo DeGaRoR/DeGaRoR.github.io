@@ -81,7 +81,7 @@ const BASE_GROUPS = [
   ['layout', [
     ['paxCount',  'pax bays',      0, 12, 1],
     ['paxLen',    'pax len',       0.4, 3.0, 0.01],
-    ['pilotLen',  'pilot len',     0.3, 2.0, 0.01],
+    ['pilotLen',  'pilot len',     0.1, 2.0, 0.01],      // (11 Nov: from 0.10, as the page's row)
     ['boomLen',   'boom len',      1.0, 6.0, 0.01],
     ['tailLen',   'tail len',      0.05, 0.6, 0.005],
     ['pillarW',   'pillar width',  0.00, 0.30, 0.005],
@@ -764,7 +764,10 @@ if (typeof window !== 'undefined') window.CAGE_AERO_ON = aeroOn;
 // G1301: noted for the repaint (a page slice without the note answers the same material)
 let PAINT_KIND = 'c';
 const paintNote = (m, name) => typeof paintRec === 'function' ? paintRec(m, PAINT_KIND, name, null) : m;
-const matOf = name => {
+// LINER-BACK (9 Nov): sd is the group's side - 'f' a skin face a liner lines (its front only), 'b' the liner on it (its
+// back only), none the two-sided default every other face keeps (_cage_gen.js linerBack)
+const SIDE_OF = sd => sd === 'f' ? THREE.FrontSide : sd === 'b' ? THREE.BackSide : THREE.DoubleSide;
+const matOf = (name, sd) => {
   const a = alphaOf(name);
   if (aeroOn()) {
     const A = AK();
@@ -795,7 +798,7 @@ const matOf = name => {
                 (A.AERO_GLASS.has(name)
                   ? ':G' + [GLASS.opacity, GLASS.scratch, GLASS.wipe,
                             GLASS.grime, GLASS.refl, GLASS.rainbow, P.glazeMat || 0].join(',')
-                  : '');
+                  : '') + (sd ? ':S' + sd : '');
     if (matCache[key]) return paintNote(matCache[key], name);
     if (A.AERO_GLASS.has(name)) {
       // the VIEW alpha still wins when it is asking for less: `glass a` is a
@@ -844,13 +847,13 @@ const matOf = name => {
         // the field is per-SECTION and pure (see _surf_check): the mesh
         // publishes which groups carry it, and meshFrom passes it in
         surf: matSurf[name] ? 1 : 0,
-        side: THREE.DoubleSide,
+        side: SIDE_OF(sd), exactSide: sd ? 1 : 0,   // (LINER-BACK: FrontSide is 0 - aeroMaterial's || would make it DoubleSide)
       });
     }
     return paintNote(matCache[key], name);
   }
   const neutral = !$('color').checked;
-  const key = (neutral ? 'n:' : 'c:') + name + ':' + a;
+  const key = (neutral ? 'n:' : 'c:') + name + ':' + a + (sd ? ':S' + sd : '');
   if (!matCache[key]) {
     matCache[key] = new THREE.MeshLambertMaterial({
       color: colOf(name),
@@ -858,7 +861,7 @@ const matOf = name => {
       // side of a curved pane rendered through the near one — its limb
       // read as a phantom circle on the bubble (user report). Interiors
       // + cutaway keep backfaces on everything else.
-      side: GLASSM.has(name) ? THREE.FrontSide : THREE.DoubleSide,
+      side: GLASSM.has(name) ? THREE.FrontSide : SIDE_OF(sd),
       transparent: a < 1,
       opacity: a,
       depthWrite: a >= 1,          // translucent surfaces never occlude
@@ -1014,7 +1017,8 @@ function repaint() {
   let ok = true, mm1 = null, clash = '';
   PAINT_REC = false;
   try {
-    if (ownSlots) mm1 = names.map(matOf);
+    const sides0 = meshObj.userData.matSides || [];          // LINER-BACK: each slot keeps its side
+    if (ownSlots) mm1 = names.map((nm, k) => matOf(nm, sides0[k]));
     for (const [m, q] of PAINT_REQ) {
       let nu = null;
       for (const [kind, name, g] of q.values()) {
@@ -1134,19 +1138,24 @@ function meshFrom(m) {
   // smooth normals the game viewer computes
   const pos = new Float32Array(m.V.length * 3);
   m.V.forEach((v, i) => { pos[i*3] = v[0]; pos[i*3+1] = v[1]; pos[i*3+2] = v[2]; });
-  const byMat = new Map();
+  // LINER-BACK: one group per section AND side - a section whose faces are all lined is still one group (one draw);
+  // only a section that mixes lined and unlined faces splits (matOf's sd, _cage_gen.js linerBack)
+  const byMat = new Map(), sdOf = new Map();
   m.F.forEach(f => {
-    if (!byMat.has(f.m)) byMat.set(f.m, []);
-    const t = byMat.get(f.m);
+    const sd = f.back ? 'b' : f.backed ? 'f' : '';
+    const bk = sd ? f.m + '' + sd : f.m;
+    if (!byMat.has(bk)) { byMat.set(bk, []); sdOf.set(bk, sd); }
+    const t = byMat.get(bk);
     // a FAN: quads as before; the knife's triangles and n-gons (G245) are
     // convex pieces of one flat-ish face, so the fan is exact for them
     for (let i = 1; i + 1 < f.v.length; i++) t.push(f.v[0], f.v[i], f.v[i + 1]);
   });
-  const idx = [], mats = [], groups = [];
-  for (const [name, tris] of byMat) {
+  const idx = [], mats = [], sides = [], groups = [];
+  for (const [bk, tris] of byMat) {
     groups.push([idx.length, tris.length, mats.length]);
     for (const i of tris) idx.push(i);
-    mats.push(name);
+    mats.push(sdOf.get(bk) ? bk.slice(0, bk.indexOf('')) : bk);
+    sides.push(sdOf.get(bk));
   }
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
@@ -1223,10 +1232,11 @@ function meshFrom(m) {
   }
   PAINT_KIND = 'm';                      // G1301: the cage mesh's slots, by section (repaint)
   let mats0;
-  try { mats0 = mats.map(matOf); } finally { PAINT_KIND = 'c'; }
+  try { mats0 = mats.map((nm, gi) => matOf(nm, sides[gi])); } finally { PAINT_KIND = 'c'; }
   const mesh = new THREE.Mesh(g, mats0);
   mesh.userData.surfMats = surfMats;
   mesh.userData.matNames = mats;
+  mesh.userData.matSides = sides;                  // LINER-BACK: the group's side ('f' / 'b' / '')
   // THE GLASS COMPANION (G206): every pane is two draws — the multiply pass
   // rides the same faces as a child mesh one renderOrder earlier. Inert when
   // the panes are not AEROSKIN glass (the flat view), tagged so the join and
@@ -1833,9 +1843,11 @@ function eyePut(to) {
   const par = from.parent;
   const t0 = performance.now();
   const names = from.userData.matNames || [], mm = Array.isArray(from.material) ? from.material : [from.material];
-  const bySec = new Map(names.map((nm, i) => [nm, mm[i]]));
+  // (LINER-BACK: a slot is its section AND its side - a section may have a lined and an unlined group)
+  const sdF = from.userData.matSides || [], sdT = to.userData.matSides || [];
+  const bySec = new Map(names.map((nm, i) => [nm + '|' + (sdF[i] || ''), mm[i]]));
   PAINT_KIND = 'm';
-  try { to.material = (to.userData.matNames || []).map(nm => bySec.get(nm) || matOf(nm)); } finally { PAINT_KIND = 'c'; }
+  try { to.material = (to.userData.matNames || []).map((nm, i) => bySec.get(nm + '|' + (sdT[i] || '')) || matOf(nm, sdT[i])); } finally { PAINT_KIND = 'c'; }
   for (const c of to.children.slice()) if (c.userData && c.userData.aeroCompanion) to.remove(c);
   meshGlass(to);
   for (const k of ['bodyZones', 'frameZones']) to.userData[k] = from.userData[k];
@@ -2661,7 +2673,7 @@ function previewDraw() {
 // flank's own side plane (x of the handle) - writing the corner's two rows (P[<row>Q<k>Z / Y], cage units), a drag
 // tick at a time (the slider drag's own deferral: DRAG_ON / DRAG_TICK, the settle build on the release). The game's
 // editor (EXT) has no viewport of its own: there the corner rows are the hand.
-const QUAD_ROWS = ['paxWin', 'win2', 'win3'];
+const QUAD_ROWS = ['paxWin', 'win2', 'win3', 'win4', 'win5', 'win6'];   // (11 Nov: six rows)
 function quadHandles(sheet, spec, FS) {
   disposeObj(quadObj); quadObj = null;
   if (EXT || !G.cageQuadWindow || !sheet) return;
@@ -3327,7 +3339,7 @@ fillPresetSel();
     dx.title = 'Fade the covering and click straight through it — ' +
                'the engine, the seats and the panel become reachable';
     dx.innerHTML = `<span class="k">see inside</span>
-      <label style="flex:none"><input type="checkbox" id="xray"></label>`;
+      <label style="flex:none"><input type="checkbox" id="xray"${VIEW.xray ? ' checked' : ''}></label>`;   // (WING-STRUCTURE: the panel is rebuilt with each build - the box shows the view's state, not unticked over a see-through aeroplane)
     det.appendChild(dx);
     dx.querySelector('input').onchange = e => {
       VIEW.xray = e.target.checked ? 1 : 0;
@@ -3339,8 +3351,13 @@ fillPresetSel();
     <label style="flex:none"><input type="checkbox" id="cutaway"></label>`;
   det.appendChild(d);
   d.querySelector('#cutaway').onchange = e => {
-    renderer.clippingPlanes = e.target.checked
+    // WING-STRUCTURE: the game's garage has no renderer here (it threw: 'setting clippingPlanes of null') - there the
+    // build's own materials are clipped (wing_struct.js cut, REF_MOUNT.setBuildClip); and the cut side's wing shows
+    // its inside
+    if (renderer) renderer.clippingPlanes = e.target.checked
       ? [new THREE.Plane(new THREE.Vector3(1, 0, 0), 0)] : [];
+    else if (window.CAGE_WINGSTRUCT) window.CAGE_WINGSTRUCT.cut(e.target.checked);
+    if (window.CAGE_WINGSTRUCT) window.CAGE_WINGSTRUCT.sync();
     draw();
   };
   const dl = document.createElement('div'); dl.className = 'r';
@@ -4191,6 +4208,9 @@ const DEC = (typeof window !== 'undefined' && window.AEROSKIN
   // width still follows the height at the face's own aspect.
   regW: 0.96, regLock: 1,
   regFont: 0,             // an index into AEROSKIN.AERO_DEC_FONTS
+  // LIVERY-TEXT (9 Nov): the registration takes a text piece's controls - a face (null: the old row above), bold,
+  // italic, slant, an outline (null: none) and the side (0 both, 1 left, 2 right); aeroskin AERO_DEC_DEF's own
+  regFace: null, regB: 1, regI: 0, regSl: 0, regLine: null, regSide: 0,
   // LIVERY-5: THE TWO IMAGE CHANNELS ARE GONE (img* / wim*): an old save's rows are dropped on load; their atlas
   // pages carry kit layers 4 and 5
   // G2829: THE REGISTRATION ON THE WING TOP (aeroskin AERO_DEC_DEF's wreg*: the registration's page placed a second
@@ -4252,6 +4272,14 @@ function decKitDefaults() {
       if (!(key in DEC_DEF)) DEC_DEF[key] = A.AERO_KIT_LDEF[k];
       if (!(key in DEC)) DEC[key] = A.AERO_KIT_LDEF[k];
     }
+  // LIVERY-TEXT: the six text pieces' keys (t1On .. t6Metal), folded in the same way for the same reason
+  if (A.AERO_TXT_LDEF && A.AERO_TXT_FIELDS && A.AERO_TXT_N)
+    for (let i = 1; i <= A.AERO_TXT_N; i++)
+      for (const k of A.AERO_TXT_FIELDS) {
+        const key = 't' + i + k;
+        if (!(key in DEC_DEF)) DEC_DEF[key] = A.AERO_TXT_LDEF[k];
+        if (!(key in DEC)) DEC[key] = A.AERO_TXT_LDEF[k];
+      }
   return (decKitIn = true);
 }
 let decPanel = null, decImgAspect = 1;
@@ -4471,6 +4499,10 @@ function applyDecals() {
   // G345.1: the spinner's spiral rides the same block
   if (window.AEROWX && window.AEROWX.aeroWxSetSpiral) window.AEROWX.aeroWxSetSpiral(THREE, DEC);
 }
+// LIVERY-TEXT: a face fetched on first use has arrived (aeroskin aeroTxtArrived): its pages are drawn again and the
+// placement remade there; here the panel's own mirror of it (the locked width) and a frame
+if (typeof window !== 'undefined' && typeof window.addEventListener === 'function')
+  window.addEventListener('aero-face', () => { try { if (decPanel) { applyDecals(); draw(); } } catch (e) {} });
 
 // ---- FIT TO THE SURFACE (G2870, LIVERY-PATTERNS) ---------------------------
 // "Surface-scaled": a fade or a sunburst means edge to edge of a fin or a
@@ -4707,6 +4739,7 @@ const SYNC = {}, GREY = {}, LOCK = {};
 // rows went on showing the boot aeroplane's values - the toggles and the pickers had no SYNC at all, and nothing
 // called the sliders'. A load now calls every SYNC and every hook here (the livery layers' titles)
 const DEC_RELOAD = [];
+const TXT_LOOK = [];   // LIVERY-TEXT: the face rows' notes, told when a text changes (a letter the face lacks)
 // ---- SWITCHING PROJECTION KEEPS THE MARKING WHERE IT IS (G113.4) ---------
 // MEASURED, and it settles this the other way round from how it was planned.
 // The two frames do NOT differ by a constant anybody forgot to plumb: over
@@ -5046,6 +5079,56 @@ function buildDecPanel() {
     SYNC[key] = () => { sel2.value = DEC[key]; };
     return d;
   };
+  // LIVERY-TEXT (9 Nov): A TEXT PIECE'S FACE ROWS, the registration's ('reg', its old four faces first) and each
+  // piece's ('t1'..'t6'): the face and why it is there, bold, italic, slant, outline, sides
+  const TXF = A.AERO_TXT_FACES || [];
+  const txtRows = (q, parent, legacy) => {
+    const fk = q + 'Face', textOf = () => legacy ? decReg() : String(DEC[q + 'Txt'] || '');
+    const faceNow = () => DEC[fk] ? (TXF.find(f => f.key === DEC[fk]) || TXF[0]) : null;
+    const d = row('face', 'only faces the game ships (OFL, from Google Fonts), each picked on its looks - the line under ' +
+                  'it says why. A face is fetched the first time it is asked for (13-29 KB)', parent);
+    const sel = document.createElement('select'); sel.style.flex = '1';
+    if (legacy) (A.AERO_DEC_FONTS || []).forEach((f, i) => {
+      const o = document.createElement('option'); o.value = 'L' + i;
+      o.textContent = 'Plex ' + f.name + (i === 0 ? ' (the registration\'s own)' : ''); sel.appendChild(o); });
+    for (const f of TXF) { const o = document.createElement('option'); o.value = f.key; o.textContent = f.name; sel.appendChild(o); }
+    d.appendChild(sel);
+    const nd = row('', '', parent), nk = nd.querySelector('span.k');
+    nk.style.cssText = 'flex:1;opacity:.72;font-size:11px;white-space:normal;line-height:1.3';
+    const bRow = flag('bold', q + 'B', 'the face\'s own bold - offered only where the face ships one (never a smeared fake)', null, parent);
+    const iRow = flag('italic', q + 'I', 'the face\'s own italic - offered only where the face ships one; the slant below is apart', null, parent);
+    num('slant', q + 'Sl', -0.45, 0.45, 0.01, 'lean the letters, any face - forward (+) or back (-)', null, parent);
+    const grey = (r, on) => { const c = r.querySelector('input'); if (c) c.disabled = !on; r.style.opacity = on ? '' : '.45'; };
+    const look = () => {
+      const F = faceNow();
+      sel.value = F ? F.key : (legacy ? 'L' + Math.max(0, Math.min(3, Math.round(+DEC.regFont || 0))) : (TXF[0] || {}).key);
+      grey(bRow, !!(F && F.b)); grey(iRow, !!(F && F.it));
+      let t = F ? F.why : 'the registration\'s old face (IBM Plex)';
+      const miss = F && F.miss ? Array.from(new Set(Array.from(textOf()).filter(c => F.miss.indexOf(c) >= 0))) : [];
+      if (miss.length) t += ' — ' + miss.join(' ') + ': not in this face, drawn in IBM Plex Sans';
+      nk.textContent = t;
+    };
+    sel.onchange = () => {
+      const v = sel.value;
+      if (/^L\d$/.test(v)) { DEC[fk] = null; DEC.regFont = +v.slice(1); } else DEC[fk] = v;
+      look(); decSavePrefs(); applyDecals(); draw();
+    };
+    SYNC[fk] = look; DEC_RELOAD.push(look); TXT_LOOK.push(look); look();
+    // THE OUTLINE (the user: offered, off by default): a tick and its colour; unticked it is null - none
+    {
+      const r = row('outline', 'a keyline round the letters, in its own colour - off by default', parent);
+      const c = document.createElement('input'); c.type = 'checkbox';
+      const w = document.createElement('input'); w.type = 'color'; w.style.flex = 'none'; w.style.marginLeft = '6px';
+      wellRecent(w);
+      const lk = () => { const v = DEC[q + 'Line']; c.checked = v != null; w.disabled = v == null; w.style.opacity = v == null ? '.35' : '';
+        w.value = '#' + ((v != null ? v : 0xffffff) >>> 0).toString(16).padStart(6, '0'); };
+      c.onchange = () => { DEC[q + 'Line'] = c.checked ? parseInt(w.value.slice(1), 16) : null; lk(); decSavePrefs(); applyDecals(); draw(); };
+      w.oninput = () => { if (DEC[q + 'Line'] == null) return; DEC[q + 'Line'] = parseInt(w.value.slice(1), 16); decSavePrefs(); applyDecals(); draw(); };
+      r.appendChild(c); r.appendChild(w); SYNC[q + 'Line'] = lk; DEC_RELOAD.push(lk); lk();
+    }
+    pick('sides', q + 'Side', ['both, each reading right', 'the left side only', 'the right side only'],
+         'a marking is on both flanks, reading the right way on each - or on one side only', null, parent);
+  };
   // the registration
   {
     const d = row('registration', 'the aeroplane\'s own marking — the spec ' +
@@ -5071,6 +5154,7 @@ function buildDecPanel() {
     // the aeroplane, and doing that per keystroke would tear down and re-derive
     // the whole cage for every letter of a registration.
     i.oninput = () => { DEC.reg = i.value.toUpperCase(); i.value = DEC.reg;
+      for (const f of TXT_LOOK) f();   // (LIVERY-TEXT: the face's note names a letter it lacks)
       decSavePrefs(); applyDecals();
       // G318: the tape on the dash follows every keystroke (a repaint, not a rebuild)
       if (window.CAGE_PANEL && window.CAGE_PANEL.setReg) window.CAGE_PANEL.setReg(DEC.reg);
@@ -5123,9 +5207,9 @@ function buildDecPanel() {
          'the glyph. Unset it follows the aeroplane trim colour — ' +
          'double-click the label to go back to following');
   }
-  pick('face', 'regFont', (A.AERO_DEC_FONTS || []).map(f => f.name),
-       'only the faces the artifact ships: a livery that renders in a ' +
-       'different font on somebody else machine is not a livery');
+  // LIVERY-TEXT (9 Nov, the user: "registration is just a dedicated text field"): the registration's face, bold,
+  // italic, slant, outline and side are a text piece's rows (txtRows) - its old four faces first in the list
+  txtRows('reg', null, true);
   num('station', 'regL', -1.0, 6.0, 0.05, 'metres AFT of the firewall', 'len');
   num('height on side', 'regC', -1.0, 1.2, 0.02,
       'metres around the section from the waist rail, + upward', 'up');
@@ -5160,6 +5244,69 @@ function buildDecPanel() {
   // THE KIT IS FIRST IN THE PAINT ORDER and LAST-BUT-ONE in the panel, which
   // is deliberate: the registration is the row people open this panel for, and
   // the image channels below are the ones almost nobody uses.
+  // ---- LIVERY-TEXT (9 Nov): THE LETTERING - six pieces, a name, a slogan ------------------------------------------
+  // the user's answers: one line, 24 characters, no curve; the livery layer's placement; both sides or one; an outline
+  // offered, off; real bold and italic where the face has them, and a slant. Each piece its own <details>.
+  DECG.cur = 'txt';
+  if (A.AERO_TXT_N && A.AERO_TXT_LDEF) {
+    for (let ti = 1; ti <= A.AERO_TXT_N; ti++) {
+      const q = 't' + ti;
+      const det = document.createElement('details');
+      det.dataset.g = 'lettering/' + ti; det.dataset.dec = 'txt';
+      const sum = document.createElement('summary');
+      det.appendChild(sum); body.appendChild(det);
+      const say = () => {
+        const on = !!DEC[q + 'On'], t = String(DEC[q + 'Txt'] || '').trim();
+        sum.textContent = 'text ' + ti + ' — ' + (on && t ? '“' + t + '”' : t ? 'off' : 'empty');
+        sum.style.opacity = on && t ? '' : '.55';
+      };
+      DEC_RELOAD.push(say);
+      flag('on', q + 'On', 'letter this line onto the aeroplane', say, det);
+      {
+        const d = row('text', 'one line, up to ' + (A.AERO_TXT_MAX || 24) + ' characters - a name, a slogan', det);
+        const i = document.createElement('input');
+        i.type = 'text'; i.maxLength = A.AERO_TXT_MAX || 24; i.style.flex = '1'; i.spellcheck = false;
+        i.value = DEC[q + 'Txt'] || '';
+        // (a repaint per keystroke, as the registration's: no rebuild - the text is a page of the atlas)
+        i.oninput = () => {
+          DEC[q + 'Txt'] = A.aeroTxtClean ? A.aeroTxtClean(i.value) : i.value.slice(0, 24);
+          if (i.value && !DEC[q + 'On']) { DEC[q + 'On'] = 1; if (SYNC[q + 'On']) SYNC[q + 'On'](); }   // typing is asking for it
+          say(); for (const f of TXT_LOOK) f(); decSavePrefs(); applyDecals(); draw();
+        };
+        d.appendChild(i);
+        SYNC[q + 'Txt'] = () => { i.value = DEC[q + 'Txt'] || ''; };
+        DEC_RELOAD.push(SYNC[q + 'Txt']);
+      }
+      txtRows(q, det, false);
+      {   // the ink: null follows the trim, as the registration's (double-click the label to follow again)
+        const d = row('ink', 'the letters. Unset they follow the aeroplane trim colour - double-click the label to go back to following', det);
+        const c = document.createElement('input'); c.type = 'color'; c.style.flex = 'none';
+        wellRecent(c);
+        const cur = () => { if (DEC[q + 'Col'] != null) return DEC[q + 'Col'];
+          try { const S = window.GARAGE_SPEC && window.GARAGE_SPEC.get(); if (S && S.paint) return S.paint.trim; } catch (e) {}
+          return 0x1b3a5c; };
+        const paint = () => { c.value = '#' + (cur() >>> 0).toString(16).padStart(6, '0'); };
+        paint();
+        c.oninput = () => { DEC[q + 'Col'] = parseInt(c.value.slice(1), 16); decSavePrefs(); applyDecals(); draw(); };
+        const k = d.querySelector('span.k');
+        if (k) { k.style.cursor = 'pointer'; k.ondblclick = () => { DEC[q + 'Col'] = null; paint(); decSavePrefs(); applyDecals(); draw(); }; }
+        d.appendChild(c); SYNC[q + 'Col'] = paint; DEC_RELOAD.push(paint);
+      }
+      num('height', q + 'H', 0.05, 1.20, 0.01, 'metres - the letters\' height; the width follows the face', null, det);
+      num('station', q + 'L', -1.0, 6.0, 0.05, 'metres AFT of the firewall', 'len', det);
+      num('height on side', q + 'C', -1.2, 1.2, 0.02, 'metres around the section from the waist rail, + upward', 'up', det);
+      num('turn', q + 'Rot', -0.6, 0.6, 0.01, 'radians', null, det);
+      num('metallic', q + 'Metal', 0, 1, 0.02, 'metal flake in the letters', null, det);
+      pick('goes on', q + 'Tgt',
+           ['the fuselage', 'the flying surfaces', 'both', 'the body & the tail',
+            'the wings', 'the tail', 'the fin', 'the stabiliser'],
+           'the surfaces the line lands on - as a livery layer', null, det);
+      pick('projected as', q + 'Mode', MODE_NAMES, MODE_HELP,
+           (was, now) => decReframe(was, now, { l: q + 'L', c: q + 'C' }), det);
+      say();
+    }
+  }
+
   DECG.cur = 'kit';
   if (A.AERO_KIT && A.AERO_KIT_LAYERS) {
     const KIT = A.AERO_KIT;

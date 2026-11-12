@@ -183,9 +183,9 @@ function boot(opt) {
       && /body\.shot #updNow \{ display:none; \}/.test(css) && /max-width:760px\) \{ body\.mode-fly #updNow \{ right:12px; bottom:112px; \}/.test(css),
       'P1 its place: in flight the right column above the verbs (a phone: over the verbs\' two rows), the garage\'s 3D view, never in a photo');
     const bb = b.doc.getElementById('bootBuild');
-    check(!!bb && bb.textContent === 'build aaaaaaaa · 4 Oct 2026' && bb.parentNode.id === 'bootPanel'
+    check(!!bb && /^build aaaaaaaa · 4 Oct 2026 \d\d:\d\d( UTC)?$/.test(bb.textContent) && bb.parentNode.id === 'bootPanel'
       && bb.parentNode.children.indexOf(bb) === 1, 'P1 the loading screen stamps the PAGE\'s build and date under the brand', bb && bb.textContent);
-    check(b.U.stamp() === 'build aaaaaaaa · 4 Oct 2026', 'P1 UPDATE_NOW.stamp() is the page\'s build and date (not the server\'s)');
+    check(/^build aaaaaaaa · 4 Oct 2026 \d\d:\d\d( UTC)?$/.test(b.U.stamp()), 'P1 UPDATE_NOW.stamp() is the page\'s build and date (not the server\'s)');
     check(b.log.every(e => e[0] !== 'assign' && e[0] !== 'reload'), 'P1 showing the pill navigates nowhere');
     check(b.doc.documentElement.classList.contains('updNowUp') && /html\.updNowUp #bootPanel \{ bottom:84px; \}/.test(b.doc.getElementById('updNowCss').textContent),
       'P1 the loading screen\'s panel steps up above the pill (html.updNowUp)');

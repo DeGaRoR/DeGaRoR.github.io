@@ -2964,20 +2964,28 @@
     ],
     "poly": [
      [
-      -45.92,
-      763.17
+      -38.83,
+      769.27
      ],
      [
-      -208.23,
-      631.29
+      -133.85,
+      741.39
      ],
      [
-      -142.65,
-      546.19
+      -179.13,
+      702.03
      ],
      [
-      14.34,
-      682.77
+      -227.57,
+      617.52
+     ],
+     [
+      -155.73,
+      534.88
+     ],
+     [
+      26.91,
+      693.65
      ]
     ]
    },
@@ -14548,14 +14556,14 @@
     ],
     "approach": null,
     "stand": {
-     "x": -118.11,
-     "z": 677.57,
+     "x": -152.07,
+     "z": 617.56,
      "hdg": null
     },
     "taxiOut": [
      [
-      -128,
-      645
+      -149.29,
+      591.49
      ],
      [
       -142.55,
@@ -14572,8 +14580,12 @@
     ],
     "taxiOut1": [
      [
-      -100,
-      672
+      -122.38,
+      621.51
+     ],
+     [
+      -79.4,
+      648.27
      ],
      [
       -40,
@@ -14589,16 +14601,57 @@
      ]
     ],
     "hangar": {
-     "x": -138.12,
-     "z": 700.58,
+     "x": -172.09,
+     "z": 640.58,
      "hdg": -0.8552
     },
     "plots": [
      {
       "id": "HOME.2",
-      "x": -118,
-      "z": 780,
-      "hdg": -1.9635
+      "x": -132.25,
+      "z": 698.4,
+      "hdg": -0.8552,
+      "stand": {
+       "x": -98.13,
+       "z": 659.15,
+       "hdg": null
+      },
+      "taxiOut": [
+       [
+        -115.82,
+        613.96
+       ],
+       [
+        -142.55,
+        563.38
+       ],
+       [
+        -143.88,
+        389.2
+       ],
+       [
+        -128.23,
+        371.19
+       ]
+      ],
+      "taxiOut1": [
+       [
+        -68.24,
+        665.92
+       ],
+       [
+        -40,
+        676
+       ],
+       [
+        1.61,
+        682.64
+       ],
+       [
+        175.8,
+        635.49
+       ]
+      ]
      }
     ],
     "clear": {
@@ -14610,7 +14663,11 @@
    },
    {
     "id": "w3",
-    "name": "Ridgeback Strip",
+    "micro": {
+     "chaos": 0.2,
+     "seed": 3
+    },
+    "name": "Fishing Village Strip",
     "c": [
      -811.27,
      -2396.97
@@ -15314,7 +15371,7 @@
    },
    {
     "id": "w5",
-    "name": "strip 10",
+    "name": "Cannery Runway",
     "len": 310,
     "wid": 17,
     "surface": 6,
@@ -15357,7 +15414,7 @@
    },
    {
     "id": "w6",
-    "name": "strip 11",
+    "name": "Old Community Runway",
     "len": 311.5,
     "wid": 21,
     "surface": 6,
@@ -15409,7 +15466,7 @@
    },
    {
     "id": "w7",
-    "name": "strip 12",
+    "name": "New Community Runway",
     "len": 1020,
     "wid": 9,
     "surface": 6,
@@ -15452,7 +15509,7 @@
    },
    {
     "id": "w4",
-    "name": "strip 9",
+    "name": "Mountainside Strip",
     "len": 216.4,
     "wid": 8,
     "surface": 6,
@@ -15514,7 +15571,11 @@
    },
    {
     "id": "w8",
-    "name": "strip 13",
+    "micro": {
+     "chaos": 0.4,
+     "seed": 13
+    },
+    "name": "Hiking Strip",
     "len": 391.7,
     "wid": 12,
     "surface": 7,
@@ -17294,42 +17355,23 @@
     "id": "s_club",
     "name": "Jolene AFB flying club",
     "at": {
-     "x": -139.4,
-     "z": 667.49,
+     "x": -177.6,
+     "z": 607.29,
      "yaw": 3.141592653589793
     },
     "yard": {
-     "x0": -60,
-     "x1": 40,
-     "z0": 14,
-     "z1": 54
+     "x0": -16,
+     "x1": 16,
+     "z0": -14,
+     "z1": 14
     },
     "items": [
      {
-      "id": "hangar_long",
-      "key": "hangar/club hangar, long",
-      "x": 22.92,
-      "z": -16.69,
-      "yaw": 2.426007660272118,
-      "P": {
-       "plotGround": false
-      },
-      "onRoad": false,
-      "bottomOnRoad": false,
-      "stage": {
-       "track": "field",
-       "show": [
-        2,
-        null
-       ]
-      }
-     },
-     {
       "id": "clubhouse",
       "key": "house/flying club",
-      "x": 34.37,
-      "z": 5.98,
-      "yaw": 0.8726646259971648,
+      "x": 0.0,
+      "z": 0.0,
+      "yaw": 2.426007660272118,
       "P": {
        "plotGround": false
       },
@@ -17346,9 +17388,9 @@
      {
       "id": "fuel",
       "key": "big/fuel shed",
-      "x": 40.74,
-      "z": 15.84,
-      "yaw": 2.4609142453120043,
+      "x": 6.11,
+      "z": 11.27,
+      "yaw": 3.9968,
       "P": {
        "plotGround": false
       },
@@ -17358,9 +17400,9 @@
      {
       "id": "tools",
       "key": "shed/tool shed",
-      "x": 35.53,
-      "z": 14.24,
-      "yaw": 0.8726646259971648,
+      "x": 11.35,
+      "z": 5.23,
+      "yaw": 2.426007660272118,
       "P": {
        "plotGround": false
       },
@@ -17462,8 +17504,8 @@
     "id": "af_s_fire",
     "name": "Jolene AFB fire point",
     "at": {
-     "x": -192.35,
-     "z": 625.61,
+     "x": -203.67,
+     "z": 615.77,
      "yaw": -1.5708
     },
     "yard": {
@@ -21448,24 +21490,24 @@
     "id": "o1",
     "kind": "aircraft",
     "key": "arch:cub",
-    "x": -159.27,
-    "z": 653.32,
+    "x": -85.75,
+    "z": 719.6,
     "yaw": -1.5708
    },
    {
     "id": "o2",
     "kind": "aircraft",
     "key": "arch:c172",
-    "x": -148.71,
-    "z": 657.54,
+    "x": -75.19,
+    "z": 728.79,
     "yaw": 0.5585053606381855
    },
    {
     "id": "o3",
     "kind": "aircraft",
     "key": "arch:jodel",
-    "x": -170,
-    "z": 621,
+    "x": -27.49,
+    "z": 701.35,
     "yaw": -1.637
    },
    {
@@ -21560,16 +21602,16 @@
     "id": "af_park1",
     "kind": "aircraft",
     "key": "arch:cub",
-    "x": -166,
-    "z": 593,
+    "x": -18.43,
+    "z": 709.23,
     "yaw": -1.637
    },
    {
     "id": "af_park2",
     "kind": "aircraft",
     "key": "arch:c172",
-    "x": -170,
-    "z": 607,
+    "x": -71.94,
+    "z": 714.38,
     "yaw": -1.637
    },
    {
@@ -21630,8 +21672,8 @@
     "id": "af_frt_truck",
     "kind": "prop",
     "key": "auto_boxtruck_white",
-    "x": -186.15,
-    "z": 635.23,
+    "x": -202.6,
+    "z": 660.43,
     "yaw": -1.631,
     "on": "ground"
    },
@@ -21684,8 +21726,8 @@
     "id": "af_fire_truck",
     "kind": "prop",
     "key": "truck_fire_small",
-    "x": -181.69,
-    "z": 619.26,
+    "x": -193.01,
+    "z": 609.42,
     "yaw": 0.7330382858376184,
     "on": "ground"
    },
@@ -21702,8 +21744,8 @@
     "id": "af_club_table",
     "kind": "prop",
     "key": "picnic_table",
-    "x": -170.73,
-    "z": 651.3,
+    "x": -163.76,
+    "z": 615.04,
     "yaw": 0.35,
     "on": "ground",
     "stage": {
@@ -21718,8 +21760,8 @@
     "id": "af_club_chair1",
     "kind": "prop",
     "key": "chair_wood",
-    "x": -176.98,
-    "z": 648.54,
+    "x": -170.01,
+    "z": 612.28,
     "yaw": 2.1,
     "on": "ground",
     "stage": {
@@ -21734,8 +21776,8 @@
     "id": "af_club_chair2",
     "kind": "prop",
     "key": "chair_plastic",
-    "x": -178.8,
-    "z": 648.2,
+    "x": -171.83,
+    "z": 611.94,
     "yaw": -1.2,
     "on": "ground",
     "stage": {
@@ -21750,8 +21792,8 @@
     "id": "af_club_man1",
     "kind": "prop",
     "key": "person_andrew",
-    "x": -172.79,
-    "z": 651.23,
+    "x": -165.82,
+    "z": 614.97,
     "yaw": 2.371,
     "on": "ground",
     "stage": {
@@ -21766,8 +21808,8 @@
     "id": "af_club_man2",
     "kind": "prop",
     "key": "person_koky",
-    "x": -181.2,
-    "z": 648.8,
+    "x": -174.23,
+    "z": 612.54,
     "yaw": -2.4,
     "on": "ground",
     "stage": {
@@ -21782,8 +21824,8 @@
     "id": "af_club_planter",
     "kind": "prop",
     "key": "planter",
-    "x": -176.34,
-    "z": 650.49,
+    "x": -169.37,
+    "z": 614.23,
     "yaw": 0.9424777960769379,
     "on": "ground",
     "stage": {
@@ -21798,8 +21840,8 @@
     "id": "af_club_stool",
     "kind": "prop",
     "key": "stool_wood2",
-    "x": -180.0,
-    "z": 649.6,
+    "x": -173.03,
+    "z": 613.34,
     "yaw": 0.5,
     "on": "ground",
     "stage": {
@@ -21844,60 +21886,6 @@
     "x": -73.4,
     "z": 614,
     "yaw": 3.122,
-    "on": "ground"
-   },
-   {
-    "id": "af_wk_pallets",
-    "kind": "prop",
-    "key": "pallets_three",
-    "x": -214.0,
-    "z": 662.0,
-    "yaw": 1.2,
-    "on": "ground"
-   },
-   {
-    "id": "af_wk_cinder",
-    "kind": "prop",
-    "key": "cinder_pallet",
-    "x": -216.6,
-    "z": 658.6,
-    "yaw": 0.4,
-    "on": "ground"
-   },
-   {
-    "id": "af_wk_tin1",
-    "kind": "prop",
-    "key": "oil_tin",
-    "x": -212.4,
-    "z": 659.2,
-    "yaw": 2.6,
-    "on": "ground"
-   },
-   {
-    "id": "af_wk_tin2",
-    "kind": "prop",
-    "key": "oil_tin",
-    "x": -211.8,
-    "z": 658.4,
-    "yaw": 0.9,
-    "on": "ground"
-   },
-   {
-    "id": "af_wk_bags",
-    "kind": "prop",
-    "key": "bags_lean",
-    "x": -217.4,
-    "z": 663.6,
-    "yaw": 1.7,
-    "on": "ground"
-   },
-   {
-    "id": "af_wk_junk",
-    "kind": "prop",
-    "key": "car_junk",
-    "x": -220.0,
-    "z": 651.0,
-    "yaw": 3.642,
     "on": "ground"
    },
    {
@@ -22687,29 +22675,12 @@
     "yaw": 0
    },
    {
-    "id": "sg_k_hangar",
-    "kind": "kit",
-    "kit": "build",
-    "x": -193.0,
-    "z": 672.0,
-    "yaw": 4.7124,
-    "w": 26,
-    "d": 34,
-    "stage": {
-     "track": "field",
-     "show": [
-      1,
-      1
-     ]
-    }
-   },
-   {
     "id": "sg_k_club",
     "kind": "kit",
     "kit": "build",
-    "x": -184.0,
-    "z": 642.0,
-    "yaw": 4.7124,
+    "x": -177.6,
+    "z": 607.29,
+    "yaw": 2.426007660272118,
     "w": 15,
     "d": 10,
     "stage": {

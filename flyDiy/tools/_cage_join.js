@@ -91,6 +91,9 @@ const CAGE_JOIN_ENGINES = {
 //                                     safe direction, never an exploit)
 //   6 maple, 7 walnut     -> their own G125 rows
 // APPEND ONLY, in step with MATERIALS; _join_check walks every entry.
+// ENGINE-DIALS C (9 Nov): THE PHYSICS FIELDS A CAGE BUILD HOLDS AT A CONSTANT - nothing the editor draws stands for
+// them, so the join writes GEN_DEFAULT's value rather than leave a latent field (GATE ENGINEDIALS holds the copy equal)
+const CAGE_JOIN_FIXED = { camber: 0, crownTop: 0.72, crownSide: 0.07 };
 const CAGE_JOIN_PROP_MATS = ['wood', 'wood', 'alu', 'carbon', 'carbon',
                              'carbon', 'maple', 'walnut'];
 
@@ -271,7 +274,7 @@ function cageJoinSpec(P, M, T) {
       // the row came home. A P without the key (a headless caller) says nothing.
       ...(P.wgCons != null ? { material: Math.round(P.wgCons) > 0
         ? ['carbon', 'steel', 'fabric',
-           'alloy', 'aluFabric', 'glass'][Math.round(P.wgCons) - 1] : null } : {}),   // G466: the fifth stop; G2047 the sixth
+           'alloy', 'aluFabric', 'glass', 'fabricAlu'][Math.round(P.wgCons) - 1] : null } : {}),   // G466: the fifth stop; G2047 the sixth
     }, ...(+P.w2On ? [cageJoinPlane2(P, T)] : [])],
     bracing: { type: Math.round(P.wgBrace) ? 'cantilever' : 'strut',
                struts: Math.round(+P.wgStruts) === 1 ? 1 : 2,          // T2.3 (83)
@@ -524,8 +527,37 @@ function cageJoinSpec(P, M, T) {
     // RETRACT GM1: a retracting leg is drawn as an oleo on a trunnion (the gear layer), and flies as one
     const s1leg = spec.gear.retract ? 2 : Math.round(P.s1Leg);
     spec.gear.suspension =
-      s1leg === 0 ? 'spring' : s1leg === 2 ? 'oleo' :
-      ['spring', 'bungee', 'oleo'][Math.round(P.s1_shockKind)] || 'bungee';
+      s1leg === 0 ? 'spring' : s1leg === 2 ? 'oleo' : s1leg === 4 ? 'lever' :
+      ['spring', 'bungee', 'oleo', 'oleo'][Math.round(P.s1_shockKind)] || 'bungee';   // (12 Nov: 3, the piston, an oleo)
+    // (WILGA-GEAR: the trailing link wears no wheel fairing - the gear layer draws none, clampSpec says so too)
+    if (spec.gear.suspension === 'lever') spec.gear.fairing = 'none';
+    // WILGA-GEAR: THE TRAILING-LINK LEG AS DRAWN reaches the physics - the gear layer's records (CAGE_GEAR.lever: the
+    // pivot, the strut's eyes, the axle, in the drawing's metres) in the frame's axes (x aft, y up, q outboard), relative
+    // to the axle at full extension, the two sides averaged (they are mirror images); the arm's swing to full stroke and
+    // the charge (the static deflection at gross) from the rows. The frame stands its nodes on these points
+    delete spec.gear.lever;
+    const LVj = s1leg === 4 && window.CAGE_GEAR && window.CAGE_GEAR.lever;
+    if (LVj && LVj.length) {
+      const rel = (u, p) => { const sg = Math.sign(u.axle[0]) || 1;
+        return [-(p[2] - u.axle[2]), p[1] - u.axle[1], sg * (p[0] - u.axle[0])]; };
+      const avg = k => [0, 1, 2].map(c => LVj.reduce((a, u) => a + rel(u, u[k])[c], 0) / LVj.length);
+      const r6 = v => v.map(c => +c.toFixed(6)), R0 = LVj[0].rows;
+      spec.gear.lever = { piv: r6(avg('piv')), horn: r6(avg('horn')), top: r6(avg('top')), w: +LVj[0].w.toFixed(4),
+                          comp: +((R0.ang - R0.comp) * Math.PI / 180).toFixed(6), dSt: +(+R0.dSt).toFixed(4) };
+    }
+    // ENGINE-DIALS C (9 Nov): THE SUSPENSION'S STIFFNESS IS THE MAINS' ROW (s1Stiff; GEN_FIELDS clamps 0.35-3): it was a
+    // physics field (61_gen_frame: the legs' spring rate and damping) no row reached - every build flew 1, the row's
+    // default, so every saved build flies as before
+    // ENGINE-DIALS C2 (12 Nov, GATE BENCH's red on the story's Rufus): AT THE DEFAULT THE FIELD STAYS ABSENT. The
+    // physics reads an absent stiffness as GEN_DEFAULT's 1, and the certificate's major fingerprint hashes the spec as
+    // written: a 1 written into every build moved every aeroplane's fingerprint (Rufus 24e2e238 -> e5b65f7d) and would
+    // have superseded every player's certificate on the update - G3780 R3, the user's: "a game update is not a change
+    // to the aeroplane". A stiffness off 1 (the row moved, or the DC-3-alike's 3 seeded by cageFromSpec) is written
+    if (P.s1Stiff != null && +P.s1Stiff !== 1) spec.gear.stiffness = +P.s1Stiff; else delete spec.gear.stiffness;
+    // ...AND THE WHEELS' CAMBER IS A FIXED CONSTANT (0): the gear layer draws every wheel upright, so a lean would fly
+    // what no row shows (CAGE_JOIN_FIXED; every shipped build carries 0). C2: left ABSENT - the physics flies
+    // GEN_DEFAULT's camber, which GATE ENGINEDIALS holds equal to the constant - so no fingerprint moves
+    delete spec.gear.camber;
   }
   const cabin = {};
   // JOINED (2026-09-04): glazing off is an open cockpit — no glass billed.
@@ -688,6 +720,13 @@ function cageJoinSpec(P, M, T) {
   // when it is positive)
   if (typeof M.tailTop === 'number' && isFinite(M.tailTop)) fus.tailTop = M.tailTop;
   if (M.cowlDeck > 0) fus.cowlDeck = M.cowlDeck;
+  // ENGINE-DIALS C (9 Nov): THE LOFT'S CROWN KNOBS ARE FIXED CONSTANTS ON A CAGE BUILD. fuselage.crownTop / crownSide
+  // shape the drag build-up's body (62_gen_aero) and nothing the cage draws - the cage IS the body - so no row can show
+  // them; a cage build flies GEN_DEFAULT's (CAGE_JOIN_FIXED, GATE ENGINEDIALS holds the two equal), as every shipped
+  // build always has, and a hand-edited file cannot fly a value no row shows
+  // (ENGINE-DIALS C2, 12 Nov: left ABSENT rather than written - the physics reads GEN_DEFAULT's, the constants; written,
+  // they moved every cage build's certificate fingerprint on the update, GATE BENCH's Rufus red - see the gear above)
+  delete fus.crownTop; delete fus.crownSide;
   if (Object.keys(fus).length) spec.fuselage = fus;
   // G54.3: the tail surfaces, measured off the placed fin/stab layers.
   // clampSpec's envelope bounds every one; anything unmeasured keeps the
@@ -770,7 +809,7 @@ function cageJoinSpec(P, M, T) {
   // THE TAIL'S OWN CONSTRUCTIONS (G116), same contract as the wing's:
   // 0 says nothing, absent means the aeroplane's own material
   {
-    const CONS4 = ['carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass'];   // G213; G466 the fifth stop; G2047 the sixth
+    const CONS4 = ['carbon', 'steel', 'fabric', 'alloy', 'aluFabric', 'glass', 'fabricAlu'];   // G213; G466 the fifth stop; G2047 the sixth
     // SPEC-FIXPOINT (A3): STATED in both states, null = the aeroplane's own
     if (P.finCons != null)
       tl.finMaterial = Math.round(P.finCons) > 0 ? CONS4[Math.round(P.finCons) - 1] : null;
@@ -997,6 +1036,7 @@ function cagePartMatch(name, ud, twin) {
       name.lastIndexOf('edLink_', 0) === 0 || name.lastIndexOf('edCtl_', 0) === 0 ||
       name.lastIndexOf('edGauge_', 0) === 0 ||           // the panel arc
       name.lastIndexOf('edMech', 0) === 0 ||             // RETRACT GM3: a retracting gear's brace links and actuator
+      name.lastIndexOf('edLv', 0) === 0 ||               // WILGA-GEAR: the trailing-link leg's arm and strut halves
       name === 'edCastorT')
     return { src: name, ctl: true };
   // G179.2: the struts and the engine units (the prop and spinner under a
@@ -1106,7 +1146,7 @@ function cageSurfHinge(pts, surf, opts) {
 }
 
 if (typeof module !== 'undefined' && module.exports)
-  module.exports = { cageJoinSpec, cageWingCuts, cageWingStationCut, CAGE_JOIN_ENGINES, CAGE_JOIN_PROP_MATS,
+  module.exports = { cageJoinSpec, cageWingCuts, cageWingStationCut, CAGE_JOIN_ENGINES, CAGE_JOIN_PROP_MATS, CAGE_JOIN_FIXED,
                      VIEW_STATE, VIEW_KEEP, cageSurfHinge, cageSurfLine, cageSurfPlane, cagePartMatch };
 // the pure hinge trio for a page that loads the layer without a mount (the
 // headless poser reads them off the window in the browser bench)
@@ -2128,6 +2168,53 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     VIEW_STATE.forEach((r, i) => { if (was[i] !== null) r.set(was[i]); });
   };
 
+  // THE LIVE CREW'S RECORDS (the loop the snapshot ran inline, G2715: a door of its own) - inv the mount's inverse,
+  // cageM the bake's cage -> model map; `only` a filter on the occupant (CREW-SEATS: a job's passengers re-read after a
+  // stop, on the flown model's own map, without a snapshot)
+  function livePeople(inv, cageM, only) {
+    const people = [];
+    try {
+      const LIVE = ((window.CAGE_CREW && window.CAGE_CREW.live) || []).filter(o => !only || only(o));
+      const MC = new THREE.Matrix4().set(...cageM).multiply(inv);
+      const A4 = new THREE.Matrix4(), G4 = new THREE.Matrix4(),
+            pa = new THREE.Vector3(), pg = new THREE.Vector3(),
+            qa = new THREE.Quaternion(), sa = new THREE.Vector3();
+      for (const occ of LIVE) {
+        const L = occ.live;
+        // G2715 (CREW-SEATS): a job's passenger flies on its rig's pose even before its body lands (buildPeople fetches it)
+        if (!L || !occ.fig || (!occ.char && !L.job)) continue;
+        occ.fig.updateWorldMatrix(true, true);
+        const figM = new THREE.Matrix4().multiplyMatrices(inv, occ.fig.matrixWorld)
+          .toArray();
+        const bones = {};
+        for (const bn in occ.bones) bones[bn] = occ.bones[bn].quaternion.toArray();
+        const jobs = [];
+        for (const j of L.jobs) {
+          if (!j.ctl || !j.ctlObj || !j.poleFig) continue;
+          j.a.updateWorldMatrix(true, false);
+          A4.multiplyMatrices(MC, j.a.matrixWorld);
+          G4.multiplyMatrices(MC, j.ctlObj.matrixWorld);
+          A4.decompose(pa, qa, sa); pg.setFromMatrixPosition(G4);
+          jobs.push({ chain: j.chain, label: j.label, ctl: j.ctl,
+                      p: [pa.x - pg.x, pa.y - pg.y, pa.z - pg.z],
+                      q: qa.toArray(),
+                      grip: j.a.userData.grip ? j.a.userData.grip.toArray() : null,
+                      poleFig: j.poleFig.toArray(),
+                      // G279: where this rig's fist closes, in the hand's frame
+                      fixH: j.fixH ? j.fixH.toArray() : null,
+                      // G468: where this rig's sole sits, in the anchor's frame
+                      fixF: j.fixF ? j.fixF.toArray() : null });
+        }
+        people.push(Object.assign({ key: L.key, role: L.role, idx: L.idx, s: L.s, palm: L.palm, stickFwd: L.stickFwd || 0,
+                      fist: L.fist, anim: L.anim, figM, bones, jobs },
+                    L.job ? { job: true } : {},          // G2715: the accepted load's passenger
+                    // G2797: each hand's own fist and grip, when the hands are set apart
+                    L.fistL != null ? { fistL: L.fistL, fistR: L.fistR,
+                                        palmL: L.palmL, palmR: L.palmR } : {}));
+      }
+    } catch (e) { console.warn('live crew:', e); }
+    return people;
+  }
   // WHICH OBJECT IS THE AEROPLANE (G216). The bake is in this frame, so the
   // payload's origin IS this object's origin — which makes it the only
   // honest craft root for a box projection, in the editor as in flight.
@@ -2257,7 +2344,14 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           R: c.R, cx: c.p[0], cy2: c.p[1], cz2: c.p[2], groups: {} });
       // G58.3: the legs stretch-follow their axle (suspension visually
       // compresses); the castor fork yaws for ground manoeuvring
+      // WILGA-GEAR: A TRAILING-LINK LEG IS FOUR RIGID PARTS, NOT A STRETCH - the fixed leg, the arm, the strut's cylinder
+      // and its rod, each carried by three of its physics nodes (app.js lever rigs: the axle, the pivot's ends, the
+      // strut's eyes), so the drawn leg follows the physics leg at every compression - and leaves with it when it breaks
+      const LVp = GB.lever || [];
+      for (const lv of LVp) for (const [nm, role, at] of [['edLeg', 'leg', lv.piv], ['edLvArm', 'arm', lv.piv], ['edLvCyl', 'cyl', lv.top], ['edLvRod', 'rod', lv.horn]])
+        PARTS.others.push({ src: nm + lv.kind, kind: 'lever', lever: { role, axle: lv.axle }, axleC: at, groups: {} });
       for (const u of (GB.units && GB.units.legs) || [])
+        if (!LVp.some(lv => lv.kind === u.kind))
         PARTS.others.push({ src: 'edLeg' + u.kind,
           kind: 'leg' + (u.kind === 'T' ? 'T' : u.kind),
           stretch: true, axleC: u.moving || u.axle, rootC: u.root || null,
@@ -2594,13 +2688,17 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
         const m0 = matList[r.materialIndex] || matList[0];
         if (!m0 || !m0.color) continue;
         const sec = secNames && secNames[r.materialIndex];
+        // LINER-BACK (9 Nov): THE GROUP'S SIDE CROSSES (meshFrom's matSides): a skin face a liner lines draws its front
+        // only ('f'), the liner on it its back only ('b') - one surface, a material each side. The game rebuilt every
+        // payload material two-sided, so without this the liner sat ON the skin's own back face and fought it.
+        const sd = (o.userData && o.userData.matSides && o.userData.matSides[r.materialIndex]) || '';
         // ...and the fallback key carries WHAT IT IS as well as its colour:
         // with the per-part livery, two layer materials can wear the same
         // resolved tint over different finishes, and a colour-only bucket
         // would merge them irreversibly (the exact failure the paragraph
         // above records for the cage).
         const kud = m0.userData || {};
-        const key = (spinKind ? 'p' + spinKind : '') + (sec ? 's' + sec
+        const key = (spinKind ? 'p' + spinKind : '') + (sec ? 's' + sec + (sd ? '|' + sd : '')
           : 'c' + m0.color.getHexString() +
             (m0.transparent ? 'a' + Math.round(m0.opacity * 100) : '') +
             // G2228: AN INSIDE-ONLY SHELL IS ITS OWN BUCKET - the cowl's back twin wears exactly the colour of its
@@ -2666,6 +2764,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           ...(spinKind ? { spin: spinKind } : {}),          // G345.1
           ...(m0.transparent ? { opacity: m0.opacity } : {}),
           ...(sec ? { sec } : {}),
+          ...(sd ? { sd } : {}),                            // LINER-BACK: 'f' front only, 'b' back only
           ...(ud.aeroFinish ? { fin: ud.aeroFinish } : {}),
           // THE VESSELS' OWN FACTORY (2026-09-04, user: "the fuel tank
           // material does not seem to make it in game — red in the editor,
@@ -2998,6 +3097,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           ...(m.pinAt ? { pinAt: m.pinAt, tipAt: m.tipAt } : {}) }));
       if (pt.kind === 'eng') out2.unit = pt.unit;
       if (pt.kind === 'gearMech') out2.name = pt.mechName;          // RETRACT GM3
+      if (pt.kind === 'lever') out2.lever = { role: pt.lever.role, axle: rotP(-pt.lever.axle[2], pt.lever.axle[1], pt.lever.axle[0]) };   // WILGA-GEAR
       if (pt.stretch && pt.rootC)          // G58.7: the fixed airframe end
         out2.root = rotP(-pt.rootC[2], pt.rootC[1], pt.rootC[0]);
       // G267.2: THE TAIL'S ANCHOR — the points whose nodes' mean travel the
@@ -3150,45 +3250,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     // pivot) with the pole the editor chose, in the fig's frame.
     // (row-major, Matrix4.set's order; figM is toArray's column-major)
     const cageM = [0, BK[1], -BK[0], 0,  0, BK[3], -BK[2], 0,  1, 0, 0, 0,  0, 0, 0, 1];   // G337: rows of the same map
-    const people = [];
-    try {
-      const LIVE = (window.CAGE_CREW && window.CAGE_CREW.live) || [];
-      const MC = new THREE.Matrix4().set(...cageM).multiply(inv);
-      const A4 = new THREE.Matrix4(), G4 = new THREE.Matrix4(),
-            pa = new THREE.Vector3(), pg = new THREE.Vector3(),
-            qa = new THREE.Quaternion(), sa = new THREE.Vector3();
-      for (const occ of LIVE) {
-        const L = occ.live;
-        if (!L || !occ.fig || !occ.char) continue;
-        occ.fig.updateWorldMatrix(true, true);
-        const figM = new THREE.Matrix4().multiplyMatrices(inv, occ.fig.matrixWorld)
-          .toArray();
-        const bones = {};
-        for (const bn in occ.bones) bones[bn] = occ.bones[bn].quaternion.toArray();
-        const jobs = [];
-        for (const j of L.jobs) {
-          if (!j.ctl || !j.ctlObj || !j.poleFig) continue;
-          j.a.updateWorldMatrix(true, false);
-          A4.multiplyMatrices(MC, j.a.matrixWorld);
-          G4.multiplyMatrices(MC, j.ctlObj.matrixWorld);
-          A4.decompose(pa, qa, sa); pg.setFromMatrixPosition(G4);
-          jobs.push({ chain: j.chain, label: j.label, ctl: j.ctl,
-                      p: [pa.x - pg.x, pa.y - pg.y, pa.z - pg.z],
-                      q: qa.toArray(),
-                      grip: j.a.userData.grip ? j.a.userData.grip.toArray() : null,
-                      poleFig: j.poleFig.toArray(),
-                      // G279: where this rig's fist closes, in the hand's frame
-                      fixH: j.fixH ? j.fixH.toArray() : null,
-                      // G468: where this rig's sole sits, in the anchor's frame
-                      fixF: j.fixF ? j.fixF.toArray() : null });
-        }
-        people.push(Object.assign({ key: L.key, role: L.role, idx: L.idx, s: L.s, palm: L.palm, stickFwd: L.stickFwd || 0,
-                      fist: L.fist, anim: L.anim, figM, bones, jobs },
-                    // G2797: each hand's own fist and grip, when the hands are set apart
-                    L.fistL != null ? { fistL: L.fistL, fistR: L.fistR,
-                                        palmL: L.palmL, palmR: L.palmR } : {}));
-      }
-    } catch (e) { console.warn('live crew:', e); }
+    const people = livePeople(inv, cageM);
     // the panel arc (session 4): the positions the light switches were
     // drawn in, which the flight's own switch state starts from
     const lights = {};
@@ -3330,6 +3392,9 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     return { cage: true, groups, mats, off, pitch: beta, parts,
              zRoot: 0, surfaces: null, cageM, people, lights, tailRef, mainsRef, footwell, holes,
              weather,
+             // G2715 (CREW-SEATS): the job the crew layer seated (CAGE_CREW_JOB), as the payload was taken; none, no row
+             // (after `weather`: GATE WEATHER reads "footwell, holes, weather" as one run - A0 L38c2)
+             ...(window.CAGE_CREW && window.CAGE_CREW.job ? { crewJob: window.CAGE_CREW.job } : {}),
              ...(gearSwing ? { gearSwing } : {}),
              ...(gearMech ? { gearMech } : {}),          // RETRACT GM3
              debris,                     // G1860: the static merge's non-member parts ([tag, bucket, v0, v1])
@@ -3532,6 +3597,8 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     notes: () => NOTES.slice(),
     snapshot, snapshotSteps, fitReport, viewHold, viewRelease,   // G680: the capture in tasks; the view held for parked.js's batch
     mount: joinMount,                // G216: the craft root, for the editor
+    // G2715 (CREW-SEATS): the live crew's records now, on a given map (app.js fsPeople: a stop's new passengers)
+    livePeople: (cageM, only) => { const m = joinMount(); if (!m) return []; m.updateMatrixWorld(true); return livePeople(new THREE.Matrix4().copy(m.matrixWorld).invert(), cageM, only); },
   };
   // THE BUTTON IS GONE (G65, user: "there's an intermediate step to build...
   // It's one too much"). `build & fly` did three things — export through this

@@ -331,6 +331,8 @@ const SIM_LINK = (() => {
       // ...and the SITE the page's skip plans on: lastStart's, taken when the flight began - an editor's edit since
       // (a parked aeroplane moved: the site's way out round them) is not in it, and the page's pilot plans on it
       if (lined && ls.stSite) { try { place.site = typeof structuredClone === 'function' ? structuredClone(ls.stSite) : JSON.parse(JSON.stringify(ls.stSite)); } catch (e) { place.site = null; } }
+      // TAXI-HOME (app.js arriveFor): the arrival's own stand, for the host's pilot as the page's (null: none, as before)
+      if (ls && ls.arrive) { try { place.arrive = typeof structuredClone === 'function' ? structuredClone(ls.arrive) : JSON.parse(JSON.stringify(ls.arrive)); } catch (e) { place.arrive = null; } }
       let shake = null;
       try { shake = S.shake ? S.shake() : null; } catch (e) { shake = null; }
       const m = { cmd: 'init', spec: S.genSpec ? JSON.parse(JSON.stringify(S.genSpec)) : null, place,
@@ -649,13 +651,14 @@ const SIM_LINK = (() => {
     // G820 (C1c): FLY ON (app.js nextLeg, after it made the page's new pilot): the worker's pilot is made anew at the
     // same step boundary, departing from where the last leg ended - no reset, no new flight; the page's new `ap` is
     // this flight's from now on (the mirror writes the worker's pilot into it)
-    function leg(from, to) {
+    function leg(from, to, arrive) {
       const F = flight; if (!F) return;
       const S = o.get();
       F.ap = S.ap;
       if (F.inline) return;
       if (!F.live) { dropFlight('Fly on before the worker took the flight'); return; }
-      const c = { cmd: 'leg', from, to }; stamp(c); F.view.send(c);
+      const c = { cmd: 'leg', from, to }; if (arrive) { try { c.arrive = JSON.parse(JSON.stringify(arrive)); } catch (e) {} }   // TAXI-HOME
+      stamp(c); F.view.send(c);
       st.legs++;
     }
     // G1945 DEST-TO: A NEW TO (app.js setTo -> the page pilot's ap.setDest): the worker's pilot is handed the same

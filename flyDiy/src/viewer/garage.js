@@ -634,7 +634,7 @@ function garageInit(api) {
                images: null };   // LIVERY-5: an old save's image pages are read and dropped
     if (o && (o.wings || o.fuselage || o.cabin || o.cage))
       return { name: null, spec: o, plaque: null, log: newLog(), images: null };
-    throw new Error('not a flyDiy build');
+    throw new Error('not a ' + ((typeof GAME_NAMES !== 'undefined' && GAME_NAMES.game) || 'the game') + ' build');   // WINGSMITH (shown by the import's alert)
   };
 
   // ---- THE EDITOR, as a load target -------------------------------------
@@ -737,7 +737,7 @@ function garageInit(api) {
   const candidates = () => {
     if (!candP) {
       candP = (typeof fetch === 'function' ? fetch(CAND_DIR + 'index.json').then(r => (r.ok ? r.json() : null)) : Promise.resolve(null))
-        .then(j => (j && Array.isArray(j.planes) ? j.planes.filter(p => p && !p.official && labOk(p) && typeof p.file === 'string' && /^[\w .()-]+\.json$/.test(p.file)) : []),   // official: true = on the Official list, not a candidate (All planes opens it)
+        .then(j => (j && Array.isArray(j.planes) ? j.planes.filter(p => p && !p.official && !p.hide && labOk(p) && typeof p.file === 'string' && /^[\w .()-]+\.json$/.test(p.file)) : []),   // official: true = on the Official list, not a candidate (All planes opens it)
               () => []);
       candP.then(l => { if (!l.length) candP = null; });
     }
@@ -751,9 +751,13 @@ function garageInit(api) {
     .then(t => { const g = unwrap(t); loadSpec(g.spec, ''); })
     .catch(e => alert('That candidate could not be loaded: ' + c.file + ' (' + ((e && e.message) || e) + ')'));
   // PLANE-LISTS (the user 4 Nov, off the all-planes sheet: "so we have an exhaustive list"): builds/lists/plane_lists.json, every
-  // aeroplane we have in three lists. The All planes screen (new_plane.js) reads it. A row opens like a candidate, unnamed with
-  // no plaque and an empty log; a stock row as a stock design. INTERNAL and the developer's notes: dev only (dev.html, the dev career)
+  // aeroplane we have. PLANE-LIST (the user 10 Nov, the classes): REPRODUCTIONS (the types REAL-FIGURES tests against the real
+  // aircraft), STORY (the story's planes and the career's fleet), ORIGINALS (the game's own designs), WIP - the player's four;
+  // NEXT (a reproduction's next version, until it replaces its type), LEGACY (the test planes the gates fly) and ARCHIVE: the
+  // developer's only. The All planes screen (new_plane.js) reads it. A row opens like a candidate, unnamed with no plaque and an
+  // empty log; a stock row as a stock design. A lab row (the seaplane switch, SEA-OFF) shows when the lab is on.
   const LISTS_FILE = 'builds/lists/plane_lists.json';
+  const PLAYER_CLASSES = ['reproduction', 'story', 'original', 'wip'];
   let listsP = null;
   const planeLists = () => {
     if (!listsP) {
@@ -762,7 +766,7 @@ function garageInit(api) {
       listsP.then(l => { if (!l.length) listsP = null; });
     }
     const dev = /dev\.html/.test((window.location && window.location.pathname) || '') || !!(window.WELCOME && window.WELCOME.mode && window.WELCOME.mode.dev);
-    return listsP.then(l => l.filter(p => p && (dev || p.list !== 'internal')).map(p => Object.assign({}, p, { note: dev ? p.note : '', tip: dev ? p.file || '' : '' })));
+    return listsP.then(l => l.filter(p => p && (dev || (PLAYER_CLASSES.includes(p.list) && labOk(p) && !p.rides))).map(p => Object.assign({}, p, { note: dev ? p.note : '', tip: dev ? p.file || '' : '' })));
   };
   const openListed = p => {
     if (p.stock) { loadStock(p.stock); return; }
@@ -1100,9 +1104,10 @@ function garageInit(api) {
         '<div class="gfSub"></div>' +
         '<div class="gfGroupH">your aeroplanes</div>' +
         '<div class="gfMine"></div>' +
-        '<div class="gfGroupH">stock designs</div>' +
-        '<div class="gfStock"></div>' +
-        '<div class="gfGroupH gfCandH">candidate official — built, not validated</div>' +
+        // PLANE-LIST (the user 10 Nov: "I do not want to see duplicated planes anymore"): no stock-designs shelf - its six
+        // presets were older copies of the listed planes (piper cub, jodel, jodel D112, cessna 172, chinook, sailplane);
+        // every listed plane is behind "all planes" (stockByName stays: a stock door still opens a test plane for the dev)
+        '<div class="gfGroupH gfCandH">built here, not yet certified</div>' +
         '<div class="gfCand"></div>' +
         '<div class="gfFoot">' +
           '<span class="gfHint">import and export are on the ribbon' +
@@ -1127,14 +1132,13 @@ function garageInit(api) {
   function renderFleet() {
     if (!fleetEl) return;
     const mine = fleetEl.querySelector('.gfMine');
-    const stockBox = fleetEl.querySelector('.gfStock');
-    if (!mine || !stockBox) return;
+    if (!mine) return;
     // G3612 (the user 25 Oct, item 39: "a career starts only with its own plane. Any imported plane in the career costs
     // money"): a career's rack is its own builds (api.ownSlots); the shelf's others are the sandbox's, bought in below
     const shelf = slotNames(), names = api.ownSlots ? api.ownSlots(shelf) : shelf;
     const bring = api.importable ? api.importable(shelf) : [];
     const label = n => (api.slotLabel ? api.slotLabel(n) : n);
-    mine.innerHTML = ''; stockBox.innerHTML = '';
+    mine.innerHTML = '';
     if (!names.length) {
       const d = document.createElement('div');
       d.className = 'gfEmpty';
@@ -1185,11 +1189,14 @@ function garageInit(api) {
         if (!confirm('Delete the saved build "' + n + '"?')) return;
         lsDel(SLOT + n);
         try { if (window.PLANE_THUMB) window.PLANE_THUMB.forget(n); } catch (e) {}
+        try { if (window.FICHE_BOARD) window.FICHE_BOARD.forget(n); } catch (e) {}   // (R3: the fiche goes with its plane)
         if (slotName === n) slotName = '';
         slotsChanged({ deleted: n });
         syncRibbon();
       });
       row.appendChild(b);
+      // PLANE-RENDERS R3: the fiche's door, on a plane that has one (fiche_board.js; added when the store answers)
+      try { if (window.FICHE_BOARD) window.FICHE_BOARD.rowButton(row, n); } catch (e) {}
       // "bring it home" (GQ5: free, instant) on an aeroplane standing outside - tied down at a base or away
       if (P && (P.kind === 'out' || P.kind === 'away') && api.bringHome) {
         const hb = document.createElement('button');
@@ -1215,6 +1222,7 @@ function garageInit(api) {
           if (r && !r.ok) { alert(r.why || 'refused'); return; }
           lsDel(SLOT + n);
           try { if (window.PLANE_THUMB) window.PLANE_THUMB.forget(n); } catch (e) {}
+          try { if (window.FICHE_BOARD) window.FICHE_BOARD.forget(n); } catch (e) {}   // (R3: the fiche goes with its plane)
           if (slotName === n) slotName = '';
           slotsChanged({ deleted: n });
           syncRibbon();
@@ -1246,15 +1254,6 @@ function garageInit(api) {
         row.appendChild(b);
         mine.appendChild(row);
       }
-    }
-    for (const s of STOCK) {          // stock is not yours to delete: no ✕
-      const row = document.createElement('div');
-      row.className = 'gfRow';
-      const b = rowBtn(s.name, 'stock design');
-      thumbOn(b, 'stock:' + s.name);
-      b.addEventListener('click', () => { closeFleet(); loadStock(s.name); });
-      row.appendChild(b);
-      stockBox.appendChild(row);
     }
     // CANDIDATE OFFICIAL: the pool's files, drawn when the index answers (the rack is usable before it does)
     const candBox = fleetEl.querySelector('.gfCand');
@@ -1344,6 +1343,8 @@ function garageInit(api) {
     try { if (window.PARKED && window.PARKED.fleetQueue) window.PARKED.fleetQueue(name); } catch (e) {}
     // G3800: the plane cards' side profile, drawn once the stand is still (plane_thumb.js; never on the save's path)
     try { if (window.PLANE_THUMB) window.PLANE_THUMB.saved(name); } catch (e) {}
+    // PLANE-RENDERS R3: a certified plane's fiche waits for its first save's name (fiche_board.js; nothing drawn here otherwise)
+    try { if (window.FICHE_BOARD) window.FICHE_BOARD.saved(name); } catch (e) {}
   };
   // EXPORT is a file, because a build you cannot hand to somebody else is not
   // really saved. It commits first for the same reason saving does, and more
@@ -1401,10 +1402,10 @@ function garageInit(api) {
         if (o && o.what === 'flydiy-fleet' && Array.isArray(o.builds))
           return void alert('That is an "export all" file of ' + o.builds.length + ' aeroplanes - import opens one build (export one from its slot).');
         const got = unwrap(String(r.result));
-        loadSpec(got.spec, got.name || f.name.replace(/\.json$/i, ''),
+        loadSpec(got.spec, got.name || String(f.name || 'pasted').replace(/\.json$/i, ''),
                  got.plaque, got.log, got.images);
         slotsChanged({ imported: got.name || null });
-      } catch (e) { alert('That file is not a flyDiy build: ' + e.message); }
+      } catch (e) { alert('That file is not a ' + ((typeof GAME_NAMES !== 'undefined' && GAME_NAMES.game) || 'the game') + ' build: ' + e.message); }
     };
     r.readAsText(f);
   };
@@ -1413,8 +1414,47 @@ function garageInit(api) {
   // THE JSON DOORS, ON THE RIBBON beside the other four verbs
   if ($('gExport')) $('gExport').addEventListener('click', exportFile);
   if ($('gExportAll')) $('gExportAll').addEventListener('click', exportAllFile);
+  // PHONE IMPORT (the user, 11 Nov, three tries: "nothing happens when clicking on import", Chrome on the phone, the
+  // picker never opens). On a touch device IMPORT opens a small card at the top edge with the browser's OWN visible
+  // file control (no hidden input, no programmatic click, no type filter - Android files a .json under no MIME) and,
+  // as a second door that needs no picker at all, a box to PASTE the build's JSON text. Both go through readFile.
+  // Desktop keeps the button, the hidden input and the .json filter.
+  // (no device test of its own - GATE GFX: welcome.js alone decides the device; its phone PROFILE covers phones + tablets)
+  const touchDev = () => (typeof window !== 'undefined' && window.PROFILE && window.PROFILE.name === 'phone') ||
+                   (typeof document !== 'undefined' && document.documentElement && document.documentElement.classList &&
+                    document.documentElement.classList.contains('phone'));
+  let impCard = null;
+  const impOpen = () => {
+    if (!impCard && document.createElement && document.body) {
+      impCard = document.createElement('div'); impCard.id = 'gImpCard';
+      impCard.setAttribute('style', 'position:fixed;z-index:9000;top:calc(env(safe-area-inset-top,0px) + 10px);left:10px;' +
+        'width:min(460px, calc(100vw - 20px));box-sizing:border-box;padding:14px;background:rgba(32,29,26,.97);color:#f4efe6;border:1px solid rgba(255,248,236,.18);' +
+        "border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.5);font:14px/1.4 'IBM Plex Sans',system-ui,sans-serif");
+      impCard.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">' +
+        '<b style="font-weight:600;letter-spacing:.04em">Import an aeroplane</b>' +
+        '<button type="button" data-x style="min-height:40px;min-width:40px;background:none;border:0;color:#c0b8ac;font-size:22px">×</button></div>' +
+        '<div style="color:#c0b8ac;margin-bottom:6px">Choose the .json file:</div>' +
+        '<input type="file" data-f style="display:block;width:100%;min-height:44px;color:#f4efe6;margin-bottom:14px">' +
+        '<div style="color:#c0b8ac;margin-bottom:6px">or paste its text here:</div>' +
+        '<textarea data-t rows="4" style="width:100%;box-sizing:border-box;background:rgba(255,255,255,.06);color:#f4efe6;' +
+        'border:1px solid rgba(255,255,255,.18);border-radius:6px;padding:8px;font:12px/1.3 ui-monospace,monospace"></textarea>' +
+        '<button type="button" data-p style="margin-top:10px;min-height:44px;width:100%;border-radius:8px;border:1px solid #e6dbc9;' +
+        'background:#e6dbc9;color:#221f1b;font-weight:600">Load the pasted text</button>';
+      document.body.appendChild(impCard);
+      const q = k => impCard.querySelector('[data-' + k + ']');
+      q('x').addEventListener('click', () => { impCard.hidden = true; });
+      q('f').addEventListener('change', () => { const f = q('f').files && q('f').files[0]; if (f) { impCard.hidden = true; readFile(f); } q('f').value = ''; });
+      q('p').addEventListener('click', () => {
+        const t = (q('t').value || '').trim(); if (!t) return;
+        impCard.hidden = true; q('t').value = '';
+        try { readFile(new File([t], 'pasted.json', { type: 'application/json' })); }
+        catch (err) { readFile(new Blob([t], { type: 'application/json' })); }
+      });
+    }
+    if (impCard) impCard.hidden = false;
+  };
   if ($('gImport')) $('gImport').addEventListener('click',
-    () => { if (fileIn) { fileIn.value = ''; fileIn.click(); } });
+    () => { if (touchDev()) { impOpen(); return; } if (fileIn) { fileIn.value = ''; fileIn.click(); } });
   // THE NAME IS THE MENU (2026-09-03, the user: "simply the plane's name on
   // the top left, clicking on it gives all the ribbon options in a standard
   // menu"). The six verbs above are untouched — same ids, same handlers; what
@@ -1481,7 +1521,7 @@ function garageInit(api) {
       if (on && !dropEl && document.body) {
         dropEl = document.createElement('div');
         dropEl.id = 'gDrop';
-        dropEl.innerHTML = '<b>drop to import</b><span>a flyDiy build (.json)</span>';
+        dropEl.innerHTML = '<b>drop to import</b><span>a ' + ((typeof GAME_NAMES !== 'undefined' && GAME_NAMES.game) || 'the game') + ' build (.json)</span>';   // WINGSMITH (the file's tag stays flydiy-build)
         document.body.appendChild(dropEl);
       }
       if (dropEl) dropEl.classList.toggle('on', !!on);

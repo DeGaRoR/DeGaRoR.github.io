@@ -1,0 +1,57 @@
+[
+ {
+  "key": "chinook",
+  "authored": true,
+  "label": "Chinook-alike",
+  "engine": "rotax 582",
+  "mount": 1,
+  "firewallHalfW": 0.633,
+  "engineHalfW": 0.105,
+  "engineTerm": 0.132,
+  "floorTerm": 0.285,
+  "ruleTaperW": 0.45,
+  "savedTaperW": 0.47,
+  "winner": "floor"
+ },
+ {
+  "key": "pusherPod",
+  "authored": false,
+  "label": "Pod-and-boom pusher",
+  "engine": "rotax 582",
+  "mount": 1,
+  "firewallHalfW": 0.633,
+  "engineHalfW": 0.105,
+  "engineTerm": 0.132,
+  "floorTerm": 0.285,
+  "ruleTaperW": 0.45,
+  "savedTaperW": 0.47,
+  "winner": "floor"
+ },
+ {
+  "key": "archaeopteryx",
+  "authored": false,
+  "label": "Archaeopteryx-alike",
+  "engine": "pipistrel E-811",
+  "mount": 1,
+  "firewallHalfW": 0.349,
+  "engineHalfW": 0.15,
+  "engineTerm": 0.179,
+  "floorTerm": 0.157,
+  "ruleTaperW": 0.513,
+  "savedTaperW": 0.44,
+  "winner": "engine"
+ },
+ {
+  "key": "Twin_busher_floats_4b (saved)",
+  "label": "Twin busher floats 4b",
+  "engine": "rotax 916 iS",
+  "mount": 1,
+  "firewallHalfW": 0.495,
+  "engineHalfW": 0.299,
+  "engineTerm": 0.337,
+  "floorTerm": 0.223,
+  "ruleTaperW": 0.679,
+  "savedTaperW": 0.62,
+  "winner": "engine"
+ }
+]

@@ -80,7 +80,7 @@ const NEUTRAL = EP.NEUTRAL;
    through, which is the module's own contract. */
 const ENG_KEYS = { bore: 1, stroke: 1, rpm: 1, cyl: 1, finN: 1, finR: 1 };
 const DEFAULTS = EP.engDefaults();
-let P = JSON.parse(JSON.stringify(DEFAULTS));
+let P = Object.assign(JSON.parse(JSON.stringify(DEFAULTS)), EP.LATENT || {});   // (12 Nov: the latent rows' shown values - the bench's own state)
 const PRESETS = EP.PRESETS;
 
 const mm = x => (x * 1000).toFixed(0);

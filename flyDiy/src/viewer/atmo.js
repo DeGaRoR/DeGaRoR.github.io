@@ -423,6 +423,9 @@ var ATMO = (function () {
   const AP_VERT = `vFogDepth = - mvPosition.z; vAtmoV = mvPosition.xyz;`;
   // THE MIST's GLSL and the atlas sample stand alone (CLOUDS C1: the cloud march applies the same
   // aerial perspective and the same mist to a cloud at its own distance - ATMO.GLSL hands them over)
+  // FOREST-MIST (prototype, futureDesigns/FOREST-MIST-STUDY-2026-11.md): only under ?fmist - off, every string below
+  // and the lanes' array are exactly what they were
+  const FM_ON = typeof FMIST !== 'undefined' && FMIST.ON;
   const MIST_GLSL = `
     // THE MIST (SKY S7): an exponential height layer over the world - density rho0 (per metre)
     // below its top yTop, decaying over H above it - integrated in closed form along the ray
@@ -494,6 +497,7 @@ var ATMO = (function () {
       // change how much mist the day has - that number is the day's own (Koschmieder, SS2a).
       return mix(1.0, smoothstep(0.15, 0.85, n) * 2.0, uMist[6].w);
     }
+${FM_ON ? FMIST.GLSL(AP_N * AP_W, AP_ATLAS_H, AP_TILE_Y) : ''}
     // THE MARCH: the optical depth with a top and a density that vary over the ground. Only the
     // slice of the ray inside [ground, the field's highest top + 5H] is walked; outside it the
     // layer contributes nothing and a sample there is a sample wasted.
@@ -522,17 +526,18 @@ var ATMO = (function () {
     }
     // col -> col through the mist along world dir d for D metres from the eye at y0
     vec3 mistApply(vec3 col, vec3 d, float D, float y0) {
-      if (uMist[0].w < 0.5 || (uMist[0].x <= 0.0 && uMist[3].x <= 0.0)) return col;
+      if (uMist[0].w < 0.5 || (uMist[0].x <= 0.0 && uMist[3].x <= 0.0${FM_ON ? ' && uMist[8].w < 0.5' : ''})) return col;
       float od = uMist[0].x <= 0.0 ? 0.0
                // the eye's XZ is a uniform (the signature carries only y0, and every caller - the
                // splice, the dome, the cloud march - passes the same eye's height in it)
                : (uMist[4].w > 1.5 ? mistODField(vec3(uMist[4].x, y0, uMist[4].z), d, D)
                                    : mistOD(y0, d.y, D));
       if (uMist[3].x > 0.0) od += uMist[3].x * slabLen(y0, d.y, D, uMist[3].y, uMist[3].z);
-      float T = exp(-od);
+${FM_ON ? '      float odP = fmOD(vec3(uMist[4].x, y0, uMist[4].z), d, D);   // FOREST-MIST (?fmist): the pockets\n' : ''}      float T = exp(-od${FM_ON ? ' - odP' : ''});
       float fwd = 1.0 + uMist[1].w * pow(max(0.0, dot(d, uMist[2].xyz)), 8.0);
+${FM_ON ? '      vec3 Lin = (od * uMist[1].rgb * fwd + odP * fmCol(d)) / max(1e-6, od + odP);   // two media, each its own light (the pockets: the beam, fmCol)\n      return col * T + Lin * (1.0 - T);\n' : ''}
       return col * T + uMist[1].rgb * fwd * (1.0 - T);
-    }`;
+    }`.replace(FM_ON ? 'uniform vec4 uMist[' + '7];' : '\u0000', 'uniform vec4 uMist[' + '13];');   // FOREST-MIST's lanes, only when it is on (off: the text as it was)
   // apSample(d, distKm): the atlas at a world direction and a distance (the splice's own read, and the clouds')
   const AP_SAMPLE_GLSL = `
     #ifndef ATMO_AP_SAMPLER
@@ -587,7 +592,7 @@ var ATMO = (function () {
   // there is ONE path through the fog chunks instead of two.
   const AP_FOG_FRAG = '';
   const apScalars = new Float32Array([1, AP_DMAX, 0, 0]);    // shared by REFERENCE through every material's clone
-  const mistScalars = new Float32Array(28);                    // [rho0, yTop, H, on | colour rgb, fwd | sun xyz, 0 | rhoC, base, top, 0 (in cloud, CLOUDS C4)
+  const mistScalars = new Float32Array(FM_ON ? 52 : 28);                    // [rho0, yTop, H, on | colour rgb, fwd | sun xyz, 0 | rhoC, base, top, 0 (in cloud, CLOUDS C4)
   // G2620 THE PRE-EXPOSURE: a switch rescales the dome's scale and its copies in the frame it happens (the update copies
   // U.scale into the aerial perspective and the mist BEFORE applyDay writes it - without this the switch frame's haze
   // would carry the old unit); applyDay then writes the same value from the day
@@ -701,6 +706,8 @@ var ATMO = (function () {
     uniform sampler2D uSky, uT2;
     uniform vec4 uAtm2;           // Rg, Rt, sunRad, moonRad
     uniform float uR, uScale, uEMoon, uStars, uFrame;   // uFrame: the room's yaw onto the world's frame (the shed is a quarter turn)
+    uniform mat3 uStarM;   // STAR-SKY: the game frame -> the sky's own (equatorial): rows RA 0h, RA 6h, the pole - it turns with the island's sidereal time (update())
+    uniform vec4 uStarMag; uniform float uStarA; // STAR-SKY: uStarA the counts' slope N(>F) ~ F^-a (a < 1: the light in the few bright stars, the many faint ones under the eye's threshold); x the flux range Fmax/Fmin, y the disc's growth r ~ f^y, z the Milky Way's glow (1 = the field's mean radiance at the core), w its dust (0 = a smooth band)
     uniform vec2 uStarK;   // STAR-LOVE: x the star disc's radius in pixels' footprints (the mirror's pass sets its own), y its least radius, radians
     uniform float uGlare, uEyeY, uLutGain;                // the corona's strength (S7); the eye's height for the mist; the tables' gain (A6)
     // THE VEIL (CLOUDS C4): cirrus / cirrostratus - a 2D noise sheet at uVeil.w metres, its coverage
@@ -726,6 +733,8 @@ ${MIST_GLSL}
     uniform vec3 uSun, uMoon;
     varying vec3 vD;
     float hash13(vec3 p) { p = fract(p * 0.1031); p += dot(p, p.yzx + 33.33); return fract((p.x + p.y) * p.z); }
+    float vnoise2(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);   // STAR-SKY: the dust's value noise, 4 hashes
+      return mix(mix(hash13(vec3(i, 7.0)), hash13(vec3(i + vec2(1.0, 0.0), 7.0)), f.x), mix(hash13(vec3(i + vec2(0.0, 1.0), 7.0)), hash13(vec3(i + 1.0, 7.0)), f.x), f.y); }
     vec2 tUV2(float r, float mu) {
       float Rg = uAtm2.x, Rt = uAtm2.y;
       float H = sqrt(Rt * Rt - Rg * Rg), rho = sqrt(max(0.0, r * r - Rg * Rg));
@@ -777,21 +786,49 @@ ${MIST_GLSL}
       // on any screen and at any place on it. The 3 x 3 cells round the pixel's are read (a disc up to a cell wide); no star in a face's border cells (no seam).
       // The field's mean light is the old one's (the probe and the water see the same night): F = 1.5e-5 x 0.015 x the cell's solid angle / STAR_P per unit b.
       if (uStars > 0.0 && d.y > -0.02) {
-        vec3 aD = abs(d); vec2 fuv; vec3 fax; float fsg;
-        if (aD.x >= aD.y && aD.x >= aD.z) { fuv = d.yz / aD.x; fax = vec3(1.0, 0.0, 0.0); fsg = sign(d.x); }
-        else if (aD.y >= aD.z) { fuv = d.xz / aD.y; fax = vec3(0.0, 1.0, 0.0); fsg = sign(d.y); }
-        else { fuv = d.xy / aD.z; fax = vec3(0.0, 0.0, 1.0); fsg = sign(d.z); }
+        // STAR-SKY (the user 9 Nov: "reasonable delicate speckles in the sky ... it looks a little like a soup of stars, everything is the same, that
+        // feels like noise ... we could do the milky way"): THE SKY TURNS - the cube grid lives in the sky's own frame (uStarM: equatorial, from the
+        // island's latitude and sidereal time), so the stars rise and set at the real rate round a pole at the latitude's height, and the Milky Way
+        // stands where it stands that night; MAGNITUDES - a star's flux is a power law, N(>F) ~ F^-1.5 (Euclidean counts) over uStarMag.x, its mean 1
+        // (the field's light is STAR-LOVE's), a bright star's disc a little wider (r ~ f^y) so it reads bigger, not as a clipped square; COLOUR - a
+        // class each (blue-white, white, yellow, orange), the faint ones grey as the eye sees them; THE MILKY WAY - the galactic band (J2000 pole),
+        // widest and brightest toward Sagittarius, Cygnus's bump, the Great Rift and a mottled dust, more faint stars inside it, its glow washed by
+        // the moon and hidden by any sky light well before the stars are.
+        vec3 q = uStarM * d;                                          // the sky's frame (the mirror's pass and the shed's room read the same)
+        vec3 aD = abs(q); vec2 fuv; vec3 fax; float fsg;
+        if (aD.x >= aD.y && aD.x >= aD.z) { fuv = q.yz / aD.x; fax = vec3(1.0, 0.0, 0.0); fsg = sign(q.x); }
+        else if (aD.y >= aD.z) { fuv = q.xz / aD.y; fax = vec3(0.0, 1.0, 0.0); fsg = sign(q.y); }
+        else { fuv = q.xy / aD.z; fax = vec3(0.0, 0.0, 1.0); fsg = sign(q.z); }
         const float STAR_N = 900.0, STAR_P = 0.047;
         vec2 sq = (atan(fuv) * 1.2732395 * 0.5 + 0.5) * STAR_N;     // equal-angle: atan(uv) x 4 / pi, into cells
         vec2 sc = floor(sq);
         float pxA = 0.5 * (length(dFdx(d)) + length(dFdy(d)));      // the pixel's footprint, radians
         float cellA = 1.5707963 / STAR_N;                            // a cell, radians (at the face's centre; ~0.7 of it at a corner)
         float sr = min(max(uStarK.y, uStarK.x * pxA), 0.7 * cellA);
-        // STAR_LVL: the field at 0.03 of the old one's light - the old stars were 30 x and more over the screen's white at night (every star a clipped white
-        // pixel, the user's "white pixels"); at 0.03 the brightest just reach white and the disc's soft edge shows (measured 8 Nov, the tune2 stills)
+        // STAR_LVL: the field at 0.03 of the old one's light (STAR-LOVE, 8 Nov: the old stars were 30 x over the screen's white)
         const float STAR_LVL = 0.03;
-        float sK = STAR_LVL * 3.0 / (3.14159265 * sr * sr) * 1.5e-5 * 0.015 * (12.5663706 / (6.0 * STAR_N * STAR_N)) / STAR_P;
+        float sK0 = STAR_LVL * 3.0 / 3.14159265 * 1.5e-5 * 0.015 * (12.5663706 / (6.0 * STAR_N * STAR_N)) / STAR_P;   // over each star's own r^2
         float wash = clamp(uEMoon / 2.5e-6, 0.0, 1.0) * smoothstep(-0.02, 0.1, uMoon.y);
+        // THE MILKY WAY: galactic (l, b) of q (the J2000 equatorial -> galactic rotation; the 26 years of precession since are a third of a degree)
+        vec3 gq = vec3(dot(vec3(-0.0548755604, -0.8734370902, -0.4838350155), q),
+                       dot(vec3( 0.4941094279, -0.4448296300,  0.7469822445), q),
+                       dot(vec3(-0.8676661490, -0.1980763734,  0.4559837762), q));
+        float gl = atan(gq.y, gq.x), gb = asin(clamp(gq.z, -1.0, 1.0));
+        float wB = 0.07 + 0.10 * exp(-gl * gl / 0.8);                                   // the half-width, rad: ~4 deg at the anticentre, ~10 at the core
+        float iB = 0.30 + 0.70 * exp(-gl * gl / 1.2) + 0.25 * exp(-(gl - 1.4) * (gl - 1.4) / 0.15);   // the core (Sagittarius) + Cygnus
+        float band = iB * exp(-(gb / wB) * (gb / wB));
+        if (uStarMag.w > 0.0 && band > 0.01 && abs(gl) < 2.6) {     // THE DUST (the low presets set w 0: a smooth band, no hashes)
+          float rz = (gb - 0.025) / 0.03;
+          float rift = exp(-rz * rz) * smoothstep(-0.55, -0.25, gl) * (1.0 - smoothstep(1.35, 1.6, gl));   // the Great Rift, Cygnus -> Sagittarius
+          vec2 np = vec2(gl, gb) * 9.0;
+          float fb = 0.5 * vnoise2(np) + 0.3 * vnoise2(np * 2.3 + 7.1) + 0.2 * vnoise2(np * 5.1 + 3.7);
+          float mz = gb / (1.3 * wB);
+          float mot = mix(1.0, smoothstep(0.25, 0.75, fb), 0.65 * exp(-mz * mz) * (1.0 - smoothstep(2.2, 2.6, abs(gl))));
+          band *= mix(1.0, (1.0 - 0.8 * rift) * mot, uStarMag.w);
+        }
+        float Pc = STAR_P * (1.0 + 2.5 * band);                      // the band's denser faint stars (the pixel's band for its 3 x 3: a cell is 0.1 deg)
+        float sA = uStarA, aR = 1.0 - pow(uStarMag.x, -sA);                                        // the power law's inverse and its mean (in Fmin)
+        float nR = abs(sA - 1.0) < 0.01 ? log(uStarMag.x) / aR : sA / (1.0 - sA) * (pow(uStarMag.x, 1.0 - sA) - 1.0) / aR;
         vec3 sAcc = vec3(0.0);
         vec3 fid = fax * (fsg + 2.0);
         for (int sj = -1; sj <= 1; sj++) for (int si = -1; si <= 1; si++) {
@@ -799,26 +836,33 @@ ${MIST_GLSL}
           if (cc.x < 1.0 || cc.y < 1.0 || cc.x > STAR_N - 2.0 || cc.y > STAR_N - 2.0) continue;
           vec3 key = vec3(cc, dot(fid, vec3(1.0, 5.0, 25.0)));
           float h = hash13(key);
-          if (h < 1.0 - STAR_P) continue;
-          float h2 = hash13(key + 17.0);
+          if (h < 1.0 - Pc) continue;
           vec2 jt = vec2(hash13(key + 31.0), hash13(key + 57.0));
           vec2 su = tan(((cc + jt) / STAR_N * 2.0 - 1.0) * 0.78539816);   // the star's place on the face (uv), back from equal-angle
           vec3 sd = fax.x > 0.5 ? vec3(fsg, su.x, su.y) : (fax.y > 0.5 ? vec3(su.x, fsg, su.y) : vec3(su.x, su.y, fsg));
-          float x2 = dot(d - normalize(sd), d - normalize(sd)) / (sr * sr);
+          float u = hash13(key + 71.0) * (h < 1.0 - STAR_P ? 0.5 : 1.0);   // the flux quantile (the band's extra stars from the faint half)
+          float f = pow(1.0 - u * aR, -1.0 / sA) / nR;                    // the flux / the mean: N(>F) ~ F^-a
+          if (uStars > 1.5) f = min(f, 25.0);   // the mirror's pass (its stars x10): a bright star's reflection, blurred by the water, kept under the screen's white - no coin on the near water
+          float srs = min(sr * max(1.0, pow(f, uStarMag.y)), 0.7 * cellA);
+          vec3 dq = q - normalize(sd);
+          float x2 = dot(dq, dq) / (srs * srs);
           if (x2 >= 1.0) continue;
-          float b = smoothstep(1.0 - STAR_P, 1.0, h) * (0.4 + 0.6 * h2);
-          // G2600: THE MOON WASHES THE FAINT STARS OUT - under a full moon the eye's limiting magnitude falls from ~6.5 to
-          // ~4.5, a fifth of the stars left. The moonlit sky (~1e-8 here) is far under the 3e-6 that hides a star below, so
-          // it is the moon's own light that thins them: the faint (low h2) go first, the full moon leaves the brightest 30 %.
-          // By day the term is already 0 (the sky hides every star): the day is untouched.
-          b *= smoothstep(0.7 * wash, 0.7 * wash + 0.12, h2);
+          float b = 0.35 * f / (srs * srs);                                // 0.35: STAR-LOVE's mean b - the field's light kept
+          // G2600: THE MOON WASHES THE FAINT STARS OUT - under a full moon the eye's limiting magnitude falls from ~6.5 to ~4.5: the faint (low u)
+          // go first, the full moon leaves the brightest 30 % (most of the light). By day the term is already 0 (the sky hides every star).
+          b *= smoothstep(0.7 * wash, 0.7 * wash + 0.12, u);
+          float h3 = hash13(key + 83.0);
+          vec3 sc3 = h3 < 0.10 ? vec3(0.72, 0.82, 1.0) : (h3 < 0.65 ? vec3(1.0) : (h3 < 0.87 ? vec3(1.0, 0.93, 0.80) : vec3(1.0, 0.78, 0.58)));
+          sc3 /= dot(sc3, vec3(0.2126, 0.7152, 0.0722));                  // the colour keeps the star's light
           float w = 1.0 - x2;
-          sAcc += mix(vec3(1.0, 0.9, 0.8), vec3(0.8, 0.9, 1.0), h2) * b * w * w;
+          sAcc += mix(vec3(1.0), sc3, smoothstep(0.5, 8.0, f)) * b * w * w;
         }
         float lum = dot(L, vec3(0.2126, 0.7152, 0.0722));
         // STAR-LOVE (the user 8 Nov: "that's what I meant. The fading through denser air"): no extinction - a star keeps its light at every view angle,
         // down to the horizon (the sky's own light still hides it by day and in the glow)
-        L += sAcc * sK * uStars * (1.0 - smoothstep(0.0, 3e-6, lum));
+        L += sAcc * sK0 * uStars * (1.0 - smoothstep(0.0, 3e-6, lum));
+        // the band's glow: 2.36e-9 = the field's mean radiance (0.03 x 1.5e-5 x 0.015 x 0.35); the mirror's x10 not on it (a smear, not points)
+        L += vec3(1.0, 0.95, 0.88) * (band * uStarMag.z * 2.36e-9 * min(uStars, 1.0) * (1.0 - 0.85 * wash) * (1.0 - smoothstep(0.0, 3e-7, lum)));
       }
       L += veil(d, uSun);                                      // THE VEIL (C4): over the sun and moon discs, under the corona
       // THE CORONA (S7): the eye's own scatter around a disc ten thousand times the sky - a 1/theta^2
@@ -842,7 +886,7 @@ ${MIST_GLSL}
   // ---- the GPU half ---------------------------------------------------------
   const G = { ready: false, enabled: false, texT: null, texMS: null, rtSky: null, rtAP: null, quad: null, cam: null, skyMat: null, apMat: null, atmU: null };
   const U = {                                   // shared uniform objects (one value each, every consumer reads them)
-    sun: null, moon: null, eMoon: { value: 0 }, r: { value: 6360.0 }, scale: { value: 1 }, stars: { value: 1 }, starK: { value: { x: 1.5, y: 1.5e-4 } },
+    sun: null, moon: null, eMoon: { value: 0 }, r: { value: 6360.0 }, scale: { value: 1 }, stars: { value: 1 }, starK: { value: { x: 1.5, y: 1.5e-4 } }, starM: { value: new Float32Array([1, 0, 0, 0, 1, 0, 0, 0, 1]) }, starMag: { value: { x: 1e5, y: 0.3, z: 8, w: 1 } }, starA: { value: 0.8 },
     glare: { value: 1 }, eyeY: { value: 0 },
     lutGain: { value: 1 },   // A6: 2^(the exposure's stops) - the sky-view and AP tables are stored x this so a night sky (1e-6 of the sun) is not a half float's subnormal (the white bands on the night horizon)
     veil: { value: new Float32Array([0, 0, 0, 9000]) }, veilSun: { value: new Float32Array(3) }, veilSky: { value: new Float32Array(3) },   // CLOUDS C4
@@ -1032,13 +1076,49 @@ ${MIST_GLSL}
                    ms: ((typeof performance !== 'undefined') ? performance.now() : 0) - t0 };
     return MIST.field;
   }
+  // blit(renderer, px, N, x, y): an N^2 RGBA float map drawn into the atlas's own columns at (x, y) - a scissored
+  // quad, no clear, the way bakeField's field goes in. FOREST-MIST's map (forest_mist.js) is its only caller.
+  function blit(renderer, px, N, x, y) {
+    if (!renderer || !G.rtAP || !G.quad || typeof MATLIB === 'undefined') return false;
+    const tex = new THREE.DataTexture(px, N, N, THREE.RGBAFormat, THREE.FloatType);
+    tex.minFilter = tex.magFilter = THREE.LinearFilter; tex.needsUpdate = true;
+    const mat = MATLIB.make(THREE, 'shader', { uniforms: { uSrc: { value: tex } },
+      vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
+      fragmentShader: 'uniform sampler2D uSrc; varying vec2 vUv; void main() { gl_FragColor = texture2D(uSrc, vUv); }',
+      depthTest: false, depthWrite: false });
+    const prevRT = renderer.getRenderTarget(), ac = renderer.autoClear, pm = G.quad.material;
+    const vp = new THREE.Vector4(), sc = new THREE.Vector4(); renderer.getViewport(vp); renderer.getScissor(sc);
+    const st = renderer.getScissorTest();
+    G.quad.material = mat; renderer.setRenderTarget(G.rtAP); renderer.autoClear = false;
+    renderer.setViewport(x, y, N, N); renderer.setScissor(x, y, N, N); renderer.setScissorTest(true);
+    renderer.render(G.scene, G.cam);
+    renderer.setScissorTest(st); renderer.setViewport(vp); renderer.setScissor(sc);
+    renderer.setRenderTarget(prevRT); renderer.autoClear = ac; G.quad.material = pm;
+    mat.dispose(); tex.dispose();
+    return true;
+  }
 
+  // STAR-SKY: the game frame -> the sky's own (equatorial) frame at the island's latitude and local sidereal time (GMST, the IAU 1982 linear term:
+  // a second's error a century, nothing here), the grid's convergence as toFrame takes it. Rows X (RA 0h), Y (RA 6h), Z (the pole), written
+  // column-major for the mat3 (uStarM * d = (X.d, Y.d, Z.d)). Checked against the sun's RA/Dec through SOLAR (star_sky node check, < 0.1 deg).
+  function starMatrix(jdn, utc, lat, lon, conv, out) {
+    const D2R = Math.PI / 180, JD = jdn - 0.5 + utc / 86400;
+    const lst = ((280.46061837 + 360.98564736629 * (JD - 2451545.0) + lon) % 360 + 360) % 360 * D2R;
+    const f = lat * D2R, cf = Math.cos(f), sf = Math.sin(f), c = (conv || 0) * D2R, cc = Math.cos(c), sc = Math.sin(c);
+    const rot = (x, y, z) => [x * cc + z * sc, y, z * cc - x * sc];   // true azimuth -> the grid's (toFrame's A = az - convergence)
+    const cl = Math.cos(lst), sl = Math.sin(lst);
+    const X = rot(-sl, cf * cl, sf * cl), Y = rot(cl, cf * sl, sf * sl), Z = rot(0, sf, -cf);   // Q0 (0, cf, sf) on the meridian, W (-1, 0, 0) the west
+    const o = out || new Float32Array(9);
+    o[0] = X[0]; o[1] = Y[0]; o[2] = Z[0]; o[3] = X[1]; o[4] = Y[1]; o[5] = Z[1]; o[6] = X[2]; o[7] = Y[2]; o[8] = Z[2];
+    return o;
+  }
   function update(renderer, day, camAltM, eye, world) {
     if (!G.enabled) return false;
     if (setDay(day) || lastVer < 0) { bakeT(); bakeMS(); uploadTex(G.texT, lutT, TW, TH); uploadTex(G.texMS, lutMS, MW, MH); refreshAtmUniforms(G.atmU); lastVer = day ? day.version : 0; }
     HAZE.k = apK_[0] = hazeK(day);
     const s = day ? day.sun : [0, 1, 0], m = day ? day.moon : [0, -1, 0];
     U.sun.value.set(s[0], s[1], s[2]); U.moon.value.set(m[0], m[1], m[2]);
+    if (day && day.geo && day.jdn != null) starMatrix(day.jdn, day.utc, day.geo.lat, day.geo.lon, day.geo.convergenceDeg, U.starM.value);   // STAR-SKY: the sky turns
     U.eMoon.value = day ? ((typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.moonE) ? LIGHT_RIG.moonE(day.moonPhase) : 2.5e-6 * day.moonPhase) : 0;   // G2600: the phase law (light_rig)
     U.r.value = P.Rg + Math.max(R_MIN, (camAltM || 0) / 1000);
     // THE NIGHT'S GAIN (A6, the playtest: "white bands on the night horizon"): the tables are HalfFloat and a
@@ -1135,7 +1215,7 @@ ${MIST_GLSL}
     if (!G.enabled) return null;
     const m = new THREE.ShaderMaterial(Object.assign({
       uniforms: { uSky: { value: G.rtSky.texture }, uT2: { value: G.texT }, uAtm2: { value: new THREE.Vector4(P.Rg, P.Rt, P.sunRad, P.moonRad) },
-                  uR: U.r, uScale: U.scale, uEMoon: U.eMoon, uStars: U.stars, uStarK: U.starK, uSun: U.sun, uMoon: U.moon, uFrame: { value: frameYaw || 0 },
+                  uR: U.r, uScale: U.scale, uEMoon: U.eMoon, uStars: U.stars, uStarK: U.starK, uStarM: U.starM, uStarMag: U.starMag, uStarA: U.starA, uSun: U.sun, uMoon: U.moon, uFrame: { value: frameYaw || 0 },
                   uGlare: U.glare, uEyeY: U.eyeY, uMist: apUniforms.uMist, uVeil: U.veil, uVeilSun: U.veilSun, uVeilSky: U.veilSky, uLutGain: U.lutGain,
                   // F2: MIST_GLSL samples the mist's field from the atlas, so the dome - which carries
                   // that block verbatim - needs the sampler too (it is the same texture it helps fill)
@@ -1283,7 +1363,7 @@ ${MIST_GLSL}
     P, setDay, medium: (h) => medium(h, newMed()), transmittance, T, MS, skyRadiance, skyIrradiance, sunTransmittance, groundIrradiance, makeProbe, probes,
     bakeT, bakeMS, tUV, tFromUV, phaseMie, lut: () => ({ T: lutT, MS: lutMS, TW, TH, MW, MH }),
     init, update, domeMat, U, G, get enabled() { return G.enabled; },
-    install, inject, setAP, apK, HAZE, hazeK, bakeField, mistODcpu, seeT, seeRange,
+    install, inject, setAP, apK, HAZE, hazeK, bakeField, blit, mistODcpu, seeT, seeRange,
     // the water's mirror capture renders from an eye BELOW the surface; the splice reads its own
     // `cameraPosition`, but the dome's mist takes `uEyeY`, which is the MAIN eye's. A capture that
     // wants it exact brackets itself with this (the water session's ask, 2026-09-22).

@@ -1257,7 +1257,8 @@ if (process.argv.includes('--selftest')) {
   // the baker must take the face, or the row is a control over nothing
   check(/function aeroDecalText\(THREE, page, text, colHex, outHex, font\)/.test(SRC),
         'marking: the text baker does not take a face');
-  check(/const F = AERO_DEC_FONTS\[/.test(SRC) && /g\.font = F\.css;/.test(SRC),
+  // (LIVERY-TEXT: the face resolved by aeroTxtFont - the old row index still reads AERO_DEC_FONTS[...])
+  check(/const F = aeroTxtFont\(font\);/.test(SRC) && /const F = AERO_DEC_FONTS\[/.test(SRC) && /g\.font = F\.css;/.test(SRC),
         'marking: the baker ignores the face it was handed');
   check(!/g\.font = '700 96px/.test(SRC),
         'marking: the hard-coded 700 Plex Mono is back — it is a weight this ' +
@@ -1643,7 +1644,8 @@ if (process.argv.includes('--selftest')) {
   const SKIN4 = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'aeroskin.js'), 'utf8');
   check(/D\.regCol != null \? D\.regCol : trim/.test(SKIN4),
         'marking: the ink no longer falls back to the trim colour');
-  check(/D\.regCol != null \? D\.regCol : trim,\n(\s*\/\/[^\n]*\n)*\s*null,\n\s*D\.regFont\)/.test(SKIN4) && !/regOut/.test(
+  // (LIVERY-TEXT: an outline is offered again, OFF - regLine null; LIVERY-5's regOut stays unread)
+  check(/D\.regCol != null \? D\.regCol : trim,\n(\s*\/\/[^\n]*\n)*\s*D\.regLine != null \? D\.regLine : null,\n\s*regFontArg\)/.test(SKIN4) && /regLine: null/.test(SKIN4) && !/regOut/.test(
           (SKIN4.split('const AERO_DEC_DEF = {')[1] || '').split('};')[0]),
         'marking: the registration is drawn with an outline again (LIVERY-5: never)');
   check(/function aeroDecalText\(THREE, page, text, colHex, outHex, font\)/.test(SK),
@@ -1933,7 +1935,7 @@ function kitGate() {
   //     layers, the registration, its wing copy, the certification strip and
   //     the master is nine (the image channels are gone); a cap below that is
   //     a marking the builder placed and cannot see.
-  const need = A.AERO_KIT_LAYERS + 4;
+  const need = A.AERO_KIT_LAYERS + 4 + (A.AERO_TXT_N || 0);   // LIVERY-TEXT: + the six text pieces
   check(A.AERO_MAXD >= need,
     'kit: the decal array cannot hold every marking the panel offers',
     A.AERO_MAXD + ' < ' + need);
