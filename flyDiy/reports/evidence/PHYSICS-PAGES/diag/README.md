@@ -25,3 +25,11 @@
   claude/practical-cerf-7fjpwp, the card REAL-CHECK-2026-11-11/ruckus.json tests. Findings: tailplane area (gross) -14 %,
   fin top -4 %, aft-body depth at 3.21 m +30 % (a rod drawn, a fuselage cone flown: the AFT-PODS case).
 - The V2-172 (list:50, cessna172r_2026-11-08) labelled the official Cessna for comparisons; B-CESS labelled legacy.
+
+## The crew-free fiches check (12 Nov)
+claude/diag-fiches e49c7c7cb (DIAG-FICHES-2026-11-12, 10 planes rendered without crew on master 79724e428). Each render's
+alpha laid on the editor silhouette (probe_raster2, the join's datums; register() offset and side tilt): 97-100 % of its
+pixels on it, all three views, 10/10. Every finding returns; two measures straddle the 3 % line by source: Petrel span
+(editor 8.90, render 8.86, flown 9.16 m), DC-3 chord at half span (editor 3.80, render 3.48 at 31 px/m, flown 3.69 m).
+The Petrel's render shows its fin top 9 cm under the editor's shape. Re-run like for like on 79724e428's core
+(DIAG_CORE=<its tools/flight_core.js>): the same numbers. No new finding.

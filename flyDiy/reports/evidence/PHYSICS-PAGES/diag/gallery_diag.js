@@ -34,7 +34,11 @@ p{margin:0;max-width:70ch;color:var(--dim)} .eyebrow{font:600 11px/1 var(--sans)
 button{font:500 11px/1 var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--ink);background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:9px 13px;cursor:pointer;justify-self:start}
 </style>
 <div class="wrap">
-<header style="display:grid;gap:10px"><span class="eyebrow">Wingsmith · diagnostic · not in the game · version 3</span><h1>The drawn plane against what the sim flies</h1>
+<header style="display:grid;gap:10px"><span class="eyebrow">Wingsmith · diagnostic · not in the game · version 3, checked</span><h1>The drawn plane against what the sim flies</h1>
+<section class="panel"><h2>Checked against the crew-free fiches (12 Nov)</h2><ul>
+<li><b>The game's own renders agree with this page.</b> Ten planes were rendered without crew on Thursday (claude/diag-fiches). Laid on the editor's silhouette with the physics' own datums, 97 to 100 % of each render's pixels land on it, in all three views, on all ten.</li>
+<li><b>The findings are the same.</b> Every finding above comes back from the renders, with two measures that sit right on the 3 % line depending on the source: the Super Petrel's span (editor 8.90 m, render 8.86 m, flown 9.16 m) and the DC-3's chord at half span (editor 3.80 m, render 3.48 m, flown 3.69 m, where the render's hinge gap breaks the chord at its 31 px/m). The Petrel's render also shows its fin top 9 cm lower than the editor's shape.</li>
+</ul></section>
 <section class="panel"><h2>What changed in version 3</h2><ul>
 <li><b>The propeller is drawn where the blades are.</b> Versions 1 and 2 put every disc a fixed 0.12 m ahead of the engine mount's flange, which drew the Cessna's about 10 cm aft of its blades. The disc now stands where the editor draws the hub: 0.255 m ahead of the flange on every Cessna, 0.165 m on the Cubs, behind it on the pushers.</li>
 <li><b>The physics' strike disc sits at the flange,</b> not at the blades: the thin dashed line in the side view. A separate physics fix, after the performance round (FLAGSHIP's).</li>

@@ -4,7 +4,7 @@
 // over 3 %, and says what the physics uses for the aft body today.
 'use strict';
 const fs = require('fs'), zlib = require('zlib');
-const C = require('/workspace/pp-wt/flyDiy/tools/flight_core.js');
+const C = require(process.env.DIAG_CORE || '/workspace/pp-wt/flyDiy/tools/flight_core.js');   // (DIAG_CORE: another checkout's core, like for like with its fiches)
 const TH = { bg: '#f3ede0', ink: '#2b2924', dim: '#6d675b', faint: '#9a9283', hair: '#d8cdb8', bad: '#b5462a', ok: '#55652a', member: 'rgba(43,41,36,.3)',
              struct: '#8fb0c4', ctl: '#6fc2b0', eng: '#e2a056', gear: '#a9bd6e', edge: 'rgba(43,41,36,.55)', float: '#5f7f9a' };
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
