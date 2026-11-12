@@ -1030,16 +1030,17 @@ const EM = (() => {
         const squash = fl > 0 ? (i, n) => { const t = Math.max(0, (i / Math.max(1, n - 1) - 0.67) / 0.33);
                                              const e = t * t * (3 - 2 * t); return [1 - fl * e, 1 + 0.6 * fl * e]; } : null;
         // (12 Nov, FIT-PROCEDURE; the user on the PC-6: "one of the engine's pipes going up and the other one
-        // down") stackSplit: 0 both rooted high (as before), 1 the left stack mirrored low (rooted under the can's
-        // axis, out and aft below it), 2 the right one
-        const split = Math.round(+P.stackSplit || 0);
+        // down" - and then "the one going down [must] stem from the middle of the cowl" as the other does)
+        // stackSplit: 0 both rise from the root (as before), 1 the left stack mirrored about its own root's height
+        // (rooted where the other is, out and aft BELOW it), 2 the right one
+        const split = Math.round(+P.stackSplit || 0), yR = 0.45 * cR;
         for (const [nm, sx] of [['stackL', -1], ['stackR', 1]]) {
           part(nm, 'tube');
-          const sy = (split === 1 && sx < 0) || (split === 2 && sx > 0) ? -1 : 1;
+          const dn = (split === 1 && sx < 0) || (split === 2 && sx > 0), yy = y => dn ? 2 * yR - y : y;
           const path = fillet([
-            [sx * 0.60 * cR, sy * 0.45 * cR, z0],            // rooted in the can
-            [sx * x2 * cR, sy * 0.62 * cR, z0 - 0.02 * canL],
-            [sx * x3 * cR, sy * y3, z0 - run * canL],        // out, then aft
+            [sx * 0.60 * cR, yR, z0],                        // rooted in the can
+            [sx * x2 * cR, yy(0.62 * cR), z0 - 0.02 * canL],
+            [sx * x3 * cR, yy(y3), z0 - run * canL],         // out, then aft
           ], 0.35 * cR);
           sweep(path, rS, ENGM_MAT.exhaust,
                 squash ? { capA: true, lipB: true, sides: S.pipe, squash } : { capA: true, lipB: true, sides: S.pipe });
