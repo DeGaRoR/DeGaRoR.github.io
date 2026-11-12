@@ -1135,7 +1135,8 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
   // the editor's inner (pitch) mount — the frame every capture and every
   // layer-bounds measurement is taken in (shared by snapshot and measure)
   const edMount = () => {
-    let g = window.CAGE_WING && window.CAGE_WING.group;
+    // (CAR-1: a wingless build - a car - has no wing layer: the gear layer's group sits under the same mount)
+    let g = (window.CAGE_WING && window.CAGE_WING.group) || (window.CAGE_GEAR && window.CAGE_GEAR.group);
     while (g && g.parent && !g.parent.isScene &&
            g.parent.parent && !g.parent.parent.isScene) g = g.parent;
     return g;
@@ -2151,7 +2152,8 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
   // Published so `_cage_ui.js` reads it rather than keeping a second walk
   // that can drift (it passed the ROOM's origin, 2.59 m away).
   const joinMount = () => {
-    let g = window.CAGE_WING && window.CAGE_WING.group;
+    // (CAR-1: a wingless build - a car - has no wing layer: the gear layer's group sits under the same mount)
+    let g = (window.CAGE_WING && window.CAGE_WING.group) || (window.CAGE_GEAR && window.CAGE_GEAR.group);
     while (g && g.parent && !g.parent.isScene &&
            g.parent.parent && !g.parent.parent.isScene) g = g.parent;
     return g;                        // edSitP: the inner (pitch) mount

@@ -28,6 +28,9 @@
 //   node tools/car_sheet.js my_car_build.json              a saved build (an envelope or a bare spec)
 //   node tools/car_sheet.js --key roadster --out src/cars/car_roadster.json   write the sheet (+ its tune)
 //   node tools/car_sheet.js --key roadster --no-drive      the sheet only
+//   node tools/car_sheet.js --key roadster --save builds/candidates/roadster_2026-11.json   THE SAVED BUILD: the card born as
+//                                                          the shed births it, through the page's load door (_load_build.js,
+//                                                          newshapes_build.js's way) - the file the garage's lists open
 'use strict';
 const fs = require('fs'), path = require('path');
 const T = __dirname, ROOT = path.join(T, '..');
@@ -182,7 +185,7 @@ function driveTest(sheet, tune, log) {
 if (require.main === module) {
   const argv = process.argv.slice(2);
   const opt = k => { const i = argv.indexOf('--' + k); return i >= 0 ? argv[i + 1] : null; };
-  const key = opt('key'), out = opt('out');
+  const key = opt('key'), out = opt('out'), save = opt('save');
   const file = key ? null : argv.find((a, i) => !a.startsWith('--') && !(i > 0 && argv[i - 1].startsWith('--')));
   if (!key && !file) { console.error('usage: node tools/car_sheet.js <--key <card> | build.json> [--out sheet.json] [--no-drive]'); process.exit(2); }
   const BJ = require(path.join(T, '_bake_joined.js'));
@@ -190,6 +193,15 @@ if (require.main === module) {
   let bj;
   if (key) { bj = BJ.bakeCard(key); if (!bj) { console.error('no card ' + key); process.exit(2); } }
   else { const raw = JSON.parse(fs.readFileSync(file, 'utf8')); bj = BJ.bakeJoined(raw.spec || raw); }
+  if (save && key) {
+    const { D } = BJ.loadPanel(), a = D.ARCHETYPES.find(x => x.key === key);
+    const spec0 = D.designBake(a.sel, a.over);
+    const r = require(path.join(T, '_load_build.js')).gameSpecFull({ v: spec0.v, birth: 1, spec: spec0 });
+    const env = { what: 'CAR-1 - ' + a.name + ': ' + a.note + ' (tools/car_sheet.js --save; a car: it drives on the ground ' +
+                        'vehicle shell, src/cars/car_' + key + '.json, it does not fly)', v: spec0.v, name: a.name, spec: r.spec };
+    fs.writeFileSync(path.resolve(save), JSON.stringify(env, null, 1) + '\n');
+    console.log('saved ' + save + (r.errors && r.errors.length ? ' (join: ' + r.errors.join(' | ') + ')' : ''));
+  }
   if (bj.errors && bj.errors.length) console.log('join: ' + bj.errors.length + ' error(s): ' + bj.errors.slice(0, 2).join(' | '));
   const sheet = sheetFromBake(bj, C, { key: key || path.basename(file, '.json') });
   const tune = tuneFor(sheet);

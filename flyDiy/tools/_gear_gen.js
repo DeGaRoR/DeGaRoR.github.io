@@ -355,7 +355,12 @@ function wheel(bags, ctr, axis, R, opt) {
   const pN = Math.round(P.whProfile || 0), slick = Math.round(+P.whSlick || 0);
   const lugV = pN === 1 && (slick === 2 || !!(TYRE_LOOK.on && TYRE_LOOK.lugs));
   const L = TYRE_LOOK.on || lugV ? tyreLook(R, pN, { lugs: lugV }) : null;
-  const prof = L ? Object.assign({}, prof0, { hw: L.wd, bead: L.rimD }) : prof0;
+  const prof1 = L ? Object.assign({}, prof0, { hw: L.wd, bead: L.rimD }) : prof0;
+  // CAR-1 (the user, 12 Nov: "can we increase the rim size? I'm OK for a new slider"): THE RIM'S DIAMETER, a fraction of
+  // the wheel's (whRimD; absent = the carcass's own bead, every saved wheel byte for byte) - a car's 18" wire wheel
+  // under a 28" tyre is ~0.64, an aeroplane's 5" hub under a 15" tyre ~0.42. The hub's parts scale with it (Rh below)
+  const rimD = +P.whRimD > 0 ? Math.max(0.25, Math.min(0.85, +P.whRimD)) : null;
+  const prof = rimD ? Object.assign({}, prof1, { bead: rimD }) : prof1;
   const hw = R * prof.hw, bead = R * prof.bead;
   const half = hw * 0.70;                    // the crown band
   const beadH = hw * (prof.beadW || 0.90);   // where the tyre meets the rim
@@ -450,7 +455,7 @@ function wheel(bags, ctr, axis, R, opt) {
   // G3851: in the proposal EVERY carcass's hub follows its rim (the rim is a real 4-6" wheel), and the small parts
   // have floors and ceilings in metres, so an 8 cm tailwheel still shows a bolt, a valve and a brake you can read,
   // and a 35" tundra's hub stays a 10" wheel's
-  const Rh = (prof.torus || L) ? R * prof.bead / 0.42 : R;
+  const Rh = (prof.torus || L || rimD) ? R * prof.bead / 0.42 : R;
   const q = (v, lo, hi) => L ? clamp(v, lo, hi) : v;
   const rimK = Math.round(P.whRim == null ? 0 : P.whRim);
   const bolts0 = Math.max(3, Math.round(P.whBolts == null ? 6 : P.whBolts));

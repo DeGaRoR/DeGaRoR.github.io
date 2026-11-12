@@ -314763,3 +314763,10 @@ the next steps).
   wishbone (the swinging link, feet on the body's lower side) with a coil-over up to the body's SIDE (`shockAng 90`,
   `linkX 0` - the Cub's crossed X had put the tops under the belly). Sheet: 521 kg, 47 % front, 73 kW at the wheels,
   0-100 km/h 6.5 s, 187 km/h, 100-0 in 48.1 m, circle 9.7 m, the 0.57 g lane change back to -0.9 deg.
+- **THE SECOND REVIEW (waist + pillars), MEASURED** (station-by-station samples of CAGE_GEAR.AF against the cowl's
+  vertices; CAR-1-2026-11.md "The second review"): the birth fit had overwritten the bonnet's firewall waist (-0.59) -
+  `fitNose 0`, the firewall section set from the body's measured one, waist 0.263 = y 0.162 m (the body's) fore and aft,
+  the level cut on it (`partY 0`); squareness searched against the body's section (top 0.38 / bottom 0.92, 7-8 mm mean);
+  the head lobes off; `frWinBotY` -0.494 -> -0.481 (the bottom's 1 cm step at the front pillar - NOT the keel's reference:
+  -0.56 dropped it 5.5 cm) and `crPillar` / `crFrame` 0 (the ring creases' folds). After: bottom -0.415 +- 0.001 m, top
+  0.499, the bonnet 0.398 wide all along.

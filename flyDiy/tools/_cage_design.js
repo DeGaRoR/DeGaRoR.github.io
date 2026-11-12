@@ -2803,7 +2803,7 @@ const ARCHETYPES = [
            wgPos: 3, wgBrace: 1, wgTip: 2, wgFlapType: 0, planes: 'mono',
            engFamily: 'vee', engModel: 'Argus As 10C', engMount: 'nose',
            gearLayout: 'tail', suspension: 'bungee', s1Fair: 0,
-           finArch: 'rounded', empennage: 'conv', scheme: 'trim', base: 0xb5342a, trim: 0x20211f },
+           finArch: 'rounded', empennage: 'conv', scheme: 'trim', base: 0x7fa8c9, trim: 0xc96f2a },
     over: { cage: { ...OPEN_TANDEM, paxCount: 0, paxOpen1: 0, pilotRear: 0,   // ONE SEAT (the user, 12 Nov: "do a 1 seater")
                     // THE BODY: the Tiger Moth-alike's section (its card, MEASURED off the DH.82 reference) HELD STRAIGHT -
                     // the user (12 Nov): "straighten all the lines you can. The cabin bottom is wavy": one keel, one roof
@@ -2817,6 +2817,13 @@ const ARCHETYPES = [
                     // the nose section between the cockpit and the cowl: the Moth's length (the class's runs a long closed
                     // cone), its pinch and droop held STRAIGHT (1, 1, 0) - the body meets the bonnet at its own section
                     aeroWsLen: 0.59, aeroLen: 0.24, aeroTipW: 1, aeroTipH: 1, aeroDroop: 0,
+                    // THE PILLARS' BREAKS (the user: "chase the little breaks in the profile ... around your pillars"): the
+                    // windscreen frame's keel was 6.6 cm over the others (-0.494: the bottom stepped at the front pillar,
+                    // measured -0.425 against -0.416 m) - -0.481 lands it on the line; the pillar and frame rings drawn
+                    // without their creases (crPillar / crFrame 3 -> 0: a ring crease folds the subdivided skin at every
+                    // pillar even when the sections agree). Measured after: the bottom -0.415 +- 0.001 m from the rear
+                    // pillar to the firewall, the top 0.499
+                    frWinBotY: -0.481, crPillar: 0, crFrame: 0,
                     // NOTHING THAT FLIES: no wing, no fin, no stab, no blades, no cone, no tube
                     wingOn: 0, w2On: 0, finOn: 0, stOn: 0, propOn: 0, spinOn: 0, rodOn: 0,
                     // THE TRUNK: the pod's aero aft, a long teardrop drooping to a low boat tail
@@ -2828,17 +2835,23 @@ const ARCHETYPES = [
                     // tall rectangle in it
                     cw_cowlLen: 1.2, cw_taperW: 1, cw_taperH: 1, cw_lidRise: 0, cw_faceRise: 0, cw_lidMode: 0,
                     cw_deckSweep: 0, cw_waistSweep: 0, cw_lidLen: 0.06, cw_lidShoulder: 0.92, cw_lidRound: 1,
-                    // one section all along: the top squarer than the fit's (0.68: the body's shoulders, which showed past
-                    // a rounder bonnet head-on), the bottom the fit's (0.564) carried to the front
-                    cw_sqAftTop: 0.68, cw_sqFrontTop: 0.68, cw_lidSqTop: 0.68, cw_sqFrontBot: 0.56, cw_lidSqBot: 0.56,
-                    // THE WAISTLINE (the user, 12 Nov: "get the waistline of the cowl in line with the waistline of the
-                    // car"): the bonnet's widest line at the body's (waistY 0.22 between the keel -0.56 and the roof 0.66
-                    // is 0.28 of the half-height over the middle; the fit had it at 0.05), held to the front
-                    cw_waist: 0.28, cw_waistF: 0.28,
+                    // THE BONNET'S SECTION IS THE BODY'S, SET, NOT FITTED (the user, 12 Nov: "disable the auto fitting of the
+                    // cowl at the firewall ... You have raised the waist at the front, not at the firewall"): the birth fit
+                    // (fitNose 1) wrote its own firewall waist (-0.59) over the card's, so the widest line sloped up along
+                    // the bonnet. Off; the firewall section given: the body's half-width and height there (0.398 / 0.460 m,
+                    // measured off the drawn airframe), its widest line at the body's waistline (0.263 of the half-height
+                    // over the middle = y 0.162 m, waistY 0.22 x the plane's scale), held to the front; the squareness
+                    // searched against the body's own section at the joint (top 0.38 round like the body's turtle deck,
+                    // bottom 0.92 boxy like its floor: a mean 7-8 mm apart, from 22-50); the Gipsy's two head lobes off
+                    // (they swelled the bonnet 2.5 cm mid-length)
+                    fitNose: 0, cw_aftW: 0.3977, cw_aftH: 0.457, cw_lobeN: 0,
+                    cw_waist: 0.263, cw_waistF: 0.263,
+                    cw_sqAftTop: 0.38, cw_sqFrontTop: 0.38, cw_lidSqTop: 0.38,
+                    cw_sqAftBot: 0.92, cw_sqFrontBot: 0.92, cw_lidSqBot: 0.92,
                     // THE CUT AT THE WAISTLINE, STRAIGHT ("an option so the cut at the bonnet waistline is drawn straight
-                    // and nice"): the split held LEVEL (partLevel, PROPER-COWLS' option) with an even groove, at the
-                    // waistline's height (partY 0.25)
-                    cw_partOn: 1, cw_partLevel: 1, cw_partArc: 1, cw_partY: 0.25,
+                    // and nice"): the split held LEVEL (partLevel, PROPER-COWLS' option) with an even groove, ON the widest
+                    // line (partY 0) - the waistline
+                    cw_partOn: 1, cw_partLevel: 1, cw_partArc: 1, cw_partY: 0,
                     // THE LOUVRES under the cut, each flank ("shark fins on the cowls"): the side gills, a long panel of
                     // slanted slots
                     cw_gillOn: 1, cw_gillN: 14, cw_gillZ: 0.5, cw_gillL: 0.5, cw_gillH: 0.24, cw_gillSlant: 15,
@@ -2867,13 +2880,30 @@ const ARCHETYPES = [
                     s1_shockKind: 0, s2_shockKind: 0, s1_linkSwing: 0, s2_linkSwing: 0, s1_linkPanel: 0, s2_linkPanel: 0,
                     s1_linkAng: 55, s2_linkAng: 55, s1_linkSpread: 0.5, s2_linkSpread: 0.5, s1_linkX: 0, s2_linkX: 0,
                     s1_shockAng: 90, s2_shockAng: 90, s1_shockAt: 0.85, s2_shockAt: 0.85, s1_shockZ: 0, s2_shockZ: 0,
-                    s1Fair: 0, s2Fair: 0, whProfile: 2 },
+                    s1Fair: 0, s2Fair: 0, whProfile: 2,
+                    // (the user: "can we increase the rim size?"): spoked, the rim 0.64 of the wheel - an 18" wire wheel in a
+                    // 28" tyre (whRimD, the new row)
+                    whRim: 1, whRimD: 0.64 },
+            // THE TANK (the user, 12 Nov: "Where did you place the tank? Let's do something realistic"): none was
+            // drawn - the 60 L rode the ledger at the firewall's station. A 1930s racer carries it in the tail: one
+            // box tank in the 'behind the cabin' bay, the boat tail just aft of the seat
+            tanks: [{ bay: 'aftCabin', capacity: 60, rot: 0, form: 'box' }],
             spec: { fuel: { litres: 60 },
                     systems: { fit: 'minimal' }, cabin: { baggage: 40 },
-                    paint: { job: 'full', sweep: 0, base: 0xb5342a, trim: 0x20211f },
-                    finish: { decals: { regOutOn: 0 },
-                      sections: { ...BODY_PAINT(0xb5342a) } },
-                    meta: { reg: 'CAR-1' } } } },
+                    // THE LIVERY (the user, 12 Nov: "a nice livery ... some metallic shades in there please, and not too
+                    // dark"): a light METALLIC STEEL-BLUE body, the bonnet POLISHED ALUMINIUM, a METALLIC COPPER cheat line
+                    // along the waistline (on the bonnet's level cut and on along the body), an ivory racing roundel ringed
+                    // in copper on the flank behind the bonnet, its number in black
+                    paint: { job: 'full', sweep: 0, base: 0x7fa8c9, trim: 0xc96f2a },
+                    finish: { decals: {
+                      regL: 2.35, regC: 0.06, regH: 0.30, regCol: 0x20211f, regOutOn: 0,
+                      m1On: 1, m1Pat: 8, m1A: 0xefe6cf, m1B: 0xb87333, m1D: 0xefe6cf, m1P: 1, m1Q: 0.86, m1R: 0.78,
+                      m1Tgt: 0, m1Mode: 1, m1L: 2.35, m1C: 0.06, m1W: 0.56, m1H: 0.56,
+                      m2On: 1, m2Pat: 0, m2A: 0xb87333, m2B: 0xb87333, m2D: 0xb87333, m2Metal: 1,
+                      m2Tgt: 0, m2Mode: 1, m2L: 2.2, m2C: 0.0, m2W: 6.0, m2H: 0.05 },
+                      sections: { ...Object.fromEntries(Object.keys(BODY_PAINT(0)).map(k => [k, { tint: 0x8fb0d4, metal: 1, rough: 0.32 }])),
+                                  cowlSkin: { tint: 0xd9dde2, metal: 1, rough: 0.16 } } },
+                    meta: { reg: '7' } } } },
   { key: 'savannah', kind: 'recreation', name: 'Savannah-alike', note: 'STOL microlight, high ' +
       'wing, big flaps, bush role',
     sel: { class: 'ulm', role: 'bush', seatLayout: 1, paxCount: 0,

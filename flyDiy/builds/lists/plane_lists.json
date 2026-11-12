@@ -50,6 +50,7 @@
     {"n":46,"list":"internal","name":"Super Petrel V4","file":"builds/candidates/review/superpetrel_V4.json","note":"V3 + the central faired pylon, the engine on an 8 cm pylon on the wing"},
     {"n":47,"list":"candidates","name":"Carbon Cub SS","file":"builds/candidates/carbon_cub_ss.json","note":"the STOL Cub on the CC340 (engine dials) - REAL-FIGURES-3"},
     {"n":48,"list":"candidates","name":"Piper Cub, J-3 chord","file":"builds/candidates/cub_chord160.json","note":"the official Cub at the J-3's 1.60 m chord - REAL-FIGURES-3"},
-    {"n":49,"list":"candidates","name":"PA-18 floats, PA-18 chord","file":"builds/candidates/pa18_floats_chord160.json","note":"the float Super Cub at the PA-18's 1.60 m chord - REAL-FIGURES-3"}
+    {"n":49,"list":"candidates","name":"PA-18 floats, PA-18 chord","file":"builds/candidates/pa18_floats_chord160.json","note":"the float Super Cub at the PA-18's 1.60 m chord - REAL-FIGURES-3"},
+    {"n":50,"list":"candidates","name":"Boat-tail roadster (car)","file":"builds/candidates/roadster_2026-11.json","thumb":"cand:roadster_2026-11.json","note":"CAR-1 (12 Nov): the first car - the Tiger Moth-alike's body on four wheels, a 3.6 L V8; it drives (src/vehicle via tools/car_sheet.js), it does not fly"}
   ]
 }

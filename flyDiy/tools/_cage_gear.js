@@ -3135,7 +3135,8 @@ PAGE.post = ctx => {
     if (hit) { const why = 'at full stroke the tyre meets the body (a longer leg, or less swing)';
       leverBad = Object.assign(leverBad || {}, { s1Drop: why, s1_lvComp: why }); }
   }
-  window.CAGE_GEAR = { AF, contacts, pitch, gy, saddles: saddlesOut,
+  // (CAR-1: `group` - the join's mount walk starts from the wing layer's group, and a wingless build has none)
+  window.CAGE_GEAR = { AF, contacts, pitch, gy, saddles: saddlesOut, group,
     ...(leverOut.length ? { lever: leverOut } : {}),                // WILGA-GEAR: the trailing-link legs as drawn
     ...(leverBad ? { leverBad } : {}),
     ...(swing ? { swing } : {}),

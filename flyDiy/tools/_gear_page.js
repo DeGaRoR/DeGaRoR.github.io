@@ -163,6 +163,7 @@ const WHEEL_ROWS = [
   ['whBulge', 'sidewall bulge ×', 0.85, 1.40, 0.01],
   ['whRibs', 'ribs', 1, 5, 1],
   ['whRim', 'rim', 0, 2, 1, ['cast disc', 'spoked', 'lightened']],
+  ['whRimD', 'rim diameter (× the wheel\'s; 0 = the carcass\'s own)', 0, 0.85, 0.01],   // CAR-1
   ['whBolts', 'rim bolts', 3, 10, 1],
   ['whCap', 'hub cap', 0, 2, 1, ['none', 'domed', 'flat']],
   ['whValve', 'valve stem', 0, 1, 1],
