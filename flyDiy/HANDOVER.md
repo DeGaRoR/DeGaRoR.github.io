@@ -314809,3 +314809,74 @@ futureDesigns/ENGINE-COOLING-2026-11.md §11 has the whole of it.
   run in this container.
 - **Open.** A parked re-cook (the Twin busher's and the Petrel's drawn cowls changed; the cook wants a GPU, A0's
   train). A0 is still not told: the cross-session send is refused here.
+
+## ENGINE-COOLING 3 - the rows RULED: the series law, the heads on the drawn cowl, every body engine, the archetypes' birth rule (12 Nov 2026, claude/festive-faraday-w3w40x)
+
+The user, 12 Nov, on the second landing's sweep: "the starting designs ... have never been authored ... just add a rule
+and regenerate them"; "on the client cub ... the cylinder heads ... stick out of the cowl ... we should account for
+them"; "check Rufus"; "the twin engine on floats ... has a chin scoop, so we can check whether this is being correctly
+accounted for"; "if you recalibrate something, that should be your coefficients around the opening"; "this
+pusher-puller inline should allow for a scoop on the aft engine as well". futureDesigns/ENGINE-COOLING-2026-11.md §12
+has the whole of it.
+
+- **The series law (62 genCooling, GEN_COOL ivr 0.8 / passages 3.0; kappa retired).** The air passed is
+  1 / sqrt(sum 1 / mdot_i^2) over three terms: the drawn inlet (ivr rho V A_in), the engine's own passages (3 x its
+  hot-climb need), and a drawn outlet (ivr rho V A_out / 1.3).
+  - The drag is the same expression wherever the outlet is sized for you.
+  - The remedy's sizes are the inverse of the law: the inlet with the outlet sized for it, the outlet through the
+    drawn inlet.
+- **The heads measured on the drawn cowl.**
+  - How: `COWL_GEN.coolHeads` (_cowl_gen), called by the engine layer once the cowl is drawn. It maps each cylinder's
+    frontal strip into unit 0's shell (`window.CAGE_COWL_SHELLS`) and tests it against the skin.
+  - Output: `spec.cooling.headsOut / headsAll`, written by the join (`CAGE_COOL_HEADS`).
+  - Readings: list:26 Client Cub 0.046 m2 out, which takes it from 0.97 to 2.77 with the card unchanged; list:1 Cub 0;
+    the Tiger Moth-alike's cylinders are inside its drawn cowl (the generator's loft said 0.099 out).
+  - Uncowled engines: an uncowled piston engine is judged on its heads (list:7 Rufus 2.54); an uncowled electric
+    motor passes with no figure.
+- **Facing: a pusher's lowered bottom and gills face the flight.** Its cowl is turned round, so they are inlets there.
+  Its way out is the face round the spinner. The remedy says so.
+  - list:6 Twin busher is redrawn accordingly: no exit gap (it was 0.22 against the row's 0-0.08), the face opened to
+    0.2 m half-sizes as the way out. It passes at 1.35.
+- **list:41 Super Petrel** is back to the user's drawing (inlet 0.42) and passes at 1.48. **list:27** Ultralight twin on
+  floats: its chin scoops ride the bottom line at 0.14 x 0.11 (they were mostly buried), 0.62 -> 1.50.
+- **Every body engine judged (genCoolBodyEngines, genCoolingOne).** A push-pull's nose and rear are judged separately;
+  the worst answers, and the drag is summed.
+  - New row `cw_scoopAft` ("the rear engine's scoop: as the nose cowl's / turned: into the air"). The cowl layer
+    rebuilds the aft clone's scoop turned (the scoop meshes carry `userData.coolScoop`).
+  - The measurement carries `scoopAlt` (the mouth at its other end) and `units` (each unit's aft flag, area factor and
+    turned scoop).
+- **The archetypes' birth rule (_cage_design designCoolBirth, in designFull).**
+  - Target: 1.4 x the engine's need, at an inlet speed of 32 m/s x (kW/100)^0.3 (clamped 28-75). It never shrinks
+    what a card draws.
+  - By mount: a puller opens its front, plus a chin scoop on a wing nacelle or an inline/vee; a pusher gets its scoop
+    turned and riding, and its face opened as the way out; a nacelle cone opens its inlet; a layout's rear engine gets
+    scoopAft; a liquid engine's wing radiators grow, net of the nose (the Spitfire-alike's to a Spitfire IX's
+    0.57 x 0.33 m).
+  - Turbines: the turbine cowl style's oil-cooler scoop now stands out of the skin at 0.55 x 0.40 of the barrel.
+  - All 32 archetypes pass.
+- **THE RULING.** cool.climb (safe) and cool.taxi (comm) are no longer proposed. Every official card passes; the STOL
+  Cub warns at 1.08 (the user: no care).
+  - Existing certificates: a signed certificate keeps its stored bench check until the aeroplane changes or the bench
+    runs again. There is no GEN_SPEC_V or PHYSICS_V bump, so R3's recheck does not fire.
+  - Still failing (not official): list:10 Tiger Moth-alike 0.17, list:22/31 twinBoomFail, list:28 Single-seat
+    ultralight 0.6, list:33-36 the older Twin busher reviews.
+- **GATE COOL** (wall 420 s) adds THE SERIES, THE HEADS, THE BIRTH and THE PUSH-PULL (both run before THE SCOOP: the
+  real three.js it loads stops the panel's engine layer), and the ruled rows.
+
+- **Gates.** Each was run on the branch and on its base e0d2bd18 side by side.
+  - Pass: COWL, PARTS, DESIGN, KNIFE, SAVE, HULL, PLANELISTS, BENCH, AIDS, STORY, DRAG, PANEL, PROCURE, ACCEPT, UISMOKE,
+    COOL, ENERGY, PODEDITOR, QUADWIN, FRAMES, CERTGATES.
+  - Identical failure lines on the base: DESIGNCHECK, NODUMMY, DMGCERTCOST, JOINPARITY (the Jodel mass), GEN ("cruise
+    is quiet in wind"), ARCHETYPES (full tier: the Chinook-alike's circuit, a rejected take-off).
+  - ENGCONFIG: the metal Cessna's and the Cessna on floats' digests moved (their 0.011 m2 of heads now measured
+    through the drawn cowl). They are re-pinned; it then fails only where the base does (the Chinook, the quad
+    flights, the three cards).
+  - ACCEPT re-flew the metal Cessna's record (same fingerprint).
+  - The --all delivery verdict was not run in this container.
+
+- **Open.**
+  - The Cub-style head cut-outs: a garage gap. The horseshoe is a sector, not a cut round each head.
+  - The power pull-back over the oil's red line: not built (no official card overheats).
+  - Cowl flaps; a NACA flush inlet.
+  - The parked re-cook (the Twin busher's, the Ultralight twin's and the archetypes' drawn cowls changed; A0's GPU).
+  - A0 not told from here (the cross-session send is refused).
