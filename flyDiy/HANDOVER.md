@@ -314814,3 +314814,13 @@ chantier (stage 4) must bring it forward. Parked: the wheel, the nose skid, a wi
   gross and the g it was built for; mass, strength (the section without its floor) and stiffness (KS per part) from the
   rating; the certificate unchanged, so a light part on a heavier aeroplane breaks at n_ult x R / W. Seventeen
   suggestions, the plumbing, the Archaeopteryx's path to ~72 kg, six decisions for the user.
+- THE WEIGHT STUDY, REVISION 2 (12 Nov; futureDesigns/archaeopteryx/WEIGHT_STUDY.md, the user's rule: no classes, no
+  ratings on screen - light CONSTRUCTIONS that carry what they can take, physics teaches). Measured with a throwaway
+  prototype (weight_proto/: the `dtube` wing row patch + the garage's destroy bench): the CERTIFICATE IS AN AUTO-SIZER
+  (it stamps every member and fitting at ~1.5 x this aeroplane's own limit loads, and today's wing members hold 4-7 x
+  that in physics), so a light wing alone is an exploit (31 kg on the C172, still 6.06 g). Certified at its BUILD
+  WEIGHT (its stamps x min(1, 250 kg / W0)) it breaks where it should: Archaeopteryx 6.28 g (certifies), ul1 5.49, Cub
+  3.70, Savannah 3.70, C172 2.68, Caravan 1.57 - the spar folding at the root. The light wing UNRATED on the C172
+  DIVERGED the sim: a stiffness floor is owed. Where the pylon goes: the chooser's "Boom architecture" step and the
+  editor's "Fuselage style" (both appended). Fixed items ~29 kg (reclined tub seat, soft glazing, light controls on the
+  keel tubes, no panel, minimal furnishing, gelcoat).

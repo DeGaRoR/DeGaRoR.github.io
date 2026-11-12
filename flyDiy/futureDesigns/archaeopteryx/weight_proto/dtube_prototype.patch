@@ -1,0 +1,49 @@
+diff --git a/flyDiy/src/core/60_gen_spec.js b/flyDiy/src/core/60_gen_spec.js
+index 92bc9f514..ba4220695 100644
+--- a/flyDiy/src/core/60_gen_spec.js
++++ b/flyDiy/src/core/60_gen_spec.js
+@@ -596,6 +596,12 @@ const GEN_SURF_MATERIALS = {
+             tail: { cover: 0.70, section: 0.10 } }),
+   carbon: Object.assign({}, GEN_MATERIALS.carbon, { shop: 'composite', cover: 1.6,
+             tail: { cover: 0.70, section: 0.10 } }),
++  // PROTOTYPE (weight study): the foot-launch D-tube - built for ~250 kg, no growing past it, no strength floor
++  dtube: Object.assign({}, GEN_MATERIALS.carbon, { shop: 'composite', cover: +(process.env.PT_COVER || 0.6),
++            lin: Object.assign({}, GEN_MATERIALS.carbon.lin, { wing: GEN_MATERIALS.carbon.lin.wing * +(process.env.PT_LIN || 0.3) }),
++            k: Object.assign({}, GEN_MATERIALS.carbon.k, { wing: GEN_MATERIALS.carbon.k.wing * 0.5 }),
++            refGross: 190, gaugeHi: +(process.env.PT_GHI || 1.15), noFloor: true, kHi: +(process.env.PT_KHI || 0.6),
++            tail: { cover: 0.70, section: 0.10 } }),
+   // G2047 (DMG-COMPOSITE): the glass glider's wing - the carbon row's moulded wing in glass, its cover x1.25 as
+   // the fuselage rows' (GEN_MATERIALS.glass)
+   glass:  Object.assign({}, GEN_MATERIALS.glass,  { shop: 'composite', cover: 2.0,
+diff --git a/flyDiy/src/core/61_gen_frame.js b/flyDiy/src/core/61_gen_frame.js
+index eb00e06b9..cb6624200 100644
+--- a/flyDiy/src/core/61_gen_frame.js
++++ b/flyDiy/src/core/61_gen_frame.js
+@@ -451,7 +451,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
+     // weigh what they did (so the aeroplane does not move); the new pair is built weightless
+     const ghost = !!(opt && opt.ghost);
+     if (!ghost) {
+-    const bm = { a, b, k: row(MM.k, cls) * (isG ? kG : KS) * kGain * mK * bK * kMul,
++    const bm = { a, b, k: row(MM.k, cls) * (isG ? kG : (cls === 'wing' && MM.kHi ? Math.min(KS, MM.kHi) : KS)) * kGain * mK * bK * kMul,
+                  c: row(MM.c, cls) * (isG ? cG : CS) * Math.sqrt(mK) * Math.sqrt(bK) * Math.sqrt(kMul) * cMul,
+                  gear: isG, cls, ext: vis === 'inner' ? false : (!!ext || isG),
+                  vis: vis || null, L };
+@@ -474,7 +474,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
+       // aft taper, the gauge under 1 - has the rest of its strength in the skin, which the lattice bills under
+       // `cover`, not `lin`. Measured: on the metal Cessna its own billed area put a wing member at 133 % of yield
+       // at the 3.8 g limit (a 172's wing holds it), the class's at 52 % - the load test's own figure.
+-      bm.A = lin > 0 && MM.phys ? Math.max(lin * aftG * webK * g1, lin) / MM.phys.rho : 0;
++      bm.A = lin > 0 && MM.phys ? Math.max(lin * aftG * webK * g1, MM.noFloor ? 0 : lin) / MM.phys.rho : 0;
+       // G3505 (DC3-BUILD, 2026-10-23): AN AIRLINER'S MEMBERS HOLD ITS STRESS. The gauge above is Raymer's mass rule,
+       // sub-linear in the gross (fus 0.30, wing 0.49, tail 0.41, gear 0.75, capped at 3) - right for what the structure
+       // WEIGHS, and on the fleet the members' strength is calibrated with it. But one lattice member stands for what an
+@@ -4212,7 +4212,8 @@ function genDesignGross(S, a, cg) {
+     ? Math.min(GEN_RULES.cargoKgMax, 2 * (cb.halfW || 0.5) * (cb.h || 1) * fu.cargoLen * GEN_RULES.cargoKgM3) : 0;
+   const Mfix = cg[3] - payload - Ms + seats * GEN_RULES.occupantKg + fuelFull + (S.baggage || 0) + freight;
+   const ref = c => a.parts.gaugeRef[c] || (GEN_MATERIALS[S.material] || {}).refGross || 550;
+-  const gOf = (c, W) => Math.min(G.hi, Math.max(G.lo, CORE_MATH.pow(W / ref(c), G.e[c])));
++  const WROW = genSurfMaterial(S, 'wing', 0) || {};
++  const gOf = (c, W) => Math.min(c === 'wing' && WROW.gaugeHi ? WROW.gaugeHi : G.hi, Math.max(G.lo, CORE_MATH.pow(W / ref(c), G.e[c])));
+   // the furnishing (GEN_OUTFIT.furnK, Raymer on W0) is billed in pass 2
+   // and belongs to the same fixed point
+   const O = GEN_OUTFIT, fK = genFurnK(S);            // (G2806: the chosen trim, else the tier's)

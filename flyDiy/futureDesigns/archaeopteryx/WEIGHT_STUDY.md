@@ -1,309 +1,235 @@
-# WEIGHT HAS A PRICE - a study of light structure for the Archaeopteryx and every card after it (2026-11-12)
+# WEIGHT HAS A PRICE - light constructions that break where they should (study, revision 2, 2026-11-12)
 
-The ask (the user, 12 Nov, once the card was frozen as v1): "launch the study on weight. So do a lot of suggestions on
-how we could handle elegantly this thing, and it has to have a weight, meaning that if I put such a lightweight wing,
-for example, on another plane, it should probably break at some point. So let's offer the ultralight options, but with
-the cost in terms of rigidity. Study first."
+The ask (the user, 12 Nov): "launch the study on weight ... if I put such a lightweight wing, for example, on another
+plane, it should probably break at some point. So let's offer the ultralight options, but with the cost in terms of
+rigidity."
 
-This is a study: nothing here is built. Section 6 lists the decisions it needs from the user.
+The user then set the design rule (revision 2):
+- **No classes, no ratings and no max-weight setting on screen.** The game must stay playable.
+- **Light options are constructions:** a wing, a cabin skin, a rod. Each comes with what it can take.
+- **Physics teaches:** a light construction on a heavy aeroplane sags and then crumbles, in the garage or in the air.
+- **A test must prove there is no exploit:** the light wing on the Cessna fails.
 
-## 0. In one paragraph
+Revision 1's ratings, categories and max weight are dropped. This file replaces them.
 
-Today a part cannot be light, because everything structural is sized for the aeroplane it is on. Mass, strength and
-stiffness are three separately calibrated channels, and all three follow the aeroplane's own design gross. So a light
-wing does not exist. If it did, it would grow to fit any fuselage and could never break.
+## 0. The answer in one paragraph
 
-The proposal is one idea: **rated structure**. Each structural part carries the load it was built for: a design gross
-in kg and a load factor in g (its **rating**). Its mass, strength and stiffness come from that rating, not from the
-aeroplane. On its own aeroplane it holds what any certified part holds. On a heavier one it bends more and breaks
-sooner, by a ratio anyone can read: **it breaks at n_ult × rating / actual weight**.
+A construction carries a hidden **build weight**, the aeroplane it was designed for (the foot-launch wing: about
+250 kg). Three things follow from it:
+- **Mass:** it may thin below its build weight but never grows past it.
+- **Stiffness:** it is capped at its build weight.
+- **Certification:** it is certified *as if its aeroplane weighed its build weight*.
 
-Absent, the rating follows the aeroplane, which is exactly today's behaviour, so every saved build stays identical.
-The ultralight options are then construction rows and fixed-item rows that are honest at a low rating.
+Nothing else changes, and the player never sees the number. They see a light wing, and a Cessna that breaks it.
 
-## 1. What the code does today (measured, with file references)
+**A throwaway prototype measured it** (§2):
+- On the Archaeopteryx the light wing is 13 kg lighter and still certifies (6.28 g).
+- On a Cub it folds at 3.70 g, on a C172 at 2.68 g, on a Caravan at 1.57 g. Every aeroplane over about 500 kg
+  breaks it before its own 3.8 g limit.
 
-A read of the current tree (`wm` at v1), confirmed line by line where it matters:
+## 1. Why something new is needed (measured)
 
-**Mass:**
-- Every member is billed at `0.5 · L · lin[class] · gauge` to its two ends (`src/core/61_gen_frame.js:528-554`).
-- Every panel is billed at `area · cover · gauge` (`:664-693`), into a ledger by section (`:612-653`).
-- The gauge is Raymer's resizing: `(W0 / refGross)^e`, with e = fus 0.30, wing 0.49, tail 0.41, gear 0.75, clamped
-  0.6 to 3 (`GEN_GAUGE`, `60_gen_spec.js:1968`).
-- W0 is the aeroplane's design gross, a fixed point (`genDesignGross`, `61_gen_frame.js:4185`).
+Today a light construction cannot break, for two reasons the prototype found:
 
-**Strength:**
-- A member's section is `A = max(lin · gauge, lin) / rho` (`61_gen_frame.js:477`). The section never drops below
-  the ungauged row, so a light gauge saves mass but never strength.
-- The certificate (`66_gen_cert.js`) flies the FAR 23 cases on *this* aeroplane at 3.8 g. It stamps each member to
-  break at about 1.5 × 1.05 × its own limit load, capped by physics (A · sigma, Euler for tubes).
-- So every certified aeroplane breaks near 6 g. Only a member whose physics cannot reach that ("the bad design the
-  bench finds", `30_solver.js:877`) breaks sooner.
+1. **The sizing grows every construction with its aeroplane** (`GEN_GAUGE`, up to ×3), and the member's strength
+   never drops below its row's (`61_gen_frame.js:477`).
+2. **The certificate is itself an auto-sizer.**
+   - It flies this aeroplane's loads and stamps every member and fitting to break at about 1.5 × its own limit load,
+     capped only by physics (`66_gen_cert.js`, `30_solver.js` certStamp).
+   - Today's wing members have 4 to 7 times that strength in physics:
 
-**Stiffness:**
-- The wing's spring is `k.wing × KS × wingK`.
-- `KS = (loaded mass / the fuselage row's refMass)^0.85`, clamped 0.45 to 4 (`61_gen_frame.js:4277`).
-- So the spring follows the **aeroplane's** mass, not the wing's own section or mass.
+| card (its own wing) | design gross | wing members' peak load at 3.8 g | member capacity | margin |
+|---|---|---|---|---|
+| Archaeopteryx (carbon) | 252 kg | 12.9 kN | 77 kN | ×3.8 |
+| ul1 (wood) | 348 kg | 8.6 kN | 90 kN | ×6.6 |
+| Cub (wood) | 538 kg | 9.2 kN | 90 kN | ×6.2 |
+| C172 (alloy) | 868 kg | 10.7 kN | 93 kN | ×5.5 |
 
-**Hence: a light wing on a heavy aeroplane today:**
-1. It is re-thickened by the gauge.
-2. It is stiffened by KS.
-3. It is certified on the heavy aeroplane's loads.
+So every certified aeroplane lets go at its wing fittings near 6 g, whatever it is made of.
 
-The headroom is huge anyway: a carbon wing member is 129 mm² × 600 MPa = 77 kN.
+**Note the C172's 10.7 kN.** Its braced, deeper wing has lower member loads than the cantilever Archaeopteryx's. A
+light construction defined only by its per-metre rates would hold on the Cessna's own braced planform. Section 2
+measured exactly that.
 
-**Where the Archaeopteryx's mass sits (the birth card, v1):**
-- 154 kg empty: wings 46.7, engines 36.0, fuselage 26.4, outfit 14.1, tail 8.2, bracing 6.8, gear 5.5, paint 5.1,
-  furnishings 3.0, panel 2.1.
-- The real aeroplane: 54 kg as a glider, parachute included, about 72 kg with its electric drive (`STUDY.md` §2).
-- By section (`STUDY.md` §4):
+## 2. The prototype (throwaway, not in the game)
 
-| section | ours | the real one (estimate) | ratio |
+**How it was built.** A new wing row, `dtube`, in a scratch tree:
+- moulded carbon, its cover 0.6 kg/m² (carbon's 1.6) and its members 0.3 of carbon's rate;
+- a reference gross of 190 kg;
+- its size factor capped at 1.15, so it is built for about 250 kg;
+- no strength floor, and its stiffness capped.
+
+The patch and the bench script are in `weight_proto/` (`dtube_prototype.patch`, `bench_wing.js`). The bench is the
+garage's own destroy test: sandbags ramped until the first part lets go.
+
+**Run 1: the light wing alone (no change to certification)**
+
+| card | own wing | breaks at | light wing | breaks at |
+|---|---|---|---|---|
+| Archaeopteryx | 47.9 kg | 6.74 g | 34.9 kg | 6.28 g |
+| ul1 | 57.8 kg | 6.03 g | 32.3 kg | 6.10 g |
+| Cub | 63.8 kg | 6.02 g | 30.4 kg | 6.00 g |
+| C172 | 101.3 kg | 6.06 g | 31.0 kg | **simulation diverged** |
+
+**The exploit, confirmed:** a 31 kg wing on the Cessna that still holds 6 g. The certificate re-sizes its fittings.
+
+**Run 2: certified at its build weight.** Each light-wing member's certified load is scaled by min(1, 250 kg / the
+aeroplane's design gross):
+
+| card | design gross | scale | light wing breaks at | first to go |
+|---|---|---|---|---|
+| Archaeopteryx | 244 kg | ×1.00 | **6.28 g** | the fittings: it certifies |
+| ul1 | 330 kg | ×0.76 | 5.49 g | the fittings |
+| Cub | 506 kg | ×0.49 | **3.70 g** | the spar folds at the root |
+| Savannah | 499 kg | ×0.50 | 3.70 g | the spar folds at the root |
+| C172 | 796 kg | ×0.31 | **2.68 g** | the spar folds at the root |
+| Caravan | 1 614 kg | ×0.15 | **1.57 g** | the spar folds at the root (its own wing: 6.15 g) |
+
+**What the runs show:**
+- The light wing saves real mass and stays certified where it belongs.
+- From about 500 kg up it breaks below the 3.8 g limit, so it can never be certified there.
+- On a 700-1 000 kg aeroplane it breaks in a steep turn or a firm landing; on a Caravan, on a bump.
+- The failure is the honest one: the spar folds at the root.
+
+**The test case that must stay red:** "the foot-launch wing on the C172 breaks under 3.8 g". It becomes a gate
+(GATE LIGHTWING, §7).
+
+**Not exactly proportional.** The C172's 2.68 g is above a straight 250/796 ratio, which would give ~1.9 g. The
+certificate's physics floor and the fold mode take over. Still well inside "it does not work".
+
+## 3. The constructions to offer
+
+### 3.1 Wing structure (`wgCons`, options appended)
+
+| construction | real examples | kg/m² of wing (real) | built for | in the game |
+|---|---|---|---|---|
+| **Foot-launch D-tube** (new) | Archaeopteryx, Swift, Atos | ~1.5-2.5 | ~250 kg | new row: the prototype's, calibrated |
+| Microlight: tube and sailcloth | trikes, the MW5, most 3-axis microlights | ~3-5 | ~450 kg | today's aluminium tube + fabric, alu spar + fabric |
+| Sailplane: moulded | the ASW 28, the DG | ~8-11 | ~550 kg, ±5.3 g | today's carbon and glass rows |
+| General aviation | Cub, Cessna | | grows with its aeroplane | today's wood, steel, alloy |
+| **Aerobatic** (new) | Extra 330, Pitts | heavy | grows with its aeroplane, built for ±10 g | new row; symmetrical profile by default (`wgCamber 0`) |
+
+**The user's question: glider wings rather than ultralight?** They are three different things. The Archaeopteryx's
+wing is a foot-launch wing, lighter than both a microlight's and a sailplane's. The other two already exist, so only
+two rows are new: the foot-launch D-tube and the aerobatic.
+
+**The aerobatic wing is the same mechanism reversed:**
+- certified as if built for ±10 g (its certified loads × 10 / 3.8, so it breaks near 15 g);
+- its mass sized for it: about +60 % wing structure ((10/3.8)^0.49);
+- a symmetrical profile proposed when picked. It is a default, not a lock.
+
+**Existing constructions keep growing with their aeroplane.** That is right: real designers size spar caps to the
+aeroplane. Only the new light rows stop growing at their build weight.
+
+### 3.2 The tail follows the wing
+
+- Today the tail's default follows the **fuselage** (`GEN_SURF_DEFAULT_TAIL`, `60_gen_spec.js:616`).
+- Proposed: it follows the **wing's** construction; `finCons` / `stCons` still set it on their own.
+- A foot-launch tail on a heavy aeroplane fails the same way. The stab's spar folds at its root, or the fin snaps
+  sideways at its root under rudder or a gust.
+
+### 3.3 The cabin: a soft shell (`intCons` option 6)
+
+- **Name:** "Soft shell" (fabric on poles). Other candidates: "Sailcloth", "Fabric shell".
+- **What it is:**
+  - a `GEN_MATERIALS` row: thin poles, very low stiffness, a ripstop cover at ~0.15 kg/m²;
+  - its `GEN_CRASH` row folds first;
+  - Euler buckling switched on for its members (today only steel and aluminium tube buckle).
+- **Offered on every body.** On a Cub the wing sits on it and it folds: the physics teaches. Under the pylon the wing
+  rides on the mast and the keel, the cabin hangs, and it stands.
+- **Its test (the user's):** any wing loaded on a soft-shell cabin without the pylon crumbles on the bench; the
+  Archaeopteryx's stands.
+
+### 3.4 The rod: a light option
+
+- Today the rod has **no material row of its own**. It takes the fuselage's material, with a 1.2 mm wall
+  (`GEN_RULES.rodWall`, `60_gen_spec.js:3322`).
+- Proposed: a row on the boom page: "rod: standard / foot-launch".
+  - The light one has a thin wall and a 250 kg build weight, certified the same way as the wing.
+- **How it fails on a heavier aeroplane:** the tail's balancing loads, gusts and rudder grow with the aeroplane.
+  1. The thin rod whips and droops (stiffness capped).
+  2. It folds at its root, where it leaves the pod or the hub (the largest bending moment).
+  3. Or it twists off under hard rudder.
+- **Its test:** the foot-launch rod on the pusher-pod card at about 500 kg breaks under 3.8 g.
+
+### 3.5 Where the pylon architecture is chosen
+
+**In the New Plane chooser** (`tools/_new_plane.js` STEPS), step 6, **"Boom architecture"** (`booms`, "what carries
+the tail"): lofted / rod / twin / twin rod. Append **"Pylon (hanging nacelle)"**.
+
+`compose()` then writes the rod, the hub and the hanging nacelle:
+- `boomStyle 1`, `rodHub 1`, `hangOn 1`, the mast's station and chord, `hangKeels 2`;
+- the aero aft over the pusher.
+
+The step comes before the wing and gear steps, so they can follow it:
+- **Wing:** a high wing under a pusher is greyed today (`_new_plane.js:259-260`). The pylon needs an exception, and
+  greys on mid and low.
+- **Gear:** the step offers no Monowheel. Add it, and make it the pylon's default.
+
+The Archaeopteryx then becomes reachable from the chooser (out of GATE NEWPLANE's `N4_OUT`).
+
+**In the editor:** a third option appended to "Fuselage style" (`boomStyle`, `_cage_design.js:1307`). It reads
+`hangOn`, and options 0 and 1 write `hangOn 0`. Options are appended, never inserted: the index is the saved value.
+
+### 3.6 The fixed items (the user: "that should fix most of the fixed items")
+
+| item | v1 card | proposal | saves |
 |---|---|---|---|
-| wing | 46.7 kg, 3.6 kg/m² | ~25 kg, ~1.9 kg/m² | ×1.9 |
-| bracing | 6.8 | ~1 | ×7 |
-| fuselage | 26.4 | ~14 | ×1.9 |
-| tail | 8.2 | ~3 | ×2.7 |
-| outfit | 14.1 | ~4 | ×3.5 |
+| seat | aerobatic recline, 6 kg | the reclined tub (3.0 kg, exists); folding canvas is 2.5 | 3 kg; no new seat needed |
+| glazing | 2.67 m² of acrylic at 3.6 kg/m² | new **soft glazing** (film, ~0.7 kg/m²; it crazes and cracks sooner) | ~7.8 kg |
+| controls | 0.62 kg/m × ~11 m of reach | a light rate (push-pull rods, Dyneema: ~0.15 kg/m), **mounted on the keel tubes, no central lever** | ~5 kg |
+| dashboard | 2.1 kg panel | none, or a vario only (~0.3 kg) | ~1.8 kg |
+| furnishing | 6.0 kg | the minimal fit (0) | 6.0 kg |
+| paint | 5.1 kg (full white) | gelcoat, part of the moulding (white, no paint bill) | ~5 kg |
+| **total** | | | **~29 kg** |
 
-**The binding fact.** `STUDY.md` measured it: lowering the gauge floor to 0.25 saves 0.7 kg. The mass is in the rows:
-the per-metre member rates, the per-m² covers and the fixed items, all fitted on 400-600 kg aeroplanes. A light card
-needs light rows. Light rows need a cost, or every card would use them. That cost is the subject here.
+## 4. The Archaeopteryx's path
 
-## 2. The keystone: rated structure
+From v1's 154 kg empty:
 
-### 2.1 The rating
-
-Each structural part (wing, tail, fuselage, gear; later the mast and the keel) gets a **rating**:
-- `R`: the design gross it was built for, in kg;
-- `nR`: its limit load factor, in g;
-- together, a design load `R · nR` (kg·g).
-
-**Absent, `R` is the aeroplane's own W0 and `nR` is 3.8:** today, bit for bit. The rating appears only when a
-builder picks a lighter (or heavier) standard, and once set it **stays with the part**: in the saved build, through
-an edit that makes the aeroplane heavier, and onto another aeroplane.
-
-### 2.2 What the rating drives
-
-| channel | today | rated | file |
-|---|---|---|---|
-| mass | `lin · (W0/refGross)^e` | `lin_row · (R·nR / (refGross·3.8))^e` | `61_gen_frame.js:528-554`, `60_gen_spec.js:1968` |
-| strength | `A = max(lin·g, lin)/rho`: floored | `A = lin·g_R/rho`, **no floor**: the section is what was paid for | `61_gen_frame.js:477` |
-| stiffness | `KS` from the aeroplane's mass | `KS_part` from `R` | `61_gen_frame.js:4277` |
-| certificate | demand at W0, n = 3.8 | **unchanged**: demand at the actual W0, capped by the rated physics | `66_gen_cert.js`, `30_solver.js:880-905` |
-
-The certificate is left alone on purpose. It already measures the real demand and caps each member at its physics.
-So a part rated below its aeroplane is found by the existing path: the bench sees a member whose physics is under
-1.5 × its limit load, and the stamp records where it breaks.
-
-### 2.3 The law the player can read
-
-For the strength-critical members, demand grows with the weight and the rated section does not:
-
-    n_break ≈ n_ult × (R · nR) / (W · 3.8)        (n_ult = 1.5 × 3.8 = 5.7 g)
-
-| the part | on | breaks at |
+| step | saves | after |
 |---|---|---|
-| a wing rated 250 kg | its 240 kg Archaeopteryx | ~5.9 g: certified |
-| the same wing | a 400 kg ultralight | ~3.6 g: it holds 1 g, a hard pull-up breaks it |
-| the same wing | a 600 kg two-seater | ~2.4 g: a gust, a steep turn, a bounced landing |
-| the same wing | a 1 000 kg tourer | ~1.4 g: on the take-off run |
+| the foot-launch wing (measured, before calibration) | 13 | 141 |
+| its calibration toward ~2 kg/m² | ~7 | 134 |
+| the fixed items (§3.6) | ~29 | 105 |
+| the soft shell over the hard keel / mast / struts | ~10 | 95 |
+| the foot-launch tail and rod | ~6 | 89 |
+| the electric drive at its real size (the E-811's 30 kg against ~5 kg + the pack) | ~10-15 | **~75-80** |
 
-**The stiffness side is the "cost in rigidity" the user asked for.** Tip deflection grows as W / k, and k is set by
-R, not W. On the 600 kg aeroplane that wing bends about 2.5 times as far at 1 g, and the drawn flex shows it
-(`50_model_codec.js:165-200` already draws the simulated spar).
+The real one is ~72 kg with its drive. The last kilograms are the hub fittings and the fuselage cladding, measured
+once the rows exist.
 
-### 2.4 Why it is elegant
+## 5. The gaps found
 
-- One number per part, read in kg and g. Nothing else to calibrate: the gauge law, the certificate and the crash
-  rows are the existing ones.
-- Mass, strength and stiffness move together for the first time, as they do in a real structure.
-- The mismatch is not a rule ("this wing is not allowed here"). It is physics the player can test: on the load-test
-  bench (`65_gen_loadtest.js`: "BROKE AT 2.4 g"), in the air, or on a bounced landing.
-
-## 3. The ultralight options (the suggestions)
-
-Grouped by what they cost and what they save. Each is a garage row (REF_MATCH's rule: a missing control becomes a row).
-
-### 3.1 The build standard: one tile, then per part
-
-**S1. A Build standard tile** (the `BUILD STANDARD row` `tools/_weight_check.js:45-51` and HANDOVER already say is
-owed). It sets the rating of every structural part at once:
-
-| standard | nR (limit) | reference | for |
-|---|---|---|---|
-| Hang glider / foot-launch | +4 / -2 | the DHV / LTF hang-glider classes | Archaeopteryx, the Swift, the Atos |
-| Microlight | +4 / -2 | LTF-UL, UK BCAR S | the `ul1`, MW5, trikes |
-| Glider | +5.3 / -2.65 | CS-22 | motorgliders |
-| Normal | +3.8 / -1.52 | FAR 23 | every card today (the default) |
-| Utility | +4.4 / -1.76 | FAR 23 | trainers, bush |
-| Aerobatic | +6 / -3 | FAR 23 | the Pitts |
-
-- The standard also sets `R`. The tile's own pick is "this aeroplane as it is now", **frozen**: the rating stops
-  following edits.
-- The plaque prints it: "Built to: microlight, 250 kg, +4 / -2 g".
-- A light standard is not free on the ground either: the gear's rating sets its sink-rate limit (S6).
-
-**S2. Per-part override.** Each part's own rating row (wing, tail, fuselage, gear; later the mast and the keel), each
-with a badge in the part tree: **"rated 250 kg · this aeroplane 240 kg"**, green, amber within 10 % over, red beyond.
-This is the "light wing on another plane" case made visible before anyone flies.
-
-**S3. The rating rides with the part.** A wing copied to another build keeps its R, nR and row, and is not re-gauged.
-It is the same wing, so it breaks at the law's g.
-
-### 3.2 Light construction rows (where the kilograms are)
-
-**S4. A light-glider wing row: the carbon D-tube.**
-- Construction: a carbon D-tube spar, carbon ribs, Mylar or fabric aft. The Archaeopteryx's, the Swift's, the Atos's.
-- Its `refGross` is about 190 kg, so the gauge thins it at a microlift's weight. Cover about 0.6 kg/m², against the
-  moulded carbon row's 1.6.
-- Its k is about 0.5 × carbon's: it flexes visibly (the cost).
-- `STUDY.md` §5: this is where 40-50 kg of the gap lives.
-
-**S5. The tent (`CONFIG_STUDY.md` §3, already designed).**
-- A `GEN_MATERIALS` row for the nacelle's non-structural members: thin poles with a small lin, a low k and Euler
-  buckling on, under a ripstop at ~0.15 kg/m².
-- Its `GEN_CRASH` row folds first.
-- Materials by role: the keel, the mast and the V struts carbon; the rest the tent.
-- It collapses under load **by the solver's own physics**. The cost: a heavy landing folds the cabin, not the keel.
-
-**S6. A light gear class.**
-- The bicycle wheel (`whProfile 3`) is already in. Two more pieces are needed:
-  - a sink-rate rating (0.9 m/s for a foot-launch class against FAR 23's ~3 m/s), wired to the existing drop case;
-  - a light leg (a carbon blade on the monowheel's fork).
-- The cost: a firm landing on a light gear bends or breaks it (the DMGGEAR path).
-
-**S7. A pinned carry-through.**
-- A cantilever wing on a light pod is billed as the cantilever box: 7-8 kg on a carbon pod, 37 kg on a tube pod
-  (`STUDY.md` §5).
-- The real one is six pins and their fittings (~1 kg). A "pinned to the hub" rule would carry the wing's moment
-  through the hub and the mast (already in the frame: `GEN_HANG`).
-- The cost: the fittings become the weak link. The cert's `uFit` 1 already stamps fittings; a light standard lowers
-  their rating.
-
-**S8. A light tail row.** The tail at 8.2 kg against ~3: a foam-core carbon fin and stab, `tailSection` × 0.6, with
-the rating's stiffness. The cost: rudder and elevator flutter at a lower speed (S10).
-
-### 3.3 The fixed items (the kilograms nobody sees)
-
-**S9. A minimal outfit standard.** One row with these pieces:
-- **Seat:** a sling or bucket at 1.5 kg against the seat library's 4-8; the tube & sling seat exists, its mass
-  billed light.
-- **Controls:** `GEN_OUTFIT` bills 0.62 kg/m × reach (about 7 kg here); push-pull carbon rods and Dyneema run
-  about 0.15 kg/m.
-- **Glazing:** 3.6 kg/m² is aeroplane acrylic; 0.5 mm PETG or polycarbonate film is about 0.7 kg/m². The cost: it
-  crazes and cracks (the DMGGLASS path, at a lower strain).
-- **Paint:** off (bare carbon is a finish already: `paint.job bare`).
-- **Panel:** the minimal tier still bills ASI, altimeter, tacho, oil and compass (1.9 kg). Add a vario-only tier at
-  0.3 kg.
-- **Engine:** an electric pusher in the 8-12 kW class (the e-PPG row is 7 kg), not the E-811's 30 kg.
-
-### 3.4 Where the rigidity cost shows (so a light build is a choice, not a free win)
-
-**S10. A Vne from stiffness: flutter.**
-- Flutter speed scales as √(k / m). A rated-light, soft wing or tail gets a lower placard Vne, computed the same way
-  for every part.
-- Past it, the existing damage path takes the surface: a flutter case in the certificate at Vd that excites the
-  hinge.
-- This is the most honest "rigidity" cost: the light Archaeopteryx is a 100 km/h aeroplane because of it.
-
-**S11. Visible bending.**
-- At the rating, the wing tip rises its design deflection, about 8-10 % of the semispan for a hang-glider wing
-  against ~3 % for a 172.
-- It is drawn already (the spar flex). The study's point is to calibrate k from R so that it happens.
-- In the garage: a "1 g / limit g" pose toggle on the bench.
-
-**S12. Gusts.** The certificate has **no gust case today** (`66_gen_cert.js` flies the V-n corners, the bench, the
-drop, the mount and the ground cases). Add one: the FAR 23 gust line, whose load factor grows as the wing loading
-falls. A light, low-loaded wing sees larger gust load factors, and its rating decides whether it holds. Rough-air
-flying becomes a real limit. (Nothing in the core models flutter either: S10 is new too.)
-
-**S13. Fatigue and wear.**
-- Rated-light parts age faster under use: `econAging`, a factor on the cycles counted above, say, 0.5 × nR.
-- Hard landings and gusts shorten their life.
-- The workshop sells a "re-rate" (a heavier spar cap) at a price.
-
-**S14. Price.** Light is expensive. Carbon pre-preg and labour per kg saved: the price rows rise as the rating falls
-below the aeroplane's natural gauge. A builder trades money and rigidity for kilograms.
-
-### 3.5 The garage's feedback (so the player can judge it)
-
-**S15. A weight-and-strength strip** on the part tree's root:
-- empty / gross / each part's rating against the aeroplane's weight;
-- the weakest part named: "the wing breaks first, at 4.1 g".
-
-**S16. The load-test bench reads the ratings.** `makeLoadTest` already loads n × the weight and reports BROKE AT n g.
-With rated parts it will report the real number, and the break will be where the law says.
-
-**S17. A "what if" slider.** Add X kg of payload and watch the weakest-part g fall. It is the same law, read live: the
-designer's view of "if I put this wing on another plane".
-
-## 4. The physics plumbing (what would change, file by file)
-
-The smallest set, each one absent-safe (no rating means today):
-
-1. **The spec:** `wings[k].rated = { kg, n }`, `tail.rated`, `fuselage.rated`, `gear.rated`. Clamped (kg 60 to
-   4 000, n 2 to 9); written only when a builder rates.
-2. **`60_gen_spec.js`:**
-   - `GEN_GAUGE` takes a part's `R · nR / 3.8` in place of W0 when rated;
-   - the light rows (S4, S5, S8) and the standards table (S1);
-   - `GEN_CRASH` rows for the tent and the film glazing.
-3. **`61_gen_frame.js`:**
-   - the section's floor (`:477`) is dropped for a rated part (the section is what was paid for);
-   - `KS` per section from the part's rating (`:4277`), the fuselage's for the body as today.
-4. **`66_gen_cert.js`:**
-   - nothing new for strength: the stamps already cap at physics;
-   - S10 adds a flutter case;
-   - the cache key (`genCertKey`) gains the ratings.
-5. **The garage:**
-   - the Build standard tile and the per-part rows (`_cage_design.js`, `_cage_parts.js`);
-   - the badges and the strip (S15);
-   - the join writes `rated` (`_cage_join.js`).
-6. **The gates:**
-   - WEIGHT gains the hang-glider class band;
-   - a new **GATE RATED**:
-     - a rated wing on its own aeroplane certifies;
-     - the same wing on a 2.4 × heavier one breaks within 10 % of the law's g on the bench;
-     - its tip deflection grows with W / R;
-     - every card without a rating hashes identical (the fleet hash used for v1).
-
-## 5. The Archaeopteryx's path to ~72 kg
-
-What each suggestion recovers on this card (estimates against `STUDY.md` §4's split; to be measured in phase 1):
-
-| step | saves | empty after | the cost it brings |
-|---|---|---|---|
-| v1 today | | 154 kg | |
-| E-811 30 kg to an 8-12 kW electric pusher (exists) + pack | ~10 net | ~144 | range |
-| S4 the carbon D-tube wing at its 190 kg rating | ~20 | ~124 | flex, a lower Vne |
-| S7 the pinned carry-through | ~6 | ~118 | the fittings rated |
-| S5 the tent nacelle (keel, mast, struts carbon) | ~12 | ~106 | a hard landing folds the cabin |
-| S8 the light tail | ~5 | ~101 | flutter speed |
-| S9 the minimal outfit (seat, rods, film glazing, no paint, vario panel) | ~18 | ~83 | glazing cracks, no paint |
-| S6 the light gear | ~3 | ~80 | sink-rate limit |
-| the hang-glider standard (R 250, +4 g) over all of it | ~5-8 | **~72-75** | breaks at ~3.6 g on a 400 kg plane |
+1. **The certificate must take the build weight.** Without it the light construction is an exploit (run 1).
+   - In the game: the light row's `buildKg` is read when its members are stamped (`certStamp`).
+   - The certificate's cache key gains the construction (it already hashes the spec).
+2. **No strength floor for the light rows.** The floor exists because on the metal Cessna much of a member's strength
+   is in the skin. It stays for every other row.
+3. **Softness must not crash the simulator.** The light wing on the C172 *diverged* in run 1. Rated, it broke first.
+   - The stiffness cap needs a floor the integrator can hold (the solver's substep).
+   - A gate: "softest legal wing on the heaviest card: a clean break, never a divergence".
+4. **Fittings are covered.** They are stamped from their members' certified loads, so the scale reaches them: the
+   Archaeopteryx's light wing still lets go at its fittings first.
+5. **The cert's physics floor** makes the break gentler than the straight ratio (§2). Fine for play; documented.
+6. **The rod has no row**, and only tubes buckle today (§3.3, §3.4).
 
 ## 6. Decisions for the user
 
-1. **The keystone first?** Build rated structure (S1-S3 with GATE RATED) before any light row, so the light rows
-   arrive with their cost already in force? (Recommended: yes. Otherwise a light row is a free win.)
-2. **One rating or two numbers?** `R` and `nR` separately (kg and g, as the plaque would print them), or a single
-   "design load" in kg·g? (Recommended: two, picked together by the standard.)
-3. **Does a rating follow edits?** Once set, frozen (a heavier edit turns the badge amber), or following the aeroplane
-   until the builder locks it? (Recommended: the standard tile freezes it; untouched cards follow as today.)
-4. **Which rigidity costs, and in what order?** Visible bending (S11, nearly free) and the load-test bench (S16, free)
-   first; flutter Vne (S10) and gusts (S12) next; fatigue (S13) with the economy.
-5. **The tent:** `CONFIG_STUDY.md` §3's role materials as designed, or wait for the rated keystone?
-6. **Moving parts between aeroplanes:** is there to be a real "fit this wing to that aeroplane" action in the shed,
-   or is the case only "this build got heavier"? (The law covers both; the UI differs.)
+1. The construction names: "Foot-launch D-tube" and "Aerobatic" for the wing, "Soft shell" for the cabin,
+   "Foot-launch" for the rod.
+2. Should the aerobatic wing propose the symmetrical profile and leave it editable? (Recommended.)
+3. Order: the foot-launch wing and its GATE LIGHTWING first (the exploit test), then the tail-follows-wing default,
+   the soft shell, the rod, the fixed items, the pylon in the chooser.
 
-## 7. Phases (when decided)
+## 7. The gates
 
-| phase | what | done when |
-|---|---|---|
-| 0 | measure: the v1 card's weakest-member g at 1×, 1.5×, 2.4× its gross, today (the headroom) | a table in this file |
-| 1 | the keystone: `rated` on the wing only, the floor and KS per part, GATE RATED, the badge | the wing breaks at the law's g on a heavier card |
-| 2 | the standard tile, every structural part rated, the plaque | the WEIGHT gate's hang-glider band |
-| 3 | the light rows: D-tube wing, light tail, tent, pinned carry-through, light gear | the Archaeopteryx at or under ~85 kg, certified at its standard |
-| 4 | the fixed items (S9) and the electric pusher | ~72-75 kg |
-| 5 | the rigidity costs: flutter Vne, gusts, fatigue, price | each its gate |
+- **GATE LIGHTWING:**
+  - the foot-launch wing certifies on the Archaeopteryx (≥ 5.7 g);
+  - it breaks under 3.8 g on the Cub, the C172 and the Caravan, at the root, cleanly (never a divergence);
+  - it is lighter than the Archaeopteryx's moulded carbon;
+  - every card without it is unchanged (the fleet hash used for v1).
+- **GATE SOFTSHELL:** a wing on a soft-shell cabin without the pylon folds on the bench; the pylon card stands.
+- **GATE LIGHTROD:** the foot-launch rod breaks under 3.8 g on the pusher pod at ~500 kg; it holds on the
+  Archaeopteryx.
+- **GATE AEROWING:** the aerobatic wing breaks near 15 g and weighs about +60 % in wing structure.
