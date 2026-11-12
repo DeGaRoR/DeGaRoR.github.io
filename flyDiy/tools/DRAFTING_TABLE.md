@@ -539,3 +539,14 @@ to train in; the drafting branch merges it. A0's rules for it (12 Nov): L39a tak
 11:30; L39b (Thu 19:00) is the last feature train before the perf round - push nothing to it after Thu 17:30; later
 garage work waits for the week of 16 Nov, on a NEW branch. Keep it rebased on master (a fast merge), LF line endings
 only. L38c already took it at dc87d793 (rebased since: 31bd4c47).
+
+## ROUND 8 (12 Nov): the PC-6's own cockpit window, drawn
+
+The user: "the option of having drawn window for the pilot window is not possible, right? ... make it a full panel
+where the window part is actually just a panel and we cut through". It was not: the cockpit's side glass is the pilot
+bay's glazed band. Garage (`claude/fit-procedure-garage-windows` fc4bb9ed): `winPilotPanel` turns that band into skin
+before the knife (the passengers' band already turns when a drawn window exists), and every drawn-window row gained
+a FIFTH corner (`Q5On`, `Q5Z`, `Q5Y`, radius `R5`) between the fwd-bottom and fwd-top ones. The PC-6's window read off
+the sheet's overlay (the first try traced the sliding vent inside it - check the drawing's OUTER line): a vertical
+front, the top along the A-pillar, a big arc from the aft-top corner down to the bottom (`win4R3` 0.45), on row 4, cut
+through the door. The PC-6: 125 / 175.

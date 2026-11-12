@@ -941,7 +941,30 @@
    "eng_stackLen": 1.4,
    "eng_stackFlat": 0.55,
    "eng_stackR": 1.5,
-   "eng_stackDrop": 0.6
+   "eng_stackDrop": 0.6,
+   "winPilotPanel": 1,
+   "win4N": 1,
+   "win4Shape": 2,
+   "win4Z": 3,
+   "win4Y": 0.1,
+   "win4W": 0.6,
+   "win4H": 1,
+   "win4R": 0.04,
+   "win4Q1Z": 2.778,
+   "win4Q1Y": 0.674,
+   "win4Q2Z": 2.647,
+   "win4Q2Y": 0.525,
+   "win4Q3Z": 2.844,
+   "win4Q3Y": -0.436,
+   "win4Q4Z": 3.341,
+   "win4Q4Y": -0.667,
+   "win4Q5On": 1,
+   "win4Q5Z": 3.341,
+   "win4Q5Y": 0.294,
+   "win4R2": 0.1,
+   "win4R3": 0.45,
+   "win4R4": 0.08,
+   "win4R5": 0.04
   },
   "wings": [
    {
@@ -1737,6 +1760,12 @@
     "who": "session",
     "step": "fit",
     "line": "round 7: the chin scoop's mouth back to the drawing's, a slight taper; the PT6 stacks out, longer, thicker, dropped, flat-ended {\"cw_scoopLen\":1.756,\"cw_scoopZ\":1,\"cw_scoopTaperH\":0.85,\"eng_stackOut\":2.2,\"eng_stackLen\":1.4,\"eng_stackFlat\":0.55,\"eng_stackR\":1.5,\"eng_stackDrop\":0.6}"
+   },
+   {
+    "date": "2026-11-12T01:53",
+    "who": "session",
+    "step": "fit",
+    "line": "the user: the PC-6's own cockpit window, drawn - the pilot's glass a panel, a five-corner drawn window cut through the door {\"winPilotPanel\":1,\"win4N\":1,\"win4Shape\":2,\"win4Z\":3,\"win4Y\":0.1,\"win4W\":0.6,\"win4H\":1,\"win4R\":0.04,\"win4Q1Z\":2.778,\"win4Q1Y\":0.674,\"win4Q2Z\":2.647,\"win4Q2Y\":0.525,\"win4Q3Z\":2.844,\"win4Q3Y\":-0.436,\"win4Q4Z\":3.341,\"win4Q4Y\":-0.667,\"win4Q5On\":1,\"win4Q5Z\":3.341,\"win4Q5Y\":0.294,\"win4R2\":0.1,\"win4R3\":0.45,\"win4R4\":0.08,\"win4R5\":0.04}"
    }
   ],
   "datumLE": 3000,
