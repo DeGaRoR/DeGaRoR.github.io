@@ -656,34 +656,18 @@
   const COOL = { cold: '#4f86ab', hot: '#c4542c', ok: '#5f7a32', warnC: '#c27a3e', bad: '#b5462a', metal: '#8d877b', heat: '#e2a056' };
   const OPENING = { "the cowl's front openings": 'front openings', 'the scoop': 'scoop', "the nacelle's inlet": "nacelle's inlet",
     'the lowered bottom (the exit)': 'exit at the bottom', 'the gills': 'gills' };
-  function pageCooling(D, o, th, K) {
-    const Cd = D.cooling;
-    if (!Cd || Cd.kind === 'legacy' || !Cd.cases || !Cd.cases.hot) {
-      return head(th, K, o, 'Cooling', Cd && Cd.kind === 'legacy' ? 'The cowl of this aeroplane was never measured' : 'No cooling to show');
-    }
-    const H = Cd.cases.hot, L = Cd.lines, cm2 = a => r0(a * 1e4) + ' cm²';
-    const dk = (th.base || th) !== THEMES.sheet, okC = dk ? '#a3c96f' : COOL.ok, warnC = dk ? th.warn : COOL.warnC, badC = dk ? th.bad : COOL.bad;
-    const mc = m => m < L.pass ? badC : m < L.warn ? warnC : okC;
-    const mtxt = m => (m === 'inf' || m > 99) ? 'all the air it needs' : r1(m) + ' × the air it needs';
-    const out = head(th, K, o, 'Cooling · the engine\'s heat and the air',
-      (H.margin < L.pass ? 'Short of air: ' : 'Hot-day climb: ') + mtxt(H.margin),
-      r0(Cd.coolKW) + ' kW of heat to shed at full power, from a ' + r0(Cd.kW) + ' kW engine' + (Cd.nEng > 1 ? ' (each)' : '') +
-      ' · ' + (Cd.path === 'liquid' ? 'liquid-cooled' : Cd.path === 'electric' ? 'electric' : Cd.path === 'turbine' ? 'turbine' : 'air-cooled') +
-      (Cd.kind === 'bare' ? ', no cowl: the cylinders in the wind' : Cd.pushes ? ', a pusher' : ''));
-    out[0] += `<defs><linearGradient id="ca" x1="0" x2="1" y1="0" y2="0"><stop offset="0" stop-color="${COOL.cold}"/><stop offset=".45" stop-color="${COOL.cold}"/><stop offset="1" stop-color="${COOL.hot}"/></linearGradient>` +
-      `<linearGradient id="cb" x1="1" x2="0" y1="0" y2="0"><stop offset="0" stop-color="${COOL.cold}"/><stop offset=".45" stop-color="${COOL.cold}"/><stop offset="1" stop-color="${COOL.hot}"/></linearGradient>` +
-      `<radialGradient id="cg"><stop offset="0" stop-color="${COOL.heat}" stop-opacity=".55"/><stop offset="1" stop-color="${COOL.heat}" stop-opacity="0"/></radialGradient>` +
-      `<marker id="cm" viewBox="0 0 10 10" refX="2" refY="5" markerUnits="userSpaceOnUse" markerWidth="18" markerHeight="18" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="${COOL.hot}"/></marker>` +
-      `<marker id="cn" viewBox="0 0 10 10" refX="2" refY="5" markerUnits="userSpaceOnUse" markerWidth="18" markerHeight="18" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="${COOL.cold}"/></marker></defs>`;
+  // THE NOSE CUT OPEN, into the box BX (the desktop's 660 x 376, the phone's column): the cowl, the engine, the propeller,
+  // the climb's air through them; lsz the labels' size. Returns where the cowl stands (the plane picture's box)
+  function coolNose(Cd, th, K, BX, out, lsz) {
+    const H = Cd.cases.hot, cm2 = a => r0(a * 1e4) + ' cm²';
     // ---- THE NOSE, CUT OPEN (side view, the flight to the left), true to scale ----
     // (a pusher's nacelle has no fuselage ring at its firewall end: its cowl's own top and bottom)
     const G = Cd.geom, ey = G.y, top = ey + (G.top || 0.25), bot = ey - (G.bot || 0.4), fus = (!Cd.pushes && G.fus) || { yb: bot, yt: top };
     const xA = Math.min(G.face, G.fw), xB = Math.max(G.face, G.fw), disc = Cd.pushes ? G.face + 0.12 : G.face - 0.12, Dp = G.D || 1.8;
     const x0 = Math.min(xA, disc) - 0.55, x1 = Math.max(xB, disc) + 0.55, yLo = Math.min(bot, fus.yb) - 0.22, yHi = Math.max(top, fus.yt) + 0.22;
-    const BX = { x: 48, y: 166, w: 660, h: 376 }, s = Math.min(BX.w / (x1 - x0), BX.h / (yHi - yLo));
+    const s = Math.min(BX.w / (x1 - x0), BX.h / (yHi - yLo));
     const ox = BX.x + (BX.w - (x1 - x0) * s) / 2, oy = BX.y + (BX.h - (yHi - yLo) * s) / 2;
     const X = x => ox + (x - x0) * s, Y = y => oy + (yHi - y) * s, P = (x, y) => X(x).toFixed(1) + ' ' + Y(y).toFixed(1);
-    out.push(K.T(48, 156, 'THE NOSE, CUT OPEN · THE 38 °C CLIMB\'S AIR', { sz: 11, c: th.faint, w: 600, ls: 1.2 }));
     out.push(`<clipPath id="cc"><rect x="${BX.x}" y="${BX.y}" width="${BX.w}" height="${BX.h}"/></clipPath><g clip-path="url(#cc)">`);
     // the body behind the firewall, faint
     const aft = Cd.pushes ? -1 : 1, fw = G.fw;
@@ -734,7 +718,8 @@
         labels.push([X(xIn), Y(yF) - Math.max(wOf(m), wOf(H.need * share(fFace))) / 2 - 10, 'front openings · ' + cm2(fFace), 'start']); }
       if (fScoop > 0) { const m = flowM * share(fScoop), dS = `M${P(xIn, yS)} L${P(face + 0.05 * aft, yS)} C${P(xEx - aft * 0.2, yS)} ${P(xEx, yS)} ${P(xEx, yEx)}`;
         out.push(band(dS, m, 'ca', 'cm')); labels.push([X(xIn), Y(yS) + wOf(m) / 2 + 17, 'scoop · ' + cm2(fScoop), 'start']); }
-      labels.push([X(xEx) + aft * 14, Y(yEx) + 4, Cd.exitSized ? 'out ahead of the firewall · sized for it' : 'out · ' + cm2(Cd.outA), aft > 0 ? 'start' : 'end']);
+      // (left of the way out, in the clear under the cowl: beside it, the label ran off the box or onto the arrow)
+      labels.push([X(xEx) - aft * 16, Y(yEx) + 6, Cd.exitSized ? ((lsz || 13) < 12 ? 'out · sized for it' : 'out ahead of the firewall · sized for it') : 'out · ' + cm2(Cd.outA), aft > 0 ? 'end' : 'start']);
     } else {
       // a pusher: in at what faces the flight (a scoop, a cone, the turned bottom), out round the spinner, the propeller sucking
       const yS = bot + 0.06, yOut = ey + hh * 1.2;
@@ -744,7 +729,31 @@
       labels.push([X(disc + 0.4), Y(yOut) - wOf(flowM) / 2 - 8, 'out round the spinner · ' + cm2(Cd.outA), 'end']);
     }
     out.push('</g>');
-    for (const [x, y, t, a] of labels) out.push(K.T(Math.max(BX.x, Math.min(BX.x + BX.w, x)), Math.max(BX.y + 12, Math.min(BX.y + BX.h - 4, y)), t, { sz: 13, w: 500, a }));
+    for (const [x, y, t, a] of labels) out.push(K.T(a === 'end' ? Math.max(BX.x + String(t).length * (lsz || 13) * 0.56, Math.min(BX.x + BX.w, x)) : Math.max(BX.x, Math.min(BX.x + BX.w - String(t).length * (lsz || 13) * 0.56, x)), Math.max(BX.y + 12, Math.min(BX.y + BX.h - 4, y)), t, { sz: lsz || 13, w: 500, a }));
+    return { xA, xB, top, bot, BX };
+  }
+  const coolDefs = () => `<defs><linearGradient id="ca" x1="0" x2="1" y1="0" y2="0"><stop offset="0" stop-color="${COOL.cold}"/><stop offset=".45" stop-color="${COOL.cold}"/><stop offset="1" stop-color="${COOL.hot}"/></linearGradient>` +
+      `<linearGradient id="cb" x1="1" x2="0" y1="0" y2="0"><stop offset="0" stop-color="${COOL.cold}"/><stop offset=".45" stop-color="${COOL.cold}"/><stop offset="1" stop-color="${COOL.hot}"/></linearGradient>` +
+      `<radialGradient id="cg"><stop offset="0" stop-color="${COOL.heat}" stop-opacity=".55"/><stop offset="1" stop-color="${COOL.heat}" stop-opacity="0"/></radialGradient>` +
+      `<marker id="cm" viewBox="0 0 10 10" refX="2" refY="5" markerUnits="userSpaceOnUse" markerWidth="18" markerHeight="18" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="${COOL.hot}"/></marker>` +
+      `<marker id="cn" viewBox="0 0 10 10" refX="2" refY="5" markerUnits="userSpaceOnUse" markerWidth="18" markerHeight="18" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="${COOL.cold}"/></marker></defs>`;
+  function pageCooling(D, o, th, K) {
+    const Cd = D.cooling;
+    if (!Cd || Cd.kind === 'legacy' || !Cd.cases || !Cd.cases.hot) {
+      return head(th, K, o, 'Cooling', Cd && Cd.kind === 'legacy' ? 'The cowl of this aeroplane was never measured' : 'No cooling to show');
+    }
+    const H = Cd.cases.hot, L = Cd.lines, cm2 = a => r0(a * 1e4) + ' cm²';
+    const dk = (th.base || th) !== THEMES.sheet, okC = dk ? '#a3c96f' : COOL.ok, warnC = dk ? th.warn : COOL.warnC, badC = dk ? th.bad : COOL.bad;
+    const mc = m => m < L.pass ? badC : m < L.warn ? warnC : okC;
+    const mtxt = m => (m === 'inf' || m > 99) ? 'all the air it needs' : r1(m) + ' × the air it needs';
+    const out = head(th, K, o, 'Cooling · the engine\'s heat and the air',
+      (H.margin < L.pass ? 'Short of air: ' : 'Hot-day climb: ') + mtxt(H.margin),
+      r0(Cd.coolKW) + ' kW of heat to shed at full power, from a ' + r0(Cd.kW) + ' kW engine' + (Cd.nEng > 1 ? ' (each)' : '') +
+      ' · ' + (Cd.path === 'liquid' ? 'liquid-cooled' : Cd.path === 'electric' ? 'electric' : Cd.path === 'turbine' ? 'turbine' : 'air-cooled') +
+      (Cd.kind === 'bare' ? ', no cowl: the cylinders in the wind' : Cd.pushes ? ', a pusher' : ''));
+    out[0] += coolDefs();
+    const NOSE = coolNose(Cd, th, K, { x: 48, y: 166, w: 660, h: 376 }, out, 13), BX = NOSE.BX, xA = NOSE.xA, xB = NOSE.xB, top = NOSE.top, bot = NOSE.bot;
+    out.push(K.T(48, 156, 'THE NOSE, CUT OPEN · THE 38 °C CLIMB\'S AIR', { sz: 11, c: th.faint, w: 600, ls: 1.2 }));
     // the key under the drawing
     const ky = BX.y + BX.h + 22;
     out.push(`<rect x="48" y="${ky - 9}" width="34" height="10" fill="url(#ca)" fill-opacity=".8"/>` + K.T(90, ky, 'the air the climb passes: cool in, hot out', { sz: 12, c: th.dim }) +
@@ -840,7 +849,61 @@
     C.text(Dg.floats ? '* the core charges the floats as the wheeled gear they replace: the hulls have no air drag of their own yet'
       : 'Each km/h: the cruise worked out again with only that part\'s drag taken off. They do not add up.', { sz: 12, c: Dg.floats ? th.warn : 'faint' });
   }
-  const PHONE = { drag: phoneDrag };
+  function phoneCooling(D, o, th, K, C) {
+    const Cd = D.cooling;
+    if (!Cd || Cd.kind === 'legacy' || !Cd.cases || !Cd.cases.hot) { phoneHead(C, o, 'Cooling', Cd && Cd.kind === 'legacy' ? 'The cowl of this aeroplane was never measured' : 'No cooling to show'); return; }
+    const H = Cd.cases.hot, L = Cd.lines, cm2 = a => r0(a * 1e4) + ' cm²';
+    const dk = (th.base || th) !== THEMES.sheet, okC = dk ? '#a3c96f' : COOL.ok, warnC = dk ? th.warn : COOL.warnC, badC = dk ? th.bad : COOL.bad;
+    const mc = m => (m === 'inf' ? 99 : m) < L.pass ? badC : (m === 'inf' ? 99 : m) < L.warn ? warnC : okC;
+    const mtxt = m => (m === 'inf' || m > 99) ? 'all the air it needs' : r1(m) + ' × the air it needs';
+    phoneHead(C, o, 'Cooling · the engine\'s heat and the air', (H.margin < L.pass ? 'Short of air: ' : 'Hot-day climb: ') + mtxt(H.margin),
+      r0(Cd.coolKW) + ' kW of heat to shed at full power, from a ' + r0(Cd.kW) + ' kW engine · ' +
+      (Cd.path === 'liquid' ? 'liquid-cooled' : Cd.path === 'electric' ? 'electric' : Cd.path === 'turbine' ? 'turbine' : 'air-cooled') +
+      (Cd.kind === 'bare' ? ', no cowl' : Cd.pushes ? ', a pusher' : ''));
+    C.push(coolDefs());
+    C.label('The nose, cut open · the 38 °C climb\'s air');
+    let NOSE = null;
+    C.gap(4).figure(Math.round(C.inner * 0.74), (x, y, w, h) => { const s = []; NOSE = coolNose(Cd, th, K, { x, y, w, h }, s, 11); return s.join(''); });
+    C.text('The band: the air the climb passes, cool in, hot out. Dashed: the air it needs. The glow: the heat.', { sz: 12, c: 'dim' });
+    const pic = o.pics && o.pics.side;
+    if (pic && pic.frame && NOSE) C.gap(6).figure(Math.round(C.inner * 0.3), (x, y, w, h) => {
+      const m = sideMap(pic, { x, y, w, h }), c0 = m.N([NOSE.xA, NOSE.top]), c1 = m.N([NOSE.xB, NOSE.bot]);
+      return picImg(pic, m, 0.95) + `<rect x="${Math.min(c0[0], c1[0]).toFixed(1)}" y="${Math.min(c0[1], c1[1]).toFixed(1)}" width="${Math.abs(c1[0] - c0[0]).toFixed(1)}" height="${Math.abs(c1[1] - c0[1]).toFixed(1)}" rx="3" fill="none" stroke="${COOL.hot}" stroke-width="1.6"/>`; });
+    C.label('The openings');
+    const rows = (Cd.parts || []).map(p => [OPENING[p.what] || p.what, cm2(p.A), p.faces === 'fwd' ? 'facing the flight' : 'facing aft']);
+    if (Cd.bareA > 0) rows.push(['cylinder heads in the wind', cm2(Cd.bareA), 'cooled by the stream']);
+    if (Cd.kind !== 'bare' && !Cd.pushes && Cd.exitSized) rows.push(['exit', 'sized for it', 'not drawn']);
+    C.rows(rows.length ? rows : [['none', '']]);
+    C.label('What it costs');
+    const dg = D.drag && D.drag.groups && D.drag.groups.cooling;
+    C.rows([[Cd.kind === 'bare' ? 'the cylinders\' own drag' : 'cooling drag, ' + r0((Cd.cdA || 0) * 1e4) + ' cm² of drag area', dg && dg.dV > 0 ? '−' + r1(dg.dV * 3.6) + ' km/h' : '', 'at cruise, with the heads and the exhaust (the Drag page)']]);
+    if (H.margin < L.warn && Cd.kind !== 'bare') {
+      C.label('To pass the climb (' + L.warn.toFixed(2) + ' ×)');
+      C.text(H.limit === 'outlet' && H.outPass !== 'inf' && H.outPass > 0 ? 'An outlet of ' + cm2(H.outPass) + ' (now ' + cm2(Cd.outA) + ')'
+        : H.inPass !== 'inf' && H.inPass > 0 ? 'An inlet facing the flight of ' + cm2(H.inPass) + ' (now ' + cm2(Cd.inA) + ')' : 'More air through the engine', { sz: 15, w8: 600, c: badC });
+    }
+    // the three cases, one under the other
+    const CS = [['taxi', 'Taxi', 'the ground, ' + r0(H.oatC) + ' °C, 20 % power'], ['hot', 'Climb', r0(H.oatC) + ' °C day, full power'], ['cruise', 'Cruise', r0((Cd.cases.cruise || {}).oatC || 15) + ' °C, 75 % power']];
+    const mx = Math.max(...CS.map(([k]) => Cd.cases[k] ? Math.max(Cd.cases[k].need, Cd.cases[k].pass) : 0)) || 1;
+    for (const [k, nm, cond] of CS) {
+      const c = Cd.cases[k]; if (!c) continue;
+      C.rule().text(nm + ' · ' + cond + (c.V > 0 ? ', ' + r0(c.V * 3.6) + ' km/h' : ''), { sz: 13, c: 'dim', gap: 0 });
+      C.figure(122, (x, y, w) => {
+        const col = mc(c.margin), s = [], bl = w - 110, sx = bl / mx;
+        s.push(K.T(x, y + 34, (c.margin === 'inf' || c.margin > 99) ? '—' : r1(c.margin) + ' ×', { sz: 28, w: 600, c: col }) +
+          K.T(x + 104, y + 21, r1(c.Q) + ' kW of heat', { sz: 13 }) + K.T(x + 104, y + 38, c.margin < L.pass ? 'not enough air' : c.margin < L.warn ? 'just enough' : 'enough air', { sz: 13, c: col, w: 600 }));
+        const b1 = y + 54;
+        s.push(`<rect x="${x}" y="${b1}" width="${Math.max(1, c.pass * sx).toFixed(1)}" height="10" rx="2" fill="url(#ca)" fill-opacity=".85"/>` + K.T(x + bl + 8, b1 + 9, r1(c.pass) + ' kg/s', { sz: 12 }));
+        s.push(`<rect x="${x}" y="${b1 + 15}" width="${Math.max(1, c.need * sx).toFixed(1)}" height="10" rx="2" fill="none" stroke="${th.ink}" stroke-dasharray="4 3"/>` + K.T(x + bl + 8, b1 + 24, r1(c.need) + ' needed', { sz: 12, c: th.dim }));
+        if (c.oilC != null) { const oy2 = b1 + 50, ox_ = t => x + bl * Math.max(0, Math.min(1, t / 140));
+          s.push(`<rect x="${x}" y="${oy2 - 5}" width="${bl}" height="6" rx="3" fill="${th.rule}"/><rect x="${ox_(L.oilRed).toFixed(1)}" y="${oy2 - 5}" width="${(x + bl - ox_(L.oilRed)).toFixed(1)}" height="6" fill="${badC}" fill-opacity=".6"/>` +
+            `<circle cx="${ox_(c.oilC).toFixed(1)}" cy="${oy2 - 2}" r="5" fill="${c.oilC >= L.oilRed ? badC : th.ink}"/>` + K.T(x + bl + 8, oy2 + 2, 'oil ' + r0(c.oilC) + ' °C', { sz: 12, w: 600 }) +
+            K.T(ox_(L.oilRed), oy2 + 15, 'red line ' + L.oilRed + ' °C', { sz: 10, c: badC, a: 'middle' })); }
+        return s.join('');
+      });
+    }
+  }
+  const PHONE = { drag: phoneDrag, cooling: phoneCooling };
 
   let svgSeq = 0;
   function svg(page, data, opts) {

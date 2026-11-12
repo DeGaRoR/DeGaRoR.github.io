@@ -145,8 +145,12 @@ function child(k) {
     for (const p of FP.PAGES) for (const w of [320, 360, 480]) {
       let out = ''; try { out = FP.svg(p.id, D, { name: k, reg: 'F-TEST', pics: res, sig: 'Wingsmith', layout: { screen: 'phone', theme: 'dark', w, h: null } }); } catch (e) { out = 'THROW ' + e.message; }
       if (/^<svg viewBox="0 0 1200 800"/.test(out)) continue;   // (no portrait layout yet: the desktop drawing, scaled - the spec's fallback)
-      const vb = out.match(/^<svg viewBox="0 0 (\d+) (\d+)"/), xs = [...out.matchAll(/<text x="(-?[\d.]+)"/g)].map(m => +m[1]);
-      ok(!!vb && +vb[1] === w && !/NaN|undefined|Infinity/.test(out) && xs.every(x => x >= 0 && x <= w), 'PHONE ' + p.id + ' at ' + w + ' px: ' + (out.startsWith('THROW') ? out : 'not ' + w + ' wide, a bad number, or a text past the edge'));
+      // each text's right edge from its size and anchor (an average advance of 0.5 em: a line that would run past w fails)
+      const vb = out.match(/^<svg viewBox="0 0 (\d+) (\d+)"/);
+      const xs = [...out.matchAll(/<text x="(-?[\d.]+)" y="[^"]*" font-size="([\d.]+)"([^>]*)>([^<]*)<\/text>/g)]
+        .map(m => { const x = +m[1], sz = +m[2], a = (m[3].match(/text-anchor="(\w+)"/) || [])[1], L = m[4].replace(/&[a-z]+;/g, 'x').length * sz * 0.5;
+          return a === 'end' ? [x - L, x] : a === 'middle' ? [x - L / 2, x + L / 2] : [x, x + L]; });
+      ok(!!vb && +vb[1] === w && !/NaN|undefined|Infinity/.test(out) && xs.every(([l, r]) => l >= -1 && r <= w + 1), 'PHONE ' + p.id + ' at ' + w + ' px: ' + (out.startsWith('THROW') ? out : 'not ' + w + ' wide, a bad number, or a text past the edge'));
     }
     // REFERENCE: the baked section's scores are real_report's own (scorePlane on the same result), and it draws whole
     { const RB = require(path.join(T, 'fiche_reference_bake.js')), REP = require(path.join(T, 'real_report.js'));
