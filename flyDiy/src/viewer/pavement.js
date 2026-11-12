@@ -1700,7 +1700,7 @@ vec4 pvRockIn(float u, float v, float halfW, bool big, int sd) {
     // (lighter, yellower, less saturated) at uStain.w alpha. uMacro.w 0: the strip's own lawn, as before
     // A GRASS STRIP IS A TRAIL THROUGH THE TUNDRA (DIRT-STRIP; the user 10 Nov on Skyline Altiport: "green in the ruts, it makes no
     // sense ... wouldn't be plowed fully with tyre marks ... more like bare, with some rocks, and a little greenery", then with two
-    // Alaska photos: "a lot of little grassy plants ... the bicycle image is interesting because you see a dirt trail"): where the
+    // tundra photos: "a lot of little grassy plants ... the bicycle image is interesting because you see a dirt trail"): where the
     // wheels go the plants are worn away to the gravel - two bare tracks at the fleet's wheels (the compacted lanes), their edges
     // ragged where the plants creep back (a 35 cm and a 2.2 m noise); between and beside them the island's own ground. No lawn,
     // no mown wash; the coarse slot (gravelF) is the trail's grit

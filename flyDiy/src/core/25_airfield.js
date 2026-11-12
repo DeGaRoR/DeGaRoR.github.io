@@ -937,7 +937,11 @@ function sitePatternIssues(pat, aero, site, Rmin, patternPath) {
     // cannot be blamed for its U-turn: the lane is the strip's, the follower
     // slows for the bend it gets, and only a site's own corners are held to
     // the radius
-    const wideEnough = R.half - 2.5 >= Rmin;
+    // ... and a ROUGH strip (aero.micro, chaos > 0) turns round on purpose inside its rolled band, GP_LANE_ROUGH off the
+    // centreline (STRIP-LANE, sitePattern): the follower pivots that U-turn as at HOME, so its corner is the strip's too
+    // (DIRT-STRIP 12 Nov: w3 with its micro read back[0] 2.0 m under the 6.0 m - STAGES / TAXICLEAR / WORLD, held out of L38c)
+    const rough = !!(aero && aero.micro && +aero.micro.chaos > 0);
+    const wideEnough = R.half - 2.5 >= Rmin && !rough;
     if (Rmin > 0 && wideEnough && P.rMin < 1.05 * Rmin)
       out.push(what + ' has a ' + P.rMin.toFixed(1) + ' m corner, under the aeroplane’s ' + Rmin.toFixed(1) + ' m');
     for (const q of P.pts) {

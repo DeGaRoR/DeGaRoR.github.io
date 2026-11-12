@@ -536,7 +536,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         d[k] = d[k + 1] = d[k + 2] = Math.round(255 * a); d[k + 3] = 255;
       }
       const tex = new THREE.DataTexture(d, N, N, THREE.RGBAFormat, THREE.UnsignedByteType); tex.needsUpdate = true;
-      out.ring = new THREE.MeshBasicMaterial({ color: 0x000000, alphaMap: tex, transparent: true, opacity: 0.5, depthWrite: false,
+      out.ring = MATLIB.make(THREE, 'basic', { color: 0x000000, alphaMap: tex, transparent: true, opacity: 0.5, depthWrite: false, // pre-ok: a black shade ring under the stones (alpha only), writes no light
         polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 });
       out.ring.name = 'rocks:ring';
     }
