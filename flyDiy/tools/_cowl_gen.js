@@ -1179,13 +1179,13 @@ function buildGrille(group,mats){
   const NR=Math.max(0,Math.round(P.grilleRows||0));
   const R=grilleNumRects({cx:o.cx,cy:o.cy,w:hw,h:hh});
   const plateM=R?new THREE.MeshStandardMaterial({color:0xefe6cf,roughness:0.45,metalness:0.1,side:THREE.DoubleSide}):null;
-  const inkM=R?new THREE.MeshStandardMaterial({color:0x1a1a1a,roughness:0.55,metalness:0.1,side:THREE.DoubleSide}):null;
   const inR=(x,y,r)=>x>=r[0]&&x<=r[2]&&y>=r[1]&&y<=r[3];
-  const matAt=(x,y)=>!R?m:(R.ink.some(r=>inR(x,y,r))?inkM:inR(x,y,R.plate)?plateM:m);
+  // (the user: "the letter should be white and the rest should not be painted"): the digits ivory, the rest bare grille
+  const matAt=(x,y)=>!R?m:(R.ink.some(r=>inR(x,y,r))?plateM:m);
   // one bar from a to b (along x or along y), cut where the sticker's edges cross it
   const bar=(vert,c,a,b,w,dz)=>{
     const cuts=[a,b];
-    if(R) for(const r of R.ink.concat([R.plate])){ const [lo,hi,u0,u1]=vert?[r[0],r[2],r[1],r[3]]:[r[1],r[3],r[0],r[2]];
+    if(R) for(const r of R.ink){ const [lo,hi,u0,u1]=vert?[r[0],r[2],r[1],r[3]]:[r[1],r[3],r[0],r[2]];
       if(c>=lo&&c<=hi){ if(u0>a&&u0<b) cuts.push(u0); if(u1>a&&u1<b) cuts.push(u1); } }
     cuts.sort((p,q)=>p-q);
     for(let k=0;k+1<cuts.length;k++){ const u0=cuts[k],u1=cuts[k+1],L=u1-u0; if(L<1e-4) continue; const um=(u0+u1)/2;
@@ -1210,7 +1210,7 @@ function buildGrille(group,mats){
 }
 // (the user, 12 Nov: "not a big panel in front, because then the engine can't breathe ... like you would apply a sticker
 // to the grill so that we would see [it] only where it intersects the grill ... a finer grill"): THE NUMBER IS PAINT ON
-// THE GRILLE - an ivory plate with black seven-segment digits, laid on the grille's plane, and every bar cut into pieces
+// THE GRILLE - ivory seven-segment digits (no plate: the rest of the grille bare), laid on the grille's plane, and every bar cut into pieces
 // that take the colour of whatever the sticker is under them: the open grid stays open. grilleNumRects lays it out (the
 // page's frame: +x is the car's LEFT, so seen from ahead +x is the viewer's right)
 const SEG7={0:'abcdef',1:'bc',2:'abged',3:'abgcd',4:'fgbc',5:'afgcd',6:'afgedc',7:'abc',8:'abcdefg',9:'abcfgd'};
