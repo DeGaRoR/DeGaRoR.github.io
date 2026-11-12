@@ -127,6 +127,16 @@ function child(k) {
       ok(/^<svg [^>]*viewBox="0 0 1200 800"/.test(out) && out.endsWith('</svg>') && !/NaN|undefined|Infinity/.test(out),
          'DRAW ' + p.id + ' (' + th + ') ' + (out.startsWith('THROW') ? out : 'carries a bad number or is not one svg'));
     }
+    // REFERENCE: the baked section's scores are real_report's own (scorePlane on the same result), and it draws whole
+    { const RB = require(path.join(T, 'fiche_reference_bake.js')), REP = require(path.join(T, 'real_report.js'));
+      const RF = RB.referenceOf('jodel'), got = RB.resultOf('jodel');
+      if (!RF || !got) notes.push('REFERENCE no REAL-CHECK result for jodel here: not checked');
+      else { const sc = REP.scorePlane(got.o);
+        ok(['overall', 'geometry', 'specs', 'performance'].every(a => RF[a] === (sc[a] == null ? null : Math.round(sc[a]))) &&
+           ['geometry', 'specs', 'performance'].every(a => RF.items[a].length === (sc.items[a] || []).length), 'REFERENCE the baked scores are not scorePlane\'s');
+        for (const th of ['sheet', 'screen']) { let out = '';
+          try { out = FP.svg('reference', Object.assign({}, D, { reference: RF }), { theme: th, name: k, reg: 'F-TEST', sig: 'Wingsmith' }); } catch (e) { out = 'THROW ' + e.message; }
+          ok(/^<svg /.test(out) && !/NaN|undefined|Infinity/.test(out) && out.includes('OURS VS REAL'), 'DRAW reference (' + th + ') ' + (out.startsWith('THROW') ? out : 'bad')); } } }
   }
   return { k, checks, fails, notes, kb: Math.round(JSON.stringify(D).length / 1024) };
 }

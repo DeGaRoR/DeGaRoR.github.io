@@ -31,8 +31,10 @@
 'use strict';
 (function (root) {
   const PAGES = [
-    { id: 'load', name: 'Load test' }, { id: 'drag', name: 'Drag' },
-    { id: 'xray', name: 'X-ray' }, { id: 'model', name: 'What the sim flies' },
+    // the fiche's sections (the user, 12 Nov), by the board's registry ids (AIRCRAFT-LOOKS' FICHE_BOARD.pages, its slot
+    // order main, cutaway, mass, drag, physics, electrics, integrity, reference, log; 'mass' is AIRCRAFT-LOOKS')
+    { id: 'drag', name: 'Drag' }, { id: 'physics', name: 'Physics' }, { id: 'electrics', name: 'Electrics' },
+    { id: 'integrity', name: 'Integrity' }, { id: 'reference', name: 'Reference' },
   ];
   // the fiche pages' shared category colours (A0, 11 Nov), and their names (colour is never the only cue)
   const CAT = { structure: '#8fb0c4', engine: '#e2a056', gear: '#a9bd6e', systems: '#b99be0',
@@ -151,7 +153,7 @@
   // ===================================================================================================================
   function pageLoad(D, o, th, K) {
     const M = D.model, Ld = D.load, Ds = D.destroy;
-    const out = head(th, K, o, 'Load test · the certification bench',
+    const out = head(th, K, o, 'Integrity · the certification bench',
       Ld && Ld.verdict === 'HELD' ? 'Held 5.7 g with nothing bent' : (Ld ? Ld.verdict : 'No load test'),
       Ld ? Math.round(Ld.W / 9.81) + ' kg in sandbags at 1 g, the plane on its back on trestles · ' + M.beams.length + ' members, each its own spring' : '');
     if (!Ld || !Ld.shape) return out;
@@ -260,7 +262,7 @@
     const big = Object.keys(Dg.groups).filter(g => g !== 'fuselage' && DRAGROW[g]).sort((a, b) => Dg.groups[b].dV - Dg.groups[a].dV)[0];
     const nm = g => g === 'third' && Dg.gearType === 'tricycle' ? 'Nose wheel' : g === 'third' && Dg.floats ? 'Third wheel*' : g === 'mainGear' && Dg.floats ? 'Floats*' : DRAGROW[g][0];
     const out = head(th, K, o, 'Drag · where the speed goes', 'Your ' + nm(big).replace('*', '').toLowerCase() + ' cost ' + r0(Dg.groups[big].dV * 3.6) + ' km/h',
-      'Cruise ' + r0(Dg.Vc * 3.6) + ' km/h. Each disc is a flat plate with the same drag, drawn to the plane\'s scale.');
+      'Cruise ' + r0(Dg.Vc * 3.6) + ' km/h · each disc a flat plate of the same drag, to scale');
     if (pic && pic.frame) {
       const m = sideMap(pic, { x: 48, y: 210, w: 690, h: 330 });
       out.push(picImg(pic, m, th === THEMES.sheet ? 1 : 0.92));
@@ -392,7 +394,7 @@
   function pageXray(D, o, th, K) {
     const M = D.model, E = D.elec, Tk = D.tanks, pic = o.pics && o.pics.plan, Wc = th === THEMES.sheet ? WIRE.sheet : WIRE.screen;
     const words = E.altA ? (E.elec.alternator === 'gen20' ? 'generator' : 'alternator') : 'battery';
-    const out = head(th, K, o, 'X-ray · the electrics and the fuel',
+    const out = head(th, K, o, 'Electrics · and the fuel',
       E.hasBus ? 'Every light on: ' + r1(E.night.A) + ' A of the ' + (E.altA ? E.altA + ' A ' + words : 'battery') : 'No battery, no lights: hand-propped',
       E.hasBus && E.dark.min != null ? 'With the ' + words + ' dead at night, the battery lasts ' + r0(E.dark.min) + ' min (the game\'s own bus, run down to 9 V).' : '');
     if (!pic || !pic.frame) return out;
@@ -478,7 +480,7 @@
     // THE THREE VIEWS, as large as the sheet allows: from above (nose up) on the left, the side and the front on the right
     // at one scale, one legend row under them. The rendered plane is the grey ghost behind each view (its fitted frame).
     const M = D.model, n = M.nodes;
-    const out = head(th, K, o, 'What the sim flies · the model itself', n.length + ' masses, ' + M.beams.length + ' members, ' + M.strips.length + ' lifting panels');
+    const out = head(th, K, o, 'Physics · what the sim flies', n.length + ' masses, ' + M.beams.length + ' members, ' + M.strips.length + ' lifting panels');
     const Dp = M.prop.D || 1.8, eng = M.prop.at || [0, 1, 0];
     // the discs where the blades are drawn (66c prop.discs); data from before them: one disc at the engine's flange
     const discs = (M.prop.discs && M.prop.discs.length) ? M.prop.discs : [[eng[0], eng[1], 0, 0]];
@@ -486,19 +488,26 @@
     const ext = vk => { const pts = n.map(q => VIEW[vk](q)), r = Dp / 2;
       for (const q of discs) for (const d of [[0, -r, -r], [0, r, r], [0, r, -r], [0, -r, r]]) pts.push(VIEW[vk]([q[0], q[1] + d[1], q[2] + d[2]]));
       const u = pts.map(q => q[0]), v = pts.map(q => q[1]); return [Math.min(...u), Math.max(...u), Math.min(...v), Math.max(...v)]; };
-    const E = { plan: ext('plan'), side: ext('side'), front: ext('front') }, wd = e => e[1] - e[0], ht = e => e[3] - e[2];
-    // the boxes: the plan 600 wide on the left; the right column 470 wide, the side above the front, one scale for both
-    const TOP = 150, BOT = 712, PB = { x: 48, y: TOP, w: 620, h: BOT - TOP }, RX = 700, RW = 452, GAP = 64;
-    const sP = Math.min(PB.w / wd(E.plan), PB.h / ht(E.plan)), hP = ht(E.plan) * sP, yP = PB.y + (PB.h - hP) / 2;
-    const sR = Math.min(RW / wd(E.side), RW / wd(E.front), (BOT - TOP - GAP) / (ht(E.side) + ht(E.front)));
-    const hS = ht(E.side) * sR, hF = ht(E.front) * sR, hB = hS + GAP + hF;
-    // the side and the front as one block, centred on the plan's middle
-    const yS = Math.max(TOP, Math.min(BOT - hB, yP + hP / 2 - hB / 2)), yF = yS + hS + GAP;
-    const mapOf = (vk, sc, x0, y0) => { const e = E[vk]; return { sc, f: p => { const q = VIEW[vk](p); return [x0 + (q[0] - e[0]) * sc, y0 + (q[1] - e[2]) * sc]; } }; };
-    const V = { plan: mapOf('plan', sP, PB.x + (PB.w - wd(E.plan) * sP) / 2, yP),
-                side: mapOf('side', sR, RX + (RW - wd(E.side) * sR) / 2, yS), front: mapOf('front', sR, RX + (RW - wd(E.front) * sR) / 2, yF) };
+    const E = { plan: ext('plan'), side: ext('side'), front: ext('front') };
+    // A TRUE THREE-VIEW AT ONE SCALE: from above (nose up) over the front view, the two sharing the span's axis; the side
+    // view beside the front, the two sharing the height's; the legend above the side view. One scale s for all three,
+    // the largest the sheet holds: the span column and the length column side by side, the plan and the front stacked.
+    const LEFT = 44, RIGHT = W - 44, TOP = 136, BOT = H - 56, GH = 56, GV = 50;   // (BOT clear of the signature)
+    const half = Math.max(Math.abs(E.plan[0]), Math.abs(E.plan[1]), Math.abs(E.front[0]), Math.abs(E.front[1]));
+    const lenP = E.plan[3] - E.plan[2], lenS = E.side[1] - E.side[0], hgt = Math.max(E.side[3], E.front[3]) - Math.min(E.side[2], E.front[2]);
+    const s = Math.min((RIGHT - LEFT - GH) / (2 * half + lenS), (BOT - TOP - GV) / (lenP + hgt), 90);
+    const wL = 2 * half * s, wR = lenS * s, hP = lenP * s, hV = hgt * s, spare = (BOT - TOP - GV) - hP - hV;
+    const xc = LEFT + wL / 2, xR = LEFT + wL + GH + Math.max(0, (RIGHT - LEFT - GH - wL - wR) / 2);
+    const yP = TOP + Math.max(0, spare) / 3, yV = yP + hP + GV + Math.max(0, spare) / 3, vTop = Math.min(E.side[2], E.front[2]);
+    const V = { plan: { sc: s, f: p => [xc + p[2] * s, yP + (p[0] - E.plan[2]) * s] },
+                front: { sc: s, f: p => [xc - p[2] * s, yV + (-p[1] - vTop) * s] },
+                side: { sc: s, f: p => [xR + (p[0] - E.side[0]) * s, yV + (-p[1] - vTop) * s] } };
     const lab = (x, y, t) => out.push(K.T(x, y, t, { sz: 11, c: th.faint, w: 600, ls: 1.2 }));
-    lab(48, Math.max(TOP - 14, yP - 18), 'FROM ABOVE'); lab(RX, yS - 18, 'FROM THE SIDE'); lab(RX, yF - 18, 'FROM THE FRONT');
+    lab(LEFT, yP - 14, 'FROM ABOVE'); lab(LEFT, yV - 14, 'FROM THE FRONT'); lab(xR, yV - 14, 'FROM THE SIDE');
+    // the projection lines between the views: faint, the span's ends from the plan down to the front, the height's across
+    { const zs2 = [E.plan[0], E.plan[1]], dash = '2 5';
+      for (const z of zs2) out.push(K.L([xc + z * s, yP + hP + 6], [xc + z * s, yV - 22], th.member, 0.8, dash));
+      for (const y of [E.side[2], E.side[3]]) out.push(K.L([xc + half * s + 8, yV + (y - vTop) * s], [xR - 8, yV + (y - vTop) * s], th.member, 0.8, dash)); }
     out.push(`<defs><filter id="mg"><feColorMatrix type="saturate" values="0"/></filter><pattern id="mh" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="5" stroke="${CAT.fittings}" stroke-width="1.8"/></pattern></defs>`);
     // the ghosts: picture pixel = R(rot) proj(p) s + o (fitFrame), so proj(p) = R(-rot)(pixel - o) / s
     for (const vk of ['plan', 'side', 'front']) { const pc = o.pics && o.pics[vk]; if (!pc || !pc.frame) continue;
@@ -517,43 +526,112 @@
     for (const st of M.strips) out.push(quad(st, fr, false));
     for (const b of M.beams) { if (b[3]) continue; const A = P3(M, b[0]), B = P3(M, b[1]); out.push(K.L(pl(A), pl(B), th.member, 0.7) + K.L(sd(A), sd(B), th.member, 0.6) + K.L(fr(A), fr(B), th.member, 0.6)); }
     const ring = (q, rr) => `<circle cx="${q[0].toFixed(1)}" cy="${q[1].toFixed(1)}" r="${rr.toFixed(1)}" fill="${th.ink}" fill-opacity=".1" stroke="${th.ink}" stroke-width="1.3" stroke-dasharray="4 3"/>`;
-    const drag = (p, a) => { const r = Math.sqrt(Math.max(0, a) / Math.PI); out.push(ring(pl(p), r * sP) + ring(sd(p), r * sR) + ring(fr(p), r * sR)); };
+    const drag = (p, a) => { const r = Math.sqrt(Math.max(0, a) / Math.PI); out.push(ring(pl(p), r * s) + ring(sd(p), r * s) + ring(fr(p), r * s)); };
     if (M.drag.fwd) drag(M.drag.fwd, M.drag.cda[0]);
     if (M.drag.aft) drag(M.drag.aft, (M.drag.cdaAft[1] || 0) * 0.25);
     for (const q of discs) { const c = fr([q[0], q[1], q[2]]);
       out.push(K.L(pl([q[0], 0, q[2] - Dp / 2]), pl([q[0], 0, q[2] + Dp / 2]), CAT.engine, 3) + K.L(sd([q[0], q[1] - Dp / 2, 0]), sd([q[0], q[1] + Dp / 2, 0]), CAT.engine, 2.6) +
-        `<circle cx="${c[0].toFixed(1)}" cy="${c[1].toFixed(1)}" r="${(Dp / 2 * sR).toFixed(1)}" fill="${CAT.engine}" fill-opacity=".08" stroke="${CAT.engine}" stroke-width="2"/>`); }
+        `<circle cx="${c[0].toFixed(1)}" cy="${c[1].toFixed(1)}" r="${(Dp / 2 * s).toFixed(1)}" fill="${CAT.engine}" fill-opacity=".08" stroke="${CAT.engine}" stroke-width="2"/>`); }
     const box = (q, h) => `<rect x="${(q[0] - h).toFixed(1)}" y="${(q[1] - h).toFixed(1)}" width="${2 * h}" height="${2 * h}" ${K.fillAttr(CAT.gear, 0.95)}/>`;
     for (const i of M.contacts) { const p = P3(M, i); out.push(box(pl(p), 4.5) + box(sd(p), 4) + box(fr(p), 4)); }
     if (M.floats) for (const q of byTag(M, 'FLK')) out.push(box(pl(q), 2.5) + box(fr(q), 2.5));
     const dot = (q, r) => `<circle cx="${q[0].toFixed(1)}" cy="${q[1].toFixed(1)}" r="${r.toFixed(1)}" fill="${th.ink}" fill-opacity=".72"/>`;
     for (const q of n) if (q[3] > 0.05) { const r = Math.sqrt(q[3]); out.push(dot(pl(q), Math.max(1.1, r * 1.1)) + dot(sd(q), Math.max(0.9, r * 0.85)) + dot(fr(q), Math.max(0.9, r * 0.85))); }
-    // the legend: one row
-    const kg = n.reduce((a, q) => a + q[3], 0), LY = 742;
+    // the legend: a list above the side view, then a scale bar (the three views share it)
+    const kg = n.reduce((a, q) => a + q[3], 0);
+    let LY = yP + 6;
     const KEY = [
-      [x => `<circle cx="${x + 7}" cy="${LY - 4}" r="5" fill="${th.ink}" fill-opacity=".72"/>`, 'mass, size by weight (' + r0(kg) + ' kg)'],
-      [x => K.L([x, LY - 4], [x + 16, LY - 4], th.ink, 1), 'member'],
-      [x => `<rect x="${x}" y="${LY - 10}" width="16" height="12" ${K.fillAttr(CAT.structure, 0.4)}/>`, 'lifting panel'],
-      [x => `<rect x="${x}" y="${LY - 10}" width="16" height="12" fill="url(#mh)" stroke="${CAT.fittings}"/>`, 'control surface'],
-      [x => `<circle cx="${x + 7}" cy="${LY - 4}" r="7" fill="${th.ink}" fill-opacity=".1" stroke="${th.ink}" stroke-dasharray="3 2"/>`, 'body drag area'],
-      [x => K.L([x, LY - 4], [x + 16, LY - 4], CAT.engine, 3), 'propeller ' + Dp.toFixed(2) + ' m'],
-      [x => `<rect x="${x + 3}" y="${LY - 8.5}" width="9" height="9" ${K.fillAttr(CAT.gear, 0.95)}/>`, M.floats ? 'float keel, wheel' : 'wheel'],
-      [x => `<rect x="${x}" y="${LY - 10}" width="16" height="12" rx="3" fill="${th.ink}" fill-opacity="${Math.min(0.35, th.ghost)}"/>`, 'the rendered plane']];
-    // spaced evenly over the sheet's width (the labels' width estimated at 6 px a character)
-    const lw = KEY.map(k => 22 + k[1].length * 6), gap = Math.max(14, (W - 96 - lw.reduce((a, b) => a + b, 0)) / (KEY.length - 1));
-    let x = 48; KEY.forEach(([mk, t], i) => { out.push(mk(x) + K.T(x + 22, LY, t, { sz: 13, c: th.dim })); x += lw[i] + gap; });
+      [(x, y) => `<circle cx="${x + 8}" cy="${y - 4}" r="5.5" fill="${th.ink}" fill-opacity=".72"/>`, n.length + ' masses, ' + r0(kg) + ' kg', 'a dot\'s size is its weight'],
+      [(x, y) => K.L([x, y - 4], [x + 16, y - 4], th.ink, 1), M.beams.length + ' members', 'springs that bend and break'],
+      [(x, y) => `<rect x="${x}" y="${y - 10}" width="16" height="12" ${K.fillAttr(CAT.structure, 0.4)}/>`, M.strips.length + ' lifting panels', ''],
+      [(x, y) => `<rect x="${x}" y="${y - 10}" width="16" height="12" fill="url(#mh)" stroke="${CAT.fittings}"/>`, 'control surfaces', ''],
+      [(x, y) => `<circle cx="${x + 8}" cy="${y - 4}" r="7" fill="${th.ink}" fill-opacity=".1" stroke="${th.ink}" stroke-dasharray="3 2"/>`, 'body drag area', ''],
+      [(x, y) => K.L([x, y - 4], [x + 16, y - 4], CAT.engine, 3), 'propeller, ' + Dp.toFixed(2) + ' m', ''],
+      [(x, y) => `<rect x="${x + 3}" y="${y - 8.5}" width="9" height="9" ${K.fillAttr(CAT.gear, 0.95)}/>`, M.floats ? 'float keels, wheels' : 'wheels', ''],
+      [(x, y) => `<rect x="${x}" y="${y - 10}" width="16" height="12" rx="3" fill="${th.ink}" fill-opacity="${Math.min(0.35, th.ghost)}"/>`, 'the rendered plane', '']];
+    const room = yV - 34 - LY, step = Math.max(22, Math.min(30, room / (KEY.length + 1.4)));
+    for (const [mk, t] of KEY) { out.push(mk(xR, LY) + K.T(xR + 26, LY, t, { sz: 13.5, c: th.ink })); LY += step; }
+    { const m = s >= 40 ? 1 : 2, y = LY + 6; out.push(K.L([xR, y], [xR + 2 * m * s, y], th.ink, 1.4) + K.L([xR, y - 4], [xR, y + 4], th.ink, 1.2) + K.L([xR + m * s, y - 3], [xR + m * s, y + 3], th.ink, 1) +
+        K.L([xR + 2 * m * s, y - 4], [xR + 2 * m * s, y + 4], th.ink, 1.2) + K.T(xR + 2 * m * s + 8, y + 4, (2 * m) + ' m', { sz: 12.5, c: th.dim })); }
     if (o.note) out.push(K.T(48, H - 32, o.note, { sz: 12, c: th.warn }));
+    return out;
+  }
+
+  // ===================================================================================================================
+  // REFERENCE: the plane against the real one it stands for, scored as REAL-FIGURES scores it (the data baked by
+  // tools/fiche_reference_bake.js from real_report.js scorePlane): the global score, the triangle, the three sections,
+  // then every item's discrepancy, "ours vs real"
+  // ===================================================================================================================
+  const REF_LABEL = { span: 'span', S: 'wing area', length: 'length', cRoot: 'root chord', cTip: 'tip chord', hSpan: 'tailplane span', Sh: 'tailplane area', Sv: 'fin area',
+    track: 'wheel track', height: 'height', engine: 'engine', hp: 'power', nE: 'engines', propD: 'propeller diameter', blades: 'blades', empty: 'empty weight',
+    mtow: 'max weight', fuelL: 'fuel', seats: 'seats', Vs1: 'stall, clean', V75: 'cruise 75 %', Vmax: 'top speed', roc: 'rate of climb', roc2: 'climb, 2nd weight',
+    LD: 'best glide', TO: 'take-off roll', TO50: 'take-off to 50 ft', LDG: 'landing roll', LDG50: 'landing from 50 ft', TOW: 'water run', TOW2: 'water run, 2nd weight', TOWs: 'water time', TOW50: 'water to 50 ft' };
+  const REF_UNIT = { span: 'm', S: 'm²', length: 'm', cRoot: 'm', cTip: 'm', hSpan: 'm', Sh: 'm²', Sv: 'm²', track: 'm', height: 'm', hp: 'hp', propD: 'm', empty: 'kg', mtow: 'kg',
+    fuelL: 'L', Vs1: 'km/h', V75: 'km/h', Vmax: 'km/h', roc: 'm/s', roc2: 'm/s', LD: ':1', TO: 'm', TO50: 'm', LDG: 'm', LDG50: 'm', TOW: 'm', TOW2: 'm', TOWs: 's', TOW50: 'm' };
+  const REF_DEC = { span: 2, S: 1, length: 2, cRoot: 2, cTip: 2, hSpan: 2, Sh: 2, Sv: 2, track: 2, height: 2, propD: 2, roc: 1, roc2: 1, LD: 1, TOWs: 1 };
+  const REF_TEN = [1, 0.1, 0.01, 0.001];
+  const refVal = (v, k) => { const d = REF_DEC[k] || 0; if (Array.isArray(v)) { const a = Math.min(...v), b = Math.max(...v); return Math.abs(a - b) < REF_TEN[d] / 2 ? a.toFixed(d) : a.toFixed(d) + '–' + b.toFixed(d); }
+    return typeof v === 'number' ? v.toFixed(d) : String(v == null ? '—' : v); };
+  const wrapWords = (s, n) => { const w = String(s).split(' '), out = []; let a = ''; for (const x of w) { if ((a + ' ' + x).trim().length > n) { out.push(a.trim()); a = x; } else a += ' ' + x; } if (a.trim()) out.push(a.trim()); return out; };
+  function pageReference(D, o, th, K) {
+    const R = D && D.reference;
+    const band = s => s == null ? [th.faint, 'no data'] : s >= 80 ? ['#6f8a3a', 'close'] : s >= 60 ? [th.warn, 'fair'] : [th.bad, 'far'];
+    if (!R) { const out = head(th, K, o, 'Reference', 'No real aeroplane to set this one against'); return out; }
+    const out = head(th, K, o, 'Reference · against the real one · REAL-FIGURES, ' + R.date, 'Against the ' + R.refName);
+    const [gc, gw] = band(R.overall), AX = ['geometry', 'specs', 'performance'], NM = { geometry: 'Geometry', specs: 'Specs', performance: 'Performance' };
+    out.push(K.T(W - 48, 112, R.overall == null ? '—' : r0(R.overall), { sz: 52, w: 600, c: gc, a: 'end' }) + K.T(W - 48, 134, '/ 100 · ' + gw + (R.conf ? ' · evidence ' + R.conf : ''), { sz: 13, c: th.dim, a: 'end' }));
+    // the triangle
+    const cx = 190, cy = 290, Rr = 108, ang = i => -Math.PI / 2 + i * 2 * Math.PI / 3, pt = (i, v) => [cx + Math.cos(ang(i)) * Rr * v / 100, cy + Math.sin(ang(i)) * Rr * v / 100];
+    for (const lv of [25, 50, 75, 100]) out.push(`<polygon points="${AX.map((a, i) => pt(i, lv).map(v => v.toFixed(1)).join(',')).join(' ')}" fill="none" stroke="${th.rule}" stroke-width="${lv === 100 ? 1.3 : 1}"/>`);
+    AX.forEach((a, i) => out.push(K.L([cx, cy], pt(i, 100), th.rule, 1)));
+    out.push(`<polygon points="${AX.map((a, i) => pt(i, R[a] || 0).map(v => v.toFixed(1)).join(',')).join(' ')}" fill="${gc}" fill-opacity=".28" stroke="${gc}" stroke-width="2"/>`);
+    AX.forEach((a, i) => { const p = pt(i, R[a] || 0), q = pt(i, 128), c = band(R[a])[0]; out.push(`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="5" fill="${c}"/>`);
+      out.push(K.T(q[0], q[1] + (i === 0 ? -4 : 6), NM[a], { sz: 13, w: 600, a: 'middle' }) + K.T(q[0], q[1] + (i === 0 ? 12 : 22), R[a] == null ? '—' : r0(R[a]), { sz: 13, c, w: 600, a: 'middle' })); });
+    // the sections
+    let sy = 196;
+    for (const a of AX) { const [c, w] = band(R[a]), nI = (R.items[a] || []).length;
+      out.push(K.T(380, sy, NM[a], { sz: 16, w: 600 }) + K.T(710, sy, R[a] == null ? '—' : r0(R[a]), { sz: 26, w: 600, c, a: 'end' }) + K.T(716, sy, '/ 100', { sz: 12, c: th.dim }));
+      out.push(`<rect x="380" y="${sy + 10}" width="330" height="8" rx="4" fill="${th.rule}"/><rect x="380" y="${sy + 10}" width="${(3.3 * (R[a] || 0)).toFixed(1)}" height="8" rx="4" fill="${c}"/>`);
+      out.push(K.T(380, sy + 36, nI + ' items · ' + w, { sz: 12, c: th.dim })); sy += 74; }
+    // the references, by title
+    { let by = 196; out.push(K.T(800, by - 22, 'REFERENCES', { sz: 11, c: th.faint, w: 600, ls: 1.2 }));
+      const block = (hd, list) => { if (!list || !list.length) return; out.push(K.T(800, by, hd, { sz: 12, w: 600, c: th.dim })); by += 18;
+        for (const t of list.slice(0, 4)) { wrapWords(t, 46).forEach((ln, i) => { if (!i) out.push(`<circle cx="804" cy="${by - 4}" r="2.2" fill="${th.dim}"/>`); out.push(K.T(814, by, ln, { sz: 12.5 })); by += 16; }); by += 4; } by += 6; };
+      block('Performance', R.refs.performance); block('Dimensions', R.refs.dimensions);
+      if (R.engineNote) { out.push(K.T(800, by, 'Not like for like', { sz: 12, w: 600, c: th.warn })); by += 17; for (const ln of wrapWords(R.engineNote, 50).slice(0, 3)) { out.push(K.T(800, by, ln, { sz: 12, c: th.warn })); by += 16; } } }
+    // the discrepancy, item by item
+    const top = 438; out.push(K.T(48, top - 22, 'THE DISCREPANCY, ITEM BY ITEM · VALUES: OURS VS REAL', { sz: 11, c: th.faint, w: 600, ls: 1.2 }));
+    AX.forEach((a, ci) => {
+      const x0 = 48 + ci * 372, mid = x0 + 252, span = 0.30, half = 88, X = e => mid + half * Math.max(-1, Math.min(1, e / span)), bot = H - 44;
+      out.push(K.T(x0, top, NM[a], { sz: 13, w: 600 }) + K.L([mid, top + 8], [mid, bot], th.lead, 1) + K.T(X(-span), top, '−30 %', { sz: 10, c: th.faint, a: 'middle' }) + K.T(X(span), top, '+30 %', { sz: 10, c: th.faint, a: 'middle' }));
+      for (const gg of [-0.3, -0.15, 0.15, 0.3]) out.push(K.L([X(gg), top + 8], [X(gg), bot], th.rule, 1, '2 3'));
+      const items = (R.items[a] || []).slice().sort((p, q) => (p.score == null ? 101 : p.score) - (q.score == null ? 101 : q.score));
+      const step = Math.min(34, (bot - top - 14) / Math.max(1, items.length));
+      items.forEach((it, i) => {
+        const y = top + 24 + i * step, e = it.e, c = band(it.score)[0], u = REF_UNIT[it.k] || '';
+        const cut = (v, nn) => { v = String(v); return v.length > nn ? v.slice(0, nn - 1) + '…' : v; };
+        out.push(K.T(x0, y + 1, (REF_LABEL[it.k] || it.k) + (a === 'performance' && it.src && !/^airframe/.test(it.src) ? ' (handbook)' : ''), { sz: 12.5, w: 500 }));
+        const ov = typeof it.ours === 'string' ? cut(it.ours, 15) : refVal(it.ours, it.k), rv = typeof it.ref === 'string' ? cut(it.ref, 15) : refVal(it.ref, it.k);
+        out.push(K.T(x0, y + 15, ov + ' vs ' + rv + (u ? ' ' + u : ''), { sz: 11.5, c: th.dim }));
+        if (typeof e === 'number' && isFinite(e)) { const xa = X(0), xb = X(e);
+          out.push(`<rect x="${Math.min(xa, xb).toFixed(1)}" y="${y - 2}" width="${Math.max(2, Math.abs(xb - xa)).toFixed(1)}" height="9" rx="2" fill="${c}"/>` +
+            K.T(Math.abs(e) > span ? (e > 0 ? X(span) + 4 : X(-span) - 4) : xb + (e >= 0 ? 4 : -4), y + 6, (e >= 0 ? '+' : '−') + Math.abs(Math.round(e * 100)) + ' %', { sz: 10.5, c, a: e >= 0 ? 'start' : 'end', w: 600 })); }
+        else out.push(K.T(mid, y + 6, it.score >= 100 ? 'the same' : 'different', { sz: 11, c, a: 'middle', w: 600 }));
+      });
+    });
     return out;
   }
 
   let svgSeq = 0;
   function svg(page, data, opts) {
     const o = opts || {}, th = THEMES[o.theme] || THEMES.sheet, K = kit(th);
-    const f = { load: pageLoad, drag: pageDrag, xray: pageXray, model: pageModel }[page];
+    // (the first prototypes' ids stay understood: load, xray, model)
+    const f = { integrity: pageLoad, load: pageLoad, drag: pageDrag, electrics: pageXray, xray: pageXray, physics: pageModel, model: pageModel, reference: pageReference }[page];
     if (!f) throw new Error('no physics page ' + page);
     // the ids a page defines (patterns, filters, its clip) made the drawing's own: several pages share one document
     const uid = 'fp' + (++svgSeq) + '_';
-    return wrap(f(data, o, th, K), (PAGES.find(p => p.id === page) || {}).name + (o.name ? ' of the ' + o.name : ''))
+    const ALIAS = { load: 'integrity', xray: 'electrics', model: 'physics' };
+    return wrap(f(data, o, th, K), (PAGES.find(p => p.id === (ALIAS[page] || page)) || {}).name + (o.name ? ' of the ' + o.name : ''))
       .replace(/id="([a-z]{2})"/g, 'id="' + uid + '$1"').replace(/url\(#([a-z]{2})\)/g, 'url(#' + uid + '$1)');
   }
   // ---- THE PAGE'S GLUE (the board's hook): a fiche record in, a page drawn ---------------------------------------------
@@ -567,11 +645,13 @@
     : (typeof b === 'string' ? fetch(b).then(r => r.blob()) : Promise.resolve(b)).then(x => new Promise(res => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.readAsDataURL(x); }));
   function dataFor(rec, opts) {
     const o = opts || {}, key = rec.name;
-    if (rec.physics) return Promise.resolve(rec.physics);
+    if (rec.physics) return Promise.resolve(Object.assign({ reference: rec.reference || null }, rec.physics));
     if (cache[key]) return cache[key];
     if (rec.baked && rec.pics && typeof rec.pics.side === 'string') {
-      const url = rec.pics.side.replace(/[^/]*$/, 'physics.json');
-      return (cache[key] = fetch(url).then(r => (r.ok ? r.json() : null)).catch(() => null));
+      const url = rec.pics.side.replace(/[^/]*$/, 'physics.json'), uref = rec.pics.side.replace(/[^/]*$/, 'reference.json');
+      const get = u => fetch(u).then(r => (r.ok ? r.json() : null)).catch(() => null);
+      // the Reference section's data beside it (tools/fiche_reference_bake.js), when REAL-FIGURES flew this very card
+      return (cache[key] = Promise.all([get(url), get(uref)]).then(([D, R]) => (D ? Object.assign(D, { reference: R || null }) : null)));
     }
     const spec = o.spec || null, BW = root && root.BENCH_WORKER;
     if (!spec || !BW || typeof BW.start !== 'function') return Promise.resolve(null);
@@ -615,7 +695,19 @@
         im.onload = () => { const c = document.createElement('canvas'); c.width = 2 * W; c.height = 2 * H; c.getContext('2d').drawImage(im, 0, 0, 2 * W, 2 * H); URL.revokeObjectURL(url); c.toBlob(res, 'image/png'); };
         im.onerror = e => { URL.revokeObjectURL(url); rej(e); }; im.src = url; })); });
   }
-  const API = { PAGES, THEMES, CAT, svg, fitFrame, frameOf, GRPNAME, memberName, W, H, mount, compose, dataFor };
+  // THE BOARD'S REGISTRY (AIRCRAFT-LOOKS, L39b): FICHE_BOARD.pages.add({ id, label, mount(sheet, rec, ctx), compose }), ctx
+  // passed whole ({ spec, title, propOff }). Every section registers itself once the board is there; before it, nothing.
+  let registered = false;
+  function register() {
+    const FB = root && root.FICHE_BOARD;
+    if (registered || !FB || !FB.pages || typeof FB.pages.add !== 'function') return false;
+    for (const p of PAGES) FB.pages.add({ id: p.id, label: p.name,
+      mount: (sheet, rec, ctx) => mount(sheet, rec, p.id, ctx || {}),
+      compose: (rec, ctx) => compose(rec, p.id, ctx || {}) });
+    return (registered = true);
+  }
+  if (root && !register() && typeof root.addEventListener === 'function') root.addEventListener('load', register);
+  const API = { PAGES, THEMES, CAT, svg, fitFrame, frameOf, GRPNAME, memberName, W, H, mount, compose, dataFor, register };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   if (root) root.FICHE_PHYSICS = API;
 })(typeof window !== 'undefined' ? window : null);

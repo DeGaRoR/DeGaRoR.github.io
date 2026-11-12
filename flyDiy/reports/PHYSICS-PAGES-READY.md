@@ -23,3 +23,15 @@ calling `FICHE_PHYSICS.compose(r, page)` when a physics page is showing. Categor
 ## Findings sent to A0 (not fixed here)
 AFT-PODS (the tail-arm floor invents a tail cone on twin-boom pods; rod booms fly a family cone), the float hulls carry no
 air drag, the metal Cessna takes a set at 3.85 g (its limit is 3.8). Evidence on claude/admiring-planck-9zvm6n.
+
+## 12 Nov: the fiche's sections (the user) and the board's registry (A0)
+- The sections, by the registry's ids and the user's names: drag (Drag), physics (Physics), electrics (Electrics),
+  integrity (Integrity), reference (Reference). 'mass' is AIRCRAFT-LOOKS' page (L39b); after the perf round a
+  genFicheMass (ledger + parts.outfitKg + parts.gearKg, both records already in 61_gen_frame) upgrades it, same id.
+- No hook in fiche_board.js: fiche_physics.js registers every section itself through FICHE_BOARD.pages.add({ id, label,
+  mount(sheet, rec, ctx), compose(rec, ctx) }) once the board is there (at load, or on window 'load'); a no-op before.
+  ctx (spec, title, propOff) is passed to FICHE_PHYSICS.mount whole.
+- Reference: tools/fiche_reference_bake.js writes media/fiches/<dir>/reference.json for an official plane whose card IS
+  the file REAL-FIGURES flew (6 today), from real_report.js scorePlane; dataFor reads it beside physics.json.
+- Physics: a true three-view at one scale (plan over front on the span's axis, side beside the front on the height's).
+- GATE PHYSPAGES: + the reference's scores against scorePlane and its drawing (41 checks a plane).
