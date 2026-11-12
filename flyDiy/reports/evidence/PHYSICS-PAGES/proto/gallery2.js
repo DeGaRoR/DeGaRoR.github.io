@@ -19,8 +19,10 @@ let figs = '';
   const KS = ['c172v2', 'carboncubss', 'cub160', 'jodel', 'pa18f160', 'chinook', 'c172rf', 'dc3', 'stearman', 'tigermoth', 'camel', 'petrelL'];
   let opts = '', ff = '';
   // drawn by the game's own module (fiche_physics.js pageReference) from the bake's own data (fiche_reference_bake.js referenceOf)
-  const RB = require('/workspace/pp-wt/flyDiy/tools/fiche_reference_bake.js');
-  KS.forEach((k, i) => { const P = RR.PLANES[k] || {}, t = (P.short || P.label || k).split(' (')[0], RF = RB.referenceOf(k); if (!RF) return;
+  // the game's shipped index (REAL-FIGURES' 11 Nov report, keyed by file), the planes in its order, best first
+  const RJ = JSON.parse(require('fs').readFileSync('/workspace/pp-wt/flyDiy/media/fiches/references.json', 'utf8'));
+  const RL = Object.values(RJ.byFile).sort((p, q) => (q.overall || 0) - (p.overall || 0));
+  RL.forEach((RF, i) => { const k = RF.key, t = RF.key === 'c172v2f' ? 'Cessna 172 V2-172 on floats' : RF.key === 'c172v2' ? 'Cessna 172 V2-172' : RF.label.split(/ \(|: |, (?:no|pull|STC)/)[0];
     const sv = FP.svg('reference', { reference: RF }, { theme: 'sheet', name: t, sig: 'Wingsmith' });
     opts += `<option value="${k}">${t}</option>`; ff += `<figure class="rfig" data-r="${k}"${i ? ' hidden' : ''}><div class="scroll">${sv}</div></figure>`; });
   window_ref = `<section class="page" id="reference"><div class="head"><h2>Reference</h2><label class="pick">Plane <select id="refpick">${opts}</select></label></div>${ff}</section>`; }
