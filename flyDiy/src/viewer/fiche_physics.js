@@ -656,7 +656,8 @@
       return head(th, K, o, 'Cooling', Cd && Cd.kind === 'legacy' ? 'The cowl of this aeroplane was never measured' : 'No cooling to show');
     }
     const H = Cd.cases.hot, L = Cd.lines, cm2 = a => r0(a * 1e4) + ' cm²';
-    const mc = m => m < L.pass ? COOL.bad : m < L.warn ? COOL.warnC : COOL.ok;
+    const dk = (th.base || th) !== THEMES.sheet, okC = dk ? '#a3c96f' : COOL.ok, warnC = dk ? th.warn : COOL.warnC, badC = dk ? th.bad : COOL.bad;
+    const mc = m => m < L.pass ? badC : m < L.warn ? warnC : okC;
     const mtxt = m => (m === 'inf' || m > 99) ? 'all the air it needs' : r1(m) + ' × the air it needs';
     const out = head(th, K, o, 'Cooling · the engine\'s heat and the air',
       (H.margin < L.pass ? 'Short of air: ' : 'Hot-day climb: ') + mtxt(H.margin),
