@@ -84,7 +84,7 @@ const P={
   // PROPER-COWLS: the nose ring's own half-width / reach up / reach down (null = lidRadius)
   lidRW:null, lidRTop:null, lidRBot:null,
   gillOn:0, gillN:6, gillZ:0.35, gillL:0.22, gillH:0.12, gillSlant:25, gillLip:0.012, gillT:0.004, gillUp:null,   // (CAR-1: null = centred)
-  grilleOn:0, grilleN:9, grilleBar:0.012, grilleSet:0.03, grilleHBar:1, capOn:0, capR:0.032, capBack:0.07,   // CAR-1: the grille, the radiator cap (off)
+  grilleOn:0, grilleN:9, grilleBar:0.012, grilleSet:0.03, grilleHBar:1, capOn:0, capR:0.032, capBack:0.07, grilleNum:0, grilleNumH:0.5, lampOn:0, lampR:0.085, lampGap:0.06, lampY:0.05, lampBack:0.10,   // CAR-1: the grille, the radiator cap (off)
   // chin scoop
   scoopOn:1, scoopZ:0, scoopW:0.065, scoopH:0.055, scoopLen:0.22, scoopDrop:0.7,
   scoopAp:0.68, scoopSq:0.5, scoopRake:0.18,
@@ -1182,9 +1182,53 @@ function buildGrille(group,mats){
     const g=new THREE.BoxGeometry(bw,L,depth); const b=new THREE.Mesh(g,m); b.position.set(o.cx+x,o.cy,zF); b.name='cowlGrille'; group.add(b);
   }
   if(P.grilleHBar>0){ const g=new THREE.BoxGeometry(2*hw,bw*0.8,depth*0.8); const b=new THREE.Mesh(g,m); b.position.set(o.cx,o.cy,zF-depth*0.2); b.name='cowlGrille'; group.add(b); }
+  buildGrilleNumber(group,mats,{cx:o.cx,cy:o.cy,w:hw,h:hh},zF,depth);
   // the core behind the bars: a dark honeycomb plate, so the opening reads as a radiator, not a hole
   const core=new THREE.Mesh(new THREE.PlaneGeometry(2*hw,2*hh),mats.dark||mats.inner||m);
   core.position.set(o.cx,o.cy,zF-depth*1.5); core.name='cowlGrille'; group.add(core);
+}
+// THE NUMBER ON THE GRILLE (CAR-1, the user: "a simple grill with a number will do the trick"): grilleNum (1-99, 0 =
+// none) on an ivory plate in front of the bars, its digits as SEVEN-SEGMENT bars (no font, no canvas: geometry the
+// headless layers and the join carry like any other), grilleNumH of the opening's height
+const SEG7={0:'abcdef',1:'bc',2:'abged',3:'abgcd',4:'fgbc',5:'afgcd',6:'afgedc',7:'abc',8:'abcdefg',9:'abcfgd'};
+function buildGrilleNumber(group,mats,o,zF,depth){
+  const n=Math.round(P.grilleNum||0); if(!(n>0)) return;
+  const digits=String(Math.min(99,n)).split('').map(Number);
+  const H=2*o.h*clamp(P.grilleNumH,0.2,0.9), dW=H*0.52, gap=H*0.14, W=digits.length*dW+(digits.length-1)*gap;
+  const th=H*0.12, zP=zF+depth*0.9;
+  const plateM=new THREE.MeshStandardMaterial({color:0xefe6cf,roughness:0.5,metalness:0,side:THREE.DoubleSide});
+  const inkM=new THREE.MeshStandardMaterial({color:0x1d1d1d,roughness:0.6,metalness:0,side:THREE.DoubleSide});
+  const plate=new THREE.Mesh(new THREE.BoxGeometry(W+H*0.36,H*1.28,0.006),plateM); plate.position.set(o.cx,o.cy,zP); plate.name='cowlGrilleNum'; group.add(plate);
+  digits.forEach((d,i)=>{
+    // (laid out in the GAME's frame - its +x is the car's left, so seen from ahead +x is the viewer's right; quickshot's
+    // front view mirrors it: the number reads backwards there and right in the page)
+    const x0=o.cx-W/2+i*(dW+gap)+dW/2, segs=SEG7[d]||'';
+    const S={a:[0,H/2-th/2,dW,th],g:[0,0,dW,th],d:[0,-H/2+th/2,dW,th],f:[-dW/2+th/2,H/4,th,H/2],b:[dW/2-th/2,H/4,th,H/2],e:[-dW/2+th/2,-H/4,th,H/2],c:[dW/2-th/2,-H/4,th,H/2]};
+    for(const k of segs){ const [x,y,w,h]=S[k]; const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,0.004),inkM); m.position.set(x0+x,o.cy+y,zP+0.004); m.name='cowlGrilleNum'; group.add(m); }
+  });
+}
+// THE HEADLAMPS (CAR-1, the user: "little lamps like the ones in the wing of the aircraft, just give them a backface in
+// fuselage material"): lampOn - a pair of proud lamps beside the radiator, each a deep shell (in the BODY's livery
+// material, handed in as shellM), a chrome rim, a lit lens and a stalk back to the shell's side; lampR the lens radius,
+// lampGap off the shell's side, lampY over the axis, lampBack behind the face
+function buildLamps(group,mats,shellM){
+  if(!(P.lampOn>0)) return;
+  const ze=zEnd(), z=ze-Math.max(0,P.lampBack), cy=spineY(ze)+P.lampY, r=Math.max(0.03,P.lampR);
+  const half=surfPoint(0,z)[0];
+  const chrome=mats.steel||mats.skin, shell=shellM||mats.skin;
+  const lens=new THREE.MeshStandardMaterial({color:0xfff4dc,emissive:0xfff1d6,emissiveIntensity:0.55,roughness:0.08,metalness:0,side:THREE.DoubleSide});
+  lens.userData.aeroskin=1;
+  for(const sg of [1,-1]){
+    const x=sg*(half+P.lampGap+r);
+    const prof=[]; for(let k=0;k<=10;k++){ const t=k/10; prof.push(new THREE.Vector2(r*Math.sin(t*Math.PI/2)*1.0+0.0005, -r*1.1*Math.cos(t*Math.PI/2))); }
+    const sh=new THREE.Mesh(new THREE.LatheGeometry(prof,28),shell); sh.rotation.x=-Math.PI/2; sh.position.set(x,cy,z); sh.name='cowlLamp'; group.add(sh);
+    const rim=new THREE.Mesh(new THREE.TorusGeometry(r*1.02,r*0.09,10,32),chrome); rim.position.set(x,cy,z+0.002); rim.name='cowlLamp'; group.add(rim);
+    const ln=new THREE.Mesh(new THREE.SphereGeometry(r*0.98,28,10,0,TAU,0,Math.PI*0.22),lens); ln.rotation.x=Math.PI/2; ln.position.set(x,cy,z-r*0.75); ln.name='cowlLamp'; group.add(ln);
+    // the stalk: from the shell's back to the bonnet's side
+    const a=new THREE.Vector3(x-sg*r*0.2,cy-r*0.2,z-r*0.9), b=new THREE.Vector3(sg*(half-0.005),cy-r*0.6,z-r*1.6);
+    const L=a.distanceTo(b), st=new THREE.Mesh(new THREE.CylinderGeometry(r*0.12,r*0.14,L,10),chrome);
+    st.position.copy(a.clone().add(b).multiplyScalar(0.5)); st.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),b.clone().sub(a).normalize()); st.name='cowlLamp'; group.add(st);
+  }
 }
 function buildCap(group,mats){
   if(!(P.capOn>0)) return;
@@ -1856,6 +1900,6 @@ function cowlSizeToEngine(env, opt) {
   return r;
 }
 
-const COWL_API = { gillsFit, buildGills, buildGrille, buildCap, exitAt, inExCut, TAU, P, MATERIALS, PRESETS, lerp, clamp, smooth, sqExp, superPt, angDiff, SEG, zEnd, lidRadius, spineY, bez, mkCurve, eSqAftTop, eSqAftBot, eDeckH, eKeelH, eWaist, prepareLid, seamInset, sectionAtZ, sectPt, lobeAt, surfPoint, sectF, pierceZ, equalise, prepareMesh, apertureList, fitAperture, apG, buildSurface, aftStart, fwGeom, fwLipProfile, sectNormal2, buildFirewallLip, lipProfile, buildLips, buildDetail, cowlNormalAt, loftRings, fan, buildScoop, buildAft, spinProfile, coneBaseZ, axisXY, bladePlaneZ, coneRadiusAtBlade, buildNose, naca, airfoilLoop, propGeometry, cowlFitEngine, cowlApplyEngine, cowlSizeToEngine };
+const COWL_API = { gillsFit, buildGills, buildGrille, buildCap, buildLamps, exitAt, inExCut, TAU, P, MATERIALS, PRESETS, lerp, clamp, smooth, sqExp, superPt, angDiff, SEG, zEnd, lidRadius, spineY, bez, mkCurve, eSqAftTop, eSqAftBot, eDeckH, eKeelH, eWaist, prepareLid, seamInset, sectionAtZ, sectPt, lobeAt, surfPoint, sectF, pierceZ, equalise, prepareMesh, apertureList, fitAperture, apG, buildSurface, aftStart, fwGeom, fwLipProfile, sectNormal2, buildFirewallLip, lipProfile, buildLips, buildDetail, cowlNormalAt, loftRings, fan, buildScoop, buildAft, spinProfile, coneBaseZ, axisXY, bladePlaneZ, coneRadiusAtBlade, buildNose, naca, airfoilLoop, propGeometry, cowlFitEngine, cowlApplyEngine, cowlSizeToEngine };
 if (typeof module !== 'undefined') module.exports = COWL_API;
 if (typeof window !== 'undefined') window.COWL_GEN = COWL_API;

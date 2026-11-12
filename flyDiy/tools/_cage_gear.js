@@ -2840,6 +2840,24 @@ PAGE.post = ctx => {
       if (wb[k] && wb[k].mesh) wb[k].mesh(wg, GG.gearMat(k));
     group.add(wg);
   }
+  // CAR-1 (the user, 12 Nov: "put a spare wheel on one of the sides, at the back, like the ref picture"): spareOn - the
+  // rearmost drawn road wheel, copied and stood against the body's flank (spareSide 1 right / -1 left) at spareZ (metres,
+  // the layers' z), its hub at the body's mid-height plus spareY. A picture only: it is not a unit, not a contact, and
+  // it rides the body (named edSpare, not edWheel*). Absent = no spare.
+  if (+P.spareOn && AF && typeof AF.surf === 'function') {
+    let src = null, zMin = Infinity;
+    const bb = new THREE.Box3(), c = new THREE.Vector3(), sz = new THREE.Vector3();
+    for (const ch of group.children) if (/^edWheel/.test(ch.name)) { bb.setFromObject(ch); bb.getCenter(c); if (c.z < zMin) { zMin = c.z; src = ch; } }
+    if (src) {
+      const sp = src.clone(true); sp.name = 'edSpare';
+      bb.setFromObject(src); bb.getCenter(c); bb.getSize(sz);
+      const z = +P.spareZ, sg = +P.spareSide < 0 ? -1 : 1;
+      let half = 0; for (let a = 0; a <= 180; a += 3) { const q = AF.surf(z, a * D2R); if (q && isFinite(q[0])) half = Math.max(half, Math.abs(q[0])); }
+      const y = (typeof AF.cyAt === 'function' ? AF.cyAt(z) : c.y) + (+P.spareY || 0);
+      sp.position.set(sg * (half + sz.x / 2 + 0.01) - c.x, y - c.y, z - c.z);
+      group.add(sp);
+    }
+  }
   // the LEGS take a livery section too (phase C): steel tube by default,
   // following nobody — but a builder can paint a leg without repainting the
   // chrome piston or the tyres, which stay hardware. Only the 'steel' bag

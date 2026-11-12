@@ -314786,3 +314786,7 @@ the next steps).
 - **THE FIFTH REVIEW**: the face - the opening fills the off-white shell, a rolled lip as its surround, and two new opt-in
   cowl parts (`grilleOn` / `capOn`, _cowl_gen.js buildGrille / buildCap, absent = off): chrome bars cut to the opening, a
   cross bar and a dark core; a radiator cap on the top line. The name in English: "Lady Luck".
+- **THE SIXTH REVIEW**: headlamps (`lampOn`, cowl, shells in the body's livery section), the grille's race number
+  (`grilleNum`, seven-segment geometry - quickshot's front view mirrors the page: the page's +x is the car's left), the
+  bonnet blue with a polished shorter shell (`cw_seamPos 0.81`), the front axle at the radiator (wb 3.20 m), a spare
+  wheel (`spareOn`, gear layer: the rearmost wheel copied onto the flank). All new rows absent = as before.

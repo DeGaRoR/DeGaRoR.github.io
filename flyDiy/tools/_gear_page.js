@@ -168,6 +168,11 @@ const WHEEL_ROWS = [
   ['whCap', 'hub cap', 0, 2, 1, ['none', 'domed', 'flat']],
   ['whValve', 'valve stem', 0, 1, 1],
   ['whBrake', 'brake type', 0, 1, 1, ['disc', 'drum']],
+  // CAR-1: a spare wheel on the body's flank (absent = none)
+  ['spareOn', 'spare wheel on the flank', 0, 1, 1],
+  ['spareZ', 'spare wheel station (m, the layers\' z)', -4, 4, 0.01, { when: P => +P.spareOn }],
+  ['spareSide', 'spare wheel side', -1, 1, 2, ['left', 'right'], { when: P => +P.spareOn }],
+  ['spareY', 'spare wheel up / down (m)', -0.4, 0.4, 0.005, { when: P => +P.spareOn }],
 ];
 
 const PRESETS = {

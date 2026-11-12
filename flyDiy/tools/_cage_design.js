@@ -2864,7 +2864,14 @@ const ARCHETYPES = [
                     // upright chrome bars with a cross bar over a dark core (grilleOn, new), a filler cap on top (capOn, new)
                     cw_apMode: 1, cw_apW: 0.26, cw_apH: 0.37, cw_apSq: 0.78, cw_apOffY: -0.01,
                     cw_lipMode: 1, cw_lipThick: 0.014, cw_lipDepth: 0.06, cw_lipRound: 0.85, cw_lipProtrude: 1.2, cw_lipInset: 0.025,
-                    cw_grilleOn: 1, cw_grilleN: 15, cw_grilleBar: 0.011, cw_grilleSet: 0.04, cw_grilleHBar: 1,
+                    cw_grilleOn: 1, cw_grilleN: 9, cw_grilleBar: 0.011, cw_grilleSet: 0.04, cw_grilleHBar: 0,
+                    // ("a simple grill with a number will do the trick"): nine bars, the race number on a plate over them
+                    cw_grilleNum: 7, cw_grilleNumH: 0.5,
+                    // ("little lamps like the ones in the wing of the aircraft, just give them a backface in fuselage
+                    // material"): a pair beside the radiator, their shells in the body's livery section
+                    cw_lampOn: 1, cw_lampR: 0.085, cw_lampGap: 0.07, cw_lampY: 0.10, cw_lampBack: 0.12,
+                    // the radiator shell shorter ("make this part a little less long"): the bonnet's panel joint forward
+                    cw_seamPos: 0.81,
                     cw_capOn: 1, cw_capR: 0.03, cw_capBack: 0.08,
                     // THE ENGINE (the user, 12 Nov: "an enormous engine for that car ... an engine that would be more
                     // appropriate"): the CUSTOM engine on the Argus's V8 layout (90 deg, eight cylinders) at a 1930s car
@@ -2881,7 +2888,8 @@ const ARCHETYPES = [
                     // THE SUSPENSION (the user, 12 Nov: "a triangle suspension with shocks"): the swinging link - a
                     // triangle (the arm and its V strut) on a coil-over shock - at all four, swinging level
                     s1On: 1, s1Leg: 1, s1Z: 0.55, s1X: 0.75, s1R: 0.36, s1Drop: 0.08, s1Brake: 1, s1Steer: 0,
-                    s2On: 1, s2Leg: 1, s2Z: 3.35, s2X: 0.75, s2R: 0.36, s2Drop: 0.08, s2Brake: 1, s2Steer: 1,
+                    s2On: 1, s2Leg: 1, s2Z: 3.75,   // ("push the wheels max to the front": the axle at the radiator's face)
+                    s2X: 0.75, s2R: 0.36, s2Drop: 0.08, s2Brake: 1, s2Steer: 1,
                     // (the user: "put the shock mount point on the sides of the body, not below ... a proper triangle
                     // suspension setup, with the shock anchoring higher up"): the wishbone's two feet on the body's lower
                     // side (linkAng 55, spread 0.5 m), the coil-over's top on the body's SIDE at the same station
@@ -2895,7 +2903,9 @@ const ARCHETYPES = [
                     s1Fair: 0, s2Fair: 0, whProfile: 2,
                     // (the user: "can we increase the rim size?"): spoked, the rim 0.64 of the wheel - an 18" wire wheel in a
                     // 28" tyre (whRimD, the new row)
-                    whRim: 1, whRimD: 0.64 },
+                    whRim: 1, whRimD: 0.64,
+                    // ("put a spare wheel on one of the sides, at the back, like the ref picture"): behind the cockpit
+                    spareOn: 1, spareZ: 1.15, spareSide: 1, spareY: 0.11 },   // (its hub on the waistline, as the ref's)
             // THE TANK (the user, 12 Nov: "Where did you place the tank? Let's do something realistic"): none was
             // drawn - the 60 L rode the ledger at the firewall's station. A 1930s racer carries it in the tail: one
             // box tank in the 'behind the cabin' bay, the boat tail just aft of the seat
@@ -2920,14 +2930,13 @@ const ARCHETYPES = [
                     paint: { job: 'full', sweep: 0, base: 0x7fa8c9, trim: 0xc96f2a },
                     finish: { decals: {
                       regL: 0.45, regC: -0.10, regH: 0.30, regCol: 0x20211f, regOutOn: 0,
-                      // THE BONNET'S TIP OFF-WHITE (the user, 12 Nov: "color this tip, with a livery if required, with an
-                      // off white" - the radiator shell, its face back to the bonnet's panel joint): a solid marking in SIDE
-                      // projection - the craft's own (along, up) frame, along = aft from the craft root (the garage's -z):
-                      // the joint at z 3.48 to past the face at 3.85; a side projection paints every point inside the
-                      // window, the face and the top included. (A field marking cannot reach the bonnet: it has no surface
-                      // field - the first band, at the field's stations, painted the rear body)
-                      m1On: 1, m1Pat: 0, m1A: 0xf1ece0, m1B: 0xf1ece0, m1D: 0xf1ece0, m1P: 1, m1Q: 0, m1Metal: 0,
-                      m1Tgt: 0, m1Mode: 1, m1L: -3.70, m1C: 0.04, m1W: 0.46, m1H: 1.4,
+                      // THE RADIATOR SHELL POLISHED, THE BONNET BLUE (the user, 12 Nov: "the blue up till the end ... restore
+                      // the metallic only for the tip, like in the attached picture. Maybe make this part a little less long"):
+                      // the bonnet section takes the body's blue (below), the shell - the face back to the panel joint, now at
+                      // z 3.58 - a polished-metal marking in SIDE projection (side / plan markings live in the craft's frame,
+                      // along = aft from the craft root, the garage's -z)
+                      m1On: 1, m1Pat: 0, m1A: 0xd5d9de, m1B: 0xd5d9de, m1D: 0xd5d9de, m1P: 1, m1Q: 0, m1Metal: 1,
+                      m1Tgt: 0, m1Mode: 1, m1L: -3.76, m1C: 0.04, m1W: 0.36, m1H: 1.4,
                       // the copper cheat line at the waistline, the radiator nose to the boat tail
                       m2On: 1, m2Pat: 0, m2A: 0xb87333, m2B: 0xb87333, m2D: 0xb87333, m2Metal: 1,
                       m2Tgt: 0, m2Mode: 1, m2L: 0.9, m2C: 0.0, m2W: 5.0, m2H: 0.07, m2P: 0.6, m2Q: 0.25,
@@ -2941,7 +2950,7 @@ const ARCHETYPES = [
                       t1On: 1, t1Txt: 'Lady Luck', t1Face: 'greatvibes', t1B: 0, t1I: 0, t1Col: 0xefe6cf, t1Line: 0xb87333,
                       t1H: 0.20, t1L: 1.45, t1C: 0.12, t1Tgt: 0, t1Mode: 0 },
                       sections: { ...Object.fromEntries(Object.keys(BODY_PAINT(0)).map(k => [k, { tint: 0x8fb0d4, metal: 1, rough: 0.32 }])),
-                                  cowlSkin: { tint: 0xd9dde2, metal: 1, rough: 0.16 } } },
+                                  cowlSkin: { tint: 0x8fb0d4, metal: 1, rough: 0.32 } } },   // (the bonnet blue to the shell)
                     meta: { reg: '7' } } } },
   { key: 'savannah', kind: 'recreation', name: 'Savannah-alike', note: 'STOL microlight, high ' +
       'wing, big flaps, bush role',
